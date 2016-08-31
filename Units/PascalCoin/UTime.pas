@@ -27,6 +27,7 @@ function UnivDateTimeToUnix(dtDate: TDateTime): Longint;
 function UnixToUnivDateTime(USec: Longint): TDateTime;
 
 function UnixTimeToLocalElapsedTime(USec : Longint) : AnsiString;
+Function DateTimeElapsedTime(dtDate : TDateTime) : AnsiString;
 
 implementation
 
@@ -49,6 +50,11 @@ Begin
   else if positivediff<(60*60*2) then Result := '1 hour ago'
   else if positivediff<(60*60*24) then Result := inttostr(diff DIV (60*60))+' hours ago'
   else Result := inttostr(diff DIV (60*60*24))+' days ago';
+End;
+
+Function DateTimeElapsedTime(dtDate : TDateTime) : AnsiString;
+Begin
+  Result := UnixTimeToLocalElapsedTime( UnivDateTimeToUnix(DateTime2UnivDateTime(dtDate)) );
 End;
 
 Function DateTime2UnivDateTime(d:TDateTime):TDateTime;

@@ -27,16 +27,23 @@ type
     bbClose: TBitBtn;
     lblBuild: TLabel;
     lblProtocolVersion: TLabel;
+    Label2: TLabel;
+    Label3: TLabel;
+    Label4: TLabel;
+    Label5: TLabel;
     procedure FormCreate(Sender: TObject);
+    procedure Label4Click(Sender: TObject);
+    procedure Label5Click(Sender: TObject);
   private
     { Private declarations }
+    Procedure OpenURL(Url : String);
   public
     { Public declarations }
   end;
 
 implementation
 
-uses UFolderHelper, UConst;
+uses UFolderHelper, UConst, ShellApi;
 
 {$R *.dfm}
 
@@ -50,6 +57,21 @@ begin
   end else begin
     lblProtocolVersion.Caption := Format('Protocol: %d',[CT_Protocol_Version]);
   end;
+end;
+
+procedure TFRMAbout.Label4Click(Sender: TObject);
+begin
+  OpenURL(TLabel(Sender).Caption);
+end;
+
+procedure TFRMAbout.Label5Click(Sender: TObject);
+begin
+  OpenURL(TLabel(Sender).Caption);
+end;
+
+procedure TFRMAbout.OpenURL(Url: String);
+begin
+  shellexecute(0, 'open', pchar(URL), nil, nil, SW_SHOW)
 end;
 
 end.

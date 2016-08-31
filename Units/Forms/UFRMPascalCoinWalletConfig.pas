@@ -22,8 +22,6 @@ uses
 type
   TFRMPascalCoinWalletConfig = class(TForm)
     cbAutomaticMiningWhenConnectedToNodes: TCheckBox;
-    cbGenerateANewPrivateKeyForEachNewGeneratedBlock: TCheckBox;
-    udDefaultFee: TUpDown;
     ebDefaultFee: TEdit;
     Label1: TLabel;
     cbSaveLogFiles: TCheckBox;
@@ -39,10 +37,17 @@ type
     ebMinerName: TEdit;
     Label4: TLabel;
     cbShowModalMessages: TCheckBox;
+    Label5: TLabel;
+    udCPUs: TUpDown;
+    ebCPUs: TEdit;
+    lblMaxCPUS: TLabel;
+    gbMinerPrivateKey: TGroupBox;
+    rbGenerateANewPrivateKeyEachBlock: TRadioButton;
+    rbUseARandomKey: TRadioButton;
+    rbMineAllwaysWithThisKey: TRadioButton;
+    cbPrivateKeyToMine: TComboBox;
     procedure FormCreate(Sender: TObject);
     procedure bbOkClick(Sender: TObject);
-    procedure udDefaultFeeChangingEx(Sender: TObject; var AllowChange: Boolean;
-      NewValue: SmallInt; Direction: TUpDownDirection);
     procedure bbUpdatePasswordClick(Sender: TObject);
   private
     FAppParams: TAppParams;
@@ -59,20 +64,38 @@ type
 
 implementation
 
-uses UConst, UAccounts, UFRMWallet;
+uses UConst, UAccounts, UFRMWallet, ULog, UCrypto;
 
 {$R *.dfm}
 
 procedure TFRMPascalCoinWalletConfig.bbOkClick(Sender: TObject);
+Var df : Int64;
+  mpk : TMinerPrivateKey;
+  i : Integer;
 begin
-  AppParams.ParamByName[CT_PARAM_DefaultFee].SetAsInt64(udDefaultFee.Position );
+  if TAccountComp.TxtToMoney(ebDefaultFee.Text,df) then begin
+    AppParams.ParamByName[CT_PARAM_DefaultFee].SetAsInt64(df);
+  end else begin
+    ebDefaultFee.Text := TAccountComp.FormatMoney(AppParams.ParamByName[CT_PARAM_DefaultFee].GetAsInteger(0));
+    raise Exception.Create('Invalid Fee value');
+  end;
   AppParams.ParamByName[CT_PARAM_InternetServerPort].SetAsInteger(udInternetServerPort.Position );
-  AppParams.ParamByName[CT_PARAM_NewPrivateKeyForEachGeneratedBlock].SetAsBoolean(cbGenerateANewPrivateKeyForEachNewGeneratedBlock.Checked );
+  if rbGenerateANewPrivateKeyEachBlock.Checked then mpk := mpk_NewEachTime
+  else if rbUseARandomKey.Checked then mpk := mpk_Random
+  else if rbMineAllwaysWithThisKey.Checked then begin
+    mpk := mpk_Selected;
+    if cbPrivateKeyToMine.ItemIndex<0 then raise Exception.Create('Must select a private key');
+    i := Integer(cbPrivateKeyToMine.Items.Objects[cbPrivateKeyToMine.ItemIndex]);
+    if (i<0) Or (i>=FWalletKeys.Count) then raise Exception.Create('Invalid private key');
+    AppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].SetAsString( TAccountComp.AccountKey2RawString( FWalletKeys.Key[i].AccountKey ) );
+  end else mpk := mpk_Random;
+  AppParams.ParamByName[CT_PARAM_MinerPrivateKeyType].SetAsInteger(integer(mpk));
   AppParams.ParamByName[CT_PARAM_AutomaticMineWhenConnectedToNodes].SetAsBoolean(cbAutomaticMiningWhenConnectedToNodes.Checked );
   AppParams.ParamByName[CT_PARAM_SaveLogFiles].SetAsBoolean(cbSaveLogFiles.Checked );
   AppParams.ParamByName[CT_PARAM_ShowLogs].SetAsBoolean(cbShowLogs.Checked );
   AppParams.ParamByName[CT_PARAM_MinerName].SetAsString(ebMinerName.Text);
   AppParams.ParamByName[CT_PARAM_ShowModalMessages].SetAsBoolean(cbShowModalMessages.Checked);
+  AppParams.ParamByName[CT_PARAM_MaxCPUs].SetAsInteger(udCPUs.Position);
 end;
 
 procedure TFRMPascalCoinWalletConfig.bbUpdatePasswordClick(Sender: TObject);
@@ -107,26 +130,40 @@ procedure TFRMPascalCoinWalletConfig.FormCreate(Sender: TObject);
 begin
   lblDefaultInternetServerPort.Caption := Format('(Default %d)',[CT_NetServer_Port]);
   udInternetServerPort.Position := CT_NetServer_Port;
-  udDefaultFee.Position := 0;
   ebDefaultFee.Text := TAccountComp.FormatMoney(0);
   ebMinerName.Text := '';
   bbUpdatePassword.Enabled := false;
   UpdateWalletConfig;
+  udCPUs.Max := CPUCount;
+  lblMaxCPUS.Caption := '(Avail. '+inttostr(CPUCount)+' cpu''s)';
 end;
 
 procedure TFRMPascalCoinWalletConfig.SetAppParams(const Value: TAppParams);
+Var i : Integer;
 begin
   FAppParams := Value;
   if Not Assigned(Value) then exit;
-  udInternetServerPort.Position := AppParams.ParamByName[CT_PARAM_InternetServerPort].GetAsInteger(CT_NetServer_Port);
-  udDefaultFee.Position := AppParams.ParamByName[CT_PARAM_DefaultFee].GetAsInt64(0);
-  ebDefaultFee.Text := TAccountComp.FormatMoney(udDefaultFee.Position);
-  cbAutomaticMiningWhenConnectedToNodes.Checked := AppParams.ParamByName[CT_PARAM_AutomaticMineWhenConnectedToNodes].GetAsBoolean(true);
-  cbGenerateANewPrivateKeyForEachNewGeneratedBlock.Checked := AppParams.ParamByName[CT_PARAM_NewPrivateKeyForEachGeneratedBlock].GetAsBoolean(false);
-  cbSaveLogFiles.Checked := AppParams.ParamByName[CT_PARAM_SaveLogFiles].GetAsBoolean(false);
-  cbShowLogs.Checked := AppParams.ParamByName[CT_PARAM_ShowLogs].GetAsBoolean(false);
-  ebMinerName.Text := AppParams.ParamByName[CT_PARAM_MinerName].GetAsString('');
-  cbShowModalMessages.Checked := AppParams.ParamByName[CT_PARAM_ShowModalMessages].GetAsBoolean(false);
+  Try
+    udInternetServerPort.Position := AppParams.ParamByName[CT_PARAM_InternetServerPort].GetAsInteger(CT_NetServer_Port);
+    ebDefaultFee.Text := TAccountComp.FormatMoney(AppParams.ParamByName[CT_PARAM_DefaultFee].GetAsInt64(0));
+    cbAutomaticMiningWhenConnectedToNodes.Checked := AppParams.ParamByName[CT_PARAM_AutomaticMineWhenConnectedToNodes].GetAsBoolean(true);
+    case TMinerPrivateKey(AppParams.ParamByName[CT_PARAM_MinerPrivateKeyType].GetAsInteger(Integer(mpk_Random))) of
+      mpk_NewEachTime : rbGenerateANewPrivateKeyEachBlock.Checked := true;
+      mpk_Random : rbUseARandomKey.Checked := true;
+      mpk_Selected : rbMineAllwaysWithThisKey.Checked := true;
+    else rbUseARandomKey.Checked := true;
+    end;
+    UpdateWalletConfig;
+    cbSaveLogFiles.Checked := AppParams.ParamByName[CT_PARAM_SaveLogFiles].GetAsBoolean(false);
+    cbShowLogs.Checked := AppParams.ParamByName[CT_PARAM_ShowLogs].GetAsBoolean(false);
+    ebMinerName.Text := AppParams.ParamByName[CT_PARAM_MinerName].GetAsString('');
+    cbShowModalMessages.Checked := AppParams.ParamByName[CT_PARAM_ShowModalMessages].GetAsBoolean(false);
+    udCPUs.Position := AppParams.ParamByName[CT_PARAM_MaxCPUs].GetAsInteger(1);
+  Except
+    On E:Exception do begin
+      TLog.NewLog(lterror,ClassName,'Exception at SetAppParams: '+E.Message);
+    end;
+  End;
 end;
 
 procedure TFRMPascalCoinWalletConfig.SetWalletKeys(const Value: TWalletKeys);
@@ -135,14 +172,11 @@ begin
   UpdateWalletConfig;
 end;
 
-procedure TFRMPascalCoinWalletConfig.udDefaultFeeChangingEx(Sender: TObject;
-  var AllowChange: Boolean; NewValue: SmallInt; Direction: TUpDownDirection);
-begin
-  AllowChange := true;
-  ebDefaultFee.Text := TAccountComp.FormatMoney(NewValue);
-end;
 
 procedure TFRMPascalCoinWalletConfig.UpdateWalletConfig;
+Var i, iselected : Integer;
+  s : String;
+  wk : TWalletKey;
 begin
   if Assigned(FWalletKeys) then begin
     if FWalletKeys.IsValidPassword then begin
@@ -154,6 +188,29 @@ begin
     end else begin
         bbUpdatePassword.Caption := 'Wallet with password, change it!';
     end;
+    cbPrivateKeyToMine.Items.Clear;
+    for i := 0 to FWalletKeys.Count - 1 do begin
+      wk := FWalletKeys.Key[i];
+      if (wk.Name='') then begin
+        s := TCrypto.ToHexaString( TAccountComp.AccountKey2RawString(wk.AccountKey));
+      end else begin
+        s := wk.Name;
+      end;
+      if wk.CryptedKey<>'' then begin
+        cbPrivateKeyToMine.Items.AddObject(s,TObject(i));
+      end;
+    end;
+    cbPrivateKeyToMine.Sorted := true;
+    if Assigned(FAppParams) then begin
+      s := FAppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].GetAsString('');
+      iselected := FWalletKeys.IndexOfAccountKey(TAccountComp.RawString2Accountkey(s));
+      if iselected>=0 then begin
+        iselected :=  cbPrivateKeyToMine.Items.IndexOfObject(TObject(iselected));
+        cbPrivateKeyToMine.ItemIndex := iselected;
+      end;
+
+    end;
+
   end else bbUpdatePassword.Caption := '(Wallet password)';
   bbUpdatePassword.Enabled := Assigned(FWAlletKeys);
 end;

@@ -192,7 +192,7 @@ begin
           end;
         end;
       end;
-    end;// else isOk := false;
+    end;
   end;
   FIsValidPassword := isOk;
 end;

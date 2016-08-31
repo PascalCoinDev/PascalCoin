@@ -53,13 +53,16 @@ Type
     Property AccountKey : TAccountKey read FAccountKey write SetAccountKey;
     Property Paused : Boolean read FPaused Write FPaused;
     Function HashRate : Int64;
+    Class function AllMinersPlayCount : Int64;
   End;
 
 implementation
 
-uses UNode, ULog, SysUtils, UConst, UOpTransaction;
+uses UNode, ULog, SysUtils, UConst, UOpTransaction, UCrypto;
 
 { TMinerThread }
+
+var _all_miners_play_count : Int64;
 
 procedure TMinerThread.CheckIfCanRecoverBlocks;
 Var n_account : Cardinal;
@@ -103,7 +106,13 @@ begin
   FOperations.AccountKey := AccountKey;
   FOnNewAccountFound := AOnNewAccountFound;
   FOnErrorFound := AOnErrorFound;
+  Priority := tpLower;
   Suspended := false;
+end;
+
+class function TMinerThread.AllMinersPlayCount: Int64;
+begin
+  Result := _all_miners_play_count;
 end;
 
 procedure TMinerThread.BCExecute;
@@ -120,16 +129,20 @@ begin
     Try
       if Terminated then exit;
       winner := false;
-      TPCThread.ProtectEnterCriticalSection(Self,FLock);
+      TPCThread.ProtectEnterCriticalSection(Self,'Mining process',FLock);
       try
         FOperations.UpdateTimestamp;
         FOperations.AccountKey := FAccountKey;
-        for I := 0 to 50000 do begin
+        for i := 0 to 100000 do begin
           inc(FPlayCount);
+          inc(_all_miners_play_count);
+          if Terminated then exit;
+
           if FOperations.IncrementNOnce then begin
             winner := true;
             break;
           end;
+
         end;
       finally
         LeaveCriticalSection(FLock);
@@ -174,7 +187,7 @@ end;
 
 function TMinerThread.MinerLockOperations: TPCOperationsComp;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,FLock);
+  TPCThread.ProtectEnterCriticalSection(Self,'MinerLockOperations',FLock);
   Result := FOperations;
 end;
 
@@ -199,4 +212,7 @@ begin
   if assigned(FOnNewAccountFound) then FOnNewAccountFound(self,FOperations);
 end;
 
+initialization
+  _all_miners_play_count := 0;
+finalization
 end.

@@ -36,7 +36,7 @@ Type
     FBank : TPCBank;
     FOperations : TPCOperationsComp;
     FNetServer : TNetServer;
-    FMinerThreads : TThreadList;
+    FMinerThreads : TPCThreadList;
     FBCBankNotify : TPCBankNotify;
     Procedure OnBankNewBlock(Sender : TObject);
     Procedure StartLocking(MaxWaitMilliseconds : Cardinal);
@@ -51,7 +51,7 @@ Type
     Property Bank : TPCBank read FBank;
     Function NetServer : TNetServer;
     Function MinersCount : Integer;
-    Property MinerThreads : TThreadList read FMinerThreads;
+    Property MinerThreads : TPCThreadList read FMinerThreads;
     Function AddMiner(AccountKey : TAccountKey) : TMinerThread;
     Procedure DeleteMiner(index : Integer);
     Procedure NotifyNetClientMessage(Sender : TNetConnection; Const TheMessage : AnsiString);
@@ -62,7 +62,9 @@ Type
     Function AddOperations(SenderConnection : TNetConnection; Operations : TOperationsHashTree; var errors: AnsiString): Integer;
     Function AddOperation(SenderConnection : TNetConnection; Operation : TPCOperation; var errors: AnsiString): Boolean;
     Function SendNodeMessage(Target : TNetConnection; TheMessage : AnsiString; var errors : AnsiString) : Boolean;
-
+    //
+    Procedure NotifyBlocksChanged;
+    //
     Procedure AutoDiscoverNodes(Const ips : AnsiString);
     Function IsBlockChainValid(var WhyNot : AnsiString) : Boolean;
     Function IsReady(Var CurrentProcess : AnsiString) : Boolean;
@@ -84,7 +86,7 @@ Type
   TNodeNotifyEvents = Class(TComponent)
   private
     FNode: TNode;
-    FPendingNotificationsList : TThreadList;
+    FPendingNotificationsList : TPCThreadList;
     FThreadSafeNodeNotifyEvent : TThreadSafeNodeNotifyEvent;
     FOnBlocksChanged: TNotifyEvent;
     FOnOperationsChanged: TNotifyEvent;
@@ -101,6 +103,22 @@ Type
     Property OnBlocksChanged : TNotifyEvent read FOnBlocksChanged write FOnBlocksChanged;
     Property OnOperationsChanged : TNotifyEvent read FOnOperationsChanged write FOnOperationsChanged;
     Property OnNodeMessageEvent : TNodeMessageEvent read FOnNodeMessageEvent write FOnNodeMessageEvent;
+  End;
+
+  TThreadNodeNotifyNewBlock = Class(TPCThread)
+    FNetConnection : TNetConnection;
+  protected
+    procedure BCExecute; override;
+    Constructor Create(NetConnection : TNetConnection);
+  End;
+
+  TThreadNodeNotifyOperations = Class(TPCThread)
+    FNetConnection : TNetConnection;
+    FOperationsHashTree : TOperationsHashTree;
+  protected
+    procedure BCExecute; override;
+    Constructor Create(NetConnection : TNetConnection; MakeACopyOfOperationsHashTree : TOperationsHashTree);
+    destructor Destroy; override;
   End;
 
 implementation
@@ -124,7 +142,7 @@ begin
   finally
     Result.MinerUnLockOperations(True);
   end;
-  FMinerThreads.Add(Result);
+  FMinerThreads.Add(Result,'TNode.AddMiner');
 end;
 
 function TNode.AddNewBlockChain(SenderMiner: TMinerThread; SenderConnection: TNetConnection; NewBlockOperations: TPCOperationsComp;
@@ -134,7 +152,9 @@ Var i : Integer;
   nc : TNetConnection;
   ms : TMemoryStream;
   mtl : TList;
+  netConnectionsList : TList;
 begin
+  Result := false;
   TLog.NewLog(ltdebug,Classname,Format('AddNewBlockChain Miner:%s Connection:%s NewBlock:%s',[Inttohex(Integer(SenderMiner),8),
     Inttohex(Integer(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
   Try
@@ -161,10 +181,11 @@ begin
     if Result then begin
       FOperations.SanitizeOperations;
       // Notify to all clients and other miners
-      mtl := FMinerThreads.LockList;
+      mtl := FMinerThreads.LockList('TNode.AddNewBlockChain - Notify clients');
       try
         for i := 0 to mtl.Count - 1 do begin
-          if (mtl[i]<>SenderMiner) OR (1=1) then begin
+          if (mtl[i]<>SenderMiner) then begin
+            TLog.NewLog(ltdebug,Classname,'Sending new Operations to miner '+inttostr(i+1)+'/'+inttostr(mtl.Count));
             operationscomp := TMinerThread(mtl[i]).MinerLockOperations;
             try
               operationscomp.CopyFromExceptAddressKey(FOperations);
@@ -179,20 +200,17 @@ begin
         FMinerThreads.UnlockList;
       end;
       // Notify to clients
-      for i:=0 to TNetData.NetData.ConnectionsCount(false)-1 do begin
-        nc := TNetData.NetData.Connection(i);
-        if (SenderConnection<>nc) then begin
-          nc.Send_NewBlockFound;
+      netConnectionsList := TNetData.NetData.ConnectionsLock;
+      Try
+        for i:=0 to netConnectionsList.Count-1 do begin
+          nc := netConnectionsList[i];
+          if (SenderConnection<>nc) then begin
+            TThreadNodeNotifyNewBlock.Create(nc);
+          end;
         end;
-      end;
-      // Send sanitized operations to other nodes
-      if FOperations.OperationsHashTree.OperationsCount>0 then begin
-        TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(FOperations.OperationsHashTree.OperationsCount)+' sanitized operations to nodes');
-        for i:=0 to TNetData.NetData.ConnectionsCount(false)-1 do begin
-          nc := TNetData.NetData.Connection(i);
-          nc.Send_AddOperations(FOperations.OperationsHashTree);
-        end;
-      end;
+      Finally
+        TNetData.NetData.ConnectionsUnlock;
+      End;
     end else begin
       // If error is on a SenderMiner its a hole
       FOperations.SanitizeOperations;
@@ -205,7 +223,7 @@ begin
           SenderMiner.MinerUnLockOperations(true);
         end;
         // Reset others:
-        mtl := FMinerThreads.LockList;
+        mtl := FMinerThreads.LockList('TNode.AddNewBlockChain - Reset others');
         try
           for i := 0 to mtl.Count - 1 do begin
             if (TMinerThread(mtl[i])<>SenderMiner) then begin
@@ -229,9 +247,7 @@ begin
   End;
   if Result then begin
     // Notify it!
-    for i := 0 to FNotifyList.Count-1 do begin
-      TNodeNotifyEvents( FNotifyList[i] ).NotifyBlocksChanged;
-    end;
+    NotifyBlocksChanged;
   end;
 end;
 
@@ -255,6 +271,7 @@ Var
   nc : TNetConnection;
   e : AnsiString;
   mtl : TList;
+  netConnectionsList : TList;
 begin
   Result := -1;
   TLog.NewLog(ltdebug,Classname,Format('AddOperations Connection:%s Operations:%d',[
@@ -284,7 +301,7 @@ begin
       end;
       if Result=0 then exit;
       // Send to miners
-      mtl := FMinerThreads.LockList;
+      mtl := FMinerThreads.LockList('TNode.AddOperations');
       Try
         for i := 0 to mtl.Count - 1 do begin
           operationscomp := TMinerThread(mtl[i]).MinerLockOperations;
@@ -298,12 +315,17 @@ begin
         FMinerThreads.UnlockList;
       End;
       // Send to other nodes
-      for i:=0 to TNetData.NetData.ConnectionsCount(false)-1 do begin
-        nc := TNetData.NetData.Connection(i);
-        if (nc<>SenderConnection) then begin
-          nc.Send_AddOperations(valids_operations);
+      netConnectionsList := TNetData.NetData.ConnectionsLock;
+      Try
+        for i:=0 to netConnectionsList.Count-1 do begin
+          nc := netConnectionsList[i];
+          if (nc<>SenderConnection) then begin
+            TThreadNodeNotifyOperations.Create(nc,valids_operations);
+          end;
         end;
-      end;
+      Finally
+        TNetData.NetData.ConnectionsUnlock;
+      End;
     finally
       valids_operations.Free;
     end;
@@ -378,7 +400,7 @@ begin
   FBCBankNotify.Bank := FBank;
   FBCBankNotify.OnNewBlock := OnBankNewBlock;
   FNetServer := TNetServer.Create(Self);
-  FMinerThreads := TThreadList.Create;
+  FMinerThreads := TPCThreadList.Create;
   FOperations := TPCOperationsComp.Create(Self);
   FOperations.bank := FBank;
   FNotifyList := TList.Create;
@@ -389,7 +411,7 @@ procedure TNode.DeleteMiner(index: Integer);
 Var m : TMinerThread;
   mtl : TList;
 begin
-  mtl := FMinerThreads.LockList;
+  mtl := FMinerThreads.LockList('TNode.DeleteMiner');
   Try
     m := TMinerThread(mtl[index]);
     m.Suspended := false;
@@ -477,10 +499,14 @@ begin
   CurrentProcess := '';
   if FBank.IsReady(CurrentProcess) then begin
     if FNetServer.Active then begin
-      if TNetData.NetData.MaxRemoteOperationBlock.block>FOperations.OperationBlock.block then begin
-        CurrentProcess := 'Found block '+inttostr(TNetData.NetData.MaxRemoteOperationBlock.block);
+      if TNetData.NetData.IsGettingNewBlockChainFromClient then begin
+        CurrentProcess := 'Obtaining valid BlockChain - Found block '+inttostr(TNetData.NetData.MaxRemoteOperationBlock.block);
       end else begin
-        Result := true;
+        if TNetData.NetData.MaxRemoteOperationBlock.block>FOperations.OperationBlock.block then begin
+          CurrentProcess := 'Found block '+inttostr(TNetData.NetData.MaxRemoteOperationBlock.block)+' (Wait until downloaded)';
+        end else begin
+          Result := true;
+        end;
       end;
     end else begin
       CurrentProcess := 'Server not active';
@@ -491,7 +517,7 @@ end;
 function TNode.MinersCount : Integer;
 Var mtl : TList;
 begin
-  mtl := FMinerThreads.LockList;
+  mtl := FMinerThreads.LockList('TNode.MinersCount');
   Try
     Result := mtl.Count;
   Finally
@@ -513,6 +539,14 @@ end;
 procedure TNode.Notification(AComponent: TComponent; Operation: TOperation);
 begin
   inherited;
+end;
+
+procedure TNode.NotifyBlocksChanged;
+Var i : Integer;
+begin
+  for i := 0 to FNotifyList.Count-1 do begin
+    TNodeNotifyEvents( FNotifyList[i] ).NotifyBlocksChanged;
+  end;
 end;
 
 procedure TNode.NotifyNetClientMessage(Sender: TNetConnection; const TheMessage: AnsiString);
@@ -539,6 +573,7 @@ end;
 function TNode.SendNodeMessage(Target: TNetConnection; TheMessage: AnsiString; var errors: AnsiString): Boolean;
 Var i : Integer;
   nc : TNetConnection;
+  netConnectionsList : TList;
 begin
   Try
     StartLocking(4000);
@@ -551,13 +586,18 @@ begin
   try
     Result := false;
     errors := '';
-    if assigned(Target) then begin 
+    if assigned(Target) then begin
       Target.Send_Message(TheMessage);
     end else begin
-      for i:=0 to TNetData.NetData.ConnectionsCount(false)-1 do begin
-        nc := TNetData.NetData.Connection(i);
-        nc.Send_Message(TheMessage);
-      end;        
+      netConnectionsList := TNetData.NetData.ConnectionsLock;
+      Try
+        for i:=0 to netConnectionsList.Count-1 do begin
+          nc := netConnectionsList[i];
+          nc.Send_Message(TheMessage);
+        end;
+      Finally
+        TNetData.NetData.ConnectionsUnlock;
+      End;
     end;
     result := true;
   finally
@@ -593,7 +633,7 @@ begin
   FOnBlocksChanged := Nil;
   FOnNodeMessageEvent := Nil;
   FMessages := TStringList.Create;
-  FPendingNotificationsList := TThreadList.Create;
+  FPendingNotificationsList := TPCThreadList.Create;
   FThreadSafeNodeNotifyEvent := TThreadSafeNodeNotifyEvent.Create(false);
   FThreadSafeNodeNotifyEvent.FNodeNotifyEvents := Self;
   FThreadSafeNodeNotifyEvent.FreeOnTerminate := true;
@@ -674,6 +714,56 @@ begin
     end;
     FNodeNotifyEvents.FMessages.Clear;
   end;
+end;
+
+{ TThreadNodeNotifyNewBlock }
+
+procedure TThreadNodeNotifyNewBlock.BCExecute;
+begin
+  If Not TNetData.NetData.ConnectionExists(FNetConnection) then begin
+    TLog.NewLog(ltdebug,Classname,'Connection not exists');
+  end;
+  TLog.NewLog(ltdebug,ClassName,'Sending new block found to '+FNetConnection.Client.RemoteHost+':'+FNetConnection.Client.RemotePort);
+  FNetConnection.Send_NewBlockFound;
+  if TNode.Node.Operations.OperationsHashTree.OperationsCount>0 then begin
+     TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(TNode.Node.Operations.OperationsHashTree.OperationsCount)+' sanitized operations to '+FNetConnection.Client.RemoteHost+':'+FNetConnection.Client.RemotePort);
+     FNetConnection.Send_AddOperations(TNode.Node.Operations.OperationsHashTree);
+  end;
+end;
+
+constructor TThreadNodeNotifyNewBlock.Create(NetConnection: TNetConnection);
+begin
+  FNetConnection := NetConnection;
+  Inherited Create(false);
+  FreeOnTerminate := true;
+end;
+
+{ TThreadNodeNotifyOperations }
+
+procedure TThreadNodeNotifyOperations.BCExecute;
+begin
+  If Not TNetData.NetData.ConnectionExists(FNetConnection) then begin
+    TLog.NewLog(ltdebug,Classname,'Connection not exists');
+  end;
+  if FOperationsHashTree.OperationsCount<=0 then exit;
+  TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(FOperationsHashTree.OperationsCount)+' Operations to '+FNetConnection.Client.RemoteHost+':'+FNetConnection.Client.RemotePort);
+  FNetConnection.Send_AddOperations(TNode.Node.Operations.OperationsHashTree);
+end;
+
+constructor TThreadNodeNotifyOperations.Create(NetConnection: TNetConnection;
+  MakeACopyOfOperationsHashTree: TOperationsHashTree);
+begin
+  FOperationsHashTree := TOperationsHashTree.Create;
+  FOperationsHashTree.CopyFromHashTree(MakeACopyOfOperationsHashTree);
+  FNetConnection := NetConnection;
+  Inherited Create(false);
+  FreeOnTerminate := true;
+end;
+
+destructor TThreadNodeNotifyOperations.Destroy;
+begin
+  FOperationsHashTree.Free;
+  inherited;
 end;
 
 initialization

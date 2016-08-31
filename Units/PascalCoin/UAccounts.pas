@@ -851,7 +851,7 @@ begin
     TLog.NewLog(lterror,Classname,'IS LOCKED !!!');
     raise Exception.Create('IS LOCKED !!!');
   end;
-  TPCThread.ProtectEnterCriticalSection(Self,FLock);
+  TPCThread.ProtectEnterCriticalSection(Self,'StartThreadSafe',FLock);
   FIsLocked := true;
 end;
 

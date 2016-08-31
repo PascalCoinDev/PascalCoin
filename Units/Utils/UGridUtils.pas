@@ -44,6 +44,7 @@ Type
 
   TAccountsGrid = Class(TComponent)
   private
+    FAccountsBalance : Int64;
     FAccountsList : TOrderedCardinalList;
     FColumns : Array of TAccountColumn;
     FDrawGrid : TDrawGrid;
@@ -69,6 +70,7 @@ Type
     Procedure SaveToStream(Stream : TStream);
     Procedure LoadFromStream(Stream : TStream);
     Property ShowAllAccounts : Boolean read FShowAllAccounts write SetShowAllAccounts;
+    Property AccountsBalance : Int64 read FAccountsBalance;
   End;
 
   TOperationsGrid = Class(TComponent)
@@ -77,6 +79,7 @@ Type
     FAccountNumber: Int64;
     FOperationsResume : TOperationsResumeList;
     FNodeNotifyEvents : TNodeNotifyEvents;
+    FPendingOperations: Boolean;
     Procedure OnNodeNewOperation(Sender : TObject);
     Procedure OnNodeNewAccount(Sender : TObject);
     Procedure InitGrid;
@@ -85,12 +88,14 @@ Type
     procedure SetAccountNumber(const Value: Int64);
     procedure SetNode(const Value: TNode);
     function GetNode: TNode;
+    procedure SetPendingOperations(const Value: Boolean);
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); Override;
   public
     Constructor Create(AOwner : TComponent); override;
     Destructor Destroy; override;
     Property DrawGrid : TDrawGrid read FDrawGrid write SetDrawGrid;
+    Property PendingOperations : Boolean read FPendingOperations write SetPendingOperations;
     Property AccountNumber : Int64 read FAccountNumber write SetAccountNumber;
     Property Node : TNode read GetNode write SetNode;
     Procedure UpdateAccountOperations;
@@ -217,6 +222,7 @@ constructor TAccountsGrid.Create(AOwner: TComponent);
 Var i : Integer;
 begin
   inherited;
+  FAccountsBalance := 0;
   FShowAllAccounts := false;
   FAccountsList := TOrderedCardinalList.Create;
   FDrawGrid := Nil;
@@ -247,16 +253,25 @@ end;
 
 procedure TAccountsGrid.InitGrid;
 Var i : Integer;
+  acc : TAccount;
 begin
+  FAccountsBalance := 0;
   if Not assigned(DrawGrid) then exit;
   if FShowAllAccounts then begin
     if Assigned(Node) then begin
       if Node.Bank.AccountsCount<1 then DrawGrid.RowCount := 2
       else DrawGrid.RowCount := Node.Bank.AccountsCount+1;
+      FAccountsBalance := Node.Bank.SafeBox.TotalBalance;
     end else DrawGrid.RowCount := 2;
   end else begin
     if FAccountsList.Count<1 then DrawGrid.RowCount := 2
     else DrawGrid.RowCount := FAccountsList.Count+1;
+    if Assigned(Node) then begin
+      for i := 0 to FAccountsList.Count - 1 do begin
+        acc := Node.Bank.SafeBox.Account( FAccountsList.Get(i) );
+        inc(FAccountsBalance, acc.balance);
+      end;
+    end;
   end;
   DrawGrid.FixedRows := 1;
   if Length(FColumns)=0 then DrawGrid.ColCount := 1
@@ -532,6 +547,7 @@ end;
 
 constructor TOperationsGrid.Create(AOwner: TComponent);
 begin
+  FAccountNumber := 0;
   FDrawGrid := Nil;
   FOperationsResume := TOperationsResumeList.Create;
   FNodeNotifyEvents := TNodeNotifyEvents.Create(Self);
@@ -695,6 +711,7 @@ procedure TOperationsGrid.SetAccountNumber(const Value: Int64);
 begin
   if FAccountNumber=Value then exit;
   FAccountNumber := Value;
+  if FAccountNumber>=0 then FPendingOperations := false;
   UpdateAccountOperations;
 end;
 
@@ -713,6 +730,13 @@ procedure TOperationsGrid.SetNode(const Value: TNode);
 begin
   FNodeNotifyEvents.Node := Value;
   InitGrid;
+end;
+
+procedure TOperationsGrid.SetPendingOperations(const Value: Boolean);
+begin
+  FPendingOperations := Value;
+  if FPendingOperations then  FAccountNumber := -1;
+  UpdateAccountOperations;
 end;
 
 procedure TOperationsGrid.ShowModalDecoder(WalletKeys: TWalletKeys; AppParams : TAppParams);
@@ -736,46 +760,53 @@ procedure TOperationsGrid.UpdateAccountOperations;
 Var list : TList;
   i,j : Integer;
   OPR : TOperationResume;
-  bbalance : Int64;
   Op : TPCOperation;
 begin
   FOperationsResume.Clear;
   Try
     if Not Assigned(Node) then exit;
-    if AccountNumber<0 then begin
-      list := TList.Create;
-      try
-        for i := 0 to Node.Operations.Count-1 do begin
-          Op := Node.Operations.Operation[i];
-          If TDBStorage.OperationToOperationResume(Op,Op.SenderAccount,OPR) then begin
-            OPR.Block := Node.Operations.OperationBlock.block;
-            OPR.Balance := Node.Operations.SafeBoxTransaction.Account(Op.SenderAccount).balance;
-            FOperationsResume.Add(OPR);
-          end;
+    if FPendingOperations then begin
+      for i := Node.Operations.Count - 1 downto 0 do begin
+        Op := Node.Operations.OperationsHashTree.GetOperation(i);
+        If TDBStorage.OperationToOperationResume(Op,Op.SenderAccount,OPR) then begin
+          OPR.Block := Node.Operations.OperationBlock.block;
+          OPR.Balance := Node.Operations.SafeBoxTransaction.Account(Op.SenderAccount).balance;
+          FOperationsResume.Add(OPR);
         end;
-      finally
-        list.Free;
       end;
     end else begin
-      list := TList.Create;
-      Try
-        Node.Operations.OperationsHashTree.GetOperationsAffectingAccount(AccountNumber,list);
-//        bbalance := Node.Bank.SafeBox.Account(AccountNumber).balance;
-        for i := list.Count - 1 downto 0 do begin
-          Op := Node.Operations.OperationsHashTree.GetOperation(Integer(list[i]));
-          If TDBStorage.OperationToOperationResume(Op,AccountNumber,OPR) then begin
-            OPR.Block := Node.Operations.OperationBlock.block;
-//            bbalance := bbalance + OPR.Amount - OPR.Fee;
-//            OPR.Balance := bbalance;
-            OPR.Balance := Node.Operations.SafeBoxTransaction.Account(AccountNumber).balance;
-            FOperationsResume.Add(OPR);
+      if AccountNumber<0 then begin
+        list := TList.Create;
+        try
+          for i := 0 to Node.Operations.Count-1 do begin
+            Op := Node.Operations.Operation[i];
+            If TDBStorage.OperationToOperationResume(Op,Op.SenderAccount,OPR) then begin
+              OPR.Block := Node.Operations.OperationBlock.block;
+              OPR.Balance := Node.Operations.SafeBoxTransaction.Account(Op.SenderAccount).balance;
+              FOperationsResume.Add(OPR);
+            end;
           end;
+        finally
+          list.Free;
         end;
-      Finally
-        list.Free;
-      End;
-      if Node.Bank.Storage is TDBStorage then begin
-        TDBStorage(Node.Bank.Storage).GetOperationsFromAccount(FOperationsResume,AccountNumber,0,20);
+      end else begin
+        list := TList.Create;
+        Try
+          Node.Operations.OperationsHashTree.GetOperationsAffectingAccount(AccountNumber,list);
+          for i := list.Count - 1 downto 0 do begin
+            Op := Node.Operations.OperationsHashTree.GetOperation(Integer(list[i]));
+            If TDBStorage.OperationToOperationResume(Op,AccountNumber,OPR) then begin
+              OPR.Block := Node.Operations.OperationBlock.block;
+              OPR.Balance := Node.Operations.SafeBoxTransaction.Account(AccountNumber).balance;
+              FOperationsResume.Add(OPR);
+            end;
+          end;
+        Finally
+          list.Free;
+        End;
+        if Node.Bank.Storage is TDBStorage then begin
+          TDBStorage(Node.Bank.Storage).GetOperationsFromAccount(FOperationsResume,AccountNumber,0,200);
+        end;
       end;
     end;
   Finally
@@ -963,9 +994,7 @@ begin
   fld := DataSet.FieldByName('op_account');
   fld.AsString := TAccountComp.AccountNumberToAccountTxtNumber(DataSet.FieldByName(CT_TblFld_Operations_account).AsInteger);
   fld := DataSet.FieldByName('payload_txt');
-//  TDBStorage.BlobSaveToRaw(DataSet.FieldByName(CT_TblFld_Operations_payload_stream) as TBlobField,raw);
   TDBStorage.DBStringFieldToRaw(DataSet.FieldByName(CT_TblFld_Operations_rawpayload),raw);
-//  raw := DataSet.FieldByName(CT_TblFld_Operations_payload).AsAnsiString;
   If TDBStorage.DBPayloadToReadableText(raw,s) then begin
     fld.AsString := s;
   end else begin

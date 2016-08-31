@@ -4,7 +4,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
   Caption = 'Options'
-  ClientHeight = 311
+  ClientHeight = 460
   ClientWidth = 374
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -19,7 +19,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   TextHeight = 13
   object Label1: TLabel
     Left = 30
-    Top = 201
+    Top = 335
     Width = 120
     Height = 13
     Caption = 'Default fee for operation'
@@ -58,6 +58,20 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Font.Style = []
     ParentFont = False
   end
+  object Label5: TLabel
+    Left = 30
+    Top = 176
+    Width = 60
+    Height = 13
+    Caption = 'CPU'#39's to use'
+  end
+  object lblMaxCPUS: TLabel
+    Left = 248
+    Top = 176
+    Width = 70
+    Height = 13
+    Caption = '(Default XXXX)'
+  end
   object cbAutomaticMiningWhenConnectedToNodes: TCheckBox
     Left = 15
     Top = 150
@@ -66,37 +80,18 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Caption = 'Allow automatic mining when connected to nodes'
     TabOrder = 4
   end
-  object cbGenerateANewPrivateKeyForEachNewGeneratedBlock: TCheckBox
-    Left = 15
-    Top = 173
-    Width = 326
-    Height = 17
-    Caption = 'Generate a new Private key for each new generated block'
-    TabOrder = 5
-  end
-  object udDefaultFee: TUpDown
-    Left = 226
-    Top = 198
-    Width = 17
-    Height = 21
-    Max = 5000000
-    Increment = 5
-    TabOrder = 7
-    Thousands = False
-    OnChangingEx = udDefaultFeeChangingEx
-  end
   object ebDefaultFee: TEdit
     Left = 170
-    Top = 198
+    Top = 332
     Width = 56
     Height = 21
     Alignment = taRightJustify
-    TabOrder = 6
+    TabOrder = 7
     Text = '0'
   end
   object cbSaveLogFiles: TCheckBox
     Left = 15
-    Top = 225
+    Top = 359
     Width = 97
     Height = 17
     Caption = 'Save log file'
@@ -104,15 +99,15 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   end
   object cbShowLogs: TCheckBox
     Left = 15
-    Top = 248
+    Top = 382
     Width = 97
     Height = 17
     Caption = 'Show logs'
     TabOrder = 9
   end
   object bbOk: TBitBtn
-    Left = 186
-    Top = 270
+    Left = 171
+    Top = 410
     Width = 75
     Height = 25
     DoubleBuffered = True
@@ -122,8 +117,8 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     OnClick = bbOkClick
   end
   object bbCancel: TBitBtn
-    Left = 276
-    Top = 270
+    Left = 261
+    Top = 410
     Width = 75
     Height = 25
     DoubleBuffered = True
@@ -232,10 +227,71 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   end
   object cbShowModalMessages: TCheckBox
     Left = 170
-    Top = 225
+    Top = 359
     Width = 171
     Height = 17
     Caption = 'Show Modal Messages'
     TabOrder = 12
+  end
+  object udCPUs: TUpDown
+    Left = 226
+    Top = 173
+    Width = 16
+    Height = 21
+    Associate = ebCPUs
+    Min = 1
+    Max = 6
+    Position = 1
+    TabOrder = 6
+    Thousands = False
+  end
+  object ebCPUs: TEdit
+    Left = 170
+    Top = 173
+    Width = 56
+    Height = 21
+    Alignment = taRightJustify
+    TabOrder = 5
+    Text = '1'
+  end
+  object gbMinerPrivateKey: TGroupBox
+    Left = 8
+    Top = 200
+    Width = 334
+    Height = 121
+    Caption = ' Miner Private Key: '
+    TabOrder = 13
+    object rbGenerateANewPrivateKeyEachBlock: TRadioButton
+      Left = 20
+      Top = 20
+      Width = 301
+      Height = 17
+      Caption = 'Generate a new Private Key for each new generated block'
+      TabOrder = 0
+    end
+    object rbUseARandomKey: TRadioButton
+      Left = 20
+      Top = 40
+      Width = 216
+      Height = 17
+      Caption = 'Use a random existing Key'
+      TabOrder = 1
+    end
+    object rbMineAllwaysWithThisKey: TRadioButton
+      Left = 20
+      Top = 61
+      Width = 216
+      Height = 17
+      Caption = 'Mine allways with this Key:'
+      TabOrder = 2
+    end
+    object cbPrivateKeyToMine: TComboBox
+      Left = 45
+      Top = 85
+      Width = 266
+      Height = 21
+      Style = csDropDownList
+      TabOrder = 3
+    end
   end
 end

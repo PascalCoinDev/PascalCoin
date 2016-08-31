@@ -66,6 +66,7 @@ Type
     Class function DoSha256(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     Class function DoSha256(const TheMessage : AnsiString) : TRawBytes; overload;
     Class function DoDoubleSha256(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
+    Class procedure DoDoubleSha256(p : PAnsiChar; plength : Cardinal; Var ResultSha256 : TRawBytes); overload;
     Class function DoDoubleSha256(const TheMessage : AnsiString) : TRawBytes; overload;
     Class function DoRipeMD160(const TheMessage : AnsiString) : TRawBytes;
     Class function PrivateKey2Hexa(Key : PEC_KEY) : AnsiString;
@@ -329,6 +330,20 @@ begin
   SHA256(p,plength,PS1);
   SHA256(PS1,32,PS);
   FreeMem(PS1,32);
+end;
+
+{ New at Build 1.0.2
+  Note: Delphi is slowly when working with Strings (allowing space)... so to
+  increase speed we use a String as a pointer, and only increase speed if
+  needed. Also the same with functions "GetMem" and "FreeMem" }
+class procedure TCrypto.DoDoubleSha256(p: PAnsiChar; plength: Cardinal; var ResultSha256: TRawBytes);
+Var PS : PAnsiChar;
+  PC : PAnsiChar;
+begin
+  If length(ResultSha256)<>32 then SetLength(ResultSha256,32);
+  PS := @ResultSha256[1];
+  SHA256(p,plength,PS);
+  SHA256(PS,32,PS);
 end;
 
 class function TCrypto.DoRipeMD160(const TheMessage: AnsiString): TRawBytes;

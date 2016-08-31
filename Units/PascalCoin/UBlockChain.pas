@@ -16,7 +16,7 @@
 interface
 
 uses
-  Classes, UCrypto, UAccounts, Windows, ULog;
+  Classes, UCrypto, UAccounts, Windows, ULog, UThread;
 
 
 Type
@@ -147,7 +147,7 @@ Type
 
   TOperationsHashTree = Class
   private
-    FHashTreeOperations : TThreadList;
+    FHashTreeOperations : TPCThreadList;
     FHashTree: TRawBytes;
     Procedure InternalAddOperationToHashTree(list : TList; op : TPCOperation);
   public
@@ -171,6 +171,7 @@ Type
     FDigest_Basic : TRawBytes;
     FDigest_Operations : TRawBytes;
     FIsOnlyOperationBlock: Boolean;
+    FStreamPoW : TMemoryStream;
     function GetOperation(index: Integer): TPCOperation;
     procedure SetBank(const value: TPCBank);
     procedure SetnOnce(const value: Cardinal);
@@ -181,7 +182,7 @@ Type
     function GetAccountKey: TAccountKey;
     Procedure Calc_Digest_Basic;
     Procedure Calc_Digest_Operations;
-    Function CalcProofOfWork(fullcalculation : Boolean): TRawBytes;
+    Procedure CalcProofOfWork(fullcalculation : Boolean; var PoW: TRawBytes);
     function GetBlockPayload: TRawBytes;
     procedure SetBlockPayload(const Value: TRawBytes);
   protected
@@ -323,7 +324,7 @@ implementation
 uses
   Messages, SysUtils, Variants, Graphics, Controls, Forms,
   Dialogs, StdCtrls,
-  UTime, UConst, UThread;
+  UTime, UConst;
 
 { TPCBank }
 
@@ -337,7 +338,7 @@ Var
   buffer, pow: AnsiString;
   i : Integer;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+  TPCThread.ProtectEnterCriticalSection(Self,'AddNewBlockChainBlock',FBankLock);
   Try
     Result := False;
     errors := '';
@@ -516,7 +517,7 @@ begin
     TLog.NewLog(lterror,Classname,'Is Restoring!!!');
     raise Exception.Create('Is restoring!');
   end;
-  TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+  TPCThread.ProtectEnterCriticalSection(Self,'DiskRestoreFromOperations',FBankLock);
   try
     FIsRestoringFromFile := true;
     try
@@ -705,7 +706,7 @@ begin
   Clear;
   Result := SafeBox.LoadFromStream(Stream,LastReadBlock,errors);
   if Result then begin
-    TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+    TPCThread.ProtectEnterCriticalSection(Self,'LoadFromStream',FBankLock);
     try
       op := TPCOperationsComp.Create(Self);
       try
@@ -735,7 +736,7 @@ end;
 
 function TPCBank.LoadOperations(Operations: TPCOperationsComp; Block: Cardinal): Boolean;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+  TPCThread.ProtectEnterCriticalSection(Self,'LoadOperations',FBankLock);
   try
     Result := Storage.LoadBlockChainBlock(Operations,Block);
   finally
@@ -899,23 +900,19 @@ begin
   end;
 end;
 
-function TPCOperationsComp.CalcProofOfWork(fullcalculation : Boolean): TRawBytes;
-Var ms : TMemoryStream;
+Procedure TPCOperationsComp.CalcProofOfWork(fullcalculation : Boolean; var PoW: TRawBytes);
 begin
   if fullcalculation then begin
     Calc_Digest_Basic;
     Calc_Digest_Operations;
   end;
-  ms := TMemoryStream.Create;
-  try
-    ms.WriteBuffer(FDigest_Basic[1],length(FDigest_Basic));
-    ms.WriteBuffer(FDigest_Operations[1],length(FDigest_Operations));
-    ms.Write(FOperationBlock.timestamp,4);
-    ms.Write(FOperationBlock.nonce,4);
-    Result := TCrypto.DoDoubleSha256(ms.Memory,ms.Size);
-  finally
-    ms.Free;
-  end;
+  // New at Build 1.0.2 to increase Hashing Speed instead of creating TMemoryStream due Delphi memory creation is slowly...
+  FStreamPoW.Position := 0;
+  FStreamPoW.WriteBuffer(FDigest_Basic[1],length(FDigest_Basic));
+  FStreamPoW.WriteBuffer(FDigest_Operations[1],length(FDigest_Operations));
+  FStreamPoW.Write(FOperationBlock.timestamp,4);
+  FStreamPoW.Write(FOperationBlock.nonce,4);
+  TCrypto.DoDoubleSha256(FStreamPoW.Memory,length(FDigest_Basic)+length(FDigest_Operations)+8,PoW);
 end;
 
 procedure TPCOperationsComp.Calc_Digest_Basic;
@@ -989,7 +986,7 @@ begin
     FOperationBlock.protocol_available := CT_Protocol_Available;
     FIsOnlyOperationBlock := false;
   Finally
-    FOperationBlock.proof_of_work := CalcProofOfWork(true);
+    CalcProofOfWork(true,FOperationBlock.proof_of_work);
   End;
 end;
 
@@ -1033,7 +1030,7 @@ begin
   FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
   FSafeBoxTransaction.CopyFrom(Operations.FSafeBoxTransaction);
   // Recalc all
-  FOperationBlock.proof_of_work := CalcProofOfWork(true);
+  CalcProofOfWork(true,FOperationBlock.proof_of_work);
 end;
 
 function TPCOperationsComp.Count: Integer;
@@ -1044,6 +1041,10 @@ end;
 constructor TPCOperationsComp.Create(AOwner: TComponent);
 begin
   inherited;
+  // New at Build 1.0.2
+  FStreamPoW := TMemoryStream.Create;
+  FStreamPoW.Position := 0;
+
   FOperationsHashTree := TOperationsHashTree.Create;
   FBank := Nil;
   FOperationBlock := GetFirstBlock;
@@ -1058,6 +1059,7 @@ begin
   Clear(true);
   FOperationsHashTree.Free;
   FSafeBoxTransaction.Free;
+  FStreamPoW.Free;
   inherited;
 end;
 
@@ -1315,7 +1317,7 @@ begin
       FOperationsHashTree := aux;
     End;
   Finally
-    FOperationBlock.proof_of_work := CalcProofOfWork(true);
+    CalcProofOfWork(true,FOperationBlock.proof_of_work);
   End;
   if (n>0) then begin
     TLog.NewLog(ltdebug,Classname,Format('Sanitize operations (before %d - after %d)',[lastn,n]));
@@ -1393,20 +1395,20 @@ begin
   if Value=FOperationBlock.block_payload then exit;
   if Length(Value)>CT_MaxPayloadSize then Exit;
   FOperationBlock.block_payload := Value;
-  FOperationBlock.proof_of_work := CalcProofOfWork(true);
+  CalcProofOfWork(true,FOperationBlock.proof_of_work);
 end;
 
 procedure TPCOperationsComp.SetnOnce(const value: Cardinal);
 begin
   FOperationBlock.nonce := value;
-  FOperationBlock.proof_of_work := CalcProofOfWork(false);
+  CalcProofOfWork(false,FOperationBlock.proof_of_work);
 end;
 
 procedure TPCOperationsComp.Settimestamp(const value: Cardinal);
 begin
   if FOperationBlock.timestamp=Value then exit; // No change, nothing to do
   FOperationBlock.timestamp := value;
-  FOperationBlock.proof_of_work := CalcProofOfWork(false);
+  CalcProofOfWork(false,FOperationBlock.proof_of_work);
 end;
 
 procedure TPCOperationsComp.UpdateTimestamp;
@@ -1433,7 +1435,7 @@ begin
       exit;
     end;
   end;
-  FOperationBlock.proof_of_work := CalcProofOfWork(true);
+  CalcProofOfWork(true,FOperationBlock.proof_of_work);
   if Not AnsiSameStr(OperationBlock.proof_of_work,lastpow) then begin
     errors := 'Invalid Proof of work calculation';
     exit;
@@ -1507,7 +1509,7 @@ end;
 procedure TOperationsHashTree.AddOperationToHashTree(op: TPCOperation);
 Var l : TList;
 begin
-  l := FHashTreeOperations.LockList;
+  l := FHashTreeOperations.LockList('TOperationsHashTree.AddOperationToHashTree');
   try
     InternalAddOperationToHashTree(l,op);
   finally
@@ -1520,7 +1522,7 @@ var op : TPCOperation;
   l : TList;
   i : Integer;
 begin
-  l := FHashTreeOperations.LockList;
+  l := FHashTreeOperations.LockList('TOperationsHashTree.ClearHastThree');
   try
     Try
       for i := 0 to l.Count - 1 do begin
@@ -1547,8 +1549,8 @@ begin
   end;
 
   ClearHastThree;
-  lme := FHashTreeOperations.LockList;
-  lsender := Sender.FHashTreeOperations.LockList;
+  lme := FHashTreeOperations.LockList('TOperationsHashTree.CopyFromHashTree me');
+  lsender := Sender.FHashTreeOperations.LockList('TOperationsHashTree.CopyFromHashTree sender');
   try
     ms := TMemoryStream.Create;
     Try
@@ -1573,7 +1575,7 @@ end;
 constructor TOperationsHashTree.Create;
 begin
   FHashTree := TCrypto.DoSha256('');
-  FHashTreeOperations := TThreadList.Create;
+  FHashTreeOperations := TPCThreadList.Create;
 end;
 
 destructor TOperationsHashTree.Destroy;
@@ -1586,7 +1588,7 @@ end;
 function TOperationsHashTree.GetOperation(index: Integer): TPCOperation;
 Var l : TList;
 begin
-  l := FHashTreeOperations.LockList;
+  l := FHashTreeOperations.LockList('TOperationsHashTree.GetOperation');
   try
     Result := TPCOperation(l[index]);
   finally
@@ -1600,7 +1602,7 @@ Var l,intl : TList;
   i,j : Integer;
 begin
   List.Clear;
-  l := FHashTreeOperations.LockList;
+  l := FHashTreeOperations.LockList('TOperationsHashTree.GetOperationsAffectingAccount');
   try
     intl := TList.Create;
     try
@@ -1641,7 +1643,7 @@ end;
 function TOperationsHashTree.OperationsCount: Integer;
 Var l : TList;
 begin
-  l := FHashTreeOperations.LockList;
+  l := FHashTreeOperations.LockList('TOperationsHashTree.OperationsCount');
   try
     Result := l.Count;
   finally

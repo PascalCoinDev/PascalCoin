@@ -38,6 +38,15 @@ If you like it, consider a donation using BitCoin:
 
 History:
 
+Build 1.0.2.0 - 2016-08-31
+--------------------------
+- Improved hashing speed
+- Allow mining without opening external ports
+- Choose how many CPU's want to mine
+- Show real-time pending operations waiting to be included in the block
+- More stable
+- Some miner modifications
+
 Build 1.0.1.0 - 2016-08-12
 --------------------------
 - Included an option to Import/Export Wallet keys file

@@ -37,7 +37,7 @@ interface
 
 uses
   UBlockChain, Classes, db, ADODB, SysUtils, UAccounts, ULog, Variants, UCrypto,
-  UConst, UOpTransaction;
+  UConst, UOpTransaction, UThread;
 
 Const
   CT_TblName_BlockChain = 'tblockchain';
@@ -75,7 +75,6 @@ Const
   CT_TblFld_Operations_fee = 'fee';
   CT_TblFld_Operations_balance = 'balance';
   CT_TblFld_Operations_rawpayload = 'payload';
-//  CT_TblFld_Operations_payload_stream = 'payload_stream';
   CT_TblFld_Operations_newaccountkey = 'newaccountkey';
   CT_TblFld_Operations_orphan = 'orphan';
 
@@ -104,7 +103,7 @@ Type
 
   TOperationsResumeList = Class
   private
-    FList : TThreadList;
+    FList : TPCThreadList;
     function GetOperationResume(index: Integer): TOperationResume;
   public
     Constructor Create;
@@ -934,7 +933,7 @@ Var P : POperationResume;
 begin
   New(P);
   P^ := OperationResume;
-  FList.Add(P);
+  FList.Add(P,'TOperationsResumeList.Add');
 end;
 
 procedure TOperationsResumeList.Clear;
@@ -942,7 +941,7 @@ Var P : POperationResume;
   i : Integer;
   l : TList;
 begin
-  l := FList.LockList;
+  l := FList.LockList('TOperationsResumeList.Clear');
   try
     for i := 0 to l.Count - 1 do begin
       P := l[i];
@@ -957,7 +956,7 @@ end;
 function TOperationsResumeList.Count: Integer;
 Var l : TList;
 begin
-  l := FList.LockList;
+  l := FList.LockList('TOperationsResumeList.Count');
   Try
     Result := l.Count;
   Finally
@@ -967,14 +966,14 @@ end;
 
 constructor TOperationsResumeList.Create;
 begin
-  FList := TThreadList.Create;
+  FList := TPCThreadList.Create;
 end;
 
 procedure TOperationsResumeList.Delete(index: Integer);
 Var P : POperationResume;
   l : TList;
 begin
-  l := FList.LockList;
+  l := FList.LockList('TOperationsResumeList.Delete');
   Try
     P := l[index];
     l.Delete(index);
@@ -994,7 +993,7 @@ end;
 function TOperationsResumeList.GetOperationResume(index: Integer): TOperationResume;
 Var l : TList;
 begin
-  l := FList.LockList;
+  l := FList.LockList('TOperationsResumeList.GetOperationResume');
   try
     if index<l.Count then Result := POperationResume(l[index])^
     else Result := CT_TOperationResume_NUL;

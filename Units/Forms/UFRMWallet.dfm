@@ -12,6 +12,7 @@ object FRMWallet: TFRMWallet
   Font.Style = []
   Menu = MainMenu
   OldCreateOrder = False
+  Position = poOwnerFormCenter
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   PixelsPerInch = 96
@@ -282,6 +283,63 @@ object FRMWallet: TFRMWallet
       Font.Style = []
       ParentFont = False
     end
+    object Label16: TLabel
+      Left = 360
+      Top = 56
+      Width = 74
+      Height = 13
+      Caption = 'Blocks found:'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = [fsBold]
+      ParentFont = False
+    end
+    object lblBlocksFound: TLabel
+      Left = 440
+      Top = 56
+      Width = 21
+      Height = 13
+      Hint = 'Blocks found while Miner is running...'
+      Caption = '000'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = [fsBold]
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+    end
+    object lblReceivedMessages: TLabel
+      Left = 360
+      Top = 66
+      Width = 185
+      Height = 23
+      Cursor = crHandPoint
+      Caption = 'Received messages'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clRed
+      Font.Height = -19
+      Font.Name = 'Tahoma'
+      Font.Style = [fsBold]
+      ParentFont = False
+      OnClick = lblReceivedMessagesClick
+    end
+    object Label15: TLabel
+      Left = 721
+      Top = 6
+      Width = 112
+      Height = 23
+      Caption = 'TEST MODE'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -19
+      Font.Name = 'Tahoma'
+      Font.Style = [fsBold]
+      ParentFont = False
+    end
     object cbAllowMining: TCheckBox
       Left = 620
       Top = 10
@@ -317,16 +375,12 @@ object FRMWallet: TFRMWallet
     Top = 91
     Width = 899
     Height = 448
-    ActivePage = tsMessages
+    ActivePage = tsAccountsExplorer
     Align = alClient
     TabOrder = 2
     OnChange = PageControlChange
     object tsAccountsExplorer: TTabSheet
       Caption = 'Accounts Explorer'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Splitter1: TSplitter
         Left = 380
         Top = 41
@@ -361,31 +415,77 @@ object FRMWallet: TFRMWallet
           OnClick = cbExploreMyAccountsClick
         end
       end
-      object dgAccounts: TDrawGrid
-        Left = 0
-        Top = 41
-        Width = 380
-        Height = 379
-        Align = alLeft
-        TabOrder = 1
-        OnClick = dgAccountsClick
-        OnColumnMoved = dgAccountsColumnMoved
-        OnFixedCellClick = dgAccountsFixedCellClick
-        ColWidths = (
-          64
-          64
-          64
-          64
-          64)
-      end
       object dgAccountOperations: TDrawGrid
         Left = 383
         Top = 41
         Width = 508
         Height = 379
         Align = alClient
-        TabOrder = 2
+        TabOrder = 1
         OnDblClick = MiDecodePayloadClick
+      end
+      object pnlAccounts: TPanel
+        Left = 0
+        Top = 41
+        Width = 380
+        Height = 379
+        Align = alLeft
+        BevelOuter = bvNone
+        TabOrder = 2
+        object dgAccounts: TDrawGrid
+          Left = 0
+          Top = 0
+          Width = 380
+          Height = 345
+          Align = alLeft
+          TabOrder = 0
+          OnClick = dgAccountsClick
+          OnColumnMoved = dgAccountsColumnMoved
+          OnFixedCellClick = dgAccountsFixedCellClick
+          ColWidths = (
+            64
+            64
+            64
+            64
+            64)
+        end
+        object pnlAccountsInfo: TPanel
+          Left = 0
+          Top = 345
+          Width = 380
+          Height = 34
+          Align = alBottom
+          BevelOuter = bvNone
+          TabOrder = 1
+          object Label17: TLabel
+            Left = 5
+            Top = 10
+            Width = 48
+            Height = 13
+            Caption = 'Accounts:'
+          end
+          object Label19: TLabel
+            Left = 120
+            Top = 10
+            Width = 88
+            Height = 13
+            Caption = 'Accounts Balance:'
+          end
+          object lblAccountsCount: TLabel
+            Left = 60
+            Top = 10
+            Width = 18
+            Height = 13
+            Caption = '000'
+          end
+          object lblAccountsBalance: TLabel
+            Left = 214
+            Top = 10
+            Width = 18
+            Height = 13
+            Caption = '000'
+          end
+        end
       end
     end
     object tsPendingOperations: TTabSheet
@@ -697,7 +797,7 @@ object FRMWallet: TFRMWallet
       object memoNetConnections: TMemo
         Left = 15
         Top = 34
-        Width = 571
+        Width = 860
         Height = 92
         ReadOnly = True
         ScrollBars = ssVertical
@@ -727,6 +827,10 @@ object FRMWallet: TFRMWallet
     object tsMessages: TTabSheet
       Caption = 'Messages'
       ImageIndex = 6
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         891
         420)
@@ -790,6 +894,15 @@ object FRMWallet: TFRMWallet
         Width = 860
         Height = 231
         Anchors = [akLeft, akTop, akRight, akBottom]
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -16
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        Lines.Strings = (
+          'dsfa '#241'ldsaf '#241'lk dasf'
+          'dsfklda'#241'fs '#241'l')
+        ParentFont = False
         ReadOnly = True
         ScrollBars = ssBoth
         TabOrder = 2
@@ -803,7 +916,6 @@ object FRMWallet: TFRMWallet
           'memoMessageToSend')
         TabOrder = 3
         WantReturns = False
-        WordWrap = False
       end
     end
   end
@@ -905,7 +1017,7 @@ object FRMWallet: TFRMWallet
     Left = 90
     Top = 155
     Bitmap = {
-      494C010102000800600010003000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C0101020008009C0010003000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000003000000001002000000000000030
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000002A292929D60B0B0BF4111111EE0000006B000000000000

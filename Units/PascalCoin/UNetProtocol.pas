@@ -80,6 +80,7 @@ Type
     ip : AnsiString;
     port : Word;
     last_connection : Cardinal;
+    last_connection_by_server : Cardinal;
     //
     netConnection : TNetConnection;
     its_myself : Boolean;
@@ -123,11 +124,11 @@ Type
   TNetData = Class(TComponent)
   private
     FNodePrivateKey : TECPrivateKey;
-    FNetConnections : TThreadList;
-    FNodeServers : TThreadList;
-    FBlackList : TThreadList;
+    FNetConnections : TPCThreadList;
+    FNodeServers : TPCThreadList;
+    FBlackList : TPCThreadList;
     FLastRequestId : Cardinal;
-    FRegisteredRequests : TThreadList;
+    FRegisteredRequests : TPCThreadList;
     FIsDiscoveringServers : Boolean;
     FIsGettingNewBlockChainFromClient : Boolean;
     FOnNetConnectionsUpdated: TNotifyEvent;
@@ -165,6 +166,8 @@ Type
     Function ConnectionsCount(CountOnlyNetClients : Boolean) : Integer;
     Function Connection(index : Integer) : TNetConnection;
     Function ConnectionExists(ObjectPointer : TObject) : Boolean;
+    Function ConnectionsLock : TList;
+    Procedure ConnectionsUnlock;
     Function FindConnectionByClientRandomValue(Sender : TNetConnection) : TNetConnection;
     Procedure DiscoverServers;
     Procedure DisconnectClients;
@@ -172,9 +175,9 @@ Type
     Property OnNetConnectionsUpdated : TNotifyEvent read FOnNetConnectionsUpdated write FOnNetConnectionsUpdated;
     Property OnNodeServersUpdated : TNotifyEvent read FOnNodeServersUpdated write FOnNodeServersUpdated;
     Property OnBlackListUpdated : TNotifyEvent read FOnBlackListUpdated write FOnBlackListUpdated;
-    Property BlackList : TThreadList read FBlackList;
-    Property NodeServers : TThreadList read FNodeServers;
-    Property NetConnections : TThreadList read FNetConnections;
+    Property BlackList : TPCThreadList read FBlackList;
+    Property NodeServers : TPCThreadList read FNodeServers;
+    Property NetConnections : TPCThreadList read FNetConnections;
     Property OnReceivedHelloResponse : TNotifyEvent read FOnReceivedHelloResponse write FOnReceivedHelloResponse;
     Property NetStatistics : TNetStatistics read FNetStatistics;
     Property OnStatisticsChanged : TNotifyEvent read FOnStatisticsChanged write FOnStatisticsChanged;
@@ -197,6 +200,7 @@ Type
     FLastKnownTimestampDiff : Int64;
     FIsMyselfServer : Boolean;
     FClientPublicKey : TAccountKey;
+    FCreatedTime: TDateTime;
     function GetConnected: Boolean;
     procedure SetConnected(const Value: Boolean);
     procedure TcpClient_OnError(Sender: TObject; SocketError: Integer);
@@ -234,6 +238,7 @@ Type
     Function Send_Message(Const TheMessage : AnsiString) : Boolean;
     Property Client : TNetTcpIpClient read FClient;
     Property IsMyselfServer : Boolean read FIsMyselfServer;
+    Property CreatedTime : TDateTime read FCreatedTime;
   End;
 
   TNetClient = Class;
@@ -295,7 +300,7 @@ Type
 
 
 Const
-  CT_TNodeServerAddress_NUL : TNodeServerAddress = (ip:'';port:0;last_connection:0; netConnection:nil;its_myself:false;last_attempt_to_connect:0;total_failed_attemps_to_connect:0;BlackListText:'');
+  CT_TNodeServerAddress_NUL : TNodeServerAddress = (ip:'';port:0;last_connection:0;last_connection_by_server:0; netConnection:nil;its_myself:false;last_attempt_to_connect:0;total_failed_attemps_to_connect:0;BlackListText:'');
   CT_TNetStatistics_NUL : TNetStatistics = (ActiveConnections:0;ClientsConnections:0;ServersConnections:0;TotalConnections:0;TotalClientsConnections:0;TotalServersConnections:0;BytesReceived:0;BytesSend:0);
 
 implementation
@@ -313,18 +318,28 @@ Var _NetData : TNetData = nil;
 
 Type PNetRequestRegistered = ^TNetRequestRegistered;
 
+function SortNodeServerAddress(Item1, Item2: Pointer): Integer;
+Var P1,P2 : PNodeServerAddress;
+Begin
+  P1 := Item1;
+  P2 := Item2;
+  Result := AnsiCompareText(P1.ip,P2.ip);
+  if Result=0 then Result := P1.port - P2.port;
+End;
+
 procedure TNetData.AddServer(NodeServerAddress: TNodeServerAddress);
 Var P : PNodeServerAddress;
   i : Integer;
   l : TList;
 begin
-  l := FNodeServers.LockList;
+  l := FNodeServers.LockList('TNetData.AddServer');
   try
     i := IndexOfNetClient(l,NodeServerAddress.ip,NodeServerAddress.port);
     if i>=0 then exit;
     New(P);
     P^ := NodeServerAddress;
     l.Add(P);
+    l.Sort(SortNodeServerAddress);
     TLog.NewLog(ltdebug,Classname,'Adding new server: '+NodeServerAddress.ip+':'+Inttostr(NodeServerAddress.port));
   finally
     FNodeServers.UnlockList;
@@ -344,7 +359,7 @@ Var P : PNodeServerAddress;
 begin
   // This procedure cleans old blacklisted IPs
   n := 0;
-  l := FBlackList.LockList;
+  l := FBlackList.LockList('TNetData.CleanBlackList');
   Try
     for i := l.Count - 1 downto 0 do begin
       P := l[i];
@@ -366,7 +381,7 @@ end;
 function TNetData.Connection(index: Integer): TNetConnection;
 Var l : TList;
 begin
-  l := FNetConnections.LockList;
+  l := FNetConnections.LockList('TNetData.Connection');
   try
     Result := TNetConnection( l[index] );
   finally
@@ -379,7 +394,7 @@ var i : Integer;
   l : TList;
 begin
   Result := false;
-  l := FNetConnections.LockList;
+  l := FNetConnections.LockList('TNetData.ConnectionExists');
   try
     for i := 0 to l.Count - 1 do begin
       if TObject(l[i])=ObjectPointer then begin
@@ -396,7 +411,7 @@ function TNetData.ConnectionsCount(CountOnlyNetClients : Boolean): Integer;
 var i : Integer;
   l : TList;
 begin
-  l := FNetConnections.LockList;
+  l := FNetConnections.LockList('TNetData.ConnectionsCount');
   try
     if CountOnlyNetClients then begin
       Result := 0;
@@ -409,6 +424,16 @@ begin
   end;
 end;
 
+function TNetData.ConnectionsLock: TList;
+begin
+  Result := FNetConnections.LockList('TNetData.ConnectionsLock');
+end;
+
+procedure TNetData.ConnectionsUnlock;
+begin
+  FNetConnections.UnlockList;
+end;
+
 constructor TNetData.Create;
 begin
   FMaxRemoteOperationBlock := CT_OperationBlock_NUL;
@@ -418,11 +443,11 @@ begin
   FOnNodeServersUpdated := Nil;
   FOnBlackListUpdated := Nil;
   FIsDiscoveringServers := false;
-  FNodeServers := TThreadList.Create;
-  FRegisteredRequests := TThreadList.Create;
+  FNodeServers := TPCThreadList.Create;
+  FRegisteredRequests := TPCThreadList.Create;
   FLastRequestId := 0;
-  FNetConnections := TThreadList.Create;
-  FBlackList := TThreadList.Create;
+  FNetConnections := TPCThreadList.Create;
+  FBlackList := TPCThreadList.Create;
   FIsGettingNewBlockChainFromClient := false;
   FNodePrivateKey := TECPrivateKey.Create;
   FNodePrivateKey.GenerateRandomPrivateKey(CT_Default_EC_OpenSSL_NID);
@@ -447,14 +472,14 @@ begin
   FThreadCheckConnections.Terminate;
   FThreadCheckConnections.WaitFor;
   CleanBlackList;
-  l := FNodeServers.LockList;
+  l := FNodeServers.LockList('TNetData.Destroy NodeServers');
   try
     while (l.Count>0) do DeleteNetClient(l,l.Count-1);
   finally
     FNodeServers.UnlockList;
     FNodeServers.Free;
   end;
-  l := FBlackList.LockList;
+  l := FBlackList.LockList('TNetData.Destroy BlackList');
   try
     while (l.Count>0) do DeleteNetClient(l,l.Count-1);
   finally
@@ -470,7 +495,7 @@ procedure TNetData.DisconnectClients;
 var i : Integer;
   l : TList;
 begin
-  l := FNetConnections.LockList;
+  l := FNetConnections.LockList('TNetData.DisconnectClients');
   Try
     for i := l.Count - 1 downto 0 do begin
       if TObject(l[i]) is TNetClient then begin
@@ -487,7 +512,7 @@ procedure TNetData.DiscoverServers;
   Var i,j,x,y : Integer;
   begin
     if l.Count<=1 then exit;
-    j := Random(l.Count);
+    j := Random(l.Count)*3;
     for i := 0 to j do begin
       x := Random(l.Count);
       y := Random(l.Count);
@@ -509,7 +534,7 @@ begin
   // can discover up to j servers
   l := TList.Create;
   try
-    lns := FNodeServers.LockList;
+    lns := FNodeServers.LockList('TNetData.DiscoverServers');
     try
       for i:=0 to lns.Count-1 do begin
         P := lns[i];
@@ -611,7 +636,7 @@ function TNetData.FindConnectionByClientRandomValue(Sender: TNetConnection): TNe
 Var l : TList;
   i : Integer;
 begin
-  l := FNetConnections.LockList;
+  l := FNetConnections.LockList('TNetData.FindConnectionByClientRandomValue');
   try
     for i := 0 to L.Count - 1 do begin
       Result := TNetConnection( l[i] );
@@ -919,7 +944,7 @@ Var l : TList;
   i : Integer;
 begin
   Result := false;
-  l := FBlackList.LockList;
+  l := FBlackList.LockList('TNetData.IsBlackListed');
   Try
     i := -1;
     repeat
@@ -953,7 +978,7 @@ begin
   inherited;
   if Operation=OpRemove then begin
     if not (csDestroying in ComponentState) then begin
-      l := FNetConnections.LockList;
+      l := FNetConnections.LockList('TNetData.Notification');
       try
         if l.Remove(AComponent)>=0 then begin
           if Assigned(FOnNetConnectionsUpdated) then FOnNetConnectionsUpdated(Self);
@@ -985,7 +1010,7 @@ Var P : PNetRequestRegistered;
   l : TList;
 begin
   requests_data := '';
-  l := FRegisteredRequests.LockList;
+  l := FRegisteredRequests.LockList('TNetData.PendingRequest');
   Try
     if Assigned(Sender) then begin
       Result := 0;
@@ -1005,7 +1030,7 @@ procedure TNetData.RegisterRequest(Sender: TNetConnection; operation: Word; requ
 Var P : PNetRequestRegistered;
   l : TList;
 begin
-  l := FRegisteredRequests.LockList;
+  l := FRegisteredRequests.LockList('TNetData.RegisterRequest');
   Try
     New(P);
     P^.NetClient := Sender;
@@ -1025,7 +1050,7 @@ Var P : PNetRequestRegistered;
   l : TList;
 begin
   Result := false;
-  l := FRegisteredRequests.LockList;
+  l := FRegisteredRequests.LockList('TNetData.UnRegisterRequest');
   try
     for i := l.Count - 1 downto 0 do begin
       P := l[i];
@@ -1168,15 +1193,15 @@ Var Pnsa : PNodeServerAddress;
   i : Integer;
 begin
   if FClient.Connected then FClient.Disconnect;
-  lns := TNetData.NetData.FNodeServers.LockList;
+  lns := TNetData.NetData.FNodeServers.LockList('TNetConnection.ConnectTo');
   try
     i := TNetData.NetData.IndexOfNetClient(lns,ServerIp,ServerPort);
     if (i>=0) then Pnsa := lns[i]
     else Pnsa := Nil;
+    if Assigned(Pnsa) then Pnsa^.netConnection := Self;
   finally
     TNetData.NetData.FNodeServers.UnlockList;
   end;
-  if Assigned(Pnsa) then Pnsa^.netConnection := Self;
 
   FClient.RemoteHost := ServerIP;
   if ServerPort<=0 then ServerPort := CT_NetServer_Port;
@@ -1196,6 +1221,7 @@ constructor TNetConnection.Create(AOwner: TComponent);
 begin
   inherited;
   FClientPublicKey := CT_TECDSA_Public_Nul;
+  FCreatedTime := Now;
   FIsMyselfServer := false;
   FLastKnownTimestampDiff := 0;
   FIsWaitingForResponse := false;
@@ -1207,7 +1233,7 @@ begin
   SetClient( TTcpClient.Create(Self) );
   FRemoteOperationBlock := CT_OperationBlock_NUL;
   FSocketError := 0;
-  TNetData.NetData.FNetConnections.Add(Self);
+  TNetData.NetData.FNetConnections.Add(Self,'TNetConnection.Create');
   if Assigned(TNetData.NetData.FOnNetConnectionsUpdated) then TNetData.NetData.FOnNetConnectionsUpdated(Self);
 end;
 
@@ -1218,11 +1244,13 @@ Var Pnsa : PNodeServerAddress;
 begin
   Connected := false;
 
-  lns := TNetData.NetData.FNodeServers.LockList;
+  lns := TNetData.NetData.FNodeServers.LockList('TNetConnection.Destroy');
   try
-    for i := 0 to lns.Count - 1 do begin
+    for i := lns.Count - 1 downto 0 do begin
       Pnsa := lns[i];
-      if Pnsa^.netConnection=Self then Pnsa^.netConnection := Nil;
+      if Pnsa^.netConnection=Self then Begin
+        Pnsa^.netConnection := Nil;
+      End;
     end;
   finally
     TNetData.NetData.FNodeServers.UnlockList;
@@ -1241,6 +1269,7 @@ procedure TNetConnection.DisconnectInvalidClient(ItsMyself : Boolean; const why:
 Var P : PNodeServerAddress;
   l : TList;
   i : Integer;
+  include_in_list : Boolean;
 begin
   if ItsMyself then begin
     TLog.NewLog(ltInfo,Classname,'Disconecting myself '+FClient.RemoteHost+':'+FClient.RemotePort+' > '+Why)
@@ -1248,24 +1277,27 @@ begin
     TLog.NewLog(lterror,Classname,'Disconecting '+FClient.RemoteHost+':'+FClient.RemotePort+' > '+Why);
   end;
   FIsMyselfServer := ItsMyself;
-  l := TNetData.NetData.FBlackList.LockList;
-  try
-    i := TNetData.NetData.IndexOfNetClient(l,FClient.RemoteHost,StrToIntDef( FClient.RemotePort,CT_NetServer_Port));
-    if i<0 then begin
-      new(P);
-      P^ := CT_TNodeServerAddress_NUL;
-      TNetData.NetData.FBlackList.add(P);
-    end else P := l[i];
-    P^.ip := Fclient.RemoteHost;
-    P^.port := StrToIntDef( FClient.RemotePort,CT_NetServer_Port);
-    P^.last_connection := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
-    P^.its_myself := ItsMyself;
-    P^.BlackListText := Why;
-  finally
-    TNetData.NetData.FBlackList.UnlockList;
+  include_in_list := (Not SameText(FClient.RemoteHost,'localhost')) And (Not SameText(FClient.RemoteHost,'127.0.0.1'))  And (Not SameText('192.168',Copy(FClient.RemoteHost,1,7)));
+  if include_in_list then begin
+    l := TNetData.NetData.FBlackList.LockList('TNetConnection.DisconnectInvalidClient include_in_list');
+    try
+      i := TNetData.NetData.IndexOfNetClient(l,FClient.RemoteHost,StrToIntDef( FClient.RemotePort,CT_NetServer_Port));
+      if i<0 then begin
+        new(P);
+        P^ := CT_TNodeServerAddress_NUL;
+        l.Add(P);
+      end else P := l[i];
+      P^.ip := Fclient.RemoteHost;
+      P^.port := StrToIntDef( FClient.RemotePort,CT_NetServer_Port);
+      P^.last_connection := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+      P^.its_myself := ItsMyself;
+      P^.BlackListText := Why;
+    finally
+      TNetData.NetData.FBlackList.UnlockList;
+    end;
   end;
   if ItsMyself then begin
-    l := TNetData.NetData.FNodeServers.LockList;
+    l := TNetData.NetData.FNodeServers.LockList('TNetConnection.DisconnectInvalidClient MySelf');
     try
       i := TNetData.NetData.IndexOfNetClient(l,FClient.RemoteHost,StrToIntDef( FClient.RemotePort,CT_NetServer_Port));
       if i>=0 then begin
@@ -1288,7 +1320,7 @@ Var HeaderData : TNetHeaderData;
 begin
   ms := TMemoryStream.Create;
   try
-    TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
+    TPCThread.ProtectEnterCriticalSection(Self,'DoProcessBuffer',FNetLock);
     Try
       if Not FIsWaitingForResponse then begin
         DoSendAndWaitForResponse(0,0,Nil,ms,0,HeaderData);
@@ -1464,8 +1496,9 @@ begin
         end;
       end;
       if ((opcount>0) And (FRemoteOperationBlock.block>=TNode.Node.Bank.BlocksCount)) then begin
-        Send_GetBlocks(TNode.Node.Bank.BlocksCount,5,i);
+        Send_GetBlocks(TNode.Node.Bank.BlocksCount,50,i);
       end;
+      TNode.Node.NotifyBlocksChanged;
     Finally
       op.Free;
     End;
@@ -1588,7 +1621,7 @@ Begin
       nsa := CT_TNodeServerAddress_NUL;
       nsa.ip := FClient.RemoteHost;
       nsa.port := connection_has_a_server;
-      nsa.last_connection := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+      nsa.last_connection_by_server := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
       TNetData.NetData.AddServer(nsa);
     end;
 
@@ -1607,10 +1640,14 @@ Begin
           nsa := CT_TNodeServerAddress_NUL;
           TStreamOp.ReadAnsiString(DataBuffer,nsa.ip);
           DataBuffer.Read(nsa.port,2);
-          DataBuffer.Read(nsa.last_connection,4);
-          SetLength(messagehello.servers_address,length(messagehello.servers_address)+1);
-          messagehello.servers_address[high(messagehello.servers_address)] := nsa;
-          TNetData.NetData.AddServer(nsa);
+          // New in Build 1.0.2 saved at last_connection_by_server DataBuffer.Read(nsa.last_connection,4);
+          DataBuffer.Read(nsa.last_connection_by_server,4);
+          if ((nsa.last_connection_by_server + (60*60*24)) > UnivDateTimeToUnix(DateTime2UnivDateTime(now))) then begin
+            // New in Build 1.0.2: Only stores if connected 24 h before
+            SetLength(messagehello.servers_address,length(messagehello.servers_address)+1);
+            messagehello.servers_address[high(messagehello.servers_address)] := nsa;
+            TNetData.NetData.AddServer(nsa);
+          end;
         end;
       end;
       TLog.NewLog(ltdebug,Classname,'Hello received: '+TPCOperationsComp.OperationBlockToText(FRemoteOperationBlock));
@@ -1732,6 +1769,8 @@ function TNetConnection.DoSendAndWaitForResponse(operation: Word;
   MaxWaitTime: Cardinal; var HeaderData: TNetHeaderData): Boolean;
 var tc : Cardinal;
   was_waiting_for_response : Boolean;
+  l : TList;
+  i : Integer;
 begin
   Result := false;
   HeaderData := CT_NetHeaderData;
@@ -1741,7 +1780,7 @@ begin
   end;
   If Not Assigned(FClient) then exit;
   if Not FClient.Active then exit;
-  TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
+  TPCThread.ProtectEnterCriticalSection(Self,'DoSendAndWaitForResponse',FNetLock);
   Try
     was_waiting_for_response := RequestId>0;
     try
@@ -1767,6 +1806,17 @@ begin
           if (FClientBufferRead.Size=0) And (RequestId=0) then exit; // Nothing to read nor wait
         end;
         if (ReadTcpClientBuffer(MaxWaitTime,HeaderData,ReceiveDataBuffer)) then begin
+          l := TNetData.NetData.NodeServers.LockList('TNetConnection.DoSendAndWaitForResponse');
+          try
+            for i := 0 to l.Count - 1 do begin
+              If PNodeServerAddress( l[i] )^.netConnection=Self then begin
+                PNodeServerAddress( l[i] )^.last_connection := (UnivDateTimeToUnix(DateTime2UnivDateTime(now)));
+                PNodeServerAddress( l[i] )^.total_failed_attemps_to_connect := 0;
+              end;
+            end;
+          finally
+            TNetData.netData.NodeServers.UnlockList;
+          end;
           TLog.NewLog(ltDebug,Classname,'Received '+CT_NetTransferType[HeaderData.header_type]+' operation:'+TNetData.OperationToText(HeaderData.operation)+' id:'+Inttostr(HeaderData.request_id)+' Buffer size:'+Inttostr(HeaderData.buffer_data_length) );
           if (RequestId=HeaderData.request_id) And (HeaderData.header_type=ntp_response) then begin
             Result := true;
@@ -1835,7 +1885,7 @@ begin
   Result := false;
   HeaderData := CT_NetHeaderData;
   BufferData.Size := 0;
-  TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
+  TPCThread.ProtectEnterCriticalSection(Self,'ReadTcpClientBuffer',FNetLock);
   try
     If not Connected then exit;
     if Not FClient.Active then exit;
@@ -1942,7 +1992,7 @@ begin
       s := '';
     end;
     Buffer.Position := 0;
-    TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
+    TPCThread.ProtectEnterCriticalSection(Self,'Send',FNetLock);
     Try
       TLog.NewLog(ltDebug,Classname,'Sending: '+CT_NetTransferType[NetTranferType]+' operation:'+
         TNetData.OperationToText(operation)+' id:'+Inttostr(request_id)+' errorcode:'+InttoStr(errorcode)+
@@ -2046,7 +2096,7 @@ var data : TStream;
   nsa : TNodeServerAddress;
   nsarr : Array of TNodeServerAddress;
   w : Word;
-  c : Cardinal;
+  currunixtimestamp : Cardinal;
   l : TList;
 begin
   Result := false;
@@ -2065,8 +2115,8 @@ begin
     // Save a random value (4 bytes)
     TStreamOp.WriteAnsiString(data,TAccountComp.AccountKey2RawString(TNetData.NetData.FNodePrivateKey.PublicKey));
     // Save my Unix timestamp (4 bytes)
-    c := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
-    data.Write(c,4);
+    currunixtimestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+    data.Write(currunixtimestamp,4);
     // Save last operations block
     op := TPCOperationsComp.Create(TNode.Node.Bank);
     try
@@ -2074,13 +2124,17 @@ begin
       op.SaveToStream(false,true,data);
       SetLength(nsarr,0);
       // Save other node servers
-      l := TNetData.NetData.FNodeServers.LockList;
+      l := TNetData.NetData.FNodeServers.LockList('TNetConnection.Send_Hello');
       try
         for i := 0 to l.Count - 1 do begin
           nsa := PNodeServerAddress( l[i] )^;
           if (Not (nsa.its_myself)) And
             (nsa.BlackListText='') And
-            (nsa.last_connection>0) then begin
+            (nsa.last_connection>0) And
+            // New on build 1.0.2
+            ((Assigned(nsa.netConnection)) Or
+             (nsa.last_connection + (60*60*24) > (currunixtimestamp))) // Only If connected 24h before...
+            then begin
             SetLength(nsarr,length(nsarr)+1);
             nsarr[high(nsarr)] := nsa;
           end;
@@ -2241,12 +2295,25 @@ end;
 { TNetClientThread }
 
 procedure TNetClientThread.BCExecute;
+Var debugstep : String;
 begin
-  while (Not Terminated) do begin
-    If FNetClient.Connected then
-      FNetClient.DoProcessBuffer;
-    Sleep(1);
-  end;
+  debugstep := 'Initiating...';
+  Try
+    while (Not Terminated) do begin
+      debugstep := 'Check connection';
+      If FNetClient.Connected then begin
+        debugstep := 'Processing Buffer';
+        FNetClient.DoProcessBuffer;
+      end;
+      Sleep(1);
+    end;
+    debugstep := 'Finalizing...';
+  Except
+    On E:Exception do begin
+      E.Message := E.Message+' Step:'+debugstep;
+      Raise;
+    end;
+  End;
 end;
 
 constructor TNetClientThread.Create(NetClient: TNetClient);
@@ -2290,7 +2357,7 @@ Var NC : TNetClient;
 begin
   Pnsa := Nil;
   // Register attempt
-  lns := TNetData.NetData.FNodeServers.LockList;
+  lns := TNetData.NetData.FNodeServers.LockList('TThreadDiscoverConnection.BCExecute');
   try
     i := TNetData.NetData.IndexOfNetClient(lns,FNodeServerAddress.ip,FNodeServerAddress.port);
     if i>=0 then begin
@@ -2309,16 +2376,6 @@ begin
     If NC.ConnectTo(FNodeServerAddress.ip,FNodeServerAddress.port) then begin
       Sleep(500);
       ok :=NC.Connected;
-      lns := TNetData.NetData.FNodeServers.LockList;
-      try
-        i := TNetData.NetData.IndexOfNetClient(lns,FNodeServerAddress.ip,FNodeServerAddress.port);
-        if i>=0 then begin
-          PNodeServerAddress(lns[i])^.last_connection := (UnivDateTimeToUnix(DateTime2UnivDateTime(now)));
-          PNodeServerAddress(lns[i])^.total_failed_attemps_to_connect := 0; // Clean attemps counter
-        end;
-      finally
-        TNetData.NetData.FNodeServers.UnlockList;
-      end;
     end;
   Finally
     if not ok then begin
@@ -2354,7 +2411,7 @@ begin
       ndeleted := 0;
       ntotal := 0;
       FLastCheckTS := GetTickCount;
-      l := TNetData.NetData.FNetConnections.LockList;
+      l := TNetData.NetData.FNetConnections.LockList('TThreadCheckConnections.BCExecute');
       try
         ntotal := l.Count;
         for i := l.Count-1 downto 0 do begin
@@ -2385,20 +2442,26 @@ Var i : Integer;
   nsa : TNodeServerAddress;
   candidates : TList;
   lop : TOperationBlock;
+  netConnectionsList : TList;
 begin
   // Search better candidates:
   candidates := TList.Create;
   try
     lop := CT_OperationBlock_NUL;
-    for i := 0 to TNetData.NetData.ConnectionsCount(false) - 1 do begin
-      TNetData.NetData.FMaxRemoteOperationBlock := CT_OperationBlock_NUL;
-      if (TNetData.NetData.Connection(i).FRemoteOperationBlock.block>=TNode.Node.Bank.BlocksCount) And
-         (TNetData.NetData.Connection(i).FRemoteOperationBlock.block>=lop.block)
-         then begin
-         candidates.Add(TNetData.NetData.Connection(i));
-         lop := TNetData.NetData.Connection(i).FRemoteOperationBlock;
+    netConnectionsList := TNetData.NetData.ConnectionsLock;
+    Try
+      for i := 0 to netConnectionsList.Count - 1 do begin
+        TNetData.NetData.FMaxRemoteOperationBlock := CT_OperationBlock_NUL;
+        if (TNetConnection(netConnectionsList[i]).FRemoteOperationBlock.block>=TNode.Node.Bank.BlocksCount) And
+           (TNetConnection(netConnectionsList[i]).FRemoteOperationBlock.block>=lop.block)
+           then begin
+           candidates.Add(TNetConnection(netConnectionsList[i]));
+           lop := TNetConnection(netConnectionsList[i]).FRemoteOperationBlock;
+        end;
       end;
-    end;
+    Finally
+      TNetData.NetData.ConnectionsUnlock;
+    End;
     TNetData.NetData.FMaxRemoteOperationBlock := lop;
     if (candidates.Count>0) then begin
       // Random a candidate

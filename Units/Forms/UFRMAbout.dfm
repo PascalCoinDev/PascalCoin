@@ -5,7 +5,7 @@ object FRMAbout: TFRMAbout
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'About...'
-  ClientHeight = 341
+  ClientHeight = 415
   ClientWidth = 522
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -165,8 +165,8 @@ object FRMAbout: TFRMAbout
     ParentFont = False
   end
   object lblBuild: TLabel
-    Left = 8
-    Top = 280
+    Left = 15
+    Top = 356
     Width = 30
     Height = 13
     Caption = 'Build:'
@@ -178,8 +178,8 @@ object FRMAbout: TFRMAbout
     ParentFont = False
   end
   object lblProtocolVersion: TLabel
-    Left = 8
-    Top = 299
+    Left = 15
+    Top = 375
     Width = 50
     Height = 13
     Caption = 'Protocol:'
@@ -190,11 +190,61 @@ object FRMAbout: TFRMAbout
     Font.Style = [fsBold]
     ParentFont = False
   end
+  object Label2: TLabel
+    Left = 90
+    Top = 320
+    Width = 65
+    Height = 13
+    Caption = 'Source Code:'
+  end
+  object Label3: TLabel
+    Left = 90
+    Top = 339
+    Width = 135
+    Height = 13
+    Caption = 'Check For New Versions:'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentFont = False
+  end
+  object Label4: TLabel
+    Left = 170
+    Top = 320
+    Width = 240
+    Height = 13
+    Cursor = crHandPoint
+    Caption = 'https://github.com/PascalCoin/PascalCoin'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlue
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentFont = False
+    OnClick = Label4Click
+  end
+  object Label5: TLabel
+    Left = 237
+    Top = 339
+    Width = 253
+    Height = 13
+    Cursor = crHandPoint
+    Caption = 'https://sourceforge.net/projects/pascalcoin'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlue
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentFont = False
+    OnClick = Label5Click
+  end
   object Memo1: TMemo
     Left = 90
     Top = 46
     Width = 401
-    Height = 229
+    Height = 275
     BevelInner = bvNone
     BevelOuter = bvNone
     BorderStyle = bsNone
@@ -229,7 +279,10 @@ object FRMAbout: TFRMAbout
         'functions inspirated in code written by Ladar Levison and Marco ' +
         'Ferrante. Original '
       'source code is written in Pascal Language and is available at '
-      'https://github.com/PascalCoin/PascalCoin')
+      'https://github.com/PascalCoin/PascalCoin'
+      ''
+      'If you like it, consider a donation using BitCoin:'
+      '16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk')
     ParentColor = True
     ParentCtl3D = False
     ReadOnly = True
@@ -237,7 +290,7 @@ object FRMAbout: TFRMAbout
   end
   object bbClose: TBitBtn
     Left = 380
-    Top = 281
+    Top = 358
     Width = 111
     Height = 31
     Caption = 'Close'

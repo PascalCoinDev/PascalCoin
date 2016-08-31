@@ -29,17 +29,21 @@ Const
   CT_PARAM_DefaultFee = 'DefaultFee';
   CT_PARAM_InternetServerPort = 'InternetServerPort';
   CT_PARAM_AutomaticMineWhenConnectedToNodes = 'AutomaticMineWhenConnectedToNodes';
-  CT_PARAM_NewPrivateKeyForEachGeneratedBlock = 'NewPrivateKeyForEachGeneratedBlock';
+  CT_PARAM_MinerPrivateKeyType = 'MinerPrivateKeyType';
+  CT_PARAM_MinerPrivateKeySelectedPublicKey = 'MinerPrivateKeySelectedPublicKey';
   CT_PARAM_SaveLogFiles = 'SaveLogFiles';
   CT_PARAM_ShowLogs = 'ShowLogs';
   CT_PARAM_MinerName = 'MinerName';
   CT_PARAM_FirstTime = 'FirstTime';
   CT_PARAM_ShowModalMessages = 'ShowModalMessages';
+  CT_PARAM_MaxCPUs = 'MaxCPUs';
 
 type
   TStringListAux = Class(TStringList)
 
   End;
+
+  TMinerPrivateKey = (mpk_NewEachTime, mpk_Random, mpk_Selected);
 
   TFRMWallet = class(TForm)
     pnlTop: TPanel;
@@ -130,6 +134,16 @@ type
     Label12: TLabel;
     Label13: TLabel;
     Label14: TLabel;
+    Label16: TLabel;
+    lblBlocksFound: TLabel;
+    pnlAccounts: TPanel;
+    pnlAccountsInfo: TPanel;
+    Label17: TLabel;
+    Label19: TLabel;
+    lblAccountsCount: TLabel;
+    lblAccountsBalance: TLabel;
+    lblReceivedMessages: TLabel;
+    Label15: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure TimerUpdateStatusTimer(Sender: TObject);
@@ -156,13 +170,18 @@ type
     procedure TrayIconDblClick(Sender: TObject);
     procedure ApplicationEventsMinimize(Sender: TObject);
     procedure bbSendAMessageClick(Sender: TObject);
+    procedure lblReceivedMessagesClick(Sender: TObject);
   private
+    FMinersBlocksFound: Integer;
+    procedure SetMinersBlocksFound(const Value: Integer);
+    Procedure CheckIsReady;
   protected
     { Private declarations }
     FNode : TNode;
     FIsActivated : Boolean;
     FWalletKeys : TWalletKeys;
     FLog : TLog;
+    FMaxCPUs : Integer;
     FAppParams : TAppParams;
     FNodeNotifyEvents : TNodeNotifyEvents;
     FAccountsGrid : TAccountsGrid;
@@ -171,12 +190,12 @@ type
     FOrderedAccountsKeyList : TOrderedAccountKeysList;
     FOperationsDBGrid : TOperationsDBGrid;
     FBlockChainDBGrid : TBlockChainDBGrid;
-
+    FMinerPrivateKeyType : TMinerPrivateKey;
     FMemoNetConnections : TStringListAux;
     FMemoBlackListNodes : TStringListAux;
     FMemoAvailableNodeServers : TStringListAux;
-
     FUpdating : Boolean;
+    FMessagesUnreadCount : Integer;
     Procedure CheckMining;
     Procedure OnNewAccount(Sender : TObject);
     Procedure OnReceivedHelloResponse(Sender : TObject);
@@ -200,9 +219,11 @@ type
     Procedure UpdateAvailableConnections;
     procedure Activate; override;
     Function ForceMining : Boolean; virtual;
+    Function GetAccountKeyForMiner : TAccountKey;
   public
     { Public declarations }
     Property WalletKeys : TWalletKeys read FWalletKeys;
+    Property MinersBlocksFound : Integer read FMinersBlocksFound write SetMinersBlocksFound;
   end;
 
 var
@@ -309,25 +330,33 @@ begin
 end;
 
 procedure TFRMWallet.bbSendAMessageClick(Sender: TObject);
-Var m : String;
+Var basem,m : String;
   them, errors : AnsiString;
-  i : Integer;
+  i,n : Integer;
   nc : TNetConnection;
 begin
+  CheckIsReady;
   if (lbNetConnections.SelCount<=0) Or (lbNetConnections.ItemIndex<0) then raise Exception.Create('Select at least 1 connection');
-  if lbNetConnections.SelCount<=0 then i := 1
-  else i := lbNetConnections.SelCount;
+  if lbNetConnections.SelCount<=0 then n := 1
+  else n := lbNetConnections.SelCount;
 
-  m := memoMessageToSend.Lines.Text;
+  basem := memoMessageToSend.Lines.Text;
+  m := '';
+  // Clear non valid characters:
+  for i := 1 to length(basem) do begin
+    if basem[i] in [#32..#127] then m := m + basem[i]
+    else m:=m+'.';
+  end;
+
   if trim(m)='' then raise Exception.Create('No message');
 
-  if Application.MessageBox(PChaR('Send this message to '+inttostr(i)+' nodes?'+#10+
+  if Application.MessageBox(PChaR('Send this message to '+inttostr(n)+' nodes?'+#10+
     'ALERT: Sending unauthorized messages will be considered spam and you will be banned'+#10+
     #10+
     'Message: '+#10+
     m),PChar(Application.Title),MB_ICONQUESTION+MB_YESNO+MB_DEFBUTTON1)<>IdYes then exit;
   them := m;
-  if i>1 then begin
+  if n>1 then begin
     for i := 0 to lbNetConnections.Items.Count - 1 do begin
       if lbNetConnections.Selected[i] then begin
         nc := TNetConnection(lbNetconnections.Items.Objects[i]);
@@ -345,7 +374,7 @@ begin
     end;
   end;
 
-  Application.MessageBox(PChaR('Message sent to '+inttostr(i)+' nodes'+#10+
+  Application.MessageBox(PChaR('Message sent to '+inttostr(n)+' nodes'+#10+
     'Message: '+#10+m),PChar(Application.Title),MB_ICONINFORMATION+MB_OK);
 end;
 
@@ -354,11 +383,14 @@ begin
   if Not Assigned(FNode) then exit;
   if cbAllowMining.Checked then begin
     if (TNetData.NetData.NetStatistics.ClientsConnections<=0) then begin
-      Application.MessageBox(PChar(Format('In order to Mine is necessary that you open your external port %d from the Internet to allow other nodes of Pascal Coin to connect to you.'+#10+
+      Application.MessageBox(PChar(Format(
+        'In order to Mine is necessary that you open your external port %d from the Internet to allow other nodes of Pascal Coin to connect to you.'+#10+
+        '(Note: This is not mandatory... but will work better with open ports)'+#10+
         #10+
         'To do this you must configure your Router/Firewall and enable NAT to your local machine at port: %d'+#10+#10+
         'After allowing incoming connections... you must wait until other nodes connects to you to mine'+#10+
-        'Please... be patient'+#10+#10+
+        #10+
+        'PLEASE... BE PATIENT !!!'+#10+#10+
         'Help mining Pascal Coin and win Pascal Coins!',[FNode.NetServer.Port,FNode.NetServer.Port])),
         PChar(Application.Title),MB_ICONINFORMATION+MB_OK);
     end;
@@ -375,8 +407,7 @@ end;
 procedure TFRMWallet.cbExploreMyAccountsClick(Sender: TObject);
 begin
   cbMyPrivateKeys.Enabled := cbExploreMyAccounts.Checked;
-  if cbExploreMyAccounts.Checked then UpdateAccounts;
-  FAccountsGrid.ShowAllAccounts := Not cbExploreMyAccounts.Checked;
+  UpdateAccounts;
   UpdateOperations;
 end;
 
@@ -392,6 +423,16 @@ begin
   UpdateAccounts;
 end;
 
+procedure TFRMWallet.CheckIsReady;
+Var isready : AnsiString;
+begin
+  if Not Assigned(FNode) then Abort;
+
+  if Not FNode.Node.IsReady(isready) then begin
+    Raise Exception.Create('You cannot do this operation now:'+#10+#10+isready);
+  end;
+end;
+
 procedure TFRMWallet.CheckMining;
   Procedure Stop;
   var i : Integer;
@@ -399,7 +440,7 @@ procedure TFRMWallet.CheckMining;
   begin
     if ForceMining then exit;
     // Stop mining
-    mtl := FNode.MinerThreads.LockList;
+    mtl := FNode.MinerThreads.LockList('TFRMWallet.CheckMining stop');
     try
       for i:=mtl.Count-1 downto 0 do begin
         TMinerThread(mtl[i]).Paused := true;
@@ -410,36 +451,32 @@ procedure TFRMWallet.CheckMining;
   end;
 Var i, n : Integer;
   MT : TMinerThread;
-  wk : TWalletKey;
-  EC : TECPrivateKey;
   mtl : TList;
 begin
   if Not Assigned(FNode) then exit;
   if (ForceMining) Or
-    ((TNetData.NetData.NetStatistics.TotalClientsConnections>0) And (TNetData.NetData.NetStatistics.ActiveConnections>0) And
-    (TNetData.NetData.MaxRemoteOperationBlock.block<=FNode.Operations.OperationBlock.block)) then begin
+    (
+      (TNetData.NetData.NetStatistics.ActiveConnections>0) And
+      // Build 1.0.2 allows mine if there was at least 1 client connection (working as a server)
+      // or (new) there are 2 active connections to a servers (allowing non servers to mine too)
+      ( (TNetData.NetData.NetStatistics.TotalClientsConnections>0)
+        Or (TNetData.NetData.NetStatistics.ServersConnections>=2) ) And
+      (TNetData.NetData.MaxRemoteOperationBlock.block<=FNode.Operations.OperationBlock.block)
+    ) then begin
     if (cbAllowMining.checked) Or (ForceMining) then begin
       n := 0;
-      mtl := FNode.MinerThreads.LockList;
+      mtl := FNode.MinerThreads.LockList('TFRMWallet.CheckMining base');
       try
         for i:=mtl.Count-1 downto 0 do begin
           if TMinerThread(mtl[i]).Paused then TMinerThread(mtl[i]).Paused := false;
           inc(n);
         end;
-        if n=0 then begin
-          wk := CT_TWalletKey_NUL;
-          If FWalletKeys.Count>0 then begin
-            wk := FWalletKeys.Key[Random(FWalletKeys.Count)];
-          end;
-          if wk.CryptedKey='' then begin
-            EC := TECPrivateKey.Create;
-            EC.GenerateRandomPrivateKey(CT_Default_EC_OpenSSL_NID);
-            wk := FWalletKeys.Key[FWalletKeys.AddPrivateKey('New key '+DateTimeToStr(Now),EC)];
-          end;
-          if mtl.Count<=0 then MT := FNode.AddMiner(wk.AccountKey)
-          else MT := TMinerThread(mtl[0]);
+        if n<FMaxCPUs then begin
+          MT := FNode.AddMiner(GetAccountKeyForMiner);
           MT.OnNewAccountFound := OnMinerNewBlockFound;
           MT.Paused := false;
+        end else begin
+          while (mtl.Count>FMaxCPUs) do FNode.DeleteMiner(mtl.Count-1);
         end;
       Finally
         FNode.MinerThreads.UnlockList;
@@ -557,6 +594,10 @@ end;
 procedure TFRMWallet.FormCreate(Sender: TObject);
 Var i : Integer;
 begin
+  if CPUCount>1 then FMaxCPUs := CPUCount-1
+  else FMaxCPUs := 1;
+  FMessagesUnreadCount := 0;
+  lblReceivedMessages.Visible := false;
   FMemoNetConnections := TStringListAux.Create;
   FMemoBlackListNodes := TStringListAux.Create;
   FMemoAvailableNodeServers := TStringListAux.Create;
@@ -590,6 +631,7 @@ begin
   FPendingOperationsGrid := TOperationsGrid.Create(Self);
   FPendingOperationsGrid.DrawGrid := dgPendingOperations;
   FPendingOperationsGrid.AccountNumber := -1; // all
+  FPendingOperationsGrid.PendingOperations := true;
   FWalletKeys.OnChanged := OnWalletChanged;
   FOperationsDBGrid := TOperationsDBGrid.Create(Self);
   FBlockChainDBGrid := TBlockChainDBGrid.Create(Self);
@@ -614,6 +656,7 @@ begin
   TrayIcon.BalloonHint :=
     'Double click the system tray icon to restore Pascal Coin';
   TrayIcon.BalloonFlags := bfInfo;
+  MinersBlocksFound := 0;
 end;
 
 procedure TFRMWallet.FormDestroy(Sender: TObject);
@@ -691,6 +734,46 @@ begin
   TLog.NewLog(ltinfo,Classname,'Destroying form - END');
 end;
 
+function TFRMWallet.GetAccountKeyForMiner: TAccountKey;
+Var PK : TECPrivateKey;
+  i : Integer;
+  PublicK : TECDSA_Public;
+begin
+  Result := CT_TECDSA_Public_Nul;
+  if Not Assigned(FWalletKeys) then exit;
+  if Not Assigned(FAppParams) then exit;
+  case FMinerPrivateKeyType of
+    mpk_NewEachTime: PublicK := CT_TECDSA_Public_Nul;
+    mpk_Selected: begin
+      PublicK := TAccountComp.RawString2Accountkey(FAppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].GetAsString(''));
+    end;
+  else
+    // Random
+    PublicK := CT_TECDSA_Public_Nul;
+    if FWalletKeys.Count>0 then PublicK := FWalletKeys.Key[Random(FWalletKeys.Count)].AccountKey;
+  end;
+  i := FWalletKeys.IndexOfAccountKey(PublicK);
+  if i>=0 then begin
+    if (FWalletKeys.Key[i].CryptedKey='') then i:=-1;
+  end;
+  if i<0 then begin
+    PK := TECPrivateKey.Create;
+    try
+      PK.GenerateRandomPrivateKey(CT_Default_EC_OpenSSL_NID);
+      FWalletKeys.AddPrivateKey('New for miner '+DateTimeToStr(Now), PK);
+      PublicK := PK.PublicKey;
+    finally
+      PK.Free;
+    end;
+  end;
+  Result := PublicK;
+end;
+
+procedure TFRMWallet.lblReceivedMessagesClick(Sender: TObject);
+begin
+  PageControl.ActivePage := tsMessages;
+end;
+
 procedure TFRMWallet.LoadAppParams;
 Var ms : TMemoryStream;
   s : AnsiString;
@@ -742,6 +825,7 @@ end;
 
 procedure TFRMWallet.miNewOperationClick(Sender: TObject);
 begin
+  CheckIsReady;
   With TFRMOperation.Create(Self) do
   Try
     SenderAccount := FAccountsGrid.AccountNumber(dgAccounts.Row);
@@ -782,24 +866,9 @@ begin
 end;
 
 procedure TFRMWallet.OnMinerNewBlockFound(sender: TMinerThread; Operations: TPCOperationsComp);
-Var PK : TECPrivateKey;
-  i : Integer;
 begin
-  if FAppParams.ParamByName[CT_PARAM_NewPrivateKeyForEachGeneratedBlock].GetAsBoolean(false) then begin
-    PK := TECPrivateKey.Create;
-    try
-      PK.GenerateRandomPrivateKey(CT_Default_EC_OpenSSL_NID);
-      FWalletKeys.AddPrivateKey('New for miner '+DateTimeToStr(Now), PK);
-      sender.AccountKey := PK.PublicKey;
-    finally
-      PK.Free;
-    end;
-  end else begin
-    If (FWalletKeys.Count>1) then begin
-      i := Random(FWalletKeys.Count);
-      if Assigned(FWalletKeys.Key[i].PrivateKey) then sender.AccountKey := FWalletKeys.Key[i].AccountKey;
-    end;
-  end;
+  MinersBlocksFound := MinersBlocksFound+1;
+  Sender.AccountKey := GetAccountKeyForMiner;
 end;
 
 procedure TFRMWallet.OnNetBlackListUpdated(Sender: TObject);
@@ -809,7 +878,7 @@ Var i,j : integer;
  l : TList;
  strings : TStrings;
 begin
-  l := TNetData.NetData.BlackList.LockList;
+  l := TNetData.NetData.BlackList.LockList('TFRMWallet.OnNetBlackListUpdated');
   try
     strings := FMemoBlackListNodes;
     strings.BeginUpdate;
@@ -843,7 +912,7 @@ Var i : integer;
  l : TList;
  strings, sNSC, sRS, sDisc : TStrings;
 begin
-  l := TNetData.NetData.NetConnections.LockList;
+  l := TNetData.NetData.NetConnections.LockList('TFRMWallet.OnNetConnectionsUpdated');
   try
     strings := FMemoNetConnections;
     sNSC := TStringList.Create;
@@ -855,14 +924,14 @@ begin
         NC := l[i];
         if NC.Connected then begin
           if NC is TNetServerClient then begin
-            sNSC.Add(Format('Client: IP:%s:%s Sent/Received:%d/%d Bytes',
-              [NC.Client.RemoteHost,NC.Client.RemotePort,NC.Client.BytesSent,NC.Client.BytesReceived]));
+            sNSC.Add(Format('Client: IP:%s:%s Sent/Received:%d/%d Bytes - Active since %s',
+              [NC.Client.RemoteHost,NC.Client.RemotePort,NC.Client.BytesSent,NC.Client.BytesReceived,DateTimeElapsedTime(NC.CreatedTime)]));
           end else begin
-            if NC.IsMyselfServer then sNSC.Add(Format('MySelf IP:%s:%s Sent/Received:%d/%d Bytes',
-              [NC.Client.RemoteHost,NC.Client.RemotePort,NC.Client.BytesSent,NC.Client.BytesReceived]))
+            if NC.IsMyselfServer then sNSC.Add(Format('MySelf IP:%s:%s Sent/Received:%d/%d Bytes - Active since %s',
+              [NC.Client.RemoteHost,NC.Client.RemotePort,NC.Client.BytesSent,NC.Client.BytesReceived,DateTimeElapsedTime(NC.CreatedTime)]))
             else begin
-              sRS.Add(Format('Remote Server: IP:%s:%s Sent/Received:%d/%d Bytes',
-              [NC.Client.RemoteHost,NC.Client.RemotePort,NC.Client.BytesSent,NC.Client.BytesReceived]));
+              sRS.Add(Format('Remote Server: IP:%s:%s Sent/Received:%d/%d Bytes - Active since %s',
+              [NC.Client.RemoteHost,NC.Client.RemotePort,NC.Client.BytesSent,NC.Client.BytesReceived,DateTimeElapsedTime(NC.CreatedTime)]));
             end;
           end;
         end else begin
@@ -877,8 +946,8 @@ begin
       end;
       strings.Clear;
       strings.Add(Format('Connections Updated %s Clients:%d Servers:%d',[DateTimeToStr(now),sNSC.Count,sRS.Count]));
-      strings.AddStrings(sNSC);
       strings.AddStrings(sRS);
+      strings.AddStrings(sNSC);
       if sDisc.Count>0 then begin
         strings.Add('');
         strings.Add('Disconnected connections: '+Inttostr(sDisc.Count));
@@ -903,27 +972,28 @@ Var i : integer;
  strings : TStrings;
  s : String;
 begin
-  l := TNetData.NetData.NodeServers.LockList;
+  l := TNetData.NetData.NodeServers.LockList('TFRMWallet.OnNetNodeServersUpdated');
   try
     strings := FMemoAvailableNodeServers;
     strings.BeginUpdate;
     Try
       strings.Clear;
-      strings.Add('NodeServers Updated: '+DateTimeToStr(now));
+      strings.Add('NodeServers Updated: '+DateTimeToStr(now) +' Count: '+inttostr(l.Count));
       for i := 0 to l.Count - 1 do begin
         P := l[i];
         s := Format('Server IP:%s:%d',[P^.ip,P^.port]);
         if Assigned(P.netConnection) then begin
-          s := s+ ' ** ACTIVE **';
+          If P.last_connection>0 then  s := s+ ' ** ACTIVE **'
+          else s := s+' ** TRYING TO CONNECT **';
         end;
         if P.its_myself then begin
-          s := s+' ** DUPLICATE **';
+          s := s+' ** NOT VALID ** '+P.BlackListText;
         end;
         if P.last_connection>0 then begin
           s := s + ' Last Connection: '+DateTimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(P^.last_connection)));
         end;
-        if (Not Assigned(P.netConnection)) AND (P.last_attempt_to_connect>0) then begin
-          s := s + ' Attempting to connect: '+DateTimeToStr(P^.last_attempt_to_connect)+' (Attempts: '+inttostr(P^.total_failed_attemps_to_connect)+')';
+        if (P.last_attempt_to_connect>0) then begin
+          s := s + ' Last Attempt to connect: '+DateTimeToStr(P^.last_attempt_to_connect)+' (Attempts: '+inttostr(P^.total_failed_attemps_to_connect)+')';
         end;
         strings.Add(s);
       end;
@@ -979,9 +1049,10 @@ end;
 procedure TFRMWallet.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: TRawBytes);
 Var s : String;
 begin
-  s := DateTimeToStr(now)+' Received from '+NetConnection.Client.RemoteHost+':'+NetConnection.Client.RemotePort+' < ';
-  s := s + MessageData + ' (Hexadecimal: '+TCrypto.ToHexaString(MessageData)+') Length '+inttostr(Length(MessageData))+' bytes';
-  memoMessages.Lines.Add(s);
+  inc(FMessagesUnreadCount);
+  s := DateTimeToStr(now)+' Message received from '+NetConnection.Client.RemoteHost+':'+NetConnection.Client.RemotePort;
+  memoMessages.Lines.Add(DateTimeToStr(now)+' Message received from '+NetConnection.Client.RemoteHost+':'+NetConnection.Client.RemotePort+' Length '+inttostr(Length(MessageData))+' bytes');
+  memoMessages.Lines.Add('RECEIVED> '+MessageData);
   if FAppParams.ParamByName[CT_PARAM_ShowModalMessages].GetAsBoolean(false) then begin
     s := DateTimeToStr(now)+' Message from '+NetConnection.Client.RemoteHost+':'+NetConnection.Client.RemotePort+#10+
        'Length '+inttostr(length(MessageData))+' bytes'+#10+#10;
@@ -993,6 +1064,9 @@ begin
     end;
     Application.MessageBox(PChar(s),PChar(Application.Title),MB_ICONINFORMATION+MB_OK);
   end;
+  if FMessagesUnreadCount>1 then lblReceivedMessages.Caption := Format('You have received %d messages',[FMessagesUnreadCount])
+  else lblReceivedMessages.Caption := 'You have received 1 message';
+  lblReceivedMessages.Visible := true;
 end;
 
 procedure TFRMWallet.OnReceivedHelloResponse(Sender: TObject);
@@ -1008,22 +1082,24 @@ end;
 procedure TFRMWallet.PageControlChange(Sender: TObject);
 begin
   MiDecodePayload.Enabled := false;
-  if PageControl.ActivePage=tsOperations then begin
-    FOperationsDBGrid.Node := FNode;
-    MiDecodePayload.Enabled := true;
-  end else FOperationsDBGrid.Node := Nil;
-  if PageControl.ActivePage=tsBlockChain then FBlockChainDBGrid.Node := FNode
-  else FBlockChainDBGrid.Node := Nil;
-  if PageControl.ActivePage=tsPendingOperations then begin
-    FPendingOperationsGrid.Node := FNode;
-    MiDecodePayload.Enabled := true;
-  end else FPendingOperationsGrid.Node := Nil;
   if PageControl.ActivePage=tsAccountsExplorer then begin
     FAccountsGrid.Node := FNode;
     MiDecodePayload.Enabled := true;
   end else FAccountsGrid.Node := Nil;
+  if PageControl.ActivePage=tsPendingOperations then begin
+    FPendingOperationsGrid.Node := FNode;
+    MiDecodePayload.Enabled := true;
+  end else FPendingOperationsGrid.Node := Nil;
+  if PageControl.ActivePage=tsBlockChain then FBlockChainDBGrid.Node := FNode
+  else FBlockChainDBGrid.Node := Nil;
+  if PageControl.ActivePage=tsOperations then begin
+    FOperationsDBGrid.Node := FNode;
+    MiDecodePayload.Enabled := true;
+  end else FOperationsDBGrid.Node := Nil;
   if PageControl.ActivePage=tsMessages then begin
     UpdateAvailableConnections;
+    FMessagesUnreadCount := 0;
+    lblReceivedMessages.Visible := false;
   end;
 end;
 
@@ -1043,23 +1119,38 @@ begin
   End;
 end;
 
+procedure TFRMWallet.SetMinersBlocksFound(const Value: Integer);
+begin
+  FMinersBlocksFound := Value;
+  lblBlocksFound.Caption := Inttostr(Value);
+  if Value>0 then lblBlocksFound.Font.Color := clGreen
+  else lblBlocksFound.Font.Color := clDkGray;
+end;
+
 procedure TFRMWallet.TimerUpdateStatusTimer(Sender: TObject);
 begin
-  UpdateConnectionStatus;
-  UpdateBlockChainState;
-  UpdateNodeStatus;
-  If (FMemoNetConnections.UpdateCount=0) And (FMemoNetConnections.Count>0) then begin
-    memoNetConnections.Lines.Assign(FMemoNetConnections);
-    FMemoNetConnections.Clear;
-  end;
-  If (FMemoAvailableNodeServers.UpdateCount=0) And (FMemoAvailableNodeServers.Count>0) then begin
-    memoNetServers.Lines.Assign(FMemoAvailableNodeServers);
-    FMemoAvailableNodeServers.Clear;
-  end;
-  If (FMemoBlackListNodes.UpdateCount=0) And (FMemoBlackListNodes.Count>0) then begin
-    memoNetBlackLists.Lines.Assign(FMemoBlackListNodes);
-    FMemoBlackListNodes.Clear;
-  end;
+  Try
+    UpdateConnectionStatus;
+    UpdateBlockChainState;
+    UpdateNodeStatus;
+    If (FMemoNetConnections.UpdateCount=0) And (FMemoNetConnections.Count>0) then begin
+      memoNetConnections.Lines.Assign(FMemoNetConnections);
+      FMemoNetConnections.Clear;
+    end;
+    If (FMemoAvailableNodeServers.UpdateCount=0) And (FMemoAvailableNodeServers.Count>0) then begin
+      memoNetServers.Lines.Assign(FMemoAvailableNodeServers);
+      FMemoAvailableNodeServers.Clear;
+    end;
+    If (FMemoBlackListNodes.UpdateCount=0) And (FMemoBlackListNodes.Count>0) then begin
+      memoNetBlackLists.Lines.Assign(FMemoBlackListNodes);
+      FMemoBlackListNodes.Clear;
+    end;
+  Except
+    On E:Exception do begin
+      E.Message := 'Exception at TimerUpdate '+E.ClassName+': '+E.Message;
+      TLog.NewLog(lterror,ClassName,E.Message);
+    end;
+  End;
 end;
 
 procedure TFRMWallet.TrayIconDblClick(Sender: TObject);
@@ -1076,13 +1167,25 @@ Var accl : TOrderedCardinalList;
   i,j,k : Integer;
 begin
   If Not Assigned(FOrderedAccountsKeyList) Then exit;
-  accl := FAccountsGrid.LockAccountsList;
-  Try
-    accl.Clear;
-    if cbMyPrivateKeys.ItemIndex<0 then exit;
-    if cbMyPrivateKeys.ItemIndex=0 then begin
-      // All keys in the wallet
-      for i := 0 to FWalletKeys.Count - 1 do begin
+  FAccountsGrid.ShowAllAccounts := Not cbExploreMyAccounts.Checked;
+  if cbExploreMyAccounts.Checked then begin
+    accl := FAccountsGrid.LockAccountsList;
+    Try
+      accl.Clear;
+      if cbMyPrivateKeys.ItemIndex<0 then exit;
+      if cbMyPrivateKeys.ItemIndex=0 then begin
+        // All keys in the wallet
+        for i := 0 to FWalletKeys.Count - 1 do begin
+          j := FOrderedAccountsKeyList.IndexOfAccountKey(FWalletKeys[i].AccountKey);
+          if (j>=0) then begin
+            l := FOrderedAccountsKeyList.AccountKeyList[j];
+            for k := 0 to l.Count - 1 do begin
+              accl.Add(Cardinal(l[k]));
+            end;
+          end;
+        end;
+      end else begin
+        i := cbMyPrivateKeys.ItemIndex-1;
         j := FOrderedAccountsKeyList.IndexOfAccountKey(FWalletKeys[i].AccountKey);
         if (j>=0) then begin
           l := FOrderedAccountsKeyList.AccountKeyList[j];
@@ -1091,19 +1194,15 @@ begin
           end;
         end;
       end;
-    end else begin
-      i := cbMyPrivateKeys.ItemIndex-1;
-      j := FOrderedAccountsKeyList.IndexOfAccountKey(FWalletKeys[i].AccountKey);
-      if (j>=0) then begin
-        l := FOrderedAccountsKeyList.AccountKeyList[j];
-        for k := 0 to l.Count - 1 do begin
-          accl.Add(Cardinal(l[k]));
-        end;
-      end;
-    end;
-  Finally
-    FAccountsGrid.UnlockAccountsList;
-  End;
+    Finally
+      FAccountsGrid.UnlockAccountsList;
+    End;
+    lblAccountsCount.Caption := inttostr(accl.Count);
+  end else begin
+    lblAccountsCount.Caption := inttostr(FNode.Bank.AccountsCount);
+  end;
+  // Show Totals:
+  lblAccountsBalance.Caption := TAccountComp.FormatMoney(FAccountsGrid.AccountsBalance);
   UpdateOperations;
 end;
 
@@ -1112,7 +1211,7 @@ Var i : integer;
  NC : TNetConnection;
  l : TList;
 begin
-  l := TNetData.NetData.NetConnections.LockList;
+  l := TNetData.NetData.NetConnections.LockList('TFRMWallet.UpdateAvailableConnections');
   try
     lbNetConnections.Items.BeginUpdate;
     Try
@@ -1142,8 +1241,7 @@ end;
 procedure TFRMWallet.UpdateBlockChainState;
 Var isMining : boolean;
   hr : Int64;
-  pc : Int64;
-  mc : Integer;
+  i,mc : Integer;
   s : String;
   mtl : TList;
   f, favg : real;
@@ -1169,13 +1267,15 @@ begin
         CT_CalcNewTargetBlocksAverage * 2 ,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage * 2)),
         CT_CalcNewTargetBlocksAverage DIV 2,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage DIV 2)),
         CT_CalcNewTargetBlocksAverage DIV 4,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage DIV 4))]);
-    mtl := FNode.MinerThreads.LockList;
+    mtl := FNode.MinerThreads.LockList('TFRMWallet.UpdateBlockChainState');
     try
       mc := mtl.Count;
       If mc>0 then begin
         isMining := Not TMinerThread(mtl[0]).Paused;
-        hr := TMinerThread(mtl[0]).HashRate;
-        pc := TMinerThread(mtl[0]).PlayCount;
+        hr := 0;
+        for i := 0 to mtl.Count - 1 do begin
+          hr := hr + TMinerThread(mtl[i]).HashRate;
+        end;
       end else isMining :=false;
     finally
       FNode.MinerThreads.UnlockList;
@@ -1193,7 +1293,7 @@ begin
   if isMining then begin
     if mc>1 then s := inttostr(mc)+' Miners at '
     else s := 'Mining at ';
-    lblMiningStatus.Caption := s +FormatFloat('0.0',hr / 1024)+' Kh/s Rounds: '+FormatFloat('0.0',pc / 1000000)+' G';
+    lblMiningStatus.Caption := s +FormatFloat('0.0',hr / 1024)+' Kh/s (R: '+FormatFloat('0.0',TMinerThread.AllMinersPlayCount / 1000000)+'G)';
     lblMiningStatus.Font.Color := clNavy
   end else begin
     lblMiningStatus.Caption := 'Not mining';
@@ -1204,6 +1304,7 @@ end;
 
 procedure TFRMWallet.UpdateConfigChanged;
 Var wa : Boolean;
+  i : Integer;
 begin
   tsLogs.TabVisible := FAppParams.ParamByName[CT_PARAM_ShowLogs].GetAsBoolean(false);
   if (Not tsLogs.TabVisible) then begin
@@ -1223,6 +1324,14 @@ begin
     FNode.NetServer.Active := wa;
     FNode.Operations.BlockPayload := FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString('');
   end;
+  FMaxCPUs := FAppParams.ParamByName[CT_PARAM_MaxCPUs].GetAsInteger(1);
+  if FMaxCPUs>CPUCount then FMaxCPUs := CPUCount;
+  if FMaxCPUs<0 then FMaxCPUs := 0;
+
+  i := FAppParams.ParamByName[CT_PARAM_MinerPrivateKeyType].GetAsInteger(Integer(mpk_Random));
+  if (i>=Integer(Low(TMinerPrivatekey))) And (i<=Integer(High(TMinerPrivatekey))) then FMinerPrivateKeyType := TMinerPrivateKey(i)
+  else FMinerPrivateKeyType := mpk_Random;
+
   cbAllowMining.Checked :=  (FAppParams.ParamByName[CT_PARAM_AutomaticMineWhenConnectedToNodes].GetAsBoolean(true));
 end;
 
@@ -1318,4 +1427,6 @@ begin
   else if cbMyPrivateKeys.Items.Count>=0 then cbMyPrivateKeys.ItemIndex := 0;
 end;
 
+initialization
+  FRMWallet := Nil;
 end.
