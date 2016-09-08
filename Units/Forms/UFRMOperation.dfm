@@ -118,11 +118,11 @@ object FRMOperation: TFRMOperation
         Caption = ' Operation: '
         TabOrder = 0
         object lblDestAccount: TLabel
-          Left = 96
+          Left = 68
           Top = 42
-          Width = 68
+          Width = 95
           Height = 13
-          Caption = 'Dest. Account'
+          Caption = 'Destination account'
         end
         object lblAmount: TLabel
           Left = 255
@@ -132,11 +132,11 @@ object FRMOperation: TFRMOperation
           Caption = 'Amount'
         end
         object lblNewPrivateKey: TLabel
-          Left = 59
+          Left = 82
           Top = 85
-          Width = 83
+          Width = 78
           Height = 13
-          Caption = 'New Private Key:'
+          Caption = 'New private key'
         end
         object lblTransactionErrors: TLabel
           Left = 170
@@ -169,11 +169,11 @@ object FRMOperation: TFRMOperation
           ParentFont = False
         end
         object lblNewOwnerPublicKey: TLabel
-          Left = 59
+          Left = 50
           Top = 138
-          Width = 105
+          Width = 111
           Height = 13
-          Caption = 'New owner Public Key'
+          Caption = 'New owner'#39's public key'
         end
         object lblNewOwnerErrors: TLabel
           Left = 199
@@ -211,7 +211,7 @@ object FRMOperation: TFRMOperation
           Top = 62
           Width = 220
           Height = 17
-          Caption = 'Change Private key'
+          Caption = 'Change private key'
           TabOrder = 4
           OnClick = rbTransactionClick
         end
@@ -391,7 +391,7 @@ object FRMOperation: TFRMOperation
           Top = 53
           Width = 231
           Height = 17
-          Caption = 'Encrypted with Password'
+          Caption = 'Encrypted with password'
           TabOrder = 2
           OnClick = memoPayloadClick
         end
