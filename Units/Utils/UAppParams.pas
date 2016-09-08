@@ -297,6 +297,8 @@ end;
 
 procedure TAppParam.SetAsString(StringValue: AnsiString);
 begin
+  if (FParamType=ptString) And (GetAsString('')=StringValue) then exit;
+
   FParamType := ptString;
   FValue := StringValue;
   If Assigned(FAppParams) then FAppParams.Save;

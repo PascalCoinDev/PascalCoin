@@ -69,6 +69,8 @@ Const
   CT_Op_Changekey = $02;
   CT_Op_Recover = $03;
 
+  CT_ClientAppVersion : AnsiString = '1.0.3';
+
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.ddns.net;pascalcoin2.ddns.net;pascalcoin1.dynamic-dns.net;pascalcoin1.dns1.us';
 
   CT_TRUE_FALSE : Array[Boolean] Of AnsiString = ('FALSE','TRUE');

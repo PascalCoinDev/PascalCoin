@@ -338,7 +338,7 @@ Var
   buffer, pow: AnsiString;
   i : Integer;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,'AddNewBlockChainBlock',FBankLock);
+  TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
   Try
     Result := False;
     errors := '';
@@ -517,7 +517,7 @@ begin
     TLog.NewLog(lterror,Classname,'Is Restoring!!!');
     raise Exception.Create('Is restoring!');
   end;
-  TPCThread.ProtectEnterCriticalSection(Self,'DiskRestoreFromOperations',FBankLock);
+  TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
   try
     FIsRestoringFromFile := true;
     try
@@ -706,7 +706,7 @@ begin
   Clear;
   Result := SafeBox.LoadFromStream(Stream,LastReadBlock,errors);
   if Result then begin
-    TPCThread.ProtectEnterCriticalSection(Self,'LoadFromStream',FBankLock);
+    TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
     try
       op := TPCOperationsComp.Create(Self);
       try
@@ -736,7 +736,7 @@ end;
 
 function TPCBank.LoadOperations(Operations: TPCOperationsComp; Block: Cardinal): Boolean;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,'LoadOperations',FBankLock);
+  TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
   try
     Result := Storage.LoadBlockChainBlock(Operations,Block);
   finally
@@ -940,12 +940,12 @@ end;
 
 procedure TPCOperationsComp.Calc_Digest_Operations;
 var ms : TMemoryStream;
-  i: Cardinal;
   buff: AnsiString;
 begin
   ms := TMemoryStream.Create;
   try
     ms.WriteBuffer(FOperationsHashTree.HashTree[1],length(FOperationsHashTree.HashTree));
+    // Note about fee: Fee is stored in 8 bytes, but only digest first 4 low bytes
     ms.Write(FOperationBlock.fee,4);
     SetLength(FDigest_Operations,ms.Size);
     ms.Position := 0;
@@ -1103,7 +1103,19 @@ end;
 
 function TPCOperationsComp.IncrementNOnce: Boolean;
 begin
-  nonce := nonce + 1;
+  // Important note:
+  // In Build version 1.0.0 to 1.0.2 of PascalCoin the wallet stored nOnce data in an
+  // Access database as an Integer.
+  // There is a limitation of int values in Access that they can't be greater
+  // than MAXINT, so to preventing miners to fall only mines within nonce 0..MaxInt
+  // This limitation is not in the protocol, so in future versions of
+  // PascalCoin nonce can be a full unsigned 4 bytes value.
+  // Note: Build 1.0.3 corrects this issue storing nOnce as a String, but
+  // to prevent old miners working on a fork, for now applying MaxInt
+  // Starting at build (1.0.4) MaxInt will be a full unsigned 4 bytes value.
+  if nonce<MaxInt then
+    nonce := nonce + 1
+  else nonce := 0;
   Result := FOperationBlock.proof_of_work < FBank.FActualTargetHash;
 end;
 
@@ -1171,7 +1183,7 @@ begin
   Stream.Read(FOperationBlock.block, Sizeof(FOperationBlock.block));
 
   if TStreamOp.ReadAnsiString(Stream, m) < 0 then exit;
-  FOperationBlock.account_key := TAccountComp.RawString2Accountkey(m); // String2Addresskey(m);
+  FOperationBlock.account_key := TAccountComp.RawString2Accountkey(m);
   if Stream.Read(FOperationBlock.reward, Sizeof(FOperationBlock.reward)) < 0 then exit;
   if Stream.Read(FOperationBlock.fee, Sizeof(FOperationBlock.fee)) < 0 then exit;
   if Stream.Read(FOperationBlock.timestamp, Sizeof(FOperationBlock.timestamp)) < 0 then exit;
@@ -1391,9 +1403,16 @@ begin
 end;
 
 procedure TPCOperationsComp.SetBlockPayload(const Value: TRawBytes);
+Var i : Integer;
 begin
   if Value=FOperationBlock.block_payload then exit;
   if Length(Value)>CT_MaxPayloadSize then Exit;
+  // Checking Miner Payload valid chars
+  for i := 1 to length(Value) do begin
+    if Not (Value[i] in [#32..#254]) then begin
+      exit;
+    end;
+  end;
   FOperationBlock.block_payload := Value;
   CalcProofOfWork(true,FOperationBlock.proof_of_work);
 end;
@@ -1435,6 +1454,19 @@ begin
       exit;
     end;
   end;
+  // Checking Miner payload size
+  if length(BlockPayload)>CT_MaxPayloadSize then begin
+    errors := 'Invalid Miner Payload length: '+inttostr(Length(BlockPayload));
+    exit;
+  end;
+  // Checking Miner Payload valid chars
+  for i := 1 to length(BlockPayload) do begin
+    if Not (BlockPayload[i] in [#32..#254]) then begin
+      errors := 'Invalid Miner Payload character at pos '+inttostr(i)+' value:'+inttostr(ord(BlockPayload[i]));
+      exit;
+    end;
+  end;
+
   CalcProofOfWork(true,FOperationBlock.proof_of_work);
   if Not AnsiSameStr(OperationBlock.proof_of_work,lastpow) then begin
     errors := 'Invalid Proof of work calculation';
@@ -1509,7 +1541,7 @@ end;
 procedure TOperationsHashTree.AddOperationToHashTree(op: TPCOperation);
 Var l : TList;
 begin
-  l := FHashTreeOperations.LockList('TOperationsHashTree.AddOperationToHashTree');
+  l := FHashTreeOperations.LockList;
   try
     InternalAddOperationToHashTree(l,op);
   finally
@@ -1522,7 +1554,7 @@ var op : TPCOperation;
   l : TList;
   i : Integer;
 begin
-  l := FHashTreeOperations.LockList('TOperationsHashTree.ClearHastThree');
+  l := FHashTreeOperations.LockList;
   try
     Try
       for i := 0 to l.Count - 1 do begin
@@ -1549,8 +1581,8 @@ begin
   end;
 
   ClearHastThree;
-  lme := FHashTreeOperations.LockList('TOperationsHashTree.CopyFromHashTree me');
-  lsender := Sender.FHashTreeOperations.LockList('TOperationsHashTree.CopyFromHashTree sender');
+  lme := FHashTreeOperations.LockList;
+  lsender := Sender.FHashTreeOperations.LockList;
   try
     ms := TMemoryStream.Create;
     Try
@@ -1588,7 +1620,7 @@ end;
 function TOperationsHashTree.GetOperation(index: Integer): TPCOperation;
 Var l : TList;
 begin
-  l := FHashTreeOperations.LockList('TOperationsHashTree.GetOperation');
+  l := FHashTreeOperations.LockList;
   try
     Result := TPCOperation(l[index]);
   finally
@@ -1602,7 +1634,7 @@ Var l,intl : TList;
   i,j : Integer;
 begin
   List.Clear;
-  l := FHashTreeOperations.LockList('TOperationsHashTree.GetOperationsAffectingAccount');
+  l := FHashTreeOperations.LockList;
   try
     intl := TList.Create;
     try
@@ -1643,7 +1675,7 @@ end;
 function TOperationsHashTree.OperationsCount: Integer;
 Var l : TList;
 begin
-  l := FHashTreeOperations.LockList('TOperationsHashTree.OperationsCount');
+  l := FHashTreeOperations.LockList;
   try
     Result := l.Count;
   finally

@@ -46,9 +46,11 @@ type
     rbUseARandomKey: TRadioButton;
     rbMineAllwaysWithThisKey: TRadioButton;
     cbPrivateKeyToMine: TComboBox;
+    cbSaveDebugLogs: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure bbOkClick(Sender: TObject);
     procedure bbUpdatePasswordClick(Sender: TObject);
+    procedure cbSaveLogFilesClick(Sender: TObject);
   private
     FAppParams: TAppParams;
     FWalletKeys: TWalletKeys;
@@ -93,6 +95,7 @@ begin
   AppParams.ParamByName[CT_PARAM_AutomaticMineWhenConnectedToNodes].SetAsBoolean(cbAutomaticMiningWhenConnectedToNodes.Checked );
   AppParams.ParamByName[CT_PARAM_SaveLogFiles].SetAsBoolean(cbSaveLogFiles.Checked );
   AppParams.ParamByName[CT_PARAM_ShowLogs].SetAsBoolean(cbShowLogs.Checked );
+  AppParams.ParamByName[CT_PARAM_SaveDebugLogs].SetAsBoolean(cbSaveDebugLogs.Checked);
   AppParams.ParamByName[CT_PARAM_MinerName].SetAsString(ebMinerName.Text);
   AppParams.ParamByName[CT_PARAM_ShowModalMessages].SetAsBoolean(cbShowModalMessages.Checked);
   AppParams.ParamByName[CT_PARAM_MaxCPUs].SetAsInteger(udCPUs.Position);
@@ -126,6 +129,11 @@ begin
   UpdateWalletConfig;
 end;
 
+procedure TFRMPascalCoinWalletConfig.cbSaveLogFilesClick(Sender: TObject);
+begin
+  cbSaveDebugLogs.Enabled := cbSaveLogFiles.Checked;
+end;
+
 procedure TFRMPascalCoinWalletConfig.FormCreate(Sender: TObject);
 begin
   lblDefaultInternetServerPort.Caption := Format('(Default %d)',[CT_NetServer_Port]);
@@ -156,6 +164,7 @@ begin
     UpdateWalletConfig;
     cbSaveLogFiles.Checked := AppParams.ParamByName[CT_PARAM_SaveLogFiles].GetAsBoolean(false);
     cbShowLogs.Checked := AppParams.ParamByName[CT_PARAM_ShowLogs].GetAsBoolean(false);
+    cbSaveDebugLogs.Checked := AppParams.ParamByName[CT_PARAM_SaveDebugLogs].GetAsBoolean(false);
     ebMinerName.Text := AppParams.ParamByName[CT_PARAM_MinerName].GetAsString('');
     cbShowModalMessages.Checked := AppParams.ParamByName[CT_PARAM_ShowModalMessages].GetAsBoolean(false);
     udCPUs.Position := AppParams.ParamByName[CT_PARAM_MaxCPUs].GetAsInteger(1);
@@ -164,6 +173,7 @@ begin
       TLog.NewLog(lterror,ClassName,'Exception at SetAppParams: '+E.Message);
     end;
   End;
+  cbSaveLogFilesClick(nil);
 end;
 
 procedure TFRMPascalCoinWalletConfig.SetWalletKeys(const Value: TWalletKeys);

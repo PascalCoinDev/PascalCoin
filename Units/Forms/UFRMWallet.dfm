@@ -327,12 +327,12 @@ object FRMWallet: TFRMWallet
       ParentFont = False
       OnClick = lblReceivedMessagesClick
     end
-    object Label15: TLabel
-      Left = 721
+    object lblBuild: TLabel
+      Left = 717
       Top = 6
-      Width = 112
+      Width = 49
       Height = 23
-      Caption = 'TEST MODE'
+      Caption = 'Build'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -19
@@ -343,7 +343,7 @@ object FRMWallet: TFRMWallet
     object cbAllowMining: TCheckBox
       Left = 620
       Top = 10
-      Width = 97
+      Width = 91
       Height = 17
       Caption = 'Allow Mining'
       TabOrder = 0
@@ -375,16 +375,20 @@ object FRMWallet: TFRMWallet
     Top = 91
     Width = 899
     Height = 448
-    ActivePage = tsAccountsExplorer
+    ActivePage = tsNodeStats
     Align = alClient
     TabOrder = 2
     OnChange = PageControlChange
     object tsAccountsExplorer: TTabSheet
       Caption = 'Accounts Explorer'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Splitter1: TSplitter
         Left = 380
-        Top = 41
-        Height = 379
+        Top = 66
+        Height = 354
         ExplicitLeft = 390
         ExplicitTop = 140
         ExplicitHeight = 100
@@ -393,9 +397,16 @@ object FRMWallet: TFRMWallet
         Left = 0
         Top = 0
         Width = 891
-        Height = 41
+        Height = 66
         Align = alTop
         TabOrder = 0
+        object Label18: TLabel
+          Left = 11
+          Top = 35
+          Width = 61
+          Height = 13
+          Caption = 'Find account'
+        end
         object cbMyPrivateKeys: TComboBox
           Left = 260
           Top = 7
@@ -414,21 +425,36 @@ object FRMWallet: TFRMWallet
           TabOrder = 1
           OnClick = cbExploreMyAccountsClick
         end
+        object ebFindAccountNumber: TEdit
+          Left = 87
+          Top = 32
+          Width = 83
+          Height = 21
+          TabOrder = 2
+          OnChange = ebFindAccountNumberChange
+          OnExit = ebFindAccountNumberExit
+        end
       end
       object dgAccountOperations: TDrawGrid
         Left = 383
-        Top = 41
+        Top = 66
         Width = 508
-        Height = 379
+        Height = 354
         Align = alClient
         TabOrder = 1
         OnDblClick = MiDecodePayloadClick
+        RowHeights = (
+          24
+          24
+          24
+          24
+          24)
       end
       object pnlAccounts: TPanel
         Left = 0
-        Top = 41
+        Top = 66
         Width = 380
-        Height = 379
+        Height = 354
         Align = alLeft
         BevelOuter = bvNone
         TabOrder = 2
@@ -436,7 +462,7 @@ object FRMWallet: TFRMWallet
           Left = 0
           Top = 0
           Width = 380
-          Height = 345
+          Height = 320
           Align = alLeft
           TabOrder = 0
           OnClick = dgAccountsClick
@@ -451,7 +477,7 @@ object FRMWallet: TFRMWallet
         end
         object pnlAccountsInfo: TPanel
           Left = 0
-          Top = 345
+          Top = 320
           Width = 380
           Height = 34
           Align = alBottom
@@ -1014,10 +1040,10 @@ object FRMWallet: TFRMWallet
   end
   object ImageListIcons: TImageList
     Height = 48
-    Left = 90
-    Top = 155
+    Left = 105
+    Top = 180
     Bitmap = {
-      494C0101020008009C0010003000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010102000800C00010003000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000003000000001002000000000000030
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000002A292929D60B0B0BF4111111EE0000006B000000000000

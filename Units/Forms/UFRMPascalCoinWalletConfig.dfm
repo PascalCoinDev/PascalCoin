@@ -96,14 +96,15 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Height = 17
     Caption = 'Save log file'
     TabOrder = 8
+    OnClick = cbSaveLogFilesClick
   end
   object cbShowLogs: TCheckBox
     Left = 15
-    Top = 382
+    Top = 397
     Width = 97
     Height = 17
     Caption = 'Show logs'
-    TabOrder = 9
+    TabOrder = 10
   end
   object bbOk: TBitBtn
     Left = 171
@@ -113,7 +114,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     DoubleBuffered = True
     Kind = bkOK
     ParentDoubleBuffered = False
-    TabOrder = 10
+    TabOrder = 11
     OnClick = bbOkClick
   end
   object bbCancel: TBitBtn
@@ -124,7 +125,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     DoubleBuffered = True
     Kind = bkCancel
     ParentDoubleBuffered = False
-    TabOrder = 11
+    TabOrder = 12
   end
   object udInternetServerPort: TUpDown
     Left = 226
@@ -231,7 +232,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Width = 171
     Height = 17
     Caption = 'Show Modal Messages'
-    TabOrder = 12
+    TabOrder = 13
   end
   object udCPUs: TUpDown
     Left = 226
@@ -260,7 +261,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Width = 334
     Height = 121
     Caption = ' Miner Private Key: '
-    TabOrder = 13
+    TabOrder = 14
     object rbGenerateANewPrivateKeyEachBlock: TRadioButton
       Left = 20
       Top = 20
@@ -293,5 +294,13 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
       Style = csDropDownList
       TabOrder = 3
     end
+  end
+  object cbSaveDebugLogs: TCheckBox
+    Left = 31
+    Top = 377
+    Width = 97
+    Height = 17
+    Caption = 'Save debug logs too'
+    TabOrder = 9
   end
 end

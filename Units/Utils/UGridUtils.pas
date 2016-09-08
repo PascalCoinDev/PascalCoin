@@ -31,7 +31,6 @@ Type
   TOrderedCardinalList = Class
   private
     FOrderedList : TList;
-    Function Find(const Value: Cardinal; var Index: Integer): Boolean;
   public
     Constructor Create;
     Destructor Destroy; override;
@@ -40,6 +39,7 @@ Type
     Procedure Clear;
     Function Get(index : Integer) : Cardinal;
     Function Count : Integer;
+    Function Find(const Value: Cardinal; var Index: Integer): Boolean;
   End;
 
   TAccountsGrid = Class(TComponent)
@@ -71,6 +71,7 @@ Type
     Procedure LoadFromStream(Stream : TStream);
     Property ShowAllAccounts : Boolean read FShowAllAccounts write SetShowAllAccounts;
     Property AccountsBalance : Int64 read FAccountsBalance;
+    Function MoveRowToAccount(nAccount : Cardinal) : Boolean;
   End;
 
   TOperationsGrid = Class(TComponent)
@@ -310,6 +311,44 @@ end;
 function TAccountsGrid.LockAccountsList: TOrderedCardinalList;
 begin
   Result := FAccountsList;
+end;
+
+function TAccountsGrid.MoveRowToAccount(nAccount: Cardinal): Boolean;
+Var oal : TOrderedCardinalList;
+  idx : Integer;
+begin
+  Result := false;
+  if Not Assigned(FDrawGrid) then exit;
+  if Not Assigned(Node) then exit;
+  if FDrawGrid.RowCount<=1 then exit;
+  if FShowAllAccounts then begin
+    If (FDrawGrid.RowCount>nAccount+1) And (nAccount>=0) And (nAccount<Node.Bank.AccountsCount) then begin
+      FDrawGrid.Row := nAccount+1;
+      Result := true;
+    end else begin
+      FDrawGrid.Row := FDrawGrid.RowCount-1;
+    end;
+  end else begin
+    oal := LockAccountsList;
+    try
+      If oal.Find(nAccount,idx) then begin
+        If FDrawGrid.RowCount>idx+1 then begin
+          FDrawGrid.Row := idx+1;
+          Result := true;
+        end else begin
+          FDrawGrid.Row := FDrawGrid.RowCount-1;
+        end;
+      end else begin
+        If FDrawGrid.RowCount>idx+1 then begin
+          FDrawGrid.Row := idx+1;
+        end else begin
+          FDrawGrid.Row := FDrawGrid.RowCount-1;
+        end;
+      end;
+    finally
+      UnlockAccountsList;
+    end;
+  end;
 end;
 
 procedure TAccountsGrid.Notification(AComponent: TComponent;
@@ -729,7 +768,7 @@ end;
 procedure TOperationsGrid.SetNode(const Value: TNode);
 begin
   FNodeNotifyEvents.Node := Value;
-  InitGrid;
+  UpdateAccountOperations; // New Build 1.0.3
 end;
 
 procedure TOperationsGrid.SetPendingOperations(const Value: Boolean);
@@ -842,10 +881,12 @@ begin
   fld.FieldName := CT_TblFld_Operations_block;
   fld.DataSet := FQrySQL;
   fld.Visible := false;
-  fld := TIntegerField.Create(FQrySQL);
-  fld.FieldName := CT_TblFld_Operations_timestamp;
+  //
+  fld := TStringField.Create(FQrySQL);
+  fld.FieldName := CT_TblFld_Operations_s_timestamp;
   fld.DataSet := FQrySQL;
   fld.Visible := false;
+  //
   fld := TIntegerField.Create(FQrySQL);
   fld.FieldName := CT_TblFld_Operations_optype;
   fld.DataSet := FQrySQL;
@@ -885,15 +926,34 @@ begin
   fld.FieldKind := fkCalculated;
   fld.DataSet := FQrySQL;
   TStringField(fld).Size := 600;
-  fld := TIntegerField.Create(FQrySQL);
-  fld.FieldName := CT_TblFld_Operations_amount;
+  //
+  fld := TStringField.Create(FQrySQL);
+  fld.FieldName := CT_TblFld_Operations_s_amount;
   fld.DataSet := FQrySQL;
-  fld := TIntegerField.Create(FQrySQL);
-  fld.FieldName := CT_TblFld_Operations_fee;
+  fld := TLargeintField.Create(FQrySQL);
+  fld.FieldName := 'amount';
+  fld.Calculated := true;
+  fld.FieldKind := fkCalculated;
   fld.DataSet := FQrySQL;
-  fld := TIntegerField.Create(FQrySQL);
-  fld.FieldName := CT_TblFld_Operations_balance;
+
+  fld := TStringField.Create(FQrySQL);
+  fld.FieldName := CT_TblFld_Operations_s_fee;
   fld.DataSet := FQrySQL;
+  fld := TLargeintField.Create(FQrySQL);
+  fld.FieldName := 'fee';
+  fld.Calculated := true;
+  fld.FieldKind := fkCalculated;
+  fld.DataSet := FQrySQL;
+
+  fld := TStringField.Create(FQrySQL);
+  fld.FieldName := CT_TblFld_Operations_s_balance;
+  fld.DataSet := FQrySQL;
+  fld := TLargeintField.Create(FQrySQL);
+  fld.FieldName := 'balance';
+  fld.Calculated := true;
+  fld.FieldKind := fkCalculated;
+  fld.DataSet := FQrySQL;
+
   fld := TStringField.Create(FQrySQL);
   fld.FieldName := CT_TblFld_Operations_rawpayload;
   fld.DataSet := FQrySQL;
@@ -955,9 +1015,9 @@ begin
     else c.Brush.Color := clGradientInactiveCaption
   else c.Brush.Color := clWindow;
   c.FillRect(Rect);
-  if SameText(Column.FieldName,CT_TblFld_Operations_amount) Or
-     SameText(Column.FieldName,CT_TblFld_Operations_fee) Or
-     SameText(Column.FieldName,CT_TblFld_Operations_balance)
+  if SameText(Column.FieldName,'amount') Or
+     SameText(Column.FieldName,'fee') Or
+     SameText(Column.FieldName,'balance')
       then begin
     c.FillRect(Rect);
     if Column.Field.AsLargeInt>0 then c.Font.Color := ClGreen
@@ -990,7 +1050,7 @@ Var fld : TField;
   s : AnsiString;
 begin
   fld := DataSet.FieldByName('datetime');
-  fld.AsDateTime :=  UnivDateTime2LocalDateTime(UnixToUnivDateTime(DataSet.FieldByName(CT_TblFld_Operations_timestamp).AsInteger));
+  fld.AsDateTime :=  UnivDateTime2LocalDateTime(UnixToUnivDateTime( StrToIntDef( DataSet.FieldByName(CT_TblFld_Operations_s_timestamp).AsString, 0)));
   fld := DataSet.FieldByName('op_account');
   fld.AsString := TAccountComp.AccountNumberToAccountTxtNumber(DataSet.FieldByName(CT_TblFld_Operations_account).AsInteger);
   fld := DataSet.FieldByName('payload_txt');
@@ -1000,6 +1060,14 @@ begin
   end else begin
     fld.AsString := TCrypto.ToHexaString(raw);
   end;
+  //
+  fld := DataSet.FieldByName('amount');
+  TLargeintField(fld).Value := StrToInt64Def(Dataset.FieldByName(CT_TblFld_Operations_s_amount).AsString,0);
+  fld := DataSet.FieldByName('balance');
+  TLargeintField(fld).Value := StrToInt64Def(Dataset.FieldByName(CT_TblFld_Operations_s_balance).AsString,0);
+  fld := DataSet.FieldByName('fee');
+  TLargeintField(fld).Value := StrToInt64Def(Dataset.FieldByName(CT_TblFld_Operations_s_fee).AsString,0);
+
   fld := DataSet.FieldByName('operation');
           case dataset.FieldByName(CT_TblFld_Operations_optype).AsInteger of
             0 : fld.AsString := 'Blockchain reward';
@@ -1029,7 +1097,7 @@ begin
     exit;
   end;
   FNeedRefreshSQL := false;
-  sql := TDBStorage.GetOperationsFromAccountSQL(AccountNumber,BlockStart,BlockEnd,DateStart,DateEnd, 0,0);
+  sql := TDBStorage.GetOperationsFromAccountSQL(AccountNumber,BlockStart,BlockEnd,DateStart,DateEnd, 0,50000);
   If FQrySQL.Connection=Nil then exit;
   if Node=Nil then exit;
   if FDBGrid=Nil then exit;
@@ -1135,9 +1203,9 @@ begin
     AddColumn('datetime','Date/Time',120);
     AddColumn('op_account','Account',70);
     AddColumn('operation','Operation',150);
-    AddColumn(CT_TblFld_Operations_amount,'Amount',80);
-    AddColumn(CT_TblFld_Operations_fee,'Fee',60);
-    AddColumn(CT_TblFld_Operations_balance,'Balance',80);
+    AddColumn('amount','Amount',80);
+    AddColumn('fee','Fee',60);
+    AddColumn('balance','Balance',80);
     AddColumn('payload_txt','Payload',280);
     RefreshData;
   end;
@@ -1158,7 +1226,8 @@ begin
   FRM := TFRMPayloadDecoder.Create(FDBGrid.Owner);
   try
     TDBStorage.DBStringFieldToRaw(FQrySQL.FieldByName(CT_TblFld_Operations_rawpayload),raw);
-    FRM.Init(FQrySQL.FieldByName(CT_TblFld_Operations_block).AsInteger,FQrySQL.FieldByName(CT_TblFld_Operations_timestamp).AsInteger,
+    FRM.Init(FQrySQL.FieldByName(CT_TblFld_Operations_block).AsInteger,
+      StrToIntDef( FQrySQL.FieldByName(CT_TblFld_Operations_s_timestamp).AsString,0),
       FQrySQL.FieldByName('operation').AsString,
       raw,WalletKeys,AppParams);
     FRM.ShowModal;
@@ -1191,20 +1260,20 @@ begin
   fld.FieldName := CT_TblFld_BlockChain_block;
   fld.DataSet := FQrySQL;
   fld.Visible := true;
-  fld := TIntegerField.Create(FQrySQL);
-  fld.FieldName := CT_TblFld_BlockChain_timestamp;
+  fld := TStringField.Create(FQrySQL);
+  fld.FieldName := CT_TblFld_BlockChain_s_timestamp;
   fld.DataSet := FQrySQL;
   fld.Visible := false;
-  fld := TIntegerField.Create(FQrySQL);
-  fld.FieldName := CT_TblFld_BlockChain_reward;
+  fld := TStringField.Create(FQrySQL);
+  fld.FieldName := CT_TblFld_BlockChain_s_reward;
   fld.DataSet := FQrySQL;
   fld.Visible := true;
-  fld := TIntegerField.Create(FQrySQL);
-  fld.FieldName := CT_TblFld_BlockChain_fee;
+  fld := TStringField.Create(FQrySQL);
+  fld.FieldName := CT_TblFld_BlockChain_s_fee;
   fld.DataSet := FQrySQL;
   fld.Visible := true;
-  fld := TIntegerField.Create(FQrySQL);
-  fld.FieldName := CT_TblFld_BlockChain_compact_target;
+  fld := TStringField.Create(FQrySQL);
+  fld.FieldName := CT_TblFld_BlockChain_s_compact_target;
   fld.DataSet := FQrySQL;
   fld.Visible := true;
   fld := TIntegerField.Create(FQrySQL);
@@ -1232,6 +1301,18 @@ begin
   fld.FieldKind := fkCalculated;
   fld.DataSet := FQrySQL;
   TStringField(fld).Size := 8;
+
+  fld := TLargeintField.Create(FQrySQL);
+  fld.FieldName := 'reward';
+  fld.Calculated := true;
+  fld.FieldKind := fkCalculated;
+  fld.DataSet := FQrySQL;
+
+  fld := TLargeintField.Create(FQrySQL);
+  fld.FieldName := 'fee';
+  fld.Calculated := true;
+  fld.FieldKind := fkCalculated;
+  fld.DataSet := FQrySQL;
 
   fld := TStringField.Create(FQrySQL);
   fld.FieldName := CT_TblFld_BlockChain_rawpayload;
@@ -1299,8 +1380,8 @@ begin
     else c.Brush.Color := clGradientInactiveCaption
   else c.Brush.Color := clWindow;
   c.FillRect(Rect);
-  if SameText(Column.FieldName,CT_TblFld_BlockChain_reward) Or
-     SameText(Column.FieldName,CT_TblFld_BlockChain_fee)
+  if SameText(Column.FieldName,'reward') Or
+     SameText(Column.FieldName,'fee')
       then begin
     c.FillRect(Rect);
     if Column.Field.AsLargeInt>0 then c.Font.Color := ClGreen
@@ -1333,9 +1414,11 @@ Var fld : TField;
   s : AnsiString;
 begin
   fld := DataSet.FieldByName('datetime');
-  fld.AsDateTime :=  UnivDateTime2LocalDateTime(UnixToUnivDateTime(DataSet.FieldByName(CT_TblFld_BlockChain_timestamp).AsInteger));
+  fld.AsDateTime :=  UnivDateTime2LocalDateTime(UnixToUnivDateTime(StrToIntDef( DataSet.FieldByName(CT_TblFld_BlockChain_s_timestamp).AsString,0)));
   fld := DataSet.FieldByName('target');
-  fld.AsString :=  IntToHex(DataSet.FieldByName(CT_TblFld_BlockChain_compact_target).AsInteger,8);
+  fld.AsString :=  IntToHex(StrToIntDef( DataSet.FieldByName(CT_TblFld_BlockChain_s_compact_target).AsString,0),8);
+  DataSet.FieldByName('reward').AsLargeInt := StrToIntDef(DataSet.FieldByName(CT_TblFld_BlockChain_s_reward).AsString,0);
+  DataSet.FieldByName('fee').AsLargeInt := StrToIntDef(DataSet.FieldByName(CT_TblFld_BlockChain_s_fee).AsString,0);
   fld := DataSet.FieldByName('payload_decoded');
   TDBStorage.DBStringFieldToRaw(DataSet.FieldByName(CT_TblFld_BlockChain_rawpayload),raw);
   If TDBStorage.DBPayloadToReadableText(raw,s) then begin
@@ -1353,7 +1436,7 @@ begin
     exit;
   end;
   FNeedRefreshSQL := false;
-  sql := TDBStorage.GetBlockChainSQL(BlockStart,BlockEnd,DateStart,DateEnd, 0,100);
+  sql := TDBStorage.GetBlockChainSQL(BlockStart,BlockEnd,DateStart,DateEnd, 0,300);
   If FQrySQL.Connection=Nil then exit;
   if Node=Nil then exit;
   if FDBGrid=Nil then exit;
@@ -1449,8 +1532,8 @@ begin
     AddColumn(CT_TblFld_BlockChain_block,'Block',50);
     AddColumn('datetime','Date/Time',120);
     AddColumn(CT_TblFld_BlockChain_operations_count,'Ops.',50);
-    AddColumn(CT_TblFld_BlockChain_reward,'Reward',80);
-    AddColumn(CT_TblFld_BlockChain_fee,'Fee',60);
+    AddColumn('reward','Reward',80);
+    AddColumn('fee','Fee',60);
     AddColumn('target','Target',65);
     AddColumn(CT_TblFld_BlockChain_safe_box_hash,'Safe Box Hash',350);
     AddColumn('payload_decoded','Miner Payload',150);

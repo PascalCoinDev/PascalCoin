@@ -60,6 +60,12 @@ Type
   end;
   PBlockAccount = ^TBlockAccount;
 
+  { Estimated TAccount size:
+    4 + 200 (max aprox) + 8 + 4 + 4 = 220 max aprox
+    Estimated TBlockAccount size:
+    4 + (5 * 220) + 4 + 32 = 1140 max aprox
+  }
+
   TPCSafeBox = Class;
 
   // This is a class to quickly find accountkeys and their respective account number/s
@@ -851,7 +857,7 @@ begin
     TLog.NewLog(lterror,Classname,'IS LOCKED !!!');
     raise Exception.Create('IS LOCKED !!!');
   end;
-  TPCThread.ProtectEnterCriticalSection(Self,'StartThreadSafe',FLock);
+  TPCThread.ProtectEnterCriticalSection(Self,FLock);
   FIsLocked := true;
 end;
 

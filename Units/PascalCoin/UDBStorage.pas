@@ -47,13 +47,13 @@ Const
   CT_TblFld_BlockChain_id = 'idblockchain';
   CT_TblFld_BlockChain_block = 'block';
   CT_TblFld_BlockChain_accountkey = 'accountkey';
-  CT_TblFld_BlockChain_reward = 'reward';
-  CT_TblFld_BlockChain_fee = 'fee';
+  CT_TblFld_BlockChain_s_reward = 's_reward';
+  CT_TblFld_BlockChain_s_fee = 's_fee';
   CT_TblFld_BlockChain_protocol_version = 'protocol_version';
   CT_TblFld_BlockChain_protocol_available = 'protocol_available';
-  CT_TblFld_BlockChain_timestamp = 'timestamp';
-  CT_TblFld_BlockChain_compact_target = 'compact_target';
-  CT_TblFld_BlockChain_nonce = 'nonce';
+  CT_TblFld_BlockChain_s_timestamp = 's_timestamp';
+  CT_TblFld_BlockChain_s_compact_target = 's_compact_target';
+  CT_TblFld_BlockChain_s_nonce = 's_nonce';
   CT_TblFld_BlockChain_rawpayload = 'rawpayload';
   CT_TblFld_BlockChain_safe_box_hash = 'safe_box_hash';
   CT_TblFld_BlockChain_operations_hash = 'operations_hash';
@@ -65,15 +65,15 @@ Const
   CT_TblFld_Operations_id = 'idoperation';
   CT_TblFld_Operations_optype = 'optype';
   CT_TblFld_Operations_block = 'block';
-  CT_TblFld_Operations_timestamp = 'timestamp';
+  CT_TblFld_Operations_s_timestamp = 's_timestamp';
   CT_TblFld_Operations_nopblock = 'nopblock';
   CT_TblFld_Operations_account = 'account';
   CT_TblFld_Operations_other_account = 'other_account';
   CT_TblFld_Operations_n_operation = 'n_operation';
   CT_TblFld_Operations_optype_op = 'optype_op';
-  CT_TblFld_Operations_amount = 'amount';
-  CT_TblFld_Operations_fee = 'fee';
-  CT_TblFld_Operations_balance = 'balance';
+  CT_TblFld_Operations_s_amount = 's_amount';
+  CT_TblFld_Operations_s_fee = 's_fee';
+  CT_TblFld_Operations_s_balance = 's_balance';
   CT_TblFld_Operations_rawpayload = 'payload';
   CT_TblFld_Operations_newaccountkey = 'newaccountkey';
   CT_TblFld_Operations_orphan = 'orphan';
@@ -134,7 +134,7 @@ Type
     Property AccessFileName : AnsiString read FAccessFileName write SetAccessFileName;
     Function SQL_UPDATE(const TblName : AnsiString; Const SetValue : AnsiString; const Where : String): Boolean;
     Function SQL_DELETE(const TblName : AnsiString; const Where : String): Boolean;
-    Function ValueToSql(const Value : Variant) : String;
+    Class Function ValueToSql(const Value : Variant) : String;
     Procedure CopyConfiguration(Const CopyFrom : TStorage); override;
     Property ADOConnection : TADOConnection read FAdoConnection;
     Class Function DBPayloadToReadableText(Const DBRawPayload : TRawBytes; Var ReadableText : AnsiString) : Boolean;
@@ -561,13 +561,13 @@ begin
       aux := TCrypto.ToHexaString( TAccountComp.AccountKey2RawString(Operations.OperationBlock.account_key) );
       if (length(aux)>255) then aux := copy(aux,1,252)+'...';
       ds.FieldByName(CT_TblFld_BlockChain_accountkey).Value := Copy(aux,1,255);
-      ds.FieldByName(CT_TblFld_BlockChain_reward).Value := Operations.OperationBlock.reward;
-      ds.FieldByName(CT_TblFld_BlockChain_fee).Value := Operations.OperationBlock.fee;
+      ds.FieldByName(CT_TblFld_BlockChain_s_reward).Value := Format('%.18d', [Operations.OperationBlock.reward] );
+      ds.FieldByName(CT_TblFld_BlockChain_s_fee).Value := Format('%.18d', [Operations.OperationBlock.fee] );
       ds.FieldByName(CT_TblFld_BlockChain_protocol_version).Value := Operations.OperationBlock.protocol_version;
       ds.FieldByName(CT_TblFld_BlockChain_protocol_available).Value := Operations.OperationBlock.protocol_available;
-      ds.FieldByName(CT_TblFld_BlockChain_timestamp).Value := Operations.OperationBlock.timestamp;
-      ds.FieldByName(CT_TblFld_BlockChain_compact_target).Value := Operations.OperationBlock.compact_target;
-      ds.FieldByName(CT_TblFld_BlockChain_nonce).Value := Operations.OperationBlock.nonce;
+      ds.FieldByName(CT_TblFld_BlockChain_s_timestamp).Value := Format('%.10d', [Operations.OperationBlock.timestamp] );
+      ds.FieldByName(CT_TblFld_BlockChain_s_compact_target).Value := Format('%.10d', [Operations.OperationBlock.compact_target] );
+      ds.FieldByName(CT_TblFld_BlockChain_s_nonce).Value := Format('%.10d', [Operations.OperationBlock.nonce] );
       DBRawToStringField(ds.FieldByName(CT_TblFld_BlockChain_rawpayload),Operations.OperationBlock.block_payload);
       ds.FieldByName(CT_TblFld_BlockChain_safe_box_hash).Value := TCrypto.ToHexaString( Operations.OperationBlock.initial_safe_box_hash );
       ds.FieldByName(CT_TblFld_BlockChain_operations_hash).Value := TCrypto.ToHexaString( Operations.OperationBlock.operations_hash );
@@ -587,16 +587,16 @@ begin
       ds.Insert;
       ds.FieldByName(CT_TblFld_Operations_optype).Value := 0;
       ds.FieldByName(CT_TblFld_Operations_block).Value := Operations.OperationBlock.block;
-      ds.FieldByName(CT_TblFld_Operations_timestamp).Value := Operations.OperationBlock.timestamp;
+      ds.FieldByName(CT_TblFld_Operations_s_timestamp).Value := Format('%.10d', [Operations.OperationBlock.timestamp] );
       ds.FieldByName(CT_TblFld_Operations_nopblock).Value := -1;
       ds.FieldByName(CT_TblFld_Operations_optype_op).Value := 0;
-      ds.FieldByName(CT_TblFld_Operations_fee).Value := 0;
+      ds.FieldByName(CT_TblFld_Operations_s_fee).Value := '0';
       ds.FieldByName(CT_TblFld_Operations_orphan).Value := vOrphan;
       ds.FieldByName(CT_TblFld_Operations_n_operation).Value := 0;
       ds.FieldByName(CT_TblFld_Operations_account).Value := Operations.OperationBlock.block * CT_AccountsPerBlock;
       ds.FieldByName(CT_TblFld_Operations_other_account).Value := Operations.OperationBlock.block * CT_AccountsPerBlock;
-      ds.FieldByName(CT_TblFld_Operations_amount).Value := Operations.OperationBlock.reward+Operations.OperationBlock.fee;
-      ds.FieldByName(CT_TblFld_Operations_balance).Value := Operations.OperationBlock.reward+Operations.OperationBlock.fee;
+      ds.FieldByName(CT_TblFld_Operations_s_amount).Value := Format('%.18d', [Operations.OperationBlock.reward+Operations.OperationBlock.fee] );
+      ds.FieldByName(CT_TblFld_Operations_s_balance).Value := Format('%.18d', [Operations.OperationBlock.reward+Operations.OperationBlock.fee] );
       ds.Post;
       // Insert operations
       for i := 0 to Operations.Count-1 do begin
@@ -604,42 +604,42 @@ begin
         op := Operations.Operation[i];
         ds.FieldByName(CT_TblFld_Operations_optype).Value := op.OpType;
         ds.FieldByName(CT_TblFld_Operations_block).Value := Operations.OperationBlock.block;
-        ds.FieldByName(CT_TblFld_Operations_timestamp).Value := Operations.OperationBlock.timestamp;
+        ds.FieldByName(CT_TblFld_Operations_s_timestamp).Value := Format('%.10d', [Operations.OperationBlock.timestamp] );
         ds.FieldByName(CT_TblFld_Operations_nopblock).Value := i;
         ds.FieldByName(CT_TblFld_Operations_optype_op).Value := 0;
-        ds.FieldByName(CT_TblFld_Operations_fee).Value := (-1)*op.OperationFee; // Fee is a Negative number
+        ds.FieldByName(CT_TblFld_Operations_s_fee).Value := Format('%.18d', [(-1)*op.OperationFee] ); // Fee is a Negative number
         ds.FieldByName(CT_TblFld_Operations_orphan).Value := vOrphan;
         case op.OpType of
           CT_Op_Transaction : Begin
             ds.FieldByName(CT_TblFld_Operations_n_operation).Value := TOpTransaction(op).Data.n_operation;
             ds.FieldByName(CT_TblFld_Operations_account).Value :=  TOpTransaction(op).Data.sender;
             ds.FieldByName(CT_TblFld_Operations_other_account).Value :=  TOpTransaction(op).Data.target;
-            ds.FieldByName(CT_TblFld_Operations_amount).Value := (-1)*TOpTransaction(op).Data.amount;
+            ds.FieldByName(CT_TblFld_Operations_s_amount).Value := Format('%.18d', [(-1)*TOpTransaction(op).Data.amount] );
             DBRawToStringField(ds.FieldByName(CT_TblFld_Operations_rawpayload),TOpTransaction(op).Data.payload);
-            ds.FieldByName(CT_TblFld_Operations_balance).Value := GetOperationBalance(i,TOpTransaction(op).Data.sender);
+            ds.FieldByName(CT_TblFld_Operations_s_balance).Value := Format('%.18d', [GetOperationBalance(i,TOpTransaction(op).Data.sender)] );
             ds.Post;
             ds.Insert;
             ds.FieldByName(CT_TblFld_Operations_optype).Value := op.OpType;
             ds.FieldByName(CT_TblFld_Operations_block).Value := Operations.OperationBlock.block;
-            ds.FieldByName(CT_TblFld_Operations_timestamp).Value := Operations.OperationBlock.timestamp;
+            ds.FieldByName(CT_TblFld_Operations_s_timestamp).Value := Format('%.10d', [Operations.OperationBlock.timestamp] );
             ds.FieldByName(CT_TblFld_Operations_nopblock).Value := i;
             ds.FieldByName(CT_TblFld_Operations_optype_op).Value := 1; // Receive transaction
-            ds.FieldByName(CT_TblFld_Operations_fee).Value := 0;  // No fee for receiver
-            ds.FieldByName(CT_TblFld_Operations_balance).Value := GetOperationBalance(i,TOpTransaction(op).Data.target);
+            ds.FieldByName(CT_TblFld_Operations_s_fee).Value := '0';  // No fee for receiver
+            ds.FieldByName(CT_TblFld_Operations_s_balance).Value := Format('%.18d', [GetOperationBalance(i,TOpTransaction(op).Data.target)] );
             ds.FieldByName(CT_TblFld_Operations_orphan).Value := vOrphan;
             ds.FieldByName(CT_TblFld_Operations_n_operation).Value := 0; // No n_operation for receiver
             ds.FieldByName(CT_TblFld_Operations_account).Value :=  TOpTransaction(op).Data.target;
             ds.FieldByName(CT_TblFld_Operations_other_account).Value :=  TOpTransaction(op).Data.sender;
-            ds.FieldByName(CT_TblFld_Operations_amount).Value := TOpTransaction(op).Data.amount;
+            ds.FieldByName(CT_TblFld_Operations_s_amount).Value := Format('%.18d', [TOpTransaction(op).Data.amount] );
             DBRawToStringField(ds.FieldByName(CT_TblFld_Operations_rawpayload),TOpTransaction(op).Data.payload);
             ds.Post;
           End;
           CT_Op_Changekey : Begin
             ds.FieldByName(CT_TblFld_Operations_n_operation).Value := TOpChangeKey(op).Data.n_operation;
             ds.FieldByName(CT_TblFld_Operations_account).Value :=  TOpChangeKey(op).Data.account;
-            ds.FieldByName(CT_TblFld_Operations_amount).Value := 0;
+            ds.FieldByName(CT_TblFld_Operations_s_amount).Value := '0';
             DBRawToStringField(ds.FieldByName(CT_TblFld_Operations_rawpayload),TOpChangeKey(op).Data.payload);
-            ds.FieldByName(CT_TblFld_Operations_balance).Value := GetOperationBalance(i,TOpChangeKey(op).Data.account); //Operations.bank.SafeBox.Account( TOpChangeKey(op).Data.account ).balance;
+            ds.FieldByName(CT_TblFld_Operations_s_balance).Value := Format('%.18d', [GetOperationBalance(i,TOpChangeKey(op).Data.account)] );
             aux := TCrypto.ToHexaString( TAccountComp.AccountKey2RawString(TOpChangeKey(op).Data.new_accountkey) );
             if (length(aux)>255) then aux := copy(aux,1,252)+'...';
             ds.FieldByName(CT_TblFld_Operations_newaccountkey).Value := Copy(aux,1,255);
@@ -648,8 +648,8 @@ begin
           CT_Op_Recover : Begin
             ds.FieldByName(CT_TblFld_Operations_n_operation).Value := TOpRecoverFounds(op).Data.n_operation;
             ds.FieldByName(CT_TblFld_Operations_account).Value :=  TOpRecoverFounds(op).Data.account;
-            ds.FieldByName(CT_TblFld_Operations_amount).Value := 0;
-            ds.FieldByName(CT_TblFld_Operations_balance).Value := GetOperationBalance(i,TOpRecoverFounds(op).Data.account); //Operations.bank.SafeBox.Account( TOpRecoverFounds(op).Data.account ).balance;
+            ds.FieldByName(CT_TblFld_Operations_s_amount).Value := '0';
+            ds.FieldByName(CT_TblFld_Operations_s_balance).Value := Format('%.18d', [GetOperationBalance(i,TOpRecoverFounds(op).Data.account)] );
             ds.Post;
           End;
         else raise Exception.Create('Development error: OpType not available to save to the Database '+Inttostr(Op.OpType));
@@ -683,10 +683,10 @@ begin
     where := where + ' AND ('+CT_TblFld_BlockChain_block+'<='+IntToStr(block_end)+')';
   end;
   if (dateStart>1000) then begin
-    where := where + ' AND ('+CT_TblFld_BlockChain_timestamp+'>='+IntToStr(UnivDateTimeToUnix(DateTime2UnivDateTime(dateStart)))+')';
+    where := where + ' AND ('+CT_TblFld_BlockChain_s_timestamp+'>='+TDBStorage.ValueToSql(Format('%.10d', [UnivDateTimeToUnix(DateTime2UnivDateTime(dateStart))]))+')';
   end;
   if (dateEnd>1000) then begin
-    where := where + ' AND ('+CT_TblFld_BlockChain_timestamp+'<'+IntToStr(UnivDateTimeToUnix(DateTime2UnivDateTime(dateEnd+1)))+')';
+    where := where + ' AND ('+CT_TblFld_BlockChain_s_timestamp+'<'+ValueToSql(Format('%.10d', [UnivDateTimeToUnix(DateTime2UnivDateTime(dateEnd+1))]))+')';
   end;
 
   Result := 'SELECT '+sqltop+' * '+
@@ -722,7 +722,7 @@ begin
           OPR := CT_TOperationResume_NUL;
           OPR.Block := ds.FieldByName(CT_TblFld_Operations_block).AsInteger;
           OPR.AffectedAccount := account_number;
-          OPR.time := ds.FieldByName(CT_TblFld_BlockChain_timestamp).AsInteger;
+          OPR.time := StrToIntDef( ds.FieldByName(CT_TblFld_BlockChain_s_timestamp).AsString,0);
           case ds.FieldByName(CT_TblFld_Operations_optype).AsInteger of
             0 : OPR.OperationTxt := 'Blockchain reward';
             CT_Op_Transaction : begin
@@ -741,9 +741,9 @@ begin
           else
             OPR.OperationTxt := 'Unknown OpType:'+Inttostr(ds.FieldByName(CT_TblFld_Operations_optype).AsInteger);
           end;
-          OPR.Amount := ds.FieldByName(CT_TblFld_Operations_amount).AsLargeInt;
-          OPR.Fee := ds.FieldByName(CT_TblFld_Operations_fee).AsLargeInt;
-          OPR.Balance := ds.FieldByName(CT_TblFld_Operations_balance).AsLargeInt;
+          OPR.Amount := StrToInt64Def( ds.FieldByName(CT_TblFld_Operations_s_amount).AsString ,0 );
+          OPR.Fee := StrToInt64Def( ds.FieldByName(CT_TblFld_Operations_s_fee).AsString ,0);
+          OPR.Balance := StrToInt64Def( ds.FieldByName(CT_TblFld_Operations_s_balance).AsString ,0);
           DBStringFieldToRaw(ds.FieldByName(CT_TblFld_Operations_rawpayload),OPR.OriginalPayload);
           If DBPayloadToReadableText(OPR.OriginalPayload,spayload) then OPR.PrintablePayload := spayload
           else OPR.PrintablePayload := TCrypto.ToHexaString(OPR.OriginalPayload);
@@ -777,10 +777,10 @@ begin
     where := where + ' AND ('+CT_TblFld_Operations_block+'<='+IntToStr(block_end)+')';
   end;
   if (dateStart>1000) then begin
-    where := where + ' AND ('+CT_TblFld_Operations_timestamp+'>='+IntToStr(UnivDateTimeToUnix(DateTime2UnivDateTime(dateStart)))+')';
+    where := where + ' AND ('+CT_TblFld_Operations_s_timestamp+'>='+ValueToSql( Format('%.10d', [UnivDateTimeToUnix(DateTime2UnivDateTime(dateStart))]))+')';
   end;
   if (dateEnd>1000) then begin
-    where := where + ' AND ('+CT_TblFld_Operations_timestamp+'<'+IntToStr(UnivDateTimeToUnix(DateTime2UnivDateTime(dateEnd+1)))+')';
+    where := where + ' AND ('+CT_TblFld_Operations_s_timestamp+'<'+ValueToSql( Format('%.10d', [UnivDateTimeToUnix(DateTime2UnivDateTime(dateEnd+1))]))+')';
   end;
 
   Result := 'SELECT '+sqltop+' * '+
@@ -878,7 +878,7 @@ begin
   End;
 end;
 
-function TDBStorage.ValueToSql(const Value: Variant): String;
+class function TDBStorage.ValueToSql(const Value: Variant): String;
 Var decs,ths : Char;
   dates,times : char;
 begin
@@ -911,7 +911,7 @@ begin
            Else Result := 'FALSE'
                       End;
          varString,varOleStr,varUString  : Begin
-             Result := VarToStr(Value);
+             Result := ''''+VarToStr(Value)+'''';
            End;
       Else // Case
         Raise Exception.Create('Invalid variant Type: '+InttoHex(VarType(Value),8));
@@ -941,7 +941,7 @@ Var P : POperationResume;
   i : Integer;
   l : TList;
 begin
-  l := FList.LockList('TOperationsResumeList.Clear');
+  l := FList.LockList;
   try
     for i := 0 to l.Count - 1 do begin
       P := l[i];
@@ -956,7 +956,7 @@ end;
 function TOperationsResumeList.Count: Integer;
 Var l : TList;
 begin
-  l := FList.LockList('TOperationsResumeList.Count');
+  l := FList.LockList;
   Try
     Result := l.Count;
   Finally
@@ -973,7 +973,7 @@ procedure TOperationsResumeList.Delete(index: Integer);
 Var P : POperationResume;
   l : TList;
 begin
-  l := FList.LockList('TOperationsResumeList.Delete');
+  l := FList.LockList;
   Try
     P := l[index];
     l.Delete(index);
@@ -993,7 +993,7 @@ end;
 function TOperationsResumeList.GetOperationResume(index: Integer): TOperationResume;
 Var l : TList;
 begin
-  l := FList.LockList('TOperationsResumeList.GetOperationResume');
+  l := FList.LockList;
   try
     if index<l.Count then Result := POperationResume(l[index])^
     else Result := CT_TOperationResume_NUL;

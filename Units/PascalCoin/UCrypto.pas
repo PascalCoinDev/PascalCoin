@@ -65,9 +65,7 @@ Type
     Class function HexaToRaw(const HexaString : AnsiString) : TRawBytes;
     Class function DoSha256(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     Class function DoSha256(const TheMessage : AnsiString) : TRawBytes; overload;
-    Class function DoDoubleSha256(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     Class procedure DoDoubleSha256(p : PAnsiChar; plength : Cardinal; Var ResultSha256 : TRawBytes); overload;
-    Class function DoDoubleSha256(const TheMessage : AnsiString) : TRawBytes; overload;
     Class function DoRipeMD160(const TheMessage : AnsiString) : TRawBytes;
     Class function PrivateKey2Hexa(Key : PEC_KEY) : AnsiString;
     Class function ECDSASign(Key : PEC_KEY; const digest : AnsiString) : TECDSA_SIG;
@@ -314,23 +312,6 @@ begin
 end;
 
 { TCrypto }
-
-class function TCrypto.DoDoubleSha256(const TheMessage: AnsiString): TRawBytes;
-begin
-  Result := DoSha256(DoSha256(TheMessage));
-end;
-
-class function TCrypto.DoDoubleSha256(p: PAnsiChar; plength: Cardinal): TRawBytes;
-Var PS,PS1 : PAnsiChar;
-  PC : PAnsiChar;
-begin
-  SetLength(Result,32);
-  PS := @Result[1];
-  GetMem(PS1,32);
-  SHA256(p,plength,PS1);
-  SHA256(PS1,32,PS);
-  FreeMem(PS1,32);
-end;
 
 { New at Build 1.0.2
   Note: Delphi is slowly when working with Strings (allowing space)... so to

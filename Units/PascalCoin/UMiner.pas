@@ -129,7 +129,7 @@ begin
     Try
       if Terminated then exit;
       winner := false;
-      TPCThread.ProtectEnterCriticalSection(Self,'Mining process',FLock);
+      TPCThread.ProtectEnterCriticalSection(Self,FLock);
       try
         FOperations.UpdateTimestamp;
         FOperations.AccountKey := FAccountKey;
@@ -187,7 +187,7 @@ end;
 
 function TMinerThread.MinerLockOperations: TPCOperationsComp;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,'MinerLockOperations',FLock);
+  TPCThread.ProtectEnterCriticalSection(Self,FLock);
   Result := FOperations;
 end;
 

@@ -38,6 +38,16 @@ If you like it, consider a donation using BitCoin:
 
 History:
 
+Build 1.0.3.0 - 2016-09-08
+--------------------------
+- Important changes to database 
+- Peer cache
+- Issues with Connections
+- More stable
+- Miner key selector
+- Invalid local time detector
+
+
 Build 1.0.2.0 - 2016-08-31
 --------------------------
 - Improved hashing speed
