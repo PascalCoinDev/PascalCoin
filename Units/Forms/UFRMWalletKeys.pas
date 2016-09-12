@@ -96,11 +96,11 @@ Var wk : TWalletKey;
   s : String;
 begin
   if Not GetSelectedWalletKeyAndIndex(wk,index) then exit;
-  s := 'Are you sure to delete selected private key?'+#10+wk.Name+#10+#10+
-    'Please note that this will remove FOREVER access to accounts using this key...';
+  s := 'Are you sure you want to delete the selected private key?'+#10+wk.Name+#10+#10+
+    'Please note that this will forever remove access to accounts using this key...';
   if Application.MessageBox(Pchar(s),PChar('Delete key'),
     MB_YESNO+MB_DEFBUTTON2+MB_ICONWARNING)<>Idyes then exit;
-  if Application.MessageBox(PChar('Sure? You want to delete?'),PChar('Delete key'),
+  if Application.MessageBox(PChar('Are you sure you want to delete?'),PChar('Delete key'),
     MB_YESNO+MB_DEFBUTTON2+MB_ICONWARNING)<>Idyes then exit;
   WalletKeys.Delete(index);
   UpdateWalletKeys;
@@ -113,7 +113,7 @@ begin
   if WalletKeys.Count<=0 then raise Exception.Create('Your wallet is empty. No keys!');
   if ((WalletKeys.IsValidPassword) And (WalletKeys.WalletPassword='')) then begin
     if Application.MessageBox(PChar('Your wallet has NO PASSWORD'+#10+#10+
-      'I think that prior to export it you must consider to protect it!'+#10+#10+
+      'It is recommend to protect your wallet with a password prior to exporting it!'+#10+#10+
       'Continue without password protection?'),PChar(Application.Title),MB_YESNO+MB_ICONWARNING+MB_DEFBUTTON2)<>IdYes then exit;
   end;
 
@@ -202,7 +202,7 @@ begin
     if wki.Count<=0 then raise Exception.Create('Wallet file has no valid data');
     pwd := '';
     While (Not wki.IsValidPassword) do begin
-      if Not InputQuery('Import','Insert the wallet file Password:',pwd) then exit;
+      if Not InputQuery('Import','Enter the wallet file password:',pwd) then exit;
       wki.WalletPassword := pwd;
       if not wki.IsValidPassword then begin
         If Application.MessageBox(PChar('Password entered is not valid, retry?'),PChar(Application.Title),MB_ICONERROR+MB_YESNO)<>Idyes then exit;
@@ -226,15 +226,15 @@ begin
     if (cPrivatekeys>0) Or (cPublicKeys>0) then begin
       Application.MessageBox(PChar('Wallet file imported successfully'+#10+#10+
         'File:'+ifn+#10+#10+
-        'Total Keys in wallet: '+inttostr(wki.Count)+#10+
-        'Imported Private keys: '+IntToStr(cPrivatekeys)+#10+
+        'Total keys in wallet: '+inttostr(wki.Count)+#10+
+        'Imported private keys: '+IntToStr(cPrivatekeys)+#10+
         'Imported public keys only: '+IntToStr(cPublicKeys)+#10+
         'Duplicated (not imported): '+InttoStr(wki.Count - cPrivatekeys - cPublicKeys)),
         PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
     end else begin
-      Application.MessageBox(PChar('Wallet file keys were allready in your Wallet. Nothing imported'+#10+#10+
+      Application.MessageBox(PChar('Wallet file keys were already in your wallet. Nothing imported'+#10+#10+
         'File:'+ifn+#10+#10+
-        'Total Keys in wallet: '+inttostr(wki.Count)),
+        'Total keys in wallet: '+inttostr(wki.Count)),
         PChar(Application.Title),MB_OK+MB_ICONWARNING);
     end;
   finally
@@ -254,17 +254,17 @@ begin
   if InputQuery('Import private key','Insert the password protected private key',s) then begin
     if (trim(s)='') then raise Exception.Create('No valid key');
     enc := TCrypto.HexaToRaw(trim(s));
-    if (enc='') then raise Exception.Create('Invalid text... You must enter an Hexadecimal value ("0".."9" or "A".."F"');
+    if (enc='') then raise Exception.Create('Invalid text... You must enter an hexadecimal value ("0".."9" or "A".."F"');
     Repeat
       s := '';
       desenc := '';
-      if InputQuery('Import private key','Insert the password:',s) then begin
+      if InputQuery('Import private key','Enter the password:',s) then begin
         If (TAESComp.EVP_Decrypt_AES256(enc,s,desenc)) then begin
           if (desenc<>'') then begin
             EC := TECPrivateKey.ImportFromRaw(desenc);
             Try
               if Not Assigned(EC) then begin
-                if Application.MessageBox(PChar('Invalid password or corrupted data after decryption!'),'',MB_RETRYCANCEL+MB_ICONERROR)<>IDRETRY then exit;
+                if Application.MessageBox(PChar('Invalid password or corrupted data!'),'',MB_RETRYCANCEL+MB_ICONERROR)<>IDRETRY then exit;
                 desenc := '';
               end else begin
                 i := WalletKeys.IndexOfAccountKey(EC.PublicKey);
@@ -324,21 +324,21 @@ Var s,s2 : String;
 begin
   if FWalletKeys.IsValidPassword then begin
     s := ''; s2 := '';
-    if Not InputQuery('Change password','Type new password',s) then exit;
+    if Not InputQuery('Change password','Enter new password',s) then exit;
     if trim(s)<>s then raise Exception.Create('Password cannot start or end with a space character');
-    if Not InputQuery('Change password','Type new password again',s2) then exit;
+    if Not InputQuery('Change password','Enter new password again',s2) then exit;
     if s<>s2 then raise Exception.Create('Two passwords are different!');
 
     FWalletKeys.WalletPassword := s;
     Application.MessageBox(PChar('Password changed!'+#10+#10+
       'Please note that your new password is "'+s+'"'+#10+#10+
-      '(If you lose this password, you will lose your Wallet forever !)'),
+      '(If you lose this password, you will lose your wallet forever!)'),
       PChar(Application.Title),MB_ICONWARNING+MB_OK);
     UpdateWalletKeys;
   end else begin
     s := '';
     Repeat
-      if Not InputQuery('Wallet Password','Insert Wallet Password',s) then exit;
+      if Not InputQuery('Wallet password','Enter wallet password',s) then exit;
       FWalletKeys.WalletPassword := s;
       if Not FWalletKeys.IsValidPassword then Application.MessageBox(PChar('Invalid password'),PChar(Application.Title),MB_ICONERROR+MB_OK);
     Until FWalletKeys.IsValidPassword;
@@ -351,7 +351,7 @@ begin
   if Not Assigned(FWalletKeys) then exit;
 
   if Not FWalletKeys.IsValidPassword then begin
-    Application.MessageBox(PChar('Wallet key is encrypted!'+#10+#10+'You must insert password to continue...'),
+    Application.MessageBox(PChar('Wallet key is encrypted!'+#10+#10+'You must enter password to continue...'),
       PCHar(Application.Title),MB_OK+MB_ICONWARNING);
     bbUpdatePasswordClick(Nil);
     if Not FWalletKeys.IsValidPassword then raise Exception.Create('Cannot continue without valid password');

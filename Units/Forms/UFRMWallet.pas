@@ -266,14 +266,14 @@ begin
   FIsActivated := true;
   try
     // Check OpenSSL dll
-    if Not LoadSSLCrypt then raise Exception.Create('Cannot load '+SSL_C_LIB+#10+'To use this software make sure this file is available on you system or reinstall this Application');
+    if Not LoadSSLCrypt then raise Exception.Create('Cannot load '+SSL_C_LIB+#10+'To use this software make sure this file is available on you system or reinstall the application');
     TCrypto.InitCrypto;
     // Read Wallet
     Try
       FWalletKeys.WalletFileName := TFolderHelper.GetPascalCoinDataFolder+'\WalletKeys.dat';
     Except
       On E:Exception do begin
-        E.Message := 'Cannot open your Wallet... Perhaps another instance of Pascal Coin is active!'+#10+#10+E.Message;
+        E.Message := 'Cannot open your wallet... Perhaps another instance of Pascal Coin is active!'+#10+#10+E.Message;
         Raise;
       end;
     End;
@@ -339,7 +339,7 @@ Var basem,m : String;
   nc : TNetConnection;
 begin
   CheckIsReady;
-  if (lbNetConnections.SelCount<=0) Or (lbNetConnections.ItemIndex<0) then raise Exception.Create('Select at least 1 connection');
+  if (lbNetConnections.SelCount<=0) Or (lbNetConnections.ItemIndex<0) then raise Exception.Create('Select at least one connection');
   if lbNetConnections.SelCount<=0 then n := 1
   else n := lbNetConnections.SelCount;
 
@@ -354,7 +354,7 @@ begin
   if trim(m)='' then raise Exception.Create('No message');
 
   if Application.MessageBox(PChaR('Send this message to '+inttostr(n)+' nodes?'+#10+
-    'ALERT: Sending unauthorized messages will be considered spam and you will be banned'+#10+
+    'NOTE: Sending unauthorized messages will be considered spam and you will be banned'+#10+
     #10+
     'Message: '+#10+
     m),PChar(Application.Title),MB_ICONQUESTION+MB_YESNO+MB_DEFBUTTON1)<>IdYes then exit;
@@ -387,11 +387,11 @@ begin
   if cbAllowMining.Checked then begin
     if (TNetData.NetData.NetStatistics.ClientsConnections<=0) then begin
       Application.MessageBox(PChar(Format(
-        'In order to Mine is necessary that you open your external port %d from the Internet to allow other nodes of Pascal Coin to connect to you.'+#10+
-        '(Note: This is not mandatory... but will work better with open ports)'+#10+
+        'In order to mine is necessary that you open your external port %d from the Internet to allow other Pascal Coin nodes to connect to you.'+#10+
+        '(Note: This is not mandatory... but it will work better with open ports)'+#10+
         #10+
         'To do this you must configure your Router/Firewall and enable NAT to your local machine at port: %d'+#10+#10+
-        'After allowing incoming connections... you must wait until other nodes connects to you to mine'+#10+
+        'After allowing incoming connections... you must wait until other nodes connect to you to mine'+#10+
         #10+
         'PLEASE... BE PATIENT !!!'+#10+#10+
         'Help mining Pascal Coin and win Pascal Coins!',[FNode.NetServer.Port,FNode.NetServer.Port])),
@@ -1025,10 +1025,10 @@ begin
           s := s+' ** NOT VALID ** '+P.BlackListText;
         end;
         if P.last_connection>0 then begin
-          s := s + ' Last Connection: '+DateTimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(P^.last_connection)));
+          s := s + ' Last connection: '+DateTimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(P^.last_connection)));
         end;
         if (P.last_attempt_to_connect>0) then begin
-          s := s + ' Last Attempt to connect: '+DateTimeToStr(P^.last_attempt_to_connect)+' (Attempts: '+inttostr(P^.total_failed_attemps_to_connect)+')';
+          s := s + ' Last attempt to connect: '+DateTimeToStr(P^.last_attempt_to_connect)+' (Attempts: '+inttostr(P^.total_failed_attemps_to_connect)+')';
         end;
         strings.Add(s);
       end;
@@ -1388,7 +1388,7 @@ begin
   OnNetStatisticsChanged(Nil);
   if Assigned(FNode) then begin
     if FNode.IsBlockChainValid(errors) then begin
-      StatusBar.Panels[2].Text := Format('Last Account time:%s',
+      StatusBar.Panels[2].Text := Format('Last account time:%s',
        [FormatDateTime('dd/mm/yyyy hh:nn:ss',UnivDateTime2LocalDateTime(UnixToUnivDateTime( FNode.Bank.LastOperationBlock.timestamp )))]);
     end else begin
       StatusBar.Panels[2].Text := 'NO BLOCKCHAIN: '+errors;
@@ -1411,7 +1411,7 @@ begin
         if TNetData.NetData.IsDiscoveringServers then begin
           lblNodeStatus.Caption := 'Discovering servers';
         end else if TNetData.NetData.IsGettingNewBlockChainFromClient then begin
-          lblNodeStatus.Caption := 'Obtaining new BlockChain';
+          lblNodeStatus.Caption := 'Obtaining new blockchain';
         end else begin
           lblNodeStatus.Caption := 'Running';
         end;

@@ -169,7 +169,7 @@ begin
 
   // Execute operation
   If FNode.AddOperation(nil,FOperation,errors) then begin
-    Application.MessageBox(PChar('Executed opreation:'+#10+FOperation.ToString),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
+    Application.MessageBox(PChar('Operation executed:'+#10+FOperation.ToString),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
     ModalResult := MrOk;
   end else begin
     raise Exception.Create(errors);
@@ -199,7 +199,7 @@ begin
   end else begin
     s := '';
     Repeat
-      if Not InputQuery('Wallet Password','Insert Wallet Password',s) then exit;
+      if Not InputQuery('Wallet password','Enter wallet password',s) then exit;
       FWalletKeys.WalletPassword := s;
     Until FWalletKeys.IsValidPassword;
     UpdateOperationOptions(errors);
@@ -416,7 +416,7 @@ begin
       end;
       i := WalletKeys.IndexOfAccountKey(P^.accountkey);
       if (i<0) then begin
-        errors := 'Private Key not found in Wallet... You cannot operate with this account';
+        errors := 'Private key not found in wallet... You cannot operate with this account';
         lblGlobalErrors.Caption := errors;
         exit;
       end;
@@ -427,7 +427,7 @@ begin
           bbPassword.Visible := true;
           bbPassword.Enabled := true;
         end else begin
-          errors := 'Private Key not found in Wallet, only public key. You cannot operate with this account';
+          errors := 'Private key not found in wallet, only public key. You cannot operate with this account';
         end;
         lblGlobalErrors.Caption := errors;
         exit;
@@ -449,14 +449,14 @@ begin
       lblChangeKeyErrors.Caption := '';
       lblNewOwnerErrors.Caption := '';
       rbEncryptedWithOldEC.Checked := false;
-      rbEncryptedWithEC.Caption := 'Encrypted with dest account public key';
+      rbEncryptedWithEC.Caption := 'Encrypted with dest. account public key';
       ebDestAccount.ParentFont := true;
       ebAmount.ParentFont := true;
       ebFee.ParentFont := true;
       cbNewPrivateKey.Font.Color := clGrayText;
       ebNewPublicKey.Font.Color := clGrayText;
       if not (TAccountComp.AccountTxtNumberToAccountNumber(ebDestAccount.Text,FTxDestAccount)) then begin
-        errors := 'Invalid dest account ('+ebDestAccount.Text+')';
+        errors := 'Invalid dest. account ('+ebDestAccount.Text+')';
         lblTransactionErrors.Caption := errors;
         exit;
       end;
@@ -471,7 +471,7 @@ begin
         exit;
       end;
       if (P^.balance<(FTxAmount+FFee)) then begin
-        errors := 'Insufficient founds';
+        errors := 'Insufficient funds';
         lblTransactionErrors.Caption := errors;
         exit;
       end;
@@ -492,7 +492,7 @@ begin
       ebNewPublicKey.Font.Color := clGrayText;
       //
       if cbNewPrivateKey.ItemIndex<0 then begin
-        errors := 'Must select a new Private key';
+        errors := 'Must select a new private key';
         lblChangeKeyErrors.Caption := errors;
         exit;
 
@@ -597,7 +597,7 @@ begin
           valid := payload_encrypted<>'';
         end else begin
           valid := false;
-          errors := 'New owner public key not valid';
+          errors := 'New owner of public key not valid';
         end;
       end else begin
         errors := 'Must select operation type to encrypt payload';

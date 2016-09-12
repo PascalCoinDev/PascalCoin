@@ -61,9 +61,9 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   object Label5: TLabel
     Left = 30
     Top = 176
-    Width = 60
+    Width = 58
     Height = 13
-    Caption = 'CPU'#39's to use'
+    Caption = 'CPUs to use'
   end
   object lblMaxCPUS: TLabel
     Left = 248
@@ -231,7 +231,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Top = 359
     Width = 171
     Height = 17
-    Caption = 'Show Modal Messages'
+    Caption = 'Show modal messages'
     TabOrder = 13
   end
   object udCPUs: TUpDown
@@ -267,7 +267,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
       Top = 20
       Width = 301
       Height = 17
-      Caption = 'Generate a new Private Key for each new generated block'
+      Caption = 'Generate a new private key for each generated block'
       TabOrder = 0
     end
     object rbUseARandomKey: TRadioButton
@@ -275,7 +275,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
       Top = 40
       Width = 216
       Height = 17
-      Caption = 'Use a random existing Key'
+      Caption = 'Use a random existing key'
       TabOrder = 1
     end
     object rbMineAllwaysWithThisKey: TRadioButton
@@ -283,7 +283,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
       Top = 61
       Width = 216
       Height = 17
-      Caption = 'Mine allways with this Key:'
+      Caption = 'Always mine with this key:'
       TabOrder = 2
     end
     object cbPrivateKeyToMine: TComboBox

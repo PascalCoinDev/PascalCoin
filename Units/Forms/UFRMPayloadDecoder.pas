@@ -213,7 +213,7 @@ begin
         lblDecodedMethod.Caption := 'Encrypted with EC '+TAccountComp.GetECInfoTxt(WalletKey.PrivateKey.EC_OpenSSL_NID);
       end else if (cbUsingPasswords.Checked) And (UsePassword(raw,Decrypted,PasswordUsed)) then begin
         memoDecoded.Lines.Text := Decrypted;
-        lblDecodedMethod.Caption := 'Encrypted with Pwd:"'+PasswordUsed+'"';
+        lblDecodedMethod.Caption := 'Encrypted with pwd:"'+PasswordUsed+'"';
       end else begin
         memoDecoded.Lines.Text := 'CANNOT DECRYPT';
         lblDecodedMethod.Caption := '';
