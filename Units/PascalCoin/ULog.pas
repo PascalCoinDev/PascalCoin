@@ -92,18 +92,15 @@ begin
 end;
 
 destructor TLog.Destroy;
-var f : TFileStream;
-  l : TList;
+var l : TList;
   i : Integer;
   P : PLogData;
 begin
   FThreadSafeLogEvent.Terminate;
   FThreadSafeLogEvent.WaitFor;
-  FThreadSafeLogEvent.Free;
+  FreeAndNil(FThreadSafeLogEvent);
   _logs.Remove(Self);
-  f := FFileStream;
-  FFileStream := Nil;
-  f.Free;
+  FreeAndNil(FFileStream);
   l := FLogDataList.LockList;
   try
     for i := 0 to l.Count - 1 do begin
@@ -114,7 +111,7 @@ begin
   finally
     FLogDataList.UnlockList;
   end;
-  FLogDataList.Free;
+  FreeAndNil(FLogDataList);
   inherited;
 end;
 

@@ -441,19 +441,19 @@ begin
     while (MinersCount>0) do DeleteMiner(0);
 
     step := 'Destroying NetServer';
-    FNetServer.Free;
+    FreeAndNil(FNetServer);
     step := 'Destroying MinerThreads';
-    FMinerThreads.Free;
+    FreeAndNil(FMinerThreads);
 
     step := 'Destroying NotifyList';
-    FNotifyList.Free;
+    FreeAndNil(FNotifyList);
     step := 'Destroying Operations';
-    FOperations.Free;
+    FreeAndNil(FOperations);
     step := 'Assigning NIL to node var';
     if _Node=Self then _Node := Nil;
 
     step := 'Destroying Bank';
-    FBank.Free;
+    FreeAndNil(FBank);
 
     step := 'inherited';
     inherited;
@@ -647,8 +647,8 @@ begin
   if Assigned(FNode) then FNode.FNotifyList.Remove(Self);
   FThreadSafeNodeNotifyEvent.FNodeNotifyEvents := Nil;
   FThreadSafeNodeNotifyEvent.Terminate;
-  FPendingNotificationsList.Free;
-  FMessages.Free;
+  FreeAndNil(FPendingNotificationsList);
+  FreeAndNil(FMessages);
   inherited;
 end;
 
@@ -766,12 +766,12 @@ end;
 
 destructor TThreadNodeNotifyOperations.Destroy;
 begin
-  FOperationsHashTree.Free;
+  FreeAndNil(FOperationsHashTree);
   inherited;
 end;
 
 initialization
   _Node := Nil;
 finalization
-  _Node.Free;
+  FreeAndNil(_Node);
 end.
