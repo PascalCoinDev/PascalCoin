@@ -1223,6 +1223,11 @@ var i : Integer;
 begin
   inherited;
   if (Operation=opRemove) then begin
+    if not Assigned(FNetClients) then // this happens occassionally
+    begin
+      TLog.NewLog(ltdebug,ClassName,'NetServer opRemove notification when NetClients=nil');
+      exit;
+    end;
     i := FNetClients.IndexOf(AComponent);
     if (i>=0) then begin
       FNetClients.Delete(i);
