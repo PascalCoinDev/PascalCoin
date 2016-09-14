@@ -728,15 +728,15 @@ begin
   Until i<0;
 
   step := 'Destroying NodeNotifyEvents';
-  FNodeNotifyEvents.Free;
+  FreeAndNil(FNodeNotifyEvents);
   //
   step := 'Assigning Nil to TNetData';
   TNetData.NetData.OnReceivedHelloMessage := Nil;
   TNetData.NetData.OnStatisticsChanged := Nil;
 
   step := 'Destroying grids operators';
-  FOperationsDBGrid.Free;
-  FBlockChainDBGrid.Free;
+  FreeAndNil(FOperationsDBGrid);
+  FreeAndNil(FBlockChainDBGrid);
 
   step := 'Ordered Accounts Key list';
   FreeAndNil(FOrderedAccountsKeyList);
@@ -753,7 +753,7 @@ begin
   TNode.Node.Free;
 
   step := 'Destroying Wallet';
-  FWalletKeys.Free;
+  FreeAndNil(FWalletKeys);
   step := 'Processing messages 2';
   Application.ProcessMessages;
   step := 'Destroying stringslist';

@@ -174,7 +174,7 @@ end;
 destructor TMinerThread.Destroy;
 begin
   DeleteCriticalSection(Flock);
-  FOperations.Free;
+  FreeAndNil(FOperations);
   inherited;
 end;
 

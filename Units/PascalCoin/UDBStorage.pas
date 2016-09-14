@@ -986,7 +986,7 @@ end;
 destructor TOperationsResumeList.Destroy;
 begin
   Clear;
-  FList.Free;
+  FreeAndNil(FList);
   inherited;
 end;
 

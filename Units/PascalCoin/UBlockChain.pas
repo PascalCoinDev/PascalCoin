@@ -1057,9 +1057,9 @@ end;
 destructor TPCOperationsComp.Destroy;
 begin
   Clear(true);
-  FOperationsHashTree.Free;
-  FSafeBoxTransaction.Free;
-  FStreamPoW.Free;
+  FreeAndNil(FOperationsHashTree);
+  FreeAndNil(FSafeBoxTransaction);
+  FreeAndNil(FStreamPoW);
   inherited;
 end;
 
@@ -1254,8 +1254,7 @@ begin
   begin
     if AComponent = FBank then begin
       FBank := Nil;
-      FSafeBoxTransaction.Free;
-      FSafeBoxTransaction := Nil;
+      FreeAndNil(FSafeBoxTransaction);
     end;
   end;
 end;
@@ -1390,10 +1389,8 @@ end;
 procedure TPCOperationsComp.SetBank(const value: TPCBank);
 begin
   if FBank = value then exit;
-  if Assigned(FBank) then begin
-     FSafeBoxTransaction.Free;
-     FSafeBoxTransaction := Nil;
-  end;
+  if Assigned(FBank) then
+    FreeAndNil(FSafeBoxTransaction);
   FBank := value;
   if Assigned(value) then begin
     value.FreeNotification(Self);
@@ -1613,7 +1610,7 @@ end;
 destructor TOperationsHashTree.Destroy;
 begin
   ClearHastThree;
-  FHashTreeOperations.Free;
+  FreeAndNil(FHashTreeOperations);
   inherited;
 end;
 

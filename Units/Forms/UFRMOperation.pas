@@ -300,7 +300,7 @@ end;
 procedure TFRMOperation.FormDestroy(Sender: TObject);
 begin
   if Assigned(FPAccount) then Dispose(FPAccount);
-  if assigned(FOperation) then FOperation.Free;
+  FreeAndNil(FOperation);
 end;
 
 function TFRMOperation.GetSenderAcccount: PAccount;

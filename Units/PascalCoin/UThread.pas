@@ -59,7 +59,7 @@ uses
 
 { TPCThread }
 
-Var _threads,_aux : TPCThreadList;
+Var _threads : TPCThreadList;
 
 procedure TPCThread.DoTerminate;
 begin
@@ -199,7 +199,7 @@ destructor TPCThreadList.Destroy;
 begin
   LockList;
   try
-    FList.Free;
+    FreeAndNil(FList);
     inherited Destroy;
   finally
     UnlockList;
@@ -231,7 +231,5 @@ end;
 initialization
   _threads := TPCThreadList.Create;
 finalization
-  _aux := _threads;
-  _threads := Nil;
-  _aux.Free;
+  FreeAndNil(_threads);
 end.

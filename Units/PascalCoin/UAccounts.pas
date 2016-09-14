@@ -720,8 +720,8 @@ begin
   for i := 0 to FListOfOrderedAccountKeysList.Count - 1 do begin
     TOrderedAccountKeysList( FListOfOrderedAccountKeysList[i] ).FAccountList := Nil;
   end;
-  FBlockAccountsList.Free;
-  FListOfOrderedAccountKeysList.Free;
+  FreeAndNil(FBlockAccountsList);
+  FreeAndNil(FListOfOrderedAccountKeysList);
   DeleteCriticalSection(Flock);
   inherited;
 end;
@@ -952,7 +952,7 @@ end;
 destructor TPCSafeBoxTransaction.Destroy;
 begin
   CleanTransaction;
-  FOrderedList.Free;
+  FreeAndNil(FOrderedList);
   inherited;
 end;
 
@@ -1105,7 +1105,7 @@ end;
 destructor TOrderedAccountList.Destroy;
 begin
   Clear;
-  FList.Free;
+  FreeAndNil(FList);
   inherited;
 end;
 
@@ -1244,7 +1244,7 @@ begin
     FAccountList.FListOfOrderedAccountKeysList.Remove(Self);
   end;
   Clear(true);
-  FOrderedAccountKeysList.Free;
+  FreeAndNil(FOrderedAccountKeysList);
   inherited;
 end;
 

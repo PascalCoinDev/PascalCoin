@@ -536,17 +536,17 @@ begin
     while (l.Count>0) do DeleteNetClient(l,l.Count-1);
   finally
     FNodeServers.UnlockList;
-    FNodeServers.Free;
+    FreeAndNil(FNodeServers);
   end;
   l := FBlackList.LockList;
   try
     while (l.Count>0) do DeleteNetClient(l,l.Count-1);
   finally
     FBlackList.UnlockList;
-    FBlackList.Free;
+    FreeAndNil(FBlackList);
   end;
-  FNetConnections.Free;
-  FNodePrivateKey.Free;
+  FreeAndNil(FNetConnections);
+  FreeAndNil(FNodePrivateKey);
   FNetDataNotifyEventsThread.Terminate;
   FNetDataNotifyEventsThread.WaitFor;
   inherited;
@@ -1208,8 +1208,8 @@ end;
 
 destructor TNetServer.Destroy;
 begin
-  FTCPServer.Free;
-  FNetClients.Free;
+  FreeAndNil(FTCPServer);
+  FreeAndNil(FNetClients);
   inherited;
 end;
 
@@ -1380,8 +1380,9 @@ begin
     TNetData.NetData.NotifyNetConnectionUpdated;
   Finally
     DeleteCriticalSection(FNetLock);
-    if FClient.Owner=Self then FClient.Free;
-    FClientBufferRead.Free;
+    if FClient.Owner=Self then
+      FreeAndNil(FClient);
+    FreeAndNil(FClientBufferRead);
     inherited;
   End;
 end;
@@ -2480,7 +2481,7 @@ begin
       FNetClientThread.WaitFor;
     end;
     debugStep := 'Freeing';
-    FNetClientThread.Free;
+    FreeAndNil(FNetClientThread);
     debugStep := 'Inherited';
     inherited;
   Except
@@ -2691,7 +2692,7 @@ begin
   DebugStep := 'Destroying NetClient if exists';
   if TNetData.NetData.ConnectionExists(FNetClient) then begin
     DebugStep := 'Destroying NetClient...';
-    FNetClient.Free;
+    FreeAndNil(FNetClient);
   end else TLog.NewLog(ltdebug,classname,'Connection not exists!');
 end;
 
