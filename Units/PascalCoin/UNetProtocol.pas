@@ -1223,6 +1223,11 @@ var i : Integer;
 begin
   inherited;
   if (Operation=opRemove) then begin
+    if not Assigned(FNetClients) then // this happens during shutdown if initialisation is happening
+      begin
+        TLog.NewLog(ltdebug,ClassName,'TNetServer notify opRemove when FNetClients=nil');
+        exit;
+      end;
     i := FNetClients.IndexOf(AComponent);
     if (i>=0) then begin
       FNetClients.Delete(i);
