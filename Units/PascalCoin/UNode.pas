@@ -26,12 +26,13 @@ unit UNode;
 interface
 
 uses
-  Classes, UBlockChain, UNetProtocol, UMiner, UAccounts, UCrypto, Windows, UThread;
+  Classes, UBlockChain, UNetProtocol, UMiner, UAccounts, UCrypto, Windows, UThread,
+  SyncObjs;
 
 Type
   TNode = Class(TComponent)
   private
-    FLockNodeOperations : TRTLCriticalSection;
+    FLockNodeOperations : TCriticalSection;
     FNotifyList : TList;
     FBank : TPCBank;
     FOperations : TPCOperationsComp;
@@ -334,7 +335,7 @@ begin
   finally
     EndLocking;
     TLog.NewLog(ltdebug,Classname,Format('Finalizing AddOperations Connection:%s Operations:%d LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',[
-      Inttohex(Integer(SenderConnection),8),Operations.OperationsCount,FLockNodeOperations.LockCount,FLockNodeOperations.RecursionCount,FLockNodeOperations.LockSemaphore,IntToHex(FLockNodeOperations.OwningThread,8) ]));
+      Inttohex(Integer(SenderConnection),8),Operations.OperationsCount,{FLockNodeOperations.LockCount}-1,{FLockNodeOperations.RecursionCount}-1,{FLockNodeOperations.LockSemaphore}-1,{IntToHex(FLockNodeOperations.OwningThread,8)}'00000000']));
   end;
   // Notify it!
   for i := 0 to FNotifyList.Count-1 do begin
@@ -394,9 +395,9 @@ constructor TNode.Create(AOwner: TComponent);
 begin
   if Assigned(_Node) then raise Exception.Create('Duplicate nodes protection');
   inherited;
-  InitializeCriticalSection(FLockNodeOperations);
+  FLockNodeOperations := TCriticalSection.Create;
   TLog.NewLog(ltdebug,Classname,Format('Initialize LockOperations LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',[
-    FLockNodeOperations.LockCount,FLockNodeOperations.RecursionCount,FLockNodeOperations.LockSemaphore,IntToHex(FLockNodeOperations.OwningThread,8) ]));
+    {FLockNodeOperations.LockCount}-1,{FLockNodeOperations.RecursionCount}-1,{FLockNodeOperations.LockSemaphore}-1,{IntToHex(FLockNodeOperations.OwningThread,8)}'00000000' ]));
   FBank := TPCBank.Create(Self);
   FBCBankNotify := TPCBankNotify.Create(Self);
   FBCBankNotify.Bank := FBank;
@@ -431,9 +432,6 @@ Var step : String;
 begin
   TLog.NewLog(ltinfo,Classname,'Destroying Node - START');
   Try
-    step := 'Deleting critical section';
-    DeleteCriticalSection(FLockNodeOperations);
-
     step := 'Desactivating server';
     FNetServer.Active := false;
 
@@ -455,6 +453,9 @@ begin
     step := 'Destroying Bank';
     FreeAndNil(FBank);
 
+    step := 'Deleting critical section';
+    FreeAndNil(FLockNodeOperations);
+
     step := 'inherited';
     inherited;
   Except
@@ -468,7 +469,7 @@ end;
 
 procedure TNode.EndLocking;
 begin
-  LeaveCriticalSection(FLockNodeOperations);
+  FLockNodeOperations.Leave;
 end;
 
 function TNode.IsBlockChainValid(var WhyNot : AnsiString): Boolean;
@@ -615,12 +616,12 @@ begin
   if MaxWaitMilliseconds>60000 then MaxWaitMilliseconds := 60000;
   tc := GetTickCount;
   Repeat
-    IsLocked := TryEnterCriticalSection(FLockNodeOperations);
+    IsLocked := FLockNodeOperations.TryEnter;
     if Not IsLocked then sleep(1);
   Until (IsLocked) Or (GetTickCount > (tc + MaxWaitMilliseconds));
   if Not IsLocked then begin
     s := Format('Cannot lock operations node - LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',[
-      FLockNodeOperations.LockCount,FLockNodeOperations.RecursionCount,FLockNodeOperations.LockSemaphore,IntToHex(FLockNodeOperations.OwningThread,8) ]);
+      {FLockNodeOperations.LockCount}-1,{FLockNodeOperations.RecursionCount}-1,{FLockNodeOperations.LockSemaphore}-1,{IntToHex(FLockNodeOperations.OwningThread,8)}'00000000' ]);
     TLog.NewLog(lterror,Classname,s);
     raise Exception.Create(s);
   end;
