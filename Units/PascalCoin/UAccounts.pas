@@ -16,7 +16,7 @@ unit UAccounts;
 interface
 
 uses
-  Classes, UConst, Windows, UCrypto;
+  Classes, UConst, UCrypto, SyncObjs;
 
 Type
   TAccountKey = TECDSA_Public;
@@ -105,7 +105,7 @@ Type
     FTotalBalance: Int64;
     FTotalFee: Int64;
     FSafeBoxHash : TRawBytes;
-    FLock: TRTLCriticalSection; // Thread safe
+    FLock: TCriticalSection; // Thread safe
     FIsLocked : Boolean;
     Procedure SetAccount(account_number : Cardinal; newAccountkey: TAccountKey; newBalance: UInt64; newN_operation: Cardinal);
     Procedure AccountKeyListAddAccounts(Const AccountKey : TAccountKey; accounts : Array of Cardinal);
@@ -706,7 +706,7 @@ end;
 
 constructor TPCSafeBox.Create;
 begin
-  InitializeCriticalSection(FLock);
+  FLock := TCriticalSection.Create;
   FIsLocked := false;
   FBlockAccountsList := TList.Create;
   FListOfOrderedAccountKeysList := TList.Create;
@@ -722,7 +722,7 @@ begin
   end;
   FreeAndNil(FBlockAccountsList);
   FreeAndNil(FListOfOrderedAccountKeysList);
-  DeleteCriticalSection(Flock);
+  FreeAndNil(FLock);
   inherited;
 end;
 
@@ -730,7 +730,7 @@ procedure TPCSafeBox.EndThreadSave;
 begin
   if Not FIsLocked then raise Exception.Create('Is not locked');
   FIsLocked := False;
-  LeaveCriticalSection(FLock);
+  FLock.Leave;
 end;
 
 function TPCSafeBox.LoadFromStream(Stream : TStream; var LastReadBlock : TBlockAccount; var errors : AnsiString) : Boolean;
@@ -857,7 +857,7 @@ begin
     TLog.NewLog(lterror,Classname,'IS LOCKED !!!');
     raise Exception.Create('IS LOCKED !!!');
   end;
-  TPCThread.ProtectEnterCriticalSection(Self,FLock);
+  FLock.Enter;
   FIsLocked := true;
 end;
 

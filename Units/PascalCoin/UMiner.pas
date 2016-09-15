@@ -26,7 +26,7 @@ Type
   TMinerThread = Class(TPCThread)
   private
     FOperations : TPCOperationsComp;
-    FLock: TRTLCriticalSection;
+    FLock: TCriticalSection;
     FPlayCount : Int64;
     FTotalActiveTime : Int64;
     FLastStartTickCount : Cardinal;
@@ -100,7 +100,7 @@ begin
   FPaused := true;
   FPlayCount := 0;
   FAccountKey := minerAccountKey;
-  InitializeCriticalSection(FLock);
+  FLock := TCriticalSection.Create;
   FOperations := TPCOperationsComp.Create(nil);
   FOperations.Bank := Bank;
   FOperations.AccountKey := AccountKey;
@@ -129,7 +129,7 @@ begin
     Try
       if Terminated then exit;
       winner := false;
-      TPCThread.ProtectEnterCriticalSection(Self,FLock);
+      FLock.Enter;
       try
         FOperations.UpdateTimestamp;
         FOperations.AccountKey := FAccountKey;
@@ -145,7 +145,7 @@ begin
 
         end;
       finally
-        LeaveCriticalSection(FLock);
+        FLock.Leave;
       end;
       if (winner) then begin
         Try
@@ -173,7 +173,7 @@ end;
 
 destructor TMinerThread.Destroy;
 begin
-  DeleteCriticalSection(Flock);
+  FreeAndNil(Flock);
   FreeAndNil(FOperations);
   inherited;
 end;
@@ -187,13 +187,13 @@ end;
 
 function TMinerThread.MinerLockOperations: TPCOperationsComp;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,FLock);
+  FLock.Enter;
   Result := FOperations;
 end;
 
 procedure TMinerThread.MinerUnLockOperations(IsNewBlock : Boolean);
 begin
-  LeaveCriticalSection(FLock);
+  FLock.Leave;
   if IsNewBlock then CheckIfCanRecoverBlocks;
 end;
 

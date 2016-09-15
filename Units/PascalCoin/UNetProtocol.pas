@@ -17,7 +17,8 @@ interface
 
 Uses UBlockChain, Classes, SysUtils, UAccounts, UThread, Sockets, ExtCtrls,
   UCrypto,
-  Windows;
+  Windows,
+  SyncObjs;
 
 Const
   CT_MagicNetIdentification = $0A043580; // Unix timestamp 168048000 ... It's Albert birthdate!
@@ -223,7 +224,7 @@ Type
     FLastDataReceivedTS : Cardinal;
     FLastDataSendedTS : Cardinal;
     FClientBufferRead : TStream;
-    FNetLock : TRTLCriticalSection;
+    FNetLock : TCriticalSection;
     FIsWaitingForResponse : Boolean;
     FLastKnownTimestampDiff : Int64;
     FIsMyselfServer : Boolean;
@@ -1345,7 +1346,7 @@ begin
   FLastKnownTimestampDiff := 0;
   FIsWaitingForResponse := false;
   FClientBufferRead := TMemoryStream.Create;
-  InitializeCriticalSection(FNetLock);
+  FNetLock := TCriticalSection.Create;
   FLastDataReceivedTS := 0;
   FLastDataSendedTS := 0;
   FClient := Nil;
@@ -1379,10 +1380,10 @@ begin
   Try
     TNetData.NetData.NotifyNetConnectionUpdated;
   Finally
-    DeleteCriticalSection(FNetLock);
     if FClient.Owner=Self then
       FreeAndNil(FClient);
     FreeAndNil(FClientBufferRead);
+    FreeAndNil(FNetLock);
     inherited;
   End;
 end;
@@ -1445,7 +1446,7 @@ begin
   try
     ms := TMemoryStream.Create;
     try
-      TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
+      FNetLock.Enter;
       Try
         if Not FIsWaitingForResponse then begin
           DebugStep := 'is not waiting for response, do send';
@@ -1454,7 +1455,7 @@ begin
           DebugStep := 'Is waiting for response, nothing';
         end;
       Finally
-        LeaveCriticalSection(FNetLock);
+        FNetLock.Leave;
       End;
     finally
       ms.Free;
@@ -1932,7 +1933,7 @@ begin
   end;
   If Not Assigned(FClient) then exit;
   if Not FClient.Active then exit;
-  TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
+  FNetLock.Enter;
   Try
     was_waiting_for_response := RequestId>0;
     try
@@ -2008,7 +2009,7 @@ begin
       if was_waiting_for_response then FIsWaitingForResponse := false;
     end;
   Finally
-    LeaveCriticalSection(FNetLock);
+    FNetLock.Leave;
   End;
 end;
 
@@ -2038,7 +2039,7 @@ begin
   Result := false;
   HeaderData := CT_NetHeaderData;
   BufferData.Size := 0;
-  TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
+  FNetLock.Enter;
   try
     If not Connected then exit;
     if Not FClient.Active then exit;
@@ -2086,7 +2087,7 @@ begin
       FClientBufferRead.Size:=0;
       DisconnectInvalidClient(false,'Invalid data received in buffer ('+inttostr(deletedBytes)+' bytes)');
     end;
-    LeaveCriticalSection(FNetLock);
+    FNetLock.Leave;
   end;
   if (Result) And (HeaderData.header_type=ntp_response) then begin
     TNetData.NetData.UnRegisterRequest(Self,HeaderData.operation,HeaderData.request_id);
@@ -2147,7 +2148,7 @@ begin
       s := '';
     end;
     Buffer.Position := 0;
-    TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
+    FNetLock.Enter;
     Try
       TLog.NewLog(ltDebug,Classname,'Sending: '+CT_NetTransferType[NetTranferType]+' operation:'+
         TNetData.OperationToText(operation)+' id:'+Inttostr(request_id)+' errorcode:'+InttoStr(errorcode)+
@@ -2157,7 +2158,7 @@ begin
       FLastDataSendedTS := GetTickCount;
       TNetData.NetData.IncStatistics(0,0,0,0,Buffer.Size);
     Finally
-      LeaveCriticalSection(FNetLock);
+      FNetLock.Leave;
     End;
   finally
     Buffer.Free;

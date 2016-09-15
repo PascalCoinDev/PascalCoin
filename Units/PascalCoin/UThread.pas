@@ -33,14 +33,13 @@ Type
     Class function ThreadCount : Integer;
     Class function GetThread(index : Integer) : TPCThread;
     Class function TerminateAllThreads : Integer;
-    Class Procedure ProtectEnterCriticalSection(Const Sender : TObject; var Lock : TRTLCriticalSection);
     Property DebugStep : String read FDebugStep write FDebugStep;
   End;
 
   TPCThreadList = class
   private
     FList: TList;
-    FLock: TRTLCriticalSection;
+    FLock: TCriticalSection;
   public
     constructor Create;
     destructor Destroy; override;
@@ -107,17 +106,6 @@ begin
     Result := TPCThread(l[index]);
   finally
     _threads.UnlockList;
-  end;
-end;
-
-class procedure TPCThread.ProtectEnterCriticalSection(Const Sender : TObject; var Lock: TRTLCriticalSection);
-begin
-  if Not TryEnterCriticalSection(Lock) then begin
-//    TLog.NewLog(ltdebug,Sender.Classname,Format('Locked critical section (WAIT): LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',[
-//      Lock.LockCount,Lock.RecursionCount,Lock.LockSemaphore,IntToHex(Lock.OwningThread,8) ]));
-    EnterCriticalSection(Lock);
-//    TLog.NewLog(ltdebug,Sender.Classname,Format('UnLocked critical section (ENTER): LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',[
-//      Lock.LockCount,Lock.RecursionCount,Lock.LockSemaphore,IntToHex(Lock.OwningThread,8) ]));
   end;
 end;
 
@@ -191,7 +179,7 @@ end;
 
 constructor TPCThreadList.Create;
 begin
-  InitializeCriticalSection(FLock);
+  FLock := TCriticalSection.Create;
   FList := TList.Create;
 end;
 
@@ -203,13 +191,13 @@ begin
     inherited Destroy;
   finally
     UnlockList;
-    DeleteCriticalSection(FLock);
+    FreeAndNil(FLock);
   end;
 end;
 
 function TPCThreadList.LockList: TList;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,FLock);
+  FLock.Enter;
   Result := FList;
 end;
 
@@ -225,7 +213,7 @@ end;
 
 procedure TPCThreadList.UnlockList;
 begin
-  LeaveCriticalSection(FLock);
+  FLock.Leave;
 end;
 
 initialization

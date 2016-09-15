@@ -16,7 +16,7 @@
 interface
 
 uses
-  Classes, UCrypto, UAccounts, Windows, ULog, UThread;
+  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs;
 
 
 Type
@@ -281,7 +281,7 @@ Type
     FActualTargetHash: TRawBytes;
     FIsRestoringFromFile: Boolean;
     FOnLog: TPCBankLog;
-    FBankLock: TRTLCriticalSection;
+    FBankLock: TCriticalSection;
     FNotifyList : TList;
     FStorageClass: TStorageClass;
     function GetStorage: TStorage;
@@ -338,7 +338,7 @@ Var
   buffer, pow: AnsiString;
   i : Integer;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+  FBankLock.Enter;
   Try
     Result := False;
     errors := '';
@@ -429,7 +429,7 @@ begin
         NewLog(Operations, lterror, 'Invalid new block '+inttostr(Operations.OperationBlock.block)+': ' + errors);
     End;
   Finally
-    LeaveCriticalSection(FBankLock);
+    FBankLock.Leave;
   End;
   if Result then begin
     for i := 0 to FNotifyList.Count - 1 do begin
@@ -475,7 +475,7 @@ begin
   inherited;
   FStorage := Nil;
   FStorageClass := Nil;
-  InitializeCriticalSection(FBankLock);
+  FBankLock := TCriticalSection.Create;
   FIsRestoringFromFile := False;
   FOnLog := Nil;
   FSafeBox := TPCSafeBox.Create;
@@ -487,8 +487,6 @@ destructor TPCBank.Destroy;
 var step : String;
 begin
   Try
-    step := 'Deleting critical section';
-    DeleteCriticalSection(FBankLock);
     step := 'Clear';
     Clear;
     step := 'Destroying SafeBox';
@@ -497,6 +495,8 @@ begin
     FreeAndNil(FNotifyList);
     step := 'Destroying Storage';
     FreeAndNil(FStorage);
+    step := 'Deleting critical section';
+    FreeAndNil(FBankLock);
     step := 'inherited';
     inherited;
   Except
@@ -517,7 +517,7 @@ begin
     TLog.NewLog(lterror,Classname,'Is Restoring!!!');
     raise Exception.Create('Is restoring!');
   end;
-  TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+  FBankLock.Enter;
   try
     FIsRestoringFromFile := true;
     try
@@ -545,7 +545,7 @@ begin
       FIsRestoringFromFile := False;
     end;
   finally
-    LeaveCriticalSection(FBankLock);
+    FBankLock.Leave;
   end;
 end;
 
@@ -706,7 +706,7 @@ begin
   Clear;
   Result := SafeBox.LoadFromStream(Stream,LastReadBlock,errors);
   if Result then begin
-    TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+    FBankLock.Enter;
     try
       op := TPCOperationsComp.Create(Self);
       try
@@ -725,7 +725,7 @@ begin
       // Initialize new target hash:
       FActualTargetHash := GetActualTargetHash;
     finally
-      LeaveCriticalSection(FBankLock);
+      FBankLock.Leave;
     end;
     for i := 0 to FNotifyList.Count - 1 do begin
       TPCBankNotify(FNotifyList.Items[i]).NotifyNewBlock;
@@ -736,11 +736,11 @@ end;
 
 function TPCBank.LoadOperations(Operations: TPCOperationsComp; Block: Cardinal): Boolean;
 begin
-  TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+  FBankLock.Enter;
   try
     Result := Storage.LoadBlockChainBlock(Operations,Block);
   finally
-    LeaveCriticalSection(FBankLock);
+    FBankLock.Leave;
   end;
 end;
 
