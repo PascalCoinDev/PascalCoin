@@ -1109,13 +1109,9 @@ destructor TPCOperationsComp.Destroy;
 begin
   Clear(true);
   FreeAndNil(FOperationsHashTree);
-<<<<<<< HEAD
   if Assigned(FSafeBoxTransaction) then begin
     FreeAndNil(FSafeBoxTransaction);
   end;
-=======
-  FreeAndNil(FSafeBoxTransaction);
->>>>>>> origin/master
   FreeAndNil(FStreamPoW);
   inherited;
 end;
@@ -1463,14 +1459,9 @@ end;
 procedure TPCOperationsComp.SetBank(const value: TPCBank);
 begin
   if FBank = value then exit;
-<<<<<<< HEAD
   if Assigned(FBank) then begin
      FreeAndNil(FSafeBoxTransaction);
   end;
-=======
-  if Assigned(FBank) then
-    FreeAndNil(FSafeBoxTransaction);
->>>>>>> origin/master
   FBank := value;
   if Assigned(value) then begin
     value.FreeNotification(Self);
