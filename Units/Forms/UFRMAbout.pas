@@ -52,11 +52,8 @@ Var fvi : TFileVersionInfo;
 begin
   fvi := TFolderHelper.GetTFileVersionInfo(Application.ExeName);
   lblBuild.Caption :=  'Build: '+fvi.FileVersion;
-  if CT_Protocol_Available>0 then begin
-    lblProtocolVersion.Caption := Format('Protocol: %d (Available: %d)',[CT_Protocol_Version,CT_Protocol_Available]);
-  end else begin
-    lblProtocolVersion.Caption := Format('Protocol: %d',[CT_Protocol_Version]);
-  end;
+  lblProtocolVersion.Caption := Format('BlockChain Protocol: %d (%d)  -  Net Protocol: %d (%d)',[CT_BlockChain_Protocol_Version,CT_BlockChain_Protocol_Available,
+    CT_NetProtocol_Version, CT_NetProtocol_Available]);
 end;
 
 procedure TFRMAbout.Label4Click(Sender: TObject);

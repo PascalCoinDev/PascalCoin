@@ -720,8 +720,8 @@ begin
   for i := 0 to FListOfOrderedAccountKeysList.Count - 1 do begin
     TOrderedAccountKeysList( FListOfOrderedAccountKeysList[i] ).FAccountList := Nil;
   end;
-  FBlockAccountsList.Free;
-  FListOfOrderedAccountKeysList.Free;
+  FreeAndNil(FBlockAccountsList);
+  FreeAndNil(FListOfOrderedAccountKeysList);
   DeleteCriticalSection(Flock);
   inherited;
 end;
@@ -750,7 +750,7 @@ begin
     errors := 'Invalid version or corrupted stream';
     if Stream.Size<8 then exit;
     Stream.Read(w,2);
-    if w<>CT_Protocol_Version then exit;
+    if w<>CT_BlockChain_Protocol_Version then exit;
     Stream.Read(w,2); // protocol version available, nothing to do with it
     Stream.Read(blockscount,4);
     if blockscount>(CT_NewLineSecondsAvg*2000000) then exit; // Protection for corrupted data...
@@ -803,8 +803,8 @@ Var
   b : TBlockAccount;
 begin
   TStreamOp.WriteAnsiString(Stream,CT_MagicIdentificator);
-  Stream.Write(CT_Protocol_Version,SizeOf(CT_Protocol_Version));
-  Stream.Write(CT_Protocol_Available,SizeOf(CT_Protocol_Available));
+  Stream.Write(CT_BlockChain_Protocol_Version,SizeOf(CT_BlockChain_Protocol_Version));
+  Stream.Write(CT_BlockChain_Protocol_Available,SizeOf(CT_BlockChain_Protocol_Available));
   c := BlocksCount;
   Stream.Write(c,Sizeof(c));
   for iblock := 0 to c-1 do begin
@@ -952,7 +952,7 @@ end;
 destructor TPCSafeBoxTransaction.Destroy;
 begin
   CleanTransaction;
-  FOrderedList.Free;
+  FreeAndNil(FOrderedList);
   inherited;
 end;
 
@@ -1105,7 +1105,7 @@ end;
 destructor TOrderedAccountList.Destroy;
 begin
   Clear;
-  FList.Free;
+  FreeAndNil(FList);
   inherited;
 end;
 
@@ -1244,7 +1244,7 @@ begin
     FAccountList.FListOfOrderedAccountKeysList.Remove(Self);
   end;
   Clear(true);
-  FOrderedAccountKeysList.Free;
+  FreeAndNil(FOrderedAccountKeysList);
   inherited;
 end;
 

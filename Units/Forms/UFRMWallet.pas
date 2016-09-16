@@ -254,7 +254,7 @@ begin
   TNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
   TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
   TNode.Node.NetServer.Active := true;
-  FRMWallet.UpdateAccounts;
+  Synchronize( FRMWallet.UpdateAccounts );
 end;
 
 { TFRMWallet }
@@ -466,7 +466,7 @@ begin
       // Build 1.0.2 allows mine if there was at least 1 client connection (working as a server)
       // or (new) there are 2 active connections to a servers (allowing non servers to mine too)
       ( (TNetData.NetData.NetStatistics.TotalClientsConnections>0)
-        Or (TNetData.NetData.NetStatistics.ServersConnections>=2) ) And
+        Or (TNetData.NetData.NetStatistics.ServersConnectionsWithResponse>=2) ) And
       (TNetData.NetData.MaxRemoteOperationBlock.block<=FNode.Operations.OperationBlock.block)
     ) then begin
     if (cbAllowMining.checked) Or (ForceMining) then begin
@@ -728,15 +728,15 @@ begin
   Until i<0;
 
   step := 'Destroying NodeNotifyEvents';
-  FNodeNotifyEvents.Free;
+  FreeAndNil(FNodeNotifyEvents);
   //
   step := 'Assigning Nil to TNetData';
   TNetData.NetData.OnReceivedHelloMessage := Nil;
   TNetData.NetData.OnStatisticsChanged := Nil;
 
   step := 'Destroying grids operators';
-  FOperationsDBGrid.Free;
-  FBlockChainDBGrid.Free;
+  FreeAndNil(FOperationsDBGrid);
+  FreeAndNil(FBlockChainDBGrid);
 
   step := 'Ordered Accounts Key list';
   FreeAndNil(FOrderedAccountsKeyList);
@@ -753,7 +753,7 @@ begin
   TNode.Node.Free;
 
   step := 'Destroying Wallet';
-  FWalletKeys.Free;
+  FreeAndNil(FWalletKeys);
   step := 'Processing messages 2';
   Application.ProcessMessages;
   step := 'Destroying stringslist';
@@ -954,33 +954,36 @@ begin
     Try
       for i := 0 to l.Count - 1 do begin
         NC := l[i];
-        if (NC.ClientAppVersion='') then sClientApp:='(old version)'
-        else sClientApp := 'Version:'+NC.ClientAppVersion;
+        If NC.Client.BytesReceived>0 then begin
+          sClientApp := '['+IntToStr(NC.NetProtocolVersion.protocol_version)+'-'+IntToStr(NC.NetProtocolVersion.protocol_available)+'] '+NC.ClientAppVersion;
+        end else begin
+          sClientApp := '(no data)';
+        end;
 
         if NC.Connected then begin
           if NC is TNetServerClient then begin
-            sNSC.Add(Format('Client: IP:%s:%s Sent/Received:%d/%d Bytes - %s - Active since %s',
-              [NC.Client.RemoteHost,NC.Client.RemotePort,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime)]));
+            sNSC.Add(Format('Client: IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s',
+              [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime)]));
           end else begin
-            if NC.IsMyselfServer then sNSC.Add(Format('MySelf IP:%s:%s Sent/Received:%d/%d Bytes - %s - Active since %s',
-              [NC.Client.RemoteHost,NC.Client.RemotePort,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime)]))
+            if NC.IsMyselfServer then sNSC.Add(Format('MySelf IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s',
+              [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime)]))
             else begin
-              sRS.Add(Format('Remote Server: IP:%s:%s Sent/Received:%d/%d Bytes - %s - Active since %s',
-              [NC.Client.RemoteHost,NC.Client.RemotePort,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime)]));
+              sRS.Add(Format('Remote Server: IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s',
+              [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime)]));
             end;
           end;
         end else begin
           if NC is TNetServerClient then begin
-            sDisc.Add(Format('Disconnected client: IP:%s:%s',[NC.Client.RemoteHost,NC.Client.RemotePort]));
+            sDisc.Add(Format('Disconnected client: IP:%s - %s',[NC.ClientRemoteAddr,sClientApp]));
           end else if NC.IsMyselfServer then begin
-            sDisc.Add(Format('Disconnected MySelf IP:%s:%s',[NC.Client.RemoteHost,NC.Client.RemotePort]));
+            sDisc.Add(Format('Disconnected MySelf IP:%s - %s',[NC.ClientRemoteAddr,sClientApp]));
           end else begin
-            sDisc.Add(Format('Disconnected Remote Server: IP:%s:%s',[NC.Client.RemoteHost,NC.Client.RemotePort,CT_BooleanToString[NC.Connected]]));
+            sDisc.Add(Format('Disconnected Remote Server: IP:%s %s - %s',[NC.ClientRemoteAddr,CT_BooleanToString[NC.Connected],sClientApp]));
           end;
         end;
       end;
       strings.Clear;
-      strings.Add(Format('Connections Updated %s Clients:%d Servers:%d',[DateTimeToStr(now),sNSC.Count,sRS.Count]));
+      strings.Add(Format('Connections Updated %s Clients:%d Servers:%d (valid servers:%d)',[DateTimeToStr(now),sNSC.Count,sRS.Count,TNetData.NetData.NetStatistics.ServersConnectionsWithResponse]));
       strings.AddStrings(sRS);
       strings.AddStrings(sNSC);
       if sDisc.Count>0 then begin
@@ -1049,8 +1052,8 @@ begin
       StatusBar.Panels[0].Text := 'Active (Port '+Inttostr(FNode.NetServer.Port)+')';
     end else StatusBar.Panels[0].Text := 'Server stopped';
     NS := TNetData.NetData.NetStatistics;
-    StatusBar.Panels[1].Text := Format('Connections:%d Clients:%d Servers:%d - Rcvd:%d Bytes Send:%d Bytes',
-      [NS.ActiveConnections,NS.ClientsConnections,NS.ServersConnections,NS.BytesReceived,NS.BytesSend]);
+    StatusBar.Panels[1].Text := Format('Connections:%d Clients:%d Servers:%d - Rcvd:%d Kb Send:%d Kb',
+      [NS.ActiveConnections,NS.ClientsConnections,NS.ServersConnections,NS.BytesReceived DIV 1024,NS.BytesSend DIV 1024]);
   end else begin
     StatusBar.Panels[0].Text := '';
     StatusBar.Panels[1].Text := '';

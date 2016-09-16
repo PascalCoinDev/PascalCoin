@@ -24,6 +24,7 @@ Type
   TPCThread = Class(TThread)
   private
     FDebugStep: String;
+    FStartTickCount : Cardinal;
   protected
     procedure DoTerminate; override;
     procedure Execute; override;
@@ -34,6 +35,8 @@ Type
     Class function GetThread(index : Integer) : TPCThread;
     Class function TerminateAllThreads : Integer;
     Class Procedure ProtectEnterCriticalSection(Const Sender : TObject; var Lock : TRTLCriticalSection);
+    Class Function TryProtectEnterCriticalSection(Const Sender : TObject; MaxWaitMilliseconds : Cardinal; var Lock : TRTLCriticalSection) : Boolean;
+    Class Procedure ThreadsListInfo(list: TStrings);
     Property DebugStep : String read FDebugStep write FDebugStep;
   End;
 
@@ -44,7 +47,7 @@ Type
   public
     constructor Create;
     destructor Destroy; override;
-    procedure Add(Item: Pointer; Const Subject : String);
+    procedure Add(Item: Pointer);
     procedure Clear;
     procedure Remove(Item: Pointer); inline;
     function LockList: TList;
@@ -59,7 +62,7 @@ uses
 
 { TPCThread }
 
-Var _threads,_aux : TPCThreadList;
+Var _threads : TPCThreadList;
 
 procedure TPCThread.DoTerminate;
 begin
@@ -68,9 +71,11 @@ end;
 
 procedure TPCThread.Execute;
 Var l : TList;
+  i : Integer;
 begin
+  FStartTickCount := GetTickCount;
   FDebugStep := '';
-  _threads.Add(Self,'TPCThread.Execute');
+  _threads.Add(Self);
   try
 //    TLog.NewLog(ltdebug,Classname,'Starting Thread');
     Try
@@ -89,7 +94,8 @@ begin
     if (Assigned(_threads)) then begin
       l := _threads.LockList;
       Try
-        l.Remove(Self);
+        i := l.Remove(Self);
+        TLog.NewLog(ltdebug,Classname,'Finalizing Thread in pos '+inttostr(i+1)+'/'+inttostr(l.Count+1)+' working time: '+FormatFloat('0.000',(GetTickCount-FStartTickCount) / 1000)+' sec');
       Finally
         _threads.UnlockList;
       End;
@@ -167,9 +173,45 @@ begin
   end;
 end;
 
+class procedure TPCThread.ThreadsListInfo(list: TStrings);
+Var l : TList;
+  i : Integer;
+begin
+  l := _threads.LockList;
+  try
+    list.BeginUpdate;
+    list.Clear;
+    for i := 0 to l.Count - 1 do begin
+      list.Add(Format('%.2d/%.2d <%s> Time:%s sec - Step: %s',[i+1,l.Count,TPCThread(l[i]).ClassName,FormatFloat('0.000',(GetTickCount-TPCThread(l[i]).FStartTickCount) / 1000),TPCThread(l[i]).DebugStep] ));
+    end;
+    list.EndUpdate;
+  finally
+    _threads.UnlockList;
+  end;
+end;
+
+class function TPCThread.TryProtectEnterCriticalSection(const Sender: TObject;
+  MaxWaitMilliseconds: Cardinal; var Lock: TRTLCriticalSection): Boolean;
+Var tc : Cardinal;
+  s : String;
+begin
+  if MaxWaitMilliseconds>60000 then MaxWaitMilliseconds := 60000;
+  tc := GetTickCount;
+  Repeat
+    Result := TryEnterCriticalSection(Lock);
+    if Not Result then sleep(1);
+  Until (Result) Or (GetTickCount > (tc + MaxWaitMilliseconds));
+  if Not Result then begin
+    s := Format('Cannot Protect a critical section by %s after %d milis - LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',
+      [Sender.ClassName,MaxWaitMilliseconds,
+       Lock.LockCount,Lock.RecursionCount,Lock.LockSemaphore,IntToHex(Lock.OwningThread,8) ]);
+    TLog.NewLog(lterror,Classname,s);
+  end;
+end;
+
 { TPCThreadList }
 
-procedure TPCThreadList.Add(Item: Pointer; Const Subject : String);
+procedure TPCThreadList.Add(Item: Pointer);
 begin
   LockList;
   Try
@@ -199,7 +241,7 @@ destructor TPCThreadList.Destroy;
 begin
   LockList;
   try
-    FList.Free;
+    FreeAndNil(FList);
     inherited Destroy;
   finally
     UnlockList;
@@ -231,7 +273,5 @@ end;
 initialization
   _threads := TPCThreadList.Create;
 finalization
-  _aux := _threads;
-  _threads := Nil;
-  _aux.Free;
+  FreeAndNil(_threads);
 end.

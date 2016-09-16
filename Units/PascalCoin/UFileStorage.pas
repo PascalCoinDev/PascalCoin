@@ -115,7 +115,7 @@ begin
   end;
   fs := TFileStream.Create(filename, fmOpenRead);
   try
-    If Operations.LoadFromStream(false,true,fs, e) then result := true
+    If Operations.LoadBlockFromStream(fs, e) then result := true
     else begin
       TLog.NewLog(lterror,Classname,'Error reading file: '+filename+' Errors: '+e);
     end;
@@ -156,7 +156,7 @@ function TFileStorage.DoRestoreBank(max_block: Int64): Boolean;
     if FileExists(filename) then begin
       fs := TFileStream.Create(filename, fmOpenRead);
       try
-          Result := Operations.LoadFromStream(false,true,fs, errors);
+          Result := Operations.LoadBlockFromStream(fs, errors);
       finally
         fs.Free;
       end;
@@ -203,7 +203,7 @@ begin
     if (filename<>'') then begin
       fs := TFileStream.Create(folder+'\'+filename,fmOpenRead);
       try
-        if not Bank.LoadFromStream(fs,errors) then begin
+        if not Bank.LoadBankFromStream(fs,errors) then begin
           TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+filename+ ' Error: '+errors);
         end;
       finally
@@ -225,7 +225,7 @@ begin
     fs := TFileStream.Create(bankfilename,fmCreate);
     try
       fs.Size := 0;
-      Bank.SaveToStream(fs);
+      Bank.SaveBankToStream(fs);
     finally
       fs.Free;
     end;
@@ -243,7 +243,7 @@ begin
     fs := TFileStream.Create(GetBlockChainFileName(folder,Operations.OperationBlock.block), fmCreate);
     try
       fs.Size := 0;
-      Operations.SaveToStream(true,false,fs);
+      Operations.SaveBlockToStream(false,fs);
     finally
       fs.Free;
     end;

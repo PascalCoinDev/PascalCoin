@@ -144,7 +144,7 @@ begin
   finally
     Result.MinerUnLockOperations(True);
   end;
-  FMinerThreads.Add(Result,'TNode.AddMiner');
+  FMinerThreads.Add(Result);
 end;
 
 function TNode.AddNewBlockChain(SenderMiner: TMinerThread; SenderConnection: TNetConnection; NewBlockOperations: TPCOperationsComp;
@@ -170,11 +170,11 @@ begin
   try
     ms := TMemoryStream.Create;
     try
-      FOperations.SaveToStream(false,false,ms);
+      FOperations.SaveBlockToStream(false,ms);
       Result := Bank.AddNewBlockChainBlock(NewBlockOperations,newBlockAccount,errors);
       FOperations.Clear(true);
       ms.Position:=0;
-      If Not FOperations.LoadFromStream(false,false,ms,errors) then begin
+      If Not FOperations.LoadBlockFromStream(ms,errors) then begin
         TLog.NewLog(lterror,Classname,'Error recovering operations to sanitize: '+errors);
       end;
     finally
@@ -437,23 +437,25 @@ begin
     step := 'Desactivating server';
     FNetServer.Active := false;
 
+    Sleep(1000);
+
     step := 'Deleting miners';
     while (MinersCount>0) do DeleteMiner(0);
 
     step := 'Destroying NetServer';
-    FNetServer.Free;
+    FreeAndNil(FNetServer);
     step := 'Destroying MinerThreads';
-    FMinerThreads.Free;
+    FreeAndNil(FMinerThreads);
 
     step := 'Destroying NotifyList';
-    FNotifyList.Free;
+    FreeAndNil(FNotifyList);
     step := 'Destroying Operations';
-    FOperations.Free;
+    FreeAndNil(FOperations);
     step := 'Assigning NIL to node var';
     if _Node=Self then _Node := Nil;
 
     step := 'Destroying Bank';
-    FBank.Free;
+    FreeAndNil(FBank);
 
     step := 'inherited';
     inherited;
@@ -647,8 +649,8 @@ begin
   if Assigned(FNode) then FNode.FNotifyList.Remove(Self);
   FThreadSafeNodeNotifyEvent.FNodeNotifyEvents := Nil;
   FThreadSafeNodeNotifyEvent.Terminate;
-  FPendingNotificationsList.Free;
-  FMessages.Free;
+  FreeAndNil(FPendingNotificationsList);
+  FreeAndNil(FMessages);
   inherited;
 end;
 
@@ -690,7 +692,7 @@ procedure TThreadSafeNodeNotifyEvent.BCExecute;
 begin
   while (not Terminated) AND (Assigned(FNodeNotifyEvents)) do begin
     if (FNotifyOperationsChanged) Or (FNotifyBlocksChanged) Or (FNodeNotifyEvents.FMessages.Count>0) then Synchronize(SynchronizedProcess);
-    Sleep(1);
+    Sleep(100);
   end;
 end;
 
@@ -722,16 +724,31 @@ end;
 
 procedure TThreadNodeNotifyNewBlock.BCExecute;
 begin
+  if TNetData.NetData.ConnectionLock(Self,FNetConnection) then begin
+    try
+      TLog.NewLog(ltdebug,ClassName,'Sending new block found to '+FNetConnection.Client.RemoteHost+':'+FNetConnection.Client.RemotePort);
+      FNetConnection.Send_NewBlockFound;
+      if TNode.Node.Operations.OperationsHashTree.OperationsCount>0 then begin
+         TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(TNode.Node.Operations.OperationsHashTree.OperationsCount)+' sanitized operations to '+FNetConnection.Client.RemoteHost+':'+FNetConnection.Client.RemotePort);
+         FNetConnection.Send_AddOperations(TNode.Node.Operations.OperationsHashTree);
+      end;
+    finally
+      TNetData.NetData.ConnectionUnlock(FNetConnection);
+    end;
+  end;
+  {
   If Not TNetData.NetData.ConnectionExistsAndActive(FNetConnection) then begin
     TLog.NewLog(ltdebug,Classname,'Connection not active');
     exit;
   end;
+  FNetConnection.WhenPossible_Send_NewBlockFound;
   TLog.NewLog(ltdebug,ClassName,'Sending new block found to '+FNetConnection.Client.RemoteHost+':'+FNetConnection.Client.RemotePort);
   FNetConnection.Send_NewBlockFound;
   if TNode.Node.Operations.OperationsHashTree.OperationsCount>0 then begin
      TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(TNode.Node.Operations.OperationsHashTree.OperationsCount)+' sanitized operations to '+FNetConnection.Client.RemoteHost+':'+FNetConnection.Client.RemotePort);
      FNetConnection.Send_AddOperations(TNode.Node.Operations.OperationsHashTree);
   end;
+  }
 end;
 
 constructor TThreadNodeNotifyNewBlock.Create(NetConnection: TNetConnection);
@@ -745,13 +762,24 @@ end;
 
 procedure TThreadNodeNotifyOperations.BCExecute;
 begin
-  If Not TNetData.NetData.ConnectionExistsAndActive(FNetConnection) then begin
+  if TNetData.NetData.ConnectionLock(Self, FNetConnection) then begin
+    try
+      if FOperationsHashTree.OperationsCount<=0 then exit;
+      TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(FOperationsHashTree.OperationsCount)+' Operations to '+FNetConnection.Client.RemoteHost+':'+FNetConnection.Client.RemotePort);
+      FNetConnection.Send_AddOperations(FOperationsHashTree);
+    finally
+      TNetData.NetData.ConnectionUnlock(FNetConnection);
+    end;
+  end;
+
+{  If Not TNetData.NetData.ConnectionExistsAndActive(FNetConnection) then begin
     TLog.NewLog(ltdebug,Classname,'Connection not active');
     exit;
   end;
   if FOperationsHashTree.OperationsCount<=0 then exit;
   TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(FOperationsHashTree.OperationsCount)+' Operations to '+FNetConnection.Client.RemoteHost+':'+FNetConnection.Client.RemotePort);
   FNetConnection.Send_AddOperations(TNode.Node.Operations.OperationsHashTree);
+  }
 end;
 
 constructor TThreadNodeNotifyOperations.Create(NetConnection: TNetConnection;
@@ -766,12 +794,12 @@ end;
 
 destructor TThreadNodeNotifyOperations.Destroy;
 begin
-  FOperationsHashTree.Free;
+  FreeAndNil(FOperationsHashTree);
   inherited;
 end;
 
 initialization
   _Node := Nil;
 finalization
-  _Node.Free;
+  FreeAndNil(_Node);
 end.

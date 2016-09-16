@@ -360,7 +360,7 @@ begin
       try
         BlobSaveToStream(bf,ms);
         ms.Position := 0;
-        Result := Operations.LoadFromStream(false,false,ms,errors);
+        Result := Operations.LoadBlockFromStream(ms,errors);
         if Not Result then begin
           TLog.NewLog(lterror,Classname,Format('Error reading databse Block %d: %s Stream size:%d',[Block,errors,ms.Size]));
         end;
@@ -440,7 +440,7 @@ begin
       try
         BlobSaveToStream(bf,ms);
         ms.Position := 0;
-        Result := Bank.LoadFromStream(ms,errors);
+        Result := Bank.LoadBankFromStream(ms,errors);
         if Not Result then begin
           TLog.NewLog(lterror,Classname,Format('Error reading databse Bank block %d: %s',[ds.FieldByName(CT_TblFld_Bank_block).AsInteger,errors]));
         end else begin
@@ -486,7 +486,7 @@ begin
       bf := ds.FieldByName(CT_TblFld_Bank_bank_stream) as TBlobField;
       ms := TMemoryStream.Create;
       Try
-        Bank.SaveToStream(ms);
+        Bank.SaveBankToStream(ms);
         ms.Position := 0;
         BlobLoadFromStream(bf,ms);
         TLog.NewLog(ltdebug,Classname,Format('Saving bank of block %d with stream size %d bytes',[Bank.BlocksCount,ms.Size]));
@@ -575,7 +575,7 @@ begin
       ds.FieldByName(CT_TblFld_BlockChain_orphan).Value := vOrphan;
       ds.FieldByName(CT_TblFld_BlockChain_operations_count).Value := Operations.Count;
       bf := ds.FieldByName(CT_TblFld_BlockChain_operations_stream) as TBlobField;
-      Operations.SaveToStream(False,False,ms);
+      Operations.SaveBlockToStream(False,ms);
       ms.Position := 0;
       BlobLoadFromStream(bf,ms);
       ds.Post;
@@ -933,7 +933,7 @@ Var P : POperationResume;
 begin
   New(P);
   P^ := OperationResume;
-  FList.Add(P,'TOperationsResumeList.Add');
+  FList.Add(P);
 end;
 
 procedure TOperationsResumeList.Clear;
@@ -986,7 +986,7 @@ end;
 destructor TOperationsResumeList.Destroy;
 begin
   Clear;
-  FList.Free;
+  FreeAndNil(FList);
   inherited;
 end;
 

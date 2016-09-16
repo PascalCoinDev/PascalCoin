@@ -192,6 +192,7 @@ Type
     Destructor Destroy; Override;
     Procedure CopyFromExceptAddressKey(Operations : TPCOperationsComp);
     Function CopyFromAndValidate(Operations : TPCOperationsComp; var errors : AnsiString) : Boolean;
+    Procedure CopyFrom(Operations : TPCOperationsComp);
     Function AddOperation(Execute : Boolean; op: TPCOperation; var errors: AnsiString): Boolean;
     Function AddOperations(operations: TOperationsHashTree; var errors: AnsiString): Integer;
     Property Operation[index: Integer]: TPCOperation read GetOperation;
@@ -206,8 +207,8 @@ Type
     Property BlockPayload : TRawBytes read GetBlockPayload write SetBlockPayload;
     Function IncrementNOnce: Boolean;
     procedure UpdateTimestamp;
-    function SaveToStream(save_header, save_only_OperationBlock : Boolean; Stream: TStream): Boolean;
-    function LoadFromStream(ExecuteOperations : Boolean; load_header : Boolean; Stream: TStream; var errors: AnsiString): Boolean;
+    function SaveBlockToStream(save_only_OperationBlock : Boolean; Stream: TStream): Boolean;
+    function LoadBlockFromStream(Stream: TStream; var errors: AnsiString): Boolean;
     //
     Function ValidateOperationBlock(var errors : AnsiString) : Boolean;
     Property IsOnlyOperationBlock : Boolean read FIsOnlyOperationBlock;
@@ -219,6 +220,7 @@ Type
     Class Function IndexOfOperationClassByOpType(OpType: Cardinal): Integer;
     Class Function GetOperationClassByOpType(OpType: Cardinal): TPCOperationClass;
     Class Function GetFirstBlock : TOperationBlock;
+    Class Function EqualsOperationBlock(Const OperationBlock1,OperationBlock2 : TOperationBlock):Boolean;
     //
     Property SafeBoxTransaction : TPCSafeBoxTransaction read FSafeBoxTransaction;
     Property OperationsHashTree : TOperationsHashTree read FOperationsHashTree;
@@ -276,6 +278,7 @@ Type
   private
     FStorage : TStorage;
     FSafeBox: TPCSafeBox;
+    FLastBlockCache : TPCOperationsComp;
     FLastOperationBlock: TOperationBlock;
     FInitialSafeBoxHash: TRawBytes;
     FActualTargetHash: TRawBytes;
@@ -286,6 +289,8 @@ Type
     FStorageClass: TStorageClass;
     function GetStorage: TStorage;
     procedure SetStorageClass(const Value: TStorageClass);
+//    function LoadFromStream(Stream: TStream; var errors: AnsiString): Boolean;
+//    procedure SaveToStream(Stream: TStream);
   protected
   public
     Constructor Create(AOwner: TComponent); Override;
@@ -300,8 +305,8 @@ Type
     Function GetActualCompactTargetHash: Cardinal;
     function GetActualTargetHash: AnsiString;
     function GetActualTargetSecondsAverage(BackBlocks : Cardinal): Real;
-    function LoadFromStream(Stream : TStream; var errors : AnsiString) : Boolean;
-    Procedure SaveToStream(Stream : TStream);
+    function LoadBankFromStream(Stream : TStream; var errors : AnsiString) : Boolean;
+    Procedure SaveBankToStream(Stream : TStream);
     Procedure Clear;
     Function LoadOperations(Operations : TPCOperationsComp; Block : Cardinal) : Boolean;
     Property SafeBox : TPCSafeBox read FSafeBox;
@@ -313,6 +318,7 @@ Type
     Property Storage : TStorage read GetStorage;
     Property StorageClass : TStorageClass read FStorageClass write SetStorageClass;
     Function IsReady(Var CurrentProcess : AnsiString) : Boolean;
+    Property LastBlockFound : TPCOperationsComp read FLastBlockCache;
   End;
 
 Const
@@ -349,6 +355,10 @@ begin
       // Check valid data
       if (BlocksCount <> Operations.OperationBlock.block) then begin
         errors := 'block ('+inttostr(Operations.OperationBlock.block)+') is not new position ('+inttostr(BlocksCount)+')';
+        exit;
+      end;
+      if Not Assigned(Operations.FSafeBoxTransaction) then begin
+        errors := 'Developer error 20161114-1';
         exit;
       end;
       if (SafeBox.TotalBalance<>(Operations.FSafeBoxTransaction.TotalBalance+Operations.FSafeBoxTransaction.TotalFee)) then begin
@@ -422,6 +432,7 @@ begin
       if Not FIsRestoringFromFile then begin
         Storage.SaveBlockChainBlock(Operations);
       end;
+      FLastBlockCache.CopyFrom(Operations);
       Operations.Clear(true);
       Result := true;
     Finally
@@ -453,6 +464,7 @@ begin
   d.FLastOperationBlock := FLastOperationBlock;
   d.FActualTargetHash := FActualTargetHash;
   d.FIsRestoringFromFile := FIsRestoringFromFile;
+  d.FLastBlockCache.CopyFrom( FLastBlockCache );
 end;
 
 function TPCBank.BlocksCount: Cardinal;
@@ -465,6 +477,7 @@ begin
   SafeBox.Clear;
   FLastOperationBlock := TPCOperationsComp.GetFirstBlock;
   FLastOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash); // Genesis hash
+  FLastBlockCache.Clear(true);
   FInitialSafeBoxHash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash); // Genesis hash
   FActualTargetHash := TargetFromCompact(CT_MinCompactTarget);
   NewLog(Nil, ltupdate, 'Clear Bank');
@@ -480,6 +493,7 @@ begin
   FOnLog := Nil;
   FSafeBox := TPCSafeBox.Create;
   FNotifyList := TList.Create;
+  FLastBlockCache := TPCOperationsComp.Create(Nil);
   Clear;
 end;
 
@@ -491,6 +505,8 @@ begin
     DeleteCriticalSection(FBankLock);
     step := 'Clear';
     Clear;
+    step := 'Destroying LastBlockCache';
+    FreeAndNil(FLastBlockCache);
     step := 'Destroying SafeBox';
     FreeAndNil(FSafeBox);
     step := 'Destroying NotifyList';
@@ -523,17 +539,26 @@ begin
     try
       Clear;
       Storage.RestoreBank(max_block);
+      // Restore last blockchain
+      if BlocksCount>0 then begin
+        if Not Storage.LoadBlockChainBlock(FLastBlockCache,BlocksCount-1) then begin
+          NewLog(nil,lterror,'Cannot find blockchain '+inttostr(BlocksCount-1)+' so cannot accept bank current block '+inttostr(BlocksCount));
+          Clear;
+        end;
+      end;
       NewLog(Nil, ltinfo,'Start restoring from disk operations (Max '+inttostr(max_block)+') Orphan: ' +Storage.Orphan);
       Operations := TPCOperationsComp.Create(Self);
       try
         while ((BlocksCount<=max_block)) do begin
           if Storage.BlockExists(BlocksCount) then begin
             if Storage.LoadBlockChainBlock(Operations,BlocksCount) then begin
-                  if Not AddNewBlockChainBlock(Operations,newBlock,errors) then begin
-                    NewLog(Operations, lterror,'Error restoring block: ' + Inttostr(BlocksCount)+ ' Errors: ' + errors);
-                    Storage.DeleteBlockChainBlocks(BlocksCount,Storage.Orphan);
-                    break;
-                  end else Storage.SaveBank;
+              if Not AddNewBlockChainBlock(Operations,newBlock,errors) then begin
+                NewLog(Operations, lterror,'Error restoring block: ' + Inttostr(BlocksCount)+ ' Errors: ' + errors);
+                Storage.DeleteBlockChainBlocks(BlocksCount,Storage.Orphan);
+                break;
+              end else begin
+                Storage.SaveBank;
+              end;
             end else break;
           end else break;
         end;
@@ -698,7 +723,8 @@ begin
   else Result := true;
 end;
 
-function TPCBank.LoadFromStream(Stream: TStream; var errors : AnsiString) : Boolean;
+function TPCBank.LoadBankFromStream(Stream: TStream;
+  var errors: AnsiString): Boolean;
 Var LastReadBlock : TBlockAccount;
   op : TPCOperationsComp;
   i : Integer;
@@ -733,12 +759,17 @@ begin
   end;
 end;
 
-
 function TPCBank.LoadOperations(Operations: TPCOperationsComp; Block: Cardinal): Boolean;
 begin
   TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
   try
-    Result := Storage.LoadBlockChainBlock(Operations,Block);
+    if (Block>0) AND (Block=FLastBlockCache.OperationBlock.block) then begin
+      // Same as cache, sending cache
+      Operations.CopyFrom(FLastBlockCache);
+      Result := true;
+    end else begin
+      Result := Storage.LoadBlockChainBlock(Operations,Block);
+    end;
   finally
     LeaveCriticalSection(FBankLock);
   end;
@@ -754,11 +785,16 @@ begin
     FOnLog(Self, Operations, Logtype, Logtxt);
 end;
 
-procedure TPCBank.SaveToStream(Stream: TStream);
+procedure TPCBank.SaveBankToStream(Stream: TStream);
 begin
   SafeBox.SaveToStream(Stream);
 end;
 
+{procedure TPCBank.SaveToStream(Stream: TStream);
+begin
+  SafeBox.SaveToStream(Stream);
+end;
+}
 procedure TPCBank.SetStorageClass(const Value: TStorageClass);
 begin
   if FStorageClass=Value then exit;
@@ -963,6 +999,10 @@ begin
       if Assigned(FSafeBoxTransaction) then
         FSafeBoxTransaction.CleanTransaction;
     end;
+
+    // Note:
+    // This function does not initializes "account_key" nor "block_payload" fields
+
     FOperationBlock.timestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
     if Assigned(FBank) then begin
       FOperationBlock.block := bank.BlocksCount;
@@ -980,14 +1020,24 @@ begin
     FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
     FOperationBlock.fee := 0;
     FOperationBlock.nonce := 0;
-
     FOperationBlock.proof_of_work := '';
-    FOperationBlock.protocol_version := CT_Protocol_Version;
-    FOperationBlock.protocol_available := CT_Protocol_Available;
+    FOperationBlock.protocol_version := CT_BlockChain_Protocol_Version;
+    FOperationBlock.protocol_available := CT_BlockChain_Protocol_Available;
     FIsOnlyOperationBlock := false;
   Finally
     CalcProofOfWork(true,FOperationBlock.proof_of_work);
   End;
+end;
+
+procedure TPCOperationsComp.CopyFrom(Operations: TPCOperationsComp);
+begin
+  if Self=Operations then exit;
+  FOperationBlock := Operations.FOperationBlock;
+  FIsOnlyOperationBlock := Operations.FIsOnlyOperationBlock;
+  FOperationsHashTree.CopyFromHashTree(Operations.FOperationsHashTree);
+  if Assigned(FSafeBoxTransaction) And Assigned(Operations.FSafeBoxTransaction) then begin
+    FSafeBoxTransaction.CopyFrom(Operations.FSafeBoxTransaction);
+  end;
 end;
 
 function TPCOperationsComp.CopyFromAndValidate(Operations: TPCOperationsComp; var errors: AnsiString): Boolean;
@@ -1028,7 +1078,9 @@ begin
   FIsOnlyOperationBlock := Operations.FIsOnlyOperationBlock;
   FOperationsHashTree.CopyFromHashTree(Operations.FOperationsHashTree);
   FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
-  FSafeBoxTransaction.CopyFrom(Operations.FSafeBoxTransaction);
+  if Assigned(FSafeBoxTransaction) And Assigned(Operations.FSafeBoxTransaction) then begin
+    FSafeBoxTransaction.CopyFrom(Operations.FSafeBoxTransaction);
+  end;
   // Recalc all
   CalcProofOfWork(true,FOperationBlock.proof_of_work);
 end;
@@ -1040,11 +1092,10 @@ end;
 
 constructor TPCOperationsComp.Create(AOwner: TComponent);
 begin
-  inherited;
+  inherited Create(AOwner);
   // New at Build 1.0.2
   FStreamPoW := TMemoryStream.Create;
   FStreamPoW.Position := 0;
-
   FOperationsHashTree := TOperationsHashTree.Create;
   FBank := Nil;
   FOperationBlock := GetFirstBlock;
@@ -1057,10 +1108,31 @@ end;
 destructor TPCOperationsComp.Destroy;
 begin
   Clear(true);
-  FOperationsHashTree.Free;
-  FSafeBoxTransaction.Free;
-  FStreamPoW.Free;
+  FreeAndNil(FOperationsHashTree);
+  if Assigned(FSafeBoxTransaction) then begin
+    FreeAndNil(FSafeBoxTransaction);
+  end;
+  FreeAndNil(FStreamPoW);
   inherited;
+end;
+
+class function TPCOperationsComp.EqualsOperationBlock(const OperationBlock1,
+  OperationBlock2: TOperationBlock): Boolean;
+begin
+
+  Result := (OperationBlock1.block=OperationBlock2.block)
+           And (TAccountComp.Equal(OperationBlock1.account_key,OperationBlock2.account_key))
+           And (OperationBlock1.reward=OperationBlock2.reward)
+           And (OperationBlock1.fee=OperationBlock2.fee)
+           And (OperationBlock1.protocol_version=OperationBlock2.protocol_version)
+           And (OperationBlock1.protocol_available=OperationBlock2.protocol_available)
+           And (OperationBlock1.timestamp=OperationBlock2.timestamp)
+           And (OperationBlock1.compact_target=OperationBlock2.compact_target)
+           And (OperationBlock1.nonce=OperationBlock2.nonce)
+           And (OperationBlock1.block_payload=OperationBlock2.block_payload)
+           And (OperationBlock1.initial_safe_box_hash=OperationBlock2.initial_safe_box_hash)
+           And (OperationBlock1.operations_hash=OperationBlock2.operations_hash)
+           And (OperationBlock1.proof_of_work=OperationBlock2.proof_of_work);
 end;
 
 function TPCOperationsComp.GetAccountKey: TAccountKey;
@@ -1139,13 +1211,12 @@ begin
   Result := -1;
 end;
 
-function TPCOperationsComp.LoadFromStream(ExecuteOperations : Boolean; load_header : Boolean; Stream: TStream; var errors: AnsiString): Boolean;
+function TPCOperationsComp.LoadBlockFromStream(Stream: TStream; var errors: AnsiString): Boolean;
 Var
   c, i, lastfee: Cardinal;
   soob : Byte;
   OpType: Cardinal;
   bcop: TPCOperation;
-  pow,
   m: AnsiString;
   j: Integer;
   OpClass: TPCOperationClass;
@@ -1153,34 +1224,30 @@ Var
 begin
   Clear(true);
   Result := False;
-  if (load_header) then begin
-    // Header: Magic string + protocol info
-    if TStreamOp.ReadAnsiString(Stream, m) < 0 then begin
-      errors := 'Invalid header';
-      exit;
-    end;
-    if (Not AnsiSameStr(CT_MagicIdentificator, m)) then begin
-      errors := 'Invalid header name';
-      exit;
-    end;
-    errors := 'Invalid header structure';
-    if (Stream.Size - Stream.Position < 4) then exit;
-    Stream.Read(FOperationBlock.protocol_version, Sizeof(FOperationBlock.protocol_version));
-    Stream.Read(FOperationBlock.protocol_available, Sizeof(FOperationBlock.protocol_available));
-    if (FOperationBlock.protocol_version<>CT_Protocol_Version) then begin
-      errors := 'Invalid protocol block: '+inttostr(FOperationBlock.protocol_version);
-      exit;
-    end;
-  end;
   //
-  errors := 'Invalid structure';
+  errors := 'Invalid protocol structure. Check application version!';
   if (Stream.Size - Stream.Position < 5) then exit;
   Stream.Read(soob,1);
-  if soob=0 then FIsOnlyOperationBlock:=false
-  else if soob=1 then FIsOnlyOperationBlock:=true
-  else exit; // Invalid value
+  // About soob var:
+  // In build prior to 1.0.4 soob only can have 2 values: 0 or 1
+  // In build 1.0.4 soob can has 2 more values: 2 or 3
+  // In future, old values 0 and 1 will no longer be used!
+  // - Value 0 and 2 means that contains also operations
+  // - Value 1 and 3 means that only contains operationblock info
+  // - Value 2 and 3 means that contains protocol info prior to block number
+  if (soob=0) or (soob=2) then FIsOnlyOperationBlock:=false
+  else if (soob=1) or (soob=3) then FIsOnlyOperationBlock:=true
+  else begin
+    errors := 'Invalid value in protocol header! Found:'+inttostr(soob)+' - Check if your application version is Ok';
+    exit;
+  end;
 
-  Stream.Read(FOperationBlock.block, Sizeof(FOperationBlock.block));
+  if (soob=2) or (soob=3) then begin
+    Stream.Read(FOperationBlock.protocol_version, Sizeof(FOperationBlock.protocol_version));
+    Stream.Read(FOperationBlock.protocol_available, Sizeof(FOperationBlock.protocol_available));
+  end;
+
+  if Stream.Read(FOperationBlock.block, Sizeof(FOperationBlock.block))<0 then exit;
 
   if TStreamOp.ReadAnsiString(Stream, m) < 0 then exit;
   FOperationBlock.account_key := TAccountComp.RawString2Accountkey(m);
@@ -1193,7 +1260,6 @@ begin
   if TStreamOp.ReadAnsiString(Stream, FOperationBlock.initial_safe_box_hash) < 0 then exit;
   if TStreamOp.ReadAnsiString(Stream, FOperationBlock.operations_hash) < 0 then exit;
   if TStreamOp.ReadAnsiString(Stream, FOperationBlock.proof_of_work) < 0 then exit;
-  pow := OperationBlock.proof_of_work;
   If FIsOnlyOperationBlock then begin
     Result := true;
     exit;
@@ -1224,7 +1290,7 @@ begin
         bcop.Free;
         exit;
       end;
-      if Not AddOperation(ExecuteOperations,bcop, errors2) then begin
+      if Not AddOperation(false,bcop, errors2) then begin
         errors := errors + ' '+errors2+' '+bcop.ToString;
         bcop.Free;
         exit;
@@ -1250,12 +1316,10 @@ procedure TPCOperationsComp.Notification(AComponent: TComponent;
   Operation: TOperation);
 begin
   inherited;
-  if (Operation = opRemove) then
-  begin
+  if (Operation = opRemove) then begin
     if AComponent = FBank then begin
       FBank := Nil;
-      FSafeBoxTransaction.Free;
-      FSafeBoxTransaction := Nil;
+      FreeAndNil(FSafeBoxTransaction);
     end;
   end;
 end;
@@ -1286,7 +1350,7 @@ procedure TPCOperationsComp.SanitizeOperations;
 Var i,n,lastn : Integer;
   op : TPCOperation;
   errors : AnsiString;
-  aux : TOperationsHashTree;
+  aux,aux2 : TOperationsHashTree;
 begin
   Try
     FOperationBlock.timestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
@@ -1304,8 +1368,8 @@ begin
       FOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash);
     end;
     FOperationBlock.proof_of_work := '';
-    FOperationBlock.protocol_version := CT_Protocol_Version;
-    FOperationBlock.protocol_available := CT_Protocol_Available;
+    FOperationBlock.protocol_version := CT_BlockChain_Protocol_Version;
+    FOperationBlock.protocol_available := CT_BlockChain_Protocol_Available;
     n := 0;
     FOperationBlock.fee := 0;
     //
@@ -1325,8 +1389,9 @@ begin
       end;
       FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
     Finally
-      FOperationsHashTree.Free;
+      aux2 := FOperationsHashTree;
       FOperationsHashTree := aux;
+      aux2.Free;
     End;
   Finally
     CalcProofOfWork(true,FOperationBlock.proof_of_work);
@@ -1336,25 +1401,29 @@ begin
   end;
 end;
 
-function TPCOperationsComp.SaveToStream(save_header, save_only_OperationBlock : Boolean; Stream: TStream): Boolean;
+function TPCOperationsComp.SaveBlockToStream(save_only_OperationBlock : Boolean; Stream: TStream): Boolean;
 Var
   c, opl, i, OpType: Cardinal;
   soob : Byte;
   bcop: TPCOperation;
   bcops, errors: AnsiString;
 begin
-  if save_header then begin
-    // Header: Magic string + protocol info
-    TStreamOp.WriteAnsiString(Stream, CT_MagicIdentificator);
-    Stream.Write(CT_Protocol_Version, Sizeof(FOperationBlock.protocol_version));
-    Stream.Write(CT_Protocol_Available, Sizeof(FOperationBlock.protocol_available));
+  //
+  if save_only_OperationBlock then begin
+    if (FOperationBlock.protocol_version=1) And (FOperationBlock.protocol_available=0) then soob := 1
+    else soob := 3;
+  end else begin
+    if (FOperationBlock.protocol_version=1) And (FOperationBlock.protocol_available=0) then soob := 0
+    else soob := 2;
+  end;
+  Stream.Write(soob,1);
+  if (soob>=2) then begin
+    Stream.Write(FOperationBlock.protocol_version, Sizeof(FOperationBlock.protocol_version));
+    Stream.Write(FOperationBlock.protocol_available, Sizeof(FOperationBlock.protocol_available));
   end;
   //
-  if save_only_OperationBlock then soob := 1
-  else soob := 0;
-  Stream.Write(soob,1);
-  //
   Stream.Write(FOperationBlock.block, Sizeof(FOperationBlock.block));
+  //
   TStreamOp.WriteAnsiString(Stream,TAccountComp.AccountKey2RawString(FOperationBlock.account_key));
   Stream.Write(FOperationBlock.reward, Sizeof(FOperationBlock.reward));
   Stream.Write(FOperationBlock.fee, Sizeof(FOperationBlock.fee));
@@ -1391,8 +1460,7 @@ procedure TPCOperationsComp.SetBank(const value: TPCBank);
 begin
   if FBank = value then exit;
   if Assigned(FBank) then begin
-     FSafeBoxTransaction.Free;
-     FSafeBoxTransaction := Nil;
+     FreeAndNil(FSafeBoxTransaction);
   end;
   FBank := value;
   if Assigned(value) then begin
@@ -1495,7 +1563,6 @@ begin
   end;
   Result := true;
 end;
-
 
 { TPCBankNotify }
 
@@ -1613,7 +1680,7 @@ end;
 destructor TOperationsHashTree.Destroy;
 begin
   ClearHastThree;
-  FHashTreeOperations.Free;
+  FreeAndNil(FHashTreeOperations);
   inherited;
 end;
 

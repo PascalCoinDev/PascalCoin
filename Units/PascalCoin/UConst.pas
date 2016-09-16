@@ -54,14 +54,20 @@ Const
   CT_MaxPayloadSize = 255; // Max payload size in bytes
   CT_MaxSecondsDifferenceOfNetworkNodes = 180; // 3 minutes. If a Node has a +- value difference, will be blacklisted
 
-  CT_MaxServersConnected = 10;
+  CT_MaxServersConnected = 5;
+
+  CT_MaxClientsConnected = 100;
 
   CT_BankToDiskEveryNBlocks = 500;
 
   CT_Default_EC_OpenSSL_NID = NID_secp256k1;
 
-  CT_Protocol_Version: Word = $0001; // Version 1
-  CT_Protocol_Available: Word = $0000;
+  CT_BlockChain_Protocol_Version: Word = $0001; // Version 1
+  CT_BlockChain_Protocol_Available: Word = $0000;
+
+  CT_NetProtocol_Version: Word = $0001;
+  CT_NetProtocol_Available: Word = $0002; // Build 1.0.4
+
   CT_MagicIdentificator: AnsiString = 'PascalCoin'; //
 
   // Value of Operations type in Protocol 1
@@ -69,7 +75,7 @@ Const
   CT_Op_Changekey = $02;
   CT_Op_Recover = $03;
 
-  CT_ClientAppVersion : AnsiString = '1.0.3';
+  CT_ClientAppVersion : AnsiString = '1.0.4';
 
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.ddns.net;pascalcoin2.ddns.net;pascalcoin1.dynamic-dns.net;pascalcoin1.dns1.us';
 

@@ -300,7 +300,7 @@ end;
 procedure TFRMOperation.FormDestroy(Sender: TObject);
 begin
   if Assigned(FPAccount) then Dispose(FPAccount);
-  if assigned(FOperation) then FOperation.Free;
+  FreeAndNil(FOperation);
 end;
 
 function TFRMOperation.GetSenderAcccount: PAccount;
@@ -346,8 +346,9 @@ end;
 procedure TFRMOperation.SetSenderAccount(const Value: Cardinal);
 begin
   if FSenderAccount=Value then exit;
+  if Value>TNode.Node.Bank.AccountsCount-1 then FSenderAccount := 0
+  else FSenderAccount := Value;
 
-  FSenderAccount := Value;
   if Assigned(FPAccount) then begin
     Dispose(FPAccount);
     FPAccount := Nil;
