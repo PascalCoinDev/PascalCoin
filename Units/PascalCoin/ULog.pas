@@ -92,8 +92,12 @@ begin
 end;
 
 destructor TLog.Destroy;
+<<<<<<< HEAD
 var
   l : TList;
+=======
+var l : TList;
+>>>>>>> origin/master
   i : Integer;
   P : PLogData;
 begin

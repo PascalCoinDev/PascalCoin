@@ -1267,6 +1267,10 @@ end;
 destructor TNetServer.Destroy;
 begin
   FreeAndNil(FTCPServer);
+<<<<<<< HEAD
+=======
+  FreeAndNil(FNetClients);
+>>>>>>> origin/master
   inherited;
   FreeAndNil(FNetClients);
 end;
@@ -1282,6 +1286,7 @@ var i : Integer;
 begin
   inherited;
   if (Operation=opRemove) then begin
+<<<<<<< HEAD
     if Not Assigned(FNetClients) then exit;
     l := FNetClients.LockList;
     Try
@@ -1293,6 +1298,18 @@ begin
     Finally
       FNetClients.UnlockList;
     End;
+=======
+    if not Assigned(FNetClients) then // this happens occassionally
+    begin
+      TLog.NewLog(ltdebug,ClassName,'NetServer opRemove notification when NetClients=nil');
+      exit;
+    end;
+    i := FNetClients.IndexOf(AComponent);
+    if (i>=0) then begin
+      FNetClients.Delete(i);
+      TLog.NewLog(ltdebug,ClassName,'TNetConnection destroyed. Remaining: '+Inttostr(FNetclients.Count));
+    end;
+>>>>>>> origin/master
   end;
 end;
 
@@ -1485,6 +1502,11 @@ begin
     TNetData.NetData.NotifyNetConnectionUpdated;
   Finally
     DeleteCriticalSection(FNetLock);
+<<<<<<< HEAD
+=======
+    if FClient.Owner=Self then
+      FreeAndNil(FClient);
+>>>>>>> origin/master
     FreeAndNil(FClientBufferRead);
     inherited;
     FreeAndNil(FTcpIpClient);
@@ -2621,6 +2643,7 @@ end;
 
 destructor TNetClient.Destroy;
 begin
+<<<<<<< HEAD
   TLog.NewLog(ltdebug,Classname,'Starting TNetClient.Destroy');
   TNetData.NetData.FNetConnections.Remove(Self);
   FNetClientThread.OnTerminate := Nil;
@@ -2630,6 +2653,30 @@ begin
   end;
   FreeAndNil(FNetClientThread);
   inherited;
+=======
+  Try
+    debugStep := 'Remove';
+    TNetData.NetData.FNetConnections.Remove(Self);
+    debugStep := 'Assigning NIL on terminate thread';
+    FNetClientThread.OnTerminate := Nil;
+    debugStep := 'checking';
+    if Not FNetClientThread.Terminated then begin
+      debugStep := 'not terminated';
+      FNetClientThread.Terminate;
+      debugStep := 'Do wait for';
+      FNetClientThread.WaitFor;
+    end;
+    debugStep := 'Freeing';
+    FreeAndNil(FNetClientThread);
+    debugStep := 'Inherited';
+    inherited;
+  Except
+    On E:Exception do begin
+      E.Message := E.Message + ' STEP:'+debugStep;
+      Raise;
+    end;
+  End;
+>>>>>>> origin/master
 end;
 
 procedure TNetClient.OnNetClientThreadTerminated(Sender: TObject);
@@ -2847,6 +2894,7 @@ end;
 
 procedure TNetClientDestroyThread.BCExecute;
 begin
+<<<<<<< HEAD
   DebugStep := 'Locking NetClient if exists';
   If TNetData.NetData.ConnectionLock(Self,FNetClient) then begin
     try
@@ -2857,6 +2905,13 @@ begin
       // -> TNetData.NetData.ConnectionUnlock(FNetClient);
     end;
   end;
+=======
+  DebugStep := 'Destroying NetClient if exists';
+  if TNetData.NetData.ConnectionExists(FNetClient) then begin
+    DebugStep := 'Destroying NetClient...';
+    FreeAndNil(FNetClient);
+  end else TLog.NewLog(ltdebug,classname,'Connection not exists!');
+>>>>>>> origin/master
 end;
 
 constructor TNetClientDestroyThread.Create(NetClient: TNetClient);

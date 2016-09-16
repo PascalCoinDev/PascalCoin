@@ -254,7 +254,11 @@ begin
   TNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
   TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
   TNode.Node.NetServer.Active := true;
+<<<<<<< HEAD
   Synchronize( FRMWallet.UpdateAccounts );
+=======
+  Synchronize(FRMWallet.UpdateAccounts);
+>>>>>>> origin/master
 end;
 
 { TFRMWallet }
