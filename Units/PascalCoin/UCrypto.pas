@@ -454,7 +454,7 @@ Var i : Integer;
 Begin
   Result := true;
   for i := 1 to length(ReadableText) do begin
-    if (ord(ReadableText[i])<32) Or (ord(ReadableText[i])>=127) then begin
+    if (ord(ReadableText[i])<32) Or (ord(ReadableText[i])>=255) then begin
       Result := false;
       Exit;
     end;

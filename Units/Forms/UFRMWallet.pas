@@ -39,6 +39,7 @@ Const
   CT_PARAM_ShowModalMessages = 'ShowModalMessages';
   CT_PARAM_MaxCPUs = 'MaxCPUs';
   CT_PARAM_PeerCache = 'PeerCache';
+  CT_PARAM_TryToConnectOnlyWithThisFixedServers = 'TryToConnectOnlyWithFixedServers';
 
 type
   TStringListAux = Class(TStringList)
@@ -148,6 +149,7 @@ type
     lblBuild: TLabel;
     ebFindAccountNumber: TEdit;
     Label18: TLabel;
+    IPnodes1: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure TimerUpdateStatusTimer(Sender: TObject);
@@ -177,6 +179,7 @@ type
     procedure lblReceivedMessagesClick(Sender: TObject);
     procedure ebFindAccountNumberChange(Sender: TObject);
     procedure ebFindAccountNumberExit(Sender: TObject);
+    procedure IPnodes1Click(Sender: TObject);
   private
     FMinersBlocksFound: Integer;
     procedure SetMinersBlocksFound(const Value: Integer);
@@ -238,7 +241,7 @@ implementation
 
 Uses UFolderHelper, ssl_lib, UConst, UTime,
   UDBStorage, UThread, UOpTransaction, UECIES, UFRMPascalCoinWalletConfig,
-  UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder;
+  UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp;
 
 Type
   TThreadActivate = Class(TPCThread)
@@ -260,6 +263,8 @@ end;
 { TFRMWallet }
 
 procedure TFRMWallet.Activate;
+Var ips : AnsiString;
+  nsarr : TNodeServerAddressArray;
 begin
   inherited;
   if FIsActivated then exit;
@@ -277,6 +282,10 @@ begin
         Raise;
       end;
     End;
+    ips := FAppParams.ParamByName[CT_PARAM_TryToConnectOnlyWithThisFixedServers].GetAsString('');
+    TNode.DecodeIpStringToNodeServerAddressArray(ips,nsarr);
+    TNetData.NetData.DiscoverFixedServersOnly(nsarr);
+    setlength(nsarr,0);
     // Creating Node:
     FNode := TNode.Node;
     FNode.NetServer.Port := FAppParams.ParamByName[CT_PARAM_InternetServerPort].GetAsInteger(CT_NetServer_Port);
@@ -298,7 +307,7 @@ begin
     FBlockChainDBGrid.Node := FNode;
     FBlockChainDBGrid.AdoConnection := TDBStorage(FNode.Bank.Storage).ADOConnection;
     FBlockChainDBGrid.DBGrid := dbGridBlockChain;
-    // Init TNode
+    // Init
     TNetData.NetData.OnReceivedHelloMessage := OnReceivedHelloMessage;
     TNetData.NetData.OnStatisticsChanged := OnNetStatisticsChanged;
     TNetData.NetData.OnNetConnectionsUpdated := onNetConnectionsUpdated;
@@ -798,6 +807,18 @@ begin
     end;
   end;
   Result := PublicK;
+end;
+
+procedure TFRMWallet.IPnodes1Click(Sender: TObject);
+Var FRM : TFRMNodesIp;
+begin
+  FRM := TFRMNodesIp.Create(Self);
+  Try
+    FRM.AppParams := FAppParams;
+    FRM.ShowModal;
+  Finally
+    FRM.Free;
+  End;
 end;
 
 procedure TFRMWallet.lblReceivedMessagesClick(Sender: TObject);

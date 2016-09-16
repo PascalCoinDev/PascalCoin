@@ -27,7 +27,8 @@ uses
   UFRMWalletKeys in 'Units\Forms\UFRMWalletKeys.pas' {FRMWalletKeys},
   UFRMNewPrivateKeyType in 'Units\Forms\UFRMNewPrivateKeyType.pas' {FRMNewPrivateKeyType},
   UAES in 'Units\Utils\UAES.pas',
-  UFRMPayloadDecoder in 'Units\Forms\UFRMPayloadDecoder.pas' {FRMPayloadDecoder};
+  UFRMPayloadDecoder in 'Units\Forms\UFRMPayloadDecoder.pas' {FRMPayloadDecoder},
+  UFRMNodesIp in 'Units\Forms\UFRMNodesIp.pas' {FRMNodesIp};
 
 {$R *.res}
 

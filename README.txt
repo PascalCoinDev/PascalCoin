@@ -38,6 +38,15 @@ If you like it, consider a donation using BitCoin:
 
 History:
 
+Build 1.0.4.0 - 2016-09-16
+--------------------------
+- IMPORTANT: Introducing net protocol changes: Must update!
+- More and more and more stable
+- Prevents "Alone in the world" if everybody is updated ;-)
+- Invalid local time detector with corrections
+- IP nodes configurator
+
+
 Build 1.0.3.0 - 2016-09-08
 --------------------------
 - Important changes to database 

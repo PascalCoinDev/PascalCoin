@@ -241,18 +241,9 @@ begin
 end;
 
 class function TDBStorage.DBPayloadToReadableText(const DBRawPayload: TRawBytes; var ReadableText: AnsiString): Boolean;
-Var i : Integer;
-  P : PAnsiChar;
-  lc : AnsiString;
 begin
-  Result := false;
-  for i := 1 to length(DBRawPayload) do begin
-    if (ord(DBRawPayload[i])<32) Or (ord(DBRawPayload[i])>=127) then begin
-      Exit;
-    end;
-  end;
-  Result := true;
-  ReadableText := DBRawPayload;
+  Result := TCrypto.IsHumanReadable(DBRawPayload);
+  if Result then ReadableText := DBRawPayload;
 end;
 
 class procedure TDBStorage.DBRawToStringField(Field: TField; const raw: TRawBytes);

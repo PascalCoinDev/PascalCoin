@@ -47,6 +47,8 @@ Type
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
     Class Function Node : TNode;
+    Class Procedure DecodeIpStringToNodeServerAddressArray(Const Ips : AnsiString; Var NodeServerAddressArray : TNodeServerAddressArray);
+    Class Function EncodeNodeServerAddressArrayToIpString(Const NodeServerAddressArray : TNodeServerAddressArray) : AnsiString;
     Constructor Create(AOwner : TComponent); override;
     Destructor Destroy; override;
     Property Bank : TPCBank read FBank;
@@ -343,6 +345,81 @@ begin
 end;
 
 procedure TNode.AutoDiscoverNodes(Const ips : AnsiString);
+{  Function GetIp(var ips_string : AnsiString; var nsa : TNodeServerAddress) : Boolean;
+  Const CT_IP_CHARS = ['a'..'z','A'..'Z','0'..'9','.','-','_'];
+  var i : Integer;
+    port : AnsiString;
+  begin
+    nsa := CT_TNodeServerAddress_NUL;
+    Result := false;
+    if length(trim(ips_string))=0 then begin
+      ips_string := '';
+      exit;
+    end;
+    i := 1;
+    while (i<length(ips_string)) AND (NOT (ips_string[i] IN CT_IP_CHARS)) do inc(i);
+    if (i>1) then ips_string := copy(ips_string,i,length(ips_string));
+    //
+    i := 1;
+    while (i<=length(ips_string)) and (ips_string[i] in CT_IP_CHARS) do inc(i);
+    nsa.ip := copy(ips_string,1,i-1);
+    if (i<=length(ips_string)) and (ips_string[i]=':') then begin
+      inc(i);
+      port := '';
+      while (i<=length(ips_string)) and (ips_string[i] in ['0'..'9']) do begin
+        port := port + ips_string[i];
+        inc(i);
+      end;
+      nsa.port := StrToIntDef(port,0);
+    end;
+    ips_string := copy(ips_string,i+1,length(ips_string));
+    if nsa.port=0 then nsa.port := CT_NetServer_Port;
+    Result := (trim(nsa.ip)<>'');
+  end;}
+Var i,j : Integer;
+{  ips_string : AnsiString;
+  nsa : TNodeServerAddress;}
+  nsarr : TNodeServerAddressArray;
+begin
+  DecodeIpStringToNodeServerAddressArray(ips+';'+PeerCache,nsarr);
+  for i := low(nsarr) to high(nsarr) do begin
+    TNetData.NetData.AddServer(nsarr[i]);
+  end;
+
+{  ips_string := ips+';'+PeerCache;
+  repeat
+    If GetIp(ips_string,nsa) then begin
+      TNetData.NetData.AddServer(nsa);
+    end;
+  until (ips_string='');
+  //
+}
+  j := (CT_MaxServersConnected -  TNetData.NetData.ConnectionsCount(true));
+  if j<=0 then exit;
+  TNetData.NetData.DiscoverServers;
+end;
+
+constructor TNode.Create(AOwner: TComponent);
+begin
+  if Assigned(_Node) then raise Exception.Create('Duplicate nodes protection');
+  inherited;
+  InitializeCriticalSection(FLockNodeOperations);
+  TLog.NewLog(ltdebug,Classname,Format('Initialize LockOperations LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',[
+    FLockNodeOperations.LockCount,FLockNodeOperations.RecursionCount,FLockNodeOperations.LockSemaphore,IntToHex(FLockNodeOperations.OwningThread,8) ]));
+  FBank := TPCBank.Create(Self);
+  FBCBankNotify := TPCBankNotify.Create(Self);
+  FBCBankNotify.Bank := FBank;
+  FBCBankNotify.OnNewBlock := OnBankNewBlock;
+  FNetServer := TNetServer.Create(Self);
+  FMinerThreads := TPCThreadList.Create;
+  FOperations := TPCOperationsComp.Create(Self);
+  FOperations.bank := FBank;
+  FNotifyList := TList.Create;
+  if Not Assigned(_Node) then _Node := Self;
+end;
+
+class procedure TNode.DecodeIpStringToNodeServerAddressArray(Const Ips: AnsiString;
+  var NodeServerAddressArray: TNodeServerAddressArray);
   Function GetIp(var ips_string : AnsiString; var nsa : TNodeServerAddress) : Boolean;
   Const CT_IP_CHARS = ['a'..'z','A'..'Z','0'..'9','.','-','_'];
   var i : Integer;
@@ -378,35 +455,14 @@ Var i,j : Integer;
   ips_string : AnsiString;
   nsa : TNodeServerAddress;
 begin
-  ips_string := ips+';'+PeerCache;
+  SetLength(NodeServerAddressArray,0);
+  ips_string := Ips;
   repeat
     If GetIp(ips_string,nsa) then begin
-      TNetData.NetData.AddServer(nsa);
+      SetLength(NodeServerAddressArray,length(NodeServerAddressArray)+1);
+      NodeServerAddressArray[High(NodeServerAddressArray)] := nsa;
     end;
   until (ips_string='');
-  //
-  j := (CT_MaxServersConnected -  TNetData.NetData.ConnectionsCount(true));
-  if j<=0 then exit;
-  TNetData.NetData.DiscoverServers;
-end;
-
-constructor TNode.Create(AOwner: TComponent);
-begin
-  if Assigned(_Node) then raise Exception.Create('Duplicate nodes protection');
-  inherited;
-  InitializeCriticalSection(FLockNodeOperations);
-  TLog.NewLog(ltdebug,Classname,Format('Initialize LockOperations LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',[
-    FLockNodeOperations.LockCount,FLockNodeOperations.RecursionCount,FLockNodeOperations.LockSemaphore,IntToHex(FLockNodeOperations.OwningThread,8) ]));
-  FBank := TPCBank.Create(Self);
-  FBCBankNotify := TPCBankNotify.Create(Self);
-  FBCBankNotify.Bank := FBank;
-  FBCBankNotify.OnNewBlock := OnBankNewBlock;
-  FNetServer := TNetServer.Create(Self);
-  FMinerThreads := TPCThreadList.Create;
-  FOperations := TPCOperationsComp.Create(Self);
-  FOperations.bank := FBank;
-  FNotifyList := TList.Create;
-  if Not Assigned(_Node) then _Node := Self;
 end;
 
 procedure TNode.DeleteMiner(index: Integer);
@@ -466,6 +522,20 @@ begin
     end;
   End;
   TLog.NewLog(ltinfo,Classname,'Destroying Node - END');
+end;
+
+class function TNode.EncodeNodeServerAddressArrayToIpString(
+  const NodeServerAddressArray: TNodeServerAddressArray): AnsiString;
+var i : Integer;
+begin
+  Result := '';
+  for i := low(NodeServerAddressArray) to high(NodeServerAddressArray) do begin
+    if (Result<>'') then Result := Result + ';';
+    Result := Result + NodeServerAddressArray[i].ip;
+    if NodeServerAddressArray[i].port>0 then begin
+      Result := Result + ':'+IntToStr(NodeServerAddressArray[i].port);
+    end;
+  end;
 end;
 
 procedure TNode.EndLocking;

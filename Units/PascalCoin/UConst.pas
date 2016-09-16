@@ -58,15 +58,18 @@ Const
 
   CT_MaxClientsConnected = 100;
 
-  CT_BankToDiskEveryNBlocks = 500;
+  CT_BankToDiskEveryNBlocks = 1000;
 
   CT_Default_EC_OpenSSL_NID = NID_secp256k1;
 
   CT_BlockChain_Protocol_Version: Word = $0001; // Version 1
   CT_BlockChain_Protocol_Available: Word = $0000;
 
+  // Build 1.0.4 - introducing NetProtocol versioning:
   CT_NetProtocol_Version: Word = $0001;
-  CT_NetProtocol_Available: Word = $0002; // Build 1.0.4
+  // IMPORTANT NOTE!!!
+  // NetProtocol_Available MUST BE allways >= NetProtocol_version
+  CT_NetProtocol_Available: Word = $0002;  // Remember, >= NetProtocol_version !!!
 
   CT_MagicIdentificator: AnsiString = 'PascalCoin'; //
 

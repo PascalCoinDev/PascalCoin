@@ -161,6 +161,7 @@ Type
     FNetStatistics: TNetStatistics;
     FOnStatisticsChanged: TNotifyEvent;
     FMaxRemoteOperationBlock : TOperationBlock;
+    FFixedServers : TNodeServerAddressArray;
     Procedure IncStatistics(incActiveConnections,incClientsConnections,incServersConnections,incServersConnectionsWithResponse : Integer; incBytesReceived, incBytesSend : Int64);
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
@@ -184,6 +185,8 @@ Type
     Function PendingRequest(Sender : TNetConnection; var requests_data : AnsiString ) : Integer;
     Procedure AddServer(NodeServerAddress : TNodeServerAddress);
     Function IsBlackListed(const ip : AnsiString; port : Word) : Boolean;
+    //
+    Procedure DiscoverFixedServersOnly(const FixedServers : TNodeServerAddressArray);
     //
     Function ConnectionsCount(CountOnlyNetClients : Boolean) : Integer;
     Function Connection(index : Integer) : TNetConnection;
@@ -541,7 +544,8 @@ end;
 
 constructor TNetData.Create;
 begin
-  FMaxRemoteOperationBlock := CT_OperationBlock_NUL;  
+  SetLength(FFixedServers,0);
+  FMaxRemoteOperationBlock := CT_OperationBlock_NUL;
   FNetStatistics := CT_TNetStatistics_NUL;
   FOnStatisticsChanged := Nil;
   FOnNetConnectionsUpdated := Nil;
@@ -598,6 +602,7 @@ begin
   FreeAndNil(FNodePrivateKey);
   FNetDataNotifyEventsThread.Terminate;
   FNetDataNotifyEventsThread.WaitFor;
+  SetLength(FFixedServers,0);
   inherited;
 end;
 
@@ -617,6 +622,24 @@ begin
   End;
 end;
 
+procedure TNetData.DiscoverFixedServersOnly(const FixedServers: TNodeServerAddressArray);
+Var i : Integer;
+  l : TList;
+begin
+  l := FNodeServers.LockList;
+  try
+    SetLength(FFixedServers,length(FixedServers));
+    for i := low(FixedServers) to high(FixedServers) do begin
+      FFixedServers[i] := FixedServers[i];
+    end;
+    for i := low(FixedServers) to high(FixedServers) do begin
+      AddServer(FixedServers[i]);
+    end;
+  finally
+    FNodeServers.UnlockList;
+  end;
+end;
+
 procedure TNetData.DiscoverServers;
   Procedure sw(l : TList);
   Var i,j,x,y : Integer;
@@ -630,9 +653,10 @@ procedure TNetData.DiscoverServers;
     end;
   end;
 Var P : PNodeServerAddress;
-  i,j : Integer;
+  i,j,k : Integer;
   l,lns : TList;
   tdc : TThreadDiscoverConnection;
+  canAdd : Boolean;
 begin
   if TPCThread.ThreadClassFound(TThreadDiscoverConnection,nil)>=0 then begin
     TLog.NewLog(ltInfo,ClassName,'Allready discovering servers...');
@@ -652,7 +676,18 @@ begin
         If (Not Assigned(P.netConnection)) AND (Not IsBlackListed(P^.ip,P^.port)) AND (Not P^.its_myself) And
           ((P^.last_attempt_to_connect=0) Or ((P^.last_attempt_to_connect+EncodeTime(0,5,0,0)<now))) And
           ((P^.total_failed_attemps_to_connect<3) Or (P^.last_attempt_to_connect+EncodeTime(2,0,0,0)<now)) then begin
-          l.Add(P);
+
+          if Length(FFixedServers)>0 then begin
+            canAdd := false;
+            for k := low(FFixedServers) to high(FFixedServers) do begin
+              if (FFixedServers[k].ip=P^.ip) And
+                 ((FFixedServers[k].port=P.port)) then begin
+                 canAdd := true;
+                 break;
+              end;
+            end;
+          end else canAdd := true;
+          if canAdd then l.Add(P);
         end;
       end;
       if l.Count<=0 then exit;
@@ -1028,7 +1063,6 @@ begin
       if (Not (nsa.its_myself)) And
         (nsa.BlackListText='') And
         (nsa.last_connection>0) And
-        // New on build 1.0.2
         ((Assigned(nsa.netConnection)) Or
          (nsa.last_connection + (60*60*24) > (currunixtimestamp))) // Only If connected 24h before...
         then begin
@@ -1503,7 +1537,9 @@ begin
     TLog.NewLog(lterror,Classname,'Disconecting '+ClientRemoteAddr+' > '+Why);
   end;
   FIsMyselfServer := ItsMyself;
-  include_in_list := (Not SameText(Client.RemoteHost,'localhost')) And (Not SameText(Client.RemoteHost,'127.0.0.1'))  And (Not SameText('192.168',Copy(Client.RemoteHost,1,7)));
+  include_in_list := (Not SameText(Client.RemoteHost,'localhost')) And (Not SameText(Client.RemoteHost,'127.0.0.1'))
+    And (Not SameText('192.168.',Copy(Client.RemoteHost,1,8)))
+    And (Not SameText('10.',Copy(Client.RemoteHost,1,3)));
   if include_in_list then begin
     l := TNetData.NetData.FBlackList.LockList;
     try
@@ -1835,6 +1871,47 @@ begin
 end;
 
 procedure TNetConnection.DoProcess_Hello(HeaderData: TNetHeaderData; DataBuffer: TStream);
+  Function IsValidTime(connection_ts : Cardinal) : Boolean;
+  Var l : TList;
+    i : Integer;
+    nc : TNetConnection;
+    min_valid_time,max_valid_time : Cardinal;
+    showmessage : Boolean;
+  Begin
+    if ((FLastKnownTimestampDiff<((-1)*(CT_MaxSecondsDifferenceOfNetworkNodes DIV 2)))
+        OR (FLastKnownTimestampDiff>(CT_MaxSecondsDifferenceOfNetworkNodes DIV 2))) then begin
+      TLog.NewLog(ltdebug,Classname,'Processing a hello from a client with different time. Difference: '+Inttostr(FLastKnownTimestampDiff));
+    end;
+    min_valid_time := (UnivDateTimeToUnix(DateTime2UnivDateTime(now))-CT_MaxSecondsDifferenceOfNetworkNodes);
+    max_valid_time := (UnivDateTimeToUnix(DateTime2UnivDateTime(now))+CT_MaxSecondsDifferenceOfNetworkNodes);
+    If (connection_ts < min_valid_time) or (connection_ts > max_valid_time) then begin
+      Result := false;
+      showmessage := true;
+      // This message only appears if there is no other valid connections
+      l := TNetData.NetData.NetConnections.LockList;
+      try
+        for i := 0 to l.Count - 1 do begin
+          nc :=(TNetConnection(l[i]));
+          if (nc<>self) and (nc.FHasReceivedData) and (nc.Connected)
+            and (nc.FLastKnownTimestampDiff>=((-1)*CT_MaxSecondsDifferenceOfNetworkNodes))
+            and (nc.FLastKnownTimestampDiff<=(CT_MaxSecondsDifferenceOfNetworkNodes))
+            then begin
+            showmessage := false;
+            break;
+          end;
+        end;
+      finally
+        TNetData.NetData.NetConnections.UnlockList;
+      end;
+      if showmessage then begin
+        TNode.Node.NotifyNetClientMessage(Nil,'Detected a different time in an other node... check that your PC time and timezone is correct or you will be Blacklisted! '+
+          'Your time: '+TimeToStr(now)+' - '+Client.RemoteHost+':'+Client.RemotePort+' time: '+TimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(connection_ts)))+' Difference: '+inttostr(FLastKnownTimestampDiff)+' seconds. '+
+          '(If this message appears on each connection, then you have a bad configured time, if not, do nothing)' );
+      end;
+    end else begin
+      Result := true;
+    end;
+  End;
 var op, myLastOp : TPCOperationsComp;
     errors : AnsiString;
     messagehello : TNetMessage_Hello;
@@ -1869,17 +1946,13 @@ Begin
       exit;
     end;
     FLastKnownTimestampDiff := Int64(connection_ts) - Int64(UnivDateTimeToUnix( DateTime2UnivDateTime(now)));
-    if (FLastKnownTimestampDiff<>0) then begin
-      TLog.NewLog(ltdebug,Classname,'Processing a hello from a client with different time. Difference: '+Inttostr(FLastKnownTimestampDiff));
-    end;
-    If (connection_ts > (UnivDateTimeToUnix(DateTime2UnivDateTime(now))+CT_MaxSecondsDifferenceOfNetworkNodes)) then begin
-      TNode.Node.NotifyNetClientMessage(Nil,'Detected a different time in an other node... check that your PC time is correct or you will be Blacklisted! '+
-        'Your time: '+TimeToStr(now)+' - '+Client.RemoteHost+':'+Client.RemotePort+' time: '+TimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(connection_ts)))+' Difference: '+inttostr(FLastKnownTimestampDiff)+' seconds. '+
-        '(If this message appears on each connection, then you have a bad configured time, if not, do nothing)' );
+    // Check valid time
+    if Not IsValidTime(connection_ts) then begin
       DisconnectInvalidClient(false,'Invalid remote timestamp. Difference:'+inttostr(FLastKnownTimestampDiff)+' > '+inttostr(CT_MaxSecondsDifferenceOfNetworkNodes));
     end;
     if (connection_has_a_server>0) And (Not SameText(Client.RemoteHost,'localhost')) And (Not SameText(Client.RemoteHost,'127.0.0.1'))
-      And (Not SameText('192.168',Copy(Client.RemoteHost,1,7)))
+      And (Not SameText('192.168.',Copy(Client.RemoteHost,1,8)))
+      And (Not SameText('10.',Copy(Client.RemoteHost,1,3)))
       And (Not TAccountComp.Equal(FClientPublicKey,TNetData.NetData.FNodePrivateKey.PublicKey)) then begin
       nsa := CT_TNodeServerAddress_NUL;
       nsa.ip := Client.RemoteHost;
@@ -2424,7 +2497,6 @@ begin
     currunixtimestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
     data.Write(currunixtimestamp,4);
     // Save last operations block
-    // Build 1.0.4 changed to NIL owner ---> op := TPCOperationsComp.Create(TNode.Node.Bank);
     op := TPCOperationsComp.Create(nil);
     try
       if (TNode.Node.Bank.BlocksCount>0) then TNode.Node.Bank.LoadOperations(op,TNode.Node.Bank.BlocksCount-1);
