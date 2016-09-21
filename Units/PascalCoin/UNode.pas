@@ -294,13 +294,15 @@ begin
     valids_operations := TOperationsHashTree.Create;
     try
       for j := 0 to Operations.OperationsCount-1 do begin
-        TLog.NewLog(ltdebug,Classname,Format('AddOperation %d/%d: %s',[(j+1),Operations.OperationsCount,Operations.GetOperation(j).ToString]));
         if (FOperations.AddOperation(true,Operations.GetOperation(j),e)) then begin
           inc(Result);
           valids_operations.AddOperationToHashTree(Operations.GetOperation(j));
+          TLog.NewLog(ltdebug,Classname,Format('AddOperation %d/%d: %s',[(j+1),Operations.OperationsCount,Operations.GetOperation(j).ToString]));
         end else begin
           if (errors<>'') then errors := errors+' ';
           errors := errors+'Op '+IntToStr(j+1)+'/'+IntToStr(Operations.OperationsCount)+':'+e;
+          TLog.NewLog(ltdebug,Classname,Format('AddOperation failed %d/%d: %s  - Error:%s',
+            [(j+1),Operations.OperationsCount,Operations.GetOperation(j).ToString,e]));
         end;
       end;
       if Result=0 then exit;
@@ -806,19 +808,6 @@ begin
       TNetData.NetData.ConnectionUnlock(FNetConnection);
     end;
   end;
-  {
-  If Not TNetData.NetData.ConnectionExistsAndActive(FNetConnection) then begin
-    TLog.NewLog(ltdebug,Classname,'Connection not active');
-    exit;
-  end;
-  FNetConnection.WhenPossible_Send_NewBlockFound;
-  TLog.NewLog(ltdebug,ClassName,'Sending new block found to '+FNetConnection.Client.RemoteHost+':'+FNetConnection.Client.RemotePort);
-  FNetConnection.Send_NewBlockFound;
-  if TNode.Node.Operations.OperationsHashTree.OperationsCount>0 then begin
-     TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(TNode.Node.Operations.OperationsHashTree.OperationsCount)+' sanitized operations to '+FNetConnection.Client.RemoteHost+':'+FNetConnection.Client.RemotePort);
-     FNetConnection.Send_AddOperations(TNode.Node.Operations.OperationsHashTree);
-  end;
-  }
 end;
 
 constructor TThreadNodeNotifyNewBlock.Create(NetConnection: TNetConnection);

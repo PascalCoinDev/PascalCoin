@@ -77,7 +77,7 @@ begin
   FDebugStep := '';
   _threads.Add(Self);
   try
-//    TLog.NewLog(ltdebug,Classname,'Starting Thread');
+    TLog.NewLog(ltdebug,Classname,'Starting Thread');
     Try
       Try
         BCExecute;
@@ -88,7 +88,7 @@ begin
         end;
       End;
     Finally
-//      TLog.NewLog(ltdebug,Classname,'Finalizing Thread');
+      TLog.NewLog(ltdebug,Classname,'Finalizing Thread');
     End;
   finally
     if (Assigned(_threads)) then begin

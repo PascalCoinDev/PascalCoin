@@ -240,6 +240,7 @@ Type
     FNetProtocolVersion: TNetProtocolVersion;
     FAlertedForNewProtocolAvailable : Boolean;
     FHasReceivedData : Boolean;
+    FIsDownloadingBlocks : Boolean;
     function GetConnected: Boolean;
     procedure SetConnected(const Value: Boolean);
     procedure TcpClient_OnError(Sender: TObject; SocketError: Integer);
@@ -997,7 +998,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
 var rid : Cardinal;
   bufferdata : TMemoryStream;
   headerdata : TNetHeaderData;
-  op : TOperationBlock;
+  my_op, client_op : TOperationBlock;
 begin
   // Protection against discovering servers...
   if FIsDiscoveringServers then begin
@@ -1021,25 +1022,27 @@ begin
       ' with OperationBlock:'+TPCOperationsComp.OperationBlockToText(Connection.FRemoteOperationBlock)+' (My block: '+TPCOperationsComp.OperationBlockToText(TNode.Node.Bank.LastOperationBlock)+')');
     // NOTE: FRemoteOperationBlock.block >= TNode.Node.Bank.BlocksCount
     // First capture same block than me (TNode.Node.Bank.BlocksCount-1) to check if i'm an orphan block...
-    If Not Do_GetOperationBlock(TNode.Node.Bank.BlocksCount-1,op) then begin
-      TLog.NewLog(lterror,CT_LogSender,'Cannot receive my block ('+inttostr(TNode.Node.Bank.BlocksCount)+')... Invalid client. Disconnecting');
-      Connection.DisconnectInvalidClient(false,'Cannot receive my block ('+inttostr(TNode.Node.Bank.BlocksCount)+')... Invalid client. Disconnecting');
+    my_op := TNode.Node.Bank.LastOperationBlock;
+    If Not Do_GetOperationBlock(my_op.block,client_op) then begin
+      TLog.NewLog(lterror,CT_LogSender,'Cannot receive information about my block ('+inttostr(my_op.block)+')... Invalid client. Disconnecting');
+      Connection.DisconnectInvalidClient(false,'Cannot receive information about my block ('+inttostr(my_op.block)+')... Invalid client. Disconnecting');
       exit;
     end;
-    if op.proof_of_work<>TNode.Node.Bank.LastOperationBlock.proof_of_work then begin
-      TLog.NewLog(ltinfo,CT_LogSender,'My blockchain is incorrect... received: '+TPCOperationsComp.OperationBlockToText(op)+' My: '+TPCOperationsComp.OperationBlockToText(TNode.Node.Bank.LastOperationBlock));
-      if Not FindLastSameBlockByOperationsBlock(0,op.block,op) then begin
+
+    if (NOT TPCOperationsComp.EqualsOperationBlock(my_op,client_op)) then begin
+      TLog.NewLog(ltinfo,CT_LogSender,'My blockchain is incorrect... received: '+TPCOperationsComp.OperationBlockToText(client_op)+' My: '+TPCOperationsComp.OperationBlockToText(my_op));
+      if Not FindLastSameBlockByOperationsBlock(0,client_op.block,client_op) then begin
         TLog.NewLog(ltinfo,CT_LogSender,'No found base block to start process... Receiving ALL');
         GetNewBank(-1);
       end else begin
-        TLog.NewLog(ltinfo,CT_LogSender,'Found base new block: '+TPCOperationsComp.OperationBlockToText(op));
+        TLog.NewLog(ltinfo,CT_LogSender,'Found base new block: '+TPCOperationsComp.OperationBlockToText(client_op));
         // Move operations to orphan folder... (temporal... waiting for a confirmation)
-        GetNewBank(op.block);
+        GetNewBank(client_op.block);
       end;
     end else begin
-      TLog.NewLog(ltinfo,CT_LogSender,'My blockchain is ok! Need to download new blocks starting at '+inttostr(TNode.Node.Bank.BlocksCount));
+      TLog.NewLog(ltinfo,CT_LogSender,'My blockchain is ok! Need to download new blocks starting at '+inttostr(my_op.block+1));
       // High to new value:
-      Connection.Send_GetBlocks(TNode.Node.Bank.BlocksCount,0,rid);
+      Connection.Send_GetBlocks(my_op.block+1,0,rid);
     end;
   Finally
     TLog.NewLog(ltdebug,CT_LogSender,'Finalizing');
@@ -1470,6 +1473,7 @@ end;
 constructor TNetConnection.Create(AOwner: TComponent);
 begin
   inherited;
+  FIsDownloadingBlocks := false;
   FHasReceivedData := false;
   FNetProtocolVersion.protocol_version := 0; // 0 = unknown
   FNetProtocolVersion.protocol_available := 0;
@@ -1531,6 +1535,7 @@ Var P : PNodeServerAddress;
   i : Integer;
   include_in_list : Boolean;
 begin
+  FIsDownloadingBlocks := false;
   if ItsMyself then begin
     TLog.NewLog(ltInfo,Classname,'Disconecting myself '+ClientRemoteAddr+' > '+Why)
   end else begin
@@ -1687,6 +1692,7 @@ Var b,b_start,b_end:Cardinal;
     c : Cardinal;
   errors : AnsiString;
   DoDisconnect : Boolean;
+  posquantity : Int64;
 begin
   DoDisconnect := true;
   try
@@ -1714,13 +1720,22 @@ begin
        op := TPCOperationsComp.Create(TNetData.NetData.bank);
        try
          c := b_end - b_start + 1;
+         posquantity := db.position;
          db.Write(c,4);
+         c := 0;
          for b := b_start to b_end do begin
+           inc(c);
            If TNetData.NetData.bank.LoadOperations(op,b) then begin
              op.SaveBlockToStream(false,db);
            end else begin
              SendError(ntp_response,HeaderData.operation,HeaderData.request_id,CT_NetError_InternalServerError,'Operations of block:'+inttostr(b)+' not found');
              exit;
+           end;
+           // Build 1.0.5 To prevent high data over net in response (Max 2 Mb of data)
+           if (db.size>(1024*1024*2)) then begin
+             // Stop
+             db.position := posquantity;
+             db.Write(c,4);
            end;
          end;
          Send(ntp_response,HeaderData.operation,0,HeaderData.request_id,db);
@@ -1785,10 +1800,12 @@ begin
           end;
         end else begin
           // Receiving an unexpected operationblock
-          TLog.NewLog(lterror,classname,'ReceivedGetOperations an unexpected operationblock: '+TPCOperationsComp.OperationBlockToText(op.OperationBlock));
+          TLog.NewLog(lterror,classname,'Received a distinct block, finalizing: '+TPCOperationsComp.OperationBlockToText(op.OperationBlock));
+          FIsDownloadingBlocks := false;
           exit;
         end;
       end;
+      FIsDownloadingBlocks := false;
       if ((opcount>0) And (FRemoteOperationBlock.block>=TNode.Node.Bank.BlocksCount)) then begin
         Send_GetBlocks(TNode.Node.Bank.BlocksCount,50,i);
       end;
@@ -2441,12 +2458,14 @@ begin
       if FRemoteOperationBlock.block>0 then c2 := FRemoteOperationBlock.block
       else c2 := c1+100;
     end else c2 := c1+quantity-1;
-    if (FRemoteOperationBlock.block>0) And (c2>FRemoteOperationBlock.block) then c2 := FRemoteOperationBlock.block;
+    // Build 1.0.5 to allow download all:
+    // Deleted: if (FRemoteOperationBlock.block>0) And (c2>FRemoteOperationBlock.block) then c2 := FRemoteOperationBlock.block;
     data.Write(c1,4);
     data.Write(c2,4);
     request_id := TNetData.NetData.NewRequestId;
     TNetData.NetData.RegisterRequest(Self,CT_NetOp_GetBlocks,request_id);
     TLog.NewLog(ltdebug,ClassName,Format('Send GET BLOCKS start:%d quantity:%d (from:%d to %d)',[StartAddress,quantity,StartAddress,quantity+StartAddress]));
+    FIsDownloadingBlocks := quantity>1;
     Send(ntp_request,CT_NetOp_GetBlocks,0,request_id,data);
     Result := Connected;
   finally
@@ -2832,6 +2851,7 @@ Var i : Integer;
   candidates : TList;
   lop : TOperationBlock;
   netConnectionsList : TList;
+  nc : TNetConnection;
 begin
   // Search better candidates:
   candidates := TList.Create;
@@ -2841,12 +2861,16 @@ begin
     Try
       for i := 0 to netConnectionsList.Count - 1 do begin
         TNetData.NetData.FMaxRemoteOperationBlock := CT_OperationBlock_NUL;
-        if (TNetConnection(netConnectionsList[i]).FRemoteOperationBlock.block>=TNode.Node.Bank.BlocksCount) And
-           (TNetConnection(netConnectionsList[i]).FRemoteOperationBlock.block>=lop.block)
+        nc := TNetConnection(netConnectionsList[i]);
+        if (nc.FRemoteOperationBlock.block>=TNode.Node.Bank.BlocksCount) And
+           (nc.FRemoteOperationBlock.block>=lop.block)
            then begin
-           candidates.Add(TNetConnection(netConnectionsList[i]));
+           candidates.Add(nc);
            lop := TNetConnection(netConnectionsList[i]).FRemoteOperationBlock;
         end;
+        //
+        if nc.FIsDownloadingBlocks then exit;
+        //
       end;
     Finally
       TNetData.NetData.ConnectionsUnlock;

@@ -28,20 +28,6 @@ Type
     width : Integer;
   End;
 
-  TOrderedCardinalList = Class
-  private
-    FOrderedList : TList;
-  public
-    Constructor Create;
-    Destructor Destroy; override;
-    Function Add(Value : Cardinal) : Integer;
-    Procedure Remove(Value : Cardinal);
-    Procedure Clear;
-    Function Get(index : Integer) : Cardinal;
-    Function Count : Integer;
-    Function Find(const Value: Cardinal; var Index: Integer): Boolean;
-  End;
-
   TAccountsGrid = Class(TComponent)
   private
     FAccountsBalance : Int64;
@@ -50,6 +36,8 @@ Type
     FDrawGrid : TDrawGrid;
     FNodeNotifyEvents : TNodeNotifyEvents;
     FShowAllAccounts: Boolean;
+    FOnUpdated: TNotifyEvent;
+    FAccountsCount: Integer;
     procedure SetDrawGrid(const Value: TDrawGrid);
     Procedure InitGrid;
     Procedure OnNodeNewOperation(Sender : TObject);
@@ -71,7 +59,9 @@ Type
     Procedure LoadFromStream(Stream : TStream);
     Property ShowAllAccounts : Boolean read FShowAllAccounts write SetShowAllAccounts;
     Property AccountsBalance : Int64 read FAccountsBalance;
+    Property AccountsCount : Integer read FAccountsCount;
     Function MoveRowToAccount(nAccount : Cardinal) : Boolean;
+    Property OnUpdated : TNotifyEvent read FOnUpdated write FOnUpdated;
   End;
 
   TOperationsGrid = Class(TComponent)
@@ -223,7 +213,9 @@ constructor TAccountsGrid.Create(AOwner: TComponent);
 Var i : Integer;
 begin
   inherited;
+  FOnUpdated := Nil;
   FAccountsBalance := 0;
+  FAccountsCount := 0;
   FShowAllAccounts := false;
   FAccountsList := TOrderedCardinalList.Create;
   FDrawGrid := Nil;
@@ -257,6 +249,7 @@ Var i : Integer;
   acc : TAccount;
 begin
   FAccountsBalance := 0;
+  FAccountsCount := FAccountsList.Count;
   if Not assigned(DrawGrid) then exit;
   if FShowAllAccounts then begin
     if Assigned(Node) then begin
@@ -287,6 +280,7 @@ begin
     {goColMoving, goEditing, }goTabs, goRowSelect, {goAlwaysShowEditor,}
     goThumbTracking, goFixedColClick, goFixedRowClick, goFixedHotTrack];
   FDrawGrid.Invalidate;
+  if Assigned(FOnUpdated) then FOnUpdated(Self);
 end;
 
 procedure TAccountsGrid.LoadFromStream(Stream: TStream);
@@ -500,6 +494,7 @@ end;
 
 procedure TAccountsGrid.SetNode(const Value: TNode);
 begin
+  if GetNode=Value then exit;
   FNodeNotifyEvents.Node := Value;
   InitGrid;
 end;
@@ -514,72 +509,6 @@ end;
 procedure TAccountsGrid.UnlockAccountsList;
 begin
   InitGrid;
-end;
-
-{ TOrderedCardinalList }
-
-function TOrderedCardinalList.Add(Value: Cardinal): Integer;
-begin
-  if Find(Value,Result) then exit
-  else begin
-    FOrderedList.Insert(Result,TObject(Value));
-  end;
-end;
-
-procedure TOrderedCardinalList.Clear;
-begin
-  FOrderedList.Clear;
-end;
-
-function TOrderedCardinalList.Count: Integer;
-begin
-  Result := FOrderedList.Count;
-end;
-
-constructor TOrderedCardinalList.Create;
-begin
-  FOrderedList := TList.Create;
-end;
-
-destructor TOrderedCardinalList.Destroy;
-begin
-  FOrderedList.Free;
-  inherited;
-end;
-
-function TOrderedCardinalList.Find(const Value: Cardinal; var Index: Integer): Boolean;
-var L, H, I: Integer;
-  C : Int64;
-begin
-  Result := False;
-  L := 0;
-  H := FOrderedList.Count - 1;
-  while L <= H do
-  begin
-    I := (L + H) shr 1;
-    C := Int64(FOrderedList[I]) - Int64(Value);
-    if C < 0 then L := I + 1 else
-    begin
-      H := I - 1;
-      if C = 0 then
-      begin
-        Result := True;
-        L := I;
-      end;
-    end;
-  end;
-  Index := L;
-end;
-
-function TOrderedCardinalList.Get(index: Integer): Cardinal;
-begin
-  Result := Cardinal(FOrderedList[index]);
-end;
-
-procedure TOrderedCardinalList.Remove(Value: Cardinal);
-Var i : Integer;
-begin
-  if Find(Value,i) then FOrderedList.Delete(i);
 end;
 
 { TOperationsGrid }
@@ -767,6 +696,7 @@ end;
 
 procedure TOperationsGrid.SetNode(const Value: TNode);
 begin
+  if GetNode=Value then exit;
   FNodeNotifyEvents.Node := Value;
   UpdateAccountOperations; // New Build 1.0.3
 end;
@@ -1529,15 +1459,15 @@ begin
     FDBGrid.OnDrawColumnCell := OnGridDrawColumnCell;
     FDBGrid.DefaultDrawing := false;
     FDBGrid.Columns.Clear;
-    AddColumn(CT_TblFld_BlockChain_block,'Block',50);
+    AddColumn(CT_TblFld_BlockChain_block,'Block',60);
     AddColumn('datetime','Date/Time',120);
-    AddColumn(CT_TblFld_BlockChain_operations_count,'Ops.',50);
+    AddColumn(CT_TblFld_BlockChain_operations_count,'Ops.',30);
     AddColumn('reward','Reward',80);
     AddColumn('fee','Fee',60);
-    AddColumn('target','Target',65);
-    AddColumn(CT_TblFld_BlockChain_safe_box_hash,'Safe Box Hash',350);
+    AddColumn('target','Target',60);
     AddColumn('payload_decoded','Miner Payload',150);
-    AddColumn(CT_TblFld_BlockChain_proof_of_work,'Proof of Work',350);
+    AddColumn(CT_TblFld_BlockChain_proof_of_work,'Proof of Work',400);
+    AddColumn(CT_TblFld_BlockChain_safe_box_hash,'Safe Box Hash',400);
     RefreshData;
   end;
 end;

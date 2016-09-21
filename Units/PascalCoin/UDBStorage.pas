@@ -700,7 +700,7 @@ begin
   sql := 'SELECT '+sqltop+' * '+
     ' FROM '+CT_TblName_Operations+
     ' WHERE ('+CT_TblFld_Operations_account+'='+inttostr(account_number)+') AND '+whereorphan+
-    ' ORDER BY '+CT_TblFld_Operations_block+' DESC, '+CT_TblFld_Operations_optype+' DESC';
+    ' ORDER BY '+CT_TblFld_Operations_block+' DESC, '+CT_TblFld_Operations_nopblock+' DESC, '+CT_TblFld_Operations_optype_op+' DESC';
   ms := TMemoryStream.Create;
     ds := TADOQuery.Create(Self);
     try
@@ -777,7 +777,7 @@ begin
   Result := 'SELECT '+sqltop+' * '+
     ' FROM '+CT_TblName_Operations+
     ' '+where+
-    ' ORDER BY '+CT_TblFld_Operations_block+' DESC, '+CT_TblFld_Operations_optype+' DESC';
+    ' ORDER BY '+CT_TblFld_Operations_block+' DESC, '+CT_TblFld_Operations_nopblock+' DESC, '+CT_TblFld_Operations_optype_op+' DESC';
 end;
 
 class function TDBStorage.OperationToOperationResume(Operation : TPCOperation; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean;

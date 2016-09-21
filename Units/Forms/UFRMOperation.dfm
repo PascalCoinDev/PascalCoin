@@ -5,7 +5,7 @@ object FRMOperation: TFRMOperation
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
   Caption = 'New Operation'
-  ClientHeight = 443
+  ClientHeight = 474
   ClientWidth = 608
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -19,15 +19,15 @@ object FRMOperation: TFRMOperation
   OnDestroy = FormDestroy
   PixelsPerInch = 96
   TextHeight = 13
-  object Label1: TLabel
-    Left = 20
+  object lblAccountCaption: TLabel
+    Left = 25
     Top = 20
     Width = 43
     Height = 13
     Caption = 'Account:'
   end
   object lblAccountBalance: TLabel
-    Left = 225
+    Left = 432
     Top = 15
     Width = 149
     Height = 19
@@ -40,15 +40,22 @@ object FRMOperation: TFRMOperation
     ParentFont = False
   end
   object Label2: TLabel
-    Left = 180
+    Left = 387
     Top = 20
     Width = 41
     Height = 13
     Caption = 'Balance:'
   end
+  object lblAccountsCount: TLabel
+    Left = 387
+    Top = 58
+    Width = 18
+    Height = 13
+    Caption = 'XXX'
+  end
   object bbExecute: TBitBtn
-    Left = 295
-    Top = 386
+    Left = 300
+    Top = 411
     Width = 130
     Height = 31
     Caption = 'Execute (F12)'
@@ -76,8 +83,8 @@ object FRMOperation: TFRMOperation
     OnClick = actExecuteExecute
   end
   object bbCancel: TBitBtn
-    Left = 460
-    Top = 386
+    Left = 465
+    Top = 411
     Width = 116
     Height = 31
     DoubleBuffered = True
@@ -85,25 +92,9 @@ object FRMOperation: TFRMOperation
     ParentDoubleBuffered = False
     TabOrder = 3
   end
-  object ebSenderAccount: TEdit
-    Left = 69
-    Top = 12
-    Width = 97
-    Height = 27
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clBlack
-    Font.Height = -16
-    Font.Name = 'Tahoma'
-    Font.Style = [fsBold]
-    ParentFont = False
-    TabOrder = 0
-    Text = 'ebSenderAccount'
-    OnExit = ebSenderAccountExit
-    OnKeyPress = ebSenderAccountKeyPress
-  end
   object PageControl: TPageControl
-    Left = 20
-    Top = 50
+    Left = 25
+    Top = 75
     Width = 556
     Height = 321
     ActivePage = tsOperation
@@ -536,9 +527,45 @@ object FRMOperation: TFRMOperation
       end
     end
   end
+  object memoAccounts: TMemo
+    Left = 74
+    Top = 12
+    Width = 307
+    Height = 59
+    Ctl3D = False
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -12
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    Lines.Strings = (
+      '123456-11 (0.0000); 123456-11 (0.0000); '
+      '123456-11 (0.0000); 123456-11 (0.0000); ')
+    ParentCtl3D = False
+    ParentFont = False
+    ReadOnly = True
+    ScrollBars = ssVertical
+    TabOrder = 4
+  end
+  object ebSenderAccount: TEdit
+    Left = 74
+    Top = 12
+    Width = 97
+    Height = 27
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentFont = False
+    TabOrder = 0
+    Text = 'ebSenderAccount'
+    OnExit = ebSenderAccountExit
+    OnKeyPress = ebSenderAccountKeyPress
+  end
   object ActionList1: TActionList
-    Left = 135
-    Top = 325
+    Left = 140
+    Top = 350
     object actExecute: TAction
       Caption = 'Execute (F12)'
       ShortCut = 123

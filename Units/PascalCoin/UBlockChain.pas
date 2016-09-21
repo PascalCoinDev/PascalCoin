@@ -565,7 +565,7 @@ begin
       finally
         Operations.Free;
       end;
-      NewLog(Nil, ltinfo,'End restoring from disk operations (Max '+inttostr(max_block)+') Orphan: ' + Storage.Orphan);
+      NewLog(Nil, ltinfo,'End restoring from disk operations (Max '+inttostr(max_block)+') Orphan: ' + Storage.Orphan+' Restored '+Inttostr(BlocksCount)+' blocks');
     finally
       FIsRestoringFromFile := False;
     end;

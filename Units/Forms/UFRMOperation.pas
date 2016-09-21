@@ -22,7 +22,7 @@ uses
 
 type
   TFRMOperation = class(TForm)
-    Label1: TLabel;
+    lblAccountCaption: TLabel;
     bbExecute: TBitBtn;
     bbCancel: TBitBtn;
     lblAccountBalance: TLabel;
@@ -64,6 +64,8 @@ type
     tsGlobalError: TTabSheet;
     lblGlobalErrors: TLabel;
     bbPassword: TBitBtn;
+    memoAccounts: TMemo;
+    lblAccountsCount: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure rbTransactionClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -80,11 +82,8 @@ type
     procedure bbPasswordClick(Sender: TObject);
     procedure ebDestAccountExit(Sender: TObject);
   private
-    FSenderAccount: Cardinal;
     FNode : TNode;
     FWalletKeys: TWalletKeys;
-    FPAccount : PAccount;
-    FOperation : TPCOperation;
     FFee: Int64;
     FEncodedPayload : TRawBytes;
     FDisabled : Boolean;
@@ -92,16 +91,17 @@ type
     FTxDestAccount : Cardinal;
     FTxAmount : Int64;
     FNewAccountPublicKey : TAccountKey;
-    procedure SetSenderAccount(const Value: Cardinal);
+    FSenderAccounts: TOrderedCardinalList;
     procedure SetWalletKeys(const Value: TWalletKeys);
     { Private declarations }
+    Procedure UpdateAccountsInfo;
     Function UpdateOperationOptions(var errors : AnsiString) : Boolean;
-    Function UpdatePayload(var errors : AnsiString) : Boolean;
-    Function GetSenderAcccount: PAccount;
+    Function UpdatePayload(Const SenderAccount : TAccount; var errors : AnsiString) : Boolean;
     procedure SetFee(const Value: Int64);
+    Procedure OnSenderAccountsChanged(Sender : TObject);
   public
     { Public declarations }
-    Property SenderAccount : Cardinal read FSenderAccount write SetSenderAccount;
+    Property SenderAccounts : TOrderedCardinalList read FSenderAccounts;
     Property WalletKeys : TWalletKeys read FWalletKeys write SetWalletKeys;
     Property Fee : Int64 read FFee write SetFee;
   end;
@@ -118,62 +118,115 @@ uses
 procedure TFRMOperation.actExecuteExecute(Sender: TObject);
 Var errors : AnsiString;
   P : PAccount;
-  i : Integer;
+  i,iAcc : Integer;
   wk : TWalletKey;
-  npk : TECPrivateKey;
-  FRM : TFRMNewPrivateKeyType;
+  ops : TOperationsHashTree;
+  op : TPCOperation;
+  account : TAccount;
+  operation_to_string, operationstxt, auxs : String;
+  _amount,_fee, _totalamount, _totalfee : Int64;
+  dooperation : Boolean;
 begin
-  P := GetSenderAcccount;
-  if Not Assigned(P) then raise Exception.Create('Invalid sender account');
   if Not Assigned(WalletKeys) then raise Exception.Create('No wallet keys');
-  i := WalletKeys.IndexOfAccountKey(P^.accountkey);
-  if (i<0) then begin
-    Raise Exception.Create('Sender account private key not found in Wallet');
-  end;
-  wk := WalletKeys.Key[i];
   If Not UpdateOperationOptions(errors) then raise Exception.Create(errors);
-  If Not UpdatePayload(errors) then raise Exception.Create(errors);
-  //
-  FreeAndNil(FOperation);
-  if rbTransaction.Checked then begin
-    FOperation := TOpTransaction.Create(SenderAccount,P^.n_operation+1,FTxDestAccount,wk.PrivateKey,FTxAmount,fee,FEncodedPayload);
-  end else if rbChangeKey.Checked then begin
-    i := Integer(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex]);
-    if i=-1 then begin
-      // New key
-      FRM := TFRMNewPrivateKeyType.Create(Self);
-      try
-        FRM.WalletKeys := WalletKeys;
-        if FRM.ShowModal=MrOk then begin
-          npk := FRM.GeneratedPrivateKey;
-          FNewAccountPublicKey := npk.PublicKey;
-        end else begin
-          raise Exception.Create('No new key generated');
-        end;
-      finally
-        FRM.Free;
+  ops := TOperationsHashTree.Create;
+  Try
+    _totalamount := 0;
+    _totalfee := 0;
+    operationstxt := '';
+    operation_to_string := '';
+    for iAcc := 0 to FSenderAccounts.Count - 1 do begin
+      op := Nil;
+      account := FNode.Operations.SafeBoxTransaction.Account(FSenderAccounts.Get(iAcc));
+      If Not UpdatePayload(account, errors) then
+        raise Exception.Create('Error encoding payload of sender account '+TAccountComp.AccountNumberToAccountTxtNumber(account.account)+': '+errors);
+      i := WalletKeys.IndexOfAccountKey(account.accountkey);
+      if i<0 then begin
+        Raise Exception.Create('Sender account private key not found in Wallet');
       end;
-      // Note: Regenerate Payload because we have created a new Private Key...
-      If Not UpdatePayload(errors) then raise Exception.Create(errors);
-    end else begin
-      FNewAccountPublicKey := WalletKeys.Key[i].AccountKey;
-    end;
-    FOperation := TOpChangeKey.Create(SenderAccount,P^.n_operation+1,wk.PrivateKey,FNewAccountPublicKey,fee,FEncodedPayload);
-  end else if rbTransferToANewOwner.Checked then begin
-    FOperation := TOpChangeKey.Create(SenderAccount,P^.n_operation+1,wk.PrivateKey,FNewAccountPublicKey,fee,FEncodedPayload);
-  end else begin
-    raise Exception.Create('No operation selected');
-  end;
-  if Application.MessageBox(PChar('Execute this operation:'+#10+#10+FOperation.ToString+#10+#10+'Note: This operation will be transmitted to the network!'),
-     PChar(Application.Title),MB_YESNO+MB_ICONINFORMATION+MB_DEFBUTTON2)<>IdYes then exit;
 
-  // Execute operation
-  If FNode.AddOperation(nil,FOperation,errors) then begin
-    Application.MessageBox(PChar('Operation executed:'+#10+FOperation.ToString),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
-    ModalResult := MrOk;
-  end else begin
-    raise Exception.Create(errors);
-  end;
+      wk := WalletKeys.Key[i];
+      dooperation := true;
+      //
+      if rbTransaction.Checked then begin
+        // Amount
+        _amount := 0;
+        _fee := 0;
+        if FSenderAccounts.Count>1 then begin
+          if account.balance>0 then begin
+            if account.balance>fee then begin
+              _amount := account.balance - fee;
+              _fee := fee;
+            end else begin
+              _amount := account.balance;
+              _fee := 0;
+            end;
+          end else dooperation := false;
+        end else begin
+          _amount := FTxAmount;
+          _fee := fee;
+        end;
+        if dooperation then begin
+          op := TOpTransaction.Create(account.account,account.n_operation+1,FTxDestAccount,wk.PrivateKey,_amount,_fee,FEncodedPayload);
+          inc(_totalamount,_amount);
+          inc(_totalfee,_fee);
+        end;
+        operationstxt := 'Transaction to '+TAccountComp.AccountNumberToAccountTxtNumber(FTxDestAccount);
+      end else if rbChangeKey.Checked then begin
+        i := Integer(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex]);
+        if (i<0) Or (i>=WalletKeys.Count) then raise Exception.Create('Invalid selected key');
+        FNewAccountPublicKey := WalletKeys.Key[i].AccountKey;
+        if account.balance>fee then _fee := fee
+        else _fee := 0;
+        op := TOpChangeKey.Create(account.account,account.n_operation+1,wk.PrivateKey,FNewAccountPublicKey,_fee,FEncodedPayload);
+        inc(_totalfee,_fee);
+        operationstxt := 'Change private key to '+wk.Name;
+      end else if rbTransferToANewOwner.Checked then begin
+        if account.balance>fee then _fee := fee
+        else _fee := 0;
+        op := TOpChangeKey.Create(account.account,account.n_operation+1,wk.PrivateKey,FNewAccountPublicKey,_fee,FEncodedPayload);
+        operationstxt := 'Transfer to a new owner with key type '+TAccountComp.GetECInfoTxt(FNewAccountPublicKey.EC_OpenSSL_NID);
+        inc(_totalfee,_fee);
+      end else begin
+        raise Exception.Create('No operation selected');
+      end;
+      if Assigned(op) And (dooperation) then begin
+        ops.AddOperationToHashTree(op);
+        if operation_to_string<>'' then operation_to_string := operation_to_string + #10;
+        operation_to_string := operation_to_string + op.ToString;
+      end;
+      FreeAndNil(op);
+    end;
+    if (ops.OperationsCount=0) then raise Exception.Create('No valid operation to execute');
+
+    if (FSenderAccounts.Count>1) then begin
+      if rbTransaction.Checked then auxs := 'Total amount that dest will receive: '+TAccountComp.FormatMoney(_totalamount)+#10
+      else auxs:='';
+      if Application.MessageBox(PChar('Execute '+Inttostr(FSenderAccounts.Count)+' operations?'+#10+
+        'Operation: '+operationstxt+#10+
+        auxs+
+        'Total fee: '+TAccountComp.FormatMoney(_totalfee)+#10+#10+'Note: This operation will be transmitted to the network!'),
+        PChar(Application.Title),MB_YESNO+MB_ICONINFORMATION+MB_DEFBUTTON2)<>IdYes then exit;
+    end else begin
+      if Application.MessageBox(PChar('Execute this operation:'+#10+#10+operation_to_string+#10+#10+'Note: This operation will be transmitted to the network!'),
+        PChar(Application.Title),MB_YESNO+MB_ICONINFORMATION+MB_DEFBUTTON2)<>IdYes then exit;
+    end;
+    i := FNode.AddOperations(nil,ops,errors);
+    if (i=ops.OperationsCount) then begin
+      Application.MessageBox(PChar('Successfully executed '+inttostr(i)+' operations!'+#10+#10+operation_to_string),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
+      ModalResult := MrOk;
+    end else if (i>0) then begin
+      Application.MessageBox(PChar('One or more of your operations has not been executed:'+#10+
+        'Errors:'+#10+
+        errors+#10+#10+
+        'Total successfully executed operations: '+inttostr(i)),PChar(Application.Title),MB_OK+MB_ICONWARNING);
+      ModalResult := MrOk;
+    end else begin
+      raise Exception.Create(errors);
+    end;
+  Finally
+    ops.Free;
+  End;
 end;
 
 procedure TFRMOperation.bbKeysClick(Sender: TObject);
@@ -202,6 +255,7 @@ begin
       if Not InputQuery('Wallet password','Enter wallet password',s) then exit;
       FWalletKeys.WalletPassword := s;
     Until FWalletKeys.IsValidPassword;
+    SetWalletKeys(WalletKeys);
     UpdateOperationOptions(errors);
   end;
 end;
@@ -244,7 +298,9 @@ begin
   FDisabled := true;
   try
     ebFee.Text := TAccountComp.FormatMoney(Fee);
-    ebAmount.Text := TAccountComp.FormatMoney(FTxAmount);
+    if SenderAccounts.Count<=1 then begin
+      ebAmount.Text := TAccountComp.FormatMoney(FTxAmount);
+    end;
   finally
     FDisabled := l;
   end;
@@ -261,10 +317,20 @@ procedure TFRMOperation.ebSenderAccountExit(Sender: TObject);
 Var an : Cardinal;
 begin
   If TAccountComp.AccountTxtNumberToAccountNumber(ebSenderAccount.Text,an) then begin
-    SenderAccount := an;
+    SenderAccounts.Disable;
+    try
+      SenderAccounts.Clear;
+      SenderAccounts.Add(an);
+    finally
+      SenderAccounts.Enable;
+    end;
     ebSenderAccount.Text := TAccountComp.AccountNumberToAccountTxtNumber(an);
   end else begin
-    ebSenderAccount.Text := TAccountComp.AccountNumberToAccountTxtNumber(SenderAccount);
+    if SenderAccounts.Count=1 then begin
+      ebSenderAccount.Text := TAccountComp.AccountNumberToAccountTxtNumber(SenderAccounts.Get(0));
+    end else begin
+      ebSenderAccount.Text := '';
+    end;
   end;
 end;
 
@@ -275,10 +341,10 @@ end;
 
 procedure TFRMOperation.FormCreate(Sender: TObject);
 begin
+  FSenderAccounts := TOrderedCardinalList.Create;
+  FSenderAccounts.OnListChanged := OnSenderAccountsChanged;
   FDisabled := true;
   FNode := TNode.Node;
-  FOperation := Nil;
-  FPAccount := Nil;
   ebDestAccount.Text := '';
   ebAmount.Text := TAccountComp.FormatMoney(0);
   ebEncryptPassword.Text := '';
@@ -291,36 +357,39 @@ begin
   lblNewOwnerErrors.Caption := '';
   FTxDestAccount := 0;
   FTxAmount := 0;
-  FSenderAccount := MaxInt;
   FNewAccountPublicKey := CT_Account_NUL.accountkey;
   FDisabled := false;
   lblAccountBalance.Caption := '';
+  memoAccounts.Lines.Clear;
 end;
 
 procedure TFRMOperation.FormDestroy(Sender: TObject);
 begin
-  if Assigned(FPAccount) then Dispose(FPAccount);
-  FreeAndNil(FOperation);
-end;
-
-function TFRMOperation.GetSenderAcccount: PAccount;
-begin
-  if Not Assigned(FPAccount) then begin
-    if (Assigned(FNode)) And (FSenderAccount>=0) And (FSenderAccount<FNode.Bank.AccountsCount) then begin
-      New(FPAccount);
-      FPAccount^ := FNode.Operations.SafeBoxTransaction.Account(FSenderAccount);
-    end;
-  end;
-  Result := FPAccount;
-  if Assigned(FPAccount) then begin
-    lblAccountBalance.Caption := 'Balance: '+TAccountComp.FormatMoney(FPAccount.balance);
-  end else lblAccountBalance.Caption := '';
+  FreeAndNil(FSenderAccounts);
 end;
 
 procedure TFRMOperation.memoPayloadClick(Sender: TObject);
 Var errors : AnsiString;
 begin
-  UpdatePayload(errors);
+  if SenderAccounts.Count>0 then begin
+    UpdatePayload(TNode.Node.Bank.SafeBox.Account(SenderAccounts.Get(0)),errors);
+  end;
+end;
+
+procedure TFRMOperation.OnSenderAccountsChanged(Sender: TObject);
+Var errors : AnsiString;
+begin
+  if SenderAccounts.Count>1 then begin
+    ebAmount.Text := 'ALL BALANCE';
+    ebAmount.font.Style := [fsBold];
+    ebAmount.ReadOnly := true;
+  end else begin
+    ebAmount.Text := TAccountComp.FormatMoney(0);
+    ebAmount.ReadOnly := false;
+    ebAmount.Enabled := true;
+  end;
+  UpdateAccountsInfo;
+  UpdateOperationOptions(errors);
 end;
 
 procedure TFRMOperation.rbTransactionClick(Sender: TObject);
@@ -341,21 +410,6 @@ begin
   finally
     FDisabled := wd;
   end;
-end;
-
-procedure TFRMOperation.SetSenderAccount(const Value: Cardinal);
-begin
-  if FSenderAccount=Value then exit;
-  if Value>TNode.Node.Bank.AccountsCount-1 then FSenderAccount := 0
-  else FSenderAccount := Value;
-
-  if Assigned(FPAccount) then begin
-    Dispose(FPAccount);
-    FPAccount := Nil;
-  end;
-  ebSenderAccount.Text := TAccountComp.AccountNumberToAccountTxtNumber(Value);
-  //
-  rbTransactionClick(Nil);
 end;
 
 procedure TFRMOperation.SetWalletKeys(const Value: TWalletKeys);
@@ -385,15 +439,61 @@ begin
   memoPayloadClick(Nil);
 end;
 
-function TFRMOperation.UpdateOperationOptions(var errors : AnsiString) : Boolean;
-Var P : PAccount;
+procedure TFRMOperation.UpdateAccountsInfo;
+Var ld : Boolean;
   i : Integer;
+  balance : int64;
+  acc : TAccount;
+  accountstext : String;
+begin
+  ld := FDisabled;
+  FDisabled := true;
+  Try
+    lblAccountCaption.Caption := 'Account';
+    lblAccountsCount.Visible := false;
+    lblAccountsCount.caption := inttostr(senderAccounts.Count)+' accounts';
+    balance := 0;
+    if SenderAccounts.Count<=0 then begin
+      ebSenderAccount.Text := '';
+      memoAccounts.Visible := false;
+      ebSenderAccount.Visible := true;
+    end else if SenderAccounts.Count=1 then begin
+      ebSenderAccount.Text := TAccountComp.AccountNumberToAccountTxtNumber(SenderAccounts.Get(0));
+      memoAccounts.Visible := false;
+      ebSenderAccount.Visible := true;
+      balance := TNode.Node.Operations.SafeBoxTransaction.Account(SenderAccounts.Get(0)).balance;
+    end else begin
+      // Multiple sender accounts
+      lblAccountCaption.Caption := 'Accounts';
+      lblAccountsCount.Visible := true;
+      ebSenderAccount.Visible := false;
+      accountstext := '';
+      for i := 0 to SenderAccounts.Count - 1 do begin
+         acc := TNode.Node.Operations.SafeBoxTransaction.Account(SenderAccounts.Get(i));
+         balance := balance + acc.balance;
+         if (accountstext<>'') then accountstext:=accountstext+'; ';
+         accountstext := accountstext+TAccountComp.AccountNumberToAccountTxtNumber(acc.account)+' ('+TAccountComp.FormatMoney(acc.balance)+')';
+      end;
+      memoAccounts.Lines.Text := accountstext;
+      memoAccounts.Visible := true;
+    end;
+    ebSenderAccount.Enabled := ebSenderAccount.Visible;
+    lblAccountBalance.Caption := TAccountComp.FormatMoney(balance);
+  Finally
+    FDisabled := ld;
+  End;
+end;
+
+function TFRMOperation.UpdateOperationOptions(var errors : AnsiString) : Boolean;
+Var
+  iWallet,iAcc : Integer;
   wk : TWalletKey;
   e : AnsiString;
+  sender_account : TAccount;
 begin
   Result := false;
+  sender_account := CT_Account_NUL;
   errors := '';
-  FreeAndNil(FOperation);
   rbEncryptedWithOldEC.Enabled := rbChangeKey.Checked;
   lblDestAccount.Enabled := rbTransaction.Checked;
   lblAmount.Enabled := rbTransaction.Checked;
@@ -402,36 +502,39 @@ begin
   lblNewOwnerPublicKey.Enabled := rbTransferToANewOwner.Checked;
   try
     Try
-      P := GetSenderAcccount;
       bbPassword.Visible := false;
       bbPassword.Enabled := false;
-      if Not Assigned(P) then begin
-        errors := 'Invalid sender account';
-        lblGlobalErrors.Caption := errors;
-        exit;
-      end;
       if Not Assigned(WalletKeys) then begin
         errors := 'No wallet keys';
         lblGlobalErrors.Caption := errors;
         exit;
       end;
-      i := WalletKeys.IndexOfAccountKey(P^.accountkey);
-      if (i<0) then begin
-        errors := 'Private key not found in wallet... You cannot operate with this account';
+      if SenderAccounts.Count=0 then begin
+        errors := 'No sender account';
         lblGlobalErrors.Caption := errors;
         exit;
-      end;
-      wk := WalletKeys.Key[i];
-      if not assigned(wk.PrivateKey) then begin
-        if wk.CryptedKey<>'' then begin
-          errors := 'Wallet is password protected. Need password';
-          bbPassword.Visible := true;
-          bbPassword.Enabled := true;
-        end else begin
-          errors := 'Private key not found in wallet, only public key. You cannot operate with this account';
+      end else begin
+        for iAcc := 0 to SenderAccounts.Count - 1 do begin
+          sender_account := TNode.Node.Bank.SafeBox.Account(SenderAccounts.Get(iAcc));
+          iWallet := WalletKeys.IndexOfAccountKey(sender_account.accountkey);
+          if (iWallet<0) then begin
+            errors := 'Private key of account '+TAccountComp.AccountNumberToAccountTxtNumber(sender_account.account)+' not found in wallet';
+            lblGlobalErrors.Caption := errors;
+            exit;
+          end;
+          wk := WalletKeys.Key[iWallet];
+          if not assigned(wk.PrivateKey) then begin
+            if wk.CryptedKey<>'' then begin
+              errors := 'Wallet is password protected. Need password';
+              bbPassword.Visible := true;
+              bbPassword.Enabled := true;
+            end else begin
+              errors := 'Only public key of account '+TAccountComp.AccountNumberToAccountTxtNumber(sender_account.account)+' found in wallet. You cannot operate with this account';
+            end;
+            lblGlobalErrors.Caption := errors;
+            exit;
+          end;
         end;
-        lblGlobalErrors.Caption := errors;
-        exit;
       end;
       lblGlobalErrors.Caption := '';
     Finally
@@ -452,7 +555,6 @@ begin
       rbEncryptedWithOldEC.Checked := false;
       rbEncryptedWithEC.Caption := 'Encrypted with dest. account public key';
       ebDestAccount.ParentFont := true;
-      ebAmount.ParentFont := true;
       ebFee.ParentFont := true;
       cbNewPrivateKey.Font.Color := clGrayText;
       ebNewPublicKey.Font.Color := clGrayText;
@@ -461,20 +563,28 @@ begin
         lblTransactionErrors.Caption := errors;
         exit;
       end;
-      if not TAccountComp.TxtToMoney(ebAmount.Text,FTxAmount) then begin
-        errors := 'Invalid amount ('+ebAmount.Text+')';
-        lblTransactionErrors.Caption := errors;
-        exit;
+      if SenderAccounts.Count>1 then begin
+        // If multisender then amount is ALL balance
+        ebAmount.Font.Color := clNavy;
+      end else begin
+        ebAmount.ParentFont := true;
+        if not TAccountComp.TxtToMoney(ebAmount.Text,FTxAmount) then begin
+          errors := 'Invalid amount ('+ebAmount.Text+')';
+          lblTransactionErrors.Caption := errors;
+          exit;
+        end;
       end;
       if not TAccountComp.TxtToMoney(ebFee.Text,FFee) then begin
         errors := 'Invalid fee ('+ebFee.Text+')';
         lblTransactionErrors.Caption := errors;
         exit;
       end;
-      if (P^.balance<(FTxAmount+FFee)) then begin
-        errors := 'Insufficient funds';
-        lblTransactionErrors.Caption := errors;
-        exit;
+      if (SenderAccounts.Count=1) then begin
+        if (sender_account.balance<(FTxAmount+FFee)) then begin
+          errors := 'Insufficient funds';
+          lblTransactionErrors.Caption := errors;
+          exit;
+        end;
       end;
 
       lblTransactionErrors.Caption := '';
@@ -513,9 +623,12 @@ begin
       cbNewPrivateKey.Font.Color := clGrayText;
       ebNewPublicKey.ParentFont := true;
       If Not TAccountComp.AccountKeyFromImport(ebNewPublicKey.Text,FNewAccountPublicKey,errors) then begin
-//        errors := 'Invalid new owner public key';
         lblNewOwnerErrors.Caption := errors;
+        lblNewOwnerErrors.Font.Color := clRed;
         exit;
+      end else begin
+        lblNewOwnerErrors.Caption := 'New key type: '+TAccountComp.GetECInfoTxt(FNewAccountPublicKey.EC_OpenSSL_NID);
+        lblNewOwnerErrors.Font.Color := clGreen;
       end;
       Result := true;
     end else begin
@@ -535,10 +648,10 @@ begin
 
   end;
   //
-  UpdatePayload(e);
+  UpdatePayload(sender_account, e);
 end;
 
-function TFRMOperation.UpdatePayload(var errors : AnsiString) : Boolean;
+function TFRMOperation.UpdatePayload(Const SenderAccount : TAccount; var errors : AnsiString) : Boolean;
 Var payload_u : AnsiString;
   payload_encrypted : TRawBytes;
   account : TAccount;
@@ -559,7 +672,7 @@ begin
     end;
     if (rbEncryptedWithOldEC.Checked) then begin
       errors := 'Error encrypting';
-      account := FNode.Node.Operations.SafeBoxTransaction.Account(SenderAccount);
+      account := FNode.Node.Operations.SafeBoxTransaction.Account(SenderAccount.account);
       payload_encrypted := ECIESEncrypt(account.accountkey,payload_u);
       valid := payload_encrypted<>'';
     end else if (rbEncryptedWithEC.Checked) then begin

@@ -38,6 +38,14 @@ If you like it, consider a donation using BitCoin:
 
 History:
 
+Build 1.0.5.0 - 2016-09-21
+--------------------------
+- Massive operations, selecting multiple accounts
+- Filter accounts by balance
+- Correct operations explorer order of operations for each block (descending order)
+- Minor changes
+
+
 Build 1.0.4.0 - 2016-09-16
 --------------------------
 - IMPORTANT: Introducing net protocol changes: Must update!
