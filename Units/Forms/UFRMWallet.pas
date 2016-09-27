@@ -19,7 +19,7 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, pngimage, ExtCtrls, ComCtrls, UWalletKeys, ShlObj, ADOInt, StdCtrls,
   ULog, DB, ADODB, Grids, DBGrids, DBCGrids, UAppParams,
-  UBlockChain, UNode, DBCtrls, UGridUtils, UMiner, UAccounts, Menus, ImgList,
+  UBlockChain, UNode, DBCtrls, UGridUtils, UDBGridUtils, UMiner, UAccounts, Menus, ImgList,
   AppEvnts, UNetProtocol, UCrypto, Buttons;
 
 Const
@@ -469,7 +469,7 @@ begin
         nc := TNetConnection(lbNetconnections.Items.Objects[i]);
         if TNetData.NetData.ConnectionExistsAndActive(nc) then begin
           FNode.SendNodeMessage(nc,m,errors);
-          memoMessages.Lines.Add(DateTimeToStr(now)+' Sent to '+nc.Client.RemoteHost+':'+nc.Client.RemotePort+' > '+m);
+          memoMessages.Lines.Add(DateTimeToStr(now)+' Sent to '+nc.ClientRemoteAddr+' > '+m);
         end;
       end;
     end;
@@ -477,7 +477,7 @@ begin
     nc := TNetConnection(lbNetconnections.Items.Objects[lbNetconnections.ItemIndex]);
     if TNetData.NetData.ConnectionExistsAndActive(nc) then begin
       FNode.SendNodeMessage(nc,m,errors);
-      memoMessages.Lines.Add(DateTimeToStr(now)+' Sent to '+nc.Client.RemoteHost+':'+nc.Client.RemotePort+' > '+m);
+      memoMessages.Lines.Add(DateTimeToStr(now)+' Sent to '+nc.ClientRemoteAddr+' > '+m);
     end;
   end;
 
@@ -1339,11 +1339,11 @@ Var s : String;
 begin
   inc(FMessagesUnreadCount);
   if Assigned(NetConnection) then begin
-    s := DateTimeToStr(now)+' Message received from '+NetConnection.Client.RemoteHost+':'+NetConnection.Client.RemotePort;
-    memoMessages.Lines.Add(DateTimeToStr(now)+' Message received from '+NetConnection.Client.RemoteHost+':'+NetConnection.Client.RemotePort+' Length '+inttostr(Length(MessageData))+' bytes');
+    s := DateTimeToStr(now)+' Message received from '+NetConnection.ClientRemoteAddr;
+    memoMessages.Lines.Add(DateTimeToStr(now)+' Message received from '+NetConnection.ClientRemoteAddr+' Length '+inttostr(Length(MessageData))+' bytes');
     memoMessages.Lines.Add('RECEIVED> '+MessageData);
     if FAppParams.ParamByName[CT_PARAM_ShowModalMessages].GetAsBoolean(false) then begin
-      s := DateTimeToStr(now)+' Message from '+NetConnection.Client.RemoteHost+':'+NetConnection.Client.RemotePort+#10+
+      s := DateTimeToStr(now)+' Message from '+NetConnection.ClientRemoteAddr+#10+
          'Length '+inttostr(length(MessageData))+' bytes'+#10+#10;
       if TCrypto.IsHumanReadable(MessageData) then begin
          s := s + MessageData;
@@ -1612,11 +1612,11 @@ begin
         if NC.Connected then begin
           if NC is TNetServerClient then begin
             if Not NC.IsMyselfServer then begin
-              lbNetConnections.Items.AddObject(Format('Client: IP:%s:%s',[NC.Client.RemoteHost,NC.Client.RemotePort]),NC);
+              lbNetConnections.Items.AddObject(Format('Client: IP:%s',[NC.ClientRemoteAddr]),NC);
             end;
           end else begin
             if Not NC.IsMyselfServer then begin
-              lbNetConnections.Items.AddObject(Format('Server: IP:%s:%s',[NC.Client.RemoteHost,NC.Client.RemotePort]),NC);
+              lbNetConnections.Items.AddObject(Format('Server: IP:%s',[NC.ClientRemoteAddr]),NC);
             end;
           end;
         end;

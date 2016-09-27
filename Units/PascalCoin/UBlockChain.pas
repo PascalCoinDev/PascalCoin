@@ -16,7 +16,7 @@
 interface
 
 uses
-  Classes, UCrypto, UAccounts, Windows, ULog, UThread;
+  Classes, UCrypto, UAccounts, Windows, ULog, UThread, SyncObjs;
 
 
 Type
@@ -249,25 +249,28 @@ Type
   private
     FOrphan: TOrphan;
     FBank : TPCBank;
+    FReadOnly: Boolean;
     procedure SetBank(const Value: TPCBank);
   protected
     procedure SetOrphan(const Value: TOrphan); virtual;
+    procedure SetReadOnly(const Value: Boolean); virtual;
     Function DoLoadBlockChain(Operations : TPCOperationsComp; Block : Cardinal) : Boolean; virtual; abstract;
     Function DoSaveBlockChain(Operations : TPCOperationsComp) : Boolean; virtual; abstract;
-    Function DoMoveBlockChain(StartBlock : Cardinal; Const DestOrphan : TOrphan) : Boolean; virtual; abstract;
+    Function DoMoveBlockChain(StartBlock : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean; virtual; abstract;
     Function DoSaveBank : Boolean; virtual; abstract;
     Function DoRestoreBank(max_block : Int64) : Boolean; virtual; abstract;
-    Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal; Orphan : TOrphan); virtual; abstract;
+    Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal); virtual; abstract;
     Function BlockExists(Block : Cardinal) : Boolean; virtual; abstract;
   public
     Function LoadBlockChainBlock(Operations : TPCOperationsComp; Block : Cardinal) : Boolean;
     Function SaveBlockChainBlock(Operations : TPCOperationsComp) : Boolean;
-    Function MoveBlockChainBlocks(StartBlock : Cardinal; Const DestOrphan : TOrphan) : Boolean;
-    Procedure DeleteBlockChainBlocks(StartingDeleteBlock : Cardinal; Orphan : TOrphan);
+    Function MoveBlockChainBlocks(StartBlock : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean;
+    Procedure DeleteBlockChainBlocks(StartingDeleteBlock : Cardinal);
     Function SaveBank : Boolean;
     Function RestoreBank(max_block : Int64) : Boolean;
     Constructor Create(AOwner : TComponent); Override;
     Property Orphan : TOrphan read FOrphan write SetOrphan;
+    Property ReadOnly : Boolean read FReadOnly write SetReadOnly;
     Property Bank : TPCBank read FBank write SetBank;
     Procedure CopyConfiguration(Const CopyFrom : TStorage); virtual;
   End;
@@ -284,7 +287,7 @@ Type
     FActualTargetHash: TRawBytes;
     FIsRestoringFromFile: Boolean;
     FOnLog: TPCBankLog;
-    FBankLock: TRTLCriticalSection;
+    FBankLock: TCriticalSection;
     FNotifyList : TList;
     FStorageClass: TStorageClass;
     function GetStorage: TStorage;
@@ -380,10 +383,12 @@ begin
           exit;
         end;
       end else begin
-        // Check if valid Zero block
-        if Not (AnsiSameText(TCrypto.ToHexaString(Operations.OperationBlock.proof_of_work),CT_Zero_Block_Proof_of_work_in_Hexa)) then begin
-          errors := 'Zero block not valid, Proof of Work invalid: '+TCrypto.ToHexaString(Operations.OperationBlock.proof_of_work)+'<>'+CT_Zero_Block_Proof_of_work_in_Hexa;
-          exit;
+        if (CT_Zero_Block_Proof_of_work_in_Hexa<>'') then begin
+          // Check if valid Zero block
+          if Not (AnsiSameText(TCrypto.ToHexaString(Operations.OperationBlock.proof_of_work),CT_Zero_Block_Proof_of_work_in_Hexa)) then begin
+            errors := 'Zero block not valid, Proof of Work invalid: '+TCrypto.ToHexaString(Operations.OperationBlock.proof_of_work)+'<>'+CT_Zero_Block_Proof_of_work_in_Hexa;
+            exit;
+          end;
         end;
       end;
       if (Operations.OperationBlock.compact_target <> GetActualCompactTargetHash) then begin
@@ -440,7 +445,7 @@ begin
         NewLog(Operations, lterror, 'Invalid new block '+inttostr(Operations.OperationBlock.block)+': ' + errors);
     End;
   Finally
-    LeaveCriticalSection(FBankLock);
+    FBankLock.Release;
   End;
   if Result then begin
     for i := 0 to FNotifyList.Count - 1 do begin
@@ -488,7 +493,7 @@ begin
   inherited;
   FStorage := Nil;
   FStorageClass := Nil;
-  InitializeCriticalSection(FBankLock);
+  FBankLock := TCriticalSection.Create;
   FIsRestoringFromFile := False;
   FOnLog := Nil;
   FSafeBox := TPCSafeBox.Create;
@@ -502,7 +507,7 @@ var step : String;
 begin
   Try
     step := 'Deleting critical section';
-    DeleteCriticalSection(FBankLock);
+    FBankLock.Free;
     step := 'Clear';
     Clear;
     step := 'Destroying LastBlockCache';
@@ -554,7 +559,7 @@ begin
             if Storage.LoadBlockChainBlock(Operations,BlocksCount) then begin
               if Not AddNewBlockChainBlock(Operations,newBlock,errors) then begin
                 NewLog(Operations, lterror,'Error restoring block: ' + Inttostr(BlocksCount)+ ' Errors: ' + errors);
-                Storage.DeleteBlockChainBlocks(BlocksCount,Storage.Orphan);
+                Storage.DeleteBlockChainBlocks(BlocksCount);
                 break;
               end else begin
                 Storage.SaveBank;
@@ -570,7 +575,7 @@ begin
       FIsRestoringFromFile := False;
     end;
   finally
-    LeaveCriticalSection(FBankLock);
+    FBankLock.Release;
   end;
 end;
 
@@ -600,23 +605,6 @@ begin
     tsTeorical := (CalcBack * CT_NewLineSecondsAvg);
     tsReal := (ts1 - ts2);
     FActualTargetHash := GetNewTarget(tsTeorical, tsReal,TargetFromCompact(FLastOperationBlock.compact_target));
-  end;
-  Result := FActualTargetHash;
-
-  exit;
-
-  if (BlocksCount <= CT_CalcNewTargetBlocksAverage) then begin
-    // Important: CT_MinCompactTarget is applied for blocks 0 until ((CT_CalcNewDifficulty*2)-1)
-    FActualTargetHash := TargetFromCompact(CT_MinCompactTarget);
-  end else begin
-    if (BlocksCount MOD CT_CalcNewTargetBlocksAverage) = 0 then begin
-      // Calc new target!
-      ts1 := SafeBox.Block(BlocksCount-1).timestamp;
-      ts2 := SafeBox.Block(BlocksCount-CT_CalcNewTargetBlocksAverage-1).timestamp;
-      tsTeorical := (CT_CalcNewTargetBlocksAverage * CT_NewLineSecondsAvg);
-      tsReal := (ts1 - ts2);
-      FActualTargetHash := GetNewTarget(tsTeorical, tsReal,TargetFromCompact(FLastOperationBlock.compact_target));
-    end;
   end;
   Result := FActualTargetHash;
 end;
@@ -751,7 +739,7 @@ begin
       // Initialize new target hash:
       FActualTargetHash := GetActualTargetHash;
     finally
-      LeaveCriticalSection(FBankLock);
+      FBankLock.Release;
     end;
     for i := 0 to FNotifyList.Count - 1 do begin
       TPCBankNotify(FNotifyList.Items[i]).NotifyNewBlock;
@@ -771,7 +759,7 @@ begin
       Result := Storage.LoadBlockChainBlock(Operations,Block);
     end;
   finally
-    LeaveCriticalSection(FBankLock);
+    FBankLock.Release;
   end;
 end;
 
@@ -1270,34 +1258,30 @@ begin
   Stream.Read(c, 4);
   // c = operations count
   for i := 1 to c do begin
-    bcop := Nil;
-    try
-      errors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c);
-      if Stream.Size - Stream.Position < 4 then exit;
-      Stream.Read(OpType, 4);
-      j := IndexOfOperationClassByOpType(OpType);
-      if j >= 0 then
-        OpClass := _OperationsClass[j]
-      else
-        OpClass := Nil;
-      if Not Assigned(OpClass) then begin
-        errors := errors + ' optype not valid:' + InttoHex(OpType, 4);
-        exit;
-      end;
-      errors := errors + ' Operation:'+OpClass.ClassName;
-      bcop := OpClass.Create;
+    errors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c);
+    if Stream.Size - Stream.Position < 4 then exit;
+    Stream.Read(OpType, 4);
+    j := IndexOfOperationClassByOpType(OpType);
+    if j >= 0 then
+      OpClass := _OperationsClass[j]
+    else
+      OpClass := Nil;
+    if Not Assigned(OpClass) then begin
+      errors := errors + ' optype not valid:' + InttoHex(OpType, 4);
+      exit;
+    end;
+    errors := 'Invalid operation ' + inttostr(i) + '/' + inttostr(c)+' Class:'+OpClass.ClassName;
+    bcop := OpClass.Create;
+    Try
       if not bcop.LoadFromStream(Stream) then begin
-        bcop.Free;
         exit;
       end;
       if Not AddOperation(false,bcop, errors2) then begin
         errors := errors + ' '+errors2+' '+bcop.ToString;
-        bcop.Free;
         exit;
       end;
-    Except
+    Finally
       FreeAndNil(bcop);
-      raise ;
     end;
   end;
   // Validation control:
@@ -1640,31 +1624,19 @@ end;
 procedure TOperationsHashTree.CopyFromHashTree(Sender: TOperationsHashTree);
 Var i : Integer;
   lme, lsender : TList;
-  opsender,op : TPCOperation;
-  ms : TMemoryStream;
+  opsender : TPCOperation;
 begin
   if (Sender = Self) then begin
     exit;
   end;
-
   ClearHastThree;
   lme := FHashTreeOperations.LockList;
   lsender := Sender.FHashTreeOperations.LockList;
   try
-    ms := TMemoryStream.Create;
-    Try
-      for i := 0 to lsender.Count - 1 do begin
-        opsender := lsender[i];
-        op := TPCOperation(opsender.NewInstance);
-        ms.Size:=0;
-        opsender.SaveToStream(ms);
-        ms.Position:=0;
-        op.LoadFromStream(ms);
-        InternalAddOperationToHashTree(lme,op);
-      end;
-    Finally
-      ms.Free;
-    End;
+    for i := 0 to lsender.Count - 1 do begin
+      opsender := lsender[i];
+      InternalAddOperationToHashTree(lme,opsender);
+    end;
   finally
     FHashTreeOperations.UnlockList;
     Sender.FHashTreeOperations.UnlockList;
@@ -1681,6 +1653,7 @@ destructor TOperationsHashTree.Destroy;
 begin
   ClearHastThree;
   FreeAndNil(FHashTreeOperations);
+  SetLength(FHashTree,0);
   inherited;
 end;
 
@@ -1761,11 +1734,13 @@ constructor TStorage.Create(AOwner: TComponent);
 begin
   inherited;
   FOrphan := '';
+  FReadOnly := false;
 end;
 
-procedure TStorage.DeleteBlockChainBlocks(StartingDeleteBlock: Cardinal; Orphan: TOrphan);
+procedure TStorage.DeleteBlockChainBlocks(StartingDeleteBlock: Cardinal);
 begin
-  DoDeleteBlockChainBlocks(StartingDeleteBlock,Orphan);
+  if ReadOnly then raise Exception.Create('Cannot delete blocks because is ReadOnly');
+  DoDeleteBlockChainBlocks(StartingDeleteBlock);
 end;
 
 function TStorage.LoadBlockChainBlock(Operations: TPCOperationsComp; Block: Cardinal): Boolean;
@@ -1773,9 +1748,12 @@ begin
    Result := DoLoadBlockChain(Operations,Block);
 end;
 
-function TStorage.MoveBlockChainBlocks(StartBlock: Cardinal; const DestOrphan: TOrphan): Boolean;
+function TStorage.MoveBlockChainBlocks(StartBlock: Cardinal; const DestOrphan: TOrphan; DestStorage : TStorage): Boolean;
 begin
-  Result := DoMoveBlockChain(StartBlock,DestOrphan);
+  if Assigned(DestStorage) then begin
+    if DestStorage.ReadOnly then raise Exception.Create('Cannot move blocks because is ReadOnly');
+  end else if ReadOnly then raise Exception.Create('Cannot move blocks from myself because is ReadOnly');
+  Result := DoMoveBlockChain(StartBlock,DestOrphan,DestStorage);
 end;
 
 function TStorage.RestoreBank(max_block: Int64): Boolean;
@@ -1788,6 +1766,7 @@ begin
   Result := true;
   if (Bank.BlocksCount MOD CT_BankToDiskEveryNBlocks)<>0 then exit; // No bank!
   Try
+    if ReadOnly then raise Exception.Create('Cannot save because is ReadOnly');
     Result := DoSaveBank;
   Except
     On E:Exception do begin
@@ -1800,6 +1779,7 @@ end;
 function TStorage.SaveBlockChainblock(Operations: TPCOperationsComp): Boolean;
 begin
   Try
+    if ReadOnly then raise Exception.Create('Cannot save because is ReadOnly');
     Result := DoSaveBlockChain(Operations);
   Except
     On E:Exception do begin
@@ -1817,6 +1797,11 @@ end;
 procedure TStorage.SetOrphan(const Value: TOrphan);
 begin
   FOrphan := Value;
+end;
+
+procedure TStorage.SetReadOnly(const Value: Boolean);
+begin
+  FReadOnly := Value;
 end;
 
 { TPCOperation }

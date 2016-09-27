@@ -123,8 +123,8 @@ Type
   protected
     Function DoLoadBlockChain(Operations : TPCOperationsComp; Block : Cardinal) : Boolean; override;
     Function DoSaveBlockChain(Operations : TPCOperationsComp) : Boolean; override;
-    Function DoMoveBlockChain(Start_Block : Cardinal; Const DestOrphan : TOrphan) : Boolean; override;
-    Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal; Orphan : TOrphan); override;
+    Function DoMoveBlockChain(Start_Block : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean; override;
+    Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal); override;
     Function DoSaveBank : Boolean; override;
     Function DoRestoreBank(max_block : Int64) : Boolean; override;
     Function BlockExists(Block : Cardinal) : Boolean; override;
@@ -297,7 +297,7 @@ begin
   inherited;
 end;
 
-procedure TDBStorage.DoDeleteBlockChainBlocks(StartingDeleteBlock: Cardinal; Orphan: TOrphan);
+procedure TDBStorage.DoDeleteBlockChainBlocks(StartingDeleteBlock: Cardinal);
 Var ds : TADOQuery;
   whereorphan : AnsiString;
 begin
@@ -366,7 +366,7 @@ begin
   End;
 end;
 
-function TDBStorage.DoMoveBlockChain(Start_Block: Cardinal; const DestOrphan: TOrphan): Boolean;
+function TDBStorage.DoMoveBlockChain(Start_Block: Cardinal; const DestOrphan: TOrphan; DestStorage : TStorage): Boolean;
 Var whereorphan : AnsiString;
   setvalue : AnsiString;
 begin

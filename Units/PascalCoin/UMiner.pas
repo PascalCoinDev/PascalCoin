@@ -18,6 +18,8 @@ interface
 Uses UBlockChain, Classes, SyncObjs, Windows, UAccounts, UThread;
 
 Type
+  TMinerPrivateKey = (mpk_NewEachTime, mpk_Random, mpk_Selected);
+
   TMinerThread = Class;
 
   TMinerNewAccountFound = procedure(sender : TMinerThread; Operations : TPCOperationsComp) of object;
@@ -26,7 +28,7 @@ Type
   TMinerThread = Class(TPCThread)
   private
     FOperations : TPCOperationsComp;
-    FLock: TRTLCriticalSection;
+    FLock: TCriticalSection;
     FPlayCount : Int64;
     FTotalActiveTime : Int64;
     FLastStartTickCount : Cardinal;
@@ -100,7 +102,7 @@ begin
   FPaused := true;
   FPlayCount := 0;
   FAccountKey := minerAccountKey;
-  InitializeCriticalSection(FLock);
+  FLock := TCriticalSection.Create;
   FOperations := TPCOperationsComp.Create(nil);
   FOperations.Bank := Bank;
   FOperations.AccountKey := AccountKey;
@@ -145,7 +147,7 @@ begin
 
         end;
       finally
-        LeaveCriticalSection(FLock);
+        FLock.Release;
       end;
       if (winner) then begin
         Try
@@ -173,7 +175,7 @@ end;
 
 destructor TMinerThread.Destroy;
 begin
-  DeleteCriticalSection(Flock);
+  FreeAndNil(FLock);
   FreeAndNil(FOperations);
   inherited;
 end;
@@ -193,7 +195,7 @@ end;
 
 procedure TMinerThread.MinerUnLockOperations(IsNewBlock : Boolean);
 begin
-  LeaveCriticalSection(FLock);
+  FLock.Release;
   if IsNewBlock then CheckIfCanRecoverBlocks;
 end;
 

@@ -34,8 +34,8 @@ Type
     Class function ThreadCount : Integer;
     Class function GetThread(index : Integer) : TPCThread;
     Class function TerminateAllThreads : Integer;
-    Class Procedure ProtectEnterCriticalSection(Const Sender : TObject; var Lock : TRTLCriticalSection);
-    Class Function TryProtectEnterCriticalSection(Const Sender : TObject; MaxWaitMilliseconds : Cardinal; var Lock : TRTLCriticalSection) : Boolean;
+    Class Procedure ProtectEnterCriticalSection(Const Sender : TObject; var Lock : TCriticalSection);
+    Class Function TryProtectEnterCriticalSection(Const Sender : TObject; MaxWaitMilliseconds : Cardinal; var Lock : TCriticalSection) : Boolean;
     Class Procedure ThreadsListInfo(list: TStrings);
     Property DebugStep : String read FDebugStep write FDebugStep;
   End;
@@ -43,7 +43,7 @@ Type
   TPCThreadList = class
   private
     FList: TList;
-    FLock: TRTLCriticalSection;
+    FLock: TCriticalSection;
   public
     constructor Create;
     destructor Destroy; override;
@@ -116,12 +116,12 @@ begin
   end;
 end;
 
-class procedure TPCThread.ProtectEnterCriticalSection(Const Sender : TObject; var Lock: TRTLCriticalSection);
+class procedure TPCThread.ProtectEnterCriticalSection(Const Sender : TObject; var Lock: TCriticalSection);
 begin
-  if Not TryEnterCriticalSection(Lock) then begin
+  if Not Lock.TryEnter then begin
 //    TLog.NewLog(ltdebug,Sender.Classname,Format('Locked critical section (WAIT): LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',[
 //      Lock.LockCount,Lock.RecursionCount,Lock.LockSemaphore,IntToHex(Lock.OwningThread,8) ]));
-    EnterCriticalSection(Lock);
+    Lock.Acquire;
 //    TLog.NewLog(ltdebug,Sender.Classname,Format('UnLocked critical section (ENTER): LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',[
 //      Lock.LockCount,Lock.RecursionCount,Lock.LockSemaphore,IntToHex(Lock.OwningThread,8) ]));
   end;
@@ -191,20 +191,19 @@ begin
 end;
 
 class function TPCThread.TryProtectEnterCriticalSection(const Sender: TObject;
-  MaxWaitMilliseconds: Cardinal; var Lock: TRTLCriticalSection): Boolean;
+  MaxWaitMilliseconds: Cardinal; var Lock: TCriticalSection): Boolean;
 Var tc : Cardinal;
   s : String;
 begin
   if MaxWaitMilliseconds>60000 then MaxWaitMilliseconds := 60000;
   tc := GetTickCount;
   Repeat
-    Result := TryEnterCriticalSection(Lock);
+    Result := Lock.TryEnter;
     if Not Result then sleep(1);
   Until (Result) Or (GetTickCount > (tc + MaxWaitMilliseconds));
   if Not Result then begin
-    s := Format('Cannot Protect a critical section by %s after %d milis - LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',
-      [Sender.ClassName,MaxWaitMilliseconds,
-       Lock.LockCount,Lock.RecursionCount,Lock.LockSemaphore,IntToHex(Lock.OwningThread,8) ]);
+    s := Format('Cannot Protect a critical section by %s after %d milis',
+      [Sender.ClassName,MaxWaitMilliseconds]);
     TLog.NewLog(lterror,Classname,s);
   end;
 end;
@@ -233,7 +232,7 @@ end;
 
 constructor TPCThreadList.Create;
 begin
-  InitializeCriticalSection(FLock);
+  FLock := TCriticalSection.Create;
   FList := TList.Create;
 end;
 
@@ -245,7 +244,7 @@ begin
     inherited Destroy;
   finally
     UnlockList;
-    DeleteCriticalSection(FLock);
+    FLock.Free;
   end;
 end;
 
@@ -267,7 +266,7 @@ end;
 
 procedure TPCThreadList.UnlockList;
 begin
-  LeaveCriticalSection(FLock);
+  FLock.Release;
 end;
 
 initialization

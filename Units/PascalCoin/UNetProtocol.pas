@@ -15,12 +15,11 @@ unit UNetProtocol;
 
 interface
 
-Uses UBlockChain, Classes, SysUtils, UAccounts, UThread, Sockets, ExtCtrls,
-  UCrypto,
-  Windows;
+Uses UBlockChain, Classes, SysUtils, UAccounts, UThread, ExtCtrls,
+  UCrypto, UTCPIP, SyncObjs, Windows;
 
 Const
-  CT_MagicNetIdentification = $0A043580; // Unix timestamp 168048000 ... It's Albert birthdate!
+  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}{$IFDEF TESTNET}$8035040A{$ENDIF}{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
   CT_MagicRequest = $0001;
   CT_MagicResponse = $0002;
   CT_MagicAutoSend = $0003;
@@ -52,8 +51,6 @@ Type
   Min size: 4b+2b+2b+2b+4b+4b+4b = 22 bytes
   Max size: (depends on last 4 bytes) = 22..(2^32)-1
   }
-
-  TNetTcpIpClient = TCustomIpClient;
 
   TNetTransferType = (ntp_unknown, ntp_request, ntp_response, ntp_autosend);
 
@@ -225,11 +222,10 @@ Type
   private
     FTcpIpClient : TNetTcpIpClient;
     FRemoteOperationBlock : TOperationBlock;
-    FSocketError : Integer;
     FLastDataReceivedTS : Cardinal;
     FLastDataSendedTS : Cardinal;
     FClientBufferRead : TStream;
-    FNetLock : TRTLCriticalSection;
+    FNetLock : TCriticalSection;
     FIsWaitingForResponse : Boolean;
     FLastKnownTimestampDiff : Int64;
     FIsMyselfServer : Boolean;
@@ -243,13 +239,8 @@ Type
     FIsDownloadingBlocks : Boolean;
     function GetConnected: Boolean;
     procedure SetConnected(const Value: Boolean);
-    procedure TcpClient_OnError(Sender: TObject; SocketError: Integer);
     procedure TcpClient_OnConnect(Sender: TObject);
     procedure TcpClient_OnDisconnect(Sender: TObject);
-    procedure TcpClient_OnReceive(Sender: TObject; Buf: PAnsiChar; var DataLen: Integer);
-    procedure TcpClient_OnSend(Sender: TObject; Buf: PAnsiChar; var DataLen: Integer);
-    procedure TcpClient_OnCreateHandle(Sender : TObject);
-    procedure TcpClient_OnDestroyHandle(Sender : TObject);
     Function DoSendAndWaitForResponse(operation: Word; RequestId: Integer; SendDataBuffer, ReceiveDataBuffer: TStream; MaxWaitTime : Cardinal; var HeaderData : TNetHeaderData) : Boolean;
     procedure DoProcessBuffer;
     Procedure DoProcess_Hello(HeaderData : TNetHeaderData; DataBuffer: TStream);
@@ -318,27 +309,12 @@ Type
 
   TNetServerClient = Class(TNetConnection);
 
-  TNetServer = Class(TComponent)
+  TNetServer = Class(TNetTcpIpServer)
   private
-    // Build 1.0.4 Changing FNetClients from TList to TPCThreadList
-    FNetClients : TPCThreadList;  // When a connection is established to a new client, a TNetConnection is created (p2p)
-    FTCPServer : TTcpServer;
-    FPort: Word;
-    function GetActive: Boolean;
-    procedure SetActive(const Value: Boolean);
-    procedure OnTcpServerCreateHandle(Sender : TObject);
-    procedure OnTcpServerDestroyHandle(Sender : TObject);
-    procedure OnTcpServerListening(Sender : TObject);
-    procedure OnTcpServerAccept(Sender: TObject; ClientSocket: TCustomIpClient);
-    procedure OnTcpServerGetThread(Sender: TObject; var ClientSocketThread: TClientSocketThread);
-    procedure SetPort(const Value: Word);
   protected
-    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
+    Procedure OnNewIncommingConnection(Sender : TObject; Client : TNetTcpIpClient); override;
+    procedure SetActive(const Value: Boolean); override;
   public
-    Constructor Create(AOwner : TComponent); override;
-    Destructor Destroy; override;
-    Property Active : Boolean read GetActive write SetActive;
-    Property Port : Word read FPort Write SetPort;
   End;
 
   TThreadDiscoverConnection = Class(TPCThread)
@@ -534,7 +510,7 @@ begin
   try
     for i := 0 to l.Count - 1 do begin
       if TObject(l[i])=ObjectPointer then begin
-        LeaveCriticalSection(TNetConnection(l[i]).FNetLock);
+        TNetConnection(l[i]).FNetLock.Release;
         exit;
       end;
     end;
@@ -934,19 +910,20 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     TLog.NewLog(ltdebug,CT_LogSender,Format('GetNewBank(new_start_block:%d)',[start_block]));
     Bank := TPCBank.Create(Nil);
     try
-
       Bank.StorageClass := TNode.Node.Bank.StorageClass;
       Bank.Storage.Orphan := TNode.Node.Bank.Storage.Orphan;
+      Bank.Storage.ReadOnly := true;
       Bank.Storage.CopyConfiguration(TNode.Node.Bank.Storage);
       if start_block>=0 then begin
         // Restore a part
-        Bank.DiskRestoreFromOperations(start_block);
-        start := start_block + 1;
+        Bank.DiskRestoreFromOperations(start_block-1);
+        start := start_block;
       end else begin
         start := 0;
         start_block := 0;
       end;
       Bank.Storage.Orphan := FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now));
+      Bank.Storage.ReadOnly := false;
       // Receive new blocks:
       finished := false;
       repeat
@@ -983,12 +960,17 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
         start := Bank.BlocksCount;
       until (Bank.BlocksCount=Connection.FRemoteOperationBlock.block+1) Or (finished);
       if Bank.BlocksCount>TNode.Node.Bank.BlocksCount then begin
-        // I'm an orphan blockchain...
-        TLog.NewLog(ltinfo,CT_LogSender,'New valid blockchain found. My block count='+inttostr(TNode.Node.Bank.BlocksCount)+
-          ' found='+inttostr(Bank.BlocksCount)+' starting at block '+inttostr(start_block));
-        TNode.Node.Bank.Storage.MoveBlockChainBlocks(start_block,Inttostr(start_block)+'_'+FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now)));
-        Bank.Storage.MoveBlockChainBlocks(start_block,TNode.Node.Bank.Storage.Orphan);
-        TNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
+        TNode.Node.DisableNewBlocks;
+        Try
+          // I'm an orphan blockchain...
+          TLog.NewLog(ltinfo,CT_LogSender,'New valid blockchain found. My block count='+inttostr(TNode.Node.Bank.BlocksCount)+
+            ' found='+inttostr(Bank.BlocksCount)+' starting at block '+inttostr(start_block));
+          TNode.Node.Bank.Storage.MoveBlockChainBlocks(start_block,Inttostr(start_block)+'_'+FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now)),Nil);
+          Bank.Storage.MoveBlockChainBlocks(start_block,TNode.Node.Bank.Storage.Orphan,TNode.Node.Bank.Storage);
+          TNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
+        Finally
+          TNode.Node.EnableNewBlocks;
+        End;
       end;
     finally
       Bank.Free;
@@ -1284,83 +1266,34 @@ end;
 
 { TNetServer }
 
-constructor TNetServer.Create(AOwner: TComponent);
-begin
-  FNetClients := TPCThreadList.Create;
-  inherited;
-  FPort := CT_NetServer_Port;
-  FTCPServer := TTcpServer.Create(Self);
-  FTCPServer.LocalPort := Inttostr(CT_NetServer_Port);
-  FTCPServer.OnAccept := OnTcpServerAccept;
-  FTCPServer.OnGetThread := OnTcpServerGetThread;
-  FTCPServer.OnListening := OnTcpServerListening;
-  FTCPServer.OnCreateHandle := OnTcpServerCreateHandle;
-  FTCPServer.OnDestroyHandle := OnTcpServerDestroyHandle;
-  // New on Build 1.0.4: Prior where limited to 10... causing a queue list
-  // and CPU usage for nothing (TCPServer issue).
-  FTCPServer.ServerSocketThread.ThreadCacheSize := CT_MaxClientsConnected;
-end;
-
-destructor TNetServer.Destroy;
-begin
-  FreeAndNil(FTCPServer);
-  inherited;
-  FreeAndNil(FNetClients);
-end;
-
-function TNetServer.GetActive: Boolean;
-begin
-  Result := FTCPServer.Active;
-end;
-
-procedure TNetServer.Notification(AComponent: TComponent; Operation: TOperation);
-var i : Integer;
-  l : TList;
-begin
-  inherited;
-  if (Operation=opRemove) then begin
-    if Not Assigned(FNetClients) then exit;
-    l := FNetClients.LockList;
-    Try
-      i := l.IndexOf(AComponent);
-      if (i>=0) then begin
-        l.Delete(i);
-        TLog.NewLog(ltdebug,ClassName,'TNetConnection destroyed. Remaining: '+Inttostr(l.Count));
-      end;
-    Finally
-      FNetClients.UnlockList;
-    End;
-  end;
-end;
-
-procedure TNetServer.OnTcpServerAccept(Sender: TObject; ClientSocket: TCustomIpClient);
+procedure TNetServer.OnNewIncommingConnection(Sender : TObject; Client : TNetTcpIpClient);
+//procedure TNetServer.OnTcpServerAccept(Sender: TObject; ClientSocket: TCustomIpClient);
 Var n : TNetServerClient;
   DebugStep : String;
 begin
   DebugStep := '';
   Try
-    if Not ClientSocket.Connected then exit;
+    if Not Client.Connected then exit;
     // NOTE: I'm in a separate thread
     // While in this function the ClientSocket connection will be active, when finishes the ClientSocket will be destroyed
-    TLog.NewLog(ltInfo,Classname,'Starting ClientSocket accept '+ClientSocket.RemoteHost+':'+ClientSocket.RemotePort);
-    n := TNetServerClient.Create(Self);
+    TLog.NewLog(ltInfo,Classname,'Starting ClientSocket accept '+Client.ClientRemoteAddr);
+    n := TNetServerClient.Create(Nil);
     Try
       DebugStep := 'Assigning client';
-      n.SetClient(ClientSocket);
+      n.SetClient(Client);
       TNetData.NetData.IncStatistics(1,1,0,0,0,0);
       TNetData.NetData.CleanBlackList;
       DebugStep := 'Checking blacklisted';
-      if (TNetData.NetData.IsBlackListed(ClientSocket.RemoteHost,0)) then begin
+      if (TNetData.NetData.IsBlackListed(Client.RemoteHost,0)) then begin
         // Invalid!
-        TLog.NewLog(ltinfo,Classname,'Refusing Blacklist ip: '+ClientSocket.RemoteHost+':'+ClientSocket.RemotePort);
-        n.SendError(ntp_autosend,CT_NetOp_Error, 0,CT_NetError_IPBlackListed,'Your IP is blacklisted:'+ClientSocket.RemoteHost+':'+ClientSocket.RemotePort);
+        TLog.NewLog(ltinfo,Classname,'Refusing Blacklist ip: '+Client.ClientRemoteAddr);
+        n.SendError(ntp_autosend,CT_NetOp_Error, 0,CT_NetError_IPBlackListed,'Your IP is blacklisted:'+Client.ClientRemoteAddr);
         // Wait some time before close connection
         sleep(5000);
       end else begin
         DebugStep := 'Adding client';
-        FNetClients.Add(n);
         DebugStep := '   ';
-        while (n.Connected) And (FTCPServer.Active) do begin
+        while (n.Connected) And (Active) do begin
           DebugStep[1] := '1';
           n.DoProcessBuffer;
           DebugStep[1] := '2';
@@ -1375,7 +1308,7 @@ begin
         n.Connected := false;
         sleep(10);
         DebugStep := 'Assigning old client';
-        n.SetClient( TTcpClient.Create(Nil) );
+        n.SetClient( TNetTcpIpClient.Create(Nil) );
       Finally
         DebugStep := 'Freeing NetServerClient';
         n.Free;
@@ -1388,47 +1321,19 @@ begin
   End;
 end;
 
-procedure TNetServer.OnTcpServerCreateHandle(Sender: TObject);
-begin
-//  TLog.NewLog(ltdebug,Classname,'ServerCreateHandle');
-end;
-
-procedure TNetServer.OnTcpServerDestroyHandle(Sender: TObject);
-begin
-//  TLog.NewLog(ltdebug,Classname,'ServerDestroyHandle');
-end;
-
-procedure TNetServer.OnTcpServerGetThread(Sender: TObject; var ClientSocketThread: TClientSocketThread);
-begin
-//  TLog.NewLog(ltdebug,Classname,'ClientSocket Get Thread');
-end;
-
-procedure TNetServer.OnTcpServerListening(Sender: TObject);
-begin
-  TLog.NewLog(ltinfo,Classname,'Server listening');
-end;
-
 procedure TNetServer.SetActive(const Value: Boolean);
 begin
   if Value then begin
-    TLog.NewLog(ltinfo,Classname,'Activating server on port '+FTCPServer.LocalPort);
+    TLog.NewLog(ltinfo,Classname,'Activating server on port '+IntToStr(Port));
   end else begin
     TLog.NewLog(ltinfo,Classname,'Closing server');
   end;
-  FTCPServer.Active := Value;
-  if FTCPServer.Active then begin
+  inherited;
+  if Active then begin
     TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
   end else begin
     TNetData.NetData.DisconnectClients;
   end;
-end;
-
-procedure TNetServer.SetPort(const Value: Word);
-begin
-  if FPort=Value then exit;
-  Active := false;
-  FPort := Value;
-  FTCPServer.LocalPort := Inttostr(Value);
 end;
 
 { TNetConnection }
@@ -1436,7 +1341,7 @@ end;
 function TNetConnection.ClientRemoteAddr: AnsiString;
 begin
   If Assigned(FTcpIpClient) then begin
-    Result := Client.RemoteHost+':'+Client.RemotePort;
+    Result := FtcpIpClient.ClientRemoteAddr
   end else Result := 'NIL';
 end;
 
@@ -1458,7 +1363,7 @@ begin
 
   Client.RemoteHost := ServerIP;
   if ServerPort<=0 then ServerPort := CT_NetServer_Port;
-  Client.RemotePort := Inttostr(ServerPort);
+  Client.RemotePort := ServerPort;
   TLog.NewLog(ltDebug,Classname,'Trying to connect to a server at: '+ClientRemoteAddr);
   TNetData.NetData.NotifyNetConnectionUpdated;
   Result := Client.Connect;
@@ -1486,13 +1391,12 @@ begin
   FLastKnownTimestampDiff := 0;
   FIsWaitingForResponse := false;
   FClientBufferRead := TMemoryStream.Create;
-  InitializeCriticalSection(FNetLock);
+  FNetLock := TCriticalSection.Create;
   FLastDataReceivedTS := 0;
   FLastDataSendedTS := 0;
   FTcpIpClient := Nil;
   FRemoteOperationBlock := CT_OperationBlock_NUL;
-  FSocketError := 0;
-  SetClient( TTcpClient.Create(Nil) );
+  SetClient( TNetTcpIpClient.Create(Nil) );
   TNetData.NetData.FNetConnections.Add(Self);
   TNetData.NetData.NotifyNetConnectionUpdated;
 end;
@@ -1522,7 +1426,7 @@ begin
   Try
     TNetData.NetData.NotifyNetConnectionUpdated;
   Finally
-    DeleteCriticalSection(FNetLock);
+    FreeAndNil(FNetLock);
     FreeAndNil(FClientBufferRead);
     inherited;
     FreeAndNil(FTcpIpClient);
@@ -1548,14 +1452,14 @@ begin
   if include_in_list then begin
     l := TNetData.NetData.FBlackList.LockList;
     try
-      i := TNetData.NetData.IndexOfNetClient(l,Client.RemoteHost,StrToIntDef( Client.RemotePort,CT_NetServer_Port));
+      i := TNetData.NetData.IndexOfNetClient(l,Client.RemoteHost,Client.RemotePort);
       if i<0 then begin
         new(P);
         P^ := CT_TNodeServerAddress_NUL;
         l.Add(P);
       end else P := l[i];
       P^.ip := Client.RemoteHost;
-      P^.port := StrToIntDef( Client.RemotePort,CT_NetServer_Port);
+      P^.port := Client.RemotePort;
       P^.last_connection := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
       P^.its_myself := ItsMyself;
       P^.BlackListText := Why;
@@ -1566,7 +1470,7 @@ begin
   if ItsMyself then begin
     l := TNetData.NetData.FNodeServers.LockList;
     try
-      i := TNetData.NetData.IndexOfNetClient(l,Client.RemoteHost,StrToIntDef( Client.RemotePort,CT_NetServer_Port));
+      i := TNetData.NetData.IndexOfNetClient(l,Client.RemoteHost,Client.RemotePort);
       if i>=0 then begin
         P := l[i];
         P^.its_myself := true;
@@ -1605,7 +1509,7 @@ begin
           DebugStep := 'Is waiting for response, nothing';
         end;
       Finally
-        LeaveCriticalSection(FNetLock);
+        FNetLock.Release;
       End;
     finally
       ms.Free;
@@ -1922,7 +1826,7 @@ procedure TNetConnection.DoProcess_Hello(HeaderData: TNetHeaderData; DataBuffer:
       end;
       if showmessage then begin
         TNode.Node.NotifyNetClientMessage(Nil,'Detected a different time in an other node... check that your PC time and timezone is correct or you will be Blacklisted! '+
-          'Your time: '+TimeToStr(now)+' - '+Client.RemoteHost+':'+Client.RemotePort+' time: '+TimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(connection_ts)))+' Difference: '+inttostr(FLastKnownTimestampDiff)+' seconds. '+
+          'Your time: '+TimeToStr(now)+' - '+Client.ClientRemoteAddr+' time: '+TimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(connection_ts)))+' Difference: '+inttostr(FLastKnownTimestampDiff)+' seconds. '+
           '(If this message appears on each connection, then you have a bad configured time, if not, do nothing)' );
       end;
     end else begin
@@ -2134,7 +2038,7 @@ begin
     exit;
   end;
   If Not Assigned(FTcpIpClient) then exit;
-  if Not Client.Active then exit;
+  if Not Client.Connected then exit;
   TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
   Try
     was_waiting_for_response := RequestId>0;
@@ -2143,12 +2047,11 @@ begin
         FIsWaitingForResponse := true;
         Send(ntp_request,operation,0,RequestId,SendDataBuffer);
       end;
-      FSocketError := 0;
       tc := GetTickCount;
       Repeat
         if Not Client.WaitForData(100) then begin
-          If FSocketError<>0 then begin
-            TLog.NewLog(ltdebug,classname,'Broken connection by error '+Inttostr(FSocketError)+' to '+ClientRemoteAddr);
+          If Client.SocketError<>0 then begin
+            TLog.NewLog(ltdebug,classname,'Broken connection by error '+Inttostr(Client.SocketError)+' to '+ClientRemoteAddr);
             Connected := false;
             exit;
           end;
@@ -2211,7 +2114,7 @@ begin
       if was_waiting_for_response then FIsWaitingForResponse := false;
     end;
   Finally
-    LeaveCriticalSection(FNetLock);
+    FNetLock.Release;
   End;
 end;
 
@@ -2259,7 +2162,7 @@ begin
     tc := GetTickCount;
     repeat
       If not Connected then exit;
-      if Not Client.active then exit;
+      if Not Client.Connected then exit;
       last_bytes_read := 0;
       FClientBufferRead.Position := 0;
       Result := TNetData.ExtractHeaderInfo(FClientBufferRead,HeaderData,BufferData,IsValidHeaderButNeedMoreData);
@@ -2317,17 +2220,17 @@ begin
     until (Result) Or ((GetTickCount > (tc+MaxWaitMiliseconds)) And (last_bytes_read=0));
   finally
     Try
-      if (Connected) And (Client.Active) then begin
+      if (Connected) then begin
         if (Not Result) And (FClientBufferRead.Size>0) And (Not IsValidHeaderButNeedMoreData) then begin
           deletedBytes := FClientBufferRead.Size;
-          TLog.NewLog(lterror,ClassName,Format('Deleting %d bytes from TcpClient buffer of %s:%s after max %d miliseconds. Passed: %d',
-            [deletedBytes, Client.RemoteHost,Client.RemotePort,MaxWaitMiliseconds,GetTickCount-tc]));
+          TLog.NewLog(lterror,ClassName,Format('Deleting %d bytes from TcpClient buffer of %s after max %d miliseconds. Passed: %d',
+            [deletedBytes, Client.ClientRemoteAddr,MaxWaitMiliseconds,GetTickCount-tc]));
           FClientBufferRead.Size:=0;
           DisconnectInvalidClient(false,'Invalid data received in buffer ('+inttostr(deletedBytes)+' bytes)');
         end;
       end;
     Finally
-      LeaveCriticalSection(FNetLock);
+      FNetLock.Release;
     End;
   end;
   if (Result) And (HeaderData.header_type=ntp_response) then begin
@@ -2399,7 +2302,7 @@ begin
       FLastDataSendedTS := GetTickCount;
       TNetData.NetData.IncStatistics(0,0,0,0,0,Buffer.Size);
     Finally
-      LeaveCriticalSection(FNetLock);
+      FNetLock.Release;
     End;
   finally
     Buffer.Free;
@@ -2536,7 +2439,7 @@ begin
     end;
     //
     Send(NetTranferType,CT_NetOp_Hello,0,request_id,data);
-    Result := Client.Active;
+    Result := Client.Connected;
   finally
     data.Free;
   end;
@@ -2613,12 +2516,7 @@ begin
   if Assigned(FTcpIpClient) then begin
     FTcpIpClient.FreeNotification(Self);
     FTcpIpClient.OnConnect := TcpClient_OnConnect;
-    FTcpIpClient.OnCreateHandle := TcpClient_OnCreateHandle;
-    FTcpIpClient.OnDestroyHandle := TcpClient_OnDestroyHandle;
-    FTcpIpClient.OnError := TcpClient_OnError;
     FTcpIpClient.OnDisconnect := TcpClient_OnDisconnect;
-    FTcpIpClient.OnReceive := TcpClient_OnReceive;
-    FTcpIpClient.OnSend := TcpClient_OnSend;
   end;
   TNetData.NetData.NotifyNetConnectionUpdated;
 end;
@@ -2626,7 +2524,7 @@ end;
 procedure TNetConnection.SetConnected(const Value: Boolean);
 begin
   if (Value = GetConnected) then exit;
-  if Value then ConnectTo(Client.RemoteHost,StrToIntDef(Client.RemotePort,CT_NetServer_Port))
+  if Value then ConnectTo(Client.RemoteHost,Client.RemotePort)
   else Client.Disconnect;
 end;
 
@@ -2635,16 +2533,6 @@ begin
   TNetData.NetData.IncStatistics(1,0,1,0,0,0);
   TLog.NewLog(ltInfo,Classname,'Connected to a server '+ClientRemoteAddr);
   TNetData.NetData.NotifyNetConnectionUpdated;
-end;
-
-procedure TNetConnection.TcpClient_OnCreateHandle(Sender: TObject);
-begin
-  //
-end;
-
-procedure TNetConnection.TcpClient_OnDestroyHandle(Sender: TObject);
-begin
-  //
 end;
 
 procedure TNetConnection.TcpClient_OnDisconnect(Sender: TObject);
@@ -2658,29 +2546,13 @@ begin
   TNetData.NetData.NotifyNetConnectionUpdated;
 end;
 
-procedure TNetConnection.TcpClient_OnError(Sender: TObject; SocketError: Integer);
-begin
-  FSocketError := SocketError;
-  TLog.NewLog(ltdebug,Classname,'Error '+inttohex(SocketError,8)+' with connection to '+ClientRemoteAddr);
-end;
-
-procedure TNetConnection.TcpClient_OnReceive(Sender: TObject; Buf: PAnsiChar; var DataLen: Integer);
-begin
-  //
-end;
-
-procedure TNetConnection.TcpClient_OnSend(Sender: TObject; Buf: PAnsiChar; var DataLen: Integer);
-begin
-  //
-end;
-
 { TNetClientThread }
 
 procedure TNetClientThread.BCExecute;
 Var clientIp : AnsiString;
 begin
   debugstep := 'Initiating...';
-  clientIp := FNetClient.Client.RemoteHost+':'+FNetClient.Client.RemotePort;
+  clientIp := FNetClient.ClientRemoteAddr;
   debugstep := 'Chenking terminated';
   while (Not Terminated) do begin
     debugstep := 'Check connection '+clientIp;
@@ -2946,7 +2818,7 @@ begin
   DebugStep := 'Locking NetClient if exists';
   If TNetData.NetData.ConnectionLock(Self,FNetClient) then begin
     try
-      DebugStep := 'Destroying NetClient';
+      DebugStep := 'Destroying NetClient '+FNetClient.ClientRemoteAddr;
       FreeAndNil(FNetClient);
     finally
       // Not Necessary because on Freeing then Lock is deleted.
@@ -2958,7 +2830,7 @@ end;
 constructor TNetClientDestroyThread.Create(NetClient: TNetClient);
 begin
   FNetClient := NetClient;
-  TLog.NewLog(ltdebug,Classname,'Start destroying NetClient: '+NetClient.Client.RemoteHost+':'+NetClient.Client.RemotePort);
+  TLog.NewLog(ltdebug,Classname,'Start destroying NetClient: '+NetClient.ClientRemoteAddr);
   inherited Create(true);
   FreeOnTerminate := true;
   Suspended := false;

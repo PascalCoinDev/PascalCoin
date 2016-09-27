@@ -345,7 +345,6 @@ end;
 
 class function TCrypto.DoSha256(p: PAnsiChar; plength: Cardinal): TRawBytes;
 Var PS : PAnsiChar;
-  PC : PAnsiChar;
 begin
   SetLength(Result,32);
   PS := @Result[1];
@@ -358,7 +357,6 @@ begin
   SetLength(Result,32);
   PS := @Result[1];
   SHA256(PAnsiChar(TheMessage),Length(TheMessage),PS);
-  exit;
 end;
 
 class function TCrypto.ECDSASign(Key: PEC_KEY; const digest: AnsiString): TECDSA_SIG;
@@ -626,10 +624,14 @@ Var n : TBigNum;
   ctx : PBN_CTX;
 begin
   n := TBigNum.Create(int);
-  ctx := BN_CTX_new;
-  if BN_mul(FBN,FBN,n.FBN,ctx)<>1 then raise ECryptoException.Create('Error on multiply');
-  BN_CTX_free(ctx);
-  Result := Self;
+  Try
+    ctx := BN_CTX_new;
+    if BN_mul(FBN,FBN,n.FBN,ctx)<>1 then raise ECryptoException.Create('Error on multiply');
+    Result := Self;
+  Finally
+    BN_CTX_free(ctx);
+    n.Free;
+  End;
 end;
 
 function TBigNum.RShift(nbits: Integer): TBigNum;

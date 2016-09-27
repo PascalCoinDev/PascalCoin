@@ -16,7 +16,7 @@ unit UAccounts;
 interface
 
 uses
-  Classes, UConst, Windows, UCrypto;
+  Classes, UConst, Windows, UCrypto, SyncObjs;
 
 Type
   TAccountKey = TECDSA_Public;
@@ -105,7 +105,7 @@ Type
     FTotalBalance: Int64;
     FTotalFee: Int64;
     FSafeBoxHash : TRawBytes;
-    FLock: TRTLCriticalSection; // Thread safe
+    FLock: TCriticalSection; // Thread safe
     FIsLocked : Boolean;
     Procedure SetAccount(account_number : Cardinal; newAccountkey: TAccountKey; newBalance: UInt64; newN_operation: Cardinal);
     Procedure AccountKeyListAddAccounts(Const AccountKey : TAccountKey; accounts : Array of Cardinal);
@@ -728,7 +728,7 @@ end;
 
 constructor TPCSafeBox.Create;
 begin
-  InitializeCriticalSection(FLock);
+  FLock := TCriticalSection.Create;
   FIsLocked := false;
   FBlockAccountsList := TList.Create;
   FListOfOrderedAccountKeysList := TList.Create;
@@ -744,7 +744,7 @@ begin
   end;
   FreeAndNil(FBlockAccountsList);
   FreeAndNil(FListOfOrderedAccountKeysList);
-  DeleteCriticalSection(Flock);
+  FLock.Free;
   inherited;
 end;
 
@@ -752,7 +752,7 @@ procedure TPCSafeBox.EndThreadSave;
 begin
   if Not FIsLocked then raise Exception.Create('Is not locked');
   FIsLocked := False;
-  LeaveCriticalSection(FLock);
+  FLock.Release;
 end;
 
 function TPCSafeBox.LoadFromStream(Stream : TStream; var LastReadBlock : TBlockAccount; var errors : AnsiString) : Boolean;

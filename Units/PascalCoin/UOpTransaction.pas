@@ -222,6 +222,7 @@ begin
     trans.sign.s:='';
     Result := false;
   End;
+  SetLength(s,0);
 end;
 
 function TOpTransaction.GetOperationBufferToHash: TRawBytes;

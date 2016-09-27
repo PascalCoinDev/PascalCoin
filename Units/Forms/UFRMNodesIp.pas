@@ -29,7 +29,7 @@ type
 implementation
 
 uses
-  UNetProtocol, UFRMWallet, UNode;
+  UNetProtocol, UNode, UConst;
 
 {$R *.dfm}
 

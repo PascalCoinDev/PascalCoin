@@ -26,12 +26,12 @@ unit UNode;
 interface
 
 uses
-  Classes, UBlockChain, UNetProtocol, UMiner, UAccounts, UCrypto, Windows, UThread;
+  Classes, UBlockChain, UNetProtocol, UMiner, UAccounts, UCrypto, Windows, UThread, SyncObjs;
 
 Type
   TNode = Class(TComponent)
   private
-    FLockNodeOperations : TRTLCriticalSection;
+    FLockNodeOperations : TCriticalSection;
     FNotifyList : TList;
     FBank : TPCBank;
     FOperations : TPCOperationsComp;
@@ -39,9 +39,8 @@ Type
     FMinerThreads : TPCThreadList;
     FBCBankNotify : TPCBankNotify;
     FPeerCache : AnsiString;
+    FDisabledsNewBlocksCount : Integer;
     Procedure OnBankNewBlock(Sender : TObject);
-    Procedure StartLocking(MaxWaitMilliseconds : Cardinal);
-    Procedure EndLocking;
     Procedure OnMinerThreadTerminate(Sender : TObject);
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
@@ -72,6 +71,8 @@ Type
     Function IsBlockChainValid(var WhyNot : AnsiString) : Boolean;
     Function IsReady(Var CurrentProcess : AnsiString) : Boolean;
     Property PeerCache : AnsiString read FPeerCache write FPeerCache;
+    Procedure DisableNewBlocks;
+    Procedure EnableNewBlocks;
   End;
 
   TNodeNotifyEvents = Class;
@@ -157,18 +158,21 @@ Var i : Integer;
   ms : TMemoryStream;
   mtl : TList;
   netConnectionsList : TList;
+  s : String;
 begin
   Result := false;
+  if FDisabledsNewBlocksCount>0 then begin
+    TLog.NewLog(ltinfo,Classname,Format('Cannot Add new BlockChain due is adding disabled - Miner:%s Connection:%s NewBlock:%s',[Inttohex(Integer(SenderMiner),8),
+    Inttohex(Integer(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
+    exit;
+  end;
   TLog.NewLog(ltdebug,Classname,Format('AddNewBlockChain Miner:%s Connection:%s NewBlock:%s',[Inttohex(Integer(SenderMiner),8),
     Inttohex(Integer(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
-  Try
-    StartLocking(2000);
-  Except
-    On E: Exception do begin
-      TLog.NewLog(lterror,Classname,'Fatal Error at AddNewBlockChain: '+e.Message);
-      if TThread.CurrentThread.ThreadID=MainThreadID then raise else exit;
-    end;
-  End;
+  If Not TPCThread.TryProtectEnterCriticalSection(Self,2000,FLockNodeOperations) then begin
+    s := 'Cannot AddNewBlockChain due blocking lock operations node';
+    TLog.NewLog(lterror,Classname,s);
+    if TThread.CurrentThread.ThreadID=MainThreadID then raise Exception.Create(s) else exit;
+  end;
   try
     ms := TMemoryStream.Create;
     try
@@ -245,7 +249,7 @@ begin
       end;
     end;
   finally
-    EndLocking;
+    FLockNodeOperations.Release;
     TLog.NewLog(ltdebug,Classname,Format('Finalizing AddNewBlockChain Miner:%s Connection:%s NewBlock:%s',[Inttohex(Integer(SenderMiner),8),
       Inttohex(Integer(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock) ]));
   End;
@@ -276,18 +280,21 @@ Var
   e : AnsiString;
   mtl : TList;
   netConnectionsList : TList;
+  s : String;
 begin
   Result := -1;
+  if FDisabledsNewBlocksCount>0 then begin
+    errors := Format('Cannot Add Operations due is adding disabled - OpCount:%d',[Operations.OperationsCount]);
+    TLog.NewLog(ltinfo,Classname,errors);
+    exit;
+  end;
   TLog.NewLog(ltdebug,Classname,Format('AddOperations Connection:%s Operations:%d',[
     Inttohex(Integer(SenderConnection),8),Operations.OperationsCount]));
-  Try
-    StartLocking(4000);
-  Except
-    On E: Exception do begin
-      TLog.NewLog(lterror,Classname,'Fatal Error at AddOperations: '+e.Message);
-      if TThread.CurrentThread.ThreadID=MainThreadID then raise else exit;
-    end;
-  End;
+  if Not TPCThread.TryProtectEnterCriticalSection(Self,4000,FLockNodeOperations) then begin
+    s := 'Cannot AddOperations due blocking lock operations node';
+    TLog.NewLog(lterror,Classname,s);
+    if TThread.CurrentThread.ThreadID=MainThreadID then raise Exception.Create(s) else exit;
+  end;
   try
     Result := 0;
     errors := '';
@@ -336,9 +343,9 @@ begin
       valids_operations.Free;
     end;
   finally
-    EndLocking;
-    TLog.NewLog(ltdebug,Classname,Format('Finalizing AddOperations Connection:%s Operations:%d LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',[
-      Inttohex(Integer(SenderConnection),8),Operations.OperationsCount,FLockNodeOperations.LockCount,FLockNodeOperations.RecursionCount,FLockNodeOperations.LockSemaphore,IntToHex(FLockNodeOperations.OwningThread,8) ]));
+    FLockNodeOperations.Release;
+    TLog.NewLog(ltdebug,Classname,Format('Finalizing AddOperations Connection:%s Operations:%d',[
+      Inttohex(Integer(SenderConnection),8),Operations.OperationsCount ]));
   end;
   // Notify it!
   for i := 0 to FNotifyList.Count-1 do begin
@@ -347,55 +354,13 @@ begin
 end;
 
 procedure TNode.AutoDiscoverNodes(Const ips : AnsiString);
-{  Function GetIp(var ips_string : AnsiString; var nsa : TNodeServerAddress) : Boolean;
-  Const CT_IP_CHARS = ['a'..'z','A'..'Z','0'..'9','.','-','_'];
-  var i : Integer;
-    port : AnsiString;
-  begin
-    nsa := CT_TNodeServerAddress_NUL;
-    Result := false;
-    if length(trim(ips_string))=0 then begin
-      ips_string := '';
-      exit;
-    end;
-    i := 1;
-    while (i<length(ips_string)) AND (NOT (ips_string[i] IN CT_IP_CHARS)) do inc(i);
-    if (i>1) then ips_string := copy(ips_string,i,length(ips_string));
-    //
-    i := 1;
-    while (i<=length(ips_string)) and (ips_string[i] in CT_IP_CHARS) do inc(i);
-    nsa.ip := copy(ips_string,1,i-1);
-    if (i<=length(ips_string)) and (ips_string[i]=':') then begin
-      inc(i);
-      port := '';
-      while (i<=length(ips_string)) and (ips_string[i] in ['0'..'9']) do begin
-        port := port + ips_string[i];
-        inc(i);
-      end;
-      nsa.port := StrToIntDef(port,0);
-    end;
-    ips_string := copy(ips_string,i+1,length(ips_string));
-    if nsa.port=0 then nsa.port := CT_NetServer_Port;
-    Result := (trim(nsa.ip)<>'');
-  end;}
 Var i,j : Integer;
-{  ips_string : AnsiString;
-  nsa : TNodeServerAddress;}
   nsarr : TNodeServerAddressArray;
 begin
   DecodeIpStringToNodeServerAddressArray(ips+';'+PeerCache,nsarr);
   for i := low(nsarr) to high(nsarr) do begin
     TNetData.NetData.AddServer(nsarr[i]);
   end;
-
-{  ips_string := ips+';'+PeerCache;
-  repeat
-    If GetIp(ips_string,nsa) then begin
-      TNetData.NetData.AddServer(nsa);
-    end;
-  until (ips_string='');
-  //
-}
   j := (CT_MaxServersConnected -  TNetData.NetData.ConnectionsCount(true));
   if j<=0 then exit;
   TNetData.NetData.DiscoverServers;
@@ -405,14 +370,13 @@ constructor TNode.Create(AOwner: TComponent);
 begin
   if Assigned(_Node) then raise Exception.Create('Duplicate nodes protection');
   inherited;
-  InitializeCriticalSection(FLockNodeOperations);
-  TLog.NewLog(ltdebug,Classname,Format('Initialize LockOperations LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',[
-    FLockNodeOperations.LockCount,FLockNodeOperations.RecursionCount,FLockNodeOperations.LockSemaphore,IntToHex(FLockNodeOperations.OwningThread,8) ]));
+  FDisabledsNewBlocksCount := 0;
+  FLockNodeOperations := TCriticalSection.Create;
   FBank := TPCBank.Create(Self);
   FBCBankNotify := TPCBankNotify.Create(Self);
   FBCBankNotify.Bank := FBank;
   FBCBankNotify.OnNewBlock := OnBankNewBlock;
-  FNetServer := TNetServer.Create(Self);
+  FNetServer := TNetServer.Create;
   FMinerThreads := TPCThreadList.Create;
   FOperations := TPCOperationsComp.Create(Self);
   FOperations.bank := FBank;
@@ -490,7 +454,7 @@ begin
   TLog.NewLog(ltinfo,Classname,'Destroying Node - START');
   Try
     step := 'Deleting critical section';
-    DeleteCriticalSection(FLockNodeOperations);
+    FreeAndNil(FLockNodeOperations);
 
     step := 'Desactivating server';
     FNetServer.Active := false;
@@ -526,6 +490,17 @@ begin
   TLog.NewLog(ltinfo,Classname,'Destroying Node - END');
 end;
 
+procedure TNode.DisableNewBlocks;
+begin
+  inc(FDisabledsNewBlocksCount);
+end;
+
+procedure TNode.EnableNewBlocks;
+begin
+  if FDisabledsNewBlocksCount=0 then raise Exception.Create('Dev error 20160924-1');
+  dec(FDisabledsNewBlocksCount);
+end;
+
 class function TNode.EncodeNodeServerAddressArrayToIpString(
   const NodeServerAddressArray: TNodeServerAddressArray): AnsiString;
 var i : Integer;
@@ -538,11 +513,6 @@ begin
       Result := Result + ':'+IntToStr(NodeServerAddressArray[i].port);
     end;
   end;
-end;
-
-procedure TNode.EndLocking;
-begin
-  LeaveCriticalSection(FLockNodeOperations);
 end;
 
 function TNode.IsBlockChainValid(var WhyNot : AnsiString): Boolean;
@@ -650,17 +620,15 @@ function TNode.SendNodeMessage(Target: TNetConnection; TheMessage: AnsiString; v
 Var i : Integer;
   nc : TNetConnection;
   netConnectionsList : TList;
+  s : String;
 begin
-  Try
-    StartLocking(4000);
-  Except
-    On E: Exception do begin
-      TLog.NewLog(lterror,Classname,'Fatal Error at SendNodeMessage: '+e.Message);
-      if TThread.CurrentThread.ThreadID=MainThreadID then raise else exit;
-    end;
-  End;
+  Result := false;
+  if Not TPCThread.TryProtectEnterCriticalSection(Self,4000,FLockNodeOperations) then begin
+    s := 'Cannot Send node message due blocking lock operations node';
+    TLog.NewLog(lterror,Classname,s);
+    if TThread.CurrentThread.ThreadID=MainThreadID then raise Exception.Create(s) else exit;
+  end;
   try
-    Result := false;
     errors := '';
     if assigned(Target) then begin
       Target.Send_Message(TheMessage);
@@ -677,26 +645,7 @@ begin
     end;
     result := true;
   finally
-    EndLocking;
-  end;
-end;
-
-procedure TNode.StartLocking(MaxWaitMilliseconds : Cardinal);
-Var tc : Cardinal;
-  s : String;
-  IsLocked : Boolean;
-begin
-  if MaxWaitMilliseconds>60000 then MaxWaitMilliseconds := 60000;
-  tc := GetTickCount;
-  Repeat
-    IsLocked := TryEnterCriticalSection(FLockNodeOperations);
-    if Not IsLocked then sleep(1);
-  Until (IsLocked) Or (GetTickCount > (tc + MaxWaitMilliseconds));
-  if Not IsLocked then begin
-    s := Format('Cannot lock operations node - LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',[
-      FLockNodeOperations.LockCount,FLockNodeOperations.RecursionCount,FLockNodeOperations.LockSemaphore,IntToHex(FLockNodeOperations.OwningThread,8) ]);
-    TLog.NewLog(lterror,Classname,s);
-    raise Exception.Create(s);
+    FLockNodeOperations.Release;
   end;
 end;
 
@@ -798,10 +747,10 @@ procedure TThreadNodeNotifyNewBlock.BCExecute;
 begin
   if TNetData.NetData.ConnectionLock(Self,FNetConnection) then begin
     try
-      TLog.NewLog(ltdebug,ClassName,'Sending new block found to '+FNetConnection.Client.RemoteHost+':'+FNetConnection.Client.RemotePort);
+      TLog.NewLog(ltdebug,ClassName,'Sending new block found to '+FNetConnection.Client.ClientRemoteAddr);
       FNetConnection.Send_NewBlockFound;
       if TNode.Node.Operations.OperationsHashTree.OperationsCount>0 then begin
-         TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(TNode.Node.Operations.OperationsHashTree.OperationsCount)+' sanitized operations to '+FNetConnection.Client.RemoteHost+':'+FNetConnection.Client.RemotePort);
+         TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(TNode.Node.Operations.OperationsHashTree.OperationsCount)+' sanitized operations to '+FNetConnection.ClientRemoteAddr);
          FNetConnection.Send_AddOperations(TNode.Node.Operations.OperationsHashTree);
       end;
     finally
@@ -824,21 +773,12 @@ begin
   if TNetData.NetData.ConnectionLock(Self, FNetConnection) then begin
     try
       if FOperationsHashTree.OperationsCount<=0 then exit;
-      TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(FOperationsHashTree.OperationsCount)+' Operations to '+FNetConnection.Client.RemoteHost+':'+FNetConnection.Client.RemotePort);
+      TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(FOperationsHashTree.OperationsCount)+' Operations to '+FNetConnection.ClientRemoteAddr);
       FNetConnection.Send_AddOperations(FOperationsHashTree);
     finally
       TNetData.NetData.ConnectionUnlock(FNetConnection);
     end;
   end;
-
-{  If Not TNetData.NetData.ConnectionExistsAndActive(FNetConnection) then begin
-    TLog.NewLog(ltdebug,Classname,'Connection not active');
-    exit;
-  end;
-  if FOperationsHashTree.OperationsCount<=0 then exit;
-  TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(FOperationsHashTree.OperationsCount)+' Operations to '+FNetConnection.Client.RemoteHost+':'+FNetConnection.Client.RemotePort);
-  FNetConnection.Send_AddOperations(TNode.Node.Operations.OperationsHashTree);
-  }
 end;
 
 constructor TThreadNodeNotifyOperations.Create(NetConnection: TNetConnection;

@@ -39,10 +39,10 @@ Type TFileVersionInfo = record
   strict private
     class function GetFolder(const aCSIDL: Integer): string; static;
     class function GetAppDataFolder : string; static;
-    class function GetUserDataFolder : string; static;
   public
     class function GetPascalCoinDataFolder : string; static;
     class Function GetTFileVersionInfo(Const FileName : String) : TFileVersionInfo; static;
+    class function GetUserDataFolder : string; static;
   end;
 
 implementation

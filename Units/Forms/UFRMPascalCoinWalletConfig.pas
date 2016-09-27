@@ -66,7 +66,7 @@ type
 
 implementation
 
-uses UConst, UAccounts, UFRMWallet, ULog, UCrypto;
+uses UConst, UAccounts, ULog, UCrypto, UMiner;
 
 {$R *.dfm}
 
