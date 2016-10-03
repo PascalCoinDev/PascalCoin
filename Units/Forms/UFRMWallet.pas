@@ -838,8 +838,10 @@ begin
   ebFilterOperationsAccount.Text := '';
   PageControl.ActivePage := tsAccountsExplorer;
   pcAccountsOptions.ActivePage := tsAccountOperations;
-  dtpFilterOperationsDateStart.Date := Now;
-  dtpFilterOperationsDateEnd.Date := Now;
+  dtpFilterOperationsDateStart.Date := Trunc(Now);
+  dtpFilterOperationsDateEnd.Date := Trunc(Now);
+  dtpBlockChainDateStart.Date := Trunc(Now);
+  dtpBlockChainDateEnd.Date := Trunc(Now);
   ebFilterOperationsAccount.Text := '';
   ebFilterOperationsStartBlock.Text := '';
   ebFilterOperationsEndBlock.Text := '';
@@ -867,6 +869,7 @@ begin
   Try
   step := 'Saving params';
   SaveAppParams;
+  FreeAndNil(FAppParams);
   //
   step := 'Assigning nil events';
   FLog.OnNewLog :=Nil;
@@ -911,6 +914,7 @@ begin
   TNode.Node.NetServer.Active := false;
   FNode := Nil;
 
+  TNetData.NetData.Free;
 
   step := 'Processing messages 1';
   Application.ProcessMessages;
@@ -929,6 +933,8 @@ begin
     end;
   End;
   TLog.NewLog(ltinfo,Classname,'Destroying form - END');
+  FreeAndNil(FLog);
+  Sleep(100);
 end;
 
 function TFRMWallet.GetAccountKeyForMiner: TAccountKey;
@@ -1638,6 +1644,8 @@ Var isMining : boolean;
   f, favg : real;
 begin
   UpdateNodeStatus;
+  mc := 0;
+  hr := 0;
   if Assigned(FNode) then begin
     if FNode.Bank.BlocksCount>0 then begin
       lblCurrentBlock.Caption :=  Inttostr(FNode.Bank.BlocksCount)+' (0..'+Inttostr(FNode.Bank.BlocksCount-1)+')'; ;
@@ -1654,8 +1662,10 @@ begin
     end else begin
       lblTimeAverage.Font.Color := clOlive;
     end;
-    lblTimeAverageAux.Caption := Format('Last %d: %s sec. - Last %d: %s sec. - Last %d: %s sec.',[
+    lblTimeAverageAux.Caption := Format('Last %d: %s sec. - %d: %s sec. - %d: %s sec. - %d: %s sec. - %d: %s sec.',[
         CT_CalcNewTargetBlocksAverage * 2 ,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage * 2)),
+        ((CT_CalcNewTargetBlocksAverage * 3) DIV 2) ,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage((CT_CalcNewTargetBlocksAverage * 3) DIV 2)),
+        ((CT_CalcNewTargetBlocksAverage DIV 4)*3),FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(((CT_CalcNewTargetBlocksAverage DIV 4)*3))),
         CT_CalcNewTargetBlocksAverage DIV 2,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage DIV 2)),
         CT_CalcNewTargetBlocksAverage DIV 4,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage DIV 4))]);
     mtl := FNode.MinerThreads.LockList;
@@ -1663,7 +1673,6 @@ begin
       mc := mtl.Count;
       If mc>0 then begin
         isMining := Not TMinerThread(mtl[0]).Paused;
-        hr := 0;
         for i := 0 to mtl.Count - 1 do begin
           hr := hr + TMinerThread(mtl[i]).HashRate;
         end;
@@ -1728,13 +1737,7 @@ begin
 end;
 
 procedure TFRMWallet.UpdateConnectionStatus;
-Var
-  NS : TNetStatistics;
-  errors : AnsiString;
-
-Var i : integer;
- NC : TNetConnection;
- l : TList;
+var errors : AnsiString;
 begin
   UpdateNodeStatus;
   OnNetStatisticsChanged(Nil);

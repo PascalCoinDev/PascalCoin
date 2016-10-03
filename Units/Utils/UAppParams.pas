@@ -367,7 +367,7 @@ end;
 
 destructor TAppParams.Destroy;
 begin
-  FParamsStream.Free;
+  FreeAndNil(FParamsStream);
   InternalClear;
   FParams.Free;
   inherited;

@@ -1,4 +1,8 @@
-﻿unit UBlockChain;
+unit UBlockChain;
+
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -16,7 +20,12 @@
 interface
 
 uses
-  Classes, UCrypto, UAccounts, Windows, ULog, UThread, SyncObjs;
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs;
 
 
 Type
@@ -142,7 +151,6 @@ Type
     function SenderAccount : Cardinal; virtual; abstract;
     Property tag : integer read Ftag Write Ftag;
     Property AuxBalance : Int64 read FAuxBalance Write FAuxBalance;
-    Class Function IsReadablePayload(const Payload : TRawBytes) : Boolean;
   End;
 
   TOperationsHashTree = Class
@@ -778,11 +786,6 @@ begin
   SafeBox.SaveToStream(Stream);
 end;
 
-{procedure TPCBank.SaveToStream(Stream: TStream);
-begin
-  SafeBox.SaveToStream(Stream);
-end;
-}
 procedure TPCBank.SetStorageClass(const Value: TStorageClass);
 begin
   if FStorageClass=Value then exit;
@@ -1805,18 +1808,6 @@ begin
 end;
 
 { TPCOperation }
-
-class function TPCOperation.IsReadablePayload(const Payload: TRawBytes): Boolean;
-Var i : Integer;
-begin
-  Result := true;
-    for i := 1 to length(Payload) do begin
-      if (ord(Payload[i])<32) Or (ord(Payload[i])>=127) then begin
-        Result := false;
-        Exit;
-      end;
-    end;
-end;
 
 initialization
   SetLength(_OperationsClass, 0);

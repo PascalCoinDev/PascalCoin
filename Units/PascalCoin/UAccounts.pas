@@ -1,5 +1,9 @@
 unit UAccounts;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -16,7 +20,12 @@ unit UAccounts;
 interface
 
 uses
-  Classes, UConst, Windows, UCrypto, SyncObjs;
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  Classes, UConst, UCrypto, SyncObjs;
 
 Type
   TAccountKey = TECDSA_Public;
@@ -1215,7 +1224,11 @@ begin
       // Add ordered
       P^.accounts.Add(TObject(accounts[i]));
     end;
+    {$IFDEF FPC}
+    P^.accounts.Sort(SortOrdered);
+    {$ELSE}
     P^.accounts.SortList(SortOrdered);
+    {$ENDIF}
   end;
 end;
 

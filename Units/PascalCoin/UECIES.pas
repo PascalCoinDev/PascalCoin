@@ -1,5 +1,9 @@
 unit UECIES;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -46,7 +50,12 @@ function ECIESDecrypt(EC_OpenSSL_NID : Word; PrivateKey: PEC_KEY; logErrors : Bo
 implementation
 
 uses
-  ssl_sha, Windows, SysUtils, ssl_bn;
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages, Windows,
+{$ENDIF}
+  ssl_sha, SysUtils, ssl_bn;
 
 Type
   Psecure_t = Pointer;
@@ -234,7 +243,11 @@ begin
         exit;
       end;
       // For now we use an empty initialization vector.
+      {$IFDEF FPC}
+      FillByte(iv,EVP_MAX_IV_LENGTH,0);
+      {$ELSE}
       FillMemory(@iv,EVP_MAX_IV_LENGTH,0);
+      {$ENDIF}
       // Setup the cipher context, the body length, and store a pointer to the body buffer location.
       EVP_CIPHER_CTX_init(@cipher);
       try
@@ -259,7 +272,11 @@ begin
           end;
           // Copy the remaining data into our partial block buffer. The memset() call ensures any extra bytes will be zero'ed out.
           //SetLength(block,EVP_MAX_BLOCK_LENGTH);
+          {$IFDEF FPC}
+          FillByte(block,length(block),0);
+          {$ELSE}
           FillMemory(@block,length(block),0);
+          {$ENDIF}
           CopyMemory(@block,Pointer(Integer(@MessageToEncrypt[1])+body_length),Length(MessageToEncrypt)-body_length);
           // Advance the body pointer to the location of the remaining space, and calculate just how much room is still available.
           body := Pointer(integer(body)+body_length);

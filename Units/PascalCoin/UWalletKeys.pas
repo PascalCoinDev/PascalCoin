@@ -1,5 +1,9 @@
 unit UWalletKeys;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -42,8 +46,8 @@ Type
     procedure SetWalletFileName(const Value: AnsiString);
   public
     Property Key[index : Integer] : TWalletKey read GetKey; default;
-    Constructor Create(AOwner : TComponent);
-    Destructor destroy;
+    Constructor Create(AOwner : TComponent); override;
+    Destructor destroy; override;
     Procedure LoadFromStream(Stream : TStream);
     Procedure SaveToStream(Stream : TStream);
     Property IsValidPassword : Boolean read FIsValidPassword;
@@ -161,6 +165,7 @@ begin
   FreeAndNil(FWalletFileStream);
   Clear;
   FKeys.Free;
+  inherited;
 end;
 
 procedure TWalletKeys.GeneratePrivateKeysFromPassword;

@@ -1,5 +1,9 @@
 unit UThread;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -16,7 +20,12 @@ unit UThread;
 interface
 
 uses
-  Classes, SyncObjs, Windows;
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  Classes, SyncObjs;
 
 Type
   TPCThread = Class;
@@ -33,7 +42,8 @@ Type
     Class function ThreadClassFound(tclass : TPCThreadClass; Exclude : TObject) : Integer;
     Class function ThreadCount : Integer;
     Class function GetThread(index : Integer) : TPCThread;
-    Class function TerminateAllThreads : Integer;
+    Class function GetThreadByClass(tclass : TPCThreadClass; Exclude : TObject) : TPCThread;
+    Class function TerminateAllThreads(tclass: TPCThreadClass) : Integer;
     Class Procedure ProtectEnterCriticalSection(Const Sender : TObject; var Lock : TCriticalSection);
     Class Function TryProtectEnterCriticalSection(Const Sender : TObject; MaxWaitMilliseconds : Cardinal; var Lock : TCriticalSection) : Boolean;
     Class Procedure ThreadsListInfo(list: TStrings);
@@ -116,6 +126,25 @@ begin
   end;
 end;
 
+class function TPCThread.GetThreadByClass(tclass: TPCThreadClass; Exclude: TObject): TPCThread;
+Var l : TList;
+  i : Integer;
+begin
+  Result := Nil;
+  if Not Assigned(_threads) then exit;
+  l := _threads.LockList;
+  try
+    for i := 0 to l.Count - 1 do begin
+      if (TPCThread(l[i]) is tclass) And ((l[i])<>Exclude) then begin
+        Result := TPCThread(l[i]);
+        exit;
+      end;
+    end;
+  finally
+    _threads.UnlockList;
+  end;
+end;
+
 class procedure TPCThread.ProtectEnterCriticalSection(Const Sender : TObject; var Lock: TCriticalSection);
 begin
   if Not Lock.TryEnter then begin
@@ -127,23 +156,9 @@ begin
   end;
 end;
 
-class function TPCThread.TerminateAllThreads: Integer;
-Var l : TList;
-  i : Integer;
+class function TPCThread.TerminateAllThreads(tclass: TPCThreadClass): Integer;
 begin
-  Result := -1;
-  if Not Assigned(_threads) then exit;
-  l := _threads.LockList;
-  try
-    for i :=l.Count - 1 downto 0 do begin
-      TPCThread(l[i]).Terminate;
-      if TPCThread(l[i]).Suspended then TPCThread(l[i]).Suspended := false;
-      TPCThread(l[i]).WaitFor;
-    end;
-    Result := l.Count;
-  finally
-    _threads.UnlockList;
-  end;
+
 end;
 
 class function TPCThread.ThreadClassFound(tclass: TPCThreadClass; Exclude : TObject): Integer;

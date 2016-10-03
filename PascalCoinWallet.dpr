@@ -14,7 +14,6 @@ uses
   UThread in 'Units\PascalCoin\UThread.pas',
   ULog in 'Units\PascalCoin\ULog.pas',
   UNode in 'Units\PascalCoin\UNode.pas',
-  UFileStorage in 'Units\PascalCoin\UFileStorage.pas',
   UECIES in 'Units\PascalCoin\UECIES.pas',
   UDBStorage in 'Units\PascalCoin\UDBStorage.pas',
   UFRMWallet in 'Units\Forms\UFRMWallet.pas' {FRMWallet},

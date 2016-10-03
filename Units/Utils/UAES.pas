@@ -1,5 +1,9 @@
 unit UAES;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -40,7 +44,12 @@ Type
 implementation
 
 uses
-  ssl_const, ssl_bn, ssl_types, ssl_evp, Windows;
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages, Windows,
+{$ENDIF}
+  ssl_const, ssl_bn, ssl_types, ssl_evp;
 
 
 CONST SALT_MAGIC: AnsiString = 'Salted__'; SALT_MAGIC_LEN: integer = 8; SALT_SIZE = 8;

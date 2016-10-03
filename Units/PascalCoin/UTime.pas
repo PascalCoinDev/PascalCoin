@@ -1,5 +1,9 @@
 unit UTime;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -15,10 +19,18 @@ unit UTime;
 
 interface
 
-Uses SysUtils, Windows;
+Uses
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  SysUtils;
 
+{$IFnDEF FPC}
 function TzSpecificLocalTimeToSystemTime(lpTimeZoneInformation: PTimeZoneInformation; var lpLocalTime, lpUniversalTime: TSystemTime): BOOL; stdcall;
 function SystemTimeToTzSpecificLocalTime(lpTimeZoneInformation: PTimeZoneInformation; var lpUniversalTime,lpLocalTime: TSystemTime): BOOL; stdcall;
+{$ENDIF}
 
 Function DateTime2UnivDateTime(d:TDateTime):TDateTime;
 Function UnivDateTime2LocalDateTime(d:TDateTime):TDateTime;
@@ -31,9 +43,12 @@ Function DateTimeElapsedTime(dtDate : TDateTime) : AnsiString;
 
 implementation
 
-
-function TzSpecificLocalTimeToSystemTime; external kernel32 name 'TzSpecificLocalTimeToSystemTime';
+{$IFDEF FPC}
+Uses DateUtils;
+{$ELSE}
+function TzSpecificLocalTimeToSystemTime; external 'kernel32.dll' name 'TzSpecificLocalTimeToSystemTime';
 function SystemTimeToTzSpecificLocalTime; external kernel32 name 'SystemTimeToTzSpecificLocalTime';
+{$ENDIF}
 
 const
     UnixStartDate: TDateTime = 25569.0; // 01/01/1970
@@ -58,6 +73,12 @@ Begin
 End;
 
 Function DateTime2UnivDateTime(d:TDateTime):TDateTime;
+{$IFDEF FPC}
+begin
+  Result := UniversalTimeToLocal(d);
+//  Result := LocalTimeToUniversal(d);
+end;
+{$ELSE}
 var
  TZI:TTimeZoneInformation;
  LocalTime, UniversalTime:TSystemTime;
@@ -67,8 +88,16 @@ begin
   TzSpecificLocalTimeToSystemTime(@tzi,LocalTime,UniversalTime);
   Result := SystemTimeToDateTime(UniversalTime);
 end;
+{$ENDIF}
 
 Function UnivDateTime2LocalDateTime(d:TDateTime):TDateTime;
+{$IFDEF FPC}
+begin
+//  Result := UniversalTimeToLocal(d);
+  Result := LocalTimeToUniversal(d);
+end;
+
+{$ELSE}
 var
  TZI:TTimeZoneInformation;
  LocalTime, UniversalTime:TSystemTime;
@@ -78,6 +107,7 @@ begin
   SystemTimeToTzSpecificLocalTime(@tzi,UniversalTime,LocalTime);
   Result := SystemTimeToDateTime(LocalTime);
 end;
+{$ENDIF}
 
 function UnivDateTimeToUnix(dtDate: TDateTime): Longint;
 begin

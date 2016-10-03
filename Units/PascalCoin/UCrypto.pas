@@ -1,5 +1,9 @@
 unit UCrypto;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -120,7 +124,12 @@ Const
 implementation
 
 uses
-  ULog, UConst, Windows, UAccounts;
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  ULog, UConst, UAccounts;
 
 Var _initialized : Boolean = false;
 

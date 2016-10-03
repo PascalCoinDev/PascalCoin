@@ -1,5 +1,9 @@
 unit ULog;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -207,4 +211,5 @@ end;
 initialization
   _logs := Nil;
 finalization
+  FreeAndNil(_logs);
 end.

@@ -38,6 +38,13 @@ If you like it, consider a donation using BitCoin:
 
 History:
 
+Build 1.0.6.0 - 2016-10-04
+--------------------------
+- Memory leaks corrections
+- Introducing net protocol 2-3
+- Source code modified, next build will be compiled with Lazarus and FPC
+
+
 Build 1.0.5.0 - 2016-09-21
 --------------------------
 - Massive operations, selecting multiple accounts

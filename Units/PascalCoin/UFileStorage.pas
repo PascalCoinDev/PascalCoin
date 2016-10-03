@@ -1,5 +1,9 @@
 unit UFileStorage;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -16,7 +20,12 @@ unit UFileStorage;
 interface
 
 uses
-  Classes, UBlockChain, Windows, SyncObjs;
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  Classes, UBlockChain, SyncObjs;
 
 Type
   TBlockHeader = Record

@@ -1,5 +1,9 @@
 unit UNode;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -26,7 +30,12 @@ unit UNode;
 interface
 
 uses
-  Classes, UBlockChain, UNetProtocol, UMiner, UAccounts, UCrypto, Windows, UThread, SyncObjs;
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  Classes, UBlockChain, UNetProtocol, UMiner, UAccounts, UCrypto, UThread, SyncObjs;
 
 Type
   TNode = Class(TComponent)
@@ -84,6 +93,7 @@ Type
     Procedure SynchronizedProcess;
   protected
     procedure BCExecute; override;
+    Constructor Create(ANodeNotifyEvents : TNodeNotifyEvents);
   End;
 
   TNodeMessageEvent = Procedure(NetConnection : TNetConnection; MessageData : TRawBytes) of object;
@@ -369,6 +379,7 @@ end;
 constructor TNode.Create(AOwner: TComponent);
 begin
   if Assigned(_Node) then raise Exception.Create('Duplicate nodes protection');
+  TLog.NewLog(ltInfo,ClassName,'TNode.Create');
   inherited;
   FDisabledsNewBlocksCount := 0;
   FLockNodeOperations := TCriticalSection.Create;
@@ -446,20 +457,19 @@ begin
   End;
   m.Terminate;
   m.WaitFor;
+  m.Free;
 end;
 
 destructor TNode.Destroy;
 Var step : String;
 begin
-  TLog.NewLog(ltinfo,Classname,'Destroying Node - START');
+  TLog.NewLog(ltInfo,ClassName,'TNode.Destroy START');
   Try
     step := 'Deleting critical section';
     FreeAndNil(FLockNodeOperations);
 
     step := 'Desactivating server';
     FNetServer.Active := false;
-
-    Sleep(1000);
 
     step := 'Deleting miners';
     while (MinersCount>0) do DeleteMiner(0);
@@ -477,6 +487,7 @@ begin
     if _Node=Self then _Node := Nil;
 
     step := 'Destroying Bank';
+    FreeAndNil(FBCBankNotify);
     FreeAndNil(FBank);
 
     step := 'inherited';
@@ -487,7 +498,7 @@ begin
       Raise;
     end;
   End;
-  TLog.NewLog(ltinfo,Classname,'Destroying Node - END');
+  TLog.NewLog(ltInfo,ClassName,'TNode.Destroy END');
 end;
 
 procedure TNode.DisableNewBlocks;
@@ -659,9 +670,8 @@ begin
   FOnNodeMessageEvent := Nil;
   FMessages := TStringList.Create;
   FPendingNotificationsList := TPCThreadList.Create;
-  FThreadSafeNodeNotifyEvent := TThreadSafeNodeNotifyEvent.Create(false);
-  FThreadSafeNodeNotifyEvent.FNodeNotifyEvents := Self;
-  FThreadSafeNodeNotifyEvent.FreeOnTerminate := true;
+  FThreadSafeNodeNotifyEvent := TThreadSafeNodeNotifyEvent.Create(Self);
+  FThreadSafeNodeNotifyEvent.FreeOnTerminate := true; // This is to prevent locking when freeing component
   Node := _Node;
 end;
 
@@ -715,6 +725,12 @@ begin
     if (FNotifyOperationsChanged) Or (FNotifyBlocksChanged) Or (FNodeNotifyEvents.FMessages.Count>0) then Synchronize(SynchronizedProcess);
     Sleep(100);
   end;
+end;
+
+constructor TThreadSafeNodeNotifyEvent.Create(ANodeNotifyEvents: TNodeNotifyEvents);
+begin
+  FNodeNotifyEvents := ANodeNotifyEvents;
+  Inherited Create(false);
 end;
 
 procedure TThreadSafeNodeNotifyEvent.SynchronizedProcess;

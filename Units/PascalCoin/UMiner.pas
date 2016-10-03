@@ -1,5 +1,9 @@
 unit UMiner;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -15,7 +19,13 @@ unit UMiner;
 
 interface
 
-Uses UBlockChain, Classes, SyncObjs, Windows, UAccounts, UThread;
+Uses
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  UBlockChain, Classes, SyncObjs, UAccounts, UThread;
 
 Type
   TMinerPrivateKey = (mpk_NewEachTime, mpk_Random, mpk_Selected);
