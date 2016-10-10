@@ -1,7 +1,12 @@
+(Updated on 2016-10-10 v2)
+
+
 What do you need to develop a GPU miner for PascalCoin
 
 
-(If you like it, make a donation to PascalCoin project: BTC 16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk ... Thanks! The PascalCoin dev.)
+"If you like it, make a donation to PascalCoin project: 
+BTC 16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk 
+... Thanks! The PascalCoin dev."
 
 
 **************************
@@ -20,8 +25,7 @@ Second:  Test JSON-RPC server
 - You will receive a "miner-notify" message written in JSON-RPC (version 1.0)
 
 Example of JSON-RPC received: (Note: JSON-RPC has no whitespaces)
-{"method":"miner-notify","params":[{"block":20110,"version":1,"part1":"8F4E0000C                     A022000DC01BE5ACD50092CA653D0763CCCE7A9E408908B2F7D177C080C78186D3558FC2000A48CE                     C0E7031689D40AF8C7C73330E06E27788F0339729F53A3AF4ED47C2E45040420F000000000001000                     000B74D7926","payload_start":"546573744A534F4E32","part3":"0D1F997AB584AF8A86476                     135A9F091073A3FE28A6A07D4112BF8595144F0E666E3B0C44298FC1C149AFBF4C8996FB92427AE4                     1E4649B934CA495991B7852B85500000000","target":645483959,"target_pow":"0000000003                     0D6490000000000000000000000000000000000000000000000000","timestamp":1476103385}]                     
-,"id":null}
+{"method":"miner-notify","params":[{"block":20110,"version":1,"part1":"8F4E0000CA022000DC01BE5ACD50092CA653D0763CCCE7A9E408908B2F7D177C080C78186D3558FC2000A48CEC0E7031689D40AF8C7C73330E06E27788F0339729F53A3AF4ED47C2E45040420F000000000001000000B74D7926","payload_start":"546573744A534F4E32","part3":"0D1F997AB584AF8A86476135A9F091073A3FE28A6A07D4112BF8595144F0E666E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B85500000000","target":645483959,"target_pow":"00000000030D6490000000000000000000000000000000000000000000000000","timestamp":1476103385}],"id":null}
 
 - while connected, everytime a change in PoW calculation is produced, you will receive a "miner-notify" message
 
@@ -88,18 +92,17 @@ Third:  How to generate a valid nonce
 
 Take a look at "miner-notify" params (message received from server)
 
-{"method":"miner-notify","params":[{"block":20110,"version":1,"part1":"8F4E0000C                     A022000DC01BE5ACD50092CA653D0763CCCE7A9E408908B2F7D177C080C78186D3558FC2000A48CE                     C0E7031689D40AF8C7C73330E06E27788F0339729F53A3AF4ED47C2E45040420F000000000001000                     000B74D7926","payload_start":"546573744A534F4E32","part3":"0D1F997AB584AF8A86476                     135A9F091073A3FE28A6A07D4112BF8595144F0E666E3B0C44298FC1C149AFBF4C8996FB92427AE4                     1E4649B934CA495991B7852B85500000000","target":645483959,"target_pow":"0000000003                     0D6490000000000000000000000000000000000000000000000000","timestamp":1476103385}]                     
-,"id":null}
+{"method":"miner-notify","params":[{"block":20110,"version":1,"part1":"8F4E0000CA022000DC01BE5ACD50092CA653D0763CCCE7A9E408908B2F7D177C080C78186D3558FC2000A48CEC0E7031689D40AF8C7C73330E06E27788F0339729F53A3AF4ED47C2E45040420F000000000001000000B74D7926","payload_start":"546573744A534F4E32","part3":"0D1F997AB584AF8A86476135A9F091073A3FE28A6A07D4112BF8595144F0E666E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B85500000000","target":645483959,"target_pow":"00000000030D6490000000000000000000000000000000000000000000000000","timestamp":1476103385}],"id":null}
 
 You need this params:
-"block": This is the next block number to generate... you will not use it
-"version": This is the PascalCoin core version. If in future it changes... you would need to develop a new GPU miner... check that allways is 1
-"part1" : This is a Hexa string, you must convert it to RAW and store to a buffer called "buffer_part1"
-"payload_start": This is the miner name included in the payload when mining. You can ADD characters (only from ASCII from 23 to 255). Store it in a buffer "buffer_payload"
-"part3" : equal to part1
-"timestamp": This is the server timestamp. You must use allways a timestamp equal or higher than the server... so... be synchronized
-"target_pow": This is a hexa string with the PoW target you must to generate
-"target": This is the target in original format. You will not use it.
+- "block": This is the next block number to generate... you will not use it
+- "version": This is the PascalCoin core version. If in future it changes... you would need to develop a new GPU miner... check that allways is 1
+- "part1" : This is a Hexa string, you must convert it to RAW and store to a buffer called "buffer_part1"
+- "payload_start": This is the miner name included in the payload when mining. You can ADD characters (only from ASCII from 23 to 255). Store it in a buffer - "buffer_payload"
+- "part3" : equal to part1
+- "timestamp": This is the server timestamp. You must use allways a timestamp equal or higher than the server... so... be synchronized
+- "target_pow": This is a hexa string with the PoW target you must to generate
+- "target": This is the target in original format. You will not use it.
 
 
 Then, your GPU miner, must do this:
@@ -108,12 +111,17 @@ Create a buffer with:
 "buffer_part1" + "buffer_payload" + "buffer_part3" + UNIX_TIMESTAMP + NONCE
 (UNIX_TIMESTAMP and NONCE are 32bits unsigned integers, saved in LITTLE ENDIAN)
 
-Make a Double SHA512 and save it to "buffer_pow"
+Make a Double SHA256 and save it to "buffer_pow"
 
 Check if "buffer_pow" is lower or equal to "target_pow" provided by server in "miner-notify"
 
 If NO, then create a new buffer changing NONCE or UNIX_TIMESAMP (or also, adding valid ASCII chars to buffer_payload), and check again
 If YES: Submit a "miner-submit" like example 4... and check if you win
+
+
+REMEMBER: buffer_payload only accepts ASCII chars from 32 to 254, must start exactly than "payload_start" param, and can be length max of 255 bytes.
+
+NOTE: PascalCoin.exe will provide the miner name at "payload_start" plus a number indicating which client is mining. If there are 2 clients, and Miner name is "MyMiner" first will have "MyMiner1" and second "MyMiner2".
 
 
 THAT'S ALL!!!
