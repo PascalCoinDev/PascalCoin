@@ -32,8 +32,8 @@ Type
 
   TMinerThread = Class;
 
-  TMinerNewAccountFound = procedure(sender : TMinerThread; Operations : TPCOperationsComp) of object;
-  TMinerErrorFound = procedure(sender : TMinerThread; Operations : TPCOperationsComp; errors : String) of object;
+  TMinerNewBlockFound = procedure(sender : TMinerThread; Operations : TPCOperationsComp; Var Correct : Boolean) of object;
+  TMinerNewBlockFoundNotify = procedure(sender : TMinerThread; Operations : TPCOperationsComp) of object;
 
   TMinerThread = Class(TPCThread)
   private
@@ -44,23 +44,22 @@ Type
     FLastStartTickCount : Cardinal;
     //
     errors : AnsiString;
-    FOnNewAccountFound: TMinerNewAccountFound;
-    FOnErrorFound: TMinerErrorFound;
     FAccountKey: TAccountKey;
     FPaused: Boolean;
-    procedure SynchronizedNewBlockFound;
-    procedure SynchronizedError;
+    FOnNewBlockFound: TMinerNewBlockFound;
+    FOnThreadSafeNewBlockFound: TMinerNewBlockFoundNotify;
     procedure SetAccountKey(const Value: TAccountKey);
     Procedure CheckIfCanRecoverBlocks;
+    Procedure NotifyNewBlockFoundThreadSafe;
   protected
     procedure BCExecute; override;
   public
-    Constructor Create(Bank : TPCBank; minerAccountKey : TAccountKey; AOnNewAccountFound : TMinerNewAccountFound; AOnErrorFound : TMinerErrorFound);
+    Constructor Create(Bank : TPCBank; minerAccountKey : TAccountKey; AOnNewBlockFound : TMinerNewBlockFound; AOnThreadSafeNewBlockFound : TMinerNewBlockFoundNotify);
     destructor Destroy; override;
     Function MinerLockOperations : TPCOperationsComp;
     Procedure MinerUnLockOperations(IsNewBlock : Boolean);
-    Property OnNewAccountFound : TMinerNewAccountFound read FOnNewAccountFound write FOnNewAccountFound;
-    Property OnErrorFound : TMinerErrorFound read FOnErrorFound write FOnErrorFound;
+    Property OnNewBlockFound : TMinerNewBlockFound read FOnNewBlockFound write FOnNewBlockFound;
+    Property OnThreadSafeNewBlockFound : TMinerNewBlockFoundNotify read FOnThreadSafeNewBlockFound write FOnThreadSafeNewBlockFound;
     Property PlayCount : Int64 read FPlayCount;
     Property AccountKey : TAccountKey read FAccountKey write SetAccountKey;
     Property Paused : Boolean read FPaused Write FPaused;
@@ -70,7 +69,7 @@ Type
 
 implementation
 
-uses UNode, ULog, SysUtils, UConst, UOpTransaction, UCrypto;
+uses ULog, SysUtils, UConst, UOpTransaction, UCrypto;
 
 { TMinerThread }
 
@@ -104,7 +103,7 @@ Begin
   end;
 End;
 
-constructor TMinerThread.Create(Bank : TPCBank; minerAccountKey : TAccountKey; AOnNewAccountFound : TMinerNewAccountFound; AOnErrorFound : TMinerErrorFound);
+constructor TMinerThread.Create(Bank : TPCBank; minerAccountKey : TAccountKey; AOnNewBlockFound : TMinerNewBlockFound; AOnThreadSafeNewBlockFound : TMinerNewBlockFoundNotify);
 begin
   inherited Create(true);
   FTotalActiveTime := 0;
@@ -116,8 +115,8 @@ begin
   FOperations := TPCOperationsComp.Create(nil);
   FOperations.Bank := Bank;
   FOperations.AccountKey := AccountKey;
-  FOnNewAccountFound := AOnNewAccountFound;
-  FOnErrorFound := AOnErrorFound;
+  FOnNewBlockFound := AOnNewBlockFound;
+  FOnThreadSafeNewBlockFound := AOnThreadSafeNewBlockFound;
   Priority := tpLower;
   Suspended := false;
 end;
@@ -131,6 +130,7 @@ procedure TMinerThread.BCExecute;
 Var i : Integer;
   winner : Boolean;
   newBlockAccount : TBlockAccount;
+  c : Boolean;
 begin
   TLog.NewLog(ltinfo,ClassName,'New miner');
   while (not Terminated) do begin
@@ -161,11 +161,11 @@ begin
       end;
       if (winner) then begin
         Try
-          If TNode.Node.AddNewBlockChain(Self,nil,FOperations,newBlockAccount,errors) then begin
-            Synchronize(SynchronizedNewBlockFound);
-          end else begin
-            Synchronize(SynchronizedError);
+          c := true;
+          if Assigned(FOnNewBlockFound) then begin
+            FOnNewBlockFound(Self,FOperations,c);
           end;
+          if (c) And (Assigned(FOnThreadSafeNewBlockFound)) then Synchronize(NotifyNewBlockFoundThreadSafe);
         Except
           On E:Exception do begin
             TLog.NewLog(lterror,Classname,'Exception on adding new block by miner: '+E.Message);
@@ -209,19 +209,14 @@ begin
   if IsNewBlock then CheckIfCanRecoverBlocks;
 end;
 
+procedure TMinerThread.NotifyNewBlockFoundThreadSafe;
+begin
+  if Assigned(FOnThreadSafeNewBlockFound) then FOnThreadSafeNewBlockFound(Self,FOperations);
+end;
+
 procedure TMinerThread.SetAccountKey(const Value: TAccountKey);
 begin
   FAccountKey := Value;
-end;
-
-procedure TMinerThread.SynchronizedError;
-begin
-  if assigned(FOnErrorFound) then FOnErrorFound(self,FOperations,errors);
-end;
-
-procedure TMinerThread.SynchronizedNewBlockFound;
-begin
-  if assigned(FOnNewAccountFound) then FOnNewAccountFound(self,FOperations);
 end;
 
 initialization

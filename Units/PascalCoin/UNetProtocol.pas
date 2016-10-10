@@ -28,8 +28,6 @@ Uses
   UBlockChain, Classes, SysUtils, UAccounts, UThread, ExtCtrls,
   UCrypto, UTCPIP, SyncObjs;
 
-{$DEFINE TESTNET}
-
 Const
   CT_MagicRequest = $0001;
   CT_MagicResponse = $0002;
@@ -878,7 +876,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
         end;
         Result := true;
       end else begin
-        TLog.NewLog(lterror,CT_LogSender,Format('No received response after waiting request id %d operation %s',[request_id,TNetData.OperationToText(noperation)]));
+        TLog.NewLog(lterror,CT_LogSender,Format('No received response after waiting %d request id %d operation %s',[MaxWaitMilliseconds,request_id,TNetData.OperationToText(noperation)]));
       end;
     finally
       SendData.Free;
@@ -1336,6 +1334,7 @@ constructor TNetServer.Create;
 begin
   inherited;
   MaxConnections := CT_MaxClientsConnected;
+  NetTcpIpClientClass := TBufferedNetTcpIpClient;
 end;
 
 procedure TNetServer.OnNewIncommingConnection(Sender : TObject; Client : TNetTcpIpClient);
@@ -1374,12 +1373,12 @@ begin
       end;
     Finally
       Try
-        TLog.NewLog(ltdebug,Classname,'Finalizing ServerAccept '+IntToHex(Integer(n),8));
+        TLog.NewLog(ltdebug,Classname,'Finalizing ServerAccept '+IntToHex(Integer(n),8)+' '+n.ClientRemoteAddr);
         DebugStep := 'Disconnecting NetServerClient';
         n.Connected := false;
         sleep(10);
         DebugStep := 'Assigning old client';
-        n.SetClient( TNetTcpIpClient.Create(Nil) );
+        n.SetClient( NetTcpIpClientClass.Create(Nil) );
       Finally
         DebugStep := 'Freeing NetServerClient';
         n.Free;
@@ -1472,7 +1471,7 @@ begin
   FLastDataSendedTS := 0;
   FTcpIpClient := Nil;
   FRemoteOperationBlock := CT_OperationBlock_NUL;
-  SetClient( TNetTcpIpClient.Create(Self) );
+  SetClient( TBufferedNetTcpIpClient.Create(Self) );
   TNetData.NetData.FNetConnections.Add(Self);
   TNetData.NetData.NotifyNetConnectionUpdated;
 end;
@@ -2128,20 +2127,6 @@ begin
       end;
       tc := GetTickCount;
       Repeat
-        if Not Client.WaitForData(100) then begin
-          If Client.SocketError<>0 then begin
-            TLog.NewLog(ltdebug,classname,'Broken connection by error '+Inttostr(Client.SocketError)+' to '+ClientRemoteAddr);
-            Connected := false;
-            exit;
-          end;
-          if (GetTickCount-tc < 50) then begin
-            // Broken!
-            TLog.NewLog(ltdebug,classname,'Broken connection to '+ClientRemoteAddr);
-            Connected := false;
-            exit;
-          end;
-          if (FClientBufferRead.Size=0) And (RequestId=0) then exit; // Nothing to read nor wait
-        end;
         if (ReadTcpClientBuffer(MaxWaitTime,HeaderData,ReceiveDataBuffer)) then begin
           l := TNetData.NetData.NodeServers.LockList;
           try
@@ -2227,12 +2212,14 @@ function TNetConnection.ReadTcpClientBuffer(MaxWaitMiliseconds: Cardinal; var He
 var buffer : Array[1..4096] of byte;
   auxstream : TMemoryStream;
   tc : Cardinal;
-  last_bytes_read : Integer;
+  last_bytes_read : Int64;
   //
   operation : Word;
   request_id : Integer;
   IsValidHeaderButNeedMoreData : Boolean;
   deletedBytes : Int64;
+
+
 begin
   Result := false;
   HeaderData := CT_NetHeaderData;
@@ -2279,9 +2266,23 @@ begin
         if Not Client.WaitForData(100) then begin
           exit;
         end;
-        last_bytes_read := Client.ReceiveBuf(buffer,sizeof(buffer));
+
+        auxstream := (Client as TBufferedNetTcpIpClient).ReadBufferLock;
+        try
+          last_bytes_read := auxstream.size;
+          if last_bytes_read>0 then begin
+            FLastDataReceivedTS := GetTickCount;
+
+            FClientBufferRead.Position := FClientBufferRead.size; // Go to the end
+            auxstream.Position := 0;
+            FClientBufferRead.CopyFrom(auxstream,last_bytes_read);
+            FClientBufferRead.Position := 0;
+            auxstream.Size := 0;
+          end;
+        finally
+          (Client as TBufferedNetTcpIpClient).ReadBufferUnlock;
+        end;
         if last_bytes_read>0 then begin
-          FLastDataReceivedTS := GetTickCount;
           if Not FHasReceivedData then begin
             FHasReceivedData := true;
             if (Self is TNetClient) then
@@ -2290,12 +2291,7 @@ begin
           end else begin
             TNetData.NetData.IncStatistics(0,0,0,0,last_bytes_read,0);
           end;
-
-
         end;
-        FClientBufferRead.Position := FClientBufferRead.size; // Go to the end
-        FClientBufferRead.Write(buffer,last_bytes_read);
-        FClientBufferRead.Position := 0;
       end;
     until (Result) Or ((GetTickCount > (tc+MaxWaitMiliseconds)) And (last_bytes_read=0));
   finally
@@ -2323,7 +2319,6 @@ Var l : Cardinal;
    w : Word;
   Buffer : TStream;
   s : AnsiString;
-  sendbytes : Int64;
 begin
   Buffer := TMemoryStream.Create;
   try
@@ -2379,14 +2374,12 @@ begin
         TNetData.OperationToText(operation)+' id:'+Inttostr(request_id)+' errorcode:'+InttoStr(errorcode)+
         ' Size:'+InttoStr(Buffer.Size)+'b '+s+'to '+
         ClientRemoteAddr);
-      sendbytes := Client.SendStream(Buffer);
-      if sendbytes>0 then begin
-        FLastDataSendedTS := GetTickCount;
-        TNetData.NetData.IncStatistics(0,0,0,0,0,Buffer.Size);
-      end;
+      (Client as TBufferedNetTcpIpClient).WriteBufferToSend(Buffer);
+      FLastDataSendedTS := GetTickCount;
     Finally
       FNetLock.Release;
     End;
+    TNetData.NetData.IncStatistics(0,0,0,0,0,Buffer.Size);
   finally
     Buffer.Free;
   end;
@@ -2784,9 +2777,11 @@ begin
             end else inc(nactive);
           end else if (netconn is TNetServerClient) then begin
             inc(nserverclients);
-            if not assigned(netserverclientstop) then netserverclientstop := TNetServerClient(netconn)
-            else if netconn.CreatedTime<netserverclientstop.CreatedTime then begin
-              netserverclientstop := TNetServerClient(netconn);
+            if (Not netconn.FDoFinalizeConnection) then begin
+              if not assigned(netserverclientstop) then netserverclientstop := TNetServerClient(netconn)
+              else if netconn.CreatedTime<netserverclientstop.CreatedTime then begin
+                netserverclientstop := TNetServerClient(netconn);
+              end;
             end;
           end;
         end;

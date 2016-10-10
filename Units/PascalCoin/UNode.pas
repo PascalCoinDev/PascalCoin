@@ -51,6 +51,7 @@ Type
     FDisabledsNewBlocksCount : Integer;
     Procedure OnBankNewBlock(Sender : TObject);
     Procedure OnMinerThreadTerminate(Sender : TObject);
+    Procedure OnMinerNewBlockFound(sender : TMinerThread; Operations : TPCOperationsComp; Var Correct : Boolean);
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
@@ -149,7 +150,7 @@ Var op : TPCOperationsComp;
 begin
   Result := Nil;
   TLog.NewLog(ltinfo,ClassName,'Creating a new miner');
-  Result := TMinerThread.Create(Bank,AccountKey,nil,nil);
+  Result := TMinerThread.Create(Bank,AccountKey,OnMinerNewBlockFound,nil);
   Result.OnTerminate := OnMinerThreadTerminate;
   op := Result.MinerLockOperations;
   try
@@ -169,6 +170,7 @@ Var i : Integer;
   mtl : TList;
   netConnectionsList : TList;
   s : String;
+  errors2 : AnsiString;
 begin
   Result := false;
   if FDisabledsNewBlocksCount>0 then begin
@@ -190,8 +192,10 @@ begin
       Result := Bank.AddNewBlockChainBlock(NewBlockOperations,newBlockAccount,errors);
       FOperations.Clear(true);
       ms.Position:=0;
-      If Not FOperations.LoadBlockFromStream(ms,errors) then begin
-        TLog.NewLog(lterror,Classname,'Error recovering operations to sanitize: '+errors);
+      If Not FOperations.LoadBlockFromStream(ms,errors2) then begin
+        TLog.NewLog(lterror,Classname,'Error recovering operations to sanitize: '+errors2);
+        if Result then errors := errors2
+        else errors := errors +' - '+errors2;
       end;
     finally
       ms.Free;
@@ -622,6 +626,17 @@ begin
   FOperations.SanitizeOperations;
 end;
 
+procedure TNode.OnMinerNewBlockFound(sender: TMinerThread; Operations: TPCOperationsComp; Var Correct : Boolean);
+Var nba : TBlockAccount;
+  errors : AnsiString;
+begin
+  correct := true;
+  If Not AddNewBlockChain(sender,nil,Operations,nba,errors) then begin
+    Correct := false;
+    TLog.NewLog(lterror,ClassName,'Invalid block found by miner: '+errors);
+  end;
+end;
+
 procedure TNode.OnMinerThreadTerminate(Sender: TObject);
 begin
   FMinerThreads.Remove(Sender);
@@ -736,25 +751,31 @@ end;
 procedure TThreadSafeNodeNotifyEvent.SynchronizedProcess;
 Var i : Integer;
 begin
-  If (Terminated) Or (Not Assigned(FNodeNotifyEvents)) then exit;
-  if FNotifyBlocksChanged then begin
-    FNotifyBlocksChanged := false;
-    if Assigned(FNodeNotifyEvents) And (Assigned(FNodeNotifyEvents.FOnBlocksChanged)) then
-      FNodeNotifyEvents.FOnBlocksChanged(FNodeNotifyEvents);
-  end;
-  if FNotifyOperationsChanged then begin
-    FNotifyOperationsChanged := false;
-    if Assigned(FNodeNotifyEvents) And (Assigned(FNodeNotifyEvents.FOnOperationsChanged)) then
-      FNodeNotifyEvents.FOnOperationsChanged(FNodeNotifyEvents);
-  end;
-  if FNodeNotifyEvents.FMessages.Count>0 then begin
-    if Assigned(FNodeNotifyEvents) And (Assigned(FNodeNotifyEvents.FOnNodeMessageEvent)) then begin
-      for i := 0 to FNodeNotifyEvents.FMessages.Count - 1 do begin
-        FNodeNotifyEvents.FOnNodeMessageEvent(TNetConnection(FNodeNotifyEvents.FMessages.Objects[i]),FNodeNotifyEvents.FMessages.Strings[i]);
-      end;
+  Try
+    If (Terminated) Or (Not Assigned(FNodeNotifyEvents)) then exit;
+    if FNotifyBlocksChanged then begin
+      FNotifyBlocksChanged := false;
+      if Assigned(FNodeNotifyEvents) And (Assigned(FNodeNotifyEvents.FOnBlocksChanged)) then
+        FNodeNotifyEvents.FOnBlocksChanged(FNodeNotifyEvents);
     end;
-    FNodeNotifyEvents.FMessages.Clear;
-  end;
+    if FNotifyOperationsChanged then begin
+      FNotifyOperationsChanged := false;
+      if Assigned(FNodeNotifyEvents) And (Assigned(FNodeNotifyEvents.FOnOperationsChanged)) then
+        FNodeNotifyEvents.FOnOperationsChanged(FNodeNotifyEvents);
+    end;
+    if FNodeNotifyEvents.FMessages.Count>0 then begin
+      if Assigned(FNodeNotifyEvents) And (Assigned(FNodeNotifyEvents.FOnNodeMessageEvent)) then begin
+        for i := 0 to FNodeNotifyEvents.FMessages.Count - 1 do begin
+          FNodeNotifyEvents.FOnNodeMessageEvent(TNetConnection(FNodeNotifyEvents.FMessages.Objects[i]),FNodeNotifyEvents.FMessages.Strings[i]);
+        end;
+      end;
+      FNodeNotifyEvents.FMessages.Clear;
+    end;
+  Except
+    On E:Exception do begin
+      TLog.NewLog(lterror,ClassName,'Exception inside a Synchronized process: '+E.ClassName+':'+E.Message);
+    end;
+  End;
 end;
 
 { TThreadNodeNotifyNewBlock }

@@ -21,7 +21,7 @@ uses
 
 type
   TFRMPascalCoinWalletConfig = class(TForm)
-    cbAutomaticMiningWhenConnectedToNodes: TCheckBox;
+    cbJSONRPCMinerServerActive: TCheckBox;
     ebDefaultFee: TEdit;
     Label1: TLabel;
     cbSaveLogFiles: TCheckBox;
@@ -38,9 +38,9 @@ type
     Label4: TLabel;
     cbShowModalMessages: TCheckBox;
     Label5: TLabel;
-    udCPUs: TUpDown;
-    ebCPUs: TEdit;
-    lblMaxCPUS: TLabel;
+    udJSONRPCMinerServerPort: TUpDown;
+    ebJSONRPCMinerServerPort: TEdit;
+    lblDefaultJSONRPCMinerServerPort: TLabel;
     gbMinerPrivateKey: TGroupBox;
     rbGenerateANewPrivateKeyEachBlock: TRadioButton;
     rbUseARandomKey: TRadioButton;
@@ -75,6 +75,8 @@ Var df : Int64;
   mpk : TMinerPrivateKey;
   i : Integer;
 begin
+  if udInternetServerPort.Position = udJSONRPCMinerServerPort.Position then raise Exception.Create('Server port and JSON-RPC Server miner port are equal!');
+
   if TAccountComp.TxtToMoney(ebDefaultFee.Text,df) then begin
     AppParams.ParamByName[CT_PARAM_DefaultFee].SetAsInt64(df);
   end else begin
@@ -91,14 +93,15 @@ begin
     if (i<0) Or (i>=FWalletKeys.Count) then raise Exception.Create('Invalid private key');
     AppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].SetAsString( TAccountComp.AccountKey2RawString( FWalletKeys.Key[i].AccountKey ) );
   end else mpk := mpk_Random;
+
   AppParams.ParamByName[CT_PARAM_MinerPrivateKeyType].SetAsInteger(integer(mpk));
-  AppParams.ParamByName[CT_PARAM_AutomaticMineWhenConnectedToNodes].SetAsBoolean(cbAutomaticMiningWhenConnectedToNodes.Checked );
+  AppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].SetAsBoolean(cbJSONRPCMinerServerActive.Checked );
   AppParams.ParamByName[CT_PARAM_SaveLogFiles].SetAsBoolean(cbSaveLogFiles.Checked );
   AppParams.ParamByName[CT_PARAM_ShowLogs].SetAsBoolean(cbShowLogs.Checked );
   AppParams.ParamByName[CT_PARAM_SaveDebugLogs].SetAsBoolean(cbSaveDebugLogs.Checked);
   AppParams.ParamByName[CT_PARAM_MinerName].SetAsString(ebMinerName.Text);
   AppParams.ParamByName[CT_PARAM_ShowModalMessages].SetAsBoolean(cbShowModalMessages.Checked);
-  AppParams.ParamByName[CT_PARAM_MaxCPUs].SetAsInteger(udCPUs.Position);
+  AppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].SetAsInteger(udJSONRPCMinerServerPort.Position);
 end;
 
 procedure TFRMPascalCoinWalletConfig.bbUpdatePasswordClick(Sender: TObject);
@@ -142,8 +145,7 @@ begin
   ebMinerName.Text := '';
   bbUpdatePassword.Enabled := false;
   UpdateWalletConfig;
-  udCPUs.Max := CPUCount;
-  lblMaxCPUS.Caption := '(Avail. '+inttostr(CPUCount)+' cpu''s)';
+  lblDefaultJSONRPCMinerServerPort.Caption := Format('(Default %d)',[CT_JSONRPCMinerServer_Port]);
 end;
 
 procedure TFRMPascalCoinWalletConfig.SetAppParams(const Value: TAppParams);
@@ -154,7 +156,7 @@ begin
   Try
     udInternetServerPort.Position := AppParams.ParamByName[CT_PARAM_InternetServerPort].GetAsInteger(CT_NetServer_Port);
     ebDefaultFee.Text := TAccountComp.FormatMoney(AppParams.ParamByName[CT_PARAM_DefaultFee].GetAsInt64(0));
-    cbAutomaticMiningWhenConnectedToNodes.Checked := AppParams.ParamByName[CT_PARAM_AutomaticMineWhenConnectedToNodes].GetAsBoolean(true);
+    cbJSONRPCMinerServerActive.Checked := AppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].GetAsBoolean(true);
     case TMinerPrivateKey(AppParams.ParamByName[CT_PARAM_MinerPrivateKeyType].GetAsInteger(Integer(mpk_Random))) of
       mpk_NewEachTime : rbGenerateANewPrivateKeyEachBlock.Checked := true;
       mpk_Random : rbUseARandomKey.Checked := true;
@@ -167,7 +169,7 @@ begin
     cbSaveDebugLogs.Checked := AppParams.ParamByName[CT_PARAM_SaveDebugLogs].GetAsBoolean(false);
     ebMinerName.Text := AppParams.ParamByName[CT_PARAM_MinerName].GetAsString('');
     cbShowModalMessages.Checked := AppParams.ParamByName[CT_PARAM_ShowModalMessages].GetAsBoolean(false);
-    udCPUs.Position := AppParams.ParamByName[CT_PARAM_MaxCPUs].GetAsInteger(1);
+    udJSONRPCMinerServerPort.Position := AppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port);
   Except
     On E:Exception do begin
       TLog.NewLog(lterror,ClassName,'Exception at SetAppParams: '+E.Message);

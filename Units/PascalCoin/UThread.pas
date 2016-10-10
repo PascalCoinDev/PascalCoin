@@ -48,6 +48,7 @@ Type
     Class Function TryProtectEnterCriticalSection(Const Sender : TObject; MaxWaitMilliseconds : Cardinal; var Lock : TCriticalSection) : Boolean;
     Class Procedure ThreadsListInfo(list: TStrings);
     Property DebugStep : String read FDebugStep write FDebugStep;
+    property Terminated;
   End;
 
   TPCThreadList = class

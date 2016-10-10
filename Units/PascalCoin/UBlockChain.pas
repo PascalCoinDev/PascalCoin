@@ -176,10 +176,12 @@ Type
     FSafeBoxTransaction : TPCSafeBoxTransaction;
     FOperationBlock: TOperationBlock;
     FOperationsHashTree : TOperationsHashTree;
-    FDigest_Basic : TRawBytes;
-    FDigest_Operations : TRawBytes;
+    FDigest_Part1 : TRawBytes;
+    FDigest_Part2_Payload : TRawBytes;
+    FDigest_Part3 : TRawBytes;
     FIsOnlyOperationBlock: Boolean;
     FStreamPoW : TMemoryStream;
+    FDisableds : Integer;
     function GetOperation(index: Integer): TPCOperation;
     procedure SetBank(const value: TPCBank);
     procedure SetnOnce(const value: Cardinal);
@@ -188,8 +190,7 @@ Type
     function Gettimestamp: Cardinal;
     procedure SetAccountKey(const value: TAccountKey);
     function GetAccountKey: TAccountKey;
-    Procedure Calc_Digest_Basic;
-    Procedure Calc_Digest_Operations;
+    Procedure Calc_Digest_Parts;
     Procedure CalcProofOfWork(fullcalculation : Boolean; var PoW: TRawBytes);
     function GetBlockPayload: TRawBytes;
     procedure SetBlockPayload(const Value: TRawBytes);
@@ -232,6 +233,9 @@ Type
     //
     Property SafeBoxTransaction : TPCSafeBoxTransaction read FSafeBoxTransaction;
     Property OperationsHashTree : TOperationsHashTree read FOperationsHashTree;
+    Property PoW_Digest_Part1 : TRawBytes read FDigest_Part1;
+    Property PoW_Digest_Part2_Payload : TRawBytes read FDigest_Part2_Payload;
+    Property PoW_Digest_Part3 : TRawBytes read FDigest_Part3;
   End;
 
   TPCBankLog = procedure(sender: TPCBank; Operations: TPCOperationsComp; Logtype: TLogType ; Logtxt: AnsiString) of object;
@@ -300,8 +304,6 @@ Type
     FStorageClass: TStorageClass;
     function GetStorage: TStorage;
     procedure SetStorageClass(const Value: TStorageClass);
-//    function LoadFromStream(Stream: TStream; var errors: AnsiString): Boolean;
-//    procedure SaveToStream(Stream: TStream);
   protected
   public
     Constructor Create(AOwner: TComponent); Override;
@@ -907,7 +909,7 @@ Begin
     FOperationsHashTree.AddOperationToHashTree(op);
     FOperationBlock.fee := FOperationBlock.fee + op.OperationFee;
     FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
-    Calc_Digest_Operations;
+    if FDisableds<=0 then Calc_Digest_Parts;
   end;
 End;
 
@@ -919,30 +921,35 @@ begin
   Result := 0;
   errors := '';
   if operations=FOperationsHashTree then exit;
-  for i := 0 to operations.OperationsCount - 1 do begin
-    if not AddOperation(true,operations.GetOperation(i),e) then begin
-      if (errors<>'') then errors := errors+' ';
-      errors := errors + 'Op'+inttostr(i+1)+'/'+inttostr(operations.OperationsCount)+':'+e;
-    end else inc(Result);
+  inc(FDisableds);
+  try
+    for i := 0 to operations.OperationsCount - 1 do begin
+      if not AddOperation(true,operations.GetOperation(i),e) then begin
+        if (errors<>'') then errors := errors+' ';
+        errors := errors + 'Op'+inttostr(i+1)+'/'+inttostr(operations.OperationsCount)+':'+e;
+      end else inc(Result);
+    end;
+  finally
+    Dec(FDisableds);
+    Calc_Digest_Parts;
   end;
 end;
 
 Procedure TPCOperationsComp.CalcProofOfWork(fullcalculation : Boolean; var PoW: TRawBytes);
 begin
   if fullcalculation then begin
-    Calc_Digest_Basic;
-    Calc_Digest_Operations;
+    Calc_Digest_Parts;
   end;
-  // New at Build 1.0.2 to increase Hashing Speed instead of creating TMemoryStream due Delphi memory creation is slowly...
   FStreamPoW.Position := 0;
-  FStreamPoW.WriteBuffer(FDigest_Basic[1],length(FDigest_Basic));
-  FStreamPoW.WriteBuffer(FDigest_Operations[1],length(FDigest_Operations));
+  FStreamPoW.WriteBuffer(FDigest_Part1[1],length(FDigest_Part1));
+  FStreamPoW.WriteBuffer(FDigest_Part2_Payload[1],length(FDigest_Part2_Payload));
+  FStreamPoW.WriteBuffer(FDigest_Part3[1],length(FDigest_Part3));
   FStreamPoW.Write(FOperationBlock.timestamp,4);
   FStreamPoW.Write(FOperationBlock.nonce,4);
-  TCrypto.DoDoubleSha256(FStreamPoW.Memory,length(FDigest_Basic)+length(FDigest_Operations)+8,PoW);
+  TCrypto.DoDoubleSha256(FStreamPoW.Memory,length(FDigest_Part1)+length(FDigest_Part2_Payload)+length(FDigest_Part3)+8,PoW);
 end;
 
-procedure TPCOperationsComp.Calc_Digest_Basic;
+procedure TPCOperationsComp.Calc_Digest_Parts;
 var ms : TMemoryStream;
   s : AnsiString;
 begin
@@ -955,28 +962,18 @@ begin
     ms.Write(FOperationBlock.protocol_version,Sizeof(FOperationBlock.protocol_version)); // Little endian
     ms.Write(FOperationBlock.protocol_available,Sizeof(FOperationBlock.protocol_available)); // Little endian
     ms.Write(FOperationBlock.compact_target,Sizeof(FOperationBlock.compact_target)); // Little endian
-    ms.WriteBuffer(FOperationBlock.block_payload[1],length(FOperationBlock.block_payload));
-    ms.WriteBuffer(FOperationBlock.initial_safe_box_hash[1],length(FOperationBlock.initial_safe_box_hash));
-    SetLength(FDigest_Basic,ms.Size);
+    SetLength(FDigest_Part1,ms.Size);
     ms.Position :=0;
-    ms.ReadBuffer(FDigest_Basic[1],ms.Size);
-  finally
-    ms.Free;
-  end;
-end;
-
-procedure TPCOperationsComp.Calc_Digest_Operations;
-var ms : TMemoryStream;
-  buff: AnsiString;
-begin
-  ms := TMemoryStream.Create;
-  try
+    ms.ReadBuffer(FDigest_Part1[1],ms.Size);
+    ms.Clear;
+    FDigest_Part2_Payload := FOperationBlock.block_payload;
+    ms.WriteBuffer(FOperationBlock.initial_safe_box_hash[1],length(FOperationBlock.initial_safe_box_hash));
     ms.WriteBuffer(FOperationsHashTree.HashTree[1],length(FOperationsHashTree.HashTree));
     // Note about fee: Fee is stored in 8 bytes, but only digest first 4 low bytes
     ms.Write(FOperationBlock.fee,4);
-    SetLength(FDigest_Operations,ms.Size);
+    SetLength(FDigest_Part3,ms.Size);
     ms.Position := 0;
-    ms.ReadBuffer(FDigest_Operations[1],ms.Size);
+    ms.ReadBuffer(FDigest_Part3[1],ms.Size);
   finally
     ms.Free;
   end;
@@ -1029,6 +1026,9 @@ begin
   if Assigned(FSafeBoxTransaction) And Assigned(Operations.FSafeBoxTransaction) then begin
     FSafeBoxTransaction.CopyFrom(Operations.FSafeBoxTransaction);
   end;
+  FDigest_Part1 := Operations.FDigest_Part1;
+  FDigest_Part2_Payload := Operations.FDigest_Part2_Payload;
+  FDigest_Part3 := Operations.FDigest_Part3;
 end;
 
 function TPCOperationsComp.CopyFromAndValidate(Operations: TPCOperationsComp; var errors: AnsiString): Boolean;
@@ -1084,7 +1084,7 @@ end;
 constructor TPCOperationsComp.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  // New at Build 1.0.2
+  FDisableds := 0;
   FStreamPoW := TMemoryStream.Create;
   FStreamPoW.Position := 0;
   FOperationsHashTree := TOperationsHashTree.Create;
@@ -1440,7 +1440,8 @@ procedure TPCOperationsComp.SetAccountKey(const value: TAccountKey);
 begin
   if TAccountComp.AccountKey2RawString(value)=TAccountComp.AccountKey2RawString(FOperationBlock.account_key) then exit;
   FOperationBlock.account_key := value;
-  Calc_Digest_Basic;
+//  Calc_Digest_Basic;
+  Calc_Digest_Parts;
 end;
 
 procedure TPCOperationsComp.SetBank(const value: TPCBank);

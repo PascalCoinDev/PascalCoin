@@ -6,7 +6,6 @@ uses
   UCrypto in 'Units\PascalCoin\UCrypto.pas',
   UTime in 'Units\PascalCoin\UTime.pas',
   UWalletKeys in 'Units\PascalCoin\UWalletKeys.pas',
-  UMiner in 'Units\PascalCoin\UMiner.pas',
   UOpTransaction in 'Units\PascalCoin\UOpTransaction.pas',
   UNetProtocol in 'Units\PascalCoin\UNetProtocol.pas',
   UAccounts in 'Units\PascalCoin\UAccounts.pas',
@@ -29,7 +28,11 @@ uses
   UFRMPayloadDecoder in 'Units\Forms\UFRMPayloadDecoder.pas' {FRMPayloadDecoder},
   UFRMNodesIp in 'Units\Forms\UFRMNodesIp.pas' {FRMNodesIp},
   UDBGridUtils in 'Units\Utils\UDBGridUtils.pas',
-  UTCPIP in 'Units\PascalCoin\UTCPIP.pas';
+  UTCPIP in 'Units\PascalCoin\UTCPIP.pas',
+  UJSONFunctions in 'Units\Utils\UJSONFunctions.pas',
+  URPC in 'Units\PascalCoin\URPC.pas',
+  UPoolMining in 'Units\PascalCoin\UPoolMining.pas',
+  UMiner in 'Units\PascalCoin\UMiner.pas';
 
 {$R *.res}
 

@@ -20,32 +20,9 @@ uses
   Dialogs, pngimage, ExtCtrls, ComCtrls, UWalletKeys, ShlObj, ADOInt, StdCtrls,
   ULog, DB, ADODB, Grids, DBGrids, DBCGrids, UAppParams,
   UBlockChain, UNode, DBCtrls, UGridUtils, UDBGridUtils, UMiner, UAccounts, Menus, ImgList,
-  AppEvnts, UNetProtocol, UCrypto, Buttons;
-
-Const
-  CT_PARAM_GridAccountsStream = 'GridAccountsStream';
-  CT_PARAM_GridAccountsPos = 'GridAccountsPos';
-
-  CT_PARAM_DefaultFee = 'DefaultFee';
-  CT_PARAM_InternetServerPort = 'InternetServerPort';
-  CT_PARAM_AutomaticMineWhenConnectedToNodes = 'AutomaticMineWhenConnectedToNodes';
-  CT_PARAM_MinerPrivateKeyType = 'MinerPrivateKeyType';
-  CT_PARAM_MinerPrivateKeySelectedPublicKey = 'MinerPrivateKeySelectedPublicKey';
-  CT_PARAM_SaveLogFiles = 'SaveLogFiles';
-  CT_PARAM_SaveDebugLogs = 'SaveDebugLogs';
-  CT_PARAM_ShowLogs = 'ShowLogs';
-  CT_PARAM_MinerName = 'MinerName';
-  CT_PARAM_FirstTime = 'FirstTime';
-  CT_PARAM_ShowModalMessages = 'ShowModalMessages';
-  CT_PARAM_MaxCPUs = 'MaxCPUs';
-  CT_PARAM_PeerCache = 'PeerCache';
-  CT_PARAM_TryToConnectOnlyWithThisFixedServers = 'TryToConnectOnlyWithFixedServers';
+  AppEvnts, UNetProtocol, UCrypto, Buttons, UPoolMining;
 
 type
-  TStringListAux = Class(TStringList)
-
-  End;
-
   TMinerPrivateKey = (mpk_NewEachTime, mpk_Random, mpk_Selected);
 
   TFRMWallet = class(TForm)
@@ -76,7 +53,6 @@ type
     Panel1: TPanel;
     Label1: TLabel;
     dbgridOperations: TDBGrid;
-    cbAllowMining: TCheckBox;
     ebFilterOperationsAccount: TEdit;
     Label2: TLabel;
     ebFilterOperationsStartBlock: TEdit;
@@ -98,7 +74,7 @@ type
     lblOperationsPendingCaption: TLabel;
     lblOperationsPending: TLabel;
     lblMiningStatusCaption: TLabel;
-    lblMiningStatus: TLabel;
+    lblMinersClients: TLabel;
     lblCurrentDifficultyCaption: TLabel;
     lblCurrentDifficulty: TLabel;
     lblTimeAverage: TLabel;
@@ -200,7 +176,6 @@ type
     procedure ebBlockChainBlockStartExit(Sender: TObject);
     procedure ebBlockChainBlockStartKeyPress(Sender: TObject; var Key: Char);
     procedure cbBlockChainFilterByDateClick(Sender: TObject);
-    procedure cbAllowMiningClick(Sender: TObject);
     procedure cbExploreMyAccountsClick(Sender: TObject);
     procedure MiCloseClick(Sender: TObject);
     procedure MiDecodePayloadClick(Sender: TObject);
@@ -232,13 +207,13 @@ type
     FMinersBlocksFound: Integer;
     procedure SetMinersBlocksFound(const Value: Integer);
     Procedure CheckIsReady;
+    Procedure FinishedLoadingApp;
   protected
     { Private declarations }
     FNode : TNode;
     FIsActivated : Boolean;
     FWalletKeys : TWalletKeys;
     FLog : TLog;
-    FMaxCPUs : Integer;
     FAppParams : TAppParams;
     FNodeNotifyEvents : TNodeNotifyEvents;
     FAccountsGrid : TAccountsGrid;
@@ -253,7 +228,8 @@ type
     FMessagesUnreadCount : Integer;
     FMinAccountBalance : Int64;
     FMaxAccountBalance : Int64;
-    Procedure CheckMining;
+    FPoolMiningServer : TPoolMiningServer;
+    //Procedure CheckMining;
     Procedure OnNewAccount(Sender : TObject);
     Procedure OnReceivedHelloMessage(Sender : TObject);
     Procedure OnNetStatisticsChanged(Sender : TObject);
@@ -312,6 +288,7 @@ begin
   TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
   TNode.Node.NetServer.Active := true;
   Synchronize( FRMWallet.DoUpdateAccounts );
+  Synchronize( FRMWallet.FinishedLoadingApp );
 end;
 
 { TFRMWallet }
@@ -485,25 +462,6 @@ begin
     'Message: '+#10+m),PChar(Application.Title),MB_ICONINFORMATION+MB_OK);
 end;
 
-procedure TFRMWallet.cbAllowMiningClick(Sender: TObject);
-begin
-  if Not Assigned(FNode) then exit;
-  if cbAllowMining.Checked then begin
-    if (TNetData.NetData.NetStatistics.ClientsConnections<=0) then begin
-      Application.MessageBox(PChar(Format(
-        'In order to mine is necessary that you open your external port %d from the Internet to allow other Pascal Coin nodes to connect to you.'+#10+
-        '(Note: This is not mandatory... but it will work better with open ports)'+#10+
-        #10+
-        'To do this you must configure your Router/Firewall and enable NAT to your local machine at port: %d'+#10+#10+
-        'After allowing incoming connections... you must wait until other nodes connect to you to mine'+#10+
-        #10+
-        'PLEASE... BE PATIENT !!!'+#10+#10+
-        'Help mining Pascal Coin and win Pascal Coins!',[FNode.NetServer.Port,FNode.NetServer.Port])),
-        PChar(Application.Title),MB_ICONINFORMATION+MB_OK);
-    end;
-  end;
-end;
-
 procedure TFRMWallet.cbBlockChainFilterByDateClick(Sender: TObject);
 begin
   dtpBlockChainDateStart.Enabled := cbBlockChainFilterByDate.Checked;
@@ -545,6 +503,7 @@ begin
   end;
 end;
 
+{
 procedure TFRMWallet.CheckMining;
   Procedure Stop;
   var i : Integer;
@@ -591,7 +550,7 @@ begin
         end;
         if n<FMaxCPUs then begin
           MT := FNode.AddMiner(GetAccountKeyForMiner);
-          MT.OnNewAccountFound := OnMinerNewBlockFound;
+          MT.OnThreadSafeNewBlockFound := OnMinerNewBlockFound;
           MT.Paused := false;
         end else begin
           while (mtl.Count>FMaxCPUs) do FNode.DeleteMiner(mtl.Count-1);
@@ -604,6 +563,8 @@ begin
     end;
   end else Stop;
 end;
+
+}
 
 procedure TFRMWallet.dgAccountsClick(Sender: TObject);
 begin
@@ -779,6 +740,16 @@ begin
   ebFindAccountNumber.Text := '';
 end;
 
+procedure TFRMWallet.FinishedLoadingApp;
+begin
+  FPoolMiningServer := TPoolMiningServer.Create;
+  FPoolMiningServer.Port := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port);
+  FPoolMiningServer.MinerAccountKey := GetAccountKeyForMiner;
+  FPoolMiningServer.MinerPayload := FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString('');
+  FNode.Operations.AccountKey := GetAccountKeyForMiner;
+  FPoolMiningServer.Active := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].GetAsBoolean(true);
+end;
+
 function TFRMWallet.ForceMining: Boolean;
 begin
   Result := false;
@@ -788,8 +759,6 @@ procedure TFRMWallet.FormCreate(Sender: TObject);
 Var i : Integer;
   fvi : TFileVersionInfo;
 begin
-  if CPUCount>1 then FMaxCPUs := CPUCount-1
-  else FMaxCPUs := 1;
   FMinAccountBalance := 0;
   FMaxAccountBalance := CT_MaxWalletAmount;
   FMessagesUnreadCount := 0;
@@ -858,6 +827,7 @@ begin
   MinersBlocksFound := 0;
   fvi := TFolderHelper.GetTFileVersionInfo(Application.ExeName);
   lblBuild.Caption := 'Build: '+fvi.FileVersion;
+  FPoolMiningServer := Nil;
 end;
 
 procedure TFRMWallet.FormDestroy(Sender: TObject);
@@ -867,6 +837,7 @@ Var i : Integer;
 begin
   TLog.NewLog(ltinfo,Classname,'Destroying form - START');
   Try
+  FreeAndNil(FPoolMiningServer);
   step := 'Saving params';
   SaveAppParams;
   FreeAndNil(FAppParams);
@@ -1253,7 +1224,7 @@ begin
       sRS.Free;
       sDisc.Free;
     End;
-    CheckMining;
+    //CheckMining;
   finally
     TNetData.NetData.NetConnections.UnlockList;
   end;
@@ -1302,7 +1273,7 @@ end;
 procedure TFRMWallet.OnNetStatisticsChanged(Sender: TObject);
 Var NS : TNetStatistics;
 begin
-  CheckMining;
+  //CheckMining;
   if Assigned(FNode) then begin
     If FNode.NetServer.Active then begin
       StatusBar.Panels[0].Text := 'Active (Port '+Inttostr(FNode.NetServer.Port)+')';
@@ -1372,7 +1343,7 @@ Var nsarr : TNodeServerAddressArray;
   i : Integer;
   s : AnsiString;
 begin
-  CheckMining;
+  //CheckMining;
   // Update node servers Peer Cache
   nsarr := TNetData.NetData.GetValidNodeServers;
   s := '';
@@ -1637,7 +1608,7 @@ end;
 
 procedure TFRMWallet.UpdateBlockChainState;
 Var isMining : boolean;
-  hr : Int64;
+//  hr : Int64;
   i,mc : Integer;
   s : String;
   mtl : TList;
@@ -1645,7 +1616,7 @@ Var isMining : boolean;
 begin
   UpdateNodeStatus;
   mc := 0;
-  hr := 0;
+//  hr := 0;
   if Assigned(FNode) then begin
     if FNode.Bank.BlocksCount>0 then begin
       lblCurrentBlock.Caption :=  Inttostr(FNode.Bank.BlocksCount)+' (0..'+Inttostr(FNode.Bank.BlocksCount-1)+')'; ;
@@ -1668,18 +1639,6 @@ begin
         ((CT_CalcNewTargetBlocksAverage DIV 4)*3),FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(((CT_CalcNewTargetBlocksAverage DIV 4)*3))),
         CT_CalcNewTargetBlocksAverage DIV 2,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage DIV 2)),
         CT_CalcNewTargetBlocksAverage DIV 4,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage DIV 4))]);
-    mtl := FNode.MinerThreads.LockList;
-    try
-      mc := mtl.Count;
-      If mc>0 then begin
-        isMining := Not TMinerThread(mtl[0]).Paused;
-        for i := 0 to mtl.Count - 1 do begin
-          hr := hr + TMinerThread(mtl[i]).HashRate;
-        end;
-      end else isMining :=false;
-    finally
-      FNode.MinerThreads.UnlockList;
-    end;
   end else begin
     isMining := false;
     lblCurrentBlock.Caption := '';
@@ -1690,16 +1649,20 @@ begin
     lblTimeAverage.Caption := '';
     lblTimeAverageAux.Caption := '';
   end;
-  if isMining then begin
-    if mc>1 then s := inttostr(mc)+' Miners at '
-    else s := 'Mining at ';
-    lblMiningStatus.Caption := s +FormatFloat('0.0',hr / 1024)+' Kh/s (R: '+FormatFloat('0.0',TMinerThread.AllMinersPlayCount / 1000000)+'G)';
-    lblMiningStatus.Font.Color := clNavy
+  if (Assigned(FPoolMiningServer)) And (FPoolMiningServer.Active) then begin
+    If FPoolMiningServer.ClientsCount>0 then begin
+      lblMinersClients.Caption := IntToStr(FPoolMiningServer.ClientsCount)+' connected JSON-RPC clients';
+      lblMinersClients.Font.Color := clNavy;
+    end else begin
+      lblMinersClients.Caption := 'No JSON-RPC clients';
+      lblMinersClients.Font.Color := clDkGray;
+    end;
+    MinersBlocksFound := FPoolMiningServer.ClientsWins;
   end else begin
-    lblMiningStatus.Caption := 'Not mining';
-    lblMiningStatus.Font.Color := clRed;
+    MinersBlocksFound := 0;
+    lblMinersClients.Caption := 'JSON-RPC server not active';
+    lblMinersClients.Font.Color := clRed;
   end;
-
 end;
 
 procedure TFRMWallet.UpdateConfigChanged;
@@ -1725,15 +1688,18 @@ begin
     FNode.NetServer.Active := wa;
     FNode.Operations.BlockPayload := FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString('');
   end;
-  FMaxCPUs := FAppParams.ParamByName[CT_PARAM_MaxCPUs].GetAsInteger(1);
-  if FMaxCPUs>CPUCount then FMaxCPUs := CPUCount;
-  if FMaxCPUs<0 then FMaxCPUs := 0;
+  if Assigned(FPoolMiningServer) then begin
+    if FPoolMiningServer.Port<>FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port) then begin
+      FPoolMiningServer.Active := false;
+      FPoolMiningServer.Port := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port);
+    end;
+    FPoolMiningServer.Active :=FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].GetAsBoolean(true);
+    FPoolMiningServer.UpdateAccountAndPayload(GetAccountKeyForMiner,FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString(''));
+  end;
 
   i := FAppParams.ParamByName[CT_PARAM_MinerPrivateKeyType].GetAsInteger(Integer(mpk_Random));
   if (i>=Integer(Low(TMinerPrivatekey))) And (i<=Integer(High(TMinerPrivatekey))) then FMinerPrivateKeyType := TMinerPrivateKey(i)
   else FMinerPrivateKeyType := mpk_Random;
-
-  cbAllowMining.Checked :=  (FAppParams.ParamByName[CT_PARAM_AutomaticMineWhenConnectedToNodes].GetAsBoolean(true));
 end;
 
 procedure TFRMWallet.UpdateConnectionStatus;
@@ -1801,7 +1767,6 @@ begin
   cbMyPrivateKeys.items.BeginUpdate;
   Try
     cbMyPrivateKeys.Items.Clear;
-//    cbMyPrivateKeys.Items.AddObject('(All my private keys)',TObject(-1));
     For i:=0 to FWalletKeys.Count-1 do begin
       wk := FWalletKeys.Key[i];
       if assigned(FOrderedAccountsKeyList) then begin

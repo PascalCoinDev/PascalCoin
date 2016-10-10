@@ -51,14 +51,14 @@ type
     FFileName: AnsiString;
     FSaveTypes: TLogTypes;
     FThreadSafeLogEvent : TThreadSafeLogEvent;
-    Procedure NotifyNewLog(logtype : TLogType; Const sender, logtext : AnsiString);
+    Procedure NotifyNewLog(logtype : TLogType; Const sender, logtext : String);
     procedure SetFileName(const Value: AnsiString);
   protected
     Procedure DoLog(logtype : TLogType; sender, logtext : AnsiString); virtual;
   public
     Constructor Create(AOwner : TComponent); override;
     Destructor Destroy; override;
-    Class Procedure NewLog(logtype : TLogType; Const sender, logtext : AnsiString);
+    Class Procedure NewLog(logtype : TLogType; Const sender, logtext : String);
     Property OnNewLog : TNewLogEvent read FOnNewLog write FOnNewLog;
     Property FileName : AnsiString read FFileName write SetFileName;
     Property SaveTypes : TLogTypes read FSaveTypes write FSaveTypes;
@@ -125,7 +125,7 @@ begin
 //
 end;
 
-class procedure TLog.NewLog(logtype: TLogType; Const sender, logtext: AnsiString);
+class procedure TLog.NewLog(logtype: TLogType; Const sender, logtext: String);
 var i : Integer;
 begin
   if (Not Assigned(_logs)) then exit;
@@ -134,7 +134,7 @@ begin
   end;
 end;
 
-procedure TLog.NotifyNewLog(logtype: TLogType; Const sender, logtext: AnsiString);
+procedure TLog.NotifyNewLog(logtype: TLogType; Const sender, logtext: String);
 Var s,tid : AnsiString;
   tsle : TThreadSafeLogEvent;
   P : PLogData;

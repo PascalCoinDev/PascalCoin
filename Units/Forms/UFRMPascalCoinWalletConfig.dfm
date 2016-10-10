@@ -61,23 +61,23 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   object Label5: TLabel
     Left = 30
     Top = 176
-    Width = 58
+    Width = 73
     Height = 13
-    Caption = 'CPUs to use'
+    Caption = 'JSON-RPC Port'
   end
-  object lblMaxCPUS: TLabel
+  object lblDefaultJSONRPCMinerServerPort: TLabel
     Left = 248
     Top = 176
     Width = 70
     Height = 13
     Caption = '(Default XXXX)'
   end
-  object cbAutomaticMiningWhenConnectedToNodes: TCheckBox
+  object cbJSONRPCMinerServerActive: TCheckBox
     Left = 15
     Top = 150
     Width = 261
     Height = 17
-    Caption = 'Allow automatic mining when connected to nodes'
+    Caption = 'JSON-RPC Server Miner (TCP/IP, no HTTP)'
     TabOrder = 4
   end
   object ebDefaultFee: TEdit
@@ -234,19 +234,19 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Caption = 'Show modal messages'
     TabOrder = 13
   end
-  object udCPUs: TUpDown
+  object udJSONRPCMinerServerPort: TUpDown
     Left = 226
     Top = 173
     Width = 16
     Height = 21
-    Associate = ebCPUs
+    Associate = ebJSONRPCMinerServerPort
     Min = 1
-    Max = 6
+    Max = 40000
     Position = 1
     TabOrder = 6
     Thousands = False
   end
-  object ebCPUs: TEdit
+  object ebJSONRPCMinerServerPort: TEdit
     Left = 170
     Top = 173
     Width = 56
@@ -260,7 +260,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Top = 200
     Width = 334
     Height = 121
-    Caption = ' Miner Private Key: '
+    Caption = ' Miner Server Private Key: '
     TabOrder = 14
     object rbGenerateANewPrivateKeyEachBlock: TRadioButton
       Left = 20

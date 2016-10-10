@@ -1,7 +1,7 @@
 object FRMWallet: TFRMWallet
   Left = 360
   Top = 328
-  Caption = 'Pascal Coin Wallet, Miner & Explorer'
+  Caption = 'Pascal Coin Wallet, JSON-RPC Miner & Explorer'
   ClientHeight = 545
   ClientWidth = 903
   Color = clBtnFace
@@ -25,7 +25,6 @@ object FRMWallet: TFRMWallet
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitWidth = 899
     object Image1: TImage
       Left = 15
       Top = 15
@@ -204,11 +203,11 @@ object FRMWallet: TFRMWallet
     object lblMiningStatusCaption: TLabel
       Left = 90
       Top = 56
-      Width = 67
+      Width = 68
       Height = 13
-      Caption = 'Mining status:'
+      Caption = 'Miners clients:'
     end
-    object lblMiningStatus: TLabel
+    object lblMinersClients: TLabel
       Left = 163
       Top = 56
       Width = 18
@@ -329,8 +328,8 @@ object FRMWallet: TFRMWallet
       OnClick = lblReceivedMessagesClick
     end
     object lblBuild: TLabel
-      Left = 717
-      Top = 6
+      Left = 586
+      Top = 3
       Width = 49
       Height = 23
       Caption = 'Build'
@@ -340,15 +339,6 @@ object FRMWallet: TFRMWallet
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
       ParentFont = False
-    end
-    object cbAllowMining: TCheckBox
-      Left = 620
-      Top = 10
-      Width = 91
-      Height = 17
-      Caption = 'Allow Mining'
-      TabOrder = 0
-      OnClick = cbAllowMiningClick
     end
   end
   object StatusBar: TStatusBar
@@ -370,24 +360,22 @@ object FRMWallet: TFRMWallet
         Text = 'Blocks'
         Width = 50
       end>
-    ExplicitTop = 539
-    ExplicitWidth = 899
   end
   object PageControl: TPageControl
     Left = 0
     Top = 91
     Width = 903
     Height = 435
-    ActivePage = tsAccountsExplorer
+    ActivePage = tsNodeStats
     Align = alClient
     TabOrder = 2
     OnChange = PageControlChange
-    ExplicitWidth = 899
-    ExplicitHeight = 448
     object tsAccountsExplorer: TTabSheet
       Caption = 'Accounts Explorer'
-      ExplicitWidth = 891
-      ExplicitHeight = 420
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Splitter1: TSplitter
         Left = 380
         Top = 66
@@ -403,7 +391,6 @@ object FRMWallet: TFRMWallet
         Height = 66
         Align = alTop
         TabOrder = 0
-        ExplicitWidth = 891
         object Label18: TLabel
           Left = 11
           Top = 35
@@ -487,7 +474,6 @@ object FRMWallet: TFRMWallet
         Align = alLeft
         BevelOuter = bvNone
         TabOrder = 1
-        ExplicitHeight = 354
         object dgAccounts: TDrawGrid
           Left = 0
           Top = 0
@@ -498,7 +484,6 @@ object FRMWallet: TFRMWallet
           OnClick = dgAccountsClick
           OnColumnMoved = dgAccountsColumnMoved
           OnFixedCellClick = dgAccountsFixedCellClick
-          ExplicitHeight = 320
           ColWidths = (
             64
             64
@@ -514,7 +499,6 @@ object FRMWallet: TFRMWallet
           Align = alBottom
           BevelOuter = bvNone
           TabOrder = 1
-          ExplicitTop = 320
           DesignSize = (
             380
             34)
@@ -595,12 +579,12 @@ object FRMWallet: TFRMWallet
         ActivePage = tsMultiSelectAccounts
         Align = alClient
         TabOrder = 2
-        ExplicitWidth = 508
-        ExplicitHeight = 354
         object tsAccountOperations: TTabSheet
           Caption = 'Operations of selected Account'
-          ExplicitWidth = 500
-          ExplicitHeight = 326
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object dgAccountOperations: TDrawGrid
             Left = 0
             Top = 0
@@ -609,8 +593,6 @@ object FRMWallet: TFRMWallet
             Align = alClient
             TabOrder = 0
             OnDblClick = MiDecodePayloadClick
-            ExplicitWidth = 500
-            ExplicitHeight = 326
             RowHeights = (
               24
               24
@@ -622,8 +604,10 @@ object FRMWallet: TFRMWallet
         object tsMultiSelectAccounts: TTabSheet
           Caption = 'Selected accounts for massive operations'
           ImageIndex = 1
-          ExplicitWidth = 500
-          ExplicitHeight = 326
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object dgSelectedAccounts: TDrawGrid
             Left = 41
             Top = 31
@@ -631,7 +615,6 @@ object FRMWallet: TFRMWallet
             Height = 256
             Align = alLeft
             TabOrder = 0
-            ExplicitHeight = 269
             RowHeights = (
               24
               24
@@ -653,7 +636,6 @@ object FRMWallet: TFRMWallet
             Font.Style = [fsBold]
             ParentFont = False
             TabOrder = 1
-            ExplicitWidth = 500
             object Label15: TLabel
               Left = 41
               Top = 4
@@ -670,8 +652,6 @@ object FRMWallet: TFRMWallet
             Align = alBottom
             BevelOuter = bvNone
             TabOrder = 2
-            ExplicitTop = 300
-            ExplicitWidth = 500
             object Label20: TLabel
               Left = 41
               Top = 6
@@ -709,7 +689,6 @@ object FRMWallet: TFRMWallet
             Align = alLeft
             BevelOuter = bvNone
             TabOrder = 3
-            ExplicitHeight = 269
             object sbSelectedAccountsAdd: TSpeedButton
               Left = 2
               Top = 0
@@ -818,8 +797,10 @@ object FRMWallet: TFRMWallet
     object tsPendingOperations: TTabSheet
       Caption = 'Pending Operations'
       ImageIndex = 5
-      ExplicitWidth = 891
-      ExplicitHeight = 420
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object dgPendingOperations: TDrawGrid
         Left = 0
         Top = 86
@@ -838,7 +819,6 @@ object FRMWallet: TFRMWallet
         BevelOuter = bvNone
         BorderWidth = 10
         TabOrder = 1
-        ExplicitWidth = 891
         object Label10: TLabel
           Left = 10
           Top = 10
@@ -868,8 +848,10 @@ object FRMWallet: TFRMWallet
     object tsBlockChain: TTabSheet
       Caption = 'BlockChain Explorer'
       ImageIndex = 1
-      ExplicitWidth = 891
-      ExplicitHeight = 420
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Panel2: TPanel
         Left = 0
         Top = 0
@@ -877,7 +859,6 @@ object FRMWallet: TFRMWallet
         Height = 41
         Align = alTop
         TabOrder = 0
-        ExplicitWidth = 891
         object Label9: TLabel
           Left = 306
           Top = 10
@@ -954,8 +935,10 @@ object FRMWallet: TFRMWallet
     object tsOperations: TTabSheet
       Caption = 'Operations Explorer'
       ImageIndex = 1
-      ExplicitWidth = 891
-      ExplicitHeight = 420
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Panel1: TPanel
         Left = 0
         Top = 0
@@ -963,7 +946,6 @@ object FRMWallet: TFRMWallet
         Height = 41
         Align = alTop
         TabOrder = 0
-        ExplicitWidth = 891
         object Label1: TLabel
           Left = 11
           Top = 10
@@ -1057,8 +1039,10 @@ object FRMWallet: TFRMWallet
     object tsLogs: TTabSheet
       Caption = 'Logs'
       ImageIndex = 2
-      ExplicitWidth = 891
-      ExplicitHeight = 420
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object pnlTopLogs: TPanel
         Left = 0
         Top = 0
@@ -1066,7 +1050,6 @@ object FRMWallet: TFRMWallet
         Height = 41
         Align = alTop
         TabOrder = 0
-        ExplicitWidth = 891
         object cbShowDebugLogs: TCheckBox
           Left = 15
           Top = 10
@@ -1084,15 +1067,15 @@ object FRMWallet: TFRMWallet
         Align = alClient
         ScrollBars = ssBoth
         TabOrder = 1
-        ExplicitWidth = 891
-        ExplicitHeight = 379
       end
     end
     object tsNodeStats: TTabSheet
       Caption = 'Node Stats'
       ImageIndex = 3
-      ExplicitWidth = 891
-      ExplicitHeight = 420
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         895
         407)
@@ -1130,8 +1113,6 @@ object FRMWallet: TFRMWallet
         ReadOnly = True
         ScrollBars = ssVertical
         TabOrder = 0
-        ExplicitWidth = 860
-        ExplicitHeight = 122
       end
       object memoNetServers: TMemo
         Left = 15
@@ -1142,8 +1123,6 @@ object FRMWallet: TFRMWallet
         ReadOnly = True
         ScrollBars = ssVertical
         TabOrder = 1
-        ExplicitTop = 300
-        ExplicitWidth = 859
       end
       object memoNetBlackLists: TMemo
         Left = 15
@@ -1154,15 +1133,15 @@ object FRMWallet: TFRMWallet
         ReadOnly = True
         ScrollBars = ssVertical
         TabOrder = 2
-        ExplicitTop = 196
-        ExplicitWidth = 859
       end
     end
     object tsMessages: TTabSheet
       Caption = 'Messages'
       ImageIndex = 6
-      ExplicitWidth = 891
-      ExplicitHeight = 420
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         895
         407)
@@ -1238,8 +1217,6 @@ object FRMWallet: TFRMWallet
         ReadOnly = True
         ScrollBars = ssBoth
         TabOrder = 2
-        ExplicitWidth = 860
-        ExplicitHeight = 231
       end
       object memoMessageToSend: TMemo
         Left = 315
@@ -1393,7 +1370,7 @@ object FRMWallet: TFRMWallet
     Left = 105
     Top = 180
     Bitmap = {
-      494C010102000800240110003000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010102000800480110003000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000003000000001002000000000000030
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000002A292929D60B0B0BF4111111EE0000006B000000000000

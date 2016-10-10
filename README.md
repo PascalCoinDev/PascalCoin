@@ -38,6 +38,13 @@ If you like it, consider a donation using BitCoin:
 
 History:
 
+Build 1.0.7.0 - 2016-10-10
+--------------------------
+- Introducing basic JSON-RPC to allow GPU miners development (Third party).
+- See file "HOWTO_DEVELOP_GPU_MINER_FOR_PASCALCOIN.txt"
+- No more CPU mining due exists GPU mining
+
+
 Build 1.0.6.0 - 2016-10-04
 --------------------------
 - Memory leaks corrections
