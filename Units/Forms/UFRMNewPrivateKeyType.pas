@@ -1,5 +1,9 @@
 unit UFRMNewPrivateKeyType;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -16,7 +20,12 @@ unit UFRMNewPrivateKeyType;
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, Buttons, ExtCtrls, UWalletKeys,UCrypto;
 
 type
@@ -44,9 +53,13 @@ type
 implementation
 
 uses
-  UAccounts ;
+  UAccounts, UConst ;
 
-{$R *.dfm}
+{$IFnDEF FPC}
+  {$R *.dfm}
+{$ELSE}
+  {$R *.lfm}
+{$ENDIF}
 
 procedure TFRMNewPrivateKeyType.bbOkClick(Sender: TObject);
 begin
@@ -56,7 +69,7 @@ begin
   if Assigned(FGeneratedPrivateKey) then FGeneratedPrivateKey.Free;
 
   FGeneratedPrivateKey := TECPrivateKey.Create;
-  FGeneratedPrivateKey.GenerateRandomPrivateKey( Integer(rgKeyType.Items.Objects[rgKeyType.ItemIndex]) );
+  FGeneratedPrivateKey.GenerateRandomPrivateKey( PtrInt(rgKeyType.Items.Objects[rgKeyType.ItemIndex]) );
   WalletKeys.AddPrivateKey(ebName.Text,FGeneratedPrivateKey);
   ModalResult := MrOk;
 end;
@@ -73,7 +86,7 @@ begin
   Try
     TAccountComp.ValidsEC_OpenSSL_NID(l);
     for i := 0 to l.Count - 1 do begin
-      rgKeyType.Items.AddObject(TAccountComp.GetECInfoTxt(integer(l[i])),l[i]);
+      rgKeyType.Items.AddObject(TAccountComp.GetECInfoTxt(PtrInt(l[i])),l[i]);
     end;
   Finally
     l.free;

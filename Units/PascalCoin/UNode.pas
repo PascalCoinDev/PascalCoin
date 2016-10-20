@@ -30,11 +30,6 @@ unit UNode;
 interface
 
 uses
-{$IFnDEF FPC}
-  Windows,
-{$ELSE}
-  LCLIntf, LCLType, LMessages,
-{$ENDIF}
   Classes, UBlockChain, UNetProtocol, UMiner, UAccounts, UCrypto, UThread, SyncObjs;
 
 Type
@@ -139,7 +134,7 @@ Type
 
 implementation
 
-Uses UOpTransaction, SysUtils, ULog, Forms, UConst, UTime;
+Uses UOpTransaction, SysUtils, ULog, UConst, UTime;
 
 var _Node : TNode;
 
@@ -174,12 +169,12 @@ Var i : Integer;
 begin
   Result := false;
   if FDisabledsNewBlocksCount>0 then begin
-    TLog.NewLog(ltinfo,Classname,Format('Cannot Add new BlockChain due is adding disabled - Miner:%s Connection:%s NewBlock:%s',[Inttohex(Integer(SenderMiner),8),
-    Inttohex(Integer(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
+    TLog.NewLog(ltinfo,Classname,Format('Cannot Add new BlockChain due is adding disabled - Miner:%s Connection:%s NewBlock:%s',[Inttohex(PtrInt(SenderMiner),8),
+    Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
     exit;
   end;
-  TLog.NewLog(ltdebug,Classname,Format('AddNewBlockChain Miner:%s Connection:%s NewBlock:%s',[Inttohex(Integer(SenderMiner),8),
-    Inttohex(Integer(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
+  TLog.NewLog(ltdebug,Classname,Format('AddNewBlockChain Miner:%s Connection:%s NewBlock:%s',[Inttohex(PtrInt(SenderMiner),8),
+    Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
   If Not TPCThread.TryProtectEnterCriticalSection(Self,2000,FLockNodeOperations) then begin
     s := 'Cannot AddNewBlockChain due blocking lock operations node';
     TLog.NewLog(lterror,Classname,s);
@@ -264,8 +259,8 @@ begin
     end;
   finally
     FLockNodeOperations.Release;
-    TLog.NewLog(ltdebug,Classname,Format('Finalizing AddNewBlockChain Miner:%s Connection:%s NewBlock:%s',[Inttohex(Integer(SenderMiner),8),
-      Inttohex(Integer(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock) ]));
+    TLog.NewLog(ltdebug,Classname,Format('Finalizing AddNewBlockChain Miner:%s Connection:%s NewBlock:%s',[Inttohex(PtrInt(SenderMiner),8),
+      Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock) ]));
   End;
   if Result then begin
     // Notify it!
@@ -303,7 +298,7 @@ begin
     exit;
   end;
   TLog.NewLog(ltdebug,Classname,Format('AddOperations Connection:%s Operations:%d',[
-    Inttohex(Integer(SenderConnection),8),Operations.OperationsCount]));
+    Inttohex(PtrInt(SenderConnection),8),Operations.OperationsCount]));
   if Not TPCThread.TryProtectEnterCriticalSection(Self,4000,FLockNodeOperations) then begin
     s := 'Cannot AddOperations due blocking lock operations node';
     TLog.NewLog(lterror,Classname,s);
@@ -359,7 +354,7 @@ begin
   finally
     FLockNodeOperations.Release;
     TLog.NewLog(ltdebug,Classname,Format('Finalizing AddOperations Connection:%s Operations:%d',[
-      Inttohex(Integer(SenderConnection),8),Operations.OperationsCount ]));
+      Inttohex(PtrInt(SenderConnection),8),Operations.OperationsCount ]));
   end;
   // Notify it!
   for i := 0 to FNotifyList.Count-1 do begin
@@ -382,6 +377,7 @@ end;
 
 constructor TNode.Create(AOwner: TComponent);
 begin
+  RegisterOperationsClass;
   if Assigned(_Node) then raise Exception.Create('Duplicate nodes protection');
   TLog.NewLog(ltInfo,ClassName,'TNode.Create');
   inherited;
@@ -755,17 +751,21 @@ begin
     If (Terminated) Or (Not Assigned(FNodeNotifyEvents)) then exit;
     if FNotifyBlocksChanged then begin
       FNotifyBlocksChanged := false;
+      DebugStep:='Notify OnBlocksChanged';
       if Assigned(FNodeNotifyEvents) And (Assigned(FNodeNotifyEvents.FOnBlocksChanged)) then
         FNodeNotifyEvents.FOnBlocksChanged(FNodeNotifyEvents);
     end;
     if FNotifyOperationsChanged then begin
       FNotifyOperationsChanged := false;
+      DebugStep:='Notify OnOperationsChanged';
       if Assigned(FNodeNotifyEvents) And (Assigned(FNodeNotifyEvents.FOnOperationsChanged)) then
         FNodeNotifyEvents.FOnOperationsChanged(FNodeNotifyEvents);
     end;
     if FNodeNotifyEvents.FMessages.Count>0 then begin
+      DebugStep:='Notify OnNodeMessageEvent';
       if Assigned(FNodeNotifyEvents) And (Assigned(FNodeNotifyEvents.FOnNodeMessageEvent)) then begin
         for i := 0 to FNodeNotifyEvents.FMessages.Count - 1 do begin
+          DebugStep:='Notify OnNodeMessageEvent '+inttostr(i+1)+'/'+inttostr(FNodeNotifyEvents.FMessages.Count);
           FNodeNotifyEvents.FOnNodeMessageEvent(TNetConnection(FNodeNotifyEvents.FMessages.Objects[i]),FNodeNotifyEvents.FMessages.Strings[i]);
         end;
       end;
@@ -773,7 +773,7 @@ begin
     end;
   Except
     On E:Exception do begin
-      TLog.NewLog(lterror,ClassName,'Exception inside a Synchronized process: '+E.ClassName+':'+E.Message);
+      TLog.NewLog(lterror,ClassName,'Exception inside a Synchronized process: '+E.ClassName+':'+E.Message+' Step:'+DebugStep);
     end;
   End;
 end;

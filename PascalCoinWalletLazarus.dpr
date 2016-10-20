@@ -1,6 +1,15 @@
-program PascalCoinWallet;
+program PascalCoinWalletLazarus;
+
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
 
 uses
+{$IFnDEF FPC}
+{$ELSE}
+  {$IFDEF LINUX}cthreads,{$ENDIF}
+  Interfaces,
+{$ENDIF}
   Forms,
   UBlockChain in 'Units\PascalCoin\UBlockChain.pas',
   UCrypto in 'Units\PascalCoin\UCrypto.pas',
@@ -14,7 +23,9 @@ uses
   ULog in 'Units\PascalCoin\ULog.pas',
   UNode in 'Units\PascalCoin\UNode.pas',
   UECIES in 'Units\PascalCoin\UECIES.pas',
+  UAES in 'Units\PascalCoin\UAES.pas',
   UFRMWallet in 'Units\Forms\UFRMWallet.pas' {FRMWallet},
+  UFileStorage in 'Units\PascalCoin\UFileStorage.pas',
   UFolderHelper in 'Units\Utils\UFolderHelper.pas',
   UAppParams in 'Units\Utils\UAppParams.pas',
   UGridUtils in 'Units\Utils\UGridUtils.pas',
@@ -30,10 +41,10 @@ uses
   URPC in 'Units\PascalCoin\URPC.pas',
   UPoolMining in 'Units\PascalCoin\UPoolMining.pas',
   UMiner in 'Units\PascalCoin\UMiner.pas',
-  UFileStorage in 'Units\PascalCoin\UFileStorage.pas',
   UOpenSSL in 'Units\PascalCoin\UOpenSSL.pas',
-  UOpenSSLdef in 'Units\PascalCoin\UOpenSSLdef.pas',
-  UAES in 'Units\PascalCoin\UAES.pas';
+  UOpenSSLdef in 'Units\PascalCoin\UOpenSSLdef.pas';
+
+{.$R *.res}
 
 {$R *.res}
 

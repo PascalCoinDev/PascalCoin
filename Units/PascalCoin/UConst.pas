@@ -17,10 +17,22 @@ unit UConst;
 
   }
 
+{$IFNDEF PRODUCTION}
+  {$IFNDEF TESTNET}
+    {$DEFINE PRODUCTION}
+  {$ENDIF}
+{$ENDIF}
 
 interface
 
-Uses ssl_const;
+Uses UOpenSSLdef;
+
+{$IFNDEF FPC}
+  // See http://wiki.freepascal.org/Code_Conversion_Guide
+type
+  PtrInt = integer;
+  PtrUInt = cardinal;
+{$ENDIF}
 
 Const
   CT_Genesis_Magic_String_For_Old_Block_Hash :
@@ -61,7 +73,7 @@ Const
   CT_MaxPayloadSize = 255; // Max payload size in bytes
   CT_MaxSecondsDifferenceOfNetworkNodes = 180; // 3 minutes. If a Node has a +- value difference, will be blacklisted
 
-  CT_MaxServersConnected = 5;
+  CT_MaxServersConnected = 3; // Build 1.0.8 downgrading from 5 to 3 servers...
 
   CT_MaxClientsConnected = 100;
 
@@ -80,6 +92,8 @@ Const
   // NetProtocol_Available MUST BE allways >= NetProtocol_version
   CT_NetProtocol_Available: Word = $0003;  // Remember, >= NetProtocol_version !!!
 
+  CT_SafeBoxBankVersion : Word = 2;
+
   CT_MagicIdentificator: AnsiString = 'PascalCoin'; //
 
   // Value of Operations type in Protocol 1
@@ -87,7 +101,7 @@ Const
   CT_Op_Changekey = $02;
   CT_Op_Recover = $03;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.0.7'{$ELSE}{$IFDEF TESTNET}'TESTNET'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.0.8'{$ELSE}{$IFDEF TESTNET}'TESTNET'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.ddns.net;pascalcoin2.ddns.net;pascalcoin1.dynamic-dns.net;pascalcoin1.dns1.us';
 
@@ -98,7 +112,7 @@ Const
   CT_PARAM_GridAccountsPos = 'GridAccountsPos';
   CT_PARAM_DefaultFee = 'DefaultFee';
   CT_PARAM_InternetServerPort = 'InternetServerPort';
-  //CT_PARAM_AutomaticMineWhenConnectedToNodes = 'AutomaticMineWhenConnectedToNodes';
+  {$IFDEF TESTNET}CT_PARAM_AutomaticMineWhenConnectedToNodes = 'AutomaticMineWhenConnectedToNodes';{$ENDIF}
   CT_PARAM_MinerPrivateKeyType = 'MinerPrivateKeyType';
   CT_PARAM_MinerPrivateKeySelectedPublicKey = 'MinerPrivateKeySelectedPublicKey';
   CT_PARAM_SaveLogFiles = 'SaveLogFiles';
@@ -107,7 +121,7 @@ Const
   CT_PARAM_MinerName = 'MinerName';
   CT_PARAM_FirstTime = 'FirstTime';
   CT_PARAM_ShowModalMessages = 'ShowModalMessages';
-  // CT_PARAM_MaxCPUs = 'MaxCPUs'; deprecated
+  {$IFDEF TESTNET}CT_PARAM_MaxCPUs = 'MaxCPUs'; {$ENDIF} //deprecated
   CT_PARAM_PeerCache = 'PeerCache';
   CT_PARAM_TryToConnectOnlyWithThisFixedServers = 'TryToConnectOnlyWithFixedServers';
   CT_PARAM_JSONRPCMinerServerPort = 'JSONRPCMinerServerPort';

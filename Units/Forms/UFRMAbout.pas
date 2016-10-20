@@ -1,5 +1,9 @@
 unit UFRMAbout;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -16,10 +20,18 @@ unit UFRMAbout;
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, pngimage, ExtCtrls, StdCtrls, Buttons;
+{$IFnDEF FPC}
+  pngimage, Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, ExtCtrls, StdCtrls, Buttons;
 
 type
+
+  { TFRMAbout }
+
   TFRMAbout = class(TForm)
     Image1: TImage;
     Label1: TLabel;
@@ -43,15 +55,30 @@ type
 
 implementation
 
-uses UFolderHelper, UConst, ShellApi;
+uses
+{$IFnDEF FPC}
+  ShellApi,
+{$ELSE}
+{$ENDIF}
+  UFolderHelper, UConst;
 
-{$R *.dfm}
+{$IFnDEF FPC}
+  {$R *.dfm}
+{$ELSE}
+  {$R *.lfm}
+{$ENDIF}
 
 procedure TFRMAbout.FormCreate(Sender: TObject);
+{$IFnDEF FPC}
 Var fvi : TFileVersionInfo;
+{$ENDIF}
 begin
+  {$IFDEF FPC}
+  lblBuild.Caption :=  'Build: '+CT_ClientAppVersion;
+  {$ELSE}
   fvi := TFolderHelper.GetTFileVersionInfo(Application.ExeName);
   lblBuild.Caption :=  'Build: '+fvi.FileVersion;
+  {$ENDIF}
   lblProtocolVersion.Caption := Format('BlockChain Protocol: %d (%d)  -  Net Protocol: %d (%d)',[CT_BlockChain_Protocol_Version,CT_BlockChain_Protocol_Available,
     CT_NetProtocol_Version, CT_NetProtocol_Available]);
 end;
@@ -68,7 +95,11 @@ end;
 
 procedure TFRMAbout.OpenURL(Url: String);
 begin
+  {$IFDEF FPC}
+   OpenDocument(pchar(URL)) { *Convertido desde ShellExecute* }
+  {$ELSE}
   shellexecute(0, 'open', pchar(URL), nil, nil, SW_SHOW)
+  {$ENDIF}
 end;
 
 end.

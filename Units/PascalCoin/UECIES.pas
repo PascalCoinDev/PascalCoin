@@ -37,11 +37,15 @@ unit UECIES;
 
   }
 
+{$I config.inc}
+
 interface
 
-Uses ssl_ecdh,ssl_types,ssl_evp,ssl_const,ssl_ec, UCrypto, ULog, ssl_hmac, ssl_err, UConst;
+Uses UOpenSSLdef, UOpenSSL, UCrypto, ULog, UConst;
 
 Const CT_Max_Bytes_To_Encrypt = 32000;
+
+Type size_t = Word;
 
 function ECIESEncrypt(const ECDSAPubKey: TECDSA_Public; const MessageToEncrypt: AnsiString): TRawBytes; overload;
 function ECIESEncrypt(EC_OpenSSL_NID : Word; PubKey: EC_POINT; const MessageToEncrypt: AnsiString): TRawBytes; overload;
@@ -52,10 +56,8 @@ implementation
 uses
 {$IFnDEF FPC}
   Windows,
-{$ELSE}
-  LCLIntf, LCLType, LMessages, Windows,
 {$ENDIF}
-  ssl_sha, SysUtils, ssl_bn;
+  SysUtils, UAES;
 
 Type
   Psecure_t = Pointer;
@@ -95,17 +97,17 @@ end;
 
 function secure_key_data(cryptex : Psecure_t): Pointer;
 begin
-  Result := Pointer(Integer(cryptex) + Sizeof(secure_head_t));
+  Result := Pointer(PtrInt(cryptex) + Sizeof(secure_head_t));
 end;
 
 function secure_mac_data(cryptex : Psecure_t): Pointer;
 begin
-  Result := Pointer(Integer(cryptex) + Sizeof(secure_head_t) + Psecure_head_t(cryptex)^.key);
+  Result := Pointer(PtrInt(cryptex) + Sizeof(secure_head_t) + Psecure_head_t(cryptex)^.key);
 end;
 
 function secure_body_data(cryptex : Psecure_t): Pointer;
 begin
-  Result := Pointer(Integer(cryptex) + Sizeof(secure_head_t) + Psecure_head_t(cryptex)^.key + Psecure_head_t(cryptex)^.mac);
+  Result := Pointer(PtrInt(cryptex) + Sizeof(secure_head_t) + Psecure_head_t(cryptex)^.key + Psecure_head_t(cryptex)^.mac);
 end;
 
 function secure_alloc(key, mac, orig, body : UInt64) : Psecure_t;
@@ -185,9 +187,13 @@ Var PK,PEphemeral : PEC_KEY;
   iv: Array[1..EVP_MAX_IV_LENGTH] of byte;
   block:Array[1..EVP_MAX_BLOCK_LENGTH] of byte;
   cryptex : Psecure_t;
-  cipher : EVP_CIPHER_CTX;
+  pcipher : PEVP_CIPHER_CTX;
   body,aux : Pointer;
+  phmac : PHMAC_CTX;
+  {$IFDEF OpenSSL10}
+  cipher : EVP_CIPHER_CTX;
   hmac : HMAC_CTX;
+  {$ENDIF}
 begin
   Result := '';
   if length(MessageToEncrypt)>CT_Max_Bytes_To_Encrypt then begin
@@ -249,14 +255,20 @@ begin
       FillMemory(@iv,EVP_MAX_IV_LENGTH,0);
       {$ENDIF}
       // Setup the cipher context, the body length, and store a pointer to the body buffer location.
+
+      {$IFDEF OpenSSL10}
       EVP_CIPHER_CTX_init(@cipher);
+      pcipher := @cipher;
+      {$ELSE}
+      pcipher := EVP_CIPHER_CTX_new;
+      {$ENDIF}
       try
         body := secure_body_data(cryptex);
         body_length := secure_body_length(cryptex);
         // Initialize the cipher with the envelope key.
-        if (EVP_EncryptInit_ex(@cipher,EVP_aes_256_cbc,nil,@envelope_key,@iv)<>1) or
-          (EVP_CIPHER_CTX_set_padding(@cipher,0)<>1) or
-          (EVP_EncryptUpdate(@cipher,body,body_length,@MessageToEncrypt[1],
+        if (EVP_EncryptInit_ex(pcipher,EVP_aes_256_cbc,nil,@envelope_key,@iv)<>1) or
+          (EVP_CIPHER_CTX_set_padding(pcipher,0)<>1) or
+          (EVP_EncryptUpdate(pcipher,body,body_length,@MessageToEncrypt[1],
             Length(MessageToEncrypt) - (Length(MessageToEncrypt) MOD block_length))<>1) then begin
               TLog.NewLog(lterror,'ECIES',Format('An error occurred while trying to secure the data using the chosen symmetric cipher. {error = %s}',
               [ERR_error_string(ERR_get_error(),nil)]));
@@ -277,9 +289,9 @@ begin
           {$ELSE}
           FillMemory(@block,length(block),0);
           {$ENDIF}
-          CopyMemory(@block,Pointer(Integer(@MessageToEncrypt[1])+body_length),Length(MessageToEncrypt)-body_length);
+          CopyMemory(@block,Pointer(PtrInt(@MessageToEncrypt[1])+body_length),Length(MessageToEncrypt)-body_length);
           // Advance the body pointer to the location of the remaining space, and calculate just how much room is still available.
-          body := Pointer(integer(body)+body_length);
+          body := Pointer(PtrInt(body)+body_length);
           body_length := secure_body_length(cryptex) - body_length;
           if (body_length <0) then begin
              TLog.NewLog(lterror,'ECIES','The symmetric cipher overflowed!');
@@ -287,7 +299,7 @@ begin
           end;
           // Pass the final partially filled data block into the cipher as a complete block.
           // The padding will be removed during the decryption process.
-          if (EVP_EncryptUpdate(@cipher, body, body_length, @block, block_length)<>1) then begin
+          if (EVP_EncryptUpdate(pcipher, body, body_length, @block, block_length)<>1) then begin
             TLog.NewLog(lterror,'ECIES',Format('Unable to secure the data using the chosen symmetric cipher. {error = %s}',
             [ERR_error_string(ERR_get_error(),nil)]));
             exit;
@@ -295,35 +307,48 @@ begin
         end;
         // Advance the pointer, then use pointer arithmetic to calculate how much of the body buffer has been used. The complex logic is needed so that we get
         // the correct status regardless of whether there was a partial data block.
-        body := Pointer(integer(body)+body_length);
-        body_length := secure_body_length(cryptex) - (Integer(body)-Integer(secure_body_data(cryptex)));
+        body := Pointer(PtrInt(body)+body_length);
+        body_length := secure_body_length(cryptex) - (PtrInt(body)-PtrInt(secure_body_data(cryptex)));
         if (body_length < 0) then begin
           TLog.NewLog(lterror,'ECIES','The symmetric cipher overflowed!');
           exit;
         end;
-        if (EVP_EncryptFinal_ex(@cipher, body, body_length)<>1) then begin
+        if (EVP_EncryptFinal_ex(pcipher, body, body_length)<>1) then begin
           TLog.NewLog(lterror,'ECIES',Format('Unable to secure the data using the chosen symmetric cipher. {error = %s}',
           [ERR_error_string(ERR_get_error(),nil)]));
           exit;
         end;
       finally
-        EVP_CIPHER_CTX_cleanup(@cipher);
+        {$IFDEF OpenSSL10}
+        EVP_CIPHER_CTX_cleanup(pcipher);
+        {$ELSE}
+        EVP_CIPHER_CTX_free(pcipher);
+        {$ENDIF}
       end;
       // Generate an authenticated hash which can be used to validate the data during decryption.
+      {$IFDEF OpenSSL10}
       HMAC_CTX_init(@hmac);
+      phmac := @hmac;
+      {$ELSE}
+      phmac := HMAC_CTX_new;
+      {$ENDIF}
       Try
         mac_length := secure_mac_length(cryptex);
         // At the moment we are generating the hash using encrypted data. At some point we may want to validate the original text instead.
-        aux := Pointer(Integer(@envelope_key) + key_length);
-        if (HMAC_Init_ex(@hmac, aux, key_length, ECIES_HASHER, nil)<>1)
-          OR (HMAC_Update(@hmac, secure_body_data(cryptex), secure_body_length(cryptex))<>1)
-          OR (HMAC_Final(@hmac, secure_mac_data(cryptex),mac_length)<>1) then begin
+        aux := Pointer(PtrInt(@envelope_key) + key_length);
+        if (HMAC_Init_ex(phmac, aux, key_length, ECIES_HASHER, nil)<>1)
+          OR (HMAC_Update(phmac, secure_body_data(cryptex), secure_body_length(cryptex))<>1)
+          OR (HMAC_Final(phmac, secure_mac_data(cryptex),mac_length)<>1) then begin
           TLog.NewLog(lterror,'ECIES',Format('Unable to generate a data authentication code. {error = %s}',
           [ERR_error_string(ERR_get_error(),nil)]));
           exit;
         end;
       Finally
-        HMAC_CTX_cleanup(@hmac);
+        {$IFDEF OpenSSL10}
+        HMAC_CTX_cleanup(phmac);
+        {$ELSE}
+        HMAC_CTX_free(phmac);
+        {$ENDIF}
       End;
       SetLength(Result,secure_total_length(cryptex));
       CopyMemory(@Result[1],cryptex,length(Result));
@@ -366,7 +391,7 @@ End;
 function ECIESDecrypt(EC_OpenSSL_NID : Word; PrivateKey: PEC_KEY; logErrors : Boolean; const MessageToDecrypt: TRawBytes; Var Decrypted : AnsiString): Boolean;
 var
   cryptex : Psecure_t;
-  hmac : HMAC_CTX;
+  phmac : PHMAC_CTX;
   key_length : size_t;
   ephemeral : PEC_KEY;
   envelope_key : Array[1..SHA512_DIGEST_LENGTH] of byte;
@@ -376,7 +401,11 @@ var
   mac_length : Cardinal;
   aux : Pointer;
   output_length : Integer;
+  pcipher : PEVP_CIPHER_CTX;
+  {$IFDEF OpenSSL10}
   cipher : EVP_CIPHER_CTX;
+  hmac : HMAC_CTX;
+  {$ENDIF}
 Begin
   Result := false;
   Decrypted := '';
@@ -398,7 +427,11 @@ Begin
     // Use the intersection of the provided keys to generate the envelope data used by the ciphers below.
     // The ecies_key_derivation() function uses SHA 512 to ensure we have a sufficient amount of envelope key
     // material and that the material created is sufficiently secure.
+    {$IFDEF FPC}
+    FillByte(envelope_key,length(envelope_key),0);
+    {$ELSE}
     FillMemory(@envelope_key,length(envelope_key),0);
+    {$ENDIF}
     if (ECDH_compute_key(@envelope_key,SHA512_DIGEST_LENGTH,EC_KEY_get0_public_key(ephemeral),
       PrivateKey, ecies_key_derivation_512)<>SHA512_DIGEST_LENGTH) then begin
       if logErrors then TLog.NewLog(lterror,'ECIES',Format('An error occurred while trying to compute the envelope key. {error = %s}',[ERR_error_string(ERR_get_error, nil)]));
@@ -409,19 +442,28 @@ Begin
     EC_KEY_free(ephemeral);
   end;
   // Use the authenticated hash of the ciphered data to ensure it was not modified after being encrypted.
+  {$IFDEF OpenSSL10}
   HMAC_CTX_init(@hmac);
+  phmac := @hmac;
+  {$ELSE}
+  phmac := HMAC_CTX_new;
+  {$ENDIF}
   try
     // At the moment we are generating the hash using encrypted data. At some point we may want to validate the original text instead.
-    aux := Pointer(Integer(@envelope_key) + key_length);
-    if (HMAC_Init_ex(@hmac, aux, key_length, ECIES_HASHER, Nil)<>1) Or
-       (HMAC_Update(@hmac, secure_body_data(cryptex), secure_body_length(cryptex))<>1) Or
-       (HMAC_Final(@hmac, @md, mac_length)<>1) then begin
+    aux := Pointer(PtrInt(@envelope_key) + key_length);
+    if (HMAC_Init_ex(phmac, aux, key_length, ECIES_HASHER, Nil)<>1) Or
+       (HMAC_Update(phmac, secure_body_data(cryptex), secure_body_length(cryptex))<>1) Or
+       (HMAC_Final(phmac, @md, mac_length)<>1) then begin
        if logErrors then TLog.NewLog(lterror,'ECIES',Format('Unable to generate the authentication code needed for validation. {error = %s}',
          [ERR_error_string(ERR_get_error(), nil)]));
        exit;
     end;
   finally
-    HMAC_CTX_cleanup(@hmac);
+    {$IFDEF OpenSSL10}
+    HMAC_CTX_cleanup(phmac);
+    {$ELSE}
+    HMAC_CTX_free(phmac);
+    {$ENDIF}
   end;
   // We can use the generated hash to ensure the encrypted data was not altered after being encrypted.
   if (mac_length<>secure_mac_length(cryptex)) OR ( Not CompareMem(@md,secure_mac_data(cryptex), mac_length)) then begin
@@ -434,24 +476,34 @@ Begin
   block := output;
   try
     // For now we use an empty initialization vector. We also clear out the result buffer just to be on the safe side.
+    {$IFDEF FPC}
+    FillByte(iv,EVP_MAX_IV_LENGTH,0);
+    FillByte(output^,output_length+1,0);
+    {$ELSE}
     FillMemory(@iv,EVP_MAX_IV_LENGTH,0);
     FillMemory(output,output_length+1,0);
+    {$ENDIF}
+    {$IFDEF OpenSSL10}
     EVP_CIPHER_CTX_init(@cipher);
+    pcipher := @cipher;
+    {$ELSE}
+    pcipher := EVP_CIPHER_CTX_new;
+    {$ENDIF}
     try
       // Decrypt the data using the chosen symmetric cipher.
-      if (EVP_DecryptInit_ex(@cipher, EVP_aes_256_cbc, nil,@envelope_key, @iv)<>1) Or
-         (EVP_CIPHER_CTX_set_padding(@cipher, 0)<>1) Or
-         (EVP_DecryptUpdate(@cipher, block, output_length, secure_body_data(cryptex), secure_body_length(cryptex))<>1) then begin
+      if (EVP_DecryptInit_ex(pcipher, EVP_aes_256_cbc, nil,@envelope_key, @iv)<>1) Or
+         (EVP_CIPHER_CTX_set_padding(pcipher, 0)<>1) Or
+         (EVP_DecryptUpdate(pcipher, block, output_length, secure_body_data(cryptex), secure_body_length(cryptex))<>1) then begin
          if logErrors then TLog.NewLog(lterror,'ECIES',Format('Unable to decrypt the data using the chosen symmetric cipher. {error = %s}',[ERR_error_string(ERR_get_error(), nil)]));
          exit;
       end;
-      block := Pointer(Integer(block) + output_length);
+      block := Pointer(PtrInt(block) + output_length);
       output_length := secure_body_length(cryptex) - output_length;
       if (output_length<>0) then begin
         if logErrors then TLog.NewLog(lterror,'ECIES',Format('The symmetric cipher failed to properly decrypt the correct amount of data! {output_length:%d}',[output_length]));
         exit;
       end;
-      if (EVP_DecryptFinal_ex(@cipher,block,output_length)<>1) then begin
+      if (EVP_DecryptFinal_ex(pcipher,block,output_length)<>1) then begin
         if logErrors then TLog.NewLog(lterror,'ECIES',Format('Unable to decrypt the data using the chosen symmetric cipher. {error = %s}',[ERR_error_string(ERR_get_error(), nil)]));
         exit;
       end;
@@ -459,10 +511,14 @@ Begin
       CopyMemory(@Decrypted[1],output,length(Decrypted));
       Result := true;
     finally
-      FreeMemory(output);
+      {$IFDEF OpenSSL10}
+      EVP_CIPHER_CTX_cleanup(pcipher);
+      {$ELSE}
+      EVP_CIPHER_CTX_free(pcipher);
+      {$ENDIF}
     end;
   finally
-     EVP_CIPHER_CTX_cleanup(@cipher);
+    FreeMemory(output);
   end;
 End;
 

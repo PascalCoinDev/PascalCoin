@@ -26,6 +26,7 @@ unit UAES;
 
   }
 
+{$I config.inc}
 interface
 
 uses
@@ -41,16 +42,26 @@ Type
     Class function EVP_Decrypt_AES256(const EncryptedMessage: TRawBytes; APassword: AnsiString; var Decrypted : AnsiString) : Boolean; overload;
   End;
 
+{$IFDEF FPC}
+procedure CopyMemory(Destination: Pointer; Source: Pointer; Length: DWORD);
+{$ENDIF}
+
 implementation
 
 uses
 {$IFnDEF FPC}
   Windows,
 {$ELSE}
-  LCLIntf, LCLType, LMessages, Windows,
+  LCLIntf, LCLType, LMessages,
 {$ENDIF}
-  ssl_const, ssl_bn, ssl_types, ssl_evp;
+  UOpenSSL, UOpenSSLdef;
 
+{$IFDEF FPC}
+procedure CopyMemory(Destination: Pointer; Source: Pointer; Length: DWORD);
+begin
+  Move(Source^, Destination^, Length);
+end;
+{$ENDIF}
 
 CONST SALT_MAGIC: AnsiString = 'Salted__'; SALT_MAGIC_LEN: integer = 8; SALT_SIZE = 8;
 
@@ -62,7 +73,10 @@ end;
 
 Function EVP_GetKeyIV(APassword: TBytes; ACipher: PEVP_CIPHER; const ASalt: TBytes; out Key, IV: TBytes) : Boolean;
 var
+  pctx: PEVP_MD_CTX;
+  {$IFDEF OpenSSL10}
   ctx: EVP_MD_CTX;
+  {$ENDIF}
   hash: PEVP_MD;
   mdbuff: TBytes;
   mds: integer;
@@ -93,30 +107,38 @@ begin
   // This method relies on the fact that the hashing method produces a key of
   // the correct size. EVP_BytesToKey goes through muptiple hashing passes if
   // necessary to make the key big enough when using smaller hashes.
-
+  {$IFDEF OpenSSL10}
   EVP_MD_CTX_init(@ctx);
+  pctx := @ctx;
+  {$ELSE}
+  pctx := EVP_MD_CTX_new;
+  {$ENDIF}
   try
     // Key first
-    If EVP_DigestInit_ex(@ctx, hash, nil)<>1 then exit;
-    If EVP_DigestUpdate(@ctx, @APassword[0], Length(APassword))<>1 then exit;
+    If EVP_DigestInit_ex(pctx, hash, nil)<>1 then exit;
+    If EVP_DigestUpdate(pctx, @APassword[0], Length(APassword))<>1 then exit;
     if (ASalt <> nil) then begin
-      if EVP_DigestUpdate(@ctx, @ASalt[0], Length(ASalt))<>1 then exit;
+      if EVP_DigestUpdate(pctx, @ASalt[0], Length(ASalt))<>1 then exit;
     end;
-    if (EVP_DigestFinal_ex(@ctx, @Key[0], mds)<>1) then exit;
+    if (EVP_DigestFinal_ex(pctx, @Key[0], mds)<>1) then exit;
 
     // Derive IV next
-    If EVP_DigestInit_ex(@ctx, hash, nil)<>1 then exit;
-    If EVP_DigestUpdate(@ctx, @Key[0], mds)<>1 then exit;
-    If EVP_DigestUpdate(@ctx, @APassword[0], Length(APassword))<>1 then exit;
+    If EVP_DigestInit_ex(pctx, hash, nil)<>1 then exit;
+    If EVP_DigestUpdate(pctx, @Key[0], mds)<>1 then exit;
+    If EVP_DigestUpdate(pctx, @APassword[0], Length(APassword))<>1 then exit;
     if (ASalt <> nil) then begin
-      if EVP_DigestUpdate(@ctx, @ASalt[0], Length(ASalt))<>1 then exit;
+      if EVP_DigestUpdate(pctx, @ASalt[0], Length(ASalt))<>1 then exit;
     end;
-    If EVP_DigestFinal_ex(@ctx, @IV[0], mds)<>1 then exit;
+    If EVP_DigestFinal_ex(pctx, @IV[0], mds)<>1 then exit;
 
     SetLength(IV, niv);
     Result := true;
   finally
-    EVP_MD_CTX_cleanup(@ctx);
+    {$IFDEF OpenSSL10}
+    EVP_MD_CTX_cleanup(pctx);
+    {$ELSE}
+    EVP_MD_CTX_free(pctx);
+    {$ENDIF}
   end;
 end;
 
@@ -139,7 +161,10 @@ end;
 class function TAESComp.EVP_Decrypt_AES256(const Value: TBytes; APassword: TBytes; var Decrypted: TBytes) : Boolean;
 var
   cipher: PEVP_CIPHER;
+  pctx: PEVP_CIPHER_CTX;
+  {$IFDEF OpenSSL10}
   ctx: EVP_CIPHER_CTX;
+  {$ENDIF}
   salt, key, iv, buf: TBytes;
   src_start, buf_start, out_len: integer;
 begin
@@ -158,21 +183,29 @@ begin
     If Not EVP_GetKeyIV(APassword, cipher, nil, key, iv) then exit;
     src_start := 0;
   end;
-
+  {$IFDEF OpenSSL10}
   EVP_CIPHER_CTX_init(@ctx);
+  pctx := @ctx;
+  {$ELSE}
+  pctx := EVP_CIPHER_CTX_new;
+  {$ENDIF}
   try
-    If EVP_DecryptInit(@ctx, cipher, @key[0], @iv[0])<>1 then exit;
+    If EVP_DecryptInit(pctx, cipher, @key[0], @iv[0])<>1 then exit;
     SetLength(buf, Length(Value));
     buf_start := 0;
-    If EVP_DecryptUpdate(@ctx, @buf[buf_start], out_len, @Value[src_start], Length(Value) - src_start)<>1 then exit;
+    If EVP_DecryptUpdate(pctx, @buf[buf_start], out_len, @Value[src_start], Length(Value) - src_start)<>1 then exit;
     Inc(buf_start, out_len);
-    If EVP_DecryptFinal(@ctx, @buf[buf_start], out_len)<>1 then exit;
+    If EVP_DecryptFinal(pctx, @buf[buf_start], out_len)<>1 then exit;
     Inc(buf_start, out_len);
     SetLength(buf, buf_start);
     Decrypted := buf;
     Result := true;
   finally
-    EVP_CIPHER_CTX_cleanup(@ctx);
+    {$IFDEF OpenSSL10}
+    EVP_CIPHER_CTX_cleanup(pctx);
+    {$ELSE}
+    EVP_CIPHER_CTX_free(pctx);
+    {$ENDIF}
   end;
 end;
 
@@ -191,7 +224,10 @@ end;
 class function TAESComp.EVP_Encrypt_AES256(Value, APassword: TBytes): TBytes;
 var
   cipher: PEVP_CIPHER;
+  pctx: PEVP_CIPHER_CTX;
+  {$IFDEF OpenSSL10}
   ctx: EVP_CIPHER_CTX;
+  {$ENDIF}
   salt, key, iv, buf: TBytes;
   block_size: integer;
   buf_start, out_len: integer;
@@ -200,24 +236,33 @@ begin
   salt := EVP_GetSalt;
   EVP_GetKeyIV(APassword, cipher, salt, key, iv);
 
+  {$IFDEF OpenSSL10}
   EVP_CIPHER_CTX_init(@ctx);
+  pctx := @ctx;
+  {$ELSE}
+  pctx := EVP_CIPHER_CTX_new;
+  {$ENDIF}
   try
-    EVP_EncryptInit(@ctx, cipher, @key[0], @iv[0]);
-    block_size := EVP_CIPHER_CTX_block_size(@ctx);
+    EVP_EncryptInit(pctx, cipher, @key[0], @iv[0]);
+    block_size := EVP_CIPHER_CTX_block_size(pctx);
     SetLength(buf, Length(Value) + block_size + SALT_MAGIC_LEN + PKCS5_SALT_LEN);
     buf_start := 0;
     Move(PAnsiChar(SALT_MAGIC)^, buf[buf_start], SALT_MAGIC_LEN);
     Inc(buf_start, SALT_MAGIC_LEN);
     Move(salt[0], buf[buf_start], PKCS5_SALT_LEN);
     Inc(buf_start, PKCS5_SALT_LEN);
-    EVP_EncryptUpdate(@ctx, @buf[buf_start], out_len, @Value[0], Length(Value));
+    EVP_EncryptUpdate(pctx, @buf[buf_start], out_len, @Value[0], Length(Value));
     Inc(buf_start, out_len);
-    EVP_EncryptFinal(@ctx, @buf[buf_start], out_len);
+    EVP_EncryptFinal(pctx, @buf[buf_start], out_len);
     Inc(buf_start, out_len);
     SetLength(buf, buf_start);
     result := buf;
   finally
-    EVP_CIPHER_CTX_cleanup(@ctx);
+    {$IFDEF OpenSSL10}
+    EVP_CIPHER_CTX_cleanup(pctx);
+    {$ELSE}
+    EVP_CIPHER_CTX_free(pctx);
+    {$ENDIF}
   end;
 end;
 

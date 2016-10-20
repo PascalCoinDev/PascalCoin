@@ -23,7 +23,7 @@ Uses
 {$IFnDEF FPC}
   Windows,
 {$ELSE}
-  LCLIntf, LCLType, LMessages,
+  {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
   UBlockChain, Classes, SyncObjs, UAccounts, UThread;
 

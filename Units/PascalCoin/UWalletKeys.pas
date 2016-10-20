@@ -20,7 +20,7 @@ unit UWalletKeys;
 interface
 
 uses
-  Classes, UBlockChain, UAccounts, UCrypto, ssl_types;
+  Classes, UBlockChain, UAccounts, UCrypto;
 
 Type
   TWalletKey = Record
@@ -261,6 +261,7 @@ begin
   if FIsReadingStream then exit;
   if Not Assigned(Stream) then exit;
   Stream.Size := 0;
+  Stream.Position:=0;
   TStreamOp.WriteAnsiString(Stream,CT_PrivateKeyFile_Magic);
   i := CT_PrivateKeyFile_Version;
   Stream.Write(i,4);
@@ -295,6 +296,7 @@ begin
     if FileExists(Value) then fm := fmOpenReadWrite
     else fm := fmCreate;
     FWalletFileStream := TFileStream.Create(WalletfileName,fm+fmShareDenyWrite);
+    FWalletFileStream.Position:=0;
     LoadFromStream(FWalletFileStream);
   end;
 end;

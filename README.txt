@@ -20,15 +20,14 @@ https://github.com/PascalCoin/PascalCoin
 
 HOW TO COMPILE:
 
-Version 1.0 of Pascal Coin Wallet, Miner & Explorer is compiled with
+Version 1.0.8 of Pascal Coin Wallet can be compiled with Delphi and Lazarus and run in Windows or Linux
 
 - Included source code available at https://github.com/PascalCoin/PascalCoin
-- Delphi 2010 (Future versions will compile with Lazarus...)
-- Source code of OpenSSL-Delphi that can be obtained from: https://github.com/Arvur/OpenSSL-Delphi - Put it on any directory and make it available to compile.
+- Read "COMPILE_INSTRUCTIONS" file with instructions (available at github)
 
-
-To run:
-- libeay32.dll - Can be downloaded from https://indy.fulgan.com/SSL/
+To run it needs a OpenSSL library:
+- Windows: libeay32.dll - Can be downloaded from https://indy.fulgan.com/SSL/
+- Linux: libcrypto.so.1.0.0 or libcrypto.so.1.1 (Instructions in "COMPILE_INSTRUCTIONS" file)
 
 
 Enjoy Pascal Coin!
@@ -37,6 +36,14 @@ If you like it, consider a donation using BitCoin:
 16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
 History:
+
+Build 1.0.8.0 - 2016-10-20
+--------------------------
+- Cross compatible
+- Can compile with Delphi or Lazarus (Free Pascal)
+- New storage system. No more access database
+- Network hashrate calculation
+
 
 Build 1.0.7.0 - 2016-10-10
 --------------------------

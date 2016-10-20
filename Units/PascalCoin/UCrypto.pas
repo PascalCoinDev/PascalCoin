@@ -17,11 +17,12 @@ unit UCrypto;
 
   }
 
+{$I config.inc}
+
 interface
 
 uses
-  Classes, SysUtils, ssl_err, ssl_const, ssl_bn, ssl_ec, ssl_types, ssl_ecdsa, ssl_sha, ssl_ripemd, ssl_util,
-  ssl_evp, ssl_ecdh, ssl_hmac;
+  Classes, SysUtils, UOpenSSL, UOpenSSLDef;
 
 Type
   ECryptoException = Class(Exception);
@@ -52,7 +53,7 @@ Type
     Constructor Create;
     Procedure GenerateRandomPrivateKey(EC_OpenSSL_NID : Word);
     Destructor Destroy;
-    Property PrivateKey : PEC_KEY read FPrivateKey;// write SetPrivateKey;
+    Property PrivateKey : PEC_KEY read FPrivateKey;
     Property PublicKey : TECDSA_Public read GetPublicKey;
     Property PublicKeyPoint : PEC_POINT read GetPublicKeyPoint;
     Function SetPrivateKeyFromHexa(EC_OpenSSL_NID : Word; hexa : AnsiString) : Boolean;
@@ -116,6 +117,7 @@ Type
     Property Value : Int64 read GetValue write SetValue;
     Function IsZero : Boolean;
     Class Function HexaToDecimal(hexa : AnsiString) : AnsiString;
+    Class Function TargetToHashRate(EncodedTarget : Cardinal) : TBigNum;
   End;
 
 Const
@@ -124,11 +126,6 @@ Const
 implementation
 
 uses
-{$IFnDEF FPC}
-  Windows,
-{$ELSE}
-  LCLIntf, LCLType, LMessages,
-{$ENDIF}
   ULog, UConst, UAccounts;
 
 Var _initialized : Boolean = false;
@@ -137,16 +134,7 @@ Procedure _DoInit;
 Begin
   if Not (_initialized) then begin
     _initialized := true;
-    SSL_InitERR;
-    SSL_InitEC;
-    SSL_InitECDSA;
-    SSL_InitBN;
-    SSL_Initsha;
-    SSL_Initripemd;
-    // Used by UECIES & UAES
-    SSL_InitEVP;
-    SSL_InitSSLDH;
-    SSL_InitHMAC;
+    InitSSLFunctions;
   end;
 End;
 
@@ -170,8 +158,8 @@ begin
   ms := TMemoryStream.Create;
   Try
     ms.Write(FEC_OpenSSL_NID,sizeof(FEC_OpenSSL_NID));
-    SetLength(aux,BN_num_bytes(FPrivateKey^.priv_key));
-    BN_bn2bin(FPrivateKey^.priv_key,@aux[1]);
+    SetLength(aux,BN_num_bytes(EC_KEY_get0_private_key(FPrivateKey)));
+    BN_bn2bin(EC_KEY_get0_private_key(FPrivateKey),@aux[1]);
     TStreamOp.WriteAnsiString(ms,aux);
     SetLength(Result,ms.Size);
     ms.Position := 0;
@@ -307,9 +295,9 @@ begin
     if EC_KEY_set_private_key(FPrivateKey,bn)<>1 then raise ECryptoException.Create('Invalid num to set as private key');
     //
     ctx := BN_CTX_new;
-    pub_key := EC_POINT_new(FPrivateKey.group);
+    pub_key := EC_POINT_new(EC_KEY_get0_group(FPrivateKey));
     try
-      if EC_POINT_mul(FPrivateKey.group,pub_key,bn,nil,nil,ctx)<>1 then raise ECryptoException.Create('Error obtaining public key');
+      if EC_POINT_mul(EC_KEY_get0_group(FPrivateKey),pub_key,bn,nil,nil,ctx)<>1 then raise ECryptoException.Create('Error obtaining public key');
       EC_KEY_set_public_key(FPrivateKey,pub_key);
     finally
       BN_CTX_free(ctx);
@@ -346,7 +334,7 @@ begin
   PC := PS;
   Result := '';
   for I := 1 to 20 do begin
-    Result := Result + IntToHex(Integer(PC^),2);
+    Result := Result + IntToHex(PtrInt(PC^),2);
     inc(PC);
   end;
   FreeMem(PS,33);
@@ -372,11 +360,16 @@ class function TCrypto.ECDSASign(Key: PEC_KEY; const digest: AnsiString): TECDSA
 Var PECS : PECDSA_SIG;
   p, pr,ps : PAnsiChar;
   i : Integer;
+  {$IFDEF OpenSSL10}
+  {$ELSE}
+  bnr,bns : PBIGNUM;
+  {$ENDIF}
 begin
   PECS := ECDSA_do_sign(PAnsiChar(digest),length(digest),Key);
   Try
     if PECS = Nil then raise ECryptoException.Create('Error signing');
 
+    {$IFDEF OpenSSL10}
     i := BN_num_bytes(PECS^._r);
     SetLength(Result.r,i);
     p := @Result.r[1];
@@ -386,6 +379,17 @@ begin
     SetLength(Result.s,i);
     p := @Result.s[1];
     i := BN_bn2bin(PECS^._s,p);
+    {$ELSE}
+    ECDSA_SIG_get0(PECS,@bnr,@bns);
+    i := BN_num_bytes(bnr);
+    SetLength(Result.r,i);
+    p := @Result.r[1];
+    i := BN_bn2bin(bnr,p);
+    i := BN_num_bytes(bns);
+    SetLength(Result.s,i);
+    p := @Result.s[1];
+    i := BN_bn2bin(bns,p);
+    {$ENDIF}
   Finally
     ECDSA_SIG_free(PECS);
   End;
@@ -394,11 +398,24 @@ end;
 class function TCrypto.ECDSAVerify(EC_OpenSSL_NID : Word; PubKey: EC_POINT; const digest: AnsiString; Signature: TECDSA_SIG): Boolean;
 Var PECS : PECDSA_SIG;
   PK : PEC_KEY;
+  {$IFDEF OpenSSL10}
+  {$ELSE}
+  bnr,bns : PBIGNUM;
+  {$ENDIF}
 begin
   PECS := ECDSA_SIG_new;
   Try
+    {$IFDEF OpenSSL10}
     BN_bin2bn(PAnsiChar(Signature.r),length(Signature.r),PECS^._r);
     BN_bin2bn(PAnsiChar(Signature.s),length(Signature.s),PECS^._s);
+    {$ELSE}
+{    ECDSA_SIG_get0(PECS,@bnr,@bns);
+    BN_bin2bn(PAnsiChar(Signature.r),length(Signature.r),bnr);
+    BN_bin2bn(PAnsiChar(Signature.s),length(Signature.s),bns);}
+    bnr := BN_bin2bn(PAnsiChar(Signature.r),length(Signature.r),nil);
+    bns := BN_bin2bn(PAnsiChar(Signature.s),length(Signature.s),nil);
+    if ECDSA_SIG_set0(PECS,bnr,bns)<>1 then Raise Exception.Create('Dev error 20161019-1 '+ERR_error_string(ERR_get_error(),nil));
+    {$ENDIF}
 
     PK := EC_KEY_new_by_curve_name(EC_OpenSSL_NID);
     EC_KEY_set_public_key(PK,@PubKey);
@@ -471,7 +488,8 @@ end;
 class function TCrypto.PrivateKey2Hexa(Key: PEC_KEY): AnsiString;
 Var p : PAnsiChar;
 begin
-  p := BN_bn2hex(Key^.priv_key);
+  p := BN_bn2hex(EC_KEY_get0_private_key(Key));
+//  p := BN_bn2hex(Key^.priv_key);
   Result := strpas(p);
   OPENSSL_free(p);
 end;
@@ -704,6 +722,49 @@ begin
   bn := TBigNum.Create(int);
   Result := Sub(bn);
   bn.Free;
+end;
+
+class function TBigNum.TargetToHashRate(EncodedTarget: Cardinal): TBigNum;
+Var bn1,bn2 : TBigNum;
+  part_A, part_B : Cardinal;
+  ctx : PBN_CTX;
+begin
+  { Target is 2 parts: First byte (A) is "0" bits on the left. Bytes 1,2,3 (B) are number after first "1" bit
+    Example: Target 23FEBFCE
+       Part_A: 23  -> 35 decimal
+       Part_B: FEBFCE
+    Target to Hash rate Formula:
+      Result = 2^Part_A + ( (2^(Part_A-24)) * Part_B )
+  }
+  Result := TBigNum.Create(2);
+  part_A := EncodedTarget shr 24;
+  bn1 := TBigNum.Create(part_A);
+  ctx := BN_CTX_new;
+  try
+    if BN_exp(Result.FBN,Result.FBN,bn1.FBN,ctx)<>1 then raise Exception.Create('Error 20161017-3');
+  finally
+    BN_CTX_free(ctx);
+    bn1.Free;
+  end;
+  //
+  if part_A<=24 then exit;
+  //
+  part_B := (EncodedTarget shl 8) shr 8;
+  bn2 := TBigNum.Create(2);
+  Try
+    bn1 := TBigNum.Create(part_A - 24);
+    ctx := BN_CTX_new;
+    try
+      If BN_exp(bn2.FBN,bn2.FBN,bn1.FBN,ctx)<>1 then raise Exception.Create('Error 20161017-4');
+    finally
+      BN_CTX_free(ctx);
+      bn1.Free;
+    end;
+    bn2.Multiply(part_B);
+    Result.Add(bn2);
+  Finally
+    bn2.Free;
+  End;
 end;
 
 function TBigNum.ToDecimal: AnsiString;

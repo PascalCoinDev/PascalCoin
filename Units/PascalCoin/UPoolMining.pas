@@ -1,5 +1,9 @@
 unit UPoolMining;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -15,8 +19,14 @@ unit UPoolMining;
 
 interface
 
-Uses UTCPIP, SysUtils, UThread, SyncObjs, Classes, Windows, UJSONFunctions, UNode, UCrypto,
-  UAccounts;
+Uses
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  UTCPIP, SysUtils, UThread, SyncObjs, Classes, UJSONFunctions, UAES, UNode,
+  UCrypto, UAccounts;
 
 Const
   CT_PoolMining_Method_STATUS = 'status';

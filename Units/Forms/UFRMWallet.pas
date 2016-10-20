@@ -1,5 +1,9 @@
 unit UFRMWallet;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -16,21 +20,28 @@ unit UFRMWallet;
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, pngimage, ExtCtrls, ComCtrls, UWalletKeys, ShlObj, ADOInt, StdCtrls,
-  ULog, DB, ADODB, Grids, DBGrids, DBCGrids, UAppParams,
-  UBlockChain, UNode, DBCtrls, UGridUtils, UDBGridUtils, UMiner, UAccounts, Menus, ImgList,
-  AppEvnts, UNetProtocol, UCrypto, Buttons, UPoolMining;
+{$IFnDEF FPC}
+  pngimage, ADODB, Windows, AppEvnts, ShlObj,
+{$ELSE}
+  sqldb, LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, ExtCtrls, ComCtrls, UWalletKeys, StdCtrls,
+  ULog, DB, Grids, DBGrids, UAppParams,
+  UBlockChain, UNode, DBCtrls, UGridUtils, UMiner, UAccounts, Menus, ImgList,
+  UNetProtocol, UCrypto, Buttons, UPoolMining;
 
 type
   TMinerPrivateKey = (mpk_NewEachTime, mpk_Random, mpk_Selected);
+
+  { TFRMWallet }
 
   TFRMWallet = class(TForm)
     pnlTop: TPanel;
     Image1: TImage;
     StatusBar: TStatusBar;
     PageControl: TPageControl;
-    tsAccountsExplorer: TTabSheet;
+    tsMyAccounts: TTabSheet;
     tsOperations: TTabSheet;
     TrayIcon: TTrayIcon;
     TimerUpdateStatus: TTimer;
@@ -51,15 +62,9 @@ type
     miAboutPascalCoin: TMenuItem;
     miNewOperation: TMenuItem;
     Panel1: TPanel;
-    Label1: TLabel;
-    dbgridOperations: TDBGrid;
-    ebFilterOperationsAccount: TEdit;
     Label2: TLabel;
     ebFilterOperationsStartBlock: TEdit;
     ebFilterOperationsEndBlock: TEdit;
-    dtpFilterOperationsDateStart: TDateTimePicker;
-    cbFilterOperationsByDate: TCheckBox;
-    dtpFilterOperationsDateEnd: TDateTimePicker;
     tsNodeStats: TTabSheet;
     memoNetConnections: TMemo;
     memoNetServers: TMemo;
@@ -84,10 +89,6 @@ type
     Label9: TLabel;
     ebBlockChainBlockStart: TEdit;
     ebBlockChainBlockEnd: TEdit;
-    dtpBlockChainDateStart: TDateTimePicker;
-    cbBlockChainFilterByDate: TCheckBox;
-    dtpBlockChainDateEnd: TDateTimePicker;
-    dbGridBlockChain: TDBGrid;
     Label8: TLabel;
     lblNodeStatus: TLabel;
     tsPendingOperations: TTabSheet;
@@ -99,7 +100,7 @@ type
     MiClose: TMenuItem;
     MiDecodePayload: TMenuItem;
     ImageListIcons: TImageList;
-    ApplicationEvents: TApplicationEvents;
+    ApplicationEvents: {$IFDEF FPC}TApplicationProperties{$ELSE}TApplicationEvents{$ENDIF};
     Label5: TLabel;
     lblCurrentAccounts: TLabel;
     lblTimeAverageAux: TLabel;
@@ -157,6 +158,8 @@ type
     ebFilterAccountByBalanceMin: TEdit;
     ebFilterAccountByBalanceMax: TEdit;
     bbAccountsRefresh: TBitBtn;
+    dgBlockChainExplorer: TDrawGrid;
+    dgOperationsExplorer: TDrawGrid;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure TimerUpdateStatusTimer(Sender: TObject);
@@ -172,10 +175,8 @@ type
     procedure PageControlChange(Sender: TObject);
     procedure ebFilterOperationsAccountExit(Sender: TObject);
     procedure ebFilterOperationsAccountKeyPress(Sender: TObject; var Key: Char);
-    procedure cbFilterOperationsByDateClick(Sender: TObject);
     procedure ebBlockChainBlockStartExit(Sender: TObject);
     procedure ebBlockChainBlockStartKeyPress(Sender: TObject; var Key: Char);
-    procedure cbBlockChainFilterByDateClick(Sender: TObject);
     procedure cbExploreMyAccountsClick(Sender: TObject);
     procedure MiCloseClick(Sender: TObject);
     procedure MiDecodePayloadClick(Sender: TObject);
@@ -218,11 +219,11 @@ type
     FNodeNotifyEvents : TNodeNotifyEvents;
     FAccountsGrid : TAccountsGrid;
     FSelectedAccountsGrid : TAccountsGrid;
-    FOperationsGrid : TOperationsGrid;
+    FOperationsAccountGrid : TOperationsGrid;
     FPendingOperationsGrid : TOperationsGrid;
     FOrderedAccountsKeyList : TOrderedAccountKeysList;
-    FOperationsDBGrid : TOperationsDBGrid;
-    FBlockChainDBGrid : TBlockChainDBGrid;
+    FOperationsExplorerGrid : TOperationsGrid;
+    FBlockChainGrid : TBlockChainGrid;
     FMinerPrivateKeyType : TMinerPrivateKey;
     FUpdating : Boolean;
     FMessagesUnreadCount : Integer;
@@ -267,10 +268,14 @@ var
 
 implementation
 
-{$R *.dfm}
+{$IFnDEF FPC}
+  {$R *.dfm}
+{$ELSE}
+  {$R *.lfm}
+{$ENDIF}
 
-Uses UFolderHelper, ssl_lib, UConst, UTime,
-  UDBStorage, UThread, UOpTransaction, UECIES, UFRMPascalCoinWalletConfig,
+Uses UFolderHelper, UOpenSSL, UOpenSSLdef, UConst, UTime, UFileStorage,
+  UThread, UOpTransaction, UECIES, UFRMPascalCoinWalletConfig,
   UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp;
 
 Type
@@ -306,7 +311,7 @@ begin
     TCrypto.InitCrypto;
     // Read Wallet
     Try
-      FWalletKeys.WalletFileName := TFolderHelper.GetPascalCoinDataFolder+'\WalletKeys.dat';
+      FWalletKeys.WalletFileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
     Except
       On E:Exception do begin
         E.Message := 'Cannot open your wallet... Perhaps another instance of Pascal Coin is active!'+#10+#10+E.Message;
@@ -322,23 +327,17 @@ begin
     FNode.NetServer.Port := FAppParams.ParamByName[CT_PARAM_InternetServerPort].GetAsInteger(CT_NetServer_Port);
     FNode.PeerCache := FAppParams.ParamByName[CT_PARAM_PeerCache].GetAsString('')+';'+CT_Discover_IPs;
     // Check Database
-    FNode.Bank.StorageClass := TDBStorage;
-    TDBStorage(FNode.Bank.Storage).AccessFileName := TFolderHelper.GetPascalCoinDataFolder+'\pascalcoinB03.mdb';
+    FNode.Bank.StorageClass := TFileStorage;
+    TFileStorage(FNode.Bank.Storage).DatabaseFolder := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data';
     // Init Grid
-    FAccountsGrid.Node := FNode;
+    //FAccountsGrid.Node := FNode;
     FSelectedAccountsGrid.Node := FNode;
     FWalletKeys.OnChanged := OnWalletChanged;
-    FOperationsGrid.Node := FNode;
-    FPendingOperationsGrid.Node := FNode;
+    FAccountsGrid.Node := FNode;
+    FOperationsAccountGrid.Node := FNode;
     // Reading database
     TThreadActivate.Create(false).FreeOnTerminate := true;
     FNodeNotifyEvents.Node := FNode;
-    FOperationsDBGrid.Node := FNode;
-    FOperationsDBGrid.AdoConnection := TDBStorage(FNode.Bank.Storage).ADOConnection;
-    FOperationsDBGrid.DBGrid := dbgridOperations;
-    FBlockChainDBGrid.Node := FNode;
-    FBlockChainDBGrid.AdoConnection := TDBStorage(FNode.Bank.Storage).ADOConnection;
-    FBlockChainDBGrid.DBGrid := dbGridBlockChain;
     // Init
     TNetData.NetData.OnReceivedHelloMessage := OnReceivedHelloMessage;
     TNetData.NetData.OnStatisticsChanged := OnNetStatisticsChanged;
@@ -366,11 +365,13 @@ end;
 
 procedure TFRMWallet.ApplicationEventsMinimize(Sender: TObject);
 begin
+  {$IFnDEF FPC}
   Hide();
   WindowState := wsMinimized;
   { Show the animated tray icon and also a hint balloon. }
   TrayIcon.Visible := True;
   TrayIcon.ShowBalloonHint;
+  {$ENDIF}
 end;
 
 procedure TFRMWallet.bbAccountsRefreshClick(Sender: TObject);
@@ -383,7 +384,7 @@ var i : Integer;
   name : String;
 begin
   if (cbMyPrivateKeys.ItemIndex<0) then  exit;
-  i := Integer(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]);
+  i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]);
   if (i<0) Or (i>=FWalletKeys.Count) then raise Exception.Create('Must select a Key');
   name := FWalletKeys.Key[i].Name;
   if InputQuery('Change Key name','Input new name',name) then begin
@@ -462,13 +463,6 @@ begin
     'Message: '+#10+m),PChar(Application.Title),MB_ICONINFORMATION+MB_OK);
 end;
 
-procedure TFRMWallet.cbBlockChainFilterByDateClick(Sender: TObject);
-begin
-  dtpBlockChainDateStart.Enabled := cbBlockChainFilterByDate.Checked;
-  dtpBlockChainDateEnd.Enabled := cbBlockChainFilterByDate.Checked;
-  ebBlockChainBlockStartExit(Nil);
-end;
-
 procedure TFRMWallet.cbExploreMyAccountsClick(Sender: TObject);
 begin
   cbMyPrivateKeys.Enabled := cbExploreMyAccounts.Checked;
@@ -479,13 +473,6 @@ end;
 procedure TFRMWallet.cbFilterAccountsClick(Sender: TObject);
 begin
   If not DoUpdateAccountsFilter then UpdateAccounts(true);
-end;
-
-procedure TFRMWallet.cbFilterOperationsByDateClick(Sender: TObject);
-begin
-  dtpFilterOperationsDateStart.Enabled := cbFilterOperationsByDate.Checked;
-  dtpFilterOperationsDateEnd.Enabled := cbFilterOperationsByDate.Checked;
-  ebFilterOperationsAccountExit(Nil);
 end;
 
 procedure TFRMWallet.cbMyPrivateKeysChange(Sender: TObject);
@@ -622,31 +609,16 @@ begin
 end;
 
 procedure TFRMWallet.ebBlockChainBlockStartExit(Sender: TObject);
-var i64 : Int64;
+var bstart,bend : Int64;
 begin
   If FUpdating then exit;
   FUpdating := True;
   Try
-    FBlockChainDBGrid.Disable;
-    try
-      i64 := StrToInt64Def(ebBlockChainBlockStart.Text,-1);
-      FBlockChainDBGrid.BlockStart := i64;
-      if i64>=0 then ebBlockChainBlockStart.Text := Inttostr(i64) else ebBlockChainBlockStart.Text := '';
-      i64 := StrToInt64Def(ebBlockChainBlockEnd.Text,-1);
-      FBlockChainDBGrid.BlockEnd := i64;
-      if i64>=0 then ebBlockChainBlockEnd.Text := Inttostr(i64) else ebBlockChainBlockEnd.Text := '';
-      if cbBlockChainFilterByDate.Checked then begin
-        if dtpBlockChainDateStart.Date<encodedate(2016,01,01) then dtpBlockChainDateStart.Date := encodedate(2016,01,01);
-        if dtpBlockChainDateStart.Date>dtpBlockChainDateEnd.Date then dtpBlockChainDateEnd.Date := dtpBlockChainDateStart.Date;
-        FBlockChainDBGrid.SetDates(dtpBlockChainDateStart.Date,dtpBlockChainDateEnd.Date);
-        dtpBlockChainDateStart.Date := FBlockChainDBGrid.DateStart;
-        dtpBlockChainDateEnd.Date := FBlockChainDBGrid.DateEnd;
-      end else begin
-        FBlockChainDBGrid.SetDates(0,0);
-      end;
-    finally
-      FBlockChainDBGrid.Enable;
-    end;
+    bstart := StrToInt64Def(ebBlockChainBlockStart.Text,-1);
+    bend := StrToInt64Def(ebBlockChainBlockEnd.Text,-1);
+    FBlockChainGrid.SetBlocks(bstart,bend);
+    if FBlockChainGrid.BlockStart>=0 then ebBlockChainBlockStart.Text := Inttostr(FBlockChainGrid.BlockStart) else ebBlockChainBlockStart.Text := '';
+    if FBlockChainGrid.BlockEnd>=0 then ebBlockChainBlockEnd.Text := Inttostr(FBlockChainGrid.BlockEnd) else ebBlockChainBlockEnd.Text := '';
   Finally
     FUpdating := false;
   End;
@@ -670,40 +642,16 @@ begin
 end;
 
 procedure TFRMWallet.ebFilterOperationsAccountExit(Sender: TObject);
-Var acc : Cardinal;
-  i64 : Int64;
+Var bstart,bend : Int64;
 begin
   If FUpdating then exit;
   FUpdating := True;
   Try
-    FOperationsDBGrid.Disable;
-    try
-      if TAccountComp.AccountTxtNumberToAccountNumber(ebFilterOperationsAccount.Text,acc) then begin
-        FOperationsDBGrid.AccountNumber := acc;
-        ebFilterOperationsAccount.Text := TAccountComp.AccountNumberToAccountTxtNumber(acc);
-      end else begin
-        FOperationsDBGrid.AccountNumber := -1;
-        ebFilterOperationsAccount.Text := '';
-      end;
-      i64 := StrToInt64Def(ebFilterOperationsStartBlock.Text,-1);
-      FOperationsDBGrid.BlockStart := i64;
-      if i64>=0 then ebFilterOperationsStartBlock.Text := Inttostr(i64) else ebFilterOperationsStartBlock.Text := '';
-      i64 := StrToInt64Def(ebFilterOperationsEndBlock.Text,-1);
-      FOperationsDBGrid.BlockEnd := i64;
-      if i64>=0 then ebFilterOperationsEndBlock.Text := Inttostr(i64) else ebFilterOperationsEndBlock.Text := '';
-      if cbFilterOperationsByDate.Checked then begin
-        if dtpFilterOperationsDateStart.Date<encodedate(2016,01,01) then dtpFilterOperationsDateStart.Date := encodedate(2016,01,01);
-        if dtpFilterOperationsDateStart.Date>dtpFilterOperationsDateEnd.Date then dtpFilterOperationsDateEnd.Date := dtpFilterOperationsDateStart.Date;
-        FOperationsDBGrid.SetDates(dtpFilterOperationsDateStart.Date,dtpFilterOperationsDateEnd.Date);
-        dtpFilterOperationsDateStart.Date := FOperationsDBGrid.DateStart;
-        dtpFilterOperationsDateEnd.Date := FOperationsDBGrid.DateEnd;
-      end else begin
-        FOperationsDBGrid.SetDates(0,0);
-      end;
-      //
-    finally
-      FOperationsDBGrid.Enable;
-    end;
+    bstart := StrToInt64Def(ebFilterOperationsStartBlock.Text,-1);
+    if bstart>=0 then ebFilterOperationsStartBlock.Text := Inttostr(bstart) else ebFilterOperationsStartBlock.Text := '';
+    bend := StrToInt64Def(ebFilterOperationsEndBlock.Text,-1);
+    if bend>=0 then ebFilterOperationsEndBlock.Text := Inttostr(bend) else ebFilterOperationsEndBlock.Text := '';
+    FOperationsExplorerGrid.SetBlocks(bstart,bend);
   Finally
     FUpdating := false;
   End;
@@ -757,7 +705,6 @@ end;
 
 procedure TFRMWallet.FormCreate(Sender: TObject);
 Var i : Integer;
-  fvi : TFileVersionInfo;
 begin
   FMinAccountBalance := 0;
   FMaxAccountBalance := CT_MaxWalletAmount;
@@ -782,7 +729,7 @@ begin
   FLog.SaveTypes := [];
   If Not ForceDirectories(TFolderHelper.GetPascalCoinDataFolder) then raise Exception.Create('Cannot create dir: '+TFolderHelper.GetPascalCoinDataFolder);
   FAppParams := TAppParams.Create(self);
-  FAppParams.FileName := TFolderHelper.GetPascalCoinDataFolder+'\AppParams.prm';
+  FAppParams.FileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'AppParams.prm';
   FNodeNotifyEvents := TNodeNotifyEvents.Create(Self);
   FNodeNotifyEvents.OnBlocksChanged := OnNewAccount;
   FNodeNotifyEvents.OnNodeMessageEvent := OnNodeMessageEvent;
@@ -791,31 +738,27 @@ begin
   FSelectedAccountsGrid := TAccountsGrid.Create(Self);
   FSelectedAccountsGrid.DrawGrid := dgSelectedAccounts;
   FSelectedAccountsGrid.OnUpdated := OnSelectedAccountsGridUpdated;
-  FOperationsGrid := TOperationsGrid.Create(Self);
-  FOperationsGrid.DrawGrid := dgAccountOperations;
+  FOperationsAccountGrid := TOperationsGrid.Create(Self);
+  FOperationsAccountGrid.DrawGrid := dgAccountOperations;
   FPendingOperationsGrid := TOperationsGrid.Create(Self);
   FPendingOperationsGrid.DrawGrid := dgPendingOperations;
   FPendingOperationsGrid.AccountNumber := -1; // all
   FPendingOperationsGrid.PendingOperations := true;
+  FOperationsExplorerGrid := TOperationsGrid.Create(Self);
+  FOperationsExplorerGrid.DrawGrid := dgOperationsExplorer;
+  FOperationsExplorerGrid.AccountNumber := -1;
+  FOperationsExplorerGrid.PendingOperations := False;
+  FBlockChainGrid := TBlockChainGrid.Create(Self);
+  FBlockChainGrid.DrawGrid := dgBlockChainExplorer;
   FWalletKeys.OnChanged := OnWalletChanged;
-  FOperationsDBGrid := TOperationsDBGrid.Create(Self);
-  FBlockChainDBGrid := TBlockChainDBGrid.Create(Self);
   LoadAppParams;
   UpdatePrivateKeys;
   UpdateBlockChainState;
   UpdateConnectionStatus;
-  ebFilterOperationsAccount.Text := '';
-  PageControl.ActivePage := tsAccountsExplorer;
+  PageControl.ActivePage := tsMyAccounts;
   pcAccountsOptions.ActivePage := tsAccountOperations;
-  dtpFilterOperationsDateStart.Date := Trunc(Now);
-  dtpFilterOperationsDateEnd.Date := Trunc(Now);
-  dtpBlockChainDateStart.Date := Trunc(Now);
-  dtpBlockChainDateEnd.Date := Trunc(Now);
-  ebFilterOperationsAccount.Text := '';
   ebFilterOperationsStartBlock.Text := '';
   ebFilterOperationsEndBlock.Text := '';
-  cbFilterOperationsByDate.Checked := false;
-  cbFilterOperationsByDateClick(nil);
   cbExploreMyAccountsClick(nil);
 
   TrayIcon.Visible := true;
@@ -825,8 +768,7 @@ begin
     'Double click the system tray icon to restore Pascal Coin';
   TrayIcon.BalloonFlags := bfInfo;
   MinersBlocksFound := 0;
-  fvi := TFolderHelper.GetTFileVersionInfo(Application.ExeName);
-  lblBuild.Caption := 'Build: '+fvi.FileVersion;
+  lblBuild.Caption := 'Build: '+CT_ClientAppVersion;
   FPoolMiningServer := Nil;
 end;
 
@@ -845,7 +787,8 @@ begin
   step := 'Assigning nil events';
   FLog.OnNewLog :=Nil;
   FNodeNotifyEvents.Node := Nil;
-  FOperationsGrid.Node := Nil;
+  FOperationsAccountGrid.Node := Nil;
+  FOperationsExplorerGrid.Node := Nil;
   FPendingOperationsGrid.Node := Nil;
   FAccountsGrid.Node := Nil;
   FSelectedAccountsGrid.Node := Nil;
@@ -875,8 +818,9 @@ begin
   TNetData.NetData.OnStatisticsChanged := Nil;
 
   step := 'Destroying grids operators';
-  FreeAndNil(FOperationsDBGrid);
-  FreeAndNil(FBlockChainDBGrid);
+  FreeAndNil(FOperationsAccountGrid);
+  FreeAndNil(FOperationsExplorerGrid);
+  FreeAndNil(FBlockChainGrid);
 
   step := 'Ordered Accounts Key list';
   FreeAndNil(FOrderedAccountsKeyList);
@@ -995,7 +939,7 @@ end;
 
 procedure TFRMWallet.MiAddaccounttoSelectedClick(Sender: TObject);
 begin
-  PageControl.ActivePage := tsAccountsExplorer;
+  PageControl.ActivePage := tsMyAccounts;
   PageControlChange(Nil);
   pcAccountsOptions.ActivePage := tsMultiSelectAccounts;
   sbSelectedAccountsAddClick(Sender);
@@ -1009,17 +953,17 @@ end;
 procedure TFRMWallet.MiDecodePayloadClick(Sender: TObject);
 begin
   if PageControl.ActivePage=tsOperations then begin
-    FOperationsDBGrid.ShowModalDecoder(FWalletKeys,FAppParams);
+    FOperationsExplorerGrid.ShowModalDecoder(FWalletKeys,FAppParams);
   end else if PageControl.ActivePage=tsPendingOperations then begin
     FPendingOperationsGrid.ShowModalDecoder(FWalletKeys,FAppParams);
-  end else if PageControl.ActivePage=tsAccountsExplorer then begin
-    FOperationsGrid.ShowModalDecoder(FWalletKeys,FAppParams);
+  end else if PageControl.ActivePage=tsMyAccounts then begin
+    FOperationsAccountGrid.ShowModalDecoder(FWalletKeys,FAppParams);
   end;
 end;
 
 procedure TFRMWallet.MiFindaccountClick(Sender: TObject);
 begin
-  PageControl.ActivePage := tsAccountsExplorer;
+  PageControl.ActivePage := tsMyAccounts;
   PageControlChange(Nil);
   ebFindAccountNumber.SetFocus;
 end;
@@ -1029,7 +973,7 @@ Var an  : Cardinal;
   an64 : Int64;
   start : TAccount;
 begin
-  PageControl.ActivePage := tsAccountsExplorer;
+  PageControl.ActivePage := tsMyAccounts;
   PageControlChange(Nil);
   an64 := FAccountsGrid.AccountNumber(dgAccounts.Row);
   if an64<0 then an := 0
@@ -1050,7 +994,7 @@ Var an  : Cardinal;
   an64 : Int64;
   start : TAccount;
 begin
-  PageControl.ActivePage := tsAccountsExplorer;
+  PageControl.ActivePage := tsMyAccounts;
   PageControlChange(Nil);
   an64 := FAccountsGrid.AccountNumber(dgAccounts.Row);
   if an64<0 then an := FNode.Bank.SafeBox.AccountsCount-1
@@ -1068,7 +1012,7 @@ end;
 
 procedure TFRMWallet.MiMultiaccountoperationClick(Sender: TObject);
 begin
-  PageControl.ActivePage := tsAccountsExplorer;
+  PageControl.ActivePage := tsMyAccounts;
   pcAccountsOptions.ActivePage := tsMultiSelectAccounts;
   bbSelectedAccountsOperationClick(Sender);
 end;
@@ -1117,7 +1061,7 @@ end;
 
 procedure TFRMWallet.MiRemoveaccountfromselectedClick(Sender: TObject);
 begin
-  PageControl.ActivePage := tsAccountsExplorer;
+  PageControl.ActivePage := tsMyAccounts;
   PageControlChange(Nil);
   pcAccountsOptions.ActivePage := tsMultiSelectAccounts;
   sbSelectedAccountsDelClick(Sender);
@@ -1289,8 +1233,15 @@ end;
 
 procedure TFRMWallet.OnNewAccount(Sender: TObject);
 begin
-  UpdateAccounts(false);
-  UpdateBlockChainState;
+  Try
+    UpdateAccounts(false);
+    UpdateBlockChainState;
+  Except
+    On E:Exception do begin
+      E.Message := 'Error at OnNewAccount '+E.Message;
+      Raise;
+    end;
+  end;
 end;
 
 procedure TFRMWallet.OnNewLog(logtype: TLogType; Time : TDateTime; ThreadID : Cardinal; const sender,logtext: AnsiString);
@@ -1369,24 +1320,24 @@ end;
 procedure TFRMWallet.PageControlChange(Sender: TObject);
 begin
   MiDecodePayload.Enabled := false;
-  if PageControl.ActivePage=tsAccountsExplorer then begin
-    FAccountsGrid.Node := FNode;
+  if PageControl.ActivePage=tsMyAccounts then begin
+    //FAccountsGrid.Node := FNode;
     MiDecodePayload.Enabled := true;
     FSelectedAccountsGrid.Node := FNode;
   end else begin
-    FAccountsGrid.Node := Nil;
+    //FAccountsGrid.Node := Nil;
     FSelectedAccountsGrid.Node := Nil;
   end;
   if PageControl.ActivePage=tsPendingOperations then begin
     FPendingOperationsGrid.Node := FNode;
     MiDecodePayload.Enabled := true;
   end else FPendingOperationsGrid.Node := Nil;
-  if PageControl.ActivePage=tsBlockChain then FBlockChainDBGrid.Node := FNode
-  else FBlockChainDBGrid.Node := Nil;
+  if PageControl.ActivePage=tsBlockChain then FBlockChainGrid.Node := FNode
+  else FBlockChainGrid.Node := Nil;
   if PageControl.ActivePage=tsOperations then begin
-    FOperationsDBGrid.Node := FNode;
+    FOperationsExplorerGrid.Node := FNode;
     MiDecodePayload.Enabled := true;
-  end else FOperationsDBGrid.Node := Nil;
+  end else FOperationsExplorerGrid.Node := Nil;
   if PageControl.ActivePage=tsMessages then begin
     UpdateAvailableConnections;
     FMessagesUnreadCount := 0;
@@ -1538,7 +1489,7 @@ begin
             end;
           end;
         end else begin
-          i := Integer(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]);
+          i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]);
           if (i>=0) And (i<FWalletKeys.Count) then begin
             j := FOrderedAccountsKeyList.IndexOfAccountKey(FWalletKeys[i].AccountKey);
             if (j>=0) then begin
@@ -1672,12 +1623,12 @@ begin
   tsLogs.TabVisible := FAppParams.ParamByName[CT_PARAM_ShowLogs].GetAsBoolean(false);
   if (Not tsLogs.TabVisible) then begin
     FLog.OnNewLog := Nil;
-    if PageControl.ActivePage = tsLogs then PageControl.ActivePage := tsAccountsExplorer;
+    if PageControl.ActivePage = tsLogs then PageControl.ActivePage := tsMyAccounts;
   end else FLog.OnNewLog := OnNewLog;
   if FAppParams.ParamByName[CT_PARAM_SaveLogFiles].GetAsBoolean(false) then begin
     if FAppParams.ParamByName[CT_PARAM_SaveDebugLogs].GetAsBoolean(false) then FLog.SaveTypes := CT_TLogTypes_ALL
     else FLog.SaveTypes := CT_TLogTypes_DEFAULT;
-    FLog.FileName := TFolderHelper.GetPascalCoinDataFolder+'\PascalCointWallet.log';
+    FLog.FileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'PascalCointWallet.log';
   end else begin
     FLog.SaveTypes := [];
     FLog.FileName := '';
@@ -1751,7 +1702,7 @@ procedure TFRMWallet.UpdateOperations;
 Var accn : Int64;
 begin
   accn := FAccountsGrid.AccountNumber(dgAccounts.Row);
-  FOperationsGrid.AccountNumber := accn;
+  FOperationsAccountGrid.AccountNumber := accn;
 end;
 
 procedure TFRMWallet.UpdatePrivateKeys;
@@ -1762,7 +1713,7 @@ begin
   If (Not Assigned(FOrderedAccountsKeyList)) And (Assigned(FNode)) Then begin
     FOrderedAccountsKeyList := TOrderedAccountKeysList.Create(FNode.Bank.SafeBox,false);
   end;
-  if (cbMyPrivateKeys.ItemIndex>=0) then last_i := Integer(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex])
+  if (cbMyPrivateKeys.ItemIndex>=0) then last_i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex])
   else last_i := -1;
   cbMyPrivateKeys.items.BeginUpdate;
   Try

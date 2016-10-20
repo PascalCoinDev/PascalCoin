@@ -20,11 +20,6 @@ unit UBlockChain;
 interface
 
 uses
-{$IFnDEF FPC}
-  Windows,
-{$ELSE}
-  LCLIntf, LCLType, LMessages,
-{$ENDIF}
   Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs;
 
 
@@ -134,10 +129,40 @@ Type
   TPCOperation = Class;
   TPCOperationClass = Class of TPCOperation;
 
+  TOperationResume = Record
+    Block : Cardinal;
+    NOpInsideBlock : Integer;
+    time : Cardinal;
+    AffectedAccount : Cardinal;
+    OperationTxt : AnsiString;
+    Amount : Int64;
+    Fee : Int64;
+    Balance : Int64;
+    OriginalPayload : TRawBytes;
+    PrintablePayload : AnsiString;
+  end;
+
+  TOperationsResumeList = Class
+  private
+    FList : TPCThreadList;
+    function GetOperationResume(index: Integer): TOperationResume;
+  public
+    Constructor Create;
+    Destructor Destroy; override;
+    Procedure Add(Const OperationResume : TOperationResume);
+    Function Count : Integer;
+    Procedure Delete(index : Integer);
+    Procedure Clear;
+    Property OperationResume[index : Integer] : TOperationResume read GetOperationResume; default;
+  End;
+
   TPCOperation = Class
   Private
     Ftag: integer;
-    FAuxBalance: Int64;
+    //FAuxBalance: Int64;
+  Protected
+    FPrevious_Sender_updated_block: Cardinal;
+    FPrevious_Destination_updated_block : Cardinal;
   public
     function GetOperationBufferToHash: TRawBytes; virtual; abstract;
     function DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors: AnsiString): Boolean; virtual; abstract;
@@ -145,18 +170,26 @@ Type
     function LoadFromStream(Stream: TStream): Boolean; virtual; abstract;
     procedure AffectedAccounts(list : TList); virtual; abstract;
     class function OpType: Byte; virtual; abstract;
+    Class Function OperationToOperationResume(Operation : TPCOperation; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean;
     function OperationAmount : Int64; virtual; abstract;
     function OperationFee: UInt64; virtual; abstract;
     function OperationPayload : TRawBytes; virtual; abstract;
     function SenderAccount : Cardinal; virtual; abstract;
     Property tag : integer read Ftag Write Ftag;
-    Property AuxBalance : Int64 read FAuxBalance Write FAuxBalance;
+    // Property AuxBalance : Int64 read FAuxBalance Write FAuxBalance; Deprecated, not used
+    // New Build 1.0.8 To save previous updated block in storage
+    function SaveToStorage(Stream: TStream): Boolean;
+    function LoadFromStorage(Stream: TStream): Boolean;
+    Property Previous_Sender_updated_block : Cardinal read FPrevious_Sender_updated_block;
+    Property Previous_Destination_updated_block : Cardinal read FPrevious_Destination_updated_block;
   End;
 
   TOperationsHashTree = Class
   private
     FHashTreeOperations : TPCThreadList;
     FHashTree: TRawBytes;
+    FTotalAmount : Int64;
+    FTotalFee : Int64;
     Procedure InternalAddOperationToHashTree(list : TList; op : TPCOperation);
   public
     Constructor Create;
@@ -168,6 +201,8 @@ Type
     Function GetOperation(index : Integer) : TPCOperation;
     Function GetOperationsAffectingAccount(account_number : Cardinal; List : TList) : Integer;
     Procedure CopyFromHashTree(Sender : TOperationsHashTree);
+    Property TotalAmount : Int64 read FTotalAmount;
+    Property TotalFee : Int64 read FTotalFee;
   End;
 
   TPCOperationsComp = Class(TComponent)
@@ -196,6 +231,8 @@ Type
     procedure SetBlockPayload(const Value: TRawBytes);
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); Override;
+    function SaveBlockToStreamExt(save_only_OperationBlock : Boolean; Stream: TStream; SaveToStorage : Boolean): Boolean;
+    function LoadBlockFromStreamExt(Stream: TStream; LoadingFromStorage : Boolean; var errors: AnsiString): Boolean;
   public
     Constructor Create(AOwner: TComponent); Override;
     Destructor Destroy; Override;
@@ -216,7 +253,9 @@ Type
     Property BlockPayload : TRawBytes read GetBlockPayload write SetBlockPayload;
     Function IncrementNOnce: Boolean;
     procedure UpdateTimestamp;
+    function SaveBlockToStorage(Stream: TStream): Boolean;
     function SaveBlockToStream(save_only_OperationBlock : Boolean; Stream: TStream): Boolean;
+    function LoadBlockFromStorage(Stream: TStream; var errors: AnsiString): Boolean;
     function LoadBlockFromStream(Stream: TStream; var errors: AnsiString): Boolean;
     //
     Function ValidateOperationBlock(var errors : AnsiString) : Boolean;
@@ -289,6 +328,8 @@ Type
 
   TStorageClass = Class of TStorage;
 
+  { TPCBank }
+
   TPCBank = Class(TComponent)
   private
     FStorage : TStorage;
@@ -319,6 +360,7 @@ Type
     function GetActualTargetHash: AnsiString;
     function GetActualTargetSecondsAverage(BackBlocks : Cardinal): Real;
     function LoadBankFromStream(Stream : TStream; var errors : AnsiString) : Boolean;
+    Class Function LoadBankStreamHeader(Stream : TStream; var BlocksCount : Cardinal) : Boolean;
     Procedure SaveBankToStream(Stream : TStream);
     Procedure Clear;
     Function LoadOperations(Operations : TPCOperationsComp; Block : Cardinal) : Boolean;
@@ -335,15 +377,18 @@ Type
   End;
 
 Const
+  CT_TOperationResume_NUL : TOperationResume = (Block:0;NOpInsideBlock:-1;time:0;AffectedAccount:0; OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:'';PrintablePayload:'');
+
   CT_OperationBlock_NUL : TOperationBlock = (block:0;account_key:(EC_OpenSSL_NID:0;x:'';y:'');reward:0;fee:0;protocol_version:0;
     protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:'';initial_safe_box_hash:'';operations_hash:'';proof_of_work:'');
 
 implementation
 
 uses
-  Messages, SysUtils, Variants, Graphics, Controls, Forms,
-  Dialogs, StdCtrls,
-  UTime, UConst;
+  Messages, SysUtils, Variants, {Graphics,}
+  {Controls, Forms,}
+  Dialogs, {StdCtrls,}
+  UTime, UConst, UOpTransaction;
 
 { TPCBank }
 
@@ -636,7 +681,8 @@ begin
   Result := (ts1 - ts2) / BackBlocks;
 end;
 
-class function TPCBank.GetNewTarget(vteorical, vreal: Cardinal; Const actualTarget: TRawBytes): TRawBytes;
+class function TPCBank.GetNewTarget(vteorical, vreal: Cardinal;
+  const actualTarget: TRawBytes): TRawBytes;
 Var
   bnact, bnaux, bnmindiff, bnremainder, bn: TBigNum;
   ts1, ts2: Cardinal;
@@ -728,7 +774,7 @@ Var LastReadBlock : TBlockAccount;
   i : Integer;
 begin
   Clear;
-  Result := SafeBox.LoadFromStream(Stream,LastReadBlock,errors);
+  Result := SafeBox.LoadSafeBoxFromStream(Stream,LastReadBlock,errors);
   if Result then begin
     TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
     try
@@ -755,6 +801,11 @@ begin
       TPCBankNotify(FNotifyList.Items[i]).NotifyNewBlock;
     end;
   end;
+end;
+
+class function TPCBank.LoadBankStreamHeader(Stream: TStream; var BlocksCount: Cardinal): Boolean;
+begin
+  Result := TPCSafeBox.LoadSafeBoxStreamHeader(Stream,BlocksCount);
 end;
 
 function TPCBank.LoadOperations(Operations: TPCOperationsComp; Block: Cardinal): Boolean;
@@ -785,7 +836,7 @@ end;
 
 procedure TPCBank.SaveBankToStream(Stream: TStream);
 begin
-  SafeBox.SaveToStream(Stream);
+  SafeBox.SaveSafeBoxToAStream(Stream);
 end;
 
 procedure TPCBank.SetStorageClass(const Value: TStorageClass);
@@ -799,7 +850,6 @@ class function TPCBank.TargetFromCompact(encoded: Cardinal): TRawBytes;
 Var
   nbits, high, offset, i: Cardinal;
   bn: TBigNum;
-  s1,s2 : String;
 begin
   {
     Compact Target is a 4 byte value that tells how many "0" must have the hash at left if presented in binay format.
@@ -838,13 +888,16 @@ begin
   offset := ((offset XOR $00FFFFFF) OR ($01000000));
 
   bn := TBigNum.Create(offset);
-  bn.LShift(256 - nbits - 25);
-  Result := bn.RawValue;
-  Result := StringOfChar(#0, 32 - Length(Result)) + Result;
-  if length(Result)<>32 then begin
-    raise Exception.Create('TargetFromCompact result length<>32 '+inttostr(Length(Result)));
-  end;
-  bn.Free;
+  Try
+    bn.LShift(256 - nbits - 25);
+    Result := bn.RawValue;
+    Result := StringOfChar(#0, 32 - Length(Result)) + Result;
+    if length(Result)<>32 then begin
+      raise Exception.Create('TargetFromCompact result length<>32 '+inttostr(Length(Result)));
+    end;
+  Finally
+    bn.Free;
+  End;
 end;
 
 class function TPCBank.TargetToCompact(target: TRawBytes): Cardinal;
@@ -1202,7 +1255,18 @@ begin
   Result := -1;
 end;
 
+function TPCOperationsComp.LoadBlockFromStorage(Stream: TStream; var errors: AnsiString): Boolean;
+begin
+  Result := LoadBlockFromStreamExt(Stream,true,errors);
+end;
+
 function TPCOperationsComp.LoadBlockFromStream(Stream: TStream; var errors: AnsiString): Boolean;
+begin
+  Result := LoadBlockFromStreamExt(Stream,false,errors);
+end;
+
+function TPCOperationsComp.LoadBlockFromStreamExt(Stream: TStream;
+  LoadingFromStorage: Boolean; var errors: AnsiString): Boolean;
 Var
   c, i, lastfee: Cardinal;
   soob : Byte;
@@ -1276,7 +1340,9 @@ begin
     errors := 'Invalid operation ' + inttostr(i) + '/' + inttostr(c)+' Class:'+OpClass.ClassName;
     bcop := OpClass.Create;
     Try
-      if not bcop.LoadFromStream(Stream) then begin
+      if LoadingFromStorage then begin
+        If not bcop.LoadFromStorage(Stream) then exit;
+      end else if not bcop.LoadFromStream(Stream) then begin
         exit;
       end;
       if Not AddOperation(false,bcop, errors2) then begin
@@ -1388,7 +1454,18 @@ begin
   end;
 end;
 
+function TPCOperationsComp.SaveBlockToStorage(Stream: TStream): Boolean;
+begin
+  Result := SaveBlockToStreamExt(false,Stream,true);
+end;
+
 function TPCOperationsComp.SaveBlockToStream(save_only_OperationBlock : Boolean; Stream: TStream): Boolean;
+begin
+  Result := SaveBlockToStreamExt(save_only_OperationBlock,Stream,false);
+end;
+
+function TPCOperationsComp.SaveBlockToStreamExt(save_only_OperationBlock: Boolean;
+  Stream: TStream; SaveToStorage: Boolean): Boolean;
 Var
   c, opl, i, OpType: Cardinal;
   soob : Byte;
@@ -1430,7 +1507,8 @@ begin
       bcop := Operation[i - 1];
       OpType := bcop.OpType;
       Stream.write(OpType, 4);
-      bcop.SaveToStream(Stream);
+      if SaveToStorage then bcop.SaveToStorage(Stream)
+      else bcop.SaveToStream(Stream);
     end;
   end;
   Result := true;
@@ -1599,6 +1677,8 @@ begin
   l := FHashTreeOperations.LockList;
   try
     InternalAddOperationToHashTree(l,op);
+    inc(FTotalAmount,op.OperationAmount);
+    inc(FTotalFee,op.OperationFee);
   finally
     FHashTreeOperations.UnlockList;
   end;
@@ -1611,6 +1691,8 @@ var op : TPCOperation;
 begin
   l := FHashTreeOperations.LockList;
   try
+    FTotalAmount := 0;
+    FTotalFee := 0;
     Try
       for i := 0 to l.Count - 1 do begin
         op := l[i];
@@ -1649,6 +1731,8 @@ end;
 
 constructor TOperationsHashTree.Create;
 begin
+  FTotalAmount := 0;
+  FTotalFee := 0;
   FHashTree := TCrypto.DoSha256('');
   FHashTreeOperations := TPCThreadList.Create;
 end;
@@ -1707,6 +1791,8 @@ begin
       op.SaveToStream(ms);
       ms.Position := 0;
       newOp.LoadFromStream(ms);
+      newOp.FPrevious_Sender_updated_block := op.Previous_Sender_updated_block;
+      newOp.FPrevious_Destination_updated_block := op.FPrevious_Destination_updated_block;
       h := TCrypto.DoSha256(ms.Memory,ms.Size);
       list.Add(newOp);
   finally
@@ -1808,10 +1894,147 @@ begin
   FReadOnly := Value;
 end;
 
+
 { TPCOperation }
+
+function TPCOperation.LoadFromStorage(Stream: TStream): Boolean;
+begin
+  Result := false;
+  If LoadFromStream(Stream) then begin
+    if Stream.Size - Stream.Position<8 then exit;
+    Stream.Read(FPrevious_Sender_updated_block,Sizeof(FPrevious_Sender_updated_block));
+    Stream.Read(FPrevious_Destination_updated_block,Sizeof(FPrevious_Destination_updated_block));
+    Result := true;
+  end;
+end;
+
+class function TPCOperation.OperationToOperationResume(Operation: TPCOperation;
+  Affected_account_number: Cardinal;
+  var OperationResume: TOperationResume): Boolean;
+Var spayload : AnsiString;
+begin
+  OperationResume := CT_TOperationResume_NUL;
+  OperationResume.Fee := (-1)*Int64(Operation.OperationFee);
+  OperationResume.AffectedAccount := Affected_account_number;
+  Result := false;
+  case Operation.OpType of
+    CT_Op_Transaction : Begin
+      if TOpTransaction(Operation).Data.sender=Affected_account_number then begin
+        OperationResume.OperationTxt := 'Transaction Sent to '+TAccountComp.AccountNumberToAccountTxtNumber(TOpTransaction(Operation).Data.target);
+        OperationResume.Amount := Int64(TOpTransaction(Operation).Data.amount) * (-1);
+        Result := true;
+      end else if TOpTransaction(Operation).Data.target=Affected_account_number then begin
+        OperationResume.OperationTxt := 'Transaction Received from '+TAccountComp.AccountNumberToAccountTxtNumber(TOpTransaction(Operation).Data.sender);
+        OperationResume.Amount := TOpTransaction(Operation).Data.amount;
+        OperationResume.Fee := 0;
+        Result := true;
+      end else exit;
+    End;
+    CT_Op_Changekey : Begin
+      OperationResume.OperationTxt := 'Change Key to '+TAccountComp.GetECInfoTxt( TOpChangeKey(Operation).Data.new_accountkey.EC_OpenSSL_NID );
+      OperationResume.Fee := TOpChangeKey(Operation).Data.fee;
+      Result := true;
+    End;
+    CT_Op_Recover : Begin
+      OperationResume.OperationTxt := 'Recover founds';
+      OperationResume.Fee := TOpRecoverFounds(Operation).Data.fee;
+    End;
+  else Exit;
+  end;
+  OperationResume.OriginalPayload := Operation.OperationPayload;
+  If TCrypto.IsHumanReadable(OperationResume.OriginalPayload) then OperationResume.PrintablePayload := OperationResume.OriginalPayload
+  else OperationResume.PrintablePayload := TCrypto.ToHexaString(OperationResume.OriginalPayload);
+end;
+
+function TPCOperation.SaveToStorage(Stream: TStream): Boolean;
+begin
+  Result := SaveToStream(Stream);
+  Stream.Write(FPrevious_Sender_updated_block,Sizeof(FPrevious_Sender_updated_block));
+  Stream.Write(FPrevious_Destination_updated_block,SizeOf(FPrevious_Destination_updated_block));
+  Result := true;
+end;
+
+{ TOperationsResumeList }
+
+Type POperationResume = ^TOperationResume;
+
+procedure TOperationsResumeList.Add(const OperationResume: TOperationResume);
+Var P : POperationResume;
+begin
+  New(P);
+  P^ := OperationResume;
+  FList.Add(P);
+end;
+
+procedure TOperationsResumeList.Clear;
+Var P : POperationResume;
+  i : Integer;
+  l : TList;
+begin
+  l := FList.LockList;
+  try
+    for i := 0 to l.Count - 1 do begin
+      P := l[i];
+      Dispose(P);
+    end;
+    l.Clear;
+  finally
+    FList.UnlockList;
+  end;
+end;
+
+function TOperationsResumeList.Count: Integer;
+Var l : TList;
+begin
+  l := FList.LockList;
+  Try
+    Result := l.Count;
+  Finally
+    FList.UnlockList;
+  End;
+end;
+
+constructor TOperationsResumeList.Create;
+begin
+  FList := TPCThreadList.Create;
+end;
+
+procedure TOperationsResumeList.Delete(index: Integer);
+Var P : POperationResume;
+  l : TList;
+begin
+  l := FList.LockList;
+  Try
+    P := l[index];
+    l.Delete(index);
+    Dispose(P);
+  Finally
+    FList.UnlockList;
+  End;
+end;
+
+destructor TOperationsResumeList.Destroy;
+begin
+  Clear;
+  FreeAndNil(FList);
+  inherited;
+end;
+
+function TOperationsResumeList.GetOperationResume(index: Integer): TOperationResume;
+Var l : TList;
+begin
+  l := FList.LockList;
+  try
+    if index<l.Count then Result := POperationResume(l[index])^
+    else Result := CT_TOperationResume_NUL;
+  finally
+    FList.UnlockList;
+  end;
+end;
 
 initialization
   SetLength(_OperationsClass, 0);
+  RegisterOperationsClass;
 finalization
 
 end.

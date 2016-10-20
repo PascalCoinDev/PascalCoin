@@ -1,5 +1,9 @@
 unit UFRMWalletKeys;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -71,9 +75,18 @@ type
 implementation
 
 uses
-  UCrypto, UAccounts, Windows, UFRMNewPrivateKeyType, UAES;
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  UCrypto, UAccounts, UFRMNewPrivateKeyType, UAES;
 
-{$R *.dfm}
+{$IFnDEF FPC}
+  {$R *.dfm}
+{$ELSE}
+  {$R *.lfm}
+{$ENDIF}
 
 { TFRMWalletKeys }
 

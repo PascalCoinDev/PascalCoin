@@ -29,11 +29,16 @@ type
   TNewLogEvent = procedure(logtype : TLogType; Time : TDateTime; ThreadID : Cardinal; Const sender, logtext : AnsiString) of object;
 
   TLog = Class;
+
+  { TThreadSafeLogEvent }
+
   TThreadSafeLogEvent = Class(TPCThread)
     FLog : TLog;
     Procedure SynchronizedProcess;
   protected
     procedure BCExecute; override;
+  public
+    Constructor Create(Suspended : Boolean);
   End;
 
   TLogData = Record
@@ -181,6 +186,11 @@ begin
     sleep(100);
     If Not Terminated then Synchronize(SynchronizedProcess);
   end;
+end;
+
+constructor TThreadSafeLogEvent.Create(Suspended: Boolean);
+begin
+  inherited Create(Suspended);
 end;
 
 procedure TThreadSafeLogEvent.SynchronizedProcess;

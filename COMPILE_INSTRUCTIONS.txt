@@ -1,0 +1,135 @@
+*********************************
+*** HOW TO COMPILE PASCALCOIN ***
+*********************************
+(File updated 2016-10-20)
+
+Instruction about how to compile Pascal Coin Wallet 1.0.8  (2016-10-20)
+For newer versions... I hope will be similar ;-)
+
+IMPORTANT NOTE:
+- In Windows, it's tested with XP, W7 and W10.  In Linux, is tested on Ubuntu 16.04.1 (Graphical version) 64 bits
+- In Ubuntu 16.04.1, there is a Lazarus installation issue. See FAQ 01 (at the end of this document)
+
+- You can compile with Delphi (Tested Delphi version 2010), or with Lazarus (Tested version 1.6)
+- Cross-compatible if using Lazarus  (Windows + Linux + Mac)  (Note: Not tested in Mac, only Windows or Ubuntu)
+
+
+PLEASE READ CAREFULLY:
+
+
+**************************
+** DOWNLOAD SOURCE CODE **
+**************************
+
+- Create a source code folder, we will call this folder "SOURCE_CODE_FOLDER" 
+
+- Download PascalCoin source code from: https://github.com/PascalCoin/PascalCoin  (Tested with Build 1.0.8)
+- Download Synapse source code from: http://www.ararat.cz/synapse/lib/exe/fetch.php/file:synapse40.zip  (Tested with version Synapse40)
+  - Also you can download a new version from svn: https://sourceforge.net/p/synalist/code/HEAD/tree/trunk/
+  - If URL is broken, try searching "Synapse ararat" at Google and Download
+
+** WINDOWS **
+- If you want to compile for ** WINDOWS **, oobtain OpenSSL DLL's from: https://indy.fulgan.com/SSL/
+  - If compiler is Delphi, you must obtain a 32 bits DLL file
+  - If compiler is Lazarus, you must obtain a 64 bits DLL file
+  - You must unzip file "libeay32.dll" and put in "SOURCE_CODE_FOLDER"
+  - If you compile with Lazarus, RENAME this file to "libeay64.dll" because is 64 bits version
+
+** LAZARUS **
+- If you want to compile for Lazarus, obtain OpenSSL source code from: https://www.openssl.org/source/
+  - See section ** BUILD OPENSSL FOR LINUX **
+  - Tested with openssl-1.1.0b.targ.gz (2016-Sep-26)  
+
+*************************
+** DOWNLOAD BLOCKCHAIN **
+*************************
+
+- You don't need to obtain Blockchain, but is more quickly if you have downloaded it than to wait App download it from other nodes...
+- You will find a valid BlockChain at SourceForge PascalCoin downloads: https://sourceforge.net/projects/pascalcoin/files/ - Search for "BlockChain" file
+- Blockchain must be unziped and stored at PascalCoin data folder: (We will call it "PASCALCOIN_DATA_FOLDER")
+  - PascalCoin data folder for Windows:   c:\Users\(your user)\AppData\Roaming\PascalCoin\Data
+  - PascalCoin data folder for Linux: /home/(your user)/PascalCoin/Data
+
+REMEMBER TO PUT BLOCKCHAIN IN CORRECT "PASCALCOIN_DATA_FOLDER"
+REMEMBER TO GRANT PERMISIONS TO USER AT "PASCALCOIN_DATA_FOLDER"
+
+  
+*************************
+** COMPILE WITH DELPHI **
+*************************
+
+(In Delphi, you can only run in Windows)
+
+- Just open Delphi 2010, open project "PascalCoinWallet.dpr" located at "SOURCE_CODE_FOLDER"
+- Go to "Project > Options" and put "Synapse\lib" folder at Search Path option  (This will enable Delphi to find Synapse source code)
+- Build + Compile
+- Exe file will be: "PascalCoinWallet.exe"
+
+*************************
+** COMPILE WITH LAZARUS **
+*************************
+
+- Just open Lazarus (tested with Lazarus 1.6 and FPC 3.0)
+- Open project "PascalCoinWalletLazarus.lpi"
+- Check that 
+- Build + Compile
+- Executable file will be: "PascalCoinWalletLazarus"
+
+*****************************
+** BUILD OPENSSL FOR LINUX **
+*****************************
+
+Build OpenSSL is only necessary in Linux. In Windows you can download a build version from https://indy.fulgan.com/SSL/
+If you want to build on Windows, search how to at Google.
+Note: Tested with OpenSSL 1.1.0b (2016-Sep-26)
+- LINUX INSTRUCTIONS
+- Download OpenSSL from www.openssl.org (Preferred version 1.1.0b)
+- Unzip files to any folder, we will call it "OpenSSLSourceFolder"
+- Open a linux terminal
+  - Go to "OpenSSLSourceFolder"
+    cd /"OpenSSLSourceFolder"
+  - Create a temporal destination folder
+    mkdir tmp_openssl
+  - Config build options with this temporal destination dir
+    ./config shared --prefix=/"OpenSSLSourceFolder"/tmp_openssl
+  - Execute make and install
+    make
+	install
+  - We will find a file called "libcrypto.so.1.1" at folder "OpenSSLSourceFolder"/tmp_openssl/lib
+  - copy "libcrypto.so.1.1" to your executable folder (where you have been compiled PascalCoinWalletLazarus = "SOURCE_CODE_FOLDER")
+  - DON'T RENAME this file, because PascalCoin executable needs a file called "libcrypto.so.1.1" when compiled in Linux with OpenSSLv1.1 option enabled
+- If you download a version 1.0, then file name of compiled OpenSSL library must be "libcrypto.so.1.0.0" and save it at "SOURCE_CODE_FOLDER"
+
+*******************
+** FAQ's section **
+*******************
+
+************
+** FAQ 01 **
+************
+
+FAQ 01 -> Lazarus does not compile with Linux (example: file "interfaces" not found or missing)
+Explanation: In a fresh Ubuntu 16.04.1 (perhaps other versions too) with Lazarus 1.6 (downloaded and fresh installed) you cannot compile PascalCoin (and nor anyone other Pascal program)
+This is because you must build Lazarus core.
+Solution:
+- Open Lazarus and close all projects
+- Go to menu "Tools" > "Configure Build Lazarus"
+- Select Profile to build "Clean Up+ Build all"
+- Click to "Build"
+  - Lazarus will build itself and reboot
+- Open Lazarus again and check if you can compile without "interfaces" file error
+  - If not, then try again to build Lazarus selecting other Profile to build options (Perhaps "Debug IDE")
+  - If not... sorry... google search ;-)
+
+************
+** FAQ 02 **
+************
+
+If Application does not start showing a "file not found libeay32.dll" or "libcrypto.so.1.1" or "libeay64.dll"...
+Solution: Read "DOWNLOAD SOURCE CODE" section
+
+
+Copyright (c) 2016 Albert Molina
+
+If you like it, consider a donation using BitCoin:
+16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk

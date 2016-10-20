@@ -1,5 +1,9 @@
 unit UFRMPascalCoinWalletConfig;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -16,7 +20,12 @@ unit UFRMPascalCoinWalletConfig;
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, Buttons, ComCtrls, UAppParams, UWalletKeys;
 
 type
@@ -68,7 +77,11 @@ implementation
 
 uses UConst, UAccounts, ULog, UCrypto, UMiner;
 
-{$R *.dfm}
+{$IFnDEF FPC}
+  {$R *.dfm}
+{$ELSE}
+  {$R *.lfm}
+{$ENDIF}
 
 procedure TFRMPascalCoinWalletConfig.bbOkClick(Sender: TObject);
 Var df : Int64;
@@ -89,7 +102,7 @@ begin
   else if rbMineAllwaysWithThisKey.Checked then begin
     mpk := mpk_Selected;
     if cbPrivateKeyToMine.ItemIndex<0 then raise Exception.Create('Must select a private key');
-    i := Integer(cbPrivateKeyToMine.Items.Objects[cbPrivateKeyToMine.ItemIndex]);
+    i := PtrInt(cbPrivateKeyToMine.Items.Objects[cbPrivateKeyToMine.ItemIndex]);
     if (i<0) Or (i>=FWalletKeys.Count) then raise Exception.Create('Invalid private key');
     AppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].SetAsString( TAccountComp.AccountKey2RawString( FWalletKeys.Key[i].AccountKey ) );
   end else mpk := mpk_Random;
@@ -102,6 +115,7 @@ begin
   AppParams.ParamByName[CT_PARAM_MinerName].SetAsString(ebMinerName.Text);
   AppParams.ParamByName[CT_PARAM_ShowModalMessages].SetAsBoolean(cbShowModalMessages.Checked);
   AppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].SetAsInteger(udJSONRPCMinerServerPort.Position);
+  ModalResult := MrOk;
 end;
 
 procedure TFRMPascalCoinWalletConfig.bbUpdatePasswordClick(Sender: TObject);

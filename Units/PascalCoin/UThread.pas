@@ -23,7 +23,7 @@ uses
 {$IFnDEF FPC}
   Windows,
 {$ELSE}
-  LCLIntf, LCLType, LMessages,
+  {$IFDEF LINUX}cthreads,{$ENDIF}
 {$ENDIF}
   Classes, SyncObjs;
 

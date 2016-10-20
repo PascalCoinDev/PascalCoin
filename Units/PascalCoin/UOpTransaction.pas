@@ -115,13 +115,19 @@ Type
     Function toString : String; Override;
   End;
 
-
+Procedure RegisterOperationsClass;
 
 implementation
 
 uses
   SysUtils, UConst, ULog;
 
+Procedure RegisterOperationsClass;
+Begin
+  TPCOperationsComp.RegisterOperationClass(TOpTransaction);
+  TPCOperationsComp.RegisterOperationClass(TOpChangeKey);
+  TPCOperationsComp.RegisterOperationClass(TOpRecoverFounds);
+End;
 
 { TOpTransaction }
 
@@ -208,6 +214,9 @@ begin
     errors := 'Invalid sign';
     Exit;
   end;
+  //
+  FPrevious_Sender_updated_block := sender.updated_block;
+  FPrevious_Destination_updated_block := target.updated_block;
   // Do operation
   Result := AccountTransaction.TransferAmount(FData.sender,FData.target,FData.n_operation,FData.amount,FData.fee,errors);
 end;
@@ -398,6 +407,7 @@ begin
     errors := 'Invalid sign';
     exit;
   end;
+  FPrevious_Sender_updated_block := account.updated_block;
   Result := AccountTransaction.UpdateAccountkey(FData.account,FData.n_operation,FData.new_accountkey,FData.fee,errors);
 end;
 
@@ -558,7 +568,12 @@ begin
   end;
   acc := AccountTransaction.Account(FData.account);
   if (acc.updated_block + CT_RecoverFoundsWaitInactiveCount >= AccountTransaction.FreezedSafeBox.BlocksCount) then begin
-    errors := Format('Is active to recover founds! Account %d Updated %d + %d >= BlockCount : %d',[FData.account,acc.updated_block,CT_RecoverFoundsWaitInactiveCount,AccountTransaction.FreezedSafeBox.BlocksCount]);
+    errors := Format('Account is active to recover founds! Account %d Updated %d + %d >= BlockCount : %d',[FData.account,acc.updated_block,CT_RecoverFoundsWaitInactiveCount,AccountTransaction.FreezedSafeBox.BlocksCount]);
+    Exit;
+  end;
+  // Build 1.0.8 ... there was a BUG. Need to prevent recent created accounts
+  if (TAccountComp.AccountBlock(FData.account) + CT_RecoverFoundsWaitInactiveCount >= AccountTransaction.FreezedSafeBox.BlocksCount) then begin
+    errors := Format('AccountBlock is active to recover founds! AccountBlock %d + %d >= BlockCount : %d',[TAccountComp.AccountBlock(FData.account),CT_RecoverFoundsWaitInactiveCount,AccountTransaction.FreezedSafeBox.BlocksCount]);
     Exit;
   end;
   if ((acc.n_operation+1)<>FData.n_operation) then begin
@@ -573,6 +588,7 @@ begin
     errors := 'Insuficient founds';
     exit;
   end;
+  FPrevious_Sender_updated_block := acc.updated_block;
   Result := AccountTransaction.TransferAmount(FData.account,FData.account,FData.n_operation,0,FData.fee,errors);
 end;
 
@@ -643,7 +659,5 @@ begin
 end;
 
 initialization
-  TPCOperationsComp.RegisterOperationClass(TOpTransaction);
-  TPCOperationsComp.RegisterOperationClass(TOpChangeKey);
-  TPCOperationsComp.RegisterOperationClass(TOpRecoverFounds);
+  RegisterOperationsClass;
 end.

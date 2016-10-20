@@ -1,5 +1,9 @@
 unit UFRMPayloadDecoder;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -16,11 +20,19 @@ unit UFRMPayloadDecoder;
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UBlockChain, UCrypto, UWalletKeys, Buttons, ComCtrls,
   UAppParams;
 
 type
+
+  { TFRMPayloadDecoder }
+
   TFRMPayloadDecoder = class(TForm)
     Label1: TLabel;
     lblBlock: TLabel;
@@ -43,6 +55,7 @@ type
     memoDecoded: TMemo;
     memoOriginalPayloadInHexa: TMemo;
     lblPasswordsInfo: TLabel;
+    procedure BitBtn1Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure PageControlChanging(Sender: TObject; var AllowChange: Boolean);
     procedure cbMethodPublicPayloadClick(Sender: TObject);
@@ -66,7 +79,11 @@ type
 
 implementation
 
-{$R *.dfm}
+{$IFnDEF FPC}
+  {$R *.dfm}
+{$ELSE}
+  {$R *.lfm}
+{$ENDIF}
 
 Uses UNode, UTime, UECIES, UAES, UAccounts;
 
@@ -92,6 +109,11 @@ begin
   memoDecoded.Lines.Clear;
   memoOriginalPayloadInHexa.Lines.Clear;
   lblPasswordsInfo.Caption := '';
+end;
+
+procedure TFRMPayloadDecoder.BitBtn1Click(Sender: TObject);
+begin
+
 end;
 
 procedure TFRMPayloadDecoder.Init(block, timestamp : Cardinal; const OperationText : AnsiString; Const PayloadData : TRawBytes; WalletKeys : TWalletKeys; AppParams : TAppParams);

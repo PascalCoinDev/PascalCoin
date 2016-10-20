@@ -1,5 +1,9 @@
 unit UJSONFunctions;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -15,9 +19,19 @@ unit UJSONFunctions;
 
 interface
 
-Uses DBXJSON, SysUtils, DateUtils, Variants, Classes;
+Uses
+  {$IFDEF FPC}
+  fpjson, jsonparser,
+  {$ELSE}
+  DBXJSON,
+  {$ENDIF}
+  SysUtils, DateUtils, Variants, Classes, ULog;
 
 Type
+  {$IFDEF FPC}
+  TJSONValue = TJSONData;
+  {$ENDIF}
+
   TPCJSONData = Class
   private
     FParent : TPCJSONData;
@@ -186,6 +200,17 @@ constructor TPCJSONArray.CreateFromJSONArray(JSONArray: TJSONArray);
 Var i : Integer;
 begin
   Create;
+{$IFDEF FPC}
+  for i := 0 to JSONArray.Count - 1 do begin
+    if (JSONArray.Items[i] is TJSONArray) then begin
+      Insert(i,TPCJSONArray.CreateFromJSONArray(TJSONArray(JSONArray.Items[i])));
+    end else if (JSONArray.Items[i] is TJSONObject) then begin
+      Insert(i,TPCJSONObject.CreateFromJSONObject(TJSONObject(JSONArray.Items[i])));
+    end else if (JSONArray.Items[i] is TJSONValue) then begin
+      Insert(i,TPCJSONVariantValue.CreateFromJSONValue(TJSONValue(JSONArray.Items[i])));
+    end else raise EPCParametresError.Create('Invalid TJSON Data: '+JSONArray.Items[i].ClassName);
+  end;
+{$ELSE}
   for i := 0 to JSONArray.Size - 1 do begin
     if (JSONArray.Get(i) is TJSONArray) then begin
       Insert(i,TPCJSONArray.CreateFromJSONArray(TJSONArray(JSONArray.Get(i))));
@@ -195,7 +220,9 @@ begin
       Insert(i,TPCJSONVariantValue.CreateFromJSONValue(TJSONValue(JSONArray.Get(i))));
     end else raise EPCParametresError.Create('Invalid TJSON Data: '+JSONArray.Get(i).ClassName);
   end;
+{$ENDIF}
 end;
+
 
 destructor TPCJSONArray.Destroy;
 begin
@@ -438,11 +465,16 @@ begin
 end;
 
 constructor TPCJSONVariantValue.CreateFromJSONValue(JSONValue: TJSONValue);
+{$IFnDEF FPC}
 Var d : Double;
     i : Integer;
   ds,ts : Char;
+{$ENDIF}
 begin
   Create;
+  {$IFDEF FPC}
+  Value := JSONValue.Value;
+  {$ELSE}
   if JSONValue is TJSONNumber then begin
     d := TJSONNumber(JSONValue).AsDouble;
     if Pos('.',JSONValue.ToString)>0 then i := 0
@@ -463,6 +495,7 @@ begin
   else if JSONValue is TJSONFalse then Value := false
   else if JSONValue is TJSONNull then Value := Null
   else Value := JSONValue.Value;
+  {$ENDIF}
 end;
 
 procedure TPCJSONVariantValue.SetValue(const Value: Variant);
@@ -476,7 +509,7 @@ Var   ds,ts : Char;
 begin
   Case VarType(Value) of
     varSmallint,varInteger,varByte,varWord : Result := IntToStr(Value);
-    varLongWord,varInt64 : Result := UIntToStr(Value);
+    varLongWord,varInt64 : Result := IntToStr(Value);
     varBoolean : if (Value) then Result := 'true' else Result:='false';
     varNull : Result := 'null';
     varDate,varDouble : begin
@@ -645,8 +678,24 @@ end;
 
 constructor TPCJSONObject.CreateFromJSONObject(JSONObject: TJSONObject);
 var i,i2 : Integer;
+  {$IFDEF FPC}
+  aname : TJSONStringType;
+  {$ENDIF}
 begin
   Create;
+  {$IFDEF FPC}
+  for i := 0 to JSONObject.Count - 1 do begin
+    aname := JSONObject.Names[i];
+    i2 := GetIndexOrCreateName(JSONObject.Names[i]);
+    if (JSONObject.Types[ aname ] = jtArray) then begin
+      (Items[i2] as TPCJSONNameValue).Value := TPCJSONArray.CreateFromJSONArray(JSONObject.Arrays[aname]);
+    end else if (JSONObject.Types[ aname ] = jtObject) then begin
+      (Items[i2] as TPCJSONNameValue).Value := TPCJSONObject.CreateFromJSONObject(JSONObject.Objects[aname]);
+    end else if (JSONObject.Types[ aname ] in [jtBoolean,jtNull,jtNumber,jtString]) then begin
+      (Items[i2] as TPCJSONNameValue).Value := TPCJSONVariantValue.CreateFromJSONValue(JSONObject.Items[i]);
+    end else raise EPCParametresError.Create('Invalid TJSON Data in JSONObject.'+aname+': '+JSONObject.Items[i].ClassName);
+  end;
+  {$ELSE}
   for i := 0 to JSONObject.Size - 1 do begin
     i2 := GetIndexOrCreateName(JSONObject.Get(i).JsonString.Value);
     if (JSONObject.Get(i).JsonValue is TJSONArray) then begin
@@ -657,7 +706,9 @@ begin
       (Items[i2] as TPCJSONNameValue).Value := TPCJSONVariantValue.CreateFromJSONValue(TJSONValue(JSONObject.Get(i).JsonValue));
     end else raise EPCParametresError.Create('Invalid TJSON Data in JSONObject.'+JSONObject.Get(i).JsonString.Value+': '+JSONObject.Get(i).ClassName);
   end;
+  {$ENDIF}
 end;
+
 
 procedure TPCJSONObject.DeleteName(Name: String);
 Var i : Integer;
@@ -878,9 +929,26 @@ end;
 
 class function TPCJSONData.ParseJSONValue(Const JSONObject: TBytes): TPCJSONData;
 Var JS : TJSONValue;
+  {$IFDEF FPC}
+  jss : TJSONStringType;
+  i : Integer;
+  {$ENDIF}
 begin
   Result := Nil;
+  {$IFDEF FPC}
+  SetLength(jss,length(JSONObject));
+  for i:=0 to High(JSONObject) do jss[i+1] := AnsiChar( JSONObject[i] );
+  JS := Nil;
+  Try
+    JS := GetJSON(jss);
+  Except
+    On E:Exception do begin
+      TLog.NewLog(ltDebug,ClassName,'Error processing JSON: '+E.Message);
+    end;
+  end;
+  {$ELSE}
   JS := TJSONObject.ParseJSONValue(JSONObject,0);
+  {$ENDIF}
   if Not Assigned(JS) then exit;
   Try
     if JS is TJSONObject then begin

@@ -1,5 +1,9 @@
 unit UFolderHelper;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -37,42 +41,66 @@ Type TFileVersionInfo = record
 
   TFolderHelper = record
   strict private
+    {$IFnDEF FPC}
     class function GetFolder(const aCSIDL: Integer): string; static;
+    {$ENDIF}
     class function GetAppDataFolder : string; static;
   public
     class function GetPascalCoinDataFolder : string; static;
     class Function GetTFileVersionInfo(Const FileName : String) : TFileVersionInfo; static;
-    class function GetUserDataFolder : string; static;
   end;
 
 implementation
 
 uses
-  ShlObj, Windows, SysUtils;
+{$IFnDEF FPC}
+  Windows, ShlObj,
+  {$DEFINE FILEVERSIONINFO}
+{$ELSE}
+  {$IFnDEF LINUX}
+  Windows,
+  {$DEFINE FILEVERSIONINFO}
+  {$ENDIF}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  SysUtils;
 
+{$IFnDEF FPC}
 function SHGetFolderPath(hwnd: HWND; csidl: Integer; hToken: THandle;
   dwFlags: DWord; pszPath: LPWSTR): HRESULT; stdcall;
   forward;
 function SHGetFolderPath; external 'SHFolder.dll' name 'SHGetFolderPathW';
+{$ENDIF}
 
 class function TFolderHelper.GetAppDataFolder: string;
 begin
-  Result := GetFolder(CSIDL_APPDATA); //User Name / AppData
+  {$IFDEF FPC}
+  {$IFDEF LINUX}
+  Result :=GetEnvironmentVariable('HOME');
+  {$ELSE}
+  Result :=GetEnvironmentVariable('APPDATA');
+  {$ENDIF}
+  {$ELSE}
+  Result := GetFolder(CSIDL_APPDATA); // c:\Users\(User Name)\AppData\Roaming
+  {$ENDIF}
 end;
 
+{$IFnDEF FPC}
 class function TFolderHelper.GetFolder(const aCSIDL: Integer): string;
 var
   FolderPath: array[0 .. MAX_PATH] of Char;
 begin
   Result := '';
-  SetLastError(ERROR_SUCCESS);
+  //SetLastError(ERROR_SUCCESS);
+
   if SHGetFolderPath(0, aCSIDL, 0, 0, @FolderPath) = S_OK then
     Result := FolderPath;
 end;
+{$ENDIF}
 
 class function TFolderHelper.GetPascalCoinDataFolder: string;
 begin
-  Result := GetAppDataFolder+'\PascalCoin';
+  Result := GetAppDataFolder+PathDelim+'PascalCoin';
 end;
 
 class function TFolderHelper.GetTFileVersionInfo(Const FileName: String): TFileVersionInfo;
@@ -104,6 +132,7 @@ Begin
      InfoInferred := False;
      SpecialBuild := False;
    End;
+   {$IFDEF FILEVERSIONINFO}
    VerInfoSize := GetFileVersionInfoSize(PChar(FileName),GetInfoSizeJunk);
    If verInfoSize>0 Then
      Begin
@@ -145,11 +174,7 @@ Begin
          End;
        FreeMem(VersionInfo,VerInfoSize);
      End;
-end;
-
-class function TFolderHelper.GetUserDataFolder: string;
-begin
-  Result := GetFolder(CSIDL_APPDATA);
+   {$ENDIF}
 end;
 
 end.

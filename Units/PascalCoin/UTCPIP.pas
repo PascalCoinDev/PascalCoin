@@ -19,8 +19,8 @@ interface
   {$mode objfpc}
 {$ENDIF}
 
-{$DEFINE DelphiSockets}
-{.$DEFINE Synapse}
+{.$DEFINE DelphiSockets}
+{$DEFINE Synapse}
 {$IFDEF DelphiSockets}{$IFDEF Synapse}DelphiSockets and Synapse are defined! Choose one!{$ENDIF}{$ENDIF}
 {$IFNDEF DelphiSockets}{$IFNDEF Synapse}Nor DelphiSockets nor Synapse are defined! Choose one!{$ENDIF}{$ENDIF}
 
@@ -184,7 +184,13 @@ type
 
 implementation
 
-uses UConst, ULog, Windows;
+uses
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  UConst, ULog;
 
 { TNetTcpIpClient }
 
@@ -283,8 +289,8 @@ begin
   {$ENDIF}
   {$IFDEF Synapse}
   if Not FConnected then exit;
-  FTcpBlockSocket.CloseSocket;
   FConnected := false;
+  FTcpBlockSocket.CloseSocket;
   if Assigned(FOnDisconnect) then FOnDisconnect(Self);
   {$ENDIF}
 end;
@@ -540,7 +546,7 @@ constructor TBufferedNetTcpIpClient.Create(AOwner: TComponent);
 begin
   inherited;
   FLastReadTC := GetTickCount;
-  FCritical := TCriticalSection.Create;
+  FCritical := SyncObjs.TCriticalSection.Create;
   FSendBuffer := TMemoryStream.Create;
   FReadBuffer := TMemoryStream.Create;
   FBufferedNetTcpIpClientThread := TBufferedNetTcpIpClientThread.Create(Self);

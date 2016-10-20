@@ -23,10 +23,12 @@ Uses
 {$IFnDEF FPC}
   Windows,
 {$ELSE}
-  LCLIntf, LCLType, LMessages,
+  {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
-  UBlockChain, Classes, SysUtils, UAccounts, UThread, ExtCtrls,
+  UBlockChain, Classes, SysUtils, UAccounts, UThread,
   UCrypto, UTCPIP, SyncObjs;
+
+{$I config.inc}
 
 Const
   CT_MagicRequest = $0001;
@@ -1064,8 +1066,8 @@ begin
     // NOTE: FRemoteOperationBlock.block >= TNode.Node.Bank.BlocksCount
     // First capture same block than me (TNode.Node.Bank.BlocksCount-1) to check if i'm an orphan block...
     my_op := TNode.Node.Bank.LastOperationBlock;
-    If Not Do_GetOperationBlock(my_op.block,10000,client_op) then begin
-      TLog.NewLog(lterror,CT_LogSender,'Cannot receive information about my block ('+inttostr(my_op.block)+')... Invalid client');
+    If Not Do_GetOperationBlock(my_op.block,5000,client_op) then begin
+      TLog.NewLog(lterror,CT_LogSender,'Cannot receive information about my block ('+inttostr(my_op.block)+')...');
       // Disabled at Build 1.0.6 >  Connection.DisconnectInvalidClient(false,'Cannot receive information about my block ('+inttostr(my_op.block)+')... Invalid client. Disconnecting');
       exit;
     end;
@@ -1373,7 +1375,7 @@ begin
       end;
     Finally
       Try
-        TLog.NewLog(ltdebug,Classname,'Finalizing ServerAccept '+IntToHex(Integer(n),8)+' '+n.ClientRemoteAddr);
+        TLog.NewLog(ltdebug,Classname,'Finalizing ServerAccept '+IntToHex(PtrInt(n),8)+' '+n.ClientRemoteAddr);
         DebugStep := 'Disconnecting NetServerClient';
         n.Connected := false;
         sleep(10);
@@ -1481,7 +1483,7 @@ Var Pnsa : PNodeServerAddress;
   lns : TList;
   i : Integer;
 begin
-  TLog.NewLog(ltdebug,ClassName,'Destroying '+Classname+' '+IntToHex(Integer(Self),8));
+  TLog.NewLog(ltdebug,ClassName,'Destroying '+Classname+' '+IntToHex(PtrInt(Self),8));
 
   Connected := false;
 
@@ -1503,8 +1505,8 @@ begin
   Finally
     FreeAndNil(FNetLock);
     FreeAndNil(FClientBufferRead);
-    inherited;
     FreeAndNil(FTcpIpClient);
+    inherited;
   End;
 end;
 
@@ -2172,7 +2174,7 @@ begin
               DisconnectInvalidClient(false,'Invalid operation: '+TNetData.HeaderDataToText(HeaderData));
             end;
           end;
-        end;
+        end else sleep(1);
       Until (Result) Or (GetTickCount>(MaxWaitTime+tc));
     finally
       if was_waiting_for_response then FIsWaitingForResponse := false;
@@ -2184,6 +2186,7 @@ end;
 
 procedure TNetConnection.FinalizeConnection;
 begin
+  If FDoFinalizeConnection then exit;
   TLog.NewLog(ltdebug,ClassName,'Executing FinalizeConnection to '+ClientRemoteAddr);
   FDoFinalizeConnection := true;
 end;
@@ -2205,7 +2208,9 @@ end;
 procedure TNetConnection.Notification(AComponent: TComponent; Operation: TOperation);
 begin
   inherited;
-  if (Operation=opRemove) And (AComponent = FTcpIpClient) then FTcpIpClient := Nil;
+  if (Operation=opRemove) And (AComponent = FTcpIpClient) then begin
+    FTcpIpClient := Nil;
+  end;
 end;
 
 function TNetConnection.ReadTcpClientBuffer(MaxWaitMiliseconds: Cardinal; var HeaderData: TNetHeaderData; BufferData: TStream): Boolean;
@@ -2250,7 +2255,7 @@ begin
               ClientRemoteAddr+' (v '+inttostr(HeaderData.protocol.protocol_version)+' '+inttostr(HeaderData.protocol.protocol_available)+') '+
               '... Visit official download website for possible updates: https://sourceforge.net/projects/pascalcoin/');
           end;
-
+          // Remove data from buffer and save only data not processed (higher than stream.position)
           auxstream := TMemoryStream.Create;
           try
             if FClientBufferRead.Position<FClientBufferRead.Size then begin
@@ -2511,7 +2516,7 @@ begin
         data.Write(nsa.last_connection,4);
       end;
       // Send client version
-      TStreamOp.WriteAnsiString(data,CT_ClientAppVersion);
+      TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$IFDEF Synapse}+'s'{$ENDIF}{$ENDIF}{$IFDEF OpenSSL10}+'0'{$ELSE}+'1'{$ENDIF});
     finally
       op.free;
     end;
@@ -2627,21 +2632,13 @@ end;
 { TNetClientThread }
 
 procedure TNetClientThread.BCExecute;
-Var clientIp : AnsiString;
 begin
-  debugstep := 'Initiating...';
-  clientIp := FNetClient.ClientRemoteAddr;
-  debugstep := 'Chenking terminated';
   while (Not Terminated) do begin
-    debugstep := 'Check connection '+clientIp;
     If FNetClient.Connected then begin
-      debugstep := 'Processing Buffer '+clientIp;
       FNetClient.DoProcessBuffer;
     end;
-    debugstep := 'Sleeping '+clientIp;
     Sleep(1);
   end;
-  debugstep := 'Finalizing...'+clientIp;
 end;
 
 constructor TNetClientThread.Create(NetClient: TNetClient; AOnTerminateThread : TNotifyEvent);
@@ -2770,7 +2767,7 @@ begin
         for i := l.Count-1 downto 0 do begin
           netconn := TNetConnection(l.Items[i]);
           if (netconn is TNetClient) then begin
-            if (Not TNetClient(netconn).Connected) And (netconn.CreatedTime+EncodeTime(0,0,1,0)<now) then begin
+            if (Not TNetClient(netconn).Connected) And (netconn.CreatedTime+EncodeTime(0,0,5,0)<now) then begin
               // Free this!
               TNetClient(netconn).FinalizeConnection;
               inc(ndeleted);

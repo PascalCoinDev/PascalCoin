@@ -1,5 +1,9 @@
 unit UFRMOperation;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
@@ -16,11 +20,19 @@ unit UFRMOperation;
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UNode, UWalletKeys, UCrypto, Buttons, UBlockChain,
   UAccounts, ActnList, ComCtrls;
 
 type
+
+  { TFRMOperation }
+
   TFRMOperation = class(TForm)
     lblAccountCaption: TLabel;
     bbExecute: TBitBtn;
@@ -66,6 +78,9 @@ type
     bbPassword: TBitBtn;
     memoAccounts: TMemo;
     lblAccountsCount: TLabel;
+    procedure ebAmountChange(Sender: TObject);
+    procedure ebFeeChange(Sender: TObject);
+    procedure ebNewPublicKeyExit(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure rbTransactionClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -111,7 +126,11 @@ implementation
 uses
   UECIES, UConst, UOpTransaction, UFRMNewPrivateKeyType, UAES, UFRMWalletKeys;
 
-{$R *.dfm}
+{$IFnDEF FPC}
+  {$R *.dfm}
+{$ELSE}
+  {$R *.lfm}
+{$ENDIF}
 
 { TFRMOperation }
 
@@ -173,7 +192,7 @@ begin
         end;
         operationstxt := 'Transaction to '+TAccountComp.AccountNumberToAccountTxtNumber(FTxDestAccount);
       end else if rbChangeKey.Checked then begin
-        i := Integer(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex]);
+        i := PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex]);
         if (i<0) Or (i>=WalletKeys.Count) then raise Exception.Create('Invalid selected key');
         FNewAccountPublicKey := WalletKeys.Key[i].AccountKey;
         if account.balance>fee then _fee := fee
@@ -263,25 +282,31 @@ end;
 procedure TFRMOperation.cbNewPrivateKeyChange(Sender: TObject);
 begin
   If FDisabled then exit;
-  rbChangeKey.Checked := true;
-  rbTransactionClick(Nil);
+  If not rbChangeKey.Checked then begin
+    rbChangeKey.Checked := true;
+    rbTransactionClick(Nil);
+  end;
 end;
 
 procedure TFRMOperation.ebDestAccountChange(Sender: TObject);
 begin
   if FDisabled then exit;
-  rbTransaction.Checked := true;
-  rbTransactionClick(Nil);
+  If not rbTransaction.Checked then begin
+    rbTransaction.Checked := true;
+    rbTransactionClick(Nil);
+  end;
 end;
 
 procedure TFRMOperation.ebDestAccountExit(Sender: TObject);
 Var an : Cardinal;
+  errors : AnsiString;
 begin
   If TAccountComp.AccountTxtNumberToAccountNumber(ebDestAccount.Text,an) then begin
     ebDestAccount.Text := TAccountComp.AccountNumberToAccountTxtNumber(an);
   end else begin
     ebDestAccount.Text := '';
   end;
+  UpdateOperationOptions(errors);
 end;
 
 procedure TFRMOperation.ebEncryptPasswordChange(Sender: TObject);
@@ -293,10 +318,12 @@ end;
 
 procedure TFRMOperation.ebFeeExit(Sender: TObject);
 Var l : boolean;
+  errors : AnsiString;
 begin
   l := FDisabled;
   FDisabled := true;
   try
+    UpdateOperationOptions(errors);
     ebFee.Text := TAccountComp.FormatMoney(Fee);
     if SenderAccounts.Count<=1 then begin
       ebAmount.Text := TAccountComp.FormatMoney(FTxAmount);
@@ -309,8 +336,10 @@ end;
 procedure TFRMOperation.ebNewPublicKeyChange(Sender: TObject);
 begin
   if FDisabled then exit;
-  rbTransferToANewOwner.Checked := true;
-  rbTransactionClick(Nil);
+  if not rbTransferToANewOwner.Checked then begin
+    rbTransferToANewOwner.Checked := true;
+    rbTransactionClick(Nil);
+  end;
 end;
 
 procedure TFRMOperation.ebSenderAccountExit(Sender: TObject);
@@ -361,6 +390,32 @@ begin
   FDisabled := false;
   lblAccountBalance.Caption := '';
   memoAccounts.Lines.Clear;
+end;
+
+procedure TFRMOperation.ebAmountChange(Sender: TObject);
+begin
+  If FDisabled then exit;
+  TAccountComp.TxtToMoney(ebAmount.text,FTxAmount);
+  If not rbTransaction.Checked then begin
+    rbTransaction.Checked := true;
+    rbTransactionClick(Nil);
+  end;
+end;
+
+procedure TFRMOperation.ebFeeChange(Sender: TObject);
+begin
+  If FDisabled then exit;
+  TAccountComp.TxtToMoney(ebFee.text,FFee);
+  If not rbTransaction.Checked then begin
+    rbTransaction.Checked := true;
+    rbTransactionClick(Nil);
+  end;
+end;
+
+procedure TFRMOperation.ebNewPublicKeyExit(Sender: TObject);
+var errors : AnsiString;
+begin
+  UpdateOperationOptions(errors);
 end;
 
 procedure TFRMOperation.FormDestroy(Sender: TObject);
@@ -421,7 +476,7 @@ begin
   cbNewPrivateKey.items.BeginUpdate;
   Try
     cbNewPrivateKey.Items.Clear;
-    cbNewPrivateKey.Items.AddObject('Generate a new Private Key',TObject(-1));
+    //cbNewPrivateKey.Items.AddObject('Generate a new Private Key',TObject(-1));
     For i:=0 to FWalletKeys.Count-1 do begin
       wk := FWalletKeys.Key[i];
       if (wk.Name='') then begin
@@ -538,12 +593,16 @@ begin
       end;
       lblGlobalErrors.Caption := '';
     Finally
-      tsGlobalError.TabVisible := false;
-      tsOperation.TabVisible := false;
       if lblGlobalErrors.Caption<>'' then begin
         PageControl.ActivePage := tsGlobalError;
+        tsGlobalError.visible := true;
+        tsGlobalError.tabvisible := {$IFDEF LINUX}true{$ELSE}false{$ENDIF};
+        tsOperation.TabVisible := false;
       end else begin
         PageControl.ActivePage := tsOperation;
+        tsOperation.visible := true;
+        tsOperation.tabvisible := {$IFDEF LINUX}true{$ELSE}false{$ENDIF};
+        tsGlobalError.TabVisible := false;
       end;
     End;
     if rbTransaction.Checked then begin
@@ -689,7 +748,7 @@ begin
       end else if rbChangeKey.Checked then begin
         // With new key generated
         if (cbNewPrivateKey.ItemIndex>=0) then begin
-          i := Integer(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex]);
+          i := PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex]);
           if (i>=0) then FNewAccountPublicKey := WalletKeys.Key[i].AccountKey;
         end else begin
           valid := false;
