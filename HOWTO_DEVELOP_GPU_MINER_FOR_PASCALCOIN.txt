@@ -1,4 +1,4 @@
-(Updated on 2016-10-10 v2)
+(Updated on 2016-10-21 v3)
 
 
 What do you need to develop a GPU miner for PascalCoin
@@ -117,6 +117,8 @@ Check if "buffer_pow" is lower or equal to "target_pow" provided by server in "m
 
 If NO, then create a new buffer changing NONCE or UNIX_TIMESAMP (or also, adding valid ASCII chars to buffer_payload), and check again
 If YES: Submit a "miner-submit" like example 4... and check if you win
+
+IMPORTANT: In Build 1.0.9 only accepts Signed 32 bits value for "timestamp" and "nonce", so you must convert a Unsigned Integer (Uint32) to a Signed integer (Int32) and send it with negative symbol if negative (Example: "nonce":"-123456" for negative Int32)
 
 
 REMEMBER: buffer_payload only accepts ASCII chars from 32 to 254, must start exactly than "payload_start" param, and can be length max of 255 bytes.
