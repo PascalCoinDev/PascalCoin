@@ -3,7 +3,7 @@
 *********************************
 (File updated 2016-10-20)
 
-Instruction about how to compile Pascal Coin Wallet 1.0.8  (2016-10-20)
+Instruction about how to compile Pascal Coin Wallet 1.0.9  (2016-10-21)
 For newer versions... I hope will be similar ;-)
 
 IMPORTANT NOTE:
@@ -23,7 +23,7 @@ PLEASE READ CAREFULLY:
 
 - Create a source code folder, we will call this folder "SOURCE_CODE_FOLDER" 
 
-- Download PascalCoin source code from: https://github.com/PascalCoin/PascalCoin  (Tested with Build 1.0.8)
+- Download PascalCoin source code from: https://github.com/PascalCoin/PascalCoin  (Tested with Build 1.0.9)
 - Download Synapse source code from: http://www.ararat.cz/synapse/lib/exe/fetch.php/file:synapse40.zip  (Tested with version Synapse40)
   - Also you can download a new version from svn: https://sourceforge.net/p/synalist/code/HEAD/tree/trunk/
   - If URL is broken, try searching "Synapse ararat" at Google and Download

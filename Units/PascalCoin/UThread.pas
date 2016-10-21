@@ -91,7 +91,14 @@ begin
     TLog.NewLog(ltdebug,Classname,'Starting Thread');
     Try
       Try
-        BCExecute;
+        Try
+          BCExecute;
+          FDebugStep := 'Finalized BCExecute';
+        Finally
+          // Build 1.0.9 BUG-101 When BCExecute ends... must indicate to Thread Terminated=TRUE !
+          // ... because if not... nobody knows when a thread terminated !
+          Terminate;
+        End;
       Except
         On E:Exception do begin
           TLog.NewLog(lterror,Classname,'Exception inside a Thread at step: '+FDebugStep+' ('+E.ClassName+'): '+E.Message);

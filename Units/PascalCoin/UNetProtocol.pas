@@ -2516,7 +2516,10 @@ begin
         data.Write(nsa.last_connection,4);
       end;
       // Send client version
-      TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$IFDEF Synapse}+'s'{$ENDIF}{$ENDIF}{$IFDEF OpenSSL10}+'0'{$ELSE}+'1'{$ENDIF});
+// XXXXXXXXXXXXX
+//      TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$IFDEF Synapse}+'s'{$ENDIF}{$ENDIF}{$IFDEF OpenSSL10}+'0'{$ELSE}+'1'{$ENDIF});
+      TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$ENDIF});
+// XXXXXXXXXXXXX
     finally
       op.free;
     end;
@@ -2751,6 +2754,8 @@ Var l : TList;
   i, nactive,ndeleted,ntotal,nserverclients : Integer;
   netconn : TNetConnection;
   netserverclientstop : TNetServerClient;
+  aux : AnsiString;
+  needother : Boolean;
 begin
   FLastCheckTS := GetTickCount;
   while (Not Terminated) do begin
@@ -2760,6 +2765,7 @@ begin
       ntotal := 0;
       nserverclients := 0;
       netserverclientstop := Nil;
+      needother := true;
       FLastCheckTS := GetTickCount;
       l := FNetData.FNetConnections.LockList;
       try
@@ -2775,9 +2781,18 @@ begin
           end else if (netconn is TNetServerClient) then begin
             inc(nserverclients);
             if (Not netconn.FDoFinalizeConnection) then begin
-              if not assigned(netserverclientstop) then netserverclientstop := TNetServerClient(netconn)
-              else if netconn.CreatedTime<netserverclientstop.CreatedTime then begin
+              // Build 1.0.9 BUG-101 Only disconnect old versions prior to 1.0.9
+              if not assigned(netserverclientstop) then begin
                 netserverclientstop := TNetServerClient(netconn);
+                aux := Copy(netconn.FClientAppVersion,1,5);
+                needother := Not ((aux='1.0.6') or (aux='1.0.7') or (aux='1.0.8'));
+              end else begin
+                aux := Copy(netconn.FClientAppVersion,1,5);
+                if ((aux='1.0.6') or (aux='1.0.7') or (aux='1.0.8'))
+                  And ((needother) Or (netconn.CreatedTime<netserverclientstop.CreatedTime)) then begin
+                  needother := false;
+                  netserverclientstop := TNetServerClient(netconn);
+                end;
               end;
             end;
           end;

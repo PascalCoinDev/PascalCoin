@@ -20,12 +20,12 @@ https://github.com/PascalCoin/PascalCoin
 
 HOW TO COMPILE:
 
-Version 1.0.8 of Pascal Coin Wallet can be compiled with Delphi and Lazarus and run in Windows or Linux
+Version 1.0.9 of Pascal Coin Wallet can be compiled with Delphi and Lazarus and run in Windows or Linux
 
 - Included source code available at https://github.com/PascalCoin/PascalCoin
-- Read "COMPILE_INSTRUCTIONS" file with instructions (available at github)
+- Read "COMPILE_INSTRUCTIONS" file with instructions
 
-To run it needs a OpenSSL library:
+To run:
 - Windows: libeay32.dll - Can be downloaded from https://indy.fulgan.com/SSL/
 - Linux: libcrypto.so.1.0.0 or libcrypto.so.1.1 (Instructions in "COMPILE_INSTRUCTIONS" file)
 
@@ -36,6 +36,12 @@ If you like it, consider a donation using BitCoin:
 16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
 History:
+
+Build 1.0.9.0 - 2016-10-21
+--------------------------
+- Corrected a BUG (BUG-101) that causes blocking connections when received more than 100 connections, causing "alone in the world" after a cert period time.
+- It's necessary to update because new version will refuse old versions to make network stable.
+
 
 Build 1.0.8.0 - 2016-10-20
 --------------------------
