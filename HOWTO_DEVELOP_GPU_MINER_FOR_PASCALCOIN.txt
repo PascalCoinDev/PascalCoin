@@ -98,7 +98,7 @@ You need this params:
 - "block": This is the next block number to generate... you will not use it
 - "version": This is the PascalCoin core version. If in future it changes... you would need to develop a new GPU miner... check that allways is 1
 - "part1" : This is a Hexa string, you must convert it to RAW and store to a buffer called "buffer_part1"
-- "payload_start": This is the miner name included in the payload when mining. You can ADD characters (only from ASCII from 23 to 255). Store it in a buffer - "buffer_payload"
+- "payload_start": This is the miner name included in the payload when mining. You can ADD characters (only from ASCII from 32 to 254). Store it in a buffer - "buffer_payload"
 - "part3" : equal to part1
 - "timestamp": This is the server timestamp. You must use allways a timestamp equal or higher than the server... so... be synchronized
 - "target_pow": This is a hexa string with the PoW target you must to generate
