@@ -23,7 +23,7 @@ Uses
 {$IFnDEF FPC}
   Windows,
 {$ELSE}
-  LCLIntf, LCLType, LMessages,
+  {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
   UTCPIP, SysUtils, UThread, SyncObjs, Classes, UJSONFunctions, UAES, UNode,
   UCrypto, UAccounts;
@@ -434,8 +434,8 @@ begin
       end;
     end;
     nbOperations.BlockPayload := payload;
-    nbOperations.timestamp := params.AsInteger('timestamp',0);
-    nbOperations.nonce := params.AsInteger('nonce',0);
+    nbOperations.timestamp := params.AsCardinal('timestamp',0);
+    nbOperations.nonce := params.AsCardinal('nonce',0);
     p1 := nbOperations.PoW_Digest_Part1;
     p2 := nbOperations.PoW_Digest_Part2_Payload;
     p3 := nbOperations.PoW_Digest_Part3;
@@ -445,13 +445,16 @@ begin
       try
         json.GetAsVariant('block').Value := FNodeNotifyEvents.Node.Bank.LastOperationBlock.block;
         json.GetAsVariant('pow').Value := TCrypto.ToHexaString( FNodeNotifyEvents.Node.Bank.LastOperationBlock.proof_of_work );
+        json.GetAsVariant('payload').Value := nbOperations.BlockPayload;
+        json.GetAsVariant('timestamp').Value := nbOperations.timestamp;
+        json.GetAsVariant('nonce').Value := nbOperations.nonce;
         inc(FClientsWins);
         Client.SendJSONRPCResponse(json,id);
       finally
         json.Free;
       end;
     end else begin
-      Client.SendJSONRPCErrorResponse(id,'Error: '+errors);
+      Client.SendJSONRPCErrorResponse(id,'Error: '+errors+' payload:'+nbOperations.BlockPayload+' timestamp:'+InttoStr(nbOperations.timestamp)+' nonce:'+IntToStr(nbOperations.nonce));
     end;
   finally
     nbOperations.Free;

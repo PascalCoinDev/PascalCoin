@@ -1,5 +1,9 @@
 unit UServerApp;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 {$IFDEF MSWINDOWS}
   {$DEFINE OS_MSWIN}
 {$ENDIF}
@@ -7,11 +11,16 @@ unit UServerApp;
 interface
 
 uses
+  {$IFDEF LCL}
+  interfaces,
+  {$ENDIF}
   {$IFDEF OS_MSWIN}
   Windows,
   Messages,
   {$ENDIF}
-  SyncObjs;
+  SyncObjs,
+  UOpenSSL, UCrypto, UNode, UFileStorage, UFolderHelper, UWalletKeys, UConst, ULog, UNetProtocol,
+  URPC;
 
 type
   TPascalCoinServerLogType = (sltDebug, sltInfo, sltError, sltWarning);
@@ -19,14 +28,20 @@ type
   TPascalCoinServerAppLogEvent = procedure (LogType: TPascalCoinServerLogType;
       Msg: String; Level: Integer) of object;
 
+  { TPascalCoinServerApp }
+
   TPascalCoinServerApp = class
   private
     FLock : TCriticalSection;
+    FOnLog: TPascalCoinServerAppLogEvent;
     FTerminated : Boolean;
     {$IFDEF OS_MSWIN}
     hStdIn : THandle;
     {$ENDIF}
-    FOnLog : TPascalCoinServerAppLogEvent;
+    FNode : TNode;
+    FWalletKeys : TWalletKeysExt;
+    FRPC : TRPCServer;
+    FLog : TLog;
 
     procedure Lock;
     procedure Unlock;
@@ -35,6 +50,7 @@ type
               const Level: Integer = 0); overload;
     procedure Log(const LogType: TPascalCoinServerLogType; const Msg: String;
               const Params: array of const; const Level: Integer = 0); overload;
+    procedure OnPascalCoinLog(logtype : TLogType; Time : TDateTime; ThreadID : Cardinal; Const sender, logtext : AnsiString);
 
     function  GetTerminated: Boolean;
     procedure SetTerminated;
@@ -49,13 +65,12 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    property  OnLog: TPascalCoinServerAppLogEvent read FOnLog write FOnLog;
-
     procedure Init;
     procedure Run;
     procedure Stop;
 
     property  Terminated: Boolean read GetTerminated;
+    property  OnLog: TPascalCoinServerAppLogEvent read FOnLog write FOnLog;
   end;
 
 var
@@ -64,7 +79,7 @@ var
 implementation
 
 uses
-  SysUtils;
+  SysUtils, Classes;
 
 { TPascalCoinServerApp }
 
@@ -72,14 +87,20 @@ constructor TPascalCoinServerApp.Create;
 begin
   inherited Create;
   FLock := TCriticalSection.Create;
+  FLog := TLog.Create(Nil);
+  FLog.OnInThreadNewLog:=OnPascalCoinLog;
   {$IFDEF OS_MSWIN}
   // get the console input handle
   hStdIn := GetStdHandle(STD_INPUT_HANDLE);
   {$ENDIF}
+  FWalletKeys := TWalletKeysExt.Create(Nil);
 end;
 
 destructor TPascalCoinServerApp.Destroy;
 begin
+  FreeAndNil(FWalletKeys);
+  FLog.OnNewLog:=Nil;
+  FreeAndNil(FLog);
   FreeAndNil(FLock);
   inherited Destroy;
 end;
@@ -89,8 +110,13 @@ begin
   FLock.Acquire;
 end;
 
+procedure TPascalCoinServerApp.Unlock;
+begin
+  FLock.Release;
+end;
+
 procedure TPascalCoinServerApp.Log(const LogType: TPascalCoinServerLogType;
-          const Msg: String; const Level: Integer);
+  const Msg: String; const Level: Integer);
 begin
   if Assigned(FOnLog) then
     FOnLog(LogType, Msg, Level);
@@ -102,9 +128,13 @@ begin
   Log(LogType, Format(Msg, Params), Level);
 end;
 
-procedure TPascalCoinServerApp.Unlock;
+procedure TPascalCoinServerApp.OnPascalCoinLog(logtype: TLogType;
+  Time: TDateTime; ThreadID: Cardinal; const sender, logtext: AnsiString);
+Var s : AnsiString;
 begin
-  FLock.Release;
+  if (logtype=ltdebug)  then exit;
+  if ThreadID=MainThreadID then s := ' MAIN:' else s:=' TID:';
+  Log(sltInfo,s+IntToHex(ThreadID,8)+' ['+CT_LogType[Logtype]+'] <'+sender+'> '+logtext);
 end;
 
 function TPascalCoinServerApp.GetTerminated: Boolean;
@@ -233,20 +263,47 @@ end;
 
 procedure TPascalCoinServerApp.Init;
 begin
-  Log(sltInfo, 'PascalCoin Server');
+  TLog.NewLog(ltinfo,Classname,'PascalCoin Server');
+  // Load Node
+  // Check OpenSSL dll
+  if Not LoadSSLCrypt then raise Exception.Create('Cannot load '+SSL_C_LIB+#10+'To use this software make sure this file is available on you system or reinstall the application');
+  TCrypto.InitCrypto;
+  FWalletKeys.WalletFileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
+  // Creating Node:
+  FNode := TNode.Node;
+  // RPC Server
+  Log(sltInfo,'Activating RPC server');
+  FRPC := TRPCServer.Create;
+  FRPC.WalletKeys := FWalletKeys;
+  FRPC.Active:=true;
+  // Check Database
+  FNode.Bank.StorageClass := TFileStorage;
+  TFileStorage(FNode.Bank.Storage).DatabaseFolder := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data';
+  // Reading database
+  Log(sltInfo,'Reading database and constructing PascalCoin accounts');
+  FNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
+  FWalletKeys.SafeBox := FNode.Node.Bank.SafeBox;
+  Log(sltInfo,'Start discovering nodes');
+  FNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
+  FNode.Node.NetServer.Active := true;
 end;
 
 procedure TPascalCoinServerApp.Run;
 begin
-  Log(sltInfo, 'Start');
-  Log(sltInfo, 'Running (press Q to stop)');
+  Log(sltinfo,'Start');
+  Log(sltinfo,'Running (press Q to stop)');
   while not GetTerminated do
     ProcessOrWait;
 end;
 
 procedure TPascalCoinServerApp.Stop;
 begin
-  Log(sltInfo, 'Stop');
+  Log(sltinfo,'Stop');
+  FreeAndNil(FRPC);
+  FNode.NetServer.Active := false;
+  TNetData.NetData.Free;
+  FreeAndNil(FNode);
+  Log(sltinfo,'Finalized');
 end;
 
 end.

@@ -75,6 +75,28 @@ Type
     4 + (5 * 220) + 4 + 32 = 1140 max aprox
   }
 
+  TOrderedCardinalList = Class
+  private
+    FOrderedList : TList;
+    FDisabledsCount : Integer;
+    FModifiedWhileDisabled : Boolean;
+    FOnListChanged: TNotifyEvent;
+    Procedure NotifyChanged;
+  public
+    Constructor Create;
+    Destructor Destroy; override;
+    Function Add(Value : Cardinal) : Integer;
+    Procedure Remove(Value : Cardinal);
+    Procedure Clear;
+    Function Get(index : Integer) : Cardinal;
+    Function Count : Integer;
+    Function Find(const Value: Cardinal; var Index: Integer): Boolean;
+    Procedure Disable;
+    Procedure Enable;
+    Property OnListChanged : TNotifyEvent read FOnListChanged write FOnListChanged;
+    Procedure CopyFrom(Sender : TOrderedCardinalList);
+  End;
+
   TPCSafeBox = Class;
 
   // This is a class to quickly find accountkeys and their respective account number/s
@@ -84,10 +106,10 @@ Type
     FAccountList : TPCSafeBox;
     FOrderedAccountKeysList : TList; // An ordered list of pointers to quickly find account keys in account list
     Function Find(Const AccountKey: TAccountKey; var Index: Integer): Boolean;
-    function GetAccountKeyList(index: Integer): TList;
+    function GetAccountKeyList(index: Integer): TOrderedCardinalList;
     function GetAccountKey(index: Integer): TAccountKey;
   protected
-    Procedure Clear(RemoveAccountList : Boolean);
+    Procedure ClearAccounts(RemoveAccountList : Boolean);
   public
     Constructor Create(AccountList : TPCSafeBox; AutoAddAll : Boolean);
     Destructor Destroy; override;
@@ -96,9 +118,11 @@ Type
     Procedure AddAccounts(Const AccountKey : TAccountKey; accounts : Array of Cardinal);
     Procedure RemoveAccounts(Const AccountKey : TAccountKey; accounts : Array of Cardinal);
     Function IndexOfAccountKey(Const AccountKey : TAccountKey) : Integer;
-    Property AccountKeyList[index : Integer] : TList read GetAccountKeyList;
+    Property AccountKeyList[index : Integer] : TOrderedCardinalList read GetAccountKeyList;
     Property AccountKey[index : Integer] : TAccountKey read GetAccountKey;
     Function Count : Integer;
+    Property SafeBox : TPCSafeBox read FAccountList;
+    Procedure Clear;
   End;
 
 
@@ -191,28 +215,6 @@ Type
   public
     class Function WriteAnsiString(Stream: TStream; value: AnsiString): Integer;
     class Function ReadAnsiString(Stream: TStream; var value: AnsiString): Integer;
-  End;
-
-  TOrderedCardinalList = Class
-  private
-    FOrderedList : TList;
-    FDisabledsCount : Integer;
-    FModifiedWhileDisabled : Boolean;
-    FOnListChanged: TNotifyEvent;
-    Procedure NotifyChanged;
-  public
-    Constructor Create;
-    Destructor Destroy; override;
-    Function Add(Value : Cardinal) : Integer;
-    Procedure Remove(Value : Cardinal);
-    Procedure Clear;
-    Function Get(index : Integer) : Cardinal;
-    Function Count : Integer;
-    Function Find(const Value: Cardinal; var Index: Integer): Boolean;
-    Procedure Disable;
-    Procedure Enable;
-    Property OnListChanged : TNotifyEvent read FOnListChanged write FOnListChanged;
-    Procedure CopyFrom(Sender : TOrderedCardinalList);
   End;
 
 Const
@@ -765,7 +767,7 @@ begin
   end;
   FBlockAccountsList.Clear;
   For i:=0 to FListOfOrderedAccountKeysList.count-1 do begin
-    TOrderedAccountKeysList( FListOfOrderedAccountKeysList[i] ).Clear(False);
+    TOrderedAccountKeysList( FListOfOrderedAccountKeysList[i] ).ClearAccounts(False);
   end;
   FBufferBlocksHash := '';
   FTotalBalance := 0;
@@ -1271,7 +1273,7 @@ end;
 Type
   TOrderedAccountKeyList = Record
     rawaccountkey : TRawBytes;
-    accounts : TList;
+    accounts_number : TOrderedCardinalList;
   end;
   POrderedAccountKeyList = ^TOrderedAccountKeyList;
 
@@ -1287,7 +1289,7 @@ begin
   if Not Find(AccountKey,i) then begin
     New(P);
     P^.rawaccountkey := TAccountComp.AccountKey2RawString(AccountKey);
-    P^.accounts := TList.Create;
+    P^.accounts_number := TOrderedCardinalList.Create;
     FOrderedAccountKeysList.Insert(i,P);
     // Search this key in the AccountsList and add all...
     j := 0;
@@ -1295,7 +1297,7 @@ begin
       For i:=0 to FAccountList.AccountsCount-1 do begin
         If TAccountComp.Equal(FAccountList.Account(i).accountkey,AccountKey) then begin
           // Note: P^.accounts will be ascending ordered due to "for i:=0 to ..."
-          P^.accounts.Add(TObject(i));
+          P^.accounts_number.Add(i);
         end;
       end;
       TLog.NewLog(ltdebug,Classname,Format('Adding account key (%d of %d) %s',[j,FAccountList.AccountsCount,TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(AccountKey))]));
@@ -1307,40 +1309,37 @@ end;
 
 procedure TOrderedAccountKeysList.AddAccounts(const AccountKey: TAccountKey; accounts: array of Cardinal);
 Var P : POrderedAccountKeyList;
-  i : Integer;
+  i,i2 : Integer;
 begin
   if Find(AccountKey,i) then begin
     P :=  POrderedAccountKeyList(FOrderedAccountKeysList[i]);
   end else if (FAutoAddAll) then begin
     New(P);
     P^.rawaccountkey := TAccountComp.AccountKey2RawString(AccountKey);
-    P^.accounts := TList.Create;
+    P^.accounts_number := TOrderedCardinalList.Create;
     FOrderedAccountKeysList.Insert(i,P);
   end else exit;
   for i := Low(accounts) to High(accounts) do begin
-    If P^.accounts.IndexOf(TObject(accounts[i]))<0 then begin
-      // Add ordered
-      P^.accounts.Add(TObject(accounts[i]));
-    end;
-    {$IFDEF FPC}
-    P^.accounts.Sort(SortOrdered);
-    {$ELSE}
-    P^.accounts.SortList(SortOrdered);
-    {$ENDIF}
+    P^.accounts_number.Add(accounts[i]);
   end;
 end;
 
-procedure TOrderedAccountKeysList.Clear(RemoveAccountList : Boolean);
+procedure TOrderedAccountKeysList.Clear;
+begin
+  ClearAccounts(true);
+end;
+
+procedure TOrderedAccountKeysList.ClearAccounts(RemoveAccountList : Boolean);
 Var P : POrderedAccountKeyList;
   i : Integer;
 begin
   for i := 0 to FOrderedAccountKeysList.Count - 1 do begin
     P := FOrderedAccountKeysList[i];
     if RemoveAccountList then begin
-      P^.accounts.Free;
+      P^.accounts_number.Free;
       Dispose(P);
     end else begin
-      P^.accounts.Clear;
+      P^.accounts_number.Clear;
     end;
   end;
   if RemoveAccountList then begin
@@ -1376,7 +1375,7 @@ begin
   if Assigned(FAccountList) then begin
     FAccountList.FListOfOrderedAccountKeysList.Remove(Self);
   end;
-  Clear(true);
+  ClearAccounts(true);
   FreeAndNil(FOrderedAccountKeysList);
   inherited;
 end;
@@ -1413,9 +1412,9 @@ begin
   Result := TAccountComp.RawString2Accountkey(raw);
 end;
 
-function TOrderedAccountKeysList.GetAccountKeyList(index: Integer): TList;
+function TOrderedAccountKeysList.GetAccountKeyList(index: Integer): TOrderedCardinalList;
 begin
-  Result := POrderedAccountKeyList(FOrderedAccountKeysList[index]).accounts;
+  Result := POrderedAccountKeyList(FOrderedAccountKeysList[index]).accounts_number;
 end;
 
 function TOrderedAccountKeysList.IndexOfAccountKey(const AccountKey: TAccountKey): Integer;
@@ -1430,13 +1429,13 @@ begin
   if Not Find(AccountKey,i) then exit; // Nothing to do
   P :=  POrderedAccountKeyList(FOrderedAccountKeysList[i]);
   for j := Low(accounts) to High(accounts) do begin
-    P^.accounts.Remove(TObject(accounts[j]));
+    P^.accounts_number.Remove(accounts[j]);
   end;
-  if (P^.accounts.Count=0) And (FAutoAddAll) then begin
+  if (P^.accounts_number.Count=0) And (FAutoAddAll) then begin
     // Remove from list
     FOrderedAccountKeysList.Delete(i);
     // Free it
-    P^.accounts.free;
+    P^.accounts_number.free;
     Dispose(P);
   end;
 end;
@@ -1450,7 +1449,7 @@ begin
   // Remove from list
   FOrderedAccountKeysList.Delete(i);
   // Free it
-  P^.accounts.free;
+  P^.accounts_number.free;
   Dispose(P);
 end;
 

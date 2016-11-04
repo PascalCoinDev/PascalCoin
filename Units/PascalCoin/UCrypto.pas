@@ -22,7 +22,7 @@ unit UCrypto;
 interface
 
 uses
-  Classes, SysUtils, UOpenSSL, UOpenSSLDef;
+  Classes, SysUtils, UOpenSSL, UOpenSSLdef;
 
 Type
   ECryptoException = Class(Exception);

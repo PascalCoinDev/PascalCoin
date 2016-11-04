@@ -20,6 +20,10 @@ unit UOpenSSL;
 
 interface
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 Uses UOpenSSLdef;
 {$I config.inc}
 

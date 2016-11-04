@@ -29,7 +29,7 @@ uses
   Dialogs, ExtCtrls, ComCtrls, UWalletKeys, StdCtrls,
   ULog, DB, Grids, DBGrids, UAppParams,
   UBlockChain, UNode, DBCtrls, UGridUtils, UMiner, UAccounts, Menus, ImgList,
-  UNetProtocol, UCrypto, Buttons, UPoolMining;
+  UNetProtocol, UCrypto, Buttons, UPoolMining, URPC;
 
 type
   TMinerPrivateKey = (mpk_NewEachTime, mpk_Random, mpk_Selected);
@@ -213,7 +213,7 @@ type
     { Private declarations }
     FNode : TNode;
     FIsActivated : Boolean;
-    FWalletKeys : TWalletKeys;
+    FWalletKeys : TWalletKeysExt;
     FLog : TLog;
     FAppParams : TAppParams;
     FNodeNotifyEvents : TNodeNotifyEvents;
@@ -230,6 +230,7 @@ type
     FMinAccountBalance : Int64;
     FMaxAccountBalance : Int64;
     FPoolMiningServer : TPoolMiningServer;
+    FRPCServer : TRPCServer;
     //Procedure CheckMining;
     Procedure OnNewAccount(Sender : TObject);
     Procedure OnReceivedHelloMessage(Sender : TObject);
@@ -259,7 +260,7 @@ type
     Function DoUpdateAccountsFilter : Boolean;
   public
     { Public declarations }
-    Property WalletKeys : TWalletKeys read FWalletKeys;
+    Property WalletKeys : TWalletKeysExt read FWalletKeys;
     Property MinersBlocksFound : Integer read FMinersBlocksFound write SetMinersBlocksFound;
   end;
 
@@ -326,6 +327,11 @@ begin
     FNode := TNode.Node;
     FNode.NetServer.Port := FAppParams.ParamByName[CT_PARAM_InternetServerPort].GetAsInteger(CT_NetServer_Port);
     FNode.PeerCache := FAppParams.ParamByName[CT_PARAM_PeerCache].GetAsString('')+';'+CT_Discover_IPs;
+    // Create RPC server
+    FRPCServer := TRPCServer.Create;
+    FRPCServer.WalletKeys := WalletKeys;
+    FRPCServer.Active := true;
+    WalletKeys.SafeBox := FNode.Bank.SafeBox;
     // Check Database
     FNode.Bank.StorageClass := TFileStorage;
     TFileStorage(FNode.Bank.Storage).DatabaseFolder := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data';
@@ -706,6 +712,7 @@ end;
 procedure TFRMWallet.FormCreate(Sender: TObject);
 Var i : Integer;
 begin
+  FRPCServer := Nil;
   FMinAccountBalance := 0;
   FMaxAccountBalance := CT_MaxWalletAmount;
   FMessagesUnreadCount := 0;
@@ -720,7 +727,7 @@ begin
   FOrderedAccountsKeyList := Nil;
   TimerUpdateStatus.Enabled := false;
   FIsActivated := false;
-  FWalletKeys := TWalletKeys.Create(Self);
+  FWalletKeys := TWalletKeysExt.Create(Self);
   for i := 0 to StatusBar.Panels.Count - 1 do begin
     StatusBar.Panels[i].Text := '';
   end;
@@ -779,6 +786,7 @@ Var i : Integer;
 begin
   TLog.NewLog(ltinfo,Classname,'Destroying form - START');
   Try
+  FreeAndNil(FRPCServer);
   FreeAndNil(FPoolMiningServer);
   step := 'Saving params';
   SaveAppParams;
@@ -1201,9 +1209,16 @@ begin
         if P.last_connection>0 then begin
           s := s + ' Last connection: '+DateTimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(P^.last_connection)));
         end;
-        if (P.last_attempt_to_connect>0) then begin
-          s := s + ' Last attempt to connect: '+DateTimeToStr(P^.last_attempt_to_connect)+' (Attempts: '+inttostr(P^.total_failed_attemps_to_connect)+')';
+        if P.last_connection_by_server>0 then begin
+          s := s + ' Last server connection: '+DateTimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(P^.last_connection_by_server)));
         end;
+        if (P.last_attempt_to_connect>0) then begin
+          s := s + ' Last attempt to connect: '+DateTimeToStr(P^.last_attempt_to_connect);
+        end;
+        if (P.total_failed_attemps_to_connect>0) then begin
+          s := s + ' (Attempts: '+inttostr(P^.total_failed_attemps_to_connect)+')';
+        end;
+
         strings.Add(s);
       end;
     Finally
@@ -1455,7 +1470,7 @@ end;
 
 procedure TFRMWallet.UpdateAccounts(RefreshData : Boolean);
 Var accl : TOrderedCardinalList;
-  l : TList;
+  l : TOrderedCardinalList;
   i,j,k : Integer;
   c  : Cardinal;
   applyfilter : Boolean;
@@ -1482,9 +1497,9 @@ begin
               l := FOrderedAccountsKeyList.AccountKeyList[j];
               for k := 0 to l.Count - 1 do begin
                 if applyfilter then begin
-                  acc := FNode.Bank.SafeBox.Account(Cardinal(l[k]));
+                  acc := FNode.Bank.SafeBox.Account(l.Get(k));
                   if (acc.balance>=FMinAccountBalance) And (acc.balance<=FMaxAccountBalance) then accl.Add(acc.account);
-                end else accl.Add(Cardinal(l[k]));
+                end else accl.Add(l.Get(k));
               end;
             end;
           end;
@@ -1496,9 +1511,9 @@ begin
               l := FOrderedAccountsKeyList.AccountKeyList[j];
               for k := 0 to l.Count - 1 do begin
                 if applyfilter then begin
-                  acc := FNode.Bank.SafeBox.Account(Cardinal(l[k]));
+                  acc := FNode.Bank.SafeBox.Account(l.Get(k));
                   if (acc.balance>=FMinAccountBalance) And (acc.balance<=FMaxAccountBalance) then accl.Add(acc.account);
-                end else accl.Add(Cardinal(l[k]));
+                end else accl.Add(l.Get(k));
               end;
             end;
           end;
@@ -1638,6 +1653,7 @@ begin
     FNode.NetServer.Port := FAppParams.ParamByName[CT_PARAM_InternetServerPort].GetAsInteger(CT_NetServer_Port);
     FNode.NetServer.Active := wa;
     FNode.Operations.BlockPayload := FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString('');
+    FNode.NodeLogFilename := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'blocks.log';
   end;
   if Assigned(FPoolMiningServer) then begin
     if FPoolMiningServer.Port<>FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port) then begin

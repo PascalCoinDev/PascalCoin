@@ -51,6 +51,7 @@ type
     FRemoteHost : AnsiString;
     FRemotePort : Word;
     FBytesReceived, FBytesSent : Int64;
+    FLock : TCriticalSection;
     {$ENDIF}
     FOnConnect: TNotifyEvent;
     FOnDisconnect: TNotifyEvent;
@@ -188,7 +189,7 @@ uses
 {$IFnDEF FPC}
   Windows,
 {$ELSE}
-  LCLIntf, LCLType, LMessages,
+  {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
   UConst, ULog;
 
@@ -263,6 +264,7 @@ begin
   FTcpBlockSocket.OnError := TCustomIpClient_OnError;
   {$ENDIF}
   {$IFDEF Synapse}
+  FLock := TCriticalSection.Create;
   FTcpBlockSocket := TTCPBlockSocket.Create;
   FTcpBlockSocket.OnAfterConnect := OnConnect;
   FTcpBlockSocket.SocksTimeout := 10000;
@@ -277,6 +279,7 @@ end;
 destructor TNetTcpIpClient.Destroy;
 begin
   Disconnect;
+  FreeAndNil(FLock);
   inherited;
   FreeAndNil(FTcpBlockSocket);
   TLog.NewLog(ltdebug,ClassName,'Destroying Socket end');
@@ -288,10 +291,15 @@ begin
   FTcpBlockSocket.Disconnect;
   {$ENDIF}
   {$IFDEF Synapse}
-  if Not FConnected then exit;
-  FConnected := false;
-  FTcpBlockSocket.CloseSocket;
-  if Assigned(FOnDisconnect) then FOnDisconnect(Self);
+  FLock.Acquire;
+  Try
+    if Not FConnected then exit;
+    FConnected := false;
+    FTcpBlockSocket.CloseSocket;
+    if Assigned(FOnDisconnect) then FOnDisconnect(Self);
+  Finally
+    FLock.Release;
+  End;
   {$ENDIF}
 end;
 

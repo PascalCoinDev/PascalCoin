@@ -5,14 +5,28 @@ program PascalCoinServer;
 uses
   SysUtils,
   SyncObjs,
-  UAES in 'Units\Utils\UAES.pas',
-  UJSONFunctions in 'Units\Utils\UJSONFunctions.pas',
+  UAES in 'Units\PascalCoin\UAES.pas',
   UCrypto in 'Units\PascalCoin\UCrypto.pas',
-  UAccounts in 'Units\PascalCoin\UAccounts.pas',
   UConst in 'Units\PascalCoin\UConst.pas',
-  UThread in 'Units\PascalCoin\UThread.pas',
   ULog in 'Units\PascalCoin\ULog.pas',
-  UServerApp in 'Units\PascalCoin\UServerApp.pas';
+  UServerApp in 'Units\PascalCoin\UServerApp.pas',
+  UAccounts in 'Units\PascalCoin\UAccounts.pas',
+  UBlockChain in 'Units\PascalCoin\UBlockChain.pas',
+  UECIES in 'Units\PascalCoin\UECIES.pas',
+  UFileStorage in 'Units\PascalCoin\UFileStorage.pas',
+  UNetProtocol in 'Units\PascalCoin\UNetProtocol.pas',
+  UNode in 'Units\PascalCoin\UNode.pas',
+  UOpenSSL in 'Units\PascalCoin\UOpenSSL.pas',
+  UOpenSSLdef in 'Units\PascalCoin\UOpenSSLdef.pas',
+  UOpTransaction in 'Units\PascalCoin\UOpTransaction.pas',
+  URPC in 'Units\PascalCoin\URPC.pas',
+  UTCPIP in 'Units\PascalCoin\UTCPIP.pas',
+  UThread in 'Units\PascalCoin\UThread.pas',
+  UTime in 'Units\PascalCoin\UTime.pas',
+  UWalletKeys in 'Units\PascalCoin\UWalletKeys.pas',
+  UMiner in 'Units\PascalCoin\UMiner.pas',
+  UFolderHelper in 'Units\Utils\UFolderHelper.pas',
+  UJSONFunctions in 'Units\Utils\UJSONFunctions.pas';
 
 type
   TOutputLogger = class

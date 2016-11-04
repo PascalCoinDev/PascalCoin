@@ -132,14 +132,19 @@ Type
   TOperationResume = Record
     Block : Cardinal;
     NOpInsideBlock : Integer;
+    OpType : Word;
     time : Cardinal;
     AffectedAccount : Cardinal;
+    SenderAccount : Int64; // only used when is a transaction
+    DestAccount : Int64; // only used when is a transaction
+    newKey : TAccountKey;
     OperationTxt : AnsiString;
     Amount : Int64;
     Fee : Int64;
     Balance : Int64;
     OriginalPayload : TRawBytes;
     PrintablePayload : AnsiString;
+    OperationHash : TRawBytes;
   end;
 
   TOperationsResumeList = Class
@@ -156,6 +161,8 @@ Type
     Property OperationResume[index : Integer] : TOperationResume read GetOperationResume; default;
   End;
 
+  { TPCOperation }
+
   TPCOperation = Class
   Private
     Ftag: integer;
@@ -170,11 +177,12 @@ Type
     function LoadFromStream(Stream: TStream): Boolean; virtual; abstract;
     procedure AffectedAccounts(list : TList); virtual; abstract;
     class function OpType: Byte; virtual; abstract;
-    Class Function OperationToOperationResume(Operation : TPCOperation; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean;
+    Class Function OperationToOperationResume(Block : Cardinal; Operation : TPCOperation; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean;
     function OperationAmount : Int64; virtual; abstract;
     function OperationFee: UInt64; virtual; abstract;
     function OperationPayload : TRawBytes; virtual; abstract;
     function SenderAccount : Cardinal; virtual; abstract;
+    function N_Operation : Cardinal; virtual; abstract;
     Property tag : integer read Ftag Write Ftag;
     // Property AuxBalance : Int64 read FAuxBalance Write FAuxBalance; Deprecated, not used
     // New Build 1.0.8 To save previous updated block in storage
@@ -182,6 +190,8 @@ Type
     function LoadFromStorage(Stream: TStream): Boolean;
     Property Previous_Sender_updated_block : Cardinal read FPrevious_Sender_updated_block;
     Property Previous_Destination_updated_block : Cardinal read FPrevious_Destination_updated_block;
+    Class function OperationHash(op : TPCOperation; Block : Cardinal) : TRawBytes;
+    Class function DecodeOperationHash(Const operationHash : TRawBytes; var block, account,n_operation : Cardinal) : Boolean;
   End;
 
   TOperationsHashTree = Class
@@ -205,6 +215,8 @@ Type
     Property TotalFee : Int64 read FTotalFee;
   End;
 
+  { TPCOperationsComp }
+
   TPCOperationsComp = Class(TComponent)
   private
     FBank: TPCBank;
@@ -217,6 +229,7 @@ Type
     FIsOnlyOperationBlock: Boolean;
     FStreamPoW : TMemoryStream;
     FDisableds : Integer;
+    FOperationsLock : TCriticalSection;
     function GetOperation(index: Integer): TPCOperation;
     procedure SetBank(const value: TPCBank);
     procedure SetnOnce(const value: Cardinal);
@@ -260,6 +273,8 @@ Type
     //
     Function ValidateOperationBlock(var errors : AnsiString) : Boolean;
     Property IsOnlyOperationBlock : Boolean read FIsOnlyOperationBlock;
+    Procedure Lock;
+    Procedure Unlock;
     //
     Procedure SanitizeOperations;
 
@@ -377,7 +392,7 @@ Type
   End;
 
 Const
-  CT_TOperationResume_NUL : TOperationResume = (Block:0;NOpInsideBlock:-1;time:0;AffectedAccount:0; OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:'';PrintablePayload:'');
+  CT_TOperationResume_NUL : TOperationResume = (Block:0;NOpInsideBlock:-1;OpType:0;time:0;AffectedAccount:0;SenderAccount:-1;DestAccount:-1;newKey:(EC_OpenSSL_NID:0;x:'';y:'');OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:'';PrintablePayload:'';OperationHash:'');
 
   CT_OperationBlock_NUL : TOperationBlock = (block:0;account_key:(EC_OpenSSL_NID:0;x:'';y:'');reward:0;fee:0;protocol_version:0;
     protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:'';initial_safe_box_hash:'';operations_hash:'';proof_of_work:'');
@@ -385,7 +400,8 @@ Const
 implementation
 
 uses
-  Messages, SysUtils, Variants, {Graphics,}
+  {Messages, }
+  SysUtils, Variants, {Graphics,}
   {Controls, Forms,}
   Dialogs, {StdCtrls,}
   UTime, UConst, UOpTransaction;
@@ -942,27 +958,33 @@ end;
 var
   _OperationsClass: Array of TPCOperationClass;
 
-Function TPCOperationsComp.AddOperation(Execute : Boolean; op: TPCOperation; var errors: AnsiString): Boolean;
+function TPCOperationsComp.AddOperation(Execute: Boolean; op: TPCOperation;
+  var errors: AnsiString): Boolean;
 Begin
-  errors := '';
-  Result := False;
-  if Execute then begin
-    if (FBank = Nil) then begin
-      errors := 'No Bank';
-      exit;
+  Lock;
+  Try
+    errors := '';
+    Result := False;
+    if Execute then begin
+      if (FBank = Nil) then begin
+        errors := 'No Bank';
+        exit;
+      end;
+      if (FBank.BlocksCount<>OperationBlock.block) then begin
+        errors := 'Bank blockcount<>OperationBlock.Block';
+        exit;
+      end;
+      // Only process when in current address, prevent do it when reading operations from file
+      Result := op.DoOperation(SafeBoxTransaction, errors);
+    end else Result := true;
+    if Result then begin
+      FOperationsHashTree.AddOperationToHashTree(op);
+      FOperationBlock.fee := FOperationBlock.fee + op.OperationFee;
+      FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
+      if FDisableds<=0 then Calc_Digest_Parts;
     end;
-    if (FBank.BlocksCount<>OperationBlock.block) then begin
-      errors := 'Bank blockcount<>OperationBlock.Block';
-      exit;
-    end;
-    // Only process when in current address, prevent do it when reading operations from file
-    Result := op.DoOperation(SafeBoxTransaction, errors);
-  end else Result := true;
-  if Result then begin
-    FOperationsHashTree.AddOperationToHashTree(op);
-    FOperationBlock.fee := FOperationBlock.fee + op.OperationFee;
-    FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
-    if FDisableds<=0 then Calc_Digest_Parts;
+  finally
+    Unlock;
   end;
 End;
 
@@ -971,24 +993,30 @@ function TPCOperationsComp.AddOperations(operations: TOperationsHashTree; var er
 Var i : Integer;
   e : AnsiString;
 begin
-  Result := 0;
-  errors := '';
-  if operations=FOperationsHashTree then exit;
-  inc(FDisableds);
+  Lock;
   try
-    for i := 0 to operations.OperationsCount - 1 do begin
-      if not AddOperation(true,operations.GetOperation(i),e) then begin
-        if (errors<>'') then errors := errors+' ';
-        errors := errors + 'Op'+inttostr(i+1)+'/'+inttostr(operations.OperationsCount)+':'+e;
-      end else inc(Result);
+    Result := 0;
+    errors := '';
+    if operations=FOperationsHashTree then exit;
+    inc(FDisableds);
+    try
+      for i := 0 to operations.OperationsCount - 1 do begin
+        if not AddOperation(true,operations.GetOperation(i),e) then begin
+          if (errors<>'') then errors := errors+' ';
+          errors := errors + 'Op'+inttostr(i+1)+'/'+inttostr(operations.OperationsCount)+':'+e;
+        end else inc(Result);
+      end;
+    finally
+      Dec(FDisableds);
+      Calc_Digest_Parts;
     end;
   finally
-    Dec(FDisableds);
-    Calc_Digest_Parts;
+    Unlock;
   end;
 end;
 
-Procedure TPCOperationsComp.CalcProofOfWork(fullcalculation : Boolean; var PoW: TRawBytes);
+procedure TPCOperationsComp.CalcProofOfWork(fullcalculation: Boolean;
+  var PoW: TRawBytes);
 begin
   if fullcalculation then begin
     Calc_Digest_Parts;
@@ -1034,6 +1062,7 @@ end;
 
 procedure TPCOperationsComp.Clear(DeleteOperations : Boolean);
 begin
+  Lock;
   Try
     if DeleteOperations then begin
       FOperationsHashTree.ClearHastThree;
@@ -1066,22 +1095,33 @@ begin
     FOperationBlock.protocol_available := CT_BlockChain_Protocol_Available;
     FIsOnlyOperationBlock := false;
   Finally
-    CalcProofOfWork(true,FOperationBlock.proof_of_work);
+    try
+      CalcProofOfWork(true,FOperationBlock.proof_of_work);
+    finally
+      Unlock;
+    end;
   End;
 end;
 
 procedure TPCOperationsComp.CopyFrom(Operations: TPCOperationsComp);
 begin
   if Self=Operations then exit;
-  FOperationBlock := Operations.FOperationBlock;
-  FIsOnlyOperationBlock := Operations.FIsOnlyOperationBlock;
-  FOperationsHashTree.CopyFromHashTree(Operations.FOperationsHashTree);
-  if Assigned(FSafeBoxTransaction) And Assigned(Operations.FSafeBoxTransaction) then begin
-    FSafeBoxTransaction.CopyFrom(Operations.FSafeBoxTransaction);
+  Lock;
+  Operations.Lock;
+  Try
+    FOperationBlock := Operations.FOperationBlock;
+    FIsOnlyOperationBlock := Operations.FIsOnlyOperationBlock;
+    FOperationsHashTree.CopyFromHashTree(Operations.FOperationsHashTree);
+    if Assigned(FSafeBoxTransaction) And Assigned(Operations.FSafeBoxTransaction) then begin
+      FSafeBoxTransaction.CopyFrom(Operations.FSafeBoxTransaction);
+    end;
+    FDigest_Part1 := Operations.FDigest_Part1;
+    FDigest_Part2_Payload := Operations.FDigest_Part2_Payload;
+    FDigest_Part3 := Operations.FDigest_Part3;
+  finally
+    Operations.Unlock;
+    Unlock;
   end;
-  FDigest_Part1 := Operations.FDigest_Part1;
-  FDigest_Part2_Payload := Operations.FDigest_Part2_Payload;
-  FDigest_Part3 := Operations.FDigest_Part3;
 end;
 
 function TPCOperationsComp.CopyFromAndValidate(Operations: TPCOperationsComp; var errors: AnsiString): Boolean;
@@ -1089,44 +1129,54 @@ Var i : Integer;
   e : AnsiString;
   op : TPCOperation;
 begin
-  errors := '';
-  if Self=Operations then begin
-    result := true;
-    exit;
-  end else Result := false;
-  Clear(true);
-  if Operations.IsOnlyOperationBlock then begin
-    errors := 'Operations is only an operation block';
-    exit;
-  end;
-  FOperationBlock := Operations.OperationBlock;
-  for i := 0 to Operations.OperationsHashTree.OperationsCount-1 do begin
-    op := Operations.OperationsHashTree.GetOperation(i);
-    if Not op.DoOperation(SafeBoxTransaction,e) then begin
-      errors := 'Error executing operation '+inttostr(i+1)+'/'+Inttostr(Operations.OperationsHashTree.OperationsCount)+':'+e;
+  Lock;
+  Try
+    errors := '';
+    if Self=Operations then begin
+      result := true;
+      exit;
+    end else Result := false;
+    Clear(true);
+    if Operations.IsOnlyOperationBlock then begin
+      errors := 'Operations is only an operation block';
       exit;
     end;
-    FOperationsHashTree.AddOperationToHashTree(op);
+    FOperationBlock := Operations.OperationBlock;
+    for i := 0 to Operations.OperationsHashTree.OperationsCount-1 do begin
+      op := Operations.OperationsHashTree.GetOperation(i);
+      if Not op.DoOperation(SafeBoxTransaction,e) then begin
+        errors := 'Error executing operation '+inttostr(i+1)+'/'+Inttostr(Operations.OperationsHashTree.OperationsCount)+':'+e;
+        exit;
+      end;
+      FOperationsHashTree.AddOperationToHashTree(op);
+    end;
+    Result := ValidateOperationBlock(errors);
+  finally
+    Unlock;
   end;
-  Result := ValidateOperationBlock(errors);
 end;
 
 procedure TPCOperationsComp.CopyFromExceptAddressKey(Operations: TPCOperationsComp);
 var lastopb : TOperationBlock;
 begin
-  if Self=Operations then exit;
-  lastopb := FOperationBlock;
-  FOperationBlock := Operations.FOperationBlock;
-  FOperationBlock.account_key := lastopb.account_key; // Except AddressKey
-  FOperationBlock.compact_target := Bank.GetActualCompactTargetHash;
-  FIsOnlyOperationBlock := Operations.FIsOnlyOperationBlock;
-  FOperationsHashTree.CopyFromHashTree(Operations.FOperationsHashTree);
-  FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
-  if Assigned(FSafeBoxTransaction) And Assigned(Operations.FSafeBoxTransaction) then begin
-    FSafeBoxTransaction.CopyFrom(Operations.FSafeBoxTransaction);
+  Lock;
+  Try
+    if Self=Operations then exit;
+    lastopb := FOperationBlock;
+    FOperationBlock := Operations.FOperationBlock;
+    FOperationBlock.account_key := lastopb.account_key; // Except AddressKey
+    FOperationBlock.compact_target := Bank.GetActualCompactTargetHash;
+    FIsOnlyOperationBlock := Operations.FIsOnlyOperationBlock;
+    FOperationsHashTree.CopyFromHashTree(Operations.FOperationsHashTree);
+    FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
+    if Assigned(FSafeBoxTransaction) And Assigned(Operations.FSafeBoxTransaction) then begin
+      FSafeBoxTransaction.CopyFrom(Operations.FSafeBoxTransaction);
+    end;
+    // Recalc all
+    CalcProofOfWork(true,FOperationBlock.proof_of_work);
+  finally
+    Unlock;
   end;
-  // Recalc all
-  CalcProofOfWork(true,FOperationBlock.proof_of_work);
 end;
 
 function TPCOperationsComp.Count: Integer;
@@ -1137,6 +1187,7 @@ end;
 constructor TPCOperationsComp.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
+  FOperationsLock := TCriticalSection.Create;
   FDisableds := 0;
   FStreamPoW := TMemoryStream.Create;
   FStreamPoW.Position := 0;
@@ -1151,12 +1202,17 @@ end;
 
 destructor TPCOperationsComp.Destroy;
 begin
-  Clear(true);
-  FreeAndNil(FOperationsHashTree);
-  if Assigned(FSafeBoxTransaction) then begin
-    FreeAndNil(FSafeBoxTransaction);
+  FOperationsLock.Acquire;
+  try
+    Clear(true);
+    FreeAndNil(FOperationsHashTree);
+    if Assigned(FSafeBoxTransaction) then begin
+      FreeAndNil(FSafeBoxTransaction);
+    end;
+    FreeAndNil(FStreamPoW);
+  finally
+    FreeAndNil(FOperationsLock);
   end;
-  FreeAndNil(FStreamPoW);
   inherited;
 end;
 
@@ -1277,92 +1333,97 @@ Var
   OpClass: TPCOperationClass;
   errors2 : AnsiString;
 begin
-  Clear(true);
-  Result := False;
-  //
-  errors := 'Invalid protocol structure. Check application version!';
-  if (Stream.Size - Stream.Position < 5) then exit;
-  Stream.Read(soob,1);
-  // About soob var:
-  // In build prior to 1.0.4 soob only can have 2 values: 0 or 1
-  // In build 1.0.4 soob can has 2 more values: 2 or 3
-  // In future, old values 0 and 1 will no longer be used!
-  // - Value 0 and 2 means that contains also operations
-  // - Value 1 and 3 means that only contains operationblock info
-  // - Value 2 and 3 means that contains protocol info prior to block number
-  if (soob=0) or (soob=2) then FIsOnlyOperationBlock:=false
-  else if (soob=1) or (soob=3) then FIsOnlyOperationBlock:=true
-  else begin
-    errors := 'Invalid value in protocol header! Found:'+inttostr(soob)+' - Check if your application version is Ok';
-    exit;
-  end;
-
-  if (soob=2) or (soob=3) then begin
-    Stream.Read(FOperationBlock.protocol_version, Sizeof(FOperationBlock.protocol_version));
-    Stream.Read(FOperationBlock.protocol_available, Sizeof(FOperationBlock.protocol_available));
-  end;
-
-  if Stream.Read(FOperationBlock.block, Sizeof(FOperationBlock.block))<0 then exit;
-
-  if TStreamOp.ReadAnsiString(Stream, m) < 0 then exit;
-  FOperationBlock.account_key := TAccountComp.RawString2Accountkey(m);
-  if Stream.Read(FOperationBlock.reward, Sizeof(FOperationBlock.reward)) < 0 then exit;
-  if Stream.Read(FOperationBlock.fee, Sizeof(FOperationBlock.fee)) < 0 then exit;
-  if Stream.Read(FOperationBlock.timestamp, Sizeof(FOperationBlock.timestamp)) < 0 then exit;
-  if Stream.Read(FOperationBlock.compact_target, Sizeof(FOperationBlock.compact_target)) < 0 then exit;
-  if Stream.Read(FOperationBlock.nonce, Sizeof(FOperationBlock.nonce)) < 0 then exit;
-  if TStreamOp.ReadAnsiString(Stream, FOperationBlock.block_payload) < 0 then exit;
-  if TStreamOp.ReadAnsiString(Stream, FOperationBlock.initial_safe_box_hash) < 0 then exit;
-  if TStreamOp.ReadAnsiString(Stream, FOperationBlock.operations_hash) < 0 then exit;
-  if TStreamOp.ReadAnsiString(Stream, FOperationBlock.proof_of_work) < 0 then exit;
-  If FIsOnlyOperationBlock then begin
-    Result := true;
-    exit;
-  end;
-  // Fee will be calculated for each operation. Set it to 0 and check later for integrity
-  lastfee := OperationBlock.fee;
-  FOperationBlock.fee := 0;
-  Stream.Read(c, 4);
-  // c = operations count
-  for i := 1 to c do begin
-    errors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c);
-    if Stream.Size - Stream.Position < 4 then exit;
-    Stream.Read(OpType, 4);
-    j := IndexOfOperationClassByOpType(OpType);
-    if j >= 0 then
-      OpClass := _OperationsClass[j]
-    else
-      OpClass := Nil;
-    if Not Assigned(OpClass) then begin
-      errors := errors + ' optype not valid:' + InttoHex(OpType, 4);
+  Lock;
+  Try
+    Clear(true);
+    Result := False;
+    //
+    errors := 'Invalid protocol structure. Check application version!';
+    if (Stream.Size - Stream.Position < 5) then exit;
+    Stream.Read(soob,1);
+    // About soob var:
+    // In build prior to 1.0.4 soob only can have 2 values: 0 or 1
+    // In build 1.0.4 soob can has 2 more values: 2 or 3
+    // In future, old values 0 and 1 will no longer be used!
+    // - Value 0 and 2 means that contains also operations
+    // - Value 1 and 3 means that only contains operationblock info
+    // - Value 2 and 3 means that contains protocol info prior to block number
+    if (soob=0) or (soob=2) then FIsOnlyOperationBlock:=false
+    else if (soob=1) or (soob=3) then FIsOnlyOperationBlock:=true
+    else begin
+      errors := 'Invalid value in protocol header! Found:'+inttostr(soob)+' - Check if your application version is Ok';
       exit;
     end;
-    errors := 'Invalid operation ' + inttostr(i) + '/' + inttostr(c)+' Class:'+OpClass.ClassName;
-    bcop := OpClass.Create;
-    Try
-      if LoadingFromStorage then begin
-        If not bcop.LoadFromStorage(Stream) then exit;
-      end else if not bcop.LoadFromStream(Stream) then begin
+
+    if (soob=2) or (soob=3) then begin
+      Stream.Read(FOperationBlock.protocol_version, Sizeof(FOperationBlock.protocol_version));
+      Stream.Read(FOperationBlock.protocol_available, Sizeof(FOperationBlock.protocol_available));
+    end;
+
+    if Stream.Read(FOperationBlock.block, Sizeof(FOperationBlock.block))<0 then exit;
+
+    if TStreamOp.ReadAnsiString(Stream, m) < 0 then exit;
+    FOperationBlock.account_key := TAccountComp.RawString2Accountkey(m);
+    if Stream.Read(FOperationBlock.reward, Sizeof(FOperationBlock.reward)) < 0 then exit;
+    if Stream.Read(FOperationBlock.fee, Sizeof(FOperationBlock.fee)) < 0 then exit;
+    if Stream.Read(FOperationBlock.timestamp, Sizeof(FOperationBlock.timestamp)) < 0 then exit;
+    if Stream.Read(FOperationBlock.compact_target, Sizeof(FOperationBlock.compact_target)) < 0 then exit;
+    if Stream.Read(FOperationBlock.nonce, Sizeof(FOperationBlock.nonce)) < 0 then exit;
+    if TStreamOp.ReadAnsiString(Stream, FOperationBlock.block_payload) < 0 then exit;
+    if TStreamOp.ReadAnsiString(Stream, FOperationBlock.initial_safe_box_hash) < 0 then exit;
+    if TStreamOp.ReadAnsiString(Stream, FOperationBlock.operations_hash) < 0 then exit;
+    if TStreamOp.ReadAnsiString(Stream, FOperationBlock.proof_of_work) < 0 then exit;
+    If FIsOnlyOperationBlock then begin
+      Result := true;
+      exit;
+    end;
+    // Fee will be calculated for each operation. Set it to 0 and check later for integrity
+    lastfee := OperationBlock.fee;
+    FOperationBlock.fee := 0;
+    Stream.Read(c, 4);
+    // c = operations count
+    for i := 1 to c do begin
+      errors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c);
+      if Stream.Size - Stream.Position < 4 then exit;
+      Stream.Read(OpType, 4);
+      j := IndexOfOperationClassByOpType(OpType);
+      if j >= 0 then
+        OpClass := _OperationsClass[j]
+      else
+        OpClass := Nil;
+      if Not Assigned(OpClass) then begin
+        errors := errors + ' optype not valid:' + InttoHex(OpType, 4);
         exit;
       end;
-      if Not AddOperation(false,bcop, errors2) then begin
-        errors := errors + ' '+errors2+' '+bcop.ToString;
-        exit;
+      errors := 'Invalid operation ' + inttostr(i) + '/' + inttostr(c)+' Class:'+OpClass.ClassName;
+      bcop := OpClass.Create;
+      Try
+        if LoadingFromStorage then begin
+          If not bcop.LoadFromStorage(Stream) then exit;
+        end else if not bcop.LoadFromStream(Stream) then begin
+          exit;
+        end;
+        if Not AddOperation(false,bcop, errors2) then begin
+          errors := errors + ' '+errors2+' '+bcop.ToString;
+          exit;
+        end;
+      Finally
+        FreeAndNil(bcop);
       end;
-    Finally
-      FreeAndNil(bcop);
     end;
-  end;
-  // Validation control:
-  if (lastfee<>OperationBlock.fee) then begin
-    errors := 'Corrupted operations fee old:'+inttostr(lastfee)+' new:'+inttostr(OperationBlock.fee);
-    for i := 0 to FOperationsHashTree.OperationsCount - 1 do begin
-      errors := errors + ' Op'+inttostr(i+1)+':'+FOperationsHashTree.GetOperation(i).ToString;
+    // Validation control:
+    if (lastfee<>OperationBlock.fee) then begin
+      errors := 'Corrupted operations fee old:'+inttostr(lastfee)+' new:'+inttostr(OperationBlock.fee);
+      for i := 0 to FOperationsHashTree.OperationsCount - 1 do begin
+        errors := errors + ' Op'+inttostr(i+1)+':'+FOperationsHashTree.GetOperation(i).ToString;
+      end;
+      Result := false;
+      exit;
     end;
-    Result := false;
-    exit;
+    Result := true;
+  finally
+    Unlock;
   end;
-  Result := true;
 end;
 
 procedure TPCOperationsComp.Notification(AComponent: TComponent;
@@ -1405,6 +1466,7 @@ Var i,n,lastn : Integer;
   errors : AnsiString;
   aux,aux2 : TOperationsHashTree;
 begin
+  Lock;
   Try
     FOperationBlock.timestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
     if Assigned(FBank) then begin
@@ -1448,6 +1510,7 @@ begin
     End;
   Finally
     CalcProofOfWork(true,FOperationBlock.proof_of_work);
+    Unlock;
   End;
   if (n>0) then begin
     TLog.NewLog(ltdebug,Classname,Format('Sanitize operations (before %d - after %d)',[lastn,n]));
@@ -1472,54 +1535,63 @@ Var
   bcop: TPCOperation;
   bcops, errors: AnsiString;
 begin
-  //
-  if save_only_OperationBlock then begin
-    if (FOperationBlock.protocol_version=1) And (FOperationBlock.protocol_available=0) then soob := 1
-    else soob := 3;
-  end else begin
-    if (FOperationBlock.protocol_version=1) And (FOperationBlock.protocol_available=0) then soob := 0
-    else soob := 2;
-  end;
-  Stream.Write(soob,1);
-  if (soob>=2) then begin
-    Stream.Write(FOperationBlock.protocol_version, Sizeof(FOperationBlock.protocol_version));
-    Stream.Write(FOperationBlock.protocol_available, Sizeof(FOperationBlock.protocol_available));
-  end;
-  //
-  Stream.Write(FOperationBlock.block, Sizeof(FOperationBlock.block));
-  //
-  TStreamOp.WriteAnsiString(Stream,TAccountComp.AccountKey2RawString(FOperationBlock.account_key));
-  Stream.Write(FOperationBlock.reward, Sizeof(FOperationBlock.reward));
-  Stream.Write(FOperationBlock.fee, Sizeof(FOperationBlock.fee));
-  Stream.Write(FOperationBlock.timestamp, Sizeof(FOperationBlock.timestamp));
-  Stream.Write(FOperationBlock.compact_target, Sizeof(FOperationBlock.compact_target));
-  Stream.Write(FOperationBlock.nonce, Sizeof(FOperationBlock.nonce));
-  TStreamOp.WriteAnsiString(Stream, FOperationBlock.block_payload);
-  TStreamOp.WriteAnsiString(Stream, FOperationBlock.initial_safe_box_hash);
-  TStreamOp.WriteAnsiString(Stream, FOperationBlock.operations_hash);
-  TStreamOp.WriteAnsiString(Stream, FOperationBlock.proof_of_work);
-  if (Not save_only_OperationBlock) then begin
-    c := Count;
-    Stream.Write(c, 4);
-    // c = operations count
-    for i := 1 to c do
-    begin
-      bcop := Operation[i - 1];
-      OpType := bcop.OpType;
-      Stream.write(OpType, 4);
-      if SaveToStorage then bcop.SaveToStorage(Stream)
-      else bcop.SaveToStream(Stream);
+  Lock;
+  Try
+    //
+    if save_only_OperationBlock then begin
+      if (FOperationBlock.protocol_version=1) And (FOperationBlock.protocol_available=0) then soob := 1
+      else soob := 3;
+    end else begin
+      if (FOperationBlock.protocol_version=1) And (FOperationBlock.protocol_available=0) then soob := 0
+      else soob := 2;
     end;
+    Stream.Write(soob,1);
+    if (soob>=2) then begin
+      Stream.Write(FOperationBlock.protocol_version, Sizeof(FOperationBlock.protocol_version));
+      Stream.Write(FOperationBlock.protocol_available, Sizeof(FOperationBlock.protocol_available));
+    end;
+    //
+    Stream.Write(FOperationBlock.block, Sizeof(FOperationBlock.block));
+    //
+    TStreamOp.WriteAnsiString(Stream,TAccountComp.AccountKey2RawString(FOperationBlock.account_key));
+    Stream.Write(FOperationBlock.reward, Sizeof(FOperationBlock.reward));
+    Stream.Write(FOperationBlock.fee, Sizeof(FOperationBlock.fee));
+    Stream.Write(FOperationBlock.timestamp, Sizeof(FOperationBlock.timestamp));
+    Stream.Write(FOperationBlock.compact_target, Sizeof(FOperationBlock.compact_target));
+    Stream.Write(FOperationBlock.nonce, Sizeof(FOperationBlock.nonce));
+    TStreamOp.WriteAnsiString(Stream, FOperationBlock.block_payload);
+    TStreamOp.WriteAnsiString(Stream, FOperationBlock.initial_safe_box_hash);
+    TStreamOp.WriteAnsiString(Stream, FOperationBlock.operations_hash);
+    TStreamOp.WriteAnsiString(Stream, FOperationBlock.proof_of_work);
+    if (Not save_only_OperationBlock) then begin
+      c := Count;
+      Stream.Write(c, 4);
+      // c = operations count
+      for i := 1 to c do
+      begin
+        bcop := Operation[i - 1];
+        OpType := bcop.OpType;
+        Stream.write(OpType, 4);
+        if SaveToStorage then bcop.SaveToStorage(Stream)
+        else bcop.SaveToStream(Stream);
+      end;
+    end;
+    Result := true;
+  finally
+    Unlock;
   end;
-  Result := true;
 end;
 
 procedure TPCOperationsComp.SetAccountKey(const value: TAccountKey);
 begin
-  if TAccountComp.AccountKey2RawString(value)=TAccountComp.AccountKey2RawString(FOperationBlock.account_key) then exit;
-  FOperationBlock.account_key := value;
-//  Calc_Digest_Basic;
-  Calc_Digest_Parts;
+  Lock;
+  Try
+    if TAccountComp.AccountKey2RawString(value)=TAccountComp.AccountKey2RawString(FOperationBlock.account_key) then exit;
+    FOperationBlock.account_key := value;
+    Calc_Digest_Parts;
+  finally
+    Unlock;
+  end;
 end;
 
 procedure TPCOperationsComp.SetBank(const value: TPCBank);
@@ -1539,95 +1611,130 @@ end;
 procedure TPCOperationsComp.SetBlockPayload(const Value: TRawBytes);
 Var i : Integer;
 begin
-  if Value=FOperationBlock.block_payload then exit;
-  if Length(Value)>CT_MaxPayloadSize then Exit;
-  // Checking Miner Payload valid chars
-  for i := 1 to length(Value) do begin
-    if Not (Value[i] in [#32..#254]) then begin
-      exit;
+  Lock;
+  Try
+    if Value=FOperationBlock.block_payload then exit;
+    if Length(Value)>CT_MaxPayloadSize then Exit;
+    // Checking Miner Payload valid chars
+    for i := 1 to length(Value) do begin
+      if Not (Value[i] in [#32..#254]) then begin
+        exit;
+      end;
     end;
+    FOperationBlock.block_payload := Value;
+    CalcProofOfWork(true,FOperationBlock.proof_of_work);
+  finally
+    Unlock;
   end;
-  FOperationBlock.block_payload := Value;
-  CalcProofOfWork(true,FOperationBlock.proof_of_work);
 end;
 
 procedure TPCOperationsComp.SetnOnce(const value: Cardinal);
 begin
-  FOperationBlock.nonce := value;
-  CalcProofOfWork(false,FOperationBlock.proof_of_work);
+  Lock;
+  Try
+    FOperationBlock.nonce := value;
+    CalcProofOfWork(false,FOperationBlock.proof_of_work);
+  finally
+    Unlock;
+  end;
 end;
 
 procedure TPCOperationsComp.Settimestamp(const value: Cardinal);
 begin
-  if FOperationBlock.timestamp=Value then exit; // No change, nothing to do
-  FOperationBlock.timestamp := value;
-  CalcProofOfWork(false,FOperationBlock.proof_of_work);
+  Lock;
+  Try
+    if FOperationBlock.timestamp=Value then exit; // No change, nothing to do
+    FOperationBlock.timestamp := value;
+    CalcProofOfWork(false,FOperationBlock.proof_of_work);
+  finally
+    Unlock;
+  end;
 end;
 
 procedure TPCOperationsComp.UpdateTimestamp;
 Var ts : Cardinal;
 begin
-  ts := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
-  if Assigned(bank) then begin
-    If Bank.FLastOperationBlock.timestamp>ts then ts := Bank.FLastOperationBlock.timestamp;
+  Lock;
+  Try
+    ts := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+    if Assigned(bank) then begin
+      If Bank.FLastOperationBlock.timestamp>ts then ts := Bank.FLastOperationBlock.timestamp;
+    end;
+    timestamp := ts;
+  finally
+    Unlock;
   end;
-  timestamp := ts;
 end;
 
 function TPCOperationsComp.ValidateOperationBlock(var errors : AnsiString): Boolean;
 Var lastpow : AnsiString;
   i : Integer;
 begin
-  Result := false;
-  lastpow := OperationBlock.proof_of_work;
-  // Execute SafeBoxTransaction operations:
-  SafeBoxTransaction.Rollback;
-  for i := 0 to Count - 1 do begin
-    If Not Operation[i].DoOperation(SafeBoxTransaction,errors) then begin
-      errors := 'Error executing operation '+inttostr(i+1)+'/'+inttostr(Count)+': '+errors;
+  Lock;
+  Try
+    Result := false;
+    lastpow := OperationBlock.proof_of_work;
+    // Execute SafeBoxTransaction operations:
+    SafeBoxTransaction.Rollback;
+    for i := 0 to Count - 1 do begin
+      If Not Operation[i].DoOperation(SafeBoxTransaction,errors) then begin
+        errors := 'Error executing operation '+inttostr(i+1)+'/'+inttostr(Count)+': '+errors;
+        exit;
+      end;
+    end;
+    // Checking Miner payload size
+    if length(BlockPayload)>CT_MaxPayloadSize then begin
+      errors := 'Invalid Miner Payload length: '+inttostr(Length(BlockPayload));
       exit;
     end;
-  end;
-  // Checking Miner payload size
-  if length(BlockPayload)>CT_MaxPayloadSize then begin
-    errors := 'Invalid Miner Payload length: '+inttostr(Length(BlockPayload));
-    exit;
-  end;
-  // Checking Miner Payload valid chars
-  for i := 1 to length(BlockPayload) do begin
-    if Not (BlockPayload[i] in [#32..#254]) then begin
-      errors := 'Invalid Miner Payload character at pos '+inttostr(i)+' value:'+inttostr(ord(BlockPayload[i]));
+    // Checking Miner Payload valid chars
+    for i := 1 to length(BlockPayload) do begin
+      if Not (BlockPayload[i] in [#32..#254]) then begin
+        errors := 'Invalid Miner Payload character at pos '+inttostr(i)+' value:'+inttostr(ord(BlockPayload[i]));
+        exit;
+      end;
+    end;
+
+    CalcProofOfWork(true,FOperationBlock.proof_of_work);
+    if Not AnsiSameStr(OperationBlock.proof_of_work,lastpow) then begin
+      errors := 'Invalid Proof of work calculation';
       exit;
     end;
-  end;
+    if FOperationsHashTree.HashTree<>OperationBlock.operations_hash then begin
+      errors := 'Invalid Operations Hash '+TCrypto.ToHexaString(OperationBlock.operations_hash)+'<>'+TCrypto.ToHexaString(FOperationsHashTree.HashTree);
+      exit;
+    end;
 
-  CalcProofOfWork(true,FOperationBlock.proof_of_work);
-  if Not AnsiSameStr(OperationBlock.proof_of_work,lastpow) then begin
-    errors := 'Invalid Proof of work calculation';
-    exit;
+    if Not TAccountComp.IsValidAccountKey(OperationBlock.account_key,errors) then begin
+      exit;
+    end;
+    if (OperationBlock.reward<>TPCBank.GetRewardForNewLine(OperationBlock.block)) then begin
+      errors := 'Invalid reward';
+      exit;
+    end;
+    if (SafeBoxTransaction.TotalFee<>OperationBlock.fee) then begin
+      errors := Format('Invalid fee integrity at SafeBoxTransaction. New Balance:(%d + fee %d = %d)  OperationBlock.fee:%d',
+        [
+          SafeBoxTransaction.TotalBalance,
+          SafeBoxTransaction.TotalFee,
+          SafeBoxTransaction.TotalBalance+SafeBoxTransaction.TotalFee,
+          OperationBlock.fee]);
+      exit;
+    end;
+    Result := true;
+  finally
+    Unlock;
   end;
-  if FOperationsHashTree.HashTree<>OperationBlock.operations_hash then begin
-    errors := 'Invalid Operations Hash '+TCrypto.ToHexaString(OperationBlock.operations_hash)+'<>'+TCrypto.ToHexaString(FOperationsHashTree.HashTree);
-    exit;
-  end;
+end;
 
-  if Not TAccountComp.IsValidAccountKey(OperationBlock.account_key,errors) then begin
-    exit;
-  end;
-  if (OperationBlock.reward<>TPCBank.GetRewardForNewLine(OperationBlock.block)) then begin
-    errors := 'Invalid reward';
-    exit;
-  end;
-  if (SafeBoxTransaction.TotalFee<>OperationBlock.fee) then begin
-    errors := Format('Invalid fee integrity at SafeBoxTransaction. New Balance:(%d + fee %d = %d)  OperationBlock.fee:%d',
-      [
-        SafeBoxTransaction.TotalBalance,
-        SafeBoxTransaction.TotalFee,
-        SafeBoxTransaction.TotalBalance+SafeBoxTransaction.TotalFee,
-        OperationBlock.fee]);
-    exit;
-  end;
-  Result := true;
+procedure TPCOperationsComp.Lock;
+begin
+  FOperationsLock.Acquire;
+end;
+
+procedure TPCOperationsComp.Unlock;
+begin
+  FOperationsLock.Release;
 end;
 
 { TPCBankNotify }
@@ -1908,17 +2015,72 @@ begin
   end;
 end;
 
-class function TPCOperation.OperationToOperationResume(Operation: TPCOperation;
+class function TPCOperation.OperationHash(op: TPCOperation; Block : Cardinal): TRawBytes;
+  { OperationHash is a 32 bytes value.
+    First 4 bytes (0..3) are Block in little endian
+    Next 4 bytes (4..7) are Account in little endian
+    Next 4 bytes (8..11) are N_Operation in little endian
+    Next 20 bytes (12..31) are a RipeMD160 of the operation buffer to hash
+    //
+    This format is easy to undecode because include account and n_operation
+   }
+var ms : TMemoryStream;
+  r : TRawBytes;
+  _a,_o : Cardinal;
+begin
+  ms := TMemoryStream.Create;
+  try
+    ms.Write(Block,4);
+    _a := op.SenderAccount;
+    _o := op.N_Operation;
+    ms.Write(_a,4);
+    ms.Write(_o,4);
+    ms.WriteBuffer(TCrypto.DoRipeMD160(op.GetOperationBufferToHash)[1],20);
+    SetLength(Result,ms.size);
+    ms.Position:=0;
+    ms.Read(Result[1],ms.size);
+  finally
+    ms.Free;
+  end;
+end;
+
+class function TPCOperation.DecodeOperationHash(const operationHash: TRawBytes;
+  var block, account, n_operation: Cardinal): Boolean;
+  { Decodes a previously generated OperationHash }
+var ms : TMemoryStream;
+begin
+  Result := false;
+  account:=0;
+  n_operation:=0;
+  if length(operationHash)<>32 then exit;
+  ms := TMemoryStream.Create;
+  try
+    ms.Write(operationHash[1],length(operationHash));
+    ms.position := 0;
+    ms.Read(block,4);
+    ms.Read(account,4);
+    ms.Read(n_operation,4);
+    Result := true;
+  finally
+    ms.free;
+  end;
+end;
+
+class function TPCOperation.OperationToOperationResume(Block : Cardinal; Operation: TPCOperation;
   Affected_account_number: Cardinal;
   var OperationResume: TOperationResume): Boolean;
 Var spayload : AnsiString;
 begin
   OperationResume := CT_TOperationResume_NUL;
+  OperationResume.Block:=Block;
   OperationResume.Fee := (-1)*Int64(Operation.OperationFee);
   OperationResume.AffectedAccount := Affected_account_number;
+  OperationResume.OpType:=Operation.OpType;
   Result := false;
   case Operation.OpType of
     CT_Op_Transaction : Begin
+      OperationResume.SenderAccount:=TOpTransaction(Operation).Data.sender;
+      OperationResume.DestAccount:=TOpTransaction(Operation).Data.target;
       if TOpTransaction(Operation).Data.sender=Affected_account_number then begin
         OperationResume.OperationTxt := 'Transaction Sent to '+TAccountComp.AccountNumberToAccountTxtNumber(TOpTransaction(Operation).Data.target);
         OperationResume.Amount := Int64(TOpTransaction(Operation).Data.amount) * (-1);
@@ -1931,6 +2093,7 @@ begin
       end else exit;
     End;
     CT_Op_Changekey : Begin
+      OperationResume.newKey := TOpChangeKey(Operation).Data.new_accountkey;
       OperationResume.OperationTxt := 'Change Key to '+TAccountComp.GetECInfoTxt( TOpChangeKey(Operation).Data.new_accountkey.EC_OpenSSL_NID );
       OperationResume.Fee := TOpChangeKey(Operation).Data.fee;
       Result := true;
@@ -1938,12 +2101,14 @@ begin
     CT_Op_Recover : Begin
       OperationResume.OperationTxt := 'Recover founds';
       OperationResume.Fee := TOpRecoverFounds(Operation).Data.fee;
+      Result := true;
     End;
   else Exit;
   end;
   OperationResume.OriginalPayload := Operation.OperationPayload;
   If TCrypto.IsHumanReadable(OperationResume.OriginalPayload) then OperationResume.PrintablePayload := OperationResume.OriginalPayload
   else OperationResume.PrintablePayload := TCrypto.ToHexaString(OperationResume.OriginalPayload);
+  OperationResume.OperationHash:=TPCOperation.OperationHash(Operation,Block);
 end;
 
 function TPCOperation.SaveToStorage(Stream: TStream): Boolean;

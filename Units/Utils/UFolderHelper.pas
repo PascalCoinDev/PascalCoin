@@ -61,7 +61,7 @@ uses
   Windows,
   {$DEFINE FILEVERSIONINFO}
   {$ENDIF}
-  LCLIntf, LCLType, LMessages,
+  {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
   SysUtils;
 
@@ -104,6 +104,7 @@ begin
 end;
 
 class function TFolderHelper.GetTFileVersionInfo(Const FileName: String): TFileVersionInfo;
+{$IFDEF FILEVERSIONINFO}
 Var verInfoSize : DWord;
     GetInfoSizeJunk : DWord;
     VersionInfo,
@@ -111,6 +112,7 @@ Var verInfoSize : DWord;
     InfoPointer : Pointer;
     VersionInfoSize: UINT;
     VersionValue :  string;
+{$ENDIF}
 Begin
    With result do
    Begin

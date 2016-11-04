@@ -52,16 +52,34 @@ Type
     Procedure SaveToStream(Stream : TStream);
     Property IsValidPassword : Boolean read FIsValidPassword;
     Property WalletPassword : AnsiString read FWalletPassword write SetWalletPassword;
-    Function AddPrivateKey(Const Name : AnsiString; ECPrivateKey : TECPrivateKey) : Integer;
-    Function AddPublicKey(Const Name : AnsiString; ECDSA_Public : TECDSA_Public) : Integer;
+    Function AddPrivateKey(Const Name : AnsiString; ECPrivateKey : TECPrivateKey) : Integer; virtual;
+    Function AddPublicKey(Const Name : AnsiString; ECDSA_Public : TECDSA_Public) : Integer; virtual;
     Function IndexOfAccountKey(AccountKey : TAccountKey) : Integer;
-    Procedure Delete(index : Integer);
-    Procedure Clear;
+    Procedure Delete(index : Integer); virtual;
+    Procedure Clear; virtual;
     Function Count : Integer;
     Property WalletFileName : AnsiString read FWalletFileName write SetWalletFileName;
     Property OnChanged : TNotifyEvent read FOnChanged write FOnChanged;
     Procedure SetName(index : Integer; Const newName : AnsiString);
   End;
+
+  TWalletKeysExt = Class(TWalletKeys)
+  private
+    FOrderedAccountKeysList : TOrderedAccountKeysList;
+    procedure SetSafeBox(const Value: TPCSafeBox);
+    function GetSafeBox: TPCSafeBox;
+  public
+    Constructor Create(AOwner : TComponent); override;
+    Destructor destroy; override;
+    Function AddPrivateKey(Const Name : AnsiString; ECPrivateKey : TECPrivateKey) : Integer; override;
+    Function AddPublicKey(Const Name : AnsiString; ECDSA_Public : TECDSA_Public) : Integer; override;
+    Procedure Delete(index : Integer); override;
+    Procedure Clear; override;
+    //
+    Property AccountsKeyList : TOrderedAccountKeysList read FOrderedAccountKeysList;
+    Property SafeBox : TPCSafeBox read GetSafeBox write SetSafeBox;
+  End;
+
 
 Const CT_TWalletKey_NUL  : TWalletKey = (Name:'';AccountKey:(EC_OpenSSL_NID:0;x:'';y:'');CryptedKey:'';PrivateKey:Nil);
 
@@ -321,6 +339,78 @@ begin
   // Try if password is Ok
   GeneratePrivateKeysFromPassword;
   if FIsValidPassword then SaveToStream(FWalletFileStream);
+end;
+
+{ TWalletKeysExt }
+
+function TWalletKeysExt.AddPrivateKey(const Name: AnsiString;
+  ECPrivateKey: TECPrivateKey): Integer;
+begin
+  Result := inherited AddPrivateKey(Name,ECPrivateKey);
+  if Assigned(FOrderedAccountKeysList) then begin
+    FOrderedAccountKeysList.AddAccountKey(ECPrivateKey.PublicKey);
+  end;
+end;
+
+function TWalletKeysExt.AddPublicKey(const Name: AnsiString;
+  ECDSA_Public: TECDSA_Public): Integer;
+begin
+  Result := inherited AddPublicKey(Name,ECDSA_Public);
+  if Assigned(FOrderedAccountKeysList) then begin
+    FOrderedAccountKeysList.AddAccountKey(ECDSA_Public);
+  end;
+end;
+
+procedure TWalletKeysExt.Clear;
+begin
+  inherited;
+  if Assigned(FOrderedAccountKeysList) then begin
+    FOrderedAccountKeysList.Clear;
+  end;
+end;
+
+constructor TWalletKeysExt.Create(AOwner: TComponent);
+begin
+  inherited;
+  FOrderedAccountKeysList := Nil;
+end;
+
+procedure TWalletKeysExt.Delete(index: Integer);
+begin
+  if Assigned(FOrderedAccountKeysList) then begin
+    FOrderedAccountKeysList.RemoveAccountKey( Key[index].AccountKey );
+  end;
+  inherited;
+end;
+
+destructor TWalletKeysExt.destroy;
+begin
+  FreeAndnil(FOrderedAccountKeysList);
+  inherited;
+end;
+
+function TWalletKeysExt.GetSafeBox: TPCSafeBox;
+begin
+  Result := Nil;
+  if Assigned(FOrderedAccountKeysList) then begin
+    Result := FOrderedAccountKeysList.SafeBox;
+  end;
+end;
+
+procedure TWalletKeysExt.SetSafeBox(const Value: TPCSafeBox);
+Var i : Integer;
+begin
+  if Assigned(FOrderedAccountKeysList) then begin
+    if FOrderedAccountKeysList.SafeBox<>Value then FreeAndNil(FOrderedAccountKeysList)
+    else exit;
+  end;
+  if Assigned(Value) then begin
+    // Initialize
+    FOrderedAccountKeysList := TOrderedAccountKeysList.Create(Value,false);
+    for i := 0 to Count - 1 do begin
+      FOrderedAccountKeysList.AddAccountKey(Key[i].AccountKey);
+    end;
+  end;
 end;
 
 end.

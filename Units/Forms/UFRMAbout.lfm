@@ -151,7 +151,7 @@ object FRMAbout: TFRMAbout
     Left = 90
     Height = 25
     Top = 15
-    Width = 425
+    Width = 382
     Caption = 'Pascal Coin Wallet, Miner && Explorer'
     Font.Color = clBlack
     Font.Height = -21
@@ -164,7 +164,7 @@ object FRMAbout: TFRMAbout
     Left = 15
     Height = 13
     Top = 356
-    Width = 36
+    Width = 30
     Caption = 'Build:'
     Font.Color = clWindowText
     Font.Height = -11
@@ -177,7 +177,7 @@ object FRMAbout: TFRMAbout
     Left = 15
     Height = 13
     Top = 375
-    Width = 57
+    Width = 50
     Caption = 'Protocol:'
     Font.Color = clWindowText
     Font.Height = -11
@@ -190,7 +190,7 @@ object FRMAbout: TFRMAbout
     Left = 90
     Height = 13
     Top = 320
-    Width = 76
+    Width = 65
     Caption = 'Source Code:'
     ParentColor = False
   end
@@ -198,7 +198,7 @@ object FRMAbout: TFRMAbout
     Left = 90
     Height = 13
     Top = 339
-    Width = 154
+    Width = 135
     Caption = 'Check For New Versions:'
     Font.Color = clWindowText
     Font.Height = -11
@@ -212,7 +212,7 @@ object FRMAbout: TFRMAbout
     Left = 170
     Height = 13
     Top = 320
-    Width = 260
+    Width = 240
     Caption = 'https://github.com/PascalCoin/PascalCoin'
     Font.Color = clBlue
     Font.Height = -11
@@ -227,7 +227,7 @@ object FRMAbout: TFRMAbout
     Left = 237
     Height = 13
     Top = 339
-    Width = 270
+    Width = 253
     Caption = 'https://sourceforge.net/projects/pascalcoin'
     Font.Color = clBlue
     Font.Height = -11
@@ -246,14 +246,20 @@ object FRMAbout: TFRMAbout
     Lines.Strings = (
       'Copyright (c) 2016 Albert Molina'
       ''
-      'This software is a Node of the Pascal Coin P2P Cryptocurrency. A Crypto currency without need of historical operations. It can be used to Mine and Explore blocks and operations.'
+      'This software is a Node of the Pascal Coin P2P Cryptocurrency. A Crypto currency without '
+      'need of historical operations. It can be used to Mine and Explore blocks and operations.'
       ''
-      'Distributed under the MIT software license, see the accompanying file LICENSE  or visit http://www.opensource.org/licenses/mit-license.php.'
+      'Distributed under the MIT software license, see the accompanying file LICENSE  or visit '
+      'http://www.opensource.org/licenses/mit-license.php.'
       ''
       'THIS IS EXPERIMENTAL SOFTWARE. Use it for educational purposes only.'
       ''
-      'This product includes software developed by the OpenSSL Project and Denis Grinyuk (https://github.com/Arvur/OpenSSL-Delphi), some cryptographic functions inspirated in code written by Ladar Levison and Marco Ferrante, and Synapse Socket code copyright of Lukas Gebauer.'
-      'Original source code is written in Pascal Language and is available at https://github.com/PascalCoin/PascalCoin'
+      'This product includes software developed by the OpenSSL Project and Denis Grinyuk '
+      '(https://github.com/Arvur/OpenSSL-Delphi), some cryptographic functions inspirated in code '
+      'written by Ladar Levison and Marco Ferrante, and Synapse Socket code copyright of Lukas '
+      'Gebauer.'
+      'Original source code is written in Pascal Language and is available at '
+      'https://github.com/PascalCoin/PascalCoin'
       ''
       'If you like it, consider a donation using BitCoin:'
       '16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk'

@@ -50,6 +50,8 @@ Type
     fee: UInt64;
   End;
 
+  { TOpTransaction }
+
   TOpTransaction = Class(TPCOperation)
   private
     FData : TOpTransactionData;
@@ -67,11 +69,14 @@ Type
     function OperationFee : UInt64; override;
     function OperationPayload : TRawBytes; override;
     function SenderAccount : Cardinal; override;
+    function N_Operation : Cardinal; override;
     Property Data : TOpTransactionData read FData;
 
     Constructor Create(sender, n_operation, target: Cardinal; key: TECPrivateKey; amount, fee: UInt64; payload: AnsiString);
     Function toString : String; Override;
   End;
+
+  { TOpChangeKey }
 
   TOpChangeKey = Class(TPCOperation)
   private
@@ -89,11 +94,14 @@ Type
     function OperationFee : UInt64; override;
     function OperationPayload : TRawBytes; override;
     function SenderAccount : Cardinal; override;
+    function N_Operation : Cardinal; override;
     procedure AffectedAccounts(list : TList); override;
     Constructor Create(account_number, n_operation: Cardinal; key:TECPrivateKey; new_account_key : TAccountKey; fee: UInt64; payload: AnsiString);
     Property Data : TOpChangeKeyData read FData;
     Function toString : String; Override;
   End;
+
+  { TOpRecoverFounds }
 
   TOpRecoverFounds = Class(TPCOperation)
   private
@@ -109,6 +117,7 @@ Type
     function OperationFee : UInt64; override;
     function OperationPayload : TRawBytes; override;
     function SenderAccount : Cardinal; override;
+    function N_Operation : Cardinal; override;
     procedure AffectedAccounts(list : TList); override;
     Constructor Create(account_number, n_operation: Cardinal; fee: UInt64);
     Property Data : TOpRecoverFoundsData read FData;
@@ -225,6 +234,12 @@ class function TOpTransaction.DoSignOperation(key : TECPrivateKey; var trans : T
 var s : AnsiString;
   _sign : TECDSA_SIG;
 begin
+  If Not Assigned(key.PrivateKey) then begin
+    Result := false;
+    trans.sign.r:='';
+    trans.sign.s:='';
+    exit;
+  end;
   s := GetTransactionHasthToSign(trans);
   Try
     _sign := TCrypto.ECDSASign(key.PrivateKey,s);
@@ -342,6 +357,11 @@ end;
 function TOpTransaction.SenderAccount: Cardinal;
 begin
   Result := FData.sender;
+end;
+
+function TOpTransaction.N_Operation: Cardinal;
+begin
+  Result := FData.n_operation;
 end;
 
 function TOpTransaction.toString: String;
@@ -536,6 +556,11 @@ begin
   Result := FData.account;
 end;
 
+function TOpChangeKey.N_Operation: Cardinal;
+begin
+  Result := FData.n_operation;
+end;
+
 function TOpChangeKey.toString: String;
 begin
   Result := Format('Change key of %s to new key: %s fee:%s (n_op:%d) payload size:%d',[
@@ -649,6 +674,11 @@ end;
 function TOpRecoverFounds.SenderAccount: Cardinal;
 begin
   Result := FData.account;
+end;
+
+function TOpRecoverFounds.N_Operation: Cardinal;
+begin
+  Result := FData.n_operation;
 end;
 
 function TOpRecoverFounds.toString: String;

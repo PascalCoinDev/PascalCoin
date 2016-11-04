@@ -184,8 +184,10 @@ Type
     FMaxRemoteOperationBlock : TOperationBlock;
     FFixedServers : TNodeServerAddressArray;
     FNetClientsDestroyThread : TNetClientsDestroyThread;
+    FNetConnectionsActive: Boolean;
     Procedure IncStatistics(incActiveConnections,incClientsConnections,incServersConnections,incServersConnectionsWithResponse : Integer; incBytesReceived, incBytesSend : Int64);
-  protected
+
+    procedure SetNetConnectionsActive(const Value: Boolean);  protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     Function IndexOfNetClient(ListToSearch : TList; ip : AnsiString; port : Word; indexStart : Integer = 0) : Integer;
     Procedure DeleteNetClient(List : TList; index : Integer);
@@ -242,6 +244,7 @@ Type
     Procedure NotifyBlackListUpdated;
     Procedure NotifyReceivedHelloMessage;
     Procedure NotifyStatisticsChanged;
+    Property NetConnectionsActive : Boolean read FNetConnectionsActive write SetNetConnectionsActive;
   End;
 
   TNetConnection = Class(TComponent)
@@ -385,7 +388,13 @@ begin
   l := FNodeServers.LockList;
   try
     i := IndexOfNetClient(l,NodeServerAddress.ip,NodeServerAddress.port);
-    if i>=0 then exit;
+    if i>=0 then begin
+      P := PNodeServerAddress(l[i]);
+      if NodeServerAddress.last_connection>P^.last_connection then P^.last_connection := NodeServerAddress.last_connection;
+      if NodeServerAddress.last_connection_by_server>P^.last_connection_by_server then P^.last_connection_by_server := NodeServerAddress.last_connection_by_server;
+      if NodeServerAddress.last_attempt_to_connect>P^.last_attempt_to_connect then P^.last_attempt_to_connect := NodeServerAddress.last_attempt_to_connect;
+      exit;
+    end;
     New(P);
     P^ := NodeServerAddress;
     l.Add(P);
@@ -540,6 +549,7 @@ end;
 constructor TNetData.Create;
 begin
   TLog.NewLog(ltInfo,ClassName,'TNetData.Create');
+  FNetConnectionsActive := true;
   SetLength(FFixedServers,0);
   FMaxRemoteOperationBlock := CT_OperationBlock_NUL;
   FNetStatistics := CT_TNetStatistics_NUL;
@@ -696,12 +706,12 @@ Var P : PNodeServerAddress;
   tdc : TThreadDiscoverConnection;
   canAdd : Boolean;
 begin
+  if Not FNetConnectionsActive then exit;
   if TPCThread.ThreadClassFound(TThreadDiscoverConnection,nil)>=0 then begin
     TLog.NewLog(ltInfo,ClassName,'Allready discovering servers...');
     exit;
   end;
   CleanBlackList;
-
   j := CT_MaxServersConnected - ConnectionsCount(true);
   if j<=0 then exit;
   // can discover up to j servers
@@ -1106,11 +1116,19 @@ begin
   try
     for i := 0 to l.Count - 1 do begin
       nsa := PNodeServerAddress( l[i] )^;
-      if (Not (nsa.its_myself)) And
-        (nsa.BlackListText='') And
-        (nsa.last_connection>0) And
-        ((Assigned(nsa.netConnection)) Or
-         (nsa.last_connection + (60*60*24) > (currunixtimestamp))) // Only If connected 24h before...
+      If ((nsa.its_myself) Or (nsa.BlackListText='')) // Not a blacklist IP except duplicate connections
+        And
+        ( // I've connected 24h before
+         ((nsa.last_connection>0) And ((Assigned(nsa.netConnection)) Or ((nsa.last_connection + (60*60*24)) > (currunixtimestamp))))
+         Or // Others have connected 24h before
+         ((nsa.last_connection_by_server>0) And ((nsa.last_connection_by_server + (60*60*24)) > (currunixtimestamp)))
+         Or // Peer cache
+         ((nsa.last_connection=0) And (nsa.last_connection_by_server=0))
+        )
+        And
+        ( // Never tried to connect or successfully connected
+          (nsa.total_failed_attemps_to_connect=0)
+        )
         then begin
         SetLength(Result,length(Result)+1);
         Result[high(Result)] := nsa;
@@ -1301,6 +1319,13 @@ begin
   End;
 end;
 
+procedure TNetData.SetNetConnectionsActive(const Value: Boolean);
+begin
+  FNetConnectionsActive := Value;
+  if FNetConnectionsActive then DiscoverServers
+  else DisconnectClients;
+end;
+
 function TNetData.UnRegisterRequest(Sender: TNetConnection; operation: Word; request_id: Cardinal): Boolean;
 Var P : PNetRequestRegistered;
   i : Integer;
@@ -1337,6 +1362,7 @@ begin
   inherited;
   MaxConnections := CT_MaxClientsConnected;
   NetTcpIpClientClass := TBufferedNetTcpIpClient;
+  Port := CT_NetServer_Port;
 end;
 
 procedure TNetServer.OnNewIncommingConnection(Sender : TObject; Client : TNetTcpIpClient);
@@ -1915,7 +1941,6 @@ procedure TNetConnection.DoProcess_Hello(HeaderData: TNetHeaderData; DataBuffer:
   End;
 var op, myLastOp : TPCOperationsComp;
     errors : AnsiString;
-    messagehello : TNetMessage_Hello;
     connection_has_a_server : Word;
     i,c : Integer;
     nsa : TNodeServerAddress;
@@ -1925,7 +1950,6 @@ var op, myLastOp : TPCOperationsComp;
    RawAccountKey : TRawBytes;
    other_version : AnsiString;
 Begin
-  SetLength(messagehello.servers_address,0);
   op := TPCOperationsComp.Create(Nil);
   try
     DataBuffer.Position:=0;
@@ -1963,7 +1987,6 @@ Begin
     end;
 
     if op.LoadBlockFromStream(DataBuffer,errors) then begin
-      messagehello.last_operation := op.OperationBlock;
       FRemoteOperationBlock := op.OperationBlock;
       If (TNetData.NetData.FMaxRemoteOperationBlock.block<FRemoteOperationBlock.block) then begin
         TNetData.NetData.FMaxRemoteOperationBlock := FRemoteOperationBlock;
@@ -1977,14 +2000,8 @@ Begin
           nsa := CT_TNodeServerAddress_NUL;
           TStreamOp.ReadAnsiString(DataBuffer,nsa.ip);
           DataBuffer.Read(nsa.port,2);
-          // New in Build 1.0.2 saved at last_connection_by_server DataBuffer.Read(nsa.last_connection,4);
           DataBuffer.Read(nsa.last_connection_by_server,4);
-          if ((nsa.last_connection_by_server + (60*60*24)) > UnivDateTimeToUnix(DateTime2UnivDateTime(now))) then begin
-            // New in Build 1.0.2: Only stores if connected 24 h before
-            SetLength(messagehello.servers_address,length(messagehello.servers_address)+1);
-            messagehello.servers_address[high(messagehello.servers_address)] := nsa;
-            TNetData.NetData.AddServer(nsa);
-          end;
+          TNetData.NetData.AddServer(nsa);
         end;
         if TStreamOp.ReadAnsiString(DataBuffer,other_version)>=0 then begin
           // Captures version
@@ -2217,7 +2234,7 @@ function TNetConnection.ReadTcpClientBuffer(MaxWaitMiliseconds: Cardinal; var He
 var buffer : Array[1..4096] of byte;
   auxstream : TMemoryStream;
   tc : Cardinal;
-  last_bytes_read : Int64;
+  last_bytes_read, t_bytes_read : Int64;
   //
   operation : Word;
   request_id : Integer;
@@ -2226,6 +2243,7 @@ var buffer : Array[1..4096] of byte;
 
 
 begin
+  t_bytes_read := 0;
   Result := false;
   HeaderData := CT_NetHeaderData;
   BufferData.Size := 0;
@@ -2283,19 +2301,10 @@ begin
             FClientBufferRead.CopyFrom(auxstream,last_bytes_read);
             FClientBufferRead.Position := 0;
             auxstream.Size := 0;
+            inc(t_bytes_read,last_bytes_read);
           end;
         finally
           (Client as TBufferedNetTcpIpClient).ReadBufferUnlock;
-        end;
-        if last_bytes_read>0 then begin
-          if Not FHasReceivedData then begin
-            FHasReceivedData := true;
-            if (Self is TNetClient) then
-              TNetData.NetData.IncStatistics(0,0,0,1,last_bytes_read,0)
-            else TNetData.NetData.IncStatistics(0,0,0,0,last_bytes_read,0);
-          end else begin
-            TNetData.NetData.IncStatistics(0,0,0,0,last_bytes_read,0);
-          end;
         end;
       end;
     until (Result) Or ((GetTickCount > (tc+MaxWaitMiliseconds)) And (last_bytes_read=0));
@@ -2313,6 +2322,16 @@ begin
     Finally
       FNetLock.Release;
     End;
+  end;
+  if t_bytes_read>0 then begin
+    if Not FHasReceivedData then begin
+      FHasReceivedData := true;
+      if (Self is TNetClient) then
+        TNetData.NetData.IncStatistics(0,0,0,1,t_bytes_read,0)
+      else TNetData.NetData.IncStatistics(0,0,0,0,t_bytes_read,0);
+    end else begin
+      TNetData.NetData.IncStatistics(0,0,0,0,t_bytes_read,0);
+    end;
   end;
   if (Result) And (HeaderData.header_type=ntp_response) then begin
     TNetData.NetData.UnRegisterRequest(Self,HeaderData.operation,HeaderData.request_id);
@@ -2516,10 +2535,7 @@ begin
         data.Write(nsa.last_connection,4);
       end;
       // Send client version
-// XXXXXXXXXXXXX
-//      TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$IFDEF Synapse}+'s'{$ENDIF}{$ENDIF}{$IFDEF OpenSSL10}+'0'{$ELSE}+'1'{$ENDIF});
-      TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$ENDIF});
-// XXXXXXXXXXXXX
+      TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$IFDEF Synapse}+'s'{$ENDIF}{$ENDIF}{$IFDEF OpenSSL10}+'0'{$ELSE}+'1'{$ENDIF});
     finally
       op.free;
     end;
@@ -2692,7 +2708,7 @@ Var NC : TNetClient;
 begin
   if Terminated then exit;
 
-  TLog.NewLog(ltdebug,Classname,'Starting discovery of connection '+FNodeServerAddress.ip+':'+InttoStr(FNodeServerAddress.port));
+  TLog.NewLog(ltInfo,Classname,'Starting discovery of connection '+FNodeServerAddress.ip+':'+InttoStr(FNodeServerAddress.port));
   Pnsa := Nil;
   DebugStep := 'Locking list';
   // Register attempt
@@ -2756,6 +2772,7 @@ Var l : TList;
   netserverclientstop : TNetServerClient;
   aux : AnsiString;
   needother : Boolean;
+  newstats : TNetStatistics;
 begin
   FLastCheckTS := GetTickCount;
   while (Not Terminated) do begin
@@ -2770,15 +2787,23 @@ begin
       l := FNetData.FNetConnections.LockList;
       try
         ntotal := l.Count;
+        newstats := CT_TNetStatistics_NUL;
         for i := l.Count-1 downto 0 do begin
           netconn := TNetConnection(l.Items[i]);
           if (netconn is TNetClient) then begin
+            if (netconn.Connected) then begin
+              inc(newstats.ServersConnections);
+              if (netconn.FHasReceivedData) then inc(newstats.ServersConnectionsWithResponse);
+            end;
             if (Not TNetClient(netconn).Connected) And (netconn.CreatedTime+EncodeTime(0,0,5,0)<now) then begin
               // Free this!
               TNetClient(netconn).FinalizeConnection;
               inc(ndeleted);
             end else inc(nactive);
           end else if (netconn is TNetServerClient) then begin
+            if (netconn.Connected) then begin
+              inc(newstats.ClientsConnections);
+            end;
             inc(nserverclients);
             if (Not netconn.FDoFinalizeConnection) then begin
               // Build 1.0.9 BUG-101 Only disconnect old versions prior to 1.0.9
@@ -2797,6 +2822,11 @@ begin
             end;
           end;
         end;
+        // Update stats:
+        FNetData.FNetStatistics.ActiveConnections := newstats.ClientsConnections + newstats.ServersConnections;
+        FNetData.FNetStatistics.ClientsConnections := newstats.ClientsConnections;
+        FNetData.FNetStatistics.ServersConnections := newstats.ServersConnections;
+        FNetData.FNetStatistics.ServersConnectionsWithResponse := newstats.ServersConnectionsWithResponse;
         // Must stop clients?
         if (nserverclients>CT_MaxServersConnected) And // This is to ensure there are more serverclients than clients
            ((nserverclients + nactive + ndeleted)>=CT_MaxClientsConnected) And (Assigned(netserverclientstop)) then begin

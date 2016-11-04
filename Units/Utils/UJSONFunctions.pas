@@ -50,6 +50,8 @@ Type
 
   TPCJSONDataClass = Class of TPCJSONData;
 
+  { TPCJSONVariantValue }
+
   TPCJSONVariantValue = Class(TPCJSONData)
   private
     FOldValue : Variant;
@@ -64,10 +66,12 @@ Type
     Property Value : Variant read FValue write SetValue;
     Function AsString(DefValue : String) : String;
     Function AsInteger(DefValue : Integer) : Integer;
+    Function AsInt64(DefValue : Int64) : Int64;
     Function AsDouble(DefValue : Double) : Double;
     Function AsBoolean(DefValue : Boolean) : Boolean;
     Function AsDateTime(DefValue : TDateTime) : TDateTime;
     Function AsCurrency(DefValue : Currency) : Currency;
+    Function AsCardinal(DefValue : Cardinal) : Cardinal;
   End;
 
   TPCJSONNameValue = Class(TPCJSONData)
@@ -143,6 +147,8 @@ Type
     Function GetAsArray(Name : String) : TPCJSONArray;
     Function AsString(ParamName : String; DefValue : String) : String;
     Function AsInteger(ParamName : String; DefValue : Integer) : Integer;
+    Function AsCardinal(ParamName : String; DefValue : Cardinal) : Cardinal;
+    Function AsInt64(ParamName : String; DefValue : Int64) : Int64;
     Function AsDouble(ParamName : String; DefValue : Double) : Double;
     Function AsBoolean(ParamName : String; DefValue : Boolean) : Boolean;
     Function AsDateTime(ParamName : String; DefValue : TDateTime) : TDateTime;
@@ -408,6 +414,11 @@ begin
   end;
 end;
 
+function TPCJSONVariantValue.AsCardinal(DefValue: Cardinal): Cardinal;
+begin
+  Result := Cardinal( StrToIntDef(VarToStrDef(Value,''),DefValue) );
+end;
+
 function TPCJSONVariantValue.AsDateTime(DefValue: TDateTime): TDateTime;
 begin
   try
@@ -426,13 +437,14 @@ begin
   end;
 end;
 
+function TPCJSONVariantValue.AsInt64(DefValue: Int64): Int64;
+begin
+  Result := StrToInt64Def(VarToStrDef(Value,''),DefValue);
+end;
+
 function TPCJSONVariantValue.AsInteger(DefValue: Integer): Integer;
 begin
-  try
-    Result := VarAsType(Value,varInteger);
-  except
-    Result := DefValue;
-  end;
+  Result := StrToIntDef(VarToStrDef(Value,''),DefValue);
 end;
 
 function TPCJSONVariantValue.AsString(DefValue: String): String;
@@ -467,7 +479,7 @@ end;
 constructor TPCJSONVariantValue.CreateFromJSONValue(JSONValue: TJSONValue);
 {$IFnDEF FPC}
 Var d : Double;
-    i : Integer;
+    i64 : Integer;
   ds,ts : Char;
 {$ENDIF}
 begin
@@ -477,15 +489,15 @@ begin
   {$ELSE}
   if JSONValue is TJSONNumber then begin
     d := TJSONNumber(JSONValue).AsDouble;
-    if Pos('.',JSONValue.ToString)>0 then i := 0
-    else i := TJSONNumber(JSONValue).AsInt;
+    if Pos('.',JSONValue.ToString)>0 then i64 := 0
+    else i64 := TJSONNumber(JSONValue).AsInt;
     ds := DecimalSeparator;
     ts := ThousandSeparator;
     DecimalSeparator := '.';
     ThousandSeparator := ',';
     Try
-      if FormatFloat('0.###########',d)=inttostr(i) then
-        Value := i
+      if FormatFloat('0.###########',d)=inttostr(i64) then
+        Value := i64
       else Value := d;
     Finally
       DecimalSeparator := ds;
@@ -508,8 +520,8 @@ function TPCJSONVariantValue.ToJSONFormatted(pretty: Boolean; const prefix: Ansi
 Var   ds,ts : Char;
 begin
   Case VarType(Value) of
-    varSmallint,varInteger,varByte,varWord : Result := IntToStr(Value);
-    varLongWord,varInt64 : Result := IntToStr(Value);
+    varSmallint,varInteger,varByte,varWord,
+    varLongWord,varInt64 : Result := VarToStr(Value);
     varBoolean : if (Value) then Result := 'true' else Result:='false';
     varNull : Result := 'null';
     varDate,varDouble : begin
@@ -547,6 +559,11 @@ begin
   except
     Result := DefValue;
   end;
+end;
+
+function TPCJSONObject.AsCardinal(ParamName: String; DefValue: Cardinal): Cardinal;
+begin
+  Result := Cardinal(AsInt64(ParamName,DefValue));
 end;
 
 function TPCJSONObject.AsCurrency(ParamName: String; DefValue: Currency): Currency;
@@ -604,6 +621,24 @@ begin
   end;
 end;
 
+function TPCJSONObject.AsInt64(ParamName: String; DefValue: Int64): Int64;
+Var v : Variant;
+  VV : TPCJSONVariantValue;
+begin
+  VV := GetAsVariant(ParamName);
+  if (VarType(VV.Value)=varNull) AND (VarType( VV.FOldValue ) = varEmpty) then begin
+    Result := DefValue;
+    Exit;
+  end;
+  v := GetAsVariant(ParamName).Value;
+  try
+    if VarIsNull(v) then Result := DefValue
+    else Result := StrToInt64Def(VarToStrDef(v,''),DefValue);
+  except
+    Result := DefValue;
+  end;
+end;
+
 function TPCJSONObject.AsInteger(ParamName: String; DefValue: Integer): Integer;
 Var v : Variant;
   VV : TPCJSONVariantValue;
@@ -616,7 +651,7 @@ begin
   v := GetAsVariant(ParamName).Value;
   try
     if VarIsNull(v) then Result := DefValue
-    else Result := VarAsType(v,varInteger);
+    else Result := StrToIntDef(VarToStrDef(v,''),DefValue);
   except
     Result := DefValue;
   end;
@@ -935,10 +970,10 @@ Var JS : TJSONValue;
   {$ENDIF}
 begin
   Result := Nil;
+  JS := Nil;
   {$IFDEF FPC}
   SetLength(jss,length(JSONObject));
   for i:=0 to High(JSONObject) do jss[i+1] := AnsiChar( JSONObject[i] );
-  JS := Nil;
   Try
     JS := GetJSON(jss);
   Except
@@ -947,7 +982,13 @@ begin
     end;
   end;
   {$ELSE}
-  JS := TJSONObject.ParseJSONValue(JSONObject,0);
+  Try
+    JS := TJSONObject.ParseJSONValue(JSONObject,0);
+  Except
+    On E:Exception do begin
+      TLog.NewLog(ltDebug,ClassName,'Error processing JSON: '+E.Message);
+    end;
+  End;
   {$ENDIF}
   if Not Assigned(JS) then exit;
   Try
