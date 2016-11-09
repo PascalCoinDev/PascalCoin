@@ -51,6 +51,8 @@ Type
     FIniFile : TIniFile;
     procedure SetActive(AValue: Boolean);
     procedure SetIniFileName(const Value: AnsiString);
+  protected
+    Function IsValidClientIP(Const clientIp : String; clientPort : Word) : Boolean;
   public
     Constructor Create;
     Destructor Destroy; override;
@@ -122,6 +124,15 @@ begin
   end;
 end;
 
+function TRPCServer.IsValidClientIP(const clientIp: String; clientPort: Word): Boolean;
+begin
+  Result := (clientIp='127.0.0.1');
+  If Not Result then begin
+    // TODO: Allow other IP clients
+  end;
+  //
+end;
+
 constructor TRPCServer.Create;
 begin
   FIniFile := Nil;
@@ -175,6 +186,11 @@ var
   i : Integer;
   Headers : TStringList;
 begin
+  // IP Protection
+  If (Not _RPCServer.IsValidClientIP(FSock.GetRemoteSinIP,FSock.GetRemoteSinPort)) then begin
+    TLog.NewLog(lterror,Classname,FSock.GetRemoteSinIP+':'+inttostr(FSock.GetRemoteSinPort)+' INVALID IP');
+    exit;
+  end;
   Headers := TStringList.Create;
   errNum := CT_RPC_ErrNum_InternalError;
   errDesc := 'No data';
@@ -228,7 +244,7 @@ begin
       except
         On E:Exception do begin
           errDesc:='Error decoding JSON: '+E.Message;
-          TLog.NewLog(lterror,Classname,'Error decoding JSON: '+E.Message);
+          TLog.NewLog(lterror,Classname,FSock.GetRemoteSinIP+':'+inttostr(FSock.GetRemoteSinPort)+' Error decoding JSON: '+E.Message);
           exit;
         end;
       end;
@@ -239,7 +255,7 @@ begin
             errNum := 0;
             errDesc := '';
             try
-              TLog.NewLog(ltinfo,Classname,'Processing method '+jsonobj.AsString('method',''));
+              TLog.NewLog(ltinfo,Classname,FSock.GetRemoteSinIP+':'+inttostr(FSock.GetRemoteSinPort)+' Processing method '+jsonobj.AsString('method',''));
               Valid := ProcessMethod(jsonobj.AsString('method',''),jsonobj.GetAsObject('params'),jsonresponse,errNum,errDesc);
               if not Valid then begin
                 if (errNum<>0) or (errDesc<>'') then begin
@@ -265,7 +281,7 @@ begin
           js.free;
         end;
       end else begin
-        TLog.NewLog(lterror,ClassName,'Received data is not a JSON: '+jsonrequesttxt+' (length '+inttostr(length(jsonrequesttxt))+' bytes)');
+        TLog.NewLog(lterror,ClassName,FSock.GetRemoteSinIP+':'+inttostr(FSock.GetRemoteSinPort)+' Received data is not a JSON: '+jsonrequesttxt+' (length '+inttostr(length(jsonrequesttxt))+' bytes)');
       end;
     until (FSock.LastError <> 0) Or (protocol<>'');
   Finally
@@ -1113,7 +1129,9 @@ begin
       Try
         if canread(1000) then begin
           ClientSock:=accept;
-          if lastError=0 then TRPCProcess.create(ClientSock);
+          if lastError=0 then begin
+            TRPCProcess.create(ClientSock);
+          end;
         end;
       Except
         On E:Exception do begin
