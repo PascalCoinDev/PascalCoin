@@ -659,7 +659,7 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
             else next_block_number := op.Previous_Destination_updated_block;
           end;
           If TPCOperation.OperationToOperationResume(block_number,Op,account_number,OPR) then begin
-            OPR.NOpInsideBlock := i;
+            OPR.NOpInsideBlock := Op.tag; // Note: Used Op.tag to include operation index inside a list
             OPR.time := opc.OperationBlock.timestamp;
             OPR.Block := block_number;
             OPR.Balance := last_balance;
@@ -670,6 +670,7 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
         // Is a new block operation?
         if (TAccountComp.AccountBlock(account_number)=block_number) And ((account_number MOD CT_AccountsPerBlock)=0) then begin
           OPR := CT_TOperationResume_NUL;
+          OPR.valid := true;
           OPR.Block := block_number;
           OPR.time := opc.OperationBlock.timestamp;
           OPR.AffectedAccount := account_number;

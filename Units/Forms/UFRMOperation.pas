@@ -27,7 +27,7 @@ uses
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UNode, UWalletKeys, UCrypto, Buttons, UBlockChain,
-  UAccounts, ActnList, ComCtrls;
+  UAccounts, ActnList, ComCtrls, Types;
 
 type
 
@@ -594,15 +594,16 @@ begin
       lblGlobalErrors.Caption := '';
     Finally
       if lblGlobalErrors.Caption<>'' then begin
-        PageControl.ActivePage := tsGlobalError;
         tsGlobalError.visible := true;
         tsGlobalError.tabvisible := {$IFDEF LINUX}true{$ELSE}false{$ENDIF};
         tsOperation.TabVisible := false;
+        PageControl.ActivePage := tsGlobalError;
+        ActiveControl := bbPassword;
       end else begin
-        PageControl.ActivePage := tsOperation;
         tsOperation.visible := true;
         tsOperation.tabvisible := {$IFDEF LINUX}true{$ELSE}false{$ENDIF};
         tsGlobalError.TabVisible := false;
+        PageControl.ActivePage := tsOperation;
       end;
     End;
     if rbTransaction.Checked then begin

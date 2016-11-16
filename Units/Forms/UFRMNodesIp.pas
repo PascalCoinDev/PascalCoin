@@ -112,7 +112,7 @@ begin
     TNode.DecodeIpStringToNodeServerAddressArray(ips,nsarr);
   end else begin
     cbTryOnlyWithThisServers.Checked := false;
-    nsarr := TNetData.NetData.GetValidNodeServers;
+    nsarr := TNetData.NetData.GetValidNodeServers(false);
   end;
   for i := low(nsarr) to high(nsarr) do begin
     aux := nsarr[i].ip;

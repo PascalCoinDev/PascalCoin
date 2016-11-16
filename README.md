@@ -34,6 +34,19 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 1.2.0.0 - 2016-11-16
+
+- Account checksum values modified to be more easy and more distributed: Checksum = ((N * 101) MOD 89)+10
+- Allow find operations by "ophash"
+- Show Operation "ophash" in operation payload decoder
+- Added param "enc_pubkey" to "getwalletaccounts" JSON-RPC method to return only accounts from this public key
+- Added params "pow" and "sbh" to "nodestatus" JSON-RPC method
+- Added method "getwalletaccountscount" returning accounts count of the entire wallet or for a single "enc_pubkey"
+- Added method "getwalletcoins" returning coins of the entire wallet or for a signle "enc_pubkey"
+- Modified seed nodes distribution to send only checked IP nodes
+- Corrected invalid operation block index when showing account operations
+
+
 ### Build 1.1.0.0 - 2016-11-03
 
 - JSON-RPC Server included

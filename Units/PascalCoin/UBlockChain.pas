@@ -130,6 +130,7 @@ Type
   TPCOperationClass = Class of TPCOperation;
 
   TOperationResume = Record
+    valid : Boolean;
     Block : Cardinal;
     NOpInsideBlock : Integer;
     OpType : Word;
@@ -166,7 +167,6 @@ Type
   TPCOperation = Class
   Private
     Ftag: integer;
-    //FAuxBalance: Int64;
   Protected
     FPrevious_Sender_updated_block: Cardinal;
     FPrevious_Destination_updated_block : Cardinal;
@@ -184,8 +184,6 @@ Type
     function SenderAccount : Cardinal; virtual; abstract;
     function N_Operation : Cardinal; virtual; abstract;
     Property tag : integer read Ftag Write Ftag;
-    // Property AuxBalance : Int64 read FAuxBalance Write FAuxBalance; Deprecated, not used
-    // New Build 1.0.8 To save previous updated block in storage
     function SaveToStorage(Stream: TStream): Boolean;
     function LoadFromStorage(Stream: TStream): Boolean;
     Property Previous_Sender_updated_block : Cardinal read FPrevious_Sender_updated_block;
@@ -392,7 +390,7 @@ Type
   End;
 
 Const
-  CT_TOperationResume_NUL : TOperationResume = (Block:0;NOpInsideBlock:-1;OpType:0;time:0;AffectedAccount:0;SenderAccount:-1;DestAccount:-1;newKey:(EC_OpenSSL_NID:0;x:'';y:'');OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:'';PrintablePayload:'';OperationHash:'');
+  CT_TOperationResume_NUL : TOperationResume = (valid:false;Block:0;NOpInsideBlock:-1;OpType:0;time:0;AffectedAccount:0;SenderAccount:-1;DestAccount:-1;newKey:(EC_OpenSSL_NID:0;x:'';y:'');OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:'';PrintablePayload:'';OperationHash:'');
 
   CT_OperationBlock_NUL : TOperationBlock = (block:0;account_key:(EC_OpenSSL_NID:0;x:'';y:'');reward:0;fee:0;protocol_version:0;
     protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:'';initial_safe_box_hash:'';operations_hash:'';proof_of_work:'');
@@ -1901,6 +1899,7 @@ begin
       newOp.FPrevious_Sender_updated_block := op.Previous_Sender_updated_block;
       newOp.FPrevious_Destination_updated_block := op.FPrevious_Destination_updated_block;
       h := TCrypto.DoSha256(ms.Memory,ms.Size);
+      newOp.tag := list.Count;
       list.Add(newOp);
   finally
       ms.Free;
@@ -2109,6 +2108,7 @@ begin
   If TCrypto.IsHumanReadable(OperationResume.OriginalPayload) then OperationResume.PrintablePayload := OperationResume.OriginalPayload
   else OperationResume.PrintablePayload := TCrypto.ToHexaString(OperationResume.OriginalPayload);
   OperationResume.OperationHash:=TPCOperation.OperationHash(Operation,Block);
+  OperationResume.valid := true;
 end;
 
 function TPCOperation.SaveToStorage(Stream: TStream): Boolean;

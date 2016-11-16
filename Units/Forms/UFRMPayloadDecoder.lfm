@@ -1,220 +1,310 @@
 object FRMPayloadDecoder: TFRMPayloadDecoder
-  Left = 507
-  Height = 360
-  Top = 250
-  Width = 569
+  Left = 0
+  Top = 0
+  ActiveControl = ebOphash
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
-  Caption = 'Payload Decoder'
-  ClientHeight = 360
-  ClientWidth = 569
+  Caption = 'Operation Information/Decoder'
+  ClientHeight = 406
+  ClientWidth = 674
   Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
   Font.Name = 'Tahoma'
-  OnCreate = FormCreate
+  Font.Style = []
   Position = poOwnerFormCenter
-  LCLVersion = '1.6.0.4'
+  OnCreate = FormCreate
+  PixelsPerInch = 96
   object Label1: TLabel
     Left = 20
+    Top = 56
+    Width = 46
     Height = 13
-    Top = 20
-    Width = 28
-    Caption = 'Block:'
-    ParentColor = False
+    Caption = 'Block/Op:'
   end
   object lblBlock: TLabel
-    Left = 54
+    Left = 72
+    Top = 51
+    Width = 109
     Height = 19
-    Top = 15
-    Width = 30
-    Caption = '000'
+    Caption = '000000/0000'
+    Font.Charset = DEFAULT_CHARSET
     Font.Color = clBlack
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = [fsBold]
-    ParentColor = False
     ParentFont = False
   end
   object lblDateTime: TLabel
-    Left = 169
-    Height = 19
-    Top = 15
+    Left = 255
+    Top = 51
     Width = 30
+    Height = 19
     Caption = '000'
+    Font.Charset = DEFAULT_CHARSET
     Font.Color = clBlack
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = [fsBold]
-    ParentColor = False
     ParentFont = False
   end
   object Label6: TLabel
-    Left = 111
-    Height = 13
-    Top = 20
+    Left = 195
+    Top = 56
     Width = 52
+    Height = 13
     Caption = 'Date Time:'
-    ParentColor = False
   end
   object Label2: TLabel
     Left = 20
-    Height = 13
-    Top = 45
+    Top = 106
     Width = 52
+    Height = 13
     Caption = 'Operation:'
-    ParentColor = False
   end
   object lblOperationTxt: TLabel
     Left = 90
-    Height = 39
-    Top = 40
-    Width = 457
+    Top = 101
+    Width = 561
+    Height = 22
     AutoSize = False
     Caption = '000'
+    Font.Charset = DEFAULT_CHARSET
     Font.Color = clBlack
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = [fsBold]
-    ParentColor = False
     ParentFont = False
     WordWrap = True
   end
+  object lblAmountCaption: TLabel
+    Left = 220
+    Top = 81
+    Width = 41
+    Height = 13
+    Caption = 'Amount:'
+  end
+  object lblAmount: TLabel
+    Left = 270
+    Top = 76
+    Width = 30
+    Height = 19
+    Caption = '000'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentFont = False
+  end
+  object lblFeeCaption: TLabel
+    Left = 517
+    Top = 56
+    Width = 22
+    Height = 13
+    Caption = 'Fee:'
+  end
+  object lblFee: TLabel
+    Left = 547
+    Top = 51
+    Width = 30
+    Height = 19
+    Caption = '000'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentFont = False
+  end
+  object Label4: TLabel
+    Left = 20
+    Top = 24
+    Width = 38
+    Height = 13
+    Caption = 'OpHash'
+  end
+  object lblSenderCaption: TLabel
+    Left = 20
+    Top = 81
+    Width = 38
+    Height = 13
+    Caption = 'Sender:'
+  end
+  object lblSender: TLabel
+    Left = 64
+    Top = 76
+    Width = 97
+    Height = 19
+    Caption = '9999999-99'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentFont = False
+  end
+  object lblReceiverCaption: TLabel
+    Left = 411
+    Top = 81
+    Width = 46
+    Height = 13
+    Caption = 'Receiver:'
+  end
+  object lblReceiver: TLabel
+    Left = 463
+    Top = 76
+    Width = 30
+    Height = 19
+    Caption = '000'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clBlack
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentFont = False
+  end
+  object lblReceiverInfo: TLabel
+    Left = 481
+    Top = 50
+    Width = 121
+    Height = 19
+    Caption = '(Receiver info)'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clRed
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentFont = False
+  end
   object PageControl: TPageControl
     Left = 20
+    Top = 140
+    Width = 631
     Height = 206
-    Top = 90
-    Width = 521
     ActivePage = tsDecoded
-    TabIndex = 0
-    TabOrder = 0
+    TabOrder = 2
     OnChanging = PageControlChanging
     object tsDecoded: TTabSheet
       Caption = 'Payload'
-      ClientHeight = 180
-      ClientWidth = 513
       object Label7: TLabel
         Left = 15
-        Height = 13
         Top = 94
         Width = 87
+        Height = 13
         Caption = 'Decoded Payload:'
-        ParentColor = False
       end
       object lblDecodedMethod: TLabel
-        Left = 113
-        Height = 13
+        Left = 562
         Top = 94
-        Width = 388
+        Width = 44
+        Height = 13
         Alignment = taRightJustify
-        AutoSize = False
         Caption = '(Method)'
+        Font.Charset = DEFAULT_CHARSET
         Font.Color = clGray
         Font.Height = -11
         Font.Name = 'Tahoma'
-        ParentColor = False
+        Font.Style = []
         ParentFont = False
       end
       object Label3: TLabel
         Left = 15
-        Height = 13
         Top = 9
         Width = 155
+        Height = 13
         Caption = 'Original Payload in Hexadecimal:'
-        ParentColor = False
       end
       object memoDecoded: TMemo
         Left = 15
-        Height = 55
         Top = 111
-        Width = 486
+        Width = 591
+        Height = 55
+        TabStop = False
+        Font.Charset = DEFAULT_CHARSET
         Font.Color = clBlack
         Font.Height = -13
         Font.Name = 'Tahoma'
         Font.Style = [fsBold]
         Lines.Strings = (
-          'memoDecoded'
-        )
-        OnKeyDown = memoDecodedKeyDown
+          'memoDecoded')
         ParentFont = False
         ReadOnly = True
         TabOrder = 0
-        TabStop = False
+        OnKeyDown = memoDecodedKeyDown
       end
       object memoOriginalPayloadInHexa: TMemo
         Left = 15
-        Height = 55
         Top = 28
-        Width = 486
+        Width = 591
+        Height = 55
+        TabStop = False
         Color = clBtnFace
+        Font.Charset = DEFAULT_CHARSET
         Font.Color = clBlack
         Font.Height = -13
         Font.Name = 'Tahoma'
         Font.Style = [fsBold]
         Lines.Strings = (
-          'memoDecoded'
-        )
-        OnKeyDown = memoDecodedKeyDown
+          'memoDecoded')
         ParentFont = False
         ReadOnly = True
         TabOrder = 1
-        TabStop = False
+        OnKeyDown = memoDecodedKeyDown
       end
     end
     object tsDecodeMethods: TTabSheet
       Caption = 'Decode methods'
-      ClientHeight = 0
-      ClientWidth = 0
       ImageIndex = 1
       object lblPasswordsInfo: TLabel
         Left = 235
-        Height = 13
         Top = 162
         Width = 81
+        Height = 13
         Caption = 'lblPasswordsInfo'
-        ParentColor = False
       end
       object cbMethodPublicPayload: TCheckBox
         Left = 16
-        Height = 17
         Top = 15
         Width = 225
+        Height = 17
         Caption = 'Not encrypted (Public payload)'
-        OnClick = cbMethodPublicPayloadClick
         TabOrder = 0
+        OnClick = cbMethodPublicPayloadClick
       end
       object cbUsingPrivateKeys: TCheckBox
         Left = 16
-        Height = 17
         Top = 38
         Width = 225
+        Height = 17
         Caption = 'Using Private keys of my Wallet'
-        OnClick = cbMethodPublicPayloadClick
         TabOrder = 1
+        OnClick = cbMethodPublicPayloadClick
       end
       object cbUsingPasswords: TCheckBox
         Left = 16
-        Height = 17
         Top = 61
         Width = 225
+        Height = 17
         Caption = 'Using Passwords of the list'
-        OnClick = cbMethodPublicPayloadClick
         TabOrder = 2
+        OnClick = cbMethodPublicPayloadClick
       end
       object memoPasswords: TMemo
         Left = 235
-        Height = 146
         Top = 10
-        Width = 261
-        OnChange = cbMethodPublicPayloadClick
+        Width = 371
+        Height = 146
         ScrollBars = ssBoth
         TabOrder = 3
+        OnChange = cbMethodPublicPayloadClick
       end
       object bbSaveMethods: TBitBtn
         Left = 60
-        Height = 25
         Top = 110
         Width = 75
+        Height = 25
         Caption = 'Save'
         Glyph.Data = {
           DE010000424DDE01000000000000760000002800000024000000120000000100
@@ -232,19 +322,18 @@ object FRMPayloadDecoder: TFRMPayloadDecoder
           33333333A222433333333333338F338F00003333333333333A22433333333333
           3338F38F000033333333333333A223333333333333338F830000333333333333
           333A333333333333333338330000333333333333333333333333333333333333
-          0000
-        }
+          0000}
         NumGlyphs = 2
-        OnClick = bbSaveMethodsClick
         TabOrder = 4
+        OnClick = bbSaveMethodsClick
       end
     end
   end
-  object BitBtn1: TBitBtn
-    Left = 462
-    Height = 25
-    Top = 310
+  object bbClose: TBitBtn
+    Left = 572
+    Top = 362
     Width = 79
+    Height = 25
     Cancel = True
     Caption = 'Close'
     Glyph.Data = {
@@ -259,11 +348,62 @@ object FRMPayloadDecoder: TFRMPayloadDecoder
       55557775555777FF5555555555599905555555555557777F5555555555559905
       555555555555777FF5555555555559905555555555555777FF55555555555579
       05555555555555777FF5555555555557905555555555555777FF555555555555
-      5990555555555555577755555555555555555555555555555555
-    }
+      5990555555555555577755555555555555555555555555555555}
     ModalResult = 2
     NumGlyphs = 2
-    OnClick = BitBtn1Click
+    TabOrder = 3
+  end
+  object bbFind: TBitBtn
+    Left = 599
+    Top = 19
+    Width = 52
+    Height = 25
+    Caption = '&Find'
+    Glyph.Data = {
+      36030000424D3603000000000000360000002800000010000000100000000100
+      18000000000000030000120B0000120B00000000000000000000FF00FF4A667C
+      BE9596FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+      FFFF00FFFF00FFFF00FF6B9CC31E89E84B7AA3C89693FF00FFFF00FFFF00FFFF
+      00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF4BB4FE51B5FF
+      2089E94B7AA2C69592FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+      FFFF00FFFF00FFFF00FFFF00FF51B7FE51B3FF1D87E64E7AA0CA9792FF00FFFF
+      00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+      51B7FE4EB2FF1F89E64E7BA2B99497FF00FFFF00FFFF00FFFF00FFFF00FFFF00
+      FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF52B8FE4BB1FF2787D95F6A76FF
+      00FFB0857FC09F94C09F96BC988EFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+      FF00FFFF00FF55BDFFB5D6EDBF9D92BB9B8CE7DAC2FFFFE3FFFFE5FDFADAD8C3
+      B3B58D85FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFCEA795FD
+      EEBEFFFFD8FFFFDAFFFFDBFFFFE6FFFFFBEADDDCAE837FFF00FFFF00FFFF00FF
+      FF00FFFF00FFFF00FFFF00FFC1A091FBDCA8FEF7D0FFFFDBFFFFE3FFFFF8FFFF
+      FDFFFFFDC6A99CFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFC1A091FEE3ACF1
+      C491FCF2CAFFFFDDFFFFE4FFFFF7FFFFF7FFFFE9EEE5CBB9948CFF00FFFF00FF
+      FF00FFFF00FFFF00FFC2A191FFE6AEEEB581F7DCAEFEFDD8FFFFDFFFFFE3FFFF
+      E4FFFFE0F3ECD2BB968EFF00FFFF00FFFF00FFFF00FFFF00FFBC978CFBE7B7F4
+      C791F2C994F8E5B9FEFCD8FFFFDDFFFFDCFFFFE0E2D2BAB68E86FF00FFFF00FF
+      FF00FFFF00FFFF00FFFF00FFD9C3A9FFFEE5F7DCB8F2C994F5D4A5FAE8BDFDF4
+      C9FDFBD6B69089FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFB58D85E8
+      DEDDFFFEF2F9D8A3F4C48CF9D49FFDEAB8D0B49FB89086FF00FFFF00FFFF00FF
+      FF00FFFF00FFFF00FFFF00FFFF00FFAD827FC9AA9EEFE0B7EFDFB2E7CEACB890
+      86B89086FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+      00FFFF00FFBA968ABB988CB79188FF00FFFF00FFFF00FFFF00FF}
     TabOrder = 1
+    TabStop = False
+    OnClick = bbFindClick
+  end
+  object ebOphash: TEdit
+    Left = 64
+    Top = 20
+    Width = 529
+    Height = 22
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -12
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentFont = False
+    TabOrder = 0
+    Text = '12345678901234567890123456789012345678901234567890123456789012'
+    OnExit = ebOphashExit
+    OnKeyPress = ebOphashKeyPress
   end
 end

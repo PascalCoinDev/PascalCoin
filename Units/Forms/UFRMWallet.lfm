@@ -1,14 +1,14 @@
 object FRMWallet: TFRMWallet
   Left = 360
-  Height = 500
+  Height = 600
   Top = 328
-  Width = 837
+  Width = 865
   Caption = 'Pascal Coin Wallet, JSON-RPC Miner & Explorer'
-  ClientHeight = 480
-  ClientWidth = 837
+  ClientHeight = 580
+  ClientWidth = 865
   Color = clBtnFace
-  Constraints.MinHeight = 500
-  Constraints.MinWidth = 700
+  Constraints.MinHeight = 600
+  Constraints.MinWidth = 865
   Font.Color = clWindowText
   Font.Height = -11
   Font.Name = 'Tahoma'
@@ -21,16 +21,16 @@ object FRMWallet: TFRMWallet
     Left = 0
     Height = 91
     Top = 0
-    Width = 837
+    Width = 865
     Align = alTop
     BevelOuter = bvNone
     ClientHeight = 91
-    ClientWidth = 837
+    ClientWidth = 865
     TabOrder = 0
     object Image1: TImage
-      Left = 13
+      Left = 15
       Height = 62
-      Top = 13
+      Top = 15
       Width = 62
       AutoSize = True
       Picture.Data = {
@@ -159,137 +159,137 @@ object FRMWallet: TFRMWallet
       }
     end
     object lblCurrentBlockCaption: TLabel
-      Left = 88
+      Left = 90
       Height = 13
-      Top = 9
+      Top = 11
       Width = 60
       Caption = 'Total Blocks:'
       ParentColor = False
     end
     object lblCurrentBlock: TLabel
-      Left = 161
+      Left = 156
       Height = 13
-      Top = 9
+      Top = 11
       Width = 18
       Caption = '000'
       ParentColor = False
     end
     object lblCurrentBlockTimeCaption: TLabel
-      Left = 88
+      Left = 90
       Height = 13
-      Top = 24
+      Top = 26
       Width = 89
       Caption = 'Current Block age:'
       ParentColor = False
     end
     object lblCurrentBlockTime: TLabel
-      Left = 200
+      Left = 188
       Height = 13
-      Top = 24
+      Top = 26
       Width = 81
       Caption = '000 seconds ago'
       ParentColor = False
     end
     object lblOperationsPendingCaption: TLabel
-      Left = 88
+      Left = 90
       Height = 13
-      Top = 39
+      Top = 41
       Width = 98
       Caption = 'Pending Operations:'
       ParentColor = False
     end
     object lblOperationsPending: TLabel
-      Left = 208
+      Left = 194
       Height = 13
-      Top = 39
+      Top = 41
       Width = 18
       Caption = '000'
       ParentColor = False
     end
     object lblMiningStatusCaption: TLabel
-      Left = 88
+      Left = 90
       Height = 13
-      Top = 54
+      Top = 56
       Width = 68
       Caption = 'Miners clients:'
       ParentColor = False
     end
     object lblMinersClients: TLabel
-      Left = 182
+      Left = 163
       Height = 13
-      Top = 54
+      Top = 56
       Width = 18
       Caption = '000'
       ParentColor = False
     end
     object lblCurrentDifficultyCaption: TLabel
-      Left = 427
+      Left = 429
       Height = 13
-      Top = 9
+      Top = 11
       Width = 76
       Caption = 'Current Target:'
       ParentColor = False
     end
     object lblCurrentDifficulty: TLabel
-      Left = 518
+      Left = 511
       Height = 13
-      Top = 9
+      Top = 11
       Width = 18
       Caption = '000'
       ParentColor = False
     end
     object lblTimeAverage: TLabel
-      Left = 368
+      Left = 360
       Height = 13
-      Top = 24
+      Top = 26
       Width = 18
       Caption = '000'
       ParentColor = False
     end
     object Label4: TLabel
-      Left = 283
+      Left = 285
       Height = 13
-      Top = 24
+      Top = 26
       Width = 69
       Caption = 'Time average:'
       ParentColor = False
     end
     object Label8: TLabel
-      Left = 88
+      Left = 90
       Height = 13
-      Top = 68
+      Top = 70
       Width = 63
       Caption = 'Node Status:'
       ParentColor = False
     end
     object lblNodeStatus: TLabel
-      Left = 168
+      Left = 163
       Height = 13
-      Top = 68
+      Top = 70
       Width = 15
       Caption = '???'
       ParentColor = False
     end
     object Label5: TLabel
-      Left = 283
+      Left = 285
       Height = 13
-      Top = 9
+      Top = 11
       Width = 48
       Caption = 'Accounts:'
       ParentColor = False
     end
     object lblCurrentAccounts: TLabel
-      Left = 344
+      Left = 337
       Height = 13
-      Top = 9
+      Top = 11
       Width = 18
       Caption = '000'
       ParentColor = False
     end
     object lblTimeAverageAux: TLabel
-      Left = 368
+      Left = 360
       Height = 13
-      Top = 39
+      Top = 41
       Width = 18
       Caption = '000'
       Font.Color = clGray
@@ -299,9 +299,9 @@ object FRMWallet: TFRMWallet
       ParentFont = False
     end
     object Label16: TLabel
-      Left = 358
+      Left = 360
       Height = 13
-      Top = 54
+      Top = 56
       Width = 74
       Caption = 'Blocks found:'
       Font.Color = clWindowText
@@ -312,10 +312,10 @@ object FRMWallet: TFRMWallet
       ParentFont = False
     end
     object lblBlocksFound: TLabel
-      Left = 448
+      Left = 440
       Height = 13
       Hint = 'Blocks found while Miner is running...'
-      Top = 54
+      Top = 56
       Width = 21
       Caption = '000'
       Font.Color = clWindowText
@@ -329,9 +329,9 @@ object FRMWallet: TFRMWallet
     end
     object lblReceivedMessages: TLabel
       Cursor = crHandPoint
-      Left = 358
+      Left = 360
       Height = 23
-      Top = 64
+      Top = 66
       Width = 185
       Caption = 'Received messages'
       Font.Color = clRed
@@ -343,9 +343,9 @@ object FRMWallet: TFRMWallet
       OnClick = lblReceivedMessagesClick
     end
     object lblBuild: TLabel
-      Left = 584
+      Left = 586
       Height = 23
-      Top = 1
+      Top = 3
       Width = 49
       Caption = 'Build'
       Font.Color = clWindowText
@@ -359,8 +359,8 @@ object FRMWallet: TFRMWallet
   object StatusBar: TStatusBar
     Left = 0
     Height = 23
-    Top = 457
-    Width = 837
+    Top = 557
+    Width = 865
     Panels = <    
       item
         Alignment = taCenter
@@ -379,21 +379,21 @@ object FRMWallet: TFRMWallet
   end
   object PageControl: TPageControl
     Left = 0
-    Height = 366
+    Height = 466
     Top = 91
-    Width = 837
-    ActivePage = tsBlockChain
+    Width = 865
+    ActivePage = tsMyAccounts
     Align = alClient
-    TabIndex = 2
+    TabIndex = 0
     TabOrder = 2
     OnChange = PageControlChange
     object tsMyAccounts: TTabSheet
       Caption = 'Accounts Explorer'
-      ClientHeight = 361
-      ClientWidth = 833
+      ClientHeight = 440
+      ClientWidth = 857
       object Splitter1: TSplitter
         Left = 380
-        Height = 295
+        Height = 374
         Top = 66
         Width = 5
       end
@@ -401,41 +401,41 @@ object FRMWallet: TFRMWallet
         Left = 0
         Height = 66
         Top = 0
-        Width = 833
+        Width = 857
         Align = alTop
         ClientHeight = 66
-        ClientWidth = 833
+        ClientWidth = 857
         TabOrder = 0
         object Label18: TLabel
-          Left = 9
+          Left = 11
           Height = 13
-          Top = 39
-          Width = 70
+          Top = 35
+          Width = 61
           Caption = 'Find account'
           ParentColor = False
         end
         object cbMyPrivateKeys: TComboBox
-          Left = 312
+          Left = 260
           Height = 21
-          Top = 5
-          Width = 357
+          Top = 7
+          Width = 411
           ItemHeight = 13
           OnChange = cbMyPrivateKeysChange
           Style = csDropDownList
           TabOrder = 0
         end
         object cbExploreMyAccounts: TCheckBox
-          Left = 9
-          Height = 24
-          Top = 8
-          Width = 329
+          Left = 11
+          Height = 19
+          Top = 10
+          Width = 235
           Caption = 'Explore accounts with one of my Wallet Keys'
           OnClick = cbExploreMyAccountsClick
           TabOrder = 1
         end
         object ebFindAccountNumber: TEdit
-          Left = 85
-          Height = 23
+          Left = 87
+          Height = 21
           Top = 33
           Width = 83
           OnChange = ebFindAccountNumberChange
@@ -443,26 +443,26 @@ object FRMWallet: TFRMWallet
           TabOrder = 3
         end
         object bbChangeKeyName: TBitBtn
-          Left = 683
+          Left = 685
           Height = 25
-          Top = 3
+          Top = 5
           Width = 126
           Caption = 'Change Key name'
           OnClick = bbChangeKeyNameClick
           TabOrder = 2
         end
         object cbFilterAccounts: TCheckBox
-          Left = 258
-          Height = 24
-          Top = 34
-          Width = 173
+          Left = 260
+          Height = 19
+          Top = 35
+          Width = 145
           Caption = 'Filter accounts by balance'
           OnClick = cbFilterAccountsClick
           TabOrder = 4
         end
         object ebFilterAccountByBalanceMin: TEdit
-          Left = 440
-          Height = 23
+          Left = 412
+          Height = 21
           Hint = 'Min balance'
           Top = 33
           Width = 83
@@ -471,8 +471,8 @@ object FRMWallet: TFRMWallet
           TabOrder = 5
         end
         object ebFilterAccountByBalanceMax: TEdit
-          Left = 531
-          Height = 23
+          Left = 503
+          Height = 21
           Hint = 'Max balance'
           Top = 33
           Width = 83
@@ -483,17 +483,17 @@ object FRMWallet: TFRMWallet
       end
       object pnlAccounts: TPanel
         Left = 0
-        Height = 295
+        Height = 374
         Top = 66
         Width = 380
         Align = alLeft
         BevelOuter = bvNone
-        ClientHeight = 295
+        ClientHeight = 374
         ClientWidth = 380
         TabOrder = 1
         object dgAccounts: TDrawGrid
           Left = 0
-          Height = 261
+          Height = 340
           Top = 0
           Width = 380
           Align = alLeft
@@ -507,7 +507,7 @@ object FRMWallet: TFRMWallet
         object pnlAccountsInfo: TPanel
           Left = 0
           Height = 34
-          Top = 261
+          Top = 340
           Width = 380
           Align = alBottom
           BevelOuter = bvNone
@@ -515,41 +515,41 @@ object FRMWallet: TFRMWallet
           ClientWidth = 380
           TabOrder = 1
           object Label17: TLabel
-            Left = 3
+            Left = 5
             Height = 13
-            Top = 8
-            Width = 55
+            Top = 10
+            Width = 48
             Caption = 'Accounts:'
             ParentColor = False
           end
           object Label19: TLabel
-            Left = 118
+            Left = 120
             Height = 13
-            Top = 8
-            Width = 104
+            Top = 10
+            Width = 88
             Caption = 'Accounts Balance:'
             ParentColor = False
           end
           object lblAccountsCount: TLabel
-            Left = 58
+            Left = 60
             Height = 13
-            Top = 8
-            Width = 21
+            Top = 10
+            Width = 18
             Caption = '000'
             ParentColor = False
           end
           object lblAccountsBalance: TLabel
-            Left = 224
+            Left = 214
             Height = 13
-            Top = 8
-            Width = 21
+            Top = 10
+            Width = 18
             Caption = '000'
             ParentColor = False
           end
           object bbAccountsRefresh: TBitBtn
-            Left = 300
+            Left = 302
             Height = 25
-            Top = 4
+            Top = 6
             Width = 75
             Anchors = [akTop, akRight]
             Caption = 'Refresh'
@@ -588,22 +588,22 @@ object FRMWallet: TFRMWallet
       end
       object pcAccountsOptions: TPageControl
         Left = 385
-        Height = 295
+        Height = 374
         Top = 66
-        Width = 448
+        Width = 472
         ActivePage = tsAccountOperations
         Align = alClient
         TabIndex = 0
         TabOrder = 2
         object tsAccountOperations: TTabSheet
           Caption = 'Operations of selected Account'
-          ClientHeight = 268
-          ClientWidth = 444
+          ClientHeight = 348
+          ClientWidth = 464
           object dgAccountOperations: TDrawGrid
             Left = 0
-            Height = 268
+            Height = 348
             Top = 0
-            Width = 444
+            Width = 464
             Align = alClient
             ExtendedSelect = False
             TabOrder = 0
@@ -611,12 +611,19 @@ object FRMWallet: TFRMWallet
             TitleFont.Height = -11
             TitleFont.Name = 'Tahoma'
             OnDblClick = MiDecodePayloadClick
+            RowHeights = (
+              24
+              24
+              24
+              24
+              24
+            )
           end
         end
         object tsMultiSelectAccounts: TTabSheet
           Caption = 'Selected accounts for massive operations'
-          ClientHeight = 268
-          ClientWidth = 444
+          ClientHeight = 0
+          ClientWidth = 0
           ImageIndex = 1
           object dgSelectedAccounts: TDrawGrid
             Left = 41
@@ -629,6 +636,13 @@ object FRMWallet: TFRMWallet
             TitleFont.Color = clWindowText
             TitleFont.Height = -11
             TitleFont.Name = 'Tahoma'
+            RowHeights = (
+              24
+              24
+              24
+              24
+              24
+            )
           end
           object pnlSelectedAccountsTop: TPanel
             Left = 0
@@ -646,9 +660,9 @@ object FRMWallet: TFRMWallet
             ParentFont = False
             TabOrder = 1
             object Label15: TLabel
-              Left = 39
+              Left = 41
               Height = 16
-              Top = 2
+              Top = 4
               Width = 361
               Caption = 'Select multiple accounts to execute massive operations'
               ParentColor = False
@@ -665,33 +679,33 @@ object FRMWallet: TFRMWallet
             ClientWidth = 450
             TabOrder = 2
             object Label20: TLabel
-              Left = 39
+              Left = 41
               Height = 13
-              Top = 4
+              Top = 6
               Width = 48
               Caption = 'Accounts:'
               ParentColor = False
             end
             object lblSelectedAccountsCount: TLabel
-              Left = 94
+              Left = 96
               Height = 13
-              Top = 4
+              Top = 6
               Width = 18
               Caption = '000'
               ParentColor = False
             end
             object Label22: TLabel
-              Left = 154
+              Left = 156
               Height = 13
-              Top = 4
+              Top = 6
               Width = 88
               Caption = 'Accounts Balance:'
               ParentColor = False
             end
             object lblSelectedAccountsBalance: TLabel
-              Left = 248
+              Left = 250
               Height = 13
-              Top = 4
+              Top = 6
               Width = 18
               Caption = '000'
               ParentColor = False
@@ -708,7 +722,7 @@ object FRMWallet: TFRMWallet
             ClientWidth = 41
             TabOrder = 3
             object sbSelectedAccountsAdd: TSpeedButton
-              Left = 0
+              Left = 2
               Height = 31
               Top = 0
               Width = 33
@@ -716,25 +730,25 @@ object FRMWallet: TFRMWallet
               OnClick = sbSelectedAccountsAddClick
             end
             object sbSelectedAccountsAddAll: TSpeedButton
-              Left = 0
+              Left = 2
               Height = 31
-              Top = 35
+              Top = 37
               Width = 33
               Caption = '>>'
               OnClick = sbSelectedAccountsAddAllClick
             end
             object sbSelectedAccountsDel: TSpeedButton
-              Left = 0
+              Left = 2
               Height = 31
-              Top = 72
+              Top = 74
               Width = 33
               Caption = '<'
               OnClick = sbSelectedAccountsDelClick
             end
             object sbSelectedAccountsDelAll: TSpeedButton
-              Left = 0
+              Left = 2
               Height = 31
-              Top = 109
+              Top = 111
               Width = 33
               Caption = '<<'
               OnClick = sbSelectedAccountsDelAllClick
@@ -813,14 +827,14 @@ object FRMWallet: TFRMWallet
     end
     object tsPendingOperations: TTabSheet
       Caption = 'Pending Operations'
-      ClientHeight = 340
-      ClientWidth = 829
+      ClientHeight = 0
+      ClientWidth = 0
       ImageIndex = 5
       object dgPendingOperations: TDrawGrid
         Left = 0
-        Height = 254
+        Height = 318
         Top = 86
-        Width = 829
+        Width = 841
         Align = alClient
         ExtendedSelect = False
         TabOrder = 0
@@ -833,18 +847,18 @@ object FRMWallet: TFRMWallet
         Left = 0
         Height = 86
         Top = 0
-        Width = 829
+        Width = 841
         Align = alTop
         BevelOuter = bvNone
         BorderWidth = 10
         ClientHeight = 86
-        ClientWidth = 829
+        ClientWidth = 841
         TabOrder = 1
         object Label10: TLabel
           Left = 10
           Height = 66
           Top = 10
-          Width = 809
+          Width = 821
           Align = alClient
           AutoSize = False
           Caption = 'Here you can see Operations transmited/received from other nodes that will be included in next block. There is no guarantee that other nodes will include them when mining, so it''s important that you mine too to help include Operations to the main BlockChain'
@@ -859,40 +873,40 @@ object FRMWallet: TFRMWallet
     end
     object tsBlockChain: TTabSheet
       Caption = 'BlockChain Explorer'
-      ClientHeight = 340
-      ClientWidth = 829
+      ClientHeight = 0
+      ClientWidth = 0
       ImageIndex = 1
       object Panel2: TPanel
         Left = 0
         Height = 41
         Top = 0
-        Width = 829
+        Width = 841
         Align = alTop
         ClientHeight = 41
-        ClientWidth = 829
+        ClientWidth = 841
         TabOrder = 0
         object Label9: TLabel
-          Left = 9
+          Left = 11
           Height = 13
-          Top = 8
+          Top = 10
           Width = 102
           Caption = 'Filter by blocks range'
           ParentColor = False
         end
         object ebBlockChainBlockStart: TEdit
-          Left = 152
+          Left = 125
           Height = 21
-          Top = 5
-          Width = 87
+          Top = 7
+          Width = 57
           OnExit = ebBlockChainBlockStartExit
           OnKeyPress = ebBlockChainBlockStartKeyPress
           TabOrder = 0
         end
         object ebBlockChainBlockEnd: TEdit
-          Left = 248
+          Left = 185
           Height = 21
-          Top = 5
-          Width = 87
+          Top = 7
+          Width = 57
           OnExit = ebBlockChainBlockStartExit
           OnKeyPress = ebBlockChainBlockStartKeyPress
           TabOrder = 1
@@ -900,9 +914,9 @@ object FRMWallet: TFRMWallet
       end
       object dgBlockChainExplorer: TDrawGrid
         Left = 0
-        Height = 299
+        Height = 363
         Top = 41
-        Width = 829
+        Width = 841
         Align = alClient
         ExtendedSelect = False
         TabOrder = 1
@@ -913,40 +927,40 @@ object FRMWallet: TFRMWallet
     end
     object tsOperations: TTabSheet
       Caption = 'Operations Explorer'
-      ClientHeight = 361
-      ClientWidth = 833
+      ClientHeight = 0
+      ClientWidth = 0
       ImageIndex = 1
       object Panel1: TPanel
         Left = 0
         Height = 41
         Top = 0
-        Width = 833
+        Width = 841
         Align = alTop
         ClientHeight = 41
-        ClientWidth = 833
+        ClientWidth = 841
         TabOrder = 0
         object Label2: TLabel
-          Left = 9
+          Left = 11
           Height = 13
-          Top = 8
-          Width = 121
+          Top = 10
+          Width = 102
           Caption = 'Filter by blocks range'
           ParentColor = False
         end
         object ebFilterOperationsStartBlock: TEdit
-          Left = 152
-          Height = 23
-          Top = 5
-          Width = 87
+          Left = 125
+          Height = 21
+          Top = 7
+          Width = 57
           OnExit = ebFilterOperationsAccountExit
           OnKeyPress = ebFilterOperationsAccountKeyPress
           TabOrder = 0
         end
         object ebFilterOperationsEndBlock: TEdit
-          Left = 248
-          Height = 23
-          Top = 5
-          Width = 87
+          Left = 185
+          Height = 21
+          Top = 7
+          Width = 57
           OnExit = ebFilterOperationsAccountExit
           OnKeyPress = ebFilterOperationsAccountKeyPress
           TabOrder = 1
@@ -954,9 +968,9 @@ object FRMWallet: TFRMWallet
       end
       object dgOperationsExplorer: TDrawGrid
         Left = 0
-        Height = 320
+        Height = 363
         Top = 41
-        Width = 833
+        Width = 841
         Align = alClient
         ExtendedSelect = False
         TabOrder = 1
@@ -967,32 +981,32 @@ object FRMWallet: TFRMWallet
     end
     object tsLogs: TTabSheet
       Caption = 'Logs'
-      ClientHeight = 361
-      ClientWidth = 833
+      ClientHeight = 0
+      ClientWidth = 0
       ImageIndex = 2
       object pnlTopLogs: TPanel
         Left = 0
         Height = 41
         Top = 0
-        Width = 833
+        Width = 841
         Align = alTop
         ClientHeight = 41
-        ClientWidth = 833
+        ClientWidth = 841
         TabOrder = 0
         object cbShowDebugLogs: TCheckBox
-          Left = 13
-          Height = 24
-          Top = 8
-          Width = 145
+          Left = 15
+          Height = 17
+          Top = 10
+          Width = 97
           Caption = 'Show Debug logs'
           TabOrder = 0
         end
       end
       object memoLogs: TMemo
         Left = 0
-        Height = 320
+        Height = 363
         Top = 41
-        Width = 833
+        Width = 841
         Align = alClient
         ScrollBars = ssBoth
         TabOrder = 1
@@ -1000,60 +1014,60 @@ object FRMWallet: TFRMWallet
     end
     object tsNodeStats: TTabSheet
       Caption = 'Node Stats'
-      ClientHeight = 361
-      ClientWidth = 833
+      ClientHeight = 0
+      ClientWidth = 0
       ImageIndex = 3
       object Label3: TLabel
         Left = 15
         Height = 13
         Top = 15
-        Width = 207
+        Width = 177
         Caption = 'Active Net Connections of this Node:'
         ParentColor = False
       end
       object Label6: TLabel
-        Left = 16
+        Left = 15
         Height = 13
-        Top = 204
-        Width = 202
+        Top = 250
+        Width = 169
         Anchors = [akLeft, akBottom]
         Caption = 'Available or possible Node Servers:'
         ParentColor = False
       end
       object Label7: TLabel
-        Left = 16
+        Left = 15
         Height = 13
-        Top = 100
-        Width = 103
+        Top = 146
+        Width = 86
         Anchors = [akLeft, akBottom]
         Caption = 'BlackList of Nodes'
         ParentColor = False
       end
       object memoNetConnections: TMemo
         Left = 15
-        Height = 58
+        Height = 106
         Top = 34
-        Width = 798
+        Width = 810
         Anchors = [akTop, akLeft, akRight, akBottom]
         ReadOnly = True
         ScrollBars = ssVertical
         TabOrder = 0
       end
       object memoNetServers: TMemo
-        Left = 16
+        Left = 15
         Height = 116
-        Top = 223
-        Width = 798
+        Top = 269
+        Width = 810
         Anchors = [akLeft, akRight, akBottom]
         ReadOnly = True
         ScrollBars = ssVertical
         TabOrder = 1
       end
       object memoNetBlackLists: TMemo
-        Left = 16
+        Left = 15
         Height = 79
-        Top = 119
-        Width = 798
+        Top = 165
+        Width = 810
         Anchors = [akLeft, akRight, akBottom]
         ReadOnly = True
         ScrollBars = ssVertical
@@ -1062,14 +1076,14 @@ object FRMWallet: TFRMWallet
     end
     object tsMessages: TTabSheet
       Caption = 'Messages'
-      ClientHeight = 361
-      ClientWidth = 833
+      ClientHeight = 0
+      ClientWidth = 0
       ImageIndex = 6
       object Label11: TLabel
         Left = 15
         Height = 13
         Top = 151
-        Width = 59
+        Width = 51
         Caption = 'Messages:'
         ParentColor = False
       end
@@ -1077,7 +1091,7 @@ object FRMWallet: TFRMWallet
         Left = 315
         Height = 13
         Top = 11
-        Width = 99
+        Width = 85
         Caption = 'Message to send:'
         ParentColor = False
       end
@@ -1085,7 +1099,7 @@ object FRMWallet: TFRMWallet
         Left = 15
         Height = 13
         Top = 11
-        Width = 126
+        Width = 107
         Caption = 'Available connections:'
         ParentColor = False
       end
@@ -1093,7 +1107,7 @@ object FRMWallet: TFRMWallet
         Left = 410
         Height = 13
         Top = 11
-        Width = 430
+        Width = 361
         Caption = '(Messages will be encrypted, so only dest connection will be able to read it)'
         Font.Color = clGrayText
         Font.Height = -11
@@ -1108,23 +1122,22 @@ object FRMWallet: TFRMWallet
         Width = 275
         ItemHeight = 0
         MultiSelect = True
-        ScrollWidth = 273
         TabOrder = 0
       end
       object bbSendAMessage: TButton
         Left = 315
         Height = 25
         Top = 101
-        Width = 381
+        Width = 456
         Caption = 'Send a Message'
         OnClick = bbSendAMessageClick
         TabOrder = 1
       end
       object memoMessages: TMemo
         Left = 15
-        Height = 170
+        Height = 215
         Top = 170
-        Width = 804
+        Width = 810
         Anchors = [akTop, akLeft, akRight, akBottom]
         Font.Color = clWindowText
         Font.Height = -16
@@ -1142,7 +1155,7 @@ object FRMWallet: TFRMWallet
         Left = 315
         Height = 61
         Top = 30
-        Width = 381
+        Width = 456
         Lines.Strings = (
           'memoMessageToSend'
         )
@@ -1152,507 +1165,6 @@ object FRMWallet: TFRMWallet
     end
   end
   object TrayIcon: TTrayIcon
-    Icon.Data = {
-      3E3E00000000010001003E3E000001002000283E000016000000280000003E00
-      00007C0000000100200000000000103C00006400000064000000000000000000
-      0000FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF000000
-      001F00000067000000A2000000C8000000E2000000EF000000F5000000F90000
-      00F8000000F2000000EB000000DF000000C8000000A5000000640000001C0000
-      0002FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00000000330000009E000000DF020406DA1B2F43C02C4D
-      6DC0477DB2D060A8F0F166B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF60A8F0F1477DB2D0355D85C31B2F43C004080BD6000000EE000000B90000
-      0045FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000000017000000750000
-      00D805080CD6355D85C3589BDDE466B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF60A8F0F1345C83C30D1721C7000000EC0000
-      008700000019FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00000000110000007D000000EC142231C2589BDDE466B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF589BDDE4233D57BF010203DF0000
-      008B0000001DFFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00000000500000
-      00E7142231C3589BDDE466B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF60A8F0F1233D57BF000000E00000
-      006A0000000EFFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF0000000022000000B705080CD5508CC8D966B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF589BDDE4090F16CE000000B70000
-      0013FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00000000020000
-      0045000000D1233D57BF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF2B4C6CC0010203E400000049FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000000065010102EB477DB2D066B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF508CC8D9060B0FCC0000006B00000006FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF0000000068060A0ECF508CC8D966B3FFFF66B3FFFF66B3FFFF60A8
-      EFFF4C86BFFF4C86BFFF4C86BFFF4C86BFFF4C86BFFF4C86BFFF4C86BFFF599D
-      DFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF60A8F0F105080CD600000080FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00000000820508
-      0CD660A8F0F166B3FFFF66B3FFFF66B3FFFF66B3FFFF60A8EFFF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF192C3FFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF60A8F0F105090DD300000068FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF000000005405080CD660A8F0F166B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF060B0FFF000000FF000000FF0000
-      00FF000000FF000000FF000000FF060B0FFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF60A8F0F105090DD20000007400000003FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF0000000039010203DA508CC8D966B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF192C3FFF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF60A8EFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF60A8
-      F0F105080CD50000004EFFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000000011000000E5477D
-      B2D066B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF33597FFF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF4C86BFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF508CC8D90203
-      04CD00000026FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF000000000A000000AB223C56BF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF40709FFF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF39648FFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF355D85C3000000B7FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF000000005E090F16CE66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF4C86BFFF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF26435FFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF090F16CE0000005FFFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF000000001D000000DE508C
-      C8D966B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF192C3FFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF589BDDE4000000EB00000018FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF000000008B142231C366B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF13212FFF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF67B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF233D57BF00000080FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF000000000D000000EF589BDDE466B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF2037
-      4FFF000000FF000000FF000000FF000000FF000000FF000000FF000000FF60A0
-      DFFF6EB7FFFF6EB7FFFF6DB6FFFF6BB5FFFF69B4FFFF67B4FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF60A8
-      F0F1010203DB0000001EFFFFFF00FFFFFF00FFFFFF00FFFFFF00000000791422
-      31C366B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF345A7FFF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF5180AFFF76BBFFFF76BB
-      FFFF74BAFFFF73B9FFFF71B8FFFF6EB7FFFF6BB6FFFF68B4FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF233D57BF0000
-      0084FFFFFF00FFFFFF00FFFFFF0000000004000000EA589BDDE466B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF68B4FFFF6BB6FFFF4C7EAFFF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF3F5F7FFF7EBFFFFF7DBFFFFF7CBEFFFF6BA5
-      DFFF5B8DBFFF6098CFFF73BAFFFF70B8FFFF65ABEFFF4E87BFFF4C86BFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF589BDDE4000000DF0000000AFFFF
-      FF00FFFFFF000000004A04080BD666B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF6AB5FFFF6EB7
-      FFFF73B9FFFF67A4DFFF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF2A3C4FFF86C3FFFF85C2FFFF84C2FFFF496C8FFF000000FF1723
-      2FFF7ABDFFFF77BBFFFF568BBFFF000000FF000000FF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF0E1822C70000004AFFFFFF00FFFFFF000000
-      00B1345C83C366B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF6BB5FFFF70B8FFFF75BAFFFF79BDFFFF7DBF
-      FFFF000000FF000000FF000000FF000000FF000000FF000000FF000000FF1A25
-      2FFF8EC7FFFF8DC6FFFF8CC6FFFF6794BFFF000000FF000000FF82C1FFFF7EBF
-      FFFF7ABDFFFF000000FF000000FF5088BFFF67B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF355D85C3000000ADFFFFFF0000000008000000EE589BDDE466B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF6BB6FFFF71B8FFFF76BBFFFF7BBDFFFF80C0FFFF84C2FFFF22303FFF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF96CBFFFF95CA
-      FFFF94CAFFFF89BCEFFF000000FF000000FF6F9FCFFF85C2FFFF80C0FFFF0F17
-      1FFF000000FF46739FFF6CB6FFFF67B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF60A8
-      F0F1000000EAFFFFFF0000000032020405E066B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF6BB6FFFF71B8FFFF77BB
-      FFFF7CBEFFFF82C1FFFF86C3FFFF8BC5FFFF354A5FFF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF769BBFFF9DCEFFFF9BCEFFFF99CC
-      FFFF090C0FFF000000FF6289AFFF8BC5FFFF87C3FFFF20303FFF000000FF3B5E
-      7FFF72B9FFFF6CB6FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF05080CD50000
-      00250000007E1B2F43C066B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF6AB5FFFF70B8FFFF76BBFFFF7CBEFFFF82C1FFFF88C4
-      FFFF8CC6FFFF91C8FFFF54728FFF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF68849FFFA5D2FFFFA3D1FFFFA1D0FFFF27333FFF0000
-      00FF4B657FFF92C9FFFF8DC6FFFF44627FFF000000FF1F2F3FFF77BCFFFF71B8
-      FFFF6BB5FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF1B2F43C000000075000000B6355D
-      85C366B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF68B4
-      FFFF6EB7FFFF75BAFFFF7CBEFFFF82C1FFFF88C4FFFF8EC7FFFF92C9FFFF98CC
-      FFFF769ABFFF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF151A1FFF2B353FFF2A353FFF2A343FFF11161BFF000000FF0C1014FF2632
-      3FFF24323FFF161E27FF000000FF040608FF1F2F3FFF33516FFF3F678FFF5592
-      CFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF3E6E9CC8000000B3000000D4477DB2D066B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF6CB6FFFF73BAFFFF7ABD
-      FFFF80C0FFFF86C3FFFF8DC6FFFF93C9FFFF98CCFFFF9ECFFFFF99C4EFFF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF0C161FFF3359
-      7FFF60A8EFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF477DB2D0000000D0000000E960A8F0F166B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF69B4FFFF70B8FFFF77BBFFFF7EBFFFFF85C2FFFF8BC5
-      FFFF92C9FFFF98CCFFFF9ECFFFFFA4D2FFFFA9D4FFFF0A0D0FFF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF060B0FFF3359
-      7FFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF0000
-      00E4000000F766B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF6CB6FFFF73BAFFFF7ABDFFFF82C1FFFF89C4FFFF8FC8FFFF96CBFFFF9DCE
-      FFFFA3D1FFFFA9D4FFFFAFD7FFFF2D363FFF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF13212FFF599D
-      DFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF000000F0000000FB66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF67B4FFFF6FB7FFFF76BB
-      FFFF7EBFFFFF85C2FFFF8CC6FFFF94CAFFFF9ACDFFFFA1D1FFFFA8D4FFFFAFD7
-      FFFFB5DAFFFF5D6E7FFF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF060B0FFF5391CFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF000000FA000000FE66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF6AB5FFFF71B9FFFF79BDFFFF80C0FFFF88C4
-      FFFF8FC8FFFF97CBFFFF9ECFFFFFA5D2FFFFACD6FFFFB3D9FFFFB9DCFFFF788C
-      9FFF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF060B0FFF5391CFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF000000FC000000FE66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF6CB6FFFF74BAFFFF7CBEFFFF83C1FFFF8BC5FFFF92C9FFFF9ACD
-      FFFFA1D1FFFFA9D4FFFFB0D8FFFFB7DBFFFFBEDFFFFF94A9BFFF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF0C161FFF60A8EFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF0000
-      00FC000000FD66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF6DB7
-      FFFF75BAFFFF7DBEFFFF85C2FFFF8CC6FFFF94CAFFFF9CCEFFFFA4D2FFFFACD6
-      FFFFB3D9FFFFBADDFFFFC2E1FFFFC9E4FFFF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF383B3FFFDDEEFFFFD7EBFFFFD0E8FFFF7180
-      8FFF000000FF22292FFFB4DAFFFFACD6FFFF7B9DBFFF000000FF000000FF597C
-      9FFF21303FFF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF20374FFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF000000F9000000F966B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF67B3FFFF6FB7FFFF77BBFFFF7FBF
-      FFFF86C3FFFF8EC7FFFF96CBFFFF9ECFFFFFA6D3FFFFADD6FFFFB5DAFFFFBDDE
-      FFFFC4E2FFFFCCE6FFFF272B2FFF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FFE2F1FFFFDCEDFFFFD4EAFFFF9AACBFFF000000FF0000
-      00FFB6DBFFFFAFD7FFFFA7D3FFFF000000FF000000FF6B95BFFF87C3FFFF5784
-      AFFF070B0FFF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF4C86BFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF000000F1000000F166B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF68B4FFFF70B8FFFF77BCFFFF7FC0FFFF87C3FFFF8FC8
-      FFFF97CBFFFF9FCFFFFFA7D3FFFFAFD7FFFFB6DBFFFFBFDFFFFFC7E3FFFFCEE7
-      FFFF42494FFF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FFC9D4DFFFDFEFFFFFD7EBFFFFC2D9EFFF000000FF000000FF95B3CFFFB0D8
-      FFFFA8D4FFFF13191FFF000000FF5A7D9FFF88C4FFFF80C0FFFF6199CFFF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF2037
-      4FFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF60A8F0F1000000E9000000E0477DB2D066B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF68B4FFFF70B8FFFF78BCFFFF80C0FFFF88C4FFFF8FC8FFFF97CBFFFFA0D0
-      FFFFA7D3FFFFAFD7FFFFB8DCFFFFBFDFFFFFC7E3FFFFCFE7FFFF6B757FFF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF9FA7AFFFE0F0
-      FFFFD8ECFFFFD0E8FFFF0C0D0FFF000000FF7E97AFFFB0D8FFFFA9D4FFFF2833
-      3FFF000000FF48647FFF89C4FFFF80C0FFFF79BCFFFF3F678FFF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF599DDFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF477DB2D00000
-      00D3000000C63E6D9BC866B3FFFF66B3FFFF66B3FFFF66B3FFFF68B4FFFF70B8
-      FFFF77BCFFFF80C0FFFF88C4FFFF8FC8FFFF97CBFFFF9FCFFFFFA7D3FFFFAFD7
-      FFFFB7DBFFFFBFDFFFFFC7E3FFFFCFE7FFFF94A1AFFF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF73797FFFDFEFFFFFD7EBFFFFD0E7
-      FFFF31383FFF000000FF5C6E7FFFB0D8FFFFA8D4FFFF50687FFF000000FF2431
-      3FFF88C4FFFF80C0FFFF79BCFFFF71B8FFFF060B0FFF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF40709FFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF345C83C3000000AE0000008D1B2F
-      43C066B3FFFF66B3FFFF66B3FFFF66B3FFFF67B4FFFF6FB7FFFF77BBFFFF7FC0
-      FFFF87C3FFFF8FC7FFFF97CBFFFF9ECFFFFFA6D3FFFFAED7FFFFB6DBFFFFBEDF
-      FFFFC5E2FFFFCDE6FFFFB9CDDFFF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF474B4FFFDDEEFFFFD6EAFFFFCEE7FFFF57636FFF0000
-      00FF39444FFFAFD7FFFFA7D3FFFF64829FFF000000FF11181FFF88C4FFFF80C0
-      FFFF78BCFFFF70B8FFFF27435FFF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF26435FFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF1B2F43C0000000770000003404080BD766B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF6EB7FFFF76BBFFFF7EBFFFFF86C3FFFF8EC7
-      FFFF95CBFFFF9DCEFFFFA5D2FFFFACD6FFFFB4DAFFFFBCDEFFFFC3E1FFFFCAE5
-      FFFFD1E8FFFF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF292C2FFFD9ECFFFFD2E9FFFFCBE5FFFF6E7F8FFF000000FF21282FFFADD6
-      FFFFA6D3FFFF769BBFFF000000FF000000FF86C3FFFF7FBFFFFF77BBFFFF6FB7
-      FFFF3A658FFF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF192C3FFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF020405E10000002300000003000000F660A8F0F166B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF6DB6FFFF74BAFFFF7CBEFFFF84C2FFFF8CC6FFFF93C9FFFF9BCD
-      FFFFA3D1FFFFAAD5FFFFB2D9FFFFB9DCFFFFC0E0FFFFC7E3FFFFCDE6FFFF343A
-      3FFF000000FF000000FF000000FF000000FF000000FF000000FF000000FFD4EA
-      FFFFCEE7FFFFC7E3FFFF91A8BFFF000000FF000000FFABD5FFFFA3D1FFFF9CCE
-      FFFF000000FF000000FF6491BFFF7DBEFFFF76BBFFFF6EB7FFFF467BAFFF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF589BDDE4000000ED0000
-      0002FFFFFF00000000C6345C83C366B3FFFF66B3FFFF66B3FFFF66B3FFFF6BB5
-      FFFF73B9FFFF7ABDFFFF82C1FFFF89C5FFFF91C8FFFF98CCFFFFA0D0FFFFA7D3
-      FFFFAED7FFFFB5DAFFFFBCDEFFFFC2E1FFFFC8E4FFFF4C565FFF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF9AADBFFFC8E4FFFFC3E1
-      FFFFB0D0EFFF000000FF000000FF88ABCFFFA0D0FFFF99CCFFFF12181FFF0000
-      00FF52789FFF7BBDFFFF73BAFFFF6CB6FFFF33597FFF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF345C83C3000000A4FFFFFF00FFFFFF000000
-      00560D1721C766B3FFFF66B3FFFF66B3FFFF66B3FFFF68B4FFFF70B8FFFF77BC
-      FFFF7FC0FFFF86C3FFFF8EC7FFFF95CAFFFF9CCEFFFFA3D1FFFFAAD5FFFFB0D8
-      FFFFB7DBFFFFBDDEFFFFC2E1FFFF707F8FFF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF7D8E9FFFC3E1FFFFBEDFFFFFB8DCFFFF0A0D
-      0FFF000000FF7190AFFF9DCEFFFF96CBFFFF23313FFF000000FF40607FFF79BC
-      FFFF71B8FFFF6AB5FFFF0C161FFF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF060B0FFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF04080BD600000039FFFFFF00FFFFFF00FFFFFF00000000F2589B
-      DDE466B3FFFF66B3FFFF66B3FFFF66B3FFFF6DB7FFFF75BAFFFF7CBEFFFF83C2
-      FFFF8BC5FFFF91C8FFFF98CCFFFF9FCFFFFFA6D3FFFFACD6FFFFB2D9FFFFB7DB
-      FFFFBCDEFFFF91A8BFFF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF60707FFFBCDEFFFFB8DCFFFFB2D9FFFF2A353FFF000000FF5068
-      7FFF99CCFFFF92C9FFFF45627FFF000000FF1F2F3FFF76BBFFFF6EB7FFFF2D4E
-      6FFF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF192C3FFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF589BDDE40000
-      00E6FFFFFF00FFFFFF00FFFFFF00FFFFFF000000009D233D57BF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF6AB5FFFF71B9FFFF79BCFFFF80C0FFFF86C3FFFF8EC7
-      FFFF94CAFFFF9ACDFFFFA0D0FFFFA6D3FFFFACD6FFFFB1D8FFFFB6DBFFFFADCE
-      EFFF000000FF000000FF000000FF000000FF000000FF000000FF000000FF2E37
-      3FFFB6DBFFFFB2D9FFFFADD6FFFF495C6FFF000000FF30404FFF95CAFFFF8EC7
-      FFFF557A9FFF000000FF0E151DFF4F7FAFFF1A2D3FFF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF2C4E6FFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF142231C300000080FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF0000000022010203E460A8F0F166B3FFFF66B3FFFF66B3
-      FFFF67B3FFFF6EB7FFFF75BAFFFF7CBEFFFF82C1FFFF89C4FFFF8FC8FFFF95CB
-      FFFF9BCDFFFFA1D0FFFFA6D3FFFFAAD5FFFFAFD7FFFFB2D9FFFF0B0D0FFF0000
-      00FF000000FF000000FF000000FF000000FF000000FF0B0D0FFF2B353FFF2A35
-      3FFF29343FFF161D23FF000000FF070A0CFF24313FFF22313FFF121A23FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF599DDFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF589BDDE4000000E800000017FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00000000AA233D57BF66B3FFFF66B3FFFF66B3FFFF66B3FFFF6AB5
-      FFFF71B8FFFF77BCFFFF7EBFFFFF84C2FFFF8AC5FFFF90C8FFFF95CBFFFF9BCD
-      FFFFA0D0FFFFA4D2FFFFA8D4FFFFABD5FFFF2B353FFF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF20374FFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF1422
-      31C200000083FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF000000
-      002E000000E8589BDDE466B3FFFF66B3FFFF66B3FFFF66B3FFFF6CB6FFFF73B9
-      FFFF79BCFFFF7FBFFFFF85C2FFFF8AC5FFFF8FC8FFFF94CAFFFF99CCFFFF9DCE
-      FFFFA1D0FFFFA4D2FFFF53697FFF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF060B0FFF599D
-      DFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF508CC8D9000000D800000017FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000000080090F
-      16CE66B3FFFF66B3FFFF66B3FFFF66B3FFFF67B4FFFF6EB7FFFF74BAFFFF79BD
-      FFFF7FC0FFFF84C2FFFF89C5FFFF8EC7FFFF92C9FFFF96CBFFFF9ACDFFFF9DCE
-      FFFF63819FFF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF4C86BFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF090F16CE00000062FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF000000000E000000CA2B4C6CC066B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF68B4FFFF6EB7FFFF74BAFFFF79BDFFFF7EBF
-      FFFF83C1FFFF87C3FFFF8BC5FFFF8FC7FFFF92C9FFFF95CAFFFF7198BFFF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF0C161FFF5391CFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF223C
-      56BF000000AF00000009FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF0000000025010203DF508CC8D966B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF68B4FFFF6EB7FFFF73BAFFFF78BCFFFF7CBEFFFF80C0
-      FFFF84C2FFFF88C4FFFF8BC5FFFF8DC6FFFF8FC8FFFF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF000000FF000000FF000000FF13212FFF40709FFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF477DB2D0000000DD0000000CFFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF0000000055060A0ECE60A8F0F166B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF68B4FFFF6DB6FFFF71B9FFFF76BBFFFF7ABDFFFF7DBFFFFF80C0
-      FFFF83C2FFFF86C3FFFF88C4FFFF33495FFF22313FFF22313FFF22313FFF2230
-      3FFF22303FFF21303FFF20303FFF202F3FFF1F2F3FFF1E2F3FFF101A23FF0000
-      00FF05090CFF1A2C3FFF192C3FFF13212FFF000000FF000000FF33597FFF3359
-      7FFF467BAFFF599DDFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF508CC8D9010203DD00000043FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF000000007A04080BD660A8F0F166B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF6BB5FFFF6FB7FFFF73B9FFFF76BBFFFF79BDFFFF7CBEFFFF7EBF
-      FFFF80C0FFFF81C0FFFF82C1FFFF82C1FFFF82C1FFFF81C0FFFF80C0FFFF7EBF
-      FFFF7CBEFFFF79BDFFFF76BBFFFF73BAFFFF5389BFFF000000FF000000FF66B3
-      FFFF66B3FFFF66B3FFFF000000FF000000FF4C86BFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF60A8F0F10508
-      0CD50000005FFFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF000000
-      00090000009705080CD560A8F0F166B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF68B4FFFF6BB6FFFF6FB7FFFF71B9FFFF74BAFFFF76BBFFFF78BCFFFF79BD
-      FFFF7ABDFFFF7ABDFFFF7ABDFFFF79BDFFFF78BCFFFF76BBFFFF74BAFFFF72B9
-      FFFF6FB7FFFF6CB6FFFF61A9EFFF000000FF000000FF5391CFFF66B3FFFF66B3
-      FFFF0C161FFF000000FF40709FFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF60A8F0F105090DD30000008000000006FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF000000
-      008B04080BD660A8F0F166B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF67B4FFFF6AB5FFFF6DB6FFFF6EB7FFFF70B8FFFF71B8FFFF72B9FFFF72B9
-      FFFF72B9FFFF71B9FFFF70B8FFFF6EB7FFFF6DB6FFFF6AB5FFFF68B4FFFF66B3
-      FFFF66B3FFFF060B0FFF000000FF467BAFFF66B3FFFF66B3FFFF192C3FFF0000
-      00FF33597FFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF508CC8D905080CD600000068FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00000000080000007E0509
-      0DD3508CC8D966B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF67B3FFFF68B4FFFF69B4FFFF6AB5FFFF6AB5FFFF6AB5FFFF6AB5
-      FFFF68B4FFFF67B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF192C
-      3FFF000000FF33597FFF66B3FFFF66B3FFFF33597FFF000000FF192C3FFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF477DB2D0010203E60000
-      0068FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000000055010203DA345C
-      83C366B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF5391CFFF4C86BFFF599D
-      DFFF66B3FFFF66B3FFFF599DDFFF4C86BFFF5391CFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF223C56BF000000DB00000043FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF000000002F000000D8080E14CE589B
-      DDE466B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF508CC8D9090F
-      16CE000000AA00000015FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF000000001100000086000000EE233D57BF60A8
-      F0F166B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF589BDDE4142231C2000000E500000066FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF0000000028000000A2010203DF233D57BF589B
-      DDE466B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF589BDDE41422
-      31C2000000E0000000840000001DFFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00000000260000009C000000ED0D1721C7345C
-      83C360A8F0F166B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF589BDDE4355D85C304080BD6000000DF000000840000001EFFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF0000000050000000BF000000F10408
-      0BD71B2F43C0345C83C3477DB2D066B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF60A8F0F1477DB2D0355D85C31B2F43C0020405E00000
-      00E9000000B200000045FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF000000002E0000008B0000
-      00C6000000E1000000F2000000F9000000FB000000FD000000FC000000FB0000
-      00F7000000EC000000D4000000B20000007A00000028FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
-      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000
-    }
     Visible = True
     OnDblClick = TrayIconDblClick
     left = 45
@@ -1699,6 +1211,11 @@ object FRMWallet: TFRMWallet
         Caption = 'New single Operation'
         ShortCut = 120
         OnClick = miNewOperationClick
+      end
+      object MiFindOperationbyOpHash: TMenuItem
+        Caption = 'Find Operation by OpHash'
+        ShortCut = 116
+        OnClick = MiFindOperationbyOpHashClick
       end
       object MiDecodePayload: TMenuItem
         Caption = 'Decode Payload'
@@ -1948,10 +1465,5 @@ object FRMWallet: TFRMWallet
       00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
       00FF000000FF000000FF000000FF
     }
-  end
-  object ApplicationEvents: TApplicationProperties
-    OnMinimize = ApplicationEventsMinimize
-    left = 256
-    top = 184
   end
 end

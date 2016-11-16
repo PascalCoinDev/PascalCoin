@@ -233,7 +233,7 @@ Type
     Property IsGettingNewBlockChainFromClient : Boolean read FIsGettingNewBlockChainFromClient;
     Property MaxRemoteOperationBlock : TOperationBlock read FMaxRemoteOperationBlock;
     Property NodePrivateKey : TECPrivateKey read FNodePrivateKey;
-    Function GetValidNodeServers: TNodeServerAddressArray;
+    Function GetValidNodeServers(OnlyWhereIConnected : Boolean): TNodeServerAddressArray;
     Property OnNetConnectionsUpdated : TNotifyEvent read FOnNetConnectionsUpdated write FOnNetConnectionsUpdated;
     Property OnNodeServersUpdated : TNotifyEvent read FOnNodeServersUpdated write FOnNodeServersUpdated;
     Property OnBlackListUpdated : TNotifyEvent read FOnBlackListUpdated write FOnBlackListUpdated;
@@ -412,9 +412,9 @@ begin
 end;
 
 procedure TNetData.CleanBlackList;
-Var P : PNodeServerAddress;
-  i,n : Integer;
-  l : TList;
+Var P,Pns : PNodeServerAddress;
+  i,n,j : Integer;
+  l,lns : TList;
 begin
   // This procedure cleans old blacklisted IPs
   n := 0;
@@ -422,10 +422,20 @@ begin
   Try
     for i := l.Count - 1 downto 0 do begin
       P := l[i];
-      if
-        // Is an old blacklisted IP? (More than 1 hour)
-        (((P^.last_connection+(60*60)) < (UnivDateTimeToUnix(DateTime2UnivDateTime(now)))) And (Not P^.its_myself))
-        then begin
+      // Is an old blacklisted IP? (More than 1 hour)
+      If ((P^.last_connection+(60*60)) < (UnivDateTimeToUnix(DateTime2UnivDateTime(now)))) then begin
+        // Clean from FNodeServers
+        lns := FNodeServers.LockList;
+        Try
+          j := IndexOfNetClient(lns,P^.ip,P^.port);
+          if (j>=0) then begin
+            Pns := lns[j];
+            Pns^.its_myself := false;
+            Pns^.BlackListText := '';
+          end;
+        Finally
+          FNodeServers.UnlockList;
+        End;
         l.Delete(i);
         Dispose(P);
         inc(n);
@@ -712,7 +722,11 @@ begin
     exit;
   end;
   CleanBlackList;
-  j := CT_MaxServersConnected - ConnectionsCount(true);
+  If NetStatistics.ClientsConnections>0 then begin
+    j := CT_MinServersConnected - NetStatistics.ServersConnectionsWithResponse;
+  end else begin
+    j := CT_MaxServersConnected - NetStatistics.ServersConnectionsWithResponse;
+  end;
   if j<=0 then exit;
   // can discover up to j servers
   l := TList.Create;
@@ -1103,7 +1117,7 @@ begin
   end;
 end;
 
-function TNetData.GetValidNodeServers: TNodeServerAddressArray;
+function TNetData.GetValidNodeServers(OnlyWhereIConnected : Boolean): TNodeServerAddressArray;
 var i : Integer;
   nsa : TNodeServerAddress;
   currunixtimestamp : Cardinal;
@@ -1116,7 +1130,7 @@ begin
   try
     for i := 0 to l.Count - 1 do begin
       nsa := PNodeServerAddress( l[i] )^;
-      If ((nsa.its_myself) Or (nsa.BlackListText='')) // Not a blacklist IP except duplicate connections
+      if (Not IsBlackListed(nsa.ip,0))
         And
         ( // I've connected 24h before
          ((nsa.last_connection>0) And ((Assigned(nsa.netConnection)) Or ((nsa.last_connection + (60*60*24)) > (currunixtimestamp))))
@@ -1128,6 +1142,12 @@ begin
         And
         ( // Never tried to connect or successfully connected
           (nsa.total_failed_attemps_to_connect=0)
+        )
+        And
+        (
+          (Not OnlyWhereIConnected)
+          Or
+          (nsa.last_connection>0)
         )
         then begin
         SetLength(Result,length(Result)+1);
@@ -1389,14 +1409,10 @@ begin
         // Wait some time before close connection
         sleep(5000);
       end else begin
-        DebugStep := 'Adding client';
-        DebugStep := '   ';
+        DebugStep := 'Processing buffer and sleep...';
         while (n.Connected) And (Active) do begin
-          DebugStep[1] := '1';
           n.DoProcessBuffer;
-          DebugStep[1] := '2';
           Sleep(10);
-          DebugStep[1] := '3';
         end;
       end;
     Finally
@@ -1576,7 +1592,7 @@ begin
       i := TNetData.NetData.IndexOfNetClient(l,Client.RemoteHost,Client.RemotePort);
       if i>=0 then begin
         P := l[i];
-        P^.its_myself := true;
+        P^.its_myself := ItsMyself;
       end;
     finally
       TNetData.NetData.FNodeServers.UnlockList;
@@ -1982,7 +1998,8 @@ Begin
       nsa := CT_TNodeServerAddress_NUL;
       nsa.ip := Client.RemoteHost;
       nsa.port := connection_has_a_server;
-      nsa.last_connection_by_server := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+      // BUG corrected 1.1.1: nsa.last_connection_by_server := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+      nsa.last_connection := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
       TNetData.NetData.AddServer(nsa);
     end;
 
@@ -2525,7 +2542,7 @@ begin
     try
       if (TNode.Node.Bank.BlocksCount>0) then TNode.Node.Bank.LoadOperations(op,TNode.Node.Bank.BlocksCount-1);
       op.SaveBlockToStream(true,data);
-      nsarr := TNetData.NetData.GetValidNodeServers;
+      nsarr := TNetData.NetData.GetValidNodeServers(true);
       i := length(nsarr);
       data.Write(i,4);
       for i := 0 to High(nsarr) do begin

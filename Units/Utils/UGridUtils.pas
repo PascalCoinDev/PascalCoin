@@ -688,16 +688,6 @@ begin
     if (AccountNumber<0) then begin
       If (FPendingOperations) then UpdateAccountOperations;
     end else begin
-      { BUG on Build 1.0.7 -> Corrected on Build 1.0.8
-      Op := TPCOperation(Sender);
-      l := TList.Create;
-      Try
-        Op.AffectedAccounts(l);
-        if l.IndexOf(TObject(PtrInt(AccountNumber)))>=0 then UpdateAccountOperations;
-      Finally
-        l.Free;
-      End;
-      }
       l := TList.Create;
       Try
         If Node.Operations.OperationsHashTree.GetOperationsAffectingAccount(AccountNumber,l)>0 then begin
@@ -779,7 +769,7 @@ begin
   opr := FOperationsResume.OperationResume[FDrawGrid.Row-1];
   FRM := TFRMPayloadDecoder.Create(FDrawGrid.Owner);
   try
-    FRM.Init(opr.Block,opr.time,opr.OperationTxt,opr.OriginalPayload,WalletKeys,AppParams);
+    FRM.Init(opr,WalletKeys,AppParams);
     FRM.ShowModal;
   finally
     FRM.Free;
@@ -827,6 +817,7 @@ begin
             if (Node.Bank.Storage.LoadBlockChainBlock(opc,bend)) then begin
               // Reward operation
               OPR := CT_TOperationResume_NUL;
+              OPR.valid := true;
               OPR.Block := bend;
               OPR.time := opc.OperationBlock.timestamp;
               OPR.AffectedAccount := bend * CT_AccountsPerBlock;

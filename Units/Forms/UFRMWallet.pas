@@ -160,6 +160,7 @@ type
     bbAccountsRefresh: TBitBtn;
     dgBlockChainExplorer: TDrawGrid;
     dgOperationsExplorer: TDrawGrid;
+    MiFindOperationbyOpHash: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure TimerUpdateStatusTimer(Sender: TObject);
@@ -204,6 +205,7 @@ type
     procedure ebFilterAccountByBalanceMinKeyPress(Sender: TObject;
       var Key: Char);
     procedure cbFilterAccountsClick(Sender: TObject);
+    procedure MiFindOperationbyOpHashClick(Sender: TObject);
   private
     FMinersBlocksFound: Integer;
     procedure SetMinersBlocksFound(const Value: Integer);
@@ -997,6 +999,23 @@ begin
     TAccountComp.FormatMoney(start.balance));
 end;
 
+procedure TFRMWallet.MiFindOperationbyOpHashClick(Sender: TObject);
+Var FRM : TFRMPayloadDecoder;
+  oph : String;
+begin
+  oph := '';
+  if Not InputQuery('Search operation by OpHash','Insert Operation Hash value (OpHash)',oph) then exit;
+  //
+  FRM := TFRMPayloadDecoder.Create(Self);
+  try
+    FRM.Init(CT_TOperationResume_NUL,WalletKeys,FAppParams);
+    FRM.DoFind(oph);
+    FRM.ShowModal;
+  finally
+    FRM.Free;
+  end;
+end;
+
 procedure TFRMWallet.MiFindpreviousaccountwithhighbalanceClick(Sender: TObject);
 Var an  : Cardinal;
   an64 : Int64;
@@ -1311,7 +1330,7 @@ Var nsarr : TNodeServerAddressArray;
 begin
   //CheckMining;
   // Update node servers Peer Cache
-  nsarr := TNetData.NetData.GetValidNodeServers;
+  nsarr := TNetData.NetData.GetValidNodeServers(true);
   s := '';
   for i := low(nsarr) to High(nsarr) do begin
     if (s<>'') then s := s+';';

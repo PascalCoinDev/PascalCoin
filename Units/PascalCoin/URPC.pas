@@ -126,11 +126,9 @@ end;
 
 function TRPCServer.IsValidClientIP(const clientIp: String; clientPort: Word): Boolean;
 begin
-  Result := (clientIp='127.0.0.1');
-  If Not Result then begin
-    // TODO: Allow other IP clients
-  end;
-  //
+  Result := true;
+  // TODO: Allow only specific IP's listed in IniFile
+  // Result := (clientIp='127.0.0.1');
 end;
 
 constructor TRPCServer.Create;
@@ -722,14 +720,99 @@ begin
   end else if (method='getwalletaccounts') then begin
     // Returns JSON array with accounts in Wallet
     jsonarr := jsonresponse.GetAsArray('result');
-    for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
+    if (params.IndexOfName('enc_pubkey')>=0) then begin
+      r := TCrypto.HexaToRaw(params.AsString('enc_pubkey',''));
+      opr.newKey := TAccountComp.RawString2Accountkey(r);
+      if Not TAccountComp.IsValidAccountKey(opr.newKey,ansistr) then begin
+        ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
+        ErrorDesc := 'Invalid public key in param enc_pubkey: '+ansistr;
+        exit;
+      end;
+      i := _RPCServer.WalletKeys.AccountsKeyList.IndexOfAccountKey(opr.newKey);
+      if (i<0) then begin
+        ErrorNum := CT_RPC_ErrNum_NotFound;
+        ErrorDesc := 'Public key not found in wallet';
+        exit;
+      end;
       ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
       for j := 0 to ocl.Count - 1 do begin
         account := TNode.Node.Operations.SafeBoxTransaction.Account(ocl.Get(j));
         FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
       end;
+      Result := true;
+    end else begin
+      for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
+        ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
+        for j := 0 to ocl.Count - 1 do begin
+          account := TNode.Node.Operations.SafeBoxTransaction.Account(ocl.Get(j));
+          FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
+        end;
+      end;
+      Result := true;
     end;
-    Result := true;
+  end else if (method='getwalletaccountscount') then begin
+    // New Build 1.1.1
+    // Returns a number with count value
+    if (params.IndexOfName('enc_pubkey')>=0) then begin
+      r := TCrypto.HexaToRaw(params.AsString('enc_pubkey',''));
+      opr.newKey := TAccountComp.RawString2Accountkey(r);
+      if Not TAccountComp.IsValidAccountKey(opr.newKey,ansistr) then begin
+        ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
+        ErrorDesc := 'Invalid public key in param enc_pubkey: '+ansistr;
+        exit;
+      end;
+      i := _RPCServer.WalletKeys.AccountsKeyList.IndexOfAccountKey(opr.newKey);
+      if (i<0) then begin
+        ErrorNum := CT_RPC_ErrNum_NotFound;
+        ErrorDesc := 'Public key not found in wallet';
+        exit;
+      end;
+      ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
+      jsonresponse.GetAsVariant('result').value := ocl.count;
+      Result := true;
+    end else begin
+      c :=0;
+      for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
+        ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
+        inc(c,ocl.count);
+      end;
+      jsonresponse.GetAsVariant('result').value := c;
+      Result := true;
+    end;
+  end else if (method='getwalletcoins') then begin
+    if (params.IndexOfName('enc_pubkey')>=0) then begin
+      r := TCrypto.HexaToRaw(params.AsString('enc_pubkey',''));
+      opr.newKey := TAccountComp.RawString2Accountkey(r);
+      if Not TAccountComp.IsValidAccountKey(opr.newKey,ansistr) then begin
+        ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
+        ErrorDesc := 'Invalid public key in param enc_pubkey: '+ansistr;
+        exit;
+      end;
+      i := _RPCServer.WalletKeys.AccountsKeyList.IndexOfAccountKey(opr.newKey);
+      if (i<0) then begin
+        ErrorNum := CT_RPC_ErrNum_NotFound;
+        ErrorDesc := 'Public key not found in wallet';
+        exit;
+      end;
+      ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
+      account.balance := 0;
+      for j := 0 to ocl.Count - 1 do begin
+        inc(account.balance, TNode.Node.Operations.SafeBoxTransaction.Account(ocl.Get(j)).balance );
+      end;
+      jsonresponse.GetAsVariant('result').value := ToJSONCurrency(account.balance);
+      Result := true;
+    end else begin
+      c :=0;
+      account.balance := 0;
+      for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
+        ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
+        for j := 0 to ocl.Count - 1 do begin
+          inc(account.balance, TNode.Node.Operations.SafeBoxTransaction.Account(ocl.Get(j)).balance );
+        end;
+      end;
+      jsonresponse.GetAsVariant('result').value := ToJSONCurrency(account.balance);
+      Result := true;
+    end;
   end else if (method='getwalletpubkeys') then begin
     // Returns JSON array with pubkeys in wallet
     jsonarr := jsonresponse.GetAsArray('result');
@@ -894,6 +977,7 @@ begin
       end;
       opr.NOpInsideBlock:=i;
       opr.time:=pcops.OperationBlock.timestamp;
+      opr.Balance := -1; // don't include
       FillOperationResumeToJSONObject(opr,GetResultObject);
       Result := True;
     finally
@@ -958,6 +1042,8 @@ begin
     GetResultObject.GetAsObject('netprotocol').GetAsVariant('ver').Value := CT_NetProtocol_Version;
     GetResultObject.GetAsObject('netprotocol').GetAsVariant('ver_a').Value := CT_NetProtocol_Available;
     GetResultObject.GetAsVariant('blocks').Value:=TNode.Node.Bank.BlocksCount;
+    GetResultObject.GetAsVariant('sbh').Value:=TCrypto.ToHexaString(TNode.Node.Bank.LastOperationBlock.initial_safe_box_hash);
+    GetResultObject.GetAsVariant('pow').Value:=TCrypto.ToHexaString(TNode.Node.Bank.LastOperationBlock.proof_of_work);
     GetResultObject.GetAsObject('netstats').GetAsVariant('active').Value:=TNetData.NetData.NetStatistics.ActiveConnections;
     GetResultObject.GetAsObject('netstats').GetAsVariant('clients').Value:=TNetData.NetData.NetStatistics.ClientsConnections;
     GetResultObject.GetAsObject('netstats').GetAsVariant('servers').Value:=TNetData.NetData.NetStatistics.ServersConnectionsWithResponse;
@@ -967,7 +1053,7 @@ begin
     GetResultObject.GetAsObject('netstats').GetAsVariant('tservers').Value:=TNetData.NetData.NetStatistics.TotalServersConnections;
     GetResultObject.GetAsObject('netstats').GetAsVariant('breceived').Value:=TNetData.NetData.NetStatistics.BytesReceived;
     GetResultObject.GetAsObject('netstats').GetAsVariant('bsend').Value:=TNetData.NetData.NetStatistics.BytesSend;
-    nsaarr := TNetData.NetData.GetValidNodeServers;
+    nsaarr := TNetData.NetData.GetValidNodeServers(true);
     for i := low(nsaarr) to High(nsaarr) do begin
       jso := GetResultObject.GetAsArray('nodeservers').GetAsObject(i);
       jso.GetAsVariant('ip').Value := nsaarr[i].ip;

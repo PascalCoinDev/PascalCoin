@@ -20,7 +20,7 @@ unit ULog;
 interface
 
 uses
-  Classes, UThread;
+  Classes, UThread, SyncObjs;
 
 type
   TLogType = (ltinfo, ltupdate, lterror, ltdebug);
@@ -58,6 +58,7 @@ type
     FSaveTypes: TLogTypes;
     FThreadSafeLogEvent : TThreadSafeLogEvent;
     FProcessGlobalLogs: Boolean;
+    FLock : TCriticalSection;
     procedure SetFileName(const Value: AnsiString);
   protected
     Procedure DoLog(logtype : TLogType; sender, logtext : AnsiString); virtual;
@@ -92,6 +93,7 @@ constructor TLog.Create(AOwner: TComponent);
 Var l : TList;
 begin
   inherited;
+  FLock := TCriticalSection.Create;
   FProcessGlobalLogs := true;
   FLogDataList := TThreadList.Create;
   FFileStream := Nil;
@@ -126,6 +128,7 @@ begin
     FLogDataList.UnlockList;
   end;
   FreeAndNil(FLogDataList);
+  FreeAndNil(FLock);
   inherited;
 end;
 
@@ -147,26 +150,30 @@ end;
 
 procedure TLog.NotifyNewLog(logtype: TLogType; Const sender, logtext: String);
 Var s,tid : AnsiString;
-  tsle : TThreadSafeLogEvent;
   P : PLogData;
 begin
-  if assigned(FFileStream) And (logType in FSaveTypes) then begin
-    if TThread.CurrentThread.ThreadID=MainThreadID then tid := ' MAIN:' else tid:=' TID:';
-    s := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz',now)+tid+IntToHex(TThread.CurrentThread.ThreadID,8)+' ['+CT_LogType[logtype]+'] <'+sender+'> '+logtext+#13#10;
-    FFileStream.Write(s[1],length(s));
-  end;
-  if Assigned(FOnInThreadNewLog) then begin
-    FOnInThreadNewLog(logtype,now,TThread.CurrentThread.ThreadID,sender,logtext);
-  end;
-  if Assigned(FOnNewLog) then begin
-    // Add to a thread safe list
-    New(P);
-    P^.Logtype := logtype;
-    P^.Time := now;
-    P^.ThreadID :=TThread.CurrentThread.ThreadID;
-    P^.Sender := sender;
-    P^.Logtext := logtext;
-    FLogDataList.Add(P);
+  FLock.Acquire;
+  try
+    if assigned(FFileStream) And (logType in FSaveTypes) then begin
+      if TThread.CurrentThread.ThreadID=MainThreadID then tid := ' MAIN:' else tid:=' TID:';
+      s := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz',now)+tid+IntToHex(TThread.CurrentThread.ThreadID,8)+' ['+CT_LogType[logtype]+'] <'+sender+'> '+logtext+#13#10;
+      FFileStream.Write(s[1],length(s));
+    end;
+    if Assigned(FOnInThreadNewLog) then begin
+      FOnInThreadNewLog(logtype,now,TThread.CurrentThread.ThreadID,sender,logtext);
+    end;
+    if Assigned(FOnNewLog) then begin
+      // Add to a thread safe list
+      New(P);
+      P^.Logtype := logtype;
+      P^.Time := now;
+      P^.ThreadID :=TThread.CurrentThread.ThreadID;
+      P^.Sender := sender;
+      P^.Logtext := logtext;
+      FLogDataList.Add(P);
+    end;
+  finally
+    FLock.Release;
   end;
   DoLog(logtype,sender,logtext);
 end;

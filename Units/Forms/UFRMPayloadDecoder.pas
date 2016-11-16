@@ -51,30 +51,46 @@ type
     lblDecodedMethod: TLabel;
     Label3: TLabel;
     bbSaveMethods: TBitBtn;
-    BitBtn1: TBitBtn;
+    bbClose: TBitBtn;
     memoDecoded: TMemo;
     memoOriginalPayloadInHexa: TMemo;
     lblPasswordsInfo: TLabel;
-    procedure BitBtn1Click(Sender: TObject);
+    lblAmountCaption: TLabel;
+    lblAmount: TLabel;
+    lblFeeCaption: TLabel;
+    lblFee: TLabel;
+    Label4: TLabel;
+    bbFind: TBitBtn;
+    ebOphash: TEdit;
+    lblSenderCaption: TLabel;
+    lblSender: TLabel;
+    lblReceiverCaption: TLabel;
+    lblReceiver: TLabel;
+    lblReceiverInfo: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure PageControlChanging(Sender: TObject; var AllowChange: Boolean);
     procedure cbMethodPublicPayloadClick(Sender: TObject);
     procedure bbSaveMethodsClick(Sender: TObject);
     procedure memoDecodedKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
+    procedure bbFindClick(Sender: TObject);
+    procedure ebOphashExit(Sender: TObject);
+    procedure ebOphashKeyPress(Sender: TObject; var Key: Char);
   private
-    FPayloadData : TRawBytes;
+    FOpResume : TOperationResume;
     FWalletKeys : TWalletKeys;
-    FOldECPrivateKey : TECPrivateKey;
-    FAccountECPrivateKey : TECPrivateKey;
     FSavedDecodeMethods : boolean;
     FAppParams : TAppParams;
+    FSemaphor : Boolean;
     { Private declarations }
     Procedure TryToDecode;
     Procedure SaveMethods;
+    procedure SetOpResume(const Value: TOperationResume);
   public
     { Public declarations }
-    Procedure Init(block, timestamp : Cardinal; const OperationText : AnsiString; Const PayloadData : TRawBytes; WalletKeys : TWalletKeys; AppParams : TAppParams);
+    Procedure Init(Const AOperationResume : TOperationResume; WalletKeys : TWalletKeys; AppParams : TAppParams);
+    Property OpResume : TOperationResume read FOpResume write SetOpResume;
+    Procedure DoFind(Const OpHash : String);
   end;
 
 implementation
@@ -96,52 +112,94 @@ begin
   TryToDecode;
 end;
 
+procedure TFRMPayloadDecoder.bbFindClick(Sender: TObject);
+Var oph : String;
+begin
+  oph := TCrypto.ToHexaString( FOpResume.OperationHash );
+  if Not InputQuery('Search operation by OpHash','Insert Operation Hash value (OpHash)',oph) then exit;
+  DoFind(oph);
+end;
+
 procedure TFRMPayloadDecoder.cbMethodPublicPayloadClick(Sender: TObject);
 begin
   FSavedDecodeMethods := false;
   lblPasswordsInfo.Caption := Format('Possible passwords: %d',[memoPasswords.Lines.Count]);
 end;
 
+procedure TFRMPayloadDecoder.DoFind(Const OpHash : String);
+Var
+  r : TRawBytes;
+  pcops : TPCOperationsComp;
+  b : Cardinal;
+  opbi : Integer;
+  opr : TOperationResume;
+begin
+  // Search for an operation based on "ophash"
+  if (trim(OpHash)='') then begin
+    OpResume := CT_TOperationResume_NUL;
+    exit;
+  end;
+  try
+    r := TCrypto.HexaToRaw(trim(ophash));
+    if (r='') then begin
+      raise Exception.Create('Value is not an hexadecimal string');
+    end;
+    pcops := TPCOperationsComp.Create(Nil);
+    try
+      If not TNode.Node.FindOperation(pcops,r,b,opbi) then begin
+        raise Exception.Create('Value is not a valid OpHash');
+      end;
+      If not TPCOperation.OperationToOperationResume(b,pcops.Operation[opbi],pcops.Operation[opbi].SenderAccount,opr) then begin
+        raise Exception.Create('Internal error 20161114-1');
+      end;
+      opr.NOpInsideBlock:=opbi;
+      opr.time:=pcops.OperationBlock.timestamp;
+      OpResume := opr;
+    finally
+      pcops.Free;
+    end;
+  Except
+    OpResume := CT_TOperationResume_NUL;
+    try
+      FSemaphor := true;
+      ebOphash.Text := trim(ophash);
+    finally
+      FSemaphor := false;
+    end;
+    Raise;
+  end;
+end;
+
+procedure TFRMPayloadDecoder.ebOphashExit(Sender: TObject);
+begin
+  DoFind(ebOphash.Text);
+end;
+
+procedure TFRMPayloadDecoder.ebOphashKeyPress(Sender: TObject; var Key: Char);
+begin
+  if Key=#13 then DoFind(ebOphash.Text);
+end;
+
 procedure TFRMPayloadDecoder.FormCreate(Sender: TObject);
 begin
-  FWalletKeys := Nil;
-  FAppParams := Nil;
-  memoDecoded.Lines.Clear;
-  memoOriginalPayloadInHexa.Lines.Clear;
-  lblPasswordsInfo.Caption := '';
+  FSemaphor := true;
+  try
+    FWalletKeys := Nil;
+    FAppParams := Nil;
+    memoDecoded.Lines.Clear;
+    memoOriginalPayloadInHexa.Lines.Clear;
+    lblPasswordsInfo.Caption := '';
+    OpResume := CT_TOperationResume_NUL;
+  finally
+    FSemaphor := false;
+  end;
 end;
 
-procedure TFRMPayloadDecoder.BitBtn1Click(Sender: TObject);
-begin
-
-end;
-
-procedure TFRMPayloadDecoder.Init(block, timestamp : Cardinal; const OperationText : AnsiString; Const PayloadData : TRawBytes; WalletKeys : TWalletKeys; AppParams : TAppParams);
+procedure TFRMPayloadDecoder.Init(Const AOperationResume : TOperationResume; WalletKeys : TWalletKeys; AppParams : TAppParams);
 begin
   FWalletKeys := WalletKeys;
   FAppParams := AppParams;
-  lblBlock.Caption := inttostr(block);
-  if timestamp>10000 then begin
-    lblDateTime.Caption := DateTimeToStr(UnivDateTime2LocalDateTime(UnixToUnivDateTime(timestamp)));
-    lblDateTime.Font.Color := clBlack;
-  end else begin
-    lblDateTime.Caption := '(Pending block)';
-    lblDateTime.Font.Color := clRed;
-  end;
-  lblOperationTxt.Caption := OperationText;
-  FPayloadData := PayloadData;
-  memoOriginalPayloadInHexa.Lines.Text := TCrypto.ToHexaString(FPayloadData);
-  if Assigned(FWalletKeys) then begin
-    cbMethodPublicPayload.Checked := FAppParams.ParamByName['PayloadDecoder.notencrypted'].GetAsBoolean(true);
-    cbUsingPrivateKeys.Checked := FAppParams.ParamByName['PayloadDecoder.usingprivatekeys'].GetAsBoolean(true);
-    cbUsingPasswords.Checked := FAppParams.ParamByName['PayloadDecoder.usingpasswords'].GetAsBoolean(true);
-    memoPasswords.Lines.Text := FAppParams.ParamByName['PayloadDecoder.passwords'].GetAsString('');
-  end else begin
-    cbMethodPublicPayload.Checked := true;
-    cbUsingPrivateKeys.Checked := true;
-    cbUsingPasswords.Checked := true;
-    memoPasswords.Lines.Text := '';
-  end;
+  OpResume := AOperationResume;
   FSavedDecodeMethods := true;
   PageControl.ActivePage := tsDecoded;
   TryToDecode;
@@ -181,6 +239,84 @@ begin
   FAppParams.ParamByName['PayloadDecoder.usingpasswords'].SetAsBoolean(cbUsingPasswords.Checked);
   FAppParams.ParamByName['PayloadDecoder.passwords'].SetAsString(memoPasswords.Lines.Text);
   FSavedDecodeMethods := true;
+end;
+
+procedure TFRMPayloadDecoder.SetOpResume(const Value: TOperationResume);
+Var sem : Boolean;
+begin
+  sem := FSemaphor;
+  Try
+    FSemaphor := false;
+    FOpResume := Value;
+    if Not Value.valid then begin
+      lblBlock.Caption := '';
+      lblDateTime.Caption := '';
+      lblOperationTxt.Caption := '';
+      lblDecodedMethod.Caption := '';
+      lblFee.Caption := '';
+      lblPasswordsInfo.Caption := '';
+      lblAmount.Caption := '';
+      lblSender.Caption := '';
+      lblReceiver.Caption := '';
+      lblReceiverInfo.Visible := false;
+      exit;
+    end;
+    If (Value.NOpInsideBlock>=0) then
+      lblBlock.Caption := inttostr(Value.Block)+'/'+inttostr(Value.NOpInsideBlock+1)
+    else lblBlock.Caption := inttostr(Value.Block);
+    if Value.time>10000 then begin
+      lblDateTime.Caption := DateTimeToStr(UnivDateTime2LocalDateTime(UnixToUnivDateTime(Value.time)));
+      lblDateTime.Font.Color := clBlack;
+    end else begin
+      lblDateTime.Caption := '(Pending block)';
+      lblDateTime.Font.Color := clRed;
+    end;
+    lblOperationTxt.Caption := Value.OperationTxt;
+    lblAmount.Caption := TAccountComp.FormatMoney(value.Amount);
+    if Value.Amount>0 then lblAmount.Font.Color := clGreen
+    else if Value.Amount=0 then lblAmount.Font.Color := clGray
+    else lblAmount.Font.Color := clRed;
+    If (Value.SenderAccount>=0) And (Value.DestAccount>=0) then begin
+      lblSenderCaption.Caption := 'Sender:';
+      lblSender.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Value.SenderAccount);
+      lblReceiverCaption.Visible := true;
+      lblReceiver.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Value.DestAccount);
+      lblReceiver.Visible := true;
+      lblFeeCaption.Visible := Value.AffectedAccount=Value.SenderAccount;
+      lblFee.Visible := lblFeeCaption.Visible;
+      lblReceiverInfo.Visible := Not lblFee.Visible;
+    end else begin
+      lblSenderCaption.Caption := 'Account:';
+      lblSender.caption := TAccountComp.AccountNumberToAccountTxtNumber(Value.AffectedAccount);
+      lblReceiverCaption.Visible := false;
+      lblReceiver.Visible := false;
+      lblFeeCaption.Visible := true;
+      lblFee.Visible := true;
+      lblReceiverInfo.Visible := false;
+    end;
+    lblFee.Caption := TAccountComp.FormatMoney(value.Fee);
+    if Value.Fee>0 then lblFee.Font.Color := clGreen
+    else if Value.Fee=0 then lblFee.Font.Color := clGray
+    else lblFee.Font.Color := clRed;
+    ebOpHash.text := TCrypto.ToHexaString(Value.OperationHash);
+    memoOriginalPayloadInHexa.Lines.Text := TCrypto.ToHexaString(Value.OriginalPayload);
+    if Assigned(FWalletKeys) then begin
+      cbMethodPublicPayload.Checked := FAppParams.ParamByName['PayloadDecoder.notencrypted'].GetAsBoolean(true);
+      cbUsingPrivateKeys.Checked := FAppParams.ParamByName['PayloadDecoder.usingprivatekeys'].GetAsBoolean(true);
+      cbUsingPasswords.Checked := FAppParams.ParamByName['PayloadDecoder.usingpasswords'].GetAsBoolean(true);
+      memoPasswords.Lines.Text := FAppParams.ParamByName['PayloadDecoder.passwords'].GetAsString('');
+    end else begin
+      cbMethodPublicPayload.Checked := true;
+      cbUsingPrivateKeys.Checked := true;
+      cbUsingPasswords.Checked := true;
+      memoPasswords.Lines.Text := '';
+    end;
+    FSavedDecodeMethods := true;
+    PageControl.ActivePage := tsDecoded;
+    TryToDecode;
+  Finally
+    FSemaphor := sem;
+  End;
 end;
 
 procedure TFRMPayloadDecoder.TryToDecode;
@@ -224,7 +360,8 @@ Var raw : TRawBytes;
   ok : boolean;
 begin
   ok := true;
-    raw := FPayloadData;
+  if Assigned(FWalletKeys) And Assigned(FAppParams) then begin
+    raw := FOpResume.OriginalPayload;
     if raw<>'' then begin
       // First try to a human readable...
       if (cbMethodPublicPayload.Checked) and (TCrypto.IsHumanReadable(raw)) then begin
@@ -254,6 +391,10 @@ begin
       memoDecoded.Color := clLtGray;
       lblDecodedMethod.Caption := '';
     end;
+  end else begin
+    memoDecoded.Lines.Text := '';
+    lblDecodedMethod.Caption := '';
+  end;
 end;
 
 end.

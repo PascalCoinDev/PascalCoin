@@ -379,7 +379,9 @@ class function TAccountComp.AccountNumberToAccountTxtNumber(account_number: Card
 Var an : int64;
 begin
   an := account_number;
-  an := ((((((an * 3) MOD 97) * 7) MOD 101) * 5) MOD 89)+10;
+  an := ((an * 101) MOD 89)+10;
+  //BUILD 1.1.1 change cheksum calculation
+  //Prior was: an := ((((((an * 3) MOD 97) * 7) MOD 101) * 5) MOD 89)+10;
   Result := IntToStr(account_number)+'-'+Inttostr(an);
 end;
 
@@ -488,7 +490,9 @@ begin
   if (account_txt_number[i] in ['-','.',' ']) then inc(i);
   if length(account_txt_number)-1<>i then exit;
   rn := StrToIntDef(copy(account_txt_number,i,length(account_txt_number)),0);
-  anaux := (((((((an * 3) MOD 97) * 7) MOD 101) * 5) MOD 89)+10);
+  //BUILD 1.1.1 change cheksum calculation
+  //Prior was: anaux := (((((((an * 3) MOD 97) * 7) MOD 101) * 5) MOD 89)+10);
+  anaux := ((an * 101) MOD 89)+10;
   Result := rn = anaux;
 end;
 
@@ -562,8 +566,14 @@ begin
     s.WriteBuffer(rawaccstr[1],length(rawaccstr));
     s.Position := 0;
     s.Read(Result.EC_OpenSSL_NID,SizeOf(Result.EC_OpenSSL_NID));
-    TStreamOp.ReadAnsiString(s,Result.x);
-    TStreamOp.ReadAnsiString(s,Result.y);
+    If (TStreamOp.ReadAnsiString(s,Result.x)<=0) then begin
+      Result := CT_TECDSA_Public_Nul;
+      exit;
+    end;
+    if (TStreamOp.ReadAnsiString(s,Result.y)<=0) then begin
+      Result := CT_TECDSA_Public_Nul;
+      exit;
+    end;
   finally
     s.Free;
   end;
