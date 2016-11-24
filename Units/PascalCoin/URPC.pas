@@ -405,7 +405,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     jsonObject.GetAsVariant('ophash').Value := TCrypto.ToHexaString(OPR.OperationHash);
   end;
 
-  Function GetAccountOperations(AccountNumber : Cardinal; jsonArray : TPCJSONArray; MaxBlocksDeep : Integer) : Boolean;
+  Function GetAccountOperations(AccountNumber : Cardinal; jsonArray : TPCJSONArray; MaxBlocksDeep,start,max : Integer) : Boolean;
   var list : TList;
     Op : TPCOperation;
     OPR : TOperationResume;
@@ -430,12 +430,17 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       Finally
         list.Free;
       End;
-      TNode.Node.GetStoredOperationsFromAccount(OperationsResume,AccountNumber,MaxBlocksDeep);
+      if ((max<=0) Or (OperationsResume.Count<(max+start))) then begin
+        TNode.Node.GetStoredOperationsFromAccount(OperationsResume,AccountNumber,MaxBlocksDeep,max+start);
+      end;
       //
       for i:=0 to OperationsResume.Count-1 do begin
-        Obj := jsonArray.GetAsObject(i);
-        OPR := OperationsResume[i];
-        FillOperationResumeToJSONObject(OPR,Obj);
+        if (i>=start) then begin
+          Obj := jsonArray.GetAsObject(jsonArray.Count);
+          OPR := OperationsResume[i];
+          FillOperationResumeToJSONObject(OPR,Obj);
+          if ((max>0) And (jsonArray.Count>=max)) then break; // stop
+        end;
       end;
       Result := True;
     finally
@@ -602,6 +607,139 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
   end;
 
+  Function GetCardinalsValues(ordinals_coma_separated : String; cardinals : TOrderedCardinalList; var errors : AnsiString) : Boolean;
+  Var i,istart : Integer;
+    ctxt : String;
+    an : Cardinal;
+  begin
+    result := false;
+    cardinals.Clear;
+    errors := '';
+    ctxt := '';
+    istart := 1;
+    for i := 1 to length(ordinals_coma_separated) do begin
+      case ordinals_coma_separated[i] of
+        '0'..'9','-' : ctxt := ctxt + ordinals_coma_separated[i];
+        ',',';' : begin
+          if trim(ctxt)<>'' then begin
+            if Not TAccountComp.AccountTxtNumberToAccountNumber(trim(ctxt),an) then begin
+              errors := 'Invalid account number at pos '+IntToStr(istart)+': '+ctxt;
+              exit;
+            end;
+            cardinals.Add(an);
+          end;
+          ctxt := '';
+          istart := i+1;
+        end;
+        ' ' : ; // Continue...
+      else
+        errors := 'Invalid char at pos '+inttostr(i)+': "'+ordinals_coma_separated[i]+'"';
+        exit;
+      end;
+    end;
+    //
+    if (trim(ctxt)<>'') then begin
+      if Not TAccountComp.AccountTxtNumberToAccountNumber(trim(ctxt),an) then begin
+        errors := 'Invalid account number at pos '+IntToStr(istart)+': '+ctxt;
+        exit;
+      end;
+      cardinals.Add(an);
+    end;
+    if cardinals.Count=0 then begin
+      errors := 'No valid value';
+      exit;
+    end;
+    Result := true;
+  end;
+
+  Function ChangeAccountsKey(accounts_txt : String; new_pub_key : TAccountKey; fee : UInt64; RawPayload : TRawBytes; Const Payload_method, EncodePwd : AnsiString) : Boolean;
+  // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
+  Var opck : TOpChangeKey;
+    acc : TAccount;
+    i,ian : Integer;
+    errors : AnsiString;
+    opr : TOperationResume;
+    f_raw : TRawBytes;
+    accountsnumber : TOrderedCardinalList;
+    operationsht : TOperationsHashTree;
+  begin
+    Result := false;
+    accountsnumber := TOrderedCardinalList.Create;
+    try
+      if not GetCardinalsValues(accounts_txt,accountsnumber,errors) then begin
+        ErrorDesc := 'Error in accounts: '+errors;
+        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+        Exit;
+      end;
+      operationsht := TOperationsHashTree.Create;
+      try
+        for ian := 0 to accountsnumber.Count - 1 do begin
+
+          if (accountsnumber.Get(ian)<0) or (accountsnumber.Get(ian)>=TNode.Node.Bank.AccountsCount) then begin
+            ErrorDesc:='Invalid account '+Inttostr(accountsnumber.Get(ian));
+            ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
+            Exit;
+          end;
+          acc := TNode.Node.Operations.SafeBoxTransaction.Account(accountsnumber.Get(ian));
+          _RPCServer.FWalletKeys.AccountsKeyList.IndexOfAccountKey(acc.accountkey);
+          i := _RPCServer.FWalletKeys.IndexOfAccountKey(acc.accountkey);
+          if (i<0) then begin
+            ErrorDesc:='Private key of account '+Inttostr(acc.account)+' not found in wallet';
+            ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
+            Exit;
+          end;
+          if (Not assigned(_RPCServer.FWalletKeys.Key[i].PrivateKey)) then begin
+            if _RPCServer.FWalletKeys.Key[i].CryptedKey<>'' then begin
+              // Wallet is password protected
+              ErrorDesc := 'Wallet is password protected for account '+IntToStr(acc.account);
+              ErrorNum := CT_RPC_ErrNum_WalletPasswordProtected;
+            end else begin
+              ErrorDesc := 'Wallet private key not found in Wallet for account '+IntToStr(acc.account);
+              ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+            end;
+            exit;
+          end;
+          if (length(RawPayload)>0) then begin
+            if (Payload_method='none') then f_raw:=RawPayload
+            else if (Payload_method='dest') then begin
+              f_raw := ECIESEncrypt(new_pub_key,RawPayload);
+            end else if (Payload_method='sender') then begin
+              f_raw := ECIESEncrypt(acc.accountkey,RawPayload);
+            end else if (Payload_method='aes') then begin
+              f_raw := TAESComp.EVP_Encrypt_AES256(RawPayload,EncodePwd);
+            end else begin
+              ErrorNum:=CT_RPC_ErrNum_InvalidOperation;
+              ErrorDesc:='Invalid encode payload method: '+Payload_method;
+              exit;
+            end;
+          end else f_raw := '';
+          opck := TOpChangeKey.Create(acc.account,acc.n_operation+1,_RPCServer.FWalletKeys.Key[i].PrivateKey,new_pub_key,fee,f_raw);
+          try
+            operationsht.AddOperationToHashTree(opck);
+          finally
+            opck.free;
+          end;
+        end; // For
+        // Ready to execute...
+        i := TNode.Node.AddOperations(Nil,operationsht,errors);
+        if (i<0) then begin
+          ErrorNum:=CT_RPC_ErrNum_InternalError;
+          ErrorDesc:=errors;
+          exit;
+        end;
+        GetResultObject.GetAsVariant('accounts_total').Value := operationsht.OperationsCount;
+        GetResultObject.GetAsVariant('accounts_ok').Value := i;
+        GetResultObject.GetAsVariant('accounts_error').Value := operationsht.OperationsCount - i;
+        GetResultObject.GetAsVariant('errors').Value := errors;
+        Result := true;
+      finally
+        operationsht.Free;
+      end;
+    finally
+      accountsnumber.Free;
+    end;
+  end;
+
   Procedure FillAccountObject(Const account : TAccount; jsonObj : TPCJSONObject);
   Begin
     jsonObj.GetAsVariant('account').Value:=account.account;
@@ -610,6 +748,15 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     jsonObj.GetAsVariant('n_operation').Value:=account.n_operation;
     jsonObj.GetAsVariant('updated_b').Value:=account.updated_block;
   end;
+
+  Procedure FillPublicKeyObject(const PubKey : TAccountKey; jsonObj : TPCJSONObject);
+  Begin
+    jsonObj.GetAsVariant('ec_nid').Value := PubKey.EC_OpenSSL_NID;
+    jsonObj.GetAsVariant('x').Value := TCrypto.ToHexaString(PubKey.x);
+    jsonObj.GetAsVariant('y').Value := TCrypto.ToHexaString(PubKey.y);
+    jsonObj.GetAsVariant('enc_pubkey').Value := TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(PubKey));
+    jsonObj.GetAsVariant('b58_pubkey').Value := TAccountComp.AccountPublicKeyExport(PubKey);
+  End;
 
   Function DoEncrypt(RawPayload : TRawBytes; pub_key : TAccountKey; Const Payload_method, EncodePwd : AnsiString) : Boolean;
   Var f_raw : TRawBytes;
@@ -677,8 +824,39 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     Result := true;
   End;
 
+  Function CapturePubKey(const prefix : String; var pubkey : TAccountKey; var errortxt : String) : Boolean;
+  var ansistr : AnsiString;
+    auxpubkey : TAccountKey;
+  begin
+    pubkey := CT_Account_NUL.accountkey;
+    errortxt := '';
+    Result := false;
+    if (params.IndexOfName(prefix+'b58_pubkey')>=0) then begin
+      If Not TAccountComp.AccountPublicKeyImport(params.AsString(prefix+'b58_pubkey',''),pubkey,ansistr) then begin
+        errortxt:= 'Invalid value of param "'+prefix+'b58_pubkey": '+ansistr;
+        exit;
+      end;
+      if (params.IndexOfName(prefix+'enc_pubkey')>=0) then begin
+        auxpubkey := TAccountComp.RawString2Accountkey(TCrypto.HexaToRaw(params.AsString(prefix+'enc_pubkey','')));
+        if (Not TAccountComp.Equal(auxpubkey,pubkey)) then begin
+          errortxt := 'Params "'+prefix+'b58_pubkey" and "'+prefix+'enc_pubkey" public keys are not the same public key';
+          exit;
+        end;
+      end;
+    end else begin
+      if (params.IndexOfName(prefix+'enc_pubkey')<0) then begin
+        errortxt := 'Need param "'+prefix+'enc_pubkey" or "'+prefix+'b58_pubkey"';
+        exit;
+      end;
+      pubkey := TAccountComp.RawString2Accountkey(TCrypto.HexaToRaw(params.AsString(prefix+'enc_pubkey','')));
+    end;
+    If Not TAccountComp.IsValidAccountKey(pubkey,ansistr) then begin
+      errortxt := 'Invalid public key: '+ansistr;
+    end else Result := true;
+  end;
+
 Var c,c2 : Cardinal;
-  i,j : Integer;
+  i,j,k,l : Integer;
   account : TAccount;
   ansistr : AnsiString;
   nsaarr : TNodeServerAddressArray;
@@ -720,12 +898,9 @@ begin
   end else if (method='getwalletaccounts') then begin
     // Returns JSON array with accounts in Wallet
     jsonarr := jsonresponse.GetAsArray('result');
-    if (params.IndexOfName('enc_pubkey')>=0) then begin
-      r := TCrypto.HexaToRaw(params.AsString('enc_pubkey',''));
-      opr.newKey := TAccountComp.RawString2Accountkey(r);
-      if Not TAccountComp.IsValidAccountKey(opr.newKey,ansistr) then begin
+    if (params.IndexOfName('enc_pubkey')>=0) Or (params.IndexOfName('b58_pubkey')>=0) then begin
+      if Not (CapturePubKey('',opr.newKey,ErrorDesc)) then begin
         ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
-        ErrorDesc := 'Invalid public key in param enc_pubkey: '+ansistr;
         exit;
       end;
       i := _RPCServer.WalletKeys.AccountsKeyList.IndexOfAccountKey(opr.newKey);
@@ -735,30 +910,40 @@ begin
         exit;
       end;
       ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
+      k := params.AsInteger('max',100);
+      l := params.AsInteger('start',0);
       for j := 0 to ocl.Count - 1 do begin
-        account := TNode.Node.Operations.SafeBoxTransaction.Account(ocl.Get(j));
-        FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
-      end;
-      Result := true;
-    end else begin
-      for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
-        ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
-        for j := 0 to ocl.Count - 1 do begin
+        if (j>=l) then begin
           account := TNode.Node.Operations.SafeBoxTransaction.Account(ocl.Get(j));
           FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
         end;
+        if (k>0) And ((j+1)>=(k+l)) then break;
+      end;
+      Result := true;
+    end else begin
+      k := params.AsInteger('max',100);
+      l := params.AsInteger('start',0);
+      c := 0;
+      for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
+        ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
+        for j := 0 to ocl.Count - 1 do begin
+          if (c>=l) then begin
+            account := TNode.Node.Operations.SafeBoxTransaction.Account(ocl.Get(j));
+            FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
+          end;
+          inc(c);
+          if (k>0) And (c>=(k+l)) then break;
+        end;
+        if (k>0) And (c>=(k+l)) then break;
       end;
       Result := true;
     end;
   end else if (method='getwalletaccountscount') then begin
     // New Build 1.1.1
     // Returns a number with count value
-    if (params.IndexOfName('enc_pubkey')>=0) then begin
-      r := TCrypto.HexaToRaw(params.AsString('enc_pubkey',''));
-      opr.newKey := TAccountComp.RawString2Accountkey(r);
-      if Not TAccountComp.IsValidAccountKey(opr.newKey,ansistr) then begin
+    if (params.IndexOfName('enc_pubkey')>=0) Or (params.IndexOfName('b58_pubkey')>=0) then begin
+      if Not (CapturePubKey('',opr.newKey,ErrorDesc)) then begin
         ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
-        ErrorDesc := 'Invalid public key in param enc_pubkey: '+ansistr;
         exit;
       end;
       i := _RPCServer.WalletKeys.AccountsKeyList.IndexOfAccountKey(opr.newKey);
@@ -771,6 +956,7 @@ begin
       jsonresponse.GetAsVariant('result').value := ocl.count;
       Result := true;
     end else begin
+      ErrorDesc := '';
       c :=0;
       for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
         ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
@@ -780,12 +966,9 @@ begin
       Result := true;
     end;
   end else if (method='getwalletcoins') then begin
-    if (params.IndexOfName('enc_pubkey')>=0) then begin
-      r := TCrypto.HexaToRaw(params.AsString('enc_pubkey',''));
-      opr.newKey := TAccountComp.RawString2Accountkey(r);
-      if Not TAccountComp.IsValidAccountKey(opr.newKey,ansistr) then begin
+    if (params.IndexOfName('enc_pubkey')>=0) Or (params.IndexOfName('b58_pubkey')>=0) then begin
+      if Not (CapturePubKey('',opr.newKey,ErrorDesc)) then begin
         ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
-        ErrorDesc := 'Invalid public key in param enc_pubkey: '+ansistr;
         exit;
       end;
       i := _RPCServer.WalletKeys.AccountsKeyList.IndexOfAccountKey(opr.newKey);
@@ -802,6 +985,7 @@ begin
       jsonresponse.GetAsVariant('result').value := ToJSONCurrency(account.balance);
       Result := true;
     end else begin
+      ErrorDesc := '';
       c :=0;
       account.balance := 0;
       for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
@@ -815,12 +999,31 @@ begin
     end;
   end else if (method='getwalletpubkeys') then begin
     // Returns JSON array with pubkeys in wallet
+    k := params.AsInteger('max',100);
+    j := params.AsInteger('start',0);
     jsonarr := jsonresponse.GetAsArray('result');
     for i:=0 to _RPCServer.WalletKeys.Count-1 do begin
-      jsonarr.GetAsObject(i).GetAsVariant('name').Value := _RPCServer.WalletKeys.Key[i].Name;
-      jsonarr.GetAsObject(i).GetAsVariant('enc_pubkey').Value := TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(_RPCServer.WalletKeys.Key[i].AccountKey));
-      jsonarr.GetAsObject(i).GetAsVariant('can_use').Value := (_RPCServer.WalletKeys.Key[i].CryptedKey<>'');
+      if (i>=j) then begin
+        jso := jsonarr.GetAsObject(jsonarr.count);
+        jso.GetAsVariant('name').Value := _RPCServer.WalletKeys.Key[i].Name;
+        jso.GetAsVariant('can_use').Value := (_RPCServer.WalletKeys.Key[i].CryptedKey<>'');
+        FillPublicKeyObject(_RPCServer.WalletKeys.Key[i].AccountKey,jso);
+      end;
+      if (k>0) And ((i+1)>=(j+k)) then break;
     end;
+    Result := true;
+  end else if (method='getwalletpubkey') then begin
+    if Not (CapturePubKey('',opr.newKey,ErrorDesc)) then begin
+      ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
+      exit;
+    end;
+    i := _RPCServer.WalletKeys.AccountsKeyList.IndexOfAccountKey(opr.newKey);
+    if (i<0) then begin
+      ErrorNum := CT_RPC_ErrNum_NotFound;
+      ErrorDesc := 'Public key not found in wallet';
+      exit;
+    end;
+    FillPublicKeyObject(_RPCServer.WalletKeys.AccountsKeyList.AccountKey[i],GetResultObject);
     Result := true;
   end else if (method='getblock') then begin
     // Param "block" contains block number (0..getblockcount-1)
@@ -911,14 +1114,19 @@ begin
           ErrorDesc := 'Cannot load Block: '+IntToStr(c);
           Exit;
         end;
-        GetResultArray;
-        for i := pcops.Count - 1 downto 0 do begin
-          If TPCOperation.OperationToOperationResume(c,pcops.Operation[i],pcops.Operation[i].SenderAccount,opr) then begin
-            opr.NOpInsideBlock:=i;
-            opr.time:=pcops.OperationBlock.timestamp;
-            opr.Balance := -1; // Don't include!
-            FillOperationResumeToJSONObject(opr,GetResultArray.GetAsObject(pcops.Count - 1 - i));
+        jsonarr := GetResultArray;
+        k := params.AsInteger('max',100);
+        j := params.AsInteger('start',0);
+        for i := 0 to pcops.Count - 1 do begin
+          if (i>=j) then begin
+            If TPCOperation.OperationToOperationResume(c,pcops.Operation[i],pcops.Operation[i].SenderAccount,opr) then begin
+              opr.NOpInsideBlock:=i;
+              opr.time:=pcops.OperationBlock.timestamp;
+              opr.Balance := -1; // Don't include!
+              FillOperationResumeToJSONObject(opr,jsonarr.GetAsObject(jsonarr.Count));
+            end;
           end;
+          if (k>0) And ((i+1)>=(j+k)) then break;
         end;
         Result := True;
       finally
@@ -933,9 +1141,10 @@ begin
     // Returns all the operations affecting an account in "Operation resume format" as an array
     // Param "account" contains account number
     // Param "deep" (optional) contains max blocks deep to search (Default: 100)
+    // Param "start" and "max" contains starting index and max operations respectively
     c := params.GetAsVariant('account').AsCardinal(CT_MaxAccount);
     if ((c>=0) And (c<TNode.Node.Bank.AccountsCount)) then begin
-      Result := GetAccountOperations(c,GetResultArray,params.AsInteger('deep',100));
+      Result := GetAccountOperations(c,GetResultArray,params.AsInteger('deep',100),params.AsInteger('start',0),params.AsInteger('max',100));
     end else begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
       If (c=CT_MaxAccount) then ErrorDesc := 'Need account param'
@@ -1000,7 +1209,7 @@ begin
        TCrypto.HexaToRaw(params.AsString('payload','')),
        params.AsString('payload_method','dest'),params.AsString('pwd',''));
   end else if (method='changekey') then begin
-    // Change key of "account" to "new_enc_pubkey" (encoded public key format) with "fee"
+    // Change key of "account" to "new_enc_pubkey" or "new_b58_pubkey" (encoded public key format) with "fee"
     // If "payload" is present, it will be encoded using "payload_method"
     // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
     // Returns a JSON "Operation Resume format" object when successfull
@@ -1010,8 +1219,42 @@ begin
       ErrorDesc := 'Wallet is password protected. Unlock first';
       exit;
     end;
+    if params.IndexOfName('account')<0 then begin
+      ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+      ErrorDesc := 'Need "account" param';
+      exit;
+    end;
+    If Not CapturePubKey('new_',account.accountkey,ErrorDesc) then begin
+      ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
+      exit;
+    end;
     Result := ChangeAccountKey(params.AsCardinal('account',CT_MaxAccount),
-       TAccountComp.RawString2Accountkey(TCrypto.HexaToRaw(params.AsString('new_enc_pubkey',''))),
+       account.accountkey,
+       ToPascalCoins(params.AsDouble('fee',0)),
+       TCrypto.HexaToRaw(params.AsString('payload','')),
+       params.AsString('payload_method','dest'),params.AsString('pwd',''));
+  end else if (method='changekeys') then begin
+    // Allows a massive change key operation
+    // Change key of "accounts" to "new_enc_pubkey" or "new_b58_pubkey" (encoded public key format) with "fee"
+    // If "payload" is present, it will be encoded using "payload_method"
+    // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
+    // Returns a JSON object with result information
+    If Not _RPCServer.WalletKeys.IsValidPassword then begin
+      ErrorNum := CT_RPC_ErrNum_WalletPasswordProtected;
+      ErrorDesc := 'Wallet is password protected. Unlock first';
+      exit;
+    end;
+    if params.IndexOfName('accounts')<0 then begin
+      ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+      ErrorDesc := 'Need "accounts" param';
+      exit;
+    end;
+    If Not CapturePubKey('new_',account.accountkey,ErrorDesc) then begin
+      ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
+      exit;
+    end;
+    Result := ChangeAccountsKey(params.AsString('accounts',''),
+       account.accountkey,
        ToPascalCoins(params.AsDouble('fee',0)),
        TCrypto.HexaToRaw(params.AsString('payload','')),
        params.AsString('payload_method','dest'),params.AsString('pwd',''));
@@ -1084,18 +1327,16 @@ begin
     end;
   end else if (method='decodepubkey') then begin
     // Returns "ec_nid", "x" and "y" of an encoded public key (x and y in hexadecimal)
-    // Param "enc_pubkey" is an hexadecimal encoded address (see 'encodepubkey')
-    if (params.AsString('enc_pubkey','')='') then begin
-      ErrorDesc:= 'Need param "enc_pubkey"';
-      ErrorNum:= CT_RPC_ErrNum_InvalidPubKey;
+    // Must provide:
+    // - Param "enc_pubkey" is an hexadecimal encoded public key (see 'encodepubkey')
+    // or
+    // - Param "b58_pubkey" is a Base58 encoded public key
+    If Not CapturePubKey('',account.accountkey,ErrorDesc) then begin
+      ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
       exit;
     end;
-    account.accountkey := CT_Account_NUL.accountkey;
-    account.accountkey := TAccountComp.RawString2Accountkey(TCrypto.HexaToRaw(params.AsString('enc_pubkey','')));
     if (TAccountComp.IsValidAccountKey(account.accountkey,ansistr)) then begin
-      GetResultObject.GetAsVariant('ec_nid').Value := account.accountkey.EC_OpenSSL_NID;
-      GetResultObject.GetAsVariant('x').Value := TCrypto.ToHexaString(account.accountkey.x);
-      GetResultObject.GetAsVariant('y').Value := TCrypto.ToHexaString(account.accountkey.y);
+      FillPublicKeyObject(account.accountkey,GetResultObject);
       Result := True;
     end else begin
       ErrorDesc:= ansistr;
@@ -1103,7 +1344,7 @@ begin
     end;
   end else if (method='payloadencrypt') then begin
     // Encrypts a "payload" using "payload_method"
-    // "payload_method" types: "none","pubkey"(must provide "enc_pubkey"),"aes"(must provide "pwd" param)
+    // "payload_method" types: "none","pubkey"(must provide "enc_pubkey" or "b58_pubkey"),"aes"(must provide "pwd" param)
     // If payload is "pubkey"
     // Returns an hexa string with encrypted payload
     if (params.AsString('payload','')='') then begin
@@ -1111,8 +1352,15 @@ begin
       ErrorDesc := 'Need param "payload"';
       exit;
     end;
+    opr.newKey := CT_TWalletKey_NUL.AccountKey;
+    if (params.IndexOfName('enc_pubkey')>=0) Or (params.IndexOfName('b58_pubkey')>=0) then begin
+      if Not (CapturePubKey('',opr.newKey,ErrorDesc)) then begin
+        ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
+        exit;
+      end;
+    end;
     Result := DoEncrypt(TCrypto.HexaToRaw(params.AsString('payload','')),
-       TAccountComp.RawString2Accountkey(TCrypto.HexaToRaw(params.AsString('enc_pubkey',''))),
+       opr.newKey,
        params.AsString('payload_method',''),params.AsString('pwd',''));
   end else if (method='payloaddecrypt') then begin
     // Decrypts a "payload" searching for wallet private keys and for array of strings in "pwds" param
@@ -1133,7 +1381,7 @@ begin
     GetConnections;
     Result := true;
   end else if (method='addnewkey') then begin
-    // Creates a new private key and stores it on the wallet, returning encoded value
+    // Creates a new private key and stores it on the wallet, returning Public key JSON object
     // Param "ec_nid" can be 714=secp256k1 715=secp384r1 729=secp283k1 716=secp521r1. (Default = CT_Default_EC_OpenSSL_NID)
     // Param "name" is name for this address
     If Not _RPCServer.WalletKeys.IsValidPassword then begin
@@ -1145,15 +1393,18 @@ begin
     try
       ecpkey.GenerateRandomPrivateKey(params.AsInteger('ec_nid',CT_Default_EC_OpenSSL_NID));
       _RPCServer.FWalletKeys.AddPrivateKey(params.AsString('name',DateTimeToStr(now)),ecpkey);
-      jsonresponse.GetAsVariant('result').Value:=TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(ecpkey.PublicKey));
+      FillPublicKeyObject(ecpkey.PublicKey,GetResultObject);
       Result := true;
     finally
       ecpkey.Free;
     end;
+  end else if (method='lock') then begin
+    jsonresponse.GetAsVariant('result').Value := _RPCServer.WalletKeys.LockWallet;
+    Result := true;
   end else if (method='unlock') then begin
     // Unlocks the Wallet with "pwd" password
     // Returns Boolean if wallet is unlocked
-    if (params.AsString('pwd','')='') then begin
+    if (params.IndexOfName('pwd')<0) then begin
       ErrorNum:= CT_RPC_ErrNum_InvalidData;
       ErrorDesc := 'Need param "pwd"';
       exit;

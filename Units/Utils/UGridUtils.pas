@@ -82,6 +82,7 @@ Type
     FPendingOperations: Boolean;
     FBlockStart: Int64;
     FBlockEnd: Int64;
+    FMustShowAlwaysAnAccount: Boolean;
     Procedure OnNodeNewOperation(Sender : TObject);
     Procedure OnNodeNewAccount(Sender : TObject);
     Procedure InitGrid;
@@ -93,7 +94,8 @@ Type
     procedure SetPendingOperations(const Value: Boolean);
 
     procedure SetBlockEnd(const Value: Int64);
-    procedure SetBlockStart(const Value: Int64);protected
+    procedure SetBlockStart(const Value: Int64);
+    procedure SetMustShowAlwaysAnAccount(const Value: Boolean);
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); Override;
   public
@@ -102,6 +104,7 @@ Type
     Property DrawGrid : TDrawGrid read FDrawGrid write SetDrawGrid;
     Property PendingOperations : Boolean read FPendingOperations write SetPendingOperations;
     Property AccountNumber : Int64 read FAccountNumber write SetAccountNumber;
+    Property MustShowAlwaysAnAccount : Boolean read FMustShowAlwaysAnAccount write SetMustShowAlwaysAnAccount;
     Property Node : TNode read GetNode write SetNode;
     Procedure UpdateAccountOperations; virtual;
     Procedure ShowModalDecoder(WalletKeys: TWalletKeys; AppParams : TAppParams);
@@ -532,6 +535,7 @@ constructor TOperationsGrid.Create(AOwner: TComponent);
 begin
   FAccountNumber := 0;
   FDrawGrid := Nil;
+  MustShowAlwaysAnAccount := false;
   FOperationsResume := TOperationsResumeList.Create;
   FNodeNotifyEvents := TNodeNotifyEvents.Create(Self);
   FNodeNotifyEvents.OnBlocksChanged := OnNodeNewAccount;
@@ -745,6 +749,13 @@ begin
   end;
 end;
 
+procedure TOperationsGrid.SetMustShowAlwaysAnAccount(const Value: Boolean);
+begin
+  if FMustShowAlwaysAnAccount=Value then exit;
+  FMustShowAlwaysAnAccount := Value;
+  UpdateAccountOperations;
+end;
+
 procedure TOperationsGrid.SetNode(const Value: TNode);
 begin
   if GetNode=Value then exit;
@@ -787,6 +798,8 @@ begin
   FOperationsResume.Clear;
   Try
     if Not Assigned(Node) then exit;
+    if (MustShowAlwaysAnAccount) And (AccountNumber<0) then exit;
+
     if FPendingOperations then begin
       for i := Node.Operations.Count - 1 downto 0 do begin
         Op := Node.Operations.OperationsHashTree.GetOperation(i);
@@ -858,7 +871,7 @@ begin
         Finally
           list.Free;
         End;
-        Node.GetStoredOperationsFromAccount(FOperationsResume,AccountNumber,100);
+        Node.GetStoredOperationsFromAccount(FOperationsResume,AccountNumber,100,5000);
       end;
     end;
   Finally

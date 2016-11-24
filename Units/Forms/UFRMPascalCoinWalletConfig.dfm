@@ -4,7 +4,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
   Caption = 'Options'
-  ClientHeight = 460
+  ClientHeight = 476
   ClientWidth = 374
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -86,7 +86,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Width = 56
     Height = 21
     Alignment = taRightJustify
-    TabOrder = 7
+    TabOrder = 8
     Text = '0'
   end
   object cbSaveLogFiles: TCheckBox
@@ -95,7 +95,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Width = 97
     Height = 17
     Caption = 'Save log file'
-    TabOrder = 8
+    TabOrder = 9
     OnClick = cbSaveLogFilesClick
   end
   object cbShowLogs: TCheckBox
@@ -104,28 +104,28 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Width = 97
     Height = 17
     Caption = 'Show logs'
-    TabOrder = 10
+    TabOrder = 11
   end
   object bbOk: TBitBtn
-    Left = 171
-    Top = 410
+    Left = 176
+    Top = 420
     Width = 75
     Height = 25
     DoubleBuffered = True
     Kind = bkOK
     ParentDoubleBuffered = False
-    TabOrder = 11
+    TabOrder = 14
     OnClick = bbOkClick
   end
   object bbCancel: TBitBtn
-    Left = 261
-    Top = 410
+    Left = 266
+    Top = 420
     Width = 75
     Height = 25
     DoubleBuffered = True
     Kind = bkCancel
     ParentDoubleBuffered = False
-    TabOrder = 12
+    TabOrder = 15
   end
   object udInternetServerPort: TUpDown
     Left = 226
@@ -232,7 +232,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Width = 171
     Height = 17
     Caption = 'Show modal messages'
-    TabOrder = 13
+    TabOrder = 12
   end
   object udJSONRPCMinerServerPort: TUpDown
     Left = 226
@@ -261,7 +261,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Width = 334
     Height = 121
     Caption = ' Miner Server Private Key: '
-    TabOrder = 14
+    TabOrder = 7
     object rbGenerateANewPrivateKeyEachBlock: TRadioButton
       Left = 20
       Top = 20
@@ -301,6 +301,44 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Width = 97
     Height = 17
     Caption = 'Save debug logs too'
-    TabOrder = 9
+    TabOrder = 10
+  end
+  object bbOpenDataFolder: TBitBtn
+    Left = 15
+    Top = 420
+    Width = 120
+    Height = 25
+    Caption = 'Open Data folder'
+    DoubleBuffered = True
+    Glyph.Data = {
+      36030000424D3603000000000000360000002800000010000000100000000100
+      18000000000000030000120B0000120B00000000000000000000FF00FF078DBE
+      078DBE078DBE078DBE078DBE078DBE078DBE078DBE078DBE078DBE078DBE078D
+      BEFF00FFFF00FFFF00FF078DBE25A1D171C6E884D7FA66CDF965CDF965CDF965
+      CDF965CDF865CDF965CDF866CEF93AADD81999C9FF00FFFF00FF078DBE4CBCE7
+      39A8D1A0E2FB6FD4FA6FD4F96ED4FA6FD4F96FD4FA6FD4FA6FD4FA6ED4F93EB1
+      D9C9F0F3078DBEFF00FF078DBE72D6FA078DBEAEE9FC79DCFB79DCFB79DCFB79
+      DCFB79DCFB7ADCFB79DCFA79DCFA44B5D9C9F0F3078DBEFF00FF078DBE79DDFB
+      1899C79ADFF392E7FC84E4FB83E4FC83E4FC84E4FC83E4FC83E4FB84E5FC48B9
+      DAC9F0F31496C4FF00FF078DBE82E3FC43B7DC65C2E0ABF0FC8DEBFC8DEBFC8D
+      EBFD8DEBFD8DEBFC8DEBFD8DEBFC4CBBDAC9F0F3C9F0F3078DBE078DBE8AEAFC
+      77DCF3219CC7FEFFFFC8F7FDC9F7FDC9F7FDC9F7FEC8F7FEC9F7FDC8F7FE9BD5
+      E6EAFEFED2F3F8078DBE078DBE93F0FE93F0FD1697C5078DBE078DBE078DBE07
+      8DBE078DBE078DBE078DBE078DBE078DBE078DBE078DBE078DBE078DBE9BF5FE
+      9AF6FE9AF6FE9BF5FD9BF6FE9AF6FE9BF5FE9AF6FD9BF5FE9AF6FE9AF6FE0989
+      BAFF00FFFF00FFFF00FF078DBEFEFEFEA0FBFFA0FBFEA0FBFEA1FAFEA1FBFEA0
+      FAFEA1FBFEA1FBFFA0FBFFA1FBFF0989BAFF00FFFF00FFFF00FFFF00FF078DBE
+      FEFEFEA5FEFFA5FEFFA5FEFF078DBE078DBE078DBE078DBE078DBE078DBEFF00
+      FFFF00FFFF00FFFF00FFFF00FFFF00FF078DBE078DBE078DBE078DBEFF00FFFF
+      00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+      FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+      FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+      00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+      FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+      FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+      00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF}
+    ParentDoubleBuffered = False
+    TabOrder = 13
+    OnClick = bbOpenDataFolderClick
   end
 end

@@ -191,9 +191,11 @@ constructor TPCDaemonMapper.Create(AOwner: TComponent);
 Var D : TDaemonDef;
 begin
   inherited Create(AOwner);
-  FLog := TLog.Create(Nil);
-  FLog.SaveTypes:=CT_TLogTypes_ALL;
-  FLog.FileName:=TFolderHelper.GetPascalCoinDataFolder+PathDelim+'pascalcoin_'+FormatDateTime('yyyymmddhhnn',Now)+'.log';
+  if (Application.HasOption('l','log')) then begin
+    FLog := TLog.Create(Nil);
+    FLog.SaveTypes:=CT_TLogTypes_ALL;
+    FLog.FileName:=TFolderHelper.GetPascalCoinDataFolder+PathDelim+'pascalcoin_'+FormatDateTime('yyyymmddhhnn',Now)+'.log';
+  end;
   D:=DaemonDefs.Add as TDaemonDef;
   D.DisplayName:='Pascal Coin Daemon';
   D.Name:='PascalCoinDaemon';
@@ -203,8 +205,10 @@ end;
 
 destructor TPCDaemonMapper.Destroy;
 begin
-  FLog.OnInThreadNewLog:=Nil;
-  FreeAndNil(FLog);
+  If Assigned(FLog) then begin
+    FLog.OnInThreadNewLog:=Nil;
+    FreeAndNil(FLog);
+  end;
   inherited Destroy;
 end;
 

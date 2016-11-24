@@ -69,7 +69,7 @@ Type
 
 implementation
 
-Uses ULog, SysUtils, UThread;
+Uses ULog, SysUtils, UThread, UConst;
 
 { TFileStorage }
 
@@ -255,6 +255,7 @@ var
     folder : AnsiString;
     filename,auxfn : AnsiString;
     fs : TFileStream;
+    ms : TMemoryStream;
     errors : AnsiString;
     blockscount, c : Cardinal;
 begin
@@ -281,9 +282,17 @@ begin
     if (filename<>'') then begin
       fs := TFileStream.Create(filename,fmOpenRead);
       try
-        if not Bank.LoadBankFromStream(fs,errors) then begin
-          TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+filename+ ' Error: '+errors);
-        end;
+        ms := TMemoryStream.Create;
+        Try
+          ms.CopyFrom(fs,0);
+          fs.Position := 0;
+          ms.Position := 0;
+          if not Bank.LoadBankFromStream(ms,errors) then begin
+            TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+filename+ ' Error: '+errors);
+          end;
+        Finally
+          ms.Free;
+        End;
       finally
         fs.Free;
       end;
@@ -296,6 +305,7 @@ end;
 function TFileStorage.DoSaveBank: Boolean;
 var fs: TFileStream;
     bankfilename: AnsiString;
+    ms : TMemoryStream;
 begin
   Result := true;
   bankfilename := GetBankFileName(GetFolder(Orphan),Bank.BlocksCount);
@@ -303,7 +313,15 @@ begin
     fs := TFileStream.Create(bankfilename,fmCreate);
     try
       fs.Size := 0;
-      Bank.SaveBankToStream(fs);
+      ms := TMemoryStream.Create;
+      try
+        Bank.SaveBankToStream(ms);
+        ms.Position := 0;
+        fs.Position := 0;
+        fs.CopyFrom(ms,0);
+      finally
+        ms.Free;
+      end;
     finally
       fs.Free;
     end;
@@ -341,7 +359,7 @@ begin
   Result := '';
   If not ForceDirectories(BaseDataFolder) then exit;
   // We will store last 5 banks
-  Result := BaseDataFolder + PathDelim+'bank'+ inttostr(block MOD 5)+'.bank';
+  Result := BaseDataFolder + PathDelim+'bank'+ inttostr((block DIV CT_BankToDiskEveryNBlocks) MOD 5)+'.bank';
 end;
 
 function TFileStorage.GetBlockHeaderFirstBytePosition(Stream : TStream; Block: Cardinal; var StreamBlockHeaderStartPos: Int64; var BlockHeaderFirstBlock: Cardinal): Boolean;
@@ -579,7 +597,7 @@ begin
   if (BlockHeaderFirstBlock>Block) then raise Exception.Create('Dev error 20160917-1');
   if (BlockHeaderFirstBlock+CT_GroupBlockSize)<Block then raise Exception.Create('Dev error 20160917-2');
   if Stream.Size< (StreamBlockHeaderStartPos + (GetBlockHeaderFixedSize)) then begin
-    TLog.NewLog(ltError,Classname,'Invalid stream size');
+    // Not log... it's normal when finding block   TLog.NewLog(ltError,Classname,Format('Invalid stream size %d < (%d + %d) Reading block %d',[Stream.Size,StreamBlockHeaderStartPos,GetBlockHeaderFixedSize,Block]));
     exit;
   end;
   Stream.Position := StreamBlockHeaderStartPos + (CT_SizeOfBlockHeader*(Block-BlockHeaderFirstBlock));

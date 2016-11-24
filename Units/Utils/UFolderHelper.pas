@@ -91,8 +91,6 @@ var
   FolderPath: array[0 .. MAX_PATH] of Char;
 begin
   Result := '';
-  //SetLastError(ERROR_SUCCESS);
-
   if SHGetFolderPath(0, aCSIDL, 0, 0, @FolderPath) = S_OK then
     Result := FolderPath;
 end;

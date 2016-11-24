@@ -63,6 +63,7 @@ Type
     Property WalletFileName : AnsiString read FWalletFileName write SetWalletFileName;
     Property OnChanged : TNotifyEvent read FOnChanged write FOnChanged;
     Procedure SetName(index : Integer; Const newName : AnsiString);
+    Function LockWallet : Boolean;
   End;
 
   TWalletKeysExt = Class(TWalletKeys)
@@ -301,6 +302,15 @@ begin
   if Assigned(FOnChanged) then FOnChanged(Self);
 end;
 
+function TWalletKeys.LockWallet: Boolean;
+begin
+  // Return true when wallet has a password, locking it. False if there password is empty string
+  FWalletPassword := '';
+  GeneratePrivateKeysFromPassword;
+  Result := Not IsValidPassword;
+  if Assigned(FOnChanged) then FOnChanged(Self);
+end;
+
 procedure TWalletKeys.SaveToStream(Stream: TStream);
 var i : Integer;
   P : PWalletKey;
@@ -368,6 +378,7 @@ begin
   // Try if password is Ok
   GeneratePrivateKeysFromPassword;
   if FIsValidPassword then SaveToStream(FWalletFileStream);
+  if Assigned(FOnChanged) then FOnChanged(Self);
 end;
 
 { TWalletKeysExt }

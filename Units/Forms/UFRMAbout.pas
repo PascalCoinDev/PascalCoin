@@ -96,7 +96,7 @@ end;
 procedure TFRMAbout.OpenURL(Url: String);
 begin
   {$IFDEF FPC}
-   OpenDocument(pchar(URL)) { *Convertido desde ShellExecute* }
+  OpenDocument(pchar(URL))
   {$ELSE}
   shellexecute(0, 'open', pchar(URL), nil, nil, SW_SHOW)
   {$ENDIF}

@@ -620,7 +620,7 @@ begin
           Clear;
         end;
       end;
-      NewLog(Nil, ltinfo,'Start restoring from disk operations (Max '+inttostr(max_block)+') Orphan: ' +Storage.Orphan);
+      NewLog(Nil, ltinfo,'Start restoring from disk operations (Max '+inttostr(max_block)+') BlockCount: '+inttostr(BlocksCount)+' Orphan: ' +Storage.Orphan);
       Operations := TPCOperationsComp.Create(Self);
       try
         while ((BlocksCount<=max_block)) do begin
@@ -803,6 +803,16 @@ begin
         FLastOperationBlock := op.OperationBlock;
       finally
         op.Free;
+      end;
+      if (SafeBox.PreviousBlockSafeBoxHash<>'') then begin
+        if FLastOperationBlock.initial_safe_box_hash<>SafeBox.PreviousBlockSafeBoxHash then begin
+          errors := 'SafeBox Previous block safeboxhash <> operation safeboxhash. Invalid bank!';
+          TLog.NewLog(lterror,ClassName,'Previous SafeBoxHash <> Last operation block safebox hash on block '+
+            IntToStr(BlocksCount-1)+' '+TCrypto.ToHexaString(SafeBox.PreviousBlockSafeBoxHash)+'<>'+TCrypto.ToHexaString(FLastOperationBlock.initial_safe_box_hash));
+          Result := false;
+          Clear;
+          exit;
+        end;
       end;
       FInitialSafeBoxHash := SafeBox.CalcSafeBoxHash;
       if (BlocksCount>0) then FActualTargetHash := TargetFromCompact( FLastOperationBlock.compact_target );
@@ -1782,8 +1792,6 @@ begin
   l := FHashTreeOperations.LockList;
   try
     InternalAddOperationToHashTree(l,op);
-    inc(FTotalAmount,op.OperationAmount);
-    inc(FTotalFee,op.OperationFee);
   finally
     FHashTreeOperations.UnlockList;
   end;
@@ -1822,15 +1830,18 @@ begin
   end;
   ClearHastThree;
   lme := FHashTreeOperations.LockList;
-  lsender := Sender.FHashTreeOperations.LockList;
   try
-    for i := 0 to lsender.Count - 1 do begin
-      opsender := lsender[i];
-      InternalAddOperationToHashTree(lme,opsender);
+    lsender := Sender.FHashTreeOperations.LockList;
+    try
+      for i := 0 to lsender.Count - 1 do begin
+        opsender := lsender[i];
+        InternalAddOperationToHashTree(lme,opsender);
+      end;
+    finally
+      Sender.FHashTreeOperations.UnlockList;
     end;
   finally
     FHashTreeOperations.UnlockList;
-    Sender.FHashTreeOperations.UnlockList;
   end;
 end;
 
@@ -1892,20 +1903,22 @@ Var ms : TMemoryStream;
 begin
   ms := TMemoryStream.Create;
   try
-      newOp := TPCOperation( op.NewInstance );
-      op.SaveToStream(ms);
-      ms.Position := 0;
-      newOp.LoadFromStream(ms);
-      newOp.FPrevious_Sender_updated_block := op.Previous_Sender_updated_block;
-      newOp.FPrevious_Destination_updated_block := op.FPrevious_Destination_updated_block;
-      h := TCrypto.DoSha256(ms.Memory,ms.Size);
-      newOp.tag := list.Count;
-      list.Add(newOp);
+    newOp := TPCOperation( op.NewInstance );
+    op.SaveToStream(ms);
+    ms.Position := 0;
+    newOp.LoadFromStream(ms);
+    newOp.FPrevious_Sender_updated_block := op.Previous_Sender_updated_block;
+    newOp.FPrevious_Destination_updated_block := op.FPrevious_Destination_updated_block;
+    h := TCrypto.DoSha256(ms.Memory,ms.Size);
+    newOp.tag := list.Count;
+    list.Add(newOp);
   finally
-      ms.Free;
+    ms.Free;
   end;
   // Include to hash tree
   FHashTree := TCrypto.DoSha256(FHashTree+h);
+  inc(FTotalAmount,op.OperationAmount);
+  inc(FTotalFee,op.OperationFee);
 end;
 
 function TOperationsHashTree.OperationsCount: Integer;

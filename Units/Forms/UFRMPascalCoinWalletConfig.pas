@@ -22,6 +22,7 @@ interface
 uses
 {$IFnDEF FPC}
   Windows,
+  ShellApi,
 {$ELSE}
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
@@ -29,6 +30,9 @@ uses
   Dialogs, StdCtrls, Buttons, ComCtrls, UAppParams, UWalletKeys;
 
 type
+
+  { TFRMPascalCoinWalletConfig }
+
   TFRMPascalCoinWalletConfig = class(TForm)
     cbJSONRPCMinerServerActive: TCheckBox;
     ebDefaultFee: TEdit;
@@ -56,10 +60,12 @@ type
     rbMineAllwaysWithThisKey: TRadioButton;
     cbPrivateKeyToMine: TComboBox;
     cbSaveDebugLogs: TCheckBox;
+    bbOpenDataFolder: TBitBtn;
     procedure FormCreate(Sender: TObject);
     procedure bbOkClick(Sender: TObject);
     procedure bbUpdatePasswordClick(Sender: TObject);
     procedure cbSaveLogFilesClick(Sender: TObject);
+    procedure bbOpenDataFolderClick(Sender: TObject);
   private
     FAppParams: TAppParams;
     FWalletKeys: TWalletKeys;
@@ -75,7 +81,7 @@ type
 
 implementation
 
-uses UConst, UAccounts, ULog, UCrypto, UMiner;
+uses UConst, UAccounts, ULog, UCrypto, UMiner, UFolderHelper;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -116,6 +122,15 @@ begin
   AppParams.ParamByName[CT_PARAM_ShowModalMessages].SetAsBoolean(cbShowModalMessages.Checked);
   AppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].SetAsInteger(udJSONRPCMinerServerPort.Position);
   ModalResult := MrOk;
+end;
+
+procedure TFRMPascalCoinWalletConfig.bbOpenDataFolderClick(Sender: TObject);
+begin
+  {$IFDEF FPC}
+  OpenDocument(pchar(TFolderHelper.GetPascalCoinDataFolder))
+  {$ELSE}
+  shellexecute(0, 'open', pchar(TFolderHelper.GetPascalCoinDataFolder), nil, nil, SW_SHOW)
+  {$ENDIF}
 end;
 
 procedure TFRMPascalCoinWalletConfig.bbUpdatePasswordClick(Sender: TObject);

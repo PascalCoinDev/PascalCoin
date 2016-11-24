@@ -29,6 +29,9 @@ uses
   Dialogs, StdCtrls, UNode, UWalletKeys, UCrypto, Buttons, UBlockChain,
   UAccounts, ActnList, ComCtrls, Types;
 
+Const
+  CM_PC_WalletKeysChanged = WM_USER + 1;
+
 type
 
   { TFRMOperation }
@@ -107,13 +110,17 @@ type
     FTxAmount : Int64;
     FNewAccountPublicKey : TAccountKey;
     FSenderAccounts: TOrderedCardinalList;
+    FOldOnChanged : TNotifyEvent;
     procedure SetWalletKeys(const Value: TWalletKeys);
+    Procedure UpdateWalletKeys;
     { Private declarations }
     Procedure UpdateAccountsInfo;
     Function UpdateOperationOptions(var errors : AnsiString) : Boolean;
     Function UpdatePayload(Const SenderAccount : TAccount; var errors : AnsiString) : Boolean;
     procedure SetFee(const Value: Int64);
     Procedure OnSenderAccountsChanged(Sender : TObject);
+    procedure OnWalletKeysChanged(Sender : TObject);
+    procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
   public
     { Public declarations }
     Property SenderAccounts : TOrderedCardinalList read FSenderAccounts;
@@ -288,6 +295,11 @@ begin
   end;
 end;
 
+procedure TFRMOperation.CM_WalletChanged(var Msg: TMessage);
+begin
+   UpdateWalletKeys;
+end;
+
 procedure TFRMOperation.ebDestAccountChange(Sender: TObject);
 begin
   if FDisabled then exit;
@@ -370,6 +382,7 @@ end;
 
 procedure TFRMOperation.FormCreate(Sender: TObject);
 begin
+  FWalletKeys := Nil;
   FSenderAccounts := TOrderedCardinalList.Create;
   FSenderAccounts.OnListChanged := OnSenderAccountsChanged;
   FDisabled := true;
@@ -420,6 +433,7 @@ end;
 
 procedure TFRMOperation.FormDestroy(Sender: TObject);
 begin
+  if Assigned(FWalletKeys) then FWalletKeys.OnChanged := FOldOnChanged;
   FreeAndNil(FSenderAccounts);
 end;
 
@@ -447,6 +461,12 @@ begin
   UpdateOperationOptions(errors);
 end;
 
+procedure TFRMOperation.OnWalletKeysChanged(Sender: TObject);
+begin
+  PostMessage(Self.Handle,CM_PC_WalletKeysChanged,0,0);
+  if Assigned(FOldOnChanged) then FOldOnChanged(Sender);
+end;
+
 procedure TFRMOperation.rbTransactionClick(Sender: TObject);
 Var errors : AnsiString;
 begin
@@ -468,30 +488,15 @@ begin
 end;
 
 procedure TFRMOperation.SetWalletKeys(const Value: TWalletKeys);
-Var i : Integer;
-  wk : TWalletKey;
-  s : String;
 begin
+  if FWalletKeys=Value then exit;
+  if Assigned(FWalletKeys) then FWalletKeys.OnChanged := FOldOnChanged;
   FWalletKeys := Value;
-  cbNewPrivateKey.items.BeginUpdate;
-  Try
-    cbNewPrivateKey.Items.Clear;
-    //cbNewPrivateKey.Items.AddObject('Generate a new Private Key',TObject(-1));
-    For i:=0 to FWalletKeys.Count-1 do begin
-      wk := FWalletKeys.Key[i];
-      if (wk.Name='') then begin
-        s := TCrypto.ToHexaString( TAccountComp.AccountKey2RawString(wk.AccountKey));
-      end else begin
-        s := wk.Name;
-      end;
-      if Not Assigned(wk.PrivateKey) then s := s + '(*)';
-      cbNewPrivateKey.Items.AddObject(s,TObject(i));
-    end;
-  Finally
-    cbNewPrivateKey.Items.EndUpdate;
-  End;
-  rbTransactionClick(Nil);
-  memoPayloadClick(Nil);
+  if Assigned(FWalletKeys) then begin
+    FOldOnChanged := FWalletKeys.OnChanged;
+    FWalletKeys.OnChanged := OnWalletKeysChanged;
+  end;
+  UpdateWalletKeys;
 end;
 
 procedure TFRMOperation.UpdateAccountsInfo;
@@ -598,7 +603,9 @@ begin
         tsGlobalError.tabvisible := {$IFDEF LINUX}true{$ELSE}false{$ENDIF};
         tsOperation.TabVisible := false;
         PageControl.ActivePage := tsGlobalError;
-        ActiveControl := bbPassword;
+        if bbPassword.CanFocus then begin
+          ActiveControl := bbPassword;
+        end;
       end else begin
         tsOperation.visible := true;
         tsOperation.tabvisible := {$IFDEF LINUX}true{$ELSE}false{$ENDIF};
@@ -803,6 +810,32 @@ begin
     FEncodedPayload := payload_encrypted;
     Result := valid;
   end;
+end;
+
+procedure TFRMOperation.UpdateWalletKeys;
+Var i : Integer;
+  wk : TWalletKey;
+  s : String;
+begin
+  cbNewPrivateKey.items.BeginUpdate;
+  Try
+    cbNewPrivateKey.Items.Clear;
+    //cbNewPrivateKey.Items.AddObject('Generate a new Private Key',TObject(-1));
+    For i:=0 to FWalletKeys.Count-1 do begin
+      wk := FWalletKeys.Key[i];
+      if (wk.Name='') then begin
+        s := TCrypto.ToHexaString( TAccountComp.AccountKey2RawString(wk.AccountKey));
+      end else begin
+        s := wk.Name;
+      end;
+      if Not Assigned(wk.PrivateKey) then s := s + '(*)';
+      cbNewPrivateKey.Items.AddObject(s,TObject(i));
+    end;
+  Finally
+    cbNewPrivateKey.Items.EndUpdate;
+  End;
+  rbTransactionClick(Nil);
+  memoPayloadClick(Nil);
 end;
 
 end.

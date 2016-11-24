@@ -78,7 +78,7 @@ Type
     //
     Procedure NotifyBlocksChanged;
     //
-    procedure GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDeep : Integer);
+    procedure GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDeep, MaxOperations : Integer);
     Function FindOperation(Const OperationComp : TPCOperationsComp; Const OperationHash : TRawBytes; var block : Cardinal; var operation_block_index : Integer) : Boolean;
     //
     Procedure AutoDiscoverNodes(Const ips : AnsiString);
@@ -631,7 +631,7 @@ begin
   end;
 end;
 
-procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDeep: Integer);
+procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDeep, MaxOperations: Integer);
   Procedure DoGetFromBlock(block_number : Cardinal; last_balance : Int64; act_deep : Integer);
   var opc : TPCOperationsComp;
     op : TPCOperation;
@@ -683,7 +683,9 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
         //
         opc.Clear(true);
         if (next_block_number>=0) And (next_block_number<block_number) And (act_deep>0)
-           And (next_block_number >= (account_number DIV CT_AccountsPerBlock)) then DoGetFromBlock(next_block_number,last_balance,act_deep-1);
+           And (next_block_number >= (account_number DIV CT_AccountsPerBlock))
+           And ((OperationsResume.Count<MaxOperations) Or (MaxOperations<=0))
+           then DoGetFromBlock(next_block_number,last_balance,act_deep-1);
       finally
         l.Free;
       end;

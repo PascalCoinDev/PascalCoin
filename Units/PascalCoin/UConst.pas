@@ -80,7 +80,7 @@ Const
 
   CT_MaxClientsConnected = 100;
 
-  CT_BankToDiskEveryNBlocks = 1000;
+  CT_BankToDiskEveryNBlocks = 500; // Build 1.3.0 Changed from 1000 to 500
 
   CT_Default_EC_OpenSSL_NID = NID_secp256k1;
 
@@ -104,7 +104,7 @@ Const
   CT_Op_Changekey = $02;
   CT_Op_Recover = $03;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.2.0'{$ELSE}{$IFDEF TESTNET}'TESTNET'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.3.0'{$ELSE}{$IFDEF TESTNET}'TESTNET'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.ddns.net;pascalcoin2.ddns.net;pascalcoin1.dynamic-dns.net;pascalcoin1.dns1.us';
 

@@ -1634,7 +1634,8 @@ begin
       ms.Free;
     end;
     If ((FLastDataReceivedTS>0) Or ( NOT (Self is TNetServerClient)))
-       AND ((FLastDataReceivedTS+(1000*60)<GetTickCount) AND (FLastDataSendedTS+(1000*60)<GetTickCount)) then begin
+       AND ((FLastDataReceivedTS+(1000*120)<GetTickCount) AND (FLastDataSendedTS+(1000*120)<GetTickCount)) then begin
+       // Build 1.3 -> Changing wait time from 60 to 120 secs.
       DebugStep := 'LastSend time old';
       If TNetData.NetData.PendingRequest(Self,ops)>=2 then begin
         TLog.NewLog(ltDebug,Classname,'Pending requests without response... closing connection to '+ClientRemoteAddr+' > '+ops);
@@ -2801,61 +2802,62 @@ begin
       netserverclientstop := Nil;
       needother := true;
       FLastCheckTS := GetTickCount;
-      l := FNetData.FNetConnections.LockList;
-      try
-        ntotal := l.Count;
-        newstats := CT_TNetStatistics_NUL;
-        for i := l.Count-1 downto 0 do begin
-          netconn := TNetConnection(l.Items[i]);
-          if (netconn is TNetClient) then begin
-            if (netconn.Connected) then begin
-              inc(newstats.ServersConnections);
-              if (netconn.FHasReceivedData) then inc(newstats.ServersConnectionsWithResponse);
-            end;
-            if (Not TNetClient(netconn).Connected) And (netconn.CreatedTime+EncodeTime(0,0,5,0)<now) then begin
-              // Free this!
-              TNetClient(netconn).FinalizeConnection;
-              inc(ndeleted);
-            end else inc(nactive);
-          end else if (netconn is TNetServerClient) then begin
-            if (netconn.Connected) then begin
-              inc(newstats.ClientsConnections);
-            end;
-            inc(nserverclients);
-            if (Not netconn.FDoFinalizeConnection) then begin
-              // Build 1.0.9 BUG-101 Only disconnect old versions prior to 1.0.9
-              if not assigned(netserverclientstop) then begin
-                netserverclientstop := TNetServerClient(netconn);
-                aux := Copy(netconn.FClientAppVersion,1,5);
-                needother := Not ((aux='1.0.6') or (aux='1.0.7') or (aux='1.0.8'));
-              end else begin
-                aux := Copy(netconn.FClientAppVersion,1,5);
-                if ((aux='1.0.6') or (aux='1.0.7') or (aux='1.0.8'))
-                  And ((needother) Or (netconn.CreatedTime<netserverclientstop.CreatedTime)) then begin
-                  needother := false;
+      If (FNetData.FNetConnections.TryLockList(100,l)) then begin
+        try
+          ntotal := l.Count;
+          newstats := CT_TNetStatistics_NUL;
+          for i := l.Count-1 downto 0 do begin
+            netconn := TNetConnection(l.Items[i]);
+            if (netconn is TNetClient) then begin
+              if (netconn.Connected) then begin
+                inc(newstats.ServersConnections);
+                if (netconn.FHasReceivedData) then inc(newstats.ServersConnectionsWithResponse);
+              end;
+              if (Not TNetClient(netconn).Connected) And (netconn.CreatedTime+EncodeTime(0,0,5,0)<now) then begin
+                // Free this!
+                TNetClient(netconn).FinalizeConnection;
+                inc(ndeleted);
+              end else inc(nactive);
+            end else if (netconn is TNetServerClient) then begin
+              if (netconn.Connected) then begin
+                inc(newstats.ClientsConnections);
+              end;
+              inc(nserverclients);
+              if (Not netconn.FDoFinalizeConnection) then begin
+                // Build 1.0.9 BUG-101 Only disconnect old versions prior to 1.0.9
+                if not assigned(netserverclientstop) then begin
                   netserverclientstop := TNetServerClient(netconn);
+                  aux := Copy(netconn.FClientAppVersion,1,5);
+                  needother := Not ((aux='1.0.6') or (aux='1.0.7') or (aux='1.0.8'));
+                end else begin
+                  aux := Copy(netconn.FClientAppVersion,1,5);
+                  if ((aux='1.0.6') or (aux='1.0.7') or (aux='1.0.8'))
+                    And ((needother) Or (netconn.CreatedTime<netserverclientstop.CreatedTime)) then begin
+                    needother := false;
+                    netserverclientstop := TNetServerClient(netconn);
+                  end;
                 end;
               end;
             end;
           end;
+          // Update stats:
+          FNetData.FNetStatistics.ActiveConnections := newstats.ClientsConnections + newstats.ServersConnections;
+          FNetData.FNetStatistics.ClientsConnections := newstats.ClientsConnections;
+          FNetData.FNetStatistics.ServersConnections := newstats.ServersConnections;
+          FNetData.FNetStatistics.ServersConnectionsWithResponse := newstats.ServersConnectionsWithResponse;
+          // Must stop clients?
+          if (nserverclients>CT_MaxServersConnected) And // This is to ensure there are more serverclients than clients
+             ((nserverclients + nactive + ndeleted)>=CT_MaxClientsConnected) And (Assigned(netserverclientstop)) then begin
+            TLog.NewLog(ltinfo,Classname,Format('Sending FinalizeConnection NetServerClients:%d Servers_active:%d Servers_deleted:%d',[nserverclients,nactive,ndeleted]));
+            netserverclientstop.FinalizeConnection;
+          end;
+        finally
+          FNetData.FNetConnections.UnlockList;
         end;
-        // Update stats:
-        FNetData.FNetStatistics.ActiveConnections := newstats.ClientsConnections + newstats.ServersConnections;
-        FNetData.FNetStatistics.ClientsConnections := newstats.ClientsConnections;
-        FNetData.FNetStatistics.ServersConnections := newstats.ServersConnections;
-        FNetData.FNetStatistics.ServersConnectionsWithResponse := newstats.ServersConnectionsWithResponse;
-        // Must stop clients?
-        if (nserverclients>CT_MaxServersConnected) And // This is to ensure there are more serverclients than clients
-           ((nserverclients + nactive + ndeleted)>=CT_MaxClientsConnected) And (Assigned(netserverclientstop)) then begin
-          TLog.NewLog(ltinfo,Classname,Format('Sending FinalizeConnection NetServerClients:%d Servers_active:%d Servers_deleted:%d',[nserverclients,nactive,ndeleted]));
-          netserverclientstop.FinalizeConnection;
+        if (nactive<=CT_MaxServersConnected) And (Not Terminated) then begin
+          // Discover
+          FNetData.DiscoverServers;
         end;
-      finally
-        FNetData.FNetConnections.UnlockList;
-      end;
-      if (nactive<=CT_MaxServersConnected) And (Not Terminated) then begin
-        // Discover
-        FNetData.DiscoverServers;
       end;
     end;
     sleep(100);

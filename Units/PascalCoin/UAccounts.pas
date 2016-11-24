@@ -136,12 +136,12 @@ Type
   private
     FBlockAccountsList : TList;
     FListOfOrderedAccountKeysList : TList;
-    FBufferBlocksHash: AnsiString;
+    FBufferBlocksHash: TRawBytes;
     FTotalBalance: Int64;
     FTotalFee: Int64;
     FSafeBoxHash : TRawBytes;
     FLock: TCriticalSection; // Thread safe
-    FIsLocked : Boolean;
+    FPreviousBlockSafeBoxHash : TRawBytes;
     Procedure SetAccount(account_number : Cardinal; newAccountkey: TAccountKey; newBalance: UInt64; newN_operation: Cardinal);
     Procedure AccountKeyListAddAccounts(Const AccountKey : TAccountKey; accounts : Array of Cardinal);
     Procedure AccountKeyListRemoveAccount(Const AccountKey : TAccountKey; accounts : Array of Cardinal);
@@ -166,7 +166,8 @@ Type
     Property TotalBalance : Int64 read FTotalBalance;
     Procedure StartThreadSafe;
     Procedure EndThreadSave;
-    Property IsLocked : Boolean read FIsLocked;
+    Property SafeBoxHash : TRawBytes read FSafeBoxHash;
+    Property PreviousBlockSafeBoxHash : TRawBytes read FPreviousBlockSafeBoxHash;
   End;
 
 
@@ -650,6 +651,7 @@ begin
   Dec(FTotalFee,FTotalFee);
   AccountKeyListAddAccounts(accountkey,accs);
   // Calculating new value of safebox
+  FPreviousBlockSafeBoxHash := FSafeBoxHash;
   FSafeBoxHash := CalcSafeBoxHash;
 end;
 
@@ -771,18 +773,24 @@ procedure TPCSafeBox.Clear;
 Var i : Integer;
   P : PBlockAccount;
 begin
-  for i := 0 to FBlockAccountsList.Count - 1 do begin
-    P := FBlockAccountsList.Items[i];
-    Dispose(P);
+  StartThreadSafe;
+  Try
+    for i := 0 to FBlockAccountsList.Count - 1 do begin
+      P := FBlockAccountsList.Items[i];
+      Dispose(P);
+    end;
+    FBlockAccountsList.Clear;
+    For i:=0 to FListOfOrderedAccountKeysList.count-1 do begin
+      TOrderedAccountKeysList( FListOfOrderedAccountKeysList[i] ).ClearAccounts(False);
+    end;
+    FBufferBlocksHash := '';
+    FTotalBalance := 0;
+    FTotalFee := 0;
+    FSafeBoxHash := CalcSafeBoxHash;
+    FPreviousBlockSafeBoxHash := '';
+  Finally
+    EndThreadSave;
   end;
-  FBlockAccountsList.Clear;
-  For i:=0 to FListOfOrderedAccountKeysList.count-1 do begin
-    TOrderedAccountKeysList( FListOfOrderedAccountKeysList[i] ).ClearAccounts(False);
-  end;
-  FBufferBlocksHash := '';
-  FTotalBalance := 0;
-  FTotalFee := 0;
-  FSafeBoxHash := CalcSafeBoxHash;
 end;
 
 procedure TPCSafeBox.CopyFrom(accounts: TPCSafeBox);
@@ -790,30 +798,40 @@ Var i,j : Cardinal;
   P : PBlockAccount;
   BA : TBlockAccount;
 begin
-  if accounts=Self then exit;
-  Clear;
-  if accounts.BlocksCount>0 then begin
-    for i := 0 to accounts.BlocksCount - 1 do begin
-      BA := accounts.Block(i);
-      New(P);
-      P^ := BA;
-      FBlockAccountsList.Add(P);
-      for j := Low(BA.accounts) to High(BA.accounts) do begin
-        AccountKeyListAddAccounts(BA.accounts[j].accountkey,[BA.accounts[j].account]);
+  StartThreadSafe;
+  Try
+    accounts.StartThreadSafe;
+    try
+      if accounts=Self then exit;
+      Clear;
+      if accounts.BlocksCount>0 then begin
+        for i := 0 to accounts.BlocksCount - 1 do begin
+          BA := accounts.Block(i);
+          New(P);
+          P^ := BA;
+          FBlockAccountsList.Add(P);
+          for j := Low(BA.accounts) to High(BA.accounts) do begin
+            AccountKeyListAddAccounts(BA.accounts[j].accountkey,[BA.accounts[j].account]);
+          end;
+        end;
       end;
-    end;
-  end;
 
-  FTotalBalance := accounts.TotalBalance;
-  FTotalFee := accounts.FTotalFee;
-  FBufferBlocksHash := accounts.FBufferBlocksHash;
-  FSafeBoxHash := accounts.FSafeBoxHash;
+      FTotalBalance := accounts.TotalBalance;
+      FTotalFee := accounts.FTotalFee;
+      FBufferBlocksHash := accounts.FBufferBlocksHash;
+      FSafeBoxHash := accounts.FSafeBoxHash;
+      FPreviousBlockSafeBoxHash := accounts.FPreviousBlockSafeBoxHash;
+    finally
+      accounts.EndThreadSave;
+    end;
+  finally
+    EndThreadSave;
+  end;
 end;
 
 constructor TPCSafeBox.Create;
 begin
   FLock := TCriticalSection.Create;
-  FIsLocked := false;
   FBlockAccountsList := TList.Create;
   FListOfOrderedAccountKeysList := TList.Create;
   Clear;
@@ -828,14 +846,12 @@ begin
   end;
   FreeAndNil(FBlockAccountsList);
   FreeAndNil(FListOfOrderedAccountKeysList);
-  FLock.Free;
+  FreeAndNil(FLock);
   inherited;
 end;
 
 procedure TPCSafeBox.EndThreadSave;
 begin
-  if Not FIsLocked then raise Exception.Create('Is not locked');
-  FIsLocked := False;
   FLock.Release;
 end;
 
@@ -848,70 +864,81 @@ Var w : Word;
   j : Integer;
   safeBoxBankVersion : Word;
 begin
-  Clear;
-  Result := false;
-  Try
-    errors := 'Invalid stream';
-    TStreamOp.ReadAnsiString(Stream,s);
-    if (s<>CT_MagicIdentificator) then exit;
-    errors := 'Invalid version or corrupted stream';
-    if Stream.Size<8 then exit;
-    Stream.Read(w,2);
-    if w<>CT_BlockChain_Protocol_Version then exit;
-    Stream.Read(safeBoxBankVersion,2);
-    if safeBoxBankVersion<>CT_SafeBoxBankVersion then begin
-      errors := 'Invalid SafeBoxBank version: '+InttostR(safeBoxBankVersion);
-      exit;
-    end;
-    Stream.Read(blockscount,4);
-    if blockscount>(CT_NewLineSecondsAvg*2000000) then exit; // Protection for corrupted data...
-    errors := 'Corrupted stream';
-    for iblock := 0 to blockscount-1 do begin
-      errors := 'Corrupted stream reading block '+inttostr(iblock+1)+'/'+inttostr(blockscount);
-      block := CT_BlockAccount_NUL;
-      if Stream.Read(block.blockaccount,4)<4 then exit;
-      if (block.blockaccount<>iblock) then exit; // Invalid value
-      for iacc := Low(block.accounts) to High(block.accounts) do begin
-        errors := 'Corrupted stream reading account '+inttostr(iacc+1)+'/'+inttostr(length(block.accounts))+' of block '+inttostr(iblock+1)+'/'+inttostr(blockscount);
-        if Stream.Read(block.accounts[iacc].account,4)<4 then exit;
+  StartThreadSafe;
+  try
+    Clear;
+    Result := false;
+    Try
+      errors := 'Invalid stream';
+      TStreamOp.ReadAnsiString(Stream,s);
+      if (s<>CT_MagicIdentificator) then exit;
+      errors := 'Invalid version or corrupted stream';
+      if Stream.Size<8 then exit;
+      Stream.Read(w,2);
+      if w<>CT_BlockChain_Protocol_Version then exit;
+      Stream.Read(safeBoxBankVersion,2);
+      if safeBoxBankVersion<>CT_SafeBoxBankVersion then begin
+        errors := 'Invalid SafeBoxBank version: '+InttostR(safeBoxBankVersion);
+        exit;
+      end;
+      Stream.Read(blockscount,4);
+      if blockscount>(CT_NewLineSecondsAvg*2000000) then exit; // Protection for corrupted data...
+      // Build 1.3.0 to increase reading speed:
+      FBlockAccountsList.Capacity := blockscount;
+      errors := 'Corrupted stream';
+      for iblock := 0 to blockscount-1 do begin
+        errors := 'Corrupted stream reading block '+inttostr(iblock+1)+'/'+inttostr(blockscount);
+        block := CT_BlockAccount_NUL;
+        if Stream.Read(block.blockaccount,4)<4 then exit;
+        if (block.blockaccount<>iblock) then exit; // Invalid value
+        for iacc := Low(block.accounts) to High(block.accounts) do begin
+          errors := 'Corrupted stream reading account '+inttostr(iacc+1)+'/'+inttostr(length(block.accounts))+' of block '+inttostr(iblock+1)+'/'+inttostr(blockscount);
+          if Stream.Read(block.accounts[iacc].account,4)<4 then exit;
+          if TStreamOp.ReadAnsiString(Stream,s)<0 then exit;
+          block.accounts[iacc].accountkey := TAccountComp.RawString2Accountkey(s);
+          if Stream.Read(block.accounts[iacc].balance,SizeOf(UInt64))<SizeOf(UInt64) then exit;
+          if Stream.Read(block.accounts[iacc].updated_block,4)<4 then exit;
+          if Stream.Read(block.accounts[iacc].n_operation,4)<4 then exit;
+          if safeBoxBankVersion>=1 then begin
+            if Stream.Read(block.accounts[iacc].previous_updated_block,4)<4 then exit;
+          end;
+          // check valid
+          if not TAccountComp.IsValidAccountKey(block.accounts[iacc].accountkey,s) then begin
+            errors := errors + ' > '+s;
+            exit;
+          end;
+          inc(FTotalBalance,block.accounts[iacc].balance);
+        end;
+        errors := 'Corrupted stream reading block hash '+inttostr(iblock+1)+'/'+inttostr(blockscount);
+        if Stream.Read(block.timestamp,4)<4 then exit;
         if TStreamOp.ReadAnsiString(Stream,s)<0 then exit;
-        block.accounts[iacc].accountkey := TAccountComp.RawString2Accountkey(s);
-        if Stream.Read(block.accounts[iacc].balance,SizeOf(UInt64))<SizeOf(UInt64) then exit;
-        if Stream.Read(block.accounts[iacc].updated_block,4)<4 then exit;
-        if Stream.Read(block.accounts[iacc].n_operation,4)<4 then exit;
-        if safeBoxBankVersion>=1 then begin
-          if Stream.Read(block.accounts[iacc].previous_updated_block,4)<4 then exit;
+        block.block_hash := s;
+        // Check is valid:
+        if CalcBlockHash(block)<>block.block_hash then exit;
+        if safeBoxBankVersion>=2 then begin
+          if Stream.Read(block.target,4)<4 then exit;
         end;
-        // check valid
-        if not TAccountComp.IsValidAccountKey(block.accounts[iacc].accountkey,s) then begin
-          errors := errors + ' > '+s;
-          exit;
+        // Add
+        New(P);
+        P^ := block;
+        FBlockAccountsList.Add(P);
+        for j := low(block.accounts) to High(block.accounts) do begin
+          AccountKeyListAddAccounts(block.accounts[j].accountkey,[block.accounts[j].account]);
         end;
-        inc(FTotalBalance,block.accounts[iacc].balance);
+        FBufferBlocksHash := FBufferBlocksHash+block.block_hash;
+        LastReadBlock := block;
       end;
-      errors := 'Corrupted stream reading block hash '+inttostr(iblock+1)+'/'+inttostr(blockscount);
-      if Stream.Read(block.timestamp,4)<4 then exit;
-      if TStreamOp.ReadAnsiString(Stream,s)<0 then exit;
-      block.block_hash := s;
-      // Check is valid:
-      if CalcBlockHash(block)<>block.block_hash then exit;
-      if safeBoxBankVersion>=2 then begin
-        if Stream.Read(block.target,4)<4 then exit;
-      end;
-      // Add
-      New(P);
-      P^ := block;
-      FBlockAccountsList.Add(P);
-      for j := low(block.accounts) to High(block.accounts) do begin
-        AccountKeyListAddAccounts(block.accounts[j].accountkey,[block.accounts[j].account]);
-      end;
-      FBufferBlocksHash := FBufferBlocksHash+block.block_hash;
-      LastReadBlock := block;
-    end;
-    Result := true;
+      // Build 1.3.0 adding previous block hash information
+      TStreamOp.ReadAnsiString(Stream,FPreviousBlockSafeBoxHash);
+      // Build 1.3.0 adding calculation
+      FSafeBoxHash := CalcSafeBoxHash;
+      Result := true;
+    Finally
+      if Not Result then Clear;
+    End;
   Finally
-    if Not Result then Clear;
-  End;
+    EndThreadSave;
+  end;
 end;
 
 class function TPCSafeBox.LoadSafeBoxStreamHeader(Stream: TStream; var BlocksCount: Cardinal): Boolean;
@@ -937,25 +964,32 @@ Var
   c,iblock,iacc : Cardinal;
   b : TBlockAccount;
 begin
-  TStreamOp.WriteAnsiString(Stream,CT_MagicIdentificator);
-  Stream.Write(CT_BlockChain_Protocol_Version,SizeOf(CT_BlockChain_Protocol_Version));
-  Stream.Write(CT_SafeBoxBankVersion,SizeOf(CT_SafeBoxBankVersion));
-  c := BlocksCount;
-  Stream.Write(c,Sizeof(c));
-  for iblock := 0 to c-1 do begin
-    b := Block(iblock);
-    Stream.Write(b.blockaccount,SizeOf(b.blockaccount)); // Little endian
-    for iacc := Low(b.accounts) to High(b.accounts) do begin
-      Stream.Write(b.accounts[iacc].account,Sizeof(b.accounts[iacc].account));
-      TStreamOp.WriteAnsiString(Stream,TAccountComp.AccountKey2RawString(b.accounts[iacc].accountkey));
-      Stream.Write(b.accounts[iacc].balance,Sizeof(b.accounts[iacc].balance));
-      Stream.Write(b.accounts[iacc].updated_block,Sizeof(b.accounts[iacc].updated_block));
-      Stream.Write(b.accounts[iacc].n_operation,Sizeof(b.accounts[iacc].n_operation));
-      Stream.Write(b.accounts[iacc].previous_updated_block,Sizeof(b.accounts[iacc].previous_updated_block));
+  StartThreadSafe;
+  Try
+    TStreamOp.WriteAnsiString(Stream,CT_MagicIdentificator);
+    Stream.Write(CT_BlockChain_Protocol_Version,SizeOf(CT_BlockChain_Protocol_Version));
+    Stream.Write(CT_SafeBoxBankVersion,SizeOf(CT_SafeBoxBankVersion));
+    c := BlocksCount;
+    Stream.Write(c,Sizeof(c));
+    for iblock := 0 to c-1 do begin
+      b := Block(iblock);
+      Stream.Write(b.blockaccount,SizeOf(b.blockaccount)); // Little endian
+      for iacc := Low(b.accounts) to High(b.accounts) do begin
+        Stream.Write(b.accounts[iacc].account,Sizeof(b.accounts[iacc].account));
+        TStreamOp.WriteAnsiString(Stream,TAccountComp.AccountKey2RawString(b.accounts[iacc].accountkey));
+        Stream.Write(b.accounts[iacc].balance,Sizeof(b.accounts[iacc].balance));
+        Stream.Write(b.accounts[iacc].updated_block,Sizeof(b.accounts[iacc].updated_block));
+        Stream.Write(b.accounts[iacc].n_operation,Sizeof(b.accounts[iacc].n_operation));
+        Stream.Write(b.accounts[iacc].previous_updated_block,Sizeof(b.accounts[iacc].previous_updated_block));
+      end;
+      Stream.Write(b.timestamp,Sizeof(b.timestamp));
+      TStreamOp.WriteAnsiString(Stream,b.block_hash);
+      Stream.Write(b.target,Sizeof(b.target));
     end;
-    Stream.Write(b.timestamp,Sizeof(b.timestamp));
-    TStreamOp.WriteAnsiString(Stream,b.block_hash);
-    Stream.Write(b.target,Sizeof(b.target));
+    // New Build 1.3.0
+    TStreamOp.WriteAnsiString(Stream,FPreviousBlockSafeBoxHash);
+  Finally
+    EndThreadSave;
   end;
 end;
 
@@ -991,12 +1025,7 @@ end;
 
 procedure TPCSafeBox.StartThreadSafe;
 begin
-  if FIsLocked then Begin
-    TLog.NewLog(lterror,Classname,'IS LOCKED !!!');
-    raise Exception.Create('IS LOCKED !!!');
-  end;
   TPCThread.ProtectEnterCriticalSection(Self,FLock);
-  FIsLocked := true;
 end;
 
 { TPCSafeBoxTransaction }

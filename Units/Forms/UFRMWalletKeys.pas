@@ -21,7 +21,12 @@ interface
 
 uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, UWalletKeys, Buttons, clipbrd;
+  Dialogs, StdCtrls, UWalletKeys, Buttons,
+  {$IFDEF FPC}LMessages,{$ENDIF}
+  clipbrd;
+
+Const
+  CM_PC_WalletKeysChanged = {$IFDEF FPC}LM_USER{$ELSE}WM_USER{$ENDIF} + 1;
 
 type
   TFRMWalletKeys = class(TForm)
@@ -59,17 +64,21 @@ type
     procedure bbExportAllWalletKeysClick(Sender: TObject);
     procedure bbImportKeysFileClick(Sender: TObject);
   private
+    FOldOnChanged : TNotifyEvent;
     FWalletKeys: TWalletKeys;
     procedure SetWalletKeys(const Value: TWalletKeys);
+    procedure OnWalletKeysChanged(Sender : TObject);
     { Private declarations }
     Procedure UpdateWalletKeys;
     Procedure UpdateSelectedWalletKey;
     Function GetSelectedWalletKey(var WalletKey : TWalletKey) : Boolean;
     Function GetSelectedWalletKeyAndIndex(var WalletKey : TWalletKey; var index : Integer) : Boolean;
     Procedure CheckIsWalletKeyValidPassword;
+    procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
   public
     { Public declarations }
     Property WalletKeys : TWalletKeys read FWalletKeys write SetWalletKeys;
+    Destructor Destroy; override;
   end;
 
 implementation
@@ -78,7 +87,7 @@ uses
 {$IFnDEF FPC}
   Windows,
 {$ELSE}
-  LCLIntf, LCLType, LMessages,
+  LCLIntf, LCLType,
 {$ENDIF}
   UCrypto, UAccounts, UFRMNewPrivateKeyType, UAES;
 
@@ -371,6 +380,17 @@ begin
   end;
 end;
 
+procedure TFRMWalletKeys.CM_WalletChanged(var Msg: TMessage);
+begin
+  UpdateWalletKeys;
+end;
+
+destructor TFRMWalletKeys.Destroy;
+begin
+  if Assigned(FWalletKeys) then FWalletKeys.OnChanged := FOldOnChanged;
+  inherited;
+end;
+
 procedure TFRMWalletKeys.FormCreate(Sender: TObject);
 begin
   lbWalletKeys.Sorted := true;
@@ -402,9 +422,21 @@ begin
   UpdateSelectedWalletKey;
 end;
 
+procedure TFRMWalletKeys.OnWalletKeysChanged(Sender : TObject);
+begin
+  PostMessage(Self.Handle,CM_PC_WalletKeysChanged,0,0);
+  if Assigned(FOldOnChanged) then FOldOnChanged(Sender);
+end;
+
 procedure TFRMWalletKeys.SetWalletKeys(const Value: TWalletKeys);
 begin
+  if FWalletKeys=Value then exit;
+  if Assigned(FWalletKeys) then FWalletKeys.OnChanged := FOldOnChanged;
   FWalletKeys := Value;
+  if Assigned(FWalletKeys) then begin
+    FOldOnChanged := FWalletKeys.OnChanged;
+    FWalletKeys.OnChanged := OnWalletKeysChanged;
+  end;
   UpdateWalletKeys;
 end;
 
@@ -451,7 +483,7 @@ end;
 
 procedure TFRMWalletKeys.UpdateWalletKeys;
 Var lasti,i : Integer;
-  wk : TWalletKey;
+  selected_wk,wk : TWalletKey;
   s : AnsiString;
 begin
   GetSelectedWalletKeyAndIndex(wk,lasti);

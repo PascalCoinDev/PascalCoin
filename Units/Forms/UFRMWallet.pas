@@ -27,9 +27,13 @@ uses
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, ExtCtrls, ComCtrls, UWalletKeys, StdCtrls,
-  ULog, DB, Grids, DBGrids, UAppParams,
-  UBlockChain, UNode, DBCtrls, UGridUtils, UMiner, UAccounts, Menus, ImgList,
+  ULog, Grids, UAppParams,
+  UBlockChain, UNode, UGridUtils, UMiner, UAccounts, Menus, ImgList,
   UNetProtocol, UCrypto, Buttons, UPoolMining, URPC;
+
+Const
+  CM_PC_WalletKeysChanged = WM_USER + 1;
+  CM_PC_NetConnectionUpdated = WM_USER + 2;
 
 type
   TMinerPrivateKey = (mpk_NewEachTime, mpk_Random, mpk_Selected);
@@ -233,6 +237,8 @@ type
     FMaxAccountBalance : Int64;
     FPoolMiningServer : TPoolMiningServer;
     FRPCServer : TRPCServer;
+    FMustProcessWalletChanged : Boolean;
+    FMustProcessNetConnectionUpdated : Boolean;
     //Procedure CheckMining;
     Procedure OnNewAccount(Sender : TObject);
     Procedure OnReceivedHelloMessage(Sender : TObject);
@@ -260,6 +266,8 @@ type
     Function GetAccountKeyForMiner : TAccountKey;
     Procedure DoUpdateAccounts;
     Function DoUpdateAccountsFilter : Boolean;
+    procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
+    procedure CM_NetConnectionUpdated(var Msg: TMessage); message CM_PC_NetConnectionUpdated;
   public
     { Public declarations }
     Property WalletKeys : TWalletKeysExt read FWalletKeys;
@@ -498,6 +506,83 @@ begin
   end;
 end;
 
+procedure TFRMWallet.CM_NetConnectionUpdated(var Msg: TMessage);
+Const CT_BooleanToString : Array[Boolean] of String = ('False','True');
+Var i : integer;
+ NC : TNetConnection;
+ l : TList;
+ sClientApp : String;
+ strings, sNSC, sRS, sDisc : TStrings;
+begin
+  Try
+    if Not TNetData.NetData.NetConnections.TryLockList(100,l) then exit;
+    try
+      strings := memoNetConnections.Lines;
+      sNSC := TStringList.Create;
+      sRS := TStringList.Create;
+      sDisc := TStringList.Create;
+      strings.BeginUpdate;
+      Try
+        for i := 0 to l.Count - 1 do begin
+          NC := l[i];
+          If NC.Client.BytesReceived>0 then begin
+            sClientApp := '['+IntToStr(NC.NetProtocolVersion.protocol_version)+'-'+IntToStr(NC.NetProtocolVersion.protocol_available)+'] '+NC.ClientAppVersion;
+          end else begin
+            sClientApp := '(no data)';
+          end;
+
+          if NC.Connected then begin
+            if NC is TNetServerClient then begin
+              sNSC.Add(Format('Client: IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s',
+                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime)]));
+            end else begin
+              if NC.IsMyselfServer then sNSC.Add(Format('MySelf IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s',
+                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime)]))
+              else begin
+                sRS.Add(Format('Remote Server: IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s',
+                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime)]));
+              end;
+            end;
+          end else begin
+            if NC is TNetServerClient then begin
+              sDisc.Add(Format('Disconnected client: IP:%s - %s',[NC.ClientRemoteAddr,sClientApp]));
+            end else if NC.IsMyselfServer then begin
+              sDisc.Add(Format('Disconnected MySelf IP:%s - %s',[NC.ClientRemoteAddr,sClientApp]));
+            end else begin
+              sDisc.Add(Format('Disconnected Remote Server: IP:%s %s - %s',[NC.ClientRemoteAddr,CT_BooleanToString[NC.Connected],sClientApp]));
+            end;
+          end;
+        end;
+        strings.Clear;
+        strings.Add(Format('Connections Updated %s Clients:%d Servers:%d (valid servers:%d)',[DateTimeToStr(now),sNSC.Count,sRS.Count,TNetData.NetData.NetStatistics.ServersConnectionsWithResponse]));
+        strings.AddStrings(sRS);
+        strings.AddStrings(sNSC);
+        if sDisc.Count>0 then begin
+          strings.Add('');
+          strings.Add('Disconnected connections: '+Inttostr(sDisc.Count));
+          strings.AddStrings(sDisc);
+        end;
+      Finally
+        strings.EndUpdate;
+        sNSC.Free;
+        sRS.Free;
+        sDisc.Free;
+      End;
+      //CheckMining;
+    finally
+      TNetData.NetData.NetConnections.UnlockList;
+    end;
+  Finally
+    FMustProcessNetConnectionUpdated := false;
+  End;
+end;
+
+procedure TFRMWallet.CM_WalletChanged(var Msg: TMessage);
+begin
+  UpdatePrivateKeys;
+  FMustProcessWalletChanged := false;
+end;
+
 {
 procedure TFRMWallet.CheckMining;
   Procedure Stop;
@@ -714,6 +799,8 @@ end;
 procedure TFRMWallet.FormCreate(Sender: TObject);
 Var i : Integer;
 begin
+  FMustProcessWalletChanged := false;
+  FMustProcessNetConnectionUpdated := false;
   FRPCServer := Nil;
   FMinAccountBalance := 0;
   FMaxAccountBalance := CT_MaxWalletAmount;
@@ -749,6 +836,7 @@ begin
   FSelectedAccountsGrid.OnUpdated := OnSelectedAccountsGridUpdated;
   FOperationsAccountGrid := TOperationsGrid.Create(Self);
   FOperationsAccountGrid.DrawGrid := dgAccountOperations;
+  FOperationsAccountGrid.MustShowAlwaysAnAccount := true;
   FPendingOperationsGrid := TOperationsGrid.Create(Self);
   FPendingOperationsGrid.DrawGrid := dgPendingOperations;
   FPendingOperationsGrid.AccountNumber := -1; // all
@@ -1135,70 +1223,10 @@ begin
 end;
 
 procedure TFRMWallet.OnNetConnectionsUpdated(Sender: TObject);
-Const CT_BooleanToString : Array[Boolean] of String = ('False','True');
-Var i : integer;
- NC : TNetConnection;
- l : TList;
- sClientApp : String;
- strings, sNSC, sRS, sDisc : TStrings;
 begin
-  l := TNetData.NetData.NetConnections.LockList;
-  try
-    strings := memoNetConnections.Lines;
-    sNSC := TStringList.Create;
-    sRS := TStringList.Create;
-    sDisc := TStringList.Create;
-    strings.BeginUpdate;
-    Try
-      for i := 0 to l.Count - 1 do begin
-        NC := l[i];
-        If NC.Client.BytesReceived>0 then begin
-          sClientApp := '['+IntToStr(NC.NetProtocolVersion.protocol_version)+'-'+IntToStr(NC.NetProtocolVersion.protocol_available)+'] '+NC.ClientAppVersion;
-        end else begin
-          sClientApp := '(no data)';
-        end;
-
-        if NC.Connected then begin
-          if NC is TNetServerClient then begin
-            sNSC.Add(Format('Client: IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s',
-              [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime)]));
-          end else begin
-            if NC.IsMyselfServer then sNSC.Add(Format('MySelf IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s',
-              [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime)]))
-            else begin
-              sRS.Add(Format('Remote Server: IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s',
-              [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime)]));
-            end;
-          end;
-        end else begin
-          if NC is TNetServerClient then begin
-            sDisc.Add(Format('Disconnected client: IP:%s - %s',[NC.ClientRemoteAddr,sClientApp]));
-          end else if NC.IsMyselfServer then begin
-            sDisc.Add(Format('Disconnected MySelf IP:%s - %s',[NC.ClientRemoteAddr,sClientApp]));
-          end else begin
-            sDisc.Add(Format('Disconnected Remote Server: IP:%s %s - %s',[NC.ClientRemoteAddr,CT_BooleanToString[NC.Connected],sClientApp]));
-          end;
-        end;
-      end;
-      strings.Clear;
-      strings.Add(Format('Connections Updated %s Clients:%d Servers:%d (valid servers:%d)',[DateTimeToStr(now),sNSC.Count,sRS.Count,TNetData.NetData.NetStatistics.ServersConnectionsWithResponse]));
-      strings.AddStrings(sRS);
-      strings.AddStrings(sNSC);
-      if sDisc.Count>0 then begin
-        strings.Add('');
-        strings.Add('Disconnected connections: '+Inttostr(sDisc.Count));
-        strings.AddStrings(sDisc);
-      end;
-    Finally
-      strings.EndUpdate;
-      sNSC.Free;
-      sRS.Free;
-      sDisc.Free;
-    End;
-    //CheckMining;
-  finally
-    TNetData.NetData.NetConnections.UnlockList;
-  end;
+  if FMustProcessNetConnectionUpdated then exit;
+  FMustProcessNetConnectionUpdated := true;
+  PostMessage(Self.Handle,CM_PC_NetConnectionUpdated,0,0);
 end;
 
 procedure TFRMWallet.OnNetNodeServersUpdated(Sender: TObject);
@@ -1348,7 +1376,9 @@ end;
 
 procedure TFRMWallet.OnWalletChanged(Sender: TObject);
 begin
-  UpdatePrivateKeys;
+  if FMustProcessWalletChanged then exit;
+  FMustProcessWalletChanged := true;
+  PostMessage(Self.Handle,CM_PC_WalletKeysChanged,0,0);
 end;
 
 procedure TFRMWallet.PageControlChange(Sender: TObject);
@@ -1564,7 +1594,7 @@ Var i : integer;
  NC : TNetConnection;
  l : TList;
 begin
-  l := TNetData.NetData.NetConnections.LockList;
+  if Not TNetData.NetData.NetConnections.TryLockList(100,l) then exit;
   try
     lbNetConnections.Items.BeginUpdate;
     Try

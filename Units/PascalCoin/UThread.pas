@@ -62,6 +62,7 @@ Type
     procedure Clear;
     procedure Remove(Item: Pointer); inline;
     function LockList: TList;
+    function TryLockList(MaxWaitMilliseconds : Cardinal; var lockedList : TList) : Boolean;
     procedure UnlockList; inline;
   end;
 
@@ -285,6 +286,13 @@ begin
   finally
     UnlockList;
   end;
+end;
+
+function TPCThreadList.TryLockList(MaxWaitMilliseconds: Cardinal;
+  var lockedList: TList): Boolean;
+begin
+  lockedList := FList;
+  Result := TPCThread.TryProtectEnterCriticalSection(Self,MaxWaitMilliseconds,FLock);
 end;
 
 procedure TPCThreadList.UnlockList;
