@@ -312,6 +312,7 @@ begin
       end;
     finally
       jsonresponse.free;
+      headers.free;
     end;
   end;
 end;
