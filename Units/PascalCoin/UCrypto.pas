@@ -466,6 +466,10 @@ begin
   P := @Result[1];
   lc := LowerCase(HexaString);
   i := HexToBin(PAnsiChar(@lc[1]),P,length(Result));
+  if (i<>(length(HexaString) DIV 2)) then begin
+    TLog.NewLog(lterror,Classname,'Invalid HEXADECIMAL string result '+inttostr(i)+'<>'+inttostr(length(HexaString) DIV 2)+': '+HexaString);
+    Result := '';
+  end;
 end;
 
 class procedure TCrypto.InitCrypto;

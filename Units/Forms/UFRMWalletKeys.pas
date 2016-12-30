@@ -51,6 +51,7 @@ type
     SaveDialog: TSaveDialog;
     bbImportKeysFile: TBitBtn;
     OpenDialog: TOpenDialog;
+    bbLock: TBitBtn;
     procedure FormCreate(Sender: TObject);
     procedure bbChangeNameClick(Sender: TObject);
     procedure bbExportPrivateKeyClick(Sender: TObject);
@@ -63,6 +64,7 @@ type
     procedure bbUpdatePasswordClick(Sender: TObject);
     procedure bbExportAllWalletKeysClick(Sender: TObject);
     procedure bbImportKeysFileClick(Sender: TObject);
+    procedure bbLockClick(Sender: TObject);
   private
     FOldOnChanged : TNotifyEvent;
     FWalletKeys: TWalletKeys;
@@ -341,6 +343,11 @@ begin
   end;
 end;
 
+procedure TFRMWalletKeys.bbLockClick(Sender: TObject);
+begin
+  FWalletKeys.LockWallet;
+end;
+
 procedure TFRMWalletKeys.bbUpdatePasswordClick(Sender: TObject);
 Var s,s2 : String;
 begin
@@ -492,6 +499,7 @@ begin
     lbWalletKeys.Items.Clear;
     lblKeysEncrypted.Caption := '';
     if not assigned(FWalletKeys) then exit;
+    bbLock.Enabled := (FWalletKeys.IsValidPassword) And (FWalletKeys.WalletPassword<>'');
     If FWalletKeys.IsValidPassword then begin
       if FWalletKeys.WalletPassword='' then lblKeysEncrypted.Caption := 'Wallet without password'
       else lblKeysEncrypted.Caption := 'Wallet is password protected';

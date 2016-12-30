@@ -51,7 +51,7 @@ Type
   TAccount = Record
     account: Cardinal;        // FIXED value. Account number
     accountkey: TAccountKey;  // Public EC
-    balance: UInt64;          // Balance, allways >= 0
+    balance: UInt64;          // Balance, always >= 0
     updated_block: Cardinal;  // Number of block where was updated
     n_operation: Cardinal;    // count number of owner operations (when receive, this is not updated)
     //
@@ -340,15 +340,17 @@ begin
   BNBase := TBigNum.Create(1);
   try
     for i := length(HumanReadable) downto 1 do begin
-      j := pos(HumanReadable[i],CT_Base58);
-      if j=0 then begin
-        errors := 'Invalid char "'+HumanReadable[i]+'" at pos '+inttostr(i)+'/'+inttostr(length(HumanReadable));
-        exit;
+      if (HumanReadable[i]<>' ') then begin
+        j := pos(HumanReadable[i],CT_Base58);
+        if j=0 then begin
+          errors := 'Invalid char "'+HumanReadable[i]+'" at pos '+inttostr(i)+'/'+inttostr(length(HumanReadable));
+          exit;
+        end;
+        BNAux.Value := j-1;
+        BNAux.Multiply(BNBase);
+        BN.Add(BNAux);
+        BNBase.Multiply(length(CT_Base58));
       end;
-      BNAux.Value := j-1;
-      BNAux.Multiply(BNBase);
-      BN.Add(BNAux);
-      BNBase.Multiply(length(CT_Base58));
     end;
     // Last 8 hexa chars are the checksum of others
     s1 := Copy(BN.HexaValue,3,length(BN.HexaValue));

@@ -101,6 +101,10 @@ object FRMOperation: TFRMOperation
     TabOrder = 1
     object tsOperation: TTabSheet
       TabVisible = False
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object gbOperation: TGroupBox
         Left = 13
         Top = 8

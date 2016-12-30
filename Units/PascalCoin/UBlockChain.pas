@@ -146,6 +146,7 @@ Type
     OriginalPayload : TRawBytes;
     PrintablePayload : AnsiString;
     OperationHash : TRawBytes;
+    errors : AnsiString;
   end;
 
   TOperationsResumeList = Class
@@ -170,6 +171,7 @@ Type
   Protected
     FPrevious_Sender_updated_block: Cardinal;
     FPrevious_Destination_updated_block : Cardinal;
+    FHasValidSignature : Boolean;
   public
     function GetOperationBufferToHash: TRawBytes; virtual; abstract;
     function DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors: AnsiString): Boolean; virtual; abstract;
@@ -188,6 +190,7 @@ Type
     function LoadFromStorage(Stream: TStream): Boolean;
     Property Previous_Sender_updated_block : Cardinal read FPrevious_Sender_updated_block;
     Property Previous_Destination_updated_block : Cardinal read FPrevious_Destination_updated_block;
+    Property HasValidSignature : Boolean read FHasValidSignature;
     Class function OperationHash(op : TPCOperation; Block : Cardinal) : TRawBytes;
     Class function DecodeOperationHash(Const operationHash : TRawBytes; var block, account,n_operation : Cardinal) : Boolean;
   End;
@@ -211,6 +214,8 @@ Type
     Procedure CopyFromHashTree(Sender : TOperationsHashTree);
     Property TotalAmount : Int64 read FTotalAmount;
     Property TotalFee : Int64 read FTotalFee;
+    function SaveOperationsHashTreeToStream(Stream: TStream; SaveToStorage : Boolean): Boolean;
+    function LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage : Boolean; var errors : AnsiString): Boolean;
   End;
 
   { TPCOperationsComp }
@@ -325,6 +330,9 @@ Type
     Function DoRestoreBank(max_block : Int64) : Boolean; virtual; abstract;
     Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal); virtual; abstract;
     Function BlockExists(Block : Cardinal) : Boolean; virtual; abstract;
+    function GetFirstBlockNumber: Int64; virtual; abstract;
+    function GetLastBlockNumber: Int64; virtual; abstract;
+    function DoInitialize:Boolean; virtual; abstract;
   public
     Function LoadBlockChainBlock(Operations : TPCOperationsComp; Block : Cardinal) : Boolean;
     Function SaveBlockChainBlock(Operations : TPCOperationsComp) : Boolean;
@@ -337,6 +345,9 @@ Type
     Property ReadOnly : Boolean read FReadOnly write SetReadOnly;
     Property Bank : TPCBank read FBank write SetBank;
     Procedure CopyConfiguration(Const CopyFrom : TStorage); virtual;
+    Property FirstBlock : Int64 read GetFirstBlockNumber;
+    Property LastBlock : Int64 read GetLastBlockNumber;
+    Function Initialize : Boolean;
   End;
 
   TStorageClass = Class of TStorage;
@@ -390,7 +401,7 @@ Type
   End;
 
 Const
-  CT_TOperationResume_NUL : TOperationResume = (valid:false;Block:0;NOpInsideBlock:-1;OpType:0;time:0;AffectedAccount:0;SenderAccount:-1;DestAccount:-1;newKey:(EC_OpenSSL_NID:0;x:'';y:'');OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:'';PrintablePayload:'';OperationHash:'');
+  CT_TOperationResume_NUL : TOperationResume = (valid:false;Block:0;NOpInsideBlock:-1;OpType:0;time:0;AffectedAccount:0;SenderAccount:-1;DestAccount:-1;newKey:(EC_OpenSSL_NID:0;x:'';y:'');OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:'';PrintablePayload:'';OperationHash:'';errors:'');
 
   CT_OperationBlock_NUL : TOperationBlock = (block:0;account_key:(EC_OpenSSL_NID:0;x:'';y:'');reward:0;fee:0;protocol_version:0;
     protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:'';initial_safe_box_hash:'';operations_hash:'';proof_of_work:'');
@@ -612,7 +623,8 @@ begin
     FIsRestoringFromFile := true;
     try
       Clear;
-      Storage.RestoreBank(max_block);
+      Storage.Initialize;
+      Storage.RestoreBank(Storage.LastBlock);
       // Restore last blockchain
       if BlocksCount>0 then begin
         if Not Storage.LoadBlockChainBlock(FLastBlockCache,BlocksCount-1) then begin
@@ -966,8 +978,7 @@ end;
 var
   _OperationsClass: Array of TPCOperationClass;
 
-function TPCOperationsComp.AddOperation(Execute: Boolean; op: TPCOperation;
-  var errors: AnsiString): Boolean;
+function TPCOperationsComp.AddOperation(Execute: Boolean; op: TPCOperation; var errors: AnsiString): Boolean;
 Begin
   Lock;
   Try
@@ -1331,15 +1342,10 @@ end;
 
 function TPCOperationsComp.LoadBlockFromStreamExt(Stream: TStream;
   LoadingFromStorage: Boolean; var errors: AnsiString): Boolean;
-Var
-  c, i, lastfee: Cardinal;
+Var i: Cardinal;
+  lastfee : UInt64;
   soob : Byte;
-  OpType: Cardinal;
-  bcop: TPCOperation;
   m: AnsiString;
-  j: Integer;
-  OpClass: TPCOperationClass;
-  errors2 : AnsiString;
 begin
   Lock;
   Try
@@ -1366,6 +1372,10 @@ begin
     if (soob=2) or (soob=3) then begin
       Stream.Read(FOperationBlock.protocol_version, Sizeof(FOperationBlock.protocol_version));
       Stream.Read(FOperationBlock.protocol_available, Sizeof(FOperationBlock.protocol_available));
+    end else begin
+      // We assume that protocol_version is 1 and protocol_available is 0
+      FOperationBlock.protocol_version := 1;
+      FOperationBlock.protocol_available := 0;
     end;
 
     if Stream.Read(FOperationBlock.block, Sizeof(FOperationBlock.block))<0 then exit;
@@ -1388,37 +1398,13 @@ begin
     // Fee will be calculated for each operation. Set it to 0 and check later for integrity
     lastfee := OperationBlock.fee;
     FOperationBlock.fee := 0;
-    Stream.Read(c, 4);
-    // c = operations count
-    for i := 1 to c do begin
-      errors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c);
-      if Stream.Size - Stream.Position < 4 then exit;
-      Stream.Read(OpType, 4);
-      j := IndexOfOperationClassByOpType(OpType);
-      if j >= 0 then
-        OpClass := _OperationsClass[j]
-      else
-        OpClass := Nil;
-      if Not Assigned(OpClass) then begin
-        errors := errors + ' optype not valid:' + InttoHex(OpType, 4);
-        exit;
-      end;
-      errors := 'Invalid operation ' + inttostr(i) + '/' + inttostr(c)+' Class:'+OpClass.ClassName;
-      bcop := OpClass.Create;
-      Try
-        if LoadingFromStorage then begin
-          If not bcop.LoadFromStorage(Stream) then exit;
-        end else if not bcop.LoadFromStream(Stream) then begin
-          exit;
-        end;
-        if Not AddOperation(false,bcop, errors2) then begin
-          errors := errors + ' '+errors2+' '+bcop.ToString;
-          exit;
-        end;
-      Finally
-        FreeAndNil(bcop);
-      end;
+    Result := FOperationsHashTree.LoadOperationsHashTreeFromStream(Stream,LoadingFromStorage,errors);
+    if not Result then begin
+      exit;
     end;
+    FOperationBlock.fee := FOperationsHashTree.TotalFee;
+    FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
+    Calc_Digest_Parts;
     // Validation control:
     if (lastfee<>OperationBlock.fee) then begin
       errors := 'Corrupted operations fee old:'+inttostr(lastfee)+' new:'+inttostr(OperationBlock.fee);
@@ -1537,11 +1523,7 @@ end;
 
 function TPCOperationsComp.SaveBlockToStreamExt(save_only_OperationBlock: Boolean;
   Stream: TStream; SaveToStorage: Boolean): Boolean;
-Var
-  c, opl, i, OpType: Cardinal;
-  soob : Byte;
-  bcop: TPCOperation;
-  bcops, errors: AnsiString;
+Var soob : Byte;
 begin
   Lock;
   Try
@@ -1572,19 +1554,8 @@ begin
     TStreamOp.WriteAnsiString(Stream, FOperationBlock.operations_hash);
     TStreamOp.WriteAnsiString(Stream, FOperationBlock.proof_of_work);
     if (Not save_only_OperationBlock) then begin
-      c := Count;
-      Stream.Write(c, 4);
-      // c = operations count
-      for i := 1 to c do
-      begin
-        bcop := Operation[i - 1];
-        OpType := bcop.OpType;
-        Stream.write(OpType, 4);
-        if SaveToStorage then bcop.SaveToStorage(Stream)
-        else bcop.SaveToStream(Stream);
-      end;
-    end;
-    Result := true;
+      Result := FOperationsHashTree.SaveOperationsHashTreeToStream(Stream,SaveToStorage);
+    end else Result := true;
   finally
     Unlock;
   end;
@@ -1921,6 +1892,49 @@ begin
   inc(FTotalFee,op.OperationFee);
 end;
 
+function TOperationsHashTree.LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage: Boolean; var errors: AnsiString): Boolean;
+Var c, i: Cardinal;
+  OpType: Cardinal;
+  bcop: TPCOperation;
+  j: Integer;
+  OpClass: TPCOperationClass;
+begin
+  Result := false;
+  //
+  If Stream.Read(c, 4)<4 then begin
+    errors := 'Cannot read operations count';
+    exit;
+  end;
+  // c = operations count
+  for i := 1 to c do begin
+    errors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c);
+    if Stream.Size - Stream.Position < 4 then exit;
+    Stream.Read(OpType, 4);
+    j := TPCOperationsComp.IndexOfOperationClassByOpType(OpType);
+    if j >= 0 then
+      OpClass := _OperationsClass[j]
+    else
+      OpClass := Nil;
+    if Not Assigned(OpClass) then begin
+      errors := errors + ' optype not valid:' + InttoHex(OpType, 4);
+      exit;
+    end;
+    errors := 'Invalid operation load from stream ' + inttostr(i) + '/' + inttostr(c)+' Class:'+OpClass.ClassName;
+    bcop := OpClass.Create;
+    Try
+      if LoadingFromStorage then begin
+        If not bcop.LoadFromStorage(Stream) then exit;
+      end else if not bcop.LoadFromStream(Stream) then begin
+        exit;
+      end;
+      AddOperationToHashTree(bcop);
+    Finally
+      FreeAndNil(bcop);
+    end;
+  end;
+  Result := true;
+end;
+
 function TOperationsHashTree.OperationsCount: Integer;
 Var l : TList;
 begin
@@ -1930,6 +1944,29 @@ begin
   finally
     FHashTreeOperations.UnlockList;
   end;
+end;
+
+function TOperationsHashTree.SaveOperationsHashTreeToStream(Stream: TStream; SaveToStorage: Boolean): Boolean;
+Var c, i, OpType: Cardinal;
+  bcop: TPCOperation;
+  l : TList;
+begin
+  l := FHashTreeOperations.LockList;
+  Try
+    c := l.Count;
+    Stream.Write(c, 4);
+    // c = operations count
+    for i := 1 to c do begin
+      bcop := GetOperation(i - 1);
+      OpType := bcop.OpType;
+      Stream.write(OpType, 4);
+      if SaveToStorage then bcop.SaveToStorage(Stream)
+      else bcop.SaveToStream(Stream);
+    end;
+    Result := true;
+  Finally
+    FHashTreeOperations.UnlockList;
+  End;
 end;
 
 { TStorage }
@@ -1952,9 +1989,15 @@ begin
   DoDeleteBlockChainBlocks(StartingDeleteBlock);
 end;
 
+function TStorage.Initialize: Boolean;
+begin
+  Result := DoInitialize;
+end;
+
 function TStorage.LoadBlockChainBlock(Operations: TPCOperationsComp; Block: Cardinal): Boolean;
 begin
-   Result := DoLoadBlockChain(Operations,Block);
+  if (Block<FirstBlock) Or (Block>LastBlock) then result := false
+  else Result := DoLoadBlockChain(Operations,Block);
 end;
 
 function TStorage.MoveBlockChainBlocks(StartBlock: Cardinal; const DestOrphan: TOrphan; DestStorage : TStorage): Boolean;

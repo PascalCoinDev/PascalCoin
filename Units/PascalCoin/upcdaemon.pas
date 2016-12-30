@@ -54,6 +54,7 @@ Type
   TPCDaemonMapper = Class(TCustomDaemonMapper)
   private
     FLog : TLog;
+    FLogRPCCalls : TLog;
     procedure OnPascalCoinInThreadLog(logtype : TLogType; Time : TDateTime; AThreadID : Cardinal; Const sender, logtext : AnsiString);
   public
     Constructor Create(AOwner : TComponent); override;
@@ -94,6 +95,10 @@ begin
       FWalletKeys.SafeBox := FNode.Node.Bank.SafeBox;
       FNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
       FNode.Node.NetServer.Active := true;
+
+      if (Application.HasOption('r','logrpc')) then begin
+        FRPC.LogFileName:= TFolderHelper.GetPascalCoinDataFolder+PathDelim+'pascalcoin_rpc.log';
+      end;
 
       Repeat
         Sleep(100);

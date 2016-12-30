@@ -72,13 +72,13 @@ Type
     Property Operations : TPCOperationsComp read FOperations;
     //
     Function AddNewBlockChain(SenderMiner : TMinerThread; SenderConnection : TNetConnection; NewBlockOperations: TPCOperationsComp; var newBlockAccount: TBlockAccount; var errors: AnsiString): Boolean;
-    Function AddOperations(SenderConnection : TNetConnection; Operations : TOperationsHashTree; var errors: AnsiString): Integer;
+    Function AddOperations(SenderConnection : TNetConnection; Operations : TOperationsHashTree; OperationsResult : TOperationsResumeList; var errors: AnsiString): Integer;
     Function AddOperation(SenderConnection : TNetConnection; Operation : TPCOperation; var errors: AnsiString): Boolean;
     Function SendNodeMessage(Target : TNetConnection; TheMessage : AnsiString; var errors : AnsiString) : Boolean;
     //
     Procedure NotifyBlocksChanged;
     //
-    procedure GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDeep, MaxOperations : Integer);
+    procedure GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDepth, MaxOperations : Integer);
     Function FindOperation(Const OperationComp : TPCOperationsComp; Const OperationHash : TRawBytes; var block : Cardinal; var operation_block_index : Integer) : Boolean;
     //
     Procedure AutoDiscoverNodes(Const ips : AnsiString);
@@ -291,13 +291,13 @@ begin
   ops := TOperationsHashTree.Create;
   Try
     ops.AddOperationToHashTree(Operation);
-    Result := AddOperations(SenderConnection,ops,errors)=1;
+    Result := AddOperations(SenderConnection,ops,Nil,errors)=1;
   Finally
     ops.Free;
   End;
 end;
 
-function TNode.AddOperations(SenderConnection : TNetConnection; Operations : TOperationsHashTree; var errors: AnsiString): Integer;
+function TNode.AddOperations(SenderConnection : TNetConnection; Operations : TOperationsHashTree; OperationsResult : TOperationsResumeList; var errors: AnsiString): Integer;
 Var
   i,j : Integer;
   operationscomp : TPCOperationsComp;
@@ -307,8 +307,11 @@ Var
   mtl : TList;
   netConnectionsList : TList;
   s : String;
+  OPR : TOperationResume;
+  ActOp : TPCOperation;
 begin
   Result := -1;
+  if Assigned(OperationsResult) then OperationsResult.Clear;
   if FDisabledsNewBlocksCount>0 then begin
     errors := Format('Cannot Add Operations due is adding disabled - OpCount:%d',[Operations.OperationsCount]);
     TLog.NewLog(ltinfo,Classname,errors);
@@ -327,15 +330,30 @@ begin
     valids_operations := TOperationsHashTree.Create;
     try
       for j := 0 to Operations.OperationsCount-1 do begin
-        if (FOperations.AddOperation(true,Operations.GetOperation(j),e)) then begin
+        ActOp := Operations.GetOperation(j);
+        if (FOperations.AddOperation(true,ActOp,e)) then begin
           inc(Result);
-          valids_operations.AddOperationToHashTree(Operations.GetOperation(j));
-          TLog.NewLog(ltdebug,Classname,Format('AddOperation %d/%d: %s',[(j+1),Operations.OperationsCount,Operations.GetOperation(j).ToString]));
+          valids_operations.AddOperationToHashTree(ActOp);
+          TLog.NewLog(ltdebug,Classname,Format('AddOperation %d/%d: %s',[(j+1),Operations.OperationsCount,ActOp.ToString]));
+          if Assigned(OperationsResult) then begin
+            TPCOperation.OperationToOperationResume(0,ActOp,ActOp.SenderAccount,OPR);
+            OPR.NOpInsideBlock:=FOperations.Count-1;
+            OPR.Balance := FOperations.SafeBoxTransaction.Account(ActOp.SenderAccount).balance;
+            OperationsResult.Add(OPR);
+          end;
         end else begin
           if (errors<>'') then errors := errors+' ';
           errors := errors+'Op '+IntToStr(j+1)+'/'+IntToStr(Operations.OperationsCount)+':'+e;
           TLog.NewLog(ltdebug,Classname,Format('AddOperation failed %d/%d: %s  - Error:%s',
-            [(j+1),Operations.OperationsCount,Operations.GetOperation(j).ToString,e]));
+            [(j+1),Operations.OperationsCount,ActOp.ToString,e]));
+          if Assigned(OperationsResult) then begin
+            TPCOperation.OperationToOperationResume(0,ActOp,ActOp.SenderAccount,OPR);
+            OPR.valid := false;
+            OPR.NOpInsideBlock:=-1;
+            OPR.OperationHash := '';
+            OPR.errors := e;
+            OperationsResult.Add(OPR);
+          end;
         end;
       end;
       if Result=0 then exit;
@@ -631,8 +649,8 @@ begin
   end;
 end;
 
-procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDeep, MaxOperations: Integer);
-  Procedure DoGetFromBlock(block_number : Cardinal; last_balance : Int64; act_deep : Integer);
+procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDepth, MaxOperations: Integer);
+  Procedure DoGetFromBlock(block_number : Cardinal; last_balance : Int64; act_depth : Integer);
   var opc : TPCOperationsComp;
     op : TPCOperation;
     OPR : TOperationResume;
@@ -640,7 +658,7 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
     i : Integer;
     next_block_number : Cardinal;
   begin
-    if (act_deep<=0) Or ((block_number<=0) And (block_number>0)) then exit;
+    if (act_depth<=0) Or ((block_number<=0) And (block_number>0)) then exit;
 
     opc := TPCOperationsComp.Create(Nil);
     Try
@@ -682,10 +700,10 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
         end;
         //
         opc.Clear(true);
-        if (next_block_number>=0) And (next_block_number<block_number) And (act_deep>0)
+        if (next_block_number>=0) And (next_block_number<block_number) And (act_depth>0)
            And (next_block_number >= (account_number DIV CT_AccountsPerBlock))
            And ((OperationsResume.Count<MaxOperations) Or (MaxOperations<=0))
-           then DoGetFromBlock(next_block_number,last_balance,act_deep-1);
+           then DoGetFromBlock(next_block_number,last_balance,act_depth-1);
       finally
         l.Free;
       end;
@@ -696,10 +714,10 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
 
 Var acc : TAccount;
 begin
-  if MaxDeep<0 then exit;
+  if MaxDepth<0 then exit;
   if account_number>=Bank.SafeBox.AccountsCount then exit;
   acc := Bank.SafeBox.Account(account_number);
-  if (acc.updated_block>0) Or (acc.account=0) then DoGetFromBlock(acc.updated_block,acc.balance,MaxDeep);
+  if (acc.updated_block>0) Or (acc.account=0) then DoGetFromBlock(acc.updated_block,acc.balance,MaxDepth);
 end;
 
 function TNode.FindOperation(const OperationComp: TPCOperationsComp;

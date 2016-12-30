@@ -116,6 +116,8 @@ Type
   TBlockChainData = Record
     Block : Cardinal;
     Timestamp : Cardinal;
+    BlockProtocolVersion,
+    BlockProtocolAvailable : Word;
     OperationsCount : Cardinal;
     Volume : Int64;
     Reward, Fee : Int64;
@@ -162,7 +164,7 @@ Type
   End;
 
 Const
-  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;OperationsCount:0;Volume:0;Reward:0;Fee:0;Target:0;HashRateKhs:0;MinerPayload:'';PoW:'';SafeBoxHash:'');
+  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:0;Volume:0;Reward:0;Fee:0;Target:0;HashRateKhs:0;MinerPayload:'';PoW:'';SafeBoxHash:'');
 
 
 implementation
@@ -915,7 +917,7 @@ begin
   DrawGrid.FixedRows := 1;
   DrawGrid.DefaultDrawing := true;
   DrawGrid.FixedCols := 0;
-  DrawGrid.ColCount := 11;
+  DrawGrid.ColCount := 12;
   DrawGrid.ColWidths[0] := 50; // Block
   DrawGrid.ColWidths[1] := 110; // Time
   DrawGrid.ColWidths[2] := 30; // Ops
@@ -927,6 +929,7 @@ begin
   DrawGrid.ColWidths[8] := 190; // Miner Payload
   DrawGrid.ColWidths[9] := 190; // PoW
   DrawGrid.ColWidths[10] := 190; // SafeBox Hash
+  DrawGrid.ColWidths[11] := 50; // Protocol
   FDrawGrid.DefaultRowHeight := 18;
   FDrawGrid.Invalidate;
   DrawGrid.Options := [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine,
@@ -970,6 +973,7 @@ begin
       8 : s := 'Miner Payload';
       9 : s := 'Proof of Work';
       10 : s := 'SafeBox Hash';
+      11 : s := 'Protocol';
     else s:= '';
     end;
     Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfCenter,tfVerticalCenter]);
@@ -1023,6 +1027,9 @@ begin
       end else if ACol=10 then begin
         s := TCrypto.ToHexaString(bcd.SafeBoxHash);
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter]);
+      end else if ACol=11 then begin
+        s := Inttostr(bcd.BlockProtocolVersion)+'-'+IntToStr(bcd.BlockProtocolAvailable);
+        Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfCenter,tfVerticalCenter,tfSingleLine]);
       end;
     end;
   end;
@@ -1137,6 +1144,8 @@ begin
         if (Node.Bank.LoadOperations(opc,nend)) then begin
           bcd.Block := opc.OperationBlock.block;
           bcd.Timestamp := opc.OperationBlock.timestamp;
+          bcd.BlockProtocolVersion := opc.OperationBlock.protocol_version;
+          bcd.BlockProtocolAvailable := opc.OperationBlock.protocol_available;
           bcd.OperationsCount := opc.Count;
           bcd.Volume := opc.OperationsHashTree.TotalAmount + opc.OperationsHashTree.TotalFee;
           bcd.Reward := opc.OperationBlock.reward;

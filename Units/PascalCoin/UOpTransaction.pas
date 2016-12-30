@@ -62,7 +62,7 @@ Type
     function LoadFromStream(Stream : TStream) : Boolean; override;
     procedure AffectedAccounts(list : TList); override;
     //
-    Class Function GetTransactionHasthToSign(const trans : TOpTransactionData) : TRawBytes;
+    Class Function GetTransactionHashToSign(const trans : TOpTransactionData) : TRawBytes;
     Class Function DoSignOperation(key : TECPrivateKey; var trans : TOpTransactionData) : Boolean;
     class function OpType : Byte; override;
     function OperationAmount : Int64; override;
@@ -158,7 +158,8 @@ begin
   FData.public_key := key.PublicKey;
   If Not DoSignOperation(key,FData) then begin
     TLog.NewLog(lterror,Classname,'Error signing a new Transaction');
-  end;
+    FHasValidSignature := false;
+  end else FHasValidSignature := true;
 end;
 
 function TOpTransaction.DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString): Boolean;
@@ -217,12 +218,21 @@ begin
     errors := Format('Target cannot accept this transaction due to max amount %d+%d=%d > %d',[target.balance,FData.amount,target.balance+FData.amount,CT_MaxWalletAmount]);
     Exit;
   end;
-  // Check signature
-  _h := GetTransactionHasthToSign(FData);
-  if (Not TCrypto.ECDSAVerify(FData.public_key,_h,FData.sign)) then begin
-    errors := 'Invalid sign';
-    Exit;
+  // Build 1.4
+  If (FData.public_key.EC_OpenSSL_NID<>CT_TECDSA_Public_Nul.EC_OpenSSL_NID) And (Not TAccountComp.Equal(FData.public_key,sender.accountkey)) then begin
+    errors := Format('Invalid sender public key for account %d. Distinct from SafeBox public key! %s <> %s',[
+      FData.sender,
+      TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(FData.public_key)),
+      TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(sender.accountkey))]);
+    exit;
   end;
+  // Check signature
+  _h := GetTransactionHashToSign(FData);
+  if (Not TCrypto.ECDSAVerify(sender.accountkey,_h,FData.sign)) then begin
+    errors := 'Invalid sign';
+    FHasValidSignature := false;
+    Exit;
+  end else FHasValidSignature := true;
   //
   FPrevious_Sender_updated_block := sender.updated_block;
   FPrevious_Destination_updated_block := target.updated_block;
@@ -240,7 +250,7 @@ begin
     trans.sign.s:='';
     exit;
   end;
-  s := GetTransactionHasthToSign(trans);
+  s := GetTransactionHashToSign(trans);
   Try
     _sign := TCrypto.ECDSASign(key.PrivateKey,s);
     trans.sign := _sign;
@@ -277,7 +287,7 @@ begin
   end;
 end;
 
-class function TOpTransaction.GetTransactionHasthToSign(const trans: TOpTransactionData): TRawBytes;
+class function TOpTransaction.GetTransactionHashToSign(const trans: TOpTransactionData): TRawBytes;
 Var ms : TMemoryStream;
 begin
   ms := TMemoryStream.Create;
@@ -389,7 +399,8 @@ begin
   FData.new_accountkey := new_account_key;
   If Not DoSignOperation(key,FData) then begin
     TLog.NewLog(lterror,Classname,'Error signing a new Change key');
-  end;
+    FHasValidSignature := false;
+  end else FHasValidSignature := true;
 end;
 
 function TOpChangeKey.DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors: AnsiString): Boolean;
@@ -423,10 +434,20 @@ begin
   If Not TAccountComp.IsValidAccountKey( FData.new_accountkey, errors ) then begin
     exit;
   end;
-  If Not TCrypto.ECDSAVerify(FData.public_key,GetOperationHasthToSign(FData),FData.sign) then begin
-    errors := 'Invalid sign';
+  // Build 1.4
+  If (FData.public_key.EC_OpenSSL_NID<>CT_TECDSA_Public_Nul.EC_OpenSSL_NID) And (Not TAccountComp.Equal(FData.public_key,account.accountkey)) then begin
+    errors := Format('Invalid public key for account %d. Distinct from SafeBox public key! %s <> %s',[
+      FData.account,
+      TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(FData.public_key)),
+      TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(account.accountkey))]);
     exit;
   end;
+
+  If Not TCrypto.ECDSAVerify(account.accountkey,GetOperationHasthToSign(FData),FData.sign) then begin
+    errors := 'Invalid sign';
+    FHasValidSignature := false;
+    exit;
+  end else FHasValidSignature := true;
   FPrevious_Sender_updated_block := account.updated_block;
   Result := AccountTransaction.UpdateAccountkey(FData.account,FData.n_operation,FData.new_accountkey,FData.fee,errors);
 end;
@@ -581,6 +602,7 @@ begin
   FData.account := account_number;
   FData.n_operation := n_operation;
   FData.fee := fee;
+  FHasValidSignature := true; // Recover founds doesn't need a signature
 end;
 
 function TOpRecoverFounds.DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors: AnsiString): Boolean;

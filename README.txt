@@ -34,6 +34,23 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 1.4.0.0 - 2016-12-30
+
+- JSON-RPC changes:
+  - Added method "signsendto" to allow a off-line wallet sign transaction operations without being syncrhonized
+  - Added method "signchangekey" to allow a off-line wallet sign change key operations without being syncrhonized
+  - Added method "executeoperations" to allow a on-line wallet execute operations signed off-line
+  - Added method "operationsinfo" that will decode operations signed off-line
+  - Added param "max" at JSON-RPC method "getblocks"
+  - Changed param name "deep" for "depht" in "getaccountoperations". Deep will be available for compatibility.
+  - Changed result for "changekeys". Now returns a "JSON operation object" array with each change key operation result
+  - Changes on "JSON Operation object": May return a "valid" param and "errors" param
+- Corrected a memory leak when processing JSON-RPC calls
+- Better performance in connection protocol
+- Updated protocol available to 1
+- Updated net protocol to 3-4
+- Important bug corrected
+
 ### Build 1.3.0.0 - 2016-11-24
 
 - JSON-RPC modifications:

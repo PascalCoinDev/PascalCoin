@@ -85,15 +85,15 @@ Const
   CT_Default_EC_OpenSSL_NID = NID_secp256k1;
 
   CT_BlockChain_Protocol_Version: Word = $0001; // Version 1
-  CT_BlockChain_Protocol_Available: Word = $0000;
+  CT_BlockChain_Protocol_Available: Word = $0001; // Build 1.4 Protocol available changed 0->1
 
   CT_MagicNetIdentification = $0A043580; // Unix timestamp 168048000 ... It's Albert birthdate!
 
   // Build 1.0.4 - introducing NetProtocol versioning:
-  CT_NetProtocol_Version: Word = $0002;
+  CT_NetProtocol_Version: Word = $0003;
   // IMPORTANT NOTE!!!
-  // NetProtocol_Available MUST BE allways >= NetProtocol_version
-  CT_NetProtocol_Available: Word = $0003;  // Remember, >= NetProtocol_version !!!
+  // NetProtocol_Available MUST BE always >= NetProtocol_version
+  CT_NetProtocol_Available: Word = $0004;  // Remember, >= NetProtocol_version !!!
 
   CT_SafeBoxBankVersion : Word = 2;
 
@@ -104,9 +104,9 @@ Const
   CT_Op_Changekey = $02;
   CT_Op_Recover = $03;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.3.1'{$ELSE}{$IFDEF TESTNET}'TESTNET'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.4.0'{$ELSE}{$IFDEF TESTNET}'TESTNET'{$ELSE}{$ENDIF}{$ENDIF};
 
-  CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.ddns.net;pascalcoin2.ddns.net;pascalcoin1.dynamic-dns.net;pascalcoin1.dns1.us';
+  CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin2.ddns.net;pascalcoin1.dynamic-dns.net;pascalcoin1.dns1.us';
 
   CT_TRUE_FALSE : Array[Boolean] Of AnsiString = ('FALSE','TRUE');
 

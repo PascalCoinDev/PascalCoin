@@ -1,7 +1,7 @@
 object FRMWallet: TFRMWallet
-  Left = 360
+  Left = 389
   Height = 600
-  Top = 328
+  Top = 201
   Width = 865
   Caption = 'Pascal Coin Wallet, JSON-RPC Miner & Explorer'
   ClientHeight = 600
@@ -382,9 +382,9 @@ object FRMWallet: TFRMWallet
     Height = 488
     Top = 91
     Width = 865
-    ActivePage = tsMessages
+    ActivePage = tsMyAccounts
     Align = alClient
-    TabIndex = 6
+    TabIndex = 0
     TabOrder = 2
     OnChange = PageControlChange
     object tsMyAccounts: TTabSheet
@@ -523,11 +523,11 @@ object FRMWallet: TFRMWallet
             ParentColor = False
           end
           object Label19: TLabel
-            Left = 120
+            Left = 136
             Height = 13
             Top = 10
-            Width = 104
-            Caption = 'Accounts Balance:'
+            Width = 49
+            Caption = 'Balance:'
             ParentColor = False
           end
           object lblAccountsCount: TLabel
@@ -539,7 +539,7 @@ object FRMWallet: TFRMWallet
             ParentColor = False
           end
           object lblAccountsBalance: TLabel
-            Left = 214
+            Left = 200
             Height = 13
             Top = 10
             Width = 21

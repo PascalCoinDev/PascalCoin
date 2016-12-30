@@ -58,7 +58,7 @@ Type
   public
     constructor Create;
     destructor Destroy; override;
-    procedure Add(Item: Pointer);
+    function Add(Item: Pointer) : Integer;
     procedure Clear;
     procedure Remove(Item: Pointer); inline;
     function LockList: TList;
@@ -87,38 +87,30 @@ Var l : TList;
 begin
   FStartTickCount := GetTickCount;
   FDebugStep := '';
-  _threads.Add(Self);
+  i := _threads.Add(Self);
   try
-    TLog.NewLog(ltdebug,Classname,'Starting Thread');
+    TLog.NewLog(ltdebug,Classname,'Starting Thread in pos '+inttostr(i+1));
     Try
       Try
-        Try
-          BCExecute;
-          FDebugStep := 'Finalized BCExecute';
-        Finally
-          // Build 1.0.9 BUG-101 When BCExecute ends... must indicate to Thread Terminated=TRUE !
-          // ... because if not... nobody knows when a thread terminated !
-          Terminate;
-        End;
-      Except
-        On E:Exception do begin
-          TLog.NewLog(lterror,Classname,'Exception inside a Thread at step: '+FDebugStep+' ('+E.ClassName+'): '+E.Message);
-          Raise;
-        end;
+        BCExecute;
+        FDebugStep := 'Finalized BCExecute';
+      Finally
+        Terminate;
       End;
-    Finally
-      TLog.NewLog(ltdebug,Classname,'Finalizing Thread');
+    Except
+      On E:Exception do begin
+        TLog.NewLog(lterror,Classname,'Exception inside a Thread at step: '+FDebugStep+' ('+E.ClassName+'): '+E.Message);
+        Raise;
+      end;
     End;
   finally
-    if (Assigned(_threads)) then begin
-      l := _threads.LockList;
-      Try
-        i := l.Remove(Self);
-        TLog.NewLog(ltdebug,Classname,'Finalizing Thread in pos '+inttostr(i+1)+'/'+inttostr(l.Count+1)+' working time: '+FormatFloat('0.000',(GetTickCount-FStartTickCount) / 1000)+' sec');
-      Finally
-        _threads.UnlockList;
-      End;
-    end;
+    l := _threads.LockList;
+    Try
+      i := l.Remove(Self);
+      TLog.NewLog(ltdebug,Classname,'Finalizing Thread in pos '+inttostr(i+1)+'/'+inttostr(l.Count+1)+' working time: '+FormatFloat('0.000',(GetTickCount-FStartTickCount) / 1000)+' sec');
+    Finally
+      _threads.UnlockList;
+    End;
   end;
 end;
 
@@ -228,17 +220,17 @@ begin
   if Not Result then begin
     s := Format('Cannot Protect a critical section by %s after %d milis',
       [Sender.ClassName,MaxWaitMilliseconds]);
-    TLog.NewLog(lterror,Classname,s);
+    TLog.NewLog(ltdebug,Classname,s);
   end;
 end;
 
 { TPCThreadList }
 
-procedure TPCThreadList.Add(Item: Pointer);
+function TPCThreadList.Add(Item: Pointer) : Integer;
 begin
   LockList;
   Try
-    FList.Add(Item);
+    Result := FList.Add(Item);
   Finally
     UnlockList;
   End;
@@ -305,3 +297,4 @@ initialization
 finalization
   FreeAndNil(_threads);
 end.
+

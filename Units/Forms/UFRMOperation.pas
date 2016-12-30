@@ -237,7 +237,7 @@ begin
       if Application.MessageBox(PChar('Execute this operation:'+#10+#10+operation_to_string+#10+#10+'Note: This operation will be transmitted to the network!'),
         PChar(Application.Title),MB_YESNO+MB_ICONINFORMATION+MB_DEFBUTTON2)<>IdYes then exit;
     end;
-    i := FNode.AddOperations(nil,ops,errors);
+    i := FNode.AddOperations(nil,ops,Nil,errors);
     if (i=ops.OperationsCount) then begin
       Application.MessageBox(PChar('Successfully executed '+inttostr(i)+' operations!'+#10+#10+operation_to_string),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
       ModalResult := MrOk;

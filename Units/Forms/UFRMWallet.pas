@@ -345,6 +345,7 @@ begin
     // Check Database
     FNode.Bank.StorageClass := TFileStorage;
     TFileStorage(FNode.Bank.Storage).DatabaseFolder := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data';
+    TFileStorage(FNode.Bank.Storage).Initialize;
     // Init Grid
     //FAccountsGrid.Node := FNode;
     FSelectedAccountsGrid.Node := FNode;

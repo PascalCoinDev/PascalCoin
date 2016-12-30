@@ -266,6 +266,7 @@ Type
     FAlertedForNewProtocolAvailable : Boolean;
     FHasReceivedData : Boolean;
     FIsDownloadingBlocks : Boolean;
+    FRandomWaitSecondsSendHello : Cardinal;
     function GetConnected: Boolean;
     procedure SetConnected(const Value: Boolean);
     procedure TcpClient_OnConnect(Sender: TObject);
@@ -1513,6 +1514,7 @@ begin
   FNetLock := TCriticalSection.Create;
   FLastDataReceivedTS := 0;
   FLastDataSendedTS := 0;
+  FRandomWaitSecondsSendHello := 90 + Random(60);
   FTcpIpClient := Nil;
   FRemoteOperationBlock := CT_OperationBlock_NUL;
   SetClient( TBufferedNetTcpIpClient.Create(Self) );
@@ -1634,8 +1636,8 @@ begin
       ms.Free;
     end;
     If ((FLastDataReceivedTS>0) Or ( NOT (Self is TNetServerClient)))
-       AND ((FLastDataReceivedTS+(1000*120)<GetTickCount) AND (FLastDataSendedTS+(1000*120)<GetTickCount)) then begin
-       // Build 1.3 -> Changing wait time from 60 to 120 secs.
+       AND ((FLastDataReceivedTS+(1000*FRandomWaitSecondsSendHello)<GetTickCount) AND (FLastDataSendedTS+(1000*FRandomWaitSecondsSendHello)<GetTickCount)) then begin
+       // Build 1.4 -> Changing wait time from 120 secs to a random seconds value
       DebugStep := 'LastSend time old';
       If TNetData.NetData.PendingRequest(Self,ops)>=2 then begin
         TLog.NewLog(ltDebug,Classname,'Pending requests without response... closing connection to '+ClientRemoteAddr+' > '+ops);
@@ -1700,7 +1702,7 @@ begin
       if DoDisconnect then begin
         DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(HeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
       end else begin
-        TNode.Node.AddOperations(Self,operations,errors);
+        TNode.Node.AddOperations(Self,operations,Nil,errors);
       end;
     finally
       operations.Free;
@@ -1874,6 +1876,17 @@ begin
     end;
 
     DoDisconnect := false;
+
+    // Build 1.4
+    if b_start<TNode.Node.Bank.Storage.FirstBlock then begin
+      b_start := TNode.Node.Bank.Storage.FirstBlock;
+      if b_end<b_start then begin
+        errors := 'Block:'+inttostr(b_end)+' not found';
+        SendError(ntp_response,HeaderData.operation,HeaderData.request_id,CT_NetError_InternalServerError,errors);
+        exit;
+      end;
+    end;
+
 
     if (b_end>=TNode.Node.Bank.BlocksCount) then b_end := TNode.Node.Bank.BlocksCount-1;
     inc_b := ((b_end - b_start) DIV CT_Max_Positions)+1;
@@ -2313,6 +2326,7 @@ begin
           last_bytes_read := auxstream.size;
           if last_bytes_read>0 then begin
             FLastDataReceivedTS := GetTickCount;
+            FRandomWaitSecondsSendHello := 90 + Random(60);
 
             FClientBufferRead.Position := FClientBufferRead.size; // Go to the end
             auxstream.Position := 0;
@@ -2418,6 +2432,7 @@ begin
         ClientRemoteAddr);
       (Client as TBufferedNetTcpIpClient).WriteBufferToSend(Buffer);
       FLastDataSendedTS := GetTickCount;
+      FRandomWaitSecondsSendHello := 90 + Random(60);
     Finally
       FNetLock.Release;
     End;
@@ -2479,7 +2494,7 @@ begin
       if FRemoteOperationBlock.block>0 then c2 := FRemoteOperationBlock.block
       else c2 := c1+100;
     end else c2 := c1+quantity-1;
-    // Build 1.0.5 BUG - Allways query for ONLY 1 if Build is lower or equal to 1.0.5
+    // Build 1.0.5 BUG - Always query for ONLY 1 if Build is lower or equal to 1.0.5
     if ((FClientAppVersion='') Or ( (length(FClientAppVersion)=5) And (FClientAppVersion<='1.0.5') )) then begin
       c2 := c1;
     end;
