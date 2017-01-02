@@ -1119,6 +1119,7 @@ Var c,c2 : Cardinal;
   jso : TPCJSONObject;
 begin
   _ro := Nil;
+  _ra := Nil;
   ErrorNum:=0;
   ErrorDesc:='';
   Result := false;
