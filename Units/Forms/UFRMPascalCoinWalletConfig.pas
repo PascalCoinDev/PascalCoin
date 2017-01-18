@@ -31,6 +31,8 @@ uses
 
 type
 
+  TMinerPrivateKey = (mpk_NewEachTime, mpk_Random, mpk_Selected);
+
   { TFRMPascalCoinWalletConfig }
 
   TFRMPascalCoinWalletConfig = class(TForm)
@@ -81,7 +83,7 @@ type
 
 implementation
 
-uses UConst, UAccounts, ULog, UCrypto, UMiner, UFolderHelper;
+uses UConst, UAccounts, ULog, UCrypto, UFolderHelper;
 
 {$IFnDEF FPC}
   {$R *.dfm}

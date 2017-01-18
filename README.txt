@@ -34,6 +34,12 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 1.4.1.0 - 2017-01-18
+
+- Improved JSON communications with Miner client (Port 4009 by default)
+- Deleted adding numeration to JSON miner clients (only sends miner name)
+- Minor changes
+
 ### Build 1.4.0.0 - 2016-12-30
 
 - JSON-RPC changes:

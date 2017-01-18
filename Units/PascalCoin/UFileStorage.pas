@@ -21,6 +21,7 @@ interface
 
 uses
   Classes, UBlockChain, SyncObjs;
+{$I config.inc}
 
 Type
   TBlockHeader = Record

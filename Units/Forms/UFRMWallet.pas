@@ -28,7 +28,7 @@ uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, ExtCtrls, ComCtrls, UWalletKeys, StdCtrls,
   ULog, Grids, UAppParams,
-  UBlockChain, UNode, UGridUtils, UMiner, UAccounts, Menus, ImgList,
+  UBlockChain, UNode, UGridUtils, UAccounts, Menus, ImgList,
   UNetProtocol, UCrypto, Buttons, UPoolMining, URPC;
 
 Const
@@ -239,18 +239,17 @@ type
     FRPCServer : TRPCServer;
     FMustProcessWalletChanged : Boolean;
     FMustProcessNetConnectionUpdated : Boolean;
-    //Procedure CheckMining;
     Procedure OnNewAccount(Sender : TObject);
     Procedure OnReceivedHelloMessage(Sender : TObject);
     Procedure OnNetStatisticsChanged(Sender : TObject);
     procedure OnNewLog(logtype : TLogType; Time : TDateTime; ThreadID : Cardinal; Const sender, logtext : AnsiString);
-    procedure OnMinerNewBlockFound(sender : TMinerThread; Operations : TPCOperationsComp);
     procedure OnWalletChanged(Sender : TObject);
     procedure OnNetConnectionsUpdated(Sender : TObject);
     procedure OnNetNodeServersUpdated(Sender : TObject);
     procedure OnNetBlackListUpdated(Sender : TObject);
     Procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : TRawBytes);
     Procedure OnSelectedAccountsGridUpdated(Sender : TObject);
+    Procedure OnMiningServerNewBlockFound(Sender : TObject);
     Procedure UpdateConnectionStatus;
     Procedure UpdateAccounts(RefreshData : Boolean);
     Procedure UpdateBlockChainState;
@@ -790,6 +789,7 @@ begin
   FPoolMiningServer.MinerPayload := FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString('');
   FNode.Operations.AccountKey := GetAccountKeyForMiner;
   FPoolMiningServer.Active := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].GetAsBoolean(true);
+  FPoolMiningServer.OnMiningServerNewBlockFound := OnMiningServerNewBlockFound;
 end;
 
 function TFRMWallet.ForceMining: Boolean;
@@ -872,7 +872,6 @@ end;
 
 procedure TFRMWallet.FormDestroy(Sender: TObject);
 Var i : Integer;
-  MT : TMinerThread;
   step : String;
 begin
   TLog.NewLog(ltinfo,Classname,'Destroying form - START');
@@ -897,17 +896,6 @@ begin
   TNetData.NetData.OnNodeServersUpdated := Nil;
   TNetData.NetData.OnBlackListUpdated := Nil;
   //
-
-  Repeat
-    i := TPCThread.ThreadClassFound(TMinerThread,nil);
-    if i>=0 then begin
-      step := 'Terminating Miner thread '+inttostr(i);
-      MT := TMinerThread( TPCThread.GetThread(i) );
-      MT.Paused := false;
-      MT.Terminate;
-      MT.WaitFor;
-    end;
-  Until i<0;
 
   step := 'Destroying NodeNotifyEvents';
   FreeAndNil(FNodeNotifyEvents);
@@ -1183,10 +1171,9 @@ begin
   sbSelectedAccountsDelClick(Sender);
 end;
 
-procedure TFRMWallet.OnMinerNewBlockFound(sender: TMinerThread; Operations: TPCOperationsComp);
+procedure TFRMWallet.OnMiningServerNewBlockFound(Sender: TObject);
 begin
-  MinersBlocksFound := MinersBlocksFound+1;
-  Sender.AccountKey := GetAccountKeyForMiner;
+  FPoolMiningServer.MinerAccountKey := GetAccountKeyForMiner;
 end;
 
 procedure TFRMWallet.OnNetBlackListUpdated(Sender: TObject);

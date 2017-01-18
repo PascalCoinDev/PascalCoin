@@ -29,9 +29,16 @@
   {.$DEFINE Synapse_OpenSSLv10}
   {.$DEFINE Synapse_OpenSSLv11}
 
+  {$DEFINE PRODUCTION}
+  {.$DEFINE TESTNET}
+
 { ********************************************************************
   Don't touch more code, it will addapt based on your preferences
   ******************************************************************** }
+
+{$IFDEF TESTNET}{$IFDEF PRODUCTION}
+ERROR: You must select ONLY ONE option: PRODUCTION or TESTNET
+{$ENDIF}{$ELSE}{$DEFINE PRODUCTION}{$ENDIF}
 
 {$IFNDEF OPTIONS_BY_DEFAULT}{$IFNDEF DelphiSockets_OpenSSLv10}{$IFNDEF Synapse_OpenSSLv10}{$IFNDEF Synapse_OpenSSLv11}
 ERROR: You must select ONE option!

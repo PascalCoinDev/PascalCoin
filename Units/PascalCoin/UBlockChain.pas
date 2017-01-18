@@ -21,6 +21,7 @@ interface
 
 uses
   Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs;
+{$I config.inc}
 
 
 Type

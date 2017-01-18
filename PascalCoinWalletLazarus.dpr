@@ -40,7 +40,6 @@ uses
   UJSONFunctions in 'Units\Utils\UJSONFunctions.pas',
   URPC in 'Units\PascalCoin\URPC.pas',
   UPoolMining in 'Units\PascalCoin\UPoolMining.pas',
-  UMiner in 'Units\PascalCoin\UMiner.pas',
   UOpenSSL in 'Units\PascalCoin\UOpenSSL.pas',
   UOpenSSLdef in 'Units\PascalCoin\UOpenSSLdef.pas';
 

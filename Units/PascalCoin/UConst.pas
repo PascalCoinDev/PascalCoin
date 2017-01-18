@@ -17,15 +17,11 @@ unit UConst;
 
   }
 
-{$IFNDEF PRODUCTION}
-  {$IFNDEF TESTNET}
-    {$DEFINE PRODUCTION}
-  {$ENDIF}
-{$ENDIF}
-
 interface
 
 Uses UOpenSSLdef;
+{$I config.inc}
+
 
 {$IFNDEF FPC}
   // See http://wiki.freepascal.org/Code_Conversion_Guide
@@ -104,7 +100,7 @@ Const
   CT_Op_Changekey = $02;
   CT_Op_Recover = $03;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.4.0'{$ELSE}{$IFDEF TESTNET}'TESTNET'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.4.1'{$ELSE}{$IFDEF TESTNET}'TESTNET'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin2.ddns.net;pascalcoin1.dynamic-dns.net;pascalcoin1.dns1.us';
 

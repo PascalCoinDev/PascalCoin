@@ -2135,7 +2135,7 @@ begin
           TNetData.NetData.GetNewBlockChainFromClient(Self);
         end else if (op.OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
           // New block candidate:
-          If Not TNode.Node.AddNewBlockChain(nil,Self,op,bacc,errors) then begin
+          If Not TNode.Node.AddNewBlockChain(Self,op,bacc,errors) then begin
             // Received a new invalid block... perhaps I'm an orphan blockchain
             TNetData.NetData.GetNewBlockChainFromClient(Self);
           end;
@@ -2568,7 +2568,8 @@ begin
         data.Write(nsa.last_connection,4);
       end;
       // Send client version
-      TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$IFDEF Synapse}+'s'{$ENDIF}{$ENDIF}{$IFDEF OpenSSL10}+'0'{$ELSE}+'1'{$ENDIF});
+// XXXXXXXXXX      TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$IFDEF FPC}+'F'{$IFDEF LCL}+'L'{$ENDIF}{$ELSE}{$IFDEF Synapse}+'s'{$ENDIF}{$ENDIF}{$IFDEF OpenSSL10}+'0'{$ELSE}+'1'{$ENDIF}{$ENDIF});
+     TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$ENDIF});
     finally
       op.free;
     end;

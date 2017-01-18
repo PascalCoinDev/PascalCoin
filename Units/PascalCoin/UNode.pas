@@ -30,7 +30,7 @@ unit UNode;
 interface
 
 uses
-  Classes, UBlockChain, UNetProtocol, UMiner, UAccounts, UCrypto, UThread, SyncObjs, ULog;
+  Classes, UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, SyncObjs, ULog;
 
 Type
 
@@ -44,13 +44,10 @@ Type
     FBank : TPCBank;
     FOperations : TPCOperationsComp;
     FNetServer : TNetServer;
-    FMinerThreads : TPCThreadList;
     FBCBankNotify : TPCBankNotify;
     FPeerCache : AnsiString;
     FDisabledsNewBlocksCount : Integer;
     Procedure OnBankNewBlock(Sender : TObject);
-    Procedure OnMinerThreadTerminate(Sender : TObject);
-    Procedure OnMinerNewBlockFound(sender : TMinerThread; Operations : TPCOperationsComp; Var Correct : Boolean);
     procedure SetNodeLogFilename(const Value: AnsiString);
     function GetNodeLogFilename: AnsiString;
   protected
@@ -63,15 +60,11 @@ Type
     Destructor Destroy; override;
     Property Bank : TPCBank read FBank;
     Function NetServer : TNetServer;
-    Function MinersCount : Integer;
-    Property MinerThreads : TPCThreadList read FMinerThreads;
-    Function AddMiner(AccountKey : TAccountKey) : TMinerThread;
-    Procedure DeleteMiner(index : Integer);
     Procedure NotifyNetClientMessage(Sender : TNetConnection; Const TheMessage : AnsiString);
     //
     Property Operations : TPCOperationsComp read FOperations;
     //
-    Function AddNewBlockChain(SenderMiner : TMinerThread; SenderConnection : TNetConnection; NewBlockOperations: TPCOperationsComp; var newBlockAccount: TBlockAccount; var errors: AnsiString): Boolean;
+    Function AddNewBlockChain(SenderConnection : TNetConnection; NewBlockOperations: TPCOperationsComp; var newBlockAccount: TBlockAccount; var errors: AnsiString): Boolean;
     Function AddOperations(SenderConnection : TNetConnection; Operations : TOperationsHashTree; OperationsResult : TOperationsResumeList; var errors: AnsiString): Integer;
     Function AddOperation(SenderConnection : TNetConnection; Operation : TPCOperation; var errors: AnsiString): Boolean;
     Function SendNodeMessage(Target : TNetConnection; TheMessage : AnsiString; var errors : AnsiString) : Boolean;
@@ -150,40 +143,23 @@ var _Node : TNode;
 
 { TNode }
 
-function TNode.AddMiner(AccountKey : TAccountKey) : TMinerThread;
-Var op : TPCOperationsComp;
-begin
-  Result := Nil;
-  TLog.NewLog(ltinfo,ClassName,'Creating a new miner');
-  Result := TMinerThread.Create(Bank,AccountKey,OnMinerNewBlockFound,nil);
-  Result.OnTerminate := OnMinerThreadTerminate;
-  op := Result.MinerLockOperations;
-  try
-    op.CopyFromExceptAddressKey(FOperations);
-  finally
-    Result.MinerUnLockOperations(True);
-  end;
-  FMinerThreads.Add(Result);
-end;
-
-function TNode.AddNewBlockChain(SenderMiner: TMinerThread; SenderConnection: TNetConnection; NewBlockOperations: TPCOperationsComp;
+function TNode.AddNewBlockChain(SenderConnection: TNetConnection; NewBlockOperations: TPCOperationsComp;
   var newBlockAccount: TBlockAccount; var errors: AnsiString): Boolean;
 Var i : Integer;
   operationscomp : TPCOperationsComp;
   nc : TNetConnection;
   ms : TMemoryStream;
-  mtl : TList;
   netConnectionsList : TList;
   s : String;
   errors2 : AnsiString;
 begin
   Result := false;
   if FDisabledsNewBlocksCount>0 then begin
-    TLog.NewLog(ltinfo,Classname,Format('Cannot Add new BlockChain due is adding disabled - Miner:%s Connection:%s NewBlock:%s',[Inttohex(PtrInt(SenderMiner),8),
+    TLog.NewLog(ltinfo,Classname,Format('Cannot Add new BlockChain due is adding disabled - Connection:%s NewBlock:%s',[
     Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
     exit;
   end;
-  TLog.NewLog(ltdebug,Classname,Format('AddNewBlockChain Miner:%s Connection:%s NewBlock:%s',[Inttohex(PtrInt(SenderMiner),8),
+  TLog.NewLog(ltdebug,Classname,Format('AddNewBlockChain Connection:%s NewBlock:%s',[
     Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
   If Not TPCThread.TryProtectEnterCriticalSection(Self,2000,FLockNodeOperations) then begin
     s := 'Cannot AddNewBlockChain due blocking lock operations node';
@@ -214,25 +190,6 @@ begin
     end;
     if Result then begin
       FOperations.SanitizeOperations;
-      // Notify to all clients and other miners
-      mtl := FMinerThreads.LockList;
-      try
-        for i := 0 to mtl.Count - 1 do begin
-          if (mtl[i]<>SenderMiner) then begin
-            TLog.NewLog(ltdebug,Classname,'Sending new Operations to miner '+inttostr(i+1)+'/'+inttostr(mtl.Count));
-            operationscomp := TMinerThread(mtl[i]).MinerLockOperations;
-            try
-              operationscomp.CopyFromExceptAddressKey(FOperations);
-            finally
-              TMinerThread(mtl[i]).MinerUnLockOperations(true);
-            end;
-          end else begin
-            //
-          end;
-        end;
-      finally
-        FMinerThreads.UnlockList;
-      end;
       // Notify to clients
       netConnectionsList := TNetData.NetData.ConnectionsLock;
       Try
@@ -248,35 +205,10 @@ begin
     end else begin
       // If error is on a SenderMiner its a hole
       FOperations.SanitizeOperations;
-      if Assigned(SenderMiner) then begin
-        TLog.NewLog(lterror,SenderMiner.Classname,'Invalid calculated PoW... reseting from Node Operations: '+TPCOperationsComp.OperationBlockToText(FOperations.OperationBlock));
-        operationscomp := SenderMiner.MinerLockOperations;
-        try
-          operationscomp.CopyFromExceptAddressKey(FOperations);
-        finally
-          SenderMiner.MinerUnLockOperations(true);
-        end;
-        // Reset others:
-        mtl := FMinerThreads.LockList;
-        try
-          for i := 0 to mtl.Count - 1 do begin
-            if (TMinerThread(mtl[i])<>SenderMiner) then begin
-              operationscomp := TMinerThread(mtl[i]).MinerLockOperations;
-              try
-                operationscomp.CopyFromExceptAddressKey(FOperations);
-              finally
-                TMinerThread(mtl[i]).MinerUnLockOperations(true);
-              end;
-            end;
-          end;
-        finally
-          FMinerThreads.UnlockList;
-        end;
-      end;
     end;
   finally
     FLockNodeOperations.Release;
-    TLog.NewLog(ltdebug,Classname,Format('Finalizing AddNewBlockChain Miner:%s Connection:%s NewBlock:%s',[Inttohex(PtrInt(SenderMiner),8),
+    TLog.NewLog(ltdebug,Classname,Format('Finalizing AddNewBlockChain Connection:%s NewBlock:%s',[
       Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock) ]));
   End;
   if Result then begin
@@ -357,20 +289,6 @@ begin
         end;
       end;
       if Result=0 then exit;
-      // Send to miners
-      mtl := FMinerThreads.LockList;
-      Try
-        for i := 0 to mtl.Count - 1 do begin
-          operationscomp := TMinerThread(mtl[i]).MinerLockOperations;
-          try
-            operationscomp.CopyFromExceptAddressKey(FOperations);
-          finally
-            TMinerThread(mtl[i]).MinerUnLockOperations(false);
-          end;
-        end;
-      Finally
-        FMinerThreads.UnlockList;
-      End;
       // Send to other nodes
       netConnectionsList := TNetData.NetData.ConnectionsLock;
       Try
@@ -425,7 +343,6 @@ begin
   FBCBankNotify.Bank := FBank;
   FBCBankNotify.OnNewBlock := OnBankNewBlock;
   FNetServer := TNetServer.Create;
-  FMinerThreads := TPCThreadList.Create;
   FOperations := TPCOperationsComp.Create(Self);
   FOperations.bank := FBank;
   FNotifyList := TList.Create;
@@ -479,24 +396,6 @@ begin
   until (ips_string='');
 end;
 
-procedure TNode.DeleteMiner(index: Integer);
-Var m : TMinerThread;
-  mtl : TList;
-begin
-  mtl := FMinerThreads.LockList;
-  Try
-    m := TMinerThread(mtl[index]);
-    m.Suspended := false;
-    m.Paused := false;
-    mtl.Delete(index);
-  Finally
-    FMinerThreads.UnlockList;
-  End;
-  m.Terminate;
-  m.WaitFor;
-  m.Free;
-end;
-
 destructor TNode.Destroy;
 Var step : String;
 begin
@@ -508,13 +407,8 @@ begin
     step := 'Desactivating server';
     FNetServer.Active := false;
 
-    step := 'Deleting miners';
-    while (MinersCount>0) do DeleteMiner(0);
-
     step := 'Destroying NetServer';
     FreeAndNil(FNetServer);
-    step := 'Destroying MinerThreads';
-    FreeAndNil(FMinerThreads);
 
     step := 'Destroying NotifyList';
     FreeAndNil(FNotifyList);
@@ -612,17 +506,6 @@ begin
       CurrentProcess := 'Server not active';
     end;
   end;
-end;
-
-function TNode.MinersCount : Integer;
-Var mtl : TList;
-begin
-  mtl := FMinerThreads.LockList;
-  Try
-    Result := mtl.Count;
-  Finally
-    FMinerThreads.UnlockList;
-  End;
 end;
 
 function TNode.NetServer: TNetServer;
@@ -796,23 +679,6 @@ end;
 procedure TNode.OnBankNewBlock(Sender: TObject);
 begin
   FOperations.SanitizeOperations;
-end;
-
-procedure TNode.OnMinerNewBlockFound(sender: TMinerThread;
-  Operations: TPCOperationsComp; var Correct: Boolean);
-Var nba : TBlockAccount;
-  errors : AnsiString;
-begin
-  correct := true;
-  If Not AddNewBlockChain(sender,nil,Operations,nba,errors) then begin
-    Correct := false;
-    TLog.NewLog(lterror,ClassName,'Invalid block found by miner: '+errors);
-  end;
-end;
-
-procedure TNode.OnMinerThreadTerminate(Sender: TObject);
-begin
-  FMinerThreads.Remove(Sender);
 end;
 
 function TNode.SendNodeMessage(Target: TNetConnection; TheMessage: AnsiString; var errors: AnsiString): Boolean;

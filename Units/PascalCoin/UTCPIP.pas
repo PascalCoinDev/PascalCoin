@@ -19,6 +19,8 @@ interface
   {$mode objfpc}
 {$ENDIF}
 
+{$I config.inc}
+
 {.$DEFINE DelphiSockets}
 {$DEFINE Synapse}
 {$IFDEF DelphiSockets}{$IFDEF Synapse}DelphiSockets and Synapse are defined! Choose one!{$ENDIF}{$ENDIF}

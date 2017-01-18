@@ -65,6 +65,8 @@ uses
 {$ENDIF}
   SysUtils;
 
+{$I .\..\PascalCoin\config.inc}
+
 {$IFnDEF FPC}
 function SHGetFolderPath(hwnd: HWND; csidl: Integer; hToken: THandle;
   dwFlags: DWord; pszPath: LPWSTR): HRESULT; stdcall;
@@ -98,7 +100,11 @@ end;
 
 class function TFolderHelper.GetPascalCoinDataFolder: string;
 begin
+  {$IFDEF TESTNET}
+  Result := GetAppDataFolder+PathDelim+'PascalCoin_TESTNET';
+  {$ELSE}
   Result := GetAppDataFolder+PathDelim+'PascalCoin';
+  {$ENDIF}
 end;
 
 class function TFolderHelper.GetTFileVersionInfo(Const FileName: String): TFileVersionInfo;
