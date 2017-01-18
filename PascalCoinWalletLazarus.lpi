@@ -206,7 +206,7 @@
     <PathDelim Value="\"/>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="Synapse\lib;Units\Forms;Units\PascalCoin"/>
+      <OtherUnitFiles Value="Synapse\lib;Units\Forms;Units\PascalCoin;Units\Utils"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>

@@ -544,7 +544,7 @@ begin
   try
     Op.CopyFrom(FNodeNotifyEvents.Node.Operations);
     Op.AccountKey := FMinerAccountKey;
-    Op.BlockPayload := FMinerPayload+IntToStr(Client.Tag);
+    Op.BlockPayload := FMinerPayload;
     mine_values.GetAsVariant('part1').Value := TCrypto.ToHexaString( Op.PoW_Digest_Part1 );
     mine_values.GetAsVariant('payload_start').Value := TCrypto.ToHexaString( Op.OperationBlock.block_payload );
     mine_values.GetAsVariant('part3').Value := TCrypto.ToHexaString( Op.PoW_Digest_Part3 );
@@ -630,7 +630,6 @@ begin
     TLog.NewLog(ltinfo,ClassName,'New Mining Pool Connection: '+Client.ClientRemoteAddr);
     bClient := TJSONRPCTcpIpClient(Client);
     inc(FIncomingsCounter);
-    bClient.Tag := FIncomingsCounter;
     init_json := TPCJSONObject.Create;
     Try
       FillMineValue(init_json,bClient);

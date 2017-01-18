@@ -2568,8 +2568,7 @@ begin
         data.Write(nsa.last_connection,4);
       end;
       // Send client version
-// XXXXXXXXXX      TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$IFDEF FPC}+'F'{$IFDEF LCL}+'L'{$ENDIF}{$ELSE}{$IFDEF Synapse}+'s'{$ENDIF}{$ENDIF}{$IFDEF OpenSSL10}+'0'{$ELSE}+'1'{$ENDIF}{$ENDIF});
-     TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$ENDIF});
+      TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$ENDIF}{$IFDEF FPC}{$IFDEF LCL}+'L'{$ELSE}+'F'{$ENDIF}{$ENDIF});
     finally
       op.free;
     end;
