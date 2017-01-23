@@ -459,11 +459,13 @@ begin
   FIncomingsCounter := 0;
   FClientsWins := 0;
   FClientsCount := 0;
+  MaxConnections:=1000;
   NetTcpIpClientClass := TJSONRPCTcpIpClient;
   FNodeNotifyEvents := TNodeNotifyEvents.Create(Nil);
   FNodeNotifyEvents.OnBlocksChanged := OnNodeNewBlock;
   FNodeNotifyEvents.OnOperationsChanged := OnNodeOperationsChanged;
   FNodeNotifyEvents.Node := TNode.Node;
+  FMinerAccountKey := CT_TECDSA_Public_Nul;
 end;
 
 destructor TPoolMiningServer.Destroy;

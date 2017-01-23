@@ -38,7 +38,6 @@ type
     procedure OnDeviceStateChanged(Sender : TObject);
     procedure OnMinerValuesChanged(Sender : TObject);
     procedure OnFoundNOnce(Sender : TCustomMinerDeviceThread; Timestamp, nOnce : Cardinal);
-    procedure WriteLog(LogTxt : String);
     procedure WriteLine(nline : Integer; txt : String);
     procedure OnInThreadNewLog(logtype : TLogType; Time : TDateTime; ThreadID : Cardinal; Const sender, logtext : AnsiString);
   protected
@@ -46,7 +45,8 @@ type
     FLock : TCriticalSection;
     FPrivateKey : TECPrivateKey;
     FPoolMinerThread : TPoolMinerThread;
-    FDeviceThread : TCustomMinerDeviceThread;
+    FDeviceThreads : TList;
+    FAppStartTime : TDateTime;
     procedure DoRun; override;
   public
     constructor Create(TheOwner: TComponent); override;
@@ -55,15 +55,14 @@ type
   end;
 
 Const
-  CT_MINER_VERSION = 'Beta 0.1';
+  CT_MINER_VERSION = '0.2';
   CT_Line_DeviceStatus = 3;
-  CT_Line_ConnectionStatus = 5;
-  CT_Line_MinerValues = 8;
-  CT_Line_MiningStatus = 11;
-  CT_Line_LastFound = 14;
-  CT_Line_Logs = 17;
+  CT_Line_ConnectionStatus = 4;
+  CT_Line_MinerValues = 7;
+  CT_Line_MiningStatus = 10;
+  CT_Line_LastFound = 12;
+  CT_Line_Logs = 15;
   CT_MaxLogs = 10;
-  CT_Line_End = 28;
   CT_OpenCL_FileName = 'pascalsha.cl';
 
 { TPascalMinerApp }
@@ -100,30 +99,39 @@ end;
 
 procedure TPascalMinerApp.OnConnectionStateChanged(Sender: TObject);
 Const CT_state : Array[boolean] of String = ('Disconnected','Connected');
+var i : Integer;
 begin
   If FPoolMinerThread.PoolMinerClient.Connected then begin
     WriteLine(CT_Line_ConnectionStatus,'Connected to '+FPoolMinerThread.PoolMinerClient.ClientRemoteAddr);
-    If Assigned(FDeviceThread) then FDeviceThread.Paused:=false;
+    For i:=0 to FDeviceThreads.Count-1 do begin
+      TCustomMinerDeviceThread(FDeviceThreads[i]).Paused:=false;
+    end;
   end else begin
-    If Assigned(FDeviceThread) then FDeviceThread.Paused:=true;
-    WriteLine(CT_Line_ConnectionStatus,'Trying to connect to '+FPoolMinerThread.PoolMinerClient.ClientRemoteAddr);
+    For i:=0 to FDeviceThreads.Count-1 do begin
+      TCustomMinerDeviceThread(FDeviceThreads[i]).Paused:=true;
+    end;
+    WriteLine(CT_Line_ConnectionStatus,'** NO CONNECTED... Connecting to '+FPoolMinerThread.PoolMinerClient.ClientRemoteAddr);
   end;
 end;
 
 procedure TPascalMinerApp.OnDeviceStateChanged(Sender: TObject);
+Var i : Integer;
+  s : String;
 begin
-  If Sender is TCustomMinerDeviceThread then WriteLine(CT_Line_DeviceStatus,TCustomMinerDeviceThread(Sender).GetState);
+  If Sender is TCustomMinerDeviceThread then begin
+    If TCustomMinerDeviceThread(Sender).IsMining then WriteLine(CT_Line_DeviceStatus,'') // clear line
+    else WriteLine(CT_Line_DeviceStatus,'*** Not mining ***');
+  end;
 end;
 
 procedure TPascalMinerApp.OnMinerValuesChanged(Sender: TObject);
 begin
   If Sender is TCustomMinerDeviceThread then begin
     If TCustomMinerDeviceThread(Sender).MinerValuesForWork.block>0 then begin
-      WriteLine(CT_Line_MinerValues,Format('Current block: %d Miner name: %s Target: %s',
+      WriteLine(CT_Line_MinerValues,Format('Current block: %d Wallet Name: "%s" Target: %s',
         [TCustomMinerDeviceThread(Sender).MinerValuesForWork.block,
-         TCustomMinerDeviceThread(Sender).MinerValuesForWork.payload_start,
+         FPoolMinerThread.GlobalMinerValuesForWork.payload_start,
          IntToHex(TCustomMinerDeviceThread(Sender).MinerValuesForWork.target,8)
-//         ,TCrypto.ToHexaString(TCustomMinerDeviceThread(Sender).MinerValuesForWork.target_pow)
          ]));
     end;
   end;
@@ -131,22 +139,15 @@ end;
 
 procedure TPascalMinerApp.OnFoundNOnce(Sender: TCustomMinerDeviceThread; Timestamp, nOnce: Cardinal);
 begin
-  WriteLine(CT_Line_LastFound,FormatDateTime('hh:nn:ss',now)+' Block:'+IntToStr(Sender.MinerValuesForWork.block)+' NOnce:'+Inttostr(nOnce)+
+  WriteLine(CT_Line_LastFound + FDeviceThreads.Count,FormatDateTime('hh:nn:ss',now)+' Block:'+IntToStr(Sender.MinerValuesForWork.block)+' NOnce:'+Inttostr(nOnce)+
     ' Timestamp:'+inttostr(Timestamp)+' Miner:'+Sender.MinerValuesForWork.payload_start);
 end;
 
-procedure TPascalMinerApp.WriteLog(LogTxt: String);
-begin
-  WriteLine(CT_Line_MiningStatus,FormatDateTime('hh:nn:ss',now)+' '+LogTxt);
-end;
-
 procedure TPascalMinerApp.WriteLine(nline: Integer; txt: String);
-Var x,y,i : Integer;
+Var i : Integer;
 begin
   FLock.Acquire;
   try
-    x := WhereX32;
-    y := WhereY32;
     i := length(txt);
     if i<=(FWindow32X2-FWindow32X1+1) then begin
       setlength(txt,FWindow32X2-FWindow32X1+1);
@@ -154,8 +155,10 @@ begin
     end else begin
       txt := copy(txt,1,FWindow32X2-FWindow32X1+1);
     end;
-    GotoXY32(FWindow32X1,nline);
-    write(txt);
+    if (nline<=(FWindow32Y2-FWindow32Y1)) then begin
+      GotoXY32(FWindow32X1,nline);
+      write(txt);
+    end;
   finally
     FLock.Release;
   end;
@@ -173,7 +176,7 @@ begin
     FLastLogs.AddObject(msg,TObject(PtrInt(logtype)));
     i := FLastLogs.Count-CT_MaxLogs;
     if (i<0) then i:=0;
-    nline := CT_Line_Logs;
+    nline := CT_Line_Logs+FDeviceThreads.Count;
     while (i<FLastLogs.Count) do begin
       WriteLine(nline,FLastLogs[i]);
       inc(nline); inc(i);
@@ -181,8 +184,6 @@ begin
     if FLastLogs.Count>(CT_MaxLogs*2) then begin
       for i:=1 to CT_MaxLogs do FLastLogs.Delete(0);
     end;
-//    If logtype=lterror then WriteLine(CT_Line_LogError,'Error: '+logtext)
-//    else if logtype=ltinfo then WriteLine(CT_Line_LogInfo,'Info: '+logtext)
   Finally
     FLock.Release;
   end;
@@ -194,12 +195,14 @@ var
   s : String;
   nsarr : TNodeServerAddressArray;
 
-  Function AddMiner : Boolean;
-  var p,d,c : Integer;
+  Function AddMiners : Boolean;
+  var p,d,c,i : Integer;
+    strl : TStringList;
+    devt : TCustomMinerDeviceThread;
   begin
     Result := false;
     if (Not HasOption('p','platform')) And (Not HasOption('d','device')) And (Not HasOption('c','cpu:')) then begin
-      Writeln('Need to specify -pX and -dY for GPU mining or -cN for CPU mining. See -h for more info');
+      Writeln('Need to specify -p X and -d Y for GPU mining or -c N for CPU mining. See -h for more info');
       ShowGPUDrivers;
       Terminate;
       Exit;
@@ -211,12 +214,13 @@ var
         Terminate;
         exit;
       end;
-      FDeviceThread:= TCPUDeviceThread.Create(FPoolMinerThread,CT_TMinerValuesForWork_NULL);
-      FDeviceThread.OnStateChanged:=@OnDeviceStateChanged;
-      FDeviceThread.OnMinerValuesChanged:=@OnMinerValuesChanged;
-      FDeviceThread.OnFoundNOnce:=@OnFoundNOnce;
-      TCPUDeviceThread(FDeviceThread).CPUs:=c;
-      FDeviceThread.Paused:=true;
+      devt:= TCPUDeviceThread.Create(FPoolMinerThread,CT_TMinerValuesForWork_NULL);
+      devt.OnStateChanged:=@OnDeviceStateChanged;
+      devt.OnMinerValuesChanged:=@OnMinerValuesChanged;
+      devt.OnFoundNOnce:=@OnFoundNOnce;
+      TCPUDeviceThread(devt).CPUs:=c;
+      devt.Paused:=true;
+      FDeviceThreads.Add(devt);
     end else begin
       p := StrToIntDef(GetOptionValue('p','platform'),-1);
       d := StrToIntDef(GetOptionValue('d','device'),-1);
@@ -225,49 +229,99 @@ var
         Terminate;
         exit;
       end;
-      if (d<0) or (d>=TGPUDriver.GPUDriver.Platforms.Platforms[p]^.DeviceCount) then begin
-        WriteLn('Invalid device ',d,'. Valid values: 0..',TGPUDriver.GPUDriver.Platforms.Platforms[p]^.DeviceCount-1);
-        Terminate;
-        exit;
+      strl := TStringList.Create;
+      try
+        if (d<0) then begin
+          // Is a value separated by commas?
+          strl.Delimiter:=',';
+          strl.DelimitedText:=GetOptionValue('d','device');
+        end else strl.Text:=inttostr(d);
+        for i:=0 to strl.Count-1 do begin
+          d := StrToIntDef(strl[i],-1);
+          if (d<0) or (d>=TGPUDriver.GPUDriver.Platforms.Platforms[p]^.DeviceCount) then begin
+            WriteLn('Invalid device ',d,'. Valid values: 0..',TGPUDriver.GPUDriver.Platforms.Platforms[p]^.DeviceCount-1);
+            Terminate;
+            exit;
+          end;
+          //
+          devt := TGPUDeviceThread.Create(FPoolMinerThread,CT_TMinerValuesForWork_NULL);
+          devt.OnStateChanged:=@OnDeviceStateChanged;
+          devt.OnMinerValuesChanged:=@OnMinerValuesChanged;
+          devt.OnFoundNOnce:=@OnFoundNOnce;
+          TGPUDeviceThread(devt).Platform:=p;
+          TGPUDeviceThread(devt).Device:=d;
+          TGPUDeviceThread(devt).ProgramFileName:=ExtractFileDir(ExeName)+PathDelim+CT_OpenCL_FileName;
+          devt.Paused:=true;
+          FDeviceThreads.Add(devt);
+        end;
+      finally
+        strl.Free;
       end;
-      //
-      FDeviceThread := TGPUDeviceThread.Create(FPoolMinerThread,CT_TMinerValuesForWork_NULL);
-      FDeviceThread.OnStateChanged:=@OnDeviceStateChanged;
-      FDeviceThread.OnMinerValuesChanged:=@OnMinerValuesChanged;
-      FDeviceThread.OnFoundNOnce:=@OnFoundNOnce;
-      TGPUDeviceThread(FDeviceThread).Platform:=p;
-      TGPUDeviceThread(FDeviceThread).Device:=d;
-      TGPUDeviceThread(FDeviceThread).ProgramFileName:=ExtractFileDir(ExeName)+PathDelim+CT_OpenCL_FileName;
-      FDeviceThread.Paused:=true;
     end;
+    Result := true;
   end;
 
   Procedure DoWaitAndLog;
   Var tc : Cardinal;
     gs,ms : TMinerStats;
-    hr : Int64;
+    hrReal,hrHashing, glhrHashing, glhrReal : Real;
+    i : Integer;
+    devt : TCustomMinerDeviceThread;
+    s : String;
   Begin
     tc := GetTickCount;
     repeat
-      If FPoolMinerThread.PoolMinerClient.Connected then FDeviceThread.Paused:=false;
+      If FPoolMinerThread.PoolMinerClient.Connected then begin
+        for i:=0 to FDeviceThreads.Count-1 do begin
+          TCustomMinerDeviceThread(FDeviceThreads[i]).Paused:=false;
+        end;
+      end;
       while (Not Terminated) do begin
         sleep(100);
+        //devt := TCustomMinerDeviceThread(FDeviceThreads[0]);
         If (tc + 1000)<GetTickCount then begin
           tc := GetTickCount;
-          ms := FDeviceThread.DeviceStats;
+          //ms := devt.DeviceStats;
+          For i:=0 to FDeviceThreads.Count-1 do begin
+            devt := TCustomMinerDeviceThread(FDeviceThreads[i]);
+            ms := devt.DeviceStats;
+            if ms.WorkingMillisecondsHashing>0 then hrHashing := (((ms.RoundsCount DIV Int64(ms.WorkingMillisecondsHashing)))/(1000))
+            else hrHashing := 0;
+            gs := devt.GlobalDeviceStats;
+            If ms.RoundsCount>0 then begin
+              s := FormatDateTime('hh:nn:ss',now)+Format(' Miner:"%s" at %0.2f MH/s - Rounds: %0.2f G Found: %d',[devt.MinerValuesForWork.payload_start,hrHashing, gs.RoundsCount/1000000000, gs.WinsCount]);
+              If (gs.Invalids>0) then s := s +' '+inttostr(gs.Invalids)+' ERRORS!';
+              WriteLine(CT_Line_MiningStatus+i,s);
+            end else begin
+              If gs.RoundsCount>0 then begin
+                s := FormatDateTime('hh:nn:ss',now)+Format(' Miner:"%s" **NOT MINING** - Rounds: %0.2f G Found: %d',[devt.MinerValuesForWork.payload_start,gs.RoundsCount/1000000000, gs.WinsCount]);
+                If (gs.Invalids>0) then s := s +' '+inttostr(gs.Invalids)+' ERRORS!';
+              end else begin
+                s := FormatDateTime('hh:nn:ss',now)+' Not mining...';
+              end;
+              WriteLine(CT_Line_MiningStatus+i,s);
+            end;
+          end;
+          {
           gs := FPoolMinerThread.GlobalMinerStats;
-          if ms.WorkingMilliseconds>0 then hr := (ms.RoundsCount DIV Int64(ms.WorkingMilliseconds)) * 1000
-          else hr := 0;
+          if ms.WorkingMillisecondsHashing>0 then hrHashing := (((ms.RoundsCount DIV Int64(ms.WorkingMillisecondsHashing)))/(1000))
+          else hrHashing := 0;
+          if ms.WorkingMillisecondsTotal>0 then hrReal := (((ms.RoundsCount DIV Int64(ms.WorkingMillisecondsTotal)))/(1000))
+          else hrReal := 0;
+          if gs.WorkingMillisecondsHashing>0 then glhrHashing := (((gs.RoundsCount DIV Int64(gs.WorkingMillisecondsHashing)))/(1000))
+          else glhrHashing := 0;
+          if gs.WorkingMillisecondsTotal>0 then glhrReal := (((gs.RoundsCount DIV Int64(gs.WorkingMillisecondsTotal)))/(1000))
+          else glhrReal := 0;
           If gs.RoundsCount>0 then begin
-            WriteLog(Format('Mining at %0.2f MHash/s - Total Rounds: %0.2f G ',[hr / (1024*1024),gs.RoundsCount/1073741824]));
+            WriteLog(Format('Mining at %0.2f MHash/s %0.2f %0.2f %0.2f - Total Rounds: %0.2f G ',[hrHashing,glhrHashing, hrReal, glhrReal, gs.RoundsCount/1073741824]));
           end else begin
             WriteLog('Not mining... check connection or paused state...');
-          end;
-          WriteLine(CT_Line_LastFound-1,'MY VALID BLOCKS FOUND: '+IntToStr(gs.WinsCount) );
+          end; }
+          WriteLine(CT_Line_LastFound+FDeviceThreads.Count-1,'MY VALID BLOCKS FOUND: '+IntToStr(gs.WinsCount) +' Working time: '+IntToStr(Trunc(now - FAppStartTime))+'d '+FormatDateTime('hh:nn:ss',Now-FAppStartTime) );
         end;
         If KeyPressed then begin
           If ReadKey in ['c','C','q','Q'] then begin
-            WriteLine(CT_Line_End,'Finalizing...');
+            WriteLine(CT_Line_Logs+FDeviceThreads.Count+CT_MaxLogs,'Finalizing...');
             terminate;
           end;
         end;
@@ -278,28 +332,47 @@ var
   Procedure DoVisualprocess(minerName : String);
   Var sc : tcrtcoord;
     Flog : TLog;
+    devt : TCustomMinerDeviceThread;
+    i : Integer;
   Begin
-    cursoroff;
+    FPoolMinerThread := TPoolMinerThread.Create(nsarr[0].ip,nsarr[0].port,FPrivateKey.PublicKey);
     try
-      clrscr;
-      FWindow32X1:=WindMinX;
-      FWindow32X2:=WindMaxX;
-      FWindow32Y1:=WindMinY;
-      FWindow32Y2:=WindMaxY;
-      WriteLine(1,'** PascalCoin miner ** Version: '+CT_MINER_VERSION);
-      WriteLine(CT_Line_MinerValues-1,'MINER VALUES:');
-      WriteLine(CT_Line_MiningStatus-1,'MINING STATUS:');
-      WriteLine(CT_Line_LastFound-1,'MY VALID BLOCKS FOUND: 0');
-      WriteLine(CT_Line_Logs-1,'LOGS:');
-
-      FPoolMinerThread := TPoolMinerThread.Create(nsarr[0].ip,nsarr[0].port,FPrivateKey.PublicKey);
+      If Not AddMiners then exit;
+      if HasOption('t','testmode') then begin
+        i := StrToIntDef(GetOptionValue('t','testmode'),-1);
+        if (i>=0) And (i<=32) then begin
+          FPoolMinerThread.TestingPoWLeftBits:=i;
+        end else begin
+          WriteLn('Invalid bits for testing mode. value ',i,'. Valid values: 0..32  (0=No testing mode)');
+          Terminate;
+          exit;
+        end;
+      end;
+      cursoroff;
       try
+        clrscr;
+        FWindow32X1:=WindMinX;
+        FWindow32X2:=WindMaxX;
+        FWindow32Y1:=WindMinY;
+        FWindow32Y2:=WindMaxY;
+        WriteLine(1,'** PascalCoin miner ** Version: '+CT_MINER_VERSION);
+        WriteLine(CT_Line_MinerValues-1,'MINER VALUES:');
+        WriteLine(CT_Line_MiningStatus-1,'MINING STATUS:');
+        WriteLine(CT_Line_LastFound+FDeviceThreads.Count-1,'MY VALID BLOCKS FOUND: 0');
+        WriteLine(CT_Line_Logs+FDeviceThreads.Count-1,'LOGS:');
+
         FPoolMinerThread.MinerAddName:=minerName;
         WriteLine(CT_Line_MinerValues-1,'MINER VALUES: (My miner name="'+minerName+'")');
+
         FPoolMinerThread.OnConnectionStateChanged:=@OnConnectionStateChanged;
         OnConnectionStateChanged(FPoolMinerThread);
-        AddMiner;
-        WriteLine(2,FDeviceThread.MinerDeviceName);
+
+        If (FDeviceThreads.Count)=1 then begin
+          devt := TCustomMinerDeviceThread(FDeviceThreads[0]);
+          WriteLine(2,devt.MinerDeviceName);
+        end else begin
+          WriteLine(2,'Mining using '+IntToStr(FDeviceThreads.Count)+' devices');
+        end;
         Flog := TLog.Create(Nil);
         try
           Flog.OnInThreadNewLog:=@OnInThreadNewLog;
@@ -307,12 +380,12 @@ var
         finally
           FLog.free;
         end;
-        FPoolMinerThread.Terminate;
-      Finally
-        FPoolMinerThread.Free;
+      finally
+        cursoron;
       end;
-    finally
-      cursoron;
+    Finally
+      FPoolMinerThread.Terminate;
+      FPoolMinerThread.Free;
     end;
   end;
 
@@ -321,7 +394,7 @@ begin
   FLock := TCriticalSection.Create;
   Try
     // quick check parameters
-    ErrorMsg:=CheckOptions('hp:d:s:c:n:', 'help platform device server cpu minername');
+    ErrorMsg:=CheckOptions('hp:d:s::c:n::t:', 'help platform device server cpu minername testmode');
     if ErrorMsg<>'' then begin
       //ShowException(Exception.Create(ErrorMsg));
       WriteLn(ErrorMsg);
@@ -335,7 +408,8 @@ begin
     end;
 
     if (Not HasOption('p','platform')) And (Not HasOption('d','device')) And (Not HasOption('c','cpu:')) then begin
-      Writeln('Need to specify -p X and -d Y for GPU mining or -c N for CPU mining. See -h for more info');
+      Writeln('Need to specify -p X and -d Y for GPU mining or -c N for CPU mining');
+      Writeln('Execute ',ExtractFileName(ExeName),' -h for more info');
       ShowGPUDrivers;
       Exit;
     end;
@@ -348,12 +422,18 @@ begin
     end;
 
 
-    If HasOption('s','server') then s := GetOptionValue('s','server')
-    else s:='';
+    If HasOption('s','server') then begin
+      s := Trim(GetOptionValue('s','server'));
+      if (s='') then s := 'localhost:'+inttostr(CT_JSONRPCMinerServer_Port);
+    end else s:='';
     if (s='') then begin
       WriteLn('Input server name (default is localhost:',CT_JSONRPCMinerServer_Port,'):');
       Readln(s);
+      trim(s);
       if (s='') then s := 'localhost:'+inttostr(CT_JSONRPCMinerServer_Port);
+    end;
+    if (pos(':',s)=0) then begin
+      s := trim(s) + ':'+inttostr(CT_JSONRPCMinerServer_Port);
     end;
     TNode.DecodeIpStringToNodeServerAddressArray(s,nsarr);
     if (length(nsarr)<>1) then begin
@@ -394,11 +474,14 @@ end;
 constructor TPascalMinerApp.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
+  FDeviceThreads := TList.Create;
   StopOnException:=True;
+  FAppStartTime := Now;
 end;
 
 destructor TPascalMinerApp.Destroy;
 begin
+  FreeAndNil(FDeviceThreads);
   inherited Destroy;
 end;
 
@@ -406,11 +489,12 @@ procedure TPascalMinerApp.WriteHelp;
 begin
   { add your help code here }
   writeln('PascalCoin Miner - Version: ',CT_MINER_VERSION);
-  writeln('Usage: ', ExeName, ' -h -s S -p X -d Y -c N -n MYNAME');
+  writeln('Usage: ', ExtractFileName(ExeName), ' -h -s S -p X -d Y -c N -n MYNAME');
   writeln('  -h for help');
   writeln('  -s S  (S is PascalCoin server:port where default value is localhost:',CT_JSONRPCMinerServer_Port,')');
   writeln('  -p X  (X is GPU platform)');
   writeln('  -d Y  (Y is GPU device for platform)');
+  writeln('    Y can be multiple devices. Example -d 0,2,3  Will use devices 0, 2 and 3');
   writeln('  -c N  (For CPU mining, where N is CPU''s to use. Activating this disable GPU mining)');
   writeln('  -n MYNAME  (Will add MYNAME value to miner name assigned by server)');
   writeln('');
@@ -418,8 +502,8 @@ begin
   writeln('  ',ExtractFileName(ExeName),' -s 192.168.1.77:4009 -c 2 -n USER_1');
   writeln('  (2 CPU''s to server 192.168.1.77 port 4009 and miner name USER_1)');
   writeln('Basic example GPU mining: ');
-  writeln('  ',ExtractFileName(ExeName),' -p 0 -d 0 -n ABC');
-  writeln('  (p 0 d 0 at server localhost and port ',CT_JSONRPCMinerServer_Port,' miner name ABC)');
+  writeln('  ',ExtractFileName(ExeName),' -p 0 -d 0 -s -n ABC');
+  writeln('  (p 0 d 0 at server localhost:',CT_JSONRPCMinerServer_Port,' miner name ABC)');
   writeln('');
   ShowGPUDrivers;
 end;

@@ -260,7 +260,7 @@ begin
     inherited Destroy;
   finally
     UnlockList;
-    FLock.Free;
+    FreeAndNil(FLock);
   end;
 end;
 
@@ -295,6 +295,8 @@ end;
 initialization
   _threads := TPCThreadList.Create;
 finalization
+  {$IFnDEF FPC}
   FreeAndNil(_threads);
+  {$ENDIF}
 end.
 

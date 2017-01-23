@@ -24,12 +24,14 @@ type
   TMinerStats = Record
     Miners : Integer;
     RoundsCount : UInt64;
-    WorkingMilliseconds : Cardinal;
+    WorkingMillisecondsHashing : Cardinal;
+    WorkingMillisecondsTotal : Cardinal;
     WinsCount : Integer;
+    Invalids : Integer;
   End;
 
 Const
-  CT_TMinerStats_NULL : TMinerStats = (Miners:0;RoundsCount:0;WorkingMilliseconds:0;WinsCount:0);
+  CT_TMinerStats_NULL : TMinerStats = (Miners:0;RoundsCount:0;WorkingMillisecondsHashing:0;WorkingMillisecondsTotal:0;WinsCount:0;Invalids:0);
 
 Type
 
@@ -48,11 +50,13 @@ Type
     FDevicesList : TPCThreadList;
     FMinerThreads: Integer;
     FGlobalMinerValuesForWork : TMinerValuesForWork;
+    FTestingPoWLeftBits: Byte;
     Procedure OnPoolMinerClientConnectionChanged(Sender : TObject);
     Procedure OnPoolMinerMustChangeValues(Sender : TObject);
     Procedure OnMinerNewBlockFound(sender : TCustomMinerDeviceThread; Timestamp : Cardinal; NOnce : Cardinal);
     Procedure NotifyPoolMinerConnectionChanged;
     procedure SetMinerAddName(AValue: String);
+    procedure SetTestingPoWLeftBits(AValue: Byte);
   protected
     procedure BCExecute; override;
   public
@@ -66,6 +70,7 @@ Type
     Function DevicesLock : TList;
     procedure DevicesUnlock;
     Property MinerAddName : String read FMinerAddName write SetMinerAddName;
+    Property TestingPoWLeftBits : Byte read FTestingPoWLeftBits write SetTestingPoWLeftBits;
   End;
 
   { TCustomMinerDeviceThread }
@@ -78,19 +83,19 @@ Type
     FPaused: Boolean;
     FLastStats : TPCThreadList;
     FLastActiveTC : Cardinal;
+    FGlobaDeviceStats : TMinerStats;
+    FPartialDeviceStats : TMinerStats;
+    FPoolMinerThread : TPoolMinerThread;
     procedure SetIsMining(AValue: Boolean);
     procedure SetPaused(AValue: Boolean);
   protected
     FMinerValuesForWork : TMinerValuesForWork;
-    FPoolMinerThread : TPoolMinerThread;
-    FPartialDeviceStats : TMinerStats;
-    FGlobaDeviceStats : TMinerStats;
     Procedure SetMinerValuesForWork(const Value : TMinerValuesForWork); virtual;
     Procedure UpdateState; virtual;
     Procedure UpdateDeviceStats(Stats : TMinerStats); virtual;
     Procedure FoundNOnce(Timestamp,nOnce : Cardinal);
   public
-    Constructor Create(PoolMinerThread : TPoolMinerThread; InitialMinerValuesForWork : TMinerValuesForWork); virtual;
+    Constructor Create(APoolMinerThread : TPoolMinerThread; InitialMinerValuesForWork : TMinerValuesForWork); virtual;
     Destructor Destroy; override;
     Function DeviceStats : TMinerStats;
     Function GlobalDeviceStats : TMinerStats;
@@ -102,6 +107,7 @@ Type
     Function GetState : String; virtual; abstract;
     property MinerValuesForWork : TMinerValuesForWork read FMinerValuesForWork;
     Property IsMining : Boolean read FIsMining write SetIsMining;
+    Property PoolMinerThread : TPoolMinerThread read FPoolMinerThread;
   end;
 
 
@@ -217,6 +223,7 @@ begin
   FDevicesList := TPCThreadList.Create;
   FMinerThreads := 0;
   FMinerAddName:='';
+  FTestingPoWLeftBits := 0;
   inherited Create(false);
 end;
 
@@ -233,7 +240,8 @@ begin
       ms := TCustomMinerDeviceThread(l[i]).DeviceStats;
       inc(Result.Miners, ms.Miners);
       inc(Result.RoundsCount, ms.RoundsCount);
-      inc(Result.WorkingMilliseconds, ms.WorkingMilliseconds);
+      inc(Result.WorkingMillisecondsHashing, ms.WorkingMillisecondsHashing);
+      inc(Result.WorkingMillisecondsTotal, ms.WorkingMillisecondsTotal);
       inc(Result.WinsCount, ms.WinsCount);
     end;
   finally
@@ -285,7 +293,8 @@ begin
       ms := TCustomMinerDeviceThread(l[i]).GlobalDeviceStats;
       inc(Result.Miners, ms.Miners);
       inc(Result.RoundsCount, ms.RoundsCount);
-      inc(Result.WorkingMilliseconds, ms.WorkingMilliseconds);
+      inc(Result.WorkingMillisecondsHashing, ms.WorkingMillisecondsHashing);
+      inc(Result.WorkingMillisecondsTotal, ms.WorkingMillisecondsTotal);
       inc(Result.WinsCount, ms.WinsCount);
     end;
   finally
@@ -304,6 +313,14 @@ begin
   if FMinerAddName=AValue then Exit;
   FMinerAddName:=AValue;
   If Assigned(FPoolMinerClient) then OnPoolMinerMustChangeValues(Nil);
+end;
+
+procedure TPoolMinerThread.SetTestingPoWLeftBits(AValue: Byte);
+begin
+  if FTestingPoWLeftBits=AValue then Exit;
+  If (AValue>=0) And (AValue<=32) then
+    FTestingPoWLeftBits:=AValue
+  else FTestingPoWLeftBits:=0;
 end;
 
 procedure TPoolMinerThread.OnMinerNewBlockFound(sender : TCustomMinerDeviceThread; Timestamp : Cardinal; NOnce : Cardinal);
@@ -338,23 +355,35 @@ end;
 
 procedure TPoolMinerThread.OnPoolMinerMustChangeValues(Sender: TObject);
 Var l : TList;
-  i : Integer;
+  i,j : Integer;
   digest : TRawBytes;
   ok : Boolean;
+  minervfw : TMinerValuesForWork;
+  auxXXXXX : TMinerValuesForWork;
 begin
   FGlobalMinerValuesForWork := FPoolMinerClient.MinerValuesForWork;
-  FGlobalMinerValuesForWork.payload_start:=FGlobalMinerValuesForWork.payload_start+FMinerAddName;
-  repeat
-    digest := FGlobalMinerValuesForWork.part1 + FGlobalMinerValuesForWork.payload_start + FGlobalMinerValuesForWork.part3 + '00000000';
-    ok := CanBeModifiedOnLastChunk(length(digest),i);
-    if (not ok) then FGlobalMinerValuesForWork.payload_start:=FGlobalMinerValuesForWork.payload_start+'-';
-  until (Ok);
   TLog.NewLog(ltupdate,ClassName,Format('New miner values. Block %d Payload %s',[FPoolMinerClient.MinerValuesForWork.block,
     FPoolMinerClient.MinerValuesForWork.payload_start]));
   l := FDevicesList.LockList;
   Try
     for i := 0 to l.Count - 1 do begin
-      TCustomMinerDeviceThread(l[i]).SetMinerValuesForWork(FGlobalMinerValuesForWork);
+      minervfw := FGlobalMinerValuesForWork;
+      minervfw.payload_start:=minervfw.payload_start+FMinerAddName;
+      if (l.count>1) then minervfw.payload_start:=minervfw.payload_start+'/'+inttostr(i);
+      repeat
+        digest := minervfw.part1 + minervfw.payload_start + minervfw.part3 + '00000000';
+        ok := CanBeModifiedOnLastChunk(length(digest),j);
+        if (not ok) then minervfw.payload_start:=minervfw.payload_start+'-';
+      until (Ok);
+      If FTestingPoWLeftBits>0 then begin
+        auxXXXXX := minervfw;
+        auxXXXXX.target:= ((((auxXXXXX.target AND $FF000000) SHR 24)-FTestingPoWLeftBits) SHL 24) + (minervfw.target AND $00FFFFFF);
+        If auxXXXXX.target<CT_MinCompactTarget then auxXXXXX.target:=CT_MinCompactTarget;
+        auxXXXXX.target_pow:=TPCBank.TargetFromCompact(auxXXXXX.target);
+        TCustomMinerDeviceThread(l[i]).SetMinerValuesForWork(auxXXXXX);
+      end else begin
+        TCustomMinerDeviceThread(l[i]).SetMinerValuesForWork(minervfw);
+      end;
     end;
   Finally
     FDevicesList.UnlockList;
@@ -370,9 +399,9 @@ Type
 
 { TCustomMinerDeviceThread }
 
-constructor TCustomMinerDeviceThread.Create(PoolMinerThread: TPoolMinerThread; InitialMinerValuesForWork: TMinerValuesForWork);
+constructor TCustomMinerDeviceThread.Create(APoolMinerThread: TPoolMinerThread; InitialMinerValuesForWork: TMinerValuesForWork);
 begin
-  FPoolMinerThread := PoolMinerThread;
+  FPoolMinerThread := APoolMinerThread;
   FMinerValuesForWork := CT_TMinerValuesForWork_NULL;
   FPartialDeviceStats := CT_TMinerStats_NULL;
   FGlobaDeviceStats := CT_TMinerStats_NULL;
@@ -436,6 +465,7 @@ begin
     FPoolMinerThread.OnMinerNewBlockFound(self,Timestamp,nOnce);
     If Assigned(FOnFoundNOnce) then FOnFoundNOnce(Self,Timestamp,nOnce);
   end else begin
+    inc(FGlobaDeviceStats.Invalids);
     TLog.NewLog(lterror,Self.Classname,Format('Invalid Double Sha256 found. Timestamp %s nOnce %s DSHA256 %s Valid POW %s',
       [IntToHex(Timestamp,8),IntToHex(nOnce,8),TCrypto.ToHexaString(dsha256),TCrypto.ToHexaString(self.FMinerValuesForWork.target_pow)]));
   end;
@@ -448,7 +478,8 @@ begin
   try
     g := FGlobaDeviceStats;
     If Not FPaused then begin
-      g.WorkingMilliseconds:= g.WorkingMilliseconds + (GetTickCount - FLastActiveTC);
+      g.WorkingMillisecondsHashing:= g.WorkingMillisecondsHashing + (GetTickCount - FLastActiveTC);
+      g.WorkingMillisecondsTotal:= g.WorkingMillisecondsTotal + (GetTickCount - FLastActiveTC);
     end;
     Result := g;
   finally
@@ -484,7 +515,10 @@ begin
   if FPaused=AValue then Exit;
   FPaused:=AValue;
   If Not FPaused then FLastActiveTC := GetTickCount
-  else FGlobaDeviceStats.WorkingMilliseconds:=FGlobaDeviceStats.WorkingMilliseconds + (GetTickCount - FLastActiveTC);
+  else begin
+    FGlobaDeviceStats.WorkingMillisecondsHashing:=FGlobaDeviceStats.WorkingMillisecondsHashing + (GetTickCount - FLastActiveTC);
+    FGlobaDeviceStats.WorkingMillisecondsTotal:=FGlobaDeviceStats.WorkingMillisecondsTotal + (GetTickCount - FLastActiveTC);
+  end;
   UpdateState;
 end;
 
@@ -503,10 +537,10 @@ begin
   Try
     FPartialDeviceStats := CT_TMinerStats_NULL;
     New(P);
-    P^.tc:=(GetTickCount - stats.WorkingMilliseconds);
+    P^.tc:=(GetTickCount - stats.WorkingMillisecondsTotal);
     P^.stats:=stats;
     l.add(P);
-    minTC := GetTickCount - 30000; // Last 30 seconds average
+    minTC := GetTickCount - 10000; // Last 10 seconds average
     foundMaxMiners:=0;
     for i:=l.Count-1 downto 0 do begin
       P := l[i];
@@ -520,7 +554,9 @@ begin
       end;
     end;
     If l.count>0 then begin
-      FPartialDeviceStats.WorkingMilliseconds:=PTimeMinerStats(l[l.count-1]).tc - PTimeMinerStats(l[0]).tc + PTimeMinerStats(l[l.count-1]).stats.WorkingMilliseconds;
+      P := PTimeMinerStats(l[l.count-1]);
+      FPartialDeviceStats.WorkingMillisecondsHashing:=P^.tc - PTimeMinerStats(l[0]).tc + P^.stats.WorkingMillisecondsHashing;
+      FPartialDeviceStats.WorkingMillisecondsTotal:=P^.tc - PTimeMinerStats(l[0]).tc + P^.stats.WorkingMillisecondsTotal;
     end;
     FPartialDeviceStats.Miners:= foundMaxMiners;
     If foundMaxMiners>FGlobaDeviceStats.Miners then FGlobaDeviceStats.Miners:=foundMaxMiners;
@@ -571,6 +607,7 @@ begin
   finally
     FCPUsThreads.UnlockList;
   end;
+  IsMining := needminers>0;
 end;
 
 constructor TCPUDeviceThread.Create(PoolMinerThread: TPoolMinerThread; InitialMinerValuesForWork: TMinerValuesForWork);
@@ -597,7 +634,7 @@ end;
 
 function TCPUDeviceThread.MinerDeviceName: String;
 begin
-  Result := 'CPU miner ('+inttostr(CPUCount)+' CPU''s available)';
+  Result := 'CPU miner with '+inttostr(FCPUs)+' ('+inttostr(CPUCount)+' CPU''s available)';
 end;
 
 procedure TCPUDeviceThread.SetCPUs(AValue: Integer);
@@ -674,7 +711,7 @@ Const CT_Rounds = 10000;
 Var
   ts : Cardinal;
   i : Integer;
-  nonce, baseTC : Cardinal;
+  nonce, baseRealTC,baseHashingTC,finalHashingTC : Cardinal;
   resultPoW : TRawBytes;
   //
   AuxStats : TMinerStats;
@@ -687,7 +724,7 @@ begin
       else begin
         FLock.Acquire;
         try
-          baseTC := GetTickCount;
+          baseRealTC := GetTickCount;
           If (nonce<FMinNOnce) Or (nonce>FMaxNOnce) then nonce:=FMinNOnce;
           // Timestamp
           ts := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
@@ -696,6 +733,7 @@ begin
             if FCPUDeviceThread.FUseOpenSSLFunctions then begin
               FDigestStreamMsg.Position:=FDigestStreamMsg.Size - 8;
               FDigestStreamMsg.Write(ts,4);
+              baseHashingTC:=GetTickCount;
               for i := 1 to CT_Rounds do begin
                 FDigestStreamMsg.Position := FDigestStreamMsg.Size - 4;
                 FDigestStreamMsg.Write(nonce,4);
@@ -712,7 +750,9 @@ begin
                 end;
                 if (nonce)<FMaxNOnce then inc(nonce) else nonce := FMinNOnce;
               end;
+              finalHashingTC:=GetTickCount;
             end else begin
+              baseHashingTC:=GetTickCount;
               for i := 1 to CT_Rounds do begin
                 PascalCoinExecuteLastChunkAndDoSha256(FInternalSha256,FInternalChunk,FChangeTimestampAndNOnceBytePos,nonce,ts,resultPoW);
                 if resultPoW < FCPUDeviceThread.FMinerValuesForWork.target_pow then begin
@@ -727,11 +767,12 @@ begin
                 end;
                 if (nonce)<FMaxNOnce then inc(nonce) else nonce := FMinNOnce;
               end;
+              finalHashingTC:=GetTickCount;
             end;
-            baseTC := GetTickCount - baseTC;
             AuxStats.Miners:=FCPUDeviceThread.FCPUs;
             AuxStats.RoundsCount:=CT_Rounds;
-            AuxStats.WorkingMilliseconds:=baseTC;
+            AuxStats.WorkingMillisecondsTotal:=GetTickCount - baseRealTC;
+            AuxStats.WorkingMillisecondsHashing:= finalHashingTC - baseHashingTC;
             FCPUDeviceThread.UpdateDeviceStats(AuxStats);
           end; // FDigestStreamMsg.size>8
         finally

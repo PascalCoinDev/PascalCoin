@@ -34,6 +34,13 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 1.4.2.0 - 2017-01-23
+
+- Max JSON-RPC miner connections is now 1000 (before, 10)
+- JSON-RPC miner enabled at pascalcoin_daemon (linux daemon)
+- Screen messages for daemon
+- pascalcoin_daemon.ini file for daemon
+
 ### Build 1.4.1.0 - 2017-01-18
 
 - Improved JSON communications with Miner client (Port 4009 by default)

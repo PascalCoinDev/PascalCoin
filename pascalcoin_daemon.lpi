@@ -10,7 +10,7 @@
       </Flags>
       <SessionStorage Value="InProjectDir"/>
       <MainUnit Value="0"/>
-      <Title Value="PascalCoinMiner"/>
+      <Title Value="pascalcoin_daemon"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
@@ -29,12 +29,13 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="-p 0 -d 1 -s -n a"/>
+        <CommandLineParams Value="-r"/>
+        <Display Use="True" Value=""/>
       </local>
     </RunParams>
     <Units Count="1">
       <Unit0>
-        <Filename Value="PascalCoinMiner.pp"/>
+        <Filename Value="pascalcoin_daemon.pp"/>
         <IsPartOfProject Value="True"/>
       </Unit0>
     </Units>
@@ -43,11 +44,11 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="PascalCoinMiner"/>
+      <Filename Value="pascalcoin_daemon"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="Units\PascalCoin;PasOpenCL;Units\Utils;Synapse\lib"/>
+      <OtherUnitFiles Value="Synapse\lib;Units\PascalCoin;Units\Utils"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <CodeGeneration>

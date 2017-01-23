@@ -204,6 +204,9 @@
   <CompilerOptions>
     <Version Value="11"/>
     <PathDelim Value="\"/>
+    <Target>
+      <Filename Value="PascalCoinWalletLazarus"/>
+    </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
       <OtherUnitFiles Value="Synapse\lib;Units\Forms;Units\PascalCoin;Units\Utils"/>

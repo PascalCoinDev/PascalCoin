@@ -213,11 +213,13 @@ end;
 
 function LoadSSLCrypt: Boolean;
 begin
-  {$IFDEF UNIX}
-  hCrypt := LoadLibrary(SSL_C_LIB);
-  {$ELSE}
-  hCrypt := LoadLibraryA(PAnsiChar(SSL_C_LIB));
-  {$ENDIF}
+  If hCrypt=0 then begin
+    {$IFDEF UNIX}
+    hCrypt := LoadLibrary(SSL_C_LIB);
+    {$ELSE}
+    hCrypt := LoadLibraryA(PAnsiChar(SSL_C_LIB));
+    {$ENDIF}
+  end;
   Result := hCrypt <> 0;
 end;
 
@@ -245,6 +247,10 @@ end;
 
 function InitSSLFunctions : Boolean;
 Begin
+  If not LoadSSLCrypt then begin
+    result := false;
+    exit;
+  end else result := true;
   if @ERR_get_error = nil then begin
     @ERR_get_error:= LoadFunctionCLib('ERR_get_error');
     @ERR_clear_error:= LoadFunctionCLib('ERR_clear_error');

@@ -32,7 +32,7 @@ __kernel void pascalcoin(__global uint *midstateIn, __global int *nonceOut) {
     midstateIn[0..15] = data for last chunk
     midstateIn[16..23] = previous chunk result
     midstateIn[24] = Position to save nOnce
-    midstateIn[25] = Highest 10 bits for nOnce
+    midstateIn[25] = Highest 8 bits for nOnce
     midstateIn[26..28] = Mask (obtained  from target_pow)
 
     When found a valid nOnce, is returned at nonceOut
@@ -40,9 +40,9 @@ __kernel void pascalcoin(__global uint *midstateIn, __global int *nonceOut) {
   uint buffer[16];
   uint midstate[8];
 
-  // midstateIn[25] high-order 10 bits for nOnce, we must bit shift left value 22 bits.
-  // get_global_id(0) is the current ROUND. ROUND is a value between 0..(2^22)-1
-  uint nonce = (midstateIn[25] << 22) + (uint)get_global_id(0);
+  // midstateIn[25] high-order 8 bits for nOnce, we must bit shift left value 24 bits.
+  // get_global_id(0) is the current ROUND. ROUND is a value between 0..(2^24)-1
+  uint nonce = (midstateIn[25] << 24) + (uint)get_global_id(0);
 
   uint whereToSavenOnce = (midstateIn[24]);
 

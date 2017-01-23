@@ -92,18 +92,20 @@ Type PLogData = ^TLogData;
 constructor TLog.Create(AOwner: TComponent);
 Var l : TList;
 begin
-  inherited;
   FLock := TCriticalSection.Create;
   FProcessGlobalLogs := true;
   FLogDataList := TThreadList.Create;
   FFileStream := Nil;
   FFileName := '';
   FSaveTypes := CT_TLogTypes_DEFAULT;
+  FOnInThreadNewLog:=Nil;
+  FOnNewLog:=Nil;
   if (Not assigned(_logs)) then _logs := TList.Create;
   _logs.Add(self);
   FThreadSafeLogEvent := TThreadSafeLogEvent.Create(true);
   FThreadSafeLogEvent.FLog := Self;
   FThreadSafeLogEvent.Suspended := false;
+  inherited;
 end;
 
 destructor TLog.Destroy;
@@ -112,6 +114,8 @@ var
   i : Integer;
   P : PLogData;
 begin
+  FOnNewLog:=Nil;
+  FOnInThreadNewLog:=Nil;
   FThreadSafeLogEvent.Terminate;
   FThreadSafeLogEvent.WaitFor;
   FreeAndNil(FThreadSafeLogEvent);
@@ -241,5 +245,7 @@ end;
 initialization
   _logs := Nil;
 finalization
+  {$IFnDEF FPC}
   FreeAndNil(_logs);
+  {$ENDIF}
 end.
