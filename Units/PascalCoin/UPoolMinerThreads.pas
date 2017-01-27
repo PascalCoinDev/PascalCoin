@@ -177,7 +177,9 @@ begin
       end else begin
           // Start Process
           nId:=FPoolMinerClient.GetNewId;
-          FPoolMinerClient.SendJSONRPCMethod(CT_PoolMining_Method_MINER_NOTIFY,nil,nId);
+          json := TPCJSONObject.Create;
+          json.GetAsVariant('user').Value := MinerAddName;
+          FPoolMinerClient.SendJSONRPCMethod(CT_PoolMining_Method_MINER_AUTH,json,nId);
           json := TPCJSONObject.create;
           try
             repeat
@@ -368,8 +370,8 @@ begin
   Try
     for i := 0 to l.Count - 1 do begin
       minervfw := FGlobalMinerValuesForWork;
-      minervfw.payload_start:=minervfw.payload_start+FMinerAddName;
-      if (l.count>1) then minervfw.payload_start:=minervfw.payload_start+'/'+inttostr(i);
+      //minervfw.payload_start:=minervfw.payload_start+FMinerAddName;
+      if (l.count>1) then minervfw.payload_start:=minervfw.payload_start+inttostr(i);
       repeat
         digest := minervfw.part1 + minervfw.payload_start + minervfw.part3 + '00000000';
         ok := CanBeModifiedOnLastChunk(length(digest),j);
@@ -727,7 +729,7 @@ begin
           baseRealTC := GetTickCount;
           If (nonce<FMinNOnce) Or (nonce>FMaxNOnce) then nonce:=FMinNOnce;
           // Timestamp
-          ts := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+          ts := UnivDateTimeToUnix(DateTime2UnivDateTime(now)) - FCPUDeviceThread.FMinerValuesForWork.timestamp_offset;
           if ts<=FCPUDeviceThread.FMinerValuesForWork.timestamp then ts := FCPUDeviceThread.FMinerValuesForWork.timestamp+1;
           If FDigestStreamMsg.Size>8 then begin
             if FCPUDeviceThread.FUseOpenSSLFunctions then begin

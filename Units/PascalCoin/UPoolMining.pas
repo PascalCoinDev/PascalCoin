@@ -30,6 +30,7 @@ Uses
 
 Const
   CT_PoolMining_Method_STATUS = 'status';
+  CT_PoolMining_Method_MINER_AUTH = 'miner-authorize';//
   CT_PoolMining_Method_MINER_NOTIFY = 'miner-notify'; // Server message to clients to update miners PoW data
   CT_PoolMining_Method_MINER_SUBMIT = 'miner-submit'; // Client message to server to notify a PoW found
 
@@ -42,6 +43,7 @@ Type
      part3 : TRawBytes;
      target : Cardinal;
      timestamp : Cardinal;
+     timestamp_offset : Cardinal;
      target_pow : TRawBytes;
   End;
 
@@ -114,7 +116,7 @@ Type
 Function TBytesToString(Const bytes : TBytes):AnsiString;
 
 Const
-  CT_TMinerValuesForWork_NULL : TMinerValuesForWork = (block:0;version:0;part1:'';payload_start:'';part3:'';target:0;timestamp:0;target_pow:'');
+  CT_TMinerValuesForWork_NULL : TMinerValuesForWork = (block:0;version:0;part1:'';payload_start:'';part3:'';target:0;timestamp:0;timestamp_offset:0;target_pow:'');
 
 implementation
 
@@ -754,6 +756,8 @@ begin
   end else begin
     id_value := json.GetAsVariant('id').Value;
   end;
+  //if method=CT_PoolMining_Method_MINER_AUTH then begin
+  //end;
   if method=CT_PoolMining_Method_MINER_NOTIFY then begin
     mvfw := CT_TMinerValuesForWork_NULL;
     mvfw.block := params_object.AsInteger('block',0);
@@ -763,11 +767,12 @@ begin
     mvfw.part3 := TCrypto.HexaToRaw(params_object.AsString('part3',''));
     mvfw.target := params_object.AsInteger('target',0);
     mvfw.timestamp := params_object.AsInteger('timestamp',0);
+    mvfw.timestamp_offset := UnivDateTimeToUnix(DateTime2UnivDateTime(now)) - mvfw.timestamp;
     mvfw.part1 := TCrypto.HexaToRaw(params_object.AsString('part1',''));
     mvfw.target_pow := TCrypto.HexaToRaw(params_object.AsString('target_pow',''));
-    if (Not VarIsNull(id_value)) And (ResponseMethod='') then begin
-      SendJSONRPCResponse(params_object,id_value);
-    end;
+    //if (Not VarIsNull(id_value)) And (ResponseMethod='') then begin
+    //  SendJSONRPCResponse(params_object,id_value);
+    //end;
     MinerValuesForWork := mvfw;
   end;
 end;

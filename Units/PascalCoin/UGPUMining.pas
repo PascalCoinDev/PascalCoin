@@ -147,7 +147,7 @@ begin
       try
       //  AuxStats := CT_TMinerStats_NULL;
         If FReadyToGPU then begin
-          Timestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+          Timestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now)) - PoolMinerThread.GlobalMinerValuesForWork.timestamp_offset;
           if Timestamp<=PoolMinerThread.GlobalMinerValuesForWork.timestamp then Timestamp := PoolMinerThread.GlobalMinerValuesForWork.timestamp+1;
           FKernelArg1[ (FChangeTimestampAndNOnceBytePos DIV 4) ] := bswap(Timestamp);
           // FKernelArg1[24] = Position to save nOnce
