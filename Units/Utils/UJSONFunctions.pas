@@ -72,6 +72,7 @@ Type
     Function AsDateTime(DefValue : TDateTime) : TDateTime;
     Function AsCurrency(DefValue : Currency) : Currency;
     Function AsCardinal(DefValue : Cardinal) : Cardinal;
+    Function IsNull : Boolean;
   End;
 
   TPCJSONNameValue = Class(TPCJSONData)
@@ -127,6 +128,8 @@ Type
     Function GetAsArray(index : Integer) : TPCJSONArray;
   end;
 
+  { TPCJSONObject }
+
   TPCJSONObject = Class(TPCJSONList)
   private
     Function GetIndexOrCreateName(Name : String) : Integer;
@@ -156,6 +159,7 @@ Type
     Function SaveAsStream(ParamName : String; Stream : TStream) : Integer;
     Function LoadAsStream(ParamName : String; Stream : TStream) : Integer;
     Function GetNameValue(index : Integer) : TPCJSONNameValue;
+    Function IsNull(ParamName : String) : Boolean;
     Procedure SetAs(Name : String; Value : TPCJSONData);
   End;
 
@@ -510,6 +514,11 @@ begin
   {$ENDIF}
 end;
 
+function TPCJSONVariantValue.IsNull: Boolean;
+begin
+  Result := VarIsNull(FValue) or VarIsEmpty(FValue);
+end;
+
 procedure TPCJSONVariantValue.SetValue(const Value: Variant);
 begin
   FOldValue := FValue;
@@ -657,7 +666,7 @@ begin
   end;
 end;
 
-function TPCJSONObject.AsString(ParamName, DefValue: String): String;
+function TPCJSONObject.AsString(ParamName: String; DefValue: String): String;
 Var v : Variant;
   VV : TPCJSONVariantValue;
 begin
@@ -823,6 +832,21 @@ end;
 function TPCJSONObject.GetNameValue(index: Integer): TPCJSONNameValue;
 begin
   Result := Items[index] as TPCJSONNameValue;
+end;
+
+function TPCJSONObject.IsNull(ParamName: String): Boolean;
+Var i : Integer;
+  NV : TPCJSONNameValue;
+begin
+  i := IndexOfName(ParamName);
+  if i<0 then result := true
+  else begin
+    Result := false;
+    NV := TPCJSONNameValue( FList.Items[i] );
+    If (Assigned(NV.Value)) AND (NV.Value is TPCJSONVariantValue) then begin
+      Result := TPCJSONVariantValue(NV.Value).IsNull;
+    end;
+  end;
 end;
 
 function TPCJSONObject.IndexOfName(Name: String): Integer;

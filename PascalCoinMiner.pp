@@ -55,7 +55,7 @@ type
   end;
 
 Const
-  CT_MINER_VERSION = '0.2';
+  CT_MINER_VERSION = 'BETA 0.3 FOR SUPRNOVA TESTING ONLY';
   CT_Line_DeviceStatus = 3;
   CT_Line_ConnectionStatus = 4;
   CT_Line_MinerValues = 7;
@@ -100,9 +100,12 @@ end;
 procedure TPascalMinerApp.OnConnectionStateChanged(Sender: TObject);
 Const CT_state : Array[boolean] of String = ('Disconnected','Connected');
 var i : Integer;
+  s : String;
 begin
+  If FPoolMinerThread.PoolMinerClient.PoolType=ptNone then s:='SOLO MINING'
+  else s:='POOL MINING USER "'+FPoolMinerThread.PoolMinerClient.UserName+'"';
   If FPoolMinerThread.PoolMinerClient.Connected then begin
-    WriteLine(CT_Line_ConnectionStatus,'Connected to '+FPoolMinerThread.PoolMinerClient.ClientRemoteAddr);
+    WriteLine(CT_Line_ConnectionStatus,s + ' server: '+FPoolMinerThread.PoolMinerClient.ClientRemoteAddr);
     For i:=0 to FDeviceThreads.Count-1 do begin
       TCustomMinerDeviceThread(FDeviceThreads[i]).Paused:=false;
     end;
@@ -110,7 +113,7 @@ begin
     For i:=0 to FDeviceThreads.Count-1 do begin
       TCustomMinerDeviceThread(FDeviceThreads[i]).Paused:=true;
     end;
-    WriteLine(CT_Line_ConnectionStatus,'** NO CONNECTED... Connecting to '+FPoolMinerThread.PoolMinerClient.ClientRemoteAddr);
+    WriteLine(CT_Line_ConnectionStatus,'** NOT CONNECTED '+s + ' Connecting to '+FPoolMinerThread.PoolMinerClient.ClientRemoteAddr);
   end;
 end;
 
@@ -201,7 +204,7 @@ var
     devt : TCustomMinerDeviceThread;
   begin
     Result := false;
-    if (Not HasOption('p','platform')) And (Not HasOption('d','device')) And (Not HasOption('c','cpu:')) then begin
+    if (Not HasOption('p','platform')) And (Not HasOption('d','device')) And (Not HasOption('c','cpu')) then begin
       Writeln('Need to specify -p X and -d Y for GPU mining or -c N for CPU mining. See -h for more info');
       ShowGPUDrivers;
       Terminate;
@@ -302,21 +305,6 @@ var
               WriteLine(CT_Line_MiningStatus+i,s);
             end;
           end;
-          {
-          gs := FPoolMinerThread.GlobalMinerStats;
-          if ms.WorkingMillisecondsHashing>0 then hrHashing := (((ms.RoundsCount DIV Int64(ms.WorkingMillisecondsHashing)))/(1000))
-          else hrHashing := 0;
-          if ms.WorkingMillisecondsTotal>0 then hrReal := (((ms.RoundsCount DIV Int64(ms.WorkingMillisecondsTotal)))/(1000))
-          else hrReal := 0;
-          if gs.WorkingMillisecondsHashing>0 then glhrHashing := (((gs.RoundsCount DIV Int64(gs.WorkingMillisecondsHashing)))/(1000))
-          else glhrHashing := 0;
-          if gs.WorkingMillisecondsTotal>0 then glhrReal := (((gs.RoundsCount DIV Int64(gs.WorkingMillisecondsTotal)))/(1000))
-          else glhrReal := 0;
-          If gs.RoundsCount>0 then begin
-            WriteLog(Format('Mining at %0.2f MHash/s %0.2f %0.2f %0.2f - Total Rounds: %0.2f G ',[hrHashing,glhrHashing, hrReal, glhrReal, gs.RoundsCount/1073741824]));
-          end else begin
-            WriteLog('Not mining... check connection or paused state...');
-          end; }
           WriteLine(CT_Line_LastFound+FDeviceThreads.Count-1,'MY VALID BLOCKS FOUND: '+IntToStr(gs.WinsCount) +' Working time: '+IntToStr(Trunc(now - FAppStartTime))+'d '+FormatDateTime('hh:nn:ss',Now-FAppStartTime) );
         end;
         If KeyPressed then begin
@@ -329,7 +317,7 @@ var
     until Terminated;
   end;
 
-  Procedure DoVisualprocess(minerName : String);
+  Procedure DoVisualprocess(minerName, UserName, Password : String);
   Var sc : tcrtcoord;
     Flog : TLog;
     devt : TCustomMinerDeviceThread;
@@ -337,6 +325,11 @@ var
   Begin
     FPoolMinerThread := TPoolMinerThread.Create(nsarr[0].ip,nsarr[0].port,FPrivateKey.PublicKey);
     try
+      If (UserName<>'') then begin
+        FPoolMinerThread.PoolMinerClient.PoolType:=ptIdentify;
+        FPoolMinerThread.PoolMinerClient.UserName:=UserName;
+        FPoolMinerThread.PoolMinerClient.Password:=Password;
+      end;
       If Not AddMiners then exit;
       if HasOption('t','testmode') then begin
         i := StrToIntDef(GetOptionValue('t','testmode'),-1);
@@ -348,6 +341,7 @@ var
           exit;
         end;
       end;
+      //
       cursoroff;
       try
         clrscr;
@@ -389,12 +383,13 @@ var
     end;
   end;
 
+Var username,password : String;
 begin
   FLastLogs := TStringList.Create;
   FLock := TCriticalSection.Create;
   Try
     // quick check parameters
-    ErrorMsg:=CheckOptions('hp:d:s::c:n::t:', 'help platform device server cpu minername testmode');
+    ErrorMsg:=CheckOptions('hp:d:s::c:n::t:u::x::', 'help platform device server cpu minername testmode user pwd');
     if ErrorMsg<>'' then begin
       //ShowException(Exception.Create(ErrorMsg));
       WriteLn(ErrorMsg);
@@ -456,10 +451,25 @@ begin
         Exit;
       end;
     end;
+    username:='';
+    password:='';
+    If (HasOption('u','user')) Or (HasOption('x','pwd')) then begin
+      username:=trim(GetOptionValue('u','user'));
+      password:=trim(GetOptionValue('x','pwd'));
+      if (username='') then begin
+        WriteLn('Input Pool username (or empty for non pool connection):');
+        Readln(username);
+      end;
+      if (password='') And (username<>'') then begin
+        WriteLn('Input Pool password for user ',username,':');
+        Readln(password);
+      end;
+    end;
+
     FPrivateKey := TECPrivateKey.Create;
     Try
       FPrivateKey.GenerateRandomPrivateKey(CT_Default_EC_OpenSSL_NID);
-      DoVisualprocess(s);
+      DoVisualprocess(s,username,password);
     finally
       FreeAndNil(FPrivateKey);
     end;
@@ -472,11 +482,15 @@ begin
 end;
 
 constructor TPascalMinerApp.Create(TheOwner: TComponent);
+Var FLog : TLog;
 begin
   inherited Create(TheOwner);
   FDeviceThreads := TList.Create;
   StopOnException:=True;
   FAppStartTime := Now;
+  FLog := TLog.Create(self);
+  FLog.SaveTypes:=CT_TLogTypes_DEFAULT;
+  FLog.FileName:=ExtractFileDir(ExeName)+PathDelim+'PascalCoinMiner.log';
 end;
 
 destructor TPascalMinerApp.Destroy;
@@ -497,13 +511,14 @@ begin
   writeln('    Y can be multiple devices. Example -d 0,2,3  Will use devices 0, 2 and 3');
   writeln('  -c N  (For CPU mining, where N is CPU''s to use. Activating this disable GPU mining)');
   writeln('  -n MYNAME  (Will add MYNAME value to miner name assigned by server)');
+  writeln('  ** POOL IDENTIFICATION PROTOCOL **');
+  writeln('  (Not needed for PascalCoin core, only some third party pools)');
+  writeln('  -u USERNAME');
+  writeln('  -x PASSWORD');
   writeln('');
-  writeln('Basic example CPU mining: ');
-  writeln('  ',ExtractFileName(ExeName),' -s 192.168.1.77:4009 -c 2 -n USER_1');
-  writeln('  (2 CPU''s to server 192.168.1.77 port 4009 and miner name USER_1)');
-  writeln('Basic example GPU mining: ');
-  writeln('  ',ExtractFileName(ExeName),' -p 0 -d 0 -s -n ABC');
-  writeln('  (p 0 d 0 at server localhost:',CT_JSONRPCMinerServer_Port,' miner name ABC)');
+  writeln('Basic example GPU mining over multiple devices: ');
+  writeln('  ',ExtractFileName(ExeName),' -p 0 -d 0,1,2,3 -s -n ABC');
+  writeln('  (Devices 0,1,2,3 at server localhost:',CT_JSONRPCMinerServer_Port,' miner name ABC)');
   writeln('');
   ShowGPUDrivers;
 end;

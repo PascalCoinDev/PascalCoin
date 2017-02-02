@@ -34,6 +34,11 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 1.4.3.0 - 2017-02-02
+
+- Adding "maturation" param to "JSON Operation object", return null when operation is not included on a blockchain yet, 0 means that is included in highest block and so on...
+- Fixing miner timestamp value to prevent invalid time
+
 ### Build 1.4.2.0 - 2017-01-23
 
 - Max JSON-RPC miner connections is now 1000 (before, 10)

@@ -62,7 +62,7 @@ Const
   CT_MaxTransactionFee = 100000000;
   CT_MaxWalletAmount = 10000000000000;
   //
-  CT_MinCompactTarget: Cardinal = {$IFDEF PRODUCTION}$19000000{$ELSE}{$IFDEF TESTNET}$17000000{$ELSE}{$ENDIF}{$ENDIF}; // First compact target of block 0
+  CT_MinCompactTarget: Cardinal = {$IFDEF PRODUCTION}$19000000{$ELSE}{$IFDEF TESTNET}$19000000{$ELSE}{$ENDIF}{$ENDIF}; // First compact target of block 0
 
   CT_CalcNewTargetBlocksAverage: Cardinal = 100;
   CT_MaxAccount : Cardinal = $FFFFFFFF;
@@ -74,7 +74,7 @@ Const
   CT_MinServersConnected = 3;
   CT_MaxServersConnected = 5;
 
-  CT_MaxClientsConnected = 100;
+  CT_MaxClientsConnected = 500;
 
   CT_BankToDiskEveryNBlocks = 500; // Build 1.3.0 Changed from 1000 to 500
 
@@ -100,7 +100,7 @@ Const
   CT_Op_Changekey = $02;
   CT_Op_Recover = $03;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.4.2'{$ELSE}{$IFDEF TESTNET}'TESTNET'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.4.3'{$ELSE}{$IFDEF TESTNET}'TESTNET'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin2.ddns.net;pascalcoin1.dynamic-dns.net;pascalcoin1.dns1.us';
 

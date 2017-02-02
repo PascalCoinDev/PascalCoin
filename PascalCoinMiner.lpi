@@ -29,7 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="-p 0 -d 1 -s -n a"/>
+        <CommandLineParams Value="-c 1 -s -n TEST"/>
       </local>
     </RunParams>
     <Units Count="1">
@@ -52,7 +52,7 @@
     </SearchPaths>
     <CodeGeneration>
       <Optimizations>
-        <OptimizationLevel Value="2"/>
+        <OptimizationLevel Value="3"/>
       </Optimizations>
     </CodeGeneration>
     <Linking>

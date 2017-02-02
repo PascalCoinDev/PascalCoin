@@ -21,7 +21,7 @@ interface
 
 Uses UThread, ULog, UConst, UNode, UAccounts, UCrypto, UBlockChain,
   UNetProtocol, UOpTransaction, UWalletKeys, UTime, UAES, UECIES,
-  UJSONFunctions, classes, blcksock, synsock, IniFiles;
+  UJSONFunctions, classes, blcksock, synsock, IniFiles, Variants;
 
 Const
   CT_RPC_ErrNum_InternalError = 100;
@@ -88,6 +88,7 @@ Type
   TRPCProcess = class(TPCThread)
   private
     FSock:TTCPBlockSocket;
+    FNode : TNode;
   public
     Constructor Create (hsock:tSocket);
     Destructor Destroy; override;
@@ -198,6 +199,7 @@ begin
   FSock:=TTCPBlockSocket.create;
   FSock.socket:=HSock;
   FreeOnTerminate:=true;
+  FNode := TNode.Node;
   //Priority:=tpNormal;
   inherited create(false);
   FreeOnTerminate:=true;
@@ -450,7 +452,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   begin
     pcops := TPCOperationsComp.Create(Nil);
     try
-      If Not TNode.Node.Bank.LoadOperations(pcops,nBlock) then begin
+      If Not FNode.Bank.LoadOperations(pcops,nBlock) then begin
         ErrorNum := CT_RPC_ErrNum_InternalError;
         ErrorDesc := 'Cannot load Block: '+IntToStr(nBlock);
         Result := False;
@@ -470,8 +472,8 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       jsonObject.GetAsVariant('oph').Value:=TCrypto.ToHexaString(pcops.OperationBlock.operations_hash);
       jsonObject.GetAsVariant('pow').Value:=TCrypto.ToHexaString(pcops.OperationBlock.proof_of_work);
       jsonObject.GetAsVariant('operations').Value:=pcops.Count;
-      jsonObject.GetAsVariant('hashratekhs').Value := TNode.Node.Bank.SafeBox.CalcBlockHashRateInKhs(pcops.OperationBlock.Block,50);
-      jsonObject.GetAsVariant('maturation').Value := TNode.Node.Bank.BlocksCount - pcops.OperationBlock.block - 1;
+      jsonObject.GetAsVariant('hashratekhs').Value := FNode.Bank.SafeBox.CalcBlockHashRateInKhs(pcops.OperationBlock.Block,50);
+      jsonObject.GetAsVariant('maturation').Value := FNode.Bank.BlocksCount - pcops.OperationBlock.block - 1;
       Result := True;
     finally
       pcops.Free;
@@ -490,6 +492,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       jsonObject.GetAsVariant('block').Value:=OPR.Block;
       jsonObject.GetAsVariant('time').Value:=OPR.time;
       jsonObject.GetAsVariant('opblock').Value:=OPR.NOpInsideBlock;
+      if (OPR.Block>0) And (OPR.Block<FNode.Bank.BlocksCount) then
+        jsonObject.GetAsVariant('maturation').Value := FNode.Bank.BlocksCount - OPR.Block - 1
+      else jsonObject.GetAsVariant('maturation').Value := null;
     end;
     jsonObject.GetAsVariant('optype').Value:=OPR.OpType;
     jsonObject.GetAsVariant('account').Value:=OPR.AffectedAccount;
@@ -532,13 +537,13 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     try
       list := TList.Create;
       Try
-        TNode.Node.Operations.OperationsHashTree.GetOperationsAffectingAccount(AccountNumber,list);
+        FNode.Operations.OperationsHashTree.GetOperationsAffectingAccount(AccountNumber,list);
         for i := list.Count - 1 downto 0 do begin
-          Op := TNode.Node.Operations.OperationsHashTree.GetOperation(PtrInt(list[i]));
+          Op := FNode.Operations.OperationsHashTree.GetOperation(PtrInt(list[i]));
           If TPCOperation.OperationToOperationResume(0,Op,AccountNumber,OPR) then begin
             OPR.NOpInsideBlock := i;
-            OPR.Block := TNode.Node.Operations.OperationBlock.block;
-            OPR.Balance := TNode.Node.Operations.SafeBoxTransaction.Account(AccountNumber).balance;
+            OPR.Block := FNode.Operations.OperationBlock.block;
+            OPR.Balance := FNode.Operations.SafeBoxTransaction.Account(AccountNumber).balance;
             OperationsResume.Add(OPR);
           end;
         end;
@@ -546,7 +551,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         list.Free;
       End;
       if ((max<=0) Or (OperationsResume.Count<(max+start))) then begin
-        TNode.Node.GetStoredOperationsFromAccount(OperationsResume,AccountNumber,MaxBlocksDepht,max+start);
+        FNode.GetStoredOperationsFromAccount(OperationsResume,AccountNumber,MaxBlocksDepht,max+start);
       end;
       //
       for i:=0 to OperationsResume.Count-1 do begin
@@ -647,25 +652,25 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     opr : TOperationResume;
   begin
     Result := false;
-    if (sender<0) or (sender>=TNode.Node.Bank.AccountsCount) then begin
+    if (sender<0) or (sender>=FNode.Bank.AccountsCount) then begin
       If (sender=CT_MaxAccount) then ErrorDesc := 'Need sender'
       else ErrorDesc:='Invalid sender account '+Inttostr(sender);
       ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
       Exit;
     end;
-    if (target<0) or (target>=TNode.Node.Bank.AccountsCount) then begin
+    if (target<0) or (target>=FNode.Bank.AccountsCount) then begin
       If (target=CT_MaxAccount) then ErrorDesc := 'Need target'
       else ErrorDesc:='Invalid target account '+Inttostr(target);
       ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
       Exit;
     end;
-    sacc := TNode.Node.Operations.SafeBoxTransaction.Account(sender);
-    tacc := TNode.Node.Operations.SafeBoxTransaction.Account(target);
+    sacc := FNode.Operations.SafeBoxTransaction.Account(sender);
+    tacc := FNode.Operations.SafeBoxTransaction.Account(target);
 
     opt := CreateOperationTransaction(sender,target,sacc.n_operation,amount,fee,sacc.accountkey,tacc.accountkey,RawPayload,Payload_method,EncodePwd);
     if opt=nil then exit;
     try
-      If not TNode.Node.AddOperation(Nil,opt,errors) then begin
+      If not FNode.AddOperation(Nil,opt,errors) then begin
         ErrorDesc := 'Error adding operation: '+errors;
         ErrorNum := CT_RPC_ErrNum_InvalidOperation;
         Exit;
@@ -765,17 +770,17 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     opr : TOperationResume;
   begin
     Result := false;
-    if (account_number<0) or (account_number>=TNode.Node.Bank.AccountsCount) then begin
+    if (account_number<0) or (account_number>=FNode.Bank.AccountsCount) then begin
       ErrorDesc:='Invalid account '+Inttostr(account_number);
       ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
       Exit;
     end;
-    acc := TNode.Node.Operations.SafeBoxTransaction.Account(account_number);
+    acc := FNode.Operations.SafeBoxTransaction.Account(account_number);
 
     opck := CreateOperationChangeKey(account_number,acc.n_operation,acc.accountkey,new_pub_key,fee,RawPayload,Payload_method,EncodePwd);
     if not assigned(opck) then exit;
     try
-      If not TNode.Node.AddOperation(Nil,opck,errors) then begin
+      If not FNode.AddOperation(Nil,opck,errors) then begin
         ErrorDesc := 'Error adding operation: '+errors;
         ErrorNum := CT_RPC_ErrNum_InvalidOperation;
         Exit;
@@ -856,12 +861,12 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       try
         for ian := 0 to accountsnumber.Count - 1 do begin
 
-          if (accountsnumber.Get(ian)<0) or (accountsnumber.Get(ian)>=TNode.Node.Bank.AccountsCount) then begin
+          if (accountsnumber.Get(ian)<0) or (accountsnumber.Get(ian)>=FNode.Bank.AccountsCount) then begin
             ErrorDesc:='Invalid account '+Inttostr(accountsnumber.Get(ian));
             ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
             Exit;
           end;
-          acc := TNode.Node.Operations.SafeBoxTransaction.Account(accountsnumber.Get(ian));
+          acc := FNode.Operations.SafeBoxTransaction.Account(accountsnumber.Get(ian));
           opck := CreateOperationChangeKey(acc.account,acc.n_operation,acc.accountkey,new_pub_key,fee,RawPayload,Payload_method,EncodePwd);
           if not assigned(opck) then exit;
           try
@@ -873,7 +878,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         // Ready to execute...
         OperationsResumeList := TOperationsResumeList.Create;
         Try
-          i := TNode.Node.AddOperations(Nil,operationsht,OperationsResumeList, errors);
+          i := FNode.AddOperations(Nil,operationsht,OperationsResumeList, errors);
           if (i<0) then begin
             ErrorNum:=CT_RPC_ErrNum_InternalError;
             ErrorDesc:=errors;
@@ -970,7 +975,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       errors := '';
       OperationsResumeList := TOperationsResumeList.Create;
       Try
-        i := TNode.Node.AddOperations(Nil,OperationsHashTree,OperationsResumeList,errors);
+        i := FNode.AddOperations(Nil,OperationsHashTree,OperationsResumeList,errors);
         if (i<0) then begin
           ErrorNum:=CT_RPC_ErrNum_InternalError;
           ErrorDesc:=errors;
@@ -1137,8 +1142,8 @@ begin
     // Param "account" contains account number
     // Returns JSON Object with account information based on BlockChain + Pending operations
     c := params.GetAsVariant('account').AsCardinal(CT_MaxAccount);
-    if (c>=0) And (c<TNode.Node.Bank.AccountsCount) then begin
-      account := TNode.Node.Operations.SafeBoxTransaction.Account(c);
+    if (c>=0) And (c<FNode.Bank.AccountsCount) then begin
+      account := FNode.Operations.SafeBoxTransaction.Account(c);
       FillAccountObject(account,GetResultObject);
       Result := True;
     end else begin
@@ -1165,7 +1170,7 @@ begin
       l := params.AsInteger('start',0);
       for j := 0 to ocl.Count - 1 do begin
         if (j>=l) then begin
-          account := TNode.Node.Operations.SafeBoxTransaction.Account(ocl.Get(j));
+          account := FNode.Operations.SafeBoxTransaction.Account(ocl.Get(j));
           FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
         end;
         if (k>0) And ((j+1)>=(k+l)) then break;
@@ -1179,7 +1184,7 @@ begin
         ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
         for j := 0 to ocl.Count - 1 do begin
           if (c>=l) then begin
-            account := TNode.Node.Operations.SafeBoxTransaction.Account(ocl.Get(j));
+            account := FNode.Operations.SafeBoxTransaction.Account(ocl.Get(j));
             FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
           end;
           inc(c);
@@ -1231,7 +1236,7 @@ begin
       ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
       account.balance := 0;
       for j := 0 to ocl.Count - 1 do begin
-        inc(account.balance, TNode.Node.Operations.SafeBoxTransaction.Account(ocl.Get(j)).balance );
+        inc(account.balance, FNode.Operations.SafeBoxTransaction.Account(ocl.Get(j)).balance );
       end;
       jsonresponse.GetAsVariant('result').value := ToJSONCurrency(account.balance);
       Result := true;
@@ -1242,7 +1247,7 @@ begin
       for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
         ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
         for j := 0 to ocl.Count - 1 do begin
-          inc(account.balance, TNode.Node.Operations.SafeBoxTransaction.Account(ocl.Get(j)).balance );
+          inc(account.balance, FNode.Operations.SafeBoxTransaction.Account(ocl.Get(j)).balance );
         end;
       end;
       jsonresponse.GetAsVariant('result').value := ToJSONCurrency(account.balance);
@@ -1280,7 +1285,7 @@ begin
     // Param "block" contains block number (0..getblockcount-1)
     // Returns JSON object with block information
     c := params.GetAsVariant('block').AsCardinal(CT_MaxBlock);
-    if (c>=0) And (c<TNode.Node.Bank.BlocksCount) then begin
+    if (c>=0) And (c<FNode.Bank.BlocksCount) then begin
       Result := GetBlock(c,GetResultObject);
     end else begin
       ErrorNum := CT_RPC_ErrNum_InvalidBlock;
@@ -1294,20 +1299,20 @@ begin
     i := params.AsCardinal('last',0);
     if (i>0) then begin
       if (i>1000) then i := 1000;
-      c2 := TNode.Node.Bank.BlocksCount-1;
-      if (TNode.Node.Bank.BlocksCount>=i) then
-        c := (TNode.Node.Bank.BlocksCount) - i
+      c2 := FNode.Bank.BlocksCount-1;
+      if (FNode.Bank.BlocksCount>=i) then
+        c := (FNode.Bank.BlocksCount) - i
       else c := 0;
     end else begin
       c := params.GetAsVariant('start').AsCardinal(CT_MaxBlock);
       c2 := params.GetAsVariant('end').AsCardinal(CT_MaxBlock);
       i := params.AsInteger('max',0);
-      if (c<TNode.Node.Bank.BlocksCount) And (i>0) And (i<=1000) then begin
-        if (c+i<TNode.Node.Bank.BlocksCount) then c2 := c+i
-        else c2 := TNode.Node.Bank.BlocksCount-1;
+      if (c<FNode.Bank.BlocksCount) And (i>0) And (i<=1000) then begin
+        if (c+i<FNode.Bank.BlocksCount) then c2 := c+i
+        else c2 := FNode.Bank.BlocksCount-1;
       end;
     end;
-    if ((c>=0) And (c<TNode.Node.Bank.BlocksCount)) And (c2>=c) And (c2<TNode.Node.Bank.BlocksCount) then begin
+    if ((c>=0) And (c<FNode.Bank.BlocksCount)) And (c2>=c) And (c2<FNode.Bank.BlocksCount) then begin
       i := 0; Result := true;
       while (c<=c2) And (Result) And (i<1000) do begin
         Result := GetBlock(c2,jsonresponse.GetAsArray('result').GetAsObject(i));
@@ -1317,22 +1322,22 @@ begin
       ErrorNum := CT_RPC_ErrNum_InvalidBlock;
       if (c>c2) then ErrorDesc := 'Block start > block end'
       else if (c=CT_MaxBlock) Or (c2=CT_MaxBlock) then ErrorDesc:='Need param "last" or "start" and "end"/"max"'
-      else if (c2>=TNode.Node.Bank.BlocksCount) then ErrorDesc := 'Block higher or equal to getblockccount: '+IntToStr(c2)
+      else if (c2>=FNode.Bank.BlocksCount) then ErrorDesc := 'Block higher or equal to getblockccount: '+IntToStr(c2)
       else  ErrorDesc := 'Block not found: '+IntToStr(c);
     end;
   end else if (method='getblockcount') then begin
     // Returns a number with Node blocks count
-    jsonresponse.GetAsVariant('result').Value:=TNode.Node.Bank.BlocksCount;
+    jsonresponse.GetAsVariant('result').Value:=FNode.Bank.BlocksCount;
     Result := True;
   end else if (method='getblockoperation') then begin
     // Param "block" contains block. Null = Pending operation
     // Param "opblock" contains operation inside a block: (0..getblock.operations-1)
     // Returns a JSON object with operation values as "Operation resume format"
     c := params.GetAsVariant('block').AsCardinal(CT_MaxBlock);
-    if (c>=0) And (c<TNode.Node.Bank.BlocksCount) then begin
+    if (c>=0) And (c<FNode.Bank.BlocksCount) then begin
       pcops := TPCOperationsComp.Create(Nil);
       try
-        If Not TNode.Node.Bank.LoadOperations(pcops,c) then begin
+        If Not FNode.Bank.LoadOperations(pcops,c) then begin
           ErrorNum := CT_RPC_ErrNum_InternalError;
           ErrorDesc := 'Cannot load Block: '+IntToStr(c);
           Exit;
@@ -1362,10 +1367,10 @@ begin
     // Param "block" contains block
     // Returns a JSON array with items as "Operation resume format"
     c := params.GetAsVariant('block').AsCardinal(CT_MaxBlock);
-    if (c>=0) And (c<TNode.Node.Bank.BlocksCount) then begin
+    if (c>=0) And (c<FNode.Bank.BlocksCount) then begin
       pcops := TPCOperationsComp.Create(Nil);
       try
-        If Not TNode.Node.Bank.LoadOperations(pcops,c) then begin
+        If Not FNode.Bank.LoadOperations(pcops,c) then begin
           ErrorNum := CT_RPC_ErrNum_InternalError;
           ErrorDesc := 'Cannot load Block: '+IntToStr(c);
           Exit;
@@ -1399,7 +1404,7 @@ begin
     // Param "depht" (optional or "deep") contains max blocks deep to search (Default: 100)
     // Param "start" and "max" contains starting index and max operations respectively
     c := params.GetAsVariant('account').AsCardinal(CT_MaxAccount);
-    if ((c>=0) And (c<TNode.Node.Bank.AccountsCount)) then begin
+    if ((c>=0) And (c<FNode.Bank.AccountsCount)) then begin
       if (params.IndexOfName('depth')>=0) then i := params.AsInteger('depth',100) else i:=params.AsInteger('deep',100);
       Result := GetAccountOperations(c,GetResultArray,i,params.AsInteger('start',0),params.AsInteger('max',100));
     end else begin
@@ -1411,15 +1416,15 @@ begin
     // Returns all the operations pending to be included in a block in "Operation resume format" as an array
     // Create result
     GetResultArray;
-    for i:=TNode.Node.Operations.Count-1 downto 0 do begin
-      if not TPCOperation.OperationToOperationResume(0,TNode.Node.Operations.Operation[i],TNode.Node.Operations.Operation[i].SenderAccount,opr) then begin
+    for i:=FNode.Operations.Count-1 downto 0 do begin
+      if not TPCOperation.OperationToOperationResume(0,FNode.Operations.Operation[i],FNode.Operations.Operation[i].SenderAccount,opr) then begin
         ErrorNum := CT_RPC_ErrNum_InternalError;
         ErrorDesc := 'Error converting data';
         exit;
       end;
       opr.NOpInsideBlock:=i;
-      opr.Balance := TNode.Node.Operations.SafeBoxTransaction.Account(TNode.Node.Operations.Operation[i].SenderAccount).balance;
-      FillOperationResumeToJSONObject(opr,GetResultArray.GetAsObject( TNode.Node.Operations.Count-1-i ));
+      opr.Balance := FNode.Operations.SafeBoxTransaction.Account(FNode.Operations.Operation[i].SenderAccount).balance;
+      FillOperationResumeToJSONObject(opr,GetResultArray.GetAsObject( FNode.Operations.Count-1-i ));
     end;
     Result := true;
   end else if (method='findoperation') then begin
@@ -1432,7 +1437,7 @@ begin
     end;
     pcops := TPCOperationsComp.Create(Nil);
     try
-      If not TNode.Node.FindOperation(pcops,r,c,i) then begin
+      If not FNode.FindOperation(pcops,r,c,i) then begin
         ErrorNum:=CT_RPC_ErrNum_NotFound;
         ErrorDesc:='ophash not found: "'+params.AsString('ophash','')+'"';
         exit;
@@ -1590,7 +1595,7 @@ begin
   end else if (method='nodestatus') then begin
     // Returns a JSON Object with Node status
     GetResultObject.GetAsVariant('ready').Value := False;
-    If TNode.Node.IsReady(ansistr) then begin
+    If FNode.IsReady(ansistr) then begin
       GetResultObject.GetAsVariant('ready_s').Value := ansistr;
       if TNetData.NetData.NetStatistics.ActiveConnections>0 then begin
         GetResultObject.GetAsVariant('ready').Value := True;
@@ -1607,15 +1612,15 @@ begin
     end else begin
       GetResultObject.GetAsVariant('ready_s').Value := ansistr;
     end;
-    GetResultObject.GetAsVariant('port').Value:=TNode.Node.NetServer.Port;
+    GetResultObject.GetAsVariant('port').Value:=FNode.NetServer.Port;
     GetResultObject.GetAsVariant('locked').Value:=Not _RPCServer.WalletKeys.IsValidPassword;
     GetResultObject.GetAsVariant('timestamp').Value:=UnivDateTimeToUnix(DateTime2UnivDateTime(now));
     GetResultObject.GetAsVariant('version').Value:=CT_ClientAppVersion;
     GetResultObject.GetAsObject('netprotocol').GetAsVariant('ver').Value := CT_NetProtocol_Version;
     GetResultObject.GetAsObject('netprotocol').GetAsVariant('ver_a').Value := CT_NetProtocol_Available;
-    GetResultObject.GetAsVariant('blocks').Value:=TNode.Node.Bank.BlocksCount;
-    GetResultObject.GetAsVariant('sbh').Value:=TCrypto.ToHexaString(TNode.Node.Bank.LastOperationBlock.initial_safe_box_hash);
-    GetResultObject.GetAsVariant('pow').Value:=TCrypto.ToHexaString(TNode.Node.Bank.LastOperationBlock.proof_of_work);
+    GetResultObject.GetAsVariant('blocks').Value:=FNode.Bank.BlocksCount;
+    GetResultObject.GetAsVariant('sbh').Value:=TCrypto.ToHexaString(FNode.Bank.LastOperationBlock.initial_safe_box_hash);
+    GetResultObject.GetAsVariant('pow').Value:=TCrypto.ToHexaString(FNode.Bank.LastOperationBlock.proof_of_work);
     GetResultObject.GetAsObject('netstats').GetAsVariant('active').Value:=TNetData.NetData.NetStatistics.ActiveConnections;
     GetResultObject.GetAsObject('netstats').GetAsVariant('clients').Value:=TNetData.NetData.NetStatistics.ClientsConnections;
     GetResultObject.GetAsObject('netstats').GetAsVariant('servers').Value:=TNetData.NetData.NetStatistics.ServersConnectionsWithResponse;
@@ -1763,13 +1768,13 @@ begin
     Result := true;
   end else if (method='stopnode') then begin
     // Stops communications to other nodes
-    TNode.Node.NetServer.Active := false;
+    FNode.NetServer.Active := false;
     TNetData.NetData.NetConnectionsActive:=false;
     jsonresponse.GetAsVariant('result').Value := true;
     Result := true;
   end else if (method='startnode') then begin
     // Stops communications to other nodes
-    TNode.Node.NetServer.Active := true;
+    FNode.NetServer.Active := true;
     TNetData.NetData.NetConnectionsActive:=true;
     jsonresponse.GetAsVariant('result').Value := true;
     Result := true;

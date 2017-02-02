@@ -219,6 +219,11 @@ begin
   FPoolMinerClient.OnMinerMustChangeValues := OnPoolMinerMustChangeValues;
   FPoolMinerClient.OnConnect := OnPoolMinerClientConnectionChanged;
   FPoolMinerClient.OnDisconnect := OnPoolMinerClientConnectionChanged;
+{ XXXXXXXXXXXXXXXXX
+  FPoolMinerClient.PoolType:=ptSuprnova;
+  FPoolMinerClient.UserName:='suprnova.1';
+  FPoolMinerClient.Password:='password';
+}
   FOnConnectionStateChanged := Nil;
   FDevicesList := TPCThreadList.Create;
   FMinerThreads := 0;
@@ -330,7 +335,7 @@ begin
   try
     mvfw := sender.FMinerValuesForWork;
     TLog.NewLog(ltinfo,ClassName,'FOUND VALID NONCE!!! Timestamp:'+Inttostr(Timestamp)+ ' Nonce:'+Inttostr(NOnce));
-    FPoolMinerClient.SubmitBlockFound(mvfw.payload_start,Timestamp,NOnce);
+    FPoolMinerClient.SubmitBlockFound(mvfw,mvfw.payload_start,Timestamp,NOnce);
   finally
     FDevicesList.UnlockList;
   end;
@@ -362,8 +367,8 @@ Var l : TList;
   auxXXXXX : TMinerValuesForWork;
 begin
   FGlobalMinerValuesForWork := FPoolMinerClient.MinerValuesForWork;
-  TLog.NewLog(ltupdate,ClassName,Format('New miner values. Block %d Payload %s',[FPoolMinerClient.MinerValuesForWork.block,
-    FPoolMinerClient.MinerValuesForWork.payload_start]));
+  TLog.NewLog(ltupdate,ClassName,Format('New miner values. Block %d Target %s Payload %s',[FPoolMinerClient.MinerValuesForWork.block,
+    IntToHex(FPoolMinerClient.MinerValuesForWork.target,8), FPoolMinerClient.MinerValuesForWork.payload_start]));
   l := FDevicesList.LockList;
   Try
     for i := 0 to l.Count - 1 do begin
@@ -506,7 +511,7 @@ begin
     canWork := CanBeModifiedOnLastChunk(i,aux);
     If Not canWork then FMinerValuesForWork.payload_start:=FMinerValuesForWork.payload_start+' ';
   until (canWork);
-  TLog.NewLog(ltinfo,classname,Format('Updated MinerValuesForWork: Payload:%s',[FMinerValuesForWork.payload_start]));
+  TLog.NewLog(ltinfo,classname,Format('Updated MinerValuesForWork: Target:%s Payload:%s',[IntToHex(FMinerValuesForWork.target,8),FMinerValuesForWork.payload_start]));
   If Assigned(FOnMinerValuesChanged) then FOnMinerValuesChanged(Self);
 end;
 

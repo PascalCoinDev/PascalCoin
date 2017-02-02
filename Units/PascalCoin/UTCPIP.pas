@@ -45,6 +45,8 @@ type
   TTCPBlockSocket = TCustomIpClient;
   {$ENDIF}
 
+  { TNetTcpIpClient }
+
   TNetTcpIpClient = Class(TComponent)
   private
     FTcpBlockSocket : TTCPBlockSocket;
@@ -70,6 +72,7 @@ type
     procedure TCustomIpClient_OnError(Sender: TObject; ASocketError: Integer);
     {$ENDIF}
   protected
+    Procedure DoOnConnect; Virtual;
     function ReceiveBuf(var Buf; BufSize: Integer): Integer;
     Function SendStream(Stream : TStream) : Int64;
     Procedure DoWaitForData(WaitMilliseconds : Integer; var HasData : Boolean); virtual;
@@ -241,7 +244,7 @@ begin
   Try
     FTcpBlockSocket.Connect(FRemoteHost,IntToStr(FRemotePort));
     FConnected := FTcpBlockSocket.LastError=0;
-    if (FConnected) And (Assigned(FOnConnect)) then FOnConnect(Self)
+    if (FConnected) then DoOnConnect
     else TLog.NewLog(ltdebug,Classname,'Cannot connect to a server at: '+ClientRemoteAddr+' Reason: '+FTcpBlockSocket.GetErrorDescEx);
   Except
     On E:Exception do begin
@@ -303,6 +306,11 @@ begin
     FLock.Release;
   End;
   {$ENDIF}
+end;
+
+procedure TNetTcpIpClient.DoOnConnect;
+begin
+  If (Assigned(FOnConnect)) then FOnConnect(Self);
 end;
 
 procedure TNetTcpIpClient.DoWaitForData(WaitMilliseconds: Integer; var HasData: Boolean);
