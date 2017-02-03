@@ -55,7 +55,7 @@ type
   end;
 
 Const
-  CT_MINER_VERSION = 'BETA 0.3 FOR SUPRNOVA TESTING ONLY';
+  CT_MINER_VERSION = '0.4';
   CT_Line_DeviceStatus = 3;
   CT_Line_ConnectionStatus = 4;
   CT_Line_MinerValues = 7;
@@ -102,7 +102,7 @@ Const CT_state : Array[boolean] of String = ('Disconnected','Connected');
 var i : Integer;
   s : String;
 begin
-  If FPoolMinerThread.PoolMinerClient.PoolType=ptNone then s:='SOLO MINING'
+  If FPoolMinerThread.PoolMinerClient.PoolType=ptNone then s:='MINING'
   else s:='POOL MINING USER "'+FPoolMinerThread.PoolMinerClient.UserName+'"';
   If FPoolMinerThread.PoolMinerClient.Connected then begin
     WriteLine(CT_Line_ConnectionStatus,s + ' server: '+FPoolMinerThread.PoolMinerClient.ClientRemoteAddr);
