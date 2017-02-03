@@ -385,7 +385,7 @@ begin
       P^.method:=method;
       FPendingResponseMessages.Add(P);
     end;
-    TLog.NewLog(ltdebug,Classname,'Sending JSON-RPC: '+json.ToJSON(false));
+    TLog.NewLog(ltInfo,Classname,'Sending JSON: '+json.ToJSON(false));
     stream := TMemoryStream.Create;
     try
       json.SaveToStream(stream);
@@ -430,7 +430,7 @@ begin
             If Assigned(processEventOnInvalid) then begin
               TLog.NewLog(ltdebug,classname,'Sending to process unexpected JSON:'+json.ToJSON(false));
               processEventOnInvalid(json,rm);
-            end else TLog.NewLog(ltdebug,Classname,'Lost JSON message! '+json.ToJSON(false));
+            end else TLog.NewLog(lterror,Classname,'Lost JSON message! '+json.ToJSON(false));
           end;
         end;
       until (Result) Or (GetTickCount > (tc+MaxWaitMiliseconds));
@@ -438,7 +438,7 @@ begin
       json.free;
     end;
     if (Not Result) then begin
-      TLog.NewLog(ltdebug,classname,'Not received a JSON response Id:'+inttostr(nId)+' for method:'+method);
+      TLog.NewLog(lterror,classname,'Not received a JSON response Id:'+inttostr(nId)+' for method:'+method);
     end;
   finally
     FLockProcessBuffer.Release;
@@ -829,7 +829,7 @@ Var method : String;
   mvfw : TMinerValuesForWork;
   prev_pow,proposed_pow : TRawBytes;
 begin
-  TLog.NewLog(ltdebug,ClassName,'Received JSON: '+json.ToJSON(false));
+  TLog.NewLog(ltInfo,ClassName,'Received JSON: '+json.ToJSON(false));
   params := Nil;
   params_as_object := Nil;
   params_as_array := Nil;
@@ -839,7 +839,6 @@ begin
     if (i>=0) then begin
       params := json.Items[i];
     end;
-    //params_object := json.GetAsObject('result');
     TLog.NewLog(ltinfo,classname,'Received response method:'+ResponseMethod+' JSON:'+json.ToJSON(false));
   end else begin
     method := json.AsString('method','');
@@ -862,7 +861,7 @@ begin
   end;
   if method=CT_PoolMining_Method_MINER_NOTIFY then begin
     If assigned(params_as_array) then pobject := params_as_array.GetAsObject(0)
-    else pobject := Nil;
+    else pobject := params_as_object;
     if assigned(pobject) then begin
       mvfw := CT_TMinerValuesForWork_NULL;
       mvfw.block := pobject.AsInteger('block',0);
