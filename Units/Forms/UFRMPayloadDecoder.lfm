@@ -266,6 +266,15 @@ object FRMPayloadDecoder: TFRMPayloadDecoder
         TabOrder = 1
         TabStop = False
       end
+      object cbShowAsHexadecimal: TCheckBox
+        Left = 112
+        Height = 19
+        Top = 91
+        Width = 122
+        Caption = 'Show as hexadecimal'
+        OnClick = cbShowAsHexadecimalClick
+        TabOrder = 2
+      end
     end
     object tsDecodeMethods: TTabSheet
       Caption = 'Decode methods'

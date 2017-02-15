@@ -20,7 +20,7 @@ unit UFileStorage;
 interface
 
 uses
-  Classes, UBlockChain, SyncObjs;
+  Classes, UBlockChain, SyncObjs, UThread;
 {$I config.inc}
 
 Type
@@ -36,7 +36,7 @@ Type
 
   TFileStorage = Class(TStorage)
   private
-    FStorageLock : TCriticalSection;
+    FStorageLock : TPCCriticalSection;
     FBlockChainStream : TFileStream;
     FStreamFirstBlockNumber : Int64;
     FStreamLastBlockNumber : Int64;
@@ -78,7 +78,7 @@ Type
 
 implementation
 
-Uses ULog, SysUtils, UThread, UConst;
+Uses ULog, SysUtils, UConst;
 
 { TFileStorage }
 
@@ -158,7 +158,7 @@ begin
   SetLength(FBlockHeadersFirstBytePosition,0);
   FStreamFirstBlockNumber := 0;
   FStreamLastBlockNumber := -1;
-  FStorageLock := TCriticalSection.Create;
+  FStorageLock := TPCCriticalSection.Create('TFileStorage_StorageLock');
 end;
 
 destructor TFileStorage.Destroy;

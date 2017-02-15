@@ -339,7 +339,8 @@ begin
     // Create RPC server
     FRPCServer := TRPCServer.Create;
     FRPCServer.WalletKeys := WalletKeys;
-    FRPCServer.Active := true;
+    FRPCServer.Active := FAppParams.ParamByName[CT_PARAM_JSONRPCEnabled].GetAsBoolean(false);
+    FRPCServer.ValidIPs := FAppParams.ParamByName[CT_PARAM_JSONRPCAllowedIPs].GetAsString('127.0.0.1');
     WalletKeys.SafeBox := FNode.Bank.SafeBox;
     // Check Database
     FNode.Bank.StorageClass := TFileStorage;
@@ -361,7 +362,7 @@ begin
     TNetData.NetData.OnNodeServersUpdated := OnNetNodeServersUpdated;
     TNetData.NetData.OnBlackListUpdated := OnNetBlackListUpdated;
     //
-    TimerUpdateStatus.Interval := 5000;
+    TimerUpdateStatus.Interval := 1000;
     TimerUpdateStatus.Enabled := true;
     UpdateConfigChanged;
   Except
@@ -513,8 +514,9 @@ Const CT_BooleanToString : Array[Boolean] of String = ('False','True');
 Var i : integer;
  NC : TNetConnection;
  l : TList;
- sClientApp : String;
+ sClientApp, sLastConnTime : String;
  strings, sNSC, sRS, sDisc : TStrings;
+ hh,nn,ss,ms : Word;
 begin
   Try
     if Not TNetData.NetData.NetConnections.TryLockList(100,l) then exit;
@@ -534,15 +536,25 @@ begin
           end;
 
           if NC.Connected then begin
-            if NC is TNetServerClient then begin
-              sNSC.Add(Format('Client: IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s',
-                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime)]));
+            if NC.Client.LastCommunicationTime>1000 then begin
+              DecodeTime(now - NC.Client.LastCommunicationTime,hh,nn,ss,ms);
+              if (hh=0) and (nn=0) And (ss<10) then begin
+                sLastConnTime := ' - Last comunication <10 sec.';
+              end else begin
+                sLastConnTime := Format(' - Last comunication %.2dm%.2ds',[(hh*60)+nn,ss]);
+              end;
             end else begin
-              if NC.IsMyselfServer then sNSC.Add(Format('MySelf IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s',
-                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime)]))
+              sLastConnTime := '';
+            end;
+            if NC is TNetServerClient then begin
+              sNSC.Add(Format('Client: IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s %s',
+                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime),sLastConnTime]));
+            end else begin
+              if NC.IsMyselfServer then sNSC.Add(Format('MySelf IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s %s',
+                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime),sLastConnTime]))
               else begin
-                sRS.Add(Format('Remote Server: IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s',
-                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime)]));
+                sRS.Add(Format('Remote Server: IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s %s',
+                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime),sLastConnTime]));
               end;
             end;
           end else begin
@@ -805,6 +817,8 @@ begin
   FMustProcessWalletChanged := false;
   FMustProcessNetConnectionUpdated := false;
   FRPCServer := Nil;
+  FNode := Nil;
+  FPoolMiningServer := Nil;
   FMinAccountBalance := 0;
   FMaxAccountBalance := CT_MaxWalletAmount;
   FMessagesUnreadCount := 0;
@@ -814,7 +828,6 @@ begin
   memoNetBlackLists.Lines.Clear;
   memoMessages.Lines.Clear;
   memoMessageToSend.Lines.Clear;
-  FNode := Nil;
   FUpdating := false;
   FOrderedAccountsKeyList := Nil;
   TimerUpdateStatus.Enabled := false;
@@ -869,7 +882,6 @@ begin
   TrayIcon.BalloonFlags := bfInfo;
   MinersBlocksFound := 0;
   lblBuild.Caption := 'Build: '+CT_ClientAppVersion;
-  FPoolMiningServer := Nil;
 end;
 
 procedure TFRMWallet.FormDestroy(Sender: TObject);
@@ -1180,35 +1192,38 @@ end;
 
 procedure TFRMWallet.OnNetBlackListUpdated(Sender: TObject);
 Const CT_TRUE_FALSE : Array[Boolean] Of AnsiString = ('FALSE','TRUE');
-Var i,j : integer;
+Var i,j,n : integer;
  P : PNodeServerAddress;
  l : TList;
  strings : TStrings;
 begin
-  l := TNetData.NetData.BlackList.LockList;
+  l := TNetData.NetData.NodeServersAddresses.LockList;
   try
     strings := memoNetBlackLists.Lines;
     strings.BeginUpdate;
     Try
       strings.Clear;
       strings.Add('BlackList Updated: '+DateTimeToStr(now)+' by TID:'+IntToHex(TThread.CurrentThread.ThreadID,8));
-      j := 0;
+      j := 0; n:=0;
       for i := 0 to l.Count - 1 do begin
         P := l[i];
-        if Not P^.its_myself then begin
-          inc(j);
-          strings.Add(Format('Blacklist IP:%s:%d LastConnection:%s Reason: %s',
-            [
-             P^.ip,P^.port,
-             DateTimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(P^.last_connection))),P^.BlackListText]));
+        if (P^.is_blacklisted) then begin
+          inc(n);
+          if Not P^.its_myself then begin
+            inc(j);
+            strings.Add(Format('Blacklist IP:%s:%d LastConnection:%s Reason: %s',
+              [
+               P^.ip,P^.port,
+               DateTimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(P^.last_connection))),P^.BlackListText]));
+          end;
         end;
       end;
-      Strings.Add(Format('Total Blacklisted IPs: %d (Total %d)',[j,l.Count]));
+      Strings.Add(Format('Total Blacklisted IPs: %d (Total %d)',[j,n]));
     Finally
       strings.EndUpdate;
     End;
   finally
-    TNetData.NetData.BlackList.UnlockList;
+    TNetData.NetData.NodeServersAddresses.UnlockList;
   end;
 end;
 
@@ -1226,7 +1241,7 @@ Var i : integer;
  strings : TStrings;
  s : String;
 begin
-  l := TNetData.NetData.NodeServers.LockList;
+  l := TNetData.NetData.NodeServersAddresses.LockList;
   try
     strings := memoNetServers.Lines;
     strings.BeginUpdate;
@@ -1235,34 +1250,36 @@ begin
       strings.Add('NodeServers Updated: '+DateTimeToStr(now) +' Count: '+inttostr(l.Count));
       for i := 0 to l.Count - 1 do begin
         P := l[i];
-        s := Format('Server IP:%s:%d',[P^.ip,P^.port]);
-        if Assigned(P.netConnection) then begin
-          If P.last_connection>0 then  s := s+ ' ** ACTIVE **'
-          else s := s+' ** TRYING TO CONNECT **';
-        end;
-        if P.its_myself then begin
-          s := s+' ** NOT VALID ** '+P.BlackListText;
-        end;
-        if P.last_connection>0 then begin
-          s := s + ' Last connection: '+DateTimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(P^.last_connection)));
-        end;
-        if P.last_connection_by_server>0 then begin
-          s := s + ' Last server connection: '+DateTimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(P^.last_connection_by_server)));
-        end;
-        if (P.last_attempt_to_connect>0) then begin
-          s := s + ' Last attempt to connect: '+DateTimeToStr(P^.last_attempt_to_connect);
-        end;
-        if (P.total_failed_attemps_to_connect>0) then begin
-          s := s + ' (Attempts: '+inttostr(P^.total_failed_attemps_to_connect)+')';
-        end;
+        if Not (P^.is_blacklisted) then begin
+          s := Format('Server IP:%s:%d',[P^.ip,P^.port]);
+          if Assigned(P.netConnection) then begin
+            If P.last_connection>0 then  s := s+ ' ** ACTIVE **'
+            else s := s+' ** TRYING TO CONNECT **';
+          end;
+          if P.its_myself then begin
+            s := s+' ** NOT VALID ** '+P.BlackListText;
+          end;
+          if P.last_connection>0 then begin
+            s := s + ' Last connection: '+DateTimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(P^.last_connection)));
+          end;
+          if P.last_connection_by_server>0 then begin
+            s := s + ' Last server connection: '+DateTimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(P^.last_connection_by_server)));
+          end;
+          if (P.last_attempt_to_connect>0) then begin
+            s := s + ' Last attempt to connect: '+DateTimeToStr(P^.last_attempt_to_connect);
+          end;
+          if (P.total_failed_attemps_to_connect>0) then begin
+            s := s + ' (Attempts: '+inttostr(P^.total_failed_attemps_to_connect)+')';
+          end;
 
-        strings.Add(s);
+          strings.Add(s);
+        end;
       end;
     Finally
       strings.EndUpdate;
     End;
   finally
-    TNetData.NetData.NodeServers.UnlockList;
+    TNetData.NetData.NodeServersAddresses.UnlockList;
   end;
 end;
 
@@ -1348,7 +1365,7 @@ Var nsarr : TNodeServerAddressArray;
 begin
   //CheckMining;
   // Update node servers Peer Cache
-  nsarr := TNetData.NetData.GetValidNodeServers(true);
+  nsarr := TNetData.NetData.GetValidNodeServers(true,0);
   s := '';
   for i := low(nsarr) to High(nsarr) do begin
     if (s<>'') then s := s+';';
@@ -1703,7 +1720,10 @@ begin
     FPoolMiningServer.Active :=FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].GetAsBoolean(true);
     FPoolMiningServer.UpdateAccountAndPayload(GetAccountKeyForMiner,FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString(''));
   end;
-
+  if Assigned(FRPCServer) then begin
+    FRPCServer.Active := FAppParams.ParamByName[CT_PARAM_JSONRPCEnabled].GetAsBoolean(false);
+    FRPCServer.ValidIPs := FAppParams.ParamByName[CT_PARAM_JSONRPCAllowedIPs].GetAsString('127.0.0.1');
+  end;
   i := FAppParams.ParamByName[CT_PARAM_MinerPrivateKeyType].GetAsInteger(Integer(mpk_Random));
   if (i>=Integer(Low(TMinerPrivatekey))) And (i<=Integer(High(TMinerPrivatekey))) then FMinerPrivateKeyType := TMinerPrivateKey(i)
   else FMinerPrivateKeyType := mpk_Random;

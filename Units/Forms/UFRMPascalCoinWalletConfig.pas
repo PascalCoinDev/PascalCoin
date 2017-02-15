@@ -63,11 +63,16 @@ type
     cbPrivateKeyToMine: TComboBox;
     cbSaveDebugLogs: TCheckBox;
     bbOpenDataFolder: TBitBtn;
+    cbJSONRPCPortEnabled: TCheckBox;
+    ebJSONRPCAllowedIPs: TEdit;
+    Label6: TLabel;
+    Label7: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure bbOkClick(Sender: TObject);
     procedure bbUpdatePasswordClick(Sender: TObject);
     procedure cbSaveLogFilesClick(Sender: TObject);
     procedure bbOpenDataFolderClick(Sender: TObject);
+    procedure cbJSONRPCPortEnabledClick(Sender: TObject);
   private
     FAppParams: TAppParams;
     FWalletKeys: TWalletKeys;
@@ -123,6 +128,9 @@ begin
   AppParams.ParamByName[CT_PARAM_MinerName].SetAsString(ebMinerName.Text);
   AppParams.ParamByName[CT_PARAM_ShowModalMessages].SetAsBoolean(cbShowModalMessages.Checked);
   AppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].SetAsInteger(udJSONRPCMinerServerPort.Position);
+  AppParams.ParamByName[CT_PARAM_JSONRPCEnabled].SetAsBoolean(cbJSONRPCPortEnabled.Checked);
+  AppParams.ParamByName[CT_PARAM_JSONRPCAllowedIPs].SetAsString(ebJSONRPCAllowedIPs.Text);
+
   ModalResult := MrOk;
 end;
 
@@ -163,6 +171,11 @@ begin
   UpdateWalletConfig;
 end;
 
+procedure TFRMPascalCoinWalletConfig.cbJSONRPCPortEnabledClick(Sender: TObject);
+begin
+  ebJSONRPCAllowedIPs.Enabled := cbJSONRPCPortEnabled.Checked;
+end;
+
 procedure TFRMPascalCoinWalletConfig.cbSaveLogFilesClick(Sender: TObject);
 begin
   cbSaveDebugLogs.Enabled := cbSaveLogFiles.Checked;
@@ -201,12 +214,15 @@ begin
     ebMinerName.Text := AppParams.ParamByName[CT_PARAM_MinerName].GetAsString('');
     cbShowModalMessages.Checked := AppParams.ParamByName[CT_PARAM_ShowModalMessages].GetAsBoolean(false);
     udJSONRPCMinerServerPort.Position := AppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port);
+    cbJSONRPCPortEnabled.Checked := AppParams.ParamByName[CT_PARAM_JSONRPCEnabled].GetAsBoolean(false);
+    ebJSONRPCAllowedIPs.Text := AppParams.ParamByName[CT_PARAM_JSONRPCAllowedIPs].GetAsString('127.0.0.1;');
   Except
     On E:Exception do begin
       TLog.NewLog(lterror,ClassName,'Exception at SetAppParams: '+E.Message);
     end;
   End;
   cbSaveLogFilesClick(nil);
+  cbJSONRPCPortEnabledClick(nil);
 end;
 
 procedure TFRMPascalCoinWalletConfig.SetWalletKeys(const Value: TWalletKeys);

@@ -217,6 +217,7 @@ Type
     Property TotalFee : Int64 read FTotalFee;
     function SaveOperationsHashTreeToStream(Stream: TStream; SaveToStorage : Boolean): Boolean;
     function LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage : Boolean; var errors : AnsiString): Boolean;
+    function IndexOfOperation(op : TPCOperation) : Integer;
   End;
 
   { TPCOperationsComp }
@@ -233,7 +234,7 @@ Type
     FIsOnlyOperationBlock: Boolean;
     FStreamPoW : TMemoryStream;
     FDisableds : Integer;
-    FOperationsLock : TCriticalSection;
+    FOperationsLock : TPCCriticalSection;
     function GetOperation(index: Integer): TPCOperation;
     procedure SetBank(const value: TPCBank);
     procedure SetnOnce(const value: Cardinal);
@@ -254,7 +255,6 @@ Type
     Constructor Create(AOwner: TComponent); Override;
     Destructor Destroy; Override;
     Procedure CopyFromExceptAddressKey(Operations : TPCOperationsComp);
-    Function CopyFromAndValidate(Operations : TPCOperationsComp; var errors : AnsiString) : Boolean;
     Procedure CopyFrom(Operations : TPCOperationsComp);
     Function AddOperation(Execute : Boolean; op: TPCOperation; var errors: AnsiString): Boolean;
     Function AddOperations(operations: TOperationsHashTree; var errors: AnsiString): Integer;
@@ -365,7 +365,7 @@ Type
     FActualTargetHash: TRawBytes;
     FIsRestoringFromFile: Boolean;
     FOnLog: TPCBankLog;
-    FBankLock: TCriticalSection;
+    FBankLock: TPCCriticalSection;
     FNotifyList : TList;
     FStorageClass: TStorageClass;
     function GetStorage: TStorage;
@@ -486,6 +486,9 @@ begin
           ' Calculated:'+TCrypto.ToHexaString(SafeBox.CalcSafeBoxHash);
         exit;
       end;
+      if (Operations.OperationBlock.protocol_version<>CT_BlockChain_Protocol_Version) then begin
+        errors := 'Invalid PascalCoin protocol version: '+IntToStr( Operations.OperationBlock.protocol_version );
+      end;
 
       // Ok, include!
       // WINNER !!!
@@ -574,7 +577,7 @@ begin
   inherited;
   FStorage := Nil;
   FStorageClass := Nil;
-  FBankLock := TCriticalSection.Create;
+  FBankLock := TPCCriticalSection.Create('TPCBank_BANKLOCK');
   FIsRestoringFromFile := False;
   FOnLog := Nil;
   FSafeBox := TPCSafeBox.Create;
@@ -1144,38 +1147,6 @@ begin
   end;
 end;
 
-function TPCOperationsComp.CopyFromAndValidate(Operations: TPCOperationsComp; var errors: AnsiString): Boolean;
-Var i : Integer;
-  e : AnsiString;
-  op : TPCOperation;
-begin
-  Lock;
-  Try
-    errors := '';
-    if Self=Operations then begin
-      result := true;
-      exit;
-    end else Result := false;
-    Clear(true);
-    if Operations.IsOnlyOperationBlock then begin
-      errors := 'Operations is only an operation block';
-      exit;
-    end;
-    FOperationBlock := Operations.OperationBlock;
-    for i := 0 to Operations.OperationsHashTree.OperationsCount-1 do begin
-      op := Operations.OperationsHashTree.GetOperation(i);
-      if Not op.DoOperation(SafeBoxTransaction,e) then begin
-        errors := 'Error executing operation '+inttostr(i+1)+'/'+Inttostr(Operations.OperationsHashTree.OperationsCount)+':'+e;
-        exit;
-      end;
-      FOperationsHashTree.AddOperationToHashTree(op);
-    end;
-    Result := ValidateOperationBlock(errors);
-  finally
-    Unlock;
-  end;
-end;
-
 procedure TPCOperationsComp.CopyFromExceptAddressKey(Operations: TPCOperationsComp);
 var lastopb : TOperationBlock;
 begin
@@ -1207,7 +1178,7 @@ end;
 constructor TPCOperationsComp.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  FOperationsLock := TCriticalSection.Create;
+  FOperationsLock := TPCCriticalSection.Create('TPCOperationsComp_OPERATIONSLOCK');
   FDisableds := 0;
   FStreamPoW := TMemoryStream.Create;
   FStreamPoW.Position := 0;
@@ -1341,8 +1312,7 @@ begin
   Result := LoadBlockFromStreamExt(Stream,false,errors);
 end;
 
-function TPCOperationsComp.LoadBlockFromStreamExt(Stream: TStream;
-  LoadingFromStorage: Boolean; var errors: AnsiString): Boolean;
+function TPCOperationsComp.LoadBlockFromStreamExt(Stream: TStream; LoadingFromStorage: Boolean; var errors: AnsiString): Boolean;
 Var i: Cardinal;
   lastfee : UInt64;
   soob : Byte;
@@ -1363,14 +1333,14 @@ begin
     // - Value 0 and 2 means that contains also operations
     // - Value 1 and 3 means that only contains operationblock info
     // - Value 2 and 3 means that contains protocol info prior to block number
-    if (soob=0) or (soob=2) then FIsOnlyOperationBlock:=false
-    else if (soob=1) or (soob=3) then FIsOnlyOperationBlock:=true
+    if (soob in [0,2]) then FIsOnlyOperationBlock:=false
+    else if (soob in [1,3]) then FIsOnlyOperationBlock:=true
     else begin
       errors := 'Invalid value in protocol header! Found:'+inttostr(soob)+' - Check if your application version is Ok';
       exit;
     end;
 
-    if (soob=2) or (soob=3) then begin
+    if (soob in [2,3]) then begin
       Stream.Read(FOperationBlock.protocol_version, Sizeof(FOperationBlock.protocol_version));
       Stream.Read(FOperationBlock.protocol_available, Sizeof(FOperationBlock.protocol_available));
     end else begin
@@ -1435,8 +1405,8 @@ end;
 
 class function TPCOperationsComp.OperationBlockToText(OperationBlock: TOperationBlock): AnsiString;
 begin
-  Result := Format('Block:%d Timestamp:%d Reward:%d Fee:%d PoW:%s',[operationBlock.block,
-    operationblock.timestamp,operationblock.reward,operationblock.fee, TCrypto.ToHexaString(operationblock.proof_of_work)]);
+  Result := Format('Block:%d Timestamp:%d Reward:%d Fee:%d Target:%d PoW:%s',[operationBlock.block,
+    operationblock.timestamp,operationblock.reward,operationblock.fee, OperationBlock.compact_target, TCrypto.ToHexaString(operationblock.proof_of_work)]);
 end;
 
 class function TPCOperationsComp.RegisterOperationClass(OpClass: TPCOperationClass): Boolean;
@@ -1522,19 +1492,21 @@ begin
   Result := SaveBlockToStreamExt(save_only_OperationBlock,Stream,false);
 end;
 
-function TPCOperationsComp.SaveBlockToStreamExt(save_only_OperationBlock: Boolean;
-  Stream: TStream; SaveToStorage: Boolean): Boolean;
+function TPCOperationsComp.SaveBlockToStreamExt(save_only_OperationBlock: Boolean; Stream: TStream; SaveToStorage: Boolean): Boolean;
 Var soob : Byte;
 begin
   Lock;
   Try
-    //
     if save_only_OperationBlock then begin
+      {Old versions:
       if (FOperationBlock.protocol_version=1) And (FOperationBlock.protocol_available=0) then soob := 1
-      else soob := 3;
+      else soob := 3;}
+      soob := 3;
     end else begin
+      {Old versions:
       if (FOperationBlock.protocol_version=1) And (FOperationBlock.protocol_available=0) then soob := 0
-      else soob := 2;
+      else soob := 2;}
+      soob := 2;
     end;
     Stream.Write(soob,1);
     if (soob>=2) then begin
@@ -1758,6 +1730,12 @@ end;
 
 { TOperationsHashTree }
 
+Type TOperationHashTreeReg = Record
+       Hash : TRawBytes;
+       Op : TPCOperation;
+     end;
+     POperationHashTreeReg = ^TOperationHashTreeReg;
+
 procedure TOperationsHashTree.AddOperationToHashTree(op: TPCOperation);
 Var l : TList;
 begin
@@ -1770,9 +1748,9 @@ begin
 end;
 
 procedure TOperationsHashTree.ClearHastThree;
-var op : TPCOperation;
-  l : TList;
+var l : TList;
   i : Integer;
+  P : POperationHashTreeReg;
 begin
   l := FHashTreeOperations.LockList;
   try
@@ -1780,8 +1758,9 @@ begin
     FTotalFee := 0;
     Try
       for i := 0 to l.Count - 1 do begin
-        op := l[i];
-        op.Free;
+        P := l[i];
+        P^.Op.Free;
+        Dispose(P);
       end;
     Finally
       l.Clear;
@@ -1795,7 +1774,7 @@ end;
 procedure TOperationsHashTree.CopyFromHashTree(Sender: TOperationsHashTree);
 Var i : Integer;
   lme, lsender : TList;
-  opsender : TPCOperation;
+  PSender : POperationHashTreeReg;
 begin
   if (Sender = Self) then begin
     exit;
@@ -1806,8 +1785,8 @@ begin
     lsender := Sender.FHashTreeOperations.LockList;
     try
       for i := 0 to lsender.Count - 1 do begin
-        opsender := lsender[i];
-        InternalAddOperationToHashTree(lme,opsender);
+        PSender := lsender[i];
+        InternalAddOperationToHashTree(lme,PSender^.Op);
       end;
     finally
       Sender.FHashTreeOperations.UnlockList;
@@ -1822,7 +1801,7 @@ begin
   FTotalAmount := 0;
   FTotalFee := 0;
   FHashTree := TCrypto.DoSha256('');
-  FHashTreeOperations := TPCThreadList.Create;
+  FHashTreeOperations := TPCThreadList.Create('TOperationsHashTree_HashTreeOperations');
 end;
 
 destructor TOperationsHashTree.Destroy;
@@ -1838,7 +1817,7 @@ Var l : TList;
 begin
   l := FHashTreeOperations.LockList;
   try
-    Result := TPCOperation(l[index]);
+    Result := POperationHashTreeReg(l[index])^.Op;
   finally
     FHashTreeOperations.UnlockList;
   end;
@@ -1856,7 +1835,7 @@ begin
     try
       for i := 0 to l.Count - 1 do begin
         intl.Clear;
-        TPCOperation(l[i]).AffectedAccounts(intl);
+        POperationHashTreeReg(l[i])^.Op.AffectedAccounts(intl);
         if intl.IndexOf(TObject(account_number))>=0 then List.Add(TObject(i));
       end;
     finally
@@ -1868,22 +1847,41 @@ begin
   end;
 end;
 
+function TOperationsHashTree.IndexOfOperation(op: TPCOperation): Integer;
+Var
+  l : TList;
+  hash : TRawBytes;
+begin
+  hash := TCrypto.DoSha256(op.GetOperationBufferToHash);
+  l := FHashTreeOperations.LockList;
+  Try
+    for Result := 0 to l.Count - 1 do begin
+      if POperationHashTreeReg(l[Result])^.Hash=hash then exit;
+    end;
+    Result := -1;
+  Finally
+    FHashTreeOperations.UnlockList;
+  End;
+end;
+
 procedure TOperationsHashTree.InternalAddOperationToHashTree(list: TList; op: TPCOperation);
 Var ms : TMemoryStream;
   h : TRawBytes;
-  newOp : TPCOperation;
+  P : POperationHashTreeReg;
 begin
   ms := TMemoryStream.Create;
   try
-    newOp := TPCOperation( op.NewInstance );
+    New(P);
+    P^.Op := TPCOperation( op.NewInstance );
     op.SaveToStream(ms);
     ms.Position := 0;
-    newOp.LoadFromStream(ms);
-    newOp.FPrevious_Sender_updated_block := op.Previous_Sender_updated_block;
-    newOp.FPrevious_Destination_updated_block := op.FPrevious_Destination_updated_block;
+    P^.Op.LoadFromStream(ms);
+    P^.Op.FPrevious_Sender_updated_block := op.Previous_Sender_updated_block;
+    P^.Op.FPrevious_Destination_updated_block := op.FPrevious_Destination_updated_block;
     h := TCrypto.DoSha256(ms.Memory,ms.Size);
-    newOp.tag := list.Count;
-    list.Add(newOp);
+    P^.Op.tag := list.Count;
+    P^.Hash := TCrypto.DoSha256(op.GetOperationBufferToHash);
+    list.Add(P);
   finally
     ms.Free;
   end;
@@ -2218,7 +2216,7 @@ end;
 
 constructor TOperationsResumeList.Create;
 begin
-  FList := TPCThreadList.Create;
+  FList := TPCThreadList.Create('TOperationsResumeList_List');
 end;
 
 procedure TOperationsResumeList.Delete(index: Integer);

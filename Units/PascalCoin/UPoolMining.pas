@@ -57,9 +57,9 @@ Type
   TJSONRPCTcpIpClient = Class(TBufferedNetTcpIpClient)
   private
     FLastId : Cardinal;
-    FLockProcessBuffer : TCriticalSection;
+    FLockProcessBuffer : TPCCriticalSection;
     FReceivedBuffer : TBytes;
-    FLockReceivedBuffer : TCriticalSection;
+    FLockReceivedBuffer : TPCCriticalSection;
     FPendingResponseMessages : TPCThreadList;
   protected
   public
@@ -168,9 +168,9 @@ begin
   inherited;
   FLastId := 1;
   SetLength(FReceivedBuffer,0);
-  FLockProcessBuffer := TCriticalSection.Create;
-  FLockReceivedBuffer := TCriticalSection.Create;
-  FPendingResponseMessages := TPCThreadList.Create;
+  FLockProcessBuffer := TPCCriticalSection.Create('TJSONRPCTcpIpClient_LockProcessBuffer');
+  FLockReceivedBuffer := TPCCriticalSection.Create('TJSONRPCTcpIpClient_LockReceivedBuffer');
+  FPendingResponseMessages := TPCThreadList.Create('TJSONRPCTcpIpClient_PendingResponseMessages');
 end;
 
 destructor TJSONRPCTcpIpClient.Destroy;

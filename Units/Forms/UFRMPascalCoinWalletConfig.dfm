@@ -4,7 +4,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
   Caption = 'Options'
-  ClientHeight = 476
+  ClientHeight = 519
   ClientWidth = 374
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -19,7 +19,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   TextHeight = 13
   object Label1: TLabel
     Left = 30
-    Top = 335
+    Top = 390
     Width = 120
     Height = 13
     Caption = 'Default fee for operation'
@@ -47,7 +47,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   end
   object Label4: TLabel
     Left = 90
-    Top = 90
+    Top = 91
     Width = 259
     Height = 13
     Caption = 'This name will be included in each new block you mine!'
@@ -60,72 +60,92 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   end
   object Label5: TLabel
     Left = 30
-    Top = 176
+    Top = 231
     Width = 73
     Height = 13
     Caption = 'JSON-RPC Port'
   end
   object lblDefaultJSONRPCMinerServerPort: TLabel
     Left = 248
-    Top = 176
+    Top = 231
     Width = 70
     Height = 13
     Caption = '(Default XXXX)'
   end
+  object Label6: TLabel
+    Left = 24
+    Top = 162
+    Width = 57
+    Height = 13
+    Caption = 'Allowed IP'#39's'
+  end
+  object Label7: TLabel
+    Left = 92
+    Top = 182
+    Width = 209
+    Height = 13
+    Caption = 'Ip'#39's separated by semicolon or empty for all'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clGray
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentFont = False
+  end
   object cbJSONRPCMinerServerActive: TCheckBox
     Left = 15
-    Top = 150
+    Top = 205
     Width = 261
     Height = 17
     Caption = 'JSON-RPC Server Miner (TCP/IP, no HTTP)'
-    TabOrder = 4
+    TabOrder = 6
   end
   object ebDefaultFee: TEdit
     Left = 170
-    Top = 332
+    Top = 387
     Width = 56
     Height = 21
     Alignment = taRightJustify
-    TabOrder = 8
+    TabOrder = 10
     Text = '0'
   end
   object cbSaveLogFiles: TCheckBox
     Left = 15
-    Top = 359
+    Top = 414
     Width = 97
     Height = 17
     Caption = 'Save log file'
-    TabOrder = 9
+    TabOrder = 11
     OnClick = cbSaveLogFilesClick
   end
   object cbShowLogs: TCheckBox
     Left = 15
-    Top = 397
+    Top = 452
     Width = 97
     Height = 17
     Caption = 'Show logs'
-    TabOrder = 11
+    TabOrder = 13
   end
   object bbOk: TBitBtn
     Left = 176
-    Top = 420
+    Top = 475
     Width = 75
     Height = 25
     DoubleBuffered = True
     Kind = bkOK
     ParentDoubleBuffered = False
-    TabOrder = 14
+    TabOrder = 16
     OnClick = bbOkClick
   end
   object bbCancel: TBitBtn
     Left = 266
-    Top = 420
+    Top = 475
     Width = 75
     Height = 25
     DoubleBuffered = True
     Kind = bkCancel
     ParentDoubleBuffered = False
-    TabOrder = 15
+    TabOrder = 17
   end
   object udInternetServerPort: TUpDown
     Left = 226
@@ -228,40 +248,40 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   end
   object cbShowModalMessages: TCheckBox
     Left = 170
-    Top = 359
+    Top = 414
     Width = 171
     Height = 17
     Caption = 'Show modal messages'
-    TabOrder = 12
+    TabOrder = 14
   end
   object udJSONRPCMinerServerPort: TUpDown
     Left = 226
-    Top = 173
+    Top = 228
     Width = 16
     Height = 21
     Associate = ebJSONRPCMinerServerPort
     Min = 1
     Max = 40000
     Position = 1
-    TabOrder = 6
+    TabOrder = 8
     Thousands = False
   end
   object ebJSONRPCMinerServerPort: TEdit
     Left = 170
-    Top = 173
+    Top = 228
     Width = 56
     Height = 21
     Alignment = taRightJustify
-    TabOrder = 5
+    TabOrder = 7
     Text = '1'
   end
   object gbMinerPrivateKey: TGroupBox
-    Left = 8
-    Top = 200
+    Left = 15
+    Top = 255
     Width = 334
     Height = 121
     Caption = ' Miner Server Private Key: '
-    TabOrder = 7
+    TabOrder = 9
     object rbGenerateANewPrivateKeyEachBlock: TRadioButton
       Left = 20
       Top = 20
@@ -297,15 +317,15 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   end
   object cbSaveDebugLogs: TCheckBox
     Left = 31
-    Top = 377
+    Top = 432
     Width = 97
     Height = 17
     Caption = 'Save debug logs too'
-    TabOrder = 10
+    TabOrder = 12
   end
   object bbOpenDataFolder: TBitBtn
     Left = 15
-    Top = 420
+    Top = 475
     Width = 120
     Height = 25
     Caption = 'Open Data folder'
@@ -338,7 +358,24 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
       FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
       00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF}
     ParentDoubleBuffered = False
-    TabOrder = 13
+    TabOrder = 15
     OnClick = bbOpenDataFolderClick
+  end
+  object cbJSONRPCPortEnabled: TCheckBox
+    Left = 15
+    Top = 139
+    Width = 261
+    Height = 17
+    Caption = 'JSON-RPC Server port enabled (HTTP)'
+    TabOrder = 4
+    OnClick = cbJSONRPCPortEnabledClick
+  end
+  object ebJSONRPCAllowedIPs: TEdit
+    Left = 90
+    Top = 158
+    Width = 261
+    Height = 21
+    TabOrder = 5
+    Text = 'ebJSONRPCAllowedIPs'
   end
 end

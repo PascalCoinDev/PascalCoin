@@ -51,11 +51,12 @@ Type
     FIniFile : TIniFile;
     FRPCLog : TLog;
     FCallsCounter : Int64;
+    FValidIPs: AnsiString;
     procedure SetActive(AValue: Boolean);
     procedure SetIniFileName(const Value: AnsiString);
     procedure SetLogFileName(const Value: AnsiString);
     Function GetLogFileName : AnsiString;
-  protected
+    procedure SetValidIPs(const Value: AnsiString);  protected
     Function IsValidClientIP(Const clientIp : String; clientPort : Word) : Boolean;
     Procedure AddRPCLog(Const Sender : String; Const Message : String);
     Function GetNewCallCounter : Int64;
@@ -69,6 +70,7 @@ Type
     Property JSON20Strict : Boolean read FJSON20Strict write FJSON20Strict;
     Property IniFileName : AnsiString read FIniFileName write SetIniFileName;
     Property LogFileName : AnsiString read GetLogFileName write SetLogFileName;
+    Property ValidIPs : AnsiString read FValidIPs write SetValidIPs;
   end;
 
   { TRPCServerThread }
@@ -136,6 +138,7 @@ begin
     FRPCServerThread.WaitFor;
     FreeAndNil(FRPCServerThread);
   end;
+  TLog.NewLog(ltupdate,Classname,'Updated RPC Server to Active='+CT_TRUE_FALSE[FActive]);
 end;
 
 procedure TRPCServer.SetIniFileName(const Value: AnsiString);
@@ -148,7 +151,6 @@ begin
   end;
   if Assigned(FIniFile) then begin
     FJSON20Strict := FIniFile.ReadBool('general','json20strict',true)
-    // TODO
   end;
 end;
 
@@ -164,15 +166,25 @@ begin
   end else FreeAndNil(FRPCLog);
 end;
 
+procedure TRPCServer.SetValidIPs(const Value: AnsiString);
+begin
+  if FValidIPs=Value then exit;
+  FValidIPs := Value;
+  if FValidIPs='' then TLog.NewLog(ltupdate,Classname,'Updated RPC Server valid IPs to ALL')
+  else TLog.NewLog(ltupdate,Classname,'Updated RPC Server valid IPs to: '+FValidIPs)
+end;
+
 function TRPCServer.IsValidClientIP(const clientIp: String; clientPort: Word): Boolean;
 begin
-  Result := true;
-  // TODO: Allow only specific IP's listed in IniFile
-  // Result := (clientIp='127.0.0.1');
+  if FValidIPs='' then Result := true
+  else begin
+    Result := pos(clientIP,FValidIPs) > 0;
+  end;
 end;
 
 constructor TRPCServer.Create;
 begin
+  FActive := false;
   FRPCLog := Nil;
   FIniFile := Nil;
   FIniFileName := '';
@@ -181,6 +193,7 @@ begin
   FRPCServerThread := Nil;
   FPort := CT_JSONRPC_Port;
   FCallsCounter := 0;
+  FValidIPs := '127.0.0.1;localhost'; // New Build 1.5 - By default, only localhost can access to RPC
   If Not assigned(_RPCServer) then _RPCServer := Self;
 end;
 
@@ -1630,7 +1643,7 @@ begin
     GetResultObject.GetAsObject('netstats').GetAsVariant('tservers').Value:=TNetData.NetData.NetStatistics.TotalServersConnections;
     GetResultObject.GetAsObject('netstats').GetAsVariant('breceived').Value:=TNetData.NetData.NetStatistics.BytesReceived;
     GetResultObject.GetAsObject('netstats').GetAsVariant('bsend').Value:=TNetData.NetData.NetStatistics.BytesSend;
-    nsaarr := TNetData.NetData.GetValidNodeServers(true);
+    nsaarr := TNetData.NetData.GetValidNodeServers(true,20);
     for i := low(nsaarr) to High(nsaarr) do begin
       jso := GetResultObject.GetAsArray('nodeservers').GetAsObject(i);
       jso.GetAsVariant('ip').Value := nsaarr[i].ip;

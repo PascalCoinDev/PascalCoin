@@ -39,7 +39,7 @@ Type
   TNode = Class(TComponent)
   private
     FNodeLog : TLog;
-    FLockNodeOperations : TCriticalSection;
+    FLockNodeOperations : TPCCriticalSection;
     FNotifyList : TList;
     FBank : TPCBank;
     FOperations : TPCOperationsComp;
@@ -159,9 +159,11 @@ begin
     Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
     exit;
   end;
+  If NewBlockOperations.OperationBlock.block<>Bank.BlocksCount then exit;
   TLog.NewLog(ltdebug,Classname,Format('AddNewBlockChain Connection:%s NewBlock:%s',[
     Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
   If Not TPCThread.TryProtectEnterCriticalSection(Self,2000,FLockNodeOperations) then begin
+    If NewBlockOperations.OperationBlock.block<>Bank.BlocksCount then exit;
     s := 'Cannot AddNewBlockChain due blocking lock operations node';
     TLog.NewLog(lterror,Classname,s);
     if TThread.CurrentThread.ThreadID=MainThreadID then raise Exception.Create(s) else exit;
@@ -249,65 +251,72 @@ begin
     TLog.NewLog(ltinfo,Classname,errors);
     exit;
   end;
-  TLog.NewLog(ltdebug,Classname,Format('AddOperations Connection:%s Operations:%d',[
-    Inttohex(PtrInt(SenderConnection),8),Operations.OperationsCount]));
-  if Not TPCThread.TryProtectEnterCriticalSection(Self,4000,FLockNodeOperations) then begin
-    s := 'Cannot AddOperations due blocking lock operations node';
-    TLog.NewLog(lterror,Classname,s);
-    if TThread.CurrentThread.ThreadID=MainThreadID then raise Exception.Create(s) else exit;
-  end;
+  Result := 0;
+  errors := '';
+  valids_operations := TOperationsHashTree.Create;
   try
-    Result := 0;
-    errors := '';
-    valids_operations := TOperationsHashTree.Create;
+    TLog.NewLog(ltdebug,Classname,Format('AddOperations Connection:%s Operations:%d',[
+      Inttohex(PtrInt(SenderConnection),8),Operations.OperationsCount]));
+    if Not TPCThread.TryProtectEnterCriticalSection(Self,4000,FLockNodeOperations) then begin
+      s := 'Cannot AddOperations due blocking lock operations node';
+      TLog.NewLog(lterror,Classname,s);
+      if TThread.CurrentThread.ThreadID=MainThreadID then raise Exception.Create(s) else exit;
+    end;
     try
       for j := 0 to Operations.OperationsCount-1 do begin
         ActOp := Operations.GetOperation(j);
-        if (FOperations.AddOperation(true,ActOp,e)) then begin
-          inc(Result);
-          valids_operations.AddOperationToHashTree(ActOp);
-          TLog.NewLog(ltdebug,Classname,Format('AddOperation %d/%d: %s',[(j+1),Operations.OperationsCount,ActOp.ToString]));
-          if Assigned(OperationsResult) then begin
-            TPCOperation.OperationToOperationResume(0,ActOp,ActOp.SenderAccount,OPR);
-            OPR.NOpInsideBlock:=FOperations.Count-1;
-            OPR.Balance := FOperations.SafeBoxTransaction.Account(ActOp.SenderAccount).balance;
-            OperationsResult.Add(OPR);
+        If FOperations.OperationsHashTree.IndexOfOperation(ActOp)<0 then begin
+          if (FOperations.AddOperation(true,ActOp,e)) then begin
+            inc(Result);
+            valids_operations.AddOperationToHashTree(ActOp);
+            TLog.NewLog(ltdebug,Classname,Format('AddOperation %d/%d: %s',[(j+1),Operations.OperationsCount,ActOp.ToString]));
+            if Assigned(OperationsResult) then begin
+              TPCOperation.OperationToOperationResume(0,ActOp,ActOp.SenderAccount,OPR);
+              OPR.NOpInsideBlock:=FOperations.Count-1;
+              OPR.Balance := FOperations.SafeBoxTransaction.Account(ActOp.SenderAccount).balance;
+              OperationsResult.Add(OPR);
+            end;
+          end else begin
+            if (errors<>'') then errors := errors+' ';
+            errors := errors+'Op '+IntToStr(j+1)+'/'+IntToStr(Operations.OperationsCount)+':'+e;
+            TLog.NewLog(ltdebug,Classname,Format('AddOperation invalid/duplicated %d/%d: %s  - Error:%s',
+              [(j+1),Operations.OperationsCount,ActOp.ToString,e]));
+            if Assigned(OperationsResult) then begin
+              TPCOperation.OperationToOperationResume(0,ActOp,ActOp.SenderAccount,OPR);
+              OPR.valid := false;
+              OPR.NOpInsideBlock:=-1;
+              OPR.OperationHash := '';
+              OPR.errors := e;
+              OperationsResult.Add(OPR);
+            end;
           end;
         end else begin
-          if (errors<>'') then errors := errors+' ';
-          errors := errors+'Op '+IntToStr(j+1)+'/'+IntToStr(Operations.OperationsCount)+':'+e;
-          TLog.NewLog(ltdebug,Classname,Format('AddOperation failed %d/%d: %s  - Error:%s',
-            [(j+1),Operations.OperationsCount,ActOp.ToString,e]));
-          if Assigned(OperationsResult) then begin
-            TPCOperation.OperationToOperationResume(0,ActOp,ActOp.SenderAccount,OPR);
-            OPR.valid := false;
-            OPR.NOpInsideBlock:=-1;
-            OPR.OperationHash := '';
-            OPR.errors := e;
-            OperationsResult.Add(OPR);
-          end;
+          // XXXXX DEBUG ONLY
+          // TLog.NewLog(ltdebug,Classname,Format('AddOperation made before %d/%d: %s',[(j+1),Operations.OperationsCount,ActOp.ToString]));
         end;
       end;
-      if Result=0 then exit;
-      // Send to other nodes
-      netConnectionsList := TNetData.NetData.ConnectionsLock;
-      Try
-        for i:=0 to netConnectionsList.Count-1 do begin
-          nc := netConnectionsList[i];
-          if (nc<>SenderConnection) then begin
-            TThreadNodeNotifyOperations.Create(nc,valids_operations);
-          end;
-        end;
-      Finally
-        TNetData.NetData.ConnectionsUnlock;
-      End;
     finally
-      valids_operations.Free;
+      FLockNodeOperations.Release;
+      if Result<>0 then begin
+        TLog.NewLog(ltdebug,Classname,Format('Finalizing AddOperations Connection:%s Operations:%d valids:%d',[
+          Inttohex(PtrInt(SenderConnection),8),Operations.OperationsCount,Result ]));
+      end;
     end;
+    if Result=0 then exit;
+    // Send to other nodes
+    netConnectionsList := TNetData.NetData.ConnectionsLock;
+    Try
+      for i:=0 to netConnectionsList.Count-1 do begin
+        nc := netConnectionsList[i];
+        if (nc<>SenderConnection) then begin
+          TThreadNodeNotifyOperations.Create(nc,valids_operations);
+        end;
+      end;
+    Finally
+      TNetData.NetData.ConnectionsUnlock;
+    End;
   finally
-    FLockNodeOperations.Release;
-    TLog.NewLog(ltdebug,Classname,Format('Finalizing AddOperations Connection:%s Operations:%d',[
-      Inttohex(PtrInt(SenderConnection),8),Operations.OperationsCount ]));
+    valids_operations.Free;
   end;
   // Notify it!
   for i := 0 to FNotifyList.Count-1 do begin
@@ -337,7 +346,7 @@ begin
   TLog.NewLog(ltInfo,ClassName,'TNode.Create');
   inherited;
   FDisabledsNewBlocksCount := 0;
-  FLockNodeOperations := TCriticalSection.Create;
+  FLockNodeOperations := TPCCriticalSection.Create('TNode_LockNodeOperations');
   FBank := TPCBank.Create(Self);
   FBCBankNotify := TPCBankNotify.Create(Self);
   FBCBankNotify.Bank := FBank;
@@ -728,7 +737,7 @@ begin
   FOnBlocksChanged := Nil;
   FOnNodeMessageEvent := Nil;
   FMessages := TStringList.Create;
-  FPendingNotificationsList := TPCThreadList.Create;
+  FPendingNotificationsList := TPCThreadList.Create('TNodeNotifyEvents_PendingNotificationsList');
   FThreadSafeNodeNotifyEvent := TThreadSafeNodeNotifyEvent.Create(Self);
   FThreadSafeNodeNotifyEvent.FreeOnTerminate := true; // This is to prevent locking when freeing component
   Node := _Node;

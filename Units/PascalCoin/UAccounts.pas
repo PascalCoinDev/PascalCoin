@@ -20,7 +20,7 @@ unit UAccounts;
 interface
 
 uses
-  Classes, UConst, UCrypto, SyncObjs;
+  Classes, UConst, UCrypto, SyncObjs, UThread;
 
 Type
   TAccountKey = TECDSA_Public;
@@ -66,6 +66,8 @@ Type
     block_hash: AnsiString;   // Calculated on every block change (on create and on accounts updated)
     // New Build 1.0.8 "target" stored in TBlockAccount to increase performance calculating network hash rate.
     target: Cardinal;         // FIXED: Same value that stored in BlockChain. ** NOT USED TO CALC BLOCK HASHING **
+    // New Build 1.5
+    AccumulatedWork : UInt64; // FIXED: Accumulated work (previous + target) ** NOT USED TO CALC BLOCK HASHING AND NOT STORED **
   end;
   PBlockAccount = ^TBlockAccount;
 
@@ -115,8 +117,8 @@ Type
     Destructor Destroy; override;
     Procedure AddAccountKey(Const AccountKey : TAccountKey);
     Procedure RemoveAccountKey(Const AccountKey : TAccountKey);
-    Procedure AddAccounts(Const AccountKey : TAccountKey; accounts : Array of Cardinal);
-    Procedure RemoveAccounts(Const AccountKey : TAccountKey; accounts : Array of Cardinal);
+    Procedure AddAccounts(Const AccountKey : TAccountKey; const accounts : Array of Cardinal);
+    Procedure RemoveAccounts(Const AccountKey : TAccountKey; const accounts : Array of Cardinal);
     Function IndexOfAccountKey(Const AccountKey : TAccountKey) : Integer;
     Property AccountKeyList[index : Integer] : TOrderedCardinalList read GetAccountKeyList;
     Property AccountKey[index : Integer] : TAccountKey read GetAccountKey;
@@ -140,11 +142,12 @@ Type
     FTotalBalance: Int64;
     FTotalFee: Int64;
     FSafeBoxHash : TRawBytes;
-    FLock: TCriticalSection; // Thread safe
+    FLock: TPCCriticalSection; // Thread safe
     FPreviousBlockSafeBoxHash : TRawBytes;
+    FWorkSum : UInt64;
     Procedure SetAccount(account_number : Cardinal; newAccountkey: TAccountKey; newBalance: UInt64; newN_operation: Cardinal);
-    Procedure AccountKeyListAddAccounts(Const AccountKey : TAccountKey; accounts : Array of Cardinal);
-    Procedure AccountKeyListRemoveAccount(Const AccountKey : TAccountKey; accounts : Array of Cardinal);
+    Procedure AccountKeyListAddAccounts(Const AccountKey : TAccountKey; const accounts : Array of Cardinal);
+    Procedure AccountKeyListRemoveAccount(Const AccountKey : TAccountKey; const accounts : Array of Cardinal);
   protected
     Function AddNew(Const accountkey: TAccountKey; reward: UInt64; timestamp: Cardinal; compact_target: Cardinal; Const proof_of_work: AnsiString) : TBlockAccount;
   public
@@ -168,6 +171,7 @@ Type
     Procedure EndThreadSave;
     Property SafeBoxHash : TRawBytes read FSafeBoxHash;
     Property PreviousBlockSafeBoxHash : TRawBytes read FPreviousBlockSafeBoxHash;
+    Property WorkSum : UInt64 read FWorkSum; // New Build 1.5
   End;
 
 
@@ -231,12 +235,13 @@ Const
     );
     timestamp:0;
     block_hash:'';
-    target:0;);
+    target:0;
+    AccumulatedWork:0);
 
 implementation
 
 uses
-  SysUtils, ULog, UOpenSSLdef, UOpenSSL, UThread;
+  SysUtils, ULog, UOpenSSLdef, UOpenSSL;
 
 { TStreamOp }
 
@@ -383,8 +388,6 @@ Var an : int64;
 begin
   an := account_number;
   an := ((an * 101) MOD 89)+10;
-  //BUILD 1.1.1 change cheksum calculation
-  //Prior was: an := ((((((an * 3) MOD 97) * 7) MOD 101) * 5) MOD 89)+10;
   Result := IntToStr(account_number)+'-'+Inttostr(an);
 end;
 
@@ -493,8 +496,6 @@ begin
   if (account_txt_number[i] in ['-','.',' ']) then inc(i);
   if length(account_txt_number)-1<>i then exit;
   rn := StrToIntDef(copy(account_txt_number,i,length(account_txt_number)),0);
-  //BUILD 1.1.1 change cheksum calculation
-  //Prior was: anaux := (((((((an * 3) MOD 97) * 7) MOD 101) * 5) MOD 89)+10);
   anaux := ((an * 101) MOD 89)+10;
   Result := rn = anaux;
 end;
@@ -645,6 +646,9 @@ begin
   Result.timestamp := timestamp;
   Result.block_hash := CalcBlockHash(Result);
   Result.target := compact_target;
+  Inc(FWorkSum,Result.target);
+  Result.AccumulatedWork := FWorkSum;
+
   New(P);
   P^ := Result;
   FBlockAccountsList.Add(P);
@@ -657,7 +661,7 @@ begin
   FSafeBoxHash := CalcSafeBoxHash;
 end;
 
-procedure TPCSafeBox.AccountKeyListAddAccounts(const AccountKey: TAccountKey; accounts: array of Cardinal);
+procedure TPCSafeBox.AccountKeyListAddAccounts(const AccountKey: TAccountKey; const accounts: array of Cardinal);
 Var i : Integer;
 begin
   for i := 0 to FListOfOrderedAccountKeysList.count-1 do begin
@@ -665,7 +669,7 @@ begin
   end;
 end;
 
-procedure TPCSafeBox.AccountKeyListRemoveAccount(const AccountKey: TAccountKey; accounts: array of Cardinal);
+procedure TPCSafeBox.AccountKeyListRemoveAccount(const AccountKey: TAccountKey; const accounts: array of Cardinal);
 Var i : Integer;
 begin
   for i := 0 to FListOfOrderedAccountKeysList.count-1 do begin
@@ -790,6 +794,7 @@ begin
     FTotalFee := 0;
     FSafeBoxHash := CalcSafeBoxHash;
     FPreviousBlockSafeBoxHash := '';
+    FWorkSum := 0;
   Finally
     EndThreadSave;
   end;
@@ -817,12 +822,12 @@ begin
           end;
         end;
       end;
-
       FTotalBalance := accounts.TotalBalance;
       FTotalFee := accounts.FTotalFee;
       FBufferBlocksHash := accounts.FBufferBlocksHash;
       FSafeBoxHash := accounts.FSafeBoxHash;
       FPreviousBlockSafeBoxHash := accounts.FPreviousBlockSafeBoxHash;
+      FWorkSum := accounts.FWorkSum;
     finally
       accounts.EndThreadSave;
     end;
@@ -833,7 +838,7 @@ end;
 
 constructor TPCSafeBox.Create;
 begin
-  FLock := TCriticalSection.Create;
+  FLock := TPCCriticalSection.Create('TPCSafeBox_Lock');
   FBlockAccountsList := TList.Create;
   FListOfOrderedAccountKeysList := TList.Create;
   Clear;
@@ -920,6 +925,8 @@ begin
         if safeBoxBankVersion>=2 then begin
           if Stream.Read(block.target,4)<4 then exit;
         end;
+        Inc(FWorkSum,block.target);
+        block.AccumulatedWork := FWorkSum;
         // Add
         New(P);
         P^ := block;
@@ -1348,7 +1355,7 @@ begin
   end;
 end;
 
-procedure TOrderedAccountKeysList.AddAccounts(const AccountKey: TAccountKey; accounts: array of Cardinal);
+procedure TOrderedAccountKeysList.AddAccounts(const AccountKey: TAccountKey; const accounts: array of Cardinal);
 Var P : POrderedAccountKeyList;
   i,i2 : Integer;
 begin
@@ -1463,7 +1470,7 @@ begin
   If Not Find(AccountKey,Result) then Result := -1;
 end;
 
-procedure TOrderedAccountKeysList.RemoveAccounts(const AccountKey: TAccountKey; accounts: array of Cardinal);
+procedure TOrderedAccountKeysList.RemoveAccounts(const AccountKey: TAccountKey; const accounts: array of Cardinal);
 Var P : POrderedAccountKeyList;
   i,j : Integer;
 begin

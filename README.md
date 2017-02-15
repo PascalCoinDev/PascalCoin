@@ -34,6 +34,13 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 1.5.0.0 - 2017-02-15
+
+- Net protocol upgrade to 4-5
+- Introducing "more work" with high priority than "more high". Work is calculated based on target. Higher target (more work) is more important than higher length
+- Solved locking/crash bug on high connections (caused by bad thread locking)
+- Improved network connection
+
 ### Build 1.4.3.0 - 2017-02-02
 
 - Adding "maturation" param to "JSON Operation object", return null when operation is not included on a blockchain yet, 0 means that is included in highest block and so on...

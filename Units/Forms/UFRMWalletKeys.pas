@@ -294,7 +294,7 @@ begin
                 i := WalletKeys.IndexOfAccountKey(EC.PublicKey);
                 if (i>=0) then begin
                   wk := WalletKeys.Key[i];
-                  if Assigned(wk.PrivateKey) And (Assigned(wk.PrivateKey.PrivateKey)) then raise Exception.Create('This key is allready in your wallet!');
+                  if Assigned(wk.PrivateKey) And (Assigned(wk.PrivateKey.PrivateKey)) then raise Exception.Create('This key is already in your wallet!');
                 end;
                 s := 'Imported '+DateTimeToStr(now);
                 s := InputBox('Set a name','Name for this private key:',s);

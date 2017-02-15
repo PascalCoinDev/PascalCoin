@@ -55,11 +55,12 @@ type
     FRemoteHost : AnsiString;
     FRemotePort : Word;
     FBytesReceived, FBytesSent : Int64;
-    FLock : TCriticalSection;
+    FLock : TPCCriticalSection;
     {$ENDIF}
     FOnConnect: TNotifyEvent;
     FOnDisconnect: TNotifyEvent;
     FSocketError: Integer;
+    FLastCommunicationTime : TDateTime;
     function GetConnected: Boolean;
     function GetRemoteHost: AnsiString;
     function GetRemotePort: Word;
@@ -93,6 +94,7 @@ type
     Function BytesReceived : Int64;
     Function BytesSent : Int64;
     Property SocketError : Integer read FSocketError write SetSocketError;
+    Property LastCommunicationTime : TDateTime read FLastCommunicationTime;
   End;
 
   TNetTcpIpClientClass = Class of TNetTcpIpClient;
@@ -111,7 +113,7 @@ type
   private
     FSendBuffer : TMemoryStream;
     FReadBuffer : TMemoryStream;
-    FCritical : TCriticalSection;
+    FCritical : TPCCriticalSection;
     FLastReadTC : Cardinal;
     FBufferedNetTcpIpClientThread : TBufferedNetTcpIpClientThread;
   protected
@@ -227,9 +229,7 @@ begin
     Result := FTcpBlockSocket.RemoteHost+':'+FTcpBlockSocket.RemotePort;
     {$ENDIF}
     {$IFDEF Synapse}
-    if FConnected then
-      Result := FTcpBlockSocket.GetRemoteSinIP+':'+IntToStr(FTcpBlockSocket.GetRemoteSinPort)
-    else Result := FRemoteHost+':'+inttostr(FRemotePort);
+    Result := FRemoteHost+':'+inttostr(FRemotePort);
     {$ENDIF}
   end else Result := 'NIL';
 end;
@@ -241,18 +241,26 @@ begin
   Result := FTcpBlockSocket.Connect;
   {$ENDIF}
   {$IFDEF Synapse}
-  Try
-    FTcpBlockSocket.Connect(FRemoteHost,IntToStr(FRemotePort));
-    FConnected := FTcpBlockSocket.LastError=0;
-    if (FConnected) then DoOnConnect
-    else TLog.NewLog(ltdebug,Classname,'Cannot connect to a server at: '+ClientRemoteAddr+' Reason: '+FTcpBlockSocket.GetErrorDescEx);
-  Except
-    On E:Exception do begin
-      FSocketError := FTcpBlockSocket.LastError;
-      TLog.NewLog(lterror,ClassName,'Error Connecting to '+ClientRemoteAddr+': '+FTcpBlockSocket.GetErrorDescEx);
-      Disconnect;
-    end;
-  End;
+  FLock.Acquire;
+  try
+    Try
+      FTcpBlockSocket.Connect(FRemoteHost,IntToStr(FRemotePort));
+      FConnected := FTcpBlockSocket.LastError=0;
+      if (FConnected) then begin
+        FRemoteHost := FTcpBlockSocket.GetRemoteSinIP;
+        FRemotePort := FTcpBlockSocket.GetRemoteSinPort;
+        DoOnConnect;
+      end else TLog.NewLog(ltdebug,Classname,'Cannot connect to a server at: '+ClientRemoteAddr+' Reason: '+FTcpBlockSocket.GetErrorDescEx);
+    Except
+      On E:Exception do begin
+        SocketError := FTcpBlockSocket.LastError;
+        TLog.NewLog(lterror,ClassName,'Error Connecting to '+ClientRemoteAddr+': '+FTcpBlockSocket.GetErrorDescEx);
+        Disconnect;
+      end;
+    End;
+  finally
+    FLock.Release;
+  end;
   Result := FConnected;
   {$ENDIF}
 end;
@@ -262,6 +270,7 @@ begin
   inherited;
   FTcpBlockSocket := Nil;
   FSocketError := 0;
+  FLastCommunicationTime := 0;
   {$IFDEF DelphiSockets}
   FTcpBlockSocket := TTcpClient.Create(Nil);
   FTcpBlockSocket.OnConnect := OnConnect;
@@ -269,7 +278,7 @@ begin
   FTcpBlockSocket.OnError := TCustomIpClient_OnError;
   {$ENDIF}
   {$IFDEF Synapse}
-  FLock := TCriticalSection.Create;
+  FLock := TPCCriticalSection.Create('TNetTcpIpClient_Lock');
   FTcpBlockSocket := TTCPBlockSocket.Create;
   FTcpBlockSocket.OnAfterConnect := OnConnect;
   FTcpBlockSocket.SocksTimeout := 10000;
@@ -284,7 +293,9 @@ end;
 destructor TNetTcpIpClient.Destroy;
 begin
   Disconnect;
+  {$IFDEF DelphiSockets}
   FreeAndNil(FLock);
+  {$ENDIF}
   inherited;
   FreeAndNil(FTcpBlockSocket);
   TLog.NewLog(ltdebug,ClassName,'Destroying Socket end');
@@ -301,10 +312,10 @@ begin
     if Not FConnected then exit;
     FConnected := false;
     FTcpBlockSocket.CloseSocket;
-    if Assigned(FOnDisconnect) then FOnDisconnect(Self);
   Finally
     FLock.Release;
   End;
+  if Assigned(FOnDisconnect) then FOnDisconnect(Self);
   {$ENDIF}
 end;
 
@@ -320,14 +331,19 @@ Begin
   HasData := FTcpBlockSocket.WaitForData(WaitMilliseconds);
   {$ENDIF}
   {$IFDEF Synapse}
+  FLock.Acquire;
   Try
-    HasData := FTcpBlockSocket.CanRead(WaitMilliseconds);
-  Except
-    On E:Exception do begin
-      FSocketError := FTcpBlockSocket.LastError;
-      TLog.NewLog(lterror,ClassName,'Error WaitingForData from '+ClientRemoteAddr+': '+FTcpBlockSocket.GetErrorDescEx);
-      Disconnect;
-    end;
+    Try
+      HasData := FTcpBlockSocket.CanRead(WaitMilliseconds);
+    Except
+      On E:Exception do begin
+        SocketError := FTcpBlockSocket.LastError;
+        TLog.NewLog(lterror,ClassName,'Error WaitingForData from '+ClientRemoteAddr+': '+FTcpBlockSocket.GetErrorDescEx);
+        Disconnect;
+      end;
+    End;
+  Finally
+    FLock.Release;
   End;
   {$ENDIF}
 end;
@@ -348,8 +364,7 @@ begin
   Result := FTcpBlockSocket.RemoteHost;
   {$ENDIF}
   {$IFDEF Synapse}
-  if FConnected then Result := FTcpBlockSocket.GetRemoteSinIP
-  else Result := FRemoteHost;
+  Result := FRemoteHost;
   {$ENDIF}
 end;
 
@@ -359,8 +374,7 @@ begin
   Result := StrToIntDef(FTcpBlockSocket.RemotePort,0);
   {$ENDIF}
   {$IFDEF Synapse}
-  if FConnected then Result := FTcpBlockSocket.GetRemoteSinPort
-  else Result := FRemotePort;
+  Result := FRemotePort;
   {$ENDIF}
 end;
 
@@ -371,20 +385,26 @@ begin
   Result := FTcpBlockSocket.ReceiveBuf(Buf,BufSize);
   {$ENDIF}
   {$IFDEF Synapse}
+  FLock.Acquire;
   Try
-    Result := FTcpBlockSocket.RecvBuffer(@Buf,BufSize);
-    if (Result<0) Or (FTcpBlockSocket.LastError<>0) then begin
-      TLog.NewLog(ltInfo,ClassName,'Closing connection from '+ClientRemoteAddr+' (Receiving error): '+Inttostr(FTcpBlockSocket.LastError)+' '+FTcpBlockSocket.GetErrorDescEx);
-      Disconnect;
-    end else if Result>0 then inc(FBytesReceived,Result);
-  Except
-    On E:Exception do begin
-      FSocketError := FTcpBlockSocket.LastError;
-      TLog.NewLog(lterror,ClassName,'Exception receiving buffer from '+ClientRemoteAddr+': '+FTcpBlockSocket.GetErrorDescEx);
-      Disconnect;
-    end;
+    Try
+      Result := FTcpBlockSocket.RecvBuffer(@Buf,BufSize);
+      if (Result<0) Or (FTcpBlockSocket.LastError<>0) then begin
+        TLog.NewLog(ltInfo,ClassName,'Closing connection from '+ClientRemoteAddr+' (Receiving error): '+Inttostr(FTcpBlockSocket.LastError)+' '+FTcpBlockSocket.GetErrorDescEx);
+        Disconnect;
+      end else if Result>0 then inc(FBytesReceived,Result);
+    Except
+      On E:Exception do begin
+        SocketError := FTcpBlockSocket.LastError;
+        TLog.NewLog(lterror,ClassName,'Exception receiving buffer from '+ClientRemoteAddr+' '+FTcpBlockSocket.GetErrorDescEx);
+        Disconnect;
+      end;
+    End;
+  Finally
+    FLock.Release;
   End;
   {$ENDIF}
+  if Result>0 then FLastCommunicationTime := Now;
 end;
 
 function TNetTcpIpClient.SendStream(Stream: TStream): Int64;
@@ -397,24 +417,30 @@ begin
   Result := Stream.Position - sp;
   {$ENDIF}
   {$IFDEF Synapse}
+  FLock.Acquire;
   Try
-    FTcpBlockSocket.SendStreamRaw(Stream);
-    if FTcpBlockSocket.LastError<>0 then begin
-      TLog.NewLog(ltInfo,ClassName,'Closing connection from '+ClientRemoteAddr+' (Sending error): '+Inttostr(FTcpBlockSocket.LastError)+' '+FTcpBlockSocket.GetErrorDescEx);
-      Result := -1;
-      Disconnect;
-    end else begin
-      Result := Stream.Position - sp;
-      inc(FBytesSent,Result);
-    end;
-  Except
-    On E:Exception do begin
-      FSocketError := FTcpBlockSocket.LastError;
-      TLog.NewLog(lterror,ClassName,'Exception sending stream to '+ClientRemoteAddr+': '+FTcpBlockSocket.GetErrorDescEx);
-      Disconnect;
-    end;
+    Try
+      FTcpBlockSocket.SendStreamRaw(Stream);
+      if FTcpBlockSocket.LastError<>0 then begin
+        TLog.NewLog(ltInfo,ClassName,'Closing connection from '+ClientRemoteAddr+' (Sending error): '+Inttostr(FTcpBlockSocket.LastError)+' '+FTcpBlockSocket.GetErrorDescEx);
+        Result := -1;
+        Disconnect;
+      end else begin
+        Result := Stream.Position - sp;
+        inc(FBytesSent,Result);
+      end;
+    Except
+      On E:Exception do begin
+        SocketError := FTcpBlockSocket.LastError;
+        TLog.NewLog(lterror,ClassName,'Exception sending stream to '+ClientRemoteAddr+': '+FTcpBlockSocket.GetErrorDescEx);
+        Disconnect;
+      end;
+    End;
+  Finally
+    FLock.Release;
   End;
   {$ENDIF}
+  if Result>0 then FLastCommunicationTime := Now;
 end;
 
 procedure TNetTcpIpClient.SetOnConnect(const Value: TNotifyEvent);
@@ -480,9 +506,11 @@ var SendBuffStream : TStream;
   ReceiveBuffer : Array[0..4095] of byte;
   Procedure DoReceiveBuf;
   var last_bytes_read : Integer;
+    total_read, total_size : Int64;
     ms : TMemoryStream;
     lastpos : Int64;
   begin
+    total_read := 0; total_size := 0;
     If FBufferedNetTcpIpClient.DoWaitForDataInherited(10) then begin
       last_bytes_read := 0;
       repeat
@@ -503,12 +531,14 @@ var SendBuffStream : TStream;
             ms.Position := ms.Size;
             ms.Write(ReceiveBuffer,last_bytes_read);
             ms.Position := lastpos;
-            TLog.NewLog(ltdebug,ClassName,Format('Received %d bytes. Buffer length: %d bytes',[last_bytes_read,ms.Size]));
+            inc(total_read,last_bytes_read);
+            total_size := ms.Size;
           Finally
             FBufferedNetTcpIpClient.ReadBufferUnlock;
           End;
         end;
-      until (last_bytes_read<sizeof(ReceiveBuffer));
+      until (last_bytes_read<sizeof(ReceiveBuffer)) Or (Terminated) Or (Not FBufferedNetTcpIpClient.Connected);
+      If total_read>0 then TLog.NewLog(ltdebug,ClassName,Format('Received %d bytes. Buffer length: %d bytes',[total_read,total_size]));
     end else begin
       if FBufferedNetTcpIpClient.SocketError<>0 then FBufferedNetTcpIpClient.Disconnect;
     end;
@@ -539,9 +569,9 @@ begin
       while (Not Terminated) And (Not FBufferedNetTcpIpClient.Connected) do sleep(100);
       if (FBufferedNetTcpIpClient.Connected) then begin
         // Receive data
-        DoReceiveBuf;
+        If (Not Terminated) And (FBufferedNetTcpIpClient.Connected) then DoReceiveBuf;
         // Send Data
-        DoSendBuf;
+        If (Not Terminated) And (FBufferedNetTcpIpClient.Connected) then DoSendBuf;
       end else FBufferedNetTcpIpClient.FLastReadTC := GetTickCount;
       // Sleep
       Sleep(10); // Slepp 10 is better than sleep 1
@@ -564,7 +594,7 @@ constructor TBufferedNetTcpIpClient.Create(AOwner: TComponent);
 begin
   inherited;
   FLastReadTC := GetTickCount;
-  FCritical := SyncObjs.TCriticalSection.Create;
+  FCritical := TPCCriticalSection.Create('TBufferedNetTcpIpClient_Critical');
   FSendBuffer := TMemoryStream.Create;
   FReadBuffer := TMemoryStream.Create;
   FBufferedNetTcpIpClientThread := TBufferedNetTcpIpClientThread.Create(Self);
@@ -640,7 +670,7 @@ begin
   {$ELSE}
   FActive := false;
   {$ENDIF}
-  FNetClients := TPCThreadList.Create;
+  FNetClients := TPCThreadList.Create('TNetTcpIpServer_NetClients');
 end;
 
 destructor TNetTcpIpServer.Destroy;
@@ -697,12 +727,21 @@ begin
 
   n := FNetTcpIpClientClass.Create(Nil);
   Try
-    oldSocket := n.FTcpBlockSocket;
-    n.FTcpBlockSocket := ClientSocket;
     {$IFDEF Synapse}
-    n.FConnected := True;
-    n.RemoteHost := ClientSocket.GetRemoteSinIP;
-    n.RemotePort := ClientSocket.GetRemoteSinPort;
+    n.FLock.Acquire;
+    try
+    {$ENDIF}
+      oldSocket := n.FTcpBlockSocket;
+      n.FTcpBlockSocket := ClientSocket;
+      {$IFDEF Synapse}
+      n.FConnected := True;
+      n.RemoteHost := ClientSocket.GetRemoteSinIP;
+      n.RemotePort := ClientSocket.GetRemoteSinPort;
+      {$ENDIF}
+    {$IFDEF Synapse}
+    finally
+      n.FLock.Release;
+    end;
     {$ENDIF}
     FNetClients.Add(n);
     try

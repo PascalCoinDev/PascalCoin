@@ -67,6 +67,7 @@ type
     lblReceiverCaption: TLabel;
     lblReceiver: TLabel;
     lblReceiverInfo: TLabel;
+    cbShowAsHexadecimal: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure PageControlChanging(Sender: TObject; var AllowChange: Boolean);
     procedure cbMethodPublicPayloadClick(Sender: TObject);
@@ -76,6 +77,7 @@ type
     procedure bbFindClick(Sender: TObject);
     procedure ebOphashExit(Sender: TObject);
     procedure ebOphashKeyPress(Sender: TObject; var Key: Char);
+    procedure cbShowAsHexadecimalClick(Sender: TObject);
   private
     FOpResume : TOperationResume;
     FWalletKeys : TWalletKeys;
@@ -124,6 +126,11 @@ procedure TFRMPayloadDecoder.cbMethodPublicPayloadClick(Sender: TObject);
 begin
   FSavedDecodeMethods := false;
   lblPasswordsInfo.Caption := Format('Possible passwords: %d',[memoPasswords.Lines.Count]);
+end;
+
+procedure TFRMPayloadDecoder.cbShowAsHexadecimalClick(Sender: TObject);
+begin
+  TryToDecode;
 end;
 
 procedure TFRMPayloadDecoder.DoFind(Const OpHash : String);
@@ -238,6 +245,7 @@ begin
   FAppParams.ParamByName['PayloadDecoder.usingprivatekeys'].SetAsBoolean(cbUsingPrivateKeys.Checked);
   FAppParams.ParamByName['PayloadDecoder.usingpasswords'].SetAsBoolean(cbUsingPasswords.Checked);
   FAppParams.ParamByName['PayloadDecoder.passwords'].SetAsString(memoPasswords.Lines.Text);
+  FAppParams.ParamByName['PayloadDecoder.showashexadecimal'].SetAsBoolean(cbShowAsHexadecimal.Checked);
   FSavedDecodeMethods := true;
 end;
 
@@ -305,6 +313,7 @@ begin
       cbUsingPrivateKeys.Checked := FAppParams.ParamByName['PayloadDecoder.usingprivatekeys'].GetAsBoolean(true);
       cbUsingPasswords.Checked := FAppParams.ParamByName['PayloadDecoder.usingpasswords'].GetAsBoolean(true);
       memoPasswords.Lines.Text := FAppParams.ParamByName['PayloadDecoder.passwords'].GetAsString('');
+      cbShowAsHexadecimal.Checked := FAppParams.ParamByName['PayloadDecoder.showashexadecimal'].GetAsBoolean(false);
     end else begin
       cbMethodPublicPayload.Checked := true;
       cbUsingPrivateKeys.Checked := true;
@@ -365,13 +374,16 @@ begin
     if raw<>'' then begin
       // First try to a human readable...
       if (cbMethodPublicPayload.Checked) and (TCrypto.IsHumanReadable(raw)) then begin
-        memoDecoded.Lines.Text := raw;
+        if cbShowAsHexadecimal.Checked then memoDecoded.Lines.Text := TCrypto.ToHexaString(raw)
+        else memoDecoded.Lines.Text := raw;
         lblDecodedMethod.Caption := 'Not encrypted payload';
       end else if (cbUsingPrivateKeys.Checked) And (UseWallet(raw,Decrypted,WalletKey)) then begin
-        memoDecoded.Lines.Text := Decrypted;
+        if cbShowAsHexadecimal.Checked then memoDecoded.Lines.Text := TCrypto.ToHexaString(Decrypted)
+        else memoDecoded.Lines.Text := Decrypted;
         lblDecodedMethod.Caption := 'Encrypted with EC '+TAccountComp.GetECInfoTxt(WalletKey.PrivateKey.EC_OpenSSL_NID);
       end else if (cbUsingPasswords.Checked) And (UsePassword(raw,Decrypted,PasswordUsed)) then begin
-        memoDecoded.Lines.Text := Decrypted;
+        if cbShowAsHexadecimal.Checked then memoDecoded.Lines.Text := TCrypto.ToHexaString(Decrypted)
+        else memoDecoded.Lines.Text := Decrypted;
         lblDecodedMethod.Caption := 'Encrypted with pwd:"'+PasswordUsed+'"';
       end else begin
         memoDecoded.Lines.Text := 'CANNOT DECRYPT';

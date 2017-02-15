@@ -126,6 +126,7 @@ Type
     MinerPayload : TRawBytes;
     PoW : TRawBytes;
     SafeBoxHash : TRawBytes;
+    AccumulatedWork : UInt64;
   End;
   TBlockChainDataArray = Array of TBlockChainData;
 
@@ -164,7 +165,7 @@ Type
   End;
 
 Const
-  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:0;Volume:0;Reward:0;Fee:0;Target:0;HashRateKhs:0;MinerPayload:'';PoW:'';SafeBoxHash:'');
+  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:0;Volume:0;Reward:0;Fee:0;Target:0;HashRateKhs:0;MinerPayload:'';PoW:'';SafeBoxHash:'';AccumulatedWork:0);
 
 
 implementation
@@ -917,7 +918,7 @@ begin
   DrawGrid.FixedRows := 1;
   DrawGrid.DefaultDrawing := true;
   DrawGrid.FixedCols := 0;
-  DrawGrid.ColCount := 12;
+  DrawGrid.ColCount := 13;
   DrawGrid.ColWidths[0] := 50; // Block
   DrawGrid.ColWidths[1] := 110; // Time
   DrawGrid.ColWidths[2] := 30; // Ops
@@ -930,6 +931,7 @@ begin
   DrawGrid.ColWidths[9] := 190; // PoW
   DrawGrid.ColWidths[10] := 190; // SafeBox Hash
   DrawGrid.ColWidths[11] := 50; // Protocol
+  DrawGrid.ColWidths[12] := 120; // Accumulated work
   FDrawGrid.DefaultRowHeight := 18;
   FDrawGrid.Invalidate;
   DrawGrid.Options := [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine,
@@ -974,6 +976,7 @@ begin
       9 : s := 'Proof of Work';
       10 : s := 'SafeBox Hash';
       11 : s := 'Protocol';
+      12 : s := 'Acc.Work';
     else s:= '';
     end;
     Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfCenter,tfVerticalCenter]);
@@ -1030,6 +1033,15 @@ begin
       end else if ACol=11 then begin
         s := Inttostr(bcd.BlockProtocolVersion)+'-'+IntToStr(bcd.BlockProtocolAvailable);
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfCenter,tfVerticalCenter,tfSingleLine]);
+      end else if ACol=12 then begin
+        if bcd.AccumulatedWork>0 then begin
+          s := Inttostr(bcd.AccumulatedWork);
+          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter]);
+        end else begin
+          DrawGrid.Canvas.Font.Color := clGrayText;
+          s := '(no data)';
+          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfCenter,tfVerticalCenter,tfSingleLine]);
+        end;
       end;
     end;
   end;
@@ -1155,6 +1167,7 @@ begin
           bcd.MinerPayload := opc.OperationBlock.block_payload;
           bcd.PoW := opc.OperationBlock.proof_of_work;
           bcd.SafeBoxHash := opc.OperationBlock.initial_safe_box_hash;
+          bcd.AccumulatedWork := Node.Bank.SafeBox.Block(bcd.Block).AccumulatedWork;
         end;
         FBlockChainDataArray[i] := bcd;
         if (nend>0) then dec(nend) else break;

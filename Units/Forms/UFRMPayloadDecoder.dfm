@@ -255,6 +255,15 @@ object FRMPayloadDecoder: TFRMPayloadDecoder
         TabOrder = 1
         OnKeyDown = memoDecodedKeyDown
       end
+      object cbShowAsHexadecimal: TCheckBox
+        Left = 115
+        Top = 93
+        Width = 136
+        Height = 17
+        Caption = 'Show as hexadecimal'
+        TabOrder = 2
+        OnClick = cbShowAsHexadecimalClick
+      end
     end
     object tsDecodeMethods: TTabSheet
       Caption = 'Decode methods'
