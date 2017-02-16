@@ -40,6 +40,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
 - Introducing "more work" with high priority than "more high". Work is calculated based on target. Higher target (more work) is more important than higher length
 - Solved locking/crash bug on high connections (caused by bad thread locking)
 - Improved network connection
+- Added JSON-RPC port 4003 protection Whitelist (only allowed IP's can use JSON-RPC)
 
 ### Build 1.4.3.0 - 2017-02-02
 
