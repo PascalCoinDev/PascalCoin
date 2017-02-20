@@ -2,6 +2,7 @@ program PascalCoinMiner;
 
 {$mode objfpc}{$H+}
 {$DEFINE UseCThreads}
+{$I ./Units/PascalCoin/config.inc}
 
 { Copyright (c) 2017 by Albert Molina
 
@@ -55,7 +56,7 @@ type
   end;
 
 Const
-  CT_MINER_VERSION = '0.4';
+  CT_MINER_VERSION = {$IFDEF PRODUCTION}'0.5'{$ELSE}{$IFDEF TESTNET}'0.5 TESTNET'{$ELSE}ERROR{$ENDIF}{$ENDIF};
   CT_Line_DeviceStatus = 3;
   CT_Line_ConnectionStatus = 4;
   CT_Line_MinerValues = 7;

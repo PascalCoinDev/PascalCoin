@@ -34,6 +34,13 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 1.5.1.0 - 2017-02-20
+
+- Memory leak fixed on RPC-JSON commands
+- Memory leak fixed on node connections
+- Improved network speed processing new blocks/operations
+- Some minor bugs
+
 ### Build 1.5.0.0 - 2017-02-15
 
 - Net protocol upgrade to 4-5
@@ -41,6 +48,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
 - Solved locking/crash bug on high connections (caused by bad thread locking)
 - Improved network connection
 - Added JSON-RPC port 4003 protection Whitelist (only allowed IP's can use JSON-RPC)
+
 
 ### Build 1.4.3.0 - 2017-02-02
 

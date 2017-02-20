@@ -591,7 +591,7 @@ var step : String;
 begin
   Try
     step := 'Deleting critical section';
-    FBankLock.Free;
+    FreeAndNil(FBankLock);
     step := 'Clear';
     Clear;
     step := 'Destroying LastBlockCache';

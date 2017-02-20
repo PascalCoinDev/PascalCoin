@@ -21,8 +21,6 @@ interface
 
 {$I config.inc}
 
-{.$DEFINE DelphiSockets}
-{$DEFINE Synapse}
 {$IFDEF DelphiSockets}{$IFDEF Synapse}DelphiSockets and Synapse are defined! Choose one!{$ENDIF}{$ENDIF}
 {$IFNDEF DelphiSockets}{$IFNDEF Synapse}Nor DelphiSockets nor Synapse are defined! Choose one!{$ENDIF}{$ENDIF}
 
@@ -281,7 +279,8 @@ begin
   FLock := TPCCriticalSection.Create('TNetTcpIpClient_Lock');
   FTcpBlockSocket := TTCPBlockSocket.Create;
   FTcpBlockSocket.OnAfterConnect := OnConnect;
-  FTcpBlockSocket.SocksTimeout := 10000;
+  FTcpBlockSocket.SocksTimeout := 5000; //Build 1.5.0 was 10000;
+  FTcpBlockSocket.ConnectionTimeout := 5000; // Build 1.5.0 was default
   FRemoteHost := '';
   FRemotePort  := 0;
   FBytesReceived := 0;
@@ -293,7 +292,7 @@ end;
 destructor TNetTcpIpClient.Destroy;
 begin
   Disconnect;
-  {$IFDEF DelphiSockets}
+  {$IFDEF Synapse}  // Memory leak on 1.5.0
   FreeAndNil(FLock);
   {$ENDIF}
   inherited;
@@ -737,6 +736,8 @@ begin
       n.FConnected := True;
       n.RemoteHost := ClientSocket.GetRemoteSinIP;
       n.RemotePort := ClientSocket.GetRemoteSinPort;
+      ClientSocket.SocksTimeout := 5000; //New 1.5.1
+      ClientSocket.ConnectionTimeout := 5000; // New 1.5.1
       {$ENDIF}
     {$IFDEF Synapse}
     finally

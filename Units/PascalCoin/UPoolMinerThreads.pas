@@ -17,6 +17,8 @@ unit UPoolMinerThreads;
 
 interface
 
+{$I config.inc}
+
 uses
   Classes, SysUtils, syncobjs, UThread, UPoolMining, UAccounts, UCrypto, ULog, UBlockChain, USha256;
 
@@ -219,13 +221,8 @@ begin
   FPoolMinerClient.OnMinerMustChangeValues := OnPoolMinerMustChangeValues;
   FPoolMinerClient.OnConnect := OnPoolMinerClientConnectionChanged;
   FPoolMinerClient.OnDisconnect := OnPoolMinerClientConnectionChanged;
-{ XXXXXXXXXXXXXXXXX
-  FPoolMinerClient.PoolType:=ptSuprnova;
-  FPoolMinerClient.UserName:='suprnova.1';
-  FPoolMinerClient.Password:='password';
-}
   FOnConnectionStateChanged := Nil;
-  FDevicesList := TPCThreadList.Create;
+  FDevicesList := TPCThreadList.Create('TPoolMinerThread_DevicesList');
   FMinerThreads := 0;
   FMinerAddName:='';
   FTestingPoWLeftBits := 0;
@@ -354,7 +351,6 @@ begin
   finally
     FDevicesList.UnlockList;
   end;
-  // XXXXXXXXXXXX Synchronize(NotifyPoolMinerConnectionChanged);
   NotifyPoolMinerConnectionChanged;
 end;
 
@@ -410,7 +406,7 @@ begin
   FMinerValuesForWork := CT_TMinerValuesForWork_NULL;
   FPartialDeviceStats := CT_TMinerStats_NULL;
   FGlobaDeviceStats := CT_TMinerStats_NULL;
-  FLastStats := TPCThreadList.Create;
+  FLastStats := TPCThreadList.Create('TCustomMinerDeviceThread_LastStats');
   FOnFoundNOnce:=Nil;
   FOnMinerValuesChanged:=Nil;
   FOnStateChanged:=Nil;
@@ -617,7 +613,7 @@ end;
 
 constructor TCPUDeviceThread.Create(PoolMinerThread: TPoolMinerThread; InitialMinerValuesForWork: TMinerValuesForWork);
 begin
-  FCPUsThreads := TPCThreadList.Create;
+  FCPUsThreads := TPCThreadList.Create('TCPUDeviceThread_CPUsThreads');
   FCPUs:=0;
   FUseOpenSSLFunctions := true;
   inherited Create(PoolMinerThread, InitialMinerValuesForWork);

@@ -586,7 +586,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     nc : TNetConnection;
     obj: TPCJSONObject;
   Begin
-    l := TNetData.NetData.ConnectionsLock;
+    l := TNetData.NetData.NetConnections.LockList;
     try
       for i:=0 to l.Count-1 do begin
         nc := TNetData.NetData.Connection(i);
@@ -602,7 +602,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         obj.GetAsVariant('netver_a').Value:=nc.NetProtocolVersion.protocol_available;
       end;
     finally
-      TNetData.NetData.ConnectionsUnlock;
+      TNetData.NetData.NetConnections.UnlockList;
     end;
   end;
 

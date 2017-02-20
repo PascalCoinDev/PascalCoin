@@ -145,13 +145,12 @@ var _Node : TNode;
 
 function TNode.AddNewBlockChain(SenderConnection: TNetConnection; NewBlockOperations: TPCOperationsComp;
   var newBlockAccount: TBlockAccount; var errors: AnsiString): Boolean;
-Var i : Integer;
-  operationscomp : TPCOperationsComp;
+Var i,j : Integer;
   nc : TNetConnection;
   ms : TMemoryStream;
-  netConnectionsList : TList;
   s : String;
   errors2 : AnsiString;
+  OpBlock : TOperationBlock;
 begin
   Result := false;
   if FDisabledsNewBlocksCount>0 then begin
@@ -160,8 +159,9 @@ begin
     exit;
   end;
   If NewBlockOperations.OperationBlock.block<>Bank.BlocksCount then exit;
+  OpBlock := NewBlockOperations.OperationBlock;
   TLog.NewLog(ltdebug,Classname,Format('AddNewBlockChain Connection:%s NewBlock:%s',[
-    Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
+    Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(OpBlock)]));
   If Not TPCThread.TryProtectEnterCriticalSection(Self,2000,FLockNodeOperations) then begin
     If NewBlockOperations.OperationBlock.block<>Bank.BlocksCount then exit;
     s := 'Cannot AddNewBlockChain due blocking lock operations node';
@@ -175,9 +175,15 @@ begin
       Result := Bank.AddNewBlockChainBlock(NewBlockOperations,newBlockAccount,errors);
       if Result then begin
         if Assigned(SenderConnection) then begin
-          FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s',[NewBlockOperations.OperationBlock.block,SenderConnection.ClientRemoteAddr,NewBlockOperations.OperationBlock.block_payload]));
+          FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload]));
         end else begin
-          FNodeLog.NotifyNewLog(ltupdate,ClassName,Format(';%d;%s;%s',[NewBlockOperations.OperationBlock.block,'NIL',NewBlockOperations.OperationBlock.block_payload]));
+          FNodeLog.NotifyNewLog(ltupdate,ClassName,Format(';%d;%s;%s',[OpBlock.block,'NIL',OpBlock.block_payload]));
+        end;
+      end else begin
+        if Assigned(SenderConnection) then begin
+          FNodeLog.NotifyNewLog(lterror,SenderConnection.ClassName,Format(';%d;%s;%s;%s',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload,errors]));
+        end else begin
+          FNodeLog.NotifyNewLog(lterror,ClassName,Format(';%d;%s;%s;%s',[OpBlock.block,'NIL',OpBlock.block_payload,errors]));
         end;
       end;
       FOperations.Clear(true);
@@ -190,30 +196,20 @@ begin
     finally
       ms.Free;
     end;
-    if Result then begin
-      FOperations.SanitizeOperations;
-      // Notify to clients
-      netConnectionsList := TNetData.NetData.ConnectionsLock;
-      Try
-        for i:=0 to netConnectionsList.Count-1 do begin
-          nc := netConnectionsList[i];
-          if (SenderConnection<>nc) then begin
-            TThreadNodeNotifyNewBlock.Create(nc);
-          end;
-        end;
-      Finally
-        TNetData.NetData.ConnectionsUnlock;
-      End;
-    end else begin
-      // If error is on a SenderMiner its a hole
-      FOperations.SanitizeOperations;
-    end;
+    FOperations.SanitizeOperations;
   finally
     FLockNodeOperations.Release;
     TLog.NewLog(ltdebug,Classname,Format('Finalizing AddNewBlockChain Connection:%s NewBlock:%s',[
-      Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock) ]));
+      Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(OpBlock) ]));
   End;
   if Result then begin
+    // Notify to clients
+    j := TNetData.NetData.ConnectionsCountAll;
+    for i:=0 to j-1 do begin
+      if (TNetData.NetData.GetConnection(i,nc)) then begin
+        if (nc<>SenderConnection) then TThreadNodeNotifyNewBlock.Create(nc);
+      end;
+    end;
     // Notify it!
     NotifyBlocksChanged;
   end;
@@ -239,7 +235,6 @@ Var
   nc : TNetConnection;
   e : AnsiString;
   mtl : TList;
-  netConnectionsList : TList;
   s : String;
   OPR : TOperationResume;
   ActOp : TPCOperation;
@@ -304,17 +299,12 @@ begin
     end;
     if Result=0 then exit;
     // Send to other nodes
-    netConnectionsList := TNetData.NetData.ConnectionsLock;
-    Try
-      for i:=0 to netConnectionsList.Count-1 do begin
-        nc := netConnectionsList[i];
-        if (nc<>SenderConnection) then begin
-          TThreadNodeNotifyOperations.Create(nc,valids_operations);
-        end;
+    j := TNetData.NetData.ConnectionsCountAll;
+    for i:=0 to j-1 do begin
+      If TNetData.NetData.GetConnection(i,nc) then begin
+        if (nc<>SenderConnection) then TThreadNodeNotifyOperations.Create(nc,valids_operations);
       end;
-    Finally
-      TNetData.NetData.ConnectionsUnlock;
-    End;
+    end;
   finally
     valids_operations.Free;
   end;
@@ -691,9 +681,8 @@ begin
 end;
 
 function TNode.SendNodeMessage(Target: TNetConnection; TheMessage: AnsiString; var errors: AnsiString): Boolean;
-Var i : Integer;
+Var i,j : Integer;
   nc : TNetConnection;
-  netConnectionsList : TList;
   s : String;
 begin
   Result := false;
@@ -707,15 +696,18 @@ begin
     if assigned(Target) then begin
       Target.Send_Message(TheMessage);
     end else begin
-      netConnectionsList := TNetData.NetData.ConnectionsLock;
-      Try
-        for i:=0 to netConnectionsList.Count-1 do begin
-          nc := netConnectionsList[i];
-          nc.Send_Message(TheMessage);
+      j := TNetData.NetData.ConnectionsCountAll;
+      for i:=0 to j-1 do begin
+        if TNetData.NetData.GetConnection(i,nc) then begin
+          If TNetData.NetData.ConnectionLock(Self,nc,500) then begin
+            try
+              nc.Send_Message(TheMessage);
+            finally
+              TNetData.NetData.ConnectionUnlock(nc)
+            end;
+          end;
         end;
-      Finally
-        TNetData.NetData.ConnectionsUnlock;
-      End;
+      end;
     end;
     result := true;
   finally
@@ -839,7 +831,7 @@ end;
 
 procedure TThreadNodeNotifyNewBlock.BCExecute;
 begin
-  if TNetData.NetData.ConnectionLock(Self,FNetConnection) then begin
+  if TNetData.NetData.ConnectionLock(Self,FNetConnection,500) then begin
     try
       TLog.NewLog(ltdebug,ClassName,'Sending new block found to '+FNetConnection.Client.ClientRemoteAddr);
       FNetConnection.Send_NewBlockFound;
@@ -864,7 +856,7 @@ end;
 
 procedure TThreadNodeNotifyOperations.BCExecute;
 begin
-  if TNetData.NetData.ConnectionLock(Self, FNetConnection) then begin
+  if TNetData.NetData.ConnectionLock(Self, FNetConnection, 500) then begin
     try
       if FOperationsHashTree.OperationsCount<=0 then exit;
       TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(FOperationsHashTree.OperationsCount)+' Operations to '+FNetConnection.ClientRemoteAddr);
