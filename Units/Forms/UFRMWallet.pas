@@ -597,69 +597,6 @@ begin
   FMustProcessWalletChanged := false;
 end;
 
-{
-procedure TFRMWallet.CheckMining;
-  Procedure Stop;
-  var i : Integer;
-    mtl : TList;
-  begin
-    if ForceMining then exit;
-    // Stop mining
-    mtl := FNode.MinerThreads.LockList;
-    try
-      for i:=mtl.Count-1 downto 0 do begin
-        if Not TMinerThread(mtl[i]).Paused then begin
-          TLog.NewLog(ltinfo,ClassName,'Stoping miner');
-        end;
-        TMinerThread(mtl[i]).Paused := true;
-      end;
-    finally
-      FNode.MinerThreads.UnlockList;
-    end;
-  end;
-Var i, n : Integer;
-  MT : TMinerThread;
-  mtl : TList;
-begin
-  if Not Assigned(FNode) then exit;
-  if (ForceMining) Or
-    (
-      (TNetData.NetData.NetStatistics.ActiveConnections>0) And
-      // Build 1.0.2 allows mine if there was at least 1 client connection (working as a server)
-      // or (new) there are 2 active connections to a servers (allowing non servers to mine too)
-      ( (TNetData.NetData.NetStatistics.TotalClientsConnections>0)
-        Or (TNetData.NetData.NetStatistics.ServersConnectionsWithResponse>=2) ) And
-      (TNetData.NetData.MaxRemoteOperationBlock.block<=FNode.Operations.OperationBlock.block)
-    ) then begin
-    if (cbAllowMining.checked) Or (ForceMining) then begin
-      n := 0;
-      mtl := FNode.MinerThreads.LockList;
-      try
-        for i:=mtl.Count-1 downto 0 do begin
-          if TMinerThread(mtl[i]).Paused then begin
-            TMinerThread(mtl[i]).Paused := false;
-            TLog.NewLog(ltinfo,ClassName,'Starting miner');
-          end;
-          inc(n);
-        end;
-        if n<FMaxCPUs then begin
-          MT := FNode.AddMiner(GetAccountKeyForMiner);
-          MT.OnThreadSafeNewBlockFound := OnMinerNewBlockFound;
-          MT.Paused := false;
-        end else begin
-          while (mtl.Count>FMaxCPUs) do FNode.DeleteMiner(mtl.Count-1);
-        end;
-      Finally
-        FNode.MinerThreads.UnlockList;
-      End;
-    end else begin
-      Stop;
-    end;
-  end else Stop;
-end;
-
-}
-
 procedure TFRMWallet.dgAccountsClick(Sender: TObject);
 begin
   UpdateOperations;

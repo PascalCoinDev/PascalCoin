@@ -188,6 +188,22 @@ Type
     Function Get(index : Integer) : TAccount;
   End;
 
+  // Maintains a TRawBytes (AnsiString) list ordered to quick search withoud duplicates
+  TOrderedRawList = Class
+  private
+    FList : TList;
+    Function Find(const RawData: TRawBytes; var Index: Integer): Boolean;
+  public
+    Constructor Create;
+    Destructor Destroy; Override;
+    Procedure Clear;
+    Function Add(Const RawData : TRawBytes) : Integer;
+    Function Count : Integer;
+    Function Get(index : Integer) : TRawBytes;
+    Procedure Delete(index : Integer);
+    Function IndexOf(Const RawData : TRawBytes) : Integer;
+  End;
+
 
   TPCSafeBoxTransaction = Class
   private
@@ -1611,4 +1627,93 @@ begin
   end;
 end;
 
+{ TOrderedRawList }
+
+function TOrderedRawList.Add(const RawData: TRawBytes): Integer;
+Var P : PRawBytes;
+begin
+  if Find(RawData,Result) then exit
+  else begin
+    New(P);
+    P^ := RawData;
+    FList.Insert(Result,P);
+  end;
+end;
+
+procedure TOrderedRawList.Clear;
+Var P : PRawBytes;
+  i : Integer;
+begin
+  for i := FList.Count - 1 downto 0 do begin
+    P := FList[i];
+    Dispose(P);
+  end;
+  FList.Clear;
+end;
+
+function TOrderedRawList.Count: Integer;
+begin
+  Result := FList.Count;
+end;
+
+constructor TOrderedRawList.Create;
+begin
+  FList := TList.Create;
+end;
+
+
+procedure TOrderedRawList.Delete(index: Integer);
+Var P : PRawBytes;
+begin
+  P := PRawBytes(FList[index]);
+  FList.Delete(index);
+  Dispose(P);
+end;
+
+destructor TOrderedRawList.Destroy;
+begin
+  Clear;
+  FreeAndNil(FList);
+  inherited;
+end;
+
+
+function TOrderedRawList.Find(const RawData: TRawBytes; var Index: Integer): Boolean;
+var L, H, I: Integer;
+  c : Integer;
+  PRawData : PAnsiChar;
+begin
+  Result := False;
+  L := 0;
+  H := FList.Count - 1;
+  PRawData := PAnsiChar(RawData);
+  while L <= H do
+  begin
+    I := (L + H) shr 1;
+    c := StrComp(PAnsiChar(PRawBytes(FList[i])^),PRawData);
+    if C < 0 then L := I + 1 else
+    begin
+      H := I - 1;
+      if C = 0 then
+      begin
+        Result := True;
+        L := I;
+      end;
+    end;
+  end;
+  Index := L;
+end;
+
+
+function TOrderedRawList.Get(index: Integer): TRawBytes;
+begin
+  Result := PRawBytes(FList[index])^;
+end;
+
+function TOrderedRawList.IndexOf(const RawData: TRawBytes): Integer;
+begin
+  if Not Find(RawData,Result) then Result := -1;
+end;
+
 end.
+

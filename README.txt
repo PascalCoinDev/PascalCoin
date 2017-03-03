@@ -34,6 +34,14 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 1.5.2.0 - 2017-03-03
+
+- Added a jobs buffer for miners. This will allow to submit old job solutions (limited buffer). (Fix the "tx" issue)
+- Miner jobs will not be sent every time a transaction is received, thet will be buffered and sent every few seconds (Fix the "tx" issue)
+- Better network performance, allowing more operations and nodes thanks to buffering before relaying
+- Daemon: Allow select on ini file how many connections can handle
+- Fixed a locking when deleting connections
+
 ### Build 1.5.1.0 - 2017-02-20
 
 - Memory leak fixed on RPC-JSON commands

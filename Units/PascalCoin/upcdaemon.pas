@@ -26,6 +26,8 @@ uses
 Const
   CT_INI_SECTION_GLOBAL = 'GLOBAL';
   CT_INI_IDENT_SAVELOGS = 'SAVELOGS';
+  CT_INI_IDENT_NODE_PORT = 'NODE_PORT';
+  CT_INI_IDENT_NODE_MAX_CONNECTIONS = 'NODE_MAX_CONNECTIONS';
   CT_INI_IDENT_RPC_PORT = 'RPC_PORT';
   CT_INI_IDENT_RPC_WHITELIST = 'RPC_WHITELIST';
   CT_INI_IDENT_RPC_SAVELOGS = 'RPC_SAVELOGS';
@@ -201,6 +203,8 @@ begin
         // Reading database
         FNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
         FWalletKeys.SafeBox := FNode.Node.Bank.SafeBox;
+        FNode.Node.NetServer.Port:=FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_NODE_PORT,CT_NetServer_Port);
+        FNode.Node.NetServer.MaxConnections:=FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_NODE_MAX_CONNECTIONS,CT_MaxClientsConnected);
         FNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
         FNode.Node.NetServer.Active := true;
 

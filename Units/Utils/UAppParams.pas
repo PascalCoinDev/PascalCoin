@@ -477,7 +477,11 @@ begin
     else fm := fmCreate;
 
     FParamsStream := TFileStream.Create(Value,fm+fmShareExclusive);
-    LoadFromStream(FParamsStream);
+    Try
+      LoadFromStream(FParamsStream);
+    Except
+      // Do nothing
+    End;
   end;
 end;
 

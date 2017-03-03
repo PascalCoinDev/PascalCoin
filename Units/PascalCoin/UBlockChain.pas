@@ -194,6 +194,7 @@ Type
     Property HasValidSignature : Boolean read FHasValidSignature;
     Class function OperationHash(op : TPCOperation; Block : Cardinal) : TRawBytes;
     Class function DecodeOperationHash(Const operationHash : TRawBytes; var block, account,n_operation : Cardinal) : Boolean;
+    function Sha256 : TRawBytes;
   End;
 
   TOperationsHashTree = Class
@@ -218,6 +219,7 @@ Type
     function SaveOperationsHashTreeToStream(Stream: TStream; SaveToStorage : Boolean): Boolean;
     function LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage : Boolean; var errors : AnsiString): Boolean;
     function IndexOfOperation(op : TPCOperation) : Integer;
+    Procedure Delete(index : Integer);
   End;
 
   { TPCOperationsComp }
@@ -1731,7 +1733,8 @@ end;
 { TOperationsHashTree }
 
 Type TOperationHashTreeReg = Record
-       Hash : TRawBytes;
+       OpSha256 : TRawBytes;
+       AccHashTree : TRawBytes;
        Op : TPCOperation;
      end;
      POperationHashTreeReg = ^TOperationHashTreeReg;
@@ -1804,6 +1807,46 @@ begin
   FHashTreeOperations := TPCThreadList.Create('TOperationsHashTree_HashTreeOperations');
 end;
 
+procedure TOperationsHashTree.Delete(index: Integer);
+Var l : TList;
+  P : POperationHashTreeReg;
+  i : Integer;
+  ms : TMemoryStream;
+  h : TRawBytes;
+begin
+  l := FHashTreeOperations.LockList;
+  try
+    P := l[index];
+    l.Delete(index);
+    P^.Op.Free;
+    Dispose(P);
+    // Recalc operations hash
+    FTotalAmount := 0;
+    FTotalFee := 0;
+    FHashTree := '';
+    ms := TMemoryStream.Create;
+    try
+      for i := 0 to l.Count - 1 do begin
+        ms.Clear;
+        P := l[i];
+        P^.Op.SaveToStream(ms);
+        ms.Position := 0;
+        h := TCrypto.DoSha256(ms.Memory,ms.Size);
+        P^.Op.tag := i;
+        // Include to hash tree
+        FHashTree := TCrypto.DoSha256(FHashTree+h);
+        P^.AccHashTree := FHashTree;
+        inc(FTotalAmount,P^.Op.OperationAmount);
+        inc(FTotalFee,P^.Op.OperationFee);
+      end;
+    finally
+      ms.Free;
+    end;
+  finally
+    FHashTreeOperations.UnlockList;
+  end;
+end;
+
 destructor TOperationsHashTree.Destroy;
 begin
   ClearHastThree;
@@ -1850,13 +1893,13 @@ end;
 function TOperationsHashTree.IndexOfOperation(op: TPCOperation): Integer;
 Var
   l : TList;
-  hash : TRawBytes;
+  OpSha256 : TRawBytes;
 begin
-  hash := TCrypto.DoSha256(op.GetOperationBufferToHash);
+  OpSha256 := op.Sha256;
   l := FHashTreeOperations.LockList;
   Try
     for Result := 0 to l.Count - 1 do begin
-      if POperationHashTreeReg(l[Result])^.Hash=hash then exit;
+      if POperationHashTreeReg(l[Result])^.OpSha256=OpSha256 then exit;
     end;
     Result := -1;
   Finally
@@ -1880,13 +1923,14 @@ begin
     P^.Op.FPrevious_Destination_updated_block := op.FPrevious_Destination_updated_block;
     h := TCrypto.DoSha256(ms.Memory,ms.Size);
     P^.Op.tag := list.Count;
-    P^.Hash := TCrypto.DoSha256(op.GetOperationBufferToHash);
+    P^.OpSha256 := op.Sha256;
+    // Include to hash tree
+    FHashTree := TCrypto.DoSha256(FHashTree+h);
+    P^.AccHashTree := FHashTree;
     list.Add(P);
   finally
     ms.Free;
   end;
-  // Include to hash tree
-  FHashTree := TCrypto.DoSha256(FHashTree+h);
   inc(FTotalAmount,op.OperationAmount);
   inc(FTotalFee,op.OperationFee);
 end;
@@ -2172,6 +2216,11 @@ begin
   Stream.Write(FPrevious_Sender_updated_block,Sizeof(FPrevious_Sender_updated_block));
   Stream.Write(FPrevious_Destination_updated_block,SizeOf(FPrevious_Destination_updated_block));
   Result := true;
+end;
+
+function TPCOperation.Sha256: TRawBytes;
+begin
+  Result := TCrypto.DoSha256(GetOperationBufferToHash);
 end;
 
 { TOperationsResumeList }

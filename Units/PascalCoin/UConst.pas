@@ -74,7 +74,7 @@ Const
   CT_MinServersConnected = 3;
   CT_MaxServersConnected = 5;
 
-  CT_MaxClientsConnected = 500;
+  CT_MaxClientsConnected = 100;
 
   CT_BankToDiskEveryNBlocks = 100; // Build 1.5 changed from 500 to 100; // Build 1.3.0 Changed from 1000 to 500
 
@@ -83,9 +83,8 @@ Const
   CT_BlockChain_Protocol_Version: Word = $0001; // Version 1
   CT_BlockChain_Protocol_Available: Word = $0001; // Build 1.4 Protocol available changed 0->1
 
-  CT_MagicNetIdentification = $0A043580; // Unix timestamp 168048000 ... It's Albert birthdate!
+  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$0A04FFFF{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
 
-  // Build 1.0.4 - introducing NetProtocol versioning:
   CT_NetProtocol_Version: Word = $0004;
   // IMPORTANT NOTE!!!
   // NetProtocol_Available MUST BE always >= NetProtocol_version
@@ -93,14 +92,14 @@ Const
 
   CT_SafeBoxBankVersion : Word = 2;
 
-  CT_MagicIdentificator: AnsiString = 'PascalCoin'; //
+  CT_MagicIdentificator: AnsiString = {$IFDEF PRODUCTION}'PascalCoin'{$ELSE}'PascalCoinTESTNET'{$ENDIF}; //
 
   // Value of Operations type in Protocol 1
   CT_Op_Transaction = $01;
   CT_Op_Changekey = $02;
   CT_Op_Recover = $03;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.5.1'{$ELSE}{$IFDEF TESTNET}'TESTNET 1.5.1'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.5.2'{$ELSE}{$IFDEF TESTNET}'TESTNET 1.5.2'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin2.ddns.net;pascalcoin1.dynamic-dns.net;pascalcoin1.dns1.us';
 

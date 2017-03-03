@@ -175,15 +175,19 @@ begin
       Result := Bank.AddNewBlockChainBlock(NewBlockOperations,newBlockAccount,errors);
       if Result then begin
         if Assigned(SenderConnection) then begin
-          FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload]));
+          FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s;;%d;%d;%d',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload,
+            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp]));
         end else begin
-          FNodeLog.NotifyNewLog(ltupdate,ClassName,Format(';%d;%s;%s',[OpBlock.block,'NIL',OpBlock.block_payload]));
+          FNodeLog.NotifyNewLog(ltupdate,ClassName,Format(';%d;%s;%s;;%d;%d;%d',[OpBlock.block,'NIL',OpBlock.block_payload,
+            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp]));
         end;
       end else begin
         if Assigned(SenderConnection) then begin
-          FNodeLog.NotifyNewLog(lterror,SenderConnection.ClassName,Format(';%d;%s;%s;%s',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload,errors]));
+          FNodeLog.NotifyNewLog(lterror,SenderConnection.ClassName,Format(';%d;%s;%s;%s;%d;%d;%d',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload,errors,
+            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp]));
         end else begin
-          FNodeLog.NotifyNewLog(lterror,ClassName,Format(';%d;%s;%s;%s',[OpBlock.block,'NIL',OpBlock.block_payload,errors]));
+          FNodeLog.NotifyNewLog(lterror,ClassName,Format(';%d;%s;%s;%s;%d;%d;%d',[OpBlock.block,'NIL',OpBlock.block_payload,errors,
+            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp]));
         end;
       end;
       FOperations.Clear(true);
@@ -207,7 +211,7 @@ begin
     j := TNetData.NetData.ConnectionsCountAll;
     for i:=0 to j-1 do begin
       if (TNetData.NetData.GetConnection(i,nc)) then begin
-        if (nc<>SenderConnection) then TThreadNodeNotifyNewBlock.Create(nc);
+        if (nc<>SenderConnection) And (nc.Connected) then TThreadNodeNotifyNewBlock.Create(nc);
       end;
     end;
     // Notify it!
@@ -302,7 +306,7 @@ begin
     j := TNetData.NetData.ConnectionsCountAll;
     for i:=0 to j-1 do begin
       If TNetData.NetData.GetConnection(i,nc) then begin
-        if (nc<>SenderConnection) then TThreadNodeNotifyOperations.Create(nc,valids_operations);
+        if (nc<>SenderConnection) And (nc.Connected) then TThreadNodeNotifyOperations.Create(nc,valids_operations);
       end;
     end;
   finally
@@ -833,6 +837,7 @@ procedure TThreadNodeNotifyNewBlock.BCExecute;
 begin
   if TNetData.NetData.ConnectionLock(Self,FNetConnection,500) then begin
     try
+      if Not FNetconnection.Connected then exit;
       TLog.NewLog(ltdebug,ClassName,'Sending new block found to '+FNetConnection.Client.ClientRemoteAddr);
       FNetConnection.Send_NewBlockFound;
       if TNode.Node.Operations.OperationsHashTree.OperationsCount>0 then begin
@@ -855,11 +860,23 @@ end;
 { TThreadNodeNotifyOperations }
 
 procedure TThreadNodeNotifyOperations.BCExecute;
+Var nOpsCount : Integer;
 begin
+  nOpsCount := FOperationsHashTree.OperationsCount;
+  if nOpsCount<=0 then exit;
   if TNetData.NetData.ConnectionLock(Self, FNetConnection, 500) then begin
     try
-      if FOperationsHashTree.OperationsCount<=0 then exit;
-      TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(FOperationsHashTree.OperationsCount)+' Operations to '+FNetConnection.ClientRemoteAddr);
+      if Not FNetconnection.Connected then exit;
+      nOpsCount := FNetConnection.AddOperationsToBufferForSend(FOperationsHashTree);
+    finally
+      TNetData.NetData.ConnectionUnlock(FNetConnection);
+    end;
+  end;
+  if nOpsCount<=0 then exit;
+  Sleep(Random(5000)); // Delay 0..5 seconds to allow receive data and don't send if not necessary
+  if TNetData.NetData.ConnectionLock(Self, FNetConnection, 500) then begin
+    try
+      if Not FNetconnection.Connected then exit;
       FNetConnection.Send_AddOperations(FOperationsHashTree);
     finally
       TNetData.NetData.ConnectionUnlock(FNetConnection);
@@ -867,8 +884,7 @@ begin
   end;
 end;
 
-constructor TThreadNodeNotifyOperations.Create(NetConnection: TNetConnection;
-  MakeACopyOfOperationsHashTree: TOperationsHashTree);
+constructor TThreadNodeNotifyOperations.Create(NetConnection: TNetConnection; MakeACopyOfOperationsHashTree: TOperationsHashTree);
 begin
   FOperationsHashTree := TOperationsHashTree.Create;
   FOperationsHashTree.CopyFromHashTree(MakeACopyOfOperationsHashTree);
