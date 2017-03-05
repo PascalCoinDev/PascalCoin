@@ -70,6 +70,7 @@ Type
     function OperationPayload : TRawBytes; override;
     function SenderAccount : Cardinal; override;
     function N_Operation : Cardinal; override;
+    function IsDestinationAccount(nAccount : Cardinal) : Boolean; override;
     Property Data : TOpTransactionData read FData;
 
     Constructor Create(sender, n_operation, target: Cardinal; key: TECPrivateKey; amount, fee: UInt64; payload: AnsiString);
@@ -307,6 +308,11 @@ begin
   finally
     ms.Free;
   end;
+end;
+
+function TOpTransaction.IsDestinationAccount(nAccount: Cardinal): Boolean;
+begin
+  Result := FData.target = nAccount;
 end;
 
 function TOpTransaction.LoadFromStream(Stream: TStream): Boolean;

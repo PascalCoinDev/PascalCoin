@@ -186,6 +186,7 @@ Type
     function OperationPayload : TRawBytes; virtual; abstract;
     function SenderAccount : Cardinal; virtual; abstract;
     function N_Operation : Cardinal; virtual; abstract;
+    function IsDestinationAccount(nAccount : Cardinal) : Boolean; virtual;
     Property tag : integer read Ftag Write Ftag;
     function SaveToStorage(Stream: TStream): Boolean;
     function LoadFromStorage(Stream: TStream): Boolean;
@@ -2101,6 +2102,11 @@ end;
 
 
 { TPCOperation }
+
+function TPCOperation.IsDestinationAccount(nAccount: Cardinal): Boolean;
+begin
+  Result := false;
+end;
 
 function TPCOperation.LoadFromStorage(Stream: TStream): Boolean;
 begin
