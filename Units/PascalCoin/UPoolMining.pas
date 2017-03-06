@@ -495,16 +495,19 @@ end;
 { TPoolMiningServer }
 
 Const CT_WAIT_SECONDS_BEFORE_SEND_NEW_JOB = 10;
+  CT_MAX_SECONDS_BETWEEN_JOBS = 30; // 1.5.3 Will send new job to miner (with updated timestamp)
+  CT_MAX_BUFFER_JOBS = 10; // 1.5.3 Will buffer last 10 jobs sent to miner
 
 Type
   TPoolJob = Record
     OperationsComp : TPCOperationsComp;
     SentDateTime : TDateTime;
+    SentMinTimestamp : Cardinal;
   End;
   PPoolJob = ^TPoolJob;
 
 procedure TPoolMiningServer.CaptureNewJobAndSendToMiners;
-Var P : PPoolJob;
+Var P, PToDelete : PPoolJob;
   i : Integer;
   l : TList;
   doAdd : Boolean;
@@ -513,6 +516,7 @@ Var P : PPoolJob;
 begin
   if Not Active then exit;
   doAdd := false;
+  P := Nil;
   l := FPoolJobs.LockList;
   Try
     if l.count=0 then doAdd := true
@@ -520,21 +524,37 @@ begin
       P := l[l.Count-1];
       if (FNodeNotifyEvents.Node.Operations.OperationsHashTree.HashTree<>P^.OperationsComp.OperationsHashTree.HashTree) then begin
         doAdd := (P^.SentDateTime + EncodeTime(0,0,CT_WAIT_SECONDS_BEFORE_SEND_NEW_JOB,0)) < Now;
+      end else begin
+        // No new operations waiting to be sent, but to prevent "old time mining", we will send new job with time:
+        doAdd := ((P^.SentDateTime + EncodeTime(0,0,CT_MAX_SECONDS_BETWEEN_JOBS,0)) < Now);
       end;
     end;
-    P := Nil;
     if doAdd then begin
       New(P);
       P^.SentDateTime := now;
+      P^.SentMinTimestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+      if (P^.SentMinTimestamp<FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp) then begin
+        P^.SentMinTimestamp := FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp;
+      end;
       P^.OperationsComp := TPCOperationsComp.Create(Nil);
       P^.OperationsComp.CopyFrom(FNodeNotifyEvents.Node.Operations);
       P^.OperationsComp.AccountKey := FMinerAccountKey;
       P^.OperationsComp.BlockPayload := FMinerPayload;
+      P^.OperationsComp.timestamp := P^.SentMinTimestamp; // Best practices 1.5.3
       OpB := P^.OperationsComp.OperationBlock;
       if (OpB.block<>0) And (OpB.block <> (FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.block+1)) then begin
         raise Exception.Create('ERROR DEV 20170228-1');
       end;
-      l.Add(P);
+      i := l.Add(P);
+      TLog.NewLog(ltDebug,ClassName,'Added new job '+IntToStr(i+1)+'/'+IntToStr(l.Count));
+    end;
+    // Clean buffer jobs
+    while (l.Count>CT_MAX_BUFFER_JOBS) do begin
+      PToDelete := l[0]; // Index 0 is oldest sent job
+      l.Delete(0);
+      PToDelete^.OperationsComp.free;
+      Dispose(PToDelete);
+      TLog.NewLog(ltDebug,ClassName,'Deleted Job 1 from buffer, now count:'+inttostr(l.Count));
     end;
   Finally
     FPoolJobs.UnlockList;
@@ -667,7 +687,7 @@ end;
 function TPoolMiningServer.MinerSubmit(Client: TJSONRPCTcpIpClient; params: TPCJSONObject; const id : Variant): Boolean;
 Var s : String;
   nbOperations : TPCOperationsComp;
-  errors : AnsiString;
+  errors, sJobInfo : AnsiString;
   nba : TBlockAccount;
   json : TPCJSONObject;
   p1,p2,p3 : TRawBytes;
@@ -688,6 +708,7 @@ begin
     If calculated PoW does not match valid PoW then error
     If all ok... congrats!!! }
   Result := false;
+  sJobInfo := '';
   // Must chek on previous sent jobs
   nbOperations := Nil;
   Try
@@ -709,14 +730,19 @@ begin
       while (i>=0) And (Not Assigned(nbOperations)) do begin
         P := l[i];
         P^.OperationsComp.BlockPayload := _payload;
-        P^.OperationsComp.timestamp := _timestamp;
-        P^.OperationsComp.nonce := _nOnce;
-        if (P^.OperationsComp.OperationBlock.proof_of_work<=_targetPoW) then begin
-          // Candidate!
-          nbOperations := TPCOperationsComp.Create(Nil);
-          nbOperations.bank := FNodeNotifyEvents.Node.Bank;
-          nbOperations.CopyFrom(P^.OperationsComp);
-          nbOperations.AccountKey := MinerAccountKey;
+        // Best practices: Only will accept a solution if timestamp >= sent timestamp for this job (1.5.3)
+        If (P^.SentMinTimestamp<=_timestamp) then begin
+          P^.OperationsComp.timestamp := _timestamp;
+          P^.OperationsComp.nonce := _nOnce;
+          if (P^.OperationsComp.OperationBlock.proof_of_work<=_targetPoW) then begin
+            // Candidate!
+            nbOperations := TPCOperationsComp.Create(Nil);
+            nbOperations.bank := FNodeNotifyEvents.Node.Bank;
+            nbOperations.CopyFrom(P^.OperationsComp);
+            nbOperations.AccountKey := MinerAccountKey;
+            sJobInfo := 'Miner job '+IntToStr(i+1)+'/'+IntToStr(l.Count);
+            TLog.NewLog(ltInfo,ClassName,sJobInfo+' - Found a solution for block '+IntToStr(nbOperations.OperationBlock.block));
+          end;
         end;
         dec(i);
       end;
@@ -740,10 +766,10 @@ begin
         end;
         if Assigned(FOnMiningServerNewBlockFound) then FOnMiningServerNewBlockFound(Self);
       end else begin
-        Client.SendJSONRPCErrorResponse(id,'Error: '+errors+' payload:'+nbOperations.BlockPayload+' timestamp:'+InttoStr(nbOperations.timestamp)+' nonce:'+IntToStr(nbOperations.nonce));
+        Client.SendJSONRPCErrorResponse(id,'Error: '+errors+' executing '+sJobInfo+' payload:'+nbOperations.BlockPayload+' timestamp:'+InttoStr(nbOperations.timestamp)+' nonce:'+IntToStr(nbOperations.nonce));
       end;
     end else begin
-      Client.SendJSONRPCErrorResponse(id,'Error: No valid job found with these values! payload:'+_payload+' timestamp:'+InttoStr(_timestamp)+' nonce:'+IntToStr(_nonce));
+      Client.SendJSONRPCErrorResponse(id,'Error: No valid job found with these values! (Perhaps prior block job or old job) payload:'+_payload+' timestamp:'+InttoStr(_timestamp)+' nonce:'+IntToStr(_nonce));
     end;
   Finally
     if Assigned(nbOperations) then nbOperations.Free;
@@ -809,10 +835,15 @@ begin
         TLog.NewLog(ltInfo,ClassName,'Creating new job for miner');
         New(P);
         P^.SentDateTime := now;
+        P^.SentMinTimestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+        if (P^.SentMinTimestamp<FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp) then begin
+          P^.SentMinTimestamp := FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp;
+        end;
         P^.OperationsComp := TPCOperationsComp.Create(Nil);
         P^.OperationsComp.CopyFrom(FNodeNotifyEvents.Node.Operations);
         P^.OperationsComp.AccountKey := FMinerAccountKey;
         P^.OperationsComp.BlockPayload := FMinerPayload;
+        P^.OperationsComp.timestamp := P^.SentMinTimestamp; // Best practices 1.5.3
         if (P^.OperationsComp.OperationBlock.block<>0) And (P^.OperationsComp.OperationBlock.block <> (FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.block+1)) then begin
           raise Exception.Create('ERROR DEV 20170228-2');
         end;
@@ -829,6 +860,7 @@ begin
   Finally
     FPoolJobs.UnlockList;
   End;
+
   params := TPCJSONObject.Create;
   Try
     if Not Active then exit;

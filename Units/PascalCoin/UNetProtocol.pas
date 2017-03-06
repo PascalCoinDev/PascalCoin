@@ -1509,9 +1509,11 @@ begin
         sleep(10);
         DebugStep := 'Assigning old client';
         n.SetClient( NetTcpIpClientClass.Create(Nil) );
+        DebugStep := 'Finalizing connection';
         n.FinalizeConnection;
-      Finally
+        sleep(500); // Delay - Sleep time before destroying (1.5.3)
         DebugStep := 'Freeing NetServerClient';
+      Finally
         n.Free;
       End;
     End;
@@ -3220,6 +3222,7 @@ begin
       finally
         FNetData.NetConnections.UnlockList;
       end;
+      sleep(500); // Delay - Sleep time before destroying (1.5.3)
       if l_to_del.Count>0 then begin
         TLog.NewLog(ltDebug,ClassName,'Destroying NetClients: '+inttostr(l_to_del.Count));
         for i := 0 to l_to_del.Count - 1 do begin
