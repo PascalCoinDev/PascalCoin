@@ -34,6 +34,15 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 1.5.3.0 - 2017-03-06
+
+- Fixed issue #23: RPC findoperation fails to find operation by opHash
+- Miners best practices: Sending new job with new timestamp every 30 seconds
+- Buffering last 10 sent jobs to miners
+- Small delay prior to destroy a connection to prevent exception handling
+- Minor logs changes
+
+
 ### Build 1.5.2.0 - 2017-03-03
 
 - Added a jobs buffer for miners. This will allow to submit old job solutions (limited buffer). (Fix the "tx" issue)
