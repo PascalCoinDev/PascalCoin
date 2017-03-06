@@ -153,12 +153,17 @@ Var i,j : Integer;
   OpBlock : TOperationBlock;
 begin
   Result := false;
+  errors := '';
   if FDisabledsNewBlocksCount>0 then begin
     TLog.NewLog(ltinfo,Classname,Format('Cannot Add new BlockChain due is adding disabled - Connection:%s NewBlock:%s',[
     Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
+    errors := 'Adding blocks is disabled';
     exit;
   end;
-  If NewBlockOperations.OperationBlock.block<>Bank.BlocksCount then exit;
+  If NewBlockOperations.OperationBlock.block<>Bank.BlocksCount then begin
+    errors := 'New block number ('+IntToStr(NewBlockOperations.OperationBlock.block)+') not valid! (Expected '+IntToStr(Bank.BlocksCount)+')';
+    exit;
+  end;
   OpBlock := NewBlockOperations.OperationBlock;
   TLog.NewLog(ltdebug,Classname,Format('AddNewBlockChain Connection:%s NewBlock:%s',[
     Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(OpBlock)]));
@@ -175,19 +180,19 @@ begin
       Result := Bank.AddNewBlockChainBlock(NewBlockOperations,newBlockAccount,errors);
       if Result then begin
         if Assigned(SenderConnection) then begin
-          FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s;;%d;%d;%d',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload,
-            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp]));
+          FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload,
+            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
         end else begin
-          FNodeLog.NotifyNewLog(ltupdate,ClassName,Format(';%d;%s;%s;;%d;%d;%d',[OpBlock.block,'NIL',OpBlock.block_payload,
-            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp]));
+          FNodeLog.NotifyNewLog(ltupdate,ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,'NIL',OpBlock.block_payload,
+            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
         end;
       end else begin
         if Assigned(SenderConnection) then begin
-          FNodeLog.NotifyNewLog(lterror,SenderConnection.ClassName,Format(';%d;%s;%s;%s;%d;%d;%d',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload,errors,
-            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp]));
+          FNodeLog.NotifyNewLog(lterror,SenderConnection.ClassName,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload,errors,
+            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
         end else begin
-          FNodeLog.NotifyNewLog(lterror,ClassName,Format(';%d;%s;%s;%s;%d;%d;%d',[OpBlock.block,'NIL',OpBlock.block_payload,errors,
-            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp]));
+          FNodeLog.NotifyNewLog(lterror,ClassName,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[OpBlock.block,'NIL',OpBlock.block_payload,errors,
+            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
         end;
       end;
       FOperations.Clear(true);

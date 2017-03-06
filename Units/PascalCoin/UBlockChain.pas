@@ -436,12 +436,13 @@ begin
     Result := False;
     errors := '';
     Try
-      If Not Operations.ValidateOperationBlock(errors) then begin
-        exit;
-      end;
       // Check valid data
       if (BlocksCount <> Operations.OperationBlock.block) then begin
-        errors := 'block ('+inttostr(Operations.OperationBlock.block)+') is not new position ('+inttostr(BlocksCount)+')';
+        errors := 'block ('+inttostr(Operations.OperationBlock.block)+') is not new position ('+inttostr(BlocksCount)+') - Duplicate or orphan/dual blockchain candidate';
+        exit;
+      end;
+      // 1.5.2.2 Changed position to allow first checking valid block number prior to check operations. This shows better logs info
+      If Not Operations.ValidateOperationBlock(errors) then begin
         exit;
       end;
       if Not Assigned(Operations.FSafeBoxTransaction) then begin

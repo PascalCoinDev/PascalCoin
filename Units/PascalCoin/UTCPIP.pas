@@ -865,9 +865,11 @@ begin
   finally
     // Finalize all threads
     for i := 0 to lSockets.Count - 1 do begin
-      // Here we no wait until terminated...
       TTcpIpSocketThread(lSockets[i]).FListenerThread := Nil;
       TTcpIpSocketThread(lSockets[i]).Terminate;
+    end;
+    // Wait until terminated...
+    for i := 0 to lSockets.Count - 1 do begin
       TTcpIpSocketThread(lSockets[i]).WaitFor;
       TTcpIpSocketThread(lSockets[i]).Free;
     end;
@@ -914,14 +916,14 @@ begin
     end;
   Except
     On E:Exception do begin
-      TLog.NewLog(lterror,ClassName,'Error closign socket: '+E.Message);
+      TLog.NewLog(lterror,ClassName,'Exception closing socket ('+E.ClassName+'):' +E.Message);
     end;
   End;
   Try
     FreeAndNil(FSock);
   Except
     On E:Exception do begin
-      TLog.NewLog(lterror,ClassName,'Error destroying socket: '+E.Message);
+      TLog.NewLog(lterror,ClassName,'Exception destroying socket ('+E.ClassName+'):' +E.Message);
     end;
   End;
   inherited;
