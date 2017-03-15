@@ -164,6 +164,24 @@ Type
     Constructor Create(NetData : TNetData);
   End;
 
+  TNetworkAdjustedTime = Class
+  private
+    FTimesList : TPCThreadList;
+    FTimeOffset : Integer;
+    FLock : TCriticalSection;
+    FTotalCounter : Integer;
+    Function IndexOfClientIp(list : TList; const clientIp : AnsiString) : Integer;
+    Procedure UpdateMedian(list : TList);
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure AddNewIp(const clientIp : AnsiString; clientTimestamp : Cardinal);
+    procedure RemoveIp(const clientIp : AnsiString);
+    function GetAdjustedTime : Cardinal;
+    property TimeOffset : Integer read FTimeOffset;
+    function GetMaxAllowedTimestampForNewBlock : Cardinal;
+  end;
+
   TNetData = Class(TComponent)
   private
     FNetDataNotifyEventsThread : TNetDataNotifyEventsThread;
@@ -186,8 +204,8 @@ Type
     FNetClientsDestroyThread : TNetClientsDestroyThread;
     FNetConnectionsActive: Boolean;
     FMaxConnections : Integer;
+    FNetworkAdjustedTime : TNetworkAdjustedTime;
     Procedure IncStatistics(incActiveConnections,incClientsConnections,incServersConnections,incServersConnectionsWithResponse : Integer; incBytesReceived, incBytesSend : Int64);
-
     procedure SetNetConnectionsActive(const Value: Boolean);  protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     Function IndexOfNetClient(ListToSearch : TList; ip : AnsiString; port : Word; indexStart : Integer = 0) : Integer;
@@ -247,6 +265,7 @@ Type
     Procedure NotifyReceivedHelloMessage;
     Procedure NotifyStatisticsChanged;
     Property NetConnectionsActive : Boolean read FNetConnectionsActive write SetNetConnectionsActive;
+    Property NetworkAdjustedTime : TNetworkAdjustedTime read FNetworkAdjustedTime;
   End;
 
   TNetConnection = Class(TComponent)
@@ -259,7 +278,7 @@ Type
     FClientBufferRead : TStream;
     FNetLock : TPCCriticalSection;
     FIsWaitingForResponse : Boolean;
-    FLastKnownTimestampDiff : Int64;
+    FTimestampDiff : Integer;
     FIsMyselfServer : Boolean;
     FClientPublicKey : TAccountKey;
     FCreatedTime: TDateTime;
@@ -272,6 +291,7 @@ Type
     FRandomWaitSecondsSendHello : Cardinal;
     FBufferReceivedOperationsHash : TOrderedRawList;
     FBufferToSendOperations : TOperationsHashTree;
+    FClientTimestampIp : AnsiString;
     function GetConnected: Boolean;
     procedure SetConnected(const Value: Boolean);
     procedure TcpClient_OnConnect(Sender: TObject);
@@ -299,13 +319,14 @@ Type
     Function ConnectTo(ServerIP: String; ServerPort:Word) : Boolean;
     Property Connected : Boolean read GetConnected write SetConnected;
     Function Send_Hello(NetTranferType : TNetTransferType; request_id : Integer) : Boolean;
-    Function Send_NewBlockFound : Boolean;
+    Function Send_NewBlockFound(Const NewBlock : TPCOperationsComp) : Boolean;
     Function Send_GetBlocks(StartAddress, quantity : Cardinal; var request_id : Cardinal) : Boolean;
     Function Send_AddOperations(Operations : TOperationsHashTree) : Boolean;
     Function Send_Message(Const TheMessage : AnsiString) : Boolean;
     Function AddOperationsToBufferForSend(Operations : TOperationsHashTree) : Integer;
     Property Client : TNetTcpIpClient read GetClient;
     Function ClientRemoteAddr : AnsiString;
+    property TimestampDiff : Integer read FTimestampDiff;
     //
     Property NetProtocolVersion : TNetProtocolVersion read FNetProtocolVersion;
     //
@@ -625,6 +646,7 @@ begin
   FThreadCheckConnections := TThreadCheckConnections.Create(Self);
   FNetDataNotifyEventsThread := TNetDataNotifyEventsThread.Create(Self);
   FNetClientsDestroyThread := TNetClientsDestroyThread.Create(Self);
+  FNetworkAdjustedTime := TNetworkAdjustedTime.Create;
   If Not Assigned(_NetData) then _NetData := Self;
 end;
 
@@ -696,6 +718,7 @@ begin
   FreeAndNil(FNetDataNotifyEventsThread);
   SetLength(FFixedServers,0);
   FreeAndNil(FRegisteredRequests);
+  FreeAndNil(FNetworkAdjustedTime);
   inherited;
   if (_NetData=Self) then _NetData := Nil;
   TLog.NewLog(ltInfo,ClassName,'TNetData.Destroy END');
@@ -766,7 +789,7 @@ begin
     j := CT_MaxServersConnected - NetStatistics.ServersConnectionsWithResponse;
   end;
   if j<=0 then exit;
-  TLog.NewLog(ltDebug,Classname,'Discover servers start process searching up to '+inttostr(j)+' servers');
+  {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,Classname,'Discover servers start process searching up to '+inttostr(j)+' servers');{$ENDIF}
   // can discover up to j servers
   l := TList.Create;
   try
@@ -1081,7 +1104,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
               OpComp.SaveBlockToStream(false,ms);
               ms.Position := 0;
               OpExecute.LoadBlockFromStream(ms,errors);
-              if Bank.AddNewBlockChainBlock(OpExecute,newBlock,errors) then begin
+              if Bank.AddNewBlockChainBlock(OpExecute,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,newBlock,errors) then begin
                 inc(i);
               end else begin
                 TLog.NewLog(lterror,CT_LogSender,'Error creating new bank with client Operations. Block:'+TPCOperationsComp.OperationBlockToText(OpExecute.OperationBlock)+' Error:'+errors);
@@ -1474,6 +1497,7 @@ end;
 procedure TNetServer.OnNewIncommingConnection(Sender : TObject; Client : TNetTcpIpClient);
 Var n : TNetServerClient;
   DebugStep : String;
+  tc : Cardinal;
 begin
   DebugStep := '';
   Try
@@ -1506,11 +1530,13 @@ begin
         TLog.NewLog(ltdebug,Classname,'Finalizing ServerAccept '+IntToHex(PtrInt(n),8)+' '+n.ClientRemoteAddr);
         DebugStep := 'Disconnecting NetServerClient';
         n.Connected := false;
-        sleep(10);
+        tc := GetTickCount;
+        Repeat
+          sleep(10); // 1.5.4 -> To prevent that not client disconnected (and not called OnDisconnect), increase sleep time
+        Until (Not n.Connected) Or (tc + 5000 < GetTickCount);
+        sleep(5);
         DebugStep := 'Assigning old client';
         n.SetClient( NetTcpIpClientClass.Create(Nil) );
-        DebugStep := 'Finalizing connection';
-        n.FinalizeConnection;
         sleep(500); // Delay - Sleep time before destroying (1.5.3)
         DebugStep := 'Freeing NetServerClient';
       Finally
@@ -1622,7 +1648,7 @@ begin
   FClientPublicKey := CT_TECDSA_Public_Nul;
   FCreatedTime := Now;
   FIsMyselfServer := false;
-  FLastKnownTimestampDiff := 0;
+  FTimestampDiff := 0;
   FIsWaitingForResponse := false;
   FClientBufferRead := TMemoryStream.Create;
   FNetLock := TPCCriticalSection.Create('TNetConnection_NetLock');
@@ -1637,6 +1663,7 @@ begin
   TNetData.NetData.NotifyNetConnectionUpdated;
   FBufferReceivedOperationsHash := TOrderedRawList.Create;
   FBufferToSendOperations := TOperationsHashTree.Create;
+  FClientTimestampIp := '';
 end;
 
 destructor TNetConnection.Destroy;
@@ -1925,7 +1952,7 @@ begin
            exit;
         end;
         if (op.OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
-          if (TNode.Node.Bank.AddNewBlockChainBlock(op,newBlockAccount,errors)) then begin
+          if (TNode.Node.Bank.AddNewBlockChainBlock(op,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock, newBlockAccount,errors)) then begin
             // Ok, one more!
           end else begin
             // Is not a valid entry????
@@ -2040,48 +2067,6 @@ begin
 end;
 
 procedure TNetConnection.DoProcess_Hello(HeaderData: TNetHeaderData; DataBuffer: TStream);
-  Function IsValidTime(connection_ts : Cardinal) : Boolean;
-  Var l : TList;
-    i : Integer;
-    nc : TNetConnection;
-    min_valid_time,max_valid_time : Cardinal;
-    showmessage : Boolean;
-  Begin
-    if ((FLastKnownTimestampDiff<((-1)*(CT_MaxSecondsDifferenceOfNetworkNodes DIV 2)))
-        OR (FLastKnownTimestampDiff>(CT_MaxSecondsDifferenceOfNetworkNodes DIV 2))) then begin
-      TLog.NewLog(ltdebug,Classname,'Processing a hello from a client with different time. Difference: '+Inttostr(FLastKnownTimestampDiff));
-    end;
-    min_valid_time := (UnivDateTimeToUnix(DateTime2UnivDateTime(now))-CT_MaxSecondsDifferenceOfNetworkNodes);
-    max_valid_time := (UnivDateTimeToUnix(DateTime2UnivDateTime(now))+CT_MaxSecondsDifferenceOfNetworkNodes);
-    If (connection_ts < min_valid_time) or (connection_ts > max_valid_time) then begin
-      Result := false;
-      showmessage := true;
-      // This message only appears if there is no other valid connections
-      if TNetData.NetData.NetConnections.TryLockList(5000,l) then begin
-        try
-          for i := 0 to l.Count - 1 do begin
-            nc :=(TNetConnection(l[i]));
-            if (nc<>self) and (nc.FHasReceivedData) and (nc.Connected)
-              and (nc.FLastKnownTimestampDiff>=((-1)*CT_MaxSecondsDifferenceOfNetworkNodes))
-              and (nc.FLastKnownTimestampDiff<=(CT_MaxSecondsDifferenceOfNetworkNodes))
-              then begin
-              showmessage := false;
-              break;
-            end;
-          end;
-        finally
-          TNetData.NetData.NetConnections.UnlockList;
-        end;
-        if showmessage then begin
-          TNode.Node.NotifyNetClientMessage(Nil,'Detected a different time in an other node... check that your PC time and timezone is correct or you will be Blacklisted! '+
-            'Your time: '+TimeToStr(now)+' - '+Client.ClientRemoteAddr+' time: '+TimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(connection_ts)))+' Difference: '+inttostr(FLastKnownTimestampDiff)+' seconds. '+
-            '(If this message appears on each connection, then you have a bad configured time, if not, do nothing)' );
-        end;
-      end;
-    end else begin
-      Result := true;
-    end;
-  End;
 var op, myLastOp : TPCOperationsComp;
     errors : AnsiString;
     connection_has_a_server : Word;
@@ -2114,10 +2099,18 @@ Begin
       DisconnectInvalidClient(false,'Invalid data on buffer. No TS: '+TNetData.HeaderDataToText(HeaderData));
       exit;
     end;
-    FLastKnownTimestampDiff := Int64(connection_ts) - Int64(UnivDateTimeToUnix( DateTime2UnivDateTime(now)));
-    // Check valid time
-    if Not IsValidTime(connection_ts) then begin
-      DisconnectInvalidClient(false,'Invalid remote timestamp. Difference:'+inttostr(FLastKnownTimestampDiff)+' > '+inttostr(CT_MaxSecondsDifferenceOfNetworkNodes));
+    FTimestampDiff := Integer( Int64(connection_ts) - Int64(TNetData.NetData.NetworkAdjustedTime.GetAdjustedTime) );
+    If FClientTimestampIp='' then begin
+      FClientTimestampIp := FTcpIpClient.RemoteHost;
+      TNetData.NetData.NetworkAdjustedTime.AddNewIp(FClientTimestampIp,connection_ts);
+      if (Abs(TNetData.NetData.NetworkAdjustedTime.TimeOffset)>CT_MaxFutureBlockTimestampOffset) then begin
+        TNode.Node.NotifyNetClientMessage(Nil,'The detected network time is different from this system time in '+
+          IntToStr(TNetData.NetData.NetworkAdjustedTime.TimeOffset)+' seconds! Please check your local time/timezone');
+      end;
+      //
+      if (Abs(FTimestampDiff) > CT_MaxFutureBlockTimestampOffset) then begin
+        TLog.NewLog(ltError,ClassName,'Detected a node ('+ClientRemoteAddr+') with incorrect timestamp: '+IntToStr(connection_ts)+' offset '+IntToStr(FTimestampDiff) );
+      end;
     end;
     if (connection_has_a_server>0) And (Not SameText(Client.RemoteHost,'localhost')) And (Not SameText(Client.RemoteHost,'127.0.0.1'))
       And (Not SameText('192.168.',Copy(Client.RemoteHost,1,8)))
@@ -2126,7 +2119,6 @@ Begin
       nsa := CT_TNodeServerAddress_NUL;
       nsa.ip := Client.RemoteHost;
       nsa.port := connection_has_a_server;
-      // BUG corrected 1.1.1: nsa.last_connection_by_server := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
       nsa.last_connection := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
       TNetData.NetData.AddServer(nsa);
     end;
@@ -2271,8 +2263,11 @@ begin
             if (op.OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
               // New block candidate:
               If Not TNode.Node.AddNewBlockChain(Self,op,bacc,errors) then begin
-                // Received a new invalid block... perhaps I'm an orphan blockchain
-                TNetData.NetData.GetNewBlockChainFromClient(Self,'Higher Work with same block height. I''m a orphan blockchain candidate');
+                // Really is a new block? (Check it)
+                if (op.OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
+                  // Received a new invalid block... perhaps I'm an orphan blockchain
+                  TNetData.NetData.GetNewBlockChainFromClient(Self,'Higher Work with same block height. I''m a orphan blockchain candidate');
+                end;
               end;
             end else begin
               // Received a new higher work
@@ -2785,48 +2780,39 @@ begin
   End;
 end;
 
-function TNetConnection.Send_NewBlockFound: Boolean;
+function TNetConnection.Send_NewBlockFound(Const NewBlock : TPCOperationsComp) : Boolean;
 var data : TStream;
   request_id : Integer;
-  op : TPCOperationsComp;
 begin
   Result := false;
-  if TNetData.NetData.Bank.BlocksCount=0 then exit;
   if Not Connected then exit;
-  if Connected then begin
-    FNetLock.Acquire;
-    Try
-      // Clear buffers
-      FBufferReceivedOperationsHash.Clear;
-      FBufferToSendOperations.ClearHastThree;
-      // Checking if operationblock is the same to prevent double messaging...
-      If (TPCOperationsComp.EqualsOperationBlock(FRemoteOperationBlock,TNode.Node.Bank.LastOperationBlock)) then exit;
-      // Send Hello command:
-      data := TMemoryStream.Create;
-      try
-        request_id := TNetData.NetData.NewRequestId;
-        op := TPCOperationsComp.Create(nil);
-        try
-          op.bank := TNetData.NetData.Bank;
-          if Not TNetData.NetData.Bank.LoadOperations(op,TNetData.NetData.Bank.BlocksCount-1) then begin
-            TLog.NewLog(lterror,Classname,'Error on Send_NewBlockFound. Cannot load BlockOperations '+inttostr(TNetData.NetData.Bank.BlocksCount-1));
-            exit;
-          end;
-          op.SaveBlockToStream(false,data);
-          // Build 1.5 sending Accumulated work
-          data.Write(op.bank.SafeBox.WorkSum,SizeOf(op.bank.SafeBox.WorkSum));
-          Send(ntp_autosend,CT_NetOp_NewBlock,0,request_id,data);
-        finally
-          op.free;
-        end;
-      finally
-        data.Free;
-      end;
-    Finally
-      FNetLock.Release;
-    End;
-    Result := Connected;
-  end;
+  FNetLock.Acquire;
+  Try
+    // Clear buffers
+    FBufferReceivedOperationsHash.Clear;
+    FBufferToSendOperations.ClearHastThree;
+    // Checking if operationblock is the same to prevent double messaging...
+    If (TPCOperationsComp.EqualsOperationBlock(FRemoteOperationBlock,NewBlock.OperationBlock)) then begin
+      TLog.NewLog(ltDebug,ClassName,'This connection has the same block, does not need to send');
+      exit;
+    end;
+    if (TNode.Node.Bank.BlocksCount<>NewBlock.OperationBlock.block+1) then begin
+      TLog.NewLog(ltDebug,ClassName,'The block number '+IntToStr(NewBlock.OperationBlock.block)+' is not equal to current blocks stored in bank ('+IntToStr(TNode.Node.Bank.BlocksCount)+'), finalizing');
+      exit;
+    end;
+    data := TMemoryStream.Create;
+    try
+      request_id := TNetData.NetData.NewRequestId;
+      NewBlock.SaveBlockToStream(false,data);
+      data.Write(TNode.Node.Bank.SafeBox.WorkSum,SizeOf(TNode.Node.Bank.SafeBox.WorkSum));
+      Send(ntp_autosend,CT_NetOp_NewBlock,0,request_id,data);
+    finally
+      data.Free;
+    end;
+  Finally
+    FNetLock.Release;
+  End;
+  Result := Connected;
 end;
 
 procedure TNetConnection.SetClient(const Value: TNetTcpIpClient);
@@ -2834,10 +2820,11 @@ Var old : TNetTcpIpClient;
 begin
   if FTcpIpClient<>Value then begin
     if Assigned(FTcpIpClient) then begin
+      FTcpIpClient.OnConnect := Nil;
+      FTcpIpClient.OnDisconnect := Nil;
       FTcpIpClient.RemoveFreeNotification(Self);
     end;
     TNetData.NetData.UnRegisterRequest(Self,0,0);
-    // Build 1.0.4 -> Prior to free, must ensure FClient is valid
     old := FTcpIpClient;
     FTcpIpClient := Value;
     if Assigned(old) then begin
@@ -2858,7 +2845,10 @@ procedure TNetConnection.SetConnected(const Value: Boolean);
 begin
   if (Value = GetConnected) then exit;
   if Value then ConnectTo(Client.RemoteHost,Client.RemotePort)
-  else Client.Disconnect;
+  else begin
+    FinalizeConnection;
+    Client.Disconnect;
+  end;
 end;
 
 procedure TNetConnection.TcpClient_OnConnect(Sender: TObject);
@@ -2877,6 +2867,9 @@ begin
   end;
   TLog.NewLog(ltInfo,Classname,'Disconnected from '+ClientRemoteAddr);
   TNetData.NetData.NotifyNetConnectionUpdated;
+  if (FClientTimestampIp<>'') then begin
+    TNetData.NetData.NetworkAdjustedTime.RemoveIp(FClientTimestampIp);
+  end;
 end;
 
 { TNetClientThread }
@@ -3255,6 +3248,140 @@ begin
   while (Not FTerminatedAllConnections) do begin
     TLog.NewLog(ltdebug,ClassName,'Waiting all connections terminated');
     Sleep(100);
+  end;
+end;
+
+{ TNetworkAdjustedTime }
+
+Type TNetworkAdjustedTimeReg = Record
+     clientIp : AnsiString; // Client IP allows only 1 connection per IP (not using port)
+     timeOffset : Integer;
+     counter : Integer; // To prevent a time attack from a single IP with multiple connections, only 1 will be used for calc NAT
+   End;
+   PNetworkAdjustedTimeReg = ^TNetworkAdjustedTimeReg;
+
+procedure TNetworkAdjustedTime.AddNewIp(const clientIp: AnsiString; clientTimestamp : Cardinal);
+Var l : TList;
+  i : Integer;
+  P : PNetworkAdjustedTimeReg;
+begin
+  l := FTimesList.LockList;
+  try
+    i := IndexOfClientIp(l,clientIp);
+    if i<0 then begin
+      New(P);
+      P^.clientIp := clientIp;
+      P^.counter := 0;
+      l.Add(P);
+    end else begin
+      P := l[i];
+    end;
+    P^.timeOffset := clientTimestamp - UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+    inc(P^.counter);
+    inc(FTotalCounter);
+    UpdateMedian(l);
+    TLog.NewLog(ltDebug,ClassName,Format('AddNewIp (%s,%d) - Total:%d/%d Offset:%d',[clientIp,clientTimestamp,l.Count,FTotalCounter,FTimeOffset]));
+  finally
+    FTimesList.UnlockList;
+  end;
+end;
+
+constructor TNetworkAdjustedTime.Create;
+begin
+  FTimesList := TPCThreadList.Create('TNetworkAdjustedTime_TimesList');
+  FTimeOffset := 0;
+  FTotalCounter := 0;
+end;
+
+destructor TNetworkAdjustedTime.Destroy;
+Var P : PNetworkAdjustedTimeReg;
+  i : Integer;
+  l : TList;
+begin
+  l := FTimesList.LockList;
+  try
+    for i := 0 to l.Count - 1 do begin
+      P := l[i];
+      Dispose(P);
+    end;
+    l.Clear;
+  finally
+    FTimesList.UnlockList;
+  end;
+  FreeAndNil(FTimesList);
+  inherited;
+end;
+
+function TNetworkAdjustedTime.GetAdjustedTime: Cardinal;
+begin
+  Result := UnivDateTimeToUnix(DateTime2UnivDateTime(now)) + FTimeOffset;
+end;
+
+function TNetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock: Cardinal;
+var l : TList;
+begin
+  l := FTimesList.LockList;
+  try
+    Result := (GetAdjustedTime + CT_MaxFutureBlockTimestampOffset);
+  finally
+    FTimesList.UnlockList;
+  end;
+end;
+
+function TNetworkAdjustedTime.IndexOfClientIp(list: TList; const clientIp: AnsiString): Integer;
+begin
+  for Result := 0 to list.Count - 1 do begin
+    if AnsiSameStr(PNetworkAdjustedTimeReg(list[result])^.clientIp,clientIp) then exit;
+  end;
+  Result := -1;
+end;
+
+procedure TNetworkAdjustedTime.RemoveIp(const clientIp: AnsiString);
+Var l : TList;
+  i : Integer;
+  P : PNetworkAdjustedTimeReg;
+begin
+  l := FTimesList.LockList;
+  try
+    i := IndexOfClientIp(l,clientIp);
+    if (i>=0) then begin
+      P := l[i];
+      Dec(P^.counter);
+      if (P^.counter<=0) then begin
+        l.Delete(i);
+        Dispose(P);
+      end;
+      Dec(FTotalCounter);
+    end;
+    UpdateMedian(l);
+    if (i>=0) then
+      TLog.NewLog(ltDebug,ClassName,Format('RemoveIp (%s) - Total:%d/%d Offset:%d',[clientIp,l.Count,FTotalCounter,FTimeOffset]))
+    else TLog.NewLog(ltError,ClassName,Format('RemoveIp not found (%s) - Total:%d/%d Offset:%d',[clientIp,l.Count,FTotalCounter,FTimeOffset]))
+  finally
+    FTimesList.UnlockList;
+  end;
+end;
+
+function SortPNetworkAdjustedTimeReg(p1, p2: pointer): integer;
+begin
+  Result := PNetworkAdjustedTimeReg(p1)^.timeOffset - PNetworkAdjustedTimeReg(p2)^.timeOffset;
+end;
+
+procedure TNetworkAdjustedTime.UpdateMedian(list : TList);
+Var last : Integer;
+begin
+  last := FTimeOffset;
+  list.Sort(SortPNetworkAdjustedTimeReg);
+  if list.Count<CT_MinNodesToCalcNAT then begin
+    FTimeOffset := 0;
+  end else if ((list.Count MOD 2)=0) then begin
+    FTimeOffset := (PNetworkAdjustedTimeReg(list[(list.Count DIV 2)-1])^.timeOffset + PNetworkAdjustedTimeReg(list[(list.Count DIV 2)])^.timeOffset) DIV 2;
+  end else begin
+    FTimeOffset := PNetworkAdjustedTimeReg(list[list.Count DIV 2])^.timeOffset;
+  end;
+  if (last<>FTimeOffset) then begin
+    TLog.NewLog(ltinfo,ClassName,
+      Format('Updated NAT median offset. My offset is now %d (before %d) based on %d/%d connections',[FTimeOffset,last,list.Count,FTotalCounter]));
   end;
 end;
 

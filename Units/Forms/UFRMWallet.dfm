@@ -368,23 +368,16 @@ object FRMWallet: TFRMWallet
     Top = 91
     Width = 849
     Height = 432
-    ActivePage = tsNodeStats
+    ActivePage = tsMyAccounts
     Align = alClient
     TabOrder = 2
     OnChange = PageControlChange
     object tsMyAccounts: TTabSheet
       Caption = 'Accounts Explorer'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Splitter1: TSplitter
         Left = 380
         Top = 66
         Height = 338
-        ExplicitLeft = 390
-        ExplicitTop = 140
-        ExplicitHeight = 100
       end
       object pnlMyAccountsTop: TPanel
         Left = 0
@@ -481,7 +474,7 @@ object FRMWallet: TFRMWallet
           Top = 0
           Width = 380
           Height = 304
-          Align = alLeft
+          Align = alClient
           TabOrder = 0
           OnClick = dgAccountsClick
           OnColumnMoved = dgAccountsColumnMoved
@@ -583,10 +576,6 @@ object FRMWallet: TFRMWallet
         TabOrder = 2
         object tsAccountOperations: TTabSheet
           Caption = 'Operations of selected Account'
-          ExplicitLeft = 0
-          ExplicitTop = 0
-          ExplicitWidth = 0
-          ExplicitHeight = 0
           object dgAccountOperations: TDrawGrid
             Left = 0
             Top = 0
@@ -606,10 +595,6 @@ object FRMWallet: TFRMWallet
         object tsMultiSelectAccounts: TTabSheet
           Caption = 'Selected accounts for massive operations'
           ImageIndex = 1
-          ExplicitLeft = 0
-          ExplicitTop = 0
-          ExplicitWidth = 0
-          ExplicitHeight = 0
           object dgSelectedAccounts: TDrawGrid
             Left = 41
             Top = 31
@@ -799,10 +784,6 @@ object FRMWallet: TFRMWallet
     object tsPendingOperations: TTabSheet
       Caption = 'Pending Operations'
       ImageIndex = 5
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object dgPendingOperations: TDrawGrid
         Left = 0
         Top = 86
@@ -850,10 +831,6 @@ object FRMWallet: TFRMWallet
     object tsBlockChain: TTabSheet
       Caption = 'BlockChain Explorer'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Panel2: TPanel
         Left = 0
         Top = 0
@@ -899,10 +876,6 @@ object FRMWallet: TFRMWallet
     object tsOperations: TTabSheet
       Caption = 'Operations Explorer'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Panel1: TPanel
         Left = 0
         Top = 0
@@ -948,10 +921,6 @@ object FRMWallet: TFRMWallet
     object tsLogs: TTabSheet
       Caption = 'Logs'
       ImageIndex = 2
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object pnlTopLogs: TPanel
         Left = 0
         Top = 0
@@ -1016,8 +985,9 @@ object FRMWallet: TFRMWallet
         Height = 106
         Anchors = [akLeft, akTop, akRight, akBottom]
         ReadOnly = True
-        ScrollBars = ssVertical
+        ScrollBars = ssBoth
         TabOrder = 0
+        WordWrap = False
       end
       object memoNetServers: TMemo
         Left = 15
@@ -1026,8 +996,9 @@ object FRMWallet: TFRMWallet
         Height = 116
         Anchors = [akLeft, akRight, akBottom]
         ReadOnly = True
-        ScrollBars = ssVertical
+        ScrollBars = ssBoth
         TabOrder = 1
+        WordWrap = False
       end
       object memoNetBlackLists: TMemo
         Left = 15
@@ -1036,17 +1007,14 @@ object FRMWallet: TFRMWallet
         Height = 79
         Anchors = [akLeft, akRight, akBottom]
         ReadOnly = True
-        ScrollBars = ssVertical
+        ScrollBars = ssBoth
         TabOrder = 2
+        WordWrap = False
       end
     end
     object tsMessages: TTabSheet
       Caption = 'Messages'
       ImageIndex = 6
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         841
         404)
@@ -1122,6 +1090,7 @@ object FRMWallet: TFRMWallet
         ReadOnly = True
         ScrollBars = ssBoth
         TabOrder = 2
+        WordWrap = False
       end
       object memoMessageToSend: TMemo
         Left = 315
@@ -1280,7 +1249,7 @@ object FRMWallet: TFRMWallet
     Left = 105
     Top = 180
     Bitmap = {
-      494C010102000800E00110003000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010102000800E80110003000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000003000000001002000000000000030
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000002A292929D60B0B0BF4111111EE0000006B000000000000

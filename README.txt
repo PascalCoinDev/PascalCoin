@@ -34,6 +34,21 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 1.5.4.0 - 2017-03-14
+
+- Added Network Timestamp Adjustment (NAT) to calc valid timestamps
+  - Minimum 4 active connections to calc median used for NAT, otherwise use local timestamp
+  - Based on IP's (to prevent a malicious IP timejacking, each IP is only used once)
+  - Removed IP's and recalculated after disconnecting (to prevent malicious node connecting/disconnecting for timejacking)
+- New blocks will not be accepted if using future timestamp greater than NAT timestamp + 15 seconds (also, mantaining current protocol rule >= lastBlock.timestamp)
+- Network protocol fixed to 5-5 (Nodes with version prior to 1.5 will not be allowed)
+- Added protection for non included operations on a block, to prevent continuous sending. Only will resend operations once.
+- Bug #27 fixed: Invalid timestamp on FPC (https://github.com/PascalCoin/PascalCoin/issues/27)
+- JSON-RPC
+  - Method "getconnections" added "timediff" to know timestamp diff of node
+  - Method "payloaddecrypt" added "unenc_hexpayload" result value with HEXASTRING of unencrypted payload
+- Fixed some "Random Memory access violation errors" bugs found caused by multithreading and disconnected nodes
+
 ### Build 1.5.3.0 - 2017-03-06
 
 - Fixed issue #23: RPC findoperation fails to find operation by opHash

@@ -269,6 +269,8 @@ end;
 constructor TNetTcpIpClient.Create(AOwner : TComponent);
 begin
   inherited;
+  FOnConnect := Nil;
+  FOnDisconnect := Nil;
   FTcpBlockSocket := Nil;
   FSocketError := 0;
   FLastCommunicationTime := 0;
@@ -300,24 +302,39 @@ begin
   {$ENDIF}
   inherited;
   FreeAndNil(FTcpBlockSocket);
-  TLog.NewLog(ltdebug,ClassName,'Destroying Socket end');
+  {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,'Destroying Socket end');{$ENDIF}
 end;
 
 procedure TNetTcpIpClient.Disconnect;
+Var DebugStep : AnsiString;
 begin
   {$IFDEF DelphiSockets}
   FTcpBlockSocket.Disconnect;
   {$ENDIF}
   {$IFDEF Synapse}
-  FLock.Acquire;
+  if Not FConnected then exit;
   Try
-    if Not FConnected then exit;
-    FConnected := false;
-    FTcpBlockSocket.CloseSocket;
-  Finally
-    FLock.Release;
-  End;
-  if Assigned(FOnDisconnect) then FOnDisconnect(Self);
+    DebugStep := '';
+    FLock.Acquire;
+    Try
+      DebugStep := 'disconnecting';
+      if Not FConnected then exit;
+      DebugStep := 'Closing socket';
+      FTcpBlockSocket.CloseSocket;
+      DebugStep := 'Relasing flock';
+      FConnected := false;
+    Finally
+      FLock.Release;
+    End;
+    DebugStep := 'Calling OnDisconnect';
+    if Assigned(FOnDisconnect) then FOnDisconnect(Self)
+    else TLog.NewLog(ltError,ClassName,'OnDisconnect is nil');
+  Except
+    On E:Exception do begin
+      E.Message := 'Exception at TNetTcpIpClient.Discconnect step '+DebugStep+' - '+E.Message;
+      Raise;
+    end;
+  end;
   {$ENDIF}
 end;
 
@@ -388,12 +405,13 @@ begin
   Result := FTcpBlockSocket.ReceiveBuf(Buf,BufSize);
   {$ENDIF}
   {$IFDEF Synapse}
+  Result := 0;
   FLock.Acquire;
   Try
     Try
       Result := FTcpBlockSocket.RecvBuffer(@Buf,BufSize);
       if (Result<0) Or (FTcpBlockSocket.LastError<>0) then begin
-        TLog.NewLog(ltInfo,ClassName,'Closing connection from '+ClientRemoteAddr+' (Receiving error): '+Inttostr(FTcpBlockSocket.LastError)+' '+FTcpBlockSocket.GetErrorDescEx);
+        TLog.NewLog(ltDebug,ClassName,'Closing connection from '+ClientRemoteAddr+' (Receiving error): '+Inttostr(FTcpBlockSocket.LastError)+' '+FTcpBlockSocket.GetErrorDescEx);
         Result := 0;
         Disconnect;
       end else if Result>0 then inc(FBytesReceived,Result);
@@ -421,12 +439,13 @@ begin
   Result := Stream.Position - sp;
   {$ENDIF}
   {$IFDEF Synapse}
+  Result := 0;
   FLock.Acquire;
   Try
     Try
       FTcpBlockSocket.SendStreamRaw(Stream);
       if FTcpBlockSocket.LastError<>0 then begin
-        TLog.NewLog(ltInfo,ClassName,'Closing connection from '+ClientRemoteAddr+' (Sending error): '+Inttostr(FTcpBlockSocket.LastError)+' '+FTcpBlockSocket.GetErrorDescEx);
+        TLog.NewLog(ltDebug,ClassName,'Closing connection from '+ClientRemoteAddr+' (Sending error): '+Inttostr(FTcpBlockSocket.LastError)+' '+FTcpBlockSocket.GetErrorDescEx);
         Result := -1;
         Disconnect;
       end else begin

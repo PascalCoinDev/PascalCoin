@@ -547,14 +547,14 @@ begin
               sLastConnTime := '';
             end;
             if NC is TNetServerClient then begin
-              sNSC.Add(Format('Client: IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s %s',
-                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime),sLastConnTime]));
+              sNSC.Add(Format('Client: IP:%s Sent/Received:%d/%d Bytes - %s - Time offset %d - Active since %s %s',
+                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,NC.TimestampDiff,DateTimeElapsedTime(NC.CreatedTime),sLastConnTime]));
             end else begin
-              if NC.IsMyselfServer then sNSC.Add(Format('MySelf IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s %s',
-                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime),sLastConnTime]))
+              if NC.IsMyselfServer then sNSC.Add(Format('MySelf IP:%s Sent/Received:%d/%d Bytes - %s - Time offset %d - Active since %s %s',
+                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,NC.TimestampDiff,DateTimeElapsedTime(NC.CreatedTime),sLastConnTime]))
               else begin
-                sRS.Add(Format('Remote Server: IP:%s Sent/Received:%d/%d Bytes - %s - Active since %s %s',
-                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,DateTimeElapsedTime(NC.CreatedTime),sLastConnTime]));
+                sRS.Add(Format('Remote Server: IP:%s Sent/Received:%d/%d Bytes - %s - Time offset %d - Active since %s %s',
+                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,NC.TimestampDiff,DateTimeElapsedTime(NC.CreatedTime),sLastConnTime]));
               end;
             end;
           end else begin

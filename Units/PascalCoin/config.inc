@@ -31,6 +31,10 @@
 
   {$DEFINE PRODUCTION}
   {.$DEFINE TESTNET}
+  
+  
+  // HighLog will result in a higher log generation
+  {.$DEFINE HIGHLOG}
 
 { ********************************************************************
   Don't touch more code, it will addapt based on your preferences

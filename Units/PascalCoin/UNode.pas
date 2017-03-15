@@ -32,6 +32,8 @@ interface
 uses
   Classes, UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, SyncObjs, ULog;
 
+{$I config.inc}
+
 Type
 
   { TNode }
@@ -47,6 +49,7 @@ Type
     FBCBankNotify : TPCBankNotify;
     FPeerCache : AnsiString;
     FDisabledsNewBlocksCount : Integer;
+    FSentOperations : TOrderedRawList;
     Procedure OnBankNewBlock(Sender : TObject);
     procedure SetNodeLogFilename(const Value: AnsiString);
     function GetNodeLogFilename: AnsiString;
@@ -121,9 +124,12 @@ Type
 
   TThreadNodeNotifyNewBlock = Class(TPCThread)
     FNetConnection : TNetConnection;
+    FSanitizedOperationsHashTree : TOperationsHashTree;
+    FNewBlockOperations : TPCOperationsComp;
   protected
     procedure BCExecute; override;
-    Constructor Create(NetConnection : TNetConnection);
+    Constructor Create(NetConnection : TNetConnection; MakeACopyOfNewBlockOperations: TPCOperationsComp; MakeACopyOfSanitizedOperationsHashTree : TOperationsHashTree);
+    destructor Destroy; override;
   End;
 
   TThreadNodeNotifyOperations = Class(TPCThread)
@@ -151,6 +157,7 @@ Var i,j : Integer;
   s : String;
   errors2 : AnsiString;
   OpBlock : TOperationBlock;
+  opsht : TOperationsHashTree;
 begin
   Result := false;
   errors := '';
@@ -174,10 +181,15 @@ begin
     if TThread.CurrentThread.ThreadID=MainThreadID then raise Exception.Create(s) else exit;
   end;
   try
+    // Check block number:
+    if TPCOperationsComp.EqualsOperationBlock(Bank.LastOperationBlock,NewBlockOperations.OperationBlock) then begin
+      errors := 'Duplicated block';
+      exit;
+    end;
     ms := TMemoryStream.Create;
     try
       FOperations.SaveBlockToStream(false,ms);
-      Result := Bank.AddNewBlockChainBlock(NewBlockOperations,newBlockAccount,errors);
+      Result := Bank.AddNewBlockChainBlock(NewBlockOperations,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,newBlockAccount,errors);
       if Result then begin
         if Assigned(SenderConnection) then begin
           FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload,
@@ -206,19 +218,57 @@ begin
       ms.Free;
     end;
     FOperations.SanitizeOperations;
+    if Result then begin
+      // 1.5.4 - Prevent continuous sending non included operations
+      // Using a Sent operations buffer (FSentOperations) will allow to only "resend" operations once
+      opsht := TOperationsHashTree.Create;
+      Try
+        for i := 0 to FOperations.Count - 1 do begin
+          j := FSentOperations.GetTag(FOperations.Operation[i].Sha256);
+          if (j=0) Or (j=Bank.LastBlockFound.OperationBlock.block) then begin
+            // Only will "re-send" operations that where received on last block and not included in this one
+            opsht.AddOperationToHashTree(FOperations.Operation[i]);
+          end else begin
+            TLog.NewLog(ltError,ClassName,'Sanitized operation not included (j='+IntToStr(j)+') ('+inttostr(i+1)+'/'+inttostr(FOperations.Count)+'): '+FOperations.Operation[i].ToString);
+          end;
+        end;
+        if opsht.OperationsCount>0 then begin
+          TLog.NewLog(ltinfo,classname,'Resending '+IntToStr(opsht.OperationsCount)+' operations for new block');
+          for i := 0 to opsht.OperationsCount - 1 do begin
+            TLog.NewLog(ltInfo,ClassName,'Resending ('+inttostr(i+1)+'/'+inttostr(opsht.OperationsCount)+'): '+opsht.GetOperation(i).ToString);
+          end;
+        end;
+        // Clean sent operations buffer
+        j := 0;
+        for i := FSentOperations.Count-1 downto 0 do begin
+          If (FSentOperations.GetTag(i)<Bank.LastBlockFound.OperationBlock.block-3) then begin
+            FSentOperations.Delete(i);
+            inc(j);
+          end;
+        end;
+        if j>0 then begin
+          TLog.NewLog(ltdebug,ClassName,'Buffer Sent operations: Deleted '+IntToStr(j)+' old operations');
+        end;
+        TLog.NewLog(ltdebug,ClassName,'Buffer Sent operations: '+IntToStr(FSentOperations.Count));
+        // Notify to clients
+        j := TNetData.NetData.ConnectionsCountAll;
+        for i:=0 to j-1 do begin
+          if (TNetData.NetData.GetConnection(i,nc)) then begin
+            if (nc<>SenderConnection) And (nc.Connected) then begin
+              TThreadNodeNotifyNewBlock.Create(nc,Bank.LastBlockFound,opsht);
+            end;
+          end;
+        end;
+      Finally
+        opsht.Free;
+      End;
+    end;
   finally
     FLockNodeOperations.Release;
     TLog.NewLog(ltdebug,Classname,Format('Finalizing AddNewBlockChain Connection:%s NewBlock:%s',[
       Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(OpBlock) ]));
   End;
   if Result then begin
-    // Notify to clients
-    j := TNetData.NetData.ConnectionsCountAll;
-    for i:=0 to j-1 do begin
-      if (TNetData.NetData.GetConnection(i,nc)) then begin
-        if (nc<>SenderConnection) And (nc.Connected) then TThreadNodeNotifyNewBlock.Create(nc);
-      end;
-    end;
     // Notify it!
     NotifyBlocksChanged;
   end;
@@ -269,7 +319,9 @@ begin
     try
       for j := 0 to Operations.OperationsCount-1 do begin
         ActOp := Operations.GetOperation(j);
-        If FOperations.OperationsHashTree.IndexOfOperation(ActOp)<0 then begin
+        If (FOperations.OperationsHashTree.IndexOfOperation(ActOp)<0) And (FSentOperations.GetTag(ActOp.Sha256)=0) then begin
+          // Buffer to prevent cyclic sending new on 1.5.4
+          FSentOperations.Add(ActOp.Sha256,FOperations.OperationBlock.block);
           if (FOperations.AddOperation(true,ActOp,e)) then begin
             inc(Result);
             valids_operations.AddOperationToHashTree(ActOp);
@@ -295,8 +347,7 @@ begin
             end;
           end;
         end else begin
-          // XXXXX DEBUG ONLY
-          // TLog.NewLog(ltdebug,Classname,Format('AddOperation made before %d/%d: %s',[(j+1),Operations.OperationsCount,ActOp.ToString]));
+          {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,Format('AddOperation made before %d/%d: %s',[(j+1),Operations.OperationsCount,ActOp.ToString]));{$ENDIF}
         end;
       end;
     finally
@@ -338,6 +389,7 @@ end;
 
 constructor TNode.Create(AOwner: TComponent);
 begin
+  FSentOperations := TOrderedRawList.Create;
   FNodeLog := TLog.Create(Self);
   FNodeLog.ProcessGlobalLogs := false;
   RegisterOperationsClass;
@@ -424,6 +476,8 @@ begin
     FreeAndNil(FOperations);
     step := 'Assigning NIL to node var';
     if _Node=Self then _Node := Nil;
+    Step := 'Destroying SentOperations list';
+    FreeAndNil(FSentOperations);
 
     step := 'Destroying Bank';
     FreeAndNil(FBCBankNotify);
@@ -843,26 +897,46 @@ end;
 
 procedure TThreadNodeNotifyNewBlock.BCExecute;
 begin
+  DebugStep := 'Locking';
   if TNetData.NetData.ConnectionLock(Self,FNetConnection,500) then begin
     try
+      DebugStep := 'Checking connected';
       if Not FNetconnection.Connected then exit;
       TLog.NewLog(ltdebug,ClassName,'Sending new block found to '+FNetConnection.Client.ClientRemoteAddr);
-      FNetConnection.Send_NewBlockFound;
-      if TNode.Node.Operations.OperationsHashTree.OperationsCount>0 then begin
-         TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(TNode.Node.Operations.OperationsHashTree.OperationsCount)+' sanitized operations to '+FNetConnection.ClientRemoteAddr);
-         FNetConnection.Send_AddOperations(TNode.Node.Operations.OperationsHashTree);
+      DebugStep := 'Sending';
+      FNetConnection.Send_NewBlockFound(FNewBlockOperations);
+      DebugStep := 'Checking connected again';
+      if Not FNetConnection.Connected then exit;
+      DebugStep := 'Need send opreations?';
+      if FSanitizedOperationsHashTree.OperationsCount>0 then begin
+        DebugStep := 'Sending '+inttostr(FSanitizedOperationsHashTree.OperationsCount)+' sanitized operations';
+        TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(FSanitizedOperationsHashTree.OperationsCount)+' sanitized operations to '+FNetConnection.ClientRemoteAddr);
+        TThreadNodeNotifyOperations.Create(FNetConnection,FSanitizedOperationsHashTree);
       end;
+      DebugStep := 'Unlocking';
     finally
       TNetData.NetData.ConnectionUnlock(FNetConnection);
     end;
   end;
+  DebugStep := 'Finalizing';
 end;
 
-constructor TThreadNodeNotifyNewBlock.Create(NetConnection: TNetConnection);
+constructor TThreadNodeNotifyNewBlock.Create(NetConnection: TNetConnection; MakeACopyOfNewBlockOperations: TPCOperationsComp; MakeACopyOfSanitizedOperationsHashTree : TOperationsHashTree);
 begin
   FNetConnection := NetConnection;
+  FSanitizedOperationsHashTree := TOperationsHashTree.Create;
+  FSanitizedOperationsHashTree.CopyFromHashTree(MakeACopyOfSanitizedOperationsHashTree);
+  FNewBlockOperations := TPCOperationsComp.Create(Nil);
+  FNewBlockOperations.CopyFrom(MakeACopyOfNewBlockOperations);
   Inherited Create(false);
   FreeOnTerminate := true;
+end;
+
+destructor TThreadNodeNotifyNewBlock.Destroy;
+begin
+  FreeAndNil(FSanitizedOperationsHashTree);
+  FreeAndNil(FNewBlockOperations);
+  inherited;
 end;
 
 { TThreadNodeNotifyOperations }

@@ -69,7 +69,8 @@ Const
   CT_MaxBlock : Cardinal = $FFFFFFFF;
 
   CT_MaxPayloadSize = 255; // Max payload size in bytes
-  CT_MaxSecondsDifferenceOfNetworkNodes = 180; // 3 minutes. If a Node has a +- value difference, will be blacklisted
+  CT_MaxFutureBlockTimestampOffset = 15;
+  CT_MinNodesToCalcNAT = 4;
 
   CT_MinServersConnected = 3;
   CT_MaxServersConnected = 5;
@@ -85,7 +86,7 @@ Const
 
   CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$0A04FFFF{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
 
-  CT_NetProtocol_Version: Word = $0004;
+  CT_NetProtocol_Version: Word = $0005; // Version 1.5.4 only allows net protocol version 5  (introduced on 1.5.0)
   // IMPORTANT NOTE!!!
   // NetProtocol_Available MUST BE always >= NetProtocol_version
   CT_NetProtocol_Available: Word = $0005;  // Remember, >= NetProtocol_version !!!
@@ -99,7 +100,7 @@ Const
   CT_Op_Changekey = $02;
   CT_Op_Recover = $03;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.5.3'{$ELSE}{$IFDEF TESTNET}'TESTNET 1.5.3'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.5.4'{$ELSE}{$IFDEF TESTNET}'TESTNET 1.5.4'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin2.ddns.net;pascalcoin1.dynamic-dns.net;pascalcoin1.dns1.us';
 

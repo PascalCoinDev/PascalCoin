@@ -156,7 +156,7 @@ Const
 
 implementation
 
-Uses ULog, Variants, UTime;
+Uses ULog, Variants, UTime, UNetProtocol;
 
 Type TPendingResponseMessage = Record
        sendDateTime : TDateTime;
@@ -532,7 +532,7 @@ begin
     if doAdd then begin
       New(P);
       P^.SentDateTime := now;
-      P^.SentMinTimestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+      P^.SentMinTimestamp := TNetData.NetData.NetworkAdjustedTime.GetAdjustedTime;
       if (P^.SentMinTimestamp<FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp) then begin
         P^.SentMinTimestamp := FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp;
       end;
@@ -835,7 +835,7 @@ begin
         TLog.NewLog(ltInfo,ClassName,'Creating new job for miner');
         New(P);
         P^.SentDateTime := now;
-        P^.SentMinTimestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+        P^.SentMinTimestamp := TNetData.NetData.NetworkAdjustedTime.GetAdjustedTime;
         if (P^.SentMinTimestamp<FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp) then begin
           P^.SentMinTimestamp := FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp;
         end;
@@ -872,7 +872,7 @@ begin
     params.GetAsVariant('target').Value := Operations.OperationBlock.compact_target;
     params.GetAsVariant('target_pow').Value := TCrypto.ToHexaString(TPCBank.TargetFromCompact(Operations.OperationBlock.compact_target));
 
-    ts := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+    ts := TNetData.NetData.NetworkAdjustedTime.GetAdjustedTime;
     if (ts<FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp) then begin
       ts := FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp;
     end;

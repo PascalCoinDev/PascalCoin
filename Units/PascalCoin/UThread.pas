@@ -27,6 +27,8 @@ uses
 {$ENDIF}
   Classes, SyncObjs;
 
+{$I config.inc}
+
 Type
   TPCCriticalSection = Class(TCriticalSection)
   private
@@ -100,7 +102,7 @@ Var _threads : TPCThreadList;
 constructor TPCThread.Create(CreateSuspended: Boolean);
 begin
   inherited Create(CreateSuspended);
-  TLog.NewLog(ltdebug,Classname,'Created Thread '+IntToHex(PtrInt(Self),8));
+  {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Created Thread '+IntToHex(PtrInt(Self),8));{$ENDIF}
 end;
 
 destructor TPCThread.Destroy;
@@ -121,7 +123,7 @@ begin
   FDebugStep := '';
   i := _threads.Add(Self);
   try
-    TLog.NewLog(ltdebug,Classname,'Starting Thread '+IntToHex(PtrInt(Self),8)+' in pos '+inttostr(i+1));
+    {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Starting Thread '+IntToHex(PtrInt(Self),8)+' in pos '+inttostr(i+1));{$ENDIF}
     Try
       Try
         BCExecute;
@@ -139,7 +141,7 @@ begin
     l := _threads.LockList;
     Try
       i := l.Remove(Self);
-      TLog.NewLog(ltdebug,Classname,'Finalizing Thread in pos '+inttostr(i+1)+'/'+inttostr(l.Count+1)+' working time: '+FormatFloat('0.000',(GetTickCount-FStartTickCount) / 1000)+' sec');
+      {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Finalizing Thread in pos '+inttostr(i+1)+'/'+inttostr(l.Count+1)+' working time: '+FormatFloat('0.000',(GetTickCount-FStartTickCount) / 1000)+' sec');{$ENDIF}
     Finally
       _threads.UnlockList;
     End;
@@ -180,13 +182,8 @@ end;
 
 class procedure TPCThread.ProtectEnterCriticalSection(Const Sender : TObject; var Lock: TPCCriticalSection);
 begin
-
   if Not Lock.TryEnter then begin
-//    TLog.NewLog(ltdebug,Sender.Classname,Format('Locked critical section (WAIT): LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',[
-//      Lock.LockCount,Lock.RecursionCount,Lock.LockSemaphore,IntToHex(Lock.OwningThread,8) ]));
     Lock.Acquire;
-//    TLog.NewLog(ltdebug,Sender.Classname,Format('UnLocked critical section (ENTER): LockCount:%d RecursionCount:%d Semaphore:%d LockOwnerThread:%s',[
-//      Lock.LockCount,Lock.RecursionCount,Lock.LockSemaphore,IntToHex(Lock.OwningThread,8) ]));
   end;
 end;
 
@@ -385,8 +382,7 @@ begin
   FStartedTimestamp := 0;
   FName := AName;
   inherited Create;
-  // XXXXX DEBUG ONLY
-  // TLog.NewLog(ltDebug,ClassName,'Created critical section '+IntToHex(PtrInt(Self),8)+' '+AName );
+  {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,ClassName,'Created critical section '+IntToHex(PtrInt(Self),8)+' '+AName );{$ENDIF}
 end;
 
 destructor TPCCriticalSection.Destroy;

@@ -393,7 +393,7 @@ Type
     Procedure Clear;
     Function LoadOperations(Operations : TPCOperationsComp; Block : Cardinal) : Boolean;
     Property SafeBox : TPCSafeBox read FSafeBox;
-    Function AddNewBlockChainBlock(Operations: TPCOperationsComp; var newBlock: TBlockAccount; var errors: AnsiString): Boolean;
+    Function AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var newBlock: TBlockAccount; var errors: AnsiString): Boolean;
     Procedure DiskRestoreFromOperations(max_block : Int64);
     Procedure NewLog(Operations: TPCOperationsComp; Logtype: TLogType; Logtxt: AnsiString);
     Property OnLog: TPCBankLog read FOnLog write FOnLog;
@@ -426,7 +426,7 @@ begin
   Result := FSafeBox.AccountsCount;
 end;
 
-function TPCBank.AddNewBlockChainBlock(Operations: TPCOperationsComp; var newBlock: TBlockAccount; var errors: AnsiString): Boolean;
+function TPCBank.AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var newBlock: TBlockAccount; var errors: AnsiString): Boolean;
 Var
   buffer, pow: AnsiString;
   i : Integer;
@@ -459,12 +459,11 @@ begin
       end;
       if (Operations.OperationBlock.block > 0) then begin
         if ((Operations.OperationBlock.timestamp) < (FLastOperationBlock.timestamp)) then begin
-          errors := 'Invalid timestamp (New timestamp:'+inttostr(Operations.OperationBlock.timestamp)+' last timestamp ('+Inttostr(SafeBox.BlocksCount-1)+'):'+Inttostr(FLastOperationBlock.timestamp)+')';
+          errors := 'Invalid timestamp (Back timestamp: New timestamp:'+inttostr(Operations.OperationBlock.timestamp)+' < last timestamp ('+Inttostr(SafeBox.BlocksCount-1)+'):'+Inttostr(FLastOperationBlock.timestamp)+')';
           exit;
         end;
-        if (Operations.OperationBlock.timestamp > (UnivDateTimeToUnix(DateTime2UnivDateTime(now))+CT_MaxSecondsDifferenceOfNetworkNodes)) then begin
-          errors := 'Invalid timestamp (Future time '+Inttostr(Operations.OperationBlock.timestamp)+'-'+inttostr(UnivDateTimeToUnix(DateTime2UnivDateTime(now)))+'='+
-             inttostr(Operations.OperationBlock.timestamp-UnivDateTimeToUnix(DateTime2UnivDateTime(now)))+' > '+inttostr(CT_MaxSecondsDifferenceOfNetworkNodes)+')';
+        if ((MaxAllowedTimestamp>0) And (Operations.OperationBlock.timestamp>MaxAllowedTimestamp)) then begin
+          errors := 'Invalid timestamp (Future time: New timestamp '+Inttostr(Operations.OperationBlock.timestamp)+' > max allowed '+inttostr(MaxAllowedTimestamp)+')';
           exit;
         end;
       end else begin
@@ -646,7 +645,7 @@ begin
         while ((BlocksCount<=max_block)) do begin
           if Storage.BlockExists(BlocksCount) then begin
             if Storage.LoadBlockChainBlock(Operations,BlocksCount) then begin
-              if Not AddNewBlockChainBlock(Operations,newBlock,errors) then begin
+              if Not AddNewBlockChainBlock(Operations,0,newBlock,errors) then begin
                 NewLog(Operations, lterror,'Error restoring block: ' + Inttostr(BlocksCount)+ ' Errors: ' + errors);
                 Storage.DeleteBlockChainBlocks(BlocksCount);
                 break;
