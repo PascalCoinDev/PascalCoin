@@ -595,6 +595,10 @@ object FRMWallet: TFRMWallet
         object tsMultiSelectAccounts: TTabSheet
           Caption = 'Selected accounts for massive operations'
           ImageIndex = 1
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object dgSelectedAccounts: TDrawGrid
             Left = 41
             Top = 31
@@ -784,6 +788,10 @@ object FRMWallet: TFRMWallet
     object tsPendingOperations: TTabSheet
       Caption = 'Pending Operations'
       ImageIndex = 5
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object dgPendingOperations: TDrawGrid
         Left = 0
         Top = 86
@@ -831,6 +839,10 @@ object FRMWallet: TFRMWallet
     object tsBlockChain: TTabSheet
       Caption = 'BlockChain Explorer'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Panel2: TPanel
         Left = 0
         Top = 0
@@ -876,6 +888,10 @@ object FRMWallet: TFRMWallet
     object tsOperations: TTabSheet
       Caption = 'Operations Explorer'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Panel1: TPanel
         Left = 0
         Top = 0
@@ -921,6 +937,10 @@ object FRMWallet: TFRMWallet
     object tsLogs: TTabSheet
       Caption = 'Logs'
       ImageIndex = 2
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object pnlTopLogs: TPanel
         Left = 0
         Top = 0
@@ -1249,7 +1269,7 @@ object FRMWallet: TFRMWallet
     Left = 105
     Top = 180
     Bitmap = {
-      494C010102000800E80110003000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010102000800EC0110003000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000003000000001002000000000000030
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000002A292929D60B0B0BF4111111EE0000006B000000000000

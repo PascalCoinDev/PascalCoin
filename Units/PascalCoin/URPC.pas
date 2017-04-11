@@ -19,7 +19,7 @@ unit URPC;
 
 interface
 
-Uses UThread, ULog, UConst, UNode, UAccounts, UCrypto, UBlockChain,
+Uses UThread, ULog, UConst, UNode, UAccounts, UCrypto, UBlockChain, Math,
   UNetProtocol, UOpTransaction, UWalletKeys, UTime, UAES, UECIES,
   UJSONFunctions, classes, blcksock, synsock, IniFiles, Variants;
 
@@ -409,7 +409,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
 
   Function ToJSONCurrency(pascalCoins : Int64) : Real;
   Begin
-    Result := pascalCoins / 10000;
+    Result := RoundTo( pascalCoins / 10000 , -4);
   End;
 
   Function ToPascalCoins(jsonCurr : Real) : Int64;
@@ -538,48 +538,60 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     jsonObject.GetAsVariant('rawoperations').Value:=OperationsHashTreeToHexaString(OperationsHashTree);
   End;
 
-  Function GetAccountOperations(AccountNumber : Cardinal; jsonArray : TPCJSONArray; MaxBlocksDepht,start,max : Integer) : Boolean;
+  Function GetAccountOperations(accountNumber : Cardinal; jsonArray : TPCJSONArray; maxBlocksDepth, startReg, maxReg: Integer) : Boolean;
   var list : TList;
     Op : TPCOperation;
     OPR : TOperationResume;
     Obj : TPCJSONObject;
     OperationsResume : TOperationsResumeList;
-    i : Integer;
+    i, nCounter : Integer;
   Begin
+    Result := false;
+    if (startReg<-1) or (maxReg<=0) then begin
+      ErrorNum := CT_RPC_ErrNum_InvalidData;
+      ErrorDesc := 'Invalid start or max value';
+      Exit;
+    end;
+    nCounter := 0;
     OperationsResume := TOperationsResumeList.Create;
     try
-      list := TList.Create;
-      Try
-        FNode.Operations.OperationsHashTree.GetOperationsAffectingAccount(AccountNumber,list);
-        for i := list.Count - 1 downto 0 do begin
-          Op := FNode.Operations.OperationsHashTree.GetOperation(PtrInt(list[i]));
-          If TPCOperation.OperationToOperationResume(0,Op,AccountNumber,OPR) then begin
-            OPR.NOpInsideBlock := i;
-            OPR.Block := FNode.Operations.OperationBlock.block;
-            OPR.Balance := FNode.Operations.SafeBoxTransaction.Account(AccountNumber).balance;
-            OperationsResume.Add(OPR);
+      if (startReg=-1) then begin
+        // 1.5.5 change: If start=-1 then will include PENDING OPERATIONS, otherwise not.
+        // Only will return pending operations if start=0, otherwise
+        list := TList.Create;
+        Try
+          FNode.Operations.OperationsHashTree.GetOperationsAffectingAccount(accountNumber,list);
+          for i := list.Count - 1 downto 0 do begin
+            Op := FNode.Operations.OperationsHashTree.GetOperation(PtrInt(list[i]));
+            If TPCOperation.OperationToOperationResume(0,Op,accountNumber,OPR) then begin
+              OPR.NOpInsideBlock := i;
+              OPR.Block := FNode.Operations.OperationBlock.block;
+              OPR.Balance := FNode.Operations.SafeBoxTransaction.Account(accountNumber).balance;
+              if (nCounter>=startReg) And (nCounter<maxReg) then begin
+                OperationsResume.Add(OPR);
+              end;
+              inc(nCounter);
+            end;
           end;
-        end;
-      Finally
-        list.Free;
-      End;
-      if ((max<=0) Or (OperationsResume.Count<(max+start))) then begin
-        FNode.GetStoredOperationsFromAccount(OperationsResume,AccountNumber,MaxBlocksDepht,max+start);
+        Finally
+          list.Free;
+        End;
       end;
-      //
+      if (nCounter<maxReg) then begin
+        if (startReg<0) then startReg := 0; // Prevent -1 value
+        FNode.GetStoredOperationsFromAccount(OperationsResume,accountNumber,maxBlocksDepth,startReg,startReg+maxReg-1);
+      end;
       for i:=0 to OperationsResume.Count-1 do begin
-        if (i>=start) then begin
-          Obj := jsonArray.GetAsObject(jsonArray.Count);
-          OPR := OperationsResume[i];
-          FillOperationResumeToJSONObject(OPR,Obj);
-          if ((max>0) And (jsonArray.Count>=max)) then break; // stop
-        end;
+        Obj := jsonArray.GetAsObject(jsonArray.Count);
+        OPR := OperationsResume[i];
+        FillOperationResumeToJSONObject(OPR,Obj);
       end;
       Result := True;
     finally
       OperationsResume.Free;
     end;
   end;
+
   Procedure GetConnections;
   var i : Integer;
     l : TList;

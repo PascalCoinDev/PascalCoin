@@ -74,7 +74,7 @@ Type
     //
     Procedure NotifyBlocksChanged;
     //
-    procedure GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDepth, MaxOperations : Integer);
+    procedure GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDepth, StartOperation, EndOperation : Integer);
     Function FindOperation(Const OperationComp : TPCOperationsComp; Const OperationHash : TRawBytes; var block : Cardinal; var operation_block_index : Integer) : Boolean;
     //
     Procedure AutoDiscoverNodes(Const ips : AnsiString);
@@ -594,61 +594,73 @@ begin
   end;
 end;
 
-procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDepth, MaxOperations: Integer);
-  Procedure DoGetFromBlock(block_number : Cardinal; last_balance : Int64; act_depth : Integer);
+procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDepth, StartOperation, EndOperation: Integer);
+  // Optimization:
+  // For better performance, will only include at "OperationsResume" values betweeen "startOperation" and "endOperation"
+  Procedure DoGetFromBlock(block_number : Integer; last_balance : Int64; act_depth : Integer; nOpsCounter : Integer);
   var opc : TPCOperationsComp;
     op : TPCOperation;
     OPR : TOperationResume;
     l : TList;
     i : Integer;
-    next_block_number : Cardinal;
+    last_block_number, next_block_number : Integer;
   begin
-    if (act_depth<=0) Or ((block_number<=0) And (block_number>0)) then exit;
-
+    if (act_depth<=0) then exit;
     opc := TPCOperationsComp.Create(Nil);
     Try
-      If not Bank.Storage.LoadBlockChainBlock(opc,block_number) then begin
-        TLog.NewLog(lterror,ClassName,'Error searching for block '+inttostr(block_number));
-        exit;
-      end;
       l := TList.Create;
       try
-        next_block_number := 0;
-        opc.OperationsHashTree.GetOperationsAffectingAccount(account_number,l);
-        for i := l.Count - 1 downto 0 do begin
-          op := opc.Operation[PtrInt(l.Items[i])];
-          if (i=0) then begin
-            If op.SenderAccount=account_number then next_block_number := op.Previous_Sender_updated_block
-            else next_block_number := op.Previous_Destination_updated_block;
+        last_block_number := block_number+1;
+        while (last_block_number>block_number) And (act_depth>0)
+          And (block_number >= (account_number DIV CT_AccountsPerBlock))
+          And (nOpsCounter <= EndOperation) do begin
+          last_block_number := block_number;
+          next_block_number := 0;
+          l.Clear;
+          If not Bank.Storage.LoadBlockChainBlock(opc,block_number) then begin
+            TLog.NewLog(lterror,ClassName,'Error searching for block '+inttostr(block_number));
+            exit;
           end;
-          If TPCOperation.OperationToOperationResume(block_number,Op,account_number,OPR) then begin
-            OPR.NOpInsideBlock := Op.tag; // Note: Used Op.tag to include operation index inside a list
-            OPR.time := opc.OperationBlock.timestamp;
+          opc.OperationsHashTree.GetOperationsAffectingAccount(account_number,l);
+          for i := l.Count - 1 downto 0 do begin
+            op := opc.Operation[PtrInt(l.Items[i])];
+            if (i=0) then begin
+              If op.SenderAccount=account_number then next_block_number := op.Previous_Sender_updated_block
+              else next_block_number := op.Previous_Destination_updated_block;
+            end;
+            If TPCOperation.OperationToOperationResume(block_number,Op,account_number,OPR) then begin
+              OPR.NOpInsideBlock := Op.tag; // Note: Used Op.tag to include operation index inside a list
+              OPR.time := opc.OperationBlock.timestamp;
+              OPR.Block := block_number;
+              OPR.Balance := last_balance;
+              last_balance := last_balance - ( OPR.Amount + OPR.Fee );
+              if (nOpsCounter>=StartOperation) And (nOpsCounter<=EndOperation) then begin
+                OperationsResume.Add(OPR);
+              end;
+              inc(nOpsCounter);
+            end;
+          end;
+          // Is a new block operation?
+          if (TAccountComp.AccountBlock(account_number)=block_number) And ((account_number MOD CT_AccountsPerBlock)=0) then begin
+            OPR := CT_TOperationResume_NUL;
+            OPR.valid := true;
             OPR.Block := block_number;
+            OPR.time := opc.OperationBlock.timestamp;
+            OPR.AffectedAccount := account_number;
+            OPR.Amount := opc.OperationBlock.reward;
+            OPR.Fee := opc.OperationBlock.fee;
             OPR.Balance := last_balance;
-            last_balance := last_balance - ( OPR.Amount + OPR.Fee );
-            OperationsResume.Add(OPR);
+            OPR.OperationTxt := 'Blockchain reward';
+            if (nOpsCounter>=StartOperation) And (nOpsCounter<=EndOperation) then begin
+              OperationsResume.Add(OPR);
+            end;
+            inc(nOpsCounter);
           end;
+          //
+          opc.Clear(true);
+          dec(act_depth);
+          block_number := next_block_number;
         end;
-        // Is a new block operation?
-        if (TAccountComp.AccountBlock(account_number)=block_number) And ((account_number MOD CT_AccountsPerBlock)=0) then begin
-          OPR := CT_TOperationResume_NUL;
-          OPR.valid := true;
-          OPR.Block := block_number;
-          OPR.time := opc.OperationBlock.timestamp;
-          OPR.AffectedAccount := account_number;
-          OPR.Amount := opc.OperationBlock.reward;
-          OPR.Fee := opc.OperationBlock.fee;
-          OPR.Balance := last_balance;
-          OPR.OperationTxt := 'Blockchain reward';
-          OperationsResume.Add(OPR);
-        end;
-        //
-        opc.Clear(true);
-        if (next_block_number>=0) And (next_block_number<block_number) And (act_depth>0)
-           And (next_block_number >= (account_number DIV CT_AccountsPerBlock))
-           And ((OperationsResume.Count<MaxOperations) Or (MaxOperations<=0))
-           then DoGetFromBlock(next_block_number,last_balance,act_depth-1);
       finally
         l.Free;
       end;
@@ -659,10 +671,11 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
 
 Var acc : TAccount;
 begin
-  if MaxDepth<0 then exit;
-  if account_number>=Bank.SafeBox.AccountsCount then exit;
+  if MaxDepth<0 then Exit;
+  if account_number>=Bank.SafeBox.AccountsCount then Exit;
+  if StartOperation>EndOperation then Exit;
   acc := Bank.SafeBox.Account(account_number);
-  if (acc.updated_block>0) Or (acc.account=0) then DoGetFromBlock(acc.updated_block,acc.balance,MaxDepth);
+  if (acc.updated_block>0) Or (acc.account=0) then DoGetFromBlock(acc.updated_block,acc.balance,MaxDepth,0);
 end;
 
 function TNode.FindOperation(const OperationComp: TPCOperationsComp;

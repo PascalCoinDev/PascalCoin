@@ -3369,6 +3369,8 @@ end;
 
 procedure TNetworkAdjustedTime.UpdateMedian(list : TList);
 Var last : Integer;
+  i : Integer;
+  s : String;
 begin
   last := FTimeOffset;
   list.Sort(SortPNetworkAdjustedTimeReg);
@@ -3380,8 +3382,12 @@ begin
     FTimeOffset := PNetworkAdjustedTimeReg(list[list.Count DIV 2])^.timeOffset;
   end;
   if (last<>FTimeOffset) then begin
+    s := '';
+    for i := 0 to list.Count - 1 do begin
+      s := s + ',' + IntToStr(PNetworkAdjustedTimeReg(list[i])^.timeOffset);
+    end;
     TLog.NewLog(ltinfo,ClassName,
-      Format('Updated NAT median offset. My offset is now %d (before %d) based on %d/%d connections',[FTimeOffset,last,list.Count,FTotalCounter]));
+      Format('Updated NAT median offset. My offset is now %d (before %d) based on %d/%d connections %s',[FTimeOffset,last,list.Count,FTotalCounter,s]));
   end;
 end;
 

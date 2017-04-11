@@ -874,7 +874,7 @@ begin
         Finally
           list.Free;
         End;
-        Node.GetStoredOperationsFromAccount(FOperationsResume,AccountNumber,100,5000);
+        Node.GetStoredOperationsFromAccount(FOperationsResume,AccountNumber,100,0,5000);
       end;
     end;
   Finally

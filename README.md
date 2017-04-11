@@ -34,6 +34,13 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 1.5.5.0 - 2017-04-11
+- Corrected fee result on RPC calls as a negative number on "Change key" operations
+- Corrected PASCURRENCY value to be limited as a 4 decimal digits on RPC calls
+- JSON-RPC method "getaccountoperations" changed: if param "start" is -1, will include pending operations, otherwise not
+- Fixed bug: On "getaccountoperations" if an account had a lot of operations (receive tx included) then sometimes app crashed when executing depth search.
+  - Note: High depth search is slow because it search always starting from current state, going backwards, in order to return past balance. This can be a slow method on some account with high transactions volume.
+
 ### Build 1.5.4.0 - 2017-03-14
 
 - Added Network Timestamp Adjustment (NAT) to calc valid timestamps

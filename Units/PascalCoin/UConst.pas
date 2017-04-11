@@ -100,7 +100,7 @@ Const
   CT_Op_Changekey = $02;
   CT_Op_Recover = $03;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.5.4'{$ELSE}{$IFDEF TESTNET}'TESTNET 1.5.4'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'1.5.5'{$ELSE}{$IFDEF TESTNET}'TESTNET 1.5.5'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin2.ddns.net;pascalcoin1.dynamic-dns.net;pascalcoin1.dns1.us';
 

@@ -4,7 +4,7 @@ object FRMWallet: TFRMWallet
   Top = 201
   Width = 865
   Caption = 'Pascal Coin Wallet, JSON-RPC Miner & Explorer'
-  ClientHeight = 600
+  ClientHeight = 580
   ClientWidth = 865
   Color = clBtnFace
   Constraints.MinHeight = 600
@@ -162,7 +162,7 @@ object FRMWallet: TFRMWallet
       Left = 90
       Height = 13
       Top = 11
-      Width = 70
+      Width = 60
       Caption = 'Total Blocks:'
       ParentColor = False
     end
@@ -170,7 +170,7 @@ object FRMWallet: TFRMWallet
       Left = 166
       Height = 13
       Top = 11
-      Width = 21
+      Width = 18
       Caption = '000'
       ParentColor = False
     end
@@ -178,7 +178,7 @@ object FRMWallet: TFRMWallet
       Left = 90
       Height = 13
       Top = 26
-      Width = 106
+      Width = 89
       Caption = 'Current Block age:'
       ParentColor = False
     end
@@ -186,7 +186,7 @@ object FRMWallet: TFRMWallet
       Left = 198
       Height = 13
       Top = 26
-      Width = 96
+      Width = 81
       Caption = '000 seconds ago'
       ParentColor = False
     end
@@ -194,7 +194,7 @@ object FRMWallet: TFRMWallet
       Left = 90
       Height = 13
       Top = 41
-      Width = 115
+      Width = 98
       Caption = 'Pending Operations:'
       ParentColor = False
     end
@@ -202,7 +202,7 @@ object FRMWallet: TFRMWallet
       Left = 207
       Height = 13
       Top = 41
-      Width = 21
+      Width = 18
       Caption = '000'
       ParentColor = False
     end
@@ -210,7 +210,7 @@ object FRMWallet: TFRMWallet
       Left = 90
       Height = 13
       Top = 56
-      Width = 81
+      Width = 68
       Caption = 'Miners clients:'
       ParentColor = False
     end
@@ -218,7 +218,7 @@ object FRMWallet: TFRMWallet
       Left = 177
       Height = 13
       Top = 56
-      Width = 21
+      Width = 18
       Caption = '000'
       ParentColor = False
     end
@@ -226,7 +226,7 @@ object FRMWallet: TFRMWallet
       Left = 429
       Height = 13
       Top = 11
-      Width = 86
+      Width = 76
       Caption = 'Current Target:'
       ParentColor = False
     end
@@ -234,7 +234,7 @@ object FRMWallet: TFRMWallet
       Left = 518
       Height = 13
       Top = 11
-      Width = 21
+      Width = 18
       Caption = '000'
       ParentColor = False
     end
@@ -242,7 +242,7 @@ object FRMWallet: TFRMWallet
       Left = 370
       Height = 13
       Top = 26
-      Width = 21
+      Width = 18
       Caption = '000'
       ParentColor = False
     end
@@ -250,7 +250,7 @@ object FRMWallet: TFRMWallet
       Left = 285
       Height = 13
       Top = 26
-      Width = 83
+      Width = 69
       Caption = 'Time average:'
       ParentColor = False
     end
@@ -258,7 +258,7 @@ object FRMWallet: TFRMWallet
       Left = 90
       Height = 13
       Top = 70
-      Width = 72
+      Width = 63
       Caption = 'Node Status:'
       ParentColor = False
     end
@@ -266,7 +266,7 @@ object FRMWallet: TFRMWallet
       Left = 168
       Height = 13
       Top = 70
-      Width = 18
+      Width = 15
       Caption = '???'
       ParentColor = False
     end
@@ -274,7 +274,7 @@ object FRMWallet: TFRMWallet
       Left = 285
       Height = 13
       Top = 11
-      Width = 55
+      Width = 48
       Caption = 'Accounts:'
       ParentColor = False
     end
@@ -282,7 +282,7 @@ object FRMWallet: TFRMWallet
       Left = 344
       Height = 13
       Top = 11
-      Width = 21
+      Width = 18
       Caption = '000'
       ParentColor = False
     end
@@ -290,7 +290,7 @@ object FRMWallet: TFRMWallet
       Left = 370
       Height = 13
       Top = 41
-      Width = 21
+      Width = 18
       Caption = '000'
       Font.Color = clGray
       Font.Height = -11
@@ -302,7 +302,7 @@ object FRMWallet: TFRMWallet
       Left = 360
       Height = 13
       Top = 56
-      Width = 86
+      Width = 74
       Caption = 'Blocks found:'
       Font.Color = clWindowText
       Font.Height = -11
@@ -316,7 +316,7 @@ object FRMWallet: TFRMWallet
       Height = 13
       Hint = 'Blocks found while Miner is running...'
       Top = 56
-      Width = 24
+      Width = 21
       Caption = '000'
       Font.Color = clWindowText
       Font.Height = -11
@@ -330,9 +330,9 @@ object FRMWallet: TFRMWallet
     object lblReceivedMessages: TLabel
       Cursor = crHandPoint
       Left = 360
-      Height = 22
+      Height = 23
       Top = 66
-      Width = 211
+      Width = 185
       Caption = 'Received messages'
       Font.Color = clRed
       Font.Height = -19
@@ -344,9 +344,9 @@ object FRMWallet: TFRMWallet
     end
     object lblBuild: TLabel
       Left = 586
-      Height = 22
+      Height = 23
       Top = 3
-      Width = 56
+      Width = 49
       Caption = 'Build'
       Font.Color = clWindowText
       Font.Height = -19
@@ -358,8 +358,8 @@ object FRMWallet: TFRMWallet
   end
   object StatusBar: TStatusBar
     Left = 0
-    Height = 21
-    Top = 579
+    Height = 23
+    Top = 557
     Width = 865
     Panels = <    
       item
@@ -379,7 +379,7 @@ object FRMWallet: TFRMWallet
   end
   object PageControl: TPageControl
     Left = 0
-    Height = 488
+    Height = 466
     Top = 91
     Width = 865
     ActivePage = tsMyAccounts
@@ -389,11 +389,11 @@ object FRMWallet: TFRMWallet
     OnChange = PageControlChange
     object tsMyAccounts: TTabSheet
       Caption = 'Accounts Explorer'
-      ClientHeight = 461
-      ClientWidth = 861
+      ClientHeight = 440
+      ClientWidth = 857
       object Splitter1: TSplitter
         Left = 380
-        Height = 395
+        Height = 374
         Top = 66
         Width = 5
       end
@@ -401,41 +401,42 @@ object FRMWallet: TFRMWallet
         Left = 0
         Height = 66
         Top = 0
-        Width = 861
+        Width = 857
         Align = alTop
+        BevelOuter = bvNone
         ClientHeight = 66
-        ClientWidth = 861
+        ClientWidth = 857
         TabOrder = 0
         object Label18: TLabel
           Left = 11
           Height = 13
           Top = 35
-          Width = 70
+          Width = 61
           Caption = 'Find account'
           ParentColor = False
         end
         object cbMyPrivateKeys: TComboBox
           Left = 260
-          Height = 31
+          Height = 21
           Top = 7
           Width = 411
-          ItemHeight = 0
+          ItemHeight = 13
           OnChange = cbMyPrivateKeysChange
           Style = csDropDownList
           TabOrder = 0
         end
         object cbExploreMyAccounts: TCheckBox
           Left = 11
-          Height = 24
+          Height = 19
           Top = 10
-          Width = 329
+          Width = 235
           Caption = 'Explore accounts with one of my Wallet Keys'
           OnClick = cbExploreMyAccountsClick
           TabOrder = 1
         end
         object ebFindAccountNumber: TEdit
           Left = 87
-          Height = 23
+          Height = 21
           Top = 33
           Width = 83
           OnChange = ebFindAccountNumberChange
@@ -453,16 +454,16 @@ object FRMWallet: TFRMWallet
         end
         object cbFilterAccounts: TCheckBox
           Left = 260
-          Height = 24
+          Height = 19
           Top = 35
-          Width = 202
+          Width = 145
           Caption = 'Filter accounts by balance'
           OnClick = cbFilterAccountsClick
           TabOrder = 4
         end
         object ebFilterAccountByBalanceMin: TEdit
           Left = 412
-          Height = 23
+          Height = 21
           Hint = 'Min balance'
           Top = 33
           Width = 83
@@ -472,7 +473,7 @@ object FRMWallet: TFRMWallet
         end
         object ebFilterAccountByBalanceMax: TEdit
           Left = 503
-          Height = 23
+          Height = 21
           Hint = 'Max balance'
           Top = 33
           Width = 83
@@ -483,17 +484,17 @@ object FRMWallet: TFRMWallet
       end
       object pnlAccounts: TPanel
         Left = 0
-        Height = 395
+        Height = 374
         Top = 66
         Width = 380
         Align = alLeft
         BevelOuter = bvNone
-        ClientHeight = 395
+        ClientHeight = 374
         ClientWidth = 380
         TabOrder = 1
         object dgAccounts: TDrawGrid
           Left = 0
-          Height = 361
+          Height = 340
           Top = 0
           Width = 380
           Align = alClient
@@ -507,7 +508,7 @@ object FRMWallet: TFRMWallet
         object pnlAccountsInfo: TPanel
           Left = 0
           Height = 34
-          Top = 361
+          Top = 340
           Width = 380
           Align = alBottom
           BevelOuter = bvNone
@@ -518,7 +519,7 @@ object FRMWallet: TFRMWallet
             Left = 5
             Height = 13
             Top = 10
-            Width = 55
+            Width = 48
             Caption = 'Accounts:'
             ParentColor = False
           end
@@ -526,7 +527,7 @@ object FRMWallet: TFRMWallet
             Left = 136
             Height = 13
             Top = 10
-            Width = 49
+            Width = 41
             Caption = 'Balance:'
             ParentColor = False
           end
@@ -534,7 +535,7 @@ object FRMWallet: TFRMWallet
             Left = 60
             Height = 13
             Top = 10
-            Width = 21
+            Width = 18
             Caption = '000'
             ParentColor = False
           end
@@ -542,7 +543,7 @@ object FRMWallet: TFRMWallet
             Left = 200
             Height = 13
             Top = 10
-            Width = 21
+            Width = 18
             Caption = '000'
             ParentColor = False
           end
@@ -588,22 +589,22 @@ object FRMWallet: TFRMWallet
       end
       object pcAccountsOptions: TPageControl
         Left = 385
-        Height = 395
+        Height = 374
         Top = 66
-        Width = 476
+        Width = 472
         ActivePage = tsAccountOperations
         Align = alClient
         TabIndex = 0
         TabOrder = 2
         object tsAccountOperations: TTabSheet
           Caption = 'Operations of selected Account'
-          ClientHeight = 368
-          ClientWidth = 472
+          ClientHeight = 348
+          ClientWidth = 464
           object dgAccountOperations: TDrawGrid
             Left = 0
-            Height = 368
+            Height = 348
             Top = 0
-            Width = 472
+            Width = 464
             Align = alClient
             ExtendedSelect = False
             TabOrder = 0
@@ -813,14 +814,14 @@ object FRMWallet: TFRMWallet
     end
     object tsPendingOperations: TTabSheet
       Caption = 'Pending Operations'
-      ClientHeight = 461
-      ClientWidth = 861
+      ClientHeight = 440
+      ClientWidth = 857
       ImageIndex = 5
       object dgPendingOperations: TDrawGrid
         Left = 0
-        Height = 375
+        Height = 354
         Top = 86
-        Width = 861
+        Width = 857
         Align = alClient
         ExtendedSelect = False
         TabOrder = 0
@@ -833,18 +834,18 @@ object FRMWallet: TFRMWallet
         Left = 0
         Height = 86
         Top = 0
-        Width = 861
+        Width = 857
         Align = alTop
         BevelOuter = bvNone
         BorderWidth = 10
         ClientHeight = 86
-        ClientWidth = 861
+        ClientWidth = 857
         TabOrder = 1
         object Label10: TLabel
           Left = 10
           Height = 66
           Top = 10
-          Width = 841
+          Width = 837
           Align = alClient
           AutoSize = False
           Caption = 'Here you can see Operations transmited/received from other nodes that will be included in next block. There is no guarantee that other nodes will include them when mining, so it''s important that you mine too to help include Operations to the main BlockChain'
@@ -859,8 +860,8 @@ object FRMWallet: TFRMWallet
     end
     object tsBlockChain: TTabSheet
       Caption = 'BlockChain Explorer'
-      ClientHeight = 461
-      ClientWidth = 861
+      ClientHeight = 440
+      ClientWidth = 857
       ImageIndex = 1
       object Panel2: TPanel
         Left = 0
@@ -868,6 +869,7 @@ object FRMWallet: TFRMWallet
         Top = 0
         Width = 857
         Align = alTop
+        BevelOuter = bvNone
         ClientHeight = 41
         ClientWidth = 857
         TabOrder = 0
@@ -913,29 +915,30 @@ object FRMWallet: TFRMWallet
     end
     object tsOperations: TTabSheet
       Caption = 'Operations Explorer'
-      ClientHeight = 461
-      ClientWidth = 861
+      ClientHeight = 440
+      ClientWidth = 857
       ImageIndex = 1
       object Panel1: TPanel
         Left = 0
         Height = 41
         Top = 0
-        Width = 861
+        Width = 857
         Align = alTop
+        BevelOuter = bvNone
         ClientHeight = 41
-        ClientWidth = 861
+        ClientWidth = 857
         TabOrder = 0
         object Label2: TLabel
           Left = 11
           Height = 13
           Top = 10
-          Width = 121
+          Width = 102
           Caption = 'Filter by blocks range'
           ParentColor = False
         end
         object ebFilterOperationsStartBlock: TEdit
           Left = 125
-          Height = 23
+          Height = 21
           Top = 7
           Width = 57
           OnExit = ebFilterOperationsAccountExit
@@ -944,7 +947,7 @@ object FRMWallet: TFRMWallet
         end
         object ebFilterOperationsEndBlock: TEdit
           Left = 185
-          Height = 23
+          Height = 21
           Top = 7
           Width = 57
           OnExit = ebFilterOperationsAccountExit
@@ -954,9 +957,9 @@ object FRMWallet: TFRMWallet
       end
       object dgOperationsExplorer: TDrawGrid
         Left = 0
-        Height = 420
+        Height = 399
         Top = 41
-        Width = 861
+        Width = 857
         Align = alClient
         ExtendedSelect = False
         TabOrder = 1
@@ -967,32 +970,33 @@ object FRMWallet: TFRMWallet
     end
     object tsLogs: TTabSheet
       Caption = 'Logs'
-      ClientHeight = 461
-      ClientWidth = 861
+      ClientHeight = 440
+      ClientWidth = 857
       ImageIndex = 2
       object pnlTopLogs: TPanel
         Left = 0
         Height = 41
         Top = 0
-        Width = 861
+        Width = 857
         Align = alTop
+        BevelOuter = bvNone
         ClientHeight = 41
-        ClientWidth = 861
+        ClientWidth = 857
         TabOrder = 0
         object cbShowDebugLogs: TCheckBox
           Left = 15
-          Height = 24
+          Height = 19
           Top = 10
-          Width = 145
+          Width = 102
           Caption = 'Show Debug logs'
           TabOrder = 0
         end
       end
       object memoLogs: TMemo
         Left = 0
-        Height = 420
+        Height = 399
         Top = 41
-        Width = 861
+        Width = 857
         Align = alClient
         ScrollBars = ssBoth
         TabOrder = 1
@@ -1001,22 +1005,22 @@ object FRMWallet: TFRMWallet
     end
     object tsNodeStats: TTabSheet
       Caption = 'Node Stats'
-      ClientHeight = 461
-      ClientWidth = 861
+      ClientHeight = 440
+      ClientWidth = 857
       ImageIndex = 3
       object Label3: TLabel
         Left = 15
         Height = 13
         Top = 15
-        Width = 207
+        Width = 177
         Caption = 'Active Net Connections of this Node:'
         ParentColor = False
       end
       object Label6: TLabel
         Left = 15
         Height = 13
-        Top = 312
-        Width = 202
+        Top = 291
+        Width = 198
         Anchors = [akLeft, akRight, akBottom]
         Caption = 'Available or possible Node Servers:'
         ParentColor = False
@@ -1024,17 +1028,17 @@ object FRMWallet: TFRMWallet
       object Label7: TLabel
         Left = 15
         Height = 13
-        Top = 208
-        Width = 103
+        Top = 187
+        Width = 99
         Anchors = [akLeft, akRight, akBottom]
         Caption = 'BlackList of Nodes'
         ParentColor = False
       end
       object memoNetConnections: TMemo
         Left = 15
-        Height = 166
+        Height = 145
         Top = 34
-        Width = 834
+        Width = 830
         Anchors = [akTop, akLeft, akRight, akBottom]
         ReadOnly = True
         ScrollBars = ssBoth
@@ -1044,8 +1048,8 @@ object FRMWallet: TFRMWallet
       object memoNetServers: TMemo
         Left = 15
         Height = 116
-        Top = 331
-        Width = 834
+        Top = 310
+        Width = 830
         Anchors = [akLeft, akRight, akBottom]
         ReadOnly = True
         ScrollBars = ssBoth
@@ -1055,8 +1059,8 @@ object FRMWallet: TFRMWallet
       object memoNetBlackLists: TMemo
         Left = 16
         Height = 79
-        Top = 227
-        Width = 833
+        Top = 206
+        Width = 829
         Anchors = [akLeft, akRight, akBottom]
         ReadOnly = True
         ScrollBars = ssBoth
@@ -1066,14 +1070,14 @@ object FRMWallet: TFRMWallet
     end
     object tsMessages: TTabSheet
       Caption = 'Messages'
-      ClientHeight = 461
-      ClientWidth = 861
+      ClientHeight = 440
+      ClientWidth = 857
       ImageIndex = 6
       object Label11: TLabel
         Left = 15
         Height = 13
         Top = 151
-        Width = 59
+        Width = 51
         Caption = 'Messages:'
         ParentColor = False
       end
@@ -1081,7 +1085,7 @@ object FRMWallet: TFRMWallet
         Left = 315
         Height = 13
         Top = 11
-        Width = 99
+        Width = 85
         Caption = 'Message to send:'
         ParentColor = False
       end
@@ -1089,7 +1093,7 @@ object FRMWallet: TFRMWallet
         Left = 15
         Height = 13
         Top = 11
-        Width = 126
+        Width = 107
         Caption = 'Available connections:'
         ParentColor = False
       end
@@ -1097,7 +1101,7 @@ object FRMWallet: TFRMWallet
         Left = 410
         Height = 13
         Top = 11
-        Width = 430
+        Width = 361
         Caption = '(Messages will be encrypted, so only dest connection will be able to read it)'
         Font.Color = clGrayText
         Font.Height = -11
@@ -1114,7 +1118,6 @@ object FRMWallet: TFRMWallet
         MultiSelect = True
         ScrollWidth = 273
         TabOrder = 0
-        TopIndex = -1
       end
       object bbSendAMessage: TButton
         Left = 315
@@ -1127,9 +1130,9 @@ object FRMWallet: TFRMWallet
       end
       object memoMessages: TMemo
         Left = 15
-        Height = 270
+        Height = 249
         Top = 170
-        Width = 825
+        Width = 821
         Anchors = [akTop, akLeft, akRight, akBottom]
         Font.Color = clWindowText
         Font.Height = -16

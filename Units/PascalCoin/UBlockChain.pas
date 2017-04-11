@@ -2199,12 +2199,10 @@ begin
     CT_Op_Changekey : Begin
       OperationResume.newKey := TOpChangeKey(Operation).Data.new_accountkey;
       OperationResume.OperationTxt := 'Change Key to '+TAccountComp.GetECInfoTxt( TOpChangeKey(Operation).Data.new_accountkey.EC_OpenSSL_NID );
-      OperationResume.Fee := TOpChangeKey(Operation).Data.fee;
       Result := true;
     End;
     CT_Op_Recover : Begin
       OperationResume.OperationTxt := 'Recover founds';
-      OperationResume.Fee := TOpRecoverFounds(Operation).Data.fee;
       Result := true;
     End;
   else Exit;

@@ -52,7 +52,7 @@ Type
   public
     Constructor Create;
     Procedure GenerateRandomPrivateKey(EC_OpenSSL_NID : Word);
-    Destructor Destroy;
+    Destructor Destroy; override;
     Property PrivateKey : PEC_KEY read FPrivateKey;
     Property PublicKey : TECDSA_Public read GetPublicKey;
     Property PublicKeyPoint : PEC_POINT read GetPublicKeyPoint;
@@ -149,6 +149,7 @@ end;
 destructor TECPrivateKey.Destroy;
 begin
   if Assigned(FPrivateKey) then EC_KEY_free(FPrivateKey);
+  inherited;
 end;
 
 function TECPrivateKey.ExportToRaw: TRawBytes;
