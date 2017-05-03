@@ -47,6 +47,7 @@ Type
     FShowAllAccounts: Boolean;
     FOnUpdated: TNotifyEvent;
     FAccountsCount: Integer;
+    FAllowMultiSelect: Boolean;
     procedure SetDrawGrid(const Value: TDrawGrid);
     Procedure InitGrid;
     Procedure OnNodeNewOperation(Sender : TObject);
@@ -54,6 +55,7 @@ Type
     procedure SetNode(const Value: TNode);
     function GetNode: TNode;
     procedure SetShowAllAccounts(const Value: Boolean);
+    procedure SetAllowMultiSelect(const Value: Boolean);
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); Override;
   public
@@ -71,6 +73,8 @@ Type
     Property AccountsCount : Integer read FAccountsCount;
     Function MoveRowToAccount(nAccount : Cardinal) : Boolean;
     Property OnUpdated : TNotifyEvent read FOnUpdated write FOnUpdated;
+    Property AllowMultiSelect : Boolean read FAllowMultiSelect write SetAllowMultiSelect;
+    Function SelectedAccounts(accounts : TOrderedCardinalList) : Integer;
   End;
 
   TOperationsGrid = Class(TComponent)
@@ -195,6 +199,7 @@ constructor TAccountsGrid.Create(AOwner: TComponent);
 Var i : Integer;
 begin
   inherited;
+  FAllowMultiSelect := false;
   FOnUpdated := Nil;
   FAccountsBalance := 0;
   FAccountsCount := 0;
@@ -261,6 +266,7 @@ begin
     {goRangeSelect, }goDrawFocusSelected, {goRowSizing, }goColSizing, {goRowMoving,}
     {goColMoving, goEditing, }goTabs, goRowSelect, {goAlwaysShowEditor,}
     goThumbTracking{$IFnDEF FPC}, goFixedColClick, goFixedRowClick, goFixedHotTrack{$ENDIF}];
+  if FAllowMultiSelect then DrawGrid.Options := DrawGrid.Options + [goRangeSelect];
   FDrawGrid.Invalidate;
   if Assigned(FOnUpdated) then FOnUpdated(Self);
 end;
@@ -500,6 +506,32 @@ begin
   Stream.Write(j,sizeof(j));
   j := FDrawGrid.Height;
   Stream.Write(j,sizeof(j));
+end;
+
+function TAccountsGrid.SelectedAccounts(accounts: TOrderedCardinalList): Integer;
+var i64 : Int64;
+  i : Integer;
+begin
+  accounts.Clear;
+  Result := 0;
+  if not assigned(FDrawGrid) then exit;
+  if FAllowMultiSelect then begin
+    for i := FDrawGrid.Selection.Top to FDrawGrid.Selection.Bottom do begin
+      i64 := AccountNumber(i);
+      if i64>=0 then accounts.Add(i64);
+    end;
+  end;
+  If accounts.Count=0 then begin
+    i64 := AccountNumber(DrawGrid.Row);
+    if i64>=0 then accounts.Add(i64);
+  end;
+  Result := accounts.Count;
+end;
+
+procedure TAccountsGrid.SetAllowMultiSelect(const Value: Boolean);
+begin
+  FAllowMultiSelect := Value;
+  InitGrid;
 end;
 
 procedure TAccountsGrid.SetDrawGrid(const Value: TDrawGrid);

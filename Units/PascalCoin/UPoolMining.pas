@@ -126,6 +126,9 @@ Type
     FOnMiningServerNewBlockFound: TNotifyEvent;
     FPoolJobs : TPCThreadList;
     FPoolThread : TPoolMiningServerThread;
+    FMinerOperations : TPCOperationsComp;
+    FMaxOperationsPerBlock: Integer;
+    FMax0FeeOperationsPerBlock: Integer;
     Procedure DoProcessJSON(json : TPCJSONObject; ResponseMethod : String; Client : TJSONRPCTcpIpClient);
     Procedure OnNodeNewBlock(Sender : TObject);
     Procedure OnNodeOperationsChanged(Sender : TObject);
@@ -135,6 +138,9 @@ Type
     Procedure ClearPoolJobs;
     Procedure CaptureNewJobAndSendToMiners;
     Procedure SendJobToMiner(Operations : TPCOperationsComp; Client : TJSONRPCTcpIpClient; IsResponse : Boolean; idResponse : Variant);
+    Procedure FillMinerOperations;
+    procedure SetMax0FeeOperationsPerBlock(const Value: Integer);
+    procedure SetMaxOperationsPerBlock(const Value: Integer);
   protected
     Procedure OnNewIncommingConnection(Sender : TObject; Client : TNetTcpIpClient); override;
     procedure SetActive(const Value: Boolean); override;
@@ -147,6 +153,8 @@ Type
     Property ClientsCount : Integer read FClientsCount;
     Property ClientsWins : Integer read FClientsWins;
     Property OnMiningServerNewBlockFound : TNotifyEvent read FOnMiningServerNewBlockFound write FOnMiningServerNewBlockFound;
+    Property Max0FeeOperationsPerBlock : Integer read FMax0FeeOperationsPerBlock write SetMax0FeeOperationsPerBlock;
+    Property MaxOperationsPerBlock : Integer read FMaxOperationsPerBlock write SetMaxOperationsPerBlock;
   End;
 
 Function TBytesToString(Const bytes : TBytes):AnsiString;
@@ -515,6 +523,7 @@ Var P, PToDelete : PPoolJob;
   OpB : TOperationBlock;
 begin
   if Not Active then exit;
+  if FClientsCount<=0 then exit;
   doAdd := false;
   P := Nil;
   l := FPoolJobs.LockList;
@@ -536,13 +545,17 @@ begin
       if (P^.SentMinTimestamp<FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp) then begin
         P^.SentMinTimestamp := FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp;
       end;
+      FillMinerOperations;
       P^.OperationsComp := TPCOperationsComp.Create(Nil);
-      P^.OperationsComp.CopyFrom(FNodeNotifyEvents.Node.Operations);
+      P^.OperationsComp.CopyFrom(FMinerOperations);
       P^.OperationsComp.AccountKey := FMinerAccountKey;
       P^.OperationsComp.BlockPayload := FMinerPayload;
       P^.OperationsComp.timestamp := P^.SentMinTimestamp; // Best practices 1.5.3
       OpB := P^.OperationsComp.OperationBlock;
       if (OpB.block<>0) And (OpB.block <> (FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.block+1)) then begin
+        TLog.NewLog(ltError,ClassName,'ERROR DEV 20170228-1 '+TPCOperationsComp.OperationBlockToText(OpB)+'<>'+TPCOperationsComp.OperationBlockToText(FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock));
+        P^.OperationsComp.Free;
+        Dispose(P);
         raise Exception.Create('ERROR DEV 20170228-1');
       end;
       i := l.Add(P);
@@ -610,10 +623,13 @@ begin
   FNodeNotifyEvents.OnBlocksChanged := OnNodeNewBlock;
   FNodeNotifyEvents.OnOperationsChanged := OnNodeOperationsChanged;
   FNodeNotifyEvents.Node := TNode.Node;
+  FMinerOperations := TPCOperationsComp.Create(FNodeNotifyEvents.Node.Bank);
   FMinerAccountKey := CT_TECDSA_Public_Nul;
   FMinerPayload := '';
   FPoolJobs := TPCThreadList.Create('TPoolMiningServer_PoolJobs');
   FPoolThread := TPoolMiningServerThread.Create(Self);
+  FMax0FeeOperationsPerBlock := CT_MAX_0_fee_operations_per_block_by_miner;
+  FMaxOperationsPerBlock := CT_MAX_Operations_per_block_by_miner;
 end;
 
 destructor TPoolMiningServer.Destroy;
@@ -624,6 +640,7 @@ begin
   FNodeNotifyEvents.Node := Nil;
   FNodeNotifyEvents.OnBlocksChanged := Nil;
   FNodeNotifyEvents.OnOperationsChanged := Nil;
+  FreeAndNil(FMinerOperations);
   FreeAndNil(FNodeNotifyEvents);
   ClearPoolJobs;
   FreeAndNil(FPoolJobs);
@@ -682,6 +699,76 @@ begin
       Client.SendJSONRPCErrorResponse(id_value,'method not found: '+method);
     end;
   end;
+end;
+
+procedure TPoolMiningServer.FillMinerOperations;
+var tree : TOperationsHashTree;
+  Procedure DoAdd(Const Op : TPCOperation; checkDuplicate : Boolean);
+  Begin
+    if checkDuplicate then begin
+      if tree.IndexOfOperation(Op)>=0 then exit;
+    end;
+    tree.AddOperationToHashTree(Op);
+  End;
+Var i,j : Integer;
+  MasterOp : TPCOperationsComp;
+  op : TPCOperation;
+  Var errors : AnsiString;
+begin
+  MasterOp := FNodeNotifyEvents.Node.Operations;
+  MasterOp.Lock;
+  Try
+    FMinerOperations.Lock;
+    Try
+      tree := TOperationsHashTree.Create;
+      try
+        if (Not (TPCOperationsComp.EqualsOperationBlock(FMinerOperations.OperationBlock,MasterOp.OperationBlock))) then begin
+          FMinerOperations.Clear(true);
+          if MasterOp.Count>=0 then begin
+            // First round: Select with fee > 0
+            i := 0;
+            while (tree.OperationsCount<MaxOperationsPerBlock) And (i<MasterOp.OperationsHashTree.OperationsCount) do begin
+              op := MasterOp.OperationsHashTree.GetOperation(i);
+              if op.OperationFee>0 then begin
+                DoAdd(op,false);
+              end;
+              inc(i);
+            end;
+            // Second round: Allow fee = 0
+            j := 0;
+            i := 0;
+            while (tree.OperationsCount<MaxOperationsPerBlock) And (i<MasterOp.OperationsHashTree.OperationsCount) And (j<Max0FeeOperationsPerBlock) do begin
+              op := MasterOp.OperationsHashTree.GetOperation(i);
+              if op.OperationFee=0 then begin
+                DoAdd(op,false);
+                inc(j);
+              end;
+              inc(i);
+            end;
+            // Add operations:
+            i := FMinerOperations.AddOperations(tree,errors);
+            if (i<>tree.OperationsCount) Or (i<>MasterOp.OperationsHashTree.OperationsCount) then begin
+              TLog.NewLog(ltDebug,ClassName,Format('Cannot add all operations! Master:%d Selected:%d Added:%d - Errors: %s',
+                [MasterOp.OperationsHashTree.OperationsCount,tree.OperationsCount,i,errors]));
+            end;
+          end else begin
+            FMinerOperations.CopyFrom(MasterOp);
+          end;
+          //
+          TLog.NewLog(ltInfo,ClassName,Format('New miner operations:%d Hash:%s %s',
+            [FMinerOperations.OperationsHashTree.OperationsCount,TCrypto.ToHexaString(FMinerOperations.OperationsHashTree.HashTree),TCrypto.ToHexaString(FMinerOperations.OperationBlock.operations_hash)]));
+        end else begin
+          TLog.NewLog(ltDebug,ClassName,Format('No need to change Miner buffer. Operations:%d',[FMinerOperations.OperationsHashTree.OperationsCount]));
+        end;
+      finally
+        tree.Free;
+      end;
+    Finally
+      FMinerOperations.Unlock;
+    end;
+  Finally
+    MasterOp.Unlock;
+  End;
 end;
 
 function TPoolMiningServer.MinerSubmit(Client: TJSONRPCTcpIpClient; params: TPCJSONObject; const id : Variant): Boolean;
@@ -826,6 +913,7 @@ Var P : PPoolJob;
   i,nJobs : Integer;
   l : TList;
 begin
+  if FClientsCount<=0 then exit;
   if (Not Assigned(Operations)) then begin
     P := Nil;
     l := FPoolJobs.LockList;
@@ -839,12 +927,16 @@ begin
         if (P^.SentMinTimestamp<FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp) then begin
           P^.SentMinTimestamp := FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp;
         end;
+        FillMinerOperations;
         P^.OperationsComp := TPCOperationsComp.Create(Nil);
-        P^.OperationsComp.CopyFrom(FNodeNotifyEvents.Node.Operations);
+        P^.OperationsComp.CopyFrom(FMinerOperations);
         P^.OperationsComp.AccountKey := FMinerAccountKey;
         P^.OperationsComp.BlockPayload := FMinerPayload;
         P^.OperationsComp.timestamp := P^.SentMinTimestamp; // Best practices 1.5.3
         if (P^.OperationsComp.OperationBlock.block<>0) And (P^.OperationsComp.OperationBlock.block <> (FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.block+1)) then begin
+          TLog.NewLog(ltError,ClassName,'ERROR DEV 20170228-2 '+TPCOperationsComp.OperationBlockToText(P^.OperationsComp.OperationBlock)+'<>'+TPCOperationsComp.OperationBlockToText(FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock));
+          P^.OperationsComp.Free;
+          Dispose(P);
           raise Exception.Create('ERROR DEV 20170228-2');
         end;
         l.Add(P);
@@ -900,6 +992,30 @@ begin
   end;
 end;
 
+
+procedure TPoolMiningServer.SetMax0FeeOperationsPerBlock(const Value: Integer);
+begin
+  if FMax0FeeOperationsPerBlock = Value then exit;
+  if (Value<(CT_MAX_0_fee_operations_per_block_by_miner DIV 5)) Or (Value<1) then begin
+    FMax0FeeOperationsPerBlock := (CT_MAX_0_fee_operations_per_block_by_miner DIV 5); // To prevent no 0 fee...
+    if FMax0FeeOperationsPerBlock<1 then FMax0FeeOperationsPerBlock := 1; // For Testnet or low constant values...
+    TLog.NewLog(ltError,ClassName,Format('Invalid max zero fee operations per block value %d, set to %d',[Value,FMax0FeeOperationsPerBlock]));
+  end else FMax0FeeOperationsPerBlock := Value;
+  TLog.NewLog(ltInfo,ClassName,Format('Updated max zero fee operations per block to %d',[FMax0FeeOperationsPerBlock]));
+  CaptureNewJobAndSendToMiners;
+end;
+
+procedure TPoolMiningServer.SetMaxOperationsPerBlock(const Value: Integer);
+begin
+  if FMaxOperationsPerBlock = Value then exit;
+  if (Value<(CT_MAX_Operations_per_block_by_miner DIV 5)) Or (Value<1) then begin
+    FMaxOperationsPerBlock := (CT_MAX_Operations_per_block_by_miner DIV 5); // To prevent very small blocks...
+    if FMaxOperationsPerBlock<1 then FMaxOperationsPerBlock := 1; // For Testnet or low constant values...
+    TLog.NewLog(ltError,ClassName,Format('Invalid max operations per block value %d, set to %d',[Value,FMaxOperationsPerBlock]));
+  end else FMaxOperationsPerBlock := Value;
+  TLog.NewLog(ltInfo,ClassName,Format('Updated max operations per block to %d',[FMaxOperationsPerBlock]));
+  CaptureNewJobAndSendToMiners;
+end;
 
 procedure TPoolMiningServer.SetMinerAccountKey(const Value: TAccountKey);
 begin
@@ -1130,7 +1246,13 @@ begin
     Sleep(100);
     inc(i);
     if (not terminated) And ((i mod 10)=0) then begin
-      FPoolMiningServer.CaptureNewJobAndSendToMiners;
+      Try
+        FPoolMiningServer.CaptureNewJobAndSendToMiners;
+      Except
+        On E:Exception do begin
+          TLog.NewLog(ltError,ClassName,'Error ('+E.ClassName+') Capturing job for miners: '+E.Message );
+        end;
+      End;
     end;
   Until terminated;
 end;

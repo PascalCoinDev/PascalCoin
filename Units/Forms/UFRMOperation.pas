@@ -144,7 +144,7 @@ uses
 procedure TFRMOperation.actExecuteExecute(Sender: TObject);
 Var errors : AnsiString;
   P : PAccount;
-  i,iAcc : Integer;
+  i,iAcc, nZeroFee : Integer;
   wk : TWalletKey;
   ops : TOperationsHashTree;
   op : TPCOperation;
@@ -161,6 +161,7 @@ begin
     _totalfee := 0;
     operationstxt := '';
     operation_to_string := '';
+    nZeroFee := 0;
     for iAcc := 0 to FSenderAccounts.Count - 1 do begin
       op := Nil;
       account := FNode.Operations.SafeBoxTransaction.Account(FSenderAccounts.Get(iAcc));
@@ -204,26 +205,37 @@ begin
         FNewAccountPublicKey := WalletKeys.Key[i].AccountKey;
         if account.balance>fee then _fee := fee
         else _fee := 0;
-        op := TOpChangeKey.Create(account.account,account.n_operation+1,wk.PrivateKey,FNewAccountPublicKey,_fee,FEncodedPayload);
-        inc(_totalfee,_fee);
-        operationstxt := 'Change private key to '+wk.Name;
+        if Not TAccountComp.Equal(wk.AccountKey,FNewAccountPublicKey) then begin
+          op := TOpChangeKey.Create(account.account,account.n_operation+1,wk.PrivateKey,FNewAccountPublicKey,_fee,FEncodedPayload);
+          inc(_totalfee,_fee);
+          operationstxt := 'Change private key to '+wk.Name;
+        end;
       end else if rbTransferToANewOwner.Checked then begin
         if account.balance>fee then _fee := fee
         else _fee := 0;
-        op := TOpChangeKey.Create(account.account,account.n_operation+1,wk.PrivateKey,FNewAccountPublicKey,_fee,FEncodedPayload);
-        operationstxt := 'Transfer to a new owner with key type '+TAccountComp.GetECInfoTxt(FNewAccountPublicKey.EC_OpenSSL_NID);
-        inc(_totalfee,_fee);
+        if Not TAccountComp.Equal(wk.AccountKey,FNewAccountPublicKey) then begin
+          op := TOpChangeKey.Create(account.account,account.n_operation+1,wk.PrivateKey,FNewAccountPublicKey,_fee,FEncodedPayload);
+          operationstxt := 'Transfer to a new owner with key type '+TAccountComp.GetECInfoTxt(FNewAccountPublicKey.EC_OpenSSL_NID);
+          inc(_totalfee,_fee);
+        end;
       end else begin
         raise Exception.Create('No operation selected');
       end;
       if Assigned(op) And (dooperation) then begin
         ops.AddOperationToHashTree(op);
+        if (op.OperationFee<=0) then inc(nZeroFee);
         if operation_to_string<>'' then operation_to_string := operation_to_string + #10;
         operation_to_string := operation_to_string + op.ToString;
       end;
       FreeAndNil(op);
     end;
     if (ops.OperationsCount=0) then raise Exception.Create('No valid operation to execute');
+
+    if (nZeroFee>0) then begin
+      if Application.MessageBox(PChar('WARNING!'+#10+#10+'You are going to execute '+Inttostr(nZeroFee)+' operations without fee (fee = 0)'+#10+#10+
+        'Are you sure?'+#10+#10+'(Operations without fee have lower priority)'),PChar(Application.Title),MB_YESNO+MB_ICONWARNING+MB_DEFBUTTON2)<>IdYes then exit;
+    end;
+
 
     if (FSenderAccounts.Count>1) then begin
       if rbTransaction.Checked then auxs := 'Total amount that dest will receive: '+TAccountComp.FormatMoney(_totalamount)+#10
@@ -242,7 +254,7 @@ begin
       Application.MessageBox(PChar('Successfully executed '+inttostr(i)+' operations!'+#10+#10+operation_to_string),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
       ModalResult := MrOk;
     end else if (i>0) then begin
-      Application.MessageBox(PChar('One or more of your operations has not been executed:'+#10+
+      Application.MessageBox(PChar('One or more of your operations have not been executed:'+#10+
         'Errors:'+#10+
         errors+#10+#10+
         'Total successfully executed operations: '+inttostr(i)),PChar(Application.Title),MB_OK+MB_ICONWARNING);
@@ -546,7 +558,7 @@ end;
 
 function TFRMOperation.UpdateOperationOptions(var errors : AnsiString) : Boolean;
 Var
-  iWallet,iAcc : Integer;
+  iWallet,iAcc,i : Integer;
   wk : TWalletKey;
   e : AnsiString;
   sender_account : TAccount;
@@ -557,7 +569,7 @@ begin
   rbEncryptedWithOldEC.Enabled := rbChangeKey.Checked;
   lblDestAccount.Enabled := rbTransaction.Checked;
   lblAmount.Enabled := rbTransaction.Checked;
-  lblFee.Enabled := rbTransaction.Checked;
+  lblFee.Enabled := true;
   lblNewPrivateKey.Enabled := rbChangeKey.Checked;
   lblNewOwnerPublicKey.Enabled := rbTransferToANewOwner.Checked;
   try
@@ -665,7 +677,7 @@ begin
       rbEncryptedWithEC.Caption := 'Encrypted with new public key';
       ebDestAccount.Font.Color := clGrayText;
       ebAmount.Font.Color := clGrayText;
-      ebFee.Font.Color := clGrayText;
+      //ebFee.Font.Color := clGrayText;
       cbNewPrivateKey.ParentFont := true;
       ebNewPublicKey.Font.Color := clGrayText;
       //
@@ -673,7 +685,21 @@ begin
         errors := 'Must select a new private key';
         lblChangeKeyErrors.Caption := errors;
         exit;
-
+      end;
+      i := PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex]);
+      if (i<0) Or (i>=WalletKeys.Count) then begin
+        errors := 'Invalid selected key';
+        lblChangeKeyErrors.Caption := errors;
+        exit;
+      end;
+      FNewAccountPublicKey := WalletKeys.Key[i].AccountKey;
+      if (SenderAccounts.Count=1) then begin
+        if (TAccountComp.Equal(sender_account.accountkey,FNewAccountPublicKey)) then begin
+          errors := 'Same public key';
+          lblNewOwnerErrors.Caption := errors;
+          lblNewOwnerErrors.Font.Color := clRed;
+          exit;
+        end;
       end;
       lblChangeKeyErrors.Caption := '';
       Result := true;
@@ -686,7 +712,7 @@ begin
       lblNewOwnerErrors.Caption := '';
       ebDestAccount.Font.Color := clGrayText;
       ebAmount.Font.Color := clGrayText;
-      ebFee.Font.Color := clGrayText;
+      //ebFee.Font.Color := clGrayText;
       cbNewPrivateKey.Font.Color := clGrayText;
       ebNewPublicKey.ParentFont := true;
       If Not TAccountComp.AccountKeyFromImport(ebNewPublicKey.Text,FNewAccountPublicKey,errors) then begin
@@ -694,6 +720,14 @@ begin
         lblNewOwnerErrors.Font.Color := clRed;
         exit;
       end else begin
+        if (SenderAccounts.Count=1) then begin
+          if (TAccountComp.Equal(sender_account.accountkey,FNewAccountPublicKey)) then begin
+            errors := 'Same public key';
+            lblNewOwnerErrors.Caption := errors;
+            lblNewOwnerErrors.Font.Color := clRed;
+            exit;
+          end;
+        end;
         lblNewOwnerErrors.Caption := 'New key type: '+TAccountComp.GetECInfoTxt(FNewAccountPublicKey.EC_OpenSSL_NID);
         lblNewOwnerErrors.Font.Color := clGreen;
       end;
@@ -704,7 +738,7 @@ begin
       rbTransferToANewOwner.ParentFont := true;
       ebDestAccount.Font.Color := clGrayText;
       ebAmount.Font.Color := clGrayText;
-      ebFee.Font.Color := clGrayText;
+      //ebFee.Font.Color := clGrayText;
       cbNewPrivateKey.Font.Color := clGrayText;
       lblTransactionErrors.Caption := '';
       lblChangeKeyErrors.Caption := '';

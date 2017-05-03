@@ -1,7 +1,7 @@
 object FRMOperation: TFRMOperation
-  Left = 628
+  Left = 700
   Height = 474
-  Top = 283
+  Top = 248
   Width = 608
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle

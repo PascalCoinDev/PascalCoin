@@ -872,14 +872,18 @@ begin
     buffer.Read(HeaderData.protocol.protocol_version,2);
     buffer.Read(HeaderData.protocol.protocol_available,2);
     buffer.Read(c,4);
+    HeaderData.buffer_data_length := c;
     DataBuffer.Size := 0;
     if buffer.Size - buffer.Position < c then begin
       IsValidHeaderButNeedMoreData := true;
+      {$IFDEF HIGHLOG}
+      TLog.NewLog(ltdebug,className,Format('Need more data! Buffer size (%d) - position (%d) < %d - Header info: %s',
+        [buffer.Size,buffer.Position,c,HeaderDataToText(HeaderData)]));
+      {$ENDIF}
       exit;
     end;
     DataBuffer.CopyFrom(buffer,c);
     DataBuffer.Position := 0;
-    HeaderData.buffer_data_length := c;
     //
     if HeaderData.header_type=ntp_response then begin
       HeaderData.is_error := HeaderData.error_code<>0;
@@ -1094,7 +1098,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       repeat
         BlocksList := TList.Create;
         try
-          finished := NOT Do_GetOperationsBlock(Bank,start,start + 50,5000,false,BlocksList);
+          finished := NOT Do_GetOperationsBlock(Bank,start,start + 50,90000,false,BlocksList);
           i := 0;
           while (i<BlocksList.Count) And (Not finished) do begin
             OpComp := TPCOperationsComp(BlocksList[i]);
@@ -1145,7 +1149,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       end else begin
         if (Not IsAScam) And (Connection.FRemoteAccumulatedWork > TNode.Node.Bank.SafeBox.WorkSum) then begin
           // Possible scammer!
-          Connection.DisconnectInvalidClient(false,Format('Possible scammer! Says blocks:%d Work:% - Obtained blocks:%d work:%d',
+          Connection.DisconnectInvalidClient(false,Format('Possible scammer! Says blocks:%d Work:%d - Obtained blocks:%d work:%d',
             [Connection.FRemoteOperationBlock.block+1,Connection.FRemoteAccumulatedWork,
              Bank.BlocksCount,Bank.SafeBox.WorkSum]));
         end;
@@ -2478,6 +2482,7 @@ begin
           end;
         end;
       end else begin
+        sleep(1);
         if Not Client.WaitForData(100) then begin
           exit;
         end;
@@ -2506,10 +2511,13 @@ begin
       if (Connected) then begin
         if (Not Result) And (FClientBufferRead.Size>0) And (Not IsValidHeaderButNeedMoreData) then begin
           deletedBytes := FClientBufferRead.Size;
-          TLog.NewLog(lterror,ClassName,Format('Deleting %d bytes from TcpClient buffer of %s after max %d miliseconds. Passed: %d',
+          TLog.NewLog(lterror,ClassName,Format('Deleting %d bytes from TcpClient buffer of %s after max %d miliseconds. Elapsed: %d',
             [deletedBytes, Client.ClientRemoteAddr,MaxWaitMiliseconds,GetTickCount-tc]));
           FClientBufferRead.Size:=0;
           DisconnectInvalidClient(false,'Invalid data received in buffer ('+inttostr(deletedBytes)+' bytes)');
+        end else if (IsValidHeaderButNeedMoreData) then begin
+          TLog.NewLog(ltDebug,ClassName,Format('Not enough data received - Received %d bytes from TcpClient buffer of %s after max %d miliseconds. Elapsed: %d - HeaderData: %s',
+            [FClientBufferRead.Size, Client.ClientRemoteAddr,MaxWaitMiliseconds,GetTickCount-tc,TNetData.HeaderDataToText(HeaderData)]));
         end;
       end;
     Finally

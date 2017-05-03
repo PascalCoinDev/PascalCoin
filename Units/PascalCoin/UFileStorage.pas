@@ -193,10 +193,11 @@ begin
     If Not StreamReadBlockHeader(Stream,StreamBlockHeaderStartPos,BlockHeaderFirstBlock,StartingDeleteBlock,_Header) then exit;
     _intBlockIndex := (_Header.BlockNumber-BlockHeaderFirstBlock);
     p := Int64(_intBlockIndex) * Int64(CT_SizeOfBlockHeader);
+    Stream.Position:=p;
     // Write null data until end of header
     GrowUntilPos(StreamBlockHeaderStartPos + GetBlockHeaderFixedSize,true);
     // End Stream at _Header
-    Stream.Size := Stream.Position + _Header.StreamBlockRelStartPos-1;
+    Stream.Size := Stream.Position + _Header.StreamBlockRelStartPos;
   Finally
     UnlockBlockChainStream;
   End;
@@ -610,8 +611,9 @@ Var p : Int64;
   _Header : TBlockHeader;
   _ops : TStream;
 begin
-  Result := StreamReadBlockHeader(Stream,StreamBlockHeaderStartPos,BlockHeaderFirstBlock,Block,_Header);
-  if Not Result then exit;
+  Result := False;
+  If Not StreamReadBlockHeader(Stream,StreamBlockHeaderStartPos,BlockHeaderFirstBlock,Block,_Header) then exit;
+
   // Calculating block position
   p := (StreamBlockHeaderStartPos + GetBlockHeaderFixedSize) +
      (_Header.StreamBlockRelStartPos);
@@ -625,7 +627,7 @@ begin
   // Read the block
   // Reading size
   Stream.Read(_BlockSizeC,sizeof(_BlockSizeC));
-  if (_BlockSizeC>(_Header.BlockSize+sizeof(_BlockSizeC))) then begin
+  if ((_BlockSizeC+sizeof(_BlockSizeC))>(_Header.BlockSize)) then begin
     TLog.NewLog(lterror,Classname,Format('Corruption at stream Block size. Block %d SizeH:%d SizeC:%d',[Block,
       _Header.BlockSize,_BlockSizeC]));
     exit;
@@ -682,6 +684,7 @@ begin
     _Header.StreamBlockRelStartPos := _HeaderPrevious.StreamBlockRelStartPos + _HeaderPrevious.BlockSize;
   end else begin
     // First block of the stream
+    Result := true;
     _Header.StreamBlockRelStartPos := 0;
   end;
   _ops := TMemoryStream.Create;
@@ -715,11 +718,6 @@ end;
 function TFileStorage.StreamReadBlockHeader(Stream: TStream;
   StreamBlockHeaderStartPos: Int64; BlockHeaderFirstBlock, Block: Cardinal;
   var BlockHeader: TBlockHeader): Boolean;
-Var p : Int64;
-  errors : AnsiString;
-  streamFirstBlock : Cardinal;
-  _intBlockIndex : Cardinal;
-  _Blocks : Cardinal;
 begin
   Result := false;
   BlockHeader := CT_TBlockHeader_NUL;

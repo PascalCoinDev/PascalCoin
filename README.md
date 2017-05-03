@@ -34,6 +34,20 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 1.5.6.0 - 2017-05-03
+- Allow multiselect accounts (GUI wallet)
+- Priority for operations with fee:
+  - Allow miner server (pools) to select what to mine using pascalcoin_daemon.ini file (daemon only)
+    - RPC_SERVERMINER_MAX_OPERATIONS_PER_BLOCK: Max of operations that can be included in a block (Default 5000, min value 1000)
+    - RPC_SERVERMINER_MAX_ZERO_FEE_OPERATIONS: Max of operations with 0 fee that can be included in a block (Default 2000, min value 400)
+  - Operations with fee have always preference over 0 fee operations (will be mined first)
+  - If operations with fee fills all the buffer, then no zero fee operation will be included
+- Fixed bug on receiving big blocks and slow net connection to prevent never synchronize
+- Fixed bug on miner server that produces "invalid operations hash" error on valid solutions with 0 operations
+- Fixed bug on file storage
+- Fixed minor bugs
+
+
 ### Build 1.5.5.0 - 2017-04-11
 - Corrected fee result on RPC calls as a negative number on "Change key" operations
 - Corrected PASCURRENCY value to be limited as a 4 decimal digits on RPC calls

@@ -223,12 +223,12 @@ object FRMOperation: TFRMOperation
         end
         object ebAmount: TEdit
           Left = 298
-          Top = 39
+          Top = 40
           Width = 86
           Height = 21
           TabOrder = 2
           Text = 'Edit1'
-          OnChange = ebDestAccountChange
+          OnChange = ebAmountChange
           OnClick = rbTransactionClick
           OnExit = ebFeeExit
         end
@@ -269,7 +269,7 @@ object FRMOperation: TFRMOperation
           Height = 21
           TabOrder = 3
           Text = 'ebFee'
-          OnChange = ebDestAccountChange
+          OnChange = ebFeeChange
           OnClick = rbTransactionClick
           OnExit = ebFeeExit
         end

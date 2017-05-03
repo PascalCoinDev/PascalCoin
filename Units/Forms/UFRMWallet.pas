@@ -784,6 +784,7 @@ begin
   FNodeNotifyEvents.OnNodeMessageEvent := OnNodeMessageEvent;
   FAccountsGrid := TAccountsGrid.Create(Self);
   FAccountsGrid.DrawGrid := dgAccounts;
+  FAccountsGrid.AllowMultiSelect := true;
   FSelectedAccountsGrid := TAccountsGrid.Create(Self);
   FSelectedAccountsGrid.DrawGrid := dgSelectedAccounts;
   FSelectedAccountsGrid.OnUpdated := OnSelectedAccountsGridUpdated;
@@ -1073,11 +1074,18 @@ begin
 end;
 
 procedure TFRMWallet.miNewOperationClick(Sender: TObject);
+var l : TOrderedCardinalList;
 begin
   CheckIsReady;
   With TFRMOperation.Create(Self) do
   Try
-    SenderAccounts.Add( FAccountsGrid.AccountNumber(dgAccounts.Row) );
+    l := TOrderedCardinalList.Create;
+    try
+      If FAccountsGrid.SelectedAccounts(l)<1 then raise Exception.Create('No row selected');
+      SenderAccounts.CopyFrom(l);
+    finally
+      l.Free;
+    end;
     Fee := FAppParams.ParamByName[CT_PARAM_DefaultFee].GetAsInt64(0);
     WalletKeys := FWalletKeys;
     ShowModal;
@@ -1390,8 +1398,9 @@ begin
 end;
 
 procedure TFRMWallet.sbSelectedAccountsAddClick(Sender: TObject);
-Var l : TOrderedCardinalList;
+Var l, selected : TOrderedCardinalList;
   an : Int64;
+  i : Integer;
 begin
   an := FAccountsGrid.AccountNumber(dgAccounts.Row);
   if (an<0) then raise Exception.Create('No account selected');
@@ -1400,10 +1409,15 @@ begin
       [TAccountComp.AccountNumberToAccountTxtNumber(an)]));
   // Add
   l := FSelectedAccountsGrid.LockAccountsList;
+  selected := TOrderedCardinalList.Create;
   Try
-    l.Add( an );
+    FAccountsGrid.SelectedAccounts(selected);
+    for i := 0 to selected.Count - 1 do begin
+      l.Add(selected.Get(i));
+    end;
   Finally
     FSelectedAccountsGrid.UnlockAccountsList;
+    selected.Free;
   End;
 end;
 

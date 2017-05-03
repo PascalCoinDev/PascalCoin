@@ -35,6 +35,8 @@ Const
   CT_INI_IDENT_MINER_B58_PUBLICKEY = 'RPC_SERVERMINER_B58_PUBKEY';
   CT_INI_IDENT_MINER_NAME = 'RPC_SERVERMINER_NAME';
   CT_INI_IDENT_MINER_MAX_CONNECTIONS = 'RPC_SERVERMINER_MAX_CONNECTIONS';
+  CT_INI_IDENT_MINER_MAX_OPERATIONS_PER_BLOCK = 'RPC_SERVERMINER_MAX_OPERATIONS_PER_BLOCK';
+  CT_INI_IDENT_MINER_MAX_ZERO_FEE_OPERATIONS  = 'RPC_SERVERMINER_MAX_ZERO_FEE_OPERATIONS';
 
 Type
   { TPCDaemonThread }
@@ -172,6 +174,8 @@ var
       FMinerServer.Port:=port;
       FMinerServer.Active:=True;
       FMinerServer.MaxConnections:=maxconnections;
+      FMinerServer.MaxOperationsPerBlock := FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_MINER_MAX_OPERATIONS_PER_BLOCK,CT_MAX_Operations_per_block_by_miner);
+      FMinerServer.Max0FeeOperationsPerBlock := FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_MINER_MAX_ZERO_FEE_OPERATIONS,CT_MAX_0_fee_operations_per_block_by_miner);
     end else begin
       TLog.NewLog(ltinfo,ClassName,'RPC Miner Server NOT ACTIVE (Ini file is '+CT_INI_IDENT_RPC_SERVERMINER_PORT+'=0)');
     end;

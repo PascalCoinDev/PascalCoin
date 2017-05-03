@@ -54,6 +54,7 @@ type
     FRemotePort : Word;
     FBytesReceived, FBytesSent : Int64;
     FLock : TPCCriticalSection;
+    FSendBufferLock : TPCCriticalSection;
     {$ENDIF}
     FOnConnect: TNotifyEvent;
     FOnDisconnect: TNotifyEvent;
@@ -282,6 +283,7 @@ begin
   {$ENDIF}
   {$IFDEF Synapse}
   FLock := TPCCriticalSection.Create('TNetTcpIpClient_Lock');
+  FSendBufferLock := TPCCriticalSection.Create('TNetTcpIpClient_SendBufferLock');
   FTcpBlockSocket := TTCPBlockSocket.Create;
   FTcpBlockSocket.OnAfterConnect := OnConnect;
   FTcpBlockSocket.SocksTimeout := 5000; //Build 1.5.0 was 10000;
@@ -298,6 +300,7 @@ destructor TNetTcpIpClient.Destroy;
 begin
   Disconnect;
   {$IFDEF Synapse}  // Memory leak on 1.5.0
+  FreeAndNil(FSendBufferLock);
   FreeAndNil(FLock);
   {$ENDIF}
   inherited;
@@ -431,6 +434,7 @@ end;
 
 function TNetTcpIpClient.SendStream(Stream: TStream): Int64;
 Var sp : Int64;
+  unlocked : Boolean;
 begin
   sp := Stream.Position;
   {$IFDEF DelphiSockets}
@@ -440,13 +444,17 @@ begin
   {$ENDIF}
   {$IFDEF Synapse}
   Result := 0;
-  FLock.Acquire;
+  unlocked := false;
+  // In order to allow a big stream sending, will cut up in small blocks
+  FSendBufferLock.Acquire;
   Try
     Try
       FTcpBlockSocket.SendStreamRaw(Stream);
       if FTcpBlockSocket.LastError<>0 then begin
         TLog.NewLog(ltDebug,ClassName,'Closing connection from '+ClientRemoteAddr+' (Sending error): '+Inttostr(FTcpBlockSocket.LastError)+' '+FTcpBlockSocket.GetErrorDescEx);
         Result := -1;
+        unlocked := true;
+        FSendBufferLock.Release;
         Disconnect;
       end else begin
         Result := Stream.Position - sp;
@@ -456,12 +464,14 @@ begin
       On E:Exception do begin
         SocketError := FTcpBlockSocket.LastError;
         TLog.NewLog(lterror,ClassName,'Exception sending stream to '+ClientRemoteAddr+': '+FTcpBlockSocket.GetErrorDescEx);
+        unlocked := true;
+        FSendBufferLock.Release;
         Disconnect;
       end;
     End;
   Finally
-    FLock.Release;
-  End;
+    If not unlocked then FSendBufferLock.Release;
+  end;
   {$ENDIF}
   if Result>0 then FLastCommunicationTime := Now;
 end;

@@ -1470,11 +1470,11 @@ begin
           TLog.NewLog(ltdebug,Classname,'Sanitizing (pos:'+inttostr(i+1)+'/'+inttostr(lastn)+'): '+op.ToString);
         end;
       end;
-      FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
     Finally
       aux2 := FOperationsHashTree;
       FOperationsHashTree := aux;
       aux2.Free;
+      FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
     End;
   Finally
     CalcProofOfWork(true,FOperationBlock.proof_of_work);
