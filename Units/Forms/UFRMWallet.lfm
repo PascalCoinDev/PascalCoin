@@ -178,8 +178,8 @@ object FRMWallet: TFRMWallet
       Left = 90
       Height = 13
       Top = 26
-      Width = 89
-      Caption = 'Current Block age:'
+      Width = 90
+      Caption = 'Current Block Age:'
       ParentColor = False
     end
     object lblCurrentBlockTime: TLabel
@@ -210,8 +210,8 @@ object FRMWallet: TFRMWallet
       Left = 90
       Height = 13
       Top = 56
-      Width = 68
-      Caption = 'Miners clients:'
+      Width = 65
+      Caption = 'Miner Clients:'
       ParentColor = False
     end
     object lblMinersClients: TLabel
@@ -302,8 +302,8 @@ object FRMWallet: TFRMWallet
       Left = 360
       Height = 13
       Top = 56
-      Width = 74
-      Caption = 'Blocks found:'
+      Width = 76
+      Caption = 'Blocks Found:'
       Font.Color = clWindowText
       Font.Height = -11
       Font.Name = 'Tahoma'
@@ -332,8 +332,8 @@ object FRMWallet: TFRMWallet
       Left = 360
       Height = 23
       Top = 66
-      Width = 185
-      Caption = 'Received messages'
+      Width = 184
+      Caption = 'Received Messages'
       Font.Color = clRed
       Font.Height = -19
       Font.Name = 'Tahoma'
@@ -388,7 +388,7 @@ object FRMWallet: TFRMWallet
     TabOrder = 2
     OnChange = PageControlChange
     object tsMyAccounts: TTabSheet
-      Caption = 'Accounts Explorer'
+      Caption = 'Account Explorer'
       ClientHeight = 440
       ClientWidth = 857
       object Splitter1: TSplitter
@@ -480,6 +480,41 @@ object FRMWallet: TFRMWallet
           OnExit = ebFilterAccountByBalanceMinExit
           OnKeyPress = ebFilterAccountByBalanceMinKeyPress
           TabOrder = 6
+        end
+        object sbSearchAccount: TSpeedButton
+          Left = 176
+          Height = 22
+          Top = 32
+          Width = 23
+          Glyph.Data = {
+            36030000424D3803000000000000360000002800000010000000100000000100
+            18000000000000000000120B0000120B00000000000000000000FF00FF4A667C
+            BE9596FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+            FFFF00FFFF00FFFF00FF6B9CC31E89E84B7AA3C89693FF00FFFF00FFFF00FFFF
+            00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF4BB4FE51B5FF
+            2089E94B7AA2C69592FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+            FFFF00FFFF00FFFF00FFFF00FF51B7FE51B3FF1D87E64E7AA0CA9792FF00FFFF
+            00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+            51B7FE4EB2FF1F89E64E7BA2B99497FF00FFFF00FFFF00FFFF00FFFF00FFFF00
+            FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF52B8FE4BB1FF2787D95F6A76FF
+            00FFB0857FC09F94C09F96BC988EFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+            FF00FFFF00FF55BDFFB5D6EDBF9D92BB9B8CE7DAC2FFFFE3FFFFE5FDFADAD8C3
+            B3B58D85FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFCEA795FD
+            EEBEFFFFD8FFFFDAFFFFDBFFFFE6FFFFFBEADDDCAE837FFF00FFFF00FFFF00FF
+            FF00FFFF00FFFF00FFFF00FFC1A091FBDCA8FEF7D0FFFFDBFFFFE3FFFFF8FFFF
+            FDFFFFFDC6A99CFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFC1A091FEE3ACF1
+            C491FCF2CAFFFFDDFFFFE4FFFFF7FFFFF7FFFFE9EEE5CBB9948CFF00FFFF00FF
+            FF00FFFF00FFFF00FFC2A191FFE6AEEEB581F7DCAEFEFDD8FFFFDFFFFFE3FFFF
+            E4FFFFE0F3ECD2BB968EFF00FFFF00FFFF00FFFF00FFFF00FFBC978CFBE7B7F4
+            C791F2C994F8E5B9FEFCD8FFFFDDFFFFDCFFFFE0E2D2BAB68E86FF00FFFF00FF
+            FF00FFFF00FFFF00FFFF00FFD9C3A9FFFEE5F7DCB8F2C994F5D4A5FAE8BDFDF4
+            C9FDFBD6B69089FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFB58D85E8
+            DEDDFFFEF2F9D8A3F4C48CF9D49FFDEAB8D0B49FB89086FF00FFFF00FFFF00FF
+            FF00FFFF00FFFF00FFFF00FFFF00FFAD827FC9AA9EEFE0B7EFDFB2E7CEACB890
+            86B89086FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+            00FFFF00FFBA968ABB988CB79188FF00FFFF00FFFF00FFFF00FF
+          }
+          OnClick = sbSearchAccountClick
         end
       end
       object pnlAccounts: TPanel
@@ -859,7 +894,7 @@ object FRMWallet: TFRMWallet
       end
     end
     object tsBlockChain: TTabSheet
-      Caption = 'BlockChain Explorer'
+      Caption = 'Block Explorer'
       ClientHeight = 440
       ClientWidth = 857
       ImageIndex = 1
@@ -988,7 +1023,7 @@ object FRMWallet: TFRMWallet
           Height = 19
           Top = 10
           Width = 102
-          Caption = 'Show Debug logs'
+          Caption = 'Show Debug Logs'
           TabOrder = 0
         end
       end
@@ -1013,7 +1048,7 @@ object FRMWallet: TFRMWallet
         Height = 13
         Top = 15
         Width = 177
-        Caption = 'Active Net Connections of this Node:'
+        Caption = 'Active Connections:'
         ParentColor = False
       end
       object Label6: TLabel
@@ -1022,7 +1057,7 @@ object FRMWallet: TFRMWallet
         Top = 291
         Width = 198
         Anchors = [akLeft, akRight, akBottom]
-        Caption = 'Available or possible Node Servers:'
+        Caption = 'Known Node Servers:'
         ParentColor = False
       end
       object Label7: TLabel
@@ -1031,7 +1066,7 @@ object FRMWallet: TFRMWallet
         Top = 187
         Width = 99
         Anchors = [akLeft, akRight, akBottom]
-        Caption = 'BlackList of Nodes'
+        Caption = 'Blacklisted Nodes'
         ParentColor = False
       end
       object memoNetConnections: TMemo
@@ -1094,7 +1129,7 @@ object FRMWallet: TFRMWallet
         Height = 13
         Top = 11
         Width = 107
-        Caption = 'Available connections:'
+        Caption = 'Available Connections:'
         ParentColor = False
       end
       object Label14: TLabel
@@ -1176,7 +1211,7 @@ object FRMWallet: TFRMWallet
     object miProject: TMenuItem
       Caption = 'Project'
       object miPrivatekeys: TMenuItem
-        Caption = 'Private keys'
+        Caption = 'Private Keys'
         ShortCut = 16464
         OnClick = miPrivatekeysClick
       end
@@ -1189,7 +1224,7 @@ object FRMWallet: TFRMWallet
         OnClick = miOptionsClick
       end
       object IPnodes1: TMenuItem
-        Caption = 'IP nodes'
+        Caption = 'Available Node List'
         OnClick = IPnodes1Click
       end
       object N1: TMenuItem
@@ -1221,6 +1256,11 @@ object FRMWallet: TFRMWallet
         Caption = 'Find account'
         ShortCut = 16454
         OnClick = MiFindaccountClick
+      end
+      object MiAccountInformation: TMenuItem
+        Caption = 'Account Information'
+        ShortCut = 112
+        OnClick = MiAccountInformationClick
       end
       object N2: TMenuItem
         Caption = '-'

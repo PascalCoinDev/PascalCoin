@@ -148,8 +148,8 @@ var
             FWalletKeys.AddPrivateKey('RANDOM NEW BY DAEMON '+FormatDateTime('yyyy-mm-dd hh:nn:dd',now),ECPK);
             pubkey := ECPK.PublicKey;
             FIniFile.WriteString(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_MINER_B58_PUBLICKEY,
-              TAccountComp.AccountKeyToExport(pubkey));
-            TLog.NewLog(ltInfo,ClassName, 'Generated new pubkey for miner: '+TAccountComp.AccountKeyToExport(pubkey));
+              TAccountComp.AccountPublicKeyExport(pubkey));
+            TLog.NewLog(ltInfo,ClassName, 'Generated new pubkey for miner: '+TAccountComp.AccountPublicKeyExport(pubkey));
           finally
             ECPK.Free;
           end;
@@ -157,7 +157,7 @@ var
       end else begin
         // pubkey is mine?
         if (FWalletKeys.IndexOfAccountKey(pubkey)<0) then begin
-          TLog.NewLog(lterror,classname,'WARNING: Using a public key without private key in wallet! '+TAccountComp.AccountKeyToExport(pubkey));
+          TLog.NewLog(lterror,classname,'WARNING: Using a public key without private key in wallet! '+TAccountComp.AccountPublicKeyExport(pubkey));
         end;
       end;
       i := FWalletKeys.IndexOfAccountKey(pubkey);
@@ -168,7 +168,7 @@ var
       end;
       maxconnections:=FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_MINER_MAX_CONNECTIONS,1000);
       TLog.NewLog(ltinfo,ClassName,Format('Activating RPC Miner Server on port %d, name "%s", max conections %d and public key %s',
-        [port,s,maxconnections,TAccountComp.AccountKeyToExport(pubkey)]));
+        [port,s,maxconnections,TAccountComp.AccountPublicKeyExport(pubkey)]));
       FMinerServer := TPoolMiningServer.Create;
       FMinerServer.UpdateAccountAndPayload(pubkey,s);
       FMinerServer.Port:=port;

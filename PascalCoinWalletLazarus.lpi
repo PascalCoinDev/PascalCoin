@@ -38,7 +38,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="34">
+    <Units Count="37">
       <Unit0>
         <Filename Value="PascalCoinWalletLazarus.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -199,6 +199,21 @@
         <Filename Value="Units\PascalCoin\UAES.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit33>
+      <Unit34>
+        <Filename Value="Units\PascalCoin\UChunk.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit34>
+      <Unit35>
+        <Filename Value="Units\Forms\UFRMAccountSelect.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="FRMAccountSelect"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit35>
+      <Unit36>
+        <Filename Value="Units\PascalCoin\UBaseTypes.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit36>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -209,7 +224,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="Synapse\lib;Units\Forms;Units\PascalCoin;Units\Utils"/>
+      <OtherUnitFiles Value="Synapse\lib;Units\Forms;Units\PascalCoin;Units\Utils;Units\SQLite3"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>

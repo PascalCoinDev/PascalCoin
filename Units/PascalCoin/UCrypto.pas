@@ -71,7 +71,9 @@ Type
     Class function DoSha256(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     Class function DoSha256(const TheMessage : AnsiString) : TRawBytes; overload;
     Class procedure DoDoubleSha256(p : PAnsiChar; plength : Cardinal; Var ResultSha256 : TRawBytes); overload;
-    Class function DoRipeMD160(const TheMessage : AnsiString) : TRawBytes;
+    Class function DoRipeMD160_HEXASTRING(const TheMessage : AnsiString) : TRawBytes; overload;
+    Class function DoRipeMD160AsRaw(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
+    Class function DoRipeMD160AsRaw(const TheMessage : AnsiString) : TRawBytes; overload;
     Class function PrivateKey2Hexa(Key : PEC_KEY) : AnsiString;
     Class function ECDSASign(Key : PEC_KEY; const digest : AnsiString) : TECDSA_SIG;
     Class function ECDSAVerify(EC_OpenSSL_NID : Word; PubKey : EC_POINT; const digest : AnsiString; Signature : TECDSA_SIG) : Boolean; overload;
@@ -227,7 +229,12 @@ begin
         PAC := BN_bn2hex(BNx);
         try
           Result := TECPrivateKey.Create;
-          Result.SetPrivateKeyFromHexa(ECID,PAC);
+          Try
+            Result.SetPrivateKeyFromHexa(ECID,PAC);
+          Except
+            FreeAndNil(Result);
+            Raise;
+          end;
         finally
           OpenSSL_free(PAC);
         end;
@@ -325,7 +332,7 @@ begin
   SHA256(PS,32,PS);
 end;
 
-class function TCrypto.DoRipeMD160(const TheMessage: AnsiString): TRawBytes;
+class function TCrypto.DoRipeMD160_HEXASTRING(const TheMessage: AnsiString): TRawBytes;
 Var PS : PAnsiChar;
   PC : PAnsiChar;
   i : Integer;
@@ -339,6 +346,22 @@ begin
     inc(PC);
   end;
   FreeMem(PS,33);
+end;
+
+class function TCrypto.DoRipeMD160AsRaw(p: PAnsiChar; plength: Cardinal): TRawBytes;
+Var PS : PAnsiChar;
+begin
+  SetLength(Result,20);
+  PS := @Result[1];
+  RIPEMD160(p,plength,PS);
+end;
+
+class function TCrypto.DoRipeMD160AsRaw(const TheMessage: AnsiString): TRawBytes;
+Var PS : PAnsiChar;
+begin
+  SetLength(Result,20);
+  PS := @Result[1];
+  RIPEMD160(PAnsiChar(TheMessage),Length(TheMessage),PS);
 end;
 
 class function TCrypto.DoSha256(p: PAnsiChar; plength: Cardinal): TRawBytes;

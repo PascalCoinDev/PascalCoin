@@ -32,7 +32,12 @@ uses
   UFileStorage in 'Units\PascalCoin\UFileStorage.pas',
   UOpenSSL in 'Units\PascalCoin\UOpenSSL.pas',
   UOpenSSLdef in 'Units\PascalCoin\UOpenSSLdef.pas',
-  UAES in 'Units\PascalCoin\UAES.pas';
+  UAES in 'Units\PascalCoin\UAES.pas',
+  UFRMAccountSelect in 'Units\Forms\UFRMAccountSelect.pas' {FRMAccountSelect},
+  UFRMAccountInfo in 'Units\Forms\UFRMAccountInfo.pas' {FRMAccountInfo},
+  UFRMMemoText in 'Units\Forms\UFRMMemoText.pas' {FRMMemoText},
+  UChunk in 'Units\PascalCoin\UChunk.pas',
+  UBaseTypes in 'Units\PascalCoin\UBaseTypes.pas';
 
 {$R *.res}
 

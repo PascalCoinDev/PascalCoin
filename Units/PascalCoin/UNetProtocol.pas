@@ -42,6 +42,7 @@ Const
   CT_NetOp_GetOperationsBlock = $0005; // Sends from and to. Receive a number of OperationsBlock to check
   CT_NetOp_NewBlock = $0011;
   CT_NetOp_AddOperations = $0020;
+  CT_NetOp_GetSafeBox = $0021;         // V2 Protocol: Allows to send/receive Safebox in chunk parts
 
 
   CT_NetError_InvalidProtocolVersion = $0001;
@@ -49,6 +50,7 @@ Const
   CT_NetError_InvalidDataBufferInfo = $0010;
   CT_NetError_InternalServerError = $0011;
   CT_NetError_InvalidNewAccount = $0012;
+  CT_NetError_SafeboxNotFound = $00020;
 
 Type
   {
@@ -268,8 +270,11 @@ Type
     Property NetworkAdjustedTime : TNetworkAdjustedTime read FNetworkAdjustedTime;
   End;
 
+  { TNetConnection }
+
   TNetConnection = Class(TComponent)
   private
+    FIsConnecting: Boolean;
     FTcpIpClient : TNetTcpIpClient;
     FRemoteOperationBlock : TOperationBlock;
     FRemoteAccumulatedWork : UInt64;
@@ -305,6 +310,7 @@ Type
     Procedure DoProcess_GetOperationsBlock_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_NewBlock(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_AddOperations(HeaderData : TNetHeaderData; DataBuffer: TStream);
+    Procedure DoProcess_GetSafeBox_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure SetClient(Const Value : TNetTcpIpClient);
     Function ReadTcpClientBuffer(MaxWaitMiliseconds : Cardinal; var HeaderData : TNetHeaderData; BufferData : TStream) : Boolean;
     Procedure DisconnectInvalidClient(ItsMyself : Boolean; Const why : AnsiString);
@@ -318,6 +324,7 @@ Type
     Destructor Destroy; override;
     Function ConnectTo(ServerIP: String; ServerPort:Word) : Boolean;
     Property Connected : Boolean read GetConnected write SetConnected;
+    Property IsConnecting : Boolean read FIsConnecting;
     Function Send_Hello(NetTranferType : TNetTransferType; request_id : Integer) : Boolean;
     Function Send_NewBlockFound(Const NewBlock : TPCOperationsComp) : Boolean;
     Function Send_GetBlocks(StartAddress, quantity : Cardinal; var request_id : Cardinal) : Boolean;
@@ -390,7 +397,7 @@ Const
 implementation
 
 uses
-  UConst, ULog, UNode, UTime, UECIES;
+  UConst, ULog, UNode, UTime, UECIES, UChunk;
 
 Const
   CT_NetTransferType : Array[TNetTransferType] of AnsiString = ('Unknown','Request','Response','Autosend');
@@ -671,6 +678,7 @@ begin
   FOnReceivedHelloMessage := Nil;
 
   // First destroy ThreadCheckConnections to prevent a call to "DiscoverServers"
+  TLog.NewLog(ltInfo,ClassName,'ThreadCheckConnections terminating...');
   FThreadCheckConnections.Terminate;
   FThreadCheckConnections.WaitFor;
   FreeAndNil(FThreadCheckConnections);
@@ -683,6 +691,7 @@ begin
       tdc.Terminate;
       tdc.WaitFor;
       tdc.Free;
+      TLog.NewLog(ltInfo,ClassName,'TThreadDiscoverConnection finished');
     end;
   Until Not Assigned(tdc);
 
@@ -914,7 +923,7 @@ begin
   try
     for i := 0 to L.Count - 1 do begin
       Result := TNetConnection( l[i] );
-      If TAccountComp.Equal(Result.FClientPublicKey,Sender.FClientPublicKey) And (Sender<>Result) then exit;
+      If TAccountComp.EqualAccountKeys(Result.FClientPublicKey,Sender.FClientPublicKey) And (Sender<>Result) then exit;
     end;
   finally
     FNetConnections.UnlockList;
@@ -950,7 +959,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     noperation : Integer;
   begin
     Result := false;
-    BlocksList.Count := 0;
+    BlocksList.Clear;
     if (Connection.FRemoteOperationBlock.block<block_end) then block_end := Connection.FRemoteOperationBlock.block;
     // First receive operations from
     SendData := TMemoryStream.Create;
@@ -999,7 +1008,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     OperationBlock := CT_OperationBlock_NUL;
     BlocksList := TList.Create;
     try
-      Result := Do_GetOperationsBlock(TNode.Node.Bank,block,block,MaxWaitMilliseconds,false,BlocksList);
+      Result := Do_GetOperationsBlock(TNode.Node.Bank,block,block,MaxWaitMilliseconds,True,BlocksList);
       if (Result) And (BlocksList.Count=1) then begin
         OperationBlock := TPCOperationsComp(BlocksList[0]).OperationBlock;
       end;
@@ -1012,8 +1021,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
   Function FindLastSameBlockByOperationsBlock(min,max : Cardinal; var OperationBlock : TOperationBlock) : Boolean;
   var i : Integer;
     ant_nblock : Int64;
-    myops : TPCOperationsComp;
-    auxBlock : TOperationBlock;
+    auxBlock, sbBlock : TOperationBlock;
     distinctmax,distinctmin : Cardinal;
     BlocksList : TList;
   Begin
@@ -1025,30 +1033,24 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
         If Not Do_GetOperationsBlock(Nil,min,max,5000,true,BlocksList) then exit;
         distinctmin := min;
         distinctmax := max;
-        myops := TPCOperationsComp.Create(TNode.Node.Bank);
-        try
-          ant_nblock := -1;
-          for i := 0 to BlocksList.Count - 1 do begin
-            auxBlock := TPCOperationsComp(BlocksList[i]).OperationBlock;
-            // Protection of invalid clients:
-            if (auxBlock.block<min) Or (auxBlock.block>max) Or (auxBlock.block=ant_nblock) then begin
-              Connection.DisconnectInvalidClient(false,'Invalid response... '+inttostr(min)+'<'+inttostr(auxBlock.block)+'<'+inttostr(max)+' ant:'+inttostr(ant_nblock));
-              exit;
-            end;
-            ant_nblock := auxBlock.block;
-            //
-            If Not TNode.Node.Bank.LoadOperations(myops,auxBlock.block) then exit;
-
-            if ((myops.OperationBlock.proof_of_work = auxBlock.proof_of_work) And (myops.OperationBlock.nonce = auxBlock.nonce)) then begin
-              distinctmin := auxBlock.block;
-              OperationBlock := auxBlock;
-            end else begin
-              if auxBlock.block<=distinctmax then
-                distinctmax := auxBlock.block-1;
-            end;
+        ant_nblock := -1;
+        for i := 0 to BlocksList.Count - 1 do begin
+          auxBlock := TPCOperationsComp(BlocksList[i]).OperationBlock;
+          // Protection of invalid clients:
+          if (auxBlock.block<min) Or (auxBlock.block>max) Or (auxBlock.block=ant_nblock) then begin
+            Connection.DisconnectInvalidClient(false,'Invalid response... '+inttostr(min)+'<'+inttostr(auxBlock.block)+'<'+inttostr(max)+' ant:'+inttostr(ant_nblock));
+            exit;
           end;
-        finally
-          myops.Free;
+          ant_nblock := auxBlock.block;
+          //
+          sbBlock := TNode.Node.Bank.SafeBox.Block(auxBlock.block).blockchainInfo;
+          if TPCOperationsComp.EqualsOperationBlock(sbBlock,auxBlock) then begin
+            distinctmin := auxBlock.block;
+            OperationBlock := auxBlock;
+          end else begin
+            if auxBlock.block<=distinctmax then
+              distinctmax := auxBlock.block-1;
+          end;
         end;
         min := distinctmin;
         max := distinctmax;
@@ -1067,9 +1069,11 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     i : Integer;
     tempfolder : AnsiString;
     OpComp,OpExecute : TPCOperationsComp;
+    oldBlockchainOperations : TOperationsHashTree;
+    opsResume : TOperationsResumeList;
     newBlock : TBlockAccount;
     errors : AnsiString;
-    start : Cardinal;
+    start,start_c : Cardinal;
     finished : Boolean;
     Bank : TPCBank;
     ms : TMemoryStream;
@@ -1091,6 +1095,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
         start := 0;
         start_block := 0;
       end;
+      start_c := start;
       Bank.Storage.Orphan := FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now));
       Bank.Storage.ReadOnly := false;
       // Receive new blocks:
@@ -1098,7 +1103,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       repeat
         BlocksList := TList.Create;
         try
-          finished := NOT Do_GetOperationsBlock(Bank,start,start + 50,90000,false,BlocksList);
+          finished := NOT Do_GetOperationsBlock(Bank,start,start + 50,30000,false,BlocksList);
           i := 0;
           while (i<BlocksList.Count) And (Not finished) do begin
             OpComp := TPCOperationsComp(BlocksList[i]);
@@ -1135,17 +1140,52 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       // Before of version 1.5 was: "if Bank.BlocksCount>TNode.Node.Bank.BlocksCount then ..."
       // Starting on version 1.5 is: "if Bank.WORK > MyBank.WORK then ..."
       if Bank.SafeBox.WorkSum > TNode.Node.Bank.SafeBox.WorkSum then begin
-        TNode.Node.DisableNewBlocks;
-        Try
-          // I'm an orphan blockchain...
-          TLog.NewLog(ltinfo,CT_LogSender,'New valid blockchain found. My block count='+inttostr(TNode.Node.Bank.BlocksCount)+' work: '+IntToStr(TNode.Node.Bank.SafeBox.WorkSum)+
-            ' found count='+inttostr(Bank.BlocksCount)+' work: '+IntToStr(Bank.SafeBox.WorkSum)+' starting at block '+inttostr(start_block));
-          TNode.Node.Bank.Storage.MoveBlockChainBlocks(start_block,Inttostr(start_block)+'_'+FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now)),Nil);
-          Bank.Storage.MoveBlockChainBlocks(start_block,TNode.Node.Bank.Storage.Orphan,TNode.Node.Bank.Storage);
-          TNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
-        Finally
-          TNode.Node.EnableNewBlocks;
-        End;
+        oldBlockchainOperations := TOperationsHashTree.Create;
+        try
+          TNode.Node.DisableNewBlocks;
+          Try
+            // I'm an orphan blockchain...
+            TLog.NewLog(ltinfo,CT_LogSender,'New valid blockchain found. My block count='+inttostr(TNode.Node.Bank.BlocksCount)+' work: '+IntToStr(TNode.Node.Bank.SafeBox.WorkSum)+
+              ' found count='+inttostr(Bank.BlocksCount)+' work: '+IntToStr(Bank.SafeBox.WorkSum)+' starting at block '+inttostr(start_block));
+            if TNode.Node.Bank.BlocksCount>0 then begin
+              OpExecute := TPCOperationsComp.Create(Nil);
+              try
+                for start:=start_c to TNode.Node.Bank.BlocksCount-1 do begin
+                  If TNode.Node.Bank.LoadOperations(OpExecute,start) then begin
+                    for i:=0 to OpExecute.Count-1 do begin
+                      oldBlockchainOperations.AddOperationToHashTree(OpExecute.Operation[i]);
+                    end;
+                    TLog.NewLog(ltInfo,CT_LogSender,'Recovered '+IntToStr(OpExecute.Count)+' operations from block '+IntToStr(start));
+                  end else begin
+                    TLog.NewLog(ltError,CT_LogSender,'Fatal error: Cannot read block '+IntToStr(start));
+                  end;
+                end;
+              finally
+                OpExecute.Free;
+              end;
+            end;
+            TNode.Node.Bank.Storage.MoveBlockChainBlocks(start_block,Inttostr(start_block)+'_'+FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now)),Nil);
+            Bank.Storage.MoveBlockChainBlocks(start_block,TNode.Node.Bank.Storage.Orphan,TNode.Node.Bank.Storage);
+            TNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
+          Finally
+            TNode.Node.EnableNewBlocks;
+          End;
+          // Finally add new operations:
+          // Rescue old operations from old blockchain to new blockchain
+          If oldBlockchainOperations.OperationsCount>0 then begin
+            TLog.NewLog(ltInfo,CT_LogSender,Format('Executing %d operations from block %d to %d',
+             [oldBlockchainOperations.OperationsCount,start_c,TNode.Node.Bank.BlocksCount-1]));
+            opsResume := TOperationsResumeList.Create;
+            Try
+              i := TNode.Node.AddOperations(Connection,oldBlockchainOperations,opsResume,errors);
+              TLog.NewLog(ltInfo,CT_LogSender,Format('Executed %d/%d operations. Returned errors: %s',[i,oldBlockchainOperations.OperationsCount,errors]));
+            finally
+              opsResume.Free;
+            end;
+          end else TLog.NewLog(ltInfo,CT_LogSender,Format('No operations from block %d to %d',[start_c,TNode.Node.Bank.BlocksCount-1]));
+        finally
+          oldBlockchainOperations.Free;
+        end;
       end else begin
         if (Not IsAScam) And (Connection.FRemoteAccumulatedWork > TNode.Node.Bank.SafeBox.WorkSum) then begin
           // Possible scammer!
@@ -1158,6 +1198,72 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       Bank.Free;
     end;
   End;
+
+  Function DownloadSafeBox(IsMyBlockchainValid : Boolean) : Boolean;
+  Var c,_blockcount,request_id : Cardinal;
+    SendData, ReceiveData : TStream;
+    op : TOperationBlock;
+    headerdata : TNetHeaderData;
+    safeBoxHeader : TPCSafeBoxHeader;
+    errors : AnsiString;
+  Begin
+    Result := False;
+    // Will try to download penultimate saved safebox
+    _blockcount := ((Connection.FRemoteOperationBlock.block DIV CT_BankToDiskEveryNBlocks)-1) * CT_BankToDiskEveryNBlocks;
+    SendData := TMemoryStream.Create;
+    ReceiveData := TMemoryStream.Create;
+    try
+      If not Do_GetOperationBlock(_blockcount,5000,op) then begin
+        Connection.DisconnectInvalidClient(false,Format('Cannot obtain operation block %d for downloading safebox',[_blockcount]));
+        exit;
+      end;
+      // Obtain safebox
+      SendData.Write(_blockcount,SizeOf(_blockcount)); // 4 bytes for blockcount
+      TStreamOp.WriteAnsiString(SendData,op.initial_safe_box_hash);
+      c := 0;
+      SendData.Write(c,SizeOf(c));
+      c := _blockcount-1;
+      SendData.Write(c,SizeOf(c));
+      TLog.NewLog(ltdebug,CT_LogSender,Format('Sending %s from block %d to %d (Total: %d)',
+        [TNetData.OperationToText(CT_NetOp_GetSafeBox),0,_blockcount-1,_blockcount]));
+      request_id := TNetData.NetData.NewRequestId;
+      if Connection.DoSendAndWaitForResponse(CT_NetOp_GetSafeBox,request_id,SendData,ReceiveData,60000,headerdata) then begin
+        if HeaderData.is_error then exit;
+        SendData.Size:=0;
+        If Not TPCChunk.LoadSafeBoxFromChunk(ReceiveData,SendData,safeBoxHeader,errors) then begin
+          Connection.DisconnectInvalidClient(false,'Invalid received chunk: '+errors);
+          exit;
+        end;
+        TNode.Node.DisableNewBlocks;
+        try
+          TNode.Node.Bank.SafeBox.StartThreadSafe;
+          try
+            SendData.Position:=0;
+            If TNode.Node.Bank.LoadBankFromStream(SendData,True,errors) then begin
+              TLog.NewLog(ltInfo,ClassName,'Received new safebox!');
+              If Not IsMyBlockchainValid then begin
+                TNode.Node.Bank.Storage.EraseStorage;
+              end;
+              Connection.Send_GetBlocks(TNode.Node.Bank.BlocksCount,100,request_id);
+              Result := true;
+            end else begin
+              Connection.DisconnectInvalidClient(false,'Cannot load from stream! '+errors);
+              exit;
+            end;
+          finally
+            TNode.Node.Bank.SafeBox.EndThreadSave;
+          end;
+        finally
+          TNode.Node.EnableNewBlocks;
+        end;
+      end else begin
+        TLog.NewLog(lterror,CT_LogSender,Format('No received response for %s',[TNetData.OperationToText(CT_NetOp_GetSafeBox)]));
+      end;
+    finally
+      SendData.Free;
+      ReceiveData.free;
+    end;
+  end;
 
 var rid : Cardinal;
   bufferdata : TMemoryStream;
@@ -1179,7 +1285,11 @@ begin
     FMaxRemoteOperationBlock := Connection.FRemoteOperationBlock;
     if TNode.Node.Bank.BlocksCount=0 then begin
       TLog.NewLog(ltdebug,CT_LogSender,'I have no blocks');
-      Connection.Send_GetBlocks(0,10,rid);
+      If Connection.FRemoteOperationBlock.protocol_version>=CT_PROTOCOL_2 then begin
+        DownloadSafeBox(False);
+      end else begin
+        Connection.Send_GetBlocks(0,10,rid);
+      end;
       exit;
     end;
     TLog.NewLog(ltdebug,CT_LogSender,'Starting GetNewBlockChainFromClient at client:'+Connection.ClientRemoteAddr+
@@ -1190,18 +1300,22 @@ begin
     If Not Do_GetOperationBlock(my_op.block,5000,client_op) then begin
       TLog.NewLog(lterror,CT_LogSender,'Cannot receive information about my block ('+inttostr(my_op.block)+')...');
       // Disabled at Build 1.0.6 >  Connection.DisconnectInvalidClient(false,'Cannot receive information about my block ('+inttostr(my_op.block)+')... Invalid client. Disconnecting');
-      exit;
+      Exit;
     end;
 
     if (NOT TPCOperationsComp.EqualsOperationBlock(my_op,client_op)) then begin
       TLog.NewLog(ltinfo,CT_LogSender,'My blockchain is not equal... received: '+TPCOperationsComp.OperationBlockToText(client_op)+' My: '+TPCOperationsComp.OperationBlockToText(my_op));
       if Not FindLastSameBlockByOperationsBlock(0,client_op.block,client_op) then begin
         TLog.NewLog(ltinfo,CT_LogSender,'No found base block to start process... Receiving ALL');
-        GetNewBank(-1);
+        If (Connection.FRemoteOperationBlock.protocol_version>=CT_PROTOCOL_2) then begin
+          DownloadSafeBox(False);
+        end else begin
+          GetNewBank(-1);
+        end;
       end else begin
         TLog.NewLog(ltinfo,CT_LogSender,'Found base new block: '+TPCOperationsComp.OperationBlockToText(client_op));
         // Move operations to orphan folder... (temporal... waiting for a confirmation)
-        GetNewBank(client_op.block);
+        GetNewBank(client_op.block+1);
       end;
     end else begin
       TLog.NewLog(ltinfo,CT_LogSender,'My blockchain is ok! Need to download new blocks starting at '+inttostr(my_op.block+1));
@@ -1408,6 +1522,7 @@ begin
     CT_NetOp_GetOperationsBlock : Result := 'GET OPERATIONS BLOCK';
     CT_NetOp_NewBlock : Result := 'NEW BLOCK';
     CT_NetOp_AddOperations : Result := 'ADD OPERATIONS';
+    CT_NetOp_GetSafeBox : Result := 'GET SAFEBOX';
   else Result := 'UNKNOWN OPERATION '+Inttohex(operation,4);
   end;
 end;
@@ -1609,39 +1724,46 @@ Var Pnsa : PNodeServerAddress;
   lns : TList;
   i : Integer;
 begin
-  if Client.Connected then Client.Disconnect;
-  lns := TNetData.NetData.NodeServersAddresses.LockList;
-  try
-    i := TNetData.NetData.IndexOfNetClient(lns,ServerIp,ServerPort);
-    if (i>=0) then Pnsa := lns[i]
-    else Pnsa := Nil;
-    if Assigned(Pnsa) then Pnsa^.netConnection := Self;
-  finally
-    TNetData.NetData.NodeServersAddresses.UnlockList;
-  end;
-
-  TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
+  If FIsConnecting then Exit;
   Try
-    Client.RemoteHost := ServerIP;
-    if ServerPort<=0 then ServerPort := CT_NetServer_Port;
-    Client.RemotePort := ServerPort;
-    TLog.NewLog(ltDebug,Classname,'Trying to connect to a server at: '+ClientRemoteAddr);
-    TNetData.NetData.NotifyNetConnectionUpdated;
-    Result := Client.Connect;
-  Finally
-    FNetLock.Release;
-  End;
-  if Result then begin
-    TLog.NewLog(ltDebug,Classname,'Connected to a possible server at: '+ClientRemoteAddr);
-    Result := Send_Hello(ntp_request,TNetData.NetData.NewRequestId);
-  end else begin
-    TLog.NewLog(ltDebug,Classname,'Cannot connect to a server at: '+ClientRemoteAddr);
+    FIsConnecting:=True;
+    if Client.Connected then Client.Disconnect;
+    lns := TNetData.NetData.NodeServersAddresses.LockList;
+    try
+      i := TNetData.NetData.IndexOfNetClient(lns,ServerIp,ServerPort);
+      if (i>=0) then Pnsa := lns[i]
+      else Pnsa := Nil;
+      if Assigned(Pnsa) then Pnsa^.netConnection := Self;
+    finally
+      TNetData.NetData.NodeServersAddresses.UnlockList;
+    end;
+
+    TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
+    Try
+      Client.RemoteHost := ServerIP;
+      if ServerPort<=0 then ServerPort := CT_NetServer_Port;
+      Client.RemotePort := ServerPort;
+      TLog.NewLog(ltDebug,Classname,'Trying to connect to a server at: '+ClientRemoteAddr);
+      TNetData.NetData.NotifyNetConnectionUpdated;
+      Result := Client.Connect;
+    Finally
+      FNetLock.Release;
+    End;
+    if Result then begin
+      TLog.NewLog(ltDebug,Classname,'Connected to a possible server at: '+ClientRemoteAddr);
+      Result := Send_Hello(ntp_request,TNetData.NetData.NewRequestId);
+    end else begin
+      TLog.NewLog(ltDebug,Classname,'Cannot connect to a server at: '+ClientRemoteAddr);
+    end;
+  finally
+    FIsConnecting:=False;
   end;
 end;
 
 constructor TNetConnection.Create(AOwner: TComponent);
 begin
   inherited;
+  FIsConnecting:=False;
   FIsDownloadingBlocks := false;
   FHasReceivedData := false;
   FNetProtocolVersion.protocol_version := 0; // 0 = unknown
@@ -1758,7 +1880,7 @@ begin
   TNetData.NetData.NotifyNodeServersUpdated;
 end;
 
-Procedure TNetConnection.DoProcessBuffer;
+procedure TNetConnection.DoProcessBuffer;
 Var HeaderData : TNetHeaderData;
   ms : TMemoryStream;
   ops : AnsiString;
@@ -1821,7 +1943,7 @@ begin
       if Not Assigned(opclass) then exit;
       op := opclass.Create;
       Try
-        op.LoadFromStream(DataBuffer);
+        op.LoadFromNettransfer(DataBuffer);
         operations.AddOperationToHashTree(op);
       Finally
         op.Free;
@@ -1926,7 +2048,7 @@ begin
 end;
 
 procedure TNetConnection.DoProcess_GetBlocks_Response(HeaderData: TNetHeaderData; DataBuffer: TStream);
-  var op, localop : TPCOperationsComp;
+  var op : TPCOperationsComp;
     opcount,i : Cardinal;
     newBlockAccount : TBlockAccount;
   errors : AnsiString;
@@ -1937,6 +2059,10 @@ begin
     if HeaderData.header_type<>ntp_response then begin
       errors := 'Not response';
       exit;
+    end;
+    If HeaderData.is_error then begin
+      DoDisconnect := false;
+      exit; //
     end;
     // DataBuffer contains: from and to
     errors := 'Invalid structure';
@@ -1961,14 +2087,9 @@ begin
           end else begin
             // Is not a valid entry????
             // Perhaps an orphan blockchain: Me or Client!
-            localop := TPCOperationsComp.Create(nil);
-            Try
-              TNode.Node.Bank.LoadOperations(localop,TNode.Node.Bank.BlocksCount-1);
-              TLog.NewLog(ltinfo,Classname,'Distinct operation block found! My:'+
-                  TPCOperationsComp.OperationBlockToText(localop.OperationBlock)+' remote:'+TPCOperationsComp.OperationBlockToText(op.OperationBlock)+' Errors: '+errors);
-            Finally
-              localop.Free;
-            End;
+            TLog.NewLog(ltinfo,Classname,'Distinct operation block found! My:'+
+                TPCOperationsComp.OperationBlockToText(TNode.Node.Bank.SafeBox.Block(TNode.Node.Bank.BlocksCount-1).blockchainInfo)+
+                ' remote:'+TPCOperationsComp.OperationBlockToText(op.OperationBlock)+' Errors: '+errors);
           end;
         end else begin
           // Receiving an unexpected operationblock
@@ -1995,10 +2116,10 @@ end;
 procedure TNetConnection.DoProcess_GetOperationsBlock_Request(HeaderData: TNetHeaderData; DataBuffer: TStream);
 Const CT_Max_Positions = 10;
 Var inc_b,b,b_start,b_end, total_b:Cardinal;
-  op : TPCOperationsComp;
   db,msops : TMemoryStream;
   errors, blocksstr : AnsiString;
   DoDisconnect : Boolean;
+  ob : TOperationBlock;
 begin
   blocksstr := '';
   DoDisconnect := true;
@@ -2034,39 +2155,93 @@ begin
     if (b_end>=TNode.Node.Bank.BlocksCount) then b_end := TNode.Node.Bank.BlocksCount-1;
     inc_b := ((b_end - b_start) DIV CT_Max_Positions)+1;
     msops := TMemoryStream.Create;
-    op := TPCOperationsComp.Create(TNode.Node.Bank);
-     try
-       b := b_start;
-       total_b := 0;
-       repeat
-         If TNode.Node.bank.LoadOperations(op,b) then begin
-           op.SaveBlockToStream(true,msops);
-           blocksstr := blocksstr + inttostr(b)+',';
-           b := b + inc_b;
-           inc(total_b);
-         end else begin
-           errors := 'Operations of block:'+inttostr(b)+' not found';
-           SendError(ntp_response,HeaderData.operation,HeaderData.request_id,CT_NetError_InternalServerError,errors);
-           exit;
-         end;
-       until (b > b_end);
-       db := TMemoryStream.Create;
-       try
-         db.Write(total_b,4);
-         db.WriteBuffer(msops.Memory^,msops.Size);
-         Send(ntp_response,HeaderData.operation,0,HeaderData.request_id,db);
-       finally
-         db.Free;
-       end;
-     finally
-       msops.Free;
-       op.Free;
-     end;
-     TLog.NewLog(ltdebug,Classname,'Sending '+inttostr(total_b)+' operations block from block '+inttostr(b_start)+' to '+inttostr(b_end)+' '+blocksstr);
+    try
+      b := b_start;
+      total_b := 0;
+      repeat
+        ob := TNode.Node.Bank.SafeBox.Block(b).blockchainInfo;
+        If TPCOperationsComp.SaveOperationBlockToStream(ob,msops) then begin
+          blocksstr := blocksstr + inttostr(b)+',';
+          b := b + inc_b;
+          inc(total_b);
+        end else begin
+          errors := 'ERROR DEV 20170522-1 block:'+inttostr(b);
+          SendError(ntp_response,HeaderData.operation,HeaderData.request_id,CT_NetError_InternalServerError,errors);
+          exit;
+        end;
+      until (b > b_end);
+      db := TMemoryStream.Create;
+      try
+       db.Write(total_b,4);
+       db.WriteBuffer(msops.Memory^,msops.Size);
+       Send(ntp_response,HeaderData.operation,0,HeaderData.request_id,db);
+      finally
+       db.Free;
+      end;
+    finally
+      msops.Free;
+    end;
+    TLog.NewLog(ltdebug,Classname,'Sending '+inttostr(total_b)+' operations block from block '+inttostr(b_start)+' to '+inttostr(b_end)+' '+blocksstr);
   finally
     if DoDisconnect then begin
       DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(HeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
     end;
+  end;
+end;
+
+procedure TNetConnection.DoProcess_GetSafeBox_Request(HeaderData: TNetHeaderData; DataBuffer: TStream);
+Var _blockcount : Cardinal;
+    _safeboxHash : TRawBytes;
+    _from,_to : Cardinal;
+  sbStream : TStream;
+  responseStream : TStream;
+  antPos : Int64;
+  sbHeader : TPCSafeBoxHeader;
+  errors : AnsiString;
+begin
+  {
+  This call is used to obtain a chunk of the safebox
+  Request:
+  BlockCount (4 bytes) - The safebox checkpoint
+  SafeboxHash (AnsiString) - The safeboxhash of that checkpoint
+  StartPos (4 bytes) - The start index (0..BlockCount-1)
+  EndPos   (4 bytes) - The final index (0..BlockCount-1)
+    If valid info:
+      - If available will return a LZIP chunk of safebox
+      - If not available (requesting for an old safebox) will retun not available
+    If not valid will disconnect
+  }
+  DataBuffer.Read(_blockcount,SizeOf(_blockcount));
+  TStreamOp.ReadAnsiString(DataBuffer,_safeboxHash);
+  DataBuffer.Read(_from,SizeOf(_from));
+  DataBuffer.Read(_to,SizeOf(_to));
+  //
+  sbStream := TNode.Node.Bank.Storage.CreateSafeBoxStream(_blockcount);
+  try
+    responseStream := TMemoryStream.Create;
+    try
+      If Not Assigned(sbStream) then begin
+        SendError(ntp_response,HeaderData.operation,CT_NetError_SafeboxNotFound,HeaderData.request_id,Format('Safebox for block %d not found',[_blockcount]));
+        exit;
+      end;
+      antPos := sbStream.Position;
+      TPCSafeBox.LoadSafeBoxStreamHeader(sbStream,sbHeader);
+      If sbHeader.safeBoxHash<>_safeboxHash then begin
+        DisconnectInvalidClient(false,Format('Invalid safeboxhash on GetSafeBox request (Real:%s > Requested:%s)',[TCrypto.ToHexaString(sbHeader.safeBoxHash),TCrypto.ToHexaString(_safeboxHash)]));
+        exit;
+      end;
+      // Response:
+      sbStream.Position:=antPos;
+      If not TPCChunk.SaveSafeBoxChunkFromSafeBox(sbStream,responseStream,_from,_to,errors) then begin
+        TLog.NewLog(ltError,Classname,'Error saving chunk: '+errors);
+        exit;
+      end;
+      // Sending
+      Send(ntp_response,HeaderData.operation,0,HeaderData.request_id,responseStream);
+    finally
+    end;
+  finally
+    FreeAndNil(sbStream);
   end;
 end;
 
@@ -2119,7 +2294,7 @@ Begin
     if (connection_has_a_server>0) And (Not SameText(Client.RemoteHost,'localhost')) And (Not SameText(Client.RemoteHost,'127.0.0.1'))
       And (Not SameText('192.168.',Copy(Client.RemoteHost,1,8)))
       And (Not SameText('10.',Copy(Client.RemoteHost,1,3)))
-      And (Not TAccountComp.Equal(FClientPublicKey,TNetData.NetData.FNodePrivateKey.PublicKey)) then begin
+      And (Not TAccountComp.EqualAccountKeys(FClientPublicKey,TNetData.NetData.FNodePrivateKey.PublicKey)) then begin
       nsa := CT_TNodeServerAddress_NUL;
       nsa.ip := Client.RemoteHost;
       nsa.port := connection_has_a_server;
@@ -2162,7 +2337,7 @@ Begin
         if (HeaderData.header_type=ntp_request) then begin
           Send_Hello(ntp_response,HeaderData.request_id);
         end;
-        if (TAccountComp.Equal(FClientPublicKey,TNetData.NetData.FNodePrivateKey.PublicKey)) then begin
+        if (TAccountComp.EqualAccountKeys(FClientPublicKey,TNetData.NetData.FNodePrivateKey.PublicKey)) then begin
           DisconnectInvalidClient(true,'MySelf disconnecting...');
           exit;
         end;
@@ -2374,6 +2549,11 @@ begin
                   CT_NetOp_AddOperations : Begin
                     DoProcess_AddOperations(HeaderData,ReceiveDataBuffer);
                   End;
+                  CT_NetOp_GetSafeBox : Begin
+                    if HeaderData.header_type=ntp_request then
+                      DoProcess_GetSafeBox_Request(HeaderData,ReceiveDataBuffer)
+                    else DisconnectInvalidClient(false,'Received '+TNetData.HeaderDataToText(HeaderData));
+                  end
                 else
                   DisconnectInvalidClient(false,'Invalid operation: '+TNetData.HeaderDataToText(HeaderData));
                 end;
@@ -2611,7 +2791,8 @@ begin
   end;
 end;
 
-procedure TNetConnection.SendError(NetTranferType: TNetTransferType; operation, request_id, error_code: Integer; error_text: AnsiString);
+procedure TNetConnection.SendError(NetTranferType: TNetTransferType; operation,
+  request_id: Integer; error_code: Integer; error_text: AnsiString);
 var buffer : TStream;
 begin
   buffer := TMemoryStream.Create;
@@ -2651,14 +2832,14 @@ begin
         for i := 0 to FBufferToSendOperations.OperationsCount-1 do begin
           optype := FBufferToSendOperations.GetOperation(i).OpType;
           data.Write(optype,1);
-          FBufferToSendOperations.GetOperation(i).SaveToStream(data);
+          FBufferToSendOperations.GetOperation(i).SaveToNettransfer(data);
         end;
         Send(ntp_autosend,CT_NetOp_AddOperations,0,request_id,data);
         FBufferToSendOperations.ClearHastThree;
       finally
         data.Free;
       end;
-    end;
+    end else TLog.NewLog(ltdebug,ClassName,'Not sending any operations to '+ClientRemoteAddr+' ('+IntToStr(Operations.OperationsCount)+')');
   finally
     FNetLock.Release;
   end;
@@ -2717,7 +2898,6 @@ function TNetConnection.Send_Hello(NetTranferType : TNetTransferType; request_id
       }
 var data : TStream;
   i : Integer;
-  op : TPCOperationsComp;
   nsa : TNodeServerAddress;
   nsarr : TNodeServerAddressArray;
   w : Word;
@@ -2742,13 +2922,7 @@ begin
     currunixtimestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
     data.Write(currunixtimestamp,4);
     // Save last operations block
-    op := TPCOperationsComp.Create(nil);
-    try
-      if (TNode.Node.Bank.BlocksCount>0) then TNode.Node.Bank.LoadOperations(op,TNode.Node.Bank.BlocksCount-1);
-      op.SaveBlockToStream(true,data);
-    finally
-      op.free;
-    end;
+    TPCOperationsComp.SaveOperationBlockToStream(TNode.Node.Bank.LastOperationBlock,data);
     nsarr := TNetData.NetData.GetValidNodeServers(true,20);
     i := length(nsarr);
     data.Write(i,4);
@@ -2788,7 +2962,8 @@ begin
   End;
 end;
 
-function TNetConnection.Send_NewBlockFound(Const NewBlock : TPCOperationsComp) : Boolean;
+function TNetConnection.Send_NewBlockFound(const NewBlock: TPCOperationsComp
+  ): Boolean;
 var data : TStream;
   request_id : Integer;
 begin
@@ -2975,7 +3150,7 @@ begin
     end;
     if Terminated then exit;
   Finally
-    if not ok then begin
+    if (not ok) And (Not Terminated) then begin
       DebugStep := 'Destroying non connected';
       NC.FinalizeConnection;
     end;
@@ -3216,7 +3391,9 @@ begin
       try
         FTerminatedAllConnections := l.Count=0;
         for i := 0 to l.Count-1 do begin
-          If (TObject(l[i]) is TNetClient) And (not TNetConnection(l[i]).Connected) And (TNetConnection(l[i]).FDoFinalizeConnection) then begin
+          If (TObject(l[i]) is TNetClient) And (not TNetConnection(l[i]).Connected)
+            And (TNetConnection(l[i]).FDoFinalizeConnection)
+            And (Not TNetConnection(l[i]).IsConnecting) then begin
             l_to_del.Add(l[i]);
           end;
         end;
@@ -3399,4 +3576,8 @@ begin
   end;
 end;
 
+initialization
+  _NetData := Nil;
+finalization
+  FreeAndNil(_NetData);
 end.

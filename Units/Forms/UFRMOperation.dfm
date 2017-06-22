@@ -1,11 +1,10 @@
 object FRMOperation: TFRMOperation
-  Left = 60
-  Top = 0
-  ActiveControl = ebDestAccount
+  Left = 498
+  Top = 222
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
   Caption = 'New Operation'
-  ClientHeight = 474
+  ClientHeight = 493
   ClientWidth = 608
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -13,7 +12,7 @@ object FRMOperation: TFRMOperation
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
-  OldCreateOrder = False
+  OldCreateOrder = True
   Position = poOwnerFormCenter
   OnCreate = FormCreate
   OnDestroy = FormDestroy
@@ -25,6 +24,8 @@ object FRMOperation: TFRMOperation
     Width = 43
     Height = 13
     Caption = 'Account:'
+    Color = clBtnFace
+    ParentColor = False
   end
   object lblAccountBalance: TLabel
     Left = 432
@@ -32,19 +33,23 @@ object FRMOperation: TFRMOperation
     Width = 149
     Height = 19
     Caption = 'lblAccountBalance'
+    Color = clBtnFace
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clGreen
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = [fsBold]
+    ParentColor = False
     ParentFont = False
   end
-  object Label2: TLabel
+  object lblBalanceCaption: TLabel
     Left = 387
     Top = 20
     Width = 41
     Height = 13
     Caption = 'Balance:'
+    Color = clBtnFace
+    ParentColor = False
   end
   object lblAccountsCount: TLabel
     Left = 387
@@ -52,10 +57,12 @@ object FRMOperation: TFRMOperation
     Width = 18
     Height = 13
     Caption = 'XXX'
+    Color = clBtnFace
+    ParentColor = False
   end
   object bbExecute: TBitBtn
     Left = 300
-    Top = 411
+    Top = 445
     Width = 130
     Height = 31
     Caption = 'Execute (F12)'
@@ -84,7 +91,7 @@ object FRMOperation: TFRMOperation
   end
   object bbCancel: TBitBtn
     Left = 465
-    Top = 411
+    Top = 445
     Width = 116
     Height = 31
     DoubleBuffered = True
@@ -92,254 +99,82 @@ object FRMOperation: TFRMOperation
     ParentDoubleBuffered = False
     TabOrder = 3
   end
-  object PageControl: TPageControl
+  object PageControlLocked: TPageControl
     Left = 25
-    Top = 75
+    Top = 72
     Width = 556
-    Height = 321
+    Height = 351
     ActivePage = tsOperation
     TabOrder = 1
     object tsOperation: TTabSheet
       TabVisible = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      object gbOperation: TGroupBox
-        Left = 13
-        Top = 8
-        Width = 521
-        Height = 167
-        Caption = ' Operation: '
-        TabOrder = 0
-        object lblDestAccount: TLabel
-          Left = 68
-          Top = 42
-          Width = 95
-          Height = 13
-          Caption = 'Destination account'
-        end
-        object lblAmount: TLabel
-          Left = 255
-          Top = 42
-          Width = 37
-          Height = 13
-          Caption = 'Amount'
-        end
-        object lblNewPrivateKey: TLabel
-          Left = 82
-          Top = 85
-          Width = 78
-          Height = 13
-          Caption = 'New private key'
-        end
-        object lblTransactionErrors: TLabel
-          Left = 170
-          Top = 21
-          Width = 331
-          Height = 13
-          Alignment = taRightJustify
-          AutoSize = False
-          Caption = 'Errors detected'
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = clRed
-          Font.Height = -11
-          Font.Name = 'Tahoma'
-          Font.Style = []
-          ParentFont = False
-        end
-        object lblChangeKeyErrors: TLabel
-          Left = 170
-          Top = 63
-          Width = 331
-          Height = 13
-          Alignment = taRightJustify
-          AutoSize = False
-          Caption = 'Errors detected'
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = clRed
-          Font.Height = -11
-          Font.Name = 'Tahoma'
-          Font.Style = []
-          ParentFont = False
-        end
-        object lblNewOwnerPublicKey: TLabel
-          Left = 50
-          Top = 138
-          Width = 111
-          Height = 13
-          Caption = 'New owner'#39's public key'
-        end
-        object lblNewOwnerErrors: TLabel
-          Left = 199
-          Top = 113
-          Width = 302
-          Height = 13
-          Alignment = taRightJustify
-          AutoSize = False
-          Caption = 'Errors detected'
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = clRed
-          Font.Height = -11
-          Font.Name = 'Tahoma'
-          Font.Style = []
-          ParentFont = False
-        end
-        object lblFee: TLabel
-          Left = 407
-          Top = 42
-          Width = 18
-          Height = 13
-          Caption = 'Fee'
-        end
-        object rbTransaction: TRadioButton
-          Left = 15
-          Top = 19
-          Width = 220
-          Height = 17
-          Caption = 'Transaction (tx)'
-          TabOrder = 0
-          OnClick = rbTransactionClick
-        end
-        object rbChangeKey: TRadioButton
-          Left = 15
-          Top = 62
-          Width = 220
-          Height = 17
-          Caption = 'Change private key'
-          TabOrder = 4
-          OnClick = rbTransactionClick
-        end
-        object ebDestAccount: TEdit
-          Left = 170
-          Top = 39
-          Width = 76
-          Height = 21
-          TabOrder = 1
-          Text = 'ebDestAccount'
-          OnChange = ebDestAccountChange
-          OnClick = rbTransactionClick
-          OnExit = ebDestAccountExit
-        end
-        object ebAmount: TEdit
-          Left = 298
-          Top = 40
-          Width = 86
-          Height = 21
-          TabOrder = 2
-          Text = 'Edit1'
-          OnChange = ebAmountChange
-          OnClick = rbTransactionClick
-          OnExit = ebFeeExit
-        end
-        object cbNewPrivateKey: TComboBox
-          Left = 170
-          Top = 82
-          Width = 294
-          Height = 21
-          Style = csDropDownList
-          Sorted = True
-          TabOrder = 5
-          OnChange = cbNewPrivateKeyChange
-          OnClick = rbTransactionClick
-        end
-        object rbTransferToANewOwner: TRadioButton
-          Left = 15
-          Top = 112
-          Width = 220
-          Height = 17
-          Caption = 'Transfer account to a new owner'
-          TabOrder = 7
-          OnClick = rbTransactionClick
-        end
-        object ebNewPublicKey: TEdit
-          Left = 170
-          Top = 135
-          Width = 331
-          Height = 21
-          TabOrder = 8
-          Text = 'ebDestAccount'
-          OnChange = ebNewPublicKeyChange
-          OnClick = rbTransactionClick
-        end
-        object ebFee: TEdit
-          Left = 431
-          Top = 39
-          Width = 70
-          Height = 21
-          TabOrder = 3
-          Text = 'ebFee'
-          OnChange = ebFeeChange
-          OnClick = rbTransactionClick
-          OnExit = ebFeeExit
-        end
-        object bbKeys: TBitBtn
-          Left = 470
-          Top = 81
-          Width = 31
-          Height = 22
-          DoubleBuffered = True
-          Glyph.Data = {
-            36050000424D3605000000000000360400002800000010000000100000000100
-            0800000000000001000000000000000000000001000000010000FF00FF008C6B
-            6C0087707000AE877C000D7FA9006F7C88006D7C94001F7ECE000E80AA001180
-            A7001081AB00048CB900078DBC000B8DBA000C8DBA00088EBC001285B0007882
-            95006092BD005EA8BE000A91C1000F9DCE002087DE0011A7D10030BCDC001F89
-            E00059A9DC0044BADD004ABFE00057AEF4004DB1F90049B2FF004EB7FF0057B1
-            F60050B6FE0022D7FC0024D7FF0024D8FD0039D7FB0035D8FD004BC6DC0046C6
-            E40048D5EE0075D3E90058E9FD006FE6FF0070E6FF0071F9FE007BFFFF008683
-            88008B8697008F989B00969594009C919000AD858000AD868500AB939500A49E
-            9900B1979400B5A09F008AA5AD00CAA08C00CDAC9300C2A69A00F3BE8000C6AE
-            A000CFB7A100D3BBA200F4C88E00F5CB9A00F5D09C00F8D09800DAC5B700E4CC
-            A900EFD2A900ECD1AC00F6DAAB00F5DEB500F5E1B600F9E1B100FEEAB900FFF2
-            BA00A1C6C8008DE6FA0081F8FE008CFAFD008DFCFE0097FCFD009BFBFD00B8ED
-            F600A7FFFF00AAFFFE00ADFFFE00B6F6FF00B1FCFD00B4FFFF00ECDDCC00E8DD
-            D600FFF7C600FCF5CD00FCF7D100FAF6D600FFFBD500FEFED600F7F2D900FEFF
-            D900FFFEDD00C6F5FF00C6FEFF00D2FFFF00FEF7E000FBFCE100FDFFE100FFFF
-            E400E3FEFF00F9F6F200FFFFF400F1FBFC00F5FFFE00FBFFFF00000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            0000000000000000000000000000000000000000000000000000000000000000
-            00000000000000000605000004080408080A000000000011191A000B2A23272D
-            531B080000001116201D0B552C23272E531C1509003207201D000F552C23272B
-            3A3F41030112202000000F552C252938606771684236200000000B5F5D6B3B61
-            74676A67513D000000000B59181735716A676A63474B360000000F282C23396A
-            6A6A6A4C404D360000000B552C2534656A654F455049360000000B552C251343
-            6247446E7336000000000B552C25263C3E4B4E483636000000000F55542F3057
-            523331020000000000000B77766D5F5C5C5C2F08000000000000001476726C5C
-            5A58100000000000000000000F0F0B0F0F0F0000000000000000}
-          ParentDoubleBuffered = False
-          TabOrder = 6
-          OnClick = bbKeysClick
-        end
+      object lblFee: TLabel
+        Left = 15
+        Top = 188
+        Width = 69
+        Height = 13
+        Caption = 'Operation Fee'
+        Color = clBtnFace
+        ParentColor = False
+      end
+      object lblSignerAccount: TLabel
+        Left = 176
+        Top = 188
+        Width = 131
+        Height = 13
+        Caption = 'Signer account (Fee payer)'
+        Color = clBtnFace
+        ParentColor = False
+      end
+      object sbSearchSignerAccount: TSpeedButton
+        Left = 411
+        Top = 184
+        Width = 23
+        Height = 22
+        Glyph.Data = {
+          36030000424D3603000000000000360000002800000010000000100000000100
+          18000000000000030000120B0000120B00000000000000000000FF00FF4A667C
+          BE9596FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+          FFFF00FFFF00FFFF00FF6B9CC31E89E84B7AA3C89693FF00FFFF00FFFF00FFFF
+          00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF4BB4FE51B5FF
+          2089E94B7AA2C69592FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+          FFFF00FFFF00FFFF00FFFF00FF51B7FE51B3FF1D87E64E7AA0CA9792FF00FFFF
+          00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+          51B7FE4EB2FF1F89E64E7BA2B99497FF00FFFF00FFFF00FFFF00FFFF00FFFF00
+          FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF52B8FE4BB1FF2787D95F6A76FF
+          00FFB0857FC09F94C09F96BC988EFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+          FF00FFFF00FF55BDFFB5D6EDBF9D92BB9B8CE7DAC2FFFFE3FFFFE5FDFADAD8C3
+          B3B58D85FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFCEA795FD
+          EEBEFFFFD8FFFFDAFFFFDBFFFFE6FFFFFBEADDDCAE837FFF00FFFF00FFFF00FF
+          FF00FFFF00FFFF00FFFF00FFC1A091FBDCA8FEF7D0FFFFDBFFFFE3FFFFF8FFFF
+          FDFFFFFDC6A99CFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFC1A091FEE3ACF1
+          C491FCF2CAFFFFDDFFFFE4FFFFF7FFFFF7FFFFE9EEE5CBB9948CFF00FFFF00FF
+          FF00FFFF00FFFF00FFC2A191FFE6AEEEB581F7DCAEFEFDD8FFFFDFFFFFE3FFFF
+          E4FFFFE0F3ECD2BB968EFF00FFFF00FFFF00FFFF00FFFF00FFBC978CFBE7B7F4
+          C791F2C994F8E5B9FEFCD8FFFFDDFFFFDCFFFFE0E2D2BAB68E86FF00FFFF00FF
+          FF00FFFF00FFFF00FFFF00FFD9C3A9FFFEE5F7DCB8F2C994F5D4A5FAE8BDFDF4
+          C9FDFBD6B69089FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFB58D85E8
+          DEDDFFFEF2F9D8A3F4C48CF9D49FFDEAB8D0B49FB89086FF00FFFF00FFFF00FF
+          FF00FFFF00FFFF00FFFF00FFFF00FFAD827FC9AA9EEFE0B7EFDFB2E7CEACB890
+          86B89086FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+          00FFFF00FFBA968ABB988CB79188FF00FFFF00FFFF00FFFF00FF}
+        OnClick = sbSearchSignerAccountClick
       end
       object gbPayload: TGroupBox
         Left = 13
-        Top = 181
+        Top = 211
         Width = 521
         Height = 119
         Caption = ' Payload: '
-        TabOrder = 1
+        TabOrder = 2
         object lblEncryptPassword: TLabel
           Left = 38
           Top = 76
           Width = 50
           Height = 13
           Caption = 'Password:'
+          Color = clBtnFace
+          ParentColor = False
         end
         object Label4: TLabel
           Left = 255
@@ -347,6 +182,8 @@ object FRMOperation: TFRMOperation
           Width = 67
           Height = 13
           Caption = 'Payload data:'
+          Color = clBtnFace
+          ParentColor = False
         end
         object lblEncryptionErrors: TLabel
           Left = 255
@@ -355,11 +192,13 @@ object FRMOperation: TFRMOperation
           Height = 13
           AutoSize = False
           Caption = 'Errors detected'
+          Color = clBtnFace
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clRed
           Font.Height = -11
           Font.Name = 'Tahoma'
           Font.Style = []
+          ParentColor = False
           ParentFont = False
         end
         object lblPayloadLength: TLabel
@@ -369,12 +208,14 @@ object FRMOperation: TFRMOperation
           Height = 13
           Alignment = taRightJustify
           Caption = '000'
+          Color = clBtnFace
+          ParentColor = False
         end
         object rbEncryptedWithEC: TRadioButton
           Left = 15
           Top = 35
-          Width = 231
-          Height = 17
+          Width = 207
+          Height = 19
           Caption = 'Encrypted with dest account public key'
           Checked = True
           TabOrder = 1
@@ -384,8 +225,8 @@ object FRMOperation: TFRMOperation
         object rbEncrptedWithPassword: TRadioButton
           Left = 15
           Top = 53
-          Width = 231
-          Height = 17
+          Width = 141
+          Height = 19
           Caption = 'Encrypted with password'
           TabOrder = 2
           OnClick = memoPayloadClick
@@ -393,9 +234,9 @@ object FRMOperation: TFRMOperation
         object rbNotEncrypted: TRadioButton
           Left = 15
           Top = 93
-          Width = 231
-          Height = 17
-          Caption = 'Don'#39't encrypt (Public payload)'
+          Width = 162
+          Height = 19
+          Caption = 'Dont encrypt (Public payload)'
           TabOrder = 4
           OnClick = memoPayloadClick
         end
@@ -405,7 +246,6 @@ object FRMOperation: TFRMOperation
           Width = 122
           Height = 21
           TabOrder = 3
-          Text = 'ebDestAccount'
           OnChange = ebEncryptPasswordChange
           OnClick = memoPayloadClick
         end
@@ -428,21 +268,670 @@ object FRMOperation: TFRMOperation
         object rbEncryptedWithOldEC: TRadioButton
           Left = 15
           Top = 16
-          Width = 231
-          Height = 17
+          Width = 159
+          Height = 19
           Caption = 'Encrypted with old public key'
           TabOrder = 0
           OnClick = memoPayloadClick
         end
       end
+      object ebFee: TEdit
+        Left = 90
+        Top = 184
+        Width = 70
+        Height = 21
+        TabOrder = 1
+      end
+      object PageControlOpType: TPageControl
+        Left = 13
+        Top = 11
+        Width = 521
+        Height = 167
+        ActivePage = tsChangeInfo
+        TabOrder = 0
+        OnChange = PageControlOpTypeChange
+        object tsTransaction: TTabSheet
+          Caption = 'Transaction'
+          object lblDestAccount: TLabel
+            Left = 13
+            Top = 32
+            Width = 95
+            Height = 13
+            Caption = 'Destination account'
+            Color = clBtnFace
+            ParentColor = False
+          end
+          object lblAmount: TLabel
+            Left = 72
+            Top = 61
+            Width = 37
+            Height = 13
+            Caption = 'Amount'
+            Color = clBtnFace
+            ParentColor = False
+          end
+          object lblTransactionErrors: TLabel
+            Left = 13
+            Top = 10
+            Width = 331
+            Height = 13
+            AutoSize = False
+            Caption = 'Errors detected'
+            Color = clBtnFace
+            Font.Charset = DEFAULT_CHARSET
+            Font.Color = clRed
+            Font.Height = -11
+            Font.Name = 'Tahoma'
+            Font.Style = []
+            ParentColor = False
+            ParentFont = False
+          end
+          object sbSearchDestinationAccount: TSpeedButton
+            Left = 208
+            Top = 29
+            Width = 23
+            Height = 22
+            Glyph.Data = {
+              36030000424D3603000000000000360000002800000010000000100000000100
+              18000000000000030000120B0000120B00000000000000000000FF00FF4A667C
+              BE9596FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+              FFFF00FFFF00FFFF00FF6B9CC31E89E84B7AA3C89693FF00FFFF00FFFF00FFFF
+              00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF4BB4FE51B5FF
+              2089E94B7AA2C69592FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+              FFFF00FFFF00FFFF00FFFF00FF51B7FE51B3FF1D87E64E7AA0CA9792FF00FFFF
+              00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+              51B7FE4EB2FF1F89E64E7BA2B99497FF00FFFF00FFFF00FFFF00FFFF00FFFF00
+              FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF52B8FE4BB1FF2787D95F6A76FF
+              00FFB0857FC09F94C09F96BC988EFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+              FF00FFFF00FF55BDFFB5D6EDBF9D92BB9B8CE7DAC2FFFFE3FFFFE5FDFADAD8C3
+              B3B58D85FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFCEA795FD
+              EEBEFFFFD8FFFFDAFFFFDBFFFFE6FFFFFBEADDDCAE837FFF00FFFF00FFFF00FF
+              FF00FFFF00FFFF00FFFF00FFC1A091FBDCA8FEF7D0FFFFDBFFFFE3FFFFF8FFFF
+              FDFFFFFDC6A99CFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFC1A091FEE3ACF1
+              C491FCF2CAFFFFDDFFFFE4FFFFF7FFFFF7FFFFE9EEE5CBB9948CFF00FFFF00FF
+              FF00FFFF00FFFF00FFC2A191FFE6AEEEB581F7DCAEFEFDD8FFFFDFFFFFE3FFFF
+              E4FFFFE0F3ECD2BB968EFF00FFFF00FFFF00FFFF00FFFF00FFBC978CFBE7B7F4
+              C791F2C994F8E5B9FEFCD8FFFFDDFFFFDCFFFFE0E2D2BAB68E86FF00FFFF00FF
+              FF00FFFF00FFFF00FFFF00FFD9C3A9FFFEE5F7DCB8F2C994F5D4A5FAE8BDFDF4
+              C9FDFBD6B69089FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFB58D85E8
+              DEDDFFFEF2F9D8A3F4C48CF9D49FFDEAB8D0B49FB89086FF00FFFF00FFFF00FF
+              FF00FFFF00FFFF00FFFF00FFFF00FFAD827FC9AA9EEFE0B7EFDFB2E7CEACB890
+              86B89086FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+              00FFFF00FFBA968ABB988CB79188FF00FFFF00FFFF00FFFF00FF}
+            OnClick = sbSearchDestinationAccountClick
+          end
+          object ebDestAccount: TEdit
+            Left = 115
+            Top = 29
+            Width = 87
+            Height = 21
+            TabOrder = 0
+          end
+          object ebAmount: TEdit
+            Left = 115
+            Top = 58
+            Width = 87
+            Height = 21
+            TabOrder = 1
+          end
+        end
+        object tsChangePrivateKey: TTabSheet
+          Caption = 'Change key'
+          ImageIndex = 1
+          object gbChangeKey: TGroupBox
+            Left = 7
+            Top = 6
+            Width = 488
+            Height = 118
+            Caption = ' Change type: '
+            TabOrder = 0
+            object lblNewPrivateKey: TLabel
+              Left = 57
+              Top = 40
+              Width = 78
+              Height = 13
+              Caption = 'New private key'
+              Color = clBtnFace
+              ParentColor = False
+            end
+            object lblNewOwnerPublicKey: TLabel
+              Left = 24
+              Top = 90
+              Width = 109
+              Height = 13
+              Caption = 'New owners public key'
+              Color = clBtnFace
+              ParentColor = False
+            end
+            object lblNewOwnerErrors: TLabel
+              Left = 173
+              Top = 68
+              Width = 302
+              Height = 13
+              Alignment = taRightJustify
+              AutoSize = False
+              Caption = 'Errors detected'
+              Color = clBtnFace
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = clRed
+              Font.Height = -11
+              Font.Name = 'Tahoma'
+              Font.Style = []
+              ParentColor = False
+              ParentFont = False
+            end
+            object lblChangeKeyErrors: TLabel
+              Left = 145
+              Top = 15
+              Width = 331
+              Height = 13
+              Alignment = taRightJustify
+              AutoSize = False
+              Caption = 'Errors detected'
+              Color = clBtnFace
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = clRed
+              Font.Height = -11
+              Font.Name = 'Tahoma'
+              Font.Style = []
+              ParentColor = False
+              ParentFont = False
+            end
+            object rbChangeKeyWithAnother: TRadioButton
+              Left = 12
+              Top = 20
+              Width = 114
+              Height = 19
+              Caption = 'Change private key'
+              TabOrder = 0
+            end
+            object cbNewPrivateKey: TComboBox
+              Left = 145
+              Top = 37
+              Width = 294
+              Height = 21
+              Style = csDropDownList
+              Sorted = True
+              TabOrder = 1
+            end
+            object ebNewPublicKey: TEdit
+              Left = 144
+              Top = 87
+              Width = 331
+              Height = 21
+              TabOrder = 4
+            end
+            object bbChangePrivateKeyKeys: TBitBtn
+              Left = 445
+              Top = 36
+              Width = 31
+              Height = 22
+              DoubleBuffered = True
+              Glyph.Data = {
+                36050000424D3605000000000000360400002800000010000000100000000100
+                0800000000000001000000000000000000000001000000010000FF00FF008C6B
+                6C0087707000AE877C000D7FA9006F7C88006D7C94001F7ECE000E80AA001180
+                A7001081AB00048CB900078DBC000B8DBA000C8DBA00088EBC001285B0007882
+                95006092BD005EA8BE000A91C1000F9DCE002087DE0011A7D10030BCDC001F89
+                E00059A9DC0044BADD004ABFE00057AEF4004DB1F90049B2FF004EB7FF0057B1
+                F60050B6FE0022D7FC0024D7FF0024D8FD0039D7FB0035D8FD004BC6DC0046C6
+                E40048D5EE0075D3E90058E9FD006FE6FF0070E6FF0071F9FE007BFFFF008683
+                88008B8697008F989B00969594009C919000AD858000AD868500AB939500A49E
+                9900B1979400B5A09F008AA5AD00CAA08C00CDAC9300C2A69A00F3BE8000C6AE
+                A000CFB7A100D3BBA200F4C88E00F5CB9A00F5D09C00F8D09800DAC5B700E4CC
+                A900EFD2A900ECD1AC00F6DAAB00F5DEB500F5E1B600F9E1B100FEEAB900FFF2
+                BA00A1C6C8008DE6FA0081F8FE008CFAFD008DFCFE0097FCFD009BFBFD00B8ED
+                F600A7FFFF00AAFFFE00ADFFFE00B6F6FF00B1FCFD00B4FFFF00ECDDCC00E8DD
+                D600FFF7C600FCF5CD00FCF7D100FAF6D600FFFBD500FEFED600F7F2D900FEFF
+                D900FFFEDD00C6F5FF00C6FEFF00D2FFFF00FEF7E000FBFCE100FDFFE100FFFF
+                E400E3FEFF00F9F6F200FFFFF400F1FBFC00F5FFFE00FBFFFF00000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                0000000000000000000000000000000000000000000000000000000000000000
+                00000000000000000605000004080408080A000000000011191A000B2A23272D
+                531B080000001116201D0B552C23272E531C1509003207201D000F552C23272B
+                3A3F41030112202000000F552C252938606771684236200000000B5F5D6B3B61
+                74676A67513D000000000B59181735716A676A63474B360000000F282C23396A
+                6A6A6A4C404D360000000B552C2534656A654F455049360000000B552C251343
+                6247446E7336000000000B552C25263C3E4B4E483636000000000F55542F3057
+                523331020000000000000B77766D5F5C5C5C2F08000000000000001476726C5C
+                5A58100000000000000000000F0F0B0F0F0F0000000000000000}
+              ParentDoubleBuffered = False
+              TabOrder = 2
+              OnClick = bbChangePrivateKeyKeysClick
+            end
+            object rbChangeKeyTransferAccountToNewOwner: TRadioButton
+              Left = 12
+              Top = 67
+              Width = 180
+              Height = 19
+              Caption = 'Transfer account to a new owner'
+              TabOrder = 3
+            end
+          end
+        end
+        object tsListForSale: TTabSheet
+          Caption = 'List account for sale'
+          ImageIndex = 3
+          object gbSaleType: TGroupBox
+            Left = 7
+            Top = 5
+            Width = 499
+            Height = 131
+            Caption = ' Sale type: '
+            TabOrder = 0
+            object Label1: TLabel
+              Left = 81
+              Top = 62
+              Width = 50
+              Height = 13
+              Caption = 'Sale price:'
+              Color = clBtnFace
+              ParentColor = False
+            end
+            object Label3: TLabel
+              Left = 229
+              Top = 62
+              Width = 142
+              Height = 13
+              Caption = 'Seller account (where to pay)'
+              Color = clBtnFace
+              ParentColor = False
+            end
+            object lblSaleNewOwnerPublicKey: TLabel
+              Left = 20
+              Top = 85
+              Width = 109
+              Height = 13
+              Caption = 'New owners public key'
+              Color = clBtnFace
+              ParentColor = False
+            end
+            object lblSaleLockedUntilBlock: TLabel
+              Left = 44
+              Top = 109
+              Width = 87
+              Height = 13
+              Caption = 'Locked until block:'
+              Color = clBtnFace
+              ParentColor = False
+            end
+            object lblListAccountErrors: TLabel
+              Left = 145
+              Top = 15
+              Width = 331
+              Height = 13
+              Alignment = taRightJustify
+              AutoSize = False
+              Caption = 'Errors detected'
+              Color = clBtnFace
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = clRed
+              Font.Height = -11
+              Font.Name = 'Tahoma'
+              Font.Style = []
+              ParentColor = False
+              ParentFont = False
+            end
+            object sbSearchListerSellerAccount: TSpeedButton
+              Left = 467
+              Top = 59
+              Width = 23
+              Height = 22
+              Glyph.Data = {
+                36030000424D3603000000000000360000002800000010000000100000000100
+                18000000000000030000120B0000120B00000000000000000000FF00FF4A667C
+                BE9596FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+                FFFF00FFFF00FFFF00FF6B9CC31E89E84B7AA3C89693FF00FFFF00FFFF00FFFF
+                00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF4BB4FE51B5FF
+                2089E94B7AA2C69592FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+                FFFF00FFFF00FFFF00FFFF00FF51B7FE51B3FF1D87E64E7AA0CA9792FF00FFFF
+                00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+                51B7FE4EB2FF1F89E64E7BA2B99497FF00FFFF00FFFF00FFFF00FFFF00FFFF00
+                FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF52B8FE4BB1FF2787D95F6A76FF
+                00FFB0857FC09F94C09F96BC988EFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+                FF00FFFF00FF55BDFFB5D6EDBF9D92BB9B8CE7DAC2FFFFE3FFFFE5FDFADAD8C3
+                B3B58D85FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFCEA795FD
+                EEBEFFFFD8FFFFDAFFFFDBFFFFE6FFFFFBEADDDCAE837FFF00FFFF00FFFF00FF
+                FF00FFFF00FFFF00FFFF00FFC1A091FBDCA8FEF7D0FFFFDBFFFFE3FFFFF8FFFF
+                FDFFFFFDC6A99CFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFC1A091FEE3ACF1
+                C491FCF2CAFFFFDDFFFFE4FFFFF7FFFFF7FFFFE9EEE5CBB9948CFF00FFFF00FF
+                FF00FFFF00FFFF00FFC2A191FFE6AEEEB581F7DCAEFEFDD8FFFFDFFFFFE3FFFF
+                E4FFFFE0F3ECD2BB968EFF00FFFF00FFFF00FFFF00FFFF00FFBC978CFBE7B7F4
+                C791F2C994F8E5B9FEFCD8FFFFDDFFFFDCFFFFE0E2D2BAB68E86FF00FFFF00FF
+                FF00FFFF00FFFF00FFFF00FFD9C3A9FFFEE5F7DCB8F2C994F5D4A5FAE8BDFDF4
+                C9FDFBD6B69089FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFB58D85E8
+                DEDDFFFEF2F9D8A3F4C48CF9D49FFDEAB8D0B49FB89086FF00FFFF00FFFF00FF
+                FF00FFFF00FFFF00FFFF00FFFF00FFAD827FC9AA9EEFE0B7EFDFB2E7CEACB890
+                86B89086FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+                00FFFF00FFBA968ABB988CB79188FF00FFFF00FFFF00FFFF00FF}
+              OnClick = sbSearchListerSellerAccountClick
+            end
+            object rbListAccountForPublicSale: TRadioButton
+              Left = 10
+              Top = 20
+              Width = 141
+              Height = 17
+              Caption = 'List account for public sale'
+              TabOrder = 0
+            end
+            object rbListAccountForPrivateSale: TRadioButton
+              Left = 10
+              Top = 40
+              Width = 174
+              Height = 17
+              Caption = 'List account for private sale'
+              TabOrder = 1
+            end
+            object ebSalePrice: TEdit
+              Left = 137
+              Top = 59
+              Width = 86
+              Height = 21
+              TabOrder = 2
+            end
+            object ebSellerAccount: TEdit
+              Left = 378
+              Top = 59
+              Width = 83
+              Height = 21
+              TabOrder = 3
+            end
+            object ebSaleNewOwnerPublicKey: TEdit
+              Left = 137
+              Top = 82
+              Width = 324
+              Height = 21
+              TabOrder = 4
+            end
+            object ebSaleLockedUntilBlock: TEdit
+              Left = 137
+              Top = 106
+              Width = 86
+              Height = 21
+              TabOrder = 5
+            end
+          end
+        end
+        object tsDelist: TTabSheet
+          Caption = 'Delist account'
+          ImageIndex = 3
+          object lblDelistErrors: TLabel
+            Left = 13
+            Top = 10
+            Width = 331
+            Height = 13
+            AutoSize = False
+            Caption = 'Errors detected'
+            Color = clBtnFace
+            Font.Charset = DEFAULT_CHARSET
+            Font.Color = clRed
+            Font.Height = -11
+            Font.Name = 'Tahoma'
+            Font.Style = []
+            ParentColor = False
+            ParentFont = False
+          end
+        end
+        object tsBuyAccount: TTabSheet
+          Caption = 'Buy account'
+          ImageIndex = 4
+          object lblAccountToBuy: TLabel
+            Left = 13
+            Top = 32
+            Width = 100
+            Height = 13
+            Alignment = taRightJustify
+            AutoSize = False
+            Caption = 'Account to Buy'
+            Color = clBtnFace
+            ParentColor = False
+          end
+          object lblBuyAmount: TLabel
+            Left = 13
+            Top = 61
+            Width = 100
+            Height = 13
+            Alignment = taRightJustify
+            AutoSize = False
+            Caption = 'Amount'
+            Color = clBtnFace
+            ParentColor = False
+          end
+          object lblBuyAccountErrors: TLabel
+            Left = 13
+            Top = 10
+            Width = 331
+            Height = 13
+            AutoSize = False
+            Caption = 'Errors detected'
+            Color = clBtnFace
+            Font.Charset = DEFAULT_CHARSET
+            Font.Color = clRed
+            Font.Height = -11
+            Font.Name = 'Tahoma'
+            Font.Style = []
+            ParentColor = False
+            ParentFont = False
+          end
+          object lblBuyNewKey: TLabel
+            Left = 13
+            Top = 88
+            Width = 100
+            Height = 13
+            Alignment = taRightJustify
+            AutoSize = False
+            Caption = 'New private key'
+            Color = clBtnFace
+            ParentColor = False
+          end
+          object Label2: TLabel
+            Left = 204
+            Top = 61
+            Width = 231
+            Height = 13
+            Caption = 'excessive amount will remain on bought account'
+            Color = clBtnFace
+            Font.Charset = DEFAULT_CHARSET
+            Font.Color = clGray
+            Font.Height = -11
+            Font.Name = 'Tahoma'
+            Font.Style = []
+            ParentColor = False
+            ParentFont = False
+          end
+          object sbSearchBuyAccount: TSpeedButton
+            Left = 200
+            Top = 29
+            Width = 23
+            Height = 22
+            Glyph.Data = {
+              36030000424D3603000000000000360000002800000010000000100000000100
+              18000000000000030000120B0000120B00000000000000000000FF00FF4A667C
+              BE9596FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+              FFFF00FFFF00FFFF00FF6B9CC31E89E84B7AA3C89693FF00FFFF00FFFF00FFFF
+              00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF4BB4FE51B5FF
+              2089E94B7AA2C69592FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+              FFFF00FFFF00FFFF00FFFF00FF51B7FE51B3FF1D87E64E7AA0CA9792FF00FFFF
+              00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+              51B7FE4EB2FF1F89E64E7BA2B99497FF00FFFF00FFFF00FFFF00FFFF00FFFF00
+              FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF52B8FE4BB1FF2787D95F6A76FF
+              00FFB0857FC09F94C09F96BC988EFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+              FF00FFFF00FF55BDFFB5D6EDBF9D92BB9B8CE7DAC2FFFFE3FFFFE5FDFADAD8C3
+              B3B58D85FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFCEA795FD
+              EEBEFFFFD8FFFFDAFFFFDBFFFFE6FFFFFBEADDDCAE837FFF00FFFF00FFFF00FF
+              FF00FFFF00FFFF00FFFF00FFC1A091FBDCA8FEF7D0FFFFDBFFFFE3FFFFF8FFFF
+              FDFFFFFDC6A99CFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFC1A091FEE3ACF1
+              C491FCF2CAFFFFDDFFFFE4FFFFF7FFFFF7FFFFE9EEE5CBB9948CFF00FFFF00FF
+              FF00FFFF00FFFF00FFC2A191FFE6AEEEB581F7DCAEFEFDD8FFFFDFFFFFE3FFFF
+              E4FFFFE0F3ECD2BB968EFF00FFFF00FFFF00FFFF00FFFF00FFBC978CFBE7B7F4
+              C791F2C994F8E5B9FEFCD8FFFFDDFFFFDCFFFFE0E2D2BAB68E86FF00FFFF00FF
+              FF00FFFF00FFFF00FFFF00FFD9C3A9FFFEE5F7DCB8F2C994F5D4A5FAE8BDFDF4
+              C9FDFBD6B69089FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFB58D85E8
+              DEDDFFFEF2F9D8A3F4C48CF9D49FFDEAB8D0B49FB89086FF00FFFF00FFFF00FF
+              FF00FFFF00FFFF00FFFF00FFFF00FFAD827FC9AA9EEFE0B7EFDFB2E7CEACB890
+              86B89086FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+              00FFFF00FFBA968ABB988CB79188FF00FFFF00FFFF00FFFF00FF}
+            OnClick = sbSearchBuyAccountClick
+          end
+          object ebAccountToBuy: TEdit
+            Left = 118
+            Top = 29
+            Width = 76
+            Height = 21
+            TabOrder = 0
+          end
+          object ebBuyAmount: TEdit
+            Left = 118
+            Top = 58
+            Width = 76
+            Height = 21
+            TabOrder = 1
+          end
+          object cbBuyNewKey: TComboBox
+            Left = 118
+            Top = 85
+            Width = 294
+            Height = 21
+            Style = csDropDownList
+            Sorted = True
+            TabOrder = 2
+          end
+          object bbBuyNewKey: TBitBtn
+            Left = 418
+            Top = 84
+            Width = 31
+            Height = 22
+            DoubleBuffered = True
+            Glyph.Data = {
+              36050000424D3605000000000000360400002800000010000000100000000100
+              0800000000000001000000000000000000000001000000010000FF00FF008C6B
+              6C0087707000AE877C000D7FA9006F7C88006D7C94001F7ECE000E80AA001180
+              A7001081AB00048CB900078DBC000B8DBA000C8DBA00088EBC001285B0007882
+              95006092BD005EA8BE000A91C1000F9DCE002087DE0011A7D10030BCDC001F89
+              E00059A9DC0044BADD004ABFE00057AEF4004DB1F90049B2FF004EB7FF0057B1
+              F60050B6FE0022D7FC0024D7FF0024D8FD0039D7FB0035D8FD004BC6DC0046C6
+              E40048D5EE0075D3E90058E9FD006FE6FF0070E6FF0071F9FE007BFFFF008683
+              88008B8697008F989B00969594009C919000AD858000AD868500AB939500A49E
+              9900B1979400B5A09F008AA5AD00CAA08C00CDAC9300C2A69A00F3BE8000C6AE
+              A000CFB7A100D3BBA200F4C88E00F5CB9A00F5D09C00F8D09800DAC5B700E4CC
+              A900EFD2A900ECD1AC00F6DAAB00F5DEB500F5E1B600F9E1B100FEEAB900FFF2
+              BA00A1C6C8008DE6FA0081F8FE008CFAFD008DFCFE0097FCFD009BFBFD00B8ED
+              F600A7FFFF00AAFFFE00ADFFFE00B6F6FF00B1FCFD00B4FFFF00ECDDCC00E8DD
+              D600FFF7C600FCF5CD00FCF7D100FAF6D600FFFBD500FEFED600F7F2D900FEFF
+              D900FFFEDD00C6F5FF00C6FEFF00D2FFFF00FEF7E000FBFCE100FDFFE100FFFF
+              E400E3FEFF00F9F6F200FFFFF400F1FBFC00F5FFFE00FBFFFF00000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              0000000000000000000000000000000000000000000000000000000000000000
+              00000000000000000605000004080408080A000000000011191A000B2A23272D
+              531B080000001116201D0B552C23272E531C1509003207201D000F552C23272B
+              3A3F41030112202000000F552C252938606771684236200000000B5F5D6B3B61
+              74676A67513D000000000B59181735716A676A63474B360000000F282C23396A
+              6A6A6A4C404D360000000B552C2534656A654F455049360000000B552C251343
+              6247446E7336000000000B552C25263C3E4B4E483636000000000F55542F3057
+              523331020000000000000B77766D5F5C5C5C2F08000000000000001476726C5C
+              5A58100000000000000000000F0F0B0F0F0F0000000000000000}
+            ParentDoubleBuffered = False
+            TabOrder = 3
+            OnClick = bbBuyNewKeyClick
+          end
+        end
+        object tsChangeInfo: TTabSheet
+          Caption = 'Change Info'
+          object lblChangeInfoErrors: TLabel
+            Left = 13
+            Top = 10
+            Width = 331
+            Height = 13
+            AutoSize = False
+            Caption = 'Errors detected'
+            Color = clBtnFace
+            Font.Charset = DEFAULT_CHARSET
+            Font.Color = clRed
+            Font.Height = -11
+            Font.Name = 'Tahoma'
+            Font.Style = []
+            ParentColor = False
+            ParentFont = False
+          end
+          object lblChangeName: TLabel
+            Left = 13
+            Top = 32
+            Width = 100
+            Height = 13
+            Alignment = taRightJustify
+            AutoSize = False
+            Caption = 'Change name'
+            Color = clBtnFace
+            ParentColor = False
+          end
+          object lblChangeType: TLabel
+            Left = 13
+            Top = 60
+            Width = 100
+            Height = 13
+            Alignment = taRightJustify
+            AutoSize = False
+            Caption = 'Change type'
+            Color = clBtnFace
+            ParentColor = False
+          end
+          object ebChangeName: TEdit
+            Left = 118
+            Top = 29
+            Width = 258
+            Height = 21
+            TabOrder = 0
+          end
+          object ebChangeType: TEdit
+            Left = 118
+            Top = 57
+            Width = 76
+            Height = 21
+            TabOrder = 1
+          end
+        end
+      end
+      object ebSignerAccount: TEdit
+        Left = 325
+        Top = 184
+        Width = 82
+        Height = 21
+        TabOrder = 3
+      end
     end
     object tsGlobalError: TTabSheet
       ImageIndex = 1
       TabVisible = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object lblGlobalErrors: TLabel
         Left = 40
         Top = 50
@@ -451,11 +940,13 @@ object FRMOperation: TFRMOperation
         Alignment = taCenter
         AutoSize = False
         Caption = '????'
+        Color = clBtnFace
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clRed
         Font.Height = -21
         Font.Name = 'Tahoma'
         Font.Style = [fsBold]
+        ParentColor = False
         ParentFont = False
         WordWrap = True
       end
@@ -536,7 +1027,6 @@ object FRMOperation: TFRMOperation
     Top = 12
     Width = 307
     Height = 59
-    Ctl3D = False
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -12
@@ -545,7 +1035,6 @@ object FRMOperation: TFRMOperation
     Lines.Strings = (
       '123456-11 (0.0000); 123456-11 (0.0000); '
       '123456-11 (0.0000); 123456-11 (0.0000); ')
-    ParentCtl3D = False
     ParentFont = False
     ReadOnly = True
     ScrollBars = ssVertical
@@ -567,7 +1056,7 @@ object FRMOperation: TFRMOperation
     OnExit = ebSenderAccountExit
     OnKeyPress = ebSenderAccountKeyPress
   end
-  object ActionList1: TActionList
+  object ActionList: TActionList
     Left = 140
     Top = 350
     object actExecute: TAction

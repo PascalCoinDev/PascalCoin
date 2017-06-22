@@ -23,7 +23,7 @@ uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UWalletKeys, Buttons,
   {$IFDEF FPC}LMessages,{$ENDIF}
-  clipbrd;
+  clipbrd, UConst;
 
 Const
   CM_PC_WalletKeysChanged = {$IFDEF FPC}LM_USER{$ELSE}WM_USER{$ENDIF} + 1;
@@ -272,49 +272,92 @@ var s : String;
  EC : TECPrivateKey;
  i : Integer;
  wk : TWalletKey;
-begin
-  CheckIsWalletKeyValidPassword;
-  if Not Assigned(WalletKeys) then exit;
-  if InputQuery('Import private key','Insert the password protected private key',s) then begin
-    if (trim(s)='') then raise Exception.Create('No valid key');
-    enc := TCrypto.HexaToRaw(trim(s));
-    if (enc='') then raise Exception.Create('Invalid text... You must enter an hexadecimal value ("0".."9" or "A".."F"');
-    Repeat
-      s := '';
-      desenc := '';
-      if InputQuery('Import private key','Enter the password:',s) then begin
-        If (TAESComp.EVP_Decrypt_AES256(enc,s,desenc)) then begin
-          if (desenc<>'') then begin
-            EC := TECPrivateKey.ImportFromRaw(desenc);
-            Try
-              if Not Assigned(EC) then begin
-                if Application.MessageBox(PChar('Invalid password or corrupted data!'),'',MB_RETRYCANCEL+MB_ICONERROR)<>IDRETRY then exit;
-                desenc := '';
-              end else begin
-                i := WalletKeys.IndexOfAccountKey(EC.PublicKey);
-                if (i>=0) then begin
-                  wk := WalletKeys.Key[i];
-                  if Assigned(wk.PrivateKey) And (Assigned(wk.PrivateKey.PrivateKey)) then raise Exception.Create('This key is already in your wallet!');
-                end;
-                s := 'Imported '+DateTimeToStr(now);
-                s := InputBox('Set a name','Name for this private key:',s);
-                i := WalletKeys.AddPrivateKey(s,EC);
-                Application.MessageBox(PChar('Imported private key'),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
+ parseResult : Boolean;
+
+  function ParseRawKey(EC_OpenSSL_NID : Word) : boolean;
+  begin
+    FreeAndNil(EC); ParseRawKey := False;
+    EC := TECPrivateKey.Create;
+    Try
+      EC.SetPrivateKeyFromHexa(EC_OpenSSL_NID, TCrypto.ToHexaString(enc));
+      ParseRawKey := True;
+    Except
+      On E:Exception do begin
+        FreeAndNil(EC);
+        Raise;
+      end;
+    end;
+  end;
+
+  function ParseEncryptedKey : boolean;
+  begin
+      Repeat
+        s := '';
+        desenc := '';
+        if InputQuery('Import private key','Enter the password:',s) then begin
+          If (TAESComp.EVP_Decrypt_AES256(enc,s,desenc)) then begin
+            if (desenc<>'') then begin
+              EC := TECPrivateKey.ImportFromRaw(desenc);
+              ParseEncryptedKey := True;
+              Exit;
+            end else begin
+              if Application.MessageBox(PChar('Invalid password!'),'',MB_RETRYCANCEL+MB_ICONERROR)<>IDRETRY then begin
+                ParseEncryptedKey := False;
+                Exit;
               end;
-            Finally
-              EC.Free;
-            End;
+              desenc := '';
+            end;
           end else begin
-            if Application.MessageBox(PChar('Invalid password!'),'',MB_RETRYCANCEL+MB_ICONERROR)<>IDRETRY then exit;
-            desenc := '';
+            if Application.MessageBox(PChar('Invalid password or corrupted data!'),'',MB_RETRYCANCEL+MB_ICONERROR)<>IDRETRY then begin
+              ParseEncryptedKey := False;
+              Exit;
+            end;
           end;
         end else begin
-          if Application.MessageBox(PChar('Invalid password or corrupted data!'),'',MB_RETRYCANCEL+MB_ICONERROR)<>IDRETRY then exit;
+          ParseEncryptedKey := false;
+          Exit;
         end;
-      end else exit;
-    Until (desenc<>'');
-    UpdateWalletKeys;
+      Until (desenc<>'');
+  end;
 
+begin
+  EC := Nil;
+  CheckIsWalletKeyValidPassword;
+  if Not Assigned(WalletKeys) then exit;
+  if InputQuery('Import private key','Insert the password protected private key or raw private key',s) then begin
+    s := trim(s);
+    if (s='') then raise Exception.Create('No valid key');
+    enc := TCrypto.HexaToRaw(s);
+    if (enc='') then raise Exception.Create('Invalid text... You must enter an hexadecimal value ("0".."9" or "A".."F")');
+    case Length(enc) of
+         32: parseResult := ParseRawKey(CT_NID_secp256k1);
+         35,36: parseResult := ParseRawKey(CT_NID_sect283k1);
+         48: parseResult := ParseRawKey(CT_NID_secp384r1);
+         65,66: parseResult := ParseRawKey(CT_NID_secp521r1);
+         64, 80, 96: parseResult := ParseEncryptedKey;
+         else Exception.Create('Invalidly formatted private key string. Ensure it is an encrypted private key export or raw private key hexstring.');
+    end;
+    if (parseResult = False) then
+       exit;
+    Try
+      // EC is assigned by ParseRawKey/ImportEncryptedKey
+      if Not Assigned(EC) then begin
+        Application.MessageBox(PChar('Invalid password and/or corrupted data!'),'', MB_OK);
+        exit;
+      end;
+      i := WalletKeys.IndexOfAccountKey(EC.PublicKey);
+      if (i>=0) then begin
+        wk := WalletKeys.Key[i];
+        if Assigned(wk.PrivateKey) And (Assigned(wk.PrivateKey.PrivateKey)) then raise Exception.Create('This key is already in your wallet!');
+      end;
+      s := 'Imported '+DateTimeToStr(now);
+      s := InputBox('Set a name','Name for this private key:',s);
+      i := WalletKeys.AddPrivateKey(s,EC);
+      Application.MessageBox(PChar('Imported private key'),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
+    Finally
+      EC.Free;
+    End;
+    UpdateWalletKeys;
   end;
 end;
 

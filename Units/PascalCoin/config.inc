@@ -31,7 +31,8 @@
 
   {$DEFINE PRODUCTION}
   {.$DEFINE TESTNET}
-  
+
+  {.$DEFINE SHOW_AVERAGE_TIME_STATS}
   
   // HighLog will result in a higher log generation
   {.$DEFINE HIGHLOG}

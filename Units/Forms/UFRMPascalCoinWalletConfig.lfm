@@ -118,6 +118,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Top = 482
     Width = 75
     Kind = bkOK
+    ModalResult = 1
     OnClick = bbOkClick
     TabOrder = 16
   end

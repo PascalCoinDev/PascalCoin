@@ -156,7 +156,7 @@ begin
       If not TNode.Node.FindOperation(pcops,r,b,opbi) then begin
         raise Exception.Create('Value is not a valid OpHash');
       end;
-      If not TPCOperation.OperationToOperationResume(b,pcops.Operation[opbi],pcops.Operation[opbi].SenderAccount,opr) then begin
+      If not TPCOperation.OperationToOperationResume(b,pcops.Operation[opbi],pcops.Operation[opbi].SignerAccount,opr) then begin
         raise Exception.Create('Internal error 20161114-1');
       end;
       opr.NOpInsideBlock:=opbi;
@@ -284,13 +284,13 @@ begin
     if Value.Amount>0 then lblAmount.Font.Color := clGreen
     else if Value.Amount=0 then lblAmount.Font.Color := clGray
     else lblAmount.Font.Color := clRed;
-    If (Value.SenderAccount>=0) And (Value.DestAccount>=0) then begin
+    If (Value.SignerAccount>=0) And (Value.DestAccount>=0) then begin
       lblSenderCaption.Caption := 'Sender:';
-      lblSender.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Value.SenderAccount);
+      lblSender.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Value.SignerAccount);
       lblReceiverCaption.Visible := true;
       lblReceiver.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Value.DestAccount);
       lblReceiver.Visible := true;
-      lblFeeCaption.Visible := Value.AffectedAccount=Value.SenderAccount;
+      lblFeeCaption.Visible := Value.AffectedAccount=Value.SignerAccount;
       lblFee.Visible := lblFeeCaption.Visible;
       lblReceiverInfo.Visible := Not lblFee.Visible;
     end else begin

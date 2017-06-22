@@ -31,7 +31,7 @@ uses
 Type
   // TAccountsGrid implements a visual integration of TDrawGrid
   // to show accounts information
-  TAccountColumnType = (act_account_number,act_account_key,act_balance,act_updated,act_n_operation,act_updated_state);
+  TAccountColumnType = (act_account_number,act_account_key,act_balance,act_updated,act_n_operation,act_updated_state,act_name,act_type);
   TAccountColumn = Record
     ColumnType : TAccountColumnType;
     width : Integer;
@@ -115,6 +115,7 @@ Type
     Property BlockStart : Int64 read FBlockStart write SetBlockStart;
     Property BlockEnd : Int64 read FBlockEnd write SetBlockEnd;
     Procedure SetBlocks(bstart,bend : Int64);
+    Property OperationsResume : TOperationsResumeList read FOperationsResume;
   End;
 
   TBlockChainData = Record
@@ -122,7 +123,7 @@ Type
     Timestamp : Cardinal;
     BlockProtocolVersion,
     BlockProtocolAvailable : Word;
-    OperationsCount : Cardinal;
+    OperationsCount : Integer;
     Volume : Int64;
     Reward, Fee : Int64;
     Target : Cardinal;
@@ -131,8 +132,17 @@ Type
     PoW : TRawBytes;
     SafeBoxHash : TRawBytes;
     AccumulatedWork : UInt64;
+    TimeAverage200 : Real;
+    TimeAverage150 : Real;
+    TimeAverage100 : Real;
+    TimeAverage75 : Real;
+    TimeAverage50 : Real;
+    TimeAverage25 : Real;
+    TimeAverage10 : Real;
   End;
   TBlockChainDataArray = Array of TBlockChainData;
+
+  { TBlockChainGrid }
 
   TBlockChainGrid = Class(TComponent)
   private
@@ -143,6 +153,7 @@ Type
     FDrawGrid: TDrawGrid;
     FNodeNotifyEvents : TNodeNotifyEvents;
     FHashRateAverageBlocksCount: Integer;
+    FShowTimeAverageColumns: Boolean;
     Procedure OnNodeNewAccount(Sender : TObject);
     Procedure InitGrid;
     procedure OnGridDrawCell(Sender: TObject; ACol, ARow: Longint; Rect: TRect; State: TGridDrawState);
@@ -152,7 +163,9 @@ Type
     procedure SetDrawGrid(const Value: TDrawGrid);
     procedure SetMaxBlocks(const Value: Integer);
     procedure SetNode(const Value: TNode);
-    procedure SetHashRateAverageBlocksCount(const Value: Integer); public
+    procedure SetHashRateAverageBlocksCount(const Value: Integer);
+    procedure SetShowTimeAverageColumns(AValue: Boolean);
+ public
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); Override;
   public
@@ -166,10 +179,11 @@ Type
     Procedure SetBlocks(bstart,bend : Int64);
     Property MaxBlocks : Integer read FMaxBlocks write SetMaxBlocks;
     Property HashRateAverageBlocksCount : Integer read FHashRateAverageBlocksCount write SetHashRateAverageBlocksCount;
+    Property ShowTimeAverageColumns : Boolean read FShowTimeAverageColumns write SetShowTimeAverageColumns;
   End;
 
 Const
-  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:0;Volume:0;Reward:0;Fee:0;Target:0;HashRateKhs:0;MinerPayload:'';PoW:'';SafeBoxHash:'';AccumulatedWork:0);
+  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:-1;Volume:-1;Reward:0;Fee:0;Target:0;HashRateKhs:0;MinerPayload:'';PoW:'';SafeBoxHash:'';AccumulatedWork:0;TimeAverage200:0;TimeAverage150:0;TimeAverage100:0;TimeAverage75:0;TimeAverage50:0;TimeAverage25:0;TimeAverage10:0);
 
 
 implementation
@@ -181,7 +195,7 @@ uses
 { TAccountsGrid }
 
 Const CT_ColumnHeader : Array[TAccountColumnType] Of String =
-  ('Account N.','Key','Balance','Updated','N Oper.','State');
+  ('Account N.','Key','Balance','Updated','N Oper.','State','Name','Type');
 
 function TAccountsGrid.AccountNumber(GridRow: Integer): Int64;
 begin
@@ -206,15 +220,17 @@ begin
   FShowAllAccounts := false;
   FAccountsList := TOrderedCardinalList.Create;
   FDrawGrid := Nil;
-  SetLength(FColumns,4);
+  SetLength(FColumns,5);
   FColumns[0].ColumnType := act_account_number;
-  FColumns[0].width := 80;
-  FColumns[1].ColumnType := act_balance;
-  FColumns[1].width := 100;
-  FColumns[2].ColumnType := act_n_operation;
-  FColumns[2].width := 50;
-  FColumns[3].ColumnType := act_updated_state;
+  FColumns[0].width := 70;
+  FColumns[1].ColumnType := act_name;
+  FColumns[1].width := 110;
+  FColumns[2].ColumnType := act_balance;
+  FColumns[2].width := 70;
+  FColumns[3].ColumnType := act_n_operation;
   FColumns[3].width := 50;
+  FColumns[4].ColumnType := act_updated_state;
+  FColumns[4].width := 50;
   FNodeNotifyEvents := TNodeNotifyEvents.Create(Self);
   FNodeNotifyEvents.OnOperationsChanged := OnNodeNewOperation;
 end;
@@ -437,7 +453,7 @@ begin
           Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
         End;
         act_account_key : Begin
-          s := Tcrypto.ToHexaString(TAccountComp.AccountKey2RawString(account.accountkey));
+          s := Tcrypto.ToHexaString(TAccountComp.AccountKey2RawString(account.accountInfo.accountKey));
           Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
         End;
         act_balance : Begin
@@ -462,20 +478,40 @@ begin
           Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
         End;
         act_updated_state : Begin
-          if TAccountComp.IsAccountBlockedByProtocol(account.account,Node.Bank.BlocksCount) then begin
-            DrawGrid.Canvas.Brush.Color := clRed;
-            DrawGrid.Canvas.Ellipse(Rect.Left+1,Rect.Top+1,Rect.Right-1,Rect.Bottom-1);
-          end else if ndiff=0 then begin
-            DrawGrid.Canvas.Brush.Color := RGB(255,128,0);
-            DrawGrid.Canvas.Ellipse(Rect.Left+1,Rect.Top+1,Rect.Right-1,Rect.Bottom-1);
-          end else if ndiff<=8 then begin
-            DrawGrid.Canvas.Brush.Color := FromColorToColor(RGB(253,250,115),ColorToRGB(clGreen),ndiff-1,8-1);
-            DrawGrid.Canvas.Ellipse(Rect.Left+1,Rect.Top+1,Rect.Right-1,Rect.Bottom-1);
+          if TAccountComp.IsAccountForSale(account.accountInfo) then begin
+            // Show price for sale
+            s := TAccountComp.FormatMoney(account.accountInfo.price);
+            if TAccountComp.IsAccountForSaleAcceptingTransactions(account.accountInfo) then begin
+              if TAccountComp.IsAccountLocked(account.accountInfo,Node.Bank.BlocksCount) then begin
+                DrawGrid.Canvas.Font.Color := clNavy;
+              end else begin
+                DrawGrid.Canvas.Font.Color := clRed;
+              end;
+            end else begin
+              DrawGrid.Canvas.Font.Color := clGrayText
+            end;
+            Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
           end else begin
-            DrawGrid.Canvas.Brush.Color := clGreen;
+            if TAccountComp.IsAccountBlockedByProtocol(account.account,Node.Bank.BlocksCount) then begin
+              DrawGrid.Canvas.Brush.Color := clRed;
+            end else if ndiff=0 then begin
+              DrawGrid.Canvas.Brush.Color := RGB(255,128,0);
+            end else if ndiff<=8 then begin
+              DrawGrid.Canvas.Brush.Color := FromColorToColor(RGB(253,250,115),ColorToRGB(clGreen),ndiff-1,8-1);
+            end else begin
+              DrawGrid.Canvas.Brush.Color := clGreen;
+            end;
             DrawGrid.Canvas.Ellipse(Rect.Left+1,Rect.Top+1,Rect.Right-1,Rect.Bottom-1);
           end;
         End;
+        act_name : Begin
+          s := account.name;
+          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
+        end;
+        act_type : Begin
+          s := IntToStr(account.account_type);
+          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
+        end;
       else
         s := '(???)';
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfCenter,tfVerticalCenter,tfSingleLine]);
@@ -660,6 +696,11 @@ begin
     InflateRect(Rect,-2,-1);
     if (ARow<=FOperationsResume.Count) then begin
       opr := FOperationsResume.OperationResume[ARow-1];
+      If (opr.AffectedAccount=opr.SignerAccount) then begin
+      end else begin
+        if (gdSelected in State) or (gdFocused in State) then begin
+        end else DrawGrid.Canvas.font.Color := clGrayText;
+      end;
       if ACol=0 then begin
         if opr.time=0 then s := '(Pending)'
         else s := DateTimeToStr(UnivDateTime2LocalDateTime(UnixToUnivDateTime(opr.time)));
@@ -838,10 +879,10 @@ begin
     if FPendingOperations then begin
       for i := Node.Operations.Count - 1 downto 0 do begin
         Op := Node.Operations.OperationsHashTree.GetOperation(i);
-        If TPCOperation.OperationToOperationResume(0,Op,Op.SenderAccount,OPR) then begin
+        If TPCOperation.OperationToOperationResume(0,Op,Op.SignerAccount,OPR) then begin
           OPR.NOpInsideBlock := i;
-          OPR.Block := Node.Operations.OperationBlock.block;
-          OPR.Balance := Node.Operations.SafeBoxTransaction.Account(Op.SenderAccount).balance;
+          OPR.Block := Node.Bank.BlocksCount;
+          OPR.Balance := Node.Operations.SafeBoxTransaction.Account(Op.SignerAccount).balance;
           FOperationsResume.Add(OPR);
         end;
       end;
@@ -876,7 +917,7 @@ begin
               FOperationsResume.Add(OPR);
               // Reverse operations inside a block
               for i := opc.Count - 1 downto 0 do begin
-                if TPCOperation.OperationToOperationResume(bend,opc.Operation[i],opc.Operation[i].SenderAccount,opr) then begin
+                if TPCOperation.OperationToOperationResume(bend,opc.Operation[i],opc.Operation[i].SignerAccount,opr) then begin
                   opr.NOpInsideBlock := i;
                   opr.Block := bend;
                   opr.time := opc.OperationBlock.timestamp;
@@ -927,6 +968,7 @@ begin
   FNodeNotifyEvents.OnBlocksChanged := OnNodeNewAccount;
   FHashRateAverageBlocksCount := 50;
   SetLength(FBlockChainDataArray,0);
+  FShowTimeAverageColumns:=False;
 end;
 
 destructor TBlockChainGrid.Destroy;
@@ -950,7 +992,8 @@ begin
   DrawGrid.FixedRows := 1;
   DrawGrid.DefaultDrawing := true;
   DrawGrid.FixedCols := 0;
-  DrawGrid.ColCount := 13;
+  If ShowTimeAverageColumns then DrawGrid.ColCount:=15
+  else DrawGrid.ColCount:=12;
   DrawGrid.ColWidths[0] := 50; // Block
   DrawGrid.ColWidths[1] := 110; // Time
   DrawGrid.ColWidths[2] := 30; // Ops
@@ -963,7 +1006,11 @@ begin
   DrawGrid.ColWidths[9] := 190; // PoW
   DrawGrid.ColWidths[10] := 190; // SafeBox Hash
   DrawGrid.ColWidths[11] := 50; // Protocol
-  DrawGrid.ColWidths[12] := 120; // Accumulated work
+  If ShowTimeAverageColumns then begin
+    DrawGrid.ColWidths[12] := 95; // Accumulated work
+    DrawGrid.ColWidths[13] := 55; // Deviation
+    DrawGrid.ColWidths[14] := 340; // Time average
+  end;
   FDrawGrid.DefaultRowHeight := 18;
   FDrawGrid.Invalidate;
   DrawGrid.Options := [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine,
@@ -985,10 +1032,11 @@ begin
   end;
 end;
 
-procedure TBlockChainGrid.OnGridDrawCell(Sender: TObject; ACol, ARow: Integer;
+procedure TBlockChainGrid.OnGridDrawCell(Sender: TObject; ACol, ARow: Longint;
   Rect: TRect; State: TGridDrawState);
 Var s : String;
   bcd : TBlockChainData;
+  deviation : Real;
 begin
   {.$IFDEF FPC}
   DrawGrid.Canvas.Font.Color:=clBlack;
@@ -1009,6 +1057,8 @@ begin
       10 : s := 'SafeBox Hash';
       11 : s := 'Protocol';
       12 : s := 'Acc.Work';
+      13 : s := 'Deviation';
+      14 : s := 'Time average';
     else s:= '';
     end;
     Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfCenter,tfVerticalCenter]);
@@ -1028,13 +1078,25 @@ begin
         s := DateTimeToStr(UnivDateTime2LocalDateTime(UnixToUnivDateTime((bcd.Timestamp))));
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfleft,tfVerticalCenter,tfSingleLine]);
       end else if ACol=2 then begin
-        s := IntToStr(bcd.OperationsCount);
-        Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter]);
+        if bcd.OperationsCount>=0 then begin
+          s := IntToStr(bcd.OperationsCount);
+          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter]);
+        end else begin
+          DrawGrid.Canvas.Font.Color := clGrayText;
+          s := '(no data)';
+          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfCenter,tfVerticalCenter,tfSingleLine]);
+        end;
       end else if ACol=3 then begin
-        s := TAccountComp.FormatMoney(bcd.Volume);
-        if FBlockChainDataArray[ARow-1].Volume>0 then DrawGrid.Canvas.Font.Color := ClGreen
-        else DrawGrid.Canvas.Font.Color := clGrayText;
-        Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
+        if bcd.Volume>=0 then begin
+          s := TAccountComp.FormatMoney(bcd.Volume);
+          if FBlockChainDataArray[ARow-1].Volume>0 then DrawGrid.Canvas.Font.Color := ClGreen
+          else DrawGrid.Canvas.Font.Color := clGrayText;
+          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
+        end else begin
+          DrawGrid.Canvas.Font.Color := clGrayText;
+          s := '(no data)';
+          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfCenter,tfVerticalCenter,tfSingleLine]);
+        end;
       end else if ACol=4 then begin
         s := TAccountComp.FormatMoney(bcd.Reward);
         if FBlockChainDataArray[ARow-1].Reward>0 then DrawGrid.Canvas.Font.Color := ClGreen
@@ -1074,6 +1136,14 @@ begin
           s := '(no data)';
           Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfCenter,tfVerticalCenter,tfSingleLine]);
         end;
+      end else if ACol=13 then begin
+        deviation := ((CT_NewLineSecondsAvg - bcd.TimeAverage100) / CT_NewLineSecondsAvg)*100;
+        s := Format('%.2f',[deviation])+' %';
+        Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
+      end else if ACol=14 then begin
+        s := Format('200:%.1f 150:%.1f 100:%.1f 75:%.1f 50:%.1f 25:%.1f 10:%.1f',[bcd.TimeAverage200,
+           bcd.TimeAverage150,bcd.TimeAverage100,bcd.TimeAverage75,bcd.TimeAverage50,bcd.TimeAverage25,bcd.TimeAverage10]);
+        Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
       end;
     end;
   end;
@@ -1132,6 +1202,13 @@ begin
   UpdateBlockChainGrid;
 end;
 
+procedure TBlockChainGrid.SetShowTimeAverageColumns(AValue: Boolean);
+begin
+  if FShowTimeAverageColumns=AValue then Exit;
+  FShowTimeAverageColumns:=AValue;
+  InitGrid;
+end;
+
 procedure TBlockChainGrid.SetMaxBlocks(const Value: Integer);
 begin
   if FMaxBlocks=Value then exit;
@@ -1153,6 +1230,7 @@ Var nstart,nend : Cardinal;
   opc : TPCOperationsComp;
   bcd : TBlockChainData;
   i : Integer;
+  opb : TOperationBlock;
 begin
   if (FBlockStart>FBlockEnd) And (FBlockStart>=0) then FBlockEnd := -1;
   if (FBlockEnd>=0) And (FBlockEnd<FBlockStart) then FBlockStart:=-1;
@@ -1185,22 +1263,30 @@ begin
       while (nstart<=nend) do begin
         i := length(FBlockChainDataArray) - (nend-nstart+1);
         bcd := CT_TBlockChainData_NUL;
+        opb := Node.Bank.SafeBox.Block(nend).blockchainInfo;
+        bcd.Block:=opb.block;
+        bcd.Timestamp := opb.timestamp;
+        bcd.BlockProtocolVersion := opb.protocol_version;
+        bcd.BlockProtocolAvailable := opb.protocol_available;
+        bcd.Reward := opb.reward;
+        bcd.Fee := opb.fee;
+        bcd.Target := opb.compact_target;
+        bcd.HashRateKhs := Node.Bank.SafeBox.CalcBlockHashRateInKhs(bcd.Block,HashRateAverageBlocksCount);
+        bcd.MinerPayload := opb.block_payload;
+        bcd.PoW := opb.proof_of_work;
+        bcd.SafeBoxHash := opb.initial_safe_box_hash;
+        bcd.AccumulatedWork := Node.Bank.SafeBox.Block(bcd.Block).AccumulatedWork;
         if (Node.Bank.LoadOperations(opc,nend)) then begin
-          bcd.Block := opc.OperationBlock.block;
-          bcd.Timestamp := opc.OperationBlock.timestamp;
-          bcd.BlockProtocolVersion := opc.OperationBlock.protocol_version;
-          bcd.BlockProtocolAvailable := opc.OperationBlock.protocol_available;
           bcd.OperationsCount := opc.Count;
           bcd.Volume := opc.OperationsHashTree.TotalAmount + opc.OperationsHashTree.TotalFee;
-          bcd.Reward := opc.OperationBlock.reward;
-          bcd.Fee := opc.OperationBlock.fee;
-          bcd.Target := opc.OperationBlock.compact_target;
-          bcd.HashRateKhs := Node.Bank.SafeBox.CalcBlockHashRateInKhs(bcd.Block,HashRateAverageBlocksCount);
-          bcd.MinerPayload := opc.OperationBlock.block_payload;
-          bcd.PoW := opc.OperationBlock.proof_of_work;
-          bcd.SafeBoxHash := opc.OperationBlock.initial_safe_box_hash;
-          bcd.AccumulatedWork := Node.Bank.SafeBox.Block(bcd.Block).AccumulatedWork;
         end;
+        bcd.TimeAverage200:=Node.Bank.GetTargetSecondsAverage(bcd.Block,200);
+        bcd.TimeAverage150:=Node.Bank.GetTargetSecondsAverage(bcd.Block,150);
+        bcd.TimeAverage100:=Node.Bank.GetTargetSecondsAverage(bcd.Block,100);
+        bcd.TimeAverage75:=Node.Bank.GetTargetSecondsAverage(bcd.Block,75);
+        bcd.TimeAverage50:=Node.Bank.GetTargetSecondsAverage(bcd.Block,50);
+        bcd.TimeAverage25:=Node.Bank.GetTargetSecondsAverage(bcd.Block,25);
+        bcd.TimeAverage10:=Node.Bank.GetTargetSecondsAverage(bcd.Block,10);
         FBlockChainDataArray[i] := bcd;
         if (nend>0) then dec(nend) else break;
       end;

@@ -14,12 +14,12 @@ object FRMWalletKeys: TFRMWalletKeys
   Font.Name = 'Tahoma'
   OnCreate = FormCreate
   Position = poOwnerFormCenter
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.6.4.0'
   object lblEncryptionTypeCaption: TLabel
     Left = 30
     Height = 13
     Top = 298
-    Width = 93
+    Width = 80
     Caption = 'Encryption type:'
     ParentColor = False
   end
@@ -27,7 +27,7 @@ object FRMWalletKeys: TFRMWalletKeys
     Left = 125
     Height = 13
     Top = 298
-    Width = 63
+    Width = 54
     Caption = '000000000'
     ParentColor = False
   end
@@ -35,7 +35,7 @@ object FRMWalletKeys: TFRMWalletKeys
     Left = 30
     Height = 13
     Top = 317
-    Width = 60
+    Width = 51
     Caption = 'Key name:'
     ParentColor = False
   end
@@ -52,7 +52,7 @@ object FRMWalletKeys: TFRMWalletKeys
     Left = 30
     Height = 13
     Top = 336
-    Width = 67
+    Width = 58
     Caption = 'Private key:'
     ParentColor = False
   end
@@ -60,7 +60,7 @@ object FRMWalletKeys: TFRMWalletKeys
     Left = 30
     Height = 13
     Top = 355
-    Width = 92
+    Width = 80
     Caption = '(In hexa format)'
     ParentColor = False
   end
@@ -88,7 +88,6 @@ object FRMWalletKeys: TFRMWalletKeys
     OnClick = lbWalletKeysClick
     ScrollWidth = 344
     TabOrder = 0
-    TopIndex = -1
   end
   object bbExportPrivateKey: TBitBtn
     Left = 382

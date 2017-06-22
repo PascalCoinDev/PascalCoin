@@ -90,7 +90,6 @@ Type PLogData = ^TLogData;
 { TLog }
 
 constructor TLog.Create(AOwner: TComponent);
-Var l : TList;
 begin
   FLock := TCriticalSection.Create;
   FProcessGlobalLogs := true;
@@ -222,6 +221,8 @@ Var l : TList;
   i : Integer;
   P : PLogData;
 begin
+  If Not Assigned(FLog) then Exit;
+  If Not Assigned(FLog.FOnNewLog) then Exit;
   // This event is thread safe and will do OnNewLog on main thread
   l := FLog.FLogDataList.LockList;
   try
@@ -245,7 +246,5 @@ end;
 initialization
   _logs := Nil;
 finalization
-  {$IFnDEF FPC}
   FreeAndNil(_logs);
-  {$ENDIF}
 end.

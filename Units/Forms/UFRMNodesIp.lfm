@@ -5,7 +5,7 @@ object FRMNodesIp: TFRMNodesIp
   Width = 334
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
-  Caption = 'Nodes IP'
+  Caption = 'Node IP Addresses'
   ClientHeight = 367
   ClientWidth = 334
   Color = clBtnFace
@@ -20,7 +20,7 @@ object FRMNodesIp: TFRMNodesIp
     Height = 13
     Top = 25
     Width = 143
-    Caption = 'Available Nodes Ip to connect'
+    Caption = 'Availble Node IP''s to connect:'
     ParentColor = False
   end
   object memoNodesIp: TMemo
@@ -69,6 +69,7 @@ object FRMNodesIp: TFRMNodesIp
     Top = 317
     Width = 75
     Cancel = True
+    Caption = 'Cancel'
     Kind = bkCancel
     ModalResult = 2
     TabOrder = 2
@@ -78,7 +79,7 @@ object FRMNodesIp: TFRMNodesIp
     Height = 19
     Top = 285
     Width = 201
-    Caption = 'Try to connect ONLY with this servers'
+    Caption = 'Connect ONLY to these nodes'
     OnClick = cbTryOnlyWithThisServersClick
     TabOrder = 3
   end

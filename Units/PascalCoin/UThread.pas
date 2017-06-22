@@ -40,9 +40,11 @@ Type
   public
     Constructor Create(const AName : String);
     Destructor Destroy; override;
+    {$IFDEF HIGHLOG}
     procedure Acquire; override;
     procedure Release; override;
-    function TryEnter: Boolean;
+    function TryEnter: Boolean; override;
+    {$ENDIF}
     Property CurrentThread : Cardinal read FCurrentThread;
     Property WaitingForCounter : Integer read FWaitingForCounter;
     Property StartedTimestamp : Cardinal read FStartedTimestamp;
@@ -64,7 +66,6 @@ Type
     Class function ThreadCount : Integer;
     Class function GetThread(index : Integer) : TPCThread;
     Class function GetThreadByClass(tclass : TPCThreadClass; Exclude : TObject) : TPCThread;
-    Class function TerminateAllThreads(tclass: TPCThreadClass) : Integer;
     Class Procedure ProtectEnterCriticalSection(Const Sender : TObject; var Lock : TPCCriticalSection);
     Class Function TryProtectEnterCriticalSection(Const Sender : TObject; MaxWaitMilliseconds : Cardinal; var Lock : TPCCriticalSection) : Boolean;
     Class Procedure ThreadsListInfo(list: TStrings);
@@ -182,14 +183,13 @@ end;
 
 class procedure TPCThread.ProtectEnterCriticalSection(Const Sender : TObject; var Lock: TPCCriticalSection);
 begin
+  {$IFDEF HIGHLOG}
   if Not Lock.TryEnter then begin
     Lock.Acquire;
   end;
-end;
-
-class function TPCThread.TerminateAllThreads(tclass: TPCThreadClass): Integer;
-begin
-
+  {$ELSE}
+  Lock.Acquire;
+  {$ENDIF}
 end;
 
 class function TPCThread.ThreadClassFound(tclass: TPCThreadClass; Exclude : TObject): Integer;
@@ -336,6 +336,7 @@ end;
 
 { TPCCriticalSection }
 
+{$IFDEF HIGHLOG}
 procedure TPCCriticalSection.Acquire;
 Var continue, logged : Boolean;
   startTC : Cardinal;
@@ -372,7 +373,9 @@ begin
   end;
   FCurrentThread := TThread.CurrentThread.ThreadID;
   FStartedTimestamp := GetTickCount;
+  inherited;
 end;
+{$ENDIF}
 
 constructor TPCCriticalSection.Create(const AName : String);
 begin
@@ -391,6 +394,7 @@ begin
   inherited;
 end;
 
+{$IFDEF HIGHLOG}
 procedure TPCCriticalSection.Release;
 begin
   FCurrentThread := 0;
@@ -418,12 +422,11 @@ begin
     FCounterLock.Release;
   end;
 end;
+{$ENDIF}
 
 initialization
   _threads := TPCThreadList.Create('GLOBAL_THREADS');
 finalization
-  {$IFnDEF FPC}
   FreeAndNil(_threads);
-  {$ENDIF}
 end.
 

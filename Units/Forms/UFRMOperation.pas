@@ -27,7 +27,7 @@ uses
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UNode, UWalletKeys, UCrypto, Buttons, UBlockChain,
-  UAccounts, ActnList, ComCtrls, Types;
+  UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -37,32 +37,26 @@ type
   { TFRMOperation }
 
   TFRMOperation = class(TForm)
+    ebChangeName: TEdit;
+    ebChangeType: TEdit;
+    ebSignerAccount: TEdit;
+    lblSignerAccount: TLabel;
     lblAccountCaption: TLabel;
     bbExecute: TBitBtn;
     bbCancel: TBitBtn;
     lblAccountBalance: TLabel;
-    Label2: TLabel;
+    lblChangeType: TLabel;
+    lblChangeName: TLabel;
+    lblBalanceCaption: TLabel;
     ebSenderAccount: TEdit;
-    PageControl: TPageControl;
+    lblChangeInfoErrors: TLabel;
+    PageControlLocked: TPageControl;
+    sbSearchBuyAccount: TSpeedButton;
+    sbSearchListerSellerAccount: TSpeedButton;
+    sbSearchDestinationAccount: TSpeedButton;
+    sbSearchSignerAccount: TSpeedButton;
+    tsChangeInfo: TTabSheet;
     tsOperation: TTabSheet;
-    gbOperation: TGroupBox;
-    lblDestAccount: TLabel;
-    lblAmount: TLabel;
-    lblNewPrivateKey: TLabel;
-    lblTransactionErrors: TLabel;
-    lblChangeKeyErrors: TLabel;
-    lblNewOwnerPublicKey: TLabel;
-    lblNewOwnerErrors: TLabel;
-    lblFee: TLabel;
-    rbTransaction: TRadioButton;
-    rbChangeKey: TRadioButton;
-    ebDestAccount: TEdit;
-    ebAmount: TEdit;
-    cbNewPrivateKey: TComboBox;
-    rbTransferToANewOwner: TRadioButton;
-    ebNewPublicKey: TEdit;
-    ebFee: TEdit;
-    bbKeys: TBitBtn;
     gbPayload: TGroupBox;
     lblEncryptPassword: TLabel;
     Label4: TLabel;
@@ -74,58 +68,112 @@ type
     ebEncryptPassword: TEdit;
     memoPayload: TMemo;
     rbEncryptedWithOldEC: TRadioButton;
-    ActionList1: TActionList;
+    ActionList: TActionList;
     actExecute: TAction;
     tsGlobalError: TTabSheet;
     lblGlobalErrors: TLabel;
     bbPassword: TBitBtn;
     memoAccounts: TMemo;
     lblAccountsCount: TLabel;
-    procedure ebAmountChange(Sender: TObject);
-    procedure ebFeeChange(Sender: TObject);
+    lblFee: TLabel;
+    ebFee: TEdit;
+    PageControlOpType: TPageControl;
+    tsTransaction: TTabSheet;
+    lblDestAccount: TLabel;
+    lblAmount: TLabel;
+    lblTransactionErrors: TLabel;
+    ebDestAccount: TEdit;
+    ebAmount: TEdit;
+    tsChangePrivateKey: TTabSheet;
+    gbChangeKey: TGroupBox;
+    lblNewPrivateKey: TLabel;
+    lblNewOwnerPublicKey: TLabel;
+    lblNewOwnerErrors: TLabel;
+    lblChangeKeyErrors: TLabel;
+    rbChangeKeyWithAnother: TRadioButton;
+    cbNewPrivateKey: TComboBox;
+    ebNewPublicKey: TEdit;
+    bbChangePrivateKeyKeys: TBitBtn;
+    rbChangeKeyTransferAccountToNewOwner: TRadioButton;
+    tsListForSale: TTabSheet;
+    gbSaleType: TGroupBox;
+    Label1: TLabel;
+    Label3: TLabel;
+    lblSaleNewOwnerPublicKey: TLabel;
+    lblSaleLockedUntilBlock: TLabel;
+    rbListAccountForPublicSale: TRadioButton;
+    rbListAccountForPrivateSale: TRadioButton;
+    ebSalePrice: TEdit;
+    ebSellerAccount: TEdit;
+    ebSaleNewOwnerPublicKey: TEdit;
+    ebSaleLockedUntilBlock: TEdit;
+    tsDelist: TTabSheet;
+    tsBuyAccount: TTabSheet;
+    lblListAccountErrors: TLabel;
+    lblAccountToBuy: TLabel;
+    ebAccountToBuy: TEdit;
+    lblBuyAmount: TLabel;
+    ebBuyAmount: TEdit;
+    lblBuyAccountErrors: TLabel;
+    lblBuyNewKey: TLabel;
+    cbBuyNewKey: TComboBox;
+    bbBuyNewKey: TBitBtn;
+    Label2: TLabel;
+    lblDelistErrors: TLabel;
     procedure ebNewPublicKeyExit(Sender: TObject);
     procedure FormCreate(Sender: TObject);
-    procedure rbTransactionClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure memoPayloadClick(Sender: TObject);
-    procedure ebDestAccountChange(Sender: TObject);
-    procedure cbNewPrivateKeyChange(Sender: TObject);
-    procedure ebNewPublicKeyChange(Sender: TObject);
     procedure ebEncryptPasswordChange(Sender: TObject);
-    procedure ebFeeExit(Sender: TObject);
-    procedure bbKeysClick(Sender: TObject);
+    procedure bbChangePrivateKeyKeysClick(Sender: TObject);
     procedure actExecuteExecute(Sender: TObject);
     procedure ebSenderAccountExit(Sender: TObject);
     procedure ebSenderAccountKeyPress(Sender: TObject; var Key: Char);
     procedure bbPasswordClick(Sender: TObject);
-    procedure ebDestAccountExit(Sender: TObject);
+    procedure PageControlOpTypeChange(Sender: TObject);
+    procedure sbSearchBuyAccountClick(Sender: TObject);
+    procedure sbSearchDestinationAccountClick(Sender: TObject);
+    procedure sbSearchListerSellerAccountClick(Sender: TObject);
+    procedure sbSearchSignerAccountClick(Sender: TObject);
+    procedure updateInfoClick(Sender: TObject);
+    procedure bbBuyNewKeyClick(Sender: TObject);
+    procedure ebAccountNumberExit(Sender: TObject);
+    procedure ebCurrencyExit(Sender: TObject);
   private
     FNode : TNode;
     FWalletKeys: TWalletKeys;
-    FFee: Int64;
+    FDefaultFee: Int64;
     FEncodedPayload : TRawBytes;
     FDisabled : Boolean;
     //
-    FTxDestAccount : Cardinal;
-    FTxAmount : Int64;
-    FNewAccountPublicKey : TAccountKey;
     FSenderAccounts: TOrderedCardinalList;
     FOldOnChanged : TNotifyEvent;
     procedure SetWalletKeys(const Value: TWalletKeys);
     Procedure UpdateWalletKeys;
     { Private declarations }
     Procedure UpdateAccountsInfo;
+    Function UpdateFee(var Fee : Int64; errors : AnsiString) : Boolean;
     Function UpdateOperationOptions(var errors : AnsiString) : Boolean;
     Function UpdatePayload(Const SenderAccount : TAccount; var errors : AnsiString) : Boolean;
-    procedure SetFee(const Value: Int64);
+    Function UpdateOpTransaction(Const SenderAccount : TAccount; var DestAccount : TAccount; var amount : Int64; var errors : AnsiString) : Boolean;
+    Function UpdateOpChangeKey(Const TargetAccount : TAccount; var SignerAccount : TAccount; var NewPublicKey : TAccountKey; var errors : AnsiString) : Boolean;
+    Function UpdateOpListForSale(Const TargetAccount : TAccount; var SalePrice : Int64; var SellerAccount,SignerAccount : TAccount; var NewOwnerPublicKey : TAccountKey; var LockedUntilBlock : Cardinal; var errors : AnsiString) : Boolean;
+    Function UpdateOpDelist(Const TargetAccount : TAccount; var SignerAccount : TAccount; var errors : AnsiString) : Boolean;
+    Function UpdateOpBuyAccount(Const SenderAccount : TAccount; var AccountToBuy : TAccount; var amount : Int64; var NewPublicKey : TAccountKey; var errors : AnsiString) : Boolean;
+    Function UpdateOpChangeInfo(Const TargetAccount : TAccount; var SignerAccount : TAccount; var changeName : Boolean; var newName : AnsiString; var changeType : Boolean; var newType : Word; var errors : AnsiString) : Boolean;
+    procedure SetDefaultFee(const Value: Int64);
     Procedure OnSenderAccountsChanged(Sender : TObject);
     procedure OnWalletKeysChanged(Sender : TObject);
     procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
+    Function GetDefaultSenderAccount : TAccount;
+    procedure ebAccountKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+  protected
+    procedure searchAccount(editBox : TCustomEdit);
   public
     { Public declarations }
     Property SenderAccounts : TOrderedCardinalList read FSenderAccounts;
     Property WalletKeys : TWalletKeys read FWalletKeys write SetWalletKeys;
-    Property Fee : Int64 read FFee write SetFee;
+    Property DefaultFee : Int64 read FDefaultFee write SetDefaultFee;
   end;
 
 implementation
@@ -144,14 +192,19 @@ uses
 procedure TFRMOperation.actExecuteExecute(Sender: TObject);
 Var errors : AnsiString;
   P : PAccount;
-  i,iAcc, nZeroFee : Integer;
+  i,iAcc : Integer;
   wk : TWalletKey;
   ops : TOperationsHashTree;
   op : TPCOperation;
-  account : TAccount;
+  account,signerAccount,destAccount,accountToBuy : TAccount;
   operation_to_string, operationstxt, auxs : String;
-  _amount,_fee, _totalamount, _totalfee : Int64;
+  _amount,_fee, _totalamount, _totalfee, _salePrice : Int64;
+  _lockedUntil : Cardinal;
   dooperation : Boolean;
+  _newOwnerPublicKey : TECDSA_Public;
+  _newName : TRawBytes;
+  _newType : Word;
+  _changeName, _changeType : Boolean;
 begin
   if Not Assigned(WalletKeys) then raise Exception.Create('No wallet keys');
   If Not UpdateOperationOptions(errors) then raise Exception.Create(errors);
@@ -161,69 +214,82 @@ begin
     _totalfee := 0;
     operationstxt := '';
     operation_to_string := '';
-    nZeroFee := 0;
     for iAcc := 0 to FSenderAccounts.Count - 1 do begin
       op := Nil;
       account := FNode.Operations.SafeBoxTransaction.Account(FSenderAccounts.Get(iAcc));
       If Not UpdatePayload(account, errors) then
         raise Exception.Create('Error encoding payload of sender account '+TAccountComp.AccountNumberToAccountTxtNumber(account.account)+': '+errors);
-      i := WalletKeys.IndexOfAccountKey(account.accountkey);
+      i := WalletKeys.IndexOfAccountKey(account.accountInfo.accountKey);
       if i<0 then begin
         Raise Exception.Create('Sender account private key not found in Wallet');
       end;
 
       wk := WalletKeys.Key[i];
       dooperation := true;
+      // Default fee
+      if account.balance>DefaultFee then _fee := DefaultFee
+      else _fee := account.balance;
       //
-      if rbTransaction.Checked then begin
-        // Amount
-        _amount := 0;
-        _fee := 0;
+      if PageControlOpType.ActivePage = tsTransaction then begin
+        if Not UpdateOpTransaction(account,destAccount,_amount,errors) then raise Exception.Create(errors);
         if FSenderAccounts.Count>1 then begin
           if account.balance>0 then begin
-            if account.balance>fee then begin
-              _amount := account.balance - fee;
-              _fee := fee;
+            if account.balance>DefaultFee then begin
+              _amount := account.balance - DefaultFee;
+              _fee := DefaultFee;
             end else begin
               _amount := account.balance;
               _fee := 0;
             end;
           end else dooperation := false;
         end else begin
-          _amount := FTxAmount;
-          _fee := fee;
         end;
         if dooperation then begin
-          op := TOpTransaction.Create(account.account,account.n_operation+1,FTxDestAccount,wk.PrivateKey,_amount,_fee,FEncodedPayload);
+          op := TOpTransaction.CreateTransaction(account.account,account.n_operation+1,destAccount.account,wk.PrivateKey,_amount,_fee,FEncodedPayload);
           inc(_totalamount,_amount);
           inc(_totalfee,_fee);
         end;
-        operationstxt := 'Transaction to '+TAccountComp.AccountNumberToAccountTxtNumber(FTxDestAccount);
-      end else if rbChangeKey.Checked then begin
-        i := PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex]);
-        if (i<0) Or (i>=WalletKeys.Count) then raise Exception.Create('Invalid selected key');
-        FNewAccountPublicKey := WalletKeys.Key[i].AccountKey;
-        if account.balance>fee then _fee := fee
-        else _fee := 0;
-        if Not TAccountComp.Equal(wk.AccountKey,FNewAccountPublicKey) then begin
-          op := TOpChangeKey.Create(account.account,account.n_operation+1,wk.PrivateKey,FNewAccountPublicKey,_fee,FEncodedPayload);
-          inc(_totalfee,_fee);
-          operationstxt := 'Change private key to '+wk.Name;
+        operationstxt := 'Transaction to '+TAccountComp.AccountNumberToAccountTxtNumber(destAccount.account);
+      end else if (PageControlOpType.ActivePage = tsChangePrivateKey) then begin
+        if Not UpdateOpChangeKey(account,signerAccount,_newOwnerPublicKey,errors) then raise Exception.Create(errors);
+        If signerAccount.account<>account.account then begin
+          op := TOpChangeKeySigned.Create(signerAccount.account,signerAccount.n_operation+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
+        end else begin
+          op := TOpChangeKey.Create(account.account,account.n_operation+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
         end;
-      end else if rbTransferToANewOwner.Checked then begin
-        if account.balance>fee then _fee := fee
-        else _fee := 0;
-        if Not TAccountComp.Equal(wk.AccountKey,FNewAccountPublicKey) then begin
-          op := TOpChangeKey.Create(account.account,account.n_operation+1,wk.PrivateKey,FNewAccountPublicKey,_fee,FEncodedPayload);
-          operationstxt := 'Transfer to a new owner with key type '+TAccountComp.GetECInfoTxt(FNewAccountPublicKey.EC_OpenSSL_NID);
-          inc(_totalfee,_fee);
-        end;
+        inc(_totalfee,_fee);
+        operationstxt := 'Change private key to '+TAccountComp.GetECInfoTxt(_newOwnerPublicKey.EC_OpenSSL_NID);
+      end else if (PageControlOpType.ActivePage = tsListForSale) then begin
+        If Not UpdateOpListForSale(account,_salePrice,destAccount,signerAccount,_newOwnerPublicKey,_lockedUntil,errors) then raise Exception.Create(errors);
+        // Special fee account:
+        if signerAccount.balance>DefaultFee then _fee := DefaultFee
+        else _fee := signerAccount.balance;
+        if (rbListAccountForPublicSale.Checked) then begin
+          op := TOpListAccountForSale.CreateListAccountForSale(signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,CT_TECDSA_Public_Nul,0,wk.PrivateKey,FEncodedPayload);
+        end else if (rbListAccountForPrivateSale.Checked) then begin
+          op := TOpListAccountForSale.CreateListAccountForSale(signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,_newOwnerPublicKey,_lockedUntil,wk.PrivateKey,FEncodedPayload);
+        end else raise Exception.Create('Select Sale type');
+      end else if (PageControlOpType.ActivePage = tsDelist) then begin
+        if Not UpdateOpDelist(account,signerAccount,errors) then raise Exception.Create(errors);
+        // Special fee account:
+        if signerAccount.balance>DefaultFee then _fee := DefaultFee
+        else _fee := signerAccount.balance;
+        op := TOpDelistAccountForSale.CreateDelistAccountForSale(signerAccount.account,signerAccount.n_operation+1+iAcc,account.account,_fee,wk.PrivateKey,FEncodedPayload);
+      end else if (PageControlOpType.ActivePage = tsBuyAccount) then begin
+        if Not UpdateOpBuyAccount(account,accountToBuy,_amount,_newOwnerPublicKey,errors) then raise Exception.Create(errors);
+        op := TOpBuyAccount.CreateBuy(account.account,account.n_operation+1,accountToBuy.account,accountToBuy.accountInfo.account_to_pay,
+          accountToBuy.accountInfo.price,_amount,_fee,_newOwnerPublicKey,wk.PrivateKey,FEncodedPayload);
+      end else if (PageControlOpType.ActivePage = tsChangeInfo) then begin
+        if not UpdateOpChangeInfo(account,signerAccount,_changeName,_newName,_changeType,_newType,errors) then raise Exception.Create(errors);
+        if signerAccount.balance>DefaultFee then _fee := DefaultFee
+        else _fee := signerAccount.balance;
+        op := TOpChangeAccountInfo.CreateChangeAccountInfo(signerAccount.account,signerAccount.n_operation+1,account.account,wk.PrivateKey,false,CT_TECDSA_Public_Nul,
+           _changeName,_newName,_changeType,_newType,_fee,FEncodedPayload);
       end else begin
         raise Exception.Create('No operation selected');
       end;
       if Assigned(op) And (dooperation) then begin
         ops.AddOperationToHashTree(op);
-        if (op.OperationFee<=0) then inc(nZeroFee);
         if operation_to_string<>'' then operation_to_string := operation_to_string + #10;
         operation_to_string := operation_to_string + op.ToString;
       end;
@@ -231,14 +297,8 @@ begin
     end;
     if (ops.OperationsCount=0) then raise Exception.Create('No valid operation to execute');
 
-    if (nZeroFee>0) then begin
-      if Application.MessageBox(PChar('WARNING!'+#10+#10+'You are going to execute '+Inttostr(nZeroFee)+' operations without fee (fee = 0)'+#10+#10+
-        'Are you sure?'+#10+#10+'(Operations without fee have lower priority)'),PChar(Application.Title),MB_YESNO+MB_ICONWARNING+MB_DEFBUTTON2)<>IdYes then exit;
-    end;
-
-
     if (FSenderAccounts.Count>1) then begin
-      if rbTransaction.Checked then auxs := 'Total amount that dest will receive: '+TAccountComp.FormatMoney(_totalamount)+#10
+      if PageControlOpType.ActivePage = tsTransaction then auxs := 'Total amount that dest will receive: '+TAccountComp.FormatMoney(_totalamount)+#10
       else auxs:='';
       if Application.MessageBox(PChar('Execute '+Inttostr(FSenderAccounts.Count)+' operations?'+#10+
         'Operation: '+operationstxt+#10+
@@ -254,7 +314,7 @@ begin
       Application.MessageBox(PChar('Successfully executed '+inttostr(i)+' operations!'+#10+#10+operation_to_string),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
       ModalResult := MrOk;
     end else if (i>0) then begin
-      Application.MessageBox(PChar('One or more of your operations have not been executed:'+#10+
+      Application.MessageBox(PChar('One or more of your operations has not been executed:'+#10+
         'Errors:'+#10+
         errors+#10+#10+
         'Total successfully executed operations: '+inttostr(i)),PChar(Application.Title),MB_OK+MB_ICONWARNING);
@@ -267,16 +327,30 @@ begin
   End;
 end;
 
-procedure TFRMOperation.bbKeysClick(Sender: TObject);
+procedure TFRMOperation.bbBuyNewKeyClick(Sender: TObject);
 Var FRM : TFRMWalletKeys;
 begin
   FRM := TFRMWalletKeys.Create(Self);
   Try
     FRM.WalletKeys := WalletKeys;
     FRM.ShowModal;
-    rbChangeKey.Checked := true;
+    cbBuyNewKey.SetFocus;
+    UpdateWalletKeys;
+  Finally
+    FRM.Free;
+  End;
+end;
+
+procedure TFRMOperation.bbChangePrivateKeyKeysClick(Sender: TObject);
+Var FRM : TFRMWalletKeys;
+begin
+  FRM := TFRMWalletKeys.Create(Self);
+  Try
+    FRM.WalletKeys := WalletKeys;
+    FRM.ShowModal;
+    rbChangeKeyWithAnother.Checked := true;
     cbNewPrivateKey.SetFocus;
-    SetWalletKeys(WalletKeys);
+    UpdateWalletKeys;
   Finally
     FRM.Free;
   End;
@@ -298,39 +372,38 @@ begin
   end;
 end;
 
-procedure TFRMOperation.cbNewPrivateKeyChange(Sender: TObject);
-begin
-  If FDisabled then exit;
-  If not rbChangeKey.Checked then begin
-    rbChangeKey.Checked := true;
-    rbTransactionClick(Nil);
-  end;
-end;
-
 procedure TFRMOperation.CM_WalletChanged(var Msg: TMessage);
 begin
    UpdateWalletKeys;
 end;
 
-procedure TFRMOperation.ebDestAccountChange(Sender: TObject);
+procedure TFRMOperation.ebAccountNumberExit(Sender: TObject);
+Var an : Cardinal;
+  eb : TEdit;
 begin
-  if FDisabled then exit;
-  If not rbTransaction.Checked then begin
-    rbTransaction.Checked := true;
-    rbTransactionClick(Nil);
+  if (Not assigned(Sender)) then exit;
+  if (Not (Sender is TEdit)) then exit;
+  eb := TEdit(Sender);
+  If TAccountComp.AccountTxtNumberToAccountNumber(eb.Text,an) then begin
+    eb.Text := TAccountComp.AccountNumberToAccountTxtNumber(an);
+  end else begin
+    eb.Text := '';
   end;
+  updateInfoClick(Nil);
 end;
 
-procedure TFRMOperation.ebDestAccountExit(Sender: TObject);
-Var an : Cardinal;
-  errors : AnsiString;
+procedure TFRMOperation.ebCurrencyExit(Sender: TObject);
+Var m : Int64;
+  eb : TEdit;
 begin
-  If TAccountComp.AccountTxtNumberToAccountNumber(ebDestAccount.Text,an) then begin
-    ebDestAccount.Text := TAccountComp.AccountNumberToAccountTxtNumber(an);
-  end else begin
-    ebDestAccount.Text := '';
+  if (Not assigned(Sender)) then exit;
+  if (Not (Sender is TEdit)) then exit;
+  eb := TEdit(Sender);
+  If Not (eb.ReadOnly) then begin
+    if Not TAccountComp.TxtToMoney(eb.Text,m) then m:=0;
+    eb.Text := TAccountComp.FormatMoney(m);
+    updateInfoClick(Nil);
   end;
-  UpdateOperationOptions(errors);
 end;
 
 procedure TFRMOperation.ebEncryptPasswordChange(Sender: TObject);
@@ -338,32 +411,6 @@ begin
   if FDisabled then exit;
   rbEncrptedWithPassword.Checked := true;
   memoPayloadClick(Nil);
-end;
-
-procedure TFRMOperation.ebFeeExit(Sender: TObject);
-Var l : boolean;
-  errors : AnsiString;
-begin
-  l := FDisabled;
-  FDisabled := true;
-  try
-    UpdateOperationOptions(errors);
-    ebFee.Text := TAccountComp.FormatMoney(Fee);
-    if SenderAccounts.Count<=1 then begin
-      ebAmount.Text := TAccountComp.FormatMoney(FTxAmount);
-    end;
-  finally
-    FDisabled := l;
-  end;
-end;
-
-procedure TFRMOperation.ebNewPublicKeyChange(Sender: TObject);
-begin
-  if FDisabled then exit;
-  if not rbTransferToANewOwner.Checked then begin
-    rbTransferToANewOwner.Checked := true;
-    rbTransactionClick(Nil);
-  end;
 end;
 
 procedure TFRMOperation.ebSenderAccountExit(Sender: TObject);
@@ -394,47 +441,78 @@ end;
 
 procedure TFRMOperation.FormCreate(Sender: TObject);
 begin
+  FDisabled := false;
   FWalletKeys := Nil;
   FSenderAccounts := TOrderedCardinalList.Create;
   FSenderAccounts.OnListChanged := OnSenderAccountsChanged;
   FDisabled := true;
   FNode := TNode.Node;
-  ebDestAccount.Text := '';
-  ebAmount.Text := TAccountComp.FormatMoney(0);
-  ebEncryptPassword.Text := '';
-  ebNewPublicKey.Text := '';
-  ebFee.Text := TAccountComp.FormatMoney(0);
-  memoPayload.Lines.Text := '';
+  ebSenderAccount.OnKeyDown:=ebAccountKeyDown;
+  ebSenderAccount.Tag:=CT_AS_MyAccounts;
+  ebSignerAccount.Text:='';
+  ebSignerAccount.OnChange := updateInfoClick;
+  ebSignerAccount.OnExit := ebAccountNumberExit;
+  ebSignerAccount.OnKeyDown := ebAccountKeyDown;
+  ebSignerAccount.tag := CT_AS_MyAccounts;
+  sbSearchSignerAccount.OnClick := sbSearchSignerAccountClick;
+
+  //
   lblTransactionErrors.Caption := '';
+  ebDestAccount.Text := '';
+  ebDestAccount.OnChange := updateInfoClick;
+  ebDestAccount.OnExit := ebAccountNumberExit;
+  ebDestAccount.OnKeyDown := ebAccountKeyDown;
+  ebAmount.Text := TAccountComp.FormatMoney(0);
+  ebAmount.OnChange := updateInfoClick;
+  ebAmount.OnExit := ebCurrencyExit;
+  //
   lblChangeKeyErrors.Caption := '';
-  lblEncryptionErrors.Caption := '';
   lblNewOwnerErrors.Caption := '';
-  FTxDestAccount := 0;
-  FTxAmount := 0;
-  FNewAccountPublicKey := CT_Account_NUL.accountkey;
-  FDisabled := false;
-  lblAccountBalance.Caption := '';
+  rbChangeKeyWithAnother.OnClick := updateInfoClick;
+  rbChangeKeyTransferAccountToNewOwner.OnClick := updateInfoClick;
+  cbNewPrivateKey.OnChange := updateInfoClick;
+  //
+  lblListAccountErrors.Caption := '';
+  rbListAccountForPublicSale.OnClick := updateInfoClick;
+  rbListAccountForPrivateSale.OnClick := updateInfoClick;
+  ebSalePrice.Text := TAccountComp.FormatMoney(0);
+  ebSalePrice.OnChange := updateInfoClick;
+  ebSalePrice.OnExit := ebCurrencyExit;
+
+  ebSellerAccount.Text := '';
+  ebSellerAccount.OnChange := updateInfoClick;
+  ebSellerAccount.OnExit := ebAccountNumberExit;
+  ebSellerAccount.OnKeyDown := ebAccountKeyDown;
+  ebSellerAccount.tag := CT_AS_MyAccounts;
+  ebSaleNewOwnerPublicKey.Text := '';
+  ebSaleNewOwnerPublicKey.OnChange := updateInfoClick;
+  ebSaleLockedUntilBlock.Text := '';
+  ebSaleLockedUntilBlock.OnChange := updateInfoClick;
+
+  //
+  lblDelistErrors.Caption := '';
+  //
+  lblBuyAccountErrors.Caption := '';
+  ebAccountToBuy.Text := '';
+  ebAccountToBuy.OnChange :=  updateInfoClick;
+  ebAccountToBuy.OnExit := ebAccountNumberExit;
+  ebAccountToBuy.OnKeyDown := ebAccountKeyDown;
+  ebAccountToBuy.tag := CT_AS_OnlyForSale;
+  ebBuyAmount.Text := TAccountComp.FormatMoney(0);
+  ebBuyAmount.OnChange :=  updateInfoClick;
+  ebBuyAmount.OnExit := ebCurrencyExit;
+  //
+  ebChangeName.OnChange:=updateInfoClick;
+  ebChangeType.OnChange:=updateInfoClick;
+  //
+  sbSearchDestinationAccount.OnClick := sbSearchDestinationAccountClick;
+  sbSearchListerSellerAccount.OnClick := sbSearchListerSellerAccountClick;
+  sbSearchBuyAccount.OnClick := sbSearchBuyAccountClick;
+  //
+  ebFee.Text := TAccountComp.FormatMoney(0);
+  ebFee.OnExit:= ebCurrencyExit;
   memoAccounts.Lines.Clear;
-end;
-
-procedure TFRMOperation.ebAmountChange(Sender: TObject);
-begin
-  If FDisabled then exit;
-  TAccountComp.TxtToMoney(ebAmount.text,FTxAmount);
-  If not rbTransaction.Checked then begin
-    rbTransaction.Checked := true;
-    rbTransactionClick(Nil);
-  end;
-end;
-
-procedure TFRMOperation.ebFeeChange(Sender: TObject);
-begin
-  If FDisabled then exit;
-  TAccountComp.TxtToMoney(ebFee.text,FFee);
-  If not rbTransaction.Checked then begin
-    rbTransaction.Checked := true;
-    rbTransactionClick(Nil);
-  end;
+  PageControlOpType.ActivePage := tsTransaction;
 end;
 
 procedure TFRMOperation.ebNewPublicKeyExit(Sender: TObject);
@@ -447,6 +525,41 @@ procedure TFRMOperation.FormDestroy(Sender: TObject);
 begin
   if Assigned(FWalletKeys) then FWalletKeys.OnChanged := FOldOnChanged;
   FreeAndNil(FSenderAccounts);
+end;
+
+function TFRMOperation.GetDefaultSenderAccount: TAccount;
+begin
+  if FSenderAccounts.Count>=1 then Result := FNode.Operations.SafeBoxTransaction.Account( FSenderAccounts.Get(0) )
+  else Result := CT_Account_NUL;
+end;
+
+procedure TFRMOperation.ebAccountKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+Var eb : TCustomEdit;
+begin
+  If (key <> VK_F2) then exit;
+  If Not Assigned(Sender) then exit;
+  if Not (Sender is TCustomEdit) then exit;
+  eb := TCustomEdit(Sender);
+  searchAccount(eb);
+end;
+
+procedure TFRMOperation.searchAccount(editBox: TCustomEdit);
+Var F : TFRMAccountSelect;
+  c : Cardinal;
+begin
+  F := TFRMAccountSelect.Create(Self);
+  try
+    F.Node := FNode;
+    F.WalletKeys := FWalletKeys;
+    F.Filters:=editBox.Tag;
+    If TAccountComp.AccountTxtNumberToAccountNumber(editBox.Text,c) then F.DefaultAccount := c;
+    F.AllowSelect:=True;
+    If F.ShowModal=MrOk then begin
+      editBox.Text := TAccountComp.AccountNumberToAccountTxtNumber(F.GetSelected);
+    end;
+  finally
+    F.Free;
+  end;
 end;
 
 procedure TFRMOperation.memoPayloadClick(Sender: TObject);
@@ -469,6 +582,15 @@ begin
     ebAmount.ReadOnly := false;
     ebAmount.Enabled := true;
   end;
+  If SenderAccounts.Count>=1 then begin
+    ebSignerAccount.text := TAccountComp.AccountNumberToAccountTxtNumber(SenderAccounts.Get(0));
+    ebChangeName.Text := FNode.Operations.SafeBoxTransaction.Account(SenderAccounts.Get(0)).name;
+    ebChangeType.Text := IntToStr(FNode.Operations.SafeBoxTransaction.Account(SenderAccounts.Get(0)).account_type);
+  end else begin
+    ebSignerAccount.text := '';
+    ebChangeName.Text := '';
+    ebChangeType.Text := '';
+  end;
   UpdateAccountsInfo;
   UpdateOperationOptions(errors);
 end;
@@ -479,20 +601,40 @@ begin
   if Assigned(FOldOnChanged) then FOldOnChanged(Sender);
 end;
 
-procedure TFRMOperation.rbTransactionClick(Sender: TObject);
-Var errors : AnsiString;
+procedure TFRMOperation.PageControlOpTypeChange(Sender: TObject);
+var errors : AnsiString;
 begin
   UpdateOperationOptions(errors);
 end;
 
-procedure TFRMOperation.SetFee(const Value: Int64);
+procedure TFRMOperation.sbSearchBuyAccountClick(Sender: TObject);
+begin
+  searchAccount(ebAccountToBuy);
+end;
+
+procedure TFRMOperation.sbSearchDestinationAccountClick(Sender: TObject);
+begin
+  searchAccount(ebDestAccount);
+end;
+
+procedure TFRMOperation.sbSearchListerSellerAccountClick(Sender: TObject);
+begin
+  searchAccount(ebSellerAccount);
+end;
+
+procedure TFRMOperation.sbSearchSignerAccountClick(Sender: TObject);
+begin
+  searchAccount(ebSignerAccount);
+end;
+
+procedure TFRMOperation.SetDefaultFee(const Value: Int64);
 var wd : Boolean;
 begin
-  if FFee = Value then exit;
+  if FDefaultFee = Value then exit;
   wd := FDisabled;
   try
     FDisabled := true;
-    FFee := Value;
+    FDefaultFee := Value;
     ebFee.Text := TAccountComp.FormatMoney(value);
   finally
     FDisabled := wd;
@@ -501,14 +643,17 @@ end;
 
 procedure TFRMOperation.SetWalletKeys(const Value: TWalletKeys);
 begin
-  if FWalletKeys=Value then exit;
-  if Assigned(FWalletKeys) then FWalletKeys.OnChanged := FOldOnChanged;
-  FWalletKeys := Value;
-  if Assigned(FWalletKeys) then begin
-    FOldOnChanged := FWalletKeys.OnChanged;
-    FWalletKeys.OnChanged := OnWalletKeysChanged;
-  end;
-  UpdateWalletKeys;
+  Try
+    if FWalletKeys=Value then exit;
+    if Assigned(FWalletKeys) then FWalletKeys.OnChanged := FOldOnChanged;
+    FWalletKeys := Value;
+    if Assigned(FWalletKeys) then begin
+      FOldOnChanged := FWalletKeys.OnChanged;
+      FWalletKeys.OnChanged := OnWalletKeysChanged;
+    end;
+  Finally
+    UpdateWalletKeys;
+  End;
 end;
 
 procedure TFRMOperation.UpdateAccountsInfo;
@@ -556,206 +701,522 @@ begin
   End;
 end;
 
-function TFRMOperation.UpdateOperationOptions(var errors : AnsiString) : Boolean;
-Var
-  iWallet,iAcc,i : Integer;
-  wk : TWalletKey;
-  e : AnsiString;
-  sender_account : TAccount;
+function TFRMOperation.UpdateFee(var Fee: Int64; errors: AnsiString): Boolean;
+begin
+  errors := '';
+  if trim(ebFee.Text)<>'' then begin
+    Result := TAccountComp.TxtToMoney(Trim(ebFee.Text),Fee);
+    if not Result then errors := 'Invalid fee value "'+ebFee.Text+'"';
+  end else begin
+    Fee := 0;
+    Result := true;
+  end;
+end;
+
+procedure TFRMOperation.updateInfoClick(Sender: TObject);
+Var errors : AnsiString;
+begin
+  UpdateOperationOptions(errors);
+end;
+
+function TFRMOperation.UpdateOpBuyAccount(const SenderAccount: TAccount; var AccountToBuy: TAccount; var amount: Int64; var NewPublicKey: TAccountKey; var errors: AnsiString): Boolean;
+var c : Cardinal;
+  i : Integer;
+begin
+  //
+  lblBuyAccountErrors.Caption := ''; c:=0;
+  errors := '';
+  Try
+    if SenderAccounts.Count<>1 then begin
+      errors := 'Cannot buy accounts with multioperations. Use only 1 account';
+      exit;
+    end;
+    If (Not TAccountComp.AccountTxtNumberToAccountNumber(ebAccountToBuy.Text,c)) then begin
+      errors := 'Invalid account to buy '+ebAccountToBuy.Text;
+      exit;
+    end;
+    If (c<0) Or (c>=FNode.Bank.AccountsCount) Or (c=SenderAccount.account) then begin
+      errors := 'Invalid account number';
+      exit;
+    end;
+    AccountToBuy := FNode.Operations.SafeBoxTransaction.Account(c);
+    If not TAccountComp.IsAccountForSale(AccountToBuy.accountInfo) then begin
+      errors := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(c)+' is not for sale';
+      exit;
+    end;
+    If Not TAccountComp.TxtToMoney(ebBuyAmount.Text,amount) then begin
+      errors := 'Invalid amount value';
+      exit;
+    end;
+    if (AccountToBuy.accountInfo.price>amount) then begin
+      errors := 'Account price '+TAccountComp.FormatMoney(AccountToBuy.accountInfo.price);
+      exit;
+    end;
+    if (amount+DefaultFee > SenderAccount.balance) then begin
+      errors := 'Insufficient funds';
+      exit;
+    end;
+    if cbBuyNewKey.ItemIndex<0 then begin
+      errors := 'Must select a new private key';
+      exit;
+    end;
+    i := PtrInt(cbBuyNewKey.Items.Objects[cbBuyNewKey.ItemIndex]);
+    if (i<0) Or (i>=WalletKeys.Count) then raise Exception.Create('Invalid selected key');
+    NewPublicKey := WalletKeys.Key[i].AccountKey;
+    If (FNode.Bank.SafeBox.CurrentProtocol=CT_PROTOCOL_1) then begin
+      errors := 'This operation needs PROTOCOL 2 active';
+      exit;
+    end;
+  Finally
+    Result := errors = '';
+    lblBuyAccountErrors.Caption := errors;
+  End;
+end;
+
+function TFRMOperation.UpdateOpChangeInfo(const TargetAccount: TAccount; var SignerAccount : TAccount;
+   var changeName : Boolean; var newName: AnsiString; var changeType : Boolean; var newType: Word; var errors: AnsiString): Boolean;
+var auxC : Cardinal;
+  i : Integer;
+  errCode : Integer;
 begin
   Result := false;
-  sender_account := CT_Account_NUL;
   errors := '';
-  rbEncryptedWithOldEC.Enabled := rbChangeKey.Checked;
-  lblDestAccount.Enabled := rbTransaction.Checked;
-  lblAmount.Enabled := rbTransaction.Checked;
-  lblFee.Enabled := true;
-  lblNewPrivateKey.Enabled := rbChangeKey.Checked;
-  lblNewOwnerPublicKey.Enabled := rbTransferToANewOwner.Checked;
+  lblChangeInfoErrors.Caption:='';
+  if not (PageControlOpType.ActivePage=tsChangeInfo) then exit;
   try
-    Try
-      bbPassword.Visible := false;
-      bbPassword.Enabled := false;
-      if Not Assigned(WalletKeys) then begin
-        errors := 'No wallet keys';
-        lblGlobalErrors.Caption := errors;
-        exit;
-      end;
-      if SenderAccounts.Count=0 then begin
-        errors := 'No sender account';
-        lblGlobalErrors.Caption := errors;
-        exit;
-      end else begin
-        for iAcc := 0 to SenderAccounts.Count - 1 do begin
-          sender_account := TNode.Node.Bank.SafeBox.Account(SenderAccounts.Get(iAcc));
-          iWallet := WalletKeys.IndexOfAccountKey(sender_account.accountkey);
-          if (iWallet<0) then begin
-            errors := 'Private key of account '+TAccountComp.AccountNumberToAccountTxtNumber(sender_account.account)+' not found in wallet';
-            lblGlobalErrors.Caption := errors;
-            exit;
-          end;
-          wk := WalletKeys.Key[iWallet];
-          if not assigned(wk.PrivateKey) then begin
-            if wk.CryptedKey<>'' then begin
-              errors := 'Wallet is password protected. Need password';
-              bbPassword.Visible := true;
-              bbPassword.Enabled := true;
-            end else begin
-              errors := 'Only public key of account '+TAccountComp.AccountNumberToAccountTxtNumber(sender_account.account)+' found in wallet. You cannot operate with this account';
-            end;
-            lblGlobalErrors.Caption := errors;
-            exit;
-          end;
+    if SenderAccounts.Count<>1 then begin
+      errors := 'Cannot change info with multioperations. Use only 1 account';
+      exit;
+    end;
+    if (TAccountComp.IsAccountLocked(TargetAccount.accountInfo,FNode.Bank.BlocksCount)) then begin
+      errors := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(TargetAccount.account)+' is locked until block '+IntToStr(TargetAccount.accountInfo.locked_until_block);
+      exit;
+    end;
+    // Signer:
+    If Not TAccountComp.AccountTxtNumberToAccountNumber(ebSignerAccount.Text,auxC) then begin
+      errors := 'Invalid signer account';
+      exit;
+    end;
+    if (auxC<0) Or (auxC >= FNode.Bank.AccountsCount) then begin
+      errors := 'Signer account does not exists '+TAccountComp.AccountNumberToAccountTxtNumber(auxC);
+      exit;
+    end;
+    SignerAccount := FNode.Operations.SafeBoxTransaction.Account(auxC);
+    if (TAccountComp.IsAccountLocked(SignerAccount.accountInfo,FNode.Bank.BlocksCount)) then begin
+      errors := 'Signer account '+TAccountComp.AccountNumberToAccountTxtNumber(SignerAccount.account)+' is locked until block '+IntToStr(SignerAccount.accountInfo.locked_until_block);
+      exit;
+    end;
+    if (Not TAccountComp.EqualAccountKeys(SignerAccount.accountInfo.accountKey,TargetAccount.accountInfo.accountKey)) then begin
+      errors := 'Signer account '+TAccountComp.AccountNumberToAccountTxtNumber(SignerAccount.account)+' is not ower of account '+TAccountComp.AccountNumberToAccountTxtNumber(TargetAccount.account);
+      exit;
+    end;
+    If (FNode.Bank.SafeBox.CurrentProtocol=CT_PROTOCOL_1) then begin
+      errors := 'This operation needs PROTOCOL 2 active';
+      exit;
+    end;
+    // New name and type
+    newName := LowerCase( Trim(ebChangeName.Text) );
+    If newName<>TargetAccount.name then begin
+      changeName:=True;
+      If newName<>'' then begin
+        if (Not TPCSafeBox.ValidAccountName(newName,errors)) then begin
+          errors := '"'+newName+'" is not a valid name: '+errors;
+          Exit;
+        end;
+        i := (FNode.Bank.SafeBox.FindAccountByName(newName));
+        if (i>=0) then begin
+          errors := 'Name "'+newName+'" is used by account '+TAccountComp.AccountNumberToAccountTxtNumber(i);
+          Exit;
         end;
       end;
-      lblGlobalErrors.Caption := '';
-    Finally
-      if lblGlobalErrors.Caption<>'' then begin
-        tsGlobalError.visible := true;
-        tsGlobalError.tabvisible := {$IFDEF LINUX}true{$ELSE}false{$ENDIF};
-        tsOperation.TabVisible := false;
-        PageControl.ActivePage := tsGlobalError;
-        if bbPassword.CanFocus then begin
-          ActiveControl := bbPassword;
-        end;
-      end else begin
-        tsOperation.visible := true;
-        tsOperation.tabvisible := {$IFDEF LINUX}true{$ELSE}false{$ENDIF};
-        tsGlobalError.TabVisible := false;
-        PageControl.ActivePage := tsOperation;
-      end;
-    End;
-    if rbTransaction.Checked then begin
-      rbTransaction.Font.Style := [fsBold];
-      rbChangeKey.ParentFont := true;
-      rbTransferToANewOwner.ParentFont := true;
-      lblChangeKeyErrors.Caption := '';
-      lblNewOwnerErrors.Caption := '';
-      rbEncryptedWithOldEC.Checked := false;
-      rbEncryptedWithEC.Caption := 'Encrypted with dest. account public key';
-      ebDestAccount.ParentFont := true;
-      ebFee.ParentFont := true;
-      cbNewPrivateKey.Font.Color := clGrayText;
-      ebNewPublicKey.Font.Color := clGrayText;
-      if not (TAccountComp.AccountTxtNumberToAccountNumber(ebDestAccount.Text,FTxDestAccount)) then begin
-        errors := 'Invalid dest. account ('+ebDestAccount.Text+')';
-        lblTransactionErrors.Caption := errors;
-        exit;
-      end;
-      if SenderAccounts.Count>1 then begin
-        // If multisender then amount is ALL balance
-        ebAmount.Font.Color := clNavy;
-      end else begin
-        ebAmount.ParentFont := true;
-        if not TAccountComp.TxtToMoney(ebAmount.Text,FTxAmount) then begin
-          errors := 'Invalid amount ('+ebAmount.Text+')';
-          lblTransactionErrors.Caption := errors;
-          exit;
-        end;
-      end;
-      if not TAccountComp.TxtToMoney(ebFee.Text,FFee) then begin
-        errors := 'Invalid fee ('+ebFee.Text+')';
-        lblTransactionErrors.Caption := errors;
-        exit;
-      end;
-      if (SenderAccounts.Count=1) then begin
-        if (sender_account.balance<(FTxAmount+FFee)) then begin
-          errors := 'Insufficient funds';
-          lblTransactionErrors.Caption := errors;
-          exit;
-        end;
-      end;
+    end else changeName := False;
+    val(ebChangeType.Text,newType,errCode);
+    if (errCode>0) then begin
+      errors := 'Invalid type '+ebChangeType.text;
+      Exit;
+    end;
+    changeType := TargetAccount.account_type<>newType;
+    //
+    If (newName=TargetAccount.name) And (newType=TargetAccount.account_type) then begin
+      errors := 'Account name and type are the same. Not changed';
+      Exit;
+    end;
+  finally
+    Result := errors = '';
+    if Not Result then begin
+      lblChangeInfoErrors.Font.Color := clRed;
+      lblChangeInfoErrors.Caption := errors;
+    end else begin
+      lblChangeInfoErrors.Font.Color := clGreen;
+      lblChangeInfoErrors.Caption := TAccountComp.AccountNumberToAccountTxtNumber(TargetAccount.account)+' can be updated';
+    end;
+  end;
+end;
 
-      lblTransactionErrors.Caption := '';
-      result := true;
-    end else if rbChangeKey.Checked then begin
-      rbTransaction.ParentFont := true;
-      rbChangeKey.Font.Style := [fsBold];
-      rbTransferToANewOwner.ParentFont := true;
-      lblTransactionErrors.Caption := '';
-      lblNewOwnerErrors.Caption := '';
-      rbEncryptedWithEC.Caption := 'Encrypted with new public key';
-      ebDestAccount.Font.Color := clGrayText;
-      ebAmount.Font.Color := clGrayText;
-      //ebFee.Font.Color := clGrayText;
-      cbNewPrivateKey.ParentFont := true;
-      ebNewPublicKey.Font.Color := clGrayText;
-      //
+function TFRMOperation.UpdateOpChangeKey(Const TargetAccount : TAccount; var SignerAccount : TAccount; var NewPublicKey: TAccountKey; var errors: AnsiString): Boolean;
+var i : Integer;
+  auxC : Cardinal;
+begin
+  Result := false;
+  errors := '';
+  lblChangeKeyErrors.Caption := '';
+  lblNewOwnerErrors.Caption := '';
+  if not (PageControlOpType.ActivePage=tsChangePrivateKey) then exit;
+  try
+    if rbChangeKeyWithAnother.Checked then begin
       if cbNewPrivateKey.ItemIndex<0 then begin
         errors := 'Must select a new private key';
         lblChangeKeyErrors.Caption := errors;
         exit;
       end;
       i := PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex]);
-      if (i<0) Or (i>=WalletKeys.Count) then begin
-        errors := 'Invalid selected key';
-        lblChangeKeyErrors.Caption := errors;
-        exit;
-      end;
-      FNewAccountPublicKey := WalletKeys.Key[i].AccountKey;
-      if (SenderAccounts.Count=1) then begin
-        if (TAccountComp.Equal(sender_account.accountkey,FNewAccountPublicKey)) then begin
-          errors := 'Same public key';
-          lblNewOwnerErrors.Caption := errors;
-          lblNewOwnerErrors.Font.Color := clRed;
-          exit;
-        end;
-      end;
-      lblChangeKeyErrors.Caption := '';
-      Result := true;
-    end else if rbTransferToANewOwner.Checked then begin
-      rbTransaction.ParentFont := true;
-      rbChangeKey.ParentFont := true;
-      rbTransferToANewOwner.Font.Style := [fsBold];
-      lblTransactionErrors.Caption := '';
-      lblChangeKeyErrors.Caption := '';
-      lblNewOwnerErrors.Caption := '';
-      ebDestAccount.Font.Color := clGrayText;
-      ebAmount.Font.Color := clGrayText;
-      //ebFee.Font.Color := clGrayText;
-      cbNewPrivateKey.Font.Color := clGrayText;
-      ebNewPublicKey.ParentFont := true;
-      If Not TAccountComp.AccountKeyFromImport(ebNewPublicKey.Text,FNewAccountPublicKey,errors) then begin
+      if (i<0) Or (i>=WalletKeys.Count) then raise Exception.Create('Invalid selected key');
+      NewPublicKey := WalletKeys.Key[i].AccountKey;
+    end else if rbChangeKeyTransferAccountToNewOwner.Checked then begin
+      If Not TAccountComp.AccountKeyFromImport(ebNewPublicKey.Text,NewPublicKey,errors) then begin
         lblNewOwnerErrors.Caption := errors;
         lblNewOwnerErrors.Font.Color := clRed;
         exit;
       end else begin
-        if (SenderAccounts.Count=1) then begin
-          if (TAccountComp.Equal(sender_account.accountkey,FNewAccountPublicKey)) then begin
-            errors := 'Same public key';
-            lblNewOwnerErrors.Caption := errors;
-            lblNewOwnerErrors.Font.Color := clRed;
-            exit;
-          end;
-        end;
-        lblNewOwnerErrors.Caption := 'New key type: '+TAccountComp.GetECInfoTxt(FNewAccountPublicKey.EC_OpenSSL_NID);
+        lblNewOwnerErrors.Caption := 'New key type: '+TAccountComp.GetECInfoTxt(NewPublicKey.EC_OpenSSL_NID);
         lblNewOwnerErrors.Font.Color := clGreen;
       end;
-      Result := true;
     end else begin
-      rbTransaction.ParentFont := true;
-      rbChangeKey.ParentFont := true;
-      rbTransferToANewOwner.ParentFont := true;
-      ebDestAccount.Font.Color := clGrayText;
-      ebAmount.Font.Color := clGrayText;
-      //ebFee.Font.Color := clGrayText;
-      cbNewPrivateKey.Font.Color := clGrayText;
-      lblTransactionErrors.Caption := '';
-      lblChangeKeyErrors.Caption := '';
-      lblNewOwnerErrors.Caption := '';
-      errors := 'Must select an operation';
+      errors := 'Select a change type';
+      lblChangeKeyErrors.Caption := errors;
+      exit;
+    end;
+    If FNode.Bank.SafeBox.CurrentProtocol>=1 then begin
+      // Signer:
+      If Not TAccountComp.AccountTxtNumberToAccountNumber(ebSignerAccount.Text,auxC) then begin
+        errors := 'Invalid signer account';
+        exit;
+      end;
+      if (auxC<0) Or (auxC >= FNode.Bank.AccountsCount) then begin
+        errors := 'Signer account does not exists '+TAccountComp.AccountNumberToAccountTxtNumber(auxC);
+        exit;
+      end;
+      SignerAccount := FNode.Operations.SafeBoxTransaction.Account(auxC);
+      if (TAccountComp.IsAccountLocked(SignerAccount.accountInfo,FNode.Bank.BlocksCount)) then begin
+        errors := 'Signer account '+TAccountComp.AccountNumberToAccountTxtNumber(SignerAccount.account)+' is locked until block '+IntToStr(SignerAccount.accountInfo.locked_until_block);
+        exit;
+      end;
+      if (Not TAccountComp.EqualAccountKeys(SignerAccount.accountInfo.accountKey,TargetAccount.accountInfo.accountKey)) then begin
+        errors := 'Signer account '+TAccountComp.AccountNumberToAccountTxtNumber(SignerAccount.account)+' is not ower of account '+TAccountComp.AccountNumberToAccountTxtNumber(TargetAccount.account);
+        exit;
+      end;
+    end else SignerAccount := TargetAccount;
+    if (TAccountComp.EqualAccountKeys(TargetAccount.accountInfo.accountKey,NewPublicKey)) then begin
+      errors := 'New public key is the same public key';
+      lblChangeKeyErrors.Caption := errors;
+      lblNewOwnerErrors.Caption := errors;
+      exit;
     end;
   finally
-
+    Result := errors = '';
   end;
+end;
+
+function TFRMOperation.UpdateOpDelist(const TargetAccount : TAccount; var SignerAccount : TAccount; var errors: AnsiString): Boolean;
+Var auxC : Cardinal;
+begin
+  lblDelistErrors.Caption := '';
+  errors := '';
+  Result := false;
+  if not (PageControlOpType.ActivePage=tsDelist) then exit;
+  try
+    if Not TAccountComp.IsAccountForSale(TargetAccount.accountInfo) then begin
+      errors := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(TargetAccount.account)+' is not for sale';
+      exit;
+    end;
+    if (TAccountComp.IsAccountLocked(TargetAccount.accountInfo,FNode.Bank.BlocksCount)) then begin
+      errors := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(TargetAccount.account)+' is locked until block '+IntToStr(TargetAccount.accountInfo.locked_until_block);
+      exit;
+    end;
+    // Signer:
+    If Not TAccountComp.AccountTxtNumberToAccountNumber(ebSignerAccount.Text,auxC) then begin
+      errors := 'Invalid signer account';
+      exit;
+    end;
+    if (auxC<0) Or (auxC >= FNode.Bank.AccountsCount) then begin
+      errors := 'Signer account does not exists '+TAccountComp.AccountNumberToAccountTxtNumber(auxC);
+      exit;
+    end;
+    SignerAccount := FNode.Operations.SafeBoxTransaction.Account(auxC);
+    if (TAccountComp.IsAccountLocked(SignerAccount.accountInfo,FNode.Bank.BlocksCount)) then begin
+      errors := 'Signer account '+TAccountComp.AccountNumberToAccountTxtNumber(SignerAccount.account)+' is locked until block '+IntToStr(SignerAccount.accountInfo.locked_until_block);
+      exit;
+    end;
+    if (Not TAccountComp.EqualAccountKeys(SignerAccount.accountInfo.accountKey,TargetAccount.accountInfo.accountKey)) then begin
+      errors := 'Signer account '+TAccountComp.AccountNumberToAccountTxtNumber(SignerAccount.account)+' is not ower of delisted account '+TAccountComp.AccountNumberToAccountTxtNumber(TargetAccount.account);
+      exit;
+    end;
+    If (FNode.Bank.SafeBox.CurrentProtocol=CT_PROTOCOL_1) then begin
+      errors := 'This operation needs PROTOCOL 2 active';
+      exit;
+    end;
+  finally
+    Result := errors = '';
+    if Not Result then begin
+      lblDelistErrors.Font.Color := clRed;
+      lblDelistErrors.Caption := errors;
+    end else begin
+      lblDelistErrors.Font.Color := clGreen;
+      lblDelistErrors.Caption := TAccountComp.AccountNumberToAccountTxtNumber(TargetAccount.account)+' can be delisted';
+    end;
+  end;
+end;
+
+function TFRMOperation.UpdateOperationOptions(var errors : AnsiString) : Boolean;
+Var
+  iWallet,iAcc : Integer;
+  wk : TWalletKey;
+  e : AnsiString;
+  sender_account,dest_account,seller_account, account_to_buy, signer_account : TAccount;
+  publicKey : TAccountKey;
+  salePrice, amount : Int64;
+  auxC : Cardinal;
+  changeName,changeType : Boolean;
+  newName : AnsiString;
+  newType : Word;
+begin
+  Result := false;
+  sender_account := CT_Account_NUL;
+  errors := '';
+  if Not UpdateFee(FDefaultFee,errors) then exit;
+  try
+    bbPassword.Visible := false;
+    bbPassword.Enabled := false;
+    if Not Assigned(WalletKeys) then begin
+      errors := 'No wallet keys';
+      lblGlobalErrors.Caption := errors;
+      exit;
+    end;
+    if SenderAccounts.Count=0 then begin
+      errors := 'No sender account';
+      lblGlobalErrors.Caption := errors;
+      exit;
+    end else begin
+      for iAcc := 0 to SenderAccounts.Count - 1 do begin
+        sender_account := TNode.Node.Bank.SafeBox.Account(SenderAccounts.Get(iAcc));
+        iWallet := WalletKeys.IndexOfAccountKey(sender_account.accountInfo.accountKey);
+        if (iWallet<0) then begin
+          errors := 'Private key of account '+TAccountComp.AccountNumberToAccountTxtNumber(sender_account.account)+' not found in wallet';
+          lblGlobalErrors.Caption := errors;
+          exit;
+        end;
+        wk := WalletKeys.Key[iWallet];
+        if not assigned(wk.PrivateKey) then begin
+          if wk.CryptedKey<>'' then begin
+            errors := 'Wallet is password protected. Need password';
+            bbPassword.Visible := true;
+            bbPassword.Enabled := true;
+          end else begin
+            errors := 'Only public key of account '+TAccountComp.AccountNumberToAccountTxtNumber(sender_account.account)+' found in wallet. You cannot operate with this account';
+          end;
+          lblGlobalErrors.Caption := errors;
+          exit;
+        end;
+      end;
+    end;
+    lblGlobalErrors.Caption := '';
+  Finally
+    if lblGlobalErrors.Caption<>'' then begin
+      tsGlobalError.visible := true;
+      tsGlobalError.tabvisible := {$IFDEF LINUX}true{$ELSE}false{$ENDIF};
+      tsOperation.TabVisible := false;
+      PageControlLocked.ActivePage := tsGlobalError;
+      if bbPassword.CanFocus then begin
+        ActiveControl := bbPassword;
+      end;
+    end else begin
+      tsOperation.visible := true;
+      tsOperation.tabvisible := {$IFDEF LINUX}true{$ELSE}false{$ENDIF};
+      tsGlobalError.TabVisible := false;
+      PageControlLocked.ActivePage := tsOperation;
+    end;
+  End;
+  if (PageControlOpType.ActivePage = tsTransaction) then begin
+    Result := UpdateOpTransaction(GetDefaultSenderAccount,dest_account,amount,errors);
+  end else if (PageControlOpType.ActivePage = tsChangePrivateKey) then begin
+    Result := UpdateOpChangeKey(GetDefaultSenderAccount,signer_account,publicKey,errors);
+  end else if (PageControlOpType.ActivePage = tsListForSale) then begin
+    Result := UpdateOpListForSale(GetDefaultSenderAccount,salePrice,seller_account,signer_account,publicKey,auxC,errors);
+  end else if (PageControlOpType.ActivePage = tsDelist) then begin
+    Result := UpdateOpDelist(GetDefaultSenderAccount,signer_account,errors);
+  end else if (PageControlOpType.ActivePage = tsBuyAccount) then begin
+    Result := UpdateOpBuyAccount(GetDefaultSenderAccount,account_to_buy,amount,publicKey,errors);
+  end else if (PageControlOpType.ActivePage = tsChangeInfo) then begin
+    Result := UpdateOpChangeInfo(GetDefaultSenderAccount,signer_account,changeName,newName,changeType,newType,errors);
+  end else begin
+    errors := 'Must select an operation';
+  end;
+  if (PageControlOpType.ActivePage=tsTransaction) then begin
+    rbEncryptedWithOldEC.Caption := 'Encrypted with sender public key';
+    rbEncryptedWithEC.Caption := 'Encrypted with destination public key';
+  end else if (PageControlOpType.ActivePage=tsChangePrivateKey) then begin
+    rbEncryptedWithOldEC.Caption := 'Encrypted with old public key';
+    rbEncryptedWithEC.Caption := 'Encrypted with new public key';
+  end else if ((PageControlOpType.ActivePage=tsListForSale) Or (PageControlOpType.ActivePage=tsDelist)) then begin
+    rbEncryptedWithOldEC.Caption := 'Encrypted with target public key';
+    rbEncryptedWithEC.Caption := 'Encrypted with signer public key';
+  end else if (PageControlOpType.ActivePage=tsBuyAccount) then begin
+    rbEncryptedWithOldEC.Caption := 'Encrypted with buyer public key';
+    rbEncryptedWithEC.Caption := 'Encrypted with target public key';
+  end;
+  ebSignerAccount.Enabled:= ((PageControlOpType.ActivePage=tsChangePrivateKey) And (FNode.Bank.SafeBox.CurrentProtocol>=CT_PROTOCOL_2))
+    Or (PageControlOpType.ActivePage=tsChangeInfo)
+    Or (PageControlOpType.ActivePage=tsListForSale)
+    Or (PageControlOpType.ActivePage=tsDelist);
+  sbSearchSignerAccount.Enabled:=ebSignerAccount.Enabled;
+  lblSignerAccount.Enabled := ebSignerAccount.Enabled;
   //
   UpdatePayload(sender_account, e);
 end;
 
-function TFRMOperation.UpdatePayload(Const SenderAccount : TAccount; var errors : AnsiString) : Boolean;
+function TFRMOperation.UpdateOpListForSale(const TargetAccount: TAccount;
+  var SalePrice: Int64; var SellerAccount, SignerAccount: TAccount;
+  var NewOwnerPublicKey: TAccountKey; var LockedUntilBlock: Cardinal;
+  var errors: AnsiString): Boolean;
+var auxC : Cardinal;
+begin
+  Result := False;
+  SalePrice := 0; SellerAccount := CT_Account_NUL;
+  NewOwnerPublicKey := CT_TECDSA_Public_Nul;
+  LockedUntilBlock := 0; errors := '';
+  if (PageControlOpType.ActivePage <> tsListForSale) then exit;
+  lblListAccountErrors.Caption := '';
+  Try
+    if (rbListAccountForPublicSale.Checked) Or (rbListAccountForPrivateSale.Checked) then begin
+      if rbListAccountForPublicSale.Checked then begin
+        lblSaleNewOwnerPublicKey.Enabled := false;
+        ebSaleNewOwnerPublicKey.Enabled := false;
+        ebSaleLockedUntilBlock.Enabled := false;
+        lblSaleLockedUntilBlock.Enabled := false;
+      end else if rbListAccountForPrivateSale.Checked then begin
+        lblSaleNewOwnerPublicKey.Enabled := true;
+        ebSaleNewOwnerPublicKey.Enabled := true;
+        ebSaleLockedUntilBlock.Enabled := true;
+        lblSaleLockedUntilBlock.Enabled := true;
+      end;
+      if not TAccountComp.TxtToMoney(ebSalePrice.Text,salePrice) then begin
+        errors := 'Invalid price';
+        exit;
+      end;
+      // Signer:
+      If Not TAccountComp.AccountTxtNumberToAccountNumber(ebSignerAccount.Text,auxC) then begin
+        errors := 'Invalid signer account';
+        exit;
+      end;
+      if (auxC<0) Or (auxC >= FNode.Bank.AccountsCount) then begin
+        errors := 'Signer account does not exists '+TAccountComp.AccountNumberToAccountTxtNumber(auxC);
+        exit;
+      end;
+      SignerAccount := FNode.Operations.SafeBoxTransaction.Account(auxC);
+      // Seller
+      If Not TAccountComp.AccountTxtNumberToAccountNumber(ebSellerAccount.Text,auxC) then begin
+        errors := 'Invalid seller account';
+        exit;
+      end;
+      if (auxC<0) Or (auxC >= FNode.Bank.AccountsCount) then begin
+        errors := 'Seller account does not exists '+TAccountComp.AccountNumberToAccountTxtNumber(auxC);
+        exit;
+      end;
+      if (auxC=TargetAccount.account) then begin
+        errors := 'Seller account cannot be same account';
+        exit;
+      end;
+
+      SellerAccount := FNode.Operations.SafeBoxTransaction.Account(auxC);
+      if rbListAccountForPrivateSale.Checked then begin
+        lblSaleNewOwnerPublicKey.Enabled := true;
+        ebSaleNewOwnerPublicKey.Enabled := true;
+        ebSaleLockedUntilBlock.Enabled := true;
+        lblSaleLockedUntilBlock.Enabled := true;
+        If Not TAccountComp.AccountKeyFromImport(ebSaleNewOwnerPublicKey.Text,NewOwnerPublicKey,errors) then begin
+          errors := 'Public key: '+errors;
+          exit;
+        end else begin
+          lblListAccountErrors.Font.Color := clGreen;
+          lblListAccountErrors.Caption := 'New key type: '+TAccountComp.GetECInfoTxt(NewOwnerPublicKey.EC_OpenSSL_NID);
+        end;
+        if TAccountComp.EqualAccountKeys(NewOwnerPublicKey,TargetAccount.accountInfo.accountKey) then begin
+          errors := 'New public key for private sale is the same public key';
+          Exit;
+        end;
+        LockedUntilBlock := StrToIntDef(ebSaleLockedUntilBlock.Text,0);
+        if LockedUntilBlock=0 then begin
+          errors := 'Insert locking block';
+          exit;
+        end;
+      end;
+      If (FNode.Bank.SafeBox.CurrentProtocol=CT_PROTOCOL_1) then begin
+        errors := 'This operation needs PROTOCOL 2 active';
+        exit;
+      end;
+    end else begin
+      lblSaleNewOwnerPublicKey.Enabled := false;
+      ebSaleNewOwnerPublicKey.Enabled := false;
+      ebSaleLockedUntilBlock.Enabled := false;
+      lblSaleLockedUntilBlock.Enabled := false;
+      errors := 'Select a sale type';
+      exit;
+    end;
+  Finally
+    Result := errors='';
+    if errors<>'' then begin
+      lblListAccountErrors.Caption := errors;
+      lblListAccountErrors.Font.Color := clRed;
+    end;
+  End;
+end;
+
+function TFRMOperation.UpdateOpTransaction(const SenderAccount: TAccount;  var DestAccount: TAccount; var amount: Int64;  var errors: AnsiString): Boolean;
+Var c : Cardinal;
+begin
+  Result := False;
+  errors := '';
+  lblTransactionErrors.Caption := '';
+  if PageControlOpType.ActivePage<>tsTransaction then exit;
+  if not (TAccountComp.AccountTxtNumberToAccountNumber(ebDestAccount.Text,c)) then begin
+    errors := 'Invalid dest. account ('+ebDestAccount.Text+')';
+    lblTransactionErrors.Caption := errors;
+    exit;
+  end;
+  if (c<0) Or (c>=TNode.Node.Bank.AccountsCount) then begin
+    errors := 'Invalid dest. account ('+TAccountComp.AccountNumberToAccountTxtNumber(c)+')';
+    lblTransactionErrors.Caption := errors;
+    exit;
+  end;
+  DestAccount := TNode.Node.Operations.SafeBoxTransaction.Account(c);
+  if SenderAccounts.Count=1 then begin
+    if not TAccountComp.TxtToMoney(ebAmount.Text,amount) then begin
+      errors := 'Invalid amount ('+ebAmount.Text+')';
+      lblTransactionErrors.Caption := errors;
+      exit;
+    end;
+  end else amount := 0; // ALL BALANCE
+  if DestAccount.account=SenderAccount.account then begin
+    errors := 'Sender and dest account are the same';
+    lblTransactionErrors.Caption := errors;
+    exit;
+  end;
+  if (SenderAccounts.Count=1) then begin
+    if (SenderAccount.balance<(amount+FDefaultFee)) then begin
+       errors := 'Insufficient funds';
+       lblTransactionErrors.Caption := errors;
+       exit;
+    end;
+  end;
+  Result := True;
+end;
+
+function TFRMOperation.UpdatePayload(const SenderAccount: TAccount;
+  var errors: AnsiString): Boolean;
 Var payload_u : AnsiString;
   payload_encrypted : TRawBytes;
   account : TAccount;
+  public_key : TAccountKey;
   dest_account_number : Cardinal;
   i : Integer;
   valid : Boolean;
@@ -772,51 +1233,76 @@ begin
       exit;
     end;
     if (rbEncryptedWithOldEC.Checked) then begin
+      // Use sender
       errors := 'Error encrypting';
-      account := FNode.Node.Operations.SafeBoxTransaction.Account(SenderAccount.account);
-      payload_encrypted := ECIESEncrypt(account.accountkey,payload_u);
+      account := FNode.Operations.SafeBoxTransaction.Account(SenderAccount.account);
+      payload_encrypted := ECIESEncrypt(account.accountInfo.accountKey,payload_u);
       valid := payload_encrypted<>'';
     end else if (rbEncryptedWithEC.Checked) then begin
       errors := 'Error encrypting';
-      if rbTransaction.Checked then begin
+      if (PageControlOpType.ActivePage=tsTransaction) or (PageControlOpType.ActivePage=tsListForSale) or (PageControlOpType.ActivePage=tsDelist)
+        or (PageControlOpType.ActivePage=tsBuyAccount) then begin
         // With dest public key
-        If Not TAccountComp.AccountTxtNumberToAccountNumber(ebDestAccount.Text,dest_account_number) then begin
-          errors := 'Invalid dest account number';
-          exit;
-        end;
-        account := FNode.Node.Operations.SafeBoxTransaction.Account(dest_account_number);
-        payload_encrypted := ECIESEncrypt(account.accountkey,payload_u);
-        valid := payload_encrypted<>'';
-      end else if rbChangeKey.Checked then begin
-        // With new key generated
-        if (cbNewPrivateKey.ItemIndex>=0) then begin
-          i := PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex]);
-          if (i>=0) then FNewAccountPublicKey := WalletKeys.Key[i].AccountKey;
+        If (PageControlOpType.ActivePage=tsTransaction) then begin
+          If Not TAccountComp.AccountTxtNumberToAccountNumber(ebDestAccount.Text,dest_account_number) then begin
+            errors := 'Invalid dest account number';
+            exit;
+          end;
+        end else if (PageControlOpType.ActivePage=tsListForSale) then begin
+          If Not TAccountComp.AccountTxtNumberToAccountNumber(ebSignerAccount.Text,dest_account_number) then begin
+            errors := 'Invalid signer account number';
+            exit;
+          end;
+        end else if (PageControlOpType.ActivePage=tsDelist) then begin
+          If Not TAccountComp.AccountTxtNumberToAccountNumber(ebSignerAccount.Text,dest_account_number) then begin
+            errors := 'Invalid signer account number';
+            exit;
+          end;
+        end else if (PageControlOpType.ActivePage=tsBuyAccount) then begin
+          If Not TAccountComp.AccountTxtNumberToAccountNumber(ebAccountToBuy.Text,dest_account_number) then begin
+            errors := 'Invalid account to buy number';
+            exit;
+          end;
         end else begin
-          valid := false;
-          errors := 'Must select a private key';
+          errors := 'ERROR DEV 20170512-1';
           exit;
         end;
-        if FNewAccountPublicKey.EC_OpenSSL_NID<>CT_Account_NUL.accountkey.EC_OpenSSL_NID then begin
-          payload_encrypted := ECIESEncrypt(FNewAccountPublicKey,payload_u);
+        if (dest_account_number<0) or (dest_account_number>=FNode.Bank.AccountsCount) then begin
+          errors := 'Invalid payload encrypted account number: '+TAccountComp.AccountNumberToAccountTxtNumber(dest_account_number);
+          exit;
+        end;
+        account := FNode.Operations.SafeBoxTransaction.Account(dest_account_number);
+        payload_encrypted := ECIESEncrypt(account.accountInfo.accountKey,payload_u);
+        valid := payload_encrypted<>'';
+      end else if (PageControlOpType.ActivePage=tsChangePrivateKey) then begin
+        if (rbChangeKeyWithAnother.Checked) then begin
+          // With new key generated
+          if (cbNewPrivateKey.ItemIndex>=0) then begin
+            i := PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex]);
+            if (i>=0) then public_key := WalletKeys.Key[i].AccountKey;
+          end else begin
+            errors := 'Must select a private key';
+            exit;
+          end;
+        end else if (rbChangeKeyTransferAccountToNewOwner.Checked) then begin
+          If Not TAccountComp.AccountKeyFromImport(ebNewPublicKey.Text,public_key,errors) then begin
+            errors := 'Public key: '+errors;
+            exit;
+          end;
+        end else begin
+          errors := 'Must select change type';
+          exit;
+        end;
+        if public_key.EC_OpenSSL_NID<>CT_Account_NUL.accountInfo.accountKey.EC_OpenSSL_NID then begin
+          payload_encrypted := ECIESEncrypt(public_key,payload_u);
           valid := payload_encrypted<>'';
         end else begin
           valid := false;
           errors := 'Selected private key is not valid to encode';
           exit;
         end;
-      end else if rbTransferToANewOwner.Checked then begin
-        //
-        if FNewAccountPublicKey.EC_OpenSSL_NID<>CT_Account_NUL.accountkey.EC_OpenSSL_NID then begin
-          payload_encrypted := ECIESEncrypt(FNewAccountPublicKey,payload_u);
-          valid := payload_encrypted<>'';
-        end else begin
-          valid := false;
-          errors := 'New owner of public key not valid';
-        end;
       end else begin
-        errors := 'Must select operation type to encrypt payload';
-        valid := false;
+        errors := 'This operation does not allow this kind of payload';
       end;
     end else if (rbEncrptedWithPassword.Checked) then begin
       payload_encrypted := TAESComp.EVP_Encrypt_AES256(payload_u,ebEncryptPassword.Text);
@@ -852,9 +1338,11 @@ Var i : Integer;
   s : String;
 begin
   cbNewPrivateKey.items.BeginUpdate;
+  cbBuyNewKey.Items.BeginUpdate;
   Try
     cbNewPrivateKey.Items.Clear;
-    //cbNewPrivateKey.Items.AddObject('Generate a new Private Key',TObject(-1));
+    cbBuyNewKey.Items.Clear;
+    if Not Assigned(FWalletKeys) then exit;
     For i:=0 to FWalletKeys.Count-1 do begin
       wk := FWalletKeys.Key[i];
       if (wk.Name='') then begin
@@ -864,11 +1352,15 @@ begin
       end;
       if Not Assigned(wk.PrivateKey) then s := s + '(*)';
       cbNewPrivateKey.Items.AddObject(s,TObject(i));
+      cbBuyNewKey.Items.AddObject(s,TObject(i));
     end;
+    cbNewPrivateKey.Sorted := true;
+    cbBuyNewKey.Sorted := true;
   Finally
     cbNewPrivateKey.Items.EndUpdate;
+    cbBuyNewKey.Items.EndUpdate;
   End;
-  rbTransactionClick(Nil);
+  updateInfoClick(Nil);
   memoPayloadClick(Nil);
 end;
 

@@ -162,7 +162,7 @@ begin
   Result := false;
   errors := '';
   if FDisabledsNewBlocksCount>0 then begin
-    TLog.NewLog(ltinfo,Classname,Format('Cannot Add new BlockChain due is adding disabled - Connection:%s NewBlock:%s',[
+    TLog.NewLog(lterror,Classname,Format('Cannot Add new BlockChain due is adding disabled - Connection:%s NewBlock:%s',[
     Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
     errors := 'Adding blocks is disabled';
     exit;
@@ -228,6 +228,8 @@ begin
           if (j=0) Or (j=Bank.LastBlockFound.OperationBlock.block) then begin
             // Only will "re-send" operations that where received on last block and not included in this one
             opsht.AddOperationToHashTree(FOperations.Operation[i]);
+            // Add to sent operations
+            FSentOperations.Add(FOperations.Operation[i].Sha256,Bank.LastBlockFound.OperationBlock.block);
           end else begin
             TLog.NewLog(ltError,ClassName,'Sanitized operation not included (j='+IntToStr(j)+') ('+inttostr(i+1)+'/'+inttostr(FOperations.Count)+'): '+FOperations.Operation[i].ToString);
           end;
@@ -241,7 +243,7 @@ begin
         // Clean sent operations buffer
         j := 0;
         for i := FSentOperations.Count-1 downto 0 do begin
-          If (FSentOperations.GetTag(i)<Bank.LastBlockFound.OperationBlock.block-3) then begin
+          If (FSentOperations.GetTag(i)<Bank.LastBlockFound.OperationBlock.block-Random(5)+1) then begin
             FSentOperations.Delete(i);
             inc(j);
           end;
@@ -320,30 +322,48 @@ begin
       for j := 0 to Operations.OperationsCount-1 do begin
         ActOp := Operations.GetOperation(j);
         If (FOperations.OperationsHashTree.IndexOfOperation(ActOp)<0) And (FSentOperations.GetTag(ActOp.Sha256)=0) then begin
-          // Buffer to prevent cyclic sending new on 1.5.4
-          FSentOperations.Add(ActOp.Sha256,FOperations.OperationBlock.block);
-          if (FOperations.AddOperation(true,ActOp,e)) then begin
-            inc(Result);
-            valids_operations.AddOperationToHashTree(ActOp);
-            TLog.NewLog(ltdebug,Classname,Format('AddOperation %d/%d: %s',[(j+1),Operations.OperationsCount,ActOp.ToString]));
-            if Assigned(OperationsResult) then begin
-              TPCOperation.OperationToOperationResume(0,ActOp,ActOp.SenderAccount,OPR);
-              OPR.NOpInsideBlock:=FOperations.Count-1;
-              OPR.Balance := FOperations.SafeBoxTransaction.Account(ActOp.SenderAccount).balance;
-              OperationsResult.Add(OPR);
-            end;
-          end else begin
+          // Protocol 2 limitation: In order to prevent spam of operations without Fee, will protect it
+          If (ActOp.OperationFee=0) And (Bank.SafeBox.CurrentProtocol>=CT_PROTOCOL_2) And
+             (FOperations.OperationsHashTree.CountOperationsBySameSignerWithoutFee(ActOp.SignerAccount)>=CT_MaxAccountOperationsPerBlockWithoutFee) then begin
+            e := Format('Account %s zero fee operations per block limit:%d',[TAccountComp.AccountNumberToAccountTxtNumber(ActOp.SignerAccount),CT_MaxAccountOperationsPerBlockWithoutFee]);
             if (errors<>'') then errors := errors+' ';
             errors := errors+'Op '+IntToStr(j+1)+'/'+IntToStr(Operations.OperationsCount)+':'+e;
             TLog.NewLog(ltdebug,Classname,Format('AddOperation invalid/duplicated %d/%d: %s  - Error:%s',
               [(j+1),Operations.OperationsCount,ActOp.ToString,e]));
             if Assigned(OperationsResult) then begin
-              TPCOperation.OperationToOperationResume(0,ActOp,ActOp.SenderAccount,OPR);
+              TPCOperation.OperationToOperationResume(0,ActOp,ActOp.SignerAccount,OPR);
               OPR.valid := false;
               OPR.NOpInsideBlock:=-1;
               OPR.OperationHash := '';
               OPR.errors := e;
               OperationsResult.Add(OPR);
+            end;
+          end else begin
+            // Buffer to prevent cyclic sending new on 1.5.4
+            FSentOperations.Add(ActOp.Sha256,FOperations.OperationBlock.block);
+            if (FOperations.AddOperation(true,ActOp,e)) then begin
+              inc(Result);
+              valids_operations.AddOperationToHashTree(ActOp);
+              TLog.NewLog(ltdebug,Classname,Format('AddOperation %d/%d: %s',[(j+1),Operations.OperationsCount,ActOp.ToString]));
+              if Assigned(OperationsResult) then begin
+                TPCOperation.OperationToOperationResume(0,ActOp,ActOp.SignerAccount,OPR);
+                OPR.NOpInsideBlock:=FOperations.Count-1;
+                OPR.Balance := FOperations.SafeBoxTransaction.Account(ActOp.SignerAccount).balance;
+                OperationsResult.Add(OPR);
+              end;
+            end else begin
+              if (errors<>'') then errors := errors+' ';
+              errors := errors+'Op '+IntToStr(j+1)+'/'+IntToStr(Operations.OperationsCount)+':'+e;
+              TLog.NewLog(ltdebug,Classname,Format('AddOperation invalid/duplicated %d/%d: %s  - Error:%s',
+                [(j+1),Operations.OperationsCount,ActOp.ToString,e]));
+              if Assigned(OperationsResult) then begin
+                TPCOperation.OperationToOperationResume(0,ActOp,ActOp.SignerAccount,OPR);
+                OPR.valid := false;
+                OPR.NOpInsideBlock:=-1;
+                OPR.OperationHash := '';
+                OPR.errors := e;
+                OperationsResult.Add(OPR);
+              end;
             end;
           end;
         end else begin
@@ -615,18 +635,19 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
           And (block_number >= (account_number DIV CT_AccountsPerBlock))
           And (nOpsCounter <= EndOperation) do begin
           last_block_number := block_number;
-          next_block_number := 0;
+          next_block_number := block_number;
           l.Clear;
           If not Bank.Storage.LoadBlockChainBlock(opc,block_number) then begin
-            TLog.NewLog(lterror,ClassName,'Error searching for block '+inttostr(block_number));
+            TLog.NewLog(ltdebug,ClassName,'Block '+inttostr(block_number)+' not found. Cannot read operations');
             exit;
           end;
           opc.OperationsHashTree.GetOperationsAffectingAccount(account_number,l);
           for i := l.Count - 1 downto 0 do begin
             op := opc.Operation[PtrInt(l.Items[i])];
             if (i=0) then begin
-              If op.SenderAccount=account_number then next_block_number := op.Previous_Sender_updated_block
-              else next_block_number := op.Previous_Destination_updated_block;
+              If op.SignerAccount=account_number then next_block_number := op.Previous_Signer_updated_block
+              else if (op.DestinationAccount=account_number) then next_block_number := op.Previous_Destination_updated_block
+              else if (op.SellerAccount=account_number) then next_block_number:=op.Previous_Seller_updated_block;
             end;
             If TPCOperation.OperationToOperationResume(block_number,Op,account_number,OPR) then begin
               OPR.NOpInsideBlock := Op.tag; // Note: Used Op.tag to include operation index inside a list
@@ -686,6 +707,7 @@ var account,n_operation : Cardinal;
   i : Integer;
   op : TPCOperation;
   initial_block, aux_block : Cardinal;
+  opHashValid, opHash_OLD : TRawBytes;
 begin
   Result := False;
   // Decode OperationHash
@@ -698,8 +720,12 @@ begin
     FOperations.Lock;
     Try
       For i:=0 to FOperations.Count-1 do begin
-        If (FOperations.Operation[i].SenderAccount=account) then begin
-          If (TPCOperation.OperationHash(FOperations.Operation[i],0)=OperationHash) then begin
+        op := FOperations.Operation[i];
+        If (op.SignerAccount=account) then begin
+          opHashValid := TPCOperation.OperationHashValid(op,0);
+          opHash_OLD := TPCOperation.OperationHash_OLD(op,0);
+          If (opHashValid=OperationHash) or
+            ((FBank.BlocksCount<CT_Protocol_Upgrade_v2_MinBlock) And (opHash_OLD=OperationHash)) then begin
             operation_block_index:=i;
             OperationComp.CopyFrom(FOperations);
             Result := true;
@@ -721,21 +747,32 @@ begin
     If Not Bank.LoadOperations(OperationComp,block) then exit;
     For i:=OperationComp.Count-1 downto 0 do begin
       op := OperationComp.Operation[i];
-      if (op.SenderAccount=account) then begin
+      if (op.SignerAccount=account) then begin
         If (op.N_Operation<n_operation) then exit; // n_operation is greaten than found
         If (op.N_Operation=n_operation) then begin
           // Possible candidate or dead
-          If TPCOperation.OperationHash(op,initial_block)=OperationHash then begin
+          opHashValid := TPCOperation.OperationHashValid(op,initial_block);
+          If (opHashValid=OperationHash) then begin
             operation_block_index:=i;
             Result := true;
             exit;
+          end else if (block<CT_Protocol_Upgrade_v2_MinBlock) then begin
+            opHash_OLD := TPCOperation.OperationHash_OLD(op,initial_block);
+            if (opHash_OLD=OperationHash) then begin
+              operation_block_index:=i;
+              Result := true;
+              exit;
+            end else exit; // Not found!
           end else exit; // Not found!
         end;
-        If op.Previous_Sender_updated_block>block then exit;
-        block := op.Previous_Sender_updated_block;
-      end else if op.IsDestinationAccount(account) then begin
+        If op.Previous_Signer_updated_block>block then exit;
+        block := op.Previous_Signer_updated_block;
+      end else if op.DestinationAccount=account then begin
         If op.Previous_Destination_updated_block > block then exit;
         block := op.Previous_Destination_updated_block;
+      end else if op.SellerAccount=account then begin
+        If op.Previous_Seller_updated_block > block then exit;
+        block := op.Previous_Seller_updated_block;
       end;
     end;
     if (block>=aux_block) then exit; // Error... not found a valid block positioning
@@ -847,7 +884,7 @@ begin
   if FNode=Value then exit;
   if Assigned(FNode) then begin
     FNode.RemoveFreeNotification(Self);
-    FNode.FNotifyList.Add(Self);
+    FNode.FNotifyList.Remove(Self);
   end;
   FNode := Value;
   if Assigned(FNode) then begin

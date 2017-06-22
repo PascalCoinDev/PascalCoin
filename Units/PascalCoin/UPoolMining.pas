@@ -553,13 +553,15 @@ begin
       P^.OperationsComp.timestamp := P^.SentMinTimestamp; // Best practices 1.5.3
       OpB := P^.OperationsComp.OperationBlock;
       if (OpB.block<>0) And (OpB.block <> (FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.block+1)) then begin
-        TLog.NewLog(ltError,ClassName,'ERROR DEV 20170228-1 '+TPCOperationsComp.OperationBlockToText(OpB)+'<>'+TPCOperationsComp.OperationBlockToText(FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock));
+        // A new block is generated meanwhile ... do not include
+        TLog.NewLog(ltDebug,ClassName,'Generated a new block meanwhile ... '+TPCOperationsComp.OperationBlockToText(OpB)+'<>'+TPCOperationsComp.OperationBlockToText(FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock));
         P^.OperationsComp.Free;
         Dispose(P);
-        raise Exception.Create('ERROR DEV 20170228-1');
+        P := Nil;
+      end else begin
+        i := l.Add(P);
+        TLog.NewLog(ltDebug,ClassName,'Added new job '+IntToStr(i+1)+'/'+IntToStr(l.Count));
       end;
-      i := l.Add(P);
-      TLog.NewLog(ltDebug,ClassName,'Added new job '+IntToStr(i+1)+'/'+IntToStr(l.Count));
     end;
     // Clean buffer jobs
     while (l.Count>CT_MAX_BUFFER_JOBS) do begin
@@ -724,7 +726,7 @@ begin
       try
         if (Not (TPCOperationsComp.EqualsOperationBlock(FMinerOperations.OperationBlock,MasterOp.OperationBlock))) then begin
           FMinerOperations.Clear(true);
-          if MasterOp.Count>=0 then begin
+          if MasterOp.Count>0 then begin
             // First round: Select with fee > 0
             i := 0;
             while (tree.OperationsCount<MaxOperationsPerBlock) And (i<MasterOp.OperationsHashTree.OperationsCount) do begin
@@ -740,7 +742,7 @@ begin
             while (tree.OperationsCount<MaxOperationsPerBlock) And (i<MasterOp.OperationsHashTree.OperationsCount) And (j<Max0FeeOperationsPerBlock) do begin
               op := MasterOp.OperationsHashTree.GetOperation(i);
               if op.OperationFee=0 then begin
-                DoAdd(op,false);
+                DoAdd(op,True);
                 inc(j);
               end;
               inc(i);
@@ -810,7 +812,6 @@ begin
     end;
     _timestamp := params.AsCardinal('timestamp',0);
     _nOnce := params.AsCardinal('nonce',0);
-    _targetPoW := FNodeNotifyEvents.Node.Bank.GetActualTargetHash;
     l := FPoolJobs.LockList;
     Try
       i := l.Count-1;
@@ -821,6 +822,7 @@ begin
         If (P^.SentMinTimestamp<=_timestamp) then begin
           P^.OperationsComp.timestamp := _timestamp;
           P^.OperationsComp.nonce := _nOnce;
+          _targetPoW := FNodeNotifyEvents.Node.Bank.SafeBox.GetActualTargetHash(P^.OperationsComp.OperationBlock.protocol_version=CT_PROTOCOL_2);
           if (P^.OperationsComp.OperationBlock.proof_of_work<=_targetPoW) then begin
             // Candidate!
             nbOperations := TPCOperationsComp.Create(Nil);
@@ -962,7 +964,7 @@ begin
     params.GetAsVariant('payload_start').Value := TCrypto.ToHexaString( Operations.OperationBlock.block_payload );
     params.GetAsVariant('part3').Value := TCrypto.ToHexaString( Operations.PoW_Digest_Part3 );
     params.GetAsVariant('target').Value := Operations.OperationBlock.compact_target;
-    params.GetAsVariant('target_pow').Value := TCrypto.ToHexaString(TPCBank.TargetFromCompact(Operations.OperationBlock.compact_target));
+    params.GetAsVariant('target_pow').Value := TCrypto.ToHexaString(TPascalCoinProtocol.TargetFromCompact(Operations.OperationBlock.compact_target));
 
     ts := TNetData.NetData.NetworkAdjustedTime.GetAdjustedTime;
     if (ts<FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp) then begin
@@ -1019,7 +1021,7 @@ end;
 
 procedure TPoolMiningServer.SetMinerAccountKey(const Value: TAccountKey);
 begin
-  if TAccountComp.Equal(FMinerAccountKey,Value) then exit;
+  if TAccountComp.EqualAccountKeys(FMinerAccountKey,Value) then exit;
   FMinerAccountKey := Value;
   TLog.NewLog(ltdebug,ClassName,'Assigning Miner account key to: '+TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(Value)));
   CaptureNewJobAndSendToMiners;
@@ -1179,28 +1181,28 @@ Var _t : Cardinal;
 begin
   FMinerValuesForWork := Value;
   If FStratum_Target_PoW<>'' then begin
-    FMinerValuesForWork.target:=TPCBank.TargetToCompact(FStratum_Target_PoW);
-    FMinerValuesForWork.target_pow:=TPCBank.TargetFromCompact(FMinerValuesForWork.target);
+    FMinerValuesForWork.target:=TPascalCoinProtocol.TargetToCompact(FStratum_Target_PoW);
+    FMinerValuesForWork.target_pow:=TPascalCoinProtocol.TargetFromCompact(FMinerValuesForWork.target);
   end else begin
     // Check that target and target_pow are equal!
-    _t_pow := TPCBank.TargetFromCompact(FMinerValuesForWork.target);
+    _t_pow := TPascalCoinProtocol.TargetFromCompact(FMinerValuesForWork.target);
     if (length(FMinerValuesForWork.target_pow)=32) then begin
-      _t := TPCBank.TargetToCompact(FMinerValuesForWork.target_pow);
+      _t := TPascalCoinProtocol.TargetToCompact(FMinerValuesForWork.target_pow);
       if (FMinerValuesForWork.target<CT_MinCompactTarget) then begin
         // target has no valid value... assigning compact_target!
-        FMinerValuesForWork.target:=TPCBank.TargetToCompact(_t_pow);
+        FMinerValuesForWork.target:=TPascalCoinProtocol.TargetToCompact(_t_pow);
       end else if (_t_pow<>FMinerValuesForWork.target_pow) Or (_t<>FMinerValuesForWork.target) then begin
         TLog.NewLog(ltError,Classname,'Received bad values for target and target_pow!');
         If (FMinerValuesForWork.target<CT_MinCompactTarget) then begin
-          FMinerValuesForWork.target_pow:=TPCBank.TargetFromCompact(FMinerValuesForWork.target);
+          FMinerValuesForWork.target_pow:=TPascalCoinProtocol.TargetFromCompact(FMinerValuesForWork.target);
         end else begin
-          FMinerValuesForWork.target:=TPCBank.TargetToCompact(_t_pow);
+          FMinerValuesForWork.target:=TPascalCoinProtocol.TargetToCompact(_t_pow);
         end;
       end;
     end else begin
       if (FMinerValuesForWork.target<CT_MinCompactTarget) then begin
         // target_pow has no value... assigning target!
-        FMinerValuesForWork.target_pow:=TPCBank.TargetFromCompact(FMinerValuesForWork.target);
+        FMinerValuesForWork.target_pow:=TPascalCoinProtocol.TargetFromCompact(FMinerValuesForWork.target);
       end else begin
         // Invalid target and compact_target
         FMinerValuesForWork.target := CT_TMinerValuesForWork_NULL.target;

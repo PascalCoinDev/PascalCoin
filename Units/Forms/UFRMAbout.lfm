@@ -1,7 +1,7 @@
 object FRMAbout: TFRMAbout
-  Left = 291
+  Left = 764
   Height = 405
-  Top = 184
+  Top = 516
   Width = 585
   ActiveControl = bbClose
   BorderIcons = [biSystemMenu]
@@ -15,7 +15,7 @@ object FRMAbout: TFRMAbout
   Font.Name = 'Tahoma'
   OnCreate = FormCreate
   Position = poOwnerFormCenter
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.6.4.0'
   object Image1: TImage
     Left = 15
     Height = 62
@@ -244,10 +244,11 @@ object FRMAbout: TFRMAbout
     Width = 478
     BorderStyle = bsNone
     Lines.Strings = (
-      'Copyright (c) 2016 Albert Molina'
+      'Copyright (c) 2016 - 2017 Albert Molina'
       ''
-      'This software is a Node of the Pascal Coin P2P Cryptocurrency. A Crypto currency without '
-      'need of historical operations. It can be used to Mine and Explore blocks and operations.'
+      'Pascal Coin is P2P cryptocurrency without the need for historical operations. This software '
+      'comprises a node within the Pascal Coin network and can be used to Mine and Explore blocks and '
+      'operations.'
       ''
       'Distributed under the MIT software license, see the accompanying file LICENSE  or visit '
       'http://www.opensource.org/licenses/mit-license.php.'
@@ -266,8 +267,9 @@ object FRMAbout: TFRMAbout
     )
     ParentColor = True
     ReadOnly = True
-    ScrollBars = ssAutoBoth
+    ScrollBars = ssVertical
     TabOrder = 0
+    WordWrap = False
   end
   object bbClose: TBitBtn
     Left = 456

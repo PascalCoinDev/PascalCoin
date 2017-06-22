@@ -380,7 +380,7 @@ begin
         auxXXXXX := minervfw;
         auxXXXXX.target:= ((((auxXXXXX.target AND $FF000000) SHR 24)-FTestingPoWLeftBits) SHL 24) + (minervfw.target AND $00FFFFFF);
         If auxXXXXX.target<CT_MinCompactTarget then auxXXXXX.target:=CT_MinCompactTarget;
-        auxXXXXX.target_pow:=TPCBank.TargetFromCompact(auxXXXXX.target);
+        auxXXXXX.target_pow:=TPascalCoinProtocol.TargetFromCompact(auxXXXXX.target);
         TCustomMinerDeviceThread(l[i]).SetMinerValuesForWork(auxXXXXX);
       end else begin
         TCustomMinerDeviceThread(l[i]).SetMinerValuesForWork(minervfw);

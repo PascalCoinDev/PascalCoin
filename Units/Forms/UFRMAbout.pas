@@ -60,7 +60,7 @@ uses
   ShellApi,
 {$ELSE}
 {$ENDIF}
-  UFolderHelper, UConst;
+  UFolderHelper, UConst, UNode;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -79,7 +79,7 @@ begin
   fvi := TFolderHelper.GetTFileVersionInfo(Application.ExeName);
   lblBuild.Caption :=  'Build: '+fvi.FileVersion;
   {$ENDIF}
-  lblProtocolVersion.Caption := Format('BlockChain Protocol: %d (%d)  -  Net Protocol: %d (%d)',[CT_BlockChain_Protocol_Version,CT_BlockChain_Protocol_Available,
+  lblProtocolVersion.Caption := Format('BlockChain Protocol: %d (%d)  -  Net Protocol: %d (%d)',[TNode.Node.Bank.SafeBox.CurrentProtocol,CT_BlockChain_Protocol_Available,
     CT_NetProtocol_Version, CT_NetProtocol_Available]);
 end;
 
@@ -92,6 +92,7 @@ procedure TFRMAbout.Label5Click(Sender: TObject);
 begin
   OpenURL(TLabel(Sender).Caption);
 end;
+
 
 procedure TFRMAbout.OpenURL(Url: String);
 begin
