@@ -34,19 +34,134 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
-### Build 1.5.6.0 - 2017-05-03
-- Allow multiselect accounts (GUI wallet)
-- Priority for operations with fee:
-  - Allow miner server (pools) to select what to mine using pascalcoin_daemon.ini file (daemon only)
-    - RPC_SERVERMINER_MAX_OPERATIONS_PER_BLOCK: Max of operations that can be included in a block (Default 5000, min value 1000)
-    - RPC_SERVERMINER_MAX_ZERO_FEE_OPERATIONS: Max of operations with 0 fee that can be included in a block (Default 2000, min value 400)
-  - Operations with fee have always preference over 0 fee operations (will be mined first)
-  - If operations with fee fills all the buffer, then no zero fee operation will be included
-- Fixed bug on receiving big blocks and slow net connection to prevent never synchronize
-- Fixed bug on miner server that produces "invalid operations hash" error on valid solutions with 0 operations
-- Fixed bug on file storage
-- Fixed minor bugs
+### Build 2.0.0.0 - 2017-06-23
+- MANDATORY UPGRADE - HARD FORK ACTIVATION WILL OCCUR ON BLOCK 115000
+- Introducing Protocol v2.
+  - https://github.com/PascalCoin/PascalCoin/blob/master/PascalCoinWhitePaperV2.pdf
+  - Core Changes:
+    - New safebox hash calculation algorithm to allow safebox checkpointing
+    - Improved difficulty target calculation to obtain a more stable average blocktime of 5 minutes, given abrupt hashpower fluctuations
+    - Bug-fix for China region users
+    - Anti-spam measures
+      - New Consensus Rule: A block can only contain 1 zero fee operation per sender account. If a sender account issues 2 or more zero-fee operations, that block is invalid.
+    - SafeBox now stored in chunks to facilitate checkpoint distribution
+	- Reintroduce orphan blocks operations on main blockchain
+  
+  - Added Checkpointing:
+    - Checkpoint created on every 100'th block
+    - Added network operations to transfer Checkpoint chunks (compressed)
 
+  - Addded In-Protocol PASA Exchanging:
+    - New Operation: List Account, used to list an account for public or private sale 
+    - New Operation: Delist Account, used to delist an account from sale 
+    - New Operation: Buy Account, used to purchase an account lised for sale
+    - Updated Operation: Transaction, can be used in place of Buy Account operation in private account sales
+      
+  - RPC API Changes:
+    - All changes are backwards-compatible for current 3rd-party infrastructure providers (exchanges, wallets).
+    - However, use of param "ophash" has been changed in V2, see "Operation Object changes" section to know how to use "old_ophash" param value    
+    - JSON changes:
+      - Account Object changes:
+        - Added param "state"  (values can be "normal" or "listed". When listed then account is for sale)
+        - If "state" is "listed" then will fill next values:
+          - "locked_until_block", "price", "seller_account" 
+          - "private_sale" : Boolean value 
+          - "new_enc_pubkey" : (Only on "private_sale" = true) - HEXASTRING with private sale encoded public key
+		- Added param "name": String
+		  - Name available chars: abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-+{}[]\_:"|<>,.?/~
+		  - Name first char: (cannot start with number): abcdefghijklmnopqrstuvwxyz!@#$%^&*()-+{}[]\_:"|<>,.?/~
+		  - Name lenght: Empty or 3..64 chars length
+		- Added param "type": Integer (Valid values from 0..65535)
+        
+      - Operation Object changes:
+        - Changed param "ophash": Current returned value of "ophash" is not the same than previous builds (changed calculation method)
+        - New param "old_ophash": Will return previous "ophash" value only for old blocks (prior to v2 protocol activation)
+        - New param "subtype" : Based on "optype" param, this param allows to discrimine point of view of operation (sender/receiver/buyer/seller ...)
+        - New param "signer_account" : Will return the account that signed (and payed fee) for this operation
+        - Param "enc_pubkey": Will return both change key and the private sale public key value
+        - About method "findoperation" and "ophash"
+          - Due to changed "ophash" param value calculation, method "findoperation" will find old "ophash" values too
+          - This is to avoid 100% compatibility, but remember that returned "Operation object" will contain "ophash" value calculated in new format only (you can read "old_ophash" value in older blocks)
+      - New methods:
+        - "listaccountforsale" : Lists an account for sale (public or private)
+          - Params:
+            - "account_target" : Account to be listed
+            - "account_signer" : Account that signs and pays the fee (must have same public key that listed account, or be the same)
+            - "price": price account can be purchased for
+            - "seller_account" : Account that will receive "price" amount on sell
+            - "new_b58_pubkey"/"new_enc_pubkey": If used, then will be a private sale
+            - "locked_until_block" : Block number until this account will be locked (a locked account cannot execute operations while locked)
+            - "fee","payload","payload_method","pwd"
+        - "signlistaccountforsale" : Signs a List an account for sale (public or private) for cold wallets
+          - Params: Same "listaccountforsale" params, and also:
+            - "rawoperations" : HEXASTRING with previous signed operations (optional)
+            - "signer_b58_pubkey"/"signer_enc_pubkey" : The current public key of "account_signer"
+            - "last_n_operation" : The current n_operation of signer account
+        
+        - "delistaccountforsale" : Delist an account for sale
+          - Params:
+            - "account_target" : Account to be delisted
+            - "account_signer" : Account that signs and pays the fee (must have same public key that delisted account, or be the same)
+            - "fee","payload","payload_method","pwd"
+        - "signdelistaccountforsale" : Signs a List an account for sale (public or private) for cold wallets
+		  - Params: Same "delistaccountforsale" params, and also:
+            - "rawoperations" : HEXASTRING with previous signed operations (optional)
+            - "signer_b58_pubkey"/"signer_enc_pubkey" : The current public key of "account_signer"
+            - "last_n_operation" : The current n_operation of signer account            
+          
+        - "buyaccount" : Buy an account previously listed for sale (public or private)
+          - Params: 
+            - "buyer_account","account_to_purchase",
+            - "price","seller_account",
+            - "new_b58_pubkey"/"new_enc_pubkey","amount",
+            - "fee","payload","payload_method","pwd"
+        - "signbuyaccount" : Signs a buy operation for cold wallets
+          - Params: Same "buyaccount" params, and also:
+            - "rawoperations" : HEXASTRING with previous signed operations (optional)
+            - "signer_b58_pubkey"/"signer_enc_pubkey" : The current public key of "buyer_account"
+            - "last_n_operation" : The current n_operation of buyer account
+			
+	    - "changeaccountinfo" : Changes an account Public key, or name, or type value (at least 1 on 3)
+		  - Params:
+			- "account_target" : Account to be delisted
+		    - "account_signer" : Account that signs and pays the fee (must have same public key that target account, or be the same)
+			- "new_b58_pubkey"/"new_enc_pubkey": If used, then will change the target account public key
+			- "new_name": If used, then will change the target account name
+			- "new_type": If used, then will change the target account type
+			- "fee","payload","payload_method","pwd"
+		- "signchangeaccountinfo" : Signs a change account info for cold cold wallets
+          - Params: Same "changeaccountinfo" params, and also:
+            - "rawoperations" : HEXASTRING with previous signed operations (optional)
+            - "signer_b58_pubkey"/"signer_enc_pubkey" : The current public key of "account_signer"
+            - "last_n_operation" : The current n_operation of signer account
+
+        - "findaccounts" : Find accounts by name/type and returns them as an array of Account objects
+		  - Returned array will be sorted by account number
+		  - Params:
+		    - "name" : (String) If has value, will return the account that match name
+			- "type" : (Integer) If has value, will return accounts with same type
+			- "start" : (Integer) Start account (by default, 0)
+			- "max" : (Integer) Max of accounts returned in array (by default, 100)
+		    
+			
+      - Updated methods:
+        - "changekey" : Added param "account_signer" that allow to pay fee using another account with same public key than target "account" param. This allows to change keys on empty accounts (balance = 0) and pay fee
+        - "signchangekey" : Added param "account_signer", same use that in "changekey" method
+
+  - GUI changes:  (not available on daemon)
+    - New columns "name" and "type" on accounts
+	- Information about Accounts/Operation using F1
+    - Operations form now accepts:  (Will be active after V2 protocol activation)
+      - List account for sale (public or private)
+      - Delist account
+      - Buy account
+	  - Change account name/type
+    - Operations form allows to search for accounts using F2 over an account edit box
+    - Changes in text showing operations information
+      
+- Other changes:
+  - Bug for china users fixed  
+  - Bugs fixed
 
 ### Build 1.5.5.0 - 2017-04-11
 - Corrected fee result on RPC calls as a negative number on "Change key" operations
