@@ -1,0 +1,25 @@
+
+## Executable and side-files
+*.exe
+*.identcache
+*.stat
+
+## OpenSSL 
+libeay32.dll
+libeay64.dll
+
+# Log files
+*.log
+
+# Lazarus-related changes
+*.dproj
+*.dproj.local
+*.lps
+*.dcu
+backup/
+lib/
+PascalCoinWallet_Icon.ico
+
+## Development miner batch file
+Run*.bat
+
