@@ -35,29 +35,31 @@ Also, consider a donation at PascalCoin development account: "0-10"
 ## History:  
 
 ### Build 2.0.0.0 - 2017-06-23
-- MANDATORY UPGRADE - HARD FORK ACTIVATION WILL OCCUR ON BLOCK 115000
-- Introducing Protocol v2.
+- **MANDATORY UPGRADE - HARD FORK ACTIVATION WILL OCCUR ON BLOCK 115000**
+- **IMPORTANT FOR EXCHANGES** Version 2 has changed the way operation hashes (OPHASH) are calculated **for existing operations**. This means a prior v1  operation with ophash "X" will now appear with ophash "Y" when querying via the JSON-RPC API. This is relevant when scanning for user deposits. Make sure you do not confuse an old deposit as being new since it now has a new ophash. **Ensure** that your system is aware of this OPHASH calculation change before installing V2, since this change occurs on installation even before the hard-fork. Please note, OPHASH was not designed as an ID however we recognize many are using it this manner. Also note, you can still search for operations using old ophash value via JSON-RPC API.
+- **Introducing Protocol v2.**
   - https://github.com/PascalCoin/PascalCoin/blob/master/PascalCoinWhitePaperV2.pdf
-  - Core Changes:
+  - **Core Changes:**
     - New safebox hash calculation algorithm to allow safebox checkpointing
+    - Updated OPHASH algorithm for calculation operation hashes, now includes all operation data
     - Improved difficulty target calculation to obtain a more stable average blocktime of 5 minutes, given abrupt hashpower fluctuations
     - Bug-fix for China region users
     - Anti-spam measures
       - New Consensus Rule: A block can only contain 1 zero fee operation per sender account. If a sender account issues 2 or more zero-fee operations, that block is invalid.
     - SafeBox now stored in chunks to facilitate checkpoint distribution
-	- Reintroduce orphan blocks operations on main blockchain
+	- Reintroduce block operations into pending pool when it is orphaned
   
-  - Added Checkpointing:
+  - **Added Checkpointing:**
     - Checkpoint created on every 100'th block
     - Added network operations to transfer Checkpoint chunks (compressed)
 
-  - Addded In-Protocol PASA Exchanging:
+  - **Added In-Protocol PASA Exchanging:**
     - New Operation: List Account, used to list an account for public or private sale 
     - New Operation: Delist Account, used to delist an account from sale 
     - New Operation: Buy Account, used to purchase an account lised for sale
     - Updated Operation: Transaction, can be used in place of Buy Account operation in private account sales
       
-  - RPC API Changes:
+  - **RPC API Changes:**
     - All changes are backwards-compatible for current 3rd-party infrastructure providers (exchanges, wallets).
     - However, use of param "ophash" has been changed in V2, see "Operation Object changes" section to know how to use "old_ophash" param value    
     - JSON changes:
@@ -159,7 +161,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
     - Operations form allows to search for accounts using F2 over an account edit box
     - Changes in text showing operations information
       
-- Other changes:
+- **Other changes:**  
   - Bug for china users fixed  
   - Bugs fixed
 
