@@ -2239,6 +2239,7 @@ begin
       // Sending
       Send(ntp_response,HeaderData.operation,0,HeaderData.request_id,responseStream);
     finally
+      responseStream.Free;
     end;
   finally
     FreeAndNil(sbStream);

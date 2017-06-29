@@ -38,7 +38,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="38">
+    <Units Count="37">
       <Unit0>
         <Filename Value="PascalCoinWalletLazarus.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -176,48 +176,44 @@
         <IsPartOfProject Value="True"/>
       </Unit27>
       <Unit28>
-        <Filename Value="Units\PascalCoin\UMiner.pas"/>
+        <Filename Value="Units\PascalCoin\UOpenSSL.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit28>
       <Unit29>
-        <Filename Value="Units\PascalCoin\UOpenSSL.pas"/>
+        <Filename Value="Units\PascalCoin\UOpenSSLdef.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit29>
       <Unit30>
-        <Filename Value="Units\PascalCoin\UOpenSSLdef.pas"/>
+        <Filename Value="Units\PascalCoin\UFileStorage.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit30>
       <Unit31>
-        <Filename Value="Units\PascalCoin\UFileStorage.pas"/>
+        <Filename Value="Units\PascalCoin\config.inc"/>
         <IsPartOfProject Value="True"/>
       </Unit31>
       <Unit32>
-        <Filename Value="Units\PascalCoin\config.inc"/>
+        <Filename Value="Units\PascalCoin\UAES.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit32>
       <Unit33>
-        <Filename Value="Units\PascalCoin\UAES.pas"/>
+        <Filename Value="Units\PascalCoin\UChunk.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit33>
       <Unit34>
-        <Filename Value="Units\PascalCoin\UChunk.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit34>
-      <Unit35>
         <Filename Value="Units\Forms\UFRMAccountSelect.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="FRMAccountSelect"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit35>
-      <Unit36>
+      </Unit34>
+      <Unit35>
         <Filename Value="Units\PascalCoin\UBaseTypes.pas"/>
         <IsPartOfProject Value="True"/>
-      </Unit36>
-      <Unit37>
+      </Unit35>
+      <Unit36>
         <Filename Value="Units\Utils\UCommon.pas"/>
         <IsPartOfProject Value="True"/>
-      </Unit37>
+      </Unit36>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
