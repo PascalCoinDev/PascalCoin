@@ -27,7 +27,7 @@ uses
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UNode, UWalletKeys, UCrypto, Buttons, UBlockChain,
-  UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types;
+  UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UCommon;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -145,8 +145,7 @@ type
     FDefaultFee: Int64;
     FEncodedPayload : TRawBytes;
     FDisabled : Boolean;
-    //
-    FSenderAccounts: TOrderedCardinalList;
+    FSenderAccounts: TOrderedCardinalList; // TODO: TOrderedCardinalList should be replaced with a "TCardinalList" since signer account should be processed last
     FOldOnChanged : TNotifyEvent;
     procedure SetWalletKeys(const Value: TWalletKeys);
     Procedure UpdateWalletKeys;
@@ -198,22 +197,28 @@ Var errors : AnsiString;
   op : TPCOperation;
   account,signerAccount,destAccount,accountToBuy : TAccount;
   operation_to_string, operationstxt, auxs : String;
-  _amount,_fee, _totalamount, _totalfee, _salePrice : Int64;
-  _lockedUntil : Cardinal;
+  _amount,_fee, _totalamount, _totalfee, _totalSignerFee, _salePrice : Int64;
+  _lockedUntil, _signer_n_ops : Cardinal;
   dooperation : Boolean;
   _newOwnerPublicKey : TECDSA_Public;
   _newName : TRawBytes;
   _newType : Word;
-  _changeName, _changeType : Boolean;
+  _changeName, _changeType, _V2 : Boolean;
 begin
   if Not Assigned(WalletKeys) then raise Exception.Create('No wallet keys');
   If Not UpdateOperationOptions(errors) then raise Exception.Create(errors);
   ops := TOperationsHashTree.Create;
   Try
+    _V2 := FNode.Bank.SafeBox.CurrentProtocol >= CT_PROTOCOL_2;
     _totalamount := 0;
     _totalfee := 0;
+    _totalSignerFee := 0;
+    _signer_n_ops := 0;
     operationstxt := '';
     operation_to_string := '';
+
+    // Loop through each sender account
+    // TODO: must process Signer account last if included in FSenderAccounts (not necessarily ordered enumeration)
     for iAcc := 0 to FSenderAccounts.Count - 1 do begin
       op := Nil;
       account := FNode.Operations.SafeBoxTransaction.Account(FSenderAccounts.Get(iAcc));
@@ -227,10 +232,10 @@ begin
       wk := WalletKeys.Key[i];
       dooperation := true;
       // Default fee
-      if account.balance>DefaultFee then _fee := DefaultFee
-      else _fee := account.balance;
-      //
+      if account.balance > uint64(DefaultFee) then _fee := DefaultFee else _fee := account.balance;
+      // Determine which operation type it is
       if PageControlOpType.ActivePage = tsTransaction then begin
+        {%region Operation: Transaction}
         if Not UpdateOpTransaction(account,destAccount,_amount,errors) then raise Exception.Create(errors);
         if FSenderAccounts.Count>1 then begin
           if account.balance>0 then begin
@@ -250,16 +255,26 @@ begin
           inc(_totalfee,_fee);
         end;
         operationstxt := 'Transaction to '+TAccountComp.AccountNumberToAccountTxtNumber(destAccount.account);
+        {%endregion}
       end else if (PageControlOpType.ActivePage = tsChangePrivateKey) then begin
+        {%region Operation: Change Private Key}
         if Not UpdateOpChangeKey(account,signerAccount,_newOwnerPublicKey,errors) then raise Exception.Create(errors);
-        If signerAccount.account<>account.account then begin
-          op := TOpChangeKeySigned.Create(signerAccount.account,signerAccount.n_operation+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
+        if _V2 then begin
+          // Maintain correct signer fee distribution
+          if uint64(_totalSignerFee) >= signerAccount.balance then _fee := 0
+          else if signerAccount.balance - uint64(_totalSignerFee) > uint64(DefaultFee) then _fee := DefaultFee
+          else _fee := signerAccount.balance - uint64(_totalSignerFee);
+          op := TOpChangeKeySigned.Create(signerAccount.account,signerAccount.n_operation+_signer_n_ops+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
+          inc(_signer_n_ops);
+          inc(_totalSignerFee, _fee);
         end else begin
           op := TOpChangeKey.Create(account.account,account.n_operation+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
         end;
         inc(_totalfee,_fee);
         operationstxt := 'Change private key to '+TAccountComp.GetECInfoTxt(_newOwnerPublicKey.EC_OpenSSL_NID);
+        {%endregion}
       end else if (PageControlOpType.ActivePage = tsListForSale) then begin
+        {%region Operation: List For Sale}
         If Not UpdateOpListForSale(account,_salePrice,destAccount,signerAccount,_newOwnerPublicKey,_lockedUntil,errors) then raise Exception.Create(errors);
         // Special fee account:
         if signerAccount.balance>DefaultFee then _fee := DefaultFee
@@ -269,22 +284,29 @@ begin
         end else if (rbListAccountForPrivateSale.Checked) then begin
           op := TOpListAccountForSale.CreateListAccountForSale(signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,_newOwnerPublicKey,_lockedUntil,wk.PrivateKey,FEncodedPayload);
         end else raise Exception.Create('Select Sale type');
+        {%endregion}
       end else if (PageControlOpType.ActivePage = tsDelist) then begin
+        {%region Operation: Delist For Sale}
         if Not UpdateOpDelist(account,signerAccount,errors) then raise Exception.Create(errors);
         // Special fee account:
         if signerAccount.balance>DefaultFee then _fee := DefaultFee
         else _fee := signerAccount.balance;
         op := TOpDelistAccountForSale.CreateDelistAccountForSale(signerAccount.account,signerAccount.n_operation+1+iAcc,account.account,_fee,wk.PrivateKey,FEncodedPayload);
+        {%endregion}
       end else if (PageControlOpType.ActivePage = tsBuyAccount) then begin
+        {%region Operation: Buy Account}
         if Not UpdateOpBuyAccount(account,accountToBuy,_amount,_newOwnerPublicKey,errors) then raise Exception.Create(errors);
         op := TOpBuyAccount.CreateBuy(account.account,account.n_operation+1,accountToBuy.account,accountToBuy.accountInfo.account_to_pay,
           accountToBuy.accountInfo.price,_amount,_fee,_newOwnerPublicKey,wk.PrivateKey,FEncodedPayload);
+        {%endregion}
       end else if (PageControlOpType.ActivePage = tsChangeInfo) then begin
+        {%region Operation: Change Info}
         if not UpdateOpChangeInfo(account,signerAccount,_changeName,_newName,_changeType,_newType,errors) then raise Exception.Create(errors);
         if signerAccount.balance>DefaultFee then _fee := DefaultFee
         else _fee := signerAccount.balance;
         op := TOpChangeAccountInfo.CreateChangeAccountInfo(signerAccount.account,signerAccount.n_operation+1,account.account,wk.PrivateKey,false,CT_TECDSA_Public_Nul,
            _changeName,_newName,_changeType,_newType,_fee,FEncodedPayload);
+        {%endregion}
       end else begin
         raise Exception.Create('No operation selected');
       end;
@@ -295,6 +317,7 @@ begin
       end;
       FreeAndNil(op);
     end;
+
     if (ops.OperationsCount=0) then raise Exception.Create('No valid operation to execute');
 
     if (FSenderAccounts.Count>1) then begin
