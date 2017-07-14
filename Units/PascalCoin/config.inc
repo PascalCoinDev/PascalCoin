@@ -32,7 +32,11 @@
   {$DEFINE PRODUCTION}
   {.$DEFINE TESTNET}
 
+  // For GUI: Allows to show average time on blockchain explorer
   {.$DEFINE SHOW_AVERAGE_TIME_STATS}
+
+  // For special use: Allows to store in a buffer, operations not proceded due to n_operation value invalid
+  {.$DEFINE BufferOfFutureOperations}
   
   // HighLog will result in a higher log generation
   {.$DEFINE HIGHLOG}

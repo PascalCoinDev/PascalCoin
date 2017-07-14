@@ -294,6 +294,7 @@ Type
     FHasReceivedData : Boolean;
     FIsDownloadingBlocks : Boolean;
     FRandomWaitSecondsSendHello : Cardinal;
+    FBufferLock : TPCCriticalSection;
     FBufferReceivedOperationsHash : TOrderedRawList;
     FBufferToSendOperations : TOperationsHashTree;
     FClientTimestampIp : AnsiString;
@@ -1696,19 +1697,26 @@ function TNetConnection.AddOperationsToBufferForSend(Operations: TOperationsHash
 Var i : Integer;
 begin
   Result := 0;
-  FNetLock.Acquire;
   try
-    for i := 0 to Operations.OperationsCount - 1 do begin
-      if FBufferReceivedOperationsHash.IndexOf(Operations.GetOperation(i).Sha256)<0 then begin
-        FBufferReceivedOperationsHash.Add(Operations.GetOperation(i).Sha256);
-        If FBufferToSendOperations.IndexOfOperation(Operations.GetOperation(i))<0 then begin
-          FBufferToSendOperations.AddOperationToHashTree(Operations.GetOperation(i));
-          Inc(Result);
+    FBufferLock.Acquire;
+    Try
+      for i := 0 to Operations.OperationsCount - 1 do begin
+        if FBufferReceivedOperationsHash.IndexOf(Operations.GetOperation(i).Sha256)<0 then begin
+          FBufferReceivedOperationsHash.Add(Operations.GetOperation(i).Sha256);
+          If FBufferToSendOperations.IndexOfOperation(Operations.GetOperation(i))<0 then begin
+            FBufferToSendOperations.AddOperationToHashTree(Operations.GetOperation(i));
+            Inc(Result);
+          end;
         end;
       end;
+    finally
+      FBufferLock.Release;
     end;
-  finally
-    FNetLock.Release;
+  Except
+    On E:Exception do begin
+      TLog.NewLog(ltError,ClassName,'Error at AddOperationsToBufferForSend ('+E.ClassName+'): '+E.Message);
+      Result := 0;
+    end;
   end;
 end;
 
@@ -1787,6 +1795,7 @@ begin
   SetClient( TBufferedNetTcpIpClient.Create(Self) );
   TNetData.NetData.FNetConnections.Add(Self);
   TNetData.NetData.NotifyNetConnectionUpdated;
+  FBufferLock := TPCCriticalSection.Create('TNetConnection_BufferLock');
   FBufferReceivedOperationsHash := TOrderedRawList.Create;
   FBufferToSendOperations := TOperationsHashTree.Create;
   FClientTimestampIp := '';
@@ -1823,6 +1832,7 @@ begin
     FreeAndNil(FNetLock);
     FreeAndNil(FClientBufferRead);
     FreeAndNil(FTcpIpClient);
+    FreeAndNil(FBufferLock);
     FreeAndNil(FBufferReceivedOperationsHash);
     FreeAndNil(FBufferToSendOperations);
     inherited;
@@ -1956,7 +1966,7 @@ begin
         DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(HeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
       end else begin
         // Add to received buffer
-        FNetLock.Acquire;
+        FBufferLock.Acquire;
         Try
           for i := 0 to operations.OperationsCount - 1 do begin
             op := operations.GetOperation(i);
@@ -1965,7 +1975,7 @@ begin
             if (c>=0) then FBufferToSendOperations.Delete(c);
           end;
         Finally
-          FNetLock.Release;
+          FBufferLock.Release;
         End;
         TNode.Node.AddOperations(Self,operations,Nil,errors);
       end;
@@ -2807,40 +2817,49 @@ end;
 
 function TNetConnection.Send_AddOperations(Operations : TOperationsHashTree) : Boolean;
 Var data : TMemoryStream;
-  c1,c2,request_id : Cardinal;
-  i : Integer;
+  c1, request_id : Cardinal;
+  i, nOpsToSend : Integer;
   optype : Byte;
 begin
   Result := false;
   if Not Connected then exit;
   FNetLock.Acquire;
   try
-    for i := 0 to Operations.OperationsCount - 1 do begin
-      if FBufferReceivedOperationsHash.IndexOf(Operations.GetOperation(i).Sha256)<0 then begin
-        FBufferReceivedOperationsHash.Add(Operations.GetOperation(i).Sha256);
-        If FBufferToSendOperations.IndexOfOperation(Operations.GetOperation(i))<0 then begin
-          FBufferToSendOperations.AddOperationToHashTree(Operations.GetOperation(i));
+    nOpsToSend := 0;
+    FBufferLock.Acquire;
+    Try
+      If Assigned(Operations) then begin
+        for i := 0 to Operations.OperationsCount - 1 do begin
+          if FBufferReceivedOperationsHash.IndexOf(Operations.GetOperation(i).Sha256)<0 then begin
+            FBufferReceivedOperationsHash.Add(Operations.GetOperation(i).Sha256);
+            If FBufferToSendOperations.IndexOfOperation(Operations.GetOperation(i))<0 then begin
+              FBufferToSendOperations.AddOperationToHashTree(Operations.GetOperation(i));
+            end;
+          end;
         end;
+        nOpsToSend := Operations.OperationsCount;
       end;
+      if FBufferToSendOperations.OperationsCount>0 then begin
+        TLog.NewLog(ltdebug,ClassName,Format('Sending %d Operations to %s (inProc:%d, Received:%d)',[FBufferToSendOperations.OperationsCount,ClientRemoteAddr,nOpsToSend,FBufferReceivedOperationsHash.Count]));
+        data := TMemoryStream.Create;
+        try
+          request_id := TNetData.NetData.NewRequestId;
+          c1 := FBufferToSendOperations.OperationsCount;
+          data.Write(c1,4);
+          for i := 0 to FBufferToSendOperations.OperationsCount-1 do begin
+            optype := FBufferToSendOperations.GetOperation(i).OpType;
+            data.Write(optype,1);
+            FBufferToSendOperations.GetOperation(i).SaveToNettransfer(data);
+          end;
+          Send(ntp_autosend,CT_NetOp_AddOperations,0,request_id,data);
+          FBufferToSendOperations.ClearHastThree;
+        finally
+          data.Free;
+        end;
+      end else TLog.NewLog(ltdebug,ClassName,Format('Not sending any operations to %s (inProc:%d, Received:%d, Sent:%d)',[ClientRemoteAddr,nOpsToSend,FBufferReceivedOperationsHash.Count,FBufferToSendOperations.OperationsCount]));
+    finally
+      FBufferLock.Release;
     end;
-    if FBufferToSendOperations.OperationsCount>0 then begin
-      TLog.NewLog(ltdebug,ClassName,'Sending '+inttostr(FBufferToSendOperations.OperationsCount)+' Operations to '+ClientRemoteAddr);
-      data := TMemoryStream.Create;
-      try
-        request_id := TNetData.NetData.NewRequestId;
-        c1 := FBufferToSendOperations.OperationsCount;
-        data.Write(c1,4);
-        for i := 0 to FBufferToSendOperations.OperationsCount-1 do begin
-          optype := FBufferToSendOperations.GetOperation(i).OpType;
-          data.Write(optype,1);
-          FBufferToSendOperations.GetOperation(i).SaveToNettransfer(data);
-        end;
-        Send(ntp_autosend,CT_NetOp_AddOperations,0,request_id,data);
-        FBufferToSendOperations.ClearHastThree;
-      finally
-        data.Free;
-      end;
-    end else TLog.NewLog(ltdebug,ClassName,'Not sending any operations to '+ClientRemoteAddr+' ('+IntToStr(Operations.OperationsCount)+')');
   finally
     FNetLock.Release;
   end;
@@ -2973,8 +2992,13 @@ begin
   FNetLock.Acquire;
   Try
     // Clear buffers
-    FBufferReceivedOperationsHash.Clear;
-    FBufferToSendOperations.ClearHastThree;
+    FBufferLock.Acquire;
+    Try
+      FBufferReceivedOperationsHash.Clear;
+      FBufferToSendOperations.ClearHastThree;
+    finally
+      FBufferLock.Release;
+    end;
     // Checking if operationblock is the same to prevent double messaging...
     If (TPCOperationsComp.EqualsOperationBlock(FRemoteOperationBlock,NewBlock.OperationBlock)) then begin
       TLog.NewLog(ltDebug,ClassName,'This connection has the same block, does not need to send');

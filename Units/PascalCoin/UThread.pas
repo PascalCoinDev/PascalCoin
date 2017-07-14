@@ -238,18 +238,24 @@ end;
 
 class function TPCThread.TryProtectEnterCriticalSection(const Sender: TObject;
   MaxWaitMilliseconds: Cardinal; var Lock: TPCCriticalSection): Boolean;
-Var tc,tc2,tc3,lockCurrThread,lockWatingForCounter,lockStartedTimestamp : Cardinal;
+Var tc : Cardinal;
+  {$IFDEF HIGHLOG}
+  tc2,tc3,lockCurrThread,lockWatingForCounter,lockStartedTimestamp : Cardinal;
   s : String;
+  {$ENDIF}
 begin
   tc := GetTickCount;
   if MaxWaitMilliseconds>60000 then MaxWaitMilliseconds := 60000;
+  {$IFDEF HIGHLOG}
   lockWatingForCounter := Lock.WaitingForCounter;
   lockStartedTimestamp := Lock.StartedTimestamp;
   lockCurrThread := Lock.CurrentThread;
+  {$ENDIF}
   Repeat
     Result := Lock.TryEnter;
     if Not Result then sleep(1);
   Until (Result) Or (GetTickCount > (tc + MaxWaitMilliseconds));
+  {$IFDEF HIGHLOG}
   if Not Result then begin
     tc2 := GetTickCount;
     if lockStartedTimestamp=0 then lockStartedTimestamp := Lock.StartedTimestamp;
@@ -264,6 +270,7 @@ begin
       ]);
     TLog.NewLog(ltdebug,Classname,s);
   end;
+  {$ENDIF}
 end;
 
 { TPCThreadList }

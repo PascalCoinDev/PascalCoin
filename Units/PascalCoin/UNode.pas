@@ -50,6 +50,9 @@ Type
     FPeerCache : AnsiString;
     FDisabledsNewBlocksCount : Integer;
     FSentOperations : TOrderedRawList;
+    {$IFDEF BufferOfFutureOperations}
+    FBufferAuxWaitingOperations : TOperationsHashTree;
+    {$ENDIF}
     Procedure OnBankNewBlock(Sender : TObject);
     procedure SetNodeLogFilename(const Value: AnsiString);
     function GetNodeLogFilename: AnsiString;
@@ -134,7 +137,6 @@ Type
 
   TThreadNodeNotifyOperations = Class(TPCThread)
     FNetConnection : TNetConnection;
-    FOperationsHashTree : TOperationsHashTree;
   protected
     procedure BCExecute; override;
     Constructor Create(NetConnection : TNetConnection; MakeACopyOfOperationsHashTree : TOperationsHashTree);
@@ -219,20 +221,12 @@ begin
     end;
     FOperations.SanitizeOperations;
     if Result then begin
-      // 1.5.4 - Prevent continuous sending non included operations
-      // Using a Sent operations buffer (FSentOperations) will allow to only "resend" operations once
       opsht := TOperationsHashTree.Create;
       Try
         for i := 0 to FOperations.Count - 1 do begin
-          j := FSentOperations.GetTag(FOperations.Operation[i].Sha256);
-          if (j=0) Or (j=Bank.LastBlockFound.OperationBlock.block) then begin
-            // Only will "re-send" operations that where received on last block and not included in this one
-            opsht.AddOperationToHashTree(FOperations.Operation[i]);
-            // Add to sent operations
-            FSentOperations.Add(FOperations.Operation[i].Sha256,Bank.LastBlockFound.OperationBlock.block);
-          end else begin
-            TLog.NewLog(ltError,ClassName,'Sanitized operation not included (j='+IntToStr(j)+') ('+inttostr(i+1)+'/'+inttostr(FOperations.Count)+'): '+FOperations.Operation[i].ToString);
-          end;
+          opsht.AddOperationToHashTree(FOperations.Operation[i]);
+          // Add to sent operations
+          FSentOperations.Add(FOperations.Operation[i].Sha256,Bank.LastBlockFound.OperationBlock.block);
         end;
         if opsht.OperationsCount>0 then begin
           TLog.NewLog(ltinfo,classname,'Resending '+IntToStr(opsht.OperationsCount)+' operations for new block');
@@ -243,7 +237,7 @@ begin
         // Clean sent operations buffer
         j := 0;
         for i := FSentOperations.Count-1 downto 0 do begin
-          If (FSentOperations.GetTag(i)<Bank.LastBlockFound.OperationBlock.block-Random(5)+1) then begin
+          If (FSentOperations.GetTag(i)<Bank.LastBlockFound.OperationBlock.block-2) then begin
             FSentOperations.Delete(i);
             inc(j);
           end;
@@ -289,6 +283,39 @@ begin
 end;
 
 function TNode.AddOperations(SenderConnection : TNetConnection; Operations : TOperationsHashTree; OperationsResult : TOperationsResumeList; var errors: AnsiString): Integer;
+  {$IFDEF BufferOfFutureOperations}
+  Procedure Process_BufferOfFutureOperations(valids_operations : TOperationsHashTree);
+  Var i,j, nAdded, nDeleted : Integer;
+    sAcc : TAccount;
+    ActOp : TPCOperation;
+    e : AnsiString;
+  Begin
+    // Prior to add new operations, will try to add waiting ones
+    nAdded := 0; nDeleted := 0;
+    For j:=0 to 3 do begin
+      i := 0;
+      While (i<FBufferAuxWaitingOperations.OperationsCount) do begin
+        ActOp := FBufferAuxWaitingOperations.GetOperation(i);
+        If FOperations.AddOperation(true,ActOp,e) then begin
+          TLog.NewLog(ltInfo,Classname,Format('AddOperation FromBufferWaitingOperations %d/%d: %s',[i+1,FBufferAuxWaitingOperations.OperationsCount,ActOp.ToString]));
+          inc(nAdded);
+          valids_operations.AddOperationToHashTree(ActOp);
+          FBufferAuxWaitingOperations.Delete(i);
+        end else begin
+          sAcc := FOperations.SafeBoxTransaction.Account(ActOp.SignerAccount);
+          If (sAcc.n_operation>ActOp.N_Operation) Or
+             ((sAcc.n_operation=ActOp.N_Operation) AND (sAcc.balance>0)) then begin
+             FBufferAuxWaitingOperations.Delete(i);
+             inc(nDeleted);
+          end else inc(i);
+        end;
+      end;
+    end;
+    If (nAdded>0) or (nDeleted>0) or (FBufferAuxWaitingOperations.OperationsCount>0) then begin
+      TLog.NewLog(ltInfo,Classname,Format('FromBufferWaitingOperations status - Added:%d Deleted:%d Buffer:%d',[nAdded,nDeleted,FBufferAuxWaitingOperations.OperationsCount]));
+    end;
+  end;
+  {$ENDIF}
 Var
   i,j : Integer;
   operationscomp : TPCOperationsComp;
@@ -299,6 +326,7 @@ Var
   s : String;
   OPR : TOperationResume;
   ActOp : TPCOperation;
+  sAcc : TAccount;
 begin
   Result := -1;
   if Assigned(OperationsResult) then OperationsResult.Clear;
@@ -319,6 +347,9 @@ begin
       if TThread.CurrentThread.ThreadID=MainThreadID then raise Exception.Create(s) else exit;
     end;
     try
+      {$IFDEF BufferOfFutureOperations}
+      Process_BufferOfFutureOperations(valids_operations);
+      {$ENDIF}
       for j := 0 to Operations.OperationsCount-1 do begin
         ActOp := Operations.GetOperation(j);
         If (FOperations.OperationsHashTree.IndexOfOperation(ActOp)<0) And (FSentOperations.GetTag(ActOp.Sha256)=0) then begin
@@ -364,6 +395,19 @@ begin
                 OPR.errors := e;
                 OperationsResult.Add(OPR);
               end;
+              {$IFDEF BufferOfFutureOperations}
+              // Used to solve 2.0.0 "invalid order of operations" bug
+              If (Assigned(SenderConnection)) Then begin
+                sAcc := FOperations.SafeBoxTransaction.Account(ActOp.SignerAccount);
+                If (sAcc.n_operation<ActOp.N_Operation) Or
+                   ((sAcc.n_operation=ActOp.N_Operation) AND (sAcc.balance=0) And (ActOp.OperationFee>0) And (ActOp.OpType = CT_Op_Changekey)) then begin
+                  If FBufferAuxWaitingOperations.IndexOfOperation(ActOp)<0 then begin
+                    FBufferAuxWaitingOperations.AddOperationToHashTree(ActOp);
+                    TLog.NewLog(ltInfo,Classname,Format('New FromBufferWaitingOperations %d/%d (new buffer size:%d): %s',[j+1,Operations.OperationsCount,FBufferAuxWaitingOperations.OperationsCount,ActOp.ToString]));
+                  end;
+                end;
+              end;
+              {$ENDIF}
             end;
           end;
         end else begin
@@ -426,6 +470,9 @@ begin
   FOperations := TPCOperationsComp.Create(Self);
   FOperations.bank := FBank;
   FNotifyList := TList.Create;
+  {$IFDEF BufferOfFutureOperations}
+  FBufferAuxWaitingOperations := TOperationsHashTree.Create;
+  {$ENDIF}
   if Not Assigned(_Node) then _Node := Self;
 end;
 
@@ -502,7 +549,9 @@ begin
     step := 'Destroying Bank';
     FreeAndNil(FBCBankNotify);
     FreeAndNil(FBank);
-
+    {$IFDEF BufferOfFutureOperations}
+    FreeAndNil(FBufferAuxWaitingOperations);
+    {$ENDIF}
     step := 'inherited';
     FreeAndNil(FNodeLog);
     inherited;
@@ -992,24 +1041,12 @@ end;
 { TThreadNodeNotifyOperations }
 
 procedure TThreadNodeNotifyOperations.BCExecute;
-Var nOpsCount : Integer;
 begin
-  nOpsCount := FOperationsHashTree.OperationsCount;
-  if nOpsCount<=0 then exit;
-  if TNetData.NetData.ConnectionLock(Self, FNetConnection, 500) then begin
-    try
-      if Not FNetconnection.Connected then exit;
-      nOpsCount := FNetConnection.AddOperationsToBufferForSend(FOperationsHashTree);
-    finally
-      TNetData.NetData.ConnectionUnlock(FNetConnection);
-    end;
-  end;
-  if nOpsCount<=0 then exit;
   Sleep(Random(5000)); // Delay 0..5 seconds to allow receive data and don't send if not necessary
   if TNetData.NetData.ConnectionLock(Self, FNetConnection, 500) then begin
     try
       if Not FNetconnection.Connected then exit;
-      FNetConnection.Send_AddOperations(FOperationsHashTree);
+      FNetConnection.Send_AddOperations(Nil);
     finally
       TNetData.NetData.ConnectionUnlock(FNetConnection);
     end;
@@ -1018,16 +1055,14 @@ end;
 
 constructor TThreadNodeNotifyOperations.Create(NetConnection: TNetConnection; MakeACopyOfOperationsHashTree: TOperationsHashTree);
 begin
-  FOperationsHashTree := TOperationsHashTree.Create;
-  FOperationsHashTree.CopyFromHashTree(MakeACopyOfOperationsHashTree);
   FNetConnection := NetConnection;
+  FNetConnection.AddOperationsToBufferForSend(MakeACopyOfOperationsHashTree);
   Inherited Create(false);
   FreeOnTerminate := true;
 end;
 
 destructor TThreadNodeNotifyOperations.Destroy;
 begin
-  FreeAndNil(FOperationsHashTree);
   inherited;
 end;
 

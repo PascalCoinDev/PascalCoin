@@ -37,7 +37,8 @@ uses
   UFRMAccountInfo in 'Units\Forms\UFRMAccountInfo.pas' {FRMAccountInfo},
   UFRMMemoText in 'Units\Forms\UFRMMemoText.pas' {FRMMemoText},
   UChunk in 'Units\PascalCoin\UChunk.pas',
-  UBaseTypes in 'Units\PascalCoin\UBaseTypes.pas';
+  UBaseTypes in 'Units\PascalCoin\UBaseTypes.pas',
+  UCommon in 'Units\Utils\UCommon.pas';
 
 {$R *.res}
 

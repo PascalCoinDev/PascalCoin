@@ -34,32 +34,32 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 2.1.0.0 - 2017-07-14
+- Fixed bug of slow mass transactions from a single account due to incorrect sending order
+- Fixed memory leak on GetSafeBox request call
+- Added new GUI improvements on Operations form
+
 ### Build 2.0.0.0 - 2017-06-23
-- **MANDATORY UPGRADE - HARD FORK ACTIVATION WILL OCCUR ON BLOCK 115000**
-- **IMPORTANT FOR EXCHANGES** Version 2 has changed the way operation hashes (OPHASH) are calculated **for existing operations**. This means a prior v1  operation with ophash "X" will now appear with ophash "Y" when querying via the JSON-RPC API. This is relevant when scanning for user deposits. Make sure you do not confuse an old deposit as being new since it now has a new ophash. **Ensure** that your system is aware of this OPHASH calculation change before installing V2, since this change occurs on installation even before the hard-fork. Please note, OPHASH was not designed as an ID however we recognize many are using it this manner. Also note, you can still search for operations using old ophash value via JSON-RPC API.
-- **Introducing Protocol v2.**
+- MANDATORY UPGRADE - HARD FORK ACTIVATION WILL OCCUR ON BLOCK 115000
+- Introducing Protocol v2.
   - https://github.com/PascalCoin/PascalCoin/blob/master/PascalCoinWhitePaperV2.pdf
-  - **Core Changes:**
+  - Core Changes:
     - New safebox hash calculation algorithm to allow safebox checkpointing
-    - Updated OPHASH algorithm for calculation operation hashes, now includes all operation data
     - Improved difficulty target calculation to obtain a more stable average blocktime of 5 minutes, given abrupt hashpower fluctuations
     - Bug-fix for China region users
     - Anti-spam measures
       - New Consensus Rule: A block can only contain 1 zero fee operation per sender account. If a sender account issues 2 or more zero-fee operations, that block is invalid.
     - SafeBox now stored in chunks to facilitate checkpoint distribution
-	- Reintroduce block operations into pending pool when it is orphaned
-  
-  - **Added Checkpointing:**
+	- Reintroduce orphan blocks operations on main blockchain
+  - Added Checkpointing:
     - Checkpoint created on every 100'th block
     - Added network operations to transfer Checkpoint chunks (compressed)
-
-  - **Added In-Protocol PASA Exchanging:**
+  - Addded In-Protocol PASA Exchanging:
     - New Operation: List Account, used to list an account for public or private sale 
     - New Operation: Delist Account, used to delist an account from sale 
     - New Operation: Buy Account, used to purchase an account lised for sale
     - Updated Operation: Transaction, can be used in place of Buy Account operation in private account sales
-      
-  - **RPC API Changes:**
+  - RPC API Changes:
     - All changes are backwards-compatible for current 3rd-party infrastructure providers (exchanges, wallets).
     - However, use of param "ophash" has been changed in V2, see "Operation Object changes" section to know how to use "old_ophash" param value    
     - JSON changes:
@@ -69,12 +69,11 @@ Also, consider a donation at PascalCoin development account: "0-10"
           - "locked_until_block", "price", "seller_account" 
           - "private_sale" : Boolean value 
           - "new_enc_pubkey" : (Only on "private_sale" = true) - HEXASTRING with private sale encoded public key
-		- Added param "name": String
-		  - Name available chars: abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-+{}[]\_:"|<>,.?/~
-		  - Name first char: (cannot start with number): abcdefghijklmnopqrstuvwxyz!@#$%^&*()-+{}[]\_:"|<>,.?/~
-		  - Name lenght: Empty or 3..64 chars length
-		- Added param "type": Integer (Valid values from 0..65535)
-        
+        - Added param "name": String
+          - Name available chars: abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-+{}[]\_:"|<>,.?/~
+          - Name first char: (cannot start with number): abcdefghijklmnopqrstuvwxyz!@#$%^&*()-+{}[]\_:"|<>,.?/~
+          - Name lenght: Empty or 3..64 chars length
+        - Added param "type": Integer (Valid values from 0..65535)
       - Operation Object changes:
         - Changed param "ophash": Current returned value of "ophash" is not the same than previous builds (changed calculation method)
         - New param "old_ophash": Will return previous "ophash" value only for old blocks (prior to v2 protocol activation)
@@ -98,8 +97,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
           - Params: Same "listaccountforsale" params, and also:
             - "rawoperations" : HEXASTRING with previous signed operations (optional)
             - "signer_b58_pubkey"/"signer_enc_pubkey" : The current public key of "account_signer"
-            - "last_n_operation" : The current n_operation of signer account
-        
+            - "last_n_operation" : The current n_operation of signer account        
         - "delistaccountforsale" : Delist an account for sale
           - Params:
             - "account_target" : Account to be delisted
@@ -109,8 +107,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
 		  - Params: Same "delistaccountforsale" params, and also:
             - "rawoperations" : HEXASTRING with previous signed operations (optional)
             - "signer_b58_pubkey"/"signer_enc_pubkey" : The current public key of "account_signer"
-            - "last_n_operation" : The current n_operation of signer account            
-          
+            - "last_n_operation" : The current n_operation of signer account                      
         - "buyaccount" : Buy an account previously listed for sale (public or private)
           - Params: 
             - "buyer_account","account_to_purchase",
@@ -121,49 +118,56 @@ Also, consider a donation at PascalCoin development account: "0-10"
           - Params: Same "buyaccount" params, and also:
             - "rawoperations" : HEXASTRING with previous signed operations (optional)
             - "signer_b58_pubkey"/"signer_enc_pubkey" : The current public key of "buyer_account"
-            - "last_n_operation" : The current n_operation of buyer account
-			
-	    - "changeaccountinfo" : Changes an account Public key, or name, or type value (at least 1 on 3)
-		  - Params:
-			- "account_target" : Account to be delisted
-		    - "account_signer" : Account that signs and pays the fee (must have same public key that target account, or be the same)
-			- "new_b58_pubkey"/"new_enc_pubkey": If used, then will change the target account public key
-			- "new_name": If used, then will change the target account name
-			- "new_type": If used, then will change the target account type
-			- "fee","payload","payload_method","pwd"
-		- "signchangeaccountinfo" : Signs a change account info for cold cold wallets
+            - "last_n_operation" : The current n_operation of buyer account	
+        - "changeaccountinfo" : Changes an account Public key, or name, or type value (at least 1 on 3)
+            - Params:
+            - "account_target" : Account to be delisted
+            - "account_signer" : Account that signs and pays the fee (must have same public key that target account, or be the same)
+            - "new_b58_pubkey"/"new_enc_pubkey": If used, then will change the target account public key
+            - "new_name": If used, then will change the target account name
+            - "new_type": If used, then will change the target account type
+            - "fee","payload","payload_method","pwd"
+        - "signchangeaccountinfo" : Signs a change account info for cold cold wallets
           - Params: Same "changeaccountinfo" params, and also:
             - "rawoperations" : HEXASTRING with previous signed operations (optional)
             - "signer_b58_pubkey"/"signer_enc_pubkey" : The current public key of "account_signer"
             - "last_n_operation" : The current n_operation of signer account
-
         - "findaccounts" : Find accounts by name/type and returns them as an array of Account objects
-		  - Returned array will be sorted by account number
-		  - Params:
-		    - "name" : (String) If has value, will return the account that match name
-			- "type" : (Integer) If has value, will return accounts with same type
-			- "start" : (Integer) Start account (by default, 0)
-			- "max" : (Integer) Max of accounts returned in array (by default, 100)
-		    
-			
+          - Returned array will be sorted by account number
+          - Params:
+            - "name" : (String) If has value, will return the account that match name
+            - "type" : (Integer) If has value, will return accounts with same type
+            - "start" : (Integer) Start account (by default, 0)
+            - "max" : (Integer) Max of accounts returned in array (by default, 100)
       - Updated methods:
         - "changekey" : Added param "account_signer" that allow to pay fee using another account with same public key than target "account" param. This allows to change keys on empty accounts (balance = 0) and pay fee
         - "signchangekey" : Added param "account_signer", same use that in "changekey" method
-
   - GUI changes:  (not available on daemon)
     - New columns "name" and "type" on accounts
-	- Information about Accounts/Operation using F1
+    - Information about Accounts/Operation using F1
     - Operations form now accepts:  (Will be active after V2 protocol activation)
       - List account for sale (public or private)
       - Delist account
       - Buy account
-	  - Change account name/type
+      - Change account name/type
     - Operations form allows to search for accounts using F2 over an account edit box
-    - Changes in text showing operations information
-      
-- **Other changes:**  
+    - Changes in text showing operations information     
+- Other changes:
   - Bug for china users fixed  
   - Bugs fixed
+
+### Build 1.5.6.0 - 2017-05-03
+- Allow multiselect accounts (GUI wallet)
+- Priority for operations with fee:
+  - Allow miner server (pools) to select what to mine using pascalcoin_daemon.ini file (daemon only)
+    - RPC_SERVERMINER_MAX_OPERATIONS_PER_BLOCK: Max of operations that can be included in a block (Default 5000, min value 1000)
+    - RPC_SERVERMINER_MAX_ZERO_FEE_OPERATIONS: Max of operations with 0 fee that can be included in a block (Default 2000, min value 400)
+  - Operations with fee have always preference over 0 fee operations (will be mined first)
+  - If operations with fee fills all the buffer, then no zero fee operation will be included
+- Fixed bug on receiving big blocks and slow net connection to prevent never synchronize
+- Fixed bug on miner server that produces "invalid operations hash" error on valid solutions with 0 operations
+- Fixed bug on file storage
+- Fixed minor bugs
 
 ### Build 1.5.5.0 - 2017-04-11
 - Corrected fee result on RPC calls as a negative number on "Change key" operations
