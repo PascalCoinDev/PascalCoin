@@ -829,7 +829,7 @@ begin
     if not Result then begin
       raise Exception.Create('Cannot found header of previous block '+inttostr(Operations.OperationBlock.block));
     end;
-    If (_Header.BlockNumber MOD CT_GroupBlockSize)=0 then begin
+    If ((_Header.BlockNumber-BlockHeaderFirstBlock) MOD CT_GroupBlockSize)=0 then begin  //XXXXXXXXXX
       _Header.StreamBlockRelStartPos := 0;
     end else begin
       _Header.StreamBlockRelStartPos := _HeaderPrevious.StreamBlockRelStartPos + _HeaderPrevious.BlockSize;
