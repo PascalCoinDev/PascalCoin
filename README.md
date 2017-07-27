@@ -34,6 +34,16 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 2.1.2.0 - 2017-07-27
+- No more blockchain in installer = TRUE DELETABLE BLOCKCHAIN (Safebox will be automatically downloaded by client from network)
+- Fixed storage bug when downloading a new safebox
+- Safebox will be downloaded in small chunks (aprox 2mb per chunk)
+- Read safebox file improvements (quick start)
+
+### Build 2.1.1.0 - 2017-07-16
+- Fixed installer bug: In last Windows installer a malformed safebox file was included. This build is only to provide a good safebox file with the installer
+- No important changes in exe/binary file 
+
 ### Build 2.1.0.0 - 2017-07-14
 - Fixed bug of slow mass transactions from a single account due to incorrect sending order
 - Fixed memory leak on GetSafeBox request call

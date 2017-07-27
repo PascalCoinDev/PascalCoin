@@ -97,7 +97,7 @@ Const
 
   CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$0A04FFFF{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
 
-  CT_NetProtocol_Version: Word = $0005; // Version 1.5.4 only allows net protocol version 5  (introduced on 1.5.0)
+  CT_NetProtocol_Version: Word = $0006; // Version 2.1.2 only allows net protocol 6 (Introduced on 2.0.0)
   // IMPORTANT NOTE!!!
   // NetProtocol_Available MUST BE always >= NetProtocol_version
   CT_NetProtocol_Available: Word = $0006;  // Remember, >= NetProtocol_version !!!
@@ -135,7 +135,7 @@ Const
   CT_OpSubtype_ChangeKeySigned            = 71;
   CT_OpSubtype_ChangeAccountInfo          = 81;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'2.1.0'{$ELSE}{$IFDEF TESTNET}'TESTNET 2.1.0'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'2.1.2'{$ELSE}{$IFDEF TESTNET}'TESTNET 2.1.2'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin2.ddns.net;pascalcoin1.dynamic-dns.net;pascalcoin1.dns1.us';
 

@@ -1614,18 +1614,21 @@ end;
 
 function TPCSafeBox.DoUpgradeToProtocol2: Boolean;
 var block_number : Cardinal;
+  aux : TRawBytes;
 begin
   // Upgrade process to protocol 2
   Result := false;
   If Not CanUpgradeToProtocol2 then exit;
   // Recalc all BlockAccounts block_hash value
-  TLog.NewLog(ltInfo,ClassName,'Start Upgrade to protocol 2 - Old Safeboxhash:'+TCrypto.ToHexaString(FSafeBoxHash));
+  aux := CalcSafeBoxHash;
+  TLog.NewLog(ltInfo,ClassName,'Start Upgrade to protocol 2 - Old Safeboxhash:'+TCrypto.ToHexaString(FSafeBoxHash)+' calculated: '+TCrypto.ToHexaString(aux)+' Blocks: '+IntToStr(BlocksCount));
   FBufferBlocksHash:='';
   for block_number := 0 to BlocksCount - 1 do begin
     {$IFDEF uselowmem}
     TBaseType.To32Bytes(CalcBlockHash( Block(block_number), True),PBlockAccount(FBlockAccountsList.Items[block_number])^.block_hash);
     FBufferBlocksHash := FBufferBlocksHash+TBaseType.ToRawBytes(PBlockAccount(FBlockAccountsList.Items[block_number])^.block_hash);
     {$ELSE}
+    PBlockAccount(FBlockAccountsList.Items[block_number])^.block_hash := CalcBlockHash( Block(block_number), True);
     FBufferBlocksHash := FBufferBlocksHash+PBlockAccount(FBlockAccountsList.Items[block_number])^.block_hash;
     {$ENDIF}
   end;
@@ -2076,7 +2079,6 @@ Var destStartBlock, destEndBlock, nBlock : Cardinal;
   c : Cardinal;
   destOffsets : TCardinalsArray;
   i : Integer;
-  source1SBH, source2SBH : TRawBytes;
   s1Header,s2Header : TPCSafeBoxHeader;
 begin
   Result := False; errors := '';
@@ -2092,10 +2094,10 @@ begin
       exit;
     end;
     // Check SBH and blockcount
-    if (source1SBH<>source2SBH) or (s1Header.blocksCount<>s2Header.blocksCount) Or (s1Header.protocol<>s2Header.protocol) then begin
+    if (s1Header.safeBoxHash<>s2Header.safeBoxHash) or (s1Header.blocksCount<>s2Header.blocksCount) Or (s1Header.protocol<>s2Header.protocol) then begin
       errors := Format('Source1 and Source2 have diff safebox. Source 1 %d %s (protocol %d) Source 2 %d %s (protocol %d)',
-       [s1Header.blocksCount,TCrypto.ToHexaString(source1SBH),s1Header.protocol,
-        s2Header.blocksCount,TCrypto.ToHexaString(source2SBH),s2Header.protocol]);
+       [s1Header.blocksCount,TCrypto.ToHexaString(s1Header.safeBoxHash),s1Header.protocol,
+        s2Header.blocksCount,TCrypto.ToHexaString(s2Header.safeBoxHash),s2Header.protocol]);
       exit;
     end;
     // Save dest heaer
@@ -2129,7 +2131,7 @@ begin
     end;
     // Save SafeBoxHash at the end
     Dest.Seek(0,soFromEnd);
-    TStreamOp.WriteAnsiString(Dest,source1SBH);
+    TStreamOp.WriteAnsiString(Dest,s1Header.safeBoxHash);
     Result := true;
   Finally
     Source1.Position:=source1InitialPos;
