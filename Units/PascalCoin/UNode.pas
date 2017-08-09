@@ -413,6 +413,7 @@ begin
             end;
           end;
         end else begin
+          errors := errors + 'Unable to add operation as it has already been added.';
           {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,Format('AddOperation made before %d/%d: %s',[(j+1),Operations.OperationsCount,ActOp.ToString]));{$ENDIF}
         end;
       end;
