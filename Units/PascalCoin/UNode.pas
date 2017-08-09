@@ -42,6 +42,7 @@ Type
   private
     FNodeLog : TLog;
     FLockNodeOperations : TPCCriticalSection;
+    FOperationSequenceLock : TPCCriticalSection;
     FNotifyList : TList;
     FBank : TPCBank;
     FOperations : TPCOperationsComp;
@@ -87,6 +88,7 @@ Type
     Procedure DisableNewBlocks;
     Procedure EnableNewBlocks;
     Property NodeLogFilename : AnsiString read GetNodeLogFilename write SetNodeLogFilename;
+    Property OperationSequenceLock : TPCCriticalSection read FOperationSequenceLock;
   End;
 
   TNodeNotifyEvents = Class;
@@ -462,6 +464,7 @@ begin
   inherited;
   FDisabledsNewBlocksCount := 0;
   FLockNodeOperations := TPCCriticalSection.Create('TNode_LockNodeOperations');
+  FOperationSequenceLock := TPCCriticalSection.Create('TNode_OperationSequenceLock');
   FBank := TPCBank.Create(Self);
   FBCBankNotify := TPCBankNotify.Create(Self);
   FBCBankNotify.Bank := FBank;
@@ -530,6 +533,7 @@ begin
   Try
     step := 'Deleting critical section';
     FreeAndNil(FLockNodeOperations);
+    FreeAndNil(FOperationSequenceLock);
 
     step := 'Desactivating server';
     FNetServer.Active := false;
