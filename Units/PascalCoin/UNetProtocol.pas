@@ -1155,6 +1155,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
                 for start:=start_c to TNode.Node.Bank.BlocksCount-1 do begin
                   If TNode.Node.Bank.LoadOperations(OpExecute,start) then begin
                     for i:=0 to OpExecute.Count-1 do begin
+                      // TODO: NEED TO EXCLUDE OPERATIONS ALREADY INCLUDED IN BLOCKCHAIN?
                       oldBlockchainOperations.AddOperationToHashTree(OpExecute.Operation[i]);
                     end;
                     TLog.NewLog(ltInfo,CT_LogSender,'Recovered '+IntToStr(OpExecute.Count)+' operations from block '+IntToStr(start));
@@ -1179,7 +1180,10 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
              [oldBlockchainOperations.OperationsCount,start_c,TNode.Node.Bank.BlocksCount-1]));
             opsResume := TOperationsResumeList.Create;
             Try
-              i := TNode.Node.AddOperations(Connection,oldBlockchainOperations,opsResume,errors);
+              // Re-add orphaned operations back into the pending pool.
+              // NIL is passed as senderConnection since localnode is considered
+              // the origin, and current sender needs these operations.
+              i := TNode.Node.AddOperations(NIL,oldBlockchainOperations,opsResume,errors);
               TLog.NewLog(ltInfo,CT_LogSender,Format('Executed %d/%d operations. Returned errors: %s',[i,oldBlockchainOperations.OperationsCount,errors]));
             finally
               opsResume.Free;

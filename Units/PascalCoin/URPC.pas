@@ -691,35 +691,40 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     errors : AnsiString;
     opr : TOperationResume;
   begin
-    Result := false;
-    if (sender<0) or (sender>=FNode.Bank.AccountsCount) then begin
-      If (sender=CT_MaxAccount) then ErrorDesc := 'Need sender'
-      else ErrorDesc:='Invalid sender account '+Inttostr(sender);
-      ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
-      Exit;
-    end;
-    if (target<0) or (target>=FNode.Bank.AccountsCount) then begin
-      If (target=CT_MaxAccount) then ErrorDesc := 'Need target'
-      else ErrorDesc:='Invalid target account '+Inttostr(target);
-      ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
-      Exit;
-    end;
-    sacc := FNode.Operations.SafeBoxTransaction.Account(sender);
-    tacc := FNode.Operations.SafeBoxTransaction.Account(target);
-
-    opt := CreateOperationTransaction(sender,target,sacc.n_operation,amount,fee,sacc.accountInfo.accountKey,tacc.accountInfo.accountKey,RawPayload,Payload_method,EncodePwd);
-    if opt=nil then exit;
+    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent sends
     try
-      If not FNode.AddOperation(Nil,opt,errors) then begin
-        ErrorDesc := 'Error adding operation: '+errors;
-        ErrorNum := CT_RPC_ErrNum_InvalidOperation;
+      Result := false;
+      if (sender<0) or (sender>=FNode.Bank.AccountsCount) then begin
+        If (sender=CT_MaxAccount) then ErrorDesc := 'Need sender'
+        else ErrorDesc:='Invalid sender account '+Inttostr(sender);
+        ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
         Exit;
       end;
-      TPCOperation.OperationToOperationResume(0,opt,sender,opr);
-      FillOperationResumeToJSONObject(opr,GetResultObject);
-      Result := true;
+      if (target<0) or (target>=FNode.Bank.AccountsCount) then begin
+        If (target=CT_MaxAccount) then ErrorDesc := 'Need target'
+        else ErrorDesc:='Invalid target account '+Inttostr(target);
+        ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
+        Exit;
+      end;
+      sacc := FNode.Operations.SafeBoxTransaction.Account(sender);
+      tacc := FNode.Operations.SafeBoxTransaction.Account(target);
+
+      opt := CreateOperationTransaction(sender,target,sacc.n_operation,amount,fee,sacc.accountInfo.accountKey,tacc.accountInfo.accountKey,RawPayload,Payload_method,EncodePwd);
+      if opt=nil then exit;
+      try
+        If not FNode.AddOperation(Nil,opt,errors) then begin
+          ErrorDesc := 'Error adding operation: '+errors;
+          ErrorNum := CT_RPC_ErrNum_InvalidOperation;
+          Exit;
+        end;
+        TPCOperation.OperationToOperationResume(0,opt,sender,opr);
+        FillOperationResumeToJSONObject(opr,GetResultObject);
+        Result := true;
+      finally
+        opt.free;
+      end;
     finally
-      opt.free;
+      FNode.OperationSequenceLock.Release;
     end;
   end;
 
@@ -813,27 +818,32 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     errors : AnsiString;
     opr : TOperationResume;
   begin
-    Result := false;
-    if (account_signer<0) or (account_signer>=FNode.Bank.AccountsCount) then begin
-      ErrorDesc:='Invalid account '+Inttostr(account_signer);
-      ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
-      Exit;
-    end;
-    acc_signer := FNode.Operations.SafeBoxTransaction.Account(account_signer);
-
-    opck := CreateOperationChangeKey(account_signer,acc_signer.n_operation,account_target,acc_signer.accountInfo.accountKey,new_pub_key,fee,RawPayload,Payload_method,EncodePwd);
-    if not assigned(opck) then exit;
+    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
     try
-      If not FNode.AddOperation(Nil,opck,errors) then begin
-        ErrorDesc := 'Error adding operation: '+errors;
-        ErrorNum := CT_RPC_ErrNum_InvalidOperation;
+      Result := false;
+      if (account_signer<0) or (account_signer>=FNode.Bank.AccountsCount) then begin
+        ErrorDesc:='Invalid account '+Inttostr(account_signer);
+        ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
         Exit;
       end;
-      TPCOperation.OperationToOperationResume(0,opck,account_signer,opr);
-      FillOperationResumeToJSONObject(opr,GetResultObject);
-      Result := true;
+      acc_signer := FNode.Operations.SafeBoxTransaction.Account(account_signer);
+
+      opck := CreateOperationChangeKey(account_signer,acc_signer.n_operation,account_target,acc_signer.accountInfo.accountKey,new_pub_key,fee,RawPayload,Payload_method,EncodePwd);
+      if not assigned(opck) then exit;
+      try
+        If not FNode.AddOperation(Nil,opck,errors) then begin
+          ErrorDesc := 'Error adding operation: '+errors;
+          ErrorNum := CT_RPC_ErrNum_InvalidOperation;
+          Exit;
+        end;
+        TPCOperation.OperationToOperationResume(0,opck,account_signer,opr);
+        FillOperationResumeToJSONObject(opr,GetResultObject);
+        Result := true;
+      finally
+        opck.free;
+      end;
     finally
-      opck.free;
+      FNode.OperationSequenceLock.Release;
     end;
   end;
 
@@ -1045,54 +1055,59 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     operationsht : TOperationsHashTree;
     OperationsResumeList : TOperationsResumeList;
   begin
-    Result := false;
-    accountsnumber := TOrderedCardinalList.Create;
+    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
     try
-      if not GetCardinalsValues(accounts_txt,accountsnumber,errors) then begin
-        ErrorDesc := 'Error in accounts: '+errors;
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        Exit;
-      end;
-      operationsht := TOperationsHashTree.Create;
+      Result := false;
+      accountsnumber := TOrderedCardinalList.Create;
       try
-        for ian := 0 to accountsnumber.Count - 1 do begin
+        if not GetCardinalsValues(accounts_txt,accountsnumber,errors) then begin
+          ErrorDesc := 'Error in accounts: '+errors;
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          Exit;
+        end;
+        operationsht := TOperationsHashTree.Create;
+        try
+          for ian := 0 to accountsnumber.Count - 1 do begin
 
-          if (accountsnumber.Get(ian)<0) or (accountsnumber.Get(ian)>=FNode.Bank.AccountsCount) then begin
-            ErrorDesc:='Invalid account '+Inttostr(accountsnumber.Get(ian));
-            ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
-            Exit;
-          end;
-          acc := FNode.Operations.SafeBoxTransaction.Account(accountsnumber.Get(ian));
-          opck := CreateOperationChangeKey(acc.account,acc.n_operation,acc.account,acc.accountInfo.accountKey,new_pub_key,fee,RawPayload,Payload_method,EncodePwd);
-          if not assigned(opck) then exit;
-          try
-            operationsht.AddOperationToHashTree(opck);
-          finally
-            opck.free;
-          end;
-        end; // For
-        // Ready to execute...
-        OperationsResumeList := TOperationsResumeList.Create;
-        Try
-          i := FNode.AddOperations(Nil,operationsht,OperationsResumeList, errors);
-          if (i<0) then begin
-            ErrorNum:=CT_RPC_ErrNum_InternalError;
-            ErrorDesc:=errors;
-            exit;
-          end;
-          GetResultArray.Clear; // Inits an array
-          for i := 0 to OperationsResumeList.Count - 1 do begin
-            FillOperationResumeToJSONObject(OperationsResumeList[i],GetResultArray.GetAsObject(i));
-          end;
-        Finally
-          OperationsResumeList.Free;
-        End;
-        Result := true;
+            if (accountsnumber.Get(ian)<0) or (accountsnumber.Get(ian)>=FNode.Bank.AccountsCount) then begin
+              ErrorDesc:='Invalid account '+Inttostr(accountsnumber.Get(ian));
+              ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
+              Exit;
+            end;
+            acc := FNode.Operations.SafeBoxTransaction.Account(accountsnumber.Get(ian));
+            opck := CreateOperationChangeKey(acc.account,acc.n_operation,acc.account,acc.accountInfo.accountKey,new_pub_key,fee,RawPayload,Payload_method,EncodePwd);
+            if not assigned(opck) then exit;
+            try
+              operationsht.AddOperationToHashTree(opck);
+            finally
+              opck.free;
+            end;
+          end; // For
+          // Ready to execute...
+          OperationsResumeList := TOperationsResumeList.Create;
+          Try
+            i := FNode.AddOperations(Nil,operationsht,OperationsResumeList, errors);
+            if (i<0) then begin
+              ErrorNum:=CT_RPC_ErrNum_InternalError;
+              ErrorDesc:=errors;
+              exit;
+            end;
+            GetResultArray.Clear; // Inits an array
+            for i := 0 to OperationsResumeList.Count - 1 do begin
+              FillOperationResumeToJSONObject(OperationsResumeList[i],GetResultArray.GetAsObject(i));
+            end;
+          Finally
+            OperationsResumeList.Free;
+          End;
+          Result := true;
+        finally
+          operationsht.Free;
+        end;
       finally
-        operationsht.Free;
+        accountsnumber.Free;
       end;
     finally
-      accountsnumber.Free;
+      FNode.OperationSequenceLock.Release;
     end;
   end;
 
@@ -1761,49 +1776,54 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     errors : AnsiString;
     c_account : Cardinal;
   Begin
-    Result := False;
-    OperationsHashTree := TOperationsHashTree.Create;
+    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
     try
-      if (params.IndexOfName('account_signer')<0) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'Need account_signer param';
-        Exit;
+      Result := False;
+      OperationsHashTree := TOperationsHashTree.Create;
+      try
+        if (params.IndexOfName('account_signer')<0) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Need account_signer param';
+          Exit;
+        end;
+        c_account := params.AsCardinal('account_signer',0);
+        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Invalid account_signer '+params.AsString('account_signer','');
+          Exit;
+        end;
+        account_signer := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        if (params.IndexOfName('account_target')<0) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Need account_target param';
+          Exit;
+        end;
+        c_account := params.AsCardinal('account_target',0);
+        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Invalid account_target '+params.AsString('account_target','');
+          Exit;
+        end;
+        account_target := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        if (Not TAccountComp.EqualAccountKeys(account_signer.accountInfo.accountKey,account_target.accountInfo.accountKey)) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'account_signer and account_target have distinct keys. Cannot sign';
+          Exit;
+        end;
+        If not SignListAccountForSaleEx(params,OperationsHashTree,account_signer.accountInfo.accountKey,account_signer.n_operation) then Exit;
+        opt := OperationsHashTree.GetOperation(0);
+        If not FNode.AddOperation(Nil,opt,errors) then begin
+          ErrorNum := CT_RPC_ErrNum_InternalError;
+          ErrorDesc := errors;
+          Exit;
+        end else Result := True;
+        TPCOperation.OperationToOperationResume(0,opt,c_account,opr);
+        FillOperationResumeToJSONObject(opr,GetResultObject);
+      finally
+        OperationsHashTree.Free;
       end;
-      c_account := params.AsCardinal('account_signer',0);
-      if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'Invalid account_signer '+params.AsString('account_signer','');
-        Exit;
-      end;
-      account_signer := FNode.Operations.SafeBoxTransaction.Account(c_account);
-      if (params.IndexOfName('account_target')<0) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'Need account_target param';
-        Exit;
-      end;
-      c_account := params.AsCardinal('account_target',0);
-      if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'Invalid account_target '+params.AsString('account_target','');
-        Exit;
-      end;
-      account_target := FNode.Operations.SafeBoxTransaction.Account(c_account);
-      if (Not TAccountComp.EqualAccountKeys(account_signer.accountInfo.accountKey,account_target.accountInfo.accountKey)) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'account_signer and account_target have distinct keys. Cannot sign';
-        Exit;
-      end;
-      If not SignListAccountForSaleEx(params,OperationsHashTree,account_signer.accountInfo.accountKey,account_signer.n_operation) then Exit;
-      opt := OperationsHashTree.GetOperation(0);
-      If not FNode.AddOperation(Nil,opt,errors) then begin
-        ErrorNum := CT_RPC_ErrNum_InternalError;
-        ErrorDesc := errors;
-        Exit;
-      end else Result := True;
-      TPCOperation.OperationToOperationResume(0,opt,c_account,opr);
-      FillOperationResumeToJSONObject(opr,GetResultObject);
     finally
-      OperationsHashTree.Free;
+      FNode.OperationSequenceLock.Release;
     end;
   End;
 
@@ -1815,49 +1835,54 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     errors : AnsiString;
     c_account : Cardinal;
   Begin
-    Result := False;
-    OperationsHashTree := TOperationsHashTree.Create;
+    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
     try
-      if (params.IndexOfName('account_signer')<0) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'Need account_signer param';
-        Exit;
+      Result := False;
+      OperationsHashTree := TOperationsHashTree.Create;
+      try
+        if (params.IndexOfName('account_signer')<0) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Need account_signer param';
+          Exit;
+        end;
+        c_account := params.AsCardinal('account_signer',0);
+        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Invalid account_signer '+params.AsString('account_signer','');
+          Exit;
+        end;
+        account_signer := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        if (params.IndexOfName('account_target')<0) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Need account_target param';
+          Exit;
+        end;
+        c_account := params.AsCardinal('account_target',0);
+        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Invalid account_target '+params.AsString('account_target','');
+          Exit;
+        end;
+        account_target := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        if (Not TAccountComp.EqualAccountKeys(account_signer.accountInfo.accountKey,account_target.accountInfo.accountKey)) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'account_signer and account_target have distinct keys. Cannot sign';
+          Exit;
+        end;
+        If not SignDelistAccountForSaleEx(params,OperationsHashTree,account_signer.accountInfo.accountKey,account_signer.n_operation) then Exit;
+        opt := OperationsHashTree.GetOperation(0);
+        If not FNode.AddOperation(Nil,opt,errors) then begin
+          ErrorNum := CT_RPC_ErrNum_InternalError;
+          ErrorDesc := errors;
+          Exit;
+        end else Result := True;
+        TPCOperation.OperationToOperationResume(0,opt,c_account,opr);
+        FillOperationResumeToJSONObject(opr,GetResultObject);
+      finally
+        OperationsHashTree.Free;
       end;
-      c_account := params.AsCardinal('account_signer',0);
-      if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'Invalid account_signer '+params.AsString('account_signer','');
-        Exit;
-      end;
-      account_signer := FNode.Operations.SafeBoxTransaction.Account(c_account);
-      if (params.IndexOfName('account_target')<0) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'Need account_target param';
-        Exit;
-      end;
-      c_account := params.AsCardinal('account_target',0);
-      if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'Invalid account_target '+params.AsString('account_target','');
-        Exit;
-      end;
-      account_target := FNode.Operations.SafeBoxTransaction.Account(c_account);
-      if (Not TAccountComp.EqualAccountKeys(account_signer.accountInfo.accountKey,account_target.accountInfo.accountKey)) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'account_signer and account_target have distinct keys. Cannot sign';
-        Exit;
-      end;
-      If not SignDelistAccountForSaleEx(params,OperationsHashTree,account_signer.accountInfo.accountKey,account_signer.n_operation) then Exit;
-      opt := OperationsHashTree.GetOperation(0);
-      If not FNode.AddOperation(Nil,opt,errors) then begin
-        ErrorNum := CT_RPC_ErrNum_InternalError;
-        ErrorDesc := errors;
-        Exit;
-      end else Result := True;
-      TPCOperation.OperationToOperationResume(0,opt,c_account,opr);
-      FillOperationResumeToJSONObject(opr,GetResultObject);
     finally
-      OperationsHashTree.Free;
+      FNode.OperationSequenceLock.Acquire;
     end;
   End;
 
@@ -1869,32 +1894,37 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     errors : AnsiString;
     c_account : Cardinal;
   Begin
-    Result := False;
-    OperationsHashTree := TOperationsHashTree.Create;
+    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
     try
-      if (params.IndexOfName('buyer_account')<0) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'Need buyer_account param';
-        Exit;
+      Result := False;
+      OperationsHashTree := TOperationsHashTree.Create;
+      try
+        if (params.IndexOfName('buyer_account')<0) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Need buyer_account param';
+          Exit;
+        end;
+        c_account := params.AsCardinal('buyer_account',0);
+        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Invalid account '+params.AsString('buyer_account','');
+          Exit;
+        end;
+        buyer_account := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        If not SignBuyAccountEx(params,OperationsHashTree,buyer_account.accountInfo.accountKey,buyer_account.n_operation) then Exit;
+        opt := OperationsHashTree.GetOperation(0);
+        If not FNode.AddOperation(Nil,opt,errors) then begin
+          ErrorNum := CT_RPC_ErrNum_InternalError;
+          ErrorDesc := errors;
+          Exit;
+        end else Result := True;
+        TPCOperation.OperationToOperationResume(0,opt,c_account,opr);
+        FillOperationResumeToJSONObject(opr,GetResultObject);
+      finally
+        OperationsHashTree.Free;
       end;
-      c_account := params.AsCardinal('buyer_account',0);
-      if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'Invalid account '+params.AsString('buyer_account','');
-        Exit;
-      end;
-      buyer_account := FNode.Operations.SafeBoxTransaction.Account(c_account);
-      If not SignBuyAccountEx(params,OperationsHashTree,buyer_account.accountInfo.accountKey,buyer_account.n_operation) then Exit;
-      opt := OperationsHashTree.GetOperation(0);
-      If not FNode.AddOperation(Nil,opt,errors) then begin
-        ErrorNum := CT_RPC_ErrNum_InternalError;
-        ErrorDesc := errors;
-        Exit;
-      end else Result := True;
-      TPCOperation.OperationToOperationResume(0,opt,c_account,opr);
-      FillOperationResumeToJSONObject(opr,GetResultObject);
     finally
-      OperationsHashTree.Free;
+      FNode.OperationSequenceLock.Release;
     end;
   End;
 
@@ -1906,49 +1936,54 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     errors : AnsiString;
     c_account : Cardinal;
   Begin
-    Result := False;
-    OperationsHashTree := TOperationsHashTree.Create;
+    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
     try
-      if (params.IndexOfName('account_signer')<0) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'Need account_signer param';
-        Exit;
+      Result := False;
+      OperationsHashTree := TOperationsHashTree.Create;
+      try
+        if (params.IndexOfName('account_signer')<0) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Need account_signer param';
+          Exit;
+        end;
+        c_account := params.AsCardinal('account_signer',0);
+        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Invalid account_signer '+params.AsString('account_signer','');
+          Exit;
+        end;
+        account_signer := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        if (params.IndexOfName('account_target')<0) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Need account_target param';
+          Exit;
+        end;
+        c_account := params.AsCardinal('account_target',0);
+        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Invalid account_target '+params.AsString('account_target','');
+          Exit;
+        end;
+        account_target := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        if (Not TAccountComp.EqualAccountKeys(account_signer.accountInfo.accountKey,account_target.accountInfo.accountKey)) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'account_signer and account_target have distinct keys. Cannot sign';
+          Exit;
+        end;
+        If not SignChangeAccountInfoEx(params,OperationsHashTree,account_signer.accountInfo.accountKey,account_signer.n_operation) then Exit;
+        opt := OperationsHashTree.GetOperation(0);
+        If not FNode.AddOperation(Nil,opt,errors) then begin
+          ErrorNum := CT_RPC_ErrNum_InternalError;
+          ErrorDesc := errors;
+          Exit;
+        end else Result := True;
+        TPCOperation.OperationToOperationResume(0,opt,c_account,opr);
+        FillOperationResumeToJSONObject(opr,GetResultObject);
+      finally
+        OperationsHashTree.Free;
       end;
-      c_account := params.AsCardinal('account_signer',0);
-      if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'Invalid account_signer '+params.AsString('account_signer','');
-        Exit;
-      end;
-      account_signer := FNode.Operations.SafeBoxTransaction.Account(c_account);
-      if (params.IndexOfName('account_target')<0) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'Need account_target param';
-        Exit;
-      end;
-      c_account := params.AsCardinal('account_target',0);
-      if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'Invalid account_target '+params.AsString('account_target','');
-        Exit;
-      end;
-      account_target := FNode.Operations.SafeBoxTransaction.Account(c_account);
-      if (Not TAccountComp.EqualAccountKeys(account_signer.accountInfo.accountKey,account_target.accountInfo.accountKey)) then begin
-        ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-        ErrorDesc := 'account_signer and account_target have distinct keys. Cannot sign';
-        Exit;
-      end;
-      If not SignChangeAccountInfoEx(params,OperationsHashTree,account_signer.accountInfo.accountKey,account_signer.n_operation) then Exit;
-      opt := OperationsHashTree.GetOperation(0);
-      If not FNode.AddOperation(Nil,opt,errors) then begin
-        ErrorNum := CT_RPC_ErrNum_InternalError;
-        ErrorDesc := errors;
-        Exit;
-      end else Result := True;
-      TPCOperation.OperationToOperationResume(0,opt,c_account,opr);
-      FillOperationResumeToJSONObject(opr,GetResultObject);
     finally
-      OperationsHashTree.Free;
+      FNode.OperationSequenceLock.Release;
     end;
   End;
 

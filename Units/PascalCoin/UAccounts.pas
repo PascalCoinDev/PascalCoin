@@ -20,7 +20,7 @@ unit UAccounts;
 interface
 
 uses
-  Classes, UConst, UCrypto, SyncObjs, UThread, UBaseTypes;
+  Classes, UConst, UCrypto, SyncObjs, UThread, UBaseTypes, UCommon;
 {$I config.inc}
 
 Type
@@ -3243,16 +3243,14 @@ end;
 function TOrderedRawList.Find(const RawData: TRawBytes; var Index: Integer): Boolean;
 var L, H, I: Integer;
   c : Integer;
-  PRawData : PAnsiChar;
 begin
   Result := False;
   L := 0;
   H := FList.Count - 1;
-  PRawData := PAnsiChar(RawData);
   while L <= H do
   begin
     I := (L + H) shr 1;
-    c := StrComp(PAnsiChar(PRawListData(FList[i])^.RawData),PRawData);
+    c := BinStrComp(PRawListData(FList[i])^.RawData,RawData);
     if C < 0 then L := I + 1 else
     begin
       H := I - 1;
