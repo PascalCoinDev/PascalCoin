@@ -1,7 +1,7 @@
 # PascalCoin Improvement Proposals (PIP)
 
-People wishing to submit PIPs, first should discuss their idea on the [PascalCoin Slack](pascalcoin.org/slack-self-invite). 
-If they wish to continue, edit your PIP in accordance to the standard [standard](PIP-00001.md) and submit to the PIP Maintainer for publication here.
+People wishing to submit PIPs, first should discuss their idea on the [PascalCoin Slack](http://pascalcoin.org/slack-self-invite/). 
+If they wish to continue, edit your PIP in accordance to the standard [standard](PIP-0001.md) and submit to the PIP Maintainer for publication here.
 
 ## All PIPs
 
