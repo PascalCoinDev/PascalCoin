@@ -2,7 +2,7 @@
   PIP: *reserved for PIP editor*
   Title: Title for your PIP
   Type: Protocol | Backend | Front-End | Informational | Process
-  Impact: [Hard-Fork|Soft-Fork] - [Protcol | API | GUI | Mobile | Other]
+  Impact: [Hard-Fork|Soft-Fork|None] - [Protcol | API | GUI | Mobile | Other]
   Author: Firstname Lastname <i>&lt;your@email.com&gt;</i>
   Comments-URI: *reserved for PIP editor*
   Status: Draft
