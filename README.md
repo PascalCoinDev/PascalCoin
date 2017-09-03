@@ -20,7 +20,7 @@ https://github.com/PascalCoin/PascalCoin
   
 ## HOW TO COMPILE:  
   
-See instructions at GitHub Wiki: https://github.com/PascalCoin/PascalCoin/wiki
+See instructions at GitHub Wiki: https://github.com/PascalCoin/PascalCoin/wiki/Compile-instructions
   
   
 Enjoy Pascal Coin!
