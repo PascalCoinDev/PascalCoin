@@ -146,7 +146,6 @@ type
     FEncodedPayload : TRawBytes;
     FDisabled : Boolean;
     FSenderAccounts: TOrderedCardinalList; // TODO: TOrderedCardinalList should be replaced with a "TCardinalList" since signer account should be processed last
-    FOldOnChanged : TNotifyEvent;
     procedure SetWalletKeys(const Value: TWalletKeys);
     Procedure UpdateWalletKeys;
     { Private declarations }
@@ -546,7 +545,7 @@ end;
 
 procedure TFRMOperation.FormDestroy(Sender: TObject);
 begin
-  if Assigned(FWalletKeys) then FWalletKeys.OnChanged := FOldOnChanged;
+  if Assigned(FWalletKeys) then FWalletKeys.OnChanged.Remove(OnWalletKeysChanged);
   FreeAndNil(FSenderAccounts);
 end;
 
@@ -621,7 +620,7 @@ end;
 procedure TFRMOperation.OnWalletKeysChanged(Sender: TObject);
 begin
   PostMessage(Self.Handle,CM_PC_WalletKeysChanged,0,0);
-  if Assigned(FOldOnChanged) then FOldOnChanged(Sender);
+  //if Assigned(FOldOnChanged) then FOldOnChanged(Sender);  // XXXXXXXX HS 2017-08-07 is this procedure needed anymore?
 end;
 
 procedure TFRMOperation.PageControlOpTypeChange(Sender: TObject);
@@ -668,11 +667,10 @@ procedure TFRMOperation.SetWalletKeys(const Value: TWalletKeys);
 begin
   Try
     if FWalletKeys=Value then exit;
-    if Assigned(FWalletKeys) then FWalletKeys.OnChanged := FOldOnChanged;
+    if Assigned(FWalletKeys) then FWalletKeys.OnChanged.Remove(OnWalletKeysChanged);
     FWalletKeys := Value;
     if Assigned(FWalletKeys) then begin
-      FOldOnChanged := FWalletKeys.OnChanged;
-      FWalletKeys.OnChanged := OnWalletKeysChanged;
+      FWalletKeys.OnChanged.Add(OnWalletKeysChanged);
     end;
   Finally
     UpdateWalletKeys;

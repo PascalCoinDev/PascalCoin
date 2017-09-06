@@ -20,7 +20,7 @@ unit UWalletKeys;
 interface
 
 uses
-  Classes, UBlockChain, UAccounts, UCrypto;
+  Classes, UBlockChain, UAccounts, UCrypto, UCommon;
 
 Type
   TWalletKey = Record
@@ -40,7 +40,7 @@ Type
     FIsValidPassword: Boolean;
     FWalletFileName: AnsiString;
     FIsReadingStream : Boolean;
-    FOnChanged: TNotifyEvent;
+    FOnChanged: TNotifyManyEvent;
     function GetKey(index: Integer): TWalletKey;
     procedure SetWalletPassword(const Value: AnsiString);
     Procedure GeneratePrivateKeysFromPassword;
@@ -61,7 +61,7 @@ Type
     Procedure Clear; virtual;
     Function Count : Integer;
     Property WalletFileName : AnsiString read FWalletFileName write SetWalletFileName;
-    Property OnChanged : TNotifyEvent read FOnChanged write FOnChanged;
+    Property OnChanged : TNotifyManyEvent read FOnChanged write FOnChanged;
     Procedure SetName(index : Integer; Const newName : AnsiString);
     Function LockWallet : Boolean;
   End;
@@ -119,7 +119,7 @@ begin
     P^.Name := Name;
   end;
   if Not FIsReadingStream then SaveToStream(FWalletFileStream);
-  if Assigned(FOnChanged) then  FOnChanged(Self);
+  FOnChanged.Invoke(Self);
 end;
 
 function TWalletKeys.AddPublicKey(const Name: AnsiString; ECDSA_Public: TECDSA_Public): Integer;
@@ -139,7 +139,7 @@ begin
     P^.Name := Name;
   end;
   if Not FIsReadingStream then SaveToStream(FWalletFileStream);
-  if Assigned(FOnChanged) then  FOnChanged(Self);
+  FOnChanged.Invoke(Self);
 end;
 
 procedure TWalletKeys.Clear;
@@ -179,7 +179,7 @@ begin
   Dispose(P);
   FSearchableKeys.Delete(index);
   SaveToStream(FWalletFileStream);
-  if Assigned(FOnChanged) then FOnChanged(Self);
+  FOnChanged.Invoke(Self);
 end;
 
 destructor TWalletKeys.destroy;
@@ -299,7 +299,7 @@ begin
   finally
     FIsReadingStream := false;
   end;
-  if Assigned(FOnChanged) then FOnChanged(Self);
+  FOnChanged.Invoke(Self);
 end;
 
 function TWalletKeys.LockWallet: Boolean;
@@ -308,7 +308,7 @@ begin
   FWalletPassword := '';
   GeneratePrivateKeysFromPassword;
   Result := Not IsValidPassword;
-  if Assigned(FOnChanged) then FOnChanged(Self);
+  FOnChanged.Invoke(Self);
 end;
 
 procedure TWalletKeys.SaveToStream(Stream: TStream);
@@ -339,7 +339,7 @@ begin
   if PWalletKey(FSearchableKeys[index])^.Name=newName then exit;
   PWalletKey(FSearchableKeys[index])^.Name := newName;
   SaveToStream(FWalletFileStream);
-  if Assigned(FOnChanged) then  FOnChanged(Self);
+  FOnChanged.Invoke(Self);
 end;
 
 procedure TWalletKeys.SetWalletFileName(const Value: AnsiString);
@@ -378,7 +378,7 @@ begin
   // Try if password is Ok
   GeneratePrivateKeysFromPassword;
   if FIsValidPassword then SaveToStream(FWalletFileStream);
-  if Assigned(FOnChanged) then FOnChanged(Self);
+  FOnChanged.Invoke(Self);
 end;
 
 { TWalletKeysExt }

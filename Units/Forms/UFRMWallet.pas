@@ -31,7 +31,7 @@ uses
   Dialogs, ExtCtrls, ComCtrls, UWalletKeys, StdCtrls,
   ULog, Grids, UAppParams,
   UBlockChain, UNode, UGridUtils, UAccounts, Menus, ImgList,
-  UNetProtocol, UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect;
+  UNetProtocol, UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect, UCommon;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -358,7 +358,6 @@ begin
     // Init Grid
     //FAccountsGrid.Node := FNode;
     FSelectedAccountsGrid.Node := FNode;
-    FWalletKeys.OnChanged := OnWalletChanged;
     FAccountsGrid.Node := FNode;
     FOperationsAccountGrid.Node := FNode;
     // Reading database
@@ -880,7 +879,7 @@ begin
   FOperationsExplorerGrid.PendingOperations := False;
   FBlockChainGrid := TBlockChainGrid.Create(Self);
   FBlockChainGrid.DrawGrid := dgBlockChainExplorer;
-  FWalletKeys.OnChanged := OnWalletChanged;
+  FWalletKeys.OnChanged.Add(OnWalletChanged);
   LoadAppParams;
   UpdatePrivateKeys;
   UpdateBlockChainState;
@@ -978,6 +977,7 @@ begin
   FreeAndNil(FLog);
   Sleep(100);
 end;
+
 
 procedure TFRMWallet.sbSearchAccountClick(Sender: TObject);
 Var F : TFRMAccountSelect;

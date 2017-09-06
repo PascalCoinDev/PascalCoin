@@ -23,7 +23,7 @@ uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UWalletKeys, Buttons,
   {$IFDEF FPC}LMessages,{$ENDIF}
-  clipbrd, UConst;
+  clipbrd, UConst, UCommon;
 
 Const
   CM_PC_WalletKeysChanged = {$IFDEF FPC}LM_USER{$ELSE}WM_USER{$ENDIF} + 1;
@@ -66,7 +66,7 @@ type
     procedure bbImportKeysFileClick(Sender: TObject);
     procedure bbLockClick(Sender: TObject);
   private
-    FOldOnChanged : TNotifyEvent;
+    //FOldOnChanged : TNotifyEvent;
     FWalletKeys: TWalletKeys;
     procedure SetWalletKeys(const Value: TWalletKeys);
     procedure OnWalletKeysChanged(Sender : TObject);
@@ -437,7 +437,7 @@ end;
 
 destructor TFRMWalletKeys.Destroy;
 begin
-  if Assigned(FWalletKeys) then FWalletKeys.OnChanged := FOldOnChanged;
+  if Assigned(FWalletKeys) then FWalletKeys.OnChanged.Remove(OnWalletKeysChanged);
   inherited;
 end;
 
@@ -475,17 +475,16 @@ end;
 procedure TFRMWalletKeys.OnWalletKeysChanged(Sender : TObject);
 begin
   PostMessage(Self.Handle,CM_PC_WalletKeysChanged,0,0);
-  if Assigned(FOldOnChanged) then FOldOnChanged(Sender);
+  //if Assigned(FOldOnChanged) then FOldOnChanged(Sender);   XXXXX HS 2017-09-07: is this procedure needed anymore?
 end;
 
 procedure TFRMWalletKeys.SetWalletKeys(const Value: TWalletKeys);
 begin
   if FWalletKeys=Value then exit;
-  if Assigned(FWalletKeys) then FWalletKeys.OnChanged := FOldOnChanged;
+  if Assigned(FWalletKeys) then FWalletKeys.OnChanged.Remove(OnWalletKeysChanged);
   FWalletKeys := Value;
   if Assigned(FWalletKeys) then begin
-    FOldOnChanged := FWalletKeys.OnChanged;
-    FWalletKeys.OnChanged := OnWalletKeysChanged;
+    FWalletKeys.OnChanged.Add(OnWalletKeysChanged);
   end;
   UpdateWalletKeys;
 end;
