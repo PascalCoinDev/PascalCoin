@@ -30,6 +30,7 @@ uses
   UFolderHelper in 'Units\Utils\UFolderHelper.pas',
   UAppParams in 'Units\Utils\UAppParams.pas',
   UGridUtils in 'Units\Utils\UGridUtils.pas',
+  UWizard in 'Units\Utils\UWizard.pas',
   UFRMPascalCoinWalletConfig in 'Units\Forms\UFRMPascalCoinWalletConfig.pas' {FRMPascalCoinWalletConfig},
   UFRMAbout in 'Units\Forms\UFRMAbout.pas' {FRMAbout},
   UFRMOperation in 'Units\Forms\UFRMOperation.pas' {FRMOperation},

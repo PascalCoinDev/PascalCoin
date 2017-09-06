@@ -38,7 +38,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="43">
+    <Units Count="44">
       <Unit0>
         <Filename Value="PascalCoinWalletLazarus.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -215,35 +215,42 @@
         <IsPartOfProject Value="True"/>
       </Unit36>
       <Unit37>
+        <Filename Value="Units\Utils\UWizard.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WizardHostForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit37>
+      <Unit38>
         <Filename Value="Units\Utils\generics.collections.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Generics.Collections"/>
-      </Unit37>
-      <Unit38>
+      </Unit38>
+      <Unit39>
         <Filename Value="Units\Utils\generics.defaults.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Generics.Defaults"/>
-      </Unit38>
-      <Unit39>
+      </Unit39>
+      <Unit40>
         <Filename Value="Units\Utils\generics.hashes.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Generics.Hashes"/>
-      </Unit39>
-      <Unit40>
+      </Unit40>
+      <Unit41>
         <Filename Value="Units\Utils\generics.helpers.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Generics.Helpers"/>
-      </Unit40>
-      <Unit41>
+      </Unit41>
+      <Unit42>
         <Filename Value="Units\Utils\generics.memoryexpanders.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Generics.MemoryExpanders"/>
-      </Unit41>
-      <Unit42>
+      </Unit42>
+      <Unit43>
         <Filename Value="Units\Utils\generics.strings.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Generics.Strings"/>
-      </Unit42>
+      </Unit43>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
