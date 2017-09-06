@@ -7,7 +7,7 @@
   or visit http://www.opensource.org/licenses/mit-license.php.
 
   This code has been donated to The PascalCoin Project by Sphere 10 Software (www.sphere10.com)
-  who retains independentCopyright (c) 2017 Sphere 10 Software.
+  who retains independent Copyright (c) 2017 Sphere 10 Software.
 
   Additional Credits:
     <contributors add yourselves here>
