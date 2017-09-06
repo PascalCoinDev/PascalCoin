@@ -38,7 +38,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="37">
+    <Units Count="43">
       <Unit0>
         <Filename Value="PascalCoinWalletLazarus.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -214,6 +214,36 @@
         <Filename Value="Units\Utils\UCommon.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit36>
+      <Unit37>
+        <Filename Value="Units\Utils\generics.collections.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Generics.Collections"/>
+      </Unit37>
+      <Unit38>
+        <Filename Value="Units\Utils\generics.defaults.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Generics.Defaults"/>
+      </Unit38>
+      <Unit39>
+        <Filename Value="Units\Utils\generics.hashes.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Generics.Hashes"/>
+      </Unit39>
+      <Unit40>
+        <Filename Value="Units\Utils\generics.helpers.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Generics.Helpers"/>
+      </Unit40>
+      <Unit41>
+        <Filename Value="Units\Utils\generics.memoryexpanders.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Generics.MemoryExpanders"/>
+      </Unit41>
+      <Unit42>
+        <Filename Value="Units\Utils\generics.strings.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Generics.Strings"/>
+      </Unit42>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -238,9 +268,6 @@
       </Optimizations>
     </CodeGeneration>
     <Linking>
-      <Debugging>
-        <GenerateDebugInfo Value="False"/>
-      </Debugging>
       <Options>
         <Win32>
           <GraphicApplication Value="True"/>

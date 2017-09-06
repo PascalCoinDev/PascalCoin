@@ -26,6 +26,7 @@ uses
   UAES in 'Units\PascalCoin\UAES.pas',
   UFRMWallet in 'Units\Forms\UFRMWallet.pas' {FRMWallet},
   UFileStorage in 'Units\PascalCoin\UFileStorage.pas',
+  UCommon in 'Units\PascalCoin\Utils\UCommon.pas',
   UFolderHelper in 'Units\Utils\UFolderHelper.pas',
   UAppParams in 'Units\Utils\UAppParams.pas',
   UGridUtils in 'Units\Utils\UGridUtils.pas',
@@ -42,8 +43,6 @@ uses
   UPoolMining in 'Units\PascalCoin\UPoolMining.pas',
   UOpenSSL in 'Units\PascalCoin\UOpenSSL.pas',
   UOpenSSLdef in 'Units\PascalCoin\UOpenSSLdef.pas';
-
-{.$R *.res}
 
 {$R *.res}
 
