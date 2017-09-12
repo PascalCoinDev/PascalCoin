@@ -19,6 +19,10 @@ libeay64.dll
 backup/
 lib/
 PascalCoinWallet_Icon.ico
+PascalCoinWalletLazarus
+PascalCoinMiner
+pascalcoin_daemon
+libcrypto.so.1.1
 
 ## Development miner batch file
 Run*.bat
