@@ -13,11 +13,13 @@
 
 unit UCommon;
 
+
 {$IFDEF FPC}
   {$MODE Delphi}
 {$ENDIF}
 
 interface
+
 
 { Converts a string to hexidecimal format }
 function String2Hex(const Buffer: AnsiString): AnsiString;
@@ -34,6 +36,14 @@ function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Double)
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: string): string; overload;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: variant): variant; overload;
 
+type
+  { TArrayTool }
+  TArrayTool<T> = class
+    public
+      class procedure Swap(var Values : array of T; Item1Index, Item2Index : SizeInt);
+    end;
+
+
 implementation
 
 uses
@@ -47,7 +57,6 @@ begin
   for n := 1 to Length(Buffer) do
     Result := LowerCase(Result + IntToHex(Ord(Buffer[n]), 2));
 end;
-
 
 function BinStrComp(const Str1, Str2: AnsiString): integer;
 var Str1Len, Str2Len, i : Integer;
@@ -129,6 +138,23 @@ begin
     Result := AFalseResult;
 end;
 {%endregion}
+
+{%region TArrayTool }
+
+class procedure TArrayTool<T>.Swap(var Values : array of T; Item1Index, Item2Index : SizeInt);
+var temp : T; len, recSize : SizeInt; itemSize : SizeInt;
+begin
+  len := Length(Values);
+  recSize := SizeOf(T);
+  if (Item1Index < 0) OR (Item1Index > len) then Raise Exception.Create('Invalid Parameter: Item1Index out of bounds');
+  if (Item2Index < 0) OR (Item2Index > len) then Raise Exception.Create('Invalid Parameter: Item2Index out of bounds');
+  temp := Values[Item1Index];
+  Values[Item1Index] := Values[Item2Index];
+  Values[Item2Index] := temp;
+end;
+
+{%endregion}
+
 
 end.
 

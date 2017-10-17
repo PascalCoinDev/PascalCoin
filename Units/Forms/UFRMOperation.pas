@@ -203,7 +203,9 @@ Var errors : AnsiString;
   _newOwnerPublicKey : TECDSA_Public;
   _newName : TRawBytes;
   _newType : Word;
-  _changeName, _changeType, _V2 : Boolean;
+  _changeName, _changeType, _V2, _executeSigner  : Boolean;
+  _senderAccounts : array of Cardinal;
+label loop_start;
 begin
   if Not Assigned(WalletKeys) then raise Exception.Create('No wallet keys');
   If Not UpdateOperationOptions(errors) then raise Exception.Create(errors);
@@ -217,11 +219,14 @@ begin
     operationstxt := '';
     operation_to_string := '';
 
+    // Compile FSenderAccounts into a reorderable array
+    _senderAccounts := FSenderAccounts.ToArray;
+
     // Loop through each sender account
-    // TODO: must process Signer account last if included in FSenderAccounts (not necessarily ordered enumeration)
-    for iAcc := 0 to FSenderAccounts.Count - 1 do begin
+    for iAcc := 0 to Length(_senderAccounts) - 1 do begin
+loop_start:
       op := Nil;
-      account := FNode.Operations.SafeBoxTransaction.Account(FSenderAccounts.Get(iAcc));
+      account := FNode.Operations.SafeBoxTransaction.Account(_senderAccounts[iAcc]);
       If Not UpdatePayload(account, errors) then
         raise Exception.Create('Error encoding payload of sender account '+TAccountComp.AccountNumberToAccountTxtNumber(account.account)+': '+errors);
       i := WalletKeys.IndexOfAccountKey(account.accountInfo.accountKey);
@@ -237,7 +242,7 @@ begin
       if PageControlOpType.ActivePage = tsTransaction then begin
         {%region Operation: Transaction}
         if Not UpdateOpTransaction(account,destAccount,_amount,errors) then raise Exception.Create(errors);
-        if FSenderAccounts.Count>1 then begin
+        if Length(_senderAccounts) > 1 then begin
           if account.balance>0 then begin
             if account.balance>DefaultFee then begin
               _amount := account.balance - DefaultFee;
@@ -260,6 +265,12 @@ begin
         {%region Operation: Change Private Key}
         if Not UpdateOpChangeKey(account,signerAccount,_newOwnerPublicKey,errors) then raise Exception.Create(errors);
         if _V2 then begin
+          // must ensure is Signer account last if included in sender accounts (not necessarily ordered enumeration)
+          if (iAcc < Length(_senderAccounts) - 1) AND (account.account = signerAccount.account) then begin
+            TArrayTool<Cardinal>.Swap(_senderAccounts, iAcc, Length(_senderAccounts) - 1); // ensure signer account processed last
+            goto loop_start; // TODO: remove ugly hack with refactoring!
+          end;
+
           // Maintain correct signer fee distribution
           if uint64(_totalSignerFee) >= signerAccount.balance then _fee := 0
           else if signerAccount.balance - uint64(_totalSignerFee) > uint64(DefaultFee) then _fee := DefaultFee
@@ -320,10 +331,10 @@ begin
 
     if (ops.OperationsCount=0) then raise Exception.Create('No valid operation to execute');
 
-    if (FSenderAccounts.Count>1) then begin
+    if (Length(_senderAccounts)>1) then begin
       if PageControlOpType.ActivePage = tsTransaction then auxs := 'Total amount that dest will receive: '+TAccountComp.FormatMoney(_totalamount)+#10
       else auxs:='';
-      if Application.MessageBox(PChar('Execute '+Inttostr(FSenderAccounts.Count)+' operations?'+#10+
+      if Application.MessageBox(PChar('Execute '+Inttostr(Length(_senderAccounts))+' operations?'+#10+
         'Operation: '+operationstxt+#10+
         auxs+
         'Total fee: '+TAccountComp.FormatMoney(_totalfee)+#10+#10+'Note: This operation will be transmitted to the network!'),

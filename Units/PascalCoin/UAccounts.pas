@@ -142,6 +142,7 @@ Type
     accumulatedWork : UInt64; // Accumulated work (previous + target) this value can be calculated.
   end;
 
+  TCardinalsArray = Array of Cardinal;
 
   { Estimated TAccount size:
     4 + 200 (max aprox) + 8 + 4 + 4 = 220 max aprox
@@ -169,6 +170,7 @@ Type
     Procedure Enable;
     Property OnListChanged : TNotifyEvent read FOnListChanged write FOnListChanged;
     Procedure CopyFrom(Sender : TOrderedCardinalList);
+    Function ToArray : TCardinalsArray;
   End;
 
   TPCSafeBox = Class;
@@ -228,8 +230,6 @@ Type
   // SafeBox is a box that only can be updated using SafeBoxTransaction, and this
   // happens only when a new BlockChain is included. After this, a new "SafeBoxHash"
   // is created, so each SafeBox has a unique SafeBoxHash
-
-  TCardinalsArray = Array of Cardinal;
 
   { TPCSafeBox }
 
@@ -3181,6 +3181,15 @@ begin
     NotifyChanged;
   end;
 end;
+
+Function TOrderedCardinalList.ToArray : TCardinalsArray;
+var i : integer;
+begin
+  SetLength(Result, self.Count);
+  for i := 0 to self.Count - 1 do
+    Result[i] := Self.Get(i);
+end;
+
 
 { TOrderedRawList }
 
