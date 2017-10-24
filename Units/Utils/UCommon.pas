@@ -40,7 +40,7 @@ type
   { TArrayTool }
   TArrayTool<T> = class
     public
-      class procedure Swap(var Values : array of T; Item1Index, Item2Index : SizeInt);
+      class procedure Swap(var Values : array of T; Item1Index, Item2Index : Integer);
     end;
 
 
@@ -141,8 +141,8 @@ end;
 
 {%region TArrayTool }
 
-class procedure TArrayTool<T>.Swap(var Values : array of T; Item1Index, Item2Index : SizeInt);
-var temp : T; len, recSize : SizeInt; itemSize : SizeInt;
+class procedure TArrayTool<T>.Swap(var Values : array of T; Item1Index, Item2Index : Integer);
+var temp : T; len, recSize : Integer; itemSize : Integer;
 begin
   len := Length(Values);
   recSize := SizeOf(T);
