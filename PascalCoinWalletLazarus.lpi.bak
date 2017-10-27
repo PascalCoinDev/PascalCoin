@@ -38,7 +38,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="54">
+    <Units Count="52">
       <Unit0>
         <Filename Value="PascalCoinWalletLazarus.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -211,110 +211,102 @@
         <IsPartOfProject Value="True"/>
       </Unit35>
       <Unit36>
+        <Filename Value="Units\Utils\UCommon.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit36>
+      <Unit37>
         <Filename Value="Units\Utils\UWizard.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WizardHostForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit36>
-      <Unit37>
+      </Unit37>
+      <Unit38>
         <Filename Value="Units\Utils\generics.collections.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Generics.Collections"/>
-      </Unit37>
-      <Unit38>
+      </Unit38>
+      <Unit39>
         <Filename Value="Units\Utils\generics.defaults.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Generics.Defaults"/>
-      </Unit38>
-      <Unit39>
+      </Unit39>
+      <Unit40>
         <Filename Value="Units\Utils\generics.hashes.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Generics.Hashes"/>
-      </Unit39>
-      <Unit40>
+      </Unit40>
+      <Unit41>
         <Filename Value="Units\Utils\generics.helpers.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Generics.Helpers"/>
-      </Unit40>
-      <Unit41>
+      </Unit41>
+      <Unit42>
         <Filename Value="Units\Utils\generics.memoryexpanders.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Generics.MemoryExpanders"/>
-      </Unit41>
-      <Unit42>
+      </Unit42>
+      <Unit43>
         <Filename Value="Units\Utils\generics.strings.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Generics.Strings"/>
-      </Unit42>
-      <Unit43>
+      </Unit43>
+      <Unit44>
         <Filename Value="Units\Forms\UFRMMessages.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="FRMMessages"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit43>
-      <Unit44>
+      </Unit44>
+      <Unit45>
         <Filename Value="Units\Forms\UFRMNodes.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="FRMNodes"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit44>
-      <Unit45>
+      </Unit45>
+      <Unit46>
         <Filename Value="Units\Forms\UFRMLogs.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="FRMLogs"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit45>
-      <Unit46>
+      </Unit46>
+      <Unit47>
         <Filename Value="Units\Forms\UFRMOperationExplorer.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="FRMOperationExplorer"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit46>
-      <Unit47>
+      </Unit47>
+      <Unit48>
         <Filename Value="Units\Forms\UFRMBlockExplorer.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="FRMBlockExplorer"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit47>
-      <Unit48>
+      </Unit48>
+      <Unit49>
         <Filename Value="Units\Forms\UFRMPendingOperations.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="FRMPendingOperations"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit48>
-      <Unit49>
+      </Unit49>
+      <Unit50>
         <Filename Value="Units\Forms\UFRMAccountExplorer.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="FRMAccountExplorer"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit49>
-      <Unit50>
+      </Unit50>
+      <Unit51>
         <Filename Value="Units\Forms\UFRMSyncronizationDialog.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="FRMSyncronizationDialog"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit50>
-      <Unit51>
-        <Filename Value="Units\Forms\UUserInterface.pas"/>
-        <IsPartOfProject Value="True"/>
       </Unit51>
-      <Unit52>
-        <Filename Value="Units\Utils\UCommonUI.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit52>
-      <Unit53>
-        <Filename Value="Units\Utils\UCommon.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit53>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -350,7 +342,12 @@
         <ShowHintsForUnusedUnitsInMainSrc Value="True"/>
         <ShowHintsForSenderNotUsed Value="True"/>
       </Verbosity>
-      <CustomOptions Value="-dBorland -dVer150 -dDelphi7 -dCompiler6_Up -dPUREPASCAL -vD"/>
+      <CustomOptions Value="-vd
+-dBorland
+-dVer150
+-dDelphi7
+-dCompiler6_Up
+-dPUREPASCAL"/>
     </Other>
   </CompilerOptions>
   <Debugging>

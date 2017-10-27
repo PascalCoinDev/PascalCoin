@@ -88,7 +88,7 @@ Type
     Procedure DisableNewBlocks;
     Procedure EnableNewBlocks;
     Property NodeLogFilename : AnsiString read GetNodeLogFilename write SetNodeLogFilename;
-    Property OperationSequenceLock : TPCCriticalSection read FOperationSequenceLock;
+    Property OperationSequenceLock : TPCCriticalSection read FOperationSequenceLock;   // TODO - refactor out, put in URPC directly (since only client)
   End;
 
   TNodeNotifyEvents = Class;

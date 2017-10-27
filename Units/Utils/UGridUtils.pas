@@ -26,7 +26,7 @@ uses
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
   Classes, Grids, UNode, UAccounts, UBlockChain, UAppParams,
-  UWalletKeys, UCrypto;
+  UWalletKeys, UCrypto, UPoolMining, URPC;
 
 Type
   // TAccountsGrid implements a visual integration of TDrawGrid
@@ -75,6 +75,7 @@ Type
     Property OnUpdated : TNotifyEvent read FOnUpdated write FOnUpdated;
     Property AllowMultiSelect : Boolean read FAllowMultiSelect write SetAllowMultiSelect;
     Function SelectedAccounts(accounts : TOrderedCardinalList) : Integer;
+    Function SelectedAccountsCount : Integer;
   End;
 
   TOperationsGrid = Class(TComponent)
@@ -544,6 +545,7 @@ begin
   Stream.Write(j,sizeof(j));
 end;
 
+// HS TODO - refactor out TOrderedCardialList. Not a necessary consideration here.
 function TAccountsGrid.SelectedAccounts(accounts: TOrderedCardinalList): Integer;
 var i64 : Int64;
   i : Integer;
@@ -562,6 +564,22 @@ begin
     if i64>=0 then accounts.Add(i64);
   end;
   Result := accounts.Count;
+end;
+
+function TAccountsGrid.SelectedAccountsCount : Integer;
+var i64 : Int64; i : Integer;
+begin
+   Result := 0;
+   if not assigned(FDrawGrid) then exit;
+   if FAllowMultiSelect then begin
+      for i := FDrawGrid.Selection.Top to FDrawGrid.Selection.Bottom do begin
+        i64 := AccountNumber(i);
+        if i64>=0 then Inc(Result);
+      end;
+    end else begin
+      i64 := AccountNumber(DrawGrid.Row);
+      if i64>=0 then Inc(Result);
+    end;
 end;
 
 procedure TAccountsGrid.SetAllowMultiSelect(const Value: Boolean);

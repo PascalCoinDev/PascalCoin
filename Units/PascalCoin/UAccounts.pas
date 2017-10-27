@@ -142,6 +142,7 @@ Type
     accumulatedWork : UInt64; // Accumulated work (previous + target) this value can be calculated.
   end;
 
+  TCardinalsArray = Array of Cardinal;
 
   { Estimated TAccount size:
     4 + 200 (max aprox) + 8 + 4 + 4 = 220 max aprox
@@ -169,6 +170,7 @@ Type
     Procedure Enable;
     Property OnListChanged : TNotifyEvent read FOnListChanged write FOnListChanged;
     Procedure CopyFrom(Sender : TOrderedCardinalList);
+    Function ToArray : TCardinalsArray;
   End;
 
   TPCSafeBox = Class;
@@ -228,8 +230,6 @@ Type
   // SafeBox is a box that only can be updated using SafeBoxTransaction, and this
   // happens only when a new BlockChain is included. After this, a new "SafeBoxHash"
   // is created, so each SafeBox has a unique SafeBoxHash
-
-  TCardinalsArray = Array of Cardinal;
 
   { TPCSafeBox }
 
@@ -345,12 +345,12 @@ Type
 
 Const
   CT_OperationBlock_NUL : TOperationBlock = (block:0;account_key:(EC_OpenSSL_NID:0;x:'';y:'');reward:0;fee:0;protocol_version:0;
-    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:'';operations_hash:'';proof_of_work:'');
+    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:'';initial_safe_box_hash:'';operations_hash:'';proof_of_work:'');
   CT_AccountInfo_NUL : TAccountInfo = (state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:'';y:'');locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:'';y:''));
   CT_Account_NUL : TAccount = (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:'';y:'');locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:'';y:''));balance:0;updated_block:0;n_operation:0;name:'';account_type:0;previous_updated_block:0);
   CT_BlockAccount_NUL : TBlockAccount = (
     blockchainInfo:(block:0;account_key:(EC_OpenSSL_NID:0;x:'';y:'');reward:0;fee:0;protocol_version:0;
-    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:'';operations_hash:'';proof_of_work:'');
+    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:'';initial_safe_box_hash:'';operations_hash:'';proof_of_work:'');
     accounts:(
     (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:'';y:'');locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:'';y:''));balance:0;updated_block:0;n_operation:0;name:'';account_type:0;previous_updated_block:0),
     (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:'';y:'');locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:'';y:''));balance:0;updated_block:0;n_operation:0;name:'';account_type:0;previous_updated_block:0),
@@ -1123,11 +1123,11 @@ begin
     exit;
   end;
   try
-    If pos(DecimalSeparator,moneytxt)<=0 then begin
+    If pos(DefaultFormatSettings.DecimalSeparator,moneytxt)<=0 then begin
       // No decimal separator, consider ThousandSeparator as a decimal separator
-      s := StringReplace(moneytxt,ThousandSeparator,DecimalSeparator,[rfReplaceAll]);
+      s := StringReplace(moneytxt,DefaultFormatSettings.ThousandSeparator,DefaultFormatSettings.DecimalSeparator,[rfReplaceAll]);
     end else begin
-      s := StringReplace(moneytxt,ThousandSeparator,'',[rfReplaceAll]);
+      s := StringReplace(moneytxt,DefaultFormatSettings.ThousandSeparator,'',[rfReplaceAll]);
     end;
     money := Round( StrToFloat(s)*10000 );
     Result := true;
@@ -1305,7 +1305,7 @@ function TPCSafeBox.Account(account_number: Cardinal): TAccount;
 var b : Cardinal;
 begin
   b := account_number DIV CT_AccountsPerBlock;
-  if (b<0) Or (b>=FBlockAccountsList.Count) then raise Exception.Create('Invalid account: '+IntToStr(account_number));
+  if (b>=FBlockAccountsList.Count) then raise Exception.Create('Invalid account: '+IntToStr(account_number));
   ToTAccount(PBlockAccount(FBlockAccountsList.Items[b])^.accounts[account_number MOD CT_AccountsPerBlock],account_number,Result);
 end;
 
@@ -1375,7 +1375,7 @@ end;
 
 function TPCSafeBox.Block(block_number: Cardinal): TBlockAccount;
 begin
-  if (block_number<0) Or (block_number>=FBlockAccountsList.Count) then raise Exception.Create('Invalid block number: '+inttostr(block_number));
+  if (block_number>=FBlockAccountsList.Count) then raise Exception.Create('Invalid block number: '+inttostr(block_number));
   ToTBlockAccount(PBlockAccount(FBlockAccountsList.Items[block_number])^,block_number,Result);
 end;
 
@@ -1451,7 +1451,7 @@ begin
         Result := 1;
         exit;
       end;
-      if (block_number<0) Or (block_number>=FBlockAccountsList.Count) then raise Exception.Create('Invalid block number: '+inttostr(block_number));
+      if (block_number>=FBlockAccountsList.Count) then raise Exception.Create('Invalid block number: '+inttostr(block_number));
       if (Previous_blocks_average<=0) then raise Exception.Create('Dev error 20161016-1');
       if (Previous_blocks_average>block_number) then Previous_blocks_average := block_number;
       //
@@ -1501,13 +1501,13 @@ procedure TPCSafeBox.CheckMemory;
     in order to free memory not used. Tested with FPC 3.0 }
 {$IFDEF FPC}
 Var sb : TPCSafeBox;
-  tc : Cardinal;
+  tc : QWord;
 {$ENDIF}
 begin
   {$IFDEF FPC}
   StartThreadSafe;
   try
-    tc := GetTickCount;
+    tc := GetTickCount64;
     sb := TPCSafeBox.Create;
     try
       sb.CopyFrom(Self);
@@ -1516,7 +1516,7 @@ begin
     finally
       sb.Free;
     end;
-    tc := GetTickCount - tc;
+    tc := GetTickCount64 - tc;
     TLog.NewLog(ltDebug,Classname,'Checked memory '+IntToStr(tc)+' miliseonds');
   finally
     EndThreadSave;
@@ -2442,9 +2442,9 @@ begin
     errors := 'Invalid integrity in accounts transaction';
     exit;
   end;
-  if (buyer<0) Or (buyer>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) Or
-     (account_to_buy<0) Or (account_to_buy>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) Or
-     (seller<0) Or (seller>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) then begin
+  if (buyer>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) Or
+     (account_to_buy>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) Or
+     (seller>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) then begin
      errors := 'Invalid account number on buy';
      exit;
   end;
@@ -2670,8 +2670,8 @@ begin
     errors := 'Invalid integrity in accounts transaction';
     exit;
   end;
-  if (sender<0) Or (sender>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) Or
-     (target<0) Or (target>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) then begin
+  if (sender>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) Or
+     (target>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) then begin
      errors := 'Invalid sender or target on transfer';
      exit;
   end;
@@ -2732,8 +2732,8 @@ Var i : Integer;
 begin
   Result := false;
   errors := '';
-  if (signer_account<0) Or (signer_account>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) Or
-     (target_account<0) Or (target_account>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) Then begin
+  if (signer_account>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) Or
+     (target_account>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) Then begin
      errors := 'Invalid account';
      exit;
   end;
@@ -2898,7 +2898,7 @@ Type
 
 function SortOrdered(Item1, Item2: Pointer): Integer;
 begin
-   Result := PtrInt(Item1) - PtrInt(Item2);
+   Result := PtrUInt(Item1) - PtrUInt(Item2);
 end;
 
 procedure TOrderedAccountKeysList.AddAccountKey(const AccountKey: TAccountKey);
@@ -3144,7 +3144,7 @@ begin
   while L <= H do
   begin
     I := (L + H) shr 1;
-    C := Int64(FOrderedList[I]) - Int64(Value);
+    C := PtrUInt(FOrderedList[I]) - (Value);
     if C < 0 then L := I + 1 else
     begin
       H := I - 1;
@@ -3181,6 +3181,15 @@ begin
     NotifyChanged;
   end;
 end;
+
+Function TOrderedCardinalList.ToArray : TCardinalsArray;
+var i : integer;
+begin
+  SetLength(Result, self.Count);
+  for i := 0 to self.Count - 1 do
+    Result[i] := Self.Get(i);
+end;
+
 
 { TOrderedRawList }
 

@@ -142,7 +142,7 @@ Const
   CT_TRUE_FALSE : Array[Boolean] Of AnsiString = ('FALSE','TRUE');
 
   CT_MAX_0_fee_operations_per_block_by_miner = {$IFDEF PRODUCTION}2000{$ELSE}{$IFDEF TESTNET}2{$ELSE}{$ENDIF}{$ENDIF};
-  CT_MAX_Operations_per_block_by_miner =  {$IFDEF PRODUCTION}5000{$ELSE}{$IFDEF TESTNET}50{$ELSE}{$ENDIF}{$ENDIF};
+  CT_MAX_Operations_per_block_by_miner =  {$IFDEF PRODUCTION}5000{$ELSE}{$IFDEF TESTNET}50000{$ELSE}{$ENDIF}{$ENDIF};
 
   // App Params
   CT_PARAM_GridAccountsStream = 'GridAccountsStreamV2';

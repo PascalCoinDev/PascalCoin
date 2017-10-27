@@ -56,7 +56,7 @@ Type
   TPCThread = Class(TThread)
   private
     FDebugStep: String;
-    FStartTickCount : Cardinal;
+    FStartTickCount : QWord;
   protected
     procedure DoTerminate; override;
     procedure Execute; override;
@@ -120,7 +120,7 @@ procedure TPCThread.Execute;
 Var l : TList;
   i : Integer;
 begin
-  FStartTickCount := GetTickCount;
+  FStartTickCount := GetTickCount64;
   FDebugStep := '';
   i := _threads.Add(Self);
   try
@@ -228,7 +228,7 @@ begin
     list.BeginUpdate;
     list.Clear;
     for i := 0 to l.Count - 1 do begin
-      list.Add(Format('%.2d/%.2d <%s> Time:%s sec - Step: %s',[i+1,l.Count,TPCThread(l[i]).ClassName,FormatFloat('0.000',(GetTickCount-TPCThread(l[i]).FStartTickCount) / 1000),TPCThread(l[i]).DebugStep] ));
+      list.Add(Format('%.2d/%.2d <%s> Time:%s sec - Step: %s',[i+1,l.Count,TPCThread(l[i]).ClassName,FormatFloat('0.000',(GetTickCount64-TPCThread(l[i]).FStartTickCount) / 1000),TPCThread(l[i]).DebugStep] ));
     end;
     list.EndUpdate;
   finally
@@ -244,7 +244,7 @@ Var tc : Cardinal;
   s : String;
   {$ENDIF}
 begin
-  tc := GetTickCount;
+  tc := GetTickCount64;
   if MaxWaitMilliseconds>60000 then MaxWaitMilliseconds := 60000;
   {$IFDEF HIGHLOG}
   lockWatingForCounter := Lock.WaitingForCounter;
@@ -254,7 +254,7 @@ begin
   Repeat
     Result := Lock.TryEnter;
     if Not Result then sleep(1);
-  Until (Result) Or (GetTickCount > (tc + MaxWaitMilliseconds));
+  Until (Result) Or (GetTickCount64 > (tc + MaxWaitMilliseconds));
   {$IFDEF HIGHLOG}
   if Not Result then begin
     tc2 := GetTickCount;

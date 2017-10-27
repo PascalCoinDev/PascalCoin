@@ -16,6 +16,7 @@
 
 unit UCommon;
 
+
 {$IFDEF FPC}
   {$MODE Delphi}
 {$ENDIF}
@@ -23,9 +24,10 @@ unit UCommon;
 interface
 
 uses
-  Classes, SysUtils, Controls, FGL, Generics.Collections, Generics.Defaults;
+  Classes, SysUtils, Forms, Controls, FGL, Generics.Collections, Generics.Defaults;
 
 { GLOBAL FUNCTIONS }
+
 
 { Converts a string to hexidecimal format }
 function String2Hex(const Buffer: AnsiString): AnsiString;
@@ -42,6 +44,8 @@ function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Double)
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: string): string; overload;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: TObject): TObject; overload;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: variant): variant; overload;
+
+function ClipValue( AValue, MinValue, MaxValue: Integer) : Integer;
 
 { DateTime functions }
 function TimeStamp : AnsiString;
@@ -78,6 +82,11 @@ type
       class procedure Remove(var Values : TArray<T>; const Item : T; const Comparer : IEqualityComparer<T>); overload; static;
       class procedure Remove(var Values : TArray<T>; const Item : T); overload; static;
       class procedure RemoveAt(var Values : TArray<T>; ItemIndex : SizeInt); static;
+      class procedure Append(var Arr: TArray<T>; Value: T);
+      class procedure Prepend(var Arr: TArray<T>; Value: T);
+      class procedure InsertAt(var Values : TArray<T>; ItemIndex : SizeInt; const Item : T);
+      class procedure Swap(var Values : array of T; Item1Index, Item2Index : SizeInt);
+      class procedure MoveItem(var Values : array of T; FromIndex, ToIndex : SizeInt);
       class function Concat(const Arrays: array of TArray<T>): TArray<T>; static;
       class function Create(const a : T; const b : T) : TArray<T>; static;
       class function ToArray(Enumerable: TEnumerable<T>; Count: SizeInt): TArray<T>; static;
@@ -93,10 +102,6 @@ type
     procedure Invoke(sender : TObject);
   end;
 
-  { Controls Helpers }
-  TWinControlHelper = class helper for TWinControl
-    procedure RemoveAllControls(destroy : boolean);
-  end;
 
 implementation
 
@@ -110,7 +115,6 @@ begin
   for n := 1 to Length(Buffer) do
     Result := LowerCase(Result + IntToHex(Ord(Buffer[n]), 2));
 end;
-
 
 function BinStrComp(const Str1, Str2: AnsiString): integer;
 var Str1Len, Str2Len, i : Integer;
@@ -201,6 +205,19 @@ begin
   else
     Result := AFalseResult;
 end;
+
+{ Value Clipping }
+
+function ClipValue( AValue, MinValue, MaxValue: Integer) : Integer;
+begin
+  if AValue < MinValue then
+    Result := MinValue
+  else if AValue > MaxValue then
+    Result := MaxValue
+  else
+    Result := AValue
+end;
+
 
 { DateTime functions }
 function TimeStamp : AnsiString;
@@ -308,6 +325,61 @@ begin
   SetLength(Values, Length(Values) - 1);
 end;
 
+class procedure TArrayTool<T>.Append(var Arr: TArray<T>; Value: T);
+begin
+  SetLength(Arr, Length(Arr)+1);
+  Arr[High(Arr)] := Value;
+end;
+
+class procedure TArrayTool<T>.Prepend(var Arr: TArray<T>; Value: T);
+var i : Integer;
+begin
+  SetLength(Arr, Length(Arr)+1);
+  for i := High(Arr)-1 downto Low(Arr) do
+    Arr[i+1] := Arr[i];
+  Arr[Low(Arr)] := Value;
+end;
+
+class procedure TArrayTool<T>.InsertAt(var Values : TArray<T>; ItemIndex : SizeInt; const Item : T);
+var i : Integer;
+begin
+  if (ItemIndex < Low(Values)) OR (ItemIndex > High(Values)) then Raise Exception.Create('Invalid Parameter: ItemIndex out of bounds');
+  SetLength(Values, Length(Values)+1);
+  for i := High(Values)-1 downto ItemIndex do
+    Values[i+1] := Values[i];
+  Values[ItemIndex] := Item;
+end;
+
+class procedure TArrayTool<T>.Swap(var Values : array of T; Item1Index, Item2Index : SizeInt);
+var temp : T; len, recSize : SizeInt; itemSize : SizeInt;
+begin
+  len := Length(Values);
+  recSize := SizeOf(T);
+  if (Item1Index < 0) OR (Item1Index > len) then Raise Exception.Create('Invalid Parameter: Item1Index out of bounds');
+  if (Item2Index < 0) OR (Item2Index > len) then Raise Exception.Create('Invalid Parameter: Item2Index out of bounds');
+  temp := Values[Item1Index];
+  Values[Item1Index] := Values[Item2Index];
+  Values[Item2Index] := temp;
+end;
+
+class procedure TArrayTool<T>.MoveItem(var Values : array of T; FromIndex, ToIndex : SizeInt);
+var i : Integer; item : T;
+begin
+  if (FromIndex < Low(Values)) OR (FromIndex > High(Values)) then Raise Exception.Create('Invalid Parameter: FromIndex out of bounds');
+  if (ToIndex < Low(Values)) OR (ToIndex > High(Values)) then Raise Exception.Create('Invalid Parameter: ToIndex out of bounds');
+
+  item := Values[FromIndex];
+  if FromIndex < ToIndex then begin
+    for i := FromIndex + 1 to ToIndex do
+      Values[i - 1] := Values[i];
+    Values[ToIndex] := item;
+  end else if FromIndex > ToIndex then begin
+    for i := FromIndex - 1 downto ToIndex do
+      Values[i + 1] := Values[i];
+    Values[ToIndex] := item;
+  end;
+end;
+
 class function TArrayTool<T>.Concat(const Arrays: array of TArray<T>): TArray<T>;
 var
   i, k, LIndex, LLength: Integer;
@@ -371,22 +443,6 @@ begin
 end;
 
 {%endregion}
-
-{%region TWinControlHelper }
-
-procedure TWinControlHelper.RemoveAllControls(destroy : boolean);
-var
-  control : TControl;
-begin
-  while self.ControlCount > 0 do begin
-    control := self.Controls[0];
-    self.RemoveControl(control);
-    if destroy then control.Destroy;
-  end;
-end;
-
-{%endregion}
-
 
 end.
 

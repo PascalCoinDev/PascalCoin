@@ -4,7 +4,7 @@
   or visit http://www.opensource.org/licenses/mit-license.php.
 
   This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  historical miPendingOperations.
 
   If you like it, consider a donation using BitCoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
@@ -29,13 +29,13 @@
   {.$DEFINE Synapse_OpenSSLv10}
   {.$DEFINE Synapse_OpenSSLv11}
 
-  {$DEFINE PRODUCTION}
-  {.$DEFINE TESTNET}
+  {.$DEFINE PRODUCTION}
+  {$DEFINE TESTNET}
 
   // For GUI: Allows to show average time on blockchain explorer
   {.$DEFINE SHOW_AVERAGE_TIME_STATS}
 
-  // For special use: Allows to store in a buffer, operations not proceded due to n_operation value invalid
+  // For special use: Allows to store in a buffer, miPendingOperations not proceded due to n_operation value invalid
   {.$DEFINE BufferOfFutureOperations}
   
   // HighLog will result in a higher log generation

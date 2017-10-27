@@ -91,7 +91,7 @@ uses
 {$ELSE}
   LCLIntf, LCLType,
 {$ENDIF}
-  UCrypto, UAccounts, UFRMNewPrivateKeyType, UAES;
+  UCrypto, UAccounts, UUserInterface, UFRMNewPrivateKeyType, UAES;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -392,30 +392,13 @@ begin
 end;
 
 procedure TFRMWalletKeys.bbUpdatePasswordClick(Sender: TObject);
-Var s,s2 : String;
 begin
   if FWalletKeys.IsValidPassword then begin
-    s := ''; s2 := '';
-    if Not InputQuery('Change password','Enter new password',s) then exit;
-    if trim(s)<>s then raise Exception.Create('Password cannot start or end with a space character');
-    if Not InputQuery('Change password','Enter new password again',s2) then exit;
-    if s<>s2 then raise Exception.Create('Two passwords are different!');
-
-    FWalletKeys.WalletPassword := s;
-    Application.MessageBox(PChar('Password changed!'+#10+#10+
-      'Please note that your new password is "'+s+'"'+#10+#10+
-      '(If you lose this password, you will lose your wallet forever!)'),
-      PChar(Application.Title),MB_ICONWARNING+MB_OK);
-    UpdateWalletKeys;
+    TUserInterface.ChangeWalletPassword(Self, FWalletKeys);
   end else begin
-    s := '';
-    Repeat
-      if Not InputQuery('Wallet password','Enter wallet password',s) then exit;
-      FWalletKeys.WalletPassword := s;
-      if Not FWalletKeys.IsValidPassword then Application.MessageBox(PChar('Invalid password'),PChar(Application.Title),MB_ICONERROR+MB_OK);
-    Until FWalletKeys.IsValidPassword;
-    UpdateWalletKeys;
+    TUserInterface.UnlockWallet(Self, FWalletKeys);
   end;
+  UpdateWalletKeys;
 end;
 
 procedure TFRMWalletKeys.CheckIsWalletKeyValidPassword;
@@ -574,3 +557,4 @@ begin
 end;
 
 end.
+

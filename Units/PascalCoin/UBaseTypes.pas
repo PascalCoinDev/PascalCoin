@@ -41,7 +41,7 @@ Type
     class function T32BytesToRawBytes(const source : T32Bytes) : TDynRawBytes; overload;
     class function TRawBytesTo32Left0Padded(const source : TDynRawBytes) : T32Bytes;
     class function Copy(const source : T32bytes; start, length : Integer) : ShortString; overload;
-    class function Copy(const source : T256RawBytes; var dest : T256RawBytes) : ShortString; overload;
+    class function Copy(const source: T256RawBytes; var dest: T256RawBytes):T256RawBytes;
     class function To256RawBytes(const source : TRawBytes) : T256RawBytes; overload;
     class procedure To256RawBytes(const source : TRawBytes; var dest : T256RawBytes); overload;
     class function ToRawBytes(const source : T256RawBytes) : TRawBytes; overload;
@@ -100,13 +100,14 @@ begin
   move(source[start],Result[1],length);
 end;
 
-class function TBaseType.Copy(const source: T256RawBytes; var dest: T256RawBytes): ShortString;
+class function TBaseType.Copy(const source: T256RawBytes; var dest: T256RawBytes):T256RawBytes;
 var i : Integer;
 begin
   SetLength(dest,length(source));
   for i:=0 to high(dest) do begin
     dest[i] := source[i];
   end;
+  Exit(dest);
 end;
 
 class function TBaseType.To256RawBytes(const source: TRawBytes): T256RawBytes;

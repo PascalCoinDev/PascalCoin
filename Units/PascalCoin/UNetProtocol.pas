@@ -19,14 +19,14 @@ unit UNetProtocol;
 
 interface
 
-Uses
+uses
 {$IFnDEF FPC}
   Windows,
 {$ELSE}
   {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
   UBlockChain, Classes, SysUtils, UAccounts, UThread,
-  UCrypto, UTCPIP, SyncObjs;
+  UCrypto, UTCPIP, SyncObjs, UCommon;
 
 {$I config.inc}
 
@@ -194,6 +194,7 @@ Type
     FRegisteredRequests : TPCThreadList;
     FIsDiscoveringServers : Boolean;
     FIsGettingNewBlockChainFromClient : Boolean;
+    FOnConnectivityChanged : TNotifyManyEvent;
     FOnNetConnectionsUpdated: TNotifyEvent;
     FOnNodeServersUpdated: TNotifyEvent;
     FOnBlackListUpdated: TNotifyEvent;
@@ -256,11 +257,13 @@ Type
     Property MaxRemoteOperationBlock : TOperationBlock read FMaxRemoteOperationBlock;
     Property NodePrivateKey : TECPrivateKey read FNodePrivateKey;
     Function GetValidNodeServers(OnlyWhereIConnected : Boolean; Max : Integer): TNodeServerAddressArray;
+    property OnConnectivityChanged : TNotifyManyEvent read FOnConnectivityChanged;
     Property OnNetConnectionsUpdated : TNotifyEvent read FOnNetConnectionsUpdated write FOnNetConnectionsUpdated;
     Property OnNodeServersUpdated : TNotifyEvent read FOnNodeServersUpdated write FOnNodeServersUpdated;
     Property OnBlackListUpdated : TNotifyEvent read FOnBlackListUpdated write FOnBlackListUpdated;
     Property OnReceivedHelloMessage : TNotifyEvent read FOnReceivedHelloMessage write FOnReceivedHelloMessage;
     Property OnStatisticsChanged : TNotifyEvent read FOnStatisticsChanged write FOnStatisticsChanged;
+    procedure NotifyConnectivityChanged;
     Procedure NotifyNetConnectionUpdated;
     Procedure NotifyNodeServersUpdated;
     Procedure NotifyBlackListUpdated;
@@ -639,6 +642,7 @@ begin
   SetLength(FFixedServers,0);
   FMaxRemoteOperationBlock := CT_OperationBlock_NUL;
   FNetStatistics := CT_TNetStatistics_NUL;
+  FOnConnectivityChanged := nil;
   FOnStatisticsChanged := Nil;
   FOnNetConnectionsUpdated := Nil;
   FOnNodeServersUpdated := Nil;
@@ -1566,6 +1570,11 @@ begin
   FNetDataNotifyEventsThread.FNotifyOnBlackListUpdated := true;
 end;
 
+procedure TNetData.NotifyConnectivityChanged;
+begin
+  FOnConnectivityChanged.Invoke(Self);
+end;
+
 procedure TNetData.NotifyNetConnectionUpdated;
 begin
   FNetDataNotifyEventsThread.FNotifyOnNetConnectionsUpdated := true;
@@ -1644,6 +1653,7 @@ end;
 procedure TNetData.SetNetConnectionsActive(const Value: Boolean);
 begin
   FNetConnectionsActive := Value;
+  NotifyConnectivityChanged;
   if FNetConnectionsActive then DiscoverServers
   else DisconnectClients;
 end;

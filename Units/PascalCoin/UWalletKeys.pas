@@ -41,6 +41,7 @@ Type
     FWalletFileName: AnsiString;
     FIsReadingStream : Boolean;
     FOnChanged: TNotifyManyEvent;
+    function GetHasPassword : boolean;
     function GetKey(index: Integer): TWalletKey;
     procedure SetWalletPassword(const Value: AnsiString);
     Procedure GeneratePrivateKeysFromPassword;
@@ -53,6 +54,7 @@ Type
     Procedure LoadFromStream(Stream : TStream);
     Procedure SaveToStream(Stream : TStream);
     Property IsValidPassword : Boolean read FIsValidPassword;
+    property HasPassword : boolean read GetHasPassword;
     Property WalletPassword : AnsiString read FWalletPassword write SetWalletPassword;
     Function AddPrivateKey(Const Name : AnsiString; ECPrivateKey : TECPrivateKey) : Integer; virtual;
     Function AddPublicKey(Const Name : AnsiString; ECDSA_Public : TECDSA_Public) : Integer; virtual;
@@ -98,6 +100,11 @@ Const
 { TWalletKeys }
 
 Type PWalletKey = ^TWalletKey;
+
+function TWalletKeys.GetHasPassword : boolean;
+begin
+  Result := NOT ((IsValidPassword = True) AND (WalletPassword = ''));
+end;
 
 function TWalletKeys.AddPrivateKey(Const Name : AnsiString; ECPrivateKey: TECPrivateKey): Integer;
 Var P : PWalletKey;
@@ -305,7 +312,7 @@ end;
 function TWalletKeys.LockWallet: Boolean;
 begin
   // Return true when wallet has a password, locking it. False if there password is empty string
-  FWalletPassword := '';
+  FWalletPassword := ''; //AntonB - this clear Password on lock - is block lock
   GeneratePrivateKeysFromPassword;
   Result := Not IsValidPassword;
   FOnChanged.Invoke(Self);
