@@ -28,7 +28,6 @@ uses
 
 { GLOBAL FUNCTIONS }
 
-
 { Converts a string to hexidecimal format }
 function String2Hex(const Buffer: AnsiString): AnsiString;
 
@@ -101,7 +100,6 @@ type
     procedure Remove(listener : TNotifyEvent);
     procedure Invoke(sender : TObject);
   end;
-
 
 implementation
 

@@ -203,7 +203,7 @@ Var errors : AnsiString;
   _newName : TRawBytes;
   _newType : Word;
   _changeName, _changeType, _V2, _executeSigner  : Boolean;
-  _senderAccounts : array of Cardinal;
+  _senderAccounts : TCardinalsArray;
 label loop_start;
 begin
   if Not Assigned(WalletKeys) then raise Exception.Create('No wallet keys');

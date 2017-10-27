@@ -52,6 +52,12 @@ Const
   CT_NetError_InvalidNewAccount = $0012;
   CT_NetError_SafeboxNotFound = $00020;
 
+  CT_LAST_CONNECTION_BY_SERVER_MAX_MINUTES = 60*60*3;
+  CT_LAST_CONNECTION_MAX_MINUTES = 60*60;
+  CT_MAX_NODESERVERS_ON_HELLO = 10;
+  CT_MIN_NODESERVERS_BUFFER = 50;
+  CT_MAX_NODESERVERS_BUFFER = 300;
+
 Type
   {
   Net Protocol:
@@ -124,6 +130,8 @@ Type
     TotalServersConnections : Integer;
     BytesReceived : Int64;
     BytesSend : Int64;
+    NodeServersListCount : Integer;
+    NodeServersDeleted : Integer;
   end;
 
   TNetData = Class;
@@ -186,6 +194,7 @@ Type
 
   TNetData = Class(TComponent)
   private
+    FMaxNodeServersAddressesBuffer: Integer;
     FNetDataNotifyEventsThread : TNetDataNotifyEventsThread;
     FNodePrivateKey : TECPrivateKey;
     FNetConnections : TPCThreadList;
@@ -209,6 +218,7 @@ Type
     FMaxConnections : Integer;
     FNetworkAdjustedTime : TNetworkAdjustedTime;
     Procedure IncStatistics(incActiveConnections,incClientsConnections,incServersConnections,incServersConnectionsWithResponse : Integer; incBytesReceived, incBytesSend : Int64);
+    procedure SetMaxNodeServersAddressesBuffer(AValue: Integer);
     procedure SetNetConnectionsActive(const Value: Boolean);  protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     Function IndexOfNetClient(ListToSearch : TList; ip : AnsiString; port : Word; indexStart : Integer = 0) : Integer;
@@ -258,6 +268,7 @@ Type
     Property NodePrivateKey : TECPrivateKey read FNodePrivateKey;
     Function GetValidNodeServers(OnlyWhereIConnected : Boolean; Max : Integer): TNodeServerAddressArray;
     property OnConnectivityChanged : TNotifyManyEvent read FOnConnectivityChanged;
+    procedure CleanNodeServersList;
     Property OnNetConnectionsUpdated : TNotifyEvent read FOnNetConnectionsUpdated write FOnNetConnectionsUpdated;
     Property OnNodeServersUpdated : TNotifyEvent read FOnNodeServersUpdated write FOnNodeServersUpdated;
     Property OnBlackListUpdated : TNotifyEvent read FOnBlackListUpdated write FOnBlackListUpdated;
@@ -271,6 +282,7 @@ Type
     Procedure NotifyStatisticsChanged;
     Property NetConnectionsActive : Boolean read FNetConnectionsActive write SetNetConnectionsActive;
     Property NetworkAdjustedTime : TNetworkAdjustedTime read FNetworkAdjustedTime;
+    Property MaxNodeServersAddressesBuffer : Integer read FMaxNodeServersAddressesBuffer write SetMaxNodeServersAddressesBuffer;
   End;
 
   { TNetConnection }
@@ -397,7 +409,7 @@ Type
 
 Const
   CT_TNodeServerAddress_NUL : TNodeServerAddress = (ip:'';port:0;last_connection:0;last_connection_by_server:0; netConnection:nil;its_myself:false;last_attempt_to_connect:0;total_failed_attemps_to_connect:0;is_blacklisted:false;BlackListText:'');
-  CT_TNetStatistics_NUL : TNetStatistics = (ActiveConnections:0;ClientsConnections:0;ServersConnections:0;ServersConnectionsWithResponse:0;TotalConnections:0;TotalClientsConnections:0;TotalServersConnections:0;BytesReceived:0;BytesSend:0);
+  CT_TNetStatistics_NUL : TNetStatistics = (ActiveConnections:0;ClientsConnections:0;ServersConnections:0;ServersConnectionsWithResponse:0;TotalConnections:0;TotalClientsConnections:0;TotalServersConnections:0;BytesReceived:0;BytesSend:0;NodeServersListCount:0;NodeServersDeleted:0);
 
 implementation
 
@@ -427,8 +439,16 @@ procedure TNetData.AddServer(NodeServerAddress: TNodeServerAddress);
 Var P : PNodeServerAddress;
   i : Integer;
   l : TList;
+  currunixtimestamp : Cardinal;
 begin
   if trim(NodeServerAddress.ip)='' then exit;
+  // Protection against fill with invalid nodes
+  currunixtimestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+  // If not connected CT_LAST_CONNECTION_MAX_MINUTES minutes ago...
+  If (NodeServerAddress.last_connection_by_server=0) AND (NodeServerAddress.last_connection>0) AND ((NodeServerAddress.last_connection + (CT_LAST_CONNECTION_MAX_MINUTES)) < (currunixtimestamp)) then exit;
+  // If not connected CT_LAST_CONNECTION_BY_SERVER_MAX_MINUTES minutes ago...
+  If (NodeServerAddress.last_connection=0) AND (NodeServerAddress.last_connection_by_server>0) AND ((NodeServerAddress.last_connection_by_server + (CT_LAST_CONNECTION_BY_SERVER_MAX_MINUTES)) < (currunixtimestamp)) then exit;
+  If (NodeServerAddress.last_connection_by_server>currunixtimestamp) OR (NodeServerAddress.last_connection>currunixtimestamp) then exit;
   l := FNodeServersAddresses.LockList;
   try
     i := IndexOfNetClient(l,NodeServerAddress.ip,NodeServerAddress.port);
@@ -439,10 +459,12 @@ begin
       if NodeServerAddress.last_attempt_to_connect>P^.last_attempt_to_connect then P^.last_attempt_to_connect := NodeServerAddress.last_attempt_to_connect;
       exit;
     end;
+    If (l.Count>=FMaxNodeServersAddressesBuffer) then exit; // In order to prevent fill buffer
     New(P);
     P^ := NodeServerAddress;
     l.Add(P);
     l.Sort(SortNodeServerAddress);
+    Inc(FNetStatistics.NodeServersListCount);
     TLog.NewLog(ltdebug,Classname,'Adding new server: '+NodeServerAddress.ip+':'+Inttostr(NodeServerAddress.port));
   finally
     FNodeServersAddresses.UnlockList;
@@ -460,6 +482,7 @@ Var P,Pns : PNodeServerAddress;
   i,n,j : Integer;
   l,lns : TList;
 begin
+  CleanNodeServersList;
   // This procedure cleans old blacklisted IPs
   n := 0;
   l := FNodeServersAddresses.LockList;
@@ -467,16 +490,58 @@ begin
     for i := l.Count - 1 downto 0 do begin
       P := l[i];
       // Is an old blacklisted IP? (More than 1 hour)
-      If (P^.is_blacklisted) AND ((P^.last_connection+(60*60)) < (UnivDateTimeToUnix(DateTime2UnivDateTime(now)))) then begin
+      If (P^.is_blacklisted) AND ((P^.last_connection+(CT_LAST_CONNECTION_MAX_MINUTES)) < (UnivDateTimeToUnix(DateTime2UnivDateTime(now)))) then begin
         l.Delete(i);
         Dispose(P);
         inc(n);
+        dec(FNetStatistics.NodeServersListCount);
+        inc(FNetStatistics.NodeServersDeleted);
       end;
     end;
   Finally
     FNodeServersAddresses.UnlockList;
   End;
   if (n>0) then NotifyBlackListUpdated;
+end;
+
+procedure TNetData.CleanNodeServersList;  // Will mantain NodeServersAddesses with few nodes in order to keep memory and cpu speed
+var i,j : Integer;
+  nsa : TNodeServerAddress;
+  currunixtimestamp : Cardinal;
+  l : TList;
+  Aux : TNodeServerAddressArray;
+begin
+  currunixtimestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+  l := FNodeServersAddresses.LockList;
+  try
+    i := l.Count-1;
+    while (i>=0) do begin
+      nsa := PNodeServerAddress( l[i] )^;
+      If (Not (nsa.is_blacklisted)) // Not blacklisted
+        And ((nsa.netConnection = Nil)  // No connection
+             OR  // Connected but a lot of time without data...
+             ((Assigned(nsa.netConnection)) AND ((nsa.last_connection + (CT_LAST_CONNECTION_MAX_MINUTES)) < currunixtimestamp )))
+        And (
+          (nsa.total_failed_attemps_to_connect>0)
+          OR
+          (
+           // I've not connected CT_LAST_CONNECTION_MAX_MINUTES minutes before
+           ((nsa.last_connection + (CT_LAST_CONNECTION_MAX_MINUTES)) < (currunixtimestamp))
+           And // Others have connected CT_LAST_CONNECTION_BY_SERVER_MAX_MINUTES minutes before
+           ((nsa.last_connection_by_server + (CT_LAST_CONNECTION_BY_SERVER_MAX_MINUTES)) < (currunixtimestamp))
+           And
+           ((nsa.last_connection>0) Or (nsa.last_connection_by_server>0))
+          ))
+      then begin
+        DeleteNetClient(l,i);
+        dec(FNetStatistics.NodeServersListCount);
+        inc(FNetStatistics.NodeServersDeleted);
+      end;
+      dec(i);
+    end;
+  finally
+    FNodeServersAddresses.UnlockList;
+  end;
 end;
 
 function TNetData.Connection(index: Integer): TNetConnection;
@@ -634,7 +699,7 @@ begin
   TLog.NewLog(ltDebug,ClassName,'Unlocked a NetLock object out of connections list');
 end;
 
-constructor TNetData.Create;
+constructor TNetData.Create(AOwner: TComponent);
 begin
   TLog.NewLog(ltInfo,ClassName,'TNetData.Create');
   FMaxConnections := CT_MaxClientsConnected;
@@ -660,6 +725,7 @@ begin
   FNetDataNotifyEventsThread := TNetDataNotifyEventsThread.Create(Self);
   FNetClientsDestroyThread := TNetClientsDestroyThread.Create(Self);
   FNetworkAdjustedTime := TNetworkAdjustedTime.Create;
+  FMaxNodeServersAddressesBuffer:=(CT_MAX_NODESERVERS_BUFFER DIV 2);
   If Not Assigned(_NetData) then _NetData := Self;
 end;
 
@@ -953,7 +1019,8 @@ begin
   end;
 end;
 
-procedure TNetData.GetNewBlockChainFromClient(Connection: TNetConnection; const Why : String);
+procedure TNetData.GetNewBlockChainFromClient(Connection: TNetConnection;
+  const why: String);
 Const CT_LogSender = 'GetNewBlockChainFromClient';
 
   function Do_GetOperationsBlock(AssignToBank : TPCBank; block_start,block_end, MaxWaitMilliseconds : Cardinal; OnlyOperationBlock : Boolean; BlocksList : TList) : Boolean;
@@ -1416,6 +1483,7 @@ begin
   SetLength(Result,0);
   SetLength(Aux,0);
   currunixtimestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
+  CleanNodeServersList;
   // Save other node servers
   l := FNodeServersAddresses.LockList;
   try
@@ -1423,10 +1491,10 @@ begin
       nsa := PNodeServerAddress( l[i] )^;
       if (Not IsBlackListed(nsa.ip,0))
         And
-        ( // I've connected 24h before
-         ((nsa.last_connection>0) And ((Assigned(nsa.netConnection)) Or ((nsa.last_connection + (60*60*24)) > (currunixtimestamp))))
-         Or // Others have connected 24h before
-         ((nsa.last_connection_by_server>0) And ((nsa.last_connection_by_server + (60*60*24)) > (currunixtimestamp)))
+        ( // I've connected 1h before
+         ((nsa.last_connection>0) And ((Assigned(nsa.netConnection)) Or ((nsa.last_connection + (CT_LAST_CONNECTION_MAX_MINUTES)) > (currunixtimestamp))))
+         Or // Others have connected 3h before
+         ((nsa.last_connection_by_server>0) And ((nsa.last_connection_by_server + (CT_LAST_CONNECTION_BY_SERVER_MAX_MINUTES)) > (currunixtimestamp)))
          Or // Peer cache
          ((nsa.last_connection=0) And (nsa.last_connection_by_server=0))
         )
@@ -1494,6 +1562,14 @@ begin
   if (incBytesReceived<>0) Or (incBytesSend<>0) then begin
     NotifyNetConnectionUpdated;
   end;
+end;
+
+procedure TNetData.SetMaxNodeServersAddressesBuffer(AValue: Integer);
+begin
+  if FMaxNodeServersAddressesBuffer=AValue then Exit;
+  if (AValue<CT_MIN_NODESERVERS_BUFFER) then FMaxNodeServersAddressesBuffer:=CT_MIN_NODESERVERS_BUFFER
+  else if (AValue>CT_MAX_NODESERVERS_BUFFER) then FMaxNodeServersAddressesBuffer:=CT_MAX_NODESERVERS_BUFFER
+  else FMaxNodeServersAddressesBuffer:=AValue;
 end;
 
 function TNetData.IndexOfNetClient(ListToSearch: TList; ip: AnsiString; port: Word; indexStart : Integer = 0): Integer;
@@ -2405,7 +2481,8 @@ Begin
           TStreamOp.ReadAnsiString(DataBuffer,nsa.ip);
           DataBuffer.Read(nsa.port,2);
           DataBuffer.Read(nsa.last_connection_by_server,4);
-          TNetData.NetData.AddServer(nsa);
+          If (nsa.last_connection_by_server>0) And (i<=CT_MAX_NODESERVERS_ON_HELLO) then // Protect massive data
+            TNetData.NetData.AddServer(nsa);
         end;
         if TStreamOp.ReadAnsiString(DataBuffer,other_version)>=0 then begin
           // Captures version
@@ -3026,7 +3103,7 @@ begin
     data.Write(currunixtimestamp,4);
     // Save last operations block
     TPCOperationsComp.SaveOperationBlockToStream(TNode.Node.Bank.LastOperationBlock,data);
-    nsarr := TNetData.NetData.GetValidNodeServers(true,20);
+    nsarr := TNetData.NetData.GetValidNodeServers(true,CT_MAX_NODESERVERS_ON_HELLO);
     i := length(nsarr);
     data.Write(i,4);
     for i := 0 to High(nsarr) do begin
