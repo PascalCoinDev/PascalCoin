@@ -1,8 +1,6 @@
 unit UPoolMining;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -20,11 +18,6 @@ unit UPoolMining;
 interface
 
 Uses
-{$IFnDEF FPC}
-  Windows,
-{$ELSE}
-  {LCLIntf, LCLType, LMessages,}
-{$ENDIF}
   UTCPIP, SysUtils, UThread, SyncObjs, Classes, UJSONFunctions, UAES, UNode,
   UCrypto, UAccounts, UConst, UBlockChain;
 

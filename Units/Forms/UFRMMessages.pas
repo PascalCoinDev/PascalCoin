@@ -5,11 +5,7 @@ unit UFRMMessages;
 interface
 
 uses
-  {$IFnDEF FPC}
-    pngimage, Windows, AppEvnts, ShlObj,
-  {$ELSE}
-    LCLIntf, LCLType,
-  {$ENDIF}
+  LCLIntf, LCLType,
   SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, Menus,
   UNode, UNetProtocol, UCrypto, UFRMWallet,UConst;

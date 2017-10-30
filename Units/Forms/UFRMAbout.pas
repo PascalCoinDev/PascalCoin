@@ -1,8 +1,6 @@
 unit UFRMAbout;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -20,11 +18,7 @@ unit UFRMAbout;
 interface
 
 uses
-{$IFnDEF FPC}
-  pngimage, Windows,
-{$ELSE}
   LCLIntf, LCLType, LMessages,
-{$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, ExtCtrls, StdCtrls, Buttons;
 
@@ -56,29 +50,14 @@ type
 implementation
 
 uses
-{$IFnDEF FPC}
-  ShellApi,
-{$ELSE}
-{$ENDIF}
   UFolderHelper, UConst, UNode;
 
-{$IFnDEF FPC}
-  {$R *.dfm}
-{$ELSE}
-  {$R *.lfm}
-{$ENDIF}
+{$R *.lfm}
+
 
 procedure TFRMAbout.FormCreate(Sender: TObject);
-{$IFnDEF FPC}
-Var fvi : TFileVersionInfo;
-{$ENDIF}
 begin
-  {$IFDEF FPC}
   lblBuild.Caption :=  'Build: '+CT_ClientAppVersion;
-  {$ELSE}
-  fvi := TFolderHelper.GetTFileVersionInfo(Application.ExeName);
-  lblBuild.Caption :=  'Build: '+fvi.FileVersion;
-  {$ENDIF}
   lblProtocolVersion.Caption := Format('BlockChain Protocol: %d (%d)  -  Net Protocol: %d (%d)',[TNode.Node.Bank.SafeBox.CurrentProtocol,CT_BlockChain_Protocol_Available,
     CT_NetProtocol_Version, CT_NetProtocol_Available]);
 end;
@@ -96,11 +75,7 @@ end;
 
 procedure TFRMAbout.OpenURL(Url: String);
 begin
-  {$IFDEF FPC}
   OpenDocument(pchar(URL))
-  {$ELSE}
-  shellexecute(0, 'open', pchar(URL), nil, nil, SW_SHOW)
-  {$ENDIF}
 end;
 
 end.

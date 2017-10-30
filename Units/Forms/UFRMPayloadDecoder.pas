@@ -1,8 +1,6 @@
 unit UFRMPayloadDecoder;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode Delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -20,11 +18,7 @@ unit UFRMPayloadDecoder;
 interface
 
 uses
-{$IFnDEF FPC}
-  Windows,
-{$ELSE}
   LCLIntf, LCLType, LMessages,
-{$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UBlockChain, UCrypto, UWalletKeys, Buttons, ComCtrls,
   UAppParams;
@@ -97,11 +91,7 @@ type
 
 implementation
 
-{$IFnDEF FPC}
-  {$R *.dfm}
-{$ELSE}
-  {$R *.lfm}
-{$ENDIF}
+{$R *.lfm}
 
 Uses UNode, UTime, UECIES, UAES, UAccounts;
 

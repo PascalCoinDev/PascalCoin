@@ -20,9 +20,8 @@ unit UOpenSSL;
 
 interface
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
+
 
 Uses UOpenSSLdef;
 {$I config.inc}
@@ -35,17 +34,12 @@ var
   SSL_C_LIB : AnsiString = './libcrypto.so.1.1';
   {$ENDIF}
 {$ELSE}
-  {$IFDEF FPC}
   // Windows + Lazarus uses a OpenSSL v1.0 32 or 64 bits
-    {$ifdef CPU32}
-	SSL_C_LIB : AnsiString = 'libeay32.dll';
-    {$ENDIF}
-    {$ifdef CPU64}
-	SSL_C_LIB : AnsiString = 'libeay64.dll';
-    {$ENDIF}
-  {$ELSE}
-  // Windows + Delphi only allows OpenSSL v1.0 32 bits
-  SSL_C_LIB : AnsiString = 'libeay32.dll';
+  {$ifdef CPU32}
+      SSL_C_LIB : AnsiString = 'libeay32.dll';
+  {$ENDIF}
+  {$ifdef CPU64}
+      SSL_C_LIB : AnsiString = 'libeay64.dll';
   {$ENDIF}
 {$ENDIF}
 
@@ -236,11 +230,7 @@ begin
   {$ENDIF}
   if ACritical then begin
     if Result = nil then begin
-    {$IFDEF FPC}
      raise Exception.CreateFmt('Error loading OpenSSL library function "%s" error: "%s". Are you sure that using OpenSSL good version?', [FceName, SysErrorMessage(GetLastOSError)]);
-    {$ELSE}
-     raise Exception.CreateFmt('Error loading OpenSSL library function "%s" error: "%s". Are you sure that using OpenSSL good version?', [FceName, SysErrorMessage(GetLastError)]);
-    {$ENDIF}
     end;
   end;
 end;

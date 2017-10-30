@@ -1,8 +1,6 @@
 unit UBaseTypes;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 { Copyright (c) 2017 by Albert Molina
 
@@ -64,12 +62,10 @@ implementation
 
 { TBaseType }
 
-{$IFnDEF FPC}
 procedure FillByte(var X; count : Integer; value : Byte);
 begin
   FillChar(X,count,value);
 end;
-{$ENDIF}
 
 class procedure TBaseType.T32BytesToRawBytes(const source: T32Bytes; var dest: TDynRawBytes);
 begin

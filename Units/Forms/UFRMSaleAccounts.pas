@@ -1,3 +1,5 @@
+{$mode delphi}
+
 unit UFRMSaleAccounts;
 
 interface

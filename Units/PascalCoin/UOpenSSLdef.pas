@@ -20,9 +20,7 @@ unit UOpenSSLdef;
 
 interface
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 uses {$IFDEF UNIX}BaseUnix {$ELSE} Windows{$ENDIF};
 

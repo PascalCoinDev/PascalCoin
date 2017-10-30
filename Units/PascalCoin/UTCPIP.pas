@@ -15,9 +15,7 @@ unit UTCPIP;
 
 interface
 
-{$IFDEF FPC}
-  {$mode objfpc}
-{$ENDIF}
+{$mode delphi}
 
 {$I config.inc}
 
@@ -195,11 +193,6 @@ type
 implementation
 
 uses
-{$IFnDEF FPC}
-  Windows,
-{$ELSE}
-  {LCLIntf, LCLType, LMessages,}
-{$ENDIF}
   UConst, ULog;
 
 { TNetTcpIpClient }
@@ -311,9 +304,6 @@ end;
 procedure TNetTcpIpClient.Disconnect;
 Var DebugStep : AnsiString;
 begin
-  {$IFDEF DelphiSockets}
-  FTcpBlockSocket.Disconnect;
-  {$ENDIF}
   {$IFDEF Synapse}
   if Not FConnected then exit;
   Try

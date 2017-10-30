@@ -177,7 +177,10 @@ begin
   FLock.Acquire;
   try
     msg := formatdatetime('hh:nn:ss',now)+' '+CT_LogType[logtype]+' '+logtext;
-    FLastLogs.AddObject(msg,TObject(PtrInt(logtype)));
+    // TODO - test logtype is properly casted/stored/retrieved/accessed.
+    // Confirm casting doesn't lose bits in 32/64 bit archs
+    // OLD: FLastLogs.AddObject(msg,TObject(PtrInt(logtype)));
+    FLastLogs.AddObject(msg,TObject(Int(QWord(logtype))));
     i := FLastLogs.Count-CT_MaxLogs;
     if (i<0) then i:=0;
     nline := CT_Line_Logs+FDeviceThreads.Count;
@@ -273,7 +276,7 @@ var
     devt : TCustomMinerDeviceThread;
     s : String;
   Begin
-    tc := GetTickCount;
+    tc := GetTickCount64;
     repeat
       If FPoolMinerThread.PoolMinerClient.Connected then begin
         for i:=0 to FDeviceThreads.Count-1 do begin
@@ -283,8 +286,8 @@ var
       while (Not Terminated) do begin
         sleep(100);
         //devt := TCustomMinerDeviceThread(FDeviceThreads[0]);
-        If (tc + 1000)<GetTickCount then begin
-          tc := GetTickCount;
+        If (tc + 1000)<GetTickCount64 then begin
+          tc := GetTickCount64;
           //ms := devt.DeviceStats;
           For i:=0 to FDeviceThreads.Count-1 do begin
             devt := TCustomMinerDeviceThread(FDeviceThreads[i]);

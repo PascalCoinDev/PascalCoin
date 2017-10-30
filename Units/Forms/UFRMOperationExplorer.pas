@@ -5,11 +5,7 @@ unit UFRMOperationExplorer;
 interface
 
 uses
-  {$IFnDEF FPC}
-    pngimage, Windows, AppEvnts, ShlObj,
-  {$ELSE}
     LCLIntf, LCLType,
-  {$ENDIF}
     SysUtils, Controls, Forms,
     Dialogs, ExtCtrls, StdCtrls,
     Grids, Menus, Classes, UGridUtils, UConst;

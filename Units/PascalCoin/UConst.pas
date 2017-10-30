@@ -1,8 +1,6 @@
 unit UConst;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -21,12 +19,10 @@ interface
 
 {$I config.inc}
 
-{$IFNDEF FPC}
   // See http://wiki.freepascal.org/Code_Conversion_Guide
 type
   PtrInt = integer;
   PtrUInt = cardinal;
-{$ENDIF}
 
 Const
   CT_Genesis_Magic_String_For_Old_Block_Hash :

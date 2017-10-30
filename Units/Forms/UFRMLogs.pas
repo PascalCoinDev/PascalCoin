@@ -5,11 +5,7 @@ unit UFRMLogs;
 interface
 
 uses
-  {$IFnDEF FPC}
-    pngimage, Windows, AppEvnts, ShlObj,
-  {$ELSE}
     LCLIntf,
-  {$ENDIF}
     SysUtils, Classes, Graphics, Controls, Forms,
     Dialogs, ExtCtrls,  StdCtrls,
     ULog, UBlockChain;
@@ -35,6 +31,7 @@ var
 
 implementation
 uses  UUserInterface;
+
 {$R *.lfm}
 
 { TFRMLogs }

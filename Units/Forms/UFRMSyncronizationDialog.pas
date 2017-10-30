@@ -55,8 +55,11 @@ var
   FRMSyncronizationDialogIsFirstOpen:boolean =true;  //TODO update
 
 implementation
-uses UNetProtocol,UTime,UConst, UUserInterface;
+
 {$R *.lfm}
+
+uses UNetProtocol,UTime,UConst, UUserInterface;
+
 
 procedure TFRMSyncronizationDialog.lblReceivedMessagesClick(Sender:TObject);
 begin

@@ -1,8 +1,6 @@
 unit UChunk;
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ENDIF}
+{$mode delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -20,8 +18,7 @@ unit UChunk;
 interface
 
 uses
-  Classes, SysUtils,  ZLib, {$IFDEF FPC} zStream, {$ENDIF}
-  UAccounts, ULog, UConst, UCrypto;
+  Classes, SysUtils,  ZLib, zStream, UAccounts, ULog, UConst, UCrypto;
 
 type
 

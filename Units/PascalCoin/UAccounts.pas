@@ -1,8 +1,6 @@
 unit UAccounts;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -1499,12 +1497,10 @@ procedure TPCSafeBox.CheckMemory;
     When compiling using Delphi it's memory manager more is efficient and does not increase, but
     When compiling using Free Pascal Compiler, is a good solution to "force" generate a new SafeBox
     in order to free memory not used. Tested with FPC 3.0 }
-{$IFDEF FPC}
 Var sb : TPCSafeBox;
   tc : QWord;
-{$ENDIF}
+
 begin
-  {$IFDEF FPC}
   StartThreadSafe;
   try
     tc := GetTickCount64;
@@ -1521,7 +1517,6 @@ begin
   finally
     EndThreadSave;
   end;
-  {$ENDIF}
 end;
 
 procedure TPCSafeBox.Clear;
@@ -1767,11 +1762,7 @@ begin
         // BufferBlocksHash fill with data
         j := (length(P^.block_hash)*(iBlock));
         for i := 1 to length(P^.block_hash) do begin
-          {$IFDEF FPC}
           FBufferBlocksHash[i+j] := AnsiChar(P^.block_hash[i-(low(FBufferBlocksHash)-low(P^.block_hash))]);
-          {$ELSE}
-          FBufferBlocksHash[i+j] := AnsiChar(P^.block_hash[i-{$IFDEF uselowmem}1{$ELSE}0{$ENDIF}]);
-          {$ENDIF}
         end;
         LastReadBlock := block;
         Inc(FWorkSum,block.blockchainInfo.compact_target);
@@ -2404,11 +2395,7 @@ begin
   // Update buffer block hash
   j := (length(P^.block_hash)*(iBlock));
   for i := 1 to length(P^.block_hash) do begin
-    {$IFDEF FPC}
     FBufferBlocksHash[i+j] := AnsiChar(P^.block_hash[i-(low(FBufferBlocksHash)-low(P^.block_hash))]);
-    {$ELSE}
-    FBufferBlocksHash[i+j] := AnsiChar(P^.block_hash[i-{$IFDEF uselowmem}1{$ELSE}0{$ENDIF}]);
-    {$ENDIF}
   end;
 
   FTotalBalance := FTotalBalance - (Int64(lastbalance)-Int64(newBalance));

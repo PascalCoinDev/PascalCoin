@@ -17,9 +17,7 @@
 unit UCommonUI;
 
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 interface
 

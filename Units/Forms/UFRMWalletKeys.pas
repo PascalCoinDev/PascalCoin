@@ -1,8 +1,6 @@
 unit UFRMWalletKeys;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -22,11 +20,10 @@ interface
 uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UWalletKeys, Buttons,
-  {$IFDEF FPC}LMessages,{$ENDIF}
-  clipbrd, UConst, UCommon;
+  LMessages, clipbrd, UConst, UCommon;
 
 Const
-  CM_PC_WalletKeysChanged = {$IFDEF FPC}LM_USER{$ELSE}WM_USER{$ENDIF} + 1;
+  CM_PC_WalletKeysChanged = LM_USER + 1;
 
 type
   TFRMWalletKeys = class(TForm)
@@ -86,18 +83,10 @@ type
 implementation
 
 uses
-{$IFnDEF FPC}
-  Windows,
-{$ELSE}
   LCLIntf, LCLType,
-{$ENDIF}
   UCrypto, UAccounts, UUserInterface, UFRMNewPrivateKeyType, UAES;
 
-{$IFnDEF FPC}
-  {$R *.dfm}
-{$ELSE}
-  {$R *.lfm}
-{$ENDIF}
+{$R *.lfm}
 
 { TFRMWalletKeys }
 

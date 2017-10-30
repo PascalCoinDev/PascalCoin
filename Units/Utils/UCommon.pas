@@ -17,14 +17,12 @@
 unit UCommon;
 
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls, FGL, Generics.Collections, Generics.Defaults;
+  Classes, SysUtils, Generics.Collections, Generics.Defaults;
 
 { GLOBAL FUNCTIONS }
 

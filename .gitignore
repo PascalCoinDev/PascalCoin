@@ -16,9 +16,12 @@ libeay64.dll
 *.dproj.local
 *.lps
 *.dcu
-backup/
 lib/
 PascalCoinWallet_Icon.ico
+
+#Lazarus backup files
+*.bak
+backup/
 
 ## Development miner batch file
 Run*.bat

@@ -11,7 +11,7 @@
       </Flags>
       <SessionStorage Value="InProjectDir"/>
       <MainUnit Value="0"/>
-      <Title Value="PascalCoinWalletLazarus"/>
+      <Title Value="PascalCoin Wallet"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
       <Icon Value="0"/>
@@ -38,9 +38,9 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="54">
+    <Units Count="66">
       <Unit0>
-        <Filename Value="PascalCoinWalletLazarus.dpr"/>
+        <Filename Value="PascalCoinWallet.dpr"/>
         <IsPartOfProject Value="True"/>
       </Unit0>
       <Unit1>
@@ -315,16 +315,66 @@
         <Filename Value="Units\Utils\UCommon.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit53>
+      <Unit54>
+        <Filename Value="Units\PascalCoin\UGPUMining.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit54>
+      <Unit55>
+        <Filename Value="Units\PascalCoin\upcdaemon.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit55>
+      <Unit56>
+        <Filename Value="Units\PascalCoin\UPoolMinerThreads.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit56>
+      <Unit57>
+        <Filename Value="Units\PascalCoin\UServerApp.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit57>
+      <Unit58>
+        <Filename Value="Units\PascalCoin\USha256.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit58>
+      <Unit59>
+        <Filename Value="Units\Utils\generics.dictionaries.inc"/>
+        <IsPartOfProject Value="True"/>
+      </Unit59>
+      <Unit60>
+        <Filename Value="Units\Utils\generics.dictionariesh.inc"/>
+        <IsPartOfProject Value="True"/>
+      </Unit60>
+      <Unit61>
+        <Filename Value="Units\Utils\UWizard.lfm"/>
+        <IsPartOfProject Value="True"/>
+      </Unit61>
+      <Unit62>
+        <Filename Value="Units\Forms\UFRMAccountInfo.pas"/>
+        <IsPartOfProject Value="True"/>
+        <HasResources Value="True"/>
+      </Unit62>
+      <Unit63>
+        <Filename Value="Units\Forms\UFRMMemoText.pas"/>
+        <IsPartOfProject Value="True"/>
+        <HasResources Value="True"/>
+      </Unit63>
+      <Unit64>
+        <Filename Value="Units\Forms\UFRMSaleAccounts.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit64>
+      <Unit65>
+        <Filename Value="Units\Forms\UFRMWalletKeys2.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit65>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="PascalCoinWalletLazarus"/>
+      <Filename Value="PascalCoinWallet"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir)"/>
+      <IncludeFiles Value="$(ProjOutDir);Units\PascalCoin;Units\Utils"/>
       <OtherUnitFiles Value="Synapse\lib;Units\Forms;Units\PascalCoin;Units\Utils;Units\SQLite3"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>

@@ -1,8 +1,6 @@
 unit UAES;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -42,26 +40,17 @@ Type
     Class function EVP_Decrypt_AES256(const EncryptedMessage: TRawBytes; APassword: AnsiString; var Decrypted : AnsiString) : Boolean; overload;
   End;
 
-{$IFDEF FPC}
 procedure CopyMemory(Destination: Pointer; Source: Pointer; Length: DWORD);
-{$ENDIF}
 
 implementation
 
 uses
-{$IFnDEF FPC}
-  Windows,
-{$ELSE}
-  {LCLIntf, LCLType, LMessages,}
-{$ENDIF}
   UOpenSSL, UOpenSSLdef;
 
-{$IFDEF FPC}
 procedure CopyMemory(Destination: Pointer; Source: Pointer; Length: DWORD);
 begin
   Move(Source^, Destination^, Length);
 end;
-{$ENDIF}
 
 CONST SALT_MAGIC: AnsiString = 'Salted__'; SALT_MAGIC_LEN: integer = 8; SALT_SIZE = 8;
 

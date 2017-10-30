@@ -24,6 +24,6 @@ type
 
 implementation
 
-{$R *.dfm}
+{$R *.lfm}
 
 end.

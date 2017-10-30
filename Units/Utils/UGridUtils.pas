@@ -1,8 +1,6 @@
 unit UGridUtils;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -20,11 +18,7 @@ unit UGridUtils;
 interface
 
 uses
-{$IFnDEF FPC}
-  Windows,
-{$ELSE}
   LCLIntf, LCLType, LMessages,
-{$ENDIF}
   Classes, Grids, UNode, UAccounts, UBlockChain, UAppParams,
   UWalletKeys, UCrypto, UPoolMining, URPC;
 
@@ -282,7 +276,7 @@ begin
   DrawGrid.Options := [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine,
     {goRangeSelect, }goDrawFocusSelected, {goRowSizing, }goColSizing, {goRowMoving,}
     {goColMoving, goEditing, }goTabs, goRowSelect, {goAlwaysShowEditor,}
-    goThumbTracking{$IFnDEF FPC}, goFixedColClick, goFixedRowClick, goFixedHotTrack{$ENDIF}];
+    goThumbTracking];
   if FAllowMultiSelect then DrawGrid.Options := DrawGrid.Options + [goRangeSelect];
   FDrawGrid.Invalidate;
   if Assigned(FOnUpdated) then FOnUpdated(Self);
@@ -361,7 +355,6 @@ begin
   end;
 end;
 
-{$IFDEF FPC}
 Type
 TTextFormats = (tfBottom, tfCalcRect, tfCenter, tfEditControl, tfEndEllipsis,
   tfPathEllipsis, tfExpandTabs, tfExternalLeading, tfLeft, tfModifyString,
@@ -390,12 +383,6 @@ Begin
   ts.SystemFont:=false;
   Canvas.TextRect(Rect,Rect.Left,Rect.Top,Text,ts);
 end;
-{$ELSE}
-Procedure Canvas_TextRect(Canvas : TCanvas; var Rect: TRect; var Text: string; State: TGridDrawState; TextFormat: TTextFormat = []);
-Begin
-  Canvas.TextRect(Rect,Text,TextFormat);
-end;
-{$ENDIF}
 
 procedure TAccountsGrid.OnGridDrawCell(Sender: TObject; ACol, ARow: Integer; Rect: TRect; State: TGridDrawState);
   Function FromColorToColor(colorstart,colordest : Integer; step,totalsteps : Integer) : Integer;
@@ -429,9 +416,7 @@ begin
     C.ColumnType := act_account_number;
     C.width := -1;
   end;
-  {.$IFDEF FPC}
   DrawGrid.Canvas.Font.Color:=clBlack;
-  {.$ENDIF}
   if (ARow=0) then begin
     // Header
     s := CT_ColumnHeader[C.ColumnType];
@@ -669,7 +654,7 @@ begin
   DrawGrid.Options := [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine,
     {goRangeSelect, }goDrawFocusSelected, {goRowSizing, }goColSizing, {goRowMoving,}
     {goColMoving, goEditing, }goTabs, goRowSelect, {goAlwaysShowEditor,}
-    goThumbTracking{$IFnDEF FPC}, goFixedColClick, goFixedRowClick, goFixedHotTrack{$ENDIF}];
+    goThumbTracking];
 end;
 
 procedure TOperationsGrid.Notification(AComponent: TComponent; Operation: TOperation);
@@ -686,9 +671,7 @@ procedure TOperationsGrid.OnGridDrawCell(Sender: TObject; ACol, ARow: Integer; R
 Var s : String;
   opr : TOperationResume;
 begin
-  {.$IFDEF FPC}
   DrawGrid.Canvas.Font.Color:=clBlack;
-  {.$ENDIF}
   opr := CT_TOperationResume_NUL;
   Try
   if (ARow=0) then begin
@@ -1034,7 +1017,7 @@ begin
   DrawGrid.Options := [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine,
     {goRangeSelect, }goDrawFocusSelected, {goRowSizing, }goColSizing, {goRowMoving,}
     {goColMoving, goEditing, }goTabs, goRowSelect, {goAlwaysShowEditor,}
-    goThumbTracking{$IFnDEF FPC}, goFixedColClick, goFixedRowClick, goFixedHotTrack{$ENDIF}];
+    goThumbTracking];
   UpdateBlockChainGrid;
 end;
 
@@ -1056,9 +1039,7 @@ Var s : String;
   bcd : TBlockChainData;
   deviation : Real;
 begin
-  {.$IFDEF FPC}
   DrawGrid.Canvas.Font.Color:=clBlack;
-  {.$ENDIF}
   if (ARow=0) then begin
     // Header
     case ACol of

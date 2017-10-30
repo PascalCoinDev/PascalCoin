@@ -1,8 +1,6 @@
 unit UServerApp;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 {$IFDEF MSWINDOWS}
   {$DEFINE OS_MSWIN}

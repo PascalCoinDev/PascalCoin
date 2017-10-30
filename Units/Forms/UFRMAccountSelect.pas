@@ -1,8 +1,6 @@
 unit UFRMAccountSelect;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$MODE Delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -20,11 +18,7 @@ unit UFRMAccountSelect;
 interface
 
 uses
-{$IFnDEF FPC}
-  Windows,
-{$ELSE}
   LCLIntf, LCLType, LMessages,
-{$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, UAccounts, Grids, StdCtrls, Buttons, ExtCtrls, UWalletKeys, UNode,
   UGridUtils, UConst, UThread;
@@ -131,11 +125,7 @@ type
 
 implementation
 
-{$IFnDEF FPC}
-  {$R *.dfm}
-{$ELSE}
   {$R *.lfm}
-{$ENDIF}
 
 Uses strutils;
 

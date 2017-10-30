@@ -15,9 +15,7 @@
 
 unit UWizard;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 interface
 

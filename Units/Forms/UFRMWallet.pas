@@ -1,8 +1,6 @@
 unit UFRMWallet;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -22,11 +20,7 @@ interface
 {$I ./../PascalCoin/config.inc}
 
 uses
-{$IFnDEF FPC}
-  pngimage, Windows, AppEvnts, ShlObj,
-{$ELSE}
   LCLIntf, LCLType, LMessages,
-{$ENDIF}
   Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, ExtCtrls, ComCtrls, UWalletKeys, StdCtrls,
   ULog, Grids, UAppParams,
@@ -65,7 +59,7 @@ type
     N1: TMenuItem;
     miClose: TMenuItem;
     ilIcons: TImageList;
-    ApplicationEvents: {$IFDEF FPC}TApplicationProperties{$ELSE}TApplicationEvents{$ENDIF};
+    ApplicationEvents: TApplicationProperties;
     IPnodes1: TMenuItem;
     pnlSelectedAccountsBottom: TPanel;
     tbFooter: TToolBar;
@@ -109,11 +103,7 @@ type
 
 implementation
 
-{$IFnDEF FPC}
-  {$R *.dfm}
-{$ELSE}
-  {$R *.lfm}
-{$ENDIF}
+{$R *.lfm}
 
 uses UThread, UOpTransaction, UUserInterface;
 
@@ -148,6 +138,7 @@ end;
 
 procedure TFRMWallet.ApplicationEventsMinimize(Sender: TObject);
 begin
+  // TODO refactor
   {$IFnDEF FPC}
   Hide();
   WindowState := wsMinimized;
@@ -195,7 +186,6 @@ end;
 procedure TFRMWallet.RefreshConnectivityIcon;
 var   active : boolean;
 const
-
   ImageIndexConst : array[false..true] of integer=(1,0);
   HintConst : array[false..true] of String =('Network is inactive. Click activate.','Network is active. Click to deactivate.');
 begin
@@ -206,7 +196,7 @@ end;
 
 {%endregion}
 
-{%region Handlers: Form size}
+{%region Handlers: Form}
 
 procedure TFRMWallet.FormResize(Sender: TObject);
 begin
@@ -272,7 +262,6 @@ procedure TFRMWallet.miOperationsExplorerClick(Sender: TObject);
 begin
  TUserInterface.ShowOperationsExplorer;
 end;
-
 
 procedure TFRMWallet.miBlockExplorerClick(Sender: TObject);
 begin

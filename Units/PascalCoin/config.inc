@@ -25,7 +25,6 @@
 }
 
   {$DEFINE OPTIONS_BY_DEFAULT}
-  {.$DEFINE DelphiSockets_OpenSSLv10}
   {.$DEFINE Synapse_OpenSSLv10}
   {.$DEFINE Synapse_OpenSSLv11}
 
@@ -54,45 +53,23 @@ ERROR: You must select ONE option!
 {$ENDIF}{$ENDIF}{$ENDIF}{$ENDIF}
 {$IFDEF OPTIONS_BY_DEFAULT}
   // By default are: Delphi = Synapse + OpenSSLv10  -  FPC = Synapse + OpenSSLv11
-  {$IFDEF FPC}
     // With Free Pascal Compiler, only Synapse + OpenSSLv1.0 for Delphi or OpenSSLv1.1 for Linux
-    {$DEFINE Synapse}
-    {$IFDEF LINUX}
-    {$UNDEF OpenSSL10}
-    {$ELSE}
-    {$DEFINE OpenSSL10}
-    {$ENDIF}
+  {$DEFINE Synapse}
+  {$IFDEF LINUX}
+  {$UNDEF OpenSSL10}
   {$ELSE}
-    // Delphi, Synapse + OpenSSL v1.0
-    {$DEFINE Synapse}
-    {$DEFINE OpenSSL10}
+  {$DEFINE OpenSSL10}
   {$ENDIF}
-  {$IFDEF DelphiSockets_OpenSSLv10}ERROR: You selected more than 1 option{$ENDIF}
   {$IFDEF Synapse_OpenSSLv10}ERROR: You selected more than 1 option{$ENDIF}
   {$IFDEF Synapse_OpenSSLv11}ERROR: You selected more than 1 option{$ENDIF}
 {$ELSE}
-  {$IFDEF DelphiSockets_OpenSSLv10}
-    {$IFDEF FPC}
-      ERROR: With Free Pascal you cannot choose compiler directive DelphiSockets_OpenSSLv10
-    {$ELSE}
-      {$UNDEF Synapse}
-      {$DEFINE OpenSSL10}
-    {$ENDIF}
-    {$IFDEF Synapse_OpenSSLv10}ERROR: You selected more than 1 option{$ENDIF}
+  {$IFDEF Synapse_OpenSSLv10}
+    {$DEFINE Synapse}
+    {$DEFINE OpenSSL10}
     {$IFDEF Synapse_OpenSSLv11}ERROR: You selected more than 1 option{$ENDIF}
   {$ELSE}
-    {$IFDEF Synapse_OpenSSLv10}
-      {$DEFINE Synapse}
-      {$DEFINE OpenSSL10}
-      {$IFDEF Synapse_OpenSSLv11}ERROR: You selected more than 1 option{$ENDIF}
-    {$ELSE}
-      {$IFDEF FPC}
-        {$DEFINE Synapse}
-        {$UNDEF OpenSSL10}
-      {$ELSE}
-        ERROR: With Delphi you cannot choose compiler directive Synapse_OpenSSLv11
-      {$ENDIF}
-    {$ENDIF}
+    {$DEFINE Synapse}
+    {$UNDEF OpenSSL10}
   {$ENDIF}
 {$ENDIF}
 

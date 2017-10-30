@@ -1,8 +1,6 @@
 unit UThread;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -20,11 +18,7 @@ unit UThread;
 interface
 
 uses
-{$IFnDEF FPC}
-  Windows,
-{$ELSE}
   {$IFDEF LINUX}cthreads,{$ENDIF}
-{$ENDIF}
   Classes, SyncObjs;
 
 {$I config.inc}

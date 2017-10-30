@@ -5,11 +5,7 @@ unit UFRMNodes;
 interface
 
 uses
-  {$IFnDEF FPC}
-    pngimage, Windows, AppEvnts, ShlObj,
-  {$ELSE}
-    LCLIntf, LCLType,
-  {$ENDIF}
+  LCLIntf, LCLType,
   Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, ExtCtrls, StdCtrls,
   ULog,  UBlockChain, UNode, Menus,  UNetProtocol,  UFRMWallet;

@@ -1,8 +1,6 @@
 unit UFRMPascalCoinWalletConfig;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -20,12 +18,7 @@ unit UFRMPascalCoinWalletConfig;
 interface
 
 uses
-{$IFnDEF FPC}
-  Windows,
-  ShellApi,
-{$ELSE}
   LCLIntf, LCLType, LMessages,
-{$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, Buttons, ComCtrls, UAppParams, UWalletKeys;
 
@@ -90,11 +83,7 @@ implementation
 
 uses UConst, UAccounts, ULog, UCrypto, UFolderHelper;
 
-{$IFnDEF FPC}
-  {$R *.dfm}
-{$ELSE}
-  {$R *.lfm}
-{$ENDIF}
+{$R *.lfm}
 
 procedure TFRMPascalCoinWalletConfig.bbOkClick(Sender: TObject);
 Var df : Int64;
@@ -136,11 +125,7 @@ end;
 
 procedure TFRMPascalCoinWalletConfig.bbOpenDataFolderClick(Sender: TObject);
 begin
-  {$IFDEF FPC}
   OpenDocument(pchar(TFolderHelper.GetPascalCoinDataFolder))
-  {$ELSE}
-  shellexecute(0, 'open', pchar(TFolderHelper.GetPascalCoinDataFolder), nil, nil, SW_SHOW)
-  {$ENDIF}
 end;
 
 procedure TFRMPascalCoinWalletConfig.bbUpdatePasswordClick(Sender: TObject);

@@ -1,8 +1,6 @@
 unit UFRMNewPrivateKeyType;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$MODE Delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -20,11 +18,7 @@ unit UFRMNewPrivateKeyType;
 interface
 
 uses
-{$IFnDEF FPC}
-  Windows,
-{$ELSE}
   LCLIntf, LCLType, LMessages,
-{$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, Buttons, ExtCtrls, UWalletKeys,UCrypto;
 
@@ -55,11 +49,7 @@ implementation
 uses
   UAccounts, UConst ;
 
-{$IFnDEF FPC}
-  {$R *.dfm}
-{$ELSE}
-  {$R *.lfm}
-{$ENDIF}
+{$R *.lfm}
 
 procedure TFRMNewPrivateKeyType.bbOkClick(Sender: TObject);
 begin

@@ -1,8 +1,6 @@
 unit URPC;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -103,8 +101,7 @@ Type
 
 implementation
 
-Uses  {$IFNDEF FPC}windows,{$ENDIF}
-  SysUtils, Synautil;
+Uses SysUtils, Synautil;
 
 var _RPCServer : TRPCServer = Nil;
 

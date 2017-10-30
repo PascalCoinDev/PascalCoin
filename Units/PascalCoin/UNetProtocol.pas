@@ -1,8 +1,6 @@
 unit UNetProtocol;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -20,11 +18,6 @@ unit UNetProtocol;
 interface
 
 uses
-{$IFnDEF FPC}
-  Windows,
-{$ELSE}
-  {LCLIntf, LCLType, LMessages,}
-{$ENDIF}
   UBlockChain, Classes, SysUtils, UAccounts, UThread,
   UCrypto, UTCPIP, SyncObjs, UCommon;
 
@@ -3113,7 +3106,7 @@ begin
       data.Write(nsa.last_connection,4);
     end;
     // Send client version
-    TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$ENDIF}{$IFDEF FPC}{$IFDEF LCL}+'L'{$ELSE}+'F'{$ENDIF}{$ENDIF});
+    TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$ENDIF}{$IFDEF LCL}+'L'{$ELSE}+'F'{$ENDIF});
     // Build 1.5 send accumulated work
     data.Write(TNode.Node.Bank.SafeBox.WorkSum,SizeOf(TNode.Node.Bank.SafeBox.WorkSum));
     //

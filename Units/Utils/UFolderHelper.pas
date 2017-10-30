@@ -1,8 +1,6 @@
 unit UFolderHelper;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
+{$mode delphi}
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -41,9 +39,6 @@ Type TFileVersionInfo = record
 
   TFolderHelper = record
   strict private
-    {$IFnDEF FPC}
-    class function GetFolder(const aCSIDL: Integer): string; static;
-    {$ENDIF}
     class function GetAppDataFolder : string; static;
   public
     class function GetPascalCoinDataFolder : string; static;
@@ -53,50 +48,22 @@ Type TFileVersionInfo = record
 implementation
 
 uses
-{$IFnDEF FPC}
-  Windows, ShlObj,
-  {$DEFINE FILEVERSIONINFO}
-{$ELSE}
   {$IFnDEF LINUX}
   Windows,
   {$DEFINE FILEVERSIONINFO}
   {$ENDIF}
-  {LCLIntf, LCLType, LMessages,}
-{$ENDIF}
   SysUtils;
 
 {$I .\..\PascalCoin\config.inc}
 
-{$IFnDEF FPC}
-function SHGetFolderPath(hwnd: HWND; csidl: Integer; hToken: THandle;
-  dwFlags: DWord; pszPath: LPWSTR): HRESULT; stdcall;
-  forward;
-function SHGetFolderPath; external 'SHFolder.dll' name 'SHGetFolderPathW';
-{$ENDIF}
-
 class function TFolderHelper.GetAppDataFolder: string;
 begin
-  {$IFDEF FPC}
   {$IFDEF LINUX}
   Result :=GetEnvironmentVariable('HOME');
   {$ELSE}
   Result :=GetEnvironmentVariable('APPDATA');
   {$ENDIF}
-  {$ELSE}
-  Result := GetFolder(CSIDL_APPDATA); // c:\Users\(User Name)\AppData\Roaming
-  {$ENDIF}
 end;
-
-{$IFnDEF FPC}
-class function TFolderHelper.GetFolder(const aCSIDL: Integer): string;
-var
-  FolderPath: array[0 .. MAX_PATH] of Char;
-begin
-  Result := '';
-  if SHGetFolderPath(0, aCSIDL, 0, 0, @FolderPath) = S_OK then
-    Result := FolderPath;
-end;
-{$ENDIF}
 
 class function TFolderHelper.GetPascalCoinDataFolder: string;
 begin
