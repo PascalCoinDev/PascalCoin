@@ -7,7 +7,7 @@ uses
   Dialogs, StdCtrls;
 
 type
-  TFRMAccountInfo = class(TForm)
+  TFRMAccountInfo = class(TApplicationForm)
     Label1: TLabel;
     lblAccount: TLabel;
     Label6: TLabel;

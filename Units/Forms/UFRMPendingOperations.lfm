@@ -1,7 +1,7 @@
 object FRMPendingOperations: TFRMPendingOperations
-  Left = 283
+  Left = 156
   Height = 357
-  Top = 313
+  Top = 188
   Width = 860
   Caption = 'Pending Operations'
   ClientHeight = 337
@@ -61,7 +61,7 @@ object FRMPendingOperations: TFRMPendingOperations
         OnClick = miFindOperationbyOpHashClick
       end
       object miDecodePayLoad: TMenuItem
-        Caption = 'Decode Payload Pending Operations'
+        Caption = 'Decode Payload'
         OnClick = miDecodePayLoadClick
       end
     end

@@ -6,13 +6,13 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls,
-  StdCtrls;
+  StdCtrls, UCommonUI;
 
 type
 
   { TFRMSyncronizationDialog }
 
-  TFRMSyncronizationDialog = class(TForm)
+  TFRMSyncronizationDialog = class(TApplicationForm)
     HideButton:TButton;
     Image1:TImage;
     Label16:TLabel;
@@ -111,16 +111,10 @@ end;
 
 procedure TFRMSyncronizationDialog.UpdateBlockChainState;
 Var
-  isMining : boolean;
-//  hr : Int64;
-  i,mc : Integer;
-  s : String;
-  mtl : TList;
   f, favg : real;
 begin
   if not TUserInterface.Started then exit;
   UpdateNodeStatus;
-  mc := 0;
   if Assigned(TUserInterface.Node) then begin
     if TUserInterface.Node.Bank.BlocksCount>0 then begin
       lblCurrentBlock.Caption :=  Inttostr(TUserInterface.Node.Bank.BlocksCount)+' (0..'+Inttostr(TUserInterface.Node.Bank.BlocksCount-1)+')'; ;
@@ -144,7 +138,6 @@ begin
         CT_CalcNewTargetBlocksAverage DIV 2,FormatFloat('0.0',TUserInterface.Node.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage DIV 2)),
         CT_CalcNewTargetBlocksAverage DIV 4,FormatFloat('0.0',TUserInterface.Node.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage DIV 4))]);
   end else begin
-    isMining := false;
     lblCurrentBlock.Caption := '';
     lblCurrentAccounts.Caption := '';
     lblCurrentBlockTime.Caption := '';

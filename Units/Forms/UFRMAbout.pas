@@ -20,13 +20,13 @@ interface
 uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, ExtCtrls, StdCtrls, Buttons;
+  Dialogs, ExtCtrls, StdCtrls, Buttons, UCommonUI;
 
 type
 
   { TFRMAbout }
 
-  TFRMAbout = class(TForm)
+  TFRMAbout = class(TApplicationForm)
     Image1: TImage;
     Label1: TLabel;
     Memo1: TMemo;
@@ -71,7 +71,6 @@ procedure TFRMAbout.Label5Click(Sender: TObject);
 begin
   OpenURL(TLabel(Sender).Caption);
 end;
-
 
 procedure TFRMAbout.OpenURL(Url: String);
 begin

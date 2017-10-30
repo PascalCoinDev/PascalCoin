@@ -20,10 +20,10 @@ interface
 uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Buttons, ExtCtrls, UWalletKeys,UCrypto;
+  Dialogs, StdCtrls, Buttons, ExtCtrls, UCommonUI, UWalletKeys,UCrypto;
 
 type
-  TFRMNewPrivateKeyType = class(TForm)
+  TFRMNewPrivateKeyType = class(TApplicationForm)
     Label1: TLabel;
     ebName: TEdit;
     rgKeyType: TRadioGroup;

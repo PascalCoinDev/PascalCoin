@@ -20,17 +20,16 @@ interface
 {$I ./../PascalCoin/config.inc}
 
 uses
-  LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ExtCtrls, ComCtrls, UWalletKeys, StdCtrls,
-  ULog, Grids, UAppParams,
-  UBlockChain, UNode, UGridUtils, UAccounts, Menus,// Types,
-  UNetProtocol, UCrypto, Buttons, ButtonPanel, ActnList, UPoolMining, URPC,
-  UFRMAccountSelect, UCommon, UCommonUI, UFRMSyncronizationDialog;
+  Dialogs, ExtCtrls, ComCtrls, UWalletKeys,
+  ULog,
+  UBlockChain, UNode, UGridUtils, UAccounts, Menus,
+  UNetProtocol, UCrypto, Buttons, ActnList, UPoolMining,
+  UCommon, UCommonUI;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
-  CM_PC_NetConnectionUpdated = WM_USER + 2;
+  CM_PC_ConnectivityChanged = WM_USER + 2;
 
 type
 
@@ -52,45 +51,47 @@ type
     meMainMenu: TMainMenu;
     miWallet: TMenuItem;
     miOptions: TMenuItem;
-    miPrivatekeys: TMenuItem;
+    miPrivateKeys: TMenuItem;
     miN1: TMenuItem;
+    miAboutMenu: TMenuItem;
     miAbout: TMenuItem;
-    miAboutPascalCoin: TMenuItem;
     N1: TMenuItem;
     miClose: TMenuItem;
     ilIcons: TImageList;
     ApplicationEvents: TApplicationProperties;
-    IPnodes1: TMenuItem;
+    miSeedNodes: TMenuItem;
     pnlSelectedAccountsBottom: TPanel;
     tbFooter: TToolBar;
     tbtnConnectivity: TToolButton;
     tbtnSync: TToolButton;
     tbtnWalletLock: TToolButton;
+    procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
     procedure FormResize(Sender: TObject);
     procedure miAccountExplorerClick(Sender: TObject);
     procedure miBlockExplorerClick(Sender: TObject);
-    procedure FormDestroy(Sender: TObject);
     procedure miLogsClick(Sender: TObject);
     procedure miMessagesClick(Sender: TObject);
     procedure miSyncDialogClick(Sender:TObject);
-    procedure sbFooterBarDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel;
-      const Rect: TRect);
-    procedure tbtnConnectivityClick(Sender:TObject);
     procedure miNodesClick(Sender: TObject);
     procedure miPendingOperationsClick(Sender: TObject);
     procedure miOperationsExplorerClick(Sender: TObject);
+    procedure miOptionsClick(Sender: TObject);
+    procedure miAboutClick(Sender: TObject);
+    procedure miPrivateKeysClick(Sender: TObject);
+    procedure miCloseClick(Sender: TObject);
     procedure tbtnSyncClick(Sender: TObject);
     procedure tbtnWalletLockClick(Sender:TObject);
-    procedure miOptionsClick(Sender: TObject);
-    procedure miAboutPascalCoinClick(Sender: TObject);
-    procedure miPrivatekeysClick(Sender: TObject);
-    procedure miCloseClick(Sender: TObject);
-    procedure MiDecodePayloadFOperationsExplorerGridClick(Sender: TObject);
+    procedure tbtnConnectivityClick(Sender:TObject);
+    procedure sbFooterBarDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel; const Rect: TRect);
     procedure ApplicationEventsMinimize(Sender: TObject);
-    procedure IPnodes1Click(Sender: TObject);
+    procedure miSeedNodesClick(Sender: TObject);
   private
     FLastFooterToolBarDrawRect : TRect;
+    procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
+    procedure CM_ConnectivityChanged(var Msg: TMessage); message CM_PC_ConnectivityChanged;
     procedure OnConnectivityChanged(Sender: TObject);
     procedure OnWalletChanged(Sender: TObject);
   protected
@@ -98,14 +99,13 @@ type
     procedure RefreshConnectivityIcon;
     procedure ActivateFirstTime; override;
     Function ForceMining : Boolean; virtual;
-    procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
   end;
 
 implementation
 
 {$R *.lfm}
 
-uses UThread, UOpTransaction, UUserInterface;
+uses LCLIntf, UUserInterface, UThread, UOpTransaction;
 
 const
   CT_FOOTER_TOOLBAR_LEFT_PADDING = 8;
@@ -121,8 +121,21 @@ begin
   FLastFooterToolBarDrawRect := TRect.Empty;
 end;
 
+procedure TFRMWallet.FormCloseQuery(Sender: TObject; var CanClose: boolean);
+begin
+
+end;
+
+procedure TFRMWallet.FormClose(Sender: TObject; var CloseAction: TCloseAction);
+begin
+  CloseAction := caHide;
+  // TODO - ask to go background or quit
+  // if quit then
+  TUserInterface.Quit;
+
+end;
+
 procedure TFRMWallet.ActivateFirstTime;
-var count : Integer;
 begin
   TUserInterface.WalletKeys.OnChanged.Add(OnWalletChanged);
   TNetData.NetData.OnConnectivityChanged.Add(OnConnectivityChanged);
@@ -153,11 +166,6 @@ end;
 
 {%region Form methods}
 
-procedure TFRMWallet.CM_WalletChanged(var Msg: TMessage);
-begin
-  OnWalletChanged(Self);
-end;
-
 function TFRMWallet.ForceMining: Boolean;
 begin
   Result := false;
@@ -184,12 +192,10 @@ begin
 end;
 
 procedure TFRMWallet.RefreshConnectivityIcon;
-var   active : boolean;
 const
   ImageIndexConst : array[false..true] of integer=(1,0);
   HintConst : array[false..true] of String =('Network is inactive. Click activate.','Network is active. Click to deactivate.');
 begin
-  active := TNetData.NetData.NetConnectionsActive;
   tbtnConnectivity.ImageIndex := ImageIndexConst[TNetData.NetData.NetConnectionsActive];
   tbtnConnectivity.Hint :=  HintConst[TNetData.NetData.NetConnectionsActive];
 end;
@@ -208,14 +214,26 @@ end;
 
 {%region Handlers: Wallet, Network}
 
-procedure TFRMWallet.OnWalletChanged(Sender: TObject);
+procedure TFRMWallet.CM_WalletChanged(var Msg: TMessage);
 begin
   RefreshWalletLockIcon;
 end;
 
-procedure TFRMWallet.OnConnectivityChanged(Sender: TObject);
+procedure TFRMWallet.OnWalletChanged(Sender: TObject);
+begin
+  // Ensure handled in UI thread
+  PostMessage(Self.Handle,CM_PC_WalletKeysChanged,0,0);
+end;
+
+procedure TFRMWallet.CM_ConnectivityChanged(var Msg: TMessage);
 begin
   RefreshConnectivityIcon;
+end;
+
+procedure TFRMWallet.OnConnectivityChanged(Sender: TObject);
+begin
+  // Ensure handled in UI thread
+  PostMessage(Self.Handle,CM_PC_ConnectivityChanged,0,0);
 end;
 
 {%endregion}
@@ -279,12 +297,12 @@ begin
   TUserInterface.ShowAccountExplorer
 end;
 
-procedure TFRMWallet.IPnodes1Click(Sender: TObject);
+procedure TFRMWallet.miSeedNodesClick(Sender: TObject);
 begin
-  TUserInterface.ShowNodeIPDialog(Self);
+  TUserInterface.ShowSeedNodesDialog(Self);
 end;
 
-procedure TFRMWallet.miAboutPascalCoinClick(Sender: TObject);
+procedure TFRMWallet.miAboutClick(Sender: TObject);
 begin
   TUserInterface.ShowAboutBox(Self);
 end;
@@ -294,30 +312,12 @@ begin
   Close;
 end;
 
-procedure TFRMWallet.MiDecodePayloadFOperationsExplorerGridClick(Sender: TObject);
-begin
-  raise Exception.Create('Not Implemented');
-//  { TODO 5 -oAntonB -csub-forms :
-//  Menu Item Decode PayLoad use info about active page. That Shows different modal forms on different active pages. I delete pages now. I change Decode PayLoad to:
-//  I add 3 menu Items:Decode Payload miPendingOperations Explorer, Decode Payload Pending, miPendingOperations,Decode Payload My miAccountExplorer }
-////  if PageControl.ActivePage=tsOperations then begin
-//  if Sender=MiDecodePayloadFOperationsExplorerGrid then begin
-//    FOperationsExplorerGrid.ShowModalDecoder(TUserInterface.WalletKeys,TUserInterface.AppParams);
-////  end else if PageControl.ActivePage=tsPendingOperations then begin
-//  end else if Sender=MiDecodePayLoadPendingOperations then begin
-//    FPendingOperationsGrid.ShowModalDecoder(TUserInterface.WalletKeys,TUserInterface.AppParams);
-////  end else if PageControl.ActivePage=tsMyAccounts then begin
-//  end else if Sender=MiDecodePayloadOperationsAccount then begin
-//    FOperationsAccountGrid.ShowModalDecoder(TUserInterface.WalletKeys,TUserInterface.AppParams);
-//  end;
-end;
-
 procedure TFRMWallet.miOptionsClick(Sender: TObject);
 begin
   TUserInterface.ShowOptionsDialog(Self);
 end;
 
-procedure TFRMWallet.miPrivatekeysClick(Sender: TObject);
+procedure TFRMWallet.miPrivateKeysClick(Sender: TObject);
 begin
   TUserInterface.ShowPrivateKeysDialog(Self);
 end;

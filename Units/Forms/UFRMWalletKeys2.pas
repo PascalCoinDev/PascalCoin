@@ -8,7 +8,7 @@ uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs;
 
 type
-  TFRMWalletKeys2 = class(TForm)
+  TFRMWalletKeys2 = class(TApplicationForm)
   private
     { private declarations }
   public

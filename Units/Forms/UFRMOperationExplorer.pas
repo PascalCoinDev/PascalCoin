@@ -14,7 +14,7 @@ type
 
   { TFRMOperationExplorer }
 
-  TFRMOperationExplorer = class(TForm)
+  TFRMOperationExplorer = class(TApplicationForm)
     dgOperationsExplorer: TDrawGrid;
     ebFilterOperationsEndBlock: TEdit;
     ebFilterOperationsStartBlock: TEdit;
@@ -71,7 +71,6 @@ begin
   FOperationsExplorerGrid.ShowModalDecoder(TUserInterface.WalletKeys, TUserInterface.AppParams);
 end;
 
-
 procedure TFRMOperationExplorer.miFindOperationByOpHashClick(Sender: TObject);
 var
   FRM : TFRMPayloadDecoder;
@@ -93,8 +92,6 @@ begin
     FRM.Free;
   end;
 end;
-
-
 
 procedure TFRMOperationExplorer.ebFilterOperationsAccountExit(Sender: TObject);
 Var bstart,bend : Int64;

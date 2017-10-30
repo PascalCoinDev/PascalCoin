@@ -6,13 +6,13 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls,
-  StdCtrls, Grids, Menus, UGridUtils;
+  StdCtrls, Grids, Menus, UCommonUI, UGridUtils;
 
 type
 
   { TFRMBlockExplorer }
 
-  TFRMBlockExplorer = class(TForm)
+  TFRMBlockExplorer = class(TApplicationForm)
     dgBlockChainExplorer: TDrawGrid;
     ebBlockChainBlockEnd: TEdit;
     ebBlockChainBlockStart: TEdit;

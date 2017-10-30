@@ -19,14 +19,14 @@ interface
 
 uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, UWalletKeys, Buttons,
+  Dialogs, StdCtrls, UCommonUI, UWalletKeys, Buttons,
   LMessages, clipbrd, UConst, UCommon;
 
 Const
   CM_PC_WalletKeysChanged = LM_USER + 1;
 
 type
-  TFRMWalletKeys = class(TForm)
+  TFRMWalletKeys = class(TApplicationForm)
     lbWalletKeys: TListBox;
     bbExportPrivateKey: TBitBtn;
     lblEncryptionTypeCaption: TLabel;
@@ -83,8 +83,7 @@ type
 implementation
 
 uses
-  LCLIntf, LCLType,
-  UCrypto, UAccounts, UUserInterface, UFRMNewPrivateKeyType, UAES;
+  LCLIntf, LCLType, UCrypto, UAccounts, UUserInterface, UFRMNewPrivateKeyType, UAES;
 
 {$R *.lfm}
 
@@ -447,7 +446,6 @@ end;
 procedure TFRMWalletKeys.OnWalletKeysChanged(Sender : TObject);
 begin
   PostMessage(Self.Handle,CM_PC_WalletKeysChanged,0,0);
-  //if Assigned(FOldOnChanged) then FOldOnChanged(Sender);   XXXXX HS 2017-09-07: is this procedure needed anymore?
 end;
 
 procedure TFRMWalletKeys.SetWalletKeys(const Value: TWalletKeys);

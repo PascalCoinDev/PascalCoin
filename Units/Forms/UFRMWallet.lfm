@@ -14,6 +14,8 @@ object FRMWallet: TFRMWallet
   Font.Height = -11
   Font.Name = 'Tahoma'
   Menu = meMainMenu
+  OnClose = FormClose
+  OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnResize = FormResize
@@ -108,7 +110,7 @@ object FRMWallet: TFRMWallet
     top = 496
     object miWallet: TMenuItem
       Caption = 'Wallet'
-      object miPrivatekeys: TMenuItem
+      object miPrivateKeys: TMenuItem
         Caption = 'Private Keys'
         Bitmap.Data = {
           36040000424D3604000000000000360000002800000010000000100000000100
@@ -149,7 +151,7 @@ object FRMWallet: TFRMWallet
         Hint = 'Show Private Keys'
         ImageIndex = 2
         ShortCut = 16464
-        OnClick = miPrivatekeysClick
+        OnClick = miPrivateKeysClick
       end
       object miN1: TMenuItem
         Caption = '-'
@@ -159,9 +161,9 @@ object FRMWallet: TFRMWallet
         ShortCut = 16463
         OnClick = miOptionsClick
       end
-      object IPnodes1: TMenuItem
-        Caption = 'Available Node List'
-        OnClick = IPnodes1Click
+      object miSeedNodes: TMenuItem
+        Caption = 'Seed Nodes'
+        OnClick = miSeedNodesClick
       end
       object N1: TMenuItem
         Caption = '-'
@@ -244,11 +246,11 @@ object FRMWallet: TFRMWallet
         OnClick = miSyncDialogClick
       end
     end
-    object miAbout: TMenuItem
+    object miAboutMenu: TMenuItem
       Caption = 'About'
-      object miAboutPascalCoin: TMenuItem
+      object miAbout: TMenuItem
         Caption = 'About Pascal Coin...'
-        OnClick = miAboutPascalCoinClick
+        OnClick = miAboutClick
       end
     end
   end

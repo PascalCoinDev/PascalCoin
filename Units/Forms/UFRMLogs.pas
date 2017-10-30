@@ -7,18 +7,19 @@ interface
 uses
     LCLIntf,
     SysUtils, Classes, Graphics, Controls, Forms,
-    Dialogs, ExtCtrls,  StdCtrls,
+    Dialogs, ExtCtrls,  StdCtrls, UCommonUI,
     ULog, UBlockChain;
 
 type
 
   { TFRMLogs }
 
-  TFRMLogs = class(TForm)
+  TFRMLogs = class(TApplicationForm)
     cbShowDebugLogs: TCheckBox;
     memoLogs: TMemo;
     pnlTopLogs: TPanel;
     procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
     procedure OnNewLog(logtype : TLogType; Time : TDateTime; ThreadID : Cardinal; Const sender, logtext : AnsiString);
   private
     { private declarations }
@@ -36,6 +37,16 @@ uses  UUserInterface;
 
 { TFRMLogs }
 
+procedure TFRMLogs.FormCreate(Sender: TObject);
+begin
+  TUserInterface.Log.OnNewLog := OnNewLog;
+end;
+
+procedure TFRMLogs.FormDestroy(Sender: TObject);
+begin
+  TUserInterface.Log.OnNewLog := nil;
+end;
+
 procedure TFRMLogs.OnNewLog(logtype: TLogType; Time : TDateTime; ThreadID : Cardinal; const sender,logtext: AnsiString);
 Var s : AnsiString;
 begin
@@ -52,11 +63,6 @@ begin
   end;
   memoLogs.Lines.Add(formatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time)+s+IntToHex(ThreadID,8)+' ['+CT_LogType[Logtype]+'] <'+sender+'> '+logtext);
   //
-end;
-
-procedure TFRMLogs.FormCreate(Sender: TObject);
-begin
-  TUserInterface.Log.OnNewLog := OnNewLog;
 end;
 
 end.

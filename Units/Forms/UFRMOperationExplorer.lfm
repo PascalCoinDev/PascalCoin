@@ -70,7 +70,7 @@ object FRMOperationExplorer: TFRMOperationExplorer
         OnClick = miFindOperationByOpHashClick
       end
       object miDecodePayload: TMenuItem
-        Caption = 'Decode Payload Operations Explorer'
+        Caption = 'Decode Payload'
         ShortCut = 113
         OnClick = miDecodePayloadClick
       end

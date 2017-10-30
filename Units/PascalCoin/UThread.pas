@@ -323,8 +323,7 @@ begin
   end;
 end;
 
-function TPCThreadList.TryLockList(MaxWaitMilliseconds: Cardinal;
-  var lockedList: TList): Boolean;
+function TPCThreadList.TryLockList(MaxWaitMilliseconds: Cardinal; var lockedList: TList): Boolean;
 begin
   lockedList := FList;
   Result := TPCThread.TryProtectEnterCriticalSection(Self,MaxWaitMilliseconds,FLock);

@@ -20,7 +20,7 @@ interface
 uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Buttons, ComCtrls, UAppParams, UWalletKeys;
+  Dialogs, StdCtrls, Buttons, ComCtrls, UCommonUI, UAppParams, UWalletKeys;
 
 type
 
@@ -28,7 +28,7 @@ type
 
   { TFRMPascalCoinWalletConfig }
 
-  TFRMPascalCoinWalletConfig = class(TForm)
+  TFRMPascalCoinWalletConfig = class(TApplicationForm)
     cbJSONRPCMinerServerActive: TCheckBox;
     ebDefaultFee: TEdit;
     Label1: TLabel;
@@ -215,7 +215,6 @@ begin
   FWalletKeys := Value;
   UpdateWalletConfig;
 end;
-
 
 procedure TFRMPascalCoinWalletConfig.UpdateWalletConfig;
 Var i, iselected : Integer;

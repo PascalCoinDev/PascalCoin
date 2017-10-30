@@ -9,7 +9,7 @@ uses
   Dialogs, StdCtrls, UAccounts, Buttons, ActnList;
 
 type
-  TFRMSaleAccounts = class(TForm)
+  TFRMSaleAccounts = class(TApplicationForm)
     lblAccountCaption: TLabel;
     ebSenderAccount: TEdit;
     memoAccounts: TMemo;

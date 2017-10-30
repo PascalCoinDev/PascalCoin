@@ -6,6 +6,7 @@ interface
 
 uses
   SysUtils, Classes, Forms, Controls, Windows, ExtCtrls,
+  UCommonUI,
   UAccounts, UNode, UWalletKeys, UAppParams, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining, ULog, UThread, UNetProtocol, UCrypto,
   UFRMWallet, UFRMSyncronizationDialog, UFRMAccountExplorer, UFRMPendingOperations, UFRMOperation,
   UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys;
@@ -13,6 +14,7 @@ uses
 type
   { Forward Declarations }
   TLoadSafeBoxThread = class;
+
 
   { TMinerPrivateKey }
 
@@ -40,7 +42,6 @@ type
       FWalletKeys : TWalletKeysExt; static;
 
       FRPCServer : TRPCServer; static;
-      FMustProcessWalletChanged : Boolean; static;
       FPoolMiningServer : TPoolMiningServer; static;
 
       FUpdating : Boolean; static;
@@ -71,6 +72,7 @@ type
 
       // Handlers
       class procedure TimerUpdateStatusTimer(Sender: TObject);
+      class procedure OnSubFormDestroyed(Sender: TObject);
 
       // Blockchain event handlers. TODO: refactor this out with TNotifyEvents
       // so forms that need these messages subscribe directly
@@ -103,7 +105,7 @@ type
       class procedure ShowNewOperationDialog(parentForm : TForm; accounts : TOrderedCardinalList; defaultFee : Cardinal);
       class procedure ShowSyncronizationDialog(parentForm : TForm);
       class procedure ShowWalletKeysDialog(parentForm : TForm);
-      class procedure ShowNodeIPDialog(parentForm : TForm);
+      class procedure ShowSeedNodesDialog(parentForm : TForm);
       class procedure ShowAccountInformationDialog(parentForm : TForm; account : UInt64);
       class procedure ShowPrivateKeysDialog(parentForm: TForm);
       class procedure UnlockWallet(parentForm: TForm;  walletKeys : TWalletKeys);
@@ -120,6 +122,7 @@ type
   end;
 
   { TLoadSafeBoxThread }
+
   TLoadSafeBoxThread = Class(TPCThread)
   protected
     procedure BCExecute; override;
@@ -127,7 +130,7 @@ type
 
 implementation
 
-uses Dialogs, UCommon, UCommonUI, UOpenSSL, UFileStorage, UTime, UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig ;
+uses Dialogs, UCommon, UOpenSSL, UFileStorage, UTime, UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig ;
 
 {%region UI Lifecyle}
 
@@ -157,6 +160,7 @@ begin
 
     // Create main form and try icon
     FWallet := mainForm as TFRMWallet;
+    FWallet.CloseAction := caFree;     // wallet is destroyed on close
     if (FWallet = nil)
       then raise Exception.Create('Main form is not TWallet');
     FTrayIcon := TTrayIcon.Create(TUserInterface.FWallet);
@@ -289,7 +293,7 @@ class procedure TUserInterface.Quit;
 Var i : Integer;
   step : String;
 begin
-  TLog.NewLog(ltinfo,Classname,'Destroying form - START');
+  TLog.NewLog(ltinfo,Classname,'Quit Application - START');
   Try
     FreeAndNil(FRPCServer);
     FreeAndNil(FPoolMiningServer);
@@ -316,6 +320,7 @@ begin
     TNode.Node.NetServer.Active := false;
     FNode := Nil;
 
+    // Destroy NetData
     TNetData.NetData.Free;
 
     step := 'Processing messages 1';
@@ -344,10 +349,10 @@ begin
     FreeAndNil(FUILock);
   Except
     On E:Exception do begin
-      TLog.NewLog(lterror,Classname,'Error destroying Form step: '+step+' Errors ('+E.ClassName+'): ' +E.Message);
+      TLog.NewLog(lterror,Classname,'Error quiting application step: '+step+' Errors ('+E.ClassName+'): ' +E.Message);
     end;
   End;
-  TLog.NewLog(ltinfo,Classname,'Destroying form - END');
+  TLog.NewLog(ltinfo,Classname,'Error quiting application - END');
   FreeAndNil(FLog);
   Sleep(100);
 end;
@@ -452,12 +457,11 @@ begin
   End;
 end;
 
-class procedure TUserInterface.ShowNodeIPDialog(parentForm : TForm);
+class procedure TUserInterface.ShowSeedNodesDialog(parentForm : TForm);
 Var FRM : TFRMNodesIp;
 begin
   FRM := TFRMNodesIp.Create(parentForm);
   Try
-    FRM.AppParams := TUserInterface.AppParams;
     FRM.ShowModal;
   Finally
     FRM.Free;
@@ -582,7 +586,9 @@ begin
     FUILock.Acquire;
     if not Assigned(FAccountExplorer) then begin
        FAccountExplorer := TFRMAccountExplorer.Create(FWallet);
-       FWallet.SetSubFormCoordinate(FAccountExplorer);
+       FAccountExplorer.CloseAction:= caFree;
+       FAccountExplorer.OnDestroyed:= Self.OnSubFormDestroyed;
+       FAccountExplorer.SetSubFormCoordinate(FAccountExplorer);
     end;
     FAccountExplorer.Refresh;
     FAccountExplorer.Show;
@@ -597,6 +603,8 @@ begin
     FUILock.Acquire;
     if not Assigned(FBlockExplorerForm) then begin
        FBlockExplorerForm := TFRMBlockExplorer.Create(FWallet);
+       FBlockExplorerForm.CloseAction:= caFree;
+       FBlockExplorerForm.OnDestroyed:= Self.OnSubFormDestroyed;
        FWallet.SetSubFormCoordinate(FBlockExplorerForm);
     end;
     FBlockExplorerForm.Show;
@@ -611,6 +619,8 @@ begin
     FUILock.Acquire;
     if not Assigned(FOperationsExplorerForm) then begin
       FOperationsExplorerForm := TFRMOperation.Create(FWallet);
+      FOperationsExplorerForm.CloseAction:= caFree;
+      FOperationsExplorerForm.OnDestroyed:= Self.OnSubFormDestroyed;
       FWallet.SetSubFormCoordinate(FOperationsExplorerForm);
     end;
     FOperationsExplorerForm.Show;
@@ -625,6 +635,8 @@ begin
     FUILock.Acquire;
     if not Assigned(FPendingOperationForm) then begin
       FPendingOperationForm := TFRMPendingOperations.Create(FWallet);
+      FPendingOperationForm.CloseAction:= caFree;
+      FPendingOperationForm.OnDestroyed:= Self.OnSubFormDestroyed;
       FWallet.SetSubFormCoordinate(FPendingOperationForm);
     end;
     FPendingOperationForm.Show;
@@ -639,6 +651,8 @@ begin
     FUILock.Acquire;
     if not Assigned(FMessagesForm) then begin
        FMessagesForm := TFRMMessages.Create(FWallet);
+       FMessagesForm.CloseAction:= caFree;
+       FMessagesForm.OnDestroyed:= Self.OnSubFormDestroyed;
        FWallet.SetSubFormCoordinate(FMessagesForm);
     end;
     FMessagesForm.Show;
@@ -653,6 +667,8 @@ begin
     FUILock.Acquire;
     if not Assigned(FNodesForm) then begin
        FNodesForm := TFRMNodes.Create(FWallet);
+       FNodesForm.CloseAction:= caFree;
+       FNodesForm.OnDestroyed:= Self.OnSubFormDestroyed;
        FWallet.SetSubFormCoordinate(FNodesForm);
     end;
     FNodesForm.Show;
@@ -667,6 +683,8 @@ begin
     FUILock.Acquire;
     if not Assigned(FLogsForm) then begin
        FLogsForm := TFRMLogs.Create(FWallet);
+       FLogsForm.CloseAction:= caFree;
+       FLogsForm.OnDestroyed:= Self.OnSubFormDestroyed;
        FWallet.SetSubFormCoordinate(FLogsForm);
     end;
     FLogsForm.Show;
@@ -797,12 +815,6 @@ class procedure TUserInterface.NotifyConfigChanged;
 Var wa : Boolean;
   i : Integer;
 begin
-// AntonB logs form not visible now at start and OnNewLog := Nil
-//  tsLogs.TabVisible := FAppParams.ParamByName[CT_PARAM_ShowLogs].GetAsBoolean(false);
-//  if (Not tsLogs.TabVisible) then begin
-//    FLog.OnNewLog := Nil;
-//    if PageControl.ActivePage = tsLogs then PageControl.ActivePage := tsMyAccounts;
-//  end else FLog.OnNewLog := OnNewLog;
   if FAppParams.ParamByName[CT_PARAM_SaveLogFiles].GetAsBoolean(false) then begin
     if FAppParams.ParamByName[CT_PARAM_SaveDebugLogs].GetAsBoolean(false) then FLog.SaveTypes := CT_TLogTypes_ALL
     else FLog.SaveTypes := CT_TLogTypes_DEFAULT;
@@ -995,7 +1007,7 @@ begin
   Try
     RefreshConnectionStatusDisplay;
     FSyncronizationDialog.UpdateBlockChainState;
-    // UpdateNodeStatus; AntonB in UpdateBlockChainState call UpdateNodeStatus
+    FSyncronizationDialog.UpdateNodeStatus;
   Except
     On E:Exception do begin
       E.Message := 'Exception at TimerUpdate '+E.ClassName+': '+E.Message;
@@ -1013,10 +1025,34 @@ begin
   Application.BringToFront();
 end;
 
+class procedure TUserInterface.OnSubFormDestroyed(Sender: TObject);
+begin
+  try
+    FUILock.Acquire;
+    if Sender = FAccountExplorer then
+      FAccountExplorer := nil // form free's on close
+    else if Sender = FPendingOperationForm then
+      FPendingOperationForm := nil // form free's on close
+    else if Sender = FOperationsExplorerForm then
+      FOperationsExplorerForm := nil // form free's on close
+    else if Sender = FBlockExplorerForm then
+      FBlockExplorerForm := nil // form free's on close
+    else if Sender = FLogsForm then
+      FLogsForm := nil // form free's on close
+    else if Sender = FNodesForm then
+      FNodesForm := nil // form free's on close
+    else if Sender = FMessagesForm then
+      FMessagesForm := nil
+    else
+      raise Exception.Create('Internal Error: [NotifySubFormDestroyed] encountered an unknown sub-form instance');
+  finally
+    FUILock.Release;
+  end;
+end;
+
 {%endregion}
 
-
-{ TUserInterfaceStartupThread }
+{ TLoadSafeBoxThread }
 
 procedure TLoadSafeBoxThread.BCExecute;
 begin
@@ -1027,8 +1063,9 @@ begin
   Synchronize( TUserInterface.FinishedLoadingApp );
 end;
 
+initialization
+// TODO - any startup code needed here?
 finalization
-  TUserInterface.FWallet.Destroy;
-
+// TODO - final cleanup here, show a modal dialog?
 end.
 

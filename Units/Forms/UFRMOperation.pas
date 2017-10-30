@@ -20,7 +20,8 @@ interface
 uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, UNode, UWalletKeys, UCrypto, Buttons, UBlockChain,
+  Dialogs, StdCtrls, UCommonUI,
+  UNode, UWalletKeys, UCrypto, Buttons, UBlockChain,
   UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UCommon;
 
 Const
@@ -30,7 +31,7 @@ type
 
   { TFRMOperation }
 
-  TFRMOperation = class(TForm)
+  TFRMOperation = class(TApplicationForm)
     ebChangeName: TEdit;
     ebChangeType: TEdit;
     ebSignerAccount: TEdit;

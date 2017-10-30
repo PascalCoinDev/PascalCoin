@@ -7,87 +7,42 @@ interface
 uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Buttons, UAppParams;
+  Dialogs, StdCtrls, Buttons,
+  UCommonUI, UAppParams;
 
 type
-  TFRMNodesIp = class(TForm)
+  TFRMNodesIp = class(TApplicationForm)
     memoNodesIp: TMemo;
     Label1: TLabel;
     bbOk: TBitBtn;
     bbCancel: TBitBtn;
     cbTryOnlyWithThisServers: TCheckBox;
     procedure bbOkClick(Sender: TObject);
-    procedure FormCreate(Sender: TObject);
     procedure cbTryOnlyWithThisServersClick(Sender: TObject);
   private
-    FAppParams: TAppParams;
-    procedure SetAppParams(const Value: TAppParams);
     { Private declarations }
+    procedure Refresh;
+  protected
+    procedure ActivateFirstTime; override;
   public
     { Public declarations }
-    Procedure PrepareData;
-    Property AppParams : TAppParams read FAppParams write SetAppParams;
   end;
 
 implementation
 
 uses
-  UNetProtocol, UNode, UConst;
+  UUserInterface, UNetProtocol, UNode, UConst;
 
 {$R *.lfm}
 
-
 { TFRMNodesIp }
 
-procedure TFRMNodesIp.bbOkClick(Sender: TObject);
-Var nsarr : TNodeServerAddressArray;
-  ips : AnsiString;
+procedure TFRMNodesIp.ActivateFirstTime;
 begin
-  TNode.DecodeIpStringToNodeServerAddressArray(memoNodesIp.Lines.Text,nsarr);
-  if (length(nsarr)=0) And (cbTryOnlyWithThisServers.Checked) then begin
-    raise Exception.Create('No valid IP in list!');
-  end;
-  // Encode
-  ips := TNode.EncodeNodeServerAddressArrayToIpString(nsarr);
-  if Assigned(FAppParams) then begin
-    FAppParams.ParamByName[CT_PARAM_PeerCache].SetAsString(ips);
-    if cbTryOnlyWithThisServers.Checked then Begin
-      FAppParams.ParamByName[CT_PARAM_TryToConnectOnlyWithThisFixedServers].SetAsString(ips);
-      TNetData.NetData.DiscoverFixedServersOnly(nsarr);
-      Application.MessageBox(PChar('Restart application to take effect'),PChar(Application.Title),MB_OK);
-    end else begin
-      FAppParams.ParamByName[CT_PARAM_TryToConnectOnlyWithThisFixedServers].SetAsString('');
-      setlength(nsarr,0);
-      TNetData.NetData.DiscoverFixedServersOnly(nsarr);
-    end;
-  end;
-  setlength(nsarr,0);
-  ModalResult := MrOk;
+  Refresh;
 end;
 
-procedure TFRMNodesIp.cbTryOnlyWithThisServersClick(Sender: TObject);
-begin
-  if cbTryOnlyWithThisServers.Checked then begin
-    cbTryOnlyWithThisServers.Font.Color := clRed;
-    cbTryOnlyWithThisServers.Font.Style := [fsBold];
-  end else begin
-    cbTryOnlyWithThisServers.ParentFont := true;
-  end;
-  if cbTryOnlyWithThisServers.Checked then begin
-    Application.MessageBox(PChar('ALERT:'+#10+
-      'If "'+cbTryOnlyWithThisServers.Caption+'" is checked '+#10+
-      'and no valid server found, you will be alone!')
-      ,PChar(Application.Title),MB_OK+MB_ICONWARNING);
-  end;
-end;
-
-procedure TFRMNodesIp.FormCreate(Sender: TObject);
-begin
-  FAppParams := Nil;
-  PrepareData;
-end;
-
-procedure TFRMNodesIp.PrepareData;
+procedure TFRMNodesIp.Refresh;
 Var
   nsarr : TNodeServerAddressArray;
   i : Integer;
@@ -95,9 +50,8 @@ Var
   aux : AnsiString;
 begin
   memoNodesIp.Clear;
-  if Not Assigned(FAppParams) then exit;
   setlength(nsarr,0);
-  ips := FAppParams.ParamByName[CT_PARAM_TryToConnectOnlyWithThisFixedServers].GetAsString('');
+  ips := TUserInterface.AppParams.ParamByName[CT_PARAM_TryToConnectOnlyWithThisFixedServers].GetAsString('');
   if trim(ips)<>'' then begin
     cbTryOnlyWithThisServers.Checked := true;
     TNode.DecodeIpStringToNodeServerAddressArray(ips,nsarr);
@@ -119,10 +73,44 @@ begin
   setlength(nsarr,0);
 end;
 
-procedure TFRMNodesIp.SetAppParams(const Value: TAppParams);
+procedure TFRMNodesIp.bbOkClick(Sender: TObject);
+Var nsarr : TNodeServerAddressArray;
+  ips : AnsiString;
 begin
-  FAppParams := Value;
-  PrepareData;
+  TNode.DecodeIpStringToNodeServerAddressArray(memoNodesIp.Lines.Text,nsarr);
+  if (length(nsarr)=0) And (cbTryOnlyWithThisServers.Checked) then begin
+    raise Exception.Create('No valid IP in list!');
+  end;
+  // Encode
+  ips := TNode.EncodeNodeServerAddressArrayToIpString(nsarr);
+  TUserInterface.AppParams.ParamByName[CT_PARAM_PeerCache].SetAsString(ips);
+  if cbTryOnlyWithThisServers.Checked then Begin
+    TUserInterface.AppParams.ParamByName[CT_PARAM_TryToConnectOnlyWithThisFixedServers].SetAsString(ips);
+    TNetData.NetData.DiscoverFixedServersOnly(nsarr);
+    Application.MessageBox(PChar('Restart application to take effect'),PChar(Application.Title),MB_OK);
+  end else begin
+    TUserInterface.AppParams.ParamByName[CT_PARAM_TryToConnectOnlyWithThisFixedServers].SetAsString('');
+    setlength(nsarr,0);
+    TNetData.NetData.DiscoverFixedServersOnly(nsarr);
+  end;
+  setlength(nsarr,0);
+  ModalResult := MrOk;
+end;
+
+procedure TFRMNodesIp.cbTryOnlyWithThisServersClick(Sender: TObject);
+begin
+  if cbTryOnlyWithThisServers.Checked then begin
+    cbTryOnlyWithThisServers.Font.Color := clRed;
+    cbTryOnlyWithThisServers.Font.Style := [fsBold];
+  end else begin
+    cbTryOnlyWithThisServers.ParentFont := true;
+  end;
+  if cbTryOnlyWithThisServers.Checked then begin
+    Application.MessageBox(PChar('ALERT:'+#10+
+      'If "'+cbTryOnlyWithThisServers.Caption+'" is checked '+#10+
+      'and no valid server found, you will be alone!')
+      ,PChar(Application.Title),MB_OK+MB_ICONWARNING);
+  end;
 end;
 
 end.

@@ -20,14 +20,14 @@ interface
 uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, UBlockChain, UCrypto, UWalletKeys, Buttons, ComCtrls,
-  UAppParams;
+  Dialogs, StdCtrls, UCommonUI,
+  UBlockChain, UCrypto, UWalletKeys, Buttons, ComCtrls,UAppParams;
 
 type
 
   { TFRMPayloadDecoder }
 
-  TFRMPayloadDecoder = class(TForm)
+  TFRMPayloadDecoder = class(TApplicationForm)
     Label1: TLabel;
     lblBlock: TLabel;
     lblDateTime: TLabel;

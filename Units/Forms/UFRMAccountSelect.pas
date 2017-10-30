@@ -20,8 +20,8 @@ interface
 uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, UAccounts, Grids, StdCtrls, Buttons, ExtCtrls, UWalletKeys, UNode,
-  UGridUtils, UConst, UThread;
+  Dialogs, UAccounts, Grids, StdCtrls, Buttons, ExtCtrls, UCommonUI,
+  UWalletKeys, UNode, UGridUtils, UConst, UThread;
 
 const
   CT_AS_MyAccounts = $0001;
@@ -63,7 +63,7 @@ type
 
   { TFRMAccountSelect }
 
-  TFRMAccountSelect = class(TForm)
+  TFRMAccountSelect = class(TApplicationForm)
     cbAccountsName: TCheckBox;
     ebMinBalance: TEdit;
     ebMaxBalance: TEdit;

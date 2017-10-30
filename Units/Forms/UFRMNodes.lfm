@@ -1,7 +1,7 @@
 object FRMNodes: TFRMNodes
-  Left = 971
+  Left = 570
   Height = 444
-  Top = 399
+  Top = 333
   Width = 861
   Caption = 'Nodes'
   ClientHeight = 444
@@ -10,16 +10,16 @@ object FRMNodes: TFRMNodes
   LCLVersion = '1.6.4.0'
   object Label3: TLabel
     Left = 15
-    Height = 13
+    Height = 15
     Top = 15
-    Width = 96
+    Width = 106
     Caption = 'Active Connections:'
     ParentColor = False
   end
   object Label6: TLabel
     Left = 15
-    Height = 13
-    Top = 295
+    Height = 15
+    Top = 293
     Width = 198
     Anchors = [akLeft, akRight, akBottom]
     Caption = 'Known Node Servers:'
@@ -27,8 +27,8 @@ object FRMNodes: TFRMNodes
   end
   object Label7: TLabel
     Left = 15
-    Height = 13
-    Top = 191
+    Height = 15
+    Top = 189
     Width = 99
     Anchors = [akLeft, akRight, akBottom]
     Caption = 'Blacklisted Nodes'

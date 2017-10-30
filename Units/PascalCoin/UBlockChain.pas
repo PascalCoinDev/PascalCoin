@@ -710,7 +710,7 @@ begin
         FLastOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash); // Genesis hash
       end;
     finally
-      FBankLock.Release; // AntonB If fast close Wallet after open this Error string
+      FBankLock.Release; // TODO - If fast close Wallet after open this Error string
     end;
     for i := 0 to FNotifyList.Count - 1 do begin
       TPCBankNotify(FNotifyList.Items[i]).NotifyNewBlock;

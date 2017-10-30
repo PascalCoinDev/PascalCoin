@@ -1,7 +1,7 @@
 object FRMNodesIp: TFRMNodesIp
-  Left = 716
+  Left = 771
   Height = 367
-  Top = 383
+  Top = 23
   Width = 334
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
@@ -12,9 +12,8 @@ object FRMNodesIp: TFRMNodesIp
   Font.Color = clWindowText
   Font.Height = -11
   Font.Name = 'Tahoma'
-  OnCreate = FormCreate
   Position = poOwnerFormCenter
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.6.4.0'
   object Label1: TLabel
     Left = 30
     Height = 13
@@ -78,7 +77,7 @@ object FRMNodesIp: TFRMNodesIp
     Left = 35
     Height = 19
     Top = 285
-    Width = 201
+    Width = 164
     Caption = 'Connect ONLY to these nodes'
     OnClick = cbTryOnlyWithThisServersClick
     TabOrder = 3

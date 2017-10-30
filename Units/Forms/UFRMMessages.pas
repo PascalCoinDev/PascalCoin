@@ -7,14 +7,14 @@ interface
 uses
   LCLIntf, LCLType,
   SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Menus,
+  Dialogs, StdCtrls, Menus, UCommonUI,
   UNode, UNetProtocol, UCrypto, UFRMWallet,UConst;
 
 type
 
   { TFRMMessages }
 
-  TFRMMessages = class(TForm)
+  TFRMMessages = class(TApplicationForm)
     bbSendAMessage: TButton;
     Label11: TLabel;
     Label12: TLabel;

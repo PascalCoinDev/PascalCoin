@@ -6,13 +6,14 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ComCtrls,
-  ExtCtrls, StdCtrls, Buttons, Grids, Menus, UGridUtils, UNode, UAccounts, UBlockChain;
+  ExtCtrls, StdCtrls, Buttons, Grids, Menus, UCommonUI,
+  UGridUtils, UNode, UAccounts, UBlockChain;
 
 type
 
   { TFRMAccountExplorer }
 
-  TFRMAccountExplorer = class(TForm)
+  TFRMAccountExplorer = class(TApplicationForm)
     bbAccountsRefresh: TBitBtn;
     bbAccountsRefresh1: TBitBtn;
     bbAccountsRefresh2: TBitBtn;
@@ -80,8 +81,18 @@ type
     lblSelectedAccountsCount1: TLabel;
     lblSelectedAccountsCount2: TLabel;
     meAccountExplorerMenu : TMainMenu;
+    miDecodePayload: TMenuItem;
+    miAccountInformation: TMenuItem;
+    miAddAccountToSelected: TMenuItem;
     miFindAccount: TMenuItem;
+    miFindNextAccountWithHighBalance: TMenuItem;
+    miFindPreviousAccountWithHighBalance: TMenuItem;
+    miNewOperation: TMenuItem;
+    miRemoveAccountFromSelected: TMenuItem;
     miTools: TMenuItem;
+    N1: TMenuItem;
+    N2: TMenuItem;
+    N3: TMenuItem;
     pcAccountsOptions: TPageControl;
     pcAccountsOptions1: TPageControl;
     pcAccountsOptions2: TPageControl;
@@ -146,6 +157,7 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure miAccountInformationClick(Sender: TObject);
     procedure miAddAccountToSelectedClick(Sender: TObject);
+    procedure miDecodePayloadClick(Sender: TObject);
     procedure miFindNextAccountWithHighBalanceClick(Sender: TObject);
     procedure miFindPreviousAccountWithHighBalanceClick(Sender: TObject);
     procedure miNewOperationClick(Sender: TObject);
@@ -278,8 +290,6 @@ procedure TFRMAccountExplorer.FillAccountInformation(const Strings: TStrings; Co
 Var account : TAccount;
   s : String;
 begin
-//AntonB AccountNumber is type LongWord not cand negative
-//  if AccountNumber<0 then exit;
   account := TUserInterface.Node.Operations.SafeBoxTransaction.Account(AccountNumber);
   if account.name<>'' then s:='Name: '+account.name
   else s:='';
@@ -812,6 +822,11 @@ begin
    // in memory for not exit program - Application.Exit - auto free mem not need control free manual for this send Self!
   pcAccountsOptions.ActivePage := tsMultiSelectAccounts;
   sbSelectedAccountsAddClick(Sender);
+end;
+
+procedure TFRMAccountExplorer.miDecodePayloadClick(Sender: TObject);
+begin
+  FOperationsAccountGrid.ShowModalDecoder(TUserInterface.WalletKeys,TUserInterface.AppParams);
 end;
 
 procedure TFRMAccountExplorer.miRemoveAccountFromSelectedClick(Sender: TObject);

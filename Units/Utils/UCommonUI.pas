@@ -29,15 +29,22 @@ type
     private
       FActivatedCount : UInt32;
       FActivateFirstTime : TNotifyEvent;
+      FDestroyed : TNotifyEvent;
+      FCloseAction : TCloseAction;
       procedure NotifyActivateFirstTime;
+      procedure NotifyDestroyed;
     protected
       FUILock : TCriticalSection;
       procedure DoCreate; override;
-      procedure DoDestroy; override;
       procedure Activate; override;
       procedure ActivateFirstTime; virtual;
+      procedure DoClose(var CloseAction: TCloseAction); override;
+      procedure DoDestroy; override;
+      procedure DoDestroyed; virtual;
     published
+      property CloseAction : TCloseAction read FCloseAction write FCloseAction;
       property OnActivateFirstTime : TNotifyEvent read FActivateFirstTime write FActivateFirstTime;
+      property OnDestroyed : TNotifyEvent read FDestroyed write FDestroyed;
   end;
 
   { TWinControlHelper }
@@ -62,13 +69,7 @@ begin
   inherited;
   FUILock := TCriticalSection.Create;
   FActivatedCount := 0;
-end;
-
-procedure TApplicationForm.DoDestroy;
-begin
-  inherited;
-  FUILock.Destroy;
-  FUILock := nil;
+  FCloseAction:=caHide;
 end;
 
 procedure TApplicationForm.Activate;
@@ -83,12 +84,36 @@ procedure TApplicationForm.ActivateFirstTime;
 begin;
 end;
 
+procedure TApplicationForm.DoClose(var CloseAction: TCloseAction);
+begin
+  CloseAction := FCloseAction;
+end;
+
+procedure TApplicationForm.DoDestroy;
+begin
+  inherited;
+  FActivatedCount:=0;
+  FUILock.Destroy;
+  FUILock := nil;
+  NotifyDestroyed;
+end;
+
+procedure TApplicationForm.DoDestroyed;
+begin;
+end;
 
 procedure TApplicationForm.NotifyActivateFirstTime;
 begin
   ActivateFirstTime;
   if Assigned(FActivateFirstTime) then
     FActivateFirstTime(Self);
+end;
+
+procedure TApplicationForm.NotifyDestroyed;
+begin
+  DoDestroyed;
+  if Assigned(FDestroyed) then
+    FDestroyed(Self);
 end;
 
 {%endregion}

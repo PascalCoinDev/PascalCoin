@@ -7,14 +7,19 @@ interface
 uses
   LCLIntf, LCLType,
   Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ExtCtrls, StdCtrls,
-  ULog,  UBlockChain, UNode, Menus,  UNetProtocol,  UFRMWallet;
+  Dialogs, ExtCtrls, StdCtrls, UCommonUI,
+  ULog,  UBlockChain, UNode, Menus,  UNetProtocol;
+
+Const
+  CM_PC_NetConnectionUpdated = WM_USER + 1;
+  CM_PC_BlackListUpdated = WM_USER + 2;
+  CM_PC_NetNodeServersUpdated = WM_USER + 3;
 
 type
 
   { TFRMNodes }
 
-  TFRMNodes = class(TForm)
+  TFRMNodes = class(TApplicationForm)
     Label3: TLabel;
     Label6: TLabel;
     Label7: TLabel;
@@ -24,8 +29,9 @@ type
     procedure FormCreate(Sender: TObject);
   private
     { private declarations }
-    FMustProcessNetConnectionUpdated : Boolean;
     procedure CM_NetConnectionUpdated(var Msg: TMessage); message CM_PC_NetConnectionUpdated;
+    procedure CM_BlackListUpdated(var Msg: TMessage); message CM_PC_BlackListUpdated;
+    procedure CM_NetNodeServersUpdated(var Msg: TMessage); message CM_PC_NetNodeServersUpdated;
   public
     { public declarations }
 
@@ -34,9 +40,6 @@ type
     procedure OnNetBlackListUpdated;
     procedure OnNetNodeServersUpdated;
   end;
-
-var
-  FRMNodes: TFRMNodes = nil;
 
 implementation
 
@@ -48,7 +51,11 @@ Uses UTime;
 
 procedure TFRMNodes.FormCreate(Sender: TObject);
 begin
+  OnNetConnectionsUpdated;
+  OnNetNodeServersUpdated;
+  OnNetBlackListUpdated;
 end;
+
 
 procedure TFRMNodes.CM_NetConnectionUpdated(var Msg: TMessage);
 Const CT_BooleanToString : Array[Boolean] of String = ('False','True');
@@ -128,11 +135,17 @@ begin
       TNetData.NetData.NetConnections.UnlockList;
     end;
   Finally
-    FMustProcessNetConnectionUpdated := false;
+    //FMustProcessNetConnectionUpdated := false;
   End;
 end;
 
-procedure TFRMNodes.OnNetNodeServersUpdated;
+procedure TFRMNodes.OnNetConnectionsUpdated;
+begin
+  // Ensure handled in UI thread
+  PostMessage(Self.Handle,CM_PC_NetConnectionUpdated,0,0);
+end;
+
+procedure TFRMNodes.CM_NetNodeServersUpdated(var Msg: TMessage);
 Var i : integer;
  P : PNodeServerAddress;
  l : TList;
@@ -181,7 +194,13 @@ begin
   end;
 end;
 
-procedure TFRMNodes.OnNetBlackListUpdated;
+procedure TFRMNodes.OnNetNodeServersUpdated;
+begin
+  // Ensure handled in UI thread
+  PostMessage(Self.Handle,CM_PC_NetNodeServersUpdated,0,0);
+end;
+
+procedure TFRMNodes.CM_BlackListUpdated(var Msg: TMessage);
 Const CT_TRUE_FALSE : Array[Boolean] Of AnsiString = ('FALSE','TRUE');
 Var i,j,n : integer;
  P : PNodeServerAddress;
@@ -218,13 +237,10 @@ begin
   end;
 end;
 
-procedure TFRMNodes.OnNetConnectionsUpdated;
+procedure TFRMNodes.OnNetBlackListUpdated;
 begin
-  // TODO - refactor this ugly infinite loop check out
-  if FMustProcessNetConnectionUpdated then exit;
-  FMustProcessNetConnectionUpdated := true;
-  PostMessage(Self.Handle,CM_PC_NetConnectionUpdated,0,0);  // Ends up calling CM_NetConnectionUpdated
+  // Ensure handled in UI thread
+  PostMessage(Self.Handle,CM_PC_BlackListUpdated,0,0);
 end;
-
 
 end.

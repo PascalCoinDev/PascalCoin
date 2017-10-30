@@ -5,10 +5,10 @@ interface
 uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Buttons, ExtCtrls;
+  Dialogs, StdCtrls, Buttons, ExtCtrls, UCommonUI;
 
 type
-  TFRMMemoText = class(TForm)
+  TFRMMemoText = class(TApplicationForm)
     pnlBottom: TPanel;
     Memo: TMemo;
     bbCancel: TBitBtn;

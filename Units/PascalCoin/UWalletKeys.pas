@@ -310,7 +310,7 @@ end;
 function TWalletKeys.LockWallet: Boolean;
 begin
   // Return true when wallet has a password, locking it. False if there password is empty string
-  FWalletPassword := ''; //AntonB - this clear Password on lock - is block lock
+  FWalletPassword := '';
   GeneratePrivateKeysFromPassword;
   Result := Not IsValidPassword;
   FOnChanged.Invoke(Self);

@@ -6,13 +6,13 @@ interface
 
 uses
   Classes, Forms, Grids,
-  ExtCtrls, StdCtrls, Menus, UGridUtils;
+  ExtCtrls, StdCtrls, Menus, UCommonUI, UGridUtils;
 
 type
 
   { TFRMPendingOperations }
 
-  TFRMPendingOperations = class(TForm)
+  TFRMPendingOperations = class(TApplicationForm)
     dgPendingOperations: TDrawGrid;
     Label10: TLabel;
     PendingOperationsMenu: TMainMenu;
@@ -59,7 +59,7 @@ end;
 
 procedure TFRMPendingOperations.miDecodePayLoadClick(Sender: TObject);
 begin
-
+  FPendingOperationsGrid.ShowModalDecoder(TUserInterface.WalletKeys,TUserInterface.AppParams);
 end;
 
 procedure TFRMPendingOperations.miFindOperationbyOpHashClick(Sender: TObject);
