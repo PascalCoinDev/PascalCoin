@@ -25,8 +25,6 @@ type
     memoMessageToSend: TMemo;
     procedure bbSendAMessageClick(Sender: TObject);
     procedure FormActivate(Sender: TObject);
-    procedure FormCreate(Sender: TObject);
-    procedure FormDestroy(Sender: TObject);
   private
     FMessagesUnreadCount : Integer;
     { private declarations }
@@ -37,14 +35,20 @@ type
     Procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : TRawBytes);
   end;
 
-var
-  FRMMessages: TFRMMessages = nil;
-
 implementation
-uses UFRMSyncronizationDialog, UUserInterface;// after implementation!
+
+uses UUserInterface;
+
 {$R *.lfm}
 
 { TFRMMessages }
+
+procedure TFRMMessages.FormActivate(Sender: TObject);
+begin
+  UpdateAvailableConnections;
+  TUserInterface.MessagesNotificationText := '';
+end;
+
 
 procedure TFRMMessages.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: TRawBytes);
 Var s : String;
@@ -54,7 +58,6 @@ begin
     s := DateTimeToStr(now)+' Message received from '+NetConnection.ClientRemoteAddr;
     memoMessages.Lines.Add(DateTimeToStr(now)+' Message received from '+NetConnection.ClientRemoteAddr+' Length '+inttostr(Length(MessageData))+' bytes');
     memoMessages.Lines.Add('RECEIVED> '+MessageData);
-    //HS if FRMWallet.FAppParams.ParamByName[CT_PARAM_ShowModalMessages].GetAsBoolean(false) then begin
     if TUserInterface.AppParams.ParamByName[CT_PARAM_ShowModalMessages].GetAsBoolean(false) then begin
       s := DateTimeToStr(now)+' Message from '+NetConnection.ClientRemoteAddr+#10+
          'Length '+inttostr(length(MessageData))+' bytes'+#10+#10;
@@ -152,26 +155,6 @@ begin
 
   Application.MessageBox(PChaR('Message sent to '+inttostr(n)+' nodes'+#10+
     'Message: '+#10+m),PChar(Application.Title),MB_ICONINFORMATION+MB_OK);
-end;
-
-procedure TFRMMessages.FormActivate(Sender: TObject);
-begin
-  UpdateAvailableConnections;
-  //HS FNodeNotifyEvents.Node := TUserInterface.Node;
-  TUserInterface.MessagesNotificationText := '';
-end;
-
-procedure TFRMMessages.FormCreate(Sender: TObject);
-begin
-  //HS FNodeNotifyEvents := TNodeNotifyEvents.Create(Self);
-  //HS FNodeNotifyEvents.OnBlocksChanged := TUserInterface.Wallet.OnNewAccount; //TODO: may be need move this function
-  //HS FNodeNotifyEvents.OnNodeMessageEvent := OnNodeMessageEvent;
-end;
-
-procedure TFRMMessages.FormDestroy(Sender: TObject);
-begin
-  //HS FNodeNotifyEvents.Node := Nil;
-  //HS FreeAndNil(FNodeNotifyEvents);
 end;
 
 end.

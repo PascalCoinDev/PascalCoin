@@ -62,7 +62,6 @@ begin
     end;
   end;
   memoLogs.Lines.Add(formatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time)+s+IntToHex(ThreadID,8)+' ['+CT_LogType[Logtype]+'] <'+sender+'> '+logtext);
-  //
 end;
 
 end.

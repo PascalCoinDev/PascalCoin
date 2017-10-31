@@ -76,7 +76,7 @@ type
       // Blockchain event handlers. TODO: refactor this out with TNotifyEvents
       // so forms that need these messages subscribe directly
       class procedure OnAccountsChanged(Sender: TObject);
-      class procedure OnNewAccount(Sender: TObject);
+      class procedure OnBlocksChanged(Sender: TObject);
       class procedure OnReceivedHelloMessage(Sender: TObject);
       class procedure OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: TRawBytes);
       class procedure OnNetStatisticsChanged(Sender: TObject);
@@ -215,7 +215,7 @@ begin
 
     // Subscribe to Node events (TODO refactor with FNotifyEvents)
     FNodeNotifyEvents := TNodeNotifyEvents.Create(FWallet);
-    FNodeNotifyEvents.OnBlocksChanged := OnNewAccount;
+    FNodeNotifyEvents.OnBlocksChanged := OnBlocksChanged;
     FNodeNotifyEvents.OnNodeMessageEvent :=  OnNodeMessageEvent;
 
     // Start RPC server
@@ -940,7 +940,7 @@ begin
   end;
 end;
 
-class procedure TUserInterface.OnNewAccount(Sender: TObject);
+class procedure TUserInterface.OnBlocksChanged(Sender: TObject);
 begin
   FUILock.Acquire;
   try

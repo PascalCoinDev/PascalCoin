@@ -242,22 +242,11 @@ end;
 
 procedure TFRMWallet.miMessagesClick(Sender: TObject);
 begin
-  //HS
-  //// in memory for not exit program - Application.Exit - auto free mem not need control free manual for this send Self!
-  //if FRMMessages = nil then FRMMessages:=TFRMMessages.Create(Self);
-  //SetSubFormCoordinate(FRMMessages);
-  //FRMMessages.show;
   TUserInterface.ShowMessagesForm;
 end;
 
 procedure TFRMWallet.miSyncDialogClick(Sender:TObject);
 begin
-  //HS
-  // in memory for not exit program - Application.Exit - auto free mem not need control free manual for this send Self!
-  //if FRMSyncronizationDialog = nil then FRMSyncronizationDialog:=TFRMSyncronizationDialog.Create(Self);
-  //SetSubFormCoordinate(FRMSyncronizationDialog);
-  //FRMSyncronizationDialog.Visible:=not FRMSyncronizationDialog.Visible;
-
   TUserInterface.ShowSyncronizationDialog(Self);
 end;
 
