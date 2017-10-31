@@ -5,10 +5,8 @@ unit UFRMOperationExplorer;
 interface
 
 uses
-    LCLIntf, LCLType,
-    SysUtils, Controls, Forms,
-    Dialogs, ExtCtrls, StdCtrls,
-    Grids, Menus, Classes, UGridUtils, UConst;
+    LCLIntf, LCLType, SysUtils, Controls, Forms, Dialogs, ExtCtrls, StdCtrls, Grids, Menus, Classes,
+    UCommonUI, UGridUtils, UConst;
 
 type
 
@@ -40,9 +38,6 @@ type
     { public declarations }
   end;
 
-var
-  FRMOperationExplorer: TFRMOperationExplorer = nil;
-
 implementation
 
 {$R *.lfm}
@@ -67,30 +62,17 @@ end;
 
 procedure TFRMOperationExplorer.miDecodePayloadClick(Sender: TObject);
 begin
-  // TODO - move ShowModalDecoder to TUserInterface
-  FOperationsExplorerGrid.ShowModalDecoder(TUserInterface.WalletKeys, TUserInterface.AppParams);
+  TUserInterface.ShowOperationInfoDialog(Self, '');
 end;
 
 procedure TFRMOperationExplorer.miFindOperationByOpHashClick(Sender: TObject);
 var
-  FRM : TFRMPayloadDecoder;
-  oph : String;
+  ophash : String;
 begin
-  //TODO - refactor out with TUserInterface.ShowOperationInfoDialog(oph);
-  oph := '';
-  if Not InputQuery('Search operation by OpHash','Insert Operation Hash value (OpHash)',oph) then exit;
-  FRM := TFRMPayloadDecoder.Create(Self);
-  try
-    FRM.Init(CT_TOperationResume_NUL, TUserInterface.WalletKeys,TUserInterface.AppParams);
-    FRM.DoFind(oph);
-    FRM.ShowModal;
+  if Not InputQuery('Search operation by OpHash','Insert Operation Hash value (OpHash)',ophash)
+    then exit;
 
-
-
-  finally
-
-    FRM.Free;
-  end;
+  TUserInterface.ShowOperationInfoDialog(Self, ophash);
 end;
 
 procedure TFRMOperationExplorer.ebFilterOperationsAccountExit(Sender: TObject);
@@ -113,8 +95,7 @@ end;
 
 procedure TFRMOperationExplorer.dgOperationsExplorerClick(Sender: TObject);
 begin
-  //with FRMWallet do
-    FOperationsExplorerGrid.ShowModalDecoder(TUserInterface.WalletKeys, TUserInterface.AppParams);
+  TUserInterface.ShowOperationInfoDialog(Self, FOperationsExplorerGrid.SelectedOperation);
 end;
 
 procedure TFRMOperationExplorer.ebFilterOperationsAccountKeyPress(Sender: TObject; var Key: Char);

@@ -95,22 +95,23 @@ Type
     procedure SetBlockEnd(const Value: Int64);
     procedure SetBlockStart(const Value: Int64);
     procedure SetMustShowAlwaysAnAccount(const Value: Boolean);
+    function GetSelectedOperation : TOperationResume;
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); Override;
   public
-    Constructor Create(AOwner : TComponent); override;
-    Destructor Destroy; override;
-    Property DrawGrid : TDrawGrid read FDrawGrid write SetDrawGrid;
-    Property PendingOperations : Boolean read FPendingOperations write SetPendingOperations;
-    Property AccountNumber : Int64 read FAccountNumber write SetAccountNumber;
-    Property MustShowAlwaysAnAccount : Boolean read FMustShowAlwaysAnAccount write SetMustShowAlwaysAnAccount;
-    Property Node : TNode read GetNode write SetNode;
-    Procedure UpdateAccountOperations; virtual;
-    Procedure ShowModalDecoder(WalletKeys: TWalletKeys; AppParams : TAppParams);
-    Property BlockStart : Int64 read FBlockStart write SetBlockStart;
-    Property BlockEnd : Int64 read FBlockEnd write SetBlockEnd;
-    Procedure SetBlocks(bstart,bend : Int64);
-    Property OperationsResume : TOperationsResumeList read FOperationsResume;
+    constructor Create(AOwner : TComponent); override;
+    destructor Destroy; override;
+    property DrawGrid : TDrawGrid read FDrawGrid write SetDrawGrid;
+    property PendingOperations : Boolean read FPendingOperations write SetPendingOperations;
+    property SelectedOperation : TOperationResume read GetSelectedOperation;
+    property AccountNumber : Int64 read FAccountNumber write SetAccountNumber;
+    property MustShowAlwaysAnAccount : Boolean read FMustShowAlwaysAnAccount write SetMustShowAlwaysAnAccount;
+    property Node : TNode read GetNode write SetNode;
+    procedure UpdateAccountOperations; virtual;
+    property BlockStart : Int64 read FBlockStart write SetBlockStart;
+    property BlockEnd : Int64 read FBlockEnd write SetBlockEnd;
+    procedure SetBlocks(bstart,bend : Int64);
+    property OperationsResume : TOperationsResumeList read FOperationsResume;
   End;
 
   TBlockChainData = Record
@@ -847,22 +848,19 @@ begin
   UpdateAccountOperations;
 end;
 
-procedure TOperationsGrid.ShowModalDecoder(WalletKeys: TWalletKeys; AppParams : TAppParams);
+function TOperationsGrid.GetSelectedOperation : TOperationResume;
 Var i : Integer;
   opr : TOperationResume;
   FRM : TFRMPayloadDecoder;
 begin
   if Not Assigned(FDrawGrid) then exit;
-  if (FDrawGrid.Row<=0) Or (FDrawGrid.Row>FOperationsResume.Count) then exit;
-  opr := FOperationsResume.OperationResume[FDrawGrid.Row-1];
-  FRM := TFRMPayloadDecoder.Create(FDrawGrid.Owner);
-  try
-    FRM.Init(opr,WalletKeys,AppParams);
-    FRM.ShowModal;
-  finally
-    FRM.Free;
+  if (FDrawGrid.Row<=0) Or (FDrawGrid.Row>FOperationsResume.Count) then begin
+    Result := CT_TOperationResume_NUL;
+    exit;
   end;
+  Result := FOperationsResume.OperationResume[FDrawGrid.Row-1];
 end;
+
 
 procedure TOperationsGrid.UpdateAccountOperations;
 Var list : TList;

@@ -7,14 +7,13 @@ interface
 uses
   SysUtils, Classes, Forms, Controls, Windows, ExtCtrls,
   UCommonUI,
-  UAccounts, UNode, UWalletKeys, UAppParams, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining, ULog, UThread, UNetProtocol, UCrypto,
-  UFRMWallet, UFRMSyncronizationDialog, UFRMAccountExplorer, UFRMPendingOperations, UFRMOperation,
+  UBlockChain, UAccounts, UNode, UWalletKeys, UAppParams, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining, ULog, UThread, UNetProtocol, UCrypto,
+  UFRMWallet, UFRMSyncronizationDialog, UFRMAccountExplorer, UFRMOperationExplorer, UFRMPendingOperations, UFRMOperation,
   UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys;
 
 type
   { Forward Declarations }
   TLoadSafeBoxThread = class;
-
 
   { TMinerPrivateKey }
 
@@ -31,7 +30,7 @@ type
       FSyncronizationDialog : TFRMSyncronizationDialog; static;
       FAccountExplorer : TFRMAccountExplorer; static;
       FPendingOperationForm : TFRMPendingOperations; static;
-      FOperationsExplorerForm : TFRMOperation; static;
+      FOperationsExplorerForm : TFRMOperationExplorer; static;
       FBlockExplorerForm : TFRMBlockExplorer; static;
       FLogsForm : TFRMLogs; static;
       FNodesForm : TFRMNodes; static;
@@ -102,14 +101,18 @@ type
       // Show Dialogs
       class procedure ShowAboutBox(parentForm : TForm);
       class procedure ShowOptionsDialog(parentForm: TForm);
+      class procedure ShowOperationInfoDialog(parentForm: TForm; const ophash : AnsiString);
+      class procedure ShowOperationInfoDialog(parentForm: TForm; const operation : TOperationResume); overload;
       class procedure ShowNewOperationDialog(parentForm : TForm; accounts : TOrderedCardinalList; defaultFee : Cardinal);
       class procedure ShowSyncronizationDialog(parentForm : TForm);
       class procedure ShowWalletKeysDialog(parentForm : TForm);
       class procedure ShowSeedNodesDialog(parentForm : TForm);
       class procedure ShowAccountInformationDialog(parentForm : TForm; account : UInt64);
       class procedure ShowPrivateKeysDialog(parentForm: TForm);
+      class procedure ShowMemoText(parentForm: TForm; const ATitle : AnsiString; text : TStrings);
       class procedure UnlockWallet(parentForm: TForm;  walletKeys : TWalletKeys);
       class procedure ChangeWalletPassword(parentForm: TForm; walletKeys : TWalletKeys);
+      class function AskUserEnterString(parentForm: TForm; const ACaption, APrompt : String; var Value : String) : Boolean;
 
       // Show sub-forms
       class procedure ShowAccountExplorer;
@@ -130,7 +133,10 @@ type
 
 implementation
 
-uses Dialogs, UCommon, UOpenSSL, UFileStorage, UTime, UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig ;
+uses
+  Dialogs,
+  UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
+  UOpenSSL, UFileStorage, UTime, UCommon;
 
 {%region UI Lifecyle}
 
@@ -406,6 +412,30 @@ begin
   end;
 end;
 
+class procedure TUserInterface.ShowOperationInfoDialog(parentForm: TForm; const ophash: AnsiString);
+begin
+  with TFRMPayloadDecoder.Create(parentForm) do
+  try
+    Init(CT_TOperationResume_NUL, TUserInterface.WalletKeys,TUserInterface.AppParams);
+    if ophash <> '' then
+      DoFind(ophash);
+    ShowModal;
+  finally
+    Free;
+  end;
+end;
+
+class procedure TUserInterface.ShowOperationInfoDialog(parentForm: TForm; const operation : TOperationResume); overload;
+begin
+  with TFRMPayloadDecoder.Create(parentForm) do
+  try
+    Init(operation, TUserInterface.WalletKeys,TUserInterface.AppParams);
+    ShowModal;
+  finally
+    Free;
+  end;
+end;
+
 // TODO - refactor with accounts as ARRAY
 class procedure TUserInterface.ShowNewOperationDialog(parentForm : TForm; accounts : TOrderedCardinalList; defaultFee : Cardinal);
 begin
@@ -539,11 +569,24 @@ begin
   Try
     FRM.WalletKeys := FWalletKeys;
     FRM.ShowModal;
-    //UpdatePrivateKeys; // Should receive event from FWalletKeys.OnChanged subscription
   Finally
     FRM.Free;
   End;
 end;
+
+class procedure TUserInterface.ShowMemoText(parentForm: TForm; const ATitle : AnsiString; text : TStrings);
+begin
+  with TFRMMemoText.Create(parentForm) do begin
+    try
+      Caption := ATitle;
+      Memo.Lines.Assign(text);
+      ShowModal;
+    finally
+      Free;
+    end;
+  end;
+end;
+
 
 class procedure TUserInterface.ChangeWalletPassword(parentForm: TForm; walletKeys : TWalletKeys);
 Var s,s2 : String;
@@ -560,7 +603,11 @@ begin
     'Please note that your new password is "'+s+'"'+#10+#10+
     '(If you lose this password, you will lose your wallet forever!)'),
     PChar(Application.Title),MB_ICONWARNING+MB_OK);
-  //UpdateWalletKeys;
+end;
+
+class function TUserInterface.AskUserEnterString(parentForm: TForm; const ACaption, APrompt : String; var Value : String) : Boolean;
+begin
+  Result := InputQuery(ACaption, APrompt, Value);
 end;
 
 class procedure TUserInterface.UnlockWallet(parentForm: TForm; walletKeys : TWalletKeys);
@@ -589,8 +636,8 @@ begin
        FAccountExplorer.CloseAction:= caFree;
        FAccountExplorer.OnDestroyed:= Self.OnSubFormDestroyed;
        FAccountExplorer.SetSubFormCoordinate(FAccountExplorer);
-    end;
-    FAccountExplorer.Refresh;
+    end else
+      FAccountExplorer.Refresh;
     FAccountExplorer.Show;
   finally
     FUILock.Release;
@@ -618,7 +665,7 @@ begin
   try
     FUILock.Acquire;
     if not Assigned(FOperationsExplorerForm) then begin
-      FOperationsExplorerForm := TFRMOperation.Create(FWallet);
+      FOperationsExplorerForm := TFRMOperationExplorer.Create(FWallet);
       FOperationsExplorerForm.CloseAction:= caFree;
       FOperationsExplorerForm.OnDestroyed:= Self.OnSubFormDestroyed;
       FWallet.SetSubFormCoordinate(FOperationsExplorerForm);
@@ -887,7 +934,7 @@ begin
   FUILock.Acquire;
   Try
     if Assigned(FAccountExplorer) then
-      FAccountExplorer.UpdateAccounts(true);
+      FAccountExplorer.RefreshAccountsGrid(true);
   finally
     FUILock.Release;
   end;
@@ -899,7 +946,7 @@ begin
   try
     try
       if Assigned(FAccountExplorer) then
-        FAccountExplorer.UpdateAccounts(false);
+        FAccountExplorer.RefreshAccountsGrid(false);
       FSyncronizationDialog.UpdateBlockChainState;
     except
       On E:Exception do begin

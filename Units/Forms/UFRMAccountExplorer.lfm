@@ -1,11 +1,11 @@
 object FRMAccountExplorer: TFRMAccountExplorer
-  Left = 264
+  Left = 135
   Height = 471
-  Top = 67
-  Width = 816
+  Top = 14
+  Width = 868
   Caption = 'Accounts Explorer'
   ClientHeight = 451
-  ClientWidth = 816
+  ClientWidth = 868
   Menu = meAccountExplorerMenu
   OnCreate = FormCreate
   OnDestroy = FormDestroy
@@ -20,11 +20,11 @@ object FRMAccountExplorer: TFRMAccountExplorer
     Left = 0
     Height = 66
     Top = 0
-    Width = 816
+    Width = 868
     Align = alTop
     BevelOuter = bvNone
     ClientHeight = 66
-    ClientWidth = 816
+    ClientWidth = 868
     TabOrder = 0
     object Label18: TLabel
       Left = 11
@@ -245,7 +245,7 @@ object FRMAccountExplorer: TFRMAccountExplorer
     Left = 385
     Height = 385
     Top = 66
-    Width = 431
+    Width = 483
     ActivePage = tsMultiSelectAccounts
     Align = alClient
     TabIndex = 1
@@ -272,13 +272,13 @@ object FRMAccountExplorer: TFRMAccountExplorer
     object tsMultiSelectAccounts: TTabSheet
       Caption = 'Selected accounts for massive operations'
       ClientHeight = 357
-      ClientWidth = 423
+      ClientWidth = 475
       ImageIndex = 1
       object dgSelectedAccounts: TDrawGrid
         Left = 41
         Height = 300
         Top = 31
-        Width = 273
+        Width = 325
         Align = alLeft
         Anchors = [akTop, akLeft, akRight, akBottom]
         ExtendedSelect = False
@@ -291,11 +291,11 @@ object FRMAccountExplorer: TFRMAccountExplorer
         Left = 0
         Height = 31
         Top = 0
-        Width = 423
+        Width = 475
         Align = alTop
         BevelOuter = bvNone
         ClientHeight = 31
-        ClientWidth = 423
+        ClientWidth = 475
         Font.Color = clWindowText
         Font.Height = -13
         Font.Name = 'Tahoma'
@@ -315,11 +315,11 @@ object FRMAccountExplorer: TFRMAccountExplorer
         Left = 0
         Height = 26
         Top = 331
-        Width = 423
+        Width = 475
         Align = alBottom
         BevelOuter = bvNone
         ClientHeight = 26
-        ClientWidth = 423
+        ClientWidth = 475
         TabOrder = 2
         object Label20: TLabel
           Left = 41
@@ -398,7 +398,7 @@ object FRMAccountExplorer: TFRMAccountExplorer
         end
       end
       object bbSelectedAccountsOperation: TBitBtn
-        Left = 320
+        Left = 372
         Height = 61
         Top = 31
         Width = 75

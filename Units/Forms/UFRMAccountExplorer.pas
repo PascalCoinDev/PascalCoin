@@ -168,15 +168,15 @@ type
     procedure sbSelectedAccountsAddClick(Sender: TObject);
     procedure sbSelectedAccountsDelAllClick(Sender: TObject);
     procedure sbSelectedAccountsDelClick(Sender: TObject);
-    procedure UpdateAccounts(RefreshData : Boolean);
-    procedure OnSelectedAccountsGridUpdated(Sender: TObject);
+    procedure RefreshAccountsGrid(RefreshData : Boolean);
+    procedure RefreshMyKeysCombo;
+    procedure OnAccountsSelectedGridUpdated(Sender: TObject);
   private
     { private declarations }
-    FUpdating : boolean;
-    FAccountsGrid : TAccountsGrid;  //HS
-    FOperationsAccountGrid : TOperationsGrid; // HS
-    FSelectedAccountsGrid : TAccountsGrid; //HS
-    FOrderedAccountsKeyList : TOrderedAccountKeysList; //HS
+    FAccountsGrid : TAccountsGrid;
+    FAccountOperationsGrid : TOperationsGrid;
+    FAccountsSelectedGrid : TAccountsGrid;
+    FOrderedAccountsKeyList : TOrderedAccountKeysList;
     FMinAccountBalance : Int64;
     FMaxAccountBalance : Int64;
     Procedure FillAccountInformation(Const Strings : TStrings; Const AccountNumber : Cardinal);
@@ -187,7 +187,6 @@ type
     procedure OnSelectedAccountChanged;
     procedure Refresh;
   end;
-
 
 implementation
 
@@ -209,20 +208,22 @@ begin
   FAccountsGrid.DrawGrid := dgAccounts;
   FAccountsGrid.Node := TUserInterface.Node;
   FAccountsGrid.AllowMultiSelect := True;
-  FSelectedAccountsGrid := TAccountsGrid.Create(Self);
-  FSelectedAccountsGrid.DrawGrid :=dgSelectedAccounts;
-  FSelectedAccountsGrid.Node := TUserInterface.Node;
-  FSelectedAccountsGrid.OnUpdated := OnSelectedAccountsGridUpdated;
-  FOperationsAccountGrid := TOperationsGrid.Create(Self);
-  FOperationsAccountGrid.DrawGrid := dgAccountOperations;
-  FOperationsAccountGrid.Node := TUserInterface.Node;
-  FOperationsAccountGrid.MustShowAlwaysAnAccount := true;
+  FAccountsSelectedGrid := TAccountsGrid.Create(Self);
+  FAccountsSelectedGrid.DrawGrid :=dgSelectedAccounts;
+  FAccountsSelectedGrid.Node := TUserInterface.Node;
+  FAccountsSelectedGrid.OnUpdated := OnAccountsSelectedGridUpdated;
+  FAccountOperationsGrid := TOperationsGrid.Create(Self);
+  FAccountOperationsGrid.DrawGrid := dgAccountOperations;
+  FAccountOperationsGrid.Node := TUserInterface.Node;
+  FAccountOperationsGrid.MustShowAlwaysAnAccount := true;
   pcAccountsOptions.ActivePage := tsAccountOperations;
+
+  // Get account list from SafeBox
+  FOrderedAccountsKeyList := TOrderedAccountKeysList.Create(TUserInterface.Node.Bank.SafeBox,false);
 
   // Subscribe to wallet events
   TUserInterface.WalletKeys.OnChanged.Add(OnPrivateKeysChanged);
-
-  FUpdating := false;
+  Refresh;
 end;
 
 procedure TFRMAccountExplorer.FormDestroy(Sender: TObject);
@@ -231,9 +232,9 @@ begin
   TUserInterface.WalletKeys.OnChanged.Remove(OnPrivateKeysChanged);
 
   // Nullify fields
-  FOperationsAccountGrid.Node := Nil;
+  FAccountOperationsGrid.Node := Nil;
   FAccountsGrid.Node := Nil;
-  FSelectedAccountsGrid.Node := Nil;
+  FAccountsSelectedGrid.Node := Nil;
   FAccountsGrid.Node := Nil;
 
   // Note: grids themselves are collected with Self (TComponent dependency)
@@ -244,43 +245,10 @@ end;
 {%region Form methods}
 
 procedure TFRMAccountExplorer.Refresh;
-Var i,last_i : Integer;
-  wk : TWalletKey;
-  s : AnsiString;
 begin
-  If (Not Assigned(FOrderedAccountsKeyList)) And (Assigned(TUserInterface.Node)) Then begin
-    FOrderedAccountsKeyList := TOrderedAccountKeysList.Create(TUserInterface.Node.Bank.SafeBox,false);
-  end;
-  if (cbMyPrivateKeys.ItemIndex>=0) then last_i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex])
-  else last_i := -1;
-  cbMyPrivateKeys.items.BeginUpdate;
-  Try
-    cbMyPrivateKeys.Items.Clear;
-    For i:=0 to TUserInterface.WalletKeys.Count-1 do begin
-      wk := TUserInterface.WalletKeys.Key[i];
-      if assigned(FOrderedAccountsKeyList) then begin
-        FOrderedAccountsKeyList.AddAccountKey(wk.AccountKey);
-      end;
-      if (wk.Name='') then begin
-        s := 'Sha256='+TCrypto.ToHexaString( TCrypto.DoSha256( TAccountComp.AccountKey2RawString(wk.AccountKey) ) );
-      end else begin
-        s := wk.Name;
-      end;
-      if Not Assigned(wk.PrivateKey) then s := s + '(*)';
-      cbMyPrivateKeys.Items.AddObject(s,TObject(i));
-    end;
-    cbMyPrivateKeys.Sorted := true;
-    cbMyPrivateKeys.Sorted := false;
-    cbMyPrivateKeys.Items.InsertObject(0,'(All my private keys)',TObject(-1));
-  Finally
-    cbMyPrivateKeys.Items.EndUpdate;
-  End;
-  last_i := cbMyPrivateKeys.Items.IndexOfObject(TObject(last_i));
-  if last_i<0 then last_i := 0;
-  if cbMyPrivateKeys.Items.Count>last_i then cbMyPrivateKeys.ItemIndex := last_i
-  else if cbMyPrivateKeys.Items.Count>=0 then cbMyPrivateKeys.ItemIndex := 0;
+  RefreshAccountsGrid(true);
+  RefreshMyKeysCombo;
 end;
-
 
 {%endregion}
 
@@ -349,7 +317,7 @@ begin
   end;
 end;
 
-procedure TFRMAccountExplorer.UpdateAccounts(RefreshData : Boolean);
+procedure TFRMAccountExplorer.RefreshAccountsGrid(RefreshData : Boolean);
 Var accl : TOrderedCardinalList;
   l : TOrderedCardinalList;
   i,j,k : Integer;
@@ -357,7 +325,6 @@ Var accl : TOrderedCardinalList;
   applyfilter : Boolean;
   acc : TAccount;
 begin
-//  with FRMWallet do begin
   If Not Assigned(FOrderedAccountsKeyList) Then exit;
   if Not RefreshData then begin
     dgAccounts.Invalidate;
@@ -420,42 +387,69 @@ begin
   // Show Totals:
   lblAccountsBalance.Caption := TAccountComp.FormatMoney(FAccountsGrid.AccountsBalance);
   OnSelectedAccountChanged;
-//  end
+end;
+
+procedure TFRMAccountExplorer.RefreshMyKeysCombo;
+Var i,last_i : Integer;
+  wk : TWalletKey;
+  s : AnsiString;
+begin
+  cbMyPrivateKeys.Enabled := cbExploreMyAccounts.Checked;
+  if (cbMyPrivateKeys.ItemIndex>=0) then last_i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex])
+  else last_i := -1;
+  cbMyPrivateKeys.items.BeginUpdate;
+  Try
+    cbMyPrivateKeys.Items.Clear;
+    For i:=0 to TUserInterface.WalletKeys.Count-1 do begin
+      wk := TUserInterface.WalletKeys.Key[i];
+      if assigned(FOrderedAccountsKeyList) then begin
+        FOrderedAccountsKeyList.AddAccountKey(wk.AccountKey);
+      end;
+      if (wk.Name='') then begin
+        s := 'Sha256='+TCrypto.ToHexaString( TCrypto.DoSha256( TAccountComp.AccountKey2RawString(wk.AccountKey) ) );
+      end else begin
+        s := wk.Name;
+      end;
+      if Not Assigned(wk.PrivateKey) then s := s + '(*)';
+      cbMyPrivateKeys.Items.AddObject(s,TObject(i));
+    end;
+    cbMyPrivateKeys.Sorted := true;
+    cbMyPrivateKeys.Sorted := false;
+    cbMyPrivateKeys.Items.InsertObject(0,'(All my private keys)',TObject(-1));
+  Finally
+    cbMyPrivateKeys.Items.EndUpdate;
+  End;
+  last_i := cbMyPrivateKeys.Items.IndexOfObject(TObject(last_i));
+  if last_i<0 then last_i := 0;
+  if cbMyPrivateKeys.Items.Count>last_i then cbMyPrivateKeys.ItemIndex := last_i
+  else if cbMyPrivateKeys.Items.Count>=0 then cbMyPrivateKeys.ItemIndex := 0;
 end;
 
 function TFRMAccountExplorer.DoUpdateAccountsFilter: Boolean;
 Var bmin,bmax:Int64;
   doupd : Boolean;
 begin
-//  with FRMWallet do
-//  begin
-  if FUpdating then exit;
-  FUpdating := true;
-  Try
-    If Not TAccountComp.TxtToMoney(ebFilterAccountByBalanceMin.Text,bmin) then bmin := 0;
-    If not TAccountComp.TxtToMoney(ebFilterAccountByBalanceMax.Text,bmax) then bmax := CT_MaxWalletAmount;
-    if (bmax<bmin) or (bmax=0) then bmax := CT_MaxWalletAmount;
-    if bmin>bmax then bmin := 0;
-    doupd := (bmin<>FMinAccountBalance) Or (bmax<>FMaxAccountBalance);
-    FMinAccountBalance := bmin;
-    FMaxAccountBalance := bmax;
-    if bmin>0 then
-      ebFilterAccountByBalanceMin.Text:=TAccountComp.FormatMoney(bmin)
-    else ebFilterAccountByBalanceMin.Text := '';
-    if bmax<CT_MaxWalletAmount then
-      ebFilterAccountByBalanceMax.Text := TAccountComp.FormatMoney(bmax)
-    else ebFilterAccountByBalanceMax.Text := '';
-    if cbFilterAccounts.Checked then begin
-      ebFilterAccountByBalanceMin.ParentFont := true;
-      ebFilterAccountByBalanceMax.ParentFont := true;
-    end else begin
-      ebFilterAccountByBalanceMin.font.Color := clDkGray;
-      ebFilterAccountByBalanceMax.font.Color := clDkGray;
-    end;
-  Finally
-    FUpdating := false;
-  End;
-  if doupd then UpdateAccounts(true);
+  If Not TAccountComp.TxtToMoney(ebFilterAccountByBalanceMin.Text,bmin) then bmin := 0;
+  If not TAccountComp.TxtToMoney(ebFilterAccountByBalanceMax.Text,bmax) then bmax := CT_MaxWalletAmount;
+  if (bmax<bmin) or (bmax=0) then bmax := CT_MaxWalletAmount;
+  if bmin>bmax then bmin := 0;
+  doupd := (bmin<>FMinAccountBalance) Or (bmax<>FMaxAccountBalance);
+  FMinAccountBalance := bmin;
+  FMaxAccountBalance := bmax;
+  if bmin>0 then
+    ebFilterAccountByBalanceMin.Text:=TAccountComp.FormatMoney(bmin)
+  else ebFilterAccountByBalanceMin.Text := '';
+  if bmax<CT_MaxWalletAmount then
+    ebFilterAccountByBalanceMax.Text := TAccountComp.FormatMoney(bmax)
+  else ebFilterAccountByBalanceMax.Text := '';
+  if cbFilterAccounts.Checked then begin
+    ebFilterAccountByBalanceMin.ParentFont := true;
+    ebFilterAccountByBalanceMax.ParentFont := true;
+  end else begin
+    ebFilterAccountByBalanceMin.font.Color := clDkGray;
+    ebFilterAccountByBalanceMax.font.Color := clDkGray;
+  end;
+  if doupd then RefreshAccountsGrid(true);
   Result := doupd;
   //end;
 end;
@@ -473,7 +467,7 @@ procedure TFRMAccountExplorer.OnSelectedAccountChanged;
 Var accn : Int64;
 begin
   accn := FAccountsGrid.AccountNumber(dgAccounts.Row);
-  FOperationsAccountGrid.AccountNumber := accn;
+  FAccountOperationsGrid.AccountNumber := accn;
 end;
 
 {%endregion}
@@ -482,22 +476,19 @@ end;
 
 procedure TFRMAccountExplorer.cbExploreMyAccountsChange(Sender: TObject);
 begin
-//  with FRMWallet do
-//  begin
-    cbMyPrivateKeys.Enabled := cbExploreMyAccounts.Checked;
-    UpdateAccounts(true);
+    RefreshAccountsGrid(true);
+    RefreshMyKeysCombo;
     OnSelectedAccountChanged;
-//  end;
 end;
 
 procedure TFRMAccountExplorer.cbFilterAccountsChange(Sender: TObject);
 begin
-  If not DoUpdateAccountsFilter then UpdateAccounts(true);
+  If not DoUpdateAccountsFilter then RefreshAccountsGrid(true);
 end;
 
 procedure TFRMAccountExplorer.cbMyPrivateKeysChange(Sender: TObject);
 begin
-  UpdateAccounts(true);
+  RefreshAccountsGrid(true);
 end;
 
 {%endregion}
@@ -519,7 +510,7 @@ end;
 
 procedure TFRMAccountExplorer.bbAccountsRefreshClick(Sender: TObject);
 begin
-  UpdateAccounts(true);
+  RefreshAccountsGrid(true);
 end;
 
 procedure TFRMAccountExplorer.sbSelectedAccountsAddAllClick(Sender: TObject);
@@ -530,14 +521,14 @@ begin
 //  begin
   lsource := FAccountsGrid.LockAccountsList;
   Try
-    ltarget := FSelectedAccountsGrid.LockAccountsList;
+    ltarget := FAccountsSelectedGrid.LockAccountsList;
     Try
       for i := 0 to lsource.Count-1 do begin
         if TUserInterface.WalletKeys.IndexOfAccountKey(TUserInterface.Node.Bank.SafeBox.Account(lsource.Get(i)).accountInfo.accountKey)<0 then raise Exception.Create(Format('You cannot operate with account %d because private key not found in your wallet',[lsource.Get(i)]));
         ltarget.Add(lsource.Get(i));
       end;
     Finally
-      FSelectedAccountsGrid.UnlockAccountsList;
+      FAccountsSelectedGrid.UnlockAccountsList;
     End;
   Finally
     FAccountsGrid.UnlockAccountsList;
@@ -551,15 +542,13 @@ Var l, selected : TOrderedCardinalList;
   an : Int64;
   i : Integer;
 begin
-//  with FRMWallet do
-//  begin
   an := FAccountsGrid.AccountNumber(dgAccounts.Row);
   if (an<0) then raise Exception.Create('No account selected');
   if TUserInterface.WalletKeys.IndexOfAccountKey(TUserInterface.Node.Bank.SafeBox.Account(an).accountInfo.accountkey)<0 then
     raise Exception.Create(Format('You cannot add %s account because private key not found in your wallet.'#10+#10+'You''re not the owner!',
       [TAccountComp.AccountNumberToAccountTxtNumber(an)]));
   // Add
-  l := FSelectedAccountsGrid.LockAccountsList;
+  l := FAccountsSelectedGrid.LockAccountsList;
   selected := TOrderedCardinalList.Create;
   Try
     FAccountsGrid.SelectedAccounts(selected);
@@ -568,19 +557,18 @@ begin
     end;
   Finally
     selected.Free;
-    FSelectedAccountsGrid.UnlockAccountsList;
+    FAccountsSelectedGrid.UnlockAccountsList;
   End;
-//  end;
 end;
 
 procedure TFRMAccountExplorer.sbSelectedAccountsDelAllClick(Sender: TObject);
 Var l : TOrderedCardinalList;
 begin
-  l := FSelectedAccountsGrid.LockAccountsList;
+  l := FAccountsSelectedGrid.LockAccountsList;
   try
     l.Clear;
   finally
-    FSelectedAccountsGrid.UnlockAccountsList;
+    FAccountsSelectedGrid.UnlockAccountsList;
   end;
 end;
 
@@ -588,32 +576,27 @@ procedure TFRMAccountExplorer.sbSelectedAccountsDelClick(Sender: TObject);
 Var an : Int64;
   l : TOrderedCardinalList;
 begin
-//  with FRMWallet do
-//  begin
-  l := FSelectedAccountsGrid.LockAccountsList;
+  l := FAccountsSelectedGrid.LockAccountsList;
   try
-    an := FSelectedAccountsGrid.AccountNumber(dgSelectedAccounts.Row);
+    an := FAccountsSelectedGrid.AccountNumber(dgSelectedAccounts.Row);
     if an>=0 then l.Remove(an);
   finally
-    FSelectedAccountsGrid.UnlockAccountsList;
+    FAccountsSelectedGrid.UnlockAccountsList;
   end;
-//  end;
 end;
 
 procedure TFRMAccountExplorer.bbSelectedAccountsOperationClick(Sender: TObject);
 var l : TOrderedCardinalList;
 begin
-//  with FRMWallet do
-//  begin
   TUserInterface.CheckNodeIsReady;
-  if FSelectedAccountsGrid.AccountsCount<=0 then raise Exception.Create('Must select at least 1 account');
+  if FAccountsSelectedGrid.AccountsCount<=0 then raise Exception.Create('Must select at least 1 account');
   With TFRMOperation.Create(Self) do
   Try
-    l := FSelectedAccountsGrid.LockAccountsList;
+    l := FAccountsSelectedGrid.LockAccountsList;
     try
       SenderAccounts.CopyFrom(l);
     finally
-      FSelectedAccountsGrid.UnlockAccountsList;
+      FAccountsSelectedGrid.UnlockAccountsList;
     end;
     DefaultFee := TUserInterface.AppParams.ParamByName[CT_PARAM_DefaultFee].GetAsInt64(0);
     WalletKeys := TUserInterface.WalletKeys;
@@ -621,7 +604,6 @@ begin
   Finally
     Free;
   End;
-//  end;
 end;
 
 procedure TFRMAccountExplorer.sbSearchAccountClick(Sender: TObject);
@@ -659,7 +641,6 @@ begin
     ebFindAccountNumber.Font.Color := clDkGray;
   end else if TAccountComp.AccountTxtNumberToAccountNumber(ebFindAccountNumber.Text,an) then begin
     ebFindAccountNumber.Color := clWindow;
-    //HS if FRMWallet.FAccountsGrid.MoveRowToAccount(an) then begin
     if FAccountsGrid.MoveRowToAccount(an) then begin
       ebFindAccountNumber.Font.Color := clWindowText;
     end else begin
@@ -683,8 +664,7 @@ end;
 
 procedure TFRMAccountExplorer.dgAccountOperationsClick(Sender: TObject);
 begin
-//  with FRMWallet do
-  FOperationsAccountGrid.ShowModalDecoder(TUserInterface.WalletKeys,TUserInterface.AppParams);
+  TUserInterface.ShowOperationInfoDialog(Self, FAccountOperationsGrid.SelectedOperation);
 end;
 
 procedure TFRMAccountExplorer.dgAccountsClick(Sender: TObject);
@@ -692,10 +672,10 @@ begin
   OnSelectedAccountChanged;
 end;
 
-procedure TFRMAccountExplorer.OnSelectedAccountsGridUpdated(Sender: TObject);
+procedure TFRMAccountExplorer.OnAccountsSelectedGridUpdated(Sender: TObject);
 begin
-  lblSelectedAccountsCount.Caption := Inttostr(FSelectedAccountsGrid.AccountsCount);
-  lblSelectedAccountsBalance.Caption := TAccountComp.FormatMoney( FSelectedAccountsGrid.AccountsBalance );
+  lblSelectedAccountsCount.Caption := Inttostr(FAccountsSelectedGrid.AccountsCount);
+  lblSelectedAccountsBalance.Caption := TAccountComp.FormatMoney( FAccountsSelectedGrid.AccountsBalance );
 end;
 
 {%endregion}
@@ -721,7 +701,6 @@ Var an  : Cardinal;
   an64 : Int64;
   start : TAccount;
 begin
-//  with FWallet do begin
     an64 := FAccountsGrid.AccountNumber(dgAccounts.Row);
     if an64<0 then an := TUserInterface.Node.Bank.SafeBox.AccountsCount-1
     else an := an64;
@@ -734,7 +713,6 @@ begin
     if (TUserInterface.Node.Bank.SafeBox.Account(an).balance>start.balance) then FAccountsGrid.MoveRowToAccount(an)
     else raise Exception.Create('Not found any account lower than '+TAccountComp.AccountNumberToAccountTxtNumber(start.account)+' with balance higher than '+
       TAccountComp.FormatMoney(start.balance));
-//    end;
 end;
 
 procedure TFRMAccountExplorer.miFindNextAccountWithHighBalanceClick(Sender: TObject);
@@ -742,7 +720,6 @@ Var an  : Cardinal;
   an64 : Int64;
   start : TAccount;
 begin
-//  with FRMWallet do begin
   an64 := FAccountsGrid.AccountNumber(dgAccounts.Row);
   if an64<0 then an := 0
   else an := an64;
@@ -755,47 +732,28 @@ begin
   if (an<TUserInterface.Node.Bank.SafeBox.AccountsCount) then FAccountsGrid.MoveRowToAccount(an)
   else raise Exception.Create('Not found any account higher than '+TAccountComp.AccountNumberToAccountTxtNumber(start.account)+' with balance higher than '+
     TAccountComp.FormatMoney(start.balance));
-//  end;
 end;
 
 procedure TFRMAccountExplorer.miAccountInformationClick(Sender: TObject);
 Var F : TFRMMemoText;
   accn : Int64 =-1;
   title : String;
-  //account : TAccount;
   strings : TStrings;
   i : Integer;
   opr : TOperationResume;
 begin
-//  with FRMWallet do begin
   accn := -1;
   title := '';
   strings := TStringList.Create;
   try
     opr := CT_TOperationResume_NUL;
-    //HS
-    ////AntonB if PageControl.ActivePage=tsOperations then begin
-    //  if not (FOperationsExplorerGrid.DrawGrid = nil) then begin
-    //  i := FOperationsExplorerGrid.DrawGrid.Row;
-    //  if (i>0) and (i<=FOperationsExplorerGrid.OperationsResume.Count) then begin
-    //    opr := FOperationsExplorerGrid.OperationsResume.OperationResume[i-1];
-    //  end;
-    //AntonB end else if PageControl.ActivePage=tsPendingOperations then begin
-    //  end else if not (FPendingOperationsGrid.DrawGrid = nil) then begin
-    //  i := FPendingOperationsGrid.DrawGrid.Row;
-    //  if (i>0) and (i<=FPendingOperationsGrid.OperationsResume.Count) then begin
-    //    opr := FPendingOperationsGrid.OperationsResume.OperationResume[i-1];
-    //  end;
-    //end else //if PageControl.ActivePage=tsMyAccounts then
-    begin
-      accn := FAccountsGrid.AccountNumber(dgAccounts.Row);
-      if accn<0 then raise Exception.Create('Select an account');
-      FillAccountInformation(strings,accn);
-      title := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(accn)+' info';
-      i := FOperationsAccountGrid.DrawGrid.Row;
-      if (i>0) and (i<=FOperationsAccountGrid.OperationsResume.Count) then begin
-        opr := FOperationsAccountGrid.OperationsResume.OperationResume[i-1];
-      end;
+    accn := FAccountsGrid.AccountNumber(dgAccounts.Row);
+    if accn<0 then raise Exception.Create('Select an account');
+    FillAccountInformation(strings,accn);
+    title := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(accn)+' info';
+    i := FAccountOperationsGrid.DrawGrid.Row;
+    if (i>0) and (i<=FAccountOperationsGrid.OperationsResume.Count) then begin
+      opr := FAccountOperationsGrid.OperationsResume.OperationResume[i-1];
     end;
     If (opr.valid) then begin
       if accn>=0 then strings.Add('')
@@ -803,18 +761,10 @@ begin
       strings.Add('Operation info:');
       FillOperationInformation(strings,opr);
     end else if accn<0 then Raise Exception.Create('No info available');
-    F := TFRMMemoText.Create(Self);
-    Try
-      F.Caption := title;
-      F.Memo.Lines.Assign(strings);
-      F.ShowModal;
-    Finally
-      F.Free;
-    End;
+    TUserInterface.ShowMemoText(Self, title, strings);
   finally
     strings.free;
   end;
-//  end;
 end;
 
 procedure TFRMAccountExplorer.miAddAccountToSelectedClick(Sender: TObject);
@@ -826,7 +776,7 @@ end;
 
 procedure TFRMAccountExplorer.miDecodePayloadClick(Sender: TObject);
 begin
-  FOperationsAccountGrid.ShowModalDecoder(TUserInterface.WalletKeys,TUserInterface.AppParams);
+  TUserInterface.ShowOperationInfoDialog(Self, FAccountOperationsGrid.SelectedOperation.OperationHash);
 end;
 
 procedure TFRMAccountExplorer.miRemoveAccountFromSelectedClick(Sender: TObject);

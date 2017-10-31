@@ -59,17 +59,21 @@ end;
 
 procedure TFRMPendingOperations.miDecodePayLoadClick(Sender: TObject);
 begin
-  FPendingOperationsGrid.ShowModalDecoder(TUserInterface.WalletKeys,TUserInterface.AppParams);
+  TUserInterface.ShowOperationInfoDialog(self, FPendingOperationsGrid.SelectedOperation);
 end;
 
 procedure TFRMPendingOperations.miFindOperationbyOpHashClick(Sender: TObject);
+var ophash:AnsiString;
 begin
+  if Not TUserInterface.AskUserEnterString(Self, 'Search operation by OpHash','Insert Operation Hash value (OpHash)',ophash)
+    then exit;
 
+  TUserInterface.ShowOperationInfoDialog(Self, ophash);
 end;
 
 procedure TFRMPendingOperations.dgPendingOperationsDblClick(Sender: TObject);
 begin
-   FPendingOperationsGrid.ShowModalDecoder(TUserInterface.WalletKeys, TUserInterface.AppParams);
+  TUserInterface.ShowOperationInfoDialog(Self, FPendingOperationsGrid.SelectedOperation.OperationHash);
 end;
 
 end.
