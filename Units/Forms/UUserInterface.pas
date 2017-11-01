@@ -303,7 +303,7 @@ begin
     step := 'Destroying UI graph';
     FWallet.Destroy;
     FWallet := nil;  // destroyed by FWallet
-    //FSyncronizationDialog := nil;  // destroyed by FWallet
+    FSyncronizationDialog := nil;  // destroyed by FWallet
     FAccountExplorer := nil;  // destroyed by FWallet
     FPendingOperationForm := nil;  // destroyed by FWallet
     FOperationsExplorerForm := nil;  // destroyed by FWallet
