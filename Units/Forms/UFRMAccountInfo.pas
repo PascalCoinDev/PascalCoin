@@ -2,6 +2,8 @@ unit UFRMAccountInfo;
 
 interface
 
+{$I ./../PascalCoin/config.inc}
+
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls;

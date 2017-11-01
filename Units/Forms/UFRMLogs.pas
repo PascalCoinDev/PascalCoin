@@ -4,6 +4,8 @@ unit UFRMLogs;
 
 interface
 
+{$I ./../PascalCoin/config.inc}
+
 uses
     LCLIntf,
     SysUtils, Classes, Graphics, Controls, Forms,

@@ -25,13 +25,19 @@ uses
   ULog,
   UBlockChain, UNode, UGridUtils, UAccounts, Menus,
   UNetProtocol, UCrypto, Buttons, ActnList, UPoolMining,
-  UCommon, UCommonUI;
+  UCTRLBanner, UCommon, UCommonUI;
 
 Const
-  CM_PC_WalletKeysChanged = WM_USER + 1;
-  CM_PC_ConnectivityChanged = WM_USER + 2;
-  CM_PC_Terminate = WM_USER + 3;
+  CM_PC_FinishedLoadingDatabase = WM_USER + 1;
+  CM_PC_WalletKeysChanged = WM_USER + 2;
+  CM_PC_ConnectivityChanged = WM_USER + 3;
+  CM_PC_Terminate = WM_USER + 4;
+
 type
+
+  { TFRMWalletMode }
+
+  TFRMWalletMode = (wmWallet, wmSync);
 
   { TFRMWallet }
 
@@ -44,10 +50,13 @@ type
     miMessages: TMenuItem;
     miNodes: TMenuItem;
     miPendingOperations: TMenuItem;
-    PanelWindow:TPanel;
     miViews: TMenuItem;
     miAccountExplorer: TMenuItem;
-    sbFooterBar: TStatusBar;
+    paLogoPanel: TPanel;
+    paWalletPane: TPanel;
+    paSyncPane: TPanel;
+    pcBackPanel: TPageControl;
+    sbStatusBar: TStatusBar;
     meMainMenu: TMainMenu;
     miWallet: TMenuItem;
     miOptions: TMenuItem;
@@ -61,7 +70,9 @@ type
     ApplicationEvents: TApplicationProperties;
     miSeedNodes: TMenuItem;
     pnlSelectedAccountsBottom: TPanel;
-    tbFooter: TToolBar;
+    tsPage1: TTabSheet;
+    taPage2: TTabSheet;
+    tbStatusToolBar: TToolBar;
     tbtnConnectivity: TToolButton;
     tbtnSync: TToolButton;
     tbtnWalletLock: TToolButton;
@@ -82,31 +93,41 @@ type
     procedure miAboutClick(Sender: TObject);
     procedure miPrivateKeysClick(Sender: TObject);
     procedure miCloseClick(Sender: TObject);
+    procedure paLogoPanelClick(Sender: TObject);
+    procedure paSyncPaneClick(Sender: TObject);
     procedure tbtnSyncClick(Sender: TObject);
     procedure tbtnWalletLockClick(Sender:TObject);
     procedure tbtnConnectivityClick(Sender:TObject);
-    procedure sbFooterBarDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel; const Rect: TRect);
+    procedure sbStatusBarDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel; const Rect: TRect);
     procedure ApplicationEventsMinimize(Sender: TObject);
     procedure miSeedNodesClick(Sender: TObject);
   private
-    FLastFooterToolBarDrawRect : TRect;
+    __FLastFooterToolBarDrawRect : TRect;  // Required for FPC bug work-around
+    FMode : TFRMWalletMode;
+    FSyncPaneControl : TForm;
+    procedure CM_FinishedLoadingDatabase(var Msg: TMessage); message CM_PC_FinishedLoadingDatabase;
     procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
     procedure CM_ConnectivityChanged(var Msg: TMessage); message CM_PC_ConnectivityChanged;
     procedure CM_Terminate(var Msg: TMessage); message CM_PC_Terminate;
     procedure OnConnectivityChanged(Sender: TObject);
     procedure OnWalletChanged(Sender: TObject);
   protected
+    property SyncPaneControl : TForm read FSyncPaneControl write FSyncPaneControl;
     procedure RefreshWalletLockIcon;
     procedure RefreshConnectivityIcon;
     procedure ActivateFirstTime; override;
     Function ForceMining : Boolean; virtual;
+    procedure SetMode(AMode: TFRMWalletMode);
+  public
+    property Mode : TFRMWalletMode read FMode write SetMode;
+    procedure OnFinishedLoadingDatabase;
   end;
 
 implementation
 
 {$R *.lfm}
 
-uses LCLIntf, UUserInterface, UThread, UOpTransaction;
+uses LCLIntf, UUserInterface, UThread, UOpTransaction, UWizTest, UWizard;
 
 const
   CT_FOOTER_TOOLBAR_LEFT_PADDING = 8;
@@ -118,16 +139,15 @@ const
 
 procedure TFRMWallet.FormCreate(Sender: TObject);
 begin
-  tbFooter.Parent := sbFooterBar;
-  FLastFooterToolBarDrawRect := TRect.Empty;
+  tbStatusToolBar.Parent := sbStatusBar;
+  __FLastFooterToolBarDrawRect := TRect.Empty;
   CloseAction := caNone; // Will handle terminate in separate method
+  FMode := wmSync;
+  paLogoPanel.AddControlDockCenter(TCTRLBanner.Create(Self));
 end;
 
 procedure TFRMWallet.FormCloseQuery(Sender: TObject; var CanClose: boolean);
-var
-  xxx : TCloseAction;
 begin
-
   case TUserInterface.AskQuestion(Self, 'Quit PascalCoin', 'Are you sure you want to quit? Select ''No'' to run in background.', [mbCancel, mbNo, mbYes]) of
     mbYes: begin
       CanClose := false;
@@ -149,6 +169,7 @@ procedure TFRMWallet.CM_Terminate(var Msg: TMessage);
 begin
   TUserInterface.ExitApplication;
 end;
+
 
 procedure TFRMWallet.ActivateFirstTime;
 begin
@@ -215,6 +236,27 @@ begin
   tbtnConnectivity.Hint :=  HintConst[TNetData.NetData.NetConnectionsActive];
 end;
 
+procedure TFRMWallet.SetMode(AMode: TFRMWalletMode);
+var nestedForm : TForm;
+begin
+  case AMode of
+    wmWallet: begin
+      pcBackPanel.ActivePage := tsPage1;
+      FMode := AMode;
+    end;
+    wmSync: begin
+      if not paSyncPane.ContainsControl(TUserInterface.SyncDialog) then begin
+        if paSyncPane.ControlCount > 0 then
+         paSyncPane.RemoveAllControls(false);
+        paSyncPane.AddControlDockCenter(TUserInterface.SyncDialog);
+      end;
+      pcBackPanel.ActivePage := taPage2;
+      FMode := AMode;
+    end;
+    else raise Exception.Create('[Internal Error] - TFRMWallet.SetMode: unsupported mode passed');
+  end;
+end;
+
 {%endregion}
 
 {%region Handlers: Form}
@@ -222,12 +264,23 @@ end;
 procedure TFRMWallet.FormResize(Sender: TObject);
 begin
   // Adjust status bar so that footer toolbar panel remains fixed size (by expanding out previous panel)
-   sbFooterBar.Panels[2].Width := ClipValue(sbFooterBar.Width - (sbFooterBar.Panels[0].Width + sbFooterBar.Panels[1].Width + tbFooter.Width  + CT_FOOTER_TOOLBAR_RIGHT_PADDING) - CT_FOOTER_TOOLBAR_LEFT_PADDING, 0, sbFooterBar.Width);
+   sbStatusBar.Panels[2].Width := ClipValue(sbStatusBar.Width - (sbStatusBar.Panels[0].Width + sbStatusBar.Panels[1].Width + tbStatusToolBar.Width  + CT_FOOTER_TOOLBAR_RIGHT_PADDING) - CT_FOOTER_TOOLBAR_LEFT_PADDING, 0, sbStatusBar.Width);
 end;
 
 {%endregion}
 
 {%region Handlers: Wallet, Network}
+
+procedure TFRMWallet.CM_FinishedLoadingDatabase(var Msg: TMessage);
+begin
+  Self.Enabled:=true;
+end;
+
+procedure TFRMWallet.OnFinishedLoadingDatabase;
+begin
+  // Ensure handled in UI thread
+  PostMessage(Self.Handle,CM_PC_FinishedLoadingDatabase,0,0);
+end;
 
 procedure TFRMWallet.CM_WalletChanged(var Msg: TMessage);
 begin
@@ -262,7 +315,7 @@ end;
 
 procedure TFRMWallet.miSyncDialogClick(Sender:TObject);
 begin
-  TUserInterface.ShowSyncronizationDialog(Self);
+  TUserInterface.ShowSyncDialog;
 end;
 
 procedure TFRMWallet.miNodesClick(Sender: TObject);
@@ -310,6 +363,16 @@ begin
   Close;
 end;
 
+procedure TFRMWallet.paLogoPanelClick(Sender: TObject);
+begin
+
+end;
+
+procedure TFRMWallet.paSyncPaneClick(Sender: TObject);
+begin
+
+end;
+
 procedure TFRMWallet.miOptionsClick(Sender: TObject);
 begin
   TUserInterface.ShowOptionsDialog(Self);
@@ -346,19 +409,19 @@ end;
 
 procedure TFRMWallet.tbtnSyncClick(Sender: TObject);
 begin
-  TUserInterface.ShowSyncronizationDialog(Self);
+  TUserInterface.ShowSyncDialog;
 end;
 
-procedure TFRMWallet.sbFooterBarDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel; const Rect: TRect);
+procedure TFRMWallet.sbStatusBarDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel; const Rect: TRect);
 begin
-  if FLastFooterToolBarDrawRect = Rect then exit; // avoid FPC bug: triggers infinite draw refresh on windows
-  if Panel = sbFooterBar.Panels[3] then
-    with tbFooter do begin
-      Top := Rect.Top + (Rect.Height - tbFooter.Height) div 2;
-      Left := Rect.Right - tbFooter.Width - CT_FOOTER_TOOLBAR_RIGHT_PADDING;
+  if __FLastFooterToolBarDrawRect = Rect then exit; // avoid FPC bug: triggers infinite draw refresh on windows
+  if Panel = sbStatusBar.Panels[3] then
+    with tbStatusToolBar do begin
+      Top := Rect.Top + (Rect.Height - tbStatusToolBar.Height) div 2;
+      Left := Rect.Right - tbStatusToolBar.Width - CT_FOOTER_TOOLBAR_RIGHT_PADDING;
       Visible := true;
     end;
-  FLastFooterToolBarDrawRect := Rect;
+  __FLastFooterToolBarDrawRect := Rect;
 end;
 
 {%endregion}

@@ -158,6 +158,8 @@ type
 
 implementation
 
+uses UCommonUI;
+
 {$R *.lfm}
 
 {%region TWizardForm }

@@ -4,6 +4,8 @@ unit UFRMOperationExplorer;
 
 interface
 
+{$I ./../PascalCoin/config.inc}
+
 uses
     LCLIntf, LCLType, SysUtils, Controls, Forms, Dialogs, ExtCtrls, StdCtrls, Grids, Menus, Classes,
     UCommonUI, UGridUtils, UConst;
@@ -40,7 +42,7 @@ type
 
 implementation
 
-{$R *.lfm}
+{$r *.lfm}
 
 uses UUserInterface, UFRMPayloadDecoder, UBlockChain;
 

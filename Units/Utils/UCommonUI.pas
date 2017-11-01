@@ -22,7 +22,7 @@ unit UCommonUI;
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls, FGL, Generics.Collections, Generics.Defaults, syncobjs;
+  Classes, SysUtils, Forms, Controls,ExtCtrls,  FGL, Graphics, Generics.Collections, Generics.Defaults, syncobjs;
 
 type
   TApplicationForm = class(TForm)
@@ -41,6 +41,7 @@ type
       procedure DoClose(var CloseAction: TCloseAction); override;
       procedure DoDestroy; override;
       procedure DoDestroyed; virtual;
+      procedure SetBounds(ALeft, ATop, AWidth, AHeight: integer); override;
     published
       property CloseAction : TCloseAction read FCloseAction write FCloseAction;
       property OnActivateFirstTime : TNotifyEvent read FActivateFirstTime write FActivateFirstTime;
@@ -51,12 +52,19 @@ type
 
   TWinControlHelper = class helper for TWinControl
     procedure RemoveAllControls(destroy : boolean);
+    procedure AddControlDockCenter(AControl: TWinControl);
   end;
 
   { TFormHelper }
 
   TFormHelper = class helper for TForm
     procedure SetSubFormCoordinate(SubForm: TForm);
+  end;
+
+  { TImageHelper }
+
+  TImageHelper = class helper for TImage
+    procedure SetImageListPicture(AImageList: TImageList; AIndex : SizeInt);
   end;
 
 
@@ -116,6 +124,13 @@ begin
     FDestroyed(Self);
 end;
 
+procedure TApplicationForm.SetBounds(ALeft, ATop, AWidth, AHeight: integer);
+begin
+  if (Left <> ALeft) or (Top <> ATop) or (Width <> AWidth) or (Height <> AHeight) then
+    InvalidatePreferredSize;
+  inherited SetBounds(ALeft, ATop, AWidth, AHeight);
+end;
+
 {%endregion}
 
 {%region TWinControlHelper}
@@ -128,6 +143,30 @@ begin
     control := self.Controls[0];
     self.RemoveControl(control);
     if destroy then control.Destroy;
+  end;
+end;
+
+procedure TWinControlHelper.AddControlDockCenter(AControl: TWinControl);
+begin
+  if AControl.ClassType.InheritsFrom(TCustomForm) then begin
+    with TCustomForm(AControl) do begin
+      BorderStyle := bsNone;
+      // Needed to avoid infinite WMSize loop
+      Constraints.MinHeight := 0;
+      Constraints.MaxHeight := 0;
+      Constraints.MinWidth := 0;
+      Constraints.MaxWidth := 0;
+    end;
+  end;
+
+  with AControl do begin
+    Left := 0;
+    Top := 0;
+    Width := Self.Width;
+    Height := Self.Height;
+    Align := alClient;
+    Parent := Self;
+    Show;
   end;
 end;
 
@@ -149,6 +188,15 @@ begin
   Subform.Left  :=TopLeft.x;
   Subform.Height:= Self.Height-27;
   Subform.Width := Self.Width-9;
+end;
+
+{%endregion}
+
+{%region TImageHelper}
+
+procedure TImageHelper.SetImageListPicture(AImageList: TImageList; AIndex : SizeInt);
+begin
+  AImageList.GetBitmap(AIndex, Self.Picture.Bitmap);
 end;
 
 {%endregion}

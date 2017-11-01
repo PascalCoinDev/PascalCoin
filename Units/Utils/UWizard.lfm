@@ -1,7 +1,7 @@
 object WizardHostForm: TWizardHostForm
-  Left = 187
+  Left = 141
   Height = 120
-  Top = 35
+  Top = 30
   Width = 360
   BorderIcons = [biSystemMenu]
   Caption = 'Wizard'

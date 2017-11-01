@@ -4,6 +4,8 @@ unit UFRMPendingOperations;
 
 interface
 
+{$I ./../PascalCoin/config.inc}
+
 uses
   Classes, Forms, Grids,
   ExtCtrls, StdCtrls, Menus, UCommonUI, UGridUtils;
@@ -36,7 +38,8 @@ var
   FRMPendingOperations: TFRMPendingOperations = nil;
 
 implementation
-uses UFRMWallet, UUserInterface;
+
+uses UUserInterface;
 
 {$R *.lfm}
 

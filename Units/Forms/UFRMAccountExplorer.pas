@@ -4,6 +4,8 @@ unit UFRMAccountExplorer;
 
 interface
 
+{$I ./../PascalCoin/config.inc}
+
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ComCtrls,
   ExtCtrls, StdCtrls, Buttons, Grids, Menus, UCommonUI,

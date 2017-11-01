@@ -4,6 +4,8 @@ unit UFRMNodes;
 
 interface
 
+{$I ./../PascalCoin/config.inc}
+
 uses
   LCLIntf, LCLType,
   Messages, SysUtils, Classes, Graphics, Controls, Forms,

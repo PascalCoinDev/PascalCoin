@@ -17,6 +17,8 @@ unit UFRMWalletKeys;
 
 interface
 
+{$I ./../PascalCoin/config.inc}
+
 uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UCommonUI, UWalletKeys, Buttons,

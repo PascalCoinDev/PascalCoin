@@ -4,6 +4,8 @@ unit UUserInterface;
 
 interface
 
+//{$I ./../PascalCoin/config.inc}
+
 uses
   SysUtils, Classes, Forms, Controls, Windows, ExtCtrls, Dialogs,
   UCommonUI, UBlockChain, UAccounts, UNode, UWalletKeys, UAppParams, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining,
@@ -24,10 +26,10 @@ type
 
   TUserInterface = class
     private
+      // Root-form
       FUILock : TPCCriticalSection; static;
-      FStarted : boolean; static;
-      FAppParams : TAppParams; static;
-      FWallet : TFRMWallet; static;
+
+      // Subforms
       FSyncronizationDialog : TFRMSyncronizationDialog; static;
       FAccountExplorer : TFRMAccountExplorer; static;
       FPendingOperationForm : TFRMPendingOperations; static;
@@ -37,44 +39,53 @@ type
       FNodesForm : TFRMNodes; static;
       FMessagesForm : TFRMMessages; static;
 
-      FIsActivated : Boolean; static;
+      // Components
+      FRPCServer : TRPCServer; static;
+      FPoolMiningServer : TPoolMiningServer; static;
       FMinerPrivateKeyType : TMinerPrivateKey; static;
       FWalletKeys : TWalletKeysExt; static;
 
-      FRPCServer : TRPCServer; static;
-      FPoolMiningServer : TPoolMiningServer; static;
-
+      // Local fields
+      FStarted : boolean; static;
+      FAppParams : TAppParams; static;
+      FWallet : TFRMWallet; static;
+      FIsActivated : Boolean; static;
       FUpdating : Boolean; static;
       FLog : TLog; static;
       FNode : TNode; static;
       TimerUpdateStatus: TTimer; static;
       FTrayIcon: TTrayIcon; static;
       FNodeNotifyEvents : TNodeNotifyEvents; static;
-
       FStatusBar0Text : AnsiString; static;
       FStatusBar1Text : AnsiString; static;
       FStatusBar2Text : AnsiString; static;
       FMessagesNotificationText : AnsiString; static;
 
+      // Methods
       class procedure RefreshConnectionStatusDisplay;
       class function GetAccountKeyForMiner: TAccountKey;
-      class procedure SetStatusBar0Text(text : AnsiString); static;
-      class procedure SetStatusBar1Text(text : AnsiString); static;
-      class procedure SetStatusBar2Text(text : AnsiString); static;
-      class procedure SetMessagesNotificationText(text : AnsiString); static;
 
-      class procedure FinishedLoadingApp;
+      // Getters/Setters
+      class procedure SetStatusBar0Text(const text : AnsiString); static;
+      class procedure SetStatusBar1Text(const text : AnsiString); static;
+      class procedure SetStatusBar2Text(const text : AnsiString); static;
+      class procedure SetMessagesNotificationText(const text : AnsiString); static;
+      class procedure SetWalletMode(AMode: TFRMWalletMode); static;
+      class function GetWalletMode : TFRMWalletMode; static;
+
+      // Aux methods
+      class procedure FinishedLoadingDatabase;
       class procedure LoadAppParams;
       class procedure SaveAppParams;
-      class procedure NotifyConfigChanged;
 
+      // Notifiers
+      class procedure NotifyConfigChanged;
 
       // Handlers
       class procedure TimerUpdateStatusTimer(Sender: TObject);
       class procedure OnSubFormDestroyed(Sender: TObject);
 
-      // Blockchain event handlers. TODO: refactor this out with TNotifyEvents
-      // so forms that need these messages subscribe directly
+      // Backend Handlers (TODO: refactor this out with TNotifyManyEvents)
       class procedure OnAccountsChanged(Sender: TObject);
       class procedure OnBlocksChanged(Sender: TObject);
       class procedure OnReceivedHelloMessage(Sender: TObject);
@@ -86,28 +97,33 @@ type
       class procedure OnMiningServerNewBlockFound(Sender: TObject);
       class procedure OnTrayIconDblClick(Sender: TObject);
     public
+      // Properties
       class property Started : boolean read FStarted;
       class property Node : TNode read FNode;
       class property Log : TLog read FLog;
       class property AppParams : TAppParams read FAppParams;
       class property PoolMiningServer : TPoolMiningServer read FPoolMiningServer;
       class property WalletKeys : TWalletKeysExt read FWalletKeys;
+      class property WalletMode : TFRMWalletMode read GetWalletMode write SetWalletMode;
+      class property SyncDialog : TFRMSyncronizationDialog read FSyncronizationDialog;
       class property StatusBar0Text : AnsiString read FStatusBar0Text write SetStatusBar0Text;
       class property StatusBar1Text : AnsiString read FStatusBar1Text write SetStatusBar1Text;
       class property StatusBar2Text : AnsiString read FStatusBar2Text write SetStatusBar2Text;
       class property MessagesNotificationText : AnsiString read FMessagesNotificationText write SetMessagesNotificationText;
+
+      // Methods
       class procedure StartApplication(mainForm : TForm);
       class procedure ExitApplication;
       class procedure RunInBackground;
       class procedure RunInForeground;
       class procedure CheckNodeIsReady;
+
       // Show Dialogs
       class procedure ShowAboutBox(parentForm : TForm);
       class procedure ShowOptionsDialog(parentForm: TForm);
       class procedure ShowOperationInfoDialog(parentForm: TForm; const ophash : AnsiString);
       class procedure ShowOperationInfoDialog(parentForm: TForm; const operation : TOperationResume); overload;
       class procedure ShowNewOperationDialog(parentForm : TForm; accounts : TOrderedCardinalList; defaultFee : Cardinal);
-      class procedure ShowSyncronizationDialog(parentForm : TForm);
       class procedure ShowWalletKeysDialog(parentForm : TForm);
       class procedure ShowSeedNodesDialog(parentForm : TForm);
       class procedure ShowPrivateKeysDialog(parentForm: TForm);
@@ -116,7 +132,6 @@ type
       class procedure ChangeWalletPassword(parentForm: TForm; walletKeys : TWalletKeys);
       class function AskQuestion(parentForm: TForm; const ACaption, APrompt : String; buttons: TMsgDlgButtons) : TMsgDlgBtn;
       class function AskUserEnterString(parentForm: TForm; const ACaption, APrompt : String; var Value : String) : Boolean;
-
       // Show sub-forms
       class procedure ShowAccountExplorer;
       class procedure ShowBlockExplorer;
@@ -125,6 +140,8 @@ type
       class procedure ShowMessagesForm;
       class procedure ShowNodesForm;
       class procedure ShowLogsForm;
+      class procedure ShowWallet;
+      class procedure ShowSyncDialog;
   end;
 
   { TLoadSafeBoxThread }
@@ -166,12 +183,14 @@ begin
     FStatusBar2Text := '';
     FMessagesNotificationText := '';
 
-    // Create main form and try icon
+    // Create root form and dependent components
     FWallet := mainForm as TFRMWallet;
     FWallet.CloseAction := caFree;     // wallet is destroyed on close
     if (FWallet = nil)
       then raise Exception.Create('Main form is not TWallet');
-    FTrayIcon := TTrayIcon.Create(TUserInterface.FWallet);
+    FSyncronizationDialog := TFRMSyncronizationDialog.Create(FWallet);;
+
+    FTrayIcon := TTrayIcon.Create(FWallet);
     FTrayIcon.OnDblClick := OnTrayIconDblClick;
     FTrayIcon.Visible := true;
     FTrayIcon.Hint := FWallet.Caption;
@@ -179,7 +198,7 @@ begin
     FTrayIcon.BalloonHint := 'Double click the system tray icon to restore Pascal Coin';
     FTrayIcon.BalloonFlags := bfInfo;
     FTrayIcon.Show;
-    TimerUpdateStatus := TTimer.Create(TUserInterface.FWallet);
+    TimerUpdateStatus := TTimer.Create(FWallet);
     TimerUpdateStatus.Enabled := false;
 
     // Create log
@@ -280,7 +299,7 @@ begin
   SetMessagesNotificationText(FMessagesNotificationText);
 
   // Show sync dialog
-  ShowSyncronizationDialog(FWallet);
+  ShowSyncDialog;
 
   // Show about box if first time load
   if FAppParams.ParamByName[CT_PARAM_FirstTime].GetAsBoolean(true) then begin
@@ -378,7 +397,7 @@ begin
   Application.BringToFront();
 end;
 
-class procedure TUserInterface.FinishedLoadingApp;
+class procedure TUserInterface.FinishedLoadingDatabase;
 begin
   FPoolMiningServer := TPoolMiningServer.Create;
   FPoolMiningServer.Port := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port);
@@ -387,12 +406,8 @@ begin
   FNode.Operations.AccountKey := GetAccountKeyForMiner;
   FPoolMiningServer.Active := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].GetAsBoolean(true);
   FPoolMiningServer.OnMiningServerNewBlockFound := OnMiningServerNewBlockFound;
-
-  //HS review
-  FSyncronizationDialog.BorderIcons:=[biSystemMenu];
-  FSyncronizationDialog.HideButton.Enabled:=true;
-  FWallet.Enabled:=True;
-
+  FSyncronizationDialog.OnFinishedLoadingDatabase;
+  FWallet.OnFinishedLoadingDatabase;
   // Refresh UI
   OnAccountsChanged(FWallet);
 end;
@@ -464,29 +479,6 @@ begin
   Finally
     Free;
   End;
-end;
-
-class procedure TUserInterface.ShowSyncronizationDialog(parentForm : TForm);
-begin
-  try
-    FUILock.Acquire;
-    if FSyncronizationDialog = nil then begin
-      FSyncronizationDialog:=TFRMSyncronizationDialog.Create(FWallet);
-      FSyncronizationDialog.Visible := false;
-      FSyncronizationDialog.Show;
-      FRMSyncronizationDialogIsFirstOpen:=false;
-    end;
-    FWallet.SetSubFormCoordinate(FSyncronizationDialog);
-    FSyncronizationDialog.Visible := true;;
-  finally
-    FUILock.Release;
-  end;
-
-  // SyncDialog is always created, sometimes invisible
-  //
-  //SetSubFormCoordinate(FRMSyncronizationDialog);
-  //FRMSyncronizationDialog.Visible:=not FRMSyncronizationDialog.Visible;
-  FSyncronizationDialog.Visible := true;
 end;
 
 class procedure TUserInterface.ShowWalletKeysDialog(parentForm : TForm);
@@ -709,6 +701,29 @@ begin
   end;
 end;
 
+class procedure TUserInterface.ShowWallet;
+begin
+  // TODO - VALIDATION HERE
+  FWallet.Mode := wmWallet;
+  // else ShowError('', 'Wallet is currently unavailable, please wait until processing is finished');
+end;
+
+class procedure TUserInterface.ShowSyncDialog;
+begin
+  try
+    FUILock.Acquire;
+    if not Assigned(FSyncronizationDialog) then
+      FSyncronizationDialog := TFRMSyncronizationDialog.Create(FWallet);
+
+    if FRMSyncronizationDialogIsFirstOpen = true then begin
+       FRMSyncronizationDialogIsFirstOpen := false;
+    end;
+    FWallet.Mode := wmSync;
+  finally
+    FUILock.Release;
+  end;
+end;
+
 {%endregion}
 
 {%region Public methods}
@@ -824,6 +839,21 @@ begin
   NotifyConfigChanged;
 end;
 
+class procedure TUserInterface.SetWalletMode(AMode: TFRMWalletMode);
+begin
+  if AMode <> FWallet.Mode then
+    case AMode of
+      wmWallet: ShowWallet;
+      wmSync: ShowSyncDialog;
+      else raise Exception.Create('[Internal Error] TUserInterface.SetWalletMode - unsupported mode');
+    end;
+end;
+
+class function TUserInterface.GetWalletMode : TFRMWalletMode;
+begin
+  Result := FWallet.Mode;
+end;
+
 class procedure TUserInterface.NotifyConfigChanged;
 Var wa : Boolean;
   i : Integer;
@@ -860,28 +890,28 @@ begin
   else FMinerPrivateKeyType := mpk_Random;
 end;
 
-class procedure TUserInterface.SetStatusBar0Text(text : AnsiString);
+class procedure TUserInterface.SetStatusBar0Text(const text : AnsiString); static;
 begin
   FStatusBar0Text := text;
   if Assigned(FWallet) then
-    FWallet.sbFooterBar.Panels[0].Text := FStatusBar0Text;
+    FWallet.sbStatusBar.Panels[0].Text := FStatusBar0Text;
 end;
 
-class procedure TUserInterface.SetStatusBar1Text(text : AnsiString);
+class procedure TUserInterface.SetStatusBar1Text(const text : AnsiString); static;
 begin
   FStatusBar1Text := text;
   if Assigned(FWallet) then
-    FWallet.sbFooterBar.Panels[1].Text := text;
+    FWallet.sbStatusBar.Panels[1].Text := text;
 end;
 
-class procedure TUserInterface.SetStatusBar2Text(text : AnsiString);
+class procedure TUserInterface.SetStatusBar2Text(const text : AnsiString); static;
 begin
   FStatusBar2Text := text;
   if Assigned(FWallet) then
-    FWallet.sbFooterBar.Panels[2].Text := text;
+    FWallet.sbStatusBar.Panels[2].Text := text;
 end;
 
-class procedure TUserInterface.SetMessagesNotificationText(text : AnsiString); static;
+class procedure TUserInterface.SetMessagesNotificationText(const text : AnsiString); static;
 begin
   FMessagesNotificationText := text;
   if Assigned(FSyncronizationDialog) then begin
@@ -1069,7 +1099,7 @@ begin
   TNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
   TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
   TNode.Node.NetServer.Active := true;
-  Synchronize( TUserInterface.FinishedLoadingApp );
+  Synchronize( TUserInterface.FinishedLoadingDatabase );
 end;
 
 initialization

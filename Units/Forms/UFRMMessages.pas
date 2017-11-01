@@ -4,6 +4,8 @@ unit UFRMMessages;
 
 interface
 
+{$I ./../PascalCoin/config.inc}
+
 uses
   LCLIntf, LCLType,
   SysUtils, Classes, Graphics, Controls, Forms,

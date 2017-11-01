@@ -1,11 +1,11 @@
 object FRMWallet: TFRMWallet
-  Left = 142
+  Left = 74
   Height = 600
-  Top = 433
-  Width = 865
+  Top = 0
+  Width = 947
   Caption = 'Pascal Coin Wallet, JSON-RPC Miner & Explorer'
   ClientHeight = 580
-  ClientWidth = 865
+  ClientWidth = 947
   Color = clBtnFace
   Constraints.MinHeight = 600
   Constraints.MinWidth = 865
@@ -22,11 +22,11 @@ object FRMWallet: TFRMWallet
   Position = poOwnerFormCenter
   ShowHint = True
   LCLVersion = '1.6.4.0'
-  object sbFooterBar: TStatusBar
+  object sbStatusBar: TStatusBar
     Left = 0
     Height = 23
     Top = 557
-    Width = 865
+    Width = 947
     Panels = <    
       item
         Alignment = taCenter
@@ -46,63 +46,112 @@ object FRMWallet: TFRMWallet
         Width = 30
       end>
     SimplePanel = False
-    OnDrawPanel = sbFooterBarDrawPanel
+    OnDrawPanel = sbStatusBarDrawPanel
   end
-  object PanelWindow: TPanel
+  object pcBackPanel: TPageControl
     Left = 0
-    Height = 560
-    Top = 0
-    Width = 866
+    Height = 480
+    Top = 80
+    Width = 948
+    ActivePage = taPage2
     Anchors = [akTop, akLeft, akRight, akBottom]
-    BevelOuter = bvNone
-    ClientHeight = 560
-    ClientWidth = 866
     DockSite = True
-    TabOrder = 1
-    object tbFooter: TToolBar
-      Left = 778
-      Height = 16
-      Top = 544
-      Width = 70
-      Align = alNone
-      Anchors = [akRight, akBottom]
-      AutoSize = True
-      ButtonHeight = 16
-      Caption = 'tbFooter'
-      EdgeBorders = []
-      EdgeInner = esNone
-      EdgeOuter = esNone
-      Images = ilSmallIcons
-      List = True
-      TabOrder = 0
-      Visible = False
-      Wrapable = False
-      object tbtnWalletLock: TToolButton
-        Left = 1
-        Hint = 'Show Private Keys'
+    ParentShowHint = False
+    ShowTabs = False
+    TabIndex = 1
+    TabOrder = 2
+    object tsPage1: TTabSheet
+      Caption = 'tsPage1'
+      ClientHeight = 472
+      ClientWidth = 940
+      object paWalletPane: TPanel
+        Left = 0
+        Height = 472
         Top = 0
-        Caption = 'Private Keys'
-        ImageIndex = 2
-        Marked = True
-        OnClick = tbtnWalletLockClick
-      end
-      object tbtnConnectivity: TToolButton
-        Left = 24
-        Hint = 'Network is active. Click to deactivate'
-        Top = 0
-        Caption = 'Net'
-        ImageIndex = 0
-        OnClick = tbtnConnectivityClick
-      end
-      object tbtnSync: TToolButton
-        Left = 47
-        Hint = 'Show &Syncronization'
-        Top = 0
-        Caption = '&Synchronization'
-        ImageIndex = 4
-        OnClick = tbtnSyncClick
+        Width = 940
+        Anchors = [akTop, akLeft, akRight, akBottom]
+        BevelOuter = bvNone
+        Caption = 'paWalletPane'
+        TabOrder = 0
       end
     end
+    object taPage2: TTabSheet
+      Caption = 'taPage2'
+      ClientHeight = 472
+      ClientWidth = 940
+      object paSyncPane: TPanel
+        Left = 0
+        Height = 472
+        Top = 0
+        Width = 940
+        Anchors = [akTop, akLeft, akRight, akBottom]
+        BevelOuter = bvNone
+        Caption = 'paSyncPane'
+        TabOrder = 0
+        OnClick = paSyncPaneClick
+      end
+    end
+  end
+  object tbStatusToolBar: TToolBar
+    Left = 860
+    Height = 16
+    Top = 544
+    Width = 70
+    Align = alNone
+    Anchors = [akRight, akBottom]
+    AutoSize = True
+    ButtonHeight = 16
+    Caption = 'tbStatusToolBar'
+    EdgeBorders = []
+    EdgeInner = esNone
+    EdgeOuter = esNone
+    Images = ilSmallIcons
+    List = True
+    TabOrder = 1
+    Visible = False
+    Wrapable = False
+    object tbtnWalletLock: TToolButton
+      Left = 1
+      Hint = 'Show Private Keys'
+      Top = 0
+      Caption = 'Private Keys'
+      ImageIndex = 2
+      Marked = True
+      OnClick = tbtnWalletLockClick
+    end
+    object tbtnConnectivity: TToolButton
+      Left = 24
+      Hint = 'Network is active. Click to deactivate'
+      Top = 0
+      Caption = 'Net'
+      ImageIndex = 0
+      OnClick = tbtnConnectivityClick
+    end
+    object tbtnSync: TToolButton
+      Left = 47
+      Hint = 'Show &Syncronization'
+      Top = 0
+      Caption = '&Synchronization'
+      ImageIndex = 4
+      OnClick = tbtnSyncClick
+    end
+  end
+  object paLogoPanel: TPanel
+    Left = 0
+    Height = 80
+    Top = 0
+    Width = 947
+    Anchors = [akTop, akLeft, akRight]
+    BevelOuter = bvNone
+    Constraints.MaxHeight = 80
+    Constraints.MinHeight = 80
+    Constraints.MinWidth = 512
+    Font.Color = clRed
+    Font.Height = -27
+    Font.Name = 'Tahoma'
+    ParentFont = False
+    TabOrder = 3
+    OnClick = paLogoPanelClick
   end
   object meMainMenu: TMainMenu
     Images = ilSmallIcons

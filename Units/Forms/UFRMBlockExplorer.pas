@@ -4,6 +4,8 @@ unit UFRMBlockExplorer;
 
 interface
 
+{$I ./../PascalCoin/config.inc}
+
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls,
   StdCtrls, Grids, Menus, UCommonUI, UGridUtils;

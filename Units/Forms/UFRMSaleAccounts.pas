@@ -2,6 +2,8 @@
 
 unit UFRMSaleAccounts;
 
+{$I ./../PascalCoin/config.inc}
+
 interface
 
 uses

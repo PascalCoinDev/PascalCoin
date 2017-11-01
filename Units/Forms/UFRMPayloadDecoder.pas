@@ -17,6 +17,8 @@ unit UFRMPayloadDecoder;
 
 interface
 
+{$I ./../PascalCoin/config.inc}
+
 uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,

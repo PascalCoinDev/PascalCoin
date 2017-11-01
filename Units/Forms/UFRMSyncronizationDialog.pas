@@ -4,41 +4,45 @@ unit UFRMSyncronizationDialog;
 
 interface
 
+{$I ./../PascalCoin/config.inc}
+
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls,
-  StdCtrls, UCommonUI;
+  StdCtrls, ComCtrls, UCommonUI;
 
 type
 
   { TFRMSyncronizationDialog }
 
   TFRMSyncronizationDialog = class(TApplicationForm)
-    HideButton:TButton;
-    Image1:TImage;
-    Label16:TLabel;
-    Label4:TLabel;
-    Label5:TLabel;
-    Label8:TLabel;
-    lblBlocksFound:TLabel;
-    lblBuild:TLabel;
-    lblCurrentAccounts:TLabel;
-    lblCurrentBlock:TLabel;
-    lblCurrentBlockCaption:TLabel;
-    lblCurrentBlockTime:TLabel;
-    lblCurrentBlockTimeCaption:TLabel;
-    lblCurrentDifficulty:TLabel;
-    lblCurrentDifficultyCaption:TLabel;
-    lblMinersClients:TLabel;
-    lblMiningStatusCaption:TLabel;
-    lblNodeStatus:TLabel;
-    lblOperationsPending:TLabel;
-    lblOperationsPendingCaption:TLabel;
-    lblReceivedMessages:TLabel;
-    lblTimeAverage:TLabel;
-    lblTimeAverageAux:TLabel;
-    pnlTop:TPanel;
-    procedure HideButtonClick(Sender:TObject);
+    btnOpenWallet: TButton;
+    Label16: TLabel;
+    Label4: TLabel;
+    Label5: TLabel;
+    Label8: TLabel;
+    lblBlocksFound: TLabel;
+    lblBuild: TLabel;
+    lblCurrentAccounts: TLabel;
+    lblCurrentBlock: TLabel;
+    lblCurrentBlockCaption: TLabel;
+    lblCurrentBlockTime: TLabel;
+    lblCurrentBlockTimeCaption: TLabel;
+    lblCurrentDifficulty: TLabel;
+    lblCurrentDifficultyCaption: TLabel;
+    lblMinersClients: TLabel;
+    lblMiningStatusCaption: TLabel;
+    lblNodeStatus: TLabel;
+    lblOperationsPending: TLabel;
+    lblOperationsPendingCaption: TLabel;
+    lblReceivedMessages: TLabel;
+    lblTimeAverage: TLabel;
+    lblTimeAverageAux: TLabel;
+    pnlTop: TPanel;
+    tcInfo: TTabControl;
+    procedure btnOpenWalletClick(Sender:TObject);
+    procedure Image1Click(Sender: TObject);
     procedure lblReceivedMessagesClick(Sender:TObject);
+    procedure tcInfoChange(Sender: TObject);
   private
     { private declarations }
     FMinersBlocksFound: Integer;
@@ -47,12 +51,13 @@ type
     procedure UpdateNodeStatus;
     procedure UpdateBlockChainState;
     procedure SetMinersBlocksFound(const Value: Integer);
+    procedure OnFinishedLoadingDatabase;
     Property MinersBlocksFound : Integer read FMinersBlocksFound write SetMinersBlocksFound;
   end;
 
 var
-  //FRMSyncronizationDialog: TFRMSyncronizationDialog = nil;
-  FRMSyncronizationDialogIsFirstOpen:boolean =true;  //TODO update
+  //HS manage in TUserInterface
+  FRMSyncronizationDialogIsFirstOpen:boolean =true;  //TODO u
 
 implementation
 
@@ -61,23 +66,12 @@ implementation
 uses UNetProtocol,UTime,UConst, UUserInterface;
 
 
-procedure TFRMSyncronizationDialog.lblReceivedMessagesClick(Sender:TObject);
-begin
-  TUserInterface.ShowMessagesForm;
-end;
-
-procedure TFRMSyncronizationDialog.HideButtonClick(Sender:TObject);
-begin
-  Hide;
-end;
+{%region Methods}
 
 procedure TFRMSyncronizationDialog.UpdateNodeStatus;
 Var status : AnsiString;
-//  FNode=FRMWallet.FNode;
 begin
- // with FRMWallet do begin
   if not TUserInterface.Started then exit;
-
   If Not Assigned(TUserInterface.Node) then begin
     lblNodeStatus.Font.Color := clRed;
     lblNodeStatus.Caption := 'Initializing...';
@@ -170,5 +164,37 @@ begin
   if Value>0 then lblBlocksFound.Font.Color := clGreen
   else lblBlocksFound.Font.Color := clDkGray;
 end;
+
+procedure TFRMSyncronizationDialog.OnFinishedLoadingDatabase;
+begin
+  btnOpenWallet.Enabled:=true;
+end;
+
+{%endregion}
+
+{%region Handlers: widgets }
+
+procedure TFRMSyncronizationDialog.lblReceivedMessagesClick(Sender:TObject);
+begin
+  TUserInterface.ShowMessagesForm;
+end;
+
+procedure TFRMSyncronizationDialog.tcInfoChange(Sender: TObject);
+begin
+
+end;
+
+procedure TFRMSyncronizationDialog.btnOpenWalletClick(Sender:TObject);
+begin
+  TUserInterface.ShowWallet;
+end;
+
+procedure TFRMSyncronizationDialog.Image1Click(Sender: TObject);
+begin
+
+end;
+
+{%endregion}
+
 end.
 
