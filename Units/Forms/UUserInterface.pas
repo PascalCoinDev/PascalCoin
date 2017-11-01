@@ -13,7 +13,8 @@ uses
 
 type
   { Forward Declarations }
-  TLoadSafeBoxThread = class;
+
+  TLoadDatabaseThread = class;
 
   { TMinerPrivateKey }
 
@@ -128,7 +129,7 @@ type
 
   { TLoadSafeBoxThread }
 
-  TLoadSafeBoxThread = Class(TPCThread)
+  TLoadDatabaseThread = Class(TPCThread)
   protected
     procedure BCExecute; override;
   End;
@@ -233,7 +234,7 @@ begin
     TFileStorage(FNode.Bank.Storage).Initialize;
 
     // Reading database
-    TLoadSafeBoxThread.Create(false).FreeOnTerminate := true;
+    TLoadDatabaseThread.Create(false).FreeOnTerminate := true;
 
     // Init
     TNetData.NetData.OnReceivedHelloMessage := OnReceivedHelloMessage;
@@ -1060,9 +1061,9 @@ end;
 
 {%endregion}
 
-{ TLoadSafeBoxThread }
+{ TLoadDatabaseThread }
 
-procedure TLoadSafeBoxThread.BCExecute;
+procedure TLoadDatabaseThread.BCExecute;
 begin
   // Read Operations saved from disk
   TNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
