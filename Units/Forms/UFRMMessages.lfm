@@ -1,36 +1,34 @@
 object FRMMessages: TFRMMessages
-  Left = 934
+  Left = 208
   Height = 441
-  Top = 495
+  Top = 47
   Width = 874
   Caption = 'Messages'
   ClientHeight = 441
   ClientWidth = 874
   OnActivate = FormActivate
-  OnCreate = FormCreate
-  OnDestroy = FormDestroy
   LCLVersion = '1.6.4.0'
   object Label11: TLabel
     Left = 15
-    Height = 13
+    Height = 15
     Top = 151
-    Width = 51
+    Width = 54
     Caption = 'Messages:'
     ParentColor = False
   end
   object Label12: TLabel
     Left = 315
-    Height = 13
+    Height = 15
     Top = 11
-    Width = 85
+    Width = 91
     Caption = 'Message to send:'
     ParentColor = False
   end
   object Label13: TLabel
     Left = 15
-    Height = 13
+    Height = 15
     Top = 11
-    Width = 109
+    Width = 121
     Caption = 'Available Connections:'
     ParentColor = False
   end

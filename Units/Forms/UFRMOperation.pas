@@ -622,7 +622,6 @@ end;
 procedure TFRMOperation.OnWalletKeysChanged(Sender: TObject);
 begin
   PostMessage(Self.Handle,CM_PC_WalletKeysChanged,0,0);
-  //if Assigned(FOldOnChanged) then FOldOnChanged(Sender);  // XXXXXXXX HS 2017-08-07 is this procedure needed anymore?
 end;
 
 procedure TFRMOperation.PageControlOpTypeChange(Sender: TObject);

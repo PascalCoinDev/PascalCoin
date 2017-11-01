@@ -27,7 +27,7 @@ begin
   {$Warnings ON}{$ENDIF}
   Application.Title := 'Pascal Coin Wallet, Miner & Explorer';
   Application.CreateForm(TFRMWallet, mainForm);
-  TUserInterface.Start(mainForm);
+  TUserInterface.StartApplication(mainForm);
   Application.Run;
 end.
 

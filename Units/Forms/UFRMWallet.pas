@@ -30,7 +30,7 @@ uses
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
   CM_PC_ConnectivityChanged = WM_USER + 2;
-
+  CM_PC_Terminate = WM_USER + 3;
 type
 
   { TFRMWallet }
@@ -92,6 +92,7 @@ type
     FLastFooterToolBarDrawRect : TRect;
     procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
     procedure CM_ConnectivityChanged(var Msg: TMessage); message CM_PC_ConnectivityChanged;
+    procedure CM_Terminate(var Msg: TMessage); message CM_PC_Terminate;
     procedure OnConnectivityChanged(Sender: TObject);
     procedure OnWalletChanged(Sender: TObject);
   protected
@@ -119,20 +120,34 @@ procedure TFRMWallet.FormCreate(Sender: TObject);
 begin
   tbFooter.Parent := sbFooterBar;
   FLastFooterToolBarDrawRect := TRect.Empty;
+  CloseAction := caNone; // Will handle terminate in separate method
 end;
 
 procedure TFRMWallet.FormCloseQuery(Sender: TObject; var CanClose: boolean);
+var
+  xxx : TCloseAction;
 begin
 
+  case TUserInterface.AskQuestion(Self, 'Quit PascalCoin', 'Are you sure you want to quit? Select ''No'' to run in background.', [mbCancel, mbNo, mbYes]) of
+    mbYes: begin
+      CanClose := false;
+      PostMessage(Self.Handle, CM_PC_Terminate, 0, 0);
+    end;
+    mbNo: begin
+      CanClose := false;
+      TUserInterface.RunInBackground;
+    end;
+    mbCancel: CanClose := false;
+  end;
 end;
 
 procedure TFRMWallet.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
-  CloseAction := caHide;
-  // TODO - ask to go background or quit
-  // if quit then
-  TUserInterface.Quit;
+end;
 
+procedure TFRMWallet.CM_Terminate(var Msg: TMessage);
+begin
+  TUserInterface.ExitApplication;
 end;
 
 procedure TFRMWallet.ActivateFirstTime;
@@ -277,12 +292,6 @@ end;
 
 procedure TFRMWallet.miAccountExplorerClick(Sender: TObject);
 begin
-  // in memory for not exit program - Application.Exit - auto free mem not need control free manual for this send Self!
-  //HS
-  //if FRMAccountExplorer = nil then FRMAccountExplorer:=TFRMAccountExplorer.Create(Self);
-  //SetSubFormCoordinate(FRMAccountExplorer);
-  //FRMAccountExplorer.show;
-
   TUserInterface.ShowAccountExplorer
 end;
 

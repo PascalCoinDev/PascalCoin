@@ -5,9 +5,9 @@ unit UUserInterface;
 interface
 
 uses
-  SysUtils, Classes, Forms, Controls, Windows, ExtCtrls,
-  UCommonUI,
-  UBlockChain, UAccounts, UNode, UWalletKeys, UAppParams, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining, ULog, UThread, UNetProtocol, UCrypto,
+  SysUtils, Classes, Forms, Controls, Windows, ExtCtrls, Dialogs,
+  UCommonUI, UBlockChain, UAccounts, UNode, UWalletKeys, UAppParams, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining,
+  ULog, UThread, UNetProtocol, UCrypto,
   UFRMWallet, UFRMSyncronizationDialog, UFRMAccountExplorer, UFRMOperationExplorer, UFRMPendingOperations, UFRMOperation,
   UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys;
 
@@ -61,7 +61,6 @@ type
       class procedure SetStatusBar1Text(text : AnsiString); static;
       class procedure SetStatusBar2Text(text : AnsiString); static;
       class procedure SetMessagesNotificationText(text : AnsiString); static;
-      class procedure TrayIconDblClick(Sender: TObject);
 
       class procedure FinishedLoadingApp;
       class procedure LoadAppParams;
@@ -84,6 +83,7 @@ type
       class procedure OnNetNodeServersUpdated(Sender: TObject);
       class procedure OnNetBlackListUpdated(Sender: TObject);
       class procedure OnMiningServerNewBlockFound(Sender: TObject);
+      class procedure OnTrayIconDblClick(Sender: TObject);
     public
       class property Started : boolean read FStarted;
       class property Node : TNode read FNode;
@@ -95,8 +95,10 @@ type
       class property StatusBar1Text : AnsiString read FStatusBar1Text write SetStatusBar1Text;
       class property StatusBar2Text : AnsiString read FStatusBar2Text write SetStatusBar2Text;
       class property MessagesNotificationText : AnsiString read FMessagesNotificationText write SetMessagesNotificationText;
-      class procedure Start(mainForm : TForm);
-      class procedure Quit;
+      class procedure StartApplication(mainForm : TForm);
+      class procedure ExitApplication;
+      class procedure RunInBackground;
+      class procedure RunInForeground;
       class procedure CheckNodeIsReady;
       // Show Dialogs
       class procedure ShowAboutBox(parentForm : TForm);
@@ -107,11 +109,11 @@ type
       class procedure ShowSyncronizationDialog(parentForm : TForm);
       class procedure ShowWalletKeysDialog(parentForm : TForm);
       class procedure ShowSeedNodesDialog(parentForm : TForm);
-      class procedure ShowAccountInformationDialog(parentForm : TForm; account : UInt64);
       class procedure ShowPrivateKeysDialog(parentForm: TForm);
       class procedure ShowMemoText(parentForm: TForm; const ATitle : AnsiString; text : TStrings);
       class procedure UnlockWallet(parentForm: TForm;  walletKeys : TWalletKeys);
       class procedure ChangeWalletPassword(parentForm: TForm; walletKeys : TWalletKeys);
+      class function AskQuestion(parentForm: TForm; const ACaption, APrompt : String; buttons: TMsgDlgButtons) : TMsgDlgBtn;
       class function AskUserEnterString(parentForm: TForm; const ACaption, APrompt : String; var Value : String) : Boolean;
 
       // Show sub-forms
@@ -134,13 +136,12 @@ type
 implementation
 
 uses
-  Dialogs,
   UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
   UOpenSSL, UFileStorage, UTime, UCommon;
 
 {%region UI Lifecyle}
 
-class procedure TUserInterface.Start(mainForm : TForm);
+class procedure TUserInterface.StartApplication(mainForm : TForm);
 Var ips : AnsiString;
   nsarr : TNodeServerAddressArray;
 begin
@@ -170,17 +171,18 @@ begin
     if (FWallet = nil)
       then raise Exception.Create('Main form is not TWallet');
     FTrayIcon := TTrayIcon.Create(TUserInterface.FWallet);
-    FTrayIcon.OnDblClick := TrayIconDblClick;
+    FTrayIcon.OnDblClick := OnTrayIconDblClick;
     FTrayIcon.Visible := true;
     FTrayIcon.Hint := FWallet.Caption;
     FTrayIcon.BalloonTitle := 'Restoring the window.';
     FTrayIcon.BalloonHint := 'Double click the system tray icon to restore Pascal Coin';
     FTrayIcon.BalloonFlags := bfInfo;
+    FTrayIcon.Show;
     TimerUpdateStatus := TTimer.Create(TUserInterface.FWallet);
     TimerUpdateStatus.Enabled := false;
 
     // Create log
-    FLog := TLog.Create(FWallet);
+    FLog := TLog.Create(nil); // independent component
     FLog.SaveTypes := [];
 
     // Create data directories
@@ -230,12 +232,6 @@ begin
     TFileStorage(FNode.Bank.Storage).DatabaseFolder := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data';
     TFileStorage(FNode.Bank.Storage).Initialize;
 
-    // Init Grid
-    //FAccountsGrid.Node := FNode;
-    //HS FSelectedAccountsGrid.Node := FNode;
-    //HS FAccountsGrid.Node := FNode;
-    //HS FOperationsAccountGrid.Node := FNode;
-
     // Reading database
     TLoadSafeBoxThread.Create(false).FreeOnTerminate := true;
 
@@ -261,10 +257,7 @@ begin
 
     // Setup tray icon
 
-    // HS ???
-    //FMinersBlocksFound := 0;
-
-  // Disable wallet form
+    // Disable wallet form
     FWallet.Enabled:=false;
     FStarted := true;
   Except
@@ -295,17 +288,37 @@ begin
   end;
 end;
 
-class procedure TUserInterface.Quit;
-Var i : Integer;
+class procedure TUserInterface.ExitApplication;
+var
+  i : Integer;
   step : String;
 begin
+  // Exit application
   TLog.NewLog(ltinfo,Classname,'Quit Application - START');
   Try
-    FreeAndNil(FRPCServer);
-    FreeAndNil(FPoolMiningServer);
     step := 'Saving params';
     SaveAppParams;
-    FreeAndNil(FAppParams);
+
+    // Destroys root form, non-modal forms and all their attached components
+    step := 'Destroying UI graph';
+    FWallet.Destroy;
+    FWallet := nil;  // destroyed by FWallet
+    //FSyncronizationDialog := nil;  // destroyed by FWallet
+    FAccountExplorer := nil;  // destroyed by FWallet
+    FPendingOperationForm := nil;  // destroyed by FWallet
+    FOperationsExplorerForm := nil;  // destroyed by FWallet
+    FBlockExplorerForm := nil;  // destroyed by FWallet
+    FLogsForm := nil;  // destroyed by FWallet
+    FNodesForm := nil;  // destroyed by FWallet
+    FMessagesForm := nil;  // destroyed by FWallet
+    FTrayIcon := nil; // destroyed by FWallet
+    FAppParams := nil; // destroyed by FWallet
+    FWalletKeys := nil; // destroyed by FWallet
+    FNodeNotifyEvents := nil; // destroyed by FWallet
+
+    step := 'Destroying components';
+    FreeAndNil(FRPCServer);
+    FreeAndNil(FPoolMiningServer);
 
     step := 'Assigning nil events';
     FLog.OnNewLog :=Nil;
@@ -315,9 +328,7 @@ begin
     TNetData.NetData.OnNetConnectionsUpdated := Nil;
     TNetData.NetData.OnNodeServersUpdated := Nil;
     TNetData.NetData.OnBlackListUpdated := Nil;
-    //step := 'Destroying NodeNotifyEvents';
-    //FreeAndNil(FNodeNotifyEvents);
-    //
+
     step := 'Assigning Nil to TNetData';
     TNetData.NetData.OnReceivedHelloMessage := Nil;
     TNetData.NetData.OnStatisticsChanged := Nil;
@@ -335,23 +346,9 @@ begin
     step := 'Destroying Node';
     TNode.Node.Free;
 
-    step := 'Destroying Wallet';
-    FreeAndNil(FWalletKeys);
-
     step := 'Processing messages 2';
     Application.ProcessMessages;
-    step := 'Destroying stringslist';
 
-    // TODO - refactor out to TNotifyManyEvents
-    FNodeNotifyEvents.Node := Nil;
-    FreeAndNil(FNodeNotifyEvents);
-
-    step := 'Destroying UI graph';
-    FWallet.Destroy; // Destroys root wallet, non-modal forms and all their attached components
-    FWallet := nil;
-    FMessagesForm := nil;
-    FAccountExplorer := nil;
-    FTrayIcon := nil;
     FreeAndNil(FUILock);
   Except
     On E:Exception do begin
@@ -360,7 +357,24 @@ begin
   End;
   TLog.NewLog(ltinfo,Classname,'Error quiting application - END');
   FreeAndNil(FLog);
-  Sleep(100);
+end;
+
+class procedure TUserInterface.RunInBackground;
+begin
+  FWallet.Hide();
+  FWallet.WindowState := wsMinimized;
+  TimerUpdateStatus.Enabled := false;
+  FTrayIcon.Visible := True;
+  FTrayIcon.ShowBalloonHint;
+end;
+
+class procedure TUserInterface.RunInForeground;
+begin
+  FTrayIcon.Visible := False;
+  TimerUpdateStatus.Enabled := true;
+  FWallet.Show();
+  FWallet.WindowState := wsNormal;
+  Application.BringToFront();
 end;
 
 class procedure TUserInterface.FinishedLoadingApp;
@@ -374,7 +388,6 @@ begin
   FPoolMiningServer.OnMiningServerNewBlockFound := OnMiningServerNewBlockFound;
 
   //HS review
-//  FRMSyncronizationDialog.Hide; Herman May be, need close this window after load?
   FSyncronizationDialog.BorderIcons:=[biSystemMenu];
   FSyncronizationDialog.HideButton.Enabled:=true;
   FWallet.Enabled:=True;
@@ -498,70 +511,6 @@ begin
   End;
 end;
 
-class procedure TUserInterface.ShowAccountInformationDialog(parentForm : TForm; account : UInt64);
-begin
-  raise Exception.Create('Not Implemented');
-  //HS ACCOUNT INFORMATION HERRE
-  //class procedure TFRMAccountExplorer.MiAccountInformationClick(Sender: TObject);
-  //Var F : TFRMMemoText;
-  //  accn : Int64 =-1;
-  //  title : String;
-  //  //account : TAccount;
-  //  strings : TStrings;
-  //  i : Integer;
-  //  opr : TOperationResume;
-  //begin
-  ////  with FRMWallet do begin
-  //  accn := -1;
-  //  title := '';
-  //  strings := TStringList.Create;
-  //  try
-  //    opr := CT_TOperationResume_NUL;
-  //    //AntonB if PageControl.ActivePage=tsOperations then begin
-  //      if not (FOperationsExplorerGrid.DrawGrid = nil) then begin
-  //      i := FOperationsExplorerGrid.DrawGrid.Row;
-  //      if (i>0) and (i<=FOperationsExplorerGrid.OperationsResume.Count) then begin
-  //        opr := FOperationsExplorerGrid.OperationsResume.OperationResume[i-1];
-  //      end;
-  //    //AntonB end else if PageControl.ActivePage=tsPendingOperations then begin
-  //      end else if not (FPendingOperationsGrid.DrawGrid = nil) then begin
-  //      i := FPendingOperationsGrid.DrawGrid.Row;
-  //      if (i>0) and (i<=FPendingOperationsGrid.OperationsResume.Count) then begin
-  //        opr := FPendingOperationsGrid.OperationsResume.OperationResume[i-1];
-  //      end;
-  //    end else //if PageControl.ActivePage=tsMyAccounts then
-  //    begin
-  //      accn := FAccountsGrid.AccountNumber(dgAccounts.Row);
-  //      if accn<0 then raise Exception.Create('Select an account');
-  //      FillAccountInformation(strings,accn);
-  //      title := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(accn)+' info';
-  //      i := FOperationsAccountGrid.DrawGrid.Row;
-  //      if (i>0) and (i<=FOperationsAccountGrid.OperationsResume.Count) then begin
-  //        opr := FOperationsAccountGrid.OperationsResume.OperationResume[i-1];
-  //      end;
-  //    end;
-  //    If (opr.valid) then begin
-  //      if accn>=0 then strings.Add('')
-  //      else title := 'Operation info';
-  //      strings.Add('Operation info:');
-  //      FillOperationInformation(strings,opr);
-  //    end else if accn<0 then Raise Exception.Create('No info available');
-  //    F := TFRMMemoText.Create(Self);
-  //    Try
-  //      F.Caption := title;
-  //      F.Memo.Lines.Assign(strings);
-  //      F.ShowModal;
-  //    Finally
-  //      F.Free;
-  //    End;
-  //  finally
-  //    strings.free;
-  //  end;
-  //  end;
-  //end;
-
-end;
-
 class procedure TUserInterface.ShowPrivateKeysDialog(parentForm: TForm);
 Var FRM : TFRMWalletKeys;
 begin
@@ -587,7 +536,6 @@ begin
   end;
 end;
 
-
 class procedure TUserInterface.ChangeWalletPassword(parentForm: TForm; walletKeys : TWalletKeys);
 Var s,s2 : String;
 begin
@@ -605,11 +553,6 @@ begin
     PChar(Application.Title),MB_ICONWARNING+MB_OK);
 end;
 
-class function TUserInterface.AskUserEnterString(parentForm: TForm; const ACaption, APrompt : String; var Value : String) : Boolean;
-begin
-  Result := InputQuery(ACaption, APrompt, Value);
-end;
-
 class procedure TUserInterface.UnlockWallet(parentForm: TForm; walletKeys : TWalletKeys);
 Var s : String;
 begin
@@ -621,6 +564,31 @@ begin
     if Not walletKeys.IsValidPassword then Application.MessageBox(PChar('Invalid password'),PChar(Application.Title),MB_ICONERROR+MB_OK);
   Until walletKeys.IsValidPassword;
   //UpdateWalletKeys;
+end;
+
+class function TUserInterface.AskQuestion(parentForm: TForm; const ACaption, APrompt : String; buttons: TMsgDlgButtons) : TMsgDlgBtn;
+var modalResult : TModalResult;
+begin
+  modalResult := MessageDlg(ACaption, APrompt, mtConfirmation, Buttons, 0, mbNo);
+  case modalResult of
+    mrYes: Result := mbYes;
+    mrNo: Result := mbNo;
+    mrOK: Result := mbOK;
+    mrCancel: Result := mbCancel;
+    mrAbort: Result := mbAbort;
+    mrRetry: Result := mbRetry;
+    mrIgnore:Result := mbIgnore;
+    mrAll: Result := mbAll;
+    mrNoToAll: Result := mbNoToAll;
+    mrYesToAll: Result := mbYesToAll;
+    mrClose: Result := mbClose;
+    else raise Exception.Create('Internal Error: [TUserInterface.AskQuestion] unsupported dialog result');
+  end;
+end;
+
+class function TUserInterface.AskUserEnterString(parentForm: TForm; const ACaption, APrompt : String; var Value : String) : Boolean;
+begin
+  Result := InputQuery(ACaption, APrompt, Value);
 end;
 
 {%endregion}
@@ -747,8 +715,6 @@ end;
 class procedure TUserInterface.CheckNodeIsReady;
 Var errorMessage : AnsiString;
 begin
-  //HS if Not Assigned(FNode) then Abort;
-
   if Not TNode.Node.IsReady(errorMessage) then begin
     Raise Exception.Create('You cannot do this operation now:'+#10+#10+errorMessage);
   end;
@@ -815,7 +781,6 @@ end;
 
 {%region Auxillary methods}
 
-//HS
 class procedure TUserInterface.SaveAppParams;
 Var ms : TMemoryStream;
   s : AnsiString;
@@ -835,7 +800,7 @@ begin
 end;
 
 class procedure TUserInterface.LoadAppParams;
-Var //ms : TMemoryStream;
+Var
   s : AnsiString;
   fvi : TFileVersionInfo;
 begin
@@ -1063,13 +1028,9 @@ begin
   End;
 end;
 
-class procedure TUserInterface.TrayIconDblClick(Sender: TObject);
+class procedure TUserInterface.OnTrayIconDblClick(Sender: TObject);
 begin
-  FTrayIcon.Visible := False;
-  TimerUpdateStatus.Enabled := true;
-  FWallet.Show();
-  FWallet.WindowState := wsNormal;
-  Application.BringToFront();
+  RunInForeground;
 end;
 
 class procedure TUserInterface.OnSubFormDestroyed(Sender: TObject);

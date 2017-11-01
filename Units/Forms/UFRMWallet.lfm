@@ -1,7 +1,7 @@
 object FRMWallet: TFRMWallet
-  Left = 115
+  Left = 142
   Height = 600
-  Top = 22
+  Top = 433
   Width = 865
   Caption = 'Pascal Coin Wallet, JSON-RPC Miner & Explorer'
   ClientHeight = 580
