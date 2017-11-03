@@ -1,11 +1,11 @@
 object FRMWallet: TFRMWallet
-  Left = 74
+  Left = 125
   Height = 600
-  Top = 0
-  Width = 947
+  Top = 58
+  Width = 865
   Caption = 'Pascal Coin Wallet, JSON-RPC Miner & Explorer'
   ClientHeight = 580
-  ClientWidth = 947
+  ClientWidth = 865
   Color = clBtnFace
   Constraints.MinHeight = 600
   Constraints.MinWidth = 865
@@ -22,11 +22,65 @@ object FRMWallet: TFRMWallet
   Position = poOwnerFormCenter
   ShowHint = True
   LCLVersion = '1.6.4.0'
+  object paLogoPanel: TPanel
+    Left = 0
+    Height = 80
+    Top = 0
+    Width = 865
+    Align = alTop
+    BevelOuter = bvNone
+    Caption = 'LOGO PANEL'
+    Color = clGray
+    Constraints.MaxHeight = 80
+    Constraints.MinHeight = 80
+    Constraints.MinWidth = 512
+    Font.Color = clRed
+    Font.Height = -27
+    Font.Name = 'Tahoma'
+    ParentColor = False
+    ParentFont = False
+    TabOrder = 1
+    OnClick = paLogoPanelClick
+  end
+  object paSyncPanel: TPanel
+    Left = 0
+    Height = 477
+    Top = 80
+    Width = 865
+    Align = alClient
+    AutoSize = True
+    BevelOuter = bvNone
+    Caption = 'SYNC PANEL'
+    Color = clRed
+    Font.Color = clWindowText
+    Font.Height = -27
+    Font.Name = 'Tahoma'
+    ParentColor = False
+    ParentFont = False
+    TabOrder = 4
+  end
+  object paWalletPanel: TPanel
+    Left = 0
+    Height = 477
+    Top = 80
+    Width = 865
+    Align = alClient
+    BevelOuter = bvNone
+    BorderStyle = bsSingle
+    Caption = 'WALLET PANEL'
+    Color = clBlue
+    Font.Color = clWindowText
+    Font.Height = -27
+    Font.Name = 'Tahoma'
+    ParentColor = False
+    ParentFont = False
+    TabOrder = 2
+  end
   object sbStatusBar: TStatusBar
     Left = 0
     Height = 23
     Top = 557
-    Width = 947
+    Width = 865
     Panels = <    
       item
         Alignment = taCenter
@@ -48,52 +102,8 @@ object FRMWallet: TFRMWallet
     SimplePanel = False
     OnDrawPanel = sbStatusBarDrawPanel
   end
-  object pcBackPanel: TPageControl
-    Left = 0
-    Height = 480
-    Top = 80
-    Width = 948
-    ActivePage = taPage2
-    Anchors = [akTop, akLeft, akRight, akBottom]
-    DockSite = True
-    ParentShowHint = False
-    ShowTabs = False
-    TabIndex = 1
-    TabOrder = 2
-    object tsPage1: TTabSheet
-      Caption = 'tsPage1'
-      ClientHeight = 472
-      ClientWidth = 940
-      object paWalletPane: TPanel
-        Left = 0
-        Height = 472
-        Top = 0
-        Width = 940
-        Anchors = [akTop, akLeft, akRight, akBottom]
-        BevelOuter = bvNone
-        Caption = 'paWalletPane'
-        TabOrder = 0
-      end
-    end
-    object taPage2: TTabSheet
-      Caption = 'taPage2'
-      ClientHeight = 472
-      ClientWidth = 940
-      object paSyncPane: TPanel
-        Left = 0
-        Height = 472
-        Top = 0
-        Width = 940
-        Anchors = [akTop, akLeft, akRight, akBottom]
-        BevelOuter = bvNone
-        Caption = 'paSyncPane'
-        TabOrder = 0
-        OnClick = paSyncPaneClick
-      end
-    end
-  end
   object tbStatusToolBar: TToolBar
-    Left = 860
+    Left = 778
     Height = 16
     Top = 544
     Width = 70
@@ -107,7 +117,7 @@ object FRMWallet: TFRMWallet
     EdgeOuter = esNone
     Images = ilSmallIcons
     List = True
-    TabOrder = 1
+    TabOrder = 0
     Visible = False
     Wrapable = False
     object tbtnWalletLock: TToolButton
@@ -135,23 +145,6 @@ object FRMWallet: TFRMWallet
       ImageIndex = 4
       OnClick = tbtnSyncClick
     end
-  end
-  object paLogoPanel: TPanel
-    Left = 0
-    Height = 80
-    Top = 0
-    Width = 947
-    Anchors = [akTop, akLeft, akRight]
-    BevelOuter = bvNone
-    Constraints.MaxHeight = 80
-    Constraints.MinHeight = 80
-    Constraints.MinWidth = 512
-    Font.Color = clRed
-    Font.Height = -27
-    Font.Name = 'Tahoma'
-    ParentFont = False
-    TabOrder = 3
-    OnClick = paLogoPanelClick
   end
   object meMainMenu: TMainMenu
     Images = ilSmallIcons

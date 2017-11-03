@@ -12,7 +12,8 @@ uses
   UFRMWallet,
   UUserInterface;
 
-//{$R *.res}
+{$R *.res}
+
 var
    mainForm : TFRMWallet;
 begin
@@ -20,7 +21,7 @@ begin
   if Not LoadSSLCrypt then
     raise Exception.Create('Cannot load '+SSL_C_LIB+#10+'To use this software make sure this file is available on you system or reinstall the application');
   TCrypto.InitCrypto;
-
+  // Load application
   Application.Initialize;
   {$IFDEF WINDOWS}{$Warnings OFF}
   Application.MainFormOnTaskBar := True;

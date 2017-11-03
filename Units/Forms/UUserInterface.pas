@@ -2,9 +2,18 @@ unit UUserInterface;
 
 {$mode delphi}
 
+{ Copyright (c) 2018 by Herman Schoenfeld
+
+  Distributed under the MIT software license, see the accompanying file LICENSE
+  or visit http://www.opensource.org/licenses/mit-license.php.
+
+  Acknowledgements:
+  - Albert Molina: portions of code copied from https://github.com/PascalCoin/PascalCoin/blob/master/Units/Forms/UFRMWallet.pas
+}
+
 interface
 
-//{$I ./../PascalCoin/config.inc}
+{$I ./../PascalCoin/config.inc}
 
 uses
   SysUtils, Classes, Forms, Controls, Windows, ExtCtrls, Dialogs,
@@ -53,13 +62,14 @@ type
       FUpdating : Boolean; static;
       FLog : TLog; static;
       FNode : TNode; static;
-      TimerUpdateStatus: TTimer; static;
+      FTimerUpdateStatus: TTimer; static;
       FTrayIcon: TTrayIcon; static;
       FNodeNotifyEvents : TNodeNotifyEvents; static;
       FStatusBar0Text : AnsiString; static;
       FStatusBar1Text : AnsiString; static;
       FStatusBar2Text : AnsiString; static;
       FMessagesNotificationText : AnsiString; static;
+      FDisplayedStartupSyncDialog : boolean; static;
 
       // Methods
       class procedure RefreshConnectionStatusDisplay;
@@ -82,7 +92,7 @@ type
       class procedure NotifyConfigChanged;
 
       // Handlers
-      class procedure TimerUpdateStatusTimer(Sender: TObject);
+      class procedure OnTimerUpdateStatusTimer(Sender: TObject);
       class procedure OnSubFormDestroyed(Sender: TObject);
 
       // Backend Handlers (TODO: refactor this out with TNotifyManyEvents)
@@ -132,6 +142,7 @@ type
       class procedure ChangeWalletPassword(parentForm: TForm; walletKeys : TWalletKeys);
       class function AskQuestion(parentForm: TForm; const ACaption, APrompt : String; buttons: TMsgDlgButtons) : TMsgDlgBtn;
       class function AskUserEnterString(parentForm: TForm; const ACaption, APrompt : String; var Value : String) : Boolean;
+
       // Show sub-forms
       class procedure ShowAccountExplorer;
       class procedure ShowBlockExplorer;
@@ -185,7 +196,7 @@ begin
 
     // Create root form and dependent components
     FWallet := mainForm as TFRMWallet;
-    FWallet.CloseAction := caFree;     // wallet is destroyed on close
+    FWallet.CloseAction := caNone;     // wallet is destroyed on ExitApplication
     if (FWallet = nil)
       then raise Exception.Create('Main form is not TWallet');
     FSyncronizationDialog := TFRMSyncronizationDialog.Create(FWallet);;
@@ -198,8 +209,9 @@ begin
     FTrayIcon.BalloonHint := 'Double click the system tray icon to restore Pascal Coin';
     FTrayIcon.BalloonFlags := bfInfo;
     FTrayIcon.Show;
-    TimerUpdateStatus := TTimer.Create(FWallet);
-    TimerUpdateStatus.Enabled := false;
+    FTimerUpdateStatus := TTimer.Create(FWallet);
+    FTimerUpdateStatus.Enabled := false;
+    FDisplayedStartupSyncDialog:=false;
 
     // Create log
     FLog := TLog.Create(nil); // independent component
@@ -263,10 +275,9 @@ begin
     TNetData.NetData.OnBlackListUpdated := OnNetBlackListUpdated;
 
     // Start refresh timer
-    TimerUpdateStatus.OnTimer := TimerUpdateStatusTimer;
-    TimerUpdateStatus.Interval := 1000;
-    TimerUpdateStatus.Enabled := true;
-
+    FTimerUpdateStatus.OnTimer := OnTimerUpdateStatusTimer;
+    FTimerUpdateStatus.Interval := 1000;
+    FTimerUpdateStatus.Enabled := true;
 
     // Load app params
     LoadAppParams;
@@ -383,7 +394,7 @@ class procedure TUserInterface.RunInBackground;
 begin
   FWallet.Hide();
   FWallet.WindowState := wsMinimized;
-  TimerUpdateStatus.Enabled := false;
+  FTimerUpdateStatus.Enabled := false;
   FTrayIcon.Visible := True;
   FTrayIcon.ShowBalloonHint;
 end;
@@ -391,7 +402,7 @@ end;
 class procedure TUserInterface.RunInForeground;
 begin
   FTrayIcon.Visible := False;
-  TimerUpdateStatus.Enabled := true;
+  FTimerUpdateStatus.Enabled := true;
   FWallet.Show();
   FWallet.WindowState := wsNormal;
   Application.BringToFront();
@@ -715,8 +726,8 @@ begin
     if not Assigned(FSyncronizationDialog) then
       FSyncronizationDialog := TFRMSyncronizationDialog.Create(FWallet);
 
-    if FRMSyncronizationDialogIsFirstOpen = true then begin
-       FRMSyncronizationDialogIsFirstOpen := false;
+    if FDisplayedStartupSyncDialog = true then begin
+       FDisplayedStartupSyncDialog := false;
     end;
     FWallet.Mode := wmSync;
   finally
@@ -989,7 +1000,7 @@ Var NS : TNetStatistics;
 begin
   FUILock.Acquire;   // TODO - lock may not be required
   Try
-    //CheckMining;
+    //HS CheckMining;
     if Assigned(FNode) then begin
       If FNode.NetServer.Active then begin
         StatusBar0Text := 'Active (Port '+Inttostr(FNode.NetServer.Port)+')';
@@ -1045,7 +1056,7 @@ begin
   FPoolMiningServer.MinerAccountKey := GetAccountKeyForMiner;
 end;
 
-class procedure TUserInterface.TimerUpdateStatusTimer(Sender: TObject);
+class procedure TUserInterface.OnTimerUpdateStatusTimer(Sender: TObject);
 begin
   Try
     RefreshConnectionStatusDisplay;

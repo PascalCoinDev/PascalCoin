@@ -2,6 +2,15 @@ unit UFRMNodes;
 
 {$mode delphi}
 
+{ Copyright (c) 2018 by Herman Schoenfeld
+
+  Distributed under the MIT software license, see the accompanying file LICENSE
+  or visit http://www.opensource.org/licenses/mit-license.php.
+
+  Acknowledgements:
+  Portions of methods were copied from original UFRMWallet.pas, Copyright (c) Albert Molina 2016.
+}
+
 interface
 
 {$I ./../PascalCoin/config.inc}

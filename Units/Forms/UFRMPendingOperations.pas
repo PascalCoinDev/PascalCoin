@@ -2,6 +2,16 @@ unit UFRMPendingOperations;
 
 {$mode delphi}
 
+{ Copyright (c) 2018 by Herman Schoenfeld
+
+  Distributed under the MIT software license, see the accompanying file LICENSE
+  or visit http://www.opensource.org/licenses/mit-license.php.
+
+  Acknowledgements:
+  - Albert Molina: portions of code copied from https://github.com/PascalCoin/PascalCoin/blob/master/Units/Forms/UFRMWallet.pas
+}
+
+
 interface
 
 {$I ./../PascalCoin/config.inc}

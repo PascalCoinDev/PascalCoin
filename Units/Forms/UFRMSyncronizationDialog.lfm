@@ -1,224 +1,14 @@
 object FRMSyncronizationDialog: TFRMSyncronizationDialog
-  Left = 235
-  Height = 450
-  Top = 67
-  Width = 855
-  AutoSize = True
+  Left = 208
+  Height = 212
+  Top = 104
+  Width = 636
   BorderIcons = []
-  BorderStyle = bsToolWindow
+  BorderStyle = bsNone
   Caption = 'Synchronization'
-  ClientHeight = 450
-  ClientWidth = 855
-  FormStyle = fsStayOnTop
+  ClientHeight = 212
+  ClientWidth = 636
   LCLVersion = '1.6.4.0'
-  object tcInfo: TTabControl
-    Left = 0
-    Height = 365
-    Top = 80
-    Width = 854
-    OnChange = tcInfoChange
-    TabIndex = 0
-    Tabs.Strings = (
-      'Syncronization Info'
-      'Database Info'
-      'New Tab'
-    )
-    Anchors = [akTop, akLeft, akRight, akBottom]
-    TabOrder = 0
-    object pnlTop: TPanel
-      Left = 2
-      Height = 340
-      Top = 23
-      Width = 850
-      Align = alClient
-      BevelOuter = bvNone
-      ClientHeight = 340
-      ClientWidth = 850
-      TabOrder = 1
-      object lblCurrentBlock: TLabel
-        Left = 167
-        Height = 15
-        Top = 11
-        Width = 18
-        Caption = '000'
-        ParentColor = False
-      end
-      object lblCurrentBlockTimeCaption: TLabel
-        Left = 90
-        Height = 15
-        Top = 26
-        Width = 99
-        Caption = 'Current Block Age:'
-        ParentColor = False
-      end
-      object lblCurrentBlockTime: TLabel
-        Left = 207
-        Height = 15
-        Top = 26
-        Width = 87
-        Caption = '000 seconds ago'
-        ParentColor = False
-      end
-      object lblOperationsPendingCaption: TLabel
-        Left = 90
-        Height = 15
-        Top = 41
-        Width = 108
-        Caption = 'Pending Operations:'
-        ParentColor = False
-      end
-      object lblOperationsPending: TLabel
-        Left = 214
-        Height = 15
-        Top = 41
-        Width = 18
-        Caption = '000'
-        ParentColor = False
-      end
-      object lblMiningStatusCaption: TLabel
-        Left = 90
-        Height = 15
-        Top = 56
-        Width = 73
-        Caption = 'Miner Clients:'
-        ParentColor = False
-      end
-      object lblMinersClients: TLabel
-        Left = 177
-        Height = 15
-        Top = 56
-        Width = 18
-        Caption = '000'
-        ParentColor = False
-      end
-      object lblCurrentDifficultyCaption: TLabel
-        Left = 429
-        Height = 15
-        Top = 11
-        Width = 79
-        Caption = 'Current Target:'
-        ParentColor = False
-      end
-      object lblCurrentDifficulty: TLabel
-        Left = 526
-        Height = 15
-        Top = 11
-        Width = 18
-        Caption = '000'
-        ParentColor = False
-      end
-      object lblTimeAverage: TLabel
-        Left = 395
-        Height = 15
-        Top = 26
-        Width = 18
-        Caption = '000'
-        ParentColor = False
-      end
-      object Label4: TLabel
-        Left = 309
-        Height = 15
-        Top = 26
-        Width = 74
-        Caption = 'Time average:'
-        ParentColor = False
-      end
-      object Label5: TLabel
-        Left = 309
-        Height = 15
-        Top = 11
-        Width = 53
-        Caption = 'Accounts:'
-        ParentColor = False
-      end
-      object lblCurrentAccounts: TLabel
-        Left = 371
-        Height = 15
-        Top = 11
-        Width = 18
-        Caption = '000'
-        ParentColor = False
-      end
-      object lblTimeAverageAux: TLabel
-        Left = 395
-        Height = 13
-        Top = 41
-        Width = 18
-        Caption = '000'
-        Font.Color = clGray
-        Font.Height = -11
-        Font.Name = 'Tahoma'
-        ParentColor = False
-        ParentFont = False
-      end
-      object Label16: TLabel
-        Left = 360
-        Height = 13
-        Top = 56
-        Width = 76
-        Caption = 'Blocks Found:'
-        Font.Color = clWindowText
-        Font.Height = -11
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        ParentColor = False
-        ParentFont = False
-      end
-      object lblBlocksFound: TLabel
-        Left = 450
-        Height = 13
-        Hint = 'Blocks found while Miner is running...'
-        Top = 56
-        Width = 21
-        Caption = '000'
-        Font.Color = clWindowText
-        Font.Height = -11
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        ParentColor = False
-        ParentFont = False
-        ParentShowHint = False
-        ShowHint = True
-      end
-      object lblReceivedMessages: TLabel
-        Cursor = crHandPoint
-        Left = 360
-        Height = 23
-        Top = 66
-        Width = 184
-        Caption = 'Received Messages'
-        Font.Color = clRed
-        Font.Height = -19
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        ParentColor = False
-        ParentFont = False
-        Visible = False
-        OnClick = lblReceivedMessagesClick
-      end
-      object lblBuild: TLabel
-        Left = 743
-        Height = 23
-        Top = 3
-        Width = 49
-        Caption = 'Build'
-        Font.Color = clWindowText
-        Font.Height = -19
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        ParentColor = False
-        ParentFont = False
-      end
-      object lblCurrentBlockCaption: TLabel
-        Left = 90
-        Height = 15
-        Top = 8
-        Width = 66
-        Caption = 'Total Blocks:'
-        ParentColor = False
-      end
-    end
-  end
   object Label8: TLabel
     Left = 16
     Height = 32
@@ -233,7 +23,8 @@ object FRMSyncronizationDialog: TFRMSyncronizationDialog
     Left = 160
     Height = 32
     Top = 24
-    Width = 640
+    Width = 319
+    Anchors = [akTop, akLeft, akRight]
     AutoSize = False
     Caption = '???'
     Font.Height = -24
@@ -241,7 +32,7 @@ object FRMSyncronizationDialog: TFRMSyncronizationDialog
     ParentFont = False
   end
   object btnOpenWallet: TButton
-    Left = 710
+    Left = 485
     Height = 40
     Top = 16
     Width = 131
@@ -252,6 +43,208 @@ object FRMSyncronizationDialog: TFRMSyncronizationDialog
     Enabled = False
     ModalResult = 11
     OnClick = btnOpenWalletClick
-    TabOrder = 1
+    TabOrder = 0
+  end
+  object lblTotalBlocksLabel: TLabel
+    Left = 16
+    Height = 15
+    Top = 80
+    Width = 133
+    Alignment = taRightJustify
+    AutoSize = False
+    Caption = 'Total Blocks:'
+    ParentColor = False
+  end
+  object lblTotalBlocksValue: TLabel
+    Left = 160
+    Height = 15
+    Top = 80
+    Width = 18
+    Caption = '000'
+    ParentColor = False
+  end
+  object lblBlockAgeLabel: TLabel
+    Left = 16
+    Height = 15
+    Top = 104
+    Width = 135
+    Alignment = taRightJustify
+    AutoSize = False
+    Caption = 'Block Age:'
+    ParentColor = False
+  end
+  object lblBlockAgeValue: TLabel
+    Left = 160
+    Height = 15
+    Top = 104
+    Width = 87
+    Caption = '000 seconds ago'
+    ParentColor = False
+  end
+  object lblPendingOperationsLabel: TLabel
+    Left = 16
+    Height = 15
+    Top = 128
+    Width = 135
+    Alignment = taRightJustify
+    AutoSize = False
+    Caption = 'Pending Operations:'
+    ParentColor = False
+  end
+  object lblPendingOperationsValue: TLabel
+    Left = 160
+    Height = 15
+    Top = 128
+    Width = 18
+    Caption = '000'
+    ParentColor = False
+  end
+  object lblMiningStatusCaption: TLabel
+    Left = 272
+    Height = 15
+    Top = 80
+    Width = 113
+    Alignment = taRightJustify
+    AutoSize = False
+    Caption = 'Miner Clients:'
+    ParentColor = False
+  end
+  object lblMinersClientsValue: TLabel
+    Left = 397
+    Height = 15
+    Top = 80
+    Width = 18
+    Caption = '000'
+    ParentColor = False
+  end
+  object lblReceivedMessages: TLabel
+    Cursor = crHandPoint
+    Left = 438
+    Height = 23
+    Top = 80
+    Width = 184
+    Anchors = [akTop, akRight]
+    Caption = 'Received Messages'
+    Font.Color = clRed
+    Font.Height = -19
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentColor = False
+    ParentFont = False
+    Visible = False
+    OnClick = lblReceivedMessagesClick
+  end
+  object lblTotalAccountsLabel: TLabel
+    Left = 16
+    Height = 15
+    Top = 152
+    Width = 133
+    Alignment = taRightJustify
+    AutoSize = False
+    Caption = 'Total Accounts:'
+    ParentColor = False
+  end
+  object lblTotalAccountsValue: TLabel
+    Left = 160
+    Height = 15
+    Top = 152
+    Width = 18
+    Caption = '000'
+    ParentColor = False
+  end
+  object lblBlockTargetLabel: TLabel
+    Left = 272
+    Height = 15
+    Top = 104
+    Width = 113
+    Alignment = taRightJustify
+    AutoSize = False
+    Caption = 'Block Target:'
+    ParentColor = False
+  end
+  object lblBlockTargetValue: TLabel
+    Left = 397
+    Height = 15
+    Top = 104
+    Width = 18
+    Caption = '000'
+    ParentColor = False
+  end
+  object Label4: TLabel
+    Left = 272
+    Height = 15
+    Top = 152
+    Width = 113
+    Alignment = taRightJustify
+    AutoSize = False
+    Caption = 'Time average:'
+    ParentColor = False
+  end
+  object lblTimeAverage: TLabel
+    Left = 397
+    Height = 15
+    Top = 152
+    Width = 18
+    Caption = '000'
+    ParentColor = False
+  end
+  object lblTimeAverageAux: TLabel
+    Left = 397
+    Height = 13
+    Top = 176
+    Width = 18
+    Caption = '000'
+    Font.Color = clGray
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    ParentColor = False
+    ParentFont = False
+  end
+  object Label16: TLabel
+    Left = 272
+    Height = 13
+    Top = 128
+    Width = 113
+    Alignment = taRightJustify
+    AutoSize = False
+    Caption = 'Blocks Found:'
+    Font.Color = clWindowText
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    ParentColor = False
+    ParentFont = False
+  end
+  object lblBlocksFound: TLabel
+    Left = 397
+    Height = 13
+    Hint = 'Blocks found while Miner is running...'
+    Top = 130
+    Width = 18
+    Caption = '000'
+    Font.Color = clWindowText
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    ParentColor = False
+    ParentFont = False
+    ParentShowHint = False
+    ShowHint = True
+  end
+  object lblCurrentDifficultyCaption1: TLabel
+    Left = 38
+    Height = 15
+    Top = 176
+    Width = 113
+    Alignment = taRightJustify
+    AutoSize = False
+    Caption = 'Protocol Version'
+    ParentColor = False
+  end
+  object lblProtocolVersion: TLabel
+    Left = 160
+    Height = 15
+    Top = 176
+    Width = 18
+    Caption = '000'
+    ParentColor = False
   end
 end

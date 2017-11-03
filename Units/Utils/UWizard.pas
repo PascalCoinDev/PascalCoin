@@ -1,13 +1,10 @@
 {
-  Copyright (c) 2017 The PascalCoin Project
+  Copyright (c) 2017 Sphere 10 Software
 
   Author: Herman Schoenfeld <herman@sphere10.com>
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
-
-  This code has been donated to The PascalCoin Project by Sphere 10 Software (www.sphere10.com)
-  who retains independent Copyright (c) 2017 Sphere 10 Software.
 
   Additional Credits:
     <contributors add yourselves here>

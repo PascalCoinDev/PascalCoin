@@ -2,18 +2,14 @@ unit UFRMWallet;
 
 {$mode delphi}
 
-{ Copyright (c) 2016 by Albert Molina
+{ Copyright (c) 2018 by Herman Schoenfeld
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical miPendingOperations.
-
-  If you like it, consider a donation using BitCoin:
-  16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
-
-  }
+  Acknowledgements:
+  - Albert Molina: portions of code copied from https://github.com/PascalCoin/PascalCoin/blob/master/Units/Forms/UFRMWallet.pas
+}
 
 interface
 
@@ -53,9 +49,8 @@ type
     miViews: TMenuItem;
     miAccountExplorer: TMenuItem;
     paLogoPanel: TPanel;
-    paWalletPane: TPanel;
-    paSyncPane: TPanel;
-    pcBackPanel: TPageControl;
+    paWalletPanel: TPanel;
+    paSyncPanel: TPanel;
     sbStatusBar: TStatusBar;
     meMainMenu: TMainMenu;
     miWallet: TMenuItem;
@@ -70,8 +65,6 @@ type
     ApplicationEvents: TApplicationProperties;
     miSeedNodes: TMenuItem;
     pnlSelectedAccountsBottom: TPanel;
-    tsPage1: TTabSheet;
-    taPage2: TTabSheet;
     tbStatusToolBar: TToolBar;
     tbtnConnectivity: TToolButton;
     tbtnSync: TToolButton;
@@ -94,12 +87,10 @@ type
     procedure miPrivateKeysClick(Sender: TObject);
     procedure miCloseClick(Sender: TObject);
     procedure paLogoPanelClick(Sender: TObject);
-    procedure paSyncPaneClick(Sender: TObject);
     procedure tbtnSyncClick(Sender: TObject);
     procedure tbtnWalletLockClick(Sender:TObject);
     procedure tbtnConnectivityClick(Sender:TObject);
     procedure sbStatusBarDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel; const Rect: TRect);
-    procedure ApplicationEventsMinimize(Sender: TObject);
     procedure miSeedNodesClick(Sender: TObject);
   private
     __FLastFooterToolBarDrawRect : TRect;  // Required for FPC bug work-around
@@ -127,7 +118,7 @@ implementation
 
 {$R *.lfm}
 
-uses LCLIntf, UUserInterface, UThread, UOpTransaction, UWizTest, UWizard;
+uses LCLIntf, UUserInterface, UThread, UOpTransaction, UWizard, UFRMSyncronizationDialog;
 
 const
   CT_FOOTER_TOOLBAR_LEFT_PADDING = 8;
@@ -144,6 +135,7 @@ begin
   CloseAction := caNone; // Will handle terminate in separate method
   FMode := wmSync;
   paLogoPanel.AddControlDockCenter(TCTRLBanner.Create(Self));
+  //paSyncPanel.AddControlDockCenter(TFRMSyncronizationDialog.Create(Self));
 end;
 
 procedure TFRMWallet.FormCloseQuery(Sender: TObject; var CanClose: boolean);
@@ -170,7 +162,6 @@ begin
   TUserInterface.ExitApplication;
 end;
 
-
 procedure TFRMWallet.ActivateFirstTime;
 begin
   TUserInterface.WalletKeys.OnChanged.Add(OnWalletChanged);
@@ -183,19 +174,6 @@ procedure TFRMWallet.FormDestroy(Sender: TObject);
 begin
   TUserInterface.WalletKeys.OnChanged.Remove(OnWalletChanged);
   TNetData.NetData.OnConnectivityChanged.Remove(OnConnectivityChanged);
-end;
-
-procedure TFRMWallet.ApplicationEventsMinimize(Sender: TObject);
-begin
-  // TODO refactor
-  {$IFnDEF FPC}
-  Hide();
-  WindowState := wsMinimized;
-  TimerUpdateStatus.Enabled := false;
-  { Show the animated tray icon and also a hint balloon. }
-  TrayIcon.Visible := True;
-  TrayIcon.ShowBalloonHint;
-  {$ENDIF}
 end;
 
 {%endregion}
@@ -241,16 +219,22 @@ var nestedForm : TForm;
 begin
   case AMode of
     wmWallet: begin
-      pcBackPanel.ActivePage := tsPage1;
+      paWalletPanel.Visible := true;
+      paSyncPanel.Visible := false;
       FMode := AMode;
     end;
     wmSync: begin
-      if not paSyncPane.ContainsControl(TUserInterface.SyncDialog) then begin
-        if paSyncPane.ControlCount > 0 then
-         paSyncPane.RemoveAllControls(false);
-        paSyncPane.AddControlDockCenter(TUserInterface.SyncDialog);
+      if not paSyncPanel.ContainsControl(TUserInterface.SyncDialog) then begin
+        paSyncPanel.RemoveAllControls(false);
+        TUserInterface.SyncDialog.Top := 0;
+        TUserInterface.SyncDialog.Left := 0;
+        TUserInterface.SyncDialog.Width := paSyncPanel.Width;
+        TUserInterface.SyncDialog.Height := paSyncPanel.Height;
+        Application.ProcessMessages;
+        paSyncPanel.AddControlDockCenter(TUserInterface.SyncDialog);
       end;
-      pcBackPanel.ActivePage := taPage2;
+      paSyncPanel.Visible := true;
+      paWalletPanel.Visible := false;;
       FMode := AMode;
     end;
     else raise Exception.Create('[Internal Error] - TFRMWallet.SetMode: unsupported mode passed');
@@ -364,11 +348,6 @@ begin
 end;
 
 procedure TFRMWallet.paLogoPanelClick(Sender: TObject);
-begin
-
-end;
-
-procedure TFRMWallet.paSyncPaneClick(Sender: TObject);
 begin
 
 end;

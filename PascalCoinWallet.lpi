@@ -38,7 +38,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="68">
+    <Units Count="67">
       <Unit0>
         <Filename Value="PascalCoinWallet.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -372,13 +372,6 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit66>
-      <Unit67>
-        <Filename Value="Units\Forms\UWIZTest.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="WIZTest"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-      </Unit67>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

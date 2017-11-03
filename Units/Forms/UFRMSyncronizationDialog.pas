@@ -2,6 +2,15 @@ unit UFRMSyncronizationDialog;
 
 {$mode delphi}
 
+{ Copyright (c) 2018 by Herman Schoenfeld
+
+  Distributed under the MIT software license, see the accompanying file LICENSE
+  or visit http://www.opensource.org/licenses/mit-license.php.
+
+  Acknowledgements:
+  - Albert Molina: portions of code copied from https://github.com/PascalCoin/PascalCoin/blob/master/Units/Forms/UFRMWallet.pas
+}
+
 interface
 
 {$I ./../PascalCoin/config.inc}
@@ -18,31 +27,28 @@ type
     btnOpenWallet: TButton;
     Label16: TLabel;
     Label4: TLabel;
-    Label5: TLabel;
+    lblTotalAccountsLabel: TLabel;
     Label8: TLabel;
     lblBlocksFound: TLabel;
-    lblBuild: TLabel;
-    lblCurrentAccounts: TLabel;
-    lblCurrentBlock: TLabel;
-    lblCurrentBlockCaption: TLabel;
-    lblCurrentBlockTime: TLabel;
-    lblCurrentBlockTimeCaption: TLabel;
-    lblCurrentDifficulty: TLabel;
-    lblCurrentDifficultyCaption: TLabel;
-    lblMinersClients: TLabel;
+    lblTotalAccountsValue: TLabel;
+    lblTotalBlocksValue: TLabel;
+    lblTotalBlocksLabel: TLabel;
+    lblBlockAgeValue: TLabel;
+    lblBlockAgeLabel: TLabel;
+    lblBlockTargetValue: TLabel;
+    lblProtocolVersion: TLabel;
+    lblBlockTargetLabel: TLabel;
+    lblCurrentDifficultyCaption1: TLabel;
+    lblMinersClientsValue: TLabel;
     lblMiningStatusCaption: TLabel;
     lblNodeStatus: TLabel;
-    lblOperationsPending: TLabel;
-    lblOperationsPendingCaption: TLabel;
+    lblPendingOperationsValue: TLabel;
+    lblPendingOperationsLabel: TLabel;
     lblReceivedMessages: TLabel;
     lblTimeAverage: TLabel;
     lblTimeAverageAux: TLabel;
-    pnlTop: TPanel;
-    tcInfo: TTabControl;
     procedure btnOpenWalletClick(Sender:TObject);
-    procedure Image1Click(Sender: TObject);
     procedure lblReceivedMessagesClick(Sender:TObject);
-    procedure tcInfoChange(Sender: TObject);
   private
     { private declarations }
     FMinersBlocksFound: Integer;
@@ -55,16 +61,11 @@ type
     Property MinersBlocksFound : Integer read FMinersBlocksFound write SetMinersBlocksFound;
   end;
 
-var
-  //HS manage in TUserInterface
-  FRMSyncronizationDialogIsFirstOpen:boolean =true;  //TODO u
-
 implementation
 
 {$R *.lfm}
 
 uses UNetProtocol,UTime,UConst, UUserInterface;
-
 
 {%region Methods}
 
@@ -111,12 +112,12 @@ begin
   UpdateNodeStatus;
   if Assigned(TUserInterface.Node) then begin
     if TUserInterface.Node.Bank.BlocksCount>0 then begin
-      lblCurrentBlock.Caption :=  Inttostr(TUserInterface.Node.Bank.BlocksCount)+' (0..'+Inttostr(TUserInterface.Node.Bank.BlocksCount-1)+')'; ;
-    end else lblCurrentBlock.Caption :=  '(none)';
-    lblCurrentAccounts.Caption := Inttostr(TUserInterface.Node.Bank.AccountsCount);
-    lblCurrentBlockTime.Caption := UnixTimeToLocalElapsedTime(TUserInterface.Node.Bank.LastOperationBlock.timestamp);
-    lblOperationsPending.Caption := Inttostr(TUserInterface.Node.Operations.Count);
-    lblCurrentDifficulty.Caption := InttoHex(TUserInterface.Node.Operations.OperationBlock.compact_target,8);
+      lblTotalBlocksValue.Caption :=  Inttostr(TUserInterface.Node.Bank.BlocksCount)+' (0..'+Inttostr(TUserInterface.Node.Bank.BlocksCount-1)+')'; ;
+    end else lblTotalBlocksValue.Caption :=  '(none)';
+    lblTotalAccountsValue.Caption := Inttostr(TUserInterface.Node.Bank.AccountsCount);
+    lblBlockAgeValue.Caption := UnixTimeToLocalElapsedTime(TUserInterface.Node.Bank.LastOperationBlock.timestamp);
+    lblPendingOperationsValue.Caption := Inttostr(TUserInterface.Node.Operations.Count);
+    lblBlockTargetValue.Caption := InttoHex(TUserInterface.Node.Operations.OperationBlock.compact_target,8);
     favg := TUserInterface.Node.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage);
     f := (CT_NewLineSecondsAvg - favg) / CT_NewLineSecondsAvg;
     lblTimeAverage.Caption := 'Last '+Inttostr(CT_CalcNewTargetBlocksAverage)+': '+FormatFloat('0.0',favg)+' sec. (Optimal '+Inttostr(CT_NewLineSecondsAvg)+'s) Deviation '+FormatFloat('0.00%',f*100);
@@ -132,29 +133,28 @@ begin
         CT_CalcNewTargetBlocksAverage DIV 2,FormatFloat('0.0',TUserInterface.Node.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage DIV 2)),
         CT_CalcNewTargetBlocksAverage DIV 4,FormatFloat('0.0',TUserInterface.Node.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage DIV 4))]);
   end else begin
-    lblCurrentBlock.Caption := '';
-    lblCurrentAccounts.Caption := '';
-    lblCurrentBlockTime.Caption := '';
-    lblOperationsPending.Caption := '';
-    lblCurrentDifficulty.Caption := '';
+    lblTotalBlocksValue.Caption := '';
+    lblTotalAccountsValue.Caption := '';
+    lblBlockAgeValue.Caption := '';
+    lblPendingOperationsValue.Caption := '';
+    lblBlockTargetValue.Caption := '';
     lblTimeAverage.Caption := '';
     lblTimeAverageAux.Caption := '';
   end;
   if (Assigned(TUserInterface.PoolMiningServer)) And (TUserInterface.PoolMiningServer.Active) then begin
     If TUserInterface.PoolMiningServer.ClientsCount>0 then begin
-      lblMinersClients.Caption := IntToStr(TUserInterface.PoolMiningServer.ClientsCount)+' connected JSON-RPC clients';
-      lblMinersClients.Font.Color := clNavy;
+      lblMinersClientsValue.Caption := IntToStr(TUserInterface.PoolMiningServer.ClientsCount)+' connected JSON-RPC clients';
+      lblMinersClientsValue.Font.Color := clNavy;
     end else begin
-      lblMinersClients.Caption := 'No JSON-RPC clients';
-      lblMinersClients.Font.Color := clDkGray;
+      lblMinersClientsValue.Caption := 'No JSON-RPC clients';
+      lblMinersClientsValue.Font.Color := clDkGray;
     end;
     MinersBlocksFound := TUserInterface.PoolMiningServer.ClientsWins;
   end else begin
     MinersBlocksFound := 0;
-    lblMinersClients.Caption := 'JSON-RPC server not active';
-    lblMinersClients.Font.Color := clRed;
+    lblMinersClientsValue.Caption := 'JSON-RPC server not active';
+    lblMinersClientsValue.Font.Color := clRed;
   end;
-  lblBuild.Caption := 'Build: '+CT_ClientAppVersion;
 end;
 
 procedure TFRMSyncronizationDialog.SetMinersBlocksFound(const Value: Integer);
@@ -179,20 +179,11 @@ begin
   TUserInterface.ShowMessagesForm;
 end;
 
-procedure TFRMSyncronizationDialog.tcInfoChange(Sender: TObject);
-begin
-
-end;
-
 procedure TFRMSyncronizationDialog.btnOpenWalletClick(Sender:TObject);
 begin
   TUserInterface.ShowWallet;
 end;
 
-procedure TFRMSyncronizationDialog.Image1Click(Sender: TObject);
-begin
-
-end;
 
 {%endregion}
 
