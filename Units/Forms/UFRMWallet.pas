@@ -135,7 +135,6 @@ begin
   CloseAction := caNone; // Will handle terminate in separate method
   FMode := wmSync;
   paLogoPanel.AddControlDockCenter(TCTRLBanner.Create(Self));
-  //paSyncPanel.AddControlDockCenter(TFRMSyncronizationDialog.Create(Self));
 end;
 
 procedure TFRMWallet.FormCloseQuery(Sender: TObject; var CanClose: boolean);
@@ -230,7 +229,6 @@ begin
         TUserInterface.SyncDialog.Left := 0;
         TUserInterface.SyncDialog.Width := paSyncPanel.Width;
         TUserInterface.SyncDialog.Height := paSyncPanel.Height;
-        Application.ProcessMessages;
         paSyncPanel.AddControlDockCenter(TUserInterface.SyncDialog);
       end;
       paSyncPanel.Visible := true;
