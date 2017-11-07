@@ -12,7 +12,9 @@
 
 unit UWizard;
 
-{$mode delphi}
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
 
 interface
 
@@ -155,9 +157,10 @@ type
 
 implementation
 
-uses UCommonUI;
-
 {$R *.lfm}
+
+uses
+  UCommonUI;
 
 {%region TWizardForm }
 

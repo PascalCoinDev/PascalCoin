@@ -186,7 +186,6 @@ begin
   TUserInterface.ShowWallet;
 end;
 
-
 {%endregion}
 
 end.

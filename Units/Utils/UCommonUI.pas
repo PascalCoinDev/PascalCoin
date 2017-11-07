@@ -1,17 +1,16 @@
 {
   Copyright (c) 2017 Sphere 10 Software
 
-  Author: Herman Schoenfeld <herman@sphere10.com>
+  Common unit usable across all tiers.
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  Additional Credits:
-    <contributors add yourselves here>
+  Acknowledgements:
+    Herman Schoenfeld
 }
 
 unit UCommonUI;
-
 
 {$mode delphi}
 
@@ -188,4 +187,5 @@ end;
 {%endregion}
 
 end.
+
 

@@ -38,7 +38,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="67">
+    <Units Count="69">
       <Unit0>
         <Filename Value="PascalCoinWallet.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -330,46 +330,54 @@
         <IsPartOfProject Value="True"/>
       </Unit58>
       <Unit59>
-        <Filename Value="Units\Utils\UWizard.lfm"/>
+        <Filename Value="Units\Forms\UFRMAccountInfo.pas"/>
         <IsPartOfProject Value="True"/>
+        <HasResources Value="True"/>
       </Unit59>
       <Unit60>
-        <Filename Value="Units\Forms\UFRMAccountInfo.pas"/>
+        <Filename Value="Units\Forms\UFRMMemoText.pas"/>
         <IsPartOfProject Value="True"/>
         <HasResources Value="True"/>
       </Unit60>
       <Unit61>
-        <Filename Value="Units\Forms\UFRMMemoText.pas"/>
+        <Filename Value="Units\Forms\UFRMSaleAccounts.pas"/>
         <IsPartOfProject Value="True"/>
-        <HasResources Value="True"/>
       </Unit61>
       <Unit62>
-        <Filename Value="Units\Forms\UFRMSaleAccounts.pas"/>
+        <Filename Value="Units\Forms\UFRMWalletKeys2.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit62>
       <Unit63>
-        <Filename Value="Units\Forms\UFRMWalletKeys2.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit63>
-      <Unit64>
         <Filename Value="Units\Forms\UCTRLBanner.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="CTRLBanner"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit64>
-      <Unit65>
+      </Unit63>
+      <Unit64>
         <Filename Value="Units\Forms\UFRMMainForm.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="FRMMainForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit65>
-      <Unit66>
+      </Unit64>
+      <Unit65>
         <Filename Value="Units\Forms\UFRMSyncronizationForm.pas"/>
         <IsPartOfProject Value="True"/>
         <HasResources Value="True"/>
+      </Unit65>
+      <Unit66>
+        <Filename Value="Units\Utils\UAutoScope.pas"/>
+        <IsPartOfProject Value="True"/>
       </Unit66>
+      <Unit67>
+        <Filename Value="Units\Utils\UVisualGrid.inc"/>
+        <IsPartOfProject Value="True"/>
+      </Unit67>
+      <Unit68>
+        <Filename Value="Units\Utils\UVisualGrid.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit68>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
