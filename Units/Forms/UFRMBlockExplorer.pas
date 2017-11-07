@@ -49,7 +49,7 @@ var
   FRMBlockExplorer: TFRMBlockExplorer = nil;
 
 implementation
-uses UFRMWallet, UUserInterface;
+uses UFRMMainForm, UUserInterface;
 
 {$R *.lfm}
 procedure TFRMBlockExplorer.ebBlockChainBlockStartExit(Sender: TObject);

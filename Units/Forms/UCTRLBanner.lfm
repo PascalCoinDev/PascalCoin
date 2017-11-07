@@ -1,7 +1,7 @@
 object CTRLBanner: TCTRLBanner
-  Left = 30
+  Left = 736
   Height = 80
-  Top = 122
+  Top = 26
   Width = 992
   BorderIcons = []
   BorderStyle = bsNone
@@ -1757,6 +1757,7 @@ object CTRLBanner: TCTRLBanner
     Top = 32
     Width = 100
     Anchors = [akTop, akRight]
+    Enabled = False
     ItemHeight = 15
     ItemIndex = 0
     Items.Strings = (

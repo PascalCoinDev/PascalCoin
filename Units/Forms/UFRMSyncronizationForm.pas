@@ -1,4 +1,4 @@
-unit UFRMSyncronizationDialog;
+unit UFRMSyncronizationForm;
 
 {$mode delphi}
 
@@ -21,12 +21,14 @@ uses
 
 type
 
-  { TFRMSyncronizationDialog }
+  { TFRMSyncronizationForm }
 
-  TFRMSyncronizationDialog = class(TApplicationForm)
+  TFRMSyncronizationForm = class(TApplicationForm)
     btnOpenWallet: TButton;
     Label16: TLabel;
     Label4: TLabel;
+    lblCurrentDifficultyCaption2: TLabel;
+    lblNetProtocolVersion: TLabel;
     lblTotalAccountsLabel: TLabel;
     Label8: TLabel;
     lblBlocksFound: TLabel;
@@ -69,7 +71,7 @@ uses UNetProtocol,UTime,UConst, UUserInterface;
 
 {%region Methods}
 
-procedure TFRMSyncronizationDialog.UpdateNodeStatus;
+procedure TFRMSyncronizationForm.UpdateNodeStatus;
 Var status : AnsiString;
 begin
   if not TUserInterface.Started then exit;
@@ -96,15 +98,14 @@ begin
       lblNodeStatus.Caption := status;
     end;
   end;
-
-// this rewrite   -- TODO
-//  If Assigned(FBackgroundPanel) then begin
-//    FBackgroundPanel.Font.Color:=lblNodeStatus.Font.Color;
-//    FBackgroundPanel.Caption:='Please wait until finished: '+lblNodeStatus.Caption;
-  //end;
+  lblProtocolVersion.Caption := Format('%d (%d)', [TUserInterface.Node.Bank.SafeBox.CurrentProtocol,CT_BlockChain_Protocol_Available]);
+  lblNetProtocolVersion.Caption := Format('%d (%d)', [CT_NetProtocol_Version, CT_NetProtocol_Available]);
+  if NOT btnOpenWallet.Enabled then begin
+    lblNodeStatus.Caption := 'Please wait until finished - ' + lblNodeStatus.Caption;
+  end;
 end;
 
-procedure TFRMSyncronizationDialog.UpdateBlockChainState;
+procedure TFRMSyncronizationForm.UpdateBlockChainState;
 Var
   f, favg : real;
 begin
@@ -157,7 +158,7 @@ begin
   end;
 end;
 
-procedure TFRMSyncronizationDialog.SetMinersBlocksFound(const Value: Integer);
+procedure TFRMSyncronizationForm.SetMinersBlocksFound(const Value: Integer);
 begin
   FMinersBlocksFound := Value;
   lblBlocksFound.Caption := Inttostr(Value);
@@ -165,21 +166,22 @@ begin
   else lblBlocksFound.Font.Color := clDkGray;
 end;
 
-procedure TFRMSyncronizationDialog.OnFinishedLoadingDatabase;
+procedure TFRMSyncronizationForm.OnFinishedLoadingDatabase;
 begin
   btnOpenWallet.Enabled:=true;
+  TUserInterface.ShowWallet;
 end;
 
 {%endregion}
 
 {%region Handlers: widgets }
 
-procedure TFRMSyncronizationDialog.lblReceivedMessagesClick(Sender:TObject);
+procedure TFRMSyncronizationForm.lblReceivedMessagesClick(Sender:TObject);
 begin
   TUserInterface.ShowMessagesForm;
 end;
 
-procedure TFRMSyncronizationDialog.btnOpenWalletClick(Sender:TObject);
+procedure TFRMSyncronizationForm.btnOpenWalletClick(Sender:TObject);
 begin
   TUserInterface.ShowWallet;
 end;

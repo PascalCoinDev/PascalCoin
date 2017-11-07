@@ -1,12 +1,12 @@
-object FRMSyncronizationDialog: TFRMSyncronizationDialog
-  Left = 208
-  Height = 212
-  Top = 104
+object FRMSyncronizationForm: TFRMSyncronizationForm
+  Left = 322
+  Height = 240
+  Top = 5
   Width = 636
   BorderIcons = []
   BorderStyle = bsNone
   Caption = 'Synchronization'
-  ClientHeight = 212
+  ClientHeight = 240
   ClientWidth = 636
   LCLVersion = '1.6.4.0'
   object Label8: TLabel
@@ -230,10 +230,10 @@ object FRMSyncronizationDialog: TFRMSyncronizationDialog
     ShowHint = True
   end
   object lblCurrentDifficultyCaption1: TLabel
-    Left = 38
+    Left = 16
     Height = 15
     Top = 176
-    Width = 113
+    Width = 135
     Alignment = taRightJustify
     AutoSize = False
     Caption = 'Protocol Version'
@@ -243,6 +243,24 @@ object FRMSyncronizationDialog: TFRMSyncronizationDialog
     Left = 160
     Height = 15
     Top = 176
+    Width = 18
+    Caption = '000'
+    ParentColor = False
+  end
+  object lblCurrentDifficultyCaption2: TLabel
+    Left = 16
+    Height = 15
+    Top = 200
+    Width = 135
+    Alignment = taRightJustify
+    AutoSize = False
+    Caption = 'Net Protocol Version'
+    ParentColor = False
+  end
+  object lblNetProtocolVersion: TLabel
+    Left = 160
+    Height = 15
+    Top = 200
     Width = 18
     Caption = '000'
     ParentColor = False

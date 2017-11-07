@@ -19,7 +19,7 @@ uses
   SysUtils, Classes, Forms, Controls, Windows, ExtCtrls, Dialogs,
   UCommonUI, UBlockChain, UAccounts, UNode, UWalletKeys, UAppParams, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining,
   ULog, UThread, UNetProtocol, UCrypto,
-  UFRMWallet, UFRMSyncronizationDialog, UFRMAccountExplorer, UFRMOperationExplorer, UFRMPendingOperations, UFRMOperation,
+  UFRMMainForm, UFRMSyncronizationForm, UFRMAccountExplorer, UFRMOperationExplorer, UFRMPendingOperations, UFRMOperation,
   UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys;
 
 type
@@ -39,7 +39,6 @@ type
       FUILock : TPCCriticalSection; static;
 
       // Subforms
-      FSyncronizationDialog : TFRMSyncronizationDialog; static;
       FAccountExplorer : TFRMAccountExplorer; static;
       FPendingOperationForm : TFRMPendingOperations; static;
       FOperationsExplorerForm : TFRMOperationExplorer; static;
@@ -57,7 +56,7 @@ type
       // Local fields
       FStarted : boolean; static;
       FAppParams : TAppParams; static;
-      FWallet : TFRMWallet; static;
+      FMainForm : TFRMMainForm; static;
       FIsActivated : Boolean; static;
       FUpdating : Boolean; static;
       FLog : TLog; static;
@@ -80,8 +79,8 @@ type
       class procedure SetStatusBar1Text(const text : AnsiString); static;
       class procedure SetStatusBar2Text(const text : AnsiString); static;
       class procedure SetMessagesNotificationText(const text : AnsiString); static;
-      class procedure SetWalletMode(AMode: TFRMWalletMode); static;
-      class function GetWalletMode : TFRMWalletMode; static;
+      class procedure SetMainFormMode(AMode: TFRMMainFormMode); static;
+      class function GetMainFormMode : TFRMMainFormMode; static;
 
       // Aux methods
       class procedure FinishedLoadingDatabase;
@@ -114,8 +113,7 @@ type
       class property AppParams : TAppParams read FAppParams;
       class property PoolMiningServer : TPoolMiningServer read FPoolMiningServer;
       class property WalletKeys : TWalletKeysExt read FWalletKeys;
-      class property WalletMode : TFRMWalletMode read GetWalletMode write SetWalletMode;
-      class property SyncDialog : TFRMSyncronizationDialog read FSyncronizationDialog;
+      class property MainFormMode : TFRMMainFormMode read GetMainFormMode write SetMainFormMode;
       class property StatusBar0Text : AnsiString read FStatusBar0Text write SetStatusBar0Text;
       class property StatusBar1Text : AnsiString read FStatusBar1Text write SetStatusBar1Text;
       class property StatusBar2Text : AnsiString read FStatusBar2Text write SetStatusBar2Text;
@@ -195,21 +193,20 @@ begin
     FMessagesNotificationText := '';
 
     // Create root form and dependent components
-    FWallet := mainForm as TFRMWallet;
-    FWallet.CloseAction := caNone;     // wallet is destroyed on ExitApplication
-    if (FWallet = nil)
+    FMainForm := mainForm as TFRMMainForm;
+    FMainForm.CloseAction := caNone;     // wallet is destroyed on ExitApplication
+    if (FMainForm = nil)
       then raise Exception.Create('Main form is not TWallet');
-    FSyncronizationDialog := TFRMSyncronizationDialog.Create(FWallet);;
 
-    FTrayIcon := TTrayIcon.Create(FWallet);
+    FTrayIcon := TTrayIcon.Create(FMainForm);
     FTrayIcon.OnDblClick := OnTrayIconDblClick;
     FTrayIcon.Visible := true;
-    FTrayIcon.Hint := FWallet.Caption;
+    FTrayIcon.Hint := FMainForm.Caption;
     FTrayIcon.BalloonTitle := 'Restoring the window.';
     FTrayIcon.BalloonHint := 'Double click the system tray icon to restore Pascal Coin';
     FTrayIcon.BalloonFlags := bfInfo;
     FTrayIcon.Show;
-    FTimerUpdateStatus := TTimer.Create(FWallet);
+    FTimerUpdateStatus := TTimer.Create(FMainForm);
     FTimerUpdateStatus.Enabled := false;
     FDisplayedStartupSyncDialog:=false;
 
@@ -222,12 +219,12 @@ begin
       raise Exception.Create('Cannot create dir: '+TFolderHelper.GetPascalCoinDataFolder);
 
     // Open AppParams
-    TUserInterface.FAppParams := TAppParams.Create(FWallet);
+    TUserInterface.FAppParams := TAppParams.Create(FMainForm);
     TUserInterface.FAppParams.FileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'AppParams.prm';
 
     // Open Wallet
     Try
-      FWalletKeys := TWalletKeysExt.Create(FWallet);  // On Activate, this will be populated
+      FWalletKeys := TWalletKeysExt.Create(FMainForm);  // On Activate, this will be populated
       FWalletKeys.WalletFileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
     Except
       On E:Exception do begin
@@ -248,7 +245,7 @@ begin
     FNode.PeerCache := FAppParams.ParamByName[CT_PARAM_PeerCache].GetAsString('')+';'+CT_Discover_IPs;
 
     // Subscribe to Node events (TODO refactor with FNotifyEvents)
-    FNodeNotifyEvents := TNodeNotifyEvents.Create(FWallet);
+    FNodeNotifyEvents := TNodeNotifyEvents.Create(FMainForm);
     FNodeNotifyEvents.OnBlocksChanged := OnBlocksChanged;
     FNodeNotifyEvents.OnNodeMessageEvent :=  OnNodeMessageEvent;
 
@@ -283,13 +280,13 @@ begin
     LoadAppParams;
 
     // open the sync dialog
-    FSyncronizationDialog.UpdateBlockChainState;   //TODO fix this work-flow
+    FMainForm.SyncControl.UpdateBlockChainState;   //TODO fix this work-flow
     RefreshConnectionStatusDisplay;
 
     // Setup tray icon
 
     // Disable wallet form
-    FWallet.Enabled:=false;
+    FMainForm.Enabled:=false;
     FStarted := true;
   Except
     On E:Exception do begin
@@ -301,7 +298,7 @@ begin
 
 
   // Notify accounts again?
-  OnAccountsChanged(FWallet);
+  OnAccountsChanged(FMainForm);
 
   // Refresh status bar since may not have been displayed
   SetStatusBar0Text(FStatusBar0Text);
@@ -332,9 +329,8 @@ begin
 
     // Destroys root form, non-modal forms and all their attached components
     step := 'Destroying UI graph';
-    FWallet.Destroy;
-    FWallet := nil;  // destroyed by FWallet
-    FSyncronizationDialog := nil;  // destroyed by FWallet
+    FMainForm.Destroy;
+    FMainForm := nil;  // destroyed by FWallet
     FAccountExplorer := nil;  // destroyed by FWallet
     FPendingOperationForm := nil;  // destroyed by FWallet
     FOperationsExplorerForm := nil;  // destroyed by FWallet
@@ -392,8 +388,8 @@ end;
 
 class procedure TUserInterface.RunInBackground;
 begin
-  FWallet.Hide();
-  FWallet.WindowState := wsMinimized;
+  FMainForm.Hide();
+  FMainForm.WindowState := wsMinimized;
   FTimerUpdateStatus.Enabled := false;
   FTrayIcon.Visible := True;
   FTrayIcon.ShowBalloonHint;
@@ -403,8 +399,8 @@ class procedure TUserInterface.RunInForeground;
 begin
   FTrayIcon.Visible := False;
   FTimerUpdateStatus.Enabled := true;
-  FWallet.Show();
-  FWallet.WindowState := wsNormal;
+  FMainForm.Show();
+  FMainForm.WindowState := wsNormal;
   Application.BringToFront();
 end;
 
@@ -417,10 +413,10 @@ begin
   FNode.Operations.AccountKey := GetAccountKeyForMiner;
   FPoolMiningServer.Active := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].GetAsBoolean(true);
   FPoolMiningServer.OnMiningServerNewBlockFound := OnMiningServerNewBlockFound;
-  FSyncronizationDialog.OnFinishedLoadingDatabase;
-  FWallet.OnFinishedLoadingDatabase;
+  FMainForm.SyncControl.OnFinishedLoadingDatabase;
+  FMainForm.OnFinishedLoadingDatabase;
   // Refresh UI
-  OnAccountsChanged(FWallet);
+  OnAccountsChanged(FMainForm);
 end;
 
 {%endregion}
@@ -604,7 +600,7 @@ begin
   try
     FUILock.Acquire;
     if not Assigned(FAccountExplorer) then begin
-       FAccountExplorer := TFRMAccountExplorer.Create(FWallet);
+       FAccountExplorer := TFRMAccountExplorer.Create(FMainForm);
        FAccountExplorer.CloseAction:= caFree;
        FAccountExplorer.OnDestroyed:= Self.OnSubFormDestroyed;
        FAccountExplorer.SetSubFormCoordinate(FAccountExplorer);
@@ -621,10 +617,10 @@ begin
   try
     FUILock.Acquire;
     if not Assigned(FBlockExplorerForm) then begin
-       FBlockExplorerForm := TFRMBlockExplorer.Create(FWallet);
+       FBlockExplorerForm := TFRMBlockExplorer.Create(FMainForm);
        FBlockExplorerForm.CloseAction:= caFree;
        FBlockExplorerForm.OnDestroyed:= Self.OnSubFormDestroyed;
-       FWallet.SetSubFormCoordinate(FBlockExplorerForm);
+       FMainForm.SetSubFormCoordinate(FBlockExplorerForm);
     end;
     FBlockExplorerForm.Show;
   finally
@@ -637,10 +633,10 @@ begin
   try
     FUILock.Acquire;
     if not Assigned(FOperationsExplorerForm) then begin
-      FOperationsExplorerForm := TFRMOperationExplorer.Create(FWallet);
+      FOperationsExplorerForm := TFRMOperationExplorer.Create(FMainForm);
       FOperationsExplorerForm.CloseAction:= caFree;
       FOperationsExplorerForm.OnDestroyed:= Self.OnSubFormDestroyed;
-      FWallet.SetSubFormCoordinate(FOperationsExplorerForm);
+      FMainForm.SetSubFormCoordinate(FOperationsExplorerForm);
     end;
     FOperationsExplorerForm.Show;
   finally
@@ -653,10 +649,10 @@ begin
   try
     FUILock.Acquire;
     if not Assigned(FPendingOperationForm) then begin
-      FPendingOperationForm := TFRMPendingOperations.Create(FWallet);
+      FPendingOperationForm := TFRMPendingOperations.Create(FMainForm);
       FPendingOperationForm.CloseAction:= caFree;
       FPendingOperationForm.OnDestroyed:= Self.OnSubFormDestroyed;
-      FWallet.SetSubFormCoordinate(FPendingOperationForm);
+      FMainForm.SetSubFormCoordinate(FPendingOperationForm);
     end;
     FPendingOperationForm.Show;
   finally
@@ -669,10 +665,10 @@ begin
   try
     FUILock.Acquire;
     if not Assigned(FMessagesForm) then begin
-       FMessagesForm := TFRMMessages.Create(FWallet);
+       FMessagesForm := TFRMMessages.Create(FMainForm);
        FMessagesForm.CloseAction:= caFree;
        FMessagesForm.OnDestroyed:= Self.OnSubFormDestroyed;
-       FWallet.SetSubFormCoordinate(FMessagesForm);
+       FMainForm.SetSubFormCoordinate(FMessagesForm);
     end;
     FMessagesForm.Show;
   finally
@@ -685,10 +681,10 @@ begin
   try
     FUILock.Acquire;
     if not Assigned(FNodesForm) then begin
-       FNodesForm := TFRMNodes.Create(FWallet);
+       FNodesForm := TFRMNodes.Create(FMainForm);
        FNodesForm.CloseAction:= caFree;
        FNodesForm.OnDestroyed:= Self.OnSubFormDestroyed;
-       FWallet.SetSubFormCoordinate(FNodesForm);
+       FMainForm.SetSubFormCoordinate(FNodesForm);
     end;
     FNodesForm.Show;
   finally
@@ -701,10 +697,10 @@ begin
   try
     FUILock.Acquire;
     if not Assigned(FLogsForm) then begin
-       FLogsForm := TFRMLogs.Create(FWallet);
+       FLogsForm := TFRMLogs.Create(FMainForm);
        FLogsForm.CloseAction:= caFree;
        FLogsForm.OnDestroyed:= Self.OnSubFormDestroyed;
-       FWallet.SetSubFormCoordinate(FLogsForm);
+       FMainForm.SetSubFormCoordinate(FLogsForm);
     end;
     FLogsForm.Show;
   finally
@@ -715,24 +711,13 @@ end;
 class procedure TUserInterface.ShowWallet;
 begin
   // TODO - VALIDATION HERE
-  FWallet.Mode := wmWallet;
+  FMainForm.Mode := wmWallet;
   // else ShowError('', 'Wallet is currently unavailable, please wait until processing is finished');
 end;
 
 class procedure TUserInterface.ShowSyncDialog;
 begin
-  try
-    FUILock.Acquire;
-    if not Assigned(FSyncronizationDialog) then
-      FSyncronizationDialog := TFRMSyncronizationDialog.Create(FWallet);
-
-    if FDisplayedStartupSyncDialog = true then begin
-       FDisplayedStartupSyncDialog := false;
-    end;
-    FWallet.Mode := wmSync;
-  finally
-    FUILock.Release;
-  end;
+  FMainForm.Mode := wmSync;
 end;
 
 {%endregion}
@@ -787,8 +772,8 @@ var errors : AnsiString;
 begin
   FUILock.Acquire;
   Try
-    FSyncronizationDialog.UpdateNodeStatus;
-    OnNetStatisticsChanged(FWallet);
+    FMainForm.SyncControl.UpdateNodeStatus;
+    OnNetStatisticsChanged(FMainForm);
     if Assigned(FNode) then begin
       if FNode.IsBlockChainValid(errors) then begin
         StatusBar2Text := Format('Last account time:%s',
@@ -850,9 +835,9 @@ begin
   NotifyConfigChanged;
 end;
 
-class procedure TUserInterface.SetWalletMode(AMode: TFRMWalletMode);
+class procedure TUserInterface.SetMainFormMode(AMode: TFRMMainFormMode);
 begin
-  if AMode <> FWallet.Mode then
+  if AMode <> FMainForm.Mode then
     case AMode of
       wmWallet: ShowWallet;
       wmSync: ShowSyncDialog;
@@ -860,9 +845,9 @@ begin
     end;
 end;
 
-class function TUserInterface.GetWalletMode : TFRMWalletMode;
+class function TUserInterface.GetMainFormMode : TFRMMainFormMode;
 begin
-  Result := FWallet.Mode;
+  Result := FMainForm.Mode;
 end;
 
 class procedure TUserInterface.NotifyConfigChanged;
@@ -904,31 +889,31 @@ end;
 class procedure TUserInterface.SetStatusBar0Text(const text : AnsiString); static;
 begin
   FStatusBar0Text := text;
-  if Assigned(FWallet) then
-    FWallet.sbStatusBar.Panels[0].Text := FStatusBar0Text;
+  if Assigned(FMainForm) then
+    FMainForm.sbStatusBar.Panels[0].Text := FStatusBar0Text;
 end;
 
 class procedure TUserInterface.SetStatusBar1Text(const text : AnsiString); static;
 begin
   FStatusBar1Text := text;
-  if Assigned(FWallet) then
-    FWallet.sbStatusBar.Panels[1].Text := text;
+  if Assigned(FMainForm) then
+    FMainForm.sbStatusBar.Panels[1].Text := text;
 end;
 
 class procedure TUserInterface.SetStatusBar2Text(const text : AnsiString); static;
 begin
   FStatusBar2Text := text;
-  if Assigned(FWallet) then
-    FWallet.sbStatusBar.Panels[2].Text := text;
+  if Assigned(FMainForm) then
+    FMainForm.sbStatusBar.Panels[2].Text := text;
 end;
 
 class procedure TUserInterface.SetMessagesNotificationText(const text : AnsiString); static;
 begin
   FMessagesNotificationText := text;
-  if Assigned(FSyncronizationDialog) then begin
+  if Assigned(FMainForm.SyncControl) then begin
     if (text = '') then
-      FSyncronizationDialog.lblReceivedMessages.Visible := false;
-    FSyncronizationDialog.lblReceivedMessages.Caption := text;
+      FMainForm.SyncControl.lblReceivedMessages.Visible := false;
+    FMainForm.SyncControl.lblReceivedMessages.Caption := text;
   end;
 end;
 
@@ -954,7 +939,7 @@ begin
     try
       if Assigned(FAccountExplorer) then
         FAccountExplorer.RefreshAccountsGrid(false);
-      FSyncronizationDialog.UpdateBlockChainState;
+      FMainForm.SyncControl.UpdateBlockChainState;
     except
       On E:Exception do begin
         E.Message := 'Error at OnNewAccount '+E.Message;
@@ -1060,8 +1045,8 @@ class procedure TUserInterface.OnTimerUpdateStatusTimer(Sender: TObject);
 begin
   Try
     RefreshConnectionStatusDisplay;
-    FSyncronizationDialog.UpdateBlockChainState;
-    FSyncronizationDialog.UpdateNodeStatus;
+    FMainForm.SyncControl.UpdateBlockChainState;
+    FMainForm.SyncControl.UpdateNodeStatus;
   Except
     On E:Exception do begin
       E.Message := 'Exception at TimerUpdate '+E.ClassName+': '+E.Message;

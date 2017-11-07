@@ -41,6 +41,8 @@ type
       property CloseAction : TCloseAction read FCloseAction write FCloseAction;
       property OnActivateFirstTime : TNotifyEvent read FActivateFirstTime write FActivateFirstTime;
       property OnDestroyed : TNotifyEvent read FDestroyed write FDestroyed;
+    public
+      property ActivationCount : UInt32 read FActivatedCount;
   end;
 
   { TWinControlHelper }

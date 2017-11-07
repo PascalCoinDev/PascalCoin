@@ -9,13 +9,13 @@ uses
   UOpenSSL,
   UCrypto,
   Forms,
-  UFRMWallet,
-  UUserInterface;
+  UUserInterface,
+  UFRMMainForm;
 
 {$R *.res}
 
 var
-   mainForm : TFRMWallet;
+   mainForm : TFRMMainForm;
 begin
   // Start OpenSSL dll
   if Not LoadSSLCrypt then
@@ -27,7 +27,7 @@ begin
   Application.MainFormOnTaskBar := True;
   {$Warnings ON}{$ENDIF}
   Application.Title := 'Pascal Coin Wallet, Miner & Explorer';
-  Application.CreateForm(TFRMWallet, mainForm);
+  Application.CreateForm(TFRMMainForm, mainForm);
   TUserInterface.StartApplication(mainForm);
   Application.Run;
 end.

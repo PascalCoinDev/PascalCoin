@@ -1,4 +1,4 @@
-unit UFRMWallet;
+unit UFRMMainForm;
 
 {$mode delphi}
 
@@ -21,9 +21,9 @@ uses
   ULog,
   UBlockChain, UNode, UGridUtils, UAccounts, Menus,
   UNetProtocol, UCrypto, Buttons, ActnList, UPoolMining,
-  UCTRLBanner, UCommon, UCommonUI;
+  UCTRLBanner, UFRMSyncronizationForm, UCommon, UCommonUI;
 
-Const
+const
   CM_PC_FinishedLoadingDatabase = WM_USER + 1;
   CM_PC_WalletKeysChanged = WM_USER + 2;
   CM_PC_ConnectivityChanged = WM_USER + 3;
@@ -31,13 +31,13 @@ Const
 
 type
 
-  { TFRMWalletMode }
+  { TFRMMainFormMode }
 
-  TFRMWalletMode = (wmWallet, wmSync);
+  TFRMMainFormMode = (wmWallet, wmSync);
 
-  { TFRMWallet }
+  { TFRMMainForm }
 
-  TFRMWallet = class(TApplicationForm)
+  TFRMMainForm = class(TApplicationForm)
     ilSmallIcons:TImageList;
     miSyncDialog:TMenuItem;
     miBlockExplorer: TMenuItem;
@@ -94,8 +94,8 @@ type
     procedure miSeedNodesClick(Sender: TObject);
   private
     __FLastFooterToolBarDrawRect : TRect;  // Required for FPC bug work-around
-    FMode : TFRMWalletMode;
-    FSyncPaneControl : TForm;
+    FMode : TFRMMainFormMode;
+    FSyncControl : TFRMSyncronizationForm;
     procedure CM_FinishedLoadingDatabase(var Msg: TMessage); message CM_PC_FinishedLoadingDatabase;
     procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
     procedure CM_ConnectivityChanged(var Msg: TMessage); message CM_PC_ConnectivityChanged;
@@ -103,14 +103,14 @@ type
     procedure OnConnectivityChanged(Sender: TObject);
     procedure OnWalletChanged(Sender: TObject);
   protected
-    property SyncPaneControl : TForm read FSyncPaneControl write FSyncPaneControl;
     procedure RefreshWalletLockIcon;
     procedure RefreshConnectivityIcon;
     procedure ActivateFirstTime; override;
     Function ForceMining : Boolean; virtual;
-    procedure SetMode(AMode: TFRMWalletMode);
+    procedure SetMode(AMode: TFRMMainFormMode);
   public
-    property Mode : TFRMWalletMode read FMode write SetMode;
+    property SyncControl : TFRMSyncronizationForm read FSyncControl;
+    property Mode : TFRMMainFormMode read FMode write SetMode;
     procedure OnFinishedLoadingDatabase;
   end;
 
@@ -118,7 +118,7 @@ implementation
 
 {$R *.lfm}
 
-uses LCLIntf, UUserInterface, UThread, UOpTransaction, UWizard, UFRMSyncronizationDialog;
+uses LCLIntf, UUserInterface, UThread, UOpTransaction, UWizard;
 
 const
   CT_FOOTER_TOOLBAR_LEFT_PADDING = 8;
@@ -128,16 +128,18 @@ const
 
 {%region Form life-cycle }
 
-procedure TFRMWallet.FormCreate(Sender: TObject);
+procedure TFRMMainForm.FormCreate(Sender: TObject);
 begin
   tbStatusToolBar.Parent := sbStatusBar;
   __FLastFooterToolBarDrawRect := TRect.Empty;
   CloseAction := caNone; // Will handle terminate in separate method
   FMode := wmSync;
+  FSyncControl := TFRMSyncronizationForm.Create(self);
   paLogoPanel.AddControlDockCenter(TCTRLBanner.Create(Self));
+  paSyncPanel.AddControlDockCenter(FSyncControl);
 end;
 
-procedure TFRMWallet.FormCloseQuery(Sender: TObject; var CanClose: boolean);
+procedure TFRMMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
 begin
   case TUserInterface.AskQuestion(Self, 'Quit PascalCoin', 'Are you sure you want to quit? Select ''No'' to run in background.', [mbCancel, mbNo, mbYes]) of
     mbYes: begin
@@ -152,16 +154,16 @@ begin
   end;
 end;
 
-procedure TFRMWallet.FormClose(Sender: TObject; var CloseAction: TCloseAction);
+procedure TFRMMainForm.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
 end;
 
-procedure TFRMWallet.CM_Terminate(var Msg: TMessage);
+procedure TFRMMainForm.CM_Terminate(var Msg: TMessage);
 begin
   TUserInterface.ExitApplication;
 end;
 
-procedure TFRMWallet.ActivateFirstTime;
+procedure TFRMMainForm.ActivateFirstTime;
 begin
   TUserInterface.WalletKeys.OnChanged.Add(OnWalletChanged);
   TNetData.NetData.OnConnectivityChanged.Add(OnConnectivityChanged);
@@ -169,7 +171,7 @@ begin
   RefreshConnectivityIcon;
 end;
 
-procedure TFRMWallet.FormDestroy(Sender: TObject);
+procedure TFRMMainForm.FormDestroy(Sender: TObject);
 begin
   TUserInterface.WalletKeys.OnChanged.Remove(OnWalletChanged);
   TNetData.NetData.OnConnectivityChanged.Remove(OnConnectivityChanged);
@@ -179,12 +181,12 @@ end;
 
 {%region Form methods}
 
-function TFRMWallet.ForceMining: Boolean;
+function TFRMMainForm.ForceMining: Boolean;
 begin
   Result := false;
 end;
 
-procedure TFRMWallet.RefreshWalletLockIcon;
+procedure TFRMMainForm.RefreshWalletLockIcon;
 begin
   if NOT TUserInterface.WalletKeys.HasPassword then begin
     { No password has been set }
@@ -204,7 +206,7 @@ begin
   end;
 end;
 
-procedure TFRMWallet.RefreshConnectivityIcon;
+procedure TFRMMainForm.RefreshConnectivityIcon;
 const
   ImageIndexConst : array[false..true] of integer=(1,0);
   HintConst : array[false..true] of String =('Network is inactive. Click activate.','Network is active. Click to deactivate.');
@@ -213,7 +215,7 @@ begin
   tbtnConnectivity.Hint :=  HintConst[TNetData.NetData.NetConnectionsActive];
 end;
 
-procedure TFRMWallet.SetMode(AMode: TFRMWalletMode);
+procedure TFRMMainForm.SetMode(AMode: TFRMMainFormMode);
 var nestedForm : TForm;
 begin
   case AMode of
@@ -223,19 +225,11 @@ begin
       FMode := AMode;
     end;
     wmSync: begin
-      if not paSyncPanel.ContainsControl(TUserInterface.SyncDialog) then begin
-        paSyncPanel.RemoveAllControls(false);
-        TUserInterface.SyncDialog.Top := 0;
-        TUserInterface.SyncDialog.Left := 0;
-        TUserInterface.SyncDialog.Width := paSyncPanel.Width;
-        TUserInterface.SyncDialog.Height := paSyncPanel.Height;
-        paSyncPanel.AddControlDockCenter(TUserInterface.SyncDialog);
-      end;
       paSyncPanel.Visible := true;
       paWalletPanel.Visible := false;;
       FMode := AMode;
     end;
-    else raise Exception.Create('[Internal Error] - TFRMWallet.SetMode: unsupported mode passed');
+    else raise Exception.Create('[Internal Error] - TFRMMainForm.SetMode: unsupported mode passed');
   end;
 end;
 
@@ -243,7 +237,7 @@ end;
 
 {%region Handlers: Form}
 
-procedure TFRMWallet.FormResize(Sender: TObject);
+procedure TFRMMainForm.FormResize(Sender: TObject);
 begin
   // Adjust status bar so that footer toolbar panel remains fixed size (by expanding out previous panel)
    sbStatusBar.Panels[2].Width := ClipValue(sbStatusBar.Width - (sbStatusBar.Panels[0].Width + sbStatusBar.Panels[1].Width + tbStatusToolBar.Width  + CT_FOOTER_TOOLBAR_RIGHT_PADDING) - CT_FOOTER_TOOLBAR_LEFT_PADDING, 0, sbStatusBar.Width);
@@ -253,34 +247,34 @@ end;
 
 {%region Handlers: Wallet, Network}
 
-procedure TFRMWallet.CM_FinishedLoadingDatabase(var Msg: TMessage);
+procedure TFRMMainForm.CM_FinishedLoadingDatabase(var Msg: TMessage);
 begin
   Self.Enabled:=true;
 end;
 
-procedure TFRMWallet.OnFinishedLoadingDatabase;
+procedure TFRMMainForm.OnFinishedLoadingDatabase;
 begin
   // Ensure handled in UI thread
   PostMessage(Self.Handle,CM_PC_FinishedLoadingDatabase,0,0);
 end;
 
-procedure TFRMWallet.CM_WalletChanged(var Msg: TMessage);
+procedure TFRMMainForm.CM_WalletChanged(var Msg: TMessage);
 begin
   RefreshWalletLockIcon;
 end;
 
-procedure TFRMWallet.OnWalletChanged(Sender: TObject);
+procedure TFRMMainForm.OnWalletChanged(Sender: TObject);
 begin
   // Ensure handled in UI thread
   PostMessage(Self.Handle,CM_PC_WalletKeysChanged,0,0);
 end;
 
-procedure TFRMWallet.CM_ConnectivityChanged(var Msg: TMessage);
+procedure TFRMMainForm.CM_ConnectivityChanged(var Msg: TMessage);
 begin
   RefreshConnectivityIcon;
 end;
 
-procedure TFRMWallet.OnConnectivityChanged(Sender: TObject);
+procedure TFRMMainForm.OnConnectivityChanged(Sender: TObject);
 begin
   // Ensure handled in UI thread
   PostMessage(Self.Handle,CM_PC_ConnectivityChanged,0,0);
@@ -290,72 +284,72 @@ end;
 
 {%region Handlers: Menu Items }
 
-procedure TFRMWallet.miMessagesClick(Sender: TObject);
+procedure TFRMMainForm.miMessagesClick(Sender: TObject);
 begin
   TUserInterface.ShowMessagesForm;
 end;
 
-procedure TFRMWallet.miSyncDialogClick(Sender:TObject);
+procedure TFRMMainForm.miSyncDialogClick(Sender:TObject);
 begin
   TUserInterface.ShowSyncDialog;
 end;
 
-procedure TFRMWallet.miNodesClick(Sender: TObject);
+procedure TFRMMainForm.miNodesClick(Sender: TObject);
 begin
   TUserInterface.ShowNodesForm;
 end;
 
-procedure TFRMWallet.miPendingOperationsClick(Sender: TObject);
+procedure TFRMMainForm.miPendingOperationsClick(Sender: TObject);
 begin
   TUserInterface.ShowPendingOperations
 end;
 
-procedure TFRMWallet.miLogsClick(Sender: TObject);
+procedure TFRMMainForm.miLogsClick(Sender: TObject);
 begin
   TUserInterface.ShowLogsForm;
 end;
 
-procedure TFRMWallet.miOperationsExplorerClick(Sender: TObject);
+procedure TFRMMainForm.miOperationsExplorerClick(Sender: TObject);
 begin
  TUserInterface.ShowOperationsExplorer;
 end;
 
-procedure TFRMWallet.miBlockExplorerClick(Sender: TObject);
+procedure TFRMMainForm.miBlockExplorerClick(Sender: TObject);
 begin
   TUserInterface.ShowBlockExplorer;
 end;
 
-procedure TFRMWallet.miAccountExplorerClick(Sender: TObject);
+procedure TFRMMainForm.miAccountExplorerClick(Sender: TObject);
 begin
   TUserInterface.ShowAccountExplorer
 end;
 
-procedure TFRMWallet.miSeedNodesClick(Sender: TObject);
+procedure TFRMMainForm.miSeedNodesClick(Sender: TObject);
 begin
   TUserInterface.ShowSeedNodesDialog(Self);
 end;
 
-procedure TFRMWallet.miAboutClick(Sender: TObject);
+procedure TFRMMainForm.miAboutClick(Sender: TObject);
 begin
   TUserInterface.ShowAboutBox(Self);
 end;
 
-procedure TFRMWallet.MiCloseClick(Sender: TObject);
+procedure TFRMMainForm.MiCloseClick(Sender: TObject);
 begin
   Close;
 end;
 
-procedure TFRMWallet.paLogoPanelClick(Sender: TObject);
+procedure TFRMMainForm.paLogoPanelClick(Sender: TObject);
 begin
 
 end;
 
-procedure TFRMWallet.miOptionsClick(Sender: TObject);
+procedure TFRMMainForm.miOptionsClick(Sender: TObject);
 begin
   TUserInterface.ShowOptionsDialog(Self);
 end;
 
-procedure TFRMWallet.miPrivateKeysClick(Sender: TObject);
+procedure TFRMMainForm.miPrivateKeysClick(Sender: TObject);
 begin
   TUserInterface.ShowPrivateKeysDialog(Self);
 end;
@@ -364,7 +358,7 @@ end;
 
 {%region Handlers: Footer Toolbar}
 
-procedure TFRMWallet.tbtnWalletLockClick(Sender:TObject);
+procedure TFRMMainForm.tbtnWalletLockClick(Sender:TObject);
 begin
   if NOT TUserInterface.WalletKeys.HasPassword then begin
      { no password has been set }
@@ -378,18 +372,18 @@ begin
    end;
 end;
 
-procedure TFRMWallet.tbtnConnectivityClick(Sender:TObject);
+procedure TFRMMainForm.tbtnConnectivityClick(Sender:TObject);
 begin
   // Toggle connectivity (icons update with event handler)
   TNetData.NetData.NetConnectionsActive := NOT TNetData.NetData.NetConnectionsActive;
 end;
 
-procedure TFRMWallet.tbtnSyncClick(Sender: TObject);
+procedure TFRMMainForm.tbtnSyncClick(Sender: TObject);
 begin
   TUserInterface.ShowSyncDialog;
 end;
 
-procedure TFRMWallet.sbStatusBarDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel; const Rect: TRect);
+procedure TFRMMainForm.sbStatusBarDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel; const Rect: TRect);
 begin
   if __FLastFooterToolBarDrawRect = Rect then exit; // avoid FPC bug: triggers infinite draw refresh on windows
   if Panel = sbStatusBar.Panels[3] then

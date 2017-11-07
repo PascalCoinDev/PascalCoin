@@ -1,4 +1,4 @@
-object FRMWallet: TFRMWallet
+object FRMMainForm: TFRMMainForm
   Left = 125
   Height = 600
   Top = 58

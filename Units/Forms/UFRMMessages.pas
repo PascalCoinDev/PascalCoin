@@ -19,7 +19,7 @@ uses
   LCLIntf, LCLType,
   SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, Menus, UCommonUI,
-  UNode, UNetProtocol, UCrypto, UFRMWallet,UConst;
+  UNode, UNetProtocol, UCrypto, UFRMMainForm,UConst;
 
 type
 
