@@ -32,7 +32,7 @@
   {$DEFINE TESTNET}
 
   // For GUI: Allows to show average time on blockchain explorer
-  {.$DEFINE SHOW_AVERAGE_TIME_STATS}
+  {$DEFINE SHOW_AVERAGE_TIME_STATS}
 
   // For special use: Allows to store in a buffer, miPendingOperations not proceded due to n_operation value invalid
   {.$DEFINE BufferOfFutureOperations}
