@@ -203,8 +203,8 @@ implementation
 
 {$R *.lfm}
 
-uses UFRMAccountSelect, UConst, UFRMOperation,
-     UWalletKeys, UCrypto, UFRMMemoText, UUserInterface, UCommon;
+uses UFRMAccountSelect, UConst, USettings, UFRMOperation,
+     UWallet, UCrypto, UFRMMemoText, UUserInterface, UCommon;
 
 { TFRMAccountExplorer }
 
@@ -233,14 +233,14 @@ begin
   FOrderedAccountsKeyList := TOrderedAccountKeysList.Create(TUserInterface.Node.Bank.SafeBox,false);
 
   // Subscribe to wallet events
-  TUserInterface.WalletKeys.OnChanged.Add(OnPrivateKeysChanged);
+  TWallet.Keys.OnChanged.Add(OnPrivateKeysChanged);
   Refresh;
 end;
 
 procedure TFRMAccountExplorer.FormDestroy(Sender: TObject);
 begin
   // Unsubscribe from wallet events
-  TUserInterface.WalletKeys.OnChanged.Remove(OnPrivateKeysChanged);
+  TWallet.Keys.OnChanged.Remove(OnPrivateKeysChanged);
 
   // Nullify fields
   FAccountOperationsGrid.Node := Nil;
@@ -351,8 +351,8 @@ begin
         if cbMyPrivateKeys.ItemIndex<0 then exit;
         if cbMyPrivateKeys.ItemIndex=0 then begin
           // All keys in the wallet
-          for i := 0 to TUserInterface.WalletKeys.Count - 1 do begin
-            j := FOrderedAccountsKeyList.IndexOfAccountKey(TUserInterface.WalletKeys[i].AccountKey);
+          for i := 0 to TWallet.Keys.Count - 1 do begin
+            j := FOrderedAccountsKeyList.IndexOfAccountKey(TWallet.Keys[i].AccountKey);
             if (j>=0) then begin
               l := FOrderedAccountsKeyList.AccountKeyList[j];
               for k := 0 to l.Count - 1 do begin
@@ -365,8 +365,8 @@ begin
           end;
         end else begin
           i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]);
-          if (i>=0) And (i<TUserInterface.WalletKeys.Count) then begin
-            j := FOrderedAccountsKeyList.IndexOfAccountKey(TUserInterface.WalletKeys[i].AccountKey);
+          if (i>=0) And (i<TWallet.Keys.Count) then begin
+            j := FOrderedAccountsKeyList.IndexOfAccountKey(TWallet.Keys[i].AccountKey);
             if (j>=0) then begin
               l := FOrderedAccountsKeyList.AccountKeyList[j];
               for k := 0 to l.Count - 1 do begin
@@ -411,8 +411,8 @@ begin
   cbMyPrivateKeys.items.BeginUpdate;
   Try
     cbMyPrivateKeys.Items.Clear;
-    For i:=0 to TUserInterface.WalletKeys.Count-1 do begin
-      wk := TUserInterface.WalletKeys.Key[i];
+    For i:=0 to TWallet.Keys.Count-1 do begin
+      wk := TWallet.Keys.Key[i];
       if assigned(FOrderedAccountsKeyList) then begin
         FOrderedAccountsKeyList.AddAccountKey(wk.AccountKey);
       end;
@@ -512,10 +512,10 @@ var i : Integer;
 begin
   if (cbMyPrivateKeys.ItemIndex<0) then  exit;
   i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]);
-  if (i<0) Or (i>=TUserInterface.WalletKeys.Count) then raise Exception.Create('Must select a Key');
-  name := TUserInterface.WalletKeys.Key[i].Name;
+  if (i<0) Or (i>=TWallet.Keys.Count) then raise Exception.Create('Must select a Key');
+  name := TWallet.Keys.Key[i].Name;
   if InputQuery('Change Key name','Input new name',nameString) then begin
-    TUserInterface.WalletKeys.SetName(i,name);
+    TWallet.Keys.SetName(i,name);
   end;
 end;
 
@@ -535,7 +535,7 @@ begin
     ltarget := FAccountsSelectedGrid.LockAccountsList;
     Try
       for i := 0 to lsource.Count-1 do begin
-        if TUserInterface.WalletKeys.IndexOfAccountKey(TUserInterface.Node.Bank.SafeBox.Account(lsource.Get(i)).accountInfo.accountKey)<0 then raise Exception.Create(Format('You cannot operate with account %d because private key not found in your wallet',[lsource.Get(i)]));
+        if TWallet.Keys.IndexOfAccountKey(TUserInterface.Node.Bank.SafeBox.Account(lsource.Get(i)).accountInfo.accountKey)<0 then raise Exception.Create(Format('You cannot operate with account %d because private key not found in your wallet',[lsource.Get(i)]));
         ltarget.Add(lsource.Get(i));
       end;
     Finally
@@ -555,7 +555,7 @@ Var l, selected : TOrderedCardinalList;
 begin
   an := FAccountsGrid.AccountNumber(dgAccounts.Row);
   if (an<0) then raise Exception.Create('No account selected');
-  if TUserInterface.WalletKeys.IndexOfAccountKey(TUserInterface.Node.Bank.SafeBox.Account(an).accountInfo.accountkey)<0 then
+  if TWallet.Keys.IndexOfAccountKey(TUserInterface.Node.Bank.SafeBox.Account(an).accountInfo.accountkey)<0 then
     raise Exception.Create(Format('You cannot add %s account because private key not found in your wallet.'#10+#10+'You''re not the owner!',
       [TAccountComp.AccountNumberToAccountTxtNumber(an)]));
   // Add
@@ -609,8 +609,8 @@ begin
     finally
       FAccountsSelectedGrid.UnlockAccountsList;
     end;
-    DefaultFee := TUserInterface.AppParams.ParamByName[CT_PARAM_DefaultFee].GetAsInt64(0);
-    WalletKeys := TUserInterface.WalletKeys;
+    DefaultFee := TSettings.DefaultFee;
+    WalletKeys := TWallet.Keys;
     ShowModal;
   Finally
     Free;
@@ -623,7 +623,7 @@ begin
   F := TFRMAccountSelect.Create(Self);
   try
     F.Node := TUserInterface.Node;
-    F.WalletKeys := TUserInterface.WalletKeys;
+    F.WalletKeys := TWallet.Keys;
     F.ShowModal;
   finally
     F.Free;
@@ -701,7 +701,7 @@ begin
     If FAccountsGrid.SelectedAccounts(targetAccounts) = 0
       then raise Exception.Create('No row selected');
 
-    TUserInterface.ShowNewOperationDialog(Self, targetAccounts, TUserInterface.AppParams.ParamByName[CT_PARAM_DefaultFee].GetAsInt64(0));
+    TUserInterface.ShowNewOperationDialog(Self, targetAccounts, TSettings.DefaultFee);
   finally
      targetAccounts.Free;
   end;

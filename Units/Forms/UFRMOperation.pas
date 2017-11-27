@@ -23,7 +23,7 @@ uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UCommonUI,
-  UNode, UWalletKeys, UCrypto, Buttons, UBlockChain,
+  UNode, UWallet, UCrypto, Buttons, UBlockChain,
   UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UCommon;
 
 Const
@@ -174,7 +174,7 @@ type
 implementation
 
 uses
-  UECIES, UConst, UOpTransaction, UFRMNewPrivateKeyType, UAES, UFRMWalletKeys;
+  UECIES, UConst, UOpTransaction, UAES, UFRMWalletKeys;
 
 {$R *.lfm}
 
@@ -358,7 +358,6 @@ Var FRM : TFRMWalletKeys;
 begin
   FRM := TFRMWalletKeys.Create(Self);
   Try
-    FRM.WalletKeys := WalletKeys;
     FRM.ShowModal;
     cbBuyNewKey.SetFocus;
     UpdateWalletKeys;
@@ -372,7 +371,6 @@ Var FRM : TFRMWalletKeys;
 begin
   FRM := TFRMWalletKeys.Create(Self);
   Try
-    FRM.WalletKeys := WalletKeys;
     FRM.ShowModal;
     rbChangeKeyWithAnother.Checked := true;
     cbNewPrivateKey.SetFocus;

@@ -17,7 +17,7 @@ interface
 
 uses
   SysUtils, Classes, Forms, Controls, Windows, ExtCtrls, Dialogs,
-  UCommonUI, UBlockChain, UAccounts, UNode, UWalletKeys, UAppParams, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining,
+  UCommonUI, UBlockChain, UAccounts, UNode, UWallet, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining,
   ULog, UThread, UNetProtocol, UCrypto,
   UFRMMainForm, UFRMSyncronizationForm, UFRMAccountExplorer, UFRMOperationExplorer, UFRMPendingOperations, UFRMOperation,
   UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys;
@@ -26,10 +26,6 @@ type
   { Forward Declarations }
 
   TLoadDatabaseThread = class;
-
-  { TMinerPrivateKey }
-
-  TMinerPrivateKey = (mpk_NewEachTime, mpk_Random, mpk_Selected);
 
   { TUserInterface }
 
@@ -50,12 +46,9 @@ type
       // Components
       FRPCServer : TRPCServer; static;
       FPoolMiningServer : TPoolMiningServer; static;
-      FMinerPrivateKeyType : TMinerPrivateKey; static;
-      FWalletKeys : TWalletKeysExt; static;
 
       // Local fields
       FStarted : boolean; static;
-      FAppParams : TAppParams; static;
       FMainForm : TFRMMainForm; static;
       FIsActivated : Boolean; static;
       FUpdating : Boolean; static;
@@ -72,7 +65,6 @@ type
 
       // Methods
       class procedure RefreshConnectionStatusDisplay;
-      class function GetAccountKeyForMiner: TAccountKey;
 
       // Getters/Setters
       class procedure SetStatusBar0Text(const text : AnsiString); static;
@@ -84,17 +76,13 @@ type
 
       // Aux methods
       class procedure FinishedLoadingDatabase;
-      class procedure LoadAppParams;
-      class procedure SaveAppParams;
-
-      // Notifiers
-      class procedure NotifyConfigChanged;
 
       // Handlers
       class procedure OnTimerUpdateStatusTimer(Sender: TObject);
       class procedure OnSubFormDestroyed(Sender: TObject);
 
       // Backend Handlers (TODO: refactor this out with TNotifyManyEvents)
+      class procedure OnSettingsChanged(Sender: TObject);
       class procedure OnAccountsChanged(Sender: TObject);
       class procedure OnBlocksChanged(Sender: TObject);
       class procedure OnReceivedHelloMessage(Sender: TObject);
@@ -110,9 +98,7 @@ type
       class property Started : boolean read FStarted;
       class property Node : TNode read FNode;
       class property Log : TLog read FLog;
-      class property AppParams : TAppParams read FAppParams;
       class property PoolMiningServer : TPoolMiningServer read FPoolMiningServer;
-      class property WalletKeys : TWalletKeysExt read FWalletKeys;
       class property MainFormMode : TFRMMainFormMode read GetMainFormMode write SetMainFormMode;
       class property StatusBar0Text : AnsiString read FStatusBar0Text write SetStatusBar0Text;
       class property StatusBar1Text : AnsiString read FStatusBar1Text write SetStatusBar1Text;
@@ -132,14 +118,17 @@ type
       class procedure ShowOperationInfoDialog(parentForm: TForm; const ophash : AnsiString);
       class procedure ShowOperationInfoDialog(parentForm: TForm; const operation : TOperationResume); overload;
       class procedure ShowNewOperationDialog(parentForm : TForm; accounts : TOrderedCardinalList; defaultFee : Cardinal);
-      class procedure ShowWalletKeysDialog(parentForm : TForm);
       class procedure ShowSeedNodesDialog(parentForm : TForm);
       class procedure ShowPrivateKeysDialog(parentForm: TForm);
       class procedure ShowMemoText(parentForm: TForm; const ATitle : AnsiString; text : TStrings);
-      class procedure UnlockWallet(parentForm: TForm;  walletKeys : TWalletKeys);
-      class procedure ChangeWalletPassword(parentForm: TForm; walletKeys : TWalletKeys);
-      class function AskQuestion(parentForm: TForm; const ACaption, APrompt : String; buttons: TMsgDlgButtons) : TMsgDlgBtn;
-      class function AskUserEnterString(parentForm: TForm; const ACaption, APrompt : String; var Value : String) : Boolean;
+      class procedure UnlockWallet(parentForm: TForm);
+      class procedure ChangeWalletPassword(parentForm: TForm);
+      class procedure ShowInfo(parentForm : TForm; const ACaption, APrompt : String);
+      class procedure ShowWarning(parentForm : TForm; const ACaption, APrompt : String);
+      class procedure ShowError(parentForm : TForm; const ACaption, APrompt : String);
+      class function AskQuestion(parentForm: TForm; AType:TMsgDlgType; const ACaption, APrompt : String; buttons: TMsgDlgButtons) : TMsgDlgBtn;
+      class function AskEnterString(parentForm: TForm; const ACaption, APrompt : String; var Value : String) : Boolean;
+      class function AskEnterProtectedString(parentForm: TForm; const ACaption, APrompt : String; var Value : String) : Boolean;
 
       // Show sub-forms
       class procedure ShowAccountExplorer;
@@ -164,7 +153,7 @@ implementation
 
 uses
   UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
-  UOpenSSL, UFileStorage, UTime, UCommon;
+  UOpenSSL, UFileStorage, UTime, UCommon, USettings;
 
 {%region UI Lifecyle}
 
@@ -218,31 +207,23 @@ begin
     If Not ForceDirectories(TFolderHelper.GetPascalCoinDataFolder) then
       raise Exception.Create('Cannot create dir: '+TFolderHelper.GetPascalCoinDataFolder);
 
-    // Open AppParams
-    TUserInterface.FAppParams := TAppParams.Create(FMainForm);
-    TUserInterface.FAppParams.FileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'AppParams.prm';
+    // Load settings
+    TSettings.Load;
+    TSettings.OnChanged.Add(OnSettingsChanged);
 
     // Open Wallet
-    Try
-      FWalletKeys := TWalletKeysExt.Create(FMainForm);  // On Activate, this will be populated
-      FWalletKeys.WalletFileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
-    Except
-      On E:Exception do begin
-        E.Message := 'Cannot open your wallet... Perhaps another instance of Pascal Coin is active!'+#10+#10+E.Message;
-        Raise;
-      end;
-    End;
+    TWallet.Load;
 
     // Load peer list
-    ips := FAppParams.ParamByName[CT_PARAM_TryToConnectOnlyWithThisFixedServers].GetAsString('');
+    ips := TSettings.TryConnectOnlyWithThisFixedServers;
     TNode.DecodeIpStringToNodeServerAddressArray(ips,nsarr);
     TNetData.NetData.DiscoverFixedServersOnly(nsarr);
     setlength(nsarr,0);
 
     // Start Node
     FNode := TNode.Node;
-    FNode.NetServer.Port := FAppParams.ParamByName[CT_PARAM_InternetServerPort].GetAsInteger(CT_NetServer_Port);
-    FNode.PeerCache := FAppParams.ParamByName[CT_PARAM_PeerCache].GetAsString('')+';'+CT_Discover_IPs;
+    FNode.NetServer.Port := TSettings.InternetServerPort;
+    FNode.PeerCache := TSettings.PeerCache+';'+CT_Discover_IPs;
 
     // Subscribe to Node events (TODO refactor with FNotifyEvents)
     FNodeNotifyEvents := TNodeNotifyEvents.Create(FMainForm);
@@ -251,10 +232,10 @@ begin
 
     // Start RPC server
     FRPCServer := TRPCServer.Create;
-    FRPCServer.WalletKeys := WalletKeys;
-    FRPCServer.Active := FAppParams.ParamByName[CT_PARAM_JSONRPCEnabled].GetAsBoolean(false);
-    FRPCServer.ValidIPs := FAppParams.ParamByName[CT_PARAM_JSONRPCAllowedIPs].GetAsString('127.0.0.1');
-    WalletKeys.SafeBox := FNode.Bank.SafeBox;
+    FRPCServer.WalletKeys := TWallet.Keys;
+    FRPCServer.Active := TSettings.RpcPortEnabled;
+    FRPCServer.ValidIPs := TSettings.RpcAllowedIPs;
+    TWallet.Keys.SafeBox := FNode.Bank.SafeBox;
 
     // Initialise Database
     FNode.Bank.StorageClass := TFileStorage;
@@ -275,9 +256,6 @@ begin
     FTimerUpdateStatus.OnTimer := OnTimerUpdateStatusTimer;
     FTimerUpdateStatus.Interval := 1000;
     FTimerUpdateStatus.Enabled := true;
-
-    // Load app params
-    LoadAppParams;
 
     // open the sync dialog
     FMainForm.SyncControl.UpdateBlockChainState;   //TODO fix this work-flow
@@ -309,11 +287,12 @@ begin
   // Show sync dialog
   ShowSyncDialog;
 
-  // Show about box if first time load
-  if FAppParams.ParamByName[CT_PARAM_FirstTime].GetAsBoolean(true) then begin
-    FAppParams.ParamByName[CT_PARAM_FirstTime].SetAsBoolean(false);
+  // Final loading sequence
+  TSettings.RunCount := TSettings.RunCount + 1;
+  if TSettings.RunCount = 1 then begin
     ShowAboutBox(nil);
   end;
+  TSettings.Save;
 end;
 
 class procedure TUserInterface.ExitApplication;
@@ -324,8 +303,9 @@ begin
   // Exit application
   TLog.NewLog(ltinfo,Classname,'Quit Application - START');
   Try
-    step := 'Saving params';
-    SaveAppParams;
+    step := 'Saving Settings';
+    TSettings.OnChanged.Remove(OnSettingsChanged);
+    TSettings.Save;
 
     // Destroys root form, non-modal forms and all their attached components
     step := 'Destroying UI graph';
@@ -339,8 +319,6 @@ begin
     FNodesForm := nil;  // destroyed by FWallet
     FMessagesForm := nil;  // destroyed by FWallet
     FTrayIcon := nil; // destroyed by FWallet
-    FAppParams := nil; // destroyed by FWallet
-    FWalletKeys := nil; // destroyed by FWallet
     FNodeNotifyEvents := nil; // destroyed by FWallet
 
     step := 'Destroying components';
@@ -407,11 +385,11 @@ end;
 class procedure TUserInterface.FinishedLoadingDatabase;
 begin
   FPoolMiningServer := TPoolMiningServer.Create;
-  FPoolMiningServer.Port := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port);
-  FPoolMiningServer.MinerAccountKey := GetAccountKeyForMiner;
-  FPoolMiningServer.MinerPayload := FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString('');
-  FNode.Operations.AccountKey := GetAccountKeyForMiner;
-  FPoolMiningServer.Active := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].GetAsBoolean(true);
+  FPoolMiningServer.Port := TSettings.MinerServerRpcPort;
+  FPoolMiningServer.MinerAccountKey := TWallet.MiningKey;
+  FPoolMiningServer.MinerPayload := TSettings.MinerName;
+  FNode.Operations.AccountKey := TWallet.MiningKey;
+  FPoolMiningServer.Active := TSettings.MinerServerRpcActive;
   FPoolMiningServer.OnMiningServerNewBlockFound := OnMiningServerNewBlockFound;
   FMainForm.SyncControl.OnFinishedLoadingDatabase;
   FMainForm.OnFinishedLoadingDatabase;
@@ -437,12 +415,7 @@ class procedure TUserInterface.ShowOptionsDialog(parentForm: TForm);
 begin
   With TFRMPascalCoinWalletConfig.Create(parentForm) do
   try
-    AppParams := FAppParams;
-    WalletKeys := FWalletKeys;
-    if ShowModal=MrOk then begin
-      SaveAppParams;
-      NotifyConfigChanged;
-    end;
+    ShowModal
   finally
     Free;
   end;
@@ -452,7 +425,7 @@ class procedure TUserInterface.ShowOperationInfoDialog(parentForm: TForm; const 
 begin
   with TFRMPayloadDecoder.Create(parentForm) do
   try
-    Init(CT_TOperationResume_NUL, TUserInterface.WalletKeys,TUserInterface.AppParams);
+    Init(CT_TOperationResume_NUL);
     if ophash <> '' then
       DoFind(ophash);
     ShowModal;
@@ -465,7 +438,7 @@ class procedure TUserInterface.ShowOperationInfoDialog(parentForm: TForm; const 
 begin
   with TFRMPayloadDecoder.Create(parentForm) do
   try
-    Init(operation, TUserInterface.WalletKeys,TUserInterface.AppParams);
+    Init(operation);
     ShowModal;
   finally
     Free;
@@ -481,22 +454,9 @@ begin
   Try
     SenderAccounts.CopyFrom(accounts);
     DefaultFee := defaultFee;
-    WalletKeys := FWalletKeys;
     ShowModal;
   Finally
     Free;
-  End;
-end;
-
-class procedure TUserInterface.ShowWalletKeysDialog(parentForm : TForm);
-var FRM : TFRMWalletKeys;
-begin
-  FRM := TFRMWalletKeys.Create(parentForm);
-  Try
-    FRM.WalletKeys := FWalletKeys;
-    FRM.ShowModal;
-  Finally
-    FRM.Free;
   End;
 end;
 
@@ -515,12 +475,12 @@ class procedure TUserInterface.ShowPrivateKeysDialog(parentForm: TForm);
 Var FRM : TFRMWalletKeys;
 begin
   FRM := TFRMWalletKeys.Create(parentForm);
-  Try
-    FRM.WalletKeys := FWalletKeys;
+  try
+    //FRM.WalletKeys := FWalletKeys;
     FRM.ShowModal;
-  Finally
+  finally
     FRM.Free;
-  End;
+  end;
 end;
 
 class procedure TUserInterface.ShowMemoText(parentForm: TForm; const ATitle : AnsiString; text : TStrings);
@@ -536,40 +496,63 @@ begin
   end;
 end;
 
-class procedure TUserInterface.ChangeWalletPassword(parentForm: TForm; walletKeys : TWalletKeys);
-Var s,s2 : String;
+class procedure TUserInterface.ChangeWalletPassword(parentForm: TForm);
+var
+  s,s2 : String;
+  locked : boolean;
 begin
-  if walletKeys = nil then walletKeys := FWalletKeys;
   s := ''; s2 := '';
-  if Not InputQuery('Change password','Enter new password',s) then exit;
-  if trim(s)<>s then raise Exception.Create('Password cannot start or end with a space character');
-  if Not InputQuery('Change password','Enter new password again',s2) then exit;
-  if s<>s2 then raise Exception.Create('Two passwords are different!');
+  locked := (NOT TWallet.Keys.HasPassword) OR (NOT TWallet.Keys.IsValidPassword);
+  if Not AskEnterProtectedString(parentForm, 'Change password','Enter new password',s)
+    then exit;
+  if trim(s)<>s then
+    raise Exception.Create('Password cannot start or end with a space character');
+  if Not AskEnterProtectedString(parentForm, 'Change password', 'Enter new password again',s2)
+    then exit;
+  if s<>s2 then
+    raise Exception.Create('Two passwords are different!');
+  TWallet.Keys.WalletPassword := s;
+  if locked then
+    TWallet.Keys.LockWallet;
 
-  walletKeys.WalletPassword := s;
-  Application.MessageBox(PChar('Password changed!'+#10+#10+
-    'Please note that your new password is "'+s+'"'+#10+#10+
-    '(If you lose this password, you will lose your wallet forever!)'),
-    PChar(Application.Title),MB_ICONWARNING+MB_OK);
+  ShowWarning(parentform,
+  'Password Changed',
+  'Your password has been changed.' + #10+#10 +
+  'Please ensure you remember your password.'+#10+
+  'If you lose your password your accounts and funds will be lost forever.');
 end;
 
-class procedure TUserInterface.UnlockWallet(parentForm: TForm; walletKeys : TWalletKeys);
+class procedure TUserInterface.UnlockWallet(parentForm: TForm);
 Var s : String;
 begin
-  if walletKeys = nil then walletKeys := FWalletKeys;
   s := '';
   Repeat
-    if Not InputQuery('Wallet password','Enter wallet password',s) then exit;
-    walletKeys.WalletPassword := s;
-    if Not walletKeys.IsValidPassword then Application.MessageBox(PChar('Invalid password'),PChar(Application.Title),MB_ICONERROR+MB_OK);
-  Until walletKeys.IsValidPassword;
-  //UpdateWalletKeys;
+    if Not AskEnterProtectedString(parentForm, 'Wallet password','Enter wallet password',s) then exit;
+    TWallet.Keys.WalletPassword := s;
+    if Not TWallet.Keys.IsValidPassword then
+      ShowError(parentForm, 'Invalid Password', 'The password you have entered is incorrect.');
+  Until TWallet.Keys.IsValidPassword;
 end;
 
-class function TUserInterface.AskQuestion(parentForm: TForm; const ACaption, APrompt : String; buttons: TMsgDlgButtons) : TMsgDlgBtn;
+class procedure TUserInterface.ShowInfo(parentForm : TForm; const ACaption, APrompt : String);
+begin
+  MessageDlg(ACaption, APrompt, mtInformation, [mbOK], 0, mbOK);
+end;
+
+class procedure TUserInterface.ShowWarning(parentForm : TForm; const ACaption, APrompt : String);
+begin
+  MessageDlg(ACaption, APrompt, mtWarning, [mbOK], 0, mbOK);
+end;
+
+class procedure TUserInterface.ShowError(parentForm : TForm; const ACaption, APrompt : String);
+begin
+  MessageDlg(ACaption, APrompt, mtError, [mbOK], 0, mbOK);
+end;
+
+class function TUserInterface.AskQuestion(parentForm: TForm; AType:TMsgDlgType; const ACaption, APrompt : String; buttons: TMsgDlgButtons) : TMsgDlgBtn;
 var modalResult : TModalResult;
 begin
-  modalResult := MessageDlg(ACaption, APrompt, mtConfirmation, Buttons, 0, mbNo);
+  modalResult := MessageDlg(ACaption, APrompt, AType, Buttons, 0, mbNo);
   case modalResult of
     mrYes: Result := mbYes;
     mrNo: Result := mbNo;
@@ -586,9 +569,14 @@ begin
   end;
 end;
 
-class function TUserInterface.AskUserEnterString(parentForm: TForm; const ACaption, APrompt : String; var Value : String) : Boolean;
+class function TUserInterface.AskEnterString(parentForm: TForm; const ACaption, APrompt : String; var Value : String) : Boolean;
 begin
   Result := InputQuery(ACaption, APrompt, Value);
+end;
+
+class function TUserInterface.AskEnterProtectedString(parentForm: TForm; const ACaption, APrompt : String; var Value : String) : Boolean;
+begin
+  Result := InputQuery(ACaption, APrompt, true, Value);
 end;
 
 {%endregion}
@@ -732,41 +720,6 @@ begin
   end;
 end;
 
-class function TUserInterface.GetAccountKeyForMiner: TAccountKey;
-Var PK : TECPrivateKey;
-  i : Integer;
-  PublicK : TECDSA_Public;
-begin
-  Result := CT_TECDSA_Public_Nul;
-  if Not Assigned(FWalletKeys) then exit;
-  if Not Assigned(FAppParams) then exit;
-  case FMinerPrivateKeyType of
-    mpk_NewEachTime: PublicK := CT_TECDSA_Public_Nul;
-    mpk_Selected: begin
-      PublicK := TAccountComp.RawString2Accountkey(FAppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].GetAsString(''));
-    end;
-  else
-    // Random
-    PublicK := CT_TECDSA_Public_Nul;
-    if FWalletKeys.Count>0 then PublicK := FWalletKeys.Key[Random(FWalletKeys.Count)].AccountKey;
-  end;
-  i := FWalletKeys.IndexOfAccountKey(PublicK);
-  if i>=0 then begin
-    if (FWalletKeys.Key[i].CryptedKey='') then i:=-1;
-  end;
-  if i<0 then begin
-    PK := TECPrivateKey.Create;
-    try
-      PK.GenerateRandomPrivateKey(CT_Default_EC_OpenSSL_NID);
-      FWalletKeys.AddPrivateKey('New for miner '+DateTimeToStr(Now), PK);
-      PublicK := PK.PublicKey;
-    finally
-      PK.Free;
-    end;
-  end;
-  Result := PublicK;
-end;
-
 class procedure TUserInterface.RefreshConnectionStatusDisplay;
 var errors : AnsiString;
 begin
@@ -791,49 +744,8 @@ end;
 
 {%endregion}
 
+
 {%region Auxillary methods}
-
-class procedure TUserInterface.SaveAppParams;
-Var ms : TMemoryStream;
-  s : AnsiString;
-begin
-  // Disabled in V2 (Herman)
-  FAppParams.ParamByName[CT_PARAM_GridAccountsStream].SetAsString('');
-  //ms := TMemoryStream.Create;
-  //Try
-  //  AccountExplorer.AccountsGrid.SaveToStream(ms);
-  //  ms.Position := 0;
-  //  setlength(s,ms.Size);
-  //  ms.ReadBuffer(s[1],ms.Size);
-  //  FAppParams.ParamByName[CT_PARAM_GridAccountsStream].SetAsString(s);
-  //Finally
-  //  ms.Free;
-  //End;
-end;
-
-class procedure TUserInterface.LoadAppParams;
-Var
-  s : AnsiString;
-  fvi : TFileVersionInfo;
-begin
-  // Disabled in V2 (HS)
-  //ms := TMemoryStream.Create;
-  //Try
-  //  s := FAppParams.ParamByName[CT_PARAM_GridAccountsStream].GetAsString('');
-  //  ms.WriteBuffer(s[1],length(s));
-  //  ms.Position := 0;
-  //  // Disabled on V2: FAccountsGrid.LoadFromStream(ms);
-  //Finally
-  //  ms.Free;
-  //End;
-  If FAppParams.FindParam(CT_PARAM_MinerName)=Nil then begin
-    // New configuration... assigning a new random value
-    fvi := TFolderHelper.GetTFileVersionInfo(Application.ExeName);
-    FAppParams.ParamByName[CT_PARAM_MinerName].SetAsString('New Node '+DateTimeToStr(Now)+' - '+
-      fvi.InternalName+' Build:'+fvi.FileVersion);
-  end;
-  NotifyConfigChanged;
-end;
 
 class procedure TUserInterface.SetMainFormMode(AMode: TFRMMainFormMode);
 begin
@@ -848,42 +760,6 @@ end;
 class function TUserInterface.GetMainFormMode : TFRMMainFormMode;
 begin
   Result := FMainForm.Mode;
-end;
-
-class procedure TUserInterface.NotifyConfigChanged;
-Var wa : Boolean;
-  i : Integer;
-begin
-  if FAppParams.ParamByName[CT_PARAM_SaveLogFiles].GetAsBoolean(false) then begin
-    if FAppParams.ParamByName[CT_PARAM_SaveDebugLogs].GetAsBoolean(false) then FLog.SaveTypes := CT_TLogTypes_ALL
-    else FLog.SaveTypes := CT_TLogTypes_DEFAULT;
-    FLog.FileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'PascalCointWallet.log';
-  end else begin
-    FLog.SaveTypes := [];
-    FLog.FileName := '';
-  end;
-  if Assigned(FNode) then begin
-    wa := FNode.NetServer.Active;
-    FNode.NetServer.Port := FAppParams.ParamByName[CT_PARAM_InternetServerPort].GetAsInteger(CT_NetServer_Port);
-    FNode.NetServer.Active := wa;
-    FNode.Operations.BlockPayload := FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString('');
-    FNode.NodeLogFilename := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'blocks.log';
-  end;
-  if Assigned(FPoolMiningServer) then begin
-    if FPoolMiningServer.Port<>FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port) then begin
-      FPoolMiningServer.Active := false;
-      FPoolMiningServer.Port := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port);
-    end;
-    FPoolMiningServer.Active :=FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].GetAsBoolean(true);
-    FPoolMiningServer.UpdateAccountAndPayload(GetAccountKeyForMiner,FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString(''));
-  end;
-  if Assigned(FRPCServer) then begin
-    FRPCServer.Active := FAppParams.ParamByName[CT_PARAM_JSONRPCEnabled].GetAsBoolean(false);
-    FRPCServer.ValidIPs := FAppParams.ParamByName[CT_PARAM_JSONRPCAllowedIPs].GetAsString('127.0.0.1');
-  end;
-  i := FAppParams.ParamByName[CT_PARAM_MinerPrivateKeyType].GetAsInteger(Integer(mpk_Random));
-  if (i>=Integer(Low(TMinerPrivatekey))) And (i<=Integer(High(TMinerPrivatekey))) then FMinerPrivateKeyType := TMinerPrivateKey(i)
-  else FMinerPrivateKeyType := mpk_Random;
 end;
 
 class procedure TUserInterface.SetStatusBar0Text(const text : AnsiString); static;
@@ -920,6 +796,41 @@ end;
 {%endregion}
 
 {%region Handlers -- TODO: many need to be refactored out with TNotifyManyEvent}
+
+class procedure TUserInterface.OnSettingsChanged(Sender: TObject);
+Var wa : Boolean;
+  i : Integer;
+begin
+  if TSettings.SaveLogFiles then begin
+    if TSettings.SaveDebugLogs then
+      FLog.SaveTypes := CT_TLogTypes_ALL
+    else
+      FLog.SaveTypes := CT_TLogTypes_DEFAULT;
+    FLog.FileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'PascalCointWallet.log';
+  end else begin
+    FLog.SaveTypes := [];
+    FLog.FileName := '';
+  end;
+  if Assigned(FNode) then begin
+    wa := FNode.NetServer.Active;
+    FNode.NetServer.Port := TSettings.InternetServerPort;
+    FNode.NetServer.Active := wa;
+    FNode.Operations.BlockPayload := TSettings.MinerName;
+    FNode.NodeLogFilename := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'blocks.log';
+  end;
+  if Assigned(FPoolMiningServer) then begin
+    if FPoolMiningServer.Port <> TSettings.MinerServerRpcPort then begin
+      FPoolMiningServer.Active := false;
+      FPoolMiningServer.Port := TSettings.MinerServerRpcPort;
+    end;
+    FPoolMiningServer.Active :=TSettings.MinerServerRpcActive;
+    FPoolMiningServer.UpdateAccountAndPayload(TWallet.MiningKey, TSettings.MinerName);
+  end;
+  if Assigned(FRPCServer) then begin
+    FRPCServer.Active := TSettings.RpcPortEnabled;
+    FRPCServer.ValidIPs := TSettings.RpcAllowedIPs;
+  end;
+end;
 
 class procedure TUserInterface.OnAccountsChanged(Sender: TObject);
 begin
@@ -976,7 +887,7 @@ begin
     if (s<>'') then s := s+';';
     s := s + nsarr[i].ip+':'+IntToStr( nsarr[i].port );
   end;
-  FAppParams.ParamByName[CT_PARAM_PeerCache].SetAsString(s);
+  TSettings.PeerCache := s;
   TNode.Node.PeerCache := s;
 end;
 
@@ -1038,7 +949,7 @@ end;
 class procedure TUserInterface.OnMiningServerNewBlockFound(Sender: TObject);
 begin
   // No lock required
-  FPoolMiningServer.MinerAccountKey := GetAccountKeyForMiner;
+  FPoolMiningServer.MinerAccountKey := TWallet.MiningKey;
 end;
 
 class procedure TUserInterface.OnTimerUpdateStatusTimer(Sender: TObject);

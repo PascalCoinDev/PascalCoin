@@ -20,7 +20,7 @@ interface
 uses
   LCLIntf, LCLType, LMessages,
   Classes, Grids, UNode, UAccounts, UBlockChain, UAppParams,
-  UWalletKeys, UCrypto, UPoolMining, URPC;
+  UWallet, UCrypto, UPoolMining, URPC;
 
 Type
   // TAccountsGrid implements a visual integration of TDrawGrid

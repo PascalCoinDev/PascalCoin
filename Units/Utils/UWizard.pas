@@ -5,9 +5,6 @@
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
-
-  Additional Credits:
-    <contributors add yourselves here>
 }
 
 unit UWizard;
@@ -27,10 +24,13 @@ const
   CT_WIZARD_DEFAULT_FINISH : AnsiString = '&Finish';
   CT_WIZARD_DEFAULT_TITLE : AnsiString = 'Wizard';
 
-
 type
   { Forward Declarations }
   TWizardForm<T> = class;
+
+  { Enums }
+
+  TPathUpdateType = (ptInject, ptReplaceAllNext, ptReplaceAll);
 
   { TWizardHostForm - the host form that contains the wizard screens. }
   TWizardHostForm = class(TForm)
@@ -73,11 +73,11 @@ type
   { TWizardForm is the base class for wizard screens }
   TWizardForm<T> = class(TForm)
     private
-      FBag : T;
+      FModel : T;
       //FWizard : TWizard<T>;  // FPG Bug: cyclic generic dependencies, via forward decls, don't work
     protected
-      InjectScreen : procedure (screen : TWizardForm<T>) of object;    // FPC Bug workaround: calling this is equivalent to FWizard.InjectScreen
-      property Bag : T read FBag write FBag;
+      UpdatePath : procedure (APathUpdateType: TPathUpdateType; const screens : array of TComponentClass) of object;    // FPC Bug workaround: calling this is equivalent to FWizard.InjectScreen
+      property Model : T read FModel write FModel;
 
     public
       procedure Initialize; virtual;
@@ -88,18 +88,19 @@ type
    end;
 
   { TWizard - Base class for wizards. Encapsulates the entire wizard flow. }
-  TWizard<T> = class
+  TWizard<T> = class(TComponent)
     type
       __TScreenType = TWizardForm<T>; // FPC Bug: doesn't support nested generics
-      TWizardFormList = TList<__TScreenType>;
-
+      __TList_TComponentClass = TList<TComponentClass>;
     private
         FHost : TWizardHostForm;
         FStarted : Boolean;
         FFinished : Boolean;
         FCurrentScreen : TWizardForm<T>;
-        FPropertyBag : T;
-        FScreens :  TWizardFormList;
+        FModel : T;
+        FScreenPath : TList<TComponentClass>;
+        FScreenPathBackup : TDictionary<SizeInt, __TList_TComponentClass>;
+        FScreenInstances : TDictionary<TComponentClass, __TScreenType>;
         FCurrentScreenIndex : Integer;
         FNextText : AnsiString;
         FPreviousText : AnsiString;
@@ -111,31 +112,32 @@ type
         procedure NextHandler(sender : TObject);
         procedure PreviousHandler(sender : TObject);
     protected
+        function CreateScreen(AType: TComponentClass) : TWizardForm<T>;
         function DetermineHasNext : boolean; virtual;
         function DetermineHasPrevious : boolean; virtual;
         procedure PresentScreen(screen : TWizardForm<T>); virtual;
         function FinishRequested(out message : AnsiString) : boolean; virtual; abstract;
         function CancelRequested(out message : AnsiString) : boolean; virtual; abstract;
     public
-        constructor Create(constref propertyBag : T; screens: array of TWizardForm<T>);
+        constructor Create(AOwner:TComponent; const screens: array of TComponentClass); overload;
         destructor Destroy; override;
-        property PropertyBag : T read FPropertyBag;
+        property CurrentScreen : TWizardForm<T> read FCurrentScreen;
+        property Model : T read FModel;
         property HasNext : boolean read DetermineHasNext;
         property HasPrevious : boolean read DetermineHasPrevious;
         property NextText : AnsiString read FNextText write FNextText;
         property PreviousText : AnsiString read FPreviousText write FPreviousText;
         property FinishText : AnsiString read FFinishText write FFinishText;
         property TitleText : AnsiString read FTitleText write FTitleText;
-        procedure Start(AOwner : TComponent); virtual;
+        procedure Start(constref model : T); virtual;
         procedure Next; virtual;
         procedure Previous; virtual;
-        procedure InjectScreen(screen : TWizardForm<T>); virtual;
-        procedure RemoveScreen(screen : TWizardForm<T>); virtual;
+        procedure UpdatePath(APathUpdateType: TPathUpdateType; const screens : array of TComponentClass); virtual;
   end;
 
   { TActioWizard Delegate Declarations }
-  TActionWizardCancelFunc<T> = function(screenIndex : Integer; constref propertyBag : T; out message : AnsiString) : boolean of object;
-  TActionWizardFinishFunc<T> = function(constref  propertyBag : T; out message : AnsiString) : boolean of object;
+  TActionWizardCancelFunc<T> = function(screenIndex : Integer; constref model : T; out message : AnsiString) : boolean of object;
+  TActionWizardFinishFunc<T> = function(constref  model : T; out message : AnsiString) : boolean of object;
 
   { TActionWizard - a generic Wizard that can be used without subclassing }
   TActionWizard<T> = class(specialize TWizard<T>)
@@ -146,8 +148,8 @@ type
       function CancelRequested(out message : AnsiString) : boolean; override;
       function FinishRequested(out message : AnsiString) : boolean; override;
     public
-      constructor Create(title, finish: AnsiString; constref bag : T; screens : array of TWizardForm<T>; cancelFunc: TActionWizardCancelFunc<T>; finishFunc : TActionWizardFinishFunc<T>);
-      class procedure Show(AOwner : TComponent; title, finish: AnsiString; constref bag : T; screens : array of TWizardForm<T>; cancelFunc: TActionWizardCancelFunc<T>; finishFunc : TActionWizardFinishFunc<T>);
+      constructor Create(AOwner:TComponent; title, finish: AnsiString; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc<T>; finishFunc : TActionWizardFinishFunc<T>);
+      class procedure Show(AParent: TForm; title, finish: AnsiString; constref bag : T; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc<T>; finishFunc : TActionWizardFinishFunc<T>);
       property FinishText : AnsiString read FTitleText;
       property TitleText : AnsiString read FFinishText;
   end;
@@ -294,11 +296,12 @@ end;
 
 {%region TWizard }
 
-constructor TWizard<T>.Create(constref propertyBag : T; screens: array of TWizardForm<T>);
+constructor TWizard<T>.Create(AOwner:TComponent; const screens: array of TComponentClass);
 var
    i : integer;
    screen : TWizardForm<T>;
 begin
+  inherited Create(AOwner);
   if Length(screens) = 0 then
     raise Exception.Create('Wizard needs at least 1 screen');
 
@@ -309,24 +312,45 @@ begin
   self.FTitleText := CT_WIZARD_DEFAULT_TITLE;
   self.FStarted := false;
   self.FFinished := false;
-  self.FPropertyBag := propertyBag;
-  self.FScreens := TWizardFormList.Create;
-  for i := Low(screens) to High(screens) do begin
-    screen := screens[i];
-    screen.InjectScreen := InjectScreen;
-    FScreens.Add(screen);
-  end;
+  self.FScreenPath := TList<TComponentClass>.Create;
+  self.FScreenInstances := TDictionary<TComponentClass, __TScreenType>.Create;
+
+  // Create the screen path
+  UpdatePath(ptReplaceAll, screens);
+  FScreenPathBackup := TDictionary<SizeInt, __TList_TComponentClass>.Create;
 end;
 
 destructor TWizard<T>.Destroy;
 var
   i : integer;
+  screen : TWizardForm<T>;
+  key : TComponentClass;
+  backup : TList<TComponentClass>;
 begin
-  for i:= 0 to FScreens.Count - 1 do begin
-    FScreens[i].Destroy;
+  // screens destroyed as sub-components
+  for screen in FScreenInstances.Values do begin
+    if screen.Owner = nil then
+      screen.Free; // only destroy if dangling screen component
   end;
-  FScreens.Destroy;
+  FScreenInstances.Free;
+  FScreenPath.Free;
+  for backup in FScreenPathBackup.Values do
+    backup.Free;
+  FScreenPathBackup.Free;
+  inherited Destroy;
   // note: Property bag not destroyed, left for user to destroy
+end;
+
+function TWizard<T>.CreateScreen(AType: TComponentClass) : TWizardForm<T>;
+begin
+  if NOT FScreenInstances.ContainsKey(AType) then begin
+    Result := TWizardForm<T>(AType.Create(self));
+    if Result = nil then
+      raise Exception.Create('Supplied type was not correct TWizardForm<T> type');
+    Result.UpdatePath := UpdatePath;
+    FScreenInstances.Add(AType, Result);
+    Result.Initialize;
+  end else Result := FScreenInstances[AType];
 end;
 
 function TWizard<T>.CalculateFitSize : TPoint;
@@ -336,8 +360,7 @@ var
 begin
   maxWidth := 0;
   maxHeight := 0;
-  for i := 0 to self.FScreens.Count - 1 do begin
-    screen := self.FScreens[i];
+  for screen in FScreenInstances.Values do begin
     if screen.Width > maxWidth then maxWidth := screen.Width;
     if screen.Height > maxHeight then maxHeight := screen.Height;
   end;
@@ -347,7 +370,7 @@ end;
 function TWizard<T>.DetermineHasNext : boolean;
 begin
    CheckStarted;
-   DetermineHasNext := FCurrentScreenIndex < FScreens.Count - 1;
+   DetermineHasNext := FCurrentScreenIndex < FScreenPath.Count - 1;
 end;
 
 function TWizard<T>.DetermineHasPrevious : boolean;
@@ -356,12 +379,13 @@ begin
   DetermineHasPrevious := FCurrentScreenIndex > 0;
 end;
 
-procedure TWizard<T>.Start(AOwner : TComponent);
+procedure TWizard<T>.Start(constref model : T);
 var
   i : integer;
 begin
   CheckNotStarted;
-  self.FHost := TWizardHostForm.Create(AOwner);
+  self.FModel := model;
+  self.FHost := TWizardHostForm.Create(Self.GetParentComponent);
   self.FHost.NextEvent.Add(NextHandler);
   self.FHost.PreviousEvent.Add(PreviousHandler);
   self.FHost.CloseQueryEvent := CancelRequested;
@@ -371,14 +395,13 @@ begin
   self.FCurrentScreenIndex := 0;
   self.FStarted := true;
   self.FFinished := false;
-  for i := 0 to self.FScreens.Count - 1 do begin
-    FScreens[i].Bag := self.PropertyBag;
-    FScreens[i].Initialize;
-  end;
   self.FHost.SetContentSize ( CalculateFitSize );
-  self.PresentScreen(FScreens[FCurrentScreenIndex]);
+  self.FScreenPathBackup.Add(0, TList<TComponentClass>.Create(FScreenPath));
+  self.PresentScreen(FScreenInstances[FScreenPath[FCurrentScreenIndex]]);
+  //self.FHost.NextEvent.Remove(NextHandler);
+  //self.FHost.PreviousEvent.Remove(PreviousHandler);
   self.FHost.ShowModal;
-  self.FHost.Destroy;
+  self.FHost.Free;
   self.FHost := nil;
 end;
 
@@ -391,10 +414,16 @@ begin
     ShowMessage (message);
     exit;
   end;
-  FCurrentScreen.Next;
+  FCurrentScreen.OnNext;
+  FModel := FCurrentScreen.Model; // Restore model in case it's a record
   if HasNext then begin
     inc(FCurrentScreenIndex);
-    PresentScreen(FScreens[FCurrentScreenIndex]);
+    // Backup current path in case user goes back
+    if FScreenPathBackup.ContainsKey(FCurrentScreenIndex) then begin
+      FScreenPathBackup[FCurrentScreenIndex].Free;
+    end;
+    FScreenPathBackup.AddOrSetValue(FCurrentScreenIndex, TList<TComponentClass>.Create(FScreenPath));
+    PresentScreen(FScreenInstances[FScreenPath[FCurrentScreenIndex]]);
     exit;
   end;
 
@@ -409,30 +438,56 @@ procedure TWizard<T>.Previous;
 begin
   CheckStarted;
   if not HasPrevious then exit;
-  FCurrentScreen.Previous;
+  FCurrentScreen.OnPrevious;
+  FModel := FCurrentScreen.Model; // Restore model in case it's a record
   dec (FCurrentScreenIndex);
-  PresentScreen(FScreens[FCurrentScreenIndex]);
+
+  // Restore backup path when this screen was first displayed
+  FScreenPath.Free;
+  FScreenPath := TList<TComponentClass>.Create(FScreenPathBackup[FCurrentScreenIndex]);
+  PresentScreen(FScreenInstances[FScreenPath[FCurrentScreenIndex]]);
 end;
 
-procedure TWizard<T>.InjectScreen(screen : TWizardForm<T>);
+procedure TWizard<T>.UpdatePath(APathUpdateType: TPathUpdateType; const screens : array of TComponentClass);
+var
+  i, n : SizeInt;
 begin
-  CheckStarted;
-  screen.Initialize;
-  FScreens.Insert(FCurrentScreenIndex + 1, screen );
-  self.FHost.SetContentSize ( CalculateFitSize );
-  FHost.NextText := IIF(NOT HasNext, FinishText, NextText);
-end;
-
-procedure TWizard<T>.RemoveScreen(screen : TWizardForm<T>);
-begin
-  CheckStarted;
-  FScreens.Remove(screen);
-  screen.Destroy;
+  case APathUpdateType of
+    ptInject: begin
+      for i := Low(screens) to High(screens) do begin
+        n := FCurrentScreenIndex + 1 + i - Low(screens);
+        if FScreenPath[n] <> screens[i] then begin
+          // only insert screen if not already there
+          FScreenPath.Insert(n, screens[i]);
+          CreateScreen(screens[i]);
+        end;
+      end;
+    end;
+    ptReplaceAllNext: begin
+      FScreenPath.DeleteRange(FCurrentScreenIndex + 1, FScreenPath.Count - FCurrentScreenIndex - 1);
+      for i := Low(screens) to High(screens) do begin
+        FScreenPath.Add(screens[i]);
+        CreateScreen(screens[i]);
+      end;
+    end;
+    ptReplaceAll: begin
+      FScreenPath.Clear;
+      for i := Low(screens)to High(screens) do begin
+        FScreenPath.Add(screens[i]);
+        CreateScreen(screens[i]);
+      end;
+    end;
+  end;
+  if Assigned(FHost) then begin
+    FHost.SetContentSize ( CalculateFitSize );
+    FHost.NextText := IIF(NOT HasNext, FinishText, NextText);
+  end;
 end;
 
 procedure TWizard<T>.PresentScreen(screen : TWizardForm<T>);
 begin
   FCurrentScreen := screen;
+  FCurrentScreen.Model := Model;
   FHost.HidePrevious := NOT HasPrevious;
   FHost.NextText := IIF( NOT HasNext, FinishText, NextText);
   FHost.SetContent(screen);
@@ -459,45 +514,44 @@ begin
   Previous;
 end;
 
-
 {%endregion}
 
 {%region TActionWizard }
 
-constructor TActionWizard<T>.Create(title, finish: AnsiString; constref bag : T; screens : array of TWizardForm<T>; cancelFunc: TActionWizardCancelFunc<T>; finishFunc : TActionWizardFinishFunc<T>);
+constructor TActionWizard<T>.Create(AOwner: TComponent; title, finish: AnsiString; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc<T>; finishFunc : TActionWizardFinishFunc<T>);
 begin
-  inherited Create(bag, screens);
+  inherited Create(AOwner, screens);
   self.FTitleText := title;
   self.FFinishText := finishText;
   self.FCancelEvent := cancelFunc;
   self.FFinishEvent := finishFunc;
 end;
 
-class procedure TActionWizard<T>.Show(AOwner : TComponent; title, finish: AnsiString; constref bag : T; screens : array of TWizardForm<T>; cancelFunc: TActionWizardCancelFunc<T>; finishFunc : TActionWizardFinishFunc<T>);
+class procedure TActionWizard<T>.Show(AParent: TForm; title, finish: AnsiString; constref bag : T; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc<T>; finishFunc : TActionWizardFinishFunc<T>);
 type
   MyWizard = TActionWizard<T>;
 var
   wizard : MyWizard;
 begin
-  wizard := MyWizard.Create(title, finish, bag, screens, cancelFunc, finishFunc);
+  wizard := MyWizard.Create(nil, title, finish, screens, cancelFunc, finishFunc);
   try
-    wizard.Start(AOwner);
+    wizard.Start(bag);
   finally
-    wizard.Destroy;
+    wizard.Free;
   end;
 end;
 
 function TActionWizard<T>.CancelRequested(out message : AnsiString) : boolean;
 begin
   if Assigned(FCancelEvent) and NOT FFinished then
-    Result := FCancelEvent(Self.FCurrentScreenIndex, self.PropertyBag, message)
+    Result := FCancelEvent(Self.FCurrentScreenIndex, self.Model, message)
   else Result := true;
 end;
 
 function TActionWizard<T>.FinishRequested(out message : AnsiString) : boolean;
 begin
   if Assigned(FFinishEvent) then
-    Result := FFinishEvent(self.PropertyBag, message)
+    Result := FFinishEvent(self.Model, message)
   else Result := true;
   FFinished := true;
 end;
@@ -505,4 +559,3 @@ end;
 {%endregion}
 
 end.
-

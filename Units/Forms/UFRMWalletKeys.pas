@@ -2,463 +2,154 @@ unit UFRMWalletKeys;
 
 {$mode delphi}
 
-{ Copyright (c) 2016 by Albert Molina
+{ Copyright (c) 2018 by Herman Schoenfeld
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
-
-  If you like it, consider a donation using BitCoin:
-  16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
-
-  }
+  Acknowledgements:
+  - Albert Molina: portions of code copied from https://github.com/PascalCoin/PascalCoin/blob/master/Units/Forms/UFRMWallet.pas
+}
 
 interface
 
-{$I ./../PascalCoin/config.inc}
-
 uses
-  Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, UCommonUI, UWalletKeys, Buttons,
-  LMessages, clipbrd, UConst, UCommon;
+  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Messages,
+  Buttons, Menus, UCommonUI, UWallet;
 
-Const
-  CM_PC_WalletKeysChanged = LM_USER + 1;
+const
+  CM_PC_WalletChanged = WM_USER + 1;
 
 type
+
+  { TFRMWalletKeys }
+
   TFRMWalletKeys = class(TApplicationForm)
-    lbWalletKeys: TListBox;
-    bbExportPrivateKey: TBitBtn;
-    lblEncryptionTypeCaption: TLabel;
+    btnChangePassword: TBitBtn;
+    btnBackupWallet: TBitBtn;
+    btnAddKey: TSpeedButton;
+    btnLock: TSpeedButton;
+    btnRestoreBackup: TBitBtn;
+    ilIcons: TImageList;
     lblEncryptionType: TLabel;
-    lblKeyNameCaption: TLabel;
+    lblEncryptionTypeCaption: TLabel;
     lblKeyName: TLabel;
-    lblPrivateKeyCaption: TLabel;
-    memoPrivateKey: TMemo;
-    bbChangeName: TBitBtn;
-    bbImportPrivateKey: TBitBtn;
-    bbExportPublicKey: TBitBtn;
-    bbImportPublicKey: TBitBtn;
-    bbGenerateNewKey: TBitBtn;
-    lblPrivateKeyCaption2: TLabel;
-    bbDelete: TBitBtn;
+    lblKeyNameCaption: TLabel;
     lblKeysEncrypted: TLabel;
-    bbUpdatePassword: TBitBtn;
-    bbExportAllWalletKeys: TBitBtn;
-    SaveDialog: TSaveDialog;
-    bbImportKeysFile: TBitBtn;
+    lblPrivateKeyCaption: TLabel;
+    lbWalletKeys: TListBox;
+    memoPublicKey: TMemo;
+    btnCopyClipboard: TSpeedButton;
+    miDeleteKey: TMenuItem;
+    miExportPublicKey: TMenuItem;
+    miExportPrivateKey: TMenuItem;
+    miChangeName: TMenuItem;
+    miSep1: TMenuItem;
     OpenDialog: TOpenDialog;
-    bbLock: TBitBtn;
+    pmKeyMenu: TPopupMenu;
+    SaveDialog: TSaveDialog;
+    procedure btnAddKeyClick(Sender: TObject);
+    procedure btnBackupWalletClick(Sender: TObject);
+    procedure btnChangePasswordClick(Sender: TObject);
+    procedure btnCopyClipboardClick(Sender: TObject);
+    procedure btnDeleteKeyClick(Sender: TObject);
+    procedure btnLockClick(Sender: TObject);
+    procedure btnRestoreBackupClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
-    procedure bbChangeNameClick(Sender: TObject);
-    procedure bbExportPrivateKeyClick(Sender: TObject);
-    procedure bbImportPrivateKeyClick(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
     procedure lbWalletKeysClick(Sender: TObject);
-    procedure bbGenerateNewKeyClick(Sender: TObject);
-    procedure bbExportPublicKeyClick(Sender: TObject);
-    procedure bbDeleteClick(Sender: TObject);
-    procedure bbImportPublicKeyClick(Sender: TObject);
-    procedure bbUpdatePasswordClick(Sender: TObject);
-    procedure bbExportAllWalletKeysClick(Sender: TObject);
-    procedure bbImportKeysFileClick(Sender: TObject);
-    procedure bbLockClick(Sender: TObject);
+    procedure miChangeNameClick(Sender: TObject);
+    procedure miDeleteKeyClick(Sender: TObject);
+    procedure miExportPrivateKeyClick(Sender: TObject);
+    procedure miExportPublicKeyClick(Sender: TObject);
   private
-    //FOldOnChanged : TNotifyEvent;
-    FWalletKeys: TWalletKeys;
-    procedure SetWalletKeys(const Value: TWalletKeys);
-    procedure OnWalletKeysChanged(Sender : TObject);
-    { Private declarations }
-    Procedure UpdateWalletKeys;
-    Procedure UpdateSelectedWalletKey;
-    Function GetSelectedWalletKey(var WalletKey : TWalletKey) : Boolean;
-    Function GetSelectedWalletKeyAndIndex(var WalletKey : TWalletKey; var index : Integer) : Boolean;
-    Procedure CheckIsWalletKeyValidPassword;
-    procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
+    { private declarations }
+    procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletChanged;
+    procedure OnWalletChanged(Sender: TObject);
+    procedure RefreshUI;
+    function GetSelectedWalletKey(var WalletKey: TWalletKey): Boolean;
+    function GetSelectedWalletKeyAndIndex(var WalletKey: TWalletKey; var index: Integer): Boolean;
+  protected
+    function CheckIsWalletKeyValidPassword : boolean;
+    procedure ToggleWalletLock;
+    procedure AddNewKey;
+    procedure DeleteSelectedKey;
+    procedure UpdateSelectedWalletKey;
+    procedure ChangeSelectedKeyName;
+    procedure ExportSelectedPrivateKey;
+    procedure ExportSelectedPublicKey(notify:boolean);
+    procedure ChangeWalletPassword;
+    procedure BackupWallet;
+    procedure RestoreWallet;
   public
-    { Public declarations }
-    Property WalletKeys : TWalletKeys read FWalletKeys write SetWalletKeys;
-    Destructor Destroy; override;
+    { public declarations }
   end;
+
 
 implementation
 
-uses
-  LCLIntf, LCLType, UCrypto, UAccounts, UUserInterface, UFRMNewPrivateKeyType, UAES;
-
 {$R *.lfm}
 
-{ TFRMWalletKeys }
+uses  LCLIntf, Clipbrd, UUserInterface, USettings, UCommon, UAccounts, UWIZAddKey, UAutoScope;
 
-procedure TFRMWalletKeys.bbChangeNameClick(Sender: TObject);
-Var wk : TWalletKey;
-  s : String;
-  index : integer;
-begin
-  if not GetSelectedWalletKeyAndIndex(wk,index) then exit;
-  s := wk.Name;
-  if InputQuery('Change name','Input new key name:',s) then begin
-    WalletKeys.SetName(index,s);
-    UpdateWalletKeys;
-  end;
-end;
-
-procedure TFRMWalletKeys.bbDeleteClick(Sender: TObject);
-Var wk : TWalletKey;
-  index : Integer;
-  s : String;
-begin
-  if Not GetSelectedWalletKeyAndIndex(wk,index) then exit;
-  s := 'Are you sure you want to delete the selected private key?'+#10+wk.Name+#10+#10+
-    'Please note that this will forever remove access to accounts using this key...';
-  if Application.MessageBox(Pchar(s),PChar('Delete key'),
-    MB_YESNO+MB_DEFBUTTON2+MB_ICONWARNING)<>Idyes then exit;
-  if Application.MessageBox(PChar('Are you sure you want to delete?'),PChar('Delete key'),
-    MB_YESNO+MB_DEFBUTTON2+MB_ICONWARNING)<>Idyes then exit;
-  WalletKeys.Delete(index);
-  UpdateWalletKeys;
-end;
-
-procedure TFRMWalletKeys.bbExportAllWalletKeysClick(Sender: TObject);
-Var efn : String;
-  fs : TFileStream;
-begin
-  if WalletKeys.Count<=0 then raise Exception.Create('Your wallet is empty. No keys!');
-  if ((WalletKeys.IsValidPassword) And (WalletKeys.WalletPassword='')) then begin
-    if Application.MessageBox(PChar('Your wallet has NO PASSWORD'+#10+#10+
-      'It is recommend to protect your wallet with a password prior to exporting it!'+#10+#10+
-      'Continue without password protection?'),PChar(Application.Title),MB_YESNO+MB_ICONWARNING+MB_DEFBUTTON2)<>IdYes then exit;
-  end;
-
-  if Not SaveDialog.Execute then exit;
-  efn := SaveDialog.FileName;
-  if FileExists(efn) then begin
-    if Application.MessageBox(PChar('This file exists:'+#10+efn+#10#10+'Overwrite?'),PChar(Application.Title),MB_YESNO+MB_ICONQUESTION+MB_DEFBUTTON2)<>IdYes then exit;
-  end;
-  fs := TFileStream.Create(efn,fmCreate);
-  try
-    fs.Size := 0;
-    WalletKeys.SaveToStream(fs);
-  finally
-    fs.Free;
-  end;
-  Application.MessageBox(PChar('Wallet key exported to a file:'+#10+efn),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
-end;
-
-procedure TFRMWalletKeys.bbExportPrivateKeyClick(Sender: TObject);
-Var wk : TWalletKey;
-  pwd1,pwd2, enc : String;
-begin
-  CheckIsWalletKeyValidPassword;
-  if Not GetSelectedWalletKey(wk) then exit;
-  if Assigned(wk.PrivateKey) then begin
-    if InputQuery('Export private key','Insert a password to export',pwd1) then begin
-      if InputQuery('Export private key','Repeat the password to export',pwd2) then begin
-        if pwd1<>pwd2 then raise Exception.Create('Passwords does not match!');
-        enc := TCrypto.ToHexaString( TAESComp.EVP_Encrypt_AES256( wk.PrivateKey.ExportToRaw,pwd1) );
-        Clipboard.AsText := enc;
-        Application.MessageBox(PChar('The password has been encrypted with your password and copied to the clipboard.'+
-          #10+#10+
-          'Password: "'+pwd1+'"'+#10+
-          #10+
-          'Encrypted key value (Copied to the clipboard):'+#10+
-          enc+
-          #10+#10+'Length='+Inttostr(length(enc))+' bytes'),
-          PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
-      end else raise Exception.Create('Cancelled operation');
-    end;
-  end;
-end;
-
-procedure TFRMWalletKeys.bbExportPublicKeyClick(Sender: TObject);
-Var wk : TWalletKey;
-  s : String;
-begin
-  CheckIsWalletKeyValidPassword;
-  if Not GetSelectedWalletKey(wk) then exit;
-  s := TAccountComp.AccountPublicKeyExport(wk.AccountKey);
-  Clipboard.AsText := s;
-  Application.MessageBox(PChar('The public key has been copied to the clipboard'+#10+#10+
-    'Public key value:'+#10+
-    s+#10+#10+
-    'Length='+Inttostr(length(s))+' bytes'),
-          PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
-end;
-
-procedure TFRMWalletKeys.bbGenerateNewKeyClick(Sender: TObject);
-Var FRM : TFRMNewPrivateKeyType;
-begin
-  CheckIsWalletKeyValidPassword;
-  FRM := TFRMNewPrivateKeyType.Create(Self);
-  try
-    FRM.WalletKeys := WalletKeys;
-    FRM.ShowModal;
-    UpdateWalletKeys;
-  finally
-    FRM.Free;
-  end;
-end;
-
-procedure TFRMWalletKeys.bbImportKeysFileClick(Sender: TObject);
-Var wki : TWalletKeys;
-  ifn,pwd : String;
-  i : Integer;
-  cPrivatekeys, cPublicKeys : Integer;
-begin
-  if Not OpenDialog.Execute then exit;
-  ifn := OpenDialog.FileName;
-  if Not FileExists(ifn) then raise Exception.Create('Cannot find file '+ifn);
-
-  wki := TWalletKeys.Create(Self);
-  try
-    wki.WalletFileName := ifn;
-    if wki.Count<=0 then raise Exception.Create('Wallet file has no valid data');
-    pwd := '';
-    While (Not wki.IsValidPassword) do begin
-      if Not InputQuery('Import','Enter the wallet file password:',pwd) then exit;
-      wki.WalletPassword := pwd;
-      if not wki.IsValidPassword then begin
-        If Application.MessageBox(PChar('Password entered is not valid, retry?'),PChar(Application.Title),MB_ICONERROR+MB_YESNO)<>Idyes then exit;
-      end;
-    end;
-    cPrivatekeys := 0;
-    cPublicKeys := 0;
-    if wki.IsValidPassword then begin
-      for i := 0 to wki.Count - 1 do begin
-        if WalletKeys.IndexOfAccountKey(wki.Key[i].AccountKey)<0 then begin
-          If Assigned(wki.Key[i].PrivateKey) then begin
-            WalletKeys.AddPrivateKey(wki.Key[i].Name,wki.Key[i].PrivateKey);
-            inc(cPrivatekeys);
-          end else begin
-            WalletKeys.AddPublicKey(wki.Key[i].Name,wki.Key[i].AccountKey);
-            inc(cPublicKeys);
-          end;
-        end;
-      end;
-    end;
-    if (cPrivatekeys>0) Or (cPublicKeys>0) then begin
-      Application.MessageBox(PChar('Wallet file imported successfully'+#10+#10+
-        'File:'+ifn+#10+#10+
-        'Total keys in wallet: '+inttostr(wki.Count)+#10+
-        'Imported private keys: '+IntToStr(cPrivatekeys)+#10+
-        'Imported public keys only: '+IntToStr(cPublicKeys)+#10+
-        'Duplicated (not imported): '+InttoStr(wki.Count - cPrivatekeys - cPublicKeys)),
-        PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
-    end else begin
-      Application.MessageBox(PChar('Wallet file keys were already in your wallet. Nothing imported'+#10+#10+
-        'File:'+ifn+#10+#10+
-        'Total keys in wallet: '+inttostr(wki.Count)),
-        PChar(Application.Title),MB_OK+MB_ICONWARNING);
-    end;
-  finally
-    wki.Free;
-  end;
-end;
-
-procedure TFRMWalletKeys.bbImportPrivateKeyClick(Sender: TObject);
-var s : String;
- desenc, enc : AnsiString;
- EC : TECPrivateKey;
- i : Integer;
- wk : TWalletKey;
- parseResult : Boolean;
-
-  function ParseRawKey(EC_OpenSSL_NID : Word) : boolean;
-  begin
-    FreeAndNil(EC); ParseRawKey := False;
-    EC := TECPrivateKey.Create;
-    Try
-      EC.SetPrivateKeyFromHexa(EC_OpenSSL_NID, TCrypto.ToHexaString(enc));
-      ParseRawKey := True;
-    Except
-      On E:Exception do begin
-        FreeAndNil(EC);
-        Raise;
-      end;
-    end;
-  end;
-
-  function ParseEncryptedKey : boolean;
-  begin
-      Repeat
-        s := '';
-        desenc := '';
-        if InputQuery('Import private key','Enter the password:',s) then begin
-          If (TAESComp.EVP_Decrypt_AES256(enc,s,desenc)) then begin
-            if (desenc<>'') then begin
-              EC := TECPrivateKey.ImportFromRaw(desenc);
-              ParseEncryptedKey := True;
-              Exit;
-            end else begin
-              if Application.MessageBox(PChar('Invalid password!'),'',MB_RETRYCANCEL+MB_ICONERROR)<>IDRETRY then begin
-                ParseEncryptedKey := False;
-                Exit;
-              end;
-              desenc := '';
-            end;
-          end else begin
-            if Application.MessageBox(PChar('Invalid password or corrupted data!'),'',MB_RETRYCANCEL+MB_ICONERROR)<>IDRETRY then begin
-              ParseEncryptedKey := False;
-              Exit;
-            end;
-          end;
-        end else begin
-          ParseEncryptedKey := false;
-          Exit;
-        end;
-      Until (desenc<>'');
-  end;
-
-begin
-  EC := Nil;
-  CheckIsWalletKeyValidPassword;
-  if Not Assigned(WalletKeys) then exit;
-  if InputQuery('Import private key','Insert the password protected private key or raw private key',s) then begin
-    s := trim(s);
-    if (s='') then raise Exception.Create('No valid key');
-    enc := TCrypto.HexaToRaw(s);
-    if (enc='') then raise Exception.Create('Invalid text... You must enter an hexadecimal value ("0".."9" or "A".."F")');
-    case Length(enc) of
-         32: parseResult := ParseRawKey(CT_NID_secp256k1);
-         35,36: parseResult := ParseRawKey(CT_NID_sect283k1);
-         48: parseResult := ParseRawKey(CT_NID_secp384r1);
-         65,66: parseResult := ParseRawKey(CT_NID_secp521r1);
-         64, 80, 96: parseResult := ParseEncryptedKey;
-         else Exception.Create('Invalidly formatted private key string. Ensure it is an encrypted private key export or raw private key hexstring.');
-    end;
-    if (parseResult = False) then
-       exit;
-    Try
-      // EC is assigned by ParseRawKey/ImportEncryptedKey
-      if Not Assigned(EC) then begin
-        Application.MessageBox(PChar('Invalid password and/or corrupted data!'),'', MB_OK);
-        exit;
-      end;
-      i := WalletKeys.IndexOfAccountKey(EC.PublicKey);
-      if (i>=0) then begin
-        wk := WalletKeys.Key[i];
-        if Assigned(wk.PrivateKey) And (Assigned(wk.PrivateKey.PrivateKey)) then raise Exception.Create('This key is already in your wallet!');
-      end;
-      s := 'Imported '+DateTimeToStr(now);
-      s := InputBox('Set a name','Name for this private key:',s);
-      i := WalletKeys.AddPrivateKey(s,EC);
-      Application.MessageBox(PChar('Imported private key'),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
-    Finally
-      EC.Free;
-    End;
-    UpdateWalletKeys;
-  end;
-end;
-
-procedure TFRMWalletKeys.bbImportPublicKeyClick(Sender: TObject);
-var s : String;
- raw : AnsiString;
- EC : TECPrivateKey;
- account : TAccountKey;
- errors : AnsiString;
-begin
-  CheckIsWalletKeyValidPassword;
-  if Not Assigned(WalletKeys) then exit;
-  if Not InputQuery('Import publick key','Insert the public key in hexa format or imported format',s) then exit;
-  If not TAccountComp.AccountPublicKeyImport(s,account,errors) then begin
-    raw := TCrypto.HexaToRaw(s);
-    if trim(raw)='' then raise Exception.Create('Invalid public key value (Not hexa or not an imported format)'+#10+errors);
-    account := TAccountComp.RawString2Accountkey(raw);
-  end;
-  If not TAccountComp.IsValidAccountKey(account,errors) then raise Exception.Create('This data is not a valid public key'+#10+errors);
-  if WalletKeys.IndexOfAccountKey(account)>=0 then raise exception.Create('This key exists on your wallet');
-  s := 'Imported public key '+DateTimeToStr(now);
-  if InputQuery('Set a name','Name for this private key:',s) then begin
-    WalletKeys.AddPublicKey(s,account);
-    UpdateWalletKeys;
-    Application.MessageBox(PChar('Imported public key'),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
-  end;
-end;
-
-procedure TFRMWalletKeys.bbLockClick(Sender: TObject);
-begin
-  FWalletKeys.LockWallet;
-end;
-
-procedure TFRMWalletKeys.bbUpdatePasswordClick(Sender: TObject);
-begin
-  if FWalletKeys.IsValidPassword then begin
-    TUserInterface.ChangeWalletPassword(Self, FWalletKeys);
-  end else begin
-    TUserInterface.UnlockWallet(Self, FWalletKeys);
-  end;
-  UpdateWalletKeys;
-end;
-
-procedure TFRMWalletKeys.CheckIsWalletKeyValidPassword;
-begin
-  if Not Assigned(FWalletKeys) then exit;
-
-  if Not FWalletKeys.IsValidPassword then begin
-    Application.MessageBox(PChar('Wallet key is encrypted!'+#10+#10+'You must enter password to continue...'),
-      PCHar(Application.Title),MB_OK+MB_ICONWARNING);
-    bbUpdatePasswordClick(Nil);
-    if Not FWalletKeys.IsValidPassword then raise Exception.Create('Cannot continue without valid password');
-  end;
-end;
-
-procedure TFRMWalletKeys.CM_WalletChanged(var Msg: TMessage);
-begin
-  UpdateWalletKeys;
-end;
-
-destructor TFRMWalletKeys.Destroy;
-begin
-  if Assigned(FWalletKeys) then FWalletKeys.OnChanged.Remove(OnWalletKeysChanged);
-  inherited;
-end;
+{%region Form life-cycle}
 
 procedure TFRMWalletKeys.FormCreate(Sender: TObject);
 begin
-  lbWalletKeys.Sorted := true;
-  FWalletKeys := Nil;
-  UpdateWalletKeys;
+  TWallet.Keys.OnChanged.Add(OnWalletChanged);
+  RefreshUI;
 end;
 
-function TFRMWalletKeys.GetSelectedWalletKey(var WalletKey: TWalletKey): Boolean;
-Var i : Integer;
+procedure TFRMWalletKeys.FormDestroy(Sender: TObject);
 begin
-  Result := GetSelectedWalletKeyAndIndex(WalletKey,i);
+  TWallet.Keys.OnChanged.Remove(OnWalletChanged);
 end;
 
-function TFRMWalletKeys.GetSelectedWalletKeyAndIndex(var WalletKey: TWalletKey; var index: Integer): Boolean;
+{%endregion}
+
+{%region Methods}
+
+procedure TFRMWalletKeys.ToggleWalletLock;
 begin
-  index := -1;
-  Result := false;
-  if Not Assigned(WalletKeys) then exit;
-  if lbWalletKeys.ItemIndex<0 then exit;
-  index := Integer(lbWalletKeys.Items.Objects[ lbWalletKeys.ItemIndex ]);
-  if (index>=0) And (index<WalletKeys.Count) then begin
-    WalletKey := WalletKeys.Key[index];
-    Result := true;
+  if NOT TWallet.Keys.HasPassword then exit;
+  if TWallet.Keys.IsValidPassword then begin
+    TWallet.Keys.LockWallet;
+  end else begin
+    TUserInterface.UnlockWallet(Self);
   end;
 end;
 
-procedure TFRMWalletKeys.lbWalletKeysClick(Sender: TObject);
+procedure TFRMWalletKeys.AddNewKey;
+var
+  Scoped : TScoped;
+  wiz : TWIZAddKeyWizard;
+  model : TWizAddKeyModel;
 begin
-  UpdateSelectedWalletKey;
+  wiz := Scoped.AddObject(TWIZAddKeyWizard.Create(nil)) as TWIZAddKeyWizard;
+  model := Scoped.AddObject(TWIZAddKeyModel.Create(nil)) as TWizAddKeyModel;
+  wiz.Start(model);
 end;
 
-procedure TFRMWalletKeys.OnWalletKeysChanged(Sender : TObject);
+procedure TFRMWalletKeys.DeleteSelectedKey;
+Var
+  wk : TWalletKey;
+  index : Integer;
+  prompt : String;
 begin
-  PostMessage(Self.Handle,CM_PC_WalletKeysChanged,0,0);
-end;
+  if Not GetSelectedWalletKeyAndIndex(wk,index) then exit;
 
-procedure TFRMWalletKeys.SetWalletKeys(const Value: TWalletKeys);
-begin
-  if FWalletKeys=Value then exit;
-  if Assigned(FWalletKeys) then FWalletKeys.OnChanged.Remove(OnWalletKeysChanged);
-  FWalletKeys := Value;
-  if Assigned(FWalletKeys) then begin
-    FWalletKeys.OnChanged.Add(OnWalletKeysChanged);
+  if (TSettings.MinerPrivateKeyType = mpk_Selected) AND (TSettings.MinerSelectedPrivateKey = TAccountComp.AccountKey2RawString(wk.AccountKey)) then begin
+    TUserInterface.ShowError(Self, 'Delete Key Faied',
+    'This key is used for mining and cannot be deleted.' + #10 + #10 +
+    'De-select this key from options and try again.');
+    exit;
   end;
-  UpdateWalletKeys;
+
+  prompt := 'Are you sure you want to delete the selected private key?'+#10+wk.Name+#10+#10+
+    'Please note that this will forever remove access to accounts using this key...';
+  if TUserInterface.AskQuestion(Self, mtWarning, 'Confirm Delete', prompt, mbYesNo) = mbYes then
+    if TUserInterface.AskQuestion(Self, mtWarning, 'Confirm Delete', 'ARE YOU ABSOLUTELY SURE?', mbYesNo) = mbYes then
+      TWallet.DeleteKey(wk);
 end;
 
 procedure TFRMWalletKeys.UpdateSelectedWalletKey;
@@ -472,70 +163,211 @@ begin
     if Not GetSelectedWalletKey(wk) then exit;
     ok := true;
     lblEncryptionType.Caption := TAccountComp.GetECInfoTxt( wk.AccountKey.EC_OpenSSL_NID );
-    if wk.Name='' then lblKeyName.Caption := '(No name)'
+    if wk.Name='' then lblKeyName.Caption := '(No Name)'
     else lblKeyName.Caption := wk.Name;
-    if Assigned(wk.PrivateKey) then begin
-      memoPrivateKey.Lines.Text :=  TCrypto.PrivateKey2Hexa(wk.PrivateKey.PrivateKey);
-      memoPrivateKey.Font.Color := clBlack;
-    end else begin
-      memoPrivateKey.Lines.Text := '(No private key)';
-      memoPrivateKey.Font.Color := clRed;
-    end;
+    memoPublicKey.Lines.Text := TAccountComp.AccountPublicKeyExport(wk.AccountKey);
+    memoPublicKey.Font.Color := clBlack;
   finally
     lblEncryptionTypeCaption.Enabled := ok;
     lblEncryptionType.Enabled := ok;
     lblKeyNameCaption.Enabled := ok;
     lblKeyName.Enabled := (ok) And (wk.Name<>'');
     lblPrivateKeyCaption.Enabled := ok;
-    memoPrivateKey.Enabled := ok;
-    bbExportPrivateKey.Enabled := ok;
-    bbExportPublicKey.Enabled := ok;
-    bbChangeName.Enabled := ok;
-    lblPrivateKeyCaption2.Enabled := ok;
-    bbDelete.Enabled := ok;
+    memoPublicKey.Enabled := ok;
+    btnCopyClipboard.Enabled := ok;
     if not ok then begin
       lblEncryptionType.Caption := '';
       lblKeyName.Caption := '';
-      memoPrivateKey.Lines.Clear;
+      memoPublicKey.Lines.Clear;
     end;
   end;
-
 end;
 
-procedure TFRMWalletKeys.UpdateWalletKeys;
-Var lasti,i : Integer;
+procedure TFRMWalletKeys.ChangeSelectedKeyName;
+Var wk : TWalletKey;
+  s : String;
+  index : integer;
+begin
+  if not GetSelectedWalletKeyAndIndex(wk,index) then exit;
+  s := wk.Name;
+  if TUserInterface.AskEnterString(Self, 'Change name','Input new key name:',s) then begin
+    TWallet.Keys.SetName(index,s);
+  end;
+end;
+
+procedure TFRMWalletKeys.ExportSelectedPrivateKey;
+Var wk : TWalletKey;
+  pwd1,pwd2, enc : String;
+begin
+  if not CheckIsWalletKeyValidPassword then exit;
+  if Not GetSelectedWalletKey(wk) then exit;
+  if Assigned(wk.PrivateKey) then begin
+    if TUserInterface.AskEnterProtectedString(Self, 'Export Private Key','Enter a password to encrypt private key',pwd1) then begin
+      if TUserInterface.AskEnterProtectedString(Self, 'Export Private Key','Re-enter the password',pwd2) then begin
+        if pwd1<>pwd2 then raise Exception.Create('Passwords does not match!');
+        enc := TWallet.ExportPrivateKey(wk, pwd1);
+        Clipboard.AsText := enc;
+        TUserInterface.ShowInfo(Self, 'Completed',
+         'The private key has been encrypted with your password and copied to the clipboard.'+
+          #10+#10+
+          'Encrypted key value (Copied to the clipboard):'+#10+
+          enc+
+          #10+#10+'Length='+Inttostr(length(enc))+' bytes');
+      end else raise Exception.Create('Cancelled operation');
+    end;
+  end;
+end;
+
+procedure TFRMWalletKeys.ExportSelectedPublicKey(notify:boolean);
+Var wk : TWalletKey;
+  s : String;
+begin
+  if Not GetSelectedWalletKey(wk) then exit;
+  s := TWallet.ExportPublicKey(wk);
+  Clipboard.AsText := s;
+  if notify then
+    TUserInterface.ShowInfo(Self, 'Completed',
+      'The public key has been copied to the clipboard'+#10+#10+
+      'Public key value:'+#10+
+      s+#10+#10+
+      'Length='+Inttostr(length(s))+' bytes');
+end;
+
+procedure TFRMWalletKeys.ChangeWalletPassword;
+begin
+  if not CheckIsWalletKeyValidPassword
+    then exit;
+  TUserInterface.ChangeWalletPassword(Self);
+end;
+
+procedure TFRMWalletKeys.BackupWallet;
+var
+  filename : String;
+begin
+  if TWallet.Keys.Count<=0 then begin
+    TUserInterface.ShowError(self, 'Error', 'Your wallet is empty. No keys!');
+    exit;
+  end;
+  if NOT TWallet.Keys.HasPassword then
+    if TUserInterface.AskQuestion(self, mtWarning,
+      'No Password', 'Your wallet has NO PASSWORD'+#10+#10+
+      'It is recommend to protect your wallet with a password prior to exporting it!'+#10+#10+
+      'Continue without password protection?', mbYesNo) <> mbYes then exit;
+  if Not SaveDialog.Execute
+    then exit;
+  filename := SaveDialog.FileName;
+  if FileExists(filename) then
+    if TUserInterface.AskQuestion(self, mtConfirmation, 'Overwrite', 'This file exists:'+#10+filename+#10#10+'Overwrite?', mbYesNo)<> mbYes then
+         exit;
+  TWallet.BackupWallet(filename);
+  TUserInterface.ShowInfo(self, 'Completed', 'Wallet key exported to a file:'+#10+filename);
+end;
+
+procedure TFRMWalletKeys.RestoreWallet;
+Var
+  filename,password : String;
+  restoreResult : TRestoreWalletResult;
+begin
+  if not CheckIsWalletKeyValidPassword then exit;
+  if not OpenDialog.Execute then exit;
+  filename := OpenDialog.FileName;
+  if Not FileExists(filename) then
+    raise Exception.Create('Cannot find file '+filename);
+  repeat
+    if NOT TUserInterface.AskEnterProtectedString(Self, 'Restore Wallet', 'Please enter password used to secure the imported wallet', password) then
+      exit;
+    restoreResult := TWallet.RestoreWallet(filename, password);
+    if (not restoreResult.Success) AND (TUserInterface.AskQuestion(self, mtError, 'Wrong Password', 'Password entered is not valid, retry?', mbYesNo) <> mbYes) then
+      exit;
+  until restoreResult.Success;
+  if restoreResult.Success then begin
+    if (restoreResult.ImportedPrivateKeys>0) Or (restoreResult.ImportedPublicKeys>0) then begin
+      TUserInterface.ShowInfo(self,
+      'Completed',
+      'Wallet file imported successfully'+#10+#10+
+        'File: '+filename+#10+#10+
+        'Total keys in wallet: '+inttostr(restoreResult.TotalKeysFound)+#10+
+        'Imported private keys: '+IntToStr(restoreResult.ImportedPrivateKeys)+#10+
+        'Imported watch-only keys: '+IntToStr(restoreResult.ImportedPublicKeys)+#10+
+        'Duplicates (discarded): '+InttoStr(restoreResult.Duplicates));
+    end else begin
+      TUserInterface.ShowWarning(Self,
+      'No New Keys',
+      'Wallet file keys were already in your wallet. Nothing imported'+#10+#10+
+        'File: '+filename+#10+#10+
+        'Total keys in wallet: '+inttostr(restoreResult.TotalKeysFound));
+    end;
+  end;
+end;
+
+{%endregion}
+
+{%region Aux}
+
+procedure TFRMWalletKeys.RefreshUI;
+var
+  lasti,i : Integer;
   selected_wk,wk : TWalletKey;
-  s : AnsiString;
+  keyName : AnsiString;
 begin
   GetSelectedWalletKeyAndIndex(wk,lasti);
   lbWalletKeys.Items.BeginUpdate;
   Try
     lbWalletKeys.Items.Clear;
     lblKeysEncrypted.Caption := '';
-    if not assigned(FWalletKeys) then exit;
-    bbLock.Enabled := (FWalletKeys.IsValidPassword) And (FWalletKeys.WalletPassword<>'');
-    If FWalletKeys.IsValidPassword then begin
-      if FWalletKeys.WalletPassword='' then lblKeysEncrypted.Caption := 'Wallet without password'
-      else lblKeysEncrypted.Caption := 'Wallet is password protected';
-      lblKeysEncrypted.font.Color := clGreen;
-      bbUpdatePassword.Caption := 'Change password';
+
+    If NOT TWallet.Keys.HasPassword then begin
+      // NO PASSWORD
+      lblKeysEncrypted.Caption := 'Wallet has no password';
+      ilIcons.GetBitmap(1, btnLock.Glyph);
+      btnLock.Enabled := false;
+      btnChangePassword.Enabled := true;
+      btnAddKey.Visible := true;
+      btnChangePassword.Caption := 'Set Password';
+      btnChangePassword.Enabled := true;
+      btnRestoreBackup.Enabled := true;
+      miChangeName.Enabled := true;
+      miExportPrivateKey.Enabled := true;
+      miDeleteKey.Enabled := true;
+    end else if TWallet.Keys.IsValidPassword then begin
+      // UNLOCKED
+      lblKeysEncrypted.Caption := 'Wallet is unlocked';
+      ilIcons.GetBitmap(1, btnLock.Glyph);
+      btnLock.Enabled := true;
+      btnChangePassword.Enabled := true;
+      btnAddKey.Enabled := true;
+      btnAddKey.Visible := true;
+      btnChangePassword.Caption := 'Change Password';
+      btnChangePassword.Enabled := true;
+      btnRestoreBackup.Enabled := true;
+      miChangeName.Enabled := true;
+      miExportPrivateKey.Enabled := true;
+      miDeleteKey.Enabled := true;
     end else begin
-      lblKeysEncrypted.Caption := 'Wallet is encrypted... need password!';
-      lblKeysEncrypted.font.Color := clRed;
-      bbUpdatePassword.Caption := 'Input password';
+      // LOCKED
+      lblKeysEncrypted.Caption := 'Wallet is locked';
+      ilIcons.GetBitmap(0, btnLock.Glyph);
+      btnLock.Enabled := true;
+      btnChangePassword.Enabled := false;
+      btnAddKey.Visible := false;
+      btnAddKey.Enabled := false;
+      btnChangePassword.Caption := 'Change Password';
+      btnChangePassword.Enabled := false;
+      btnRestoreBackup.Enabled := false;
+      miChangeName.Enabled := false;
+      miExportPrivateKey.Enabled := false;
+      miDeleteKey.Enabled := false;
     end;
-    for i := 0 to WalletKeys.Count - 1 do begin
-      wk := WalletKeys.Key[i];
+    for i := 0 to TWallet.Keys.Count - 1 do begin
+      wk := TWallet.Keys.Key[i];
       if (wk.Name='') then begin
-        s := 'Sha256='+TCrypto.ToHexaString( TCrypto.DoSha256( TAccountComp.AccountKey2RawString(wk.AccountKey) ) );
+        keyName := '(No Name)';
       end else begin
-        s := wk.Name;
+        keyName := wk.Name;
       end;
-      if Not Assigned(wk.PrivateKey) then begin
-        if wk.CryptedKey<>'' then s:=s+' (Encrypted, need password)';
-        s:=s+' (* without key)';
-      end;
-      lbWalletKeys.Items.AddObject(s,TObject(i));
+      if Not wk.HasPrivateKey then
+        keyName:=keyName+' (watch-only)';
+      lbWalletKeys.Items.AddObject(keyName,TObject(i));
     end;
     i := lbWalletKeys.Items.IndexOfObject(TObject(lasti));
     lbWalletKeys.ItemIndex := i;
@@ -544,6 +376,110 @@ begin
   End;
   UpdateSelectedWalletKey;
 end;
+
+function TFRMWalletKeys.CheckIsWalletKeyValidPassword : boolean;
+begin
+  if NOT TWallet.Keys.IsValidPassword then begin
+    TUserInterface.ShowError(Self, 'Unable to continue', 'Wallet is locked. Please unlock the wallet to perform this task.');
+    Result := false;
+  end else
+    Result := true;
+end;
+
+function TFRMWalletKeys.GetSelectedWalletKey(var WalletKey: TWalletKey): Boolean;
+Var i : Integer;
+begin
+  Result := GetSelectedWalletKeyAndIndex(WalletKey,i);
+end;
+
+function TFRMWalletKeys.GetSelectedWalletKeyAndIndex(var WalletKey: TWalletKey; var index: Integer): Boolean;
+begin
+  index := -1;
+  Result := false;
+  if lbWalletKeys.ItemIndex<0 then exit;
+  index := Integer(lbWalletKeys.Items.Objects[ lbWalletKeys.ItemIndex ]);
+  if (index>=0) And (index<TWallet.Keys.Count) then begin
+    WalletKey := TWallet.Keys.Key[index];
+    Result := true;
+  end;
+end;
+
+{%endregion}
+
+{%region Event Handlers}
+
+procedure TFRMWalletKeys.btnLockClick(Sender: TObject);
+begin
+  ToggleWalletLock;
+end;
+
+procedure TFRMWalletKeys.CM_WalletChanged(var Msg: TMessage);
+begin
+  RefreshUI;
+end;
+
+procedure TFRMWalletKeys.OnWalletChanged(Sender: TObject);
+begin
+  // Ensure handled in UI thread
+  PostMessage(Self.Handle,CM_PC_WalletChanged,0,0);
+end;
+
+procedure TFRMWalletKeys.btnAddKeyClick(Sender: TObject);
+begin
+  AddNewKey;
+end;
+
+procedure TFRMWalletKeys.btnBackupWalletClick(Sender: TObject);
+begin
+ BackupWallet;
+end;
+
+procedure TFRMWalletKeys.btnChangePasswordClick(Sender: TObject);
+begin
+  ChangeWalletPassword;
+end;
+
+procedure TFRMWalletKeys.btnCopyClipboardClick(Sender: TObject);
+begin
+  ExportSelectedPublicKey(false);
+end;
+
+procedure TFRMWalletKeys.btnDeleteKeyClick(Sender: TObject);
+begin
+  DeleteSelectedKey;
+end;
+
+procedure TFRMWalletKeys.btnRestoreBackupClick(Sender: TObject);
+begin
+ RestoreWallet;
+end;
+
+procedure TFRMWalletKeys.lbWalletKeysClick(Sender: TObject);
+begin
+  UpdateSelectedWalletKey;
+end;
+
+procedure TFRMWalletKeys.miChangeNameClick(Sender: TObject);
+begin
+  ChangeSelectedKeyName;
+end;
+
+procedure TFRMWalletKeys.miDeleteKeyClick(Sender: TObject);
+begin
+  DeleteSelectedKey;
+end;
+
+procedure TFRMWalletKeys.miExportPrivateKeyClick(Sender: TObject);
+begin
+  ExportSelectedPrivateKey;
+end;
+
+procedure TFRMWalletKeys.miExportPublicKeyClick(Sender: TObject);
+begin
+  ExportSelectedPublicKey(true);
+end;
+
+{%endregion}
 
 end.
 

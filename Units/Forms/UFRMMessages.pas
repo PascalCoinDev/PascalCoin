@@ -48,7 +48,7 @@ type
 
 implementation
 
-uses UUserInterface;
+uses UUserInterface, USettings;
 
 {$R *.lfm}
 
@@ -69,7 +69,7 @@ begin
     s := DateTimeToStr(now)+' Message received from '+NetConnection.ClientRemoteAddr;
     memoMessages.Lines.Add(DateTimeToStr(now)+' Message received from '+NetConnection.ClientRemoteAddr+' Length '+inttostr(Length(MessageData))+' bytes');
     memoMessages.Lines.Add('RECEIVED> '+MessageData);
-    if TUserInterface.AppParams.ParamByName[CT_PARAM_ShowModalMessages].GetAsBoolean(false) then begin
+    if TSettings.ShowModalMessages then begin
       s := DateTimeToStr(now)+' Message from '+NetConnection.ClientRemoteAddr+#10+
          'Length '+inttostr(length(MessageData))+' bytes'+#10+#10;
       if TCrypto.IsHumanReadable(MessageData) then begin

@@ -78,7 +78,7 @@ end;
 procedure TFRMPendingOperations.miFindOperationbyOpHashClick(Sender: TObject);
 var ophash:AnsiString;
 begin
-  if Not TUserInterface.AskUserEnterString(Self, 'Search operation by OpHash','Insert Operation Hash value (OpHash)',ophash)
+  if Not TUserInterface.AskEnterString(Self, 'Search operation by OpHash','Insert Operation Hash value (OpHash)',ophash)
     then exit;
 
   TUserInterface.ShowOperationInfoDialog(Self, ophash);

@@ -17,7 +17,7 @@ interface
 
 uses
   Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ExtCtrls, ComCtrls, UWalletKeys,
+  Dialogs, ExtCtrls, ComCtrls, UWallet,
   ULog,
   UBlockChain, UNode, UGridUtils, UAccounts, Menus,
   UNetProtocol, UCrypto, Buttons, ActnList, UPoolMining,
@@ -141,7 +141,8 @@ end;
 
 procedure TFRMMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
 begin
-  case TUserInterface.AskQuestion(Self, 'Quit PascalCoin', 'Are you sure you want to quit? Select ''No'' to run in background.', [mbCancel, mbNo, mbYes]) of
+  case TUserInterface.AskQuestion(Self, mtConfirmation, 'Quit PascalCoin',
+  'Are you sure you want to quit? Select ''No'' to run in background.', [mbCancel, mbNo, mbYes]) of
     mbYes: begin
       CanClose := false;
       PostMessage(Self.Handle, CM_PC_Terminate, 0, 0);
@@ -165,7 +166,7 @@ end;
 
 procedure TFRMMainForm.ActivateFirstTime;
 begin
-  TUserInterface.WalletKeys.OnChanged.Add(OnWalletChanged);
+  TWallet.Keys.OnChanged.Add(OnWalletChanged);
   TNetData.NetData.OnConnectivityChanged.Add(OnConnectivityChanged);
   RefreshWalletLockIcon;
   RefreshConnectivityIcon;
@@ -173,7 +174,7 @@ end;
 
 procedure TFRMMainForm.FormDestroy(Sender: TObject);
 begin
-  TUserInterface.WalletKeys.OnChanged.Remove(OnWalletChanged);
+  TWallet.Keys.OnChanged.Remove(OnWalletChanged);
   TNetData.NetData.OnConnectivityChanged.Remove(OnConnectivityChanged);
 end;
 
@@ -188,12 +189,12 @@ end;
 
 procedure TFRMMainForm.RefreshWalletLockIcon;
 begin
-  if NOT TUserInterface.WalletKeys.HasPassword then begin
+  if NOT TWallet.Keys.HasPassword then begin
     { No password has been set }
     tbtnWalletLock.Enabled := false;
     tbtnWalletLock.ImageIndex := 3;
     tbtnWalletLock.Hint := 'Your wallet does not have a password.';
-  end else if TUserInterface.WalletKeys.IsValidPassword then begin
+  end else if TWallet.Keys.IsValidPassword then begin
     { Password has been input, allow user to lock }
     tbtnWalletLock.Enabled := true;
     tbtnWalletLock.ImageIndex := 3;
@@ -360,15 +361,15 @@ end;
 
 procedure TFRMMainForm.tbtnWalletLockClick(Sender:TObject);
 begin
-  if NOT TUserInterface.WalletKeys.HasPassword then begin
+  if NOT TWallet.Keys.HasPassword then begin
      { no password has been set }
      ShowMessage('Your wallet has no password and is unsafe. Please set a password using ''Key Manager'' in Wallet menu.');
-   end else if TUserInterface.WalletKeys.IsValidPassword then begin
+   end else if TWallet.Keys.IsValidPassword then begin
      { wallet is unlocked, lock it }
-     TUserInterface.WalletKeys.LockWallet;
+     TWallet.Keys.LockWallet;
    end else begin
      { wallet is locked, try to unlock it}
-     TUserInterface.UnlockWallet(Self, TUserInterface.WalletKeys);
+     TUserInterface.UnlockWallet(Self);
    end;
 end;
 

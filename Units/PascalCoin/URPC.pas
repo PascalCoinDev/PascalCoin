@@ -18,7 +18,7 @@ unit URPC;
 interface
 
 Uses UThread, ULog, UConst, UNode, UAccounts, UCrypto, UBlockChain,
-  UNetProtocol, UOpTransaction, UWalletKeys, UTime, UAES, UECIES,
+  UNetProtocol, UOpTransaction, UWallet, UTime, UAES, UECIES,
   UJSONFunctions, classes, blcksock, synsock, IniFiles, Variants, math;
 
 Const

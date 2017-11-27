@@ -23,7 +23,7 @@ uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, UAccounts, Grids, StdCtrls, Buttons, ExtCtrls, UCommonUI,
-  UWalletKeys, UNode, UGridUtils, UConst, UThread;
+  UWallet, UNode, UGridUtils, UConst, UThread;
 
 const
   CT_AS_MyAccounts = $0001;

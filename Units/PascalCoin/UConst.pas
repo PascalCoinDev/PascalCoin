@@ -141,29 +141,6 @@ Const
 
   CT_MAX_Operations_per_block_by_miner =  {$IFDEF PRODUCTION}10000{$ELSE}{$IFDEF TESTNET}50000{$ELSE}{$ENDIF}{$ENDIF};
 
-  // App Params
-  CT_PARAM_GridAccountsStream = 'GridAccountsStreamV2';
-  CT_PARAM_GridAccountsPos = 'GridAccountsPos';
-  CT_PARAM_DefaultFee = 'DefaultFee';
-  CT_PARAM_InternetServerPort = 'InternetServerPort';
-  {$IFDEF TESTNET}CT_PARAM_AutomaticMineWhenConnectedToNodes = 'AutomaticMineWhenConnectedToNodes';{$ENDIF}
-  CT_PARAM_MinerPrivateKeyType = 'MinerPrivateKeyType';
-  CT_PARAM_MinerPrivateKeySelectedPublicKey = 'MinerPrivateKeySelectedPublicKey';
-  CT_PARAM_SaveLogFiles = 'SaveLogFiles';
-  CT_PARAM_SaveDebugLogs = 'SaveDebugLogs';
-  CT_PARAM_ShowLogs = 'ShowLogs';
-  CT_PARAM_MinerName = 'MinerName';
-  CT_PARAM_FirstTime = 'FirstTime';
-  CT_PARAM_ShowModalMessages = 'ShowModalMessages';
-  {$IFDEF TESTNET}CT_PARAM_MaxCPUs = 'MaxCPUs'; {$ENDIF} //deprecated
-  CT_PARAM_PeerCache = 'PeerCache';
-  CT_PARAM_TryToConnectOnlyWithThisFixedServers = 'TryToConnectOnlyWithFixedServers';
-  CT_PARAM_JSONRPCMinerServerPort = 'JSONRPCMinerServerPort';
-  CT_PARAM_JSONRPCMinerServerActive = 'JSONRPCMinerServerActive';
-  CT_PARAM_JSONRPCEnabled = 'JSONRPCEnabled';
-  CT_PARAM_JSONRPCAllowedIPs = 'JSONRPCAllowedIPs';
-
-
 
 implementation
 

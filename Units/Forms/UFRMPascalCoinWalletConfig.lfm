@@ -1,7 +1,7 @@
 object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
-  Left = 462
+  Left = -1385
   Height = 524
-  Top = 234
+  Top = 29
   Width = 374
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
@@ -13,8 +13,9 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   Font.Height = -11
   Font.Name = 'Tahoma'
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.6.4.0'
   object Label1: TLabel
     Left = 30
     Height = 13

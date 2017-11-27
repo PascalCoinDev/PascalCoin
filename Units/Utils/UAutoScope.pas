@@ -18,7 +18,7 @@
     Ver 1.0.0
     * Initial release.
  **********************************************************************}
-unit AutoScope;
+unit UAutoScope;
 {$IFDEF FPC}
   {$CODEPAGE UTF8}
   {$MODE DELPHI}{$H+}
@@ -36,10 +36,10 @@ interface
     {$IFDEF VER2_4}{$ERROR Too old compiller.}{$ENDIF}
   {$ENDIF}
   {$DEFINE USE_INTERFACE}
-  {$IFNDEF VER_3_0}
-    {$IFDEF USE_INTERFACE}{$UNDEF USE_INTERFACE}{$ENDIF}
-    {$DEFINE USE_OPERATORS}
-  {$ENDIF}
+  //{$IFNDEF VER_3_0}
+  //  {$IFDEF USE_INTERFACE}{$UNDEF USE_INTERFACE}{$ENDIF}
+  //  {$DEFINE USE_OPERATORS}
+  //{$ENDIF}
 {$ELSE}
   {$DEFINE USE_INTERFACE}
 {$ENDIF}

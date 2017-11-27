@@ -1,7 +1,7 @@
 object FRMAbout: TFRMAbout
-  Left = 764
+  Left = -3141
   Height = 405
-  Top = 516
+  Top = 507
   Width = 585
   ActiveControl = bbClose
   BorderIcons = [biSystemMenu]
@@ -194,19 +194,6 @@ object FRMAbout: TFRMAbout
     Caption = 'Source Code:'
     ParentColor = False
   end
-  object Label3: TLabel
-    Left = 90
-    Height = 13
-    Top = 339
-    Width = 135
-    Caption = 'Check For New Versions:'
-    Font.Color = clWindowText
-    Font.Height = -11
-    Font.Name = 'Tahoma'
-    Font.Style = [fsBold]
-    ParentColor = False
-    ParentFont = False
-  end
   object Label4: TLabel
     Cursor = crHandPoint
     Left = 170
@@ -222,29 +209,14 @@ object FRMAbout: TFRMAbout
     ParentFont = False
     OnClick = Label4Click
   end
-  object Label5: TLabel
-    Cursor = crHandPoint
-    Left = 237
-    Height = 13
-    Top = 339
-    Width = 253
-    Caption = 'https://sourceforge.net/projects/pascalcoin'
-    Font.Color = clBlue
-    Font.Height = -11
-    Font.Name = 'Tahoma'
-    Font.Style = [fsBold]
-    ParentColor = False
-    ParentFont = False
-    OnClick = Label5Click
-  end
   object Memo1: TMemo
     Left = 90
-    Height = 266
+    Height = 250
     Top = 46
     Width = 478
     BorderStyle = bsNone
     Lines.Strings = (
-      'Copyright (c) 2016 - 2017 Albert Molina'
+      'Copyright (c) 2018 PascalCoin Project'
       ''
       'Pascal Coin is P2P cryptocurrency without the need for historical operations. This software '
       'comprises a node within the Pascal Coin network and can be used to Mine and Explore blocks and '
@@ -261,9 +233,6 @@ object FRMAbout: TFRMAbout
       'Gebauer.'
       'Original source code is written in Pascal Language and is available at '
       'https://github.com/PascalCoin/PascalCoin'
-      ''
-      'If you like it, consider a donation using BitCoin:'
-      '16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk'
     )
     ParentColor = True
     ReadOnly = True
@@ -280,5 +249,28 @@ object FRMAbout: TFRMAbout
     Kind = bkOK
     ModalResult = 1
     TabOrder = 1
+  end
+  object Label6: TLabel
+    Left = 112
+    Height = 13
+    Top = 296
+    Width = 43
+    Caption = 'Website:'
+    ParentColor = False
+  end
+  object Label7: TLabel
+    Cursor = crHandPoint
+    Left = 170
+    Height = 13
+    Top = 296
+    Width = 150
+    Caption = 'http://www.pascalcoin.org'
+    Font.Color = clBlue
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentColor = False
+    ParentFont = False
+    OnClick = Label4Click
   end
 end

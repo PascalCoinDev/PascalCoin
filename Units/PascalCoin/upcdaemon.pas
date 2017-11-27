@@ -19,7 +19,7 @@ interface
 
 uses
   Classes, SysUtils, daemonapp,
-  SyncObjs, UOpenSSL, UCrypto, UNode, UFileStorage, UFolderHelper, UWalletKeys, UConst, ULog, UNetProtocol,
+  SyncObjs, UOpenSSL, UCrypto, UNode, UFileStorage, UFolderHelper, UWallet, UConst, ULog, UNetProtocol,
   IniFiles,
   UThread, URPC, UPoolMining, UAccounts;
 

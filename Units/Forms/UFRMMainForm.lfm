@@ -1,7 +1,7 @@
 object FRMMainForm: TFRMMainForm
-  Left = 125
+  Left = 52
   Height = 600
-  Top = 58
+  Top = 55
   Width = 865
   Caption = 'Pascal Coin Wallet, JSON-RPC Miner & Explorer'
   ClientHeight = 580
@@ -19,7 +19,7 @@ object FRMMainForm: TFRMMainForm
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnResize = FormResize
-  Position = poOwnerFormCenter
+  Position = poDefault
   ShowHint = True
   LCLVersion = '1.6.4.0'
   object paLogoPanel: TPanel

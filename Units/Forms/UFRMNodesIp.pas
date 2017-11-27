@@ -10,7 +10,7 @@ uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, Buttons,
-  UCommonUI, UAppParams;
+  UCommonUI;
 
 type
   TFRMNodesIp = class(TApplicationForm)
@@ -33,7 +33,7 @@ type
 implementation
 
 uses
-  UUserInterface, UNetProtocol, UNode, UConst;
+  UUserInterface, USettings, UNetProtocol, UNode, UConst;
 
 {$R *.lfm}
 
@@ -53,8 +53,8 @@ Var
 begin
   memoNodesIp.Clear;
   setlength(nsarr,0);
-  ips := TUserInterface.AppParams.ParamByName[CT_PARAM_TryToConnectOnlyWithThisFixedServers].GetAsString('');
-  if trim(ips)<>'' then begin
+  ips := TSettings.TryConnectOnlyWithThisFixedServers;
+  if ips <> '' then begin
     cbTryOnlyWithThisServers.Checked := true;
     TNode.DecodeIpStringToNodeServerAddressArray(ips,nsarr);
   end else begin
@@ -85,13 +85,13 @@ begin
   end;
   // Encode
   ips := TNode.EncodeNodeServerAddressArrayToIpString(nsarr);
-  TUserInterface.AppParams.ParamByName[CT_PARAM_PeerCache].SetAsString(ips);
+  TSettings.PeerCache := ips;
   if cbTryOnlyWithThisServers.Checked then Begin
-    TUserInterface.AppParams.ParamByName[CT_PARAM_TryToConnectOnlyWithThisFixedServers].SetAsString(ips);
+    TSettings.TryConnectOnlyWithThisFixedServers := ips;
     TNetData.NetData.DiscoverFixedServersOnly(nsarr);
     Application.MessageBox(PChar('Restart application to take effect'),PChar(Application.Title),MB_OK);
   end else begin
-    TUserInterface.AppParams.ParamByName[CT_PARAM_TryToConnectOnlyWithThisFixedServers].SetAsString('');
+    TSettings.TryConnectOnlyWithThisFixedServers := '';
     setlength(nsarr,0);
     TNetData.NetData.DiscoverFixedServersOnly(nsarr);
   end;
