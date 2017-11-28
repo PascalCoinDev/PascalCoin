@@ -140,8 +140,8 @@ begin
 
   if (TSettings.MinerPrivateKeyType = mpk_Selected) AND (TSettings.MinerSelectedPrivateKey = TAccountComp.AccountKey2RawString(wk.AccountKey)) then begin
     TUserInterface.ShowError(Self, 'Delete Key Faied',
-    'This key is used for mining and cannot be deleted.' + #10 + #10 +
-    'De-select this key from options and try again.');
+    'This key is currently being used for mining and cannot be deleted.' + #10 + #10 +
+    'Remove this key from the Options dialog and try again.');
     exit;
   end;
 

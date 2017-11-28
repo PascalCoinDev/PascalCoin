@@ -1,13 +1,14 @@
 object FRMLogs: TFRMLogs
-  Left = 973
+  Left = 0
   Height = 466
-  Top = 333
+  Top = 0
   Width = 868
   Caption = 'Logs'
   ClientHeight = 466
   ClientWidth = 868
   OnCreate = FormCreate
   OnDestroy = FormDestroy
+  Position = poOwnerFormCenter
   LCLVersion = '1.6.4.0'
   object pnlTopLogs: TPanel
     Left = 0

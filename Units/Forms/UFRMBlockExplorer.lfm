@@ -9,6 +9,7 @@ object FRMBlockExplorer: TFRMBlockExplorer
   Menu = BlockExplorerMenu
   OnCreate = FormCreate
   OnDestroy = FormDestroy
+  Position = poOwnerFormCenter
   LCLVersion = '1.6.4.0'
   object Panel2: TPanel
     Left = 0

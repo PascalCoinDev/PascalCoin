@@ -260,11 +260,6 @@ begin
     // open the sync dialog
     FMainForm.SyncControl.UpdateBlockChainState;   //TODO fix this work-flow
     RefreshConnectionStatusDisplay;
-
-    // Setup tray icon
-
-    // Disable wallet form
-    FMainForm.Enabled:=false;
     FStarted := true;
   Except
     On E:Exception do begin
@@ -275,7 +270,7 @@ begin
   end;
 
 
-  // Notify accounts again?
+  // Notify accounts changed
   OnAccountsChanged(FMainForm);
 
   // Refresh status bar since may not have been displayed
@@ -476,7 +471,6 @@ Var FRM : TFRMWalletKeys;
 begin
   FRM := TFRMWalletKeys.Create(parentForm);
   try
-    //FRM.WalletKeys := FWalletKeys;
     FRM.ShowModal;
   finally
     FRM.Free;
@@ -498,20 +492,20 @@ end;
 
 class procedure TUserInterface.ChangeWalletPassword(parentForm: TForm);
 var
-  s,s2 : String;
+  pwd1,pwd2 : String;
   locked : boolean;
 begin
-  s := ''; s2 := '';
+  pwd1 := ''; pwd2 := '';
   locked := (NOT TWallet.Keys.HasPassword) OR (NOT TWallet.Keys.IsValidPassword);
-  if Not AskEnterProtectedString(parentForm, 'Change password','Enter new password',s)
+  if Not AskEnterProtectedString(parentForm, 'Change password','Enter new password',pwd1)
     then exit;
-  if trim(s)<>s then
+  if trim(pwd1)<>pwd1 then
     raise Exception.Create('Password cannot start or end with a space character');
-  if Not AskEnterProtectedString(parentForm, 'Change password', 'Enter new password again',s2)
+  if Not AskEnterProtectedString(parentForm, 'Change password', 'Enter new password again',pwd2)
     then exit;
-  if s<>s2 then
+  if pwd1<>pwd2 then
     raise Exception.Create('Two passwords are different!');
-  TWallet.Keys.WalletPassword := s;
+  TWallet.Keys.WalletPassword := pwd1;
   if locked then
     TWallet.Keys.LockWallet;
 
@@ -523,12 +517,12 @@ begin
 end;
 
 class procedure TUserInterface.UnlockWallet(parentForm: TForm);
-Var s : String;
+Var pwd : String;
 begin
-  s := '';
+  pwd := '';
   Repeat
-    if Not AskEnterProtectedString(parentForm, 'Wallet password','Enter wallet password',s) then exit;
-    TWallet.Keys.WalletPassword := s;
+    if Not AskEnterProtectedString(parentForm, 'Wallet password','Enter wallet password',pwd) then exit;
+    TWallet.Keys.WalletPassword := pwd;
     if Not TWallet.Keys.IsValidPassword then
       ShowError(parentForm, 'Invalid Password', 'The password you have entered is incorrect.');
   Until TWallet.Keys.IsValidPassword;
@@ -591,7 +585,6 @@ begin
        FAccountExplorer := TFRMAccountExplorer.Create(FMainForm);
        FAccountExplorer.CloseAction:= caFree;
        FAccountExplorer.OnDestroyed:= Self.OnSubFormDestroyed;
-       FAccountExplorer.SetSubFormCoordinate(FAccountExplorer);
     end else
       FAccountExplorer.Refresh;
     FAccountExplorer.Show;
@@ -608,7 +601,6 @@ begin
        FBlockExplorerForm := TFRMBlockExplorer.Create(FMainForm);
        FBlockExplorerForm.CloseAction:= caFree;
        FBlockExplorerForm.OnDestroyed:= Self.OnSubFormDestroyed;
-       FMainForm.SetSubFormCoordinate(FBlockExplorerForm);
     end;
     FBlockExplorerForm.Show;
   finally
@@ -624,7 +616,6 @@ begin
       FOperationsExplorerForm := TFRMOperationExplorer.Create(FMainForm);
       FOperationsExplorerForm.CloseAction:= caFree;
       FOperationsExplorerForm.OnDestroyed:= Self.OnSubFormDestroyed;
-      FMainForm.SetSubFormCoordinate(FOperationsExplorerForm);
     end;
     FOperationsExplorerForm.Show;
   finally
@@ -640,7 +631,6 @@ begin
       FPendingOperationForm := TFRMPendingOperations.Create(FMainForm);
       FPendingOperationForm.CloseAction:= caFree;
       FPendingOperationForm.OnDestroyed:= Self.OnSubFormDestroyed;
-      FMainForm.SetSubFormCoordinate(FPendingOperationForm);
     end;
     FPendingOperationForm.Show;
   finally
@@ -656,7 +646,6 @@ begin
        FMessagesForm := TFRMMessages.Create(FMainForm);
        FMessagesForm.CloseAction:= caFree;
        FMessagesForm.OnDestroyed:= Self.OnSubFormDestroyed;
-       FMainForm.SetSubFormCoordinate(FMessagesForm);
     end;
     FMessagesForm.Show;
   finally
@@ -672,7 +661,6 @@ begin
        FNodesForm := TFRMNodes.Create(FMainForm);
        FNodesForm.CloseAction:= caFree;
        FNodesForm.OnDestroyed:= Self.OnSubFormDestroyed;
-       FMainForm.SetSubFormCoordinate(FNodesForm);
     end;
     FNodesForm.Show;
   finally
@@ -688,7 +676,6 @@ begin
        FLogsForm := TFRMLogs.Create(FMainForm);
        FLogsForm.CloseAction:= caFree;
        FLogsForm.OnDestroyed:= Self.OnSubFormDestroyed;
-       FMainForm.SetSubFormCoordinate(FLogsForm);
     end;
     FLogsForm.Show;
   finally

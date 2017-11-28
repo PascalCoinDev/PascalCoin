@@ -1,14 +1,16 @@
 object FRMAccountExplorer: TFRMAccountExplorer
-  Left = 135
+  Left = 205
   Height = 471
-  Top = 14
+  Top = 107
   Width = 868
   Caption = 'Accounts Explorer'
   ClientHeight = 451
   ClientWidth = 868
+  FormStyle = fsMDIChild
   Menu = meAccountExplorerMenu
   OnCreate = FormCreate
   OnDestroy = FormDestroy
+  Position = poOwnerFormCenter
   LCLVersion = '1.6.4.0'
   object Splitter1: TSplitter
     Left = 380

@@ -1029,7 +1029,7 @@ begin
         end;
         wk := WalletKeys.Key[iWallet];
         if not assigned(wk.PrivateKey) then begin
-          if wk.CryptedKey<>'' then begin
+          if wk.HasPrivateKey then begin
             errors := 'Wallet is password protected. Need password';
             bbPassword.Visible := true;
             bbPassword.Enabled := true;

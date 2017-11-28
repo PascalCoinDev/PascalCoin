@@ -17,7 +17,7 @@ unit UCommonUI;
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls,ExtCtrls,  FGL, Graphics, Generics.Collections, Generics.Defaults, syncobjs;
+  Classes, SysUtils, Forms, Controls,ExtCtrls,  Graphics, Generics.Collections, Generics.Defaults, syncobjs;
 
 type
   TApplicationForm = class(TForm)
@@ -29,7 +29,7 @@ type
       procedure NotifyActivateFirstTime;
       procedure NotifyDestroyed;
     protected
-      FUILock : TCriticalSection;
+      FUILock : syncobjs.TCriticalSection;
       procedure DoCreate; override;
       procedure Activate; override;
       procedure ActivateFirstTime; virtual;
@@ -54,7 +54,6 @@ type
   { TFormHelper }
 
   TFormHelper = class helper for TForm
-    procedure SetSubFormCoordinate(SubForm: TForm);
   end;
 
   { TImageHelper }
@@ -66,12 +65,15 @@ type
 
 implementation
 
+uses
+  lcl, FGL;
+
 {%region TApplicationForm}
 
 procedure TApplicationForm.DoCreate;
 begin
   inherited;
-  FUILock := TCriticalSection.Create;
+  FUILock := syncobjs.TCriticalSection.Create;
   FActivatedCount := 0;
   FCloseAction:=caHide;
 end;
@@ -159,21 +161,6 @@ end;
 
 {%region TFormHelper}
 
-//Form is shown centered over parent form
-//Show the position of the subform
-procedure TFormHelper.SetSubFormCoordinate(SubForm: TForm);
-var TopLeft:TPoint;
-begin
-  // TODO this needs to be changed
-//  Subform.Position:=poOwnerFormCenter; - test for only use center of from
-// On Linux ClientToScreen work only if window show as resut need call from OnAcivate from linux correct show.
-// on window shows correct in OnShow
-  TopLeft:= Self.ClientToScreen(Point(Self.Left,Self.Top));
-  Subform.Top   :=TopLeft.y;
-  Subform.Left  :=TopLeft.x;
-  Subform.Height:= Self.Height-27;
-  Subform.Width := Self.Width-9;
-end;
 
 {%endregion}
 

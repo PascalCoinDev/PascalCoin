@@ -128,7 +128,7 @@ Const
 implementation
 
 uses
-  UAES, ULog, UConst, UAccounts;
+  UAES, ULog, UConst, UAccounts, UCommon;
 
 Var _initialized : Boolean = false;
 
@@ -146,8 +146,8 @@ class operator TECDSA_Public.= (const a,b : TECDSA_Public) : boolean;
 begin
   Result :=
     (a.EC_OpenSSL_NID = b.EC_OpenSSL_NID) AND
-    (a.x = b.x) AND
-    (a.y = b.y);
+    (BinStrComp(a.x, b.x) = 0) AND
+    (BinStrComp(a.y, b.y) = 0);
 end;
 
 { TECPrivateKey }
