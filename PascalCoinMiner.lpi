@@ -32,6 +32,11 @@
         <CommandLineParams Value="-c 1 -s -n TEST"/>
       </local>
     </RunParams>
+    <RequiredPackages Count="1">
+      <Item1>
+        <PackageName Value="LazUtils"/>
+      </Item1>
+    </RequiredPackages>
     <Units Count="1">
       <Unit0>
         <Filename Value="PascalCoinMiner.pp"/>
