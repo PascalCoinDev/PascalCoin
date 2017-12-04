@@ -38,7 +38,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="75">
+    <Units Count="77">
       <Unit0>
         <Filename Value="PascalCoinWallet.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -344,9 +344,11 @@
         <ResourceBaseClass Value="Form"/>
       </Unit61>
       <Unit62>
-        <Filename Value="Units\Forms\UFRMSyncronizationForm.pas"/>
+        <Filename Value="Units\Forms\UCTRLSyncronization.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="CTRLSyncronization"/>
         <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit62>
       <Unit63>
         <Filename Value="Units\Utils\UAutoScope.pas"/>
@@ -416,6 +418,17 @@
         <ComponentName Value="WIZAddKey_SelectEncryption"/>
         <ResourceBaseClass Value="Form"/>
       </Unit74>
+      <Unit75>
+        <Filename Value="Units\Forms\UCTRLWallet.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="CTRLWallet"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit75>
+      <Unit76>
+        <Filename Value="Units\Forms\UGrids.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit76>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -451,7 +464,7 @@
         <ShowHintsForUnusedUnitsInMainSrc Value="True"/>
         <ShowHintsForSenderNotUsed Value="True"/>
       </Verbosity>
-      <CustomOptions Value="-dBorland -dVer150 -dDelphi7 -dCompiler6_Up -dPUREPASCAL -vD"/>
+      <CustomOptions Value="-dBorland -dVer150 -dDelphi7 -dCompiler6_Up -dPUREPASCAL -vd"/>
     </Other>
   </CompilerOptions>
   <Debugging>

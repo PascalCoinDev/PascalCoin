@@ -21,7 +21,7 @@ uses
   ULog,
   UBlockChain, UNode, UGridUtils, UAccounts, Menus,
   UNetProtocol, UCrypto, Buttons, ActnList, UPoolMining,
-  UCTRLBanner, UFRMSyncronizationForm, UCommon, UCommonUI;
+  UCTRLBanner, UCTRLWallet, UCTRLSyncronization, UCommon, UCommonUI;
 
 const
   CM_PC_FinishedLoadingDatabase = WM_USER + 1;
@@ -95,7 +95,8 @@ type
   private
     __FLastFooterToolBarDrawRect : TRect;  // Required for FPC bug work-around
     FMode : TFRMMainFormMode;
-    FSyncControl : TFRMSyncronizationForm;
+    FSyncControl : TCTRLSyncronization;
+    FWalletControl : TCTRLWallet;
     procedure CM_FinishedLoadingDatabase(var Msg: TMessage); message CM_PC_FinishedLoadingDatabase;
     procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
     procedure CM_ConnectivityChanged(var Msg: TMessage); message CM_PC_ConnectivityChanged;
@@ -109,7 +110,7 @@ type
     Function ForceMining : Boolean; virtual;
     procedure SetMode(AMode: TFRMMainFormMode);
   public
-    property SyncControl : TFRMSyncronizationForm read FSyncControl;
+    property SyncControl : TCTRLSyncronization read FSyncControl;
     property Mode : TFRMMainFormMode read FMode write SetMode;
     procedure OnFinishedLoadingDatabase;
   end;
@@ -134,9 +135,10 @@ begin
   __FLastFooterToolBarDrawRect := TRect.Empty;
   CloseAction := caNone; // Will handle terminate in separate method
   FMode := wmSync;
-  FSyncControl := TFRMSyncronizationForm.Create(self);
+  FSyncControl := TCTRLSyncronization.Create(self);
   paLogoPanel.AddControlDockCenter(TCTRLBanner.Create(Self));
   paSyncPanel.AddControlDockCenter(FSyncControl);
+  // note: wallet control is lazily constructed
 end;
 
 procedure TFRMMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
@@ -219,18 +221,27 @@ end;
 procedure TFRMMainForm.SetMode(AMode: TFRMMainFormMode);
 var nestedForm : TForm;
 begin
-  case AMode of
-    wmWallet: begin
-      paWalletPanel.Visible := true;
-      paSyncPanel.Visible := false;
-      FMode := AMode;
+  try
+    FUILock.Acquire;
+    case AMode of
+      wmWallet: begin
+        if NOT Assigned(FWalletControl) then begin
+          FWalletControl := TCTRLWallet.Create(self);
+          paWalletPanel.AddControlDockCenter(FWalletControl);
+        end;
+        paWalletPanel.Visible := true;
+        paSyncPanel.Visible := false;
+        FMode := AMode;
+      end;
+      wmSync: begin
+        paSyncPanel.Visible := true;
+        paWalletPanel.Visible := false;;
+        FMode := AMode;
+      end;
+      else raise Exception.Create('[Internal Error] - TFRMMainForm.SetMode: unsupported mode passed');
     end;
-    wmSync: begin
-      paSyncPanel.Visible := true;
-      paWalletPanel.Visible := false;;
-      FMode := AMode;
-    end;
-    else raise Exception.Create('[Internal Error] - TFRMMainForm.SetMode: unsupported mode passed');
+  finally
+    FUILock.Release;
   end;
 end;
 

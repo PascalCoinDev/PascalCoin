@@ -1,4 +1,4 @@
-unit UFRMSyncronizationForm;
+unit UCTRLSyncronization;
 
 {$mode delphi}
 
@@ -21,9 +21,9 @@ uses
 
 type
 
-  { TFRMSyncronizationForm }
+  { TCTRLSyncronization }
 
-  TFRMSyncronizationForm = class(TApplicationForm)
+  TCTRLSyncronization = class(TApplicationForm)
     btnOpenWallet: TButton;
     Label16: TLabel;
     Label4: TLabel;
@@ -53,14 +53,14 @@ type
     procedure lblReceivedMessagesClick(Sender:TObject);
   private
     { private declarations }
-    FMinersBlocksFound: Integer;
+    FMinedBlocksCount: Integer;
   public
     { public declarations }
     procedure UpdateNodeStatus;
     procedure UpdateBlockChainState;
-    procedure SetMinersBlocksFound(const Value: Integer);
+    procedure SetMinedBlocksCount(const Value: Integer);
     procedure OnFinishedLoadingDatabase;
-    Property MinersBlocksFound : Integer read FMinersBlocksFound write SetMinersBlocksFound;
+    Property MinedBlocksCount : Integer read FMinedBlocksCount write SetMinedBlocksCount;
   end;
 
 implementation
@@ -71,7 +71,7 @@ uses UNetProtocol,UTime,UConst, UUserInterface;
 
 {%region Methods}
 
-procedure TFRMSyncronizationForm.UpdateNodeStatus;
+procedure TCTRLSyncronization.UpdateNodeStatus;
 Var status : AnsiString;
 begin
   if not TUserInterface.Started then exit;
@@ -105,7 +105,7 @@ begin
   end;
 end;
 
-procedure TFRMSyncronizationForm.UpdateBlockChainState;
+procedure TCTRLSyncronization.UpdateBlockChainState;
 Var
   f, favg : real;
 begin
@@ -150,23 +150,23 @@ begin
       lblMinersClientsValue.Caption := 'No JSON-RPC clients';
       lblMinersClientsValue.Font.Color := clDkGray;
     end;
-    MinersBlocksFound := TUserInterface.PoolMiningServer.ClientsWins;
+    MinedBlocksCount := TUserInterface.PoolMiningServer.ClientsWins;
   end else begin
-    MinersBlocksFound := 0;
+    MinedBlocksCount := 0;
     lblMinersClientsValue.Caption := 'JSON-RPC server not active';
     lblMinersClientsValue.Font.Color := clRed;
   end;
 end;
 
-procedure TFRMSyncronizationForm.SetMinersBlocksFound(const Value: Integer);
+procedure TCTRLSyncronization.SetMinedBlocksCount(const Value: Integer);
 begin
-  FMinersBlocksFound := Value;
+  FMinedBlocksCount := Value;
   lblBlocksFound.Caption := Inttostr(Value);
   if Value>0 then lblBlocksFound.Font.Color := clGreen
   else lblBlocksFound.Font.Color := clDkGray;
 end;
 
-procedure TFRMSyncronizationForm.OnFinishedLoadingDatabase;
+procedure TCTRLSyncronization.OnFinishedLoadingDatabase;
 begin
   btnOpenWallet.Enabled:=true;
   TUserInterface.ShowWallet;
@@ -176,12 +176,12 @@ end;
 
 {%region Handlers: widgets }
 
-procedure TFRMSyncronizationForm.lblReceivedMessagesClick(Sender:TObject);
+procedure TCTRLSyncronization.lblReceivedMessagesClick(Sender:TObject);
 begin
   TUserInterface.ShowMessagesForm;
 end;
 
-procedure TFRMSyncronizationForm.btnOpenWalletClick(Sender:TObject);
+procedure TCTRLSyncronization.btnOpenWalletClick(Sender:TObject);
 begin
   TUserInterface.ShowWallet;
 end;

@@ -1,7 +1,7 @@
 object FRMAccountExplorer: TFRMAccountExplorer
-  Left = 205
+  Left = 207
   Height = 471
-  Top = 107
+  Top = 94
   Width = 868
   Caption = 'Accounts Explorer'
   ClientHeight = 451

@@ -1,7 +1,7 @@
 object CTRLBanner: TCTRLBanner
-  Left = 736
+  Left = 439
   Height = 80
-  Top = 26
+  Top = 23
   Width = 992
   BorderIcons = []
   BorderStyle = bsNone

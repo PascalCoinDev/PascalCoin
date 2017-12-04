@@ -1,7 +1,7 @@
 object FRMWalletKeys: TFRMWalletKeys
-  Left = 198
+  Left = 200
   Height = 477
-  Top = 373
+  Top = 191
   Width = 661
   Caption = 'Wallet Keys'
   ClientHeight = 477

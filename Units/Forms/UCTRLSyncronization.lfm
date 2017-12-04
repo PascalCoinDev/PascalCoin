@@ -1,7 +1,7 @@
-object FRMSyncronizationForm: TFRMSyncronizationForm
-  Left = 322
+object CTRLSyncronization: TCTRLSyncronization
+  Left = 0
   Height = 240
-  Top = 5
+  Top = 0
   Width = 636
   BorderIcons = []
   BorderStyle = bsNone
