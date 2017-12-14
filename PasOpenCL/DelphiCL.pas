@@ -26,7 +26,9 @@ interface
 uses
   CL,
   CL_GL,
+  {$IFDEF WINDOWS}
   Windows,
+  {$ENDIF}
   SysUtils,
   dglOpenGL,
   CL_Platform;
@@ -2182,10 +2184,10 @@ end;
 
 constructor TDCLContext.CreateGL(Device_id: PCL_device_id);
 var
-  props: array [0..4] of TCL_uint;
+  props: array [0..4] of Pointer;
 begin
   inherited Create();
-  props[0] := CL_GL_CONTEXT_KHR;
+  props[0] := Pointer(CL_GL_CONTEXT_KHR);
 
   //MacOsX not yet (Andoid hm....)
   //MacOSX, Linux, Windows: http://www.dyn-lab.com/articles/cl-gl.html
@@ -2196,8 +2198,8 @@ begin
   {$ENDIF}
   {$IFDEF LINUX}
     props[1] := glXGetCurrentContext();
-    props[2] := CL_GLX_DISPLAY_KHR;
-    props[3] := glXGetCurrentDisplay();
+    props[2] := Pointer(CL_GLX_DISPLAY_KHR);
+    props[3] := Pointer(glXGetCurrentDisplayEXT());
   {$ENDIF}
   props[4] := 0;
 
@@ -2572,7 +2574,7 @@ var
   EndTime: TCL_ulong;
 {$ENDIF}
 begin
-  ZeroMemory(@origin, SizeOf(origin));
+  FillChar(origin, SizeOf(origin), #0);
   region[0] := Image.Width;
   region[1] := Image.Height;
   region[2] := 1;// Image 2D
@@ -2611,7 +2613,7 @@ var
   EndTime: TCL_ulong;
 {$ENDIF}
 begin
-  ZeroMemory(@origin, SizeOf(origin));
+  FillChar(origin, SizeOf(origin), #0);
   region[0] := Width;
   region[1] := Height;
   region[2] := 1;// Image 2D
