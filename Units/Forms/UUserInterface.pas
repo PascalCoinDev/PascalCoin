@@ -16,7 +16,7 @@ interface
 {$I ./../PascalCoin/config.inc}
 
 uses
-  SysUtils, Classes, Forms, Controls, Windows, ExtCtrls, Dialogs,
+  SysUtils, Classes, Forms, Controls, {$IFDEF WINDOWS}Windows,{$ENDIF} ExtCtrls, Dialogs, LCLType,
   UCommonUI, UBlockChain, UAccounts, UNode, UWallet, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining,
   ULog, UThread, UNetProtocol, UCrypto,
   UFRMMainForm, UCTRLSyncronization, UFRMAccountExplorer, UFRMOperationExplorer, UFRMPendingOperations, UFRMOperation,

@@ -1355,7 +1355,7 @@ end;
 
 procedure TCustomVisualGrid.MultiSearchCheckComboBoxChange(Sender: TObject; AIndex: Integer);
 var
-  LState: PTCheckComboItemState;
+  LState: TCheckComboItemState;
   LOldHasEdit, LNewHasEdit: boolean;
 
   function HasOneOrMoreEdit: boolean;
@@ -1370,11 +1370,11 @@ var
 
 begin
   LOldHasEdit := HasOneOrMoreEdit;
-  LState := PTCheckComboItemState(FMultiSearchCheckComboBox.Items.Objects[AIndex]);
-  if Assigned(LState^.Data) then
-    TSearchEdit(LState^.Data).EditVisible:=LState^.State=cbChecked
+  LState := TCheckComboItemState(FMultiSearchCheckComboBox.Items.Objects[AIndex]);
+  if Assigned(LState.Data) then
+    TSearchEdit(LState.Data).EditVisible:=LState.State=cbChecked
   else
-    FSearchEdit.Visible:=LState^.State=cbChecked;
+    FSearchEdit.Visible:=LState.State=cbChecked;
 
   LNewHasEdit := HasOneOrMoreEdit;
   FTopPanelMultiSearch.Visible := LNewHasEdit;

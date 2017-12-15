@@ -17,7 +17,7 @@ interface
 
 uses
   Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ExtCtrls, ComCtrls, UWallet,
+  Dialogs, ExtCtrls, ComCtrls, LMessages, UWallet,
   ULog,
   UBlockChain, UNode, UGridUtils, UAccounts, Menus,
   UNetProtocol, UCrypto, Buttons, ActnList, UPoolMining,
