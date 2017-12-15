@@ -760,6 +760,7 @@ begin
       errors := Format('Signed price (%d) is not the same of account price (%d)',[FData.AccountPrice,target.accountInfo.price]);
       exit;
     end;
+    If Not (TAccountComp.IsValidAccountKey(FData.new_accountkey,errors)) then exit; // BUG 20171511
     _IsBuyTransaction := True;
     FPrevious_Seller_updated_block := seller.updated_block;
   end else if
@@ -775,6 +776,7 @@ begin
       errors := 'Tx-Buy account is not allowed on Protocol 1';
       exit;
     end;
+    If Not (TAccountComp.IsValidAccountKey(FData.new_accountkey,errors)) then exit; // BUG 20171511
 
     _IsBuyTransaction := true; // Automatic buy
     // Fill the purchase data

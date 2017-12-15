@@ -34,6 +34,13 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 2.1.3.0 - 2017-11-15
+- Fixed BUG when buying account assigning an invalid public key
+- Added maxim value to node servers buffer, deleting old node servers not used, this improves speed
+- Re-add orphaned operations back into the pending pool
+- RPC locking to prevent N_Operation race-condition on concurrent invocations
+- Minor bugs
+
 ### Build 2.1.2.0 - 2017-07-27
 - No more blockchain in installer = TRUE DELETABLE BLOCKCHAIN (Safebox will be automatically downloaded by client from network)
 - Fixed storage bug when downloading a new safebox
