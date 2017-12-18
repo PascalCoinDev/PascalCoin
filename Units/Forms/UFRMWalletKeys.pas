@@ -15,7 +15,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Messages,
-  Buttons, Menus, UCommonUI, UWallet;
+  Buttons, Menus, LMessages, UCommonUI, UWallet;
 
 const
   CM_PC_WalletChanged = WM_USER + 1;
