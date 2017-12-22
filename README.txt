@@ -34,6 +34,36 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Future Build 2.1.4 - 2017-12-22
+- Pending operations buffer cached to file to allow daemon/app restart without losing pending operations
+- Less memory usage thanks to a Public keys centralised buffer
+- JSON-RPC changes
+  - Added param "n_operation" to "Operation Object" JSON-RPC call
+  - New method "findnoperation": Search an operation made to an account based on n_operation field
+    - Params:
+	  - "account" : Account
+	  - "n_operation" : n_operation field (n_operation is an incremental value to protect double spend)
+	- Result:
+	  - If success, returns an Operation Object	  
+  - New method "findnoperations": Search an operation made to an account based on n_operation 
+    - Params:
+	  - "account" : Account
+	  - "n_operation_min" : Min n_operation to search
+	  - "n_operation_max" : Max n_operation to search
+	  - "start_block" : (optional) Block number to start search. 0=Search all, including pending operations
+	- Result:
+	  - If success, returns an array of Operation Object
+  - New method "decodeophash": Decodes block/account/n_operation info of a 32 bytes ophash
+    - Params:
+      - "ophash" : HEXASTRING with an ophash (ophash is 32 bytes, so must be 64 hexa valid chars)
+    - Result:
+      - "block" : Integer. Block number. 0=unknown or pending
+      - "account" : Integer. Account number
+      - "n_operation" : Integer. n_operation used by the account. n_operation is an incremental value, cannot be used twice on same account.
+      - "md160hash" : HEXASTRING with MD160 hash
+- Solved bug that caused to delete blockchain when checking memory 
+- Minor optimizations
+
 ### Build 2.1.3.0 - 2017-11-15
 - Fixed BUG when buying account assigning an invalid public key
 - Added maxim value to node servers buffer, deleting old node servers not used, this improves speed

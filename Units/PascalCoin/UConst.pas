@@ -135,7 +135,7 @@ Const
   CT_OpSubtype_ChangeKeySigned            = 71;
   CT_OpSubtype_ChangeAccountInfo          = 81;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'2.1.3'{$ELSE}{$IFDEF TESTNET}'TESTNET 2.1.3'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'2.1.4'{$ELSE}{$IFDEF TESTNET}'TESTNET 2.1.4'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin2.ddns.net;pascalcoin1.dynamic-dns.net;pascalcoin1.dns1.us';
 

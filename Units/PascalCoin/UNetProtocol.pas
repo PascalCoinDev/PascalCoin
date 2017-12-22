@@ -530,6 +530,8 @@ begin
            ((nsa.last_connection>0) Or (nsa.last_connection_by_server>0))
           ))
       then begin
+        TLog.NewLog(ltdebug,ClassName,Format('Delete node server address: %s : %d last_connection:%d last_connection_by_server:%d total_failed_attemps:%d last_attempt_to_connect:%s ',
+          [nsa.ip,nsa.port,nsa.last_connection,nsa.last_connection_by_server,nsa.total_failed_attemps_to_connect,FormatDateTime('dd/mm/yyyy hh:nn:ss',nsa.last_attempt_to_connect)]));
         DeleteNetClient(l,i);
         dec(FNetStatistics.NodeServersListCount);
         inc(FNetStatistics.NodeServersDeleted);
@@ -2448,7 +2450,7 @@ Begin
       end;
       //
       if (Abs(FTimestampDiff) > CT_MaxFutureBlockTimestampOffset) then begin
-        TLog.NewLog(ltError,ClassName,'Detected a node ('+ClientRemoteAddr+') with incorrect timestamp: '+IntToStr(connection_ts)+' offset '+IntToStr(FTimestampDiff) );
+        TLog.NewLog(ltDebug,ClassName,'Detected a node ('+ClientRemoteAddr+') with incorrect timestamp: '+IntToStr(connection_ts)+' offset '+IntToStr(FTimestampDiff) );
       end;
     end;
     if (connection_has_a_server>0) And (Not SameText(Client.RemoteHost,'localhost')) And (Not SameText(Client.RemoteHost,'127.0.0.1'))
@@ -2687,6 +2689,7 @@ begin
                 iDebugStep := 1000;
                 case HeaderData.operation of
                   CT_NetOp_Hello : Begin
+                    iDebugStep := 1100;
                     DoProcess_Hello(HeaderData,ReceiveDataBuffer);
                   End;
                   CT_NetOp_Message : Begin
@@ -2732,7 +2735,7 @@ begin
     end;
   Except
     On E:Exception do begin
-      E.Message := E.Message+' DoSendAndWaitForResponse step '+Inttostr(iDebugStep);
+      E.Message := E.Message+' DoSendAndWaitForResponse step '+Inttostr(iDebugStep)+' Header.operation:'+Inttostr(HeaderData.operation);
       Raise;
     end;
   End;

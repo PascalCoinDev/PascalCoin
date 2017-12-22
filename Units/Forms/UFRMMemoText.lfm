@@ -3,7 +3,7 @@ object FRMMemoText: TFRMMemoText
   Height = 428
   Top = 234
   Width = 745
-  BorderIcons = [biSystemMenu]
+  BorderIcons = [biSystemMenu, biMaximize]
   Caption = 'Information'
   ClientHeight = 428
   ClientWidth = 745
@@ -13,7 +13,7 @@ object FRMMemoText: TFRMMemoText
   Font.Name = 'Tahoma'
   OnCreate = FormCreate
   Position = poOwnerFormCenter
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.6.4.0'
   object pnlBottom: TPanel
     Left = 0
     Height = 55
