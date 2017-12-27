@@ -365,7 +365,7 @@ Const
 implementation
 
 uses
-  SysUtils, ULog, UOpenSSLdef, UOpenSSL;
+  SysUtils, ULog, UOpenSSLdef, UOpenSSL, UAccountKeyStorage;
 
 { TPascalCoinProtocol }
 
@@ -1147,9 +1147,21 @@ end;
 
 // New on version 2: To reduce mem usage
 {$DEFINE uselowmem}
+{$DEFINE useAccountKeyStorage}
 
 {$IFDEF uselowmem}
 Type
+  {$IFDEF useAccountKeyStorage}
+  TAccountInfoKS = Record
+    state : TAccountState;
+    accountKeyKS: PAccountKey; // Change instead of TAccountKey
+    locked_until_block : Cardinal;
+    price : UInt64;
+    account_to_pay : Cardinal;
+    new_publicKeyKS : PAccountKey;
+  end;
+  {$ENDIF}
+
   { In order to store less memory on RAM, those types will be used
     to store in RAM memory (better than to use original ones)
     This will reduce 10-15% of memory usage.
@@ -1157,7 +1169,11 @@ Type
     of originals, but}
   TMemAccount = Record // TAccount with less memory usage
     // account number is discarded (-4 bytes)
+    {$IFDEF useAccountKeyStorage}
+    accountInfoKS : TAccountInfoKS;
+    {$ELSE}
     accountInfo : TDynRawBytes;
+    {$ENDIF}
     balance: UInt64;
     updated_block: Cardinal;
     n_operation: Cardinal;
@@ -1168,7 +1184,11 @@ Type
 
   TMemOperationBlock = Record // TOperationBlock with less memory usage
     // block number is discarded (-4 bytes)
+    {$IFDEF useAccountKeyStorage}
+    account_keyKS: PAccountKey;
+    {$ELSE}
     account_key: TDynRawBytes;
+    {$ENDIF}
     reward: UInt64;
     fee: UInt64;
     protocol_version: Word;
@@ -1203,8 +1223,17 @@ Var raw : TRawBytes;
 {$ENDIF}
 begin
   {$IFDEF uselowmem}
+  {$IFDEF useAccountKeyStorage}
+  dest.accountInfoKS.state:=source.accountInfo.state;
+  dest.accountInfoKS.accountKeyKS:=TAccountKeyStorage.KS.AddAccountKey(source.accountInfo.accountKey);
+  dest.accountInfoKS.locked_until_block:=source.accountInfo.locked_until_block;
+  dest.accountInfoKS.price:=source.accountInfo.price;
+  dest.accountInfoKS.account_to_pay:=source.accountInfo.account_to_pay;
+  dest.accountInfoKS.new_publicKeyKS:=TAccountKeyStorage.KS.AddAccountKey(source.accountInfo.new_publicKey);
+  {$ELSE}
   TAccountComp.AccountInfo2RawString(source.accountInfo,raw);
   TBaseType.To256RawBytes(raw,dest.accountInfo);
+  {$ENDIF}
   dest.balance := source.balance;
   dest.updated_block:=source.updated_block;
   dest.n_operation:=source.n_operation;
@@ -1223,8 +1252,17 @@ var raw : TRawBytes;
 begin
   {$IFDEF uselowmem}
   dest.account:=account_number;
+  {$IFDEF useAccountKeyStorage}
+  dest.accountInfo.state:=source.accountInfoKS.state;
+  dest.accountInfo.accountKey:=source.accountInfoKS.accountKeyKS^;
+  dest.accountInfo.locked_until_block:=source.accountInfoKS.locked_until_block;
+  dest.accountInfo.price:=source.accountInfoKS.price;
+  dest.accountInfo.account_to_pay:=source.accountInfoKS.account_to_pay;
+  dest.accountInfo.new_publicKey:=source.accountInfoKS.new_publicKeyKS^;
+  {$ELSE}
   TBaseType.ToRawBytes(source.accountInfo,raw);
   TAccountComp.RawString2AccountInfo(raw,dest.accountInfo);
+  {$ENDIF}
   dest.balance := source.balance;
   dest.updated_block:=source.updated_block;
   dest.n_operation:=source.n_operation;
@@ -1243,8 +1281,12 @@ var raw : TRawBytes;
 {$ENDIF}
 Begin
   {$IFDEF uselowmem}
+  {$IFDEF useAccountKeyStorage}
+  dest.blockchainInfo.account_keyKS:=TAccountKeyStorage.KS.AddAccountKey(source.blockchainInfo.account_key);
+  {$ELSE}
   TAccountComp.AccountKey2RawString(source.blockchainInfo.account_key,raw);
   TBaseType.To256RawBytes(raw,dest.blockchainInfo.account_key);
+  {$ENDIF}
   dest.blockchainInfo.reward:=source.blockchainInfo.reward;
   dest.blockchainInfo.fee:=source.blockchainInfo.fee;
   dest.blockchainInfo.protocol_version:=source.blockchainInfo.protocol_version;
@@ -1275,8 +1317,12 @@ var i : Integer;
 begin
   {$IFDEF uselowmem}
   dest.blockchainInfo.block:=block_number;
+  {$IFDEF useAccountKeyStorage}
+  dest.blockchainInfo.account_key := source.blockchainInfo.account_keyKS^;
+  {$ELSE}
   TBaseType.ToRawBytes(source.blockchainInfo.account_key,raw);
   TAccountComp.RawString2Accountkey(raw,dest.blockchainInfo.account_key);
+  {$ENDIF}
   dest.blockchainInfo.reward:=source.blockchainInfo.reward;
   dest.blockchainInfo.fee:=source.blockchainInfo.fee;
   dest.blockchainInfo.protocol_version:=source.blockchainInfo.protocol_version;
@@ -1302,9 +1348,14 @@ end;
 function TPCSafeBox.Account(account_number: Cardinal): TAccount;
 var b : Cardinal;
 begin
-  b := account_number DIV CT_AccountsPerBlock;
-  if (b>=FBlockAccountsList.Count) then raise Exception.Create('Invalid account: '+IntToStr(account_number));
-  ToTAccount(PBlockAccount(FBlockAccountsList.Items[b])^.accounts[account_number MOD CT_AccountsPerBlock],account_number,Result);
+  StartThreadSafe;
+  try
+    b := account_number DIV CT_AccountsPerBlock;
+    if (b<0) Or (b>=FBlockAccountsList.Count) then raise Exception.Create('Invalid account: '+IntToStr(account_number));
+    ToTAccount(PBlockAccount(FBlockAccountsList.Items[b])^.accounts[account_number MOD CT_AccountsPerBlock],account_number,Result);
+  finally
+    EndThreadSave;
+  end;
 end;
 
 
@@ -1368,13 +1419,23 @@ end;
 
 function TPCSafeBox.AccountsCount: Integer;
 begin
-  Result := BlocksCount * CT_AccountsPerBlock;
+  StartThreadSafe;
+  try
+    Result := BlocksCount * CT_AccountsPerBlock;
+  finally
+    EndThreadSave;
+  end;
 end;
 
 function TPCSafeBox.Block(block_number: Cardinal): TBlockAccount;
 begin
-  if (block_number>=FBlockAccountsList.Count) then raise Exception.Create('Invalid block number: '+inttostr(block_number));
-  ToTBlockAccount(PBlockAccount(FBlockAccountsList.Items[block_number])^,block_number,Result);
+  StartThreadSafe;
+  try
+    if (block_number<0) Or (block_number>=FBlockAccountsList.Count) then raise Exception.Create('Invalid block number: '+inttostr(block_number));
+    ToTBlockAccount(PBlockAccount(FBlockAccountsList.Items[block_number])^,block_number,Result);
+  finally
+    EndThreadSave;
+  end;
 end;
 
 class function TPCSafeBox.BlockAccountToText(const block: TBlockAccount): AnsiString;
@@ -1386,7 +1447,12 @@ end;
 
 function TPCSafeBox.BlocksCount: Integer;
 begin
-  Result := FBlockAccountsList.Count;
+  StartThreadSafe;
+  try
+    Result := FBlockAccountsList.Count;
+  finally
+    EndThreadSave;
+  end;
 end;
 
 class function TPCSafeBox.CalcBlockHash(const block : TBlockAccount; useProtocol2Method : Boolean): TRawBytes;
@@ -1482,9 +1548,14 @@ end;
 
 function TPCSafeBox.CalcSafeBoxHash: TRawBytes;
 begin
-  // If No buffer to hash is because it's firts block... so use Genesis: CT_Genesis_Magic_String_For_Old_Block_Hash
-  if (FBufferBlocksHash='') then Result := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash)
-  else Result := TCrypto.DoSha256(FBufferBlocksHash);
+  StartThreadSafe;
+  try
+    // If No buffer to hash is because it's firts block... so use Genesis: CT_Genesis_Magic_String_For_Old_Block_Hash
+    if (FBufferBlocksHash='') then Result := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash)
+    else Result := TCrypto.DoSha256(FBufferBlocksHash);
+  finally
+    EndThreadSave;
+  end;
 end;
 
 function TPCSafeBox.CanUpgradeToProtocol2: Boolean;
@@ -2358,6 +2429,11 @@ begin
     AccountKeyListAddAccounts(newAccountInfo.accountKey,[account_number]);
   end;
 
+  {$IFDEF useAccountKeyStorage}
+  // Delete old references prior to change
+  TAccountKeyStorage.KS.RemoveAccountKey(acc.accountInfo.accountKey);
+  TAccountKeyStorage.KS.RemoveAccountKey(acc.accountInfo.new_publicKey);
+  {$ENDIF}
   acc.accountInfo := newAccountInfo;
   // Name:
   If acc.name<>newName then begin

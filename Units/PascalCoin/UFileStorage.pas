@@ -36,6 +36,7 @@ Type
   private
     FStorageLock : TPCCriticalSection;
     FBlockChainStream : TFileStream;
+    FPendingBufferOperationsStream : TFileStream;
     FStreamFirstBlockNumber : Int64;
     FStreamLastBlockNumber : Int64;
     FBlockHeadersFirstBytePosition : TArrayOfInt64;
@@ -50,6 +51,7 @@ Type
     procedure SetDatabaseFolder(const Value: AnsiString);
     Procedure ClearStream;
     Procedure GrowStreamUntilPos(Stream : TStream; newPos : Int64; DeleteDataStartingAtCurrentPos : Boolean);
+    Function GetPendingBufferOperationsStream : TFileStream;
   protected
     procedure SetReadOnly(const Value: Boolean); override;
     procedure SetOrphan(const Value: TOrphan); override;
@@ -68,6 +70,8 @@ Type
     function DoInitialize : Boolean; override;
     Function DoCreateSafeBoxStream(blockCount : Cardinal) : TStream; override;
     Procedure DoEraseStorage; override;
+    Procedure DoSavePendingBufferOperations(OperationsHashTree : TOperationsHashTree); override;
+    Procedure DoLoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree); override;
   public
     Constructor Create(AOwner : TComponent); Override;
     Destructor Destroy; Override;
@@ -140,6 +144,7 @@ end;
 procedure TFileStorage.ClearStream;
 begin
   FreeAndNil(FBlockChainStream);
+  FreeAndNil(FPendingBufferOperationsStream);
   FStreamFirstBlockNumber := 0;
   FStreamLastBlockNumber := -1;
   SetLength(FBlockHeadersFirstBytePosition,0);
@@ -165,6 +170,27 @@ begin
   Stream.Position := newPos;
 end;
 
+function TFileStorage.GetPendingBufferOperationsStream: TFileStream;
+Var fs : TFileStream;
+  fn : TFileName;
+  fm : Word;
+begin
+  If Not Assigned(FPendingBufferOperationsStream) then begin
+    fn := GetFolder(Orphan)+PathDelim+'pendingbuffer.ops';
+    If FileExists(fn) then fm := fmOpenReadWrite+fmShareExclusive
+    else fm := fmCreate+fmShareExclusive;
+    Try
+      FPendingBufferOperationsStream := TFileStream.Create(fn,fm);
+    Except
+      On E:Exception do begin
+        TLog.NewLog(ltError,ClassName,'Error opening PendingBufferOperationsStream '+fn+' ('+E.ClassName+'):'+ E.Message);
+        Raise;
+      end;
+    end;
+  end;
+  Result := FPendingBufferOperationsStream;
+end;
+
 procedure TFileStorage.CopyConfiguration(const CopyFrom: TStorage);
 begin
   inherited;
@@ -182,6 +208,7 @@ begin
   SetLength(FBlockHeadersFirstBytePosition,0);
   FStreamFirstBlockNumber := 0;
   FStreamLastBlockNumber := -1;
+  FPendingBufferOperationsStream := Nil;
   FStorageLock := TPCCriticalSection.Create('TFileStorage_StorageLock');
 end;
 
@@ -234,7 +261,7 @@ begin
   Result := Nil;
   fn := GetSafeboxCheckpointingFileName(GetFolder(Orphan),blockCount);
   If (fn<>'') and (FileExists(fn)) then begin
-    Result := TFileStream.Create(fn,fmOpenRead);
+    Result := TFileStream.Create(fn,fmOpenRead+fmShareDenyWrite);
   end;
   If Not Assigned(Result) then begin
     err := 'Cannot load SafeBoxStream (block:'+IntToStr(blockCount)+') file:'+fn;
@@ -249,6 +276,38 @@ begin
   try
     stream.Size:=0; // Erase
     ClearStream;
+  finally
+    UnlockBlockChainStream;
+  end;
+end;
+
+procedure TFileStorage.DoSavePendingBufferOperations(OperationsHashTree : TOperationsHashTree);
+Var fs : TFileStream;
+begin
+  LockBlockChainStream;
+  Try
+    fs := GetPendingBufferOperationsStream;
+    fs.Position:=0;
+    fs.Size:=0;
+    OperationsHashTree.SaveOperationsHashTreeToStream(fs,true);
+    TLog.NewLog(ltdebug,ClassName,Format('DoSavePendingBufferOperations operations:%d',[OperationsHashTree.OperationsCount]));
+  finally
+    UnlockBlockChainStream;
+  end;
+end;
+
+procedure TFileStorage.DoLoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree);
+Var fs : TFileStream;
+  errors : AnsiString;
+  n : Integer;
+begin
+  LockBlockChainStream;
+  Try
+    fs := GetPendingBufferOperationsStream;
+    fs.Position:=0;
+    If OperationsHashTree.LoadOperationsHashTreeFromStream(fs,true,true,errors) then begin
+      TLog.NewLog(ltInfo,ClassName,Format('DoLoadPendingBufferOperations loaded operations:%d',[OperationsHashTree.OperationsCount]));
+    end else TLog.NewLog(ltError,ClassName,Format('DoLoadPendingBufferOperations ERROR: loaded operations:%d errors:%s',[OperationsHashTree.OperationsCount,errors]));
   finally
     UnlockBlockChainStream;
   end;

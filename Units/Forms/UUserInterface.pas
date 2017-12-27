@@ -990,7 +990,7 @@ end;
 procedure TLoadDatabaseThread.BCExecute;
 begin
   // Read Operations saved from disk
-  TNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
+  TNode.Node.InitSafeboxAndOperations; // New Build 2.1.4 to load pending operations buffer
   TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
   TNode.Node.NetServer.Active := true;
   Synchronize( TUserInterface.FinishedLoadingDatabase );

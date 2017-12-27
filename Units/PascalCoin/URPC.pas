@@ -517,6 +517,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     jsonObject.GetAsVariant('subtype').Value:=OPR.OpSubtype;
     jsonObject.GetAsVariant('account').Value:=OPR.AffectedAccount;
     jsonObject.GetAsVariant('signer_account').Value:=OPR.SignerAccount;
+    jsonObject.GetAsVariant('n_operation').Value:=OPR.n_operation;
     jsonObject.GetAsVariant('optxt').Value:=OPR.OperationTxt;
     jsonObject.GetAsVariant('amount').Value:=ToJSONCurrency(OPR.Amount);
     jsonObject.GetAsVariant('fee').Value:=ToJSONCurrency(OPR.Fee);
@@ -2041,7 +2042,52 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     Result := True;
   end;
 
-Var c,c2 : Cardinal;
+  function FindNOperations : Boolean;
+  Var oprl : TOperationsResumeList;
+    start_block, account, n_operation_min, n_operation_max : Cardinal;
+    sor : TSearchOperationResult;
+    jsonarr : TPCJSONArray;
+    i : Integer;
+  begin
+    Result := False;
+    oprl := TOperationsResumeList.Create;
+    try
+      account := params.AsCardinal('account',MaxInt);
+      If (params.IndexOfName('n_operation_min')<0) Or (params.IndexOfName('n_operation_max')<0) then begin
+        ErrorNum:=CT_RPC_ErrNum_NotFound;
+        ErrorDesc:='Need n_operation_min and n_operation_max params';
+        exit;
+      end;
+      n_operation_min := params.AsCardinal('n_operation_min',0);
+      n_operation_max := params.AsCardinal('n_operation_max',0);
+      start_block := params.AsCardinal('start_block',0); // Optional: 0 = Search all
+      sor := FNode.FindNOperations(account,start_block,true,n_operation_min,n_operation_max,oprl);
+      Case sor of
+        found : Result := True;
+        invalid_params : begin
+            ErrorNum:=CT_RPC_ErrNum_NotFound;
+            ErrorDesc:='Not found using block/account/n_operation';
+            exit;
+          end;
+        blockchain_block_not_found : begin
+            ErrorNum := CT_RPC_ErrNum_InvalidBlock;
+            ErrorDesc:='Blockchain file does not contain all blocks to find';
+            exit;
+          end;
+      else Raise Exception.Create('ERROR DEV 20171120-7');
+      end;
+      jsonarr := jsonresponse.GetAsArray('result');
+      if oprl.Count>0 then begin;
+        for i:=0 to oprl.Count-1 do begin
+          FillOperationResumeToJSONObject(oprl.OperationResume[i],jsonarr.GetAsObject(jsonarr.Count));
+        end;
+      end;
+    finally
+      oprl.Free;
+    end;
+  end;
+
+Var c,c2,c3 : Cardinal;
   i,j,k,l : Integer;
   account : TAccount;
   senderpubkey,destpubkey : TAccountKey;
@@ -2050,7 +2096,7 @@ Var c,c2 : Cardinal;
   pcops : TPCOperationsComp;
   ecpkey : TECPrivateKey;
   opr : TOperationResume;
-  r : TRawBytes;
+  r1,r2 : TRawBytes;
   ocl : TOrderedCardinalList;
   jsonarr : TPCJSONArray;
   jso : TPCJSONObject;
@@ -2361,20 +2407,47 @@ begin
       FillOperationResumeToJSONObject(opr,GetResultArray.GetAsObject( FNode.Operations.Count-1-i ));
     end;
     Result := true;
+  end else if (method='decodeophash') then begin
+    // Search for an operation based on "ophash"
+    r1 := TCrypto.HexaToRaw(params.AsString('ophash',''));
+    if (r1='') then begin
+      ErrorNum:=CT_RPC_ErrNum_NotFound;
+      ErrorDesc:='param ophash not found or invalid hexadecimal value "'+params.AsString('ophash','')+'"';
+      exit;
+    end;
+    If not TPCOperation.DecodeOperationHash(r1,c,c2,c3,r2) then begin
+      ErrorNum:=CT_RPC_ErrNum_NotFound;
+      ErrorDesc:='invalid ophash param value';
+      exit;
+    end;
+    GetResultObject.GetAsVariant('block').Value:=c;
+    GetResultObject.GetAsVariant('account').Value:=c2;
+    GetResultObject.GetAsVariant('n_operation').Value:=c3;
+    GetResultObject.GetAsVariant('md160hash').Value:=TCrypto.ToHexaString(r2);
+    Result := true;
   end else if (method='findoperation') then begin
     // Search for an operation based on "ophash"
-    r := TCrypto.HexaToRaw(params.AsString('ophash',''));
-    if (r='') then begin
+    r1 := TCrypto.HexaToRaw(params.AsString('ophash',''));
+    if (r1='') then begin
       ErrorNum:=CT_RPC_ErrNum_NotFound;
-      ErrorDesc:='param ophash not found or invalid value "'+params.AsString('ophash','')+'"';
+      ErrorDesc:='param ophash not found or invalid hexadecimal value "'+params.AsString('ophash','')+'"';
       exit;
     end;
     pcops := TPCOperationsComp.Create(Nil);
     try
-      If not FNode.FindOperation(pcops,r,c,i) then begin
-        ErrorNum:=CT_RPC_ErrNum_NotFound;
-        ErrorDesc:='ophash not found: "'+params.AsString('ophash','')+'"';
-        exit;
+      Case FNode.FindOperationExt(pcops,r1,c,i) of
+        found : ;
+        invalid_params : begin
+            ErrorNum:=CT_RPC_ErrNum_NotFound;
+            ErrorDesc:='ophash not found: "'+params.AsString('ophash','')+'"';
+            exit;
+          end;
+        blockchain_block_not_found : begin
+            ErrorNum := CT_RPC_ErrNum_InternalError;
+            ErrorDesc:='Blockchain block '+IntToStr(c)+' not found to search ophash: "'+params.AsString('ophash','')+'"';
+            exit;
+          end;
+      else Raise Exception.Create('ERROR DEV 20171120-4');
       end;
       If not TPCOperation.OperationToOperationResume(c,pcops.Operation[i],pcops.Operation[i].SignerAccount,opr) then begin
         ErrorNum := CT_RPC_ErrNum_InternalError;
@@ -2388,6 +2461,29 @@ begin
     finally
       pcops.Free;
     end;
+  end else if (method='findnoperation') then begin
+    // Search for an operation signed by "account" and with "n_operation", start searching "block" (0=all)
+    // "block" = 0 search in all blocks, pending operations included
+    Case FNode.FindNOperation(params.AsCardinal('block',0),params.AsCardinal('account',MaxInt),params.AsCardinal('n_operation',0),opr) of
+      found : ;
+      invalid_params : begin
+          ErrorNum:=CT_RPC_ErrNum_NotFound;
+          ErrorDesc:='Not found using block/account/n_operation';
+          exit;
+        end;
+      blockchain_block_not_found : begin
+          ErrorNum := CT_RPC_ErrNum_InvalidBlock;
+          ErrorDesc:='Blockchain file does not contain all blocks to find';
+          exit;
+        end;
+    else Raise Exception.Create('ERROR DEV 20171120-5');
+    end;
+    FillOperationResumeToJSONObject(opr,GetResultObject);
+    Result := True;
+  end else if (method='findnoperations') then begin
+    // Search for all operations signed by "account" and n_operation value between "n_operation_min" and "n_operation_max", start searching at "block" (0=all)
+    // "block" = 0 search in all blocks, pending operations included
+    Result := findNOperations;
   end else if (method='sendto') then begin
     // Sends "amount" coins from "sender" to "target" with "fee"
     // If "payload" is present, it will be encoded using "payload_method"

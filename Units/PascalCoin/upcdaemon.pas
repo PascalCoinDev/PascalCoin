@@ -205,7 +205,7 @@ begin
         FNode.Bank.StorageClass := TFileStorage;
         TFileStorage(FNode.Bank.Storage).DatabaseFolder := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data';
         // Reading database
-        FNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
+        FNode.InitSafeboxAndOperations;
         FWalletKeys.SafeBox := FNode.Node.Bank.SafeBox;
         FNode.Node.NetServer.Port:=FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_NODE_PORT,CT_NetServer_Port);
         FNode.Node.NetServer.MaxConnections:=FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_NODE_MAX_CONNECTIONS,CT_MaxClientsConnected);

@@ -118,6 +118,7 @@ Type
     time : Cardinal;
     AffectedAccount : Cardinal;
     SignerAccount : Int64; // Is the account that executes this operation
+    n_operation : Cardinal;
     DestAccount : Int64;   //
     SellerAccount : Int64; // Protocol 2 - only used when is a pay to transaction
     newKey : TAccountKey;
@@ -185,7 +186,8 @@ Type
     Property HasValidSignature : Boolean read FHasValidSignature;
     Class function OperationHash_OLD(op : TPCOperation; Block : Cardinal) : TRawBytes;
     Class function OperationHashValid(op : TPCOperation; Block : Cardinal) : TRawBytes;
-    Class function DecodeOperationHash(Const operationHash : TRawBytes; var block, account,n_operation : Cardinal) : Boolean;
+    Class function DecodeOperationHash(Const operationHash : TRawBytes; var block, account,n_operation : Cardinal; var md160Hash : TRawBytes) : Boolean;
+    Class function EqualOperationHashes(Const operationHash1, operationHash2 : TRawBytes) : Boolean;
     Class function FinalOperationHashAsHexa(Const operationHash : TRawBytes) : AnsiString;
     function Sha256 : TRawBytes;
   End;
@@ -340,6 +342,8 @@ Type
     function DoInitialize:Boolean; virtual; abstract;
     Function DoCreateSafeBoxStream(blockCount : Cardinal) : TStream; virtual; abstract;
     Procedure DoEraseStorage; virtual; abstract;
+    Procedure DoSavePendingBufferOperations(OperationsHashTree : TOperationsHashTree); virtual; abstract;
+    Procedure DoLoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree); virtual; abstract;
   public
     Function LoadBlockChainBlock(Operations : TPCOperationsComp; Block : Cardinal) : Boolean;
     Function SaveBlockChainBlock(Operations : TPCOperationsComp) : Boolean;
@@ -359,6 +363,8 @@ Type
     Function HasUpgradedToVersion2 : Boolean; virtual; abstract;
     Procedure CleanupVersion1Data; virtual; abstract;
     Procedure EraseStorage;
+    Procedure SavePendingBufferOperations(OperationsHashTree : TOperationsHashTree);
+    Procedure LoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree);
   End;
 
   TStorageClass = Class of TStorage;
@@ -404,7 +410,7 @@ Type
   End;
 
 Const
-  CT_TOperationResume_NUL : TOperationResume = (valid:false;Block:0;NOpInsideBlock:-1;OpType:0;OpSubtype:0;time:0;AffectedAccount:0;SignerAccount:-1;DestAccount:-1;SellerAccount:-1;newKey:(EC_OpenSSL_NID:0;x:'';y:'');OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:'';PrintablePayload:'';OperationHash:'';OperationHash_OLD:'';errors:'');
+  CT_TOperationResume_NUL : TOperationResume = (valid:false;Block:0;NOpInsideBlock:-1;OpType:0;OpSubtype:0;time:0;AffectedAccount:0;SignerAccount:-1;n_operation:0;DestAccount:-1;SellerAccount:-1;newKey:(EC_OpenSSL_NID:0;x:'';y:'');OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:'';PrintablePayload:'';OperationHash:'';OperationHash_OLD:'';errors:'');
 
 implementation
 
@@ -413,7 +419,7 @@ uses
   SysUtils, Variants, {Graphics,}
   {Controls, Forms,}
   Dialogs, {StdCtrls,}
-  UTime, UConst, UOpTransaction;
+  UTime, UConst, UOpTransaction, UCommon;
 
 { TPCBank }
 
@@ -1791,6 +1797,7 @@ begin
     FOnChanged := lastNE;
   end;
   If Assigned(FOnChanged) then FOnChanged(Self);
+  errors := '';
   Result := true;
 end;
 
@@ -1864,6 +1871,16 @@ begin
   DoEraseStorage;
 end;
 
+procedure TStorage.SavePendingBufferOperations(OperationsHashTree : TOperationsHashTree);
+begin
+  DoSavePendingBufferOperations(OperationsHashTree);
+end;
+
+procedure TStorage.LoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree);
+begin
+  DoLoadPendingBufferOperations(OperationsHashTree);
+end;
+
 function TStorage.LoadBlockChainBlock(Operations: TPCOperationsComp; Block: Cardinal): Boolean;
 begin
   if (Block<FirstBlock) Or (Block>LastBlock) then result := false
@@ -1926,7 +1943,6 @@ begin
   FReadOnly := Value;
 end;
 
-
 { TPCOperation }
 
 constructor TPCOperation.Create;
@@ -1960,13 +1976,15 @@ begin
 end;
 
 class function TPCOperation.DecodeOperationHash(const operationHash: TRawBytes;
-  var block, account, n_operation: Cardinal): Boolean;
+  var block, account, n_operation: Cardinal; var md160Hash : TRawBytes) : Boolean;
   { Decodes a previously generated OperationHash }
 var ms : TMemoryStream;
 begin
   Result := false;
-  account:=0;
-  n_operation:=0;
+  block :=0;
+  account :=0;
+  n_operation :=0;
+  md160Hash:='';
   if length(operationHash)<>32 then exit;
   ms := TMemoryStream.Create;
   try
@@ -1975,10 +1993,26 @@ begin
     ms.Read(block,4);
     ms.Read(account,4);
     ms.Read(n_operation,4);
+    SetLength(md160Hash, 20);
+    ms.ReadBuffer(md160Hash[1], 20);
     Result := true;
   finally
     ms.free;
   end;
+end;
+
+class function TPCOperation.EqualOperationHashes(const operationHash1,operationHash2: TRawBytes): Boolean;
+  // operationHash1 and operationHash2 must be in RAW format (Not hexadecimal string!)
+var b0,b1,b2,r1,r2 : TRawBytes;
+begin
+  // First 4 bytes of OpHash are block number. If block=0 then is an unknown block, otherwise must match
+  b1 := copy(operationHash1,1,4);
+  b2 := copy(operationHash2,1,4);
+  r1 := copy(operationHash1,5,length(operationHash1)-4);
+  r2 := copy(operationHash2,5,length(operationHash2)-4);
+  b0 := TCrypto.HexaToRaw('00000000');
+  Result := (BinStrComp(r1,r2)=0) // Both right parts must be equal
+    AND ((BinStrComp(b1,b0)=0) Or (BinStrComp(b2,b0)=0) Or (BinStrComp(b1,b2)=0)); // b is 0 value or b1=b2 (b = block number)
 end;
 
 class function TPCOperation.FinalOperationHashAsHexa(const operationHash: TRawBytes): AnsiString;
@@ -2090,6 +2124,7 @@ begin
   OperationResume.AffectedAccount := Affected_account_number;
   OperationResume.OpType:=Operation.OpType;
   OperationResume.SignerAccount := Operation.SignerAccount;
+  OperationResume.n_operation := Operation.N_Operation;
   Result := false;
   case Operation.OpType of
     CT_Op_Transaction : Begin

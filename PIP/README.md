@@ -15,4 +15,5 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [6](PIP-0006.md)      | Salvage orphaned transactions            | Herman Schoenfeld              | Protocol       | Active   |
 | [7](PIP-0007.md)      | New Wallet GUI                           | Herman Schoenfeld              | Front-End      | Draft    |
 | [8](PIP-0008.md)      | Hook(s) to start external programs       | Preben Björn Biermann Madsen   | Backend        | Draft    |
+| [9](PIP-0009.md)      | RandomHash: GPU & ASIC Resistant Hash Algorithm | Herman Schoenfeld              | Protocol       | Draft    |
 
