@@ -1,6 +1,6 @@
 program PascalCoinMiner;
 
-{$mode objfpc}{$H+}
+{$mode delphi}{$H+}
 {$DEFINE UseCThreads}
 {$I ./Units/PascalCoin/config.inc}
 
@@ -160,7 +160,7 @@ begin
       txt := copy(txt,1,FWindow32X2-FWindow32X1+1);
     end;
     if (nline<=(FWindow32Y2-FWindow32Y1)) then begin
-      GotoXY32(FWindow32X1,nline);
+      GotoXY(FWindow32X1,nline);
       write(txt);
     end;
   finally
@@ -180,7 +180,7 @@ begin
     // TODO - test logtype is properly casted/stored/retrieved/accessed.
     // Confirm casting doesn't lose bits in 32/64 bit archs
     // OLD: FLastLogs.AddObject(msg,TObject(PtrInt(logtype)));
-    FLastLogs.AddObject(msg,TObject(Int(QWord(logtype))));
+    FLastLogs.AddObject(msg,Pointer(logtype));
     i := FLastLogs.Count-CT_MaxLogs;
     if (i<0) then i:=0;
     nline := CT_Line_Logs+FDeviceThreads.Count;
@@ -222,9 +222,9 @@ var
         exit;
       end;
       devt:= TCPUDeviceThread.Create(FPoolMinerThread,CT_TMinerValuesForWork_NULL);
-      devt.OnStateChanged:=@OnDeviceStateChanged;
-      devt.OnMinerValuesChanged:=@OnMinerValuesChanged;
-      devt.OnFoundNOnce:=@OnFoundNOnce;
+      devt.OnStateChanged:=OnDeviceStateChanged;
+      devt.OnMinerValuesChanged:=OnMinerValuesChanged;
+      devt.OnFoundNOnce:=OnFoundNOnce;
       TCPUDeviceThread(devt).CPUs:=c;
       devt.Paused:=true;
       FDeviceThreads.Add(devt);
@@ -252,9 +252,9 @@ var
           end;
           //
           devt := TGPUDeviceThread.Create(FPoolMinerThread,CT_TMinerValuesForWork_NULL);
-          devt.OnStateChanged:=@OnDeviceStateChanged;
-          devt.OnMinerValuesChanged:=@OnMinerValuesChanged;
-          devt.OnFoundNOnce:=@OnFoundNOnce;
+          devt.OnStateChanged:=OnDeviceStateChanged;
+          devt.OnMinerValuesChanged:=OnMinerValuesChanged;
+          devt.OnFoundNOnce:=OnFoundNOnce;
           TGPUDeviceThread(devt).Platform:=p;
           TGPUDeviceThread(devt).Device:=d;
           TGPUDeviceThread(devt).ProgramFileName:=ExtractFileDir(ExeName)+PathDelim+CT_OpenCL_FileName;
@@ -362,7 +362,7 @@ var
         FPoolMinerThread.MinerAddName:=minerName;
         WriteLine(CT_Line_MinerValues-1,'MINER VALUES: (My miner name="'+minerName+'")');
 
-        FPoolMinerThread.OnConnectionStateChanged:=@OnConnectionStateChanged;
+        FPoolMinerThread.OnConnectionStateChanged:=OnConnectionStateChanged;
         OnConnectionStateChanged(FPoolMinerThread);
 
         If (FDeviceThreads.Count)=1 then begin
@@ -373,7 +373,7 @@ var
         end;
         Flog := TLog.Create(Nil);
         try
-          Flog.OnInThreadNewLog:=@OnInThreadNewLog;
+          Flog.OnInThreadNewLog:=OnInThreadNewLog;
           DoWaitAndLog;
         finally
           FLog.free;

@@ -54,7 +54,13 @@ uses
   OTHER: 25595, 25612, 25615, 25617, 25618, 25619
 }
 
+{.$define EXTRA_WARNINGS}
+
 type
+  {$ifdef VER3_0_0}
+  TArray<T> = array of T;
+  {$endif}
+
   // bug #24254 workaround
   // should be TArray = record class procedure Sort<T>(...) etc.
   TCustomArrayHelper<T> = class abstract
@@ -80,7 +86,7 @@ type
       out AFoundIndex: SizeInt; const AComparer: IComparer<T>): Boolean; overload;
     class function BinarySearch(constref AValues: array of T; constref AItem: T;
       out AFoundIndex: SizeInt): Boolean; overload;
-  end experimental; // will be renamed to TCustomArray (bug #24254)
+  end {$ifdef EXTRA_WARNINGS}experimental{$endif}; // will be renamed to TCustomArray (bug #24254)
 
   TArrayHelper<T> = class(TCustomArrayHelper<T>)
   protected
@@ -90,7 +96,7 @@ type
     class function BinarySearch(constref AValues: array of T; constref AItem: T;
       out AFoundIndex: SizeInt; const AComparer: IComparer<T>;
       AIndex, ACount: SizeInt): Boolean; override; overload;
-  end experimental; // will be renamed to TArray (bug #24254)
+  end {$ifdef EXTRA_WARNINGS}experimental{$endif}; // will be renamed to TArray (bug #24254)
 
   TCollectionNotification = (cnAdded, cnRemoved, cnExtracted);
   TCollectionNotifyEvent<T> = procedure(ASender: TObject; constref AItem: T; AAction: TCollectionNotification)
@@ -706,9 +712,10 @@ end;
 procedure TList<T>.SetItem(AIndex: SizeInt; const AValue: T);
 begin
   if (AIndex < 0) or (AIndex >= Count) then
-    raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
-
+    raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);   
+  Notify(FItems[AIndex], cnRemoved);
   FItems[AIndex] := AValue;
+  Notify(AValue, cnAdded);
 end;
 
 function TList<T>.GetEnumerator: TEnumerator;
@@ -1003,7 +1010,9 @@ constructor TThreadList<T>.Create;
 begin
   inherited Create;
   FDuplicates:=dupIgnore;
+{$ifdef FPC_HAS_FEATURE_THREADING}
   InitCriticalSection(FLock);
+{$endif}
   FList := TList<T>.Create;
 end;
 
@@ -1015,7 +1024,9 @@ begin
     inherited Destroy;
   finally
     UnlockList;
+{$ifdef FPC_HAS_FEATURE_THREADING}
     DoneCriticalSection(FLock);
+{$endif}
   end;
 end;
 
@@ -1055,12 +1066,16 @@ end;
 function TThreadList<T>.LockList: TList<T>;
 begin
   Result:=FList;
+{$ifdef FPC_HAS_FEATURE_THREADING}
   System.EnterCriticalSection(FLock);
+{$endif}
 end;
 
 procedure TThreadList<T>.UnlockList;
 begin
+{$ifdef FPC_HAS_FEATURE_THREADING}
   System.LeaveCriticalSection(FLock);
+{$endif}
 end;
 
 { TQueue<T>.TEnumerator }

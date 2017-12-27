@@ -22,7 +22,7 @@ object FRMMainForm: TFRMMainForm
   OnResize = FormResize
   Position = poScreenCenter
   ShowHint = True
-  LCLVersion = '1.6.4.0'
+  LCLVersion = '1.8.0.6'
   object paLogoPanel: TPanel
     Left = 0
     Height = 80
