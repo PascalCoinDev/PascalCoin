@@ -60,7 +60,7 @@ Type
     FValue: Variant;
     procedure SetValue(const Value: Variant);
   protected
-	Function ToJSONFormatted(pretty:Boolean;const prefix : AnsiString) : AnsiString; override;
+    Function ToJSONFormatted(pretty:Boolean;const prefix : AnsiString) : AnsiString; override;
   public
     Constructor Create; override;
     Constructor CreateFromJSONValue(JSONValue : TJSONValue);
@@ -107,7 +107,7 @@ Type
   public
     Constructor Create; override;
     Destructor Destroy; override;
-	Property Items[Index:Integer] : TPCJSONData read GetItems write SetItems;
+    Property Items[Index:Integer] : TPCJSONData read GetItems write SetItems;
     Procedure Insert(Index:Integer; PCJSONData:TPCJSONData);
     Procedure Delete(index : Integer);
     function Count : Integer;
@@ -154,7 +154,7 @@ Type
     Function AsCardinal(ParamName : String; DefValue : Cardinal) : Cardinal;
     Function AsInt64(ParamName : String; DefValue : Int64) : Int64;
     Function AsDouble(ParamName : String; DefValue : Double) : Double;
-	Function AsBoolean(ParamName : String; DefValue : Boolean) : Boolean;
+    Function AsBoolean(ParamName : String; DefValue : Boolean) : Boolean;
     Function AsDateTime(ParamName : String; DefValue : TDateTime) : TDateTime;
     Function AsCurrency(ParamName : String; DefValue : Currency) : Currency;
     Function SaveAsStream(ParamName : String; Stream : TStream) : Integer;
@@ -436,7 +436,7 @@ end;
 function TPCJSONVariantValue.AsDouble(DefValue: Double): Double;
 begin
   try
-	Result := VariantToDouble(Value);
+    Result := VariantToDouble(Value);
   except
     Result := DefValue;
   end;
@@ -493,37 +493,37 @@ begin
   Value := JSONValue.Value;
   {$ELSE}
   if JSONValue is TJSONNumber then begin
-	d := TJSONNumber(JSONValue).AsDouble;
-	if Pos('.',JSONValue.ToString)>0 then i64 := 0
-	else i64 := TJSONNumber(JSONValue).AsInt;
+    d := TJSONNumber(JSONValue).AsDouble;
+    if Pos('.',JSONValue.ToString)>0 then i64 := 0
+    else i64 := TJSONNumber(JSONValue).AsInt;
 
-	// Delphi 6 introduced "conditional compilation" and Delphi XE 6 (27) introduced FormatSettings variable.
-	{$IF Defined(DCC) and Declared(CompilerVersion) and (CompilerVersion >= 27.0)}
-	ds := FormatSettings.DecimalSeparator;
-	ts := FormatSettings.ThousandSeparator;
-	FormatSettings.DecimalSeparator := '.';
-	FormatSettings.ThousandSeparator := ',';
-	{$ELSE}
-	ds := DecimalSeparator;
-	ts := ThousandSeparator;
-	DecimalSeparator := '.';
-	ThousandSeparator := ',';
-	{$IFEND}
+    // Delphi 6 introduced "conditional compilation" and Delphi XE 6 (27) introduced FormatSettings variable.
+    {$IF Defined(DCC) and Declared(CompilerVersion) and (CompilerVersion >= 27.0)}
+    ds := FormatSettings.DecimalSeparator;
+    ts := FormatSettings.ThousandSeparator;
+    FormatSettings.DecimalSeparator := '.';
+    FormatSettings.ThousandSeparator := ',';
+    {$ELSE}
+    ds := DecimalSeparator;
+    ts := ThousandSeparator;
+    DecimalSeparator := '.';
+    ThousandSeparator := ',';
+    {$IFEND}
 
-	Try
-	  if FormatFloat('0.###########',d)=inttostr(i64) then
-		Value := i64
-	  else Value := d;
-	Finally
-	  // Delphi 6 introduced "conditional compilation" and Delphi XE 6 (27) introduced FormatSettings variable.
-	  {$IF Defined(DCC) and Declared(CompilerVersion) and (CompilerVersion >= 27.0)}
-	  FormatSettings.DecimalSeparator := ds;
-	  FormatSettings.ThousandSeparator := ts;
-	  {$ELSE}
-	  DecimalSeparator := ds;
-	  ThousandSeparator := ts;
-	  {$IFEND}
-	End;
+    Try
+      if FormatFloat('0.###########',d)=inttostr(i64) then
+        Value := i64
+      else Value := d;
+    Finally
+      // Delphi 6 introduced "conditional compilation" and Delphi XE 6 (27) introduced FormatSettings variable.
+      {$IF Defined(DCC) and Declared(CompilerVersion) and (CompilerVersion >= 27.0)}
+      FormatSettings.DecimalSeparator := ds;
+      FormatSettings.ThousandSeparator := ts;
+      {$ELSE}
+      DecimalSeparator := ds;
+      ThousandSeparator := ts;
+      {$IFEND}
+    End;
   end else if JSONValue is TJSONTrue then Value := true
   else if JSONValue is TJSONFalse then Value := false
   else if JSONValue is TJSONNull then Value := Null
@@ -550,29 +550,29 @@ begin
     varLongWord,varInt64 : Result := VarToStr(Value);
     varBoolean : if (Value) then Result := 'true' else Result:='false';
     varNull : Result := 'null';
-	varDate,varDouble : begin
-	  {$IF Defined(DCC) and Declared(CompilerVersion) and (CompilerVersion >= 27.0)}
-	  ds := FormatSettings.DecimalSeparator;
-	  ts := FormatSettings.ThousandSeparator;
-	  FormatSettings.DecimalSeparator := '.';
-	  FormatSettings.ThousandSeparator := ',';
-	  {$ELSE}
-	  ds := DecimalSeparator;
-	  ts := ThousandSeparator;
-	  DecimalSeparator := '.';
-	  ThousandSeparator := ',';
-	  {$IFEND}
+    varDate,varDouble : begin
+      {$IF Defined(DCC) and Declared(CompilerVersion) and (CompilerVersion >= 27.0)}
+      ds := FormatSettings.DecimalSeparator;
+      ts := FormatSettings.ThousandSeparator;
+      FormatSettings.DecimalSeparator := '.';
+      FormatSettings.ThousandSeparator := ',';
+      {$ELSE}
+      ds := DecimalSeparator;
+      ts := ThousandSeparator;
+      DecimalSeparator := '.';
+      ThousandSeparator := ',';
+      {$IFEND}
 
-	  try
-		Result := FormatFloat('0.###########',Value);
-	  finally
-		{$IF Defined(DCC) and Declared(CompilerVersion) and (CompilerVersion >= 27.0)}
-		FormatSettings.DecimalSeparator := ds;
-		FormatSettings.ThousandSeparator := ts;
-		{$ELSE}
-		DecimalSeparator := ds;
-		ThousandSeparator := ts;
-		{$IFEND}
+      try
+        Result := FormatFloat('0.###########',Value);
+      finally
+        {$IF Defined(DCC) and Declared(CompilerVersion) and (CompilerVersion >= 27.0)}
+        FormatSettings.DecimalSeparator := ds;
+        FormatSettings.ThousandSeparator := ts;
+        {$ELSE}
+        DecimalSeparator := ds;
+        ThousandSeparator := ts;
+        {$IFEND}
       end;
     end
   else
