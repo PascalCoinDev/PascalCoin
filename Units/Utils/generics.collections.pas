@@ -427,6 +427,7 @@ type
     destructor Destroy; override;
     function Add(constref AValue: T): Boolean;
     function Remove(constref AValue: T): Boolean;
+    procedure Clear;
     function Contains(constref AValue: T): Boolean; inline;
     procedure UnionWith(AHashSet: THashSet<T>);
     procedure IntersectWith(AHashSet: THashSet<T>);
@@ -1615,6 +1616,11 @@ begin
   Result := LIndex >= 0;
   if Result then
     FInternalDictionary.DoRemove(LIndex, cnRemoved);
+end;
+
+procedure THashSet<T>.Clear;
+begin
+  FInternalDictionary.Clear;
 end;
 
 function THashSet<T>.Contains(constref AValue: T): Boolean;
