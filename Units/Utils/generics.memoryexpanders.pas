@@ -21,6 +21,8 @@ unit Generics.MemoryExpanders;
 
 {$mode delphi}
 {$MACRO ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
 {.$WARN 5024 OFF}
 {.$WARN 4079 OFF}
 

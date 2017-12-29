@@ -136,9 +136,14 @@ type
   private
     FOnNotify: TCollectionNotifyEvent<T>;
     function GetCapacity: SizeInt; inline;
+  private type
+    PItems = ^TItems;
+    TItems = record
+      FLength: SizeInt;
+      FItems: array of T;
+    end;
   protected
-    FItemsLength: SizeInt;
-    FItems: array of T;
+    FItems: TItems;
 
     function PrepareAddingItem: SizeInt; virtual;
     function PrepareAddingRange(ACount: SizeInt): SizeInt; virtual;
@@ -154,7 +159,7 @@ type
     property OnNotify: TCollectionNotifyEvent<T> read FOnNotify write FOnNotify;
   end;
 
-  TCustomListEnumerator<T> = class abstract(TEnumerator< T >)
+  TCustomListEnumerator<T> = class abstract(TEnumerator<T>)
   private
     FList: TCustomList<T>;
     FIndex: SizeInt;
@@ -166,7 +171,48 @@ type
     constructor Create(AList: TCustomList<T>);
   end;
 
-  TList<T> = class(TCustomList<T>)
+  TCustomListPointersEnumerator<T, PT> = class abstract(TEnumerator<PT>)
+  private type
+    TList = TCustomList<T>; // lazarus bug workaround
+  private var
+    FList: TList.PItems;
+    FIndex: SizeInt;
+  protected
+    function DoMoveNext: boolean; override;
+    function DoGetCurrent: PT; override;
+    function GetCurrent: PT; virtual;
+  public
+    constructor Create(AList: TList.PItems);
+  end;
+
+  TCustomListPointersCollection<TPointersEnumerator, T, PT> = record
+  private type
+    TList = TCustomList<T>; // lazarus bug workaround
+  private
+    function List: TList.PItems; inline;
+    function GetCount: SizeInt; inline;
+    function GetItem(AIndex: SizeInt): PT;
+  public
+    function GetEnumerator: TPointersEnumerator;
+    function ToArray: TArray<PT>;
+    property Count: SizeInt read GetCount;
+    property Items[Index: SizeInt]: PT read GetItem; default;
+  end;
+
+  TCustomListWithPointers<T> = class(TCustomList<T>)
+  public type
+    PT = ^T;
+  private type
+    TPointersEnumerator = class(TCustomListPointersEnumerator<T, PT>);
+    PPointersCollection = ^TPointersCollection;
+    TPointersCollection = TCustomListPointersCollection<TPointersEnumerator, T, PT>;
+  private
+    function GetPointers: PPointersCollection; inline;
+  public
+    property Ptr: PPointersCollection read GetPointers;
+  end;
+
+  TList<T> = class(TCustomListWithPointers<T>)
   private var
     FComparer: IComparer<T>;
   protected
@@ -230,7 +276,7 @@ type
     function BinarySearch(constref AItem: T; out AIndex: SizeInt): Boolean; overload;
     function BinarySearch(constref AItem: T; out AIndex: SizeInt; const AComparer: IComparer<T>): Boolean; overload;
 
-    property Count: SizeInt read FItemsLength write SetCount;
+    property Count: SizeInt read FItems.FLength write SetCount;
     property Items[Index: SizeInt]: T read GetItem write SetItem; default;
   end;
 
@@ -284,7 +330,7 @@ type
     procedure TrimExcess;
   end;
 
-  TStack<T> = class(TCustomList<T>)
+  TStack<T> = class(TCustomListWithPointers<T>)
   protected
   // bug #24287 - workaround for generics type name conflict (Identifier not found)
   // next bug workaround - for another error related to previous workaround
@@ -349,7 +395,51 @@ type
 
 {$I generics.dictionariesh.inc}
 
+  { THashSet }
+
+  THashSet<T> = class(TEnumerable<T>)
+  protected
+    FInternalDictionary : TDictionary<T, TEmptyRecord>;
+    function DoGetEnumerator: TEnumerator<T>; override;
+  public type
+    TSetEnumerator = class(TEnumerator<T>)
+    protected
+      FEnumerator: TDictionary<T, TEmptyRecord>.TKeyEnumerator;
+      function DoMoveNext: boolean; override;
+      function DoGetCurrent: T; override;
+      function GetCurrent: T; virtual;
+    public
+      constructor Create(ASet: THashSet<T>);
+      destructor Destroy; override;
+    end;
+  private
+    function GetCount: SizeInt; inline;
+    function GetPointers: TDictionary<T, TEmptyRecord>.TKeyCollection.PPointersCollection; inline;
+  public type
+    TEnumerator = TSetEnumerator;
+    PT = ^T;
+
+    function GetEnumerator: TEnumerator; reintroduce;
+  public
+    constructor Create; overload;
+    constructor Create(const AComparer: IEqualityComparer<T>); overload;
+    constructor Create(ACollection: TEnumerable<T>); overload;
+    destructor Destroy; override;
+    function Add(constref AValue: T): Boolean;
+    function Remove(constref AValue: T): Boolean;
+    function Contains(constref AValue: T): Boolean; inline;
+    procedure UnionWith(AHashSet: THashSet<T>);
+    procedure IntersectWith(AHashSet: THashSet<T>);
+    procedure ExceptWith(AHashSet: THashSet<T>);
+    procedure SymmetricExceptWith(AHashSet: THashSet<T>);
+    property Count: SizeInt read GetCount;
+    property Ptr: TDictionary<T, TEmptyRecord>.TKeyCollection.PPointersCollection read GetPointers;
+  end;
+
 function InCircularRange(ABottom, AItem, ATop: SizeInt): Boolean;
+
+var
+  EmptyRecord: TEmptyRecord;
 
 implementation
 
@@ -554,17 +644,17 @@ end;
 
 function TCustomList<T>.PrepareAddingItem: SizeInt;
 begin
-  Result := Length(FItems);
+  Result := Length(FItems.FItems);
 
-  if (FItemsLength < 4) and (Result < 4) then
-    SetLength(FItems, 4)
-  else if FItemsLength = High(FItemsLength) then
+  if (FItems.FLength < 4) and (Result < 4) then
+    SetLength(FItems.FItems, 4)
+  else if FItems.FLength = High(FItems.FLength) then
     OutOfMemoryError
-  else if FItemsLength = Result then
-    SetLength(FItems, CUSTOM_LIST_CAPACITY_INC);
+  else if FItems.FLength = Result then
+    SetLength(FItems.FItems, CUSTOM_LIST_CAPACITY_INC);
 
-  Result := FItemsLength;
-  Inc(FItemsLength);
+  Result := FItems.FLength;
+  Inc(FItems.FLength);
 end;
 
 function TCustomList<T>.PrepareAddingRange(ACount: SizeInt): SizeInt;
@@ -572,22 +662,22 @@ begin
   if ACount < 0 then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
   if ACount = 0 then
-    Exit(FItemsLength - 1);
+    Exit(FItems.FLength - 1);
 
-  if (FItemsLength = 0) and (Length(FItems) = 0) then
-    SetLength(FItems, 4)
-  else if FItemsLength = High(FItemsLength) then
+  if (FItems.FLength = 0) and (Length(FItems.FItems) = 0) then
+    SetLength(FItems.FItems, 4)
+  else if FItems.FLength = High(FItems.FLength) then
     OutOfMemoryError;
 
-  Result := Length(FItems);
-  while Pred(FItemsLength + ACount) >= Result do
+  Result := Length(FItems.FItems);
+  while Pred(FItems.FLength + ACount) >= Result do
   begin
-    SetLength(FItems, CUSTOM_LIST_CAPACITY_INC);
-    Result := Length(FItems);
+    SetLength(FItems.FItems, CUSTOM_LIST_CAPACITY_INC);
+    Result := Length(FItems.FItems);
   end;
 
-  Result := FItemsLength;
-  Inc(FItemsLength, ACount);
+  Result := FItems.FLength;
+  Inc(FItems.FLength, ACount);
 end;
 
 function TCustomList<T>.ToArray: TArray<T>;
@@ -597,7 +687,7 @@ end;
 
 function TCustomList<T>.GetCount: SizeInt;
 begin
-  Result := FItemsLength;
+  Result := FItems.FLength;
 end;
 
 procedure TCustomList<T>.Notify(constref AValue: T; ACollectionNotification: TCollectionNotification);
@@ -608,17 +698,17 @@ end;
 
 function TCustomList<T>.DoRemove(AIndex: SizeInt; ACollectionNotification: TCollectionNotification): T;
 begin
-  if (AIndex < 0) or (AIndex >= FItemsLength) then
+  if (AIndex < 0) or (AIndex >= FItems.FLength) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  Result := FItems[AIndex];
-  Dec(FItemsLength);
+  Result := FItems.FItems[AIndex];
+  Dec(FItems.FLength);
 
-  FItems[AIndex] := Default(T);
-  if AIndex <> FItemsLength then
+  FItems.FItems[AIndex] := Default(T);
+  if AIndex <> FItems.FLength then
   begin
-    System.Move(FItems[AIndex + 1], FItems[AIndex], (FItemsLength - AIndex) * SizeOf(T));
-    FillChar(FItems[FItemsLength], SizeOf(T), 0);
+    System.Move(FItems.FItems[AIndex + 1], FItems.FItems[AIndex], (FItems.FLength - AIndex) * SizeOf(T));
+    FillChar(FItems.FItems[FItems.FLength], SizeOf(T), 0);
   end;
 
   Notify(Result, ACollectionNotification);
@@ -626,7 +716,7 @@ end;
 
 function TCustomList<T>.GetCapacity: SizeInt;
 begin
-  Result := Length(FItems);
+  Result := Length(FItems.FItems);
 end;
 
 { TCustomListEnumerator<T> }
@@ -634,7 +724,7 @@ end;
 function TCustomListEnumerator<T>.DoMoveNext: boolean;
 begin
   Inc(FIndex);
-  Result := (FList.FItemsLength <> 0) and (FIndex < FList.FItemsLength)
+  Result := (FList.FItems.FLength <> 0) and (FIndex < FList.FItems.FLength)
 end;
 
 function TCustomListEnumerator<T>.DoGetCurrent: T;
@@ -644,7 +734,7 @@ end;
 
 function TCustomListEnumerator<T>.GetCurrent: T;
 begin
-  Result := FList.FItems[FIndex];
+  Result := FList.FItems.FItems[FIndex];
 end;
 
 constructor TCustomListEnumerator<T>.Create(AList: TCustomList<T>);
@@ -652,6 +742,85 @@ begin
   inherited Create;
   FIndex := -1;
   FList := AList;
+end;
+
+{ TCustomListPointersEnumerator<T, PT> }
+
+function TCustomListPointersEnumerator<T, PT>.DoMoveNext: boolean;
+begin
+  Inc(FIndex);
+  Result := (FList.FLength <> 0) and (FIndex < FList.FLength)
+end;
+
+function TCustomListPointersEnumerator<T, PT>.DoGetCurrent: PT;
+begin
+  Result := GetCurrent;
+end;
+
+function TCustomListPointersEnumerator<T, PT>.GetCurrent: PT;
+begin
+  Result := @FList.FItems[FIndex];
+end;
+
+constructor TCustomListPointersEnumerator<T, PT>.Create(AList: TCustomList<T>.PItems);
+begin
+  inherited Create;
+  FIndex := -1;
+  FList := AList;
+end;
+
+{ TCustomListPointersCollection<TPointersEnumerator, T, PT> }
+
+function TCustomListPointersCollection<TPointersEnumerator, T, PT>.List: TCustomList<T>.PItems;
+begin
+  Result := @(TCustomList<T>.TItems(Pointer(@Self)^));
+end;
+
+function TCustomListPointersCollection<TPointersEnumerator, T, PT>.GetCount: SizeInt;
+begin
+  Result := List.FLength;
+end;
+
+function TCustomListPointersCollection<TPointersEnumerator, T, PT>.GetItem(AIndex: SizeInt): PT;
+begin
+  Result := @List.FItems[AIndex];
+end;
+
+function TCustomListPointersCollection<TPointersEnumerator, T, PT>.{Do}GetEnumerator: TPointersEnumerator;
+begin
+  Result := TPointersEnumerator(TPointersEnumerator.NewInstance);
+  TCustomListPointersEnumerator<T, PT>(Result).Create(List);
+end;
+
+function TCustomListPointersCollection<TPointersEnumerator, T, PT>.ToArray: TArray<PT>;
+{begin
+  Result := ToArrayImpl(FList.Count);
+end;}
+var
+  i: SizeInt;
+  LEnumerator: TPointersEnumerator;
+begin
+  SetLength(Result, Count);
+
+  try
+    LEnumerator := GetEnumerator;
+
+    i := 0;
+    while LEnumerator.MoveNext do
+    begin
+      Result[i] := LEnumerator.Current;
+      Inc(i);
+    end;
+  finally
+    LEnumerator.Free;
+  end;
+end;
+
+{ TCustomListWithPointers<T> }
+
+function TCustomListWithPointers<T>.GetPointers: PPointersCollection;
+begin
+  Result := PPointersCollection(@FItems);
 end;
 
 { TList<T> }
@@ -685,7 +854,7 @@ begin
   if AValue < Count then
     Count := AValue;
 
-  SetLength(FItems, AValue);
+  SetLength(FItems.FItems, AValue);
 end;
 
 procedure TList<T>.SetCount(AValue: SizeInt);
@@ -698,7 +867,7 @@ begin
   if AValue < Count then
     DeleteRange(AValue, Count - AValue);
 
-  FItemsLength := AValue;
+  FItems.FLength := AValue;
 end;
 
 function TList<T>.GetItem(AIndex: SizeInt): T;
@@ -706,15 +875,15 @@ begin
   if (AIndex < 0) or (AIndex >= Count) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  Result := FItems[AIndex];
+  Result := FItems.FItems[AIndex];
 end;
 
 procedure TList<T>.SetItem(AIndex: SizeInt; const AValue: T);
 begin
   if (AIndex < 0) or (AIndex >= Count) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);   
-  Notify(FItems[AIndex], cnRemoved);
-  FItems[AIndex] := AValue;
+  Notify(FItems.FItems[AIndex], cnRemoved);
+  FItems.FItems[AIndex] := AValue;
   Notify(AValue, cnAdded);
 end;
 
@@ -731,7 +900,7 @@ end;
 function TList<T>.Add(constref AValue: T): SizeInt;
 begin
   Result := PrepareAddingItem;
-  FItems[Result] := AValue;
+  FItems.FItems[Result] := AValue;
   Notify(AValue, cnAdded);
 end;
 
@@ -763,11 +932,11 @@ begin
 
   if AIndex <> PrepareAddingItem then
   begin
-    System.Move(FItems[AIndex], FItems[AIndex + 1], ((Count - AIndex) - 1) * SizeOf(T));
-    FillChar(FItems[AIndex], SizeOf(T), 0);
+    System.Move(FItems.FItems[AIndex], FItems.FItems[AIndex + 1], ((Count - AIndex) - 1) * SizeOf(T));
+    FillChar(FItems.FItems[AIndex], SizeOf(T), 0);
   end;
 
-  FItems[AIndex] := AValue;
+  FItems.FItems[AIndex] := AValue;
   Notify(AValue, cnAdded);
 end;
 
@@ -786,14 +955,14 @@ begin
 
   if AIndex <> PrepareAddingRange(LLength) then
   begin
-    System.Move(FItems[AIndex], FItems[AIndex + LLength], ((Count - AIndex) - LLength) * SizeOf(T));
-    FillChar(FItems[AIndex], SizeOf(T) * LLength, 0);
+    System.Move(FItems.FItems[AIndex], FItems.FItems[AIndex + LLength], ((Count - AIndex) - LLength) * SizeOf(T));
+    FillChar(FItems.FItems[AIndex], SizeOf(T) * LLength, 0);
   end;
 
   LValue := @AValues[0];
   for i := AIndex to Pred(AIndex + LLength) do
   begin
-    FItems[i] := LValue^;
+    FItems.FItems[i] := LValue^;
     Notify(LValue^, cnAdded);
     Inc(LValue);
   end;
@@ -856,19 +1025,19 @@ begin
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
   SetLength(LDeleted, Count);
-  System.Move(FItems[AIndex], LDeleted[0], ACount * SizeOf(T));
+  System.Move(FItems.FItems[AIndex], LDeleted[0], ACount * SizeOf(T));
 
   LMoveDelta := Count - (AIndex + ACount);
 
   if LMoveDelta = 0 then
-    FillChar(FItems[AIndex], ACount * SizeOf(T), #0)
+    FillChar(FItems.FItems[AIndex], ACount * SizeOf(T), #0)
   else
   begin
-    System.Move(FItems[AIndex + ACount], FItems[AIndex], LMoveDelta * SizeOf(T));
-    FillChar(FItems[Count - ACount], ACount * SizeOf(T), #0);
+    System.Move(FItems.FItems[AIndex + ACount], FItems.FItems[AIndex], LMoveDelta * SizeOf(T));
+    FillChar(FItems.FItems[Count - ACount], ACount * SizeOf(T), #0);
   end;
 
-  FItemsLength -= ACount;
+  FItems.FLength -= ACount;
 
   for i := 0 to High(LDeleted) do
     Notify(LDeleted[i], cnRemoved);
@@ -894,9 +1063,9 @@ procedure TList<T>.Exchange(AIndex1, AIndex2: SizeInt);
 var
   LTemp: T;
 begin
-  LTemp := FItems[AIndex1];
-  FItems[AIndex1] := FItems[AIndex2];
-  FItems[AIndex2] := LTemp;
+  LTemp := FItems.FItems[AIndex1];
+  FItems.FItems[AIndex1] := FItems.FItems[AIndex2];
+  FItems.FItems[AIndex2] := LTemp;
 end;
 
 procedure TList<T>.Move(AIndex, ANewIndex: SizeInt);
@@ -909,16 +1078,16 @@ begin
   if (ANewIndex < 0) or (ANewIndex >= Count) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  LTemp := FItems[AIndex];
-  FItems[AIndex] := Default(T);
+  LTemp := FItems.FItems[AIndex];
+  FItems.FItems[AIndex] := Default(T);
 
   if AIndex < ANewIndex then
-    System.Move(FItems[Succ(AIndex)], FItems[AIndex], (ANewIndex - AIndex) * SizeOf(T))
+    System.Move(FItems.FItems[Succ(AIndex)], FItems.FItems[AIndex], (ANewIndex - AIndex) * SizeOf(T))
   else
-    System.Move(FItems[ANewIndex], FItems[Succ(ANewIndex)], (AIndex - ANewIndex) * SizeOf(T));
+    System.Move(FItems.FItems[ANewIndex], FItems.FItems[Succ(ANewIndex)], (AIndex - ANewIndex) * SizeOf(T));
 
-  FillChar(FItems[ANewIndex], SizeOf(T), #0);
-  FItems[ANewIndex] := LTemp;
+  FillChar(FItems.FItems[ANewIndex], SizeOf(T), #0);
+  FItems.FItems[ANewIndex] := LTemp;
 end;
 
 function TList<T>.First: T;
@@ -952,7 +1121,7 @@ var
   i: SizeInt;
 begin
   for i := 0 to Count - 1 do
-    if FComparer.Compare(AValue, FItems[i]) = 0 then
+    if FComparer.Compare(AValue, FItems.FItems[i]) = 0 then
       Exit(i);
   Result := -1;
 end;
@@ -962,7 +1131,7 @@ var
   i: SizeInt;
 begin
   for i := Count - 1 downto 0 do
-    if FComparer.Compare(AValue, FItems[i]) = 0 then
+    if FComparer.Compare(AValue, FItems.FItems[i]) = 0 then
       Exit(i);
   Result := -1;
 end;
@@ -976,9 +1145,9 @@ begin
   b := Count - 1;
   while a < b do
   begin
-    LTemp := FItems[a];
-    FItems[a] := FItems[b];
-    FItems[b] := LTemp;
+    LTemp := FItems.FItems[a];
+    FItems.FItems[a] := FItems.FItems[b];
+    FItems.FItems[b] := LTemp;
     Inc(a);
     Dec(b);
   end;
@@ -986,22 +1155,22 @@ end;
 
 procedure TList<T>.Sort;
 begin
-  TArrayHelperBugHack.Sort(FItems, FComparer, 0, Count);
+  TArrayHelperBugHack.Sort(FItems.FItems, FComparer, 0, Count);
 end;
 
 procedure TList<T>.Sort(const AComparer: IComparer<T>);
 begin
-  TArrayHelperBugHack.Sort(FItems, AComparer, 0, Count);
+  TArrayHelperBugHack.Sort(FItems.FItems, AComparer, 0, Count);
 end;
 
 function TList<T>.BinarySearch(constref AItem: T; out AIndex: SizeInt): Boolean;
 begin
-  Result := TArrayHelperBugHack.BinarySearch(FItems, AItem, AIndex);
+  Result := TArrayHelperBugHack.BinarySearch(FItems.FItems, AItem, AIndex);
 end;
 
 function TList<T>.BinarySearch(constref AItem: T; out AIndex: SizeInt; const AComparer: IComparer<T>): Boolean;
 begin
-  Result := TArrayHelperBugHack.BinarySearch(FItems, AItem, AIndex, AComparer);
+  Result := TArrayHelperBugHack.BinarySearch(FItems.FItems, AItem, AIndex, AComparer);
 end;
 
 { TThreadList<T> }
@@ -1101,14 +1270,14 @@ end;
 
 function TQueue<T>.DoRemove(AIndex: SizeInt; ACollectionNotification: TCollectionNotification): T;
 begin
-  Result := FItems[AIndex];
-  FItems[AIndex] := Default(T);
+  Result := FItems.FItems[AIndex];
+  FItems.FItems[AIndex] := Default(T);
   Notify(Result, ACollectionNotification);
   FLow += 1;
-  if FLow = FItemsLength then
+  if FLow = FItems.FLength then
   begin
     FLow := 0;
-    FItemsLength := 0;
+    FItems.FLength := 0;
   end;
 end;
 
@@ -1117,23 +1286,23 @@ begin
   if AValue < Count then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  if AValue = FItemsLength then
+  if AValue = FItems.FLength then
     Exit;
 
   if (Count > 0) and (FLow > 0) then
   begin
-    Move(FItems[FLow], FItems[0], Count * SizeOf(T));
-    FillChar(FItems[Count], (FItemsLength - Count) * SizeOf(T), #0);
+    Move(FItems.FItems[FLow], FItems.FItems[0], Count * SizeOf(T));
+    FillChar(FItems.FItems[Count], (FItems.FLength - Count) * SizeOf(T), #0);
   end;
 
-  SetLength(FItems, AValue);
-  FItemsLength := Count;
+  SetLength(FItems.FItems, AValue);
+  FItems.FLength := Count;
   FLow := 0;
 end;
 
 function TQueue<T>.GetCount: SizeInt;
 begin
-  Result := FItemsLength - FLow;
+  Result := FItems.FLength - FLow;
 end;
 
 constructor TQueue<T>.Create(ACollection: TEnumerable<T>);
@@ -1154,7 +1323,7 @@ var
   LIndex: SizeInt;
 begin
   LIndex := PrepareAddingItem;
-  FItems[LIndex] := AValue;
+  FItems.FItems[LIndex] := AValue;
   Notify(AValue, cnAdded);
 end;
 
@@ -1173,7 +1342,7 @@ begin
   if (Count = 0) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  Result := FItems[FLow];
+  Result := FItems.FItems[FLow];
 end;
 
 procedure TQueue<T>.Clear;
@@ -1181,7 +1350,7 @@ begin
   while Count <> 0 do
     Dequeue;
   FLow := 0;
-  FItemsLength := 0;
+  FItems.FLength := 0;
 end;
 
 procedure TQueue<T>.TrimExcess;
@@ -1214,9 +1383,9 @@ begin
   if AIndex < 0 then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  Result := FItems[AIndex];
-  FItems[AIndex] := Default(T);
-  FItemsLength -= 1;
+  Result := FItems.FItems[AIndex];
+  FItems.FItems[AIndex] := Default(T);
+  FItems.FLength -= 1;
   Notify(Result, ACollectionNotification);
 end;
 
@@ -1236,7 +1405,7 @@ begin
   if AValue < Count then
     AValue := Count;
 
-  SetLength(FItems, AValue);
+  SetLength(FItems.FItems, AValue);
 end;
 
 procedure TStack<T>.Push(constref AValue: T);
@@ -1244,13 +1413,13 @@ var
   LIndex: SizeInt;
 begin
   LIndex := PrepareAddingItem;
-  FItems[LIndex] := AValue;
+  FItems.FItems[LIndex] := AValue;
   Notify(AValue, cnAdded);
 end;
 
 function TStack<T>.Pop: T;
 begin
-  Result := DoRemove(FItemsLength - 1, cnRemoved);
+  Result := DoRemove(FItems.FLength - 1, cnRemoved);
 end;
 
 function TStack<T>.Peek: T;
@@ -1258,12 +1427,12 @@ begin
   if (Count = 0) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  Result := FItems[FItemsLength - 1];
+  Result := FItems.FItems[FItems.FLength - 1];
 end;
 
 function TStack<T>.Extract: T;
 begin
-  Result := DoRemove(FItemsLength - 1, cnExtracted);
+  Result := DoRemove(FItems.FLength - 1, cnExtracted);
 end;
 
 procedure TStack<T>.TrimExcess;
@@ -1359,5 +1528,150 @@ begin
 end;
 
 {$I generics.dictionaries.inc}
+
+{ THashSet<T> }
+
+function THashSet<T>.TEnumerator.DoMoveNext: boolean;
+begin
+  Result := FEnumerator.DoMoveNext;
+end;
+
+function THashSet<T>.TEnumerator.DoGetCurrent: T;
+begin
+  Result := FEnumerator.DoGetCurrent;
+end;
+
+function THashSet<T>.TEnumerator.GetCurrent: T;
+begin
+  Result := FEnumerator.GetCurrent;
+end;
+
+constructor THashSet<T>.TEnumerator.Create(ASet: THashSet<T>);
+begin
+  FEnumerator := ASet.FInternalDictionary.Keys.DoGetEnumerator;
+end;
+
+destructor THashSet<T>.TEnumerator.Destroy;
+begin
+  FEnumerator.Free;
+end;
+
+function THashSet<T>.DoGetEnumerator: Generics.Collections.TEnumerator<T>;
+begin
+  Result := GetEnumerator;
+end;
+
+function THashSet<T>.GetCount: SizeInt;
+begin
+  Result := FInternalDictionary.Count;
+end;
+
+function THashSet<T>.GetPointers: TDictionary<T, TEmptyRecord>.TKeyCollection.PPointersCollection;
+begin
+  Result := FInternalDictionary.Keys.Ptr;
+end;
+
+function THashSet<T>.GetEnumerator: TEnumerator;
+begin
+  Result := TEnumerator.Create(Self);
+end;
+
+constructor THashSet<T>.Create;
+begin
+  FInternalDictionary := TDictionary<T, TEmptyRecord>.Create;
+end;
+
+constructor THashSet<T>.Create(const AComparer: IEqualityComparer<T>);
+begin
+  FInternalDictionary := TDictionary<T, TEmptyRecord>.Create(AComparer);
+end;
+
+constructor THashSet<T>.Create(ACollection: TEnumerable<T>);
+var
+  i: T;
+begin
+  Create;
+  for i in ACollection do
+    Add(i);
+end;
+
+destructor THashSet<T>.Destroy;
+begin
+  FInternalDictionary.Free;
+end;
+
+function THashSet<T>.Add(constref AValue: T): Boolean;
+begin
+  Result := not FInternalDictionary.ContainsKey(AValue);
+  if Result then
+    FInternalDictionary.Add(AValue, EmptyRecord);
+end;
+
+function THashSet<T>.Remove(constref AValue: T): Boolean;
+var
+  LIndex: SizeInt;
+begin
+  LIndex := FInternalDictionary.FindBucketIndex(AValue);
+  Result := LIndex >= 0;
+  if Result then
+    FInternalDictionary.DoRemove(LIndex, cnRemoved);
+end;
+
+function THashSet<T>.Contains(constref AValue: T): Boolean;
+begin
+  Result := FInternalDictionary.ContainsKey(AValue);
+end;
+
+procedure THashSet<T>.UnionWith(AHashSet: THashSet<T>);
+var
+  i: PT;
+begin
+  for i in AHashSet.Ptr^ do
+    Add(i^);
+end;
+
+procedure THashSet<T>.IntersectWith(AHashSet: THashSet<T>);
+var
+  LList: TList<PT>;
+  i: PT;
+begin
+  LList := TList<PT>.Create;
+
+  for i in Ptr^ do
+    if not AHashSet.Contains(i^) then
+      LList.Add(i);
+
+  for i in LList do
+    Remove(i^);
+
+  LList.Free;
+end;
+
+procedure THashSet<T>.ExceptWith(AHashSet: THashSet<T>);
+var
+  i: PT;
+begin
+  for i in AHashSet.Ptr^ do
+    FInternalDictionary.Remove(i^);
+end;
+
+procedure THashSet<T>.SymmetricExceptWith(AHashSet: THashSet<T>);
+var
+  LList: TList<PT>;
+  i: PT;
+begin
+  LList := TList<PT>.Create;
+
+  for i in AHashSet.Ptr^ do
+    if Contains(i^) then
+      LList.Add(i)
+    else
+      Add(i^);
+
+  for i in LList do
+    Remove(i^);
+
+  LList.Free;
+end;
 
 end.

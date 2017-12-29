@@ -110,16 +110,30 @@ type
 
   { TDictionaryEnumerable }
 
-  TDictionaryEnumerable<TDictionaryEnumerator: TObject; // ... inherits from TCustomDictionaryEnumerator. workaround...
-    T, CUSTOM_DICTIONARY_CONSTRAINTS> = class abstract(TEnumerable<T>)
+  TDictionaryEnumerable<TDictionaryEnumerator: TObject; TDictionaryPointersEnumerator, // ... inherits from TCustomDictionaryEnumerator. workaround...
+    T, PT, CUSTOM_DICTIONARY_CONSTRAINTS> = class abstract(TEnumerable<T>)
+  private type
+    PPointersCollection = ^TPointersCollection;
+    TPointersCollection = record
+    private
+      function Dictionary: TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>; inline;
+      function GetCount: SizeInt; inline;
+    public
+      function GetEnumerator: TDictionaryPointersEnumerator;
+      function ToArray: TArray<PT>;
+      property Count: SizeInt read GetCount;
+    end;
   private
+    FPointers: TPointersCollection;
     FDictionary: TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>;
     function GetCount: SizeInt;
+    function GetPointers: PPointersCollection; inline;
   public
     constructor Create(ADictionary: TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>);
     function DoGetEnumerator: TDictionaryEnumerator; override;
     function ToArray: TArray<T>; override; final;
     property Count: SizeInt read GetCount;
+    property Ptr: PPointersCollection read GetPointers;
   end;
 
   // more info : http://en.wikipedia.org/wiki/Open_addressing
@@ -147,7 +161,7 @@ type
     FItems: TItemsArray;
 
     procedure Resize(ANewSize: SizeInt);
-    function PrepareAddingItem: SizeInt;
+    procedure PrepareAddingItem;
   protected
     function RealItemsLength: SizeInt; virtual;
     function Rehash(ASizePow2: SizeInt; AForce: Boolean = False): boolean; virtual;
@@ -166,15 +180,25 @@ type
         function GetCurrent: TValue; override;
       end;
 
+      TPValueEnumerator = class(TOpenAddressingEnumerator<PValue, OPEN_ADDRESSING_CONSTRAINTS>)
+      protected
+        function GetCurrent: PValue; override;
+      end;
+
       TKeyEnumerator = class(TOpenAddressingEnumerator<TKey, OPEN_ADDRESSING_CONSTRAINTS>)
       protected
         function GetCurrent: TKey; override;
       end;
 
-      // Collections
-      TValueCollection = class(TDictionaryEnumerable<TValueEnumerator, TValue, CUSTOM_DICTIONARY_CONSTRAINTS>);
+      TPKeyEnumerator = class(TOpenAddressingEnumerator<PKey, OPEN_ADDRESSING_CONSTRAINTS>)
+      protected
+        function GetCurrent: PKey; override;
+      end;
 
-      TKeyCollection = class(TDictionaryEnumerable<TKeyEnumerator, TKey, CUSTOM_DICTIONARY_CONSTRAINTS>);
+      // Collections
+      TValueCollection = class(TDictionaryEnumerable<TValueEnumerator, TPValueEnumerator, TValue, PValue, CUSTOM_DICTIONARY_CONSTRAINTS>);
+
+      TKeyCollection = class(TDictionaryEnumerable<TKeyEnumerator, TPKeyEnumerator, TKey, PKey, CUSTOM_DICTIONARY_CONSTRAINTS>);
 
     // bug #24283 - workaround related to lack of DoGetEnumerator
     function GetEnumerator: TPairEnumerator; reintroduce;
@@ -373,7 +397,7 @@ type
 
     procedure Resize(ANewSize: SizeInt);
     procedure Rehash(ASizePow2: SizeInt);
-    function PrepareAddingItem: SizeInt;
+    procedure PrepareAddingItem;
   protected
     procedure UpdateItemsThreshold(ASize: SizeInt); override;
     function Lookup(constref AKey: TKey; var AHashListOrIndex: PUInt32): SizeInt; inline; overload;
@@ -391,15 +415,25 @@ type
         function GetCurrent: TValue; override;
       end;
 
+      TPValueEnumerator = class(TDeamortizedDArrayCuckooMapEnumerator<PValue, CUCKOO_CONSTRAINTS>)
+      protected
+        function GetCurrent: PValue; override;
+      end;
+
       TKeyEnumerator = class(TDeamortizedDArrayCuckooMapEnumerator<TKey, CUCKOO_CONSTRAINTS>)
       protected
         function GetCurrent: TKey; override;
       end;
 
-      // Collections
-      TValueCollection = class(TDictionaryEnumerable<TValueEnumerator, TValue, CUSTOM_DICTIONARY_CONSTRAINTS>);
+      TPKeyEnumerator = class(TDeamortizedDArrayCuckooMapEnumerator<PKey, CUCKOO_CONSTRAINTS>)
+      protected
+        function GetCurrent: PKey; override;
+      end;
 
-      TKeyCollection = class(TDictionaryEnumerable<TKeyEnumerator, TKey, CUSTOM_DICTIONARY_CONSTRAINTS>);
+      // Collections
+      TValueCollection = class(TDictionaryEnumerable<TValueEnumerator, TPValueEnumerator, TValue, PValue, CUSTOM_DICTIONARY_CONSTRAINTS>);
+
+      TKeyCollection = class(TDictionaryEnumerable<TKeyEnumerator, TPKeyEnumerator, TKey, PKey, CUSTOM_DICTIONARY_CONSTRAINTS>);
 
     // bug #24283 - workaround related to lack of DoGetEnumerator
     function GetEnumerator: TPairEnumerator; reintroduce;
@@ -412,7 +446,7 @@ type
     procedure SetItem(constref AValue: TValue; const AHashListOrIndex: PUInt32; ALookupResult: SizeInt); overload;
 
     procedure AddItem(constref AItems: TItemsDArray; constref AKey: TKey; constref AValue: TValue; const AHashList: PUInt32); overload;
-    procedure DoAdd(constref AKey: TKey; constref AValue: TValue; const AHashList: PUInt32); overload; inline;
+    procedure DoAdd(const AKey: TKey; const AValue: TValue; const AHashList: PUInt32); overload; inline;
     function DoRemove(const AHashListOrIndex: PUInt32; ALookupResult: SizeInt;
       ACollectionNotification: TCollectionNotification): TValue;
 
@@ -539,6 +573,3 @@ type
 
   THashMap<TKey, TValue> = class(TCuckooD4<TKey, TValue>);
   TObjectHashMap<TKey, TValue> = class(TObjectCuckooD4<TKey, TValue>);
-
-var
-  EmptyRecord: TEmptyRecord;
