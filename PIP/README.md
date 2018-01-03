@@ -19,4 +19,6 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [10](PIP-0010.md)     | 50% Inflation Reduction                  | Herman Schoenfeld              | Protocol       | Proposed |
 | [11](PIP-0011.md)     | 20% Developer Reward                     | Herman Schoenfeld              | Protocol       | Proposed |
 | [12](PIP-0012.md)     | Change account recovery to 10 years      | Herman Schoenfeld              | Protocol       | Proposed |
+| [13](PIP-0013.md)     | Allow nodes to pull pending operations   | Herman Schoenfeld              | Protocol       | Proposed |
+
 
