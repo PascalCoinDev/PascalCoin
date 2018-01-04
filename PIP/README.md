@@ -22,5 +22,6 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [13](PIP-0013.md)     | Allow nodes to pull pending operations   | Herman Schoenfeld              | Protocol       | Proposed |
 | [14](PIP-0014.md)     | New operation to certify accounts for extended recovery period   | Dr. Muhammad Amer       | Protocol       | Proposed |
 | [15](PIP-0015.md)     | Fast Block Propagation                   | Herman Schoenfeld              | Protocol       | Proposed |
+| [16](PIP-0016.md)     | Layer-2 protocol support                 | Herman Schoenfeld              | Protocol       | Proposed |
 
 
