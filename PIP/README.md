@@ -20,5 +20,6 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [11](PIP-0011.md)     | 20% Developer Reward                     | Herman Schoenfeld              | Protocol       | Proposed |
 | [12](PIP-0012.md)     | Change account recovery to 10 years      | Herman Schoenfeld              | Protocol       | Proposed |
 | [13](PIP-0013.md)     | Allow nodes to pull pending operations   | Herman Schoenfeld              | Protocol       | Proposed |
+| [14](PIP-0014.md)     | New operation to certify accounts for extended recovery period   | Dr. Muhammad Amer       | Protocol       | Proposed |
 
 
