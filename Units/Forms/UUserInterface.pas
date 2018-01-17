@@ -449,6 +449,7 @@ begin
   Try
     SenderAccounts.CopyFrom(accounts);
     DefaultFee := defaultFee;
+    WalletKeys := TWallet.Keys;
     ShowModal;
   Finally
     Free;
