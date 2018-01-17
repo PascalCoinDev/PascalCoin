@@ -601,20 +601,12 @@ var l : TOrderedCardinalList;
 begin
   TUserInterface.CheckNodeIsReady;
   if FAccountsSelectedGrid.AccountsCount<=0 then raise Exception.Create('Must select at least 1 account');
-  With TFRMOperation.Create(Self) do
-  Try
+  try
     l := FAccountsSelectedGrid.LockAccountsList;
-    try
-      SenderAccounts.CopyFrom(l);
-    finally
-      FAccountsSelectedGrid.UnlockAccountsList;
-    end;
-    DefaultFee := TSettings.DefaultFee;
-    WalletKeys := TWallet.Keys;
-    ShowModal;
-  Finally
-    Free;
-  End;
+    TUserInterface.ShowNewOperationDialog(Self, l, TSettings.DefaultFee);
+  finally
+    FAccountsSelectedGrid.UnlockAccountsList;
+  end;
 end;
 
 procedure TFRMAccountExplorer.sbSearchAccountClick(Sender: TObject);
