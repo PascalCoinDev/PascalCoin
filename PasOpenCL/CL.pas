@@ -62,20 +62,15 @@ uses
   CL_Platform;
 
 {$IFDEF WINDOWS}
-{$DEFINE DYNLINK}
 const
   OpenCLLibName = 'OpenCL.dll';
-  {$DEFINE extdecl := stdcall}
 {$ENDIF}
 {$IFDEF LINUX}
-{$DEFINE DYNLINK}
 const
   OpenCLLibName = 'libOpenCL.so';
-  {$DEFINE extdecl := cdecl}
 {$ENDIF}
 {$IFDEF DARWIN}
   {$linkframework OpenCL}
-  {$DEFINE extdecl := cdecl}
 {$ENDIF}
 
 {$IFDEF DEFINE_8087CW_NOT_IMPLEMENTED}

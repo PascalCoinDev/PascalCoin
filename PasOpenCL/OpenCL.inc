@@ -18,6 +18,18 @@
 
 {$MACRO ON}
 
+{$IFDEF WINDOWS}
+{$DEFINE DYNLINK}
+{$DEFINE extdecl := stdcall}
+{$ENDIF}
+{$IFDEF LINUX}
+{$DEFINE DYNLINK}
+{$DEFINE extdecl := cdecl}
+{$ENDIF}
+{$IFDEF DARWIN}
+{$DEFINE extdecl := cdecl}
+{$ENDIF}
+
 {$IFDEF MSWINDOWS}
   {$DEFINE WINDOWS}
 {$ENDIF}

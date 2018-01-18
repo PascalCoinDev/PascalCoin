@@ -109,18 +109,18 @@ const
 
 type
 {$IFDEF CL_VERSION_1_0}
-  TclCreateFromGLBuffer = function (
+  {$IFDEF DYNLINK}TclCreateFromGLBuffer = {$ENDIF}function {$IFNDEF DYNLINK}clCreateFromGLBuffer{$ENDIF}(
                                       context: Pcl_context;                     (* context *)
                                       flags: Tcl_mem_flags;                     (* flags *)
                                       bufobj:  GLuint;                          (* bufobj *)
                                       errcode_ret: PInteger                     (* errcode_ret *)
                                       ): PCL_mem;
-                                      {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                      extdecl; {$IFNDEF DYNLINK}external name 'clCreateFromGLBuffer';{$ENDIF}
 {$ENDIF}
 
 {$IFDEF CL_VERSION_1_0}
   {$IFDEF CL_USE_DEPRECATED_OPENCL_1_1_APIS}
-    TclCreateFromGLTexture2D = function (
+    {$IFDEF DYNLINK}TclCreateFromGLTexture2D = {$ENDIF}function {$IFNDEF DYNLINK}clCreateFromGLTexture2D{$ENDIF}(
                                          context: Pcl_context;                  (* context *)
                                          flags: Tcl_mem_flags;                  (* flags *)
                                          target: GLenum;                        (* target *)
@@ -128,13 +128,13 @@ type
                                          texture: GLuint;                       (* texture *)
                                          errcode_ret: Pcl_int                   (* errcode_ret *)
                                          ): PCL_mem;
-                                         {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                         extdecl; {$IFNDEF DYNLINK}external name 'clCreateFromGLTexture2D';{$ENDIF}
   {$ENDIF}
 {$ENDIF}
 
 {$IFDEF CL_VERSION_1_0}
   {$IFDEF CL_USE_DEPRECATED_OPENCL_1_1_APIS}
-    TclCreateFromGLTexture3D = function (
+    {$IFDEF DYNLINK}TclCreateFromGLTexture3D = {$ENDIF}function {$IFNDEF DYNLINK}clCreateFromGLTexture3D{$ENDIF}(
                                          context: Pcl_context;                  (* context *)
                                          flags: Tcl_mem_flags;                  (* flags *)
                                          target: GLenum;                        (* target *)
@@ -142,12 +142,12 @@ type
                                          texture: GLuint;                       (* texture *)
                                          errcode_ret: Pcl_int                   (* errcode_ret *)
                                          ): PCL_mem;
-                                         {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                         extdecl; {$IFNDEF DYNLINK}external name 'clCreateFromGLTexture3D';{$ENDIF}
   {$ENDIF}
 {$ENDIF}
 
 {$IFDEF CL_VERSION_1_2}
-  TclCreateFromGLTexture = function(
+  {$IFDEF DYNLINK}TclCreateFromGLTexture = {$ENDIF}function {$IFNDEF DYNLINK}clCreateFromGLTexture{$ENDIF}(
                                          context: Pcl_context;                  (* context *)
                                          flags: Tcl_mem_flags;                  (* flags *)
                                          target: GLenum;                        (* target *)
@@ -155,41 +155,41 @@ type
                                          texture: GLuint;                       (* texture *)
                                          errcode_ret: Pcl_int                   (* errcode_ret *)
                                          ): PCL_mem;
-                                         {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                         extdecl; {$IFNDEF DYNLINK}external name 'clCreateFromGLTexture';{$ENDIF}
 {$ENDIF}
 
 {$IFDEF CL_VERSION_1_0}
-  TclCreateFromGLRenderbuffer = function (
+  {$IFDEF DYNLINK}TclCreateFromGLRenderbuffer = {$ENDIF}function {$IFNDEF DYNLINK}clCreateFromGLRenderbuffer{$ENDIF}(
                                             context: Pcl_context;               (* context *)
                                             flags: Tcl_mem_flags;               (* flags *)
                                             renderbuffer: GLuint;               (* renderbuffer *)
                                             errcode_ret: Pcl_int                (* errcode_ret *)
                                             ): Pcl_mem;
-                                            {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                            extdecl; {$IFNDEF DYNLINK}external name 'clCreateFromGLRenderbuffer';{$ENDIF}
 {$ENDIF}
 
 {$IFDEF CL_VERSION_1_0}
-  TclGetGLObjectInfo = function (
+  {$IFDEF DYNLINK}TclGetGLObjectInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetGLObjectInfo{$ENDIF}(
                                    memobj: Pcl_mem;                             (* memobj *)
                                    gl_object_type: Pcl_gl_object_type;          (* gl_object_type *)
                                    gl_object_name: PGLuint                      (* gl_object_name *)
                                    ): TCL_int;
-                                   {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                   extdecl; {$IFNDEF DYNLINK}external name 'clGetGLObjectInfo';{$ENDIF}
 {$ENDIF}
 
 {$IFDEF CL_VERSION_1_0}
-  TclGetGLTextureInfo = function (
+  {$IFDEF DYNLINK}TclGetGLTextureInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetGLTextureInfo{$ENDIF}(
                                     memobj: Pcl_mem;                            (* memobj *)
                                     param_name: Tcl_gl_texture_info;            (* param_name *)
                                     param_value_size: Tsize_t;                  (* param_value_size *)
                                     param_value: Pointer;                       (* param_value *)
                                     param_value_size_ret: Psize_t               (* param_value_size_ret *)
                                     ): TCL_int;
-                                    {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                    extdecl; {$IFNDEF DYNLINK}external name 'clGetGLTextureInfo';{$ENDIF}
 {$ENDIF}
 
 {$IFDEF CL_VERSION_1_0}
-  TclEnqueueAcquireGLObjects = function (
+  {$IFDEF DYNLINK}TclEnqueueAcquireGLObjects = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueAcquireGLObjects{$ENDIF}(
                                            command_queue: Pcl_command_queue;    (* command_queue *)
                                            num_objects: Tcl_uint;               (* num_objects *)
                                            const mem_objects: PPcl_mem;         (* mem_objects *)
@@ -197,11 +197,11 @@ type
                                            const event_wait_list: PPcl_event;   (* event_wait_list *)
                                            event: PPcl_event                    (* event *)
                                            ): TCL_int;
-                                           {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                           extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueAcquireGLObjects';{$ENDIF}
 {$ENDIF}
 
 {$IFDEF CL_VERSION_1_0}
-  TclEnqueueReleaseGLObjects = function (
+  {$IFDEF DYNLINK}TclEnqueueReleaseGLObjects = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueReleaseGLObjects{$ENDIF}(
                                            command_queue: Pcl_command_queue;    (* command_queue *)
                                            num_objects: Tcl_uint;               (* num_objects *)
                                            const mem_objects: PPcl_mem;         (* mem_objects *)
@@ -209,7 +209,7 @@ type
                                            const event_wait_list: PPcl_event;   (* event_wait_list *)
                                            event: PPcl_event                    (* event *)
                                            ): TCL_int;
-                                           {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                           extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueReleaseGLObjects';{$ENDIF}
 {$ENDIF}
 type
      Pcl_gl_context_info = ^Tcl_gl_context_info;
@@ -217,14 +217,14 @@ type
 
 
 {$IFDEF CL_VERSION_1_0}
-  TclGetGLContextInfoKHR = function (
+  {$IFDEF DYNLINK}TclGetGLContextInfoKHR = {$ENDIF}function {$IFNDEF DYNLINK}clGetGLContextInfoKHR{$ENDIF}(
                                        const properties: Pcl_context_properties;(* properties *)
                                        param_name: Tcl_gl_context_info;         (* param_name *)
                                        param_value_size: Tsize_t;               (* param_value_size *)
                                        param_value: Pointer;                    (* param_value *)
                                        param_value_size_ret : Psize_t           (* param_value_size_ret *)
                                        ): TCL_int;
-                                       {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                       extdecl; {$IFNDEF DYNLINK}external name 'clGetGLContextInfoKHR';{$ENDIF}
 {$ENDIF}
 var
 {$IFDEF CL_VERSION_1_0}
