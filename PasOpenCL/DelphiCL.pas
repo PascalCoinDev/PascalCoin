@@ -2192,9 +2192,9 @@ begin
   //MacOsX not yet (Andoid hm....)
   //MacOSX, Linux, Windows: http://www.dyn-lab.com/articles/cl-gl.html
   {$IFDEF WINDOWS}
-    props[1] := wglGetCurrentContext();//glXGetCurrentContext(),
-    props[2] := CL_WGL_HDC_KHR;
-    props[3] := wglGetCurrentDC();//glXGetCurrentDisplay(),
+    props[1] := Pointer(wglGetCurrentContext());//glXGetCurrentContext(),
+    props[2] := Pointer(CL_WGL_HDC_KHR);
+    props[3] := Pointer(wglGetCurrentDC());//glXGetCurrentDisplay(),
   {$ENDIF}
   {$IFDEF LINUX}
     props[1] := glXGetCurrentContext();
