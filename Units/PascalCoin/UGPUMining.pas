@@ -105,7 +105,11 @@ end;
 constructor TGPUDriver.Create;
 begin
   FPlatforms := Nil;
+  {$IFDEF DYNLINK}
   FHasOpenCL:=InitOpenCL;
+  {$ELSE}
+  FHasOpenCL:=true;
+  {$ENDIF}
   _GPUDriver := Self;
 end;
 

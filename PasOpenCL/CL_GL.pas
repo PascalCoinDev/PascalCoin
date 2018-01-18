@@ -107,7 +107,9 @@ const
   CL_CGL_SHAREGROUP_KHR         =  $200C;
 
 
+{$IFDEF DYNLINK}
 type
+{$ENDIF}
 {$IFDEF CL_VERSION_1_0}
   {$IFDEF DYNLINK}TclCreateFromGLBuffer = {$ENDIF}function {$IFNDEF DYNLINK}clCreateFromGLBuffer{$ENDIF}(
                                       context: Pcl_context;                     (* context *)
@@ -226,6 +228,7 @@ type
                                        ): TCL_int;
                                        extdecl; {$IFNDEF DYNLINK}external name 'clGetGLContextInfoKHR';{$ENDIF}
 {$ENDIF}
+{$IFDEF DYNLINK}
 var
 {$IFDEF CL_VERSION_1_0}
   clCreateFromGLBuffer:       TclCreateFromGLBuffer;
@@ -244,6 +247,7 @@ var
 {$IFDEF CL_VERSION_1_2}
   clCreateFromGLTexture:      TclCreateFromGLTexture;
 {$ENDIF}
+{$ENDIF}
 
 function InitCL_GL: Boolean;
 
@@ -251,6 +255,7 @@ implementation
 
 function InitCL_GL: Boolean;
 begin
+  {$IFDEF DYNLINK}
   Result := False;
   if OCL_LibHandle <> nil then
   begin
@@ -272,6 +277,9 @@ begin
     {$ENDIF}
     Result := True;
   end;
+  {$ELSE}
+  Result := true;
+  {$ENDIF}
 end;
 
 end.

@@ -40,7 +40,7 @@ type
     procedure OnMinerValuesChanged(Sender : TObject);
     procedure OnFoundNOnce(Sender : TCustomMinerDeviceThread; Timestamp, nOnce : Cardinal);
     procedure WriteLine(nline : Integer; txt : String);
-    procedure OnInThreadNewLog(logtype : TLogType; Time : TDateTime; ThreadID : Cardinal; Const sender, logtext : AnsiString);
+    procedure OnInThreadNewLog(logtype : TLogType; Time : TDateTime; ThreadID : TThreadID; Const sender, logtext : AnsiString);
   protected
     FWindow32X1,FWindow32Y1,FWindow32X2,FWindow32Y2: DWord;
     FLock : TCriticalSection;
@@ -169,7 +169,7 @@ begin
 end;
 
 procedure TPascalMinerApp.OnInThreadNewLog(logtype: TLogType; Time: TDateTime;
-  ThreadID: Cardinal; const sender, logtext: AnsiString);
+  ThreadID: TThreadID; const sender, logtext: AnsiString);
 var msg : String;
   i,nline : Integer;
 begin
