@@ -70,7 +70,12 @@ const
   OpenCLLibName = 'libOpenCL.so';
 {$ENDIF}
 {$IFDEF DARWIN}
-  {$linkframework OpenCL}
+{$IFDEF DYNLINK}
+const
+  OpenCLLibName = '/usr/lib/libOpenCL.dylib';
+{$ELSE}
+{$linkframework OpenCL}
+{$ENDIF}
 {$ENDIF}
 
 {$IFDEF DEFINE_8087CW_NOT_IMPLEMENTED}

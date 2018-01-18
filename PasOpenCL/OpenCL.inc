@@ -27,6 +27,7 @@
 {$DEFINE extdecl := cdecl}
 {$ENDIF}
 {$IFDEF DARWIN}
+{$DEFINE DYNLINK}
 {$DEFINE extdecl := cdecl}
 {$ENDIF}
 
