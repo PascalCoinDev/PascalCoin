@@ -804,7 +804,9 @@ const
 //********************************************************************************************************/
 
 {$IFNDEF DEFINE_REGION_NOT_IMPLEMENTED}{$REGION 'Types proceduress'}{$ENDIF}
+{$IFDEF DYNLINK}
 type
+{$ENDIF}
   (* Platform API *)
   {$IFDEF CL_VERSION_1_0}
   {$IFDEF DYNLINK}TclGetPlatformIDs = {$ENDIF}function {$IFNDEF DYNLINK}clGetPlatformIDs{$ENDIF}(
@@ -870,6 +872,9 @@ type
 
   (* Context APIs  *)
   {$IFDEF CL_VERSION_1_0}
+{$IFNDEF DYNLINK}
+type
+{$ENDIF}
   TContextNotify = procedure(const Name: PAnsiChar; const Data: Pointer; Size: TSize_t; Data2: Pointer); extdecl;
   {$ENDIF}
 
@@ -1114,6 +1119,9 @@ type
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_1}
+{$IFNDEF DYNLINK}
+type
+{$ENDIF}
   TMemObjectNotify = procedure(memob: PCL_mem; user_data: Pointer); extdecl;
   {$ENDIF}
 
@@ -1197,7 +1205,9 @@ type
                                            extdecl; {$IFNDEF DYNLINK}external name 'clCreateProgramWithSource';{$ENDIF}
   {$ENDIF}
 
-//type
+{$IFNDEF DYNLINK}
+type
+{$ENDIF}
   PPByte = ^PByte;
   {$IFDEF CL_VERSION_1_0}
   {$IFDEF DYNLINK}TclCreateProgramWithBinary = {$ENDIF}function {$IFNDEF DYNLINK}clCreateProgramWithBinary{$ENDIF}(
@@ -1231,7 +1241,9 @@ type
   {$IFDEF DYNLINK}TclReleaseProgram = {$ENDIF}function {$IFNDEF DYNLINK}clReleaseProgram{$ENDIF}(_program: PCL_program): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clReleaseProgram';{$ENDIF}
   {$ENDIF}
 
-//type
+{$IFNDEF DYNLINK}
+type
+{$ENDIF}
   {$IFDEF CL_VERSION_1_0}
   TProgramNotify = procedure(_program: PCL_program; user_data: Pointer); extdecl;
   {$ENDIF}
@@ -1450,6 +1462,9 @@ type
 
 
   {$IFDEF CL_VERSION_1_1}
+{$IFNDEF DYNLINK}
+type
+{$ENDIF}
   TclEventNotify = procedure(event: PCL_event; cl_int: TCL_int; p: Pointer); extdecl;
   {$ENDIF}
 
@@ -1783,8 +1798,10 @@ type
 
   {$ENDIF}
 
-//type
   {$IFDEF CL_VERSION_1_0}
+{$IFNDEF DYNLINK}
+type
+{$ENDIF}
   TEnqueueUserProc = procedure (userdata: Pointer); extdecl;
   {$ENDIF}
 
@@ -1957,6 +1974,7 @@ type
 {$IFNDEF DEFINE_REGION_NOT_IMPLEMENTED}{$ENDREGION}{$ENDIF}
 
 {$IFNDEF DEFINE_REGION_NOT_IMPLEMENTED}{$REGION 'Var'}{$ENDIF}
+{$IFDEF DYNLINK}
 var
   (* Platform API *)
 {$IFDEF CL_VERSION_1_0}
@@ -2205,10 +2223,12 @@ var
 
 function oclGetProcAddress(ProcName: PAnsiChar; LibHandle: Pointer = nil): Pointer;
 function InitOpenCL(LibName: String = OpenCLLibName): Boolean;
-function GetString(const Status: TCL_int): AnsiString;
 
 var
   OCL_LibHandle: Pointer = nil;
+{$ENDIF}
+
+function GetString(const Status: TCL_int): AnsiString;
 
 implementation
 
@@ -2251,6 +2271,7 @@ begin
   {$ENDIF}
 end;
 
+{$IFDEF DYNLINK}
 function oclGetProcAddress(ProcName: PAnsiChar; LibHandle: Pointer = nil): Pointer;
 begin
   if LibHandle = nil then LibHandle := OCL_LibHandle;
@@ -2530,6 +2551,7 @@ begin
   end;
 end;
 {$IFNDEF DEFINE_REGION_NOT_IMPLEMENTED}{$ENDREGION}{$ENDIF}
+{$ENDIF}
 
 {$IFNDEF DEFINE_REGION_NOT_IMPLEMENTED}{$REGION 'GetString'}{$ENDIF}
 function GetString(const Status: TCL_int): AnsiString;
