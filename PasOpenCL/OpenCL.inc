@@ -16,6 +16,7 @@
 (*                                          *)
 (*********Copyright (c) niello 2008-2011*****)
 
+{$MACRO ON}
 
 {$IFDEF MSWINDOWS}
   {$DEFINE WINDOWS}
