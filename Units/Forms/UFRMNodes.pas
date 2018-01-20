@@ -220,7 +220,7 @@ begin
     strings.BeginUpdate;
     Try
       strings.Clear;
-      strings.Add('BlackList Updated: '+DateTimeToStr(now)+' by TID:'+IntToHex(TThread.CurrentThread.ThreadID,8));
+      strings.Add('BlackList Updated: %s by TID: %p', [DateTimeToStr(now), TThread.CurrentThread.ThreadID]);
       j := 0; n:=0;
       for i := 0 to l.Count - 1 do begin
         P := l[i];

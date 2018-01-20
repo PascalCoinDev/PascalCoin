@@ -28,10 +28,21 @@ Uses UOpenSSLdef;
 
 var
 {$IFDEF UNIX}
+  {$IF not (Defined(LINUX) or Defined(DARWIN))}
+    {$ERROR 'unsupported target'}
+  {$IFEND}
   {$IFDEF OpenSSL10}
+  {$IFDEF LINUX}
   SSL_C_LIB : AnsiString = './libcrypto.so.1.0.0';
   {$ELSE}
+  SSL_C_LIB : AnsiString = './libcrypto.1.0.0.dylib';
+  {$ENDIF}
+  {$ELSE}
+  {$IFDEF LINUX}
   SSL_C_LIB : AnsiString = './libcrypto.so.1.1';
+  {$ELSE}
+  SSL_C_LIB : AnsiString = './libcrypto.1.1.dylib';
+  {$ENDIF}
   {$ENDIF}
 {$ELSE}
   // Windows + Lazarus uses a OpenSSL v1.0 32 or 64 bits

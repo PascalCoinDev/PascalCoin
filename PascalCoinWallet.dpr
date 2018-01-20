@@ -1,9 +1,12 @@
 program PascalCoinWallet;
 
 {$mode delphi}
+{$DEFINE UseCThreads}
 
 uses
-  {$IFDEF LINUX}cthreads,{$ENDIF}
+  {$IFDEF UNIX}{$IFDEF UseCThreads}
+  cthreads,
+  {$ENDIF}{$ENDIF}
   Interfaces,
   sysutils,
   UOpenSSL,

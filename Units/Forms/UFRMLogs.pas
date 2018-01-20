@@ -31,7 +31,7 @@ type
     pnlTopLogs: TPanel;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure OnNewLog(logtype : TLogType; Time : TDateTime; ThreadID : Cardinal; Const sender, logtext : AnsiString);
+    procedure OnNewLog(logtype : TLogType; Time : TDateTime; ThreadID : TThreadID; Const sender, logtext : AnsiString);
   private
     { private declarations }
   public
@@ -58,11 +58,11 @@ begin
   TUserInterface.Log.OnNewLog := nil;
 end;
 
-procedure TFRMLogs.OnNewLog(logtype: TLogType; Time : TDateTime; ThreadID : Cardinal; const sender,logtext: AnsiString);
+procedure TFRMLogs.OnNewLog(logtype: TLogType; Time : TDateTime; ThreadID : TThreadID; const sender,logtext: AnsiString);
 Var s : AnsiString;
 begin
   if (logtype=ltdebug) And (Not cbShowDebugLogs.Checked) then exit;
-  if ThreadID=MainThreadID then s := ' MAIN:' else s:=' TID:';
+  if ThreadID=MainThreadID then s := 'MAIN:' else s:='TID:';
   if MemoLogs.Lines.Count>300 then begin
     // Limit max lines in logs...
     memoLogs.Lines.BeginUpdate;
@@ -72,7 +72,8 @@ begin
       memoLogs.Lines.EndUpdate;
     end;
   end;
-  memoLogs.Lines.Add(formatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time)+s+IntToHex(ThreadID,8)+' ['+CT_LogType[Logtype]+'] <'+sender+'> '+logtext);
+  memoLogs.Lines.Add('%s %s %p [%s] <%s> %s',
+    [FormatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time), s, ThreadID, CT_LogType[Logtype], sender, logtext]);
 end;
 
 end.

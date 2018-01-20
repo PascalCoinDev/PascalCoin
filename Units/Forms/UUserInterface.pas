@@ -189,12 +189,16 @@ begin
 
     FTrayIcon := TTrayIcon.Create(FMainForm);
     FTrayIcon.OnDblClick := OnTrayIconDblClick;
+    {$IFNDEF LCLCarbon}
     FTrayIcon.Visible := true;
+    {$ENDIF}
     FTrayIcon.Hint := FMainForm.Caption;
     FTrayIcon.BalloonTitle := 'Restoring the window.';
     FTrayIcon.BalloonHint := 'Double click the system tray icon to restore Pascal Coin';
     FTrayIcon.BalloonFlags := bfInfo;
+    {$IFNDEF LCLCarbon}
     FTrayIcon.Show;
+    {$ENDIF}
     FTimerUpdateStatus := TTimer.Create(FMainForm);
     FTimerUpdateStatus.Enabled := false;
     FDisplayedStartupSyncDialog:=false;
