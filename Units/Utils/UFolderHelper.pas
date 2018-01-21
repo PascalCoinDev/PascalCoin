@@ -48,17 +48,17 @@ Type TFileVersionInfo = record
 implementation
 
 uses
-  {$IFnDEF LINUX}
+  {$IF not (Defined(LINUX) or Defined(DARWIN))}
   Windows,
   {$DEFINE FILEVERSIONINFO}
-  {$ENDIF}
+  {$IFEND}
   SysUtils;
 
 {$I .\..\PascalCoin\config.inc}
 
 class function TFolderHelper.GetAppDataFolder: string;
 begin
-  {$IFDEF LINUX}
+  {$IFDEF UNIX}
   Result :=GetEnvironmentVariable('HOME');
   {$ELSE}
   Result :=GetEnvironmentVariable('APPDATA');

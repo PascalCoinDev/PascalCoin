@@ -70,7 +70,12 @@ const
   OpenCLLibName = 'libOpenCL.so';
 {$ENDIF}
 {$IFDEF DARWIN}
-  {$linkframework OpenCL}//Not yet?
+{$IFDEF DYNLINK}
+const
+  OpenCLLibName = '/usr/lib/libOpenCL.dylib';
+{$ELSE}
+{$linkframework OpenCL}
+{$ENDIF}
 {$ENDIF}
 
 {$IFDEF DEFINE_8087CW_NOT_IMPLEMENTED}
@@ -799,77 +804,82 @@ const
 //********************************************************************************************************/
 
 {$IFNDEF DEFINE_REGION_NOT_IMPLEMENTED}{$REGION 'Types proceduress'}{$ENDIF}
+{$IFDEF DYNLINK}
 type
+{$ENDIF}
   (* Platform API *)
   {$IFDEF CL_VERSION_1_0}
-  TclGetPlatformIDs = function (
+  {$IFDEF DYNLINK}TclGetPlatformIDs = {$ENDIF}function {$IFNDEF DYNLINK}clGetPlatformIDs{$ENDIF}(
                                  num_entries: TCL_uint;                         (* num_entries *)
                                  platforms: PPCL_platform_id;                   (* platforms *)
                                  num_platforms: PCL_uint                        (* num_platforms *)
                                  ): TCL_int;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clGetPlatformIDs';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclGetPlatformInfo = function (
+  {$IFDEF DYNLINK}TclGetPlatformInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetPlatformInfo{$ENDIF}(
                                    platform: PCL_platform_id;                   (* platform *)
                                    param_name: TCL_platform_info;               (* param_name *)
                                    param_value_size: TSize_t;                   (* param_value_size *)
                                    param_value: Pointer;                        (* param_value *)
                                    param_value_size_ret: PSize_t                (* param_value_size_ret *)
                                    ): TCL_int;
-                                   {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                   extdecl; {$IFNDEF DYNLINK}external name 'clGetPlatformInfo';{$ENDIF}
   {$ENDIF}
 
   (* Device APIs *)
   {$IFDEF CL_VERSION_1_0}
-  TclGetDeviceIDs = function (
+  {$IFDEF DYNLINK}TclGetDeviceIDs = {$ENDIF}function {$IFNDEF DYNLINK}clGetDeviceIDs{$ENDIF}(
                                  platform: PCL_platform_id                      (* platform *);
                                  device_type: TCL_device_type;                  (* device_type *)
                                  num_entries: TCL_uint;                         (* num_entries *)
                                  devices: PPCL_device_id;                       (* devices *)
                                  num_devices: PCL_uint                          (* num_devices *)
                                  ): TCL_int;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clGetDeviceIDs';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclGetDeviceInfo = function (
+  {$IFDEF DYNLINK}TclGetDeviceInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetDeviceInfo{$ENDIF}(
                                  device: PCL_device_id;                         (* device *)
                                  param_name: TCL_device_info;                   (* param_name *)
                                  param_value_size: TSize_t;                     (* param_value_size *)
                                  param_value: Pointer;                          (* param_value *)
                                  param_value_size_ret: PSize_t                  (* param_value_size_ret *)
                                  ): TCL_int;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clGetDeviceInfo';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_2}
-  TclCreateSubDevices = function (
+  {$IFDEF DYNLINK}TclCreateSubDevices = {$ENDIF}function {$IFNDEF DYNLINK}clCreateSubDevices{$ENDIF}(
                                   in_device: PCL_device_id;                     (* in_device *)
                                   const properties: PCL_device_partition_property;(* properties *)
                                   num_devices: TCL_uint;                        (* num_devices *)
                                   out_devices: PPCL_device_id;                  (* out_devices *)
                                   num_devices_ret: PCL_uint                     (* num_devices_ret *)
                                   ): TCL_int;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clCreateSubDevices';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_2}
-  TclRetainDevice = function (device: PCL_device_id): TCL_int;{$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclRetainDevice = {$ENDIF}function {$IFNDEF DYNLINK}clRetainDevice{$ENDIF}(device: PCL_device_id): TCL_int;extdecl; {$IFNDEF DYNLINK}external name 'clRetainDevice';{$ENDIF}
   {$ENDIF}
     
   {$IFDEF CL_VERSION_1_2}
-  TclReleaseDevice = function (device: PCL_device_id): TCL_int;{$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclReleaseDevice = {$ENDIF}function {$IFNDEF DYNLINK}clReleaseDevice{$ENDIF}(device: PCL_device_id): TCL_int;extdecl; {$IFNDEF DYNLINK}external name 'clReleaseDevice';{$ENDIF}
   {$ENDIF}
 
   (* Context APIs  *)
   {$IFDEF CL_VERSION_1_0}
-  TContextNotify = procedure(const Name: PAnsiChar; const Data: Pointer; Size: TSize_t; Data2: Pointer); {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+{$IFNDEF DYNLINK}
+type
+{$ENDIF}
+  TContextNotify = procedure(const Name: PAnsiChar; const Data: Pointer; Size: TSize_t; Data2: Pointer); extdecl;
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclCreateContext = function (
+  {$IFDEF DYNLINK}TclCreateContext = {$ENDIF}function {$IFNDEF DYNLINK}clCreateContext{$ENDIF}(
                                  const properties: PPCL_context_properties;     (* properties *)
                                  num_devices: TCL_uint;                         (* num_devices *)
                                  const devices: PPCL_device_id;                 (* devices *)
@@ -877,78 +887,78 @@ type
                                  user_data: Pointer;                            (* user_data *)
                                  errcode_ret: PCL_int                           (* errcode_ret *)
                                  ): PCL_context;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clCreateContext';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclCreateContextFromType = function (
+  {$IFDEF DYNLINK}TclCreateContextFromType = {$ENDIF}function {$IFNDEF DYNLINK}clCreateContextFromType{$ENDIF}(
                                          const properties: PPCL_context_properties; (* properties *)
                                          device_type: TCL_device_type;              (* device_type *)
                                          pfn_notify: TContextNotify;                (*pfn_notify*)
                                          user_data: Pointer;                        (* user_data *)
                                          errcode_ret: PCL_int                       (* errcode_ret *)
                                          ): PCL_context;
-                                         {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                         extdecl; {$IFNDEF DYNLINK}external name 'clCreateContextFromType';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclRetainContext = function (context: PCL_context): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclRetainContext = {$ENDIF}function {$IFNDEF DYNLINK}clRetainContext{$ENDIF}(context: PCL_context): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clRetainContext';{$ENDIF}
   {$ENDIF}
 
 
   {$IFDEF CL_VERSION_1_0}
-  TclReleaseContext = function (context: PCL_context): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclReleaseContext = {$ENDIF}function {$IFNDEF DYNLINK}clReleaseContext{$ENDIF}(context: PCL_context): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clReleaseContext';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclGetContextInfo = function (
+  {$IFDEF DYNLINK}TclGetContextInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetContextInfo{$ENDIF}(
                                  context: PCL_context;                          (* context *)
                                  param_name: TCL_context_info;                  (* param_name *)
                                  param_value_size: TSize_t;                     (* param_value_size *)
                                  param_value: Pointer;                          (* param_value *)
                                  param_value_size_ret: PSize_t                  (* param_value_size_ret *)
                                  ): TCL_int;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clGetContextInfo';{$ENDIF}
   {$ENDIF}
 
   (* Command Queue APIs *)
   {$IFDEF CL_VERSION_2_0}
-  TclCreateCommandQueueWithProperties = function (
+  {$IFDEF DYNLINK}TclCreateCommandQueueWithProperties = {$ENDIF}function {$IFNDEF DYNLINK}clCreateCommandQueueWithProperties{$ENDIF}(
                                    context: PCL_context;                        (* context *)
                                    device: PCL_device_id;                       (* device *)
                                    const properties: PCL_queue_properties;      (* properties *)
                                    errcode_ret: PCL_int                         (* errcode_ret *)
                                    ): PCL_command_queue;
-                                   {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                   extdecl; {$IFNDEF DYNLINK}external name 'clCreateCommandQueueWithProperties';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-    TclCreateCommandQueue = function (
+    {$IFDEF DYNLINK}TclCreateCommandQueue = {$ENDIF}function {$IFNDEF DYNLINK}clCreateCommandQueue{$ENDIF}(
                                      context: PCL_context;                      (* context *)
                                      device: PCL_device_id;                     (* device *)
                                      properties: TCL_command_queue_properties;  (* properties *)
                                      errcode_ret: PCL_int                       (* errcode_ret *)
                                      ): PCL_command_queue;
-                                     {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                     extdecl; {$IFNDEF DYNLINK}external name 'clCreateCommandQueue';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclRetainCommandQueue = function (command_queue: PCL_command_queue): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclRetainCommandQueue = {$ENDIF}function {$IFNDEF DYNLINK}clRetainCommandQueue{$ENDIF}(command_queue: PCL_command_queue): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clRetainCommandQueue';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclReleaseCommandQueue = function (command_queue: PCL_command_queue): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclReleaseCommandQueue = {$ENDIF}function {$IFNDEF DYNLINK}clReleaseCommandQueue{$ENDIF}(command_queue: PCL_command_queue): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clReleaseCommandQueue';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclGetCommandQueueInfo = function (
+  {$IFDEF DYNLINK}TclGetCommandQueueInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetCommandQueueInfo{$ENDIF}(
                                        command_queue: PCL_command_queue;        (* command_queue *)
                                        param_name: TCL_command_queue_info;      (* param_name *)
                                        param_value_size: TSize_t;               (* param_value_size *)
                                        param_value: Pointer;                    (* param_value *)
                                        param_value_size_ret: PSize_t            (* param_value_size_ret *)
                                        ): TCL_int;
-                                       {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                       extdecl; {$IFNDEF DYNLINK}external name 'clGetCommandQueueInfo';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
@@ -964,41 +974,41 @@ type
      *  properties when creating the queue, instead.
      *)
      
-  TclSetCommandQueueProperty = function (
+  {$IFDEF DYNLINK}TclSetCommandQueueProperty = {$ENDIF}function {$IFNDEF DYNLINK}clSetCommandQueueProperty{$ENDIF}(
                                            command_queue: PCL_command_queue;              (* command_queue *)
                                            properties: TCL_command_queue_properties;      (* properties *)
                                            enable: TCL_bool;                              (* enable *)
                                            old_properties: PCL_command_queue_properties   (* old_properties *)
                                            ): TCL_int;
-                                           {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                           extdecl; {$IFNDEF DYNLINK}external name 'clSetCommandQueueProperty';{$ENDIF}
   {$ENDIF}
   {$ENDIF}
 
   (* Memory Object APIs *)
   {$IFDEF CL_VERSION_1_0}
-  TclCreateBuffer = function (
+  {$IFDEF DYNLINK}TclCreateBuffer = {$ENDIF}function {$IFNDEF DYNLINK}clCreateBuffer{$ENDIF}(
                                context: PCL_context;                            (* context *)
                                flags: TCL_mem_flags;                            (* flags *)
                                size: TSize_t;                                   (* size *)
                                host_ptr: Pointer;                               (* host_ptr *)
                                errcode_ret: PCL_int                             (* errcode_ret *)
                                ): PCL_mem;
-                               {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                               extdecl; {$IFNDEF DYNLINK}external name 'clCreateBuffer';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_1}
-  TclCreateSubBuffer = function(
+  {$IFDEF DYNLINK}TclCreateSubBuffer = {$ENDIF}function {$IFNDEF DYNLINK}clCreateSubBuffer{$ENDIF}(
                                  buffer: Pcl_mem;                               (* buffer *)
                                  flags: TCL_mem_flags;                          (* flags *)
                                  buffer_create_type: Tcl_buffer_create_type;    (* buffer_create_type *)
                                  const buffer_create_info: Pointer;             (* buffer_create_info *)
                                  errcode_ret: PCL_int                           (* errcode_ret *)
                                  ): PCL_mem;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clCreateSubBuffer';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_2}
-  TclCreateImage = function (
+  {$IFDEF DYNLINK}TclCreateImage = {$ENDIF}function {$IFNDEF DYNLINK}clCreateImage{$ENDIF}(
                                  context: PCL_context;                          (* context *)
                                  flags: TCL_mem_flags;                          (* flags *)
                                  const image_format: PCL_image_format;          (* image_format *)
@@ -1006,11 +1016,11 @@ type
                                  host_ptr: Pointer;                             (* host_ptr *)
                                  errcode_ret: PCL_int                           (* errcode_ret *)
                                  ): PCL_mem;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clCreateImage';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_2_0}
-  TclCreatePipe = function(
+  {$IFDEF DYNLINK}TclCreatePipe = {$ENDIF}function {$IFNDEF DYNLINK}clCreatePipe{$ENDIF}(
                                  context: PCL_context;                          (* context *)
                                  flags: TCL_mem_flags;                          (* flags *)
                                  pipe_packet_size: TCL_uint;                    (* pipe_packet_size *)
@@ -1018,12 +1028,12 @@ type
                                  const properties: PCL_pipe_properties;         (* properties *)
                                  errcode_ret: PCL_int                          (* errcode_ret *)
                                  ): PCL_mem;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clCreatePipe';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
     {$IFDEF CL_USE_DEPRECATED_OPENCL_1_1_APIS}
-      TclCreateImage2D = function (
+      {$IFDEF DYNLINK}TclCreateImage2D = {$ENDIF}function {$IFNDEF DYNLINK}clCreateImage2D{$ENDIF}(
                                  context: PCL_context;                          (* context *)
                                  flags: TCL_mem_flags;                          (* flags *)
                                  const image_format: PCL_image_format;          (* image_format *)
@@ -1033,13 +1043,13 @@ type
                                  host_ptr: Pointer;                             (* host_ptr *)
                                  errcode_ret: PCL_int                           (* errcode_ret *)
                                  ): PCL_mem;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clCreateImage2D';{$ENDIF}
     {$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
     {$IFDEF CL_USE_DEPRECATED_OPENCL_1_1_APIS}
-      TclCreateImage3D = function (
+      {$IFDEF DYNLINK}TclCreateImage3D = {$ENDIF}function {$IFNDEF DYNLINK}clCreateImage3D{$ENDIF}(
                                  context: PCL_context;                          (* context *)
                                  flags: TCL_mem_flags;                          (* flags *)
                                  const image_format: PCL_image_format;          (* image_format *)
@@ -1051,20 +1061,20 @@ type
                                  host_ptr: Pointer;                             (* host_ptr *)
                                  errcode_ret: PCL_int                           (* errcode_ret *)
                                  ): PCL_mem;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clCreateImage3D';{$ENDIF}
     {$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclRetainMemObject = function (memobj: PCL_mem): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclRetainMemObject = {$ENDIF}function {$IFNDEF DYNLINK}clRetainMemObject{$ENDIF}(memobj: PCL_mem): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clRetainMemObject';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclReleaseMemObject = function (memobj: PCL_mem): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclReleaseMemObject = {$ENDIF}function {$IFNDEF DYNLINK}clReleaseMemObject{$ENDIF}(memobj: PCL_mem): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clReleaseMemObject';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclGetSupportedImageFormats = function (
+  {$IFDEF DYNLINK}TclGetSupportedImageFormats = {$ENDIF}function {$IFNDEF DYNLINK}clGetSupportedImageFormats{$ENDIF}(
                                            context: PCL_context;                (* context *)
                                            flags: TCL_mem_flags;                (* flags *)
                                            image_type: TCL_mem_object_type;     (* image_type *)
@@ -1072,130 +1082,135 @@ type
                                            image_formats: PCL_image_format;     (* image_formats *)
                                            num_image_formats: PCL_uint          (* num_image_formats *)
                                            ): TCL_int;
-                                           {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                           extdecl; {$IFNDEF DYNLINK}external name 'clGetSupportedImageFormats';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclGetMemObjectInfo = function (
+  {$IFDEF DYNLINK}TclGetMemObjectInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetMemObjectInfo{$ENDIF}(
                                    memobj: PCL_mem;                             (* memobj *)
                                    param_name: TCL_mem_info;                    (* param_name *)
                                    param_value_size: TSize_t;                   (* param_value_size *)
                                    param_value: Pointer;                        (* param_value *)
                                    param_value_size_ret: PSize_t                (* param_value_size_ret *)
                                    ): TCL_int;
-                                   {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                   extdecl; {$IFNDEF DYNLINK}external name 'clGetMemObjectInfo';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclGetImageInfo = function (
+  {$IFDEF DYNLINK}TclGetImageInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetImageInfo{$ENDIF}(
                                  image: PCL_mem;                                (* image *)
                                  param_name: TCL_image_info;                    (* param_name *)
                                  param_value_size: TSize_t;                     (* param_value_size *)
                                  param_value: Pointer;                          (* param_value *)
                                  param_value_size_ret: PSize_t                  (* param_value_size_ret *)
                                  ): TCL_int;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clGetImageInfo';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_2_0}
-  TclGetPipeInfo = function(
+  {$IFDEF DYNLINK}TclGetPipeInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetPipeInfo{$ENDIF}(
                                  pipe :PCL_mem;                                 (* pipe *)
                                  param_name: PCL_pipe_info;                      (* param_name *)
                                  param_value_size: TSize_t;                      (* param_value_size *)
                                  param_value: Pointer;                          (* param_value *)
                                  param_value_size_ret: Psize_t                 (* param_value_size_ret *)
                                  ): TCL_int;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clGetPipeInfo';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_1}
-  TMemObjectNotify = procedure(memob: PCL_mem; user_data: Pointer); {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+{$IFNDEF DYNLINK}
+type
+{$ENDIF}
+  TMemObjectNotify = procedure(memob: PCL_mem; user_data: Pointer); extdecl;
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_1}
-  TclSetMemObjectDestructorCallback = function(
+  {$IFDEF DYNLINK}TclSetMemObjectDestructorCallback = {$ENDIF}function {$IFNDEF DYNLINK}clSetMemObjectDestructorCallback{$ENDIF}(
                                                  memobj: Pcl_mem;               (* memobj *)
                                                  pfn_notify: TMemObjectNotify;  (* pfn_notify *)
                                                  user_data: Pointer             (*user_data *)
                                                  ): TCL_int;
-                                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                                 extdecl; {$IFNDEF DYNLINK}external name 'clSetMemObjectDestructorCallback';{$ENDIF}
   {$ENDIF}
 
   (* SVM Allocation APIs *)
   {$IFDEF CL_VERSION_2_0}
-  TclSVMAlloc = function(
+  {$IFDEF DYNLINK}TclSVMAlloc = {$ENDIF}function {$IFNDEF DYNLINK}clSVMAlloc{$ENDIF}(
                                                  context: PCL_context;          (* context *)
                                                  flags: TCL_svm_mem_flags;      (* flags *)
                                                  size: TSize_t;                 (* size *)
                                                  alignment: TCL_uint            (* alignment *)
                                                  ): Pointer;
-                                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                                 extdecl; {$IFNDEF DYNLINK}external name 'clSVMAlloc';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_2_0}
-  TclSVMFree = procedure(
+  {$IFDEF DYNLINK}TclSVMFree = {$ENDIF}procedure {$IFNDEF DYNLINK}clSVMFree{$ENDIF}(
                                                  context: PCL_context;           (* context *)
                                                  svm_pointer: Pointer           (* svm_pointer *)
                                                  );
-                                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                                 extdecl; {$IFNDEF DYNLINK}external name 'clSVMFree';{$ENDIF}
   {$ENDIF}
 
   (* Sampler APIs  *)
   {$IFDEF CL_VERSION_1_0}
-    TclCreateSampler = function (
+    {$IFDEF DYNLINK}TclCreateSampler = {$ENDIF}function {$IFNDEF DYNLINK}clCreateSampler{$ENDIF}(
                                 context: PCL_context;                           (* context *)
                                 normalized_coords: TCL_bool;                    (* normalized_coords *)
                                 addressing_mode: TCL_addressing_mode;           (* addressing_mode *)
                                 filter_mode: TCL_filter_mode;                   (* filter_mode *)
                                 errcode_ret: PCL_int                            (* errcode_ret *)
                                 ): PCL_sampler;
-                                {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                extdecl; {$IFNDEF DYNLINK}external name 'clCreateSampler';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_2_0}
-  TclCreateSamplerWithProperties = function (
+  {$IFDEF DYNLINK}TclCreateSamplerWithProperties = {$ENDIF}function {$IFNDEF DYNLINK}clCreateSamplerWithProperties{$ENDIF}(
                                 context: PCL_context;                           (* context *)
                                 const normalized_coords: PCL_sampler_properties;(* normalized_coords *)
                                 errcode_ret: PCL_int                      (* errcode_ret *)
                                 ): PCL_sampler;
-                                {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                extdecl; {$IFNDEF DYNLINK}external name 'clCreateSamplerWithProperties';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclRetainSampler = function (sampler: PCL_sampler): TCL_sampler; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclRetainSampler = {$ENDIF}function {$IFNDEF DYNLINK}clRetainSampler{$ENDIF}(sampler: PCL_sampler): TCL_sampler; extdecl; {$IFNDEF DYNLINK}external name 'clRetainSampler';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclReleaseSampler = function (sampler: PCL_sampler): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclReleaseSampler = {$ENDIF}function {$IFNDEF DYNLINK}clReleaseSampler{$ENDIF}(sampler: PCL_sampler): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clReleaseSampler';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclGetSamplerInfo = function (
+  {$IFDEF DYNLINK}TclGetSamplerInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetSamplerInfo{$ENDIF}(
                                  sampler: PCL_sampler;                          (* sampler *)
                                  param_name: TCL_sampler_info;                  (* param_name *)
                                  param_value_size: TSize_t;                     (* param_value_size *)
                                  param_value: Pointer;                          (* param_value *)
                                  param_value_size_ret: PSize_t                  (* param_value_size_ret *)
                                  ): TCL_int;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clGetSamplerInfo';{$ENDIF}
   {$ENDIF}
 
   (* Program Object APIs  *)
   {$IFDEF CL_VERSION_1_0}
-  TclCreateProgramWithSource = function (
+  {$IFDEF DYNLINK}TclCreateProgramWithSource = {$ENDIF}function {$IFNDEF DYNLINK}clCreateProgramWithSource{$ENDIF}(
                                            context: PCL_context;                (* context *)
                                            count: TCL_uint;                     (* count *)
                                            const strings: PPAnsiChar;           (* strings *)
                                            const lengths: PSize_t;              (* lengths *)
                                            errcode_ret: PCL_int                 (* errcode_ret *)
                                            ): PCL_program;
-                                           {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                           extdecl; {$IFNDEF DYNLINK}external name 'clCreateProgramWithSource';{$ENDIF}
   {$ENDIF}
 
-//type
+{$IFNDEF DYNLINK}
+type
+{$ENDIF}
   PPByte = ^PByte;
   {$IFDEF CL_VERSION_1_0}
-  TclCreateProgramWithBinary = function (
+  {$IFDEF DYNLINK}TclCreateProgramWithBinary = {$ENDIF}function {$IFNDEF DYNLINK}clCreateProgramWithBinary{$ENDIF}(
                                            context: PCL_context;                (* context *)
                                            num_devices: TCL_uint;               (* num_devices *)
                                            const device_list: PCL_device_id;    (* device_list *)
@@ -1204,35 +1219,37 @@ type
                                            binary_status: PCL_int;              (* binary_status *)
                                            errcode_ret: PCL_int                 (* errcode_ret *)
                                            ): PCL_program;
-                                           {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                           extdecl; {$IFNDEF DYNLINK}external name 'clCreateProgramWithBinary';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_2}
-  TclCreateProgramWithBuiltInKernels = function (
+  {$IFDEF DYNLINK}TclCreateProgramWithBuiltInKernels = {$ENDIF}function {$IFNDEF DYNLINK}clCreateProgramWithBuiltInKernels{$ENDIF}(
                                            context: PCL_context;                (* context *)
                                            num_devices: TCL_uint;               (* num_devices *)
                                            const device_list: PCL_device_id;    (* device_list *)
                                            const kernel_names: PAnsiChar;       (* kernel_names *)
                                            errcode_ret: PCL_int                 (* errcode_ret *)
                                            ): PCL_program;
-                                           {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                           extdecl; {$IFNDEF DYNLINK}external name 'clCreateProgramWithBuiltInKernels';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclRetainProgram = function (_program: PCL_program): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclRetainProgram = {$ENDIF}function {$IFNDEF DYNLINK}clRetainProgram{$ENDIF}(_program: PCL_program): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clRetainProgram';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclReleaseProgram = function (_program: PCL_program): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclReleaseProgram = {$ENDIF}function {$IFNDEF DYNLINK}clReleaseProgram{$ENDIF}(_program: PCL_program): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clReleaseProgram';{$ENDIF}
   {$ENDIF}
 
-//type
+{$IFNDEF DYNLINK}
+type
+{$ENDIF}
   {$IFDEF CL_VERSION_1_0}
-  TProgramNotify = procedure(_program: PCL_program; user_data: Pointer); {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  TProgramNotify = procedure(_program: PCL_program; user_data: Pointer); extdecl;
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclBuildProgram = function (
+  {$IFDEF DYNLINK}TclBuildProgram = {$ENDIF}function {$IFNDEF DYNLINK}clBuildProgram{$ENDIF}(
                                _program: PCL_program;                           (* program *)
                                num_devices: TCL_uint;                           (* num_devices *)
                                const device_list: PPCL_device_id;               (* device_list *)
@@ -1240,17 +1257,17 @@ type
                                pfn_notify: TProgramNotify;                      (* void (pfn_notify)*)
                                user_data: Pointer                               (* user_data *)
                                ): TCL_int;
-                               {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                               extdecl; {$IFNDEF DYNLINK}external name 'clBuildProgram';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
     {$IFDEF CL_USE_DEPRECATED_OPENCL_1_1_APIS}
-      TclUnloadCompiler = function: TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+      {$IFDEF DYNLINK}TclUnloadCompiler = {$ENDIF}function {$IFNDEF DYNLINK}clUnloadCompiler{$ENDIF}: TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clUnloadCompiler';{$ENDIF}
     {$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_2}
-  TclCompileProgram = function(
+  {$IFDEF DYNLINK}TclCompileProgram = {$ENDIF}function {$IFNDEF DYNLINK}clCompileProgram{$ENDIF}(
                                _program: PCL_program;                           (* program *)
                                num_devices: TCL_uint;                           (* num_devices *)
                                const device_list: PPCL_device_id;               (* device_list *)
@@ -1261,11 +1278,11 @@ type
                                pfn_notify: TProgramNotify;                      (* void (pfn_notify)*)
                                user_data: Pointer                               (* user_data *)
                                ): TCL_int;
-                               {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                               extdecl; {$IFNDEF DYNLINK}external name 'clCompileProgram';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_2}
-  TclLinkProgram = function (
+  {$IFDEF DYNLINK}TclLinkProgram = {$ENDIF}function {$IFNDEF DYNLINK}clLinkProgram{$ENDIF}(
                                context: PCL_context;                            (* context *)
                                num_devices: TCL_uint;                           (* num_devices *)
                                const device_list: PPCL_device_id;               (* device_list *)
@@ -1276,27 +1293,27 @@ type
                                user_data: Pointer;                              (* user_data *)
                                errcode_ret: PCL_int                             (* errcode_ret *)
                                ): PCL_program;
-                               {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                               extdecl; {$IFNDEF DYNLINK}external name 'clLinkProgram';{$ENDIF}
   {$ENDIF}
 
 
   {$IFDEF CL_VERSION_1_2}
-  TclUnloadPlatformCompiler = function (platform: PCL_platform_id): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclUnloadPlatformCompiler = {$ENDIF}function {$IFNDEF DYNLINK}clUnloadPlatformCompiler{$ENDIF}(platform: PCL_platform_id): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clUnloadPlatformCompiler';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclGetProgramInfo = function (
+  {$IFDEF DYNLINK}TclGetProgramInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetProgramInfo{$ENDIF}(
                                    _program: PCL_program;                       (* program *)
                                    param_name: TCL_program_info;                (* param_name *)
                                    param_value_size: TSize_t;                   (* param_value_size *)
                                    param_value: Pointer;                        (* param_value *)
                                    param_value_size_ret: PSize_t                (* param_value_size_ret *)
                                    ): TCL_int;
-                                   {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                   extdecl; {$IFNDEF DYNLINK}external name 'clGetProgramInfo';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclGetProgramBuildInfo = function (
+  {$IFDEF DYNLINK}TclGetProgramBuildInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetProgramBuildInfo{$ENDIF}(
                                        _program: PCL_program;                   (* program *)
                                        device: PCL_device_id;                   (* device *)
                                        param_name: TCL_program_build_info;      (* param_name *)
@@ -1304,79 +1321,79 @@ type
                                        param_value: Pointer;                    (* param_value *)
                                        param_value_size_ret: PSize_t            (* param_value_size_ret *)
                                        ): TCL_int;
-                                       {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                       extdecl; {$IFNDEF DYNLINK}external name 'clGetProgramBuildInfo';{$ENDIF}
   {$ENDIF}
 
   (* Kernel Object APIs *)
   {$IFDEF CL_VERSION_1_0}
-  TclCreateKernel = function (
+  {$IFDEF DYNLINK}TclCreateKernel = {$ENDIF}function {$IFNDEF DYNLINK}clCreateKernel{$ENDIF}(
                                _program: PCL_program;                           (* program *)
                                const kernel_name: PAnsiChar;                    (* kernel_name *)
                                errcode_ret: PCL_int                             (* errcode_ret *)
                                ): PCL_kernel;
-                               {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                               extdecl; {$IFNDEF DYNLINK}external name 'clCreateKernel';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclCreateKernelsInProgram = function (
+  {$IFDEF DYNLINK}TclCreateKernelsInProgram = {$ENDIF}function {$IFNDEF DYNLINK}clCreateKernelsInProgram{$ENDIF}(
                                          _program: PCL_program;                 (* program *)
                                          num_kernels: TCL_uint;                 (* num_kernels *)
                                          kernels: PPCL_kernel;                  (* kernels *)
                                          num_kernels_ret: PCL_uint              (* num_kernels_ret *)
                                          ): TCL_int;
-                                         {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                         extdecl; {$IFNDEF DYNLINK}external name 'clCreateKernelsInProgram';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclRetainKernel = function (kernel: PCL_kernel): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclRetainKernel = {$ENDIF}function {$IFNDEF DYNLINK}clRetainKernel{$ENDIF}(kernel: PCL_kernel): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clRetainKernel';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclReleaseKernel = function (kernel: PCL_kernel): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclReleaseKernel = {$ENDIF}function {$IFNDEF DYNLINK}clReleaseKernel{$ENDIF}(kernel: PCL_kernel): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clReleaseKernel';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclSetKernelArg = function (
+  {$IFDEF DYNLINK}TclSetKernelArg = {$ENDIF}function {$IFNDEF DYNLINK}clSetKernelArg{$ENDIF}(
                                kernel: PCL_kernel;                              (* kernel *)
                                arg_index: TCL_uint;                             (* arg_index *)
                                arg_size: TSize_t;                               (* arg_size *)
                                const arg_value: Pointer                         (* arg_value *)
                                ): TCL_int;
-                               {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                               extdecl; {$IFNDEF DYNLINK}external name 'clSetKernelArg';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_2_0}
-  TclSetKernelArgSVMPointer = function(
+  {$IFDEF DYNLINK}TclSetKernelArgSVMPointer = {$ENDIF}function {$IFNDEF DYNLINK}clSetKernelArgSVMPointer{$ENDIF}(
                                      kernel: PCL_kernel;                        (* kernel *)
                                      arg_index: TCL_uint;                       (* arg_index *)
                                      const arg_value: Pointer                   (* arg_value *)
                                ): TCL_int;
-                               {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                               extdecl; {$IFNDEF DYNLINK}external name 'clSetKernelArgSVMPointer';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_2_0}
-  TclSetKernelExecInfo = function(
+  {$IFDEF DYNLINK}TclSetKernelExecInfo = {$ENDIF}function {$IFNDEF DYNLINK}clSetKernelExecInfo{$ENDIF}(
                                      kernel: PCL_kernel;                        (* kernel *)
                                      param_name: PCL_kernel_exec_info;          (* param_name *)
                                      param_value_size: TSize_t;                 (* param_value_size *)
                                      const param_value : Pointer                (* param_value *)
                                ): TCL_int;
-                               {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                               extdecl; {$IFNDEF DYNLINK}external name 'clSetKernelExecInfo';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclGetKernelInfo = function (
+  {$IFDEF DYNLINK}TclGetKernelInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetKernelInfo{$ENDIF}(
                                  kernel: PCL_kernel;                            (* kernel *)
                                  param_name: TCL_kernel_info;                   (* param_name *)
                                  param_value_size: TSize_t;                     (* param_value_size *)
                                  param_value: Pointer;                          (* param_value *)
                                  param_value_size_ret: PSize_t                  (* param_value_size_ret *)
                                  ): TCL_int;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clGetKernelInfo';{$ENDIF}
   {$ENDIF}
   {$IFDEF CL_VERSION_1_2}
 
-  TclGetKernelArgInfo = function (
+  {$IFDEF DYNLINK}TclGetKernelArgInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetKernelArgInfo{$ENDIF}(
                                  kernel: PCL_kernel;                            (* kernel *)
                                  arg_indx: Tcl_uint;                            (* arg_indx *)
                                  param_name: TCL_kernel_arg_info;               (* param_name *)
@@ -1384,11 +1401,11 @@ type
                                  param_value: Pointer;                          (* param_value *)
                                  param_value_size_ret: PSize_t                  (* param_value_size_ret *)
                                  ): TCL_int;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clGetKernelArgInfo';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclGetKernelWorkGroupInfo = function (
+  {$IFDEF DYNLINK}TclGetKernelWorkGroupInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetKernelWorkGroupInfo{$ENDIF}(
                                          kernel: PCL_kernel;                    (* kernel *)
                                          device: PCL_device_id;                 (* device *)
                                          param_name: TCL_kernel_work_group_info;(* param_name *)
@@ -1396,92 +1413,95 @@ type
                                          param_value: Pointer;                  (* param_value *)
                                          param_value_size_ret: PSize_t          (* param_value_size_ret *)
                                          ): TCL_int;
-                                         {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                         extdecl; {$IFNDEF DYNLINK}external name 'clGetKernelWorkGroupInfo';{$ENDIF}
   {$ENDIF}
 
   (* Event Object APIs *)
   {$IFDEF CL_VERSION_1_0}
-  TclWaitForEvents = function (
+  {$IFDEF DYNLINK}TclWaitForEvents = {$ENDIF}function {$IFNDEF DYNLINK}clWaitForEvents{$ENDIF}(
                                  num_events: TCL_uint;                          (* num_events *)
                                  const event_list: PCL_event                    (* event_list *)
                                  ): TCL_int;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clWaitForEvents';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclGetEventInfo = function (
+  {$IFDEF DYNLINK}TclGetEventInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetEventInfo{$ENDIF}(
                                event: PCL_event;                                (* event *)
                                param_name: PCL_event_info;                      (* param_name *)
                                param_value_size: TSize_t;                       (* param_value_size *)
                                param_value: Pointer;                            (* param_value *)
                                param_value_size_ret: PSize_t                    (* param_value_size_ret *)
                                ): TCL_int;
-                               {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                               extdecl; {$IFNDEF DYNLINK}external name 'clGetEventInfo';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_1}
-  TclCreateUserEvent = function (
+  {$IFDEF DYNLINK}TclCreateUserEvent = {$ENDIF}function {$IFNDEF DYNLINK}clCreateUserEvent{$ENDIF}(
                                   context: Pcl_context;                         (* context  *)
                                   errcode_ret: Pcl_int                          (* errcode_ret *)
                                   ): PCL_event;
-                                  {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                  extdecl; {$IFNDEF DYNLINK}external name 'clCreateUserEvent';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclRetainEvent = function (event: PCL_event): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclRetainEvent = {$ENDIF}function {$IFNDEF DYNLINK}clRetainEvent{$ENDIF}(event: PCL_event): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clRetainEvent';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclReleaseEvent = function (event: PCL_event): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclReleaseEvent = {$ENDIF}function {$IFNDEF DYNLINK}clReleaseEvent{$ENDIF}(event: PCL_event): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clReleaseEvent';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_1}
-  TclSetUserEventStatus = function (
+  {$IFDEF DYNLINK}TclSetUserEventStatus = {$ENDIF}function {$IFNDEF DYNLINK}clSetUserEventStatus{$ENDIF}(
                                      event: Pcl_event;                          (* event *)
                                      execution_status: Tcl_int                  (* execution_status *)
                                      ): TCL_int;
-                                     {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                     extdecl; {$IFNDEF DYNLINK}external name 'clSetUserEventStatus';{$ENDIF}
   {$ENDIF}
 
 
   {$IFDEF CL_VERSION_1_1}
-  TclEventNotify = procedure (event: PCL_event; cl_int: TCL_int; p: Pointer);{$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+{$IFNDEF DYNLINK}
+type
+{$ENDIF}
+  TclEventNotify = procedure(event: PCL_event; cl_int: TCL_int; p: Pointer); extdecl;
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_1}
-  TclSetEventCallback = function (
+  {$IFDEF DYNLINK}TclSetEventCallback = {$ENDIF}function {$IFNDEF DYNLINK}clSetEventCallback{$ENDIF}(
                                     event: Pcl_event;                           (* event *)
                                     command_exec_callback_type: Tcl_int;        (* command_exec_callback_type *)
                                     pfn_notify: TclEventNotify;                 (* pfn_notify *)
                                     user_data: Pointer                          (* user_data *)
                                     ): TCL_int;
-                                    {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                    extdecl; {$IFNDEF DYNLINK}external name 'clSetEventCallback';{$ENDIF}
   {$ENDIF}
 
   (* Profiling APIs *)
   {$IFDEF CL_VERSION_1_0}
-  TclGetEventProfilingInfo = function (
+  {$IFDEF DYNLINK}TclGetEventProfilingInfo = {$ENDIF}function {$IFNDEF DYNLINK}clGetEventProfilingInfo{$ENDIF}(
                                          event: PCL_event;                      (* event *)
                                          param_name: TCL_profiling_info;        (* param_name *)
                                          param_value_size: TSize_t;             (* param_value_size *)
                                          param_value: Pointer;                  (* param_value *)
                                          param_value_size_ret: PSize_t          (* param_value_size_ret *)
                                          ): TCL_int;
-                                         {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                         extdecl; {$IFNDEF DYNLINK}external name 'clGetEventProfilingInfo';{$ENDIF}
   {$ENDIF}
 
   (* Flush and Finish APIs *)
   {$IFDEF CL_VERSION_1_0}
-  TclFlush = function (command_queue: PCL_command_queue): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclFlush = {$ENDIF}function {$IFNDEF DYNLINK}clFlush{$ENDIF}(command_queue: PCL_command_queue): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clFlush';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclFinish = function (command_queue: PCL_command_queue): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+  {$IFDEF DYNLINK}TclFinish = {$ENDIF}function {$IFNDEF DYNLINK}clFinish{$ENDIF}(command_queue: PCL_command_queue): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clFinish';{$ENDIF}
   {$ENDIF}
 
   (* Enqueued Commands APIs *)
   {$IFDEF CL_VERSION_1_0}
-  TclEnqueueReadBuffer = function (
+  {$IFDEF DYNLINK}TclEnqueueReadBuffer = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueReadBuffer{$ENDIF}(
                                      command_queue: PCL_command_queue;          (* command_queue *)
                                      buffer: PCL_mem;                           (* buffer *)
                                      blocking_read: TCL_bool;                   (* blocking_read *)
@@ -1492,11 +1512,11 @@ type
                                      const event_wait_list: PPCL_event;         (* event_wait_list *)
                                      event: PPCL_event                          (* event *)
                                      ): TCL_int;
-                                     {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                     extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueReadBuffer';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_1}
-  TclEnqueueReadBufferRect = function(
+  {$IFDEF DYNLINK}TclEnqueueReadBufferRect = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueReadBufferRect{$ENDIF}(
                                         command_queue: Pcl_command_queue;       (* command_queue *)
                                         buffer: Pcl_mem;                        (* buffer *)
                                         blocking_read: Tcl_bool;                (* blocking_read *)
@@ -1512,11 +1532,11 @@ type
                                         const event_wait_list: PPcl_event;      (* event_wait_list *)
                                         event: PPcl_event                       (* event *)
                                         ): TCL_int;
-                                        {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                        extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueReadBufferRect';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclEnqueueWriteBuffer = function (command_queue: PCL_command_queue;           (* command_queue *)
+  {$IFDEF DYNLINK}TclEnqueueWriteBuffer = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueWriteBuffer{$ENDIF}(command_queue: PCL_command_queue;           (* command_queue *)
                                      buffer: PCL_mem;                           (* buffer *)
                                      blocking_write: TCL_bool;                  (* blocking_write *)
                                      offset: TSize_t;                           (* offset *)
@@ -1526,11 +1546,11 @@ type
                                      const event_wait_list: PPCL_event;         (* event_wait_list *)
                                      event: PPCL_event                          (* event *)
                                      ): TCL_int;
-                                     {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                     extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueWriteBuffer';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_1}
-  TclEnqueueWriteBufferRect = function(
+  {$IFDEF DYNLINK}TclEnqueueWriteBufferRect = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueWriteBufferRect{$ENDIF}(
                                         command_queue: Pcl_command_queue;       (* command_queue *)
                                         buffer: Pcl_mem;                        (* buffer *)
                                         blocking_write: Tcl_bool;               (* blocking_write *)
@@ -1546,11 +1566,11 @@ type
                                         const event_wait_list: PPcl_event;      (* event_wait_list *)
                                         event: PPcl_event                       (* event *)
                                         ): TCL_int;
-                                        {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                        extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueWriteBufferRect';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_2}
-  TclEnqueueFillBuffer = function (
+  {$IFDEF DYNLINK}TclEnqueueFillBuffer = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueFillBuffer{$ENDIF}(
                                         command_queue: Pcl_command_queue;       (* command_queue *)
                                         buffer: Pcl_mem;                        (* buffer *)
                                         const pattern: Pointer;                 (* pattern *) 
@@ -1561,11 +1581,11 @@ type
                                         const event_wait_list: PPcl_event;      (* event_wait_list *)
                                         event: PPcl_event                       (* event *)
                                         ): TCL_int;
-                                        {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                        extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueFillBuffer';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclEnqueueCopyBuffer = function (
+  {$IFDEF DYNLINK}TclEnqueueCopyBuffer = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueCopyBuffer{$ENDIF}(
                                      command_queue: PCL_command_queue;          (* command_queue *)
                                      src_buffer: PCL_mem;                       (* src_buffer *)
                                      dst_buffer: PCL_mem;                       (* dst_buffer *)
@@ -1576,11 +1596,11 @@ type
                                      const event_wait_list: PPCL_event;         (* event_wait_list *)
                                      event: PPCL_event                          (* event *)
                                      ): TCL_int;
-                                     {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                     extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueCopyBuffer';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_1}
-  TclEnqueueCopyBufferRect = function (
+  {$IFDEF DYNLINK}TclEnqueueCopyBufferRect = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueCopyBufferRect{$ENDIF}(
                                          command_queue: PCL_command_queue;      (* command_queue *)
                                          src_buffer: PCL_mem;                   (* src_buffer *)
                                          dst_buffer: PCL_mem;                   (* dst_buffer *)
@@ -1595,11 +1615,11 @@ type
                                          const event_wait_list: PPCL_event;     (* event_wait_list *)
                                          event: PPCL_event                      (* event *)
                                          ): TCL_int;
-                                         {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                         extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueCopyBufferRect';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclEnqueueReadImage = function (
+  {$IFDEF DYNLINK}TclEnqueueReadImage = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueReadImage{$ENDIF}(
                                      command_queue: PCL_command_queue;          (* command_queue *)
                                      image: PCL_mem;                            (* image *)
                                      blocking_read: TCL_bool;                   (* blocking_read *)
@@ -1612,11 +1632,11 @@ type
                                      const event_wait_list: PPCL_event;         (* event_wait_list *)
                                      event: PPCL_event                          (* event *)
                                      ): TCL_int;
-                                     {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                     extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueReadImage';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclEnqueueWriteImage = function (
+  {$IFDEF DYNLINK}TclEnqueueWriteImage = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueWriteImage{$ENDIF}(
                                      command_queue: PCL_command_queue;          (* command_queue *)
                                      image: PCL_mem;                            (* image *)
                                      blocking_write: TCL_bool;                  (* blocking_write *)
@@ -1629,11 +1649,11 @@ type
                                      const event_wait_list: PPCL_event;         (* event_wait_list *)
                                      event: PPCL_event                          (* event *)
                                      ): TCL_int;
-                                     {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                     extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueWriteImage';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_2}
-  TclEnqueueFillImage = function(
+  {$IFDEF DYNLINK}TclEnqueueFillImage = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueFillImage{$ENDIF}(
                                      command_queue: PCL_command_queue;          (* command_queue *)
                                      image: PCL_mem;                            (* image *)
                                      const fill_color: Pointer;                 (* fill_color *)
@@ -1643,11 +1663,11 @@ type
                                      const event_wait_list: PPCL_event;         (* event_wait_list *) 
                                      event: PPCL_event                          (* event *)
                                      ): TCL_int;
-                                     {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                     extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueFillImage';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclEnqueueCopyImage = function (
+  {$IFDEF DYNLINK}TclEnqueueCopyImage = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueCopyImage{$ENDIF}(
                                      command_queue: PCL_command_queue;          (* command_queue *)
                                      src_image: PCL_mem;                        (* src_image *)
                                      dst_image: PCL_mem;                        (* dst_image *)
@@ -1658,11 +1678,11 @@ type
                                      const event_wait_list: PPCL_event;         (* event_wait_list *)
                                      event: PPCL_event                          (* event *)
                                      ): TCL_int;
-                                     {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                     extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueCopyImage';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclEnqueueCopyImageToBuffer = function (
+  {$IFDEF DYNLINK}TclEnqueueCopyImageToBuffer = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueCopyImageToBuffer{$ENDIF}(
                                            command_queue: PCL_command_queue;    (* command_queue *)
                                            src_image: PCL_mem;                  (* src_image *)
                                            dst_buffer: PCL_mem;                 (* dst_buffer *)
@@ -1673,11 +1693,11 @@ type
                                            const event_wait_list: PPCL_event;   (* event_wait_list *)
                                            event: PPCL_event                    (* event *)
                                            ): TCL_int;
-                                           {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                           extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueCopyImageToBuffer';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclEnqueueCopyBufferToImage = function (
+  {$IFDEF DYNLINK}TclEnqueueCopyBufferToImage = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueCopyBufferToImage{$ENDIF}(
                                            command_queue: PCL_command_queue;    (* command_queue *)
                                            src_buffer: PCL_mem;                 (* src_buffer *)
                                            dst_image: PCL_mem;                  (* dst_image *)
@@ -1688,11 +1708,11 @@ type
                                            const event_wait_list: PPCL_event;   (* event_wait_list *)
                                            event: PPCL_event                    (* event *)
                                            ): TCL_int;
-                                           {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                           extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueCopyBufferToImage';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclEnqueueMapBuffer = function (
+  {$IFDEF DYNLINK}TclEnqueueMapBuffer = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueMapBuffer{$ENDIF}(
                                      command_queue: PCL_command_queue;          (* command_queue *)
                                      buffer: PCL_mem;                           (* buffer *)
                                      blocking_map: TCL_bool;                    (* blocking_map *)
@@ -1704,11 +1724,11 @@ type
                                      event: PPCL_event;                         (* event *)
                                      errcode_ret: PCL_int                       (* errcode_ret *)
                                      ): Pointer;
-                                     {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                     extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueMapBuffer';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclEnqueueMapImage = function (
+  {$IFDEF DYNLINK}TclEnqueueMapImage = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueMapImage{$ENDIF}(
                                    command_queue: PCL_command_queue;            (* command_queue *)
                                    image: PCL_mem;                              (* image *)
                                    blocking_map: TCL_bool;                      (* blocking_map *)
@@ -1722,11 +1742,11 @@ type
                                    event: PPCL_event;                           (* event *)
                                    errcode_ret: PCL_int                         (* errcode_ret *)
                                    ): Pointer;
-                                   {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                   extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueMapImage';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclEnqueueUnmapMemObject = function (
+  {$IFDEF DYNLINK}TclEnqueueUnmapMemObject = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueUnmapMemObject{$ENDIF}(
                                          command_queue: PCL_command_queue;      (* command_queue *)
                                          memobj: PCL_mem;                       (* memobj *)
                                          mapped_ptr: Pointer;                   (* mapped_ptr *)
@@ -1734,11 +1754,11 @@ type
                                          const event_wait_list: PPCL_event;     (* event_wait_list *)
                                          event: PPCL_event                      (* event *)
                                          ): TCL_int;
-                                         {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                         extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueUnmapMemObject';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_2}
-  TclEnqueueMigrateMemObjects = function (
+  {$IFDEF DYNLINK}TclEnqueueMigrateMemObjects = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueMigrateMemObjects{$ENDIF}(
                                          command_queue: PCL_command_queue;      (* command_queue *)
                                          num_mem_objects: Tcl_uint;             (* num_mem_objects *)
                                          const mem_objects: PPCL_mem;           (* mem_objects *)
@@ -1747,11 +1767,11 @@ type
                                          const event_wait_list: PPCL_event;     (* event_wait_list *)
                                          event: PPCL_event                      (* event *)
                                          ): TCL_int;
-                                         {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                         extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueMigrateMemObjects';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclEnqueueNDRangeKernel = function (
+  {$IFDEF DYNLINK}TclEnqueueNDRangeKernel = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueNDRangeKernel{$ENDIF}(
                                        command_queue: PCL_command_queue;        (* command_queue *)
                                        kernel: PCL_kernel;                      (* kernel *)
                                        work_dim: TCL_uint;                      (* work_dim *)
@@ -1762,29 +1782,31 @@ type
                                        const event_wait_list: PPCL_event;       (* event_wait_list *)
                                        event: PPCL_event                        (* event *)
                                        ): TCL_int;
-                                       {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                       extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueNDRangeKernel';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
 
-      TclEnqueueTask = function (
+      {$IFDEF DYNLINK}TclEnqueueTask = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueTask{$ENDIF}(
                                command_queue: PCL_command_queue;                (* command_queue *)
                                kernel: PCL_kernel;                              (* kernel *)
                                num_events_in_wait_list: TCL_uint;               (* num_events_in_wait_list *)
                                const event_wait_list: PPCL_event;               (* event_wait_list *)
                                event: PPCL_event                                (* event *)
                                ): TCL_int;
-                               {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                               extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueTask';{$ENDIF}
 
   {$ENDIF}
 
-//type
   {$IFDEF CL_VERSION_1_0}
-  TEnqueueUserProc = procedure(userdata: Pointer); {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+{$IFNDEF DYNLINK}
+type
+{$ENDIF}
+  TEnqueueUserProc = procedure (userdata: Pointer); extdecl;
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
-  TclEnqueueNativeKernel = function (
+  {$IFDEF DYNLINK}TclEnqueueNativeKernel = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueNativeKernel{$ENDIF}(
                                        command_queue: PCL_command_queue;        (* command_queue *)
                                        user_func: TEnqueueUserProc;             (*user_func*)
                                        args: Pointer;                           (* args *)
@@ -1796,32 +1818,32 @@ type
                                        const event_wait_list: PPCL_event;       (* event_wait_list *)
                                        event: PPCL_event                        (* event *)
                                        ): TCL_int;
-                                       {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                       extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueNativeKernel';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_2}
-    TclEnqueueMarkerWithWaitList = function (
+    {$IFDEF DYNLINK}TclEnqueueMarkerWithWaitList = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueMarkerWithWaitList{$ENDIF}(
                                        command_queue: PCL_command_queue;        (* command_queue *)
                                        num_events_in_wait_list: TCL_uint;       (* num_events_in_wait_list *)
                                        const event_wait_list: PPCL_event;       (* event_wait_list *)
                                        event: PPCL_event                        (* event *)
                                        ): TCL_int;
-                                       {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                       extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueMarkerWithWaitList';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_2}
 
-  TclEnqueueBarrierWithWaitList = function (
+  {$IFDEF DYNLINK}TclEnqueueBarrierWithWaitList = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueBarrierWithWaitList{$ENDIF}(
                                        command_queue: PCL_command_queue;        (* command_queue *)
                                        num_events_in_wait_list: TCL_uint;       (* num_events_in_wait_list *)
                                        const event_wait_list: PPCL_event;       (* event_wait_list *)
                                        event: PPCL_event                        (* event *)
                                        ): TCL_int;
-                                       {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                       extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueBarrierWithWaitList';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_2_0}
-  TclEnqueueSVMFree = function(
+  {$IFDEF DYNLINK}TclEnqueueSVMFree = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueSVMFree{$ENDIF}(
                                        command_queue: PCL_command_queue;        (* command_queue *)
                                        num_svm_pointers: TCL_uint;              (* num_svm_pointers *)
                                        svm_pointers: PPointer;                  (* svm_pointers[] *)
@@ -1834,7 +1856,7 @@ type
                                        const event_wait_list: PPCL_event;       (* event_wait_list *)
                                        event: PPCL_event                        (* event *)
                                        ): TCL_int;
-                                       {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                       extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueSVMFree';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_2_0}
@@ -1848,11 +1870,11 @@ type
                                        const event_wait_list: PPCL_event;       (* event_wait_list *)
                                        event: PPCL_event                        (* event *)
                                        ): TCL_int;
-                                       {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                       extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueSVMFree';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_2_0}
-  TclEnqueueSVMMemFill = function(
+  {$IFDEF DYNLINK}TclEnqueueSVMMemFill = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueSVMMemFill{$ENDIF}(
                                        command_queue: PCL_command_queue;        (* command_queue *)
                                        svm_ptr: Pointer;                        (* svm_ptr *)
                                        const pattern: Pointer;                  (* pattern *)
@@ -1862,11 +1884,11 @@ type
                                        const event_wait_list: PPCL_event;       (* event_wait_list *)
                                        event: PPCL_event                        (* event *)
                                        ): TCL_int;
-                                       {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                       extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueSVMMemFill';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_2_0}
-  TclEnqueueSVMMap = function(
+  {$IFDEF DYNLINK}TclEnqueueSVMMap = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueSVMMap{$ENDIF}(
                                        command_queue: PCL_command_queue;        (* command_queue *)
                                        blocking_map: TCL_bool;                  (* blocking_map *)
                                        flags: TCL_map_flags;                     (* flags *)
@@ -1876,23 +1898,23 @@ type
                                        const event_wait_list: PPCL_event;       (* event_wait_list *)
                                        event: PPCL_event                        (* event *)
                                        ): TCL_int;
-                                       {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                       extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueSVMMap';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_2_0}
-  TclEnqueueSVMUnmap = function(
+  {$IFDEF DYNLINK}TclEnqueueSVMUnmap = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueSVMUnmap{$ENDIF}(
                                        command_queue: PCL_command_queue;        (* command_queue *)
                                        svm_ptr: Pointer;                        (* svm_ptr *)
                                        num_events_in_wait_list: TCL_uint;       (* num_events_in_wait_list *)
                                        const event_wait_list: PPCL_event;       (* event_wait_list *)
                                        event: PPCL_event                        (* event *)
                                        ): TCL_int;
-                                       {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                       extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueSVMUnmap';{$ENDIF}
   {$ENDIF}
 
 
   {$IFDEF CL_VERSION_1_2}
-  TclSetPrintfCallback = function(
+  {$IFDEF DYNLINK}TclSetPrintfCallback = {$ENDIF}function {$IFNDEF DYNLINK}clSetPrintfCallback{$ENDIF}(
                                        context: PCL_context;                    (* context *)
                     //void (CL_CALLBACK * /* pfn_notify */)(cl_context /* program */,
                     //                                      cl_uint /*printf_data_len */,
@@ -1900,33 +1922,33 @@ type
                     //                                      void * /* user_data */),
                                        user_data: Pointer                       (* user_data *)
                                        ): TCL_int;
-                                       {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                       extdecl; {$IFNDEF DYNLINK}external name 'clSetPrintfCallback';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
     {$IFDEF CL_USE_DEPRECATED_OPENCL_1_1_APIS}
-      TclEnqueueMarker = function (
+      {$IFDEF DYNLINK}TclEnqueueMarker = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueMarker{$ENDIF}(
                                  command_queue: PCL_command_queue;              (* command_queue *)
                                  event: PPCL_event                              (* event *)
                                  ): TCL_int;
-                                 {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                 extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueMarker';{$ENDIF}
     {$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
     {$IFDEF CL_USE_DEPRECATED_OPENCL_1_1_APIS}
-      TclEnqueueWaitForEvents = function (
+      {$IFDEF DYNLINK}TclEnqueueWaitForEvents = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueWaitForEvents{$ENDIF}(
                                          command_queue: PCL_command_queue;      (* command_queue *)
                                          num_events: TCL_uint;                  (* num_events *)
                                          const event_list: PPCL_event           (* event_list *)
                                          ): TCL_int;
-                                         {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                         extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueWaitForEvents';{$ENDIF}
     {$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_0}
     {$IFDEF CL_USE_DEPRECATED_OPENCL_1_1_APIS}
-      TclEnqueueBarrier = function (command_queue: PCL_command_queue (* command_queue *) ): TCL_int; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+      {$IFDEF DYNLINK}TclEnqueueBarrier = {$ENDIF}function {$IFNDEF DYNLINK}clEnqueueBarrier{$ENDIF}(command_queue: PCL_command_queue (* command_queue *) ): TCL_int; extdecl; {$IFNDEF DYNLINK}external name 'clEnqueueBarrier';{$ENDIF}
     {$ENDIF}
   {$ENDIF}
 
@@ -1939,19 +1961,20 @@ type
    *)
 
   {$IFDEF CL_VERSION_1_0}
-      TclGetExtensionFunctionAddress = function (const func_name: PAnsiChar): Pointer; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+      {$IFDEF DYNLINK}TclGetExtensionFunctionAddress = {$ENDIF}function {$IFNDEF DYNLINK}clGetExtensionFunctionAddress{$ENDIF}(const func_name: PAnsiChar): Pointer; extdecl; {$IFNDEF DYNLINK}external name 'clGetExtensionFunctionAddress';{$ENDIF}
   {$ENDIF}
 
   {$IFDEF CL_VERSION_1_2}
-  TclGetExtensionFunctionAddressForPlatform = function(
+  {$IFDEF DYNLINK}TclGetExtensionFunctionAddressForPlatform = {$ENDIF}function {$IFNDEF DYNLINK}clGetExtensionFunctionAddressForPlatform{$ENDIF}(
                                                        platform: PCL_platform_id; (* platform *)
                                                        const func_name: PAnsiChar  (* func_name *)
-                                                       ): Pointer; {$IFDEF CDECL}cdecl{$ELSE}stdcall{$ENDIF};
+                                                       ): Pointer; extdecl; {$IFNDEF DYNLINK}external name 'clGetExtensionFunctionAddressForPlatform';{$ENDIF}
   {$ENDIF}
 
 {$IFNDEF DEFINE_REGION_NOT_IMPLEMENTED}{$ENDREGION}{$ENDIF}
 
 {$IFNDEF DEFINE_REGION_NOT_IMPLEMENTED}{$REGION 'Var'}{$ENDIF}
+{$IFDEF DYNLINK}
 var
   (* Platform API *)
 {$IFDEF CL_VERSION_1_0}
@@ -2200,10 +2223,12 @@ var
 
 function oclGetProcAddress(ProcName: PAnsiChar; LibHandle: Pointer = nil): Pointer;
 function InitOpenCL(LibName: String = OpenCLLibName): Boolean;
-function GetString(const Status: TCL_int): AnsiString;
 
 var
   OCL_LibHandle: Pointer = nil;
+{$ENDIF}
+
+function GetString(const Status: TCL_int): AnsiString;
 
 implementation
 
@@ -2246,6 +2271,7 @@ begin
   {$ENDIF}
 end;
 
+{$IFDEF DYNLINK}
 function oclGetProcAddress(ProcName: PAnsiChar; LibHandle: Pointer = nil): Pointer;
 begin
   if LibHandle = nil then LibHandle := OCL_LibHandle;
@@ -2525,6 +2551,7 @@ begin
   end;
 end;
 {$IFNDEF DEFINE_REGION_NOT_IMPLEMENTED}{$ENDREGION}{$ENDIF}
+{$ENDIF}
 
 {$IFNDEF DEFINE_REGION_NOT_IMPLEMENTED}{$REGION 'GetString'}{$ENDIF}
 function GetString(const Status: TCL_int): AnsiString;

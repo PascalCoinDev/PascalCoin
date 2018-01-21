@@ -24,7 +24,7 @@ type
   TLogType = (ltinfo, ltupdate, lterror, ltdebug);
   TLogTypes = set of TLogType;
 
-  TNewLogEvent = procedure(logtype : TLogType; Time : TDateTime; ThreadID : Cardinal; Const sender, logtext : AnsiString) of object;
+  TNewLogEvent = procedure(logtype : TLogType; Time : TDateTime; ThreadID : TThreadID; Const sender, logtext : AnsiString) of object;
 
   TLog = Class;
 
@@ -42,7 +42,7 @@ type
   TLogData = Record
     Logtype : TLogType;
     Time : TDateTime;
-    ThreadID : Cardinal;
+    ThreadID : TThreadID;
     Sender, Logtext : AnsiString
   End;
 
@@ -156,8 +156,10 @@ begin
   FLock.Acquire;
   try
     if assigned(FFileStream) And (logType in FSaveTypes) then begin
-      if TThread.CurrentThread.ThreadID=MainThreadID then tid := ' MAIN:' else tid:=' TID:';
-      s := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz',now)+tid+IntToHex(TThread.CurrentThread.ThreadID,8)+' ['+CT_LogType[logtype]+'] <'+sender+'> '+logtext+#13#10;
+      if TThread.CurrentThread.ThreadID=MainThreadID then tid := 'MAIN:' else tid:='TID:';
+      s := Format('%s %s %p [%s] <%s> %s'#13#10, [
+        FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz',now), tid, Pointer(TThread.CurrentThread.ThreadID), CT_LogType[logtype], sender, logtext
+        ]);
       FFileStream.Write(s[1],length(s));
     end;
     if Assigned(FOnInThreadNewLog) then begin
