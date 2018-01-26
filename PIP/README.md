@@ -25,4 +25,5 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [16](PIP-0016.md)     | Layer-2 protocol support                 | Herman Schoenfeld              | Protocol       | Proposed |
 | [17](PIP-0017.md)     | Anonymity via Transaction Mixing (phase-1)   | Herman Schoenfeld          | Protocol       | Proposed |
 | [18](PIP-0018.md)     | 10% funding allocation for Lazarus/FPC   | Herman Schoenfeld              | Process        | Proposed |
+| [19](PIP-0019.md)     | Balance recovered from lost accounts to be sent to developers fund   | Dr. Muhammad Amer   | Protocol        | Draft |
 
