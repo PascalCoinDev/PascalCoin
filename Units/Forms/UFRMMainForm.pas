@@ -134,11 +134,11 @@ procedure TFRMMainForm.FormCreate(Sender: TObject);
     LHeightDiff: Integer;
   begin
     LHeightDiff := sbStatusBar.Height - tbStatusToolBar.Height;
-    if LHeightDiff <= 0 then
+    if LHeightDiff >= 0 then
       Exit;
 
-    tbStatusToolBar.BorderSpacing.Bottom := (LHeightDiff div 2) + (LHeightDiff mod 2);
-    tbStatusToolBar.BorderSpacing.Top := LHeightDiff div 2;
+    tbStatusToolBar.AnchorSideTop.Side := asrTop;
+    tbStatusToolBar.Anchors := [akTop, akRight, akBottom];
   end;
 
 begin
