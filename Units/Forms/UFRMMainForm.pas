@@ -128,7 +128,22 @@ const
 {%region Form life-cycle }
 
 procedure TFRMMainForm.FormCreate(Sender: TObject);
+
+  procedure AdjustStatusToolBar;
+  var
+    LHeightDiff: Integer;
+  begin
+    LHeightDiff := sbStatusBar.Height - tbStatusToolBar.Height;
+    if LHeightDiff <= 0 then
+      Exit;
+
+    tbStatusToolBar.BorderSpacing.Bottom := (LHeightDiff div 2) + (LHeightDiff mod 2);
+    tbStatusToolBar.BorderSpacing.Top := LHeightDiff div 2;
+  end;
+
 begin
+  AdjustStatusToolBar;
+
   CloseAction := caNone; // Will handle terminate in separate method
   FMode := wmSync;
   FSyncControl := TCTRLSyncronization.Create(self);
