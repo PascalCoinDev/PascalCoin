@@ -108,13 +108,13 @@ object FRMMainForm: TFRMMainForm
     AnchorSideBottom.Control = sbStatusBar
     AnchorSideBottom.Side = asrBottom
     Left = 778
-    Height = 16
-    Top = 584
+    Height = 15
+    Top = 585
     Width = 70
     Align = alNone
     Anchors = [akTop, akRight]
     AutoSize = True
-    ButtonHeight = 16
+    ButtonHeight = 15
     ButtonWidth = 23
     Caption = 'tbStatusToolBar'
     EdgeBorders = []

@@ -138,7 +138,7 @@ procedure TFRMMainForm.FormCreate(Sender: TObject);
       Exit;
 
     tbStatusToolBar.AnchorSideTop.Side := asrTop;
-    tbStatusToolBar.Anchors := [akTop, akRight, akBottom];
+    tbStatusToolBar.Anchors := [akRight, akBottom];
   end;
 
 begin
