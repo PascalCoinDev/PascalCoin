@@ -1123,12 +1123,23 @@ begin
     exit;
   end;
   try
+    // Delphi 6 introduced "conditional compilation" and Delphi XE 6 (27) introduced FormatSettings variable.
+    {$IF Defined(DCC) and Declared(CompilerVersion) and (CompilerVersion >= 27.0)}
+    If pos(FormatSettings.DecimalSeparator,moneytxt)<=0 then begin
+      // No decimal separator, consider ThousandSeparator as a decimal separator
+      s := StringReplace(moneytxt,FormatSettings.ThousandSeparator,FormatSettings.DecimalSeparator,[rfReplaceAll]);
+    end else begin
+      s := StringReplace(moneytxt,FormatSettings.ThousandSeparator,'',[rfReplaceAll]);
+    end;
+    {$ELSE}
     If pos(DecimalSeparator,moneytxt)<=0 then begin
       // No decimal separator, consider ThousandSeparator as a decimal separator
       s := StringReplace(moneytxt,ThousandSeparator,DecimalSeparator,[rfReplaceAll]);
     end else begin
       s := StringReplace(moneytxt,ThousandSeparator,'',[rfReplaceAll]);
     end;
+    {$IFEND}
+
     money := Round( StrToFloat(s)*10000 );
     Result := true;
   Except

@@ -38,7 +38,14 @@ uses
   UFRMMemoText in 'Units\Forms\UFRMMemoText.pas' {FRMMemoText},
   UChunk in 'Units\PascalCoin\UChunk.pas',
   UBaseTypes in 'Units\PascalCoin\UBaseTypes.pas',
-  UCommon in 'Units\Utils\UCommon.pas';
+  UCommon in 'Units\Utils\UCommon.pas',
+  UAccountKeyStorage in 'Units\PascalCoin\UAccountKeyStorage.pas',
+  blcksock in 'Synapse\lib\blcksock.pas',
+  synafpc in 'Synapse\lib\synafpc.pas',
+  synsock in 'Synapse\lib\synsock.pas',
+  synautil in 'Synapse\lib\synautil.pas',
+  synacode in 'Synapse\lib\synacode.pas',
+  synaip in 'Synapse\lib\synaip.pas';
 
 {$R *.res}
 
