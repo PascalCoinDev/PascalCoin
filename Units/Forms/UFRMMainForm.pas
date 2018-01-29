@@ -90,10 +90,8 @@ type
     procedure tbtnSyncClick(Sender: TObject);
     procedure tbtnWalletLockClick(Sender:TObject);
     procedure tbtnConnectivityClick(Sender:TObject);
-    procedure sbStatusBarDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel; const Rect: TRect);
     procedure miSeedNodesClick(Sender: TObject);
   private
-    __FLastFooterToolBarDrawRect : TRect;  // Required for FPC bug work-around
     FMode : TFRMMainFormMode;
     FSyncControl : TCTRLSyncronization;
     FWalletControl : TCTRLWallet;
@@ -130,9 +128,22 @@ const
 {%region Form life-cycle }
 
 procedure TFRMMainForm.FormCreate(Sender: TObject);
+
+  procedure AdjustStatusToolBar;
+  var
+    LHeightDiff: Integer;
+  begin
+    LHeightDiff := sbStatusBar.Height - tbStatusToolBar.Height;
+    if LHeightDiff >= 0 then
+      Exit;
+
+    tbStatusToolBar.AnchorSideTop.Side := asrTop;
+    tbStatusToolBar.Anchors := [akRight, akBottom];
+  end;
+
 begin
-  tbStatusToolBar.Parent := sbStatusBar;
-  __FLastFooterToolBarDrawRect := TRect.Empty;
+  AdjustStatusToolBar;
+
   CloseAction := caNone; // Will handle terminate in separate method
   FMode := wmSync;
   FSyncControl := TCTRLSyncronization.Create(self);
@@ -393,18 +404,6 @@ end;
 procedure TFRMMainForm.tbtnSyncClick(Sender: TObject);
 begin
   TUserInterface.ShowSyncDialog;
-end;
-
-procedure TFRMMainForm.sbStatusBarDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel; const Rect: TRect);
-begin
-  if __FLastFooterToolBarDrawRect = Rect then exit; // avoid FPC bug: triggers infinite draw refresh on windows
-  if Panel = sbStatusBar.Panels[3] then
-    with tbStatusToolBar do begin
-      Top := Rect.Top + (Rect.Height - tbStatusToolBar.Height) div 2;
-      Left := Rect.Right - tbStatusToolBar.Width - CT_FOOTER_TOOLBAR_RIGHT_PADDING;
-      Visible := true;
-    end;
-  __FLastFooterToolBarDrawRect := Rect;
 end;
 
 {%endregion}

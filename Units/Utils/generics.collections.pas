@@ -14,6 +14,14 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
+    Acknowledgment
+
+    Thanks to Sphere 10 Software (http://sphere10.com) for sponsoring
+    many new types and major refactoring of entire library
+
+    Thanks to mORMot (http://synopse.info) project for the best implementations
+    of hashing functions like crc32c and xxHash32 :)
+
  **********************************************************************}
 
 unit Generics.Collections;
@@ -24,6 +32,7 @@ unit Generics.Collections;
 {$DEFINE CUSTOM_DICTIONARY_CONSTRAINTS := TKey, TValue, THashFactory}
 {$DEFINE OPEN_ADDRESSING_CONSTRAINTS := TKey, TValue, THashFactory, TProbeSequence}
 {$DEFINE CUCKOO_CONSTRAINTS := TKey, TValue, THashFactory, TCuckooCfg}
+{$DEFINE TREE_CONSTRAINTS := TKey, TValue, TInfo}
 {$WARNINGS OFF}
 {$HINTS OFF}
 {$OVERFLOWCHECKS OFF}
@@ -32,7 +41,7 @@ unit Generics.Collections;
 interface
 
 uses
-    Classes, SysUtils, Generics.MemoryExpanders, Generics.Defaults,
+    RtlConsts, Classes, SysUtils, Generics.MemoryExpanders, Generics.Defaults,
     Generics.Helpers, Generics.Strings;
 
 { FPC BUGS related to Generics.* (54 bugs, 19 fixed)
@@ -57,12 +66,22 @@ uses
 {.$define EXTRA_WARNINGS}
 
 type
+  EAVLTree = class(Exception);
+  EIndexedAVLTree = class(EAVLTree);
+
+  TDuplicates = Classes.TDuplicates;
+
   {$ifdef VER3_0_0}
   TArray<T> = array of T;
   {$endif}
 
   // bug #24254 workaround
   // should be TArray = record class procedure Sort<T>(...) etc.
+  TBinarySearchResult = record
+    FoundIndex, CandidateIndex: SizeInt;
+    CompareResult: SizeInt;
+  end;
+
   TCustomArrayHelper<T> = class abstract
   private
     type
@@ -80,12 +99,19 @@ type
       const AComparer: IComparer<T>; AIndex, ACount: SizeInt); overload;
 
     class function BinarySearch(constref AValues: array of T; constref AItem: T;
+      out ASearchResult: TBinarySearchResult; const AComparer: IComparer<T>;
+      AIndex, ACount: SizeInt): Boolean; virtual; abstract; overload;
+    class function BinarySearch(constref AValues: array of T; constref AItem: T;
       out AFoundIndex: SizeInt; const AComparer: IComparer<T>;
       AIndex, ACount: SizeInt): Boolean; virtual; abstract; overload;
     class function BinarySearch(constref AValues: array of T; constref AItem: T;
       out AFoundIndex: SizeInt; const AComparer: IComparer<T>): Boolean; overload;
     class function BinarySearch(constref AValues: array of T; constref AItem: T;
       out AFoundIndex: SizeInt): Boolean; overload;
+    class function BinarySearch(constref AValues: array of T; constref AItem: T;
+      out ASearchResult: TBinarySearchResult; const AComparer: IComparer<T>): Boolean; overload;
+    class function BinarySearch(constref AValues: array of T; constref AItem: T;
+      out ASearchResult: TBinarySearchResult): Boolean; overload;
   end {$ifdef EXTRA_WARNINGS}experimental{$endif}; // will be renamed to TCustomArray (bug #24254)
 
   TArrayHelper<T> = class(TCustomArrayHelper<T>)
@@ -93,6 +119,9 @@ type
     // modified QuickSort from classes\lists.inc
     class procedure QuickSort(var AValues: array of T; ALeft, ARight: SizeInt; const AComparer: IComparer<T>); override;
   public
+    class function BinarySearch(constref AValues: array of T; constref AItem: T;
+      out ASearchResult: TBinarySearchResult; const AComparer: IComparer<T>;
+      AIndex, ACount: SizeInt): Boolean; override; overload;
     class function BinarySearch(constref AValues: array of T; constref AItem: T;
       out AFoundIndex: SizeInt; const AComparer: IComparer<T>;
       AIndex, ACount: SizeInt): Boolean; override; overload;
@@ -116,6 +145,10 @@ type
   { TEnumerable }
 
   TEnumerable<T> = class abstract
+  public type
+    PT = ^T;
+  protected // no forward generics declarations (needed by TPointersCollection<T, PT>), this should be moved into TEnumerableWithPointers
+    function GetPtrEnumerator: TEnumerator<PT>; virtual; abstract;
   protected
     function ToArrayImpl(ACount: SizeInt): TArray<T>; overload; // used by descendants
   protected
@@ -125,25 +158,44 @@ type
     function ToArray: TArray<T>; virtual; overload;
   end;
 
+  // error: no memory left for TCustomPointersEnumerator<PT> version
+  TCustomPointersEnumerator<T, PT> = class abstract(TEnumerator<PT>);
+
+  TCustomPointersCollection<T, PT> = object
+  strict private type
+    TLocalEnumerable = TEnumerable<T>; // compiler has bug for directly usage of TEnumerable<T>
+  protected
+    function Enumerable: TLocalEnumerable; inline;
+  public
+    function GetEnumerator: TEnumerator<PT>;
+  end;
+
+  TEnumerableWithPointers<T> = class(TEnumerable<T>)
+  strict private type
+    TPointersCollection = TCustomPointersCollection<T, PT>;
+    PPointersCollection = ^TPointersCollection;
+  private
+    function GetPtr: PPointersCollection; inline;
+  public
+    property Ptr: PPointersCollection read GetPtr;
+  end;
+
   // More info: http://stackoverflow.com/questions/5232198/about-vectors-growth
   // TODO: custom memory managers (as constraints)
   {$DEFINE CUSTOM_LIST_CAPACITY_INC := Result + Result div 2} // ~approximation to golden ratio: n = n * 1.5 }
   // {$DEFINE CUSTOM_LIST_CAPACITY_INC := Result * 2} // standard inc
-  TCustomList<T> = class abstract(TEnumerable<T>)
+  TCustomList<T> = class abstract(TEnumerableWithPointers<T>)
+  public type
+    PT = ^T;
   protected
     type // bug #24282
       TArrayHelperBugHack = TArrayHelper<T>;
   private
     FOnNotify: TCollectionNotifyEvent<T>;
     function GetCapacity: SizeInt; inline;
-  private type
-    PItems = ^TItems;
-    TItems = record
-      FLength: SizeInt;
-      FItems: array of T;
-    end;
   protected
-    FItems: TItems;
+    FLength: SizeInt;
+    FItems: array of T;
 
     function PrepareAddingItem: SizeInt; virtual;
     function PrepareAddingRange(ACount: SizeInt): SizeInt; virtual;
@@ -171,45 +223,19 @@ type
     constructor Create(AList: TCustomList<T>);
   end;
 
-  TCustomListPointersEnumerator<T, PT> = class abstract(TEnumerator<PT>)
-  private type
-    TList = TCustomList<T>; // lazarus bug workaround
-  private var
-    FList: TList.PItems;
-    FIndex: SizeInt;
-  protected
-    function DoMoveNext: boolean; override;
-    function DoGetCurrent: PT; override;
-    function GetCurrent: PT; virtual;
-  public
-    constructor Create(AList: TList.PItems);
-  end;
-
-  TCustomListPointersCollection<TPointersEnumerator, T, PT> = record
-  private type
-    TList = TCustomList<T>; // lazarus bug workaround
-  private
-    function List: TList.PItems; inline;
-    function GetCount: SizeInt; inline;
-    function GetItem(AIndex: SizeInt): PT;
-  public
-    function GetEnumerator: TPointersEnumerator;
-    function ToArray: TArray<PT>;
-    property Count: SizeInt read GetCount;
-    property Items[Index: SizeInt]: PT read GetItem; default;
-  end;
-
   TCustomListWithPointers<T> = class(TCustomList<T>)
   public type
-    PT = ^T;
-  private type
-    TPointersEnumerator = class(TCustomListPointersEnumerator<T, PT>);
-    PPointersCollection = ^TPointersCollection;
-    TPointersCollection = TCustomListPointersCollection<TPointersEnumerator, T, PT>;
-  private
-    function GetPointers: PPointersCollection; inline;
-  public
-    property Ptr: PPointersCollection read GetPointers;
+    TPointersEnumerator = class(TCustomPointersEnumerator<T, PT>)
+    protected
+      FList: TCustomListWithPointers<T>;
+      FIndex: SizeInt;
+      function DoMoveNext: boolean; override;
+      function DoGetCurrent: PT; override;
+    public
+      constructor Create(AList: TCustomListWithPointers<T>);
+    end;
+  protected
+    function GetPtrEnumerator: TEnumerator<PT>; override;
   end;
 
   TList<T> = class(TCustomListWithPointers<T>)
@@ -230,6 +256,8 @@ type
   protected
     procedure SetCapacity(AValue: SizeInt); override;
     procedure SetCount(AValue: SizeInt);
+    procedure InitializeList; virtual;
+    procedure InternalInsert(AIndex: SizeInt; constref AValue: T);
   private
     function GetItem(AIndex: SizeInt): T;
     procedure SetItem(AIndex: SizeInt; const AValue: T);
@@ -237,17 +265,20 @@ type
     constructor Create; overload;
     constructor Create(const AComparer: IComparer<T>); overload;
     constructor Create(ACollection: TEnumerable<T>); overload;
+    constructor Create(ACollection: TEnumerableWithPointers<T>); overload;
     destructor Destroy; override;
 
-    function Add(constref AValue: T): SizeInt;
-    procedure AddRange(constref AValues: array of T); overload;
+    function Add(constref AValue: T): SizeInt; virtual;
+    procedure AddRange(constref AValues: array of T); virtual; overload;
     procedure AddRange(const AEnumerable: IEnumerable<T>); overload;
     procedure AddRange(AEnumerable: TEnumerable<T>); overload;
+    procedure AddRange(AEnumerable: TEnumerableWithPointers<T>); overload;
 
-    procedure Insert(AIndex: SizeInt; constref AValue: T);
-    procedure InsertRange(AIndex: SizeInt; constref AValues: array of T); overload;
+    procedure Insert(AIndex: SizeInt; constref AValue: T); virtual;
+    procedure InsertRange(AIndex: SizeInt; constref AValues: array of T); virtual; overload;
     procedure InsertRange(AIndex: SizeInt; const AEnumerable: IEnumerable<T>); overload;
     procedure InsertRange(AIndex: SizeInt; const AEnumerable: TEnumerable<T>); overload;
+    procedure InsertRange(AIndex: SizeInt; const AEnumerable: TEnumerableWithPointers<T>); overload;
 
     function Remove(constref AValue: T): SizeInt;
     procedure Delete(AIndex: SizeInt); inline;
@@ -255,8 +286,8 @@ type
     function ExtractIndex(const AIndex: SizeInt): T; overload;
     function Extract(constref AValue: T): T; overload;
 
-    procedure Exchange(AIndex1, AIndex2: SizeInt);
-    procedure Move(AIndex, ANewIndex: SizeInt);
+    procedure Exchange(AIndex1, AIndex2: SizeInt); virtual;
+    procedure Move(AIndex, ANewIndex: SizeInt); virtual;
 
     function First: T; inline;
     function Last: T; inline;
@@ -276,8 +307,34 @@ type
     function BinarySearch(constref AItem: T; out AIndex: SizeInt): Boolean; overload;
     function BinarySearch(constref AItem: T; out AIndex: SizeInt; const AComparer: IComparer<T>): Boolean; overload;
 
-    property Count: SizeInt read FItems.FLength write SetCount;
+    property Count: SizeInt read FLength write SetCount;
     property Items[Index: SizeInt]: T read GetItem write SetItem; default;
+  end;
+
+  TCollectionSortStyle = (cssNone,cssUser,cssAuto);
+  TCollectionSortStyles = Set of TCollectionSortStyle;
+
+  TSortedList<T> = class(TList<T>)
+  private
+    FDuplicates: TDuplicates;
+    FSortStyle: TCollectionSortStyle;
+    function GetSorted: boolean;
+    procedure SetSorted(AValue: boolean);
+    procedure SetSortStyle(AValue: TCollectionSortStyle);
+  protected
+    procedure InitializeList; override;
+  public
+    function Add(constref AValue: T): SizeInt; override; overload;
+    procedure AddRange(constref AValues: array of T); override; overload;
+    procedure Insert(AIndex: SizeInt; constref AValue: T); override;
+    procedure Exchange(AIndex1, AIndex2: SizeInt); override;
+    procedure Move(AIndex, ANewIndex: SizeInt); override;
+    procedure InsertRange(AIndex: SizeInt; constref AValues: array of T); override; overload;
+    property Duplicates: TDuplicates read FDuplicates write FDuplicates;
+    property Sorted: Boolean read GetSorted write SetSorted;
+    property SortStyle: TCollectionSortStyle read FSortStyle write SetSortStyle;
+
+    function ConsistencyCheck(ARaiseException: boolean = true): boolean; virtual;
   end;
 
   TThreadList<T> = class
@@ -300,6 +357,18 @@ type
   end;
 
   TQueue<T> = class(TCustomList<T>)
+  public type
+    TPointersEnumerator = class(TCustomPointersEnumerator<T, PT>)
+    protected
+      FQueue: TQueue<T>;
+      FIndex: SizeInt;
+      function DoMoveNext: boolean; override;
+      function DoGetCurrent: PT; override;
+    public
+      constructor Create(AQueue: TQueue<T>);
+    end;
+  protected
+    function GetPtrEnumerator: TEnumerator<PT>; override;
   protected
     // bug #24287 - workaround for generics type name conflict (Identifier not found)
     // next bug workaround - for another error related to previous workaround
@@ -321,6 +390,7 @@ type
     function GetCount: SizeInt; override;
   public
     constructor Create(ACollection: TEnumerable<T>); overload;
+    constructor Create(ACollection: TEnumerableWithPointers<T>); overload;
     destructor Destroy; override;
     procedure Enqueue(constref AValue: T);
     function Dequeue: T;
@@ -346,6 +416,7 @@ type
     procedure SetCapacity(AValue: SizeInt); override;
   public
     constructor Create(ACollection: TEnumerable<T>); overload;
+    constructor Create(ACollection: TEnumerableWithPointers<T>); overload;
     destructor Destroy; override;
     procedure Clear;
     procedure Push(constref AValue: T);
@@ -364,6 +435,7 @@ type
     constructor Create(AOwnsObjects: Boolean = True); overload;
     constructor Create(const AComparer: IComparer<T>; AOwnsObjects: Boolean = True); overload;
     constructor Create(ACollection: TEnumerable<T>; AOwnsObjects: Boolean = True); overload;
+    constructor Create(ACollection: TEnumerableWithPointers<T>; AOwnsObjects: Boolean = True); overload;
     property OwnsObjects: Boolean read FObjectsOwner write FObjectsOwner;
   end;
 
@@ -375,6 +447,7 @@ type
   public
     constructor Create(AOwnsObjects: Boolean = True); overload;
     constructor Create(ACollection: TEnumerable<T>; AOwnsObjects: Boolean = True); overload;
+    constructor Create(ACollection: TEnumerableWithPointers<T>; AOwnsObjects: Boolean = True); overload;
     procedure Dequeue;
     property OwnsObjects: Boolean read FObjectsOwner write FObjectsOwner;
   end;
@@ -387,6 +460,7 @@ type
   public
     constructor Create(AOwnsObjects: Boolean = True); overload;
     constructor Create(ACollection: TEnumerable<T>; AOwnsObjects: Boolean = True); overload;
+    constructor Create(ACollection: TEnumerableWithPointers<T>; AOwnsObjects: Boolean = True); overload;
     function Pop: T;
     property OwnsObjects: Boolean read FObjectsOwner write FObjectsOwner;
   end;
@@ -395,46 +469,395 @@ type
 
 {$I generics.dictionariesh.inc}
 
-  { THashSet }
+  { TCustomHashSet<T> }
 
-  THashSet<T> = class(TEnumerable<T>)
-  protected
-    FInternalDictionary : TDictionary<T, TEmptyRecord>;
-    function DoGetEnumerator: TEnumerator<T>; override;
+  TCustomSet<T> = class(TEnumerableWithPointers<T>)
   public type
-    TSetEnumerator = class(TEnumerator<T>)
-    protected
-      FEnumerator: TDictionary<T, TEmptyRecord>.TKeyEnumerator;
+    PT = ^T;
+  protected type
+    TCustomSetEnumerator = class(TEnumerator<T>)
+    protected var
+      FEnumerator: TEnumerator<T>;
       function DoMoveNext: boolean; override;
       function DoGetCurrent: T; override;
-      function GetCurrent: T; virtual;
+      function GetCurrent: T; virtual; abstract;
     public
-      constructor Create(ASet: THashSet<T>);
+      constructor Create(ASet: TCustomSet<T>); virtual; abstract;
       destructor Destroy; override;
     end;
-  private
-    function GetCount: SizeInt; inline;
-    function GetPointers: TDictionary<T, TEmptyRecord>.TKeyCollection.PPointersCollection; inline;
-  public type
-    TEnumerator = TSetEnumerator;
-    PT = ^T;
-
-    function GetEnumerator: TEnumerator; reintroduce;
+  protected
+    function DoGetEnumerator: TEnumerator<T>; override;
+    function GetCount: SizeInt; virtual; abstract;
   public
-    constructor Create; overload;
-    constructor Create(const AComparer: IEqualityComparer<T>); overload;
+    constructor Create; virtual; abstract; overload;
     constructor Create(ACollection: TEnumerable<T>); overload;
-    destructor Destroy; override;
-    function Add(constref AValue: T): Boolean;
-    function Remove(constref AValue: T): Boolean;
-    procedure Clear;
-    function Contains(constref AValue: T): Boolean; inline;
-    procedure UnionWith(AHashSet: THashSet<T>);
-    procedure IntersectWith(AHashSet: THashSet<T>);
-    procedure ExceptWith(AHashSet: THashSet<T>);
-    procedure SymmetricExceptWith(AHashSet: THashSet<T>);
+    constructor Create(ACollection: TEnumerableWithPointers<T>); overload;
+    function GetEnumerator: TCustomSetEnumerator; reintroduce; virtual; abstract;
+
+    function Add(constref AValue: T): Boolean; virtual; abstract;
+    function Remove(constref AValue: T): Boolean; virtual; abstract;
+    procedure Clear; virtual; abstract;
+    function Contains(constref AValue: T): Boolean; virtual; abstract;
+    function AddRange(constref AValues: array of T): Boolean; overload;
+    function AddRange(const AEnumerable: IEnumerable<T>): Boolean; overload;
+    function AddRange(AEnumerable: TEnumerable<T>): Boolean; overload;
+    function AddRange(AEnumerable: TEnumerableWithPointers<T>): Boolean; overload;
+    procedure UnionWith(AHashSet: TCustomSet<T>);
+    procedure IntersectWith(AHashSet: TCustomSet<T>);
+    procedure ExceptWith(AHashSet: TCustomSet<T>);
+    procedure SymmetricExceptWith(AHashSet: TCustomSet<T>);
+
     property Count: SizeInt read GetCount;
-    property Ptr: TDictionary<T, TEmptyRecord>.TKeyCollection.PPointersCollection read GetPointers;
+  end;
+
+  { THashSet<T> }
+
+  THashSet<T> = class(TCustomSet<T>)
+  protected
+    FInternalDictionary: TOpenAddressingLP<T, TEmptyRecord>;
+  public type
+    THashSetEnumerator = class(TCustomSetEnumerator)
+    protected type
+      TDictionaryEnumerator = TDictionary<T, TEmptyRecord>.TKeyEnumerator;
+      function GetCurrent: T; override;
+    public
+      constructor Create(ASet: TCustomSet<T>); override;
+    end;
+
+    TPointersEnumerator = class(TCustomPointersEnumerator<T, PT>)
+    protected
+      FEnumerator: TEnumerator<PT>;
+      function DoMoveNext: boolean; override;
+      function DoGetCurrent: PT; override;
+    public
+      constructor Create(AHashSet: THashSet<T>);
+    end;
+  protected
+    function GetPtrEnumerator: TEnumerator<PT>; override;
+    function GetCount: SizeInt; override;
+  public
+    constructor Create; override; overload;
+    constructor Create(const AComparer: IEqualityComparer<T>); virtual; overload;
+    destructor Destroy; override;
+    function GetEnumerator: TCustomSetEnumerator; override;
+
+    function Add(constref AValue: T): Boolean; override;
+    function Remove(constref AValue: T): Boolean; override;
+    procedure Clear; override;
+    function Contains(constref AValue: T): Boolean; override;
+  end;
+
+  TPair<TKey, TValue, TInfo> = record
+  public
+    Key: TKey;
+    Value: TValue;
+  private
+    Info: TInfo;
+  end;
+
+  TAVLTreeNode<TREE_CONSTRAINTS, TTree> = record
+  private type
+    TNodePair = TPair<TREE_CONSTRAINTS>;
+  public type
+    PNode = ^TAVLTreeNode<TREE_CONSTRAINTS, TTree>;
+  public
+    Parent, Left, Right: PNode;
+    Balance: Integer;
+    Data: TNodePair;
+    function Successor: PNode;
+    function Precessor: PNode;
+    function TreeDepth: integer;
+    procedure ConsistencyCheck(ATree: TObject); // workaround for internal error 2012101001 (no generic forward declarations)
+    function GetCount: SizeInt;
+    property Key: TKey read Data.Key write Data.Key;
+    property Value: TValue read Data.Value write Data.Value;
+    property Info: TInfo read Data.Info write Data.Info;
+  end;
+
+  TCustomTreeEnumerator<T, PNode, TTree> = class abstract(TEnumerator<T>)
+  protected
+    FCurrent: PNode;
+    FTree: TTree;
+    function DoGetCurrent: T; override;
+    function GetCurrent: T; virtual; abstract;
+  public
+    constructor Create(ATree: TObject);
+    property Current: T read GetCurrent;
+  end;
+
+  TCustomTree<TREE_CONSTRAINTS> = class
+  end;
+
+  TTreeEnumerable<TTreeEnumerator, TTreePointersEnumerator,
+    T, PT, PNode, TTree> = class abstract(TEnumerableWithPointers<T>)
+  private
+    FTree: TTree;
+    function GetCount: SizeInt; inline;
+  protected
+    function GetPtrEnumerator: TEnumerator<PT>; override;
+    function DoGetEnumerator: TTreeEnumerator; override;
+  public
+    constructor Create(ATree: TTree);
+    function ToArray: TArray<T>; override; final;
+    property Count: SizeInt read GetCount;
+  end;
+
+  TAVLTreeEnumerator<T, PNode, TTree> = class(TCustomTreeEnumerator<T, PNode, TTree>)
+  protected
+    FLowToHigh: boolean;
+    function DoMoveNext: Boolean; override;
+  public
+    constructor Create(ATree: TObject; ALowToHigh: boolean = true);
+    property LowToHigh: boolean read FLowToHigh;
+  end;
+
+  TCustomAVLTreeMap<TREE_CONSTRAINTS> = class
+  private type
+    TTree = class(TCustomAVLTreeMap<TREE_CONSTRAINTS>);
+  public type
+    TNode = TAVLTreeNode<TREE_CONSTRAINTS, TTree>;
+    PNode = ^TNode;
+    TTreePair = TPair<TKey, TValue>;
+    PKey = ^TKey;
+    PValue = ^TValue;
+  private type
+    PPNode = ^PNode;
+    // type exist only for generic constraint in TNodeCollection (non functional - PPNode has no sense)
+    TPNodeEnumerator = class(TAVLTreeEnumerator<PPNode, PNode, TTree>);
+  private var
+    FDuplicates: TDuplicates;
+    FComparer: IComparer<TKey>;
+  protected
+    FCount: SizeInt;
+    FRoot: PNode;
+    FKeys: TEnumerable<TKey>;
+    FValues: TEnumerable<TValue>;
+    procedure NodeAdded(ANode: PNode); virtual;
+    procedure DeletingNode(ANode: PNode; AOrigin: boolean); virtual;
+
+    function AddNode: PNode; virtual; abstract;
+
+    procedure DeleteNode(ANode: PNode; ADispose: boolean); overload; virtual; abstract;
+    procedure DeleteNode(ANode: PNode); overload;
+
+    function Compare(constref ALeft, ARight: TKey): Integer; inline;
+    function FindPredecessor(ANode: PNode): PNode;
+    function FindInsertNode(ANode: PNode; out AInsertNode: PNode): Integer;
+
+    procedure RotateRightRight(ANode: PNode); virtual;
+    procedure RotateLeftLeft(ANode: PNode); virtual;
+    procedure RotateRightLeft(ANode: PNode); virtual;
+    procedure RotateLeftRight(ANode: PNode); virtual;
+
+    // for reporting
+    procedure WriteStr(AStream: TStream; const AText: string);
+  public type
+    TPairEnumerator = class(TAVLTreeEnumerator<TTreePair, PNode, TTree>)
+    protected
+      function GetCurrent: TTreePair; override;
+    end;
+
+    TNodeEnumerator = class(TAVLTreeEnumerator<PNode, PNode, TTree>)
+    protected
+      function GetCurrent: PNode; override;
+    end;
+
+    TKeyEnumerator = class(TAVLTreeEnumerator<TKey, PNode, TTree>)
+    protected
+      function GetCurrent: TKey; override;
+    end;
+
+    TPKeyEnumerator = class(TAVLTreeEnumerator<PKey, PNode, TTree>)
+    protected
+      function GetCurrent: PKey; override;
+    end;
+
+    TValueEnumerator = class(TAVLTreeEnumerator<TValue, PNode, TTree>)
+    protected
+      function GetCurrent: TValue; override;
+    end;
+
+    TPValueEnumerator = class(TAVLTreeEnumerator<PValue, PNode, TTree>)
+    protected
+      function GetCurrent: PValue; override;
+    end;
+
+    TNodeCollection = class(TTreeEnumerable<TNodeEnumerator, TPNodeEnumerator, PNode, PPNode, PNode, TTree>)
+    private
+      property Ptr; // PPNode has no sense, so hide enumerator for PPNode
+    end;
+
+    TKeyCollection = class(TTreeEnumerable<TKeyEnumerator, TPKeyEnumerator, TKey, PKey, PNode, TTree>);
+
+    TValueCollection = class(TTreeEnumerable<TValueEnumerator, TPValueEnumerator, TValue, PValue, PNode, TTree>);
+  private
+    FNodes: TNodeCollection;
+    function GetNodeCollection: TNodeCollection;
+    procedure InternalAdd(ANode, AParent: PNode);
+    procedure InternalDelete(ANode: PNode);
+    function GetKeys: TKeyCollection;
+    function GetValues: TValueCollection;
+  public
+    constructor Create; virtual; overload;
+    constructor Create(const AComparer: IComparer<TKey>); virtual; overload;
+
+    destructor Destroy; override;
+    function Add(constref AKey: TKey; constref AValue: TValue): PNode;
+    function Remove(constref AKey: TKey): boolean;
+    procedure Delete(ANode: PNode; ADispose: boolean = true);
+
+    function GetEnumerator: TPairEnumerator;
+    property Nodes: TNodeCollection read GetNodeCollection;
+
+    procedure Clear(ADisposeNodes: Boolean = true); virtual;
+
+    function FindLowest: PNode;
+    function FindHighest: PNode;
+
+    property Count: SizeInt read FCount;
+    property Root: PNode read FRoot;
+    function Find(constref AKey: TKey): PNode;
+    function ContainsKey(constref AKey: TKey; out ANode: PNode): boolean; overload; inline;
+    function ContainsKey(constref AKey: TKey): boolean; overload; inline;
+
+    procedure ConsistencyCheck; virtual;
+    procedure WriteTreeNode(AStream: TStream; ANode: PNode);
+    procedure WriteReportToStream(AStream: TStream);
+    function NodeToReportStr(ANode: PNode): string; virtual;
+    function ReportAsString: string;
+
+    property Keys: TKeyCollection read GetKeys;
+    property Values: TValueCollection read GetValues;
+    property Duplicates: TDuplicates read FDuplicates write FDuplicates;
+  end;
+
+  TAVLTreeMap<TKey, TValue> = class(TCustomAVLTreeMap<TKey, TValue, TEmptyRecord>)
+  protected
+    function AddNode: PNode; override;
+    procedure DeleteNode(ANode: PNode; ADispose: boolean = true); override;
+  end;
+
+  TIndexedAVLTreeMap<TKey, TValue> = class(TCustomAVLTreeMap<TKey, TValue, SizeInt>)
+  protected
+    FLastNode: PNode;
+    FLastIndex: SizeInt;
+
+    procedure RotateRightRight(ANode: PNode); override;
+    procedure RotateLeftLeft(ANode: PNode); override;
+    procedure RotateRightLeft(ANode: PNode); override;
+    procedure RotateLeftRight(ANode: PNode); override;
+
+    procedure NodeAdded(ANode: PNode); override;
+    procedure DeletingNode(ANode: PNode; AOrigin: boolean); override;
+
+    function AddNode: PNode; override;
+    procedure DeleteNode(ANode: PNode; ADispose: boolean = true); override;
+  public
+    function GetNodeAtIndex(AIndex: SizeInt): PNode;
+    function NodeToIndex(ANode: PNode): SizeInt;
+
+    procedure ConsistencyCheck; override;
+    function NodeToReportStr(ANode: PNode): string; override;
+  end;
+
+  TAVLTree<T> = class(TAVLTreeMap<T, TEmptyRecord>)
+  public type
+    TItemEnumerator = TKeyEnumerator;
+  public
+    function Add(constref AValue: T): PNode; reintroduce;
+  end;
+
+  TIndexedAVLTree<T> = class(TIndexedAVLTreeMap<T, TEmptyRecord>)
+  public type
+    TItemEnumerator = TKeyEnumerator;
+  public
+    function Add(constref AValue: T): PNode; reintroduce;
+  end;
+
+  TSortedSet<T> = class(TCustomSet<T>)
+  protected
+    FInternalTree: TAVLTree<T>;
+  public type
+    TSortedSetEnumerator = class(TCustomSetEnumerator)
+    protected type
+      TTreeEnumerator = TAVLTree<T>.TItemEnumerator;
+      function GetCurrent: T; override;
+    public
+      constructor Create(ASet: TCustomSet<T>); override;
+    end;
+
+    TPointersEnumerator = class(TCustomPointersEnumerator<T, PT>)
+    protected
+      FEnumerator: TEnumerator<PT>;
+      function DoMoveNext: boolean; override;
+      function DoGetCurrent: PT; override;
+    public
+      constructor Create(ASortedSet: TSortedSet<T>);
+    end;
+  protected
+    function GetPtrEnumerator: TEnumerator<PT>; override;
+    function GetCount: SizeInt; override;
+  public
+    constructor Create; override; overload;
+    constructor Create(const AComparer: IComparer<T>); virtual; overload;
+    destructor Destroy; override;
+    function GetEnumerator: TCustomSetEnumerator; override;
+
+    function Add(constref AValue: T): Boolean; override;
+    function Remove(constref AValue: T): Boolean; override;
+    procedure Clear; override;
+    function Contains(constref AValue: T): Boolean; override;
+  end;
+
+  TSortedHashSet<T> = class(TCustomSet<T>)
+  protected
+    FInternalDictionary: TOpenAddressingLP<PT, TEmptyRecord>;
+    FInternalTree: TAVLTree<T>;
+    function DoGetEnumerator: TEnumerator<T>; override;
+    function GetCount: SizeInt; override;
+  protected type
+    TSortedHashSetEqualityComparer = class(TInterfacedObject, IEqualityComparer<PT>)
+    private
+      FComparer: IComparer<T>;
+      FEqualityComparer: IEqualityComparer<T>;
+      function Equals(constref ALeft, ARight: PT): Boolean;
+      function GetHashCode(constref AValue: PT): UInt32;
+    public
+      constructor Create(const AComparer: IComparer<T>); overload;
+      constructor Create(const AEqualityComparer: IEqualityComparer<T>); overload;
+      constructor Create(const AComparer: IComparer<T>; const AEqualityComparer: IEqualityComparer<T>); overload;
+    end;
+  public type
+    TSortedHashSetEnumerator = class(TCustomSetEnumerator)
+    protected type
+      TTreeEnumerator = TAVLTree<T>.TItemEnumerator;
+      function GetCurrent: T; override;
+    public
+      constructor Create(ASet: TCustomSet<T>); override;
+    end;
+
+    TPointersEnumerator = class(TCustomPointersEnumerator<T, PT>)
+    protected
+      FEnumerator: TEnumerator<PT>;
+      function DoMoveNext: boolean; override;
+      function DoGetCurrent: PT; override;
+    public
+      constructor Create(ASortedHashSet: TSortedHashSet<T>);
+    end;
+  protected
+    function GetPtrEnumerator: TEnumerator<PT>; override;
+  public
+    constructor Create; override; overload;
+    constructor Create(const AComparer: IEqualityComparer<T>); overload;
+    constructor Create(const AComparer: IComparer<T>); overload;
+    constructor Create(const AComparer: IComparer<T>; const AEqualityComparer: IEqualityComparer<T>); overload;
+    destructor Destroy; override;
+    function GetEnumerator: TCustomSetEnumerator; override;
+
+    function Add(constref AValue: T): Boolean; override;
+    function Remove(constref AValue: T): Boolean; override;
+    procedure Clear; override;
+    function Contains(constref AValue: T): Boolean; override;
   end;
 
 function InCircularRange(ABottom, AItem, ATop: SizeInt): Boolean;
@@ -464,6 +887,18 @@ class function TCustomArrayHelper<T>.BinarySearch(constref AValues: array of T; 
   out AFoundIndex: SizeInt): Boolean;
 begin
   Result := BinarySearch(AValues, AItem, AFoundIndex, TComparerBugHack.Default, Low(AValues), Length(AValues));
+end;
+
+class function TCustomArrayHelper<T>.BinarySearch(constref AValues: array of T; constref AItem: T;
+  out ASearchResult: TBinarySearchResult; const AComparer: IComparer<T>): Boolean;
+begin
+  Result := BinarySearch(AValues, AItem, ASearchResult, AComparer, Low(AValues), Length(AValues));
+end;
+
+class function TCustomArrayHelper<T>.BinarySearch(constref AValues: array of T; constref AItem: T;
+  out ASearchResult: TBinarySearchResult): Boolean;
+begin
+  Result := BinarySearch(AValues, AItem, ASearchResult, TComparerBugHack.Default, Low(AValues), Length(AValues));
 end;
 
 class procedure TCustomArrayHelper<T>.Sort(var AValues: array of T);
@@ -532,6 +967,69 @@ begin
       ARight := J;
     end;
    until ALeft >= ARight;
+end;
+
+class function TArrayHelper<T>.BinarySearch(constref AValues: array of T; constref AItem: T;
+  out ASearchResult: TBinarySearchResult; const AComparer: IComparer<T>;
+  AIndex, ACount: SizeInt): Boolean;
+var
+  imin, imax, imid: Int32;
+begin
+  // continually narrow search until just one element remains
+  imin := AIndex;
+  imax := Pred(AIndex + ACount);
+
+  // http://en.wikipedia.org/wiki/Binary_search_algorithm
+  while (imin < imax) do
+  begin
+        imid := imin + ((imax - imin) shr 1);
+
+        // code must guarantee the interval is reduced at each iteration
+        // assert(imid < imax);
+        // note: 0 <= imin < imax implies imid will always be less than imax
+
+        ASearchResult.CompareResult := AComparer.Compare(AValues[imid], AItem);
+        // reduce the search
+        if (ASearchResult.CompareResult < 0) then
+          imin := imid + 1
+        else
+        begin
+          imax := imid;
+          if ASearchResult.CompareResult = 0 then
+          begin
+            ASearchResult.FoundIndex := imid;
+            ASearchResult.CandidateIndex := imid;
+            Exit(True);
+          end;
+        end;
+  end;
+    // At exit of while:
+    //   if A[] is empty, then imax < imin
+    //   otherwise imax == imin
+
+    // deferred test for equality
+
+  if (imax = imin) then
+  begin
+    ASearchResult.CompareResult := AComparer.Compare(AValues[imin], AItem);
+    ASearchResult.CandidateIndex := imin;
+    if (ASearchResult.CompareResult = 0) then
+    begin
+      ASearchResult.FoundIndex := imin;
+      Exit(True);
+    end else
+    begin
+      ASearchResult.FoundIndex := -1;
+      Exit(False);
+    end;
+  end
+  else
+  begin
+    ASearchResult.CompareResult := 0;
+    ASearchResult.FoundIndex := -1;
+    ASearchResult.CandidateIndex := -1;
+    Exit(False);
+  end;
 end;
 
 class function TArrayHelper<T>.BinarySearch(constref AValues: array of T; constref AItem: T;
@@ -641,21 +1139,40 @@ begin
   end;
 end;
 
+{ TCustomPointersCollection<T, PT> }
+
+function TCustomPointersCollection<T, PT>.Enumerable: TLocalEnumerable;
+begin
+  Result := TLocalEnumerable(@Self);
+end;
+
+function TCustomPointersCollection<T, PT>.GetEnumerator: TEnumerator<PT>;
+begin
+  Result := Enumerable.GetPtrEnumerator;
+end;
+
+{ TEnumerableWithPointers<T> }
+
+function TEnumerableWithPointers<T>.GetPtr: PPointersCollection;
+begin
+  Result := PPointersCollection(Self);
+end;
+
 { TCustomList<T> }
 
 function TCustomList<T>.PrepareAddingItem: SizeInt;
 begin
-  Result := Length(FItems.FItems);
+  Result := Length(FItems);
 
-  if (FItems.FLength < 4) and (Result < 4) then
-    SetLength(FItems.FItems, 4)
-  else if FItems.FLength = High(FItems.FLength) then
+  if (FLength < 4) and (Result < 4) then
+    SetLength(FItems, 4)
+  else if FLength = High(FLength) then
     OutOfMemoryError
-  else if FItems.FLength = Result then
-    SetLength(FItems.FItems, CUSTOM_LIST_CAPACITY_INC);
+  else if FLength = Result then
+    SetLength(FItems, CUSTOM_LIST_CAPACITY_INC);
 
-  Result := FItems.FLength;
-  Inc(FItems.FLength);
+  Result := FLength;
+  Inc(FLength);
 end;
 
 function TCustomList<T>.PrepareAddingRange(ACount: SizeInt): SizeInt;
@@ -663,22 +1180,22 @@ begin
   if ACount < 0 then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
   if ACount = 0 then
-    Exit(FItems.FLength - 1);
+    Exit(FLength - 1);
 
-  if (FItems.FLength = 0) and (Length(FItems.FItems) = 0) then
-    SetLength(FItems.FItems, 4)
-  else if FItems.FLength = High(FItems.FLength) then
+  if (FLength = 0) and (Length(FItems) = 0) then
+    SetLength(FItems, 4)
+  else if FLength = High(FLength) then
     OutOfMemoryError;
 
-  Result := Length(FItems.FItems);
-  while Pred(FItems.FLength + ACount) >= Result do
+  Result := Length(FItems);
+  while Pred(FLength + ACount) >= Result do
   begin
-    SetLength(FItems.FItems, CUSTOM_LIST_CAPACITY_INC);
-    Result := Length(FItems.FItems);
+    SetLength(FItems, CUSTOM_LIST_CAPACITY_INC);
+    Result := Length(FItems);
   end;
 
-  Result := FItems.FLength;
-  Inc(FItems.FLength, ACount);
+  Result := FLength;
+  Inc(FLength, ACount);
 end;
 
 function TCustomList<T>.ToArray: TArray<T>;
@@ -688,7 +1205,7 @@ end;
 
 function TCustomList<T>.GetCount: SizeInt;
 begin
-  Result := FItems.FLength;
+  Result := FLength;
 end;
 
 procedure TCustomList<T>.Notify(constref AValue: T; ACollectionNotification: TCollectionNotification);
@@ -699,17 +1216,17 @@ end;
 
 function TCustomList<T>.DoRemove(AIndex: SizeInt; ACollectionNotification: TCollectionNotification): T;
 begin
-  if (AIndex < 0) or (AIndex >= FItems.FLength) then
+  if (AIndex < 0) or (AIndex >= FLength) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  Result := FItems.FItems[AIndex];
-  Dec(FItems.FLength);
+  Result := FItems[AIndex];
+  Dec(FLength);
 
-  FItems.FItems[AIndex] := Default(T);
-  if AIndex <> FItems.FLength then
+  FItems[AIndex] := Default(T);
+  if AIndex <> FLength then
   begin
-    System.Move(FItems.FItems[AIndex + 1], FItems.FItems[AIndex], (FItems.FLength - AIndex) * SizeOf(T));
-    FillChar(FItems.FItems[FItems.FLength], SizeOf(T), 0);
+    System.Move(FItems[AIndex + 1], FItems[AIndex], (FLength - AIndex) * SizeOf(T));
+    FillChar(FItems[FLength], SizeOf(T), 0);
   end;
 
   Notify(Result, ACollectionNotification);
@@ -717,7 +1234,7 @@ end;
 
 function TCustomList<T>.GetCapacity: SizeInt;
 begin
-  Result := Length(FItems.FItems);
+  Result := Length(FItems);
 end;
 
 { TCustomListEnumerator<T> }
@@ -725,7 +1242,7 @@ end;
 function TCustomListEnumerator<T>.DoMoveNext: boolean;
 begin
   Inc(FIndex);
-  Result := (FList.FItems.FLength <> 0) and (FIndex < FList.FItems.FLength)
+  Result := (FList.FLength <> 0) and (FIndex < FList.FLength)
 end;
 
 function TCustomListEnumerator<T>.DoGetCurrent: T;
@@ -735,7 +1252,7 @@ end;
 
 function TCustomListEnumerator<T>.GetCurrent: T;
 begin
-  Result := FList.FItems.FItems[FIndex];
+  Result := FList.FItems[FIndex];
 end;
 
 constructor TCustomListEnumerator<T>.Create(AList: TCustomList<T>);
@@ -745,94 +1262,48 @@ begin
   FList := AList;
 end;
 
-{ TCustomListPointersEnumerator<T, PT> }
+{ TCustomListWithPointers<T>.TPointersEnumerator }
 
-function TCustomListPointersEnumerator<T, PT>.DoMoveNext: boolean;
+function TCustomListWithPointers<T>.TPointersEnumerator.DoMoveNext: boolean;
 begin
   Inc(FIndex);
   Result := (FList.FLength <> 0) and (FIndex < FList.FLength)
 end;
 
-function TCustomListPointersEnumerator<T, PT>.DoGetCurrent: PT;
+function TCustomListWithPointers<T>.TPointersEnumerator.DoGetCurrent: PT;
 begin
-  Result := GetCurrent;
+  Result := @FList.FItems[FIndex];;
 end;
 
-function TCustomListPointersEnumerator<T, PT>.GetCurrent: PT;
-begin
-  Result := @FList.FItems[FIndex];
-end;
-
-constructor TCustomListPointersEnumerator<T, PT>.Create(AList: TCustomList<T>.PItems);
+constructor TCustomListWithPointers<T>.TPointersEnumerator.Create(AList: TCustomListWithPointers<T>);
 begin
   inherited Create;
   FIndex := -1;
   FList := AList;
 end;
 
-{ TCustomListPointersCollection<TPointersEnumerator, T, PT> }
-
-function TCustomListPointersCollection<TPointersEnumerator, T, PT>.List: TCustomList<T>.PItems;
-begin
-  Result := @(TCustomList<T>.TItems(Pointer(@Self)^));
-end;
-
-function TCustomListPointersCollection<TPointersEnumerator, T, PT>.GetCount: SizeInt;
-begin
-  Result := List.FLength;
-end;
-
-function TCustomListPointersCollection<TPointersEnumerator, T, PT>.GetItem(AIndex: SizeInt): PT;
-begin
-  Result := @List.FItems[AIndex];
-end;
-
-function TCustomListPointersCollection<TPointersEnumerator, T, PT>.{Do}GetEnumerator: TPointersEnumerator;
-begin
-  Result := TPointersEnumerator(TPointersEnumerator.NewInstance);
-  TCustomListPointersEnumerator<T, PT>(Result).Create(List);
-end;
-
-function TCustomListPointersCollection<TPointersEnumerator, T, PT>.ToArray: TArray<PT>;
-{begin
-  Result := ToArrayImpl(FList.Count);
-end;}
-var
-  i: SizeInt;
-  LEnumerator: TPointersEnumerator;
-begin
-  SetLength(Result, Count);
-
-  try
-    LEnumerator := GetEnumerator;
-
-    i := 0;
-    while LEnumerator.MoveNext do
-    begin
-      Result[i] := LEnumerator.Current;
-      Inc(i);
-    end;
-  finally
-    LEnumerator.Free;
-  end;
-end;
-
 { TCustomListWithPointers<T> }
 
-function TCustomListWithPointers<T>.GetPointers: PPointersCollection;
+function TCustomListWithPointers<T>.GetPtrEnumerator: TEnumerator<PT>;
 begin
-  Result := PPointersCollection(@FItems);
+  Result := TPointersEnumerator.Create(Self);
 end;
 
 { TList<T> }
 
+procedure TList<T>.InitializeList;
+begin
+end;
+
 constructor TList<T>.Create;
 begin
+  InitializeList;
   FComparer := TComparer<T>.Default;
 end;
 
 constructor TList<T>.Create(const AComparer: IComparer<T>);
 begin
+  InitializeList;
   FComparer := AComparer;
 end;
 
@@ -845,6 +1316,15 @@ begin
     Add(LItem);
 end;
 
+constructor TList<T>.Create(ACollection: TEnumerableWithPointers<T>);
+var
+  LItem: PT;
+begin
+  Create;
+  for LItem in ACollection.Ptr^ do
+    Add(LItem^);
+end;
+
 destructor TList<T>.Destroy;
 begin
   SetCapacity(0);
@@ -855,7 +1335,7 @@ begin
   if AValue < Count then
     Count := AValue;
 
-  SetLength(FItems.FItems, AValue);
+  SetLength(FItems, AValue);
 end;
 
 procedure TList<T>.SetCount(AValue: SizeInt);
@@ -868,7 +1348,7 @@ begin
   if AValue < Count then
     DeleteRange(AValue, Count - AValue);
 
-  FItems.FLength := AValue;
+  FLength := AValue;
 end;
 
 function TList<T>.GetItem(AIndex: SizeInt): T;
@@ -876,15 +1356,15 @@ begin
   if (AIndex < 0) or (AIndex >= Count) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  Result := FItems.FItems[AIndex];
+  Result := FItems[AIndex];
 end;
 
 procedure TList<T>.SetItem(AIndex: SizeInt; const AValue: T);
 begin
   if (AIndex < 0) or (AIndex >= Count) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);   
-  Notify(FItems.FItems[AIndex], cnRemoved);
-  FItems.FItems[AIndex] := AValue;
+  Notify(FItems[AIndex], cnRemoved);
+  FItems[AIndex] := AValue;
   Notify(AValue, cnAdded);
 end;
 
@@ -901,7 +1381,7 @@ end;
 function TList<T>.Add(constref AValue: T): SizeInt;
 begin
   Result := PrepareAddingItem;
-  FItems.FItems[Result] := AValue;
+  FItems[Result] := AValue;
   Notify(AValue, cnAdded);
 end;
 
@@ -926,19 +1406,32 @@ begin
     Add(LValue);
 end;
 
+procedure TList<T>.AddRange(AEnumerable: TEnumerableWithPointers<T>);
+var
+  LValue: PT;
+begin
+  for LValue in AEnumerable.Ptr^ do
+    Add(LValue^);
+end;
+
+procedure TList<T>.InternalInsert(AIndex: SizeInt; constref AValue: T);
+begin
+  if AIndex <> PrepareAddingItem then
+  begin
+    System.Move(FItems[AIndex], FItems[AIndex + 1], ((Count - AIndex) - 1) * SizeOf(T));
+    FillChar(FItems[AIndex], SizeOf(T), 0);
+  end;
+
+  FItems[AIndex] := AValue;
+  Notify(AValue, cnAdded);
+end;
+
 procedure TList<T>.Insert(AIndex: SizeInt; constref AValue: T);
 begin
   if (AIndex < 0) or (AIndex > Count) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  if AIndex <> PrepareAddingItem then
-  begin
-    System.Move(FItems.FItems[AIndex], FItems.FItems[AIndex + 1], ((Count - AIndex) - 1) * SizeOf(T));
-    FillChar(FItems.FItems[AIndex], SizeOf(T), 0);
-  end;
-
-  FItems.FItems[AIndex] := AValue;
-  Notify(AValue, cnAdded);
+  InternalInsert(AIndex, AValue);
 end;
 
 procedure TList<T>.InsertRange(AIndex: SizeInt; constref AValues: array of T);
@@ -956,14 +1449,14 @@ begin
 
   if AIndex <> PrepareAddingRange(LLength) then
   begin
-    System.Move(FItems.FItems[AIndex], FItems.FItems[AIndex + LLength], ((Count - AIndex) - LLength) * SizeOf(T));
-    FillChar(FItems.FItems[AIndex], SizeOf(T) * LLength, 0);
+    System.Move(FItems[AIndex], FItems[AIndex + LLength], ((Count - AIndex) - LLength) * SizeOf(T));
+    FillChar(FItems[AIndex], SizeOf(T) * LLength, 0);
   end;
 
   LValue := @AValues[0];
   for i := AIndex to Pred(AIndex + LLength) do
   begin
-    FItems.FItems[i] := LValue^;
+    FItems[i] := LValue^;
     Notify(LValue^, cnAdded);
     Inc(LValue);
   end;
@@ -980,7 +1473,7 @@ begin
   i := 0;
   for LValue in AEnumerable do
   begin
-    Insert(Aindex + i, LValue);
+    InternalInsert(Aindex + i, LValue);
     Inc(i);
   end;
 end;
@@ -996,7 +1489,23 @@ begin
   i := 0;
   for LValue in AEnumerable do
   begin
-    Insert(Aindex + i, LValue);
+    InternalInsert(Aindex + i, LValue);
+    Inc(i);
+  end;
+end;
+
+procedure TList<T>.InsertRange(AIndex: SizeInt; const AEnumerable: TEnumerableWithPointers<T>);
+var
+  LValue: PT;
+  i:  SizeInt;
+begin
+  if (AIndex < 0) or (AIndex > Count) then
+    raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
+
+  i := 0;
+  for LValue in AEnumerable.Ptr^ do
+  begin
+    InternalInsert(Aindex + i, LValue^);
     Inc(i);
   end;
 end;
@@ -1026,19 +1535,19 @@ begin
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
   SetLength(LDeleted, Count);
-  System.Move(FItems.FItems[AIndex], LDeleted[0], ACount * SizeOf(T));
+  System.Move(FItems[AIndex], LDeleted[0], ACount * SizeOf(T));
 
   LMoveDelta := Count - (AIndex + ACount);
 
   if LMoveDelta = 0 then
-    FillChar(FItems.FItems[AIndex], ACount * SizeOf(T), #0)
+    FillChar(FItems[AIndex], ACount * SizeOf(T), #0)
   else
   begin
-    System.Move(FItems.FItems[AIndex + ACount], FItems.FItems[AIndex], LMoveDelta * SizeOf(T));
-    FillChar(FItems.FItems[Count - ACount], ACount * SizeOf(T), #0);
+    System.Move(FItems[AIndex + ACount], FItems[AIndex], LMoveDelta * SizeOf(T));
+    FillChar(FItems[Count - ACount], ACount * SizeOf(T), #0);
   end;
 
-  FItems.FLength -= ACount;
+  Dec(FLength, ACount);
 
   for i := 0 to High(LDeleted) do
     Notify(LDeleted[i], cnRemoved);
@@ -1064,9 +1573,9 @@ procedure TList<T>.Exchange(AIndex1, AIndex2: SizeInt);
 var
   LTemp: T;
 begin
-  LTemp := FItems.FItems[AIndex1];
-  FItems.FItems[AIndex1] := FItems.FItems[AIndex2];
-  FItems.FItems[AIndex2] := LTemp;
+  LTemp := FItems[AIndex1];
+  FItems[AIndex1] := FItems[AIndex2];
+  FItems[AIndex2] := LTemp;
 end;
 
 procedure TList<T>.Move(AIndex, ANewIndex: SizeInt);
@@ -1079,16 +1588,16 @@ begin
   if (ANewIndex < 0) or (ANewIndex >= Count) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  LTemp := FItems.FItems[AIndex];
-  FItems.FItems[AIndex] := Default(T);
+  LTemp := FItems[AIndex];
+  FItems[AIndex] := Default(T);
 
   if AIndex < ANewIndex then
-    System.Move(FItems.FItems[Succ(AIndex)], FItems.FItems[AIndex], (ANewIndex - AIndex) * SizeOf(T))
+    System.Move(FItems[Succ(AIndex)], FItems[AIndex], (ANewIndex - AIndex) * SizeOf(T))
   else
-    System.Move(FItems.FItems[ANewIndex], FItems.FItems[Succ(ANewIndex)], (AIndex - ANewIndex) * SizeOf(T));
+    System.Move(FItems[ANewIndex], FItems[Succ(ANewIndex)], (AIndex - ANewIndex) * SizeOf(T));
 
-  FillChar(FItems.FItems[ANewIndex], SizeOf(T), #0);
-  FItems.FItems[ANewIndex] := LTemp;
+  FillChar(FItems[ANewIndex], SizeOf(T), #0);
+  FItems[ANewIndex] := LTemp;
 end;
 
 function TList<T>.First: T;
@@ -1122,7 +1631,7 @@ var
   i: SizeInt;
 begin
   for i := 0 to Count - 1 do
-    if FComparer.Compare(AValue, FItems.FItems[i]) = 0 then
+    if FComparer.Compare(AValue, FItems[i]) = 0 then
       Exit(i);
   Result := -1;
 end;
@@ -1132,7 +1641,7 @@ var
   i: SizeInt;
 begin
   for i := Count - 1 downto 0 do
-    if FComparer.Compare(AValue, FItems.FItems[i]) = 0 then
+    if FComparer.Compare(AValue, FItems[i]) = 0 then
       Exit(i);
   Result := -1;
 end;
@@ -1146,9 +1655,9 @@ begin
   b := Count - 1;
   while a < b do
   begin
-    LTemp := FItems.FItems[a];
-    FItems.FItems[a] := FItems.FItems[b];
-    FItems.FItems[b] := LTemp;
+    LTemp := FItems[a];
+    FItems[a] := FItems[b];
+    FItems[b] := LTemp;
     Inc(a);
     Dec(b);
   end;
@@ -1156,22 +1665,152 @@ end;
 
 procedure TList<T>.Sort;
 begin
-  TArrayHelperBugHack.Sort(FItems.FItems, FComparer, 0, Count);
+  TArrayHelperBugHack.Sort(FItems, FComparer, 0, Count);
 end;
 
 procedure TList<T>.Sort(const AComparer: IComparer<T>);
 begin
-  TArrayHelperBugHack.Sort(FItems.FItems, AComparer, 0, Count);
+  TArrayHelperBugHack.Sort(FItems, AComparer, 0, Count);
 end;
 
 function TList<T>.BinarySearch(constref AItem: T; out AIndex: SizeInt): Boolean;
 begin
-  Result := TArrayHelperBugHack.BinarySearch(FItems.FItems, AItem, AIndex);
+  Result := TArrayHelperBugHack.BinarySearch(FItems, AItem, AIndex, FComparer, 0, Count);
 end;
 
 function TList<T>.BinarySearch(constref AItem: T; out AIndex: SizeInt; const AComparer: IComparer<T>): Boolean;
 begin
-  Result := TArrayHelperBugHack.BinarySearch(FItems.FItems, AItem, AIndex, AComparer);
+  Result := TArrayHelperBugHack.BinarySearch(FItems, AItem, AIndex, AComparer, 0, Count);
+end;
+
+{ TSortedList<T> }
+
+procedure TSortedList<T>.InitializeList;
+begin
+  FSortStyle := cssAuto;
+end;
+
+function TSortedList<T>.Add(constref AValue: T): SizeInt;
+var
+  LSearchResult: TBinarySearchResult;
+begin
+  if SortStyle <> cssAuto then
+    Exit(inherited Add(AValue));
+  if TArrayHelperBugHack.BinarySearch(FItems, AValue, LSearchResult, FComparer, 0, Count) then
+  case FDuplicates of
+    dupAccept: Result := LSearchResult.FoundIndex;
+    dupIgnore: Exit(LSearchResult.FoundIndex);
+    dupError: raise EListError.Create(SCollectionDuplicate);
+  end
+  else
+  begin
+    if LSearchResult.CandidateIndex = -1 then
+      Result := 0
+    else
+      if LSearchResult.CompareResult > 0 then
+        Result := LSearchResult.CandidateIndex
+      else
+        Result := LSearchResult.CandidateIndex + 1;
+  end;
+
+  InternalInsert(Result, AValue);
+end;
+
+procedure TSortedList<T>.Insert(AIndex: SizeInt; constref AValue: T);
+begin
+  if FSortStyle = cssAuto then
+    raise EListError.Create(SSortedListError)
+  else
+    inherited;
+end;
+
+procedure TSortedList<T>.Exchange(AIndex1, AIndex2: SizeInt);
+begin
+  if FSortStyle = cssAuto then
+    raise EListError.Create(SSortedListError)
+  else
+    inherited;
+end;
+
+procedure TSortedList<T>.Move(AIndex, ANewIndex: SizeInt);
+begin
+  if FSortStyle = cssAuto then
+    raise EListError.Create(SSortedListError)
+  else
+    inherited;
+end;
+
+procedure TSortedList<T>.AddRange(constref AValues: array of T);
+var
+  i: T;
+begin
+  for i in AValues do
+    Add(i);
+end;
+
+procedure TSortedList<T>.InsertRange(AIndex: SizeInt; constref AValues: array of T);
+var
+  LValue: T;
+  i:  SizeInt;
+begin
+  if (AIndex < 0) or (AIndex > Count) then
+    raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
+
+  i := 0;
+  for LValue in AValues do
+  begin
+    InternalInsert(AIndex + i, LValue);
+    Inc(i);
+  end;
+end;
+
+function TSortedList<T>.GetSorted: boolean;
+begin
+  Result := FSortStyle in [cssAuto, cssUser];
+end;
+
+procedure TSortedList<T>.SetSorted(AValue: boolean);
+begin
+  if AValue then
+    SortStyle := cssAuto
+  else
+    SortStyle := cssNone;
+end;
+
+procedure TSortedList<T>.SetSortStyle(AValue: TCollectionSortStyle);
+begin
+  if FSortStyle = AValue then
+    Exit;
+  if AValue = cssAuto then
+    Sort;
+  FSortStyle := AValue;
+end;
+
+function TSortedList<T>.ConsistencyCheck(ARaiseException: boolean = true): boolean;
+var
+  i: Integer;
+  LCompare: SizeInt;
+begin
+  if Sorted then
+  for i := 0 to Count-2 do
+  begin
+    LCompare := FComparer.Compare(FItems[i], FItems[i+1]);
+    if LCompare = 0 then
+    begin
+      if Duplicates <> dupAccept then
+        if ARaiseException then
+          raise EListError.Create(SCollectionDuplicate)
+        else
+          Exit(False)
+    end
+    else
+      if LCompare > 0 then
+        if ARaiseException then
+          raise EListError.Create(SCollectionInconsistency)
+        else
+          Exit(False)
+  end;
+  Result := True;
 end;
 
 { TThreadList<T> }
@@ -1248,6 +1887,26 @@ begin
 {$endif}
 end;
 
+{ TQueue<T>.TPointersEnumerator }
+
+function TQueue<T>.TPointersEnumerator.DoMoveNext: boolean;
+begin
+  Inc(FIndex);
+  Result := (FQueue.FLength <> 0) and (FIndex < FQueue.FLength)
+end;
+
+function TQueue<T>.TPointersEnumerator.DoGetCurrent: PT;
+begin
+  Result := @FQueue.FItems[FIndex];
+end;
+
+constructor TQueue<T>.TPointersEnumerator.Create(AQueue: TQueue<T>);
+begin
+  inherited Create;
+  FIndex := Pred(AQueue.FLow);
+  FQueue := AQueue;
+end;
+
 { TQueue<T>.TEnumerator }
 
 constructor TQueue<T>.TEnumerator.Create(AQueue: TQueue<T>);
@@ -1258,6 +1917,11 @@ begin
 end;
 
 { TQueue<T> }
+
+function TQueue<T>.GetPtrEnumerator: TEnumerator<PT>;
+begin
+  Result := TPointersenumerator.Create(Self);
+end;
 
 function TQueue<T>.GetEnumerator: TEnumerator;
 begin
@@ -1271,14 +1935,14 @@ end;
 
 function TQueue<T>.DoRemove(AIndex: SizeInt; ACollectionNotification: TCollectionNotification): T;
 begin
-  Result := FItems.FItems[AIndex];
-  FItems.FItems[AIndex] := Default(T);
+  Result := FItems[AIndex];
+  FItems[AIndex] := Default(T);
   Notify(Result, ACollectionNotification);
   FLow += 1;
-  if FLow = FItems.FLength then
+  if FLow = FLength then
   begin
     FLow := 0;
-    FItems.FLength := 0;
+    FLength := 0;
   end;
 end;
 
@@ -1287,23 +1951,23 @@ begin
   if AValue < Count then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  if AValue = FItems.FLength then
+  if AValue = FLength then
     Exit;
 
   if (Count > 0) and (FLow > 0) then
   begin
-    Move(FItems.FItems[FLow], FItems.FItems[0], Count * SizeOf(T));
-    FillChar(FItems.FItems[Count], (FItems.FLength - Count) * SizeOf(T), #0);
+    Move(FItems[FLow], FItems[0], Count * SizeOf(T));
+    FillChar(FItems[Count], (FLength - Count) * SizeOf(T), #0);
   end;
 
-  SetLength(FItems.FItems, AValue);
-  FItems.FLength := Count;
+  SetLength(FItems, AValue);
+  FLength := Count;
   FLow := 0;
 end;
 
 function TQueue<T>.GetCount: SizeInt;
 begin
-  Result := FItems.FLength - FLow;
+  Result := FLength - FLow;
 end;
 
 constructor TQueue<T>.Create(ACollection: TEnumerable<T>);
@@ -1312,6 +1976,14 @@ var
 begin
   for LItem in ACollection do
     Enqueue(LItem);
+end;
+
+constructor TQueue<T>.Create(ACollection: TEnumerableWithPointers<T>);
+var
+  LItem: PT;
+begin
+  for LItem in ACollection.Ptr^ do
+    Enqueue(LItem^);
 end;
 
 destructor TQueue<T>.Destroy;
@@ -1324,7 +1996,7 @@ var
   LIndex: SizeInt;
 begin
   LIndex := PrepareAddingItem;
-  FItems.FItems[LIndex] := AValue;
+  FItems[LIndex] := AValue;
   Notify(AValue, cnAdded);
 end;
 
@@ -1343,7 +2015,7 @@ begin
   if (Count = 0) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  Result := FItems.FItems[FLow];
+  Result := FItems[FLow];
 end;
 
 procedure TQueue<T>.Clear;
@@ -1351,7 +2023,7 @@ begin
   while Count <> 0 do
     Dequeue;
   FLow := 0;
-  FItems.FLength := 0;
+  FLength := 0;
 end;
 
 procedure TQueue<T>.TrimExcess;
@@ -1379,14 +2051,22 @@ begin
     Push(LItem);
 end;
 
+constructor TStack<T>.Create(ACollection: TEnumerableWithPointers<T>);
+var
+  LItem: PT;
+begin
+  for LItem in ACollection.Ptr^ do
+    Push(LItem^);
+end;
+
 function TStack<T>.DoRemove(AIndex: SizeInt; ACollectionNotification: TCollectionNotification): T;
 begin
   if AIndex < 0 then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  Result := FItems.FItems[AIndex];
-  FItems.FItems[AIndex] := Default(T);
-  FItems.FLength -= 1;
+  Result := FItems[AIndex];
+  FItems[AIndex] := Default(T);
+  Dec(FLength);
   Notify(Result, ACollectionNotification);
 end;
 
@@ -1406,7 +2086,7 @@ begin
   if AValue < Count then
     AValue := Count;
 
-  SetLength(FItems.FItems, AValue);
+  SetLength(FItems, AValue);
 end;
 
 procedure TStack<T>.Push(constref AValue: T);
@@ -1414,13 +2094,13 @@ var
   LIndex: SizeInt;
 begin
   LIndex := PrepareAddingItem;
-  FItems.FItems[LIndex] := AValue;
+  FItems[LIndex] := AValue;
   Notify(AValue, cnAdded);
 end;
 
 function TStack<T>.Pop: T;
 begin
-  Result := DoRemove(FItems.FLength - 1, cnRemoved);
+  Result := DoRemove(FLength - 1, cnRemoved);
 end;
 
 function TStack<T>.Peek: T;
@@ -1428,12 +2108,12 @@ begin
   if (Count = 0) then
     raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange);
 
-  Result := FItems.FItems[FItems.FLength - 1];
+  Result := FItems[FLength - 1];
 end;
 
 function TStack<T>.Extract: T;
 begin
-  Result := DoRemove(FItems.FLength - 1, cnExtracted);
+  Result := DoRemove(FLength - 1, cnExtracted);
 end;
 
 procedure TStack<T>.TrimExcess;
@@ -1472,6 +2152,13 @@ begin
   FObjectsOwner := AOwnsObjects;
 end;
 
+constructor TObjectList<T>.Create(ACollection: TEnumerableWithPointers<T>; AOwnsObjects: Boolean);
+begin
+  inherited Create(ACollection);
+
+  FObjectsOwner := AOwnsObjects;
+end;
+
 { TObjectQueue<T> }
 
 procedure TObjectQueue<T>.Notify(constref AValue: T; ACollectionNotification: TCollectionNotification);
@@ -1489,6 +2176,13 @@ begin
 end;
 
 constructor TObjectQueue<T>.Create(ACollection: TEnumerable<T>; AOwnsObjects: Boolean);
+begin
+  inherited Create(ACollection);
+
+  FObjectsOwner := AOwnsObjects;
+end;
+
+constructor TObjectQueue<T>.Create(ACollection: TEnumerableWithPointers<T>; AOwnsObjects: Boolean);
 begin
   inherited Create(ACollection);
 
@@ -1523,6 +2217,13 @@ begin
   FObjectsOwner := AOwnsObjects;
 end;
 
+constructor TObjectStack<T>.Create(ACollection: TEnumerableWithPointers<T>; AOwnsObjects: Boolean);
+begin
+  inherited Create(ACollection);
+
+  FObjectsOwner := AOwnsObjects;
+end;
+
 function TObjectStack<T>.Pop: T;
 begin
   Result := inherited Pop;
@@ -1530,36 +2231,170 @@ end;
 
 {$I generics.dictionaries.inc}
 
-{ THashSet<T> }
+{ TCustomSet<T>.TCustomSetEnumerator }
 
-function THashSet<T>.TEnumerator.DoMoveNext: boolean;
+function TCustomSet<T>.TCustomSetEnumerator.DoMoveNext: boolean;
 begin
   Result := FEnumerator.DoMoveNext;
 end;
 
-function THashSet<T>.TEnumerator.DoGetCurrent: T;
+function TCustomSet<T>.TCustomSetEnumerator.DoGetCurrent: T;
 begin
   Result := FEnumerator.DoGetCurrent;
 end;
 
-function THashSet<T>.TEnumerator.GetCurrent: T;
-begin
-  Result := FEnumerator.GetCurrent;
-end;
-
-constructor THashSet<T>.TEnumerator.Create(ASet: THashSet<T>);
-begin
-  FEnumerator := ASet.FInternalDictionary.Keys.DoGetEnumerator;
-end;
-
-destructor THashSet<T>.TEnumerator.Destroy;
+destructor TCustomSet<T>.TCustomSetEnumerator.Destroy;
 begin
   FEnumerator.Free;
 end;
 
-function THashSet<T>.DoGetEnumerator: Generics.Collections.TEnumerator<T>;
+{ TCustomSet<T> }
+
+function TCustomSet<T>.DoGetEnumerator: Generics.Collections.TEnumerator<T>;
 begin
   Result := GetEnumerator;
+end;
+
+constructor TCustomSet<T>.Create(ACollection: TEnumerable<T>);
+var
+  i: T;
+begin
+  Create;
+  for i in ACollection do
+    Add(i);
+end;
+
+constructor TCustomSet<T>.Create(ACollection: TEnumerableWithPointers<T>);
+var
+  i: PT;
+begin
+  Create;
+  for i in ACollection.Ptr^ do
+    Add(i^);
+end;
+
+function TCustomSet<T>.AddRange(constref AValues: array of T): Boolean;
+var
+  i: T;
+begin
+  Result := True;
+  for i in AValues do
+    Result := Add(i) and Result;
+end;
+
+function TCustomSet<T>.AddRange(const AEnumerable: IEnumerable<T>): Boolean;
+var
+  i: T;
+begin
+  Result := True;
+  for i in AEnumerable do
+    Result := Add(i) and Result;
+end;
+
+function TCustomSet<T>.AddRange(AEnumerable: TEnumerable<T>): Boolean;
+var
+  i: T;
+begin
+  Result := True;
+  for i in AEnumerable do
+    Result := Add(i) and Result;
+end;
+
+function TCustomSet<T>.AddRange(AEnumerable: TEnumerableWithPointers<T>): Boolean;
+var
+  i: PT;
+begin
+  Result := True;
+  for i in AEnumerable.Ptr^ do
+    Result := Add(i^) and Result;
+end;
+
+procedure TCustomSet<T>.UnionWith(AHashSet: TCustomSet<T>);
+var
+  i: PT;
+begin
+  for i in AHashSet.Ptr^ do
+    Add(i^);
+end;
+
+procedure TCustomSet<T>.IntersectWith(AHashSet: TCustomSet<T>);
+var
+  LList: TList<PT>;
+  i: PT;
+begin
+  LList := TList<PT>.Create;
+
+  for i in Ptr^ do
+    if not AHashSet.Contains(i^) then
+      LList.Add(i);
+
+  for i in LList do
+    Remove(i^);
+
+  LList.Free;
+end;
+
+procedure TCustomSet<T>.ExceptWith(AHashSet: TCustomSet<T>);
+var
+  i: PT;
+begin
+  for i in AHashSet.Ptr^ do
+    Remove(i^);
+end;
+
+procedure TCustomSet<T>.SymmetricExceptWith(AHashSet: TCustomSet<T>);
+var
+  LList: TList<PT>;
+  i: PT;
+begin
+  LList := TList<PT>.Create;
+
+  for i in AHashSet.Ptr^ do
+    if Contains(i^) then
+      LList.Add(i)
+    else
+      Add(i^);
+
+  for i in LList do
+    Remove(i^);
+
+  LList.Free;
+end;
+
+{ THashSet<T>.THashSetEnumerator }
+
+function THashSet<T>.THashSetEnumerator.GetCurrent: T;
+begin
+  Result := TDictionaryEnumerator(FEnumerator).GetCurrent;
+end;
+
+constructor THashSet<T>.THashSetEnumerator.Create(ASet: TCustomSet<T>);
+begin
+  TDictionaryEnumerator(FEnumerator) := THashSet<T>(ASet).FInternalDictionary.Keys.DoGetEnumerator;
+end;
+
+{ THashSet<T>.TPointersEnumerator }
+
+function THashSet<T>.TPointersEnumerator.DoMoveNext: boolean;
+begin
+  Result := FEnumerator.MoveNext;
+end;
+
+function THashSet<T>.TPointersEnumerator.DoGetCurrent: PT;
+begin
+  Result := FEnumerator.Current;
+end;
+
+constructor THashSet<T>.TPointersEnumerator.Create(AHashSet: THashSet<T>);
+begin
+  FEnumerator := AHashSet.FInternalDictionary.Keys.Ptr^.GetEnumerator;
+end;
+
+{ THashSet<T> }
+
+function THashSet<T>.GetPtrEnumerator: TEnumerator<PT>;
+begin
+  Result := TPointersEnumerator.Create(Self);
 end;
 
 function THashSet<T>.GetCount: SizeInt;
@@ -1567,33 +2402,19 @@ begin
   Result := FInternalDictionary.Count;
 end;
 
-function THashSet<T>.GetPointers: TDictionary<T, TEmptyRecord>.TKeyCollection.PPointersCollection;
+function THashSet<T>.GetEnumerator: TCustomSetEnumerator;
 begin
-  Result := FInternalDictionary.Keys.Ptr;
-end;
-
-function THashSet<T>.GetEnumerator: TEnumerator;
-begin
-  Result := TEnumerator.Create(Self);
+  Result := THashSetEnumerator.Create(Self);
 end;
 
 constructor THashSet<T>.Create;
 begin
-  FInternalDictionary := TDictionary<T, TEmptyRecord>.Create;
+  FInternalDictionary := TOpenAddressingLP<T, TEmptyRecord>.Create;
 end;
 
 constructor THashSet<T>.Create(const AComparer: IEqualityComparer<T>);
 begin
-  FInternalDictionary := TDictionary<T, TEmptyRecord>.Create(AComparer);
-end;
-
-constructor THashSet<T>.Create(ACollection: TEnumerable<T>);
-var
-  i: T;
-begin
-  Create;
-  for i in ACollection do
-    Add(i);
+  FInternalDictionary := TOpenAddressingLP<T, TEmptyRecord>.Create(AComparer);
 end;
 
 destructor THashSet<T>.Destroy;
@@ -1628,56 +2449,1325 @@ begin
   Result := FInternalDictionary.ContainsKey(AValue);
 end;
 
-procedure THashSet<T>.UnionWith(AHashSet: THashSet<T>);
-var
-  i: PT;
+{ TAVLTreeNode<TREE_CONSTRAINTS, TTree> }
+
+function TAVLTreeNode<TREE_CONSTRAINTS, TTree>.Successor: PNode;
 begin
-  for i in AHashSet.Ptr^ do
-    Add(i^);
+  Result:=Right;
+  if Result<>nil then begin
+    while (Result.Left<>nil) do Result:=Result.Left;
+  end else begin
+    Result:=@Self;
+    while (Result.Parent<>nil) and (Result.Parent.Right=Result) do
+      Result:=Result.Parent;
+    Result:=Result.Parent;
+  end;
 end;
 
-procedure THashSet<T>.IntersectWith(AHashSet: THashSet<T>);
-var
-  LList: TList<PT>;
-  i: PT;
+function TAVLTreeNode<TREE_CONSTRAINTS, TTree>.Precessor: PNode;
 begin
-  LList := TList<PT>.Create;
-
-  for i in Ptr^ do
-    if not AHashSet.Contains(i^) then
-      LList.Add(i);
-
-  for i in LList do
-    Remove(i^);
-
-  LList.Free;
+  Result:=Left;
+  if Result<>nil then begin
+    while (Result.Right<>nil) do Result:=Result.Right;
+  end else begin
+    Result:=@Self;
+    while (Result.Parent<>nil) and (Result.Parent.Left=Result) do
+      Result:=Result.Parent;
+    Result:=Result.Parent;
+  end;
 end;
 
-procedure THashSet<T>.ExceptWith(AHashSet: THashSet<T>);
-var
-  i: PT;
+function TAVLTreeNode<TREE_CONSTRAINTS, TTree>.TreeDepth: integer;
+// longest WAY down. e.g. only one node => 0 !
+var LeftDepth, RightDepth: integer;
 begin
-  for i in AHashSet.Ptr^ do
-    FInternalDictionary.Remove(i^);
+  if Left<>nil then
+    LeftDepth:=Left.TreeDepth+1
+  else
+    LeftDepth:=0;
+  if Right<>nil then
+    RightDepth:=Right.TreeDepth+1
+  else
+    RightDepth:=0;
+  if LeftDepth>RightDepth then
+    Result:=LeftDepth
+  else
+    Result:=RightDepth;
 end;
 
-procedure THashSet<T>.SymmetricExceptWith(AHashSet: THashSet<T>);
+procedure TAVLTreeNode<TREE_CONSTRAINTS, TTree>.ConsistencyCheck(ATree: TObject);
 var
-  LList: TList<PT>;
-  i: PT;
+  LTree: TTree absolute ATree;
+  LeftDepth: SizeInt;
+  RightDepth: SizeInt;
 begin
-  LList := TList<PT>.Create;
+  // test left child
+  if Left<>nil then begin
+    if Left.Parent<>@Self then
+      raise EAVLTree.Create('Left.Parent<>Self');
+    if LTree.Compare(Left.Data.Key,Data.Key)>0 then
+      raise EAVLTree.Create('Compare(Left.Data,Data)>0');
+    Left.ConsistencyCheck(LTree);
+  end;
+  // test right child
+  if Right<>nil then begin
+    if Right.Parent<>@Self then
+      raise EAVLTree.Create('Right.Parent<>Self');
+    if LTree.Compare(Data.Key,Right.Data.Key)>0 then
+      raise EAVLTree.Create('Compare(Data,Right.Data)>0');
+    Right.ConsistencyCheck(LTree);
+  end;
+  // test balance
+  if Left<>nil then
+    LeftDepth:=Left.TreeDepth+1
+  else
+    LeftDepth:=0;
+  if Right<>nil then
+    RightDepth:=Right.TreeDepth+1
+  else
+    RightDepth:=0;
+  if Balance<>(LeftDepth-RightDepth) then
+    raise EAVLTree.CreateFmt('Balance[%d]<>(RightDepth[%d]-LeftDepth[%d])', [Balance, RightDepth, LeftDepth]);
+end;
 
-  for i in AHashSet.Ptr^ do
-    if Contains(i^) then
-      LList.Add(i)
+function TAVLTreeNode<TREE_CONSTRAINTS, TTree>.GetCount: SizeInt;
+begin
+  Result:=1;
+  if Assigned(Left) then Inc(Result,Left.GetCount);
+  if Assigned(Right) then Inc(Result,Right.GetCount);
+end;
+
+{ TCustomTreeEnumerator<T, PNode, TTree> }
+
+function TCustomTreeEnumerator<T, PNode, TTree>.DoGetCurrent: T;
+begin
+  Result := GetCurrent;
+end;
+
+constructor TCustomTreeEnumerator<T, PNode, TTree>.Create(ATree: TObject);
+begin
+  TObject(FTree) := ATree;
+end;
+
+{ TTreeEnumerable<TTreeEnumerator, TTreePointersEnumerator, T, PT, TREE_CONSTRAINTS> }
+
+function TTreeEnumerable<TTreeEnumerator, TTreePointersEnumerator, T, PT, PNode, TTree>.GetCount: SizeInt;
+begin
+  Result := FTree.Count;
+end;
+
+function TTreeEnumerable<TTreeEnumerator, TTreePointersEnumerator, T, PT, PNode, TTree>.GetPtrEnumerator: TEnumerator<PT>;
+begin
+  Result := TTreePointersEnumerator.Create(FTree);
+end;
+
+constructor TTreeEnumerable<TTreeEnumerator, TTreePointersEnumerator, T, PT, PNode, TTree>.Create(
+  ATree: TTree);
+begin
+  FTree := ATree;
+end;
+
+function TTreeEnumerable<TTreeEnumerator, TTreePointersEnumerator, T, PT, PNode, TTree>.
+  DoGetEnumerator: TTreeEnumerator;
+begin
+  Result := TTreeEnumerator.Create(FTree);
+end;
+
+function TTreeEnumerable<TTreeEnumerator, TTreePointersEnumerator, T, PT, PNode, TTree>.ToArray: TArray<T>;
+begin
+  Result := ToArrayImpl(FTree.Count);
+end;
+
+{ TAVLTreeEnumerator<T, PNode, TTree> }
+
+function TAVLTreeEnumerator<T, PNode, TTree>.DoMoveNext: Boolean;
+begin
+  if FLowToHigh then begin
+    if FCurrent<>nil then
+      FCurrent:=FCurrent.Successor
     else
-      Add(i^);
+      FCurrent:=FTree.FindLowest;
+  end else begin
+    if FCurrent<>nil then
+      FCurrent:=FCurrent.Precessor
+    else
+      FCurrent:=FTree.FindHighest;
+  end;
+  Result:=FCurrent<>nil;
+end;
 
-  for i in LList do
-    Remove(i^);
+constructor TAVLTreeEnumerator<T, PNode, TTree>.Create(ATree: TObject; ALowToHigh: boolean);
+begin
+  inherited Create(ATree);
+  FLowToHigh:=aLowToHigh;
+end;
 
-  LList.Free;
+{ TCustomAVLTreeMap<TREE_CONSTRAINTS>.TPairEnumerator }
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.TPairEnumerator.GetCurrent: TTreePair;
+begin
+  Result := TTreePair((@FCurrent.Data)^);
+end;
+
+{ TCustomAVLTreeMap<TREE_CONSTRAINTS>.TNodeEnumerator }
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.TNodeEnumerator.GetCurrent: PNode;
+begin
+  Result := FCurrent;
+end;
+
+{ TCustomAVLTreeMap<TREE_CONSTRAINTS>.TKeyEnumerator }
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.TKeyEnumerator.GetCurrent: TKey;
+begin
+  Result := FCurrent.Key;
+end;
+
+{ TCustomAVLTreeMap<TREE_CONSTRAINTS>.TPKeyEnumerator }
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.TPKeyEnumerator.GetCurrent: PKey;
+begin
+  Result := @FCurrent.Data.Key;
+end;
+
+{ TCustomAVLTreeMap<TREE_CONSTRAINTS>.TValueEnumerator }
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.TValueEnumerator.GetCurrent: TValue;
+begin
+  Result := FCurrent.Value;
+end;
+
+{ TCustomAVLTreeMap<TREE_CONSTRAINTS>.TValueEnumerator }
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.TPValueEnumerator.GetCurrent: PValue;
+begin
+  Result := @FCurrent.Data.Value;
+end;
+
+{ TCustomAVLTreeMap<TREE_CONSTRAINTS> }
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.NodeAdded(ANode: PNode);
+begin
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.DeletingNode(ANode: PNode; AOrigin: boolean);
+begin
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.DeleteNode(ANode: PNode);
+begin
+  if ANode.Left<>nil then
+    DeleteNode(ANode.Left, true);
+  if ANode.Right<>nil then
+    DeleteNode(ANode.Right, true);
+  Dispose(ANode);
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.Compare(constref ALeft, ARight: TKey): Integer; inline;
+begin
+  Result := FComparer.Compare(ALeft, ARight);
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.FindPredecessor(ANode: PNode): PNode;
+begin
+  if ANode <> nil then
+  begin
+    if ANode.Left <> nil then
+    begin
+      ANode := ANode.Left;
+      while ANode.Right <> nil do ANode := ANode.Right;
+    end
+    else
+    repeat
+      Result := ANode;
+      ANode := ANode.Parent;
+    until (ANode = nil) or (ANode.Right = Result);
+  end;
+  Result := ANode;
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.FindInsertNode(ANode: PNode; out AInsertNode: PNode): Integer;
+begin
+  AInsertNode := FRoot;
+  if AInsertNode = nil then // first item in tree
+    Exit(0);
+
+  repeat
+    Result := Compare(ANode.Key,AInsertNode.Key);
+    if Result < 0 then
+    begin
+      if AInsertNode.Left = nil then
+        Exit;
+      AInsertNode := AInsertNode.Left;
+    end
+    else
+    begin
+      if AInsertNode.Right = nil then
+        Exit;
+      AInsertNode := AInsertNode.Right;
+      if Result = 0 then
+        Break;
+    end;
+  until false;
+
+  // for equal items (when item already exist) we need to keep 0 result
+  while true do
+    if Compare(ANode.Key,AInsertNode.Key) < 0 then
+    begin
+      if AInsertNode.Left = nil then
+        Exit;
+      AInsertNode := AInsertNode.Left;
+    end
+    else
+    begin
+      if AInsertNode.Right = nil then
+        Exit;
+      AInsertNode := AInsertNode.Right;
+    end;
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.RotateRightRight(ANode: PNode);
+var
+  LNode, LParent: PNode;
+begin
+  LNode := ANode.Right;
+  LParent := ANode.Parent;
+
+  ANode.Right := LNode.Left;
+  if ANode.Right <> nil then
+    ANode.Right.Parent := ANode;
+
+  LNode.Left := ANode;
+  LNode.Parent := LParent;
+  ANode.Parent := LNode;
+
+  if LParent <> nil then
+  begin
+    if LParent.Left = ANode then
+      LParent.Left := LNode
+    else
+      LParent.Right := LNode;
+  end
+  else
+    FRoot := LNode;
+
+  if LNode.Balance = -1 then
+  begin
+    ANode.Balance := 0;
+    LNode.Balance := 0;
+  end
+  else
+  begin
+    ANode.Balance := -1;
+    LNode.Balance := 1;
+  end
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.RotateLeftLeft(ANode: PNode);
+var
+  LNode, LParent: PNode;
+begin
+  LNode := ANode.Left;
+  LParent := ANode.Parent;
+
+  ANode.Left := LNode.Right;
+  if ANode.Left <> nil then
+    ANode.Left.Parent := ANode;
+
+  LNode.Right := ANode;
+  LNode.Parent := LParent;
+  ANode.Parent := LNode;
+
+  if LParent <> nil then
+  begin
+    if LParent.Left = ANode then
+      LParent.Left := LNode
+    else
+      LParent.Right := LNode;
+  end
+  else
+    FRoot := LNode;
+
+  if LNode.Balance = 1 then
+  begin
+    ANode.Balance := 0;
+    LNode.Balance := 0;
+  end
+  else
+  begin
+    ANode.Balance := 1;
+    LNode.Balance := -1;
+  end
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.RotateRightLeft(ANode: PNode);
+var
+  LRight, LLeft, LParent: PNode;
+begin
+  LRight := ANode.Right;
+  LLeft := LRight.Left;
+  LParent := ANode.Parent;
+
+  LRight.Left := LLeft.Right;
+  if LRight.Left <> nil then
+    LRight.Left.Parent := LRight;
+
+  ANode.Right := LLeft.Left;
+  if ANode.Right <> nil then
+    ANode.Right.Parent := ANode;
+
+  LLeft.Left := ANode;
+  LLeft.Right := LRight;
+  ANode.Parent := LLeft;
+  LRight.Parent := LLeft;
+
+  LLeft.Parent := LParent;
+
+  if LParent <> nil then
+  begin
+    if LParent.Left = ANode then
+      LParent.Left := LLeft
+    else
+      LParent.Right := LLeft;
+  end
+  else
+    FRoot := LLeft;
+
+  if LLeft.Balance = -1 then
+    ANode.Balance := 1
+  else
+    ANode.Balance := 0;
+
+  if LLeft.Balance = 1 then
+    LRight.Balance := -1
+  else
+    LRight.Balance := 0;
+
+  LLeft.Balance := 0;
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.RotateLeftRight(ANode: PNode);
+var
+  LLeft, LRight, LParent: PNode;
+begin
+  LLeft := ANode.Left;
+  LRight := LLeft.Right;
+  LParent := ANode.Parent;
+
+  LLeft.Right := LRight.Left;
+  if LLeft.Right <> nil then
+    LLeft.Right.Parent := LLeft;
+
+  ANode.Left := LRight.Right;
+  if ANode.Left <> nil then
+    ANode.Left.Parent := ANode;
+
+  LRight.Right := ANode;
+  LRight.Left := LLeft;
+  ANode.Parent := LRight;
+  LLeft.Parent := LRight;
+
+  LRight.Parent := LParent;
+
+  if LParent <> nil then
+  begin
+    if LParent.Left = ANode then
+      LParent.Left := LRight
+    else
+      LParent.Right := LRight;
+  end
+  else
+    FRoot := LRight;
+
+  if LRight.Balance =  1 then
+    ANode.Balance := -1
+  else
+    ANode.Balance := 0;
+  if LRight.Balance = -1 then
+    LLeft.Balance :=  1
+  else
+    LLeft.Balance := 0;
+
+  LRight.Balance := 0;
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.WriteStr(AStream: TStream; const AText: string);
+begin
+  if AText='' then exit;
+  AStream.Write(AText[1],Length(AText));
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.GetNodeCollection: TNodeCollection;
+begin
+  if not Assigned(FNodes) then
+    FNodes := TNodeCollection.Create(TTree(Self));
+  Result := FNodes;
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.InternalAdd(ANode, AParent: PNode);
+begin
+  Inc(FCount);
+
+  ANode.Parent := AParent;
+  NodeAdded(ANode);
+
+  if AParent=nil then
+  begin
+    FRoot := ANode;
+    Exit;
+  end;
+
+  // balance after insert
+
+  if AParent.Balance<>0 then
+    AParent.Balance := 0
+  else
+  begin
+    if AParent.Left = ANode then
+      AParent.Balance := 1
+    else
+      AParent.Balance := -1;
+
+    ANode := AParent.Parent;
+
+    while ANode <> nil do
+    begin
+      if ANode.Balance<>0 then
+      begin
+        if ANode.Balance = 1 then
+        begin
+          if ANode.Right = AParent then
+            ANode.Balance := 0
+          else if AParent.Balance = -1 then
+            RotateLeftRight(ANode)
+          else
+            RotateLeftLeft(ANode);
+        end
+        else
+        begin
+          if ANode.Left = AParent then
+            ANode.Balance := 0
+          else if AParent^.Balance = 1 then
+            RotateRightLeft(ANode)
+          else
+            RotateRightRight(ANode);
+        end;
+        Break;
+      end;
+
+      if ANode.Left = AParent then
+        ANode.Balance := 1
+      else
+        ANode.Balance := -1;
+
+      AParent := ANode;
+      ANode := ANode.Parent;
+    end;
+  end;
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.InternalDelete(ANode: PNode);
+var
+  t, y, z: PNode;
+  LNest: boolean;
+begin
+  if (ANode.Left <> nil) and (ANode.Right <> nil) then
+  begin
+    y := FindPredecessor(ANode);
+    y.Info := ANode.Info;
+    DeletingNode(y, false);
+    InternalDelete(y);
+    LNest := false;
+  end
+  else
+  begin
+    if ANode.Left <> nil then
+    begin
+      y := ANode.Left;
+      ANode.Left := nil;
+    end
+    else
+    begin
+      y := ANode.Right;
+      ANode.Right := nil;
+    end;
+    ANode.Balance := 0;
+    LNest  := true;
+  end;
+
+  if y <> nil then
+  begin
+    y.Parent := ANode.Parent;
+    y.Left  := ANode.Left;
+    if y.Left <> nil then
+      y.Left.Parent := y;
+    y.Right := ANode.Right;
+    if y.Right <> nil then
+      y.Right.Parent := y;
+    y.Balance := ANode.Balance;
+  end;
+
+  if ANode.Parent <> nil then
+  begin
+    if ANode.Parent.Left = ANode then
+      ANode.Parent.Left := y
+    else
+      ANode.Parent.Right := y;
+  end
+  else
+    FRoot := y;
+
+  if LNest then
+  begin
+    z := y;
+    y := ANode.Parent;
+    while y <> nil do
+    begin
+      if y.Balance = 0 then
+      begin
+        if y.Left = z then
+          y.Balance := -1
+        else
+          y.Balance := 1;
+        break;
+      end
+      else
+      begin
+        if ((y.Balance = 1) and (y.Left = z)) or ((y.Balance = -1) and (y.Right = z)) then
+        begin
+          y.Balance := 0;
+          z := y;
+          y := y.Parent;
+        end
+        else
+        begin
+          if y.Left = z then
+            t := y.Right
+          else
+            t := y.Left;
+          if t.Balance = 0 then
+          begin
+            if y.Balance = 1 then
+              RotateLeftLeft(y)
+            else
+              RotateRightRight(y);
+            break;
+          end
+          else if y.Balance = t.Balance then
+          begin
+            if y.Balance = 1 then
+              RotateLeftLeft(y)
+            else
+              RotateRightRight(y);
+            z := t;
+            y := t.Parent;
+          end
+          else
+          begin
+            if y.Balance = 1 then
+              RotateLeftRight(y)
+            else
+              RotateRightLeft(y);
+            z := y.Parent;
+            y := z.Parent;
+          end
+        end
+      end
+    end
+  end;
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.GetKeys: TKeyCollection;
+begin
+  if not Assigned(FKeys) then
+    FKeys := TKeyCollection.Create(TTree(Self));
+  Result := TKeyCollection(FKeys);
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.GetValues: TValueCollection;
+begin
+  if not Assigned(FValues) then
+    FValues := TValueCollection.Create(TTree(Self));
+  Result := TValueCollection(FValues);
+end;
+
+constructor TCustomAVLTreeMap<TREE_CONSTRAINTS>.Create;
+begin
+  FComparer := TComparer<TKey>.Default;
+end;
+
+constructor TCustomAVLTreeMap<TREE_CONSTRAINTS>.Create(const AComparer: IComparer<TKey>);
+begin
+  FComparer := AComparer;
+end;
+
+destructor TCustomAVLTreeMap<TREE_CONSTRAINTS>.Destroy;
+begin
+  FNodes.Free;
+  Clear;
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.Add(constref AKey: TKey; constref AValue: TValue): PNode;
+var
+  LParent: PNode;
+begin
+  Result := AddNode;
+  Result.Data.Key := AKey;
+  Result.Data.Value := AValue;
+
+  // insert new node
+  case FindInsertNode(Result, LParent) of
+    -1: LParent.Left := Result;
+    0:
+      if Assigned(LParent) then
+        case FDuplicates of
+          dupAccept: LParent.Right := Result;
+          dupIgnore:
+            begin
+              LParent.Right := nil;
+              DeleteNode(Result, true);
+              Exit(LParent);
+            end;
+          dupError:
+            begin
+              LParent.Right := nil;
+              DeleteNode(Result, true);
+              Result := nil;
+              raise EListError.Create(SCollectionDuplicate);
+            end;
+        end;
+    1: LParent.Right := Result;
+  end;
+
+  InternalAdd(Result, LParent);
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.Remove(constref AKey: TKey): boolean;
+var
+  LNode: PNode;
+begin
+  LNode:=Find(AKey);
+  if LNode<>nil then begin
+    Delete(LNode);
+    Result:=true;
+  end else
+    Result:=false;
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.Delete(ANode: PNode; ADispose: boolean);
+begin
+  if (ANode.Left = nil) or (ANode.Right = nil) then
+    DeletingNode(ANode, true);
+
+  InternalDelete(ANode);
+
+  DeleteNode(ANode, ADispose);
+  Dec(FCount);
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.Clear(ADisposeNodes: Boolean);
+begin
+  if (FRoot<>nil) and ADisposeNodes then
+    DeleteNode(FRoot);
+  fRoot:=nil;
+  FCount:=0;
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.GetEnumerator: TPairEnumerator;
+begin
+  Result := TPairEnumerator.Create(Self, true);
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.FindLowest: PNode;
+begin
+  Result:=FRoot;
+  if Result<>nil then
+    while Result.Left<>nil do Result:=Result.Left;
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.FindHighest: PNode;
+begin
+  Result:=FRoot;
+  if Result<>nil then
+    while Result.Right<>nil do Result:=Result.Right;
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.Find(constref AKey: TKey): PNode;
+var
+  LComp: SizeInt;
+begin
+  Result:=FRoot;
+  while (Result<>nil) do
+  begin
+    LComp:=Compare(AKey,Result.Key);
+    if LComp=0 then
+      Exit;
+    if LComp<0 then
+      Result:=Result.Left
+    else
+      Result:=Result.Right
+  end;
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.ContainsKey(constref AKey: TKey; out ANode: PNode): boolean;
+begin
+  ANode := Find(AKey);
+  Result := Assigned(ANode);
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.ContainsKey(constref AKey: TKey): boolean; overload; inline;
+begin
+  Result := Assigned(Find(AKey));
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.ConsistencyCheck;
+var
+  RealCount: SizeInt;
+begin
+  RealCount:=0;
+  if FRoot<>nil then begin
+    FRoot.ConsistencyCheck(Self);
+    RealCount:=FRoot.GetCount;
+  end;
+  if Count<>RealCount then
+    raise EAVLTree.Create('Count<>RealCount');
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.WriteTreeNode(AStream: TStream; ANode: PNode);
+var
+  b: String;
+  IsLeft: boolean;
+  LParent: PNode;
+  WasLeft: Boolean;
+begin
+  if ANode=nil then exit;
+  WriteTreeNode(AStream, ANode.Right);
+  LParent:=ANode;
+  WasLeft:=false;
+  b:='';
+  while LParent<>nil do begin
+    if LParent.Parent=nil then begin
+      if LParent=ANode then
+        b:='--'+b
+      else
+        b:='  '+b;
+      break;
+    end;
+    IsLeft:=LParent.Parent.Left=LParent;
+    if LParent=ANode then begin
+      if IsLeft then
+        b:='\-'
+      else
+        b:='/-';
+    end else begin
+      if WasLeft=IsLeft then
+        b:='  '+b
+      else
+        b:='| '+b;
+    end;
+    WasLeft:=IsLeft;
+    LParent:=LParent.Parent;
+  end;
+  b:=b+NodeToReportStr(ANode)+LineEnding;
+  WriteStr(AStream, b);
+  WriteTreeNode(AStream, ANode.Left);
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.WriteReportToStream(AStream: TStream);
+begin
+  WriteStr(AStream, '-Start-of-AVL-Tree-------------------'+LineEnding);
+  WriteTreeNode(AStream, fRoot);
+  WriteStr(AStream, '-End-Of-AVL-Tree---------------------'+LineEnding);
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.NodeToReportStr(ANode: PNode): string;
+begin
+  Result:=Format(' Self=%p  Parent=%p  Balance=%d', [ANode, ANode.Parent, ANode.Balance]);
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.ReportAsString: string;
+var ms: TMemoryStream;
+begin
+  Result:='';
+  ms:=TMemoryStream.Create;
+  try
+    WriteReportToStream(ms);
+    ms.Position:=0;
+    SetLength(Result,ms.Size);
+    if Result<>'' then
+      ms.Read(Result[1],length(Result));
+  finally
+    ms.Free;
+  end;
+end;
+
+{ TAVLTreeMap<TKey, TValue> }
+
+function TAVLTreeMap<TKey, TValue>.AddNode: PNode;
+begin
+  Result := New(PNode);
+  Result^ := Default(TNode);
+end;
+
+procedure TAVLTreeMap<TKey, TValue>.DeleteNode(ANode: PNode; ADispose: boolean = true);
+begin
+  if ADispose then
+    Dispose(ANode);
+end;
+
+{ TIndexedAVLTreeMap<TKey, TValue> }
+
+procedure TIndexedAVLTreeMap<TKey, TValue>.RotateRightRight(ANode: PNode);
+var
+  LOldRight: PNode;
+begin
+  LOldRight:=ANode.Right;
+  inherited;
+  Inc(LOldRight.Data.Info, (1 + ANode.Data.Info));
+end;
+
+procedure TIndexedAVLTreeMap<TKey, TValue>.RotateLeftLeft(ANode: PNode);
+var
+  LOldLeft: PNode;
+begin
+  LOldLeft:=ANode.Left;
+  inherited;
+  Dec(ANode.Data.Info, (1 + LOldLeft.Data.Info));
+end;
+
+procedure TIndexedAVLTreeMap<TKey, TValue>.RotateRightLeft(ANode: PNode);
+var
+  LB, LC: PNode;
+begin
+  LB := ANode.Right;
+  LC := LB.Left;
+  inherited;
+  Dec(LB.Data.Info, 1+LC.Info);
+  Inc(LC.Data.Info, 1+ANode.Info);
+end;
+
+procedure TIndexedAVLTreeMap<TKey, TValue>.RotateLeftRight(ANode: PNode);
+var
+  LB, LC: PNode;
+begin
+  LB := ANode.Left;
+  LC := LB.Right;
+  inherited;
+  Inc(LC.Data.Info, 1+LB.Info);
+  Dec(ANode.Data.Info, 1+LC.Info);
+end;
+
+
+procedure TIndexedAVLTreeMap<TKey, TValue>.NodeAdded(ANode: PNode);
+var
+  LParent, LNode: PNode;
+begin
+  FLastNode := nil;
+  LNode := ANode;
+  repeat
+    LParent:=LNode.Parent;
+    if (LParent=nil) then break;
+    if LParent.Left=LNode then
+      Inc(LParent.Data.Info);
+    LNode:=LParent;
+  until false;
+end;
+
+procedure TIndexedAVLTreeMap<TKey, TValue>.DeletingNode(ANode: PNode; AOrigin: boolean);
+var
+  LParent: PNode;
+begin
+  if not AOrigin then
+    Dec(ANode.Data.Info);
+  FLastNode := nil;
+  repeat
+    LParent:=ANode.Parent;
+    if (LParent=nil) then exit;
+    if LParent.Left=ANode then
+      Dec(LParent.Data.Info);
+    ANode:=LParent;
+  until false;
+end;
+
+function TIndexedAVLTreeMap<TKey, TValue>.AddNode: PNode;
+begin
+  Result := PNode(New(PNode));
+  Result^ := Default(TNode);
+end;
+
+procedure TIndexedAVLTreeMap<TKey, TValue>.DeleteNode(ANode: PNode; ADispose: boolean = true);
+begin
+  if ADispose then
+    Dispose(ANode);
+end;
+
+function TIndexedAVLTreeMap<TKey, TValue>.GetNodeAtIndex(AIndex: SizeInt): PNode;
+begin
+  if (AIndex<0) or (AIndex>=Count) then
+    raise EIndexedAVLTree.CreateFmt('TIndexedAVLTree: AIndex %d out of bounds 0..%d', [AIndex, Count]);
+
+  if FLastNode<>nil then begin
+    if AIndex=FLastIndex then
+      Exit(FLastNode)
+    else if AIndex=FLastIndex+1 then begin
+      FLastIndex:=AIndex;
+      FLastNode:=FLastNode.Successor;
+      Exit(FLastNode);
+    end else if AIndex=FLastIndex-1 then begin
+      FLastIndex:=AIndex;
+      FLastNode:=FLastNode.Precessor;
+      Exit(FLastNode);
+    end;
+  end;
+
+  FLastIndex:=AIndex;
+  Result:=FRoot;
+  repeat
+    if Result.Info>AIndex then
+      Result:=Result.Left
+    else if Result.Info=AIndex then begin
+      FLastNode:=Result;
+      Exit;
+    end
+    else begin
+      Dec(AIndex, Result.Info+1);
+      Result:=Result.Right;
+    end;
+  until false;
+end;
+
+function TIndexedAVLTreeMap<TKey, TValue>.NodeToIndex(ANode: PNode): SizeInt;
+var
+  LNode: PNode;
+  LParent: PNode;
+begin
+  if ANode=nil then
+    Exit(-1);
+
+  if FLastNode=ANode then
+    Exit(FLastIndex);
+
+  LNode:=ANode;
+  Result:=LNode.Info;
+  repeat
+    LParent:=LNode.Parent;
+    if LParent=nil then break;
+    if LParent.Right=LNode then
+      inc(Result,LParent.Info+1);
+    LNode:=LParent;
+  until false;
+
+  FLastNode:=ANode;
+  FLastIndex:=Result;
+end;
+
+procedure TIndexedAVLTreeMap<TKey, TValue>.ConsistencyCheck;
+var
+  LNode: PNode;
+  i: SizeInt;
+  LeftCount: SizeInt = 0;
+begin
+  inherited ConsistencyCheck;
+  i:=0;
+  for LNode in Self.Nodes do
+  begin
+    if LNode.Left<>nil then
+      LeftCount:=LNode.Left.GetCount
+    else
+      LeftCount:=0;
+
+    if LNode.Info<>LeftCount then
+      raise EIndexedAVLTree.CreateFmt('LNode.LeftCount=%d<>%d',[LNode.Info,LeftCount]);
+
+    if GetNodeAtIndex(i)<>LNode then
+      raise EIndexedAVLTree.CreateFmt('GetNodeAtIndex(%d)<>%P',[i,LNode]);
+    FLastNode:=nil;
+    if GetNodeAtIndex(i)<>LNode then
+      raise EIndexedAVLTree.CreateFmt('GetNodeAtIndex(%d)<>%P',[i,LNode]);
+
+    if NodeToIndex(LNode)<>i then
+      raise EIndexedAVLTree.CreateFmt('NodeToIndex(%P)<>%d',[LNode,i]);
+    FLastNode:=nil;
+    if NodeToIndex(LNode)<>i then
+      raise EIndexedAVLTree.CreateFmt('NodeToIndex(%P)<>%d',[LNode,i]);
+
+    inc(i);
+  end;
+end;
+
+function TIndexedAVLTreeMap<TKey, TValue>.NodeToReportStr(ANode: PNode): string;
+begin
+  Result:=Format(' Self=%p  Parent=%p  Balance=%d Idx=%d Info=%d',
+             [ANode,ANode.Parent, ANode.Balance, NodeToIndex(ANode), ANode.Info]);
+end;
+
+{ TAVLTree<T> }
+
+function TAVLTree<T>.Add(constref AValue: T): PNode;
+begin
+  Result := inherited Add(AValue, EmptyRecord);
+end;
+
+{ TIndexedAVLTree<T> }
+
+function TIndexedAVLTree<T>.Add(constref AValue: T): PNode;
+begin
+  Result := inherited Add(AValue, EmptyRecord);
+end;
+
+{ TSortedSet<T>.TSortedSetEnumerator }
+
+function TSortedSet<T>.TSortedSetEnumerator.GetCurrent: T;
+begin
+  Result := TTreeEnumerator(FEnumerator).GetCurrent;
+end;
+
+constructor TSortedSet<T>.TSortedSetEnumerator.Create(ASet: TCustomSet<T>);
+begin
+  TTreeEnumerator(FEnumerator) := TSortedSet<T>(ASet).FInternalTree.Keys.DoGetEnumerator;
+end;
+
+{ TSortedSet<T>.TPointersEnumerator }
+
+function TSortedSet<T>.TPointersEnumerator.DoMoveNext: boolean;
+begin
+  Result := FEnumerator.MoveNext;
+end;
+
+function TSortedSet<T>.TPointersEnumerator.DoGetCurrent: PT;
+begin
+  Result := FEnumerator.Current;
+end;
+
+constructor TSortedSet<T>.TPointersEnumerator.Create(ASortedSet: TSortedSet<T>);
+begin
+  FEnumerator := ASortedSet.FInternalTree.Keys.Ptr^.GetEnumerator;
+end;
+
+{ TSortedSet<T> }
+
+function TSortedSet<T>.GetPtrEnumerator: TEnumerator<PT>;
+begin
+  Result := TPointersEnumerator.Create(Self);
+end;
+
+function TSortedSet<T>.GetCount: SizeInt;
+begin
+  Result := FInternalTree.Count;
+end;
+
+function TSortedSet<T>.GetEnumerator: TCustomSetEnumerator;
+begin
+  Result := TSortedSetEnumerator.Create(Self);
+end;
+
+constructor TSortedSet<T>.Create;
+begin
+  FInternalTree := TAVLTree<T>.Create;
+end;
+
+constructor TSortedSet<T>.Create(const AComparer: IComparer<T>);
+begin
+  FInternalTree := TAVLTree<T>.Create(AComparer);
+end;
+
+destructor TSortedSet<T>.Destroy;
+begin
+  FInternalTree.Free;
+end;
+
+function TSortedSet<T>.Add(constref AValue: T): Boolean;
+var
+  LNodePtr, LParent: TAVLTree<T>.PNode;
+  LNode: TAVLTree<T>.TNode;
+  LCompare: Integer;
+begin
+  LNode.Data.Key := AValue;
+
+  LCompare := FInternalTree.FindInsertNode(@LNode, LParent);
+
+  Result := not((LCompare=0) and Assigned(LParent));
+  if not Result then
+    Exit;
+
+  LNodePtr := FInternalTree.AddNode;
+  LNodePtr^.Data.Key := AValue;
+
+  case LCompare of
+    -1: LParent.Left := LNodePtr;
+    1: LParent.Right := LNodePtr;
+  end;
+
+  FInternalTree.InternalAdd(LNodePtr, LParent);
+end;
+
+function TSortedSet<T>.Remove(constref AValue: T): Boolean;
+var
+  LNode: TAVLTree<T>.PNode;
+begin
+  LNode := FInternalTree.Find(AValue);
+  Result := Assigned(LNode);
+  if Result then
+    FInternalTree.Delete(LNode);
+end;
+
+procedure TSortedSet<T>.Clear;
+begin
+  FInternalTree.Clear;
+end;
+
+function TSortedSet<T>.Contains(constref AValue: T): Boolean;
+begin
+  Result := FInternalTree.ContainsKey(AValue);
+end;
+
+{ TSortedHashSet<T>.TSortedHashSetEqualityComparer }
+
+function TSortedHashSet<T>.TSortedHashSetEqualityComparer.Equals(constref ALeft, ARight: PT): Boolean;
+begin
+  if Assigned(FComparer) then
+    Result := FComparer.Compare(ALeft^, ARight^) = 0
+  else
+    Result := FEqualityComparer.Equals(ALeft^, ARight^);
+end;
+
+function TSortedHashSet<T>.TSortedHashSetEqualityComparer.GetHashCode(constref AValue: PT): UInt32;
+begin
+  Result := FEqualityComparer.GetHashCode(AValue^);
+end;
+
+constructor TSortedHashSet<T>.TSortedHashSetEqualityComparer.Create(const AComparer: IComparer<T>);
+begin
+  FComparer := AComparer;
+  FEqualityComparer := TEqualityComparer<T>.Default;
+end;
+
+constructor TSortedHashSet<T>.TSortedHashSetEqualityComparer.Create(const AEqualityComparer: IEqualityComparer<T>);
+begin
+  FEqualityComparer := AEqualityComparer;
+end;
+
+constructor TSortedHashSet<T>.TSortedHashSetEqualityComparer.Create(const AComparer: IComparer<T>; const AEqualityComparer: IEqualityComparer<T>);
+begin
+  FComparer := AComparer;
+  FEqualityComparer := AEqualityComparer;
+end;
+
+{ TSortedHashSet<T>.TSortedHashSetEnumerator }
+
+function TSortedHashSet<T>.TSortedHashSetEnumerator.GetCurrent: T;
+begin
+  Result := TTreeEnumerator(FEnumerator).Current;
+end;
+
+constructor TSortedHashSet<T>.TSortedHashSetEnumerator.Create(ASet: TCustomSet<T>);
+begin
+  FEnumerator := TSortedHashSet<T>(ASet).FInternalTree.Keys.GetEnumerator;
+end;
+
+{ TSortedHashSet<T>.TPointersEnumerator }
+
+function TSortedHashSet<T>.TPointersEnumerator.DoMoveNext: boolean;
+begin
+  Result := FEnumerator.MoveNext;
+end;
+
+function TSortedHashSet<T>.TPointersEnumerator.DoGetCurrent: PT;
+begin
+  Result := FEnumerator.Current;
+end;
+
+constructor TSortedHashSet<T>.TPointersEnumerator.Create(ASortedHashSet: TSortedHashSet<T>);
+begin
+  FEnumerator := ASortedHashSet.FInternalTree.Keys.Ptr^.GetEnumerator;
+end;
+
+{ TSortedHashSet<T> }
+
+function TSortedHashSet<T>.GetPtrEnumerator: TEnumerator<PT>;
+begin
+  Result := TPointersEnumerator.Create(Self);
+end;
+
+function TSortedHashSet<T>.DoGetEnumerator: TEnumerator<T>;
+begin
+  Result := GetEnumerator;
+end;
+
+function TSortedHashSet<T>.GetCount: SizeInt;
+begin
+  Result := FInternalDictionary.Count;
+end;
+
+function TSortedHashSet<T>.GetEnumerator: TCustomSetEnumerator;
+begin
+  Result := TSortedHashSetEnumerator.Create(Self);
+end;
+
+function TSortedHashSet<T>.Add(constref AValue: T): Boolean;
+var
+  LNode: TAVLTree<T>.PNode;
+begin
+  Result := not FInternalDictionary.ContainsKey(@AValue);
+  if Result then
+  begin
+    LNode := FInternalTree.Add(AValue);
+    FInternalDictionary.Add(@LNode.Data.Key, EmptyRecord);
+  end;
+end;
+
+function TSortedHashSet<T>.Remove(constref AValue: T): Boolean;
+var
+  LIndex: SizeInt;
+begin
+  LIndex := FInternalDictionary.FindBucketIndex(@AValue);
+  Result := LIndex >= 0;
+  if Result then
+  begin
+    FInternalDictionary.DoRemove(LIndex, cnRemoved);
+    FInternalTree.Remove(AValue);
+  end;
+end;
+
+procedure TSortedHashSet<T>.Clear;
+begin
+  FInternalDictionary.Clear;
+  FInternalTree.Clear;
+end;
+
+function TSortedHashSet<T>.Contains(constref AValue: T): Boolean;
+begin
+  Result := FInternalDictionary.ContainsKey(@AValue);
+end;
+
+constructor TSortedHashSet<T>.Create;
+begin
+  FInternalTree := TAVLTree<T>.Create;
+  FInternalDictionary := TOpenAddressingLP<PT, TEmptyRecord>.Create(TSortedHashSetEqualityComparer.Create(TEqualityComparer<T>.Default));
+end;
+
+constructor TSortedHashSet<T>.Create(const AComparer: IEqualityComparer<T>);
+begin
+  Create(TComparer<T>.Default, AComparer);
+end;
+
+constructor TSortedHashSet<T>.Create(const AComparer: IComparer<T>);
+begin
+  FInternalTree := TAVLTree<T>.Create(AComparer);
+  FInternalDictionary := TOpenAddressingLP<PT, TEmptyRecord>.Create(TSortedHashSetEqualityComparer.Create(AComparer));
+end;
+
+constructor TSortedHashSet<T>.Create(const AComparer: IComparer<T>; const AEqualityComparer: IEqualityComparer<T>);
+begin
+  FInternalTree := TAVLTree<T>.Create(AComparer);
+  FInternalDictionary := TOpenAddressingLP<PT, TEmptyRecord>.Create(TSortedHashSetEqualityComparer.Create(AComparer,AEqualityComparer));
+end;
+
+destructor TSortedHashSet<T>.Destroy;
+begin
+  FInternalDictionary.Free;
+  FInternalTree.Free;
+  inherited;
 end;
 
 end.

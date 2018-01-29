@@ -16,6 +16,14 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
+    Acknowledgment
+
+    Thanks to Sphere 10 Software (http://sphere10.com) for sponsoring
+    many new types and major refactoring of entire library
+
+    Thanks to mORMot (http://synopse.info) project for the best implementations
+    of hashing functions like crc32c and xxHash32 :)
+
  **********************************************************************}
 
 { TPair<TKey,TValue> }
@@ -88,14 +96,29 @@ begin
   Create(ACollection, TEqualityComparer<TKey>.Default(THashFactory));
 end;
 
+constructor TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>);
+begin
+  Create(ACollection, TEqualityComparer<TKey>.Default(THashFactory));
+end;
+
 constructor TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.Create(ACollection: TEnumerable<TDictionaryPair>;
   const AComparer: IEqualityComparer<TKey>); overload;
 var
-  LItem: TPair<TKey, TValue>;
+  LItem: TDictionaryPair;
 begin
   Create(AComparer);
   for LItem in ACollection do
     Add(LItem);
+end;
+
+constructor TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>;
+  const AComparer: IEqualityComparer<TKey>); overload;
+var
+  LItem: PDictionaryPair;
+begin
+  Create(AComparer);
+  for LItem in ACollection.Ptr^ do
+    Add(LItem^);
 end;
 
 destructor TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.Destroy;
@@ -145,71 +168,30 @@ end;
 
 { TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, CUSTOM_DICTIONARY_CONSTRAINTS> }
 
-function TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, PT, CUSTOM_DICTIONARY_CONSTRAINTS>.
-  TPointersCollection.Dictionary: TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>;
+function TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, CUSTOM_DICTIONARY_CONSTRAINTS>.GetPtrEnumerator: TEnumerator<PT>;
 begin
-  Result := TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>(Pointer(@Self)^);
+  Result := TDictionaryPointersEnumerator.Create(FDictionary);
 end;
 
-function TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, PT, CUSTOM_DICTIONARY_CONSTRAINTS>.
-  TPointersCollection.{Do}GetEnumerator: TDictionaryPointersEnumerator;
-begin
-  Result := TDictionaryPointersEnumerator(TDictionaryPointersEnumerator.NewInstance);
-  TCustomDictionaryEnumerator<PT, CUSTOM_DICTIONARY_CONSTRAINTS>(Result).Create(Dictionary);
-end;
-
-function TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, PT, CUSTOM_DICTIONARY_CONSTRAINTS>.
-  TPointersCollection.GetCount: SizeInt;
-begin
-  Result := Dictionary.Count;
-end;
-
-function TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, PT, CUSTOM_DICTIONARY_CONSTRAINTS>.
-  TPointersCollection.ToArray: TArray<PT>;
-var
-  i: SizeInt;
-  LEnumerator: TDictionaryPointersEnumerator;
-begin
-  SetLength(Result, Count);
-
-  try
-    LEnumerator := GetEnumerator;
-
-    i := 0;
-    while LEnumerator.MoveNext do
-    begin
-      Result[i] := LEnumerator.Current;
-      Inc(i);
-    end;
-  finally
-    LEnumerator.Free;
-  end;
-end;
-
-constructor TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, PT, CUSTOM_DICTIONARY_CONSTRAINTS>.Create(
+constructor TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, CUSTOM_DICTIONARY_CONSTRAINTS>.Create(
   ADictionary: TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>);
 begin
   FDictionary := ADictionary;
 end;
 
-function TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, PT, CUSTOM_DICTIONARY_CONSTRAINTS>.
+function TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, CUSTOM_DICTIONARY_CONSTRAINTS>.
   DoGetEnumerator: TDictionaryEnumerator;
 begin
   Result := TDictionaryEnumerator(TDictionaryEnumerator.NewInstance);
   TCustomDictionaryEnumerator<T, CUSTOM_DICTIONARY_CONSTRAINTS>(Result).Create(FDictionary);
 end;
 
-function TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, PT, CUSTOM_DICTIONARY_CONSTRAINTS>.GetCount: SizeInt;
+function TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, CUSTOM_DICTIONARY_CONSTRAINTS>.GetCount: SizeInt;
 begin
   Result := TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>(FDictionary).Count;
 end;
 
-function TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, PT, CUSTOM_DICTIONARY_CONSTRAINTS>.GetPointers: PPointersCollection;
-begin
-  Result := @FPointers;
-end;
-
-function TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, PT, CUSTOM_DICTIONARY_CONSTRAINTS>.ToArray: TArray<T>;
+function TDictionaryEnumerable<TDictionaryEnumerator, TDictionaryPointersEnumerator, T, CUSTOM_DICTIONARY_CONSTRAINTS>.ToArray: TArray<T>;
 begin
   Result := ToArrayImpl(FDictionary.Count);
 end;
@@ -237,6 +219,89 @@ begin
   end;
 
   Result := True;
+end;
+
+{ TOpenAddressingPointersEnumerator<TItem, PDictionaryPair> }
+
+function TOpenAddressingPointersEnumerator<TItem, PDictionaryPair>.DoMoveNext: boolean;
+var
+  LLength: SizeInt;
+begin
+  Inc(FIndex);
+
+  LLength := Length(FItems^);
+
+  if FIndex >= LLength then
+    Exit(False);
+
+  // maybe related to bug #24098
+  // compiler error for (TDictionary<DICTIONARY_CONSTRAINTS>(FDictionary).FItems[FIndex].Hash and UInt32.GetSignMask) = 0
+  while (FItems^[FIndex].Hash and UInt32.GetSignMask) = 0 do
+  begin
+    Inc(FIndex);
+    if FIndex = LLength then
+      Exit(False);
+  end;
+
+  Result := True;
+end;
+
+function TOpenAddressingPointersEnumerator<TItem, PDictionaryPair>.DoGetCurrent: PDictionaryPair;
+begin
+  Result := GetCurrent;
+end;
+
+function TOpenAddressingPointersEnumerator<TItem, PDictionaryPair>.GetCurrent: PDictionaryPair;
+begin
+  Result := @FItems^[FIndex].Pair;
+end;
+
+constructor TOpenAddressingPointersEnumerator<TItem, PDictionaryPair>.Create(var AItems);
+begin
+  FIndex := -1;
+  FItems := @AItems;
+end;
+
+{ TOpenAddressingPointersCollection<TPointersEnumerator, TItem, PDictionaryPair> }
+
+function TOpenAddressingPointersCollection<TPointersEnumerator, TItem, PDictionaryPair>.Items: PArray;
+begin
+  Result := PArray(@((@Self)^));
+end;
+
+function TOpenAddressingPointersCollection<TPointersEnumerator, TItem, PDictionaryPair>.GetCount: SizeInt;
+begin
+  Result := PSizeInt(PByte(@((@Self)^))-SizeOf(SizeInt))^;
+end;
+
+function TOpenAddressingPointersCollection<TPointersEnumerator, TItem, PDictionaryPair>.GetEnumerator: TPointersEnumerator;
+begin
+  Result := TPointersEnumerator(TPointersEnumerator.NewInstance);
+  TPointersEnumerator(Result).Create(Items^);
+end;
+
+function TOpenAddressingPointersCollection<TPointersEnumerator, TItem, PDictionaryPair>.ToArray: TArray<PDictionaryPair>;
+{begin
+  Result := ToArrayImpl(FList.Count);
+end;}
+var
+  i: SizeInt;
+  LEnumerator: TPointersEnumerator;
+begin
+  SetLength(Result, GetCount);
+
+  try
+    LEnumerator := GetEnumerator;
+
+    i := 0;
+    while LEnumerator.MoveNext do
+    begin
+      Result[i] := LEnumerator.Current;
+      Inc(i);
+    end;
+  finally
+    LEnumerator.Free;
+  end;
 end;
 
 { TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS> }
@@ -302,6 +367,11 @@ begin
   Inc(FItemsLength);
 
   PairNotify(AItem.Pair, cnAdded);
+end;
+
+function TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.GetPointers: PPointersCollection;
+begin
+  Result := PPointersCollection(@FItems);
 end;
 
 procedure TOpenAddressing<OPEN_ADDRESSING_CONSTRAINTS>.Add(constref AKey: TKey; constref AValue: TValue);
@@ -945,12 +1015,22 @@ constructor TOpenAddressingDH<OPEN_ADDRESSING_CONSTRAINTS>.Create(ACollection: T
 begin
 end;
 
+constructor TOpenAddressingDH<OPEN_ADDRESSING_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>;
+  const AComparer: IEqualityComparer<TKey>);
+begin
+end;
+
 constructor TOpenAddressingDH<OPEN_ADDRESSING_CONSTRAINTS>.Create(ACapacity: SizeInt);
 begin
   Create(ACapacity, TExtendedEqualityComparer<TKey>.Default(THashFactory));
 end;
 
 constructor TOpenAddressingDH<OPEN_ADDRESSING_CONSTRAINTS>.Create(ACollection: TEnumerable<TDictionaryPair>);
+begin
+  Create(ACollection, TExtendedEqualityComparer<TKey>.Default(THashFactory));
+end;
+
+constructor TOpenAddressingDH<OPEN_ADDRESSING_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>);
 begin
   Create(ACollection, TExtendedEqualityComparer<TKey>.Default(THashFactory));
 end;
@@ -971,11 +1051,21 @@ end;
 constructor TOpenAddressingDH<OPEN_ADDRESSING_CONSTRAINTS>.Create(ACollection: TEnumerable<TDictionaryPair>;
   const AComparer: IExtendedEqualityComparer<TKey>);
 var
-  LItem: TPair<TKey, TValue>;
+  LItem: TDictionaryPair;
 begin
   Create(AComparer);
   for LItem in ACollection do
     Add(LItem);
+end;
+
+constructor TOpenAddressingDH<OPEN_ADDRESSING_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>;
+  const AComparer: IExtendedEqualityComparer<TKey>);
+var
+  LItem: PDictionaryPair;
+begin
+  Create(AComparer);
+  for LItem in ACollection.Ptr^ do
+    Add(LItem^);
 end;
 
 procedure TOpenAddressingDH<OPEN_ADDRESSING_CONSTRAINTS>.UpdateItemsThreshold(ASize: SizeInt);
@@ -1133,6 +1223,126 @@ begin
   Result := True;
 end;
 
+{ TDeamortizedDArrayPointersEnumerator<TCuckooCfg, TItemsArray, TItemsDArray, TQueueDictionary, PDictionaryPair> }
+
+function TDeamortizedDArrayPointersEnumerator<TCuckooCfg, TItemsArray, TItemsDArray, TQueueDictionary, PDictionaryPair>.DoMoveNext: boolean;
+var
+  LLength: SizeInt;
+  LArray: TItemsArray;
+begin
+  Inc(FIndex);
+
+  if (FMainIndex = TCuckooCfg.D) then // queue
+  begin
+    LLength := Length(FQueue.FItems);
+    if FIndex >= LLength then
+      Exit(False);
+
+    while ((FQueue.FItems[FIndex].Hash)
+      and UInt32.GetSignMask) = 0 do
+    begin
+      Inc(FIndex);
+      if FIndex = LLength then
+        Exit(False);
+    end;
+  end
+  else // d-array
+  begin
+    LArray := FItems^[FMainIndex];
+    LLength := Length(LArray);
+    if FIndex >= LLength then
+    begin
+      Inc(FMainIndex);
+      FIndex := -1;
+      Exit(DoMoveNext);
+    end;
+
+    while (((LArray[FIndex]).Hash) and UInt32.GetSignMask) = 0 do
+    begin
+      Inc(FIndex);
+      if FIndex = LLength then
+      begin
+        Inc(FMainIndex);
+        FIndex := -1;
+        Exit(DoMoveNext);
+      end;
+    end;
+  end;
+
+  Result := True;
+end;
+
+function TDeamortizedDArrayPointersEnumerator<TCuckooCfg, TItemsArray, TItemsDArray, TQueueDictionary, PDictionaryPair>.DoGetCurrent: PDictionaryPair;
+begin
+  Result := GetCurrent;
+end;
+
+function TDeamortizedDArrayPointersEnumerator<TCuckooCfg, TItemsArray, TItemsDArray, TQueueDictionary, PDictionaryPair>.GetCurrent: PDictionaryPair;
+begin
+  if FMainIndex = TCuckooCfg.D then
+    Result := @(FQueue.FItems[FIndex].Pair.Value.Pair)
+  else
+    Result := @((FItems^[FMainIndex])[FIndex].Pair);
+end;
+
+constructor TDeamortizedDArrayPointersEnumerator<TCuckooCfg, TItemsArray, TItemsDArray, TQueueDictionary, PDictionaryPair>.Create(var AItems; AQueue: TQueueDictionary; ACount: SizeInt);
+begin
+  FIndex := -1;
+  if ACount = 0 then
+    FMainIndex := TCuckooCfg.D
+  else
+    FMainIndex := 0;
+  FQueue := AQueue;
+  FItems := @AItems;
+end;
+
+{ TDeamortizedDArrayPointersCollection<TPointersEnumerator, TItem, TQueueDictionary, PDictionaryPair> }
+
+function TDeamortizedDArrayPointersCollection<TPointersEnumerator, TItemsDArray, TQueueDictionary, PDictionaryPair>.Items: PArray;
+begin
+  Result := PArray(@((@Self)^));
+end;
+
+function TDeamortizedDArrayPointersCollection<TPointersEnumerator, TItemsDArray, TQueueDictionary, PDictionaryPair>.GetCount: SizeInt;
+begin
+  Result := SizeInt((@PByte(@((@Self)^))[-SizeOf(SizeInt)])^);
+end;
+
+function TDeamortizedDArrayPointersCollection<TPointersEnumerator, TItemsDArray, TQueueDictionary, PDictionaryPair>.GetQueue: TQueueDictionary;
+begin
+  Result := TQueueDictionary((@PByte(@((@Self)^))[SizeOf(TItemsDArray)])^);
+end;
+
+function TDeamortizedDArrayPointersCollection<TPointersEnumerator, TItemsDArray, TQueueDictionary, PDictionaryPair>.GetEnumerator: TPointersEnumerator;
+begin
+  Result := TPointersEnumerator(TPointersEnumerator.NewInstance);
+  TPointersEnumerator(Result).Create(Items^, GetQueue, GetCount);
+end;
+
+function TDeamortizedDArrayPointersCollection<TPointersEnumerator, TItemsDArray, TQueueDictionary, PDictionaryPair>.ToArray: TArray<PDictionaryPair>;
+{begin
+  Result := ToArrayImpl(FList.Count);
+end;}
+var
+  i: SizeInt;
+  LEnumerator: TPointersEnumerator;
+begin
+  SetLength(Result, GetCount);
+
+  try
+    LEnumerator := GetEnumerator;
+
+    i := 0;
+    while LEnumerator.MoveNext do
+    begin
+      Result[i] := LEnumerator.Current;
+      Inc(i);
+    end;
+  finally
+    LEnumerator.Free;
+  end;
+end;
+
 { TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS> }
 
 function TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.TQueueDictionary.Rehash(ASizePow2: SizeInt;
@@ -1233,6 +1443,11 @@ constructor TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Create(ACollection: 
 begin
 end;
 
+constructor TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>;
+  const AComparer: IEqualityComparer<TKey>);
+begin
+end;
+
 constructor TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Create;
 begin
   Create(0);
@@ -1244,6 +1459,11 @@ begin
 end;
 
 constructor TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Create(ACollection: TEnumerable<TDictionaryPair>);
+begin
+  Create(ACollection, TExtendedEqualityComparer<TKey>.Default(THashFactory));
+end;
+
+constructor TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>);
 begin
   Create(ACollection, TExtendedEqualityComparer<TKey>.Default(THashFactory));
 end;
@@ -1277,11 +1497,21 @@ end;
 constructor TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Create(ACollection: TEnumerable<TDictionaryPair>;
   const AComparer: IExtendedEqualityComparer<TKey>);
 var
-  LItem: TPair<TKey, TValue>;
+  LItem: TDictionaryPair;
 begin
   Create(AComparer);
   for LItem in ACollection do
     Add(LItem);
+end;
+
+constructor TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>;
+  const AComparer: IExtendedEqualityComparer<TKey>);
+var
+  LItem: PDictionaryPair;
+begin
+  Create(AComparer);
+  for LItem in ACollection.Ptr^ do
+    Add(LItem^);
 end;
 
 destructor TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Destroy;
@@ -1303,6 +1533,11 @@ begin
   if not Assigned(FValues) then
     FValues := TValueCollection.Create(Self);
   Result := TValueCollection(FValues);
+end;
+
+function TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.GetPointers: PPointersCollection;
+begin
+  Result := PPointersCollection(@FItems);
 end;
 
 function TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Lookup(constref AKey: TKey;

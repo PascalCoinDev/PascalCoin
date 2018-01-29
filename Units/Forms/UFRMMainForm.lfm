@@ -1,10 +1,10 @@
 object FRMMainForm: TFRMMainForm
-  Left = 168
+  Left = 231
   Height = 600
-  Top = 12
+  Top = 44
   Width = 865
   Caption = 'Pascal Coin Wallet, JSON-RPC Miner & Explorer'
-  ClientHeight = 580
+  ClientHeight = 600
   ClientWidth = 865
   Color = clBtnFace
   Constraints.MinHeight = 600
@@ -45,7 +45,7 @@ object FRMMainForm: TFRMMainForm
   end
   object paSyncPanel: TPanel
     Left = 0
-    Height = 477
+    Height = 505
     Top = 80
     Width = 865
     Align = alClient
@@ -62,7 +62,7 @@ object FRMMainForm: TFRMMainForm
   end
   object paWalletPanel: TPanel
     Left = 0
-    Height = 477
+    Height = 505
     Top = 80
     Width = 865
     Align = alClient
@@ -79,8 +79,8 @@ object FRMMainForm: TFRMMainForm
   end
   object sbStatusBar: TStatusBar
     Left = 0
-    Height = 23
-    Top = 557
+    Height = 15
+    Top = 585
     Width = 865
     Panels = <    
       item
@@ -101,17 +101,21 @@ object FRMMainForm: TFRMMainForm
         Width = 30
       end>
     SimplePanel = False
-    OnDrawPanel = sbStatusBarDrawPanel
   end
   object tbStatusToolBar: TToolBar
+    AnchorSideTop.Control = sbStatusBar
+    AnchorSideTop.Side = asrCenter
+    AnchorSideBottom.Control = sbStatusBar
+    AnchorSideBottom.Side = asrBottom
     Left = 778
-    Height = 16
-    Top = 544
+    Height = 15
+    Top = 585
     Width = 70
     Align = alNone
-    Anchors = [akRight, akBottom]
+    Anchors = [akTop, akRight]
     AutoSize = True
-    ButtonHeight = 16
+    ButtonHeight = 15
+    ButtonWidth = 23
     Caption = 'tbStatusToolBar'
     EdgeBorders = []
     EdgeInner = esNone
@@ -119,7 +123,6 @@ object FRMMainForm: TFRMMainForm
     Images = ilSmallIcons
     List = True
     TabOrder = 0
-    Visible = False
     Wrapable = False
     object tbtnWalletLock: TToolButton
       Left = 1
@@ -131,7 +134,7 @@ object FRMMainForm: TFRMMainForm
       OnClick = tbtnWalletLockClick
     end
     object tbtnConnectivity: TToolButton
-      Left = 24
+      Left = 47
       Hint = 'Network is active. Click to deactivate'
       Top = 0
       Caption = 'Net'
@@ -139,7 +142,7 @@ object FRMMainForm: TFRMMainForm
       OnClick = tbtnConnectivityClick
     end
     object tbtnSync: TToolButton
-      Left = 47
+      Left = 24
       Hint = 'Show &Syncronization'
       Top = 0
       Caption = '&Synchronization'
