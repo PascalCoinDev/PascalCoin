@@ -265,7 +265,6 @@ type
     constructor Create; overload;
     constructor Create(const AComparer: IComparer<T>); overload;
     constructor Create(ACollection: TEnumerable<T>); overload;
-    constructor Create(ACollection: TEnumerableWithPointers<T>); overload;
     destructor Destroy; override;
 
     function Add(constref AValue: T): SizeInt; virtual;
@@ -390,7 +389,6 @@ type
     function GetCount: SizeInt; override;
   public
     constructor Create(ACollection: TEnumerable<T>); overload;
-    constructor Create(ACollection: TEnumerableWithPointers<T>); overload;
     destructor Destroy; override;
     procedure Enqueue(constref AValue: T);
     function Dequeue: T;
@@ -1316,15 +1314,6 @@ begin
     Add(LItem);
 end;
 
-constructor TList<T>.Create(ACollection: TEnumerableWithPointers<T>);
-var
-  LItem: PT;
-begin
-  Create;
-  for LItem in ACollection.Ptr^ do
-    Add(LItem^);
-end;
-
 destructor TList<T>.Destroy;
 begin
   SetCapacity(0);
@@ -1976,14 +1965,6 @@ var
 begin
   for LItem in ACollection do
     Enqueue(LItem);
-end;
-
-constructor TQueue<T>.Create(ACollection: TEnumerableWithPointers<T>);
-var
-  LItem: PT;
-begin
-  for LItem in ACollection.Ptr^ do
-    Enqueue(LItem^);
 end;
 
 destructor TQueue<T>.Destroy;
