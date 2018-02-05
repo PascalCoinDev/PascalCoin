@@ -83,8 +83,10 @@ type
     constructor Create(const AComparer: IEqualityComparer<TKey>); overload;
     constructor Create(ACollection: TEnumerable<TDictionaryPair>); virtual; overload;
     constructor Create(ACollection: TEnumerable<TDictionaryPair>; const AComparer: IEqualityComparer<TKey>); virtual; overload;
+    {$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
     constructor Create(ACollection: TEnumerableWithPointers<TDictionaryPair>); virtual; overload;
     constructor Create(ACollection: TEnumerableWithPointers<TDictionaryPair>; const AComparer: IEqualityComparer<TKey>); virtual; overload;
+    {$ENDIF}
 
     destructor Destroy; override;
   private
@@ -95,7 +97,7 @@ type
 
     procedure KeyNotify(constref AKey: TKey; ACollectionNotification: TCollectionNotification); virtual;
     procedure ValueNotify(constref AValue: TValue; ACollectionNotification: TCollectionNotification); virtual;
-    procedure PairNotify(constref APair: TPair<TKey, TValue>; ACollectionNotification: TCollectionNotification); inline;
+    procedure PairNotify(constref APair: TDictionaryPair; ACollectionNotification: TCollectionNotification); inline;
     procedure SetValue(var AValue: TValue; constref ANewValue: TValue);
   public
     property OnKeyNotify: TCollectionNotifyEvent<TKey> read FOnKeyNotify write FOnKeyNotify;
@@ -348,15 +350,21 @@ type
     constructor Create(ACapacity: SizeInt; const AComparer: IEqualityComparer<TKey>); override; overload;
     constructor Create(const AComparer: IEqualityComparer<TKey>); reintroduce; overload;
     constructor Create(ACollection: TEnumerable<TDictionaryPair>; const AComparer: IEqualityComparer<TKey>); override; overload;
+    {$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
     constructor Create(ACollection: TEnumerableWithPointers<TDictionaryPair>; const AComparer: IEqualityComparer<TKey>); override; overload;
+    {$ENDIF}
   public // bug #26181 (redundancy of constructors)
     constructor Create(ACapacity: SizeInt); override; overload;
     constructor Create(ACollection: TEnumerable<TDictionaryPair>); override; overload;
+    {$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
     constructor Create(ACollection: TEnumerableWithPointers<TDictionaryPair>); override; overload;
+    {$ENDIF}
     constructor Create(ACapacity: SizeInt; const AComparer: IExtendedEqualityComparer<TKey>); virtual; overload;
     constructor Create(const AComparer: IExtendedEqualityComparer<TKey>); overload;
     constructor Create(ACollection: TEnumerable<TDictionaryPair>; const AComparer: IExtendedEqualityComparer<TKey>); virtual; overload;
+    {$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
     constructor Create(ACollection: TEnumerableWithPointers<TDictionaryPair>; const AComparer: IExtendedEqualityComparer<TKey>); virtual; overload;
+    {$ENDIF}
   end;
 
   TDeamortizedDArrayCuckooMapEnumerator<T, CUCKOO_CONSTRAINTS> = class abstract(TCustomDictionaryEnumerator<T, CUSTOM_DICTIONARY_CONSTRAINTS>)
@@ -524,18 +532,24 @@ type
     constructor Create(ACapacity: SizeInt; const AComparer: IEqualityComparer<TKey>); override; overload;
     constructor Create(const AComparer: IEqualityComparer<TKey>); reintroduce; overload;
     constructor Create(ACollection: TEnumerable<TDictionaryPair>; const AComparer: IEqualityComparer<TKey>); override; overload;
+    {$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
     constructor Create(ACollection: TEnumerableWithPointers<TDictionaryPair>; const AComparer: IEqualityComparer<TKey>); override; overload;
+    {$ENDIF}
   public
     // TODO: function TryFlushQueue(ACount: SizeInt): SizeInt;
 
     constructor Create; override; overload;
     constructor Create(ACapacity: SizeInt); override; overload;
     constructor Create(ACollection: TEnumerable<TDictionaryPair>); override; overload;
+    {$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
     constructor Create(ACollection: TEnumerableWithPointers<TDictionaryPair>); override; overload;
+    {$ENDIF}
     constructor Create(ACapacity: SizeInt; const AComparer: IExtendedEqualityComparer<TKey>); virtual; overload;
     constructor Create(const AComparer: IExtendedEqualityComparer<TKey>); overload;
     constructor Create(ACollection: TEnumerable<TDictionaryPair>; const AComparer: IExtendedEqualityComparer<TKey>); virtual; overload;
+    {$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
     constructor Create(ACollection: TEnumerableWithPointers<TDictionaryPair>; const AComparer: IExtendedEqualityComparer<TKey>); virtual; overload;
+    {$ENDIF}
     destructor Destroy; override;
 
     procedure Add(constref APair: TPair<TKey, TValue>); override; overload;
