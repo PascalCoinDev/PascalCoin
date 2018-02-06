@@ -37,7 +37,7 @@ end;
 
 { TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS> }
 
-procedure TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.PairNotify(constref APair: TPair<TKey, TValue>;
+procedure TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.PairNotify(constref APair: TDictionaryPair;
   ACollectionNotification: TCollectionNotification);
 begin
   KeyNotify(APair.Key, ACollectionNotification);
@@ -96,10 +96,12 @@ begin
   Create(ACollection, TEqualityComparer<TKey>.Default(THashFactory));
 end;
 
+{$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
 constructor TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>);
 begin
   Create(ACollection, TEqualityComparer<TKey>.Default(THashFactory));
 end;
+{$ENDIF}
 
 constructor TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.Create(ACollection: TEnumerable<TDictionaryPair>;
   const AComparer: IEqualityComparer<TKey>); overload;
@@ -111,6 +113,7 @@ begin
     Add(LItem);
 end;
 
+{$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
 constructor TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>;
   const AComparer: IEqualityComparer<TKey>); overload;
 var
@@ -120,6 +123,7 @@ begin
   for LItem in ACollection.Ptr^ do
     Add(LItem^);
 end;
+{$ENDIF}
 
 destructor TCustomDictionary<CUSTOM_DICTIONARY_CONSTRAINTS>.Destroy;
 begin
@@ -1015,10 +1019,12 @@ constructor TOpenAddressingDH<OPEN_ADDRESSING_CONSTRAINTS>.Create(ACollection: T
 begin
 end;
 
+{$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
 constructor TOpenAddressingDH<OPEN_ADDRESSING_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>;
   const AComparer: IEqualityComparer<TKey>);
 begin
 end;
+{$ENDIF}
 
 constructor TOpenAddressingDH<OPEN_ADDRESSING_CONSTRAINTS>.Create(ACapacity: SizeInt);
 begin
@@ -1030,10 +1036,12 @@ begin
   Create(ACollection, TExtendedEqualityComparer<TKey>.Default(THashFactory));
 end;
 
+{$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
 constructor TOpenAddressingDH<OPEN_ADDRESSING_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>);
 begin
   Create(ACollection, TExtendedEqualityComparer<TKey>.Default(THashFactory));
 end;
+{$ENDIF}
 
 constructor TOpenAddressingDH<OPEN_ADDRESSING_CONSTRAINTS>.Create(ACapacity: SizeInt;
   const AComparer: IExtendedEqualityComparer<TKey>);
@@ -1058,6 +1066,7 @@ begin
     Add(LItem);
 end;
 
+{$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
 constructor TOpenAddressingDH<OPEN_ADDRESSING_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>;
   const AComparer: IExtendedEqualityComparer<TKey>);
 var
@@ -1067,6 +1076,7 @@ begin
   for LItem in ACollection.Ptr^ do
     Add(LItem^);
 end;
+{$ENDIF}
 
 procedure TOpenAddressingDH<OPEN_ADDRESSING_CONSTRAINTS>.UpdateItemsThreshold(ASize: SizeInt);
 begin
@@ -1443,10 +1453,12 @@ constructor TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Create(ACollection: 
 begin
 end;
 
+{$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
 constructor TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>;
   const AComparer: IEqualityComparer<TKey>);
 begin
 end;
+{$ENDIF}
 
 constructor TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Create;
 begin
@@ -1463,10 +1475,12 @@ begin
   Create(ACollection, TExtendedEqualityComparer<TKey>.Default(THashFactory));
 end;
 
+{$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
 constructor TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>);
 begin
   Create(ACollection, TExtendedEqualityComparer<TKey>.Default(THashFactory));
 end;
+{$ENDIF}
 
 constructor TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Create(ACapacity: SizeInt;
   const AComparer: IExtendedEqualityComparer<TKey>);
@@ -1504,6 +1518,7 @@ begin
     Add(LItem);
 end;
 
+{$IFDEF ENABLE_METHODS_WITH_TEnumerableWithPointers}
 constructor TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Create(ACollection: TEnumerableWithPointers<TDictionaryPair>;
   const AComparer: IExtendedEqualityComparer<TKey>);
 var
@@ -1513,6 +1528,7 @@ begin
   for LItem in ACollection.Ptr^ do
     Add(LItem^);
 end;
+{$ENDIF}
 
 destructor TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.Destroy;
 begin
@@ -2042,10 +2058,12 @@ begin
   LLookupResult := Lookup(AKey, LHashListOrIndex);
 
   if LLookupResult = LR_NIL then
-  begin
-    PrepareAddingItem;
-    DoAdd(AKey, AValue, LHashListOrIndex);
-  end
+    Add(AKey, AValue)
+    // more optimal version for AddOrSetValue has some bug : see Test_CuckooD2_Notification
+    //begin
+    //  PrepareAddingItem;
+    //  DoAdd(AKey, AValue, LHashListOrIndex);
+    //end
   else
     SetItem(AValue, LHashListOrIndex, LLookupResult);
 end;
