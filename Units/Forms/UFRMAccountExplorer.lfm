@@ -3,6 +3,7 @@ object FRMAccountExplorer: TFRMAccountExplorer
   Height = 451
   Top = 94
   Width = 868
+  ActiveControl = cbMyPrivateKeys
   Caption = 'Accounts Explorer'
   ClientHeight = 451
   ClientWidth = 868
@@ -11,11 +12,10 @@ object FRMAccountExplorer: TFRMAccountExplorer
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.8.0.6'
   Visible = False
   object Splitter1: TSplitter
     Left = 380
-    Height = 365
+    Height = 385
     Top = 66
     Width = 5
   end
@@ -141,17 +141,17 @@ object FRMAccountExplorer: TFRMAccountExplorer
   end
   object pnlAccounts: TPanel
     Left = 0
-    Height = 365
+    Height = 385
     Top = 66
     Width = 380
     Align = alLeft
     BevelOuter = bvNone
-    ClientHeight = 365
+    ClientHeight = 385
     ClientWidth = 380
     TabOrder = 1
     object dgAccounts: TDrawGrid
       Left = 0
-      Height = 331
+      Height = 351
       Top = 0
       Width = 380
       Align = alClient
@@ -165,7 +165,7 @@ object FRMAccountExplorer: TFRMAccountExplorer
     object pnlAccountsInfo: TPanel
       Left = 0
       Height = 34
-      Top = 331
+      Top = 351
       Width = 380
       Align = alBottom
       BevelOuter = bvNone
@@ -246,7 +246,7 @@ object FRMAccountExplorer: TFRMAccountExplorer
   end
   object pcAccountsOptions: TPageControl
     Left = 385
-    Height = 365
+    Height = 385
     Top = 66
     Width = 483
     ActivePage = tsMultiSelectAccounts
@@ -274,12 +274,12 @@ object FRMAccountExplorer: TFRMAccountExplorer
     end
     object tsMultiSelectAccounts: TTabSheet
       Caption = 'Selected accounts for massive operations'
-      ClientHeight = 337
+      ClientHeight = 357
       ClientWidth = 475
       ImageIndex = 1
       object dgSelectedAccounts: TDrawGrid
         Left = 41
-        Height = 280
+        Height = 300
         Top = 31
         Width = 325
         Align = alLeft
@@ -317,7 +317,7 @@ object FRMAccountExplorer: TFRMAccountExplorer
       object pnlSelectedAccountsBottom: TPanel
         Left = 0
         Height = 26
-        Top = 311
+        Top = 331
         Width = 475
         Align = alBottom
         BevelOuter = bvNone
@@ -359,12 +359,12 @@ object FRMAccountExplorer: TFRMAccountExplorer
       end
       object pnlSelectedAccountsLeft: TPanel
         Left = 0
-        Height = 280
+        Height = 300
         Top = 31
         Width = 41
         Align = alLeft
         BevelOuter = bvNone
-        ClientHeight = 280
+        ClientHeight = 300
         ClientWidth = 41
         TabOrder = 3
         object sbSelectedAccountsAdd: TSpeedButton

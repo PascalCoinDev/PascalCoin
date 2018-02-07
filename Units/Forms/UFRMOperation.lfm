@@ -3,6 +3,7 @@ object FRMOperation: TFRMOperation
   Height = 493
   Top = 245
   Width = 608
+  ActiveControl = ebSenderAccount
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
   Caption = 'New Operation'
@@ -15,7 +16,7 @@ object FRMOperation: TFRMOperation
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.6.0.4'
+  Visible = False
   object lblAccountCaption: TLabel
     Left = 25
     Height = 13
@@ -97,8 +98,8 @@ object FRMOperation: TFRMOperation
     Height = 367
     Top = 72
     Width = 556
-    ActivePage = tsOperation
-    TabIndex = 0
+    ActivePage = tsGlobalError
+    TabIndex = 1
     TabOrder = 1
     object tsOperation: TTabSheet
       Caption = 'Operation'
@@ -905,7 +906,7 @@ object FRMOperation: TFRMOperation
     end
     object tsGlobalError: TTabSheet
       Caption = 'Notification'
-      ClientHeight = 325
+      ClientHeight = 341
       ClientWidth = 548
       ImageIndex = 1
       TabVisible = False

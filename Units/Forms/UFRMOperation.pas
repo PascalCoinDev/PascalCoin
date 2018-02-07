@@ -174,7 +174,7 @@ type
 implementation
 
 uses
-  UECIES, UConst, UOpTransaction, UAES, UFRMWalletKeys;
+  UECIES, UConst, UOpTransaction, UAES, UFRMWalletKeys, UUserInterface;
 
 {$R *.lfm}
 
@@ -381,17 +381,12 @@ begin
 end;
 
 procedure TFRMOperation.bbPasswordClick(Sender: TObject);
-Var s : String;
+Var
   errors : AnsiString;
 begin
-  if FWalletKeys.IsValidPassword then begin
-  end else begin
-    s := '';
-    Repeat
-      if Not InputQuery('Wallet password','Enter wallet password',s) then exit;
-      FWalletKeys.WalletPassword := s;
-    Until FWalletKeys.IsValidPassword;
-    SetWalletKeys(WalletKeys);
+  if NOT FWalletKeys.IsValidPassword then begin
+    TUserInterface.UnlockWallet(Self);
+    SetWalletKeys(TWallet.Keys);
     UpdateOperationOptions(errors);
   end;
 end;

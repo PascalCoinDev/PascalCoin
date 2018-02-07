@@ -528,8 +528,6 @@ procedure TFRMAccountExplorer.sbSelectedAccountsAddAllClick(Sender: TObject);
 Var lsource,ltarget : TOrderedCardinalList;
   i : Integer;
 begin
-//  with FRMWallet do
-//  begin
   lsource := FAccountsGrid.LockAccountsList;
   Try
     ltarget := FAccountsSelectedGrid.LockAccountsList;
@@ -544,8 +542,6 @@ begin
   Finally
     FAccountsGrid.UnlockAccountsList;
   End;
-
-//  end;
 end;
 
 procedure TFRMAccountExplorer.sbSelectedAccountsAddClick(Sender: TObject);
