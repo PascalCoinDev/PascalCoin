@@ -31,7 +31,7 @@ uses
 Type
   // TAccountsGrid implements a visual integration of TDrawGrid
   // to show accounts information
-  TAccountColumnType = (act_account_number,act_account_key,act_balance,act_updated,act_n_operation,act_updated_state,act_name,act_type);
+  TAccountColumnType = (act_account_number,act_account_key,act_balance,act_updated,act_n_operation,act_updated_state,act_name,act_type,act_saleprice);
   TAccountColumn = Record
     ColumnType : TAccountColumnType;
     width : Integer;
@@ -195,7 +195,7 @@ uses
 { TAccountsGrid }
 
 Const CT_ColumnHeader : Array[TAccountColumnType] Of String =
-  ('Account N.','Key','Balance','Updated','N Oper.','State','Name','Type');
+  ('Account N.','Key','Balance','Updated','N Op.','S','Name','Type','Price');
 
 function TAccountsGrid.AccountNumber(GridRow: Integer): Int64;
 begin
@@ -220,17 +220,21 @@ begin
   FShowAllAccounts := false;
   FAccountsList := TOrderedCardinalList.Create;
   FDrawGrid := Nil;
-  SetLength(FColumns,5);
+  SetLength(FColumns,7);
   FColumns[0].ColumnType := act_account_number;
-  FColumns[0].width := 70;
+  FColumns[0].width := 65;
   FColumns[1].ColumnType := act_name;
-  FColumns[1].width := 110;
+  FColumns[1].width := 80;
   FColumns[2].ColumnType := act_balance;
-  FColumns[2].width := 70;
+  FColumns[2].width := 80;
   FColumns[3].ColumnType := act_n_operation;
-  FColumns[3].width := 50;
-  FColumns[4].ColumnType := act_updated_state;
-  FColumns[4].width := 50;
+  FColumns[3].width := 40;
+  FColumns[4].ColumnType := act_type;
+  FColumns[4].width := 40;
+  FColumns[5].ColumnType := act_saleprice;
+  FColumns[5].width := 45;
+  FColumns[6].ColumnType := act_updated_state;
+  FColumns[6].width := 25;
   FNodeNotifyEvents := TNodeNotifyEvents.Create(Self);
   FNodeNotifyEvents.OnOperationsChanged := OnNodeNewOperation;
 end;
@@ -478,6 +482,26 @@ begin
           Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
         End;
         act_updated_state : Begin
+          if TAccountComp.IsAccountBlockedByProtocol(account.account,Node.Bank.BlocksCount) then begin
+            DrawGrid.Canvas.Brush.Color := clRed;
+          end else if ndiff=0 then begin
+            DrawGrid.Canvas.Brush.Color := RGB(255,128,0);
+          end else if ndiff<=8 then begin
+            DrawGrid.Canvas.Brush.Color := FromColorToColor(RGB(253,250,115),ColorToRGB(clGreen),ndiff-1,8-1);
+          end else begin
+            DrawGrid.Canvas.Brush.Color := clGreen;
+          end;
+          DrawGrid.Canvas.Ellipse(Rect.Left+1,Rect.Top+1,Rect.Right-1,Rect.Bottom-1);
+        End;
+        act_name : Begin
+          s := account.name;
+          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
+        end;
+        act_type : Begin
+          s := IntToStr(account.account_type);
+          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
+        end;
+        act_saleprice : Begin
           if TAccountComp.IsAccountForSale(account.accountInfo) then begin
             // Show price for sale
             s := TAccountComp.FormatMoney(account.accountInfo.price);
@@ -490,26 +514,7 @@ begin
             end else begin
               DrawGrid.Canvas.Font.Color := clGrayText
             end;
-            Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
-          end else begin
-            if TAccountComp.IsAccountBlockedByProtocol(account.account,Node.Bank.BlocksCount) then begin
-              DrawGrid.Canvas.Brush.Color := clRed;
-            end else if ndiff=0 then begin
-              DrawGrid.Canvas.Brush.Color := RGB(255,128,0);
-            end else if ndiff<=8 then begin
-              DrawGrid.Canvas.Brush.Color := FromColorToColor(RGB(253,250,115),ColorToRGB(clGreen),ndiff-1,8-1);
-            end else begin
-              DrawGrid.Canvas.Brush.Color := clGreen;
-            end;
-            DrawGrid.Canvas.Ellipse(Rect.Left+1,Rect.Top+1,Rect.Right-1,Rect.Bottom-1);
-          end;
-        End;
-        act_name : Begin
-          s := account.name;
-          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
-        end;
-        act_type : Begin
-          s := IntToStr(account.account_type);
+          end else s := '';
           Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
         end;
       else

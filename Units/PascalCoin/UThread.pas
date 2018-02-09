@@ -43,7 +43,7 @@ Type
     {$IFDEF HIGHLOG}
     procedure Acquire; override;
     procedure Release; override;
-    function TryEnter: Boolean; override;
+    function TryEnter: Boolean;
     {$ENDIF}
     Property CurrentThread : Cardinal read FCurrentThread;
     Property WaitingForCounter : Integer read FWaitingForCounter;
@@ -99,15 +99,19 @@ uses
 { TPCThread }
 
 Var _threads : TPCThreadList;
+    _threadsCount : Integer;
 
 constructor TPCThread.Create(CreateSuspended: Boolean);
 begin
+  inc(_threadsCount);
+  {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Created Thread '+IntToHex(PtrInt(Self),8)+' Total: '+IntToStr(_threadsCount));{$ENDIF}
   inherited Create(CreateSuspended);
-  {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Created Thread '+IntToHex(PtrInt(Self),8));{$ENDIF}
 end;
 
 destructor TPCThread.Destroy;
 begin
+  dec(_threadsCount);
+  {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Destroying Thread '+IntToHex(PtrInt(Self),8)+' Total: '+IntToStr(_threadsCount));{$ENDIF}
   inherited;
 end;
 
@@ -357,7 +361,7 @@ begin
   end;
   logged := false;
   Repeat
-    continue := inherited TryEnter;
+    continue := TryEnter;
     if (Not continue) then begin
       If (not logged) And ((FStartedTimestamp>0) And ((FStartedTimestamp+1000)<GetTickCount)) then begin
         logged := true;
@@ -379,8 +383,6 @@ begin
     FCounterLock.Release;
   end;
   FCurrentThread := TThread.CurrentThread.ThreadID;
-  FStartedTimestamp := GetTickCount;
-  inherited;
 end;
 {$ENDIF}
 
@@ -433,6 +435,7 @@ end;
 
 initialization
   _threads := TPCThreadList.Create('GLOBAL_THREADS');
+  _threadsCount := 0;
 finalization
   FreeAndNil(_threads);
 end.

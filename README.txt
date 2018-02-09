@@ -1,6 +1,6 @@
 # Pascal Coin: P2P Cryptocurrency without need of historical operations.  
   
-Copyright (c) 2016 Albert Molina  
+Copyright (c) 2016-2018 PascalCoin developers based on original Albert Molina source code
   
 THIS IS EXPERIMENTAL SOFTWARE. Use it for educational purposes only.  
   
@@ -34,7 +34,12 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
-### Future Build 2.1.4 - 2017-12-22
+### Build 2.1.5 - 2018-02-09
+- GUI changes:
+  - Allow massive accounts "change info" operation
+  - Added "account type" and "sale price" on accounts grid
+  - Show "account type" stats on search account form  
+  - Changed Icon to current PascalCoin icon
 - Pending operations buffer cached to file to allow daemon/app restart without losing pending operations
 - Less memory usage thanks to a Public keys centralised buffer
 - JSON-RPC changes
@@ -62,6 +67,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
       - "n_operation" : Integer. n_operation used by the account. n_operation is an incremental value, cannot be used twice on same account.
       - "md160hash" : HEXASTRING with MD160 hash
 - Solved bug that caused to delete blockchain when checking memory 
+- Solved bug in Network adjusted time on receiving connections caused by full entry buffer
 - Minor optimizations
 
 ### Build 2.1.3.0 - 2017-11-15

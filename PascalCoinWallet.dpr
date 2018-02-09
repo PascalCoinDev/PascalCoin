@@ -38,7 +38,8 @@ uses
   UFRMMemoText in 'Units\Forms\UFRMMemoText.pas' {FRMMemoText},
   UChunk in 'Units\PascalCoin\UChunk.pas',
   UBaseTypes in 'Units\PascalCoin\UBaseTypes.pas',
-  UCommon in 'Units\Utils\UCommon.pas';
+  UCommon in 'Units\Utils\UCommon.pas',
+  UAccountKeyStorage in 'Units\PascalCoin\UAccountKeyStorage.pas';
 
 {$R *.res}
 

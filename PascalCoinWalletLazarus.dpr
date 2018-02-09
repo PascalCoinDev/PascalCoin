@@ -49,7 +49,7 @@ uses
 
 begin
   Application.Initialize;
-  Application.MainFormOnTaskbar := True;
+  {$IFDEF WINDOWS}Application.MainFormOnTaskbar := True;{$ENDIF}
   Application.Title := 'Pascal Coin Wallet, Miner & Explorer';
   Application.CreateForm(TFRMWallet, FRMWallet);
   Application.Run;

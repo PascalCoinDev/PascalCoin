@@ -2690,7 +2690,7 @@ begin
     GetResultObject.GetAsObject('netstats').GetAsVariant('tservers').Value:=TNetData.NetData.NetStatistics.TotalServersConnections;
     GetResultObject.GetAsObject('netstats').GetAsVariant('breceived').Value:=TNetData.NetData.NetStatistics.BytesReceived;
     GetResultObject.GetAsObject('netstats').GetAsVariant('bsend').Value:=TNetData.NetData.NetStatistics.BytesSend;
-    nsaarr := TNetData.NetData.GetValidNodeServers(true,20);
+    nsaarr := TNetData.NetData.NodeServersAddresses.GetValidNodeServers(true,20);
     for i := low(nsaarr) to High(nsaarr) do begin
       jso := GetResultObject.GetAsArray('nodeservers').GetAsObject(i);
       jso.GetAsVariant('ip').Value := nsaarr[i].ip;

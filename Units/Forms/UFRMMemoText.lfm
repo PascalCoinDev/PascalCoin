@@ -13,7 +13,7 @@ object FRMMemoText: TFRMMemoText
   Font.Name = 'Tahoma'
   OnCreate = FormCreate
   Position = poOwnerFormCenter
-  LCLVersion = '1.6.4.0'
+  LCLVersion = '1.8.0.6'
   object pnlBottom: TPanel
     Left = 0
     Height = 55

@@ -14,7 +14,7 @@ object FRMAccountSelect: TFRMAccountSelect
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.8.0.6'
   object pnlAccountsTop: TPanel
     Left = 395
     Height = 282
@@ -193,7 +193,6 @@ object FRMAccountSelect: TFRMAccountSelect
       Width = 95
       Anchors = [akTop, akRight]
       Caption = 'Select'
-      Default = True
       Kind = bkOK
       ModalResult = 1
       TabOrder = 0
@@ -241,6 +240,18 @@ object FRMAccountSelect: TFRMAccountSelect
       Width = 18
       Caption = '000'
       ParentColor = False
+    end
+    object bbTypeStats: TBitBtn
+      Left = 288
+      Height = 30
+      Top = 5
+      Width = 95
+      Anchors = [akTop, akRight]
+      Caption = 'Type Stats'
+      Default = True
+      Kind = bkOK
+      ModalResult = 1
+      TabOrder = 2
     end
   end
   object dgAccounts: TDrawGrid

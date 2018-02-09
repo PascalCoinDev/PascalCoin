@@ -20,13 +20,13 @@ unit ULog;
 interface
 
 uses
-  Classes, UThread, SyncObjs;
+  Classes, UThread, SyncObjs, UConst;
 
 type
   TLogType = (ltinfo, ltupdate, lterror, ltdebug);
   TLogTypes = set of TLogType;
 
-  TNewLogEvent = procedure(logtype : TLogType; Time : TDateTime; ThreadID : Cardinal; Const sender, logtext : AnsiString) of object;
+  TNewLogEvent = procedure(logtype : TLogType; Time : TDateTime; ThreadID : TThreadID; Const sender, logtext : AnsiString) of object;
 
   TLog = Class;
 
@@ -44,7 +44,7 @@ type
   TLogData = Record
     Logtype : TLogType;
     Time : TDateTime;
-    ThreadID : Cardinal;
+    ThreadID : TThreadID;
     Sender, Logtext : AnsiString
   End;
 
@@ -159,7 +159,7 @@ begin
   try
     if assigned(FFileStream) And (logType in FSaveTypes) then begin
       if TThread.CurrentThread.ThreadID=MainThreadID then tid := ' MAIN:' else tid:=' TID:';
-      s := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz',now)+tid+IntToHex(TThread.CurrentThread.ThreadID,8)+' ['+CT_LogType[logtype]+'] <'+sender+'> '+logtext+#13#10;
+      s := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz',now)+tid+IntToHex(PtrInt(TThread.CurrentThread.ThreadID),8)+' ['+CT_LogType[logtype]+'] <'+sender+'> '+logtext+#13#10;
       FFileStream.Write(s[1],length(s));
     end;
     if Assigned(FOnInThreadNewLog) then begin

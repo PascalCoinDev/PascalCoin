@@ -21,7 +21,7 @@ type
     { Private declarations }
   public
     { Public declarations }
-    Procedure InitData(Title : String; text : String);
+    Procedure InitData(const Title : String; const text : String);
   end;
 
 implementation
@@ -37,7 +37,7 @@ begin
   Memo.Clear;
 end;
 
-procedure TFRMMemoText.InitData(Title, text: String);
+procedure TFRMMemoText.InitData(const Title, text: String);
 begin
   Caption := Title;
   Memo.Lines.Text := text;

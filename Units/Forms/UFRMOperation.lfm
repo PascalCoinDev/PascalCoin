@@ -15,7 +15,7 @@ object FRMOperation: TFRMOperation
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.8.0.6'
   object lblAccountCaption: TLabel
     Left = 25
     Height = 13

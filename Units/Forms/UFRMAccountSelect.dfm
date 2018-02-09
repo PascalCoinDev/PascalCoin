@@ -25,7 +25,6 @@ object FRMAccountSelect: TFRMAccountSelect
     Align = alRight
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitLeft = 331
     object cbOnlyForSale: TCheckBox
       Left = 10
       Top = 65
@@ -184,7 +183,6 @@ object FRMAccountSelect: TFRMAccountSelect
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 1
-    ExplicitWidth = 537
     DesignSize = (
       657
       40)
@@ -235,7 +233,6 @@ object FRMAccountSelect: TFRMAccountSelect
       Kind = bkOK
       ParentDoubleBuffered = False
       TabOrder = 0
-      ExplicitLeft = 330
     end
     object bbCancel: TBitBtn
       Left = 554
@@ -247,7 +244,17 @@ object FRMAccountSelect: TFRMAccountSelect
       Kind = bkCancel
       ParentDoubleBuffered = False
       TabOrder = 1
-      ExplicitLeft = 434
+    end
+    object bbTypeStats: TBitBtn
+      Left = 340
+      Top = 5
+      Width = 95
+      Height = 30
+      Caption = 'Type stats'
+      DoubleBuffered = True
+      ParentDoubleBuffered = False
+      TabOrder = 2
+      OnClick = bbTypeStatsClick
     end
   end
   object dgAccounts: TDrawGrid
@@ -257,6 +264,5 @@ object FRMAccountSelect: TFRMAccountSelect
     Height = 282
     Align = alClient
     TabOrder = 2
-    ExplicitWidth = 331
   end
 end

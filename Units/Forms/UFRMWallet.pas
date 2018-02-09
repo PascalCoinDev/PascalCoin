@@ -31,7 +31,8 @@ uses
   Dialogs, ExtCtrls, ComCtrls, UWalletKeys, StdCtrls,
   ULog, Grids, UAppParams,
   UBlockChain, UNode, UGridUtils, UAccounts, Menus, ImgList,
-  UNetProtocol, UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect;
+  UNetProtocol, UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect,
+  UConst;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -217,6 +218,7 @@ type
     procedure MiFindOperationbyOpHashClick(Sender: TObject);
     procedure MiAccountInformationClick(Sender: TObject);
   private
+    FLastNodesCacheUpdatedTS : TDateTime;
     FBackgroundPanel : TPanel;
     FMinersBlocksFound: Integer;
     procedure SetMinersBlocksFound(const Value: Integer);
@@ -251,7 +253,7 @@ type
     Procedure OnNewAccount(Sender : TObject);
     Procedure OnReceivedHelloMessage(Sender : TObject);
     Procedure OnNetStatisticsChanged(Sender : TObject);
-    procedure OnNewLog(logtype : TLogType; Time : TDateTime; ThreadID : Cardinal; Const sender, logtext : AnsiString);
+    procedure OnNewLog(logtype : TLogType; Time : TDateTime; ThreadID : TThreadID; Const sender, logtext : AnsiString);
     procedure OnWalletChanged(Sender : TObject);
     procedure OnNetConnectionsUpdated(Sender : TObject);
     procedure OnNetNodeServersUpdated(Sender : TObject);
@@ -293,7 +295,7 @@ implementation
   {$R *.lfm}
 {$ENDIF}
 
-Uses UFolderHelper, UOpenSSL, UOpenSSLdef, UConst, UTime, UFileStorage,
+Uses UFolderHelper, UOpenSSL, UOpenSSLdef, UTime, UFileStorage,
   UThread, UOpTransaction, UECIES, UFRMPascalCoinWalletConfig,
   UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText;
 
@@ -829,6 +831,7 @@ end;
 procedure TFRMWallet.FormCreate(Sender: TObject);
 Var i : Integer;
 begin
+  FLastNodesCacheUpdatedTS := Now;
   FBackgroundPanel := Nil;
   FMustProcessWalletChanged := false;
   FMustProcessNetConnectionUpdated := false;
@@ -1303,7 +1306,7 @@ begin
     strings.BeginUpdate;
     Try
       strings.Clear;
-      strings.Add('BlackList Updated: '+DateTimeToStr(now)+' by TID:'+IntToHex(TThread.CurrentThread.ThreadID,8));
+      strings.Add('BlackList Updated: '+DateTimeToStr(now)+' by TID:'+IntToHex(PtrInt(TThread.CurrentThread.ThreadID),8));
       j := 0; n:=0;
       for i := 0 to l.Count - 1 do begin
         P := l[i];
@@ -1352,6 +1355,10 @@ begin
         P := l[i];
         if Not (P^.is_blacklisted) then begin
           s := Format('Server IP:%s:%d',[P^.ip,P^.port]);
+          if (P^.last_connection_by_me>0) then begin
+            s := s + ' [Server] ';
+          end;
+
           if Assigned(P.netConnection) then begin
             If P.last_connection>0 then  s := s+ ' ** ACTIVE **'
             else s := s+' ** TRYING TO CONNECT **';
@@ -1413,7 +1420,7 @@ begin
   end;
 end;
 
-procedure TFRMWallet.OnNewLog(logtype: TLogType; Time : TDateTime; ThreadID : Cardinal; const sender,logtext: AnsiString);
+procedure TFRMWallet.OnNewLog(logtype: TLogType; Time : TDateTime; ThreadID : TThreadID; const sender,logtext: AnsiString);
 Var s : AnsiString;
 begin
   if (logtype=ltdebug) And (Not cbShowDebugLogs.Checked) then exit;
@@ -1427,7 +1434,7 @@ begin
       memoLogs.Lines.EndUpdate;
     end;
   end;
-  memoLogs.Lines.Add(formatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time)+s+IntToHex(ThreadID,8)+' ['+CT_LogType[Logtype]+'] <'+sender+'> '+logtext);
+  memoLogs.Lines.Add(formatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time)+s+IntToHex(PtrInt(ThreadID),8)+' ['+CT_LogType[Logtype]+'] <'+sender+'> '+logtext);
   //
 end;
 
@@ -1463,9 +1470,10 @@ Var nsarr : TNodeServerAddressArray;
   i : Integer;
   s : AnsiString;
 begin
-  //CheckMining;
+  If (FLastNodesCacheUpdatedTS + EncodeTime(0,5,0,0) > Now) then exit; // Prevent continuous saving
+  FLastNodesCacheUpdatedTS := Now;
   // Update node servers Peer Cache
-  nsarr := TNetData.NetData.GetValidNodeServers(true,0);
+  nsarr := TNetData.NetData.NodeServersAddresses.GetValidNodeServers(true,0);
   s := '';
   for i := low(nsarr) to High(nsarr) do begin
     if (s<>'') then s := s+';';

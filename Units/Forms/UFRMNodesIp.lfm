@@ -14,7 +14,7 @@ object FRMNodesIp: TFRMNodesIp
   Font.Name = 'Tahoma'
   OnCreate = FormCreate
   Position = poOwnerFormCenter
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.8.0.6'
   object Label1: TLabel
     Left = 30
     Height = 13
@@ -78,7 +78,7 @@ object FRMNodesIp: TFRMNodesIp
     Left = 35
     Height = 19
     Top = 285
-    Width = 201
+    Width = 164
     Caption = 'Connect ONLY to these nodes'
     OnClick = cbTryOnlyWithThisServersClick
     TabOrder = 3

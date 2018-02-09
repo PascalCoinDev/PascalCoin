@@ -57,7 +57,7 @@ uses
   Windows, ShlObj,
   {$DEFINE FILEVERSIONINFO}
 {$ELSE}
-  {$IFnDEF LINUX}
+  {$IFDEF WIN}
   Windows,
   {$DEFINE FILEVERSIONINFO}
   {$ENDIF}
@@ -77,10 +77,10 @@ function SHGetFolderPath; external 'SHFolder.dll' name 'SHGetFolderPathW';
 class function TFolderHelper.GetAppDataFolder: string;
 begin
   {$IFDEF FPC}
-  {$IFDEF LINUX}
-  Result :=GetEnvironmentVariable('HOME');
-  {$ELSE}
+  {$IFDEF WINDOWS}
   Result :=GetEnvironmentVariable('APPDATA');
+  {$ELSE}
+  Result :=GetEnvironmentVariable('HOME');
   {$ENDIF}
   {$ELSE}
   Result := GetFolder(CSIDL_APPDATA); // c:\Users\(User Name)\AppData\Roaming

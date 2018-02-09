@@ -90,6 +90,7 @@ type
     cbMyAccounts: TCheckBox;
     cbMyPrivateKeys: TComboBox;
     cbOnlyForPublicSale: TCheckBox;
+    bbTypeStats: TBitBtn;
     procedure bbSearchClick(Sender: TObject);
     procedure cbMyAccountsChange(Sender: TObject);
     procedure cbMyAccountsClick(Sender: TObject);
@@ -98,6 +99,7 @@ type
     procedure ebMinBalanceExit(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure bbTypeStatsClick(Sender: TObject);
   private
     FAllowSelect: Boolean;
     FDefaultAccount: Int64;
@@ -137,7 +139,7 @@ implementation
   {$R *.lfm}
 {$ENDIF}
 
-Uses strutils;
+Uses strutils, UFRMMemoText;
 
 { TSearchThread }
 
@@ -207,7 +209,7 @@ begin
       FIsReadyForSearch:=False;
       FDoStopSearch:=False;
       SearchFilteredInThread;
-    end;
+    end else sleep(1);
   end;
 end;
 
@@ -278,6 +280,7 @@ begin
   cbOnlyForPublicSale.OnClick:=cbMyAccountsClick;
   cbAccountsBalance.OnClick:=cbMyAccountsClick;
   cbAccountsName.OnClick:=cbMyAccountsClick;
+  bbTypeStats.OnClick:=bbTypeStatsClick;
   UpdateControls;
   AllowSelect:=False;
 end;
@@ -285,6 +288,111 @@ end;
 procedure TFRMAccountSelect.bbSearchClick(Sender: TObject);
 begin
   SearchFiltered;
+end;
+
+procedure TFRMAccountSelect.bbTypeStatsClick(Sender: TObject);
+Type
+  TAccTypeStats = Record
+    accounts:Integer;
+    balance:Int64;
+  end;
+Const
+  TAccTypeStats_NUL : TAccTypeStats = (accounts:0;balance:0);
+Var i,j,k : Integer;
+  account : TAccount;
+  c : Cardinal;
+  s_0,s_inv : TAccTypeStats;
+  s_5 : Array[0..6] of Array[1..4,0..9] of TAccTypeStats;
+  FRM : TFRMMemoText;
+  sl : TStringList;
+begin
+  c := 0;
+  s_0 := TAccTypeStats_NUL;
+  s_inv := TAccTypeStats_NUL;
+  for i := low(s_5) to high(s_5) do
+    for j := 1 to 4 do
+      for k := 0 to 9 do
+        s_5[i,j,k] := TAccTypeStats_NUL;
+
+
+  while (c<FSafeBox.AccountsCount) do begin
+    account := FSafeBox.Account(c);
+    if (account.account_type=0) then begin
+      inc(s_0.accounts);
+      inc(s_0.balance,account.balance);
+    end else if (account.account_type<10000) then begin
+      inc(s_inv.accounts);
+      inc(s_inv.balance,account.balance);
+    end;
+    k := ((account.account_type MOD 100000) DIV 10000); // k is 0..6 because account.account_type is a word 0..65535
+    if (k<0) or (k>6) then k:=0;
+    for i := 0 to 9 do begin
+      j := ((account.account_type MOD 10000) DIV 1000); // j is 0..9
+      if (j=i) then begin
+        inc(s_5[k][1][j].accounts);
+        inc(s_5[k][1][j].balance,account.balance);
+      end;
+    end;
+    for i := 0 to 9 do begin
+      j := ((account.account_type MOD 1000) DIV 100); // j is 0..9
+      if (j=i) then begin
+        inc(s_5[k][2][j].accounts);
+        inc(s_5[k][2][j].balance,account.balance);
+      end;
+    end;
+    for i := 0 to 9 do begin
+      j := ((account.account_type MOD 100) DIV 10); // j is 0..9
+      if (j=i) then begin
+        inc(s_5[k][3][j].accounts);
+        inc(s_5[k][3][j].balance,account.balance);
+      end;
+    end;
+    for i := 0 to 9 do begin
+      j := ((account.account_type MOD 10) DIV 1); // j is 0..9
+      if (j=i) then begin
+        inc(s_5[k][4][j].accounts);
+        inc(s_5[k][4][j].balance,account.balance);
+      end;
+    end;
+    inc(c);
+  end;
+  sl := TStringList.Create;
+  Try
+    sl.Add('*** Account type stats ***');
+    sl.Add(Format('Current block:%d accounts:%d coins:%s',[FSafeBox.BlocksCount,FSafeBox.AccountsCount,TAccountComp.FormatMoney(FSafeBox.TotalBalance)]));
+    sl.Add('');
+    sl.Add('** Basic stats **');
+    sl.Add(Format('Account type=0 accounts:%d coins:%s',[s_0.accounts,TAccountComp.FormatMoney(s_0.balance)]));
+    sl.Add(Format('Account type [1..9999] accounts:%d coins:%s',[s_inv.accounts,TAccountComp.FormatMoney(s_inv.balance)]));
+    sl.Add('');
+    sl.Add('*** Stats by group ***');
+    for k := 0 to 6 do begin
+      // Note: Account type is a Word [0..65535], so left digit can be only 0..6, deprecating 6 to not fill, result for stats is 0..5
+      sl.Add('');
+      sl.Add(Format('** Group [%d..%d] **',[(k)*10000,((k+1)*10000)-1]));
+      for j := 0 to 9 do begin
+        sl.Add(Format('Account type like %d%d*** accounts:%d coins:%s',[k,j,s_5[k][1][j].accounts,TAccountComp.FormatMoney(s_5[k][1][j].balance)]));
+      end;
+      for j := 0 to 9 do begin
+        sl.Add(Format('Account type like %d*%d** accounts:%d coins:%s',[k,j,s_5[k][2][j].accounts,TAccountComp.FormatMoney(s_5[k][2][j].balance)]));
+      end;
+      for j := 0 to 9 do begin
+        sl.Add(Format('Account type like %d**%d* accounts:%d coins:%s',[k,j,s_5[k][3][j].accounts,TAccountComp.FormatMoney(s_5[k][3][j].balance)]));
+      end;
+      for j := 0 to 9 do begin
+        sl.Add(Format('Account type like %d***%d accounts:%d coins:%s',[k,j,s_5[k][4][j].accounts,TAccountComp.FormatMoney(s_5[k][4][j].balance)]));
+      end;
+    end;
+    FRM := TFRMMemoText.Create(Self);
+    Try
+      FRM.InitData('Account Type Stats',sl.Text);
+      FRM.ShowModal;
+    Finally
+      FRM.Free;
+    End;
+  Finally
+    sl.Free;
+  End;
 end;
 
 procedure TFRMAccountSelect.cbMyAccountsChange(Sender: TObject);

@@ -146,7 +146,6 @@ type
   private
     FNetTcpIpServerServer : TNetTcpIpServer;
     FServerSocket: TTCPBlockSocket;
-    FTcpIpSocketsThread : TPCThreadList;
   protected
     procedure BCExecute; override;
   public
@@ -320,6 +319,9 @@ begin
     DebugStep := '';
     FLock.Acquire;
     Try
+      if Not FConnected then begin
+        exit; // Protection inside lock thread to prevent double disconnect sessions
+      end;
       DebugStep := 'disconnecting';
       if Not FConnected then exit;
       DebugStep := 'Closing socket';

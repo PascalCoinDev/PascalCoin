@@ -27,7 +27,7 @@ uses
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UNode, UWalletKeys, UCrypto, Buttons, UBlockChain,
-  UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UCommon;
+  UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UCommon, UFRMMemoText;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -312,11 +312,14 @@ loop_start:
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsChangeInfo) then begin
         {%region Operation: Change Info}
-        if not UpdateOpChangeInfo(account,signerAccount,_changeName,_newName,_changeType,_newType,errors) then raise Exception.Create(errors);
-        if signerAccount.balance>DefaultFee then _fee := DefaultFee
-        else _fee := signerAccount.balance;
-        op := TOpChangeAccountInfo.CreateChangeAccountInfo(signerAccount.account,signerAccount.n_operation+1,account.account,wk.PrivateKey,false,CT_TECDSA_Public_Nul,
-           _changeName,_newName,_changeType,_newType,_fee,FEncodedPayload);
+        if not UpdateOpChangeInfo(account,signerAccount,_changeName,_newName,_changeType,_newType,errors) then begin
+          If Length(_senderAccounts)=1 then raise Exception.Create(errors);
+        end else begin
+          if signerAccount.balance>DefaultFee then _fee := DefaultFee
+          else _fee := signerAccount.balance;
+          op := TOpChangeAccountInfo.CreateChangeAccountInfo(signerAccount.account,signerAccount.n_operation+1,account.account,wk.PrivateKey,false,CT_TECDSA_Public_Nul,
+             _changeName,_newName,_changeType,_newType,_fee,FEncodedPayload);
+        end;
         {%endregion}
       end else begin
         raise Exception.Create('No operation selected');
@@ -345,13 +348,31 @@ loop_start:
     end;
     i := FNode.AddOperations(nil,ops,Nil,errors);
     if (i=ops.OperationsCount) then begin
-      Application.MessageBox(PChar('Successfully executed '+inttostr(i)+' operations!'+#10+#10+operation_to_string),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
+      operationstxt := 'Successfully executed '+inttostr(i)+' operations!'+#10+#10+operation_to_string;
+      If i>1 then begin
+        With TFRMMemoText.Create(Self) do
+        Try
+          InitData(Application.Title,operationstxt);
+          ShowModal;
+        finally
+          Free;
+        end;
+      end else begin
+        Application.MessageBox(PChar('Successfully executed '+inttostr(i)+' operations!'+#10+#10+operation_to_string),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
+      end;
       ModalResult := MrOk;
     end else if (i>0) then begin
-      Application.MessageBox(PChar('One or more of your operations has not been executed:'+#10+
+      operationstxt := 'One or more of your operations has not been executed:'+#10+
         'Errors:'+#10+
         errors+#10+#10+
-        'Total successfully executed operations: '+inttostr(i)),PChar(Application.Title),MB_OK+MB_ICONWARNING);
+        'Total successfully executed operations: '+inttostr(i);
+      With TFRMMemoText.Create(Self) do
+      Try
+        InitData(Application.Title,operationstxt);
+        ShowModal;
+      finally
+        Free;
+      end;
       ModalResult := MrOk;
     end else begin
       raise Exception.Create(errors);
@@ -818,18 +839,18 @@ begin
   lblChangeInfoErrors.Caption:='';
   if not (PageControlOpType.ActivePage=tsChangeInfo) then exit;
   try
-    if SenderAccounts.Count<>1 then begin
-      errors := 'Cannot change info with multioperations. Use only 1 account';
-      exit;
-    end;
     if (TAccountComp.IsAccountLocked(TargetAccount.accountInfo,FNode.Bank.BlocksCount)) then begin
       errors := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(TargetAccount.account)+' is locked until block '+IntToStr(TargetAccount.accountInfo.locked_until_block);
       exit;
     end;
     // Signer:
-    If Not TAccountComp.AccountTxtNumberToAccountNumber(ebSignerAccount.Text,auxC) then begin
-      errors := 'Invalid signer account';
-      exit;
+    if SenderAccounts.Count=1 then begin
+      If Not TAccountComp.AccountTxtNumberToAccountNumber(ebSignerAccount.Text,auxC) then begin
+        errors := 'Invalid signer account';
+        exit;
+      end;
+    end else begin
+       auxC := TargetAccount.account;
     end;
     if (auxC<0) Or (auxC >= FNode.Bank.AccountsCount) then begin
       errors := 'Signer account does not exists '+TAccountComp.AccountNumberToAccountTxtNumber(auxC);
@@ -848,21 +869,23 @@ begin
       errors := 'This operation needs PROTOCOL 2 active';
       exit;
     end;
-    // New name and type
-    newName := LowerCase( Trim(ebChangeName.Text) );
-    If newName<>TargetAccount.name then begin
-      changeName:=True;
-      If newName<>'' then begin
-        if (Not TPCSafeBox.ValidAccountName(newName,errors)) then begin
-          errors := '"'+newName+'" is not a valid name: '+errors;
-          Exit;
+    // New name and type (only when single operation)
+    If (SenderAccounts.Count=1) then begin
+      newName := LowerCase( Trim(ebChangeName.Text) );
+      If newName<>TargetAccount.name then begin
+        changeName:=True;
+        If newName<>'' then begin
+          if (Not TPCSafeBox.ValidAccountName(newName,errors)) then begin
+            errors := '"'+newName+'" is not a valid name: '+errors;
+            Exit;
+          end;
+          i := (FNode.Bank.SafeBox.FindAccountByName(newName));
+          if (i>=0) then begin
+            errors := 'Name "'+newName+'" is used by account '+TAccountComp.AccountNumberToAccountTxtNumber(i);
+            Exit;
+          end;
         end;
-        i := (FNode.Bank.SafeBox.FindAccountByName(newName));
-        if (i>=0) then begin
-          errors := 'Name "'+newName+'" is used by account '+TAccountComp.AccountNumberToAccountTxtNumber(i);
-          Exit;
-        end;
-      end;
+      end else changeName := False;
     end else changeName := False;
     val(ebChangeType.Text,newType,errCode);
     if (errCode>0) then begin
@@ -871,7 +894,7 @@ begin
     end;
     changeType := TargetAccount.account_type<>newType;
     //
-    If (newName=TargetAccount.name) And (newType=TargetAccount.account_type) then begin
+    If (SenderAccounts.Count=1) And (newName=TargetAccount.name) And (newType=TargetAccount.account_type) then begin
       errors := 'Account name and type are the same. Not changed';
       Exit;
     end;
@@ -882,7 +905,9 @@ begin
       lblChangeInfoErrors.Caption := errors;
     end else begin
       lblChangeInfoErrors.Font.Color := clGreen;
-      lblChangeInfoErrors.Caption := TAccountComp.AccountNumberToAccountTxtNumber(TargetAccount.account)+' can be updated';
+      If (SenderAccounts.Count=1) then
+        lblChangeInfoErrors.Caption := TAccountComp.AccountNumberToAccountTxtNumber(TargetAccount.account)+' can be updated'
+      else lblChangeInfoErrors.Caption := IntToStr(SenderAccounts.Count)+' accounts can be updated'
     end;
   end;
 end;
@@ -1099,11 +1124,13 @@ begin
     rbEncryptedWithEC.Caption := 'Encrypted with target public key';
   end;
   ebSignerAccount.Enabled:= ((PageControlOpType.ActivePage=tsChangePrivateKey) And (FNode.Bank.SafeBox.CurrentProtocol>=CT_PROTOCOL_2))
-    Or (PageControlOpType.ActivePage=tsChangeInfo)
+    Or ((PageControlOpType.ActivePage=tsChangeInfo) And (SenderAccounts.Count=1))
     Or (PageControlOpType.ActivePage=tsListForSale)
     Or (PageControlOpType.ActivePage=tsDelist);
   sbSearchSignerAccount.Enabled:=ebSignerAccount.Enabled;
   lblSignerAccount.Enabled := ebSignerAccount.Enabled;
+  lblChangeName.Enabled:= (PageControlOpType.ActivePage=tsChangeInfo) And (SenderAccounts.Count=1);
+  ebChangeName.Enabled:= lblChangeName.Enabled;
   //
   UpdatePayload(sender_account, e);
 end;
