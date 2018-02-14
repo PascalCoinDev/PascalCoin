@@ -2038,7 +2038,7 @@ begin
       exit;
     end;
     destTotalBlocks := ToBlock - FromBlock + 1;
-    TLog.NewLog(ltInfo,ClassName,Format('CopySafeBoxStream from safebox with %d to %d (of %d sbh:%s) to safebox with %d and %d',
+    TLog.NewLog(ltDebug,ClassName,Format('CopySafeBoxStream from safebox with %d to %d (of %d sbh:%s) to safebox with %d and %d',
       [sbHeader.startBlock,sbHeader.endBlock,sbHeader.BlocksCount,TCrypto.ToHexaString(sbHeader.safeBoxHash),FromBlock,ToBlock]));
     // Read Source Offset zone
     posOffsetZoneSource := Source.Position;
@@ -2056,7 +2056,7 @@ begin
     setLength(offsetsDest,destTotalBlocks+1);
     // Blocks zone
     posBlocksZoneDest := Dest.Position;
-    TLog.NewLog(ltInfo,Classname,
+    TLog.NewLog(ltDebug,Classname,
       Format('Copying Safebox Stream from source Position %d (size:%d) to dest %d bytes - OffsetSource[%d] - OffsetSource[%d]',
        [posOffsetZoneSource + offsetsSource[FromBlock - sbHeader.startBlock], Source.Size,
         offsetsSource[ToBlock - sbHeader.startBlock + 1] - offsetsSource[FromBlock - sbHeader.startBlock],

@@ -63,6 +63,8 @@ Type
     class Function ImportFromRaw(Const raw : TRawBytes) : TECPrivateKey; static;
   End;
 
+  { TCrypto }
+
   TCrypto = Class
   private
   public
@@ -70,6 +72,7 @@ Type
     Class function HexaToRaw(const HexaString : AnsiString) : TRawBytes;
     Class function DoSha256(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     Class function DoSha256(const TheMessage : AnsiString) : TRawBytes; overload;
+    Class procedure DoSha256(const TheMessage : AnsiString; var ResultSha256 : TRawBytes);  overload;
     Class procedure DoDoubleSha256(p : PAnsiChar; plength : Cardinal; Var ResultSha256 : TRawBytes); overload;
     Class function DoRipeMD160_HEXASTRING(const TheMessage : AnsiString) : TRawBytes; overload;
     Class function DoRipeMD160AsRaw(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
@@ -322,7 +325,8 @@ end;
   Note: Delphi is slowly when working with Strings (allowing space)... so to
   increase speed we use a String as a pointer, and only increase speed if
   needed. Also the same with functions "GetMem" and "FreeMem" }
-class procedure TCrypto.DoDoubleSha256(p: PAnsiChar; plength: Cardinal; var ResultSha256: TRawBytes);
+class procedure TCrypto.DoDoubleSha256(p: PAnsiChar; plength: Cardinal;
+  Var ResultSha256: TRawBytes);
 Var PS : PAnsiChar;
   PC : PAnsiChar;
 begin
@@ -377,6 +381,19 @@ Var PS : PAnsiChar;
 begin
   SetLength(Result,32);
   PS := @Result[1];
+  SHA256(PAnsiChar(TheMessage),Length(TheMessage),PS);
+end;
+
+{ New at Build 2.1.6
+  Note: Delphi is slowly when working with Strings (allowing space)... so to
+  increase speed we use a String as a pointer, and only increase speed if
+  needed. Also the same with functions "GetMem" and "FreeMem" }
+class procedure TCrypto.DoSha256(const TheMessage: AnsiString; var ResultSha256: TRawBytes);
+Var PS : PAnsiChar;
+  PC : PAnsiChar;
+begin
+  If length(ResultSha256)<>32 then SetLength(ResultSha256,32);
+  PS := @ResultSha256[1];
   SHA256(PAnsiChar(TheMessage),Length(TheMessage),PS);
 end;
 

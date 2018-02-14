@@ -2357,7 +2357,9 @@ begin
             op := operations.GetOperation(i);
             FBufferReceivedOperationsHash.Add(op.Sha256);
             c := FBufferToSendOperations.IndexOfOperation(op);
-            if (c>=0) then FBufferToSendOperations.Delete(c);
+            if (c>=0) then begin
+              FBufferToSendOperations.Delete(c);
+            end;
           end;
         Finally
           FBufferLock.Release;
@@ -2633,6 +2635,7 @@ begin
       end;
       // Sending
       Send(ntp_response,HeaderData.operation,0,HeaderData.request_id,responseStream);
+      TLog.NewLog(ltInfo,ClassName,Format('Sending Safebox(%d) chunk[%d..%d] to %s Bytes:%d',[_blockcount,_from,_to,ClientRemoteAddr,responseStream.Size]));
     finally
       responseStream.Free;
     end;

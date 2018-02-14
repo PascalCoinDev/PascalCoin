@@ -34,6 +34,19 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 2.1.6 - 2018-02-14
+- Important improvements
+  - Improved speed when processing operations on start
+  - Improved speed when processing pending operations after a new block found
+  - Deleted duplicate "SanitizeOperations" call
+  - Verify signed operations only once (TPCOperation.FSignatureChecked Boolean)
+  - Improvements in search methods of TOperationsHashTree
+    - Increase speed in search methods thanks to internal ordered lists
+    - Increase speed copying thanks to using FHashTree sender buffer instad of generating new one
+  - Internal bugs
+- Those improvements solved BUG that caused operations not included to blockchain due slow processing with MemPool 
+- NOTE: It's HIGHLY RECOMMENDED to upgrade to this version
+
 ### Build 2.1.5 - 2018-02-09
 - GUI changes:
   - Allow massive accounts "change info" operation

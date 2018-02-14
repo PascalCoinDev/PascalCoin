@@ -155,6 +155,8 @@ Type
   Private
     Ftag: integer;
   Protected
+    FSignatureChecked : Boolean; // Improvement TPCOperation speed 2.1.6
+    //
     FPrevious_Signer_updated_block: Cardinal;
     FPrevious_Destination_updated_block : Cardinal;
     FPrevious_Seller_updated_block : Cardinal;
@@ -198,18 +200,23 @@ Type
 
   TOperationsHashTree = Class
   private
-    FHashTreeOperations : TPCThreadList;
+    FListOrderedByAccountsData : TList;
+    FListOrderedBySha256 : TList; // Improvement TOperationsHashTree speed 2.1.6
+    FHashTreeOperations : TPCThreadList; // Improvement TOperationsHashTree speed 2.1.6
     FHashTree: TRawBytes;
     FOnChanged: TNotifyEvent;
     FTotalAmount : Int64;
     FTotalFee : Int64;
-    Procedure InternalAddOperationToHashTree(list : TList; op : TPCOperation);
+    Procedure InternalAddOperationToHashTree(list : TList; op : TPCOperation; CalcNewHashTree : Boolean);
+    Function FindOrderedBySha(lockedThreadList : TList; const Value: TRawBytes; var Index: Integer): Boolean;
+    Function FindOrderedByAccountData(lockedThreadList : TList; const account_number : Cardinal; var Index: Integer): Boolean;
+    function GetHashTree: TRawBytes;
   public
     Constructor Create;
     Destructor Destroy; Override;
     Procedure AddOperationToHashTree(op : TPCOperation);
     Procedure ClearHastThree;
-    Property HashTree : TRawBytes read FHashTree;
+    Property HashTree : TRawBytes read GetHashTree;
     Function OperationsCount : Integer;
     Function GetOperation(index : Integer) : TPCOperation;
     Function GetOperationsAffectingAccount(account_number : Cardinal; List : TList) : Integer;
@@ -1220,7 +1227,6 @@ begin
     FOperationBlock.fee := 0;
     //
     SafeBoxTransaction.CleanTransaction;
-    //
     aux := TOperationsHashTree.Create;
     Try
       lastn := FOperationsHashTree.OperationsCount;
@@ -1230,7 +1236,7 @@ begin
           inc(n);
           aux.AddOperationToHashTree(op);
           inc(FOperationBlock.fee,op.OperationFee);
-          TLog.NewLog(ltdebug,Classname,'Sanitizing (pos:'+inttostr(i+1)+'/'+inttostr(lastn)+'): '+op.ToString);
+          {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Sanitizing (pos:'+inttostr(i+1)+'/'+inttostr(lastn)+'): '+op.ToString){$ENDIF};
         end;
       end;
     Finally
@@ -1538,13 +1544,19 @@ Type TOperationHashTreeReg = Record
        Op : TPCOperation;
      end;
      POperationHashTreeReg = ^TOperationHashTreeReg;
+     TOperationsHashAccountsData = Record
+       account_number : Cardinal;
+       account_count : Integer;
+       account_without_fee : Integer;
+     end;
+     POperationsHashAccountsData = ^TOperationsHashAccountsData;
 
 procedure TOperationsHashTree.AddOperationToHashTree(op: TPCOperation);
 Var l : TList;
 begin
   l := FHashTreeOperations.LockList;
   try
-    InternalAddOperationToHashTree(l,op);
+    InternalAddOperationToHashTree(l,op,True);
   finally
     FHashTreeOperations.UnlockList;
   end;
@@ -1554,6 +1566,7 @@ procedure TOperationsHashTree.ClearHastThree;
 var l : TList;
   i : Integer;
   P : POperationHashTreeReg;
+  PaccData : POperationsHashAccountsData;
 begin
   l := FHashTreeOperations.LockList;
   try
@@ -1565,9 +1578,15 @@ begin
         P^.Op.Free;
         Dispose(P);
       end;
+      for i:=0 to FListOrderedByAccountsData.Count-1 do begin
+        PaccData := FListOrderedByAccountsData[i];
+        Dispose(PaccData);
+      end;
     Finally
       l.Clear;
-      FHashTree := TCrypto.DoSha256('');
+      FListOrderedBySha256.Clear;
+      FListOrderedByAccountsData.Clear;
+      FHashTree := '';
     End;
     If Assigned(FOnChanged) then FOnChanged(Self);
   finally
@@ -1584,18 +1603,21 @@ begin
   if (Sender = Self) then begin
     exit;
   end;
-  ClearHastThree;
   lme := FHashTreeOperations.LockList;
   try
     lastNE := FOnChanged;
     FOnChanged := Nil;
     try
+      ClearHastThree;
       lsender := Sender.FHashTreeOperations.LockList;
       try
         for i := 0 to lsender.Count - 1 do begin
           PSender := lsender[i];
-          InternalAddOperationToHashTree(lme,PSender^.Op);
+          InternalAddOperationToHashTree(lme,PSender^.Op,False);
         end;
+        // Improvement TOperationsHashTree speed 2.1.6
+        // FHashTree value updated now, not on every for cycle
+        FHashTree:=Sender.FHashTree;
       finally
         Sender.FHashTreeOperations.UnlockList;
       end;
@@ -1611,31 +1633,60 @@ end;
 constructor TOperationsHashTree.Create;
 begin
   FOnChanged:=Nil;
+  FListOrderedBySha256 := TList.Create;
+  FListOrderedByAccountsData := TList.Create;
   FTotalAmount := 0;
   FTotalFee := 0;
-  FHashTree := TCrypto.DoSha256('');
+  FHashTree := '';
   FHashTreeOperations := TPCThreadList.Create('TOperationsHashTree_HashTreeOperations');
 end;
 
 procedure TOperationsHashTree.Delete(index: Integer);
 Var l : TList;
   P : POperationHashTreeReg;
-  i : Integer;
+  i,iDel,iValuePosDeleted : Integer;
+  PaccData : POperationsHashAccountsData;
 begin
   l := FHashTreeOperations.LockList;
   try
     P := l[index];
+
+    // Delete from Ordered
+    If Not FindOrderedBySha(l,P^.Op.Sha256,iDel) then begin
+      TLog.NewLog(ltError,ClassName,'DEV ERROR 20180213-1 Operation not found in ordered list: '+P^.Op.ToString);
+    end else begin
+      iValuePosDeleted := PtrInt(FListOrderedBySha256[iDel]);
+      FListOrderedBySha256.Delete(iDel);
+      // Decrease values > iValuePosDeleted
+      for i := 0 to FListOrderedBySha256.Count - 1 do begin
+        if PtrInt(FListOrderedBySha256[i])>iValuePosDeleted then begin
+          FListOrderedBySha256[i] := TObject( PtrInt(FListOrderedBySha256[i]) - 1 );
+        end;
+      end;
+    end;
+    // Delete from account Data
+    If Not FindOrderedByAccountData(l,P^.Op.SignerAccount,i) then begin
+      TLog.NewLog(ltError,ClassName,Format('DEV ERROR 20180213-3 account %d not found in ordered list: %s',[P^.Op.SignerAccount,P^.Op.ToString]));
+    end else begin
+      PaccData := POperationsHashAccountsData( FListOrderedByAccountsData[i] );
+      Dec(PaccData.account_count);
+      If (P^.Op.OperationFee=0) then Dec(PaccData.account_without_fee);
+      If (PaccData.account_count<=0) then begin
+        Dispose(PaccData);
+        FListOrderedByAccountsData.Delete(i);
+      end;
+    end;
+
     l.Delete(index);
     P^.Op.Free;
     Dispose(P);
     // Recalc operations hash
     FTotalAmount := 0;
     FTotalFee := 0;
-    FHashTree := '';
+    FHashTree := ''; // Init to future recalc
     for i := 0 to l.Count - 1 do begin
       P := l[i];
       // Include to hash tree
-      FHashTree := TCrypto.DoSha256(FHashTree+P^.Op.Sha256);
       P^.Op.tag := i;
       inc(FTotalAmount,P^.Op.OperationAmount);
       inc(FTotalFee,P^.Op.OperationFee);
@@ -1652,7 +1703,30 @@ begin
   ClearHastThree;
   FreeAndNil(FHashTreeOperations);
   SetLength(FHashTree,0);
+  FreeAndNil(FListOrderedBySha256);
+  FreeAndNil(FListOrderedByAccountsData);
   inherited;
+end;
+
+function TOperationsHashTree.GetHashTree: TRawBytes;
+Var l : TList;
+  i : Integer;
+  P : POperationHashTreeReg;
+begin
+  if Length(FHashTree)<>32 then begin
+    l := FHashTreeOperations.LockList;
+    Try
+      TCrypto.DoSha256('',FHashTree);
+      for i := 0 to l.Count - 1 do begin
+        P := l[i];
+        // Include to hash tree
+        TCrypto.DoSha256(FHashTree+P^.Op.Sha256,FHashTree);
+      end;
+    Finally
+      FHashTreeOperations.UnlockList;
+    End;
+  end;
+  Result := FHashTree;
 end;
 
 function TOperationsHashTree.GetOperation(index: Integer): TPCOperation;
@@ -1691,17 +1765,18 @@ begin
 end;
 
 function TOperationsHashTree.IndexOfOperation(op: TPCOperation): Integer;
-Var
+Var iPosInOrdered : Integer;
   l : TList;
   OpSha256 : TRawBytes;
 begin
   OpSha256 := op.Sha256;
   l := FHashTreeOperations.LockList;
   Try
-    for Result := 0 to l.Count - 1 do begin
-      if POperationHashTreeReg(l[Result])^.Op.Sha256=OpSha256 then exit;
-    end;
-    Result := -1;
+    // Improvement TOperationsHashTree speed 2.1.5.1
+    // Use ordered search
+    If FindOrderedBySha(l,OpSha256,iPosInOrdered) then begin
+      Result := PtrInt(FListOrderedBySha256.Items[iPosInOrdered]);
+    end else Result := -1;
   Finally
     FHashTreeOperations.UnlockList;
   End;
@@ -1714,18 +1789,23 @@ begin
   Result := 0;
   l := FHashTreeOperations.LockList;
   Try
-    for i := 0 to l.Count - 1 do begin
-      if (POperationHashTreeReg(l[i])^.Op.SignerAccount=account_number) And (POperationHashTreeReg(l[i])^.Op.OperationFee=0) then inc(Result);
-    end;
+    // Improvement TOperationsHashTree speed 2.1.5.1
+    // Use ordered accounts Data search
+    If FindOrderedByAccountData(l,account_number,i) then begin
+      Result := POperationsHashAccountsData(FListOrderedByAccountsData[i])^.account_without_fee;
+    end else Result := 0;
   Finally
     FHashTreeOperations.UnlockList;
   End;
 end;
 
-procedure TOperationsHashTree.InternalAddOperationToHashTree(list: TList; op: TPCOperation);
+procedure TOperationsHashTree.InternalAddOperationToHashTree(list: TList; op: TPCOperation; CalcNewHashTree : Boolean);
 Var msCopy : TMemoryStream;
   h : TRawBytes;
   P : POperationHashTreeReg;
+  PaccData : POperationsHashAccountsData;
+  i,npos : Integer;
+  auxs : AnsiString;
 begin
   msCopy := TMemoryStream.Create;
   try
@@ -1738,17 +1818,93 @@ begin
     P^.Op.FPrevious_Signer_updated_block := op.Previous_Signer_updated_block;
     P^.Op.FPrevious_Destination_updated_block := op.FPrevious_Destination_updated_block;
     P^.Op.FPrevious_Seller_updated_block := op.FPrevious_Seller_updated_block;
+    P^.Op.FHasValidSignature:=op.FHasValidSignature;
+    P^.Op.FSignatureChecked:=op.FSignatureChecked;
     h := op.Sha256;
+    P^.Op.FBufferedSha256:=op.FBufferedSha256;
     P^.Op.tag := list.Count;
-    // Include to hash tree
-    FHashTree := TCrypto.DoSha256(FHashTree+h);
-    list.Add(P);
+    // Improvement TOperationsHashTree speed 2.1.6
+    // Include to hash tree (Only if CalcNewHashTree=True)
+    If (CalcNewHashTree) And (Length(FHashTree)=32) then begin
+      TCrypto.DoSha256(FHashTree+h,FHashTree);
+    end;
+    npos := list.Add(P);
+    If FindOrderedBySha(list,op.Sha256,i) then begin
+      // Is inserting a value already found!
+      auxs :=Format('MyListCount:%d OrderedBySha Pos:%d from %d Hash:%s PointsTo:%d',[list.Count,i,FListOrderedBySha256.Count,TCrypto.ToHexaString(Op.Sha256),PtrInt(FListOrderedBySha256[i])]);
+      TLog.NewLog(ltError,ClassName,'DEV ERROR 20180213-2 Inserting a duplicate Sha256! '+Op.ToString+' > '+auxs );
+    end;
+    FListOrderedBySha256.Insert(i,TObject(npos));
+    // Improvement TOperationsHashTree speed 2.1.6
+    // Mantain an ordered Accounts list with data
+    If Not FindOrderedByAccountData(list,op.SignerAccount,i) then begin
+      New(PaccData);
+      PaccData^.account_number:=op.SignerAccount;
+      PaccData^.account_count:=0;
+      PaccData^.account_without_fee:=0;
+      FListOrderedByAccountsData.Insert(i,PaccData);
+    end else PaccData := FListOrderedByAccountsData[i];
+    Inc(PaccData^.account_count);
+    If op.OperationFee=0 then begin
+      Inc(PaccData^.account_without_fee);
+    end;
   finally
     msCopy.Free;
   end;
   inc(FTotalAmount,op.OperationAmount);
   inc(FTotalFee,op.OperationFee);
   If Assigned(FOnChanged) then FOnChanged(Self);
+end;
+
+function TOperationsHashTree.FindOrderedBySha(lockedThreadList : TList; const Value: TRawBytes; var Index: Integer): Boolean;
+var L, H, I : Integer;
+  iLockedThreadListPos : PtrInt;
+  C : Int64;
+  P : POperationHashTreeReg;
+begin
+  Result := False;
+  L := 0;
+  H := FListOrderedBySha256.Count - 1;
+  while L <= H do
+  begin
+    I := (L + H) shr 1;
+    iLockedThreadListPos := PtrInt(FListOrderedBySha256[I]);
+    C := BinStrComp(POperationHashTreeReg(lockedThreadList[iLockedThreadListPos])^.Op.Sha256,Value);
+    if C < 0 then L := I + 1 else
+    begin
+      H := I - 1;
+      if C = 0 then
+      begin
+        Result := True;
+        L := I;
+      end;
+    end;
+  end;
+  Index := L;
+end;
+
+function TOperationsHashTree.FindOrderedByAccountData(lockedThreadList: TList; const account_number: Cardinal; var Index: Integer): Boolean;
+var L, H, I : Integer;
+  C : Int64;
+begin
+  Result := False;
+  L := 0;
+  H := FListOrderedByAccountsData.Count - 1;
+  while L <= H do
+  begin
+    I := (L + H) shr 1;
+    C := Int64(POperationsHashAccountsData(FListOrderedByAccountsData[I])^.account_number) - Int64(account_number);
+    if C < 0 then L := I + 1 else
+    begin
+      H := I - 1;
+      if C = 0 then
+      begin
+        Result := True;
+        L := I;
+      end;
+    end;
+  end;
+  Index := L;
 end;
 
 function TOperationsHashTree.LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage, LoadProtocolV2: Boolean; var errors: AnsiString): Boolean;
@@ -1949,6 +2105,8 @@ end;
 
 constructor TPCOperation.Create;
 begin
+  FSignatureChecked := False;
+  FHasValidSignature := False;
   FBufferedSha256:='';
   InitializeData;
 end;
@@ -2030,6 +2188,7 @@ begin
   FPrevious_Seller_updated_block := 0;
   FHasValidSignature := false;
   FBufferedSha256:='';
+  FSignatureChecked := False;
 end;
 
 function TPCOperation.LoadFromNettransfer(Stream: TStream): Boolean;
@@ -2288,7 +2447,7 @@ end;
 
 function TPCOperation.Sha256: TRawBytes;
 begin
-  If FBufferedSha256='' then begin
+  If Length(FBufferedSha256)=0 then begin
     FBufferedSha256 := TCrypto.DoSha256(GetBufferForOpHash(true));
   end;
   Result := FBufferedSha256;

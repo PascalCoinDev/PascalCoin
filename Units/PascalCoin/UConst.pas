@@ -77,6 +77,8 @@ Const
   CT_MinServersConnected = 2;
   CT_MaxServersConnected = 5;
 
+  CT_MaxResendMemPoolOperations = 50000;
+
   CT_MaxClientsConnected = {$IFDEF FPC}140{$ELSE}80{$ENDIF};
 
   CT_BankToDiskEveryNBlocks = {$IFDEF PRODUCTION}100{$ELSE}10{$ENDIF}; // Build 1.5 changed from 500 to 100;
@@ -136,7 +138,7 @@ Const
   CT_OpSubtype_ChangeKeySigned            = 71;
   CT_OpSubtype_ChangeAccountInfo          = 81;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'2.1.5'{$ELSE}{$IFDEF TESTNET}'TESTNET 2.1.5'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'2.1.6'{$ELSE}{$IFDEF TESTNET}'TESTNET 2.1.6'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us';
 
