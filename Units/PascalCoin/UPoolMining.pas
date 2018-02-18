@@ -817,13 +817,13 @@ begin
       i := l.Count-1;
       while (i>=0) And (Not Assigned(nbOperations)) do begin
         P := l[i];
-        P^.OperationsComp.BlockPayload := _payload;
         // Best practices: Only will accept a solution if timestamp >= sent timestamp for this job (1.5.3)
         If (P^.SentMinTimestamp<=_timestamp) then begin
-          P^.OperationsComp.timestamp := _timestamp;
-          P^.OperationsComp.nonce := _nOnce;
           _targetPoW := FNodeNotifyEvents.Node.Bank.SafeBox.GetActualTargetHash(P^.OperationsComp.OperationBlock.protocol_version=CT_PROTOCOL_2);
           if (P^.OperationsComp.OperationBlock.proof_of_work<=_targetPoW) then begin
+            P^.OperationsComp.BlockPayload := _payload;
+            P^.OperationsComp.timestamp := _timestamp;
+            P^.OperationsComp.nonce := _nOnce;
             // Candidate!
             nbOperations := TPCOperationsComp.Create(Nil);
             nbOperations.bank := FNodeNotifyEvents.Node.Bank;
