@@ -785,7 +785,7 @@ Var s : String;
   l : TList;
   _payloadHexa,_payload : AnsiString;
   _timestamp, _nOnce : Cardinal;
-  _targetPoW : TRawBytes;
+  _targetPoW,_solutionPoW : TRawBytes;
 begin
   { Miner params must submit:
     - "payload" as an Hexadecimal
@@ -820,7 +820,8 @@ begin
         // Best practices: Only will accept a solution if timestamp >= sent timestamp for this job (1.5.3)
         If (P^.SentMinTimestamp<=_timestamp) then begin
           _targetPoW := FNodeNotifyEvents.Node.Bank.SafeBox.GetActualTargetHash(P^.OperationsComp.OperationBlock.protocol_version=CT_PROTOCOL_2);
-          if (P^.OperationsComp.OperationBlock.proof_of_work<=_targetPoW) then begin
+          P^.OperationsComp.EstimatePoW(_payload, _timestamp, _nOnce, _solutionPoW);
+          if (_solutionPoW<=_targetPoW) then begin
             P^.OperationsComp.BlockPayload := _payload;
             P^.OperationsComp.timestamp := _timestamp;
             P^.OperationsComp.nonce := _nOnce;
