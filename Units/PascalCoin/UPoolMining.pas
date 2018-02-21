@@ -164,7 +164,7 @@ Const
 
 implementation
 
-Uses ULog, Variants, UTime, UNetProtocol;
+Uses ULog, Variants, UNetProtocol;
 
 Type TPendingResponseMessage = Record
        sendDateTime : TDateTime;
@@ -224,7 +224,7 @@ var last_bytes_read : Integer;
   jsonData : TPCJSONData;
   tc : Cardinal;
   ms : TMemoryStream;
-  i,lasti : Integer;
+  lasti : Integer;
   continue : Boolean;
   procedure FlushBufferPendingMessages(doSearchId : Boolean; idValue : Integer);
   var l : TList;
@@ -391,7 +391,6 @@ Var json : TPCJSONObject;
   stream : TMemoryStream;
   b : Byte;
   P : PPendingResponseMessage;
-  l : TList;
 begin
   json := TPCJSONObject.Create;
   Try
@@ -774,12 +773,11 @@ begin
 end;
 
 function TPoolMiningServer.MinerSubmit(Client: TJSONRPCTcpIpClient; params: TPCJSONObject; const id : Variant): Boolean;
-Var s : String;
+Var
   nbOperations : TPCOperationsComp;
   errors, sJobInfo : AnsiString;
   nba : TBlockAccount;
   json : TPCJSONObject;
-  p1,p2,p3 : TRawBytes;
   P : PPoolJob;
   i : Integer;
   l : TList;
@@ -913,7 +911,7 @@ procedure TPoolMiningServer.SendJobToMiner(Operations: TPCOperationsComp; Client
 var params : TPCJSONObject;
   ts : Cardinal;
 Var P : PPoolJob;
-  i,nJobs : Integer;
+  nJobs : Integer;
   l : TList;
 begin
   if FClientsCount<=0 then exit;
@@ -1119,7 +1117,6 @@ Var method : String;
   params_as_array : TPCJSONArray;
   params : TPCJSONData;
   mvfw : TMinerValuesForWork;
-  prev_pow,proposed_pow : TRawBytes;
 begin
   TLog.NewLog(ltInfo,ClassName,'Received JSON: '+json.ToJSON(false));
   params := Nil;
