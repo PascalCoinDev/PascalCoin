@@ -18,7 +18,7 @@ interface
 
 uses
   Classes, Forms, Grids,
-  ExtCtrls, StdCtrls, Menus, UCommonUI, UGridUtils;
+  ExtCtrls, StdCtrls, Menus, UCommon.UI, UGridUtils;
 
 type
 

@@ -36,7 +36,7 @@ type
 
 implementation
 
-uses UCommonUI;
+uses UCommon.UI;
 
 {$R *.lfm}
 

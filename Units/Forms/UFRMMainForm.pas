@@ -21,13 +21,14 @@ uses
   ULog,
   UBlockChain, UNode, UGridUtils, UAccounts, Menus,
   UNetProtocol, UCrypto, Buttons, ActnList, UPoolMining,
-  UCTRLBanner, UCTRLWallet, UCTRLSyncronization, UCommon, UCommonUI;
+  UCTRLBanner, UCTRLWallet, UCTRLSyncronization, UCommon, UCommon.UI;
 
 const
   CM_PC_FinishedLoadingDatabase = WM_USER + 1;
   CM_PC_WalletKeysChanged = WM_USER + 2;
   CM_PC_ConnectivityChanged = WM_USER + 3;
   CM_PC_Terminate = WM_USER + 4;
+  CM_PC_ModeChanged  = WM_USER + 5;
 
 type
 
@@ -99,6 +100,7 @@ type
     procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
     procedure CM_ConnectivityChanged(var Msg: TMessage); message CM_PC_ConnectivityChanged;
     procedure CM_Terminate(var Msg: TMessage); message CM_PC_Terminate;
+    procedure CM_ModeChanged(var Msg: TMessage); message CM_PC_ModeChanged;
     procedure OnConnectivityChanged(Sender: TObject);
     procedure OnWalletChanged(Sender: TObject);
   protected
@@ -232,9 +234,17 @@ end;
 procedure TFRMMainForm.SetMode(AMode: TFRMMainFormMode);
 var nestedForm : TForm;
 begin
+  if FMode = AMode then
+    exit;
+  FMode := AMode;
+  PostMessage(self.Handle, CM_PC_ModeChanged, 0, 0);
+end;
+
+procedure TFRMMainForm.CM_ModeChanged(var Msg: TMessage);
+begin
   try
     FUILock.Acquire;
-    case AMode of
+    case FMode of
       wmWallet: begin
         if NOT Assigned(FWalletControl) then begin
           FWalletControl := TCTRLWallet.Create(self);
@@ -242,12 +252,10 @@ begin
         end;
         paWalletPanel.Visible := true;
         paSyncPanel.Visible := false;
-        FMode := AMode;
       end;
       wmSync: begin
         paSyncPanel.Visible := true;
         paWalletPanel.Visible := false;;
-        FMode := AMode;
       end;
       else raise Exception.Create('[Internal Error] - TFRMMainForm.SetMode: unsupported mode passed');
     end;

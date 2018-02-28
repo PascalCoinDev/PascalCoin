@@ -29,6 +29,8 @@ function UnixToUnivDateTime(USec: Longint): TDateTime;
 function UnixTimeToLocalElapsedTime(USec : Longint) : AnsiString;
 Function DateTimeElapsedTime(dtDate : TDateTime) : AnsiString;
 
+Function UnixTimeToLocalStr(UnixTime : Longint) : AnsiString;
+
 implementation
 
 Uses DateUtils;
@@ -73,6 +75,11 @@ end;
 function UnixToUnivDateTime(USec: Longint): TDateTime;
 begin
   Result := (Usec / 86400) + UnixStartDate;
+end;
+
+Function UnixTimeToLocalStr(UnixTime : Longint) : AnsiString;
+begin
+  Result := DateTimeToStr(UnivDateTime2LocalDateTime(UnixToUnivDateTime(UnixTime)))
 end;
 
 end.

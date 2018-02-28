@@ -18,7 +18,7 @@ interface
 uses
     LCLIntf,
     SysUtils, Classes, Graphics, Controls, Forms,
-    Dialogs, ExtCtrls,  StdCtrls, UCommonUI,
+    Dialogs, ExtCtrls,  StdCtrls, UCommon.UI,
     ULog, UBlockChain;
 
 type

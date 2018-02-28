@@ -98,12 +98,15 @@ Const
   // NetProtocol_Available MUST BE always >= NetProtocol_version
   CT_NetProtocol_Available: Word = $0006;  // Remember, >= NetProtocol_version !!!
 
+  CT_V2_AccountStart = CT_Protocol_Upgrade_v2_MinBlock div CT_AccountsPerBlock;
+
   CT_MaxAccountOperationsPerBlockWithoutFee = 1;
 
   CT_SafeBoxBankVersion : Word = 3; // Protocol 2 upgraded safebox version from 2 to 3
 
   CT_MagicIdentificator: AnsiString = {$IFDEF PRODUCTION}'PascalCoin'{$ELSE}'PascalCoinTESTNET'{$ENDIF}; //
 
+  CT_PseudoOp_Reward = $0;
   // Value of Operations type in Protocol 1
   CT_Op_Transaction = $01;
   CT_Op_Changekey = $02;
@@ -115,6 +118,8 @@ Const
   CT_Op_ChangeKeySigned = $07;
   CT_Op_ChangeAccountInfo = $08;
 
+  CT_PseudoOpSubtype_Miner                = 1;
+  CT_PseudoOpSubtype_Developer            = 2;
   CT_OpSubtype_TransactionSender          = 11;
   CT_OpSubtype_TransactionReceiver        = 12;
   CT_OpSubtype_BuyTransactionBuyer        = 13;

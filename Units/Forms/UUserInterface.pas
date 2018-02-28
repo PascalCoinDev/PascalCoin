@@ -17,7 +17,7 @@ interface
 
 uses
   SysUtils, Classes, Forms, Controls, {$IFDEF WINDOWS}Windows,{$ENDIF} ExtCtrls, Dialogs, LCLType,
-  UCommonUI, UBlockChain, UAccounts, UNode, UWallet, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining,
+  UCommon.UI, UBlockChain, UAccounts, UNode, UWallet, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining,
   ULog, UThread, UNetProtocol, UCrypto,
   UFRMMainForm, UCTRLSyncronization, UFRMAccountExplorer, UFRMOperationExplorer, UFRMPendingOperations, UFRMOperation,
   UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys;
@@ -690,9 +690,7 @@ end;
 
 class procedure TUserInterface.ShowWallet;
 begin
-  // TODO - VALIDATION HERE
   FMainForm.Mode := wmWallet;
-  // else ShowError('', 'Wallet is currently unavailable, please wait until processing is finished');
 end;
 
 class procedure TUserInterface.ShowSyncDialog;

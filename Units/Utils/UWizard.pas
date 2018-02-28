@@ -135,21 +135,21 @@ type
         procedure UpdatePath(APathUpdateType: TPathUpdateType; const screens : array of TComponentClass); virtual;
   end;
 
-  { TActioWizard Delegate Declarations }
-  TActionWizardCancelFunc<T> = function(screenIndex : Integer; constref model : T; out message : AnsiString) : boolean of object;
-  TActionWizardFinishFunc<T> = function(constref  model : T; out message : AnsiString) : boolean of object;
 
   { TActionWizard - a generic Wizard that can be used without subclassing }
   TActionWizard<T> = class(specialize TWizard<T>)
+    public type
+      TActionWizardCancelFunc = function(screenIndex : Integer; constref model : T; out message : AnsiString) : boolean of object;
+      TActionWizardFinishFunc = function(constref  model : T; out message : AnsiString) : boolean of object;
     private
-      FCancelEvent : TActionWizardCancelFunc<T>;
-      FFinishEvent : TActionWizardFinishFunc<T>;
+      FCancelHandler : TActionWizardCancelFunc;
+      FFinishHandler : TActionWizardFinishFunc;
     protected
       function CancelRequested(out message : AnsiString) : boolean; override;
       function FinishRequested(out message : AnsiString) : boolean; override;
     public
-      constructor Create(AOwner:TComponent; title, finish: AnsiString; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc<T>; finishFunc : TActionWizardFinishFunc<T>);
-      class procedure Show(AParent: TForm; title, finish: AnsiString; constref bag : T; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc<T>; finishFunc : TActionWizardFinishFunc<T>);
+      constructor Create(AOwner:TComponent; title, finish: AnsiString; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
+      class procedure Show(AParent: TForm; title, finish: AnsiString; constref bag : T; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
       property FinishText : AnsiString read FTitleText;
       property TitleText : AnsiString read FFinishText;
   end;
@@ -162,7 +162,7 @@ implementation
 {$R *.lfm}
 
 uses
-  UCommonUI;
+  UCommon.UI;
 
 {%region TWizardForm }
 
@@ -518,16 +518,16 @@ end;
 
 {%region TActionWizard }
 
-constructor TActionWizard<T>.Create(AOwner: TComponent; title, finish: AnsiString; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc<T>; finishFunc : TActionWizardFinishFunc<T>);
+constructor TActionWizard<T>.Create(AOwner: TComponent; title, finish: AnsiString; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
 begin
   inherited Create(AOwner, screens);
   self.FTitleText := title;
   self.FFinishText := finishText;
-  self.FCancelEvent := cancelFunc;
-  self.FFinishEvent := finishFunc;
+  self.FCancelHandler := cancelFunc;
+  self.FFinishHandler := finishFunc;
 end;
 
-class procedure TActionWizard<T>.Show(AParent: TForm; title, finish: AnsiString; constref bag : T; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc<T>; finishFunc : TActionWizardFinishFunc<T>);
+class procedure TActionWizard<T>.Show(AParent: TForm; title, finish: AnsiString; constref bag : T; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
 type
   MyWizard = TActionWizard<T>;
 var
@@ -543,15 +543,15 @@ end;
 
 function TActionWizard<T>.CancelRequested(out message : AnsiString) : boolean;
 begin
-  if Assigned(FCancelEvent) and NOT FFinished then
-    Result := FCancelEvent(Self.FCurrentScreenIndex, self.Model, message)
+  if Assigned(FCancelHandler) and NOT FFinished then
+    Result := FCancelHandler(Self.FCurrentScreenIndex, self.Model, message)
   else Result := true;
 end;
 
 function TActionWizard<T>.FinishRequested(out message : AnsiString) : boolean;
 begin
-  if Assigned(FFinishEvent) then
-    Result := FFinishEvent(self.Model, message)
+  if Assigned(FFinishHandler) then
+    Result := FFinishHandler(self.Model, message)
   else Result := true;
   FFinished := true;
 end;

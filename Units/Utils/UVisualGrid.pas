@@ -1,7 +1,7 @@
 ﻿{
-  Copyright (c) 2017 Sphere 10 Software
+  Copyright (c) 2017 - 2018 Sphere 10 Software
 
-  TVisualGrid is an enterprise-class grid component with datasource, paging, searching capability.
+  An enterprise-class grid component with datasource, paging, searching capability.
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
@@ -14,81 +14,25 @@
 unit UVisualGrid;
 
 {$MODE DELPHI}
+
 {.$DEFINE VISUALGRID_DEBUG}
 
 interface
 
 uses
   Classes, SysUtils, StdCtrls, ExtCtrls, Controls, Grids, Types, Graphics,
-  UCommon, Generics.Collections, Menus, ComboEx, Buttons, Math
-  {$IFNDEF WINDOWS}, LResources{$ENDIF};
-
-type
-  TSelectionType = (stNone, stCell, stRow, stMultiRow);
-  TSortDirection = (sdNone, sdAscending, sdDescending);
-  TVisualGridFilter = (vgfMatchTextExact, vgfMatchTextBeginning, vgfMatchTextEnd,
-    vgfMatchTextAnywhere, vgfNumericEQ, vgfNumericLT, vgfNumericLTE, vgfNumericGT,
-    vgfNumericGTE, vgfNumericBetweenInclusive, vgfNumericBetweenExclusive, vgfSortable);
-  TVisualGridFilters = set of TVisualGridFilter;
+  UCommon, UCommon.Data, UCommon.Collections, Generics.Collections, Generics.Defaults, Menus, ComboEx, Buttons, Math
+  {$IFNDEF WINDOWS}, LResources{$ENDIF}, syncobjs;
 
 const
-  TEXT_FILTER = [vgfMatchTextExact, vgfMatchTextBeginning, vgfMatchTextEnd, vgfMatchTextAnywhere];
-  NUMERIC_FILTER = [vgfNumericEQ, vgfNumericLT, vgfNumericLTE, vgfNumericGT, vgfNumericGTE, vgfNumericBetweenInclusive, vgfNumericBetweenExclusive];
-  SORTABLE_TEXT_FILTER = TEXT_FILTER + [vgfSortable];
-  SORTABLE_NUMERIC_FILTER = NUMERIC_FILTER + [vgfSortable];
+  CT_VISUALGRID_DEFAULT = Integer(-1);   { Column is not sized on start }
+  CT_VISUALGRID_STRETCH = Integer(-2);   { Column is stretched to fit }
 
 type
-  TColumnFilter = record
-    ColumnName: utf8string;
-    Sort: TSortDirection;
-    Filter: TVisualGridFilter;
-    Values: array of Variant;
-  end;
 
-  TFilterCriteria = TArray<TColumnFilter>;
+  { TSelectionType }
 
-  PDataTable = ^TDataTable;
-  TDataTable = record
-  public
-    Columns: TTableColumns;
-    Rows : TArray<Variant>;
-  end;
-
-  { TPageFetchParams }
-
-  TPageFetchParams = record
-    PageIndex: Integer;
-    PageSize: Integer;
-    Filter: TFilterCriteria;
-    constructor Create(AIndex: Integer; ASize: Integer; AFilter: TFilterCriteria);
-  end;
-
-  { TPageFetchResult }
-
-  TPageFetchResult = record
-    PageIndex: Integer;
-    PageCount: Integer;
-    TotalDataCount: Integer;
-  end;
-
-  { TSearchCapability }
-
-  PSearchCapability = ^TSearchCapability;
-  TSearchCapability = record
-    ColumnName : utf8string;
-    SupportedFilters : TVisualGridFilters;
-    class function From(const AName : utf8string; AFilterType : TVisualGridFilters) : TSearchCapability; static;
-  end;
-
-  TSearchCapabilities = array of TSearchCapability;
-
-  { IDataSource }
-
-  IDataSource = interface
-    function FetchPage(constref AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
-    function GetSearchCapabilities: TSearchCapabilities;
-    property SearchCapabilities : TSearchCapabilities read GetSearchCapabilities;
-  end;
+  TSelectionType = (stNone, stCell, stRow, stMultiRow);
 
   { TVisualGridSelection }
 
@@ -106,7 +50,7 @@ type
     property ColCount: longint read GetColCount;
   end;
 
-  { TColumnOptions }
+  TCustomVisualGrid = class;
 
   { TVisualColumn }
 
@@ -114,26 +58,44 @@ type
   private
     function GetStretchedToFill: boolean; inline;
     function GetWidth: Integer; inline;
+    procedure SetSortDirection(AValue: TSortDirection);
     procedure SetStretchedToFill(AValue: boolean); inline;
     procedure SetWidth(AValue: Integer); inline;
   protected
     FColumn: TGridColumn;
+    FGrid: TCustomVisualGrid;
+    FSortDirection: TSortDirection;
+    FIgnoreRefresh: Boolean;
   public
-    constructor Create(AColumn: TGridColumn);
+    property InternalColumn : TGridColumn read FColumn;
+    constructor Create(AGrid: TCustomVisualGrid; AColumn: TGridColumn);
     property StretchedToFill: boolean read GetStretchedToFill write SetStretchedToFill;
     property Width: Integer read GetWidth write SetWidth;
+    property SortDirection: TSortDirection read FSortDirection write SetSortDirection;
   end;
+
+  { TVisualGrid Events }
 
   TPreparePopupMenuEvent = procedure(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu) of object;
   TSelectionEvent = procedure(Sender: TObject; constref ASelection: TVisualGridSelection) of object;
-  TDrawVisualCellEvent = procedure(Sender: TObject; ACol, ARow: Longint;
-    Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const RowData: Variant; var Handled: boolean) of object;
+  TDrawVisualCellEvent = procedure(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const RowData: Variant; var Handled: boolean) of object;
+  TColumnInitializeEvent = procedure(Sender: TObject; AColIndex:Integer; AColumn : TVisualColumn) of object;
+
+  { TVisualGrid Exceptions }
 
   EVisualGridError = class(Exception);
 
-  TVisualGridOptions = set of (vgoColAutoFill, vgoColSizing, vgoMultiSearchCheckComboBox);
+  { TVisualGridOptions }
 
-  TCustomVisualGrid = class;
+  TVisualGridOptions = set of (vgoColAutoFill, vgoColSizing, vgoMultiSearchCheckComboBox, vgoSortDirectionAllowNone);
+
+  { TSortMode }
+
+  TSortMode = (smNone, smSingleColumn, smMultiColumn);
+
+  { TSearchMode }
+
+  TSearchMode = (smSingle, smMulti);
 
   { TVisualGridCaption }
 
@@ -188,6 +150,7 @@ type
       SearchCapability: PSearchCapability;
       constructor Create(AParent: TWinControl; AGrid: TCustomVisualGrid);
       destructor Destroy; override;
+      procedure Clear;
 
       property EditVisible: boolean read GetEditVisible write SetEditVisible;
       property Visible: boolean read GetVisible write SetVisible;
@@ -209,6 +172,7 @@ type
     FTopPanelMultiSearchFixed: TPanel;
     FTopPanelMultiSearchClient: TPanel;
     FTopPanelMultiSearchRight: TPanel;
+    FTopPanelLeft: TPanel;
     FTopPanelRight: TPanel;
     FClientPanel: TPanel;
     FLoadDataPanel: TPanel;
@@ -247,6 +211,7 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure SearchKindPopupMenuClick(Sender: TObject);
     procedure GridSelection(Sender: TObject; aCol, aRow: Integer);
+    procedure GridHeaderClick(Sender: TObject; IsColumn: Boolean; Index: Integer);
     procedure PageIndexEditingDone(Sender: TObject);
     procedure PageSizeEditingDone(Sender: TObject);
     procedure PageNavigationClick(Sender: TObject);
@@ -257,14 +222,22 @@ type
   private
     FCaption: TVisualGridCaption;
     FFetchDataInThread: boolean;
+    FActiveThread: TThread;
     FOnPreparePopupMenu: TPreparePopupMenuEvent;
     FOnSelection: TSelectionEvent;
+    FFinishedUpdating: TNotifyEvent;
     FOptions: TVisualGridOptions;
+    FSortMode: TSortMode;
+    FSearchMode : TSearchMode;
     FShowAllData: boolean;
     FAutoPageSize: boolean;
     FCanPage: boolean;
     FCanSearch: boolean;
     FSelectionType: TSelectionType;
+    FDefaultStretchedColumn : Integer;
+    FDefaultColumnWidths : TArray<Integer>;
+    FWidgetControl: TControl;
+    FWidgetControlParent: TWinControl;
     function GetCells(ACol, ARow: Integer): Variant;
     function GetColCount: Integer; inline;
     function GetColumns(Index: Integer): TVisualColumn;
@@ -276,6 +249,8 @@ type
     function GetCanvas: TCanvas;
     procedure SetCells(ACol, ARow: Integer; AValue: Variant);
     procedure SetFetchDataInThread(AValue: boolean);
+    procedure SetSortMode(AValue: TSortMode);
+    procedure SetSearchMode(AValue: TSearchMode);
     procedure SetOptions(AValue: TVisualGridOptions);
     procedure SetRows(ARow: Integer; AValue: Variant);
     procedure SetShowAllData(AValue: boolean);
@@ -288,6 +263,7 @@ type
     procedure SetPageIndex(Value: Integer);
     procedure SetPageSize(Value: Integer);
     procedure SetSelectionType(AValue: TSelectionType);
+    procedure SetWidgetControl(AValue: TControl);
   protected { TComponent }
     procedure Loaded; override;
   protected { TControl }
@@ -298,7 +274,7 @@ type
     FCachedDataTable: PDataTable;
     FDataSource: IDataSource;
     FStrFilter: UTF8String;
-    FFilter: TFilterCriteria;
+    FFilters: TList<TColumnFilter>;
     FSearchCapabilities: TSearchCapabilities;
     FPageSize: Integer;
     FPageIndex: Integer;
@@ -306,10 +282,12 @@ type
     FDefaultDrawGridOptions: TGridOptions;
     FTotalDataCount: Integer;
     FLastFetchDataResult: TLastFetchDataResult;
+    FSortColumn: TVisualColumn;
 
     FOnDrawVisualCell: TDrawVisualCellEvent;
+    FOnColumnInitialize : TColumnInitializeEvent;
 
-    procedure RefreshGrid;
+    procedure SortDirectionGlyphRefresh;
     procedure ReloadColumns;
     procedure LayoutChanged;
     function ClientRowCount: Integer;
@@ -338,6 +316,8 @@ type
     property AutoPageSize: boolean read FAutoPageSize write SetAutoPageSize default false;
     property ShowAllData: boolean read FShowAllData write SetShowAllData default false;
     property FetchDataInThread: boolean read FFetchDataInThread write SetFetchDataInThread;
+    property DefaultStretchedColumn: Integer read FDefaultStretchedColumn write FDefaultStretchedColumn;
+    property DefaultColumnWidths : TArray<Integer> read FDefaultColumnWidths write FDefaultColumnWidths;
 
     property CanPage: boolean read FCanPage write SetCanPage default true;
     property CanSearch: boolean read FCanSearch write SetCanSearch default true;
@@ -345,6 +325,8 @@ type
     property Canvas: TCanvas read GetCanvas;
     property SelectionType: TSelectionType read FSelectionType write SetSelectionType;
     property Selection: TVisualGridSelection read GetSelection;
+    property SortMode: TSortMode read FSortMode write SetSortMode;
+    property SearchMode : TSearchMode read FSearchMode write SetSearchMode;
 
     property Caption: TVisualGridCaption read FCaption write FCaption;
     property ColCount: Integer read GetColCount;
@@ -353,10 +335,18 @@ type
     property RowCount: Integer read GetRowCount;
     property Rows[ARow: Integer]: Variant read GetRows write SetRows;
 
+    property OnColumnInitialize : TColumnInitializeEvent read FOnColumnInitialize write FOnColumnInitialize;
     property OnDrawVisualCell: TDrawVisualCellEvent read FOnDrawVisualCell write FOnDrawVisualCell;
     property OnSelection: TSelectionEvent read FOnSelection write FOnSelection;
     property OnPreparePopupMenu: TPreparePopupMenuEvent read FOnPreparePopupMenu write FOnPreparePopupMenu;
+    property OnFinishedUpdating : TNotifyEvent read FFinishedUpdating write FFinishedUpdating;
+
+    property WidgetControl: TControl read FWidgetControl write SetWidgetControl;
+
+    procedure RefreshGrid;
   end;
+
+  { TVisualGrid }
 
   TVisualGrid = class(TCustomVisualGrid)
   published
@@ -370,12 +360,17 @@ type
     property CanSearch;
     property Options;
     property SelectionType;
+    property SortMode;
+    property SearchMode;
     property FetchDataInThread;
+    property WidgetControl;
 
     property OnDrawVisualCell;
     property OnSelection;
     property OnPreparePopupMenu;
   end;
+
+  { TVisualGridSearchExpressionService }
 
   TVisualGridSearchExpressionService = class
   end;
@@ -383,6 +378,8 @@ type
 procedure Register;
 
 implementation
+
+uses Variants, UAutoScope, Dialogs;
 
 {$IFDEF WINDOWS}
 {$R *.rc}
@@ -473,10 +470,16 @@ begin
   FOwner := AOwner;
 
   FLabel := TLabel.Create(AOwner);
-  FLabel.Parent := AOwner;
+  FLabel.Parent := AOwner.FTopPanel;
+
   with FLabel do
   begin
-    Align := alTop;
+    AnchorSideLeft.Control := AOwner.FTopPanelLeft;
+    AnchorSideLeft.Side := asrBottom;
+    AnchorSideTop.Control := AOwner.FTopPanelRight;
+    AnchorSideTop.Side := asrCenter;
+    AnchorSideRight.Control := AOwner.FTopPanelRight;
+    Anchors := [akTop, akLeft, akRight];
     Visible := false;
   end;
 end;
@@ -493,6 +496,16 @@ begin
   Result := FColumn.Width;
 end;
 
+procedure TVisualColumn.SetSortDirection(AValue: TSortDirection);
+begin
+  if FSortDirection=AValue then Exit;
+  FSortDirection:=AValue;
+
+  TDrawGridAccess(FGrid.FDrawGrid).InvalidateCell(FColumn.Index, 0, true);
+  if not FIgnoreRefresh then
+    FGrid.RefreshPageIndexData(false);
+end;
+
 procedure TVisualColumn.SetStretchedToFill(AValue: boolean);
 begin
   FColumn.SizePriority := ifthen(AValue, 1);
@@ -503,8 +516,9 @@ begin
   FColumn.Width := AValue;
 end;
 
-constructor TVisualColumn.Create(AColumn: TGridColumn);
+constructor TVisualColumn.Create(AGrid: TCustomVisualGrid; AColumn: TGridColumn );
 begin
+  FGrid := AGrid;
   FColumn := AColumn;
 end;
 
@@ -548,6 +562,7 @@ end;
 constructor TFetchDataThread.Create(AGrid: TCustomVisualGrid;
   ARefreshColumns: boolean);
 begin
+  AGrid.FActiveThread := Self;
   FGrid := AGrid;
   FGrid.ControlsEnable(false);
   FGrid.FFetchDataThreadTimer.Enabled:=true;
@@ -556,6 +571,7 @@ begin
   FGrid.BeforeFetchPage;
   FreeOnTerminate:=true;
   FLastFetchDataResult.RefreshColumns:=ARefreshColumns;
+
   // fast copy of data (we need to draw old data for a while)
   New(FGrid.FCachedDataTable);
   Move(FGrid.FDataTable, FGrid.FCachedDataTable^, SizeOf(TDataTable));
@@ -618,22 +634,9 @@ begin
   inherited Destroy;
 end;
 
-{ TPageFetchParams }
-
-constructor TPageFetchParams.Create(AIndex: Integer; ASize: Integer;
-  AFilter: TFilterCriteria);
+procedure TCustomVisualGrid.TSearchEdit.Clear;
 begin
-  PageIndex:= AIndex;
-  PageSize:=ASize;
-  Filter:=AFilter;
-end;
-
-{ TSearchCapability }
-
-class function TSearchCapability.From(const AName : utf8string; AFilterType : TVisualGridFilters) : TSearchCapability;
-begin
-  Result.ColumnName := AName;
-  Result.SupportedFilters := AFilterType;
+  FEdit.Clear;
 end;
 
 { TCustomVisualGrid }
@@ -651,6 +654,7 @@ begin
 
   FMultiSearchEdits := TObjectList<TSearchEdit>.Create;
   FColumns := TObjectList<TVisualColumn>.Create;
+  FFilters := TList<TColumnFilter>.Create;
 
   { component layout }
 
@@ -827,8 +831,6 @@ begin
     end;
   end;
 
-  FCaption := TVisualGridCaption.Create(Self);
-
   FTopPanel := TPanel.Create(Self);
   FTopPanel.Parent := FMainPanel;
   with FTopPanel do
@@ -856,6 +858,16 @@ begin
       Visible:=False;
     end;
 
+    FTopPanelLeft := TPanel.Create(Self);
+    FTopPanelLeft.Parent := FTopPanel;
+    with FTopPanelLeft do
+    begin
+      BevelOuter := bvNone;
+      Align := alLeft;
+      Height := 40;
+      Width := 0;
+    end;
+
     FTopPanelRight := TPanel.Create(Self);
     FTopPanelRight.Parent := FTopPanel;
     with FTopPanelRight do
@@ -863,7 +875,7 @@ begin
       BevelOuter := bvNone;
       Align := alRight;
       Height := 40;
-      Width := 300;
+      Width := 154;
 
       FSearchButton := TSpeedButton.Create(Self);
       FSearchButton.Parent := FTopPanelRight;
@@ -906,6 +918,8 @@ begin
       end;
     end;
   end;
+
+  FCaption := TVisualGridCaption.Create(Self);
 
   FClientPanel := TPanel.Create(Self);
   FClientPanel.Parent := FMainPanel;
@@ -961,6 +975,7 @@ begin
       OnDrawCell := StandardDrawCell;
       OnMouseUp := GridMouseUp;
       OnSelection := GridSelection;
+      OnHeaderClick := GridHeaderClick;
       Options := (Options - [goRangeSelect]);
       FixedCols := 0;
       ColCount:=0;
@@ -1029,6 +1044,8 @@ begin
   end;
 
   { default values for properties }
+  DefaultStretchedColumn := -1;
+  FSearchMode := smSingle;
   PageSize := 100;
   PageIndex := -1;
   FCanPage := true;
@@ -1056,6 +1073,7 @@ end;
 
 destructor TCustomVisualGrid.Destroy;
 begin
+  FFilters.Free;
   FColumns.Free;
   FMultiSearchEdits.Free;
   FCaption.Free;
@@ -1064,8 +1082,40 @@ end;
 
 procedure TCustomVisualGrid.DoDrawCell(Sender: TObject; ACol, ARow: Longint;
   Rect: TRect; State: TGridDrawState; const RowData: Variant);
+const
+  {
+    Direction triangle points schema
+
+                 (P1)                x
+              *   x                *--->
+                 / \               |
+                /   \             y|
+               /     \             |
+         (P3) x-------x (P2)       v
+
+    where * is (0,0) point
+  }
+
+  DIRECTION_RECT_HEIGHT = 3;
+  DIRECTION_RECT_WIDTH = 5;
+
+  P1_X = (Pred(DIRECTION_RECT_WIDTH) div 2 + Pred(DIRECTION_RECT_WIDTH) mod 2);
+  P1_Y = 0;
+  P2_X = Pred(DIRECTION_RECT_WIDTH);
+  P2_Y = Pred(DIRECTION_RECT_HEIGHT);
+  P3_X = 0;
+  P3_Y = Pred(DIRECTION_RECT_HEIGHT);
+  P1_Y_CENTER_DELTA = -(Pred(DIRECTION_RECT_HEIGHT) div 2 + Pred(DIRECTION_RECT_HEIGHT) mod 2);
+  P2_Y_CENTER_DELTA = -(Pred(DIRECTION_RECT_HEIGHT) div 2);
+  P3_Y_CENTER_DELTA = -(Pred(DIRECTION_RECT_HEIGHT) div 2);
+
+  RIGHT_MARIGN = 4;
+
 var
   LText: utf8string;
+  LColumn: TVisualColumn;
+  LHalfOfHeight: longint;
+  LP1,LP2,LP3: TPoint;
 begin
   if ARow = 0 then
   begin
@@ -1073,7 +1123,37 @@ begin
       LText := ActiveDataTable.Columns[ACol]
     else
       raise EVisualGridError.CreateFmt(sImproperColumnIndex, [Length(ActiveDataTable.Columns)-1,ACol]);
-    FDrawGrid.Canvas.TextRect(Rect, Rect.Left+2, Rect.Top+2, LText)
+    LColumn := GetColumns(ACol);
+    FDrawGrid.Canvas.TextRect(Rect, Rect.Left+8, Rect.Top+2, LText);
+
+    FDrawGrid.Canvas.Pen.Width:=1;
+    FDrawGrid.Canvas.Pen.Color:=clBlack;
+    FDrawGrid.Canvas.Brush.Color:=clBlack;
+
+    // draw triangle
+    LHalfOfHeight := Rect.Height div 2 - Rect.Height mod 2;
+    LP1 := TPoint.Create(
+      Rect.Right + P1_X -(DIRECTION_RECT_WIDTH + RIGHT_MARIGN),
+      Rect.Top + LHalfOfHeight + P1_Y + P1_Y_CENTER_DELTA);
+    LP2 := TPoint.Create(
+      Rect.Right + P2_X -(DIRECTION_RECT_WIDTH + RIGHT_MARIGN),
+      Rect.Top + LHalfOfHeight + P2_Y + P2_Y_CENTER_DELTA);
+    LP3 := TPoint.Create(
+      Rect.Right + P3_X -(DIRECTION_RECT_WIDTH + RIGHT_MARIGN),
+      Rect.Top + LHalfOfHeight + P3_Y + P3_Y_CENTER_DELTA);
+    case LColumn.SortDirection of
+      sdNone: ;
+      sdAscending:
+        FDrawGrid.Canvas.Polygon([LP1, LP2, LP3]);
+      sdDescending:
+        begin
+          // swap y for points
+          LP3.y := LP1.y;
+          LP1.y := LP2.y;
+          LP2.y := LP3.y;
+          FDrawGrid.Canvas.Polygon([LP1, LP2, LP3]);
+        end;
+    end;
   end
   else
     FDrawGrid.Canvas.TextRect(Rect, Rect.Left+2, Rect.Top+2, RowData);
@@ -1090,6 +1170,64 @@ begin
   inherited BoundsChanged;
   // fix maximize form problem for AutoPageSize (new size of grid is not yet fully propagated)
   FDelayedBoundsChangeTimer.Enabled:=true;
+end;
+
+procedure TCustomVisualGrid.SortDirectionGlyphRefresh;
+
+  procedure VisualColumnsSortDirection(AStopOnFirstSortable, AAllNone: boolean);
+  var
+    i: integer;
+    p: PSearchCapability;
+    LStop: boolean = false;
+    LColumn: TVisualColumn;
+  begin
+    for i := 0 to FColumns.Count - 1 do
+    try
+      LColumn := FColumns[i];
+      // lock RefreshPageIndexData
+      LColumn.FIgnoreRefresh:=true;
+      if AAllNone then
+      begin
+        LColumn.SortDirection := sdNone;
+        Continue;
+      end;
+      p := FMultiSearchEdits[i].SearchCapability;
+      if Assigned(p) and (vgfSortable in p^.SupportedFilters) then
+      begin
+        if not LStop then
+          if vgoSortDirectionAllowNone in Options then
+            LColumn.SortDirection := sdNone
+          else
+            LColumn.SortDirection := sdAscending
+        else
+          LColumn.SortDirection := sdNone;
+
+        if AStopOnFirstSortable and not LStop then
+        begin
+          FSortColumn := LColumn;
+          LStop := true;
+        end;
+      end else
+        LColumn.SortDirection := sdNone;
+    finally
+      LColumn.FIgnoreRefresh:=false;
+    end;
+  end;
+
+begin
+  case FSortMode of
+    smNone:
+      begin
+        FDrawGrid.Options := FDrawGrid.Options - [goHeaderHotTracking, goHeaderPushedLook];
+        VisualColumnsSortDirection(false, true)
+      end;
+    smSingleColumn, smMultiColumn:
+      begin
+        FDrawGrid.Options := FDrawGrid.Options + [goHeaderHotTracking, goHeaderPushedLook];
+        VisualColumnsSortDirection(FSortMode=smSingleColumn, false);
+      end;
+  end;
+  RefreshPageIndexData(false);
 end;
 
 procedure TCustomVisualGrid.DelayedBoundsChange(Sender: TObject);
@@ -1117,7 +1255,7 @@ end;
 
 procedure TCustomVisualGrid.SearchButtonClick(Sender: TObject);
 var
-  //LFormat: TFormatSettings;
+  LFormat: TFormatSettings;
   LNewStrFilter: utf8string;
   LException: boolean = false;
   e: TSearchEdit;
@@ -1152,17 +1290,26 @@ var
         else if LFilter in (NUMERIC_FILTER - [vgfNumericBetweenInclusive, vgfNumericBetweenExclusive]) then
         begin
           SetLength(LColumnFilter.Values, 1);
-          LColumnFilter.Values[0]:=StrToInt(LExpressionRecord.Values[0]);
+          if LExpressionRecord.HasDecimals then
+            LColumnFilter.Values[0]:=StrToFloat(LExpressionRecord.Values[0], LFormat)
+          else
+            LColumnFilter.Values[0]:=StrToInt(LExpressionRecord.Values[0]);
         end
         else if LFilter in [vgfNumericBetweenInclusive, vgfNumericBetweenExclusive] then
         begin
           SetLength(LColumnFilter.Values, 2);
-          LColumnFilter.Values[0]:=StrToInt(LExpressionRecord.Values[0]);
-          LColumnFilter.Values[1]:=StrToInt(LExpressionRecord.Values[1]);
+          if LExpressionRecord.HasDecimals then
+          begin
+            LColumnFilter.Values[0]:=StrToFloat(LExpressionRecord.Values[0], LFormat);
+            LColumnFilter.Values[1]:=StrToFloat(LExpressionRecord.Values[1], LFormat);
+          end else
+          begin
+            LColumnFilter.Values[0]:=StrToInt(LExpressionRecord.Values[0]);
+            LColumnFilter.Values[1]:=StrToInt(LExpressionRecord.Values[1]);
+          end;
         end;
 
-        SetLength(FFilter, Length(FFilter)+1);
-        FFilter[High(FFilter)] := LColumnFilter;
+        FFilters.Add(LColumnFilter);
       end;
     end;
 
@@ -1226,8 +1373,9 @@ begin
   if not Assigned(FDataSource) then
     exit;
 
-  SetLength(FFilter, 0);
-  //LFormat.DecimalSeparator:='.';
+  FFilters.Clear;
+  LFormat := DefaultFormatSettings;
+  LFormat.DecimalSeparator:='.';
   try
     AddExpression(FSearchEdit.Text, nil);
     // multi column search
@@ -1393,7 +1541,7 @@ end;
 procedure TCustomVisualGrid.SetCells(ACol, ARow: Integer; AValue: Variant);
 begin
   TTableRowData(FDataTable.Rows[ARow]).vvalues[ACol] := AValue;
-  FDrawGrid.InvalidateCell(ACol, ARow);
+  TDrawGridAccess(FDrawGrid).InvalidateCell(ACol, ARow, true);
 end;
 
 procedure TCustomVisualGrid.SetFetchDataInThread(AValue: boolean);
@@ -1402,9 +1550,51 @@ begin
   FFetchDataInThread:=AValue;
 end;
 
+procedure TCustomVisualGrid.SetSortMode(AValue: TSortMode);
+begin
+  if FSortMode=AValue then Exit;
+  FSortMode:=AValue;
+
+  SortDirectionGlyphRefresh;
+end;
+
+procedure TCustomVisualGrid.SetSearchMode(AValue: TSearchMode);
+var
+  i: Integer;
+  LIsMultiSearch: boolean;
+begin
+  if AValue = FSearchMode then
+    Exit;
+
+  LIsMultiSearch := AValue = smMulti;
+
+  // LIsMultiSearch
+  //   true: check almost all (except expression)
+  //   false: check only expression
+  for i := 0 to FMultiSearchCheckComboBox.Items.Count - 2 do
+    FMultiSearchCheckComboBox.Checked[i] := LIsMultiSearch;
+  FMultiSearchCheckComboBox.Checked[FMultiSearchCheckComboBox.Items.Count-1] := not LIsMultiSearch;
+
+  // Clear all filters
+  for i := 0 to FMultiSearchEdits.Count - 1 do
+    FMultiSearchEdits[i].Clear;
+  FSearchEdit.Clear;
+
+  FSearchMode := AValue;
+
+  // reload data and don't use any filter for new mode
+  FStrFilter := '';
+  FFilters.Clear;
+  RefreshPageIndexData(false);
+end;
+
 procedure TCustomVisualGrid.SetOptions(AValue: TVisualGridOptions);
+var
+  LSortDirectionAllowNone: boolean;
+
 begin
   if FOptions=AValue then Exit;
+  LSortDirectionAllowNone := vgoSortDirectionAllowNone in FOptions;
 
   FOptions:=AValue;
   if vgoColSizing in FOptions then
@@ -1414,6 +1604,10 @@ begin
 
   FDrawGrid.AutoFillColumns:=vgoColAutoFill in FOptions;
   FMultiSearchCheckComboBox.Visible:=vgoMultiSearchCheckComboBox in FOptions;
+
+  // refresh for sort direction graphic
+  if LSortDirectionAllowNone <> (vgoSortDirectionAllowNone in AValue) then
+    SortDirectionGlyphRefresh;
 end;
 
 procedure TCustomVisualGrid.SetRows(ARow: Integer; AValue: Variant);
@@ -1490,13 +1684,16 @@ end;
 
 procedure TCustomVisualGrid.RefreshGrid;
 begin
-
+  RefreshPageIndexData(true);
 end;
 
 procedure TCustomVisualGrid.RefreshPageIndexData(ARefreshColumns: boolean);
 begin
   if Assigned(FDataSource) and FetchDataInThread then
-    TFetchDataThread.Create(Self, ARefreshColumns)
+  begin
+    if not Assigned(FActiveThread) then
+      TFetchDataThread.Create(Self, ARefreshColumns)
+  end
   else
   begin
     BeforeFetchPage;
@@ -1513,7 +1710,9 @@ var
   LEditOnLeft, LEditOnRight: TSearchEdit;
   //LFixedRect: TRect;
   LRect: TRect;
+  xxx : SizeInt;
 begin
+  xxx := FMultiSearchEdits.Count;
   LEdit := FMultiSearchEdits[ACol];
   LEdit.Visible := FDrawGrid.IsFixedCellVisible(aCol, 0);
   if ACol > 0 then
@@ -1547,12 +1746,13 @@ begin
   LEdit.FPanel.SetBounds(LRect.Left + 1, 0, LRect.Width - 2, LEdit.FEdit.Height);
 end;
 
-
 procedure TCustomVisualGrid.RefreshPageIndexAndGridInterface;
 begin
   SetPageIndexEditText(IntToStr(Succ(FPageIndex)));
   FPageCountLabel.Caption := Format('/%d',[FPageCount]);
   FDrawGrid.Refresh;
+  if Assigned(FFinishedUpdating) then
+    FFinishedUpdating(Self);
 end;
 
 procedure TCustomVisualGrid.ReloadColumns;
@@ -1573,15 +1773,28 @@ var
   end;
 
 begin
+  FSortColumn := nil;
   FDrawGrid.Columns.Clear;
   FDrawGrid.Columns.BeginUpdate;
   FColumns.Clear;
   for i := 0 to High(FDataTable.Columns) do
   begin
-    LColumn := TVisualColumn.Create(FDrawGrid.Columns.Add);
+    LColumn := TVisualColumn.Create(Self, FDrawGrid.Columns.Add);
     FColumns.Add(LColumn);
-    LColumn.StretchedToFill:=False;
+    if i <= High(FDefaultColumnWidths) then
+      case FDefaultColumnWidths[i] of
+        CT_VISUALGRID_DEFAULT: LColumn.StretchedToFill:=False;
+        CT_VISUALGRID_STRETCH: LColumn.StretchedToFill:=True;
+        else begin
+          LColumn.StretchedToFill := False;
+          LColumn.SetWidth(FDefaultColumnWidths[i]);
+        end;
+    end else if i = FDefaultStretchedColumn then LColumn.StretchedToFill:=True;
     LColumn.FColumn.Title.Caption:=''; //FDataTable.Columns[i]; already painted in default drawing event
+
+    // invoke client initialization
+    if Assigned(FOnColumnInitialize) then
+      FOnColumnInitialize(Self, i, LColumn);
   end;
   FDrawGrid.Columns.EndUpdate;
   // TODO: may be optimized
@@ -1594,14 +1807,21 @@ begin
     LEdit := TSearchEdit.Create(FTopPanelMultiSearchClient, Self);
     FMultiSearchEdits.Add(LEdit);
     p := SearchCapability;
-    LEdit.EditVisible:=Assigned(p) and FMultiSearchMenuItem.Checked;
+    LEdit.EditVisible:=Assigned(p) and FMultiSearchMenuItem.Checked and (p^.SupportedFilters * NON_SORTABLE_FILTER <> []);
     LEdit.SearchCapability := p;
     ResizeSearchEdit(i);
     if Assigned(p) then
     begin
+      if p^.SupportedFilters * NON_SORTABLE_FILTER <> [] then
+      begin
       FMultiSearchCheckComboBox.AddItem(p^.ColumnName, cbChecked);
       FMultiSearchCheckComboBox.Objects[FMultiSearchCheckComboBox.Items.Count-1] := LEdit;
       FMultiSearchCheckComboBox.Checked[FMultiSearchCheckComboBox.Items.Count-1] := FMultiSearchMenuItem.Checked;
+    end;
+      if (vgfSortable in p^.SupportedFilters)
+       and not (vgoSortDirectionAllowNone in Options)
+       and (SortMode <> smNone) then
+        FColumns[i].SortDirection := sdAscending;
     end;
   end;
   if FDrawGrid.Columns.Count > 0 then
@@ -1699,10 +1919,74 @@ begin
 end;
 
 procedure TCustomVisualGrid.FetchPage(out AResult: TPageFetchResult);
+
+  // additionall fill with sort direction
+  procedure FillFilter;
+  var
+    LColumnsToAdd: TList<Integer>;
+    i, j, idx: Integer;
+    LFilter: TColumnFilter;
+    LData: PDataTable;
+
+    function UpdateFilterSortDirection(const AColumnName: utf8string; ASortDirection: TSortDirection): boolean;
+    var
+      i: Integer;
+    begin
+      for i := 0 to FFilters.Count-1 do
+        if FFilters[i].ColumnName = AColumnName then
+        begin
+          LFilter := FFilters[i];
+          LFilter.Sort := ASortDirection;
+          FFilters[i] := LFilter;
+          Exit(True);
+        end;
+      Result := False;
+    end;
+
+  begin
+    LColumnsToAdd := TList<Integer>.Create;
+
+    for i := FFilters.Count-1 downto 0 do
+      if FFilters[i].Filter=vgfSortable then
+        FFilters.Delete(i);
+    LData := GetActiveDataTable;
+    try
+      for i := 0 to FColumns.Count - 1 do
+        if FColumns[i].SortDirection <> sdNone then
+        begin
+          // try to find column in existing filters
+          // if filter not found we need to create it later
+          if not UpdateFilterSortDirection(LData.Columns[i], FColumns[i].SortDirection) then
+            LColumnsToAdd.Add(i);
+        end else
+          UpdateFilterSortDirection(LData.Columns[i], sdNone);
+
+      // add missing filters
+      FFilters.Count:=FFilters.Count + LColumnsToAdd.Count;
+      j := 0;
+      for i := FFilters.Count - LColumnsToAdd.Count to FFilters.Count-1 do
+      begin
+        // real column index
+        idx := LColumnsToAdd[j];
+        inc(j);
+        // create new filter
+        LFilter := Default(TColumnFilter);
+        LFilter.Filter:=vgfSortable;
+        LFilter.ColumnName:=LData.Columns[idx];
+        LFilter.Sort := FColumns[idx].SortDirection;
+        FFilters[i] := LFilter;
+      end;
+    finally
+      LColumnsToAdd.Free;
+    end;
+  end;
+
 begin
   if Assigned(FDataSource) then
-    AResult := FDataSource.FetchPage(
-      TPageFetchParams.Create(FPageIndex, FPageSize, FFilter), FDataTable)
+  begin
+    FillFilter;
+    AResult := FDataSource.FetchPage(TPageFetchParams.Create(FPageIndex, FPageSize, FFilters.ToArray, IIF(FSearchMode = smMulti, foAnd, foOr)), FDataTable)
+  end
   else
     FillChar(AResult, SizeOf(AResult), #0);
 end;
@@ -1714,6 +1998,7 @@ begin
   begin
     if FromThread then
     begin
+      FActiveThread := nil;
       Dispose(FCachedDataTable);
       FCachedDataTable := nil;
       FFetchDataThreadTimer.Enabled:=false;
@@ -1770,6 +2055,34 @@ begin
     FOnSelection(Self, Selection);
 end;
 
+procedure TCustomVisualGrid.SetWidgetControl(AValue: TControl);
+begin
+  if FWidgetControl=AValue then Exit;
+
+  if Assigned(FWidgetControl) then
+    FWidgetControl.Parent := FWidgetControlParent;
+
+  FWidgetControl:=AValue;
+
+  if Assigned(AValue) then
+  begin
+    FTopPanelLeft.Width:=FWidgetControl.Width + 4 + 4;
+    if FWidgetControl.Height > FTopPanelLeft.Height then
+      FWidgetControl.Height := FTopPanelLeft.Height;
+
+    FWidgetControlParent := FWidgetControl.Parent;
+    FWidgetControl.Parent := FTopPanelLeft;
+    with FWidgetControl do
+    begin
+      AnchorSideLeft.Control := FTopPanelLeft;
+      AnchorSideLeft.Side := asrCenter;
+      AnchorSideTop.Control := FTopPanelLeft;
+      AnchorSideTop.Side := asrCenter;
+    end;
+  end else
+    FTopPanelLeft.Width:=0;
+end;
+
 procedure TCustomVisualGrid.StandardDrawCell(Sender: TObject; ACol,
   ARow: Longint; Rect: TRect; State: TGridDrawState);
 var
@@ -1777,6 +2090,9 @@ var
   LCellData: Variant;
 begin
   LHandled := False;
+
+  if ColCount = 0 then
+    Exit;
 
   if ARow = 0 then
     ResizeSearchEdit(ACol);
@@ -1798,6 +2114,8 @@ var
   LCol, LRow: longint;
   LContains: boolean = false;
 begin
+  if ColCount = 0 then
+    Exit;
   if Button = mbRight then
     if (SelectionType <> stNone) and Assigned(FOnPreparePopupMenu) and
        (FDrawGrid.MouseToGridZone(X, Y) = gzNormal) then
@@ -1823,25 +2141,48 @@ begin
 end;
 
 procedure TCustomVisualGrid.SearchKindPopupMenuClick(Sender: TObject);
-var
-  i: Integer;
-  LIsMultiSearch: boolean;
 begin
   TMenuItem(Sender).Checked:=true;
-  LIsMultiSearch := Sender = FMultiSearchMenuItem;
-
-  // LIsMultiSearch
-  //   true: check almost all (except expression)
-  //   false: check only expression
-  for i := 0 to FMultiSearchCheckComboBox.Items.Count - 2 do
-    FMultiSearchCheckComboBox.Checked[i] := LIsMultiSearch;
-  FMultiSearchCheckComboBox.Checked[FMultiSearchCheckComboBox.Items.Count-1] := not LIsMultiSearch;
+  SearchMode := IIF(Sender = FMultiSearchMenuItem, smMulti, smSingle);
 end;
 
 procedure TCustomVisualGrid.GridSelection(Sender: TObject; aCol, aRow: Integer);
 begin
   if (SelectionType <> stNone) and Assigned(FOnSelection) then
     FOnSelection(Self, Selection);
+end;
+
+procedure TCustomVisualGrid.GridHeaderClick(Sender: TObject; IsColumn: Boolean;
+  Index: Integer);
+var
+  LColumn: TVisualColumn;
+begin
+  if ColCount = 0 then
+    Exit;
+  if Index >= Length(ActiveDataTable.Columns) then
+    raise EVisualGridError.CreateFmt(sImproperColumnIndex, [Length(ActiveDataTable.Columns)-1,Index]);
+
+  if FSortMode = smNone then
+    Exit;
+
+  LColumn := GetColumns(Index);
+  case LColumn.SortDirection of
+    sdNone: LColumn.SortDirection := sdAscending;
+    sdAscending: LColumn.SortDirection := sdDescending;
+    sdDescending:
+      if vgoSortDirectionAllowNone in Options then
+        LColumn.SortDirection := sdNone
+      else
+        LColumn.SortDirection := sdAscending;
+  end;
+  if Assigned(FSortColumn) and (FSortColumn<>LColumn) then
+    if SortMode=smSingleColumn then
+    begin
+      FSortColumn.FIgnoreRefresh:=true;
+      FSortColumn.SortDirection:=sdNone;
+      FSortColumn.FIgnoreRefresh:=false;
+    end;
+  FSortColumn := LColumn;
 end;
 
 {$IFNDEF WINDOWS}

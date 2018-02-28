@@ -20,7 +20,7 @@ interface
 uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Buttons, ComCtrls, UCommonUI;
+  Dialogs, StdCtrls, Buttons, ComCtrls, UCommon.UI;
 
 const
     CM_PC_WalletKeysChanged = WM_USER + 1;

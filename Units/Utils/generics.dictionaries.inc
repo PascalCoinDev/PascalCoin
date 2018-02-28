@@ -1995,6 +1995,8 @@ end;
 procedure TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.TrimExcess;
 begin
   SetCapacity(Succ(FItemsLength));
+  FQueue.TrimExcess;
+  FQueue.FIdx.TrimExcess;
 end;
 
 procedure TDeamortizedDArrayCuckooMap<CUCKOO_CONSTRAINTS>.SetItem(constref AValue: TValue;

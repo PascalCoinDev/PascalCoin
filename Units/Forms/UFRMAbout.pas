@@ -22,7 +22,7 @@ interface
 uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, ExtCtrls, StdCtrls, Buttons, UCommonUI;
+  Dialogs, ExtCtrls, StdCtrls, Buttons, UCommon.UI;
 
 type
 

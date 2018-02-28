@@ -18,7 +18,7 @@ interface
 
 uses
     LCLIntf, LCLType, SysUtils, Controls, Forms, Dialogs, ExtCtrls, StdCtrls, Grids, Menus, Classes,
-    UCommonUI, UGridUtils, UConst;
+    UCommon.UI, UGridUtils, UConst;
 
 type
 

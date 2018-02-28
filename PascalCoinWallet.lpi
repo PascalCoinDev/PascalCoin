@@ -34,7 +34,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="77">
+    <Units Count="79">
       <Unit0>
         <Filename Value="PascalCoinWallet.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -276,155 +276,163 @@
         <IsPartOfProject Value="True"/>
       </Unit47>
       <Unit48>
-        <Filename Value="Units\Utils\UCommonUI.pas"/>
+        <Filename Value="Units\Utils\UCommon.Data.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit48>
       <Unit49>
-        <Filename Value="Units\Utils\UCommon.pas"/>
+        <Filename Value="Units\PascalCoin\UGPUMining.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit49>
       <Unit50>
-        <Filename Value="Units\PascalCoin\UGPUMining.pas"/>
+        <Filename Value="Units\PascalCoin\upcdaemon.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit50>
       <Unit51>
-        <Filename Value="Units\PascalCoin\upcdaemon.pas"/>
+        <Filename Value="Units\PascalCoin\UPoolMinerThreads.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit51>
       <Unit52>
-        <Filename Value="Units\PascalCoin\UPoolMinerThreads.pas"/>
+        <Filename Value="Units\PascalCoin\UServerApp.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit52>
       <Unit53>
-        <Filename Value="Units\PascalCoin\UServerApp.pas"/>
+        <Filename Value="Units\PascalCoin\USha256.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit53>
       <Unit54>
-        <Filename Value="Units\PascalCoin\USha256.pas"/>
+        <Filename Value="Units\Utils\generics.dictionaries.inc"/>
         <IsPartOfProject Value="True"/>
       </Unit54>
       <Unit55>
-        <Filename Value="Units\Utils\generics.dictionaries.inc"/>
+        <Filename Value="Units\Utils\generics.dictionariesh.inc"/>
         <IsPartOfProject Value="True"/>
       </Unit55>
       <Unit56>
-        <Filename Value="Units\Utils\generics.dictionariesh.inc"/>
+        <Filename Value="Units\Forms\UFRMAccountInfo.pas"/>
         <IsPartOfProject Value="True"/>
+        <HasResources Value="True"/>
       </Unit56>
       <Unit57>
-        <Filename Value="Units\Forms\UFRMAccountInfo.pas"/>
+        <Filename Value="Units\Forms\UFRMMemoText.pas"/>
         <IsPartOfProject Value="True"/>
         <HasResources Value="True"/>
       </Unit57>
       <Unit58>
-        <Filename Value="Units\Forms\UFRMMemoText.pas"/>
-        <IsPartOfProject Value="True"/>
-        <HasResources Value="True"/>
-      </Unit58>
-      <Unit59>
         <Filename Value="Units\Forms\UFRMSaleAccounts.pas"/>
         <IsPartOfProject Value="True"/>
-      </Unit59>
-      <Unit60>
+      </Unit58>
+      <Unit59>
         <Filename Value="Units\Forms\UCTRLBanner.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="CTRLBanner"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit60>
-      <Unit61>
+      </Unit59>
+      <Unit60>
         <Filename Value="Units\Forms\UFRMMainForm.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="FRMMainForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit61>
-      <Unit62>
+      </Unit60>
+      <Unit61>
         <Filename Value="Units\Forms\UCTRLSyncronization.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="CTRLSyncronization"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
+      </Unit61>
+      <Unit62>
+        <Filename Value="Units\Utils\UAutoScope.pas"/>
+        <IsPartOfProject Value="True"/>
       </Unit62>
       <Unit63>
-        <Filename Value="Units\Utils\UAutoScope.pas"/>
+        <Filename Value="Units\Utils\UVisualGrid.inc"/>
         <IsPartOfProject Value="True"/>
       </Unit63>
       <Unit64>
-        <Filename Value="Units\Utils\UVisualGrid.inc"/>
+        <Filename Value="Units\Utils\UVisualGrid.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit64>
       <Unit65>
-        <Filename Value="Units\Utils\UVisualGrid.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit65>
-      <Unit66>
         <Filename Value="Units\Forms\Wizards\UWIZAddKey_Start.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_Start"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit66>
-      <Unit67>
+      </Unit65>
+      <Unit66>
         <Filename Value="Units\Forms\Wizards\UWIZAddKey_GenerateOrImport.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_GenerateOrImport"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit67>
-      <Unit68>
+      </Unit66>
+      <Unit67>
         <Filename Value="Units\Forms\Wizards\UWIZAddKey_ImportPubKey.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_ImportPubKey"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit68>
-      <Unit69>
+      </Unit67>
+      <Unit68>
         <Filename Value="Units\Forms\Wizards\UWIZAddKey_ImportPrivKey.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_ImportPrivKey"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit69>
-      <Unit70>
+      </Unit68>
+      <Unit69>
         <Filename Value="Units\Forms\Wizards\UWIZAddKey_EnterName.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_EnterName"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit70>
-      <Unit71>
+      </Unit69>
+      <Unit70>
         <Filename Value="Units\Forms\UFRMWalletKeys.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="FRMWalletKeys"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
+      </Unit70>
+      <Unit71>
+        <Filename Value="Units\Forms\Wizards\UWIZAddKey.pas"/>
+        <IsPartOfProject Value="True"/>
       </Unit71>
       <Unit72>
-        <Filename Value="Units\Forms\Wizards\UWIZAddKey.pas"/>
+        <Filename Value="Units\PascalCoin\USettings.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit72>
       <Unit73>
-        <Filename Value="Units\PascalCoin\USettings.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit73>
-      <Unit74>
         <Filename Value="Units\Forms\Wizards\UWIZAddKey_SelectEncryption.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_SelectEncryption"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit74>
-      <Unit75>
+      </Unit73>
+      <Unit74>
         <Filename Value="Units\Forms\UCTRLWallet.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="CTRLWallet"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
+      </Unit74>
+      <Unit75>
+        <Filename Value="Units\PascalCoin\UDataSources.pas"/>
+        <IsPartOfProject Value="True"/>
       </Unit75>
       <Unit76>
-        <Filename Value="Units\Forms\UGrids.pas"/>
+        <Filename Value="Units\Utils\UCommon.Collections.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit76>
+      <Unit77>
+        <Filename Value="Units\Utils\UCommon.UI.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit77>
+      <Unit78>
+        <Filename Value="Units\Utils\UCommon.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit78>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -449,6 +457,9 @@
       </Optimizations>
     </CodeGeneration>
     <Linking>
+      <Debugging>
+        <DebugInfoType Value="dsDwarf2Set"/>
+      </Debugging>
       <Options>
         <Win32>
           <GraphicApplication Value="True"/>

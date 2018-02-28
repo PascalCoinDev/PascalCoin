@@ -22,7 +22,7 @@ interface
 uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, UCommonUI,
+  Dialogs, StdCtrls, UCommon.UI,
   UBlockChain, UCrypto, UWallet, Buttons, ComCtrls,UAppParams;
 
 type
@@ -138,13 +138,9 @@ begin
     exit;
   end;
   try
-    r := TCrypto.HexaToRaw(trim(OpHash));
-    if (r='') then begin
-      raise Exception.Create('Value is not an hexadecimal string');
-    end;
     // Build 2.1.4 new decoder option: Check if OpHash is a posible double spend
-    If not TPCOperation.DecodeOperationHash(r,nBlock,nAccount,nN_Operation,md160) then begin
-      raise Exception.Create('Value is not a valid OPHASH because can''t extract Block/Account/N_Operation info');
+    If not TPCOperation.TryParseOperationHash(OpHash,nBlock,nAccount,nN_Operation,md160) then begin
+      raise Exception.Create('Invalid OPHASH');
     end;
     Case TNode.Node.FindNOperation(nBlock,nAccount,nN_Operation,opr) of
       invalid_params : raise Exception.Create(Format('Not a valid OpHash searching at Block:%d Account:%d N_Operation:%d',[nBlock,nAccount,nN_Operation]));

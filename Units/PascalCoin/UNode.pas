@@ -28,7 +28,7 @@ unit UNode;
 interface
 
 uses
-  Classes, UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, SyncObjs, ULog;
+  Classes, UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, Generics.Collections, SyncObjs, ULog;
 
 {$I config.inc}
 
@@ -43,7 +43,7 @@ Type
     FNodeLog : TLog;
     FLockNodeOperations : TPCCriticalSection;
     FOperationSequenceLock : TPCCriticalSection;
-    FNotifyList : TList;
+    FNotifyList : Classes.TList;
     FBank : TPCBank;
     FOperations : TPCOperationsComp;
     FNetServer : TNetServer;
@@ -78,7 +78,7 @@ Type
     //
     Procedure NotifyBlocksChanged;
     //
-    procedure GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDepth, StartOperation, EndOperation : Integer);
+    procedure GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDepth, StartOperation, EndOperation : Integer); overload;
     Function FindOperation(Const OperationComp : TPCOperationsComp; Const OperationHash : TRawBytes; var block : Cardinal; var operation_block_index : Integer) : Boolean;
     Function FindOperationExt(Const OperationComp : TPCOperationsComp; Const OperationHash : TRawBytes; var block : Cardinal; var operation_block_index : Integer) : TSearchOperationResult;
     Function FindNOperation(block, account, n_operation : Cardinal; var OpResume : TOperationResume) : TSearchOperationResult;
@@ -151,7 +151,7 @@ Type
 
 implementation
 
-Uses UOpTransaction, SysUtils,  UConst, UTime;
+Uses UOpTransaction, SysUtils,  UConst, UTime, UAutoScope, UCommon;
 
 var _Node : TNode;
 
@@ -502,7 +502,7 @@ begin
   FNetServer := TNetServer.Create;
   FOperations := TPCOperationsComp.Create(Self);
   FOperations.bank := FBank;
-  FNotifyList := TList.Create;
+  FNotifyList := Classes.TList.Create;
   {$IFDEF BufferOfFutureOperations}
   FBufferAuxWaitingOperations := TOperationsHashTree.Create;
   {$ENDIF}
@@ -704,14 +704,14 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
   var opc : TPCOperationsComp;
     op : TPCOperation;
     OPR : TOperationResume;
-    l : TList;
+    l : Classes.TList;
     i : Integer;
     last_block_number, next_block_number : Integer;
   begin
     if (act_depth<=0) then exit;
     opc := TPCOperationsComp.Create(Nil);
     Try
-      l := TList.Create;
+      l := Classes.TList.Create;
       try
         last_block_number := block_number+1;
         while (last_block_number>block_number) And (act_depth>0)
@@ -749,12 +749,13 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
             OPR := CT_TOperationResume_NUL;
             OPR.valid := true;
             OPR.Block := block_number;
+            OPR.NOpInsideBlock:=-1;
             OPR.time := opc.OperationBlock.timestamp;
             OPR.AffectedAccount := account_number;
             OPR.Amount := opc.OperationBlock.reward;
             OPR.Fee := opc.OperationBlock.fee;
             OPR.Balance := last_balance;
-            OPR.OperationTxt := 'Blockchain reward';
+            OPR.OperationTxt := 'Miner reward';
             if (nOpsCounter>=StartOperation) And (nOpsCounter<=EndOperation) then begin
               OperationsResume.Add(OPR);
             end;

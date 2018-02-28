@@ -18,7 +18,7 @@ unit UBlockChain;
 interface
 
 uses
-  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs;
+  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs, SysUtils, Generics.Collections, UCommon;
 {$I config.inc}
 
 {
@@ -165,9 +165,9 @@ Type
     constructor Create; virtual;
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; virtual;
     function DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors: AnsiString): Boolean; virtual; abstract;
-    procedure AffectedAccounts(list : TList); virtual; abstract;
+    procedure AffectedAccounts(list : Classes.TList); virtual; abstract;
     class function OpType: Byte; virtual; abstract;
-    Class Function OperationToOperationResume(Block : Cardinal; Operation : TPCOperation; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean;
+    Class Function OperationToOperationResume(Block : Cardinal; Operation : TPCOperation; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean; overload;
     function OperationAmount : Int64; virtual; abstract;
     function OperationFee: UInt64; virtual; abstract;
     function OperationPayload : TRawBytes; virtual; abstract;
@@ -186,6 +186,8 @@ Type
     Property HasValidSignature : Boolean read FHasValidSignature;
     Class function OperationHash_OLD(op : TPCOperation; Block : Cardinal) : TRawBytes;
     Class function OperationHashValid(op : TPCOperation; Block : Cardinal) : TRawBytes;
+    class function IsValidOperationHash(const AOpHash : AnsiString) : Boolean;
+    class function TryParseOperationHash(const AOpHash : AnsiString; var block, account, n_operation: Cardinal; var md160Hash : TRawBytes) : Boolean;
     Class function DecodeOperationHash(Const operationHash : TRawBytes; var block, account,n_operation : Cardinal; var md160Hash : TRawBytes) : Boolean;
     Class function EqualOperationHashes(Const operationHash1, operationHash2 : TRawBytes) : Boolean;
     Class function FinalOperationHashAsHexa(Const operationHash : TRawBytes) : AnsiString;
@@ -201,7 +203,7 @@ Type
     FOnChanged: TNotifyEvent;
     FTotalAmount : Int64;
     FTotalFee : Int64;
-    Procedure InternalAddOperationToHashTree(list : TList; op : TPCOperation);
+    Procedure InternalAddOperationToHashTree(list : Classes.TList; op : TPCOperation);
   public
     Constructor Create;
     Destructor Destroy; Override;
@@ -210,7 +212,8 @@ Type
     Property HashTree : TRawBytes read FHashTree;
     Function OperationsCount : Integer;
     Function GetOperation(index : Integer) : TPCOperation;
-    Function GetOperationsAffectingAccount(account_number : Cardinal; List : TList) : Integer;
+    Function GetOperationsAffectingAccount(account_number : Cardinal; List : Classes.TList) : Integer;
+    Function GetOperationsAffectingAccounts(const account_numbers : array of Cardinal; const AList: TList<Cardinal>) : Integer;
     Procedure CopyFromHashTree(Sender : TOperationsHashTree);
     Property TotalAmount : Int64 read FTotalAmount;
     Property TotalFee : Int64 read FTotalFee;
@@ -279,6 +282,7 @@ Type
     function LoadBlockFromStorage(Stream: TStream; var errors: AnsiString): Boolean;
     function LoadBlockFromStream(Stream: TStream; var errors: AnsiString): Boolean;
     //
+    Function GetMinerRewardPsuedoOperation : TOperationResume;
     Function ValidateOperationBlock(var errors : AnsiString) : Boolean;
     Property IsOnlyOperationBlock : Boolean read FIsOnlyOperationBlock;
     Procedure Lock;
@@ -292,6 +296,9 @@ Type
     Class Function GetOperationClassByOpType(OpType: Cardinal): TPCOperationClass;
     Class Function GetFirstBlock : TOperationBlock;
     Class Function EqualsOperationBlock(Const OperationBlock1,OperationBlock2 : TOperationBlock):Boolean;
+    Class Function ConvertTimeSpanToBlockCount(const ASpan : TTimeSpan) : Integer;
+    Class Function ConvertBlockCountToTimeSpan(const ACount : Integer) : TTimeSpan;
+
     //
     Property SafeBoxTransaction : TPCSafeBoxTransaction read FSafeBoxTransaction;
     Property OperationsHashTree : TOperationsHashTree read FOperationsHashTree;
@@ -381,7 +388,7 @@ Type
     FUpgradingToV2: Boolean;
     FOnLog: TPCBankLog;
     FBankLock: TPCCriticalSection;
-    FNotifyList : TList;
+    FNotifyList : Classes.TList;
     FStorageClass: TStorageClass;
     function GetStorage: TStorage;
     procedure SetStorageClass(const Value: TStorageClass);
@@ -416,10 +423,10 @@ implementation
 
 uses
   {Messages, }
-  SysUtils, Variants, {Graphics,}
+  Variants, {Graphics,}
   {Controls, Forms,}
   Dialogs, {StdCtrls,}
-  UTime, UConst, UOpTransaction, UCommon;
+  UTime, UConst, UOpTransaction, UAutoScope;
 
 { TPCBank }
 
@@ -530,7 +537,7 @@ begin
   FIsRestoringFromFile := False;
   FOnLog := Nil;
   FSafeBox := TPCSafeBox.Create;
-  FNotifyList := TList.Create;
+  FNotifyList := Classes.TList.Create;
   FLastBlockCache := TPCOperationsComp.Create(Nil);
   FIsRestoringFromFile:=False;
   FUpgradingToV2:=False;
@@ -603,10 +610,10 @@ begin
                 Storage.DeleteBlockChainBlocks(BlocksCount);
                 break;
               end else begin
-                // To prevent continuous saving...
                 {$IFDEF TESTNET}
                 Storage.SaveBank;
                 {$ELSE}
+                // To prevent continuous saving...
                 If (BlocksCount MOD (CT_BankToDiskEveryNBlocks*10))=0 then begin
                   Storage.SaveBank;
                 end;
@@ -974,6 +981,16 @@ begin
     FreeAndNil(FOperationsLock);
   end;
   inherited;
+end;
+
+Class Function TPCOperationsComp.ConvertTimeSpanToBlockCount(const ASpan : TTimeSpan) : Integer;
+begin
+  Result := Round ( ASpan.TotalSeconds / CT_NewLineSecondsAvg );
+end;
+
+Class Function TPCOperationsComp.ConvertBlockCountToTimeSpan(const ACount : Integer) : TTimeSpan;
+begin
+  Result := TTimeSpan.FromSeconds( CT_NewLineSecondsAvg * ACount );
 end;
 
 class function TPCOperationsComp.EqualsOperationBlock(const OperationBlock1,
@@ -1424,6 +1441,19 @@ begin
   end;
 end;
 
+function TPCOperationsComp.GetMinerRewardPsuedoOperation : TOperationResume;
+begin
+   Result := CT_TOperationResume_NUL;
+   Result.valid := true;
+   Result.Block := FOperationBlock.block;
+   Result.time := self.OperationBlock.timestamp;
+   Result.AffectedAccount := FOperationBlock.block * CT_AccountsPerBlock;
+   Result.Amount := self.OperationBlock.reward;
+   Result.Fee := self.OperationBlock.fee;
+   Result.Balance := Result.Amount+Result.Fee;
+   Result.OperationTxt := 'Miner reward';
+end;
+
 function TPCOperationsComp.ValidateOperationBlock(var errors : AnsiString): Boolean;
 Var lastpow : AnsiString;
   i : Integer;
@@ -1538,7 +1568,7 @@ Type TOperationHashTreeReg = Record
      POperationHashTreeReg = ^TOperationHashTreeReg;
 
 procedure TOperationsHashTree.AddOperationToHashTree(op: TPCOperation);
-Var l : TList;
+Var l : Classes.TList;
 begin
   l := FHashTreeOperations.LockList;
   try
@@ -1549,7 +1579,7 @@ begin
 end;
 
 procedure TOperationsHashTree.ClearHastThree;
-var l : TList;
+var l : Classes.TList;
   i : Integer;
   P : POperationHashTreeReg;
 begin
@@ -1575,7 +1605,7 @@ end;
 
 procedure TOperationsHashTree.CopyFromHashTree(Sender: TOperationsHashTree);
 Var i : Integer;
-  lme, lsender : TList;
+  lme, lsender : Classes.TList;
   PSender : POperationHashTreeReg;
   lastNE : TNotifyEvent;
 begin
@@ -1616,7 +1646,7 @@ begin
 end;
 
 procedure TOperationsHashTree.Delete(index: Integer);
-Var l : TList;
+Var l : Classes.TList;
   P : POperationHashTreeReg;
   i : Integer;
 begin
@@ -1654,7 +1684,7 @@ begin
 end;
 
 function TOperationsHashTree.GetOperation(index: Integer): TPCOperation;
-Var l : TList;
+Var l : Classes.TList;
 begin
   l := FHashTreeOperations.LockList;
   try
@@ -1664,15 +1694,15 @@ begin
   end;
 end;
 
-function TOperationsHashTree.GetOperationsAffectingAccount(account_number: Cardinal; List: TList): Integer;
+function TOperationsHashTree.GetOperationsAffectingAccount(account_number: Cardinal; List: Classes.TList): Integer;
   // This function retrieves operations from HashTree that affeccts to an account_number
-Var l,intl : TList;
+Var l,intl : Classes.TList;
   i,j : Integer;
 begin
   List.Clear;
   l := FHashTreeOperations.LockList;
   try
-    intl := TList.Create;
+    intl := Classes.TList.Create;
     try
       for i := 0 to l.Count - 1 do begin
         intl.Clear;
@@ -1688,9 +1718,34 @@ begin
   end;
 end;
 
+Function TOperationsHashTree.GetOperationsAffectingAccounts(const account_numbers : array of Cardinal; const AList: TList<Cardinal>) : Integer;
+var
+  blockOps,legacyList : Classes.TList;
+  i,j : Integer;
+  GC : TScoped;
+begin
+  AList.Clear;
+  blockOps := FHashTreeOperations.LockList;
+  legacyList := GC.AddObject( Classes.TList.Create ) as Classes.TList;
+  try
+    for i := 0 to blockOps.Count - 1 do begin
+      legacyList.Clear;
+      POperationHashTreeReg(blockOps[i])^.Op.AffectedAccounts(legacyList);
+      for j := Low(account_numbers) to High(account_numbers) do
+        if legacyList.IndexOf(TObject(account_numbers[j]))>=0 then begin
+          AList.Add(i);
+          break;
+        end;
+    end;
+    Result := legacyList.Count;
+  finally
+    FHashTreeOperations.UnlockList;
+  end;
+end;
+
 function TOperationsHashTree.IndexOfOperation(op: TPCOperation): Integer;
 Var
-  l : TList;
+  l : Classes.TList;
   OpSha256 : TRawBytes;
 begin
   OpSha256 := op.Sha256;
@@ -1706,7 +1761,7 @@ begin
 end;
 
 function TOperationsHashTree.CountOperationsBySameSignerWithoutFee(account_number: Cardinal): Integer;
-Var l : TList;
+Var l : Classes.TList;
   i : Integer;
 begin
   Result := 0;
@@ -1720,7 +1775,7 @@ begin
   End;
 end;
 
-procedure TOperationsHashTree.InternalAddOperationToHashTree(list: TList; op: TPCOperation);
+procedure TOperationsHashTree.InternalAddOperationToHashTree(list: Classes.TList; op: TPCOperation);
 Var msCopy : TMemoryStream;
   h : TRawBytes;
   P : POperationHashTreeReg;
@@ -1802,7 +1857,7 @@ begin
 end;
 
 function TOperationsHashTree.OperationsCount: Integer;
-Var l : TList;
+Var l : Classes.TList;
 begin
   l := FHashTreeOperations.LockList;
   try
@@ -1815,7 +1870,7 @@ end;
 function TOperationsHashTree.SaveOperationsHashTreeToStream(Stream: TStream; SaveToStorage: Boolean): Boolean;
 Var c, i, OpType: Cardinal;
   bcop: TPCOperation;
-  l : TList;
+  l : Classes.TList;
 begin
   l := FHashTreeOperations.LockList;
   Try
@@ -1999,6 +2054,23 @@ begin
   finally
     ms.free;
   end;
+end;
+
+class function TPCOperation.IsValidOperationHash(const AOpHash : AnsiString) : Boolean;
+var block, account, n_operation: Cardinal; md160Hash : TRawBytes;
+begin
+  Result := TryParseOperationHash(AOpHash, block, account, n_operation, md160Hash);
+end;
+
+class function TPCOperation.TryParseOperationHash(const AOpHash : AnsiString; var block, account, n_operation: Cardinal; var md160Hash : TRawBytes) : Boolean;
+var
+  ophash : TRawBytes;
+begin
+  ophash := TCrypto.HexaToRaw(trim(AOpHash));
+  if Length(ophash) = 0 then
+    Exit(false);
+  If not TPCOperation.DecodeOperationHash(ophash,block,account,n_operation,md160Hash) then
+    Exit(false);
 end;
 
 class function TPCOperation.EqualOperationHashes(const operationHash1,operationHash2: TRawBytes): Boolean;
@@ -2307,7 +2379,7 @@ end;
 procedure TOperationsResumeList.Clear;
 Var P : POperationResume;
   i : Integer;
-  l : TList;
+  l : Classes.TList;
 begin
   l := FList.LockList;
   try
@@ -2322,7 +2394,7 @@ begin
 end;
 
 function TOperationsResumeList.Count: Integer;
-Var l : TList;
+Var l : Classes.TList;
 begin
   l := FList.LockList;
   Try
@@ -2339,7 +2411,7 @@ end;
 
 procedure TOperationsResumeList.Delete(index: Integer);
 Var P : POperationResume;
-  l : TList;
+  l : Classes.TList;
 begin
   l := FList.LockList;
   Try
@@ -2359,7 +2431,7 @@ begin
 end;
 
 function TOperationsResumeList.GetOperationResume(index: Integer): TOperationResume;
-Var l : TList;
+Var l : Classes.TList;
 begin
   l := FList.LockList;
   try

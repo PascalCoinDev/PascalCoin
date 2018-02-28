@@ -18,7 +18,7 @@ interface
 uses
   LCLIntf, LCLType,
   Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ExtCtrls, StdCtrls, LMessages, UCommonUI,
+  Dialogs, ExtCtrls, StdCtrls, LMessages, UCommon.UI,
   ULog,  UBlockChain, UNode, Menus,  UNetProtocol;
 
 Const

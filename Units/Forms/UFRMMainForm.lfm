@@ -23,6 +23,7 @@ object FRMMainForm: TFRMMainForm
   Position = poScreenCenter
   ShowHint = True
   LCLVersion = '1.8.0.6'
+  Visible = False
   object paLogoPanel: TPanel
     Left = 0
     Height = 80
@@ -45,7 +46,7 @@ object FRMMainForm: TFRMMainForm
   end
   object paSyncPanel: TPanel
     Left = 0
-    Height = 505
+    Height = 477
     Top = 80
     Width = 865
     Align = alClient
@@ -62,7 +63,7 @@ object FRMMainForm: TFRMMainForm
   end
   object paWalletPanel: TPanel
     Left = 0
-    Height = 505
+    Height = 477
     Top = 80
     Width = 865
     Align = alClient
@@ -79,8 +80,8 @@ object FRMMainForm: TFRMMainForm
   end
   object sbStatusBar: TStatusBar
     Left = 0
-    Height = 15
-    Top = 585
+    Height = 23
+    Top = 557
     Width = 865
     Panels = <    
       item
@@ -109,7 +110,7 @@ object FRMMainForm: TFRMMainForm
     AnchorSideBottom.Side = asrBottom
     Left = 778
     Height = 15
-    Top = 585
+    Top = 561
     Width = 70
     Align = alNone
     Anchors = [akTop, akRight]

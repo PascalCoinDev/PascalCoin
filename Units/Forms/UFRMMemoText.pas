@@ -7,7 +7,7 @@ interface
 uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Buttons, ExtCtrls, UCommonUI;
+  Dialogs, StdCtrls, Buttons, ExtCtrls, UCommon.UI;
 
 type
   TFRMMemoText = class(TApplicationForm)

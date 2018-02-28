@@ -86,8 +86,9 @@ Type
     Class Function EqualAccountInfos(const accountInfo1,accountInfo2 : TAccountInfo) : Boolean;
     Class Function EqualAccountKeys(const account1,account2 : TAccountKey) : Boolean;
     Class Function AccountNumberToAccountTxtNumber(account_number : Cardinal) : AnsiString;
-    Class function AccountTxtNumberToAccountNumber(Const account_txt_number : AnsiString; var account_number : Cardinal) : Boolean;
+    Class function AccountTxtNumberToAccountNumber(Const account_txt_number : AnsiString; out account_number : Cardinal) : Boolean;
     Class function FormatMoney(Money : Int64) : AnsiString;
+    Class function FormatMoneyDecimal(Money : Int64) : Single;
     Class Function TxtToMoney(Const moneytxt : AnsiString; var money : Int64) : Boolean;
     Class Function AccountKeyFromImport(Const HumanReadable : AnsiString; var account : TAccountKey; var errors : AnsiString) : Boolean;
     Class Function AccountPublicKeyExport(Const account : TAccountKey) : AnsiString;
@@ -186,7 +187,6 @@ Type
     FAutoAddAll : Boolean;
     FAccountList : TPCSafeBox;
     FOrderedAccountKeysList : TList; // An ordered list of pointers to quickly find account keys in account list
-    Function Find(Const AccountKey: TAccountKey; var Index: Integer): Boolean;
     function GetAccountKeyList(index: Integer): TOrderedCardinalList;
     function GetAccountKey(index: Integer): TAccountKey;
   protected
@@ -194,6 +194,7 @@ Type
   public
     Constructor Create(AccountList : TPCSafeBox; AutoAddAll : Boolean);
     Destructor Destroy; override;
+    Function Find(Const AccountKey: TAccountKey; var Index: Integer): Boolean;
     Procedure AddAccountKey(Const AccountKey : TAccountKey);
     Procedure RemoveAccountKey(Const AccountKey : TAccountKey);
     Procedure AddAccounts(Const AccountKey : TAccountKey; const accounts : Array of Cardinal);
@@ -365,7 +366,7 @@ Const
 implementation
 
 uses
-  SysUtils, ULog, UOpenSSLdef, UOpenSSL, UAccountKeyStorage;
+  SysUtils, ULog, UOpenSSLdef, UOpenSSL, UAccountKeyStorage, math;
 
 { TPascalCoinProtocol }
 
@@ -873,7 +874,7 @@ begin
   end;
 end;
 
-class function TAccountComp.AccountTxtNumberToAccountNumber(const account_txt_number: AnsiString; var account_number: Cardinal): Boolean;
+class function TAccountComp.AccountTxtNumberToAccountNumber(const account_txt_number: AnsiString; out account_number: Cardinal): Boolean;
 Var i : Integer;
   char1 : AnsiChar;
   char2 : AnsiChar;
@@ -919,7 +920,12 @@ end;
 
 class function TAccountComp.FormatMoney(Money: Int64): AnsiString;
 begin
-  Result := FormatFloat('#,###0.0000',(Money/10000));
+  Result := FormatFloat('#,###0.0000', (Money/10000));
+end;
+
+class function TAccountComp.FormatMoneyDecimal(Money : Int64) : Single;
+begin
+  RoundTo( Money / 10000, -4);
 end;
 
 class function TAccountComp.GetECInfoTxt(const EC_OpenSSL_NID: Word): AnsiString;

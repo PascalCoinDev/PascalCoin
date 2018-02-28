@@ -210,6 +210,8 @@ type
     property Count: SizeInt read GetCount;
     property Capacity: SizeInt read GetCapacity write SetCapacity;
     property OnNotify: TCollectionNotifyEvent<T> read FOnNotify write FOnNotify;
+
+    procedure TrimExcess; virtual; abstract;
   end;
 
   TCustomListEnumerator<T> = class abstract(TEnumerator<T>)
@@ -307,7 +309,7 @@ type
 
     procedure Reverse;
 
-    procedure TrimExcess;
+    procedure TrimExcess; override;
 
     procedure Sort; overload;
     procedure Sort(const AComparer: IComparer<T>); overload;
@@ -406,7 +408,7 @@ type
     function Extract: T;
     function Peek: T;
     procedure Clear;
-    procedure TrimExcess;
+    procedure TrimExcess; override;
   end;
 
   TStack<T> = class(TCustomListWithPointers<T>)
@@ -434,7 +436,7 @@ type
     function Pop: T; inline;
     function Peek: T;
     function Extract: T; inline;
-    procedure TrimExcess;
+    procedure TrimExcess; override;
   end;
 
   TObjectList<T: class> = class(TList<T>)
@@ -507,6 +509,8 @@ type
   protected
     function DoGetEnumerator: TEnumerator<T>; override;
     function GetCount: SizeInt; virtual; abstract;
+    function GetCapacity: SizeInt; virtual; abstract;
+    procedure SetCapacity(AValue: SizeInt); virtual; abstract;
     function GetOnNotify: TCollectionNotifyEvent<T>; virtual; abstract;
     procedure SetOnNotify(AValue: TCollectionNotifyEvent<T>); virtual; abstract;
   public
@@ -535,6 +539,8 @@ type
     procedure SymmetricExceptWith(AHashSet: TCustomSet<T>);
 
     property Count: SizeInt read GetCount;
+    property Capacity: SizeInt read GetCapacity write SetCapacity;
+    procedure TrimExcess; virtual; abstract;
 
     property OnNotify: TCollectionNotifyEvent<T> read GetOnNotify write SetOnNotify;
   end;
@@ -566,6 +572,8 @@ type
   protected
     function GetPtrEnumerator: TEnumerator<PT>; override;
     function GetCount: SizeInt; override;
+    function GetCapacity: SizeInt; override;
+    procedure SetCapacity(AValue: SizeInt); override;
     function GetOnNotify: TCollectionNotifyEvent<T>; override;
     procedure SetOnNotify(AValue: TCollectionNotifyEvent<T>); override;
   public
@@ -580,6 +588,8 @@ type
 
     procedure Clear; override;
     function Contains(constref AValue: T): Boolean; override;
+
+    procedure TrimExcess; override;
   end;
 
   TPair<TKey, TValue, TInfo> = record
@@ -653,11 +663,11 @@ type
   public type
     TNode = TAVLTreeNode<TREE_CONSTRAINTS, TTree>;
     PNode = ^TNode;
+    PPNode = ^PNode;
     TTreePair = TPair<TKey, TValue>;
     PKey = ^TKey;
     PValue = ^TValue;
   private type
-    PPNode = ^PNode;
     // type exist only for generic constraint in TNodeCollection (non functional - PPNode has no sense)
     TPNodeEnumerator = class(TAVLTreeEnumerator<PPNode, PNode, TTree>);
   private var
@@ -674,8 +684,6 @@ type
 
     procedure NodeAdded(ANode: PNode); virtual;
     procedure DeletingNode(ANode: PNode; AOrigin: boolean); virtual;
-
-    function AddNode: PNode; virtual; abstract;
 
     function DoRemove(ANode: PNode; ACollectionNotification: TCollectionNotification; ADispose: boolean): TValue;
     procedure DisposeAllNodes(ANode: PNode); overload;
@@ -738,7 +746,8 @@ type
   private
     FNodes: TNodeCollection;
     function GetNodeCollection: TNodeCollection;
-    procedure InternalAdd(ANode, AParent: PNode);
+    procedure InternalAdd(ANode, AParent: PNode); overload;
+    function InternalAdd(ANode: PNode; ADispisable: boolean): PNode; overload;
     procedure InternalDelete(ANode: PNode);
     function GetKeys: TKeyCollection;
     function GetValues: TValueCollection;
@@ -746,8 +755,17 @@ type
     constructor Create; virtual; overload;
     constructor Create(const AComparer: IComparer<TKey>); virtual; overload;
 
+    function NewNode: PNode;
+    function NewNodeArray(ACount: SizeInt): PNode; overload;
+    procedure NewNodeArray(out AArray: TArray<PNode>; ACount: SizeInt); overload;
+    procedure DisposeNode(ANode: PNode);
+    procedure DisposeNodeArray(ANode: PNode; ACount: SizeInt); overload;
+    procedure DisposeNodeArray(var AArray: TArray<PNode>); overload;
+
     destructor Destroy; override;
-    function Add(constref AKey: TKey; constref AValue: TValue): PNode;
+    function AddNode(ANode: PNode): boolean; overload; inline;
+    function Add(constref APair: TTreePair): PNode; overload; inline;
+    function Add(constref AKey: TKey; constref AValue: TValue): PNode; overload; inline;
     function Remove(constref AKey: TKey; ADisposeNode: boolean = true): boolean;
     function ExtractPair(constref AKey: TKey; ADisposeNode: boolean = true): TTreePair; overload;
     function ExtractPair(constref ANode: PNode; ADispose: boolean = true): TTreePair; overload;
@@ -764,6 +782,7 @@ type
     function FindHighest: PNode;
 
     property Count: SizeInt read FCount;
+
     property Root: PNode read FRoot;
     function Find(constref AKey: TKey): PNode;
     function ContainsKey(constref AKey: TKey; out ANode: PNode): boolean; overload; inline;
@@ -785,8 +804,6 @@ type
   end;
 
   TAVLTreeMap<TKey, TValue> = class(TCustomAVLTreeMap<TKey, TValue, TEmptyRecord>)
-  protected
-    function AddNode: PNode; override;
   end;
 
   TIndexedAVLTreeMap<TKey, TValue> = class(TCustomAVLTreeMap<TKey, TValue, SizeInt>)
@@ -801,8 +818,6 @@ type
 
     procedure NodeAdded(ANode: PNode); override;
     procedure DeletingNode(ANode: PNode; AOrigin: boolean); override;
-
-    function AddNode: PNode; override;
   public
     function GetNodeAtIndex(AIndex: SizeInt): PNode;
     function NodeToIndex(ANode: PNode): SizeInt;
@@ -818,7 +833,9 @@ type
   public type
     TItemEnumerator = TKeyEnumerator;
   public
-    function Add(constref AValue: T): PNode; reintroduce;
+    function Add(constref AValue: T): PNode; reintroduce; inline;
+    function AddNode(ANode: PNode): boolean; reintroduce; inline;
+
     property OnNotify: TCollectionNotifyEvent<T> read FOnKeyNotify write FOnKeyNotify;
   end;
 
@@ -829,7 +846,9 @@ type
   public type
     TItemEnumerator = TKeyEnumerator;
   public
-    function Add(constref AValue: T): PNode; reintroduce;
+    function Add(constref AValue: T): PNode; reintroduce; inline;
+    function AddNode(ANode: PNode): boolean; reintroduce; inline;
+
     property OnNotify: TCollectionNotifyEvent<T> read FOnKeyNotify write FOnKeyNotify;
   end;
 
@@ -858,6 +877,8 @@ type
   protected
     function GetPtrEnumerator: TEnumerator<PT>; override;
     function GetCount: SizeInt; override;
+    function GetCapacity: SizeInt; override;
+    procedure SetCapacity(AValue: SizeInt); override;
     function GetOnNotify: TCollectionNotifyEvent<T>; override;
     procedure SetOnNotify(AValue: TCollectionNotifyEvent<T>); override;
   public
@@ -871,6 +892,8 @@ type
     function Extract(constref AValue: T): T; override;
     procedure Clear; override;
     function Contains(constref AValue: T): Boolean; override;
+
+    procedure TrimExcess; override;
   end;
 
   TSortedHashSet<T> = class(TCustomSet<T>)
@@ -881,6 +904,8 @@ type
     FInternalTree: TAVLTree<T>;
     function DoGetEnumerator: TEnumerator<T>; override;
     function GetCount: SizeInt; override;
+    function GetCapacity: SizeInt; override;
+    procedure SetCapacity(AValue: SizeInt); override;
     function GetOnNotify: TCollectionNotifyEvent<T>; override;
     procedure SetOnNotify(AValue: TCollectionNotifyEvent<T>); override;
   protected type
@@ -927,6 +952,8 @@ type
     function Extract(constref AValue: T): T; override;
     procedure Clear; override;
     function Contains(constref AValue: T): Boolean; override;
+
+    procedure TrimExcess; override;
   end;
 
 function InCircularRange(ABottom, AItem, ATop: SizeInt): Boolean;
@@ -2496,6 +2523,16 @@ begin
   Result := FInternalDictionary.Count;
 end;
 
+function THashSet<T>.GetCapacity: SizeInt;
+begin
+  Result := FInternalDictionary.Capacity;
+end;
+
+procedure THashSet<T>.SetCapacity(AValue: SizeInt);
+begin
+  FInternalDictionary.Capacity := AValue;
+end;
+
 function THashSet<T>.GetOnNotify: TCollectionNotifyEvent<T>;
 begin
   Result := FInternalDictionary.OnKeyNotify;
@@ -2567,6 +2604,11 @@ end;
 function THashSet<T>.Contains(constref AValue: T): Boolean;
 begin
   Result := FInternalDictionary.ContainsKey(AValue);
+end;
+
+procedure THashSet<T>.TrimExcess;
+begin
+  FInternalDictionary.TrimExcess;
 end;
 
 { TAVLTreeNode<TREE_CONSTRAINTS, TTree> }
@@ -3137,6 +3179,40 @@ begin
   end;
 end;
 
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.InternalAdd(ANode: PNode; ADispisable: boolean): PNode;
+var
+  LParent: PNode;
+begin
+  Result := ANode;
+  case FindInsertNode(ANode, LParent) of
+    -1: LParent.Left := ANode;
+    0:
+      if Assigned(LParent) then
+        case FDuplicates of
+          dupAccept: LParent.Right := ANode;
+          dupIgnore:
+            begin
+              LParent.Right := nil;
+              if ADispisable then
+                Dispose(ANode);
+              Exit(LParent);
+            end;
+          dupError:
+            begin
+              LParent.Right := nil;
+              if ADispisable then
+                Dispose(ANode);
+              Result := nil;
+              raise EListError.Create(SCollectionDuplicate);
+            end;
+        end;
+    1: LParent.Right := ANode;
+  end;
+
+  InternalAdd(ANode, LParent);
+  NodeNotify(ANode, cnAdded, false);
+end;
+
 procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.InternalDelete(ANode: PNode);
 var
   t, y, z: PNode;
@@ -3272,46 +3348,74 @@ begin
   FComparer := AComparer;
 end;
 
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.NewNode: PNode;
+begin
+  Result := AllocMem(SizeOf(TNode));
+  Initialize(Result^);
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.NewNodeArray(ACount: SizeInt): PNode;
+begin
+  Result := AllocMem(ACount * SizeOf(TNode));
+  Initialize(Result^, ACount);
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.NewNodeArray(out AArray: TArray<PNode>; ACount: SizeInt);
+var
+  i: Integer;
+begin
+  SetLength(AArray, ACount);
+  for i := 0 to ACount-1 do
+    AArray[i] := NewNode;
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.DisposeNode(ANode: PNode);
+begin
+  Dispose(ANode);
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.DisposeNodeArray(ANode: PNode; ACount: SizeInt);
+begin
+  Finalize(ANode^, ACount);
+  FreeMem(ANode);
+end;
+
+procedure TCustomAVLTreeMap<TREE_CONSTRAINTS>.DisposeNodeArray(var AArray: TArray<PNode>);
+var
+  i: Integer;
+begin
+  for i := 0 to High(AArray) do
+    Dispose(AArray[i]);
+  AArray := nil;
+end;
+
 destructor TCustomAVLTreeMap<TREE_CONSTRAINTS>.Destroy;
 begin
+  FKeys.Free;
+  FValues.Free;
   FNodes.Free;
   Clear;
 end;
 
-function TCustomAVLTreeMap<TREE_CONSTRAINTS>.Add(constref AKey: TKey; constref AValue: TValue): PNode;
-var
-  LParent: PNode;
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.AddNode(ANode: PNode): boolean;
 begin
-  Result := AddNode;
+  Result := ANode=InternalAdd(ANode, false);
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.Add(constref APair: TTreePair): PNode;
+begin
+  Result := NewNode;
+  Result.Data.Key := APair.Key;
+  Result.Data.Value := APair.Value;
+  Result := InternalAdd(Result, true);
+end;
+
+function TCustomAVLTreeMap<TREE_CONSTRAINTS>.Add(constref AKey: TKey; constref AValue: TValue): PNode;
+begin
+  Result := NewNode;
   Result.Data.Key := AKey;
   Result.Data.Value := AValue;
-
-  // insert new node
-  case FindInsertNode(Result, LParent) of
-    -1: LParent.Left := Result;
-    0:
-      if Assigned(LParent) then
-        case FDuplicates of
-          dupAccept: LParent.Right := Result;
-          dupIgnore:
-            begin
-              LParent.Right := nil;
-              Dispose(Result);
-              Exit(LParent);
-            end;
-          dupError:
-            begin
-              LParent.Right := nil;
-              Dispose(Result);
-              Result := nil;
-              raise EListError.Create(SCollectionDuplicate);
-            end;
-        end;
-    1: LParent.Right := Result;
-  end;
-
-  InternalAdd(Result, LParent);
-  NodeNotify(Result, cnAdded, false);
+  Result := InternalAdd(Result, true);
 end;
 
 function TCustomAVLTreeMap<TREE_CONSTRAINTS>.Remove(constref AKey: TKey; ADisposeNode: boolean): boolean;
@@ -3506,14 +3610,6 @@ begin
   end;
 end;
 
-{ TAVLTreeMap<TKey, TValue> }
-
-function TAVLTreeMap<TKey, TValue>.AddNode: PNode;
-begin
-  Result := New(PNode);
-  Result^ := Default(TNode);
-end;
-
 { TIndexedAVLTreeMap<TKey, TValue> }
 
 procedure TIndexedAVLTreeMap<TKey, TValue>.RotateRightRight(ANode: PNode);
@@ -3586,12 +3682,6 @@ begin
       Dec(LParent.Data.Info);
     ANode:=LParent;
   until false;
-end;
-
-function TIndexedAVLTreeMap<TKey, TValue>.AddNode: PNode;
-begin
-  Result := PNode(New(PNode));
-  Result^ := Default(TNode);
 end;
 
 function TIndexedAVLTreeMap<TKey, TValue>.GetNodeAtIndex(AIndex: SizeInt): PNode;
@@ -3701,11 +3791,21 @@ begin
   Result := inherited Add(AValue, EmptyRecord);
 end;
 
+function TAVLTree<T>.AddNode(ANode: PNode): boolean;
+begin
+  Result := inherited AddNode(ANode);
+end;
+
 { TIndexedAVLTree<T> }
 
 function TIndexedAVLTree<T>.Add(constref AValue: T): PNode;
 begin
   Result := inherited Add(AValue, EmptyRecord);
+end;
+
+function TIndexedAVLTree<T>.AddNode(ANode: PNode): boolean;
+begin
+  Result := inherited AddNode(ANode);
 end;
 
 { TSortedSet<T>.TSortedSetEnumerator }
@@ -3752,6 +3852,15 @@ end;
 function TSortedSet<T>.GetCount: SizeInt;
 begin
   Result := FInternalTree.Count;
+end;
+
+function TSortedSet<T>.GetCapacity: SizeInt;
+begin
+  Result := FInternalTree.Count;
+end;
+
+procedure TSortedSet<T>.SetCapacity(AValue: SizeInt);
+begin
 end;
 
 function TSortedSet<T>.GetOnNotify: TCollectionNotifyEvent<T>;
@@ -3802,7 +3911,7 @@ begin
   if not Result then
     Exit;
 
-  LNodePtr := FInternalTree.AddNode;
+  LNodePtr := FInternalTree.NewNode;
   LNodePtr^.Data.Key := AValue;
 
   case LCompare of
@@ -3843,6 +3952,10 @@ end;
 function TSortedSet<T>.Contains(constref AValue: T): Boolean;
 begin
   Result := FInternalTree.ContainsKey(AValue);
+end;
+
+procedure TSortedSet<T>.TrimExcess;
+begin
 end;
 
 { TSortedHashSet<T>.TSortedHashSetEqualityComparer }
@@ -3926,6 +4039,16 @@ end;
 function TSortedHashSet<T>.GetCount: SizeInt;
 begin
   Result := FInternalDictionary.Count;
+end;
+
+function TSortedHashSet<T>.GetCapacity: SizeInt;
+begin
+  Result := FInternalDictionary.Capacity;
+end;
+
+procedure TSortedHashSet<T>.SetCapacity(AValue: SizeInt);
+begin
+  FInternalDictionary.Capacity := AValue;
 end;
 
 function TSortedHashSet<T>.GetOnNotify: TCollectionNotifyEvent<T>;
@@ -4025,6 +4148,11 @@ begin
   FInternalDictionary.Free;
   FInternalTree.Free;
   inherited;
+end;
+
+procedure TSortedHashSet<T>.TrimExcess;
+begin
+  FInternalDictionary.TrimExcess;
 end;
 
 end.
