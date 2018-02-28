@@ -1684,7 +1684,7 @@ end;
 
 procedure TCustomVisualGrid.RefreshGrid;
 begin
-  RefreshPageIndexData(true);
+  RefreshPageIndexData( False );
 end;
 
 procedure TCustomVisualGrid.RefreshPageIndexData(ARefreshColumns: boolean);
