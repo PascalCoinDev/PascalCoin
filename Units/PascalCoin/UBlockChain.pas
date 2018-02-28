@@ -301,6 +301,7 @@ Type
     Class Function GetOperationClassByOpType(OpType: Cardinal): TPCOperationClass;
     Class Function GetFirstBlock : TOperationBlock;
     Class Function EqualsOperationBlock(Const OperationBlock1,OperationBlock2 : TOperationBlock):Boolean;
+    Procedure EstimatePoW(Const withBlockPayload: TRawBytes; Const withTimestamp, withNOnce: Cardinal; var PoW:TRawBytes);
     //
     Property SafeBoxTransaction : TPCSafeBoxTransaction read FSafeBoxTransaction;
     Property OperationsHashTree : TOperationsHashTree read FOperationsHashTree;
@@ -841,6 +842,17 @@ begin
   FStreamPoW.Write(FOperationBlock.timestamp,4);
   FStreamPoW.Write(FOperationBlock.nonce,4);
   TCrypto.DoDoubleSha256(FStreamPoW.Memory,length(FDigest_Part1)+length(FDigest_Part2_Payload)+length(FDigest_Part3)+8,PoW);
+end;
+
+Procedure TPCOperationsComp.EstimatePoW(Const withBlockPayload: TRawBytes; Const withTimestamp, withNOnce: Cardinal; var PoW:TRawBytes);
+begin
+ FStreamPoW.Position := 0;
+  FStreamPoW.WriteBuffer(FDigest_Part1[1],length(FDigest_Part1));
+  FStreamPoW.WriteBuffer(withBlockPayload[1],length(withBlockPayload));
+  FStreamPoW.WriteBuffer(FDigest_Part3[1],length(FDigest_Part3));
+  FStreamPoW.Write(withTimestamp,4);
+  FStreamPoW.Write(withNOnce,4);
+  TCrypto.DoDoubleSha256(FStreamPoW.Memory,length(FDigest_Part1)+length(withBlockPayload)+length(FDigest_Part3)+8,PoW);
 end;
 
 procedure TPCOperationsComp.Calc_Digest_Parts;

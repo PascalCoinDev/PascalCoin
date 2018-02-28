@@ -164,7 +164,7 @@ Const
 
 implementation
 
-Uses ULog, Variants, UTime, UNetProtocol;
+Uses ULog, Variants, UNetProtocol;
 
 Type TPendingResponseMessage = Record
        sendDateTime : TDateTime;
@@ -224,7 +224,7 @@ var last_bytes_read : Integer;
   jsonData : TPCJSONData;
   tc : Cardinal;
   ms : TMemoryStream;
-  i,lasti : Integer;
+  lasti : Integer;
   continue : Boolean;
   procedure FlushBufferPendingMessages(doSearchId : Boolean; idValue : Integer);
   var l : TList;
@@ -391,7 +391,6 @@ Var json : TPCJSONObject;
   stream : TMemoryStream;
   b : Byte;
   P : PPendingResponseMessage;
-  l : TList;
 begin
   json := TPCJSONObject.Create;
   Try
@@ -774,18 +773,17 @@ begin
 end;
 
 function TPoolMiningServer.MinerSubmit(Client: TJSONRPCTcpIpClient; params: TPCJSONObject; const id : Variant): Boolean;
-Var s : String;
+Var
   nbOperations : TPCOperationsComp;
   errors, sJobInfo : AnsiString;
   nba : TBlockAccount;
   json : TPCJSONObject;
-  p1,p2,p3 : TRawBytes;
   P : PPoolJob;
   i : Integer;
   l : TList;
   _payloadHexa,_payload : AnsiString;
   _timestamp, _nOnce : Cardinal;
-  _targetPoW : TRawBytes;
+  _targetPoW,_solutionPoW : TRawBytes;
 begin
   { Miner params must submit:
     - "payload" as an Hexadecimal
@@ -820,7 +818,8 @@ begin
         // Best practices: Only will accept a solution if timestamp >= sent timestamp for this job (1.5.3)
         If (P^.SentMinTimestamp<=_timestamp) then begin
           _targetPoW := FNodeNotifyEvents.Node.Bank.SafeBox.GetActualTargetHash(P^.OperationsComp.OperationBlock.protocol_version=CT_PROTOCOL_2);
-          if (P^.OperationsComp.OperationBlock.proof_of_work<=_targetPoW) then begin
+          P^.OperationsComp.EstimatePoW(_payload, _timestamp, _nOnce, _solutionPoW);
+          if (_solutionPoW<=_targetPoW) then begin
             P^.OperationsComp.BlockPayload := _payload;
             P^.OperationsComp.timestamp := _timestamp;
             P^.OperationsComp.nonce := _nOnce;
@@ -912,7 +911,7 @@ procedure TPoolMiningServer.SendJobToMiner(Operations: TPCOperationsComp; Client
 var params : TPCJSONObject;
   ts : Cardinal;
 Var P : PPoolJob;
-  i,nJobs : Integer;
+  nJobs : Integer;
   l : TList;
 begin
   if FClientsCount<=0 then exit;
@@ -1118,7 +1117,6 @@ Var method : String;
   params_as_array : TPCJSONArray;
   params : TPCJSONData;
   mvfw : TMinerValuesForWork;
-  prev_pow,proposed_pow : TRawBytes;
 begin
   TLog.NewLog(ltInfo,ClassName,'Received JSON: '+json.ToJSON(false));
   params := Nil;
