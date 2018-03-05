@@ -268,6 +268,10 @@ object FRMPayloadDecoder: TFRMPayloadDecoder
     object tsDecodeMethods: TTabSheet
       Caption = 'Decode methods'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object lblPasswordsInfo: TLabel
         Left = 235
         Top = 162

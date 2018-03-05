@@ -27,7 +27,7 @@ uses
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UNode, UWallet, UCrypto, Buttons, UBlockChain,
-  UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UCommon, UFRMMemoText;
+  UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UFRMMemoText;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -185,6 +185,28 @@ uses
   {$R *.lfm}
 {$ENDIF}
 
+Type
+  { Created by Herman Schoenfeld as TArrayTool in v2.0
+    Moved here from UCommon.pas and renamed in order to be Delphi specific (Delphi will no longer use UCommon.pas) }
+  TArrayTool_internal<T> = class
+    public
+      class procedure Swap(var Values : array of T; Item1Index, Item2Index : Integer);
+    end;
+
+{ TArrayTool_internal }
+
+class procedure TArrayTool_internal<T>.Swap(var Values : array of T; Item1Index, Item2Index : Integer);
+var temp : T; len, recSize : Integer; itemSize : Integer;
+begin
+  len := Length(Values);
+  recSize := SizeOf(T);
+  if (Item1Index < 0) OR (Item1Index > len) then Raise Exception.Create('Invalid Parameter: Item1Index out of bounds');
+  if (Item2Index < 0) OR (Item2Index > len) then Raise Exception.Create('Invalid Parameter: Item2Index out of bounds');
+  temp := Values[Item1Index];
+  Values[Item1Index] := Values[Item2Index];
+  Values[Item2Index] := temp;
+end;
+
 { TFRMOperation }
 
 procedure TFRMOperation.actExecuteExecute(Sender: TObject);
@@ -266,7 +288,7 @@ loop_start:
         if _V2 then begin
           // must ensure is Signer account last if included in sender accounts (not necessarily ordered enumeration)
           if (iAcc < Length(_senderAccounts) - 1) AND (account.account = signerAccount.account) then begin
-            TArrayTool<Cardinal>.Swap(_senderAccounts, iAcc, Length(_senderAccounts) - 1); // ensure signer account processed last
+            TArrayTool_internal<Cardinal>.Swap(_senderAccounts, iAcc, Length(_senderAccounts) - 1); // ensure signer account processed last
             goto loop_start; // TODO: remove ugly hack with refactoring!
           end;
 

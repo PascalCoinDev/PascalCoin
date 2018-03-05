@@ -90,7 +90,7 @@ uses
 {$ELSE}
   LCLIntf, LCLType,
 {$ENDIF}
-  UCrypto, UAccounts, UFRMNewPrivateKeyType, UAES, UCommon;
+  UCrypto, UAccounts, UFRMNewPrivateKeyType, UAES, UBaseTypes;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -436,7 +436,7 @@ end;
 
 destructor TFRMWalletKeys.Destroy;
 begin
-  FWalletKeys.OnChanged.Remove ( OnWalletKeysChanged );
+  FWalletKeys.OnChanged.Remove(OnWalletKeysChanged);
   inherited;
 end;
 

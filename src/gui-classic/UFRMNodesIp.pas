@@ -13,8 +13,7 @@ uses
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Buttons, UAppParams,
-  UCommon.UI;
+  Dialogs, StdCtrls, Buttons, UAppParams;
 
 type
   TFRMNodesIp = class(TForm)

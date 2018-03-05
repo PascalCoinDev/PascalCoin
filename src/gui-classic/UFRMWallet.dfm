@@ -520,7 +520,6 @@ object FRMWallet: TFRMWallet
           OnClick = dgAccountsClick
           OnColumnMoved = dgAccountsColumnMoved
           OnFixedCellClick = dgAccountsFixedCellClick
-          ExplicitWidth = 401
           ColWidths = (
             64
             64
@@ -536,7 +535,6 @@ object FRMWallet: TFRMWallet
           Align = alBottom
           BevelOuter = bvNone
           TabOrder = 1
-          ExplicitWidth = 401
           DesignSize = (
             411
             34)
@@ -606,7 +604,6 @@ object FRMWallet: TFRMWallet
             ParentDoubleBuffered = False
             TabOrder = 0
             OnClick = bbAccountsRefreshClick
-            ExplicitLeft = 323
           end
         end
       end
@@ -618,11 +615,8 @@ object FRMWallet: TFRMWallet
         ActivePage = tsAccountOperations
         Align = alClient
         TabOrder = 2
-        ExplicitLeft = 404
-        ExplicitWidth = 437
         object tsAccountOperations: TTabSheet
           Caption = 'Operations of selected Account'
-          ExplicitWidth = 429
           object dgAccountOperations: TDrawGrid
             Left = 0
             Top = 0
@@ -631,7 +625,6 @@ object FRMWallet: TFRMWallet
             Align = alClient
             TabOrder = 0
             OnDblClick = MiDecodePayloadClick
-            ExplicitWidth = 429
             RowHeights = (
               24
               24
@@ -643,7 +636,10 @@ object FRMWallet: TFRMWallet
         object tsMultiSelectAccounts: TTabSheet
           Caption = 'Selected accounts for massive operations'
           ImageIndex = 1
+          ExplicitLeft = 0
+          ExplicitTop = 0
           ExplicitWidth = 429
+          ExplicitHeight = 0
           object dgSelectedAccounts: TDrawGrid
             Left = 41
             Top = 31
@@ -835,6 +831,10 @@ object FRMWallet: TFRMWallet
     object tsPendingOperations: TTabSheet
       Caption = 'Pending Operations'
       ImageIndex = 5
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object dgPendingOperations: TDrawGrid
         Left = 0
         Top = 86
@@ -882,6 +882,10 @@ object FRMWallet: TFRMWallet
     object tsBlockChain: TTabSheet
       Caption = 'BlockChain Explorer'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Panel2: TPanel
         Left = 0
         Top = 0
@@ -927,6 +931,10 @@ object FRMWallet: TFRMWallet
     object tsOperations: TTabSheet
       Caption = 'Operations Explorer'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Panel1: TPanel
         Left = 0
         Top = 0
@@ -972,6 +980,10 @@ object FRMWallet: TFRMWallet
     object tsLogs: TTabSheet
       Caption = 'Logs'
       ImageIndex = 2
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object pnlTopLogs: TPanel
         Left = 0
         Top = 0
@@ -1001,6 +1013,10 @@ object FRMWallet: TFRMWallet
     object tsNodeStats: TTabSheet
       Caption = 'Node Stats'
       ImageIndex = 3
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         841
         404)
@@ -1066,6 +1082,10 @@ object FRMWallet: TFRMWallet
     object tsMessages: TTabSheet
       Caption = 'Messages'
       ImageIndex = 6
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         841
         404)
@@ -1305,7 +1325,7 @@ object FRMWallet: TFRMWallet
     Left = 105
     Top = 180
     Bitmap = {
-      494C0101020008002C0210003000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010102000800300210003000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000003000000001002000000000000030
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000002A292929D60B0B0BF4111111EE0000006B000000000000
