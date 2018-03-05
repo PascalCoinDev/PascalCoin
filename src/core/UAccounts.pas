@@ -20,7 +20,7 @@ unit UAccounts;
 interface
 
 uses
-  Classes, UConst, UCrypto, SyncObjs, UThread, UBaseTypes, UCommon;
+  Classes, UConst, UCrypto, SyncObjs, UThread, UBaseTypes;
 {$I config.inc}
 
 Type
@@ -189,6 +189,7 @@ Type
     FAutoAddAll : Boolean;
     FAccountList : TPCSafeBox;
     FOrderedAccountKeysList : TList; // An ordered list of pointers to quickly find account keys in account list
+    Function Find(Const AccountKey: TAccountKey; var Index: Integer): Boolean;
     function GetAccountKeyList(index: Integer): TOrderedCardinalList;
     function GetAccountKey(index: Integer): TAccountKey;
   protected
@@ -200,7 +201,6 @@ Type
     Procedure RemoveAccountKey(Const AccountKey : TAccountKey);
     Procedure AddAccounts(Const AccountKey : TAccountKey; const accounts : Array of Cardinal);
     Procedure RemoveAccounts(Const AccountKey : TAccountKey; const accounts : Array of Cardinal);
-    Function Find(Const AccountKey: TAccountKey; var Index: Integer): Boolean;
     Function IndexOfAccountKey(Const AccountKey : TAccountKey) : Integer;
     Property AccountKeyList[index : Integer] : TOrderedCardinalList read GetAccountKeyList;
     Property AccountKey[index : Integer] : TAccountKey read GetAccountKey;
@@ -271,6 +271,7 @@ Type
     class function ValidAccountName(const new_name : TRawBytes; var errors : AnsiString) : Boolean;
 
     Function IsValidNewOperationsBlock(Const newOperationBlock : TOperationBlock; checkSafeBoxHash : Boolean; var errors : AnsiString) : Boolean;
+    class Function IsValidOperationBlock(Const newOperationBlock : TOperationBlock; var errors : AnsiString) : Boolean;
     Function GetActualTargetHash(UseProtocolV2 : Boolean): TRawBytes;
     Function GetActualCompactTargetHash(UseProtocolV2 : Boolean): Cardinal;
     Function FindAccountByName(aName : AnsiString) : Integer;
@@ -368,7 +369,7 @@ Const
 implementation
 
 uses
-  SysUtils, ULog, UOpenSSLdef, UOpenSSL, UAccountKeyStorage, Math;
+  SysUtils, ULog, UOpenSSLdef, UOpenSSL, UAccountKeyStorage, math;
 
 { TPascalCoinProtocol }
 
@@ -922,7 +923,7 @@ end;
 
 class function TAccountComp.FormatMoney(Money: Int64): AnsiString;
 begin
-  Result := FormatFloat('#,###0.0000', (Money/10000));
+  Result := FormatFloat('#,###0.0000',(Money/10000));
 end;
 
 class function TAccountComp.FormatMoneyDecimal(Money : Int64) : Single;
@@ -1578,13 +1579,13 @@ procedure TPCSafeBox.CheckMemory;
     in order to free memory not used. Tested with FPC 3.0 }
 {$IFDEF FPC}
 Var sb : TPCSafeBox;
-  tc : QWord;
+  tc : TTickCount;
 {$ENDIF}
 begin
   {$IFDEF FPC}
   StartThreadSafe;
   try
-    tc := GetTickCount64;
+    tc := TPlatform.GetTickCount;
     sb := TPCSafeBox.Create;
     try
       sb.CopyFrom(Self);
@@ -1593,8 +1594,7 @@ begin
     finally
       sb.Free;
     end;
-    tc := GetTickCount64 - tc;
-    TLog.NewLog(ltDebug,Classname,'Checked memory '+IntToStr(tc)+' miliseonds');
+    TLog.NewLog(ltDebug,Classname,'Checked memory '+IntToStr(TPlatform.GetElapsedMilliseconds(tc))+' milliseconds');
   finally
     EndThreadSave;
   end;
@@ -2272,15 +2272,7 @@ begin
     errors := 'block ('+inttostr(newOperationBlock.block)+') is not new position ('+inttostr(BlocksCount)+')';
     exit;
   end;
-  // Check Account key
-  if Not TAccountComp.IsValidAccountKey(newOperationBlock.account_key,errors) then begin
-    exit;
-  end;
-  // reward
-  if (newOperationBlock.reward<>TPascalCoinProtocol.GetRewardForNewLine(newOperationBlock.block)) then begin
-    errors := 'Invalid reward';
-    exit;
-  end;
+
   // fee: Cannot be checked only with the safebox
   // protocol available is not checked
   if (newOperationBlock.block > 0) then begin
@@ -2300,15 +2292,66 @@ begin
         errors := 'Invalid protocol version change to '+IntToStr(newOperationBlock.protocol_version);
         exit;
       end;
-    end else if (Not (newOperationBlock.protocol_version in [CT_PROTOCOL_1,CT_PROTOCOL_2])) then begin
-      errors := 'Invalid protocol version '+IntToStr(newOperationBlock.protocol_version);
-      exit;
     end;
     // timestamp
     if ((newOperationBlock.timestamp) < (lastBlock.timestamp)) then begin
       errors := 'Invalid timestamp (Back timestamp: New timestamp:'+inttostr(newOperationBlock.timestamp)+' < last timestamp ('+Inttostr(BlocksCount-1)+'):'+Inttostr(lastBlock.timestamp)+')';
       exit;
     end;
+  end;
+  // compact_target
+  target_hash:=GetActualTargetHash(newOperationBlock.protocol_version=CT_PROTOCOL_2);
+  if (newOperationBlock.compact_target <> TPascalCoinProtocol.TargetToCompact(target_hash)) then begin
+    errors := 'Invalid target found:'+IntToHex(newOperationBlock.compact_target,8)+' actual:'+IntToHex(TPascalCoinProtocol.TargetToCompact(target_hash),8);
+    exit;
+  end;
+  // initial_safe_box_hash: Only can be checked when adding new blocks, not when restoring a safebox
+  If checkSafeBoxHash then begin
+    // TODO: Can use FSafeBoxHash instead of CalcSafeBoxHash ???? Quick speed if possible
+    if (newOperationBlock.initial_safe_box_hash <> CalcSafeBoxHash) then begin
+      errors := 'BlockChain Safe box hash invalid: '+TCrypto.ToHexaString(newOperationBlock.initial_safe_box_hash)+' var: '+
+        TCrypto.ToHexaString(FSafeBoxHash)+
+        ' Calculated:'+TCrypto.ToHexaString(CalcSafeBoxHash);
+      exit;
+    end;
+  end;
+  if (newOperationBlock.proof_of_work > target_hash) then begin
+    errors := 'Proof of work is higher than target '+TCrypto.ToHexaString(newOperationBlock.proof_of_work)+' > '+TCrypto.ToHexaString(target_hash);
+    exit;
+  end;
+  Result := IsValidOperationBlock(newOperationBlock,errors);
+end;
+
+class function TPCSafeBox.IsValidOperationBlock(Const newOperationBlock : TOperationBlock; var errors : AnsiString) : Boolean;
+  { This class function will check a OperationBlock basic info as a valid info
+
+    Creted at Build 2.1.7 as a division of IsValidNewOperationsBlock for easily basic check TOperationBlock
+
+    TOperationBlock contains the info of the new block, but cannot be checked with current Safebox state
+    (Use IsValidNewOperationsBlock instead) and also cannot check operations, operations_hash, fees...
+  }
+var pow : TRawBytes;
+  i : Integer;
+begin
+  Result := False;
+  errors := '';
+  // Check Account key
+  if Not TAccountComp.IsValidAccountKey(newOperationBlock.account_key,errors) then begin
+    exit;
+  end;
+  // reward
+  if (newOperationBlock.reward<>TPascalCoinProtocol.GetRewardForNewLine(newOperationBlock.block)) then begin
+    errors := 'Invalid reward';
+    exit;
+  end;
+  // Valid protocol version
+  if (Not (newOperationBlock.protocol_version in [CT_PROTOCOL_1,CT_PROTOCOL_2])) then begin
+    errors := 'Invalid protocol version '+IntToStr(newOperationBlock.protocol_version);
+    exit;
+  end;
+  // fee: Cannot be checked only with the safebox
+  // protocol available is not checked
+  if (newOperationBlock.block > 0) then begin
   end else begin
     if (CT_Zero_Block_Proof_of_work_in_Hexa<>'') then begin
       // Check if valid Zero block
@@ -2318,13 +2361,6 @@ begin
       end;
     end;
   end;
-  // compact_target
-  target_hash:=GetActualTargetHash(newOperationBlock.protocol_version=CT_PROTOCOL_2);
-  if (newOperationBlock.compact_target <> TPascalCoinProtocol.TargetToCompact(target_hash)) then begin
-    errors := 'Invalid target found:'+IntToHex(newOperationBlock.compact_target,8)+' actual:'+IntToHex(TPascalCoinProtocol.TargetToCompact(target_hash),8);
-    exit;
-  end;
-  // nonce: Not checked
   // block_payload: Checking Miner payload size
   if length(newOperationBlock.block_payload)>CT_MaxPayloadSize then begin
     errors := 'Invalid Miner Payload length: '+inttostr(Length(newOperationBlock.block_payload));
@@ -2337,16 +2373,6 @@ begin
       exit;
     end;
   end;
-  // initial_safe_box_hash: Only can be checked when adding new blocks, not when restoring a safebox
-  If checkSafeBoxHash then begin
-    // TODO: Can use FSafeBoxHash instead of CalcSafeBoxHash ???? Quick speed if possible
-    if (newOperationBlock.initial_safe_box_hash <> CalcSafeBoxHash) then begin
-      errors := 'BlockChain Safe box hash invalid: '+TCrypto.ToHexaString(newOperationBlock.initial_safe_box_hash)+' var: '+
-        TCrypto.ToHexaString(FSafeBoxHash)+
-        ' Calculated:'+TCrypto.ToHexaString(CalcSafeBoxHash);
-      exit;
-    end;
-  end;
   // operations_hash: NOT CHECKED WITH OPERATIONS!
   If (length(newOperationBlock.operations_hash)<>32) then begin
     errors := 'Invalid Operations hash value: '+TCrypto.ToHexaString(newOperationBlock.operations_hash)+' length='+IntToStr(Length(newOperationBlock.operations_hash));
@@ -2356,10 +2382,6 @@ begin
   TPascalCoinProtocol.CalcProofOfWork(newOperationBlock,pow);
   if (pow<>newOperationBlock.proof_of_work) then begin
     errors := 'Proof of work is bad calculated '+TCrypto.ToHexaString(newOperationBlock.proof_of_work)+' <> Good: '+TCrypto.ToHexaString(pow);
-    exit;
-  end;
-  if (newOperationBlock.proof_of_work > target_hash) then begin
-    errors := 'Proof of work is higher than target '+TCrypto.ToHexaString(newOperationBlock.proof_of_work)+' > '+TCrypto.ToHexaString(target_hash);
     exit;
   end;
   Result := true;
@@ -3341,7 +3363,7 @@ begin
   while L <= H do
   begin
     I := (L + H) shr 1;
-    c := BinStrComp(PRawListData(FList[i])^.RawData,RawData);
+    c := TBaseType.BinStrComp(PRawListData(FList[i])^.RawData,RawData);
     if C < 0 then L := I + 1 else
     begin
       H := I - 1;
