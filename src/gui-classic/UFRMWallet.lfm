@@ -1,0 +1,1511 @@
+object FRMWallet: TFRMWallet
+  Left = 389
+  Height = 580
+  Top = 201
+  Width = 865
+  Caption = 'Pascal Coin Wallet, JSON-RPC Miner & Explorer'
+  ClientHeight = 580
+  ClientWidth = 865
+  Color = clBtnFace
+  Constraints.MinHeight = 600
+  Constraints.MinWidth = 865
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'Tahoma'
+  Menu = MainMenu
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  Position = poOwnerFormCenter
+  LCLVersion = '1.8.0.6'
+  Visible = False
+  object pnlTop: TPanel
+    Left = 0
+    Height = 91
+    Top = 0
+    Width = 865
+    Align = alTop
+    BevelOuter = bvNone
+    ClientHeight = 91
+    ClientWidth = 865
+    TabOrder = 0
+    object Image1: TImage
+      Left = 15
+      Height = 60
+      Top = 15
+      Width = 60
+      AutoSize = True
+      Picture.Data = {
+        1754506F727461626C654E6574776F726B47726170686963E20F000089504E47
+        0D0A1A0A0000000D494844520000003C0000003C08060000003AFCD972000000
+        0473424954080808087C086488000000097048597300000B1200000B1201D2DD
+        7EFC0000001C74455874536F6674776172650041646F62652046697265776F72
+        6B7320435336E8BCB28C00000F5C494441546881D59B7D8C5DC579879F7766CE
+        39F7DEFDBE8B1D7B8D61B13160B05D2F5027C68E8190409B929084006D5A42A3
+        5651D4964655152591924292A65594A66A451B45AA541250207C8990A4348921
+        14624330181BB049B0F1DAF1826D6C76D7FB79EF39673EFAC75DDB6B7BEFB26B
+        AF4DFB938E567B66CE9C79EECCBCF3CE9C772484C0A9D4AEED5BCE3346AF515A
+        AD8AE3C2F242A9A9B3586A6A05A88C0E1DAC568676656975B3777EBDB5EEA9CE
+        454BB69DCAFAC84C036FD9B4A1496B59A995BE526BBD421BBDC0187D86D6BA10
+        25455D28354BB1A11980CAC820D5CA60C8AB15E79CAB5AEBDE72D6753BE73638
+        EF9EF02E3C7351D78AA199ACDF8C016F7A76DD2AADD5A7B4D61F525ACF56DAA0
+        4C828E628C5118E589B5A25048282645002A69856A9A92598FF50A6B3D2ECFF0
+        36C53B8B776EBF73EEC7CEF93BBBDEBD7AFD4CD4F3A48137FCF2890F6AAD3EA7
+        B4BE42698D444594D614C228C5BC9742BE9F24EBC564032857417C8E040F4010
+        4550115E17B1710B69DC4E359A4D256AA72A25BC7384BC82770EEFDCFF38E7BF
+        B9E2BD573EFA8E00AF7BFC67CBB5D2FFA88DFA3DA5234254249194966C0F2DD5
+        1D94AA7B307608820384200A50040464AC90004200FCD88F104034D634315AE8
+        60A0B09081B8833424485EC5BB1C67DD4F9D775F5C7DD5359B4F1BF0533F7FF4
+        36A5F49795311A53A228156667DB28575FA590F703E0C510449F489D90E050C1
+        02508DDAE82B9CCFFEF83C2AA10876146FADF3DE7D6DCDD51FFCCAF4CB9E06F0
+        638FFEF82C2572B7D66A0DBA80D14287DB4E47F56512378097082F66BA759854
+        2A5854C849750B7B0A4BD9A317615D0057C539FF940FE1E6F77FF043BBA75ADE
+        94817FFEA31FAE524A1E545ACFF1A6481B7D2CCA37D2ECF6E289F027D89A5395
+        0A0E45CEA09ECBF6E812FA29A36C05EFDC3EEFC3C7AFFEF047A664D4A604FCDF
+        0F3F74AD52EA21A54D1C4CC2D9BCC6B976133A58ACC4270D2363637AA2AA8800
+        010E259990E1C4B0C374B18B73919A45CFBCF7D7FFFE47AFFFC9DBBEEBED807F
+        F2D003D76AA51E411BA574C4856C667ED8862322A0A689768C42C01423C65B31
+        5BC90FFF02A61483F3A01564169B7B6A36CFA3C9E991F37885E5789783B3DE79
+        7FDDB5D7DF3029F4A4C03F7AE0BE954AE449D151A4B4A64B3DCF1C7E8BA57072
+        A063D2C588B5BFDAC5D7EEDD08085FFAC32EAE5EB9005FC95089E1B63B9F65ED
+        A6D7995B2EF1EDBF5AC3EC72099FBBC3CF1BAAECE36C36F94B6B5398CB731FC2
+        E51FBEE1A667EABDB36E133D7CDF3DF308E191808A028AE5F21C73D87D18564E
+        F6129048F34F0FBDC8BAADFB58B7752F0FAEDD8284149DC4BC796098AFDDBB91
+        5FFDE64D1E7E7A275BB774A33447FA3F60293087DD2C97E70828022A2284471E
+        BEEF9E79D302FEC177EF02CF030166E51896E897982B3D58925A374C0CBA2146
+        974EE26A4C20736CDF3370F8BDEFBFE80C183D08B1A3FBCD231E6553C1B0627E
+        030CF7611A0CA621412B19834E982B3D2CD12F6131049885E7811F7CF7EE0981
+        279C43A248DD06ACCC8839DFECA45377634302014C7391A737EEE62BDFDFC8C9
+        78694A09D5CCB17BFFF0E17BDFFA593777AEEB01A5E8E9CF0EDF773E70FDBF6F
+        A46884650BCEE08A15E7B2FAA23924CD05C2708AF5319DBA9B41D3C8ABD9D918
+        AA2BA3486E038E9BA78F1BC3F7DFF5BD0B95522F7B9DA833A2212E2F3C8B10F0
+        41611A225EDF37C4257FF900FB0F564E187626B4685E0BB75EB7945B3FB20C42
+        C0A53563F764F5DDBC9537A15CEABDF74B6FFCE42DAF8C7F6EA22E7D474094C2
+        F33BF1AFD1E2F0284CACA9562DD7FDDDA3EF382CC0F63706F8EB6FAFE39A2FFC
+        98E1D4A2E2188D6579FC0A0A4F401470C7B1CF1D057CDFF7EEFC4020BC2F2762
+        61D443BBEEC50683520205C3CDFFB0961776BC75DAA0A6A29FBFD0C3CD7FFF53
+        C4809384B2EE6361D4434E0484F7DDF7BD3B3F303EFF51C0DE87DB435094A4CA
+        05C92E7C3008A01A623E77C7533CB8BEFB34A24C5D3FDCD0C363BFD8822E28BC
+        445C90ECA224557C50781F6E1F9FF7F018FED76F7C6345B9DCF6ACC44D2C6BD8
+        C5B2E2366C8831C5889FAEDFC12DDF7C9C389E593F793A1281FD0329A9F513A6
+        FFF97BCFE43FFE6615366AC1A89C974616F1D26827211BA2AFB7EFDD9FFDC217
+        36C0382B9D65D9677C8092CA3827DE4B184BB2A965C5A2596CFFD6D5283CB5A1
+        716AB7858E9500716278DFD7D7B16E5BDF84790E8C58A856F1C339A15C664161
+        1FAF563B180D9065F9678023C037DFF847A5C5172CBACE4BC4DCA88F263D820D
+        63BF850FB4B636228D31BEEF00F843D0471400AD0489267135738FF501A99F63
+        526015EBC373EF44D24A4029425A25EFEBA3B1ECE988FBD9566D21CBB3EBFEF8
+        E33796BEFFE0FDA306A0A9A9719573BE8C28CE4A0E1C5798770E7404AD67E0FA
+        0ED4FCDB711E8F085453C7F6DF8ED4ADD0BC7291D68688E0A7DF3B04887D9870
+        71719CC6A043FF01E637EC67BB2AE39C2B373535AE02D61A8010FC553E40834A
+        99150DE2C3044B3DEF218A51E559E35ABA061D1723D63EB7876BFFF9D9BAF558
+        F7A5D5AC5A7C0669D54E1B388C511B3DC5FEA11436CD690FDD9454273E2882F7
+        57016B1580736E85174D9B19A6A8527CBD8EE73D32068D5247D6735A786EE7C1
+        BAEF6F2D452C9EDB88CF27363853954C633C783114F3015A7D1F5E199CF72B00
+        D455EF5DB3D07BBF30A02947C3206F53A989A07DE0855D03751FB9685E13E596
+        02D69D04B0C8D4BAF43829F194E903D178EF175EBEF2B285AA542A5D1942282B
+        8156330253312BE3A0B5D1A4C3292FF70CD6CDDED5D902B13A61DB9E249ABC6A
+        7975EFF0DB673E4A424B38880878EFCB0D0D0D571A11591D0205AD024D268330
+        C57E33066D66BD8B1D5B77B2BBB7BEBBF9FE0B6741292299AEC11AEBC3C32319
+        7F7BD7CBBCD15FAD5F9D099ADFA36894510C9E000544561B6079001D89A7A0EC
+        D481A166B89A8ABC32A0267CE121FDDB633BB9F7D937F0D304168191D4B169D7
+        007B0ED6870588B43A6E907B84826418B184209AC0721342382704C4284FA4FC
+        F4BB9D82E75F9BDCBF7E6CEBF153DD4C6BCDF9ED13DC152271185CED1FC2390A
+        6806D012D012A60F6C3D1B5F3BF54093697673C22756CDC7558E9EF242008D1F
+        CFD57C52BB705A09D5C12A5B764DECEE9D0EC55A71CF5F5C42B925C1D6F1B3C7
+        4B0183002E082EC8B45C3F8934DDFB0679A3B7BE87752AB562611B4F7E793557
+        75CD211DC98F9B6044C0A1C6730D1A11D929C232EB95E45E519C4E9BC79A9776
+        4EDEBA4D458391B12F48213038AEDB35170D4AA4E69AE69E4A56DB91D44A682A
+        9AA3D628815A6BCE6F2FF0BB0BDAB8EEE2395CB36C36CA28D2A1ACCE6C1AC883
+        C6A2C78A909D06D82C70511E94A97A43B354A76EA995F0FCF6FAE3775E5B810D
+        B7AF218914BA6078605D0F9FFECF1701E868ADA515624594183E71C773FCD7E6
+        3701F893CBCEE45FFE6C39D9F0917DAD40CD12971B2328187081BC62C9735BD7
+        755004AA21C606834870089B4D08AC13E17AE7A571C8C6CC2E4CCD6C09403EB9
+        C15A3ABF998EB98D848A459A62B6BC7E6427F2BCB98DCCEB6884D4E1AC67EBB8
+        B4F72C6CA3B539211CB33A0A21905B8F1FCA988A149EE150C2A210A812C23A35
+        3A3AF28488F4F900076D03535DEB6AAD183E58E195DFF6D7CD7349672B0099F5
+        901FEDA15FBD64160470D6336AFDE1A55FA485CBCE2B132A3999F5475DB90B4C
+        6F2A0F0C482B218052AA6F6464E409F3F82F9FDAF1E95BFE7487E0CEEACB5B20
+        4C7110479AD7BADF62FF407D0FEBE2CE160ED5301BC9F9FAC717F3D14BE6A294
+        B062412BD9484608508C354F7CF132B6BF39C2ECE6840BE73591A5AE6EB953C7
+        55F45186504529B5E3C9679EDE6100B4D61B547057F6DB462A3E2121ABBF623A
+        A458F362776FDD64AD84256736C3D80A29844012292E5F320B803C7587BD3397
+        7BE6978BCC7F5703B8409A9D3CACC2334A03FDD2860A3D68A536D4EE0322EA71
+        2530E2130EE4CD2899C20B65728375767B91B3DB8B47CD8DCE07D2AA25ADDAA3
+        5D5181D47AD28A9D11580083E580CCA242A91677A0D4E330063C3434BC5E6BD5
+        47F0EC4E67BD6D6102905A5E98C4A55C3ABF99A421C29DC00EC74CA947CE2204
+        8FD6AA6F6870783D8C01DF7DFFBDA351143DA242CEDEBCCC906B404FB22ED646
+        31D03FCAAF7BEA1BAC8B3B5B61923DA853298D63505AD8A73A502E258EE247BE
+        FFD0FDA3306E5F3A8EE3EF2881D4C7ECCCE6224CB21513695E7D6380FEE1B46E
+        968B3B5BC0BD33AD6BC8D9A9CE25A5801288E3E83B87D20E037FF6F39FDF608C
+        79DA90D39D7650F1A5DAB6EC448A349BBBEB77E7482B2EEA68827C66C6E374A4
+        710C4B33BBF4799890618C79FAD09E341CF3E54129B95DC4331A0AFC26ED4449
+        9D56162635580B669798DF5EAC059F9C669990B3CD2C65541A50389492DBC7A7
+        1F057CD32D9F5A2BC82F227276E4F3E975ED9863A04580AA65D324DF9896CD6F
+        C6944EBFC18A42C601DDC1CE6831514801F9C54DB77C6AEDF83C137919B70AC1
+        7B142F668B71411FD5B5B556F4F68EF0EAEBF577292F3DA7754A5B63332985C7
+        89E1E5C265781442F0C0ADC7E73B46377EF2965744E4AB11965EDFC656BBF8E8
+        AE9D185EE8EE65A892D77D79D7592D604F6FEB9A90B2B5B8923E3D07137244E4
+        ABC77E1B863A110079EEBF9224EA9A986CE56BF61C9AD5309D6A079684102078
+        C70D97CEA96DD31E5BA012969ED58C9B2107622A4AFC28DDC52E7626CB886D05
+        07CFE47998304AAF6E14CFC3F7DD334F8BDA24CACC121D718979BE16E711124C
+        A4211F82E1A131E8B160AA31D98A3DE1EF48D355EC47D953B8804D8DD7105C46
+        70F6800BBEEBA3377DE28D89F29F78D89252F8817EC2C8D0842D7DEA15887D85
+        BDC5C5BCD87C0DDE3A82CB4E3C6C09E0C337DCF40C221F53780F8117E53DF4C8
+        F91852C43B544B1BD2D004FEF4CEB7121C91AFB0BBF1525E6EFB03080185F388
+        7C6C32D8DAB327137A88C3AAE4B4B6B4F6295E22BACB57B0BBD485D82ADEE633
+        177A78481307973E4FB3DB8757097670F09442AB60D13E65A0D44977FB07E88F
+        E6A2B2E153135C7A4813860FDBED74645B48FC20767018375A995168F139DA67
+        A4493BFBCA97B1B7B90BEB03E495531B3E3C5E130688E7DB69AF6E23EADD4118
+        1EC29BE4E402C45D6DDF2A2DCEA6AF7C316FB57451518D900D9FBE00F1F19AF8
+        0840468BDD43D3FE1728F66FC76403E073401194AE45DFCAA1684BA8C5050704
+        8F78077850113669A5D2D4C960DB12061B17924A11C946F136C3597FFA8F008C
+        D744873C741491D8210A957D14465E271EDD87AEF6A2F311C46547ACBAD2041D
+        E3A2065CA19DAC34876AC399548B73484D13DE5A7C5EA9FD7DA70F791CAB098F
+        F14405749CD48EF1E088B55088638A492D22B79256A9E619990D5874ED184F96
+        E2F3EAFFDD633CC7EA6D0F6A35344BB13476506B7490EAE8FFD3835AF534E5A3
+        78D6AFB7EED41FC5FB5F0935D0C88CEACBC00000000049454E44AE426082
+      }
+    end
+    object lblCurrentBlockCaption: TLabel
+      Left = 90
+      Height = 13
+      Top = 11
+      Width = 60
+      Caption = 'Total Blocks:'
+      ParentColor = False
+    end
+    object lblCurrentBlock: TLabel
+      Left = 166
+      Height = 13
+      Top = 11
+      Width = 18
+      Caption = '000'
+      ParentColor = False
+    end
+    object lblCurrentBlockTimeCaption: TLabel
+      Left = 90
+      Height = 13
+      Top = 26
+      Width = 90
+      Caption = 'Current Block Age:'
+      ParentColor = False
+    end
+    object lblCurrentBlockTime: TLabel
+      Left = 198
+      Height = 13
+      Top = 26
+      Width = 81
+      Caption = '000 seconds ago'
+      ParentColor = False
+    end
+    object lblOperationsPendingCaption: TLabel
+      Left = 90
+      Height = 13
+      Top = 41
+      Width = 98
+      Caption = 'Pending Operations:'
+      ParentColor = False
+    end
+    object lblOperationsPending: TLabel
+      Left = 207
+      Height = 13
+      Top = 41
+      Width = 18
+      Caption = '000'
+      ParentColor = False
+    end
+    object lblMiningStatusCaption: TLabel
+      Left = 90
+      Height = 13
+      Top = 56
+      Width = 65
+      Caption = 'Miner Clients:'
+      ParentColor = False
+    end
+    object lblMinersClients: TLabel
+      Left = 177
+      Height = 13
+      Top = 56
+      Width = 18
+      Caption = '000'
+      ParentColor = False
+    end
+    object lblCurrentDifficultyCaption: TLabel
+      Left = 429
+      Height = 13
+      Top = 11
+      Width = 76
+      Caption = 'Current Target:'
+      ParentColor = False
+    end
+    object lblCurrentDifficulty: TLabel
+      Left = 518
+      Height = 13
+      Top = 11
+      Width = 18
+      Caption = '000'
+      ParentColor = False
+    end
+    object lblTimeAverage: TLabel
+      Left = 370
+      Height = 13
+      Top = 26
+      Width = 18
+      Caption = '000'
+      ParentColor = False
+    end
+    object Label4: TLabel
+      Left = 285
+      Height = 13
+      Top = 26
+      Width = 69
+      Caption = 'Time average:'
+      ParentColor = False
+    end
+    object Label8: TLabel
+      Left = 90
+      Height = 13
+      Top = 70
+      Width = 63
+      Caption = 'Node Status:'
+      ParentColor = False
+    end
+    object lblNodeStatus: TLabel
+      Left = 168
+      Height = 13
+      Top = 70
+      Width = 15
+      Caption = '???'
+      ParentColor = False
+    end
+    object Label5: TLabel
+      Left = 285
+      Height = 13
+      Top = 11
+      Width = 48
+      Caption = 'Accounts:'
+      ParentColor = False
+    end
+    object lblCurrentAccounts: TLabel
+      Left = 344
+      Height = 13
+      Top = 11
+      Width = 18
+      Caption = '000'
+      ParentColor = False
+    end
+    object lblTimeAverageAux: TLabel
+      Left = 370
+      Height = 13
+      Top = 41
+      Width = 18
+      Caption = '000'
+      Font.Color = clGray
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      ParentColor = False
+      ParentFont = False
+    end
+    object Label16: TLabel
+      Left = 360
+      Height = 13
+      Top = 56
+      Width = 76
+      Caption = 'Blocks Found:'
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = [fsBold]
+      ParentColor = False
+      ParentFont = False
+    end
+    object lblBlocksFound: TLabel
+      Left = 450
+      Height = 13
+      Hint = 'Blocks found while Miner is running...'
+      Top = 56
+      Width = 21
+      Caption = '000'
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = [fsBold]
+      ParentColor = False
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+    end
+    object lblReceivedMessages: TLabel
+      Cursor = crHandPoint
+      Left = 360
+      Height = 23
+      Top = 66
+      Width = 184
+      Caption = 'Received Messages'
+      Font.Color = clRed
+      Font.Height = -19
+      Font.Name = 'Tahoma'
+      Font.Style = [fsBold]
+      ParentColor = False
+      ParentFont = False
+      OnClick = lblReceivedMessagesClick
+    end
+    object lblBuild: TLabel
+      Left = 586
+      Height = 23
+      Top = 3
+      Width = 49
+      Caption = 'Build'
+      Font.Color = clWindowText
+      Font.Height = -19
+      Font.Name = 'Tahoma'
+      Font.Style = [fsBold]
+      ParentColor = False
+      ParentFont = False
+    end
+  end
+  object StatusBar: TStatusBar
+    Left = 0
+    Height = 23
+    Top = 537
+    Width = 865
+    Panels = <    
+      item
+        Alignment = taCenter
+        Text = 'Server Active'
+        Width = 130
+      end    
+      item
+        Text = 'Connection status'
+        Width = 430
+      end    
+      item
+        Text = 'Blocks'
+        Width = 50
+      end>
+    SimplePanel = False
+  end
+  object PageControl: TPageControl
+    Left = 0
+    Height = 446
+    Top = 91
+    Width = 865
+    ActivePage = tsMyAccounts
+    Align = alClient
+    TabIndex = 0
+    TabOrder = 2
+    OnChange = PageControlChange
+    object tsMyAccounts: TTabSheet
+      Caption = 'Account Explorer'
+      ClientHeight = 420
+      ClientWidth = 857
+      object Splitter1: TSplitter
+        Left = 400
+        Height = 354
+        Top = 66
+        Width = 5
+      end
+      object pnlMyAccountsTop: TPanel
+        Left = 0
+        Height = 66
+        Top = 0
+        Width = 857
+        Align = alTop
+        BevelOuter = bvNone
+        ClientHeight = 66
+        ClientWidth = 857
+        TabOrder = 0
+        object Label18: TLabel
+          Left = 11
+          Height = 13
+          Top = 35
+          Width = 61
+          Caption = 'Find account'
+          ParentColor = False
+        end
+        object cbMyPrivateKeys: TComboBox
+          Left = 260
+          Height = 21
+          Top = 7
+          Width = 411
+          ItemHeight = 13
+          OnChange = cbMyPrivateKeysChange
+          Style = csDropDownList
+          TabOrder = 0
+        end
+        object cbExploreMyAccounts: TCheckBox
+          Left = 11
+          Height = 19
+          Top = 10
+          Width = 235
+          Caption = 'Explore accounts with one of my Wallet Keys'
+          OnClick = cbExploreMyAccountsClick
+          TabOrder = 1
+        end
+        object ebFindAccountNumber: TEdit
+          Left = 87
+          Height = 21
+          Top = 33
+          Width = 83
+          OnChange = ebFindAccountNumberChange
+          OnExit = ebFindAccountNumberExit
+          TabOrder = 3
+        end
+        object bbChangeKeyName: TBitBtn
+          Left = 685
+          Height = 25
+          Top = 5
+          Width = 126
+          Caption = 'Change Key name'
+          OnClick = bbChangeKeyNameClick
+          TabOrder = 2
+        end
+        object cbFilterAccounts: TCheckBox
+          Left = 260
+          Height = 19
+          Top = 35
+          Width = 145
+          Caption = 'Filter accounts by balance'
+          OnClick = cbFilterAccountsClick
+          TabOrder = 4
+        end
+        object ebFilterAccountByBalanceMin: TEdit
+          Left = 412
+          Height = 21
+          Hint = 'Min balance'
+          Top = 33
+          Width = 83
+          OnExit = ebFilterAccountByBalanceMinExit
+          OnKeyPress = ebFilterAccountByBalanceMinKeyPress
+          TabOrder = 5
+        end
+        object ebFilterAccountByBalanceMax: TEdit
+          Left = 503
+          Height = 21
+          Hint = 'Max balance'
+          Top = 33
+          Width = 83
+          OnExit = ebFilterAccountByBalanceMinExit
+          OnKeyPress = ebFilterAccountByBalanceMinKeyPress
+          TabOrder = 6
+        end
+        object sbSearchAccount: TSpeedButton
+          Left = 176
+          Height = 22
+          Top = 32
+          Width = 23
+          Glyph.Data = {
+            36030000424D3803000000000000360000002800000010000000100000000100
+            18000000000000000000120B0000120B00000000000000000000FF00FF4A667C
+            BE9596FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+            FFFF00FFFF00FFFF00FF6B9CC31E89E84B7AA3C89693FF00FFFF00FFFF00FFFF
+            00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF4BB4FE51B5FF
+            2089E94B7AA2C69592FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+            FFFF00FFFF00FFFF00FFFF00FF51B7FE51B3FF1D87E64E7AA0CA9792FF00FFFF
+            00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+            51B7FE4EB2FF1F89E64E7BA2B99497FF00FFFF00FFFF00FFFF00FFFF00FFFF00
+            FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF52B8FE4BB1FF2787D95F6A76FF
+            00FFB0857FC09F94C09F96BC988EFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+            FF00FFFF00FF55BDFFB5D6EDBF9D92BB9B8CE7DAC2FFFFE3FFFFE5FDFADAD8C3
+            B3B58D85FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFCEA795FD
+            EEBEFFFFD8FFFFDAFFFFDBFFFFE6FFFFFBEADDDCAE837FFF00FFFF00FFFF00FF
+            FF00FFFF00FFFF00FFFF00FFC1A091FBDCA8FEF7D0FFFFDBFFFFE3FFFFF8FFFF
+            FDFFFFFDC6A99CFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFC1A091FEE3ACF1
+            C491FCF2CAFFFFDDFFFFE4FFFFF7FFFFF7FFFFE9EEE5CBB9948CFF00FFFF00FF
+            FF00FFFF00FFFF00FFC2A191FFE6AEEEB581F7DCAEFEFDD8FFFFDFFFFFE3FFFF
+            E4FFFFE0F3ECD2BB968EFF00FFFF00FFFF00FFFF00FFFF00FFBC978CFBE7B7F4
+            C791F2C994F8E5B9FEFCD8FFFFDDFFFFDCFFFFE0E2D2BAB68E86FF00FFFF00FF
+            FF00FFFF00FFFF00FFFF00FFD9C3A9FFFEE5F7DCB8F2C994F5D4A5FAE8BDFDF4
+            C9FDFBD6B69089FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFB58D85E8
+            DEDDFFFEF2F9D8A3F4C48CF9D49FFDEAB8D0B49FB89086FF00FFFF00FFFF00FF
+            FF00FFFF00FFFF00FFFF00FFFF00FFAD827FC9AA9EEFE0B7EFDFB2E7CEACB890
+            86B89086FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+            00FFFF00FFBA968ABB988CB79188FF00FFFF00FFFF00FFFF00FF
+          }
+          OnClick = sbSearchAccountClick
+        end
+      end
+      object pnlAccounts: TPanel
+        Left = 0
+        Height = 354
+        Top = 66
+        Width = 400
+        Align = alLeft
+        BevelOuter = bvNone
+        ClientHeight = 354
+        ClientWidth = 400
+        TabOrder = 1
+        object dgAccounts: TDrawGrid
+          Left = 0
+          Height = 320
+          Top = 0
+          Width = 400
+          Align = alClient
+          ExtendedSelect = False
+          TabOrder = 0
+          TitleFont.Color = clWindowText
+          TitleFont.Height = -11
+          TitleFont.Name = 'Tahoma'
+          OnClick = dgAccountsClick
+        end
+        object pnlAccountsInfo: TPanel
+          Left = 0
+          Height = 34
+          Top = 320
+          Width = 400
+          Align = alBottom
+          BevelOuter = bvNone
+          ClientHeight = 34
+          ClientWidth = 400
+          TabOrder = 1
+          object Label17: TLabel
+            Left = 5
+            Height = 13
+            Top = 10
+            Width = 48
+            Caption = 'Accounts:'
+            ParentColor = False
+          end
+          object Label19: TLabel
+            Left = 136
+            Height = 13
+            Top = 10
+            Width = 41
+            Caption = 'Balance:'
+            ParentColor = False
+          end
+          object lblAccountsCount: TLabel
+            Left = 60
+            Height = 13
+            Top = 10
+            Width = 18
+            Caption = '000'
+            ParentColor = False
+          end
+          object lblAccountsBalance: TLabel
+            Left = 200
+            Height = 13
+            Top = 10
+            Width = 18
+            Caption = '000'
+            ParentColor = False
+          end
+          object bbAccountsRefresh: TBitBtn
+            Left = 322
+            Height = 25
+            Top = 6
+            Width = 75
+            Anchors = [akTop, akRight]
+            Caption = 'Refresh'
+            Glyph.Data = {
+              36030000424D3603000000000000360000002800000010000000100000000100
+              18000000000000030000120B0000120B00000000000000000000FF00FFFF00FF
+              C2A6A4C2A6A4C2A6A4C2A6A4C2A6A4C2A6A4C2A6A4C2A6A4C2A6A4C2A6A4C2A6
+              A4C2A6A4FF00FFFF00FFFF00FFFF00FFC2A6A4FEFCFBFEFCFBFEFCFBFEFCFBFE
+              FCFBFEFCFBFEFCFBFEFCFBFEFCFBFEFCFBC2A6A4FF00FFFF00FFFF00FFFF00FF
+              C2A6A4FEFCFBFEFCFBFEFCFBFEFCFBD8EBD6018A02018A02D8EBD6FEFCFBFEFC
+              FBC2A6A4FF00FFFF00FFFF00FFFF00FFC2A6A4FEFBF7FEFBF7018A02D8EAD201
+              8A02D8EAD2D8EAD2018A02FEFBF7FEFBF7C2A6A4FF00FFFF00FFFF00FFFF00FF
+              C2A6A4FEF9F4FEF9F4018A02018A02D8E8D0FEF9F4FEF9F4D8E8D0FEF9F4FEF9
+              F4C2A6A4FF00FFFF00FFFF00FFFF00FFC2A6A4FEF7F0FEF7F0018A02018A0201
+              8A02FEF7F0FEF7F0FEF7F0FEF7F0FEF7F0C2A6A4FF00FFFF00FFFF00FFFF00FF
+              C2A6A4FEF5ECFEF5ECFEF5ECFEF5ECFEF5EC018A02018A02018A02FEF5ECFEF5
+              ECC2A6A4FF00FFFF00FFFF00FFFF00FFC2A6A4FEF3E9FEF3E9D8E3C7FEF3E9FE
+              F3E9D8E3C7018A02018A02FEF3E9FEF3E9C2A6A4FF00FFFF00FFFF00FFFF00FF
+              C2A6A4FFF1E5FFF1E5018A02D9E2C3D9E2C3018A02D9E2C3018A02FFF1E5FFF1
+              E5C2A6A4FF00FFFF00FFFF00FFFF00FFC2A6A4FFF0E2FFF0E2D9E1C1018A0201
+              8A02D9E1C1DDCFC2DDCFC2DDCFC2DDCFC2C2A6A4FF00FFFF00FFFF00FFFF00FF
+              C2A6A4FFEEDEFFEEDEFFEEDEFFEEDEFFEEDEFFEEDEC5B5A9C3B4A8C2B3A7C1B2
+              A6C2A6A4FF00FFFF00FFFF00FFFF00FFC2A6A4FFECDAFFECDAFFECDAFFECDAFF
+              ECDAFFECDAB0A296B0A296B0A296B0A296C2A6A4FF00FFFF00FFFF00FFFF00FF
+              C2A6A4FFEAD7FFEAD7FFEAD7FFEAD7FFEAD7C9B9ACFBF8F4FBF8F4E6DAD9C2A6
+              A4FF00FFFF00FFFF00FFFF00FFFF00FFC2A6A4FFE8D3FFE8D3FFE8D3FFE8D3FF
+              E8D3C9B9ACFBF8F4DFCEC7C2A6A4FF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+              C2A6A4FFE6D0FFE6D0FFE6D0FFE6D0FFE6D0C9B9ACDFCEC7C2A6A4FF00FFFF00
+              FFFF00FFFF00FFFF00FFFF00FFFF00FFC2A6A4C2A6A4C2A6A4C2A6A4C2A6A4C2
+              A6A4C2A6A4C2A6A4FF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+            }
+            OnClick = bbAccountsRefreshClick
+            TabOrder = 0
+          end
+        end
+      end
+      object pcAccountsOptions: TPageControl
+        Left = 405
+        Height = 354
+        Top = 66
+        Width = 452
+        ActivePage = tsAccountOperations
+        Align = alClient
+        TabIndex = 0
+        TabOrder = 2
+        object tsAccountOperations: TTabSheet
+          Caption = 'Operations of selected Account'
+          ClientHeight = 328
+          ClientWidth = 444
+          object dgAccountOperations: TDrawGrid
+            Left = 0
+            Height = 328
+            Top = 0
+            Width = 444
+            Align = alClient
+            ExtendedSelect = False
+            TabOrder = 0
+            TitleFont.Color = clWindowText
+            TitleFont.Height = -11
+            TitleFont.Name = 'Tahoma'
+            OnDblClick = MiDecodePayloadClick
+          end
+        end
+        object tsMultiSelectAccounts: TTabSheet
+          Caption = 'Selected accounts for massive operations'
+          ClientHeight = 348
+          ClientWidth = 444
+          ImageIndex = 1
+          object dgSelectedAccounts: TDrawGrid
+            Left = 41
+            Height = 291
+            Top = 31
+            Width = 320
+            Align = alLeft
+            ExtendedSelect = False
+            TabOrder = 0
+            TitleFont.Color = clWindowText
+            TitleFont.Height = -11
+            TitleFont.Name = 'Tahoma'
+          end
+          object pnlSelectedAccountsTop: TPanel
+            Left = 0
+            Height = 31
+            Top = 0
+            Width = 444
+            Align = alTop
+            BevelOuter = bvNone
+            ClientHeight = 31
+            ClientWidth = 444
+            Font.Color = clWindowText
+            Font.Height = -13
+            Font.Name = 'Tahoma'
+            Font.Style = [fsBold]
+            ParentFont = False
+            TabOrder = 1
+            object Label15: TLabel
+              Left = 41
+              Height = 16
+              Top = 4
+              Width = 361
+              Caption = 'Select multiple accounts to execute massive operations'
+              ParentColor = False
+            end
+          end
+          object pnlSelectedAccountsBottom: TPanel
+            Left = 0
+            Height = 26
+            Top = 322
+            Width = 444
+            Align = alBottom
+            BevelOuter = bvNone
+            ClientHeight = 26
+            ClientWidth = 444
+            TabOrder = 2
+            object Label20: TLabel
+              Left = 41
+              Height = 13
+              Top = 6
+              Width = 48
+              Caption = 'Accounts:'
+              ParentColor = False
+            end
+            object lblSelectedAccountsCount: TLabel
+              Left = 96
+              Height = 13
+              Top = 6
+              Width = 18
+              Caption = '000'
+              ParentColor = False
+            end
+            object Label22: TLabel
+              Left = 156
+              Height = 13
+              Top = 6
+              Width = 88
+              Caption = 'Accounts Balance:'
+              ParentColor = False
+            end
+            object lblSelectedAccountsBalance: TLabel
+              Left = 250
+              Height = 13
+              Top = 6
+              Width = 18
+              Caption = '000'
+              ParentColor = False
+            end
+          end
+          object pnlSelectedAccountsLeft: TPanel
+            Left = 0
+            Height = 291
+            Top = 31
+            Width = 41
+            Align = alLeft
+            BevelOuter = bvNone
+            ClientHeight = 291
+            ClientWidth = 41
+            TabOrder = 3
+            object sbSelectedAccountsAdd: TSpeedButton
+              Left = 2
+              Height = 31
+              Top = 0
+              Width = 33
+              Caption = '>'
+              OnClick = sbSelectedAccountsAddClick
+            end
+            object sbSelectedAccountsAddAll: TSpeedButton
+              Left = 2
+              Height = 31
+              Top = 37
+              Width = 33
+              Caption = '>>'
+              OnClick = sbSelectedAccountsAddAllClick
+            end
+            object sbSelectedAccountsDel: TSpeedButton
+              Left = 2
+              Height = 31
+              Top = 74
+              Width = 33
+              Caption = '<'
+              OnClick = sbSelectedAccountsDelClick
+            end
+            object sbSelectedAccountsDelAll: TSpeedButton
+              Left = 2
+              Height = 31
+              Top = 111
+              Width = 33
+              Caption = '<<'
+              OnClick = sbSelectedAccountsDelAllClick
+            end
+          end
+          object bbSelectedAccountsOperation: TBitBtn
+            Left = 367
+            Height = 61
+            Top = 31
+            Width = 75
+            Caption = 'Operations'
+            Glyph.Data = {
+              F6060000424DF606000000000000360000002800000018000000180000000100
+              180000000000C0060000120B0000120B00000000000000000000FF00FFFF00FF
+              FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+              FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+              00FFFF00FFFF00FF019ACF019ACF019ACF019ACFFF00FFFF00FFFF00FFFF00FF
+              FF00FFFF00FFFF00FFFF00FFFF00FFFF00FF0C8518FF00FFFF00FFFF00FFFF00
+              FFFF00FFFF00FFFF00FFFF00FF0D9FD18BD4EE6BD3F845C0ED28B0E0019ACF01
+              9ACF019ACF019ACFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF0C85180C8518
+              FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF069CD076C8E5A9E9FE6DD8
+              FF75DBFF77DCFF77DBFF63D1F930B3E3029BD0019ACF019ACF019ACF019ACFFF
+              00FF0C85181399220C8518FF00FFFF00FFFF00FFFF00FFFF00FFFF00FF019ACF
+              34AFD9BCE9F86ED8FF6FD8FE70D8FE70D8FE71D8FF0C85180C85180C85180C85
+              180C85180C85180C85180C85181DAC31139A220C8518FF00FFFF00FFFF00FFFF
+              00FFFF00FF019ACF1FA9D68FD3EB97E4FF6FD9FE71D9FE71D9FE71D9FE0C8518
+              57E38851DD7E4AD77443D0693BC95E34C1522BBA4725B33C1EAE33149B230C85
+              18FF00FFFF00FFFF00FFFF00FF019ACF31B1DC49B7DEBDEEFB71DDFE77DEFE77
+              DEFE77DEFE0C85185EE89059E48953DE804CD87645D16C3DCA6035C2542DBB49
+              26B53F1FAF35149B250C8518FF00FFFF00FFFF00FF019ACF52C2E71DA7D5ADE2
+              F38FE8FF7CE2FE7CE3FE7CE3FE0C851861EB955FE9925AE58B54DF824DD97846
+              D26D3ECB6237C4562FBD4C27B64021B037159B250C8518FF00FFFF00FF019ACF
+              60CAEF1FA8D85EC1E1C2E6ED8ACEE08FCFE18ECFE10C851861EB9561EB955FEA
+              935CE58D56E0844FDB7A48D47040CD6538C65931BF4D1DA3320C8518FF00FFFF
+              00FFFF00FF019ACF65CFF53EB7E52CA9D4C5EFF8ACF3FEA5F2FFA5F2FF0C8518
+              61EB9561EB9561EB9561EB945CE68E57E18650DC7C49D57242CE6727AD410C85
+              18FF00FFFF00FFFF00FFFF00FF019ACF69D1F855C4F32A9CC673CBE7D6FEFDB1
+              FBFDB2FBFD0C85180C85180C85180C85180C85180C85180C85180C851852DD7F
+              32B6500C851898FAFF019ACFFF00FFFF00FFFF00FF019ACF77D5FC5CC8FB748E
+              A224A8D5B9E7F3D5F5F9D5F6F9D6F6FADCFAFBCDFDFCB9FCFCAFFAFCB0FAFCB1
+              FAFC0C85183ABE5C0C85189FFCFFA4FFFF43C1E2019ACFFF00FFFF00FF019ACF
+              8BDBFF5FCDFFB7898973C3DD18A2D218A2D216A2D215A1D21AA4D391D7EBEBFE
+              FDDBFDFCC5FBFBC2FBFB0C85180C851883E4F3B6FDFFBAFFFFB5FCFD019ACFFF
+              00FFFF00FF019ACF99E2FF67D3FFB88989FEF5ECFDF3EBF0EFEAE5EBE8D6E5E6
+              A4D2E025A6D34DB9DDE5F8FBF5FDFCEBFCFB0C8518C4FBFF9CE4F2DAFEFFD9FE
+              FFE3FFFFADE9F5019ACFFF00FF019ACF9FE9FF70DCFFB88989FEF3E9FFF2E6FE
+              F3E9FEF3E9FEF3E9FEF3E9D4E4E439ADD422A5D49DD8ECF1F9FBEEEFEFE9FDFF
+              CEEEF7F8FFFFF7FFFFFEFFFFE9F9FD019ACFFF00FF019ACFA7EFFF76E5FFB889
+              89FFF2E5FFF0E2FFF2E5FFF2E5FFF2E5FFF2E5FFF2E5EAEBE38EC9DA44B0D501
+              9ACF019ACF019ACF019ACF019ACF019ACF019ACF019ACF019ACFFF00FF019ACF
+              ABF6FF7EEDFFB88989FFF0E2FFEFDFFFF0E2FFF0E2FFF0E2FFF0E2FFF0E2FEEE
+              E0FBECDEFAEBDEF6E6D9B8898993F7FF019ACFFF00FFFF00FFFF00FFFF00FFFF
+              00FFFF00FF019ACFC7FFFF82F5FFB88989FFEEDFFFECDBFFEEDFFFEEDFFFEEDF
+              FFEEDFF9E8D9DECCC1D9CABDCFBDB4C8B3ACB88989B5FFFF019ACFFF00FFFF00
+              FFFF00FFFF00FFFF00FFFF00FF019ACFA4E0F0A0FDFFB88989FFECDBFFEBD8FF
+              ECDBFFECDBFFECDBFFECDBF5E2D2C4ABA7C2A8A5BBA39FC2AFA9B88989019ACF
+              FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF019ACFECFFFFB889
+              89FFEBD8FFEAD5FFEBD8FFEBD8FFEBD8FFEBD8FFEBD8D9C8C5FEFEFDFEF6EFDE
+              C9C0B88989FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+              FF00FF019ACFB88989FFE9D5FFE8D3FFE9D5FFE9D5FFE9D5FFE9D5FFE9D5C6AD
+              A9FEF8F2E8D4CACD9999FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+              00FFFF00FFFF00FFFF00FFFF00FFB88989FFE7D1FFE7D0FFE7D1FFE7D1FFE7D1
+              FFE7D1E7CEBFD3BFB9E8D5CCCD9999FF00FFFF00FFFF00FFFF00FFFF00FFFF00
+              FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFB88989FFE6CFFFE6CFFF
+              E6CFFFE6CFFFE6CFFFE6CFD5BBB2E0CCC5CD9999FF00FFFF00FFFF00FFFF00FF
+              FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFB889
+              89B88989B88989B88989B88989B88989B88989B88989B88989FF00FFFF00FFFF
+              00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+            }
+            Layout = blGlyphTop
+            OnClick = bbSelectedAccountsOperationClick
+            TabOrder = 4
+          end
+        end
+      end
+    end
+    object tsPendingOperations: TTabSheet
+      Caption = 'Pending Operations'
+      ClientHeight = 440
+      ClientWidth = 857
+      ImageIndex = 5
+      object dgPendingOperations: TDrawGrid
+        Left = 0
+        Height = 354
+        Top = 86
+        Width = 857
+        Align = alClient
+        ExtendedSelect = False
+        TabOrder = 0
+        TitleFont.Color = clWindowText
+        TitleFont.Height = -11
+        TitleFont.Name = 'Tahoma'
+        OnDblClick = MiDecodePayloadClick
+      end
+      object pnlPendingOperations: TPanel
+        Left = 0
+        Height = 86
+        Top = 0
+        Width = 857
+        Align = alTop
+        BevelOuter = bvNone
+        BorderWidth = 10
+        ClientHeight = 86
+        ClientWidth = 857
+        TabOrder = 1
+        object Label10: TLabel
+          Left = 10
+          Height = 66
+          Top = 10
+          Width = 837
+          Align = alClient
+          AutoSize = False
+          Caption = 'Here you can see Operations transmited/received from other nodes that will be included in next block. There is no guarantee that other nodes will include them when mining, so it''s important that you mine too to help include Operations to the main BlockChain'
+          Font.Color = clWindowText
+          Font.Height = -16
+          Font.Name = 'Tahoma'
+          ParentColor = False
+          ParentFont = False
+          WordWrap = True
+        end
+      end
+    end
+    object tsBlockChain: TTabSheet
+      Caption = 'Block Explorer'
+      ClientHeight = 440
+      ClientWidth = 857
+      ImageIndex = 1
+      object Panel2: TPanel
+        Left = 0
+        Height = 41
+        Top = 0
+        Width = 857
+        Align = alTop
+        BevelOuter = bvNone
+        ClientHeight = 41
+        ClientWidth = 857
+        TabOrder = 0
+        object Label9: TLabel
+          Left = 11
+          Height = 13
+          Top = 10
+          Width = 102
+          Caption = 'Filter by blocks range'
+          ParentColor = False
+        end
+        object ebBlockChainBlockStart: TEdit
+          Left = 125
+          Height = 21
+          Top = 7
+          Width = 57
+          OnExit = ebBlockChainBlockStartExit
+          OnKeyPress = ebBlockChainBlockStartKeyPress
+          TabOrder = 0
+        end
+        object ebBlockChainBlockEnd: TEdit
+          Left = 185
+          Height = 21
+          Top = 7
+          Width = 57
+          OnExit = ebBlockChainBlockStartExit
+          OnKeyPress = ebBlockChainBlockStartKeyPress
+          TabOrder = 1
+        end
+      end
+      object dgBlockChainExplorer: TDrawGrid
+        Left = 0
+        Height = 399
+        Top = 41
+        Width = 857
+        Align = alClient
+        ExtendedSelect = False
+        TabOrder = 1
+        TitleFont.Color = clWindowText
+        TitleFont.Height = -11
+        TitleFont.Name = 'Tahoma'
+      end
+    end
+    object tsOperations: TTabSheet
+      Caption = 'Operations Explorer'
+      ClientHeight = 440
+      ClientWidth = 857
+      ImageIndex = 1
+      object Panel1: TPanel
+        Left = 0
+        Height = 41
+        Top = 0
+        Width = 857
+        Align = alTop
+        BevelOuter = bvNone
+        ClientHeight = 41
+        ClientWidth = 857
+        TabOrder = 0
+        object Label2: TLabel
+          Left = 11
+          Height = 13
+          Top = 10
+          Width = 102
+          Caption = 'Filter by blocks range'
+          ParentColor = False
+        end
+        object ebFilterOperationsStartBlock: TEdit
+          Left = 125
+          Height = 21
+          Top = 7
+          Width = 57
+          OnExit = ebFilterOperationsAccountExit
+          OnKeyPress = ebFilterOperationsAccountKeyPress
+          TabOrder = 0
+        end
+        object ebFilterOperationsEndBlock: TEdit
+          Left = 185
+          Height = 21
+          Top = 7
+          Width = 57
+          OnExit = ebFilterOperationsAccountExit
+          OnKeyPress = ebFilterOperationsAccountKeyPress
+          TabOrder = 1
+        end
+      end
+      object dgOperationsExplorer: TDrawGrid
+        Left = 0
+        Height = 399
+        Top = 41
+        Width = 857
+        Align = alClient
+        ExtendedSelect = False
+        TabOrder = 1
+        TitleFont.Color = clWindowText
+        TitleFont.Height = -11
+        TitleFont.Name = 'Tahoma'
+      end
+    end
+    object tsLogs: TTabSheet
+      Caption = 'Logs'
+      ClientHeight = 440
+      ClientWidth = 857
+      ImageIndex = 2
+      object pnlTopLogs: TPanel
+        Left = 0
+        Height = 41
+        Top = 0
+        Width = 857
+        Align = alTop
+        BevelOuter = bvNone
+        ClientHeight = 41
+        ClientWidth = 857
+        TabOrder = 0
+        object cbShowDebugLogs: TCheckBox
+          Left = 15
+          Height = 19
+          Top = 10
+          Width = 102
+          Caption = 'Show Debug Logs'
+          TabOrder = 0
+        end
+      end
+      object memoLogs: TMemo
+        Left = 0
+        Height = 399
+        Top = 41
+        Width = 857
+        Align = alClient
+        ScrollBars = ssBoth
+        TabOrder = 1
+        WordWrap = False
+      end
+    end
+    object tsNodeStats: TTabSheet
+      Caption = 'Node Stats'
+      ClientHeight = 440
+      ClientWidth = 857
+      ImageIndex = 3
+      object Label3: TLabel
+        Left = 15
+        Height = 13
+        Top = 15
+        Width = 177
+        Caption = 'Active Connections:'
+        ParentColor = False
+      end
+      object Label6: TLabel
+        Left = 15
+        Height = 13
+        Top = 291
+        Width = 198
+        Anchors = [akLeft, akRight, akBottom]
+        Caption = 'Known Node Servers:'
+        ParentColor = False
+      end
+      object Label7: TLabel
+        Left = 15
+        Height = 13
+        Top = 187
+        Width = 99
+        Anchors = [akLeft, akRight, akBottom]
+        Caption = 'Blacklisted Nodes'
+        ParentColor = False
+      end
+      object memoNetConnections: TMemo
+        Left = 15
+        Height = 145
+        Top = 34
+        Width = 830
+        Anchors = [akTop, akLeft, akRight, akBottom]
+        ReadOnly = True
+        ScrollBars = ssBoth
+        TabOrder = 0
+        WordWrap = False
+      end
+      object memoNetServers: TMemo
+        Left = 15
+        Height = 116
+        Top = 310
+        Width = 830
+        Anchors = [akLeft, akRight, akBottom]
+        ReadOnly = True
+        ScrollBars = ssBoth
+        TabOrder = 1
+        WordWrap = False
+      end
+      object memoNetBlackLists: TMemo
+        Left = 16
+        Height = 79
+        Top = 206
+        Width = 829
+        Anchors = [akLeft, akRight, akBottom]
+        ReadOnly = True
+        ScrollBars = ssBoth
+        TabOrder = 2
+        WordWrap = False
+      end
+    end
+    object tsMessages: TTabSheet
+      Caption = 'Messages'
+      ClientHeight = 440
+      ClientWidth = 857
+      ImageIndex = 6
+      object Label11: TLabel
+        Left = 15
+        Height = 13
+        Top = 151
+        Width = 51
+        Caption = 'Messages:'
+        ParentColor = False
+      end
+      object Label12: TLabel
+        Left = 315
+        Height = 13
+        Top = 11
+        Width = 85
+        Caption = 'Message to send:'
+        ParentColor = False
+      end
+      object Label13: TLabel
+        Left = 15
+        Height = 13
+        Top = 11
+        Width = 107
+        Caption = 'Available Connections:'
+        ParentColor = False
+      end
+      object Label14: TLabel
+        Left = 410
+        Height = 13
+        Top = 11
+        Width = 361
+        Caption = '(Messages will be encrypted, so only dest connection will be able to read it)'
+        Font.Color = clGrayText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        ParentColor = False
+        ParentFont = False
+      end
+      object lbNetConnections: TListBox
+        Left = 15
+        Height = 96
+        Top = 30
+        Width = 275
+        ItemHeight = 0
+        MultiSelect = True
+        ScrollWidth = 273
+        TabOrder = 0
+      end
+      object bbSendAMessage: TButton
+        Left = 315
+        Height = 25
+        Top = 101
+        Width = 525
+        Caption = 'Send a Message'
+        OnClick = bbSendAMessageClick
+        TabOrder = 1
+      end
+      object memoMessages: TMemo
+        Left = 15
+        Height = 249
+        Top = 170
+        Width = 821
+        Anchors = [akTop, akLeft, akRight, akBottom]
+        Font.Color = clWindowText
+        Font.Height = -16
+        Font.Name = 'Tahoma'
+        Lines.Strings = (
+          'dsfa ñldsaf ñlk dasf'
+          'dsfkldañfs ñl'
+        )
+        ParentFont = False
+        ReadOnly = True
+        ScrollBars = ssBoth
+        TabOrder = 2
+      end
+      object memoMessageToSend: TMemo
+        Left = 315
+        Height = 61
+        Top = 30
+        Width = 525
+        Lines.Strings = (
+          'memoMessageToSend'
+        )
+        TabOrder = 3
+        WantReturns = False
+      end
+    end
+  end
+  object TrayIcon: TTrayIcon
+    Visible = True
+    OnDblClick = TrayIconDblClick
+    left = 45
+    top = 20
+  end
+  object TimerUpdateStatus: TTimer
+    OnTimer = TimerUpdateStatusTimer
+    left = 25
+    top = 45
+  end
+  object MainMenu: TMainMenu
+    left = 165
+    top = 160
+    object miProject: TMenuItem
+      Caption = 'Project'
+      object miPrivatekeys: TMenuItem
+        Caption = 'Private Keys'
+        ShortCut = 16464
+        OnClick = miPrivatekeysClick
+      end
+      object miN1: TMenuItem
+        Caption = '-'
+      end
+      object miOptions: TMenuItem
+        Caption = 'Options'
+        ShortCut = 16463
+        OnClick = miOptionsClick
+      end
+      object IPnodes1: TMenuItem
+        Caption = 'Available Node List'
+        OnClick = IPnodes1Click
+      end
+      object N1: TMenuItem
+        Caption = '-'
+      end
+      object MiClose: TMenuItem
+        Caption = 'Close'
+        OnClick = MiCloseClick
+      end
+    end
+    object MiOperations: TMenuItem
+      Caption = 'Operations'
+      object miNewOperation: TMenuItem
+        Caption = 'New single Operation'
+        ShortCut = 120
+        OnClick = miNewOperationClick
+      end
+      object MiFindOperationbyOpHash: TMenuItem
+        Caption = 'Find Operation by OpHash'
+        ShortCut = 116
+        OnClick = MiFindOperationbyOpHashClick
+      end
+      object MiDecodePayload: TMenuItem
+        Caption = 'Decode Payload'
+        ShortCut = 113
+        OnClick = MiDecodePayloadClick
+      end
+      object MiFindaccount: TMenuItem
+        Caption = 'Find account'
+        ShortCut = 16454
+        OnClick = MiFindaccountClick
+      end
+      object MiAccountInformation: TMenuItem
+        Caption = 'Account Information'
+        ShortCut = 112
+        OnClick = MiAccountInformationClick
+      end
+      object N2: TMenuItem
+        Caption = '-'
+      end
+      object MiAddaccounttoSelected: TMenuItem
+        Caption = 'Add account to selected'
+        ShortCut = 117
+        OnClick = MiAddaccounttoSelectedClick
+      end
+      object MiRemoveaccountfromselected: TMenuItem
+        Caption = 'Remove account from selected'
+        ShortCut = 118
+        OnClick = MiRemoveaccountfromselectedClick
+      end
+      object MiMultiaccountoperation: TMenuItem
+        Caption = 'Multi account operation'
+        OnClick = MiMultiaccountoperationClick
+      end
+      object N3: TMenuItem
+        Caption = '-'
+      end
+      object MiFindpreviousaccountwithhighbalance: TMenuItem
+        Caption = 'Find previous account with high balance'
+        ShortCut = 16498
+        OnClick = MiFindpreviousaccountwithhighbalanceClick
+      end
+      object MiFindnextaccountwithhighbalance: TMenuItem
+        Caption = 'Find next account with high balance'
+        ShortCut = 114
+        OnClick = MiFindnextaccountwithhighbalanceClick
+      end
+    end
+    object miAbout: TMenuItem
+      Caption = 'About'
+      object miAboutPascalCoin: TMenuItem
+        Caption = 'About Pascal Coin...'
+        OnClick = miAboutPascalCoinClick
+      end
+    end
+  end
+  object ImageListIcons: TImageList
+    Height = 48
+    left = 105
+    top = 180
+    Bitmap = {
+      4C69020000001000000030000000000000000000000000000000000000000000
+      00000000000016161616010101010C0C0C0C7171717100000000000000000000
+      0000000000000000000000000000000000000000000000000000000000002324
+      252266B3FF0066B3FF0066B3FF0066B3FF0066B3FF00586D7F40000000000000
+      0000000000000000000000000000000000000000000000000000000000002324
+      252266B3FF0066B3FF0066B3FF0066B3FF0066B3FF00586D7F40000000000000
+      00000000000000000000000000000000000000000000000000005252525266B3
+      FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF00252627240000
+      000000000000000000000000000000000000000000007878787866B3FF0066B3
+      FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0033597F0066B3FF001D1E
+      1F1D00000000000000000000000000000000000000007878787866B3FF0066B3
+      FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0033597F0066B3FF001D1E
+      1F1D00000000000000000000000000000000000000002B2F302966B3FF0066B3
+      FF006CB6FF006EB7FF006AB5FF0066B3FF0066B3FF00060B0F0066B3FF0068AC
+      F00E000000000000000000000000000000007474747466B3FF0067B4FF0077BB
+      FF0080C0FF0083C1FF007DBFFF00558BBF0066B3FF002C4E6F0066B3FF0066B3
+      FF003234382E0000000000000000000000007474747466B3FF0067B4FF0077BB
+      FF0080C0FF0083C1FF007DBFFF00558BBF0066B3FF002C4E6F0066B3FF0066B3
+      FF003234382E0000000000000000000000002B2F302966B3FF0070B8FF0080C0
+      FF007AACDF0000000000000000000000000000000000000000002C4E6F0066B3
+      FF0068ACF00E00000000000000000000000066B3FF0068B4FF007FC0FF0092C9
+      FF004F677F000000000000000000000000000000000000000000000000001321
+      2F0066B3FF006E6E6E6E000000000000000066B3FF0068B4FF007FC0FF0092C9
+      FF004F677F000000000000000000000000000000000000000000000000001321
+      2F0066B3FF006E6E6E6E000000000000000066B3FF006EB7FF0087C3FF009BCD
+      FF0034424F000000000000000000000000000000000000000000000000000000
+      000066B3FF002B2C2F29000000002122232066B3FF0079BDFF0094CAFF00ACD6
+      FF000000000000000000B7DBFF00000000006894BF00375B7F00000000000000
+      000066B3FF0066B3FF00000000002122232066B3FF0079BDFF0094CAFF00ACD6
+      FF000000000000000000B7DBFF00000000006894BF00375B7F00000000000000
+      000066B3FF0066B3FF00000000005E768F3F66B3FF007EBFFF009ACDFF00B3D9
+      FF000000000000000000C0E0FF0000000000597D9F0073BAFF00000000000000
+      000066B3FF0066B3FF000000000066B3FF0067B3FF0085C2FF00A3D1FF00BFDF
+      FF000000000000000000CFE7FF000000000025323F007ABDFF00000000000000
+      000066B3FF0066B3FF000000000066B3FF0067B3FF0085C2FF00A3D1FF00BFDF
+      FF000000000000000000CFE7FF000000000025323F007ABDFF00000000000000
+      000066B3FF0066B3FF000000000066B3FF0068B4FF0087C3FF00A6D3FF00C3E1
+      FF000000000000000000D5EAFF000B0D0F0013191F007CBEFF00000000000000
+      000066B3FF0066B3FF000000000066B3FF006AB5FF0089C4FF00A8D4FF00C7E3
+      FF000000000000000000DAEDFF0051606F00000000007DBFFF00000000000000
+      000066B3FF0066B3FF002323232366B3FF006AB5FF0089C4FF00A8D4FF00C7E3
+      FF000000000000000000DAEDFF0051606F00000000007DBFFF00000000000000
+      000066B3FF0066B3FF002323232366B3FF0069B4FF0088C4FF00A7D3FF00C6E3
+      FF000000000000000000D9ECFF00697C8F0000000000659ACF00000000000000
+      000066B3FF0066B3FF000D0D0D0D66B3FF0067B3FF0085C2FF00A3D1FF00BFDF
+      FF00000000000000000033393F002A323B000000000000000000000000002037
+      4F0066B3FF0066B3FF000202020266B3FF0067B3FF0085C2FF00A3D1FF00BFDF
+      FF00000000000000000033393F002A323B000000000000000000000000002037
+      4F0066B3FF0066B3FF000202020266B3FF0066B3FF0082C1FF009ECFFF00B9DC
+      FF000000000000000000000000000000000000000000000000000000000060A8
+      EF0066B3FF0066B3FF000505050566B3FF0066B3FF0079BDFF0094CAFF0096BA
+      DF0000000000000000000000000000000000000000000000000039648F0066B3
+      FF0066B3FF0066B3FF001111111166B3FF0066B3FF0079BDFF0094CAFF0096BA
+      DF0000000000000000000000000000000000000000000000000039648F0066B3
+      FF0066B3FF0066B3FF001111111166B3FF0066B3FF0074BAFF008EC7FF007A9D
+      BF0000000000000000000000000000000000000000000D161F0066B3FF0066B3
+      FF0066B3FF0066B3FF002323232366B3FF0066B3FF0068B4FF007FC0FF002D3E
+      4F000000000065829F0026333F008CC6FF0070B0EF0066B3FF0066B3FF0066B3
+      FF0066B3FF0066B3FF000000000066B3FF0066B3FF0068B4FF007FC0FF002D3E
+      4F000000000065829F0026333F008CC6FF0070B0EF0066B3FF0066B3FF0066B3
+      FF0066B3FF0066B3FF000000000066B3FF0066B3FF0066B3FF0077BCFF001924
+      2F00000000007198BF0012181F0083C2FF0070B8FF0066B3FF0066B3FF0066B3
+      FF0066B3FF0066B3FF0000000000586D7F4066B3FF0066B3FF0067B4FF000000
+      00000000000083C1FF003E5F7F005C96CF0066B3FF0066B3FF0066B3FF0066B3
+      FF0066B3FF0066B3FF0000000000586D7F4066B3FF0066B3FF0067B4FF000000
+      00000000000083C1FF003E5F7F005C96CF0066B3FF0066B3FF0066B3FF0066B3
+      FF0066B3FF0066B3FF00000000002022221F66B3FF0066B3FF0066B3FF000000
+      00000000000079BCFF0073BAFF0068B4FF0066B3FF0066B3FF0066B3FF0066B3
+      FF0066B3FF0066B3FF00000000000000000066B3FF0066B3FF0066B3FF000000
+      00000000000066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3
+      FF0066B3FF002022221F000000000000000066B3FF0066B3FF0066B3FF000000
+      00000000000066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3
+      FF0066B3FF002022221F000000000000000066B3FF0066B3FF0066B3FF000000
+      00000000000066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3
+      FF0066B3FF006868686800000000000000001414151466B3FF0066B3FF000000
+      00000000000066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3
+      FF0068ACF00E0000000000000000000000001414151466B3FF0066B3FF000000
+      00000000000066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3
+      FF0068ACF00E0000000000000000000000007F7F7F7F66B3FF0066B3FF000000
+      00000000000066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3
+      FF002B2F3029000000000000000000000000000000002B2F312966B3FF0066B3
+      FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0068AC
+      F00E00000000000000000000000000000000000000002B2F312966B3FF0066B3
+      FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0068AC
+      F00E00000000000000000000000000000000000000000000000066B3FF0066B3
+      FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF002C30
+      322A0000000000000000000000000000000000000000000000006D6D6D6D66B3
+      FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF00292A2D270000
+      00000000000000000000000000000000000000000000000000006D6D6D6D66B3
+      FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF0066B3FF00292A2D270000
+      0000000000000000000000000000000000000000000000000000000000002A2B
+      2E2866B3FF0066B3FF0066B3FF0066B3FF0066B3FF005E768F3F000000000000
+      0000000000000000000000000000000000000000000000000000000000000000
+      000000000000292929290B0B0B0B111111110000000000000000000000000000
+      0000000000000000000000000000000000000000000000000000000000000000
+      000000000000292929290B0B0B0B111111110000000000000000000000000000
+      0000000000000000000000000000000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000
+      00FF000000FF000000FF000000FF
+    }
+  end
+end

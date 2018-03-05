@@ -1,0 +1,161 @@
+object CTRLWallet: TCTRLWallet
+  Left = -7
+  Height = 571
+  Top = 2
+  Width = 1151
+  ActiveControl = cbAccounts
+  BorderStyle = bsNone
+  Caption = 'CTRLWallet'
+  ClientHeight = 571
+  ClientWidth = 1151
+  OnCreate = FormCreate
+  OnResize = FormResize
+  LCLVersion = '1.8.0.6'
+  Visible = False
+  object PairSplitter1: TPairSplitter
+    Left = 0
+    Height = 571
+    Top = 0
+    Width = 1151
+    Align = alClient
+    Position = 424
+    object PairSplitterSide1: TPairSplitterSide
+      Cursor = crArrow
+      Left = 0
+      Height = 571
+      Top = 0
+      Width = 424
+      ClientWidth = 424
+      ClientHeight = 571
+      object GroupBox1: TGroupBox
+        Left = 8
+        Height = 105
+        Top = 8
+        Width = 408
+        Anchors = [akTop, akLeft, akRight]
+        Caption = 'Overview'
+        ClientHeight = 85
+        ClientWidth = 404
+        TabOrder = 0
+        object Label1: TLabel
+          Left = 16
+          Height = 15
+          Top = 16
+          Width = 58
+          Caption = 'Total PASC'
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+        end
+        object Label2: TLabel
+          Left = 16
+          Height = 15
+          Top = 48
+          Width = 59
+          Caption = 'Total PASA'
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+        end
+        object lblTotalPASA: TLabel
+          Left = 284
+          Height = 15
+          Top = 48
+          Width = 108
+          Alignment = taRightJustify
+          Anchors = [akTop, akRight]
+          AutoSize = False
+          Caption = '0'
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+        end
+        object lblTotalPASC: TLabel
+          Left = 284
+          Height = 15
+          Top = 16
+          Width = 106
+          Alignment = taRightJustify
+          Anchors = [akTop, akRight]
+          AutoSize = False
+          Caption = '0'
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+        end
+      end
+      object gpMyAccounts: TGroupBox
+        Left = 8
+        Height = 440
+        Top = 120
+        Width = 408
+        Anchors = [akTop, akLeft, akRight, akBottom]
+        Caption = 'My Accounts'
+        ClientHeight = 420
+        ClientWidth = 404
+        TabOrder = 1
+        object cbAccounts: TComboBox
+          Left = 8
+          Height = 23
+          Top = 8
+          Width = 384
+          Anchors = [akTop, akLeft, akRight]
+          ItemHeight = 15
+          ItemIndex = 0
+          Items.Strings = (
+            'Show All'
+            'Show non-zero balances'
+            'Get my first account!'
+          )
+          OnChange = cbAccountsChange
+          TabOrder = 0
+          Text = 'Show All'
+        end
+        object paAccounts: TPanel
+          Left = 8
+          Height = 376
+          Top = 40
+          Width = 384
+          Anchors = [akTop, akLeft, akRight, akBottom]
+          BorderSpacing.Around = 3
+          BevelOuter = bvNone
+          Caption = 'MY ACCOUNT PANEL'
+          ParentColor = False
+          TabOrder = 1
+        end
+      end
+    end
+    object PairSplitterSide2: TPairSplitterSide
+      Cursor = crArrow
+      Left = 429
+      Height = 571
+      Top = 0
+      Width = 722
+      ClientWidth = 722
+      ClientHeight = 571
+      object gpRecentOps: TGroupBox
+        Left = 8
+        Height = 552
+        Top = 8
+        Width = 712
+        Anchors = [akTop, akLeft, akRight, akBottom]
+        Caption = 'Recent Operations'
+        ClientHeight = 532
+        ClientWidth = 708
+        TabOrder = 0
+        object paOperations: TPanel
+          Left = 8
+          Height = 512
+          Top = 16
+          Width = 696
+          Anchors = [akTop, akLeft, akRight, akBottom]
+          BorderSpacing.Around = 3
+          BevelOuter = bvNone
+          Caption = 'OPERATIONS PANEL'
+          ParentColor = False
+          TabOrder = 0
+        end
+      end
+    end
+  end
+end
