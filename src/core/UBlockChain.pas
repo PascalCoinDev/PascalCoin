@@ -20,8 +20,7 @@ unit UBlockChain;
 interface
 
 uses
-  Generics.Collections, Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs, SysUtils, UCommon;
-
+  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs;
 {$I config.inc}
 
 {
@@ -222,8 +221,7 @@ Type
     Property HashTree : TRawBytes read GetHashTree;
     Function OperationsCount : Integer;
     Function GetOperation(index : Integer) : TPCOperation;
-    Function GetOperationsAffectingAccount(account_number : Cardinal; List : Classes.TList) : Integer;
-    Function GetOperationsAffectingAccounts(const account_numbers : array of Cardinal; const AList: Generics.Collections.TList<Cardinal>) : Integer;
+    Function GetOperationsAffectingAccount(account_number : Cardinal; List : TList) : Integer;
     Procedure CopyFromHashTree(Sender : TOperationsHashTree);
     Property TotalAmount : Int64 read FTotalAmount;
     Property TotalFee : Int64 read FTotalFee;
@@ -280,7 +278,7 @@ Type
     Procedure Clear(DeleteOperations : Boolean);
     Function Count: Integer;
     Property OperationBlock: TOperationBlock read FOperationBlock;
-    Class Function OperationBlockToText(OperationBlock: TOperationBlock) : AnsiString;
+    Class Function OperationBlockToText(const OperationBlock: TOperationBlock) : AnsiString;
     Class Function SaveOperationBlockToStream(Const OperationBlock: TOperationBlock; Stream: TStream) : Boolean;
     Property AccountKey: TAccountKey read GetAccountKey write SetAccountKey;
     Property nonce: Cardinal read GetnOnce write SetnOnce;
@@ -292,7 +290,7 @@ Type
     function LoadBlockFromStorage(Stream: TStream; var errors: AnsiString): Boolean;
     function LoadBlockFromStream(Stream: TStream; var errors: AnsiString): Boolean;
     //
-    Function GetMinerRewardPsuedoOperation : TOperationResume;
+    Function GetMinerRewardPseudoOperation : TOperationResume;
     Function ValidateOperationBlock(var errors : AnsiString) : Boolean;
     Property IsOnlyOperationBlock : Boolean read FIsOnlyOperationBlock;
     Procedure Lock;
@@ -306,9 +304,6 @@ Type
     Class Function GetOperationClassByOpType(OpType: Cardinal): TPCOperationClass;
     Class Function GetFirstBlock : TOperationBlock;
     Class Function EqualsOperationBlock(Const OperationBlock1,OperationBlock2 : TOperationBlock):Boolean;
-    Class Function ConvertTimeSpanToBlockCount(const ASpan : TTimeSpan) : Integer;
-    Class Function ConvertBlockCountToTimeSpan(const ACount : Integer) : TTimeSpan;
-
     //
     Property SafeBoxTransaction : TPCSafeBoxTransaction read FSafeBoxTransaction;
     Property OperationsHashTree : TOperationsHashTree read FOperationsHashTree;
@@ -433,10 +428,10 @@ implementation
 
 uses
   {Messages, }
-  Variants, {Graphics,}
+  SysUtils, Variants, {Graphics,}
   {Controls, Forms,}
   Dialogs, {StdCtrls,}
-  UTime, UConst, UOpTransaction, UAutoScope;
+  UTime, UConst, UOpTransaction, UBaseTypes;
 
 { TPCBank }
 
@@ -624,7 +619,6 @@ begin
                 {$IFDEF TESTNET}
                 Storage.SaveBank;
                 {$ELSE}
-                // To prevent continuous saving...
                 If (BlocksCount MOD (CT_BankToDiskEveryNBlocks*10))=0 then begin
                   Storage.SaveBank;
                 end;
@@ -994,16 +988,6 @@ begin
   inherited;
 end;
 
-Class Function TPCOperationsComp.ConvertTimeSpanToBlockCount(const ASpan : TTimeSpan) : Integer;
-begin
-  Result := Round ( ASpan.TotalSeconds / CT_NewLineSecondsAvg );
-end;
-
-Class Function TPCOperationsComp.ConvertBlockCountToTimeSpan(const ACount : Integer) : TTimeSpan;
-begin
-  Result := TTimeSpan.FromSeconds( CT_NewLineSecondsAvg * ACount );
-end;
-
 class function TPCOperationsComp.EqualsOperationBlock(const OperationBlock1,
   OperationBlock2: TOperationBlock): Boolean;
 begin
@@ -1190,10 +1174,12 @@ begin
   end;
 end;
 
-class function TPCOperationsComp.OperationBlockToText(OperationBlock: TOperationBlock): AnsiString;
+class function TPCOperationsComp.OperationBlockToText(const OperationBlock: TOperationBlock): AnsiString;
 begin
-  Result := Format('Block:%d Timestamp:%d Reward:%d Fee:%d Target:%d PoW:%s',[operationBlock.block,
-    operationblock.timestamp,operationblock.reward,operationblock.fee, OperationBlock.compact_target, TCrypto.ToHexaString(operationblock.proof_of_work)]);
+  Result := Format('Block:%d Timestamp:%d Reward:%d Fee:%d Target:%d PoW:%s Payload:%s Nonce:%d OperationsHash:%s SBH:%s',[operationBlock.block,
+    operationblock.timestamp,operationblock.reward,operationblock.fee, OperationBlock.compact_target, TCrypto.ToHexaString(operationblock.proof_of_work),
+    OperationBlock.block_payload,OperationBlock.nonce,TCrypto.ToHexaString(OperationBlock.operations_hash),
+    TCrypto.ToHexaString(OperationBlock.initial_safe_box_hash)]);
 end;
 
 class function TPCOperationsComp.RegisterOperationClass(OpClass: TPCOperationClass): Boolean;
@@ -1451,7 +1437,7 @@ begin
   end;
 end;
 
-function TPCOperationsComp.GetMinerRewardPsuedoOperation : TOperationResume;
+function TPCOperationsComp.GetMinerRewardPseudoOperation : TOperationResume;
 begin
    Result := CT_TOperationResume_NUL;
    Result.valid := true;
@@ -1491,7 +1477,8 @@ begin
       end;
     end;
     // Check OperationsHash value is valid
-    if FOperationsHashTree.HashTree<>OperationBlock.operations_hash then begin
+    // New Build 2.1.7 use safe BinStrComp
+    if TBaseType.BinStrComp(FOperationsHashTree.HashTree,OperationBlock.operations_hash)<>0 then begin
       errors := 'Invalid Operations Hash '+TCrypto.ToHexaString(OperationBlock.operations_hash)+'<>'+TCrypto.ToHexaString(FOperationsHashTree.HashTree);
       exit;
     end;
@@ -1796,31 +1783,6 @@ begin
   end;
 end;
 
-Function TOperationsHashTree.GetOperationsAffectingAccounts(const account_numbers : array of Cardinal; const AList: TList<Cardinal>) : Integer;
-var
-  blockOps,legacyList : Classes.TList;
-  i,j : Integer;
-  GC : TScoped;
-begin
-  AList.Clear;
-  blockOps := FHashTreeOperations.LockList;
-  legacyList := GC.AddObject( Classes.TList.Create ) as Classes.TList;
-  try
-    for i := 0 to blockOps.Count - 1 do begin
-      legacyList.Clear;
-      POperationHashTreeReg(blockOps[i])^.Op.AffectedAccounts(legacyList);
-      for j := Low(account_numbers) to High(account_numbers) do
-        if legacyList.IndexOf(TObject(account_numbers[j]))>=0 then begin
-          AList.Add(i);
-          break;
-        end;
-    end;
-    Result := legacyList.Count;
-  finally
-    FHashTreeOperations.UnlockList;
-  end;
-end;
-
 function TOperationsHashTree.IndexOfOperation(op: TPCOperation): Integer;
 Var iPosInOrdered : Integer;
   l : TList;
@@ -1926,7 +1888,7 @@ begin
   begin
     I := (L + H) shr 1;
     iLockedThreadListPos := PtrInt(FListOrderedBySha256[I]);
-    C := BinStrComp(POperationHashTreeReg(lockedThreadList[iLockedThreadListPos])^.Op.Sha256,Value);
+    C := TBaseType.BinStrComp(POperationHashTreeReg(lockedThreadList[iLockedThreadListPos])^.Op.Sha256,Value);
     if C < 0 then L := I + 1 else
     begin
       H := I - 1;
@@ -2245,8 +2207,8 @@ begin
   r1 := copy(operationHash1,5,length(operationHash1)-4);
   r2 := copy(operationHash2,5,length(operationHash2)-4);
   b0 := TCrypto.HexaToRaw('00000000');
-  Result := (BinStrComp(r1,r2)=0) // Both right parts must be equal
-    AND ((BinStrComp(b1,b0)=0) Or (BinStrComp(b2,b0)=0) Or (BinStrComp(b1,b2)=0)); // b is 0 value or b1=b2 (b = block number)
+  Result := (TBaseType.BinStrComp(r1,r2)=0) // Both right parts must be equal
+    AND ((TBaseType.BinStrComp(b1,b0)=0) Or (TBaseType.BinStrComp(b2,b0)=0) Or (TBaseType.BinStrComp(b1,b2)=0)); // b is 0 value or b1=b2 (b = block number)
 end;
 
 class function TPCOperation.FinalOperationHashAsHexa(const operationHash: TRawBytes): AnsiString;
