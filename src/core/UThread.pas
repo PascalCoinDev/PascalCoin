@@ -25,7 +25,7 @@ uses
 {$ELSE}
   {$IFDEF LINUX}cthreads,{$ENDIF}
 {$ENDIF}
-  Classes, SyncObjs;
+  Classes, SyncObjs, UBaseTypes;
 
 {$I config.inc}
 
@@ -35,7 +35,7 @@ Type
     FCounterLock : TCriticalSection;
     FWaitingForCounter : Integer;
     FCurrentThread : Cardinal;
-    FStartedTimestamp : Cardinal;
+    FStartedTickCount : TTickCount;
     FName : String;
   public
     Constructor Create(const AName : String);
@@ -47,7 +47,7 @@ Type
     {$ENDIF}
     Property CurrentThread : Cardinal read FCurrentThread;
     Property WaitingForCounter : Integer read FWaitingForCounter;
-    Property StartedTimestamp : Cardinal read FStartedTimestamp;
+    Property StartedTickCount : TTickCount read FStartedTickCount;  // Renamed from StartedTimestamp to StartedTickCount to avoid confusion
     Property Name : String read FName;
   end;
 
@@ -56,7 +56,7 @@ Type
   TPCThread = Class(TThread)
   private
     FDebugStep: String;
-    FStartTickCount : QWord;
+    FStartTickCount : TTickCount;
   protected
     procedure DoTerminate; override;
     procedure Execute; override;
@@ -100,6 +100,8 @@ uses
 
 Var _threads : TPCThreadList;
 
+
+
 constructor TPCThread.Create(CreateSuspended: Boolean);
 begin
   inherited Create(CreateSuspended);
@@ -120,7 +122,7 @@ procedure TPCThread.Execute;
 Var l : TList;
   i : Integer;
 begin
-  FStartTickCount := GetTickCount64;
+  FStartTickCount := TPlatform.GetTickCount;
   FDebugStep := '';
   i := _threads.Add(Self);
   try
@@ -142,7 +144,7 @@ begin
     l := _threads.LockList;
     Try
       i := l.Remove(Self);
-      {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Finalizing Thread in pos '+inttostr(i+1)+'/'+inttostr(l.Count+1)+' working time: '+FormatFloat('0.000',(GetTickCount-FStartTickCount) / 1000)+' sec');{$ENDIF}
+      {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Finalizing Thread in pos '+inttostr(i+1)+'/'+inttostr(l.Count+1)+' working time: '+FormatFloat('0.000',TPlatform.GetElapsedMilliseconds(FStartTickCount) / 1000)+' sec');{$ENDIF}
     Finally
       _threads.UnlockList;
     End;
@@ -228,7 +230,7 @@ begin
     list.BeginUpdate;
     list.Clear;
     for i := 0 to l.Count - 1 do begin
-      list.Add(Format('%.2d/%.2d <%s> Time:%s sec - Step: %s',[i+1,l.Count,TPCThread(l[i]).ClassName,FormatFloat('0.000',(GetTickCount64-TPCThread(l[i]).FStartTickCount) / 1000),TPCThread(l[i]).DebugStep] ));
+      list.Add(Format('%.2d/%.2d <%s> Time:%s sec - Step: %s',[i+1,l.Count,TPCThread(l[i]).ClassName,FormatFloat('0.000',(TPlatform.GetElapsedMilliseconds(TPCThread(l[i]).FStartTickCount) / 1000)),TPCThread(l[i]).DebugStep] ));
     end;
     list.EndUpdate;
   finally
@@ -238,13 +240,15 @@ end;
 
 class function TPCThread.TryProtectEnterCriticalSection(const Sender: TObject;
   MaxWaitMilliseconds: Cardinal; var Lock: TPCCriticalSection): Boolean;
-Var tc : Cardinal;
+Var tc : TTickCount;
   {$IFDEF HIGHLOG}
-  tc2,tc3,lockCurrThread,lockWatingForCounter,lockStartedTimestamp : Cardinal;
+  tc2,tc3,lockStartedTimestamp : TTickCount;
+  lockCurrThread : TThreadID;
+  lockWatingForCounter : Cardinal;
   s : String;
   {$ENDIF}
 begin
-  tc := GetTickCount64;
+  tc := TPlatform.GetTickCount;
   if MaxWaitMilliseconds>60000 then MaxWaitMilliseconds := 60000;
   {$IFDEF HIGHLOG}
   lockWatingForCounter := Lock.WaitingForCounter;
@@ -254,10 +258,10 @@ begin
   Repeat
     Result := Lock.TryEnter;
     if Not Result then sleep(1);
-  Until (Result) Or (GetTickCount64 > (tc + MaxWaitMilliseconds));
+  Until (Result) Or (TPlatform.GetElapsedMilliseconds(tc)>MaxWaitMilliseconds);
   {$IFDEF HIGHLOG}
   if Not Result then begin
-    tc2 := GetTickCount;
+    tc2 := TPlatform.GetTickCount;
     if lockStartedTimestamp=0 then lockStartedTimestamp := Lock.StartedTimestamp;
     if lockStartedTimestamp=0 then tc3 := 0
     else tc3 := tc2-lockStartedTimestamp;
@@ -388,7 +392,7 @@ begin
   FCounterLock := TCriticalSection.Create;
   FWaitingForCounter := 0;
   FCurrentThread := 0;
-  FStartedTimestamp := 0;
+  FStartedTickCount := 0;
   FName := AName;
   inherited Create;
   {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,ClassName,'Created critical section '+IntToHex(PtrInt(Self),8)+' '+AName );{$ENDIF}
