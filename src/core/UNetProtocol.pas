@@ -26,7 +26,7 @@ Uses
   {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
   UBlockChain, Classes, SysUtils, UAccounts, UThread,
-  UCrypto, UTCPIP, SyncObjs, UCommon;
+  UCrypto, UTCPIP, SyncObjs, UBaseTypes;
 
 {$I config.inc}
 
@@ -240,7 +240,7 @@ Type
     FRegisteredRequests : TPCThreadList;
     FIsDiscoveringServers : Boolean;
     FIsGettingNewBlockChainFromClient : Boolean;
-    FOnConnectivityChanged : TNotifyManyEvent;
+    FOnConnectivityChanged : TNotifyEventToMany;
     FOnNetConnectionsUpdated: TNotifyEvent;
     FOnNodeServersUpdated: TNotifyEvent;
     FOnBlackListUpdated: TNotifyEvent;
@@ -299,7 +299,7 @@ Type
     Property IsGettingNewBlockChainFromClient : Boolean read FIsGettingNewBlockChainFromClient;
     Property MaxRemoteOperationBlock : TOperationBlock read FMaxRemoteOperationBlock;
     Property NodePrivateKey : TECPrivateKey read FNodePrivateKey;
-    property OnConnectivityChanged : TNotifyManyEvent read FOnConnectivityChanged;
+    property OnConnectivityChanged : TNotifyEventToMany read FOnConnectivityChanged;
     Property OnNetConnectionsUpdated : TNotifyEvent read FOnNetConnectionsUpdated write FOnNetConnectionsUpdated;
     Property OnNodeServersUpdated : TNotifyEvent read FOnNodeServersUpdated write FOnNodeServersUpdated;
     Property OnBlackListUpdated : TNotifyEvent read FOnBlackListUpdated write FOnBlackListUpdated;
@@ -1111,6 +1111,7 @@ begin
   SetLength(FFixedServers,0);
   FMaxRemoteOperationBlock := CT_OperationBlock_NUL;
   FNetStatistics := CT_TNetStatistics_NUL;
+  FOnConnectivityChanged := TNotifyEventToMany.Create;
   FOnStatisticsChanged := Nil;
   FOnNetConnectionsUpdated := Nil;
   FOnNodeServersUpdated := Nil;
@@ -1138,6 +1139,7 @@ Var l : TList;
   tdc : TThreadDiscoverConnection;
 begin
   TLog.NewLog(ltInfo,ClassName,'TNetData.Destroy START');
+  FreeAndNil(FOnConnectivityChanged);
   FOnStatisticsChanged := Nil;
   FOnNetConnectionsUpdated := Nil;
   FOnNodeServersUpdated := Nil;
@@ -1385,7 +1387,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
   Var SendData,ReceiveData : TMemoryStream;
     headerdata : TNetHeaderData;
     op : TPCOperationsComp;
-    request_id,opcount,i : Cardinal;
+    request_id,opcount,i, last_n_block : Cardinal;
     errors : AnsiString;
     noperation : Integer;
   begin
@@ -1409,14 +1411,24 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       if Connection.DoSendAndWaitForResponse(noperation,request_id,SendData,ReceiveData,MaxWaitMilliseconds,headerdata) then begin
         if HeaderData.is_error then exit;
         if ReceiveData.Read(opcount,4)<4 then exit; // Error in data
-        i := 0;
+        i := 0; last_n_block := 0;
         while (i<opcount) do begin
           // decode data
           op := TPCOperationsComp.Create(AssignToBank);
           If op.LoadBlockFromStream(ReceiveData,errors) then begin
-            BlocksList.Add(op);
+            // Build 2.1.7 Protection for invalid block number
+            If ((i>0) And (last_n_block>=op.OperationBlock.block)) Or
+               ((Not OnlyOperationBlock) And
+                 ( ((i=0) And (op.OperationBlock.block=block_start))
+                   Or
+                   ((i>0) And (op.OperationBlock.block=last_n_block+1)) ) ) then begin
+              Connection.DisconnectInvalidClient(false,Format('Invalid block sequence received last:%d received:%d',[last_n_block,op.OperationBlock.block]));
+              op.free;
+              break;
+            end else BlocksList.Add(op);
+            last_n_block := op.OperationBlock.block;
           end else begin
-            TLog.NewLog(lterror,CT_LogSender,Format('Error reading OperationBlock from received stream %d/%d: %s',[i+1,opcount,errors]));
+            Connection.DisconnectInvalidClient(false,Format('Error reading OperationBlock from received stream %d/%d: %s',[i+1,opcount,errors]));
             op.free;
             break;
           end;
@@ -1440,8 +1452,12 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     BlocksList := TList.Create;
     try
       Result := Do_GetOperationsBlock(TNode.Node.Bank,block,block,MaxWaitMilliseconds,True,BlocksList);
+      // Build 2.1.7 - Included protection agains not good block received
       if (Result) And (BlocksList.Count=1) then begin
         OperationBlock := TPCOperationsComp(BlocksList[0]).OperationBlock;
+        If OperationBlock.block<>block then Result := False;
+      end else begin
+        Result := False;
       end;
     finally
       for i := 0 to BlocksList.Count - 1 do TPCOperationsComp(BlocksList[i]).Free;
@@ -1455,6 +1471,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     auxBlock, sbBlock : TOperationBlock;
     distinctmax,distinctmin : Cardinal;
     BlocksList : TList;
+    errors : AnsiString;
   Begin
     Result := false;
     OperationBlock := CT_OperationBlock_NUL;
@@ -1472,6 +1489,12 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
             Connection.DisconnectInvalidClient(false,'Invalid response... '+inttostr(min)+'<'+inttostr(auxBlock.block)+'<'+inttostr(max)+' ant:'+inttostr(ant_nblock));
             exit;
           end;
+          // New Build 2.1.7 - Check valid operationblock
+          If Not TPCSafeBox.IsValidOperationBlock(auxBlock,errors) then begin
+            Connection.DisconnectInvalidClient(false,'Received invalid operation block searching '+TPCOperationsComp.OperationBlockToText(auxBlock)+' errors: '+errors);
+            Exit;
+          end;
+
           ant_nblock := auxBlock.block;
           //
           sbBlock := TNode.Node.Bank.SafeBox.Block(auxBlock.block).blockchainInfo;
@@ -1543,7 +1566,12 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
             try
               OpComp.SaveBlockToStream(false,ms);
               ms.Position := 0;
-              OpExecute.LoadBlockFromStream(ms,errors);
+              If not OpExecute.LoadBlockFromStream(ms,errors) then begin
+                Connection.DisconnectInvalidClient(false,'Invalid block stream received for block '+IntToStr(Bank.BlocksCount)+' errors: '+errors );
+                finished := true;
+                IsAScam := true;
+                break;
+              end;
               if Bank.AddNewBlockChainBlock(OpExecute,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,newBlock,errors) then begin
                 inc(i);
               end else begin
@@ -1702,6 +1730,11 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       Connection.DisconnectInvalidClient(false,Format('Cannot obtain operation block %d for downloading safebox',[_blockcount]));
       exit;
     end;
+    // New Build 2.1.7 - Check valid operationblock
+    If Not TPCSafeBox.IsValidOperationBlock(op,errors) then begin
+      Connection.DisconnectInvalidClient(false,'Invalid operation block at DownloadSafeBox '+TPCOperationsComp.OperationBlockToText(op)+' errors: '+errors);
+      Exit;
+    end;
     receiveData := TMemoryStream.Create;
     try
       SetLength(chunks,0);
@@ -1772,6 +1805,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
 
 var rid : Cardinal;
   my_op, client_op : TOperationBlock;
+  errors : AnsiString;
 begin
   // Protection against discovering servers...
   if FIsDiscoveringServers then begin
@@ -1803,6 +1837,11 @@ begin
     If Not Do_GetOperationBlock(my_op.block,5000,client_op) then begin
       TLog.NewLog(lterror,CT_LogSender,'Cannot receive information about my block ('+inttostr(my_op.block)+')...');
       // Disabled at Build 1.0.6 >  Connection.DisconnectInvalidClient(false,'Cannot receive information about my block ('+inttostr(my_op.block)+')... Invalid client. Disconnecting');
+      Exit;
+    end;
+    // New Build 2.1.7 - Check valid operationblock
+    If Not TPCSafeBox.IsValidOperationBlock(client_op,errors) then begin
+      Connection.DisconnectInvalidClient(false,'Received invalid operation block '+TPCOperationsComp.OperationBlockToText(client_op)+' errors: '+errors);
       Exit;
     end;
 
@@ -1910,14 +1949,14 @@ begin
   end;
 end;
 
-procedure TNetData.NotifyConnectivityChanged;
-begin
-  FOnConnectivityChanged.Invoke(Self);
-end;
-
 procedure TNetData.NotifyBlackListUpdated;
 begin
   FNetDataNotifyEventsThread.FNotifyOnBlackListUpdated := true;
+end;
+
+procedure TNetData.NotifyConnectivityChanged;
+begin
+  FOnConnectivityChanged.Invoke(Self);
 end;
 
 procedure TNetData.NotifyNetConnectionUpdated;
@@ -1998,6 +2037,7 @@ end;
 procedure TNetData.SetNetConnectionsActive(const Value: Boolean);
 begin
   FNetConnectionsActive := Value;
+  NotifyConnectivityChanged;
   if FNetConnectionsActive then DiscoverServers
   else DisconnectClients;
 end;
