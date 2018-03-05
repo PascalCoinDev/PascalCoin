@@ -20,7 +20,7 @@ unit UBaseTypes;
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils, Generics.Defaults;
 
 Type
   // Raw data in a maximum 65k bytes
@@ -58,9 +58,38 @@ Type
     class function Equals(const v1,v2 : TDynRawBytes) : Boolean; overload;
     class function Higher(const vHigh,vLow : T32Bytes) : Boolean;
     class function Compare(const leftBytes,rightBytes : T32Bytes) : Integer;
+    // Herman functions moved from "Common"
+    { Binary-safe StrComp replacement. StrComp will return 0 for when str1 and str2 both start with NUL character. }
+    class function BinStrComp(const Str1, Str2 : AnsiString): Integer;
   end;
 
+  // TickCount is platform specific (32 or 64 bits)
+  TTickCount = {$IFDEF CPU64}QWord{$ELSE}Cardinal{$ENDIF};
+
+
+  TPlatform = Class
+  public
+    class function GetTickCount : TTickCount;
+    class function GetElapsedMilliseconds(Const previousTickCount : TTickCount) : Int64;
+  End;
+
+  TNotifyEventToMany = Class
+  private
+    FList : Array of TNotifyEvent;
+  public
+    function IndexOf(search : TNotifyEvent) : Integer;
+    procedure Add(newNotifyEvent : TNotifyEvent);
+    procedure Remove(removeNotifyEvent : TNotifyEvent);
+    procedure Invoke(sender : TObject);
+    function Count : Integer;
+    procedure Delete(index : Integer);
+    Constructor Create;
+  End;
+
+
 implementation
+
+Uses Windows;
 
 { TBaseType }
 
@@ -232,12 +261,111 @@ begin
   Result := False; // No higher, equal
 end;
 
+class function TBaseType.BinStrComp(const Str1, Str2: AnsiString): Integer;
+var Str1Len, Str2Len, i : Integer;
+begin
+   Str1Len := Length(Str1);
+   Str2Len := Length(Str2);
+   if (Str1Len < Str2Len) then
+     Result := -1
+   else if (Str1Len > Str2Len) then
+     Result := 1
+   else begin
+     Result := 0;
+     for i:= 1 to Str1Len do begin
+       if Str1[i] < Str2[i] then begin
+         Result := -1;
+         break;
+       end else if Str1[i] > Str2[i] then begin
+         Result := 1;
+         break;
+       end
+     end;
+   end;
+End;
+
 class function TBaseType.Compare(const leftBytes, rightBytes: T32Bytes): Integer;
 var i : Integer;
 begin
   for i:=0 to 31 do begin
     Result := leftBytes[i] - rightBytes[i];
     if Result<>0 then exit;
+  end;
+end;
+
+{ TPlatform }
+
+class function TPlatform.GetElapsedMilliseconds(const previousTickCount: TTickCount): Int64;
+begin
+  Result := (Self.GetTickCount - previousTickCount){$IFDEF CPU64} DIV 1000{$ENDIF};
+end;
+
+class function TPlatform.GetTickCount: TTickCount;
+begin
+  Result := {$IFDEF CPU64}GetTickCount64{$ELSE}windows.GetTickCount{$ENDIF};
+end;
+
+{ TNotifyEventToMany }
+
+procedure TNotifyEventToMany.Add(newNotifyEvent: TNotifyEvent);
+begin
+  if IndexOf(newNotifyEvent)>=0 then exit;
+  SetLength(FList,length(FList)+1);
+  FList[high(FList)] := newNotifyEvent;
+end;
+
+function TNotifyEventToMany.Count: Integer;
+begin
+  Result := Length(FList);
+end;
+
+constructor TNotifyEventToMany.Create;
+begin
+  SetLength(FList,0);
+end;
+
+procedure TNotifyEventToMany.Delete(index: Integer);
+Var i : Integer;
+begin
+  if (index<0) Or (index>High(FList)) then raise Exception.Create('Invalid index '+Inttostr(index)+' in '+Self.ClassName+'.Delete');
+  for i := index+1 to high(FList) do begin
+    FList[i-1] := FList[i];
+  end;
+  SetLength(FList,length(FList)-1);
+end;
+
+function TNotifyEventToMany.IndexOf(search: TNotifyEvent): Integer;
+begin
+  for Result := low(FList) to high(FList) do begin
+    if (TMethod(FList[Result]).Code = TMethod(search).Code) And
+       (TMethod(FList[Result]).Data = TMethod(search).Data) then Exit;
+  end;
+  Result := -1;
+end;
+
+procedure TNotifyEventToMany.Invoke(sender: TObject);
+Var i,j : Integer;
+begin
+  j := -1;
+  Try
+    for i := low(FList) to high(FList) do begin
+      j := i;
+      FList[i](sender);
+    end;
+  Except
+    On E:Exception do begin
+      E.Message := Format('Error TNotifyManyEventHelper.Invoke %d/%d (%s) %s',[j+1,length(FList),E.ClassType,E.Message]);
+      Raise;
+    end;
+  End;
+end;
+
+procedure TNotifyEventToMany.Remove(removeNotifyEvent: TNotifyEvent);
+Var i : Integer;
+begin
+  i := IndexOf(removeNotifyEvent);
+  if (i>=0) then begin
+    Delete(i);
   end;
 end;
 
