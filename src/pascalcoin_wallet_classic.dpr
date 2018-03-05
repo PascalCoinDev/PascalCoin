@@ -1,7 +1,7 @@
-program PascalCoinWallet;
+program PascalCoin_wallet_classic;
 
 uses
-  Forms, Interfaces,
+  Forms,
   UBlockChain in 'core\UBlockChain.pas',
   UCrypto in 'core\UCrypto.pas',
   UTime in 'core\UTime.pas',
@@ -38,8 +38,8 @@ uses
   UFRMMemoText in 'gui-classic\UFRMMemoText.pas' {FRMMemoText},
   UChunk in 'core\UChunk.pas',
   UBaseTypes in 'core\UBaseTypes.pas',
-  UCommon in 'common\UCommon.pas',
-  UAccountKeyStorage in 'core\UAccountKeyStorage.pas';
+  UAccountKeyStorage in 'core\UAccountKeyStorage.pas',
+  USettings in 'core\USettings.pas';
 
 {$R *.res}
 
