@@ -19,7 +19,7 @@ uses
   Messages,
   {$ENDIF}
   SyncObjs,
-  UOpenSSL, UCrypto, UNode, UFileStorage, UFolderHelper, UWallet, UConst, ULog, UNetProtocol,
+  UOpenSSL, UCrypto, UNode, UFileStorage, UFolderHelper, UWalletKeys, UConst, ULog, UNetProtocol,
   URPC;
 
 type

@@ -105,8 +105,6 @@ Const
   // NetProtocol_Available MUST BE always >= NetProtocol_version
   CT_NetProtocol_Available: Word = $0006;  // Remember, >= NetProtocol_version !!!
 
-  CT_V2_AccountStart = CT_Protocol_Upgrade_v2_MinBlock div CT_AccountsPerBlock;
-
   CT_MaxAccountOperationsPerBlockWithoutFee = 1;
 
   CT_SafeBoxBankVersion : Word = 3; // Protocol 2 upgraded safebox version from 2 to 3
@@ -127,6 +125,7 @@ Const
 
   CT_PseudoOpSubtype_Miner                = 1;
   CT_PseudoOpSubtype_Developer            = 2;
+
   CT_OpSubtype_TransactionSender          = 11;
   CT_OpSubtype_TransactionReceiver        = 12;
   CT_OpSubtype_BuyTransactionBuyer        = 13;
@@ -151,6 +150,30 @@ Const
 
   CT_MAX_0_fee_operations_per_block_by_miner = {$IFDEF PRODUCTION}2000{$ELSE}{$IFDEF TESTNET}2{$ELSE}{$ENDIF}{$ENDIF};
   CT_MAX_Operations_per_block_by_miner =  {$IFDEF PRODUCTION}10000{$ELSE}{$IFDEF TESTNET}50{$ELSE}{$ENDIF}{$ENDIF};
+
+  // App Params
+  CT_PARAM_GridAccountsStream = 'GridAccountsStreamV2';
+  CT_PARAM_GridAccountsPos = 'GridAccountsPos';
+  CT_PARAM_DefaultFee = 'DefaultFee';
+  CT_PARAM_InternetServerPort = 'InternetServerPort';
+  {$IFDEF TESTNET}CT_PARAM_AutomaticMineWhenConnectedToNodes = 'AutomaticMineWhenConnectedToNodes';{$ENDIF}
+  CT_PARAM_MinerPrivateKeyType = 'MinerPrivateKeyType';
+  CT_PARAM_MinerPrivateKeySelectedPublicKey = 'MinerPrivateKeySelectedPublicKey';
+  CT_PARAM_SaveLogFiles = 'SaveLogFiles';
+  CT_PARAM_SaveDebugLogs = 'SaveDebugLogs';
+  CT_PARAM_ShowLogs = 'ShowLogs';
+  CT_PARAM_MinerName = 'MinerName';
+  CT_PARAM_FirstTime = 'FirstTime';
+  CT_PARAM_ShowModalMessages = 'ShowModalMessages';
+  {$IFDEF TESTNET}CT_PARAM_MaxCPUs = 'MaxCPUs'; {$ENDIF} //deprecated
+  CT_PARAM_PeerCache = 'PeerCache';
+  CT_PARAM_TryToConnectOnlyWithThisFixedServers = 'TryToConnectOnlyWithFixedServers';
+  CT_PARAM_JSONRPCMinerServerPort = 'JSONRPCMinerServerPort';
+  CT_PARAM_JSONRPCMinerServerActive = 'JSONRPCMinerServerActive';
+  CT_PARAM_JSONRPCEnabled = 'JSONRPCEnabled';
+  CT_PARAM_JSONRPCAllowedIPs = 'JSONRPCAllowedIPs';
+
+
 
 implementation
 

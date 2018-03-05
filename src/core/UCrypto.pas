@@ -39,7 +39,6 @@ Type
      EC_OpenSSL_NID : Word;
      x: TRawBytes;
      y: TRawBytes;
-     class operator = (const a,b : TECDSA_Public) : boolean;
   end;
   PECDSA_Public = ^TECDSA_Public;
 
@@ -70,21 +69,21 @@ Type
   private
   public
     class function IsHexString(const AHexString: AnsiString) : boolean;
-    Class function ToHexaString(const raw : TRawBytes) : AnsiString;
-    Class function HexaToRaw(const HexaString : AnsiString) : TRawBytes;
-    Class function DoSha256(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
-    Class function DoSha256(const TheMessage : AnsiString) : TRawBytes; overload;
-    Class procedure DoSha256(const TheMessage : AnsiString; var ResultSha256 : TRawBytes);  overload;
-    Class procedure DoDoubleSha256(p : PAnsiChar; plength : Cardinal; Var ResultSha256 : TRawBytes); overload;
-    Class function DoRipeMD160_HEXASTRING(const TheMessage : AnsiString) : TRawBytes; overload;
-    Class function DoRipeMD160AsRaw(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
-    Class function DoRipeMD160AsRaw(const TheMessage : AnsiString) : TRawBytes; overload;
-    Class function PrivateKey2Hexa(Key : PEC_KEY) : AnsiString;
-    Class function ECDSASign(Key : PEC_KEY; const digest : AnsiString) : TECDSA_SIG;
-    Class function ECDSAVerify(EC_OpenSSL_NID : Word; PubKey : EC_POINT; const digest : AnsiString; Signature : TECDSA_SIG) : Boolean; overload;
-    Class function ECDSAVerify(PubKey : TECDSA_Public; const digest : AnsiString; Signature : TECDSA_SIG) : Boolean; overload;
-    Class procedure InitCrypto;
-    Class function IsHumanReadable(Const ReadableText : TRawBytes) : Boolean;
+    class function ToHexaString(const raw : TRawBytes) : AnsiString;
+    class function HexaToRaw(const HexaString : AnsiString) : TRawBytes;
+    class function DoSha256(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
+    class function DoSha256(const TheMessage : AnsiString) : TRawBytes; overload;
+    class procedure DoSha256(const TheMessage : AnsiString; var ResultSha256 : TRawBytes);  overload;
+    class procedure DoDoubleSha256(p : PAnsiChar; plength : Cardinal; Var ResultSha256 : TRawBytes); overload;
+    class function DoRipeMD160_HEXASTRING(const TheMessage : AnsiString) : TRawBytes; overload;
+    class function DoRipeMD160AsRaw(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
+    class function DoRipeMD160AsRaw(const TheMessage : AnsiString) : TRawBytes; overload;
+    class function PrivateKey2Hexa(Key : PEC_KEY) : AnsiString;
+    class function ECDSASign(Key : PEC_KEY; const digest : AnsiString) : TECDSA_SIG;
+    class function ECDSAVerify(EC_OpenSSL_NID : Word; PubKey : EC_POINT; const digest : AnsiString; Signature : TECDSA_SIG) : Boolean; overload;
+    class function ECDSAVerify(PubKey : TECDSA_Public; const digest : AnsiString; Signature : TECDSA_SIG) : Boolean; overload;
+    class procedure InitCrypto;
+    class function IsHumanReadable(Const ReadableText : TRawBytes) : Boolean;
   End;
 
   TBigNum = Class
@@ -133,7 +132,7 @@ Const
 implementation
 
 uses
-  UAES, ULog, UConst, UAccounts, UCommon;
+  ULog, UConst, UAccounts;
 
 Var _initialized : Boolean = false;
 
@@ -144,16 +143,6 @@ Begin
     InitSSLFunctions;
   end;
 End;
-
-{ TECDSA_Public }
-
-class operator TECDSA_Public.= (const a,b : TECDSA_Public) : boolean;
-begin
-  Result :=
-    (a.EC_OpenSSL_NID = b.EC_OpenSSL_NID) AND
-    (BinStrComp(a.x, b.x) = 0) AND
-    (BinStrComp(a.y, b.y) = 0);
-end;
 
 { TECPrivateKey }
 
@@ -570,7 +559,7 @@ var
   i : Integer;
 begin
   Result := true;
-  for i := Low(AHexString) to High(AHexString) do
+  for i := 0 to length(AHexString) do
     if (NOT (AHexString[i] in ['0'..'9'])) AND
        (NOT (AHexString[i] in ['a'..'f'])) AND
        (NOT (AHexString[i] in ['A'..'F'])) then begin

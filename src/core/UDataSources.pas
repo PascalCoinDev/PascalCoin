@@ -112,7 +112,7 @@ end;
 
 procedure TUserAccountsDataSource.FetchAll(const AContainer : TList<TAccount>);
 var
-  i, keyIndex : integer;
+  i : integer;
   acc : TAccount;
   safeBox : TPCSafeBox;
   keys : TOrderedAccountKeysList;
@@ -129,7 +129,7 @@ begin
    // load user accounts
    for i := 0 to safeBox.AccountsCount - 1 do begin
      acc := safeBox.Account(i);
-     if keys.Find(acc.accountInfo.accountKey, keyIndex) then begin
+     if keys.IndexOfAccountKey(acc.accountInfo.accountKey)>=0 then begin
        AContainer.Add(acc);
        FLastOverview.TotalPASC := FLastOverview.TotalPASC + acc.Balance;
        inc(FLastOverview.TotalPASA);
@@ -151,7 +151,8 @@ begin
    else if AColumnName = 'Balance' then
      Result := TAccountComp.FormatMoneyDecimal(AItem.Balance)
    else if AColumnName = 'Key' then begin
-     if TWallet.Keys.AccountsKeyList.Find(AItem.accountInfo.accountKey, index) then
+     index := TWallet.Keys.AccountsKeyList.IndexOfAccountKey(AItem.accountInfo.accountKey);
+     if index>=0 then
         Result := TWallet.Keys[index].Name
      else
          Result := TAccountComp.AccountPublicKeyExport(AItem.accountInfo.accountKey);
@@ -174,10 +175,12 @@ begin
   ATableRow.Account := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account);
   ATableRow.Name := Variant(AItem.name);
   ATableRow.Balance := TAccountComp.FormatMoney(AItem.balance);
- if TWallet.Keys.AccountsKeyList.Find(AItem.accountInfo.accountKey, index) then
+  index := TWallet.Keys.AccountsKeyList.IndexOfAccountKey(AItem.accountInfo.accountKey);
+  if index>=0 then begin
     ATableRow.Key := TDataSourceTool.AccountKeyShortText(TWallet.Keys[index].Name)
- else
+  end else begin
     ATableRow.Key := TDataSourceTool.AccountKeyShortText(TAccountComp.AccountPublicKeyExport(AItem.accountInfo.accountKey));
+  end;
   ATableRow.AccType := Word(AItem.account_type);
   ATableRow.State := Cardinal(AItem.accountInfo.state);
   ATableRow.Price := TAccountComp.FormatMoney(Aitem.accountInfo.price);
@@ -203,7 +206,8 @@ end;
 
 function TOperationsDataSourceBase.GetTimeSpan : TTimeSpan;
 begin
-  Result := TPCOperationsComp.ConvertBlockCountToTimeSpan(FEnd - FStart + 1);
+  Result := TTimeSpan.FromSeconds( CT_NewLineSecondsAvg * (FEnd - FStart + 1) );
+  //XXXXXXXXXX TTimeSpan use not available at TPCOperationsComp  Result := TPCOperationsComp.ConvertBlockCountToTimeSpan(FEnd - FStart + 1);
 end;
 
 procedure TOperationsDataSourceBase.SetTimeSpan(const ASpan : TTimeSpan);
@@ -213,7 +217,8 @@ begin
  node := TNode.Node;
  if Not Assigned(Node) then exit;
  FEnd := node.Bank.BlocksCount - 1;
- FStart := ClipValue(FEnd - (TPCOperationsComp.ConvertTimeSpanToBlockCount(ASpan) + 1), 0, FEnd);
+ FStart := ClipValue(FEnd - (Round( ASpan.TotalSeconds / CT_NewLineSecondsAvg ) + 1), 0, FEnd);
+ //XXXXXXXXXX TTimeSpan use not available at TPCOperationsComp  FStart := ClipValue(FEnd - (TPCOperationsComp.ConvertTimeSpanToBlockCount(ASpan) + 1), 0, FEnd);
 end;
 
 function TOperationsDataSourceBase.GetItemDisposePolicy : TItemDisposePolicy;
@@ -444,7 +449,7 @@ begin
   for block := FEnd downto FStart do begin  /// iterate blocks correctly
     opr := CT_TOperationResume_NUL;
     if (Node.Bank.Storage.LoadBlockChainBlock(blockOps, block)) then begin
-      AContainer.Add( blockOps.GetMinerRewardPsuedoOperation );
+      AContainer.Add( blockOps.GetMinerRewardPseudoOperation );
       if blockOps.Count = 0 then exit;
       for i := blockOps.Count - 1 downto 0 do begin    // reverse order
         if TPCOperation.OperationToOperationResume(block, blockOps.Operation[i], blockOps.Operation[i].SignerAccount, opr) then begin

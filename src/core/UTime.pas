@@ -42,6 +42,7 @@ function UnixTimeToLocalElapsedTime(USec : Longint) : AnsiString;
 Function DateTimeElapsedTime(dtDate : TDateTime) : AnsiString;
 
 Function UnixTimeToLocalStr(UnixTime : Longint) : AnsiString;
+
 implementation
 
 {$IFDEF FPC}

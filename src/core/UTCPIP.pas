@@ -146,7 +146,6 @@ type
   private
     FNetTcpIpServerServer : TNetTcpIpServer;
     FServerSocket: TTCPBlockSocket;
-    FTcpIpSocketsThread : TPCThreadList;
   protected
     procedure BCExecute; override;
   public

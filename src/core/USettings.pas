@@ -1,6 +1,8 @@
 unit USettings;
 
-{$mode delphi}
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
 
 { Copyright (c) 2018 by Herman Schoenfeld
 
@@ -17,7 +19,7 @@ unit USettings;
 interface
 
 uses
-  UAppParams, UCommon;
+  UAppParams, UBaseTypes;
 
 const
   // App Params
@@ -52,8 +54,8 @@ type
 
   TSettings = class
     private
-      FOnChanged : TNotifyManyEvent; static;
-      FAppParams : TAppParams; static;
+      class var FOnChanged : TNotifyEventToMany;
+      class var FAppParams : TAppParams;
       class function GetInternetServerPort : Integer; static;
       class procedure SetInternetServerPort(AInt:Integer); static;
       class function GetRpcPortEnabled : boolean; static;
@@ -91,7 +93,7 @@ type
     public
       class procedure Load;
       class procedure Save;
-      class property OnChanged : TNotifyManyEvent read FOnChanged write FOnChanged;
+      class property OnChanged : TNotifyEventToMany read FOnChanged;
       class property InternetServerPort : Integer read GetInternetServerPort write SetInternetServerPort;
       class property RpcPortEnabled : boolean read GetRpcPortEnabled write SetRpcPortEnabled;
       class property RpcAllowedIPs : string read GetRpcAllowedIPs write SetRpcAllowedIPs;
@@ -335,10 +337,13 @@ end;
 
 initialization
   TSettings.FAppParams := nil;
+  TSettings.FOnChanged := TNotifyEventToMany.Create;
 
 finalization
   if Assigned(TSettings.FAppParams) then
     FreeAndNil(TSettings.FAppParams);
+  if Assigned(TSettings.FOnChanged) then
+    FreeAndNil(TSettings.FOnChanged);
 
 end.
 

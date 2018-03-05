@@ -7,7 +7,7 @@ unit UAccountKeyStorage;
 interface
 
 uses
-  Classes, SysUtils, UAccounts, UThread, UCommon;
+  Classes, SysUtils, UAccounts, UThread, UBaseTypes;
 
 type
   TAccountKeyStorateData = record
@@ -55,9 +55,9 @@ begin
     I := (L + H) shr 1;
     C := Integer(PAccountKeyStorageData(list[i])^.ptrAccountKey^.EC_OpenSSL_NID) - Integer(accountKey.EC_OpenSSL_NID);
     if C=0 then begin
-      C := BinStrComp(PAccountKeyStorageData(list[i])^.ptrAccountKey^.x,accountKey.x);
+      C := TBaseType.BinStrComp(PAccountKeyStorageData(list[i])^.ptrAccountKey^.x,accountKey.x);
       if C=0 then begin
-        C := BinStrComp(PAccountKeyStorageData(list[i])^.ptrAccountKey^.y,accountKey.y);
+        C := TBaseType.BinStrComp(PAccountKeyStorageData(list[i])^.ptrAccountKey^.y,accountKey.y);
       end;
     end;
     if C < 0 then L := I + 1 else
