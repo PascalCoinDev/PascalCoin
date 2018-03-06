@@ -820,10 +820,11 @@ begin
         // Best practices: Only will accept a solution if timestamp >= sent timestamp for this job (1.5.3)
         If (P^.SentMinTimestamp<=_timestamp) then begin
           _targetPoW := FNodeNotifyEvents.Node.Bank.SafeBox.GetActualTargetHash(P^.OperationsComp.OperationBlock.protocol_version=CT_PROTOCOL_2);
+          // Undo fix #76 due invalid commit (must set BlockPayload, timestamp and nonce prior to check PoW)
+          P^.OperationsComp.BlockPayload := _payload;
+          P^.OperationsComp.timestamp := _timestamp;
+          P^.OperationsComp.nonce := _nOnce;
           if (P^.OperationsComp.OperationBlock.proof_of_work<=_targetPoW) then begin
-            P^.OperationsComp.BlockPayload := _payload;
-            P^.OperationsComp.timestamp := _timestamp;
-            P^.OperationsComp.nonce := _nOnce;
             // Candidate!
             nbOperations := TPCOperationsComp.Create(Nil);
             nbOperations.bank := FNodeNotifyEvents.Node.Bank;
