@@ -17,6 +17,8 @@ program PascalCoinMiner;
 
   }
 
+{$I config.inc}
+
 uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cthreads,
