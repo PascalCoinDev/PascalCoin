@@ -66,6 +66,7 @@ Type
     Class Procedure CalcProofOfWork_Part1(const operationBlock : TOperationBlock; var Part1 : TRawBytes);
     Class Procedure CalcProofOfWork_Part3(const operationBlock : TOperationBlock; var Part3 : TRawBytes);
     Class Procedure CalcProofOfWork(const operationBlock : TOperationBlock; var PoW : TRawBytes);
+    Class Function IsValidMinerBlockPayload(const newBlockPayload : TRawBytes) : Boolean;
   end;
 
   { TAccountComp }
@@ -373,10 +374,9 @@ uses
 
 { TPascalCoinProtocol }
 
-class function TPascalCoinProtocol.GetNewTarget(vteorical, vreal: Cardinal; Const actualTarget: TRawBytes): TRawBytes;
+class function TPascalCoinProtocol.GetNewTarget(vteorical, vreal: Cardinal; const actualTarget: TRawBytes): TRawBytes;
 Var
-  bnact, bnaux, bnmindiff, bnremainder, bn: TBigNum;
-  ts1, ts2: Cardinal;
+  bnact, bnaux, bn: TBigNum;
   tsTeorical, tsReal, factor1000, factor1000Min, factor1000Max: Int64;
 begin
   { Given a teorical time in seconds (vteorical>0) and a real time in seconds (vreal>0)
@@ -494,6 +494,20 @@ begin
   finally
     ms.Free;
   end;
+end;
+
+class function TPascalCoinProtocol.IsValidMinerBlockPayload(const newBlockPayload: TRawBytes): Boolean;
+var i : Integer;
+begin
+  Result := False;
+  if Length(newBlockPayload)>CT_MaxPayloadSize then Exit;
+  // Checking Miner Payload valid chars
+  for i := 1 to length(newBlockPayload) do begin
+    if Not (newBlockPayload[i] in [#32..#254]) then begin
+      exit;
+    end;
+  end;
+  Result := True;
 end;
 
 class function TPascalCoinProtocol.GetRewardForNewLine(line_index: Cardinal): UInt64;
@@ -2361,17 +2375,10 @@ begin
       end;
     end;
   end;
-  // block_payload: Checking Miner payload size
-  if length(newOperationBlock.block_payload)>CT_MaxPayloadSize then begin
-    errors := 'Invalid Miner Payload length: '+inttostr(Length(newOperationBlock.block_payload));
+  // Checking Miner Payload valid chars/length
+  If Not TPascalCoinProtocol.IsValidMinerBlockPayload(newOperationBlock.block_payload) then begin
+    errors := 'Invalid Miner Payload value. Length: '+inttostr(Length(newOperationBlock.block_payload));
     exit;
-  end;
-  // Checking Miner Payload valid chars
-  for i := 1 to length(newOperationBlock.block_payload) do begin
-    if Not (newOperationBlock.block_payload[i] in [#32..#254]) then begin
-      errors := 'Invalid Miner Payload character at pos '+inttostr(i)+' value:'+inttostr(ord(newOperationBlock.block_payload[i]));
-      exit;
-    end;
   end;
   // operations_hash: NOT CHECKED WITH OPERATIONS!
   If (length(newOperationBlock.operations_hash)<>32) then begin

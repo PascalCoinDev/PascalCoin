@@ -284,6 +284,7 @@ Type
     Property nonce: Cardinal read GetnOnce write SetnOnce;
     Property timestamp: Cardinal read Gettimestamp write Settimestamp;
     Property BlockPayload : TRawBytes read GetBlockPayload write SetBlockPayload;
+    function Update_And_RecalcPOW(newNOnce, newTimestamp : Cardinal; newBlockPayload : TRawBytes) : Boolean;
     procedure UpdateTimestamp;
     function SaveBlockToStorage(Stream: TStream): Boolean;
     function SaveBlockToStream(save_only_OperationBlock : Boolean; Stream: TStream): Boolean;
@@ -1088,8 +1089,11 @@ begin
     Clear(true);
     Result := False;
     //
-    errors := 'Invalid protocol structure. Check application version!';
-    if (Stream.Size - Stream.Position < 5) then exit;
+    errors := '';
+    if (Stream.Size - Stream.Position < 5) then begin
+      errors := 'Invalid protocol structure. Check application version!';
+      exit;
+    end;
     Stream.Read(soob,1);
     // About soob var:
     // In build prior to 1.0.4 soob only can have 2 values: 0 or 1
@@ -1347,6 +1351,27 @@ begin
   Result := true;
 end;
 
+function TPCOperationsComp.Update_And_RecalcPOW(newNOnce, newTimestamp: Cardinal; newBlockPayload: TRawBytes) : Boolean;
+Var i : Integer;
+  _changedPayload : Boolean;
+begin
+  Lock;
+  Try
+    If newBlockPayload<>FOperationBlock.block_payload then begin
+      _changedPayload := TPascalCoinProtocol.IsValidMinerBlockPayload(newBlockPayload);
+    end else _changedPayload:=False;
+    If (_changedPayload) Or (newNOnce<>FOperationBlock.nonce) Or (newTimestamp<>FOperationBlock.timestamp) then begin
+      If _changedPayload then FOperationBlock.block_payload:=newBlockPayload;
+      FOperationBlock.nonce:=newNOnce;
+      FOperationBlock.timestamp:=newTimestamp;
+      CalcProofOfWork(_changedPayload,FOperationBlock.proof_of_work);
+      Result := True;
+    end else Result := False;
+  finally
+    Unlock;
+  end;
+end;
+
 procedure TPCOperationsComp.SetAccountKey(const value: TAccountKey);
 begin
   Lock;
@@ -1374,23 +1399,8 @@ begin
 end;
 
 procedure TPCOperationsComp.SetBlockPayload(const Value: TRawBytes);
-Var i : Integer;
 begin
-  Lock;
-  Try
-    if Value=FOperationBlock.block_payload then exit;
-    if Length(Value)>CT_MaxPayloadSize then Exit;
-    // Checking Miner Payload valid chars
-    for i := 1 to length(Value) do begin
-      if Not (Value[i] in [#32..#254]) then begin
-        exit;
-      end;
-    end;
-    FOperationBlock.block_payload := Value;
-    CalcProofOfWork(true,FOperationBlock.proof_of_work);
-  finally
-    Unlock;
-  end;
+  Update_And_RecalcPOW(FOperationBlock.nonce,FOperationBlock.timestamp,Value);
 end;
 
 procedure TPCOperationsComp.OnOperationsHashTreeChanged(Sender: TObject);
@@ -1401,25 +1411,12 @@ end;
 
 procedure TPCOperationsComp.SetnOnce(const value: Cardinal);
 begin
-  Lock;
-  Try
-    FOperationBlock.nonce := value;
-    CalcProofOfWork(false,FOperationBlock.proof_of_work);
-  finally
-    Unlock;
-  end;
+  Update_And_RecalcPOW(value,FOperationBlock.timestamp,FOperationBlock.block_payload);
 end;
 
 procedure TPCOperationsComp.Settimestamp(const value: Cardinal);
 begin
-  Lock;
-  Try
-    if FOperationBlock.timestamp=Value then exit; // No change, nothing to do
-    FOperationBlock.timestamp := value;
-    CalcProofOfWork(false,FOperationBlock.proof_of_work);
-  finally
-    Unlock;
-  end;
+  Update_And_RecalcPOW(FOperationBlock.nonce,value,FOperationBlock.block_payload);
 end;
 
 procedure TPCOperationsComp.UpdateTimestamp;
@@ -1945,8 +1942,10 @@ begin
   try
     // c = operations count
     for i := 1 to c do begin
-      errors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c);
-      if Stream.Size - Stream.Position < 4 then exit;
+      if Stream.Size - Stream.Position < 4 then begin
+        errors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c);
+        exit;
+      end;
       Stream.Read(OpType, 4);
       j := TPCOperationsComp.IndexOfOperationClassByOpType(OpType);
       if j >= 0 then
@@ -1954,15 +1953,18 @@ begin
       else
         OpClass := Nil;
       if Not Assigned(OpClass) then begin
-        errors := errors + ' optype not valid:' + InttoHex(OpType, 4);
+        errors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c) + ' optype not valid:' + InttoHex(OpType, 4);
         exit;
       end;
-      errors := 'Invalid operation load from stream ' + inttostr(i) + '/' + inttostr(c)+' Class:'+OpClass.ClassName;
       bcop := OpClass.Create;
       Try
         if LoadingFromStorage then begin
-          If not bcop.LoadFromStorage(Stream,LoadProtocolV2) then exit;
+          If not bcop.LoadFromStorage(Stream,LoadProtocolV2) then begin
+            errors := 'Invalid operation load from storage ' + inttostr(i) + '/' + inttostr(c)+' Class:'+OpClass.ClassName;
+            exit;
+          end;
         end else if not bcop.LoadFromNettransfer(Stream) then begin
+          errors := 'Invalid operation load from stream ' + inttostr(i) + '/' + inttostr(c)+' Class:'+OpClass.ClassName;
           exit;
         end;
         AddOperationToHashTree(bcop);
