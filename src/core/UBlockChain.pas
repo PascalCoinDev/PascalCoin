@@ -881,7 +881,7 @@ begin
       end;
       FOperationBlock.block := bank.BlocksCount;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(bank.BlocksCount);
-      FOperationBlock.compact_target := bank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version=CT_PROTOCOL_2);
+      FOperationBlock.compact_target := bank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
       FOperationBlock.initial_safe_box_hash := bank.SafeBox.SafeBoxHash;
       If Bank.LastOperationBlock.timestamp>FOperationBlock.timestamp then
         FOperationBlock.timestamp := Bank.LastOperationBlock.timestamp;
@@ -937,7 +937,7 @@ begin
     lastopb := FOperationBlock;
     FOperationBlock := Operations.FOperationBlock;
     FOperationBlock.account_key := lastopb.account_key; // Except AddressKey
-    FOperationBlock.compact_target := Bank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version=CT_PROTOCOL_2);
+    FOperationBlock.compact_target := Bank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
     FIsOnlyOperationBlock := Operations.FIsOnlyOperationBlock;
     FOperationsHashTree.CopyFromHashTree(Operations.FOperationsHashTree);
     FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
@@ -1219,7 +1219,7 @@ begin
       end;
       FOperationBlock.block := bank.BlocksCount;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(bank.BlocksCount);
-      FOperationBlock.compact_target := bank.SafeBox.GetActualCompactTargetHash(FOperationBlock.protocol_version=CT_PROTOCOL_2);
+      FOperationBlock.compact_target := bank.SafeBox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
       FOperationBlock.initial_safe_box_hash := bank.SafeBox.SafeBoxHash;
       If Bank.LastOperationBlock.timestamp>FOperationBlock.timestamp then
         FOperationBlock.timestamp := Bank.LastOperationBlock.timestamp;

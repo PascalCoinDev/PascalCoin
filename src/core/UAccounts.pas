@@ -273,8 +273,8 @@ Type
 
     Function IsValidNewOperationsBlock(Const newOperationBlock : TOperationBlock; checkSafeBoxHash : Boolean; var errors : AnsiString) : Boolean;
     class Function IsValidOperationBlock(Const newOperationBlock : TOperationBlock; var errors : AnsiString) : Boolean;
-    Function GetActualTargetHash(UseProtocolV2 : Boolean): TRawBytes;
-    Function GetActualCompactTargetHash(UseProtocolV2 : Boolean): Cardinal;
+    Function GetActualTargetHash(protocolVersion : Word): TRawBytes;
+    Function GetActualCompactTargetHash(protocolVersion : Word): Cardinal;
     Function FindAccountByName(aName : AnsiString) : Integer;
 
     Procedure Clear;
@@ -2314,7 +2314,7 @@ begin
     end;
   end;
   // compact_target
-  target_hash:=GetActualTargetHash(newOperationBlock.protocol_version=CT_PROTOCOL_2);
+  target_hash:=GetActualTargetHash(newOperationBlock.protocol_version);
   if (newOperationBlock.compact_target <> TPascalCoinProtocol.TargetToCompact(target_hash)) then begin
     errors := 'Invalid target found:'+IntToHex(newOperationBlock.compact_target,8)+' actual:'+IntToHex(TPascalCoinProtocol.TargetToCompact(target_hash),8);
     exit;
@@ -2394,7 +2394,7 @@ begin
   Result := true;
 end;
 
-function TPCSafeBox.GetActualTargetHash(UseProtocolV2 : Boolean): TRawBytes;
+function TPCSafeBox.GetActualTargetHash(protocolVersion : Word): TRawBytes;
 { Target is calculated in each block with avg obtained in previous
   CT_CalcNewDifficulty blocks.
   If Block is lower than CT_CalcNewDifficulty then is calculated
@@ -2416,9 +2416,9 @@ begin
     ts2 := Block(BlocksCount-CalcBack-1).blockchainInfo.timestamp;
     tsTeorical := (CalcBack * CT_NewLineSecondsAvg);
     tsReal := (ts1 - ts2);
-    If (Not UseProtocolV2) then begin
+    If (protocolVersion=CT_PROTOCOL_1) then begin
       Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
-    end else begin
+    end else if (protocolVersion=CT_PROTOCOL_2) then begin
       CalcBack := CalcBack DIV CT_CalcNewTargetLimitChange_SPLIT;
       If CalcBack=0 then CalcBack := 1;
       ts2 := Block(BlocksCount-CalcBack-1).blockchainInfo.timestamp;
@@ -2436,13 +2436,15 @@ begin
         // Nothing to do!
         Result:=TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target);
       end;
+    end else begin
+      Raise Exception.Create('ERROR DEV 20180306-1 Protocol not valid');
     end;
   end;
 end;
 
-function TPCSafeBox.GetActualCompactTargetHash(UseProtocolV2 : Boolean): Cardinal;
+function TPCSafeBox.GetActualCompactTargetHash(protocolVersion : Word): Cardinal;
 begin
-  Result := TPascalCoinProtocol.TargetToCompact(GetActualTargetHash(UseProtocolV2));
+  Result := TPascalCoinProtocol.TargetToCompact(GetActualTargetHash(protocolVersion));
 end;
 
 function TPCSafeBox.FindAccountByName(aName: AnsiString): Integer;
