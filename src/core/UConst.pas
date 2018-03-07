@@ -122,6 +122,8 @@ Const
   CT_Op_BuyAccount = $06;
   CT_Op_ChangeKeySigned = $07;
   CT_Op_ChangeAccountInfo = $08;
+  // Protocol 3 new operations
+  CT_Op_MultiTransaction = $09;  // PIP-0017
 
   CT_PseudoOpSubtype_Miner                = 1;
   CT_PseudoOpSubtype_Developer            = 2;
