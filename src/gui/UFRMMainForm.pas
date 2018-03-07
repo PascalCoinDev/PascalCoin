@@ -70,7 +70,6 @@ type
     tbtnConnectivity: TToolButton;
     tbtnSync: TToolButton;
     tbtnWalletLock: TToolButton;
-    procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -87,7 +86,6 @@ type
     procedure miAboutClick(Sender: TObject);
     procedure miPrivateKeysClick(Sender: TObject);
     procedure miCloseClick(Sender: TObject);
-    procedure paLogoPanelClick(Sender: TObject);
     procedure tbtnSyncClick(Sender: TObject);
     procedure tbtnWalletLockClick(Sender:TObject);
     procedure tbtnConnectivityClick(Sender:TObject);
@@ -170,13 +168,12 @@ begin
   end;
 end;
 
-procedure TFRMMainForm.FormClose(Sender: TObject; var CloseAction: TCloseAction);
-begin
-end;
-
 procedure TFRMMainForm.CM_Terminate(var Msg: TMessage);
 begin
   TUserInterface.ExitApplication;
+  // we have to terminate the program here since we have already destroyed the main form in the line executed above else
+  // we would be left in an endless loop of listening for messages with a form that is already nil.
+  Application.Terminate;
 end;
 
 procedure TFRMMainForm.ActivateFirstTime;
@@ -352,7 +349,7 @@ end;
 
 procedure TFRMMainForm.miAccountExplorerClick(Sender: TObject);
 begin
-  TUserInterface.ShowAccountExplorer
+  TUserInterface.ShowAccountExplorer;
 end;
 
 procedure TFRMMainForm.miSeedNodesClick(Sender: TObject);
@@ -368,11 +365,6 @@ end;
 procedure TFRMMainForm.MiCloseClick(Sender: TObject);
 begin
   Close;
-end;
-
-procedure TFRMMainForm.paLogoPanelClick(Sender: TObject);
-begin
-
 end;
 
 procedure TFRMMainForm.miOptionsClick(Sender: TObject);
