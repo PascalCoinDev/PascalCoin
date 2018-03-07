@@ -89,8 +89,6 @@ Type
 
 implementation
 
-Uses Windows;
-
 { TBaseType }
 
 {$IFnDEF FPC}
@@ -302,7 +300,7 @@ end;
 
 class function TPlatform.GetTickCount: TTickCount;
 begin
-  Result := {$IFDEF CPU64}GetTickCount64{$ELSE}windows.GetTickCount{$ENDIF};
+  Result := {$IFDEF CPU64}GetTickCount64{$ELSE}SysUtils.GetTickCount{$ENDIF};
 end;
 
 { TNotifyEventToMany }
