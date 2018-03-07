@@ -3,6 +3,9 @@
 *.exe
 *.identcache
 *.stat
+src/PascalCoinWallet
+src/PascalCoinMiner
+src/pascalcoin_daemon
 
 ## OpenSSL 
 libeay32.dll
