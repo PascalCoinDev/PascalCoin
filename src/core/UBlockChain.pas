@@ -20,7 +20,7 @@ unit UBlockChain;
 interface
 
 uses
-  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs;
+  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs, UtxMultiOperation;
 {$I config.inc}
 
 {
@@ -133,6 +133,9 @@ Type
     OperationHash : TRawBytes;
     OperationHash_OLD : TRawBytes; // Will include old oeration hash value
     errors : AnsiString;
+    // New on V3 for PIP-0017
+    Senders : TAccountsTxInfoArray;
+    Receivers : TAccountsTxInfoArray;
   end;
 
   TOperationsResumeList = Class
@@ -423,7 +426,7 @@ Type
   End;
 
 Const
-  CT_TOperationResume_NUL : TOperationResume = (valid:false;Block:0;NOpInsideBlock:-1;OpType:0;OpSubtype:0;time:0;AffectedAccount:0;SignerAccount:-1;n_operation:0;DestAccount:-1;SellerAccount:-1;newKey:(EC_OpenSSL_NID:0;x:'';y:'');OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:'';PrintablePayload:'';OperationHash:'';OperationHash_OLD:'';errors:'');
+  CT_TOperationResume_NUL : TOperationResume = (valid:false;Block:0;NOpInsideBlock:-1;OpType:0;OpSubtype:0;time:0;AffectedAccount:0;SignerAccount:-1;n_operation:0;DestAccount:-1;SellerAccount:-1;newKey:(EC_OpenSSL_NID:0;x:'';y:'');OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:'';PrintablePayload:'';OperationHash:'';OperationHash_OLD:'';errors:'';Senders:Nil;Receivers:Nil);
 
 implementation
 
@@ -2446,6 +2449,9 @@ begin
       OperationResume.OperationTxt:= 'Changed '+s+' of account '+TAccountComp.AccountNumberToAccountTxtNumber(Operation.DestinationAccount);
       OperationResume.OpSubtype:=CT_OpSubtype_ChangeAccountInfo;
       Result := True;
+    end;
+    CT_Op_MultiTransaction : Begin
+
     end
   else Exit;
   end;

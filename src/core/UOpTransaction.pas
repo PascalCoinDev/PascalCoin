@@ -19,7 +19,7 @@ unit UOpTransaction;
 
 interface
 
-Uses UCrypto, UBlockChain, Classes, UAccounts;
+Uses UCrypto, UBlockChain, Classes, UAccounts, UTxMultiOperation;
 
 Type
   // Operations Type
@@ -283,6 +283,45 @@ Type
     Function toString : String; Override;
   End;
 
+  // NEW OPERATIONS PROTOCOL 3
+
+  { TOpMultiTransaction }
+  // PIP-0017
+
+  TOpMultiTransactionData = Record
+    senders: TTxInfoSender;
+    receivers: TTxInfoReceiver;
+  end;
+
+  TOpMultiTransaction = Class(TPCOperation)
+  private
+    FData : TOpMultiTransactionData;
+  protected
+    procedure InitializeData; override;
+    function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
+    function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
+  public
+    function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
+    function DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
+    procedure AffectedAccounts(list : TList); override;
+    //
+    Class Function GetTransactionHashToSign(const multitrans : TOpMultiTransactionData) : TRawBytes;
+    Class Function DoSignMultiTransactionSigner(SignerAccount : Cardinal; key : TECPrivateKey; var trans : TOpMultiTransactionData) : Integer;
+    class function OpType : Byte; override;
+    function OperationAmount : Int64; override;
+    function OperationFee : UInt64; override;
+    function OperationPayload : TRawBytes; override;
+    function SignerAccount : Cardinal; override;
+    function DestinationAccount : Int64; override;
+    function SellerAccount : Int64; override;
+    function N_Operation : Cardinal; override;
+    Property Data : TOpMultiTransactionData read FData;
+    //
+    Constructor CreateMultiTransaction(const senders, receivers : TAccountsTxInfoArray; senders_keys: Array of TECPrivateKey);
+    Destructor Destroy; override;
+    Function toString : String; Override;
+  End;
+
 
 Procedure RegisterOperationsClass;
 
@@ -302,6 +341,200 @@ Begin
   TPCOperationsComp.RegisterOperationClass(TOpChangeKeySigned);
   TPCOperationsComp.RegisterOperationClass(TOpChangeAccountInfo);
 End;
+
+{ TOpMultiTransaction }
+
+procedure TOpMultiTransaction.InitializeData;
+begin
+  inherited InitializeData;
+  FData.receivers := TTxInfoReceiver.Create;
+  FData.senders := TTxInfoSender.Create;
+end;
+
+function TOpMultiTransaction.SaveOpToStream(Stream: TStream; SaveExtendedData: Boolean): Boolean;
+begin
+  FData.senders.SaveToStream(Stream);
+  FData.receivers.SaveToStream(Stream);
+  Result := true;
+end;
+
+function TOpMultiTransaction.LoadOpFromStream(Stream: TStream; LoadExtendedData: Boolean): Boolean;
+var b : Byte;
+begin
+  Result := False;
+  Try
+    FData.senders.LoadFromStream(Stream);
+    FData.receivers.LoadFromStream(Stream);
+    Result := True;
+  Except
+    On E:Exception do begin
+      TLog.NewLog(lterror,Self.ClassName,'('+E.ClassName+'):'+E.Message);
+    end;
+  end;
+end;
+
+function TOpMultiTransaction.GetBufferForOpHash(UseProtocolV2: Boolean): TRawBytes;
+begin
+  Result:=inherited GetBufferForOpHash(UseProtocolV2);
+end;
+
+function TOpMultiTransaction.DoOperation(AccountTransaction: TPCSafeBoxTransaction; var errors: AnsiString): Boolean;
+begin
+  // TODO
+  { XXXXXXXXXXXXXXXXXXXXXXXXXX
+
+  Implementation as expected and explained at PIP-0017
+
+  Note: I've added "payload", that must be checked too
+
+  }
+  Raise Exception.Create('NOT IMPLEMENTED ERROR DEV 20180308-1');
+  Result := False;
+end;
+
+procedure TOpMultiTransaction.AffectedAccounts(list: TList);
+Var i : Integer;
+  Procedure _doAdd(nAcc : Cardinal);
+  Begin
+    If list.IndexOf(TObject(nAcc))<0 then list.Add(TObject(nAcc));
+  end;
+begin
+  For i:=0 to FData.senders.Count-1 do begin
+    _doAdd(FData.senders.AccountTxInfo[i].Account);
+  end;
+  For i:=0 to FData.receivers.Count-1 do begin
+    _doAdd(FData.senders.AccountTxInfo[i].Account);
+  end;
+end;
+
+class function TOpMultiTransaction.GetTransactionHashToSign(const multitrans: TOpMultiTransactionData): TRawBytes;
+Var ms : TMemoryStream;
+  rb : TRawBytes;
+begin
+  ms := TMemoryStream.Create;
+  try
+    rb := multitrans.senders.GetHash;
+    if (length(rb)>0) then ms.Write(rb[1],length(rb));
+    rb := multitrans.receivers.GetHash;
+    if (length(rb)>0) then ms.Write(rb[1],length(rb));
+    SetLength(Result,ms.Size);
+    ms.Position := 0;
+    ms.ReadBuffer(Result[1],ms.Size);
+  finally
+    ms.Free;
+  end;
+end;
+
+class function TOpMultiTransaction.DoSignMultiTransactionSigner(SignerAccount : Cardinal; key : TECPrivateKey; var trans : TOpMultiTransactionData) : Integer;
+Var i : Integer;
+var raw : TRawBytes;
+  _sign : TECDSA_SIG;
+begin
+  Result := 0;
+  If Not Assigned(key.PrivateKey) then begin
+    exit;
+  end;
+  raw := GetTransactionHashToSign(trans);
+  Try
+    _sign := TCrypto.ECDSASign(key.PrivateKey,raw);
+  Except
+    On E:Exception do begin
+      TLog.NewLog(ltError,ClassName,'Error signing ('+E.ClassName+') '+E.Message);
+      Exit;
+    end;
+  End;
+  Result := trans.senders.SetSignatureForAccount(SignerAccount,_sign);
+end;
+
+class function TOpMultiTransaction.OpType: Byte;
+begin
+  Result := CT_Op_MultiTransaction;
+end;
+
+function TOpMultiTransaction.OperationAmount: Int64;
+begin
+  Result := FData.senders.TotalAmount;
+end;
+
+function TOpMultiTransaction.OperationFee: UInt64;
+begin
+  Result := FData.senders.TotalFees;
+end;
+
+function TOpMultiTransaction.OperationPayload: TRawBytes;
+begin
+  Result := '';
+end;
+
+function TOpMultiTransaction.SignerAccount: Cardinal;
+begin
+  // On a multitransaction, the signer account are senders N accounts, cannot verify which one is correct... will send first one
+  If FData.senders.Count>0 then Result := FData.senders.AccountTxInfo[0].Account
+  else Result := MaxInt;
+end;
+
+function TOpMultiTransaction.DestinationAccount: Int64;
+begin
+  Result:=inherited DestinationAccount;
+end;
+
+function TOpMultiTransaction.SellerAccount: Int64;
+begin
+  Result:=inherited SellerAccount;
+end;
+
+function TOpMultiTransaction.N_Operation: Cardinal;
+begin
+  // On a multitransaction, there are senders N accounts, need specify
+  Result := 0;  // Note: N_Operation = 0 means NO OPERATION
+end;
+
+constructor TOpMultiTransaction.CreateMultiTransaction(const senders, receivers: TAccountsTxInfoArray; senders_keys: array of TECPrivateKey);
+Var i : Integer;
+begin
+  inherited Create;
+  FData.senders.Disable;
+  Try
+    For i:=low(senders) to high(senders) do begin
+      FData.senders.AddSender(senders[i].Account,senders[i].Amount,senders[i].Fee,senders[i].N_Operation,senders[i].Payload);
+    end;
+  finally
+    FData.senders.Enable;
+  end;
+  FData.receivers.Disable;
+  Try
+    For i:=low(receivers) to high(receivers) do begin
+      FData.receivers.AddReceiver(receivers[i].Account,receivers[i].Amount,receivers[i].Payload);
+    end;
+  finally
+    FData.receivers.Enable;
+  end;
+  FSignatureChecked:=True;
+  FHasValidSignature:=False;
+  If (length(senders_keys)<>length(senders)) then exit; // Cannot sign!
+  For i:=low(senders) to high(senders) do begin
+    If DoSignMultiTransactionSigner(senders[i].Account,senders_keys[i],FData)=0 then begin
+      TLog.NewLog(lterror,Classname,'Error signing a new MultiTransaction operation');
+      Exit;
+    end;
+  end;
+  FHasValidSignature:=True;
+end;
+
+destructor TOpMultiTransaction.Destroy;
+begin
+  FreeAndNil(FData.senders);
+  FreeAndNil(FData.receivers);
+  inherited Destroy;
+end;
+
+function TOpMultiTransaction.toString: String;
+begin
+  Result := Format('Multitransaction senders %s receivers %s Amount:%s Fees:%s',
+    [FData.senders.toString,FData.receivers.toString,
+     TAccountComp.FormatMoney(FData.senders.TotalAmount),
+     TAccountComp.FormatMoney(FData.senders.TotalFees)]);
+end;
 
 { TOpChangeAccountInfo }
 
