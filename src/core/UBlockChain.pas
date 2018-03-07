@@ -20,7 +20,7 @@ unit UBlockChain;
 interface
 
 uses
-  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs;
+  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs, math;
 {$I config.inc}
 
 {
@@ -643,41 +643,19 @@ begin
 end;
 
 function TPCBank.GetActualTargetSecondsAverage(BackBlocks: Cardinal): Real;
-Var ts1, ts2: Int64;
 begin
-  if BlocksCount>BackBlocks then begin
-    ts1 := SafeBox.Block(BlocksCount-1).blockchainInfo.timestamp;
-    ts2 := SafeBox.Block(BlocksCount-BackBlocks-1).blockchainInfo.timestamp;
-  end else if (BlocksCount>1) then begin
-    ts1 := SafeBox.Block(BlocksCount-1).blockchainInfo.timestamp;
-    ts2 := SafeBox.Block(0).blockchainInfo.timestamp;
-    BackBlocks := BlocksCount-1;
-  end else begin
-    Result := 0;
-    exit;
-  end;
-  Result := (ts1 - ts2) / BackBlocks;
+  Result := GetTargetSecondsAverage(BlocksCount, BackBlocks);
 end;
 
 function TPCBank.GetTargetSecondsAverage(FromBlock, BackBlocks: Cardinal): Real;
-Var ts1, ts2: Int64;
+Var firstBlock, lastBlock: Cardinal;
 begin
-  If FromBlock>=BlocksCount then begin
-    Result := 0;
-    exit;
-  end;
-  if FromBlock>BackBlocks then begin
-    ts1 := SafeBox.Block(FromBlock-1).blockchainInfo.timestamp;
-    ts2 := SafeBox.Block(FromBlock-BackBlocks-1).blockchainInfo.timestamp;
-  end else if (FromBlock>1) then begin
-    ts1 := SafeBox.Block(FromBlock-1).blockchainInfo.timestamp;
-    ts2 := SafeBox.Block(0).blockchainInfo.timestamp;
-    BackBlocks := FromBlock-1;
-  end else begin
-    Result := 0;
-    exit;
-  end;
-  Result := (ts1 - ts2) / BackBlocks;
+  If (FromBlock<=1) OR (BackBlocks=0) OR (FromBlock>BlocksCount) then Result := 0
+    else begin
+      lastBlock := FromBlock-1;
+      firstBlock := Max(0, lastBlock-BackBlocks);
+      Result := (SafeBox.Block(lastBlock).blockchainInfo.timestamp - SafeBox.Block(firstBlock).blockchainInfo.timestamp) / (lastBlock - firstBlock);
+    end;
 end;
 
 function TPCBank.GetStorage: TStorage;
