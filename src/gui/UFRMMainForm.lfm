@@ -15,14 +15,13 @@ object FRMMainForm: TFRMMainForm
   Font.Name = 'Tahoma'
   FormStyle = fsMDIForm
   Menu = meMainMenu
-  OnClose = FormClose
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnResize = FormResize
   Position = poScreenCenter
   ShowHint = True
-  LCLVersion = '1.8.0.6'
+  LCLVersion = '1.8.1.0'
   Visible = False
   object paLogoPanel: TPanel
     Left = 0
@@ -42,7 +41,6 @@ object FRMMainForm: TFRMMainForm
     ParentColor = False
     ParentFont = False
     TabOrder = 1
-    OnClick = paLogoPanelClick
   end
   object paSyncPanel: TPanel
     Left = 0

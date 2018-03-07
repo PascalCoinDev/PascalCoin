@@ -70,7 +70,6 @@ type
     tbtnConnectivity: TToolButton;
     tbtnSync: TToolButton;
     tbtnWalletLock: TToolButton;
-    procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -167,11 +166,6 @@ begin
     end;
     mbCancel: CanClose := false;
   end;
-end;
-
-procedure TFRMMainForm.FormClose(Sender: TObject; var CloseAction: TCloseAction);
-begin
-  // do not delete even if empty
 end;
 
 procedure TFRMMainForm.CM_Terminate(var Msg: TMessage);
