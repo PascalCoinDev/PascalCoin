@@ -123,7 +123,7 @@ Const
   CT_Op_ChangeKeySigned = $07;
   CT_Op_ChangeAccountInfo = $08;
   // Protocol 3 new operations
-  CT_Op_MultiTransaction = $09;  // PIP-0017
+  CT_Op_MultiOperation = $09;  // PIP-0017
 
   CT_PseudoOpSubtype_Miner                = 1;
   CT_PseudoOpSubtype_Developer            = 2;
@@ -152,6 +152,10 @@ Const
 
   CT_MAX_0_fee_operations_per_block_by_miner = {$IFDEF PRODUCTION}2000{$ELSE}{$IFDEF TESTNET}2{$ELSE}{$ENDIF}{$ENDIF};
   CT_MAX_Operations_per_block_by_miner =  {$IFDEF PRODUCTION}10000{$ELSE}{$IFDEF TESTNET}50{$ELSE}{$ENDIF}{$ENDIF};
+
+  CT_MAX_MultiOperation_Senders = 1000;
+  CT_MAX_MultiOperation_Receivers = 10000;
+  CT_MAX_MultiOperation_Changers = 1000;
 
   // App Params
   CT_PARAM_GridAccountsStream = 'GridAccountsStreamV2';
