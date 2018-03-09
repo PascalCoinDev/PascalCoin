@@ -1419,9 +1419,9 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
             // Build 2.1.7 Protection for invalid block number
             If ((i>0) And (last_n_block>=op.OperationBlock.block)) Or
                ((Not OnlyOperationBlock) And
-                 ( ((i=0) And (op.OperationBlock.block=block_start))
+                 ( ((i=0) And (op.OperationBlock.block<>block_start))
                    Or
-                   ((i>0) And (op.OperationBlock.block=last_n_block+1)) ) ) then begin
+                   ((i>0) And (op.OperationBlock.block<>last_n_block+1)) ) ) then begin
               Connection.DisconnectInvalidClient(false,Format('Invalid block sequence received last:%d received:%d',[last_n_block,op.OperationBlock.block]));
               op.free;
               break;
