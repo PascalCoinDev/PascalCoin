@@ -249,6 +249,7 @@ type
     function GetRowCount: Integer; inline;
     function GetRows(ARow: Integer): Variant;
     function GetSelection: TVisualGridSelection;
+    function GetSelectedRows : TArray<Variant>;
     procedure ControlsEnable(AEnable: boolean);
     function GetCanvas: TCanvas;
     procedure SetCells(ACol, ARow: Integer; AValue: Variant);
@@ -332,6 +333,7 @@ type
     property Canvas: TCanvas read GetCanvas;
     property SelectionType: TSelectionType read FSelectionType write SetSelectionType;
     property Selection: TVisualGridSelection read GetSelection;
+    property SelectedRows : TArray<Variant> read GetSelectedRows;
     property SortMode: TSortMode read FSortMode write SetSortMode;
     property SearchMode : TSearchMode read FSearchMode write SetSearchMode;
 
@@ -1457,6 +1459,21 @@ begin
     Result.Selections[i].Top:=Result.Selections[i].Top-1; // - fixed row
     Result.Selections[i].Bottom:=Result.Selections[i].Bottom-1; // - fixed row
   end;
+end;
+
+function TCustomVisualGrid.GetSelectedRows : TArray<Variant>;
+var
+  sel : TVisualGridSelection;
+  selectedRows : TList<Variant>;
+  GC: TScoped;
+  row : Integer;
+begin
+  sel := GetSelection;
+  selectedRows := GC.AddObject( TList<Variant>.Create ) as TList<Variant>;
+  if sel.RowCount > 0 then
+    for row := sel.Row to (sel.Row + sel.RowCount - 1) do
+       selectedRows.Add(Self.Rows[row]);
+  result := selectedRows.ToArray;
 end;
 
 procedure TCustomVisualGrid.PageIndexEditingDone(Sender: TObject);

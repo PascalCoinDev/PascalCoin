@@ -261,10 +261,11 @@ type
     procedure Invoke(sender : TObject; const args: array of Pointer);
   end;
 
-   { TArrayTool }
+  { TArrayTool }
 
   TArrayTool<T> = class
     public
+      class function Empty : TArray<T>;
       class function Contains(const Values: TArray<T>; const Item: T; const Comparer: IEqualityComparer<T>; out ItemIndex: SizeInt): Boolean; overload; static;
       class function Contains(const Values: TArray<T>; const Item: T; out ItemIndex: SizeInt): Boolean; overload; static;
       class function Contains(const Values: TArray<T>; const Item: T) : Boolean; overload; static;
@@ -1128,6 +1129,11 @@ end;
 {%endregion}
 
 {%region TArrayTool}
+
+class function TArrayTool<T>.Empty : TArray<T>;
+begin
+  SetLength(Result, 0);
+end;
 
 class function TArrayTool<T>.Contains(const Values: TArray<T>; const Item: T; const Comparer: IEqualityComparer<T>; out ItemIndex: SizeInt): Boolean;
 var

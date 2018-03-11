@@ -17,12 +17,15 @@ type
         TotalPASC : UInt64;
         TotalPASA : Cardinal;
       end;
+    private
+      FLastKnownUserAccounts : TArray<TAccount>;
     protected
       FLastOverview : TOverview;
       function GetItemDisposePolicy : TItemDisposePolicy; override;
       function GetColumns : TTableColumns;  override;
     public
       property Overview : TOverview read FLastOverview;
+      property LastKnownUserAccounts : TArray<TAccount> read FLastKnownUserAccounts;
       function GetSearchCapabilities: TSearchCapabilities; override;
       procedure FetchAll(const AContainer : TList<TAccount>); override;
       function GetItemField(constref AItem: TAccount; const AColumnName : utf8string) : Variant; override;
@@ -79,7 +82,7 @@ type
 
   { TDataSourceTool }
 
-  TDataSourcetool = class
+  TDataSourceTool = class
     class function OperationShortHash(const AOpHash : AnsiString) : AnsiString;
     class function OperationShortText(const OpType, OpSubType : DWord) : AnsiString;
     class function AccountKeyShortText(const AText : AnsiString) : AnsiString;
@@ -138,6 +141,7 @@ begin
   finally
    safeBox.EndThreadSave;
   end;
+  FLastKnownUserAccounts := AContainer.ToArray;
 end;
 
 function TUserAccountsDataSource.GetItemField(constref AItem: TAccount; const AColumnName : utf8string) : Variant;

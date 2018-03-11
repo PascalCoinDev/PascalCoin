@@ -64,8 +64,18 @@ type
 
   TGlobalPredicateFunc<T> = function (constref AVal : T) : boolean;
 
+  TNestedTransformFunc<T1, T2> = function (constref AItem : T1) : T2 is nested;
+
+  TObjectTransformFunc<T1, T2> = function (constref AItem : T1) : T2 of object;
+
+  TGlobalTransformFunc<T1, T2> = function (constref AItem : T1) : T2;
+
   IPredicate<T> = interface
     function Evaluate (constref AValue: T) : boolean;
+  end;
+
+  ITransformer<T1, T2> = interface
+    function Transform(const AItem : T1) : T2;
   end;
 
   TPredicateTool<T> = class
@@ -104,6 +114,18 @@ type
     class function FilterBy(const AList: TList<T>; const APredicate: IPredicate<T>) : SizeInt; overload;
     class function FilterBy(const AList: TList<T>; const APredicate: IPredicate<T>; const ADisposePolicy : TItemDisposePolicy) : SizeInt; overload;
     class procedure DiposeItem(const AList: TList<T>; const index : SizeInt; const ADisposePolicy : TItemDisposePolicy);
+  end;
+
+  TListTool<T1, T2> = class
+    public
+      class function Transform(const AArray : TArray<T1>; const ATransform : TNestedTransformFunc<T1, T2>) : TArray<T2>; overload;
+      class function Transform(const AArray : TArray<T1>; const ATransform : TObjectTransformFunc<T1, T2>) : TArray<T2>; overload;
+      class function Transform(const AArray : TArray<T1>; const ATransform : TGlobalTransformFunc<T1, T2>) : TArray<T2>; overload;
+      class function Transform(const AArray : TArray<T1>; const ATransformer : ITransformer<T1, T2>) : TArray<T2>; overload;
+      class function Transform(const AList : TList<T1>; const ATransform : TNestedTransformFunc<T1, T2>) : TArray<T2>; overload;
+      class function Transform(const AList : TList<T1>; const ATransform : TObjectTransformFunc<T1, T2>) : TArray<T2>; overload;
+      class function Transform(const AList : TList<T1>; const ATransform : TGlobalTransformFunc<T1, T2>) : TArray<T2>; overload;
+      class function Transform(const AList : TList<T1>; const ATransformer : ITransformer<T1, T2>) : TArray<T2>; overload;
   end;
 
   { Private types (implementation only) - FPC Bug 'Global Generic template references static symtable' }
@@ -216,6 +238,35 @@ type
      function Evaluate (constref AValue: T) : boolean;
   end;
 
+  { TNestedTransformer }
+
+  TNestedTransformer<T1, T2> = class (TInterfacedObject, ITransformer<T1, T2>)
+    private
+      FFunc : TNestedTransformFunc<T1, T2>;
+    public
+      constructor Create(const AFunc: TNestedTransformFunc<T1, T2>); overload;
+      function Transform(const AItem : T1) : T2;
+  end;
+
+  { TObjectTransformer }
+
+  TObjectTransformer<T1, T2> = class (TInterfacedObject, ITransformer<T1, T2>)
+    private
+      FFunc : TObjectTransformFunc<T1, T2>;
+    public
+      constructor Create(const AFunc: TObjectTransformFunc<T1, T2>); overload;
+      function Transform(const AItem : T1) : T2;
+  end;
+
+  { TGlobalTransformer }
+
+  TGlobalTransformer<T1, T2> = class (TInterfacedObject, ITransformer<T1, T2>)
+    private
+      FFunc : TGlobalTransformFunc<T1, T2>;
+    public
+      constructor Create(const AFunc: TGlobalTransformFunc<T1, T2>); overload;
+      function Transform(const AItem : T1) : T2;
+  end;
 
 implementation
 
@@ -586,6 +637,40 @@ end;
 
 {%endregion}
 
+{%region Transformers}
+
+constructor TNestedTransformer<T1, T2>.Create(const AFunc: TNestedTransformFunc<T1, T2>); overload;
+begin
+  FFunc := AFunc;
+end;
+
+function TNestedTransformer<T1, T2>.Transform(const AItem : T1) : T2;
+begin
+  Result := FFunc(AItem);
+end;
+
+constructor TObjectTransformer<T1, T2>.Create(const AFunc: TObjectTransformFunc<T1, T2>); overload;
+begin
+  FFunc := AFunc;
+end;
+
+function TObjectTransformer<T1, T2>.Transform(const AItem : T1) : T2;
+begin
+  Result := FFunc(AItem);
+end;
+
+constructor TGlobalTransformer<T1, T2>.Create(const AFunc: TGlobalTransformFunc<T1, T2>); overload;
+begin
+  FFunc := AFunc;
+end;
+
+function TGlobalTransformer<T1, T2>.Transform(const AItem : T1) : T2;
+begin
+  Result := FFunc(AItem);
+end;
+
+{%endregion}
+
 {%region TListTool}
 
 class function TListTool<T>.Copy(const AList: TList<T>; const AIndex, ACount : SizeInt) : TList<T>;
@@ -681,6 +766,54 @@ begin
     end
     else raise ENotSupportedException(Format('TItemDisposePolicy: [%d]', [Ord(ADisposePolicy)]));
   end;
+end;
+
+class function TListTool<T1, T2>.Transform(const AArray : TArray<T1>; const ATransform : TNestedTransformFunc<T1, T2>) : TArray<T2>;
+begin
+  Result := Transform(AArray, TNestedTransformer<T1, T2>.Create(ATransform));
+end;
+
+class function TListTool<T1, T2>.Transform(const AArray : TArray<T1>; const ATransform : TObjectTransformFunc<T1, T2>) : TArray<T2>;
+begin
+  Result := Transform(AArray, TObjectTransformer<T1, T2>.Create(ATransform));
+end;
+
+class function TListTool<T1, T2>.Transform(const AArray : TArray<T1>; const ATransform : TGlobalTransformFunc<T1, T2>) : TArray<T2>;
+begin
+  Result := Transform(AArray, TGlobalTransformer<T1, T2>.Create(ATransform));
+end;
+
+class function TListTool<T1, T2>.Transform(const AArray : TArray<T1>; const ATransformer : ITransformer<T1, T2>) : TArray<T2>;
+var
+  i : integer;
+begin
+  SetLength(Result, Length(AArray));
+  for i := Low(AArray) to High(AArray) do
+    Result[i] := ATransformer.Transform(AArray[i]);
+end;
+
+class function TListTool<T1, T2>.Transform(const AList : TList<T1>; const ATransform : TNestedTransformFunc<T1, T2>) : TArray<T2>;
+begin
+  Result := Transform(AList, TNestedTransformer<T1, T2>.Create(ATransform));
+end;
+
+class function TListTool<T1, T2>.Transform(const AList : TList<T1>; const ATransform : TObjectTransformFunc<T1, T2>) : TArray<T2>;
+begin
+  Result := Transform(AList, TObjectTransformer<T1, T2>.Create(ATransform));
+end;
+
+class function TListTool<T1, T2>.Transform(const AList : TList<T1>; const ATransform : TGlobalTransformFunc<T1, T2>) : TArray<T2>;
+begin
+  Result := Transform(AList, TGlobalTransformer<T1, T2>.Create(ATransform));
+end;
+
+class function TListTool<T1, T2>.Transform(const AList : TList<T1>; const ATransformer : ITransformer<T1, T2>) : TArray<T2>;
+var
+  i : integer;
+begin
+  SetLength(Result, AList.Count);
+  for i := 0 to AList.Count - 1 do
+    Result[i] := ATransformer.Transform(AList[i]);
 end;
 
 {%endregion}
