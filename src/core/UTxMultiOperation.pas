@@ -45,11 +45,49 @@ Type
     Also, can be signed off-line by all senders/signers, knowing previously the OpHash because
     the OpHash algo will not include the signature (due it's checked separately)
 
+    ALLOWED:
+    - N senders to M receivers
+    - Each sender can add a Payload
+    - Each receiver can receive a Payload
+    - Allow receive multiple incomes in a single receiver. For example:
+      - Account A sends X coins to account B three times (X1,X2,X3) using Payload to discriminate (3 operations with only 1 signer, account A).
+        - Example: Pool sending rewards to an exchange. Only 1 sender and to 1 receiver but multiple times, each time with a distinct amount/payload
+        - Sender: Account A, amount X
+        - Receivers (three times same account):
+           - Account B, amount X1, Payload value P1
+           - Account B, amount X2, Payload value P2
+           - Account B, amount X3, Payload value P3
+        - X1+X2+X3 <= X  (Fee is X - (X1+X2+X3))
+        - Affected accounts are only A and B
+        - There is only 1 signature: Account A (less space!)
+
+    LIMITATIONS:
+    - At least 1 operation must be made (1 change info, or 1 send + 1 receive)
+    - Obvious: Total amount sent >= total amount received
+      - Operation fee will be (total sent - total received)
+      - If no send/receive operation, then there is no fee in multioperation
+    - Senders cannot be duplicated (sender A can send only 1 time)
+    - Senders must have previously enough amount to send: Example
+      - Account A had 0 coins previously
+      - Account A receive X coins in this multioperation
+      - Account A sends X coins in this multioperation: NOT POSSIBLE, no previous funds
+    - Change account op cannot be duplicated
+    - Cannot change name between 2 accounts: Example
+      - Account A has name X  (X not null)
+      - Account B has name Y  (Y not null)
+      - Cannot change name X to B and Y to A at same multioperation
+    - Senders cannot be both in change account info and viceversa: Example
+      - Account A sends X
+      - Account A changes info
+      - Not allowed (same sender and same change info account)
   }
 
   TOpMultiOperationData = Record
+    // senders are unique and not duplicable
     txSenders : TMultiOpSenders;
+    // receivers can be duplicated
     txReceivers : TMultiOpReceivers;
+    // changers are unique and not duplicable
     changesInfo : TMultiOpChangesInfo;
   end;
 
@@ -60,9 +98,6 @@ Type
     FSaveSignatureValue : Boolean;
     FTotalAmount : Int64;
     FTotalFee : Int64;
-    Function IndexOfAccountSender(nAccount : Cardinal) : Integer;
-    Function IndexOfAccountReceiver(nAccount : Cardinal) : Integer;
-    Function IndexOfAccountChanger(nAccount : Cardinal) : Integer;
     Function IndexOfAccountChangeNameTo(const newName : AnsiString) : Integer;
   protected
     procedure InitializeData; override;
@@ -88,9 +123,14 @@ Type
     function N_Operation : Cardinal; override;
     //
     Constructor CreateMultiOperation(const senders : TMultiOpSenders; const receivers : TMultiOpReceivers; const changes : TMultiOpChangesInfo; const senders_keys, changes_keys: Array of TECPrivateKey);
+    Destructor Destroy; override;
     Function AddTx(const senders : TMultiOpSenders; const receivers : TMultiOpReceivers; setInRandomOrder : Boolean) : Boolean;
     Function AddChangeInfo(const changes : TMultiOpChangesInfo; setInRandomOrder : Boolean) : Boolean;
-    Destructor Destroy; override;
+    //
+    Function IndexOfAccountSender(nAccount : Cardinal) : Integer;
+    Function IndexOfAccountReceiver(nAccount : Cardinal; startPos : Integer) : Integer;
+    Function IndexOfAccountChanger(nAccount : Cardinal) : Integer;
+    //
     Function toString : String; Override;
   End;
 
@@ -109,9 +149,10 @@ begin
   Result := -1;
 end;
 
-function TOpMultiOperation.IndexOfAccountReceiver(nAccount: Cardinal): Integer;
+function TOpMultiOperation.IndexOfAccountReceiver(nAccount: Cardinal; startPos : Integer): Integer;
 begin
-  for Result:=0 to high(FData.txReceivers) do begin
+  if startPos<Low(FData.txReceivers) then startPos := Low(FData.txReceivers);
+  for Result:=startPos to high(FData.txReceivers) do begin
     If (FData.txReceivers[Result].Account = nAccount) then exit;
   end;
   Result := -1;
@@ -156,7 +197,7 @@ var i : Integer;
   b : Byte;
 begin
   // Will save protocol info
-  w := CT_PROTOCOL_2;
+  w := CT_PROTOCOL_3;
   stream.Write(w,SizeOf(w));
   // Save senders count
   w := Length(FData.txSenders);
@@ -232,7 +273,7 @@ begin
   Try
     // Read protocol info
     stream.Read(w,SizeOf(w));
-    If w<>CT_PROTOCOL_2 then Raise Exception.Create('Invalid protocol found');
+    If w<>CT_PROTOCOL_3 then Raise Exception.Create('Invalid protocol found');
     // Load senders
     stream.Read(w,SizeOf(w));
     If w>CT_MAX_MultiOperation_Senders then Raise Exception.Create('Max senders');
@@ -360,35 +401,197 @@ begin
 end;
 
 function TOpMultiOperation.DoOperation(AccountTransaction: TPCSafeBoxTransaction; var errors: AnsiString): Boolean;
+var i,j : Integer;
+  txs : TMultiOpSender;
+  txr : TMultiOpReceiver;
+  chi : TMultiOpChangeInfo;
+  sender,receiver,changer : TAccount;
+  newNameWasAdded, newNameWasDeleted : Boolean;
+  senders,senders_n_operation,receivers : Array of Cardinal;
+  senders_amount : Array of UInt64;
+  receivers_amount : Array of UInt64;
 begin
-  // TODO
-  { XXXXXXXXXXXXXXXXXXXXXXXXXX
-
-  Implementation as expected and explained at PIP-0017
-
-  Note: I've added "payload", that must be checked too
-
-
-
-  TODO:
-  - If a destination account is for a PRIVATE SALE... must work same as working currently for TOpTransaction
-    when opTransactionStyle is in transaction_with_auto_buy_account?
-    - IMPORTANT: If Yes, then is possible that a future change operation in same multioperation
-      does not work due changed PUBLIC KEY when executing transaction_with_auto_buy_account
-    - We can limit multioperation to not be able to "auto buy" account, simply add coins to target,
-      this solves possible bad checking
-
-  - When changing name of accounts in a multioperation, is possible that 2 accounts wants
-    to set same name for account. Must prevent this! <-- Partially Prevented thanks to "IndexOfAccountChangeNameTo"
-    - Must prevent that can set new names in real safebox
-
-  - Conclusion:
-    - Prior to execute each "setAccount", must check ALL is ok
-    - HARD JOB!
-
-  }
-  Raise Exception.Create('NOT IMPLEMENTED ERROR DEV 20180308-1');
+  // Check valid info:
   Result := False;
+  errors := '';
+  if (AccountTransaction.FreezedSafeBox.CurrentProtocol<CT_PROTOCOL_3) then begin
+    errors := 'NEED PROTOCOL 3';
+    exit;
+  end;
+  if (FTotalAmount<0) Or (FTotalFee<0) then begin
+    errors := 'Invalid Amount or Fee';
+    Exit;
+  end;
+  if ((length(FData.txReceivers)=0) And (length(FData.txSenders)=0) And (length(FData.changesInfo)=0))
+     Or
+     ((length(FData.txSenders)=0) XOR (length(FData.txReceivers)=0))  // Both must be 0 length or length>0
+    then begin
+    errors := 'Invalid receivers/senders/changesinfo length';
+    Exit;
+  end;
+  SetLength(senders,Length(FData.txSenders));
+  SetLength(senders_amount,Length(FData.txSenders));
+  SetLength(senders_n_operation,Length(FData.txSenders));
+  SetLength(receivers,Length(FData.txReceivers));
+  SetLength(receivers_amount,Length(FData.txReceivers));
+  // Check senders accounts:
+  for i:=low(FData.txSenders) to high(FData.txSenders) do begin
+    txs := FData.txSenders[i];
+    senders[i] := txs.Account;
+    senders_amount[i] := txs.Amount;
+    senders_n_operation[i] := txs.N_Operation;
+    if (txs.Account>=AccountTransaction.FreezedSafeBox.AccountsCount) then begin
+      errors := Format('Invalid sender %d',[txs.Account]);
+      Exit;
+    end;
+    if TAccountComp.IsAccountBlockedByProtocol(txs.Account,AccountTransaction.FreezedSafeBox.BlocksCount) then begin
+      errors := Format('sender (%d) is blocked for protocol',[txs.Account]);
+      Exit;
+    end;
+    if (txs.Amount<=0) Or (txs.Amount>CT_MaxTransactionAmount) then begin
+      errors := Format('Invalid amount %d (0 or max: %d)',[txs.Amount,CT_MaxTransactionAmount]);
+      Exit;
+    end;
+    if (length(txs.Payload)>CT_MaxPayloadSize) then begin
+      errors := 'Invalid Payload size:'+inttostr(length(txs.Payload))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
+      Exit;
+    end;
+    //
+    sender := AccountTransaction.Account(txs.Account);
+    if ((sender.n_operation+1)<>txs.N_Operation) then begin
+      errors := Format('Invalid n_operation %d (expected %d)',[txs.N_Operation,sender.n_operation+1]);
+      Exit;
+    end;
+    if (sender.balance<txs.Amount) then begin
+      errors := Format('Insufficient funds account %d %d < %d',[sender.account, sender.balance,txs.Amount]);
+      Exit;
+    end;
+    // Is locked? Protocol 2 check
+    if (TAccountComp.IsAccountLocked(sender.accountInfo,AccountTransaction.FreezedSafeBox.BlocksCount)) then begin
+      errors := 'Sender Account is currently locked';
+      exit;
+    end;
+  end;
+  // Check receivers accounts:
+  for i:=Low(FData.txReceivers) to High(FData.txReceivers) do begin
+    txr := FData.txReceivers[i];
+    receivers[i] := txr.Account;
+    receivers_amount[i] := txr.Amount;
+    if (txr.Account>=AccountTransaction.FreezedSafeBox.AccountsCount) then begin
+      errors := Format('Invalid receiver %d',[txr.Account]);
+      Exit;
+    end;
+    if TAccountComp.IsAccountBlockedByProtocol(txr.Account,AccountTransaction.FreezedSafeBox.BlocksCount) then begin
+      errors := Format('receiver (%d) is blocked for protocol',[txr.Account]);
+      Exit;
+    end;
+    if (txr.Amount<=0) Or (txr.Amount>CT_MaxTransactionAmount) then begin
+      errors := Format('Invalid amount %d (0 or max: %d)',[txr.Amount,CT_MaxTransactionAmount]);
+      Exit;
+    end;
+    if (length(txr.Payload)>CT_MaxPayloadSize) then begin
+      errors := 'Invalid Payload size:'+inttostr(length(txr.Payload))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
+      Exit;
+    end;
+    //
+    receiver := AccountTransaction.Account(txr.Account);
+    if (receiver.balance+txr.Amount>CT_MaxWalletAmount) then begin
+      errors := Format('Target cannot accept this transaction due to max amount %d+%d=%d > %d',[receiver.balance,txr.Amount,receiver.balance+txr.Amount,CT_MaxWalletAmount]);
+      Exit;
+    end;
+  end;
+  // Check change info accounts:
+  for i:=Low(FData.changesInfo) to High(FData.changesInfo) do begin
+    chi := FData.changesInfo[i];
+    if (chi.Account>=AccountTransaction.FreezedSafeBox.AccountsCount) then begin
+      errors := 'Invalid change info account number';
+      Exit;
+    end;
+    if TAccountComp.IsAccountBlockedByProtocol(chi.Account, AccountTransaction.FreezedSafeBox.BlocksCount) then begin
+      errors := 'change info account is blocked for protocol';
+      Exit;
+    end;
+
+    changer := AccountTransaction.Account(chi.Account);
+    if ((changer.n_operation+1)<>chi.N_Operation) then begin
+      errors := 'Invalid changer n_operation';
+      Exit;
+    end;
+    // Is locked? Protocol 2 check
+    if (TAccountComp.IsAccountLocked(changer.accountInfo,AccountTransaction.FreezedSafeBox.BlocksCount)) then begin
+      errors := 'Account changer is currently locked';
+      exit;
+    end;
+    If (public_key in chi.Changes_type) then begin
+      If Not TAccountComp.IsValidAccountKey( chi.New_Accountkey, errors ) then begin
+        Exit;
+      end;
+    end;
+    If (account_name in chi.changes_type) then begin
+      If (chi.New_Name<>'') then begin
+        If Not TPCSafeBox.ValidAccountName(chi.New_Name,errors) then Exit;
+        // Check name not found!
+        j := AccountTransaction.FindAccountByNameInTransaction(chi.New_Name,newNameWasAdded, newNameWasDeleted);
+        If (j>=0) Or (newNameWasAdded) or (newNameWasDeleted) then begin
+          errors := 'New name is in use or was added or deleted at same transaction';
+          Exit;
+        end;
+      end;
+    end else begin
+      If (chi.New_Name<>'') then begin
+        errors := 'Invalid data in new_name field';
+        Exit;
+      end;
+    end;
+    If (chi.changes_type=[]) then begin
+      errors := 'No change';
+      Exit;
+    end;
+  end;
+  // Check signatures!
+  If Not FSignatureChecked then begin
+    If Not CheckSignatures(AccountTransaction,errors) then Exit;
+  end else begin
+    If Not FHasValidSignature then begin
+      Errors := 'Not valid signatures found!';
+      Exit;
+    end;
+  end;
+  // Execute!
+  If Not AccountTransaction.TransferAmounts(senders,senders_n_operation,senders_amount,
+    receivers,receivers_amount,errors) then Begin
+    TLog.NewLog(ltError,ClassName,'FATAL ERROR DEV 20180312-1 '+errors); // This must never happen!
+    Raise Exception.Create('FATAL ERROR DEV 20180312-1 '+errors); // This must never happen!
+    Exit;
+  end;
+  for i:=Low(FData.changesInfo) to High(FData.changesInfo) do begin
+    chi := FData.changesInfo[i];
+    changer := AccountTransaction.Account(chi.Account);
+    If (public_key in chi.Changes_type) then begin
+      changer.accountInfo.accountKey := chi.New_Accountkey;
+      // Set to normal:
+      changer.accountInfo.state := as_Normal;
+      changer.accountInfo.locked_until_block := 0;
+      changer.accountInfo.price := 0;
+      changer.accountInfo.account_to_pay := 0;
+      changer.accountInfo.new_publicKey := CT_TECDSA_Public_Nul;
+    end;
+    If (account_name in chi.Changes_type) then begin
+      changer.name := chi.New_Name;
+    end;
+    If (account_type in chi.Changes_type) then begin
+      changer.account_type := chi.New_Type;
+    end;
+    If Not AccountTransaction.UpdateAccountInfo(chi.Account,chi.N_Operation,chi.Account,
+           changer.accountInfo,
+           changer.name,
+           changer.account_type,
+           0,errors) then begin
+      TLog.NewLog(ltError,ClassName,'FATAL ERROR DEV 20180312-2 '+errors); // This must never happen!
+      Raise Exception.Create('FATAL ERROR DEV 20180312-2 '+errors); // This must never happen!
+    end;
+  end;
+  Result := True;
 end;
 
 procedure TOpMultiOperation.AffectedAccounts(list: TList);
@@ -537,9 +740,8 @@ begin
       Exit;
     end;
   end;
-  // Check as a Valid after everybody signed properly
-  FSignatureChecked:=True;
-  FHasValidSignature:=True;
+  FSignatureChecked:=False;
+  FHasValidSignature:=False;
 end;
 
 function TOpMultiOperation.AddTx(const senders: TMultiOpSenders; const receivers: TMultiOpReceivers; setInRandomOrder : Boolean) : Boolean;
@@ -549,43 +751,57 @@ begin
   Result := False;
   total_spend:=0;
   total_receive:=0;
-  // Check not duplicate
+  // Check not duplicate and invalid data
   For i:=Low(senders) to High(senders) do begin
     If IndexOfAccountSender(senders[i].Account)>=0 then Exit;
+    If IndexOfAccountChanger(senders[i].Account)>=0 then Exit;
+    If (senders[i].Amount<=0) then Exit; // Must always sender >0
   end;
   For i:=Low(receivers) to High(receivers) do begin
-    If IndexOfAccountReceiver(receivers[i].Account)>=0 then Exit;
+    // Allow receivers as a duplicate!
+    If (receivers[i].Amount<=0) then Exit; // Must always receive >0
   end;
   // Ok, let's go
   FHasValidSignature:=False;
   FSignatureChecked:=False;
-  // Important:
-  // When a sender/receiver is added, everybody must sign again
-  // In order to create high anonymity, will add senders/receivers in random order
-  // to difficult know who was the first or last to add
-  For i:=Low(senders) to High(senders) do begin
-    SetLength(FData.txSenders,length(FData.txSenders)+1);
-    If setInRandomOrder then begin
+  If setInRandomOrder then begin
+    // Important:
+    // When a sender/receiver is added, everybody must sign again
+    // In order to create high anonymity, will add senders/receivers in random order
+    // to difficult know who was the first or last to add
+    For i:=Low(senders) to High(senders) do begin
+      SetLength(FData.txSenders,length(FData.txSenders)+1);
       // Set sender in a random order
       If (length(FData.txSenders)>0) then begin
         j := Random(length(FData.txSenders)); // Find random position 0..n-1
       end else j:=0;
       for k:=High(FData.txSenders) downto (j+1) do FData.txSenders[k] := FData.txSenders[k-1];
-    end else j:=High(FData.txSenders);
-    FData.txSenders[j] := senders[i];
-    inc(total_spend,senders[i].Amount);
-  end;
-  For i:=Low(receivers) to High(receivers) do begin
-    SetLength(FData.txReceivers,length(FData.txReceivers)+1);
-    If setInRandomOrder then begin
+      FData.txSenders[j] := senders[i];
+      inc(total_spend,senders[i].Amount);
+    end;
+    For i:=Low(receivers) to High(receivers) do begin
+      SetLength(FData.txReceivers,length(FData.txReceivers)+1);
       // Set receiver in a random order
       If (length(FData.txReceivers)>0) then begin
         j := Random(length(FData.txReceivers)); // Find random position 0..n-1
       end else j:=0;
       for k:=High(FData.txReceivers) downto (j+1) do FData.txReceivers[k] := FData.txReceivers[k-1];
-    end else j:=High(FData.txReceivers);
-    FData.txReceivers[j] := receivers[i];
-    inc(total_receive,receivers[i].Amount);
+      FData.txReceivers[j] := receivers[i];
+      inc(total_receive,receivers[i].Amount);
+    end;
+  end else begin
+    j := length(FData.txSenders);
+    SetLength(FData.txSenders,length(FData.txSenders)+length(senders));
+    For i:=Low(senders) to High(senders) do begin
+      FData.txSenders[j+i] := senders[i];
+      inc(total_spend,senders[i].Amount);
+    end;
+    j := length(FData.txReceivers);
+    SetLength(FData.txReceivers,length(FData.txReceivers)+length(receivers));
+    For i:=Low(receivers) to High(receivers) do begin
+      FData.txReceivers[j+i] := receivers[i];
+      inc(total_receive,receivers[i].Amount);
+    end;
   end;
   inc(FTotalAmount,total_receive);
   inc(FTotalFee,total_spend - total_receive);
@@ -596,9 +812,11 @@ function TOpMultiOperation.AddChangeInfo(const changes: TMultiOpChangesInfo; set
 Var i,j,k : Integer;
 begin
   Result := False;
-  // Check not duplicate
+  // Check not duplicate / invalid data
   For i:=Low(changes) to High(changes) do begin
+    If IndexOfAccountSender(changes[i].Account)>=0 then Exit;
     If IndexOfAccountChanger(changes[i].Account)>=0 then Exit;
+    If (changes[i].Changes_type=[]) then Exit; // Must change something
   end;
   // Ok, let's go
   FHasValidSignature:=False;

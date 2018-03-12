@@ -253,6 +253,7 @@ Type
   protected
     Function AddNew(Const blockChain : TOperationBlock) : TBlockAccount;
     function DoUpgradeToProtocol2 : Boolean;
+    function DoUpgradeToProtocol3 : Boolean;
   public
     Constructor Create;
     Destructor Destroy; override;
@@ -288,7 +289,7 @@ Type
     Property SafeBoxHash : TRawBytes read FSafeBoxHash;
     Property WorkSum : UInt64 read FWorkSum;
     Property CurrentProtocol : Integer read FCurrentProtocol;
-    function CanUpgradeToProtocol2 : Boolean;
+    function CanUpgradeToProtocol(newProtocolVersion : Word) : Boolean;
     procedure CheckMemory;
   End;
 
@@ -323,6 +324,7 @@ Type
     Constructor Create(SafeBox : TPCSafeBox);
     Destructor Destroy; override;
     Function TransferAmount(sender,target : Cardinal; n_operation : Cardinal; amount, fee : UInt64; var errors : AnsiString) : Boolean;
+    Function TransferAmounts(const senders, n_operations : Array of Cardinal; const sender_amounts : Array of UInt64; const receivers : Array of Cardinal; const receivers_amounts : Array of UInt64; var errors : AnsiString) : Boolean;
     Function UpdateAccountInfo(signer_account, signer_n_operation, target_account: Cardinal; accountInfo: TAccountInfo; newName : TRawBytes; newType : Word; fee: UInt64; var errors : AnsiString) : Boolean;
     Function BuyAccount(buyer,account_to_buy,seller: Cardinal; n_operation : Cardinal; amount, account_price, fee : UInt64; const new_account_key : TAccountKey; var errors : AnsiString) : Boolean;
     Function Commit(Const operationBlock : TOperationBlock; var errors : AnsiString) : Boolean;
@@ -336,6 +338,7 @@ Type
     Procedure CleanTransaction;
     Function ModifiedCount : Integer;
     Function Modified(index : Integer) : TAccount;
+    Function FindAccountByNameInTransaction(const findName : TRawBytes; out isAddedInThisTransaction, isDeletedInThisTransaction : Boolean) : Integer;
   End;
 
   TStreamOp = Class
@@ -1581,9 +1584,13 @@ begin
   end;
 end;
 
-function TPCSafeBox.CanUpgradeToProtocol2: Boolean;
+function TPCSafeBox.CanUpgradeToProtocol(newProtocolVersion : Word) : Boolean;
 begin
-  Result := (FCurrentProtocol<CT_PROTOCOL_2) and (BlocksCount >= CT_Protocol_Upgrade_v2_MinBlock);
+  If (newProtocolVersion=CT_PROTOCOL_2) then begin
+    Result := (FCurrentProtocol<CT_PROTOCOL_2) and (BlocksCount >= CT_Protocol_Upgrade_v2_MinBlock);
+  end else if (newProtocolVersion=CT_PROTOCOL_3) then begin
+    Result := (FCurrentProtocol=CT_PROTOCOL_2) And (BlocksCount >= CT_Protocol_Upgrade_v3_MinBlock);
+  end else Result := False;
 end;
 
 procedure TPCSafeBox.CheckMemory;
@@ -1709,7 +1716,7 @@ var block_number : Cardinal;
 begin
   // Upgrade process to protocol 2
   Result := false;
-  If Not CanUpgradeToProtocol2 then exit;
+  If Not CanUpgradeToProtocol(CT_PROTOCOL_2) then exit;
   // Recalc all BlockAccounts block_hash value
   aux := CalcSafeBoxHash;
   TLog.NewLog(ltInfo,ClassName,'Start Upgrade to protocol 2 - Old Safeboxhash:'+TCrypto.ToHexaString(FSafeBoxHash)+' calculated: '+TCrypto.ToHexaString(aux)+' Blocks: '+IntToStr(BlocksCount));
@@ -1727,6 +1734,18 @@ begin
   FCurrentProtocol := CT_PROTOCOL_2;
   Result := True;
   TLog.NewLog(ltInfo,ClassName,'End Upgraded to protocol 2 - New safeboxhash:'+TCrypto.ToHexaString(FSafeBoxHash));
+end;
+
+function TPCSafeBox.DoUpgradeToProtocol3: Boolean;
+begin
+  // XXXXXXXXXXX
+  // XXXXXXXXXXX
+  // TODO
+  // XXXXXXXXXXX
+  // XXXXXXXXXXX
+  FCurrentProtocol := CT_PROTOCOL_3;
+  Result := True;
+  TLog.NewLog(ltInfo,ClassName,'End Upgraded to protocol 3 - New safeboxhash:'+TCrypto.ToHexaString(FSafeBoxHash));
 end;
 
 procedure TPCSafeBox.EndThreadSave;
@@ -2297,7 +2316,12 @@ begin
         errors := 'Invalid PascalCoin protocol version: '+IntToStr( newOperationBlock.protocol_version )+' Current: '+IntToStr(CurrentProtocol)+' Previous:'+IntToStr(lastBlock.protocol_version);
         exit;
       end;
-      If (newOperationBlock.protocol_version=CT_PROTOCOL_2) then begin
+      If (newOperationBlock.protocol_version=CT_PROTOCOL_3) then begin
+        If (newOperationBlock.block<CT_Protocol_Upgrade_v3_MinBlock) then begin
+          errors := 'Upgrade to protocol version 3 available at block: '+IntToStr(CT_Protocol_Upgrade_v3_MinBlock);
+          exit;
+        end;
+      end else If (newOperationBlock.protocol_version=CT_PROTOCOL_2) then begin
         If (newOperationBlock.block<CT_Protocol_Upgrade_v2_MinBlock) then begin
           errors := 'Upgrade to protocol version 2 available at block: '+IntToStr(CT_Protocol_Upgrade_v2_MinBlock);
           exit;
@@ -2336,7 +2360,8 @@ begin
   Result := IsValidOperationBlock(newOperationBlock,errors);
 end;
 
-class function TPCSafeBox.IsValidOperationBlock(Const newOperationBlock : TOperationBlock; var errors : AnsiString) : Boolean;
+class function TPCSafeBox.IsValidOperationBlock(
+  const newOperationBlock: TOperationBlock; var errors: AnsiString): Boolean;
   { This class function will check a OperationBlock basic info as a valid info
 
     Creted at Build 2.1.7 as a division of IsValidNewOperationsBlock for easily basic check TOperationBlock
@@ -2696,10 +2721,19 @@ begin
     //
     if (FFreezedAccounts.FCurrentProtocol<CT_PROTOCOL_2) And (operationBlock.protocol_version=CT_PROTOCOL_2) then begin
       // First block with new protocol!
-      if FFreezedAccounts.CanUpgradeToProtocol2 then begin
+      if FFreezedAccounts.CanUpgradeToProtocol(CT_PROTOCOL_2) then begin
         TLog.NewLog(ltInfo,ClassName,'Protocol upgrade to v2');
         If not FFreezedAccounts.DoUpgradeToProtocol2 then begin
           raise Exception.Create('Cannot upgrade to protocol v2 !');
+        end;
+      end;
+    end;
+    if (FFreezedAccounts.FCurrentProtocol<CT_PROTOCOL_3) And (operationBlock.protocol_version=CT_PROTOCOL_3) then begin
+      // First block with V3 protocol
+      if FFreezedAccounts.CanUpgradeToProtocol(CT_PROTOCOL_3) then begin
+        TLog.NewLog(ltInfo,ClassName,'Protocol upgrade to v3');
+        If not FFreezedAccounts.DoUpgradeToProtocol3 then begin
+          raise Exception.Create('Cannot upgrade to protocol v3 !');
         end;
       end;
     end;
@@ -2759,6 +2793,36 @@ end;
 function TPCSafeBoxTransaction.Modified(index: Integer): TAccount;
 begin
   Result := FOrderedList.Get(index);
+end;
+
+function TPCSafeBoxTransaction.FindAccountByNameInTransaction(const findName: TRawBytes; out isAddedInThisTransaction, isDeletedInThisTransaction : Boolean) : Integer;
+Var nameLower : AnsiString;
+  iSafeBox, iAdded, iDeleted : Integer;
+begin
+  Result := -1;
+  isAddedInThisTransaction := False;
+  isDeletedInThisTransaction := False;
+  nameLower := LowerCase(findName);
+  If (nameLower)='' then begin
+    Exit; // No name, no found
+  end;
+  iSafeBox := FFreezedAccounts.FindAccountByName(nameLower);
+  iAdded := FAccountNames_Added.IndexOf(nameLower);
+  iDeleted := FAccountNames_Deleted.IndexOf(nameLower);
+  isAddedInThisTransaction := (iAdded >= 0);
+  isDeletedInThisTransaction := (iDeleted >= 0);
+  if (iSafeBox<0) then begin
+    // Not found previously, check added in current trans?
+    If iAdded>=0 then begin
+      Result := FAccountNames_Added.GetTag(iAdded);
+    end;
+  end else begin
+    // Was found previously, check if deleted
+    if iDeleted<0 then begin
+      // Not deleted! "iSafebox" value contains account number using name
+      Result := iSafeBox;
+    end;
+  end;
 end;
 
 function TPCSafeBoxTransaction.ModifiedCount: Integer;
@@ -2838,6 +2902,117 @@ begin
   Result := true;
 end;
 
+function TPCSafeBoxTransaction.TransferAmounts(const senders,
+  n_operations: array of Cardinal; const sender_amounts: array of UInt64;
+  const receivers: array of Cardinal; const receivers_amounts: array of UInt64;
+  var errors: AnsiString): Boolean;
+Var i : Integer;
+  PaccSender, PaccTarget : PAccount;
+  nTotalAmountSent, nTotalAmountReceived, nTotalFee : Int64;
+begin
+  Result := false;
+  errors := '';
+  nTotalAmountReceived:=0;
+  nTotalAmountSent:=0;
+  if not CheckIntegrity then begin
+    errors := 'Invalid integrity in transfer amounts transaction';
+    Exit;
+  end;
+  if (Length(senders)<>Length(n_operations)) Or
+     (Length(senders)<>Length(sender_amounts)) Or
+     (Length(senders)=0)
+     then begin
+    errors := 'Invalid senders/n_operations/amounts arrays length';
+    Exit;
+  end;
+  if (Length(receivers)<>Length(receivers_amounts)) Or
+     (Length(receivers)=0) then begin
+    errors := 'Invalid receivers/amounts arrays length';
+    Exit;
+  end;
+  // Check sender
+  for i:=Low(senders) to High(senders) do begin
+    if (senders[i]<0) Or (senders[i]>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) then begin
+       errors := 'Invalid sender on transfer';
+       exit;
+    end;
+    if TAccountComp.IsAccountBlockedByProtocol(senders[i],FFreezedAccounts.BlocksCount) then begin
+      errors := 'Sender account is blocked for protocol';
+      Exit;
+    end;
+    if (sender_amounts[i]<=0) then begin
+      errors := 'Invalid amount for multiple sender';
+      Exit;
+    end;
+    PaccSender := GetInternalAccount(senders[i]);
+    if (PaccSender^.n_operation+1<>n_operations[i]) then begin
+      errors := 'Incorrect multisender n_operation';
+      Exit;
+    end;
+    if (PaccSender^.balance < sender_amounts[i]) then begin
+      errors := 'Insuficient funds';
+      Exit;
+    end;
+    if (TAccountComp.IsAccountLocked(PaccSender^.accountInfo,FFreezedAccounts.BlocksCount)) then begin
+      errors := 'Multi sender account is locked until block '+Inttostr(PaccSender^.accountInfo.locked_until_block);
+      Exit;
+    end;
+    inc(nTotalAmountSent,sender_amounts[i]);
+  end;
+  //
+  for i:=Low(receivers) to High(receivers) do begin
+    if (receivers[i]<0) Or (receivers[i]>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) then begin
+       errors := 'Invalid receiver on transfer';
+       exit;
+    end;
+    if TAccountComp.IsAccountBlockedByProtocol(receivers[i],FFreezedAccounts.BlocksCount) then begin
+      errors := 'Receiver account is blocked for protocol';
+      Exit;
+    end;
+    if (receivers_amounts[i]<=0) then begin
+      errors := 'Invalid amount for multiple receivers';
+      Exit;
+    end;
+    inc(nTotalAmountReceived,receivers_amounts[i]);
+    PaccTarget := GetInternalAccount(receivers[i]);
+    if ((PaccTarget^.balance + receivers_amounts[i])>CT_MaxWalletAmount) then begin
+      errors := 'Max receiver balance';
+      Exit;
+    end;
+  end;
+  //
+  nTotalFee := nTotalAmountSent - nTotalAmountReceived;
+  If (nTotalAmountSent<nTotalAmountReceived) then begin
+    errors := 'Total amount sent < total amount received';
+    Exit;
+  end;
+  if (nTotalFee>CT_MaxTransactionFee) then begin
+    errors := 'Max fee';
+    Exit;
+  end;
+  // Ok, execute!
+  for i:=Low(senders) to High(senders) do begin
+    PaccSender := GetInternalAccount(senders[i]);
+    If PaccSender^.updated_block<>FFreezedAccounts.BlocksCount then begin
+      PaccSender^.previous_updated_block := PaccSender^.updated_block;
+      PaccSender^.updated_block := FFreezedAccounts.BlocksCount;
+    end;
+    Inc(PaccSender^.n_operation);
+    PaccSender^.balance := PaccSender^.balance - (sender_amounts[i]);
+  end;
+  for i:=Low(receivers) to High(receivers) do begin
+    PaccTarget := GetInternalAccount(receivers[i]);
+    If PaccTarget^.updated_block<>FFreezedAccounts.BlocksCount then begin
+      PaccTarget^.previous_updated_block := PaccTarget.updated_block;
+      PaccTarget^.updated_block := FFreezedAccounts.BlocksCount;
+    end;
+    PaccTarget^.balance := PaccTarget^.balance + receivers_amounts[i];
+  end;
+  Dec(FTotalBalance,nTotalFee);
+  inc(FTotalFee,nTotalFee);
+  Result := true;
+end;
+
 function TPCSafeBoxTransaction.UpdateAccountInfo(signer_account, signer_n_operation, target_account: Cardinal;
   accountInfo: TAccountInfo; newName: TRawBytes; newType: Word; fee: UInt64; var errors: AnsiString): Boolean;
 Var i : Integer;
@@ -2845,6 +3020,10 @@ Var i : Integer;
 begin
   Result := false;
   errors := '';
+  if not CheckIntegrity then begin
+    errors := 'Invalid integrity on Update account info';
+    Exit;
+  end;
   if (signer_account<0) Or (signer_account>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) Or
      (target_account<0) Or (target_account>=(FFreezedAccounts.BlocksCount*CT_AccountsPerBlock)) Then begin
      errors := 'Invalid account';

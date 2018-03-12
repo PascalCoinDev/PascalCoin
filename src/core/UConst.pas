@@ -94,8 +94,10 @@ Const
 
   CT_PROTOCOL_1 = 1;
   CT_PROTOCOL_2 = 2;
+  CT_PROTOCOL_3 = 3;
   CT_BlockChain_Protocol_Available: Word = $0002; // Protocol 2 flag
   CT_Protocol_Upgrade_v2_MinBlock = {$IFDEF PRODUCTION}115000{$ELSE}600{$ENDIF};
+  CT_Protocol_Upgrade_v3_MinBlock = {$IFDEF PRODUCTION}210000{$ELSE}800{$ENDIF};
 
 
   CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$0A04FFFF{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
