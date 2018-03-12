@@ -15,13 +15,15 @@ unit UVisualGrid;
 
 {$MODE DELPHI}
 
+{$modeswitch nestedprocvars}
+
 {.$DEFINE VISUALGRID_DEBUG}
 
 interface
 
 uses
   Classes, SysUtils, StdCtrls, ExtCtrls, Controls, Grids, Types, Graphics,
-  UCommon, UCommon.Data, UCommon.Collections, Generics.Collections, Generics.Defaults, Menus, ComboEx, Buttons, Math,
+  UCommon, UCommon.Data, UAccounts, UWallet, UCommon.Collections, Generics.Collections, Generics.Defaults, Menus, ComboEx, Buttons, Math,
   LResources, syncobjs;
 
 const
@@ -252,6 +254,7 @@ type
     function GetSelectedRows : TArray<Variant>;
     procedure ControlsEnable(AEnable: boolean);
     function GetCanvas: TCanvas;
+    procedure PreparePopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
     procedure SetCells(ACol, ARow: Integer; AValue: Variant);
     procedure SetFetchDataInThread(AValue: boolean);
     procedure SetSortMode(AValue: TSortMode);
@@ -388,7 +391,7 @@ procedure Register;
 
 implementation
 
-uses Variants, UAutoScope, Dialogs;
+uses Variants, UAutoScope, Dialogs, UUserInterface;
 
 resourcestring
   sTotal = 'Total: %d';
@@ -1559,6 +1562,90 @@ begin
   Result := FDrawGrid.Canvas;
 end;
 
+procedure TCustomVisualGrid.PreparePopupMenu(Sender: TObject;
+  constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+
+  function GetAccNo(constref ARow: Variant): Cardinal;
+  begin
+    if NOT TAccountComp.AccountTxtNumberToAccountNumber(ARow.Account, Result)
+    then
+      raise Exception.Create
+        ('Internal Error: Unable to parse account number from table row');
+  end;
+
+   function GetAccNoWithCheckSum(constref ARow: Variant): String;
+  begin
+    Result := ARow.Account;
+  end;
+
+  function GetAccounts(AccountNumbers: TArray<Cardinal>): TArray<TAccount>;
+  var
+    acc: TAccount;
+    safeBox: TPCSafeBox;
+    keys: TOrderedAccountKeysList;
+    LContainer: Generics.Collections.TList<TAccount>;
+    i: Integer;
+  begin
+    LContainer := Generics.Collections.TList<TAccount>.Create();
+    keys := TWallet.keys.AccountsKeyList;
+    safeBox := TUserInterface.Node.Bank.safeBox;
+    safeBox.StartThreadSafe;
+    try
+      LContainer.Clear;
+      try
+
+        // load selected user accounts
+        for i := 0 to High(AccountNumbers) do
+        begin
+          acc := safeBox.Account(AccountNumbers[i]);
+          if keys.IndexOfAccountKey(acc.accountInfo.accountKey) >= 0 then
+          begin
+            LContainer.Add(acc);
+          end;
+        end;
+      finally
+        safeBox.EndThreadSave;
+      end;
+      Result := LContainer.ToArray;
+    finally
+      LContainer.Free;
+    end;
+
+  end;
+
+var
+  Item: TMenuItem;
+  i: Integer;
+  AccountNumbers: TArray<Cardinal>;
+  AccountNumbersWithChecksum: TArray<String>;
+  accounts: TArray<TAccount>;
+begin
+
+  if Self.Parent.Caption = 'MY ACCOUNT PANEL' then
+  begin
+    AccountNumbers := TListTool<Variant, Cardinal>.Transform(Self.SelectedRows,
+      GetAccNo);
+    AccountNumbersWithChecksum := TListTool<Variant, String>.Transform(Self.SelectedRows,
+      GetAccNoWithCheckSum);
+    for i := 0 to High(AccountNumbers) do
+    begin
+     // ShowMessage(GetAccounts(AccountNumbers)[i].Account.ToString);
+      ShowMessage(AccountNumbersWithChecksum[i]);
+    end;
+
+    APopupMenu := TPopupMenu.Create(Self);
+    Item := TMenuItem.Create(APopupMenu);
+    Item.Caption := 'Send PASC';
+    // Item.OnClick := HandlePopupItem;
+    APopupMenu.Items.Add(Item);
+
+  end
+  else
+  begin
+    APopupMenu := Nil;
+  end;
+end;
+
 procedure TCustomVisualGrid.SetCells(ACol, ARow: Integer; AValue: Variant);
 begin
   TTableRowData(FDataTable.Rows[ARow]).vvalues[ACol] := AValue;
@@ -2171,6 +2258,7 @@ var
 begin
   if ColCount = 0 then
     Exit;
+   OnPreparePopupMenu := PreparePopupMenu;
   case Button of
     mbRight:
       if (SelectionType <> stNone) and Assigned(FOnPreparePopupMenu) and
@@ -2181,12 +2269,15 @@ begin
         Dec(LRow);
         LSelection := Selection;
         for i := 0 to High(LSelection.Selections) do
+        begin
           if not LContains then
           begin
             with LSelection.Selections[i] do
               LContains := (LCol >= Left) and (LRow >= Top) and (LCol <= Right) and (LRow <= Bottom);
             Break;
           end;
+        end;
+
         if not LContains then
           Exit;
         FOnPreparePopupMenu(Self, LSelection, LPopup);
