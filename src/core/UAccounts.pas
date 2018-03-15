@@ -69,6 +69,18 @@ Type
     Class Function IsValidMinerBlockPayload(const newBlockPayload : TRawBytes) : Boolean;
   end;
 
+  TAccount = Record
+    account: Cardinal;        // FIXED value. Account number
+    accountInfo : TAccountInfo;
+    balance: UInt64;          // Balance, always >= 0
+    updated_block: Cardinal;  // Number of block where was updated
+    n_operation: Cardinal;    // count number of owner operations (when receive, this is not updated)
+    name : TRawBytes;         // Protocol 2. Unique name
+    account_type : Word;      // Protocol 2. Layer 2 use case
+    previous_updated_block : Cardinal; // New Build 1.0.8 -> Only used to store this info to storage. It helps App to search when an account was updated. NOT USED FOR HASH CALCULATIONS!
+  End;
+  PAccount = ^TAccount;
+
   { TAccountComp }
 
   TAccountComp = Class
@@ -99,24 +111,13 @@ Type
     Class Function AccountBlock(Const account_number : Cardinal) : Cardinal;
     Class Function AccountInfo2RawString(const AccountInfo : TAccountInfo) : TRawBytes; overload;
     Class procedure AccountInfo2RawString(const AccountInfo : TAccountInfo; var dest : TRawBytes); overload;
+    Class procedure SaveAccountToAStream(Stream: TStream; const Account : TAccount);
     Class Function RawString2AccountInfo(const rawaccstr: TRawBytes): TAccountInfo; overload;
     Class procedure RawString2AccountInfo(const rawaccstr: TRawBytes; var dest : TAccountInfo); overload;
     Class Function IsAccountLocked(const AccountInfo : TAccountInfo; blocks_count : Cardinal) : Boolean;
     Class procedure SaveTOperationBlockToStream(const stream : TStream; const operationBlock:TOperationBlock);
     Class Function LoadTOperationBlockFromStream(const stream : TStream; var operationBlock:TOperationBlock) : Boolean;
   End;
-
-  TAccount = Record
-    account: Cardinal;        // FIXED value. Account number
-    accountInfo : TAccountInfo;
-    balance: UInt64;          // Balance, always >= 0
-    updated_block: Cardinal;  // Number of block where was updated
-    n_operation: Cardinal;    // count number of owner operations (when receive, this is not updated)
-    name : TRawBytes;         // Protocol 2. Unique name
-    account_type : Word;      // Protocol 2. Layer 2 use case
-    previous_updated_block : Cardinal; // New Build 1.0.8 -> Only used to store this info to storage. It helps App to search when an account was updated. NOT USED FOR HASH CALCULATIONS!
-  End;
-  PAccount = ^TAccount;
 
   {
     Protocol 2:
@@ -759,6 +760,17 @@ begin
   else
     raise Exception.Create('DEVELOP ERROR 20170214-1');
   end;
+end;
+
+class procedure TAccountComp.SaveAccountToAStream(Stream: TStream; const Account: TAccount);
+begin
+  Stream.Write(Account.account,Sizeof(Account.account));
+  TStreamOp.WriteAnsiString(Stream,AccountInfo2RawString(Account.accountInfo));
+  Stream.Write(Account.balance,Sizeof(Account.balance));
+  Stream.Write(Account.updated_block,Sizeof(Account.updated_block));
+  Stream.Write(Account.n_operation,Sizeof(Account.n_operation));
+  TStreamOp.WriteAnsiString(Stream,Account.name);
+  Stream.Write(Account.account_type,SizeOf(Account.account_type));
 end;
 
 class function TAccountComp.AccountKey2RawString(const account: TAccountKey): TRawBytes;

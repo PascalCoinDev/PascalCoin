@@ -38,8 +38,11 @@ Also, consider a donation at PascalCoin development account: "0-10"
 - TODO: Explore possible modification to sinoidial effect on blocks time (No PIP) 
 - TODO: PIP - 0010
 - TODO: Add new network operations
-  - Get account status
-  - Get penging pool
+- New Node network operations
+  - Get pending operations (code $0030)
+    - Implementation of the PIP-0013 (not exactly but with similar features)	
+  - Get account (code $0031)
+    - This call will allow a simple third party app communicate directly to a node to get account info (balance, n_operation, name, public key... )
 - MultiOperation: PIP-0017
   - Multioperation allows a transactional like operations, they can include transactions and change info operations in a signle multioperation
     - Allow to send coins from N accounts to M receivers in a transaction mixing, without knowledge of how many coins where sent from "Alice" to "Bob" if properly mixed

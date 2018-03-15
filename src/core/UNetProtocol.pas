@@ -35,14 +35,17 @@ Const
   CT_MagicResponse = $0002;
   CT_MagicAutoSend = $0003;
 
-  CT_NetOp_Hello = $0001;              // Sends my last operationblock + servers. Receive last operationblock + servers + same operationblock number of sender
-  CT_NetOp_Error = $0002;
-  CT_NetOp_Message = $0003;
-  CT_NetOp_GetBlocks = $0010;
-  CT_NetOp_GetOperationsBlock = $0005; // Sends from and to. Receive a number of OperationsBlock to check
-  CT_NetOp_NewBlock = $0011;
-  CT_NetOp_AddOperations = $0020;
-  CT_NetOp_GetSafeBox = $0021;         // V2 Protocol: Allows to send/receive Safebox in chunk parts
+  CT_NetOp_Hello                = $0001; // Sends my last operationblock + servers. Receive last operationblock + servers + same operationblock number of sender
+  CT_NetOp_Error                = $0002;
+  CT_NetOp_Message              = $0003;
+  CT_NetOp_GetBlockHeaders      = $0005; // Sends from and to. Receive a number of OperationsBlock to check
+  CT_NetOp_GetBlocks            = $0010;
+  CT_NetOp_NewBlock             = $0011;
+  CT_NetOp_AddOperations        = $0020;
+  CT_NetOp_GetSafeBox           = $0021; // V2 Protocol: Allows to send/receive Safebox in chunk parts
+
+  CT_NetOp_GetPendingOperations = $0030; // Obtain pending operations
+  CT_NetOp_GetAccount           = $0031; // Obtain account info
 
 
   CT_NetError_InvalidProtocolVersion = $0001;
@@ -358,6 +361,8 @@ Type
     Procedure DoProcess_NewBlock(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_AddOperations(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetSafeBox_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
+    Procedure DoProcess_GetPendingOperations_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
+    Procedure DoProcess_GetAccount_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure SetClient(Const Value : TNetTcpIpClient);
     Function ReadTcpClientBuffer(MaxWaitMiliseconds : Cardinal; var HeaderData : TNetHeaderData; BufferData : TStream) : Boolean;
     Procedure DisconnectInvalidClient(ItsMyself : Boolean; Const why : AnsiString);
@@ -1399,7 +1404,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     ReceiveData := TMemoryStream.Create;
     try
       if OnlyOperationBlock then begin
-        noperation := CT_NetOp_GetOperationsBlock;
+        noperation := CT_NetOp_GetBlockHeaders;
       end else begin
         noperation := CT_NetOp_GetBlocks;
       end;
@@ -1986,10 +1991,12 @@ begin
     CT_NetOp_Error : Result := 'ERROR';
     CT_NetOp_GetBlocks : Result := 'GET BLOCKS';
     CT_NetOp_Message : Result := 'MESSAGE';
-    CT_NetOp_GetOperationsBlock : Result := 'GET OPERATIONS BLOCK';
+    CT_NetOp_GetBlockHeaders : Result := 'GET BLOCK HEADERS';
     CT_NetOp_NewBlock : Result := 'NEW BLOCK';
     CT_NetOp_AddOperations : Result := 'ADD OPERATIONS';
     CT_NetOp_GetSafeBox : Result := 'GET SAFEBOX';
+    CT_NetOp_GetPendingOperations : Result := 'GET PENDING OPERATIONS';
+    CT_NetOp_GetAccount : Result := 'GET ACCOUNT';
   else Result := 'UNKNOWN OPERATION '+Inttohex(operation,4);
   end;
 end;
@@ -2692,6 +2699,179 @@ begin
   end;
 end;
 
+procedure TNetConnection.DoProcess_GetPendingOperations_Request(HeaderData: TNetHeaderData; DataBuffer: TStream);
+var responseStream : TMemoryStream;
+  i,start,max : Integer;
+  b : Byte;
+  c : Cardinal;
+  DoDisconnect : Boolean;
+  errors : AnsiString;
+  opht : TOperationsHashTree;
+begin
+  {
+  This call is used to obtain pending operations not included in blockchain
+  Request:
+  - Request type (1 byte) - Values
+    - Value 1:
+      Returns Count
+    - Value 2:
+      - start (4 bytes)
+      - max (4 bytes)
+      Returns Pending operations (from start to start+max) in a TOperationsHashTree Stream
+  }
+  errors := '';
+  DoDisconnect := true;
+  responseStream := TMemoryStream.Create;
+  try
+    if HeaderData.header_type<>ntp_request then begin
+      errors := 'Not request';
+      exit;
+    end;
+    DataBuffer.Read(b,1);
+    if (b=1) then begin
+      // Return count
+      c := TNode.Node.Operations.Count;
+      responseStream.Write(c,SizeOf(c));
+    end else if (b=2) then begin
+      // Return from start to start+max
+      DataBuffer.Read(c,SizeOf(c)); // Start 4 bytes
+      start:=c;
+      DataBuffer.Read(c,SizeOf(c)); // max 4 bytes
+      max:=c;
+      //
+      if (start<0) Or (max<0) then begin
+        errors := 'Invalid start/max value';
+        Exit;
+      end;
+      opht := TOperationsHashTree.Create;
+      Try
+        TNode.Node.Operations.Lock;
+        Try
+          if (start >= TNode.Node.Operations.Count) Or (max=0) then begin
+          end else begin
+            if (start + max >= TNode.Node.Operations.Count) then max := TNode.Node.Operations.Count - start;
+            for i:=start to (start + max -1) do begin
+              opht.AddOperationToHashTree(TNode.Node.Operations.OperationsHashTree.GetOperation(i));
+            end;
+          end;
+        finally
+          TNode.Node.Operations.Unlock;
+        end;
+        opht.SaveOperationsHashTreeToStream(responseStream,False);
+      Finally
+        opht.Free;
+      End;
+    end else begin
+      errors := 'Invalid call type '+inttostr(b);
+      Exit;
+    end;
+    DoDisconnect:=False;
+    Send(ntp_response,HeaderData.operation,0,HeaderData.request_id,responseStream);
+  finally
+    responseStream.Free;
+    if DoDisconnect then begin
+      DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(HeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
+    end;
+  end;
+end;
+
+procedure TNetConnection.DoProcess_GetAccount_Request(HeaderData: TNetHeaderData; DataBuffer: TStream);
+Const CT_Max_Accounts_per_call = 1000;
+var responseStream : TMemoryStream;
+  i,start,max : Integer;
+  b : Byte;
+  c : Cardinal;
+  acc : TAccount;
+  DoDisconnect : Boolean;
+  errors : AnsiString;
+begin
+  {
+  This call is used to obtain an Account data
+  Request:
+  Request type (1 byte) - Values
+    - Value 1: Single account
+    - Value 2: From account start to start+max  LIMITED AT MAX 1000
+    - Value 3: Multiple accounts LIMITED AT MAX 1000
+  On 1:
+    - account (4 bytes)
+  On 2:
+    - start (4 bytes)
+    - max (4 bytes)
+  On 3:
+    - count (4 bytes)
+    - for 1 to count read account (4 bytes)
+  Returns:
+  - count (4 bytes)
+  - for 1 to count:  TAccountComp.SaveAccountToAStream
+  }
+  errors := '';
+  DoDisconnect := true;
+  responseStream := TMemoryStream.Create;
+  try
+    if HeaderData.header_type<>ntp_request then begin
+      errors := 'Not request';
+      exit;
+    end;
+    if (DataBuffer.Size-DataBuffer.Position<5) then begin
+      errors := 'Invalid structure';
+      exit;
+    end;
+    DataBuffer.Read(b,1);
+    if (b in [1,2]) then begin
+      if (b=1) then begin
+        DataBuffer.Read(c,SizeOf(c));
+        start:=c;
+        max:=c;
+      end else begin
+        DataBuffer.Read(c,SizeOf(c));
+        start:=c;
+        DataBuffer.Read(c,SizeOf(c));
+        max:=c;
+      end;
+      If max>CT_Max_Accounts_per_call then max := CT_Max_Accounts_per_call;
+      if (start<0) Or (max<0) then begin
+        errors := 'Invalid start/max value';
+        Exit;
+      end;
+      if (start >= TNode.Node.Bank.AccountsCount) Or (max=0) then begin
+        c := 0;
+        responseStream.Write(c,SizeOf(c));
+      end else begin
+        if (start + max >= TNode.Node.Bank.AccountsCount) then max := TNode.Node.Bank.AccountsCount - start;
+        c := max;
+        responseStream.Write(c,SizeOf(c));
+        for i:=start to (start + max -1) do begin
+          acc := TNode.Node.Bank.SafeBox.Account(i);
+          TAccountComp.SaveAccountToAStream(responseStream,acc);
+        end;
+      end;
+    end else if (b=3) then begin
+      DataBuffer.Read(c,SizeOf(c));
+      responseStream.Write(c,SizeOf(c));
+      for i:=1 to b do begin
+        DataBuffer.Read(c,SizeOf(c));
+        if (c>=0) And (c<TNode.Node.Bank.AccountsCount) then begin
+          acc := TNode.Node.Bank.SafeBox.Account(c);
+          TAccountComp.SaveAccountToAStream(responseStream,acc);
+        end else begin
+          errors := 'Invalid account number '+Inttostr(c);
+          Exit;
+        end;
+      end;
+    end else begin
+      errors := 'Invalid call type '+inttostr(b);
+      Exit;
+    end;
+    DoDisconnect:=False;
+    Send(ntp_response,HeaderData.operation,0,HeaderData.request_id,responseStream);
+  finally
+    responseStream.Free;
+    if DoDisconnect then begin
+      DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(HeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
+    end;
+  end;
+end;
+
 procedure TNetConnection.DoProcess_Hello(HeaderData: TNetHeaderData; DataBuffer: TStream);
 var op, myLastOp : TPCOperationsComp;
     errors : AnsiString;
@@ -2993,7 +3173,7 @@ begin
                       DoProcess_GetBlocks_Response(HeaderData,ReceiveDataBuffer)
                     else DisconnectInvalidClient(false,'Not resquest or response: '+TNetData.HeaderDataToText(HeaderData));
                   End;
-                  CT_NetOp_GetOperationsBlock : Begin
+                  CT_NetOp_GetBlockHeaders : Begin
                     if HeaderData.header_type=ntp_request then
                       DoProcess_GetOperationsBlock_Request(HeaderData,ReceiveDataBuffer)
                     else TLog.NewLog(ltdebug,Classname,'Received old response of: '+TNetData.HeaderDataToText(HeaderData));
@@ -3008,6 +3188,16 @@ begin
                     if HeaderData.header_type=ntp_request then
                       DoProcess_GetSafeBox_Request(HeaderData,ReceiveDataBuffer)
                     else DisconnectInvalidClient(false,'Received '+TNetData.HeaderDataToText(HeaderData));
+                  end;
+                  CT_NetOp_GetPendingOperations : Begin
+                    if (HeaderData.header_type=ntp_request) then
+                      DoProcess_GetPendingOperations_Request(HeaderData,ReceiveDataBuffer)
+                    else TLog.NewLog(ltdebug,Classname,'Received old response of: '+TNetData.HeaderDataToText(HeaderData));
+                  end;
+                  CT_NetOp_GetAccount : Begin
+                    if (HeaderData.header_type=ntp_request) then
+                      DoProcess_GetAccount_Request(HeaderData,ReceiveDataBuffer)
+                    else TLog.NewLog(ltdebug,Classname,'Received old response of: '+TNetData.HeaderDataToText(HeaderData));
                   end
                 else
                   DisconnectInvalidClient(false,'Invalid operation: '+TNetData.HeaderDataToText(HeaderData));
