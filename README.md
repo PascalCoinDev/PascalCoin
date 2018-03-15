@@ -1,6 +1,6 @@
 # Pascal Coin: P2P Cryptocurrency without need of historical operations.  
   
-Copyright (c) 2016 Albert Molina  
+Copyright (c) 2016-2018 PascalCoin developers based on original Albert Molina source code
   
 THIS IS EXPERIMENTAL SOFTWARE. Use it for educational purposes only.  
   
@@ -33,6 +33,98 @@ If you like it, consider a donation using BitCoin:
 Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
+
+### DEVELOPMENT STATUS
+- TODO: Explore possible modification to sinoidial effect on blocks time (No PIP) 
+- TODO: PIP - 0010
+- TODO: Add new network operations
+  - Get account status
+  - Get penging pool
+- MultiOperation: PIP-0017
+  - Multioperation allows a transactional like operations, they can include transactions and change info operations in a signle multioperation
+    - Allow to send coins from N accounts to M receivers in a transaction mixing, without knowledge of how many coins where sent from "Alice" to "Bob" if properly mixed
+	- Ophash can be previously known by all signers before signing. They must sign only if multioperation includes it's transactions as expected 
+	- OpHash of a multioperation will allow to include n_operation and account of each signer account, but md160hash chunk will be the same for all
+- JSON-RPC changes:
+  - Added param "startblock" to "getaccountoperations" in order to start searching backwards on a specific block. Note: Balance will not be returned on each operation due cannot be calculated. Default value "0" means start searching on current block as usual
+  - Operation Object changes:
+    - "balance" will not be included when is not possible to calc previous balance of account searching at the past
+    - Fields not included when in Multioperation:
+      - "account" will not be included in Multioperations
+      - "signer_account" will not be included in Multioperations
+      - "n_operation" will not be included in Multioperations
+      - "amount" will not be included in Multioperations, need search on each field
+      - "payload" will not be included in Multioperations, need search on each field
+    - On Multioperations, will include those new fields:
+      - "totalamount" will be the total amount equal to SUM each "receivers"."amount" field
+      - "senders" : Will return an Array with Objects
+        - "account" : Sending Account 
+        - "n_operation"
+        - "amount" : In negative value, due it's outgoing form "account"
+        - "payload"
+      - "receivers"
+        - "account" : Receoving Account 
+        - "amount" : In positive value, due it's incoming from a sender to "account"
+        - "payload"
+      - "changers" : Will return an Array with Objects
+        - "account" : changing Account 
+        - "n_operation"
+        - "new_enc_pubkey" : If public key is changed
+        - "new_name" : If name is changed
+        - "new_type" : If type is changed
+- Protections against invalid nodes (scammers):
+  - Protection on GetBlocks and GetBlockOperations
+- Merged new GUI with current stable core
+- New folders organization
+
+### Build 2.1.6 - 2018-02-14
+- Important improvements
+  - Improved speed when processing operations on start
+  - Improved speed when processing pending operations after a new block found
+  - Deleted duplicate "SanitizeOperations" call
+  - Verify signed operations only once (TPCOperation.FSignatureChecked Boolean)
+  - Improvements in search methods of TOperationsHashTree
+    - Increase speed in search methods thanks to internal ordered lists
+    - Increase speed copying thanks to using FHashTree sender buffer instad of generating new one
+  - Internal bugs
+- Those improvements solved BUG that caused operations not included to blockchain due slow processing with MemPool 
+- NOTE: It's HIGHLY RECOMMENDED to upgrade to this version
+
+### Build 2.1.5 - 2018-02-09
+- GUI changes:
+  - Allow massive accounts "change info" operation
+  - Added "account type" and "sale price" on accounts grid
+  - Show "account type" stats on search account form  
+  - Changed Icon to current PascalCoin icon
+- Pending operations buffer cached to file to allow daemon/app restart without losing pending operations
+- Less memory usage thanks to a Public keys centralised buffer
+- JSON-RPC changes
+  - Added param "n_operation" to "Operation Object" JSON-RPC call
+  - New method "findnoperation": Search an operation made to an account based on n_operation field
+    - Params:
+	  - "account" : Account
+	  - "n_operation" : n_operation field (n_operation is an incremental value to protect double spend)
+	- Result:
+	  - If success, returns an Operation Object	  
+  - New method "findnoperations": Search an operation made to an account based on n_operation 
+    - Params:
+	  - "account" : Account
+	  - "n_operation_min" : Min n_operation to search
+	  - "n_operation_max" : Max n_operation to search
+	  - "start_block" : (optional) Block number to start search. 0=Search all, including pending operations
+	- Result:
+	  - If success, returns an array of Operation Object
+  - New method "decodeophash": Decodes block/account/n_operation info of a 32 bytes ophash
+    - Params:
+      - "ophash" : HEXASTRING with an ophash (ophash is 32 bytes, so must be 64 hexa valid chars)
+    - Result:
+      - "block" : Integer. Block number. 0=unknown or pending
+      - "account" : Integer. Account number
+      - "n_operation" : Integer. n_operation used by the account. n_operation is an incremental value, cannot be used twice on same account.
+      - "md160hash" : HEXASTRING with MD160 hash
+- Solved bug that caused to delete blockchain when checking memory 
+- Solved bug in Network adjusted time on receiving connections caused by full entry buffer
+- Minor optimizations
 
 ### Build 2.1.3.0 - 2017-11-15
 - Fixed BUG when buying account assigning an invalid public key

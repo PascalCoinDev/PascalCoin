@@ -75,7 +75,7 @@ Type
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
   public
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
-    function DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
+    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
     procedure AffectedAccounts(list : TList); override;
     //
     Class Function GetTransactionHashToSign(const trans : TOpTransactionData) : TRawBytes;
@@ -109,7 +109,7 @@ Type
     class function OpType : Byte; override;
 
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
-    function DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
+    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
     function OperationAmount : Int64; override;
     function OperationFee : UInt64; override;
     function OperationPayload : TRawBytes; override;
@@ -143,7 +143,7 @@ Type
     class function OpType : Byte; override;
 
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
-    function DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
+    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
     function OperationAmount : Int64; override;
     function OperationFee : UInt64; override;
     function OperationPayload : TRawBytes; override;
@@ -211,7 +211,7 @@ Type
     Function IsDelist : Boolean; virtual; abstract;
 
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
-    function DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
+    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
     function OperationAmount : Int64; override;
     function OperationFee : UInt64; override;
     function OperationPayload : TRawBytes; override;
@@ -263,7 +263,7 @@ Type
     class function OpType : Byte; override;
 
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
-    function DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
+    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
     function OperationAmount : Int64; override;
     function OperationFee : UInt64; override;
     function OperationPayload : TRawBytes; override;
@@ -416,7 +416,7 @@ begin
   Result:=inherited GetBufferForOpHash(True);
 end;
 
-function TOpChangeAccountInfo.DoOperation(AccountTransaction: TPCSafeBoxTransaction; var errors: AnsiString): Boolean;
+function TOpChangeAccountInfo.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean;
 Var account_signer, account_target : TAccount;
 begin
   Result := false;
@@ -529,7 +529,8 @@ begin
   If (account_type in FData.changes_type) then begin
     account_target.account_type := FData.new_type;
   end;
-  Result := AccountTransaction.UpdateAccountInfo(FData.account_signer,FData.n_operation,FData.account_target,
+  Result := AccountTransaction.UpdateAccountInfo(AccountPreviousUpdatedBlock,
+         FData.account_signer,FData.n_operation,FData.account_target,
          account_target.accountInfo,
          account_target.name,
          account_target.account_type,
@@ -659,7 +660,7 @@ begin
   FSignatureChecked:=True;
 end;
 
-function TOpTransaction.DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString): Boolean;
+function TOpTransaction.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean;
 Var s_new, t_new : Int64;
   totalamount : Cardinal;
   sender,target,seller : TAccount;
@@ -813,9 +814,9 @@ begin
       errors := 'NOT ALLOWED ON PROTOCOL 1';
       exit;
     end;
-    Result := AccountTransaction.BuyAccount(sender.account,target.account,seller.account,FData.n_operation,FData.amount,target.accountInfo.price,FData.fee,FData.new_accountkey,errors);
+    Result := AccountTransaction.BuyAccount(AccountPreviousUpdatedBlock,sender.account,target.account,seller.account,FData.n_operation,FData.amount,target.accountInfo.price,FData.fee,FData.new_accountkey,errors);
   end else begin
-    Result := AccountTransaction.TransferAmount(FData.sender,FData.target,FData.n_operation,FData.amount,FData.fee,errors);
+    Result := AccountTransaction.TransferAmount(AccountPreviousUpdatedBlock,FData.sender,FData.target,FData.n_operation,FData.amount,FData.fee,errors);
   end;
 end;
 
@@ -1085,7 +1086,7 @@ begin
   FSignatureChecked:=True;
 end;
 
-function TOpChangeKey.DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors: AnsiString): Boolean;
+function TOpChangeKey.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean;
 Var account_signer, account_target : TAccount;
 begin
   Result := false;
@@ -1189,7 +1190,8 @@ begin
   account_target.accountInfo.price := 0;
   account_target.accountInfo.account_to_pay := 0;
   account_target.accountInfo.new_publicKey := CT_TECDSA_Public_Nul;
-  Result := AccountTransaction.UpdateAccountInfo(FData.account_signer,FData.n_operation,FData.account_target,
+  Result := AccountTransaction.UpdateAccountInfo(AccountPreviousUpdatedBlock,
+         FData.account_signer,FData.n_operation,FData.account_target,
          account_target.accountInfo,
          account_target.name,
          account_target.account_type,
@@ -1393,7 +1395,7 @@ begin
   FSignatureChecked := True;
 end;
 
-function TOpRecoverFounds.DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors: AnsiString): Boolean;
+function TOpRecoverFounds.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean;
 Var acc : TAccount;
 begin
   Result := false;
@@ -1424,7 +1426,7 @@ begin
     exit;
   end;
   FPrevious_Signer_updated_block := acc.updated_block;
-  Result := AccountTransaction.TransferAmount(FData.account,FData.account,FData.n_operation,0,FData.fee,errors);
+  Result := AccountTransaction.TransferAmount(AccountPreviousUpdatedBlock,FData.account,FData.account,FData.n_operation,0,FData.fee,errors);
 end;
 
 function TOpRecoverFounds.GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes;
@@ -1516,7 +1518,7 @@ begin
     list.Add(TObject(FData.account_target));
 end;
 
-function TOpListAccount.DoOperation(AccountTransaction: TPCSafeBoxTransaction; var errors: AnsiString): Boolean;
+function TOpListAccount.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean;
 Var account_signer, account_target : TAccount;
 begin
   Result := false;
@@ -1649,7 +1651,7 @@ begin
     account_target.accountInfo.account_to_pay := FData.account_to_pay;
     account_target.accountInfo.new_publicKey := FData.new_public_key;
   end;
-  Result := AccountTransaction.UpdateAccountInfo(FData.account_signer,FData.n_operation,FData.account_target,
+  Result := AccountTransaction.UpdateAccountInfo(AccountPreviousUpdatedBlock,FData.account_signer,FData.n_operation,FData.account_target,
          account_target.accountInfo,
          account_target.name,
          account_target.account_type,

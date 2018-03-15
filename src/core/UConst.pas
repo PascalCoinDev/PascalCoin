@@ -145,6 +145,7 @@ Const
   CT_OpSubtype_BuyAccountSeller           = 63;
   CT_OpSubtype_ChangeKeySigned            = 71;
   CT_OpSubtype_ChangeAccountInfo          = 81;
+  CT_OpSubtype_MultiOperation             = 91;
 
   CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'2.1.6'{$ELSE}{$IFDEF TESTNET}'TESTNET 2.1.6'{$ELSE}{$ENDIF}{$ENDIF};
 

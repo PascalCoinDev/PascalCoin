@@ -307,6 +307,32 @@ Type
     Function Get(index : Integer) : TAccount;
   End;
 
+  TAccountPreviousBlockInfoData = Record
+    Account : Cardinal;
+    Previous_updated_block : Cardinal;
+  end;
+
+  { TAccountPreviousBlockInfo }
+
+  TAccountPreviousBlockInfo = Class
+  private
+    FList : TList;
+    Function FindAccount(const account: Cardinal; var Index: Integer): Boolean;
+    function GetData(index : Integer): TAccountPreviousBlockInfoData;
+  public
+    Constructor Create;
+    Destructor Destroy; override;
+    Procedure UpdateIfLower(account, previous_updated_block : Cardinal);
+    Function Add(account, previous_updated_block : Cardinal) : Integer;
+    Procedure Remove(account : Cardinal);
+    Procedure Clear;
+    Procedure CopyFrom(Sender : TAccountPreviousBlockInfo);
+    Function IndexOfAccount(account : Cardinal) : Integer;
+    Property Data[index : Integer] : TAccountPreviousBlockInfoData read GetData;
+    Function GetPreviousUpdatedBlock(account : Cardinal; defaultValue : Cardinal) : Cardinal;
+    Function Count : Integer;
+  end;
+
   { TPCSafeBoxTransaction }
 
   TPCSafeBoxTransaction = Class
@@ -323,10 +349,10 @@ Type
   public
     Constructor Create(SafeBox : TPCSafeBox);
     Destructor Destroy; override;
-    Function TransferAmount(sender,target : Cardinal; n_operation : Cardinal; amount, fee : UInt64; var errors : AnsiString) : Boolean;
-    Function TransferAmounts(const senders, n_operations : Array of Cardinal; const sender_amounts : Array of UInt64; const receivers : Array of Cardinal; const receivers_amounts : Array of UInt64; var errors : AnsiString) : Boolean;
-    Function UpdateAccountInfo(signer_account, signer_n_operation, target_account: Cardinal; accountInfo: TAccountInfo; newName : TRawBytes; newType : Word; fee: UInt64; var errors : AnsiString) : Boolean;
-    Function BuyAccount(buyer,account_to_buy,seller: Cardinal; n_operation : Cardinal; amount, account_price, fee : UInt64; const new_account_key : TAccountKey; var errors : AnsiString) : Boolean;
+    Function TransferAmount(previous : TAccountPreviousBlockInfo; sender,target : Cardinal; n_operation : Cardinal; amount, fee : UInt64; var errors : AnsiString) : Boolean;
+    Function TransferAmounts(previous : TAccountPreviousBlockInfo; const senders, n_operations : Array of Cardinal; const sender_amounts : Array of UInt64; const receivers : Array of Cardinal; const receivers_amounts : Array of UInt64; var errors : AnsiString) : Boolean;
+    Function UpdateAccountInfo(previous : TAccountPreviousBlockInfo; signer_account, signer_n_operation, target_account: Cardinal; accountInfo: TAccountInfo; newName : TRawBytes; newType : Word; fee: UInt64; var errors : AnsiString) : Boolean;
+    Function BuyAccount(previous : TAccountPreviousBlockInfo; buyer,account_to_buy,seller: Cardinal; n_operation : Cardinal; amount, account_price, fee : UInt64; const new_account_key : TAccountKey; var errors : AnsiString) : Boolean;
     Function Commit(Const operationBlock : TOperationBlock; var errors : AnsiString) : Boolean;
     Function Account(account_number : Cardinal) : TAccount;
     Procedure Rollback;
@@ -348,6 +374,8 @@ Type
     class Function WriteAccountKey(Stream: TStream; const value: TAccountKey): Integer;
     class Function ReadAccountKey(Stream: TStream; var value : TAccountKey): Integer;
   End;
+
+
 
 Const
   CT_OperationBlock_NUL : TOperationBlock = (block:0;account_key:(EC_OpenSSL_NID:0;x:'';y:'');reward:0;fee:0;protocol_version:0;
@@ -1740,7 +1768,7 @@ function TPCSafeBox.DoUpgradeToProtocol3: Boolean;
 begin
   // XXXXXXXXXXX
   // XXXXXXXXXXX
-  // TODO
+  // TODO IF NEEDED
   // XXXXXXXXXXX
   // XXXXXXXXXXX
   FCurrentProtocol := CT_PROTOCOL_3;
@@ -2569,7 +2597,7 @@ begin
   end;
 end;
 
-function TPCSafeBoxTransaction.BuyAccount(buyer, account_to_buy,
+function TPCSafeBoxTransaction.BuyAccount(previous : TAccountPreviousBlockInfo; buyer, account_to_buy,
   seller: Cardinal; n_operation: Cardinal; amount, account_price, fee: UInt64;
   const new_account_key: TAccountKey; var errors: AnsiString): Boolean;
 Var PaccBuyer, PaccAccountToBuy, PaccSeller : PAccount;
@@ -2634,6 +2662,10 @@ begin
       TAccountComp.FormatMoney(PaccAccountToBuy^.balance)+' + amount '+TAccountComp.FormatMoney(amount);
     Exit;
   end;
+
+  previous.UpdateIfLower(PaccBuyer^.account,PaccBuyer^.updated_block);
+  previous.UpdateIfLower(PaccAccountToBuy^.account,PaccAccountToBuy^.updated_block);
+  previous.UpdateIfLower(PaccSeller^.account,PaccSeller^.updated_block);
 
   If PaccBuyer^.updated_block<>FFreezedAccounts.BlocksCount then begin
     PaccBuyer^.previous_updated_block := PaccBuyer^.updated_block;
@@ -2835,7 +2867,7 @@ begin
   CleanTransaction;
 end;
 
-function TPCSafeBoxTransaction.TransferAmount(sender, target: Cardinal;
+function TPCSafeBoxTransaction.TransferAmount(previous : TAccountPreviousBlockInfo; sender, target: Cardinal;
   n_operation: Cardinal; amount, fee: UInt64; var errors: AnsiString): Boolean;
 Var
   intSender, intTarget : Integer;
@@ -2883,6 +2915,9 @@ begin
     Exit;
   end;
 
+  previous.UpdateIfLower(PaccSender^.account,PaccSender^.updated_block);
+  previous.UpdateIfLower(PaccTarget^.account,PaccTarget^.updated_block);
+
   If PaccSender^.updated_block<>FFreezedAccounts.BlocksCount then begin
     PaccSender^.previous_updated_block := PaccSender^.updated_block;
     PaccSender^.updated_block := FFreezedAccounts.BlocksCount;
@@ -2902,7 +2937,7 @@ begin
   Result := true;
 end;
 
-function TPCSafeBoxTransaction.TransferAmounts(const senders,
+function TPCSafeBoxTransaction.TransferAmounts(previous : TAccountPreviousBlockInfo; const senders,
   n_operations: array of Cardinal; const sender_amounts: array of UInt64;
   const receivers: array of Cardinal; const receivers_amounts: array of UInt64;
   var errors: AnsiString): Boolean;
@@ -2993,6 +3028,7 @@ begin
   // Ok, execute!
   for i:=Low(senders) to High(senders) do begin
     PaccSender := GetInternalAccount(senders[i]);
+    previous.UpdateIfLower(PaccSender^.account,PaccSender^.updated_block);
     If PaccSender^.updated_block<>FFreezedAccounts.BlocksCount then begin
       PaccSender^.previous_updated_block := PaccSender^.updated_block;
       PaccSender^.updated_block := FFreezedAccounts.BlocksCount;
@@ -3002,6 +3038,7 @@ begin
   end;
   for i:=Low(receivers) to High(receivers) do begin
     PaccTarget := GetInternalAccount(receivers[i]);
+    previous.UpdateIfLower(PaccTarget^.account,PaccTarget^.updated_block);
     If PaccTarget^.updated_block<>FFreezedAccounts.BlocksCount then begin
       PaccTarget^.previous_updated_block := PaccTarget.updated_block;
       PaccTarget^.updated_block := FFreezedAccounts.BlocksCount;
@@ -3013,7 +3050,8 @@ begin
   Result := true;
 end;
 
-function TPCSafeBoxTransaction.UpdateAccountInfo(signer_account, signer_n_operation, target_account: Cardinal;
+function TPCSafeBoxTransaction.UpdateAccountInfo(previous : TAccountPreviousBlockInfo;
+  signer_account, signer_n_operation, target_account: Cardinal;
   accountInfo: TAccountInfo; newName: TRawBytes; newType: Word; fee: UInt64; var errors: AnsiString): Boolean;
 Var i : Integer;
   P_signer, P_target : PAccount;
@@ -3052,11 +3090,13 @@ begin
     errors := 'Target account is locked until block '+Inttostr(P_target^.accountInfo.locked_until_block);
     Exit;
   end;
+  previous.UpdateIfLower(P_signer^.account,P_signer^.updated_block);
   if P_signer^.updated_block <> FFreezedAccounts.BlocksCount then begin
     P_signer^.previous_updated_block := P_signer^.updated_block;
     P_signer^.updated_block := FFreezedAccounts.BlocksCount;
   end;
   if (signer_account<>target_account) then begin
+    previous.UpdateIfLower(P_target^.account,P_target^.updated_block);
     if P_target^.updated_block <> FFreezedAccounts.BlocksCount then begin
       P_target^.previous_updated_block := P_target^.updated_block;
       P_target^.updated_block := FFreezedAccounts.BlocksCount;
@@ -3362,6 +3402,139 @@ begin
   // Free it
   P^.accounts_number.free;
   Dispose(P);
+end;
+
+{ TAccountPreviousBlockInfo }
+
+Type PAccountPreviousBlockInfoData = ^TAccountPreviousBlockInfoData;
+
+function TAccountPreviousBlockInfo.FindAccount(const account: Cardinal; var Index: Integer): Boolean;
+var L, H, I: Integer;
+  C : Int64;
+  P : PAccountPreviousBlockInfoData;
+begin
+  Result := False;
+  L := 0;
+  H := FList.Count - 1;
+  while L <= H do
+  begin
+    I := (L + H) shr 1;
+    P := FList[i];
+    C := Int64(P^.Account) - Int64(account);
+    if C < 0 then L := I + 1 else
+    begin
+      H := I - 1;
+      if C = 0 then
+      begin
+        Result := True;
+        L := I;
+      end;
+    end;
+  end;
+  Index := L;
+end;
+
+function TAccountPreviousBlockInfo.GetData(index : Integer): TAccountPreviousBlockInfoData;
+begin
+  Result := PAccountPreviousBlockInfoData(FList[index])^;
+end;
+
+constructor TAccountPreviousBlockInfo.Create;
+begin
+  FList := TList.Create;
+end;
+
+destructor TAccountPreviousBlockInfo.Destroy;
+begin
+  Clear;
+  FreeAndNil(FList);
+  inherited Destroy;
+end;
+
+procedure TAccountPreviousBlockInfo.UpdateIfLower(account, previous_updated_block: Cardinal);
+Var P : PAccountPreviousBlockInfoData;
+  i : Integer;
+begin
+  if (account>=CT_AccountsPerBlock) And (previous_updated_block=0) then Exit; // Only accounts 0..4 allow update on block 0
+
+  if Not FindAccount(account,i) then begin
+    New(P);
+    P^.Account:=account;
+    P^.Previous_updated_block:=previous_updated_block;
+    FList.Insert(i,P);
+  end else begin
+    P := FList[i];
+    If (P^.Previous_updated_block>previous_updated_block) then begin
+      P^.Previous_updated_block:=previous_updated_block;
+    end;
+  end
+end;
+
+function TAccountPreviousBlockInfo.Add(account, previous_updated_block: Cardinal): Integer;
+Var P : PAccountPreviousBlockInfoData;
+begin
+  if Not FindAccount(account,Result) then begin
+    New(P);
+    P^.Account:=account;
+    P^.Previous_updated_block:=previous_updated_block;
+    FList.Insert(Result,P);
+  end else begin
+    P := FList[Result];
+    P^.Previous_updated_block:=previous_updated_block;
+  end
+end;
+
+procedure TAccountPreviousBlockInfo.Remove(account: Cardinal);
+Var i : Integer;
+  P : PAccountPreviousBlockInfoData;
+begin
+  If FindAccount(account,i) then begin
+    P := FList[i];
+    FList.Delete(i);
+    Dispose(P);
+  end;
+end;
+
+procedure TAccountPreviousBlockInfo.Clear;
+var P : PAccountPreviousBlockInfoData;
+  i : Integer;
+begin
+  For i:=0 to FList.Count-1 do begin
+    P := FList[i];
+    Dispose(P);
+  end;
+  FList.Clear;
+end;
+
+procedure TAccountPreviousBlockInfo.CopyFrom(Sender: TAccountPreviousBlockInfo);
+Var P : PAccountPreviousBlockInfoData;
+  i : Integer;
+begin
+  if (Sender = Self) then Raise Exception.Create('ERROR DEV 20180312-4 Myself');
+  Clear;
+  For i:=0 to Sender.Count-1 do begin
+    New(P);
+    P^ := Sender.GetData(i);
+    FList.Add(P);
+  end;
+end;
+
+function TAccountPreviousBlockInfo.IndexOfAccount(account: Cardinal): Integer;
+begin
+  If Not FindAccount(account,Result) then Result := -1;
+end;
+
+function TAccountPreviousBlockInfo.GetPreviousUpdatedBlock(account: Cardinal; defaultValue : Cardinal): Cardinal;
+var i : Integer;
+begin
+  i := IndexOfAccount(account);
+  If i>=0 then Result := GetData(i).Previous_updated_block
+  else Result := defaultValue;
+end;
+
+function TAccountPreviousBlockInfo.Count: Integer;
+begin
+  Result := FList.Count;
 end;
 
 { TOrderedCardinalList }

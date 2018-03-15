@@ -80,6 +80,8 @@ Type
       - Account A sends X
       - Account A changes info
       - Not allowed (same sender and same change info account)
+    - When a transfer is made to an account in private sale mode, the receiver account
+      will not execute a change private key, so sale will not be executed
   }
 
   TOpMultiOperationData = Record
@@ -103,12 +105,13 @@ Type
     procedure InitializeData; override;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
+    procedure FillOperationResume(Block : Cardinal; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
   public
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
 
     function CheckSignatures(AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean;
 
-    function DoOperation(AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
+    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
     procedure AffectedAccounts(list : TList); override;
     //
     Function GetTransactionHashToSign : TRawBytes;
@@ -118,9 +121,11 @@ Type
     function OperationFee : UInt64; override;
     function OperationPayload : TRawBytes; override;
     function SignerAccount : Cardinal; override;
+    function IsSignerAccount(account : Cardinal) : Boolean; override;
     function DestinationAccount : Int64; override;
     function SellerAccount : Int64; override;
     function N_Operation : Cardinal; override;
+    function GetAccountN_Operation(account : Cardinal) : Cardinal; override;
     //
     Constructor CreateMultiOperation(const senders : TMultiOpSenders; const receivers : TMultiOpReceivers; const changes : TMultiOpChangesInfo; const senders_keys, changes_keys: Array of TECPrivateKey);
     Destructor Destroy; override;
@@ -164,6 +169,14 @@ begin
     If (FData.changesInfo[Result].Account = nAccount) then exit;
   end;
   Result := -1;
+end;
+
+procedure TOpMultiOperation.FillOperationResume(Block : Cardinal; Affected_account_number : Cardinal; var OperationResume : TOperationResume);
+begin
+  inherited FillOperationResume(Block, Affected_account_number, OperationResume);
+  OperationResume.Senders := FData.txSenders;
+  OperationResume.Receivers := FData.txReceivers;
+  OperationResume.Changers := FData.changesInfo;
 end;
 
 function TOpMultiOperation.IndexOfAccountChangeNameTo(const newName: AnsiString): Integer;
@@ -400,7 +413,7 @@ begin
   end;
 end;
 
-function TOpMultiOperation.DoOperation(AccountTransaction: TPCSafeBoxTransaction; var errors: AnsiString): Boolean;
+function TOpMultiOperation.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction: TPCSafeBoxTransaction; var errors: AnsiString): Boolean;
 var i,j : Integer;
   txs : TMultiOpSender;
   txr : TMultiOpReceiver;
@@ -558,7 +571,8 @@ begin
     end;
   end;
   // Execute!
-  If Not AccountTransaction.TransferAmounts(senders,senders_n_operation,senders_amount,
+  If Not AccountTransaction.TransferAmounts(AccountPreviousUpdatedBlock,
+    senders,senders_n_operation,senders_amount,
     receivers,receivers_amount,errors) then Begin
     TLog.NewLog(ltError,ClassName,'FATAL ERROR DEV 20180312-1 '+errors); // This must never happen!
     Raise Exception.Create('FATAL ERROR DEV 20180312-1 '+errors); // This must never happen!
@@ -582,7 +596,9 @@ begin
     If (account_type in chi.Changes_type) then begin
       changer.account_type := chi.New_Type;
     end;
-    If Not AccountTransaction.UpdateAccountInfo(chi.Account,chi.N_Operation,chi.Account,
+    If Not AccountTransaction.UpdateAccountInfo(
+           AccountPreviousUpdatedBlock,
+           chi.Account,chi.N_Operation,chi.Account,
            changer.accountInfo,
            changer.name,
            changer.account_type,
@@ -695,7 +711,14 @@ function TOpMultiOperation.SignerAccount: Cardinal;
 begin
   // On a multioperation, the signer account are senders N accounts, cannot verify which one is correct... will send first one
   If length(FData.txSenders)>0 then Result := FData.txSenders[0].Account
+  else if (length(FData.changesInfo)>0) then Result := FData.changesInfo[0].Account
   else Result := MaxInt;
+end;
+
+function TOpMultiOperation.IsSignerAccount(account: Cardinal): Boolean;
+begin
+  // This function will override previous due it can be Multi signed
+  Result := (IndexOfAccountSender(account)>=0) Or (IndexOfAccountChanger(account)>=0);
 end;
 
 function TOpMultiOperation.DestinationAccount: Int64;
@@ -710,8 +733,25 @@ end;
 
 function TOpMultiOperation.N_Operation: Cardinal;
 begin
-  // On a multitoperation, there are senders N accounts, need specify
+  // On a multitoperation, there are N signers, need specify
   Result := 0;  // Note: N_Operation = 0 means NO OPERATION
+end;
+
+function TOpMultiOperation.GetAccountN_Operation(account: Cardinal): Cardinal;
+var i : Integer;
+begin
+  // On a multitoperation, there are N signers
+  i := IndexOfAccountSender(account);
+  If (i>=0) then begin
+    Result := FData.txSenders[i].N_Operation;
+    Exit;
+  end;
+  i := IndexOfAccountChanger(account);
+  If (i>=0) then begin
+    Result := FData.changesInfo[i].N_Operation;
+    Exit;
+  end;
+  Result := 0;
 end;
 
 constructor TOpMultiOperation.CreateMultiOperation(

@@ -435,7 +435,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       ms.Position := 0;
       OperationsHashTree := TOperationsHashTree.Create;
       if (raw<>'') then begin
-        If not OperationsHashTree.LoadOperationsHashTreeFromStream(ms,false,false,errors) then begin
+        If not OperationsHashTree.LoadOperationsHashTreeFromStream(ms,false,CT_PROTOCOL_1,Nil,errors) then begin
           FreeAndNil(OperationsHashTree);
           exit;
         end;
@@ -501,6 +501,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   end;
 
   Procedure FillOperationResumeToJSONObject(Const OPR : TOperationResume; jsonObject : TPCJSONObject);
+  Var i : Integer;
+    jsonArr : TPCJSONArray;
+    auxObj : TPCJSONObject;
   Begin
     if Not OPR.valid then begin
       jsonObject.GetAsVariant('valid').Value := OPR.valid;
@@ -518,14 +521,53 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
     jsonObject.GetAsVariant('optype').Value:=OPR.OpType;
     jsonObject.GetAsVariant('subtype').Value:=OPR.OpSubtype;
-    jsonObject.GetAsVariant('account').Value:=OPR.AffectedAccount;
-    jsonObject.GetAsVariant('signer_account').Value:=OPR.SignerAccount;
-    jsonObject.GetAsVariant('n_operation').Value:=OPR.n_operation;
+    If (Not OPR.isMultiOperation) then Begin
+      jsonObject.GetAsVariant('account').Value:=OPR.AffectedAccount;
+      jsonObject.GetAsVariant('signer_account').Value:=OPR.SignerAccount;
+      jsonObject.GetAsVariant('n_operation').Value:=OPR.n_operation;
+    end else begin
+      jsonArr := jsonObject.GetAsArray('senders');
+      for i:=Low(OPR.senders) to High(OPR.Senders) do begin
+        auxObj := jsonArr.GetAsObject(jsonArr.Count);
+        auxObj.GetAsVariant('account').Value := OPR.Senders[i].Account;
+        auxObj.GetAsVariant('n_operation').Value := OPR.Senders[i].N_Operation;
+        auxObj.GetAsVariant('amount').Value := ToJSONCurrency(OPR.Senders[i].Amount * (-1));
+        auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Senders[i].Payload);
+      end;
+      //
+      jsonArr := jsonObject.GetAsArray('receivers');
+      for i:=Low(OPR.Receivers) to High(OPR.Receivers) do begin
+        auxObj := jsonArr.GetAsObject(jsonArr.Count);
+        auxObj.GetAsVariant('account').Value := OPR.Receivers[i].Account;
+        auxObj.GetAsVariant('amount').Value := ToJSONCurrency(OPR.Receivers[i].Amount);
+        auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Receivers[i].Payload);
+      end;
+      jsonArr := jsonObject.GetAsArray('changers');
+      for i:=Low(OPR.Changers) to High(OPR.Changers) do begin
+        auxObj := jsonArr.GetAsObject(jsonArr.Count);
+        auxObj.GetAsVariant('account').Value := OPR.Changers[i].Account;
+        auxObj.GetAsVariant('n_operation').Value := OPR.Changers[i].N_Operation;
+        If public_key in OPR.Changers[i].Changes_type then begin
+          auxObj.GetAsVariant('new_enc_pubkey').Value := TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(OPR.Changers[i].New_Accountkey));
+        end;
+        If account_name in OPR.Changers[i].Changes_type then begin
+          auxObj.GetAsVariant('new_name').Value := OPR.Changers[i].New_Name;
+        end;
+        If account_type in OPR.Changers[i].Changes_type then begin
+          auxObj.GetAsVariant('new_type').Value := OPR.Changers[i].New_Type;
+        end;
+      end;
+    end;
     jsonObject.GetAsVariant('optxt').Value:=OPR.OperationTxt;
-    jsonObject.GetAsVariant('amount').Value:=ToJSONCurrency(OPR.Amount);
     jsonObject.GetAsVariant('fee').Value:=ToJSONCurrency(OPR.Fee);
-    if (OPR.Balance>=0) And (OPR.valid) then jsonObject.GetAsVariant('balance').Value:=ToJSONCurrency(OPR.Balance);
-    jsonObject.GetAsVariant('payload').Value:=TCrypto.ToHexaString(OPR.OriginalPayload);
+    if (Not OPR.isMultiOperation) then begin
+      jsonObject.GetAsVariant('amount').Value:=ToJSONCurrency(OPR.Amount);
+      if (OPR.Balance>=0) And (OPR.valid) then jsonObject.GetAsVariant('balance').Value:=ToJSONCurrency(OPR.Balance);
+      jsonObject.GetAsVariant('payload').Value:=TCrypto.ToHexaString(OPR.OriginalPayload);
+    end else begin
+      jsonObject.GetAsVariant('totalamount').Value:=ToJSONCurrency(OPR.Amount);
+      if (OPR.Balance>=0) And (OPR.valid) then jsonObject.GetAsVariant('balance').Value:=ToJSONCurrency(OPR.Balance);
+    end;
     If (OPR.OpType = CT_Op_Transaction) then begin
       If OPR.SignerAccount>=0 then begin
         jsonObject.GetAsVariant('sender_account').Value:=OPR.SignerAccount;
@@ -553,7 +595,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     jsonObject.GetAsVariant('rawoperations').Value:=OperationsHashTreeToHexaString(OperationsHashTree);
   End;
 
-  Function GetAccountOperations(accountNumber : Cardinal; jsonArray : TPCJSONArray; maxBlocksDepth, startReg, maxReg: Integer) : Boolean;
+  Function GetAccountOperations(accountNumber : Cardinal; jsonArray : TPCJSONArray; maxBlocksDepth, startReg, maxReg: Integer; forceStartBlock : Cardinal) : Boolean;
   var list : TList;
     Op : TPCOperation;
     OPR : TOperationResume;
@@ -570,7 +612,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     nCounter := 0;
     OperationsResume := TOperationsResumeList.Create;
     try
-      if (startReg=-1) then begin
+      if ((startReg=-1) And (forceStartBlock=0)) then begin
         // 1.5.5 change: If start=-1 then will include PENDING OPERATIONS, otherwise not.
         // Only will return pending operations if start=0, otherwise
         list := TList.Create;
@@ -594,7 +636,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       end;
       if (nCounter<maxReg) then begin
         if (startReg<0) then startReg := 0; // Prevent -1 value
-        FNode.GetStoredOperationsFromAccount(OperationsResume,accountNumber,maxBlocksDepth,startReg,startReg+maxReg-1);
+        FNode.GetStoredOperationsFromAccount(OperationsResume,accountNumber,maxBlocksDepth,startReg,startReg+maxReg-1,forceStartBlock);
       end;
       for i:=0 to OperationsResume.Count-1 do begin
         Obj := jsonArray.GetAsObject(jsonArray.Count);
@@ -2386,10 +2428,13 @@ begin
     // Param "account" contains account number
     // Param "depht" (optional or "deep") contains max blocks deep to search (Default: 100)
     // Param "start" and "max" contains starting index and max operations respectively
+    // Param "startblock" forces to start searching backwards on a fixed block, will not give balance for each operation due it's unknown
     c := params.GetAsVariant('account').AsCardinal(CT_MaxAccount);
     if ((c>=0) And (c<FNode.Bank.AccountsCount)) then begin
       if (params.IndexOfName('depth')>=0) then i := params.AsInteger('depth',100) else i:=params.AsInteger('deep',100);
-      Result := GetAccountOperations(c,GetResultArray,i,params.AsInteger('start',0),params.AsInteger('max',100));
+      If params.IndexOfName('startblock')>=0 then c2 := params.AsCardinal('startblock',0)
+      else c2 := 0;
+      Result := GetAccountOperations(c,GetResultArray,i,params.AsInteger('start',0),params.AsInteger('max',100),c2);
     end else begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
       If (c=CT_MaxAccount) then ErrorDesc := 'Need account param'
