@@ -850,5 +850,6 @@ end;
 
 
 initialization
+  Randomize; // Initial random generator based on system time
 finalization
 end.

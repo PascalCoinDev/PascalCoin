@@ -2847,8 +2847,10 @@ begin
       end;
     end else if (b=3) then begin
       DataBuffer.Read(c,SizeOf(c));
+      if (c>CT_Max_Accounts_per_call) then c := CT_Max_Accounts_per_call;
       responseStream.Write(c,SizeOf(c));
-      for i:=1 to b do begin
+      max := c;
+      for i:=1 to max do begin
         DataBuffer.Read(c,SizeOf(c));
         if (c>=0) And (c<TNode.Node.Bank.AccountsCount) then begin
           acc := TNode.Node.Bank.SafeBox.Account(c);
