@@ -242,6 +242,7 @@ type
     FIgnoreSelectionEvent: boolean;
     FDefaultStretchedColumn : Integer;
     FDefaultColumnWidths : TArray<Integer>;
+    FCellPadding : TRect;
     FWidgetControl: TControl;
     FWidgetControlParent: TWinControl;
     function GetCells(ACol, ARow: Integer): Variant;
@@ -271,6 +272,7 @@ type
     procedure SetPageSize(Value: Integer);
     procedure SetSelectionType(AValue: TSelectionType);
     procedure SetWidgetControl(AValue: TControl);
+    function CalculateCellContentRect(const ARect : TRect) : TRect;
   protected { TComponent }
     procedure Loaded; override;
   protected { TControl }
@@ -340,6 +342,7 @@ type
     property SearchMode : TSearchMode read FSearchMode write SetSearchMode;
 
     property Caption: TVisualGridCaption read FCaption write FCaption;
+    property CellPadding : TRect read FCellPadding write FCellPadding;
     property ColCount: Integer read GetColCount;
     property Columns[Index: Integer]: TVisualColumn read GetColumns;
     property Cells[ACol, ARow: Integer]: Variant read GetCells write SetCells;
@@ -401,6 +404,12 @@ resourcestring
   sDataLoading = 'DATA LOADING';
   sExpression = 'Expression';
   sImproperColumnIndex = 'Improper column index. Max expected is %d but %d found.';
+
+const
+  CT_DEFAULT_CELL_PADDING_LEFT = 0;
+  CT_DEFAULT_CELL_PADDING_TOP = 0;
+  CT_DEFAULT_CELL_PADDING_RIGHT = 4;
+  CT_DEFAULT_CELL_PADDING_BOTTOM = 0;
 
 type
   TDrawGridAccess = class(TDrawGrid);
@@ -1053,6 +1062,7 @@ begin
   end;
 
   { default values for properties }
+  FCellPadding := TRect.Create(CT_DEFAULT_CELL_PADDING_LEFT, CT_DEFAULT_CELL_PADDING_TOP, CT_DEFAULT_CELL_PADDING_RIGHT, CT_DEFAULT_CELL_PADDING_BOTTOM);
   DefaultStretchedColumn := -1;
   FSearchMode := smSingle;
   PageSize := 100;
@@ -1133,7 +1143,9 @@ begin
     else
       raise EVisualGridError.CreateFmt(sImproperColumnIndex, [Length(ActiveDataTable.Columns)-1,ACol]);
     LColumn := GetColumns(ACol);
-    FDrawGrid.Canvas.TextRect(Rect, Rect.Left+8, Rect.Top+2, LText);
+    Rect := CalculateCellContentRect(Rect);
+
+    FDrawGrid.Canvas.TextRect(Rect, Rect.Left, Rect.Top, LText);
 
     FDrawGrid.Canvas.Pen.Width:=1;
     FDrawGrid.Canvas.Pen.Color:=clBlack;
@@ -1164,8 +1176,9 @@ begin
         end;
     end;
   end
-  else
-    FDrawGrid.Canvas.TextRect(Rect, Rect.Left+2, Rect.Top+2, RowData);
+  else begin
+    FDrawGrid.Canvas.TextRect(Rect, Rect.Left, Rect.Top, RowData);
+  end;
 end;
 
 procedure TCustomVisualGrid.Loaded;
@@ -2157,6 +2170,8 @@ begin
   if (ARow > 0) and Assigned(FDataSource) then
     LCellData := ActiveDataTable^.Rows[ARow-1]._(ACol);
 
+  Rect := CalculateCellContentRect(Rect);
+
   if Assigned(FOnDrawVisualCell) then
     FOnDrawVisualCell(Self, ACol, ARow, Canvas, Rect, State, LCellData, LHandled);
   if not LHandled then
@@ -2264,6 +2279,27 @@ begin
       FSortColumn.FIgnoreRefresh:=false;
     end;
   FSortColumn := LColumn;
+end;
+
+function TCustomVisualGrid.CalculateCellContentRect(const ARect : TRect) : TRect;
+const
+{$IFDEF Windows}
+  PLATFORM_CELL_RECT_X_OFFSET = 2;
+  PLATFORM_CELL_RECT_Y_OFFSET = 2;
+{$ELSE}
+  {$IFDEF DARWIN}
+  PLATFORM_CELL_RECT_X_OFFSET = 2;
+  PLATFORM_CELL_RECT_Y_OFFSET = 2;
+  {$ELSE} // Linux
+  PLATFORM_CELL_RECT_X_OFFSET = 2;
+  PLATFORM_CELL_RECT_Y_OFFSET = 2;
+  {$ENDIF}
+{$ENDIF}
+begin
+  Result.Left := ClipValue(ARect.Left + FCellPadding.Left + PLATFORM_CELL_RECT_X_OFFSET, 2, 10000);
+  Result.Top := ClipValue(ARect.Top + FCellPadding.Top + PLATFORM_CELL_RECT_Y_OFFSET, 2, 100000);
+  Result.Right := ClipValue(ARect.Right - FCellPadding.Right - PLATFORM_CELL_RECT_X_OFFSET, 2, 1000000);
+  Result.Bottom := ClipValue(ARect.Bottom - FCellPadding.Bottom - PLATFORM_CELL_RECT_Y_OFFSET, 2, 100000);
 end;
 
 initialization
