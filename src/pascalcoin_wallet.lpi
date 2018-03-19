@@ -346,6 +346,7 @@
         <Filename Value="gui\wizards\UWIZAddKey_SelectEncryption.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_SelectEncryption"/>
+        <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit60>
       <Unit61>
