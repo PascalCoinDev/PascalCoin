@@ -65,6 +65,7 @@ type
 
   TTableRow = class(TInvokeableVariantType)
   private
+    FEntityKey : Variant;
     class constructor Create;
     class destructor Destroy;
   protected type
@@ -75,6 +76,7 @@ type
   protected
     class function MapColumns(AColumns: PTableColumns): TColumnMapToIndex;
   public
+    property EntityKey : Variant read FEntityKey write FEntityKey;
     function GetProperty(var Dest: TVarData; const V: TVarData; const Name: string): Boolean; override;
     function SetProperty(var V: TVarData; const Name: string; const Value: TVarData): Boolean; override;
     procedure Clear(var V: TVarData); override;
@@ -204,6 +206,7 @@ type
       procedure DehydrateItem(constref AItem: T; var ATableRow: Variant); virtual; abstract;
       function FetchPage(constref AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
       function GetSearchCapabilities: TSearchCapabilities; virtual; abstract;
+      function GetEntityKey(constref AItem: T) : Variant; virtual;
       procedure OnBeforeFetchAll(constref AParams: TPageFetchParams); virtual;
       procedure FetchAll(const AContainer : TList<T>); virtual; abstract;
       procedure OnAfterFetchAll(constref AParams: TPageFetchParams); virtual;
@@ -489,6 +492,11 @@ begin
       end;
     end;
   end else Result := false;
+end;
+
+function TCustomDataSource<T>.GetEntityKey(constref AItem: T) : Variant;
+begin
+  Result := nil;
 end;
 
 function TCustomDataSource<T>.FetchPage(constref AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
