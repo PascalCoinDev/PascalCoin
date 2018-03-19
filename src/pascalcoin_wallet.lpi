@@ -289,106 +289,106 @@
         <ResourceBaseClass Value="Form"/>
       </Unit50>
       <Unit51>
-        <Filename Value="common\UAutoScope.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit51>
-      <Unit52>
         <Filename Value="gui\wizards\UWIZAddKey_Start.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_Start"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit52>
-      <Unit53>
+      </Unit51>
+      <Unit52>
         <Filename Value="gui\wizards\UWIZAddKey_GenerateOrImport.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_GenerateOrImport"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit53>
-      <Unit54>
+      </Unit52>
+      <Unit53>
         <Filename Value="gui\wizards\UWIZAddKey_ImportPubKey.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_ImportPubKey"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit54>
-      <Unit55>
+      </Unit53>
+      <Unit54>
         <Filename Value="gui\wizards\UWIZAddKey_ImportPrivKey.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_ImportPrivKey"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit55>
-      <Unit56>
+      </Unit54>
+      <Unit55>
         <Filename Value="gui\wizards\UWIZAddKey_EnterName.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_EnterName"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit56>
-      <Unit57>
+      </Unit55>
+      <Unit56>
         <Filename Value="gui\UFRMWalletKeys.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="FRMWalletKeys"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
+      </Unit56>
+      <Unit57>
+        <Filename Value="gui\wizards\UWIZAddKey.pas"/>
+        <IsPartOfProject Value="True"/>
       </Unit57>
       <Unit58>
-        <Filename Value="gui\wizards\UWIZAddKey.pas"/>
+        <Filename Value="core\USettings.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit58>
       <Unit59>
-        <Filename Value="core\USettings.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit59>
-      <Unit60>
         <Filename Value="gui\wizards\UWIZAddKey_SelectEncryption.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_SelectEncryption"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit60>
-      <Unit61>
+      </Unit59>
+      <Unit60>
         <Filename Value="gui\UCTRLWallet.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="CTRLWallet"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
+      </Unit60>
+      <Unit61>
+        <Filename Value="core\UDataSources.pas"/>
+        <IsPartOfProject Value="True"/>
       </Unit61>
       <Unit62>
-        <Filename Value="core\UDataSources.pas"/>
+        <Filename Value="libraries\sphere10\UCommon.Collections.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit62>
       <Unit63>
-        <Filename Value="libraries\sphere10\UCommon.Collections.pas"/>
+        <Filename Value="libraries\sphere10\UCommon.Data.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit63>
       <Unit64>
-        <Filename Value="libraries\sphere10\UCommon.Data.pas"/>
+        <Filename Value="libraries\sphere10\UCommon.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit64>
       <Unit65>
-        <Filename Value="libraries\sphere10\UCommon.pas"/>
+        <Filename Value="libraries\sphere10\UCommon.UI.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit65>
       <Unit66>
-        <Filename Value="libraries\sphere10\UCommon.UI.pas"/>
+        <Filename Value="libraries\sphere10\UVisualGrid.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit66>
       <Unit67>
-        <Filename Value="libraries\sphere10\UVisualGrid.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit67>
-      <Unit68>
         <Filename Value="libraries\sphere10\UWizard.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WizardHostForm"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
+      </Unit67>
+      <Unit68>
+        <Filename Value="config.inc"/>
+        <IsPartOfProject Value="True"/>
       </Unit68>
       <Unit69>
-        <Filename Value="config.inc"/>
+        <Filename Value="libraries\sphere10\UAutoScope.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit69>
     </Units>

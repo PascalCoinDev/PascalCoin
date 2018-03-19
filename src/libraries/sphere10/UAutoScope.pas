@@ -75,7 +75,7 @@ type
     private
       FScopedRec: PScoped;
     public
-      constructor Create(ScopedRec: PScoped);
+      constructor Create(ScopedRec: PScoped; ACapacity:Integer);
       destructor Destroy; override;
     end;
   {$ENDIF}
@@ -87,10 +87,10 @@ type
     FLastIndex: {$IFDEF FPC}TDynArrayIndex{$ELSE}Integer{$ENDIF};
     {$IFDEF USE_OPERATORS}
     class operator Initialize(var AScope: TScoped);
-    class operator Finalize(var AScope: TScoped);
+    class operator Finalize(var AScope: TScoped; ACapacity:Integer);
     {$ENDIF}
     {$IFDEF USE_INTERFACE}
-    class procedure Initialize(var AScope: TScoped); static;
+    class procedure Initialize(var AScope: TScoped; ACapacity:Integer); static;
     class procedure Finalize(var AScope: TScoped); static;
     {$ENDIF}
     procedure RegisterPointer(Ptr: Pointer; IsObject: Boolean);
@@ -127,6 +127,13 @@ type
     ///   </para>
     /// </remarks>
     procedure RemoveObject(const AnObject: TObject);
+
+    // HS: added
+    procedure InitCapacity(ACapacity : Integer);
+    function Count : Integer;
+    function ItemAt(AIndex : Integer) : TObject;
+    function ScopedPtrAt(AIndex : Integer) : TScopedPtr;
+
     /// <summary>Allocates an automatically releasing memory block.</summary>
     /// <param name="P">Returns a pointer to allocated memory block.</param>
     /// <param name="Size">Is a size in bytes of required memory.</param>
@@ -210,13 +217,15 @@ var
 
 implementation
 
+uses sysutils;
+
 { TScoped }
 
 {$IFDEF USE_INTERFACE}
-constructor TScoped.TScopedGuardian.Create(ScopedRec: PScoped);
+constructor TScoped.TScopedGuardian.Create(ScopedRec: PScoped; ACapacity:Integer);
 begin
   FScopedRec := ScopedRec;
-  TScoped.Initialize(FScopedRec^);
+  TScoped.Initialize(FScopedRec^, ACapacity);
 end;
 
 destructor TScoped.TScopedGuardian.Destroy;
@@ -235,14 +244,14 @@ end;
 class operator TScoped.Initialize(var AScope: TScoped);
 {$ENDIF}
 {$IFDEF USE_INTERFACE}
-class procedure TScoped.Initialize(var AScope: TScoped);
+class procedure TScoped.Initialize(var AScope: TScoped; ACapacity:Integer);
 {$ENDIF}
 begin
   {$IFDEF WITH_PARANOIA}
    __no_use_ptr := @AScope;
   {$ENDIF}
   AScope.FLastIndex := -1;
-  SetLength(AScope.FPointers, 16);
+  SetLength(AScope.FPointers, ACapacity);
 end;
 
 {$IFDEF USE_OPERATORS}
@@ -318,7 +327,7 @@ begin
   {$IFNDEF NEXTGEN}
     {$IFDEF USE_INTERFACE}
     if not Assigned(FGuardian) then
-      FGuardian := TScopedGuardian.Create(@Self);
+      FGuardian := TScopedGuardian.Create(@Self, 16);
     {$ENDIF}
 
   RegisterPointer(Pointer(AnObject), True);
@@ -331,11 +340,42 @@ begin
   {$IFNDEF NEXTGEN}
     {$IFDEF USE_INTERFACE}
     if not Assigned(FGuardian) then
-      FGuardian := TScopedGuardian.Create(@Self);
+      FGuardian := TScopedGuardian.Create(@Self, 16);
     {$ENDIF}
 
   UnregisterPointer(Pointer(AnObject));
   {$ENDIF}
+end;
+
+procedure TScoped.InitCapacity(ACapacity : Integer);
+begin
+  {$IFNDEF NEXTGEN}
+    {$IFDEF USE_INTERFACE}
+    if Assigned(FGuardian) then
+      raise Exception.Create('Already initialized');
+    FGuardian := TScopedGuardian.Create(@Self, ACapacity);
+    {$ENDIF}
+  {$ENDIF}
+end;
+
+function TScoped.Count : Integer;
+begin
+  if not Assigned(FGuardian) then
+    Exit(0);
+  Result := FLastIndex + 1;
+end;
+
+function TScoped.ItemAt(AIndex : Integer) : TObject;
+var sp : TScopedPtr;
+begin
+  sp := FPointers[AIndex];
+  Result := TObject(sp.Ptr);
+end;
+
+function TScoped.ScopedPtrAt(AIndex : Integer) : TScopedPtr;
+var sp : TScopedPtr;
+begin
+  Result := FPointers[AIndex];
 end;
 
 procedure TScoped.GetMem(out P: Pointer; Size:
@@ -349,7 +389,7 @@ procedure TScoped.FreeMem(var P: Pointer);
 begin
   {$IFDEF USE_INTERFACE}
   if not Assigned(FGuardian) then
-    FGuardian := TScopedGuardian.Create(@Self);
+    FGuardian := TScopedGuardian.Create(@Self, 16);
   {$ENDIF}
 
   UnregisterPointer(P);
@@ -360,7 +400,7 @@ procedure TScoped.AddMem(const P: Pointer);
 begin
   {$IFDEF USE_INTERFACE}
   if not Assigned(FGuardian) then
-    FGuardian := TScopedGuardian.Create(@Self);
+    FGuardian := TScopedGuardian.Create(@Self, 16);
   {$ENDIF}
 
   RegisterPointer(P, False);
@@ -373,7 +413,7 @@ var
 begin
   {$IFDEF USE_INTERFACE}
   if not Assigned(FGuardian) then
-    FGuardian := TScopedGuardian.Create(@Self);
+    FGuardian := TScopedGuardian.Create(@Self, 16);
   {$ENDIF}
 
   for i := FLastIndex downto 0 do
@@ -389,7 +429,7 @@ procedure TScoped.RemoveMem(const P: Pointer);
 begin
   {$IFDEF USE_INTERFACE}
   if not Assigned(FGuardian) then
-    FGuardian := TScopedGuardian.Create(@Self);
+    FGuardian := TScopedGuardian.Create(@Self, 16);
   {$ENDIF}
 
   UnregisterPointer(P);

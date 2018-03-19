@@ -20,7 +20,7 @@ interface
 
 uses
   Classes, SysUtils, Generics.Collections, Generics.Defaults,
-  Variants, LazUTF8, math, typinfo;
+  Variants, LazUTF8, math, typinfo, UAutoScope;
 
 { CONSTANTS }
 
@@ -131,25 +131,17 @@ type
     end;
   {$ENDIF}
 
-  { TBox - a generic wrapper class for wrappying any type, mainly strings and primtives }
+  { TAuto }
 
-  TBox<T> = class(TObject)
-    type
-      TDestroyItemDelegate = procedure (constref val : T) of object;
-    strict private
-      FValue: T;
-      FDestroyFunc : TDestroyItemDelegate;
-      class procedure NoOpDestroyItem(constref val : T);
+  TAuto<T> = record
+    private
+      FGC : TScoped;
+      function GetItem : T;
+      procedure SetItem(const AItem: T);
     public
-      constructor Create(Value: T); overload;
-      constructor Create(Value: T; destroyItemFunc: TDestroyItemDelegate); overload;
-      destructor Destroy; override;
-      property Value: T read FValue;
+      constructor Create(const AItem: T);
+      property Item : T read GetItem write SetItem;
   end;
-
-  { A TObject-wrapped string }
-
-  TStringObject = TBox<AnsiString>;
 
   { TDateTimeHelper }
 
@@ -612,6 +604,39 @@ end;
 
 {$ENDIF}
 
+{%region TAuto }
+
+constructor TAuto<T>.Create(const AItem: T);
+begin
+  FGC.InitCapacity(1);
+  FGC.AddObject(AItem);
+end;
+
+function TAuto<T>.GetItem : T;
+begin
+  if FGC.Count = 1 then
+    Result := T(FGC.ItemAt(0))
+  else
+    Result := Default(T)
+end;
+
+procedure TAuto<T>.SetItem(const AItem: T);
+var
+  oldsp : TScopedPtr;
+  old : TObject;
+begin
+  while FGC.Count > 0 do begin
+    oldsp := FGC.ScopedPtrAt(0);
+    old := FGC.ItemAt(0);
+    FGC.RemoveObject(old);
+    if (oldsp.IsObject) then
+      FreeAndNil(Pointer(old));
+  end;
+  FGC.AddObject(AItem);
+end;
+
+{%endregion}
+
 {%region Language-level tools }
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Cardinal): Cardinal;
 begin
@@ -738,31 +763,6 @@ begin
     if Result > AArray[i] then
       Result := AArray[i];
   end;
-end;
-
-{%region TBox }
-
-constructor TBox<T>.Create(Value: T);
-begin
-  Create(Value, NoOpDestroyItem);
-end;
-
-constructor TBox<T>.Create(Value: T; destroyItemFunc: TDestroyItemDelegate);
-begin
-  inherited Create;
-  FValue := Value;
-  FDestroyFunc := destroyItemFunc;
-end;
-
-destructor TBox<T>.Destroy;
-begin
-  FDestroyFunc(FValue);
-  inherited;
-end;
-
-class procedure TBox<T>.NoOpDestroyItem(constref val : T);
-begin
-  // No op
 end;
 
 {%endregion}

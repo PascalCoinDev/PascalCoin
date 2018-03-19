@@ -155,7 +155,7 @@ type
   end;
 
   { TGenericWizardBag - a generic bag for use within wizard }
-  TGenericWizardBag = TDictionary<AnsiString, TObject>;
+  TGenericWizardBag = TDictionary<utf8string, Variant>;
 
 implementation
 
