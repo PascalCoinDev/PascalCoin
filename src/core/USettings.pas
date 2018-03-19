@@ -118,7 +118,6 @@ implementation
 uses
   Classes, SysUtils, UConst, UFolderHelper;
 
-
 { TSettings }
 
 class procedure TSettings.Load;

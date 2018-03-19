@@ -7,7 +7,7 @@ unit UCTRLWallet;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
+  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Menus,
   ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon.UI,
   UAccounts, UDataSources, UNode;
 
@@ -16,7 +16,7 @@ type
   { TCTRLWallet }
 
   TCTRLWalletAccountsMode = (wamMyAccounts, wamFirstAccount);
-  TCTRLWalletOperationsMode = (womUnknown, womSelectedAccounts, womAllAccounts);
+  TCTRLWalletOperationsMode = (womSelectedAccounts, womAllAccounts);
   TCTRLWalletOperationsHistory = (woh30Days, wohFullHistory);
 
   TCTRLWallet = class(TApplicationForm)
@@ -28,15 +28,30 @@ type
     Label2: TLabel;
     lblTotalPASA: TLabel;
     lblTotalPASC: TLabel;
+    MenuItem1: TMenuItem;
+    miCopyOphash: TMenuItem;
+    miOperationInfo: TMenuItem;
+    miSendPASC: TMenuItem;
+    miTransferAccounts: TMenuItem;
+    miAccountInfo: TMenuItem;
+    miSep1: TMenuItem;
     PairSplitter1: TPairSplitter;
     PairSplitterSide1: TPairSplitterSide;
     PairSplitterSide2: TPairSplitterSide;
     paAccounts: TPanel;
     paOperations: TPanel;
+    mnuAccountsPopup: TPopupMenu;
+    mnuOperationsPopup: TPopupMenu;
+    mnuFirstAccountPopup: TPopupMenu;
     procedure cbAccountsChange(Sender: TObject);
     procedure cmbDurationChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormResize(Sender: TObject);
+    procedure miAccountInfoClick(Sender: TObject);
+    procedure miCopyOphashClick(Sender: TObject);
+    procedure miOperationInfoClick(Sender: TObject);
+    procedure miSendPASCClick(Sender: TObject);
+    procedure miTransferAccountsClick(Sender: TObject);
   private
     FNodeNotifyEvents : TNodeNotifyEvents;
     FAccountsMode : TCTRLWalletAccountsMode;
@@ -58,6 +73,7 @@ type
     procedure OnOperationSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
     procedure OnAccountsGridColumnInitialize(Sender: TObject; AColIndex:Integer; AColumn: TVisualColumn);
     procedure OnOperationsGridColumnInitialize(Sender: TObject; AColIndex:Integer; AColumn: TVisualColumn);
+    procedure OnPrepareAccountPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
   public
     property AccountsMode : TCTRLWalletAccountsMode read FAccountsMode write SetAccountsMode;
     property OperationsMode : TCTRLWalletOperationsMode read FOperationsMode write SetOperationsMode;
@@ -67,7 +83,8 @@ type
 implementation
 
 uses
-  UUserInterface, UBlockChain, UCommon, UAutoScope, Generics.Collections, UCommon.Collections;
+  UUserInterface, UBlockChain, UWallet,
+  UCommon, UAutoScope, Generics.Collections, UCommon.Collections;
 
 {$R *.lfm}
 
@@ -100,6 +117,7 @@ begin
   FAccountsGrid.OnColumnInitialize:= OnAccountsGridColumnInitialize;
   FAccountsGrid.OnSelection := OnAccountsSelected;
   FAccountsGrid.OnFinishedUpdating := OnAccountsUpdated;
+  FAccountsGrid.OnPreparePopupMenu:= OnPrepareAccountPopupMenu;
 
   FOperationsGrid := TVisualGrid.Create(Self);
   FOperationsGrid.SortMode := smMultiColumn;
@@ -121,9 +139,11 @@ begin
   );
   FOperationsGrid.OnColumnInitialize:= OnOperationsGridColumnInitialize;
   FOperationsGrid.OnSelection := OnOperationSelected;
+  FOperationsGrid.PopupMenu := mnuOperationsPopup;
   FOperationsGrid.Caption.Alignment:= taCenter;
   FOperationsGrid.Caption.Text := 'All Account Operations';
   FOperationsGrid.Caption.Visible := true;
+
   cmbDuration := TComboBox.Create(FOperationsGrid);
   FOperationsGrid.WidgetControl := cmbDuration;
   cmbDuration.Items.BeginUpdate;
@@ -141,7 +161,7 @@ begin
 
   // Configure grid states
   AccountsMode := wamMyAccounts;
-  OperationsMode:= womUnknown;
+  OperationsMode:= womAllAccounts;
   OperationsHistory := woh30Days;
 end;
 
@@ -150,6 +170,7 @@ begin
   // Left hand panel is 50% the size up until a max size of 450
 
 end;
+
 
 procedure TCTRLWallet.ActivateFirstTime;
 begin
@@ -200,10 +221,6 @@ procedure TCTRLWallet.SetOperationsMode(AMode: TCTRLWalletOperationsMode);
 
 begin
   case AMode of
-     womUnknown: begin
-       FOperationsGrid.Caption.Text := '';
-       FOperationsDataSource.Accounts := TArrayTool<Cardinal>.Empty;
-     end;
      womAllAccounts: begin
        FOperationsGrid.Caption.Text := 'All Accounts';
        FOperationsDataSource.Accounts := TListTool<TAccount, Cardinal>.Transform( FAccountsDataSource.LastKnownUserAccounts, GetAccNo );
@@ -261,11 +278,10 @@ begin
         selectedAccounts.Add(acc);
     end;
     FOperationsDataSource.Accounts := selectedAccounts.ToArray;
+    FOperationsGrid.RefreshGrid;
   end else begin
-
-    TUserInterface.ShowInfo(Self, 'Deselect', 'Deselect');
+    OperationsMode:= womAllAccounts;
   end;
-  FOperationsGrid.RefreshGrid;
 end;
 
 procedure TCTRLWallet.OnOperationSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
@@ -300,6 +316,39 @@ begin
      0: OperationsHistory := woh30Days;
      1: OperationsHistory := wohFullHistory;
   end;
+end;
+
+procedure TCTRLWallet.OnPrepareAccountPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+begin
+  miSep1.Visible := ASelection.RowCount = 1;
+  miAccountInfo.Visible := ASelection.RowCount = 1;
+  miTransferAccounts.Caption := IIF( ASelection.RowCount = 1, 'Transfer Account', 'Transfer Accounts');
+  APopupMenu := mnuAccountsPopup;
+end;
+
+procedure TCTRLWallet.miAccountInfoClick(Sender: TObject);
+begin
+  raise ENotImplemented.Create('Not Implemented');
+end;
+
+procedure TCTRLWallet.miSendPASCClick(Sender: TObject);
+begin
+  raise ENotImplemented.Create('Not Implemented');
+end;
+
+procedure TCTRLWallet.miTransferAccountsClick(Sender: TObject);
+begin
+  raise ENotImplemented.Create('Not Implemented');
+end;
+
+procedure TCTRLWallet.miCopyOphashClick(Sender: TObject);
+begin
+  raise ENotImplemented.Create('Not Implemented');
+end;
+
+procedure TCTRLWallet.miOperationInfoClick(Sender: TObject);
+begin
+  raise ENotImplemented.Create('Not Implemented');
 end;
 
 end.

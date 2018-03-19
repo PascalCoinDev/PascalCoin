@@ -10,7 +10,6 @@ object CTRLWallet: TCTRLWallet
   ClientWidth = 1151
   OnCreate = FormCreate
   OnResize = FormResize
-  LCLVersion = '1.8.0.6'
   Visible = False
   object PairSplitter1: TPairSplitter
     Left = 0
@@ -157,5 +156,43 @@ object CTRLWallet: TCTRLWallet
         end
       end
     end
+  end
+  object mnuAccountsPopup: TPopupMenu
+    left = 768
+    top = 64
+    object miSendPASC: TMenuItem
+      Caption = 'Send PASC'
+      OnClick = miSendPASCClick
+    end
+    object miTransferAccounts: TMenuItem
+      Caption = 'Transfer Account(s)'
+      OnClick = miTransferAccountsClick
+    end
+    object miSep1: TMenuItem
+      Caption = '-'
+    end
+    object miAccountInfo: TMenuItem
+      Caption = 'Account Info'
+      OnClick = miAccountInfoClick
+    end
+  end
+  object mnuOperationsPopup: TPopupMenu
+    left = 896
+    top = 64
+    object miCopyOphash: TMenuItem
+      Caption = 'Copy OPHASH'
+      OnClick = miCopyOphashClick
+    end
+    object MenuItem1: TMenuItem
+      Caption = '-'
+    end
+    object miOperationInfo: TMenuItem
+      Caption = 'Operation Info'
+      OnClick = miOperationInfoClick
+    end
+  end
+  object mnuFirstAccountPopup: TPopupMenu
+    left = 1024
+    top = 64
   end
 end
