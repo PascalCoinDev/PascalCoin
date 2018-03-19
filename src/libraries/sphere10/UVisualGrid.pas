@@ -887,11 +887,12 @@ begin
 
       FSearchButton := TSpeedButton.Create(Self);
       FSearchButton.Parent := FTopPanelRight;
-      {$IFDEF WINDOWS}
-      FSearchButton.LoadGlyphFromResourceName(HINSTANCE, 'VISUALGRID_SEARCH');
-      {$ELSE}
+      // HS: remove windres usage due to "directory with spaces" bug during compilation.
+      //{$IFDEF WINDOWS}
+      //FSearchButton.LoadGlyphFromResourceName(HINSTANCE, 'VISUALGRID_SEARCH');
+      //{$ELSE}
       FSearchButton.LoadGlyphFromLazarusResource('VISUALGRID_SEARCH');
-      {$ENDIF}
+      //{$ENDIF}
       with FSearchButton do
       begin
         AnchorSideTop.Control := FTopPanelRight;
