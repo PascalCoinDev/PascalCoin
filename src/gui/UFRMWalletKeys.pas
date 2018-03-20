@@ -90,7 +90,7 @@ implementation
 
 {$R *.lfm}
 
-uses  LCLIntf, Clipbrd, UUserInterface, USettings, UCommon, UAccounts, UWIZAddKey, UAutoScope;
+uses  LCLIntf, Clipbrd, UUserInterface, USettings, UCommon, UAccounts, UWIZAddKey, UMemory;
 
 {%region Form life-cycle}
 
@@ -121,7 +121,7 @@ end;
 
 procedure TFRMWalletKeys.AddNewKey;
 var
-  Scoped : TScoped;
+  Scoped : TDisposables;
   wiz : TWIZAddKeyWizard;
   model : TWizAddKeyModel;
 begin

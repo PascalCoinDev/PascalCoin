@@ -7,6 +7,7 @@ object WIZAddKey_SelectEncryption: TWIZAddKey_SelectEncryption
   ClientHeight = 240
   ClientWidth = 320
   OnCreate = FormCreate
+  LCLVersion = '1.8.2.0'
   Visible = False
   object rgKeyType: TRadioGroup
     Left = 24

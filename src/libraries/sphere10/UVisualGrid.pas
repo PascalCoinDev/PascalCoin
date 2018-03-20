@@ -36,6 +36,14 @@ type
 
   TSelectionType = (stNone, stCell, stRow, stMultiRow);
 
+  { TDeselectionType }
+
+  TDeselectionType = (
+    dtNone,    { deselection is disallowed }
+    dtDefault, { click on selection means deselect (except multirow which is special case), click outside selection means new selection }
+    dtClick    { each click anywhere if anything is selected means deselection }
+  );
+
   { TVisualGridSelection }
 
   TVisualGridSelection = record
@@ -89,7 +97,7 @@ type
 
   { TVisualGridOptions }
 
-  TVisualGridOptions = set of (vgoColAutoFill, vgoColSizing, vgoAllowDeselect,
+  TVisualGridOptions = set of (vgoColAutoFill, vgoColSizing,
     vgoMultiSearchCheckComboBox, vgoSortDirectionAllowNone);
 
   { TSortMode }
@@ -210,6 +218,8 @@ type
   protected { events for UI }
     procedure StandardDrawCell(Sender: TObject; ACol, ARow: Longint;
       Rect: TRect; State: TGridDrawState);
+    procedure GridMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
     procedure GridMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure SearchKindPopupMenuClick(Sender: TObject);
@@ -237,6 +247,7 @@ type
     FCanPage: boolean;
     FCanSearch: boolean;
     FSelectionType: TSelectionType;
+    FDeselectionType: TDeselectionType;
     FCurrentSelectionType: TSelectionType;
     FLastSelection: TVisualGridSelection;
     FIgnoreSelectionEvent: boolean;
@@ -271,6 +282,7 @@ type
     procedure SetPageIndex(Value: Integer);
     procedure SetPageSize(Value: Integer);
     procedure SetSelectionType(AValue: TSelectionType);
+    procedure SetDeselectionType(AValue: TDeselectionType);
     procedure SetWidgetControl(AValue: TControl);
     function CalculateCellContentRect(const ARect : TRect) : TRect;
   protected { TComponent }
@@ -336,6 +348,7 @@ type
     property Options: TVisualGridOptions read FOptions write SetOptions;
     property Canvas: TCanvas read GetCanvas;
     property SelectionType: TSelectionType read FSelectionType write SetSelectionType;
+    property DeselectionType: TDeselectionType read FDeselectionType write SetDeselectionType;
     property Selection: TVisualGridSelection read GetSelection;
     property SelectedRows : TArray<Variant> read GetSelectedRows;
     property SortMode: TSortMode read FSortMode write SetSortMode;
@@ -374,6 +387,7 @@ type
     property CanSearch;
     property Options;
     property SelectionType;
+    property DeselectionType;
     property SortMode;
     property SearchMode;
     property FetchDataInThread;
@@ -393,7 +407,7 @@ procedure Register;
 
 implementation
 
-uses Variants, UAutoScope, Dialogs;
+uses Variants, UMemory, Dialogs;
 
 resourcestring
   sTotal = 'Total: %d';
@@ -991,6 +1005,7 @@ begin
       Align := alClient;
       BorderStyle := bsNone;
       OnDrawCell := StandardDrawCell;
+      OnMouseDown := GridMouseDown;
       OnMouseUp := GridMouseUp;
       OnSelection := GridSelection;
       OnHeaderClick := GridHeaderClick;
@@ -1481,7 +1496,7 @@ function TCustomVisualGrid.GetSelectedRows : TArray<Variant>;
 var
   sel : TVisualGridSelection;
   selectedRows : TList<Variant>;
-  GC: TScoped;
+  GC: TDisposables;
   row : Integer;
 begin
   sel := GetSelection;
@@ -1628,11 +1643,9 @@ end;
 procedure TCustomVisualGrid.SetOptions(AValue: TVisualGridOptions);
 var
   LSortDirectionAllowNone: boolean;
-  LRefreshSelection: boolean;
 begin
   if FOptions=AValue then Exit;
   LSortDirectionAllowNone := vgoSortDirectionAllowNone in FOptions;
-  LRefreshSelection := vgoAllowDeselect in FOptions;
 
   FOptions:=AValue;
   if vgoColSizing in FOptions then
@@ -1646,12 +1659,6 @@ begin
   // refresh for sort direction graphic
   if LSortDirectionAllowNone <> (vgoSortDirectionAllowNone in AValue) then
     SortDirectionGlyphRefresh;
-  // refresh selection
-  if LRefreshSelection <> (vgoAllowDeselect in AValue) then
-  begin
-    ResetLastSelection;
-    UpdateSelection(SelectionType);
-  end;
 end;
 
 procedure TCustomVisualGrid.SetRows(ARow: Integer; AValue: Variant);
@@ -2126,6 +2133,17 @@ begin
   GridSelection(Self, 0, 0);
 end;
 
+procedure TCustomVisualGrid.SetDeselectionType(AValue: TDeselectionType);
+begin
+  if FDeselectionType=AValue then
+    Exit;
+
+  FDeselectionType:=AValue;
+
+  ResetLastSelection;
+  UpdateSelection(SelectionType);
+end;
+
 procedure TCustomVisualGrid.SetWidgetControl(AValue: TControl);
 begin
   if FWidgetControl=AValue then Exit;
@@ -2178,6 +2196,26 @@ begin
     DoDrawCell(Self, ACol, ARow, Rect, State, LCellData);
 end;
 
+procedure TCustomVisualGrid.GridMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if ColCount = 0 then
+    Exit;
+
+  if FDeselectionType = dtClick then
+    case Button of
+      mbLeft:
+        if (SelectionType <> stNone) and (FDrawGrid.MouseToGridZone(X, Y) = gzNormal) then
+          if Assigned(FLastSelection.Selections) then
+          begin
+            ResetLastSelection;
+            UpdateSelection(stNone);
+            FIgnoreSelectionEvent := true;
+          end else
+            UpdateSelection(FSelectionType);
+    end;
+end;
+
 procedure TCustomVisualGrid.GridMouseUp(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 var
@@ -2214,10 +2252,13 @@ begin
             LPopup.PopUp(X, Y);
       end;
     mbLeft:
-      if (SelectionType <> stNone) and (vgoAllowDeselect in FOptions) and
+      if (SelectionType <> stNone) and (FDeselectionType <> dtNone) and
        (FDrawGrid.MouseToGridZone(X, Y) = gzNormal) then
       begin
         LSelection := GetSelection;
+        if FIgnoreSelectionEvent then
+          FIgnoreSelectionEvent:=false
+        else
         if (FCurrentSelectionType <> stNone) and SelectionsEquals(LSelection, FLastSelection) then
         begin
           ResetLastSelection;

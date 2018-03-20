@@ -24,14 +24,14 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, UConst, UAutoScope;
+uses UAccounts, UConst, UMemory;
 
 { TWIZAddKey_SelectEncryption }
 
 procedure TWIZAddKey_SelectEncryption.FormCreate(Sender: TObject);
 var
   i : Integer;
-  GC : TScoped;
+  GC : TDisposables;
   availableEncryptionTypes : TList;
   name, desc : UTF8String;
 begin

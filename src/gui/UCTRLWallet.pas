@@ -84,7 +84,7 @@ implementation
 
 uses
   UUserInterface, UBlockChain, UWallet,
-  UCommon, UAutoScope, Generics.Collections, UCommon.Collections;
+  UCommon, UMemory, Generics.Collections, UCommon.Collections;
 
 {$R *.lfm}
 
@@ -108,7 +108,8 @@ begin
   FAccountsGrid.FetchDataInThread:= true;
   FAccountsGrid.AutoPageSize:= true;
   FAccountsGrid.SelectionType:= stMultiRow;
-  FAccountsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoAllowDeselect, vgoSortDirectionAllowNone];
+  FAccountsGrid.DeselectionType:= dtDefault;
+  FAccountsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone];
   FAccountsGrid.DefaultColumnWidths := TArray<Integer>.Create(
     100,                   // Account
     CT_VISUALGRID_STRETCH, // Name
@@ -124,7 +125,8 @@ begin
   FOperationsGrid.FetchDataInThread:= true;
   FOperationsGrid.AutoPageSize:= true;
   FOperationsGrid.SelectionType:= stRow;
-  FOperationsGrid.Options := [vgoColAutoFill, vgoAllowDeselect, vgoColSizing, vgoSortDirectionAllowNone];
+  FOperationsGrid.DeselectionType:= dtDefault;
+  FOperationsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone];
   FOperationsGrid.DefaultColumnWidths := TArray<Integer>.Create(
     130,                   // Time
     CT_VISUALGRID_DEFAULT, // Block
@@ -268,7 +270,7 @@ var
   row : longint;
   selectedAccounts : Generics.Collections.TList<Cardinal>;
   acc : Cardinal;
-  GC : TScoped;
+  GC : TDisposables;
 begin
   selectedAccounts := GC.AddObject( TList<Cardinal>.Create ) as TList<Cardinal>;
 
@@ -348,7 +350,8 @@ end;
 
 procedure TCTRLWallet.miOperationInfoClick(Sender: TObject);
 begin
-  raise ENotImplemented.Create('Not Implemented');
+  if FOperationsGrid.Selection.RowCount = 0 then exit;
+  TUserInterface.ShowOperationInfoDialog(Self, FOperationsGrid.SelectedRows[0].EntityKey);
 end;
 
 end.

@@ -20,7 +20,7 @@ interface
 
 uses
   Classes, SysUtils, Generics.Collections, Generics.Defaults,
-  Variants, LazUTF8, math, typinfo, UAutoScope;
+  Variants, LazUTF8, math, typinfo, UMemory;
 
 { CONSTANTS }
 
@@ -67,6 +67,7 @@ function UtcTimeStamp : AnsiString;
 type
 
   {$IFDEF FPC}
+
   { TTimeSpan }
 
   TTimeSpan = record
@@ -129,19 +130,8 @@ type
       property TotalSeconds: Double read GetTotalSeconds;
       property TotalMilliseconds: Double read GetTotalMilliseconds;
     end;
+
   {$ENDIF}
-
-  { TAuto }
-
-  TAuto<T> = record
-    private
-      FGC : TScoped;
-      function GetItem : T;
-      procedure SetItem(const AItem: T);
-    public
-      constructor Create(const AItem: T);
-      property Item : T read GetItem write SetItem;
-  end;
 
   { TDateTimeHelper }
 
@@ -231,7 +221,6 @@ type
      function WithinSeconds(const aDateTime: TDateTime; const aSeconds: Int64): Boolean; inline;
      function WithinMilliseconds(const aDateTime: TDateTime; const AMilliseconds: Int64): Boolean; inline;
    end;
-
 
   { TItemDisposePolicy }
 
@@ -340,6 +329,7 @@ const
 { VARIABLES }
 
 var
+  {DynamicType: TDynamic = nil;}
   MinTimeStampDateTime : TDateTime = 0;
   VarTrue : Variant;
   VarFalse : Variant;
@@ -604,40 +594,8 @@ end;
 
 {$ENDIF}
 
-{%region TAuto }
-
-constructor TAuto<T>.Create(const AItem: T);
-begin
-  FGC.InitCapacity(1);
-  FGC.AddObject(AItem);
-end;
-
-function TAuto<T>.GetItem : T;
-begin
-  if FGC.Count = 1 then
-    Result := T(FGC.ItemAt(0))
-  else
-    Result := Default(T)
-end;
-
-procedure TAuto<T>.SetItem(const AItem: T);
-var
-  oldsp : TScopedPtr;
-  old : TObject;
-begin
-  while FGC.Count > 0 do begin
-    oldsp := FGC.ScopedPtrAt(0);
-    old := FGC.ItemAt(0);
-    FGC.RemoveObject(old);
-    if (oldsp.IsObject) then
-      FreeAndNil(Pointer(old));
-  end;
-  FGC.AddObject(AItem);
-end;
-
-{%endregion}
-
 {%region Language-level tools }
+
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Cardinal): Cardinal;
 begin
   if ACondition then
@@ -1541,4 +1499,3 @@ initialization
 finalization
 
 end.
-

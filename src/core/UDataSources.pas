@@ -27,6 +27,7 @@ type
       property Overview : TOverview read FLastOverview;
       property LastKnownUserAccounts : TArray<TAccount> read FLastKnownUserAccounts;
       function GetSearchCapabilities: TSearchCapabilities; override;
+      function GetEntityKey(constref AItem: TAccount) : Variant; override;
       procedure FetchAll(const AContainer : TList<TAccount>); override;
       function GetItemField(constref AItem: TAccount; const AColumnName : utf8string) : Variant; override;
       procedure DehydrateItem(constref AItem: TAccount; var ATableRow: Variant); override;
@@ -48,6 +49,7 @@ type
       property StartBlock : Cardinal read FStart write FStart;
       property EndBlock : Cardinal read FEnd write FEnd;
       function GetSearchCapabilities: TSearchCapabilities; override;
+      function GetEntityKey(constref AItem: TOperationResume) : Variant; override;
       function GetItemField(constref AItem: TOperationResume; const AColumnName : utf8string) : Variant; override;
       procedure DehydrateItem(constref AItem: TOperationResume; var ATableRow: Variant); override;
   end;
@@ -90,7 +92,7 @@ type
 
 implementation
 
-uses UWallet, UUserInterface, UAutoScope, UCommon.Collections, math, UTime;
+uses UWallet, UUserInterface, UMemory, UCommon.Collections, math, UTime;
 
 { TUserAccountsDataSource }
 
@@ -113,13 +115,18 @@ begin
   );
 end;
 
+function TUserAccountsDataSource.GetEntityKey(constref AItem: TAccount) : Variant;
+begin
+  Result := AItem.account;
+end;
+
 procedure TUserAccountsDataSource.FetchAll(const AContainer : TList<TAccount>);
 var
   i : integer;
   acc : TAccount;
   safeBox : TPCSafeBox;
   keys : TOrderedAccountKeysList;
-  GC : TScoped;
+  GC : TDisposables;
 begin
   FLastOverview.TotalPASC := 0;
   FLastOverview.TotalPASA := 0;
@@ -172,19 +179,19 @@ begin
 end;
 
 procedure TUserAccountsDataSource.DehydrateItem(constref AItem: TAccount; var ATableRow: Variant);
-var
-  index : Integer;
+//var
+//  index : Integer;
 begin
   // 'Account', 'Name', 'Balance', 'Key', 'AccType', 'State', 'Price', 'LockedUntil'
   ATableRow.Account := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account);
   ATableRow.Name := Variant(AItem.name);
   ATableRow.Balance := TAccountComp.FormatMoney(AItem.balance);
-  index := TWallet.Keys.AccountsKeyList.IndexOfAccountKey(AItem.accountInfo.accountKey);
-  if index>=0 then begin
-    ATableRow.Key := TDataSourceTool.AccountKeyShortText(TWallet.Keys[index].Name)
-  end else begin
-    ATableRow.Key := TDataSourceTool.AccountKeyShortText(TAccountComp.AccountPublicKeyExport(AItem.accountInfo.accountKey));
-  end;
+ // index := TWallet.Keys.AccountsKeyList.IndexOfAccountKey(AItem.accountInfo.accountKey);
+ // if index>=0 then begin
+ //   ATableRow.Key := TDataSourceTool.AccountKeyShortText(TWallet.Keys[index].Name)
+ // end else begin
+ //   ATableRow.Key := TDataSourceTool.AccountKeyShortText(TAccountComp.AccountPublicKeyExport(AItem.accountInfo.accountKey));
+ // end;
   ATableRow.AccType := Word(AItem.account_type);
   ATableRow.State := Cardinal(AItem.accountInfo.state);
   ATableRow.Price := TAccountComp.FormatMoney(Aitem.accountInfo.price);
@@ -249,6 +256,11 @@ begin
     TSearchCapability.From('OPHASH', SORTABLE_TEXT_FILTER),
     TSearchCapability.From('Description', SORTABLE_TEXT_FILTER)
   );
+end;
+
+function TOperationsDataSourceBase.GetEntityKey(constref AItem: TOperationResume) : Variant;
+begin
+  Result := TPCOperation.FinalOperationHashAsHexa(AItem.OperationHash);
 end;
 
 function TOperationsDataSourceBase.GetItemField(constref AItem: TOperationResume; const AColumnName : utf8string) : Variant;
@@ -380,7 +392,7 @@ var
   list : Classes.TList;
   Op : TPCOperation;
   acc : Cardinal;
-  GC : TScoped;
+  GC : TDisposables;
 begin
   if FAccounts.Count = 0
     then exit;
@@ -444,7 +456,7 @@ var
   OPR : TOperationResume;
   blockOps : TPCOperationsComp;
   node : TNode;
-  GC : TScoped;
+  GC : TDisposables;
 
 begin
   node := TNode.Node;
