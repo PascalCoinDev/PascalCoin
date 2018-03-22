@@ -220,7 +220,8 @@ begin
     strings.BeginUpdate;
     Try
       strings.Clear;
-      strings.Add('BlackList Updated: %s by TID: %p', [DateTimeToStr(now), TThread.CurrentThread.ThreadID]);
+//      strings.Add('BlackList Updated: %s by TID: %p', [DateTimeToStr(now), TThread.CurrentThread.ThreadID]);  XXXXXXXXXXXXXXXX Windows %p is invalid (not a pointer)
+      strings.Add('BlackList Updated: %s by TID: %s', [DateTimeToStr(now), IntToHex(PtrInt(TThread.CurrentThread.ThreadID),8)]);
       j := 0; n:=0;
       for i := 0 to l.Count - 1 do begin
         P := l[i];
