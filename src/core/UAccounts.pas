@@ -81,45 +81,6 @@ Type
   End;
   PAccount = ^TAccount;
 
-  { TAccountComp }
-
-  TAccountComp = Class
-  private
-  public
-    Class Function IsValidAccountKey(const account: TAccountKey; var errors : AnsiString): Boolean;
-    Class Function IsValidAccountInfo(const accountInfo: TAccountInfo; var errors : AnsiString): Boolean;
-    Class Function IsAccountForSale(const accountInfo: TAccountInfo) : Boolean;
-    Class Function IsAccountForSaleAcceptingTransactions(const accountInfo: TAccountInfo) : Boolean;
-    Class Function GetECInfoTxt(Const EC_OpenSSL_NID: Word) : AnsiString;
-    Class Procedure ValidsEC_OpenSSL_NID(list : TList);
-    Class Function AccountKey2RawString(const account: TAccountKey): TRawBytes; overload;
-    Class procedure AccountKey2RawString(const account: TAccountKey; var dest: TRawBytes); overload;
-    Class Function RawString2Accountkey(const rawaccstr: TRawBytes): TAccountKey; overload;
-    Class procedure RawString2Accountkey(const rawaccstr: TRawBytes; var dest: TAccountKey); overload;
-    Class Function PrivateToAccountkey(key: TECPrivateKey): TAccountKey;
-    Class Function IsAccountBlockedByProtocol(account_number, blocks_count : Cardinal) : Boolean;
-    Class Function EqualAccountInfos(const accountInfo1,accountInfo2 : TAccountInfo) : Boolean;
-    Class Function EqualAccountKeys(const account1,account2 : TAccountKey) : Boolean;
-    Class Function AccountNumberToAccountTxtNumber(account_number : Cardinal) : AnsiString;
-    Class function AccountTxtNumberToAccountNumber(Const account_txt_number : AnsiString; var account_number : Cardinal) : Boolean;
-    Class function FormatMoney(Money : Int64) : AnsiString;
-    Class function FormatMoneyDecimal(Money : Int64) : Single;
-    Class Function TxtToMoney(Const moneytxt : AnsiString; var money : Int64) : Boolean;
-    Class Function AccountKeyFromImport(Const HumanReadable : AnsiString; var account : TAccountKey; var errors : AnsiString) : Boolean;
-    Class Function AccountPublicKeyExport(Const account : TAccountKey) : AnsiString;
-    Class Function AccountPublicKeyImport(Const HumanReadable : AnsiString; var account : TAccountKey; var errors : AnsiString) : Boolean;
-    Class Function AccountBlock(Const account_number : Cardinal) : Cardinal;
-    Class Function AccountInfo2RawString(const AccountInfo : TAccountInfo) : TRawBytes; overload;
-    Class procedure AccountInfo2RawString(const AccountInfo : TAccountInfo; var dest : TRawBytes); overload;
-    Class procedure SaveAccountToAStream(Stream: TStream; const Account : TAccount);
-    Class Function RawString2AccountInfo(const rawaccstr: TRawBytes): TAccountInfo; overload;
-    Class procedure RawString2AccountInfo(const rawaccstr: TRawBytes; var dest : TAccountInfo); overload;
-    Class Function IsAccountLocked(const AccountInfo : TAccountInfo; blocks_count : Cardinal) : Boolean;
-    Class procedure SaveTOperationBlockToStream(const stream : TStream; const operationBlock:TOperationBlock);
-    Class Function LoadTOperationBlockFromStream(const stream : TStream; var operationBlock:TOperationBlock) : Boolean;
-    Class Function AccountToTxt(const Account : TAccount) : AnsiString;
-  End;
-
   {
     Protocol 2:
     Introducing OperationBlock info on the safebox, this will allow checkpointing a safebox because
@@ -145,6 +106,48 @@ Type
     block_hash: TRawBytes;   // Calculated on every block change (on create and on accounts updated)
     accumulatedWork : UInt64; // Accumulated work (previous + target) this value can be calculated.
   end;
+
+  { TAccountComp }
+
+  TAccountComp = Class
+  private
+  public
+    Class Function IsValidAccountKey(const account: TAccountKey; var errors : AnsiString): Boolean;
+    Class Function IsValidAccountInfo(const accountInfo: TAccountInfo; var errors : AnsiString): Boolean;
+    Class Function IsAccountForSale(const accountInfo: TAccountInfo) : Boolean;
+    Class Function IsAccountForSaleAcceptingTransactions(const accountInfo: TAccountInfo) : Boolean;
+    Class Function GetECInfoTxt(Const EC_OpenSSL_NID: Word) : AnsiString;
+    Class Procedure ValidsEC_OpenSSL_NID(list : TList);
+    Class Function AccountKey2RawString(const account: TAccountKey): TRawBytes; overload;
+    Class procedure AccountKey2RawString(const account: TAccountKey; var dest: TRawBytes); overload;
+    Class Function RawString2Accountkey(const rawaccstr: TRawBytes): TAccountKey; overload;
+    Class procedure RawString2Accountkey(const rawaccstr: TRawBytes; var dest: TAccountKey); overload;
+    Class Function PrivateToAccountkey(key: TECPrivateKey): TAccountKey;
+    Class Function IsAccountBlockedByProtocol(account_number, blocks_count : Cardinal) : Boolean;
+    Class Function EqualAccountInfos(const accountInfo1,accountInfo2 : TAccountInfo) : Boolean;
+    Class Function EqualAccountKeys(const account1,account2 : TAccountKey) : Boolean;
+    Class Function EqualAccounts(const account1,account2 : TAccount) : Boolean;
+    Class Function EqualOperationBlocks(const opBlock1,opBlock2 : TOperationBlock) : Boolean;
+    Class Function EqualBlockAccounts(const blockAccount1,blockAccount2 : TBlockAccount) : Boolean;
+    Class Function AccountNumberToAccountTxtNumber(account_number : Cardinal) : AnsiString;
+    Class function AccountTxtNumberToAccountNumber(Const account_txt_number : AnsiString; var account_number : Cardinal) : Boolean;
+    Class function FormatMoney(Money : Int64) : AnsiString;
+    Class function FormatMoneyDecimal(Money : Int64) : Single;
+    Class Function TxtToMoney(Const moneytxt : AnsiString; var money : Int64) : Boolean;
+    Class Function AccountKeyFromImport(Const HumanReadable : AnsiString; var account : TAccountKey; var errors : AnsiString) : Boolean;
+    Class Function AccountPublicKeyExport(Const account : TAccountKey) : AnsiString;
+    Class Function AccountPublicKeyImport(Const HumanReadable : AnsiString; var account : TAccountKey; var errors : AnsiString) : Boolean;
+    Class Function AccountBlock(Const account_number : Cardinal) : Cardinal;
+    Class Function AccountInfo2RawString(const AccountInfo : TAccountInfo) : TRawBytes; overload;
+    Class procedure AccountInfo2RawString(const AccountInfo : TAccountInfo; var dest : TRawBytes); overload;
+    Class procedure SaveAccountToAStream(Stream: TStream; const Account : TAccount);
+    Class Function RawString2AccountInfo(const rawaccstr: TRawBytes): TAccountInfo; overload;
+    Class procedure RawString2AccountInfo(const rawaccstr: TRawBytes; var dest : TAccountInfo); overload;
+    Class Function IsAccountLocked(const AccountInfo : TAccountInfo; blocks_count : Cardinal) : Boolean;
+    Class procedure SaveTOperationBlockToStream(const stream : TStream; const operationBlock:TOperationBlock);
+    Class Function LoadTOperationBlockFromStream(const stream : TStream; var operationBlock:TOperationBlock) : Boolean;
+    Class Function AccountToTxt(const Account : TAccount) : AnsiString;
+  End;
 
   TCardinalsArray = Array of Cardinal;
 
@@ -524,6 +527,41 @@ Begin
     end;
   finally
     TLog.NewLog(ltDebug,'Check_Safebox_Names_Consistency','Used time '+IntToStr(TPlatform.GetElapsedMilliseconds(tc))+' milliseconds');
+  end;
+end;
+
+{ This function is for testing purpose only.
+  Will check if Accounts are Ok }
+Procedure Check_Safebox_Integrity(sb : TPCSafebox; title: String);
+var i,j,n,maxBlock : Integer;
+  bl_my, bl_modified : TBlockAccount;
+  auxH : TRawBytes;
+  errs : AnsiString;
+Begin
+  For i:=0 to sb.FModifiedBlocksFinalState.Count-1 do begin
+    bl_modified := sb.FModifiedBlocksFinalState.Get(i);
+    bl_my := sb.Block(bl_modified.blockchainInfo.block);
+    If Not TAccountComp.EqualBlockAccounts(bl_my,bl_modified) then begin
+      Raise Exception.Create(Format('%s Integrity on modified (i)=%d for block number:%d',[title, i,bl_my.blockchainInfo.block]));
+    end;
+    If TBaseType.BinStrComp( sb.CalcBlockHash(bl_modified,sb.FCurrentProtocol>=CT_PROTOCOL_2), bl_modified.block_hash)<>0 then begin
+      Raise Exception.Create(Format('%s Integrity on block hash (i)=%d for block number:%d',[title, i,bl_my.blockchainInfo.block]));
+    end;
+  end;
+  auxH := '';
+  errs := '';
+  maxBlock := sb.BlocksCount;
+  for i:=0 to sb.BlocksCount-1 do begin
+    bl_my := sb.Block(i);
+    for j:=Low(bl_my.accounts) to High(bl_my.accounts) do begin
+      If maxBlock < (bl_my.accounts[j].updated_block) then begin
+        Raise Exception.Create(Format('%s Integrity on (i)=%d for block account:%d updated on %d > maxBlock %d',[title, i,bl_my.accounts[j].account,bl_my.accounts[j].updated_block,maxBlock]));
+      end;
+    end;
+    auxH := auxH + bl_my.block_hash;
+  end;
+  If TBaseType.BinStrComp(sb.FBufferBlocksHash,auxH)<>0 then begin
+    Raise Exception.Create(Format('%s Integrity different Buffer Block Hash',[title]));
   end;
 end;
 
@@ -1101,6 +1139,49 @@ begin
     (account1.x=account2.x) And (account1.y=account2.y);
 end;
 
+class function TAccountComp.EqualAccounts(const account1, account2: TAccount): Boolean;
+begin
+  Result := (account1.account = account2.account)
+          And (EqualAccountInfos(account1.accountInfo,account2.accountInfo))
+          And (account1.balance = account2.balance)
+          And (account1.updated_block = account2.updated_block)
+          And (account1.n_operation = account2.n_operation)
+          And (TBaseType.BinStrComp(account1.name,account2.name)=0)
+          And (account1.account_type = account2.account_type)
+          And (account1.previous_updated_block = account2.previous_updated_block);
+end;
+
+class function TAccountComp.EqualOperationBlocks(const opBlock1, opBlock2: TOperationBlock): Boolean;
+begin
+  Result := (opBlock1.block = opBlock1.block)
+          And (EqualAccountKeys(opBlock1.account_key,opBlock2.account_key))
+          And (opBlock1.reward = opBlock2.reward)
+          And (opBlock1.fee = opBlock2.fee)
+          And (opBlock1.protocol_version = opBlock2.protocol_version)
+          And (opBlock1.protocol_available = opBlock2.protocol_available)
+          And (opBlock1.timestamp = opBlock2.timestamp)
+          And (opBlock1.compact_target = opBlock2.compact_target)
+          And (opBlock1.nonce = opBlock2.nonce)
+          And (TBaseType.BinStrComp(opBlock1.block_payload,opBlock2.block_payload)=0)
+          And (TBaseType.BinStrComp(opBlock1.initial_safe_box_hash,opBlock2.initial_safe_box_hash)=0)
+          And (TBaseType.BinStrComp(opBlock1.operations_hash,opBlock2.operations_hash)=0)
+          And (TBaseType.BinStrComp(opBlock1.proof_of_work,opBlock2.proof_of_work)=0);
+end;
+
+class function TAccountComp.EqualBlockAccounts(const blockAccount1, blockAccount2: TBlockAccount): Boolean;
+Var i : Integer;
+begin
+  Result := (EqualOperationBlocks(blockAccount1.blockchainInfo,blockAccount2.blockchainInfo))
+          And (TBaseType.BinStrComp(blockAccount1.block_hash,blockAccount2.block_hash)=0)
+          And (blockAccount1.accumulatedWork = blockAccount2.accumulatedWork);
+  If Result then begin
+    for i:=Low(blockAccount1.accounts) to High(blockAccount1.accounts) do begin
+      Result := EqualAccounts(blockAccount1.accounts[i],blockAccount2.accounts[i]);
+      If Not Result then Exit;
+    end;
+  end;
+end;
+
 
 class function TAccountComp.FormatMoney(Money: Int64): AnsiString;
 begin
@@ -1581,8 +1662,8 @@ begin
   end;
 end;
 
-
 function TPCSafeBox.AddNew(const blockChain: TOperationBlock): TBlockAccount;
+
 var i, base_addr : Integer;
   Pblock : PBlockAccount;
   accs : Array of cardinal;
@@ -1592,6 +1673,7 @@ begin
   Result.blockchainInfo := blockChain;
   If blockChain.block<>BlocksCount then Raise Exception.Create(Format('ERROR DEV 20170427-2 blockchain.block:%d <> BlocksCount:%d',[blockChain.block,BlocksCount]));
   If blockChain.fee<>FTotalFee then Raise Exception.Create(Format('ERROR DEV 20170427-3 blockchain.fee:%d <> Safebox.TotalFee:%d',[blockChain.fee,FTotalFee]));
+
   base_addr := BlocksCount * CT_AccountsPerBlock;
   setlength(accs,length(Result.accounts));
   for i := Low(Result.accounts) to High(Result.accounts) do begin
@@ -1701,9 +1783,10 @@ begin
   StartThreadSafe;
   try
     If (Assigned(FPreviousSafeBox)) then begin
+      if (block_number<0) Or (block_number>=BlocksCount) then raise Exception.Create('Invalid block number for chain: '+inttostr(block_number)+' max: '+IntToStr(BlocksCount-1));
       SearchBlockWhenOnSeparatedChain(block_number,Result);
     end else begin
-      if (block_number<0) Or (block_number>=FBlockAccountsList.Count) then raise Exception.Create('Invalid block number: '+inttostr(block_number));
+      if (block_number<0) Or (block_number>=FBlockAccountsList.Count) then raise Exception.Create('Invalid block number: '+inttostr(block_number)+' max: '+IntToStr(FBlockAccountsList.Count-1));
       ToTBlockAccount(PBlockAccount(FBlockAccountsList.Items[block_number])^,block_number,Result);
     end;
   finally
@@ -2191,6 +2274,8 @@ begin
       if Not Check_Safebox_Names_Consistency(Self,'CHAIN',errors) then begin
         if errors='' then Raise Exception.Create('Check_Safebox_Names_Consistency '+errors);
       end;
+      Check_Safebox_Integrity(FPreviousSafeBox,'INTEGRITY PREVIOUS');
+      Check_Safebox_Integrity(Self,'INTEGRITY CHAIN');
       {$ENDIF}
       TLog.NewLog(ltdebug,ClassName,Format('Check process end',[]));
     finally
@@ -2280,14 +2365,20 @@ begin
     For i:=FSnapshots.Count-1 downto (iPrevSnapshotTarget+1) do begin
       Psnapshot := FSnapshots[i];
       TLog.NewLog(ltdebug,ClassName,Format('Executing %d/%d rollback %d blocks changed at block %d',[i+1,FSnapshots.Count,Psnapshot^.oldBlocks.Count,Psnapshot^.nBlockNumber]));
+
       // Must UNDO changes:
       UndoModifiedBlocks(Psnapshot^.oldBlocks);
       UndoAddedDeletedNames(Psnapshot^.namesAdded,Psnapshot^.namesDeleted);
+
       // Undo Created BlockAccount
       // Undo ONLY of if not target
       PBlock:=FBlockAccountsList.Items[FBlockAccountsList.Count-1];
       FBlockAccountsList.Delete(FBlockAccountsList.Count-1);
       Dispose(PBlock);
+
+      // Redo FBufferBlocksHash
+      SetLength(FBufferBlocksHash,Length(FBufferBlocksHash)-32);
+
       // Delete
       FSnapshots.Delete(i);
       Psnapshot^.oldBlocks.Free;
@@ -2300,6 +2391,11 @@ begin
     end;
     // Set saved Safebox values:
     Psnapshot := FSnapshots[iPrevSnapshotTarget];
+
+    If TBaseType.BinStrComp(FBufferBlocksHash,Psnapshot^.oldBufferBlocksHash)<>0 then begin
+      raise Exception.Create('ERROR DEV 20180322-1 Rollback invalid BufferBlocksHash value');
+    end;
+
     FBufferBlocksHash := Psnapshot^.oldBufferBlocksHash;
     FTotalBalance := Psnapshot^.oldTotalBalance;
     FTotalFee := Psnapshot^.oldTotalFee;
@@ -3152,7 +3248,7 @@ procedure TPCSafeBox.SearchBlockWhenOnSeparatedChain(blockNumber: Cardinal; out 
     for j:=Low(blockAccount.accounts) to High(blockAccount.accounts) do begin
       If blockAccount.accounts[j].updated_block>maxUB then maxUB := blockAccount.accounts[j].updated_block;
     end;
-    Result := maxUB <= FPreviousSafeboxOriginBlock;
+    Result := (maxUB <= FPreviousSafeboxOriginBlock);
   end;
 var i,j : Integer;
   Pss : PSafeboxSnapshot;
@@ -3168,6 +3264,12 @@ begin
     blockAccount := FPreviousSafeBox.Block(blockNumber);
     // Is valid?
     If WasUpdatedBeforeOrigin then Exit;
+    //
+    If FPreviousSafeBox.FModifiedBlocksPreviousState.Find(blockNumber,j) then begin
+      blockAccount := FPreviousSafeBox.FModifiedBlocksPreviousState.Get(j);
+      if WasUpdatedBeforeOrigin then Exit;
+    end;
+
     // Must search on Previous when was updated!
     i := FPreviousSafeBox.FSnapshots.Count-1;
     while (i>=0) do begin
@@ -3297,10 +3399,8 @@ begin
   // Save new account values
   blockAccount.block_hash:=CalcBlockHash(blockAccount,FCurrentProtocol >= CT_PROTOCOL_2);
   FModifiedBlocksFinalState.Add(blockAccount);
-  If (Not (accountUpdateStyle=aus_rollback)) then begin
-    If Assigned(FPreviousSafeBox) then begin
-      FModifiedBlocksSeparatedChain.Add(blockAccount);
-    end;
+  If Assigned(FPreviousSafeBox) then begin
+    FModifiedBlocksSeparatedChain.Add(blockAccount);
   end;
   If (Assigned(Pblock)) then begin
     ToTMemAccount(blockAccount.accounts[iAccount],Pblock^.accounts[iAccount]);
