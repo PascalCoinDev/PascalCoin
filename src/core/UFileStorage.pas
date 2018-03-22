@@ -234,7 +234,9 @@ begin
     if Not GetBlockHeaderFirstBytePosition(stream,StartingDeleteBlock,False,iBlockHeaders,BlockHeaderFirstBlock) then exit;
     If Not StreamReadBlockHeader(Stream,iBlockHeaders,BlockHeaderFirstBlock,StartingDeleteBlock,True,_Header) then exit;
     _intBlockIndex := (_Header.BlockNumber-BlockHeaderFirstBlock);
-    p := Int64(_intBlockIndex) * Int64(CT_SizeOfBlockHeader);
+//XXXXXXXXXX BUG !!!    p := Int64(_intBlockIndex) * Int64(CT_SizeOfBlockHeader);
+    p := FBlockHeadersFirstBytePosition[iBlockHeaders] + (Int64(_intBlockIndex) * Int64(CT_SizeOfBlockHeader));
+
     Stream.Position:=p;
     // Write null data until end of header
     GrowStreamUntilPos(Stream,FBlockHeadersFirstBytePosition[iBlockHeaders] + GetBlockHeaderFixedSize,true);

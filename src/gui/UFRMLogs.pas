@@ -72,8 +72,10 @@ begin
       memoLogs.Lines.EndUpdate;
     end;
   end;
-  memoLogs.Lines.Add('%s %s %p [%s] <%s> %s',
-    [FormatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time), s, ThreadID, CT_LogType[Logtype], sender, logtext]);
+  //memoLogs.Lines.Add('%s %s %p [%s] <%s> %s',                                                             XXXXXXXXXXXXXXXX Windows %p is invalid (not a pointer)
+  //  [FormatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time), s, ThreadID, CT_LogType[Logtype], sender, logtext]); XXXXXXXXXXXXXXXX Windows %p is invalid (not a pointer)
+  memoLogs.Lines.Add('%s %s %s [%s] <%s> %s',
+    [FormatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time), s, IntToHex(PtrInt(ThreadID),8), CT_LogType[Logtype], sender, logtext]);
 end;
 
 end.

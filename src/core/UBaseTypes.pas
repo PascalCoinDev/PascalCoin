@@ -299,7 +299,7 @@ end;
 
 class function TPlatform.GetElapsedMilliseconds(const previousTickCount: TTickCount): Int64;
 begin
-  Result := (Self.GetTickCount - previousTickCount){$IFDEF CPU64} DIV 1000{$ENDIF};
+  Result := (Self.GetTickCount - previousTickCount);
 end;
 
 class function TPlatform.GetTickCount: TTickCount;
