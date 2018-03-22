@@ -1,0 +1,18 @@
+object WIZSendPASC_Confirmation: TWIZSendPASC_Confirmation
+  Left = 0
+  Height = 253
+  Top = 0
+  Width = 429
+  Caption = 'WIZSendPASC_Confirmation'
+  ClientHeight = 253
+  ClientWidth = 429
+  Visible = False
+  object Edit1: TEdit
+    Left = 144
+    Height = 23
+    Top = 148
+    Width = 80
+    TabOrder = 0
+    Text = 'Edit1'
+  end
+end

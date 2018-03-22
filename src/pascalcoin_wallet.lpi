@@ -33,7 +33,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="70">
+    <Units Count="74">
       <Unit0>
         <Filename Value="pascalcoin_wallet.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -388,9 +388,37 @@
         <IsPartOfProject Value="True"/>
       </Unit68>
       <Unit69>
-        <Filename Value="libraries\sphere10\UAutoScope.pas"/>
+        <Filename Value="gui\wizards\UWIZSendPASC.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit69>
+      <Unit70>
+        <Filename Value="gui\wizards\UWIZSendPASC_Confirmation.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZSendPASC_Confirmation"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit70>
+      <Unit71>
+        <Filename Value="gui\wizards\UWIZSendPASC_Start.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZSendPASC_Start"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit71>
+      <Unit72>
+        <Filename Value="gui\wizards\UWIZSendPASC_Transaction.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZSendPASC_Transaction"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit72>
+      <Unit73>
+        <Filename Value="gui\wizards\UWIZSendPASC_Completion.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZSendPASC_Completion"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit73>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
