@@ -1536,7 +1536,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     finished : Boolean;
     Bank : TPCBank;
     ms : TMemoryStream;
-    IsAScam : Boolean;
+    IsAScam, IsUsingSnapshot : Boolean;
   Begin
     IsAScam := false;
     TLog.NewLog(ltdebug,CT_LogSender,Format('GetNewBank(new_start_block:%d)',[start_block]));
@@ -1547,8 +1547,20 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       Bank.Storage.ReadOnly := true;
       Bank.Storage.CopyConfiguration(TNode.Node.Bank.Storage);
       if start_block>=0 then begin
-        // Restore a part
-        Bank.DiskRestoreFromOperations(start_block-1);
+        If (TNode.Node.Bank.SafeBox.GetMinimumAvailableSnapshotBlock<start_block) then begin
+          // XXXXXXXXXXXXX
+          // XXXXXXXXXXXXX
+          // Restore from a Snapshot (New on V3) instead of restore reading from File
+          // XXXXXXXXXXXXX
+          // XXXXXXXXXXXXX
+          Bank.SafeBox.SetToPrevious(TNode.Node.Bank.SafeBox,start_block-1);
+          Bank.UpdateValuesFromSafebox;
+          IsUsingSnapshot := True;
+        end else begin
+          // Restore a part from disk
+          Bank.DiskRestoreFromOperations(start_block-1);
+          IsUsingSnapshot := False;
+        end;
         start := start_block;
       end else begin
         start := 0;
@@ -1631,10 +1643,26 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
             end;
             TNode.Node.Bank.Storage.MoveBlockChainBlocks(start_block,Inttostr(start_block)+'_'+FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now)),Nil);
             Bank.Storage.MoveBlockChainBlocks(start_block,TNode.Node.Bank.Storage.Orphan,TNode.Node.Bank.Storage);
-            TNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
+            //
+            If IsUsingSnapshot then begin
+              TLog.NewLog(ltInfo,ClassName,'Commiting new chain to Safebox');
+              Bank.SafeBox.CommitToPrevious;
+              Bank.UpdateValuesFromSafebox;
+              {$IFDEF Check_Safebox_Names_Consistency}
+              If Not Check_Safebox_Names_Consistency(Bank.SafeBox,'Commited',errors) then begin
+                TLog.NewLog(lterror,ClassName,'Fatal safebox consistency error getting bank at block '+IntTosTr(start_block)+' : '+errors);
+                Sleep(1000);
+                halt(0);
+              end;
+              {$ENDIF}
+            end else begin
+              TLog.NewLog(ltInfo,ClassName,'Restoring modified Safebox from Disk');
+              TNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
+            end;
           Finally
             TNode.Node.EnableNewBlocks;
           End;
+          TNode.Node.NotifyBlocksChanged;
           // Finally add new operations:
           // Rescue old operations from old blockchain to new blockchain
           If oldBlockchainOperations.OperationsCount>0 then begin

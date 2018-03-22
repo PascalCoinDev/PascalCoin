@@ -38,6 +38,9 @@ Also, consider a donation at PascalCoin development account: "0-10"
 - TODO: Explore possible modification to sinoidial effect on blocks time (No PIP) 
 - TODO: PIP - 0010
 - TODO: Add new network operations
+- New Safebox Snapshoting
+  - This allow quickly rollback/commit directly to Safebox instead of create a separate Safebox on memory (read from disk... use more ram...)
+  - Is usefull when detecting posible orphan blocks in order to check which chain is the highest chain without duplicating a safebox to compare
 - New Node network operations
   - Get pending operations (code $0030)
     - Implementation of the PIP-0013 (not exactly but with similar features)	
@@ -79,6 +82,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
   - Protection on GetBlocks and GetBlockOperations
 - Merged new GUI with current stable core
 - New folders organization
+- Bugs solved
 
 ### Build 2.1.6 - 2018-02-14
 - Important improvements

@@ -160,6 +160,8 @@ Const
   CT_MAX_MultiOperation_Receivers = 10000;
   CT_MAX_MultiOperation_Changers = 1000;
 
+  CT_DEFAULT_MaxSafeboxSnapshots = 10;
+
   // App Params
   CT_PARAM_GridAccountsStream = 'GridAccountsStreamV2';
   CT_PARAM_GridAccountsPos = 'GridAccountsPos';

@@ -106,6 +106,7 @@ Type
     Procedure SynchronizedProcess;
   protected
     procedure BCExecute; override;
+  public
     Constructor Create(ANodeNotifyEvents : TNodeNotifyEvents);
   End;
 
@@ -120,10 +121,11 @@ Type
     FOnOperationsChanged: TNotifyEvent;
     FMessages : TStringList;
     FOnNodeMessageEvent: TNodeMessageEvent;
-    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     procedure SetNode(const Value: TNode);
     Procedure NotifyBlocksChanged;
     Procedure NotifyOperationsChanged;
+  protected
+    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
     Constructor Create(AOwner : TComponent); override;
     Destructor Destroy; override;
@@ -264,6 +266,7 @@ begin
         end;
         TLog.NewLog(ltdebug,ClassName,'Buffer Sent operations: '+IntToStr(FSentOperations.Count));
         // Notify to clients
+        {$IFnDEF TESTING_NO_POW_CHECK}
         j := TNetData.NetData.ConnectionsCountAll;
         for i:=0 to j-1 do begin
           if (TNetData.NetData.GetConnection(i,nc)) then begin
@@ -272,6 +275,7 @@ begin
             end;
           end;
         end;
+        {$ENDIF}
       Finally
         opsht.Free;
       End;
@@ -1020,6 +1024,7 @@ end;
 procedure TNode.OnBankNewBlock(Sender: TObject);
 begin
   FOperations.SanitizeOperations;
+  NotifyBlocksChanged;
 end;
 
 function TNode.SendNodeMessage(Target: TNetConnection; TheMessage: AnsiString; var errors: AnsiString): Boolean;

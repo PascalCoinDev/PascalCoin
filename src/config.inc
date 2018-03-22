@@ -41,6 +41,12 @@
   // HighLog will result in a higher log generation
   {.$DEFINE HIGHLOG}
 
+  // Warning: This define is only for testing purposes! Never enable it!
+  {.$DEFINE TESTING_NO_POW_CHECK}
+
+  // This will allow check safebox names list. Warning: This will slow app
+  {.$DEFINE Check_Safebox_Names_Consistency}
+
 { ********************************************************************
   Don't touch more code, it will addapt based on your preferences
   ******************************************************************** }

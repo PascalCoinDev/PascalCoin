@@ -455,6 +455,7 @@ Type
     Property SafeBox : TPCSafeBox read FSafeBox;
     Function AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var newBlock: TBlockAccount; var errors: AnsiString): Boolean;
     Procedure DiskRestoreFromOperations(max_block : Int64);
+    Procedure UpdateValuesFromSafebox;
     Procedure NewLog(Operations: TPCOperationsComp; Logtype: TLogType; Logtxt: AnsiString);
     Property OnLog: TPCBankLog read FOnLog write FOnLog;
     Property LastOperationBlock : TOperationBlock read FLastOperationBlock; // TODO: Use
@@ -688,6 +689,39 @@ begin
   end;
 end;
 
+procedure TPCBank.UpdateValuesFromSafebox;
+Var aux : AnsiString;
+  i : Integer;
+begin
+  { Will update current Bank state based on Safbox state
+    Used when commiting a Safebox or rolling back }
+  Try
+    TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+    try
+      FLastBlockCache.Clear(True);
+      FLastOperationBlock := TPCOperationsComp.GetFirstBlock;
+      FLastOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash); // Genesis hash
+      If FSafeBox.BlocksCount>0 then begin
+        Storage.Initialize;
+        If Storage.LoadBlockChainBlock(FLastBlockCache,FSafeBox.BlocksCount-1) then begin
+          FLastOperationBlock := FLastBlockCache.OperationBlock;
+        end else begin
+          aux := 'Cannot read last operations block '+IntToStr(FSafeBox.BlocksCount-1)+' from blockchain';
+          TLog.NewLog(lterror,ClassName,aux);
+          Raise Exception.Create(aux);
+        end;
+      end;
+      TLog.NewLog(ltinfo,ClassName,Format('Updated Bank with Safebox values. Current block:%d ',[FLastOperationBlock.block]));
+    finally
+      FBankLock.Release;
+    end;
+  finally
+    for i := 0 to FNotifyList.Count - 1 do begin
+      TPCBankNotify(FNotifyList.Items[i]).NotifyNewBlock;
+    end;
+  end;
+end;
+
 function TPCBank.GetActualTargetSecondsAverage(BackBlocks: Cardinal): Real;
 Var ts1, ts2: Int64;
 begin
@@ -736,7 +770,7 @@ begin
   Result := FStorage;
 end;
 
-function TPCBank.IsReady(var CurrentProcess: AnsiString): Boolean;
+function TPCBank.IsReady(Var CurrentProcess: AnsiString): Boolean;
 begin
   Result := false;
   CurrentProcess := '';
@@ -922,18 +956,18 @@ begin
 
     FOperationBlock.timestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
     if Assigned(FBank) then begin
-      FOperationBlock.protocol_version := bank.SafeBox.CurrentProtocol;
+      FOperationBlock.protocol_version := FBank.SafeBox.CurrentProtocol;
       If (FOperationBlock.protocol_version=CT_PROTOCOL_1) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_2)) then begin
         FOperationBlock.protocol_version := CT_PROTOCOL_2; // If minting... upgrade to Protocol 2
       end else if (FOperationBlock.protocol_version=CT_PROTOCOL_2) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_3)) then begin
         FOperationBlock.protocol_version := CT_PROTOCOL_3; // If minting... upgrade to Protocol 3
       end;
-      FOperationBlock.block := bank.BlocksCount;
-      FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(bank.BlocksCount);
-      FOperationBlock.compact_target := bank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
-      FOperationBlock.initial_safe_box_hash := bank.SafeBox.SafeBoxHash;
-      If Bank.LastOperationBlock.timestamp>FOperationBlock.timestamp then
-        FOperationBlock.timestamp := Bank.LastOperationBlock.timestamp;
+      FOperationBlock.block := FBank.BlocksCount;
+      FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(FBank.BlocksCount);
+      FOperationBlock.compact_target := FBank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
+      FOperationBlock.initial_safe_box_hash := FBank.SafeBox.SafeBoxHash;
+      If FBank.LastOperationBlock.timestamp>FOperationBlock.timestamp then
+        FOperationBlock.timestamp := FBank.LastOperationBlock.timestamp;
     end else begin
       FOperationBlock.block := 0;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(0);
@@ -987,7 +1021,7 @@ begin
     lastopb := FOperationBlock;
     FOperationBlock := Operations.FOperationBlock;
     FOperationBlock.account_key := lastopb.account_key; // Except AddressKey
-    FOperationBlock.compact_target := Bank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
+    FOperationBlock.compact_target := FBank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
     FIsOnlyOperationBlock := Operations.FIsOnlyOperationBlock;
     FOperationsHashTree.CopyFromHashTree(Operations.FOperationsHashTree);
     FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
@@ -1021,7 +1055,7 @@ begin
   FSafeBoxTransaction := Nil;
   FPreviousUpdatedBlocks := TAccountPreviousBlockInfo.Create;
   if Assigned(AOwner) And (AOwner is TPCBank) then begin
-    Bank := TPCBank(AOwner);
+    SetBank( TPCBank(AOwner) );
   end else Clear(true);
 end;
 
@@ -1267,7 +1301,7 @@ begin
   Try
     FOperationBlock.timestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
     if Assigned(FBank) then begin
-      FOperationBlock.protocol_version := bank.SafeBox.CurrentProtocol;
+      FOperationBlock.protocol_version := FBank.SafeBox.CurrentProtocol;
       If (FOperationBlock.protocol_version=CT_PROTOCOL_1) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_2)) then begin
         TLog.NewLog(ltinfo,ClassName,'New miner protocol version to 2 at sanitize');
         FOperationBlock.protocol_version := CT_PROTOCOL_2;
@@ -1275,12 +1309,12 @@ begin
         TLog.NewLog(ltinfo,ClassName,'New miner protocol version to 3 at sanitize');
         FOperationBlock.protocol_version := CT_PROTOCOL_3;
       end;
-      FOperationBlock.block := bank.BlocksCount;
-      FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(bank.BlocksCount);
-      FOperationBlock.compact_target := bank.SafeBox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
-      FOperationBlock.initial_safe_box_hash := bank.SafeBox.SafeBoxHash;
-      If Bank.LastOperationBlock.timestamp>FOperationBlock.timestamp then
-        FOperationBlock.timestamp := Bank.LastOperationBlock.timestamp;
+      FOperationBlock.block := FBank.BlocksCount;
+      FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(FBank.BlocksCount);
+      FOperationBlock.compact_target := FBank.SafeBox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
+      FOperationBlock.initial_safe_box_hash := FBank.SafeBox.SafeBoxHash;
+      If FBank.LastOperationBlock.timestamp>FOperationBlock.timestamp then
+        FOperationBlock.timestamp := FBank.LastOperationBlock.timestamp;
     end else begin
       FOperationBlock.block := 0;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(0);
@@ -1484,8 +1518,8 @@ begin
   Lock;
   Try
     ts := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
-    if Assigned(bank) then begin
-      If Bank.FLastOperationBlock.timestamp>ts then ts := Bank.FLastOperationBlock.timestamp;
+    if Assigned(FBank) then begin
+      If FBank.FLastOperationBlock.timestamp>ts then ts := FBank.FLastOperationBlock.timestamp;
     end;
     timestamp := ts;
   finally
