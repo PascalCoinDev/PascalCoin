@@ -6,6 +6,9 @@ unit UWIZSendPASC;
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
+
+  Acknowledgements:
+    Herman Schoenfeld <herman@sphere10.com>: added grid-based layout
 }
 
 interface
@@ -16,6 +19,7 @@ uses
 type
 
   { TWIZSendPASCModel }
+
   TWIZSendPASCModel = class(TComponent)
     public
       SelectedIndex: Integer;
