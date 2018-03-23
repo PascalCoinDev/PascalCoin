@@ -71,7 +71,7 @@ begin
   FSendersGrid.FetchDataInThread := False;
   FSendersGrid.AutoPageSize := True;
   FSendersGrid.SelectionType := stNone;
-  FSendersGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone];
+  FSendersGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
   FSendersGrid.DefaultColumnWidths :=
     TArray<integer>.Create(
     CT_VISUALGRID_STRETCH, // Account

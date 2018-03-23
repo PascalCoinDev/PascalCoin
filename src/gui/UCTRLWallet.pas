@@ -118,7 +118,7 @@ begin
   FAccountsGrid.AutoPageSize := True;
   FAccountsGrid.SelectionType := stMultiRow;
   FAccountsGrid.DeselectionType := dtDefault;
-  FAccountsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone];
+  FAccountsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
   FAccountsGrid.DefaultColumnWidths :=
     TArray<integer>.Create(100,                   // Account
     CT_VISUALGRID_STRETCH, // Name
@@ -135,7 +135,7 @@ begin
   FOperationsGrid.AutoPageSize := True;
   FOperationsGrid.SelectionType := stRow;
   FOperationsGrid.DeselectionType := dtDefault;
-  FOperationsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone];
+  FOperationsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
   FOperationsGrid.DefaultColumnWidths :=
     TArray<integer>.Create(130,                   // Time
     CT_VISUALGRID_DEFAULT, // Block
@@ -182,7 +182,6 @@ begin
   // Left hand panel is 50% the size up until a max size of 450
 
 end;
-
 
 procedure TCTRLWallet.ActivateFirstTime;
 begin
