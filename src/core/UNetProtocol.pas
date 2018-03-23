@@ -2888,7 +2888,7 @@ begin
       for i:=1 to max do begin
         DataBuffer.Read(c,SizeOf(c));
         if (c>=0) And (c<TNode.Node.Bank.AccountsCount) then begin
-          acc := TNode.Node.Operations.SafeBoxTransaction.Account(i);
+          acc := TNode.Node.Operations.SafeBoxTransaction.Account(c);
           TAccountComp.SaveAccountToAStream(responseStream,acc);
         end else begin
           errors := 'Invalid account number '+Inttostr(c);
