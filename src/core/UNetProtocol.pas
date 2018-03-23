@@ -2815,6 +2815,8 @@ var responseStream : TMemoryStream;
 begin
   {
   This call is used to obtain an Account data
+    - Also will return current node block number
+    - If a returned data has updated_block value = (current block+1) that means that Account is currently affected by a pending operation in the pending operations
   Request:
   Request type (1 byte) - Values
     - Value 1: Single account
@@ -2829,6 +2831,7 @@ begin
     - count (4 bytes)
     - for 1 to count read account (4 bytes)
   Returns:
+  - current block number (4 bytes): Note, if an account has updated_block > current block means that has been updated and is in pending state
   - count (4 bytes)
   - for 1 to count:  TAccountComp.SaveAccountToAStream
   }
@@ -2836,6 +2839,10 @@ begin
   DoDisconnect := true;
   responseStream := TMemoryStream.Create;
   try
+    // Response first 4 bytes are current block number
+    c := TNode.Node.Bank.BlocksCount-1;
+    responseStream.Write(c,SizeOf(c));
+    //
     if HeaderData.header_type<>ntp_request then begin
       errors := 'Not request';
       exit;
@@ -2869,7 +2876,7 @@ begin
         c := max;
         responseStream.Write(c,SizeOf(c));
         for i:=start to (start + max -1) do begin
-          acc := TNode.Node.Bank.SafeBox.Account(i);
+          acc := TNode.Node.Operations.SafeBoxTransaction.Account(i);
           TAccountComp.SaveAccountToAStream(responseStream,acc);
         end;
       end;
@@ -2881,7 +2888,7 @@ begin
       for i:=1 to max do begin
         DataBuffer.Read(c,SizeOf(c));
         if (c>=0) And (c<TNode.Node.Bank.AccountsCount) then begin
-          acc := TNode.Node.Bank.SafeBox.Account(c);
+          acc := TNode.Node.Operations.SafeBoxTransaction.Account(c);
           TAccountComp.SaveAccountToAStream(responseStream,acc);
         end else begin
           errors := 'Invalid account number '+Inttostr(c);
