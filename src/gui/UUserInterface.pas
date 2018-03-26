@@ -115,12 +115,16 @@ type
       // Show Dialogs
       class procedure ShowAboutBox(parentForm : TForm);
       class procedure ShowOptionsDialog(parentForm: TForm);
-      class procedure ShowOperationInfoDialog(parentForm: TForm; const ophash : AnsiString);
+      class procedure ShowAccountInfoDialog(parentForm: TForm; const account : Cardinal); overload;
+      class procedure ShowAccountInfoDialog(parentForm: TForm; const account : TAccount); overload;
+      class procedure ShowOperationInfoDialog(parentForm: TForm; const ophash : AnsiString); overload;
       class procedure ShowOperationInfoDialog(parentForm: TForm; const operation : TOperationResume); overload;
+      class procedure ShowAccountOperationInfoDialog(parentForm: TForm; const account : TAccount; const operation : TOperationResume); overload;
       class procedure ShowNewOperationDialog(parentForm : TForm; accounts : TOrderedCardinalList; defaultFee : Cardinal);
       class procedure ShowSeedNodesDialog(parentForm : TForm);
       class procedure ShowPrivateKeysDialog(parentForm: TForm);
-      class procedure ShowMemoText(parentForm: TForm; const ATitle : AnsiString; text : TStrings);
+      class procedure ShowMemoText(parentForm: TForm; const ATitle : AnsiString; text : utf8string); overload;
+      class procedure ShowMemoText(parentForm: TForm; const ATitle : AnsiString; text : TStrings); overload;
       class procedure UnlockWallet(parentForm: TForm);
       class procedure ChangeWalletPassword(parentForm: TForm);
       class procedure ShowInfo(parentForm : TForm; const ACaption, APrompt : String);
@@ -149,11 +153,15 @@ type
     procedure BCExecute; override;
   End;
 
+  { Exceptions }
+
+  EUserInterface = class(Exception);
+
 implementation
 
 uses
   UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
-  UOpenSSL, UFileStorage, UTime, UCommon, USettings;
+  UOpenSSL, UFileStorage, UTime, UCommon, USettings, UCoreHelpers;
 
 {%region UI Lifecyle}
 
@@ -444,6 +452,26 @@ begin
   end;
 end;
 
+class procedure TUserInterface.ShowAccountInfoDialog(parentForm: TForm; const account: Cardinal);
+begin
+  if account >= TUserInterface.Node.Bank.AccountsCount then
+    raise EUserInterface.Create('Account not found');
+  ShowAccountInfoDialog(parentForm, TUserInterface.Node.Operations.SafeBoxTransaction.Account(account));
+end;
+
+class procedure TUserInterface.ShowAccountInfoDialog(parentForm: TForm; const account : TAccount); overload;
+begin
+  ShowMemoText(parentForm, Format('Account: %s', [account.GetAccountString]), account.GetInfoText(Self.Node.Bank));
+end;
+
+class procedure TUserInterface.ShowAccountOperationInfoDialog(parentForm: TForm; const account: TAccount; const operation : TOperationResume);
+var text : utf8string;
+begin
+  text := account.GetInfoText(Self.Node.Bank) + sLineBreak + sLineBreak + operation.GetInfoText(Self.Node.Bank);
+  ShowMemoText(parentForm, Format('Account/Operation: %s/%s', [account.GetAccountString, operation.GetPrintableOPHASH]), text);
+end;
+
+
 // TODO - refactor with accounts as ARRAY
 class procedure TUserInterface.ShowNewOperationDialog(parentForm : TForm; accounts : TOrderedCardinalList; defaultFee : Cardinal);
 begin
@@ -479,6 +507,19 @@ begin
     FRM.ShowModal;
   finally
     FRM.Free;
+  end;
+end;
+
+class procedure TUserInterface.ShowMemoText(parentForm: TForm; const ATitle : AnsiString; text : utf8string);
+begin
+  with TFRMMemoText.Create(parentForm) do begin
+    try
+      Caption := ATitle;
+      Memo.Append(text);
+      ShowModal;
+    finally
+      Free;
+    end;
   end;
 end;
 

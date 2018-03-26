@@ -190,8 +190,6 @@ type
     FOrderedAccountsKeyList : TOrderedAccountKeysList;
     FMinAccountBalance : Int64;
     FMaxAccountBalance : Int64;
-    Procedure FillAccountInformation(Const Strings : TStrings; Const AccountNumber : Cardinal);
-    Procedure FillOperationInformation(Const Strings : TStrings; Const OperationResume : TOperationResume);
     procedure OnPrivateKeysChanged(Sender: TObject);
   public
     { public declarations }
@@ -264,69 +262,6 @@ end;
 {%endregion}
 
 {%region For auxillary methods}
-
-procedure TFRMAccountExplorer.FillAccountInformation(const Strings: TStrings; Const AccountNumber: Cardinal);
-Var account : TAccount;
-  s : String;
-begin
-  account := TUserInterface.Node.Operations.SafeBoxTransaction.Account(AccountNumber);
-  if account.name<>'' then s:='Name: '+account.name
-  else s:='';
-  Strings.Add(Format('Account: %s %s Type:%d',[TAccountComp.AccountNumberToAccountTxtNumber(AccountNumber),s,account.account_type]));
-  Strings.Add('');
-  Strings.Add(Format('Current balance: %s',[TAccountComp.FormatMoney(account.balance)]));
-  Strings.Add('');
-  Strings.Add(Format('Updated on block: %d  (%d blocks ago)',[account.updated_block,TUserInterface.Node.Bank.BlocksCount-account.updated_block]));
-  Strings.Add(Format('Public key type: %s',[TAccountComp.GetECInfoTxt(account.accountInfo.accountKey.EC_OpenSSL_NID)]));
-  Strings.Add(Format('Base58 Public key: %s',[TAccountComp.AccountPublicKeyExport(account.accountInfo.accountKey)]));
-  if TAccountComp.IsAccountForSale(account.accountInfo) then begin
-    Strings.Add('');
-    Strings.Add('** Account is for sale: **');
-    Strings.Add(Format('Price: %s',[TAccountComp.FormatMoney(account.accountInfo.price)]));
-    Strings.Add(Format('Seller account (where to pay): %s',[TAccountComp.AccountNumberToAccountTxtNumber(account.accountInfo.account_to_pay)]));
-    if TAccountComp.IsAccountForSaleAcceptingTransactions(account.accountInfo) then begin
-      Strings.Add('');
-      Strings.Add('** Private sale **');
-      Strings.Add(Format('New Base58 Public key: %s',[TAccountComp.AccountPublicKeyExport(account.accountInfo.new_publicKey)]));
-      Strings.Add('');
-      if TAccountComp.IsAccountLocked(account.accountInfo,TUserInterface.Node.Bank.BlocksCount) then begin
-        Strings.Add(Format('PURCHASE IS SECURE UNTIL BLOCK %d (current %d, remains %d)',
-          [account.accountInfo.locked_until_block,TUserInterface.Node.Bank.BlocksCount,account.accountInfo.locked_until_block-TUserInterface.Node.Bank.BlocksCount]));
-      end else begin
-        Strings.Add(Format('PURCHASE IS NOT SECURE (Expired on block %d, current %d)',
-          [account.accountInfo.locked_until_block,TUserInterface.Node.Bank.BlocksCount]));
-      end;
-    end;
-  end;
-end;
-
-procedure TFRMAccountExplorer.FillOperationInformation(const Strings: TStrings; Const OperationResume: TOperationResume);
-begin
-  If (not OperationResume.valid) then exit;
-  If OperationResume.Block<TUserInterface.Node.Bank.BlocksCount then
-    if (OperationResume.NOpInsideBlock>=0) then begin
-      Strings.Add(Format('Block: %d/%d',[OperationResume.Block,OperationResume.NOpInsideBlock]))
-    end else begin
-      Strings.Add(Format('Block: %d',[OperationResume.Block]))
-    end
-  else Strings.Add('** Pending operation not included on blockchain **');
-  Strings.Add(Format('%s',[OperationResume.OperationTxt]));
-  Strings.Add(Format('OpType:%d Subtype:%d',[OperationResume.OpType,OperationResume.OpSubtype]));
-  Strings.Add(Format('Operation Hash (ophash): %s',[TCrypto.ToHexaString(OperationResume.OperationHash)]));
-  If (OperationResume.OperationHash_OLD<>'') then begin
-    Strings.Add(Format('Old Operation Hash (old_ophash): %s',[TCrypto.ToHexaString(OperationResume.OperationHash_OLD)]));
-  end;
-  if (OperationResume.OriginalPayload<>'') then begin
-    Strings.Add(Format('Payload length:%d',[length(OperationResume.OriginalPayload)]));
-    If OperationResume.PrintablePayload<>'' then begin
-      Strings.Add(Format('Payload (human): %s',[OperationResume.PrintablePayload]));
-    end;
-    Strings.Add(Format('Payload (Hexadecimal): %s',[TCrypto.ToHexaString(OperationResume.OriginalPayload)]));
-  end;
-  If OperationResume.Balance>=0 then begin
-    Strings.Add(Format('Final balance: %s',[TAccountComp.FormatMoney(OperationResume.Balance)]));
-  end;
-end;
 
 procedure TFRMAccountExplorer.RefreshAccountsGrid(RefreshData : Boolean);
 Var accl : TOrderedCardinalList;
@@ -736,34 +671,30 @@ end;
 procedure TFRMAccountExplorer.miAccountInformationClick(Sender: TObject);
 Var F : TFRMMemoText;
   accn : Int64 =-1;
-  title : String;
-  strings : TStrings;
+  acc : TAccount;
   i : Integer;
   opr : TOperationResume;
 begin
   accn := -1;
-  title := '';
-  strings := TStringList.Create;
-  try
-    opr := CT_TOperationResume_NUL;
-    accn := FAccountsGrid.AccountNumber(dgAccounts.Row);
-    if accn<0 then raise Exception.Create('Select an account');
-    FillAccountInformation(strings,accn);
-    title := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(accn)+' info';
-    i := FAccountOperationsGrid.DrawGrid.Row;
-    if (i>0) and (i<=FAccountOperationsGrid.OperationsResume.Count) then begin
-      opr := FAccountOperationsGrid.OperationsResume.OperationResume[i-1];
-    end;
-    If (opr.valid) then begin
-      if accn>=0 then strings.Add('')
-      else title := 'Operation info';
-      strings.Add('Operation info:');
-      FillOperationInformation(strings,opr);
-    end else if accn<0 then Raise Exception.Create('No info available');
-    TUserInterface.ShowMemoText(Self, title, strings);
-  finally
-    strings.free;
+  opr := CT_TOperationResume_NUL;
+  accn := FAccountsGrid.AccountNumber(dgAccounts.Row);
+  if accn<0 then
+    raise Exception.Create('Select an account');
+
+  if accn >= TUserInterface.Node.Bank.AccountsCount then
+    raise Exception.Create('Account not found');
+
+  acc := TUserInterface.Node.Operations.SafeBoxTransaction.Account(accn);
+
+  i := FAccountOperationsGrid.DrawGrid.Row;
+  if (i>0) and (i<=FAccountOperationsGrid.OperationsResume.Count) then begin
+    opr := FAccountOperationsGrid.OperationsResume.OperationResume[i-1];
   end;
+
+  If opr.valid then
+    TUserInterface.ShowAccountOperationInfoDialog(Self, acc, opr)
+  else
+    TUserInterface.ShowAccountInfoDialog(Self, acc);
 end;
 
 procedure TFRMAccountExplorer.miAddAccountToSelectedClick(Sender: TObject);
@@ -785,7 +716,6 @@ begin
 end;
 
 {%endregion}
-
 
 end.
 

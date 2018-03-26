@@ -235,6 +235,7 @@ Type
     Class function DecodeOperationHash(Const operationHash : TRawBytes; var block, account,n_operation : Cardinal; var md160Hash : TRawBytes) : Boolean;
     Class function EqualOperationHashes(Const operationHash1, operationHash2 : TRawBytes) : Boolean;
     Class function FinalOperationHashAsHexa(Const operationHash : TRawBytes) : AnsiString;
+    class function OperationHashAsHexa(const operationHash : TRawBytes) : AnsiString;
     function Sha256 : TRawBytes;
   End;
 
@@ -2295,6 +2296,7 @@ begin
     Exit(false);
   If not TPCOperation.DecodeOperationHash(ophash,block,account,n_operation,md160Hash) then
     Exit(false);
+  Result := true;
 end;
 
 class function TPCOperation.EqualOperationHashes(const operationHash1,operationHash2: TRawBytes): Boolean;
@@ -2314,6 +2316,11 @@ end;
 class function TPCOperation.FinalOperationHashAsHexa(const operationHash: TRawBytes): AnsiString;
 begin
   Result := TCrypto.ToHexaString(Copy(operationHash,5,28));
+end;
+
+class function TPCOperation.OperationHashAsHexa(const operationHash: TRawBytes): AnsiString;
+begin
+  Result := TCrypto.ToHexaString(operationHash);
 end;
 
 procedure TPCOperation.InitializeData;

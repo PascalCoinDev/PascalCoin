@@ -140,6 +140,7 @@ begin
   end;
   try
     // Build 2.1.4 new decoder option: Check if OpHash is a posible double spend
+    r := TCrypto.HexaToRaw(trim(OpHash));
     If not TPCOperation.TryParseOperationHash(OpHash,nBlock,nAccount,nN_Operation,md160) then begin
       raise Exception.Create('Invalid OPHASH');
     end;
@@ -157,7 +158,7 @@ begin
       // Not found!
       strings := TStringList.Create;
       try
-        strings.Add('Posible double spend detected!');
+        strings.Add('Possible double spend detected!');
         strings.Add(Format('OpHash: %s',[OpHash]));
         strings.Add(Format('Decode OpHash info: Block:%d Account:%s N_Operation:%d',[nBlock,TAccountComp.AccountNumberToAccountTxtNumber(nAccount),nN_Operation]));
         strings.Add('');
@@ -170,7 +171,7 @@ begin
         OpResume := opr; // Do show operation resume!
         FRM := TFRMMemoText.Create(Self);
         try
-          FRM.InitData('Posible double spend detected',strings.Text);
+          FRM.InitData('Possible double spend detected',strings.Text);
           FRM.ShowModal;
         finally
           FRM.Free;

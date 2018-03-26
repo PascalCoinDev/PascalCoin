@@ -361,7 +361,9 @@ end;
 
 procedure TCTRLWallet.miAccountInfoClick(Sender: TObject);
 begin
-  raise ENotImplemented.Create('Not Implemented');
+  if FAccountsGrid.Selection.RowCount <> 1 then
+    exit;
+  TUserInterface.ShowAccountInfoDialog(Self, FAccountsGrid.SelectedRows[0].__KEY);
 end;
 
 procedure TCTRLWallet.miSendPASCClick(Sender: TObject);
@@ -447,8 +449,7 @@ procedure TCTRLWallet.miOperationInfoClick(Sender: TObject);
 begin
   if FOperationsGrid.Selection.RowCount = 0 then
     exit;
-  TUserInterface.ShowOperationInfoDialog(Self,
-    FOperationsGrid.SelectedRows[0].EntityKey);
+  TUserInterface.ShowOperationInfoDialog(Self, FOperationsGrid.SelectedRows[0].__KEY);
 end;
 
 end.
