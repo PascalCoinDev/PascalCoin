@@ -260,7 +260,7 @@ end;
 
 function TOperationsDataSourceBase.GetEntityKey(constref AItem: TOperationResume) : Variant;
 begin
-  Result := TPCOperation.FinalOperationHashAsHexa(AItem.OperationHash);
+  Result := TPCOperation.OperationHashAsHexa(AItem.OperationHash);
 end;
 
 function TOperationsDataSourceBase.GetItemField(constref AItem: TOperationResume; const AColumnName : utf8string) : Variant;
@@ -284,7 +284,7 @@ begin
    else if AColumnName = 'Payload' then
      Result := AItem.PrintablePayload
    else if AColumnName = 'OPHASH' then
-     Result := TPCOperation.FinalOperationHashAsHexa(AItem.OperationHash)
+     Result := TPCOperation.OperationHashAsHexa(AItem.OperationHash)
    else if AColumnName = 'Description' then
      Result :=  AItem.OperationTxt
    else raise Exception.Create(Format('Field not found [%s]', [AColumnName]));
@@ -348,7 +348,7 @@ begin
 
   // OPHASH
   if Length(AItem.OperationHash) > 0 then
-    ATableRow.OPHASH := TDataSourceTool.OperationShortHash( TPCOperation.FinalOperationHashAsHexa(AItem.OperationHash) )
+    ATableRow.OPHASH := TDataSourceTool.OperationShortHash( TPCOperation.OperationHashAsHexa(AItem.OperationHash) )
   else
     ATableRow.OPHASH := 'None';
 

@@ -122,7 +122,6 @@ type
   public
     Columns: TTableColumns;
     Rows : TArray<Variant>;
-    Keys : TArray<Variant>;
   end;
 
 
@@ -313,6 +312,7 @@ begin
   Result := TColumnMapToIndex.Create;
   for i := 0 to High(AColumns^) do
     Result.Add(AColumns^[i], i);
+  Result.Add('__KEY', i + 1);
   FColumns.Add(AColumns, Result);
 end;
 
@@ -331,7 +331,7 @@ var
   LRow: TTableRowData absolute V;
 begin
   if NOT LRow.vcolumnmap.ContainsKey(Name) then
-    Exit(true); //raise ETableRow.Create(Format('TableRow did not have column "%s"', [Name]));
+    Exit(true); // TODO: Re-enable this when TVisualColumn added -- ETableRow.Create(Format('TableRow did not have column "%s"', [Name]));
 
   LRow.vvalues[LRow.vcolumnmap[Name]] := Variant(Value);
   Result := true;
@@ -386,7 +386,7 @@ begin
     LColumnMap := MapColumns(AColumns);
 
   TTableRowData(Result).vcolumnmap:=LColumnMap;
-  SetLength(TTableRowData(Result).vvalues, Length(AColumns^));
+  SetLength(TTableRowData(Result).vvalues, LColumnMap.Count);
 end;
 
 { TSearchCapability }
@@ -553,12 +553,10 @@ begin
      if pageEnd >= pageStart then begin
        j := 0;
        SetLength(ADataTable.Rows, pageEnd - pageStart + 1);
-       SetLength(ADataTable.Keys, pageEnd - pageStart + 1);
        for i := pageStart to pageEnd do begin
          ADataTable.Rows[j] := TTableRow.New(@FColumns);
-         entity := data[i];
-         DehydrateItem( entity, ADataTable.Rows[j]);
-         ADataTable.Keys[j] := GetEntityKey(entity);
+         DehydrateItem( data[i], ADataTable.Rows[j]);
+         ADataTable.Rows[j].__KEY := GetEntityKey(data[i]);
          inc(j)
        end;
      end;
