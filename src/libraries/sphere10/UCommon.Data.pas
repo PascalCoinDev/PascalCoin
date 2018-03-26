@@ -122,6 +122,7 @@ type
   public
     Columns: TTableColumns;
     Rows : TArray<Variant>;
+    Keys : TArray<Variant>;
   end;
 
 
@@ -552,9 +553,12 @@ begin
      if pageEnd >= pageStart then begin
        j := 0;
        SetLength(ADataTable.Rows, pageEnd - pageStart + 1);
+       SetLength(ADataTable.Keys, pageEnd - pageStart + 1);
        for i := pageStart to pageEnd do begin
          ADataTable.Rows[j] := TTableRow.New(@FColumns);
-         DehydrateItem( data[i], ADataTable.Rows[j]);
+         entity := data[i];
+         DehydrateItem( entity, ADataTable.Rows[j]);
+         ADataTable.Keys[j] := GetEntityKey(entity);
          inc(j)
        end;
      end;
