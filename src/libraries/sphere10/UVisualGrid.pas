@@ -369,7 +369,7 @@ type
     property OnFinishedUpdating : TNotifyEvent read FOnFinishedUpdating write FOnFinishedUpdating;
 
     property WidgetControl: TControl read FWidgetControl write SetWidgetControl;
-
+    property InternalDrawGrid : TDrawGrid read FDrawGrid;
     procedure RefreshGrid;
   end;
 
@@ -1821,10 +1821,10 @@ begin
   FPageCountLabel.Caption := Format('/%d',[FPageCount]);
 
   if not FFetchDataThreadTimer.Enabled then
-  if (vgoAutoHidePaging in FOptions) and (FPageCount in [1,2]) and (FPageIndex = 0) then
+  if (vgoAutoHidePaging in FOptions) and (FPageCount in [0,1,2]) and (FPageIndex = 0) then
     case FPageCount of
       // simple situation - just hide bottom panel
-      1:
+      0,1:
         FBottomPanel.Visible := False;
       // for PageCount = 2 may be also possible but more complicated especially for AutoPageSize
       2:

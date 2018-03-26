@@ -151,6 +151,8 @@ begin
     Align := alClient;
     Parent := Self;
     Show;
+    if AControl.ClassType.InheritsFrom(TApplicationForm) then
+      TApplicationForm(AControl).Activate;
   end;
 end;
 

@@ -147,7 +147,7 @@ begin
     CT_VISUALGRID_DEFAULT, // Payload
     80,                    // OPHASH
     CT_VISUALGRID_STRETCH  // Description (stretch)
-    );
+  );
   FOperationsGrid.OnColumnInitialize := OnOperationsGridColumnInitialize;
   FOperationsGrid.OnSelection := OnOperationSelected;
   FOperationsGrid.PopupMenu := mnuOperationsPopup;
@@ -168,13 +168,6 @@ begin
   end;
   cmbDuration.OnChange := cmbDurationChange;
 
-  // dock operations grid in panel
-  paOperations.AddControlDockCenter(FOperationsGrid);
-
-  // Configure grid states
-  AccountsMode := wamMyAccounts;
-  OperationsMode := womAllAccounts;
-  OperationsHistory := woh30Days;
 end;
 
 procedure TCTRLWallet.FormResize(Sender: TObject);
@@ -185,7 +178,14 @@ end;
 
 procedure TCTRLWallet.ActivateFirstTime;
 begin
+  // Configure grid states
+  AccountsMode := wamMyAccounts;
+  OperationsMode := womAllAccounts;
+  OperationsHistory := woh30Days;
 
+  // Load up selected for some reasons
+  FAccountsGrid.InternalDrawGrid.ClearSelections;
+  FOperationsGrid.InternalDrawGrid.ClearSelections;
 end;
 
 procedure TCTRLWallet.OnAccountsGridColumnInitialize(Sender: TObject;
@@ -205,6 +205,7 @@ begin
 end;
 
 procedure TCTRLWallet.SetAccountsMode(AMode: TCTRLWalletAccountsMode);
+var sel1 : TVisualGridSelection; sel2 : TRect;
 begin
   paAccounts.RemoveAllControls(False);
   case AMode of
@@ -213,8 +214,13 @@ begin
       FOperationsGrid.DataSource := FOperationsDataSource;
       FAccountsGrid.DataSource := FAccountsDataSource;
       FAccountsGrid.Caption.Text := 'My Accounts';
+      paAccounts.RemoveAllControls(False);
+      sel1 := FAccountsGrid.Selection;
+      sel2 := FAccountsGrid.InternalDrawGrid.Selection;
+      paAccounts.RemoveAllControls(False);
       paAccounts.AddControlDockCenter(FAccountsGrid);
-      FAccountsGrid.RefreshGrid;
+      paOperations.RemoveAllControls(False);
+      paOperations.AddControlDockCenter(FOperationsGrid);
     end;
     wamFirstAccount: raise Exception.Create('Not implemented');
   end;
@@ -229,9 +235,7 @@ procedure TCTRLWallet.SetOperationsMode(AMode: TCTRLWalletOperationsMode);
 
   function GetAccNo(constref ARow: variant): cardinal; overload;
   begin
-    if not TAccountComp.AccountTxtNumberToAccountNumber(ARow.Account, Result) then
-      raise Exception.Create(
-        'Internal Error: Unable to parse account number from table row');
+    Result := ARow.__KEY;
   end;
 
 begin
@@ -305,6 +309,11 @@ begin
         selectedAccounts.Add(acc);
     end;
     FOperationsDataSource.Accounts := selectedAccounts.ToArray;
+    FOperationsGrid.Caption.Text:= IIF(
+       ASelection.RowCount = 1,
+       Format('Account: %s', [TAccountComp.AccountNumberToAccountTxtNumber( selectedAccounts[0] )]),
+       'Selected Accounts'
+    ) ;
     FOperationsGrid.RefreshGrid;
   end
   else
