@@ -7,6 +7,7 @@ object WIZSendPASC_Transaction: TWIZSendPASC_Transaction
   Caption = 'WIZSendPASC_Transaction'
   ClientHeight = 253
   ClientWidth = 429
+  LCLVersion = '1.8.1.0'
   Visible = False
   object gbTransaction: TGroupBox
     Left = 22

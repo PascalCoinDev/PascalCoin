@@ -17,7 +17,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, UVisualGrid, UCommon.Data,
-  UWizard, UWIZSendPASC, UWIZSendPASC_Transaction, UWIZSendPASC_Completion;
+  UWizard, UWIZSendPASC, UWIZSendPASC_Transaction, UWIZSendPASC_Confirmation;
 
 type
 
@@ -85,7 +85,7 @@ end;
 
 procedure TWIZSendPASC_Start.OnNext;
 begin
-  UpdatePath(ptReplaceAllNext, [TWIZSendPASC_Transaction, TWIZSendPASC_Completion]);
+  UpdatePath(ptReplaceAllNext, [TWIZSendPASC_Transaction, TWIZSendPASC_Confirmation]);
 end;
 
 { TAccountSenderDataSource }

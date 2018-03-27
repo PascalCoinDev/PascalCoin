@@ -24,7 +24,9 @@ type
     public
       SelectedIndex: Integer;
       SelectedAccounts: TArray<TAccount>;
-      SignerAccount: TAccount;
+      SignerAccount, DestinationAccount: TAccount;
+      AmountToSend: String;
+      DefaultFee: Int64;
   end;
 
   { TWIZSendPASCWizard }
@@ -45,19 +47,19 @@ uses
   UWallet,
   UWIZSendPASC_Start,
   UWIZSendPASC_Transaction,
-  UWIZSendPASC_Confirmation,
-  UWIZSendPASC_Completion;
+  UWIZSendPASC_Confirmation;
+  //UWIZSendPASC_Completion;
 
 constructor TWIZSendPASCWizard.Create(AOwner: TComponent);
 begin
-  inherited Create(AOwner, [TWIZSendPASC_Start, TWIZSendPASC_Completion]);
+  inherited Create(AOwner, [TWIZSendPASC_Start, TWIZSendPASC_Confirmation]);
   TitleText := 'Send PASC';
   FinishText := 'Send PASC';
 end;
 
 function TWIZSendPASCWizard.DetermineHasNext : boolean;
 begin
-  Result := NOT (CurrentScreen is TWIZSendPASC_Completion);
+  Result := NOT (CurrentScreen is TWIZSendPASC_Confirmation);
 end;
 
 function TWIZSendPASCWizard.DetermineHasPrevious : boolean;

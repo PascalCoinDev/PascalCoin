@@ -14,7 +14,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_Confirmation, UWIZSendPASC_Completion;
+  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_Confirmation;
 
 type
 
@@ -36,7 +36,6 @@ type
     procedure btnSearchClick(Sender: TObject);
     procedure cbSignerAccountChange(Sender: TObject);
 
-
   public
     procedure OnPresent; override;
     procedure OnNext; override;
@@ -49,7 +48,7 @@ implementation
 {$R *.lfm}
 
 uses
-  UAccounts;
+  UAccounts, UUserInterface;
 
 { TWIZSendPASC_Transaction }
 
@@ -138,10 +137,44 @@ begin
 end;
 
 procedure TWIZSendPASC_Transaction.OnNext;
+
+  function GetAccNoWithoutChecksum(const AAccount: string): cardinal;
+  begin
+    if not TAccountComp.AccountTxtNumberToAccountNumber(AAccount, Result) then
+    begin
+      raise Exception.Create(
+        'Internal Error: Unable to parse account number from input');
+    end;
+  end;
+
+  function GetAccounts(AccountNumber: cardinal): TAccount;
+  var
+    acc: TAccount;
+    safeBox: TPCSafeBox;
+    keys: TOrderedAccountKeysList;
+    i: integer;
+  begin
+    keys := TWallet.keys.AccountsKeyList;
+    safeBox := TUserInterface.Node.Bank.safeBox;
+    safeBox.StartThreadSafe;
+    try
+      acc := safeBox.Account(AccountNumber);
+      if keys.IndexOfAccountKey(acc.accountInfo.accountKey) >= 0 then
+      begin
+        Result := acc;
+      end;
+    finally
+      safeBox.EndThreadSave;
+    end;
+
+  end;
+
 begin
   Model.SelectedIndex := cbSignerAccount.ItemIndex;
-  Model.SignerAccount := Model.SelectedAccounts[PtrInt(cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
-  UpdatePath(ptReplaceAllNext, [TWIZSendPASC_Confirmation, TWIZSendPASC_Completion]);
+  Model.SignerAccount := Model.SelectedAccounts[PtrInt(
+    cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
+  Model.DestinationAccount := GetAccounts(GetAccNoWithoutChecksum(edtDestAcc.Text));
+  Model.AmountToSend := edtAmt.Text;
 end;
 
 function TWIZSendPASC_Transaction.Validate(out message: ansistring): boolean;
@@ -157,6 +190,7 @@ var
   c: cardinal;
   DestAccount: TAccount;
   amount, opfee: int64;
+  i: integer;
 begin
   Accounts := Model.SelectedAccounts;
   Result := True;
@@ -203,22 +237,22 @@ begin
     Exit;
   end;
 
-  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), opfee) then
+  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.DefaultFee) then
   begin
     message := 'Invalid fee value "' + edtOpFee.Text + '"';
     Result := False;
     Exit;
   end;
 
-  if Length(Model.SelectedAccounts) = 1 then
-  begin
-    if (Accounts[0].balance < (amount + opfee)) then
-    begin
-      message := 'Insufficient funds';
-      Result := False;
-      Exit;
-    end;
-  end;
+  //for i := Low(Accounts) to High(Accounts) do
+  //begin
+  //  if (Accounts[i].balance < (amount + opfee)) then
+  //  begin
+  //    message := 'Insufficient funds';
+  //    Result := False;
+  //    Exit;
+  //  end;
+  //end;
 
 end;
 

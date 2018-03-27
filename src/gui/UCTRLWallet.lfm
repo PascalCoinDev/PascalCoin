@@ -10,7 +10,6 @@ object CTRLWallet: TCTRLWallet
   ClientWidth = 1151
   OnCreate = FormCreate
   OnResize = FormResize
-  LCLVersion = '1.8.2.0'
   Visible = False
   object PairSplitter1: TPairSplitter
     Left = 0
