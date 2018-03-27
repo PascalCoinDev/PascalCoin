@@ -133,6 +133,19 @@ type
 
   {$ENDIF}
 
+  { TBox }
+
+  TBox<T> = class(TObject)
+    private
+      FValue : T;
+    public
+      Instances: Integer; static;
+      property Value : T read FValue write FValue;
+      class constructor Create;
+      constructor Create(const AValue : T); overload;
+      destructor Destroy; override;
+  end;
+
   { TDateTimeHelper }
 
   TDateTimeHelper = record helper for TDateTime
@@ -721,6 +734,26 @@ begin
     if Result > AArray[i] then
       Result := AArray[i];
   end;
+end;
+
+{ TBox }
+
+class constructor TBox<T>.Create;
+begin
+  Instances := 0;
+end;
+
+constructor TBox<T>.Create(const AValue: T);
+begin
+  Inherited Create;
+  Inc(Instances);
+  FValue := AValue;
+end;
+
+destructor TBox<T>.Destroy;
+begin
+  Inherited;
+  Dec(Instances);
 end;
 
 {%endregion}
