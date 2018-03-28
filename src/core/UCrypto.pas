@@ -566,7 +566,7 @@ var
   i : Integer;
 begin
   Result := true;
-  for i := 0 to length(AHexString) do
+  for i := 1 to length(AHexString) do
     if (NOT (AHexString[i] in ['0'..'9'])) AND
        (NOT (AHexString[i] in ['a'..'f'])) AND
        (NOT (AHexString[i] in ['A'..'F'])) then begin

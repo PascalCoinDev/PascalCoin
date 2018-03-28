@@ -20,7 +20,7 @@ unit UBaseTypes;
 interface
 
 uses
-  Classes, SysUtils, Generics.Defaults;
+  Classes, SysUtils;
 
 Type
   // Raw data in a maximum 65k bytes

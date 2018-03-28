@@ -132,9 +132,11 @@ Type
     Function AddTx(const senders : TMultiOpSenders; const receivers : TMultiOpReceivers; setInRandomOrder : Boolean) : Boolean;
     Function AddChangeInfo(const changes : TMultiOpChangesInfo; setInRandomOrder : Boolean) : Boolean;
     //
-    Function IndexOfAccountSender(nAccount : Cardinal) : Integer;
+    Function IndexOfAccountSender(nAccount : Cardinal) : Integer; overload;
+    Function IndexOfAccountSender(nAccount : Cardinal; startPos : Integer; const txSenders : TMultiOpSenders) : Integer; overload;
     Function IndexOfAccountReceiver(nAccount : Cardinal; startPos : Integer) : Integer;
-    Function IndexOfAccountChanger(nAccount : Cardinal) : Integer;
+    Function IndexOfAccountChanger(nAccount : Cardinal) : Integer; overload;
+    Function IndexOfAccountChanger(nAccount : Cardinal; startPos : Integer; const changesInfo : TMultiOpChangesInfo) : Integer; overload;
     //
     Function toString : String; Override;
   End;
@@ -148,8 +150,13 @@ Uses ULog, UConst;
 
 function TOpMultiOperation.IndexOfAccountSender(nAccount: Cardinal): Integer;
 begin
-  for Result:=0 to high(FData.txSenders) do begin
-    If (FData.txSenders[Result].Account = nAccount) then exit;
+  Result := IndexOfAccountSender(nAccount,0,FData.txSenders);
+end;
+
+function TOpMultiOperation.IndexOfAccountSender(nAccount: Cardinal; startPos : Integer; const txSenders: TMultiOpSenders): Integer;
+begin
+  for Result:=startPos to high(txSenders) do begin
+    If (txSenders[Result].Account = nAccount) then exit;
   end;
   Result := -1;
 end;
@@ -165,8 +172,13 @@ end;
 
 function TOpMultiOperation.IndexOfAccountChanger(nAccount: Cardinal): Integer;
 begin
-  for Result:=0 to high(FData.changesInfo) do begin
-    If (FData.changesInfo[Result].Account = nAccount) then exit;
+  Result := IndexOfAccountChanger(nAccount,0,FData.changesInfo);
+end;
+
+function TOpMultiOperation.IndexOfAccountChanger(nAccount: Cardinal; startPos : Integer; const changesInfo: TMultiOpChangesInfo): Integer;
+begin
+  for Result:=startPos to high(changesInfo) do begin
+    If (changesInfo[Result].Account = nAccount) then exit;
   end;
   Result := -1;
 end;
@@ -794,6 +806,7 @@ begin
   // Check not duplicate and invalid data
   For i:=Low(senders) to High(senders) do begin
     If IndexOfAccountSender(senders[i].Account)>=0 then Exit;
+    If IndexOfAccountSender(senders[i].Account,i+1,senders)>=0 then Exit;
     If IndexOfAccountChanger(senders[i].Account)>=0 then Exit;
     If (senders[i].Amount<=0) then Exit; // Must always sender >0
   end;
@@ -856,6 +869,7 @@ begin
   For i:=Low(changes) to High(changes) do begin
     If IndexOfAccountSender(changes[i].Account)>=0 then Exit;
     If IndexOfAccountChanger(changes[i].Account)>=0 then Exit;
+    If IndexOfAccountChanger(changes[i].Account,i+1,changes)>=0 then Exit;
     If (changes[i].Changes_type=[]) then Exit; // Must change something
   end;
   // Ok, let's go
