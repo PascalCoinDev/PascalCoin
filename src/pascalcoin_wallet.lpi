@@ -413,7 +413,7 @@
         <ResourceBaseClass Value="Form"/>
       </Unit72>
       <Unit73>
-        <Filename Value="core\UCoreHelpers.pas"/>
+        <Filename Value="core\UCore.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit73>
     </Units>

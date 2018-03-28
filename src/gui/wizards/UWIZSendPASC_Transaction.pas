@@ -48,7 +48,7 @@ implementation
 {$R *.lfm}
 
 uses
-  UAccounts, UUserInterface;
+  UAccounts, UUserInterface, USettings;
 
 { TWIZSendPASC_Transaction }
 
@@ -133,7 +133,7 @@ begin
   begin
     edtAmt.Text := TAccountComp.FormatMoney(0);
   end;
-  edtOpFee.Text := TAccountComp.FormatMoney(0);
+  edtOpFee.Text := TAccountComp.FormatMoney(TSettings.DefaultFee);
 end;
 
 procedure TWIZSendPASC_Transaction.OnNext;

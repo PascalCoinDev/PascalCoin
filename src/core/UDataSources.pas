@@ -1,17 +1,18 @@
 unit UDataSources;
 
 {$mode delphi}
+{$modeswitch nestedprocvars}
 
 interface
 
 uses
-  Classes, SysUtils, UAccounts, UNode, UBlockchain, UCommon, UConst, UCommon.Data, Generics.Collections, Generics.Defaults, syncobjs;
+  Classes, SysUtils, UAccounts, UNode, UBlockchain, UCommon, UConst, UCommon.Data, UCommon.Collections, Generics.Collections, Generics.Defaults, syncobjs;
 
 type
 
-  { TUserAccountsDataSource }
+  { TAccountsDataSource }
 
-  TUserAccountsDataSource = class(TCustomDataSource<TAccount>)
+  TAccountsDataSource = class(TCustomDataSource<TAccount>)
     public type
       TOverview = record
         TotalPASC : UInt64;
@@ -19,13 +20,19 @@ type
       end;
     private
       FLastKnownUserAccounts : TArray<TAccount>;
+      FKeys : TSortedHashSet<TAccountKey>;
     protected
       FLastOverview : TOverview;
       function GetItemDisposePolicy : TItemDisposePolicy; override;
       function GetColumns : TTableColumns;  override;
+      function GetFilterKeys : TArray<TAccountKey>;
+      procedure SetFilterKeys (const AKeys : TArray<TAccountKey>);
     public
       property Overview : TOverview read FLastOverview;
-      property LastKnownUserAccounts : TArray<TAccount> read FLastKnownUserAccounts;
+      property LastFetchResult : TArray<TAccount> read FLastKnownUserAccounts;
+      property FilterKeys : TArray<TAccountKey> read GetFilterKeys write SetFilterKeys;
+      constructor Create(AOwner: TComponent); override;
+      destructor Destroy; override;
       function GetSearchCapabilities: TSearchCapabilities; override;
       function GetEntityKey(constref AItem: TAccount) : Variant; override;
       procedure FetchAll(const AContainer : TList<TAccount>); override;
@@ -92,21 +99,46 @@ type
 
 implementation
 
-uses UWallet, UUserInterface, UMemory, UCommon.Collections, math, UTime;
+uses
+  math, UCore, UWallet, UUserInterface, UMemory, UTime;
 
-{ TUserAccountsDataSource }
+{ TAccountsDataSource }
 
-function TUserAccountsDataSource.GetItemDisposePolicy : TItemDisposePolicy;
+constructor TAccountsDataSource.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  FKeys := TSortedHashSet<TAccountKey>.Create(TAccountKeyComparer.Create, TAccountKeyEqualityComparer.Create);
+end;
+
+destructor TAccountsDataSource.Destroy;
+begin
+  FKeys.Free;
+end;
+
+function TAccountsDataSource.GetFilterKeys : TArray<TAccountKey>;
+begin
+  Result := FKeys.ToArray;
+end;
+
+procedure TAccountsDataSource.SetFilterKeys (const AKeys : TArray<TAccountKey>);
+var i : Integer;
+begin
+  FKeys.Clear;
+  for i := Low(AKeys) to High(AKeys) do
+    FKeys.Add(AKeys[i]);
+end;
+
+function TAccountsDataSource.GetItemDisposePolicy : TItemDisposePolicy;
 begin
   Result := idpNone;
 end;
 
-function TUserAccountsDataSource.GetColumns : TTableColumns;
+function TAccountsDataSource.GetColumns : TTableColumns;
 begin
   Result := TTableColumns.Create('Account', 'Name', 'Balance');
 end;
 
-function TUserAccountsDataSource.GetSearchCapabilities: TSearchCapabilities;
+function TAccountsDataSource.GetSearchCapabilities: TSearchCapabilities;
 begin
   Result := TSearchCapabilities.Create(
     TSearchCapability.From('Account', SORTABLE_NUMERIC_FILTER),
@@ -115,34 +147,45 @@ begin
   );
 end;
 
-function TUserAccountsDataSource.GetEntityKey(constref AItem: TAccount) : Variant;
+function TAccountsDataSource.GetEntityKey(constref AItem: TAccount) : Variant;
 begin
   Result := AItem.account;
 end;
 
-procedure TUserAccountsDataSource.FetchAll(const AContainer : TList<TAccount>);
+procedure TAccountsDataSource.FetchAll(const AContainer : TList<TAccount>);
 var
-  i : integer;
+  i,j : integer;
   acc : TAccount;
   safeBox : TPCSafeBox;
-  keys : TOrderedAccountKeysList;
   GC : TDisposables;
+  left,right:TAccountKey;
 begin
   FLastOverview.TotalPASC := 0;
   FLastOverview.TotalPASA := 0;
-
-  keys := TWallet.Keys.AccountsKeyList;
   safeBox := TUserInterface.Node.Bank.SafeBox;
   safeBox.StartThreadSafe;
   try
-
-   // load user accounts
-   for i := 0 to safeBox.AccountsCount - 1 do begin
-     acc := safeBox.Account(i);
-     if keys.IndexOfAccountKey(acc.accountInfo.accountKey)>=0 then begin
-       AContainer.Add(acc);
+   if FKeys.Count = 0 then
+     for i := 0 to safeBox.AccountsCount - 1 do begin
+       // Load all accounts
+       AContainer.Add(safeBox.Account(i));
        FLastOverview.TotalPASC := FLastOverview.TotalPASC + acc.Balance;
        inc(FLastOverview.TotalPASA);
+     end
+   else begin
+     // load key-matching accounts
+     for i := 0 to safeBox.AccountsCount - 1 do begin
+       acc := safeBox.Account(i);
+       if FKeys.Contains(acc.accountInfo.accountKey) then begin
+         AContainer.Add(acc);
+         FLastOverview.TotalPASC := FLastOverview.TotalPASC + acc.Balance;
+         inc(FLastOverview.TotalPASA);
+       end else begin
+         for left in FKeys do begin
+           right := acc.accountInfo.accountKey;
+
+         end;
+       end;
      end;
    end;
   finally
@@ -151,7 +194,7 @@ begin
   FLastKnownUserAccounts := AContainer.ToArray;
 end;
 
-function TUserAccountsDataSource.GetItemField(constref AItem: TAccount; const AColumnName : utf8string) : Variant;
+function TAccountsDataSource.GetItemField(constref AItem: TAccount; const AColumnName : utf8string) : Variant;
 var
   index : Integer;
 begin
@@ -178,7 +221,7 @@ begin
    else raise Exception.Create(Format('Field not found [%s]', [AColumnName]));
 end;
 
-procedure TUserAccountsDataSource.DehydrateItem(constref AItem: TAccount; var ATableRow: Variant);
+procedure TAccountsDataSource.DehydrateItem(constref AItem: TAccount; var ATableRow: Variant);
 //var
 //  index : Integer;
 begin
@@ -260,7 +303,10 @@ end;
 
 function TOperationsDataSourceBase.GetEntityKey(constref AItem: TOperationResume) : Variant;
 begin
-  Result := TPCOperation.OperationHashAsHexa(AItem.OperationHash);
+  if AItem.valid then
+    Result := TPCOperation.OperationHashAsHexa(AItem.OperationHash)
+  else
+    Result := nil;
 end;
 
 function TOperationsDataSourceBase.GetItemField(constref AItem: TOperationResume; const AColumnName : utf8string) : Variant;

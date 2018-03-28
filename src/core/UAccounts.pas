@@ -191,6 +191,8 @@ Type
 
   // This is a class to quickly find accountkeys and their respective account number/s
   TOrderedAccountKeysList = Class
+  Private Type
+    TAccountKeyArray = array of TAccountKey;
   Private
     FAutoAddAll : Boolean;
     FAccountList : TPCSafeBox;
@@ -213,6 +215,7 @@ Type
     Function Count : Integer;
     Property SafeBox : TPCSafeBox read FAccountList;
     Procedure Clear;
+    function ToArray : TAccountKeyArray;
   End;
 
   // Maintans a Cardinal ordered (without duplicates) list with TRawData each
@@ -4246,6 +4249,13 @@ end;
 procedure TOrderedAccountKeysList.Clear;
 begin
   ClearAccounts(true);
+end;
+
+function TOrderedAccountKeysList.ToArray : TAccountKeyArray;
+var i : Integer;
+begin
+  SetLength(Result, Count);
+  for i := 0 to Count - 1 do Result[i] := Self.AccountKey[i];
 end;
 
 procedure TOrderedAccountKeysList.ClearAccounts(RemoveAccountList : Boolean);

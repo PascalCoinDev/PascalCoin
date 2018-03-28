@@ -316,8 +316,7 @@ begin
   FColumns.Add(AColumns, Result);
 end;
 
-function TTableRow.GetProperty(var Dest: TVarData;
-  const V: TVarData; const Name: string): Boolean;
+function TTableRow.GetProperty(var Dest: TVarData; const V: TVarData; const Name: string): Boolean;
 var
   LRow: TTableRowData absolute V;
 begin
@@ -325,8 +324,7 @@ begin
   Result := true;
 end;
 
-function TTableRow.SetProperty(var V: TVarData; const Name: string;
-  const Value: TVarData): Boolean;
+function TTableRow.SetProperty(var V: TVarData; const Name: string; const Value: TVarData): Boolean;
 var
   LRow: TTableRowData absolute V;
 begin
@@ -343,8 +341,7 @@ begin
   FillChar(V, SizeOf(V), #0);
 end;
 
-procedure TTableRow.Copy(var Dest: TVarData; const Source: TVarData;
-  const Indirect: Boolean);
+procedure TTableRow.Copy(var Dest: TVarData; const Source: TVarData; const Indirect: Boolean);
 var
   LDestRow: TTableRowData absolute Dest;
   LSourceRow: TTableRowData absolute Source;
@@ -361,8 +358,7 @@ begin
   end;
 end;
 
-function TTableRow.DoFunction(var Dest: TVarData; const V: TVarData;
-  const Name: string; const Arguments: TVarDataArray): Boolean;
+function TTableRow.DoFunction(var Dest: TVarData; const V: TVarData;  const Name: string; const Arguments: TVarDataArray): Boolean;
 var
   LRow: TTableRowData absolute V;
 begin

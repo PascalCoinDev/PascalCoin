@@ -107,6 +107,7 @@ object CTRLWallet: TCTRLWallet
             'Get my first account!'
           )
           OnChange = cbAccountsChange
+          Style = csDropDownList
           TabOrder = 0
           Text = 'Show All'
         end

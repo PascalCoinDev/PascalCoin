@@ -1,6 +1,8 @@
-unit UCoreHelpers;
+unit UCore;
 
 { Copyright (c) 2018 by PascalCoin Project
+
+  Contains common types for Core module.
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
@@ -14,9 +16,23 @@ unit UCoreHelpers;
 interface
 
 uses
-  Classes, SysUtils, UCrypto, UAccounts, UBlockChain;
+  Classes, SysUtils, UCrypto, UAccounts, UBlockChain,
+  Generics.Collections, Generics.Defaults;
 
 type
+
+TAccountKeyComparer = class (TComparer<TAccountKey>)
+  function Compare(constref ALeft, ARight: T): Integer; override;
+  class function DoCompare(constref ALeft, ARight : TAccountKey) : Integer; inline;
+end;
+
+TAccountKeyEqualityComparer = class(TEqualityComparer<TAccountKey>)
+  public
+    function Equals(constref ALeft, ARight: TAccountKey): Boolean; override;
+    function GetHashCode(constref AValue: TAccountKey): UInt32; override;
+    class function AreEqual(constref ALeft, ARight: TAccountKey): Boolean;
+    class function CalcHashCode(constref AValue: TAccountKey): UInt32;
+end;
 
 TAccountHelper = record helper for TAccount
   function GetAccountString : AnsiString;
@@ -32,6 +48,42 @@ implementation
 
 uses
   UCommon, UMemory;
+
+{ TAccountKeyComparer }
+
+function TAccountKeyComparer.Compare(constref ALeft, ARight: T): Integer;
+begin
+  Result := TAccountKeyComparer.DoCompare(ALeft, ARight);
+end;
+
+class function TAccountKeyComparer.DoCompare(constref ALeft, ARight : TAccountKey) : Integer;
+begin
+  Result := BinStrComp(ALeft.x, ARight.x);
+  if Result = 0 then
+    Result := BinStrComp(ALeft.y, ARight.y);
+end;
+
+{ TAccountKeyEqualityComparer }
+
+function TAccountKeyEqualityComparer.Equals(constref ALeft, ARight: TAccountKey): Boolean;
+begin
+  Result := TAccountKeyEqualityComparer.AreEqual(ALeft, ARight);
+end;
+
+function TAccountKeyEqualityComparer.GetHashCode(constref AValue: TAccountKey): UInt32;
+begin
+  Result := TAccountKeyEqualityComparer.CalcHashCode(AValue);
+end;
+
+class function TAccountKeyEqualityComparer.AreEqual(constref ALeft, ARight: TAccountKey): Boolean;
+begin
+  Result := TAccountKeyComparer.DoCompare(ALeft, ARight) = 0;
+end;
+
+class function TAccountKeyEqualityComparer.CalcHashCode(constref AValue: TAccountKey): UInt32;
+begin
+  Result := TEqualityComparer<AnsiString>.Default.GetHashCode(IntToStr(AValue.EC_OpenSSL_NID) + AValue.x + AValue.y  );
+end;
 
 { TAccountHelper }
 

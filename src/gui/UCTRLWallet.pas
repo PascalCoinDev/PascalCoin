@@ -8,7 +8,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Menus,
-  ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon.UI,
+  ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon.UI, Generics.Collections,
   UAccounts, UDataSources, UNode, UWIZSendPASC;
 
 type
@@ -28,7 +28,7 @@ type
     Label2: TLabel;
     lblTotalPASA: TLabel;
     lblTotalPASC: TLabel;
-    MenuItem1: TMenuItem;
+    miSep2: TMenuItem;
     miCopyOphash: TMenuItem;
     miOperationInfo: TMenuItem;
     miSendPASC: TMenuItem;
@@ -46,6 +46,7 @@ type
     procedure cbAccountsChange(Sender: TObject);
     procedure cmbDurationChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
     procedure FormResize(Sender: TObject);
     procedure miAccountInfoClick(Sender: TObject);
     procedure miCopyOphashClick(Sender: TObject);
@@ -59,40 +60,35 @@ type
     FOperationsHistory: TCTRLWalletOperationsHistory;
     FAccountsGrid: TVisualGrid;
     FOperationsGrid: TVisualGrid;
-    FAccountsDataSource: TUserAccountsDataSource;
+    FAccountsDataSource: TAccountsDataSource;
     FOperationsDataSource: TAccountsOperationsDataSource;
     procedure SetAccountsMode(AMode: TCTRLWalletAccountsMode);
     procedure SetOperationsMode(AMode: TCTRLWalletOperationsMode);
     procedure SetOperationsHistory(AHistory: TCTRLWalletOperationsHistory);
+    procedure RefreshMyAccountsCombo;
   protected
     procedure ActivateFirstTime; override;
+    procedure OnPrivateKeysChanged(Sender: TObject);
     procedure OnNodeBlocksChanged(Sender: TObject);
     procedure OnNodeNewOperation(Sender: TObject);
     procedure OnAccountsUpdated(Sender: TObject);
-    procedure OnAccountsSelected(Sender: TObject;
-      constref ASelection: TVisualGridSelection);
-    procedure OnOperationSelected(Sender: TObject;
-      constref ASelection: TVisualGridSelection);
-    procedure OnAccountsGridColumnInitialize(Sender: TObject;
-      AColIndex: integer; AColumn: TVisualColumn);
-    procedure OnOperationsGridColumnInitialize(Sender: TObject;
-      AColIndex: integer; AColumn: TVisualColumn);
-    procedure OnPrepareAccountPopupMenu(Sender: TObject;
-      constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+    procedure OnAccountsSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
+    procedure OnOperationSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
+    procedure OnAccountsGridColumnInitialize(Sender: TObject; AColIndex: integer; AColumn: TVisualColumn);
+    procedure OnOperationsGridColumnInitialize(Sender: TObject; AColIndex: integer; AColumn: TVisualColumn);
+    procedure OnPrepareAccountPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+    procedure OnPrepareOperationsPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
   public
-    property AccountsMode: TCTRLWalletAccountsMode
-      read FAccountsMode write SetAccountsMode;
-    property OperationsMode: TCTRLWalletOperationsMode
-      read FOperationsMode write SetOperationsMode;
-    property OperationsHistory: TCTRLWalletOperationsHistory
-      read FOperationsHistory write SetOperationsHistory;
+    property AccountsMode: TCTRLWalletAccountsMode read FAccountsMode write SetAccountsMode;
+    property OperationsMode: TCTRLWalletOperationsMode read FOperationsMode write SetOperationsMode;
+    property OperationsHistory: TCTRLWalletOperationsHistory read FOperationsHistory write SetOperationsHistory;
   end;
 
 implementation
 
 uses
-  UUserInterface, UBlockChain, UWallet,
-  UCommon, UMemory, Generics.Collections, UCommon.Collections;
+  UUserInterface, UBlockChain, UWallet, UCrypto, UCore,
+  UCommon, UMemory, Generics.Defaults, UCommon.Collections;
 
 {$R *.lfm}
 
@@ -106,9 +102,12 @@ begin
   FNodeNotifyEvents := TNodeNotifyEvents.Create(self);
   FNodeNotifyEvents.OnBlocksChanged := OnNodeBlocksChanged;
   FNodeNotifyEvents.OnOperationsChanged := OnNodeNewOperation;
+  TWallet.Keys.OnChanged.Add(OnPrivateKeysChanged);
 
-  // data sources
-  FAccountsDataSource := TUserAccountsDataSource.Create(Self);
+
+  // fields
+  FAccountsDataSource := TAccountsDataSource.Create(Self);
+  FAccountsDataSource.FilterKeys := TWallet.Keys.AccountsKeyList.ToArray;
   FOperationsDataSource := TAccountsOperationsDataSource.Create(Self);
 
   // grids
@@ -150,13 +149,17 @@ begin
   );
   FOperationsGrid.OnColumnInitialize := OnOperationsGridColumnInitialize;
   FOperationsGrid.OnSelection := OnOperationSelected;
-  FOperationsGrid.PopupMenu := mnuOperationsPopup;
+  FOperationsGrid.OnPreparePopupMenu := OnPrepareOperationsPopupMenu;
   FOperationsGrid.Caption.Alignment := taCenter;
   FOperationsGrid.Caption.Text := 'All Account Operations';
   FOperationsGrid.Caption.Visible := True;
 
+  // key combo
+  RefreshMyAccountsCombo;
+
+  // duration combo
   cmbDuration := TComboBox.Create(FOperationsGrid);
-  FOperationsGrid.WidgetControl := cmbDuration;
+  cmbDuration.ReadOnly:= true;
   cmbDuration.Items.BeginUpdate;
   try
     cmbDuration.AddItem('30 Days', TObject(woh30Days));
@@ -164,10 +167,15 @@ begin
   finally
     cmbDuration.Items.EndUpdate;
     cmbDuration.ItemIndex := 0;
-    ;
   end;
   cmbDuration.OnChange := cmbDurationChange;
+  FOperationsGrid.WidgetControl := cmbDuration;
 
+end;
+
+procedure TCTRLWallet.FormDestroy(Sender: TObject);
+begin
+  TWallet.Keys.OnChanged.Add(OnPrivateKeysChanged);
 end;
 
 procedure TCTRLWallet.FormResize(Sender: TObject);
@@ -186,6 +194,69 @@ begin
   // Load up selected for some reasons
   FAccountsGrid.InternalDrawGrid.ClearSelections;
   FOperationsGrid.InternalDrawGrid.ClearSelections;
+end;
+
+procedure TCTRLWallet.RefreshMyAccountsCombo;
+var
+  i : Integer;
+  selectFirst, selectLast : boolean;
+  last_key: TAccountKey;
+  key : TWalletKey;
+  str : AnsiString;
+begin
+  // determine current selection
+  if cbAccounts.ItemIndex >= 1 then begin
+    if cbAccounts.ItemIndex < cbAccounts.Items.Count - 1 then begin
+      last_key := TBox<TAccountKey>(cbAccounts.Items.Objects[cbAccounts.ItemIndex]).Value;
+      selectFirst := false;
+      selectLast := false;
+    end else begin
+      selectFirst := false;
+      selectLast := true;
+    end;
+  end else begin
+    selectFirst := true;
+    selectLast := false;
+  end;
+
+  // update combo items
+  cbAccounts.items.BeginUpdate;
+  Try
+    // free existing items
+    for i := 0 to cbAccounts.Items.Count - 1 do
+      cbAccounts.Items.Objects[i].Free;
+    cbAccounts.Items.Clear;
+    // add new items
+    For i:=0 to TWallet.Keys.Count-1 do begin
+      // get i'th key
+      key := TWallet.Keys.Key[i];
+      // fix name
+      if (key.Name='') then begin
+        str := 'Sha256=' + TCrypto.ToHexaString( TCrypto.DoSha256( TAccountComp.AccountKey2RawString( key.AccountKey ) ) );
+      end else begin
+        str := key.Name;
+      end;
+      if Not Assigned(key.PrivateKey) then str := str + '(*)';
+      cbAccounts.Items.AddObject(str, TBox<TAccountKey>.Create(key.AccountKey));
+    end;
+    cbAccounts.Items.InsertObject(0,'Show All', TBox<TAccountKey>.Create);
+    cbAccounts.Items.AddObject('Get An Account',TBox<TAccountKey>.Create);
+  Finally
+    cbAccounts.Items.EndUpdate;
+  End;
+  // re-select previous selection
+  if selectFirst then
+    cbAccounts.ItemIndex := 0
+  else if selectLast then
+    cbAccounts.ItemIndex := cbAccounts.Items.Count - 1
+  else begin
+    for i := 1 to cbAccounts.Items.Count - 2 do begin
+       if TAccountKeyEqualityComparer.AreEqual(TBox<TAccountKey>( cbAccounts.Items.Objects[i] ).Value, last_key) then begin
+         cbAccounts.ItemIndex := i;
+         exit;
+       end;
+    end;
+  end;
 end;
 
 procedure TCTRLWallet.OnAccountsGridColumnInitialize(Sender: TObject;
@@ -207,6 +278,7 @@ end;
 procedure TCTRLWallet.SetAccountsMode(AMode: TCTRLWalletAccountsMode);
 var sel1 : TVisualGridSelection; sel2 : TRect;
 begin
+  FAccountsMode:= AMode;
   paAccounts.RemoveAllControls(False);
   case AMode of
     wamMyAccounts:
@@ -242,10 +314,10 @@ begin
   case AMode of
     womAllAccounts:
     begin
-      FOperationsGrid.Caption.Text := 'All Accounts';
+      FOperationsGrid.Caption.Text := '';
       FOperationsDataSource.Accounts :=
         TListTool<TAccount, cardinal>.Transform(
-        FAccountsDataSource.LastKnownUserAccounts, GetAccNo);
+        FAccountsDataSource.LastFetchResult, GetAccNo);
     end;
     womSelectedAccounts:
     begin
@@ -269,6 +341,11 @@ begin
     wohFullHistory: FOperationsDataSource.TimeSpan := TTimeSpan.FromDays(10 * 365);
   end;
   FOperationsGrid.RefreshGrid;
+end;
+
+procedure TCTRLWallet.OnPrivateKeysChanged(Sender: TObject);
+begin
+  RefreshMyAccountsCombo;
 end;
 
 procedure TCTRLWallet.OnNodeBlocksChanged(Sender: TObject);
@@ -340,8 +417,25 @@ begin
 end;
 
 procedure TCTRLWallet.cbAccountsChange(Sender: TObject);
+var
+  index : Integer;
+  sel : TBox<TAccountKey>;
 begin
-  AccountsMode := wamMyAccounts;
+  index := cbAccounts.ItemIndex;
+  if cbAccounts.ItemIndex < 0 then exit;
+  if index = 0 then
+    FAccountsDataSource.FilterKeys := TWallet.Keys.AccountsKeyList.ToArray
+  else if index = cbAccounts.Items.Count - 1 then begin
+    AccountsMode:= wamFirstAccount;
+    exit;
+  end else begin
+    sel := TBox<TAccountKey>(cbAccounts.Items.Objects[cbAccounts.ItemIndex]);
+    FAccountsDataSource.FilterKeys := TArray<TAccountKey>.Create(sel.Value);
+  end;
+  if Self.AccountsMode <> wamMyAccounts then
+    AccountsMode := wamMyAccounts
+  else
+    FAccountsGrid.RefreshGrid;
 end;
 
 procedure TCTRLWallet.cmbDurationChange(Sender: TObject);
@@ -358,8 +452,7 @@ begin
   end;
 end;
 
-procedure TCTRLWallet.OnPrepareAccountPopupMenu(Sender: TObject;
-  constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+procedure TCTRLWallet.OnPrepareAccountPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
 begin
   miSep1.Visible := ASelection.RowCount = 1;
   miAccountInfo.Visible := ASelection.RowCount = 1;
@@ -447,6 +540,19 @@ end;
 procedure TCTRLWallet.miTransferAccountsClick(Sender: TObject);
 begin
   raise ENotImplemented.Create('Not Implemented');
+end;
+
+procedure TCTRLWallet.OnPrepareOperationsPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+begin
+  if (ASelection.RowCount <> 1) OR ((ASelection.RowCount = 1) and (FOperationsGrid.SelectedRows[0].__KEY <> Variant(nil))) then begin
+    miSep2.Visible := true;
+    miOperationInfo.Visible := true;
+    APopupMenu := mnuOperationsPopup;
+  end else begin
+    miSep2.Visible := false;
+    miOperationInfo.Visible := false;
+    APopupMenu := nil; // is empty, so dont show
+  end;
 end;
 
 procedure TCTRLWallet.miCopyOphashClick(Sender: TObject);
