@@ -297,6 +297,7 @@ Begin
   TPCOperationsComp.RegisterOperationClass(TOpBuyAccount);
   TPCOperationsComp.RegisterOperationClass(TOpChangeKeySigned);
   TPCOperationsComp.RegisterOperationClass(TOpChangeAccountInfo);
+  TPCOperationsComp.RegisterOperationClass(TOpMultiOperation);
 End;
 
 { TOpChangeAccountInfo }

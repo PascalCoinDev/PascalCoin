@@ -2,13 +2,11 @@ program pascalcoin_daemon;
 
 {$mode objfpc}{$H+}
 {$define usecthreads}
-{$apptype gui}
 
 uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cthreads,
   {$ENDIF}{$ENDIF}
-  Interfaces,
   sysutils,
   Classes, daemonapp,
   UCrypto, upcdaemon;
