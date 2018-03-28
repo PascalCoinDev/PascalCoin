@@ -762,7 +762,7 @@ begin
   decrypt := '';
   If (TAESComp.EVP_Decrypt_AES256(TCrypto.HexaToRaw(AKeyText),AKeyPassword,decrypt)) AND (decrypt<>'') then begin
     AKey := TECPrivateKey.ImportFromRaw(decrypt);
-    Result := true;
+    Result := Assigned(AKey);
   end else begin
     Result := false;
   end;
@@ -777,8 +777,7 @@ class function TWallet.TryParseHexKey(const AHexString : AnsiString; AEncryption
 begin
   AKey := TECPrivateKey.Create;
   Try
-    AKey.SetPrivateKeyFromHexa(AEncryptionTypeNID, AHexString);
-    Result := True;
+    Result := AKey.SetPrivateKeyFromHexa(AEncryptionTypeNID, AHexString);
   Except
     On E:Exception do begin
       FreeAndNil(AKey);

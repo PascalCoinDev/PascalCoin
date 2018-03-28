@@ -234,10 +234,15 @@ begin
         try
           Result := TECPrivateKey.Create;
           Try
-            Result.SetPrivateKeyFromHexa(ECID,PAC);
+            If Not Result.SetPrivateKeyFromHexa(ECID,PAC) then begin
+              FreeAndNil(Result);
+            end;
           Except
-            FreeAndNil(Result);
-            Raise;
+            On E:Exception do begin
+              FreeAndNil(Result);
+              // Note: Will not raise Exception, only will log it
+              TLog.NewLog(lterror,ClassName,'Error importing private key from '+TCrypto.ToHexaString(raw)+' ECID:'+IntToStr(ECID)+' ('+E.ClassName+'): '+E.Message);
+            end;
           end;
         finally
           OpenSSL_free(PAC);
@@ -296,6 +301,7 @@ var bn : PBIGNUM;
   ctx : PBN_CTX;
   pub_key : PEC_POINT;
 begin
+  Result := False;
   bn := BN_new;
   try
     if BN_hex2bn(@bn,PAnsiChar(hexa))=0 then Raise ECryptoException.Create('Invalid Hexadecimal value:'+hexa);
@@ -303,7 +309,7 @@ begin
     if Assigned(FPrivateKey) then EC_KEY_free(FPrivateKey);
     FEC_OpenSSL_NID := EC_OpenSSL_NID;
     FPrivateKey := EC_KEY_new_by_curve_name(EC_OpenSSL_NID);
-
+    If Not Assigned(FPrivateKey) then Exit;
     if EC_KEY_set_private_key(FPrivateKey,bn)<>1 then raise ECryptoException.Create('Invalid num to set as private key');
     //
     ctx := BN_CTX_new;
@@ -318,6 +324,7 @@ begin
   finally
     BN_free(bn);
   end;
+  Result := True;
 end;
 
 { TCrypto }
