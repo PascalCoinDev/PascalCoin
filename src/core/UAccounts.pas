@@ -62,7 +62,7 @@ Type
     Class Function GetRewardForNewLine(line_index: Cardinal): UInt64;
     Class Function TargetToCompact(target: TRawBytes): Cardinal;
     Class Function TargetFromCompact(encoded: Cardinal): TRawBytes;
-    Class Function GetNewTarget(vteorical, vreal: Cardinal; Const actualTarget: TRawBytes): TRawBytes;
+    Class Function GetNewTarget(vteorical, vreal: Cardinal; Const actualTarget: TRawBytes; protocol_version : Word): TRawBytes;
     Class Procedure CalcProofOfWork_Part1(const operationBlock : TOperationBlock; var Part1 : TRawBytes);
     Class Procedure CalcProofOfWork_Part3(const operationBlock : TOperationBlock; var Part3 : TRawBytes);
     Class Procedure CalcProofOfWork(const operationBlock : TOperationBlock; var PoW : TRawBytes);
@@ -189,10 +189,10 @@ Type
     safeBoxHash : TRawBytes;
   end;
 
+  TAccountKeyArray = array of TAccountKey;
+
   // This is a class to quickly find accountkeys and their respective account number/s
   TOrderedAccountKeysList = Class
-  Private Type
-    TAccountKeyArray = array of TAccountKey;
   Private
     FAutoAddAll : Boolean;
     FAccountList : TPCSafeBox;
@@ -487,6 +487,7 @@ Const
   CT_PCSafeBoxHeader_NUL : TPCSafeBoxHeader = (protocol:0;startBlock:0;endBlock:0;blocksCount:0;safeBoxHash:'');
 
 function Check_Safebox_Names_Consistency(sb : TPCSafeBox; const title :String; var errors : AnsiString) : Boolean;
+Procedure Check_Safebox_Integrity(sb : TPCSafebox; title: String);
 
 implementation
 
@@ -536,10 +537,9 @@ end;
 { This function is for testing purpose only.
   Will check if Accounts are Ok }
 Procedure Check_Safebox_Integrity(sb : TPCSafebox; title: String);
-var i,j,n,maxBlock : Integer;
+var i,j,maxBlock : Integer;
   bl_my, bl_modified : TBlockAccount;
   auxH : TRawBytes;
-  errs : AnsiString;
 Begin
   For i:=0 to sb.FModifiedBlocksFinalState.Count-1 do begin
     bl_modified := sb.FModifiedBlocksFinalState.Get(i);
@@ -552,7 +552,6 @@ Begin
     end;
   end;
   auxH := '';
-  errs := '';
   maxBlock := sb.BlocksCount;
   for i:=0 to sb.BlocksCount-1 do begin
     bl_my := sb.Block(i);
@@ -571,18 +570,24 @@ end;
 
 { TPascalCoinProtocol }
 
-class function TPascalCoinProtocol.GetNewTarget(vteorical, vreal: Cardinal; const actualTarget: TRawBytes): TRawBytes;
+class function TPascalCoinProtocol.GetNewTarget(vteorical, vreal: Cardinal; const actualTarget: TRawBytes; protocol_version : Word): TRawBytes;
 Var
-  bnact, bnaux, bn: TBigNum;
+  bnact, bnaux: TBigNum;
   tsTeorical, tsReal, factor1000, factor1000Min, factor1000Max: Int64;
 begin
   { Given a teorical time in seconds (vteorical>0) and a real time in seconds (vreal>0)
     and an actual target, calculates a new target
     by % of difference of teorical vs real.
 
+    For Protocols 1 and 2:
     Increment/decrement is adjusted to +-200% in a full CT_CalcNewTargetBlocksAverage round
     ...so each new target is a maximum +-(100% DIV (CT_CalcNewTargetBlocksAverage DIV 2)) of
     previous target. This makes target more stable.
+
+    For Protocol 3:
+    Increment/decrement is adjusted to +-100% in a full CT_CalcNewTargetBlocksAverage round
+    This will increment/decrement slowly and reduce sinusoidal effect
+
     }
   tsTeorical := vteorical;
   tsReal := vreal;
@@ -592,8 +597,14 @@ begin
     1000 is the same that multiply by 2 (+100%), so we limit increase
     in a limit [-500..+1000] for a complete (CT_CalcNewTargetBlocksAverage DIV 2) round }
   if CT_CalcNewTargetBlocksAverage>1 then begin
-    factor1000Min := (-500) DIV (CT_CalcNewTargetBlocksAverage DIV 2);
-    factor1000Max := (1000) DIV (CT_CalcNewTargetBlocksAverage DIV 2);
+    if (protocol_version<=CT_PROTOCOL_2) then begin
+      factor1000Min := (-500) DIV (CT_CalcNewTargetBlocksAverage DIV 2);
+      factor1000Max := (1000) DIV (CT_CalcNewTargetBlocksAverage DIV 2);
+    end else begin
+      // Protocol 3: +-100% in a full CT_CalcNewTargetBlocksAverage
+      factor1000Min := (-500) DIV (CT_CalcNewTargetBlocksAverage);
+      factor1000Max := (1000) DIV (CT_CalcNewTargetBlocksAverage);
+    end;
   end else begin
     factor1000Min := (-500);
     factor1000Max := (1000);
@@ -607,7 +618,6 @@ begin
   end;
 
   // Calc new target by increasing factor (-500 <= x <= 1000)
-  bn := TBigNum.Create(factor1000);
   bnact := TBigNum.Create(0);
   try
     bnact.RawValue := actualTarget;
@@ -620,7 +630,6 @@ begin
     // Adjust to TargetCompact limitations:
     Result := TargetFromCompact(TargetToCompact(bnact.RawValue));
   finally
-    bn.Free;
     bnact.Free;
   end;
 end;
@@ -3096,7 +3105,7 @@ begin
     exit;
   end;
   // Valid protocol version
-  if (Not (newOperationBlock.protocol_version in [CT_PROTOCOL_1,CT_PROTOCOL_2])) then begin
+  if (Not (newOperationBlock.protocol_version in [CT_PROTOCOL_1,CT_PROTOCOL_2,CT_PROTOCOL_3])) then begin
     errors := 'Invalid protocol version '+IntToStr(newOperationBlock.protocol_version);
     exit;
   end;
@@ -3156,8 +3165,8 @@ begin
     tsTeorical := (CalcBack * CT_NewLineSecondsAvg);
     tsReal := (ts1 - ts2);
     If (protocolVersion=CT_PROTOCOL_1) then begin
-      Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
-    end else if (protocolVersion=CT_PROTOCOL_2) then begin
+      Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target),protocolVersion);
+    end else if (protocolVersion<=CT_PROTOCOL_3) then begin
       CalcBack := CalcBack DIV CT_CalcNewTargetLimitChange_SPLIT;
       If CalcBack=0 then CalcBack := 1;
       ts2 := Block(BlocksCount-CalcBack-1).blockchainInfo.timestamp;
@@ -3170,7 +3179,7 @@ begin
       If ((tsTeorical>tsReal) and (tsTeoricalStop>tsRealStop))
          Or
          ((tsTeorical<tsReal) and (tsTeoricalStop<tsRealStop)) then begin
-        Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
+        Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target),protocolVersion);
       end else begin
         // Nothing to do!
         Result:=TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target);

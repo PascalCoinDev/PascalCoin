@@ -234,7 +234,7 @@ begin
     if Not GetBlockHeaderFirstBytePosition(stream,StartingDeleteBlock,False,iBlockHeaders,BlockHeaderFirstBlock) then exit;
     If Not StreamReadBlockHeader(Stream,iBlockHeaders,BlockHeaderFirstBlock,StartingDeleteBlock,True,_Header) then exit;
     _intBlockIndex := (_Header.BlockNumber-BlockHeaderFirstBlock);
-//XXXXXXXXXX BUG !!!    p := Int64(_intBlockIndex) * Int64(CT_SizeOfBlockHeader);
+
     p := FBlockHeadersFirstBytePosition[iBlockHeaders] + (Int64(_intBlockIndex) * Int64(CT_SizeOfBlockHeader));
 
     Stream.Position:=p;

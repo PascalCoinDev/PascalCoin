@@ -95,7 +95,7 @@ Const
   CT_PROTOCOL_1 = 1;
   CT_PROTOCOL_2 = 2;
   CT_PROTOCOL_3 = 3;
-  CT_BlockChain_Protocol_Available: Word = $0002; // Protocol 2 flag
+  CT_BlockChain_Protocol_Available: Word = $0003; // Protocol 3 flag
   CT_Protocol_Upgrade_v2_MinBlock = {$IFDEF PRODUCTION}115000{$ELSE}600{$ENDIF};
   CT_Protocol_Upgrade_v3_MinBlock = {$IFDEF PRODUCTION}210000{$ELSE}800{$ENDIF};
 
@@ -147,7 +147,7 @@ Const
   CT_OpSubtype_ChangeAccountInfo          = 81;
   CT_OpSubtype_MultiOperation             = 91;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'2.1.6'{$ELSE}{$IFDEF TESTNET}'TESTNET 2.1.6'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'2.1.6'{$ELSE}{$IFDEF TESTNET}'TESTNET 3.0 BETA'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us';
 

@@ -35,9 +35,10 @@ Also, consider a donation at PascalCoin development account: "0-10"
 ## History:  
 
 ### DEVELOPMENT STATUS
-- TODO: Explore possible modification to sinoidial effect on blocks time (No PIP) 
 - TODO: PIP - 0010
 - TODO: Add new network operations
+- New target calc on protocol V3 in order to reduce the sinusoidal effect
+  - On V2, the increase was +-100% every 50 blocks, on V3 will be +-100% every 100 blocks (slower increase/decrease)
 - New Safebox Snapshoting
   - This allow quickly rollback/commit directly to Safebox instead of create a separate Safebox on memory (read from disk... use more ram...)
   - Is usefull when detecting posible orphan blocks in order to check which chain is the highest chain without duplicating a safebox to compare
