@@ -1547,7 +1547,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       Bank.Storage.ReadOnly := true;
       Bank.Storage.CopyConfiguration(TNode.Node.Bank.Storage);
       if start_block>=0 then begin
-        If (TNode.Node.Bank.SafeBox.GetMinimumAvailableSnapshotBlock<start_block) then begin
+        If (TNode.Node.Bank.SafeBox.HasSnapshotForBlock(start_block-1)) then begin
           // XXXXXXXXXXXXX
           // XXXXXXXXXXXXX
           // Restore from a Snapshot (New on V3) instead of restore reading from File
@@ -1787,7 +1787,11 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
         // Will concat safeboxs:
         chunk1 := TMemoryStream.Create;
         try
-          chunk1.CopyFrom(chunks[0].chunkStream,0);
+          if (length(chunks)=1) then begin
+            receiveData.CopyFrom(chunks[0].chunkStream,0);
+          end else begin
+            chunk1.CopyFrom(chunks[0].chunkStream,0);
+          end;
           for i:=1 to high(chunks) do begin
             receiveData.Size:=0;
             chunk1.Position:=0;

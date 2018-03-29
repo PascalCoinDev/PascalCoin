@@ -133,12 +133,13 @@ Type
     Function AddChangeInfo(const changes : TMultiOpChangesInfo; setInRandomOrder : Boolean) : Boolean;
     //
     Function IndexOfAccountSender(nAccount : Cardinal) : Integer; overload;
-    Function IndexOfAccountSender(nAccount : Cardinal; startPos : Integer; const txSenders : TMultiOpSenders) : Integer; overload;
+    class Function IndexOfAccountSender(nAccount : Cardinal; startPos : Integer; const txSenders : TMultiOpSenders) : Integer; overload;
     Function IndexOfAccountReceiver(nAccount : Cardinal; startPos : Integer) : Integer;
     Function IndexOfAccountChanger(nAccount : Cardinal) : Integer; overload;
-    Function IndexOfAccountChanger(nAccount : Cardinal; startPos : Integer; const changesInfo : TMultiOpChangesInfo) : Integer; overload;
+    class Function IndexOfAccountChanger(nAccount : Cardinal; startPos : Integer; const changesInfo : TMultiOpChangesInfo) : Integer; overload;
     //
     Function toString : String; Override;
+    Property Data : TOpMultiOperationData read FData;
   End;
 
 
@@ -153,7 +154,7 @@ begin
   Result := IndexOfAccountSender(nAccount,0,FData.txSenders);
 end;
 
-function TOpMultiOperation.IndexOfAccountSender(nAccount: Cardinal; startPos : Integer; const txSenders: TMultiOpSenders): Integer;
+class function TOpMultiOperation.IndexOfAccountSender(nAccount: Cardinal; startPos : Integer; const txSenders: TMultiOpSenders): Integer;
 begin
   for Result:=startPos to high(txSenders) do begin
     If (txSenders[Result].Account = nAccount) then exit;
@@ -175,7 +176,7 @@ begin
   Result := IndexOfAccountChanger(nAccount,0,FData.changesInfo);
 end;
 
-function TOpMultiOperation.IndexOfAccountChanger(nAccount: Cardinal; startPos : Integer; const changesInfo: TMultiOpChangesInfo): Integer;
+class function TOpMultiOperation.IndexOfAccountChanger(nAccount: Cardinal; startPos : Integer; const changesInfo: TMultiOpChangesInfo): Integer;
 begin
   for Result:=startPos to high(changesInfo) do begin
     If (changesInfo[Result].Account = nAccount) then exit;
@@ -356,7 +357,7 @@ begin
       end;
     end;
     Result := AddTx(txsenders,txreceivers,False); // Important: Set in same order!
-    Result := Result or AddChangeInfo(changes,False); // Important: Set in same order!
+    Result := Result And AddChangeInfo(changes,False); // Important: Set in same order!
   Except
     On E:Exception do begin
       TLog.NewLog(lterror,Self.ClassName,'('+E.ClassName+'):'+E.Message);
@@ -372,7 +373,7 @@ begin
   old := FSaveSignatureValue;
   try
     FSaveSignatureValue := False;
-    Result:=inherited GetBufferForOpHash(UseProtocolV2);
+    Result:=inherited GetBufferForOpHash(True);
   finally
     FSaveSignatureValue:=old;
   end;
@@ -745,8 +746,10 @@ end;
 
 function TOpMultiOperation.N_Operation: Cardinal;
 begin
-  // On a multitoperation, there are N signers, need specify
-  Result := 0;  // Note: N_Operation = 0 means NO OPERATION
+  // On a multioperation, the signer account are senders N accounts, cannot verify which one is correct... will send first one
+  If length(FData.txSenders)>0 then Result := FData.txSenders[0].N_Operation
+  else if (length(FData.changesInfo)>0) then Result := FData.changesInfo[0].N_Operation
+  else Result := 0;
 end;
 
 function TOpMultiOperation.GetAccountN_Operation(account: Cardinal): Cardinal;
@@ -912,17 +915,17 @@ var i : Integer;
 begin
   ssenders := '';
   for i:=low(FData.txSenders) to High(FData.txSenders) do begin
-    ssenders := ssenders + Format('%d:(%s,%s,%d)',[i+1,TAccountComp.AccountNumberToAccountTxtNumber(FData.txSenders[i].Account),
+    ssenders := ssenders + Format('%d:(%s;%s;%d)',[i+1,TAccountComp.AccountNumberToAccountTxtNumber(FData.txSenders[i].Account),
         TAccountComp.FormatMoney(FData.txSenders[i].Amount),FData.txSenders[i].N_Operation]);
   end;
   sreceivers:='';
   for i:=low(FData.txReceivers) to High(FData.txReceivers) do begin
-    sreceivers := sreceivers + Format('%d:(%s,%s)',[i+1,TAccountComp.AccountNumberToAccountTxtNumber(FData.txReceivers[i].Account),
+    sreceivers := sreceivers + Format('%d:(%s;%s)',[i+1,TAccountComp.AccountNumberToAccountTxtNumber(FData.txReceivers[i].Account),
         TAccountComp.FormatMoney(FData.txReceivers[i].Amount)]);
   end;
   schanges := '';
   for i:=low(FData.changesInfo) to High(FData.changesInfo) do begin
-    schanges := schanges + Format('%d:(%s,%d)',[i+1,TAccountComp.AccountNumberToAccountTxtNumber(FData.changesInfo[i].Account),
+    schanges := schanges + Format('%d:(%s;%d)',[i+1,TAccountComp.AccountNumberToAccountTxtNumber(FData.changesInfo[i].Account),
         FData.changesInfo[i].N_Operation]);
   end;
   Result := Format('Multioperation senders %s receivers %s changes %s Amount:%s Fees:%s',

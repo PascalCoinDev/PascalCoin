@@ -650,6 +650,8 @@ begin
         if Not Storage.LoadBlockChainBlock(FLastBlockCache,BlocksCount-1) then begin
           NewLog(nil,lterror,'Cannot find blockchain '+inttostr(BlocksCount-1)+' so cannot accept bank current block '+inttostr(BlocksCount));
           Clear;
+        end else begin
+          FLastOperationBlock := FLastBlockCache.OperationBlock;
         end;
       end;
       NewLog(Nil, ltinfo,'Start restoring from disk operations (Max '+inttostr(max_block)+') BlockCount: '+inttostr(BlocksCount)+' Orphan: ' +Storage.Orphan);
@@ -2574,6 +2576,7 @@ begin
       OperationResume.isMultiOperation:=True;
       OperationResume.OpSubtype := CT_OpSubtype_MultiOperation;
       OperationResume.OperationTxt := Operation.ToString;
+      Result := True;
     end
   else Exit;
   end;
