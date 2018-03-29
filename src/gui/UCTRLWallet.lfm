@@ -184,7 +184,7 @@ object CTRLWallet: TCTRLWallet
       Caption = 'Copy OPHASH'
       OnClick = miCopyOphashClick
     end
-    object MenuItem1: TMenuItem
+    object miSep2: TMenuItem
       Caption = '-'
     end
     object miOperationInfo: TMenuItem

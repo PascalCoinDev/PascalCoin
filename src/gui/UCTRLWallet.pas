@@ -28,13 +28,13 @@ type
     Label2: TLabel;
     lblTotalPASA: TLabel;
     lblTotalPASC: TLabel;
-    miSep2: TMenuItem;
     miCopyOphash: TMenuItem;
     miOperationInfo: TMenuItem;
     miSendPASC: TMenuItem;
     miTransferAccounts: TMenuItem;
     miAccountInfo: TMenuItem;
     miSep1: TMenuItem;
+    miSep2: TMenuItem;
     PairSplitter1: TPairSplitter;
     PairSplitterSide1: TPairSplitterSide;
     PairSplitterSide2: TPairSplitterSide;
