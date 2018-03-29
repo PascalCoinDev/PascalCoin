@@ -355,6 +355,7 @@ Type
     procedure CheckMemory;
     Property PreviousSafeboxOriginBlock : Integer Read FPreviousSafeboxOriginBlock;
     Function GetMinimumAvailableSnapshotBlock : Integer;
+    Function HasSnapshotForBlock(block_number : Cardinal) : Boolean;
   End;
 
 
@@ -1950,17 +1951,31 @@ procedure TPCSafeBox.CheckMemory;
 {$IFDEF FPC}
 Var sb : TPCSafeBox;
   tc : TTickCount;
+  auxSnapshotsList : TList;
 {$ENDIF}
 begin
   {$IFDEF FPC}
   StartThreadSafe;
   try
+    If Assigned(FPreviousSafeBox) then Exit; // When loading from snapshot, does not allow to check memory!
     tc := TPlatform.GetTickCount;
     sb := TPCSafeBox.Create;
     try
-      sb.CopyFrom(Self);
-      Self.Clear;
-      Self.CopyFrom(sb);
+      //
+      auxSnapshotsList := TList.Create;
+      Try
+        // Save snapshots:
+        auxSnapshotsList.Assign(FSnapshots);
+        FSnapshots.Clear;
+        //
+        sb.CopyFrom(Self);
+        Self.Clear;
+        Self.CopyFrom(sb);
+        // Restore snapshots:
+        FSnapshots.Assign(auxSnapshotsList);
+      finally
+        auxSnapshotsList.Free;
+      end;
     finally
       sb.Free;
     end;
@@ -1973,7 +1988,6 @@ end;
 
 function TPCSafeBox.GetMinimumAvailableSnapshotBlock: Integer;
 Var Pss : PSafeboxSnapshot;
-  i : Integer;
 begin
   Result := -1;
   StartThreadSafe;
@@ -1982,6 +1996,21 @@ begin
       Pss := FSnapshots[0];
       Result := Pss^.nBlockNumber;
     end;
+  finally
+    EndThreadSave;
+  end;
+end;
+
+function TPCSafeBox.HasSnapshotForBlock(block_number: Cardinal): Boolean;
+Var Pss : PSafeboxSnapshot;
+  i : Integer;
+begin
+  Result := False;
+  StartThreadSafe;
+  Try
+    i := FSnapshots.Count-1;
+    while (i>=0) And (PSafeboxSnapshot( FSnapshots[i] )^.nBlockNumber<>block_number) do dec(i);
+    Result := (i>=0);
   finally
     EndThreadSave;
   end;
@@ -2498,6 +2527,7 @@ begin
       case sbHeader.protocol of
         CT_PROTOCOL_1 : FCurrentProtocol := 1;
         CT_PROTOCOL_2 : FCurrentProtocol := 2;
+        CT_PROTOCOL_3 : FCurrentProtocol := 3;
       else exit;
       end;
       if (sbHeader.blocksCount=0) Or (sbHeader.startBlock<>0) Or (sbHeader.endBlock<>(sbHeader.blocksCount-1)) then begin
@@ -2656,7 +2686,7 @@ begin
     if (s<>CT_MagicIdentificator) then exit;
     if Stream.Size<8 then exit;
     Stream.Read(w,SizeOf(w));
-    if not (w in [1,2]) then exit;
+    if not (w in [CT_PROTOCOL_1,CT_PROTOCOL_2,CT_PROTOCOL_3]) then exit;
     sbHeader.protocol := w;
     Stream.Read(safeBoxBankVersion,2);
     if safeBoxBankVersion<>CT_SafeBoxBankVersion then exit;
@@ -3377,7 +3407,7 @@ begin
       If blockAccount.accounts[iAccount].name<>'' then begin
         i := FOrderedByName.IndexOf(blockAccount.accounts[iAccount].name);
         if i>=0 then TLog.NewLog(ltError,ClassName,'ERROR DEV 20170606-2 New Name "'+blockAccount.accounts[iAccount].name+'" for account '+IntToStr(account_number)+' found at account '+IntToStr(FOrderedByName.GetTag(i)));
-        FOrderedByName.Add(blockAccount.accounts[iAccount].name,account_number); // XXXXXXXXXX BUG! Must add!
+        FOrderedByName.Add(blockAccount.accounts[iAccount].name,account_number);
 
         iDeleted := FDeletedNamesSincePreviousSafebox.IndexOf(blockAccount.accounts[iAccount].name);
         iAdded := FAddedNamesSincePreviousSafebox.IndexOf(blockAccount.accounts[iAccount].name);
@@ -3818,7 +3848,7 @@ function TPCSafeBoxTransaction.TransferAmounts(previous : TAccountPreviousBlockI
   n_operations: array of Cardinal; const sender_amounts: array of UInt64;
   const receivers: array of Cardinal; const receivers_amounts: array of UInt64;
   var errors: AnsiString): Boolean;
-Var i : Integer;
+Var i,j : Integer;
   PaccSender, PaccTarget : PAccount;
   nTotalAmountSent, nTotalAmountReceived, nTotalFee : Int64;
 begin
@@ -3844,6 +3874,12 @@ begin
   end;
   // Check sender
   for i:=Low(senders) to High(senders) do begin
+    for j:=i+1 to High(senders) do begin
+      if (senders[i]=senders[j]) then begin
+        errors := 'Duplicated sender';
+        Exit;
+      end;
+    end;
     if (senders[i]<0) Or (senders[i]>=(Origin_BlocksCount*CT_AccountsPerBlock)) then begin
        errors := 'Invalid sender on transfer';
        exit;

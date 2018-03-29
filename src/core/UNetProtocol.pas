@@ -1547,7 +1547,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       Bank.Storage.ReadOnly := true;
       Bank.Storage.CopyConfiguration(TNode.Node.Bank.Storage);
       if start_block>=0 then begin
-        If (TNode.Node.Bank.SafeBox.GetMinimumAvailableSnapshotBlock<start_block) then begin
+        If (TNode.Node.Bank.SafeBox.HasSnapshotForBlock(start_block-1)) then begin
           // XXXXXXXXXXXXX
           // XXXXXXXXXXXXX
           // Restore from a Snapshot (New on V3) instead of restore reading from File
