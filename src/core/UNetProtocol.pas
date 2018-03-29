@@ -1787,7 +1787,11 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
         // Will concat safeboxs:
         chunk1 := TMemoryStream.Create;
         try
-          chunk1.CopyFrom(chunks[0].chunkStream,0);
+          if (length(chunks)=1) then begin
+            receiveData.CopyFrom(chunks[0].chunkStream,0);
+          end else begin
+            chunk1.CopyFrom(chunks[0].chunkStream,0);
+          end;
           for i:=1 to high(chunks) do begin
             receiveData.Size:=0;
             chunk1.Position:=0;
