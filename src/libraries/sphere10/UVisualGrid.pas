@@ -84,11 +84,13 @@ type
     property SortDirection: TSortDirection read FSortDirection write SetSortDirection;
   end;
 
+  TVisualColumnRenderer = procedure(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData: Variant; var Handled: boolean) of object;
+
   { TVisualGrid Events }
 
   TPreparePopupMenuEvent = procedure(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu) of object;
   TSelectionEvent = procedure(Sender: TObject; constref ASelection: TVisualGridSelection) of object;
-  TDrawVisualCellEvent = procedure(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const RowData: Variant; var Handled: boolean) of object;
+  TDrawVisualCellEvent = procedure(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData: Variant; var Handled: boolean) of object;
   TColumnInitializeEvent = procedure(Sender: TObject; AColIndex:Integer; AColumn : TVisualColumn) of object;
 
   { TVisualGrid Exceptions }
@@ -251,8 +253,6 @@ type
     FCurrentSelectionType: TSelectionType;
     FLastSelection: TVisualGridSelection;
     FIgnoreSelectionEvent: boolean;
-    FDefaultStretchedColumn : Integer;
-    FDefaultColumnWidths : TArray<Integer>;
     FCellPadding : TRect;
     FWidgetControl: TControl;
     FWidgetControlParent: TWinControl;
@@ -304,6 +304,9 @@ type
     FTotalDataCount: Integer;
     FLastFetchDataResult: TLastFetchDataResult;
     FSortColumn: TVisualColumn;
+    FDefaultStretchedColumn : Integer;
+    FDefaultColumnWidths : TArray<Integer>;
+    FColumnRenderers : TArray<TVisualColumnRenderer>;
 
     FOnDrawVisualCell: TDrawVisualCellEvent;
     FOnColumnInitialize : TColumnInitializeEvent;
@@ -342,6 +345,7 @@ type
     property FetchDataInThread: boolean read FFetchDataInThread write SetFetchDataInThread;
     property DefaultStretchedColumn: Integer read FDefaultStretchedColumn write FDefaultStretchedColumn;
     property DefaultColumnWidths : TArray<Integer> read FDefaultColumnWidths write FDefaultColumnWidths;
+    property ColumnRenderers : TArray<TVisualColumnRenderer> read FColumnRenderers write FColumnRenderers;
 
     property CanPage: boolean read FCanPage write SetCanPage default true;
     property CanSearch: boolean read FCanSearch write SetCanSearch default true;
@@ -396,6 +400,13 @@ type
     property OnDrawVisualCell;
     property OnSelection;
     property OnPreparePopupMenu;
+  end;
+
+  { TVisualCellRenderers }
+
+  TVisualCellRenderers = class
+    public
+      class procedure DollarValue (Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData: Variant; var Handled: boolean);
   end;
 
   { TVisualGridSearchExpressionService }
@@ -580,6 +591,26 @@ begin
   if Length(Selections) = 0 then
     Exit(0);
   Result := Selections[0].Height + 1;
+end;
+
+{ TVisualCellRenderers }
+
+class procedure TVisualCellRenderers.DollarValue (Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData: Variant; var Handled: boolean);
+var
+  LReal : Real;
+  LTextStyle: TTextStyle;
+begin
+  if NOT VarIsNumeric(CellData) then
+    exit;
+
+  LReal := CellData;
+  Canvas.Font.Color:= IIF (LReal < 0, clRed, clGreen);
+  Canvas.Font.Style:=[fsBold];
+  LTextStyle := Canvas.TextStyle;
+  LTextStyle.Alignment:=taRightJustify;
+  Canvas.TextStyle:=LTextStyle;
+  Canvas.TextRect(Rect, Rect.Left+2, Rect.Top+2, Format('$%.2F',  [LReal]), LTextStyle);
+  Handled := true;
 end;
 
 { TFetchDataThread }
@@ -2237,6 +2268,7 @@ procedure TCustomVisualGrid.StandardDrawCell(Sender: TObject; ACol,
 var
   LHandled: boolean;
   LCellData: Variant;
+  LColRenderer : TVisualColumnRenderer;
 begin
   LHandled := False;
 
@@ -2250,8 +2282,18 @@ begin
 
   Rect := CalculateCellContentRect(Rect);
 
+  // Try user-settable cell renderer
   if Assigned(FOnDrawVisualCell) then
     FOnDrawVisualCell(Self, ACol, ARow, Canvas, Rect, State, LCellData, LHandled);
+
+  // Try user-settable column renderer
+  if (NOT LHandled) AND (ACol < Length(FColumnRenderers)) then begin
+    LColRenderer := FColumnRenderers[ACol];
+    if Assigned(LColRenderer) then
+      LColRenderer(Self, ACol, ARow, Canvas, Rect, State, LCellData, LHandled);
+  end;
+
+  // Use default renderer
   if not LHandled then
     DoDrawCell(Self, ACol, ARow, Rect, State, LCellData);
 end;
@@ -2402,6 +2444,7 @@ begin
   Result.Right := ClipValue(ARect.Right - FCellPadding.Right - PLATFORM_CELL_RECT_X_OFFSET, 2, 1000000);
   Result.Bottom := ClipValue(ARect.Bottom - FCellPadding.Bottom - PLATFORM_CELL_RECT_Y_OFFSET, 2, 100000);
 end;
+
 
 initialization
   {$I *.inc}
