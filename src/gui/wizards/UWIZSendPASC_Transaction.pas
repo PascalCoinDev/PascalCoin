@@ -14,7 +14,8 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_Confirmation;
+  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_TransactionPayload,
+  UWIZSendPASC_Confirmation;
 
 type
 
@@ -35,6 +36,7 @@ type
     btnSearch: TSpeedButton;
     procedure btnSearchClick(Sender: TObject);
     procedure cbSignerAccountChange(Sender: TObject);
+
 
   public
     procedure OnPresent; override;
@@ -175,6 +177,8 @@ begin
     cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
   Model.DestinationAccount := GetAccounts(GetAccNoWithoutChecksum(edtDestAcc.Text));
   Model.AmountToSend := edtAmt.Text;
+  UpdatePath(ptReplaceAllNext, [TWIZSendPASC_TransactionPayload,
+    TWIZSendPASC_Confirmation]);
 end;
 
 function TWIZSendPASC_Transaction.Validate(out message: ansistring): boolean;
@@ -188,7 +192,6 @@ var
   AccountNumbersWithChecksum: TArray<string>;
   Accounts: TArray<TAccount>;
   c: cardinal;
-  DestAccount: TAccount;
   amount, opfee: int64;
   i: integer;
 begin
@@ -216,7 +219,6 @@ begin
     Exit;
   end;
 
-  DestAccount := TNode.Node.Operations.SafeBoxTransaction.account(c);
   if Length(Accounts) = 1 then
   begin
     if not TAccountComp.TxtToMoney(edtAmt.Text, amount) then
@@ -244,15 +246,15 @@ begin
     Exit;
   end;
 
-  //for i := Low(Accounts) to High(Accounts) do
-  //begin
-  //  if (Accounts[i].balance < (amount + opfee)) then
-  //  begin
-  //    message := 'Insufficient funds';
-  //    Result := False;
-  //    Exit;
-  //  end;
-  //end;
+  if Length(Accounts) = 1 then
+  begin
+    if (Accounts[0].balance < (amount + Model.DefaultFee)) then
+    begin
+      message := 'Insufficient funds';
+      Result := False;
+      Exit;
+    end;
+  end;
 
 end;
 

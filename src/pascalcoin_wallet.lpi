@@ -33,7 +33,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="74">
+    <Units Count="76">
       <Unit0>
         <Filename Value="pascalcoin_wallet.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -416,6 +416,17 @@
         <Filename Value="core\UCore.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit73>
+      <Unit74>
+        <Filename Value="gui\wizards\UWIZSendPASC_TransactionPayload.lfm"/>
+        <IsPartOfProject Value="True"/>
+      </Unit74>
+      <Unit75>
+        <Filename Value="gui\wizards\UWIZSendPASC_TransactionPayload.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZSendPASC_TransactionPayload"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit75>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
