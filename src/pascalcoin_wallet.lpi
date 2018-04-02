@@ -417,15 +417,12 @@
         <IsPartOfProject Value="True"/>
       </Unit73>
       <Unit74>
-        <Filename Value="gui\wizards\UWIZSendPASC_TransactionPayload.lfm"/>
+        <Filename Value="libraries\sphere10\UMemory.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit74>
       <Unit75>
-        <Filename Value="gui\wizards\UWIZSendPASC_TransactionPayload.pas"/>
+        <Filename Value="gui\UCellRenderers.pas"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="WIZSendPASC_TransactionPayload"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
       </Unit75>
     </Units>
   </ProjectOptions>

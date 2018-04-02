@@ -74,8 +74,8 @@ type
     procedure OnAccountsUpdated(Sender: TObject);
     procedure OnAccountsSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
     procedure OnOperationSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
-    procedure OnAccountsGridColumnInitialize(Sender: TObject; AColIndex: integer; AColumn: TVisualColumn);
-    procedure OnOperationsGridColumnInitialize(Sender: TObject; AColIndex: integer; AColumn: TVisualColumn);
+    procedure OnAccountsGridColumnInitialize(Sender: TObject; AColumn: TVisualColumn);
+    procedure OnOperationsGridColumnInitialize(Sender: TObject; AColumn: TVisualColumn);
     procedure OnPrepareAccountPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
     procedure OnPrepareOperationsPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
   public
@@ -87,8 +87,8 @@ type
 implementation
 
 uses
-  UUserInterface, UBlockChain, UWallet, UCrypto, UCore,
-  UCommon, UMemory, Generics.Defaults, UCommon.Collections;
+  UUserInterface, UCellRenderers, UBlockChain, UWallet, UCrypto, UCore,
+  UCommon, UMemory, Generics.Defaults, UCommon.Data, UCommon.Collections;
 
 {$R *.lfm}
 
@@ -118,11 +118,20 @@ begin
   FAccountsGrid.SelectionType := stMultiRow;
   FAccountsGrid.DeselectionType := dtDefault;
   FAccountsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
-  FAccountsGrid.DefaultColumnWidths :=
-    TArray<integer>.Create(100,                   // Account
-    CT_VISUALGRID_STRETCH, // Name
-    100                    // Balance
-    );
+  with FAccountsGrid.AddColumn('Account') do begin
+    Width := 100;
+    Renderer := TCellRenderers.AccountNo;
+  end;
+  with FAccountsGrid.AddColumn('Name') do begin
+    StretchedToFill := true;
+    Renderer := TCellRenderers.AccountName;
+  end;
+  with FAccountsGrid.AddColumn('Balance') do begin
+    Width := 100;
+    StretchedToFill := true;
+    Renderer := TCellRenderers.PASCBalance;
+  end;
+
   FAccountsGrid.OnColumnInitialize := OnAccountsGridColumnInitialize;
   FAccountsGrid.OnSelection := OnAccountsSelected;
   FAccountsGrid.OnFinishedUpdating := OnAccountsUpdated;
@@ -135,18 +144,53 @@ begin
   FOperationsGrid.SelectionType := stRow;
   FOperationsGrid.DeselectionType := dtDefault;
   FOperationsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
-  FOperationsGrid.DefaultColumnWidths :=
-    TArray<integer>.Create(130,                   // Time
-    CT_VISUALGRID_DEFAULT, // Block
-    100,                   // Account
-    150,                   // Type
-    130,                   // Amount
-    CT_VISUALGRID_DEFAULT, // Fee
-    100,                   // Balance
-    CT_VISUALGRID_DEFAULT, // Payload
-    80,                    // OPHASH
-    CT_VISUALGRID_STRETCH  // Description (stretch)
-  );
+  with FOperationsGrid.AddColumn('Time') do begin
+    Width := 130;
+    Renderer := TCellRenderers.Date_YYYYMMDDHHMMSS;
+    Filters := SORTABLE_NUMERIC_FILTER;
+  end;
+  with FOperationsGrid.AddColumn('Block') do begin
+    AutoWidth := true;
+    Filters := SORTABLE_TEXT_FILTER;
+  end;
+  with FOperationsGrid.AddColumn('Account') do begin
+    Width := 100;
+    Filters := SORTABLE_NUMERIC_FILTER;
+  end;
+  with FOperationsGrid.AddColumn('Type') do begin
+    Width := 150;
+    Filters := SORTABLE_NUMERIC_FILTER;
+  end;
+  with FOperationsGrid.AddColumn('Amount') do begin
+    Width := 150;
+    Renderer := TCellRenderers.PASCTransfer;
+    Filters := SORTABLE_NUMERIC_FILTER;
+  end;
+  with FOperationsGrid.AddColumn('Fee') do begin
+    AutoWidth := true;
+    Renderer := TCellRenderers.PASCTransfer;
+    Filters := SORTABLE_NUMERIC_FILTER;
+  end;
+  with FOperationsGrid.AddColumn('Balance') do begin
+    Width := 100;
+    Renderer := TCellRenderers.PASCBalance;
+    Filters := SORTABLE_NUMERIC_FILTER;
+  end;
+  with FOperationsGrid.AddColumn('Payload') do begin
+    AutoWidth := true;
+    Renderer := TCellRenderers.Payload;
+    Filters := SORTABLE_TEXT_FILTER;
+  end;
+  with FOperationsGrid.AddColumn('OPHASH') do begin
+    Width := 80;
+    Renderer := TCellRenderers.OPHASH;
+    Filters := SORTABLE_TEXT_FILTER;
+  end;
+  with FOperationsGrid.AddColumn('Description') do begin
+    StretchedToFill := true;
+    Renderer := TCellRenderers.SmallText;
+    Filters := SORTABLE_TEXT_FILTER;
+  end;
   FOperationsGrid.OnColumnInitialize := OnOperationsGridColumnInitialize;
   FOperationsGrid.OnSelection := OnOperationSelected;
   FOperationsGrid.OnPreparePopupMenu := OnPrepareOperationsPopupMenu;
@@ -259,18 +303,16 @@ begin
   end;
 end;
 
-procedure TCTRLWallet.OnAccountsGridColumnInitialize(Sender: TObject;
-  AColIndex: integer; AColumn: TVisualColumn);
+procedure TCTRLWallet.OnAccountsGridColumnInitialize(Sender: TObject; AColumn: TVisualColumn);
 begin
-  case AColIndex of
+  case AColumn.Index of
     2: AColumn.InternalColumn.Alignment := taRightJustify;
   end;
 end;
 
-procedure TCTRLWallet.OnOperationsGridColumnInitialize(Sender: TObject;
-  AColIndex: integer; AColumn: TVisualColumn);
+procedure TCTRLWallet.OnOperationsGridColumnInitialize(Sender: TObject; AColumn: TVisualColumn);
 begin
-  case AColIndex of
+  case AColumn.Index of
     4, 5, 6: AColumn.InternalColumn.Alignment := taRightJustify;
   end;
 end;

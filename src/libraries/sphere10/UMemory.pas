@@ -22,6 +22,10 @@ interface
 
 type
 
+  { TDisposePolicy }
+
+  TDisposePolicy = (idpNone, idpNil, idpFree, idpFreeAndNil, idpRelease, idpFreeMem);
+
   { TDisposables }
 
   TDisposables = record
@@ -30,7 +34,7 @@ type
 
        TDisposablePointer = record
          Ptr: Pointer;
-         IsObject: Boolean;
+         DisposePolicy : TDisposePolicy;
        end;
 
       TGuard = class(TInterfacedObject)
@@ -46,7 +50,7 @@ type
       FLastIndex: Integer;
       class procedure Initialize(var ADisposables: TDisposables); static;
       class procedure Finalize(var ADisposables: TDisposables); static;
-      procedure RegisterPointer(Ptr: Pointer; IsObject: Boolean);
+      procedure RegisterPointer(Ptr: Pointer; ADisposePolicy: TDisposePolicy);
       procedure UnregisterPointer(Ptr: Pointer);
     public
       function AddObject(const AnObject: TObject): TObject;
@@ -70,6 +74,7 @@ type
         private
           FOwner: __PAutoPtr_T;
         public
+          FDisposePolicy : TDisposePolicy;
           constructor Create(AAutoPtrRec: __PAutoPtr_T);
           destructor Destroy; override;
       end;
@@ -79,16 +84,20 @@ type
       class procedure Initialize(var AAutoPtr: __TAutoPtr_T); static;
       class procedure Finalize(var AAutoPtr: __TAutoPtr_T); static;
       function GetPointer : Pointer; inline;
-      procedure SetPointer(Ptr: Pointer); inline;
+      procedure SetPointer(Ptr: Pointer); inline; overload;
       function GetObject : TObject; inline;
-      procedure SetObject(const AnObject: TObject); inline;
+      procedure SetObject(const AnObject: TObject); inline; overload;
       function GetValue : T; inline;
-      procedure SetValue(const AValue : T); inline;
+      procedure SetValue(const AValue : T); inline; overload;
       procedure CheckGuard; inline;
     public
       property Pointer_ : Pointer read GetPointer write SetPointer;
       property Object_ : TObject read GetObject write SetObject;
       property Value : T read GetValue write SetValue;
+      procedure SetPointer(Ptr: Pointer; ADisposePolicy : TDisposePolicy); inline; overload;
+      procedure SetObject(const AnObject: TObject; ADisposePolicy : TDisposePolicy); inline; overload;
+      procedure SetValue(const AValue : T; ADisposePolicy : TDisposePolicy); inline; overload;
+      procedure DangerousUpdateDisposePolicy(ADisposePolicy : TDisposePolicy);
       procedure Clear;
   end;
 
@@ -130,11 +139,18 @@ begin
 
   for i := ADisposables.FLastIndex downto 0 do
   try
-    if ADisposables.FPointers[i].IsObject then
-      TObject(ADisposables.FPointers[i].Ptr).Free
-    else begin
-      if Assigned(ADisposables.FPointers[i].Ptr) then
-        System.FreeMem(ADisposables.FPointers[i].Ptr);
+    case ADisposables.FPointers[i].DisposePolicy of
+      idpNone: ;
+      idpNil: ADisposables.FPointers[i].Ptr := nil;
+      idpFree, idpFreeAndNil: if Assigned(ADisposables.FPointers[i].Ptr) then begin
+        FreeAndNil(ADisposables.FPointers[i].Ptr);
+        ADisposables.FPointers[i].Ptr := nil;
+      end;
+      idpRelease: begin
+        raise ENotSupportedException.Create('Dispose policy idoRelease not supported');
+      end;
+      idpFreeMem: if Assigned(ADisposables.FPointers[i].Ptr) then System.FreeMem(ADisposables.FPointers[i].Ptr);
+      else raise ENotSupportedException.Create('Dispose policy not supported');;
     end;
   except
     if not Assigned(FirstException) then
@@ -148,14 +164,14 @@ begin
   end;
 end;
 
-procedure TDisposables.RegisterPointer(Ptr: Pointer; IsObject: Boolean);
+procedure TDisposables.RegisterPointer(Ptr: Pointer; ADisposePolicy: TDisposePolicy);
 begin
   if FLastIndex > High(FPointers) then
     SetLength(FPointers, Length(FPointers) * 2);
 
   Inc(FLastIndex);
   FPointers[FLastIndex].Ptr := Ptr;
-  FPointers[FLastIndex].IsObject := IsObject;
+  FPointers[FLastIndex].DisposePolicy := ADisposePolicy;
 end;
 
 procedure TDisposables.UnregisterPointer(Ptr: Pointer);
@@ -173,7 +189,7 @@ function TDisposables.AddObject(const AnObject: TObject): TObject;
 begin
     if not Assigned(FGuardian) then
       FGuardian := TGuard.Create(@Self);
-  RegisterPointer(Pointer(AnObject), True);
+  RegisterPointer(Pointer(AnObject), idpFree);
   Result := AnObject;
 end;
 
@@ -202,7 +218,7 @@ procedure TDisposables.AddMem(const P: Pointer);
 begin
   if not Assigned(FGuardian) then
     FGuardian := TGuard.Create(@Self);
-  RegisterPointer(P, False);
+  RegisterPointer(P, idpFreeMem);
 end;
 
 procedure TDisposables.ReallocMem(var P: Pointer; Size:Integer);
@@ -213,7 +229,7 @@ begin
     FGuardian := TGuard.Create(@Self);
 
   for i := FLastIndex downto 0 do
-    if not FPointers[i].IsObject and (FPointers[i].Ptr = P) then
+    if (FPointers[i].DisposePolicy = idpFreeMem) and (FPointers[i].Ptr = P) then
     begin
       System.ReallocMem(FPointers[i].Ptr, Size);
       P := FPointers[i].Ptr;
@@ -233,7 +249,14 @@ end;
 constructor TAutoPtr<T>.TGuard.Create(AAutoPtrRec: __PAutoPtr_T);
 begin
   FOwner := AAutoPtrRec;
+  FDisposePolicy := idpNone;
   TAutoPtr<T>.Initialize(FOwner^);
+end;
+
+procedure TAutoPtr<T>.DangerousUpdateDisposePolicy(ADisposePolicy : TDisposePolicy);
+begin
+  CheckGuard;
+  TGuard(FGuardian).FDisposePolicy := ADisposePolicy;
 end;
 
 destructor TAutoPtr<T>.TGuard.Destroy;
@@ -262,7 +285,15 @@ procedure TAutoPtr<T>.Clear;
 begin
   CheckGuard;
   if FPointer <> nil then begin
-    TObject(FPointer).Free;
+    case TGuard(FGuardian).FDisposePolicy of
+      idpNone: ;
+      idpNil: FPointer := nil;
+      idpFree, idpFreeAndNil: FreeAndNil ( FPointer );
+      idpRelease: raise ENotSupportedException.Create('Dispose policy idpRelease not supported');
+      idpFreeMem: System.FreeMem(FPointer);
+      else raise ENotSupportedException.Create('Dispose policy not supported');
+    end;
+
     FPointer := nil;
     // avoid FGuard nullifcation due to recursive calls
   end;
@@ -276,10 +307,16 @@ end;
 
 procedure TAutoPtr<T>.SetPointer(Ptr: Pointer);
 begin
+  SetPointer(Ptr, idpFree);
+end;
+
+procedure TAutoPtr<T>.SetPointer(Ptr: Pointer; ADisposePolicy : TDisposePolicy);
+begin
   CheckGuard;
   if FPointer <> nil then
     Clear;
   FPointer := Ptr;
+  TGuard(FGuardian).FDisposePolicy := ADisposePolicy;
 end;
 
 function TAutoPtr<T>.GetObject : TObject;
@@ -289,7 +326,13 @@ end;
 
 procedure TAutoPtr<T>.SetObject(const AnObject: TObject);
 begin
-  SetPointer( Pointer(AnObject));
+  SetObject(AnObject , idpFree);
+end;
+
+
+procedure TAutoPtr<T>.SetObject(const AnObject: TObject; ADisposePolicy : TDisposePolicy);
+begin
+  SetPointer( Pointer(AnObject), ADisposePolicy);
 end;
 
 function TAutoPtr<T>.GetValue : TObject;
@@ -299,7 +342,12 @@ end;
 
 procedure TAutoPtr<T>.SetValue(const AValue: T);
 begin
-  SetObject(TObject(AValue));
+  SetValue(AValue, idpFree);
+end;
+
+procedure TAutoPtr<T>.SetValue(const AValue: T; ADisposePolicy : TDisposePolicy);
+begin
+  SetObject(TObject(AValue), ADisposePolicy);
 end;
 
 procedure TAutoPtr<T>.CheckGuard;

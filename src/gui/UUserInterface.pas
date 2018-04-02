@@ -471,7 +471,6 @@ begin
   ShowMemoText(parentForm, Format('Account/Operation: %s/%s', [account.GetAccountString, operation.GetPrintableOPHASH]), text);
 end;
 
-
 // TODO - refactor with accounts as ARRAY
 class procedure TUserInterface.ShowNewOperationDialog(parentForm : TForm; accounts : TOrderedCardinalList; defaultFee : Cardinal);
 begin
@@ -774,7 +773,6 @@ begin
 end;
 
 {%endregion}
-
 
 {%region Auxillary methods}
 

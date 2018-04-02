@@ -37,23 +37,21 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, UCommon, UCommon.UI, Generics.Collections;
+uses UAccounts, UDataSources, UCommon, UCommon.UI, Generics.Collections;
 
 type
 
   { TAccountSenderDataSource }
 
-  TAccountSenderDataSource = class(TCustomDataSource<TAccount>)
+  TAccountSenderDataSource = class(TAccountsDataSourceBase)
     private
       FModel : TWIZSendPASCModel;
     protected
-      function GetColumns : TTableColumns;  override;
+      function GetColumns : TDataColumns;
     public
       property Model : TWIZSendPASCModel read FModel write FModel;
-      function GetSearchCapabilities: TSearchCapabilities; override;
-      function GetEntityKey(constref AItem: TAccount) : Variant; override;
       procedure FetchAll(const AContainer : TList<TAccount>); override;
-      function GetItemField(constref AItem: TAccount; const AColumnName : utf8string) : Variant; override;
+      function GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant; override;
       procedure DehydrateItem(constref AItem: TAccount; var ATableRow: Variant); override;
   end;
 
@@ -70,13 +68,25 @@ begin
   FSendersGrid.AutoPageSize := True;
   FSendersGrid.SelectionType := stNone;
   FSendersGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
-  FSendersGrid.DefaultColumnWidths :=
-    TArray<integer>.Create(
-    100, // Sender Account
-    100, // Balance
-    100, // AmountToSend
-    100 // Fee
-   );
+  with FSendersGrid.AddColumn('Sender') do begin
+    Binding := 'SenderAccount';
+    Filters := SORTABLE_NUMERIC_FILTER;
+    Width := 100;
+  end;
+  with FSendersGrid.AddColumn('Balance') do begin
+    Filters := SORTABLE_NUMERIC_FILTER;
+    Width := 100;
+  end;
+  with FSendersGrid.AddColumn('Amount To Send') do begin
+    Binding := 'AmountToSend';
+    Filters := SORTABLE_TEXT_FILTER;
+    Width := 100;
+  end;
+  with FSendersGrid.AddColumn('Fee') do begin
+    Filters := SORTABLE_TEXT_FILTER;
+    Width := 100;
+  end;
+
    data := TAccountSenderDataSource.Create(FSendersGrid);
    data.Model := Model;
    FSendersGrid.DataSource := data;
@@ -87,39 +97,29 @@ end;
 
 { TAccountSenderDataSource }
 
-function TAccountSenderDataSource.GetColumns : TTableColumns;
+function TAccountSenderDataSource.GetColumns : TDataColumns;
 begin
-  Result := TTableColumns.Create('SenderAccount', 'Balance', 'AmountToSend', 'Fee');
-end;
-
-function TAccountSenderDataSource.GetSearchCapabilities: TSearchCapabilities;
-begin
-  Result := TSearchCapabilities.Create(
-    TSearchCapability.From('SenderAccount', SORTABLE_NUMERIC_FILTER),
-    TSearchCapability.From('Balance', SORTABLE_TEXT_FILTER),
-    TSearchCapability.From('AmountToSend', SORTABLE_TEXT_FILTER),
-    TSearchCapability.From('Fee', SORTABLE_TEXT_FILTER)
+  Result := TDataColumns.Create(
+    TDataColumn.From('SenderAccount'),
+    TDataColumn.From('Balance'),
+    TDataColumn.From('AmountToSend'),
+    TDataColumn.From('Fee')
   );
 end;
 
-function TAccountSenderDataSource.GetEntityKey(constref AItem: TAccount) : Variant;
-begin
-  Result := AItem.account;
-end;
-
-function TAccountSenderDataSource.GetItemField(constref AItem: TAccount; const AColumnName : utf8string) : Variant;
+function TAccountSenderDataSource.GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant;
 var
   index : Integer;
 begin
-   if AColumnName = 'SenderAccount' then
+   if ABindingName = 'SenderAccount' then
      Result := AItem.account
-   else if AColumnName = 'Balance' then
+   else if ABindingName = 'Balance' then
      Result := TAccountComp.FormatMoneyDecimal(AItem.Balance)
-   else if AColumnName = 'AmountToSend' then
+   else if ABindingName = 'AmountToSend' then
      Result := Model.AmountToSend
-     else if AColumnName = 'Fee' then
+     else if ABindingName = 'Fee' then
      Result := TAccountComp.FormatMoney(Model.DefaultFee)
-   else raise Exception.Create(Format('Field not found [%s]', [AColumnName]));
+   else raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
 end;
 
 procedure TAccountSenderDataSource.DehydrateItem(constref AItem: TAccount; var ATableRow: Variant);

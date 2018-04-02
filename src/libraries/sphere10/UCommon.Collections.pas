@@ -20,7 +20,7 @@ unit UCommon.Collections;
 interface
 
 uses
-  Classes, SysUtils, Generics.Collections, Generics.Defaults, UCommon;
+  Classes, SysUtils, Generics.Collections, Generics.Defaults,UMemory, UCommon;
 
 type
 
@@ -110,10 +110,10 @@ type
     class function Skip(const AList: TList<T>; const ACount : SizeInt) : SizeInt;
     class function Take(const AList: TList<T>; const ACount : SizeInt) : SizeInt;
     class function RemoveBy(const AList: TList<T>; const APredicate: IPredicate<T>) : SizeInt; overload;
-    class function RemoveBy(const AList: TList<T>; const APredicate: IPredicate<T>; const ADisposePolicy : TItemDisposePolicy) : SizeInt; overload;
+    class function RemoveBy(const AList: TList<T>; const APredicate: IPredicate<T>; const ADisposePolicy : TDisposePolicy) : SizeInt; overload;
     class function FilterBy(const AList: TList<T>; const APredicate: IPredicate<T>) : SizeInt; overload;
-    class function FilterBy(const AList: TList<T>; const APredicate: IPredicate<T>; const ADisposePolicy : TItemDisposePolicy) : SizeInt; overload;
-    class procedure DiposeItem(const AList: TList<T>; const index : SizeInt; const ADisposePolicy : TItemDisposePolicy);
+    class function FilterBy(const AList: TList<T>; const APredicate: IPredicate<T>; const ADisposePolicy : TDisposePolicy) : SizeInt; overload;
+    class procedure DiposeItem(const AList: TList<T>; const index : SizeInt; const ADisposePolicy : TDisposePolicy);
   end;
 
   TListTool<T1, T2> = class
@@ -723,7 +723,7 @@ begin
   Result := RemoveBy(AList, APredicate, idpNone);
 end;
 
-class function TListTool<T>.RemoveBy(const AList: TList<T>; const APredicate: IPredicate<T>; const ADisposePolicy : TItemDisposePolicy) : SizeInt;
+class function TListTool<T>.RemoveBy(const AList: TList<T>; const APredicate: IPredicate<T>; const ADisposePolicy : TDisposePolicy) : SizeInt;
 var
   i : SizeInt;
   item : T;
@@ -746,12 +746,12 @@ begin
   Result := FilterBy(AList, APredicate, idpNone);
 end;
 
-class function TListTool<T>.FilterBy(const AList: TList<T>; const APredicate: IPredicate<T>; const ADisposePolicy : TItemDisposePolicy) : SizeInt;
+class function TListTool<T>.FilterBy(const AList: TList<T>; const APredicate: IPredicate<T>; const ADisposePolicy : TDisposePolicy) : SizeInt;
 begin
   Result := RemoveBy(AList, TPredicateTool<T>.NegatePredicate ( APredicate ) );
 end;
 
-class procedure TListTool<T>.DiposeItem(const AList: TList<T>; const index : SizeInt; const ADisposePolicy : TItemDisposePolicy);
+class procedure TListTool<T>.DiposeItem(const AList: TList<T>; const index : SizeInt; const ADisposePolicy : TDisposePolicy);
 var
   item : T;
 begin

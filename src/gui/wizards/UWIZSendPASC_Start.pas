@@ -39,24 +39,18 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, UCommon, UCommon.UI, Generics.Collections;
+uses UAccounts, UDataSources, UCommon, UCommon.UI, Generics.Collections;
 
 type
 
   { TAccountSenderDataSource }
 
-  TAccountSenderDataSource = class(TCustomDataSource<TAccount>)
+  TAccountSenderDataSource = class(TAccountsDataSourceBase)
     private
       FModel : TWIZSendPASCModel;
-    protected
-      function GetColumns : TTableColumns;  override;
     public
       property Model : TWIZSendPASCModel read FModel write FModel;
-      function GetSearchCapabilities: TSearchCapabilities; override;
-      function GetEntityKey(constref AItem: TAccount) : Variant; override;
       procedure FetchAll(const AContainer : TList<TAccount>); override;
-      function GetItemField(constref AItem: TAccount; const AColumnName : utf8string) : Variant; override;
-      procedure DehydrateItem(constref AItem: TAccount; var ATableRow: Variant); override;
   end;
 
 { TWIZSendPASC_Start }
@@ -72,15 +66,19 @@ begin
   FSendersGrid.AutoPageSize := True;
   FSendersGrid.SelectionType := stNone;
   FSendersGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
-  FSendersGrid.DefaultColumnWidths :=
-    TArray<integer>.Create(
-    CT_VISUALGRID_STRETCH, // Account
-    100                    // Amount
-   );
-   data := TAccountSenderDataSource.Create(FSendersGrid);
-   data.Model := Model;
-   FSendersGrid.DataSource := data;
-   paGrid.AddControlDockCenter(FSendersGrid);
+  with FSendersGrid.AddColumn('Account') do begin
+    StretchedToFill := true;
+    Filters := SORTABLE_NUMERIC_FILTER;
+  end;
+  with FSendersGrid.AddColumn('Amount') do begin
+    Binding := 'Balance';
+    Width := 100;
+    Filters := SORTABLE_NUMERIC_FILTER;
+  end;
+  data := TAccountSenderDataSource.Create(FSendersGrid);
+  data.Model := Model;
+  FSendersGrid.DataSource := data;
+  paGrid.AddControlDockCenter(FSendersGrid);
 end;
 
 procedure TWIZSendPASC_Start.OnNext;
@@ -89,41 +87,6 @@ begin
 end;
 
 { TAccountSenderDataSource }
-
-function TAccountSenderDataSource.GetColumns : TTableColumns;
-begin
-  Result := TTableColumns.Create('Account', 'Amount');
-end;
-
-function TAccountSenderDataSource.GetSearchCapabilities: TSearchCapabilities;
-begin
-  Result := TSearchCapabilities.Create(
-    TSearchCapability.From('Account', SORTABLE_NUMERIC_FILTER),
-    TSearchCapability.From('Amount', SORTABLE_TEXT_FILTER)
-  );
-end;
-
-function TAccountSenderDataSource.GetEntityKey(constref AItem: TAccount) : Variant;
-begin
-  Result := AItem.account;
-end;
-
-function TAccountSenderDataSource.GetItemField(constref AItem: TAccount; const AColumnName : utf8string) : Variant;
-var
-  index : Integer;
-begin
-   if AColumnName = 'Account' then
-     Result := AItem.account
-   else if AColumnName = 'Amount' then
-     Result := TAccountComp.FormatMoneyDecimal(AItem.Balance)
-   else raise Exception.Create(Format('Field not found [%s]', [AColumnName]));
-end;
-
-procedure TAccountSenderDataSource.DehydrateItem(constref AItem: TAccount; var ATableRow: Variant);
-begin
-  ATableRow.Account := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account);
-  ATableRow.Amount := TAccountComp.FormatMoney(AItem.balance);
-end;
 
 procedure TAccountSenderDataSource.FetchAll(const AContainer : TList<TAccount>);
 var

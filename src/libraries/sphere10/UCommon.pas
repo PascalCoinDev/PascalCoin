@@ -235,10 +235,6 @@ type
      function WithinMilliseconds(const aDateTime: TDateTime; const AMilliseconds: Int64): Boolean; inline;
    end;
 
-  { TItemDisposePolicy }
-
-  TItemDisposePolicy = (idpNone, idpNil, idpFreeAndNil);
-
   { Event Support}
 
   TNotifyEventEx = procedure (sender : TObject; const args: array of Pointer) of object;

@@ -22,75 +22,71 @@ unit UCommon.Data;
 interface
 
 uses
-  Classes, SysUtils, Generics.Collections, UCommon, UCommon.Collections, Generics.Defaults,
+  Classes, SysUtils, Generics.Collections, UMemory, UCommon, UCommon.Collections, Generics.Defaults,
   Variants, LazUTF8, math, typinfo, syncobjs;
 
 type
   TSortDirection = (sdNone, sdAscending, sdDescending);
   TFilterOperand = (foAnd, foOr);
   TSortNullPolicy = (snpNone, snpNullFirst, snpNullLast);
-  TVisualGridFilter = (vgfMatchTextExact, vgfMatchTextBeginning, vgfMatchTextEnd,
-    vgfMatchTextAnywhere, vgfNumericEQ, vgfNumericLT, vgfNumericLTE, vgfNumericGT,
-    vgfNumericGTE, vgfNumericBetweenInclusive, vgfNumericBetweenExclusive, vgfSortable);
-  TVisualGridFilters = set of TVisualGridFilter;
+  TDataFilter = (vgfMatchTextExact, vgfMatchTextBeginning, vgfMatchTextEnd,
+     vgfMatchTextAnywhere, vgfNumericEQ, vgfNumericLT, vgfNumericLTE, vgfNumericGT,
+     vgfNumericGTE, vgfNumericBetweenInclusive, vgfNumericBetweenExclusive, vgfSortable);
+   TDataFilters = set of TDataFilter;
 
 const
-  TEXT_FILTER = [vgfMatchTextExact, vgfMatchTextBeginning, vgfMatchTextEnd, vgfMatchTextAnywhere];
-  NUMERIC_FILTER = [vgfNumericEQ, vgfNumericLT, vgfNumericLTE, vgfNumericGT, vgfNumericGTE, vgfNumericBetweenInclusive, vgfNumericBetweenExclusive];
-  SORTABLE_TEXT_FILTER = TEXT_FILTER + [vgfSortable];
-  SORTABLE_NUMERIC_FILTER = NUMERIC_FILTER + [vgfSortable];
-  SORTABLE_FILTER = [vgfSortable];
-  NON_SORTABLE_FILTER = [vgfMatchTextExact, vgfMatchTextBeginning, vgfMatchTextEnd,
-    vgfMatchTextAnywhere, vgfNumericEQ, vgfNumericLT, vgfNumericLTE, vgfNumericGT,
-    vgfNumericGTE, vgfNumericBetweenInclusive, vgfNumericBetweenExclusive];
+   TEXT_FILTER = [vgfMatchTextExact, vgfMatchTextBeginning, vgfMatchTextEnd, vgfMatchTextAnywhere];
+   NUMERIC_FILTER = [vgfNumericEQ, vgfNumericLT, vgfNumericLTE, vgfNumericGT, vgfNumericGTE, vgfNumericBetweenInclusive, vgfNumericBetweenExclusive];
+   SORTABLE_TEXT_FILTER = TEXT_FILTER + [vgfSortable];
+   SORTABLE_NUMERIC_FILTER = NUMERIC_FILTER + [vgfSortable];
+   SORTABLE_FILTER = [vgfSortable];
+   NON_SORTABLE_FILTER = [vgfMatchTextExact, vgfMatchTextBeginning, vgfMatchTextEnd,
+     vgfMatchTextAnywhere, vgfNumericEQ, vgfNumericLT, vgfNumericLTE, vgfNumericGT,
+     vgfNumericGTE, vgfNumericBetweenInclusive, vgfNumericBetweenExclusive];
 
+ type
+  { TDataColumn }
 
-type
-
-  { TTableColumn }
-
-  //TODO: this structure is not being used
-  TTableColumn = record
-    Name : utf8string;
-    Binding : AnsiString;
-    class function From(AName: AnsiString) : TTableColumn; overload; static;
-    class function From(AName: utf8string; ABinding: AnsiString) : TTableColumn; overload; static;
+  TDataColumn = record
+    Name : AnsiString;
+    // FType: typecode??
+    class function From(AName: AnsiString) : TDataColumn; overload; static;
   end;
 
-  TTableColumns = TArray<utf8string>;  //TODO: Maciej, should this be array of TTableColumn or just change header title in gui?
-  PTableColumns = ^TTableColumns;
-  ETableRow = class(Exception);
+  TDataColumns = TArray<TDataColumn>;
 
-  { TTableRow }
+  { TDataRow }
 
-  TTableRow = class(TInvokeableVariantType)
+  TDataRow = class(TInvokeableVariantType)
   private
     class constructor Create;
     class destructor Destroy;
   protected type
-    TColumnMapToIndex = TDictionary<utf8string, Integer>;
-    TColumnsDictionary = TObjectDictionary<PTableColumns, TColumnMapToIndex>;
+    TColumnMapToIndex = TDictionary<AnsiString, Integer>;
+    TColumnsDictionary = TObjectDictionary<AnsiString, TColumnMapToIndex>;
   protected class var
     FColumns: TColumnsDictionary;
   protected
-    class function MapColumns(AColumns: PTableColumns): TColumnMapToIndex;
+    class function MapColumns(const ADataSourceClassName : AnsiString; const AColumns: TDataColumns): TColumnMapToIndex;
   public
     function GetProperty(var Dest: TVarData; const V: TVarData; const Name: string): Boolean; override;
     function SetProperty(var V: TVarData; const Name: string; const Value: TVarData): Boolean; override;
     procedure Clear(var V: TVarData); override;
     procedure Copy(var Dest: TVarData; const Source: TVarData; const Indirect: Boolean); override;
     function DoFunction(var Dest: TVarData; const V: TVarData; const Name: string; const Arguments: TVarDataArray): Boolean; override;
-    class function New(AColumns: PTableColumns): Variant;
+    class function New(const ADataSourceClassName : AnsiString; const AColumns: TDataColumns): Variant;
   end;
 
-  TTableRowData = packed record
+  ETableRow = class(Exception);
+
+  TDataRowData = packed record
   public
     vtype: tvartype;
   private
     vfiller1 : word;
     vfiller2: int32;
   public
-    vcolumnmap: TTableRow.TColumnMapToIndex;
+    vcolumnmap: TDataRow.TColumnMapToIndex;
     vvalues: TArray<Variant>;
   end;
 
@@ -99,8 +95,9 @@ type
   TColumnFilter = record
     ColumnName: utf8string;
     Sort: TSortDirection;
-    Filter: TVisualGridFilter;
+    Filter: TDataFilter;
     Values: array of Variant;
+    SortSequence : Integer;
   end;
 
   { TFilterCriteria }
@@ -120,10 +117,9 @@ type
   PDataTable = ^TDataTable;
   TDataTable = record
   public
-    Columns: TTableColumns;
+    Columns: TDataColumns;
     Rows : TArray<Variant>;
   end;
-
 
   { TColumnFilterPredicate -- should be implementation only }
 
@@ -167,49 +163,33 @@ type
     TotalDataCount: Integer;
   end;
 
-  { TSearchCapability }
-
-  PSearchCapability = ^TSearchCapability;
-  TSearchCapability = record
-    ColumnName : utf8string;
-    SupportedFilters : TVisualGridFilters;
-    class function From(const AName : utf8string; AFilterType : TVisualGridFilters) : TSearchCapability; static;
-  end;
-
-  { TSearchCapabilities }
-
-  TSearchCapabilities = array of TSearchCapability;
-
   { IDataSource }
 
   IDataSource = interface
     function FetchPage(constref AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
-    function GetSearchCapabilities: TSearchCapabilities;
-    property SearchCapabilities : TSearchCapabilities read GetSearchCapabilities;
   end;
 
   { TCustomDataSource }
-// TODO: split  into TBindedDataSource <- TCustomDataSource
+
   TCustomDataSource<T> = class(TComponent, IDataSource)
     private
       FLock : TCriticalSection;
-      FColumns : TTableColumns;
+      FClassName : AnsiString;
     protected
       function GetNullPolicy(const AFilter : TColumnFilter) : TSortNullPolicy; virtual;
-      function GetItemDisposePolicy : TItemDisposePolicy; virtual; abstract;
-      function GetColumns : TTableColumns; virtual; abstract;
+      function GetItemDisposePolicy : TDisposePolicy; virtual; abstract;
+      function GetColumns : TDataColumns; virtual; abstract;
       function ApplyColumnSort(constref Left, Right : T; constref AFilter: TColumnFilter) : Integer; virtual;
       function ApplyColumnFilter(constref AItem: T; constref AFilter: TColumnFilter) : boolean; virtual;
-      function GetItemField(constref AItem: T; const AColumnName : utf8string) : Variant; virtual; abstract;
-      procedure DehydrateItem(constref AItem: T; var ATableRow: Variant); virtual; abstract;
+      function GetItemField(constref AItem: T; const ABindingName : AnsiString) : Variant; virtual; abstract;
+      procedure DehydrateItem(constref AItem: T; var ADataRow: Variant); virtual; abstract;
       function FetchPage(constref AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
-      function GetSearchCapabilities: TSearchCapabilities; virtual; abstract;
       function GetEntityKey(constref AItem: T) : Variant; virtual;
       procedure OnBeforeFetchAll(constref AParams: TPageFetchParams); virtual;
       procedure FetchAll(const AContainer : TList<T>); virtual; abstract;
       procedure OnAfterFetchAll(constref AParams: TPageFetchParams); virtual;
     public
-      constructor Create(AOwner: TComponent); override;
+      constructor Create(AOwner: TComponent); override; overload;
       destructor Destroy; override;
   end;
 
@@ -272,63 +252,56 @@ resourcestring
 
 implementation
 
-uses dateutils, UMemory;
+uses dateutils;
 
 { VARIABLES }
 
 var
-  TableRowType: TTableRow = nil;
+  DataRowType: TDataRow = nil;
 
-{ TTableColumn }
+{ TDataColumn }
 
-class function TTableColumn.From(AName: AnsiString) : TTableColumn;
+class function TDataColumn.From(AName: AnsiString) : TDataColumn;
 begin
   Result.Name := AName;
-  Result.Binding := AName;
 end;
 
-class function TTableColumn.From(AName: utf8string; ABinding: AnsiString) : TTableColumn;
-begin
-  Result.Name := AName;
-  Result.Binding := ABinding;
-end;
+{ TDataRow }
 
-{ TTableRow }
-
-class constructor TTableRow.Create;
+class constructor TDataRow.Create;
 begin
   FColumns := TColumnsDictionary.Create([doOwnsValues]);
 end;
 
-class destructor TTableRow.Destroy;
+class destructor TDataRow.Destroy;
 begin
   FColumns.Free;
 end;
 
-class function TTableRow.MapColumns(AColumns: PTableColumns): TColumnMapToIndex;
+class function TDataRow.MapColumns(const ADataSourceClassName : AnsiString; const AColumns: TDataColumns): TColumnMapToIndex;
 var
   i: Integer;
 begin
   Result := TColumnMapToIndex.Create;
-  for i := 0 to High(AColumns^) do
-    Result.Add(AColumns^[i], i);
+  for i := Low(AColumns) to High(AColumns) do
+    Result.Add(AColumns[i].Name, i);
   Result.Add('__KEY', i + 1);
-  FColumns.Add(AColumns, Result);
+  FColumns.Add(ADataSourceClassName, Result);
 end;
 
-function TTableRow.GetProperty(var Dest: TVarData;
+function TDataRow.GetProperty(var Dest: TVarData;
   const V: TVarData; const Name: string): Boolean;
 var
-  LRow: TTableRowData absolute V;
+  LRow: TDataRowData absolute V;
 begin
   Variant(Dest) := LRow.vvalues[LRow.vcolumnmap[Name]];
   Result := true;
 end;
 
-function TTableRow.SetProperty(var V: TVarData; const Name: string;
+function TDataRow.SetProperty(var V: TVarData; const Name: string;
   const Value: TVarData): Boolean;
 var
-  LRow: TTableRowData absolute V;
+  LRow: TDataRowData absolute V;
 begin
   if NOT LRow.vcolumnmap.ContainsKey(Name) then
     Exit(true); // TODO: Re-enable this when TVisualColumn added -- ETableRow.Create(Format('TableRow did not have column "%s"', [Name]));
@@ -337,17 +310,17 @@ begin
   Result := true;
 end;
 
-procedure TTableRow.Clear(var V: TVarData);
+procedure TDataRow.Clear(var V: TVarData);
 begin
-  Finalize(TTableRowData(V));
+  Finalize(TDataRowData(V));
   FillChar(V, SizeOf(V), #0);
 end;
 
-procedure TTableRow.Copy(var Dest: TVarData; const Source: TVarData;
+procedure TDataRow.Copy(var Dest: TVarData; const Source: TVarData;
   const Indirect: Boolean);
 var
-  LDestRow: TTableRowData absolute Dest;
-  LSourceRow: TTableRowData absolute Source;
+  LDestRow: TDataRowData absolute Dest;
+  LSourceRow: TDataRowData absolute Source;
 begin
   if Indirect then
     SimplisticCopy(Dest,Source,true)
@@ -357,21 +330,22 @@ begin
     FillChar(LDestRow, SizeOf(LDestRow), #0);
     LDestRow.vtype := LSourceRow.vtype;
     LDestRow.vcolumnmap := LSourceRow.vcolumnmap;
-    LDestRow.vvalues := system.copy(TTableRowData(LSourceRow).vvalues);
+    LDestRow.vvalues := system.copy(TDataRowData(LSourceRow).vvalues);
   end;
 end;
 
-function TTableRow.DoFunction(var Dest: TVarData; const V: TVarData;
+function TDataRow.DoFunction(var Dest: TVarData; const V: TVarData;
   const Name: string; const Arguments: TVarDataArray): Boolean;
 var
-  LRow: TTableRowData absolute V;
+  LRow: TDataRowData absolute V;
 begin
   Result := (Name = '_') and (Length(Arguments)=1);
   if Result then
     Variant(Dest) := LRow.vvalues[Variant(Arguments[0])];
 end;
 
-class function TTableRow.New(AColumns: PTableColumns): Variant;
+class function TDataRow.New(const ADataSourceClassName:AnsiString; const AColumns: TDataColumns): Variant;
+
 var
   LColumnMap: TColumnMapToIndex;
 begin
@@ -380,21 +354,13 @@ begin
 
   VarClear(Result);
   FillChar(Result, SizeOf(Result), #0);
-  TTableRowData(Result).vtype:=TableRowType.VarType;
+  TDataRowData(Result).vtype:=DataRowType.VarType;
 
-  if not FColumns.TryGetValue(AColumns, LColumnMap) then
-    LColumnMap := MapColumns(AColumns);
+  if not FColumns.TryGetValue(ADataSourceClassName, LColumnMap) then
+    LColumnMap := MapColumns(ADataSourceClassName, AColumns);
 
-  TTableRowData(Result).vcolumnmap:=LColumnMap;
-  SetLength(TTableRowData(Result).vvalues, LColumnMap.Count);
-end;
-
-{ TSearchCapability }
-
-class function TSearchCapability.From(const AName : utf8string; AFilterType : TVisualGridFilters) : TSearchCapability;
-begin
-  Result.ColumnName := AName;
-  Result.SupportedFilters := AFilterType;
+  TDataRowData(Result).vcolumnmap:=LColumnMap;
+  SetLength(TDataRowData(Result).vvalues, LColumnMap.Count);
 end;
 
 { TCustomDataSource }
@@ -403,13 +369,20 @@ constructor TCustomDataSource<T>.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   FLock := TCriticalSection.Create;
-  FColumns := GetColumns;
+  FClassName := Self.ClassName;
 end;
+
+{constructor TCustomDataSource<T>.Create(AOwner: TComponent; const ADataSourceClassName : AnsiString);
+begin
+  inherited Create(AOwner);
+  FLock := TCriticalSection.Create;
+  FClassName := ADataSourceClassName;
+end;}
 
 destructor TCustomDataSource<T>.Destroy;
 var
   i : integer;
-  policy : TItemDisposePolicy;
+  policy : TDisposePolicy;
 begin
   inherited;
   FreeAndNil(FLock);
@@ -548,13 +521,13 @@ begin
      // Dehydrate the page of data only
 
      // Set columns
-     ADataTable.Columns := FColumns;
+     ADataTable.Columns := GetColumns;
 
      if pageEnd >= pageStart then begin
        j := 0;
        SetLength(ADataTable.Rows, pageEnd - pageStart + 1);
        for i := pageStart to pageEnd do begin
-         ADataTable.Rows[j] := TTableRow.New(@FColumns);
+         ADataTable.Rows[j] := TDataRow.New(FClassName, ADataTable.Columns);
          DehydrateItem( data[i], ADataTable.Rows[j]);
          ADataTable.Rows[j].__KEY := GetEntityKey(data[i]);
          inc(j)
@@ -1035,9 +1008,9 @@ begin
 end;
 
 initialization
-  TableRowType := TTableRow.Create;
+  DataRowType := TDataRow.Create;
 
 finalization
-  TableRowType.Free;
+  DataRowType.Free;
 end.
 
