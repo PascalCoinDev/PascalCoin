@@ -52,7 +52,6 @@ type
       property Model : TWIZSendPASCModel read FModel write FModel;
       procedure FetchAll(const AContainer : TList<TAccount>); override;
       function GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant; override;
-      procedure DehydrateItem(constref AItem: TAccount; var ATableRow: Variant); override;
   end;
 
 { TWIZSendPASC_Confirmation }
@@ -122,13 +121,6 @@ begin
    else raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
 end;
 
-procedure TAccountSenderDataSource.DehydrateItem(constref AItem: TAccount; var ATableRow: Variant);
-begin
-  ATableRow.SenderAccount := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account);
-  ATableRow.Balance := TAccountComp.FormatMoney(AItem.balance);
-  ATableRow.AmountToSend := Model.AmountToSend;
-  ATableRow.Fee := TAccountComp.FormatMoney(Model.DefaultFee);
-end;
 
 procedure TAccountSenderDataSource.FetchAll(const AContainer : TList<TAccount>);
 var

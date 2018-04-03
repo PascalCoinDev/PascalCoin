@@ -62,7 +62,6 @@ type
     procedure SetImageListPicture(AImageList: TImageList; AIndex : SizeInt);
   end;
 
-
 implementation
 
 {%region TApplicationForm}
@@ -171,6 +170,7 @@ begin
 end;
 
 {%endregion}
+
 
 end.
 

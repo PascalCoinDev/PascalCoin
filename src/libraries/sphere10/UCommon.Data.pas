@@ -77,17 +77,21 @@ const
     class function New(const ADataSourceClassName : AnsiString; const AColumns: TDataColumns): Variant;
   end;
 
-  ETableRow = class(Exception);
+  EDataRow = class(Exception);
 
   TDataRowData = packed record
   public
     vtype: tvartype;
   private
-    vfiller1 : word;
-    vfiller2: int32;
-  public
+    vfiller1 : word; // Variant filler
+    vfiller2: int32; // Variant filler
     vcolumnmap: TDataRow.TColumnMapToIndex;
     vvalues: TArray<Variant>;
+    function GetData(const ABinding : AnsiString): Variant;
+    procedure SetData(const ABinding : AnsiString; const AValue: Variant);
+  public
+    function HasData(const ABinding : AnsiString): boolean;
+    property Data[const ABinding : AnsiString] : Variant read GetData write SetData; default;
   end;
 
   { TColumnFilter }
@@ -182,7 +186,7 @@ const
       function ApplyColumnSort(constref Left, Right : T; constref AFilter: TColumnFilter) : Integer; virtual;
       function ApplyColumnFilter(constref AItem: T; constref AFilter: TColumnFilter) : boolean; virtual;
       function GetItemField(constref AItem: T; const ABindingName : AnsiString) : Variant; virtual; abstract;
-      procedure DehydrateItem(constref AItem: T; var ADataRow: Variant); virtual; abstract;
+      procedure DehydrateItem(constref AItem: T; var ADataRow: Variant);
       function FetchPage(constref AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
       function GetEntityKey(constref AItem: T) : Variant; virtual;
       procedure OnBeforeFetchAll(constref AParams: TPageFetchParams); virtual;
@@ -231,9 +235,9 @@ const
      class function ConstructRowPredicate(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplyFilterDelegate<T>; const AOperand : TFilterOperand) : IPredicate<T>;
   end;
 
+  { Resources }
 
-{ RESOURCES }
-resourcestring
+ resourcestring
   sAColumnsCantBeNil = 'AColumns can''t be nil!';
   sTooManyValues = 'Too many values';
   sInvalidUTF8String = 'Invalid UTF8 string';
@@ -254,7 +258,7 @@ implementation
 
 uses dateutils;
 
-{ VARIABLES }
+{ Variables }
 
 var
   DataRowType: TDataRow = nil;
@@ -289,24 +293,19 @@ begin
   FColumns.Add(ADataSourceClassName, Result);
 end;
 
-function TDataRow.GetProperty(var Dest: TVarData;
-  const V: TVarData; const Name: string): Boolean;
+function TDataRow.GetProperty(var Dest: TVarData; const V: TVarData; const Name: string): Boolean;
 var
   LRow: TDataRowData absolute V;
 begin
-  Variant(Dest) := LRow.vvalues[LRow.vcolumnmap[Name]];
+  Variant(Dest) := LRow[Name];
   Result := true;
 end;
 
-function TDataRow.SetProperty(var V: TVarData; const Name: string;
-  const Value: TVarData): Boolean;
+function TDataRow.SetProperty(var V: TVarData; const Name: string; const Value: TVarData): Boolean;
 var
   LRow: TDataRowData absolute V;
 begin
-  if NOT LRow.vcolumnmap.ContainsKey(Name) then
-    Exit(true); // TODO: Re-enable this when TVisualColumn added -- ETableRow.Create(Format('TableRow did not have column "%s"', [Name]));
-
-  LRow.vvalues[LRow.vcolumnmap[Name]] := Variant(Value);
+  LRow[Name] := Variant(Value);
   Result := true;
 end;
 
@@ -350,7 +349,7 @@ var
   LColumnMap: TColumnMapToIndex;
 begin
   if not Assigned(AColumns) then
-    raise ETableRow.Create(sAColumnsCantBeNil);
+    raise EDataRow.Create(sAColumnsCantBeNil);
 
   VarClear(Result);
   FillChar(Result, SizeOf(Result), #0);
@@ -363,6 +362,29 @@ begin
   SetLength(TDataRowData(Result).vvalues, LColumnMap.Count);
 end;
 
+{ TDataRowData }
+
+function TDataRowData.HasData(const ABinding : AnsiString): boolean;
+begin
+  Result := Self.vcolumnmap.ContainsKey(ABinding)
+end;
+
+function TDataRowData.GetData(const ABinding: AnsiString): Variant;
+var LIndex : Integer;
+begin
+  if NOT Self.vcolumnmap.TryGetValue(ABinding, LIndex) then
+    raise EDataRow.Create(Format('TDataRowData does not contain column "%s"', [ABinding]));
+  Result := Self.vvalues[LIndex];
+end;
+
+procedure TDataRowData.SetData(const ABinding: AnsiString; const AValue: Variant);
+var LIndex : Integer;
+begin
+  if NOT Self.vcolumnmap.TryGetValue(ABinding, LIndex) then
+    raise EDataRow.Create(Format('TDataRowData does not contain column "%s"', [ABinding]));
+  Self.vvalues[LIndex] := AValue;
+end;
+
 { TCustomDataSource }
 
 constructor TCustomDataSource<T>.Create(AOwner: TComponent);
@@ -371,13 +393,6 @@ begin
   FLock := TCriticalSection.Create;
   FClassName := Self.ClassName;
 end;
-
-{constructor TCustomDataSource<T>.Create(AOwner: TComponent; const ADataSourceClassName : AnsiString);
-begin
-  inherited Create(AOwner);
-  FLock := TCriticalSection.Create;
-  FClassName := ADataSourceClassName;
-end;}
 
 destructor TCustomDataSource<T>.Destroy;
 var
@@ -537,6 +552,18 @@ begin
     FLock.Release;
   end;
   OnAfterFetchAll(AParams);
+end;
+
+procedure TCustomDataSource<T>.DehydrateItem(constref AItem: T; var ADataRow: Variant);
+var
+  i : integer;
+  LCols : TArray<TDataColumn>;
+  LData : TDataRowData;
+begin
+  LCols := GetColumns;
+  LData := TDataRowData(ADataRow);
+  for i := Low(LCols) to High(LCols) do
+    LData[LCols[i].Name] := GetItemField(AItem, LCols[i].Name);
 end;
 
 procedure TCustomDataSource<T>.OnBeforeFetchAll(constref AParams: TPageFetchParams);
@@ -1013,4 +1040,3 @@ initialization
 finalization
   DataRowType.Free;
 end.
-

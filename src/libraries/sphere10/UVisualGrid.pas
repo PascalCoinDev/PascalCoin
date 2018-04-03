@@ -28,6 +28,12 @@ uses
 
  type
 
+   { Forward Decls }
+
+   TCustomVisualGrid = class;
+   TVisualColumn = class;
+
+
   { TSelectionType }
 
   TSelectionType = (stNone, stCell, stRow, stMultiRow);
@@ -56,10 +62,8 @@ uses
     property ColCount: longint read GetColCount;
   end;
 
-  TCustomVisualGrid = class;
-  TVisualColumn = class;
-
   TVisualColumnRenderer = procedure(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean) of object;
+  TVisualColumnDataSanitizer = function(const CellData, RowData : Variant) : Variant of object;
 
   { TVisualColumn }
 
@@ -69,38 +73,72 @@ uses
     function GetWidth: Integer; inline;
     procedure SetSortDirection(AValue: TSortDirection);
     procedure SetStretchedToFill(AValue: boolean); inline;
+    procedure SetAutoWidth(AValue: boolean); inline;
     procedure SetWidth(AValue: Integer); inline;
+    procedure SetName(const AValue: utf8string);
+    procedure SetBinding(const AValue : AnsiString);
+    procedure SetHeaderAlignment(const AAlignment : TAlignment);
+    procedure SetHeaderFontStyles(const AStyles : TFontStyles);
+    procedure SetDataAlignment(const AAlignment : TAlignment);
+    procedure SetDataFontStyles(const AStyles : TFontStyles);
   protected
     FColumn: TGridColumn;
     FGrid: TCustomVisualGrid;
     FSortDirection: TSortDirection;
     FIgnoreRefresh: Boolean;
 
+    // Functional
     FIndex : Integer;
     FName : utf8string;
     FFilters : TDataFilters;
     FBinding : AnsiString;
+    FSortBinding: AnsiString;
+    FDisplayBinding: AnsiString;
+    FSanitizer : TVisualColumnDataSanitizer;
     FWidth : Integer;
     FStretchColumn : Boolean;
     FAutoWidth : boolean;
     FRenderer : TVisualColumnRenderer;
     FVisible : boolean; // TODO: implement this functionality
     FSortSequence : Integer; // TODO: implement this functionality
+
+    // Style
+    FHasHeaderAlignment : boolean;
+    FHasHeaderFontStyles : boolean;
+    FHeaderAlignment : TAlignment;
+    FHeaderFontStyles : TFontStyles;
+    FHasDataAlignment : boolean;
+    FHasDataFontStyles : boolean;
+    FDataAlignment : TAlignment;
+    FDataFontStyles : TFontStyles;
+
   public
+    constructor Create(AGrid: TCustomVisualGrid);
     property Index : Integer read FIndex write FIndex;
-    property Name : utf8string read FName write FName;
+    property Name : utf8string read FName write SetName;
     property Filters : TDataFilters read FFilters write FFilters;
-    property Binding : AnsiString read FBinding write FBinding;
-    property AutoWidth : boolean read FAutoWidth write FAutoWidth;
+    property Binding : AnsiString read FBinding write SetBinding;
+    property SortBinding : AnsiString read FSortBinding write FSortBinding;
+    property DisplayBinding : AnsiString read FDisplayBinding write FDisplayBinding;
+    property Sanitizer: TVisualColumnDataSanitizer read FSanitizer write FSanitizer;
+    property AutoWidth : boolean read FAutoWidth write SetAutoWidth;
     property Visible : boolean read FVisible write FVisible;
     property SortSequence : Integer read FSortSequence write FSortSequence;
     property InternalColumn : TGridColumn read FColumn;
-    constructor Create(AGrid: TCustomVisualGrid);
     property StretchedToFill: boolean read GetStretchedToFill write SetStretchedToFill;
     property Width: Integer read GetWidth write SetWidth;
     property SortDirection: TSortDirection read FSortDirection write SetSortDirection;
     property Renderer : TVisualColumnRenderer read FRenderer write FRenderer;
-    public procedure AttachGridColumn(AGridColumn : TGridColumn);
+    property HasHeaderAlignment : boolean read FHasHeaderAlignment;
+    property HasHeaderFontStyles : boolean read FHasHeaderFontStyles;
+    property HeaderAlignment : TAlignment read FHeaderAlignment write SetHeaderAlignment;
+    property HeaderFontStyles : TFontStyles read FHeaderFontStyles write SetHeaderFontStyles;
+    property HasDataAlignment : boolean read FHasDataAlignment;
+    property HasDataFontStyles : boolean read FHasDataFontStyles;
+    property DataAlignment : TAlignment read FDataAlignment write SetDataAlignment;
+    property DataFontStyles : TFontStyles read FDataFontStyles write SetDataFontStyles;
+
+    procedure AttachGridColumn(AGridColumn : TGridColumn);
   end;
 
   { TVisualGrid Events }
@@ -234,12 +272,9 @@ uses
     FMultiSearchEdits: TObjectList<TSearchEdit>;
     FColumns: TObjectList<TVisualColumn>;
   protected { events for UI }
-    procedure StandardDrawCell(Sender: TObject; ACol, ARow: Longint;
-      Rect: TRect; State: TGridDrawState);
-    procedure GridMouseDown(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
-    procedure GridMouseUp(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
+    procedure StandardDrawCell(Sender: TObject; ACol, ARow: Longint; Rect: TRect; State: TGridDrawState);
+    procedure GridMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure GridMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure SearchKindPopupMenuClick(Sender: TObject);
     procedure GridSelection(Sender: TObject; aCol, aRow: Integer);
     procedure GridHeaderClick(Sender: TObject; IsColumn: Boolean; Index: Integer);
@@ -538,6 +573,29 @@ end;
 
 { TVisualColumn }
 
+constructor TVisualColumn.Create(AGrid: TCustomVisualGrid);
+begin
+  FGrid := AGrid;
+  FColumn := nil;
+  FHasHeaderAlignment:=false;
+  FHasHeaderFontStyles:=false;
+  FHasDataAlignment:=false;
+  FHasDataFontStyles:=false;
+  FIndex := -1;
+  FName := '';
+  FBinding := '';
+  FSortBinding := '';
+  FDisplayBinding := '';
+  FStretchColumn:=false;
+  FAutoWidth:=false;
+  FWidth :=-1;
+  FRenderer := nil;
+  FSanitizer:= nil;
+  FVisible := true;
+  FSortSequence := -1;
+  FFilters :=[];
+end;
+
 function TVisualColumn.GetStretchedToFill: boolean;
 begin
   Result := FColumn.SizePriority > 0;
@@ -561,36 +619,80 @@ procedure TVisualColumn.SetStretchedToFill(AValue: boolean);
 begin
   FStretchColumn:=AValue;
   if Assigned(FColumn) then
-    FColumn.SizePriority := ifthen(AValue, 1);
+    AttachGridColumn(FColumn)
+end;
+
+procedure TVisualColumn.SetAutoWidth(AValue: boolean);
+begin
+  FAutoWidth:=AValue;
+  if Assigned(FColumn) then
+    AttachGridColumn(FColumn)
 end;
 
 procedure TVisualColumn.SetWidth(AValue: Integer);
 begin
-  if Self.AutoWidth then
-    Self.StretchedToFill := false
-  else if Self.StretchedToFill then
-    Self.StretchedToFill := true
-  else begin
-    Self.StretchedToFill := False;
-    if Assigned(FColumn) then
-      FColumn.Width := AValue;
-  end;
   FWidth := AValue;
+  if Assigned(FColumn) then
+    AttachGridColumn(FColumn)
 end;
 
-constructor TVisualColumn.Create(AGrid: TCustomVisualGrid);
+procedure TVisualColumn.SetName(const AValue: utf8string);
 begin
-  FGrid := AGrid;
-  FColumn := nil;
+  FName := AValue;
+  Binding := UTF8Decode(AValue);
+end;
+
+procedure TVisualColumn.SetBinding(const AValue: AnsiString);
+begin
+  FBinding := AValue;
+  FSortBinding := AValue;
+  FDisplayBinding := AValue;
+end;
+
+procedure TVisualColumn.SetHeaderAlignment(const AAlignment : TAlignment);
+begin
+  FHasHeaderAlignment := true;
+  FHeaderAlignment := AAlignment;
+end;
+
+procedure TVisualColumn.SetHeaderFontStyles(const AStyles : TFontStyles);
+begin
+  FHasHeaderFontStyles := true;
+  FHeaderFontStyles := AStyles;
+end;
+
+procedure TVisualColumn.SetDataAlignment(const AAlignment : TAlignment);
+begin
+  FHasDataAlignment := true;
+  FDataAlignment := AAlignment;
+end;
+
+procedure TVisualColumn.SetDataFontStyles(const AStyles : TFontStyles);
+begin
+  FHasDataFontStyles := true;
+  FDataFontStyles := AStyles;
 end;
 
 procedure TVisualColumn.AttachGridColumn(AGridColumn : TGridColumn);
 begin
+  if NOT Assigned(AGridColumn) then raise EArgumentNilException.Create('AGridColumn');
+
+  // Set TDrawGrid column
   Self.FColumn := AGridColumn;
-  Self.AutoWidth := Self.AutoWidth;
-  Self.StretchedToFill := Self.StretchedToFill;
-  Self.Width := Self.Width;
-  Self.FColumn.Title.Caption:=''; // already painted in default drawing event
+
+  // Width
+  if FAutoWidth then
+    FStretchColumn := false
+  else if NOT FStretchColumn then begin
+    FColumn.Width := FWidth;
+  end;
+
+  // StretchedToFill
+  FColumn.SizePriority := ifthen(FStretchColumn, 1);
+
+  // Caption - already painted in default drawing event
+  if Self.FColumn.Title.Caption <> '' then
+     Self.FColumn.Title.Caption:='';
 end;
 
 { TVisualGridSelection }
@@ -1175,8 +1277,7 @@ begin
   inherited;
 end;
 
-procedure TCustomVisualGrid.DoDrawCell(Sender: TObject; ACol, ARow: Longint;
-  Rect: TRect; State: TGridDrawState; const RowData: Variant);
+procedure TCustomVisualGrid.DoDrawCell(Sender: TObject; ACol, ARow: Longint; Rect: TRect; State: TGridDrawState; const RowData: Variant);
 const
   {
     Direction triangle points schema
@@ -1458,10 +1559,10 @@ var
     end;
 
     if Assigned(AColumn) then
-      AddFilter(AColumn.Binding, AColumn.Filters)    // add filter for column only
+      AddFilter(AColumn.SortBinding, AColumn.Filters)    // add filter for column only
     else
       for LColumn in FColumns do
-        AddFilter(LColumn.Binding, LColumn.Filters); // add filter for all columns
+        AddFilter(LColumn.SortBinding, LColumn.Filters); // add filter for all columns
 
     LNewStrFilter := LNewStrFilter + QuotedStr(AExpression) + ',';
   end;
@@ -1659,8 +1760,7 @@ var LBinding : AnsiString; LDataColIndex : Integer; LRow : TDataRowData;
 begin
   LRow := TDataRowData(FDataTable.Rows[ARow]);
   LBinding := FColumns[ACol].Binding;
-  LDataColIndex := LRow.vcolumnmap[LBinding];
-  LRow.vvalues[LDataColIndex] := AValue;
+  LRow[LBinding] := AValue;
   TDrawGridAccess(FDrawGrid).InvalidateCell(ACol, ARow, true);
 end;
 
@@ -1926,15 +2026,10 @@ begin
   Result := TVisualColumn.Create(Self);
   Result.Index := FColumns.Count;
   Result.Name := AName;
-  Result.Binding := UTF8Decode(AName);
   if Result.Index = FDefaultStretchedColumn then
     Result.StretchedToFill := true;
-  Result.FRenderer := nil;
-  Result.FVisible := true;
-  Result.FSortSequence := -1;
-  Result.Filters:=[];
+  Result.AttachGridColumn(FDrawGrid.Columns.Add);
   FColumns.Add(Result);
-  Result.AttachGridColumn(FDrawGrid.Columns.Add);  // attach an underlyinh drawgrid
 end;
 
 procedure TCustomVisualGrid.ReloadColumns;
@@ -2107,10 +2202,10 @@ procedure TCustomVisualGrid.FetchPage(out AResult: TPageFetchResult);
         begin
           // try to find column in existing filters
           // if filter not found we need to create it later
-          if not UpdateFilterSortDirection(FColumns[i].Binding, FColumns[i].SortDirection) then
+          if not UpdateFilterSortDirection(FColumns[i].SortBinding, FColumns[i].SortDirection) then
             LColumnsToAdd.Add(i);
         end else
-          UpdateFilterSortDirection(FColumns[i].Binding, sdNone);
+          UpdateFilterSortDirection(FColumns[i].SortBinding, sdNone);
 
       // add missing filters
       FFilters.Count:=FFilters.Count + LColumnsToAdd.Count;
@@ -2123,7 +2218,7 @@ procedure TCustomVisualGrid.FetchPage(out AResult: TPageFetchResult);
         // create new filter
         LFilter := Default(TColumnFilter);
         LFilter.Filter:=vgfSortable;
-        LFilter.ColumnName:= FColumns[idx].Binding;
+        LFilter.ColumnName:= FColumns[idx].SortBinding;
         LFilter.SortSequence := FColumns[idx].SortSequence;
         LFilter.Sort := FColumns[idx].SortDirection;
         FFilters[i] := LFilter;
@@ -2273,46 +2368,68 @@ begin
     FTopPanelLeft.Width:=0;
 end;
 
-procedure TCustomVisualGrid.StandardDrawCell(Sender: TObject; ACol,
-  ARow: Longint; Rect: TRect; State: TGridDrawState);
+procedure TCustomVisualGrid.StandardDrawCell(Sender: TObject; ACol, ARow: Longint; Rect: TRect; State: TGridDrawState);
 var
   LHandled: boolean;
   LCellData, LRow: Variant;
-  LRowData: TDataRowData;
   LColumn : TVisualColumn;
-  LDataColIndex : Integer;
+  LStyle : TTextStyle;
+
+  procedure DrawHeaderCell;
+  begin
+    // Pre-set user defined styles
+    if LColumn.HasHeaderAlignment then begin
+      LStyle := Canvas.TextStyle;
+      LStyle.Alignment := LColumn.HeaderAlignment;
+      Canvas.TextStyle := LStyle;
+    end;
+    if LColumn.HasHeaderFontStyles then Canvas.Font.Style := LColumn.HeaderFontStyles;
+
+    // Standard draw cell
+    DoDrawCell(Self, ACol, ARow, Rect, State, LColumn.Name);
+  end;
+
+  procedure DrawDataCell;
+  begin
+    // Pre-set user defined styles
+    if LColumn.HasDataAlignment then begin
+      LStyle := Canvas.TextStyle;
+      LStyle.Alignment := LColumn.DataAlignment;
+      Canvas.TextStyle := LStyle;
+    end;
+    if LColumn.HasDataFontStyles then Canvas.Font.Style := LColumn.DataFontStyles;
+
+    // Get row/cell data
+    LRow := ActiveDataTable^.Rows[ARow-1];
+    LCellData := TDataRowData(LRow)[LColumn.DisplayBinding];
+
+    // Clean data if necessary
+    if Assigned(LColumn.Sanitizer) then
+      LCellData := LColumn.Sanitizer(LCellData, LRow);
+
+    // Try global cell renderer
+    if Assigned(FOnDrawVisualCell) then
+      FOnDrawVisualCell(Self, ACol, ARow, Canvas, Rect, State, LCellData, LRow, LHandled);
+
+    // Try column renderer
+    if (NOT LHandled) AND Assigned(LColumn.Renderer) then
+      LColumn.Renderer(Self, ACol, ARow, Canvas, Rect, State, LCellData, LRow, LHandled);
+
+    // Use default renderer
+    if NOT LHandled then
+      DoDrawCell(Self, ACol, ARow, Rect, State, LCellData);
+  end;
 
 begin
   LHandled := False;
-
-  if ColCount = 0 then
-    Exit;
-
-  if ARow = 0 then
-    ResizeSearchEdit(ACol);
-
+  if ColCount = 0 then Exit;
+  if ARow = 0 then ResizeSearchEdit(ACol);
   LColumn := FColumns[ACol];
-
-  if (ARow > 0) and Assigned(FDataSource) then begin
-    LRow := ActiveDataTable^.Rows[ARow-1];
-    LRowData := TDataRowData(LRow);
-    LDataColIndex := LRowData.vcolumnmap[LColumn.Binding];
-    LCellData := LRowData.vvalues[LDataColIndex];
-  end;
-
   Rect := CalculateCellContentRect(Rect);
-
-  // Try user-settable cell renderer
-  if Assigned(FOnDrawVisualCell) then
-    FOnDrawVisualCell(Self, ACol, ARow, Canvas, Rect, State, LCellData, LRow, LHandled);
-
-  // Try user-settable column renderer
-  if (NOT LHandled) AND Assigned(LColumn.Renderer) then
-      LColumn.Renderer(Self, ACol, ARow, Canvas, Rect, State, LCellData, LRow, LHandled);
-
-  // Use default renderer
-  if not LHandled then
-    DoDrawCell(Self, ACol, ARow, Rect, State, LCellData);
+  if ARow = 0 then
+    DrawHeaderCell
+  else if Assigned(FDataSource) then
+    DrawDataCell;
 end;
 
 procedure TCustomVisualGrid.GridMouseDown(Sender: TObject; Button: TMouseButton;
@@ -2462,9 +2579,7 @@ begin
   Result.Bottom := ClipValue(ARect.Bottom - FCellPadding.Bottom - PLATFORM_CELL_RECT_Y_OFFSET, 2, 100000);
 end;
 
-
 initialization
   {$I *.inc}
 
 end.
-

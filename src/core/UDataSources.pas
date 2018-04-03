@@ -19,7 +19,6 @@ type
     public
       function GetEntityKey(constref AItem: TAccount) : Variant; override;
       function GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant; override;
-      procedure DehydrateItem(constref AItem: TAccount; var ATableRow: Variant); override;
   end;
 
   { TAccountsDataSource }
@@ -63,7 +62,6 @@ type
       property EndBlock : Cardinal read FEnd write FEnd;
       function GetEntityKey(constref AItem: TOperationResume) : Variant; override;
       function GetItemField(constref AItem: TOperationResume; const ABindingName : AnsiString) : Variant; override;
-      procedure DehydrateItem(constref AItem: TOperationResume; var ATableRow: Variant); override;
   end;
 
   { TAccountsOperationsDataSource }
@@ -94,14 +92,6 @@ type
       procedure FetchAll(const AContainer : TList<TOperationResume>); override;
   end;
 
-  { TDataSourceTool }
-
-  TDataSourceTool = class
-    class function OperationShortHash(const AOpHash : AnsiString) : AnsiString;
-    class function OperationShortText(const OpType, OpSubType : DWord) : AnsiString;
-    class function AccountKeyShortText(const AText : AnsiString) : AnsiString;
-  end;
-
 implementation
 
 uses
@@ -118,11 +108,15 @@ function TAccountsDataSourceBase.GetColumns : TDataColumns;
 begin
   Result := TDataColumns.Create(
     TDataColumn.From('Account'),
+    TDataColumn.From('AccountNumber'),
     TDataColumn.From('Name'),
     TDataColumn.From('Balance'),
+    TDataColumn.From('BalanceDecimal'),
     TDataColumn.From('Key'),
+    TDataColumn.From('Type'),
     TDataColumn.From('State'),
     TDataColumn.From('Price'),
+    TDataColumn.From('PriceDecimal'),
     TDataColumn.From('LockedUntil')
   );
 end;
@@ -137,44 +131,30 @@ var
   index : Integer;
 begin
    if ABindingName = 'Account' then
+     Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account)
+   else if ABindingName = 'AccountNumber' then
      Result := AItem.account
    else if ABindingName = 'Name' then
      Result := AItem.name
    else if ABindingName = 'Balance' then
+     Result := AItem.Balance
+   else if ABindingName = 'BalanceDecimal' then
      Result := TAccountComp.FormatMoneyDecimal(AItem.Balance)
-{   else if ABindingName = 'Key' then begin
-     index := TWallet.Keys.AccountsKeyList.IndexOfAccountKey(AItem.accountInfo.accountKey);
-     if index>=0 then
-        Result := TWallet.Keys[index].Name
-     else
-         Result := TAccountComp.AccountPublicKeyExport(AItem.accountInfo.accountKey); }
    else if ABindingName = 'Key' then
      Result := TAccountComp.AccountPublicKeyExport(AItem.accountInfo.accountKey)
-   else if ABindingName = 'AccType' then
+   else if ABindingName = 'Type' then
      Result := AItem.account_type
    else if ABindingName = 'State' then
      Result := AItem.accountInfo.state
    else if ABindingName = 'Price' then
+     Result := AItem.accountInfo.price
+   else if ABindingName = 'PriceDecimal' then
      Result := TAccountComp.FormatMoneyDecimal(AItem.accountInfo.price)
    else if ABindingName = 'LockedUntil' then
      Result := AItem.accountInfo.locked_until_block
    else raise Exception.Create(Format('Field not found "%s"', [ABindingName]));
 end;
 
-procedure TAccountsDataSourceBase.DehydrateItem(constref AItem: TAccount; var ATableRow: Variant);
-//var
-//  index : Integer;
-begin
-  // 'Account', 'Name', 'Balance', 'Key', 'AccType', 'State', 'Price', 'LockedUntil'
-  ATableRow.Account := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account);
-  ATableRow.Name := Variant(AItem.name);
-  ATableRow.Balance := TAccountComp.FormatMoney(AItem.balance);
-  ATableRow.Key := TAccountComp.AccountPublicKeyExport(AItem.accountInfo.accountKey);
-  ATableRow.AccType := Word(AItem.account_type);
-  ATableRow.State := Cardinal(AItem.accountInfo.state);
-  ATableRow.Price := TAccountComp.FormatMoney(Aitem.accountInfo.price);
-  ATableRow.LockedUntil := LongWord(AItem.accountInfo.locked_until_block);
-end;
 
 { TAccountsDataSource }
 
@@ -286,13 +266,22 @@ end;
 function TOperationsDataSourceBase.GetColumns : TDataColumns;
 begin
   Result := TDataColumns.Create(
+    TDataColumn.From('UnixTime'),
     TDataColumn.From('Time'),
     TDataColumn.From('Block'),
+    TDataColumn.From('Index'),
+    TDataColumn.From('BlockLocation'),
+    TDataColumn.From('BlockLocationSortable'),
     TDataColumn.From('Account'),
+    TDataColumn.From('AccountNumber'),
     TDataColumn.From('Type'),
+    TDataColumn.From('SubType'),
     TDataColumn.From('Amount'),
+    TDataColumn.From('AmountDecimal'),
     TDataColumn.From('Fee'),
+    TDataColumn.From('FeeDecimal'),
     TDataColumn.From('Balance'),
+    TDataColumn.From('BalanceDecimal'),
     TDataColumn.From('Payload'),
     TDataColumn.From('OPHASH'),
     TDataColumn.From('Description')
@@ -311,90 +300,45 @@ function TOperationsDataSourceBase.GetItemField(constref AItem: TOperationResume
 var
   index : Integer;
 begin
-   if ABindingName = 'Time' then
-     Result := AItem.Time
-   else if ABindingName = 'Block' then
-     Result := UInt64(AItem.Block) * 4294967296 + UInt32(AItem.NOpInsideBlock)   // number pattern = [block][opindex]
-   else if ABindingName = 'Account' then
-     Result := AItem.AffectedAccount
-   else if ABindingName = 'Type' then
-     Result := AItem.OpSubtype
-   else if ABindingName = 'Amount' then
-     Result := TAccountComp.FormatMoneyDecimal(AItem.Amount)
-   else if ABindingName = 'Fee' then
-     Result := TAccountComp.FormatMoneyDecimal(AItem.Fee)
-   else if ABindingName = 'Balance' then
-     Result := TAccountComp.FormatMoneyDecimal(AItem.Balance)
-   else if ABindingName = 'Payload' then
-     Result := AItem.PrintablePayload
-   else if ABindingName = 'OPHASH' then
-     Result := TPCOperation.OperationHashAsHexa(AItem.OperationHash)
-   else if ABindingName = 'Description' then
-     Result :=  AItem.OperationTxt
-   else raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
-end;
-
-procedure TOperationsDataSourceBase.DehydrateItem(constref AItem: TOperationResume; var ATableRow: Variant);
-var
-  index : Integer;
-  s: ansistring;
-begin
-  // Time
-  ATableRow.Time := UnixTimeToLocalStr(AItem.time);
-
-  // Block
-  if AItem.OpType <> CT_PseudoOp_Reward then
-    ATableRow.Block := Inttostr(AItem.Block) + '/' + Inttostr(AItem.NOpInsideBlock+1)
-  else
-    ATableRow.Block := Inttostr(AItem.Block);
-
-  // Account
-  ATableRow.Account := TAccountComp.AccountNumberToAccountTxtNumber(AItem.AffectedAccount);
-
-  // Type
-  ATableRow.&Type := Variant(TDataSourceTool.OperationShortText(AItem.OpType, AItem.OpSubtype));
-
-  // Amount
-  ATableRow.Amount := AItem.Amount;
-
-  // Fee
-  ATableRow.Fee := TAccountComp.FormatMoney(AItem.Fee);
-  {  if opr.Fee>0 then DrawGrid.Canvas.Font.Color := ClGreen
-  else if opr.Fee=0 then DrawGrid.Canvas.Font.Color := clGrayText
-  else DrawGrid.Canvas.Font.Color := clRed;}
-
-  // Balance
-  if AItem.time=0 then
-     ATableRow.Balance := '('+TAccountComp.FormatMoney(AItem.Balance)+')'
-  else
-     ATableRow.Balance := TAccountComp.FormatMoney(AItem.Balance);
-  {  if opr.time=0 then begin
-    // Pending operation... showing final balance
-    DrawGrid.Canvas.Font.Color := clBlue;
-    s := '('+TAccountComp.FormatMoney(opr.Balance)+')';
-  end else begin
-    s := TAccountComp.FormatMoney(opr.Balance);
-    if opr.Balance>0 then DrawGrid.Canvas.Font.Color := ClGreen
-    else if opr.Balance=0 then DrawGrid.Canvas.Font.Color := clGrayText
-    else DrawGrid.Canvas.Font.Color := clRed;
-  end;
-  Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
-  }
-
-  // Payload
-  ATableRow.Payload := IIF(NOT AnsiString.IsNullOrWhiteSpace(AItem.PrintablePayload), True, False);
-  {    s := opr.PrintablePayload;
-  Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine]); }
-
-  // OPHASH
-  if Length(AItem.OperationHash) > 0 then
-    ATableRow.OPHASH := TDataSourceTool.OperationShortHash( TPCOperation.OperationHashAsHexa(AItem.OperationHash) )
-  else
-    ATableRow.OPHASH := 'None';
-
-  // Description
-  ATableRow.Description := Variant(AItem.OperationTxt);
-
+  if ABindingName = 'UnixTime' then
+    Result := AItem.Time
+  else if ABindingName = 'Time' then
+    Result := UnixTimeToLocalStr(AItem.time)
+  else if ABindingName = 'Block' then
+    Result := AItem.Block
+  else if ABindingName = 'Index' then
+    Result := AItem.NOpInsideBlock
+  else if ABindingName = 'BlockLocation' then
+    Result := IIF(AItem.OpType <> CT_PseudoOp_Reward, Inttostr(AItem.Block) + '/' + Inttostr(AItem.NOpInsideBlock+1), Inttostr(AItem.Block))
+  else if ABindingName = 'BlockLocationSortable' then
+    Result := UInt64(AItem.Block) * 4294967296 + UInt32(AItem.NOpInsideBlock)   // number pattern = [block][opindex]
+  else if ABindingName = 'Account' then
+    Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.AffectedAccount)
+  else if ABindingName = 'AccountNumber' then
+    Result := AItem.AffectedAccount
+  else if ABindingName = 'Type' then
+    Result := AItem.OpType
+  else if ABindingName = 'SubType' then
+    Result := AItem.OpSubtype
+  else if ABindingName = 'Amount' then
+    Result := AItem.Amount
+  else if ABindingName = 'AmountDecimal' then
+    Result := TAccountComp.FormatMoneyDecimal(AItem.Amount)
+  else if ABindingName = 'Fee' then
+    Result := AItem.Fee
+  else if ABindingName = 'FeeDecimal' then
+    Result := TAccountComp.FormatMoneyDecimal(AItem.Fee)
+  else if ABindingName = 'Balance' then
+    Result := AItem.Balance
+  else if ABindingName = 'BalanceDecimal' then
+    Result := TAccountComp.FormatMoneyDecimal(AItem.Balance)
+  else if ABindingName = 'Payload' then
+    Result := AItem.PrintablePayload
+  else if ABindingName = 'OPHASH' then
+    Result := TPCOperation.OperationHashAsHexa(AItem.OperationHash)
+  else if ABindingName = 'Description' then
+    Result := AItem.OperationTxt
+  else raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
 end;
 
 { TAccountsOperationsDataSource }
@@ -490,7 +434,6 @@ begin
   end;
 end;
 
-
 { TOperationsDataSource }
 
 procedure TOperationsDataSource.FetchAll(const AContainer : TList<TOperationResume>);
@@ -520,63 +463,6 @@ begin
       end;
     end else break;
   end;
-end;
-
-{ TDataSourceTool }
-
-class function TDataSourceTool.OperationShortHash(const AOpHash : AnsiString) : AnsiString;
-var
-  len : SizeInt;
-begin
- len := Length(AOpHash);
-  if len > 8 then
-    result := AOpHash.Substring(0, 4) + '...' + AOpHash.Substring(len - 4 - 1, 4)
-  else
-    result := AOpHash;
-end;
-
-class function TDataSourceTool.OperationShortText(const OpType, OpSubType : DWord) : AnsiString;
-begin
-  case OpType of
-    CT_PseudoOp_Reward: case OpSubType of
-      0, CT_PseudoOpSubtype_Miner : result := 'Miner Reward';
-      CT_PseudoOpSubtype_Developer : result := 'Developer Reward';
-      else result := 'Unknown';
-    end;
-    CT_Op_Transaction: case OpSubType of
-      CT_OpSubtype_TransactionSender: Result := 'Send';
-      CT_OpSubtype_TransactionReceiver: Result := 'Receive';
-      CT_OpSubtype_BuyTransactionBuyer: result := 'Buy Account Direct';
-      CT_OpSubtype_BuyTransactionTarget: result := 'Purchased Account Direct';
-      CT_OpSubtype_BuyTransactionSeller: result := 'Sold Account Direct';
-      else result := 'Unknown';
-    end;
-    CT_Op_Changekey: Result := 'Change Key (legacy)';
-    CT_Op_Recover: Result := 'Recover';
-    CT_Op_ListAccountForSale: case OpSubType of
-      CT_OpSubtype_ListAccountForPublicSale: result := 'For Sale';
-      CT_OpSubtype_ListAccountForPrivateSale: result := 'Exclusive Sale';
-      else result := 'Unknown';
-    end;
-    CT_Op_DelistAccount: result := 'Remove Sale';
-    CT_Op_BuyAccount: case OpSubType of
-      CT_OpSubtype_BuyAccountBuyer: result := 'Buy Account';
-      CT_OpSubtype_BuyAccountTarget: result := 'Purchased Account';
-      CT_OpSubtype_BuyAccountSeller: result := 'Sold Account';
-      else result := 'Unknown';
-    end;
-    CT_Op_ChangeKeySigned: result :=  'Change Key';
-    CT_Op_ChangeAccountInfo: result := 'Change Info';
-    else result := 'Unknown';
-  end;
-end;
-
-class function TDataSourceTool.AccountKeyShortText(const AText : AnsiString) : AnsiString;
-begin
- If Length(AText) > 20 then
-   Result := AText.SubString(0, 17) + '...'
- else
-   Result := AText;
 end;
 
 end.
