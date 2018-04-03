@@ -363,6 +363,7 @@ Type
     Procedure DoProcess_GetSafeBox_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetPendingOperations_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetAccount_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
+    Procedure DoProcess_GetPendingOperations;
     Procedure SetClient(Const Value : TNetTcpIpClient);
     Function ReadTcpClientBuffer(MaxWaitMiliseconds : Cardinal; var HeaderData : TNetHeaderData; BufferData : TStream) : Boolean;
     Procedure DisconnectInvalidClient(ItsMyself : Boolean; Const why : AnsiString);
@@ -2585,6 +2586,9 @@ begin
       FIsDownloadingBlocks := false;
       if ((opcount>0) And (FRemoteOperationBlock.block>=TNode.Node.Bank.BlocksCount)) then begin
         Send_GetBlocks(TNode.Node.Bank.BlocksCount,100,i);
+      end else begin
+        // No more blocks to download, download Pending operations
+        DoProcess_GetPendingOperations;
       end;
       TNode.Node.NotifyBlocksChanged;
     Finally
@@ -2804,6 +2808,79 @@ begin
     if DoDisconnect then begin
       DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(HeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
     end;
+  end;
+end;
+
+procedure TNetConnection.DoProcess_GetPendingOperations;
+Var dataSend, dataReceived : TMemoryStream;
+  request_id, cStart, cMax, cTotal, cTotalByOther, cReceived, cAddedOperations : Cardinal;
+  b : Byte;
+  headerData : TNetHeaderData;
+  opht : TOperationsHashTree;
+  errors : AnsiString;
+  i : Integer;
+begin
+  request_id := 0;
+  cAddedOperations := 0;
+  if Not Connected then exit;
+  // First receive operations from
+  dataSend := TMemoryStream.Create;
+  dataReceived := TMemoryStream.Create;
+  try
+    b := 1;
+    dataSend.Write(b,1);
+    request_id := TNetData.NetData.NewRequestId;
+    If Not DoSendAndWaitForResponse(CT_NetOp_GetPendingOperations,request_id,dataSend,dataReceived,20000,headerData) then begin
+      Exit;
+    end;
+    dataReceived.Position:=0;
+    cTotalByOther := 0;
+    If (dataReceived.Read(cTotalByOther,SizeOf(cTotal))<SizeOf(cTotal)) then begin
+      DisconnectInvalidClient(False,'Invalid data returned on GetPendingOperations');
+      Exit;
+    end;
+    cTotal := cTotalByOther;
+    if (cTotal>5000) then begin
+      // Limiting max pending operations to 5000
+      cTotal := 5000;
+    end;
+    cReceived:=0;
+    cStart := 0;
+    While (Connected) And (cReceived<cTotal) do begin
+      dataSend.Clear;
+      dataReceived.Clear;
+      b := 2;
+      dataSend.Write(b,1);
+      dataSend.Write(cStart,SizeOf(cStart));
+      cMax := 1000;  // Limiting in 1000 by round
+      dataSend.Write(cMax,SizeOf(cMax));
+      request_id := TNetData.NetData.NewRequestId;
+      If Not DoSendAndWaitForResponse(CT_NetOp_GetPendingOperations,request_id,dataSend,dataReceived,50000,headerData) then begin
+        Exit;
+      end;
+      dataReceived.Position:=0;
+      //
+      opht := TOperationsHashTree.Create;
+      try
+        If Not opht.LoadOperationsHashTreeFromStream(dataReceived,False,0,Nil,errors) then begin
+          DisconnectInvalidClient(False,'Invalid operations hash tree stream: '+errors);
+          Exit;
+        end;
+        If (opht.OperationsCount>0) then begin
+          inc(cReceived,opht.OperationsCount);
+          i := TNode.Node.AddOperations(Self,opht,Nil,errors);
+          inc(cAddedOperations,i);
+        end else Break; // No more
+        inc(cStart,opht.OperationsCount);
+      finally
+        opht.Free;
+      end;
+    end;
+    TLog.NewLog(ltInfo,Classname,Format('Processed GetPendingOperations to %s obtaining %d (available %d) operations and added %d to Node',
+      [Self.ClientRemoteAddr,cTotal,cTotalByOther,cAddedOperations]));
+  finally
+    dataSend.Free;
+    dataReceived.Free;
   end;
 end;
 
@@ -3035,6 +3112,10 @@ Begin
         TNetData.NetData.NotifyReceivedHelloMessage;
       end else begin
         DisconnectInvalidClient(false,'Invalid header type > '+TNetData.HeaderDataToText(HeaderData));
+      end;
+      //
+      If (isFirstHello) And (HeaderData.header_type = ntp_response) then begin
+        DoProcess_GetPendingOperations;
       end;
     end else begin
       TLog.NewLog(lterror,Classname,'Error decoding operations of HELLO: '+errors);
