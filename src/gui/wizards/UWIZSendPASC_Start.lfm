@@ -6,7 +6,7 @@ object WIZSendPASC_Start: TWIZSendPASC_Start
   Caption = 'WIZSendPASC_Start'
   ClientHeight = 261
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
+  LCLVersion = '1.8.1.0'
   Visible = False
   object gpSender: TGroupBox
     Left = 4
