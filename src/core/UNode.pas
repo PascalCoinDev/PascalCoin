@@ -181,110 +181,115 @@ begin
     errors := 'Adding blocks is disabled';
     exit;
   end;
-  If NewBlockOperations.OperationBlock.block<>Bank.BlocksCount then begin
-    errors := 'New block number ('+IntToStr(NewBlockOperations.OperationBlock.block)+') not valid! (Expected '+IntToStr(Bank.BlocksCount)+')';
-    exit;
-  end;
-  OpBlock := NewBlockOperations.OperationBlock;
-  TLog.NewLog(ltdebug,Classname,Format('AddNewBlockChain Connection:%s NewBlock:%s',[
-    Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(OpBlock)]));
-  If Not TPCThread.TryProtectEnterCriticalSection(Self,2000,FLockNodeOperations) then begin
-    If NewBlockOperations.OperationBlock.block<>Bank.BlocksCount then exit;
-    s := 'Cannot AddNewBlockChain due blocking lock operations node';
-    TLog.NewLog(lterror,Classname,s);
-    if TThread.CurrentThread.ThreadID=MainThreadID then raise Exception.Create(s) else exit;
-  end;
-  try
-    // Check block number:
-    if TPCOperationsComp.EqualsOperationBlock(Bank.LastOperationBlock,NewBlockOperations.OperationBlock) then begin
-      errors := 'Duplicated block';
+  NewBlockOperations.Lock; // New protection
+  Try
+    If NewBlockOperations.OperationBlock.block<>Bank.BlocksCount then begin
+      errors := 'New block number ('+IntToStr(NewBlockOperations.OperationBlock.block)+') not valid! (Expected '+IntToStr(Bank.BlocksCount)+')';
       exit;
     end;
-    // Improvement TNode speed 2.1.6
-    // Does not need to save a FOperations backup because is Sanitized by "TNode.OnBankNewBlock"
-    Result := Bank.AddNewBlockChainBlock(NewBlockOperations,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,newBlockAccount,errors);
-    if Result then begin
-      if Assigned(SenderConnection) then begin
-        FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload,
-          OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
-      end else begin
-        FNodeLog.NotifyNewLog(ltupdate,ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,'NIL',OpBlock.block_payload,
-          OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
-      end;
-    end else begin
-      if Assigned(SenderConnection) then begin
-        FNodeLog.NotifyNewLog(lterror,SenderConnection.ClassName,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload,errors,
-          OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
-      end else begin
-        FNodeLog.NotifyNewLog(lterror,ClassName,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[OpBlock.block,'NIL',OpBlock.block_payload,errors,
-          OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
-      end;
+    OpBlock := NewBlockOperations.OperationBlock;
+    TLog.NewLog(ltdebug,Classname,Format('AddNewBlockChain Connection:%s NewBlock:%s',[
+      Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(OpBlock)]));
+    If Not TPCThread.TryProtectEnterCriticalSection(Self,2000,FLockNodeOperations) then begin
+      If NewBlockOperations.OperationBlock.block<>Bank.BlocksCount then exit;
+      s := 'Cannot AddNewBlockChain due blocking lock operations node';
+      TLog.NewLog(lterror,Classname,s);
+      if TThread.CurrentThread.ThreadID=MainThreadID then raise Exception.Create(s) else exit;
     end;
-    if Result then begin
-      opsht := TOperationsHashTree.Create;
-      Try
-        j := Random(3); // j=0,1 or 2
-        If (Bank.LastBlockFound.OperationBlock.block>j) then
-          minBlockResend:=Bank.LastBlockFound.OperationBlock.block - j
-        else minBlockResend:=1;
-        maxResend := CT_MaxResendMemPoolOperations;
-        i := 0;
-        While (opsht.OperationsCount<maxResend) And (i<FOperations.Count) do begin
-          resendOp := FOperations.Operation[i];
-          j := FSentOperations.GetTag(resendOp.Sha256);
-          if (j=0) Or (j<=minBlockResend) then begin
-            // Only will "re-send" operations that where received on block <= minBlockResend
-            opsht.AddOperationToHashTree(resendOp);
-            // Add to sent operations
-            FSentOperations.SetTag(resendOp.Sha256,FOperations.OperationBlock.block); // Set tag new value
-            FSentOperations.Add(FOperations.Operation[i].Sha256,Bank.LastBlockFound.OperationBlock.block);
-          end else begin
-            {$IFDEF HIGHLOG}TLog.NewLog(ltInfo,ClassName,'Sanitized operation not included to resend (j:'+IntToStr(j)+'>'+inttostr(minBlockResend)+') ('+inttostr(i+1)+'/'+inttostr(FOperations.Count)+'): '+FOperations.Operation[i].ToString);{$ENDIF}
-          end;
-          inc(i);
+    try
+      // Check block number:
+      if TPCOperationsComp.EqualsOperationBlock(Bank.LastOperationBlock,NewBlockOperations.OperationBlock) then begin
+        errors := 'Duplicated block';
+        exit;
+      end;
+      // Improvement TNode speed 2.1.6
+      // Does not need to save a FOperations backup because is Sanitized by "TNode.OnBankNewBlock"
+      Result := Bank.AddNewBlockChainBlock(NewBlockOperations,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,newBlockAccount,errors);
+      if Result then begin
+        if Assigned(SenderConnection) then begin
+          FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload,
+            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
+        end else begin
+          FNodeLog.NotifyNewLog(ltupdate,ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,'NIL',OpBlock.block_payload,
+            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
         end;
-        If FOperations.Count>0 then begin
-          TLog.NewLog(ltinfo,classname,Format('Resending %d operations for new block (Buffer Pending Operations:%d)',[opsht.OperationsCount,FOperations.Count]));
-          {$IFDEF HIGHLOG}
-          if opsht.OperationsCount>0 then begin
-            for i := 0 to opsht.OperationsCount - 1 do begin
-              TLog.NewLog(ltInfo,ClassName,'Resending ('+inttostr(i+1)+'/'+inttostr(opsht.OperationsCount)+'): '+opsht.GetOperation(i).ToString);
+      end else begin
+        if Assigned(SenderConnection) then begin
+          FNodeLog.NotifyNewLog(lterror,SenderConnection.ClassName,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload,errors,
+            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
+        end else begin
+          FNodeLog.NotifyNewLog(lterror,ClassName,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[OpBlock.block,'NIL',OpBlock.block_payload,errors,
+            OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
+        end;
+      end;
+      if Result then begin
+        opsht := TOperationsHashTree.Create;
+        Try
+          j := Random(3); // j=0,1 or 2
+          If (Bank.LastBlockFound.OperationBlock.block>j) then
+            minBlockResend:=Bank.LastBlockFound.OperationBlock.block - j
+          else minBlockResend:=1;
+          maxResend := CT_MaxResendMemPoolOperations;
+          i := 0;
+          While (opsht.OperationsCount<maxResend) And (i<FOperations.Count) do begin
+            resendOp := FOperations.Operation[i];
+            j := FSentOperations.GetTag(resendOp.Sha256);
+            if (j=0) Or (j<=minBlockResend) then begin
+              // Only will "re-send" operations that where received on block <= minBlockResend
+              opsht.AddOperationToHashTree(resendOp);
+              // Add to sent operations
+              FSentOperations.SetTag(resendOp.Sha256,FOperations.OperationBlock.block); // Set tag new value
+              FSentOperations.Add(FOperations.Operation[i].Sha256,Bank.LastBlockFound.OperationBlock.block);
+            end else begin
+              {$IFDEF HIGHLOG}TLog.NewLog(ltInfo,ClassName,'Sanitized operation not included to resend (j:'+IntToStr(j)+'>'+inttostr(minBlockResend)+') ('+inttostr(i+1)+'/'+inttostr(FOperations.Count)+'): '+FOperations.Operation[i].ToString);{$ENDIF}
             end;
-          end
+            inc(i);
+          end;
+          If FOperations.Count>0 then begin
+            TLog.NewLog(ltinfo,classname,Format('Resending %d operations for new block (Buffer Pending Operations:%d)',[opsht.OperationsCount,FOperations.Count]));
+            {$IFDEF HIGHLOG}
+            if opsht.OperationsCount>0 then begin
+              for i := 0 to opsht.OperationsCount - 1 do begin
+                TLog.NewLog(ltInfo,ClassName,'Resending ('+inttostr(i+1)+'/'+inttostr(opsht.OperationsCount)+'): '+opsht.GetOperation(i).ToString);
+              end;
+            end
+            {$ENDIF}
+          end;
+          // Clean sent operations buffer
+          j := 0;
+          for i := FSentOperations.Count-1 downto 0 do begin
+            If (FSentOperations.GetTag(i)<Bank.LastBlockFound.OperationBlock.block-2) then begin
+              FSentOperations.Delete(i);
+              inc(j);
+            end;
+          end;
+          if j>0 then begin
+            TLog.NewLog(ltInfo,ClassName,'Buffer Sent operations: Deleted '+IntToStr(j)+' old operations');
+          end;
+          TLog.NewLog(ltdebug,ClassName,'Buffer Sent operations: '+IntToStr(FSentOperations.Count));
+          // Notify to clients
+          {$IFnDEF TESTING_NO_POW_CHECK}
+          j := TNetData.NetData.ConnectionsCountAll;
+          for i:=0 to j-1 do begin
+            if (TNetData.NetData.GetConnection(i,nc)) then begin
+              if (nc<>SenderConnection) And (nc.Connected) then begin
+                TThreadNodeNotifyNewBlock.Create(nc,Bank.LastBlockFound,opsht);
+              end;
+            end;
+          end;
           {$ENDIF}
-        end;
-        // Clean sent operations buffer
-        j := 0;
-        for i := FSentOperations.Count-1 downto 0 do begin
-          If (FSentOperations.GetTag(i)<Bank.LastBlockFound.OperationBlock.block-2) then begin
-            FSentOperations.Delete(i);
-            inc(j);
-          end;
-        end;
-        if j>0 then begin
-          TLog.NewLog(ltInfo,ClassName,'Buffer Sent operations: Deleted '+IntToStr(j)+' old operations');
-        end;
-        TLog.NewLog(ltdebug,ClassName,'Buffer Sent operations: '+IntToStr(FSentOperations.Count));
-        // Notify to clients
-        {$IFnDEF TESTING_NO_POW_CHECK}
-        j := TNetData.NetData.ConnectionsCountAll;
-        for i:=0 to j-1 do begin
-          if (TNetData.NetData.GetConnection(i,nc)) then begin
-            if (nc<>SenderConnection) And (nc.Connected) then begin
-              TThreadNodeNotifyNewBlock.Create(nc,Bank.LastBlockFound,opsht);
-            end;
-          end;
-        end;
-        {$ENDIF}
-      Finally
-        opsht.Free;
-      End;
-    end;
+        Finally
+          opsht.Free;
+        End;
+      end;
+    finally
+      FLockNodeOperations.Release;
+      TLog.NewLog(ltdebug,Classname,Format('Finalizing AddNewBlockChain Connection:%s NewBlock:%s',[
+        Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(OpBlock) ]));
+    End;
   finally
-    FLockNodeOperations.Release;
-    TLog.NewLog(ltdebug,Classname,Format('Finalizing AddNewBlockChain Connection:%s NewBlock:%s',[
-      Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(OpBlock) ]));
-  End;
+    NewBlockOperations.Unlock;
+  end;
   if Result then begin
     // Notify it!
     NotifyBlocksChanged;

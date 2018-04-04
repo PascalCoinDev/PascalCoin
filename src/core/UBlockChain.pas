@@ -498,6 +498,7 @@ begin
   Try
     Result := False;
     errors := '';
+    Operations.Lock; // New Protection
     Try
       If Not Operations.ValidateOperationBlock(errors) then begin
         exit;
@@ -539,8 +540,10 @@ begin
       Operations.Clear(true);
       Result := true;
     Finally
-      if Not Result then
+      if Not Result then begin
         NewLog(Operations, lterror, 'Invalid new block '+inttostr(Operations.OperationBlock.block)+': ' + errors);
+      end;
+      Operations.Unlock;
     End;
   Finally
     FBankLock.Release;
@@ -2576,6 +2579,7 @@ begin
       OperationResume.isMultiOperation:=True;
       OperationResume.OpSubtype := CT_OpSubtype_MultiOperation;
       OperationResume.OperationTxt := Operation.ToString;
+      OperationResume.Amount := Operation.OperationAmount * (-1);
       Result := True;
     end
   else Exit;
