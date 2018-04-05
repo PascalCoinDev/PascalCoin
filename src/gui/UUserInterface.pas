@@ -161,7 +161,7 @@ implementation
 
 uses
   UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
-  UOpenSSL, UFileStorage, UTime, UCommon, USettings, UCore;
+  UOpenSSL, UFileStorage, UTime, UCommon, USettings, UCoreUtils;
 
 {%region UI Lifecyle}
 

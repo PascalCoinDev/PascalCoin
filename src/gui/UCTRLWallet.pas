@@ -85,7 +85,7 @@ type
 implementation
 
 uses
-  UUserInterface, UCellRenderers, UBlockChain, UWallet, UCrypto, UCore,
+  UUserInterface, UCellRenderers, UBlockChain, UWallet, UCrypto, UCoreUtils,
   UCommon, UMemory, Generics.Defaults, UCommon.Data, UCommon.Collections;
 
 {$R *.lfm}

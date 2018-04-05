@@ -95,7 +95,7 @@ type
 implementation
 
 uses
-  math, UCoreUtils, UWallet, UUserInterface, UTime;
+  math, UCore, UWallet, UUserInterface, UTime;
 
 { TAccountsDataSourceBase }
 

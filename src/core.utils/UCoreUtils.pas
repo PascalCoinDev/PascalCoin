@@ -1,4 +1,4 @@
-unit UCore;
+unit UCoreUtils;
 
 { Copyright (c) 2018 by PascalCoin Project
 
