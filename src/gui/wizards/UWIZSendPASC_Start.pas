@@ -16,7 +16,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UVisualGrid, UCommon.Data,
+  ExtCtrls, UVisualGrid, UCommon.Data, UCellRenderers,
   UWizard, UWIZSendPASC, UWIZSendPASC_Transaction, UWIZSendPASC_Confirmation;
 
 type
@@ -68,12 +68,23 @@ begin
   FSendersGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
   with FSendersGrid.AddColumn('Account') do begin
     StretchedToFill := true;
-    Filters := SORTABLE_NUMERIC_FILTER;
-  end;
-  with FSendersGrid.AddColumn('Amount') do begin
-    Binding := 'Balance';
+    Binding := 'AccountNumber';
+    SortBinding := 'AccountNumber';
+    DisplayBinding := 'Account';
     Width := 100;
-    Filters := SORTABLE_NUMERIC_FILTER;
+    HeaderFontStyles := [fsBold];
+    DataFontStyles := [fsBold];
+    Filters:=SORTABLE_NUMERIC_FILTER;
+  end;
+  with FSendersGrid.AddColumn('Balance') do begin
+    Binding := 'BalanceDecimal';
+    SortBinding := 'Balance';
+    DisplayBinding := 'Balance';
+    Width := 100;
+    HeaderAlignment:=taRightJustify;
+    DataAlignment:=taRightJustify;
+    Renderer := TCellRenderers.PASC;
+    Filters:=SORTABLE_NUMERIC_FILTER;
   end;
   data := TAccountSenderDataSource.Create(FSendersGrid);
   data.Model := Model;
