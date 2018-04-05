@@ -1,9 +1,9 @@
-object WIZSendPASC_Confirmation: TWIZSendPASC_Confirmation
+object WIZTransferAccount_Confirmation: TWIZTransferAccount_Confirmation
   Left = 0
   Height = 253
   Top = 0
   Width = 429
-  Caption = 'WIZSendPASC_Confirmation'
+  Caption = 'WIZTransferAccount_Confirmation'
   ClientHeight = 253
   ClientWidth = 429
   Visible = False
@@ -13,7 +13,7 @@ object WIZSendPASC_Confirmation: TWIZSendPASC_Confirmation
     Top = 8
     Width = 408
     Anchors = [akTop, akLeft, akRight, akBottom]
-    Caption = 'Confirm Transaction'
+    Caption = 'Confirm Transfer Transaction'
     ClientHeight = 212
     ClientWidth = 404
     TabOrder = 0
@@ -30,7 +30,7 @@ object WIZSendPASC_Confirmation: TWIZSendPASC_Confirmation
     object Label1: TLabel
       Left = 8
       Height = 15
-      Top = 2
+      Top = 16
       Width = 84
       Caption = 'Signer Account:'
       ParentColor = False
@@ -38,25 +38,9 @@ object WIZSendPASC_Confirmation: TWIZSendPASC_Confirmation
     object lblSgnAcc: TLabel
       Left = 112
       Height = 15
-      Top = 2
+      Top = 16
       Width = 53
       Caption = 'lblSgnAcc'
-      ParentColor = False
-    end
-    object Label2: TLabel
-      Left = 8
-      Height = 15
-      Top = 24
-      Width = 111
-      Caption = 'Destination Account:'
-      ParentColor = False
-    end
-    object lblDestAcc: TLabel
-      Left = 128
-      Height = 15
-      Top = 24
-      Width = 56
-      Caption = 'lblDestAcc'
       ParentColor = False
     end
   end

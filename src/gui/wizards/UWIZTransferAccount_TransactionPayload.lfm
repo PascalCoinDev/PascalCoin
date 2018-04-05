@@ -1,4 +1,4 @@
-object WIZSendPASC_TransactionPayload: TWIZSendPASC_TransactionPayload
+object WIZTransferAccount_TransactionPayload: TWIZTransferAccount_TransactionPayload
   Left = 0
   Height = 253
   Top = 0
@@ -15,7 +15,7 @@ object WIZSendPASC_TransactionPayload: TWIZSendPASC_TransactionPayload
     Top = 2
     Width = 416
     Anchors = [akTop, akLeft, akRight, akBottom]
-    Caption = 'Transaction Payload'
+    Caption = 'Transfer Transaction Payload'
     ClientHeight = 224
     ClientWidth = 412
     TabOrder = 0

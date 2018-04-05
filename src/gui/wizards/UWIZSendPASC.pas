@@ -62,7 +62,6 @@ uses
   UECIES,
   UAES,
   UWIZSendPASC_Start,
-  UWIZSendPASC_Transaction,
   UWIZSendPASC_Confirmation;
 
 { TWIZSendPASCWizard }

@@ -1,4 +1,4 @@
-unit UWIZSendPASC_TransactionPayload;
+unit UWIZTransferAccount_TransactionPayload;
 
 {$mode delphi}
 {$modeswitch nestedprocvars}
@@ -14,13 +14,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections,
-  UWizard, UWIZSendPASC;
+  UWizard, UWIZTransferAccount;
 
 type
 
-  { TWIZSendPASC_TransactionPayload }
+  { TWIZTransferAccount_TransactionPayload }
 
-  TWIZSendPASC_TransactionPayload = class(TWizardForm<TWIZSendPASCModel>)
+  TWIZTransferAccount_TransactionPayload = class(TWizardForm<TWIZTransferAccountModel>)
     edtPassword: TEdit;
     grpPayload: TGroupBox;
     Label1: TLabel;
@@ -44,9 +44,9 @@ implementation
 uses
   UAccounts, UUserInterface;
 
-{ TWIZSendPASC_TransactionPayload }
+{ TWIZTransferAccount_TransactionPayload }
 
-procedure TWIZSendPASC_TransactionPayload.OnNext;
+procedure TWIZTransferAccount_TransactionPayload.OnNext;
 begin
   Model.Payload := mmoPayload.Lines.Text;
   if rbEncryptedWithOldEC.Checked then
@@ -70,7 +70,7 @@ begin
   end;
 end;
 
-function TWIZSendPASC_TransactionPayload.Validate(out message: ansistring): boolean;
+function TWIZTransferAccount_TransactionPayload.Validate(out message: ansistring): boolean;
 begin
   if (not rbNotEncrypted.Checked) and (not rbEncryptedWithEC.Checked) and
     (not rbEncryptedWithOldEC.Checked) and (not rbEncryptedWithPassword.Checked) then
