@@ -14,7 +14,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_Confirmation;
+  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_Confirmation, UWIZSendPASC_TransactionPayload;
 
 type
 
@@ -175,6 +175,7 @@ begin
     cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
   Model.DestinationAccount := GetAccounts(GetAccNoWithoutChecksum(edtDestAcc.Text));
   Model.AmountToSend := edtAmt.Text;
+  UpdatePath(ptReplaceAllNext, [TWIZSendPASC_TransactionPayload, TWIZSendPASC_Confirmation]);
 end;
 
 function TWIZSendPASC_Transaction.Validate(out message: ansistring): boolean;

@@ -9,7 +9,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Menus,
   ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon.UI, Generics.Collections,
-  UAccounts, UDataSources, UNode, UWIZSendPASC;
+  UAccounts, UDataSources, UNode, UWIZSendPASC{, UWIZTransferAccount};
 
 type
 
@@ -592,8 +592,26 @@ begin
 end;
 
 procedure TCTRLWallet.miTransferAccountsClick(Sender: TObject);
+//var
+//  Scoped: TDisposables;
+//  wiz: TWIZTransferAccountWizard;
+//  model: TWIZTransferAccountModel;
+//  auxC: cardinal;
 begin
-  raise ENotImplemented.Create('Not Implemented');
+  //wiz := Scoped.AddObject(TWIZTransferAccountWizard.Create(nil)) as
+  //  TWIZTransferAccountWizard;
+  //model := Scoped.AddObject(TWIZTransferAccountModel.Create(nil)) as
+  //  TWIZTransferAccountModel;
+  //
+  //if not TAccountComp.AccountTxtNumberToAccountNumber(
+  //  FAccountsGrid.SelectedRows[0].Account, auxC) then
+  //begin
+  //  raise Exception.Create(
+  //    'Internal Error: Unable to parse account number from input');
+  //end;
+  //
+  //model.SelectedAccount := TNode.Node.Operations.SafeBoxTransaction.Account(auxC);
+  //wiz.Start(model);
 end;
 
 procedure TCTRLWallet.OnPrepareOperationsPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);

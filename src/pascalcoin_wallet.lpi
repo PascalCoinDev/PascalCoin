@@ -401,39 +401,39 @@
         <IsPartOfProject Value="True"/>
       </Unit69>
       <Unit70>
-        <Filename Value="gui\wizards\UWIZSendPASC_Completion.pas"/>
+        <Filename Value="libraries\generics.collections\inc\generics.dictionaries.inc"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="WIZSendPASC_Completion"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
       </Unit70>
       <Unit71>
-        <Filename Value="libraries\generics.collections\inc\generics.dictionaries.inc"/>
+        <Filename Value="libraries\pascalcoin\UAppParams.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit71>
       <Unit72>
-        <Filename Value="libraries\pascalcoin\UAppParams.pas"/>
+        <Filename Value="libraries\pascalcoin\UFolderHelper.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit72>
       <Unit73>
-        <Filename Value="libraries\pascalcoin\UFolderHelper.pas"/>
+        <Filename Value="libraries\pascalcoin\UGridUtils.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit73>
       <Unit74>
-        <Filename Value="libraries\pascalcoin\UGridUtils.pas"/>
+        <Filename Value="libraries\pascalcoin\UJSONFunctions.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit74>
       <Unit75>
-        <Filename Value="libraries\pascalcoin\UJSONFunctions.pas"/>
+        <Filename Value="core.utils\UCoreUtils.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit75>
       <Unit76>
-        <Filename Value="core.utils\UCoreUtils.pas"/>
+        <Filename Value="core.utils\UDataSources.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit76>
       <Unit77>
-        <Filename Value="core.utils\UDataSources.pas"/>
+        <Filename Value="gui\wizards\UWIZSendPASC_TransactionPayload.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZSendPASC_TransactionPayload"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit77>
     </Units>
   </ProjectOptions>

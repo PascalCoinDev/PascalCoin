@@ -13,7 +13,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UVisualGrid, UCommon.Data, UWizard, UWIZSendPASC;
+  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UWIZSendPASC;
 
 type
 
@@ -71,10 +71,13 @@ begin
     Binding := 'SenderAccount';
     Filters := SORTABLE_NUMERIC_FILTER;
     Width := 100;
+    HeaderFontStyles := [fsBold];
+    DataFontStyles := [fsBold];
   end;
   with FSendersGrid.AddColumn('Balance') do begin
     Filters := SORTABLE_NUMERIC_FILTER;
     Width := 100;
+    Renderer := TCellRenderers.PASC;
   end;
   with FSendersGrid.AddColumn('Amount To Send') do begin
     Binding := 'AmountToSend';
@@ -111,9 +114,9 @@ var
   index : Integer;
 begin
    if ABindingName = 'SenderAccount' then
-     Result := AItem.account
+     Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account)
    else if ABindingName = 'Balance' then
-     Result := TAccountComp.FormatMoneyDecimal(AItem.Balance)
+     Result := TAccountComp.FormatMoney(AItem.Balance)
    else if ABindingName = 'AmountToSend' then
      Result := Model.AmountToSend
      else if ABindingName = 'Fee' then
