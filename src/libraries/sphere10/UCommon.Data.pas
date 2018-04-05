@@ -63,18 +63,18 @@ const
     class destructor Destroy;
   protected type
     TColumnMapToIndex = TDictionary<AnsiString, Integer>;
-    TColumnsDictionary = TObjectDictionary<AnsiString, TColumnMapToIndex>;
+    TColumnsDictionary = TObjectDictionary<PtrInt, TColumnMapToIndex>;
   protected class var
     FColumns: TColumnsDictionary;
   protected
-    class function MapColumns(const ADataSourceClassName : AnsiString; const AColumns: TDataColumns): TColumnMapToIndex;
+    class function MapColumns(AClassID : PtrInt; const AColumns: TDataColumns): TColumnMapToIndex;
   public
     function GetProperty(var Dest: TVarData; const V: TVarData; const Name: string): Boolean; override;
     function SetProperty(var V: TVarData; const Name: string; const Value: TVarData): Boolean; override;
     procedure Clear(var V: TVarData); override;
     procedure Copy(var Dest: TVarData; const Source: TVarData; const Indirect: Boolean); override;
     function DoFunction(var Dest: TVarData; const V: TVarData; const Name: string; const Arguments: TVarDataArray): Boolean; override;
-    class function New(const ADataSourceClassName : AnsiString; const AColumns: TDataColumns): Variant;
+    class function New(AClassID : PtrInt; const AColumns: TDataColumns): Variant;
   end;
 
   EDataRow = class(Exception);
@@ -178,7 +178,7 @@ const
   TCustomDataSource<T> = class(TComponent, IDataSource)
     private
       FLock : TCriticalSection;
-      FClassName : AnsiString;
+      FClassID : PtrInt;
     protected
       function GetNullPolicy(const AFilter : TColumnFilter) : TSortNullPolicy; virtual;
       function GetItemDisposePolicy : TDisposePolicy; virtual; abstract;
@@ -282,7 +282,7 @@ begin
   FColumns.Free;
 end;
 
-class function TDataRow.MapColumns(const ADataSourceClassName : AnsiString; const AColumns: TDataColumns): TColumnMapToIndex;
+class function TDataRow.MapColumns(AClassID : PtrInt; const AColumns: TDataColumns): TColumnMapToIndex;
 var
   i: Integer;
 begin
@@ -290,7 +290,7 @@ begin
   for i := Low(AColumns) to High(AColumns) do
     Result.Add(AColumns[i].Name, i);
   Result.Add('__KEY', i + 1);
-  FColumns.Add(ADataSourceClassName, Result);
+  FColumns.Add(AClassID, Result);
 end;
 
 function TDataRow.GetProperty(var Dest: TVarData; const V: TVarData; const Name: string): Boolean;
@@ -343,10 +343,12 @@ begin
     Variant(Dest) := LRow.vvalues[Variant(Arguments[0])];
 end;
 
-class function TDataRow.New(const ADataSourceClassName:AnsiString; const AColumns: TDataColumns): Variant;
+class function TDataRow.New(AClassID:PtrInt; const AColumns: TDataColumns): Variant;
 
 var
   LColumnMap: TColumnMapToIndex;
+  AKey : AnsiString;
+  i : Integer;
 begin
   if not Assigned(AColumns) then
     raise EDataRow.Create(sAColumnsCantBeNil);
@@ -354,10 +356,17 @@ begin
   VarClear(Result);
   FillChar(Result, SizeOf(Result), #0);
   TDataRowData(Result).vtype:=DataRowType.VarType;
-
-  if not FColumns.TryGetValue(ADataSourceClassName, LColumnMap) then
-    LColumnMap := MapColumns(ADataSourceClassName, AColumns);
-
+  if not FColumns.TryGetValue(AClassID, LColumnMap) then
+    LColumnMap := MapColumns(AClassID, AColumns)
+  else begin
+    // Ensure all instances have consistent columns for AClassID
+    if Length(AColumns) <> (LColumnMap.Count - 1) then  // -1 to account for __KEY
+      raise EDataRow.Create('Internal Error: Inconsistent column counts for given AClassID. Ensure AClassID values are unique for each class of constructed TDataRow');
+    for i := Low(AColumns) to High(AColumns) do begin
+      if NOT LColumnMap.ContainsKey(AColumns[i].Name) then
+        raise EDataRow.Create(Format('Internal Error: Inconsistent columns for given AClassID. Unknown column "%s".', [AColumns[i].Name]));
+    end;
+  end;
   TDataRowData(Result).vcolumnmap:=LColumnMap;
   SetLength(TDataRowData(Result).vvalues, LColumnMap.Count);
 end;
@@ -391,7 +400,7 @@ constructor TCustomDataSource<T>.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   FLock := TCriticalSection.Create;
-  FClassName := Self.ClassName;
+  FClassID := PtrInt(ClassInfo); // Use pointer to ClassInfo as unique identifier for DataSource
 end;
 
 destructor TCustomDataSource<T>.Destroy;
@@ -542,7 +551,7 @@ begin
        j := 0;
        SetLength(ADataTable.Rows, pageEnd - pageStart + 1);
        for i := pageStart to pageEnd do begin
-         ADataTable.Rows[j] := TDataRow.New(FClassName, ADataTable.Columns);
+         ADataTable.Rows[j] := TDataRow.New(FClassID, ADataTable.Columns);
          DehydrateItem( data[i], ADataTable.Rows[j]);
          ADataTable.Rows[j].__KEY := GetEntityKey(data[i]);
          inc(j)

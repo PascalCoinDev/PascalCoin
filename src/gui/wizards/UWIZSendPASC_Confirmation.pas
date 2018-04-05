@@ -47,7 +47,7 @@ type
     private
       FModel : TWIZSendPASCModel;
     protected
-      function GetColumns : TDataColumns;
+      function GetColumns : TDataColumns; override;
     public
       property Model : TWIZSendPASCModel read FModel write FModel;
       procedure FetchAll(const AContainer : TList<TAccount>); override;

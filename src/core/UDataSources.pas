@@ -15,7 +15,7 @@ type
   TAccountsDataSourceBase = class(TCustomDataSource<TAccount>)
     protected
       function GetItemDisposePolicy : TDisposePolicy; override;
-      function GetColumns : TDataColumns;  override;
+      function GetColumns : TDataColumns; override;
     public
       function GetEntityKey(constref AItem: TAccount) : Variant; override;
       function GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant; override;
