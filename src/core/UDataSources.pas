@@ -14,10 +14,8 @@ type
 
   TAccountsDataSourceBase = class(TCustomDataSource<TAccount>)
     protected
-      function GetItemDisposePolicy : TDisposePolicy; override;
       function GetColumns : TDataColumns; override;
     public
-      function GetEntityKey(constref AItem: TAccount) : Variant; override;
       function GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant; override;
   end;
 
@@ -53,14 +51,12 @@ type
       function GetTimeSpan : TTimeSpan;
       procedure SetTimeSpan(const ASpan : TTimeSpan);
     protected
-      function GetItemDisposePolicy : TDisposePolicy; override;
       function GetColumns : TDataColumns;  override;
     public
       constructor Create(AOwner: TComponent); override;
       property TimeSpan : TTimeSpan read GetTimeSpan write SetTimeSpan;
       property StartBlock : Cardinal read FStart write FStart;
       property EndBlock : Cardinal read FEnd write FEnd;
-      function GetEntityKey(constref AItem: TOperationResume) : Variant; override;
       function GetItemField(constref AItem: TOperationResume; const ABindingName : AnsiString) : Variant; override;
   end;
 
@@ -99,16 +95,11 @@ uses
 
 { TAccountsDataSourceBase }
 
-function TAccountsDataSourceBase.GetItemDisposePolicy : TDisposePolicy;
-begin
-  Result := idpNone;
-end;
-
 function TAccountsDataSourceBase.GetColumns : TDataColumns;
 begin
   Result := TDataColumns.Create(
+    TDataColumn.From('AccountNumber', true),
     TDataColumn.From('Account'),
-    TDataColumn.From('AccountNumber'),
     TDataColumn.From('Name'),
     TDataColumn.From('Balance'),
     TDataColumn.From('BalanceDecimal'),
@@ -121,40 +112,34 @@ begin
   );
 end;
 
-function TAccountsDataSourceBase.GetEntityKey(constref AItem: TAccount) : Variant;
-begin
-  Result := AItem.account;
-end;
-
 function TAccountsDataSourceBase.GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant;
 var
   index : Integer;
 begin
-   if ABindingName = 'Account' then
-     Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account)
-   else if ABindingName = 'AccountNumber' then
-     Result := AItem.account
-   else if ABindingName = 'Name' then
-     Result := AItem.name
-   else if ABindingName = 'Balance' then
-     Result := AItem.Balance
-   else if ABindingName = 'BalanceDecimal' then
-     Result := TAccountComp.FormatMoneyDecimal(AItem.Balance)
-   else if ABindingName = 'Key' then
-     Result := TAccountComp.AccountPublicKeyExport(AItem.accountInfo.accountKey)
-   else if ABindingName = 'Type' then
-     Result := AItem.account_type
-   else if ABindingName = 'State' then
-     Result := AItem.accountInfo.state
-   else if ABindingName = 'Price' then
-     Result := AItem.accountInfo.price
-   else if ABindingName = 'PriceDecimal' then
-     Result := TAccountComp.FormatMoneyDecimal(AItem.accountInfo.price)
-   else if ABindingName = 'LockedUntil' then
-     Result := AItem.accountInfo.locked_until_block
-   else raise Exception.Create(Format('Field not found "%s"', [ABindingName]));
+  if ABindingName = 'AccountNumber' then
+    Result := AItem.account
+  else if ABindingName = 'Account' then
+    Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account)
+  else if ABindingName = 'Name' then
+    Result := AItem.name
+  else if ABindingName = 'Balance' then
+    Result := AItem.Balance
+  else if ABindingName = 'BalanceDecimal' then
+    Result := TAccountComp.FormatMoneyDecimal(AItem.Balance)
+  else if ABindingName = 'Key' then
+    Result := TAccountComp.AccountPublicKeyExport(AItem.accountInfo.accountKey)
+  else if ABindingName = 'Type' then
+    Result := AItem.account_type
+  else if ABindingName = 'State' then
+    Result := AItem.accountInfo.state
+  else if ABindingName = 'Price' then
+    Result := AItem.accountInfo.price
+  else if ABindingName = 'PriceDecimal' then
+    Result := TAccountComp.FormatMoneyDecimal(AItem.accountInfo.price)
+  else if ABindingName = 'LockedUntil' then
+    Result := AItem.accountInfo.locked_until_block
+  else raise Exception.Create(Format('Field not found "%s"', [ABindingName]));
 end;
-
 
 { TAccountsDataSource }
 
@@ -244,7 +229,6 @@ end;
 function TOperationsDataSourceBase.GetTimeSpan : TTimeSpan;
 begin
   Result := TTimeSpan.FromSeconds( CT_NewLineSecondsAvg * (FEnd - FStart + 1) );
-  //XXXXXXXXXX TTimeSpan use not available at TPCOperationsComp  Result := TPCOperationsComp.ConvertBlockCountToTimeSpan(FEnd - FStart + 1);
 end;
 
 procedure TOperationsDataSourceBase.SetTimeSpan(const ASpan : TTimeSpan);
@@ -254,18 +238,13 @@ begin
  node := TNode.Node;
  if Not Assigned(Node) then exit;
  FEnd := node.Bank.BlocksCount - 1;
- FStart := ClipValue(FEnd - (Round( ASpan.TotalSeconds / CT_NewLineSecondsAvg ) + 1), 0, FEnd);
- //XXXXXXXXXX TTimeSpan use not available at TPCOperationsComp  FStart := ClipValue(FEnd - (TPCOperationsComp.ConvertTimeSpanToBlockCount(ASpan) + 1), 0, FEnd);
-end;
-
-function TOperationsDataSourceBase.GetItemDisposePolicy : TDisposePolicy;
-begin
-  Result := idpNone;
+ FStart := ClipValue(FEnd - (ASpan.TotalBlockCount + 1), 0, FEnd);
 end;
 
 function TOperationsDataSourceBase.GetColumns : TDataColumns;
 begin
   Result := TDataColumns.Create(
+    TDataColumn.From('OPHASH', true),
     TDataColumn.From('UnixTime'),
     TDataColumn.From('Time'),
     TDataColumn.From('Block'),
@@ -283,24 +262,17 @@ begin
     TDataColumn.From('Balance'),
     TDataColumn.From('BalanceDecimal'),
     TDataColumn.From('Payload'),
-    TDataColumn.From('OPHASH'),
     TDataColumn.From('Description')
   );
-end;
-
-function TOperationsDataSourceBase.GetEntityKey(constref AItem: TOperationResume) : Variant;
-begin
-  if AItem.valid then
-    Result := TPCOperation.OperationHashAsHexa(AItem.OperationHash)
-  else
-    Result := nil;
 end;
 
 function TOperationsDataSourceBase.GetItemField(constref AItem: TOperationResume; const ABindingName : AnsiString) : Variant;
 var
   index : Integer;
 begin
-  if ABindingName = 'UnixTime' then
+  if ABindingName = 'OPHASH' then
+    Result := TPCOperation.OperationHashAsHexa(AItem.OperationHash)
+  else if ABindingName = 'UnixTime' then
     Result := AItem.Time
   else if ABindingName = 'Time' then
     Result := UnixTimeToLocalStr(AItem.time)
@@ -334,8 +306,6 @@ begin
     Result := TAccountComp.FormatMoneyDecimal(AItem.Balance)
   else if ABindingName = 'Payload' then
     Result := AItem.PrintablePayload
-  else if ABindingName = 'OPHASH' then
-    Result := TPCOperation.OperationHashAsHexa(AItem.OperationHash)
   else if ABindingName = 'Description' then
     Result := AItem.OperationTxt
   else raise Exception.Create(Format('Field not found [%s]', [ABindingName]));

@@ -107,8 +107,8 @@ end;
 function TAccountsDataSourceBase.GetColumns : TDataColumns;
 begin
   Result := TDataColumns.Create(
+    TDataColumn.From('AccountNumber', true),
     TDataColumn.From('Account'),
-    TDataColumn.From('AccountNumber'),
     TDataColumn.From('Name'),
     TDataColumn.From('Balance'),
     TDataColumn.From('BalanceDecimal'),
@@ -266,6 +266,7 @@ end;
 function TOperationsDataSourceBase.GetColumns : TDataColumns;
 begin
   Result := TDataColumns.Create(
+    TDataColumn.From('OPHASH', true),
     TDataColumn.From('UnixTime'),
     TDataColumn.From('Time'),
     TDataColumn.From('Block'),
@@ -283,7 +284,6 @@ begin
     TDataColumn.From('Balance'),
     TDataColumn.From('BalanceDecimal'),
     TDataColumn.From('Payload'),
-    TDataColumn.From('OPHASH'),
     TDataColumn.From('Description')
   );
 end;

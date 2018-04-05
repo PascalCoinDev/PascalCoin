@@ -48,9 +48,13 @@ const
   { TDataColumn }
 
   TDataColumn = record
-    Name : AnsiString;
-    // FType: typecode??
-    class function From(AName: AnsiString) : TDataColumn; overload; static;
+    private
+      FName : AnsiString;
+      FKey : boolean;
+    public
+      property Name : AnsiString read FName;
+      property IsKey : boolean read FKey;
+      class function From(const AName: AnsiString; IsKey : boolean = False) : TDataColumn; overload; static;
   end;
 
   TDataColumns = TArray<TDataColumn>;
@@ -118,12 +122,12 @@ const
 
   { TDataTable }
 
-  PDataTable = ^TDataTable;
   TDataTable = record
-  public
     Columns: TDataColumns;
     Rows : TArray<Variant>;
   end;
+  PDataTable = ^TDataTable;
+  EDataTable = class(Exception);
 
   { TColumnFilterPredicate -- should be implementation only }
 
@@ -181,14 +185,13 @@ const
       FClassID : PtrInt;
     protected
       function GetNullPolicy(const AFilter : TColumnFilter) : TSortNullPolicy; virtual;
-      function GetItemDisposePolicy : TDisposePolicy; virtual; abstract;
+      function GetItemDisposePolicy : TDisposePolicy; virtual;
       function GetColumns : TDataColumns; virtual; abstract;
       function ApplyColumnSort(constref Left, Right : T; constref AFilter: TColumnFilter) : Integer; virtual;
       function ApplyColumnFilter(constref AItem: T; constref AFilter: TColumnFilter) : boolean; virtual;
       function GetItemField(constref AItem: T; const ABindingName : AnsiString) : Variant; virtual; abstract;
       procedure DehydrateItem(constref AItem: T; var ADataRow: Variant);
       function FetchPage(constref AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
-      function GetEntityKey(constref AItem: T) : Variant; virtual;
       procedure OnBeforeFetchAll(constref AParams: TPageFetchParams); virtual;
       procedure FetchAll(const AContainer : TList<T>); virtual; abstract;
       procedure OnAfterFetchAll(constref AParams: TPageFetchParams); virtual;
@@ -265,9 +268,10 @@ var
 
 { TDataColumn }
 
-class function TDataColumn.From(AName: AnsiString) : TDataColumn;
+class function TDataColumn.From(const AName: AnsiString; IsKey : boolean = False) : TDataColumn;
 begin
-  Result.Name := AName;
+  Result.FName := AName;
+  Result.FKey:= IsKey;
 end;
 
 { TDataRow }
@@ -422,6 +426,11 @@ begin
   end;
 end;
 
+function TCustomDataSource<T>.GetItemDisposePolicy : TDisposePolicy;
+begin
+  Result := idpNone;
+end;
+
 function TCustomDataSource<T>.ApplyColumnSort(constref Left, Right : T; constref AFilter: TColumnFilter) : Integer;
 var
   leftField, rightField : Variant;
@@ -490,11 +499,6 @@ begin
   end else Result := false;
 end;
 
-function TCustomDataSource<T>.GetEntityKey(constref AItem: T) : Variant;
-begin
-  Result := nil;
-end;
-
 function TCustomDataSource<T>.FetchPage(constref AParams: TPageFetchParams; var ADataTable: TDataTable): TPageFetchResult;
 var
   i, j : SizeInt;
@@ -553,7 +557,6 @@ begin
        for i := pageStart to pageEnd do begin
          ADataTable.Rows[j] := TDataRow.New(FClassID, ADataTable.Columns);
          DehydrateItem( data[i], ADataTable.Rows[j]);
-         ADataTable.Rows[j].__KEY := GetEntityKey(data[i]);
          inc(j)
        end;
      end;
@@ -568,11 +571,16 @@ var
   i : integer;
   LCols : TArray<TDataColumn>;
   LData : TDataRowData;
+  LField : Variant;
 begin
   LCols := GetColumns;
   LData := TDataRowData(ADataRow);
-  for i := Low(LCols) to High(LCols) do
-    LData[LCols[i].Name] := GetItemField(AItem, LCols[i].Name);
+  for i := Low(LCols) to High(LCols) do begin
+    LField := GetItemField(AItem, LCols[i].Name);
+    LData[LCols[i].Name] := LField;
+    if LCols[i].IsKey then
+      LData['__KEY'] := LField;
+  end;
 end;
 
 procedure TCustomDataSource<T>.OnBeforeFetchAll(constref AParams: TPageFetchParams);

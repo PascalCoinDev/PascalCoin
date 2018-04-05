@@ -16,7 +16,7 @@ unit UCoreUtils;
 interface
 
 uses
-  Classes, SysUtils, UCrypto, UAccounts, UBlockChain,
+  Classes, SysUtils, UCrypto, UAccounts, UBlockChain, UCommon,
   Generics.Collections, Generics.Defaults;
 
 type
@@ -44,10 +44,14 @@ TOperationResumeHelper = record helper for TOperationResume
   function GetInfoText(const ABank : TPCBank) : utf8string;
 end;
 
+TTimeSpanHelper = record helper for TTimeSpan
+  function TotalBlockCount : Integer;
+end;
+
 implementation
 
 uses
-  UCommon, UMemory;
+  UMemory, UConst;
 
 { TAccountKeyComparer }
 
@@ -165,6 +169,13 @@ begin
     builder.Add(Format('Final balance: %s',[TAccountComp.FormatMoney(Self.Balance)]));
   end;
   Result := builder.Text;
+end;
+
+{ TTimeSpanHelper }
+
+function TTimeSpanHelper.TotalBlockCount : Integer;
+begin
+  Result := Round( Self.TotalSeconds / CT_NewLineSecondsAvg );
 end;
 
 end.
