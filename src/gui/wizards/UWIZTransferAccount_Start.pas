@@ -14,7 +14,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, UVisualGrid, UCommon.Data, UCellRenderers,
-  UWizard, UWIZTransferAccount, UWIZTransferAccount_Transaction, UWIZSendPASC_Confirmation;
+  UWizard, UWIZTransferAccount, UWIZTransferAccount_Transaction, UWIZTransferAccount_Confirmation;
 
 type
 
@@ -104,7 +104,7 @@ end;
 
 procedure TWIZTransferAccount_Start.OnNext;
 begin
-   UpdatePath(ptReplaceAllNext, [TWIZTransferAccount_Transaction, TWIZSendPASC_Confirmation]);
+   UpdatePath(ptReplaceAllNext, [TWIZTransferAccount_Transaction, TWIZTransferAccount_Confirmation]);
 end;
 
 end.
