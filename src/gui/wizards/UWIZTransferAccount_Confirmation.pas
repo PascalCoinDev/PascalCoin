@@ -126,9 +126,9 @@ procedure TAccountSenderDataSource.FetchAll(const AContainer : TList<TAccount>);
 var
   i: Integer;
 begin
-  for i := Low(Model.SortedAccounts) to High(Model.SortedAccounts) do
+  for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
   begin
-    AContainer.Add( Model.SortedAccounts[i] );
+    AContainer.Add( Model.SelectedAccounts[i] );
   end;
 end;
 

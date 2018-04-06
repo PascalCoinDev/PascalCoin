@@ -14,7 +14,8 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZTransferAccount, UWIZTransferAccount_TransactionPayload,
+  UFRMAccountSelect, UNode, UWizard, UWIZTransferAccount,
+  UWIZTransferAccount_TransactionPayload,
   UWIZTransferAccount_Confirmation;
 
 type
@@ -32,6 +33,7 @@ type
     lblTotalBalances: TLabel;
     lblBalance: TLabel;
     procedure cbSignerAccountChange(Sender: TObject);
+
 
   public
     procedure OnPresent; override;
@@ -107,12 +109,7 @@ begin
   Model.SignerAccount := Model.SelectedAccounts[PtrInt(
     cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
   Model.NewPublicKey := Trim(edtPublicKey.Text);
-  // make a deep copy
-  Model.SortedAccounts := Copy(Model.SelectedAccounts);
-  // must ensure that Signer account is last in the new array according version 2 protocol
-  TArrayTool<TAccount>.MoveItem(Model.SortedAccounts,
-    TArrayTool<TAccount>.IndexOf(Model.SortedAccounts, Model.SignerAccount),
-    High(Model.SortedAccounts));
+
   UpdatePath(ptReplaceAllNext, [TWIZTransferAccount_TransactionPayload,
     TWIZTransferAccount_Confirmation]);
 end;

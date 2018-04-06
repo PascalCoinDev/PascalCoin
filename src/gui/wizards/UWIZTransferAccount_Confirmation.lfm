@@ -6,6 +6,7 @@ object WIZTransferAccount_Confirmation: TWIZTransferAccount_Confirmation
   Caption = 'WIZTransferAccount_Confirmation'
   ClientHeight = 253
   ClientWidth = 429
+  LCLVersion = '1.8.1.0'
   Visible = False
   object GroupBox1: TGroupBox
     Left = 10
