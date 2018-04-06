@@ -32,6 +32,7 @@ type
     miOperationInfo: TMenuItem;
     miSendPASC: TMenuItem;
     miTransferAccounts: TMenuItem;
+    miChangeAccountsPrivateKey: TMenuItem;
     miAccountInfo: TMenuItem;
     miSep1: TMenuItem;
     miSep2: TMenuItem;
@@ -53,6 +54,7 @@ type
     procedure miOperationInfoClick(Sender: TObject);
     procedure miSendPASCClick(Sender: TObject);
     procedure miTransferAccountsClick(Sender: TObject);
+    procedure miChangeAccountsPrivateKeyClick(Sender: TObject);
   private
     FNodeNotifyEvents: TNodeNotifyEvents;
     FAccountsMode: TCTRLWalletAccountsMode;
@@ -604,6 +606,9 @@ begin
   miAccountInfo.Visible := ASelection.RowCount = 1;
   miTransferAccounts.Caption :=
     IIF(ASelection.RowCount = 1, 'Transfer Account', 'Transfer Accounts');
+  miChangeAccountsPrivateKey.Caption :=
+    IIF(ASelection.RowCount = 1, 'Change Account Private Key',
+    'Change Accounts Private Key');
   APopupMenu := mnuAccountsPopup;
 end;
 
@@ -652,6 +657,11 @@ begin
   model.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
   model.SelectedIndex := 0;
   wiz.Start(model);
+end;
+
+procedure TCTRLWallet.miChangeAccountsPrivateKeyClick(Sender: TObject);
+begin
+  raise ENotImplemented.Create('Not Implemented');
 end;
 
 procedure TCTRLWallet.OnPrepareOperationsPopupMenu(Sender: TObject;
