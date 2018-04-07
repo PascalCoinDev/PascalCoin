@@ -173,6 +173,10 @@ object CTRLWallet: TCTRLWallet
       Caption = 'Change Account(s) Private Key'
       OnClick = miChangeAccountsPrivateKeyClick
     end
+    object miListAccountsForSale: TMenuItem
+      Caption = 'List Account(s) For Sale'
+      OnClick = miListAccountsForSaleClick
+    end
     object miSep1: TMenuItem
       Caption = '-'
     end
