@@ -33,7 +33,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="83">
+    <Units Count="88">
       <Unit0>
         <Filename Value="pascalcoin_wallet.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -467,6 +467,38 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit82>
+      <Unit83>
+        <Filename Value="gui\wizards\UWIZChangeAccountPrivateKey.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit83>
+      <Unit84>
+        <Filename Value="gui\wizards\UWIZChangeAccountPrivateKey_Confirmation.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZChangeAccountPrivateKey_Confirmation"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit84>
+      <Unit85>
+        <Filename Value="gui\wizards\UWIZChangeAccountPrivateKey_Start.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZChangeAccountPrivateKey_Start"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit85>
+      <Unit86>
+        <Filename Value="gui\wizards\UWIZChangeAccountPrivateKey_Transaction.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZChangeAccountPrivateKey_Transaction"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit86>
+      <Unit87>
+        <Filename Value="gui\wizards\UWIZChangeAccountPrivateKey_TransactionPayload.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZChangeAccountPrivateKey_TransactionPayload"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit87>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

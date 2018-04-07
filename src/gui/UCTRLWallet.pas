@@ -9,7 +9,8 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Menus,
   ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon.UI, Generics.Collections,
-  UAccounts, UDataSources, UNode, UWIZSendPASC, UWIZTransferAccount;
+  UAccounts, UDataSources, UNode, UWIZSendPASC, UWIZTransferAccount,
+  UWIZChangeAccountPrivateKey;
 
 type
 
@@ -383,7 +384,8 @@ end;
 //  Result := ARow.Account;
 //end;
 
-function TCTRLWallet.GetAccounts(const AccountNumbers: TArray<cardinal>): TArray<TAccount>;
+function TCTRLWallet.GetAccounts(
+  const AccountNumbers: TArray<cardinal>): TArray<TAccount>;
 var
   acc: TAccount;
   safeBox: TPCSafeBox;
@@ -660,8 +662,24 @@ begin
 end;
 
 procedure TCTRLWallet.miChangeAccountsPrivateKeyClick(Sender: TObject);
+var
+  Scoped: TDisposables;
+  wiz: TWIZChangeAccountPrivateKeyWizard;
+  model: TWIZChangeAccountPrivateKeyModel;
+  AccountNumbersWithoutChecksum: TArray<cardinal>;
 begin
-  raise ENotImplemented.Create('Not Implemented');
+  wiz := Scoped.AddObject(TWIZChangeAccountPrivateKeyWizard.Create(nil)) as
+    TWIZChangeAccountPrivateKeyWizard;
+  model := Scoped.AddObject(TWIZChangeAccountPrivateKeyModel.Create(nil)) as
+    TWIZChangeAccountPrivateKeyModel;
+
+  AccountNumbersWithoutChecksum :=
+    TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,
+    GetAccNoWithoutChecksum);
+
+  model.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
+  model.SelectedIndex := 0;
+  wiz.Start(model);
 end;
 
 procedure TCTRLWallet.OnPrepareOperationsPopupMenu(Sender: TObject;

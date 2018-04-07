@@ -1,0 +1,31 @@
+object WIZChangeAccountPrivateKey_Start: TWIZChangeAccountPrivateKey_Start
+  Left = 0
+  Height = 253
+  Top = 0
+  Width = 429
+  Caption = 'WIZChangeAccountPrivateKey_Start'
+  ClientHeight = 253
+  ClientWidth = 429
+  Visible = False
+  object grpSelectedAccount: TGroupBox
+    Left = 6
+    Height = 248
+    Top = 0
+    Width = 416
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    Caption = 'Selected Accounts'
+    ClientHeight = 228
+    ClientWidth = 412
+    TabOrder = 0
+    object paGrid: TPanel
+      Left = 6
+      Height = 200
+      Top = 24
+      Width = 402
+      Anchors = [akTop, akLeft, akRight, akBottom]
+      BevelOuter = bvNone
+      Caption = 'GRID PANEL'
+      TabOrder = 0
+    end
+  end
+end
