@@ -1646,18 +1646,18 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
             Bank.Storage.MoveBlockChainBlocks(start_block,TNode.Node.Bank.Storage.Orphan,TNode.Node.Bank.Storage);
             //
             If IsUsingSnapshot then begin
-              TLog.NewLog(ltInfo,ClassName,'Commiting new chain to Safebox');
+              TLog.NewLog(ltInfo,CT_LogSender,'Commiting new chain to Safebox');
               Bank.SafeBox.CommitToPrevious;
               Bank.UpdateValuesFromSafebox;
               {$IFDEF Check_Safebox_Names_Consistency}
               If Not Check_Safebox_Names_Consistency(Bank.SafeBox,'Commited',errors) then begin
-                TLog.NewLog(lterror,ClassName,'Fatal safebox consistency error getting bank at block '+IntTosTr(start_block)+' : '+errors);
+                TLog.NewLog(lterror,CT_LogSender,'Fatal safebox consistency error getting bank at block '+IntTosTr(start_block)+' : '+errors);
                 Sleep(1000);
                 halt(0);
               end;
               {$ENDIF}
             end else begin
-              TLog.NewLog(ltInfo,ClassName,'Restoring modified Safebox from Disk');
+              TLog.NewLog(ltInfo,CT_LogSender,'Restoring modified Safebox from Disk');
               TNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
             end;
           Finally
@@ -2820,6 +2820,9 @@ Var dataSend, dataReceived : TMemoryStream;
   errors : AnsiString;
   i : Integer;
 begin
+  {$IFDEF PRODUCTION}
+  If FNetProtocolVersion.protocol_available<=6 then Exit; // Note: GetPendingOperations started on protocol_available=7
+  {$ENDIF}
   request_id := 0;
   cAddedOperations := 0;
   if Not Connected then exit;
