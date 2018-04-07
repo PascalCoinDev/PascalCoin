@@ -176,9 +176,16 @@ object CTRLWallet: TCTRLWallet
         OnClick = miChangeAccountsPrivateKeyClick
       end
     end
-    object miListAccountsForSale: TMenuItem
-      Caption = 'List Account(s) For Sale'
-      OnClick = miListAccountsForSaleClick
+    object miAccountsMarket: TMenuItem
+      Caption = 'Account Market'
+      object miEnlistAccountsForSale: TMenuItem
+        Caption = 'Enlist Account(s) For Sale'
+        OnClick = miEnlistAccountsForSaleClick
+      end
+      object miDelistAccountsFromSale: TMenuItem
+        Caption = 'Delist Account(s) From Sale'
+        OnClick = miDelistAccountsFromSaleClick
+      end
     end
     object miSep1: TMenuItem
       Caption = '-'

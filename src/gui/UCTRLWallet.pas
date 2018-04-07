@@ -35,7 +35,9 @@ type
     miChangeKey: TMenuItem;
     miTransferAccounts: TMenuItem;
     miChangeAccountsPrivateKey: TMenuItem;
-    miListAccountsForSale: TMenuItem;
+    miAccountsMarket: TMenuItem;
+    miEnlistAccountsForSale: TMenuItem;
+    miDelistAccountsFromSale: TMenuItem;
     miAccountInfo: TMenuItem;
     miSep1: TMenuItem;
     miSep2: TMenuItem;
@@ -58,7 +60,8 @@ type
     procedure miSendPASCClick(Sender: TObject);
     procedure miTransferAccountsClick(Sender: TObject);
     procedure miChangeAccountsPrivateKeyClick(Sender: TObject);
-    procedure miListAccountsForSaleClick(Sender: TObject);
+    procedure miEnlistAccountsForSaleClick(Sender: TObject);
+    procedure miDelistAccountsFromSaleClick(Sender: TObject);
   private
     FNodeNotifyEvents: TNodeNotifyEvents;
     FAccountsMode: TCTRLWalletAccountsMode;
@@ -614,9 +617,15 @@ begin
   miChangeAccountsPrivateKey.Caption :=
     IIF(ASelection.RowCount = 1, 'Change Account Private Key',
     'Change Accounts Private Key');
-  miListAccountsForSale.Caption :=
+  miEnlistAccountsForSale.Caption :=
     IIF(ASelection.RowCount = 1, 'List Account For Sale',
     'List Accounts For Sale');
+  miEnlistAccountsForSale.Caption :=
+    IIF(ASelection.RowCount = 1, 'Enlist Account For Sale',
+    'Enlist Accounts For Sale');
+  miDelistAccountsFromSale.Caption :=
+    IIF(ASelection.RowCount = 1, 'Delist Account From Sale',
+    'Delist Accounts From Sale');
   APopupMenu := mnuAccountsPopup;
 end;
 
@@ -688,9 +697,14 @@ begin
   wiz.Start(model);
 end;
 
-procedure TCTRLWallet.miListAccountsForSaleClick(Sender: TObject);
+procedure TCTRLWallet.miEnlistAccountsForSaleClick(Sender: TObject);
 begin
  raise ENotImplemented.Create('not yet implemented.');
+end;
+
+procedure TCTRLWallet.miDelistAccountsFromSaleClick(Sender: TObject);
+begin
+  raise ENotImplemented.Create('not yet implemented.');
 end;
 
 procedure TCTRLWallet.OnPrepareOperationsPopupMenu(Sender: TObject;
