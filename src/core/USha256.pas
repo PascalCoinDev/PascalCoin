@@ -20,10 +20,10 @@ function SHA256ToStr(Hash: TSHA256HASH): String;
 
 
 Function CanBeModifiedOnLastChunk(MessageTotalLength : Int64; var startBytePos : integer) : Boolean;
-Procedure PascalCoinPrepareLastChunk(Const messageToHash : AnsiString; var stateForLastChunk : TSHA256HASH; var bufferForLastChunk : TChunk);
+Procedure PascalCoinPrepareLastChunk(Const messageToHash : AnsiString; out stateForLastChunk : TSHA256HASH; out bufferForLastChunk : TChunk);
 Function ExecuteLastChunk(const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal) : TSHA256HASH;
 Function ExecuteLastChunkAndDoSha256(Const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal) : TSHA256HASH;
-Procedure PascalCoinExecuteLastChunkAndDoSha256(Const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal; var ResultSha256 : AnsiString);
+Procedure PascalCoinExecuteLastChunkAndDoSha256(Const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal; out ResultSha256 : AnsiString);
 Function Sha256HashToRaw(Const hash : TSHA256HASH) : AnsiString;
 
 implementation
@@ -243,7 +243,7 @@ Begin
   Result := (startBytePos >= 0) And ((startBytePos MOD 4)=0) And (startBytePos<=48);
 End;
 
-Procedure PascalCoinPrepareLastChunk(Const messageToHash : AnsiString; var stateForLastChunk : TSHA256HASH; var bufferForLastChunk : TChunk);
+Procedure PascalCoinPrepareLastChunk(Const messageToHash : AnsiString; out stateForLastChunk : TSHA256HASH; out bufferForLastChunk : TChunk);
 var
   i,j,k,iPos: Integer;
   Size: int64;
@@ -352,7 +352,7 @@ Begin
     Result[k]:= Result[k] + H[k];
 End;
 
-Procedure PascalCoinExecuteLastChunkAndDoSha256(Const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal; var ResultSha256 : AnsiString);
+Procedure PascalCoinExecuteLastChunkAndDoSha256(Const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal; out ResultSha256 : AnsiString);
 Var  H: TSHA256HASH;
 Begin
   H := ExecuteLastChunkAndDoSha256(stateForLastChunk,bufferForLastChunk,nPos,nOnce,Timestamp);
