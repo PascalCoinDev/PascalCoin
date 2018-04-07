@@ -165,13 +165,16 @@ object CTRLWallet: TCTRLWallet
       Caption = 'Send PASC'
       OnClick = miSendPASCClick
     end
-    object miTransferAccounts: TMenuItem
-      Caption = 'Transfer Account(s)'
-      OnClick = miTransferAccountsClick
-    end
-    object miChangeAccountsPrivateKey: TMenuItem
-      Caption = 'Change Account(s) Private Key'
-      OnClick = miChangeAccountsPrivateKeyClick
+    object miChangeKey: TMenuItem
+      Caption = 'Change Key'
+      object miTransferAccounts: TMenuItem
+        Caption = 'Transfer Account(s)'
+        OnClick = miTransferAccountsClick
+      end
+      object miChangeAccountsPrivateKey: TMenuItem
+        Caption = 'Change Account(s) Private Key'
+        OnClick = miChangeAccountsPrivateKeyClick
+      end
     end
     object miListAccountsForSale: TMenuItem
       Caption = 'List Account(s) For Sale'

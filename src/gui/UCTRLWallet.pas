@@ -32,6 +32,7 @@ type
     miCopyOphash: TMenuItem;
     miOperationInfo: TMenuItem;
     miSendPASC: TMenuItem;
+    miChangeKey: TMenuItem;
     miTransferAccounts: TMenuItem;
     miChangeAccountsPrivateKey: TMenuItem;
     miListAccountsForSale: TMenuItem;
