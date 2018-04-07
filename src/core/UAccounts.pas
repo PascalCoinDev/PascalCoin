@@ -63,10 +63,11 @@ Type
     Class Function TargetToCompact(target: TRawBytes): Cardinal;
     Class Function TargetFromCompact(encoded: Cardinal): TRawBytes;
     Class Function GetNewTarget(vteorical, vreal: Cardinal; Const actualTarget: TRawBytes; protocol_version : Word): TRawBytes;
-    Class Procedure CalcProofOfWork_Part1(const operationBlock : TOperationBlock; var Part1 : TRawBytes);
-    Class Procedure CalcProofOfWork_Part3(const operationBlock : TOperationBlock; var Part3 : TRawBytes);
-    Class Procedure CalcProofOfWork(const operationBlock : TOperationBlock; var PoW : TRawBytes);
+    Class Procedure CalcProofOfWork_Part1(const operationBlock : TOperationBlock; out Part1 : TRawBytes);
+    Class Procedure CalcProofOfWork_Part3(const operationBlock : TOperationBlock; out Part3 : TRawBytes);
+    Class Procedure CalcProofOfWork(const operationBlock : TOperationBlock; out PoW : TRawBytes);
     Class Function IsValidMinerBlockPayload(const newBlockPayload : TRawBytes) : Boolean;
+    class procedure GetRewardDistributionForNewBlock(const OperationBlock : TOperationBlock; out acc_0_miner_reward, acc_4_dev_reward : Int64; out acc_4_for_dev : Boolean);
   end;
 
   TAccount = Record
@@ -415,6 +416,8 @@ Type
     Property Data[index : Integer] : TAccountPreviousBlockInfoData read GetData;
     Function GetPreviousUpdatedBlock(account : Cardinal; defaultValue : Cardinal) : Cardinal;
     Function Count : Integer;
+    procedure SaveToStream(stream : TStream);
+    function LoadFromStream(stream : TStream) : Boolean;
   end;
 
   { TPCSafeBoxTransaction }
@@ -635,7 +638,7 @@ begin
   end;
 end;
 
-class procedure TPascalCoinProtocol.CalcProofOfWork_Part1(const operationBlock: TOperationBlock; var Part1: TRawBytes);
+class procedure TPascalCoinProtocol.CalcProofOfWork_Part1(const operationBlock: TOperationBlock; out Part1: TRawBytes);
 var ms : TMemoryStream;
   s : AnsiString;
 begin
@@ -657,7 +660,7 @@ begin
   end;
 end;
 
-class procedure TPascalCoinProtocol.CalcProofOfWork_Part3(const operationBlock: TOperationBlock; var Part3: TRawBytes);
+class procedure TPascalCoinProtocol.CalcProofOfWork_Part3(const operationBlock: TOperationBlock; out Part3: TRawBytes);
 var ms : TMemoryStream;
 begin
   ms := TMemoryStream.Create;
@@ -674,7 +677,7 @@ begin
   end;
 end;
 
-class procedure TPascalCoinProtocol.CalcProofOfWork(const operationBlock: TOperationBlock; var PoW: TRawBytes);
+class procedure TPascalCoinProtocol.CalcProofOfWork(const operationBlock: TOperationBlock; out PoW: TRawBytes);
 var ms : TMemoryStream;
   s : AnsiString;
 begin
@@ -715,6 +718,19 @@ begin
     end;
   end;
   Result := True;
+end;
+
+class procedure TPascalCoinProtocol.GetRewardDistributionForNewBlock(const OperationBlock : TOperationBlock; out acc_0_miner_reward, acc_4_dev_reward : Int64; out acc_4_for_dev : Boolean);
+begin
+  if OperationBlock.protocol_version<CT_PROTOCOL_3 then begin
+    acc_0_miner_reward := OperationBlock.reward + OperationBlock.fee;
+    acc_4_dev_reward := 0;
+    acc_4_for_dev := False;
+  end else begin
+    acc_4_dev_reward := (OperationBlock.reward * CT_Protocol_v3_PIP11_Percent) DIV 100;
+    acc_0_miner_reward := OperationBlock.reward + OperationBlock.fee - acc_4_dev_reward;
+    acc_4_for_dev := True;
+  end;
 end;
 
 class function TPascalCoinProtocol.GetRewardForNewLine(line_index: Cardinal): UInt64;
@@ -1676,32 +1692,77 @@ begin
 end;
 
 function TPCSafeBox.AddNew(const blockChain: TOperationBlock): TBlockAccount;
+{ PIP-0011 (dev reward) workflow: (** Only on V3 protocol **)
+  - Account 0 is Master Account
+  - Account 0 type field (2 bytes: 0..65535) will store a Value, this value is the "dev account"
+  - The "dev account" can be any account between 0..65535, and can be changed at any time.
+  - The 80% of the blockChain.reward + miner fees will be added on first mined account (like V1 and V2)
+  - The miner will also receive ownership of first four accounts (Before, all accounts where for miner)
+  - The "dev account" will receive the last created account ownership and the 20% of the blockChain.reward
+  - Example:
+    - Account(0).type = 12345    <-- dev account = 12345
+    - blockChain.block = 234567  <-- New block height. Accounts generated from 1172835..1172839
+    - blockChain.reward = 50 PASC
+    - blockChain.fee = 0.9876 PASC
+    - blockChain.account_key = Miner public key
+    - New generated accounts:
+      - [0] = 1172835 balance: 40.9876 owner: Miner
+      - [1] = 1172836 balance: 0       owner: Miner
+      - [2] = 1172837 balance: 0       owner: Miner
+      - [3] = 1172838 balance: 0       owner: Miner
+      - [4] = 1172839 balance: 10.0000 owner: Account 12345 owner, same owner than "dev account"
+    - Safebox balance increase: 50 PASC
+  }
 
 var i, base_addr : Integer;
   Pblock : PBlockAccount;
-  accs : Array of cardinal;
+  accs_miner, accs_dev : Array of cardinal;
   Psnapshot : PSafeboxSnapshot;
+  //
+  account_dev,
+  account_0 : TAccount;
+  //
+  acc_0_miner_reward,acc_4_dev_reward : Int64;
+  acc_4_for_dev : Boolean;
 begin
   Result := CT_BlockAccount_NUL;
   Result.blockchainInfo := blockChain;
   If blockChain.block<>BlocksCount then Raise Exception.Create(Format('ERROR DEV 20170427-2 blockchain.block:%d <> BlocksCount:%d',[blockChain.block,BlocksCount]));
   If blockChain.fee<>FTotalFee then Raise Exception.Create(Format('ERROR DEV 20170427-3 blockchain.fee:%d <> Safebox.TotalFee:%d',[blockChain.fee,FTotalFee]));
 
+  TPascalCoinProtocol.GetRewardDistributionForNewBlock(blockChain,acc_0_miner_reward,acc_4_dev_reward,acc_4_for_dev);
+  account_dev := CT_Account_NUL;
+  If (acc_4_for_dev) then begin
+    account_0 := Account(0); // Account 0 is master account, will store "dev account" in type field
+    If (AccountsCount>account_0.account_type) then begin
+      account_dev := Account(account_0.account_type);
+    end else account_dev := account_0;
+  end;
+
   base_addr := BlocksCount * CT_AccountsPerBlock;
-  setlength(accs,length(Result.accounts));
+  setlength(accs_miner,0);
+  setlength(accs_dev,0);
   for i := Low(Result.accounts) to High(Result.accounts) do begin
     Result.accounts[i] := CT_Account_NUL;
     Result.accounts[i].account := base_addr + i;
     Result.accounts[i].accountInfo.state := as_Normal;
-    Result.accounts[i].accountInfo.accountKey := blockChain.account_key;
     Result.accounts[i].updated_block := BlocksCount;
     Result.accounts[i].n_operation := 0;
-    if i=Low(Result.accounts) then begin
-      // Only first account wins the reward + fee
-      Result.accounts[i].balance := blockChain.reward + blockChain.fee;
+    if (acc_4_for_dev) And (i=CT_AccountsPerBlock-1) then begin
+      Result.accounts[i].accountInfo.accountKey := account_dev.accountInfo.accountKey;
+      SetLength(accs_dev,length(accs_dev)+1);
+      accs_dev[High(accs_dev)] := base_addr + i;
+      Result.accounts[i].balance := acc_4_dev_reward;
     end else begin
+      Result.accounts[i].accountInfo.accountKey := blockChain.account_key;
+      SetLength(accs_miner,length(accs_miner)+1);
+      accs_miner[High(accs_miner)] := base_addr + i;
+      if i=Low(Result.accounts) then begin
+        // Only first account wins the reward + fee
+        Result.accounts[i].balance := acc_0_miner_reward;
+      end else begin
+      end;
     end;
-    accs[i] := base_addr + i;
   end;
   Inc(FWorkSum,Result.blockchainInfo.compact_target);
   Result.AccumulatedWork := FWorkSum;
@@ -1717,7 +1778,12 @@ begin
   FBufferBlocksHash := FBufferBlocksHash+Result.block_hash;
   Inc(FTotalBalance,blockChain.reward + blockChain.fee);
   Dec(FTotalFee, blockChain.fee);
-  AccountKeyListAddAccounts(blockChain.account_key,accs);
+  If (length(accs_miner)>0) then begin
+    AccountKeyListAddAccounts(blockChain.account_key,accs_miner);
+  end;
+  If (length(accs_dev)>0) then begin
+    AccountKeyListAddAccounts(account_dev.accountInfo.accountKey,accs_dev);
+  end;
   // Calculating new value of safebox
   FSafeBoxHash := CalcSafeBoxHash;
 
@@ -3598,7 +3664,6 @@ end;
 function TPCSafeBoxTransaction.Commit(const operationBlock: TOperationBlock;
   var errors: AnsiString): Boolean;
 Var i : Integer;
-  B : TBlockAccount;
   Pa : PAccount;
 begin
   Result := false;
@@ -3627,11 +3692,7 @@ begin
     if (Origin_TotalFee<>FTotalFee) then begin
       TLog.NewLog(lterror,ClassName,Format('Invalid integrity fee! StrongBox:%d Transaction:%d',[Origin_TotalFee,FTotalFee]));
     end;
-    B := FFreezedAccounts.AddNew(operationBlock);
-    if (B.accounts[0].balance<>(operationBlock.reward + FTotalFee)) then begin
-      TLog.NewLog(lterror,ClassName,Format('Invalid integrity reward! Account:%d Balance:%d  Reward:%d Fee:%d (Reward+Fee:%d)',
-        [B.accounts[0].account,B.accounts[0].balance,operationBlock.reward,FTotalFee,operationBlock.reward+FTotalFee]));
-    end;
+    FFreezedAccounts.AddNew(operationBlock);
     CleanTransaction;
     //
     if (FFreezedAccounts.FCurrentProtocol<CT_PROTOCOL_2) And (operationBlock.protocol_version=CT_PROTOCOL_2) then begin
@@ -4558,6 +4619,45 @@ end;
 function TAccountPreviousBlockInfo.Count: Integer;
 begin
   Result := FList.Count;
+end;
+
+procedure TAccountPreviousBlockInfo.SaveToStream(stream: TStream);
+var i : Integer;
+  c : Cardinal;
+  apbi : TAccountPreviousBlockInfoData;
+begin
+  c := Count;
+  stream.Write(c,SizeOf(c)); // Save 4 bytes for count
+  for i:=0 to Count-1 do begin
+    apbi := GetData(i);
+    stream.Write(apbi.Account,SizeOf(apbi.Account)); // 4 bytes for account
+    stream.Write(apbi.Previous_updated_block,SizeOf(apbi.Previous_updated_block)); // 4 bytes for block number
+  end;
+end;
+
+function TAccountPreviousBlockInfo.LoadFromStream(stream: TStream): Boolean;
+Var lastAcc,nposStreamStart : Int64;
+  c : Cardinal;
+  i : Integer;
+  apbi : TAccountPreviousBlockInfoData;
+begin
+  Result := False;
+  clear;
+  nposStreamStart:=stream.Position;
+  Try
+    lastAcc := -1;
+    if (stream.Read(c,SizeOf(c))<SizeOf(c)) then Exit;
+    for i:=1 to c do begin
+      if stream.Read(apbi.Account,SizeOf(apbi.Account)) < SizeOf(apbi.Account) then Exit; // 4 bytes for account
+      if stream.Read(apbi.Previous_updated_block,SizeOf(apbi.Previous_updated_block)) < SizeOf(apbi.Previous_updated_block) then Exit; // 4 bytes for block number
+      if (lastAcc >= apbi.Account) then Exit;
+      Add(apbi.Account,apbi.Previous_updated_block);
+      lastAcc := apbi.Account;
+    end;
+    Result := True;
+  finally
+    if Not Result then stream.Position:=nposStreamStart;
+  end;
 end;
 
 { TOrderedCardinalList }
