@@ -618,9 +618,6 @@ begin
     IIF(ASelection.RowCount = 1, 'Change Account Private Key',
     'Change Accounts Private Key');
   miEnlistAccountsForSale.Caption :=
-    IIF(ASelection.RowCount = 1, 'List Account For Sale',
-    'List Accounts For Sale');
-  miEnlistAccountsForSale.Caption :=
     IIF(ASelection.RowCount = 1, 'Enlist Account For Sale',
     'Enlist Accounts For Sale');
   miDelistAccountsFromSale.Caption :=
