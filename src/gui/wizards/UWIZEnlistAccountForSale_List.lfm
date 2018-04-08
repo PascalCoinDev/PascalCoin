@@ -1,0 +1,32 @@
+object WIZEnlistAccountForSale_List: TWIZEnlistAccountForSale_List
+  Left = 0
+  Height = 253
+  Top = 0
+  Width = 429
+  Caption = 'WIZEnlistAccountForSale_List'
+  ClientHeight = 253
+  ClientWidth = 429
+  LCLVersion = '1.8.1.0'
+  Visible = False
+  object grpTransferAccount: TGroupBox
+    Left = 6
+    Height = 248
+    Top = 0
+    Width = 416
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    Caption = 'Enlisted Accounts For Sale'
+    ClientHeight = 228
+    ClientWidth = 412
+    TabOrder = 0
+    object paGrid: TPanel
+      Left = 6
+      Height = 192
+      Top = 24
+      Width = 402
+      Anchors = [akTop, akLeft, akRight, akBottom]
+      BevelOuter = bvNone
+      Caption = 'GRID PANEL'
+      TabOrder = 0
+    end
+  end
+end

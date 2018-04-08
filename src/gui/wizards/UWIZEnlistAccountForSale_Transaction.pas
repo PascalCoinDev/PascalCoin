@@ -1,4 +1,4 @@
-unit UWIZTransferAccount_Transaction;
+unit UWIZEnlistAccountForSale_Transaction;
 
 {$mode delphi}
 {$modeswitch nestedprocvars}
@@ -14,26 +14,30 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZTransferAccount,
-  UWIZTransferAccount_TransactionPayload,
-  UWIZTransferAccount_Confirmation;
+  UFRMAccountSelect, UNode, UWizard, UWIZEnlistAccountForSale,
+  UWIZEnlistAccountForSale_TransactionPayload,
+  UWIZEnlistAccountForSale_Confirmation;
 
 type
 
-  { TWIZTransferAccount_Transaction }
+  { TWIZEnlistAccountForSale_Transaction }
 
-  TWIZTransferAccount_Transaction = class(TWizardForm<TWIZTransferAccountModel>)
+  TWIZEnlistAccountForSale_Transaction =
+    class(TWizardForm<TWIZEnlistAccountForSaleModel>)
+    btnSearch: TSpeedButton;
     cbSignerAccount: TComboBox;
+    edtSalePrice: TEdit;
+    edtSellerAccount: TEdit;
     edtOpFee: TEdit;
-    edtPublicKey: TEdit;
     gbTransaction: TGroupBox;
-    lblOpFee: TLabel;
-    lblpublickey: TLabel;
-    lblTotalBalanceValue: TLabel;
-    lblTotalBalances: TLabel;
     lblBalance: TLabel;
+    lblSalePrice: TLabel;
+    lblSellerAccount: TLabel;
+    lblOpFee: TLabel;
+    lblTotalBalances: TLabel;
+    lblTotalBalanceValue: TLabel;
+    procedure btnSearchClick(Sender: TObject);
     procedure cbSignerAccountChange(Sender: TObject);
-
 
   public
     procedure OnPresent; override;
@@ -49,9 +53,9 @@ implementation
 uses
   UAccounts, UUserInterface, USettings;
 
-{ TWIZTransferAccount_Transaction }
+{ TWIZEnlistAccountForSale_Transaction }
 
-procedure TWIZTransferAccount_Transaction.cbSignerAccountChange(Sender: TObject);
+procedure TWIZEnlistAccountForSale_Transaction.cbSignerAccountChange(Sender: TObject);
 begin
   if cbSignerAccount.ItemIndex < 1 then
   begin
@@ -67,7 +71,30 @@ begin
   end;
 end;
 
-procedure TWIZTransferAccount_Transaction.OnPresent;
+procedure TWIZEnlistAccountForSale_Transaction.btnSearchClick(Sender: TObject);
+var
+  F: TFRMAccountSelect;
+  c: cardinal;
+begin
+  F := TFRMAccountSelect.Create(Self);
+  F.Position := poMainFormCenter;
+  try
+    F.Node := TNode.Node;
+    F.WalletKeys := TWallet.Keys;
+    F.Filters := edtSellerAccount.Tag;
+    if TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAccount.Text, c) then
+      F.DefaultAccount := c;
+    F.AllowSelect := True;
+    if F.ShowModal = mrOk then
+    begin
+      edtSellerAccount.Text := TAccountComp.AccountNumberToAccountTxtNumber(F.GetSelected);
+    end;
+  finally
+    F.Free;
+  end;
+end;
+
+procedure TWIZEnlistAccountForSale_Transaction.OnPresent;
 
   function GetAccNoWithChecksum(AAccountNumber: cardinal): string;
   begin
@@ -99,23 +126,23 @@ begin
   cbSignerAccountChange(Self);
   lblTotalBalanceValue.Caption :=
     Format('%s PASC', [TAccountComp.FormatMoney(totalBalance)]);
-
   edtOpFee.Text := TAccountComp.FormatMoney(TSettings.DefaultFee);
+  edtSalePrice.Text := TAccountComp.FormatMoney(0);
 end;
 
-procedure TWIZTransferAccount_Transaction.OnNext;
+procedure TWIZEnlistAccountForSale_Transaction.OnNext;
 begin
   Model.SelectedIndex := cbSignerAccount.ItemIndex;
   Model.SignerAccount := Model.SelectedAccounts[PtrInt(
     cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
-  Model.NewPublicKey := Trim(edtPublicKey.Text);
 
-  UpdatePath(ptReplaceAllNext, [TWIZTransferAccount_TransactionPayload,
-    TWIZTransferAccount_Confirmation]);
+  UpdatePath(ptReplaceAllNext, [TWIZEnlistAccountForSale_TransactionPayload,
+    TWIZEnlistAccountForSale_Confirmation]);
 end;
 
-function TWIZTransferAccount_Transaction.Validate(out message: ansistring): boolean;
+function TWIZEnlistAccountForSale_Transaction.Validate(out message: ansistring): boolean;
 var
+  c: cardinal;
   i: integer;
 begin
   Result := True;
@@ -126,6 +153,40 @@ begin
     Exit;
   end;
 
+  if not TAccountComp.TxtToMoney(edtSalePrice.Text, Model.SalePrice) then
+  begin
+    message := 'Invalid price (' + edtSalePrice.Text + ')';
+    Result := False;
+    Exit;
+  end;
+
+  if not (TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAccount.Text, c)) then
+  begin
+    message := 'Invalid seller account (' + edtSellerAccount.Text + ')';
+    Result := False;
+    Exit;
+  end;
+
+  if (c < 0) or (c >= TNode.Node.Bank.AccountsCount) then
+  begin
+    message := 'Invalid seller account (' +
+      TAccountComp.AccountNumberToAccountTxtNumber(c) + ')';
+    Result := False;
+    Exit;
+  end;
+
+  for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+  begin
+    if (Model.SelectedAccounts[i].Account = c) then
+    begin
+      message := 'Seller account cannot be same account';
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Model.SellerAccount := TNode.Node.Operations.SafeBoxTransaction.account(c);
+
   if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.DefaultFee) then
   begin
     message := 'Invalid fee value "' + edtOpFee.Text + '"';
@@ -133,18 +194,6 @@ begin
     Exit;
   end;
 
-  Result := TAccountComp.AccountKeyFromImport(edtPublicKey.Text,
-    Model.AccountKey, message);
-  for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
-  begin
-    if TAccountComp.EqualAccountKeys(Model.SelectedAccounts[i].accountInfo.accountKey,
-      Model.AccountKey) then
-    begin
-      Result := False;
-      message := 'new public key is same as selected account public key';
-      Exit;
-    end;
-  end;
 end;
 
 end.
