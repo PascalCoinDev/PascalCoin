@@ -73,8 +73,9 @@ Type
     class function HexaToRaw(const HexaString : AnsiString) : TRawBytes;
     class function DoSha256(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     class function DoSha256(const TheMessage : AnsiString) : TRawBytes; overload;
-    class procedure DoSha256(const TheMessage : AnsiString; var ResultSha256 : TRawBytes);  overload;
-    class procedure DoDoubleSha256(p : PAnsiChar; plength : Cardinal; Var ResultSha256 : TRawBytes); overload;
+    class procedure DoSha256(const TheMessage : AnsiString; out ResultSha256 : TRawBytes);  overload;
+    class function DoDoubleSha256(const TheMessage : AnsiString) : TRawBytes; overload;
+    class procedure DoDoubleSha256(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
     class function DoRipeMD160_HEXASTRING(const TheMessage : AnsiString) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(const TheMessage : AnsiString) : TRawBytes; overload;
@@ -333,15 +334,18 @@ end;
   Note: Delphi is slowly when working with Strings (allowing space)... so to
   increase speed we use a String as a pointer, and only increase speed if
   needed. Also the same with functions "GetMem" and "FreeMem" }
-class procedure TCrypto.DoDoubleSha256(p: PAnsiChar; plength: Cardinal;
-  Var ResultSha256: TRawBytes);
+class procedure TCrypto.DoDoubleSha256(p: PAnsiChar; plength: Cardinal; out ResultSha256: TRawBytes);
 Var PS : PAnsiChar;
-  PC : PAnsiChar;
 begin
   If length(ResultSha256)<>32 then SetLength(ResultSha256,32);
   PS := @ResultSha256[1];
   SHA256(p,plength,PS);
   SHA256(PS,32,PS);
+end;
+
+class function TCrypto.DoDoubleSha256(const TheMessage: AnsiString): TRawBytes;
+begin
+  Result := DoSha256(DoSha256(TheMessage));
 end;
 
 class function TCrypto.DoRipeMD160_HEXASTRING(const TheMessage: AnsiString): TRawBytes;
@@ -396,9 +400,8 @@ end;
   Note: Delphi is slowly when working with Strings (allowing space)... so to
   increase speed we use a String as a pointer, and only increase speed if
   needed. Also the same with functions "GetMem" and "FreeMem" }
-class procedure TCrypto.DoSha256(const TheMessage: AnsiString; var ResultSha256: TRawBytes);
+class procedure TCrypto.DoSha256(const TheMessage: AnsiString; out ResultSha256: TRawBytes);
 Var PS : PAnsiChar;
-  PC : PAnsiChar;
 begin
   If length(ResultSha256)<>32 then SetLength(ResultSha256,32);
   PS := @ResultSha256[1];

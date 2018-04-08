@@ -213,6 +213,7 @@ Type
     class function OpType: Byte; virtual; abstract;
     Class Function OperationToOperationResume(Block : Cardinal; Operation : TPCOperation; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean; virtual;
     function OperationAmount : Int64; virtual; abstract;
+    function OperationAmountByAccount(account : Cardinal) : Int64; virtual;
     function OperationFee: UInt64; virtual; abstract;
     function OperationPayload : TRawBytes; virtual; abstract;
     function SignerAccount : Cardinal; virtual; abstract;
@@ -541,7 +542,7 @@ begin
       Result := true;
     Finally
       if Not Result then begin
-        NewLog(Operations, lterror, 'Invalid new block '+inttostr(Operations.OperationBlock.block)+': ' + errors);
+        NewLog(Operations, lterror, 'Invalid new block '+inttostr(Operations.OperationBlock.block)+': ' + errors+ ' > '+TPCOperationsComp.OperationBlockToText(Operations.OperationBlock));
       end;
       Operations.Unlock;
     End;
@@ -1193,23 +1194,28 @@ begin
     // In build prior to 1.0.4 soob only can have 2 values: 0 or 1
     // In build 1.0.4 soob can has 2 more values: 2 or 3
     // In build 2.0 soob can has 1 more value: 4
+    // In build 3.0 soob can hast value: 5
     // In future, old values 0 and 1 will no longer be used!
     // - Value 0 and 2 means that contains also operations
     // - Value 1 and 3 means that only contains operationblock info
     // - Value 2 and 3 means that contains protocol info prior to block number
     // - Value 4 means that is loading from storage using protocol v2 (so, includes always operations)
+    // - Value 5 means that is loading from storage using TAccountPreviousBlockInfo
     load_protocol_version := CT_PROTOCOL_1;
     if (soob in [0,2]) then FIsOnlyOperationBlock:=false
     else if (soob in [1,3]) then FIsOnlyOperationBlock:=true
     else if (soob in [4]) then begin
       FIsOnlyOperationBlock:=false;
       load_protocol_version := CT_PROTOCOL_2;
+    end else if (soob in [5]) then begin
+      FIsOnlyOperationBlock:=False;
+      load_protocol_version := CT_PROTOCOL_3;
     end else begin
       errors := 'Invalid value in protocol header! Found:'+inttostr(soob)+' - Check if your application version is Ok';
       exit;
     end;
 
-    if (soob in [2,3,4]) then begin
+    if (soob in [2,3,4,5]) then begin
       Stream.Read(FOperationBlock.protocol_version, Sizeof(FOperationBlock.protocol_version));
       Stream.Read(FOperationBlock.protocol_available, Sizeof(FOperationBlock.protocol_available));
     end else begin
@@ -1241,6 +1247,13 @@ begin
     Result := FOperationsHashTree.LoadOperationsHashTreeFromStream(Stream,LoadingFromStorage,load_protocol_version,FPreviousUpdatedBlocks,errors);
     if not Result then begin
       exit;
+    end;
+    If load_protocol_version>=CT_PROTOCOL_3 then begin
+      Result := FPreviousUpdatedBlocks.LoadFromStream(Stream);
+      If Not Result then begin
+        errors := 'Invalid PreviousUpdatedBlock stream';
+        Exit;
+      end;
     end;
     //
     FOperationBlock.fee := FOperationsHashTree.TotalFee;
@@ -1390,6 +1403,8 @@ begin
       if (SaveToStorage) then begin
         // Introduced on protocol v2: soob = 4 when saving to storage
         soob := 4;
+        // XXXXXXXXXXXXXXXX
+        soob := 5; // V3 will always save PreviousUpdatedBlocks
       end;
     end;
     Stream.Write(soob,1);
@@ -1421,6 +1436,9 @@ begin
     }
     if (Not save_only_OperationBlock) then begin
       Result := FOperationsHashTree.SaveOperationsHashTreeToStream(Stream,SaveToStorage);
+      If (Result) And (SaveToStorage) And (soob=5) then begin
+        FPreviousUpdatedBlocks.SaveToStream(Stream);
+      end;
     end else Result := true;
   finally
     Unlock;
@@ -1944,12 +1962,11 @@ begin
       TCrypto.DoSha256(FHashTree+h,FHashTree);
     end;
     npos := list.Add(P);
-    If FindOrderedBySha(list,op.Sha256,i) then begin
-      // Is inserting a value already found!
-      auxs :=Format('MyListCount:%d OrderedBySha Pos:%d from %d Hash:%s PointsTo:%d',[list.Count,i,FListOrderedBySha256.Count,TCrypto.ToHexaString(Op.Sha256),PtrInt(FListOrderedBySha256[i])]);
-      TLog.NewLog(ltError,ClassName,'DEV ERROR 20180213-2 Inserting a duplicate Sha256! '+Op.ToString+' > '+auxs );
+    // Improvement: Will allow to add duplicate Operations, so add only first to orderedBySha
+    If Not FindOrderedBySha(list,op.Sha256,i) then begin
+      // Protection: Will add only once
+      FListOrderedBySha256.Insert(i,TObject(npos));
     end;
-    FListOrderedBySha256.Insert(i,TObject(npos));
     // Improvement TOperationsHashTree speed 2.1.6
     // Mantain an ordered Accounts list with data
     If Not FindOrderedByAccountData(list,op.SignerAccount,i) then begin
@@ -2353,26 +2370,25 @@ begin
 end;
 
 function TPCOperation.LoadFromStorage(Stream: TStream; LoadProtocolVersion:Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo): Boolean;
-Var w : Word;
-  i : Integer;
-  cAccount,cPreviousUpdated : Cardinal;
 begin
   Result := false;
-  If LoadOpFromStream(Stream, LoadProtocolVersion>=2) then begin
-    if Stream.Size - Stream.Position<8 then exit;
-    Stream.Read(FPrevious_Signer_updated_block,Sizeof(FPrevious_Signer_updated_block));
-    Stream.Read(FPrevious_Destination_updated_block,Sizeof(FPrevious_Destination_updated_block));
-    if (LoadProtocolVersion=2) then begin
-      Stream.Read(FPrevious_Seller_updated_block,Sizeof(FPrevious_Seller_updated_block));
-    end;
-    if Assigned(APreviousUpdatedBlocks) then begin
-      // Add to previous list!
-      if SignerAccount>=0 then
-        APreviousUpdatedBlocks.UpdateIfLower(SignerAccount,FPrevious_Signer_updated_block);
-      if DestinationAccount>=0 then
-        APreviousUpdatedBlocks.UpdateIfLower(DestinationAccount,FPrevious_Destination_updated_block);
-      if SellerAccount>=0 then
-        APreviousUpdatedBlocks.UpdateIfLower(SellerAccount,FPrevious_Seller_updated_block);
+  If LoadOpFromStream(Stream, LoadProtocolVersion>=CT_PROTOCOL_2) then begin
+    If LoadProtocolVersion<CT_PROTOCOL_3 then begin
+      if Stream.Size - Stream.Position<8 then exit;
+      Stream.Read(FPrevious_Signer_updated_block,Sizeof(FPrevious_Signer_updated_block));
+      Stream.Read(FPrevious_Destination_updated_block,Sizeof(FPrevious_Destination_updated_block));
+      if (LoadProtocolVersion=CT_PROTOCOL_2) then begin
+        Stream.Read(FPrevious_Seller_updated_block,Sizeof(FPrevious_Seller_updated_block));
+      end;
+      if Assigned(APreviousUpdatedBlocks) then begin
+        // Add to previous list!
+        if SignerAccount>=0 then
+          APreviousUpdatedBlocks.UpdateIfLower(SignerAccount,FPrevious_Signer_updated_block);
+        if DestinationAccount>=0 then
+          APreviousUpdatedBlocks.UpdateIfLower(DestinationAccount,FPrevious_Destination_updated_block);
+        if SellerAccount>=0 then
+          APreviousUpdatedBlocks.UpdateIfLower(SellerAccount,FPrevious_Seller_updated_block);
+      end;
     end;
     Result := true;
   end;
@@ -2579,7 +2595,8 @@ begin
       OperationResume.isMultiOperation:=True;
       OperationResume.OpSubtype := CT_OpSubtype_MultiOperation;
       OperationResume.OperationTxt := Operation.ToString;
-      OperationResume.Amount := Operation.OperationAmount * (-1);
+      OperationResume.Amount := Operation.OperationAmountByAccount(Affected_account_number);
+      OperationResume.Fee := 0;
       Result := True;
     end
   else Exit;
@@ -2637,10 +2654,13 @@ function TPCOperation.SaveToStorage(Stream: TStream): Boolean;
 
 begin
   Result := SaveOpToStream(Stream,True);
+  { XXXXXXXXXXXXXXX
+  DEPRECATED on V3, will use TPreviousUpdatedBlocks
   Stream.Write(FPrevious_Signer_updated_block,Sizeof(FPrevious_Signer_updated_block));
   Stream.Write(FPrevious_Destination_updated_block,SizeOf(FPrevious_Destination_updated_block));
   Stream.Write(FPrevious_Seller_updated_block,SizeOf(FPrevious_Seller_updated_block));
-  Result := true;
+
+  Result := true; }
 end;
 
 function TPCOperation.Sha256: TRawBytes;
@@ -2649,6 +2669,11 @@ begin
     FBufferedSha256 := TCrypto.DoSha256(GetBufferForOpHash(true));
   end;
   Result := FBufferedSha256;
+end;
+
+function TPCOperation.OperationAmountByAccount(account: Cardinal): Int64;
+begin
+  Result := 0;
 end;
 
 { TOperationsResumeList }

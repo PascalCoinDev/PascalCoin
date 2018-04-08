@@ -62,7 +62,7 @@ Const
   CT_MaxTransactionFee = 100000000;
   CT_MaxWalletAmount = 10000000000000; // ... can be deleted
   //
-  CT_MinCompactTarget: Cardinal = {$IFDEF PRODUCTION}$19000000{$ELSE}{$IFDEF TESTNET}$19000000{$ELSE}{$ENDIF}{$ENDIF}; // First compact target of block 0
+  CT_MinCompactTarget: Cardinal = {$IFDEF PRODUCTION}$19000000{$ELSE}{$IFDEF TESTNET}$17000000{$ELSE}{$ENDIF}{$ENDIF}; // First compact target of block 0
 
   CT_CalcNewTargetBlocksAverage: Cardinal = 100;
   CT_CalcNewTargetLimitChange_SPLIT = 10;
@@ -96,11 +96,11 @@ Const
   CT_PROTOCOL_2 = 2;
   CT_PROTOCOL_3 = 3;
   CT_BlockChain_Protocol_Available: Word = $0003; // Protocol 3 flag
-  CT_Protocol_Upgrade_v2_MinBlock = {$IFDEF PRODUCTION}115000{$ELSE}600{$ENDIF};
-  CT_Protocol_Upgrade_v3_MinBlock = {$IFDEF PRODUCTION}210000{$ELSE}800{$ENDIF};
+  CT_Protocol_Upgrade_v2_MinBlock = {$IFDEF PRODUCTION}115000{$ELSE}50{$ENDIF};
+  CT_Protocol_Upgrade_v3_MinBlock = {$IFDEF PRODUCTION}210000{$ELSE}250{$ENDIF};
 
 
-  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$0A04FFFF{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
+  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$03000000{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
 
   CT_NetProtocol_Version: Word = $0006; // Version 2.1.2 only allows net protocol 6 (Introduced on 2.0.0)
   // IMPORTANT NOTE!!!
@@ -126,6 +126,8 @@ Const
   CT_Op_ChangeAccountInfo = $08;
   // Protocol 3 new operations
   CT_Op_MultiOperation = $09;  // PIP-0017
+
+  CT_Protocol_v3_PIP11_Percent = 20; // PIP-0011 20% Percent proposed and voted by PIP-0011
 
   CT_PseudoOpSubtype_Miner                = 1;
   CT_PseudoOpSubtype_Developer            = 2;
@@ -153,8 +155,8 @@ Const
 
   CT_TRUE_FALSE : Array[Boolean] Of AnsiString = ('FALSE','TRUE');
 
-  CT_MAX_0_fee_operations_per_block_by_miner = {$IFDEF PRODUCTION}2000{$ELSE}{$IFDEF TESTNET}20{$ELSE}{$ENDIF}{$ENDIF};
-  CT_MAX_Operations_per_block_by_miner =  {$IFDEF PRODUCTION}10000{$ELSE}{$IFDEF TESTNET}50{$ELSE}{$ENDIF}{$ENDIF};
+  CT_MAX_0_fee_operations_per_block_by_miner = {$IFDEF PRODUCTION}2000{$ELSE}{$IFDEF TESTNET}2000{$ELSE}{$ENDIF}{$ENDIF};
+  CT_MAX_Operations_per_block_by_miner =  {$IFDEF PRODUCTION}10000{$ELSE}{$IFDEF TESTNET}50000{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_MAX_MultiOperation_Senders = 1000;
   CT_MAX_MultiOperation_Receivers = 10000;

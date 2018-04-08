@@ -63,6 +63,7 @@ Type
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
     Class Function Node : TNode;
+    Class Function NodeExists : Boolean;
     Class Procedure DecodeIpStringToNodeServerAddressArray(Const Ips : AnsiString; Var NodeServerAddressArray : TNodeServerAddressArray);
     Class Function EncodeNodeServerAddressArrayToIpString(Const NodeServerAddressArray : TNodeServerAddressArray) : AnsiString;
     Constructor Create(AOwner : TComponent); override;
@@ -516,7 +517,7 @@ begin
 end;
 
 class procedure TNode.DecodeIpStringToNodeServerAddressArray(
-  const Ips: AnsiString; var NodeServerAddressArray: TNodeServerAddressArray);
+  const Ips: AnsiString; Var NodeServerAddressArray: TNodeServerAddressArray);
   Function GetIp(var ips_string : AnsiString; var nsa : TNodeServerAddress) : Boolean;
   Const CT_IP_CHARS = ['a'..'z','A'..'Z','0'..'9','.','-','_'];
   var i : Integer;
@@ -658,7 +659,7 @@ begin
   Result := true;
 end;
 
-function TNode.IsReady(var CurrentProcess: AnsiString): Boolean;
+function TNode.IsReady(Var CurrentProcess: AnsiString): Boolean;
 begin
   Result := false;
   CurrentProcess := '';
@@ -690,6 +691,11 @@ begin
   Result := _Node;
 end;
 
+class function TNode.NodeExists: Boolean;
+begin
+  Result := Assigned(_Node);
+end;
+
 procedure TNode.Notification(AComponent: TComponent; Operation: TOperation);
 begin
   inherited;
@@ -716,6 +722,8 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
     i : Integer;
     last_block_number : Integer;
     found_in_block : Boolean;
+    acc_0_miner_reward, acc_4_dev_reward : Int64;
+    acc_4_for_dev : Boolean;
   begin
     if (act_depth<=0) then exit;
     opc := TPCOperationsComp.Create(Nil);
@@ -753,23 +761,34 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
           end;
 
           // Is a new block operation?
-          if (TAccountComp.AccountBlock(account_number)=block_number) And ((account_number MOD CT_AccountsPerBlock)=0) then begin
-            OPR := CT_TOperationResume_NUL;
-            OPR.valid := true;
-            OPR.Block := block_number;
-            OPR.time := opc.OperationBlock.timestamp;
-            OPR.AffectedAccount := account_number;
-            OPR.Amount := opc.OperationBlock.reward;
-            OPR.Fee := opc.OperationBlock.fee;
-            If last_balance>=0 then begin
-              OPR.Balance := last_balance;
-            end else OPR.Balance := -1; // Undetermined
-            OPR.OperationTxt := 'Blockchain reward';
-            if (nOpsCounter>=StartOperation) And (nOpsCounter<=EndOperation) then begin
-              OperationsResume.Add(OPR);
+          if (TAccountComp.AccountBlock(account_number)=block_number) then begin
+            TPascalCoinProtocol.GetRewardDistributionForNewBlock(opc.OperationBlock,acc_0_miner_reward,acc_4_dev_reward,acc_4_for_dev);
+            If ((account_number MOD CT_AccountsPerBlock)=0) Or
+               (  ((account_number MOD CT_AccountsPerBlock)=CT_AccountsPerBlock-1) AND (acc_4_for_dev)  ) then begin
+              OPR := CT_TOperationResume_NUL;
+              OPR.OpType:=CT_PseudoOp_Reward;
+              OPR.valid := true;
+              OPR.Block := block_number;
+              OPR.time := opc.OperationBlock.timestamp;
+              OPR.AffectedAccount := account_number;
+              If ((account_number MOD CT_AccountsPerBlock)=0) then begin
+                OPR.Amount := acc_0_miner_reward;
+                OPR.OperationTxt := 'Miner reward';
+                OPR.OpSubtype:=CT_PseudoOpSubtype_Miner;
+              end else begin
+                OPR.Amount := acc_4_dev_reward;
+                OPR.OperationTxt := 'Dev reward';
+                OPR.OpSubtype:=CT_PseudoOpSubtype_Developer;
+              end;
+              If last_balance>=0 then begin
+               OPR.Balance := last_balance;
+              end else OPR.Balance := -1; // Undetermined
+              if (nOpsCounter>=StartOperation) And (nOpsCounter<=EndOperation) then begin
+               OperationsResume.Add(OPR);
+              end;
+              inc(nOpsCounter);
+              found_in_block := True;
             end;
-            inc(nOpsCounter);
-            found_in_block := True;
           end;
           //
           dec(act_depth);
