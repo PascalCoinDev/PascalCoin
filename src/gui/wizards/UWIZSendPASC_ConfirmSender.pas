@@ -1,15 +1,15 @@
-unit UWIZSendPASC_Start;
+unit UWIZSendPASC_ConfirmSender;
 
 {$mode delphi}
 
-{ Copyright (c) 2018 by Ugochukwu Mmaduekwe
+{ Copyright (c) 2018 Sphere 10 Software (http://www.sphere10.com/)
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
   Acknowledgements:
-    Herman Schoenfeld <herman@sphere10.com>: added grid-based layout
-
+  Ugochukwu Mmaduekwe - main developer
+  Herman Schoenfeld - designer
 }
 
 interface
@@ -17,13 +17,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, UVisualGrid, UCommon.Data, UCellRenderers,
-  UWizard, UWIZSendPASC, UWIZSendPASC_Transaction, UWIZSendPASC_Confirmation, UWIZModels;
+  UWizard, UWIZSendPASC, UWIZSendPASC_EnterRecipient, UWIZSendPASC_Confirmation, UWIZModels;
 
 type
 
-  { TWIZSendPASC_Start }
+  { TWIZSendPASC_ConfirmSender }
 
-  TWIZSendPASC_Start = class(TWizardForm<TWIZOperationsModel>)
+  TWIZSendPASC_ConfirmSender = class(TWizardForm<TWIZOperationsModel>)
     gpSender: TGroupBox;
     paGrid: TPanel;
   private
@@ -53,9 +53,9 @@ type
       procedure FetchAll(const AContainer : TList<TAccount>); override;
   end;
 
-{ TWIZSendPASC_Start }
+{ TWIZSendPASC_ConfirmSender }
 
-procedure TWIZSendPASC_Start.OnPresent;
+procedure TWIZSendPASC_ConfirmSender.OnPresent;
 var
   data : TAccountSenderDataSource;
 begin
@@ -92,9 +92,9 @@ begin
   paGrid.AddControlDockCenter(FSendersGrid);
 end;
 
-procedure TWIZSendPASC_Start.OnNext;
+procedure TWIZSendPASC_ConfirmSender.OnNext;
 begin
-  UpdatePath(ptReplaceAllNext, [TWIZSendPASC_Transaction, TWIZSendPASC_Confirmation]);
+  UpdatePath(ptReplaceAllNext, [TWIZSendPASC_EnterRecipient, TWIZSendPASC_Confirmation]);
 end;
 
 { TAccountSenderDataSource }

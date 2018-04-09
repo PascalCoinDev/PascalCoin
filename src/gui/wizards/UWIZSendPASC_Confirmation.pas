@@ -3,10 +3,14 @@ unit UWIZSendPASC_Confirmation;
 {$mode delphi}
 {$modeswitch nestedprocvars}
 
-{ Copyright (c) 2018 by Ugochukwu Mmaduekwe
+{ Copyright (c) 2018 Sphere 10 Software (http://www.sphere10.com/)
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
+
+  Acknowledgements:
+  Ugochukwu Mmaduekwe - main developer
+  Herman Schoenfeld - designer
 }
 
 interface
@@ -118,9 +122,9 @@ begin
    else if ABindingName = 'Balance' then
      Result := TAccountComp.FormatMoney(AItem.Balance)
    else if ABindingName = 'AmountToSend' then
-     Result := Model.AmountToSend
+     Result := TAccountComp.FormatMoney(Model.SingleAmountToSend)
      else if ABindingName = 'Fee' then
-     Result := TAccountComp.FormatMoney(Model.DefaultFee)
+     Result := TAccountComp.FormatMoney(Model.SingleOperationFee)
    else raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
 end;
 

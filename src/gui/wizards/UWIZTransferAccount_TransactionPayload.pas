@@ -51,12 +51,12 @@ begin
   Model.TransferAccountModel.Payload := mmoPayload.Lines.Text;
   if rbEncryptedWithOldEC.Checked then
   begin
-    Model.TransferAccountModel.PayloadEncryptionMode := akaEncryptWithOldEC;
+    Model.TransferAccountModel.PayloadEncryptionMode := akaEncryptWithSender;
   end
   else
   if rbEncryptedWithEC.Checked then
   begin
-    Model.TransferAccountModel.PayloadEncryptionMode := akaEncryptWithEC;
+    Model.TransferAccountModel.PayloadEncryptionMode := akaEncryptWithReceiver;
   end
   else
   if rbEncryptedWithPassword.Checked then

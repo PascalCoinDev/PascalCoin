@@ -69,7 +69,7 @@ begin
     end;
     case Model.ChangeAccountPrivateKeyModel.PayloadEncryptionMode of
 
-      akaEncryptWithOldEC:
+      akaEncryptWithSender:
       begin
         // Use sender
         errors := 'Error encrypting';
@@ -78,7 +78,7 @@ begin
         valid := payload_encrypted <> '';
       end;
 
-      akaEncryptWithEC:
+      akaEncryptWithReceiver:
       begin
         errors := 'Error encrypting';
 

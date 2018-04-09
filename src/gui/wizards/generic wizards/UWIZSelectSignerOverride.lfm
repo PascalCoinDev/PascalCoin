@@ -1,0 +1,71 @@
+object WIZSelectSignerOverride: TWIZSelectSignerOverride
+  Left = 0
+  Height = 253
+  Top = 0
+  Width = 429
+  ActiveControl = cbSignerAccount
+  Caption = 'WIZSelectSignerOverride'
+  ClientHeight = 253
+  ClientWidth = 429
+  LCLVersion = '1.8.1.0'
+  Visible = False
+  object gbTransaction: TGroupBox
+    Left = 16
+    Height = 232
+    Top = 8
+    Width = 400
+    Caption = 'Fee Payer'
+    ClientHeight = 212
+    ClientWidth = 396
+    TabOrder = 0
+    object cbSignerAccount: TComboBox
+      Left = 8
+      Height = 23
+      Top = 40
+      Width = 168
+      ItemHeight = 15
+      Items.Strings = (
+        ''
+      )
+      OnChange = cbSignerAccountChange
+      TabOrder = 0
+      Text = 'Select Signer Account'
+    end
+    object lblBalance: TLabel
+      Left = 200
+      Height = 15
+      Top = 45
+      Width = 151
+      Caption = 'Please Select Signer Account'
+      Font.Color = clRed
+      ParentColor = False
+      ParentFont = False
+    end
+    object lblNote: TLabel
+      Left = 8
+      Height = 15
+      Top = 8
+      Width = 214
+      Caption = 'Select the account which will pay the fee'
+      ParentColor = False
+    end
+    object rbPrimary: TRadioButton
+      Left = 8
+      Height = 19
+      Top = 88
+      Width = 219
+      Caption = 'Sign all transactions with this account'
+      Checked = True
+      TabOrder = 2
+      TabStop = True
+    end
+    object rbSecondary: TRadioButton
+      Left = 8
+      Height = 19
+      Top = 124
+      Width = 307
+      Caption = 'Only Sign with this account if sender cannot afford fee'
+      TabOrder = 1
+    end
+  end
+end

@@ -1,0 +1,19 @@
+object WIZFeeOverride: TWIZFeeOverride
+  Left = 0
+  Height = 253
+  Top = 0
+  Width = 429
+  Caption = 'WIZFeeOverride'
+  ClientHeight = 253
+  ClientWidth = 429
+  LCLVersion = '1.8.1.0'
+  Visible = False
+  object gbTransactionFee: TGroupBox
+    Left = 14
+    Height = 232
+    Top = 8
+    Width = 400
+    Caption = 'Transaction Fee'
+    TabOrder = 0
+  end
+end

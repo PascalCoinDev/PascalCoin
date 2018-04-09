@@ -7,7 +7,7 @@ object WIZTransferAccount_TransactionPayload: TWIZTransferAccount_TransactionPay
   Caption = 'Form1'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
+  LCLVersion = '1.8.1.0'
   Visible = False
   object grpPayload: TGroupBox
     Left = 8

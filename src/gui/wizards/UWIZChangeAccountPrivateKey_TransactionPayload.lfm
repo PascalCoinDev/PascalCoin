@@ -7,7 +7,6 @@ object WIZChangeAccountPrivateKey_TransactionPayload: TWIZChangeAccountPrivateKe
   Caption = 'Form1'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
   object grpPayload: TGroupBox
     Left = 8

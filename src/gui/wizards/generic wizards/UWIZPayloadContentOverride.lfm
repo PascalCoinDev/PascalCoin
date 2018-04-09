@@ -1,0 +1,48 @@
+object WIZPayloadContentOverride: TWIZPayloadContentOverride
+  Left = 0
+  Height = 253
+  Top = 0
+  Width = 429
+  ActiveControl = mmoPayload
+  Caption = 'Form1'
+  ClientHeight = 253
+  ClientWidth = 429
+  Visible = False
+  object grpPayload: TGroupBox
+    Left = 8
+    Height = 244
+    Top = 2
+    Width = 416
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    Caption = 'Payload Content'
+    ClientHeight = 224
+    ClientWidth = 412
+    TabOrder = 0
+    object paPayload: TPanel
+      Left = 8
+      Height = 214
+      Top = 2
+      Width = 396
+      Anchors = [akTop, akLeft, akRight, akBottom]
+      BevelOuter = bvNone
+      ClientHeight = 214
+      ClientWidth = 396
+      TabOrder = 0
+      object mmoPayload: TMemo
+        Left = 0
+        Height = 128
+        Top = 32
+        Width = 386
+        TabOrder = 0
+      end
+      object Label1: TLabel
+        Left = 0
+        Height = 15
+        Top = 6
+        Width = 153
+        Caption = 'Enter Payload Content Below'
+        ParentColor = False
+      end
+    end
+  end
+end

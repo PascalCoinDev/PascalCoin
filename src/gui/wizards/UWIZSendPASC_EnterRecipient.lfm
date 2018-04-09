@@ -1,80 +1,34 @@
-object WIZSendPASC_Transaction: TWIZSendPASC_Transaction
+object WIZSendPASC_EnterRecipient: TWIZSendPASC_EnterRecipient
   Left = 0
   Height = 253
   Top = 0
   Width = 429
-  ActiveControl = cbSignerAccount
-  Caption = 'WIZSendPASC_Transaction'
+  ActiveControl = edtDestAcc
+  Caption = 'WIZSendPASC_EnterRecipient'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
-  object gbTransaction: TGroupBox
-    Left = 22
-    Height = 192
-    Top = 40
-    Width = 384
-    Caption = 'Transaction Details'
-    ClientHeight = 172
-    ClientWidth = 380
+  object gbRecipient: TGroupBox
+    Left = 16
+    Height = 232
+    Top = 8
+    Width = 398
+    Caption = 'Destination Account'
+    ClientHeight = 212
+    ClientWidth = 394
     TabOrder = 0
-    object cbSignerAccount: TComboBox
-      Left = 8
-      Height = 23
-      Top = 8
-      Width = 168
-      ItemHeight = 15
-      Items.Strings = (
-        ''
-      )
-      OnChange = cbSignerAccountChange
-      TabOrder = 0
-      Text = 'Select Signer Account'
-    end
-    object lblBalance: TLabel
-      Left = 200
-      Height = 15
-      Top = 12
-      Width = 151
-      Caption = 'Please Select Signer Account'
-      Font.Color = clRed
-      ParentColor = False
-      ParentFont = False
-    end
-    object lblDestAcc: TLabel
-      Left = 8
-      Height = 15
-      Top = 48
-      Width = 108
-      Caption = 'Destination Account'
-      ParentColor = False
-    end
     object edtDestAcc: TEdit
       Left = 8
       Height = 23
-      Top = 74
+      Top = 40
       Width = 136
-      TabOrder = 1
-    end
-    object lblAmount: TLabel
-      Left = 8
-      Height = 15
-      Top = 116
-      Width = 44
-      Caption = 'Amount'
-      ParentColor = False
-    end
-    object edtAmt: TEdit
-      Left = 8
-      Height = 23
-      Top = 143
-      Width = 136
-      TabOrder = 2
+      OnChange = edtDestAccChange
+      TabOrder = 0
     end
     object btnSearch: TSpeedButton
       Left = 152
       Height = 22
-      Top = 75
+      Top = 41
       Width = 23
       Glyph.Data = {
         36040000424D3604000000000000360000002800000010000000100000000100
@@ -114,38 +68,50 @@ object WIZSendPASC_Transaction: TWIZSendPASC_Transaction
       }
       OnClick = btnSearchClick
     end
-    object edtOpFee: TEdit
-      Left = 232
-      Height = 23
-      Top = 144
-      Width = 136
-      TabOrder = 3
-    end
-    object lblOpFee: TLabel
-      Left = 232
+    object lblDestNotice: TLabel
+      Left = 8
       Height = 15
-      Top = 116
-      Width = 74
-      Caption = 'Operation Fee'
+      Top = 8
+      Width = 313
+      Caption = 'Please enter the recipient address that will receive the funds'
       ParentColor = False
+      ParentFont = False
     end
-  end
-  object lblTotalBalances: TLabel
-    Left = 24
-    Height = 15
-    Top = 16
-    Width = 176
-    Caption = 'Selected Accounts Total Balance: '
-    ParentColor = False
-  end
-  object lblTotalBalanceValue: TLabel
-    Left = 208
-    Height = 15
-    Top = 16
-    Width = 70
-    Caption = 'Total Balance'
-    Font.Color = clGreen
-    ParentColor = False
-    ParentFont = False
+    object lblDestAccNumber: TLabel
+      Left = 8
+      Height = 15
+      Top = 80
+      Width = 158
+      Caption = 'Destination Account Number:'
+      ParentColor = False
+      ParentFont = False
+    end
+    object lblDestAccNumberName: TLabel
+      Left = 8
+      Height = 15
+      Top = 108
+      Width = 193
+      Caption = 'Destination Account Number Name:'
+      ParentColor = False
+      ParentFont = False
+    end
+    object lblDestAccNumberValue: TLabel
+      Left = 224
+      Height = 15
+      Top = 80
+      Width = 92
+      Caption = 'Account Number'
+      ParentColor = False
+      ParentFont = False
+    end
+    object lblDestAccNumberNameValue: TLabel
+      Left = 224
+      Height = 15
+      Top = 108
+      Width = 121
+      Caption = 'AccountNumberName'
+      ParentColor = False
+      ParentFont = False
+    end
   end
 end
