@@ -10,7 +10,7 @@ uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Menus,
   ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon.UI, Generics.Collections,
   UAccounts, UDataSources, UNode, UWIZSendPASC, UWIZTransferAccount,
-  UWIZChangeAccountPrivateKey;
+  UWIZChangeAccountPrivateKey, UWIZEnlistAccountForSale;
 
 type
 
@@ -390,8 +390,8 @@ end;
 //  Result := ARow.Account;
 //end;
 
-function TCTRLWallet.GetAccounts(
-  const AccountNumbers: TArray<cardinal>): TArray<TAccount>;
+function TCTRLWallet.GetAccounts(const AccountNumbers: TArray<cardinal>):
+TArray<TAccount>;
 var
   acc: TAccount;
   safeBox: TPCSafeBox;
@@ -695,8 +695,24 @@ begin
 end;
 
 procedure TCTRLWallet.miEnlistAccountsForSaleClick(Sender: TObject);
+var
+  Scoped: TDisposables;
+  wiz: TWIZEnlistAccountForSaleWizard;
+  model: TWIZEnlistAccountForSaleModel;
+  AccountNumbersWithoutChecksum: TArray<cardinal>;
 begin
- raise ENotImplemented.Create('not yet implemented.');
+  wiz := Scoped.AddObject(TWIZEnlistAccountForSaleWizard.Create(nil)) as
+    TWIZEnlistAccountForSaleWizard;
+  model := Scoped.AddObject(TWIZEnlistAccountForSaleModel.Create(nil)) as
+    TWIZEnlistAccountForSaleModel;
+
+  AccountNumbersWithoutChecksum :=
+    TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,
+    GetAccNoWithoutChecksum);
+
+  model.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
+  model.SelectedIndex := 0;
+  wiz.Start(model);
 end;
 
 procedure TCTRLWallet.miDelistAccountsFromSaleClick(Sender: TObject);
