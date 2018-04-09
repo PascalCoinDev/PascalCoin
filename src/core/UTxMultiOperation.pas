@@ -105,7 +105,7 @@ Type
     procedure InitializeData; override;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
-    procedure FillOperationResume(Block : Cardinal; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
+    procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
   public
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
 
@@ -141,6 +141,7 @@ Type
     Function IndexOfAccountReceiver(nAccount : Cardinal; startPos : Integer) : Integer;
     Function IndexOfAccountChanger(nAccount : Cardinal) : Integer; overload;
     class Function IndexOfAccountChanger(nAccount : Cardinal; startPos : Integer; const changesInfo : TMultiOpChangesInfo) : Integer; overload;
+    class Function OpChangeAccountInfoTypesToText(const OpChangeAccountInfoTypes : TOpChangeAccountInfoTypes) : AnsiString;
     //
     Function toString : String; Override;
     Property Data : TOpMultiOperationData read FData;
@@ -187,12 +188,53 @@ begin
   Result := -1;
 end;
 
-procedure TOpMultiOperation.FillOperationResume(Block : Cardinal; Affected_account_number : Cardinal; var OperationResume : TOperationResume);
+class function TOpMultiOperation.OpChangeAccountInfoTypesToText(const OpChangeAccountInfoTypes: TOpChangeAccountInfoTypes): AnsiString;
+Var opcit : TOpChangeAccountInfoType;
 begin
-  inherited FillOperationResume(Block, Affected_account_number, OperationResume);
+  Result := '';
+  for opcit:=Low(opcit) to High(opcit) do begin
+    if opcit in OpChangeAccountInfoTypes then begin
+      If Result<>'' then Result := Result +',';
+      Result := Result + CT_TOpChangeAccountInfoType_Txt[opcit];
+    end;
+  end;
+end;
+
+procedure TOpMultiOperation.FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume);
+Var iSender,iReceiver,iChanger : Integer;
+  changerTxt : AnsiString;
+begin
+  inherited FillOperationResume(Block, getInfoForAllAccounts, Affected_account_number, OperationResume);
+  OperationResume.isMultiOperation:=True;
+
   OperationResume.Senders := FData.txSenders;
   OperationResume.Receivers := FData.txReceivers;
   OperationResume.Changers := FData.changesInfo;
+  if (getInfoForAllAccounts) then begin
+    OperationResume.OperationTxt := ToString;
+    OperationResume.Amount := OperationAmount;
+    OperationResume.Fee := OperationFee * (-1);
+    OperationResume.OpSubtype := CT_OpSubtype_MultiOperation_Global;
+  end else begin
+    OperationResume.OpSubtype := CT_OpSubtype_MultiOperation_AccountInfo;
+    OperationResume.Fee := 0;
+    OperationResume.Amount := OperationAmountByAccount(Affected_account_number);
+    // Set Text and OpSubtype based on Affected_account_number
+    iSender := (IndexOfAccountSender(Affected_account_number));
+    iReceiver := (IndexOfAccountReceiver(Affected_account_number,0));
+    iChanger := (IndexOfAccountChanger(Affected_account_number));
+    if (iChanger>=0) then begin
+      changerTxt:='Changes ['+OpChangeAccountInfoTypesToText(FData.changesInfo[iChanger].Changes_type)+']';
+    end else changerTxt:='';
+    if (iSender>=0) then begin
+      // Is a Sender account
+      OperationResume.OperationTxt:='Multi Tx-Out '+TAccountComp.FormatMoney(OperationResume.Amount * (-1))+' PASC from '+TAccountComp.AccountNumberToAccountTxtNumber(Affected_account_number)+' '+changerTxt;
+    end else if (iReceiver>=0) then begin
+      OperationResume.OperationTxt:='Multi Tx-In '+TAccountComp.FormatMoney(OperationResume.Amount)+' PASC to '+TAccountComp.AccountNumberToAccountTxtNumber(Affected_account_number)+' '+changerTxt;
+    end else begin
+      OperationResume.OperationTxt:='Multi '+changerTxt+' to '+TAccountComp.AccountNumberToAccountTxtNumber(Affected_account_number);
+    end;
+  end;
 end;
 
 function TOpMultiOperation.IndexOfAccountChangeNameTo(const newName: AnsiString): Integer;

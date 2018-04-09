@@ -899,7 +899,7 @@ begin
     if FPendingOperations then begin
       for i := Node.Operations.Count - 1 downto 0 do begin
         Op := Node.Operations.OperationsHashTree.GetOperation(i);
-        If TPCOperation.OperationToOperationResume(0,Op,Op.SignerAccount,OPR) then begin
+        If TPCOperation.OperationToOperationResume(0,Op,True,Op.SignerAccount,OPR) then begin
           OPR.NOpInsideBlock := i;
           OPR.Block := Node.Bank.BlocksCount;
           OPR.Balance := Node.Operations.SafeBoxTransaction.Account(Op.SignerAccount).balance;
@@ -937,7 +937,7 @@ begin
               FOperationsResume.Add(OPR);
               // Reverse operations inside a block
               for i := opc.Count - 1 downto 0 do begin
-                if TPCOperation.OperationToOperationResume(bend,opc.Operation[i],opc.Operation[i].SignerAccount,opr) then begin
+                if TPCOperation.OperationToOperationResume(bend,opc.Operation[i],True,opc.Operation[i].SignerAccount,opr) then begin
                   opr.NOpInsideBlock := i;
                   opr.Block := bend;
                   opr.time := opc.OperationBlock.timestamp;
@@ -957,7 +957,7 @@ begin
           Node.Operations.OperationsHashTree.GetOperationsAffectingAccount(AccountNumber,list);
           for i := list.Count - 1 downto 0 do begin
             Op := Node.Operations.OperationsHashTree.GetOperation(PtrInt(list[i]));
-            If TPCOperation.OperationToOperationResume(0,Op,AccountNumber,OPR) then begin
+            If TPCOperation.OperationToOperationResume(0,Op,False,AccountNumber,OPR) then begin
               OPR.NOpInsideBlock := i;
               OPR.Block := Node.Operations.OperationBlock.block;
               OPR.Balance := Node.Operations.SafeBoxTransaction.Account(AccountNumber).balance;

@@ -620,7 +620,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           FNode.Operations.OperationsHashTree.GetOperationsAffectingAccount(accountNumber,list);
           for i := list.Count - 1 downto 0 do begin
             Op := FNode.Operations.OperationsHashTree.GetOperation(PtrInt(list[i]));
-            If TPCOperation.OperationToOperationResume(0,Op,accountNumber,OPR) then begin
+            If TPCOperation.OperationToOperationResume(0,Op,False,accountNumber,OPR) then begin
               OPR.NOpInsideBlock := i;
               OPR.Block := FNode.Operations.OperationBlock.block;
               OPR.Balance := FNode.Operations.SafeBoxTransaction.Account(accountNumber).balance;
@@ -760,7 +760,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           ErrorNum := CT_RPC_ErrNum_InvalidOperation;
           Exit;
         end;
-        TPCOperation.OperationToOperationResume(0,opt,sender,opr);
+        TPCOperation.OperationToOperationResume(0,opt,False,sender,opr);
         FillOperationResumeToJSONObject(opr,GetResultObject);
         Result := true;
       finally
@@ -879,7 +879,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           ErrorNum := CT_RPC_ErrNum_InvalidOperation;
           Exit;
         end;
-        TPCOperation.OperationToOperationResume(0,opck,account_signer,opr);
+        TPCOperation.OperationToOperationResume(0,opck,False,account_signer,opr);
         FillOperationResumeToJSONObject(opr,GetResultObject);
         Result := true;
       finally
@@ -1202,7 +1202,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       for i := 0 to OperationsHashTree.OperationsCount - 1 do begin
         Op := OperationsHashTree.GetOperation(i);
         Obj := jsonArray.GetAsObject(i);
-        If TPCOperation.OperationToOperationResume(0,Op,Op.SignerAccount,OPR) then begin
+        If TPCOperation.OperationToOperationResume(0,Op,True,Op.SignerAccount,OPR) then begin
           OPR.NOpInsideBlock := i;
           OPR.Balance := -1;
         end else OPR := CT_TOperationResume_NUL;
@@ -1860,7 +1860,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           ErrorDesc := errors;
           Exit;
         end else Result := True;
-        TPCOperation.OperationToOperationResume(0,opt,c_account,opr);
+        TPCOperation.OperationToOperationResume(0,opt,False,c_account,opr);
         FillOperationResumeToJSONObject(opr,GetResultObject);
       finally
         OperationsHashTree.Free;
@@ -1919,7 +1919,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           ErrorDesc := errors;
           Exit;
         end else Result := True;
-        TPCOperation.OperationToOperationResume(0,opt,c_account,opr);
+        TPCOperation.OperationToOperationResume(0,opt,False,c_account,opr);
         FillOperationResumeToJSONObject(opr,GetResultObject);
       finally
         OperationsHashTree.Free;
@@ -1961,7 +1961,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           ErrorDesc := errors;
           Exit;
         end else Result := True;
-        TPCOperation.OperationToOperationResume(0,opt,c_account,opr);
+        TPCOperation.OperationToOperationResume(0,opt,False,c_account,opr);
         FillOperationResumeToJSONObject(opr,GetResultObject);
       finally
         OperationsHashTree.Free;
@@ -2020,7 +2020,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           ErrorDesc := errors;
           Exit;
         end else Result := True;
-        TPCOperation.OperationToOperationResume(0,opt,c_account,opr);
+        TPCOperation.OperationToOperationResume(0,opt,False,c_account,opr);
         FillOperationResumeToJSONObject(opr,GetResultObject);
       finally
         OperationsHashTree.Free;
@@ -2373,7 +2373,7 @@ begin
           ErrorDesc := 'Block/Operation not found: '+IntToStr(c)+'/'+IntToStr(i)+' BlockOperations:'+IntToStr(pcops.Count);
           Exit;
         end;
-        If TPCOperation.OperationToOperationResume(c,pcops.Operation[i],pcops.Operation[i].SignerAccount,opr) then begin
+        If TPCOperation.OperationToOperationResume(c,pcops.Operation[i],True,pcops.Operation[i].SignerAccount,opr) then begin
           opr.NOpInsideBlock:=i;
           opr.time:=pcops.OperationBlock.timestamp;
           opr.Balance := -1;
@@ -2405,7 +2405,7 @@ begin
         j := params.AsInteger('start',0);
         for i := 0 to pcops.Count - 1 do begin
           if (i>=j) then begin
-            If TPCOperation.OperationToOperationResume(c,pcops.Operation[i],pcops.Operation[i].SignerAccount,opr) then begin
+            If TPCOperation.OperationToOperationResume(c,pcops.Operation[i],True,pcops.Operation[i].SignerAccount,opr) then begin
               opr.NOpInsideBlock:=i;
               opr.time:=pcops.OperationBlock.timestamp;
               opr.Balance := -1; // Don't include!
@@ -2445,7 +2445,7 @@ begin
     // Create result
     GetResultArray;
     for i:=FNode.Operations.Count-1 downto 0 do begin
-      if not TPCOperation.OperationToOperationResume(0,FNode.Operations.Operation[i],FNode.Operations.Operation[i].SignerAccount,opr) then begin
+      if not TPCOperation.OperationToOperationResume(0,FNode.Operations.Operation[i],True,FNode.Operations.Operation[i].SignerAccount,opr) then begin
         ErrorNum := CT_RPC_ErrNum_InternalError;
         ErrorDesc := 'Error converting data';
         exit;
@@ -2497,7 +2497,7 @@ begin
           end;
       else Raise Exception.Create('ERROR DEV 20171120-4');
       end;
-      If not TPCOperation.OperationToOperationResume(c,pcops.Operation[i],pcops.Operation[i].SignerAccount,opr) then begin
+      If not TPCOperation.OperationToOperationResume(c,pcops.Operation[i],True,pcops.Operation[i].SignerAccount,opr) then begin
         ErrorNum := CT_RPC_ErrNum_InternalError;
         ErrorDesc := 'Error 20161026-1';
       end;
