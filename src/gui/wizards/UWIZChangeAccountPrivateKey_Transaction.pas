@@ -16,14 +16,13 @@ uses
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
   UFRMAccountSelect, UNode, UWizard, UWIZChangeAccountPrivateKey,
   UWIZChangeAccountPrivateKey_TransactionPayload,
-  UWIZChangeAccountPrivateKey_Confirmation;
+  UWIZChangeAccountPrivateKey_Confirmation, UWIZModels;
 
 type
 
   { TWIZChangeAccountPrivateKey_Transaction }
 
-  TWIZChangeAccountPrivateKey_Transaction =
-  class(TWizardForm<TWIZChangeAccountPrivateKeyModel>)
+  TWIZChangeAccountPrivateKey_Transaction = class(TWizardForm<TWIZOperationsModel>)
     cbSignerAccount: TComboBox;
     cbNewPrivateKey: TComboBox;
     edtOpFee: TEdit;
@@ -65,8 +64,7 @@ begin
   begin
     lblBalance.Font.Color := clGreen;
     lblBalance.Caption := Format('%s PASC',
-      [TAccountComp.FormatMoney(Model.SelectedAccounts[PtrInt(
-      cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])].Balance)]);
+      [TAccountComp.FormatMoney(Model.ChangeAccountPrivateKeyModel.SelectedAccounts[PtrInt(cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])].Balance)]);
   end;
 end;
 
@@ -140,9 +138,9 @@ begin
   try
     cbSignerAccount.Items.Clear;
     cbSignerAccount.Items.Add('Select Signer Account');
-    for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+    for i := Low(Model.ChangeAccountPrivateKeyModel.SelectedAccounts) to High(Model.ChangeAccountPrivateKeyModel.SelectedAccounts) do
     begin
-      acc := Model.SelectedAccounts[i];
+      acc := Model.ChangeAccountPrivateKeyModel.SelectedAccounts[i];
       accNumberwithChecksum := GetAccNoWithChecksum(acc.account);
       totalBalance := totalBalance + acc.balance;
       cbSignerAccount.Items.AddObject(accNumberwithChecksum, TObject(i));
@@ -151,9 +149,9 @@ begin
     cbSignerAccount.Items.EndUpdate;
   end;
   UpdateWalletKeys();
-  cbSignerAccount.ItemIndex := Model.SelectedIndex;
+  cbSignerAccount.ItemIndex := Model.ChangeAccountPrivateKeyModel.SelectedIndex;
   cbSignerAccountChange(Self);
-  cbNewPrivateKey.ItemIndex := Model.PrivateKeySelectedIndex;
+  cbNewPrivateKey.ItemIndex := Model.ChangeAccountPrivateKeyModel.PrivateKeySelectedIndex;
   cbNewPrivateKeyChange(Self);
   lblTotalBalanceValue.Caption :=
     Format('%s PASC', [TAccountComp.FormatMoney(totalBalance)]);
@@ -163,19 +161,15 @@ end;
 
 procedure TWIZChangeAccountPrivateKey_Transaction.OnNext;
 begin
-  Model.SelectedIndex := cbSignerAccount.ItemIndex;
-  Model.PrivateKeySelectedIndex := cbNewPrivateKey.ItemIndex;
-  Model.SignerAccount := Model.SelectedAccounts[PtrInt(
-    cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
-  Model.NewWalletKey := TWallet.Keys.Key[PtrInt(
-    cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex])];
+  Model.ChangeAccountPrivateKeyModel.SelectedIndex := cbSignerAccount.ItemIndex;
+  Model.ChangeAccountPrivateKeyModel.PrivateKeySelectedIndex := cbNewPrivateKey.ItemIndex;
+  Model.ChangeAccountPrivateKeyModel.SignerAccount := Model.ChangeAccountPrivateKeyModel.SelectedAccounts[PtrInt(cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
+  Model.ChangeAccountPrivateKeyModel.NewWalletKey := TWallet.Keys.Key[PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex])];
 
-  UpdatePath(ptReplaceAllNext, [TWIZChangeAccountPrivateKey_TransactionPayload,
-    TWIZChangeAccountPrivateKey_Confirmation]);
+  UpdatePath(ptReplaceAllNext, [TWIZChangeAccountPrivateKey_TransactionPayload, TWIZChangeAccountPrivateKey_Confirmation]);
 end;
 
-function TWIZChangeAccountPrivateKey_Transaction.Validate(
-  out message: ansistring): boolean;
+function TWIZChangeAccountPrivateKey_Transaction.Validate(out message: ansistring): boolean;
 var
   i: integer;
 begin
@@ -193,7 +187,7 @@ begin
     Exit;
   end;
 
-  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.DefaultFee) then
+  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.ChangeAccountPrivateKeyModel.DefaultFee) then
   begin
     message := 'Invalid fee value "' + edtOpFee.Text + '"';
     Result := False;

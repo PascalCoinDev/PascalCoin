@@ -14,34 +14,17 @@ unit UWIZSendPASC;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, UCrypto, UWizard, UAccounts, LCLType;
+  Classes, SysUtils, Forms, Dialogs, UCrypto, UWizard, UAccounts, LCLType, UWIZModels;
 
 type
 
-  { TWIZSendPASCModel }
-  TWIZPayloadEncryptionMode = (akaEncryptWithOldEC, akaEncryptWithEC,
-    akaEncryptWithPassword, akaNotEncrypt);
-
-  TWIZSendPASCModel = class(TComponent)
-  public
-    SelectedIndex: integer;
-    DefaultFee: int64;
-    AmountToSend, Payload, EncryptionPassword: string;
-    EncodedPayload: TRawBytes;
-    SignerAccount, DestinationAccount: TAccount;
-    SelectedAccounts: TArray<TAccount>;
-    PayloadEncryptionMode: TWIZPayloadEncryptionMode;
-  end;
-
   { TWIZSendPASCWizard }
 
-  TWIZSendPASCWizard = class(TWizard<TWIZSendPASCModel>)
+  TWIZSendPASCWizard = class(TWizard<TWIZOperationsModel>)
   private
-    function UpdatePayload(const SenderAccount: TAccount;
-      var errors: string): boolean;
+    function UpdatePayload(const SenderAccount: TAccount; var errors: string): boolean;
     function UpdateOperationOptions(var errors: string): boolean;
-    function UpdateOpTransaction(const SenderAccount: TAccount;
-      var DestAccount: TAccount; var amount: int64; var errors: string): boolean;
+    function UpdateOpTransaction(const SenderAccount: TAccount; var DestAccount: TAccount; var amount: int64; var errors: string): boolean;
     procedure SendPASC();
   public
     constructor Create(AOwner: TComponent); override;
@@ -82,7 +65,7 @@ begin
     Exit;
   end;
 
-  if Length(Model.SelectedAccounts) = 0 then
+  if Length(Model.SendPASCModel.SelectedAccounts) = 0 then
   begin
     errors := 'No sender account';
     Exit;
@@ -90,15 +73,13 @@ begin
   else
   begin
 
-    for iAcc := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+    for iAcc := Low(Model.SendPASCModel.SelectedAccounts) to High(Model.SendPASCModel.SelectedAccounts) do
     begin
-      sender_account := Model.SelectedAccounts[iAcc];
+      sender_account := Model.SendPASCModel.SelectedAccounts[iAcc];
       iWallet := TWallet.Keys.IndexOfAccountKey(sender_account.accountInfo.accountKey);
       if (iWallet < 0) then
       begin
-        errors := 'Private key of account ' +
-          TAccountComp.AccountNumberToAccountTxtNumber(sender_account.account) +
-          ' not found in wallet';
+        errors := 'Private key of account ' + TAccountComp.AccountNumberToAccountTxtNumber(sender_account.account) + ' not found in wallet';
         Exit;
       end;
       wk := TWallet.Keys.Key[iWallet];
@@ -112,33 +93,31 @@ begin
         else
         begin
           errors := 'Only public key of account ' +
-            TAccountComp.AccountNumberToAccountTxtNumber(sender_account.account) +
-            ' found in wallet. You cannot operate with this account';
+            TAccountComp.AccountNumberToAccountTxtNumber(sender_account.account) + ' found in wallet. You cannot operate with this account';
         end;
         Exit;
       end;
     end;
   end;
 
-  Result := UpdateOpTransaction(Model.SelectedAccounts[0], dest_account, amount, errors);
+  Result := UpdateOpTransaction(Model.SendPASCModel.SelectedAccounts[0], dest_account, amount, errors);
   UpdatePayload(sender_account, e);
 end;
 
-function TWIZSendPASCWizard.UpdateOpTransaction(const SenderAccount: TAccount;
-  var DestAccount: TAccount; var amount: int64; var errors: string): boolean;
+function TWIZSendPASCWizard.UpdateOpTransaction(const SenderAccount: TAccount; var DestAccount: TAccount; var amount: int64; var errors: string): boolean;
 var
   c: cardinal;
 begin
   Result := False;
   errors := '';
 
-  DestAccount := Model.DestinationAccount;
+  DestAccount := Model.SendPASCModel.DestinationAccount;
 
-  if Length(Model.SelectedAccounts) = 1 then
+  if Length(Model.SendPASCModel.SelectedAccounts) = 1 then
   begin
-    if not TAccountComp.TxtToMoney(Model.AmountToSend, amount) then
+    if not TAccountComp.TxtToMoney(Model.SendPASCModel.AmountToSend, amount) then
     begin
-      errors := 'Invalid amount (' + Model.AmountToSend + ')';
+      errors := 'Invalid amount (' + Model.SendPASCModel.AmountToSend + ')';
       Exit;
     end;
   end
@@ -153,9 +132,9 @@ begin
     Exit;
   end;
 
-  if (Length(Model.SelectedAccounts) = 1) then
+  if (Length(Model.SendPASCModel.SelectedAccounts) = 1) then
   begin
-    if (SenderAccount.balance < (amount + Model.DefaultFee)) then
+    if (SenderAccount.balance < (amount + Model.SendPASCModel.DefaultFee)) then
     begin
       errors := 'Insufficient funds';
       Exit;
@@ -189,10 +168,10 @@ begin
     _signer_n_ops := 0;
     operationstxt := '';
     operation_to_string := '';
-    for iAcc := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+    for iAcc := Low(Model.SendPASCModel.SelectedAccounts) to High(Model.SendPASCModel.SelectedAccounts) do
     begin
       op := nil;
-      account := Model.SelectedAccounts[iAcc];
+      account := Model.SendPASCModel.SelectedAccounts[iAcc];
       if not UpdatePayload(account, errors) then
       begin
         raise Exception.Create('Error encoding payload of sender account ' +
@@ -207,21 +186,21 @@ begin
       wk := TWallet.Keys.Key[i];
       dooperation := True;
       // Default fee
-      if account.balance > uint64(Model.DefaultFee) then
-        _fee := Model.DefaultFee
+      if account.balance > uint64(Model.SendPASCModel.DefaultFee) then
+        _fee := Model.SendPASCModel.DefaultFee
       else
         _fee := account.balance;
 
       if not UpdateOpTransaction(account, destAccount, _amount, errors) then
         raise Exception.Create(errors);
-      if Length(Model.SelectedAccounts) > 1 then
+      if Length(Model.SendPASCModel.SelectedAccounts) > 1 then
       begin
         if account.balance > 0 then
         begin
-          if account.balance > Model.DefaultFee then
+          if account.balance > Model.SendPASCModel.DefaultFee then
           begin
-            _amount := account.balance - Model.DefaultFee;
-            _fee := Model.DefaultFee;
+            _amount := account.balance - Model.SendPASCModel.DefaultFee;
+            _fee := Model.SendPASCModel.DefaultFee;
           end
           else
           begin
@@ -239,12 +218,11 @@ begin
       begin
         op := TOpTransaction.CreateTransaction(
           account.account, account.n_operation + 1, destAccount.account,
-          wk.PrivateKey, _amount, _fee, Model.EncodedPayload);
+          wk.PrivateKey, _amount, _fee, Model.SendPASCModel.EncodedPayload);
         Inc(_totalamount, _amount);
         Inc(_totalfee, _fee);
       end;
-      operationstxt := 'Transaction to ' + TAccountComp.AccountNumberToAccountTxtNumber(
-        destAccount.account);
+      operationstxt := 'Transaction to ' + TAccountComp.AccountNumberToAccountTxtNumber(destAccount.account);
 
       if Assigned(op) and (dooperation) then
       begin
@@ -259,12 +237,11 @@ begin
     if (ops.OperationsCount = 0) then
       raise Exception.Create('No valid operation to execute');
 
-    if (Length(Model.SelectedAccounts) > 1) then
+    if (Length(Model.SendPASCModel.SelectedAccounts) > 1) then
     begin
-      auxs := 'Total amount that dest will receive: ' + TAccountComp.FormatMoney(
-        _totalamount) + #10;
+      auxs := 'Total amount that dest will receive: ' + TAccountComp.FormatMoney(_totalamount) + #10;
       if Application.MessageBox(
-        PChar('Execute ' + IntToStr(Length(Model.SelectedAccounts)) +
+        PChar('Execute ' + IntToStr(Length(Model.SendPASCModel.SelectedAccounts)) +
         ' operations?' + #10 + 'Operation: ' + operationstxt + #10 +
         auxs + 'Total fee: ' + TAccountComp.FormatMoney(_totalfee) +
         #10 + #10 + 'Note: This operation will be transmitted to the network!'),
@@ -335,8 +312,7 @@ begin
   end;
 end;
 
-function TWIZSendPASCWizard.UpdatePayload(const SenderAccount: TAccount;
-  var errors: string): boolean;
+function TWIZSendPASCWizard.UpdatePayload(const SenderAccount: TAccount; var errors: string): boolean;
 var
   valid: boolean;
   payload_encrypted, payload_u: string;
@@ -344,9 +320,9 @@ var
 begin
   valid := False;
   payload_encrypted := '';
-  Model.EncodedPayload := '';
+  Model.SendPASCModel.EncodedPayload := '';
   errors := 'Unknown error';
-  payload_u := Model.Payload;
+  payload_u := Model.SendPASCModel.Payload;
 
   try
     if (payload_u = '') then
@@ -354,7 +330,7 @@ begin
       valid := True;
       Exit;
     end;
-    case Model.PayloadEncryptionMode of
+    case Model.SendPASCModel.PayloadEncryptionMode of
 
       akaEncryptWithOldEC:
       begin
@@ -369,15 +345,14 @@ begin
       begin
         // With dest public key
         errors := 'Error encrypting';
-        account := Model.DestinationAccount;
+        account := Model.SendPASCModel.DestinationAccount;
         payload_encrypted := ECIESEncrypt(account.accountInfo.accountKey, payload_u);
         valid := payload_encrypted <> '';
       end;
 
       akaEncryptWithPassword:
       begin
-        payload_encrypted := TAESComp.EVP_Encrypt_AES256(
-          payload_u, Model.EncryptionPassword);
+        payload_encrypted := TAESComp.EVP_Encrypt_AES256(payload_u, Model.SendPASCModel.EncryptionPassword);
         valid := payload_encrypted <> '';
       end;
 
@@ -404,7 +379,7 @@ begin
       end;
 
     end;
-    Model.EncodedPayload := payload_encrypted;
+    Model.SendPASCModel.EncodedPayload := payload_encrypted;
     Result := valid;
   end;
 

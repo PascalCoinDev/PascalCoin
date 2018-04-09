@@ -14,13 +14,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_Confirmation, UWIZSendPASC_TransactionPayload;
+  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_Confirmation, UWIZSendPASC_TransactionPayload, UWIZModels;
 
 type
 
   { TWIZSendPASC_Transaction }
 
-  TWIZSendPASC_Transaction = class(TWizardForm<TWIZSendPASCModel>)
+  TWIZSendPASC_Transaction = class(TWizardForm<TWIZOperationsModel>)
     cbSignerAccount: TComboBox;
     edtOpFee: TEdit;
     edtAmt: TEdit;
@@ -63,7 +63,7 @@ begin
   begin
     lblBalance.Font.Color := clGreen;
     lblBalance.Caption := Format('%s PASC',
-      [TAccountComp.FormatMoney(Model.SelectedAccounts[PtrInt(
+      [TAccountComp.FormatMoney(Model.SendPASCModel.SelectedAccounts[PtrInt(
       cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])].Balance)]);
   end;
 end;
@@ -109,9 +109,9 @@ begin
   try
     cbSignerAccount.Items.Clear;
     cbSignerAccount.Items.Add('Select Signer Account');
-    for i := 0 to High(Model.SelectedAccounts) do
+    for i := 0 to High(Model.SendPASCModel.SelectedAccounts) do
     begin
-      acc := Model.SelectedAccounts[i];
+      acc := Model.SendPASCModel.SelectedAccounts[i];
       accNumberwithChecksum := GetAccNoWithChecksum(acc.account);
       totalBalance := totalBalance + acc.balance;
       cbSignerAccount.Items.AddObject(accNumberwithChecksum, TObject(i));
@@ -119,12 +119,12 @@ begin
   finally
     cbSignerAccount.Items.EndUpdate;
   end;
-  cbSignerAccount.ItemIndex := Model.SelectedIndex;
+  cbSignerAccount.ItemIndex := Model.SendPASCModel.SelectedIndex;
   cbSignerAccountChange(Self);
   lblTotalBalanceValue.Caption :=
     Format('%s PASC', [TAccountComp.FormatMoney(totalBalance)]);
 
-  if Length(Model.SelectedAccounts) > 1 then
+  if Length(Model.SendPASCModel.SelectedAccounts) > 1 then
   begin
     edtAmt.Text := 'ALL BALANCE';
     edtAmt.Enabled := False;
@@ -170,11 +170,11 @@ procedure TWIZSendPASC_Transaction.OnNext;
   end;
 
 begin
-  Model.SelectedIndex := cbSignerAccount.ItemIndex;
-  Model.SignerAccount := Model.SelectedAccounts[PtrInt(
+  Model.SendPASCModel.SelectedIndex := cbSignerAccount.ItemIndex;
+  Model.SendPASCModel.SignerAccount := Model.SendPASCModel.SelectedAccounts[PtrInt(
     cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
-  Model.DestinationAccount := GetAccounts(GetAccNoWithoutChecksum(edtDestAcc.Text));
-  Model.AmountToSend := edtAmt.Text;
+  Model.SendPASCModel.DestinationAccount := GetAccounts(GetAccNoWithoutChecksum(edtDestAcc.Text));
+  Model.SendPASCModel.AmountToSend := edtAmt.Text;
   UpdatePath(ptReplaceAllNext, [TWIZSendPASC_TransactionPayload, TWIZSendPASC_Confirmation]);
 end;
 
@@ -193,7 +193,7 @@ var
   amount, opfee: int64;
   i: integer;
 begin
-  Accounts := Model.SelectedAccounts;
+  Accounts := Model.SendPASCModel.SelectedAccounts;
   Result := True;
   if cbSignerAccount.ItemIndex < 1 then
   begin
@@ -228,8 +228,7 @@ begin
     end;
   end;
 
-  AccountNumbersWithChecksum :=
-    TListTool<TAccount, string>.Transform(Accounts, GetAccNoWithCheckSum);
+  AccountNumbersWithChecksum := TListTool<TAccount, string>.Transform(Accounts, GetAccNoWithCheckSum);
 
   if TArrayTool<string>.Contains(AccountNumbersWithChecksum, edtDestAcc.Text) then
   begin
@@ -238,7 +237,7 @@ begin
     Exit;
   end;
 
-  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.DefaultFee) then
+  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.SendPASCModel.DefaultFee) then
   begin
     message := 'Invalid fee value "' + edtOpFee.Text + '"';
     Result := False;

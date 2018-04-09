@@ -14,13 +14,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections,
-  UWizard, UWIZTransferAccount;
+  UWizard, UWIZTransferAccount, UWIZModels;
 
 type
 
   { TWIZTransferAccount_TransactionPayload }
 
-  TWIZTransferAccount_TransactionPayload = class(TWizardForm<TWIZTransferAccountModel>)
+  TWIZTransferAccount_TransactionPayload = class(TWizardForm<TWIZOperationsModel>)
     edtPassword: TEdit;
     grpPayload: TGroupBox;
     Label1: TLabel;
@@ -48,25 +48,25 @@ uses
 
 procedure TWIZTransferAccount_TransactionPayload.OnNext;
 begin
-  Model.Payload := mmoPayload.Lines.Text;
+  Model.TransferAccountModel.Payload := mmoPayload.Lines.Text;
   if rbEncryptedWithOldEC.Checked then
   begin
-    Model.PayloadEncryptionMode := akaEncryptWithOldEC;
+    Model.TransferAccountModel.PayloadEncryptionMode := akaEncryptWithOldEC;
   end
   else
   if rbEncryptedWithEC.Checked then
   begin
-    Model.PayloadEncryptionMode := akaEncryptWithEC;
+    Model.TransferAccountModel.PayloadEncryptionMode := akaEncryptWithEC;
   end
   else
   if rbEncryptedWithPassword.Checked then
   begin
-    Model.PayloadEncryptionMode := akaEncryptWithPassword;
+    Model.TransferAccountModel.PayloadEncryptionMode := akaEncryptWithPassword;
   end
   else
   if rbNotEncrypted.Checked then
   begin
-    Model.PayloadEncryptionMode := akaNotEncrypt;
+    Model.TransferAccountModel.PayloadEncryptionMode := akaNotEncrypt;
   end;
 end;
 

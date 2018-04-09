@@ -7,7 +7,7 @@ object WIZTransferAccount_Transaction: TWIZTransferAccount_Transaction
   Caption = 'WIZTransferAccount_Transaction'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.1.0'
+  LCLVersion = '1.8.2.0'
   Visible = False
   object gbTransaction: TGroupBox
     Left = 24

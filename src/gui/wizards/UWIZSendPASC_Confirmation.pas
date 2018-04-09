@@ -13,13 +13,13 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UWIZSendPASC;
+  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UWIZSendPASC, UWIZModels;
 
 type
 
   { TWIZSendPASC_Confirmation }
 
-  TWIZSendPASC_Confirmation = class(TWizardForm<TWIZSendPASCModel>)
+  TWIZSendPASC_Confirmation = class(TWizardForm<TWIZOperationsModel>)
     GroupBox1: TGroupBox;
     Label1: TLabel;
     Label2: TLabel;
@@ -45,11 +45,11 @@ type
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
     private
-      FModel : TWIZSendPASCModel;
+      FModel : TWIZOperationsModel.TSendPASCModel;
     protected
       function GetColumns : TDataColumns; override;
     public
-      property Model : TWIZSendPASCModel read FModel write FModel;
+      property Model : TWIZOperationsModel.TSendPASCModel read FModel write FModel;
       procedure FetchAll(const AContainer : TList<TAccount>); override;
       function GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant; override;
   end;
@@ -90,11 +90,11 @@ begin
   end;
 
    data := TAccountSenderDataSource.Create(FSendersGrid);
-   data.Model := Model;
+   data.Model := Model.SendPASCModel;
    FSendersGrid.DataSource := data;
    paGrid.AddControlDockCenter(FSendersGrid);
-   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SignerAccount.account);
-   lblDestAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.DestinationAccount.account);
+   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SendPASCModel.SignerAccount.account);
+   lblDestAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SendPASCModel.DestinationAccount.account);
 end;
 
 { TAccountSenderDataSource }

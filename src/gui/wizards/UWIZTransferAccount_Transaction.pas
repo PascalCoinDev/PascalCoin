@@ -16,13 +16,13 @@ uses
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
   UFRMAccountSelect, UNode, UWizard, UWIZTransferAccount,
   UWIZTransferAccount_TransactionPayload,
-  UWIZTransferAccount_Confirmation;
+  UWIZTransferAccount_Confirmation, UWIZModels;
 
 type
 
   { TWIZTransferAccount_Transaction }
 
-  TWIZTransferAccount_Transaction = class(TWizardForm<TWIZTransferAccountModel>)
+  TWIZTransferAccount_Transaction = class(TWizardForm<TWIZOperationsModel>)
     cbSignerAccount: TComboBox;
     edtOpFee: TEdit;
     edtPublicKey: TEdit;
@@ -61,9 +61,7 @@ begin
   else
   begin
     lblBalance.Font.Color := clGreen;
-    lblBalance.Caption := Format('%s PASC',
-      [TAccountComp.FormatMoney(Model.SelectedAccounts[PtrInt(
-      cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])].Balance)]);
+    lblBalance.Caption := Format('%s PASC', [TAccountComp.FormatMoney(Model.TransferAccountModel.SelectedAccounts[PtrInt(cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])].Balance)]);
   end;
 end;
 
@@ -85,9 +83,9 @@ begin
   try
     cbSignerAccount.Items.Clear;
     cbSignerAccount.Items.Add('Select Signer Account');
-    for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+    for i := Low(Model.TransferAccountModel.SelectedAccounts) to High(Model.TransferAccountModel.SelectedAccounts) do
     begin
-      acc := Model.SelectedAccounts[i];
+      acc := Model.TransferAccountModel.SelectedAccounts[i];
       accNumberwithChecksum := GetAccNoWithChecksum(acc.account);
       totalBalance := totalBalance + acc.balance;
       cbSignerAccount.Items.AddObject(accNumberwithChecksum, TObject(i));
@@ -95,7 +93,7 @@ begin
   finally
     cbSignerAccount.Items.EndUpdate;
   end;
-  cbSignerAccount.ItemIndex := Model.SelectedIndex;
+  cbSignerAccount.ItemIndex := Model.TransferAccountModel.SelectedIndex;
   cbSignerAccountChange(Self);
   lblTotalBalanceValue.Caption :=
     Format('%s PASC', [TAccountComp.FormatMoney(totalBalance)]);
@@ -105,10 +103,10 @@ end;
 
 procedure TWIZTransferAccount_Transaction.OnNext;
 begin
-  Model.SelectedIndex := cbSignerAccount.ItemIndex;
-  Model.SignerAccount := Model.SelectedAccounts[PtrInt(
+  Model.TransferAccountModel.SelectedIndex := cbSignerAccount.ItemIndex;
+  Model.TransferAccountModel.SignerAccount := Model.TransferAccountModel.SelectedAccounts[PtrInt(
     cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
-  Model.NewPublicKey := Trim(edtPublicKey.Text);
+  Model.TransferAccountModel.NewPublicKey := Trim(edtPublicKey.Text);
 
   UpdatePath(ptReplaceAllNext, [TWIZTransferAccount_TransactionPayload,
     TWIZTransferAccount_Confirmation]);
@@ -126,7 +124,7 @@ begin
     Exit;
   end;
 
-  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.DefaultFee) then
+  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.TransferAccountModel.DefaultFee) then
   begin
     message := 'Invalid fee value "' + edtOpFee.Text + '"';
     Result := False;
@@ -134,11 +132,11 @@ begin
   end;
 
   Result := TAccountComp.AccountKeyFromImport(edtPublicKey.Text,
-    Model.AccountKey, message);
-  for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+    Model.TransferAccountModel.AccountKey, message);
+  for i := Low(Model.TransferAccountModel.SelectedAccounts) to High(Model.TransferAccountModel.SelectedAccounts) do
   begin
-    if TAccountComp.EqualAccountKeys(Model.SelectedAccounts[i].accountInfo.accountKey,
-      Model.AccountKey) then
+    if TAccountComp.EqualAccountKeys(Model.TransferAccountModel.SelectedAccounts[i].accountInfo.accountKey,
+      Model.TransferAccountModel.AccountKey) then
     begin
       Result := False;
       message := 'new public key is same as selected account public key';

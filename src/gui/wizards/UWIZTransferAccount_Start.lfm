@@ -6,7 +6,7 @@ object WIZTransferAccount_Start: TWIZTransferAccount_Start
   Caption = 'WIZTransferAccount_Start'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.1.0'
+  LCLVersion = '1.8.2.0'
   Visible = False
   object grpTransferAccount: TGroupBox
     Left = 6

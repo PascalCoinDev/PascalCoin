@@ -14,13 +14,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, UVisualGrid, UCommon.Data, UCellRenderers,
-  UWizard, UWIZTransferAccount, UWIZTransferAccount_Transaction, UWIZTransferAccount_Confirmation;
+  UWizard, UWIZTransferAccount, UWIZTransferAccount_Transaction, UWIZTransferAccount_Confirmation, UWIZModels;
 
 type
 
   { TWIZTransferAccount_Start }
 
-  TWIZTransferAccount_Start = class(TWizardForm<TWIZTransferAccountModel>)
+  TWIZTransferAccount_Start = class(TWizardForm<TWIZOperationsModel>)
     grpTransferAccount: TGroupBox;
     paGrid: TPanel;
   private
@@ -44,9 +44,9 @@ type
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
   private
-    FModel: TWIZTransferAccountModel;
+    FModel: TWIZOperationsModel.TTransferAccountModel;
   public
-    property Model: TWIZTransferAccountModel read FModel write FModel;
+    property Model: TWIZOperationsModel.TTransferAccountModel read FModel write FModel;
     procedure FetchAll(const AContainer: TList<TAccount>); override;
   end;
 
@@ -97,7 +97,7 @@ begin
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
   Data := TAccountSenderDataSource.Create(FSendersGrid);
-  Data.Model := Model;
+  Data.Model := Model.TransferAccountModel;
   FSendersGrid.DataSource := Data;
   paGrid.AddControlDockCenter(FSendersGrid);
 end;

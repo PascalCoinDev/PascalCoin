@@ -33,7 +33,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="95">
+    <Units Count="89">
       <Unit0>
         <Filename Value="pascalcoin_wallet.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -500,51 +500,9 @@
         <ResourceBaseClass Value="Form"/>
       </Unit87>
       <Unit88>
-        <Filename Value="gui\wizards\UWIZEnlistAccountForSale.pas"/>
+        <Filename Value="gui\wizards\UWIZModels.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit88>
-      <Unit89>
-        <Filename Value="gui\wizards\UWIZEnlistAccountForSale_Confirmation.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="WIZEnlistAccountForSale_Confirmation"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-      </Unit89>
-      <Unit90>
-        <Filename Value="gui\wizards\UWIZEnlistAccountForSale_Start.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="WIZEnlistAccountForSale_Start"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-      </Unit90>
-      <Unit91>
-        <Filename Value="gui\wizards\UWIZEnlistAccountForSale_Transaction.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="WIZEnlistAccountForSale_Transaction"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-      </Unit91>
-      <Unit92>
-        <Filename Value="gui\wizards\UWIZEnlistAccountForSale_TransactionPayload.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="WIZEnlistAccountForSale_TransactionPayload"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-      </Unit92>
-      <Unit93>
-        <Filename Value="gui\wizards\UWIZEnlistAccountForSale_List.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="WIZEnlistAccountForSale_List"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-      </Unit93>
-      <Unit94>
-        <Filename Value="gui\wizards\UWIZEnlistAccountForSale_PrivateSaleConfig.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="WIZEnlistAccountForSale_PrivateSaleConfig"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-      </Unit94>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

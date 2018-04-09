@@ -14,14 +14,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard,
-  UWIZChangeAccountPrivateKey;
+  UWIZChangeAccountPrivateKey, UWIZModels;
 
 type
 
   { TWIZChangeAccountPrivateKey_Confirmation }
 
-  TWIZChangeAccountPrivateKey_Confirmation =
-    class(TWizardForm<TWIZChangeAccountPrivateKeyModel>)
+  TWIZChangeAccountPrivateKey_Confirmation = class(TWizardForm<TWIZOperationsModel>)
     GroupBox1: TGroupBox;
     Label1: TLabel;
     lblSgnAcc: TLabel;
@@ -45,11 +44,11 @@ type
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
   private
-    FModel: TWIZChangeAccountPrivateKeyModel;
+    FModel: TWIZOperationsModel.TChangeAccountPrivateKeyModel;
   protected
     function GetColumns: TDataColumns; override;
   public
-    property Model: TWIZChangeAccountPrivateKeyModel read FModel write FModel;
+    property Model: TWIZOperationsModel.TChangeAccountPrivateKeyModel read FModel write FModel;
     procedure FetchAll(const AContainer: TList<TAccount>); override;
     function GetItemField(constref AItem: TAccount;
       const ABindingName: ansistring): variant; override;
@@ -90,11 +89,10 @@ begin
   end;
 
   Data := TAccountSenderDataSource.Create(FSendersGrid);
-  Data.Model := Model;
+  Data.Model := Model.ChangeAccountPrivateKeyModel;
   FSendersGrid.DataSource := Data;
   paGrid.AddControlDockCenter(FSendersGrid);
-  lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(
-    Model.SignerAccount.account);
+  lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.ChangeAccountPrivateKeyModel.SignerAccount.account);
 end;
 
 { TAccountSenderDataSource }

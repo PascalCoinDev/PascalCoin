@@ -13,36 +13,17 @@ interface
 
 uses
   Classes, SysUtils, Forms, Dialogs, UCrypto, UWallet, UCommon, UWizard,
-  UAccounts, LCLType;
+  UAccounts, LCLType, UWIZModels;
 
 type
 
-  { TWIZChangeAccountPrivateKeyModel }
-  TWIZPayloadEncryptionMode = (akaEncryptWithOldEC, akaEncryptWithEC,
-    akaEncryptWithPassword, akaNotEncrypt);
-
-  TWIZChangeAccountPrivateKeyModel = class(TComponent)
-  public
-    DefaultFee: int64;
-    NewPublicKey, Payload, EncryptionPassword: string;
-    SelectedIndex, PrivateKeySelectedIndex: integer;
-    NewWalletKey: TWalletKey;
-    EncodedPayload: TRawBytes;
-    SignerAccount: TAccount;
-    SelectedAccounts: TArray<TAccount>;
-    PayloadEncryptionMode: TWIZPayloadEncryptionMode;
-  end;
-
   { TWIZChangeAccountPrivateKeyWizard }
 
-  TWIZChangeAccountPrivateKeyWizard = class(TWizard<TWIZChangeAccountPrivateKeyModel>)
+  TWIZChangeAccountPrivateKeyWizard = class(TWizard<TWIZOperationsModel>)
   private
-    function UpdatePayload(const SenderAccount: TAccount;
-      var errors: string): boolean;
+    function UpdatePayload(const SenderAccount: TAccount; var errors: string): boolean;
     function UpdateOperationOptions(var errors: string): boolean;
-    function UpdateOpChangeKey(const TargetAccount: TAccount;
-      var SignerAccount: TAccount; var NewPublicKey: TAccountKey;
-      var errors: ansistring): boolean;
+    function UpdateOpChangeKey(const TargetAccount: TAccount; var SignerAccount: TAccount; var NewPublicKey: TAccountKey; var errors: ansistring): boolean;
     procedure ChangeAccountPrivateKey();
   public
     constructor Create(AOwner: TComponent); override;
@@ -76,9 +57,9 @@ var
 begin
   valid := False;
   payload_encrypted := '';
-  Model.EncodedPayload := '';
+  Model.ChangeAccountPrivateKeyModel.EncodedPayload := '';
   errors := 'Unknown error';
-  payload_u := Model.Payload;
+  payload_u := Model.ChangeAccountPrivateKeyModel.Payload;
 
   try
     if (payload_u = '') then
@@ -86,7 +67,7 @@ begin
       valid := True;
       Exit;
     end;
-    case Model.PayloadEncryptionMode of
+    case Model.ChangeAccountPrivateKeyModel.PayloadEncryptionMode of
 
       akaEncryptWithOldEC:
       begin
@@ -101,7 +82,7 @@ begin
       begin
         errors := 'Error encrypting';
 
-        public_key := Model.NewWalletKey.AccountKey;
+        public_key := Model.ChangeAccountPrivateKeyModel.NewWalletKey.AccountKey;
         if public_key.EC_OpenSSL_NID <>
           CT_Account_NUL.accountInfo.accountKey.EC_OpenSSL_NID then
         begin
@@ -119,7 +100,7 @@ begin
       akaEncryptWithPassword:
       begin
         payload_encrypted := TAESComp.EVP_Encrypt_AES256(
-          payload_u, Model.EncryptionPassword);
+          payload_u, Model.ChangeAccountPrivateKeyModel.EncryptionPassword);
         valid := payload_encrypted <> '';
       end;
 
@@ -146,7 +127,7 @@ begin
       end;
 
     end;
-    Model.EncodedPayload := payload_encrypted;
+    Model.ChangeAccountPrivateKeyModel.EncodedPayload := payload_encrypted;
     Result := valid;
   end;
 
@@ -170,7 +151,7 @@ begin
     Exit;
   end;
 
-  if Length(Model.SelectedAccounts) = 0 then
+  if Length(Model.ChangeAccountPrivateKeyModel.SelectedAccounts) = 0 then
   begin
     errors := 'No sender account';
     Exit;
@@ -178,9 +159,9 @@ begin
   else
   begin
 
-    for iAcc := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+    for iAcc := Low(Model.ChangeAccountPrivateKeyModel.SelectedAccounts) to High(Model.ChangeAccountPrivateKeyModel.SelectedAccounts) do
     begin
-      sender_account := Model.SelectedAccounts[iAcc];
+      sender_account := Model.ChangeAccountPrivateKeyModel.SelectedAccounts[iAcc];
       iWallet := TWallet.Keys.IndexOfAccountKey(sender_account.accountInfo.accountKey);
       if (iWallet < 0) then
       begin
@@ -208,7 +189,7 @@ begin
     end;
   end;
 
-  Result := UpdateOpChangeKey(Model.SelectedAccounts[0], signer_account,
+  Result := UpdateOpChangeKey(Model.ChangeAccountPrivateKeyModel.SelectedAccounts[0], signer_account,
     publicKey, errors);
   UpdatePayload(sender_account, e);
 end;
@@ -220,12 +201,12 @@ begin
   Result := False;
   errors := '';
   try
-    NewPublicKey := Model.NewWalletKey.AccountKey;
+    NewPublicKey := Model.ChangeAccountPrivateKeyModel.NewWalletKey.AccountKey;
 
     if TNode.Node.Bank.SafeBox.CurrentProtocol >= 1 then
     begin
       // Signer:
-      SignerAccount := Model.SignerAccount;
+      SignerAccount := Model.ChangeAccountPrivateKeyModel.SignerAccount;
       if (TAccountComp.IsAccountLocked(SignerAccount.accountInfo,
         TNode.Node.Bank.BlocksCount)) then
       begin
@@ -289,11 +270,11 @@ begin
     _signer_n_ops := 0;
     operationstxt := '';
     operation_to_string := '';
-    for iAcc := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+    for iAcc := Low(Model.ChangeAccountPrivateKeyModel.SelectedAccounts) to High(Model.ChangeAccountPrivateKeyModel.SelectedAccounts) do
     begin
       loop_start:
         op := nil;
-      account := Model.SelectedAccounts[iAcc];
+      account := Model.ChangeAccountPrivateKeyModel.SelectedAccounts[iAcc];
       if not UpdatePayload(account, errors) then
       begin
         raise Exception.Create('Error encoding payload of sender account ' +
@@ -308,8 +289,8 @@ begin
       wk := TWallet.Keys.Key[i];
       dooperation := True;
       // Default fee
-      if account.balance > uint64(Model.DefaultFee) then
-        _fee := Model.DefaultFee
+      if account.balance > uint64(Model.ChangeAccountPrivateKeyModel.DefaultFee) then
+        _fee := Model.ChangeAccountPrivateKeyModel.DefaultFee
       else
         _fee := account.balance;
 
@@ -320,11 +301,11 @@ begin
       if _V2 then
       begin
         // must ensure is Signer account last if included in sender accounts (not necessarily ordered enumeration)
-        if (iAcc < Length(Model.SelectedAccounts) - 1) and
+        if (iAcc < Length(Model.ChangeAccountPrivateKeyModel.SelectedAccounts) - 1) and
           (account.account = signerAccount.account) then
         begin
-          TArrayTool<TAccount>.Swap(Model.SelectedAccounts, iAcc,
-            Length(Model.SelectedAccounts) - 1); // ensure signer account processed last
+          TArrayTool<TAccount>.Swap(Model.ChangeAccountPrivateKeyModel.SelectedAccounts, iAcc,
+            Length(Model.ChangeAccountPrivateKeyModel.SelectedAccounts) - 1); // ensure signer account processed last
           // TArrayTool_internal<Cardinal>.Swap(_senderAccounts, iAcc, Length(_senderAccounts) - 1);
           goto loop_start; // TODO: remove ugly hack with refactoring!
         end;
@@ -333,13 +314,13 @@ begin
         if uint64(_totalSignerFee) >= signerAccount.balance then
           _fee := 0
         else if signerAccount.balance - uint64(_totalSignerFee) >
-          uint64(Model.DefaultFee) then
-          _fee := Model.DefaultFee
+          uint64(Model.ChangeAccountPrivateKeyModel.DefaultFee) then
+          _fee := Model.ChangeAccountPrivateKeyModel.DefaultFee
         else
           _fee := signerAccount.balance - uint64(_totalSignerFee);
         op := TOpChangeKeySigned.Create(signerAccount.account,
           signerAccount.n_operation + _signer_n_ops + 1, account.account,
-          wk.PrivateKey, _newOwnerPublicKey, _fee, Model.EncodedPayload);
+          wk.PrivateKey, _newOwnerPublicKey, _fee, Model.ChangeAccountPrivateKeyModel.EncodedPayload);
         Inc(_signer_n_ops);
         Inc(_totalSignerFee, _fee);
       end
@@ -347,7 +328,7 @@ begin
       begin
         op := TOpChangeKey.Create(account.account, account.n_operation +
           1, account.account, wk.PrivateKey, _newOwnerPublicKey, _fee,
-          Model.EncodedPayload);
+          Model.ChangeAccountPrivateKeyModel.EncodedPayload);
       end;
       Inc(_totalfee, _fee);
       operationstxt :=
@@ -367,11 +348,11 @@ begin
     if (ops.OperationsCount = 0) then
       raise Exception.Create('No valid operation to execute');
 
-    if (Length(Model.SelectedAccounts) > 1) then
+    if (Length(Model.ChangeAccountPrivateKeyModel.SelectedAccounts) > 1) then
     begin
       auxs := '';
       if Application.MessageBox(
-        PChar('Execute ' + IntToStr(Length(Model.SelectedAccounts)) +
+        PChar('Execute ' + IntToStr(Length(Model.ChangeAccountPrivateKeyModel.SelectedAccounts)) +
         ' operations?' + #10 + 'Operation: ' + operationstxt + #10 +
         auxs + 'Total fee: ' + TAccountComp.FormatMoney(_totalfee) +
         #10 + #10 + 'Note: This operation will be transmitted to the network!'),

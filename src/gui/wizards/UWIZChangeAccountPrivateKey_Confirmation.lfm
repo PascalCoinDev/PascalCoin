@@ -6,7 +6,7 @@ object WIZChangeAccountPrivateKey_Confirmation: TWIZChangeAccountPrivateKey_Conf
   Caption = 'WIZChangeAccountPrivateKey_Confirmation'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.1.0'
+  LCLVersion = '1.8.2.0'
   Visible = False
   object GroupBox1: TGroupBox
     Left = 10

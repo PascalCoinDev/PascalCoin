@@ -10,7 +10,7 @@ uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Menus,
   ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon.UI, Generics.Collections,
   UAccounts, UDataSources, UNode, UWIZSendPASC, UWIZTransferAccount,
-  UWIZChangeAccountPrivateKey, UWIZEnlistAccountForSale;
+  UWIZChangeAccountPrivateKey;
 
 type
 
@@ -104,7 +104,7 @@ implementation
 
 uses
   UUserInterface, UCellRenderers, UBlockChain, UWallet, UCrypto, UCoreUtils,
-  UCommon, UMemory, Generics.Defaults, UCommon.Data, UCommon.Collections;
+  UCommon, UMemory, Generics.Defaults, UCommon.Data, UCommon.Collections, UWIZModels;
 
 {$R *.lfm}
 
@@ -390,8 +390,8 @@ end;
 //  Result := ARow.Account;
 //end;
 
-function TCTRLWallet.GetAccounts(const AccountNumbers: TArray<cardinal>):
-TArray<TAccount>;
+function TCTRLWallet.GetAccounts(
+  const AccountNumbers: TArray<cardinal>): TArray<TAccount>;
 var
   acc: TAccount;
   safeBox: TPCSafeBox;
@@ -637,18 +637,18 @@ procedure TCTRLWallet.miSendPASCClick(Sender: TObject);
 var
   Scoped: TDisposables;
   wiz: TWIZSendPASCWizard;
-  model: TWizSendPASCModel;
+  model: TWIZOperationsModel;
   AccountNumbersWithoutChecksum: TArray<cardinal>;
 begin
   wiz := Scoped.AddObject(TWIZSendPASCWizard.Create(nil)) as TWIZSendPASCWizard;
-  model := Scoped.AddObject(TWizSendPASCModel.Create(nil)) as TWizSendPASCModel;
+  model := TWIZOperationsModel.Create(wiz, omtSendPasc);
 
   AccountNumbersWithoutChecksum :=
     TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,
     GetAccNoWithoutChecksum);
 
-  model.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
-  model.SelectedIndex := 0;
+  model.SendPASCModel.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
+  model.SendPASCModel.SelectedIndex := 0;
   wiz.Start(model);
 end;
 
@@ -656,20 +656,18 @@ procedure TCTRLWallet.miTransferAccountsClick(Sender: TObject);
 var
   Scoped: TDisposables;
   wiz: TWIZTransferAccountWizard;
-  model: TWIZTransferAccountModel;
+  model: TWIZOperationsModel;
   AccountNumbersWithoutChecksum: TArray<cardinal>;
 begin
   wiz := Scoped.AddObject(TWIZTransferAccountWizard.Create(nil)) as
     TWIZTransferAccountWizard;
-  model := Scoped.AddObject(TWIZTransferAccountModel.Create(nil)) as
-    TWIZTransferAccountModel;
-
+  model := TWIZOperationsModel.Create(wiz, omtTransferAccount);
   AccountNumbersWithoutChecksum :=
     TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,
     GetAccNoWithoutChecksum);
 
-  model.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
-  model.SelectedIndex := 0;
+  model.TransferAccountModel.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
+  model.TransferAccountModel.SelectedIndex := 0;
   wiz.Start(model);
 end;
 
@@ -677,42 +675,24 @@ procedure TCTRLWallet.miChangeAccountsPrivateKeyClick(Sender: TObject);
 var
   Scoped: TDisposables;
   wiz: TWIZChangeAccountPrivateKeyWizard;
-  model: TWIZChangeAccountPrivateKeyModel;
+  model: TWIZOperationsModel;
   AccountNumbersWithoutChecksum: TArray<cardinal>;
 begin
-  wiz := Scoped.AddObject(TWIZChangeAccountPrivateKeyWizard.Create(nil)) as
-    TWIZChangeAccountPrivateKeyWizard;
-  model := Scoped.AddObject(TWIZChangeAccountPrivateKeyModel.Create(nil)) as
-    TWIZChangeAccountPrivateKeyModel;
+  wiz := Scoped.AddObject(TWIZChangeAccountPrivateKeyWizard.Create(nil)) as TWIZChangeAccountPrivateKeyWizard;
+  model := TWIZOperationsModel.Create(wiz, omtChangeAccountPrivateKey);
 
   AccountNumbersWithoutChecksum :=
     TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,
     GetAccNoWithoutChecksum);
 
-  model.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
-  model.SelectedIndex := 0;
+  model.ChangeAccountPrivateKeyModel.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
+  model.ChangeAccountPrivateKeyModel.SelectedIndex := 0;
   wiz.Start(model);
 end;
 
 procedure TCTRLWallet.miEnlistAccountsForSaleClick(Sender: TObject);
-var
-  Scoped: TDisposables;
-  wiz: TWIZEnlistAccountForSaleWizard;
-  model: TWIZEnlistAccountForSaleModel;
-  AccountNumbersWithoutChecksum: TArray<cardinal>;
 begin
-  wiz := Scoped.AddObject(TWIZEnlistAccountForSaleWizard.Create(nil)) as
-    TWIZEnlistAccountForSaleWizard;
-  model := Scoped.AddObject(TWIZEnlistAccountForSaleModel.Create(nil)) as
-    TWIZEnlistAccountForSaleModel;
-
-  AccountNumbersWithoutChecksum :=
-    TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,
-    GetAccNoWithoutChecksum);
-
-  model.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
-  model.SelectedIndex := 0;
-  wiz.Start(model);
+ raise ENotImplemented.Create('not yet implemented.');
 end;
 
 procedure TCTRLWallet.miDelistAccountsFromSaleClick(Sender: TObject);

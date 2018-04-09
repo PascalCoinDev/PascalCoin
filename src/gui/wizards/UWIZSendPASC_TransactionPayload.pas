@@ -14,13 +14,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections,
-  UWizard, UWIZSendPASC;
+  UWizard, UWIZSendPASC, UWIZModels;
 
 type
 
   { TWIZSendPASC_TransactionPayload }
 
-  TWIZSendPASC_TransactionPayload = class(TWizardForm<TWIZSendPASCModel>)
+  TWIZSendPASC_TransactionPayload = class(TWizardForm<TWIZOperationsModel>)
     edtPassword: TEdit;
     grpPayload: TGroupBox;
     Label1: TLabel;
@@ -48,25 +48,25 @@ uses
 
 procedure TWIZSendPASC_TransactionPayload.OnNext;
 begin
-  Model.Payload := mmoPayload.Lines.Text;
+  Model.SendPASCModel.Payload := mmoPayload.Lines.Text;
   if rbEncryptedWithOldEC.Checked then
   begin
-    Model.PayloadEncryptionMode := akaEncryptWithOldEC;
+    Model.SendPASCModel.PayloadEncryptionMode := akaEncryptWithOldEC;
   end
   else
   if rbEncryptedWithEC.Checked then
   begin
-    Model.PayloadEncryptionMode := akaEncryptWithEC;
+    Model.SendPASCModel.PayloadEncryptionMode := akaEncryptWithEC;
   end
   else
   if rbEncryptedWithPassword.Checked then
   begin
-    Model.PayloadEncryptionMode := akaEncryptWithPassword;
+    Model.SendPASCModel.PayloadEncryptionMode := akaEncryptWithPassword;
   end
   else
   if rbNotEncrypted.Checked then
   begin
-    Model.PayloadEncryptionMode := akaNotEncrypt;
+    Model.SendPASCModel.PayloadEncryptionMode := akaNotEncrypt;
   end;
 end;
 

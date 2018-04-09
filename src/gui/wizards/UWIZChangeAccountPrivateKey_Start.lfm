@@ -6,6 +6,7 @@ object WIZChangeAccountPrivateKey_Start: TWIZChangeAccountPrivateKey_Start
   Caption = 'WIZChangeAccountPrivateKey_Start'
   ClientHeight = 253
   ClientWidth = 429
+  LCLVersion = '1.8.2.0'
   Visible = False
   object grpSelectedAccount: TGroupBox
     Left = 6

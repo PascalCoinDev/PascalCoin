@@ -14,13 +14,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections,
-  UWizard, UWIZChangeAccountPrivateKey;
+  UWizard, UWIZChangeAccountPrivateKey, UWIZModels;
 
 type
 
   { TWIZChangeAccountPrivateKey_TransactionPayload }
 
-  TWIZChangeAccountPrivateKey_TransactionPayload = class(TWizardForm<TWIZChangeAccountPrivateKeyModel>)
+  TWIZChangeAccountPrivateKey_TransactionPayload = class(TWizardForm<TWIZOperationsModel>)
     edtPassword: TEdit;
     grpPayload: TGroupBox;
     Label1: TLabel;
@@ -48,25 +48,25 @@ uses
 
 procedure TWIZChangeAccountPrivateKey_TransactionPayload.OnNext;
 begin
-  Model.Payload := mmoPayload.Lines.Text;
+  Model.ChangeAccountPrivateKeyModel.Payload := mmoPayload.Lines.Text;
   if rbEncryptedWithOldEC.Checked then
   begin
-    Model.PayloadEncryptionMode := akaEncryptWithOldEC;
+    Model.ChangeAccountPrivateKeyModel.PayloadEncryptionMode := akaEncryptWithOldEC;
   end
   else
   if rbEncryptedWithEC.Checked then
   begin
-    Model.PayloadEncryptionMode := akaEncryptWithEC;
+    Model.ChangeAccountPrivateKeyModel.PayloadEncryptionMode := akaEncryptWithEC;
   end
   else
   if rbEncryptedWithPassword.Checked then
   begin
-    Model.PayloadEncryptionMode := akaEncryptWithPassword;
+    Model.ChangeAccountPrivateKeyModel.PayloadEncryptionMode := akaEncryptWithPassword;
   end
   else
   if rbNotEncrypted.Checked then
   begin
-    Model.PayloadEncryptionMode := akaNotEncrypt;
+    Model.ChangeAccountPrivateKeyModel.PayloadEncryptionMode := akaNotEncrypt;
   end;
 end;
 

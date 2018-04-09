@@ -6,7 +6,8 @@ object WIZAddKey_GenerateOrImport: TWIZAddKey_GenerateOrImport
   Caption = 'Add Key'
   ClientHeight = 285
   ClientWidth = 448
-  LCLVersion = '1.6.4.0'
+  LCLVersion = '1.8.2.0'
+  Visible = False
   object rbPrivateKey: TRadioButton
     Left = 32
     Height = 19

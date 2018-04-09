@@ -11,20 +11,9 @@ unit UWIZAddKey;
 interface
 
 uses
-  Classes, SysUtils, Forms, UWizard;
+  Classes, SysUtils, Forms, UWizard, UWIZModels;
 
 type
-
-  { TFRMAddKeyModel }
-  TWIZAddKeyAction = (akaGenerateKey, akaImportPrivateKey, akaImportPublicKey);
-  TWIZAddKeyModel = class(TComponent)
-    public
-      Name : String;
-      KeyText : String;
-      Password : String;
-      EncryptionTypeNID : word;
-      Action : TWIZAddKeyAction;
-  end;
 
   { TWIZAddKeyWizard }
 

@@ -17,13 +17,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, UVisualGrid, UCommon.Data, UCellRenderers,
-  UWizard, UWIZSendPASC, UWIZSendPASC_Transaction, UWIZSendPASC_Confirmation;
+  UWizard, UWIZSendPASC, UWIZSendPASC_Transaction, UWIZSendPASC_Confirmation, UWIZModels;
 
 type
 
   { TWIZSendPASC_Start }
 
-  TWIZSendPASC_Start = class(TWizardForm<TWIZSendPASCModel>)
+  TWIZSendPASC_Start = class(TWizardForm<TWIZOperationsModel>)
     gpSender: TGroupBox;
     paGrid: TPanel;
   private
@@ -47,9 +47,9 @@ type
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
     private
-      FModel : TWIZSendPASCModel;
+      FModel : TWIZOperationsModel.TSendPASCModel;
     public
-      property Model : TWIZSendPASCModel read FModel write FModel;
+      property Model : TWIZOperationsModel.TSendPASCModel read FModel write FModel;
       procedure FetchAll(const AContainer : TList<TAccount>); override;
   end;
 
@@ -87,7 +87,7 @@ begin
     Filters:=SORTABLE_NUMERIC_FILTER;
   end;
   data := TAccountSenderDataSource.Create(FSendersGrid);
-  data.Model := Model;
+  data.Model := Model.SendPASCModel;
   FSendersGrid.DataSource := data;
   paGrid.AddControlDockCenter(FSendersGrid);
 end;

@@ -14,13 +14,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, UVisualGrid, UCommon.Data, UCellRenderers,
-  UWizard, UWIZChangeAccountPrivateKey, UWIZChangeAccountPrivateKey_Transaction, UWIZChangeAccountPrivateKey_Confirmation;
+  UWizard, UWIZChangeAccountPrivateKey, UWIZChangeAccountPrivateKey_Transaction, UWIZChangeAccountPrivateKey_Confirmation, UWIZModels;
 
 type
 
   { TWIZChangeAccountPrivateKey_Start }
 
-  TWIZChangeAccountPrivateKey_Start = class(TWizardForm<TWIZChangeAccountPrivateKeyModel>)
+  TWIZChangeAccountPrivateKey_Start = class(TWizardForm<TWIZOperationsModel>)
     grpSelectedAccount: TGroupBox;
     paGrid: TPanel;
   private
@@ -44,9 +44,9 @@ type
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
   private
-    FModel: TWIZChangeAccountPrivateKeyModel;
+    FModel: TWIZOperationsModel.TChangeAccountPrivateKeyModel;
   public
-    property Model: TWIZChangeAccountPrivateKeyModel read FModel write FModel;
+    property Model: TWIZOperationsModel.TChangeAccountPrivateKeyModel read FModel write FModel;
     procedure FetchAll(const AContainer: TList<TAccount>); override;
   end;
 
@@ -97,7 +97,7 @@ begin
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
   Data := TAccountSenderDataSource.Create(FSendersGrid);
-  Data.Model := Model;
+  Data.Model := Model.ChangeAccountPrivateKeyModel;
   FSendersGrid.DataSource := Data;
   paGrid.AddControlDockCenter(FSendersGrid);
 end;

@@ -6,7 +6,8 @@ object WIZAddKey_ImportPubKey: TWIZAddKey_ImportPubKey
   Caption = 'WIZAddKey_ImportPubKey'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.6.4.0'
+  LCLVersion = '1.8.2.0'
+  Visible = False
   object Label1: TLabel
     Left = 32
     Height = 32

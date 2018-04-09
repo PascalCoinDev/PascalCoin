@@ -6,7 +6,8 @@ object WIZAddKey_EnterName: TWIZAddKey_EnterName
   Caption = 'WIZAddKey_EnterName'
   ClientHeight = 100
   ClientWidth = 334
-  LCLVersion = '1.6.4.0'
+  LCLVersion = '1.8.2.0'
+  Visible = False
   object Label2: TLabel
     Left = 17
     Height = 15
