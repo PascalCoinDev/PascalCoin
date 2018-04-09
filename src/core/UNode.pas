@@ -387,7 +387,7 @@ begin
             TLog.NewLog(ltdebug,Classname,Format('AddOperation invalid/duplicated %d/%d: %s  - Error:%s',
               [(j+1),OperationsHashTree.OperationsCount,ActOp.ToString,e]));
             if Assigned(OperationsResult) then begin
-              TPCOperation.OperationToOperationResume(0,ActOp,ActOp.SignerAccount,OPR);
+              TPCOperation.OperationToOperationResume(0,ActOp,True,ActOp.SignerAccount,OPR);
               OPR.valid := false;
               OPR.NOpInsideBlock:=-1;
               OPR.OperationHash := '';
@@ -401,7 +401,7 @@ begin
               valids_operations.AddOperationToHashTree(ActOp);
               TLog.NewLog(ltdebug,Classname,Format('AddOperation %d/%d: %s',[(j+1),OperationsHashTree.OperationsCount,ActOp.ToString]));
               if Assigned(OperationsResult) then begin
-                TPCOperation.OperationToOperationResume(0,ActOp,ActOp.SignerAccount,OPR);
+                TPCOperation.OperationToOperationResume(0,ActOp,True,ActOp.SignerAccount,OPR);
                 OPR.NOpInsideBlock:=FOperations.Count-1;
                 OPR.Balance := FOperations.SafeBoxTransaction.Account(ActOp.SignerAccount).balance;
                 OperationsResult.Add(OPR);
@@ -412,7 +412,7 @@ begin
               TLog.NewLog(ltdebug,Classname,Format('AddOperation invalid/duplicated %d/%d: %s  - Error:%s',
                 [(j+1),OperationsHashTree.OperationsCount,ActOp.ToString,e]));
               if Assigned(OperationsResult) then begin
-                TPCOperation.OperationToOperationResume(0,ActOp,ActOp.SignerAccount,OPR);
+                TPCOperation.OperationToOperationResume(0,ActOp,True,ActOp.SignerAccount,OPR);
                 OPR.valid := false;
                 OPR.NOpInsideBlock:=-1;
                 OPR.OperationHash := '';
@@ -439,7 +439,7 @@ begin
           if (errors<>'') then errors := errors+' ';
           errors := errors + e;
           if Assigned(OperationsResult) then begin
-            TPCOperation.OperationToOperationResume(0,ActOp,ActOp.SignerAccount,OPR);
+            TPCOperation.OperationToOperationResume(0,ActOp,True,ActOp.SignerAccount,OPR);
             OPR.valid := false;
             OPR.NOpInsideBlock:=-1;
             OPR.OperationHash := '';
@@ -744,7 +744,7 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
           opc.OperationsHashTree.GetOperationsAffectingAccount(account_number,l);
           for i := l.Count - 1 downto 0 do begin
             op := opc.Operation[PtrInt(l.Items[i])];
-            If TPCOperation.OperationToOperationResume(block_number,Op,account_number,OPR) then begin
+            If TPCOperation.OperationToOperationResume(block_number,Op,False,account_number,OPR) then begin
               OPR.NOpInsideBlock := Op.tag; // Note: Used Op.tag to include operation index inside a list
               OPR.time := opc.OperationBlock.timestamp;
               OPR.Block := block_number;
@@ -867,7 +867,7 @@ begin
         op := Operations.Operation[i];
         If (op.IsSignerAccount(account)) then begin
           If (op.GetAccountN_Operation(account)<=n_operation) then begin
-            TPCOperation.OperationToOperationResume(0,op,account,opr);
+            TPCOperation.OperationToOperationResume(0,op,False,account,opr);
             opr.Balance:=-1;
             OpResumeList.Add(opr);
             dec(n_operation);
@@ -895,7 +895,7 @@ begin
           If (n_operation_high=n_operation_low) and (op.GetAccountN_Operation(account)=n_operation) // If searching only 1 n_operation, n_operation must match
             Or
             (n_operation_high>n_operation_low) and (op.GetAccountN_Operation(account)<=n_operation) and (op.GetAccountN_Operation(account)>=n_operation_low) and (op.GetAccountN_Operation(account)<=n_operation_high) then begin
-            TPCOperation.OperationToOperationResume(block,op,account,opr);
+            TPCOperation.OperationToOperationResume(block,op,True,account,opr);
             opr.time:=Bank.SafeBox.Block(block).blockchainInfo.timestamp;
             opr.NOpInsideBlock:=i;
             opr.Balance:=-1;
@@ -912,8 +912,8 @@ begin
             end;
           end;
         end;
-        block := OperationComp.PreviousUpdatedBlocks.GetPreviousUpdatedBlock(account,block);
       end;
+      block := OperationComp.PreviousUpdatedBlocks.GetPreviousUpdatedBlock(account,block);
       if (block>aux_block) then exit // Error... not found a valid block positioning
       else if (block=aux_block) then begin
         if ((start_block=0) Or (allow_search_previous)) then dec(block) // downgrade until found a block with operations

@@ -200,7 +200,7 @@ Type
     procedure InitializeData; virtual;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; virtual; abstract;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; virtual; abstract;
-    procedure FillOperationResume(Block : Cardinal; Affected_account_number : Cardinal; var OperationResume : TOperationResume); virtual;
+    procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); virtual;
     Property Previous_Signer_updated_block : Cardinal read FPrevious_Signer_updated_block; // deprecated
     Property Previous_Destination_updated_block : Cardinal read FPrevious_Destination_updated_block; // deprecated
     Property Previous_Seller_updated_block : Cardinal read FPrevious_Seller_updated_block; // deprecated
@@ -211,7 +211,7 @@ Type
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors: AnsiString): Boolean; virtual; abstract;
     procedure AffectedAccounts(list : TList); virtual; abstract;
     class function OpType: Byte; virtual; abstract;
-    Class Function OperationToOperationResume(Block : Cardinal; Operation : TPCOperation; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean; virtual;
+    Class Function OperationToOperationResume(Block : Cardinal; Operation : TPCOperation; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean; virtual;
     function OperationAmount : Int64; virtual; abstract;
     function OperationAmountByAccount(account : Cardinal) : Int64; virtual;
     function OperationFee: UInt64; virtual; abstract;
@@ -473,6 +473,7 @@ Const
   CT_TMultiOpSender_NUL : TMultiOpSender =  (Account:0;Amount:0;N_Operation:0;Payload:'';Signature:(r:'';s:''));
   CT_TMultiOpReceiver_NUL : TMultiOpReceiver = (Account:0;Amount:0;Payload:'');
   CT_TMultiOpChangeInfo_NUL : TMultiOpChangeInfo = (Account:0;N_Operation:0;Changes_type:[];New_Accountkey:(EC_OpenSSL_NID:0;x:'';y:'');New_Name:'';New_Type:0;Signature:(r:'';s:''));
+  CT_TOpChangeAccountInfoType_Txt : Array[Low(TOpChangeAccountInfoType)..High(TOpChangeAccountInfoType)] of AnsiString = ('public_key','account_name','account_type');
 
 implementation
 
@@ -2356,7 +2357,7 @@ begin
   FSignatureChecked := False;
 end;
 
-procedure TPCOperation.FillOperationResume(Block: Cardinal; Affected_account_number: Cardinal; var OperationResume: TOperationResume);
+procedure TPCOperation.FillOperationResume(Block: Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume);
 begin
   // XXXXXXXXXXXXXXXX
   // TODO
@@ -2455,7 +2456,7 @@ begin
   end;
 end;
 
-class function TPCOperation.OperationToOperationResume(Block : Cardinal; Operation: TPCOperation; Affected_account_number: Cardinal; var OperationResume: TOperationResume): Boolean;
+class function TPCOperation.OperationToOperationResume(Block : Cardinal; Operation: TPCOperation; getInfoForAllAccounts : Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume): Boolean;
 Var spayload : AnsiString;
   s : AnsiString;
 begin
@@ -2593,7 +2594,6 @@ begin
     end;
     CT_Op_MultiOperation : Begin
       OperationResume.isMultiOperation:=True;
-      OperationResume.OpSubtype := CT_OpSubtype_MultiOperation;
       OperationResume.OperationTxt := Operation.ToString;
       OperationResume.Amount := Operation.OperationAmountByAccount(Affected_account_number);
       OperationResume.Fee := 0;
@@ -2609,7 +2609,7 @@ begin
     OperationResume.OperationHash_OLD:=TPCOperation.OperationHash_OLD(Operation,Block);
   end;
   OperationResume.valid := true;
-  Operation.FillOperationResume(Block,Affected_account_number,OperationResume);
+  Operation.FillOperationResume(Block,getInfoForAllAccounts,Affected_account_number,OperationResume);
 end;
 
 function TPCOperation.IsSignerAccount(account: Cardinal): Boolean;
