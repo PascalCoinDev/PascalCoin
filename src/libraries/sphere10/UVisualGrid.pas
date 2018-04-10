@@ -154,7 +154,7 @@ uses
 
   { TVisualGridOptions }
 
-  TVisualGridOptions = set of (vgoColAutoFill, vgoColSizing, vgoAutoHidePaging, vgoMultiSearchCheckComboBox, vgoSortDirectionAllowNone);
+  TVisualGridOptions = set of (vgoColAutoFill, vgoColSizing, vgoAutoHidePaging, vgoAutoHideSearchPanel, vgoMultiSearchCheckComboBox, vgoSortDirectionAllowNone);
 
   { TSortMode }
 
@@ -1812,10 +1812,12 @@ procedure TCustomVisualGrid.SetOptions(AValue: TVisualGridOptions);
 var
   LSortDirectionAllowNone: boolean;
   LAutoHidePaging: boolean;
+  LAutoHideSearchPanel: boolean;
 begin
   if FOptions=AValue then Exit;
   LSortDirectionAllowNone := vgoSortDirectionAllowNone in FOptions;
   LAutoHidePaging := vgoAutoHidePaging in FOptions;
+  LAutoHideSearchPanel := vgoAutoHideSearchPanel in FOptions;
 
   FOptions:=AValue;
   if vgoColSizing in FOptions then
@@ -1829,8 +1831,8 @@ begin
   // refresh for sort direction graphic
   if LSortDirectionAllowNone <> (vgoSortDirectionAllowNone in AValue) then
     SortDirectionGlyphRefresh;
-  // try to hide paging panel
-  if LAutoHidePaging <>  (vgoAutoHidePaging in AValue) then
+  // try to hide paging panel or search panel
+  if (LAutoHidePaging <> (vgoAutoHidePaging in AValue)) or (LAutoHideSearchPanel <> (vgoAutoHideSearchPanel in AValue)) then
     RefreshPageIndexAndGridInterface;
 end;
 
@@ -1973,8 +1975,20 @@ end;
 
 procedure TCustomVisualGrid.RefreshPageIndexAndGridInterface;
 var
-  LCountOnPage2, LCount: Integer;
-  LGridUnusedHeight: integer;
+  LCountOnPage2: Integer;
+  LGridUnusedHeight, LPotentialHeight: integer;
+  LWasVisible: boolean;
+
+  function RecalcPageCount: boolean;
+  var
+    LCount: Integer;
+  begin
+    LCount := ClientRowCount;
+    Result := LCount <> PageSize;
+    if Result then
+      PageSize := LCount;
+  end;
+
 begin
   SetPageIndexEditText(IntToStr(Succ(FPageIndex)));
   FPageCountLabel.Caption := Format('/%d',[FPageCount]);
@@ -1991,8 +2005,12 @@ begin
         begin
           LCountOnPage2 := FTotalDataCount - ClientRowCount;
           LGridUnusedHeight := FDrawGrid.ClientHeight - FDrawGrid.GridHeight;
+          LPotentialHeight := FBottomPanel.Height + LGridUnusedHeight;
+          // vgoAutoHideSearchPanel + AutoPageSize + vgoAutoHidePaging is killer combo :P
+          if (vgoAutoHideSearchPanel in FOptions) and FTopPanel.Visible and not Assigned(FWidgetControl) then
+            LPotentialHeight := LPotentialHeight + FTopPanel.Height;
           if FBottomPanel.Visible
-           and (FDrawGrid.DefaultRowHeight * LCountOnPage2 <= FBottomPanel.Height + LGridUnusedHeight) then
+           and (FDrawGrid.DefaultRowHeight * LCountOnPage2 <= LPotentialHeight) then
           begin
             FBottomPanel.Visible := False;
             PageSize := PageSize + LCountOnPage2;
@@ -2002,19 +2020,42 @@ begin
             if FCanPage then
             begin
               FBottomPanel.Visible := true;
-              LCount := ClientRowCount;
-              if LCount <> PageSize then
-              begin
-                PageSize := LCount;
+              if RecalcPageCount then
                 Exit;
-              end;
             end;
           end;
         end else
           FBottomPanel.Visible := FCanPage
     end
   else
+  begin
+    LWasVisible := FBottomPanel.Visible;
     FBottomPanel.Visible := FCanPage;
+    if (FTopPanel.Visible <> LWasVisible) and RecalcPageCount then
+      Exit;
+  end;
+
+  // show or hide Search Panel (related to option vgoAutoHideSearchPanel)
+  if (vgoAutoHideSearchPanel in FOptions) and (FPageCount in [0,1]) then
+  begin
+    if FCanSearch then
+    begin
+      // if widget control is set, only hide search controls
+      LWasVisible := FTopPanel.Visible;
+      FTopPanel.Visible := Assigned(FWidgetControl);
+      FTopPanelRight.Visible := not Assigned(FWidgetControl);
+      if (FTopPanel.Visible <> LWasVisible) and RecalcPageCount then
+        Exit;
+    end;
+  end
+  else
+  begin
+    LWasVisible := FTopPanel.Visible;
+    FTopPanel.Visible := FCanSearch;
+    FTopPanelRight.Visible := true;
+    if (FTopPanel.Visible <> LWasVisible) and RecalcPageCount then
+      Exit;
+  end;
 
   FDrawGrid.Refresh;
   if Assigned(FOnFinishedUpdating) then
@@ -2341,12 +2382,15 @@ begin
 end;
 
 procedure TCustomVisualGrid.SetWidgetControl(AValue: TControl);
+var
+  LRefreshPageIndexAndGridInterface: boolean;
 begin
   if FWidgetControl=AValue then Exit;
 
   if Assigned(FWidgetControl) then
     FWidgetControl.Parent := FWidgetControlParent;
 
+  LRefreshPageIndexAndGridInterface := (not Assigned(FWidgetControl) and Assigned(AValue)) or (not Assigned(AValue) and Assigned(FWidgetControl));
   FWidgetControl:=AValue;
 
   if Assigned(AValue) then
@@ -2366,6 +2410,9 @@ begin
     end;
   end else
     FTopPanelLeft.Width:=0;
+
+  if LRefreshPageIndexAndGridInterface then
+    RefreshPageIndexAndGridInterface;
 end;
 
 procedure TCustomVisualGrid.StandardDrawCell(Sender: TObject; ACol, ARow: Longint; Rect: TRect; State: TGridDrawState);
