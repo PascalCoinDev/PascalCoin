@@ -48,25 +48,25 @@ uses
 
 procedure TWIZSendPASC_TransactionPayload.OnNext;
 begin
-  Model.PayloadModel.Payload := mmoPayload.Lines.Text;
+  Model.Payload.Payload := mmoPayload.Lines.Text;
   if rbEncryptedWithOldEC.Checked then
   begin
-    Model.PayloadModel.PayloadEncryptionMode := akaEncryptWithOldEC;
+    Model.Payload.PayloadEncryptionMode := akaEncryptWithOldEC;
   end
   else
   if rbEncryptedWithEC.Checked then
   begin
-    Model.PayloadModel.PayloadEncryptionMode := akaEncryptWithEC;
+    Model.Payload.PayloadEncryptionMode := akaEncryptWithEC;
   end
   else
   if rbEncryptedWithPassword.Checked then
   begin
-    Model.PayloadModel.PayloadEncryptionMode := akaEncryptWithPassword;
+    Model.Payload.PayloadEncryptionMode := akaEncryptWithPassword;
   end
   else
   if rbNotEncrypted.Checked then
   begin
-    Model.PayloadModel.PayloadEncryptionMode := akaNotEncrypt;
+    Model.Payload.PayloadEncryptionMode := akaNotEncrypt;
   end;
 end;
 

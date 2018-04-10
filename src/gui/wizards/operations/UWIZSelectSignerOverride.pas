@@ -62,7 +62,7 @@ begin
   begin
     lblBalance.Font.Color := clGreen;
     lblBalance.Caption := Format('%s PASC',
-      [TAccountComp.FormatMoney(Model.SendPASCModel.SelectedAccounts[PtrInt(
+      [TAccountComp.FormatMoney(Model.SendPASC.SelectedAccounts[PtrInt(
       cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])].Balance)]);
   end;
 end;
@@ -83,31 +83,31 @@ begin
   try
     cbSignerAccount.Items.Clear;
     cbSignerAccount.Items.Add('Select Signer Account');
-    for i := Low(Model.SendPASCModel.SelectedAccounts) to High(Model.SendPASCModel.SelectedAccounts) do
+    for i := Low(Model.SendPASC.SelectedAccounts) to High(Model.SendPASC.SelectedAccounts) do
     begin
-      acc := Model.SendPASCModel.SelectedAccounts[i];
+      acc := Model.SendPASC.SelectedAccounts[i];
       accNumberwithChecksum := GetAccNoWithChecksum(acc.account);
       cbSignerAccount.Items.AddObject(accNumberwithChecksum, TObject(i));
     end;
   finally
     cbSignerAccount.Items.EndUpdate;
   end;
-  cbSignerAccount.ItemIndex := Model.SendPASCModel.SelectedIndex;
+  cbSignerAccount.ItemIndex := Model.SendPASC.SelectedIndex;
   cbSignerAccountChange(Self);
 end;
 
 procedure TWIZSelectSignerOverride.OnNext;
 begin
-  Model.SendPASCModel.SelectedIndex := cbSignerAccount.ItemIndex;
-  Model.SendPASCModel.SignerAccount := Model.SendPASCModel.SelectedAccounts[PtrInt(
+  Model.SendPASC.SelectedIndex := cbSignerAccount.ItemIndex;
+  Model.Signer.SignerAccount := Model.SendPASC.SelectedAccounts[PtrInt(
     cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
   if rbPrimary.Checked then
   begin
-    Model.SendPASCModel.OperationSigningMode := akaPrimary;
+    Model.Signer.OperationSigningMode := akaPrimary;
   end
   else if rbSecondary.Checked then
   begin
-    Model.SendPASCModel.OperationSigningMode := akaSecondary;
+    Model.Signer.OperationSigningMode := akaSecondary;
   end;
 end;
 

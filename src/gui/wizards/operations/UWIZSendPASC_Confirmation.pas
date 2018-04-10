@@ -1,27 +1,33 @@
-unit UWIZTransferAccount_Confirmation;
+unit UWIZSendPASC_Confirmation;
 
 {$mode delphi}
 {$modeswitch nestedprocvars}
 
-{ Copyright (c) 2018 by Ugochukwu Mmaduekwe
+{ Copyright (c) 2018 Sphere 10 Software (http://www.sphere10.com/)
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
+
+  Acknowledgements:
+  Ugochukwu Mmaduekwe - main developer
+  Herman Schoenfeld - designer
 }
 
 interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UWIZTransferAccount, UWIZModels;
+  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UWIZSendPASC, UWIZModels;
 
 type
 
-  { TWIZTransferAccount_Confirmation }
+  { TWIZSendPASC_Confirmation }
 
-  TWIZTransferAccount_Confirmation = class(TWizardForm<TWIZOperationsModel>)
+  TWIZSendPASC_Confirmation = class(TWizardForm<TWIZOperationsModel>)
     GroupBox1: TGroupBox;
     Label1: TLabel;
+    Label2: TLabel;
+    lblDestAcc: TLabel;
     lblSgnAcc: TLabel;
     paGrid: TPanel;
   private
@@ -43,18 +49,18 @@ type
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
     private
-      FModel : TWIZOperationsModel;
+      FModel : TWIZOperationsModel.TSendPASCModel;
     protected
       function GetColumns : TDataColumns; override;
     public
-      property Model : TWIZOperationsModel read FModel write FModel;
+      property Model : TWIZOperationsModel.TSendPASCModel read FModel write FModel;
       procedure FetchAll(const AContainer : TList<TAccount>); override;
       function GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant; override;
   end;
 
-{ TWIZTransferAccount_Confirmation }
+{ TWIZSendPASC_Confirmation }
 
-procedure TWIZTransferAccount_Confirmation.OnPresent;
+procedure TWIZSendPASC_Confirmation.OnPresent;
 var
   data : TAccountSenderDataSource;
 begin
@@ -65,20 +71,20 @@ begin
   FSendersGrid.AutoPageSize := True;
   FSendersGrid.SelectionType := stNone;
   FSendersGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
-  with FSendersGrid.AddColumn('Account') do begin
-    Binding := 'Account';
+  with FSendersGrid.AddColumn('Sender') do begin
+    Binding := 'SenderAccount';
     Filters := SORTABLE_NUMERIC_FILTER;
     Width := 100;
     HeaderFontStyles := [fsBold];
     DataFontStyles := [fsBold];
   end;
-  with FSendersGrid.AddColumn('Current Public Key') do begin
-    Binding := 'CurrentPublicKey';
-    Filters := SORTABLE_TEXT_FILTER;
+  with FSendersGrid.AddColumn('Balance') do begin
+    Filters := SORTABLE_NUMERIC_FILTER;
     Width := 100;
+    Renderer := TCellRenderers.PASC;
   end;
-   with FSendersGrid.AddColumn('New Public Key') do begin
-    Binding := 'NewPublicKey';
+  with FSendersGrid.AddColumn('Amount To Send') do begin
+    Binding := 'AmountToSend';
     Filters := SORTABLE_TEXT_FILTER;
     Width := 100;
   end;
@@ -88,10 +94,11 @@ begin
   end;
 
    data := TAccountSenderDataSource.Create(FSendersGrid);
-   data.Model := Model;
+   data.Model := Model.SendPASC;
    FSendersGrid.DataSource := data;
    paGrid.AddControlDockCenter(FSendersGrid);
    lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
+   lblDestAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SendPASC.DestinationAccount.account);
 end;
 
 { TAccountSenderDataSource }
@@ -99,9 +106,9 @@ end;
 function TAccountSenderDataSource.GetColumns : TDataColumns;
 begin
   Result := TDataColumns.Create(
-    TDataColumn.From('Account'),
-    TDataColumn.From('CurrentPublicKey'),
-    TDataColumn.From('NewPublicKey'),
+    TDataColumn.From('SenderAccount'),
+    TDataColumn.From('Balance'),
+    TDataColumn.From('AmountToSend'),
     TDataColumn.From('Fee')
   );
 end;
@@ -110,14 +117,14 @@ function TAccountSenderDataSource.GetItemField(constref AItem: TAccount; const A
 var
   index : Integer;
 begin
-   if ABindingName = 'Account' then
+   if ABindingName = 'SenderAccount' then
      Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account)
-   else if ABindingName = 'CurrentPublicKey' then
-     Result := TAccountComp.AccountPublicKeyExport(AItem.accountInfo.accountKey)
-   else if ABindingName = 'NewPublicKey' then
-     Result := Model.TransferAccount.NewPublicKey
+   else if ABindingName = 'Balance' then
+     Result := TAccountComp.FormatMoney(AItem.Balance)
+   else if ABindingName = 'AmountToSend' then
+     Result := TAccountComp.FormatMoney(Model.SingleAmountToSend)
      else if ABindingName = 'Fee' then
-     Result := TAccountComp.FormatMoney(Model.Fee.DefaultFee)
+     Result := TAccountComp.FormatMoney(Model.SingleOperationFee)
    else raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
 end;
 
@@ -126,9 +133,9 @@ procedure TAccountSenderDataSource.FetchAll(const AContainer : TList<TAccount>);
 var
   i: Integer;
 begin
-  for i := Low(Model.TransferAccount.SelectedAccounts) to High(Model.TransferAccount.SelectedAccounts) do
+  for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
   begin
-    AContainer.Add( Model.TransferAccount.SelectedAccounts[i] );
+    AContainer.Add( Model.SelectedAccounts[i] );
   end;
 end;
 

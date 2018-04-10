@@ -1,4 +1,4 @@
-unit UWIZEnlistAccountForSale_Confirmation;
+unit UWIZTransferAccount_Confirmation;
 
 {$mode delphi}
 {$modeswitch nestedprocvars}
@@ -13,18 +13,16 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UWIZEnlistAccountForSale;
+  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UWIZTransferAccount, UWIZModels;
 
 type
 
-  { TWIZEnlistAccountForSale_Confirmation }
+  { TWIZTransferAccount_Confirmation }
 
-  TWIZEnlistAccountForSale_Confirmation = class(TWizardForm<TWIZEnlistAccountForSaleModel>)
+  TWIZTransferAccount_Confirmation = class(TWizardForm<TWIZOperationsModel>)
     GroupBox1: TGroupBox;
     Label1: TLabel;
-    Label2: TLabel;
     lblSgnAcc: TLabel;
-    lblSellerAcc: TLabel;
     paGrid: TPanel;
   private
     FSendersGrid : TVisualGrid;
@@ -45,18 +43,18 @@ type
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
     private
-      FModel : TWIZEnlistAccountForSaleModel;
+      FModel : TWIZOperationsModel.TTransferAccountModel;
     protected
       function GetColumns : TDataColumns; override;
     public
-      property Model : TWIZEnlistAccountForSaleModel read FModel write FModel;
+      property Model : TWIZOperationsModel.TTransferAccountModel read FModel write FModel;
       procedure FetchAll(const AContainer : TList<TAccount>); override;
       function GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant; override;
   end;
 
-{ TWIZEnlistAccountForSale_Confirmation }
+{ TWIZTransferAccount_Confirmation }
 
-procedure TWIZEnlistAccountForSale_Confirmation.OnPresent;
+procedure TWIZTransferAccount_Confirmation.OnPresent;
 var
   data : TAccountSenderDataSource;
 begin
@@ -74,29 +72,26 @@ begin
     HeaderFontStyles := [fsBold];
     DataFontStyles := [fsBold];
   end;
-   with FSendersGrid.AddColumn('Sale Price') do begin
-    Binding := 'SalePrice';
-    Filters := SORTABLE_NUMERIC_FILTER;
+  with FSendersGrid.AddColumn('Current Public Key') do begin
+    Binding := 'CurrentPublicKey';
+    Filters := SORTABLE_TEXT_FILTER;
     Width := 100;
-    Renderer := TCellRenderers.PASC;
   end;
-  // with FSendersGrid.AddColumn('New Public Key') do begin
-  //  Binding := 'NewPublicKey';
-  //  Filters := SORTABLE_TEXT_FILTER;
-  //  Width := 100;
-  //end;
+   with FSendersGrid.AddColumn('New Public Key') do begin
+    Binding := 'NewPublicKey';
+    Filters := SORTABLE_TEXT_FILTER;
+    Width := 100;
+  end;
   with FSendersGrid.AddColumn('Fee') do begin
     Filters := SORTABLE_TEXT_FILTER;
     Width := 100;
   end;
 
    data := TAccountSenderDataSource.Create(FSendersGrid);
-   data.Model := Model;
+   data.Model := Model.TransferAccount;
    FSendersGrid.DataSource := data;
    paGrid.AddControlDockCenter(FSendersGrid);
-   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SignerAccount.account);
-   lblSellerAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SellerAccount.account);
-
+   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
 end;
 
 { TAccountSenderDataSource }
@@ -105,8 +100,8 @@ function TAccountSenderDataSource.GetColumns : TDataColumns;
 begin
   Result := TDataColumns.Create(
     TDataColumn.From('Account'),
-    TDataColumn.From('SalePrice'),
-    //TDataColumn.From('NewPublicKey'),
+    TDataColumn.From('CurrentPublicKey'),
+    TDataColumn.From('NewPublicKey'),
     TDataColumn.From('Fee')
   );
 end;
@@ -117,12 +112,12 @@ var
 begin
    if ABindingName = 'Account' then
      Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account)
-   else if ABindingName = 'SalePrice' then
-     Result := TAccountComp.FormatMoney(Model.SalePrice)
-   //else if ABindingName = 'NewPublicKey' then
-   //  Result := Model.NewPublicKey
+   else if ABindingName = 'CurrentPublicKey' then
+     Result := TAccountComp.AccountPublicKeyExport(AItem.accountInfo.accountKey)
+   else if ABindingName = 'NewPublicKey' then
+     Result := Model.NewPublicKey
      else if ABindingName = 'Fee' then
-     Result := TAccountComp.FormatMoney(Model.DefaultFee)
+     Result := TAccountComp.FormatMoney(Model.Fee.DefaultFee)
    else raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
 end;
 

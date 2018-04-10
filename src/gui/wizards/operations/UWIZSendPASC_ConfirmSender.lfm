@@ -1,12 +1,12 @@
-object WIZSendPASC_Start: TWIZSendPASC_Start
+object WIZSendPASC_ConfirmSender: TWIZSendPASC_ConfirmSender
   Left = 0
   Height = 261
   Top = 0
   Width = 429
-  Caption = 'WIZSendPASC_Start'
+  Caption = 'WIZSendPASC_ConfirmSender'
   ClientHeight = 261
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
+  LCLVersion = '1.8.1.0'
   Visible = False
   object gpSender: TGroupBox
     Left = 4

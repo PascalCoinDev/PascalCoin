@@ -58,7 +58,7 @@ var
 begin
   TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)), opfee);
   lblTotalFeeValue.Caption := Format('%s PASC', [TAccountComp.FormatMoney(opfee *
-    Length(Model.SendPASCModel.SelectedAccounts))]);
+    Length(Model.SendPASC.SelectedAccounts))]);
 end;
 
 procedure TWIZFeeOverride.fseFeeChange(Sender: TObject);
@@ -74,8 +74,8 @@ end;
 procedure TWIZFeeOverride.OnNext;
 begin
   TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)),
-    Model.SendPASCModel.SingleOperationFee);
-  if Model.SendPASCModel.HasPayload then
+    Model.Fee.SingleOperationFee);
+  if Model.Payload.HasPayload then
   begin
     UpdatePath(ptReplaceAllNext, [TWIZPayloadOverride,
       TWIZSendPASC_Confirmation]);

@@ -47,7 +47,7 @@ uses
 
 procedure TWIZPayloadPasswordOverride.OnNext;
 begin
-  Model.SendPASCModel.EncryptionPassword := edtPassword.Text;
+  Model.Payload.Password := edtPassword.Text;
   UpdatePath(ptReplaceAllNext, [TWIZSelectSignerOverride,
     TWIZSendPASC_Confirmation]);
 end;

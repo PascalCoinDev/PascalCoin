@@ -1,0 +1,93 @@
+object WIZTransferAccount_Transaction: TWIZTransferAccount_Transaction
+  Left = 0
+  Height = 253
+  Top = 0
+  Width = 429
+  ActiveControl = cbSignerAccount
+  Caption = 'WIZTransferAccount_Transaction'
+  ClientHeight = 253
+  ClientWidth = 429
+  LCLVersion = '1.8.2.0'
+  Visible = False
+  object gbTransaction: TGroupBox
+    Left = 24
+    Height = 192
+    Top = 40
+    Width = 384
+    Caption = 'Transfer Transaction Details'
+    ClientHeight = 172
+    ClientWidth = 380
+    TabOrder = 0
+    object cbSignerAccount: TComboBox
+      Left = 8
+      Height = 23
+      Top = 8
+      Width = 168
+      ItemHeight = 15
+      Items.Strings = (
+        ''
+      )
+      OnChange = cbSignerAccountChange
+      TabOrder = 0
+      Text = 'Select Signer Account'
+    end
+    object lblBalance: TLabel
+      Left = 200
+      Height = 15
+      Top = 12
+      Width = 151
+      Caption = 'Please Select Signer Account'
+      Font.Color = clRed
+      ParentColor = False
+      ParentFont = False
+    end
+    object lblpublickey: TLabel
+      Left = 8
+      Height = 15
+      Top = 48
+      Width = 120
+      Caption = 'New Owner Public Key'
+      ParentColor = False
+    end
+    object edtPublicKey: TEdit
+      Left = 8
+      Height = 23
+      Top = 74
+      Width = 360
+      TabOrder = 1
+    end
+    object edtOpFee: TEdit
+      Left = 8
+      Height = 23
+      Top = 144
+      Width = 360
+      TabOrder = 2
+    end
+    object lblOpFee: TLabel
+      Left = 8
+      Height = 15
+      Top = 112
+      Width = 74
+      Caption = 'Operation Fee'
+      ParentColor = False
+    end
+  end
+  object lblTotalBalances: TLabel
+    Left = 24
+    Height = 15
+    Top = 16
+    Width = 176
+    Caption = 'Selected Accounts Total Balance: '
+    ParentColor = False
+  end
+  object lblTotalBalanceValue: TLabel
+    Left = 208
+    Height = 15
+    Top = 16
+    Width = 70
+    Caption = 'Total Balance'
+    Font.Color = clGreen
+    ParentColor = False
+    ParentFont = False
+  end
+end

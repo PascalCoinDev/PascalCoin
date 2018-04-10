@@ -156,7 +156,7 @@ begin
   lblTotalBalanceValue.Caption :=
     Format('%s PASC', [TAccountComp.FormatMoney(totalBalance)]);
 
-  edtOpFee.Text := TAccountComp.FormatMoney(TSettings.DefaultFee);
+  edtOpFee.Text := TAccountComp.FormatMoney(TSettings.Fee.DefaultFee);
 end;
 
 procedure TWIZChangeAccountPrivateKey_Transaction.OnNext;
@@ -187,7 +187,7 @@ begin
     Exit;
   end;
 
-  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.Fee.DefaultFee) then
+  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.ChangeAccountPrivateKey.Fee.DefaultFee) then
   begin
     message := 'Invalid fee value "' + edtOpFee.Text + '"';
     Result := False;

@@ -45,7 +45,7 @@ uses
 
 procedure TWIZPayloadContentOverride.OnNext;
 begin
-  Model.SendPASCModel.PayloadContent := mmoPayload.Lines.Text;
+  Model.Payload.Content := mmoPayload.Lines.Text;
    UpdatePath(ptReplaceAllNext, [TWIZSelectSignerOverride,
       TWIZSendPASC_Confirmation]);
 end;

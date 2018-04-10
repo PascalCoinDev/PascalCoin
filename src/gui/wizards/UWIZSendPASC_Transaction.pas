@@ -63,7 +63,7 @@ begin
   begin
     lblBalance.Font.Color := clGreen;
     lblBalance.Caption := Format('%s PASC',
-      [TAccountComp.FormatMoney(Model.SendPASCModel.SelectedAccounts[PtrInt(
+      [TAccountComp.FormatMoney(Model.SendPASC.SelectedAccounts[PtrInt(
       cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])].Balance)]);
   end;
 end;
@@ -109,9 +109,9 @@ begin
   try
     cbSignerAccount.Items.Clear;
     cbSignerAccount.Items.Add('Select Signer Account');
-    for i := 0 to High(Model.SendPASCModel.SelectedAccounts) do
+    for i := 0 to High(Model.SendPASC.SelectedAccounts) do
     begin
-      acc := Model.SendPASCModel.SelectedAccounts[i];
+      acc := Model.SendPASC.SelectedAccounts[i];
       accNumberwithChecksum := GetAccNoWithChecksum(acc.account);
       totalBalance := totalBalance + acc.balance;
       cbSignerAccount.Items.AddObject(accNumberwithChecksum, TObject(i));
@@ -119,12 +119,12 @@ begin
   finally
     cbSignerAccount.Items.EndUpdate;
   end;
-  cbSignerAccount.ItemIndex := Model.SendPASCModel.SelectedIndex;
+  cbSignerAccount.ItemIndex := Model.SendPASC.SelectedIndex;
   cbSignerAccountChange(Self);
   lblTotalBalanceValue.Caption :=
     Format('%s PASC', [TAccountComp.FormatMoney(totalBalance)]);
 
-  if Length(Model.SendPASCModel.SelectedAccounts) > 1 then
+  if Length(Model.SendPASC.SelectedAccounts) > 1 then
   begin
     edtAmt.Text := 'ALL BALANCE';
     edtAmt.Enabled := False;
@@ -170,10 +170,10 @@ procedure TWIZSendPASC_Transaction.OnNext;
   end;
 
 begin
-  Model.SendPASCModel.SelectedIndex := cbSignerAccount.ItemIndex;
-  Model.SignerModel.SignerAccount := Model.SendPASCModel.SelectedAccounts[PtrInt(cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
-  Model.SendPASCModel.DestinationAccount := GetAccounts(GetAccNoWithoutChecksum(edtDestAcc.Text));
-  Model.SendPASCModel.AmountToSend := edtAmt.Text;
+  Model.SendPASC.SelectedIndex := cbSignerAccount.ItemIndex;
+  Model.SignerModel.SignerAccount := Model.SendPASC.SelectedAccounts[PtrInt(cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
+  Model.SendPASC.DestinationAccount := GetAccounts(GetAccNoWithoutChecksum(edtDestAcc.Text));
+  Model.SendPASC.AmountToSend := edtAmt.Text;
   UpdatePath(ptReplaceAllNext, [TWIZSendPASC_TransactionPayload, TWIZSendPASC_Confirmation]);
 end;
 
@@ -192,7 +192,7 @@ var
   amount, opfee: int64;
   i: integer;
 begin
-  Accounts := Model.SendPASCModel.SelectedAccounts;
+  Accounts := Model.SendPASC.SelectedAccounts;
   Result := True;
   if cbSignerAccount.ItemIndex < 1 then
   begin

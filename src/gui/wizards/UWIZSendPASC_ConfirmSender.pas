@@ -87,7 +87,7 @@ begin
     Filters:=SORTABLE_NUMERIC_FILTER;
   end;
   data := TAccountSenderDataSource.Create(FSendersGrid);
-  data.Model := Model.SendPASCModel;
+  data.Model := Model.SendPASC;
   FSendersGrid.DataSource := data;
   paGrid.AddControlDockCenter(FSendersGrid);
 end;

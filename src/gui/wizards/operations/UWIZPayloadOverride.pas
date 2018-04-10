@@ -55,24 +55,24 @@ procedure TWIZPayloadOverride.OnNext;
 begin
   if rbEncryptedWithRecipient.Checked then
   begin
-    Model.SendPASCModel.PayloadEncryptionMode := akaEncryptWithSender;
+    Model.Payload.Mode := akaEncryptWithSender;
   end
   else
   if rbEncryptedWithSender.Checked then
   begin
-    Model.SendPASCModel.PayloadEncryptionMode := akaEncryptWithReceiver;
+    Model.Payload.Mode := akaEncryptWithReceiver;
   end
   else
   if rbEncryptedWithPassword.Checked then
   begin
-    Model.SendPASCModel.PayloadEncryptionMode := akaEncryptWithPassword;
+    Model.Payload.Mode := akaEncryptWithPassword;
   end
   else
   if rbNotEncrypted.Checked then
   begin
-    Model.SendPASCModel.PayloadEncryptionMode := akaNotEncrypt;
+    Model.Payload.Mode := akaNotEncrypt;
   end;
-  case Model.SendPASCModel.PayloadEncryptionMode of
+  case Model.Payload.Mode of
     akaEncryptWithPassword:
     begin
       UpdatePath(ptReplaceAllNext, [TWIZPayloadPasswordOverride,

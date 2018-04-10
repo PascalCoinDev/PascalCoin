@@ -120,7 +120,7 @@ var
   aa: TAccount;
 begin
   TAccountComp.AccountTxtNumberToAccountNumber(edtDestAcc.Text, c);
-  Model.SendPASCModel.DestinationAccount := TNode.Node.Operations.SafeBoxTransaction.account(c);
+  Model.SendPASC.DestinationAccount := TNode.Node.Operations.SafeBoxTransaction.account(c);
   UpdatePath(ptReplaceAllNext, [TWIZSendPASC_EnterQuantity,
     TWIZSendPASC_Confirmation]);
 end;
@@ -154,7 +154,7 @@ begin
   end;
 
   AccountNumbersWithChecksum :=
-    TListTool<TAccount, string>.Transform(Model.SendPASCModel.SelectedAccounts, GetAccNoWithCheckSum);
+    TListTool<TAccount, string>.Transform(Model.SendPASC.SelectedAccounts, GetAccNoWithCheckSum);
 
   if TArrayTool<string>.Contains(AccountNumbersWithChecksum, edtDestAcc.Text) then
   begin

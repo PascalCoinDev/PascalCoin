@@ -126,7 +126,7 @@ begin
   cbSignerAccountChange(Self);
   lblTotalBalanceValue.Caption :=
     Format('%s PASC', [TAccountComp.FormatMoney(totalBalance)]);
-  edtOpFee.Text := TAccountComp.FormatMoney(TSettings.DefaultFee);
+  edtOpFee.Text := TAccountComp.FormatMoney(TSettings.Fee.DefaultFee);
   edtSalePrice.Text := TAccountComp.FormatMoney(0);
 end;
 
@@ -187,7 +187,7 @@ begin
 
   Model.SellerAccount := TNode.Node.Operations.SafeBoxTransaction.account(c);
 
-  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.DefaultFee) then
+  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.Fee.DefaultFee) then
   begin
     message := 'Invalid fee value "' + edtOpFee.Text + '"';
     Result := False;

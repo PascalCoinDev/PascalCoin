@@ -3,10 +3,14 @@ unit UWIZSendPASC_Confirmation;
 {$mode delphi}
 {$modeswitch nestedprocvars}
 
-{ Copyright (c) 2018 by Ugochukwu Mmaduekwe
+{ Copyright (c) 2018 Sphere 10 Software (http://www.sphere10.com/)
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
+
+  Acknowledgements:
+  Ugochukwu Mmaduekwe - main developer
+  Herman Schoenfeld - designer
 }
 
 interface
@@ -93,8 +97,8 @@ begin
    data.Model := Model;
    FSendersGrid.DataSource := data;
    paGrid.AddControlDockCenter(FSendersGrid);
-   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SignerModel.SignerAccount.account);
-   lblDestAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SendPASCModel.DestinationAccount.account);
+   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
+   lblDestAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SendPASC.DestinationAccount.account);
 end;
 
 { TAccountSenderDataSource }
@@ -118,9 +122,9 @@ begin
    else if ABindingName = 'Balance' then
      Result := TAccountComp.FormatMoney(AItem.Balance)
    else if ABindingName = 'AmountToSend' then
-     Result := Model.SendPASCModel.AmountToSend
+     Result := TAccountComp.FormatMoney(Model.SendPASC.SingleAmountToSend)
      else if ABindingName = 'Fee' then
-     Result := TAccountComp.FormatMoney(Model.FeeModel.DefaultFee)
+     Result := TAccountComp.FormatMoney(Model.Fee.SingleOperationFee)
    else raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
 end;
 
@@ -129,9 +133,9 @@ procedure TAccountSenderDataSource.FetchAll(const AContainer : TList<TAccount>);
 var
   i: Integer;
 begin
-  for i := Low(Model.SendPASCModel.SelectedAccounts) to High(Model.SendPASCModel.SelectedAccounts) do
+  for i := Low(Model.SendPASC.SelectedAccounts) to High(Model.SendPASC.SelectedAccounts) do
   begin
-    AContainer.Add( Model.SendPASCModel.SelectedAccounts[i] );
+    AContainer.Add( Model.SendPASC.SelectedAccounts[i] );
   end;
 end;
 

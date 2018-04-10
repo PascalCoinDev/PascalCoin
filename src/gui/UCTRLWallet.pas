@@ -609,20 +609,36 @@ end;
 
 procedure TCTRLWallet.OnPrepareAccountPopupMenu(Sender: TObject;
   constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+var
+  accNo: cardinal;
+  account: TAccount;
 begin
   miSep1.Visible := ASelection.RowCount = 1;
   miAccountInfo.Visible := ASelection.RowCount = 1;
+  miSendPASC.Caption :=
+    IIF(ASelection.RowCount = 1, 'Send PASC', 'Send All PASC');
   miTransferAccounts.Caption :=
-    IIF(ASelection.RowCount = 1, 'Transfer Account', 'Transfer Accounts');
+    IIF(ASelection.RowCount = 1, 'Transfer Account', 'Transfer All Account');
   miChangeAccountsPrivateKey.Caption :=
-    IIF(ASelection.RowCount = 1, 'Change Account Private Key',
-    'Change Accounts Private Key');
+    IIF(ASelection.RowCount = 1, 'Change Account Private Key', 'Change All Account Private Key');
   miEnlistAccountsForSale.Caption :=
     IIF(ASelection.RowCount = 1, 'Enlist Account For Sale',
-    'Enlist Accounts For Sale');
+    'Enlist All Account For Sale');
   miDelistAccountsFromSale.Caption :=
     IIF(ASelection.RowCount = 1, 'Delist Account From Sale',
-    'Delist Accounts From Sale');
+    'Delist All Account From Sale');
+  if ASelection.RowCount = 1 then
+  begin
+    if not TAccountComp.AccountTxtNumberToAccountNumber(
+      FAccountsGrid.Rows[ASelection.Row].Account, accNo) then
+    begin
+      raise Exception.Create('Error Parsing Account Number From Grid');
+    end;
+    account := TNode.Node.Operations.SafeBoxTransaction.Account(accNo);
+    miEnlistAccountsForSale.Visible :=
+      IIF(TAccountComp.IsAccountForSale(account.accountInfo), False, True);
+    miDelistAccountsFromSale.Visible := not miEnlistAccountsForSale.Visible;
+  end;
   APopupMenu := mnuAccountsPopup;
 end;
 
@@ -647,8 +663,8 @@ begin
     TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,
     GetAccNoWithoutChecksum);
 
-  model.SendPASCModel.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
-  model.SendPASCModel.SelectedIndex := 0;
+  model.SendPASC.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
+  model.SendPASC.SelectedIndex := 0;
   wiz.Start(model);
 end;
 
@@ -666,8 +682,8 @@ begin
     TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,
     GetAccNoWithoutChecksum);
 
-  model.TransferAccountModel.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
-  model.TransferAccountModel.SelectedIndex := 0;
+  model.TransferAccount.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
+  model.TransferAccount.SelectedIndex := 0;
   wiz.Start(model);
 end;
 
@@ -685,8 +701,8 @@ begin
     TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,
     GetAccNoWithoutChecksum);
 
-  model.ChangeAccountPrivateKeyModel.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
-  model.ChangeAccountPrivateKeyModel.SelectedIndex := 0;
+  model.ChangeAccountPrivateKey.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
+  model.ChangeAccountPrivateKey.SelectedIndex := 0;
   wiz.Start(model);
 end;
 

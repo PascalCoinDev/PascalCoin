@@ -1,4 +1,4 @@
-unit UWIZChangeAccountPrivateKey_Start;
+unit UWIZTransferAccount_Start;
 
 {$mode delphi}
 {$modeswitch nestedprocvars}
@@ -14,14 +14,14 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, UVisualGrid, UCommon.Data, UCellRenderers,
-  UWizard, UWIZChangeAccountPrivateKey, UWIZChangeAccountPrivateKey_Transaction, UWIZChangeAccountPrivateKey_Confirmation, UWIZModels;
+  UWizard, UWIZTransferAccount, UWIZTransferAccount_Transaction, UWIZTransferAccount_Confirmation, UWIZModels;
 
 type
 
-  { TWIZChangeAccountPrivateKey_Start }
+  { TWIZTransferAccount_Start }
 
-  TWIZChangeAccountPrivateKey_Start = class(TWizardForm<TWIZOperationsModel>)
-    grpSelectedAccount: TGroupBox;
+  TWIZTransferAccount_Start = class(TWizardForm<TWIZOperationsModel>)
+    grpTransferAccount: TGroupBox;
     paGrid: TPanel;
   private
     FSendersGrid: TVisualGrid;
@@ -44,9 +44,9 @@ type
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
   private
-    FModel: TWIZOperationsModel.TChangeAccountPrivateKeyModel;
+    FModel: TWIZOperationsModel.TTransferAccountModel;
   public
-    property Model: TWIZOperationsModel.TChangeAccountPrivateKeyModel read FModel write FModel;
+    property Model: TWIZOperationsModel.TTransferAccountModel read FModel write FModel;
     procedure FetchAll(const AContainer: TList<TAccount>); override;
   end;
 
@@ -60,9 +60,9 @@ begin
   end;
 end;
 
-{ TWIZChangeAccountPrivateKey_Start }
+{ TWIZTransferAccount_Start }
 
-procedure TWIZChangeAccountPrivateKey_Start.OnPresent;
+procedure TWIZTransferAccount_Start.OnPresent;
 var
   Data: TAccountSenderDataSource;
 begin
@@ -97,14 +97,14 @@ begin
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
   Data := TAccountSenderDataSource.Create(FSendersGrid);
-  Data.Model := Model.ChangeAccountPrivateKeyModel;
+  Data.Model := Model.TransferAccount;
   FSendersGrid.DataSource := Data;
   paGrid.AddControlDockCenter(FSendersGrid);
 end;
 
-procedure TWIZChangeAccountPrivateKey_Start.OnNext;
+procedure TWIZTransferAccount_Start.OnNext;
 begin
-   UpdatePath(ptReplaceAllNext, [TWIZChangeAccountPrivateKey_Transaction, TWIZChangeAccountPrivateKey_Confirmation]);
+   UpdatePath(ptReplaceAllNext, [TWIZTransferAccount_Transaction, TWIZTransferAccount_Confirmation]);
 end;
 
 end.
