@@ -126,7 +126,7 @@ begin
   cbSignerAccountChange(Self);
   lblTotalBalanceValue.Caption :=
     Format('%s PASC', [TAccountComp.FormatMoney(totalBalance)]);
-  edtOpFee.Text := TAccountComp.FormatMoney(TSettings.Fee.DefaultFee);
+  edtOpFee.Text := TAccountComp.FormatMoney(TSettings.DefaultFee);
   edtSalePrice.Text := TAccountComp.FormatMoney(0);
 end;
 

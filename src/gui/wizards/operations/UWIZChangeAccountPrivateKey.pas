@@ -289,8 +289,8 @@ begin
       wk := TWallet.Keys.Key[i];
       dooperation := True;
       // Default fee
-      if account.balance > uint64(Model.ChangeAccountPrivateKey.Fee.DefaultFee) then
-        _fee := Model.ChangeAccountPrivateKey.Fee.DefaultFee
+      if account.balance > uint64(Model.Fee.DefaultFee) then
+        _fee := Model.Fee.DefaultFee
       else
         _fee := account.balance;
 
@@ -314,8 +314,8 @@ begin
         if uint64(_totalSignerFee) >= signerAccount.balance then
           _fee := 0
         else if signerAccount.balance - uint64(_totalSignerFee) >
-          uint64(Model.ChangeAccountPrivateKey.Fee.DefaultFee) then
-          _fee := Model.ChangeAccountPrivateKey.Fee.DefaultFee
+          uint64(Model.Fee.DefaultFee) then
+          _fee := Model.Fee.DefaultFee
         else
           _fee := signerAccount.balance - uint64(_totalSignerFee);
         op := TOpChangeKeySigned.Create(signerAccount.account,

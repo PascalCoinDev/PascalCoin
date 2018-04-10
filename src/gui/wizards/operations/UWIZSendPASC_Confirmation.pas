@@ -49,11 +49,11 @@ type
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
     private
-      FModel : TWIZOperationsModel.TSendPASCModel;
+      FModel : TWIZOperationsModel;
     protected
       function GetColumns : TDataColumns; override;
     public
-      property Model : TWIZOperationsModel.TSendPASCModel read FModel write FModel;
+      property Model : TWIZOperationsModel read FModel write FModel;
       procedure FetchAll(const AContainer : TList<TAccount>); override;
       function GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant; override;
   end;
@@ -94,7 +94,7 @@ begin
   end;
 
    data := TAccountSenderDataSource.Create(FSendersGrid);
-   data.Model := Model.SendPASC;
+   data.Model := Model;
    FSendersGrid.DataSource := data;
    paGrid.AddControlDockCenter(FSendersGrid);
    lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
@@ -122,9 +122,9 @@ begin
    else if ABindingName = 'Balance' then
      Result := TAccountComp.FormatMoney(AItem.Balance)
    else if ABindingName = 'AmountToSend' then
-     Result := TAccountComp.FormatMoney(Model.SingleAmountToSend)
+     Result := TAccountComp.FormatMoney(Model.SendPASC.SingleAmountToSend)
      else if ABindingName = 'Fee' then
-     Result := TAccountComp.FormatMoney(Model.SingleOperationFee)
+     Result := TAccountComp.FormatMoney(Model.Fee.SingleOperationFee)
    else raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
 end;
 
@@ -133,9 +133,9 @@ procedure TAccountSenderDataSource.FetchAll(const AContainer : TList<TAccount>);
 var
   i: Integer;
 begin
-  for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+  for i := Low(Model.SendPASC.SelectedAccounts) to High(Model.SendPASC.SelectedAccounts) do
   begin
-    AContainer.Add( Model.SelectedAccounts[i] );
+    AContainer.Add( Model.SendPASC.SelectedAccounts[i] );
   end;
 end;
 

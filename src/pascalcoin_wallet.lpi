@@ -402,7 +402,9 @@
       <Unit75>
         <Filename Value="gui\wizards\operations\UWIZChangeAccountPrivateKey_Confirmation.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZChangeAccountPrivateKey_Confirmation"/>
         <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit75>
       <Unit76>
         <Filename Value="gui\wizards\operations\UWIZChangeAccountPrivateKey_Start.pas"/>
@@ -412,7 +414,9 @@
       <Unit77>
         <Filename Value="gui\wizards\operations\UWIZChangeAccountPrivateKey_Transaction.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZChangeAccountPrivateKey_Transaction"/>
         <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit77>
       <Unit78>
         <Filename Value="gui\wizards\operations\UWIZChangeAccountPrivateKey_TransactionPayload.pas"/>
@@ -446,7 +450,9 @@
       <Unit84>
         <Filename Value="gui\wizards\operations\UWIZEnlistAccountForSale_Transaction.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZEnlistAccountForSale_Transaction"/>
         <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit84>
       <Unit85>
         <Filename Value="gui\wizards\operations\UWIZEnlistAccountForSale_TransactionPayload.pas"/>
@@ -461,7 +467,9 @@
       <Unit87>
         <Filename Value="gui\wizards\operations\UWIZPayloadContentOverride.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZPayloadContentOverride"/>
         <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit87>
       <Unit88>
         <Filename Value="gui\wizards\operations\UWIZPayloadOverride.pas"/>
@@ -487,7 +495,9 @@
       <Unit92>
         <Filename Value="gui\wizards\operations\UWIZSendPASC_Confirmation.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZSendPASC_Confirmation"/>
         <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit92>
       <Unit93>
         <Filename Value="gui\wizards\operations\UWIZSendPASC_ConfirmSender.pas"/>
@@ -497,7 +507,9 @@
       <Unit94>
         <Filename Value="gui\wizards\operations\UWIZSendPASC_EnterQuantity.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZSendPASC_EnterQuantity"/>
         <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit94>
       <Unit95>
         <Filename Value="gui\wizards\operations\UWIZSendPASC_EnterRecipient.pas"/>
@@ -511,7 +523,9 @@
       <Unit97>
         <Filename Value="gui\wizards\operations\UWIZTransferAccount_Confirmation.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZTransferAccount_Confirmation"/>
         <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit97>
       <Unit98>
         <Filename Value="gui\wizards\operations\UWIZTransferAccount_Start.pas"/>
@@ -521,7 +535,9 @@
       <Unit99>
         <Filename Value="gui\wizards\operations\UWIZTransferAccount_Transaction.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZTransferAccount_Transaction"/>
         <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit99>
       <Unit100>
         <Filename Value="gui\wizards\operations\UWIZTransferAccount_TransactionPayload.pas"/>

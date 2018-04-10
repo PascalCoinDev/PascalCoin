@@ -17,7 +17,6 @@ type
       function GetItemDisposePolicy : TDisposePolicy; override;
       function GetColumns : TDataColumns; override;
     public
-      function GetEntityKey(constref AItem: TAccount) : Variant; override;
       function GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant; override;
   end;
 
@@ -60,7 +59,6 @@ type
       property TimeSpan : TTimeSpan read GetTimeSpan write SetTimeSpan;
       property StartBlock : Cardinal read FStart write FStart;
       property EndBlock : Cardinal read FEnd write FEnd;
-      function GetEntityKey(constref AItem: TOperationResume) : Variant; override;
       function GetItemField(constref AItem: TOperationResume; const ABindingName : AnsiString) : Variant; override;
   end;
 

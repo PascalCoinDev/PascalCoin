@@ -105,7 +105,7 @@ begin
   end
   else
   begin
-    Model.Fee.SingleOperationFee := TSettings.Fee.DefaultFee;
+    Model.Fee.SingleOperationFee := TSettings.DefaultFee;
     if Model.Payload.HasPayload then
     begin
       UpdatePath(ptReplaceAllNext, [TWIZPayloadOverride, TWIZSendPASC_Confirmation]);

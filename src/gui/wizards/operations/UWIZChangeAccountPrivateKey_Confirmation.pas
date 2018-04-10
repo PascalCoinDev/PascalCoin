@@ -44,11 +44,11 @@ type
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
   private
-    FModel: TWIZOperationsModel.TChangeAccountPrivateKeyModel;
+    FModel: TWIZOperationsModel;
   protected
     function GetColumns: TDataColumns; override;
   public
-    property Model: TWIZOperationsModel.TChangeAccountPrivateKeyModel read FModel write FModel;
+    property Model: TWIZOperationsModel read FModel write FModel;
     procedure FetchAll(const AContainer: TList<TAccount>); override;
     function GetItemField(constref AItem: TAccount;
       const ABindingName: ansistring): variant; override;
@@ -66,8 +66,7 @@ begin
   FSendersGrid.FetchDataInThread := False;
   FSendersGrid.AutoPageSize := True;
   FSendersGrid.SelectionType := stNone;
-  FSendersGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone,
-    vgoAutoHidePaging];
+  FSendersGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
   with FSendersGrid.AddColumn('Account') do
   begin
     Binding := 'Account';
@@ -89,7 +88,7 @@ begin
   end;
 
   Data := TAccountSenderDataSource.Create(FSendersGrid);
-  Data.Model := Model.ChangeAccountPrivateKey;
+  Data.Model := Model;
   FSendersGrid.DataSource := Data;
   paGrid.AddControlDockCenter(FSendersGrid);
   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
@@ -115,10 +114,10 @@ begin
     Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account)
   else if ABindingName = 'NewPrivateKey' then
   begin
-    Result := IIF(Model.NewWalletKey.Name = '',
+    Result := IIF(Model.ChangeAccountPrivateKey.NewWalletKey.Name = '',
       TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(
-      Model.NewWalletKey.AccountKey)), Model.NewWalletKey.Name);
-    if not Assigned(Model.NewWalletKey.PrivateKey) then
+      Model.ChangeAccountPrivateKey.NewWalletKey.AccountKey)), Model.ChangeAccountPrivateKey.NewWalletKey.Name);
+    if not Assigned(Model.ChangeAccountPrivateKey.NewWalletKey.PrivateKey) then
     begin
       Result := Result + '(*)';
     end;
@@ -134,9 +133,9 @@ procedure TAccountSenderDataSource.FetchAll(const AContainer: TList<TAccount>);
 var
   i: integer;
 begin
-  for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+  for i := Low(Model.ChangeAccountPrivateKey.SelectedAccounts) to High(Model.ChangeAccountPrivateKey.SelectedAccounts) do
   begin
-    AContainer.Add(Model.SelectedAccounts[i]);
+    AContainer.Add(Model.ChangeAccountPrivateKey.SelectedAccounts[i]);
   end;
 end;
 
