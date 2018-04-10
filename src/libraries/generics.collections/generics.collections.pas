@@ -629,9 +629,6 @@ type
     property Current: T read GetCurrent;
   end;
 
-  TCustomTree<TREE_CONSTRAINTS> = class
-  end;
-
   TTreeEnumerable<TTreeEnumerator, TTreePointersEnumerator,
     T, PT, PNode, TTree> = class abstract(TEnumerableWithPointers<T>)
   private
