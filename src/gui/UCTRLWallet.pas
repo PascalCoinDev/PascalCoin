@@ -83,21 +83,14 @@ type
     procedure OnNodeBlocksChanged(Sender: TObject);
     procedure OnNodeNewOperation(Sender: TObject);
     procedure OnAccountsUpdated(Sender: TObject);
-    procedure OnAccountsSelected(Sender: TObject;
-      constref ASelection: TVisualGridSelection);
-    procedure OnOperationSelected(Sender: TObject;
-      constref ASelection: TVisualGridSelection);
-    procedure OnPrepareAccountPopupMenu(Sender: TObject;
-      constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
-    procedure OnPrepareOperationsPopupMenu(Sender: TObject;
-      constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+    procedure OnAccountsSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
+    procedure OnOperationSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
+    procedure OnPrepareAccountPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+    procedure OnPrepareOperationsPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
   public
-    property AccountsMode: TCTRLWalletAccountsMode
-      read FAccountsMode write SetAccountsMode;
-    property OperationsMode: TCTRLWalletOperationsMode
-      read FOperationsMode write SetOperationsMode;
-    property OperationsHistory: TCTRLWalletOperationsHistory
-      read FOperationsHistory write SetOperationsHistory;
+    property AccountsMode: TCTRLWalletAccountsMode read FAccountsMode write SetAccountsMode;
+    property OperationsMode: TCTRLWalletOperationsMode read FOperationsMode write SetOperationsMode;
+    property OperationsHistory: TCTRLWalletOperationsHistory read FOperationsHistory write SetOperationsHistory;
   end;
 
 implementation
@@ -133,8 +126,7 @@ begin
   FAccountsGrid.AutoPageSize := True;
   FAccountsGrid.SelectionType := stMultiRow;
   FAccountsGrid.DeselectionType := dtDefault;
-  FAccountsGrid.Options := [vgoColAutoFill, vgoColSizing,
-    vgoSortDirectionAllowNone, vgoAutoHidePaging];
+  FAccountsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging, vgoAutoHideSearchPanel];
   with FAccountsGrid.AddColumn('Account') do
   begin
     Binding := 'AccountNumber';
@@ -173,8 +165,7 @@ begin
   FOperationsGrid.AutoPageSize := True;
   FOperationsGrid.SelectionType := stRow;
   FOperationsGrid.DeselectionType := dtDefault;
-  FOperationsGrid.Options := [vgoColAutoFill, vgoColSizing,
-    vgoSortDirectionAllowNone, vgoAutoHidePaging];
+  FOperationsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging, vgoAutoHideSearchPanel];
   with FOperationsGrid.AddColumn('Time') do
   begin
     SortBinding := 'UnixTime';
