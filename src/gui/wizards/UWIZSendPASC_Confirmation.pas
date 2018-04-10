@@ -3,14 +3,10 @@ unit UWIZSendPASC_Confirmation;
 {$mode delphi}
 {$modeswitch nestedprocvars}
 
-{ Copyright (c) 2018 Sphere 10 Software (http://www.sphere10.com/)
+{ Copyright (c) 2018 by Ugochukwu Mmaduekwe
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
-
-  Acknowledgements:
-  Ugochukwu Mmaduekwe - main developer
-  Herman Schoenfeld - designer
 }
 
 interface
@@ -49,11 +45,11 @@ type
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
     private
-      FModel : TWIZOperationsModel.TSendPASCModel;
+      FModel : TWIZOperationsModel;
     protected
       function GetColumns : TDataColumns; override;
     public
-      property Model : TWIZOperationsModel.TSendPASCModel read FModel write FModel;
+      property Model : TWIZOperationsModel read FModel write FModel;
       procedure FetchAll(const AContainer : TList<TAccount>); override;
       function GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant; override;
   end;
@@ -94,10 +90,10 @@ begin
   end;
 
    data := TAccountSenderDataSource.Create(FSendersGrid);
-   data.Model := Model.SendPASCModel;
+   data.Model := Model;
    FSendersGrid.DataSource := data;
    paGrid.AddControlDockCenter(FSendersGrid);
-   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SendPASCModel.SignerAccount.account);
+   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SignerModel.SignerAccount.account);
    lblDestAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SendPASCModel.DestinationAccount.account);
 end;
 
@@ -122,9 +118,9 @@ begin
    else if ABindingName = 'Balance' then
      Result := TAccountComp.FormatMoney(AItem.Balance)
    else if ABindingName = 'AmountToSend' then
-     Result := TAccountComp.FormatMoney(Model.SingleAmountToSend)
+     Result := Model.SendPASCModel.AmountToSend
      else if ABindingName = 'Fee' then
-     Result := TAccountComp.FormatMoney(Model.SingleOperationFee)
+     Result := TAccountComp.FormatMoney(Model.FeeModel.DefaultFee)
    else raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
 end;
 
@@ -133,9 +129,9 @@ procedure TAccountSenderDataSource.FetchAll(const AContainer : TList<TAccount>);
 var
   i: Integer;
 begin
-  for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+  for i := Low(Model.SendPASCModel.SelectedAccounts) to High(Model.SendPASCModel.SelectedAccounts) do
   begin
-    AContainer.Add( Model.SelectedAccounts[i] );
+    AContainer.Add( Model.SendPASCModel.SelectedAccounts[i] );
   end;
 end;
 

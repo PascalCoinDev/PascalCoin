@@ -163,7 +163,7 @@ procedure TWIZChangeAccountPrivateKey_Transaction.OnNext;
 begin
   Model.ChangeAccountPrivateKeyModel.SelectedIndex := cbSignerAccount.ItemIndex;
   Model.ChangeAccountPrivateKeyModel.PrivateKeySelectedIndex := cbNewPrivateKey.ItemIndex;
-  Model.ChangeAccountPrivateKeyModel.SignerAccount := Model.ChangeAccountPrivateKeyModel.SelectedAccounts[PtrInt(cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
+  Model.SignerModel.SignerAccount := Model.ChangeAccountPrivateKeyModel.SelectedAccounts[PtrInt(cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
   Model.ChangeAccountPrivateKeyModel.NewWalletKey := TWallet.Keys.Key[PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex])];
 
   UpdatePath(ptReplaceAllNext, [TWIZChangeAccountPrivateKey_TransactionPayload, TWIZChangeAccountPrivateKey_Confirmation]);
@@ -187,7 +187,7 @@ begin
     Exit;
   end;
 
-  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.ChangeAccountPrivateKeyModel.DefaultFee) then
+  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.FeeModel.DefaultFee) then
   begin
     message := 'Invalid fee value "' + edtOpFee.Text + '"';
     Result := False;

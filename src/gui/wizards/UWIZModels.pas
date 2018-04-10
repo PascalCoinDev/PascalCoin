@@ -7,8 +7,7 @@ unit UWIZModels;
 
 interface
 
-uses Classes, SysUtils, UWizard, UAccounts, UBlockChain, UWallet,
-  UBaseTypes, Generics.Defaults;
+uses Classes, SysUtils, UWizard, UAccounts, UBlockChain, UWallet, UBaseTypes, Generics.Defaults;
 
 type
 
@@ -19,101 +18,111 @@ type
   { TFRMAddKeyModel }
 
   TWIZAddKeyModel = class(TComponent)
-  public
-    Name: string;
-    KeyText: string;
-    Password: string;
-    EncryptionTypeNID: word;
-    Action: TWIZAddKeyAction;
+    public
+      Name : String;
+      KeyText : String;
+      Password : String;
+      EncryptionTypeNID : word;
+      Action : TWIZAddKeyAction;
   end;
 
   { TWIZOperationsModel }
 
-  TWIZOperationsModel = class(TComponent)
-  public
-    type
+  TWIZOperationsModel = class (TComponent)
+    public type
 
-    { TModelType }
+       { TModelType }
 
-    TModelType = (omtSendPasc, omtTransferAccount, omtChangeAccountPrivateKey,
-      omtAddKey);
+       TModelType = (omtSendPasc, omtTransferAccount, omtChangeAccountPrivateKey, omtAddKey);
 
-    { TPayloadEncryptionMode }
+       { TPayloadEncryptionMode }
 
-    TPayloadEncryptionMode = (akaEncryptWithSender, akaEncryptWithReceiver,
-      akaEncryptWithPassword, akaNotEncrypt);
+       TPayloadEncryptionMode = (akaEncryptWithOldEC, akaEncryptWithEC, akaEncryptWithPassword, akaNotEncrypt);
 
-    { TOperationSigningMode }
+       { TSendPASCModel }
 
-    TOperationSigningMode = (akaPrimary, akaSecondary);
+       TSendPASCModel = class(TComponent)
+       public
+         SelectedIndex: integer;
+         AmountToSend : string;
+         DestinationAccount: TAccount;
+         SelectedAccounts: TArray<TAccount>;
+       end;
 
-    { TSendPASCModel }
+       { TTransferAccountModel }
 
-    TSendPASCModel = class(TComponent)
+       TTransferAccountModel = class(TComponent)
+       public
+         NewPublicKey: string;
+         SelectedIndex: integer;
+         AccountKey: TAccountKey;
+         SelectedAccounts: TArray<TAccount>;
+       end;
+
+       { TChangeAccountPrivateKeyModel }
+
+       TChangeAccountPrivateKeyModel = class(TComponent)
+       public
+         NewPublicKey: string;
+         SelectedIndex, PrivateKeySelectedIndex: integer;
+         NewWalletKey: TWalletKey;
+         SelectedAccounts: TArray<TAccount>;
+       end;
+
+       { TFeeModel }
+
+       TFeeModel = class(TComponent)
+       public
+         DefaultFee: int64;
+       end;
+
+       { TSignerModel }
+
+       TSignerModel = class(TComponent)
+       public
+         SignerAccount: TAccount;
+       end;
+
+       { TPayloadModel }
+
+       TPayloadModel = class(TComponent)
+       public
+         Payload, EncryptionPassword : string;
+         PayloadEncryptionMode: TPayloadEncryptionMode;
+         EncodedPayload: TRawBytes;
+       end;
+
+    private
+      FModelType : TModelType;
+      FSendModel : TSendPASCModel;
+      FTransferAccountModel : TTransferAccountModel;
+      FChangeAccountPrivateKeyModel : TChangeAccountPrivateKeyModel;
+      FFeeModel : TFeeModel;
+      FSignerModel : TSignerModel;
+      FPayloadModel : TPayloadModel;
     public
-      SelectedIndex: integer;
-      SingleOperationFee, SingleAmountToSend: int64;
-      HasPayload: boolean;
-      PayloadContent, EncryptionPassword: string;
-      EncodedPayload: TRawBytes;
-      SignerAccount, DestinationAccount: TAccount;
-      SelectedAccounts: TArray<TAccount>;
-      PayloadEncryptionMode: TPayloadEncryptionMode;
-      OperationSigningMode: TOperationSigningMode;
-    end;
-
-    { TTransferAccountModel }
-
-    TTransferAccountModel = class(TComponent)
-    public
-      DefaultFee: int64;
-      NewPublicKey, Payload, EncryptionPassword: string;
-      SelectedIndex: integer;
-      AccountKey: TAccountKey;
-      EncodedPayload: TRawBytes;
-      SignerAccount: TAccount;
-      SelectedAccounts: TArray<TAccount>;
-      PayloadEncryptionMode: TPayloadEncryptionMode;
-    end;
-
-    { TChangeAccountPrivateKeyModel }
-
-    TChangeAccountPrivateKeyModel = class(TComponent)
-    public
-      DefaultFee: int64;
-      NewPublicKey, Payload, EncryptionPassword: string;
-      SelectedIndex, PrivateKeySelectedIndex: integer;
-      NewWalletKey: TWalletKey;
-      EncodedPayload: TRawBytes;
-      SignerAccount: TAccount;
-      SelectedAccounts: TArray<TAccount>;
-      PayloadEncryptionMode: TPayloadEncryptionMode;
-    end;
-
-  private
-    FModelType: TModelType;
-    FSendModel: TSendPASCModel;
-    FTransferAccountModel: TTransferAccountModel;
-    FChangeAccountPrivateKeyModel: TChangeAccountPrivateKeyModel;
-  public
-    constructor Create(AOwner: TComponent; AType: TModelType); overload;
-    property ModelType: TModelType read FModelType;
-    property SendPASCModel: TSendPASCModel read FSendModel;
-    property TransferAccountModel: TTransferAccountModel read FTransferAccountModel;
-    property ChangeAccountPrivateKeyModel: TChangeAccountPrivateKeyModel
-      read FChangeAccountPrivateKeyModel;
+      constructor Create(AOwner : TComponent; AType : TModelType);  overload;
+      property ModelType : TModelType read FModelType;
+      property SendPASCModel : TSendPASCModel read FSendModel;
+      property TransferAccountModel : TTransferAccountModel read FTransferAccountModel;
+      property ChangeAccountPrivateKeyModel : TChangeAccountPrivateKeyModel read FChangeAccountPrivateKeyModel;
+      property FeeModel : TFeeModel read FFeeModel;
+      property SignerModel : TSignerModel read FSignerModel;
+      property PayloadModel : TPayloadModel read FPayloadModel;
   end;
 
 implementation
 
-constructor TWIZOperationsModel.Create(AOwner: TComponent;
-  AType: TWIZOperationsModel.TModelType);
+constructor TWIZOperationsModel.Create(AOwner : TComponent; AType : TWIZOperationsModel.TModelType);
 begin
   inherited Create(AOwner);
   FModelType := AType;
   FSendModel := TSendPASCModel.Create(Self);
   FTransferAccountModel := TTransferAccountModel.Create(Self);
   FChangeAccountPrivateKeyModel := TChangeAccountPrivateKeyModel.Create(Self);
+  FFeeModel := TFeeModel.Create(Self);
+  FSignerModel := TSignerModel.Create(Self);
 end;
 
 end.
+

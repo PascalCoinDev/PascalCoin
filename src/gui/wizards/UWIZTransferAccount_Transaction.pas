@@ -104,7 +104,7 @@ end;
 procedure TWIZTransferAccount_Transaction.OnNext;
 begin
   Model.TransferAccountModel.SelectedIndex := cbSignerAccount.ItemIndex;
-  Model.TransferAccountModel.SignerAccount := Model.TransferAccountModel.SelectedAccounts[PtrInt(
+  Model.SignerModel.SignerAccount := Model.TransferAccountModel.SelectedAccounts[PtrInt(
     cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
   Model.TransferAccountModel.NewPublicKey := Trim(edtPublicKey.Text);
 
@@ -124,7 +124,7 @@ begin
     Exit;
   end;
 
-  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.TransferAccountModel.DefaultFee) then
+  if not TAccountComp.TxtToMoney(Trim(edtOpFee.Text), Model.FeeModel.DefaultFee) then
   begin
     message := 'Invalid fee value "' + edtOpFee.Text + '"';
     Result := False;

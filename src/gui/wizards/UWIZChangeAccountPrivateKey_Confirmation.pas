@@ -44,11 +44,11 @@ type
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
   private
-    FModel: TWIZOperationsModel.TChangeAccountPrivateKeyModel;
+    FModel: TWIZOperationsModel;
   protected
     function GetColumns: TDataColumns; override;
   public
-    property Model: TWIZOperationsModel.TChangeAccountPrivateKeyModel read FModel write FModel;
+    property Model: TWIZOperationsModel read FModel write FModel;
     procedure FetchAll(const AContainer: TList<TAccount>); override;
     function GetItemField(constref AItem: TAccount;
       const ABindingName: ansistring): variant; override;
@@ -89,10 +89,10 @@ begin
   end;
 
   Data := TAccountSenderDataSource.Create(FSendersGrid);
-  Data.Model := Model.ChangeAccountPrivateKeyModel;
+  Data.Model := Model;
   FSendersGrid.DataSource := Data;
   paGrid.AddControlDockCenter(FSendersGrid);
-  lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.ChangeAccountPrivateKeyModel.SignerAccount.account);
+  lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SignerModel.SignerAccount.account);
 end;
 
 { TAccountSenderDataSource }
@@ -106,8 +106,7 @@ begin
     );
 end;
 
-function TAccountSenderDataSource.GetItemField(constref AItem: TAccount;
-  const ABindingName: ansistring): variant;
+function TAccountSenderDataSource.GetItemField(constref AItem: TAccount; const ABindingName: ansistring): variant;
 var
   index: integer;
 begin
@@ -115,16 +114,15 @@ begin
     Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account)
   else if ABindingName = 'NewPrivateKey' then
   begin
-    Result := IIF(Model.NewWalletKey.Name = '',
-      TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(
-      Model.NewWalletKey.AccountKey)), Model.NewWalletKey.Name);
-    if not Assigned(Model.NewWalletKey.PrivateKey) then
+    Result := IIF(Model.ChangeAccountPrivateKeyModel.NewWalletKey.Name = '',
+      TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(Model.ChangeAccountPrivateKeyModel.NewWalletKey.AccountKey)), Model.ChangeAccountPrivateKeyModel.NewWalletKey.Name);
+    if not Assigned(Model.ChangeAccountPrivateKeyModel.NewWalletKey.PrivateKey) then
     begin
       Result := Result + '(*)';
     end;
   end
   else if ABindingName = 'Fee' then
-    Result := TAccountComp.FormatMoney(Model.DefaultFee)
+    Result := TAccountComp.FormatMoney(Model.FeeModel.DefaultFee)
   else
     raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
 end;
@@ -134,9 +132,9 @@ procedure TAccountSenderDataSource.FetchAll(const AContainer: TList<TAccount>);
 var
   i: integer;
 begin
-  for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+  for i := Low(Model.ChangeAccountPrivateKeyModel.SelectedAccounts) to High(Model.ChangeAccountPrivateKeyModel.SelectedAccounts) do
   begin
-    AContainer.Add(Model.SelectedAccounts[i]);
+    AContainer.Add(Model.ChangeAccountPrivateKeyModel.SelectedAccounts[i]);
   end;
 end;
 

@@ -47,8 +47,7 @@ uses
 
 { TWIZChangeAccountPrivateKeyWizard }
 
-function TWIZChangeAccountPrivateKeyWizard.UpdatePayload(const SenderAccount: TAccount;
-  var errors: string): boolean;
+function TWIZChangeAccountPrivateKeyWizard.UpdatePayload(const SenderAccount: TAccount; var errors: string): boolean;
 var
   valid: boolean;
   payload_encrypted, payload_u: string;
@@ -57,9 +56,9 @@ var
 begin
   valid := False;
   payload_encrypted := '';
-  Model.ChangeAccountPrivateKeyModel.EncodedPayload := '';
+  Model.PayloadModel.EncodedPayload := '';
   errors := 'Unknown error';
-  payload_u := Model.ChangeAccountPrivateKeyModel.Payload;
+  payload_u := Model.PayloadModel.Payload;
 
   try
     if (payload_u = '') then
@@ -67,9 +66,9 @@ begin
       valid := True;
       Exit;
     end;
-    case Model.ChangeAccountPrivateKeyModel.PayloadEncryptionMode of
+    case Model.PayloadModel.PayloadEncryptionMode of
 
-      akaEncryptWithSender:
+      akaEncryptWithOldEC:
       begin
         // Use sender
         errors := 'Error encrypting';
@@ -78,7 +77,7 @@ begin
         valid := payload_encrypted <> '';
       end;
 
-      akaEncryptWithReceiver:
+      akaEncryptWithEC:
       begin
         errors := 'Error encrypting';
 
@@ -100,7 +99,7 @@ begin
       akaEncryptWithPassword:
       begin
         payload_encrypted := TAESComp.EVP_Encrypt_AES256(
-          payload_u, Model.ChangeAccountPrivateKeyModel.EncryptionPassword);
+          payload_u, Model.PayloadModel.EncryptionPassword);
         valid := payload_encrypted <> '';
       end;
 
@@ -127,7 +126,7 @@ begin
       end;
 
     end;
-    Model.ChangeAccountPrivateKeyModel.EncodedPayload := payload_encrypted;
+    Model.PayloadModel.EncodedPayload := payload_encrypted;
     Result := valid;
   end;
 
@@ -206,7 +205,7 @@ begin
     if TNode.Node.Bank.SafeBox.CurrentProtocol >= 1 then
     begin
       // Signer:
-      SignerAccount := Model.ChangeAccountPrivateKeyModel.SignerAccount;
+      SignerAccount := Model.SignerModel.SignerAccount;
       if (TAccountComp.IsAccountLocked(SignerAccount.accountInfo,
         TNode.Node.Bank.BlocksCount)) then
       begin
@@ -289,8 +288,8 @@ begin
       wk := TWallet.Keys.Key[i];
       dooperation := True;
       // Default fee
-      if account.balance > uint64(Model.ChangeAccountPrivateKeyModel.DefaultFee) then
-        _fee := Model.ChangeAccountPrivateKeyModel.DefaultFee
+      if account.balance > uint64(Model.FeeModel.DefaultFee) then
+        _fee := Model.FeeModel.DefaultFee
       else
         _fee := account.balance;
 
@@ -314,13 +313,13 @@ begin
         if uint64(_totalSignerFee) >= signerAccount.balance then
           _fee := 0
         else if signerAccount.balance - uint64(_totalSignerFee) >
-          uint64(Model.ChangeAccountPrivateKeyModel.DefaultFee) then
-          _fee := Model.ChangeAccountPrivateKeyModel.DefaultFee
+          uint64(Model.FeeModel.DefaultFee) then
+          _fee := Model.FeeModel.DefaultFee
         else
           _fee := signerAccount.balance - uint64(_totalSignerFee);
         op := TOpChangeKeySigned.Create(signerAccount.account,
           signerAccount.n_operation + _signer_n_ops + 1, account.account,
-          wk.PrivateKey, _newOwnerPublicKey, _fee, Model.ChangeAccountPrivateKeyModel.EncodedPayload);
+          wk.PrivateKey, _newOwnerPublicKey, _fee, Model.PayloadModel.EncodedPayload);
         Inc(_signer_n_ops);
         Inc(_totalSignerFee, _fee);
       end
@@ -328,7 +327,7 @@ begin
       begin
         op := TOpChangeKey.Create(account.account, account.n_operation +
           1, account.account, wk.PrivateKey, _newOwnerPublicKey, _fee,
-          Model.ChangeAccountPrivateKeyModel.EncodedPayload);
+          Model.PayloadModel.EncodedPayload);
       end;
       Inc(_totalfee, _fee);
       operationstxt :=

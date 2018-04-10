@@ -48,25 +48,25 @@ uses
 
 procedure TWIZChangeAccountPrivateKey_TransactionPayload.OnNext;
 begin
-  Model.ChangeAccountPrivateKeyModel.Payload := mmoPayload.Lines.Text;
+  Model.PayloadModel.Payload := mmoPayload.Lines.Text;
   if rbEncryptedWithOldEC.Checked then
   begin
-    Model.ChangeAccountPrivateKeyModel.PayloadEncryptionMode := akaEncryptWithSender;
+    Model.PayloadModel.PayloadEncryptionMode := akaEncryptWithOldEC;
   end
   else
   if rbEncryptedWithEC.Checked then
   begin
-    Model.ChangeAccountPrivateKeyModel.PayloadEncryptionMode := akaEncryptWithReceiver;
+    Model.PayloadModel.PayloadEncryptionMode := akaEncryptWithEC;
   end
   else
   if rbEncryptedWithPassword.Checked then
   begin
-    Model.ChangeAccountPrivateKeyModel.PayloadEncryptionMode := akaEncryptWithPassword;
+    Model.PayloadModel.PayloadEncryptionMode := akaEncryptWithPassword;
   end
   else
   if rbNotEncrypted.Checked then
   begin
-    Model.ChangeAccountPrivateKeyModel.PayloadEncryptionMode := akaNotEncrypt;
+    Model.PayloadModel.PayloadEncryptionMode := akaNotEncrypt;
   end;
 end;
 

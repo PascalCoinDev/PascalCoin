@@ -1,4 +1,4 @@
-object WIZChangeAccountPrivateKey_TransactionPayload: TWIZChangeAccountPrivateKey_TransactionPayload
+object WIZSendPASC_TransactionPayload: TWIZSendPASC_TransactionPayload
   Left = 0
   Height = 253
   Top = 0
@@ -48,16 +48,16 @@ object WIZChangeAccountPrivateKey_TransactionPayload: TWIZChangeAccountPrivateKe
         Left = 3
         Height = 19
         Top = 0
-        Width = 176
-        Caption = 'Encrypted with old public key'
+        Width = 194
+        Caption = 'Encrypted with sender public key'
         TabOrder = 1
       end
       object rbEncryptedWithEC: TRadioButton
         Left = 3
         Height = 19
         Top = 24
-        Width = 181
-        Caption = 'Encrypted with new public key'
+        Width = 227
+        Caption = 'Encrypted with dest account public key'
         Checked = True
         TabOrder = 2
         TabStop = True

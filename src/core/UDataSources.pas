@@ -364,7 +364,7 @@ begin
       if list.Count > 0 then
         for i := list.Count - 1 downto 0 do begin
           Op := node.Operations.OperationsHashTree.GetOperation( PtrInt( list[i] ) );
-          If TPCOperation.OperationToOperationResume( 0, Op, acc, OPR ) then begin
+          If TPCOperation.OperationToOperationResume( 0, Op, false, acc, OPR ) then begin
             OPR.NOpInsideBlock := i;
             OPR.Block := Node.Operations.OperationBlock.block; ;
             OPR.Balance := Node.Operations.SafeBoxTransaction.Account( acc {Op.SignerAccount} ).balance;
@@ -395,7 +395,7 @@ begin
   if Not Assigned(Node) then exit;
   for i := Node.Operations.Count - 1 downto 0 do begin
     Op := Node.Operations.OperationsHashTree.GetOperation(i);
-    If TPCOperation.OperationToOperationResume(0,Op,Op.SignerAccount,OPR) then begin
+    If TPCOperation.OperationToOperationResume(0,Op, false, Op.SignerAccount,OPR) then begin
       OPR.NOpInsideBlock := i;
       OPR.Block := Node.Bank.BlocksCount;
       OPR.Balance := Node.Operations.SafeBoxTransaction.Account(Op.SignerAccount).balance;
@@ -424,7 +424,7 @@ begin
       AContainer.Add( blockOps.GetMinerRewardPseudoOperation );
       if blockOps.Count = 0 then exit;
       for i := blockOps.Count - 1 downto 0 do begin    // reverse order
-        if TPCOperation.OperationToOperationResume(block, blockOps.Operation[i], blockOps.Operation[i].SignerAccount, opr) then begin
+        if TPCOperation.OperationToOperationResume(block, blockOps.Operation[i], false, blockOps.Operation[i].SignerAccount, opr) then begin
           opr.NOpInsideBlock := i;
           opr.Block := block;
           opr.time := blockOps.OperationBlock.timestamp;

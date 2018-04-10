@@ -43,11 +43,11 @@ type
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
     private
-      FModel : TWIZOperationsModel.TTransferAccountModel;
+      FModel : TWIZOperationsModel;
     protected
       function GetColumns : TDataColumns; override;
     public
-      property Model : TWIZOperationsModel.TTransferAccountModel read FModel write FModel;
+      property Model : TWIZOperationsModel read FModel write FModel;
       procedure FetchAll(const AContainer : TList<TAccount>); override;
       function GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant; override;
   end;
@@ -88,10 +88,10 @@ begin
   end;
 
    data := TAccountSenderDataSource.Create(FSendersGrid);
-   data.Model := Model.TransferAccountModel;
+   data.Model := Model;
    FSendersGrid.DataSource := data;
    paGrid.AddControlDockCenter(FSendersGrid);
-   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.TransferAccountModel.SignerAccount.account);
+   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SignerModel.SignerAccount.account);
 end;
 
 { TAccountSenderDataSource }
@@ -115,9 +115,9 @@ begin
    else if ABindingName = 'CurrentPublicKey' then
      Result := TAccountComp.AccountPublicKeyExport(AItem.accountInfo.accountKey)
    else if ABindingName = 'NewPublicKey' then
-     Result := Model.NewPublicKey
+     Result := Model.TransferAccountModel.NewPublicKey
      else if ABindingName = 'Fee' then
-     Result := TAccountComp.FormatMoney(Model.DefaultFee)
+     Result := TAccountComp.FormatMoney(Model.FeeModel.DefaultFee)
    else raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
 end;
 
@@ -126,9 +126,9 @@ procedure TAccountSenderDataSource.FetchAll(const AContainer : TList<TAccount>);
 var
   i: Integer;
 begin
-  for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+  for i := Low(Model.TransferAccountModel.SelectedAccounts) to High(Model.TransferAccountModel.SelectedAccounts) do
   begin
-    AContainer.Add( Model.SelectedAccounts[i] );
+    AContainer.Add( Model.TransferAccountModel.SelectedAccounts[i] );
   end;
 end;
 
