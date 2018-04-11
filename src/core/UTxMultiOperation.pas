@@ -121,6 +121,7 @@ Type
     function OperationFee : UInt64; override;
     function OperationPayload : TRawBytes; override;
     function SignerAccount : Cardinal; override;
+    procedure SignerAccounts(list : TList); override;
     function IsSignerAccount(account : Cardinal) : Boolean; override;
     function DestinationAccount : Int64; override;
     function SellerAccount : Int64; override;
@@ -333,7 +334,6 @@ begin
   SetLength(FData.changesInfo,0);
   FTotalAmount:=0;
   FTotalFee:=0;
-  FSignatureChecked:=False;
   FHasValidSignature:=False;
 
   SetLength(txsenders,0);
@@ -430,7 +430,6 @@ var i : Integer;
   ophtosign : TRawBytes;
 begin
   // Init
-  FSignatureChecked:=True;
   FHasValidSignature:=False;
   SetLength(errors,0);
   // Do check it!
@@ -620,14 +619,7 @@ begin
     end;
   end;
   // Check signatures!
-  If Not FSignatureChecked then begin
-    If Not CheckSignatures(AccountTransaction,errors) then Exit;
-  end else begin
-    If Not FHasValidSignature then begin
-      Errors := 'Not valid signatures found!';
-      Exit;
-    end;
-  end;
+  If Not CheckSignatures(AccountTransaction,errors) then Exit;
   // Execute!
   If (length(senders)>0) then begin
     If Not AccountTransaction.TransferAmounts(AccountPreviousUpdatedBlock,
@@ -741,7 +733,6 @@ begin
     end;
   end;
   If (Result>0) Then begin
-    FSignatureChecked := False;
     FHasValidSignature := False;
   end;
 end;
@@ -773,6 +764,18 @@ begin
   If length(FData.txSenders)>0 then Result := FData.txSenders[0].Account
   else if (length(FData.changesInfo)>0) then Result := FData.changesInfo[0].Account
   else Result := MaxInt;
+end;
+
+procedure TOpMultiOperation.SignerAccounts(list: TList);
+var i : Integer;
+begin
+  list.Clear;
+  for i := 0 to High(FData.txSenders) do begin
+    list.Add(TObject(FData.txSenders[i].Account));
+  end;
+  for i:= 0 to High(FData.changesInfo) do begin
+    if list.IndexOf(TObject(FData.changesInfo[i].Account))<0 then list.Add(TObject(FData.changesInfo[i].Account));
+  end;
 end;
 
 function TOpMultiOperation.IsSignerAccount(account: Cardinal): Boolean;
@@ -844,7 +847,6 @@ begin
   AddTx(senders,receivers,True);
   AddChangeInfos(changes,True);
   // Protection for "Exit"
-  FSignatureChecked:=True;
   FHasValidSignature:=False;
   If (length(senders_keys)<>length(senders)) then exit; // Cannot sign!
   If (length(changes_keys)<>length(changes)) then exit; // Cannot sign!
@@ -860,8 +862,6 @@ begin
       Exit;
     end;
   end;
-  FSignatureChecked:=False;
-  FHasValidSignature:=False;
 end;
 
 function TOpMultiOperation.AddTx(const senders: TMultiOpSenders; const receivers: TMultiOpReceivers; setInRandomOrder : Boolean) : Boolean;
@@ -884,7 +884,6 @@ begin
   end;
   // Ok, let's go
   FHasValidSignature:=False;
-  FSignatureChecked:=False;
   If setInRandomOrder then begin
     // Important:
     // When a sender/receiver is added, everybody must sign again
@@ -942,7 +941,6 @@ begin
   end;
   // Ok, let's go
   FHasValidSignature:=False;
-  FSignatureChecked:=False;
   // Important:
   // When a change is added, everybody must sign again
   // In order to create high anonymity, will add in random order
