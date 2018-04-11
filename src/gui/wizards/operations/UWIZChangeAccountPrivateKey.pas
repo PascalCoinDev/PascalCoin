@@ -57,7 +57,7 @@ var
 begin
   valid := False;
   payload_encrypted := '';
-  Model.ChangeAccountPrivateKey.EncodedPayload := '';
+ Model.Payload.EncodedBytes := '';
   errors := 'Unknown error';
   payload_u := Model.Payload.Content;
 
@@ -127,7 +127,7 @@ begin
       end;
 
     end;
-    Model.ChangeAccountPrivateKey.EncodedPayload := payload_encrypted;
+   Model.Payload.EncodedBytes := payload_encrypted;
     Result := valid;
   end;
 
@@ -320,7 +320,7 @@ begin
           _fee := signerAccount.balance - uint64(_totalSignerFee);
         op := TOpChangeKeySigned.Create(signerAccount.account,
           signerAccount.n_operation + _signer_n_ops + 1, account.account,
-          wk.PrivateKey, _newOwnerPublicKey, _fee, Model.ChangeAccountPrivateKey.EncodedPayload);
+          wk.PrivateKey, _newOwnerPublicKey, _fee,Model.Payload.EncodedBytes);
         Inc(_signer_n_ops);
         Inc(_totalSignerFee, _fee);
       end
@@ -328,7 +328,7 @@ begin
       begin
         op := TOpChangeKey.Create(account.account, account.n_operation +
           1, account.account, wk.PrivateKey, _newOwnerPublicKey, _fee,
-          Model.ChangeAccountPrivateKey.EncodedPayload);
+         Model.Payload.EncodedBytes);
       end;
       Inc(_totalfee, _fee);
       operationstxt :=
