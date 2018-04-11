@@ -66,7 +66,7 @@ Const
 
   CT_CalcNewTargetBlocksAverage: Cardinal = 100;
   CT_CalcNewTargetLimitChange_SPLIT_v2 = 10;
-  CT_CalcNewTargetLimitChange_SPLIT_v3 = 5;
+  CT_CalcNewTargetLimitChange_SPLIT_v3 = 20;
 
   CT_MaxAccount : Cardinal = $FFFFFFFF;
   CT_MaxBlock : Cardinal = $FFFFFFFF;
