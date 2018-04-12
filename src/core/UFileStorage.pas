@@ -309,7 +309,7 @@ begin
   Try
     fs := GetPendingBufferOperationsStream;
     fs.Position:=0;
-    If OperationsHashTree.LoadOperationsHashTreeFromStream(fs,true,CT_PROTOCOL_2,Nil,errors) then begin
+    If OperationsHashTree.LoadOperationsHashTreeFromStream(fs,true,CT_PROTOCOL_3,Nil,errors) then begin
       TLog.NewLog(ltInfo,ClassName,Format('DoLoadPendingBufferOperations loaded operations:%d',[OperationsHashTree.OperationsCount]));
     end else TLog.NewLog(ltError,ClassName,Format('DoLoadPendingBufferOperations ERROR: loaded operations:%d errors:%s',[OperationsHashTree.OperationsCount,errors]));
   finally

@@ -65,7 +65,8 @@ Const
   CT_MinCompactTarget: Cardinal = {$IFDEF PRODUCTION}$19000000{$ELSE}{$IFDEF TESTNET}$17000000{$ELSE}{$ENDIF}{$ENDIF}; // First compact target of block 0
 
   CT_CalcNewTargetBlocksAverage: Cardinal = 100;
-  CT_CalcNewTargetLimitChange_SPLIT = 10;
+  CT_CalcNewTargetLimitChange_SPLIT_v2 = 10;
+  CT_CalcNewTargetLimitChange_SPLIT_v3 = 20;
 
   CT_MaxAccount : Cardinal = $FFFFFFFF;
   CT_MaxBlock : Cardinal = $FFFFFFFF;
@@ -100,7 +101,7 @@ Const
   CT_Protocol_Upgrade_v3_MinBlock = {$IFDEF PRODUCTION}210000{$ELSE}250{$ENDIF};
 
 
-  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$03000000{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
+  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$03000020{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
 
   CT_NetProtocol_Version: Word = $0006; // Version 2.1.2 only allows net protocol 6 (Introduced on 2.0.0)
   // IMPORTANT NOTE!!!

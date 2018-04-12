@@ -716,13 +716,20 @@ Var
   resultPoW : TRawBytes;
   //
   AuxStats : TMinerStats;
+  dstep : Integer;
 begin
+  DebugStep := '----------';
   AuxStats := CT_TMinerStats_NULL;
   nonce := 0;
+  dstep := 0;
+  Try
     while (Not Terminated) do begin
+      Try
+      dstep := 1;
       AuxStats := CT_TMinerStats_NULL;
       If (FCPUDeviceThread.Paused) then sleep(1)
       else begin
+        dstep := 2;
         FLock.Acquire;
         try
           baseRealTC := GetTickCount;
@@ -735,6 +742,7 @@ begin
               FDigestStreamMsg.Position:=FDigestStreamMsg.Size - 8;
               FDigestStreamMsg.Write(ts,4);
               baseHashingTC:=GetTickCount;
+              dstep := 4;
               for i := 1 to CT_Rounds do begin
                 FDigestStreamMsg.Position := FDigestStreamMsg.Size - 4;
                 FDigestStreamMsg.Write(nonce,4);
@@ -742,12 +750,16 @@ begin
                 if resultPoW < FCPUDeviceThread.FMinerValuesForWork.target_pow then begin
                   if Terminated then exit;
                   inc(AuxStats.WinsCount);
+                  dstep := 5;
                   FLock.Release;
                   try
+                    dstep := 6;
                     FCPUDeviceThread.FoundNOnce(ts,nonce);
+                    dstep := 7;
                   finally
                     FLock.Acquire;
                   end;
+                  dstep := 8;
                 end;
                 if (nonce)<FMaxNOnce then inc(nonce) else nonce := FMinNOnce;
               end;
@@ -774,13 +786,22 @@ begin
             AuxStats.RoundsCount:=CT_Rounds;
             AuxStats.WorkingMillisecondsTotal:=GetTickCount - baseRealTC;
             AuxStats.WorkingMillisecondsHashing:= finalHashingTC - baseHashingTC;
+            dstep := 9;
             FCPUDeviceThread.UpdateDeviceStats(AuxStats);
           end; // FDigestStreamMsg.size>8
         finally
           FLock.Release;
         end;
       end; // Not paused
+      Except
+        On E:Exception do begin
+          TLog.NewLog(ltError,ClassName,'EXCEPTION step:'+IntToStr(dstep)+' ' +E.ClassName+':'+E.Message);
+        end;
+      end;
     end; // while
+  Finally
+    DebugStep := IntToStr(dstep);
+  End;
 end;
 
 constructor TCPUOpenSSLMinerThread.Create(CPUDeviceThread : TCPUDeviceThread);
