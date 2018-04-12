@@ -80,7 +80,7 @@ Type
     Class Function GetSafeboxCheckpointingFileName(Const BaseDataFolder : AnsiString; block : Cardinal) : AnsiString;
     Property DatabaseFolder : AnsiString read FDatabaseFolder write SetDatabaseFolder;
     Procedure CopyConfiguration(Const CopyFrom : TStorage); override;
-    Procedure SetBlockChainFile(const BlockChainFileName : AnsiString);
+    Procedure SetBlockChainFile(BlockChainFileName : AnsiString);
     Function HasUpgradedToVersion2 : Boolean; override;
     Procedure CleanupVersion1Data; override;
   End;
@@ -702,7 +702,6 @@ function TFileStorage.LockBlockChainStream: TFileStream;
     end;
     mem := TMemoryStream.Create;
     Try
-      iPos := Stream.Size;
       iPos := 0;
       while (iPos + GetBlockHeaderFixedSize < Stream.Size) do begin
         Stream.Position := iPos;
@@ -799,7 +798,7 @@ begin
   Result := FBlockChainStream;
 end;
 
-procedure TFileStorage.SetBlockChainFile(const BlockChainFileName: AnsiString);
+procedure TFileStorage.SetBlockChainFile(BlockChainFileName: AnsiString);
 begin
   ClearStream;
   FBlockChainFileName := BlockChainFileName;

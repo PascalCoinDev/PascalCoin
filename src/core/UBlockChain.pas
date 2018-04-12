@@ -190,8 +190,6 @@ Type
   Private
     Ftag: integer;
   Protected
-    FSignatureChecked : Boolean; // Improvement TPCOperation speed 2.1.6
-    //
     FPrevious_Signer_updated_block: Cardinal;
     FPrevious_Destination_updated_block : Cardinal;
     FPrevious_Seller_updated_block : Cardinal;
@@ -217,6 +215,7 @@ Type
     function OperationFee: UInt64; virtual; abstract;
     function OperationPayload : TRawBytes; virtual; abstract;
     function SignerAccount : Cardinal; virtual; abstract;
+    procedure SignerAccounts(list : TList); virtual;
     function IsSignerAccount(account : Cardinal) : Boolean; virtual;
     function IsAffectedAccount(account : Cardinal) : Boolean; virtual;
     function DestinationAccount : Int64; virtual;
@@ -649,10 +648,6 @@ begin
       Storage.Initialize;
       If (max_block<Storage.LastBlock) then n := max_block
       else n := Storage.LastBlock;
-//      if n < 0 then begin
-//        NewLog(nil,lterror,'Unable to load storage');
-//        exit;
-//      end;
       Storage.RestoreBank(n);
       // Restore last blockchain
       if (BlocksCount>0) And (SafeBox.CurrentProtocol=CT_PROTOCOL_1) then begin
@@ -1858,7 +1853,8 @@ begin
       for i := 0 to l.Count - 1 do begin
         P := l[i];
         // Include to hash tree
-        TCrypto.DoSha256(FHashTree+P^.Op.Sha256,FHashTree);
+        // TCrypto.DoSha256(FHashTree+P^.Op.Sha256,FHashTree);  COMPILER BUG 2.1.6: Using FHashTree as a "out" param can be initialized prior to be updated first parameter!
+        FHashTree := TCrypto.DoSha256(FHashTree+P^.Op.Sha256);
       end;
     Finally
       FHashTreeOperations.UnlockList;
@@ -1942,8 +1938,8 @@ Var msCopy : TMemoryStream;
   h : TRawBytes;
   P : POperationHashTreeReg;
   PaccData : POperationsHashAccountsData;
-  i,npos : Integer;
-  auxs : AnsiString;
+  i,npos,iListSigners : Integer;
+  listSigners : TList;
 begin
   msCopy := TMemoryStream.Create;
   try
@@ -1956,15 +1952,14 @@ begin
     P^.Op.FPrevious_Signer_updated_block := op.Previous_Signer_updated_block;
     P^.Op.FPrevious_Destination_updated_block := op.FPrevious_Destination_updated_block;
     P^.Op.FPrevious_Seller_updated_block := op.FPrevious_Seller_updated_block;
-    P^.Op.FHasValidSignature:=op.FHasValidSignature;
-    P^.Op.FSignatureChecked:=op.FSignatureChecked;
-    h := op.Sha256;
+    h := FHashTree + op.Sha256;
     P^.Op.FBufferedSha256:=op.FBufferedSha256;
     P^.Op.tag := list.Count;
     // Improvement TOperationsHashTree speed 2.1.6
     // Include to hash tree (Only if CalcNewHashTree=True)
     If (CalcNewHashTree) And (Length(FHashTree)=32) then begin
-      TCrypto.DoSha256(FHashTree+h,FHashTree);
+      // TCrypto.DoSha256(FHashTree+op.Sha256,FHashTree);  COMPILER BUG 2.1.6: Using FHashTree as a "out" param can be initialized prior to be updated first parameter!
+      TCrypto.DoSha256(h,FHashTree);
     end;
     npos := list.Add(P);
     // Improvement: Will allow to add duplicate Operations, so add only first to orderedBySha
@@ -1974,16 +1969,24 @@ begin
     end;
     // Improvement TOperationsHashTree speed 2.1.6
     // Mantain an ordered Accounts list with data
-    If Not FindOrderedByAccountData(list,op.SignerAccount,i) then begin
-      New(PaccData);
-      PaccData^.account_number:=op.SignerAccount;
-      PaccData^.account_count:=0;
-      PaccData^.account_without_fee:=0;
-      FListOrderedByAccountsData.Insert(i,PaccData);
-    end else PaccData := FListOrderedByAccountsData[i];
-    Inc(PaccData^.account_count);
-    If op.OperationFee=0 then begin
-      Inc(PaccData^.account_without_fee);
+    listSigners := TList.Create;
+    try
+      op.SignerAccounts(listSigners);
+      for iListSigners:=0 to listSigners.Count-1 do begin
+        If Not FindOrderedByAccountData(list,PtrInt(listSigners[iListSigners]),i) then begin
+          New(PaccData);
+          PaccData^.account_number:=PtrInt(listSigners[iListSigners]);
+          PaccData^.account_count:=0;
+          PaccData^.account_without_fee:=0;
+          FListOrderedByAccountsData.Insert(i,PaccData);
+        end else PaccData := FListOrderedByAccountsData[i];
+        Inc(PaccData^.account_count);
+        If op.OperationFee=0 then begin
+          Inc(PaccData^.account_without_fee);
+        end;
+      end;
+    finally
+      listSigners.Free;
     end;
   finally
     msCopy.Free;
@@ -2247,7 +2250,6 @@ end;
 
 constructor TPCOperation.Create;
 begin
-  FSignatureChecked := False;
   FHasValidSignature := False;
   FBufferedSha256:='';
   InitializeData;
@@ -2280,6 +2282,12 @@ begin
       ms.Free;
     end;
   end else Raise Exception.Create('ERROR DEV 20170426-1'); // This should never happen, if good coded
+end;
+
+procedure TPCOperation.SignerAccounts(list: TList);
+begin
+  list.Clear;
+  list.Add(TObject(SignerAccount));
 end;
 
 class function TPCOperation.DecodeOperationHash(const operationHash: TRawBytes;
@@ -2358,7 +2366,6 @@ begin
   FPrevious_Seller_updated_block := 0;
   FHasValidSignature := false;
   FBufferedSha256:='';
-  FSignatureChecked := False;
 end;
 
 procedure TPCOperation.FillOperationResume(Block: Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume);
