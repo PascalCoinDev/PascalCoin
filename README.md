@@ -37,8 +37,8 @@ Also, consider a donation at PascalCoin development account: "0-10"
 ### DEVELOPMENT STATUS
 - TODO: PIP - 0010
 - TODO: Add new network operations
-- TODO: New target calc on protocol V3 in order to reduce the sinusoidal effect
-  - TODO: (on testing...) On V3 will look last 5 blocks instead of last 10 in order to decide if continue increasing/decreasing target
+- New target calc on protocol V3 in order to reduce the sinusoidal effect
+  - Harmonization of the sinusoidal effect modifying the rise / fall by 50% calculating over the last 10 blocks only when increase/decrease is high
 - New Safebox Snapshoting
   - This allow quickly rollback/commit directly to Safebox instead of create a separate Safebox on memory (read from disk... use more ram...)
   - Is usefull when detecting posible orphan blocks in order to check which chain is the highest chain without duplicating a safebox to compare

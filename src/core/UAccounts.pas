@@ -3268,9 +3268,7 @@ begin
     If (protocolVersion=CT_PROTOCOL_1) then begin
       Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
     end else if (protocolVersion<=CT_PROTOCOL_3) then begin
-      If (protocolVersion=CT_PROTOCOL_2) then
-        CalcBack := CalcBack DIV CT_CalcNewTargetLimitChange_SPLIT_v2
-      else CalcBack := CalcBack DIV CT_CalcNewTargetLimitChange_SPLIT_v3;
+      CalcBack := CalcBack DIV CT_CalcNewTargetLimitChange_SPLIT;
       If CalcBack=0 then CalcBack := 1;
       ts2 := Block(BlocksCount-CalcBack-1).blockchainInfo.timestamp;
       tsTeoricalStop := (CalcBack * CT_NewLineSecondsAvg);
@@ -3284,8 +3282,14 @@ begin
          ((tsTeorical<tsReal) and (tsTeoricalStop<tsRealStop)) then begin
         Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
       end else begin
-        // Nothing to do!
-        Result:=TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target);
+        if (protocolVersion=CT_PROTOCOL_2) then begin
+          // Nothing to do!
+          Result:=TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target);
+        end else begin
+          // New on V3 protocol:
+          // Harmonization of the sinusoidal effect modifying the rise / fall by 50% calculating over the "stop" area
+          Result := TPascalCoinProtocol.GetNewTarget(tsTeoricalStop, (tsTeoricalStop + tsRealStop) DIV 2,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
+        end;
       end;
     end else begin
       Raise Exception.Create('ERROR DEV 20180306-1 Protocol not valid');
