@@ -2269,6 +2269,13 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   end;
 
   function MultiOperationAddOperation(Const HexaStringOperationsHashTree : TRawBytes; params : TPCJSONObject) : boolean;
+    Function Capture_Current_Account(const nAccount : Int64) : TAccount;
+    Begin
+      Result := CT_Account_NUL;
+      if (nAccount<0) Or (nAccount>=FNode.Bank.AccountsCount) then Exit;
+      Result := FNode.Operations.SafeBoxTransaction.Account( nAccount );
+    end;
+
   var errors : AnsiString;
     OperationsHashTree : TOperationsHashTree;
     jsonArr : TPCJSONArray;
@@ -2319,6 +2326,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         sender.Account := j;
         sender.Amount:= ToPascalCoins(jsonArr.GetAsObject(i).AsDouble('amount',0));
         sender.N_Operation:=jsonArr.GetAsObject(i).AsInteger('n_operation',0);
+        // Update N_Operation with valid info
+        if (sender.N_Operation<=0) then sender.N_Operation:=Capture_Current_Account(sender.Account).n_operation+1;
+
         sender.Payload:=TCrypto.HexaToRaw(jsonArr.GetAsObject(i).AsString('payload',''));
         if Not mop.AddTxSender(sender) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidData;
@@ -2357,6 +2367,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         end;
         changeinfo.Account := j;
         changeinfo.N_Operation:=jsonArr.GetAsObject(i).AsInteger('n_operation',0);
+        // Update N_Operation with valid info
+        if (changeinfo.N_Operation<=0) then changeinfo.N_Operation:=Capture_Current_Account(changeinfo.Account).n_operation+1;
+
         if (jsonArr.GetAsObject(i).IndexOfName('new_b58_pubkey')>=0) or (jsonArr.GetAsObject(i).IndexOfName('new_enc_pubkey')>=0) then begin
           changeinfo.Changes_type:=changeinfo.Changes_type + [public_key];
           If Not CapturePubKeyExt(jsonArr.GetAsObject(i),'new_',changeinfo.New_Accountkey,ErrorDesc) then begin
@@ -3161,24 +3174,22 @@ begin
     Result := ChangeAccountInfo(params);
   end else if (method='signchangeaccountinfo') then begin
     Result := SignChangeAccountInfoColdWallet(params.AsString('rawoperations',''),params);
-  // V3 new  XXXXXXXXXXXXXXXX
+  // V3 new calls
   end else if (method='signmessage') then begin
     params.DeleteName('signature');
     Result := DoSignOrVerifyMessage(params);
   end else if (method='verifysign') then begin
     if (params.IndexOfName('signature')<0) then params.GetAsVariant('signature').Value:=''; // Init signature value to force verify
     Result := DoSignOrVerifyMessage(params);
-  // V3 Multioperation XXXXXXXXXXXXXXX
+  end else if (method='operationsdelete') then begin
+    Result := RawOperations_Delete(params.AsString('rawoperations',''),params.AsInteger('index',-1));
+  // V3 Multioperation
   end else if (method='multioperationaddoperation') then begin
     Result := MultiOperationAddOperation(params.AsString('rawoperations',''),params);
   end else if (method='multioperationsignoffline') then begin
     Result := MultiOperationSignCold(params.AsString('rawoperations',''),params);
   end else if (method='multioperationsignonline') then begin
     Result := MultiOperationSignOnline(params.AsString('rawoperations',''));
-  // XXXXXXXXXXX
-  end else if (method='operationsdelete') then begin
-    // Will remove an operation from rawoperations
-    Result := RawOperations_Delete(params.AsString('rawoperations',''),params.AsInteger('index',-1));
   //
   end else if (method='operationsinfo') then begin
     Result := OperationsInfo(params.AsString('rawoperations',''),GetResultArray);

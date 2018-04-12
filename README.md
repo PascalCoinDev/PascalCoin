@@ -119,12 +119,13 @@ Also, consider a donation at PascalCoin development account: "0-10"
 	  - "enc_pubkey" : HESATRING with the public key that used to sign "digest" data
 	  - "signature" : HEXASTRING with signature
   - New method "multioperationaddoperation": Adds operations to a multioperation (or creates a new multioperation and adds new operations)
-    This method does not work with current Safebox state, so can be used offline or on COLD wallets
+    This method does not need current Safebox state, so can be used offline or on COLD wallets when all info is provided
     - Params:
       - "rawoperations" : HEXASTRING (optional) with previous multioperation. If is valid and contains a single  multiopertion will add operations to this one, otherwise will generate a NEW MULTIOPERATION
+	  - "auto_n_operation" : Boolean - Will fill n_operation (if not provided). Only valid if wallet is ONLINE (no cold wallets)
       - "senders" : ARRAY of objects that will be Senders of the multioperation
         - "account" : Integer
-        - "n_operation" : Integer - Must provide a valid n_operation+1 value
+        - "n_operation" : Integer (optional) - if not provided, will use current safebox n_operation+1 value (on online wallets)
         - "amount" : PASCURRENCY in positive format
         - "payload" : HEXASTRING
       - "receivers" : ARRAY of objects that will be Receivers of the multioperation
@@ -133,7 +134,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
         - "payload" : HEXASTRING
       - "changesinfo" : ARRAY of objects that will be accounts executing a changing info
         - "account" : Integer
-        - "n_operation" : Integer - Must provide a valid n_operation+1 value
+        - "n_operation" : Integer (optional) - if not provided, will use current safebox n_operation+1 value (on online wallets)
         - "new_b58_pubkey"/"new_enc_pubkey": (optional) If provided will update Public key of "account"
         - "new_name" : STRING (optional) If provided will change account name
         - "new_type" : Integer (optional) If provided will change account type
