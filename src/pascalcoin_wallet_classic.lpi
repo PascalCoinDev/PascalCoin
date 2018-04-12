@@ -14,6 +14,7 @@
       <Title Value="PascalCoinWalletLazarus"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
+      <Icon Value="0"/>
     </General>
     <i18n>
       <EnableI18N LFM="False"/>
@@ -227,7 +228,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="common;core;gui-classic;libraries\generics.collections;libraries\sphere10;libraries\synapse"/>
+      <OtherUnitFiles Value="core;gui-classic;libraries\generics.collections;libraries\sphere10;libraries\synapse;libraries\pascalcoin"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>

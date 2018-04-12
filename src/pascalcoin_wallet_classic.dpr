@@ -1,51 +1,53 @@
 program PascalCoin_wallet_classic;
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 uses
+{$IFnDEF FPC}
+{$ELSE}
+  {$IFDEF LINUX}cthreads,{$ENDIF}
+  Interfaces,
+{$ENDIF}
   Forms,
-  UBlockChain in 'core\UBlockChain.pas',
-  UCrypto in 'core\UCrypto.pas',
-  UTime in 'core\UTime.pas',
-  UWallet in 'core\UWallet.pas',
-  UOpTransaction in 'core\UOpTransaction.pas',
-  UNetProtocol in 'core\UNetProtocol.pas',
-  UAccounts in 'core\UAccounts.pas',
-  UConst in 'core\UConst.pas',
-  UThread in 'core\UThread.pas',
-  ULog in 'core\ULog.pas',
-  UNode in 'core\UNode.pas',
-  UECIES in 'core\UECIES.pas',
-  UFRMWallet in 'gui-classic\UFRMWallet.pas' {FRMWallet},
-  UFolderHelper in 'common\UFolderHelper.pas',
-  UAppParams in 'common\UAppParams.pas',
-  UGridUtils in 'common\UGridUtils.pas',
-  UFRMPascalCoinWalletConfig in 'gui-classic\UFRMPascalCoinWalletConfig.pas' {FRMPascalCoinWalletConfig},
-  UFRMAbout in 'gui-classic\UFRMAbout.pas' {FRMAbout},
-  UFRMOperation in 'gui-classic\UFRMOperation.pas' {FRMOperation},
-  UFRMWalletKeys in 'gui-classic\UFRMWalletKeys.pas' {FRMWalletKeys},
-  UFRMNewPrivateKeyType in 'gui-classic\UFRMNewPrivateKeyType.pas' {FRMNewPrivateKeyType},
-  UFRMPayloadDecoder in 'gui-classic\UFRMPayloadDecoder.pas' {FRMPayloadDecoder},
-  UFRMNodesIp in 'gui-classic\UFRMNodesIp.pas' {FRMNodesIp},
-  UTCPIP in 'core\UTCPIP.pas',
-  UJSONFunctions in 'common\UJSONFunctions.pas',
-  URPC in 'core\URPC.pas',
-  UPoolMining in 'core\UPoolMining.pas',
-  UFileStorage in 'core\UFileStorage.pas',
-  UOpenSSL in 'core\UOpenSSL.pas',
-  UOpenSSLdef in 'core\UOpenSSLdef.pas',
-  UAES in 'core\UAES.pas',
-  UFRMAccountSelect in 'gui-classic\UFRMAccountSelect.pas' {FRMAccountSelect},
-  UFRMAccountInfo in 'gui-classic\UFRMAccountInfo.pas' {FRMAccountInfo},
-  UFRMMemoText in 'gui-classic\UFRMMemoText.pas' {FRMMemoText},
-  UChunk in 'core\UChunk.pas',
-  UBaseTypes in 'core\UBaseTypes.pas',
-  UAccountKeyStorage in 'core\UAccountKeyStorage.pas',
-  USettings in 'core\USettings.pas';
+  UBlockChain in 'Units\PascalCoin\UBlockChain.pas',
+  UCrypto in 'Units\PascalCoin\UCrypto.pas',
+  UTime in 'Units\PascalCoin\UTime.pas',
+  UWallet in 'Units\PascalCoin\UWallet.pas',
+  UOpTransaction in 'Units\PascalCoin\UOpTransaction.pas',
+  UNetProtocol in 'Units\PascalCoin\UNetProtocol.pas',
+  UAccounts in 'Units\PascalCoin\UAccounts.pas',
+  UConst in 'Units\PascalCoin\UConst.pas',
+  UThread in 'Units\PascalCoin\UThread.pas',
+  ULog in 'Units\PascalCoin\ULog.pas',
+  UNode in 'Units\PascalCoin\UNode.pas',
+  UECIES in 'Units\PascalCoin\UECIES.pas',
+  UAES in 'Units\PascalCoin\UAES.pas',
+  UFRMWallet in 'Units\Forms\UFRMWallet.pas' {FRMWallet},
+  UFileStorage in 'Units\PascalCoin\UFileStorage.pas',
+  UFolderHelper in 'Units\Utils\UFolderHelper.pas',
+  UAppParams in 'Units\Utils\UAppParams.pas',
+  UGridUtils in 'Units\Utils\UGridUtils.pas',
+  UFRMPascalCoinWalletConfig in 'Units\Forms\UFRMPascalCoinWalletConfig.pas' {FRMPascalCoinWalletConfig},
+  UFRMAbout in 'Units\Forms\UFRMAbout.pas' {FRMAbout},
+  UFRMOperation in 'Units\Forms\UFRMOperation.pas' {FRMOperation},
+  UFRMWalletKeys in 'Units\Forms\UFRMWalletKeys.pas' {FRMWalletKeys},
+  UFRMNewPrivateKeyType in 'Units\Forms\UFRMNewPrivateKeyType.pas' {FRMNewPrivateKeyType},
+  UFRMPayloadDecoder in 'Units\Forms\UFRMPayloadDecoder.pas' {FRMPayloadDecoder},
+  UFRMNodesIp in 'Units\Forms\UFRMNodesIp.pas' {FRMNodesIp},
+  UTCPIP in 'Units\PascalCoin\UTCPIP.pas',
+  UJSONFunctions in 'Units\Utils\UJSONFunctions.pas',
+  URPC in 'Units\PascalCoin\URPC.pas',
+  UPoolMining in 'Units\PascalCoin\UPoolMining.pas',
+  UOpenSSL in 'Units\PascalCoin\UOpenSSL.pas',
+  UOpenSSLdef in 'Units\PascalCoin\UOpenSSLdef.pas';
 
 {$R *.res}
 
 begin
   Application.Initialize;
-  Application.MainFormOnTaskbar := True;
+  {$IFDEF WINDOWS}Application.MainFormOnTaskbar := True;{$ENDIF}
   Application.Title := 'Pascal Coin Wallet, Miner & Explorer';
   Application.CreateForm(TFRMWallet, FRMWallet);
   Application.Run;
