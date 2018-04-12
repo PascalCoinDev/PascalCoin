@@ -70,7 +70,8 @@ Type
   public
     class function IsHexString(const AHexString: AnsiString) : boolean;
     class function ToHexaString(const raw : TRawBytes) : AnsiString;
-    class function HexaToRaw(const HexaString : AnsiString) : TRawBytes;
+    class function HexaToRaw(const HexaString : AnsiString) : TRawBytes; overload;
+    class function HexaToRaw(const HexaString : AnsiString; out raw : TRawBytes) : Boolean; overload;
     class function DoSha256(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     class function DoSha256(const TheMessage : AnsiString) : TRawBytes; overload;
     class procedure DoSha256(const TheMessage : AnsiString; out ResultSha256 : TRawBytes);  overload;
@@ -85,6 +86,8 @@ Type
     class function ECDSAVerify(PubKey : TECDSA_Public; const digest : AnsiString; Signature : TECDSA_SIG) : Boolean; overload;
     class procedure InitCrypto;
     class function IsHumanReadable(Const ReadableText : TRawBytes) : Boolean;
+    class function EncodeSignature(const signature : TECDSA_SIG) : TRawBytes;
+    class function DecodeSignature(const rawSignature : TRawBytes; out signature : TECDSA_SIG) : Boolean;
   End;
 
   TBigNum = Class
@@ -129,6 +132,7 @@ Type
 
 Const
   CT_TECDSA_Public_Nul : TECDSA_Public = (EC_OpenSSL_NID:0;x:'';y:'');
+  CT_TECDSA_SIG_Nul : TECDSA_SIG = (r:'';s:'');
 
 implementation
 
@@ -524,6 +528,24 @@ begin
   end;
 end;
 
+class function TCrypto.HexaToRaw(const HexaString: AnsiString; out raw: TRawBytes): Boolean;
+Var P : PAnsiChar;
+ lc : AnsiString;
+ i : Integer;
+begin
+  Result := False; raw := '';
+  if ((length(HexaString) MOD 2)<>0) then Exit;
+  if (length(HexaString)=0) then begin
+    Result := True;
+    exit;
+  end;
+  SetLength(raw,length(HexaString) DIV 2);
+  P := @raw[1];
+  lc := LowerCase(HexaString);
+  i := HexToBin(PAnsiChar(@lc[1]),P,length(raw));
+  Result := (i = (length(HexaString) DIV 2));
+end;
+
 class procedure TCrypto.InitCrypto;
 begin
   _DoInit;
@@ -538,6 +560,37 @@ Begin
       Result := false;
       Exit;
     end;
+  end;
+end;
+
+class function TCrypto.EncodeSignature(const signature: TECDSA_SIG): TRawBytes;
+Var ms : TStream;
+begin
+  ms := TMemoryStream.Create;
+  Try
+    TStreamOp.WriteAnsiString(ms,signature.r);
+    TStreamOp.WriteAnsiString(ms,signature.s);
+    Result := TStreamOp.SaveStreamToRaw(ms);
+  finally
+    ms.Free;
+  end;
+end;
+
+class function TCrypto.DecodeSignature(const rawSignature : TRawBytes; out signature : TECDSA_SIG) : Boolean;
+var ms : TStream;
+begin
+  signature := CT_TECDSA_SIG_Nul;
+  Result := False;
+  ms := TMemoryStream.Create;
+  Try
+    TStreamOp.LoadStreamFromRaw(ms,rawSignature);
+    ms.Position:=0;
+    if TStreamOp.ReadAnsiString(ms,signature.r)<0 then Exit;
+    if TStreamOp.ReadAnsiString(ms,signature.s)<0 then Exit;
+    if ms.Position<ms.Size then Exit; // Invalid position
+    Result := True;
+  finally
+    ms.Free;
   end;
 end;
 

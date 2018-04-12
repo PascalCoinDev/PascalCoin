@@ -459,12 +459,16 @@ Type
     Function FindAccountByNameInTransaction(const findName : TRawBytes; out isAddedInThisTransaction, isDeletedInThisTransaction : Boolean) : Integer;
   End;
 
+  { TStreamOp }
+
   TStreamOp = Class
   public
     class Function WriteAnsiString(Stream: TStream; const value: AnsiString): Integer; overload;
     class Function ReadAnsiString(Stream: TStream; var value: AnsiString): Integer; overload;
     class Function WriteAccountKey(Stream: TStream; const value: TAccountKey): Integer;
     class Function ReadAccountKey(Stream: TStream; var value : TAccountKey): Integer;
+    class Function SaveStreamToRaw(Stream: TStream) : TRawBytes;
+    class procedure LoadStreamFromRaw(Stream: TStream; const raw : TRawBytes);
   End;
 
 
@@ -854,6 +858,18 @@ begin
     exit;
   end;
   Result := value.EC_OpenSSL_NID;
+end;
+
+class function TStreamOp.SaveStreamToRaw(Stream: TStream): TRawBytes;
+begin
+  SetLength(Result,Stream.Size);
+  Stream.Position:=0;
+  Stream.ReadBuffer(Result[1],Stream.Size);
+end;
+
+class procedure TStreamOp.LoadStreamFromRaw(Stream: TStream; const raw: TRawBytes);
+begin
+  Stream.WriteBuffer(raw[1],Length(raw));
 end;
 
 class function TStreamOp.ReadAnsiString(Stream: TStream; var value: AnsiString): Integer;

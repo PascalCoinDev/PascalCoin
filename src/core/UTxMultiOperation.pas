@@ -121,7 +121,7 @@ Type
     function OperationFee : UInt64; override;
     function OperationPayload : TRawBytes; override;
     function SignerAccount : Cardinal; override;
-    procedure SignerAccounts(list : TList);
+    procedure SignerAccounts(list : TList); override;
     function IsSignerAccount(account : Cardinal) : Boolean; override;
     function DestinationAccount : Int64; override;
     function SellerAccount : Int64; override;

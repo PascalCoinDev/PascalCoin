@@ -37,8 +37,8 @@ Also, consider a donation at PascalCoin development account: "0-10"
 ### DEVELOPMENT STATUS
 - TODO: PIP - 0010
 - TODO: Add new network operations
-- New target calc on protocol V3 in order to reduce the sinusoidal effect
-  - On V3 will look last 5 blocks instead of last 10 in order to decide if continue increasing/decreasing target
+- TODO: New target calc on protocol V3 in order to reduce the sinusoidal effect
+  - TODO: (on testing...) On V3 will look last 5 blocks instead of last 10 in order to decide if continue increasing/decreasing target
 - New Safebox Snapshoting
   - This allow quickly rollback/commit directly to Safebox instead of create a separate Safebox on memory (read from disk... use more ram...)
   - Is usefull when detecting posible orphan blocks in order to check which chain is the highest chain without duplicating a safebox to compare
@@ -70,7 +70,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
         - "amount" : In negative value, due it's outgoing form "account"
         - "payload"
       - "receivers"
-        - "account" : Receoving Account 
+        - "account" : Receiving Account 
         - "amount" : In positive value, due it's incoming from a sender to "account"
         - "payload"
       - "changers" : Will return an Array with Objects
@@ -79,6 +79,93 @@ Also, consider a donation at PascalCoin development account: "0-10"
         - "new_enc_pubkey" : If public key is changed
         - "new_name" : If name is changed
         - "new_type" : If type is changed
+  - New object "MultiOperation Object" : Will return info about a MultiOperation
+    - "rawoperations" : HEXASTRING with this single MultiOperation in RAW format
+    - "senders" : Will return an Array with Objects
+      - "account" : Sending Account 
+      - "n_operation"
+      - "amount" : In negative value, due it's outgoing form "account"
+      - "payload"
+    - "receivers"
+      - "account" : Receiving Account 
+      - "amount" : In positive value, due it's incoming from a sender to "account"
+      - "payload"
+    - "changers" : Will return an Array with Objects
+      - "account" : changing Account 
+      - "n_operation"
+      - "new_enc_pubkey" : If public key is changed
+      - "new_name" : If name is changed
+      - "new_type" : If type is changed
+    - "amount" : PASCURRENCY Amount received by receivers
+    - "fee" : PASCURRENCY Equal to "total send" - "total received"
+	- "signed_count" : Integer with info about how many accounts are signed 
+	- "not_signed_count" : Integer with info about how many accounts are pending to be signed
+    - "signed_can_execute"	: Boolean. True if everybody signed. Does not check if MultiOperation is well formed or can be added to Network because is an offline call
+  - New method "signmessage": Signs a digest message using a public key
+    - Params:
+      - "digest" : HEXASTRING with the message to sign
+	  - "b58_pubkey" or "enc_pubkey" : HEXASTRING with the public key that will use to sign "digest" data
+    - Result: False on error
+      - "digest" : HEXASTRING with the message to sign
+	  - "enc_pubkey" : HESATRING with the public key that used to sign "digest" data
+	  - "signature" : HEXASTRING with signature
+  - New method "verifysign": Verify if a digest message is signed by a public key
+    - Params:
+      - "digest" : HEXASTRING with the message to check
+	  - "b58_pubkey" or "enc_pubkey" : HEXASTRING with the public key that used to sign "digest" data
+	  - "signature" : HEXASTRING returned by "signmessage" call
+    - Result: False on error
+      - "digest" : HEXASTRING with the message to check
+	  - "enc_pubkey" : HESATRING with the public key that used to sign "digest" data
+	  - "signature" : HEXASTRING with signature
+  - New method "multioperationaddoperation": Adds operations to a multioperation (or creates a new multioperation and adds new operations)
+    This method does not work with current Safebox state, so can be used offline or on COLD wallets
+    - Params:
+      - "rawoperations" : HEXASTRING (optional) with previous multioperation. If is valid and contains a single  multiopertion will add operations to this one, otherwise will generate a NEW MULTIOPERATION
+      - "senders" : ARRAY of objects that will be Senders of the multioperation
+        - "account" : Integer
+        - "n_operation" : Integer - Must provide a valid n_operation+1 value
+        - "amount" : PASCURRENCY in positive format
+        - "payload" : HEXASTRING
+      - "receivers" : ARRAY of objects that will be Receivers of the multioperation
+        - "account" : Integer
+        - "amount" : PASCURRENCY in positive format
+        - "payload" : HEXASTRING
+      - "changesinfo" : ARRAY of objects that will be accounts executing a changing info
+        - "account" : Integer
+        - "n_operation" : Integer - Must provide a valid n_operation+1 value
+        - "new_b58_pubkey"/"new_enc_pubkey": (optional) If provided will update Public key of "account"
+        - "new_name" : STRING (optional) If provided will change account name
+        - "new_type" : Integer (optional) If provided will change account type
+    - Result:
+      If success will return a "MultiOperation Object"
+  - New method "multioperationsignoffline"
+    This method will sign a Multioperation found in a "rawoperations"
+	Must provide info about accounts and keys (current Safebox state, provided by an ONLINE wallet)
+    - Params:
+      -	"rawoperations" : HEXASTRING with 1 multioperation in Raw format
+      - "accounts_and_keys"	: ARRAY of objects with info about accounts and public keys to sign
+        - "account" : Integer 
+        - "b58_pubkey" or "enc_pubkey" : HEXASTRING with the public key of the account
+    - Result:
+      If success will return a "MultiOperation Object"
+  - New method "multioperationsignonline"
+    This method will sign a Multioperation found in a "rawoperations" based on current safebox state public keys
+	Must provide info about accounts and keys (current Safebox state, provided by an ONLINE wallet)
+    - Params:
+      -	"rawoperations" : HEXASTRING with 1 multioperation in Raw format
+    - Result:
+      If success will return a "MultiOperation Object"
+  - New method "operationsdelete"
+    This method will delete an operation included in a Raw operations object
+    - Params:
+      -	"rawoperations" : HEXASTRING with Raw Operations Object
+    - Result:
+      If success will return a "Raw Operations Object"
+      - "rawoperations" : HEXASTRING with operations in Raw format
+      - "operations" : Integer
+      - "amount" : PASCURRENCY
+      - "fee" : PASCURRENCY  
 - Protections against invalid nodes (scammers):
   - Protection on GetBlocks and GetBlockOperations
 - Merged new GUI with current stable core
