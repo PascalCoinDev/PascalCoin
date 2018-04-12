@@ -212,7 +212,7 @@ Type
     Class Function OperationToOperationResume(Block : Cardinal; Operation : TPCOperation; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean; virtual;
     function OperationAmount : Int64; virtual; abstract;
     function OperationAmountByAccount(account : Cardinal) : Int64; virtual;
-    function OperationFee: UInt64; virtual; abstract;
+    function OperationFee: Int64; virtual; abstract;
     function OperationPayload : TRawBytes; virtual; abstract;
     function SignerAccount : Cardinal; virtual; abstract;
     procedure SignerAccounts(list : TList); virtual;

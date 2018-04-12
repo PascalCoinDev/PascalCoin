@@ -118,7 +118,7 @@ Type
     Function DoSignMultiOperationSigner(SignerAccount : Cardinal; key : TECPrivateKey) : Integer;
     class function OpType : Byte; override;
     function OperationAmount : Int64; override;
-    function OperationFee : UInt64; override;
+    function OperationFee : Int64; override;
     function OperationPayload : TRawBytes; override;
     function SignerAccount : Cardinal; override;
     procedure SignerAccounts(list : TList); override;
@@ -747,10 +747,9 @@ begin
   Result := FTotalAmount;
 end;
 
-function TOpMultiOperation.OperationFee: UInt64;
+function TOpMultiOperation.OperationFee: Int64;
 begin
-  If FTotalFee<0 then Result := 0 // Alert!
-  else Result := FTotalFee;
+  Result := FTotalFee;
 end;
 
 function TOpMultiOperation.OperationPayload: TRawBytes;

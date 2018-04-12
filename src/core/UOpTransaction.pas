@@ -82,7 +82,7 @@ Type
     Class Function DoSignOperation(key : TECPrivateKey; var trans : TOpTransactionData) : Boolean;
     class function OpType : Byte; override;
     function OperationAmount : Int64; override;
-    function OperationFee : UInt64; override;
+    function OperationFee : Int64; override;
     function OperationPayload : TRawBytes; override;
     function SignerAccount : Cardinal; override;
     function DestinationAccount : Int64; override;
@@ -111,7 +111,7 @@ Type
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
     function OperationAmount : Int64; override;
-    function OperationFee : UInt64; override;
+    function OperationFee : Int64; override;
     function OperationPayload : TRawBytes; override;
     function SignerAccount : Cardinal; override;
     function DestinationAccount : Int64; override;
@@ -145,7 +145,7 @@ Type
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
     function OperationAmount : Int64; override;
-    function OperationFee : UInt64; override;
+    function OperationFee : Int64; override;
     function OperationPayload : TRawBytes; override;
     function SignerAccount : Cardinal; override;
     function N_Operation : Cardinal; override;
@@ -213,7 +213,7 @@ Type
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
     function OperationAmount : Int64; override;
-    function OperationFee : UInt64; override;
+    function OperationFee : Int64; override;
     function OperationPayload : TRawBytes; override;
     function SignerAccount : Cardinal; override;
     function DestinationAccount : Int64; override;
@@ -265,7 +265,7 @@ Type
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
     function OperationAmount : Int64; override;
-    function OperationFee : UInt64; override;
+    function OperationFee : Int64; override;
     function OperationPayload : TRawBytes; override;
     function SignerAccount : Cardinal; override;
     function DestinationAccount : Int64; override;
@@ -535,7 +535,7 @@ begin
   Result := 0;
 end;
 
-function TOpChangeAccountInfo.OperationFee: UInt64;
+function TOpChangeAccountInfo.OperationFee: Int64;
 begin
   Result := FData.fee;
 end;
@@ -943,7 +943,7 @@ begin
   Result := FData.amount;
 end;
 
-function TOpTransaction.OperationFee: UInt64;
+function TOpTransaction.OperationFee: Int64;
 begin
   Result := FData.fee;
 end;
@@ -1287,7 +1287,7 @@ begin
   Result := 0;
 end;
 
-function TOpChangeKey.OperationFee: UInt64;
+function TOpChangeKey.OperationFee: Int64;
 begin
   Result := FData.fee;
 end;
@@ -1442,7 +1442,7 @@ begin
   Result := 0;
 end;
 
-function TOpRecoverFounds.OperationFee: UInt64;
+function TOpRecoverFounds.OperationFee: Int64;
 begin
   Result := FData.fee;
 end;
@@ -1730,7 +1730,7 @@ begin
   Result := 0;
 end;
 
-function TOpListAccount.OperationFee: UInt64;
+function TOpListAccount.OperationFee: Int64;
 begin
   Result := FData.fee;
 end;
