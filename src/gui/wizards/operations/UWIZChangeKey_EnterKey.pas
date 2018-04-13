@@ -81,9 +81,9 @@ begin
     Result := False;
     Exit;
   end;
-  for i := Low(Model.ChangeKey.SelectedAccounts) to High(Model.ChangeKey.SelectedAccounts) do
+  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
   begin
-    if TAccountComp.EqualAccountKeys(Model.ChangeKey.SelectedAccounts[i].accountInfo.accountKey,
+    if TAccountComp.EqualAccountKeys(Model.Account.SelectedAccounts[i].accountInfo.accountKey,
       tempAccountKey) then
     begin
       Result := False;

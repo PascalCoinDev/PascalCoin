@@ -48,9 +48,9 @@ type
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
   private
-    FModel: TWIZOperationsModel.TSendPASCModel;
+    FModel: TWIZOperationsModel;
   public
-    property Model: TWIZOperationsModel.TSendPASCModel read FModel write FModel;
+    property Model: TWIZOperationsModel read FModel write FModel;
     procedure FetchAll(const AContainer: TList<TAccount>); override;
   end;
 
@@ -90,7 +90,7 @@ begin
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
   Data := TAccountSenderDataSource.Create(FSendersGrid);
-  Data.Model := Model.SendPASC;
+  Data.Model := Model;
   FSendersGrid.DataSource := Data;
   paGrid.AddControlDockCenter(FSendersGrid);
 end;
@@ -104,7 +104,7 @@ function TWIZSendPASC_ConfirmSender.Validate(out message: ansistring): boolean;
 begin
   Result := True;
   // get signer accounts from selected accounts
-  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.SendPASC.SelectedAccounts), Model.SendPASC.SelectedAccounts);
+  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Model.Account.SelectedAccounts);
 
   if Length(Model.Signer.SignerCandidates) < 1 then
   begin
@@ -120,9 +120,9 @@ procedure TAccountSenderDataSource.FetchAll(const AContainer: TList<TAccount>);
 var
   i: integer;
 begin
-  for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
   begin
-    AContainer.Add(Model.SelectedAccounts[i]);
+    AContainer.Add(Model.Account.SelectedAccounts[i]);
   end;
 end;
 

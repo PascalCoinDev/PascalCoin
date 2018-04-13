@@ -133,9 +133,9 @@ procedure TAccountSenderDataSource.FetchAll(const AContainer : TList<TAccount>);
 var
   i: Integer;
 begin
-  for i := Low(Model.SendPASC.SelectedAccounts) to High(Model.SendPASC.SelectedAccounts) do
+  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
   begin
-    AContainer.Add( Model.SendPASC.SelectedAccounts[i] );
+    AContainer.Add( Model.Account.SelectedAccounts[i] );
   end;
 end;
 

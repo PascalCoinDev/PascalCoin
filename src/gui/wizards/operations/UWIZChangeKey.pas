@@ -165,7 +165,7 @@ begin
     Exit;
   end;
 
-  if Length(Model.ChangeKey.SelectedAccounts) = 0 then
+  if Length(Model.Account.SelectedAccounts) = 0 then
   begin
     errors := 'No sender account';
     Exit;
@@ -173,9 +173,9 @@ begin
   else
   begin
 
-    for iAcc := Low(Model.ChangeKey.SelectedAccounts) to High(Model.ChangeKey.SelectedAccounts) do
+    for iAcc := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
     begin
-      sender_account := Model.ChangeKey.SelectedAccounts[iAcc];
+      sender_account := Model.Account.SelectedAccounts[iAcc];
       iWallet := TWallet.Keys.IndexOfAccountKey(sender_account.accountInfo.accountKey);
       if (iWallet < 0) then
       begin
@@ -203,7 +203,7 @@ begin
     end;
   end;
 
-  Result := UpdateOpChangeKey(Model.ChangeKey.SelectedAccounts[0], signer_account,
+  Result := UpdateOpChangeKey(Model.Account.SelectedAccounts[0], signer_account,
     publicKey, errors);
   UpdatePayload(sender_account, e);
 end;
@@ -295,11 +295,11 @@ begin
     _signer_n_ops := 0;
     operationstxt := '';
     operation_to_string := '';
-    for iAcc := Low(Model.ChangeKey.SelectedAccounts) to High(Model.ChangeKey.SelectedAccounts) do
+    for iAcc := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
     begin
       loop_start:
         op := nil;
-      account := Model.ChangeKey.SelectedAccounts[iAcc];
+      account := Model.Account.SelectedAccounts[iAcc];
       if not UpdatePayload(account, errors) then
       begin
         raise Exception.Create('Error encoding payload of sender account ' +
@@ -326,11 +326,11 @@ begin
       if _V2 then
       begin
         // must ensure is Signer account last if included in sender accounts (not necessarily ordered enumeration)
-        if (iAcc < Length(Model.ChangeKey.SelectedAccounts) - 1) and
+        if (iAcc < Length(Model.Account.SelectedAccounts) - 1) and
           (account.account = signerAccount.account) then
         begin
-          TArrayTool<TAccount>.Swap(Model.ChangeKey.SelectedAccounts, iAcc,
-            Length(Model.ChangeKey.SelectedAccounts) - 1); // ensure signer account processed last
+          TArrayTool<TAccount>.Swap(Model.Account.SelectedAccounts, iAcc,
+            Length(Model.Account.SelectedAccounts) - 1); // ensure signer account processed last
           // TArrayTool_internal<Cardinal>.Swap(_senderAccounts, iAcc, Length(_senderAccounts) - 1);
           goto loop_start; // TODO: remove ugly hack with refactoring!
         end;
@@ -372,11 +372,11 @@ begin
     if (ops.OperationsCount = 0) then
       raise Exception.Create('No valid operation to execute');
 
-    if (Length(Model.ChangeKey.SelectedAccounts) > 1) then
+    if (Length(Model.Account.SelectedAccounts) > 1) then
     begin
       auxs := '';
       if Application.MessageBox(
-        PChar('Execute ' + IntToStr(Length(Model.ChangeKey.SelectedAccounts)) +
+        PChar('Execute ' + IntToStr(Length(Model.Account.SelectedAccounts)) +
         ' operations?' + #10 + 'Operation: ' + operationstxt + #10 +
         auxs + 'Total fee: ' + TAccountComp.FormatMoney(_totalfee) +
         #10 + #10 + 'Note: This operation will be transmitted to the network!'),

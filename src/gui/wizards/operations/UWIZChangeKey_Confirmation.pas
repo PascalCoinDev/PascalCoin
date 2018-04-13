@@ -168,9 +168,9 @@ procedure TAccountChangeKeyDataSource.FetchAll(const AContainer: TList<TAccount>
 var
   i: integer;
 begin
-  for i := Low(Model.ChangeKey.SelectedAccounts) to High(Model.ChangeKey.SelectedAccounts) do
+  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
   begin
-    AContainer.Add(Model.ChangeKey.SelectedAccounts[i]);
+    AContainer.Add(Model.Account.SelectedAccounts[i]);
   end;
 end;
 

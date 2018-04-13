@@ -62,14 +62,12 @@ type
     public
       SingleAmountToSend: int64;
       DestinationAccount: TAccount;
-      // SelectedAccounts: TArray<TAccount>;
     end;
 
     { TChangeKeyModel }
 
     TChangeKeyModel = class(TComponent)
     public
-      // SelectedAccounts: TArray<TAccount>;
       ChangeKeyMode: TChangeKeyMode;
     end;
 

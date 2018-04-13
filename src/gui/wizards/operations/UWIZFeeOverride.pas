@@ -18,7 +18,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, Spin, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZPayloadOverride, UWIZSelectSignerOverride, UWIZModels;
+  UFRMAccountSelect, UNode, UWizard, UWIZPayloadOverride, UWIZSelectSignerOverride, UWIZModels;
 
 type
 
@@ -58,7 +58,7 @@ var
 begin
   TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)), opfee);
   lblTotalFeeValue.Caption := Format('%s PASC', [TAccountComp.FormatMoney(opfee *
-    Length(Model.SendPASC.SelectedAccounts))]);
+    Length(Model.Account.SelectedAccounts))]);
 end;
 
 procedure TWIZFeeOverride.fseFeeChange(Sender: TObject);

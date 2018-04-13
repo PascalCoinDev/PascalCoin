@@ -50,9 +50,9 @@ type
 
   TAccountChangeKeyDataSource = class(TAccountsDataSourceBase)
   private
-    FModel: TWIZOperationsModel.TChangeKeyModel;
+    FModel: TWIZOperationsModel;
   public
-    property Model: TWIZOperationsModel.TChangeKeyModel read FModel write FModel;
+    property Model: TWIZOperationsModel read FModel write FModel;
     procedure FetchAll(const AContainer: TList<TAccount>); override;
   end;
 
@@ -95,14 +95,14 @@ begin
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
   Data := TAccountChangeKeyDataSource.Create(FChangeKeyGrid);
-  Data.Model := Model.ChangeKey;
+  Data.Model := Model;
   FChangeKeyGrid.DataSource := Data;
   paGrid.AddControlDockCenter(FChangeKeyGrid);
 
   totalBalance := 0;
-  for i := Low(Model.ChangeKey.SelectedAccounts) to High(Model.ChangeKey.SelectedAccounts) do
+  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
   begin
-    acc := Model.ChangeKey.SelectedAccounts[i];
+    acc := Model.Account.SelectedAccounts[i];
     totalBalance := totalBalance + acc.balance;
   end;
 
@@ -119,7 +119,7 @@ function TWIZChangeKey_ConfirmAccount.Validate(out message: ansistring): boolean
 begin
   Result := True;
   // get signer accounts from selected accounts
-  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.ChangeKey.SelectedAccounts), Model.ChangeKey.SelectedAccounts);
+  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Model.Account.SelectedAccounts);
 
   if Length(Model.Signer.SignerCandidates) < 1 then
   begin
@@ -135,9 +135,9 @@ procedure TAccountChangeKeyDataSource.FetchAll(const AContainer: TList<TAccount>
 var
   i: integer;
 begin
-  for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
   begin
-    AContainer.Add(Model.SelectedAccounts[i]);
+    AContainer.Add(Model.Account.SelectedAccounts[i]);
   end;
 end;
 

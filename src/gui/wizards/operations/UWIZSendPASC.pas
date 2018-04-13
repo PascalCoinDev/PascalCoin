@@ -67,7 +67,7 @@ begin
     Exit;
   end;
 
-  if Length(Model.SendPASC.SelectedAccounts) = 0 then
+  if Length(Model.Account.SelectedAccounts) = 0 then
   begin
     errors := 'No sender account';
     Exit;
@@ -75,9 +75,9 @@ begin
   else
   begin
 
-    for iAcc := Low(Model.SendPASC.SelectedAccounts) to High(Model.SendPASC.SelectedAccounts) do
+    for iAcc := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
     begin
-      sender_account := Model.SendPASC.SelectedAccounts[iAcc];
+      sender_account := Model.Account.SelectedAccounts[iAcc];
       iWallet := TWallet.Keys.IndexOfAccountKey(sender_account.accountInfo.accountKey);
       if (iWallet < 0) then
       begin
@@ -105,7 +105,7 @@ begin
     end;
   end;
 
-  Result := UpdateOpTransaction(Model.SendPASC.SelectedAccounts[0], dest_account, amount, errors);
+  Result := UpdateOpTransaction(Model.Account.SelectedAccounts[0], dest_account, amount, errors);
   UpdatePayload(sender_account, e);
 end;
 
@@ -119,7 +119,7 @@ begin
 
   DestAccount := Model.SendPASC.DestinationAccount;
 
-  if Length(Model.SendPASC.SelectedAccounts) = 1 then
+  if Length(Model.Account.SelectedAccounts) = 1 then
   begin
     amount := Model.SendPASC.SingleAmountToSend;
   end
@@ -134,7 +134,7 @@ begin
     Exit;
   end;
 
-  if (Length(Model.SendPASC.SelectedAccounts) = 1) then
+  if (Length(Model.Account.SelectedAccounts) = 1) then
   begin
     if (SenderAccount.balance < (amount + Model.Fee.SingleOperationFee)) then
     begin
@@ -170,10 +170,10 @@ begin
     _signer_n_ops := 0;
     operationstxt := '';
     operation_to_string := '';
-    for iAcc := Low(Model.SendPASC.SelectedAccounts) to High(Model.SendPASC.SelectedAccounts) do
+    for iAcc := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
     begin
       op := nil;
-      account := Model.SendPASC.SelectedAccounts[iAcc];
+      account := Model.Account.SelectedAccounts[iAcc];
       if not UpdatePayload(account, errors) then
       begin
         raise Exception.Create('Error encoding payload of sender account ' +
@@ -195,7 +195,7 @@ begin
 
       if not UpdateOpTransaction(account, destAccount, _amount, errors) then
         raise Exception.Create(errors);
-      if Length(Model.SendPASC.SelectedAccounts) > 1 then
+      if Length(Model.Account.SelectedAccounts) > 1 then
       begin
         if account.balance > 0 then
         begin
@@ -240,12 +240,12 @@ begin
     if (ops.OperationsCount = 0) then
       raise Exception.Create('No valid operation to execute');
 
-    if (Length(Model.SendPASC.SelectedAccounts) > 1) then
+    if (Length(Model.Account.SelectedAccounts) > 1) then
     begin
       auxs := 'Total amount that dest will receive: ' + TAccountComp.FormatMoney(
         _totalamount) + #10;
       if Application.MessageBox(
-        PChar('Execute ' + IntToStr(Length(Model.SendPASC.SelectedAccounts)) +
+        PChar('Execute ' + IntToStr(Length(Model.Account.SelectedAccounts)) +
         ' operations?' + #10 + 'Operation: ' + operationstxt + #10 +
         auxs + 'Total fee: ' + TAccountComp.FormatMoney(_totalfee) +
         #10 + #10 + 'Note: This operation will be transmitted to the network!'),

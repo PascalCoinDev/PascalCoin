@@ -154,7 +154,7 @@ begin
   end;
 
   AccountNumbersWithChecksum :=
-    TListTool<TAccount, string>.Transform(Model.SendPASC.SelectedAccounts, GetAccNoWithCheckSum);
+    TListTool<TAccount, string>.Transform(Model.Account.SelectedAccounts, GetAccNoWithCheckSum);
 
   if TArrayTool<string>.Contains(AccountNumbersWithChecksum, edtDestAcc.Text) then
   begin
