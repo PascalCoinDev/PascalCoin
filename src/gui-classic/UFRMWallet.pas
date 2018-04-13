@@ -27,12 +27,11 @@ uses
 {$ELSE}
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
-  Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, ExtCtrls, ComCtrls, UWallet, StdCtrls,
-  ULog, Grids, UAppParams,
-  UBlockChain, UNode, UGridUtils, UAccounts, Menus, ImgList,
-  UNetProtocol, UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect,
-  UConst;
+  Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms, Dialogs,
+  ExtCtrls, ComCtrls, UWallet, StdCtrls, ULog, Grids, UAppParams, UBlockChain,
+  UNode, UGridUtils, UJSONFunctions, UAccounts, Menus, ImgList, UNetProtocol,
+  UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect, UFRMRPCCalls, UConst,
+  UTxMultiOperation;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -44,6 +43,11 @@ type
   { TFRMWallet }
 
   TFRMWallet = class(TForm)
+    cbHashRateUnits: TComboBox;
+    ebHashRateBackBlocks: TEdit;
+    lblHashRateBackBlocks: TLabel;
+    lblHashRateBackBlocks1: TLabel;
+    MiRPCCalls: TMenuItem;
     pnlTop: TPanel;
     Image1: TImage;
     sbSearchAccount: TSpeedButton;
@@ -170,8 +174,14 @@ type
     dgOperationsExplorer: TDrawGrid;
     MiFindOperationbyOpHash: TMenuItem;
     MiAccountInformation: TMenuItem;
+    MiOperationsExplorer: TMenuItem;
+    procedure cbHashRateUnitsClick(Sender: TObject);
+    procedure ebHashRateBackBlocksExit(Sender: TObject);
+    procedure ebHashRateBackBlocksKeyPress(Sender: TObject; var Key: char);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure MiOperationsExplorerClick(Sender: TObject);
+    procedure MiRPCCallsClick(Sender: TObject);
     procedure sbSearchAccountClick(Sender: TObject);
     procedure TimerUpdateStatusTimer(Sender: TObject);
     procedure cbMyPrivateKeysChange(Sender: TObject);
@@ -297,6 +307,7 @@ implementation
 
 Uses UFolderHelper, UOpenSSL, UOpenSSLdef, UTime, UFileStorage,
   UThread, UOpTransaction, UECIES, UFRMPascalCoinWalletConfig,
+  UFRMOperationsExplorer,
   UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText, USettings;
 
 Type
@@ -796,6 +807,8 @@ begin
 end;
 
 procedure TFRMWallet.FillOperationInformation(const Strings: TStrings; Const OperationResume: TOperationResume);
+var i : Integer;
+  jsonObj : TPCJSONObject;
 begin
   If (not OperationResume.valid) then exit;
   If OperationResume.Block<FNode.Bank.BlocksCount then
@@ -806,6 +819,19 @@ begin
     end
   else Strings.Add('** Pending operation not included on blockchain **');
   Strings.Add(Format('%s',[OperationResume.OperationTxt]));
+  If (OperationResume.isMultiOperation) then begin
+    Strings.Add('Multioperation:');
+    For i := 0 to High(OperationResume.Senders) do begin
+      Strings.Add(Format('  Sender (%d/%d): %s %s PASC Payload:%s',[i+1,length(OperationResume.Senders),TAccountComp.AccountNumberToAccountTxtNumber(OperationResume.Senders[i].Account),TAccountComp.FormatMoney(OperationResume.Senders[i].Amount),TCrypto.ToHexaString(OperationResume.Senders[i].Payload)]));
+    end;
+    For i := 0 to High(OperationResume.Receivers) do begin
+      Strings.Add(Format('  Receiver (%d/%d): %s %s PASC Payload:%s',[i+1,length(OperationResume.Receivers),TAccountComp.AccountNumberToAccountTxtNumber(OperationResume.Receivers[i].Account),TAccountComp.FormatMoney(OperationResume.Receivers[i].Amount),TCrypto.ToHexaString(OperationResume.Receivers[i].Payload)]));
+    end;
+    For i := 0 to High(OperationResume.Changers) do begin
+      Strings.Add(Format('  Change info (%d/%d): %s [%s]',[i+1,length(OperationResume.Changers),TAccountComp.AccountNumberToAccountTxtNumber(OperationResume.Changers[i].Account),TOpMultiOperation.OpChangeAccountInfoTypesToText(OperationResume.Changers[i].Changes_type)]));
+    end;
+
+  end;
   Strings.Add(Format('OpType:%d Subtype:%d',[OperationResume.OpType,OperationResume.OpSubtype]));
   Strings.Add(Format('Operation Hash (ophash): %s',[TCrypto.ToHexaString(OperationResume.OperationHash)]));
   If (OperationResume.OperationHash_OLD<>'') then begin
@@ -820,6 +846,14 @@ begin
   end;
   If OperationResume.Balance>=0 then begin
     Strings.Add(Format('Final balance: %s',[TAccountComp.FormatMoney(OperationResume.Balance)]));
+  end;
+  jsonObj := TPCJSONObject.Create;
+  Try
+    TPascalCoinJSONComp.FillOperationObject(OperationResume,FNode.Bank.BlocksCount,jsonObj);
+    Strings.Add('JSON:');
+    Strings.Add(jsonObj.ToJSON(False));
+  Finally
+    jsonObj.Free;
   end;
 end;
 
@@ -913,6 +947,42 @@ begin
   FBackgroundPanel.Font.Size:=15;
 end;
 
+procedure TFRMWallet.ebHashRateBackBlocksKeyPress(Sender: TObject; var Key: char);
+begin
+  if Key=#13 then ebHashRateBackBlocksExit(Nil);
+end;
+
+procedure TFRMWallet.ebHashRateBackBlocksExit(Sender: TObject);
+var i : Integer;
+begin
+  If FUpdating then exit;
+  FUpdating := True;
+  Try
+    i := StrToIntDef(ebHashRateBackBlocks.Text,-1);
+    FBlockChainGrid.HashRateAverageBlocksCount:=i;
+  Finally
+    ebHashRateBackBlocks.Text := IntToStr(FBlockChainGrid.HashRateAverageBlocksCount);
+    FUpdating := false;
+  End;
+end;
+
+procedure TFRMWallet.cbHashRateUnitsClick(Sender: TObject);
+begin
+  If FUpdating then Exit;
+  FUpdating := True;
+  Try
+    case cbHashRateUnits.ItemIndex of
+      0 : FBlockChainGrid.HashRateAs := hr_Kilo;
+      1 : FBlockChainGrid.HashRateAs := hr_Mega;
+      2 : FBlockChainGrid.HashRateAs := hr_Giga;
+      3 : FBlockChainGrid.HashRateAs := hr_Tera;
+    else FBlockChainGrid.HashRateAs := hr_Mega;
+    end;
+  Finally
+    FUpdating := false;
+  End;
+end;
+
 procedure TFRMWallet.FormDestroy(Sender: TObject);
 Var i : Integer;
   step : String;
@@ -980,6 +1050,30 @@ begin
   TLog.NewLog(ltinfo,Classname,'Destroying form - END');
   FreeAndNil(FLog);
   Sleep(100);
+end;
+
+procedure TFRMWallet.MiOperationsExplorerClick(Sender: TObject);
+begin
+  With TFRMOperationsExplorer.Create(Self) do
+  try
+    SourceNode := FNode;
+    SourceWalletKeys := FWalletKeys;
+    ShowModal;
+  finally
+    Free;
+  end;
+end;
+
+procedure TFRMWallet.MiRPCCallsClick(Sender: TObject);
+Var FRM : TFRMRPCCalls;
+begin
+  FRM := TFRMRPCCalls.Create(Self);
+  Try
+    FRM.ServerURL:='127.0.0.1:'+IntToStr(FRPCServer.Port);
+    FRM.ShowModal;
+  finally
+    FRM.Free;
+  end;
 end;
 
 procedure TFRMWallet.sbSearchAccountClick(Sender: TObject);
@@ -1841,6 +1935,14 @@ begin
   i := FAppParams.ParamByName[CT_PARAM_MinerPrivateKeyType].GetAsInteger(Integer(mpk_Random));
   if (i>=Integer(Low(TMinerPrivatekey))) And (i<=Integer(High(TMinerPrivatekey))) then FMinerPrivateKeyType := TMinerPrivateKey(i)
   else FMinerPrivateKeyType := mpk_Random;
+  ebHashRateBackBlocks.Text := IntToStr(FBlockChainGrid.HashRateAverageBlocksCount);
+  Case FBlockChainGrid.HashRateAs of
+    hr_Kilo : cbHashRateUnits.ItemIndex:=0;
+    hr_Mega : cbHashRateUnits.ItemIndex:=1;
+    hr_Giga : cbHashRateUnits.ItemIndex:=2;
+    hr_Tera : cbHashRateUnits.ItemIndex:=3;
+  else cbHashRateUnits.ItemIndex:=-1;
+  end;
 end;
 
 procedure TFRMWallet.UpdateConnectionStatus;

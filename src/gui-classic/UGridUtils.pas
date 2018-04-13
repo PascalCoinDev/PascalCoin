@@ -19,6 +19,8 @@ unit UGridUtils;
 
 interface
 
+{$I ../config.inc}
+
 uses
 {$IFnDEF FPC}
   Windows,
@@ -129,6 +131,7 @@ Type
     Volume : Int64;
     Reward, Fee : Int64;
     Target : Cardinal;
+    HashRateTargetKhs : Int64;
     HashRateKhs : Int64;
     MinerPayload : TRawBytes;
     PoW : TRawBytes;
@@ -146,10 +149,13 @@ Type
 
   { TBlockChainGrid }
 
+  TShowHashRateAs = (hr_Kilo, hr_Mega, hr_Giga, hr_Tera);
+
   TBlockChainGrid = Class(TComponent)
   private
     FBlockChainDataArray : TBlockChainDataArray;
     FBlockStart: Int64;
+    FHashRateAs: TShowHashRateAs;
     FMaxBlocks: Integer;
     FBlockEnd: Int64;
     FDrawGrid: TDrawGrid;
@@ -163,6 +169,7 @@ Type
     procedure SetBlockEnd(const Value: Int64);
     procedure SetBlockStart(const Value: Int64);
     procedure SetDrawGrid(const Value: TDrawGrid);
+    procedure SetHashRateAs(AValue: TShowHashRateAs);
     procedure SetMaxBlocks(const Value: Integer);
     procedure SetNode(const Value: TNode);
     procedure SetHashRateAverageBlocksCount(const Value: Integer);
@@ -182,10 +189,11 @@ Type
     Property MaxBlocks : Integer read FMaxBlocks write SetMaxBlocks;
     Property HashRateAverageBlocksCount : Integer read FHashRateAverageBlocksCount write SetHashRateAverageBlocksCount;
     Property ShowTimeAverageColumns : Boolean read FShowTimeAverageColumns write SetShowTimeAverageColumns;
+    Property HashRateAs : TShowHashRateAs read FHashRateAs write SetHashRateAs;
   End;
 
 Const
-  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:-1;Volume:-1;Reward:0;Fee:0;Target:0;HashRateKhs:0;MinerPayload:'';PoW:'';SafeBoxHash:'';AccumulatedWork:0;TimeAverage200:0;TimeAverage150:0;TimeAverage100:0;TimeAverage75:0;TimeAverage50:0;TimeAverage25:0;TimeAverage10:0);
+  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:-1;Volume:-1;Reward:0;Fee:0;Target:0;HashRateTargetKhs:0;HashRateKhs:0;MinerPayload:'';PoW:'';SafeBoxHash:'';AccumulatedWork:0;TimeAverage200:0;TimeAverage150:0;TimeAverage100:0;TimeAverage75:0;TimeAverage50:0;TimeAverage25:0;TimeAverage10:0);
 
 
 implementation
@@ -989,6 +997,7 @@ begin
   FHashRateAverageBlocksCount := 50;
   SetLength(FBlockChainDataArray,0);
   FShowTimeAverageColumns:=False;
+  FHashRateAs:={$IFDEF PRODUCTION}hr_Giga{$ELSE}hr_Mega{$ENDIF};
 end;
 
 destructor TBlockChainGrid.Destroy;
@@ -1012,7 +1021,7 @@ begin
   DrawGrid.FixedRows := 1;
   DrawGrid.DefaultDrawing := true;
   DrawGrid.FixedCols := 0;
-  If ShowTimeAverageColumns then DrawGrid.ColCount:=15
+  If ShowTimeAverageColumns then DrawGrid.ColCount:=14
   else DrawGrid.ColCount:=12;
   DrawGrid.ColWidths[0] := 50; // Block
   DrawGrid.ColWidths[1] := 110; // Time
@@ -1027,9 +1036,8 @@ begin
   DrawGrid.ColWidths[10] := 190; // SafeBox Hash
   DrawGrid.ColWidths[11] := 50; // Protocol
   If ShowTimeAverageColumns then begin
-    DrawGrid.ColWidths[12] := 95; // Accumulated work
-    DrawGrid.ColWidths[13] := 55; // Deviation
-    DrawGrid.ColWidths[14] := 340; // Time average
+    DrawGrid.ColWidths[12] := 55; // Deviation
+    DrawGrid.ColWidths[13] := 350; // Time average
   end;
   FDrawGrid.DefaultRowHeight := 18;
   FDrawGrid.Invalidate;
@@ -1057,6 +1065,7 @@ procedure TBlockChainGrid.OnGridDrawCell(Sender: TObject; ACol, ARow: Longint;
 Var s : String;
   bcd : TBlockChainData;
   deviation : Real;
+  hr_base : Int64;
 begin
   {.$IFDEF FPC}
   DrawGrid.Canvas.Font.Color:=clBlack;
@@ -1071,14 +1080,21 @@ begin
       4 : s := 'Reward';
       5 : s := 'Fee';
       6 : s := 'Target';
-      7 : s := 'Mh/s';
+      7 : begin
+        case HashRateAs of
+          hr_Kilo : s := 'Kh/s';
+          hr_Mega : s := 'Mh/s';
+          hr_Giga : s := 'Gh/s';
+          hr_Tera : s := 'Th/s';
+        else s := '?h/s';
+        end;
+      end;
       8 : s := 'Miner Payload';
       9 : s := 'Proof of Work';
       10 : s := 'SafeBox Hash';
       11 : s := 'Protocol';
-      12 : s := 'Acc.Work';
-      13 : s := 'Deviation';
-      14 : s := 'Time average';
+      12 : s := 'Deviation';
+      13 : s := 'Time average';
     else s:= '';
     end;
     Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfCenter,tfVerticalCenter]);
@@ -1131,7 +1147,14 @@ begin
         s := IntToHex(bcd.Target,8);
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter]);
       end else if ACol=7 then begin
-        s := Format('%.2n',[bcd.HashRateKhs/1024]);
+        case HashRateAs of
+          hr_Kilo : hr_base := 1;
+          hr_Mega : hr_base := 1000;
+          hr_Giga : hr_base := 1000000;
+          hr_Tera : hr_base := 1000000000;
+        else hr_base := 1;
+        end;
+        s := Format('%.2n (%.2n)',[bcd.HashRateKhs/hr_base,bcd.HashRateTargetKhs/hr_base]);
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter]);
       end else if ACol=8 then begin
         if TCrypto.IsHumanReadable(bcd.MinerPayload) then
@@ -1148,19 +1171,10 @@ begin
         s := Inttostr(bcd.BlockProtocolVersion)+'-'+IntToStr(bcd.BlockProtocolAvailable);
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfCenter,tfVerticalCenter,tfSingleLine]);
       end else if ACol=12 then begin
-        if bcd.AccumulatedWork>0 then begin
-          s := Inttostr(bcd.AccumulatedWork);
-          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter]);
-        end else begin
-          DrawGrid.Canvas.Font.Color := clGrayText;
-          s := '(no data)';
-          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfCenter,tfVerticalCenter,tfSingleLine]);
-        end;
-      end else if ACol=13 then begin
         deviation := ((CT_NewLineSecondsAvg - bcd.TimeAverage100) / CT_NewLineSecondsAvg)*100;
         s := Format('%.2f',[deviation])+' %';
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
-      end else if ACol=14 then begin
+      end else if ACol=13 then begin
         s := Format('200:%.1f 150:%.1f 100:%.1f 75:%.1f 50:%.1f 25:%.1f 10:%.1f',[bcd.TimeAverage200,
            bcd.TimeAverage150,bcd.TimeAverage100,bcd.TimeAverage75,bcd.TimeAverage50,bcd.TimeAverage25,bcd.TimeAverage10]);
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
@@ -1212,6 +1226,15 @@ begin
   end;
 end;
 
+procedure TBlockChainGrid.SetHashRateAs(AValue: TShowHashRateAs);
+begin
+  if FHashRateAs=AValue then Exit;
+  FHashRateAs:=AValue;
+  if Assigned(FDrawGrid) then begin
+    FDrawGrid.Invalidate;
+  end;
+end;
+
 
 procedure TBlockChainGrid.SetHashRateAverageBlocksCount(const Value: Integer);
 begin
@@ -1251,6 +1274,7 @@ Var nstart,nend : Cardinal;
   bcd : TBlockChainData;
   i : Integer;
   opb : TOperationBlock;
+  bn : TBigNum;
 begin
   if (FBlockStart>FBlockEnd) And (FBlockStart>=0) then FBlockEnd := -1;
   if (FBlockEnd>=0) And (FBlockEnd<FBlockStart) then FBlockStart:=-1;
@@ -1292,6 +1316,12 @@ begin
         bcd.Fee := opb.fee;
         bcd.Target := opb.compact_target;
         bcd.HashRateKhs := Node.Bank.SafeBox.CalcBlockHashRateInKhs(bcd.Block,HashRateAverageBlocksCount);
+        bn := TBigNum.TargetToHashRate(opb.compact_target);
+        Try
+          bcd.HashRateTargetKhs := bn.Divide(1024).Divide(CT_NewLineSecondsAvg).Value;
+        finally
+          bn.Free;
+        end;
         bcd.MinerPayload := opb.block_payload;
         bcd.PoW := opb.proof_of_work;
         bcd.SafeBoxHash := opb.initial_safe_box_hash;

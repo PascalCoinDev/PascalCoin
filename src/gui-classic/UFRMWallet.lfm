@@ -1,6 +1,6 @@
 object FRMWallet: TFRMWallet
   Left = 389
-  Height = 580
+  Height = 600
   Top = 201
   Width = 865
   Caption = 'Pascal Coin Wallet, JSON-RPC Miner & Explorer'
@@ -17,7 +17,6 @@ object FRMWallet: TFRMWallet
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
   LCLVersion = '1.8.0.6'
-  Visible = False
   object pnlTop: TPanel
     Left = 0
     Height = 91
@@ -366,7 +365,7 @@ object FRMWallet: TFRMWallet
   object StatusBar: TStatusBar
     Left = 0
     Height = 23
-    Top = 537
+    Top = 557
     Width = 865
     Panels = <    
       item
@@ -386,21 +385,21 @@ object FRMWallet: TFRMWallet
   end
   object PageControl: TPageControl
     Left = 0
-    Height = 446
+    Height = 466
     Top = 91
     Width = 865
-    ActivePage = tsMyAccounts
+    ActivePage = tsBlockChain
     Align = alClient
-    TabIndex = 0
+    TabIndex = 2
     TabOrder = 2
     OnChange = PageControlChange
     object tsMyAccounts: TTabSheet
       Caption = 'Account Explorer'
-      ClientHeight = 420
+      ClientHeight = 440
       ClientWidth = 857
       object Splitter1: TSplitter
         Left = 400
-        Height = 354
+        Height = 374
         Top = 66
         Width = 5
       end
@@ -526,17 +525,17 @@ object FRMWallet: TFRMWallet
       end
       object pnlAccounts: TPanel
         Left = 0
-        Height = 354
+        Height = 374
         Top = 66
         Width = 400
         Align = alLeft
         BevelOuter = bvNone
-        ClientHeight = 354
+        ClientHeight = 374
         ClientWidth = 400
         TabOrder = 1
         object dgAccounts: TDrawGrid
           Left = 0
-          Height = 320
+          Height = 340
           Top = 0
           Width = 400
           Align = alClient
@@ -550,7 +549,7 @@ object FRMWallet: TFRMWallet
         object pnlAccountsInfo: TPanel
           Left = 0
           Height = 34
-          Top = 320
+          Top = 340
           Width = 400
           Align = alBottom
           BevelOuter = bvNone
@@ -631,7 +630,7 @@ object FRMWallet: TFRMWallet
       end
       object pcAccountsOptions: TPageControl
         Left = 405
-        Height = 354
+        Height = 374
         Top = 66
         Width = 452
         ActivePage = tsAccountOperations
@@ -640,11 +639,11 @@ object FRMWallet: TFRMWallet
         TabOrder = 2
         object tsAccountOperations: TTabSheet
           Caption = 'Operations of selected Account'
-          ClientHeight = 328
+          ClientHeight = 348
           ClientWidth = 444
           object dgAccountOperations: TDrawGrid
             Left = 0
-            Height = 328
+            Height = 348
             Top = 0
             Width = 444
             Align = alClient
@@ -941,6 +940,50 @@ object FRMWallet: TFRMWallet
           OnKeyPress = ebBlockChainBlockStartKeyPress
           TabOrder = 1
         end
+        object lblHashRateBackBlocks: TLabel
+          Left = 280
+          Height = 13
+          Top = 10
+          Width = 104
+          Caption = 'HashRate back blocks'
+          ParentColor = False
+        end
+        object ebHashRateBackBlocks: TEdit
+          Left = 392
+          Height = 21
+          Top = 7
+          Width = 56
+          OnExit = ebHashRateBackBlocksExit
+          OnKeyPress = ebHashRateBackBlocksKeyPress
+          TabOrder = 2
+        end
+        object lblHashRateBackBlocks1: TLabel
+          Left = 463
+          Height = 13
+          Top = 10
+          Width = 24
+          Caption = 'Units'
+          ParentColor = False
+        end
+        object cbHashRateUnits: TComboBox
+          Left = 496
+          Height = 21
+          Top = 7
+          Width = 56
+          ItemHeight = 13
+          ItemIndex = 1
+          Items.Strings = (
+            'Kh/s'
+            'Mh/s'
+            'Gh/s'
+            'Th/s'
+          )
+          OnChange = cbHashRateUnitsClick
+          OnClick = cbHashRateUnitsClick
+          Style = csDropDownList
+          TabOrder = 3
+          Text = 'Mh/s'
+        end
       end
       object dgBlockChainExplorer: TDrawGrid
         Left = 0
@@ -1234,6 +1277,10 @@ object FRMWallet: TFRMWallet
         Caption = 'Available Node List'
         OnClick = IPnodes1Click
       end
+      object MiRPCCalls: TMenuItem
+        Caption = 'RPC Calls'
+        OnClick = MiRPCCallsClick
+      end
       object N1: TMenuItem
         Caption = '-'
       end
@@ -1268,6 +1315,11 @@ object FRMWallet: TFRMWallet
         Caption = 'Account Information'
         ShortCut = 112
         OnClick = MiAccountInformationClick
+      end
+      object MiOperationsExplorer: TMenuItem
+        Caption = 'Operations Explorer'
+        ShortCut = 16453
+        OnClick = MiOperationsExplorerClick
       end
       object N2: TMenuItem
         Caption = '-'
