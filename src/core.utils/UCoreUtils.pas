@@ -34,6 +34,12 @@ TAccountKeyEqualityComparer = class(TEqualityComparer<TAccountKey>)
     class function CalcHashCode(constref AValue: TAccountKey): UInt32;
 end;
 
+{ TCoreTool }
+
+TCoreTool = class(TObject)
+  class function GetSignerCandidates(ANumOps : Integer; const ACandidates : TArray<TAccount>) : TArray<TAccount>; static;
+  end;
+
 TAccountHelper = record helper for TAccount
   function GetAccountString : AnsiString;
   function GetInfoText(const ABank : TPCBank) : utf8string;
@@ -52,6 +58,28 @@ implementation
 
 uses
   UMemory, UConst;
+
+{ TCoreTool }
+
+class function TCoreTool.GetSignerCandidates(ANumOps: Integer;
+  const ACandidates: TArray<TAccount>): TArray<TAccount>;
+var
+  i: Integer;
+  Fee: Int64;
+  acc: TAccount;
+begin
+  //make deep copy of accounts!!! Very Important
+  Result := Copy(ACandidates);
+  Fee := ANumOps * CT_MOLINA;
+  for i := High(Result) downto Low(Result) do
+    begin
+      acc := Result[i];
+      if not (acc.Balance >= Fee) then
+      begin
+        TArrayTool<TAccount>.RemoveAt(Result, i);
+      end;
+    end;
+end;
 
 { TAccountKeyComparer }
 
