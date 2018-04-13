@@ -165,6 +165,9 @@ Const
 
   CT_DEFAULT_MaxSafeboxSnapshots = 10;
 
+  CT_MOLINA  = 1;
+  CT_MOLINA_DECIMAL = Real(CT_MOLINA/1000.0);
+
   // App Params
   CT_PARAM_GridAccountsStream = 'GridAccountsStreamV2';
   CT_PARAM_GridAccountsPos = 'GridAccountsPos';
