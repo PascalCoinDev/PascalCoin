@@ -10,7 +10,6 @@ object CTRLWallet: TCTRLWallet
   ClientWidth = 1151
   OnCreate = FormCreate
   OnResize = FormResize
-  LCLVersion = '1.8.2.0'
   Visible = False
   object PairSplitter1: TPairSplitter
     Left = 0
@@ -168,14 +167,7 @@ object CTRLWallet: TCTRLWallet
     end
     object miChangeKey: TMenuItem
       Caption = 'Change Key'
-      object miTransferAccounts: TMenuItem
-        Caption = 'Transfer Account(s)'
-        OnClick = miTransferAccountsClick
-      end
-      object miChangeAccountsPrivateKey: TMenuItem
-        Caption = 'Change Account(s) Private Key'
-        OnClick = miChangeAccountsPrivateKeyClick
-      end
+      OnClick = miChangeKeyClick
     end
     object miAccountsMarket: TMenuItem
       Caption = 'Account Market'

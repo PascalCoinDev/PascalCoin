@@ -18,7 +18,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_Confirmation, UWIZModels;
+  UFRMAccountSelect, UNode, UWizard, UWIZModels;
 
 type
 
@@ -32,8 +32,6 @@ type
     rbPrimary: TRadioButton;
     rbSecondary: TRadioButton;
     procedure cbSignerAccountChange(Sender: TObject);
-
-
 
   public
     procedure OnPresent; override;
@@ -62,7 +60,7 @@ begin
   begin
     lblBalance.Font.Color := clGreen;
     lblBalance.Caption := Format('%s PASC',
-      [TAccountComp.FormatMoney(Model.SendPASC.SelectedAccounts[PtrInt(
+      [TAccountComp.FormatMoney(Model.Signer.SignerCandidates[PtrInt(
       cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])].Balance)]);
   end;
 end;
@@ -83,23 +81,23 @@ begin
   try
     cbSignerAccount.Items.Clear;
     cbSignerAccount.Items.Add('Select Signer Account');
-    for i := Low(Model.SendPASC.SelectedAccounts) to High(Model.SendPASC.SelectedAccounts) do
+    for i := Low(Model.Signer.SignerCandidates) to High(Model.Signer.SignerCandidates) do
     begin
-      acc := Model.SendPASC.SelectedAccounts[i];
+      acc := Model.Signer.SignerCandidates[i];
       accNumberwithChecksum := GetAccNoWithChecksum(acc.account);
       cbSignerAccount.Items.AddObject(accNumberwithChecksum, TObject(i));
     end;
   finally
     cbSignerAccount.Items.EndUpdate;
   end;
-  cbSignerAccount.ItemIndex := Model.SendPASC.SelectedIndex;
+  cbSignerAccount.ItemIndex := Model.Signer.SelectedIndex;
   cbSignerAccountChange(Self);
 end;
 
 procedure TWIZSelectSignerOverride.OnNext;
 begin
-  Model.SendPASC.SelectedIndex := cbSignerAccount.ItemIndex;
-  Model.Signer.SignerAccount := Model.SendPASC.SelectedAccounts[PtrInt(
+  Model.Signer.SelectedIndex := cbSignerAccount.ItemIndex;
+  Model.Signer.SignerAccount := Model.Signer.SignerCandidates[PtrInt(
     cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
   if rbPrimary.Checked then
   begin

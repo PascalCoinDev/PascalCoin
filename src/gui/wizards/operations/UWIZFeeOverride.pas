@@ -18,7 +18,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, Spin, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZPayloadOverride, UWIZSelectSignerOverride, UWIZSendPASC_Confirmation, UWIZModels;
+  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZPayloadOverride, UWIZSelectSignerOverride, UWIZModels;
 
 type
 
@@ -77,13 +77,11 @@ begin
     Model.Fee.SingleOperationFee);
   if Model.Payload.HasPayload then
   begin
-    UpdatePath(ptReplaceAllNext, [TWIZPayloadOverride,
-      TWIZSendPASC_Confirmation]);
+    UpdatePath(ptInject, [TWIZPayloadOverride]);
   end
   else
   begin
-    UpdatePath(ptReplaceAllNext, [TWIZSelectSignerOverride,
-      TWIZSendPASC_Confirmation]);
+  UpdatePath(ptInject, [TWIZSelectSignerOverride]);
   end;
 end;
 

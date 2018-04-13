@@ -18,7 +18,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections,
-  UWizard, UWIZSendPASC, UWIZPayloadContentOverride, UWIZPayloadPasswordOverride, UWIZSendPASC_Confirmation, UWIZModels;
+  UWizard, UWIZPayloadContentOverride, UWIZPayloadPasswordOverride, UWIZModels;
 
 type
 
@@ -75,13 +75,11 @@ begin
   case Model.Payload.Mode of
     akaEncryptWithPassword:
     begin
-      UpdatePath(ptReplaceAllNext, [TWIZPayloadPasswordOverride,
-        TWIZSendPASC_Confirmation]);
+      UpdatePath(ptInject, [TWIZPayloadPasswordOverride]);
     end
     else
     begin
-      UpdatePath(ptReplaceAllNext, [TWIZPayloadContentOverride,
-        TWIZSendPASC_Confirmation]);
+      UpdatePath(ptInject, [TWIZPayloadContentOverride]);
     end;
   end;
 end;

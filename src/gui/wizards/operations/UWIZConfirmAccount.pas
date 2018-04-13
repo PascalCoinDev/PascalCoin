@@ -1,4 +1,4 @@
-unit UWIZTransferAccount;
+unit UWIZChangeKey;
 
 {$mode delphi}
 
@@ -18,14 +18,14 @@ uses
 
 type
 
-  { TWIZTransferAccountWizard }
+  { TWIZChangeKeyWizard }
 
-  TWIZTransferAccountWizard = class(TWizard<TWIZOperationsModel>)
+  TWIZChangeKeyWizard = class(TWizard<TWIZOperationsModel>)
   private
     function UpdatePayload(const SenderAccount: TAccount; var errors: string): boolean;
     function UpdateOperationOptions(var errors: string): boolean;
     function UpdateOpChangeKey(const TargetAccount: TAccount; var SignerAccount: TAccount; var NewPublicKey: TAccountKey; var errors: ansistring): boolean;
-    procedure TransferAccountOwnership();
+    procedure WIZChangeKeyOwnership();
   public
     constructor Create(AOwner: TComponent); override;
     function DetermineHasNext: boolean; override;
@@ -44,12 +44,12 @@ uses
   UWallet,
   UECIES,
   UAES,
-  UWIZTransferAccount_Start,
-  UWIZTransferAccount_Confirmation;
+  UWIZChangeKey_Start,
+  UWIZChangeKey_Confirmation;
 
-{ TWIZTransferAccountWizard }
+{ TWIZChangeKeyWizard }
 
-function TWIZTransferAccountWizard.UpdatePayload(const SenderAccount: TAccount; var errors: string): boolean;
+function TWIZChangeKeyWizard.UpdatePayload(const SenderAccount: TAccount; var errors: string): boolean;
 var
   valid: boolean;
   payload_encrypted, payload_u: string;
@@ -82,10 +82,10 @@ begin
       begin
         errors := 'Public key: ' + 'Error encrypting';
 
-        if Model.TransferAccount.AccountKey.EC_OpenSSL_NID <>
+        if Model.WIZChangeKey.AccountKey.EC_OpenSSL_NID <>
           CT_Account_NUL.accountInfo.accountKey.EC_OpenSSL_NID then
         begin
-          payload_encrypted := ECIESEncrypt(Model.TransferAccount.AccountKey, payload_u);
+          payload_encrypted := ECIESEncrypt(Model.WIZChangeKey.AccountKey, payload_u);
           valid := payload_encrypted <> '';
         end
         else
@@ -132,7 +132,7 @@ begin
 
 end;
 
-function TWIZTransferAccountWizard.UpdateOperationOptions(var errors: string): boolean;
+function TWIZChangeKeyWizard.UpdateOperationOptions(var errors: string): boolean;
 var
   iAcc, iWallet: integer;
   sender_account, signer_account: TAccount;
@@ -149,7 +149,7 @@ begin
     Exit;
   end;
 
-  if Length(Model.TransferAccount.SelectedAccounts) = 0 then
+  if Length(Model.WIZChangeKey.SelectedAccounts) = 0 then
   begin
     errors := 'No sender account';
     Exit;
@@ -157,9 +157,9 @@ begin
   else
   begin
 
-    for iAcc := Low(Model.TransferAccount.SelectedAccounts) to High(Model.TransferAccount.SelectedAccounts) do
+    for iAcc := Low(Model.WIZChangeKey.SelectedAccounts) to High(Model.WIZChangeKey.SelectedAccounts) do
     begin
-      sender_account := Model.TransferAccount.SelectedAccounts[iAcc];
+      sender_account := Model.WIZChangeKey.SelectedAccounts[iAcc];
       iWallet := TWallet.Keys.IndexOfAccountKey(sender_account.accountInfo.accountKey);
       if (iWallet < 0) then
       begin
@@ -187,19 +187,19 @@ begin
     end;
   end;
 
-  Result := UpdateOpChangeKey(Model.TransferAccount.SelectedAccounts[0], signer_account,
+  Result := UpdateOpChangeKey(Model.WIZChangeKey.SelectedAccounts[0], signer_account,
     publicKey, errors);
   UpdatePayload(sender_account, e);
 end;
 
-function TWIZTransferAccountWizard.UpdateOpChangeKey(const TargetAccount: TAccount;
+function TWIZChangeKeyWizard.UpdateOpChangeKey(const TargetAccount: TAccount;
   var SignerAccount: TAccount; var NewPublicKey: TAccountKey;
   var errors: ansistring): boolean;
 begin
   Result := False;
   errors := '';
   try
-    if not TAccountComp.AccountKeyFromImport(Model.TransferAccount.NewPublicKey,
+    if not TAccountComp.AccountKeyFromImport(Model.WIZChangeKey.NewPublicKey,
       NewPublicKey, errors) then
     begin
       Exit;
@@ -243,7 +243,7 @@ begin
   end;
 end;
 
-procedure TWIZTransferAccountWizard.TransferAccountOwnership();
+procedure TWIZChangeKeyWizard.WIZChangeKeyOwnership();
 var
   _V2, dooperation: boolean;
   iAcc, i: integer;
@@ -272,11 +272,11 @@ begin
     _signer_n_ops := 0;
     operationstxt := '';
     operation_to_string := '';
-    for iAcc := Low(Model.TransferAccount.SelectedAccounts) to High(Model.TransferAccount.SelectedAccounts) do
+    for iAcc := Low(Model.WIZChangeKey.SelectedAccounts) to High(Model.WIZChangeKey.SelectedAccounts) do
     begin
       loop_start:
         op := nil;
-      account := Model.TransferAccount.SelectedAccounts[iAcc];
+      account := Model.WIZChangeKey.SelectedAccounts[iAcc];
       if not UpdatePayload(account, errors) then
       begin
         raise Exception.Create('Error encoding payload of sender account ' +
@@ -303,11 +303,11 @@ begin
       if _V2 then
       begin
         // must ensure is Signer account last if included in sender accounts (not necessarily ordered enumeration)
-        if (iAcc < Length(Model.TransferAccount.SelectedAccounts) - 1) and
+        if (iAcc < Length(Model.WIZChangeKey.SelectedAccounts) - 1) and
           (account.account = signerAccount.account) then
         begin
-          TArrayTool<TAccount>.Swap(Model.TransferAccount.SelectedAccounts, iAcc,
-            Length(Model.TransferAccount.SelectedAccounts) - 1); // ensure signer account processed last
+          TArrayTool<TAccount>.Swap(Model.WIZChangeKey.SelectedAccounts, iAcc,
+            Length(Model.WIZChangeKey.SelectedAccounts) - 1); // ensure signer account processed last
           // TArrayTool_internal<Cardinal>.Swap(_senderAccounts, iAcc, Length(_senderAccounts) - 1);
           goto loop_start; // TODO: remove ugly hack with refactoring!
         end;
@@ -349,11 +349,11 @@ begin
     if (ops.OperationsCount = 0) then
       raise Exception.Create('No valid operation to execute');
 
-    if (Length(Model.TransferAccount.SelectedAccounts) > 1) then
+    if (Length(Model.WIZChangeKey.SelectedAccounts) > 1) then
     begin
       auxs := '';
       if Application.MessageBox(
-        PChar('Execute ' + IntToStr(Length(Model.TransferAccount.SelectedAccounts)) +
+        PChar('Execute ' + IntToStr(Length(Model.WIZChangeKey.SelectedAccounts)) +
         ' operations?' + #10 + 'Operation: ' + operationstxt + #10 +
         auxs + 'Total fee: ' + TAccountComp.FormatMoney(_totalfee) +
         #10 + #10 + 'Note: This operation will be transmitted to the network!'),
@@ -412,30 +412,30 @@ begin
 
 end;
 
-constructor TWIZTransferAccountWizard.Create(AOwner: TComponent);
+constructor TWIZChangeKeyWizard.Create(AOwner: TComponent);
 begin
-  inherited Create(AOwner, [TWIZTransferAccount_Start,
-    TWIZTransferAccount_Confirmation]);
+  inherited Create(AOwner, [TWIZChangeKey_Start,
+    TWIZChangeKey_Confirmation]);
   TitleText := 'Transfer Account';
   FinishText := 'Transfer Account';
 end;
 
-function TWIZTransferAccountWizard.DetermineHasNext: boolean;
+function TWIZChangeKeyWizard.DetermineHasNext: boolean;
 begin
-  Result := not (CurrentScreen is TWIZTransferAccount_Confirmation);
+  Result := not (CurrentScreen is TWIZChangeKey_Confirmation);
 end;
 
-function TWIZTransferAccountWizard.DetermineHasPrevious: boolean;
+function TWIZChangeKeyWizard.DetermineHasPrevious: boolean;
 begin
   Result := inherited DetermineHasPrevious;
 end;
 
-function TWIZTransferAccountWizard.FinishRequested(out message: ansistring): boolean;
+function TWIZChangeKeyWizard.FinishRequested(out message: ansistring): boolean;
 begin
   // Execute the Transfer Account Action here
   try
     Result := True;
-    TransferAccountOwnership();
+    WIZChangeKeyOwnership();
   except
     On E: Exception do
     begin
@@ -445,7 +445,7 @@ begin
   end;
 end;
 
-function TWIZTransferAccountWizard.CancelRequested(out message: ansistring): boolean;
+function TWIZChangeKeyWizard.CancelRequested(out message: ansistring): boolean;
 begin
   Result := True;
 end;

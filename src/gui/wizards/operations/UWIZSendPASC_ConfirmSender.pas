@@ -27,10 +27,11 @@ type
     gpSender: TGroupBox;
     paGrid: TPanel;
   private
-    FSendersGrid : TVisualGrid;
+    FSendersGrid: TVisualGrid;
   public
     procedure OnPresent; override;
     procedure OnNext; override;
+    function Validate(out message: ansistring): boolean; override;
   end;
 
 
@@ -39,56 +40,58 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, UDataSources, UCommon, UCommon.UI, Generics.Collections;
+uses UAccounts, UCoreUtils, UDataSources, UCommon, UCommon.UI, Generics.Collections;
 
 type
 
   { TAccountSenderDataSource }
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
-    private
-      FModel : TWIZOperationsModel.TSendPASCModel;
-    public
-      property Model : TWIZOperationsModel.TSendPASCModel read FModel write FModel;
-      procedure FetchAll(const AContainer : TList<TAccount>); override;
+  private
+    FModel: TWIZOperationsModel.TSendPASCModel;
+  public
+    property Model: TWIZOperationsModel.TSendPASCModel read FModel write FModel;
+    procedure FetchAll(const AContainer: TList<TAccount>); override;
   end;
 
 { TWIZSendPASC_ConfirmSender }
 
 procedure TWIZSendPASC_ConfirmSender.OnPresent;
 var
-  data : TAccountSenderDataSource;
+  Data: TAccountSenderDataSource;
 begin
   FSendersGrid := TVisualGrid.Create(Self);
-  FSendersGrid.CanSearch:= False;
+  FSendersGrid.CanSearch := False;
   FSendersGrid.SortMode := smMultiColumn;
   FSendersGrid.FetchDataInThread := False;
   FSendersGrid.AutoPageSize := True;
   FSendersGrid.SelectionType := stNone;
   FSendersGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
-  with FSendersGrid.AddColumn('Account') do begin
-    StretchedToFill := true;
+  with FSendersGrid.AddColumn('Account') do
+  begin
+    StretchedToFill := True;
     Binding := 'AccountNumber';
     SortBinding := 'AccountNumber';
     DisplayBinding := 'Account';
     Width := 100;
     HeaderFontStyles := [fsBold];
     DataFontStyles := [fsBold];
-    Filters:=SORTABLE_NUMERIC_FILTER;
+    Filters := SORTABLE_NUMERIC_FILTER;
   end;
-  with FSendersGrid.AddColumn('Balance') do begin
+  with FSendersGrid.AddColumn('Balance') do
+  begin
     Binding := 'BalanceDecimal';
     SortBinding := 'Balance';
     DisplayBinding := 'Balance';
     Width := 100;
-    HeaderAlignment:=taRightJustify;
-    DataAlignment:=taRightJustify;
+    HeaderAlignment := taRightJustify;
+    DataAlignment := taRightJustify;
     Renderer := TCellRenderers.PASC;
-    Filters:=SORTABLE_NUMERIC_FILTER;
+    Filters := SORTABLE_NUMERIC_FILTER;
   end;
-  data := TAccountSenderDataSource.Create(FSendersGrid);
-  data.Model := Model.SendPASC;
-  FSendersGrid.DataSource := data;
+  Data := TAccountSenderDataSource.Create(FSendersGrid);
+  Data.Model := Model.SendPASC;
+  FSendersGrid.DataSource := Data;
   paGrid.AddControlDockCenter(FSendersGrid);
 end;
 
@@ -97,17 +100,30 @@ begin
   UpdatePath(ptReplaceAllNext, [TWIZSendPASC_EnterRecipient, TWIZSendPASC_Confirmation]);
 end;
 
+function TWIZSendPASC_ConfirmSender.Validate(out message: ansistring): boolean;
+begin
+  Result := True;
+  // get signer accounts from selected accounts
+  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.SendPASC.SelectedAccounts), Model.SendPASC.SelectedAccounts);
+
+  if Length(Model.Signer.SignerCandidates) < 1 then
+  begin
+    Result := False;
+    message := 'no valid signer account was found.';
+  end;
+
+end;
+
 { TAccountSenderDataSource }
 
-procedure TAccountSenderDataSource.FetchAll(const AContainer : TList<TAccount>);
+procedure TAccountSenderDataSource.FetchAll(const AContainer: TList<TAccount>);
 var
-  i: Integer;
+  i: integer;
 begin
   for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
   begin
-    AContainer.Add( Model.SelectedAccounts[i] );
+    AContainer.Add(Model.SelectedAccounts[i]);
   end;
 end;
 
 end.
-

@@ -9,8 +9,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Menus,
   ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon.UI, Generics.Collections,
-  UAccounts, UDataSources, UNode, UWIZSendPASC, UWIZTransferAccount,
-  UWIZChangeAccountPrivateKey;
+  UAccounts, UDataSources, UNode, UWIZSendPASC, UWIZChangeKey;
 
 type
 
@@ -33,8 +32,6 @@ type
     miOperationInfo: TMenuItem;
     miSendPASC: TMenuItem;
     miChangeKey: TMenuItem;
-    miTransferAccounts: TMenuItem;
-    miChangeAccountsPrivateKey: TMenuItem;
     miAccountsMarket: TMenuItem;
     miEnlistAccountsForSale: TMenuItem;
     miDelistAccountsFromSale: TMenuItem;
@@ -55,11 +52,10 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure FormResize(Sender: TObject);
     procedure miAccountInfoClick(Sender: TObject);
+    procedure miChangeKeyClick(Sender: TObject);
     procedure miCopyOphashClick(Sender: TObject);
     procedure miOperationInfoClick(Sender: TObject);
     procedure miSendPASCClick(Sender: TObject);
-    procedure miTransferAccountsClick(Sender: TObject);
-    procedure miChangeAccountsPrivateKeyClick(Sender: TObject);
     procedure miEnlistAccountsForSaleClick(Sender: TObject);
     procedure miDelistAccountsFromSaleClick(Sender: TObject);
   private
@@ -608,10 +604,8 @@ begin
   miAccountInfo.Visible := ASelection.RowCount = 1;
   miSendPASC.Caption :=
     IIF(ASelection.RowCount = 1, 'Send PASC', 'Send All PASC');
-  miTransferAccounts.Caption :=
-    IIF(ASelection.RowCount = 1, 'Transfer Account', 'Transfer All Account');
-  miChangeAccountsPrivateKey.Caption :=
-    IIF(ASelection.RowCount = 1, 'Change Account Private Key', 'Change All Account Private Key');
+   miChangeKey.Caption :=
+    IIF(ASelection.RowCount = 1, 'Change Key', 'Change All Key');
   miEnlistAccountsForSale.Caption :=
     IIF(ASelection.RowCount = 1, 'Enlist Account For Sale',
     'Enlist All Account For Sale');
@@ -655,45 +649,24 @@ begin
     GetAccNoWithoutChecksum);
 
   model.SendPASC.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
-  model.SendPASC.SelectedIndex := 0;
   wiz.Start(model);
 end;
 
-procedure TCTRLWallet.miTransferAccountsClick(Sender: TObject);
+procedure TCTRLWallet.miChangeKeyClick(Sender: TObject);
 var
   Scoped: TDisposables;
-  wiz: TWIZTransferAccountWizard;
+  wiz: TWIZChangeKeyWizard;
   model: TWIZOperationsModel;
   AccountNumbersWithoutChecksum: TArray<cardinal>;
 begin
-  wiz := Scoped.AddObject(TWIZTransferAccountWizard.Create(nil)) as
-    TWIZTransferAccountWizard;
-  model := TWIZOperationsModel.Create(wiz, omtTransferAccount);
+   wiz := Scoped.AddObject(TWIZChangeKeyWizard.Create(nil)) as
+    TWIZChangeKeyWizard;
+  model := TWIZOperationsModel.Create(wiz, omtChangeKey);
   AccountNumbersWithoutChecksum :=
     TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,
     GetAccNoWithoutChecksum);
 
-  model.TransferAccount.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
-  model.TransferAccount.SelectedIndex := 0;
-  wiz.Start(model);
-end;
-
-procedure TCTRLWallet.miChangeAccountsPrivateKeyClick(Sender: TObject);
-var
-  Scoped: TDisposables;
-  wiz: TWIZChangeAccountPrivateKeyWizard;
-  model: TWIZOperationsModel;
-  AccountNumbersWithoutChecksum: TArray<cardinal>;
-begin
-  wiz := Scoped.AddObject(TWIZChangeAccountPrivateKeyWizard.Create(nil)) as TWIZChangeAccountPrivateKeyWizard;
-  model := TWIZOperationsModel.Create(wiz, omtChangeAccountPrivateKey);
-
-  AccountNumbersWithoutChecksum :=
-    TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,
-    GetAccNoWithoutChecksum);
-
-  model.ChangeAccountPrivateKey.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
-  model.ChangeAccountPrivateKey.SelectedIndex := 0;
+  model.ChangeKey.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
   wiz.Start(model);
 end;
 

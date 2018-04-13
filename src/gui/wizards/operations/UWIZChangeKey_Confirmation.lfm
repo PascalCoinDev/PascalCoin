@@ -1,11 +1,12 @@
-object WIZSendPASC_Confirmation: TWIZSendPASC_Confirmation
+object WIZChangeKey_Confirmation: TWIZChangeKey_Confirmation
   Left = 0
   Height = 253
   Top = 0
   Width = 429
-  Caption = 'WIZSendPASC_Confirmation'
+  Caption = 'WIZChangeKey_Confirmation'
   ClientHeight = 253
   ClientWidth = 429
+  LCLVersion = '1.8.2.0'
   Visible = False
   object GroupBox1: TGroupBox
     Left = 10
@@ -13,7 +14,7 @@ object WIZSendPASC_Confirmation: TWIZSendPASC_Confirmation
     Top = 8
     Width = 408
     Anchors = [akTop, akLeft, akRight, akBottom]
-    Caption = 'Confirm Transaction'
+    Caption = 'Confirm Change Key Transaction'
     ClientHeight = 212
     ClientWidth = 404
     TabOrder = 0
@@ -27,36 +28,20 @@ object WIZSendPASC_Confirmation: TWIZSendPASC_Confirmation
       Caption = 'GRID PANEL'
       TabOrder = 0
     end
-    object Label1: TLabel
-      Left = 8
-      Height = 15
-      Top = 2
-      Width = 84
-      Caption = 'Signer Account:'
-      ParentColor = False
-    end
     object lblSgnAcc: TLabel
       Left = 112
       Height = 15
-      Top = 2
+      Top = 10
       Width = 53
       Caption = 'lblSgnAcc'
       ParentColor = False
     end
-    object Label2: TLabel
+    object Label1: TLabel
       Left = 8
       Height = 15
-      Top = 24
-      Width = 111
-      Caption = 'Destination Account:'
-      ParentColor = False
-    end
-    object lblDestAcc: TLabel
-      Left = 128
-      Height = 15
-      Top = 24
-      Width = 56
-      Caption = 'lblDestAcc'
+      Top = 10
+      Width = 84
+      Caption = 'Signer Account:'
       ParentColor = False
     end
   end

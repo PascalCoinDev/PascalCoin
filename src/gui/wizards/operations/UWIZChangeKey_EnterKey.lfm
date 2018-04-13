@@ -1,0 +1,52 @@
+object WIZChangeKey_EnterKey: TWIZChangeKey_EnterKey
+  Left = 0
+  Height = 253
+  Top = 0
+  Width = 429
+  ActiveControl = chkChooseFee
+  Caption = 'ChangeKey_EnterKey'
+  ClientHeight = 253
+  ClientWidth = 429
+  Visible = False
+  object gbNewPublicKey: TGroupBox
+    Left = 16
+    Height = 232
+    Top = 8
+    Width = 400
+    Caption = 'New Public Key'
+    ClientHeight = 212
+    ClientWidth = 396
+    TabOrder = 0
+    object lblPublicKeyNotice: TLabel
+      Left = 8
+      Height = 30
+      Top = 7
+      Width = 348
+      Caption = 'Please enter the public key of the new owner who will control this '#13#10'account'
+      ParentColor = False
+    end
+    object chkChooseFee: TCheckBox
+      Left = 8
+      Height = 19
+      Top = 152
+      Width = 226
+      Caption = 'Let me choose fee''s for this transaction'
+      TabOrder = 0
+    end
+    object chkAttachPayload: TCheckBox
+      Left = 8
+      Height = 19
+      Top = 184
+      Width = 303
+      Caption = 'I want to attach a message payload to this transaction'
+      TabOrder = 1
+    end
+    object mmoNewPrivateKey: TMemo
+      Left = 8
+      Height = 102
+      Top = 42
+      Width = 376
+      TabOrder = 2
+    end
+  end
+end

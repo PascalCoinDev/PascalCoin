@@ -3,10 +3,10 @@ object WIZEnlistAccountForSale_Start: TWIZEnlistAccountForSale_Start
   Height = 253
   Top = 0
   Width = 429
+  ActiveControl = rbPublicSale
   Caption = 'WIZEnlistAccountForSale_Start'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.1.0'
   Visible = False
   object Label1: TLabel
     Left = 24
