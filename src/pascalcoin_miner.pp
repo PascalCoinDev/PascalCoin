@@ -26,7 +26,7 @@ uses
   Classes, SysUtils, CustApp, crt, SyncObjs,
   UBlockChain, UPoolMinerThreads, UGPUMining,
   UPoolMining, ULog, UThread, UAccounts, UCrypto,
-  UConst, UTime, UJSONFunctions, UNode, UNetProtocol, USha256,
+  UConst, UTime, UNode, UNetProtocol, USha256,
   UOpenSSL,
   DelphiCL;
 

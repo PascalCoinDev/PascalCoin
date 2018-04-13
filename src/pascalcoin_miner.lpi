@@ -34,12 +34,16 @@
         <PackageName Value="LazUtils"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="1">
+    <Units Count="2">
       <Unit0>
         <Filename Value="pascalcoin_miner.pp"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="PascalCoinMiner"/>
       </Unit0>
+      <Unit1>
+        <Filename Value="libraries\pascalcoin\UJSONFunctions.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit1>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -50,7 +54,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="common;core;libraries\pasopencl;libraries\synapse;libraries\generics.collections;libraries\sphere10"/>
+      <OtherUnitFiles Value="common;core;libraries\pasopencl;libraries\synapse;libraries\generics.collections;libraries\sphere10;libraries\pascalcoin"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <CodeGeneration>
