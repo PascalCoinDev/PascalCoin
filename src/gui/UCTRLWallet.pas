@@ -648,7 +648,7 @@ begin
     TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,
     GetAccNoWithoutChecksum);
 
-  model.SendPASC.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
+  model.Account.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
   wiz.Start(model);
 end;
 
@@ -666,7 +666,7 @@ begin
     TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,
     GetAccNoWithoutChecksum);
 
-  model.ChangeKey.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
+  model.Account.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
   wiz.Start(model);
 end;
 
