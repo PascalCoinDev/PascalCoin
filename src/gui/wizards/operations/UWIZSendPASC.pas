@@ -2,13 +2,14 @@ unit UWIZSendPASC;
 
 {$mode delphi}
 
-{ Copyright (c) 2018 by Ugochukwu Mmaduekwe
+{ Copyright (c) 2018 Sphere 10 Software (http://www.sphere10.com/)
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
   Acknowledgements:
-    Herman Schoenfeld <herman@sphere10.com>: added grid-based layout
+  Ugochukwu Mmaduekwe - main developer
+  Herman Schoenfeld - designer <herman@sphere10.com>: added grid-based layout
 }
 
 interface
@@ -22,11 +23,9 @@ type
 
   TWIZSendPASCWizard = class(TWizard<TWIZOperationsModel>)
   private
-    function UpdatePayload(const SenderAccount: TAccount;
-      var errors: string): boolean;
+    function UpdatePayload(const SenderAccount: TAccount; var errors: string): boolean;
     function UpdateOperationOptions(var errors: string): boolean;
-    function UpdateOpTransaction(const SenderAccount: TAccount;
-      var DestAccount: TAccount; var amount: int64; var errors: string): boolean;
+    function UpdateOpTransaction(const SenderAccount: TAccount; var DestAccount: TAccount; var amount: int64; var errors: string): boolean;
     procedure SendPASC();
   public
     constructor Create(AOwner: TComponent); override;
@@ -109,8 +108,7 @@ begin
   UpdatePayload(sender_account, e);
 end;
 
-function TWIZSendPASCWizard.UpdateOpTransaction(const SenderAccount: TAccount;
-  var DestAccount: TAccount; var amount: int64; var errors: string): boolean;
+function TWIZSendPASCWizard.UpdateOpTransaction(const SenderAccount: TAccount; var DestAccount: TAccount; var amount: int64; var errors: string): boolean;
 var
   c: cardinal;
 begin
@@ -119,13 +117,16 @@ begin
 
   DestAccount := Model.SendPASC.DestinationAccount;
 
-  if Length(Model.Account.SelectedAccounts) = 1 then
-  begin
-    amount := Model.SendPASC.SingleAmountToSend;
-  end
-  else
-  begin
-    amount := 0; // ALL BALANCE
+  case Model.SendPASC.SendPASCMode of
+    akaAllBalance:
+    begin
+      amount := 0; // ALL BALANCE
+    end;
+
+    akaSpecifiedAmount:
+    begin
+      amount := Model.SendPASC.SingleAmountToSend;
+    end;
   end;
 
   if DestAccount.account = SenderAccount.account then
@@ -134,14 +135,17 @@ begin
     Exit;
   end;
 
-  if (Length(Model.Account.SelectedAccounts) = 1) then
-  begin
-    if (SenderAccount.balance < (amount + Model.Fee.SingleOperationFee)) then
+  case Model.SendPASC.SendPASCMode of
+    akaSpecifiedAmount:
     begin
-      errors := 'Insufficient funds';
-      Exit;
+      if (SenderAccount.balance < (amount + Model.Fee.SingleOperationFee)) then
+      begin
+        errors := 'Insufficient funds';
+        Exit;
+      end;
     end;
   end;
+
   Result := True;
 end;
 
@@ -195,27 +199,30 @@ begin
 
       if not UpdateOpTransaction(account, destAccount, _amount, errors) then
         raise Exception.Create(errors);
-      if Length(Model.Account.SelectedAccounts) > 1 then
+
+      if account.balance > 0 then
       begin
-        if account.balance > 0 then
+        if account.balance > Model.Fee.SingleOperationFee then
         begin
-          if account.balance > Model.Fee.SingleOperationFee then
-          begin
-            _amount := account.balance - Model.Fee.SingleOperationFee;
-            _fee := Model.Fee.SingleOperationFee;
-          end
-          else
-          begin
-            _amount := account.balance;
-            _fee := 0;
+          case Model.SendPASC.SendPASCMode of
+            akaAllBalance:
+            begin
+              _amount := account.balance - Model.Fee.SingleOperationFee;
+              _fee := Model.Fee.SingleOperationFee;
+            end;
           end;
         end
         else
-          dooperation := False;
+        begin
+          _amount := account.balance;
+          _fee := 0;
+        end;
       end
       else
       begin
+        dooperation := False;
       end;
+
       if dooperation then
       begin
         op := TOpTransaction.CreateTransaction(
@@ -316,8 +323,7 @@ begin
   end;
 end;
 
-function TWIZSendPASCWizard.UpdatePayload(const SenderAccount: TAccount;
-  var errors: string): boolean;
+function TWIZSendPASCWizard.UpdatePayload(const SenderAccount: TAccount; var errors: string): boolean;
 var
   valid: boolean;
   payload_encrypted, payload_u: string;

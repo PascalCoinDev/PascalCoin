@@ -49,6 +49,10 @@ type
 
     TChangeKeyMode = (akaTransferAccountOwnership, akaChangeAccountPrivateKey);
 
+     { TSendPASCMode }
+
+    TSendPASCMode = (akaAllBalance, akaSpecifiedAmount);
+
     { TAccountModel }
 
     TAccountModel = class(TComponent)
@@ -62,6 +66,7 @@ type
     public
       SingleAmountToSend: int64;
       DestinationAccount: TAccount;
+      SendPASCMode: TSendPASCMode;
     end;
 
     { TChangeKeyModel }

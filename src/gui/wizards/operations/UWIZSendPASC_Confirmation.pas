@@ -31,7 +31,7 @@ type
     lblSgnAcc: TLabel;
     paGrid: TPanel;
   private
-    FSendersGrid : TVisualGrid;
+    FSendersGrid: TVisualGrid;
   public
     procedure OnPresent; override;
   end;
@@ -48,97 +48,101 @@ type
   { TAccountSenderDataSource }
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
-    private
-      FModel : TWIZOperationsModel;
-    protected
-      function GetColumns : TDataColumns; override;
-    public
-      property Model : TWIZOperationsModel read FModel write FModel;
-      procedure FetchAll(const AContainer : TList<TAccount>); override;
-      function GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant; override;
+  private
+    FModel: TWIZOperationsModel;
+  protected
+    function GetColumns: TDataColumns; override;
+  public
+    property Model: TWIZOperationsModel read FModel write FModel;
+    procedure FetchAll(const AContainer: TList<TAccount>); override;
+    function GetItemField(constref AItem: TAccount; const ABindingName: ansistring): variant; override;
   end;
 
 { TWIZSendPASC_Confirmation }
 
 procedure TWIZSendPASC_Confirmation.OnPresent;
 var
-  data : TAccountSenderDataSource;
+  Data: TAccountSenderDataSource;
 begin
   FSendersGrid := TVisualGrid.Create(Self);
-  FSendersGrid.CanSearch:= False;
+  FSendersGrid.CanSearch := False;
   FSendersGrid.SortMode := smMultiColumn;
   FSendersGrid.FetchDataInThread := False;
   FSendersGrid.AutoPageSize := True;
   FSendersGrid.SelectionType := stNone;
   FSendersGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
-  with FSendersGrid.AddColumn('Sender') do begin
+  with FSendersGrid.AddColumn('Sender') do
+  begin
     Binding := 'SenderAccount';
     Filters := SORTABLE_NUMERIC_FILTER;
     Width := 100;
     HeaderFontStyles := [fsBold];
     DataFontStyles := [fsBold];
   end;
-  with FSendersGrid.AddColumn('Balance') do begin
+  with FSendersGrid.AddColumn('Balance') do
+  begin
     Filters := SORTABLE_NUMERIC_FILTER;
     Width := 100;
     Renderer := TCellRenderers.PASC;
   end;
-  with FSendersGrid.AddColumn('Amount To Send') do begin
+  with FSendersGrid.AddColumn('Amount To Send') do
+  begin
     Binding := 'AmountToSend';
     Filters := SORTABLE_TEXT_FILTER;
     Width := 100;
   end;
-  with FSendersGrid.AddColumn('Fee') do begin
+  with FSendersGrid.AddColumn('Fee') do
+  begin
     Filters := SORTABLE_TEXT_FILTER;
     Width := 100;
   end;
 
-   data := TAccountSenderDataSource.Create(FSendersGrid);
-   data.Model := Model;
-   FSendersGrid.DataSource := data;
-   paGrid.AddControlDockCenter(FSendersGrid);
-   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
-   lblDestAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SendPASC.DestinationAccount.account);
+  Data := TAccountSenderDataSource.Create(FSendersGrid);
+  Data.Model := Model;
+  FSendersGrid.DataSource := Data;
+  paGrid.AddControlDockCenter(FSendersGrid);
+  lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
+  lblDestAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SendPASC.DestinationAccount.account);
 end;
 
 { TAccountSenderDataSource }
 
-function TAccountSenderDataSource.GetColumns : TDataColumns;
+function TAccountSenderDataSource.GetColumns: TDataColumns;
 begin
   Result := TDataColumns.Create(
     TDataColumn.From('SenderAccount'),
     TDataColumn.From('Balance'),
     TDataColumn.From('AmountToSend'),
     TDataColumn.From('Fee')
-  );
+    );
 end;
 
-function TAccountSenderDataSource.GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant;
+function TAccountSenderDataSource.GetItemField(constref AItem: TAccount; const ABindingName: ansistring): variant;
 var
-  index : Integer;
+  index: integer;
 begin
-   if ABindingName = 'SenderAccount' then
-     Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account)
-   else if ABindingName = 'Balance' then
-     Result := TAccountComp.FormatMoney(AItem.Balance)
-   else if ABindingName = 'AmountToSend' then
-     Result := TAccountComp.FormatMoney(Model.SendPASC.SingleAmountToSend)
-     else if ABindingName = 'Fee' then
-     Result := TAccountComp.FormatMoney(Model.Fee.SingleOperationFee)
-   else raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
+  if ABindingName = 'SenderAccount' then
+    Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account)
+  else if ABindingName = 'Balance' then
+    Result := TAccountComp.FormatMoney(AItem.Balance)
+  else if ABindingName = 'AmountToSend' then
+    Result := IIF(Model.SendPASC.SendPASCMode = akaAllBalance, 'ALL BALANCE', TAccountComp.FormatMoney(Model.SendPASC.SingleAmountToSend))
+  else if ABindingName = 'Fee' then
+    Result := TAccountComp.FormatMoney(Model.Fee.SingleOperationFee)
+  else
+    raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
 end;
 
 
-procedure TAccountSenderDataSource.FetchAll(const AContainer : TList<TAccount>);
+procedure TAccountSenderDataSource.FetchAll(const AContainer: TList<TAccount>);
 var
-  i: Integer;
+  i: integer;
 begin
   for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
   begin
-    AContainer.Add( Model.Account.SelectedAccounts[i] );
+    AContainer.Add(Model.Account.SelectedAccounts[i]);
   end;
 end;
 
 
 end.
-
