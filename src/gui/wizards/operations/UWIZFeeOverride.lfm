@@ -55,20 +55,20 @@ object WIZFeeOverride: TWIZFeeOverride
       ParentColor = False
       ParentFont = False
     end
-    object lbltotalfee: TLabel
+    object lblestimatedfee: TLabel
       Left = 11
       Height = 15
       Top = 66
-      Width = 162
-      Caption = 'Total Fee For All Transcations:'
+      Width = 190
+      Caption = 'Estimated Fee For All Transcations:'
       Font.Style = [fsBold]
       ParentColor = False
       ParentFont = False
     end
     object lblTotalFeeValue: TLabel
-      Left = 192
+      Left = 208
       Height = 15
-      Top = 64
+      Top = 66
       Width = 28
       Caption = 'xxxx'
       Font.Style = [fsBold]

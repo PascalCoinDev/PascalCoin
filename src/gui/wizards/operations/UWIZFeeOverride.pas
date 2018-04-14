@@ -27,7 +27,7 @@ type
   TWIZFeeOverride = class(TWizardForm<TWIZOperationsModel>)
     fseFee: TFloatSpinEdit;
     gbTransactionFee: TGroupBox;
-    lbltotalfee: TLabel;
+    lblestimatedfee: TLabel;
     lblPASC: TLabel;
     lblNote1: TLabel;
     lblNote2: TLabel;
