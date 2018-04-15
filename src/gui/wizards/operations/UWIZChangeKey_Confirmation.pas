@@ -32,6 +32,7 @@ type
     FChangeKeyGrid: TVisualGrid;
   public
     procedure OnPresent; override;
+    procedure OnNext; override;
     function Validate(out message: ansistring): boolean; override;
   end;
 
@@ -40,7 +41,7 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, UCrypto, UDataSources, UCommon, UCommon.UI, Generics.Collections;
+uses UAccounts, UWallet, UUserInterface, UCrypto, UDataSources, UCommon, UCommon.UI, Generics.Collections;
 
 type
 
@@ -105,6 +106,17 @@ begin
   FChangeKeyGrid.DataSource := Data;
   paGrid.AddControlDockCenter(FChangeKeyGrid);
   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
+end;
+
+procedure TWIZChangeKey_Confirmation.OnNext;
+var
+  locked: Boolean;
+begin
+  locked := (NOT TWallet.Keys.HasPassword) OR (NOT TWallet.Keys.IsValidPassword);
+  if locked then
+  begin
+    TUserInterface.UnlockWallet(Self);
+  end;
 end;
 
 function TWIZChangeKey_Confirmation.Validate(out message: ansistring): boolean;

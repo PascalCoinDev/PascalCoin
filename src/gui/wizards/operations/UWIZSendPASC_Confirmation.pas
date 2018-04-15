@@ -34,6 +34,7 @@ type
     FSendersGrid: TVisualGrid;
   public
     procedure OnPresent; override;
+    procedure OnNext; override;
     function Validate(out message: ansistring): boolean; override;
   end;
 
@@ -42,7 +43,7 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, UDataSources, UCommon, UCommon.UI, Generics.Collections;
+uses UAccounts, UWallet, UUserInterface, UDataSources, UCommon, UCommon.UI, Generics.Collections;
 
 type
 
@@ -104,6 +105,17 @@ begin
   paGrid.AddControlDockCenter(FSendersGrid);
   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
   lblDestAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SendPASC.DestinationAccount.account);
+end;
+
+procedure TWIZSendPASC_Confirmation.OnNext;
+var
+  locked: Boolean;
+begin
+  locked := (NOT TWallet.Keys.HasPassword) OR (NOT TWallet.Keys.IsValidPassword);
+  if locked then
+  begin
+    TUserInterface.UnlockWallet(Self);
+  end;
 end;
 
 function TWIZSendPASC_Confirmation.Validate(out message: ansistring): boolean;
