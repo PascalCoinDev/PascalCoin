@@ -1,0 +1,50 @@
+object WIZChangeKey_ConfirmAccount: TWIZChangeKey_ConfirmAccount
+  Left = 0
+  Height = 261
+  Top = 0
+  Width = 429
+  Caption = 'ChangeKey_ConfirmAccount'
+  ClientHeight = 261
+  ClientWidth = 429
+  LCLVersion = '1.8.2.0'
+  Visible = False
+  object gpChangeKey: TGroupBox
+    Left = 4
+    Height = 256
+    Top = 0
+    Width = 420
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    Caption = 'Change Key Accounts'
+    ClientHeight = 236
+    ClientWidth = 416
+    TabOrder = 0
+    object paGrid: TPanel
+      Left = 8
+      Height = 192
+      Top = 24
+      Width = 400
+      Anchors = [akTop, akLeft, akRight, akBottom]
+      BevelOuter = bvNone
+      Caption = 'GRID PANEL'
+      TabOrder = 0
+    end
+    object lblTotalBalances: TLabel
+      Left = 8
+      Height = 15
+      Top = 0
+      Width = 176
+      Caption = 'Selected Accounts Total Balance: '
+      ParentColor = False
+    end
+    object lblTotalBalanceValue: TLabel
+      Left = 192
+      Height = 15
+      Top = 0
+      Width = 70
+      Caption = 'Total Balance'
+      Font.Color = clGreen
+      ParentColor = False
+      ParentFont = False
+    end
+  end
+end

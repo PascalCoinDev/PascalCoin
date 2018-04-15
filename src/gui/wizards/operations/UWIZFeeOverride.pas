@@ -18,7 +18,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, Spin, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZPayloadOverride, UWIZSelectSignerOverride, UWIZSendPASC_Confirmation, UWIZModels;
+  UFRMAccountSelect, UNode, UWizard, UWIZPayloadOverride, UWIZSelectSignerOverride, UWIZModels;
 
 type
 
@@ -27,7 +27,7 @@ type
   TWIZFeeOverride = class(TWizardForm<TWIZOperationsModel>)
     fseFee: TFloatSpinEdit;
     gbTransactionFee: TGroupBox;
-    lbltotalfee: TLabel;
+    lblestimatedfee: TLabel;
     lblPASC: TLabel;
     lblNote1: TLabel;
     lblNote2: TLabel;
@@ -58,7 +58,7 @@ var
 begin
   TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)), opfee);
   lblTotalFeeValue.Caption := Format('%s PASC', [TAccountComp.FormatMoney(opfee *
-    Length(Model.SendPASC.SelectedAccounts))]);
+    Length(Model.Account.SelectedAccounts))]);
 end;
 
 procedure TWIZFeeOverride.fseFeeChange(Sender: TObject);
@@ -77,13 +77,11 @@ begin
     Model.Fee.SingleOperationFee);
   if Model.Payload.HasPayload then
   begin
-    UpdatePath(ptReplaceAllNext, [TWIZPayloadOverride,
-      TWIZSendPASC_Confirmation]);
+    UpdatePath(ptInject, [TWIZPayloadOverride]);
   end
   else
   begin
-    UpdatePath(ptReplaceAllNext, [TWIZSelectSignerOverride,
-      TWIZSendPASC_Confirmation]);
+  UpdatePath(ptInject, [TWIZSelectSignerOverride]);
   end;
 end;
 

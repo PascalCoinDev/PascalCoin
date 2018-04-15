@@ -18,7 +18,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections,
-  UWizard, UWIZSendPASC, UWIZSelectSignerOverride, UWIZSendPASC_Confirmation, UWIZModels;
+  UWizard, UWIZSelectSignerOverride, UWIZModels;
 
 type
 
@@ -48,8 +48,7 @@ uses
 procedure TWIZPayloadPasswordOverride.OnNext;
 begin
   Model.Payload.Password := edtPassword.Text;
-  UpdatePath(ptReplaceAllNext, [TWIZSelectSignerOverride,
-    TWIZSendPASC_Confirmation]);
+   UpdatePath(ptInject, [TWIZSelectSignerOverride]);
 end;
 
 function TWIZPayloadPasswordOverride.Validate(out message: ansistring): boolean;

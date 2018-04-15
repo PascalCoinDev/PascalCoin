@@ -30,11 +30,12 @@ type
   { TWIZOperationsModel }
 
   TWIZOperationsModel = class(TComponent)
-  public type
+  public
+    type
 
     { TModelType }
 
-    TModelType = (omtSendPasc, omtTransferAccount, omtChangeAccountPrivateKey, omtAddKey);
+    TModelType = (omtAccount, omtSendPasc, omtChangeKey, omtTransferAccount, omtChangeAccountPrivateKey, omtAddKey);
 
     { TPayloadEncryptionMode }
 
@@ -44,35 +45,50 @@ type
 
     TOperationSigningMode = (akaPrimary, akaSecondary);
 
+    { TChangeKeyMode }
+
+    TChangeKeyMode = (akaTransferAccountOwnership, akaChangeAccountPrivateKey);
+
+     { TSendPASCMode }
+
+    TSendPASCMode = (akaAllBalance, akaSpecifiedAmount);
+
+    { TAccountModel }
+
+    TAccountModel = class(TComponent)
+    public
+      SelectedAccounts: TArray<TAccount>;
+    end;
+
     { TSendPASCModel }
 
     TSendPASCModel = class(TComponent)
     public
-      SelectedIndex: integer;
       SingleAmountToSend: int64;
       DestinationAccount: TAccount;
-      SelectedAccounts: TArray<TAccount>;
+      SendPASCMode: TSendPASCMode;
+    end;
+
+    { TChangeKeyModel }
+
+    TChangeKeyModel = class(TComponent)
+    public
+      ChangeKeyMode: TChangeKeyMode;
     end;
 
     { TTransferAccountModel }
 
     TTransferAccountModel = class(TComponent)
     public
-      NewPublicKey : string;
-      SelectedIndex: integer;
       AccountKey: TAccountKey;
-      SelectedAccounts: TArray<TAccount>;
     end;
 
     { TChangeAccountPrivateKeyModel }
 
     TChangeAccountPrivateKeyModel = class(TComponent)
     public
-      NewPublicKey : string;
-      SelectedIndex, PrivateKeySelectedIndex: integer;
+      SelectedIndex: integer;
       NewWalletKey: TWalletKey;
-      EncodedPayload: TRawBytes;
-      SelectedAccounts: TArray<TAccount>;
     end;
 
     { TFeeModel }
@@ -88,6 +104,8 @@ type
     public
       OperationSigningMode: TOperationSigningMode;
       SignerAccount: TAccount;
+      SignerCandidates: TArray<TAccount>;
+      SelectedIndex: integer;
     end;
 
     { TPayloadModel }
@@ -95,28 +113,32 @@ type
     TPayloadModel = class(TComponent)
     public
       HasPayload: boolean;
-      Content, Password : string;
+      Content, Password: string;
       Mode: TPayloadEncryptionMode;
       EncodedBytes: TRawBytes;
     end;
 
   private
     FModelType: TModelType;
-    FSendPASC : TSendPASCModel;
-    FTransferAccount : TTransferAccountModel;
-    FChangeAccountPrivateKey : TChangeAccountPrivateKeyModel;
-    FFee : TFeeModel;
-    FSigner : TSignerModel;
-    FPayload : TPayloadModel;
+    FAccount: TAccountModel;
+    FSendPASC: TSendPASCModel;
+    FChangeKey: TChangeKeyModel;
+    FTransferAccount: TTransferAccountModel;
+    FChangeAccountPrivateKey: TChangeAccountPrivateKeyModel;
+    FFee: TFeeModel;
+    FSigner: TSignerModel;
+    FPayload: TPayloadModel;
   public
     constructor Create(AOwner: TComponent; AType: TModelType); overload;
     property ModelType: TModelType read FModelType;
+    property Account: TAccountModel read FAccount;
     property SendPASC: TSendPASCModel read FSendPASC;
+    property ChangeKey: TChangeKeyModel read FChangeKey;
     property TransferAccount: TTransferAccountModel read FTransferAccount;
-    property ChangeAccountPrivateKey : TChangeAccountPrivateKeyModel read FChangeAccountPrivateKey;
-    property Fee : TFeeModel read FFee;
-    property Signer : TSignerModel read FSigner;
-    property Payload : TPayloadModel read FPayload;
+    property ChangeAccountPrivateKey: TChangeAccountPrivateKeyModel read FChangeAccountPrivateKey;
+    property Fee: TFeeModel read FFee;
+    property Signer: TSignerModel read FSigner;
+    property Payload: TPayloadModel read FPayload;
   end;
 
 implementation
@@ -125,9 +147,10 @@ constructor TWIZOperationsModel.Create(AOwner: TComponent; AType: TWIZOperations
 begin
   inherited Create(AOwner);
   FModelType := AType;
+  FAccount := TAccountModel.Create(Self);
   FSendPASC := TSendPASCModel.Create(Self);
+  FChangeKey := TChangeKeyModel.Create(Self);
   FTransferAccount := TTransferAccountModel.Create(Self);
-  FChangeAccountPrivateKey := TChangeAccountPrivateKeyModel.Create(Self);
   FChangeAccountPrivateKey := TChangeAccountPrivateKeyModel.Create(Self);
   FFee := TFeeModel.Create(Self);
   FSigner := TSignerModel.Create(Self);

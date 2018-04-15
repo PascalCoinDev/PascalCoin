@@ -59,11 +59,13 @@ begin
   begin
     edtAmt.Text := 'ALL BALANCE';
     edtAmt.Enabled := False;
+    Model.SendPASC.SendPASCMode := akaAllBalance;
   end
   else
   begin
     edtAmt.Text := TAccountComp.FormatMoney(0);
     edtAmt.Enabled := True;
+    Model.SendPASC.SendPASCMode := akaSpecifiedAmount;
   end;
 
   Model.Payload.HasPayload := IIF(chkAttachPayload.Checked, True, False);
@@ -77,7 +79,7 @@ end;
 
 procedure TWIZSendPASC_EnterQuantity.OnPresent;
 begin
-  edtAmt.Text := TAccountComp.FormatMoney(0);
+  UpdateUI();
 end;
 
 procedure TWIZSendPASC_EnterQuantity.chkAttachPayloadChange(Sender: TObject);

@@ -1,4 +1,4 @@
-unit UWIZSendPASC_ConfirmSender;
+unit UWIZChangeKey_ConfirmAccount;
 
 {$mode delphi}
 
@@ -17,17 +17,19 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, UVisualGrid, UCommon.Data, UCellRenderers,
-  UWizard, UWIZSendPASC, UWIZSendPASC_EnterRecipient, UWIZSendPASC_Confirmation, UWIZModels;
+  UWizard, UWIZSendPASC, UWIZChangeKey_SelectOption, UWIZChangeKey_Confirmation, UWIZModels;
 
 type
 
-  { TWIZSendPASC_ConfirmSender }
+  { TWIZChangeKey_ConfirmAccount }
 
-  TWIZSendPASC_ConfirmSender = class(TWizardForm<TWIZOperationsModel>)
-    gpSender: TGroupBox;
+  TWIZChangeKey_ConfirmAccount = class(TWizardForm<TWIZOperationsModel>)
+    gpChangeKey: TGroupBox;
+    lblTotalBalances: TLabel;
+    lblTotalBalanceValue: TLabel;
     paGrid: TPanel;
   private
-    FSendersGrid: TVisualGrid;
+    FChangeKeyGrid: TVisualGrid;
   public
     procedure OnPresent; override;
     procedure OnNext; override;
@@ -44,9 +46,9 @@ uses UAccounts, UCoreUtils, UDataSources, UCommon, UCommon.UI, Generics.Collecti
 
 type
 
-  { TAccountSenderDataSource }
+  { TAccountChangeKeyDataSource }
 
-  TAccountSenderDataSource = class(TAccountsDataSourceBase)
+  TAccountChangeKeyDataSource = class(TAccountsDataSourceBase)
   private
     FModel: TWIZOperationsModel;
   public
@@ -54,20 +56,23 @@ type
     procedure FetchAll(const AContainer: TList<TAccount>); override;
   end;
 
-{ TWIZSendPASC_ConfirmSender }
+{ TWIZChangeKey_ConfirmAccount }
 
-procedure TWIZSendPASC_ConfirmSender.OnPresent;
+procedure TWIZChangeKey_ConfirmAccount.OnPresent;
 var
-  Data: TAccountSenderDataSource;
+  Data: TAccountChangeKeyDataSource;
+  i: integer;
+  acc: TAccount;
+  totalBalance: int64;
 begin
-  FSendersGrid := TVisualGrid.Create(Self);
-  FSendersGrid.CanSearch := False;
-  FSendersGrid.SortMode := smMultiColumn;
-  FSendersGrid.FetchDataInThread := False;
-  FSendersGrid.AutoPageSize := True;
-  FSendersGrid.SelectionType := stNone;
-  FSendersGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
-  with FSendersGrid.AddColumn('Account') do
+  FChangeKeyGrid := TVisualGrid.Create(Self);
+  FChangeKeyGrid.CanSearch := False;
+  FChangeKeyGrid.SortMode := smMultiColumn;
+  FChangeKeyGrid.FetchDataInThread := False;
+  FChangeKeyGrid.AutoPageSize := True;
+  FChangeKeyGrid.SelectionType := stNone;
+  FChangeKeyGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
+  with FChangeKeyGrid.AddColumn('Account') do
   begin
     StretchedToFill := True;
     Binding := 'AccountNumber';
@@ -78,7 +83,7 @@ begin
     DataFontStyles := [fsBold];
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
-  with FSendersGrid.AddColumn('Balance') do
+  with FChangeKeyGrid.AddColumn('Balance') do
   begin
     Binding := 'BalanceDecimal';
     SortBinding := 'Balance';
@@ -89,18 +94,28 @@ begin
     Renderer := TCellRenderers.PASC;
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
-  Data := TAccountSenderDataSource.Create(FSendersGrid);
+  Data := TAccountChangeKeyDataSource.Create(FChangeKeyGrid);
   Data.Model := Model;
-  FSendersGrid.DataSource := Data;
-  paGrid.AddControlDockCenter(FSendersGrid);
+  FChangeKeyGrid.DataSource := Data;
+  paGrid.AddControlDockCenter(FChangeKeyGrid);
+
+  totalBalance := 0;
+  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
+  begin
+    acc := Model.Account.SelectedAccounts[i];
+    totalBalance := totalBalance + acc.balance;
+  end;
+
+  lblTotalBalanceValue.Caption :=
+    Format('%s PASC', [TAccountComp.FormatMoney(totalBalance)]);
 end;
 
-procedure TWIZSendPASC_ConfirmSender.OnNext;
+procedure TWIZChangeKey_ConfirmAccount.OnNext;
 begin
-  UpdatePath(ptReplaceAllNext, [TWIZSendPASC_EnterRecipient, TWIZSendPASC_Confirmation]);
+  UpdatePath(ptReplaceAllNext, [TWIZChangeKey_SelectOption, TWIZChangeKey_Confirmation]);
 end;
 
-function TWIZSendPASC_ConfirmSender.Validate(out message: ansistring): boolean;
+function TWIZChangeKey_ConfirmAccount.Validate(out message: ansistring): boolean;
 begin
   Result := True;
   // get signer accounts from selected accounts
@@ -114,9 +129,9 @@ begin
 
 end;
 
-{ TAccountSenderDataSource }
+{ TAccountChangeKeyDataSource }
 
-procedure TAccountSenderDataSource.FetchAll(const AContainer: TList<TAccount>);
+procedure TAccountChangeKeyDataSource.FetchAll(const AContainer: TList<TAccount>);
 var
   i: integer;
 begin
