@@ -34,6 +34,7 @@ type
     FSendersGrid: TVisualGrid;
   public
     procedure OnPresent; override;
+    function Validate(out message: ansistring): boolean; override;
   end;
 
 
@@ -103,6 +104,20 @@ begin
   paGrid.AddControlDockCenter(FSendersGrid);
   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
   lblDestAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SendPASC.DestinationAccount.account);
+end;
+
+function TWIZSendPASC_Confirmation.Validate(out message: ansistring): boolean;
+begin
+  Result := True;
+  if Length(Model.Account.SelectedAccounts) > 1 then
+  begin
+    if not (Model.Fee.SingleOperationFee > 0) then
+    begin
+      message := 'insufficient fee for total operation.';
+      Result := False;
+      Exit;
+    end;
+  end;
 end;
 
 { TAccountSenderDataSource }

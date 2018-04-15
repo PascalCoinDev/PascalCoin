@@ -22,6 +22,7 @@ object WIZFeeOverride: TWIZFeeOverride
       Height = 23
       Top = 35
       Width = 173
+      DecimalPlaces = 4
       Increment = 1
       MaxValue = 1000000000000
       MinValue = 0

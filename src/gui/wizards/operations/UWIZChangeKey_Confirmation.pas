@@ -32,6 +32,7 @@ type
     FChangeKeyGrid: TVisualGrid;
   public
     procedure OnPresent; override;
+    function Validate(out message: ansistring): boolean; override;
   end;
 
 
@@ -104,6 +105,20 @@ begin
   FChangeKeyGrid.DataSource := Data;
   paGrid.AddControlDockCenter(FChangeKeyGrid);
   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
+end;
+
+function TWIZChangeKey_Confirmation.Validate(out message: ansistring): boolean;
+begin
+  Result := True;
+  if Length(Model.Account.SelectedAccounts) > 1 then
+  begin
+    if not (Model.Fee.SingleOperationFee > 0) then
+    begin
+      message := 'insufficient fee for total operation.';
+      Result := False;
+      Exit;
+    end;
+  end;
 end;
 
 { TAccountChangeKeyDataSource }
