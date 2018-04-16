@@ -51,7 +51,7 @@ Const
 
   CT_FirstReward: UInt64 = 1000000; // 4 decimals... First reward = 100,0000
   CT_MinReward: UInt64 = 10000; // 4 decimals... Min reward = 1,0000
-  CT_NewLineRewardDecrease: Cardinal = 420480; // Avg 4 year
+  CT_NewLineRewardDecrease: Cardinal = {$IFDEF PRODUCTION}210240{$ELSE}{$IFDEF TESTNET}20000{$ENDIF}{$ENDIF}; // Avg 4 year
 
   CT_WaitNewBlocksBeforeTransaction = 100;
 
