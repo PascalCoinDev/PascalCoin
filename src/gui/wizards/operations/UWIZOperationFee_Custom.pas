@@ -57,8 +57,7 @@ var
   opfee: int64;
 begin
   TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)), opfee);
-  lblTotalFeeValue.Caption := Format('%s PASC', [TAccountComp.FormatMoney(opfee *
-    Length(Model.Account.SelectedAccounts))]);
+  lblTotalFeeValue.Caption := Format('%s PASC', [TAccountComp.FormatMoney(opfee * Length(Model.Account.SelectedAccounts))]);
 end;
 
 procedure TWIZOperationFee_Custom.fseFeeChange(Sender: TObject);

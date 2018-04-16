@@ -1,13 +1,12 @@
-object WIZFeeOverride: TWIZFeeOverride
+object WIZOperationFee_Custom: TWIZOperationFee_Custom
   Left = 0
   Height = 253
   Top = 0
   Width = 429
   ActiveControl = fseFee
-  Caption = 'WIZFeeOverride'
+  Caption = 'WIZOperationFee_Custom'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
   object gbTransactionFee: TGroupBox
     Left = 14

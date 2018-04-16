@@ -1,12 +1,12 @@
-object WIZPayloadOverride: TWIZPayloadOverride
+object WIZOperationPayload_Encryption: TWIZOperationPayload_Encryption
   Left = 0
   Height = 320
   Top = 0
   Width = 511
+  ActiveControl = rbEncryptedWithSender
   Caption = 'Form1'
   ClientHeight = 320
   ClientWidth = 511
-  LCLVersion = '1.8.2.0'
   Visible = False
   object grpPayload: TGroupBox
     Left = 8

@@ -442,35 +442,35 @@
       <Unit80>
         <Filename Value="gui\wizards\operations\UWIZOperationFee_Custom.pas"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="WIZFeeOverride"/>
+        <ComponentName Value="WIZOperationFee_Custom"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit80>
       <Unit81>
         <Filename Value="gui\wizards\operations\UWIZOperationPayload_Content.pas"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="WIZPayloadContentOverride"/>
+        <ComponentName Value="WIZOperationPayload_Content"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit81>
       <Unit82>
         <Filename Value="gui\wizards\operations\UWIZOperationPayload_Encryption.pas"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="WIZPayloadOverride"/>
+        <ComponentName Value="WIZOperationPayload_Encryption"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit82>
       <Unit83>
         <Filename Value="gui\wizards\operations\UWIZOperationPayload_Password.pas"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="WIZPayloadPasswordOverride"/>
+        <ComponentName Value="WIZOperationPayload_Password"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit83>
       <Unit84>
         <Filename Value="gui\wizards\operations\UWIZOperationSigner_Select.pas"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="WIZSelectSignerOverride"/>
+        <ComponentName Value="WIZOperationSigner_Select"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit84>

@@ -1,4 +1,4 @@
-object WIZPayloadContentOverride: TWIZPayloadContentOverride
+object WIZOperationPayload_Content: TWIZOperationPayload_Content
   Left = 0
   Height = 253
   Top = 0
@@ -7,7 +7,6 @@ object WIZPayloadContentOverride: TWIZPayloadContentOverride
   Caption = 'Form1'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
   object grpPayload: TGroupBox
     Left = 8
