@@ -35,7 +35,7 @@ uses
   {$IFDEF DelphiSockets}
   Sockets,
   {$ENDIF}
-  Classes, Sysutils,
+  Classes, Sysutils, UBaseTypes,
   UThread, SyncObjs;
 
 type
@@ -113,7 +113,7 @@ type
     FSendBuffer : TMemoryStream;
     FReadBuffer : TMemoryStream;
     FCritical : TPCCriticalSection;
-    FLastReadTC : Cardinal;
+    FLastReadTC : TTickCount;
     FBufferedNetTcpIpClientThread : TBufferedNetTcpIpClientThread;
   protected
     Function DoWaitForDataInherited(WaitMilliseconds : Integer) : Boolean;
@@ -124,7 +124,7 @@ type
     Procedure WriteBufferToSend(SendData : TStream);
     Function ReadBufferLock : TMemoryStream;
     Procedure ReadBufferUnlock;
-    Property LastReadTC : Cardinal read FLastReadTC;
+    Property LastReadTC : TTickCount read FLastReadTC;
   End;
 
   {$IFDEF Synapse}
@@ -562,7 +562,7 @@ var SendBuffStream : TStream;
         if (last_bytes_read>0) then begin
           ms := FBufferedNetTcpIpClient.ReadBufferLock;
           Try
-            FBufferedNetTcpIpClient.FLastReadTC := GetTickCount;
+            FBufferedNetTcpIpClient.FLastReadTC := TPlatform.GetTickCount;
             lastpos := ms.Position;
             ms.Position := ms.Size;
             ms.Write(ReceiveBuffer,last_bytes_read);
@@ -608,7 +608,7 @@ begin
         If (Not Terminated) And (FBufferedNetTcpIpClient.Connected) then DoReceiveBuf;
         // Send Data
         If (Not Terminated) And (FBufferedNetTcpIpClient.Connected) then DoSendBuf;
-      end else FBufferedNetTcpIpClient.FLastReadTC := GetTickCount;
+      end else FBufferedNetTcpIpClient.FLastReadTC := TPlatform.GetTickCount;
       // Sleep
       Sleep(10); // Slepp 10 is better than sleep 1
     end;
@@ -629,7 +629,7 @@ end;
 constructor TBufferedNetTcpIpClient.Create(AOwner: TComponent);
 begin
   inherited;
-  FLastReadTC := GetTickCount;
+  FLastReadTC := TPlatform.GetTickCount;
   FCritical := TPCCriticalSection.Create('TBufferedNetTcpIpClient_Critical');
   FSendBuffer := TMemoryStream.Create;
   FReadBuffer := TMemoryStream.Create;
