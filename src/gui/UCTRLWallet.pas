@@ -296,23 +296,17 @@ var
   str: ansistring;
 begin
   // determine current selection
-  if cbAccounts.ItemIndex >= 1 then
-  begin
-    if cbAccounts.ItemIndex < cbAccounts.Items.Count - 1 then
-    begin
+  if cbAccounts.ItemIndex >= 1 then begin
+    if cbAccounts.ItemIndex < cbAccounts.Items.Count - 1 then begin
       last_key := TBox<TAccountKey>(
         cbAccounts.Items.Objects[cbAccounts.ItemIndex]).Value;
       selectFirst := False;
       selectLast := False;
-    end
-    else
-    begin
+    end else begin
       selectFirst := False;
       selectLast := True;
     end;
-  end
-  else
-  begin
+  end else begin
     selectFirst := True;
     selectLast := False;
   end;
@@ -325,18 +319,14 @@ begin
       cbAccounts.Items.Objects[i].Free;
     cbAccounts.Items.Clear;
     // add new items
-    for i := 0 to TWallet.Keys.Count - 1 do
-    begin
+    for i := 0 to TWallet.Keys.Count - 1 do begin
       // get i'th key
       key := TWallet.Keys.Key[i];
       // fix name
-      if (key.Name = '') then
-      begin
+      if (key.Name = '') then begin
         str := 'Sha256=' + TCrypto.ToHexaString(TCrypto.DoSha256(
           TAccountComp.AccountKey2RawString(key.AccountKey)));
-      end
-      else
-      begin
+      end else begin
         str := key.Name;
       end;
       if not Assigned(key.PrivateKey) then
@@ -353,13 +343,9 @@ begin
     cbAccounts.ItemIndex := 0
   else if selectLast then
     cbAccounts.ItemIndex := cbAccounts.Items.Count - 1
-  else
-  begin
-    for i := 1 to cbAccounts.Items.Count - 2 do
-    begin
-      if TAccountKeyEqualityComparer.AreEqual(TBox<TAccountKey>(
-        cbAccounts.Items.Objects[i]).Value, last_key) then
-      begin
+  else begin
+    for i := 1 to cbAccounts.Items.Count - 2 do begin
+      if TAccountKeyEqualityComparer.AreEqual(TBox<TAccountKey>( cbAccounts.Items.Objects[i]).Value, last_key) then begin
         cbAccounts.ItemIndex := i;
         exit;
       end;
@@ -367,8 +353,7 @@ begin
   end;
 end;
 
-function TCTRLWallet.GetAccounts(
-  const AccountNumbers: TArray<cardinal>): TArray<TAccount>;
+function TCTRLWallet.GetAccounts(const AccountNumbers: TArray<cardinal>): TArray<TAccount>;
 var
   acc: TAccount;
   safeBox: TPCSafeBox;
@@ -384,13 +369,10 @@ begin
     LContainer.Clear;
     try
       // load selected user accounts
-      for i := Low(AccountNumbers) to High(AccountNumbers) do
-      begin
+      for i := Low(AccountNumbers) to High(AccountNumbers) do begin
         acc := safeBox.Account(AccountNumbers[i]);
         if keys.IndexOfAccountKey(acc.accountInfo.accountKey) >= 0 then
-        begin
           LContainer.Add(acc);
-        end;
       end;
     finally
       safeBox.EndThreadSave;
@@ -399,7 +381,6 @@ begin
   finally
     LContainer.Free;
   end;
-
 end;
 
 procedure TCTRLWallet.SetAccountsMode(AMode: TCTRLWalletAccountsMode);
@@ -504,20 +485,16 @@ var
 begin
   selectedAccounts := GC.AddObject(TList<cardinal>.Create) as TList<cardinal>;
 
-  if ASelection.RowCount > 0 then
-  begin
+  if ASelection.RowCount > 0 then begin
     for row := ASelection.Row to (ASelection.Row + ASelection.RowCount - 1) do begin
-      if (TAccountComp.AccountTxtNumberToAccountNumber(
-        FAccountsGrid.Rows[row].Account, acc)) then
+      if (TAccountComp.AccountTxtNumberToAccountNumber(FAccountsGrid.Rows[row].Account, acc)) then
         selectedAccounts.Add(acc);
     end;
     FOperationsDataSource.Accounts := selectedAccounts.ToArray;
-    FOperationsGrid.Caption.Text :=
-      IIF(ASelection.RowCount = 1, Format('Account: %s', [TAccountComp.AccountNumberToAccountTxtNumber(selectedAccounts[0])]), 'Selected Accounts');
+    FOperationsGrid.Caption.Text := IIF(ASelection.RowCount = 1, Format('Account: %s', [TAccountComp.AccountNumberToAccountTxtNumber(selectedAccounts[0])]), 'Selected Accounts');
     FOperationsGrid.RefreshGrid;
-  end else begin
+  end else
     OperationsMode := womAllAccounts;
-  end;
 end;
 
 procedure TCTRLWallet.OnOperationSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
@@ -578,26 +555,15 @@ var
 begin
   miSep1.Visible := ASelection.RowCount = 1;
   miAccountInfo.Visible := ASelection.RowCount = 1;
-  miSendPASC.Caption :=
-    IIF(ASelection.RowCount = 1, 'Send PASC', 'Send All PASC');
-   miChangeKey.Caption :=
-    IIF(ASelection.RowCount = 1, 'Change Key', 'Change All Key');
-  miEnlistAccountsForSale.Caption :=
-    IIF(ASelection.RowCount = 1, 'Enlist Account For Sale',
-    'Enlist All Account For Sale');
-  miDelistAccountsFromSale.Caption :=
-    IIF(ASelection.RowCount = 1, 'Delist Account From Sale',
-    'Delist All Account From Sale');
-  if ASelection.RowCount = 1 then
-  begin
-    if not TAccountComp.AccountTxtNumberToAccountNumber(
-      FAccountsGrid.Rows[ASelection.Row].Account, accNo) then
-    begin
+  miSendPASC.Caption := IIF(ASelection.RowCount = 1, 'Send PASC', 'Send All PASC');
+  miChangeKey.Caption := IIF(ASelection.RowCount = 1, 'Change Key', 'Change All Key');
+  miEnlistAccountsForSale.Caption := IIF(ASelection.RowCount = 1, 'Enlist Account For Sale', 'Enlist All Account For Sale');
+  miDelistAccountsFromSale.Caption := IIF(ASelection.RowCount = 1, 'Delist Account From Sale', 'Delist All Account From Sale');
+  if ASelection.RowCount = 1 then begin
+    if not TAccountComp.AccountTxtNumberToAccountNumber(FAccountsGrid.Rows[ASelection.Row].Account, accNo) then
       raise Exception.Create('Error Parsing Account Number From Grid');
-    end;
     account := TNode.Node.Operations.SafeBoxTransaction.Account(accNo);
-    miEnlistAccountsForSale.Visible :=
-      IIF(TAccountComp.IsAccountForSale(account.accountInfo), False, True);
+    miEnlistAccountsForSale.Visible := IIF(TAccountComp.IsAccountForSale(account.accountInfo), False, True);
     miDelistAccountsFromSale.Visible := not miEnlistAccountsForSale.Visible;
   end;
   APopupMenu := mnuAccountsPopup;
