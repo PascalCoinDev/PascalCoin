@@ -31,9 +31,10 @@ object WIZPayloadContentOverride: TWIZPayloadContentOverride
       TabOrder = 0
       object mmoPayload: TMemo
         Left = 0
-        Height = 128
+        Height = 176
         Top = 32
-        Width = 386
+        Width = 392
+        Anchors = [akTop, akLeft, akRight, akBottom]
         TabOrder = 0
       end
       object Label1: TLabel

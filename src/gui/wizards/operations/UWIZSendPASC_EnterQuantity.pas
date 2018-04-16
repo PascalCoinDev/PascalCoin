@@ -18,7 +18,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZFeeOverride, UWIZPayloadOverride, UWIZSelectSignerOverride,
+  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZOperationFee_Custom, UWIZOperationPayload_Encryption, UWIZOperationSigner_Select,
   UWIZSendPASC_Confirmation, UWIZModels;
 
 type
@@ -103,18 +103,18 @@ begin
 
   if chkChooseFee.Checked then
   begin
-    UpdatePath(ptReplaceAllNext, [TWIZFeeOverride, TWIZSendPASC_Confirmation]);
+    UpdatePath(ptReplaceAllNext, [TWIZOperationFee_Custom, TWIZSendPASC_Confirmation]);
   end
   else
   begin
     Model.Fee.SingleOperationFee := TSettings.DefaultFee;
     if Model.Payload.HasPayload then
     begin
-      UpdatePath(ptReplaceAllNext, [TWIZPayloadOverride, TWIZSendPASC_Confirmation]);
+      UpdatePath(ptReplaceAllNext, [TWIZOperationPayload_Encryption, TWIZSendPASC_Confirmation]);
     end
     else
     begin
-      UpdatePath(ptReplaceAllNext, [TWIZSelectSignerOverride, TWIZSendPASC_Confirmation]);
+      UpdatePath(ptReplaceAllNext, [TWIZOperationSigner_Select, TWIZSendPASC_Confirmation]);
     end;
   end;
 

@@ -1,4 +1,4 @@
-unit UWIZFeeOverride;
+unit UWIZOperationFee_Custom;
 
 {$mode delphi}
 {$modeswitch nestedprocvars}
@@ -18,13 +18,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, Spin, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZPayloadOverride, UWIZSelectSignerOverride, UWIZModels;
+  UFRMAccountSelect, UNode, UWizard, UWIZOperationPayload_Encryption, UWIZOperationSigner_Select, UWIZModels;
 
 type
 
-  { TWIZFeeOverride }
+  { TWIZOperationFee_Custom }
 
-  TWIZFeeOverride = class(TWizardForm<TWIZOperationsModel>)
+  TWIZOperationFee_Custom = class(TWizardForm<TWIZOperationsModel>)
     fseFee: TFloatSpinEdit;
     gbTransactionFee: TGroupBox;
     lblestimatedfee: TLabel;
@@ -50,9 +50,9 @@ implementation
 uses
   UAccounts, UUserInterface, USettings;
 
-{ TWIZFeeOverride }
+{ TWIZOperationFee_Custom }
 
-procedure TWIZFeeOverride.UpdateUI();
+procedure TWIZOperationFee_Custom.UpdateUI();
 var
   opfee: int64;
 begin
@@ -61,31 +61,31 @@ begin
     Length(Model.Account.SelectedAccounts))]);
 end;
 
-procedure TWIZFeeOverride.fseFeeChange(Sender: TObject);
+procedure TWIZOperationFee_Custom.fseFeeChange(Sender: TObject);
 begin
   UpdateUI();
 end;
 
-procedure TWIZFeeOverride.OnPresent;
+procedure TWIZOperationFee_Custom.OnPresent;
 begin
   UpdateUI();
 end;
 
-procedure TWIZFeeOverride.OnNext;
+procedure TWIZOperationFee_Custom.OnNext;
 begin
   TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)),
     Model.Fee.SingleOperationFee);
   if Model.Payload.HasPayload then
   begin
-    UpdatePath(ptInject, [TWIZPayloadOverride]);
+    UpdatePath(ptInject, [TWIZOperationPayload_Encryption]);
   end
   else
   begin
-  UpdatePath(ptInject, [TWIZSelectSignerOverride]);
+  UpdatePath(ptInject, [TWIZOperationSigner_Select]);
   end;
 end;
 
-function TWIZFeeOverride.Validate(out message: ansistring): boolean;
+function TWIZOperationFee_Custom.Validate(out message: ansistring): boolean;
 var
   opfee: int64;
 begin

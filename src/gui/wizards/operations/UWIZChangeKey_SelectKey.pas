@@ -19,7 +19,7 @@ uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
   UFRMAccountSelect, UNode, UWizard,
-  UWIZChangeKey_Confirmation, UWIZFeeOverride, UWIZSelectSignerOverride, UWIZPayloadOverride, UWIZModels;
+  UWIZChangeKey_Confirmation, UWIZOperationFee_Custom, UWIZOperationSigner_Select, UWIZOperationPayload_Encryption, UWIZModels;
 
 type
 
@@ -117,18 +117,18 @@ begin
 
   if chkChooseFee.Checked then
   begin
-    UpdatePath(ptReplaceAllNext, [TWIZFeeOverride, TWIZChangeKey_Confirmation]);
+    UpdatePath(ptReplaceAllNext, [TWIZOperationFee_Custom, TWIZChangeKey_Confirmation]);
   end
   else
   begin
     Model.Fee.SingleOperationFee := TSettings.DefaultFee;
     if Model.Payload.HasPayload then
     begin
-      UpdatePath(ptReplaceAllNext, [TWIZPayloadOverride, TWIZChangeKey_Confirmation]);
+      UpdatePath(ptReplaceAllNext, [TWIZOperationPayload_Encryption, TWIZChangeKey_Confirmation]);
     end
     else
     begin
-      UpdatePath(ptReplaceAllNext, [TWIZSelectSignerOverride, TWIZChangeKey_Confirmation]);
+      UpdatePath(ptReplaceAllNext, [TWIZOperationSigner_Select, TWIZChangeKey_Confirmation]);
     end;
   end;
 end;

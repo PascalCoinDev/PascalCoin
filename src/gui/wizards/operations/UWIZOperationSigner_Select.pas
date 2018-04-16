@@ -1,4 +1,4 @@
-unit UWIZSelectSignerOverride;
+unit UWIZOperationSigner_Select;
 
 {$mode delphi}
 {$modeswitch nestedprocvars}
@@ -22,9 +22,9 @@ uses
 
 type
 
-  { TWIZSelectSignerOverride }
+  { TWIZOperationSigner_Select }
 
-  TWIZSelectSignerOverride = class(TWizardForm<TWIZOperationsModel>)
+  TWIZOperationSigner_Select = class(TWizardForm<TWIZOperationsModel>)
     cbSignerAccount: TComboBox;
     gbTransaction: TGroupBox;
     lblNote: TLabel;
@@ -47,9 +47,9 @@ implementation
 uses
   UAccounts, UUserInterface, USettings;
 
-{ TWIZSelectSignerOverride }
+{ TWIZOperationSigner_Select }
 
-procedure TWIZSelectSignerOverride.cbSignerAccountChange(Sender: TObject);
+procedure TWIZOperationSigner_Select.cbSignerAccountChange(Sender: TObject);
 begin
   if cbSignerAccount.ItemIndex < 1 then
   begin
@@ -65,7 +65,7 @@ begin
   end;
 end;
 
-procedure TWIZSelectSignerOverride.OnPresent;
+procedure TWIZOperationSigner_Select.OnPresent;
 
   function GetAccNoWithChecksum(AAccountNumber: cardinal): string;
   begin
@@ -94,7 +94,7 @@ begin
   cbSignerAccountChange(Self);
 end;
 
-procedure TWIZSelectSignerOverride.OnNext;
+procedure TWIZOperationSigner_Select.OnNext;
 begin
   Model.Signer.SelectedIndex := cbSignerAccount.ItemIndex;
   Model.Signer.SignerAccount := Model.Signer.SignerCandidates[PtrInt(
@@ -109,7 +109,7 @@ begin
   end;
 end;
 
-function TWIZSelectSignerOverride.Validate(out message: ansistring): boolean;
+function TWIZOperationSigner_Select.Validate(out message: ansistring): boolean;
 begin
   Result := True;
   if cbSignerAccount.ItemIndex < 1 then

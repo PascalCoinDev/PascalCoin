@@ -33,7 +33,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="98">
+    <Units Count="97">
       <Unit0>
         <Filename Value="pascalcoin_wallet.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -342,215 +342,213 @@
         <IsPartOfProject Value="True"/>
       </Unit61>
       <Unit62>
-        <Filename Value="libraries\pascalcoin\UGridUtils.pas"/>
+        <Filename Value="libraries\pascalcoin\UJSONFunctions.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit62>
       <Unit63>
-        <Filename Value="libraries\pascalcoin\UJSONFunctions.pas"/>
+        <Filename Value="core.utils\UCoreUtils.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit63>
       <Unit64>
-        <Filename Value="core.utils\UCoreUtils.pas"/>
+        <Filename Value="core.utils\UDataSources.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit64>
       <Unit65>
-        <Filename Value="core.utils\UDataSources.pas"/>
+        <Filename Value="gui\wizards\UWIZModels.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit65>
       <Unit66>
-        <Filename Value="gui\wizards\UWIZModels.pas"/>
+        <Filename Value="gui\wizards\wallet\UWIZAddKey.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit66>
       <Unit67>
-        <Filename Value="gui\wizards\wallet\UWIZAddKey.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit67>
-      <Unit68>
         <Filename Value="gui\wizards\wallet\UWIZAddKey_EnterName.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_EnterName"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit68>
-      <Unit69>
+      </Unit67>
+      <Unit68>
         <Filename Value="gui\wizards\wallet\UWIZAddKey_GenerateOrImport.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_GenerateOrImport"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit69>
-      <Unit70>
+      </Unit68>
+      <Unit69>
         <Filename Value="gui\wizards\wallet\UWIZAddKey_ImportPrivKey.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_ImportPrivKey"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit70>
-      <Unit71>
+      </Unit69>
+      <Unit70>
         <Filename Value="gui\wizards\wallet\UWIZAddKey_ImportPubKey.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_ImportPubKey"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit71>
-      <Unit72>
+      </Unit70>
+      <Unit71>
         <Filename Value="gui\wizards\wallet\UWIZAddKey_SelectEncryption.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_SelectEncryption"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit72>
-      <Unit73>
+      </Unit71>
+      <Unit72>
         <Filename Value="gui\wizards\wallet\UWIZAddKey_Start.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZAddKey_Start"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit73>
-      <Unit74>
+      </Unit72>
+      <Unit73>
         <Filename Value="gui\wizards\operations\UWIZEnlistAccountForSale.pas"/>
         <IsPartOfProject Value="True"/>
+      </Unit73>
+      <Unit74>
+        <Filename Value="gui\wizards\operations\UWIZEnlistAccountForSale_Confirmation.pas"/>
+        <IsPartOfProject Value="True"/>
+        <HasResources Value="True"/>
       </Unit74>
       <Unit75>
-        <Filename Value="gui\wizards\operations\UWIZEnlistAccountForSale_Confirmation.pas"/>
+        <Filename Value="gui\wizards\operations\UWIZEnlistAccountForSale_List.pas"/>
         <IsPartOfProject Value="True"/>
         <HasResources Value="True"/>
       </Unit75>
       <Unit76>
-        <Filename Value="gui\wizards\operations\UWIZEnlistAccountForSale_List.pas"/>
+        <Filename Value="gui\wizards\operations\UWIZEnlistAccountForSale_PrivateSaleConfig.pas"/>
         <IsPartOfProject Value="True"/>
         <HasResources Value="True"/>
       </Unit76>
       <Unit77>
-        <Filename Value="gui\wizards\operations\UWIZEnlistAccountForSale_PrivateSaleConfig.pas"/>
+        <Filename Value="gui\wizards\operations\UWIZEnlistAccountForSale_Start.pas"/>
         <IsPartOfProject Value="True"/>
         <HasResources Value="True"/>
       </Unit77>
       <Unit78>
-        <Filename Value="gui\wizards\operations\UWIZEnlistAccountForSale_Start.pas"/>
-        <IsPartOfProject Value="True"/>
-        <HasResources Value="True"/>
-      </Unit78>
-      <Unit79>
         <Filename Value="gui\wizards\operations\UWIZEnlistAccountForSale_Transaction.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZEnlistAccountForSale_Transaction"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit79>
-      <Unit80>
+      </Unit78>
+      <Unit79>
         <Filename Value="gui\wizards\operations\UWIZEnlistAccountForSale_TransactionPayload.pas"/>
         <IsPartOfProject Value="True"/>
         <HasResources Value="True"/>
-      </Unit80>
-      <Unit81>
-        <Filename Value="gui\wizards\operations\UWIZFeeOverride.pas"/>
+      </Unit79>
+      <Unit80>
+        <Filename Value="gui\wizards\operations\UWIZOperationFee_Custom.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZFeeOverride"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit81>
-      <Unit82>
-        <Filename Value="gui\wizards\operations\UWIZPayloadContentOverride.pas"/>
+      </Unit80>
+      <Unit81>
+        <Filename Value="gui\wizards\operations\UWIZOperationPayload_Content.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZPayloadContentOverride"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit82>
-      <Unit83>
-        <Filename Value="gui\wizards\operations\UWIZPayloadOverride.pas"/>
+      </Unit81>
+      <Unit82>
+        <Filename Value="gui\wizards\operations\UWIZOperationPayload_Encryption.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZPayloadOverride"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit83>
-      <Unit84>
-        <Filename Value="gui\wizards\operations\UWIZPayloadPasswordOverride.pas"/>
+      </Unit82>
+      <Unit83>
+        <Filename Value="gui\wizards\operations\UWIZOperationPayload_Password.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZPayloadPasswordOverride"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit84>
-      <Unit85>
-        <Filename Value="gui\wizards\operations\UWIZSelectSignerOverride.pas"/>
+      </Unit83>
+      <Unit84>
+        <Filename Value="gui\wizards\operations\UWIZOperationSigner_Select.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZSelectSignerOverride"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit85>
-      <Unit86>
+      </Unit84>
+      <Unit85>
         <Filename Value="gui\wizards\operations\UWIZSendPASC.pas"/>
         <IsPartOfProject Value="True"/>
-      </Unit86>
-      <Unit87>
+      </Unit85>
+      <Unit86>
         <Filename Value="gui\wizards\operations\UWIZSendPASC_Confirmation.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZSendPASC_Confirmation"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit87>
-      <Unit88>
+      </Unit86>
+      <Unit87>
         <Filename Value="gui\wizards\operations\UWIZSendPASC_ConfirmSender.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZSendPASC_ConfirmSender"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit88>
-      <Unit89>
+      </Unit87>
+      <Unit88>
         <Filename Value="gui\wizards\operations\UWIZSendPASC_EnterQuantity.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZSendPASC_EnterQuantity"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit89>
-      <Unit90>
+      </Unit88>
+      <Unit89>
         <Filename Value="gui\wizards\operations\UWIZSendPASC_EnterRecipient.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZSendPASC_EnterRecipient"/>
         <HasResources Value="True"/>
-      </Unit90>
-      <Unit91>
+        <ResourceBaseClass Value="Form"/>
+      </Unit89>
+      <Unit90>
         <Filename Value="gui\wizards\operations\UWIZChangeKey.pas"/>
         <IsPartOfProject Value="True"/>
-      </Unit91>
-      <Unit92>
+      </Unit90>
+      <Unit91>
         <Filename Value="gui\wizards\operations\UWIZChangeKey_SelectOption.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZChangeKey_SelectOption"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit92>
-      <Unit93>
+      </Unit91>
+      <Unit92>
         <Filename Value="gui\wizards\operations\UWIZChangeKey_EnterKey.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZChangeKey_EnterKey"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit93>
-      <Unit94>
+      </Unit92>
+      <Unit93>
         <Filename Value="gui\wizards\operations\UWIZChangeKey_SelectKey.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZChangeKey_SelectKey"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit94>
-      <Unit95>
+      </Unit93>
+      <Unit94>
         <Filename Value="gui\wizards\operations\UWIZChangeKey_ConfirmAccount.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZChangeKey_ConfirmAccount"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit95>
-      <Unit96>
+      </Unit94>
+      <Unit95>
         <Filename Value="gui\wizards\operations\UWIZChangeKey_Confirmation.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="WIZChangeKey_Confirmation"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
-      </Unit96>
-      <Unit97>
+      </Unit95>
+      <Unit96>
         <Filename Value="gui-classic\UGridUtils.pas"/>
         <IsPartOfProject Value="True"/>
-      </Unit97>
+      </Unit96>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

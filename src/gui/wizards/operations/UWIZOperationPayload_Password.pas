@@ -1,4 +1,4 @@
-unit UWIZPayloadPasswordOverride;
+unit UWIZOperationPayload_Password;
 
 {$mode delphi}
 {$modeswitch nestedprocvars}
@@ -18,13 +18,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections,
-  UWizard, UWIZSelectSignerOverride, UWIZModels;
+  UWizard, UWIZOperationSigner_Select, UWIZModels;
 
 type
 
-  { TWIZPayloadPasswordOverride }
+  { TWIZOperationPayload_Password }
 
-  TWIZPayloadPasswordOverride = class(TWizardForm<TWIZOperationsModel>)
+  TWIZOperationPayload_Password = class(TWizardForm<TWIZOperationsModel>)
     edtPassword: TEdit;
     grpPayload: TGroupBox;
     lblNote: TLabel;
@@ -43,15 +43,15 @@ implementation
 uses
   UAccounts, UUserInterface;
 
-{ TWIZPayloadPasswordOverride }
+{ TWIZOperationPayload_Password }
 
-procedure TWIZPayloadPasswordOverride.OnNext;
+procedure TWIZOperationPayload_Password.OnNext;
 begin
   Model.Payload.Password := edtPassword.Text;
-   UpdatePath(ptInject, [TWIZSelectSignerOverride]);
+   UpdatePath(ptInject, [TWIZOperationSigner_Select]);
 end;
 
-function TWIZPayloadPasswordOverride.Validate(out message: ansistring): boolean;
+function TWIZOperationPayload_Password.Validate(out message: ansistring): boolean;
 begin
   Result := True;
   if Length(Trim(edtPassword.Text)) = 0 then

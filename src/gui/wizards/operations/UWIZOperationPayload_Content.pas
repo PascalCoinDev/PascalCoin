@@ -1,4 +1,4 @@
-unit UWIZPayloadContentOverride;
+unit UWIZOperationPayload_Content;
 
 {$mode delphi}
 {$modeswitch nestedprocvars}
@@ -18,13 +18,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections,
-  UWizard, UWIZSelectSignerOverride, UWIZModels;
+  UWizard, UWIZOperationSigner_Select, UWIZModels;
 
 type
 
-  { TWIZPayloadContentOverride }
+  { TWIZOperationPayload_Content }
 
-  TWIZPayloadContentOverride = class(TWizardForm<TWIZOperationsModel>)
+  TWIZOperationPayload_Content = class(TWizardForm<TWIZOperationsModel>)
     grpPayload: TGroupBox;
     Label1: TLabel;
     mmoPayload: TMemo;
@@ -41,12 +41,12 @@ implementation
 uses
   UAccounts, UUserInterface;
 
-{ TWIZPayloadContentOverride }
+{ TWIZOperationPayload_Content }
 
-procedure TWIZPayloadContentOverride.OnNext;
+procedure TWIZOperationPayload_Content.OnNext;
 begin
   Model.Payload.Content := mmoPayload.Lines.Text;
-   UpdatePath(ptInject, [TWIZSelectSignerOverride]);
+   UpdatePath(ptInject, [TWIZOperationSigner_Select]);
 end;
 
 end.

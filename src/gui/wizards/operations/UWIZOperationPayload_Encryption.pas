@@ -1,4 +1,4 @@
-unit UWIZPayloadOverride;
+unit UWIZOperationPayload_Encryption;
 
 {$mode delphi}
 {$modeswitch nestedprocvars}
@@ -18,13 +18,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections,
-  UWizard, UWIZPayloadContentOverride, UWIZPayloadPasswordOverride, UWIZModels;
+  UWizard, UWIZOperationPayload_Content, UWIZOperationPayload_Password, UWIZModels;
 
 type
 
-  { TWIZPayloadOverride }
+  { TWIZOperationPayload_Encryption }
 
-  TWIZPayloadOverride = class(TWizardForm<TWIZOperationsModel>)
+  TWIZOperationPayload_Encryption = class(TWizardForm<TWIZOperationsModel>)
     grpPayload: TGroupBox;
     Label1: TLabel;
     lblNoEncryption: TLabel;
@@ -49,9 +49,9 @@ implementation
 uses
   UAccounts, UUserInterface;
 
-{ TWIZPayloadOverride }
+{ TWIZOperationPayload_Encryption }
 
-procedure TWIZPayloadOverride.OnNext;
+procedure TWIZOperationPayload_Encryption.OnNext;
 begin
   if rbEncryptedWithRecipient.Checked then
   begin
@@ -75,16 +75,16 @@ begin
   case Model.Payload.Mode of
     akaEncryptWithPassword:
     begin
-      UpdatePath(ptInject, [TWIZPayloadPasswordOverride]);
+      UpdatePath(ptInject, [TWIZOperationPayload_Password]);
     end
     else
     begin
-      UpdatePath(ptInject, [TWIZPayloadContentOverride]);
+      UpdatePath(ptInject, [TWIZOperationPayload_Content]);
     end;
   end;
 end;
 
-function TWIZPayloadOverride.Validate(out message: ansistring): boolean;
+function TWIZOperationPayload_Encryption.Validate(out message: ansistring): boolean;
 begin
   Result := True;
   if (not rbNotEncrypted.Checked) and (not rbEncryptedWithSender.Checked) and
@@ -97,3 +97,4 @@ begin
 end;
 
 end.
+
