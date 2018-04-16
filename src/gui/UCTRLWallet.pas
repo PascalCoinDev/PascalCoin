@@ -367,16 +367,6 @@ begin
   end;
 end;
 
-function TCTRLWallet.GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
-begin
-  Result := ARow.__KEY;
-end;
-
-//function GetAccNoWithCheckSum(constref ARow: variant): string;
-//begin
-//  Result := ARow.Account;
-//end;
-
 function TCTRLWallet.GetAccounts(
   const AccountNumbers: TArray<cardinal>): TArray<TAccount>;
 var
@@ -501,13 +491,11 @@ end;
 
 procedure TCTRLWallet.OnAccountsUpdated(Sender: TObject);
 begin
-  lblTotalPASC.Caption := TAccountComp.FormatMoney(
-    FAccountsDataSource.Overview.TotalPASC);
+  lblTotalPASC.Caption := TAccountComp.FormatMoney(FAccountsDataSource.Overview.TotalPASC);
   lblTotalPASA.Caption := Format('%d', [FAccountsDataSource.Overview.TotalPASA]);
 end;
 
-procedure TCTRLWallet.OnAccountsSelected(Sender: TObject;
-  constref ASelection: TVisualGridSelection);
+procedure TCTRLWallet.OnAccountsSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
 var
   row: longint;
   selectedAccounts: Generics.Collections.TList<cardinal>;
@@ -518,35 +506,28 @@ begin
 
   if ASelection.RowCount > 0 then
   begin
-    for row := ASelection.Row to (ASelection.Row + ASelection.RowCount - 1) do
-    begin
+    for row := ASelection.Row to (ASelection.Row + ASelection.RowCount - 1) do begin
       if (TAccountComp.AccountTxtNumberToAccountNumber(
         FAccountsGrid.Rows[row].Account, acc)) then
         selectedAccounts.Add(acc);
     end;
     FOperationsDataSource.Accounts := selectedAccounts.ToArray;
     FOperationsGrid.Caption.Text :=
-      IIF(ASelection.RowCount = 1, Format('Account: %s',
-      [TAccountComp.AccountNumberToAccountTxtNumber(selectedAccounts[0])]),
-      'Selected Accounts');
+      IIF(ASelection.RowCount = 1, Format('Account: %s', [TAccountComp.AccountNumberToAccountTxtNumber(selectedAccounts[0])]), 'Selected Accounts');
     FOperationsGrid.RefreshGrid;
-  end
-  else
-  begin
+  end else begin
     OperationsMode := womAllAccounts;
   end;
 end;
 
-procedure TCTRLWallet.OnOperationSelected(Sender: TObject;
-  constref ASelection: TVisualGridSelection);
+procedure TCTRLWallet.OnOperationSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
 var
   row: longint;
   v: variant;
   ophash: ansistring;
 begin
   row := ASelection.Row;
-  if (row >= 0) and (row < FOperationsGrid.RowCount) then
-  begin
+  if (row >= 0) and (row < FOperationsGrid.RowCount) then begin
     v := FOperationsGrid.Rows[row];
     ophash := FOperationsGrid.Rows[row].OPHASH;
     if TPCOperation.IsValidOperationHash(ophash) then
@@ -560,17 +541,13 @@ var
   sel: TBox<TAccountKey>;
 begin
   index := cbAccounts.ItemIndex;
-  if cbAccounts.ItemIndex < 0 then
-    exit;
+  if cbAccounts.ItemIndex < 0 then exit;
   if index = 0 then
     FAccountsDataSource.FilterKeys := TWallet.Keys.AccountsKeyList.ToArray
-  else if index = cbAccounts.Items.Count - 1 then
-  begin
+  else if index = cbAccounts.Items.Count - 1 then begin
     AccountsMode := wamFirstAccount;
     exit;
-  end
-  else
-  begin
+  end else begin
     sel := TBox<TAccountKey>(cbAccounts.Items.Objects[cbAccounts.ItemIndex]);
     FAccountsDataSource.FilterKeys := TArray<TAccountKey>.Create(sel.Value);
   end;
@@ -594,8 +571,7 @@ begin
   end;
 end;
 
-procedure TCTRLWallet.OnPrepareAccountPopupMenu(Sender: TObject;
-  constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+procedure TCTRLWallet.OnPrepareAccountPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
 var
   accNo: cardinal;
   account: TAccount;
@@ -629,8 +605,7 @@ end;
 
 procedure TCTRLWallet.miAccountInfoClick(Sender: TObject);
 begin
-  if FAccountsGrid.Selection.RowCount <> 1 then
-    exit;
+  if FAccountsGrid.Selection.RowCount <> 1 then exit;
   TUserInterface.ShowAccountInfoDialog(Self, FAccountsGrid.SelectedRows[0].__KEY);
 end;
 
@@ -643,11 +618,7 @@ var
 begin
   wiz := Scoped.AddObject(TWIZSendPASCWizard.Create(nil)) as TWIZSendPASCWizard;
   model := TWIZOperationsModel.Create(wiz, omtSendPasc);
-
-  AccountNumbersWithoutChecksum :=
-    TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,
-    GetAccNoWithoutChecksum);
-
+  AccountNumbersWithoutChecksum := TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,GetAccNoWithoutChecksum);
   model.Account.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
   wiz.Start(model);
 end;
@@ -659,13 +630,9 @@ var
   model: TWIZOperationsModel;
   AccountNumbersWithoutChecksum: TArray<cardinal>;
 begin
-   wiz := Scoped.AddObject(TWIZChangeKeyWizard.Create(nil)) as
-    TWIZChangeKeyWizard;
+  wiz := Scoped.AddObject(TWIZChangeKeyWizard.Create(nil)) as TWIZChangeKeyWizard;
   model := TWIZOperationsModel.Create(wiz, omtChangeKey);
-  AccountNumbersWithoutChecksum :=
-    TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,
-    GetAccNoWithoutChecksum);
-
+  AccountNumbersWithoutChecksum := TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows, GetAccNoWithoutChecksum);
   model.Account.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
   wiz.Start(model);
 end;
@@ -680,18 +647,13 @@ begin
   raise ENotImplemented.Create('not yet implemented.');
 end;
 
-procedure TCTRLWallet.OnPrepareOperationsPopupMenu(Sender: TObject;
-  constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
+procedure TCTRLWallet.OnPrepareOperationsPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
 begin
-  if (ASelection.RowCount <> 1) or ((ASelection.RowCount = 1) and
-    (FOperationsGrid.SelectedRows[0].__KEY <> variant(nil))) then
-  begin
+  if (ASelection.RowCount <> 1) or ((ASelection.RowCount = 1) and (FOperationsGrid.SelectedRows[0].__KEY <> variant(nil))) then begin
     miSep2.Visible := True;
     miOperationInfo.Visible := True;
     APopupMenu := mnuOperationsPopup;
-  end
-  else
-  begin
+  end else begin
     miSep2.Visible := False;
     miOperationInfo.Visible := False;
     APopupMenu := nil; // is empty, so dont show
@@ -705,9 +667,15 @@ end;
 
 procedure TCTRLWallet.miOperationInfoClick(Sender: TObject);
 begin
-  if FOperationsGrid.Selection.RowCount = 0 then
-    exit;
+  if FOperationsGrid.Selection.RowCount = 0 then exit;
   TUserInterface.ShowOperationInfoDialog(Self, FOperationsGrid.SelectedRows[0].__KEY);
+end;
+
+// Aux
+
+function TCTRLWallet.GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
+begin
+  Result := ARow.__KEY;
 end;
 
 end.
