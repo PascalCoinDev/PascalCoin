@@ -3,10 +3,10 @@ object WIZChangeKey_SelectKey: TWIZChangeKey_SelectKey
   Height = 253
   Top = 0
   Width = 429
+  ActiveControl = cbNewPrivateKey
   Caption = 'WIZChangeKey_SelectKey'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
   object gbNewPrivateKey: TGroupBox
     Left = 16

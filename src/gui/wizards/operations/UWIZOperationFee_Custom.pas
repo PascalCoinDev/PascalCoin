@@ -36,6 +36,8 @@ type
     procedure fseFeeChange(Sender: TObject);
 
 
+
+
   public
     procedure OnPresent; override;
     procedure OnNext; override;
@@ -68,6 +70,7 @@ end;
 procedure TWIZOperationFee_Custom.OnPresent;
 begin
   UpdateUI();
+  fseFee.SetFocus;
 end;
 
 procedure TWIZOperationFee_Custom.OnNext;
@@ -75,12 +78,13 @@ begin
   TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)),
     Model.Fee.SingleOperationFee);
   if Model.Payload.HasPayload then
-  begin
-    UpdatePath(ptInject, [TWIZOperationPayload_Encryption]);
-  end
+    UpdatePath(ptInject, [TWIZOperationPayload_Encryption])
+  else if Length(Model.Account.SelectedAccounts) > 1 then
+    UpdatePath(ptInject, [TWIZOperationSigner_Select])
   else
   begin
-  UpdatePath(ptInject, [TWIZOperationSigner_Select]);
+    Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];
+    Model.Signer.OperationSigningMode := akaPrimary;
   end;
 end;
 
@@ -97,6 +101,12 @@ begin
     Exit;
   end;
 
+  if (opfee = 0) and (Length(Model.Account.SelectedAccounts) > 1) then
+  begin
+    message := 'zero fee only allowed for single operations.';
+    Result := False;
+    Exit;
+  end;
 end;
 
 end.

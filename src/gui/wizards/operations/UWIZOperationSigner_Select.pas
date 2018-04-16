@@ -90,8 +90,12 @@ begin
   finally
     cbSignerAccount.Items.EndUpdate;
   end;
-  cbSignerAccount.ItemIndex := Model.Signer.SelectedIndex;
+  if Length(Model.Signer.SignerCandidates) = 1 then
+    cbSignerAccount.ItemIndex := 1
+  else
+    cbSignerAccount.ItemIndex := Model.Signer.SelectedIndex;
   cbSignerAccountChange(Self);
+  cbSignerAccount.SetFocus;
 end;
 
 procedure TWIZOperationSigner_Select.OnNext;
@@ -100,13 +104,9 @@ begin
   Model.Signer.SignerAccount := Model.Signer.SignerCandidates[PtrInt(
     cbSignerAccount.Items.Objects[cbSignerAccount.ItemIndex])];
   if rbPrimary.Checked then
-  begin
-    Model.Signer.OperationSigningMode := akaPrimary;
-  end
+    Model.Signer.OperationSigningMode := akaPrimary
   else if rbSecondary.Checked then
-  begin
     Model.Signer.OperationSigningMode := akaSecondary;
-  end;
 end;
 
 function TWIZOperationSigner_Select.Validate(out message: ansistring): boolean;

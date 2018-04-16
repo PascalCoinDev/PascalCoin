@@ -83,17 +83,13 @@ begin
     cbNewPrivateKey.Items.Clear;
     cbNewPrivateKey.Items.Add('Select Private Key');
     if not Assigned(TWallet.Keys) then
-    begin
       Exit;
-    end;
     for i := 0 to TWallet.Keys.Count - 1 do
     begin
       wk := TWallet.Keys.Key[i];
       s := IIF(wk.Name = '', TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(wk.AccountKey)), wk.Name);
       if not Assigned(wk.PrivateKey) then
-      begin
         s := s + '(*)';
-      end;
       cbNewPrivateKey.Items.AddObject(s, TObject(i));
     end;
     cbNewPrivateKey.Sorted := True;
@@ -105,8 +101,17 @@ end;
 procedure TWIZChangeKey_SelectKey.OnPresent;
 begin
   UpdateWalletKeys();
-  cbNewPrivateKey.ItemIndex := Model.ChangeAccountPrivateKey.SelectedIndex;
+  if TWallet.Keys.Count = 1 then
+    cbNewPrivateKey.ItemIndex := 1
+  else
+    cbNewPrivateKey.ItemIndex := Model.ChangeAccountPrivateKey.SelectedIndex;
   cbNewPrivateKeyChange(Self);
+  if Length(Model.Account.SelectedAccounts) > 1 then
+  begin
+    chkChooseFee.Checked := True;
+    chkChooseFee.Enabled := False;
+  end;
+  cbNewPrivateKey.SetFocus;
 end;
 
 procedure TWIZChangeKey_SelectKey.OnNext;
@@ -114,23 +119,34 @@ begin
   Model.ChangeAccountPrivateKey.SelectedIndex := cbNewPrivateKey.ItemIndex;
   Model.ChangeAccountPrivateKey.NewWalletKey := TWallet.Keys.Key[PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex])];
   Model.Payload.HasPayload := chkAttachPayload.Checked;
+  //
+  //if chkChooseFee.Checked then
+  //  UpdatePath(ptReplaceAllNext, [TWIZOperationFee_Custom, TWIZChangeKey_Confirmation])
+  //else
+  //begin
+  //  Model.Fee.SingleOperationFee := TSettings.DefaultFee;
+  //  if Model.Payload.HasPayload then
+  //    UpdatePath(ptReplaceAllNext, [TWIZOperationPayload_Encryption, TWIZChangeKey_Confirmation])
+  //  else
+  //    UpdatePath(ptReplaceAllNext, [TWIZOperationSigner_Select, TWIZChangeKey_Confirmation]);
+  //end;
 
   if chkChooseFee.Checked then
-  begin
-    UpdatePath(ptReplaceAllNext, [TWIZOperationFee_Custom, TWIZChangeKey_Confirmation]);
-  end
+    UpdatePath(ptReplaceAllNext, [TWIZOperationFee_Custom, TWIZChangeKey_Confirmation])
   else
   begin
     Model.Fee.SingleOperationFee := TSettings.DefaultFee;
     if Model.Payload.HasPayload then
-    begin
-      UpdatePath(ptReplaceAllNext, [TWIZOperationPayload_Encryption, TWIZChangeKey_Confirmation]);
-    end
+      UpdatePath(ptReplaceAllNext, [TWIZOperationPayload_Encryption, TWIZChangeKey_Confirmation])
+    else if Length(Model.Account.SelectedAccounts) > 1 then
+      UpdatePath(ptReplaceAllNext, [TWIZOperationSigner_Select, TWIZChangeKey_Confirmation])
     else
     begin
-      UpdatePath(ptReplaceAllNext, [TWIZOperationSigner_Select, TWIZChangeKey_Confirmation]);
+      Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];
+      Model.Signer.OperationSigningMode := akaPrimary;
     end;
   end;
+
 end;
 
 function TWIZChangeKey_SelectKey.Validate(out message: ansistring): boolean;
@@ -148,8 +164,7 @@ begin
 
   tempAccountKey := TWallet.Keys.Key[PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex])].AccountKey;
 
-   for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
-  begin
+  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
     if TAccountComp.EqualAccountKeys(Model.Account.SelectedAccounts[i].accountInfo.accountKey,
       tempAccountKey) then
     begin
@@ -157,7 +172,7 @@ begin
       message := 'New key is same as current key';
       Exit;
     end;
-  end;
+
 end;
 
 end.

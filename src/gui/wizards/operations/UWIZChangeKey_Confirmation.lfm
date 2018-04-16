@@ -1,28 +1,27 @@
 object WIZChangeKey_Confirmation: TWIZChangeKey_Confirmation
   Left = 0
-  Height = 253
+  Height = 320
   Top = 0
-  Width = 429
+  Width = 511
   Caption = 'WIZChangeKey_Confirmation'
-  ClientHeight = 253
-  ClientWidth = 429
-  LCLVersion = '1.8.2.0'
+  ClientHeight = 320
+  ClientWidth = 511
   Visible = False
   object GroupBox1: TGroupBox
     Left = 10
-    Height = 232
+    Height = 299
     Top = 8
-    Width = 408
+    Width = 490
     Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'Confirm Change Key Transaction'
-    ClientHeight = 212
-    ClientWidth = 404
+    ClientHeight = 279
+    ClientWidth = 486
     TabOrder = 0
     object paGrid: TPanel
       Left = 8
-      Height = 152
+      Height = 123
       Top = 48
-      Width = 382
+      Width = 464
       Anchors = [akTop, akLeft, akRight, akBottom]
       BevelOuter = bvNone
       Caption = 'GRID PANEL'
@@ -43,6 +42,23 @@ object WIZChangeKey_Confirmation: TWIZChangeKey_Confirmation
       Width = 84
       Caption = 'Signer Account:'
       ParentColor = False
+    end
+    object lblPayload: TLabel
+      Left = 8
+      Height = 15
+      Top = 172
+      Width = 42
+      Caption = 'Payload'
+      ParentColor = False
+    end
+    object mmoPayload: TMemo
+      Left = 8
+      Height = 82
+      Top = 192
+      Width = 464
+      Enabled = False
+      ScrollBars = ssBoth
+      TabOrder = 1
     end
   end
 end

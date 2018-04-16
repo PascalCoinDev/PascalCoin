@@ -27,8 +27,10 @@ type
     GroupBox1: TGroupBox;
     Label1: TLabel;
     Label2: TLabel;
+    lblPayload: TLabel;
     lblDestAcc: TLabel;
     lblSgnAcc: TLabel;
+    mmoPayload: TMemo;
     paGrid: TPanel;
   private
     FSendersGrid: TVisualGrid;
@@ -105,6 +107,7 @@ begin
   paGrid.AddControlDockCenter(FSendersGrid);
   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
   lblDestAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SendPASC.DestinationAccount.account);
+  mmoPayload.Lines.Text := Model.Payload.Content;
 end;
 
 procedure TWIZSendPASC_Confirmation.OnNext;

@@ -88,6 +88,7 @@ end;
 procedure TWIZSendPASC_EnterRecipient.OnPresent;
 begin
   UpdateUI();
+  edtDestAcc.SetFocus;
 end;
 
 procedure TWIZSendPASC_EnterRecipient.btnSearchClick(Sender: TObject);

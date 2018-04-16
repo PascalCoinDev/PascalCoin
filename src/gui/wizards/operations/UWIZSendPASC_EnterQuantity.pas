@@ -32,9 +32,10 @@ type
     edtAmt: TEdit;
     gbQuantity: TGroupBox;
     lblQuantityNotice: TLabel;
-    procedure chkAttachPayloadChange(Sender: TObject);
     procedure UpdateUI();
     procedure chkallfundsChange(Sender: TObject);
+
+
 
 
   public
@@ -67,7 +68,6 @@ begin
     edtAmt.Enabled := True;
     Model.SendPASC.SendPASCMode := akaSpecifiedAmount;
   end;
-
   Model.Payload.HasPayload := IIF(chkAttachPayload.Checked, True, False);
 
 end;
@@ -80,41 +80,39 @@ end;
 procedure TWIZSendPASC_EnterQuantity.OnPresent;
 begin
   UpdateUI();
-end;
-
-procedure TWIZSendPASC_EnterQuantity.chkAttachPayloadChange(Sender: TObject);
-begin
-  UpdateUI();
+  if Length(Model.Account.SelectedAccounts) > 1 then
+  begin
+    chkChooseFee.Checked := True;
+    chkChooseFee.Enabled := False;
+  end;
+  if edtAmt.Enabled then
+    edtAmt.SetFocus;
 end;
 
 procedure TWIZSendPASC_EnterQuantity.OnNext;
 var
-  amount: Int64;
+  amount: int64;
 begin
   Model.Payload.HasPayload := chkAttachPayload.Checked;
   if chkallfunds.Checked then
-  begin
-    Model.SendPASC.SingleAmountToSend := 0; // all balance
-  end
+    Model.SendPASC.SingleAmountToSend := 0// all balance
+
   else
-  begin
     TAccountComp.TxtToMoney(edtAmt.Text, Model.SendPASC.SingleAmountToSend);
-  end;
 
   if chkChooseFee.Checked then
-  begin
-    UpdatePath(ptReplaceAllNext, [TWIZOperationFee_Custom, TWIZSendPASC_Confirmation]);
-  end
+    UpdatePath(ptReplaceAllNext, [TWIZOperationFee_Custom, TWIZSendPASC_Confirmation])
   else
   begin
     Model.Fee.SingleOperationFee := TSettings.DefaultFee;
     if Model.Payload.HasPayload then
-    begin
-      UpdatePath(ptReplaceAllNext, [TWIZOperationPayload_Encryption, TWIZSendPASC_Confirmation]);
-    end
+      UpdatePath(ptReplaceAllNext, [TWIZOperationPayload_Encryption, TWIZSendPASC_Confirmation])
+    else if Length(Model.Account.SelectedAccounts) > 1 then
+      UpdatePath(ptReplaceAllNext, [TWIZOperationSigner_Select, TWIZSendPASC_Confirmation])
     else
     begin
-      UpdatePath(ptReplaceAllNext, [TWIZOperationSigner_Select, TWIZSendPASC_Confirmation]);
+      Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];
+      Model.Signer.OperationSigningMode := akaPrimary;
     end;
   end;
 
@@ -123,6 +121,8 @@ end;
 function TWIZSendPASC_EnterQuantity.Validate(out message: ansistring): boolean;
 var
   amount: int64;
+  i: integer;
+  acc: TAccount;
 begin
   Result := True;
   if not chkallfunds.Checked then
@@ -133,6 +133,25 @@ begin
       Result := False;
       Exit;
     end;
+
+    if amount < 1 then
+    begin
+      message := 'Invalid amount (' + edtAmt.Text + '), you must send an amount greater than zero';
+      Result := False;
+      Exit;
+    end;
+
+    for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
+    begin
+      acc := Model.Account.SelectedAccounts[i];
+      if acc.balance < amount then
+      begin
+        message := 'Insufficient funds in one or more accounts';
+        Result := False;
+        Exit;
+      end;
+    end;
+
   end;
 
 end;

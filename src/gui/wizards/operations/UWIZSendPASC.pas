@@ -46,6 +46,7 @@ uses
   UECIES,
   UAES,
   UWIZSendPASC_ConfirmSender,
+  UWIZSendPASC_EnterRecipient,
   UWIZSendPASC_Confirmation;
 
 { TWIZSendPASCWizard }
@@ -72,8 +73,6 @@ begin
     Exit;
   end
   else
-  begin
-
     for iAcc := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
     begin
       sender_account := Model.Account.SelectedAccounts[iAcc];
@@ -89,20 +88,15 @@ begin
       if not assigned(wk.PrivateKey) then
       begin
         if wk.CryptedKey <> '' then
-        begin
-          // TODO: handle unlocking of encrypted wallet here
-          errors := 'Wallet is password protected. Need password';
-        end
+          errors := 'Wallet is password protected. Need password'// TODO: handle unlocking of encrypted wallet here
+
         else
-        begin
           errors := 'Only public key of account ' +
             TAccountComp.AccountNumberToAccountTxtNumber(sender_account.account) +
             ' found in wallet. You cannot operate with this account';
-        end;
         Exit;
       end;
     end;
-  end;
 
   Result := UpdateOpTransaction(Model.Account.SelectedAccounts[0], dest_account, amount, errors);
   UpdatePayload(sender_account, e);
@@ -119,14 +113,11 @@ begin
 
   case Model.SendPASC.SendPASCMode of
     akaAllBalance:
-    begin
-      amount := 0; // ALL BALANCE
-    end;
+      amount := 0;// ALL BALANCE
+
 
     akaSpecifiedAmount:
-    begin
       amount := Model.SendPASC.SingleAmountToSend;
-    end;
   end;
 
   if DestAccount.account = SenderAccount.account then
@@ -137,13 +128,11 @@ begin
 
   case Model.SendPASC.SendPASCMode of
     akaSpecifiedAmount:
-    begin
       if (SenderAccount.balance < (amount + Model.Fee.SingleOperationFee)) then
       begin
         errors := 'Insufficient funds';
         Exit;
       end;
-    end;
   end;
 
   Result := True;
@@ -179,15 +168,11 @@ begin
       op := nil;
       account := Model.Account.SelectedAccounts[iAcc];
       if not UpdatePayload(account, errors) then
-      begin
         raise Exception.Create('Error encoding payload of sender account ' +
           TAccountComp.AccountNumberToAccountTxtNumber(account.account) + ': ' + errors);
-      end;
       i := TWallet.Keys.IndexOfAccountKey(account.accountInfo.accountKey);
       if i < 0 then
-      begin
         raise Exception.Create('Sender account private key not found in Wallet');
-      end;
 
       wk := TWallet.Keys.Key[i];
       dooperation := True;
@@ -203,15 +188,13 @@ begin
       if account.balance > 0 then
       begin
         if account.balance > Model.Fee.SingleOperationFee then
-        begin
           case Model.SendPASC.SendPASCMode of
             akaAllBalance:
             begin
               _amount := account.balance - Model.Fee.SingleOperationFee;
               _fee := Model.Fee.SingleOperationFee;
             end;
-          end;
-        end
+          end
         else
         begin
           _amount := account.balance;
@@ -219,9 +202,7 @@ begin
         end;
       end
       else
-      begin
         dooperation := False;
-      end;
 
       if dooperation then
       begin
@@ -258,37 +239,29 @@ begin
         #10 + #10 + 'Note: This operation will be transmitted to the network!'),
         PChar(Application.Title), MB_YESNO + MB_ICONINFORMATION + MB_DEFBUTTON2) <>
         idYes then
-      begin
         Exit;
-      end;
     end
     else
-    begin
-      if Application.MessageBox(PChar('Execute this operation:' +
-        #10 + #10 + operation_to_string + #10 + #10 +
-        'Note: This operation will be transmitted to the network!'),
-        PChar(Application.Title), MB_YESNO + MB_ICONINFORMATION + MB_DEFBUTTON2) <>
-        idYes then
-      begin
-        Exit;
-      end;
-    end;
+    if Application.MessageBox(PChar('Execute this operation:' +
+      #10 + #10 + operation_to_string + #10 + #10 +
+      'Note: This operation will be transmitted to the network!'),
+      PChar(Application.Title), MB_YESNO + MB_ICONINFORMATION + MB_DEFBUTTON2) <>
+      idYes then
+      Exit;
     i := TNode.Node.AddOperations(nil, ops, nil, errors);
     if (i = ops.OperationsCount) then
     begin
       operationstxt := 'Successfully executed ' + IntToStr(i) +
         ' operations!' + #10 + #10 + operation_to_string;
       if i > 1 then
-      begin
-        //  with TFRMMemoText.Create(Self) do
-        //    try
-        //      InitData(Application.Title, operationstxt);
-        //      ShowModal;
-        //    finally
-        //      Free;
-        //    end;
-        ShowMessage(operationstxt);
-      end
+        ShowMessage(operationstxt)//  with TFRMMemoText.Create(Self) do
+      //    try
+      //      InitData(Application.Title, operationstxt);
+      //      ShowModal;
+      //    finally
+      //      Free;
+      //    end;
+
       else
       begin
         Application.MessageBox(
@@ -314,9 +287,7 @@ begin
       ShowMessage(operationstxt);
     end
     else
-    begin
       raise Exception.Create(errors);
-    end;
 
   finally
     ops.Free;
@@ -375,22 +346,17 @@ begin
       end
 
       else
-      begin
         raise Exception.Create('Invalid Encryption Selection');
-      end;
     end;
 
   finally
     if valid then
-    begin
       if length(payload_encrypted) > CT_MaxPayloadSize then
       begin
         valid := False;
         errors := 'Payload size is bigger than ' + IntToStr(CT_MaxPayloadSize) +
           ' (' + IntToStr(length(payload_encrypted)) + ')';
       end;
-
-    end;
     Model.Payload.EncodedBytes := payload_encrypted;
     Result := valid;
   end;

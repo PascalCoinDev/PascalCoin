@@ -3,10 +3,10 @@ object WIZChangeKey_SelectOption: TWIZChangeKey_SelectOption
   Height = 253
   Top = 0
   Width = 429
+  ActiveControl = rbTransferAccountOwnership
   Caption = 'WIZChangeKey_SelectOption'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
   object gbChangeKeyOptions: TGroupBox
     Left = 8

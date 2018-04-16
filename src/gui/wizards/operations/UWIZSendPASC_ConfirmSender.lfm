@@ -6,7 +6,6 @@ object WIZSendPASC_ConfirmSender: TWIZSendPASC_ConfirmSender
   Caption = 'WIZSendPASC_ConfirmSender'
   ClientHeight = 261
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
   object gpSender: TGroupBox
     Left = 4

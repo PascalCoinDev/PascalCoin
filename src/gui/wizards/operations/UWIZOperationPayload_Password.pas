@@ -31,6 +31,7 @@ type
     lblPassword: TLabel;
     paPayload: TPanel;
   public
+    procedure OnPresent; override;
     procedure OnNext; override;
     function Validate(out message: ansistring): boolean; override;
   end;
@@ -45,10 +46,21 @@ uses
 
 { TWIZOperationPayload_Password }
 
+procedure TWIZOperationPayload_Password.OnPresent;
+begin
+  edtPassword.SetFocus;
+end;
+
 procedure TWIZOperationPayload_Password.OnNext;
 begin
   Model.Payload.Password := edtPassword.Text;
-   UpdatePath(ptInject, [TWIZOperationSigner_Select]);
+  if Length(Model.Account.SelectedAccounts) > 1 then
+    UpdatePath(ptInject, [TWIZOperationSigner_Select])
+  else
+  begin
+    Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];
+    Model.Signer.OperationSigningMode := akaPrimary;
+  end;
 end;
 
 function TWIZOperationPayload_Password.Validate(out message: ansistring): boolean;

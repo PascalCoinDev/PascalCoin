@@ -26,7 +26,9 @@ type
   TWIZChangeKey_Confirmation = class(TWizardForm<TWIZOperationsModel>)
     GroupBox1: TGroupBox;
     Label1: TLabel;
+    lblPayload: TLabel;
     lblSgnAcc: TLabel;
+    mmoPayload: TMemo;
     paGrid: TPanel;
   private
     FChangeKeyGrid: TVisualGrid;
@@ -106,6 +108,7 @@ begin
   FChangeKeyGrid.DataSource := Data;
   paGrid.AddControlDockCenter(FChangeKeyGrid);
   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
+  mmoPayload.Lines.Text := Model.Payload.Content;
 end;
 
 procedure TWIZChangeKey_Confirmation.OnNext;

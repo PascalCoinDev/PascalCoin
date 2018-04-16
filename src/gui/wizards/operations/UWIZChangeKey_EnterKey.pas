@@ -33,6 +33,7 @@ type
     mmoNewPrivateKey: TMemo;
 
   public
+    procedure OnPresent; override;
     procedure OnNext; override;
     function Validate(out message: ansistring): boolean; override;
   end;
@@ -47,32 +48,57 @@ uses
 
 { TWIZChangeKey_EnterKey }
 
+procedure TWIZChangeKey_EnterKey.OnPresent;
+begin
+  if Length(Model.Account.SelectedAccounts) > 1 then
+  begin
+    chkChooseFee.Checked := True;
+    chkChooseFee.Enabled := False;
+  end;
+  mmoNewPrivateKey.Clear;
+  mmoNewPrivateKey.SetFocus;
+end;
+
 procedure TWIZChangeKey_EnterKey.OnNext;
 begin
+  //Model.Payload.HasPayload := chkAttachPayload.Checked;
+  //
+  //if chkChooseFee.Checked then
+  //  UpdatePath(ptReplaceAllNext, [TWIZOperationFee_Custom, TWIZChangeKey_Confirmation])
+  //else
+  //begin
+  //  Model.Fee.SingleOperationFee := TSettings.DefaultFee;
+  //  if Model.Payload.HasPayload then
+  //    UpdatePath(ptReplaceAllNext, [TWIZOperationPayload_Encryption, TWIZChangeKey_Confirmation])
+  //  else
+  //    UpdatePath(ptReplaceAllNext, [TWIZOperationSigner_Select, TWIZChangeKey_Confirmation]);
+  //end;
+
+
   Model.Payload.HasPayload := chkAttachPayload.Checked;
 
   if chkChooseFee.Checked then
-  begin
-    UpdatePath(ptReplaceAllNext, [TWIZOperationFee_Custom, TWIZChangeKey_Confirmation]);
-  end
+    UpdatePath(ptReplaceAllNext, [TWIZOperationFee_Custom, TWIZChangeKey_Confirmation])
   else
   begin
     Model.Fee.SingleOperationFee := TSettings.DefaultFee;
     if Model.Payload.HasPayload then
-    begin
-      UpdatePath(ptReplaceAllNext, [TWIZOperationPayload_Encryption, TWIZChangeKey_Confirmation]);
-    end
+      UpdatePath(ptReplaceAllNext, [TWIZOperationPayload_Encryption, TWIZChangeKey_Confirmation])
+    else if Length(Model.Account.SelectedAccounts) > 1 then
+      UpdatePath(ptReplaceAllNext, [TWIZOperationSigner_Select, TWIZChangeKey_Confirmation])
     else
     begin
-      UpdatePath(ptReplaceAllNext, [TWIZOperationSigner_Select, TWIZChangeKey_Confirmation]);
+      Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];
+      Model.Signer.OperationSigningMode := akaPrimary;
     end;
   end;
+
 end;
 
 function TWIZChangeKey_EnterKey.Validate(out message: ansistring): boolean;
 var
   tempAccountKey: TAccountKey;
-  i: Integer;
+  i: integer;
 begin
   Result := True;
   if not TAccountComp.AccountKeyFromImport(mmoNewPrivateKey.Lines.Text,
@@ -82,7 +108,6 @@ begin
     Exit;
   end;
   for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
-  begin
     if TAccountComp.EqualAccountKeys(Model.Account.SelectedAccounts[i].accountInfo.accountKey,
       tempAccountKey) then
     begin
@@ -90,7 +115,7 @@ begin
       message := 'New key is same as current key';
       Exit;
     end;
-  end;
+
   Model.TransferAccount.AccountKey := tempAccountKey;
 end;
 

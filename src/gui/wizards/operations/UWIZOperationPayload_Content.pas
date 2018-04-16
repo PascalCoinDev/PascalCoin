@@ -30,6 +30,7 @@ type
     mmoPayload: TMemo;
     paPayload: TPanel;
   public
+    procedure OnPresent; override;
     procedure OnNext; override;
   end;
 
@@ -43,10 +44,20 @@ uses
 
 { TWIZOperationPayload_Content }
 
+procedure TWIZOperationPayload_Content.OnPresent;
+begin
+  mmoPayload.SetFocus;
+end;
+
 procedure TWIZOperationPayload_Content.OnNext;
 begin
   Model.Payload.Content := mmoPayload.Lines.Text;
-   UpdatePath(ptInject, [TWIZOperationSigner_Select]);
+  if Length(Model.Account.SelectedAccounts) > 1 then
+    UpdatePath(ptInject, [TWIZOperationSigner_Select])
+  else begin
+    Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];
+    Model.Signer.OperationSigningMode := akaPrimary;
+  end;
 end;
 
 end.

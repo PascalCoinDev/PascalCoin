@@ -7,7 +7,6 @@ object WIZSendPASC_EnterQuantity: TWIZSendPASC_EnterQuantity
   Caption = 'WIZSendPASC_EnterQuantity'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
   object gbQuantity: TGroupBox
     Left = 16
@@ -56,7 +55,6 @@ object WIZSendPASC_EnterQuantity: TWIZSendPASC_EnterQuantity
       Top = 110
       Width = 303
       Caption = 'I want to attach a message payload to this transaction'
-      OnChange = chkAttachPayloadChange
       TabOrder = 3
     end
   end
