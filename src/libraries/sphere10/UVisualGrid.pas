@@ -421,6 +421,7 @@ uses
     property InternalDrawGrid : TDrawGrid read FDrawGrid;
     function AddColumn(const AName: utf8string) : TVisualColumn;
     procedure RefreshGrid;
+    procedure ClearSelection(AIgnoreDeselectionType: boolean = false);
   end;
 
   { TVisualGrid }
@@ -1188,6 +1189,7 @@ begin
     Width := 300;
     Height := 150;
     //Align:=alClient;
+    Color:=clWindow;
     Visible:=false;
     AnchorSideLeft.Control := Self;
     AnchorSideLeft.Side := asrCenter;
@@ -1940,6 +1942,8 @@ var
   //LFixedRect: TRect;
   LRect: TRect;
 begin
+  if ACol > FMultiSearchEdits.Count - 1 then
+    exit;
   LEdit := FMultiSearchEdits[ACol];
   LEdit.Visible := FDrawGrid.IsFixedCellVisible(aCol, 0);
   if ACol > 0 then
@@ -2363,11 +2367,16 @@ procedure TCustomVisualGrid.SetSelectionType(AValue: TSelectionType);
 begin
   if FSelectionType=AValue then
     Exit;
-
   FSelectionType:=AValue;
-  UpdateSelection(FSelectionType);
-
-  GridSelection(Self, 0, 0);
+  // do not select if don't need (otherwise it means false selection event and false selection in grid)
+  if (FDeselectionType = dtNone) or (FLastSelection.Selections <> nil) then
+  begin
+    // reset internal selection variable for stNone (and call event)
+    if FSelectionType = stNone then
+      ResetLastSelection;
+    UpdateSelection(FSelectionType);
+    GridSelection(Self, 0, 0)
+  end;
 end;
 
 procedure TCustomVisualGrid.SetDeselectionType(AValue: TDeselectionType);
@@ -2379,6 +2388,15 @@ begin
 
   ResetLastSelection;
   UpdateSelection(SelectionType);
+end;
+
+procedure TCustomVisualGrid.ClearSelection(AIgnoreDeselectionType: boolean);
+begin
+  if (FDeselectionType <> dtNone) or AIgnoreDeselectionType then
+  begin
+    ResetLastSelection;
+    UpdateSelection(stNone);
+  end;
 end;
 
 procedure TCustomVisualGrid.SetWidgetControl(AValue: TControl);
@@ -2421,6 +2439,7 @@ var
   LCellData, LRow: Variant;
   LColumn : TVisualColumn;
   LStyle : TTextStyle;
+  LDataTable: PDataTable;
 
   procedure DrawHeaderCell;
   begin
@@ -2447,7 +2466,7 @@ var
     if LColumn.HasDataFontStyles then Canvas.Font.Style := LColumn.DataFontStyles;
 
     // Get row/cell data
-    LRow := ActiveDataTable^.Rows[ARow-1];
+    LRow := LDataTable^.Rows[ARow-1];
     LCellData := TDataRowData(LRow)[LColumn.DisplayBinding];
 
     // Clean data if necessary
@@ -2470,6 +2489,9 @@ var
 begin
   LHandled := False;
   if ColCount = 0 then Exit;
+  LDataTable := ActiveDataTable;
+  if (ARow > 0) and (ARow > Length(LDataTable^.Rows)) then
+    Exit;
   if ARow = 0 then ResizeSearchEdit(ACol);
   LColumn := FColumns[ACol];
   Rect := CalculateCellContentRect(Rect);
