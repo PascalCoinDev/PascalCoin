@@ -21,7 +21,7 @@ interface
 
 Uses UThread, ULog, UConst, UNode, UAccounts, UCrypto, UBlockChain,
   UNetProtocol, UOpTransaction, UWallet, UTime, UAES, UECIES, UTxMultiOperation,
-  UJSONFunctions, classes, blcksock, synsock, IniFiles, Variants, math;
+  UJSONFunctions, classes, blcksock, synsock, IniFiles, Variants, math, UBaseTypes;
 
 Const
   CT_RPC_ErrNum_InternalError = 100;
@@ -511,11 +511,11 @@ var
   valid : Boolean;
   i : Integer;
   Headers : TStringList;
-  tc : Cardinal;
+  tc : TTickCount;
   callcounter : Int64;
 begin
   callcounter := _RPCServer.GetNewCallCounter;
-  tc := GetTickCount;
+  tc := TPlatform.GetTickCount;
   methodName := '';
   paramsTxt := '';
   // IP Protection
@@ -647,7 +647,7 @@ begin
           FSock.SendBuffer(addr(jsonresponsetxt[1]),Length(jsonresponsetxt));
         end;
       end;
-      _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),'Method:'+methodName+' Params:'+paramsTxt+' '+Inttostr(errNum)+':'+errDesc+' Time:'+FormatFloat('0.000',(GetTickCount - tc)/1000));
+      _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),'Method:'+methodName+' Params:'+paramsTxt+' '+Inttostr(errNum)+':'+errDesc+' Time:'+FormatFloat('0.000',(TPlatform.GetTickCount - tc)/1000));
     finally
       jsonresponse.free;
       Headers.Free;

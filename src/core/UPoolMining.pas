@@ -164,7 +164,7 @@ Const
 
 implementation
 
-Uses ULog, Variants, UTime, UNetProtocol;
+Uses ULog, Variants, UTime, UNetProtocol, UBaseTypes;
 
 Type TPendingResponseMessage = Record
        sendDateTime : TDateTime;
@@ -222,7 +222,7 @@ end;
 function TJSONRPCTcpIpClient.DoProcessBuffer(SenderThread : TPCThread; MaxWaitMiliseconds : Cardinal; DeleteBufferOnExit : Boolean; var ResponseMethod : String; var jsonObject : TPCJSONObject) : Boolean;
 var last_bytes_read : Integer;
   jsonData : TPCJSONData;
-  tc : Cardinal;
+  tc : TTickCount;
   ms : TMemoryStream;
   i,lasti : Integer;
   continue : Boolean;
@@ -286,15 +286,15 @@ var islocked : Boolean;
 begin
   Result := false;
   ResponseMethod := '';
-  tc := GetTickCount;
+  tc := TPlatform.GetTickCount;
   Repeat
     islocked := FLockProcessBuffer.TryEnter;
-  until (islocked) Or ((GetTickCount>(tc+MaxWaitMiliseconds)) And (MaxWaitMiliseconds<>0));
+  until (islocked) Or ((TPlatform.GetTickCount>(tc+MaxWaitMiliseconds)) And (MaxWaitMiliseconds<>0));
   If Not islocked then exit;
   try
     if Assigned(SenderThread) then continue := Not SenderThread.Terminated
     else continue := true;
-    while (Connected) And ((GetTickCount<=(tc+MaxWaitMiliseconds)) Or (MaxWaitMiliseconds=0)) And (continue) do begin
+    while (Connected) And ((TPlatform.GetTickCount<=(tc+MaxWaitMiliseconds)) Or (MaxWaitMiliseconds=0)) And (continue) do begin
       last_bytes_read := 0;
       ms := ReadBufferLock;
       try
@@ -432,7 +432,8 @@ end;
 
 function TJSONRPCTcpIpClient.SendJSONRPCMethodAndWait(const method: String; params: TPCJSONList; MaxWaitMiliseconds: Cardinal; resultObject : TPCJSONObject; processEventOnInvalid : TProcessJSONObjectEvent = Nil) : Boolean;
 Var nId : Cardinal;
-  tc,maxw : Cardinal;
+  tc : TTickCount;
+  maxw : Cardinal;
   json : TPCJSONObject;
   rm : String;
 begin
@@ -441,11 +442,11 @@ begin
   try
     nId := GetNewId;
     SendJSONRPCMethod(method,params,nId);
-    tc := GetTickCount;
+    tc := TPlatform.GetTickCount;
     json := TPCJSONObject.Create;
     Try
       repeat
-        maxw := MaxWaitMiliseconds - (GetTickCount - tc);
+        maxw := MaxWaitMiliseconds - (TPlatform.GetTickCount - tc);
         if maxw<1 then maxw := 1
         else if maxw>10000 then maxw := 10000;
         If DoProcessBuffer(nil,maxw,true,rm,json) then begin
@@ -460,7 +461,7 @@ begin
             end else TLog.NewLog(lterror,Classname,'Lost JSON message! '+json.ToJSON(false));
           end;
         end;
-      until (Result) Or (GetTickCount > (tc+MaxWaitMiliseconds));
+      until (Result) Or (TPlatform.GetTickCount > (tc+MaxWaitMiliseconds));
     finally
       json.free;
     end;
@@ -877,7 +878,7 @@ begin
     inc(FIncomingsCounter);
     SendJobToMiner(nil,bClient,false,null);
     while (Active) And (Client.Connected) do begin
-      doDelete := bClient.LastReadTC+1000<GetTickCount;  // TODO: Protect GetTickCount overflow
+      doDelete := bClient.LastReadTC+1000<TPlatform.GetTickCount;  // TODO: Protect GetTickCount overflow
       jsonobj := TPCJSONObject.Create;
       try
         if bClient.DoProcessBuffer(nil,1000,doDelete,rmethod,jsonobj) then begin

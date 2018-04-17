@@ -349,9 +349,9 @@ end;
 {$IFDEF HIGHLOG}
 procedure TPCCriticalSection.Acquire;
 Var continue, logged : Boolean;
-  startTC : Cardinal;
+  startTC : TTickCount;
 begin
-  startTC := GetTickCount;
+  startTC := TPlatform.GetTickCount;
   FCounterLock.Acquire;
   try
     FWaitingForCounter := FWaitingForCounter + 1;
@@ -362,18 +362,18 @@ begin
   Repeat
     continue := inherited TryEnter;
     if (Not continue) then begin
-      If (not logged) And ((FStartedTimestamp>0) And ((FStartedTimestamp+1000)<GetTickCount)) then begin
+      If (not logged) And ((FStartedTimestamp>0) And ((FStartedTimestamp+1000)<TPlatform.GetTickCount)) then begin
         logged := true;
         TLog.NewLog(ltdebug,ClassName,'ALERT Critical section '+IntToHex(PtrInt(Self),8)+' '+Name+
           ' locked by '+IntToHex(FCurrentThread,8)+' waiting '+
-          IntToStr(FWaitingForCounter)+' elapsed milis: '+IntToStr(GetTickCount-FStartedTimestamp) );
+          IntToStr(FWaitingForCounter)+' elapsed milis: '+IntToStr(TPlatform.GetTickCount-FStartedTimestamp) );
         continue := true;
         inherited;
       end else sleep(1);
     end;
   Until continue;
   if (logged) then begin
-    TLog.NewLog(ltdebug,Classname,'ENTER Critical section '+IntToHex(PtrInt(Self),8)+' '+Name+' elapsed milis: '+IntToStr(GetTickCount - startTC) );
+    TLog.NewLog(ltdebug,Classname,'ENTER Critical section '+IntToHex(PtrInt(Self),8)+' '+Name+' elapsed milis: '+IntToStr(TPlatform.GetTickCount - startTC) );
   end;
   FCounterLock.Acquire;
   try
@@ -382,7 +382,7 @@ begin
     FCounterLock.Release;
   end;
   FCurrentThread := TThread.CurrentThread.ThreadID;
-  FStartedTimestamp := GetTickCount;
+  FStartedTimestamp := TPlatform.GetTickCount;
   inherited;
 end;
 {$ENDIF}
@@ -422,7 +422,7 @@ begin
   end;
   If inherited TryEnter then begin
     FCurrentThread := TThread.CurrentThread.ThreadID;
-    FStartedTimestamp := GetTickCount;
+    FStartedTimestamp := TPlatform.GetTickCount;
     Result := true;
   end else Result := false;
   FCounterLock.Acquire;
