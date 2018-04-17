@@ -62,7 +62,7 @@ Type
     Class Function GetRewardForNewLine(line_index: Cardinal): UInt64;
     Class Function TargetToCompact(target: TRawBytes): Cardinal;
     Class Function TargetFromCompact(encoded: Cardinal): TRawBytes;
-    Class Function GetNewTarget(vteorical, vreal: Cardinal; Const actualTarget: TRawBytes): TRawBytes;
+    Class Function GetNewTarget(vteorical, vreal: Cardinal; protocol_version : Integer; isSlowMovement : Boolean; Const actualTarget: TRawBytes): TRawBytes;
     Class Procedure CalcProofOfWork_Part1(const operationBlock : TOperationBlock; out Part1 : TRawBytes);
     Class Procedure CalcProofOfWork_Part3(const operationBlock : TOperationBlock; out Part3 : TRawBytes);
     Class Procedure CalcProofOfWork(const operationBlock : TOperationBlock; out PoW : TRawBytes);
@@ -578,10 +578,10 @@ end;
 
 { TPascalCoinProtocol }
 
-class function TPascalCoinProtocol.GetNewTarget(vteorical, vreal: Cardinal; const actualTarget: TRawBytes): TRawBytes;
+class function TPascalCoinProtocol.GetNewTarget(vteorical, vreal: Cardinal; protocol_version : Integer; isSlowMovement : Boolean; const actualTarget: TRawBytes): TRawBytes;
 Var
   bnact, bnaux: TBigNum;
-  tsTeorical, tsReal, factor1000, factor1000Min, factor1000Max: Int64;
+  tsTeorical, tsReal, factor, factorMin, factorMax, factorDivider: Int64;
 begin
   { Given a teorical time in seconds (vteorical>0) and a real time in seconds (vreal>0)
     and an actual target, calculates a new target
@@ -594,22 +594,48 @@ begin
     }
   tsTeorical := vteorical;
   tsReal := vreal;
-  factor1000 := (((tsTeorical - tsReal) * 1000) DIV (tsTeorical)) * (-1);
 
-  { Important: Note that a -500 is the same that divide by 2 (-100%), and
-    1000 is the same that multiply by 2 (+100%), so we limit increase
-    in a limit [-500..+1000] for a complete (CT_CalcNewTargetBlocksAverage DIV 2) round }
-  if CT_CalcNewTargetBlocksAverage>1 then begin
-    factor1000Min := (-500) DIV (CT_CalcNewTargetBlocksAverage DIV 2);
-    factor1000Max := (1000) DIV (CT_CalcNewTargetBlocksAverage DIV 2);
+  { On protocol 1,2 the increment was limited in a integer value between -10..20
+    On protocol 3 we increase decimals, so increment could be a integer
+    between -1000..2000, using 2 more decimals for percent. Also will introduce
+    a "isSlowMovement" variable that will limit to a maximum +-0.5% increment}
+  if (protocol_version<CT_PROTOCOL_3) then begin
+    factorDivider := 1000;
+    factor := (((tsTeorical - tsReal) * 1000) DIV (tsTeorical)) * (-1);
+
+    { Important: Note that a -500 is the same that divide by 2 (-100%), and
+      1000 is the same that multiply by 2 (+100%), so we limit increase
+      in a limit [-500..+1000] for a complete (CT_CalcNewTargetBlocksAverage DIV 2) round }
+    if CT_CalcNewTargetBlocksAverage>1 then begin
+      factorMin := (-500) DIV (CT_CalcNewTargetBlocksAverage DIV 2);
+      factorMax := (1000) DIV (CT_CalcNewTargetBlocksAverage DIV 2);
+    end else begin
+      factorMin := (-500);
+      factorMax := (1000);
+    end;
   end else begin
-    factor1000Min := (-500);
-    factor1000Max := (1000);
+    // Protocol 3:
+    factorDivider := 100000;
+    If (isSlowMovement) then begin
+      // Limit to 0.5% instead of 2% (When CT_CalcNewTargetBlocksAverage = 100)
+      factorMin := (-50000) DIV (CT_CalcNewTargetBlocksAverage * 2);
+      factorMax := (100000) DIV (CT_CalcNewTargetBlocksAverage * 2);
+    end else begin
+      if CT_CalcNewTargetBlocksAverage>1 then begin
+        factorMin := (-50000) DIV (CT_CalcNewTargetBlocksAverage DIV 2);
+        factorMax := (100000) DIV (CT_CalcNewTargetBlocksAverage DIV 2);
+      end else begin
+        factorMin := (-50000);
+        factorMax := (100000);
+      end;
+    end;
   end;
 
-  if factor1000 < factor1000Min then factor1000 := factor1000Min
-  else if factor1000 > factor1000Max then factor1000 := factor1000Max
-  else if factor1000=0 then begin
+  factor := (((tsTeorical - tsReal) * factorDivider) DIV (tsTeorical)) * (-1);
+
+  if factor < factorMin then factor := factorMin
+  else if factor > factorMax then factor := factorMax
+  else if factor=0 then begin
     Result := actualTarget;
     exit;
   end;
@@ -620,7 +646,7 @@ begin
     bnact.RawValue := actualTarget;
     bnaux := bnact.Copy;
     try
-      bnact.Multiply(factor1000).Divide(1000).Add(bnaux);
+      bnact.Multiply(factor).Divide(factorDivider).Add(bnaux);
     finally
       bnaux.Free;
     end;
@@ -3266,7 +3292,7 @@ begin
     tsTeorical := (CalcBack * CT_NewLineSecondsAvg);
     tsReal := (ts1 - ts2);
     If (protocolVersion=CT_PROTOCOL_1) then begin
-      Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
+      Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,protocolVersion,False,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
     end else if (protocolVersion<=CT_PROTOCOL_3) then begin
       CalcBack := CalcBack DIV CT_CalcNewTargetLimitChange_SPLIT;
       If CalcBack=0 then CalcBack := 1;
@@ -3280,7 +3306,7 @@ begin
       If ((tsTeorical>tsReal) and (tsTeoricalStop>tsRealStop))
          Or
          ((tsTeorical<tsReal) and (tsTeoricalStop<tsRealStop)) then begin
-        Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
+        Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,protocolVersion,False,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
       end else begin
         if (protocolVersion=CT_PROTOCOL_2) then begin
           // Nothing to do!
@@ -3288,7 +3314,8 @@ begin
         end else begin
           // New on V3 protocol:
           // Harmonization of the sinusoidal effect modifying the rise / fall by 50% calculating over the "stop" area
-          Result := TPascalCoinProtocol.GetNewTarget(tsTeoricalStop, (tsTeoricalStop + tsRealStop) DIV 2,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
+//XXXXXXXXXX          Result := TPascalCoinProtocol.GetNewTarget(tsTeoricalStop,(tsTeoricalStop + tsRealStop) DIV 2,protocolVersion,True,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
+          Result := TPascalCoinProtocol.GetNewTarget(tsTeoricalStop,tsRealStop,protocolVersion,True,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
         end;
       end;
     end else begin
