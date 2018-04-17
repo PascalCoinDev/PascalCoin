@@ -190,7 +190,8 @@ Begin
     jsonObject.GetAsVariant('account').Value:=OPR.AffectedAccount;
     jsonObject.GetAsVariant('signer_account').Value:=OPR.SignerAccount;
     jsonObject.GetAsVariant('n_operation').Value:=OPR.n_operation;
-  end else begin
+  end;
+  // New V3: Will include senders[], receivers[] and changers[]
     jsonArr := jsonObject.GetAsArray('senders');
     for i:=Low(OPR.senders) to High(OPR.Senders) do begin
       auxObj := jsonArr.GetAsObject(jsonArr.Count);
@@ -221,18 +222,17 @@ Begin
       If account_type in OPR.Changers[i].Changes_type then begin
         auxObj.GetAsVariant('new_type').Value := OPR.Changers[i].New_Type;
       end;
+      if (OPR.Changers[i].Fee<>0) then begin
+        auxObj.GetAsVariant('fee').Value := ToJSONCurrency(OPR.Changers[i].Fee * (-1));
+      end;
     end;
-  end;
   jsonObject.GetAsVariant('optxt').Value:=OPR.OperationTxt;
   jsonObject.GetAsVariant('fee').Value:=ToJSONCurrency(OPR.Fee);
+  jsonObject.GetAsVariant('amount').Value:=ToJSONCurrency(OPR.Amount);
   if (Not OPR.isMultiOperation) then begin
-    jsonObject.GetAsVariant('amount').Value:=ToJSONCurrency(OPR.Amount);
-    if (OPR.Balance>=0) And (OPR.valid) then jsonObject.GetAsVariant('balance').Value:=ToJSONCurrency(OPR.Balance);
     jsonObject.GetAsVariant('payload').Value:=TCrypto.ToHexaString(OPR.OriginalPayload);
-  end else begin
-    jsonObject.GetAsVariant('totalamount').Value:=ToJSONCurrency(OPR.Amount);
-    if (OPR.Balance>=0) And (OPR.valid) then jsonObject.GetAsVariant('balance').Value:=ToJSONCurrency(OPR.Balance);
   end;
+  if (OPR.Balance>=0) And (OPR.valid) then jsonObject.GetAsVariant('balance').Value:=ToJSONCurrency(OPR.Balance);
   If (OPR.OpType = CT_Op_Transaction) then begin
     If OPR.SignerAccount>=0 then begin
       jsonObject.GetAsVariant('sender_account').Value:=OPR.SignerAccount;
@@ -3383,6 +3383,9 @@ begin
     TNetData.NetData.NetConnectionsActive:=true;
     jsonresponse.GetAsVariant('result').Value := true;
     Result := true;
+  end else if (method='cleanblacklist') then begin
+    jsonresponse.GetAsVariant('result').Value := TNetData.NetData.NodeServersAddresses.CleanBlackList(True);
+    Result := True;
   end else begin
     ErrorNum := CT_RPC_ErrNum_MethodNotFound;
     ErrorDesc := 'Method not found: "'+method+'"';
