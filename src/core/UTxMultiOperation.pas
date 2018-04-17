@@ -101,6 +101,7 @@ Type
     FTotalAmount : Int64;
     FTotalFee : Int64;
     Function IndexOfAccountChangeNameTo(const newName : AnsiString) : Integer;
+    procedure ClearSignatures;
   protected
     procedure InitializeData; override;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
@@ -247,6 +248,17 @@ begin
     end;
   end;
   Result := -1;
+end;
+
+procedure TOpMultiOperation.ClearSignatures;
+var i : Integer;
+begin
+  for i:=0 to High(FData.txSenders) do begin
+    FData.txSenders[i].Signature := CT_TECDSA_SIG_Nul;
+  end;
+  for i:=0 to High(FData.changesInfo) do begin
+    FData.changesInfo[i].Signature := CT_TECDSA_SIG_Nul;
+  end;
 end;
 
 procedure TOpMultiOperation.InitializeData;
@@ -881,6 +893,11 @@ begin
     // Allow receivers as a duplicate!
     If (receivers[i].Amount<=0) then Exit; // Must always receive >0
   end;
+  // Max Senders
+  If (length(senders)+length(FData.txSenders)) > CT_MAX_MultiOperation_Senders then Exit;
+  // Max Receivers
+  If (length(receivers)+length(FData.txReceivers)) > CT_MAX_MultiOperation_Receivers then Exit;
+
   // Ok, let's go
   FHasValidSignature:=False;
   If setInRandomOrder then begin
@@ -908,6 +925,7 @@ begin
       FData.txReceivers[j] := receivers[i];
       inc(total_receive,receivers[i].Amount);
     end;
+    ClearSignatures;
   end else begin
     j := length(FData.txSenders);
     SetLength(FData.txSenders,length(FData.txSenders)+length(senders));
@@ -929,6 +947,8 @@ end;
 
 function TOpMultiOperation.AddChangeInfos(const changes: TMultiOpChangesInfo; setInRandomOrder : Boolean): Boolean;
 Var i,j,k : Integer;
+  ct : TOpChangeAccountInfoType;
+  ctypes : TOpChangeAccountInfoTypes;
 begin
   Result := False;
   // Check not duplicate / invalid data
@@ -937,7 +957,19 @@ begin
     If IndexOfAccountChanger(changes[i].Account)>=0 then Exit;
     If IndexOfAccountChanger(changes[i].Account,i+1,changes)>=0 then Exit;
     If (changes[i].Changes_type=[]) then Exit; // Must change something
+    // check valid Change type
+    for ct:=Low(TOpChangeAccountInfoType) to High(TOpChangeAccountInfoType) do begin
+      case ct of
+        public_key,account_name,account_type : ; // Allowed
+      else
+        if (ct in changes[i].Changes_type) then begin
+          Exit; // Not allowed multioperation change type
+        end;
+      end;
+    end;
   end;
+  // Max Changers
+  If (length(changes)+length(FData.changesInfo)) > CT_MAX_MultiOperation_Changers then Exit;
   // Ok, let's go
   FHasValidSignature:=False;
   // Important:
@@ -957,6 +989,7 @@ begin
         j := Random(length(FData.changesInfo)); // Find random position 0..n-1
       end else j:=0;
       for k:=High(FData.changesInfo) downto (j+1) do FData.changesInfo[k] := FData.changesInfo[k-1];
+      ClearSignatures;
     end else j := High(FData.changesInfo);
     FData.changesInfo[j] := changes[i];
   end;
