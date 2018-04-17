@@ -139,7 +139,7 @@ Type
     Destructor Destroy; Override;
     Procedure Clear;
     Function Count : Integer;
-    Function CleanBlackList : Integer;
+    Function CleanBlackList(forceCleanAll : Boolean) : Integer;
     procedure CleanNodeServersList;
     Function LockList : TList;
     Procedure UnlockList;
@@ -473,7 +473,7 @@ Const
 
 { TOrderedServerAddressListTS }
 
-function TOrderedServerAddressListTS.CleanBlackList : Integer;
+function TOrderedServerAddressListTS.CleanBlackList(forceCleanAll : Boolean) : Integer;
 Var P : PNodeServerAddress;
   i : Integer;
 begin
@@ -485,7 +485,8 @@ begin
     for i := FListByIp.Count - 1 downto 0 do begin
       P := FListByIp[i];
       // Is an old blacklisted IP? (More than 1 hour)
-      If (P^.is_blacklisted) AND ((P^.last_connection+(CT_LAST_CONNECTION_MAX_MINUTES)) < (UnivDateTimeToUnix(DateTime2UnivDateTime(now)))) then begin
+      If (P^.is_blacklisted) AND
+        ((forceCleanAll) OR ((P^.last_connection+(CT_LAST_CONNECTION_MAX_MINUTES)) < (UnivDateTimeToUnix(DateTime2UnivDateTime(now))))) then begin
         SecuredDeleteFromListByIp(i);
         inc(Result);
       end;
@@ -1264,7 +1265,7 @@ begin
     TLog.NewLog(ltInfo,ClassName,'Already discovering servers...');
     exit;
   end;
-  FNodeServersAddresses.CleanBlackList;
+  FNodeServersAddresses.CleanBlackList(False);
   If NetStatistics.ClientsConnections>0 then begin
     j := CT_MinServersConnected - NetStatistics.ServersConnectionsWithResponse;
   end else begin
@@ -1541,10 +1542,9 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     Result := (OperationBlock.proof_of_work <> CT_OperationBlock_NUL.proof_of_work);
   End;
 
-  Function GetNewBank(start_block : Int64) : Boolean;
+  procedure GetNewBank(start_block : Int64);
   Var BlocksList : TList;
     i : Integer;
-    tempfolder : AnsiString;
     OpComp,OpExecute : TPCOperationsComp;
     oldBlockchainOperations : TOperationsHashTree;
     opsResume : TOperationsResumeList;
@@ -2154,7 +2154,7 @@ begin
       DebugStep := 'Assigning client';
       n.SetClient(Client);
       TNetData.NetData.IncStatistics(1,1,0,0,0,0);
-      TNetData.NetData.NodeServersAddresses.CleanBlackList;
+      TNetData.NetData.NodeServersAddresses.CleanBlackList(False);
       DebugStep := 'Checking blacklisted';
       if (TNetData.NetData.NodeServersAddresses.IsBlackListed(Client.RemoteHost)) then begin
         // Invalid!
