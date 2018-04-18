@@ -193,12 +193,17 @@ Type
   TAccountKeyArray = array of TAccountKey;
 
   // This is a class to quickly find accountkeys and their respective account number/s
+
+  { TOrderedAccountKeysList }
+
   TOrderedAccountKeysList = Class
   Private
     FAutoAddAll : Boolean;
     FAccountList : TPCSafeBox;
-    FOrderedAccountKeysList : TList; // An ordered list of pointers to quickly find account keys in account list
-    Function Find(Const AccountKey: TAccountKey; var Index: Integer): Boolean;
+    FOrderedAccountKeysList : TPCThreadList; // An ordered list of pointers to quickly find account keys in account list
+    FTotalChanges : Integer;
+    Function Find(lockedList : TList; Const AccountKey: TAccountKey; var Index: Integer): Boolean;
+    function GetAccountKeyChanges(index : Integer): Integer;
     function GetAccountKeyList(index: Integer): TOrderedCardinalList;
     function GetAccountKey(index: Integer): TAccountKey;
   protected
@@ -213,10 +218,15 @@ Type
     Function IndexOfAccountKey(Const AccountKey : TAccountKey) : Integer;
     Property AccountKeyList[index : Integer] : TOrderedCardinalList read GetAccountKeyList;
     Property AccountKey[index : Integer] : TAccountKey read GetAccountKey;
+    Property AccountKeyChanges[index : Integer] : Integer read GetAccountKeyChanges;
+    procedure ClearAccountKeyChanges;
     Function Count : Integer;
     Property SafeBox : TPCSafeBox read FAccountList;
     Procedure Clear;
     function ToArray : TAccountKeyArray;
+    function Lock : TList;
+    procedure Unlock;
+    function HasAccountKeyChanged : Boolean;
   End;
 
   // Maintans a Cardinal ordered (without duplicates) list with TRawData each
@@ -3313,8 +3323,7 @@ begin
           Result:=TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target);
         end else begin
           // New on V3 protocol:
-          // Harmonization of the sinusoidal effect modifying the rise / fall by 50% calculating over the "stop" area
-//XXXXXXXXXX          Result := TPascalCoinProtocol.GetNewTarget(tsTeoricalStop,(tsTeoricalStop + tsRealStop) DIV 2,protocolVersion,True,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
+          // Harmonization of the sinusoidal effect modifying the rise / fall over the "stop" area
           Result := TPascalCoinProtocol.GetNewTarget(tsTeoricalStop,tsRealStop,protocolVersion,True,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
         end;
       end;
@@ -4340,8 +4349,11 @@ Type
   TOrderedAccountKeyList = Record
     rawaccountkey : TRawBytes;
     accounts_number : TOrderedCardinalList;
+    changes_counter : Integer;
   end;
   POrderedAccountKeyList = ^TOrderedAccountKeyList;
+Const
+  CT_TOrderedAccountKeyList_NUL : TOrderedAccountKeyList = (rawaccountkey:'';accounts_number:Nil;changes_counter:0);
 
 function SortOrdered(Item1, Item2: Pointer): Integer;
 begin
@@ -4351,78 +4363,136 @@ end;
 procedure TOrderedAccountKeysList.AddAccountKey(const AccountKey: TAccountKey);
 Var P : POrderedAccountKeyList;
   i,j : Integer;
+  lockedList : TList;
 begin
-  if Not Find(AccountKey,i) then begin
-    New(P);
-    P^.rawaccountkey := TAccountComp.AccountKey2RawString(AccountKey);
-    P^.accounts_number := TOrderedCardinalList.Create;
-    FOrderedAccountKeysList.Insert(i,P);
-    // Search this key in the AccountsList and add all...
-    j := 0;
-    if Assigned(FAccountList) then begin
-      For i:=0 to FAccountList.AccountsCount-1 do begin
-        If TAccountComp.EqualAccountKeys(FAccountList.Account(i).accountInfo.accountkey,AccountKey) then begin
-          // Note: P^.accounts will be ascending ordered due to "for i:=0 to ..."
-          P^.accounts_number.Add(i);
+  lockedList := Lock;
+  Try
+    if Not Find(lockedList,AccountKey,i) then begin
+      New(P);
+      P^ := CT_TOrderedAccountKeyList_NUL;
+      P^.rawaccountkey := TAccountComp.AccountKey2RawString(AccountKey);
+      P^.accounts_number := TOrderedCardinalList.Create;
+      inc(P^.changes_counter);
+      inc(FTotalChanges);
+      lockedList.Insert(i,P);
+      // Search this key in the AccountsList and add all...
+      j := 0;
+      if Assigned(FAccountList) then begin
+        For i:=0 to FAccountList.AccountsCount-1 do begin
+          If TAccountComp.EqualAccountKeys(FAccountList.Account(i).accountInfo.accountkey,AccountKey) then begin
+            // Note: P^.accounts will be ascending ordered due to "for i:=0 to ..."
+            P^.accounts_number.Add(i);
+          end;
         end;
+        TLog.NewLog(ltdebug,Classname,Format('Adding account key (%d of %d) %s',[j,FAccountList.AccountsCount,TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(AccountKey))]));
+      end else begin
+        TLog.NewLog(ltdebug,Classname,Format('Adding account key (no Account List) %s',[TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(AccountKey))]));
       end;
-      TLog.NewLog(ltdebug,Classname,Format('Adding account key (%d of %d) %s',[j,FAccountList.AccountsCount,TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(AccountKey))]));
-    end else begin
-      TLog.NewLog(ltdebug,Classname,Format('Adding account key (no Account List) %s',[TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(AccountKey))]));
     end;
+  finally
+    Unlock;
   end;
 end;
 
 procedure TOrderedAccountKeysList.AddAccounts(const AccountKey: TAccountKey; const accounts: array of Cardinal);
 Var P : POrderedAccountKeyList;
   i,i2 : Integer;
+  lockedList : TList;
 begin
-  if Find(AccountKey,i) then begin
-    P :=  POrderedAccountKeyList(FOrderedAccountKeysList[i]);
-  end else if (FAutoAddAll) then begin
-    New(P);
-    P^.rawaccountkey := TAccountComp.AccountKey2RawString(AccountKey);
-    P^.accounts_number := TOrderedCardinalList.Create;
-    FOrderedAccountKeysList.Insert(i,P);
-  end else exit;
-  for i := Low(accounts) to High(accounts) do begin
-    P^.accounts_number.Add(accounts[i]);
+  lockedList := Lock;
+  Try
+    if Find(lockedList,AccountKey,i) then begin
+      P :=  POrderedAccountKeyList(lockedList[i]);
+    end else if (FAutoAddAll) then begin
+      New(P);
+      P^ := CT_TOrderedAccountKeyList_NUL;
+      P^.rawaccountkey := TAccountComp.AccountKey2RawString(AccountKey);
+      P^.accounts_number := TOrderedCardinalList.Create;
+      lockedList.Insert(i,P);
+    end else exit;
+    for i := Low(accounts) to High(accounts) do begin
+      P^.accounts_number.Add(accounts[i]);
+    end;
+    inc(P^.changes_counter);
+    inc(FTotalChanges);
+  finally
+    Unlock;
   end;
 end;
 
 procedure TOrderedAccountKeysList.Clear;
 begin
-  ClearAccounts(true);
+  Lock;
+  Try
+    ClearAccounts(true);
+    FTotalChanges := 1; // 1 = At least 1 change
+  finally
+    Unlock;
+  end;
 end;
 
 function TOrderedAccountKeysList.ToArray : TAccountKeyArray;
 var i : Integer;
 begin
-  SetLength(Result, Count);
-  for i := 0 to Count - 1 do Result[i] := Self.AccountKey[i];
+  Lock;
+  Try
+    SetLength(Result, Count);
+    for i := 0 to Count - 1 do Result[i] := Self.AccountKey[i];
+  finally
+    Unlock;
+  end;
+end;
+
+function TOrderedAccountKeysList.Lock: TList;
+begin
+  Result := FOrderedAccountKeysList.LockList;
+end;
+
+procedure TOrderedAccountKeysList.Unlock;
+begin
+  FOrderedAccountKeysList.UnlockList;
+end;
+
+function TOrderedAccountKeysList.HasAccountKeyChanged: Boolean;
+begin
+  Result := FTotalChanges>0;
 end;
 
 procedure TOrderedAccountKeysList.ClearAccounts(RemoveAccountList : Boolean);
 Var P : POrderedAccountKeyList;
   i : Integer;
+  lockedList : TList;
 begin
-  for i := 0 to FOrderedAccountKeysList.Count - 1 do begin
-    P := FOrderedAccountKeysList[i];
-    if RemoveAccountList then begin
-      P^.accounts_number.Free;
-      Dispose(P);
-    end else begin
-      P^.accounts_number.Clear;
+  lockedList := Lock;
+  Try
+    for i := 0 to  lockedList.Count - 1 do begin
+      P := lockedList[i];
+      inc(P^.changes_counter);
+      if RemoveAccountList then begin
+        P^.accounts_number.Free;
+        Dispose(P);
+      end else begin
+        P^.accounts_number.Clear;
+      end;
     end;
-  end;
-  if RemoveAccountList then begin
-    FOrderedAccountKeysList.Clear;
+    if RemoveAccountList then begin
+      lockedList.Clear;
+    end;
+    FTotalChanges:=lockedList.Count + 1; // At least 1 change
+  finally
+    Unlock;
   end;
 end;
 
 function TOrderedAccountKeysList.Count: Integer;
+var lockedList : TList;
 begin
-  Result := FOrderedAccountKeysList.Count;
+  lockedList := Lock;
+  Try
+    Result := lockedList.Count;
+  finally
+    Unlock;
+  end;
 end;
 
 constructor TOrderedAccountKeysList.Create(AccountList : TPCSafeBox; AutoAddAll : Boolean);
@@ -4431,13 +4501,19 @@ begin
   TLog.NewLog(ltdebug,Classname,'Creating an Ordered Account Keys List adding all:'+CT_TRUE_FALSE[AutoAddAll]);
   FAutoAddAll := AutoAddAll;
   FAccountList := AccountList;
-  FOrderedAccountKeysList := TList.Create;
+  FTotalChanges:=0;
+  FOrderedAccountKeysList := TPCThreadList.Create(ClassName);
   if Assigned(AccountList) then begin
-    AccountList.FListOfOrderedAccountKeysList.Add(Self);
-    if AutoAddAll then begin
-      for i := 0 to AccountList.AccountsCount - 1 do begin
-        AddAccountKey(AccountList.Account(i).accountInfo.accountkey);
+    Lock;
+    Try
+      AccountList.FListOfOrderedAccountKeysList.Add(Self);
+      if AutoAddAll then begin
+        for i := 0 to AccountList.AccountsCount - 1 do begin
+          AddAccountKey(AccountList.Account(i).accountInfo.accountkey);
+        end;
       end;
+    finally
+      Unlock;
     end;
   end;
 end;
@@ -4453,18 +4529,18 @@ begin
   inherited;
 end;
 
-function TOrderedAccountKeysList.Find(const AccountKey: TAccountKey; var Index: Integer): Boolean;
+function TOrderedAccountKeysList.Find(lockedList : TList; const AccountKey: TAccountKey; var Index: Integer): Boolean;
 var L, H, I, C: Integer;
   rak : TRawBytes;
 begin
   Result := False;
   rak := TAccountComp.AccountKey2RawString(AccountKey);
   L := 0;
-  H := FOrderedAccountKeysList.Count - 1;
+  H := lockedList.Count - 1;
   while L <= H do
   begin
     I := (L + H) shr 1;
-    C := CompareStr( POrderedAccountKeyList(FOrderedAccountKeysList[I]).rawaccountkey, rak );
+    C := TBaseType.BinStrComp( POrderedAccountKeyList(lockedList[I]).rawaccountkey, rak );
     if C < 0 then L := I + 1 else
     begin
       H := I - 1;
@@ -4478,52 +4554,112 @@ begin
   Index := L;
 end;
 
+function TOrderedAccountKeysList.GetAccountKeyChanges(index : Integer): Integer;
+var lockedList : TList;
+begin
+  lockedList := Lock;
+  Try
+    Result :=  POrderedAccountKeyList(lockedList[index])^.changes_counter;
+  finally
+    Unlock;
+  end;
+end;
+
 function TOrderedAccountKeysList.GetAccountKey(index: Integer): TAccountKey;
 Var raw : TRawBytes;
+  lockedList : TList;
 begin
-  raw := POrderedAccountKeyList(FOrderedAccountKeysList[index]).rawaccountkey;
+  lockedList := Lock;
+  Try
+    raw := POrderedAccountKeyList(lockedList[index]).rawaccountkey;
+  finally
+    Unlock;
+  end;
   Result := TAccountComp.RawString2Accountkey(raw);
 end;
 
 function TOrderedAccountKeysList.GetAccountKeyList(index: Integer): TOrderedCardinalList;
+var lockedList : TList;
 begin
-  Result := POrderedAccountKeyList(FOrderedAccountKeysList[index]).accounts_number;
+  lockedList := Lock;
+  Try
+    Result := POrderedAccountKeyList(lockedList[index]).accounts_number;
+  finally
+    Unlock;
+  end;
 end;
 
 function TOrderedAccountKeysList.IndexOfAccountKey(const AccountKey: TAccountKey): Integer;
+var lockedList : TList;
 begin
-  If Not Find(AccountKey,Result) then Result := -1;
+  lockedList := Lock;
+  Try
+    If Not Find(lockedList,AccountKey,Result) then Result := -1;
+  finally
+    Unlock;
+  end;
+end;
+
+procedure TOrderedAccountKeysList.ClearAccountKeyChanges;
+var i : Integer;
+  lockedList : TList;
+begin
+  lockedList := Lock;
+  Try
+    for i:=0 to lockedList.Count-1 do begin
+      POrderedAccountKeyList(lockedList[i])^.changes_counter:=0;
+    end;
+    FTotalChanges:=0;
+  finally
+    Unlock;
+  end;
 end;
 
 procedure TOrderedAccountKeysList.RemoveAccounts(const AccountKey: TAccountKey; const accounts: array of Cardinal);
 Var P : POrderedAccountKeyList;
   i,j : Integer;
+  lockedList : TList;
 begin
-  if Not Find(AccountKey,i) then exit; // Nothing to do
-  P :=  POrderedAccountKeyList(FOrderedAccountKeysList[i]);
-  for j := Low(accounts) to High(accounts) do begin
-    P^.accounts_number.Remove(accounts[j]);
-  end;
-  if (P^.accounts_number.Count=0) And (FAutoAddAll) then begin
-    // Remove from list
-    FOrderedAccountKeysList.Delete(i);
-    // Free it
-    P^.accounts_number.free;
-    Dispose(P);
+  lockedList := Lock;
+  Try
+    if Not Find(lockedList,AccountKey,i) then exit; // Nothing to do
+    P :=  POrderedAccountKeyList(lockedList[i]);
+    inc(P^.changes_counter);
+    inc(FTotalChanges);
+    for j := Low(accounts) to High(accounts) do begin
+      P^.accounts_number.Remove(accounts[j]);
+    end;
+    if (P^.accounts_number.Count=0) And (FAutoAddAll) then begin
+      // Remove from list
+      lockedList.Delete(i);
+      // Free it
+      P^.accounts_number.free;
+      Dispose(P);
+    end;
+  finally
+    Unlock;
   end;
 end;
 
 procedure TOrderedAccountKeysList.RemoveAccountKey(const AccountKey: TAccountKey);
 Var P : POrderedAccountKeyList;
   i,j : Integer;
+  lockedList : TList;
 begin
-  if Not Find(AccountKey,i) then exit; // Nothing to do
-  P :=  POrderedAccountKeyList(FOrderedAccountKeysList[i]);
-  // Remove from list
-  FOrderedAccountKeysList.Delete(i);
-  // Free it
-  P^.accounts_number.free;
-  Dispose(P);
+  lockedList := Lock;
+  Try
+    if Not Find(lockedList,AccountKey,i) then exit; // Nothing to do
+    P :=  POrderedAccountKeyList(lockedList[i]);
+    inc(P^.changes_counter);
+    inc(FTotalChanges);
+    // Remove from list
+    lockedList.Delete(i);
+    // Free it
+    P^.accounts_number.free;
+    Dispose(P);
+  finally
+    Unlock;
+  end;
 end;
 
 { TAccountPreviousBlockInfo }
