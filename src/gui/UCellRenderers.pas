@@ -175,6 +175,10 @@ begin
     end;
     CT_Op_ChangeKeySigned: result :=  'Change Key';
     CT_Op_ChangeAccountInfo: result := 'Change Info';
+    CT_Op_MultiOperation: case OpSubType of
+      CT_OpSubtype_MultiOperation_Global: Result := 'Mixed-Transfer';
+      CT_OpSubtype_MultiOperation_AccountInfo: Result := 'Mixed-Change';
+    end;
     else result := 'Unknown';
   end;
 end;

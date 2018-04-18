@@ -6,7 +6,9 @@ unit UDataSources;
 interface
 
 uses
-  Classes, SysUtils, UAccounts, UNode, UBlockchain, UCommon, UMemory, UConst, UCommon.Data, UCommon.Collections, Generics.Collections, Generics.Defaults, syncobjs;
+  Classes, SysUtils, UAccounts, UNode, UBlockchain, UCoreObjects,
+  UCommon, UMemory, UConst, UCommon.Data,
+  UCommon.Collections, Generics.Collections, Generics.Defaults, syncobjs;
 
 type
 
@@ -22,24 +24,25 @@ type
   { TAccountsDataSource }
 
   TAccountsDataSource = class(TAccountsDataSourceBase)
-    public type
-      TOverview = record
-        TotalPASC : UInt64;
-        TotalPASA : Cardinal;
-      end;
-    private
-      FLastKnownUserAccounts : TArray<TAccount>;
-      FKeys : TSortedHashSet<TAccountKey>;
     protected
-      FLastOverview : TOverview;
+      FKeys : TSortedHashSet<TAccountKey>;
       function GetFilterKeys : TArray<TAccountKey>;
       procedure SetFilterKeys (const AKeys : TArray<TAccountKey>);
     public
-      property Overview : TOverview read FLastOverview;
-      property LastFetchResult : TArray<TAccount> read FLastKnownUserAccounts;
       property FilterKeys : TArray<TAccountKey> read GetFilterKeys write SetFilterKeys;
       constructor Create(AOwner: TComponent); override;
       destructor Destroy; override;
+      procedure FetchAll(const AContainer : TList<TAccount>); override;
+  end;
+
+  { TFastAccountsDataSource }
+
+  TFastAccountsDataSource = class(TAccountsDataSource)
+    private
+      FPSummary : PUserSummary;
+    public
+      property Summary : PUserSummary read FPSummary write FPSummary;
+      constructor Create(AOwner: TComponent; APSummary : PUserSummary); overload;
       procedure FetchAll(const AContainer : TList<TAccount>); override;
   end;
 
@@ -91,7 +94,7 @@ type
 implementation
 
 uses
-  math, UCoreUtils, UWallet, UUserInterface, UTime;
+  math, UCoreUtils, UWallet, UTime;
 
 { TAccountsDataSourceBase }
 
@@ -169,44 +172,43 @@ end;
 
 procedure TAccountsDataSource.FetchAll(const AContainer : TList<TAccount>);
 var
-  i,j : integer;
+  i : integer;
   acc : TAccount;
   safeBox : TPCSafeBox;
-  GC : TDisposables;
-  left,right:TAccountKey;
 begin
-  FLastOverview.TotalPASC := 0;
-  FLastOverview.TotalPASA := 0;
-  safeBox := TUserInterface.Node.Bank.SafeBox;
+  safeBox := TNode.Node.Bank.SafeBox;
   safeBox.StartThreadSafe;
   try
    if FKeys.Count = 0 then
-     for i := 0 to safeBox.AccountsCount - 1 do begin
-       // Load all accounts
-       AContainer.Add(safeBox.Account(i));
-       FLastOverview.TotalPASC := FLastOverview.TotalPASC + acc.Balance;
-       inc(FLastOverview.TotalPASA);
-     end
-   else begin
-     // load key-matching accounts
-     for i := 0 to safeBox.AccountsCount - 1 do begin
+     for i := 0 to safeBox.AccountsCount - 1 do
+       AContainer.Add(safeBox.Account(i)) // Load all accounts
+   else
+     for i := 0 to safeBox.AccountsCount - 1 do begin // Load key-matching accounts
        acc := safeBox.Account(i);
-       if FKeys.Contains(acc.accountInfo.accountKey) then begin
-         AContainer.Add(acc);
-         FLastOverview.TotalPASC := FLastOverview.TotalPASC + acc.Balance;
-         inc(FLastOverview.TotalPASA);
-       end else begin
-         for left in FKeys do begin
-           right := acc.accountInfo.accountKey;
-
-         end;
-       end;
+       if FKeys.Contains(acc.accountInfo.accountKey) then
+         AContainer.Add(acc)
      end;
-   end;
   finally
    safeBox.EndThreadSave;
   end;
-  FLastKnownUserAccounts := AContainer.ToArray;
+end;
+
+{ TFastAccountsDataSource }
+
+constructor TFastAccountsDataSource.Create(AOwner: TComponent; APSummary : PUserSummary);
+begin
+  inherited Create(AOwner);
+  FPSummary := APSummary;
+end;
+
+procedure TFastAccountsDataSource.FetchAll(const AContainer : TList<TAccount>);
+var
+  i : integer;
+begin
+  if NOT Assigned(FPSummary) then exit;
+  for i := Low(FPSummary^.Accounts) to High(FPSummary^.Accounts) do
+    if FKeys.Contains(FPSummary^.Accounts[i].accountInfo.accountKey) then
+      AContainer.Add(FPSummary^.Accounts[i]);
 end;
 
 { TOperationsDataSourceBase }
@@ -283,7 +285,7 @@ begin
   else if ABindingName = 'BlockLocation' then
     Result := IIF(AItem.OpType <> CT_PseudoOp_Reward, Inttostr(AItem.Block) + '/' + Inttostr(AItem.NOpInsideBlock+1), Inttostr(AItem.Block))
   else if ABindingName = 'BlockLocationSortable' then
-    Result := UInt64(AItem.Block) * 4294967296 + UInt32(AItem.NOpInsideBlock)   // number pattern = [block][opindex]
+    Result := IIF(AItem.OpType <> CT_PseudoOp_Reward, UInt64(AItem.Block) * 4294967296 + UInt32(AItem.NOpInsideBlock), 0)  // number pattern = [block][opindex]
   else if ABindingName = 'Account' then
     Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.AffectedAccount)
   else if ABindingName = 'AccountNumber' then
@@ -352,7 +354,7 @@ begin
   node := TNode.Node;
   if Not Assigned(Node)
     then exit;
-  TUserInterface.Node.Bank.SafeBox.StartThreadSafe;
+  TNode.Node.Bank.SafeBox.StartThreadSafe;
   try
     accountBlockOps := GC.AddObject(TOperationsResumeList.Create ) as TOperationsResumeList;
     list := GC.AddObject( Classes.TList.Create ) as Classes.TList;
@@ -378,7 +380,7 @@ begin
         AContainer.Add(accountBlockOps[i]);
     end;
   finally
-   TUserInterface.Node.Bank.SafeBox.EndThreadSave;
+   TNode.Node.Bank.SafeBox.EndThreadSave;
   end;
 end;
 

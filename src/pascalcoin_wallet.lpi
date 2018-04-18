@@ -33,7 +33,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="97">
+    <Units Count="98">
       <Unit0>
         <Filename Value="pascalcoin_wallet.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -346,7 +346,7 @@
         <IsPartOfProject Value="True"/>
       </Unit62>
       <Unit63>
-        <Filename Value="core.utils\UCoreUtils.pas"/>
+        <Filename Value="core.utils\UCoreObjects.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit63>
       <Unit64>
@@ -549,6 +549,10 @@
         <Filename Value="gui-classic\UGridUtils.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit96>
+      <Unit97>
+        <Filename Value="core.utils\UCoreUtils.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit97>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
