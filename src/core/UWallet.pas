@@ -258,7 +258,7 @@ begin
   while L <= H do
   begin
     I := (L + H) shr 1;
-    C := CompareStr( PWalletKey(FSearchableKeys[I]).SearchableAccountKey, rak );
+    C := TBaseType.BinStrComp( PWalletKey(FSearchableKeys[I]).SearchableAccountKey, rak );
     if C < 0 then L := I + 1 else
     begin
       H := I - 1;

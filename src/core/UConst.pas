@@ -100,7 +100,7 @@ Const
   CT_Protocol_Upgrade_v3_MinBlock = {$IFDEF PRODUCTION}210000{$ELSE}250{$ENDIF};
 
 
-  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$03000030{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
+  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$03000040{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
 
   CT_NetProtocol_Version: Word = $0006; // Version 2.1.2 only allows net protocol 6 (Introduced on 2.0.0)
   // IMPORTANT NOTE!!!
@@ -150,7 +150,7 @@ Const
   CT_OpSubtype_MultiOperation_Global      = 91;
   CT_OpSubtype_MultiOperation_AccountInfo = 92;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'2.1.6'{$ELSE}{$IFDEF TESTNET}'TESTNET 3.0 BETA'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'2.1.9'{$ELSE}{$IFDEF TESTNET}'TESTNET 3.0 BETA'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us';
 
@@ -159,9 +159,9 @@ Const
   CT_MAX_0_fee_operations_per_block_by_miner = {$IFDEF PRODUCTION}2000{$ELSE}{$IFDEF TESTNET}2000{$ELSE}{$ENDIF}{$ENDIF};
   CT_MAX_Operations_per_block_by_miner =  {$IFDEF PRODUCTION}10000{$ELSE}{$IFDEF TESTNET}50000{$ELSE}{$ENDIF}{$ENDIF};
 
-  CT_MAX_MultiOperation_Senders = 1000;
-  CT_MAX_MultiOperation_Receivers = 10000;
-  CT_MAX_MultiOperation_Changers = 1000;
+  CT_MAX_MultiOperation_Senders = 100;
+  CT_MAX_MultiOperation_Receivers = 1000;
+  CT_MAX_MultiOperation_Changers = 100;
 
   CT_DEFAULT_MaxSafeboxSnapshots = 10;
 

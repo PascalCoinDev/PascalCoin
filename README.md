@@ -55,36 +55,36 @@ Also, consider a donation at PascalCoin development account: "0-10"
 - JSON-RPC changes:
   - Added param "startblock" to "getaccountoperations" in order to start searching backwards on a specific block. Note: Balance will not be returned on each operation due cannot be calculated. Default value "0" means start searching on current block as usual
   - Operation Object changes:
+    New fields:
+    - "senders" : ARRAY of objects - When is a transaction, this array contains each sender
+      - "account" : Sending Account 
+      - "n_operation"
+      - "amount" : PASCURRENCY - In negative value, due it's outgoing from "account"
+      - "payload" : HEXASTRING
+    - "receivers" : ARRAY of objects - When is a transaction, this array contains each receiver
+      - "account" : Receiving Account 
+      - "amount" : PASCURRENCY - In positive value, due it's incoming from a sender to "account"
+      - "payload" : HEXASTRING
+    - "changers" : ARRAY of objects - When accounts changed state
+      - "account" : changing Account 
+      - "n_operation"
+      - "new_enc_pubkey" : If public key is changed
+      - "new_name" : If name is changed
+      - "new_type" : If type is changed
+      - "fee" : PASCURRENCY - In negative value, due it's outgoing from "account"
+    Modified fields / DEPRECATED FIELDS
+    Caused by multioperation introduction, search in "senders"/"receivers"/"changers" instead
     - "balance" will not be included when is not possible to calc previous balance of account searching at the past
-    - Fields not included when in Multioperation:
-      - "account" will not be included in Multioperations
-      - "signer_account" will not be included in Multioperations
-      - "n_operation" will not be included in Multioperations
-      - "amount" will not be included in Multioperations, need search on each field
-      - "payload" will not be included in Multioperations, need search on each field
-    - On Multioperations, will include those new fields:
-      - "totalamount" will be the total amount equal to SUM each "receivers"."amount" field
-      - "senders" : Will return an Array with Objects
-        - "account" : Sending Account 
-        - "n_operation"
-        - "amount" : In negative value, due it's outgoing form "account"
-        - "payload"
-      - "receivers"
-        - "account" : Receiving Account 
-        - "amount" : In positive value, due it's incoming from a sender to "account"
-        - "payload"
-      - "changers" : Will return an Array with Objects
-        - "account" : changing Account 
-        - "n_operation"
-        - "new_enc_pubkey" : If public key is changed
-        - "new_name" : If name is changed
-        - "new_type" : If type is changed
+    - "signer_account" will not be included in Multioperations
+    - "account" : will not be included in Multioperations, use fields in "senders"/"receivers"/"changers" instead    
+    - "n_operation" will not be included in Multioperations, use fields in "senders"/"receivers"/"changers" instead
+    - "payload" will not be included in Multioperations, use fields in "senders"/"receivers"/"changers" instead
   - New object "MultiOperation Object" : Will return info about a MultiOperation
     - "rawoperations" : HEXASTRING with this single MultiOperation in RAW format
     - "senders" : Will return an Array with Objects
       - "account" : Sending Account 
       - "n_operation"
-      - "amount" : In negative value, due it's outgoing form "account"
+      - "amount" : In negative value, due it's outgoing from "account"
       - "payload"
     - "receivers"
       - "account" : Receiving Account 
@@ -98,7 +98,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
       - "new_type" : If type is changed
     - "amount" : PASCURRENCY Amount received by receivers
     - "fee" : PASCURRENCY Equal to "total send" - "total received"
-	- "signed_count" : Integer with info about how many accounts are signed 
+	- "signed_count" : Integer with info about how many accounts are signed. Does not check if signature is valid for a multioperation not included in blockchain 
 	- "not_signed_count" : Integer with info about how many accounts are pending to be signed
     - "signed_can_execute"	: Boolean. True if everybody signed. Does not check if MultiOperation is well formed or can be added to Network because is an offline call
   - New method "signmessage": Signs a digest message using a public key

@@ -73,6 +73,7 @@ Type
     procedure InitializeData; override;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
+    procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
   public
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
@@ -103,6 +104,7 @@ Type
     procedure InitializeData; override;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
+    procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
   public
     Class Function GetOperationHashToSign(const op : TOpChangeKeyData) : TRawBytes;
     Class Function DoSignOperation(key : TECPrivateKey; var op : TOpChangeKeyData) : Boolean;
@@ -139,6 +141,7 @@ Type
     procedure InitializeData; override;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
+    procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
   public
     class function OpType : Byte; override;
 
@@ -203,6 +206,7 @@ Type
     procedure InitializeData; override;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
+    procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
   public
     Class Function GetOperationHashToSign(const operation : TOpListAccountData) : TRawBytes;
     Class Function DoSignOperation(key : TECPrivateKey; var operation : TOpListAccountData) : Boolean;
@@ -257,6 +261,7 @@ Type
     procedure InitializeData; override;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
+    procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
   public
     Class Function GetOperationHashToSign(const op : TOpChangeAccountInfoData) : TRawBytes;
     Class Function DoSignOperation(key : TECPrivateKey; var op : TOpChangeAccountInfoData) : Boolean;
@@ -354,6 +359,30 @@ begin
   if TStreamOp.ReadAnsiString(Stream,FData.sign.r)<0 then Exit;
   if TStreamOp.ReadAnsiString(Stream,FData.sign.s)<0 then Exit;
   Result := true;
+end;
+
+procedure TOpChangeAccountInfo.FillOperationResume(Block: Cardinal; getInfoForAllAccounts: Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume);
+begin
+  inherited FillOperationResume(Block, getInfoForAllAccounts, Affected_account_number, OperationResume);
+  SetLength(OperationResume.Changers,1);
+  OperationResume.Changers[0] := CT_TMultiOpChangeInfo_NUL;
+  OperationResume.Changers[0].Account := FData.account_target;
+  OperationResume.Changers[0].Changes_type := FData.changes_type;
+  OperationResume.Changers[0].New_Accountkey := FData.new_accountkey;
+  OperationResume.Changers[0].New_Name := FData.new_name;
+  OperationResume.Changers[0].New_Type := FData.new_type;
+  If (FData.account_signer=FData.account_target) then begin
+    OperationResume.Changers[0].N_Operation := FData.n_operation;
+    OperationResume.Changers[0].Signature := FData.sign;
+    OperationResume.Changers[0].Fee := FData.fee;
+  end else begin
+    SetLength(OperationResume.Changers,2);
+    OperationResume.Changers[1] := CT_TMultiOpChangeInfo_NUL;
+    OperationResume.Changers[1].Account := FData.account_signer;
+    OperationResume.Changers[1].N_Operation := FData.n_operation;
+    OperationResume.Changers[1].Fee := FData.fee;
+    OperationResume.Changers[1].Signature := FData.sign;
+  end;
 end;
 
 class function TOpChangeAccountInfo.GetOperationHashToSign(const op: TOpChangeAccountInfoData): TRawBytes;
@@ -938,6 +967,23 @@ begin
   Result := true;
 end;
 
+procedure TOpTransaction.FillOperationResume(Block: Cardinal; getInfoForAllAccounts: Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume);
+begin
+  inherited FillOperationResume(Block, getInfoForAllAccounts, Affected_account_number, OperationResume);
+  SetLength(OperationResume.Senders,1);
+  OperationResume.Senders[0] := CT_TMultiOpSender_NUL;
+  OperationResume.Senders[0].Account:=FData.sender;
+  OperationResume.Senders[0].Amount:=Int64(FData.amount + FData.fee) * (-1);
+  OperationResume.Senders[0].N_Operation:=FData.n_operation;
+  OperationResume.Senders[0].Payload:=FData.payload;
+  OperationResume.Senders[0].Signature:=FData.sign;
+  SetLength(OperationResume.Receivers,1);
+  OperationResume.Receivers[0] := CT_TMultiOpReceiver_NUL;
+  OperationResume.Receivers[0].Account:=FData.target;
+  OperationResume.Receivers[0].Amount:=FData.amount;
+  OperationResume.Receivers[0].Payload:=FData.payload;
+end;
+
 function TOpTransaction.OperationAmount: Int64;
 begin
   Result := FData.amount;
@@ -1282,6 +1328,28 @@ begin
   Result := true;
 end;
 
+procedure TOpChangeKey.FillOperationResume(Block: Cardinal; getInfoForAllAccounts: Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume);
+begin
+  inherited FillOperationResume(Block, getInfoForAllAccounts, Affected_account_number, OperationResume);
+  SetLength(OperationResume.Changers,1);
+  OperationResume.Changers[0] := CT_TMultiOpChangeInfo_NUL;
+  OperationResume.Changers[0].Account := FData.account_target;
+  OperationResume.Changers[0].Changes_type := [public_key];
+  OperationResume.Changers[0].New_Accountkey := FData.new_accountkey;
+  if (FData.account_signer=FData.account_target) then begin
+    OperationResume.Changers[0].N_Operation := FData.n_operation;
+    OperationResume.Changers[0].Fee := FData.fee;
+    OperationResume.Changers[0].Signature := FData.sign;
+  end else begin
+    SetLength(OperationResume.Changers,2);
+    OperationResume.Changers[1] := CT_TMultiOpChangeInfo_NUL;
+    OperationResume.Changers[1].Account := FData.account_signer;
+    OperationResume.Changers[1].N_Operation := FData.n_operation;
+    OperationResume.Changers[1].Fee := FData.fee;
+    OperationResume.Changers[1].Signature := FData.sign;
+  end;
+end;
+
 function TOpChangeKey.OperationAmount: Int64;
 begin
   Result := 0;
@@ -1435,6 +1503,16 @@ begin
   Stream.Read(FData.n_operation,Sizeof(FData.n_operation));
   Stream.Read(FData.fee,Sizeof(FData.fee));
   Result := true;
+end;
+
+procedure TOpRecoverFounds.FillOperationResume(Block: Cardinal; getInfoForAllAccounts: Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume);
+begin
+  inherited FillOperationResume(Block, getInfoForAllAccounts, Affected_account_number, OperationResume);
+  SetLength(OperationResume.Changers,1);
+  OperationResume.Changers[0] := CT_TMultiOpChangeInfo_NUL;
+  OperationResume.Changers[0].Account := FData.account;
+  OperationResume.Changers[0].Fee := FData.fee;
+  OperationResume.Changers[0].N_Operation := FData.n_operation;
 end;
 
 function TOpRecoverFounds.OperationAmount: Int64;
@@ -1718,6 +1796,26 @@ begin
   if TStreamOp.ReadAnsiString(Stream,FData.sign.r)<0 then exit;
   if TStreamOp.ReadAnsiString(Stream,FData.sign.s)<0 then exit;
   Result := true;
+end;
+
+procedure TOpListAccount.FillOperationResume(Block: Cardinal; getInfoForAllAccounts: Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume);
+begin
+  inherited FillOperationResume(Block, getInfoForAllAccounts, Affected_account_number, OperationResume);
+  SetLength(OperationResume.Changers,1);
+  OperationResume.Changers[0] := CT_TMultiOpChangeInfo_NUL;
+  OperationResume.Changers[0].Account:=FData.account_target;
+  if (FData.account_signer = FData.account_target) then begin
+    OperationResume.Changers[0].Fee:=FData.fee;
+    OperationResume.Changers[0].N_Operation:=FData.n_operation;
+    OperationResume.Changers[0].Signature:=FData.sign;
+  end else begin
+    SetLength(OperationResume.Changers,2);
+    OperationResume.Changers[1] := CT_TMultiOpChangeInfo_NUL;
+    OperationResume.Changers[1].Account := FData.account_signer;
+    OperationResume.Changers[1].N_Operation := FData.n_operation;
+    OperationResume.Changers[1].Fee := FData.fee;
+    OperationResume.Changers[1].Signature := FData.sign;
+  end;
 end;
 
 function TOpListAccount.N_Operation: Cardinal;

@@ -116,15 +116,18 @@ Type
   TNodeNotifyEvents = Class(TComponent)
   private
     FNode: TNode;
+    FOnKeyActivity: TNotifyEvent;
     FPendingNotificationsList : TPCThreadList;
     FThreadSafeNodeNotifyEvent : TThreadSafeNodeNotifyEvent;
     FOnBlocksChanged: TNotifyEvent;
     FOnOperationsChanged: TNotifyEvent;
     FMessages : TStringList;
     FOnNodeMessageEvent: TNodeMessageEvent;
+    FWatchKeys: TOrderedAccountKeysList;
     procedure SetNode(const Value: TNode);
     Procedure NotifyBlocksChanged;
     Procedure NotifyOperationsChanged;
+    procedure SetWatchKeys(AValue: TOrderedAccountKeysList);
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
@@ -134,6 +137,8 @@ Type
     Property OnBlocksChanged : TNotifyEvent read FOnBlocksChanged write FOnBlocksChanged;
     Property OnOperationsChanged : TNotifyEvent read FOnOperationsChanged write FOnOperationsChanged;
     Property OnNodeMessageEvent : TNodeMessageEvent read FOnNodeMessageEvent write FOnNodeMessageEvent;
+    Property WatchKeys : TOrderedAccountKeysList read FWatchKeys write SetWatchKeys;
+    Property OnKeyActivity : TNotifyEvent read FOnKeyActivity write FOnKeyActivity;
   End;
 
   TThreadNodeNotifyNewBlock = Class(TPCThread)
@@ -1099,6 +1104,8 @@ begin
   FOnOperationsChanged := Nil;
   FOnBlocksChanged := Nil;
   FOnNodeMessageEvent := Nil;
+  FWatchKeys := Nil;
+  FOnKeyActivity:=Nil;
   FMessages := TStringList.Create;
   FPendingNotificationsList := TPCThreadList.Create('TNodeNotifyEvents_PendingNotificationsList');
   FThreadSafeNodeNotifyEvent := TThreadSafeNodeNotifyEvent.Create(Self);
@@ -1134,6 +1141,12 @@ begin
   if Assigned(FThreadSafeNodeNotifyEvent) then FThreadSafeNodeNotifyEvent.FNotifyOperationsChanged := true;
 end;
 
+procedure TNodeNotifyEvents.SetWatchKeys(AValue: TOrderedAccountKeysList);
+begin
+  if FWatchKeys=AValue then Exit;
+  FWatchKeys:=AValue;
+end;
+
 procedure TNodeNotifyEvents.SetNode(const Value: TNode);
 begin
   if FNode=Value then exit;
@@ -1166,17 +1179,21 @@ end;
 
 procedure TThreadSafeNodeNotifyEvent.SynchronizedProcess;
 Var i : Integer;
+  can_alert_keys : Boolean;
 begin
   Try
     If (Terminated) Or (Not Assigned(FNodeNotifyEvents)) then exit;
+    can_alert_keys := False;
     if FNotifyBlocksChanged then begin
       FNotifyBlocksChanged := false;
+      can_alert_keys := True;
       DebugStep:='Notify OnBlocksChanged';
       if Assigned(FNodeNotifyEvents) And (Assigned(FNodeNotifyEvents.FOnBlocksChanged)) then
         FNodeNotifyEvents.FOnBlocksChanged(FNodeNotifyEvents);
     end;
     if FNotifyOperationsChanged then begin
       FNotifyOperationsChanged := false;
+      can_alert_keys := True;
       DebugStep:='Notify OnOperationsChanged';
       if Assigned(FNodeNotifyEvents) And (Assigned(FNodeNotifyEvents.FOnOperationsChanged)) then
         FNodeNotifyEvents.FOnOperationsChanged(FNodeNotifyEvents);
@@ -1190,6 +1207,15 @@ begin
         end;
       end;
       FNodeNotifyEvents.FMessages.Clear;
+    end;
+    if (can_alert_keys) And Assigned(FNodeNotifyEvents) And (Assigned(FNodeNotifyEvents.FWatchKeys)) then begin
+      DebugStep:='Notify WatchKeys';
+      If FNodeNotifyEvents.FWatchKeys.HasAccountKeyChanged then begin
+        FNodeNotifyEvents.FWatchKeys.ClearAccountKeyChanges;
+        if Assigned(FNodeNotifyEvents.FOnKeyActivity) then begin
+          FNodeNotifyEvents.FOnKeyActivity(FNodeNotifyEvents);
+        end;
+      end;
     end;
   Except
     On E:Exception do begin
