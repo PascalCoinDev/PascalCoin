@@ -16,15 +16,19 @@ unit UCoreUtils;
 interface
 
 uses
-  Classes, SysUtils, UCrypto, UAccounts, UBlockChain, UCommon,
-  Generics.Collections, Generics.Defaults;
+  Classes, SysUtils, UCrypto, UAccounts, UBlockChain, UNode, UCommon, UNetProtocol,
+  Generics.Collections, Generics.Defaults, UCoreObjects;
 
 type
+
+{ TAccountKeyComparer }
 
 TAccountKeyComparer = class (TComparer<TAccountKey>)
   function Compare(constref ALeft, ARight: T): Integer; override;
   class function DoCompare(constref ALeft, ARight : TAccountKey) : Integer; inline;
 end;
+
+{ TAccountKeyEqualityComparer }
 
 TAccountKeyEqualityComparer = class(TEqualityComparer<TAccountKey>)
   public
@@ -36,19 +40,44 @@ end;
 
 { TCoreTool }
 
-TCoreTool = class(TObject)
-  class function GetSignerCandidates(ANumOps : Integer; const ACandidates : TArray<TAccount>) : TArray<TAccount>; static;
-  end;
+TCoreTool = class
+public
+  class function GetSignerCandidates(ANumOps : Integer; const ACandidates : array of TAccount) : TArray<TAccount>; static;
+end;
+
+{ TSafeBoxHelper }
+
+TSafeBoxHelper = class helper for TPCSafeBox
+  private
+    function GetKeysSummaryInternal(UseFilter: boolean; const AFilterKeys : array of TAccountKey; FetchAccounts : boolean = false) : TUserSummary;
+  public
+    function GetModifiedAccounts(const AAccounts : array of TAccount) : TArray<TAccount>;
+    function GetKeySummary(const AKey : TAccountKey; FetchAccounts : boolean = false) : TKeySummary;
+    function GetUserSummary(const AKeys : array of TAccountKey; FetchAccounts : boolean = false) : TUserSummary;
+    function GetSummaryAllKeys : TUserSummary;
+end;
+
+{ TNodeHelper }
+
+TNodeHelper = class helper for TNode
+  function HasBestKnownBlockchainTip : boolean;
+end;
+
+{ TAccountHelper }
 
 TAccountHelper = record helper for TAccount
   function GetAccountString : AnsiString;
   function GetInfoText(const ABank : TPCBank) : utf8string;
 end;
 
+{ TOperationResumeHelper }
+
 TOperationResumeHelper = record helper for TOperationResume
   function GetPrintableOPHASH : AnsiString;
   function GetInfoText(const ABank : TPCBank) : utf8string;
 end;
+
+{ TTimeSpanHelper }
 
 TTimeSpanHelper = record helper for TTimeSpan
   function TotalBlockCount : Integer;
@@ -61,15 +90,14 @@ uses
 
 { TCoreTool }
 
-class function TCoreTool.GetSignerCandidates(ANumOps: Integer;
-  const ACandidates: TArray<TAccount>): TArray<TAccount>;
+class function TCoreTool.GetSignerCandidates(ANumOps : Integer; const ACandidates : array of TAccount) : TArray<TAccount>;
 var
   i: Integer;
   Fee: Int64;
   acc: TAccount;
 begin
   //make deep copy of accounts!!! Very Important
-  Result := Copy(ACandidates);
+  Result := TArrayTool<TAccount>.Copy(ACandidates);
   Fee := ANumOps * CT_MOLINA;
   for i := High(Result) downto Low(Result) do
     begin
@@ -79,6 +107,125 @@ begin
         TArrayTool<TAccount>.RemoveAt(Result, i);
       end;
     end;
+end;
+
+{ TNodeHelper }
+
+function TNodeHelper.HasBestKnownBlockchainTip : boolean;
+var
+  LReady : boolean;
+  LMsg : AnsiString;
+begin
+  LReady := Self.Bank.IsReady(LMsg);
+  if LReady AND TNetData.NetData.IsGettingNewBlockChainFromClient then
+    Result := Self.Bank.BlocksCount = TNetData.NetData.MaxRemoteOperationBlock.block;
+end;
+
+{ TSafeBoxHelper }
+
+function TSafeBoxHelper.GetModifiedAccounts(const AAccounts : array of TAccount) : TArray<TAccount>;
+var
+  i : integer;
+  LChanged : TList<TAccount>;
+  LAcc : TAccount;
+  GC : TDisposables;
+begin
+  LChanged := GC.AddObject( TList<TAccount>.Create ) as TList<TAccount>;
+  for i := Low(AAccounts) to High(AAccounts) do begin
+    LAcc := Self.Account(AAccounts[i].account);
+    if (LAcc.n_Operation <> AAccounts[i].n_operation) OR (LAcc.Balance <> AAccounts[i].balance) then
+      LChanged.Add(LAcc);
+  end;
+  Result := LChanged.ToArray;
+end;
+
+function TSafeBoxHelper.GetKeySummary(const AKey : TAccountKey; FetchAccounts : boolean = false) : TKeySummary;
+var
+  AKeysResult : TUserSummary;
+begin
+  AKeysResult := GetUserSummary([AKey], FetchAccounts);
+  if Length(AKeysResult.Items) = 0 then begin
+    Result := TKeySummary_Nil;
+    exit;
+  end;
+  Result := AKeysResult.Items[0];
+end;
+
+function TSafeBoxHelper.GetUserSummary(const AKeys : array of TAccountKey; FetchAccounts : boolean = false) : TUserSummary;
+begin
+  Result := GetKeysSummaryInternal(True, AKeys, FetchAccounts);
+end;
+
+function TSafeBoxHelper.GetSummaryAllKeys : TUserSummary;
+begin
+  Result := GetKeysSummaryInternal(False, [], False);
+end;
+
+function TSafeBoxHelper.GetKeysSummaryInternal(UseFilter: boolean; const AFilterKeys : array of TAccountKey; FetchAccounts : boolean = false) : TUserSummary;
+type
+  __TList_TAccount = TList<TAccount>;
+  __TPair_TAccountKey_TList_TAccount = TPair<TAccountKey, __TList_TAccount>;
+  __TObjectDictionary_TAccountKey_TList_TAccount = TObjectDictionary<TAccountKey, __TList_TAccount>;
+var
+  i,j : integer;
+  LAcc : TAccount;
+  LAccs : THashSet<TAccount>;
+  LKey : TAccountKey;
+  LValue : __TList_TAccount;
+  safeBox : TPCSafeBox;
+  GC : TDisposables;
+  LKeys : __TObjectDictionary_TAccountKey_TList_TAccount;
+  LPair : __TPair_TAccountKey_TList_TAccount;
+begin
+  // Setup local dictionary key -> account[]
+  LAccs := GC.AddObject( THashSet<TAccount>.Create ) as THashSet<TAccount>;
+  LKeys := GC.AddObject( __TObjectDictionary_TAccountKey_TList_TAccount.Create([doOwnsValues], TAccountKeyEqualityComparer.Create )) as __TObjectDictionary_TAccountKey_TList_TAccount;
+
+  if UseFilter then begin
+    for i := Low(AFilterKeys) to High(AFilterKeys) do
+      LKeys.Add(AFilterKeys[i], __TList_TAccount.Create);
+
+    for i := 0 to Self.AccountsCount - 1 do begin
+      LAcc := Self.Account(i);
+      if LKeys.TryGetValue(LAcc.accountInfo.accountKey, LValue) then
+        LValue.Add(LAcc);
+    end
+  end
+  else
+  for i := 0 to Self.AccountsCount - 1 do begin
+    LAcc := Self.Account(i);
+    if NOT LKeys.TryGetValue(LAcc.accountInfo.accountKey, LValue) then begin
+      LValue := __TList_TAccount.Create;
+      LKeys.Add(LAcc.accountInfo.accountKey, LValue);
+     end;
+     LValue.Add(LAcc);
+  end;
+
+  // Build the results
+  SetLength(Result.Items, LKeys.Count);
+  i := 0;
+  for LPair in LKeys do begin
+    Result.Items[i].Key := CT_AccountInfo_NUL.accountKey;
+    Result.Items[i].TotalPASA:=0;
+    Result.Items[i].TotalPASC:=0;
+    SetLength(Result.Items[i].Accounts, 0);
+    for j := 0 to LPair.Value.Count - 1 do begin
+      LAcc := LPair.Value[j];
+      Inc(Result.Items[i].TotalPASA);
+      Inc(Result.Items[i].TotalPASC, LAcc.balance);
+    end;
+    if FetchAccounts then begin
+      Result.Items[i].Accounts := LPair.Value.ToArray;
+      LAccs.AddRange(Result.Items[i].Accounts);
+    end;
+    Inc(i);
+  end;
+  Result.Keys := TArrayTool<TAccountKey>.Copy(AFilterKeys);
+  Result.Accounts := LAccs.ToArray;
+  for i := Low(Result.Items) to High(Result.Items) do begin
+    Inc(Result.TotalPASA, Result.Items[i].TotalPASA);
+    Inc(Result.TotalPASC, Result.Items[i].TotalPASC);
+  end;
 end;
 
 { TAccountKeyComparer }
