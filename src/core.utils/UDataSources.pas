@@ -35,17 +35,6 @@ type
       procedure FetchAll(const AContainer : TList<TAccount>); override;
   end;
 
-  { TFastAccountsDataSource }
-
-  TFastAccountsDataSource = class(TAccountsDataSource)
-    private
-      FPSummary : PUserSummary;
-    public
-      property Summary : PUserSummary read FPSummary write FPSummary;
-      constructor Create(AOwner: TComponent; APSummary : PUserSummary); overload;
-      procedure FetchAll(const AContainer : TList<TAccount>); override;
-  end;
-
   { TOperationsDataSourceBase }
 
   TOperationsDataSourceBase = class(TCustomDataSource<TOperationResume>)
@@ -191,24 +180,6 @@ begin
   finally
    safeBox.EndThreadSave;
   end;
-end;
-
-{ TFastAccountsDataSource }
-
-constructor TFastAccountsDataSource.Create(AOwner: TComponent; APSummary : PUserSummary);
-begin
-  inherited Create(AOwner);
-  FPSummary := APSummary;
-end;
-
-procedure TFastAccountsDataSource.FetchAll(const AContainer : TList<TAccount>);
-var
-  i : integer;
-begin
-  if NOT Assigned(FPSummary) then exit;
-  for i := Low(FPSummary^.Accounts) to High(FPSummary^.Accounts) do
-    if FKeys.Contains(FPSummary^.Accounts[i].accountInfo.accountKey) then
-      AContainer.Add(FPSummary^.Accounts[i]);
 end;
 
 { TOperationsDataSourceBase }
