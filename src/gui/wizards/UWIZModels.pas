@@ -35,7 +35,7 @@ type
 
     { TModelType }
 
-    TModelType = (omtAccount, omtSendPasc, omtChangeKey, omtTransferAccount, omtChangeAccountPrivateKey, omtAddKey);
+    TModelType = (omtAccount, omtSendPasc, omtChangeKey, omtTransferAccount, omtChangeAccountPrivateKey, omtAddKey, omtEnlistAccountForSale);
 
     { TPayloadEncryptionMode }
 
@@ -49,9 +49,13 @@ type
 
     TChangeKeyMode = (akaTransferAccountOwnership, akaChangeAccountPrivateKey);
 
-     { TSendPASCMode }
+    { TSendPASCMode }
 
     TSendPASCMode = (akaAllBalance, akaSpecifiedAmount);
+
+    { TAccountSaleMode }
+    TAccountSaleMode = (akaPublicSale, akaPrivateSale);
+
 
     { TAccountModel }
 
@@ -91,6 +95,16 @@ type
       NewWalletKey: TWalletKey;
     end;
 
+    { TWIZEnlistAccountForSaleModel }
+    TEnlistAccountForSaleModel = class(TComponent)
+    public
+      SalePrice: int64;
+      NewOwnerPublicKey: TAccountKey;
+      LockedUntilBlock: cardinal;
+      SellerAccount: TAccount;
+      AccountSaleMode: TAccountSaleMode;
+    end;
+
     { TFeeModel }
 
     TFeeModel = class(TComponent)
@@ -125,6 +139,7 @@ type
     FChangeKey: TChangeKeyModel;
     FTransferAccount: TTransferAccountModel;
     FChangeAccountPrivateKey: TChangeAccountPrivateKeyModel;
+    FEnlistAccountForSale: TEnlistAccountForSaleModel;
     FFee: TFeeModel;
     FSigner: TSignerModel;
     FPayload: TPayloadModel;
@@ -136,6 +151,7 @@ type
     property ChangeKey: TChangeKeyModel read FChangeKey;
     property TransferAccount: TTransferAccountModel read FTransferAccount;
     property ChangeAccountPrivateKey: TChangeAccountPrivateKeyModel read FChangeAccountPrivateKey;
+    property EnlistAccountForSale: TEnlistAccountForSaleModel read FEnlistAccountForSale;
     property Fee: TFeeModel read FFee;
     property Signer: TSignerModel read FSigner;
     property Payload: TPayloadModel read FPayload;
@@ -152,6 +168,7 @@ begin
   FChangeKey := TChangeKeyModel.Create(Self);
   FTransferAccount := TTransferAccountModel.Create(Self);
   FChangeAccountPrivateKey := TChangeAccountPrivateKeyModel.Create(Self);
+  FEnlistAccountForSale := TEnlistAccountForSaleModel.Create(Self);
   FFee := TFeeModel.Create(Self);
   FSigner := TSignerModel.Create(Self);
   FPayload := TPayloadModel.Create(Self);

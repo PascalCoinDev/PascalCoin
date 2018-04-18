@@ -1,14 +1,14 @@
-object WIZEnlistAccountForSale_List: TWIZEnlistAccountForSale_List
+object WIZEnlistAccountForSale_ConfirmAccount: TWIZEnlistAccountForSale_ConfirmAccount
   Left = 0
   Height = 253
   Top = 0
   Width = 429
-  Caption = 'WIZEnlistAccountForSale_List'
+  Caption = 'WIZEnlistAccountForSale_ConfirmAccount'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.1.0'
+  LCLVersion = '1.8.2.0'
   Visible = False
-  object grpTransferAccount: TGroupBox
+  object grpEnlistAccount: TGroupBox
     Left = 6
     Height = 248
     Top = 0

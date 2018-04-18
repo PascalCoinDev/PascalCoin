@@ -35,7 +35,6 @@ type
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message: ansistring): boolean; override;
   end;
 
 
@@ -113,27 +112,11 @@ end;
 
 procedure TWIZChangeKey_Confirmation.OnNext;
 var
-  locked: Boolean;
+  locked: boolean;
 begin
-  locked := (NOT TWallet.Keys.HasPassword) OR (NOT TWallet.Keys.IsValidPassword);
+  locked := (not TWallet.Keys.HasPassword) or (not TWallet.Keys.IsValidPassword);
   if locked then
-  begin
     TUserInterface.UnlockWallet(Self);
-  end;
-end;
-
-function TWIZChangeKey_Confirmation.Validate(out message: ansistring): boolean;
-begin
-  Result := True;
-  if Length(Model.Account.SelectedAccounts) > 1 then
-  begin
-    if not (Model.Fee.SingleOperationFee > 0) then
-    begin
-      message := 'insufficient fee for total operation.';
-      Result := False;
-      Exit;
-    end;
-  end;
 end;
 
 { TAccountChangeKeyDataSource }
@@ -157,20 +140,16 @@ begin
   else if ABindingName = 'Fee' then
     Result := TAccountComp.FormatMoney(Model.Fee.SingleOperationFee)
   else
-  begin
     case Model.ChangeKey.ChangeKeyMode of
       akaTransferAccountOwnership:
-      begin
         if ABindingName = 'CurrentKey' then
           Result := TAccountComp.AccountPublicKeyExport(AItem.accountInfo.accountKey)
         else if ABindingName = 'NewKey' then
           Result := TAccountComp.AccountPublicKeyExport(Model.TransferAccount.AccountKey)
         else
           raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
-      end;
 
       akaChangeAccountPrivateKey:
-      begin
         if ABindingName = 'CurrentKey' then
           { TODO : Check how to get the wallet name an account is in }
           Result := '??? unknown'
@@ -180,16 +159,12 @@ begin
             TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(
             Model.ChangeAccountPrivateKey.NewWalletKey.AccountKey)), Model.ChangeAccountPrivateKey.NewWalletKey.Name);
           if not Assigned(Model.ChangeAccountPrivateKey.NewWalletKey.PrivateKey) then
-          begin
             Result := Result + '(*)';
-          end;
         end
         else
           raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
-      end;
 
     end;
-  end;
 
 end;
 
@@ -199,9 +174,8 @@ var
   i: integer;
 begin
   for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
-  begin
     AContainer.Add(Model.Account.SelectedAccounts[i]);
-  end;
+
 end;
 
 
