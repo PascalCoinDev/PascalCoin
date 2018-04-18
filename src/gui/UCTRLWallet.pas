@@ -66,7 +66,7 @@ type
     FAccountsGrid: TVisualGrid;
     FOperationsGrid: TVisualGrid;
     FUserData : TUserSummary;
-    FAccountsDataSource: TFastAccountsDataSource;
+    FAccountsDataSource: TAccountsDataSource;
     FOperationsDataSource: TAccountsOperationsDataSource;
     procedure SetAccountsMode(AMode: TCTRLWalletAccountsMode);
     procedure SetOperationsMode(AMode: TCTRLWalletOperationsMode);
@@ -80,6 +80,7 @@ type
     function HasUserDataChanged : boolean; overload;
     function HasUserDataChanged(out AChangedAccounts : TArray<TAccount>) : boolean; overload;
     procedure OnPrivateKeysChanged(Sender: TObject);
+    procedure OnUserAccountsChanged(Sender: TObject);
     procedure OnNodeBlocksChanged(Sender: TObject);
     procedure OnNodeNewOperation(Sender: TObject);
     procedure OnAccountsSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
@@ -108,13 +109,14 @@ var
 begin
   // event registrations
   FNodeNotifyEvents := TNodeNotifyEvents.Create(self);
+  FNodeNotifyEvents.WatchKeys := AutoDispose( TOrderedAccountKeysList.Create(TUserInterface.Node.Bank.SafeBox, false) ) as TOrderedAccountKeysList;
+  FNodeNotifyEvents.OnKeyActivity:= OnUserAccountsChanged;
   FNodeNotifyEvents.OnBlocksChanged := OnNodeBlocksChanged;
   FNodeNotifyEvents.OnOperationsChanged := OnNodeNewOperation;
   TWallet.Keys.OnChanged.Add(OnPrivateKeysChanged);
 
   // fields
-  FAccountsDataSource := TFastAccountsDataSource.Create(Self);
-  FAccountsDataSource.Summary:= @FUserData;
+  FAccountsDataSource := TAccountsDataSource.Create(Self);
   FOperationsDataSource := TAccountsOperationsDataSource.Create(Self);
   FOperationsHistory := woh7Days;
   FOperationsMode:= womAllAccounts;
@@ -161,7 +163,7 @@ begin
 
   FOperationsGrid := TVisualGrid.Create(Self);
   FOperationsGrid.SortMode := smMultiColumn;
-  FOperationsGrid.FetchDataInThread := True;
+  FOperationsGrid.FetchDataInThread := true;
   FOperationsGrid.AutoPageSize := True;
   FOperationsGrid.DeselectionType := dtDefault;
   FOperationsGrid.SelectionType := stRow;
@@ -291,8 +293,8 @@ procedure TCTRLWallet.ActivateFirstTime;
 begin
   FetchUserData;
   RefreshTotals;
-  FAccountsGrid.RefreshGrid;
-  FOperationsGrid.RefreshGrid;
+  SetAccountsMode(wamMyAccounts);
+  SetOperationsMode(womAllAccounts);
 end;
 
 procedure TCTRLWallet.FetchUserData;
@@ -306,6 +308,10 @@ var
 
 begin
   FUserData := TUserInterface.Node.Bank.SafeBox.GetUserSummary(TWallet.Keys.AccountsKeyList.ToArray, true);
+  FNodeNotifyEvents.WatchKeys.Clear;
+  FNodeNotifyEvents.WatchKeys.AddAccountKeys(FUserData.Keys);
+  if cbAccounts.ItemIndex = 0 then
+    FAccountsDataSource.FilterKeys := FUserData.Keys;
   FOperationsDataSource.Accounts := TListTool<TAccount, cardinal>.Transform(FUserData.Accounts, GetAccNo);
 end;
 
@@ -437,9 +443,10 @@ begin
         cbAccounts.ItemIndex :=0;
         cbAccounts.OnChange := cbAccountsChange; // re-enable event
 
-        // reset accounts grid/datasource
-        FAccountsGrid.DataSource := FAccountsDataSource;
+        // accounts caption
         FAccountsGrid.Caption.Text := 'My Accounts';
+
+        // ensure on accounts panel
         if FAccountsGrid.Parent <> paAccounts then begin
           paAccounts.RemoveAllControls(False);
           paAccounts.AddControlDockCenter(FAccountsGrid);
@@ -504,8 +511,7 @@ begin
   RefreshMyAccountsCombo;
 end;
 
-procedure TCTRLWallet.OnNodeBlocksChanged(Sender: TObject);
-var changed : TArray<TAccount>;
+procedure TCTRLWallet.OnUserAccountsChanged;
 begin
   if NOT TUserInterface.Node.HasBestKnownBlockchainTip then
     exit; // node syncing
@@ -516,15 +522,14 @@ begin
   FOperationsGrid.RefreshGrid;
 end;
 
+procedure TCTRLWallet.OnNodeBlocksChanged(Sender: TObject);
+begin
+  // TODO: play block sound chime
+end;
+
 procedure TCTRLWallet.OnNodeNewOperation(Sender: TObject);
 begin
-  if (NOT TUserInterface.Node.HasBestKnownBlockchainTip) OR (NOT HasUserDataChanged) then
-    exit; // node syncing
-
-  FetchUserData;
-  RefreshTotals;
-  FAccountsGrid.RefreshGrid;
-  FOperationsGrid.RefreshGrid;
+  // TODO: play operation sound tick
 end;
 
 procedure TCTRLWallet.OnAccountsSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
