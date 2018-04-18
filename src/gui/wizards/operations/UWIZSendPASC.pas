@@ -105,6 +105,7 @@ end;
 function TWIZSendPASCWizard.UpdateOpTransaction(const SenderAccount: TAccount; var DestAccount: TAccount; var amount: int64; var errors: string): boolean;
 var
   c: cardinal;
+  i: integer;
 begin
   Result := False;
   errors := '';

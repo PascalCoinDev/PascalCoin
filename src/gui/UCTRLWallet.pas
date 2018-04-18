@@ -9,7 +9,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Menus,
   ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon.UI, Generics.Collections,
-  UAccounts, UDataSources, UNode, UWIZSendPASC, UWIZChangeKey, UCoreObjects, UCoreUtils;
+  UAccounts, UDataSources, UNode, UCoreObjects, UCoreUtils, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale;
 
 type
 
@@ -670,8 +670,24 @@ begin
 end;
 
 procedure TCTRLWallet.miEnlistAccountsForSaleClick(Sender: TObject);
+var
+  Scoped: TDisposables;
+  wiz: TWIZEnlistAccountForSaleWizard;
+  model: TWIZOperationsModel;
+  AccountNumbersWithoutChecksum: TArray<cardinal>;
+
+   function GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
+  begin
+    Result := ARow.__KEY;
+  end;
+
+
 begin
- raise ENotImplemented.Create('not yet implemented.');
+  wiz := Scoped.AddObject(TWIZEnlistAccountForSaleWizard.Create(nil)) as TWIZEnlistAccountForSaleWizard;
+  model := TWIZOperationsModel.Create(wiz, omtEnlistAccountForSale);
+  AccountNumbersWithoutChecksum := TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows, GetAccNoWithoutChecksum);
+  model.Account.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
+  wiz.Start(model);
 end;
 
 procedure TCTRLWallet.miDelistAccountsFromSaleClick(Sender: TObject);

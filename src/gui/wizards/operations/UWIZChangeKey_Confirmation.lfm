@@ -6,6 +6,7 @@ object WIZChangeKey_Confirmation: TWIZChangeKey_Confirmation
   Caption = 'WIZChangeKey_Confirmation'
   ClientHeight = 320
   ClientWidth = 511
+  LCLVersion = '1.8.2.0'
   Visible = False
   object GroupBox1: TGroupBox
     Left = 10

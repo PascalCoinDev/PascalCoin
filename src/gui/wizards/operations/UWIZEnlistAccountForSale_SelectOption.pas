@@ -1,4 +1,4 @@
-unit UWIZEnlistAccountForSale_Start;
+unit UWIZEnlistAccountForSale_SelectOption;
 
 {$mode delphi}
 {$modeswitch nestedprocvars}
@@ -13,14 +13,13 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UWizard, UWIZEnlistAccountForSale, UWIZEnlistAccountForSale_List,
-  UWIZEnlistAccountForSale_Confirmation;
+  ExtCtrls, UWizard, UWIZModels, UWIZEnlistAccountForSale_EnterPublicKey;
 
 type
 
-  { TWIZEnlistAccountForSale_Start }
+  { TWIZEnlistAccountForSale_SelectOption }
 
-  TWIZEnlistAccountForSale_Start = class(TWizardForm<TWIZEnlistAccountForSaleModel>)
+  TWIZEnlistAccountForSale_SelectOption = class(TWizardForm<TWIZOperationsModel>)
     grpEnlistAccountForSale: TGroupBox;
     Label1: TLabel;
     Label2: TLabel;
@@ -39,20 +38,18 @@ implementation
 
 uses UAccounts, USettings, UDataSources, UCommon, UCommon.UI, Generics.Collections;
 
-{ TWIZEnlistAccountForSale_Start }
+{ TWIZEnlistAccountForSale_SelectOption }
 
-procedure TWIZEnlistAccountForSale_Start.OnNext;
+procedure TWIZEnlistAccountForSale_SelectOption.OnNext;
 begin
-  if rbPublicSale.Checked = True then
-  begin
-    Model.AccountSaleMode := akaPublicSale;
-  end
+  if rbPublicSale.Checked then
+    Model.EnlistAccountForSale.AccountSaleMode := akaPublicSale
   else
   begin
-    Model.AccountSaleMode := akaPrivateSale;
+    Model.EnlistAccountForSale.AccountSaleMode := akaPrivateSale;
+    UpdatePath(ptInject, [TWIZEnlistAccountForSale_EnterPublicKey]);
   end;
-  UpdatePath(ptReplaceAllNext, [TWIZEnlistAccountForSale_List,
-    TWIZEnlistAccountForSale_Confirmation]);
+
 end;
 
 end.

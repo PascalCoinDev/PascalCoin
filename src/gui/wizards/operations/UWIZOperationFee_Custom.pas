@@ -38,6 +38,7 @@ type
 
 
 
+
   public
     procedure OnPresent; override;
     procedure OnNext; override;
@@ -75,8 +76,8 @@ end;
 
 procedure TWIZOperationFee_Custom.OnNext;
 begin
-  TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)),
-    Model.Fee.SingleOperationFee);
+  //TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)),
+  //  Model.Fee.SingleOperationFee);
   if Model.Payload.HasPayload then
     UpdatePath(ptInject, [TWIZOperationPayload_Encryption])
   else if Length(Model.Account.SelectedAccounts) > 1 then
@@ -91,6 +92,8 @@ end;
 function TWIZOperationFee_Custom.Validate(out message: ansistring): boolean;
 var
   opfee: int64;
+  i: integer;
+  acc: TAccount;
 begin
   Result := True;
 
@@ -101,11 +104,28 @@ begin
     Exit;
   end;
 
-  if (opfee = 0) and (Length(Model.Account.SelectedAccounts) > 1) then
+  Model.Fee.SingleOperationFee := opfee;
+
+   if Length(Model.Account.SelectedAccounts) > 1 then
   begin
-    message := 'zero fee only allowed for single operations.';
-    Result := False;
-    Exit;
+    if not (Model.Fee.SingleOperationFee > 0) then
+    begin
+      message := 'zero fee only allowed for single operations.';
+      Result := False;
+      Exit;
+    end;
+  end;
+
+
+  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
+  begin
+    acc := Model.Account.SelectedAccounts[i];
+    if acc.balance < Model.Fee.SingleOperationFee then
+    begin
+      message := 'Insufficient funds for fees in one or more accounts';
+      Result := False;
+      Exit;
+    end;
   end;
 end;
 

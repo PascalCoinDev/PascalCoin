@@ -12,41 +12,17 @@ unit UWIZEnlistAccountForSale;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon, UWizard, UAccounts, LCLType;
+  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon, UWizard, UAccounts, UWIZModels, LCLType;
 
 type
 
-  { TWIZEnlistAccountForSaleModel }
-  TWIZAccountSaleMode = (akaPublicSale, akaPrivateSale);
-  TWIZPayloadEncryptionMode = (akaEncryptWithOldEC, akaEncryptWithEC,
-    akaEncryptWithPassword, akaNotEncrypt);
-
-  TWIZEnlistAccountForSaleModel = class(TComponent)
-  public
-    DefaultFee: int64;
-    NewPublicKey, Payload, EncryptionPassword: string;
-    SelectedIndex: integer;
-    SalePrice: int64;
-    NewOwnerPublicKey: TAccountKey;
-    LockedUntilBlock: cardinal;
-    EncodedPayload: TRawBytes;
-    SignerAccount, SellerAccount: TAccount;
-    SelectedAccounts: TArray<TAccount>;
-    PayloadEncryptionMode: TWIZPayloadEncryptionMode;
-    AccountSaleMode: TWIZAccountSaleMode;
-  end;
-
   { TWIZEnlistAccountForSaleWizard }
 
-  TWIZEnlistAccountForSaleWizard = class(TWizard<TWIZEnlistAccountForSaleModel>)
+  TWIZEnlistAccountForSaleWizard = class(TWizard<TWIZOperationsModel>)
   private
-    function UpdatePayload(const SenderAccount: TAccount;
-      var errors: string): boolean;
+    function UpdatePayload(const SenderAccount: TAccount; var errors: string): boolean;
     function UpdateOperationOptions(var errors: string): boolean;
-    function UpdateOpListForSale(const TargetAccount: TAccount;
-      var SalePrice: int64; var SellerAccount, SignerAccount: TAccount;
-      var NewOwnerPublicKey: TAccountKey; var LockedUntilBlock: cardinal;
-      var errors: ansistring): boolean;
+    function UpdateOpListForSale(const TargetAccount: TAccount; var SalePrice: int64; var SellerAccount, SignerAccount: TAccount; var NewOwnerPublicKey: TAccountKey; var LockedUntilBlock: cardinal; var errors: ansistring): boolean;
     procedure EnlistAccountForSale();
   public
     constructor Create(AOwner: TComponent); override;
@@ -66,13 +42,15 @@ uses
   UWallet,
   UECIES,
   UAES,
-  UWIZEnlistAccountForSale_Start,
+  UWIZEnlistAccountForSale_ConfirmAccount,
+  UWIZEnlistAccountForSale_SelectOption,
+  UWIZEnlistAccountForSale_EnterSeller,
+  UWIZEnlistAccountForSale_EnterSaleAmount,
   UWIZEnlistAccountForSale_Confirmation;
 
 { TWIZEnlistAccountForSaleWizard }
 
-function TWIZEnlistAccountForSaleWizard.UpdatePayload(const SenderAccount: TAccount;
-  var errors: string): boolean;
+function TWIZEnlistAccountForSaleWizard.UpdatePayload(const SenderAccount: TAccount; var errors: string): boolean;
 var
   valid: boolean;
   payload_encrypted, payload_u: string;
@@ -80,9 +58,9 @@ var
 begin
   valid := False;
   payload_encrypted := '';
-  Model.EncodedPayload := '';
+  Model.Payload.EncodedBytes := '';
   errors := 'Unknown error';
-  payload_u := Model.Payload;
+  payload_u := Model.Payload.Content;
 
   try
     if (payload_u = '') then
@@ -90,9 +68,9 @@ begin
       valid := True;
       Exit;
     end;
-    case Model.PayloadEncryptionMode of
+    case Model.Payload.Mode of
 
-      akaEncryptWithOldEC:
+      akaEncryptWithSender:
       begin
         // Use sender
         errors := 'Error encrypting';
@@ -101,11 +79,11 @@ begin
         valid := payload_encrypted <> '';
       end;
 
-      akaEncryptWithEC:
+      akaEncryptWithReceiver:
       begin
         errors := 'Public key: ' + 'Error encrypting';
 
-        account := Model.SignerAccount;
+        account := Model.Signer.SignerAccount;
         payload_encrypted := ECIESEncrypt(account.accountInfo.accountKey, payload_u);
         valid := payload_encrypted <> '';
       end;
@@ -113,7 +91,7 @@ begin
       akaEncryptWithPassword:
       begin
         payload_encrypted := TAESComp.EVP_Encrypt_AES256(
-          payload_u, Model.EncryptionPassword);
+          payload_u, Model.Payload.Password);
         valid := payload_encrypted <> '';
       end;
 
@@ -124,30 +102,24 @@ begin
       end
 
       else
-      begin
         raise Exception.Create('Invalid Encryption Selection');
-      end;
     end;
 
   finally
     if valid then
-    begin
       if length(payload_encrypted) > CT_MaxPayloadSize then
       begin
         valid := False;
         errors := 'Payload size is bigger than ' + IntToStr(CT_MaxPayloadSize) +
           ' (' + IntToStr(length(payload_encrypted)) + ')';
       end;
-
-    end;
-    Model.EncodedPayload := payload_encrypted;
+    Model.Payload.EncodedBytes := payload_encrypted;
     Result := valid;
   end;
 
 end;
 
-function TWIZEnlistAccountForSaleWizard.UpdateOperationOptions(
-  var errors: string): boolean;
+function TWIZEnlistAccountForSaleWizard.UpdateOperationOptions(var errors: string): boolean;
 var
   iAcc, iWallet: integer;
   sender_account, signer_account, seller_account: TAccount;
@@ -165,17 +137,15 @@ begin
     Exit;
   end;
 
-  if Length(Model.SelectedAccounts) = 0 then
+  if Length(Model.Account.SelectedAccounts) = 0 then
   begin
     errors := 'No sender account';
     Exit;
   end
   else
-  begin
-
-    for iAcc := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+    for iAcc := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
     begin
-      sender_account := Model.SelectedAccounts[iAcc];
+      sender_account := Model.Account.SelectedAccounts[iAcc];
       iWallet := TWallet.Keys.IndexOfAccountKey(sender_account.accountInfo.accountKey);
       if (iWallet < 0) then
       begin
@@ -188,30 +158,22 @@ begin
       if not assigned(wk.PrivateKey) then
       begin
         if wk.CryptedKey <> '' then
-        begin
-          // TODO: handle unlocking of encrypted wallet here
-          errors := 'Wallet is password protected. Need password';
-        end
+          errors := 'Wallet is password protected. Need password'// TODO: handle unlocking of encrypted wallet here
+
         else
-        begin
           errors := 'Only public key of account ' +
             TAccountComp.AccountNumberToAccountTxtNumber(sender_account.account) +
             ' found in wallet. You cannot operate with this account';
-        end;
         Exit;
       end;
     end;
-  end;
 
-  Result := UpdateOpListForSale(Model.SelectedAccounts[0], salePrice,
+  Result := UpdateOpListForSale(Model.Account.SelectedAccounts[0], salePrice,
     seller_account, signer_account, publicKey, auxC, errors);
   UpdatePayload(sender_account, e);
 end;
 
-function TWIZEnlistAccountForSaleWizard.UpdateOpListForSale(
-  const TargetAccount: TAccount; var SalePrice: int64;
-  var SellerAccount, SignerAccount: TAccount; var NewOwnerPublicKey: TAccountKey;
-  var LockedUntilBlock: cardinal; var errors: ansistring): boolean;
+function TWIZEnlistAccountForSaleWizard.UpdateOpListForSale(const TargetAccount: TAccount; var SalePrice: int64; var SellerAccount, SignerAccount: TAccount; var NewOwnerPublicKey: TAccountKey; var LockedUntilBlock: cardinal; var errors: ansistring): boolean;
 begin
   Result := False;
   SalePrice := 0;
@@ -226,21 +188,21 @@ begin
         TargetAccount.account) + ' is already enlisted for sale';
       Exit;
     end;
-    salePrice := Model.SalePrice;
+    salePrice := Model.EnlistAccountForSale.SalePrice;
 
-    SignerAccount := Model.SignerAccount;
+    SignerAccount := Model.Signer.SignerAccount;
 
-    if (Model.SellerAccount.account = TargetAccount.account) then
+    if (Model.EnlistAccountForSale.SellerAccount.account = TargetAccount.account) then
     begin
       errors := 'Seller account cannot be same account';
       exit;
     end;
 
-    SellerAccount := Model.SellerAccount;
-    if Model.AccountSaleMode = akaPrivateSale then
+    SellerAccount := Model.EnlistAccountForSale.SellerAccount;
+    if Model.EnlistAccountForSale.AccountSaleMode = akaPrivateSale then
     begin
 
-      NewOwnerPublicKey := Model.NewOwnerPublicKey;
+      NewOwnerPublicKey := Model.EnlistAccountForSale.NewOwnerPublicKey;
 
       if TAccountComp.EqualAccountKeys(NewOwnerPublicKey,
         TargetAccount.accountInfo.accountKey) then
@@ -248,7 +210,7 @@ begin
         errors := 'New public key for private sale is the same public key';
         Exit;
       end;
-      LockedUntilBlock := Model.LockedUntilBlock;
+      LockedUntilBlock := Model.EnlistAccountForSale.LockedUntilBlock;
       if LockedUntilBlock = 0 then
       begin
         errors := 'Insert locking block';
@@ -294,21 +256,17 @@ begin
     _signer_n_ops := 0;
     operationstxt := '';
     operation_to_string := '';
-    for iAcc := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+    for iAcc := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
     begin
       loop_start:
         op := nil;
-      account := Model.SelectedAccounts[iAcc];
+      account := Model.Account.SelectedAccounts[iAcc];
       if not UpdatePayload(account, errors) then
-      begin
         raise Exception.Create('Error encoding payload of sender account ' +
           TAccountComp.AccountNumberToAccountTxtNumber(account.account) + ': ' + errors);
-      end;
       i := TWallet.Keys.IndexOfAccountKey(account.accountInfo.accountKey);
       if i < 0 then
-      begin
         raise Exception.Create('Sender account private key not found in Wallet');
-      end;
 
       wk := TWallet.Keys.Key[i];
       dooperation := True;
@@ -320,32 +278,24 @@ begin
 
       if not UpdateOpListForSale(account, _salePrice, destAccount,
         signerAccount, _newOwnerPublicKey, _lockedUntil, errors) then
-      begin
         raise Exception.Create(errors);
-      end;
       // Special fee account:
       if signerAccount.balance > Model.Fee.DefaultFee then
         _fee := Model.Fee.DefaultFee
       else
         _fee := signerAccount.balance;
-      if Model.AccountSaleMode = akaPublicSale then
-      begin
+      if Model.EnlistAccountForSale.AccountSaleMode = akaPublicSale then
         op := TOpListAccountForSale.CreateListAccountForSale(
           signerAccount.account, signerAccount.n_operation + 1 + iAcc,
           account.account, _salePrice, _fee, destAccount.account,
-          CT_TECDSA_Public_Nul, 0, wk.PrivateKey, Model.EncodedPayload);
-      end
-      else if Model.AccountSaleMode = akaPrivateSale then
-      begin
+          CT_TECDSA_Public_Nul, 0, wk.PrivateKey, Model.Payload.EncodedBytes)
+      else if Model.EnlistAccountForSale.AccountSaleMode = akaPrivateSale then
         op := TOpListAccountForSale.CreateListAccountForSale(
           signerAccount.account, signerAccount.n_operation + 1 + iAcc,
           account.account, _salePrice, _fee, destAccount.account,
-          _newOwnerPublicKey, _lockedUntil, wk.PrivateKey, Model.EncodedPayload);
-      end
+          _newOwnerPublicKey, _lockedUntil, wk.PrivateKey, Model.Payload.EncodedBytes)
       else
-      begin
         raise Exception.Create('Invalid Sale type');
-      end;
 
       if Assigned(op) and (dooperation) then
       begin
@@ -360,41 +310,32 @@ begin
     if (ops.OperationsCount = 0) then
       raise Exception.Create('No valid operation to execute');
 
-    if (Length(Model.SelectedAccounts) > 1) then
+    if (Length(Model.Account.SelectedAccounts) > 1) then
     begin
       auxs := '';
       if Application.MessageBox(
-        PChar('Execute ' + IntToStr(Length(Model.SelectedAccounts)) +
+        PChar('Execute ' + IntToStr(Length(Model.Account.SelectedAccounts)) +
         ' operations?' + #10 + 'Operation: ' + operationstxt + #10 +
         auxs + 'Total fee: ' + TAccountComp.FormatMoney(_totalfee) +
         #10 + #10 + 'Note: This operation will be transmitted to the network!'),
         PChar(Application.Title), MB_YESNO + MB_ICONINFORMATION + MB_DEFBUTTON2) <>
         idYes then
-      begin
         Exit;
-      end;
     end
     else
-    begin
-      if Application.MessageBox(PChar('Execute this operation:' +
-        #10 + #10 + operation_to_string + #10 + #10 +
-        'Note: This operation will be transmitted to the network!'),
-        PChar(Application.Title), MB_YESNO + MB_ICONINFORMATION + MB_DEFBUTTON2) <>
-        idYes then
-      begin
-        Exit;
-      end;
-    end;
+    if Application.MessageBox(PChar('Execute this operation:' +
+      #10 + #10 + operation_to_string + #10 + #10 +
+      'Note: This operation will be transmitted to the network!'),
+      PChar(Application.Title), MB_YESNO + MB_ICONINFORMATION + MB_DEFBUTTON2) <>
+      idYes then
+      Exit;
     i := TNode.Node.AddOperations(nil, ops, nil, errors);
     if (i = ops.OperationsCount) then
     begin
       operationstxt := 'Successfully executed ' + IntToStr(i) +
         ' operations!' + #10 + #10 + operation_to_string;
       if i > 1 then
-      begin
-
-        ShowMessage(operationstxt);
-      end
+        ShowMessage(operationstxt)
       else
       begin
         Application.MessageBox(
@@ -413,9 +354,7 @@ begin
       ShowMessage(operationstxt);
     end
     else
-    begin
       raise Exception.Create(errors);
-    end;
 
 
   finally
@@ -426,8 +365,15 @@ end;
 
 constructor TWIZEnlistAccountForSaleWizard.Create(AOwner: TComponent);
 begin
-  inherited Create(AOwner, [TWIZEnlistAccountForSale_Start,
-    TWIZEnlistAccountForSale_Confirmation]);
+  inherited Create(AOwner,
+    [
+    TWIZEnlistAccountForSale_ConfirmAccount,
+    TWIZEnlistAccountForSale_SelectOption,
+    TWIZEnlistAccountForSale_EnterSeller,
+    TWIZEnlistAccountForSale_EnterSaleAmount,
+    TWIZEnlistAccountForSale_Confirmation
+    ]
+    );
   TitleText := 'Enlist Account';
   FinishText := 'Enlist Account';
 end;
@@ -442,8 +388,7 @@ begin
   Result := inherited DetermineHasPrevious;
 end;
 
-function TWIZEnlistAccountForSaleWizard.FinishRequested(
-  out message: ansistring): boolean;
+function TWIZEnlistAccountForSaleWizard.FinishRequested(out message: ansistring): boolean;
 begin
   // Execute the Enlist Account For Sale Action here
   try
@@ -458,8 +403,8 @@ begin
   end;
 end;
 
-function TWIZEnlistAccountForSaleWizard.CancelRequested(
-  out message: ansistring): boolean;
+function TWIZEnlistAccountForSaleWizard.CancelRequested(out message: ansistring): boolean;
+
 begin
   Result := True;
 end;

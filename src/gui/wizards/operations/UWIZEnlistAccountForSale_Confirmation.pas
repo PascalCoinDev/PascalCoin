@@ -13,13 +13,13 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UWIZEnlistAccountForSale;
+  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UWIZModels;
 
 type
 
   { TWIZEnlistAccountForSale_Confirmation }
 
-  TWIZEnlistAccountForSale_Confirmation = class(TWizardForm<TWIZEnlistAccountForSaleModel>)
+  TWIZEnlistAccountForSale_Confirmation = class(TWizardForm<TWIZOperationsModel>)
     GroupBox1: TGroupBox;
     Label1: TLabel;
     Label2: TLabel;
@@ -27,9 +27,10 @@ type
     lblSellerAcc: TLabel;
     paGrid: TPanel;
   private
-    FSendersGrid : TVisualGrid;
+    FEnlistAccountsGrid : TVisualGrid;
   public
     procedure OnPresent; override;
+    procedure OnNext; override;
   end;
 
 
@@ -37,7 +38,7 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, UDataSources, UCommon, UCommon.UI, Generics.Collections;
+uses UAccounts, UWallet, UUserInterface, UDataSources, UCommon, UCommon.UI, Generics.Collections;
 
 type
 
@@ -45,11 +46,11 @@ type
 
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
     private
-      FModel : TWIZEnlistAccountForSaleModel;
+      FModel : TWIZOperationsModel;
     protected
       function GetColumns : TDataColumns; override;
     public
-      property Model : TWIZEnlistAccountForSaleModel read FModel write FModel;
+      property Model : TWIZOperationsModel read FModel write FModel;
       procedure FetchAll(const AContainer : TList<TAccount>); override;
       function GetItemField(constref AItem: TAccount; const ABindingName : AnsiString) : Variant; override;
   end;
@@ -60,43 +61,50 @@ procedure TWIZEnlistAccountForSale_Confirmation.OnPresent;
 var
   data : TAccountSenderDataSource;
 begin
-  FSendersGrid := TVisualGrid.Create(Self);
-  FSendersGrid.CanSearch:= False;
-  FSendersGrid.SortMode := smMultiColumn;
-  FSendersGrid.FetchDataInThread := False;
-  FSendersGrid.AutoPageSize := True;
-  FSendersGrid.SelectionType := stNone;
-  FSendersGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
-  with FSendersGrid.AddColumn('Account') do begin
+  FEnlistAccountsGrid := TVisualGrid.Create(Self);
+  FEnlistAccountsGrid.CanSearch:= False;
+  FEnlistAccountsGrid.SortMode := smMultiColumn;
+  FEnlistAccountsGrid.FetchDataInThread := False;
+  FEnlistAccountsGrid.AutoPageSize := True;
+  FEnlistAccountsGrid.SelectionType := stNone;
+  FEnlistAccountsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
+  with FEnlistAccountsGrid.AddColumn('Account') do begin
     Binding := 'Account';
     Filters := SORTABLE_NUMERIC_FILTER;
     Width := 100;
     HeaderFontStyles := [fsBold];
     DataFontStyles := [fsBold];
   end;
-   with FSendersGrid.AddColumn('Sale Price') do begin
+   with FEnlistAccountsGrid.AddColumn('Sale Price') do begin
     Binding := 'SalePrice';
     Filters := SORTABLE_NUMERIC_FILTER;
     Width := 100;
     Renderer := TCellRenderers.PASC;
   end;
-  // with FSendersGrid.AddColumn('New Public Key') do begin
-  //  Binding := 'NewPublicKey';
-  //  Filters := SORTABLE_TEXT_FILTER;
-  //  Width := 100;
-  //end;
-  with FSendersGrid.AddColumn('Fee') do begin
+
+  with FEnlistAccountsGrid.AddColumn('Fee') do begin
     Filters := SORTABLE_TEXT_FILTER;
     Width := 100;
   end;
 
-   data := TAccountSenderDataSource.Create(FSendersGrid);
+   data := TAccountSenderDataSource.Create(FEnlistAccountsGrid);
    data.Model := Model;
-   FSendersGrid.DataSource := data;
-   paGrid.AddControlDockCenter(FSendersGrid);
-   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SignerAccount.account);
-   lblSellerAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SellerAccount.account);
+   FEnlistAccountsGrid.DataSource := data;
+   paGrid.AddControlDockCenter(FEnlistAccountsGrid);
+   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
+   lblSellerAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.EnlistAccountForSale.SellerAccount.account);
 
+end;
+
+procedure TWIZEnlistAccountForSale_Confirmation.OnNext;
+var
+  locked: Boolean;
+begin
+  locked := (NOT TWallet.Keys.HasPassword) OR (NOT TWallet.Keys.IsValidPassword);
+  if locked then
+  begin
+    TUserInterface.UnlockWallet(Self);
+  end;
 end;
 
 { TAccountSenderDataSource }
@@ -106,7 +114,6 @@ begin
   Result := TDataColumns.Create(
     TDataColumn.From('Account'),
     TDataColumn.From('SalePrice'),
-    //TDataColumn.From('NewPublicKey'),
     TDataColumn.From('Fee')
   );
 end;
@@ -118,11 +125,9 @@ begin
    if ABindingName = 'Account' then
      Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account)
    else if ABindingName = 'SalePrice' then
-     Result := TAccountComp.FormatMoney(Model.SalePrice)
-   //else if ABindingName = 'NewPublicKey' then
-   //  Result := Model.NewPublicKey
+     Result := TAccountComp.FormatMoney(Model.EnlistAccountForSale.SalePrice)
      else if ABindingName = 'Fee' then
-     Result := TAccountComp.FormatMoney(Model.Fee.DefaultFee)
+     Result := TAccountComp.FormatMoney(Model.Fee.SingleOperationFee)
    else raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
 end;
 
@@ -131,9 +136,9 @@ procedure TAccountSenderDataSource.FetchAll(const AContainer : TList<TAccount>);
 var
   i: Integer;
 begin
-  for i := Low(Model.SelectedAccounts) to High(Model.SelectedAccounts) do
+  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
   begin
-    AContainer.Add( Model.SelectedAccounts[i] );
+    AContainer.Add( Model.Account.SelectedAccounts[i] );
   end;
 end;
 
