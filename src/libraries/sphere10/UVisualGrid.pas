@@ -397,6 +397,7 @@ uses
     property Options: TVisualGridOptions read FOptions write SetOptions;
     property Canvas: TCanvas read GetCanvas;
     property SelectionType: TSelectionType read FSelectionType write SetSelectionType;
+    // IMPORTANT: set DeselectionType before SelectionType to avoid auto-selected first row
     property DeselectionType: TDeselectionType read FDeselectionType write SetDeselectionType;
     property Selection: TVisualGridSelection read GetSelection;
     property SelectedRows : TArray<Variant> read GetSelectedRows;
