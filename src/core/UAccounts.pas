@@ -212,6 +212,7 @@ Type
     Constructor Create(AccountList : TPCSafeBox; AutoAddAll : Boolean);
     Destructor Destroy; override;
     Procedure AddAccountKey(Const AccountKey : TAccountKey);
+    Procedure AddAccountKeys(Const AccountKeys : array of TAccountKey);
     Procedure RemoveAccountKey(Const AccountKey : TAccountKey);
     Procedure AddAccounts(Const AccountKey : TAccountKey; const accounts : Array of Cardinal);
     Procedure RemoveAccounts(Const AccountKey : TAccountKey; const accounts : Array of Cardinal);
@@ -4392,6 +4393,13 @@ begin
   finally
     Unlock;
   end;
+end;
+
+Procedure TOrderedAccountKeysList.AddAccountKeys(Const AccountKeys : array of TAccountKey);
+var i : integer;
+begin
+  for i := Low(AccountKeys) to High(AccountKeys) do
+    AddAccountKey(AccountKeys[i]);
 end;
 
 procedure TOrderedAccountKeysList.AddAccounts(const AccountKey: TAccountKey; const accounts: array of Cardinal);
