@@ -21,6 +21,23 @@ uses
 
 type
 
+{ TAccountComparer }
+
+TAccountComparer = class (TComparer<TAccount>)
+  function Compare(constref ALeft, ARight: T): Integer; override;
+  class function DoCompare(constref ALeft, ARight : TAccount) : Integer; inline;
+end;
+
+{ TAccountEqualityComparer }
+
+TAccountEqualityComparer = class(TEqualityComparer<TAccount>)
+  public
+    function Equals(constref ALeft, ARight: TAccount): Boolean; override;
+    function GetHashCode(constref AValue: TAccount): UInt32; override;
+    class function AreEqual(constref ALeft, ARight: TAccount): Boolean;
+    class function CalcHashCode(constref AValue: TAccount): UInt32;
+end;
+
 { TAccountKeyComparer }
 
 TAccountKeyComparer = class (TComparer<TAccountKey>)
@@ -145,7 +162,7 @@ var
 begin
   AKeysResult := GetUserSummary([AKey], FetchAccounts);
   if Length(AKeysResult.Items) = 0 then begin
-    Result := TKeySummary_Nil;
+    Result := CT_KeySummary_Nil;
     exit;
   end;
   Result := AKeysResult.Items[0];
@@ -169,7 +186,7 @@ type
 var
   i,j : integer;
   LAcc : TAccount;
-  LAccs : THashSet<TAccount>;
+  LAccs : TSortedHashSet<TAccount>;
   LKey : TAccountKey;
   LValue : __TList_TAccount;
   safeBox : TPCSafeBox;
@@ -178,7 +195,7 @@ var
   LPair : __TPair_TAccountKey_TList_TAccount;
 begin
   // Setup local dictionary key -> account[]
-  LAccs := GC.AddObject( THashSet<TAccount>.Create ) as THashSet<TAccount>;
+  LAccs := GC.AddObject( TSortedHashSet<TAccount>.Create( TAccountComparer.Create, TAccountEqualityComparer.Create ) ) as TSortedHashSet<TAccount>;
   LKeys := GC.AddObject( __TObjectDictionary_TAccountKey_TList_TAccount.Create([doOwnsValues], TAccountKeyEqualityComparer.Create )) as __TObjectDictionary_TAccountKey_TList_TAccount;
 
   if UseFilter then begin
@@ -220,12 +237,52 @@ begin
     end;
     Inc(i);
   end;
+  Result := CT_UserSummary_Nil;
   Result.Keys := TArrayTool<TAccountKey>.Copy(AFilterKeys);
-  Result.Accounts := LAccs.ToArray;
-  for i := Low(Result.Items) to High(Result.Items) do begin
-    Inc(Result.TotalPASA, Result.Items[i].TotalPASA);
-    Inc(Result.TotalPASC, Result.Items[i].TotalPASC);
-  end;
+  if FetchAccounts then
+    Result.Accounts := LAccs.ToArray;
+  Result.TotalPASA := LAccs.Count;
+  for LAcc in LAccs do
+    Inc(Result.TotalPASC, LAcc.Balance);
+end;
+
+{ TAccountComparer }
+
+function TAccountComparer.Compare(constref ALeft, ARight: TAccount): Integer;
+begin
+  Result := TAccountComparer.DoCompare(ALeft, ARight);
+end;
+
+class function TAccountComparer.DoCompare(constref ALeft, ARight : TAccount) : Integer;
+begin
+  Result := TCompare.UInt64(ALeft.account, ARight.account);
+end;
+
+{ TAccountEqualityComparer }
+
+function TAccountEqualityComparer.Equals(constref ALeft, ARight: TAccount): Boolean;
+begin
+  Result := TAccountEqualityComparer.AreEqual(ALeft, ARight);
+end;
+
+function TAccountEqualityComparer.GetHashCode(constref AValue: TAccount): UInt32;
+begin
+  Result := TAccountEqualityComparer.CalcHashCode(AValue);
+end;
+
+class function TAccountEqualityComparer.AreEqual(constref ALeft, ARight: TAccount): Boolean;
+begin
+  Result :=
+    (ALeft.account = ARight.account) AND
+    (ALeft.balance = ARight.balance) AND
+    (ALeft.updated_block = ARight.updated_block) AND
+    (ALeft.n_operation = ARight.n_operation) AND
+    TAccountKeyEqualityComparer.AreEqual(ALeft.accountInfo.accountKey, ARight.accountInfo.accountKey);
+end;
+
+class function TAccountEqualityComparer.CalcHashCode(constref AValue: TAccount): UInt32;
+begin
+  Result := AValue.account;
 end;
 
 { TAccountKeyComparer }

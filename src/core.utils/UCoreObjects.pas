@@ -43,14 +43,14 @@ type
 
 
 const
-  TKeySummary_Nil : TKeySummary = (
+  CT_KeySummary_Nil : TKeySummary = (
     Key : (EC_OpenSSL_NID:0;x:'';y:'');
     TotalPASC : 0;
     TotalPASA : 0;
     Accounts : nil;
   );
 
-  TUserSummary_Nil : TUserSummary = (
+  CT_UserSummary_Nil : TUserSummary = (
     Keys : nil;
     Accounts : nil;
     TotalPASC : 0;
