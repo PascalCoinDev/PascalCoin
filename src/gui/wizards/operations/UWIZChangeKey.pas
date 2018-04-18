@@ -46,6 +46,7 @@ uses
   UECIES,
   UAES,
   UWIZChangeKey_ConfirmAccount,
+  UWIZChangeKey_SelectOption,
   UWIZChangeKey_Confirmation;
 
 { TWIZChangeKeyWizard }
@@ -85,14 +86,10 @@ begin
 
         case Model.ChangeKey.ChangeKeyMode of
           akaTransferAccountOwnership:
-          begin
             public_key := Model.TransferAccount.AccountKey;
-          end;
 
           akaChangeAccountPrivateKey:
-          begin
             public_key := Model.ChangeAccountPrivateKey.NewWalletKey.AccountKey;
-          end;
 
         end;
 
@@ -126,22 +123,17 @@ begin
       end
 
       else
-      begin
         raise Exception.Create('Invalid Encryption Selection');
-      end;
     end;
 
   finally
     if valid then
-    begin
       if length(payload_encrypted) > CT_MaxPayloadSize then
       begin
         valid := False;
         errors := 'Payload size is bigger than ' + IntToStr(CT_MaxPayloadSize) +
           ' (' + IntToStr(length(payload_encrypted)) + ')';
       end;
-
-    end;
     Model.Payload.EncodedBytes := payload_encrypted;
     Result := valid;
   end;
@@ -171,8 +163,6 @@ begin
     Exit;
   end
   else
-  begin
-
     for iAcc := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
     begin
       sender_account := Model.Account.SelectedAccounts[iAcc];
@@ -188,20 +178,15 @@ begin
       if not assigned(wk.PrivateKey) then
       begin
         if wk.CryptedKey <> '' then
-        begin
-          // TODO: handle unlocking of encrypted wallet here
-          errors := 'Wallet is password protected. Need password';
-        end
+          errors := 'Wallet is password protected. Need password'// TODO: handle unlocking of encrypted wallet here
+
         else
-        begin
           errors := 'Only public key of account ' +
             TAccountComp.AccountNumberToAccountTxtNumber(sender_account.account) +
             ' found in wallet. You cannot operate with this account';
-        end;
         Exit;
       end;
     end;
-  end;
 
   Result := UpdateOpChangeKey(Model.Account.SelectedAccounts[0], signer_account,
     publicKey, errors);
@@ -217,14 +202,10 @@ begin
 
     case Model.ChangeKey.ChangeKeyMode of
       akaTransferAccountOwnership:
-      begin
         NewPublicKey := Model.TransferAccount.AccountKey;
-      end;
 
       akaChangeAccountPrivateKey:
-      begin
         NewPublicKey := Model.ChangeAccountPrivateKey.NewWalletKey.AccountKey;
-      end;
 
     end;
 
@@ -250,9 +231,7 @@ begin
       end;
     end
     else
-    begin
       SignerAccount := TargetAccount;
-    end;
 
     if (TAccountComp.EqualAccountKeys(TargetAccount.accountInfo.accountKey,
       NewPublicKey)) then
@@ -301,15 +280,11 @@ begin
         op := nil;
       account := Model.Account.SelectedAccounts[iAcc];
       if not UpdatePayload(account, errors) then
-      begin
         raise Exception.Create('Error encoding payload of sender account ' +
           TAccountComp.AccountNumberToAccountTxtNumber(account.account) + ': ' + errors);
-      end;
       i := TWallet.Keys.IndexOfAccountKey(account.accountInfo.accountKey);
       if i < 0 then
-      begin
         raise Exception.Create('Sender account private key not found in Wallet');
-      end;
 
       wk := TWallet.Keys.Key[i];
       dooperation := True;
@@ -320,9 +295,7 @@ begin
         _fee := account.balance;
 
       if not UpdateOpChangeKey(account, signerAccount, _newOwnerPublicKey, errors) then
-      begin
         raise Exception.Create(errors);
-      end;
       if _V2 then
       begin
         // must ensure is Signer account last if included in sender accounts (not necessarily ordered enumeration)
@@ -350,10 +323,8 @@ begin
         Inc(_totalSignerFee, _fee);
       end
       else
-      begin
         op := TOpChangeKey.Create(account.account, account.n_operation +
           1, account.account, wk.PrivateKey, _newOwnerPublicKey, _fee, Model.Payload.EncodedBytes);
-      end;
       Inc(_totalfee, _fee);
       operationstxt :=
         'Change private key to ' + TAccountComp.GetECInfoTxt(
@@ -382,30 +353,21 @@ begin
         #10 + #10 + 'Note: This operation will be transmitted to the network!'),
         PChar(Application.Title), MB_YESNO + MB_ICONINFORMATION + MB_DEFBUTTON2) <>
         idYes then
-      begin
         Exit;
-      end;
     end
     else
-    begin
-      if Application.MessageBox(PChar('Execute this operation:' + #10 +
-        #10 + operation_to_string + #10 + #10 +
-        'Note: This operation will be transmitted to the network!'),
-        PChar(Application.Title), MB_YESNO + MB_ICONINFORMATION + MB_DEFBUTTON2) <> idYes then
-      begin
-        Exit;
-      end;
-    end;
+    if Application.MessageBox(PChar('Execute this operation:' + #10 +
+      #10 + operation_to_string + #10 + #10 +
+      'Note: This operation will be transmitted to the network!'),
+      PChar(Application.Title), MB_YESNO + MB_ICONINFORMATION + MB_DEFBUTTON2) <> idYes then
+      Exit;
     i := TNode.Node.AddOperations(nil, ops, nil, errors);
     if (i = ops.OperationsCount) then
     begin
       operationstxt := 'Successfully executed ' + IntToStr(i) +
         ' operations!' + #10 + #10 + operation_to_string;
       if i > 1 then
-      begin
-
-        ShowMessage(operationstxt);
-      end
+        ShowMessage(operationstxt)
       else
       begin
         Application.MessageBox(
@@ -424,9 +386,7 @@ begin
       ShowMessage(operationstxt);
     end
     else
-    begin
       raise Exception.Create(errors);
-    end;
 
 
   finally
@@ -437,8 +397,13 @@ end;
 
 constructor TWIZChangeKeyWizard.Create(AOwner: TComponent);
 begin
-  inherited Create(AOwner, [TWIZChangeKey_ConfirmAccount,
-    TWIZChangeKey_Confirmation]);
+  inherited Create(AOwner,
+    [
+    TWIZChangeKey_ConfirmAccount,
+    TWIZChangeKey_SelectOption,
+    TWIZChangeKey_Confirmation
+    ]
+    );
   TitleText := 'Change Key';
   FinishText := 'Change Key';
 end;

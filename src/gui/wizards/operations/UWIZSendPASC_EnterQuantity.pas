@@ -18,8 +18,8 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZOperationFee_Custom, UWIZOperationPayload_Encryption, UWIZOperationSigner_Select,
-  UWIZSendPASC_Confirmation, UWIZModels;
+  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZOperationFee_Custom, UWIZOperationPayload_Encryption,
+  UWIZOperationSigner_Select, UWIZModels;
 
 type
 
@@ -95,20 +95,20 @@ var
 begin
   Model.Payload.HasPayload := chkAttachPayload.Checked;
   if chkallfunds.Checked then
-    Model.SendPASC.SingleAmountToSend := 0// all balance
+    Model.SendPASC.SingleAmountToSend := 0 // all balance
 
   else
     TAccountComp.TxtToMoney(edtAmt.Text, Model.SendPASC.SingleAmountToSend);
 
   if chkChooseFee.Checked then
-    UpdatePath(ptReplaceAllNext, [TWIZOperationFee_Custom, TWIZSendPASC_Confirmation])
+    UpdatePath(ptInject, [TWIZOperationFee_Custom])
   else
   begin
     Model.Fee.SingleOperationFee := TSettings.DefaultFee;
     if Model.Payload.HasPayload then
-      UpdatePath(ptReplaceAllNext, [TWIZOperationPayload_Encryption, TWIZSendPASC_Confirmation])
+      UpdatePath(ptInject, [TWIZOperationPayload_Encryption])
     else if Length(Model.Account.SelectedAccounts) > 1 then
-      UpdatePath(ptReplaceAllNext, [TWIZOperationSigner_Select, TWIZSendPASC_Confirmation])
+      UpdatePath(ptInject, [TWIZOperationSigner_Select])
     else
     begin
       Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];

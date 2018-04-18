@@ -18,8 +18,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_EnterQuantity,
-  UWIZSendPASC_Confirmation, UWIZModels;
+  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_EnterQuantity, UWIZModels;
 
 type
 
@@ -37,6 +36,7 @@ type
     procedure btnSearchClick(Sender: TObject);
     procedure edtDestAccChange(Sender: TObject);
     procedure UpdateUI();
+
 
 
   public
@@ -63,7 +63,7 @@ end;
 procedure TWIZSendPASC_EnterRecipient.UpdateUI();
 var
   tempAcc: TAccount;
-  c: Cardinal;
+  c: cardinal;
 begin
   if TAccountComp.AccountTxtNumberToAccountNumber(edtDestAcc.Text, c) then
   begin
@@ -106,9 +106,7 @@ begin
       F.DefaultAccount := c;
     F.AllowSelect := True;
     if F.ShowModal = mrOk then
-    begin
       edtDestAcc.Text := TAccountComp.AccountNumberToAccountTxtNumber(F.GetSelected);
-    end;
   finally
     F.Free;
   end;
@@ -122,8 +120,8 @@ var
 begin
   TAccountComp.AccountTxtNumberToAccountNumber(edtDestAcc.Text, c);
   Model.SendPASC.DestinationAccount := TNode.Node.Operations.SafeBoxTransaction.account(c);
-  UpdatePath(ptReplaceAllNext, [TWIZSendPASC_EnterQuantity,
-    TWIZSendPASC_Confirmation]);
+  UpdatePath(ptInject, [TWIZSendPASC_EnterQuantity]);
+
 end;
 
 function TWIZSendPASC_EnterRecipient.Validate(out message: ansistring): boolean;

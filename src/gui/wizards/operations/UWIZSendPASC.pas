@@ -47,6 +47,7 @@ uses
   UAES,
   UWIZSendPASC_ConfirmSender,
   UWIZSendPASC_EnterRecipient,
+  UWIZSendPASC_EnterQuantity,
   UWIZSendPASC_Confirmation;
 
 { TWIZSendPASCWizard }
@@ -366,7 +367,14 @@ end;
 
 constructor TWIZSendPASCWizard.Create(AOwner: TComponent);
 begin
-  inherited Create(AOwner, [TWIZSendPASC_ConfirmSender, TWIZSendPASC_Confirmation]);
+  inherited Create(AOwner,
+    [
+    TWIZSendPASC_ConfirmSender,
+    TWIZSendPASC_EnterRecipient,
+    TWIZSendPASC_EnterQuantity,
+    TWIZSendPASC_Confirmation
+    ]
+    );
   TitleText := 'Send PASC';
   FinishText := 'Send PASC';
 end;
