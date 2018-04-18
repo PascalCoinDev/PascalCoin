@@ -557,7 +557,7 @@ begin
        for i := pageStart to pageEnd do begin
          ADataTable.Rows[j] := TDataRow.New(FClassID, ADataTable.Columns);
          DehydrateItem( data[i], ADataTable.Rows[j]);
-         inc(j)
+         inc(j);
        end;
      end;
   finally
@@ -1044,8 +1044,7 @@ begin
   AExpressionRecord.HasDecimals := LHasDecimals;
 end;
 
-class function TSearchExpressionService.Parse(const AExpression: utf8string
-  ): TExpressionRecord;
+class function TSearchExpressionService.Parse(const AExpression: utf8string): TExpressionRecord;
 begin
   Result.Kind := ekUnknown;
   Parse(AExpression, Result.Kind, Result);
@@ -1056,4 +1055,5 @@ initialization
 
 finalization
   DataRowType.Free;
+
 end.
