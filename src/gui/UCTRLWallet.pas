@@ -109,7 +109,7 @@ var
 begin
   // event registrations
   FNodeNotifyEvents := TNodeNotifyEvents.Create(self);
-  FNodeNotifyEvents.WatchKeys := AutoDispose( TOrderedAccountKeysList.Create(TUserInterface.Node.Bank.SafeBox, false) ) as TOrderedAccountKeysList;
+  FNodeNotifyEvents.WatchKeys := TWallet.Keys.AccountsKeyList;
   FNodeNotifyEvents.OnKeyActivity:= OnUserAccountsChanged;
   FNodeNotifyEvents.OnBlocksChanged := OnNodeBlocksChanged;
   FNodeNotifyEvents.OnOperationsChanged := OnNodeNewOperation;
