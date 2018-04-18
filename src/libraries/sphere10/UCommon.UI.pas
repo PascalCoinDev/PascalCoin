@@ -17,7 +17,9 @@ unit UCommon.UI;
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls,ExtCtrls,  FGL, Graphics, Generics.Collections, Generics.Defaults, syncobjs;
+  Classes, SysUtils, Forms, Controls,ExtCtrls,
+  FGL, Graphics, Generics.Collections, Generics.Defaults, syncobjs,
+  UMemory;
 
 type
   TApplicationForm = class(TForm)
@@ -26,6 +28,7 @@ type
       FActivateFirstTime : TNotifyEvent;
       FDestroyed : TNotifyEvent;
       FCloseAction : TCloseAction;
+      FDisposables : TDisposables;
       procedure NotifyActivateFirstTime;
       procedure NotifyDestroyed;
     protected
@@ -42,6 +45,7 @@ type
       property OnDestroyed : TNotifyEvent read FDestroyed write FDestroyed;
     public
       property ActivationCount : UInt32 read FActivatedCount;
+      function AutoDispose(AObject : TObject) : TObject;
   end;
 
   { TWinControlHelper }
@@ -102,6 +106,11 @@ end;
 
 procedure TApplicationForm.DoDestroyed;
 begin;
+end;
+
+function TApplicationform.AutoDispose(AObject : TObject) : TObject;
+begin
+  Result := FDisposables.AddObject(AObject);
 end;
 
 procedure TApplicationForm.NotifyActivateFirstTime;
