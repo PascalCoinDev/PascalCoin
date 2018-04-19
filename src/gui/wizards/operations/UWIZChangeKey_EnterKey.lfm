@@ -30,18 +30,18 @@ object WIZChangeKey_EnterKey: TWIZChangeKey_EnterKey
       Left = 8
       Height = 19
       Top = 160
-      Width = 226
+      Width = 203
       Anchors = [akLeft, akBottom]
-      Caption = 'Let me choose fee''s for this transaction'
+      Caption = 'Use custom fee''s for this operation'
       TabOrder = 0
     end
     object chkAttachPayload: TCheckBox
       Left = 8
       Height = 19
       Top = 192
-      Width = 303
+      Width = 258
       Anchors = [akLeft, akBottom]
-      Caption = 'I want to attach a message payload to this transaction'
+      Caption = 'Attach a message/payload to this transaction'
       TabOrder = 1
     end
     object mmoNewPrivateKey: TMemo
