@@ -7,6 +7,7 @@ object WIZChangeKey_SelectKey: TWIZChangeKey_SelectKey
   Caption = 'WIZChangeKey_SelectKey'
   ClientHeight = 253
   ClientWidth = 429
+  LCLVersion = '1.8.2.0'
   Visible = False
   object gbNewPrivateKey: TGroupBox
     Left = 16

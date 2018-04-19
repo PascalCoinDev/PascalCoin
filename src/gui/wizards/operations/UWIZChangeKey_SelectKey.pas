@@ -18,8 +18,8 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard,
-  UWIZChangeKey_Confirmation, UWIZOperationFee_Custom, UWIZOperationSigner_Select, UWIZOperationPayload_Encryption, UWIZModels;
+  UFRMAccountSelect, UNode, UWizard, UWIZOperationFee_Custom, UWIZOperationSigner_Select, UWIZOperationPayload_Encryption,
+  UWIZModels;
 
 type
 
@@ -119,27 +119,16 @@ begin
   Model.ChangeAccountPrivateKey.SelectedIndex := cbNewPrivateKey.ItemIndex;
   Model.ChangeAccountPrivateKey.NewWalletKey := TWallet.Keys.Key[PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex])];
   Model.Payload.HasPayload := chkAttachPayload.Checked;
-  //
-  //if chkChooseFee.Checked then
-  //  UpdatePath(ptReplaceAllNext, [TWIZOperationFee_Custom, TWIZChangeKey_Confirmation])
-  //else
-  //begin
-  //  Model.Fee.SingleOperationFee := TSettings.DefaultFee;
-  //  if Model.Payload.HasPayload then
-  //    UpdatePath(ptReplaceAllNext, [TWIZOperationPayload_Encryption, TWIZChangeKey_Confirmation])
-  //  else
-  //    UpdatePath(ptReplaceAllNext, [TWIZOperationSigner_Select, TWIZChangeKey_Confirmation]);
-  //end;
 
   if chkChooseFee.Checked then
-    UpdatePath(ptReplaceAllNext, [TWIZOperationFee_Custom, TWIZChangeKey_Confirmation])
+    UpdatePath(ptInject, [TWIZOperationFee_Custom])
   else
   begin
     Model.Fee.SingleOperationFee := TSettings.DefaultFee;
     if Model.Payload.HasPayload then
-      UpdatePath(ptReplaceAllNext, [TWIZOperationPayload_Encryption, TWIZChangeKey_Confirmation])
+      UpdatePath(ptInject, [TWIZOperationPayload_Encryption])
     else if Length(Model.Account.SelectedAccounts) > 1 then
-      UpdatePath(ptReplaceAllNext, [TWIZOperationSigner_Select, TWIZChangeKey_Confirmation])
+      UpdatePath(ptInject, [TWIZOperationSigner_Select])
     else
     begin
       Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];

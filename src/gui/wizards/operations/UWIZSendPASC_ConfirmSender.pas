@@ -17,7 +17,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, UVisualGrid, UCommon.Data, UCellRenderers,
-  UWizard, UWIZSendPASC, UWIZSendPASC_EnterRecipient, UWIZSendPASC_Confirmation, UWIZModels;
+  UWizard, UWIZSendPASC, UWIZSendPASC_EnterRecipient, UWIZModels;
 
 type
 
@@ -97,7 +97,7 @@ end;
 
 procedure TWIZSendPASC_ConfirmSender.OnNext;
 begin
-  UpdatePath(ptReplaceAllNext, [TWIZSendPASC_EnterRecipient, TWIZSendPASC_Confirmation]);
+  UpdatePath(ptInject, [TWIZSendPASC_EnterRecipient]);
 end;
 
 function TWIZSendPASC_ConfirmSender.Validate(out message: ansistring): boolean;

@@ -17,7 +17,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UWizard, UWIZChangeKey, UWIZModels, UWIZChangeKey_EnterKey, UWIZChangeKey_SelectKey, UWIZChangeKey_Confirmation;
+  ExtCtrls, UWizard, UWIZChangeKey, UWIZModels, UWIZChangeKey_EnterKey, UWIZChangeKey_SelectKey;
 
 type
 
@@ -49,14 +49,12 @@ begin
   if rbTransferAccountOwnership.Checked then
   begin
     Model.ChangeKey.ChangeKeyMode := akaTransferAccountOwnership;
-    UpdatePath(ptReplaceAllNext, [TWIZChangeKey_EnterKey,
-      TWIZChangeKey_Confirmation]);
+    UpdatePath(ptInject, [TWIZChangeKey_EnterKey]);
   end
   else if rbChangeAccountPrivateKey.Checked then
   begin
     Model.ChangeKey.ChangeKeyMode := akaChangeAccountPrivateKey;
-    UpdatePath(ptReplaceAllNext, [TWIZChangeKey_SelectKey,
-      TWIZChangeKey_Confirmation]);
+    UpdatePath(ptInject, [TWIZChangeKey_SelectKey]);
   end;
 end;
 

@@ -7,6 +7,7 @@ object WIZChangeKey_EnterKey: TWIZChangeKey_EnterKey
   Caption = 'ChangeKey_EnterKey'
   ClientHeight = 253
   ClientWidth = 429
+  LCLVersion = '1.8.2.0'
   Visible = False
   object gbNewPublicKey: TGroupBox
     Left = 16
