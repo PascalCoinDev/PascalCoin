@@ -44,11 +44,13 @@ Type
   TPCDaemonThread = Class(TPCThread)
   private
     FIniFile : TIniFile;
+    FMaxBlockToRead: Int64;
   protected
     Procedure BCExecute; override;
   public
     constructor Create;
     destructor Destroy; override;
+    property MaxBlockToRead : Int64 read FMaxBlockToRead write FMaxBlockToRead;
   end;
 
   { TPCDaemon }
@@ -205,7 +207,7 @@ begin
         FNode.Bank.StorageClass := TFileStorage;
         TFileStorage(FNode.Bank.Storage).DatabaseFolder := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data';
         // Reading database
-        FNode.InitSafeboxAndOperations;
+        FNode.InitSafeboxAndOperations(MaxBlockToRead);
         FWalletKeys.SafeBox := FNode.Node.Bank.SafeBox;
         FNode.Node.NetServer.Port:=FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_NODE_PORT,CT_NetServer_Port);
         FNode.Node.NetServer.MaxConnections:=FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_NODE_MAX_CONNECTIONS,CT_MaxClientsConnected);
@@ -248,6 +250,8 @@ begin
   end else begin
     FIniFile.WriteBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_SAVELOGS,false);
   end;
+  FMaxBlockToRead:=$FFFFFFFF;
+  TLog.NewLog(ltinfo,ClassName,'Create');
 end;
 
 destructor TPCDaemonThread.Destroy;
@@ -271,6 +275,10 @@ begin
   FThread:=TPCDaemonThread.Create;
   FThread.OnTerminate:=@ThreadStopped;
   FThread.FreeOnTerminate:=False;
+  if (Application.HasOption('b','block')) then begin
+    FThread.MaxBlockToRead:=StrToInt64Def(Application.GetOptionValue('b','block'),$FFFFFFFF);
+    TLog.NewLog(ltinfo,ClassName,'Max block to read: '+IntToStr(FThread.MaxBlockToRead));
+  end;
   FThread.Resume;
 end;
 

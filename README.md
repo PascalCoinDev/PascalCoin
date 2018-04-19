@@ -167,11 +167,23 @@ Also, consider a donation at PascalCoin development account: "0-10"
       - "operations" : Integer
       - "amount" : PASCURRENCY
       - "fee" : PASCURRENCY  
+- Daemon:
+  - Allow to force max block read from Blockchain when started using "-b MAX_BLOCK_NUMBER" param. Example "nohup ./pascalcoin_daemon -r -b 12345 &"
 - Protections against invalid nodes (scammers):
   - Protection on GetBlocks and GetBlockOperations
 - Merged new GUI with current stable core
 - New folders organization
 - Bugs solved
+
+### Build 2.1.9 - 2018-04-16
+- Searchs last valid block found on corrupted BlockChainStream.blocks file and allows to continue from last valid one. On prior versions, app halted and needed manually file deletion
+
+### Build 2.1.8 - 2018-04-16
+- Solved bug that can cause to corrupt BlockChainStream.blocks file when detecting an orphan block and creating new BlockHeaders row (every 1000 blocks). Very rare bug, but fatal error
+
+### Build 2.1.7 - 2018-04-10
+- Remove use of TPCOperation.FSignatureChecked introduced on 2.1.6 because is not 100% secure
+- Minor bugs
 
 ### Build 2.1.6 - 2018-02-14
 - Important improvements
