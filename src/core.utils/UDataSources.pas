@@ -111,9 +111,11 @@ begin
   if ABindingName = 'AccountNumber' then
     Result := AItem.account
   else if ABindingName = 'Account' then
-    Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account)
+    Result := AItem.AccountString
   else if ABindingName = 'Name' then
     Result := AItem.name
+  else if ABindingName = 'Display' then
+    Result := AItem.DisplayString
   else if ABindingName = 'Balance' then
     Result := AItem.Balance
   else if ABindingName = 'BalanceDecimal' then

@@ -84,7 +84,10 @@ end;
 
 TAccountHelper = record helper for TAccount
   function GetAccountString : AnsiString;
+  function GetDisplayString : AnsiString;
   function GetInfoText(const ABank : TPCBank) : utf8string;
+  property AccountString : AnsiString read GetAccountString;
+  property DisplayString : AnsiString read GetDisplayString;
 end;
 
 { TOperationResumeHelper }
@@ -326,6 +329,13 @@ end;
 function TAccountHelper.GetAccountString : AnsiString;
 begin
   Result := TAccountComp.AccountNumberToAccountTxtNumber(Self.account);
+end;
+
+function TAccountHelper.GetDisplayString : AnsiString;
+begin
+  Result := GetAccountString;
+  if Self.name <> '' then
+    Result := Result + ': ' + Self.name;
 end;
 
 function TAccountHelper.GetInfoText(const ABank : TPCBank) : utf8string;

@@ -44,7 +44,7 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, UWallet, UUserInterface, UDataSources, UCommon, UCommon.UI, Generics.Collections;
+uses UAccounts, UWallet, UUserInterface, UDataSources, UCommon, UCommon.UI, Generics.Collections, UCoreUtils;
 
 type
 
@@ -137,7 +137,7 @@ var
   index: integer;
 begin
   if ABindingName = 'SenderAccount' then
-    Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account)
+    Result := AItem.DisplayString
   else if ABindingName = 'Balance' then
     Result := TAccountComp.FormatMoney(AItem.Balance)
   else if ABindingName = 'AmountToSend' then
