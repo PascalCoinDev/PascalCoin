@@ -7,17 +7,16 @@ object WIZChangeKey_SelectKey: TWIZChangeKey_SelectKey
   Caption = 'WIZChangeKey_SelectKey'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
   object gbNewPrivateKey: TGroupBox
-    Left = 16
-    Height = 232
-    Top = 8
-    Width = 400
+    Left = 4
+    Height = 244
+    Top = 4
+    Width = 420
     Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'New Private Key'
-    ClientHeight = 212
-    ClientWidth = 396
+    ClientHeight = 224
+    ClientWidth = 416
     TabOrder = 0
     object lblPrivateKeyNote: TLabel
       Left = 8
@@ -31,17 +30,20 @@ object WIZChangeKey_SelectKey: TWIZChangeKey_SelectKey
       Left = 8
       Height = 23
       Top = 40
-      Width = 168
+      Width = 240
+      Anchors = [akTop, akLeft, akRight]
       ItemHeight = 15
       OnChange = cbNewPrivateKeyChange
       TabOrder = 0
       Text = 'Select Private Key'
     end
     object lblKeyName: TLabel
-      Left = 192
+      Left = 256
       Height = 15
       Top = 45
-      Width = 128
+      Width = 152
+      Anchors = [akTop, akRight]
+      AutoSize = False
       Caption = 'Please Select Private Key'
       Font.Color = clRed
       ParentColor = False
@@ -51,16 +53,18 @@ object WIZChangeKey_SelectKey: TWIZChangeKey_SelectKey
       Left = 8
       Height = 19
       Top = 80
-      Width = 226
-      Caption = 'Let me choose fee''s for this transaction'
+      Width = 203
+      Anchors = [akLeft, akBottom]
+      Caption = 'Use custom fee''s for this operation'
       TabOrder = 1
     end
     object chkAttachPayload: TCheckBox
       Left = 8
       Height = 19
       Top = 112
-      Width = 303
-      Caption = 'I want to attach a message payload to this transaction'
+      Width = 258
+      Anchors = [akLeft, akBottom]
+      Caption = 'Attach a message/payload to this transaction'
       TabOrder = 2
     end
   end
