@@ -23,10 +23,8 @@ type
     GroupBox1: TGroupBox;
     Label1: TLabel;
     Label2: TLabel;
-    lblPayload: TLabel;
     lblSgnAcc: TLabel;
     lblSellerAcc: TLabel;
-    mmoPayload: TMemo;
     paGrid: TPanel;
   private
     FEnlistAccountsGrid : TVisualGrid;
@@ -40,7 +38,8 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, UWallet, UUserInterface, UDataSources, UCommon, UCommon.UI, Generics.Collections;
+uses UAccounts, UWallet, UUserInterface, UDataSources, UCommon, UCommon.UI,
+  Generics.Collections, UCoreUtils;
 
 type
 
@@ -80,7 +79,7 @@ begin
     DataFontStyles := [fsBold];
   end;
 
-   with FEnlistAccountsGrid.AddColumn('Sale Price') do begin
+  with FEnlistAccountsGrid.AddColumn('Sale Price') do begin
     Binding := 'SalePriceDecimal';
     SortBinding := 'SalePrice';
     DisplayBinding := 'SalePrice';
@@ -102,13 +101,12 @@ begin
     DataAlignment := taRightJustify;
   end;
 
-   data := TAccountSenderDataSource.Create(FEnlistAccountsGrid);
-   data.Model := Model;
-   FEnlistAccountsGrid.DataSource := data;
-   paGrid.AddControlDockCenter(FEnlistAccountsGrid);
-   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
-   lblSellerAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.EnlistAccountForSale.SellerAccount.account);
-   mmoPayload.Lines.Text := Model.Payload.Content;
+  data := TAccountSenderDataSource.Create(FEnlistAccountsGrid);
+  data.Model := Model;
+  FEnlistAccountsGrid.DataSource := data;
+  paGrid.AddControlDockCenter(FEnlistAccountsGrid);
+  lblSgnAcc.Caption := Model.Signer.SignerAccount.DisplayText;
+  lblSellerAcc.Caption := Model.EnlistAccountForSale.SellerAccount.DisplayText;
 end;
 
 procedure TWIZEnlistAccountForSale_Confirmation.OnNext;

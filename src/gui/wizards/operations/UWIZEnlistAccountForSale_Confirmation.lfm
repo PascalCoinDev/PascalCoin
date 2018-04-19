@@ -8,19 +8,19 @@ object WIZEnlistAccountForSale_Confirmation: TWIZEnlistAccountForSale_Confirmati
   ClientWidth = 511
   Visible = False
   object GroupBox1: TGroupBox
-    Left = 10
-    Height = 299
-    Top = 8
+    Left = 4
+    Height = 308
+    Top = 4
     Width = 490
     Anchors = [akTop, akLeft, akRight, akBottom]
-    Caption = 'Confirm Account Sale Transaction'
-    ClientHeight = 279
+    Caption = 'Confirm Sale'
+    ClientHeight = 288
     ClientWidth = 486
     TabOrder = 0
     object paGrid: TPanel
       Left = 8
-      Height = 123
-      Top = 48
+      Height = 120
+      Top = 56
       Width = 464
       Anchors = [akTop, akLeft, akRight, akBottom]
       BevelOuter = bvNone
@@ -30,15 +30,17 @@ object WIZEnlistAccountForSale_Confirmation: TWIZEnlistAccountForSale_Confirmati
     object Label1: TLabel
       Left = 8
       Height = 15
-      Top = 2
-      Width = 84
-      Caption = 'Signer Account:'
+      Top = 8
+      Width = 36
+      Caption = 'Signer'
+      Font.Style = [fsBold]
       ParentColor = False
+      ParentFont = False
     end
     object lblSgnAcc: TLabel
-      Left = 112
+      Left = 80
       Height = 15
-      Top = 2
+      Top = 8
       Width = 53
       Caption = 'lblSgnAcc'
       ParentColor = False
@@ -46,15 +48,17 @@ object WIZEnlistAccountForSale_Confirmation: TWIZEnlistAccountForSale_Confirmati
     object Label2: TLabel
       Left = 8
       Height = 15
-      Top = 24
-      Width = 79
-      Caption = 'Seller Account:'
+      Top = 32
+      Width = 32
+      Caption = 'Seller'
+      Font.Style = [fsBold]
       ParentColor = False
+      ParentFont = False
     end
     object lblSellerAcc: TLabel
-      Left = 112
+      Left = 80
       Height = 15
-      Top = 24
+      Top = 32
       Width = 61
       Caption = 'lblSellerAcc'
       ParentColor = False
@@ -62,16 +66,20 @@ object WIZEnlistAccountForSale_Confirmation: TWIZEnlistAccountForSale_Confirmati
     object lblPayload: TLabel
       Left = 8
       Height = 15
-      Top = 172
+      Top = 181
       Width = 42
+      Anchors = [akLeft, akBottom]
       Caption = 'Payload'
+      Font.Style = [fsBold]
       ParentColor = False
+      ParentFont = False
     end
     object mmoPayload: TMemo
       Left = 8
       Height = 82
-      Top = 192
-      Width = 464
+      Top = 201
+      Width = 472
+      Anchors = [akLeft, akRight, akBottom]
       Enabled = False
       ScrollBars = ssBoth
       TabOrder = 1
