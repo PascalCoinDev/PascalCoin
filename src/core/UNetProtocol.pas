@@ -2646,17 +2646,6 @@ begin
 
     DoDisconnect := false;
 
-    // Build 1.4
-    if b_start<TNode.Node.Bank.Storage.FirstBlock then begin
-      b_start := TNode.Node.Bank.Storage.FirstBlock;
-      if b_end<b_start then begin
-        errors := 'Block:'+inttostr(b_end)+' not found';
-        SendError(ntp_response,HeaderData.operation,HeaderData.request_id,CT_NetError_InternalServerError,errors);
-        exit;
-      end;
-    end;
-
-
     if (b_end>=TNode.Node.Bank.BlocksCount) then b_end := TNode.Node.Bank.BlocksCount-1;
     inc_b := ((b_end - b_start) DIV CT_Max_Positions)+1;
     msops := TMemoryStream.Create;

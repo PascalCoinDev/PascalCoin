@@ -862,7 +862,7 @@ begin
   If (block>=Bank.BlocksCount) then exit; // Invalid block number
   If (account>=Bank.AccountsCount) then exit; // Invalid account number
   If (n_operation_high<n_operation_low) then exit;
-  n_operation := Bank.SafeBox.Account(account).n_operation;
+  n_operation := Operations.SafeBoxTransaction.Account(account).n_operation;
   if (n_operation>n_operation_high) then n_operation := n_operation_high;
   If (block=0) then begin
     // Start searching on pending blocks
@@ -876,6 +876,7 @@ begin
             opr.Balance:=-1;
             OpResumeList.Add(opr);
             dec(n_operation);
+            Result := found;
             Exit;
           end;
         end;
