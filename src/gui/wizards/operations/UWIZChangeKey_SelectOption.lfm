@@ -7,17 +7,16 @@ object WIZChangeKey_SelectOption: TWIZChangeKey_SelectOption
   Caption = 'WIZChangeKey_SelectOption'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
   object gbChangeKeyOptions: TGroupBox
-    Left = 8
+    Left = 4
     Height = 245
-    Top = 2
-    Width = 410
+    Top = 4
+    Width = 420
     Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'Change Key Options'
     ClientHeight = 225
-    ClientWidth = 406
+    ClientWidth = 416
     TabOrder = 0
     object lblNote: TLabel
       Left = 8
@@ -31,17 +30,21 @@ object WIZChangeKey_SelectOption: TWIZChangeKey_SelectOption
       Left = 8
       Height = 19
       Top = 40
-      Width = 192
+      Width = 203
       Caption = 'Transfer account to another user'
       Checked = True
+      Font.Style = [fsBold]
+      ParentFont = False
       TabOrder = 1
       TabStop = True
     end
     object lblTransferAccountOwnership: TLabel
-      Left = 8
-      Height = 15
+      Left = 24
+      Height = 40
       Top = 72
-      Width = 351
+      Width = 385
+      Anchors = [akTop, akLeft, akRight]
+      AutoSize = False
       Caption = 'Use this to transfer ownership of the account to another user''s key.'
       ParentColor = False
     end
@@ -49,15 +52,19 @@ object WIZChangeKey_SelectOption: TWIZChangeKey_SelectOption
       Left = 8
       Height = 19
       Top = 120
-      Width = 207
+      Width = 216
       Caption = 'Change to another key in my wallet'
+      Font.Style = [fsBold]
+      ParentFont = False
       TabOrder = 0
     end
     object lblChangeAccountPrivateKey: TLabel
       Left = 8
-      Height = 15
+      Height = 56
       Top = 152
-      Width = 383
+      Width = 393
+      Anchors = [akTop, akLeft, akRight]
+      AutoSize = False
       Caption = 'This will change the key of your account to another key that you control.'
       ParentColor = False
     end
