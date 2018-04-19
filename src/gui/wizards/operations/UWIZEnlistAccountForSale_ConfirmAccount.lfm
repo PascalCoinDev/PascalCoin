@@ -1,27 +1,26 @@
 object WIZEnlistAccountForSale_ConfirmAccount: TWIZEnlistAccountForSale_ConfirmAccount
   Left = 0
-  Height = 253
+  Height = 274
   Top = 0
   Width = 429
   Caption = 'WIZEnlistAccountForSale_ConfirmAccount'
-  ClientHeight = 253
+  ClientHeight = 274
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
   object grpEnlistAccount: TGroupBox
-    Left = 6
-    Height = 248
-    Top = 0
+    Left = 4
+    Height = 266
+    Top = 4
     Width = 416
     Anchors = [akTop, akLeft, akRight, akBottom]
-    Caption = 'Enlisted Accounts For Sale'
-    ClientHeight = 228
+    Caption = 'Accounts To Sell'
+    ClientHeight = 246
     ClientWidth = 412
     TabOrder = 0
     object paGrid: TPanel
       Left = 6
-      Height = 192
-      Top = 24
+      Height = 226
+      Top = 8
       Width = 402
       Anchors = [akTop, akLeft, akRight, akBottom]
       BevelOuter = bvNone

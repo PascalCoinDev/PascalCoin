@@ -2,11 +2,14 @@ unit UWIZEnlistAccountForSale;
 
 {$mode delphi}
 
-{ Copyright (c) 2018 by Ugochukwu Mmaduekwe
+{ Copyright (c) 2018 Sphere 10 Software (http://www.sphere10.com/)
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
+  Acknowledgements:
+  Ugochukwu Mmaduekwe - main developer
+  Herman Schoenfeld - designer
 }
 
 interface
