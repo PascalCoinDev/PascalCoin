@@ -93,6 +93,7 @@ begin
     TDataColumn.From('AccountNumber', true),
     TDataColumn.From('Account'),
     TDataColumn.From('Name'),
+    TDataColumn.From('Display'),
     TDataColumn.From('Balance'),
     TDataColumn.From('BalanceDecimal'),
     TDataColumn.From('Key'),

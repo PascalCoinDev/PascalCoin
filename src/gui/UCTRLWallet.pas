@@ -203,7 +203,7 @@ begin
     DisplayBinding := 'Amount';
     Width := 150;
     HeaderAlignment := taRightJustify;
-    Renderer := TCellRenderers.PASC;
+    Renderer := TCellRenderers.PASC_CheckPendingBalance;
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
   with FOperationsGrid.AddColumn('Fee') do
@@ -214,7 +214,7 @@ begin
     AutoWidth := True;
     HeaderAlignment := taRightJustify;
     DataAlignment := taRightJustify;
-    Renderer := TCellRenderers.PASC;
+    Renderer := TCellRenderers.PASC_CheckPendingBalance;
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
   with FOperationsGrid.AddColumn('Balance') do
@@ -225,7 +225,7 @@ begin
     Width := 100;
     HeaderAlignment := taRightJustify;
     DataAlignment := taRightJustify;
-    Renderer := TCellRenderers.PASC;
+    Renderer := TCellRenderers.PASC_CheckPendingBalance;
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
   with FOperationsGrid.AddColumn('Payload') do

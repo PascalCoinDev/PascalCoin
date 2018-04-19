@@ -69,22 +69,35 @@ begin
   FEnlistAccountsGrid.SelectionType := stNone;
   FEnlistAccountsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
   with FEnlistAccountsGrid.AddColumn('Account') do begin
-    Binding := 'Account';
+    Binding := 'AccountNumber';
+    SortBinding := 'AccountNumber';
+    DisplayBinding := 'Display';
     Filters := SORTABLE_NUMERIC_FILTER;
-    Width := 100;
+    StretchedToFill := true;
     HeaderFontStyles := [fsBold];
     DataFontStyles := [fsBold];
   end;
+
    with FEnlistAccountsGrid.AddColumn('Sale Price') do begin
-    Binding := 'SalePrice';
+    Binding := 'SalePriceDecimal';
+    SortBinding := 'SalePrice';
+    DisplayBinding := 'SalePrice';
     Filters := SORTABLE_NUMERIC_FILTER;
     Width := 100;
     Renderer := TCellRenderers.PASC;
+    HeaderAlignment := taRightJustify;
+    DataAlignment := taRightJustify;
   end;
 
   with FEnlistAccountsGrid.AddColumn('Fee') do begin
-    Filters := SORTABLE_TEXT_FILTER;
-    Width := 100;
+    Binding := 'FeeDecimal';
+    SortBinding := 'Fee';
+    DisplayBinding := 'Fee';
+    Filters := SORTABLE_NUMERIC_FILTER;
+    Width := 50;
+    Renderer := TCellRenderers.PASC;
+    HeaderAlignment := taRightJustify;
+    DataAlignment := taRightJustify;
   end;
 
    data := TAccountSenderDataSource.Create(FEnlistAccountsGrid);
@@ -111,10 +124,15 @@ end;
 
 function TAccountSenderDataSource.GetColumns : TDataColumns;
 begin
-  Result := TDataColumns.Create(
-    TDataColumn.From('Account'),
-    TDataColumn.From('SalePrice'),
-    TDataColumn.From('Fee')
+  Result := TArrayTool<TDataColumn>.Concat([
+    Inherited,
+    // Additional columns
+    TDataColumns.Create(
+      TDataColumn.From('SalePrice'),
+      TDataColumn.From('SalePriceDecimal'),
+      TDataColumn.From('Fee'),
+      TDataColumn.From('FeeDecimal')
+    )]
   );
 end;
 
@@ -125,12 +143,15 @@ begin
    if ABindingName = 'Account' then
      Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account)
    else if ABindingName = 'SalePrice' then
-     Result := TAccountComp.FormatMoney(Model.EnlistAccountForSale.SalePrice)
-     else if ABindingName = 'Fee' then
-     Result := TAccountComp.FormatMoney(Model.Fee.SingleOperationFee)
-   else raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
+     Result := Model.EnlistAccountForSale.SalePrice
+   else if ABindingName = 'SalePriceDecimal' then
+     Result := TAccountComp.FormatMoneyDecimal(Model.EnlistAccountForSale.SalePrice)
+   else if ABindingName = 'Fee' then
+     Result := -Model.Fee.SingleOperationFee
+   else if ABindingName = 'FeeDecimal' then
+     Result := TAccountComp.FormatMoneyDecimal(-Model.Fee.SingleOperationFee)
+   else Result := Inherited GetItemField(AItem, ABindingName);
 end;
-
 
 procedure TAccountSenderDataSource.FetchAll(const AContainer : TList<TAccount>);
 var
@@ -142,6 +163,4 @@ begin
   end;
 end;
 
-
 end.
-

@@ -556,7 +556,7 @@ begin
        SetLength(ADataTable.Rows, pageEnd - pageStart + 1);
        for i := pageStart to pageEnd do begin
          ADataTable.Rows[j] := TDataRow.New(FClassID, ADataTable.Columns);
-         DehydrateItem( data[i], ADataTable.Rows[j]);
+         DehydrateItem(data[i], ADataTable.Rows[j]);
          inc(j);
        end;
      end;

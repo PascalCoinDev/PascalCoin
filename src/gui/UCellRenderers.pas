@@ -25,6 +25,8 @@ type
 
     // Cell Renderers
     class procedure OperationTime(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
+    class procedure PASC_CheckAllBalance(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
+    class procedure PASC_CheckPendingBalance (Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
     class procedure PASC(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
     class procedure Payload(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
     class procedure OPHASH(Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
@@ -86,6 +88,44 @@ begin
   Handled := true;
 end;
 
+class procedure TCellRenderers.PASC_CheckAllBalance (Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
+var
+  LValue : Int64;
+  LTextStyle: TTextStyle;
+  LRowData : TDataRowData;
+  LStr : AnsiString;
+  LAllBalance : boolean;
+begin
+  LRowData := TDataRowData(RowData);
+  if LRowData.HasData('AllBalance') AND TVariantTool.TryParseBool(LRowData['AllBalance'], LAllBalance) AND LAllBalance then begin
+    Canvas.Font.Style := [fsBold];
+    Canvas.TextRect(Rect, Rect.Left, Rect.Top, 'ALL BALANCE', Canvas.TextStyle);
+    Handled := true;
+    exit;
+  end else PASC(Sender, ACol, ARow, Canvas, Rect, State, CellData, RowData, Handled);
+end;
+
+class procedure TCellRenderers.PASC_CheckPendingBalance (Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
+var
+  LValue : Int64;
+  LTextStyle: TTextStyle;
+  LRowData : TDataRowData;
+  LStr : AnsiString;
+  LAllBalance : boolean;
+begin
+  if NOT TVariantTool.IsNumeric(CellData) then
+    exit;
+  LValue := CellData;
+  LRowData := TDataRowData(RowData);
+  if LRowData.HasData('UnixTime')  AND (LRowData['UnixTime'] = 0) then begin
+    Canvas.Font.Color := CT_PASCBALANCE_0CONF_COL;
+    LStr := '(' + TAccountComp.FormatMoney(LValue) + ')';
+    Canvas.TextRect(Rect, Rect.Left, Rect.Top, LStr, Canvas.TextStyle);
+    Handled := true;
+    exit;
+  end else PASC(Sender, ACol, ARow, Canvas, Rect, State, CellData, RowData, Handled);
+end;
+
 class procedure TCellRenderers.PASC (Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
 var
   LValue : Int64;
@@ -97,7 +137,6 @@ begin
     exit;
   LValue := CellData;
   LRowData := TDataRowData(RowData);
-
   if LRowData.HasData('UnixTime')  AND (LRowData['UnixTime'] = 0) then begin
     Canvas.Font.Color := CT_PASCBALANCE_0CONF_COL;
     LStr := '('+TAccountComp.FormatMoney(LValue)+')';

@@ -75,31 +75,39 @@ begin
 
   with FChangeKeyGrid.AddColumn('Account') do
   begin
+    StretchedToFill := true;
     Binding := 'Account';
+    SortBinding := 'AccountNumber';
+    DisplayBinding := 'Display';
     Filters := SORTABLE_NUMERIC_FILTER;
-    Width := 100;
     HeaderFontStyles := [fsBold];
     DataFontStyles := [fsBold];
   end;
 
   with FChangeKeyGrid.AddColumn('Current Key') do
   begin
-    Binding := 'CurrentKey';
+    Binding := 'Key';
     Filters := SORTABLE_TEXT_FILTER;
-    Width := 100;
+    Width := 130;
   end;
 
   with FChangeKeyGrid.AddColumn('New Key') do
   begin
     Binding := 'NewKey';
     Filters := SORTABLE_TEXT_FILTER;
-    Width := 100;
+    Width := 130;
   end;
 
   with FChangeKeyGrid.AddColumn('Fee') do
   begin
+    Binding := 'FeeDecimal';
+    SortBinding := 'Fee';
+    DisplayBinding := 'Fee';
     Filters := SORTABLE_TEXT_FILTER;
-    Width := 100;
+    Width := 50;
+    Renderer := TCellRenderers.PASC;
+    HeaderAlignment := taRightJustify;
+    DataAlignment := taRightJustify;
   end;
 
   Data := TAccountChangeKeyDataSource.Create(FChangeKeyGrid);
@@ -123,49 +131,38 @@ end;
 
 function TAccountChangeKeyDataSource.GetColumns: TDataColumns;
 begin
-  Result := TDataColumns.Create(
-    TDataColumn.From('Account'),
-    TDataColumn.From('CurrentKey'),
-    TDataColumn.From('NewKey'),
-    TDataColumn.From('Fee')
-    );
+  Result := TArrayTool<TDataColumn>.Concat([
+    Inherited,
+    // Additional Columns
+    TDataColumns.Create(
+      TDataColumn.From('NewKey'),
+      TDataColumn.From('Fee'),
+      TDataColumn.From('FeeDecimal')
+    )
+  ]);
 end;
 
 function TAccountChangeKeyDataSource.GetItemField(constref AItem: TAccount; const ABindingName: ansistring): variant;
-var
-  index: integer;
 begin
-  if ABindingName = 'Account' then
-    Result := TAccountComp.AccountNumberToAccountTxtNumber(AItem.account)
-  else if ABindingName = 'Fee' then
-    Result := TAccountComp.FormatMoney(Model.Fee.SingleOperationFee)
-  else
+  if ABindingName = 'Fee' then
+    Result := -Model.Fee.SingleOperationFee
+  else if ABindingName = 'FeeDecimal' then
+    Result := TAccountComp.FormatMoneyDecimal(-Model.Fee.SingleOperationFee)
+  else if ABindingName = 'NewKey' then
     case Model.ChangeKey.ChangeKeyMode of
-      akaTransferAccountOwnership:
-        if ABindingName = 'CurrentKey' then
-          Result := TAccountComp.AccountPublicKeyExport(AItem.accountInfo.accountKey)
-        else if ABindingName = 'NewKey' then
-          Result := TAccountComp.AccountPublicKeyExport(Model.TransferAccount.AccountKey)
-        else
-          raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
-
-      akaChangeAccountPrivateKey:
-        if ABindingName = 'CurrentKey' then
-          { TODO : Check how to get the wallet name an account is in }
-          Result := '??? unknown'
-        else if ABindingName = 'NewKey' then
-        begin
-          Result := IIF(Model.ChangeAccountPrivateKey.NewWalletKey.Name = '',
-            TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(
-            Model.ChangeAccountPrivateKey.NewWalletKey.AccountKey)), Model.ChangeAccountPrivateKey.NewWalletKey.Name);
-          if not Assigned(Model.ChangeAccountPrivateKey.NewWalletKey.PrivateKey) then
-            Result := Result + '(*)';
-        end
-        else
-          raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
-
-    end;
-
+      akaTransferAccountOwnership: Result := TAccountComp.AccountPublicKeyExport(Model.TransferAccount.AccountKey);
+      akaChangeAccountPrivateKey: begin
+        Result := IIF(
+          Model.ChangeAccountPrivateKey.NewWalletKey.Name = '',
+          TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(Model.ChangeAccountPrivateKey.NewWalletKey.AccountKey)),
+          Model.ChangeAccountPrivateKey.NewWalletKey.Name
+        );
+        if not Assigned(Model.ChangeAccountPrivateKey.NewWalletKey.PrivateKey) then
+          Result := Result + '(*)';
+      end
+      else raise ENotSupportedException.Create('ChangeKeyMode');
+    end
+  else Result := Inherited GetItemField(AItem, ABindingName);
 end;
 
 
@@ -175,8 +172,6 @@ var
 begin
   for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
     AContainer.Add(Model.Account.SelectedAccounts[i]);
-
 end;
-
 
 end.

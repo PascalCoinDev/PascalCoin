@@ -76,9 +76,11 @@ begin
   FSendersGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
   with FSendersGrid.AddColumn('Sender') do
   begin
-    Binding := 'SenderAccount';
+    StretchedToFill:=true;
+    Binding := 'Account';
+    SortBinding := 'AccountNumber';
+    DisplayBinding := 'Display';
     Filters := SORTABLE_NUMERIC_FILTER;
-    Width := 100;
     HeaderFontStyles := [fsBold];
     DataFontStyles := [fsBold];
   end;
@@ -87,17 +89,27 @@ begin
     Filters := SORTABLE_NUMERIC_FILTER;
     Width := 100;
     Renderer := TCellRenderers.PASC;
+    HeaderAlignment := taRightJustify;
+    DataAlignment := taRightJustify;
   end;
-  with FSendersGrid.AddColumn('Amount To Send') do
+  with FSendersGrid.AddColumn('Amount') do
   begin
-    Binding := 'AmountToSend';
+    Binding := 'AmountDecimal';
+    SortBinding := 'Amount';
+    DisplayBinding := 'Amount';
     Filters := SORTABLE_TEXT_FILTER;
     Width := 100;
+    Renderer := TCellRenderers.PASC_CheckAllBalance;
+    HeaderAlignment := taRightJustify;
+    DataAlignment := taRightJustify;
   end;
   with FSendersGrid.AddColumn('Fee') do
   begin
-    Filters := SORTABLE_TEXT_FILTER;
-    Width := 100;
+    Filters := SORTABLE_NUMERIC_FILTER;
+    Width := 50;
+    Renderer := TCellRenderers.PASC;
+    HeaderAlignment := taRightJustify;
+    DataAlignment := taRightJustify;
   end;
 
   Data := TAccountSenderDataSource.Create(FSendersGrid);
@@ -124,28 +136,34 @@ end;
 
 function TAccountSenderDataSource.GetColumns: TDataColumns;
 begin
-  Result := TDataColumns.Create(
-    TDataColumn.From('SenderAccount'),
-    TDataColumn.From('Balance'),
-    TDataColumn.From('AmountToSend'),
-    TDataColumn.From('Fee')
-    );
+  Result := TArrayTool<TDataColumn>.Concat([
+    Inherited,
+    // Additional columns
+    TDataColumns.Create(
+      TDataColumn.From('AllBalance'),
+      TDataColumn.From('Amount'),
+      TDataColumn.From('AmountDecimal'),
+      TDataColumn.From('Fee'),
+      TDataColumn.From('FeeDecimal')
+    )
+  ]);
 end;
 
 function TAccountSenderDataSource.GetItemField(constref AItem: TAccount; const ABindingName: ansistring): variant;
 var
   index: integer;
 begin
-  if ABindingName = 'SenderAccount' then
-    Result := AItem.DisplayString
-  else if ABindingName = 'Balance' then
-    Result := TAccountComp.FormatMoney(AItem.Balance)
-  else if ABindingName = 'AmountToSend' then
-    Result := IIF(Model.SendPASC.SendPASCMode = akaAllBalance, 'ALL BALANCE', TAccountComp.FormatMoney(Model.SendPASC.SingleAmountToSend))
+  if ABindingName = 'AllBalance' then
+    Result := IIF(Model.SendPASC.SendPASCMode = akaAllBalance, Variant(True), Variant(False))
+  else if ABindingName = 'Amount' then
+    Result := Variant(-Model.SendPASC.SingleAmountToSend)
+  else if ABindingName = 'AmountDecimal' then
+    Result := TAccountComp.FormatMoneyDecimal(-Model.SendPASC.SingleAmountToSend)
   else if ABindingName = 'Fee' then
-    Result := TAccountComp.FormatMoney(Model.Fee.SingleOperationFee)
-  else
-    raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
+    Result := -Model.Fee.SingleOperationFee
+  else if ABindingName = 'FeeDecimal' then
+    Result := TAccountComp.FormatMoneyDecimal(-Model.Fee.SingleOperationFee)
+  else Result := Inherited GetItemField(AItem, ABindingName);
 end;
 
 

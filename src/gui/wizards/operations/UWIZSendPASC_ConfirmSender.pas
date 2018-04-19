@@ -72,7 +72,7 @@ begin
     StretchedToFill := True;
     Binding := 'AccountNumber';
     SortBinding := 'AccountNumber';
-    DisplayBinding := 'Account';
+    DisplayBinding := 'Display';
     Width := 100;
     HeaderFontStyles := [fsBold];
     DataFontStyles := [fsBold];
