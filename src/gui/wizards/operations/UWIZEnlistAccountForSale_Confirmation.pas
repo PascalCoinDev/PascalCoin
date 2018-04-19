@@ -105,8 +105,8 @@ begin
   data.Model := Model;
   FEnlistAccountsGrid.DataSource := data;
   paGrid.AddControlDockCenter(FEnlistAccountsGrid);
-  lblSgnAcc.Caption := Model.Signer.SignerAccount.DisplayText;
-  lblSellerAcc.Caption := Model.EnlistAccountForSale.SellerAccount.DisplayText;
+  lblSgnAcc.Caption := Model.Signer.SignerAccount.DisplayString;
+  lblSellerAcc.Caption := Model.EnlistAccountForSale.SellerAccount.DisplayString;
 end;
 
 procedure TWIZEnlistAccountForSale_Confirmation.OnNext;
