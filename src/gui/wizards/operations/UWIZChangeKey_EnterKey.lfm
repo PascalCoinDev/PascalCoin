@@ -14,6 +14,7 @@ object WIZChangeKey_EnterKey: TWIZChangeKey_EnterKey
     Height = 232
     Top = 8
     Width = 400
+    Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'New Public Key'
     ClientHeight = 212
     ClientWidth = 396

@@ -13,6 +13,7 @@ object WIZEnlistAccountForSale_EnterSaleAmount: TWIZEnlistAccountForSale_EnterSa
     Height = 232
     Top = 8
     Width = 400
+    Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'Sale Amount'
     ClientHeight = 212
     ClientWidth = 396

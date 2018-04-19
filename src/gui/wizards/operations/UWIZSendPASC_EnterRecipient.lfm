@@ -14,6 +14,7 @@ object WIZSendPASC_EnterRecipient: TWIZSendPASC_EnterRecipient
     Height = 232
     Top = 8
     Width = 398
+    Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'Destination Account'
     ClientHeight = 212
     ClientWidth = 394

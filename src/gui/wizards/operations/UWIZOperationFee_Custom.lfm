@@ -7,13 +7,13 @@ object WIZOperationFee_Custom: TWIZOperationFee_Custom
   Caption = 'WIZOperationFee_Custom'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
   object gbTransactionFee: TGroupBox
     Left = 14
     Height = 232
     Top = 8
     Width = 400
+    Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'Operation Fee'
     ClientHeight = 212
     ClientWidth = 396

@@ -23,8 +23,10 @@ type
     GroupBox1: TGroupBox;
     Label1: TLabel;
     Label2: TLabel;
+    lblPayload: TLabel;
     lblSgnAcc: TLabel;
     lblSellerAcc: TLabel;
+    mmoPayload: TMemo;
     paGrid: TPanel;
   private
     FEnlistAccountsGrid : TVisualGrid;
@@ -106,7 +108,7 @@ begin
    paGrid.AddControlDockCenter(FEnlistAccountsGrid);
    lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
    lblSellerAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.EnlistAccountForSale.SellerAccount.account);
-
+   mmoPayload.Lines.Text := Model.Payload.Content;
 end;
 
 procedure TWIZEnlistAccountForSale_Confirmation.OnNext;

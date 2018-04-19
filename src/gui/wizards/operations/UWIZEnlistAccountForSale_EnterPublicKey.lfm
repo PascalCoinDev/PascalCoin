@@ -7,12 +7,14 @@ object WIZEnlistAccountForSale_EnterPublicKey: TWIZEnlistAccountForSale_EnterPub
   Caption = 'WIZEnlistAccountForSale_EnterPublicKey'
   ClientHeight = 253
   ClientWidth = 429
+  LCLVersion = '1.8.2.0'
   Visible = False
   object gbTransaction: TGroupBox
     Left = 16
     Height = 232
     Top = 8
     Width = 400
+    Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'Enter Public Key'
     ClientHeight = 212
     ClientWidth = 396

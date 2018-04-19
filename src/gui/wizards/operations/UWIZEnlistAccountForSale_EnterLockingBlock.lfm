@@ -7,12 +7,14 @@ object WIZEnlistAccountForSale_EnterLockingBlock: TWIZEnlistAccountForSale_Enter
   Caption = 'WIZEnlistAccountForSale_EnterLockingBlock'
   ClientHeight = 253
   ClientWidth = 429
+  LCLVersion = '1.8.2.0'
   Visible = False
   object gbLockBlock: TGroupBox
     Left = 16
     Height = 232
     Top = 8
     Width = 400
+    Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'Enter Locking Block'
     ClientHeight = 212
     ClientWidth = 396

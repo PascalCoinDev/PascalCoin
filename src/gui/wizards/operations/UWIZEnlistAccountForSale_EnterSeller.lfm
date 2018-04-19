@@ -13,6 +13,7 @@ object WIZEnlistAccountForSale_EnterSeller: TWIZEnlistAccountForSale_EnterSeller
     Height = 232
     Top = 8
     Width = 398
+    Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'Seller Account'
     ClientHeight = 212
     ClientWidth = 394

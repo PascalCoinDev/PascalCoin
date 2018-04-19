@@ -13,6 +13,7 @@ object WIZOperationSigner_Select: TWIZOperationSigner_Select
     Height = 232
     Top = 8
     Width = 400
+    Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'Fee Payer'
     ClientHeight = 212
     ClientWidth = 396
