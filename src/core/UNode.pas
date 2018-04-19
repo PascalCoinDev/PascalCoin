@@ -854,7 +854,7 @@ var i : Integer;
   aux_block, block : Cardinal;
   OperationComp : TPCOperationsComp;
   opr : TOperationResume;
-  n_operation : Cardinal;
+  n_operation, found_n_operation : Cardinal;
 begin
   OpResumeList.Clear;
   Result := invalid_params;
@@ -864,6 +864,7 @@ begin
   If (n_operation_high<n_operation_low) then exit;
   n_operation := Operations.SafeBoxTransaction.Account(account).n_operation;
   if (n_operation>n_operation_high) then n_operation := n_operation_high;
+  if (n_operation<n_operation_low) then Exit;
   If (block=0) then begin
     // Start searching on pending blocks
     Operations.Lock;
@@ -871,13 +872,17 @@ begin
       For i:=Operations.Count-1 downto 0 do begin
         op := Operations.Operation[i];
         If (op.IsSignerAccount(account)) then begin
-          If (op.GetAccountN_Operation(account)<=n_operation) then begin
+          found_n_operation := op.GetAccountN_Operation(account);
+          if (found_n_operation<n_operation_low) then Exit; // Not found
+          If (found_n_operation<=n_operation) then begin
             TPCOperation.OperationToOperationResume(0,op,False,account,opr);
             opr.Balance:=-1;
             OpResumeList.Add(opr);
-            dec(n_operation);
-            Result := found;
-            Exit;
+            if (n_operation>n_operation_low) then dec(n_operation)
+            else begin
+              Result := found;
+              Exit;
+            end;
           end;
         end;
       end;
