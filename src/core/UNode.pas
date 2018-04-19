@@ -96,6 +96,8 @@ Type
     Procedure EnableNewBlocks;
     Property NodeLogFilename : AnsiString read GetNodeLogFilename write SetNodeLogFilename;
     Property OperationSequenceLock : TPCCriticalSection read FOperationSequenceLock;
+    function TryLockNode(MaxWaitMilliseconds : Cardinal) : Boolean;
+    procedure UnlockNode;
   End;
 
   TNodeNotifyEvents = Class;
@@ -619,6 +621,16 @@ procedure TNode.EnableNewBlocks;
 begin
   if FDisabledsNewBlocksCount=0 then raise Exception.Create('Dev error 20160924-1');
   dec(FDisabledsNewBlocksCount);
+end;
+
+function TNode.TryLockNode(MaxWaitMilliseconds: Cardinal): Boolean;
+begin
+  Result := TPCThread.TryProtectEnterCriticalSection(Self,MaxWaitMilliseconds,FLockNodeOperations);
+end;
+
+procedure TNode.UnlockNode;
+begin
+  FLockNodeOperations.Release;
 end;
 
 class function TNode.EncodeNodeServerAddressArrayToIpString(

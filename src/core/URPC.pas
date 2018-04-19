@@ -2927,17 +2927,30 @@ begin
   end else if (method='getpendings') then begin
     // Returns all the operations pending to be included in a block in "Operation resume format" as an array
     // Create result
-    GetResultArray;
-    for i:=FNode.Operations.Count-1 downto 0 do begin
-      if not TPCOperation.OperationToOperationResume(0,FNode.Operations.Operation[i],True,FNode.Operations.Operation[i].SignerAccount,opr) then begin
-        ErrorNum := CT_RPC_ErrNum_InternalError;
-        ErrorDesc := 'Error converting data';
-        exit;
+    k := params.AsInteger('max',100);
+    j := params.AsInteger('start',0);
+    If FNode.TryLockNode(5000) then begin
+      Try
+        jsonarr := GetResultArray;
+        for i := j to FNode.Operations.Count-1 do begin
+          If TPCOperation.OperationToOperationResume(0,FNode.Operations.Operation[i],True,FNode.Operations.Operation[i].SignerAccount,opr) then begin
+            opr.NOpInsideBlock:=i;
+            opr.time:=pcops.OperationBlock.timestamp;
+            opr.Balance := -1; // Don't include!
+            FillOperationResumeToJSONObject(opr,jsonarr.GetAsObject(jsonarr.Count));
+          end;
+          if (k>0) And (jsonarr.Count>=k) then break;
+        end;
+      finally
+        FNode.UnlockNode;
       end;
-      opr.NOpInsideBlock:=i;
-      opr.Balance := FNode.Operations.SafeBoxTransaction.Account(FNode.Operations.Operation[i].SignerAccount).balance;
-      FillOperationResumeToJSONObject(opr,GetResultArray.GetAsObject( FNode.Operations.Count-1-i ));
+      Result := true;
+    end else begin
+      ErrorNum := CT_RPC_ErrNum_InternalError;
+      ErrorDesc := 'Node is busy';
     end;
+  end else if (method='getpendingscount') then begin
+    jsonresponse.GetAsVariant('result').Value := FNode.Operations.Count;
     Result := true;
   end else if (method='decodeophash') then begin
     // Search for an operation based on "ophash"

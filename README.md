@@ -167,6 +167,9 @@ Also, consider a donation at PascalCoin development account: "0-10"
       - "operations" : Integer
       - "amount" : PASCURRENCY
       - "fee" : PASCURRENCY  
+  - Updated method "getpendings" : Added params "start" (0..N) default=0 and "max" default=100 (0 = ALL)
+    - Also fixed bug #86 : https://github.com/PascalCoin/PascalCoin/issues/86
+  - New method "getpendingscount" : Returns pending operations count
 - Daemon:
   - Allow to force max block read from Blockchain when started using "-b MAX_BLOCK_NUMBER" param. Example "nohup ./pascalcoin_daemon -r -b 12345 &"
 - Protections against invalid nodes (scammers):
