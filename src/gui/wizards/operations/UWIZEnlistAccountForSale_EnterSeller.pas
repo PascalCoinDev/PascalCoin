@@ -27,18 +27,12 @@ type
   TWIZEnlistAccountForSale_EnterSeller = class(TWizardForm<TWIZOperationsModel>)
     edtSellerAcc: TEdit;
     gbSeller: TGroupBox;
-    lblSellerAccNumber: TLabel;
-    lblSellerAccNumberValue: TLabel;
-    lblSellerAccNumberName: TLabel;
-    lblSellerAccNumberNameValue: TLabel;
+    lblSellerAccount: TLabel;
     lblDestNotice: TLabel;
     btnSearch: TSpeedButton;
     procedure btnSearchClick(Sender: TObject);
     procedure edtSellerAccChange(Sender: TObject);
     procedure UpdateUI();
-
-
-
   public
     procedure OnPresent; override;
     procedure OnNext; override;
@@ -51,7 +45,7 @@ implementation
 {$R *.lfm}
 
 uses
-  UAccounts, UUserInterface, USettings;
+  UAccounts, UUserInterface, USettings, UCoreUtils;
 
 { TWIZEnlistAccountForSale_EnterSeller }
 
@@ -62,27 +56,19 @@ end;
 
 procedure TWIZEnlistAccountForSale_EnterSeller.UpdateUI();
 var
-  tempAcc: TAccount;
-  c: cardinal;
+  LAcc: TAccount;
+  LAccNo: cardinal;
 begin
-  if TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAcc.Text, c) then
-  begin
-    if (c < 0) or (c >= TNode.Node.Bank.AccountsCount) then
-    begin
-      lblSellerAccNumberValue.Caption := 'unknown';
-      lblSellerAccNumberNameValue.Caption := 'unknown';
-      Exit;
+  if TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAcc.Text, LAccNo) then begin
+    if (LAccNo < 0) or (LAccNo >= TNode.Node.Bank.AccountsCount) then begin
+      lblSellerAccount.Caption := '';
+      lblSellerAccount.Visible := False;
+    end else begin
+      LAcc := TNode.Node.Operations.SafeBoxTransaction.account(LAccNo);
+      lblSellerAccount.Caption := LAcc.DisplayString;
+      lblSellerAccount.Visible := True;
     end;
-    tempAcc := TNode.Node.Operations.SafeBoxTransaction.account(c);
-    lblSellerAccNumberValue.Caption := edtSellerAcc.Text;
-    lblSellerAccNumberNameValue.Caption := tempAcc.Name;
-  end
-  else
-  begin
-    lblSellerAccNumberValue.Caption := 'unknown';
-    lblSellerAccNumberNameValue.Caption := 'unknown';
   end;
-
 end;
 
 procedure TWIZEnlistAccountForSale_EnterSeller.OnPresent;

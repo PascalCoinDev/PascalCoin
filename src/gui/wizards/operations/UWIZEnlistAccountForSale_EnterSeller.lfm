@@ -9,19 +9,19 @@ object WIZEnlistAccountForSale_EnterSeller: TWIZEnlistAccountForSale_EnterSeller
   ClientWidth = 429
   Visible = False
   object gbSeller: TGroupBox
-    Left = 16
-    Height = 232
-    Top = 8
-    Width = 398
+    Left = 4
+    Height = 244
+    Top = 4
+    Width = 422
     Anchors = [akTop, akLeft, akRight, akBottom]
-    Caption = 'Seller Account'
-    ClientHeight = 212
-    ClientWidth = 394
+    Caption = 'Beneficiary Account'
+    ClientHeight = 224
+    ClientWidth = 418
     TabOrder = 0
     object edtSellerAcc: TEdit
       Left = 8
       Height = 23
-      Top = 40
+      Top = 32
       Width = 136
       OnChange = edtSellerAccChange
       TabOrder = 0
@@ -29,7 +29,7 @@ object WIZEnlistAccountForSale_EnterSeller: TWIZEnlistAccountForSale_EnterSeller
     object btnSearch: TSpeedButton
       Left = 152
       Height = 22
-      Top = 41
+      Top = 33
       Width = 23
       Glyph.Data = {
         36040000424D3604000000000000360000002800000010000000100000000100
@@ -78,41 +78,16 @@ object WIZEnlistAccountForSale_EnterSeller: TWIZEnlistAccountForSale_EnterSeller
       ParentColor = False
       ParentFont = False
     end
-    object lblSellerAccNumber: TLabel
-      Left = 8
+    object lblSellerAccount: TLabel
+      Left = 192
       Height = 15
-      Top = 80
-      Width = 126
-      Caption = 'Seller Account Number:'
-      ParentColor = False
-      ParentFont = False
-    end
-    object lblSellerAccNumberName: TLabel
-      Left = 8
-      Height = 15
-      Top = 108
-      Width = 161
-      Caption = 'Seller Account Number Name:'
-      ParentColor = False
-      ParentFont = False
-    end
-    object lblSellerAccNumberValue: TLabel
-      Left = 224
-      Height = 15
-      Top = 80
-      Width = 92
+      Top = 37
+      Width = 95
       Caption = 'Account Number'
+      Font.Style = [fsBold]
       ParentColor = False
       ParentFont = False
-    end
-    object lblSellerAccNumberNameValue: TLabel
-      Left = 224
-      Height = 15
-      Top = 108
-      Width = 121
-      Caption = 'AccountNumberName'
-      ParentColor = False
-      ParentFont = False
+      Visible = False
     end
   end
 end
