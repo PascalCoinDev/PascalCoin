@@ -87,7 +87,7 @@ Type
     Function FindNOperation(block, account, n_operation : Cardinal; var OpResume : TOperationResume) : TSearchOperationResult;
     Function FindNOperations(account, start_block : Cardinal; allow_search_previous : Boolean; n_operation_low, n_operation_high : Cardinal; OpResumeList : TOperationsResumeList) : TSearchOperationResult;
     //
-    Procedure InitSafeboxAndOperations;
+    Procedure InitSafeboxAndOperations(max_block_to_read : Cardinal = $FFFFFFFF);
     Procedure AutoDiscoverNodes(Const ips : AnsiString);
     Function IsBlockChainValid(var WhyNot : AnsiString) : Boolean;
     Function IsReady(Var CurrentProcess : AnsiString) : Boolean;
@@ -931,13 +931,13 @@ begin
   Result := found;
 end;
 
-procedure TNode.InitSafeboxAndOperations;
+procedure TNode.InitSafeboxAndOperations(max_block_to_read : Cardinal);
 var opht : TOperationsHashTree;
   oprl : TOperationsResumeList;
   errors : AnsiString;
   n : Integer;
 begin
-  Bank.DiskRestoreFromOperations(CT_MaxBlock);
+  Bank.DiskRestoreFromOperations(max_block_to_read);
   opht := TOperationsHashTree.Create;
   oprl := TOperationsResumeList.Create;
   try
