@@ -29,7 +29,7 @@ type
     chkChooseFee: TCheckBox;
     chkAttachPayload: TCheckBox;
     edtAmt: TEdit;
-    gbSaleAmount: TGroupBox;
+    gbSalePrice: TGroupBox;
     lblSaleAmountNotice: TLabel;
     procedure UpdateUI();
 
