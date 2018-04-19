@@ -13,7 +13,7 @@ object WIZChangeKey_ConfirmAccount: TWIZChangeKey_ConfirmAccount
     Top = 4
     Width = 420
     Anchors = [akTop, akLeft, akRight, akBottom]
-    Caption = 'Change Key Accounts'
+    Caption = 'Confirm Accounts'
     ClientHeight = 236
     ClientWidth = 416
     TabOrder = 0
