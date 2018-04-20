@@ -90,8 +90,6 @@ begin
 end;
 
 procedure TWIZSendPASC_EnterQuantity.OnNext;
-var
-  amount: int64;
 begin
   Model.Payload.HasPayload := chkAttachPayload.Checked;
   if chkallfunds.Checked then

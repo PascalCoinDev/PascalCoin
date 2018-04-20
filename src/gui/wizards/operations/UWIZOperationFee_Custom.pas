@@ -38,7 +38,6 @@ type
 
 
 
-
   public
     procedure OnPresent; override;
     procedure OnNext; override;
@@ -51,7 +50,7 @@ implementation
 {$R *.lfm}
 
 uses
-  UAccounts, UUserInterface, USettings;
+  UAccounts, UCoreUtils, UUserInterface, USettings;
 
 { TWIZOperationFee_Custom }
 
@@ -76,8 +75,6 @@ end;
 
 procedure TWIZOperationFee_Custom.OnNext;
 begin
-  //TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)),
-  //  Model.Fee.SingleOperationFee);
   if Model.Payload.HasPayload then
     UpdatePath(ptInject, [TWIZOperationPayload_Encryption])
   else if Length(Model.Account.SelectedAccounts) > 1 then
@@ -106,27 +103,24 @@ begin
 
   Model.Fee.SingleOperationFee := opfee;
 
-   if Length(Model.Account.SelectedAccounts) > 1 then
-  begin
+  if Length(Model.Account.SelectedAccounts) > 1 then
     if not (Model.Fee.SingleOperationFee > 0) then
     begin
       message := 'zero fee only allowed for single operations.';
       Result := False;
       Exit;
     end;
-  end;
 
 
-  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
+  // get signer accounts from selected accounts
+  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Model.Fee.SingleOperationFee, Model.Account.SelectedAccounts);
+
+  if Length(Model.Signer.SignerCandidates) < 1 then
   begin
-    acc := Model.Account.SelectedAccounts[i];
-    if acc.balance < Model.Fee.SingleOperationFee then
-    begin
-      message := 'Insufficient funds for fees in one or more accounts';
-      Result := False;
-      Exit;
-    end;
+    Result := False;
+    message := 'no valid signer account was found with the current requirements.';
   end;
+
 end;
 
 end.

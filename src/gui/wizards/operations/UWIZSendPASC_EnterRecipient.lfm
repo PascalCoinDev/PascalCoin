@@ -7,7 +7,6 @@ object WIZSendPASC_EnterRecipient: TWIZSendPASC_EnterRecipient
   Caption = 'WIZSendPASC_EnterRecipient'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
   object gbRecipient: TGroupBox
     Left = 16

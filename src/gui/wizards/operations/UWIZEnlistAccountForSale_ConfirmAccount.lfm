@@ -6,6 +6,7 @@ object WIZEnlistAccountForSale_ConfirmAccount: TWIZEnlistAccountForSale_ConfirmA
   Caption = 'WIZEnlistAccountForSale_ConfirmAccount'
   ClientHeight = 274
   ClientWidth = 429
+  LCLVersion = '1.8.2.0'
   Visible = False
   object grpEnlistAccount: TGroupBox
     Left = 4

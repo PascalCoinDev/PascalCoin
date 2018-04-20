@@ -31,7 +31,6 @@ type
   public
     procedure OnPresent; override;
     procedure OnNext; override;
-    function Validate(out message: ansistring): boolean; override;
   end;
 
 
@@ -98,20 +97,6 @@ end;
 procedure TWIZSendPASC_ConfirmSender.OnNext;
 begin
   UpdatePath(ptInject, [TWIZSendPASC_EnterRecipient]);
-end;
-
-function TWIZSendPASC_ConfirmSender.Validate(out message: ansistring): boolean;
-begin
-  Result := True;
-  // get signer accounts from selected accounts
-  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Model.Account.SelectedAccounts);
-
-  if Length(Model.Signer.SignerCandidates) < 1 then
-  begin
-    Result := False;
-    message := 'no valid signer account was found.';
-  end;
-
 end;
 
 { TAccountSenderDataSource }

@@ -32,6 +32,7 @@ type
   public
     procedure OnPresent; override;
     procedure OnNext; override;
+    function Validate(out message: ansistring): boolean; override;
   end;
 
 
@@ -40,7 +41,7 @@ implementation
 {$R *.lfm}
 
 uses
-  UAccounts, UUserInterface;
+  UAccounts, UConst, UUserInterface;
 
 { TWIZOperationPayload_Content }
 
@@ -54,9 +55,21 @@ begin
   Model.Payload.Content := mmoPayload.Lines.Text;
   if Length(Model.Account.SelectedAccounts) > 1 then
     UpdatePath(ptInject, [TWIZOperationSigner_Select])
-  else begin
+  else
+  begin
     Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];
     Model.Signer.OperationSigningMode := akaPrimary;
+  end;
+end;
+
+function TWIZOperationPayload_Content.Validate(out message: ansistring): boolean;
+begin
+  Result := True;
+  if Length(mmoPayload.Lines.Text) > CT_MaxPayloadSize then
+  begin
+    message := 'Payload is Larger than Max Payload Size "255"';
+    Result := False;
+    Exit;
   end;
 end;
 

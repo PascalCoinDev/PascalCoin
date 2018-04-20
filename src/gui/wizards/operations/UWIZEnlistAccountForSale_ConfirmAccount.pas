@@ -107,7 +107,7 @@ begin
     end;
 
   // get signer accounts from selected accounts
-  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Model.Account.SelectedAccounts);
+  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Model.Fee.SingleOperationFee, Model.Account.SelectedAccounts);
 
   if Length(Model.Signer.SignerCandidates) < 1 then
   begin
