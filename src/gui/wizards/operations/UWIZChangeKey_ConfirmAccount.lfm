@@ -1,26 +1,26 @@
 object WIZChangeKey_ConfirmAccount: TWIZChangeKey_ConfirmAccount
   Left = 0
-  Height = 261
+  Height = 299
   Top = 0
   Width = 429
   Caption = 'ChangeKey_ConfirmAccount'
-  ClientHeight = 261
+  ClientHeight = 299
   ClientWidth = 429
   Visible = False
   object gpChangeKey: TGroupBox
     Left = 4
-    Height = 256
+    Height = 294
     Top = 4
     Width = 420
     Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'Confirm Accounts'
-    ClientHeight = 236
+    ClientHeight = 274
     ClientWidth = 416
     TabOrder = 0
     object paGrid: TPanel
       Left = 8
-      Height = 192
-      Top = 32
+      Height = 216
+      Top = 16
       Width = 400
       Anchors = [akTop, akLeft, akRight, akBottom]
       BevelOuter = bvNone
@@ -28,12 +28,12 @@ object WIZChangeKey_ConfirmAccount: TWIZChangeKey_ConfirmAccount
       TabOrder = 0
     end
     object lblTotalBalances: TLabel
-      Left = 192
+      Left = 184
       Height = 15
-      Top = 8
+      Top = 248
       Width = 116
       Alignment = taRightJustify
-      Anchors = [akTop, akRight]
+      Anchors = [akRight, akBottom]
       AutoSize = False
       Caption = 'Total Balance: '
       ParentColor = False
@@ -41,9 +41,9 @@ object WIZChangeKey_ConfirmAccount: TWIZChangeKey_ConfirmAccount
     object lblTotalBalanceValue: TLabel
       Left = 312
       Height = 15
-      Top = 8
+      Top = 248
       Width = 96
-      Anchors = [akTop, akRight]
+      Anchors = [akRight, akBottom]
       AutoSize = False
       Caption = 'Total Balance'
       Font.Color = clGreen
