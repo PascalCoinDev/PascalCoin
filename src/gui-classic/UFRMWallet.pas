@@ -269,6 +269,7 @@ type
     procedure OnNetNodeServersUpdated(Sender : TObject);
     procedure OnNetBlackListUpdated(Sender : TObject);
     Procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : TRawBytes);
+    Procedure OnNodeKeysActivity(Sender : TObject);
     Procedure OnSelectedAccountsGridUpdated(Sender : TObject);
     Procedure OnMiningServerNewBlockFound(Sender : TObject);
     Procedure UpdateConnectionStatus;
@@ -898,6 +899,7 @@ begin
   FNodeNotifyEvents := TNodeNotifyEvents.Create(Self);
   FNodeNotifyEvents.OnBlocksChanged := OnNewAccount;
   FNodeNotifyEvents.OnNodeMessageEvent := OnNodeMessageEvent;
+  FNodeNotifyEvents.OnKeyActivity := OnNodeKeysActivity;
   FAccountsGrid := TAccountsGrid.Create(Self);
   FAccountsGrid.DrawGrid := dgAccounts;
   FAccountsGrid.AllowMultiSelect := True;
@@ -1559,6 +1561,13 @@ begin
   lblReceivedMessages.Visible := true;
 end;
 
+procedure TFRMWallet.OnNodeKeysActivity(Sender: TObject);
+begin
+  // XXXXXXXXXXXXXXX
+  TLog.NewLog(ltInfo,ClassName,'OnNodeKeysActivity FIRED XXXXXXXXXXXXXX');  // XXXXXXXXXXX
+  DoUpdateAccounts;
+end;
+
 procedure TFRMWallet.OnReceivedHelloMessage(Sender: TObject);
 Var nsarr : TNodeServerAddressArray;
   i : Integer;
@@ -2008,6 +2017,7 @@ Var i,last_i : Integer;
 begin
   If (Not Assigned(FOrderedAccountsKeyList)) And (Assigned(FNode)) Then begin
     FOrderedAccountsKeyList := TOrderedAccountKeysList.Create(FNode.Bank.SafeBox,false);
+    FNodeNotifyEvents.WatchKeys := FOrderedAccountsKeyList; // XXXXXXXXX Assign the Keys to Watch!!!
   end;
   if (cbMyPrivateKeys.ItemIndex>=0) then last_i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex])
   else last_i := -1;
@@ -2024,7 +2034,10 @@ begin
       end else begin
         s := wk.Name;
       end;
-      if Not Assigned(wk.PrivateKey) then s := s + '(*)';
+      if Not Assigned(wk.PrivateKey) then begin
+        if wk.CryptedKey<>'' then s:=s+' (Encrypted, need password)';
+        s:=s+' (* without key)';
+      end;
       cbMyPrivateKeys.Items.AddObject(s,TObject(i));
     end;
     cbMyPrivateKeys.Sorted := true;
