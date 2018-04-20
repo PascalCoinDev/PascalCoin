@@ -166,7 +166,7 @@ Const
   CT_DEFAULT_MaxSafeboxSnapshots = 10;
 
   CT_MOLINA  = 1;
-  CT_MOLINA_DECIMAL = Real(CT_MOLINA/1000.0);
+  CT_MOLINA_DECIMAL = {$IFDEF FPC}Real(CT_MOLINA/1000.0);{$ELSE}0.0001;{$ENDIF}
 
   // App Params
   CT_PARAM_GridAccountsStream = 'GridAccountsStreamV2';

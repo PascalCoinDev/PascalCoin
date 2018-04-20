@@ -672,13 +672,9 @@ begin
                 break;
               end else begin
                 // To prevent continuous saving...
-                {$IFDEF TESTNET}
-                Storage.SaveBank;
-                {$ELSE}
                 If (BlocksCount MOD (CT_BankToDiskEveryNBlocks*10))=0 then begin
                   Storage.SaveBank;
                 end;
-                {$ENDIF}
               end;
             end else break;
           end else break;
