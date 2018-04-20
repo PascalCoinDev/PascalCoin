@@ -63,14 +63,11 @@ type
     class function GetSignerCandidates(ANumOps: integer; ASingleOperationFee: Int64; const ACandidates: array of TAccount): TArray<TAccount>; static;
   end;
 
-
-  { TCoreTool }
-
   { TOperationsManager }
 
   TOperationsManager = class
   private
-    class function FinalizeAndDisplayMessage(AOperationsTxt: string; const AOperationToString: string; ANoOfOperations: Integer; ATotalAmount, ATotalFee: int64; ANoOfAccounts: integer; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
+    class function SendPASCFinalizeAndDisplayMessage(AOperationsTxt: string; const AOperationToString: string; ANoOfOperations: Integer; ATotalAmount, ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
     class function UpdateSendPASCPayload(ASenderAccount, ADestinationAccount: TAccount; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
   public
     class function ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TWIZOperationsModel.TSendPASCMode; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
@@ -126,16 +123,15 @@ uses
 
 { TOperationsManager }
 
-class function TOperationsManager.FinalizeAndDisplayMessage(
+class function TOperationsManager.SendPASCFinalizeAndDisplayMessage(
   AOperationsTxt: string; const AOperationToString: string;
   ANoOfOperations: Integer; ATotalAmount, ATotalFee: int64;
-  ANoOfAccounts: integer; AOperationsHashTree: TOperationsHashTree;
-  var AErrorMessage: string): boolean;
+  AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean;
 var
   auxs: string;
   i: integer;
 begin
-  if (ANoOfAccounts > 1) then
+  if (ANoOfOperations > 1) then
   begin
     auxs := 'Total amount that dest will receive: ' + TAccountComp.FormatMoney(
       ATotalAmount) + #10;
@@ -381,8 +377,8 @@ begin
       AErrorMessage := 'No Valid Operation to Execute';
       Exit(False);
     end;
-    // showmessage here
-    Exit(TOperationsManager.FinalizeAndDisplayMessage(LOperationsTxt, LOperationToString, LNoOfOperations, LTotalAmount, LTotalFee, Length(ASelectedAccounts), LOperationsHashTree, AErrorMessage));
+
+    Exit(TOperationsManager.SendPASCFinalizeAndDisplayMessage(LOperationsTxt, LOperationToString, LNoOfOperations, LTotalAmount, LTotalFee, LOperationsHashTree, AErrorMessage));
   finally
     LOperationsHashTree.Free;
   end;
