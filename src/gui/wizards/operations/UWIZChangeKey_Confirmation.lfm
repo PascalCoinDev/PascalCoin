@@ -50,6 +50,7 @@ object WIZChangeKey_Confirmation: TWIZChangeKey_Confirmation
       Height = 15
       Top = 172
       Width = 42
+      Anchors = [akLeft, akBottom]
       Caption = 'Payload'
       Font.Style = [fsBold]
       ParentColor = False
@@ -60,6 +61,7 @@ object WIZChangeKey_Confirmation: TWIZChangeKey_Confirmation
       Height = 82
       Top = 192
       Width = 480
+      Anchors = [akLeft, akRight, akBottom]
       Enabled = False
       ScrollBars = ssBoth
       TabOrder = 1
