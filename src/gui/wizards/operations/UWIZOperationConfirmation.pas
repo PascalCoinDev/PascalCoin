@@ -42,7 +42,7 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, UConst, UWallet, UUserInterface, UDataSources, UCommon, UCommon.UI, Generics.Collections, UCoreUtils;
+uses UAccounts, UCrypto, UConst, UWallet, UUserInterface, UDataSources, UCommon, UCommon.UI, Generics.Collections, UCoreUtils;
 
 type
 
@@ -153,7 +153,25 @@ end;
 function TAccountSenderDataSource.GetItemField(constref AItem: TAccount; const ABindingName: ansistring): variant;
 var
   LAmount: string;
+  LCurrentAccountKey, LDestinationAccountKey: TAccountKey;
 begin
+
+  case Model.ChangeKey.ChangeKeyMode of
+    akaTransferAccountOwnership:
+    begin
+      LCurrentAccountKey := AItem.accountInfo.accountKey;
+      LDestinationAccountKey := Model.TransferAccount.AccountKey;
+    end;
+    akaChangeAccountPrivateKey:
+    begin
+      LCurrentAccountKey := AItem.accountInfo.accountKey;
+      LDestinationAccountKey := Model.ChangeAccountPrivateKey.NewWalletKey.AccountKey;
+    end
+
+    else
+      raise ENotSupportedException.Create('ChangeKeyMode');
+  end;
+
   if ABindingName = 'Operation' then
     case Model.ModelType of
       omtSendPasc:
@@ -161,11 +179,30 @@ begin
         Result := IIF(Model.SendPASC.SendPASCMode = akaAllBalance, 'All Balance', Format('%s ', [TAccountComp.FormatMoney(Model.SendPASC.SingleAmountToSend)]));
         Result := Format('%s %s', [TOperationsManager.GetOperationShortText(CT_Op_Transaction, CT_OpSubtype_TransactionSender), Result]);
       end;
+      omtChangeKey:
+        Result := Format('%s', [TOperationsManager.GetOperationShortText(CT_Op_ChangeKeySigned, CT_OpSubtype_ChangeKey)]);
     end
   else if ABindingName = 'Recipient' then
     case Model.ModelType of
       omtSendPasc:
         Result := Model.SendPASC.DestinationAccount.AccountString;
+      omtChangeKey:
+        case Model.ChangeKey.ChangeKeyMode of
+          akaTransferAccountOwnership: Result := TAccountComp.AccountPublicKeyExport(Model.TransferAccount.AccountKey);
+          akaChangeAccountPrivateKey:
+          begin
+            Result := IIF(
+              Model.ChangeAccountPrivateKey.NewWalletKey.Name = '',
+              TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(Model.ChangeAccountPrivateKey.NewWalletKey.AccountKey)),
+              Model.ChangeAccountPrivateKey.NewWalletKey.Name
+              );
+            if not Assigned(Model.ChangeAccountPrivateKey.NewWalletKey.PrivateKey) then
+              Result := Result + '(*)';
+          end
+          else
+            raise ENotSupportedException.Create('ChangeKeyMode');
+        end
+
     end
   else if ABindingName = 'Fee' then
     Result := -Model.Fee.SingleOperationFee

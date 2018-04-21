@@ -17,7 +17,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UWizard, UWIZChangeKey, UWIZModels, UWIZChangeKey_EnterKey, UWIZChangeKey_SelectKey;
+  ExtCtrls, UWizard, UWIZModels, UWIZChangeKey_EnterKey, UWIZChangeKey_SelectKey;
 
 type
 

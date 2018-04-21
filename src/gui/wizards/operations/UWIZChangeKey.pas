@@ -36,7 +36,7 @@ uses
   UCoreUtils,
   UWIZChangeKey_ConfirmAccount,
   UWIZChangeKey_SelectOption,
-  UWIZChangeKey_Confirmation;
+  UWIZOperationConfirmation;
 
 { TWIZChangeKeyWizard }
 
@@ -46,7 +46,7 @@ begin
     [
     TWIZChangeKey_ConfirmAccount,
     TWIZChangeKey_SelectOption,
-    TWIZChangeKey_Confirmation
+    TWIZOperationConfirmation
     ]
     );
   TitleText := 'Change Key';
@@ -55,7 +55,7 @@ end;
 
 function TWIZChangeKeyWizard.DetermineHasNext: boolean;
 begin
-  Result := not (CurrentScreen is TWIZChangeKey_Confirmation);
+  Result := not (CurrentScreen is TWIZOperationConfirmation);
 end;
 
 function TWIZChangeKeyWizard.DetermineHasPrevious: boolean;

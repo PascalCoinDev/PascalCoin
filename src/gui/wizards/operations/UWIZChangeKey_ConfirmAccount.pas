@@ -17,7 +17,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, UVisualGrid, UCommon.Data, UCellRenderers,
-  UWizard, UWIZSendPASC, UWIZChangeKey_SelectOption, UWIZChangeKey_Confirmation, UWIZModels;
+  UWizard, UWIZModels;
 
 type
 
@@ -32,7 +32,6 @@ type
     FChangeKeyGrid: TVisualGrid;
   public
     procedure OnPresent; override;
-    procedure OnNext; override;
     function Validate(out message: ansistring): boolean; override;
   end;
 
@@ -108,11 +107,6 @@ begin
 
   lblTotalBalanceValue.Caption :=
     Format('%s PASC', [TAccountComp.FormatMoney(totalBalance)]);
-end;
-
-procedure TWIZChangeKey_ConfirmAccount.OnNext;
-begin
-  UpdatePath(ptReplaceAllNext, [TWIZChangeKey_SelectOption, TWIZChangeKey_Confirmation]);
 end;
 
 function TWIZChangeKey_ConfirmAccount.Validate(out message: ansistring): boolean;
