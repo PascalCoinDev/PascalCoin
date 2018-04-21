@@ -2486,7 +2486,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   var i,iKey : Integer;
     pubKey : TAccountKey;
     nAccount : Cardinal;
-    _error_desc : AnsiString;
+    _error_desc : String;
   begin
     signedAccounts := 0;
     if (Not (_RPCServer.FWalletKeys.IsValidPassword)) then Exit;

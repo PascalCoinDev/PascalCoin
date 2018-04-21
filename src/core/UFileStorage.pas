@@ -20,7 +20,7 @@ unit UFileStorage;
 interface
 
 uses
-  Classes, UBlockChain, SyncObjs, UThread, UAccounts, UCrypto;
+  Classes, {$IFDEF FPC}fileutil,{$ELSE} Windows,{$ENDIF} UBlockChain, SyncObjs, UThread, UAccounts, UCrypto;
 {$I config.inc}
 
 Type
@@ -491,7 +491,7 @@ end;
 
 function TFileStorage.DoSaveBank: Boolean;
 var fs: TFileStream;
-    bankfilename: AnsiString;
+    bankfilename,aux_newfilename: AnsiString;
     ms : TMemoryStream;
 begin
   Result := true;
@@ -512,6 +512,21 @@ begin
       end;
     finally
       fs.Free;
+    end;
+    // Save a copy each 10000 blocks (aprox 1 month) only when not an orphan
+    if (Orphan='') And ((Bank.BlocksCount MOD (CT_BankToDiskEveryNBlocks*100))=0) then begin
+      aux_newfilename := GetFolder('') + PathDelim+'checkpoint_'+ inttostr(Bank.BlocksCount)+'.safebox';
+      try
+        {$IFDEF FPC}
+        CopyFile(bankfilename,aux_newfilename);
+        {$ELSE}
+        CopyFile(PWideChar(bankfilename),PWideChar(aux_newfilename),False);
+        {$ENDIF}
+      Except
+        On E:Exception do begin
+          TLog.NewLog(lterror,ClassName,'Exception copying extra safebox file '+aux_newfilename+' ('+E.ClassName+'):'+E.Message);
+        end;
+      end;
     end;
   end;
 end;
