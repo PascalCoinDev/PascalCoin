@@ -308,8 +308,6 @@ var
 
 begin
   FUserData := TUserInterface.Node.Bank.SafeBox.GetUserSummary(TWallet.Keys.AccountsKeyList.ToArray, true);
-  FNodeNotifyEvents.WatchKeys.Clear;
-  FNodeNotifyEvents.WatchKeys.AddAccountKeys(FUserData.Keys);
   if cbAccounts.ItemIndex = 0 then
     FAccountsDataSource.FilterKeys := FUserData.Keys;
   FOperationsDataSource.Accounts := TListTool<TAccount, cardinal>.Transform(FUserData.Accounts, GetAccNo);
