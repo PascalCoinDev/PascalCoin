@@ -25,10 +25,12 @@ type
 
   TAccountsDataSource = class(TAccountsDataSourceBase)
     protected
+      FIncludePending : boolean;
       FKeys : TSortedHashSet<TAccountKey>;
       function GetFilterKeys : TArray<TAccountKey>;
       procedure SetFilterKeys (const AKeys : TArray<TAccountKey>);
     public
+      property IncludePending : boolean read FIncludePending write FIncludePending;
       property FilterKeys : TArray<TAccountKey> read GetFilterKeys write SetFilterKeys;
       constructor Create(AOwner: TComponent); override;
       destructor Destroy; override;
@@ -176,7 +178,10 @@ begin
        AContainer.Add(safeBox.Account(i)) // Load all accounts
    else
      for i := 0 to safeBox.AccountsCount - 1 do begin // Load key-matching accounts
-       acc := safeBox.Account(i);
+       if FIncludePending then
+         acc := TNode.Node.Operations.SafeBoxTransaction.Account(i)
+       else
+         acc := safeBox.Account(i);
        if FKeys.Contains(acc.accountInfo.accountKey) then
          AContainer.Add(acc)
      end;
