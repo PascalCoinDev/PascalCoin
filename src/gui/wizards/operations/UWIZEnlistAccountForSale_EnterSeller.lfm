@@ -21,7 +21,7 @@ object WIZEnlistAccountForSale_EnterSeller: TWIZEnlistAccountForSale_EnterSeller
     object edtSellerAcc: TEdit
       Left = 8
       Height = 23
-      Top = 32
+      Top = 48
       Width = 136
       OnChange = edtSellerAccChange
       TabOrder = 0
@@ -29,7 +29,7 @@ object WIZEnlistAccountForSale_EnterSeller: TWIZEnlistAccountForSale_EnterSeller
     object btnSearch: TSpeedButton
       Left = 152
       Height = 22
-      Top = 33
+      Top = 49
       Width = 23
       Glyph.Data = {
         36040000424D3604000000000000360000002800000010000000100000000100
@@ -81,7 +81,7 @@ object WIZEnlistAccountForSale_EnterSeller: TWIZEnlistAccountForSale_EnterSeller
     object lblSellerAccount: TLabel
       Left = 192
       Height = 15
-      Top = 37
+      Top = 52
       Width = 95
       Caption = 'Account Number'
       Font.Style = [fsBold]

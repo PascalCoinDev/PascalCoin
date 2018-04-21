@@ -1,4 +1,4 @@
-unit UWIZChangeKey_ConfirmAccount;
+unit UWIZOperationSelected;
 
 {$mode delphi}
 
@@ -21,15 +21,15 @@ uses
 
 type
 
-  { TWIZChangeKey_ConfirmAccount }
+  { TWIZOperationSelected }
 
-  TWIZChangeKey_ConfirmAccount = class(TWizardForm<TWIZOperationsModel>)
-    gpChangeKey: TGroupBox;
+  TWIZOperationSelected = class(TWizardForm<TWIZOperationsModel>)
+    gpSelectedAccounts: TGroupBox;
     lblTotalBalances: TLabel;
     lblTotalBalanceValue: TLabel;
     paGrid: TPanel;
   private
-    FChangeKeyGrid: TVisualGrid;
+    FSelectedAccountsGrid: TVisualGrid;
   public
     procedure OnPresent; override;
     function Validate(out message: ansistring): boolean; override;
@@ -45,9 +45,9 @@ uses UAccounts, UCoreUtils, UDataSources, UCommon, UCommon.UI, Generics.Collecti
 
 type
 
-  { TAccountChangeKeyDataSource }
+  { TOperationSelectedDataSource }
 
-  TAccountChangeKeyDataSource = class(TAccountsDataSourceBase)
+  TOperationSelectedDataSource = class(TAccountsDataSourceBase)
   private
     FModel: TWIZOperationsModel;
   public
@@ -55,23 +55,23 @@ type
     procedure FetchAll(const AContainer: TList<TAccount>); override;
   end;
 
-{ TWIZChangeKey_ConfirmAccount }
+{ TWIZOperationSelected }
 
-procedure TWIZChangeKey_ConfirmAccount.OnPresent;
+procedure TWIZOperationSelected.OnPresent;
 var
-  Data: TAccountChangeKeyDataSource;
+  Data: TOperationSelectedDataSource;
   i: integer;
   acc: TAccount;
   totalBalance: int64;
 begin
-  FChangeKeyGrid := TVisualGrid.Create(Self);
-  FChangeKeyGrid.CanSearch := False;
-  FChangeKeyGrid.SortMode := smMultiColumn;
-  FChangeKeyGrid.FetchDataInThread := False;
-  FChangeKeyGrid.AutoPageSize := True;
-  FChangeKeyGrid.SelectionType := stNone;
-  FChangeKeyGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
-  with FChangeKeyGrid.AddColumn('Account') do
+  FSelectedAccountsGrid := TVisualGrid.Create(Self);
+  FSelectedAccountsGrid.CanSearch := False;
+  FSelectedAccountsGrid.SortMode := smMultiColumn;
+  FSelectedAccountsGrid.FetchDataInThread := False;
+  FSelectedAccountsGrid.AutoPageSize := True;
+  FSelectedAccountsGrid.SelectionType := stNone;
+  FSelectedAccountsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
+  with FSelectedAccountsGrid.AddColumn('Account') do
   begin
     StretchedToFill := True;
     Binding := 'AccountNumber';
@@ -82,7 +82,7 @@ begin
     DataFontStyles := [fsBold];
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
-  with FChangeKeyGrid.AddColumn('Balance') do
+  with FSelectedAccountsGrid.AddColumn('Balance') do
   begin
     Binding := 'BalanceDecimal';
     SortBinding := 'Balance';
@@ -93,10 +93,10 @@ begin
     Renderer := TCellRenderers.PASC;
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
-  Data := TAccountChangeKeyDataSource.Create(FChangeKeyGrid);
+  Data := TOperationSelectedDataSource.Create(FSelectedAccountsGrid);
   Data.Model := Model;
-  FChangeKeyGrid.DataSource := Data;
-  paGrid.AddControlDockCenter(FChangeKeyGrid);
+  FSelectedAccountsGrid.DataSource := Data;
+  paGrid.AddControlDockCenter(FSelectedAccountsGrid);
 
   totalBalance := 0;
   for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
@@ -109,9 +109,22 @@ begin
     Format('%s PASC', [TAccountComp.FormatMoney(totalBalance)]);
 end;
 
-function TWIZChangeKey_ConfirmAccount.Validate(out message: ansistring): boolean;
+function TWIZOperationSelected.Validate(out message: ansistring): boolean;
+var
+  i: integer;
 begin
   Result := True;
+
+  if Model.ModelType = omtEnlistAccountForSale then
+    for i := Low(model.Account.SelectedAccounts) to High(model.Account.SelectedAccounts) do
+      if TAccountComp.IsAccountForSale(model.Account.SelectedAccounts[i].accountInfo) then
+      begin
+        Result := False;
+        message := 'Account ' + TAccountComp.AccountNumberToAccountTxtNumber(
+          model.Account.SelectedAccounts[i].account) + ' is already enlisted for sale';
+        Exit;
+      end;
+
   // get signer accounts from selected accounts
   Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Model.Fee.SingleOperationFee, Model.Account.SelectedAccounts);
 
@@ -123,16 +136,15 @@ begin
 
 end;
 
-{ TAccountChangeKeyDataSource }
+{ TOperationSelectedDataSource }
 
-procedure TAccountChangeKeyDataSource.FetchAll(const AContainer: TList<TAccount>);
+procedure TOperationSelectedDataSource.FetchAll(const AContainer: TList<TAccount>);
 var
   i: integer;
 begin
   for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
-  begin
     AContainer.Add(Model.Account.SelectedAccounts[i]);
-  end;
+
 end;
 
 end.

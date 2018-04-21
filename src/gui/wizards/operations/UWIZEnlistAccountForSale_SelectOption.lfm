@@ -32,9 +32,9 @@ object WIZEnlistAccountForSale_SelectOption: TWIZEnlistAccountForSale_SelectOpti
     TabStop = True
   end
   object Label2: TLabel
-    Left = 32
+    Left = 24
     Height = 48
-    Top = 80
+    Top = 88
     Width = 352
     Anchors = [akTop, akLeft, akRight]
     AutoSize = False
@@ -53,9 +53,9 @@ object WIZEnlistAccountForSale_SelectOption: TWIZEnlistAccountForSale_SelectOpti
     TabOrder = 1
   end
   object Label3: TLabel
-    Left = 32
+    Left = 24
     Height = 48
-    Top = 168
+    Top = 176
     Width = 350
     Anchors = [akTop, akLeft, akRight]
     AutoSize = False

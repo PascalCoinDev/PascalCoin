@@ -34,7 +34,7 @@ implementation
 
 uses
   UCoreUtils,
-  UWIZSendPASC_ConfirmSender,
+  UWIZOperationSelected,
   UWIZSendPASC_EnterRecipient,
   UWIZSendPASC_EnterQuantity,
   UWIZOperationConfirmation;
@@ -45,7 +45,7 @@ constructor TWIZSendPASCWizard.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner,
     [
-    TWIZSendPASC_ConfirmSender,
+    TWIZOperationSelected,
     TWIZSendPASC_EnterRecipient,
     TWIZSendPASC_EnterQuantity,
     TWIZOperationConfirmation

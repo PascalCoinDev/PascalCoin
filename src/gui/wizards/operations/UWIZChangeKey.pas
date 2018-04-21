@@ -34,7 +34,7 @@ implementation
 
 uses
   UCoreUtils,
-  UWIZChangeKey_ConfirmAccount,
+  UWIZOperationSelected,
   UWIZChangeKey_SelectOption,
   UWIZOperationConfirmation;
 
@@ -44,7 +44,7 @@ constructor TWIZChangeKeyWizard.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner,
     [
-    TWIZChangeKey_ConfirmAccount,
+    TWIZOperationSelected,
     TWIZChangeKey_SelectOption,
     TWIZOperationConfirmation
     ]

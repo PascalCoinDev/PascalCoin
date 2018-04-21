@@ -56,7 +56,7 @@ var
 begin
   Result := True;
 
-  if not TAccountComp.AccountKeyFromImport(mmoPublicKey.Text,
+  if not TAccountComp.AccountKeyFromImport(Trim(mmoPublicKey.Lines.Text),
     Model.EnlistAccountForSale.NewOwnerPublicKey, message) then
   begin
     message := 'Public key: ' + message;

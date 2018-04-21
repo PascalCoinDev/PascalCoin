@@ -1,20 +1,19 @@
-object WIZChangeKey_ConfirmAccount: TWIZChangeKey_ConfirmAccount
+object WIZOperationSelected: TWIZOperationSelected
   Left = 0
   Height = 261
   Top = 0
   Width = 429
-  Caption = 'ChangeKey_ConfirmAccount'
+  Caption = 'OperationSelected'
   ClientHeight = 261
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
-  object gpChangeKey: TGroupBox
+  object gpSelectedAccounts: TGroupBox
     Left = 4
     Height = 256
     Top = 4
     Width = 420
     Anchors = [akTop, akLeft, akRight, akBottom]
-    Caption = 'Confirm Accounts'
+    Caption = 'Selected Accounts'
     ClientHeight = 236
     ClientWidth = 416
     TabOrder = 0

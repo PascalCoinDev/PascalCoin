@@ -46,9 +46,9 @@ uses UAccounts, UCrypto, UConst, UWallet, UUserInterface, UDataSources, UCommon,
 
 type
 
-  { TAccountSenderDataSource }
+  { TOperationConfirmationDataSource }
 
-  TAccountSenderDataSource = class(TAccountsDataSourceBase)
+  TOperationConfirmationDataSource = class(TAccountsDataSourceBase)
   private
     FModel: TWIZOperationsModel;
 
@@ -64,7 +64,7 @@ type
 
 procedure TWIZOperationConfirmation.OnPresent;
 var
-  Data: TAccountSenderDataSource;
+  Data: TOperationConfirmationDataSource;
 begin
   FConfirmationGrid := TVisualGrid.Create(Self);
   FConfirmationGrid.CanSearch := False;
@@ -118,7 +118,7 @@ begin
     DataAlignment := taRightJustify;
   end;
 
-  Data := TAccountSenderDataSource.Create(FConfirmationGrid);
+  Data := TOperationConfirmationDataSource.Create(FConfirmationGrid);
   Data.Model := Model;
   FConfirmationGrid.DataSource := Data;
   paGrid.AddControlDockCenter(FConfirmationGrid);
@@ -135,9 +135,9 @@ begin
     TUserInterface.UnlockWallet(Self);
 end;
 
-{ TAccountSenderDataSource }
+{ TOperationConfirmationDataSource }
 
-function TAccountSenderDataSource.GetColumns: TDataColumns;
+function TOperationConfirmationDataSource.GetColumns: TDataColumns;
 begin
   Result := TArrayTool<TDataColumn>.Concat([
      Inherited,
@@ -150,7 +150,7 @@ begin
     ]);
 end;
 
-function TAccountSenderDataSource.GetItemField(constref AItem: TAccount; const ABindingName: ansistring): variant;
+function TOperationConfirmationDataSource.GetItemField(constref AItem: TAccount; const ABindingName: ansistring): variant;
 var
   LAmount: string;
   LCurrentAccountKey, LDestinationAccountKey: TAccountKey;
@@ -211,7 +211,7 @@ begin
 end;
 
 
-procedure TAccountSenderDataSource.FetchAll(const AContainer: TList<TAccount>);
+procedure TOperationConfirmationDataSource.FetchAll(const AContainer: TList<TAccount>);
 var
   i: integer;
 begin

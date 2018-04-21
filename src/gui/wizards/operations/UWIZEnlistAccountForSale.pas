@@ -45,11 +45,11 @@ uses
   UWallet,
   UECIES,
   UAES,
-  UWIZEnlistAccountForSale_ConfirmAccount,
+  UWIZOperationSelected,
   UWIZEnlistAccountForSale_SelectOption,
   UWIZEnlistAccountForSale_EnterSeller,
   UWIZEnlistAccountForSale_EnterSaleAmount,
-  UWIZEnlistAccountForSale_Confirmation;
+  UWIZOperationConfirmation;
 
 { TWIZEnlistAccountForSaleWizard }
 
@@ -370,11 +370,11 @@ constructor TWIZEnlistAccountForSaleWizard.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner,
     [
-    TWIZEnlistAccountForSale_ConfirmAccount,
+    TWIZOperationSelected,
     TWIZEnlistAccountForSale_SelectOption,
     TWIZEnlistAccountForSale_EnterSeller,
     TWIZEnlistAccountForSale_EnterSaleAmount,
-    TWIZEnlistAccountForSale_Confirmation
+    TWIZOperationConfirmation
     ]
     );
   TitleText := 'Enlist Account';
@@ -383,7 +383,7 @@ end;
 
 function TWIZEnlistAccountForSaleWizard.DetermineHasNext: boolean;
 begin
-  Result := not (CurrentScreen is TWIZEnlistAccountForSale_Confirmation);
+  Result := not (CurrentScreen is TWIZOperationConfirmation);
 end;
 
 function TWIZEnlistAccountForSaleWizard.DetermineHasPrevious: boolean;
