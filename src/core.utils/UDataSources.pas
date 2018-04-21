@@ -37,6 +37,13 @@ type
       procedure FetchAll(const AContainer : TList<TAccount>); override;
   end;
 
+  { TMyAccountsDataSource }
+
+  TMyAccountsDataSource = class(TAccountsDataSource)
+  public
+      procedure FetchAll(const AContainer : TList<TAccount>); override;
+  end;
+
   { TOperationsDataSourceBase }
 
   TOperationsDataSourceBase = class(TCustomDataSource<TOperationResume>)
@@ -62,8 +69,8 @@ type
       function GetAccounts : TArray<Cardinal> ;
       procedure SetAccounts(const AAccounts : TArray<Cardinal>);
     public
-      constructor Create(AOwner: TComponent);
-      destructor Destroy;
+      constructor Create(AOwner: TComponent); override;
+      destructor Destroy; override;
       property Accounts : TArray<Cardinal> read GetAccounts write SetAccounts;
       procedure FetchAll(const AContainer : TList<TOperationResume>); override;
   end;
@@ -188,6 +195,21 @@ begin
   finally
    safeBox.EndThreadSave;
   end;
+end;
+
+{ TMyAccountsDataSource }
+
+procedure TMyAccountsDataSource.FetchAll(const AContainer : TList<TAccount>);
+var
+  i : integer;
+  LAccs : TArray<TAccount>;
+begin
+  LAccs := TWallet.Keys.AccountsKeyList.GetAccounts(FIncludePending);
+  if FKeys.Count > 0 then begin
+    for i := Low(LAccs) to High(LAccs) do
+      if FKeys.Contains(LAccs[i].accountInfo.accountKey) then
+        AContainer.Add(LAccs[i]);
+  end else AContainer.AddRange(LAccs);
 end;
 
 { TOperationsDataSourceBase }
