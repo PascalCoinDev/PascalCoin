@@ -65,20 +65,16 @@ type
     FOperationsHistory: TCTRLWalletOperationsHistory;
     FAccountsGrid: TVisualGrid;
     FOperationsGrid: TVisualGrid;
-    FUserData : TUserSummary;
-    FAccountsDataSource: TAccountsDataSource;
+    FAccountsDataSource: TMyAccountsDataSource;
     FOperationsDataSource: TAccountsOperationsDataSource;
     procedure SetAccountsMode(AMode: TCTRLWalletAccountsMode);
     procedure SetOperationsMode(AMode: TCTRLWalletOperationsMode);
     procedure SetOperationsHistory(AHistory: TCTRLWalletOperationsHistory);
-    procedure FetchUserData;
     procedure RefreshMyAccountsCombo;
     procedure RefreshTotals;
     function GetAccounts(const AccountNumbers: TArray<cardinal>): TArray<TAccount>;
   protected
     procedure ActivateFirstTime; override;
-    function HasUserDataChanged : boolean; overload;
-    function HasUserDataChanged(out AChangedAccounts : TArray<TAccount>) : boolean; overload;
     procedure OnPrivateKeysChanged(Sender: TObject);
     procedure OnUserAccountsChanged(Sender: TObject);
     procedure OnNodeBlocksChanged(Sender: TObject);
@@ -116,8 +112,9 @@ begin
   TWallet.Keys.OnChanged.Add(OnPrivateKeysChanged);
 
   // fields
-  FAccountsDataSource := TAccountsDataSource.Create(Self);
+  FAccountsDataSource := TMyAccountsDataSource.Create(Self);
   FOperationsDataSource := TAccountsOperationsDataSource.Create(Self);
+  FOperationsDataSource.Accounts := TWallet.Keys.AccountsKeyList.GetAccountNumbers;
   FOperationsHistory := woh7Days;
   FOperationsMode:= womAllAccounts;
   FAccountsMode := wamMyAccounts;
@@ -125,7 +122,7 @@ begin
   // grids
   FAccountsGrid := TVisualGrid.Create(Self);
   FAccountsGrid.SortMode := smMultiColumn;
-  FAccountsGrid.FetchDataInThread := true;
+  FAccountsGrid.FetchDataInThread := false;
   FAccountsGrid.AutoPageSize := True;
   FAccountsGrid.DeselectionType := dtDefault;
   FAccountsGrid.SelectionType := stMultiRow;
@@ -291,44 +288,15 @@ end;
 
 procedure TCTRLWallet.ActivateFirstTime;
 begin
-  FetchUserData;
   RefreshTotals;
-  SetAccountsMode(wamMyAccounts);
-  SetOperationsMode(womAllAccounts);
-end;
-
-procedure TCTRLWallet.FetchUserData;
-var
-  GC : TDisposables;
-
-  function GetAccNo(constref AAccount: TAccount): cardinal; overload;
-  begin
-    Result := AAccount.account;
-  end;
-
-begin
-  FUserData := TUserInterface.Node.Bank.SafeBox.GetUserSummary(TWallet.Keys.AccountsKeyList.ToArray, true);
-  if cbAccounts.ItemIndex = 0 then
-    FAccountsDataSource.FilterKeys := FUserData.Keys;
-  FOperationsDataSource.Accounts := TListTool<TAccount, cardinal>.Transform(FUserData.Accounts, GetAccNo);
-end;
-
-function TCTRLWallet.HasUserDataChanged : boolean;
-var LArr : TArray<TAccount>;
-begin
-  Result := HasUserDataChanged(LArr);
-end;
-
-function TCTRLWallet.HasUserDataChanged(out AChangedAccounts : TArray<TAccount>) : boolean;
-begin
-  AChangedAccounts := TUserInterface.Node.Bank.SafeBox.GetModifiedAccounts(FUserData.Accounts);
-  Result := Length (AChangedAccounts) > 0;
 end;
 
 procedure TCTRLWallet.RefreshTotals;
+var LBalance : TBalanceSummary;
 begin
-  lblTotalPASC.Caption := TAccountComp.FormatMoney(FUserData.TotalPASC);
-  lblTotalPASA.Caption := Format('%d', [FUserData.TotalPASA]);
+  LBalance := TWallet.Keys.AccountsKeyList.GetBalance(true);
+  lblTotalPASC.Caption := TAccountComp.FormatMoney(LBalance.TotalPASC);
+  lblTotalPASA.Caption := Format('%d', [LBalance.TotalPASA]);
 end;
 
 procedure TCTRLWallet.RefreshMyAccountsCombo;
@@ -478,7 +446,7 @@ begin
     case AMode of
       womAllAccounts: begin
         FOperationsGrid.Caption.Text := '';
-        FOperationsDataSource.Accounts := TListTool<TAccount, cardinal>.Transform(FUserData.Accounts, GetAccNo);
+        FOperationsDataSource.Accounts := TWallet.Keys.AccountsKeyList.GetAccountNumbers;
       end;
       womSelectedAccounts:
       begin
@@ -511,10 +479,9 @@ end;
 
 procedure TCTRLWallet.OnUserAccountsChanged;
 begin
-  if NOT TUserInterface.Node.HasBestKnownBlockchainTip then
-    exit; // node syncing
+//  if NOT TUserInterface.Node.HasBestKnownBlockchainTip then
+//    exit; // node syncing
 
-  FetchUserData;
   RefreshTotals;
   FAccountsGrid.RefreshGrid;
   FOperationsGrid.RefreshGrid;
