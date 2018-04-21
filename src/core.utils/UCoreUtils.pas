@@ -738,7 +738,7 @@ var
   LAccs : TArray<TAccount>;
 begin
   Result := CT_BalanceSummary_Nil;
-  LAccs := Self.GetAccounts;
+  LAccs := Self.GetAccounts(IncludePending);
   for i := Low(LAccs) to High(LAccs) do begin
     Inc(Result.TotalPASA);
     Inc(Result.TotalPASC, LAccs[i].Balance);
