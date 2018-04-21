@@ -79,16 +79,24 @@ type
     class procedure ExecuteEnlistAccountForSale(); static;
   end;
 
+  { TOrderedAccountKeysListHelper }
+
+  TOrderedAccountKeysListHelper = class helper for TOrderedAccountKeysList
+  public
+    function GetBalance(IncludePending : boolean = false) : TBalanceSummary;
+    function GetAccounts(IncludePending : boolean = false) : TArray<TAccount>;
+    function GetAccountNumbers : TArray<Cardinal>;
+  end;
+
   { TSafeBoxHelper }
 
   TSafeBoxHelper = class helper for TPCSafeBox
   private
-    function GetKeysSummaryInternal(UseFilter: boolean; const AFilterKeys: array of TAccountKey; FetchAccounts: boolean = False): TUserSummary;
+    function GetBalanceInternal(const AKeys: array of TAccountKey; IncludePending : boolean = false): TBalanceSummary;
   public
     function GetModifiedAccounts(const AAccounts: array of TAccount): TArray<TAccount>;
-    function GetKeySummary(const AKey: TAccountKey; FetchAccounts: boolean = False): TKeySummary;
-    function GetUserSummary(const AKeys: array of TAccountKey; FetchAccounts: boolean = False): TUserSummary;
-    function GetSummaryAllKeys: TUserSummary;
+    function GetBalance(const AKey: TAccountKey; IncludePending : boolean = false): TBalanceSummary; overload;
+    function GetBalance(const AKeys: array of TAccountKey; IncludePending : boolean = false): TBalanceSummary; overload;
   end;
 
   { TNodeHelper }
@@ -722,6 +730,59 @@ begin
     Result := Self.Bank.BlocksCount = TNetData.NetData.MaxRemoteOperationBlock.block;
 end;
 
+{ TOrderedAccountKeysListHelper }
+
+function TOrderedAccountKeysListHelper.GetBalance(IncludePending : boolean = false) : TBalanceSummary;
+var
+  i : Integer;
+  LAccs : TArray<TAccount>;
+begin
+  Result := CT_BalanceSummary_Nil;
+  LAccs := Self.GetAccounts;
+  for i := Low(LAccs) to High(LAccs) do begin
+    Inc(Result.TotalPASA);
+    Inc(Result.TotalPASC, LAccs[i].Balance);
+  end;
+end;
+
+function TOrderedAccountKeysListHelper.GetAccounts(IncludePending : boolean = false) : TArray<TAccount>;
+var
+  i, j : integer;
+  LAccs : TList<TAccount>;
+  LAcc : TAccount;
+  LList : TOrderedCardinalList;
+  Disposables : TDisposables;
+begin
+  LAccs := Disposables.AddObject( TList<TAccount>.Create ) as TList<TAccount>;
+  for i := 0 to Self.Count - 1 do begin
+    LList := Self.AccountKeyList[i];
+    for j := 0 to LList.Count - 1 do begin
+      if IncludePending then
+        LAcc := TNode.Node.Operations.SafeBoxTransaction.Account(j)
+      else
+        LAcc :=  TNode.Node.Bank.SafeBox.Account(LList.Get(j));
+      LAccs.Add(LAcc);
+    end;
+  end;
+  Result := LAccs.ToArray;
+end;
+
+function TOrderedAccountKeysListHelper.GetAccountNumbers : TArray<Cardinal>;
+var
+  i, j : integer;
+  LAccs : TList<Cardinal>;
+  LList : TOrderedCardinalList;
+  Disposables : TDisposables;
+begin
+  LAccs := Disposables.AddObject( TList<Cardinal>.Create ) as TList<Cardinal>;
+  for i := 0 to Self.Count - 1 do begin
+    LList := Self.AccountKeyList[i];
+    for j := 0 to LList.Count - 1 do
+      LAccs.Add(j);
+  end;
+  Result := LAccs.ToArray;
+end;
+
 { TSafeBoxHelper }
 
 function TSafeBoxHelper.GetModifiedAccounts(const AAccounts: array of TAccount): TArray<TAccount>;
@@ -741,102 +802,46 @@ begin
   Result := LChanged.ToArray;
 end;
 
-function TSafeBoxHelper.GetKeySummary(const AKey: TAccountKey; FetchAccounts: boolean = False): TKeySummary;
+function TSafeBoxHelper.GetBalance(const AKey: TAccountKey; IncludePending: boolean = False): TBalanceSummary;
+begin
+  Result := GetBalance([AKey], IncludePending);
+end;
+
+function TSafeBoxHelper.GetBalance(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary;
+begin
+  Result := GetBalanceInternal(AKeys, IncludePending);
+end;
+
+function TSafeBoxHelper.GetBalanceInternal(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary;
 var
-  AKeysResult: TUserSummary;
-begin
-  AKeysResult := GetUserSummary([AKey], FetchAccounts);
-  if Length(AKeysResult.Items) = 0 then
-  begin
-    Result := CT_KeySummary_Nil;
-    exit;
-  end;
-  Result := AKeysResult.Items[0];
-end;
-
-function TSafeBoxHelper.GetUserSummary(const AKeys: array of TAccountKey; FetchAccounts: boolean = False): TUserSummary;
-begin
-  Result := GetKeysSummaryInternal(True, AKeys, FetchAccounts);
-end;
-
-function TSafeBoxHelper.GetSummaryAllKeys: TUserSummary;
-begin
-  Result := GetKeysSummaryInternal(False, [], False);
-end;
-
-function TSafeBoxHelper.GetKeysSummaryInternal(UseFilter: boolean; const AFilterKeys: array of TAccountKey; FetchAccounts: boolean = False): TUserSummary;
-type
-  __TList_TAccount = TList<TAccount>;
-  __TPair_TAccountKey_TList_TAccount = TPair<TAccountKey, __TList_TAccount>;
-  __TObjectDictionary_TAccountKey_TList_TAccount = TObjectDictionary<TAccountKey, __TList_TAccount>;
-var
-  i, j: integer;
+  i: integer;
   LAcc: TAccount;
-  LAccs: TSortedHashSet<TAccount>;
-  LKey: TAccountKey;
-  LValue: __TList_TAccount;
-  safeBox: TPCSafeBox;
+  LAccs: THashSet<TAccount>;
+  LKeys: THashSet<TAccountKey>;
   GC: TDisposables;
-  LKeys: __TObjectDictionary_TAccountKey_TList_TAccount;
-  LPair: __TPair_TAccountKey_TList_TAccount;
 begin
-  // Setup local dictionary key -> account[]
-  LAccs := GC.AddObject(TSortedHashSet<TAccount>.Create(TAccountComparer.Create, TAccountEqualityComparer.Create)) as TSortedHashSet<TAccount>;
-  LKeys := GC.AddObject(__TObjectDictionary_TAccountKey_TList_TAccount.Create([doOwnsValues], TAccountKeyEqualityComparer.Create)) as __TObjectDictionary_TAccountKey_TList_TAccount;
+  // Setup local collections
+  LAccs := GC.AddObject(THashSet<TAccount>.Create(TAccountEqualityComparer.Create)) as THashSet<TAccount>;
+  LKeys := GC.AddObject(THashSet<TAccountKey>.Create(TAccountKeyEqualityComparer.Create)) as THashSet<TAccountKey>;
 
-  if UseFilter then
+  // Gather all keys into hashset
+  for i := Low(AKeys) to High(AKeys) do
+    LKeys.Add(AKeys[i]);
+
+  // Gather all referenced accounts
+  for i := 0 to Self.AccountsCount - 1 do
   begin
-    for i := Low(AFilterKeys) to High(AFilterKeys) do
-      LKeys.Add(AFilterKeys[i], __TList_TAccount.Create);
-
-    for i := 0 to Self.AccountsCount - 1 do
-    begin
-      LAcc := Self.Account(i);
-      if LKeys.TryGetValue(LAcc.accountInfo.accountKey, LValue) then
-        LValue.Add(LAcc);
-    end;
-  end
-  else
-    for i := 0 to Self.AccountsCount - 1 do
-    begin
-      LAcc := Self.Account(i);
-      if not LKeys.TryGetValue(LAcc.accountInfo.accountKey, LValue) then
-      begin
-        LValue := __TList_TAccount.Create;
-        LKeys.Add(LAcc.accountInfo.accountKey, LValue);
-      end;
-      LValue.Add(LAcc);
-    end;
+    LAcc := Self.Account(i);
+    if LKeys.Contains(LAcc.accountInfo.accountKey) then
+      LAccs.Add(LAcc);
+  end;
 
   // Build the results
-  SetLength(Result.Items, LKeys.Count);
-  i := 0;
-  for LPair in LKeys do
-  begin
-    Result.Items[i].Key := CT_AccountInfo_NUL.accountKey;
-    Result.Items[i].TotalPASA := 0;
-    Result.Items[i].TotalPASC := 0;
-    SetLength(Result.Items[i].Accounts, 0);
-    for j := 0 to LPair.Value.Count - 1 do
-    begin
-      LAcc := LPair.Value[j];
-      Inc(Result.Items[i].TotalPASA);
-      Inc(Result.Items[i].TotalPASC, LAcc.balance);
-    end;
-    if FetchAccounts then
-    begin
-      Result.Items[i].Accounts := LPair.Value.ToArray;
-      LAccs.AddRange(Result.Items[i].Accounts);
-    end;
-    Inc(i);
-  end;
-  Result := CT_UserSummary_Nil;
-  Result.Keys := TArrayTool<TAccountKey>.Copy(AFilterKeys);
-  if FetchAccounts then
-    Result.Accounts := LAccs.ToArray;
-  Result.TotalPASA := LAccs.Count;
-  for LAcc in LAccs do
+  Result := CT_BalanceSummary_Nil;
+  for LAcc in LAccs do begin
+    Inc(Result.TotalPASA);
     Inc(Result.TotalPASC, LAcc.Balance);
+  end;
 end;
 
 { TAccountComparer }
