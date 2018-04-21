@@ -88,7 +88,7 @@ var
   i: integer;
 begin
   Result := True;
-  if not TAccountComp.AccountKeyFromImport(mmoNewPrivateKey.Lines.Text,
+  if not TAccountComp.AccountKeyFromImport(Trim(mmoNewPrivateKey.Lines.Text),
     tempAccountKey, message) then
   begin
     Result := False;

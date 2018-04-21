@@ -60,18 +60,21 @@ type
 
   TCoreTool = class
   public
-    class function GetSignerCandidates(ANumOps: integer; ASingleOperationFee: Int64; const ACandidates: array of TAccount): TArray<TAccount>; static;
+    class function GetSignerCandidates(ANumOps: integer; ASingleOperationFee: int64; const ACandidates: array of TAccount): TArray<TAccount>; static;
   end;
 
   { TOperationsManager }
 
   TOperationsManager = class
   private
-    class function SendPASCFinalizeAndDisplayMessage(AOperationsTxt: string; const AOperationToString: string; ANoOfOperations: Integer; ATotalAmount, ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
-    class function UpdateSendPASCPayload(ASenderAccount, ADestinationAccount: TAccount; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+    class function SendPASCFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalAmount, ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
+    class function UpdateSendPASCPayload(const ASenderAccount, ADestinationAccount: TAccount; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+
+    class function ChangeKeyFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; APublicKey: TAccountKey; ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
+    class function UpdateChangeKeyPayload(const ASenderAccount: TAccount; const APublicKey: TAccountKey; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
   public
-    class function ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TWIZOperationsModel.TSendPASCMode; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
-    class procedure ExecuteChangeKey(); static;
+    class function ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TWIZOperationsModel.TSendPASCMode; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
+    class function ExecuteChangeKey(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; APublicKey: TAccountKey; AFee: int64; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
     class procedure ExecuteEnlistAccountForSale(); static;
   end;
 
@@ -123,22 +126,20 @@ uses
 
 { TOperationsManager }
 
-class function TOperationsManager.SendPASCFinalizeAndDisplayMessage(
-  AOperationsTxt: string; const AOperationToString: string;
-  ANoOfOperations: Integer; ATotalAmount, ATotalFee: int64;
-  AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean;
+class function TOperationsManager.SendPASCFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalAmount, ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean;
 var
-  auxs: string;
+  LAuxs, LOperationsTxt: string;
   i: integer;
 begin
+  LOperationsTxt := AOperationsTxt;
   if (ANoOfOperations > 1) then
   begin
-    auxs := 'Total amount that dest will receive: ' + TAccountComp.FormatMoney(
+    LAuxs := 'Total amount that dest will receive: ' + TAccountComp.FormatMoney(
       ATotalAmount) + #10;
     if Application.MessageBox(
       PChar('Execute ' + IntToStr(ANoOfOperations) +
-      ' operations?' + #10 + 'Operation: ' + AOperationsTxt + #10 +
-      auxs + 'Total fee: ' + TAccountComp.FormatMoney(ATotalFee) +
+      ' operations?' + #10 + 'Operation: ' + LOperationsTxt + #10 +
+      LAuxs + 'Total fee: ' + TAccountComp.FormatMoney(ATotalFee) +
       #10 + #10 + 'Note: This operation will be transmitted to the network!'),
       PChar(Application.Title), MB_YESNO + MB_ICONINFORMATION + MB_DEFBUTTON2) <>
       idYes then
@@ -155,10 +156,10 @@ begin
   i := TNode.Node.AddOperations(nil, AOperationsHashTree, nil, AErrorMessage);
   if (i = AOperationsHashTree.OperationsCount) then
   begin
-    AOperationsTxt := 'Successfully executed ' + IntToStr(i) +
+    LOperationsTxt := 'Successfully executed ' + IntToStr(i) +
       ' operations!' + #10 + #10 + AOperationToString;
     if i > 1 then
-      ShowMessage(AOperationsTxt)
+      ShowMessage(LOperationsTxt)
     else
     begin
       Application.MessageBox(
@@ -169,16 +170,16 @@ begin
   end
   else if (i > 0) then
   begin
-    AOperationsTxt := 'One or more of your operations has not been executed:' +
+    LOperationsTxt := 'One or more of your operations has not been executed:' +
       #10 + 'Errors:' + #10 + AErrorMessage + #10 + #10 +
       'Total successfully executed operations: ' + IntToStr(i);
-    ShowMessage(AOperationsTxt);
+    ShowMessage(LOperationsTxt);
   end
   else
     Result := False;
 end;
 
-class function TOperationsManager.UpdateSendPASCPayload(ASenderAccount, ADestinationAccount: TAccount; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+class function TOperationsManager.UpdateSendPASCPayload(const ASenderAccount, ADestinationAccount: TAccount; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
 var
   LValid: boolean;
   LWorkingAccount: TAccount;
@@ -248,7 +249,128 @@ begin
   end;
 end;
 
-class function TOperationsManager.ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TWIZOperationsModel.TSendPASCMode; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+class function TOperationsManager.ChangeKeyFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; APublicKey: TAccountKey; ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean;
+var
+  LAuxs, LOperationsTxt: string;
+  i: integer;
+begin
+  LOperationsTxt := AOperationsTxt;
+  if (ANoOfOperations > 1) then
+  begin
+    LAuxs := '';
+    if Application.MessageBox(
+      PChar('Execute ' + IntToStr(ANoOfOperations) +
+      ' operations?' + #10 + 'Operation: ' + LOperationsTxt + #10 +
+      LAuxs + 'Total fee: ' + TAccountComp.FormatMoney(ATotalFee) +
+      #10 + #10 + 'Note: This operation will be transmitted to the network!'),
+      PChar(Application.Title), MB_YESNO + MB_ICONINFORMATION + MB_DEFBUTTON2) <>
+      idYes then
+      Exit;
+  end
+  else
+  if Application.MessageBox(PChar('Execute this operation:' +
+    #10 + #10 + AOperationToString + #10 + #10 +
+    'Note: This operation will be transmitted to the network!'),
+    PChar(Application.Title), MB_YESNO + MB_ICONINFORMATION + MB_DEFBUTTON2) <>
+    idYes then
+    Exit;
+  Result := True;
+  i := TNode.Node.AddOperations(nil, AOperationsHashTree, nil, AErrorMessage);
+  if (i = AOperationsHashTree.OperationsCount) then
+  begin
+    LOperationsTxt := 'Successfully executed ' + IntToStr(i) +
+      ' operations!' + #10 + #10 + AOperationToString;
+    if i > 1 then
+      ShowMessage(LOperationsTxt)
+    else
+    begin
+      Application.MessageBox(
+        PChar('Successfully executed ' + IntToStr(i) + ' operations!' +
+        #10 + #10 + AOperationToString),
+        PChar(Application.Title), MB_OK + MB_ICONINFORMATION);
+    end;
+  end
+  else if (i > 0) then
+  begin
+    LOperationsTxt := 'One or more of your operations has not been executed:' +
+      #10 + 'Errors:' + #10 + AErrorMessage + #10 + #10 +
+      'Total successfully executed operations: ' + IntToStr(i);
+    ShowMessage(LOperationsTxt);
+  end
+  else
+    Result := False;
+end;
+
+class function TOperationsManager.UpdateChangeKeyPayload(const ASenderAccount: TAccount; const APublicKey: TAccountKey; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+var
+  LValid: boolean;
+  LWorkingAccount: TAccount;
+begin
+
+  if (APayloadContent = '') then
+    Exit(True);
+
+  LValid := False;
+  AErrorMessage := 'An Error Occured During Payload Encryption.';
+
+  try
+
+    case APayloadEncryptionMode of
+
+      akaEncryptWithSender:
+      begin
+        // Use sender account public key
+        LWorkingAccount := ASenderAccount;
+        AEncodedPayloadBytes := ECIESEncrypt(LWorkingAccount.accountInfo.accountKey, APayloadContent);
+        LValid := AEncodedPayloadBytes <> '';
+      end;
+
+      akaEncryptWithReceiver:
+      begin
+        // With destination public key
+        AEncodedPayloadBytes := ECIESEncrypt(APublicKey, APayloadContent);
+        LValid := AEncodedPayloadBytes <> '';
+      end;
+
+      akaEncryptWithPassword:
+      begin
+        // With defined password
+        if APayloadEncryptionPassword = '' then
+        begin
+          AErrorMessage := 'Payload Encryption Password Cannot be Empty with the Chosen Option : "Encrypt With Password."';
+          Exit(False);
+        end;
+        AEncodedPayloadBytes := TAESComp.EVP_Encrypt_AES256(
+          APayloadContent, APayloadEncryptionPassword);
+        LValid := AEncodedPayloadBytes <> '';
+      end;
+
+      akaNotEncrypt:
+      begin
+        // no encryption
+        AEncodedPayloadBytes := APayloadContent;
+        LValid := True;
+      end
+
+      else
+      begin
+        AErrorMessage := 'Unknown Encryption Selected';
+        Exit(False);
+      end;
+    end;
+
+  finally
+    if LValid then
+      if Length(AEncodedPayloadBytes) > CT_MaxPayloadSize then
+      begin
+        LValid := False;
+        AErrorMessage := Format('Payload Size is %d Which is Bigger Than %d', [Length(AEncodedPayloadBytes), CT_MaxPayloadSize]);
+      end;
+    Result := LValid;
+  end;
+end;
+
+class function TOperationsManager.ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TWIZOperationsModel.TSendPASCMode; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
 var
   LWalletKey: TWalletKey;
   LWalletKeys: TWalletKeys;
@@ -385,8 +507,164 @@ begin
 
 end;
 
-class procedure TOperationsManager.ExecuteChangeKey();
+class function TOperationsManager.ExecuteChangeKey(
+  const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount;
+  APublicKey: TAccountKey; AFee: int64;
+  const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode;
+  const APayloadContent, APayloadEncryptionPassword: string;
+  var AErrorMessage: string): boolean;
+var
+  LWalletKey: TWalletKey;
+  LWalletKeys: TWalletKeys;
+  LNode: TNode;
+  LPCOperation: TPCOperation;
+  LOperationsHashTree: TOperationsHashTree;
+  LTotalSignerFee, LFee: int64;
+  LIsV2: boolean;
+  LOperationsTxt, LOperationToString: string;
+  LIdx, LAccountIdx, LSignerNoOfOperations: integer;
+  LCurrentAccount, LSignerAccount: TAccount;
+  LPayloadEncodedBytes: TRawBytes;
+  label loop_start;
 begin
+  if Length(ASelectedAccounts) = 0 then
+  begin
+    AErrorMessage := 'No Sender Account Found';
+    Exit(False);
+  end;
+
+  LWalletKeys := TWallet.Keys;
+  LNode := TNode.Node;
+
+  if not Assigned(LWalletKeys) then
+  begin
+    AErrorMessage := 'No Wallet Keys Found';
+    Exit(False);
+  end;
+
+  if not Assigned(LNode) then
+  begin
+    AErrorMessage := 'No Node Found';
+    Exit(False);
+  end;
+
+  LOperationsHashTree := TOperationsHashTree.Create;
+  try
+    LIsV2 := LNode.Bank.SafeBox.CurrentProtocol >= CT_PROTOCOL_2;
+    LTotalSignerFee := 0;
+    LSignerNoOfOperations := 0;
+    LOperationsTxt := '';
+    LOperationToString := '';
+    for LAccountIdx := Low(ASelectedAccounts) to High(ASelectedAccounts) do
+    begin
+      loop_start:
+        LPCOperation := nil; // reset LPCOperation to Nil
+      LCurrentAccount := ASelectedAccounts[LAccountIdx];
+
+      if LNode.Bank.SafeBox.CurrentProtocol >= 1 then
+      begin
+        // Signer:
+        LSignerAccount := ASignerAccount;
+        if (TAccountComp.IsAccountLocked(LSignerAccount.accountInfo,
+          LNode.Bank.BlocksCount)) then
+        begin
+          AErrorMessage := Format('Signer Account "%s" is Locked Until Block %u', [LSignerAccount.AccountString, LSignerAccount.accountInfo.locked_until_block]);
+          Exit(False);
+        end;
+        if (not TAccountComp.EqualAccountKeys(
+          LSignerAccount.accountInfo.accountKey, LCurrentAccount.accountInfo.accountKey)) then
+        begin
+          AErrorMessage := Format('Signer Account %s is Not The Owner Of Account %s', [LSignerAccount.AccountString, LCurrentAccount.AccountString]);
+          Exit(False);
+        end;
+      end
+      else
+        LSignerAccount := LCurrentAccount;
+
+      if (TAccountComp.EqualAccountKeys(LCurrentAccount.accountInfo.accountKey,
+        APublicKey)) then
+      begin
+        AErrorMessage := 'New Key is Same as Current Key';
+        Exit(False);
+      end;
+
+      if not UpdateChangeKeyPayload(LCurrentAccount, APublicKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
+      begin
+        AErrorMessage := Format('Error Encoding Payload Of Sender Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
+        Exit(False);
+      end;
+
+      LIdx := LWalletKeys.IndexOfAccountKey(LCurrentAccount.accountInfo.accountKey);
+      if LIdx < 0 then
+      begin
+        AErrorMessage := Format('Sender Account "%s" Private Key Not Found In Wallet', [LCurrentAccount.AccountString]);
+        Exit(False);
+      end;
+      LWalletKey := LWalletKeys.Key[LIdx];
+
+      if not Assigned(LWalletKey.PrivateKey) then
+      begin
+        if LWalletKey.HasPrivateKey then
+          AErrorMessage := 'Wallet is Password Protected. Please Unlock Before You Proceed.'
+        else
+          AErrorMessage := Format('Only Public Key of Account %s Was Found in Wallet. You Cannot Operate This Account', [LCurrentAccount.AccountString]);
+        Exit(False);
+      end;
+
+      if LIsV2 then
+      begin
+        // must ensure is Signer account last if included in sender accounts (not necessarily ordered enumeration)
+        if (LAccountIdx < Length(ASelectedAccounts) - 1) and
+          (LCurrentAccount.account = LSignerAccount.account) then
+        begin
+          TArrayTool<TAccount>.Swap(ASelectedAccounts, LAccountIdx,
+            Length(ASelectedAccounts) - 1); // ensure signer account processed last
+          goto loop_start; // TODO: remove ugly hack with refactoring!
+        end;
+
+        // Maintain correct signer fee distribution
+        if Uint64(LTotalSignerFee) >= LSignerAccount.balance then
+          LFee := 0
+        else if LSignerAccount.balance - uint64(LTotalSignerFee) >
+          UInt64(AFee) then
+          LFee := AFee
+        else
+          LFee := LSignerAccount.balance - UInt64(LTotalSignerFee);
+        LPCOperation := TOpChangeKeySigned.Create(LSignerAccount.account,
+          LsignerAccount.n_operation + LSignerNoOfOperations + 1, LCurrentAccount.account,
+          LWalletKey.PrivateKey, APublicKey, LFee, LPayloadEncodedBytes);
+      end
+      else
+        LPCOperation := TOpChangeKey.Create(LCurrentAccount.account, LCurrentAccount.n_operation +
+          1, LCurrentAccount.account, LWalletKey.PrivateKey, APublicKey, LFee, LPayloadEncodedBytes);
+
+      try
+        Inc(LSignerNoOfOperations);
+        Inc(LTotalSignerFee, LFee);
+        LOperationsTxt := Format('Change Key to "%s"', [TAccountComp.GetECInfoTxt(APublicKey.EC_OpenSSL_NID)]);
+        if Assigned(LPCOperation) then
+        begin
+          LOperationsHashTree.AddOperationToHashTree(LPCOperation);
+          if LOperationToString <> '' then
+            LOperationToString := LOperationToString + #10;
+          LOperationToString := LOperationToString + LPCOperation.ToString;
+        end;
+      finally
+        FreeAndNil(LPCOperation);
+      end;
+
+    end;
+
+    if (LOperationsHashTree.OperationsCount = 0) then
+    begin
+      AErrorMessage := 'No Valid Operation to Execute';
+      Exit(False);
+    end;
+
+    Exit(TOperationsManager.ChangeKeyFinalizeAndDisplayMessage(LOperationsTxt, LOperationToString, LSignerNoOfOperations, APublicKey, LTotalSignerFee, LOperationsHashTree, AErrorMessage));
+  finally
+    LOperationsHashTree.Free;
+  end;
 
 end;
 
@@ -397,8 +675,7 @@ end;
 
 { TCoreTool }
 
-class function TCoreTool.GetSignerCandidates(ANumOps: integer;
-  ASingleOperationFee: Int64; const ACandidates: array of TAccount): TArray<TAccount>;
+class function TCoreTool.GetSignerCandidates(ANumOps: integer; ASingleOperationFee: int64; const ACandidates: array of TAccount): TArray<TAccount>;
 var
   i, PoorSenderCount: integer;
   Fee, maxSignerFee, minSignerFee: int64;
