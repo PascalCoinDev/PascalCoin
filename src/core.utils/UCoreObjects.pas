@@ -21,41 +21,18 @@ uses
 
 type
 
-  { TKeySummary }
+  { TBalanceSummary }
 
-  TKeySummary = record
-    Key : TAccountKey;
+  TBalanceSummary = record
     TotalPASC : UInt64;
     TotalPASA : Cardinal;
-    Accounts : TArray<TAccount>;  // TODO: change to PAccount later (optimized)
   end;
-
-  { TUserSummary }
-
-  TUserSummary = record
-    Keys : TArray<TAccountKey>;
-    Accounts : TArray<TAccount>;
-    TotalPASC : UInt64;
-    TotalPASA : Cardinal;
-    Items : TArray<TKeySummary>;
-  end;
-  PUserSummary = ^TUserSummary;
 
 
 const
-  CT_KeySummary_Nil : TKeySummary = (
-    Key : (EC_OpenSSL_NID:0;x:'';y:'');
+  CT_BalanceSummary_Nil : TBalanceSummary = (
     TotalPASC : 0;
     TotalPASA : 0;
-    Accounts : nil;
-  );
-
-  CT_UserSummary_Nil : TUserSummary = (
-    Keys : nil;
-    Accounts : nil;
-    TotalPASC : 0;
-    TotalPASA : 0;
-    Items : nil;
   );
 
 implementation
