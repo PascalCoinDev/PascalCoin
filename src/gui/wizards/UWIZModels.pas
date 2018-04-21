@@ -128,7 +128,7 @@ type
     public
       HasPayload: boolean;
       Content, Password: string;
-      Mode: TPayloadEncryptionMode;
+      PayloadEncryptionMode: TPayloadEncryptionMode;
       EncodedBytes: TRawBytes;
     end;
 

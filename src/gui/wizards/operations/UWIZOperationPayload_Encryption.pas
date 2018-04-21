@@ -55,24 +55,24 @@ procedure TWIZOperationPayload_Encryption.OnNext;
 begin
   if rbEncryptedWithRecipient.Checked then
   begin
-    Model.Payload.Mode := akaEncryptWithSender;
+    Model.Payload.PayloadEncryptionMode := akaEncryptWithSender;
   end
   else
   if rbEncryptedWithSender.Checked then
   begin
-    Model.Payload.Mode := akaEncryptWithReceiver;
+    Model.Payload.PayloadEncryptionMode := akaEncryptWithReceiver;
   end
   else
   if rbEncryptedWithPassword.Checked then
   begin
-    Model.Payload.Mode := akaEncryptWithPassword;
+    Model.Payload.PayloadEncryptionMode := akaEncryptWithPassword;
   end
   else
   if rbNotEncrypted.Checked then
   begin
-    Model.Payload.Mode := akaNotEncrypt;
+    Model.Payload.PayloadEncryptionMode := akaNotEncrypt;
   end;
-  case Model.Payload.Mode of
+  case Model.Payload.PayloadEncryptionMode of
     akaEncryptWithPassword:
     begin
       UpdatePath(ptInject, [TWIZOperationPayload_Password]);

@@ -25,9 +25,11 @@ type
 
   TWIZOperationConfirmation = class(TWizardForm<TWIZOperationsModel>)
     GroupBox1: TGroupBox;
-    Label1: TLabel;
+    lblSignerAccount: TLabel;
+    lblBeneficiaryAccount: TLabel;
     lblPayload: TLabel;
     lblSgnAcc: TLabel;
+    lblBenAcc: TLabel;
     mmoPayload: TMemo;
     paGrid: TPanel;
   private
@@ -123,6 +125,17 @@ begin
   FConfirmationGrid.DataSource := Data;
   paGrid.AddControlDockCenter(FConfirmationGrid);
   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
+  if not (Model.ModelType = omtEnlistAccountForSale) then
+  begin
+    lblBeneficiaryAccount.Visible := False;
+    lblBenAcc.Visible := False;
+  end
+  else
+  begin
+    lblBeneficiaryAccount.Visible := True;
+    lblBenAcc.Visible := True;
+    lblBenAcc.Caption := Model.EnlistAccountForSale.SellerAccount.AccountString;
+  end;
   mmoPayload.Lines.Text := Model.Payload.Content;
 end;
 
@@ -181,6 +194,9 @@ begin
       end;
       omtChangeKey:
         Result := Format('%s', [TOperationsManager.GetOperationShortText(CT_Op_ChangeKeySigned, CT_OpSubtype_ChangeKey)]);
+      omtEnlistAccountForSale:
+        Result := Format('%s', [TOperationsManager.GetOperationShortText(CT_Op_ListAccountForSale, IIF(Model.EnlistAccountForSale.AccountSaleMode = akaPrivateSale, CT_OpSubtype_ListAccountForPrivateSale, CT_OpSubtype_ListAccountForPublicSale))]);
+
     end
   else if ABindingName = 'Recipient' then
     case Model.ModelType of
@@ -201,7 +217,9 @@ begin
           end
           else
             raise ENotSupportedException.Create('ChangeKeyMode');
-        end
+        end;
+      omtEnlistAccountForSale:
+        Result := IIF(Model.EnlistAccountForSale.AccountSaleMode = akaPrivateSale, TAccountComp.AccountPublicKeyExport(Model.EnlistAccountForSale.NewOwnerPublicKey), '');
 
     end
   else if ABindingName = 'Fee' then

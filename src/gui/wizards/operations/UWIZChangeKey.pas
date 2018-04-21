@@ -77,7 +77,7 @@ begin
 
   end;
 
-  Result := TOperationsManager.ExecuteChangeKey(Model.Account.SelectedAccounts, Model.Signer.SignerAccount, LPublicKey, Model.Fee.SingleOperationFee, Model.Payload.Mode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
+  Result := TOperationsManager.ExecuteChangeKey(Model.Account.SelectedAccounts, Model.Signer.SignerAccount, LPublicKey, Model.Fee.SingleOperationFee, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
 end;
 
 function TWIZChangeKeyWizard.CancelRequested(out message: ansistring): boolean;

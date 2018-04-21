@@ -71,7 +71,7 @@ begin
       valid := True;
       Exit;
     end;
-    case Model.Payload.Mode of
+    case Model.Payload.PayloadEncryptionMode of
 
       akaEncryptWithSender:
       begin

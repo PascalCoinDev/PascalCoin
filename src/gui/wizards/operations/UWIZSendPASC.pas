@@ -68,7 +68,7 @@ end;
 function TWIZSendPASCWizard.FinishRequested(out message: ansistring): boolean;
 begin
   // Execute the PASC Sending here
-  Result := TOperationsManager.ExecuteSendPASC(Model.Account.SelectedAccounts, Model.SendPASC.DestinationAccount, Model.Signer.SignerAccount, Model.SendPASC.SingleAmountToSend, Model.Fee.SingleOperationFee, Model.SendPASC.SendPASCMode, Model.Payload.Mode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
+  Result := TOperationsManager.ExecuteSendPASC(Model.Account.SelectedAccounts, Model.SendPASC.DestinationAccount, Model.Signer.SignerAccount, Model.SendPASC.SingleAmountToSend, Model.Fee.SingleOperationFee, Model.SendPASC.SendPASCMode, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
 end;
 
 function TWIZSendPASCWizard.CancelRequested(out message: ansistring): boolean;

@@ -6,7 +6,6 @@ object WIZOperationConfirmation: TWIZOperationConfirmation
   Caption = 'WIZOperationConfirmation'
   ClientHeight = 320
   ClientWidth = 511
-  LCLVersion = '1.8.2.0'
   Visible = False
   object GroupBox1: TGroupBox
     Left = 10
@@ -28,7 +27,7 @@ object WIZOperationConfirmation: TWIZOperationConfirmation
       Caption = 'GRID PANEL'
       TabOrder = 0
     end
-    object Label1: TLabel
+    object lblSignerAccount: TLabel
       Left = 8
       Height = 15
       Top = 2
@@ -64,6 +63,22 @@ object WIZOperationConfirmation: TWIZOperationConfirmation
       Font.Style = [fsBold]
       ParentColor = False
       ParentFont = False
+    end
+    object lblBeneficiaryAccount: TLabel
+      Left = 280
+      Height = 15
+      Top = 2
+      Width = 109
+      Caption = 'Beneficiary Account:'
+      ParentColor = False
+    end
+    object lblBenAcc: TLabel
+      Left = 408
+      Height = 15
+      Top = 2
+      Width = 53
+      Caption = 'lblBenAcc'
+      ParentColor = False
     end
   end
 end
