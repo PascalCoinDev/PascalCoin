@@ -35,9 +35,6 @@ type
     procedure UpdateUI();
     procedure chkallfundsChange(Sender: TObject);
 
-
-
-
   public
     procedure OnPresent; override;
     procedure OnNext; override;

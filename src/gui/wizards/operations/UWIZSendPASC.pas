@@ -37,7 +37,7 @@ uses
   UWIZSendPASC_ConfirmSender,
   UWIZSendPASC_EnterRecipient,
   UWIZSendPASC_EnterQuantity,
-  UWIZSendPASC_Confirmation;
+  UWIZOperationConfirmation;
 
 { TWIZSendPASCWizard }
 
@@ -48,7 +48,7 @@ begin
     TWIZSendPASC_ConfirmSender,
     TWIZSendPASC_EnterRecipient,
     TWIZSendPASC_EnterQuantity,
-    TWIZSendPASC_Confirmation
+    TWIZOperationConfirmation
     ]
     );
   TitleText := 'Send PASC';
@@ -57,7 +57,7 @@ end;
 
 function TWIZSendPASCWizard.DetermineHasNext: boolean;
 begin
-  Result := not (CurrentScreen is TWIZSendPASC_Confirmation);
+  Result := not (CurrentScreen is TWIZOperationConfirmation);
 end;
 
 function TWIZSendPASCWizard.DetermineHasPrevious: boolean;

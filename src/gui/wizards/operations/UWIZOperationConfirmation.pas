@@ -1,4 +1,4 @@
-unit UWIZSendPASC_Confirmation;
+unit UWIZOperationConfirmation;
 
 {$mode delphi}
 {$modeswitch nestedprocvars}
@@ -17,23 +17,21 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UWIZSendPASC, UWIZModels;
+  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UWIZModels;
 
 type
 
-  { TWIZSendPASC_Confirmation }
+  { TWIZOperationConfirmation }
 
-  TWIZSendPASC_Confirmation = class(TWizardForm<TWIZOperationsModel>)
+  TWIZOperationConfirmation = class(TWizardForm<TWIZOperationsModel>)
     GroupBox1: TGroupBox;
     Label1: TLabel;
-    Label2: TLabel;
     lblPayload: TLabel;
-    lblDestAcc: TLabel;
     lblSgnAcc: TLabel;
     mmoPayload: TMemo;
     paGrid: TPanel;
   private
-    FSendersGrid: TVisualGrid;
+    FConfirmationGrid: TVisualGrid;
   public
     procedure OnPresent; override;
     procedure OnNext; override;
@@ -44,7 +42,7 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, UWallet, UUserInterface, UDataSources, UCommon, UCommon.UI, Generics.Collections, UCoreUtils;
+uses UAccounts, UConst, UWallet, UUserInterface, UDataSources, UCommon, UCommon.UI, Generics.Collections, UCoreUtils;
 
 type
 
@@ -53,6 +51,7 @@ type
   TAccountSenderDataSource = class(TAccountsDataSourceBase)
   private
     FModel: TWIZOperationsModel;
+
   protected
     function GetColumns: TDataColumns; override;
   public
@@ -61,22 +60,22 @@ type
     function GetItemField(constref AItem: TAccount; const ABindingName: ansistring): variant; override;
   end;
 
-{ TWIZSendPASC_Confirmation }
+{ TWIZOperationConfirmation }
 
-procedure TWIZSendPASC_Confirmation.OnPresent;
+procedure TWIZOperationConfirmation.OnPresent;
 var
   Data: TAccountSenderDataSource;
 begin
-  FSendersGrid := TVisualGrid.Create(Self);
-  FSendersGrid.CanSearch := False;
-  FSendersGrid.SortMode := smMultiColumn;
-  FSendersGrid.FetchDataInThread := False;
-  FSendersGrid.AutoPageSize := True;
-  FSendersGrid.SelectionType := stNone;
-  FSendersGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
-  with FSendersGrid.AddColumn('Sender') do
+  FConfirmationGrid := TVisualGrid.Create(Self);
+  FConfirmationGrid.CanSearch := False;
+  FConfirmationGrid.SortMode := smMultiColumn;
+  FConfirmationGrid.FetchDataInThread := False;
+  FConfirmationGrid.AutoPageSize := True;
+  FConfirmationGrid.SelectionType := stNone;
+  FConfirmationGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
+  with FConfirmationGrid.AddColumn('Sender') do
   begin
-    StretchedToFill:=true;
+    StretchedToFill := True;
     Binding := 'Account';
     SortBinding := 'AccountNumber';
     DisplayBinding := 'Display';
@@ -84,7 +83,25 @@ begin
     HeaderFontStyles := [fsBold];
     DataFontStyles := [fsBold];
   end;
-  with FSendersGrid.AddColumn('Balance') do
+  with FConfirmationGrid.AddColumn('Recipient') do
+  begin
+    StretchedToFill := True;
+    Filters := SORTABLE_TEXT_FILTER;
+    HeaderFontStyles := [fsBold];
+    DataFontStyles := [fsBold];
+    HeaderAlignment := taRightJustify;
+    DataAlignment := taRightJustify;
+  end;
+  with FConfirmationGrid.AddColumn('Operation') do
+  begin
+    StretchedToFill := True;
+    Filters := SORTABLE_TEXT_FILTER;
+    HeaderFontStyles := [fsBold];
+    DataFontStyles := [fsBold];
+    HeaderAlignment := taRightJustify;
+    DataAlignment := taRightJustify;
+  end;
+  with FConfirmationGrid.AddColumn('Balance') do
   begin
     Filters := SORTABLE_NUMERIC_FILTER;
     Width := 100;
@@ -92,18 +109,7 @@ begin
     HeaderAlignment := taRightJustify;
     DataAlignment := taRightJustify;
   end;
-  with FSendersGrid.AddColumn('Amount') do
-  begin
-    Binding := 'AmountDecimal';
-    SortBinding := 'Amount';
-    DisplayBinding := 'Amount';
-    Filters := SORTABLE_TEXT_FILTER;
-    Width := 100;
-    Renderer := TCellRenderers.PASC_CheckAllBalance;
-    HeaderAlignment := taRightJustify;
-    DataAlignment := taRightJustify;
-  end;
-  with FSendersGrid.AddColumn('Fee') do
+  with FConfirmationGrid.AddColumn('Fee') do
   begin
     Filters := SORTABLE_NUMERIC_FILTER;
     Width := 50;
@@ -112,24 +118,21 @@ begin
     DataAlignment := taRightJustify;
   end;
 
-  Data := TAccountSenderDataSource.Create(FSendersGrid);
+  Data := TAccountSenderDataSource.Create(FConfirmationGrid);
   Data.Model := Model;
-  FSendersGrid.DataSource := Data;
-  paGrid.AddControlDockCenter(FSendersGrid);
+  FConfirmationGrid.DataSource := Data;
+  paGrid.AddControlDockCenter(FConfirmationGrid);
   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
-  lblDestAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.SendPASC.DestinationAccount.account);
   mmoPayload.Lines.Text := Model.Payload.Content;
 end;
 
-procedure TWIZSendPASC_Confirmation.OnNext;
+procedure TWIZOperationConfirmation.OnNext;
 var
-  locked: Boolean;
+  locked: boolean;
 begin
-  locked := (NOT TWallet.Keys.HasPassword) OR (NOT TWallet.Keys.IsValidPassword);
+  locked := (not TWallet.Keys.HasPassword) or (not TWallet.Keys.IsValidPassword);
   if locked then
-  begin
     TUserInterface.UnlockWallet(Self);
-  end;
 end;
 
 { TAccountSenderDataSource }
@@ -137,33 +140,37 @@ end;
 function TAccountSenderDataSource.GetColumns: TDataColumns;
 begin
   Result := TArrayTool<TDataColumn>.Concat([
-    Inherited,
+     Inherited,
     // Additional columns
     TDataColumns.Create(
-      TDataColumn.From('AllBalance'),
-      TDataColumn.From('Amount'),
-      TDataColumn.From('AmountDecimal'),
-      TDataColumn.From('Fee'),
-      TDataColumn.From('FeeDecimal')
+    TDataColumn.From('Operation'),
+    TDataColumn.From('Recipient'),
+    TDataColumn.From('Fee')
     )
-  ]);
+    ]);
 end;
 
 function TAccountSenderDataSource.GetItemField(constref AItem: TAccount; const ABindingName: ansistring): variant;
 var
-  index: integer;
+  LAmount: string;
 begin
-  if ABindingName = 'AllBalance' then
-    Result := IIF(Model.SendPASC.SendPASCMode = akaAllBalance, Variant(True), Variant(False))
-  else if ABindingName = 'Amount' then
-    Result := Variant(-Model.SendPASC.SingleAmountToSend)
-  else if ABindingName = 'AmountDecimal' then
-    Result := TAccountComp.FormatMoneyDecimal(-Model.SendPASC.SingleAmountToSend)
+  if ABindingName = 'Operation' then
+    case Model.ModelType of
+      omtSendPasc:
+      begin
+        Result := IIF(Model.SendPASC.SendPASCMode = akaAllBalance, 'All Balance', Format('%s ', [TAccountComp.FormatMoney(Model.SendPASC.SingleAmountToSend)]));
+        Result := Format('%s %s', [TOperationsManager.GetOperationShortText(CT_Op_Transaction, CT_OpSubtype_TransactionSender), Result]);
+      end;
+    end
+  else if ABindingName = 'Recipient' then
+    case Model.ModelType of
+      omtSendPasc:
+        Result := Model.SendPASC.DestinationAccount.AccountString;
+    end
   else if ABindingName = 'Fee' then
     Result := -Model.Fee.SingleOperationFee
-  else if ABindingName = 'FeeDecimal' then
-    Result := TAccountComp.FormatMoneyDecimal(-Model.Fee.SingleOperationFee)
-  else Result := Inherited GetItemField(AItem, ABindingName);
+  else
+    Result := inherited GetItemField(AItem, ABindingName);
 end;
 
 
@@ -172,9 +179,7 @@ var
   i: integer;
 begin
   for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
-  begin
     AContainer.Add(Model.Account.SelectedAccounts[i]);
-  end;
 end;
 
 
