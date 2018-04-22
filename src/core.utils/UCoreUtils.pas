@@ -73,7 +73,8 @@ type
     class function ChangeKeyFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; APublicKey: TAccountKey; ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
     class function UpdateChangeKeyPayload(const ASenderAccount: TAccount; const APublicKey: TAccountKey; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
   public
-    class function GetOperationShortText(const OpType, OpSubType : DWord) : AnsiString; static; inline;
+    class function ExecuteOperations(const ANewOps: TExecuteOperationsModel; AHandler: TExecuteOperationsModel.TOperationExecuteResultHandler; var errors: ansistring): boolean; static;
+    class function GetOperationShortText(const OpType, OpSubType: DWord): ansistring; static; inline;
     class function ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TExecuteOperationsModel.TSendPASCMode; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
     class function ExecuteChangeKey(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; APublicKey: TAccountKey; AFee: int64; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
     class procedure ExecuteEnlistAccountForSale(); static;
@@ -83,20 +84,20 @@ type
 
   TOrderedAccountKeysListHelper = class helper for TOrderedAccountKeysList
   public
-    function GetBalance(IncludePending : boolean = false) : TBalanceSummary;
-    function GetAccounts(IncludePending : boolean = false) : TArray<TAccount>;
-    function GetAccountNumbers : TArray<Cardinal>;
+    function GetBalance(IncludePending: boolean = False): TBalanceSummary;
+    function GetAccounts(IncludePending: boolean = False): TArray<TAccount>;
+    function GetAccountNumbers: TArray<cardinal>;
   end;
 
   { TSafeBoxHelper }
 
   TSafeBoxHelper = class helper for TPCSafeBox
   private
-    function GetBalanceInternal(const AKeys: array of TAccountKey; IncludePending : boolean = false): TBalanceSummary;
+    function GetBalanceInternal(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary;
   public
     function GetModifiedAccounts(const AAccounts: array of TAccount): TArray<TAccount>;
-    function GetBalance(const AKey: TAccountKey; IncludePending : boolean = false): TBalanceSummary; overload;
-    function GetBalance(const AKeys: array of TAccountKey; IncludePending : boolean = false): TBalanceSummary; overload;
+    function GetBalance(const AKey: TAccountKey; IncludePending: boolean = False): TBalanceSummary; overload;
+    function GetBalance(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary; overload;
   end;
 
   { TNodeHelper }
@@ -379,8 +380,15 @@ begin
   end;
 end;
 
-class function TOperationsManager.GetOperationShortText(const OpType,
-  OpSubType: DWord): AnsiString;
+class function TOperationsManager.ExecuteOperations(
+  const ANewOps: TExecuteOperationsModel;
+  AHandler: TExecuteOperationsModel.TOperationExecuteResultHandler;
+  var errors: ansistring): boolean;
+begin
+
+end;
+
+class function TOperationsManager.GetOperationShortText(const OpType, OpSubType: DWord): ansistring;
 begin
   Result := TCellRenderers.OperationShortText(OpType, OpSubType);
 end;
@@ -522,12 +530,7 @@ begin
 
 end;
 
-class function TOperationsManager.ExecuteChangeKey(
-  const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount;
-  APublicKey: TAccountKey; AFee: int64;
-  const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode;
-  const APayloadContent, APayloadEncryptionPassword: string;
-  var AErrorMessage: string): boolean;
+class function TOperationsManager.ExecuteChangeKey(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; APublicKey: TAccountKey; AFee: int64; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
 var
   LWalletKey: TWalletKey;
   LWalletKeys: TWalletKeys;
@@ -540,7 +543,8 @@ var
   LIdx, LAccountIdx, LSignerNoOfOperations: integer;
   LCurrentAccount, LSignerAccount: TAccount;
   LPayloadEncodedBytes: TRawBytes;
-  label loop_start;
+label
+  loop_start;
 begin
   if Length(ASelectedAccounts) = 0 then
   begin
@@ -732,50 +736,54 @@ end;
 
 { TOrderedAccountKeysListHelper }
 
-function TOrderedAccountKeysListHelper.GetBalance(IncludePending : boolean = false) : TBalanceSummary;
+function TOrderedAccountKeysListHelper.GetBalance(IncludePending: boolean = False): TBalanceSummary;
 var
-  i : Integer;
-  LAccs : TArray<TAccount>;
+  i: integer;
+  LAccs: TArray<TAccount>;
 begin
   Result := CT_BalanceSummary_Nil;
   LAccs := Self.GetAccounts(IncludePending);
-  for i := Low(LAccs) to High(LAccs) do begin
+  for i := Low(LAccs) to High(LAccs) do
+  begin
     Inc(Result.TotalPASA);
     Inc(Result.TotalPASC, LAccs[i].Balance);
   end;
 end;
 
-function TOrderedAccountKeysListHelper.GetAccounts(IncludePending : boolean = false) : TArray<TAccount>;
+function TOrderedAccountKeysListHelper.GetAccounts(IncludePending: boolean = False): TArray<TAccount>;
 var
-  i, j : integer;
-  LAccs : TList<TAccount>;
-  LAcc : TAccount;
-  LList : TOrderedCardinalList;
-  Disposables : TDisposables;
+  i, j: integer;
+  LAccs: TList<TAccount>;
+  LAcc: TAccount;
+  LList: TOrderedCardinalList;
+  Disposables: TDisposables;
 begin
-  LAccs := Disposables.AddObject( TList<TAccount>.Create ) as TList<TAccount>;
-  for i := 0 to Self.Count - 1 do begin
+  LAccs := Disposables.AddObject(TList<TAccount>.Create) as TList<TAccount>;
+  for i := 0 to Self.Count - 1 do
+  begin
     LList := Self.AccountKeyList[i];
-    for j := 0 to LList.Count - 1 do begin
+    for j := 0 to LList.Count - 1 do
+    begin
       if IncludePending then
         LAcc := TNode.Node.Operations.SafeBoxTransaction.Account(j)
       else
-        LAcc :=  TNode.Node.Bank.SafeBox.Account(LList.Get(j));
+        LAcc := TNode.Node.Bank.SafeBox.Account(LList.Get(j));
       LAccs.Add(LAcc);
     end;
   end;
   Result := LAccs.ToArray;
 end;
 
-function TOrderedAccountKeysListHelper.GetAccountNumbers : TArray<Cardinal>;
+function TOrderedAccountKeysListHelper.GetAccountNumbers: TArray<cardinal>;
 var
-  i, j : integer;
-  LAccs : TList<Cardinal>;
-  LList : TOrderedCardinalList;
-  Disposables : TDisposables;
+  i, j: integer;
+  LAccs: TList<cardinal>;
+  LList: TOrderedCardinalList;
+  Disposables: TDisposables;
 begin
-  LAccs := Disposables.AddObject( TList<Cardinal>.Create ) as TList<Cardinal>;
-  for i := 0 to Self.Count - 1 do begin
+  LAccs := Disposables.AddObject(TList<cardinal>.Create) as TList<cardinal>;
+  for i := 0 to Self.Count - 1 do
+  begin
     LList := Self.AccountKeyList[i];
     for j := 0 to LList.Count - 1 do
       LAccs.Add(j);
@@ -838,7 +846,8 @@ begin
 
   // Build the results
   Result := CT_BalanceSummary_Nil;
-  for LAcc in LAccs do begin
+  for LAcc in LAccs do
+  begin
     Inc(Result.TotalPASA);
     Inc(Result.TotalPASC, LAcc.Balance);
   end;

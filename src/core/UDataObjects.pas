@@ -11,12 +11,12 @@ uses Classes, SysUtils, UWizard, UAccounts, UBlockChain, UWallet,
   UBaseTypes, Generics.Defaults;
 
 type
-
   { TWIZAddKeyAction }
 
   TWIZAddKeyAction = (akaGenerateKey, akaImportPrivateKey, akaImportPublicKey);
 
-  { TFRMAddKeyModel }
+
+  { TWIZAddKeyModel }
 
   TWIZAddKeyModel = class(TComponent)
   public
@@ -33,9 +33,9 @@ type
   public
     type
 
-    { TModelType }
+    { TExecuteOperationType }
 
-    TModelType = (omtAccount, omtSendPasc, omtChangeKey, omtTransferAccount, omtChangeAccountPrivateKey, omtAddKey, omtEnlistAccountForSale);
+    TExecuteOperationType = (omtAccount, omtSendPasc, omtChangeKey, omtTransferAccount, omtChangeAccountPrivateKey, omtAddKey, omtEnlistAccountForSale);
 
     { TPayloadEncryptionMode }
 
@@ -55,6 +55,11 @@ type
 
     { TAccountSaleMode }
     TAccountSaleMode = (akaPublicSale, akaPrivateSale);
+
+    { TOperationExecuteResultHandler }
+
+    TOperationExecuteResultHandler =
+    procedure(const ASourceAccount: TAccount; AOpType: TExecuteOperationType; const AOpText: ansistring; Result: boolean; const Message: ansistring) of object;
 
 
     { TAccountModel }
@@ -133,7 +138,7 @@ type
     end;
 
   private
-    FModelType: TModelType;
+    FExecuteOperationType: TExecuteOperationType;
     FAccount: TAccountModel;
     FSendPASC: TSendPASCModel;
     FChangeKey: TChangeKeyModel;
@@ -144,8 +149,8 @@ type
     FSigner: TSignerModel;
     FPayload: TPayloadModel;
   public
-    constructor Create(AOwner: TComponent; AType: TModelType); overload;
-    property ModelType: TModelType read FModelType;
+    constructor Create(AOwner: TComponent; AType: TExecuteOperationType); overload;
+    property ExecuteOperationType: TExecuteOperationType read FExecuteOperationType;
     property Account: TAccountModel read FAccount;
     property SendPASC: TSendPASCModel read FSendPASC;
     property ChangeKey: TChangeKeyModel read FChangeKey;
@@ -159,10 +164,10 @@ type
 
 implementation
 
-constructor TExecuteOperationsModel.Create(AOwner: TComponent; AType: TExecuteOperationsModel.TModelType);
+constructor TExecuteOperationsModel.Create(AOwner: TComponent; AType: TExecuteOperationsModel.TExecuteOperationType);
 begin
   inherited Create(AOwner);
-  FModelType := AType;
+  FExecuteOperationType := AType;
   FAccount := TAccountModel.Create(Self);
   FSendPASC := TSendPASCModel.Create(Self);
   FChangeKey := TChangeKeyModel.Create(Self);

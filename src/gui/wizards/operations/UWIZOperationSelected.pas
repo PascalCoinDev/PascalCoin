@@ -115,7 +115,7 @@ var
 begin
   Result := True;
 
-  if Model.ModelType = omtEnlistAccountForSale then
+  if Model.ExecuteOperationType = omtEnlistAccountForSale then
     for i := Low(model.Account.SelectedAccounts) to High(model.Account.SelectedAccounts) do
       if TAccountComp.IsAccountForSale(model.Account.SelectedAccounts[i].accountInfo) then
       begin

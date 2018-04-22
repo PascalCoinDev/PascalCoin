@@ -125,7 +125,7 @@ begin
   FConfirmationGrid.DataSource := Data;
   paGrid.AddControlDockCenter(FConfirmationGrid);
   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
-  if not (Model.ModelType = omtEnlistAccountForSale) then
+  if not (Model.ExecuteOperationType = omtEnlistAccountForSale) then
   begin
     lblBeneficiaryAccount.Visible := False;
     lblBenAcc.Visible := False;
@@ -186,7 +186,7 @@ begin
   end;
 
   if ABindingName = 'Operation' then
-    case Model.ModelType of
+    case Model.ExecuteOperationType of
       omtSendPasc:
       begin
         Result := IIF(Model.SendPASC.SendPASCMode = akaAllBalance, 'All Balance', Format('%s ', [TAccountComp.FormatMoney(Model.SendPASC.SingleAmountToSend)]));
@@ -199,7 +199,7 @@ begin
 
     end
   else if ABindingName = 'Recipient' then
-    case Model.ModelType of
+    case Model.ExecuteOperationType of
       omtSendPasc:
         Result := Model.SendPASC.DestinationAccount.AccountString;
       omtChangeKey:
