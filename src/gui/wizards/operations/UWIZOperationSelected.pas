@@ -17,13 +17,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, UVisualGrid, UCommon.Data, UCellRenderers,
-  UWizard, UWIZModels;
+  UWizard, UDataObjects;
 
 type
 
   { TWIZOperationSelected }
 
-  TWIZOperationSelected = class(TWizardForm<TWIZOperationsModel>)
+  TWIZOperationSelected = class(TWizardForm<TExecuteOperationsModel>)
     gpSelectedAccounts: TGroupBox;
     lblTotalBalances: TLabel;
     lblTotalBalanceValue: TLabel;
@@ -49,9 +49,9 @@ type
 
   TOperationSelectedDataSource = class(TAccountsDataSourceBase)
   private
-    FModel: TWIZOperationsModel;
+    FModel: TExecuteOperationsModel;
   public
-    property Model: TWIZOperationsModel read FModel write FModel;
+    property Model: TExecuteOperationsModel read FModel write FModel;
     procedure FetchAll(const AContainer: TList<TAccount>); override;
   end;
 

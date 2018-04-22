@@ -18,13 +18,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections,
-  UWizard, UWIZOperationPayload_Content, UWIZOperationPayload_Password, UWIZModels;
+  UWizard, UWIZOperationPayload_Content, UWIZOperationPayload_Password, UDataObjects;
 
 type
 
   { TWIZOperationPayload_Encryption }
 
-  TWIZOperationPayload_Encryption = class(TWizardForm<TWIZOperationsModel>)
+  TWIZOperationPayload_Encryption = class(TWizardForm<TExecuteOperationsModel>)
     grpPayload: TGroupBox;
     Label1: TLabel;
     lblNoEncryption: TLabel;

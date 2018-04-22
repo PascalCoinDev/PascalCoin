@@ -15,13 +15,13 @@ unit UWIZEnlistAccountForSale;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon, UWizard, UAccounts, UWIZModels, LCLType;
+  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon, UWizard, UAccounts, UDataObjects, LCLType;
 
 type
 
   { TWIZEnlistAccountForSaleWizard }
 
-  TWIZEnlistAccountForSaleWizard = class(TWizard<TWIZOperationsModel>)
+  TWIZEnlistAccountForSaleWizard = class(TWizard<TExecuteOperationsModel>)
   private
     function UpdatePayload(const SenderAccount: TAccount; var errors: string): boolean;
     function UpdateOperationOptions(var errors: string): boolean;

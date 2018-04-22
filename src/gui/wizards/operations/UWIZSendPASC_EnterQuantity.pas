@@ -19,13 +19,13 @@ uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
   UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZOperationFee_Custom, UWIZOperationPayload_Encryption,
-  UWIZOperationSigner_Select, UWIZModels;
+  UWIZOperationSigner_Select, UDataObjects;
 
 type
 
   { TWIZSendPASC_EnterQuantity }
 
-  TWIZSendPASC_EnterQuantity = class(TWizardForm<TWIZOperationsModel>)
+  TWIZSendPASC_EnterQuantity = class(TWizardForm<TExecuteOperationsModel>)
     chkChooseFee: TCheckBox;
     chkAttachPayload: TCheckBox;
     chkallfunds: TCheckBox;

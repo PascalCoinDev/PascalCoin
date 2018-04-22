@@ -18,13 +18,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZModels;
+  UFRMAccountSelect, UNode, UWizard, UDataObjects;
 
 type
 
   { TWIZOperationSigner_Select }
 
-  TWIZOperationSigner_Select = class(TWizardForm<TWIZOperationsModel>)
+  TWIZOperationSigner_Select = class(TWizardForm<TExecuteOperationsModel>)
     cbSignerAccount: TComboBox;
     gbTransaction: TGroupBox;
     lblNote: TLabel;

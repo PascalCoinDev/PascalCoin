@@ -90,7 +90,7 @@ implementation
 
 {$R *.lfm}
 
-uses LCLIntf, Clipbrd, UUserInterface, USettings, UCommon, UWIZModels, UAccounts, UWIZAddKey, UMemory;
+uses LCLIntf, Clipbrd, UUserInterface, USettings, UCommon, UDataObjects, UAccounts, UWIZAddKey, UMemory;
 
 {%region Form life-cycle}
 

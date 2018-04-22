@@ -5,7 +5,7 @@ unit UWIZAddKey_SelectEncryption;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls, UWizard, UWIZAddKey, UWIZModels;
+  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls, UWizard, UWIZAddKey, UDataObjects;
 
 type
 

@@ -18,13 +18,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_EnterQuantity, UWIZModels;
+  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_EnterQuantity, UDataObjects;
 
 type
 
   { TWIZSendPASC_EnterRecipient }
 
-  TWIZSendPASC_EnterRecipient = class(TWizardForm<TWIZOperationsModel>)
+  TWIZSendPASC_EnterRecipient = class(TWizardForm<TExecuteOperationsModel>)
     edtDestAcc: TEdit;
     gbRecipient: TGroupBox;
     lblDestAccNumber: TLabel;

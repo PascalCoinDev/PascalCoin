@@ -15,13 +15,13 @@ unit UWIZChangeKey;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon, UWizard, UAccounts, LCLType, UWIZModels;
+  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon, UWizard, UAccounts, LCLType, UDataObjects;
 
 type
 
   { TWIZChangeKeyWizard }
 
-  TWIZChangeKeyWizard = class(TWizard<TWIZOperationsModel>)
+  TWIZChangeKeyWizard = class(TWizard<TExecuteOperationsModel>)
   public
     constructor Create(AOwner: TComponent); override;
     function DetermineHasNext: boolean; override;

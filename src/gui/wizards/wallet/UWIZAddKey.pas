@@ -11,7 +11,7 @@ unit UWIZAddKey;
 interface
 
 uses
-  Classes, SysUtils, Forms, UWizard, UWIZModels;
+  Classes, SysUtils, Forms, UWizard, UDataObjects;
 
 type
 

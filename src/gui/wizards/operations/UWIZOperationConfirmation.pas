@@ -17,13 +17,13 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UWIZModels;
+  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UDataObjects;
 
 type
 
   { TWIZOperationConfirmation }
 
-  TWIZOperationConfirmation = class(TWizardForm<TWIZOperationsModel>)
+  TWIZOperationConfirmation = class(TWizardForm<TExecuteOperationsModel>)
     GroupBox1: TGroupBox;
     lblSignerAccount: TLabel;
     lblBeneficiaryAccount: TLabel;
@@ -52,12 +52,12 @@ type
 
   TOperationConfirmationDataSource = class(TAccountsDataSourceBase)
   private
-    FModel: TWIZOperationsModel;
+    FModel: TExecuteOperationsModel;
 
   protected
     function GetColumns: TDataColumns; override;
   public
-    property Model: TWIZOperationsModel read FModel write FModel;
+    property Model: TExecuteOperationsModel read FModel write FModel;
     procedure FetchAll(const AContainer: TList<TAccount>); override;
     function GetItemField(constref AItem: TAccount; const ABindingName: ansistring): variant; override;
   end;

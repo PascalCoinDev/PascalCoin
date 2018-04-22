@@ -93,7 +93,7 @@ implementation
 
 uses
   UUserInterface, UCellRenderers, UBlockChain, UWallet, UCrypto,
-  UCommon, UMemory, Generics.Defaults, UCommon.Data, UCommon.Collections, UWIZModels;
+  UCommon, UMemory, Generics.Defaults, UCommon.Data, UCommon.Collections, UDataObjects;
 
 {$R *.lfm}
 
@@ -603,7 +603,7 @@ procedure TCTRLWallet.miSendPASCClick(Sender: TObject);
 var
   Scoped: TDisposables;
   wiz: TWIZSendPASCWizard;
-  model: TWIZOperationsModel;
+  model: TExecuteOperationsModel;
   AccountNumbersWithoutChecksum: TArray<cardinal>;
 
   function GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
@@ -613,7 +613,7 @@ var
 
 begin
   wiz := Scoped.AddObject(TWIZSendPASCWizard.Create(nil)) as TWIZSendPASCWizard;
-  model := TWIZOperationsModel.Create(wiz, omtSendPasc);
+  model := TExecuteOperationsModel.Create(wiz, omtSendPasc);
   AccountNumbersWithoutChecksum := TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,GetAccNoWithoutChecksum);
   model.Account.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
   wiz.Start(model);
@@ -623,7 +623,7 @@ procedure TCTRLWallet.miChangeKeyClick(Sender: TObject);
 var
   Scoped: TDisposables;
   wiz: TWIZChangeKeyWizard;
-  model: TWIZOperationsModel;
+  model: TExecuteOperationsModel;
   AccountNumbersWithoutChecksum: TArray<cardinal>;
 
   function GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
@@ -633,7 +633,7 @@ var
 
 begin
   wiz := Scoped.AddObject(TWIZChangeKeyWizard.Create(nil)) as TWIZChangeKeyWizard;
-  model := TWIZOperationsModel.Create(wiz, omtChangeKey);
+  model := TExecuteOperationsModel.Create(wiz, omtChangeKey);
   AccountNumbersWithoutChecksum := TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows, GetAccNoWithoutChecksum);
   model.Account.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
   wiz.Start(model);
@@ -643,7 +643,7 @@ procedure TCTRLWallet.miEnlistAccountsForSaleClick(Sender: TObject);
 var
   Scoped: TDisposables;
   wiz: TWIZEnlistAccountForSaleWizard;
-  model: TWIZOperationsModel;
+  model: TExecuteOperationsModel;
   AccountNumbersWithoutChecksum: TArray<cardinal>;
 
    function GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
@@ -654,7 +654,7 @@ var
 
 begin
   wiz := Scoped.AddObject(TWIZEnlistAccountForSaleWizard.Create(nil)) as TWIZEnlistAccountForSaleWizard;
-  model := TWIZOperationsModel.Create(wiz, omtEnlistAccountForSale);
+  model := TExecuteOperationsModel.Create(wiz, omtEnlistAccountForSale);
   AccountNumbersWithoutChecksum := TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows, GetAccNoWithoutChecksum);
   model.Account.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
   wiz.Start(model);

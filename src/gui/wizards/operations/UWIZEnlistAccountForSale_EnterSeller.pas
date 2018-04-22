@@ -18,13 +18,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZModels;
+  UFRMAccountSelect, UNode, UWizard, UDataObjects;
 
 type
 
   { TWIZEnlistAccountForSale_EnterSeller }
 
-  TWIZEnlistAccountForSale_EnterSeller = class(TWizardForm<TWIZOperationsModel>)
+  TWIZEnlistAccountForSale_EnterSeller = class(TWizardForm<TExecuteOperationsModel>)
     edtSellerAcc: TEdit;
     gbSeller: TGroupBox;
     lblSellerAccount: TLabel;

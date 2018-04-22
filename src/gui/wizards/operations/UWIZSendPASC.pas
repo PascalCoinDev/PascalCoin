@@ -15,13 +15,13 @@ unit UWIZSendPASC;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, UWizard, UCommon, UWIZModels;
+  Classes, SysUtils, Forms, Dialogs, UWizard, UCommon, UDataObjects;
 
 type
 
   { TWIZSendPASCWizard }
 
-  TWIZSendPASCWizard = class(TWizard<TWIZOperationsModel>)
+  TWIZSendPASCWizard = class(TWizard<TExecuteOperationsModel>)
   public
     constructor Create(AOwner: TComponent); override;
     function DetermineHasNext: boolean; override;

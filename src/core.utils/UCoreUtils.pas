@@ -18,7 +18,7 @@ interface
 
 uses
   Classes, SysUtils, UCrypto, UAccounts, UBlockChain, UOpTransaction, UNode, UCommon, UNetProtocol,
-  Generics.Collections, Generics.Defaults, UCoreObjects, UWIZModels, Forms, Dialogs, LCLType, UCellRenderers;
+  Generics.Collections, Generics.Defaults, UCoreObjects, UDataObjects, Forms, Dialogs, LCLType, UCellRenderers;
 
 type
 
@@ -68,14 +68,14 @@ type
   TOperationsManager = class
   private
     class function SendPASCFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalAmount, ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
-    class function UpdateSendPASCPayload(const ASenderAccount, ADestinationAccount: TAccount; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+    class function UpdateSendPASCPayload(const ASenderAccount, ADestinationAccount: TAccount; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
 
     class function ChangeKeyFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; APublicKey: TAccountKey; ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
-    class function UpdateChangeKeyPayload(const ASenderAccount: TAccount; const APublicKey: TAccountKey; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+    class function UpdateChangeKeyPayload(const ASenderAccount: TAccount; const APublicKey: TAccountKey; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
   public
     class function GetOperationShortText(const OpType, OpSubType : DWord) : AnsiString; static; inline;
-    class function ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TWIZOperationsModel.TSendPASCMode; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
-    class function ExecuteChangeKey(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; APublicKey: TAccountKey; AFee: int64; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
+    class function ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TExecuteOperationsModel.TSendPASCMode; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
+    class function ExecuteChangeKey(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; APublicKey: TAccountKey; AFee: int64; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
     class procedure ExecuteEnlistAccountForSale(); static;
   end;
 
@@ -188,7 +188,7 @@ begin
     Result := False;
 end;
 
-class function TOperationsManager.UpdateSendPASCPayload(const ASenderAccount, ADestinationAccount: TAccount; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+class function TOperationsManager.UpdateSendPASCPayload(const ASenderAccount, ADestinationAccount: TAccount; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
 var
   LValid: boolean;
   LWorkingAccount: TAccount;
@@ -310,7 +310,7 @@ begin
     Result := False;
 end;
 
-class function TOperationsManager.UpdateChangeKeyPayload(const ASenderAccount: TAccount; const APublicKey: TAccountKey; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+class function TOperationsManager.UpdateChangeKeyPayload(const ASenderAccount: TAccount; const APublicKey: TAccountKey; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
 var
   LValid: boolean;
   LWorkingAccount: TAccount;
@@ -385,7 +385,7 @@ begin
   Result := TCellRenderers.OperationShortText(OpType, OpSubType);
 end;
 
-class function TOperationsManager.ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TWIZOperationsModel.TSendPASCMode; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+class function TOperationsManager.ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TExecuteOperationsModel.TSendPASCMode; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
 var
   LWalletKey: TWalletKey;
   LWalletKeys: TWalletKeys;
@@ -525,7 +525,7 @@ end;
 class function TOperationsManager.ExecuteChangeKey(
   const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount;
   APublicKey: TAccountKey; AFee: int64;
-  const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode;
+  const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode;
   const APayloadContent, APayloadEncryptionPassword: string;
   var AErrorMessage: string): boolean;
 var

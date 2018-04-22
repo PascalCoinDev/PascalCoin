@@ -1,4 +1,4 @@
-unit UWIZModels;
+unit UDataObjects;
 
 
 {$ifdef fpc}
@@ -27,9 +27,9 @@ type
     Action: TWIZAddKeyAction;
   end;
 
-  { TWIZOperationsModel }
+  { TExecuteOperationsModel }
 
-  TWIZOperationsModel = class(TComponent)
+  TExecuteOperationsModel = class(TComponent)
   public
     type
 
@@ -159,7 +159,7 @@ type
 
 implementation
 
-constructor TWIZOperationsModel.Create(AOwner: TComponent; AType: TWIZOperationsModel.TModelType);
+constructor TExecuteOperationsModel.Create(AOwner: TComponent; AType: TExecuteOperationsModel.TModelType);
 begin
   inherited Create(AOwner);
   FModelType := AType;

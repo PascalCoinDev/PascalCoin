@@ -18,13 +18,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZOperationFee_Custom, UWIZOperationPayload_Encryption, UWIZOperationSigner_Select, UWIZModels;
+  UFRMAccountSelect, UNode, UWizard, UWIZOperationFee_Custom, UWIZOperationPayload_Encryption, UWIZOperationSigner_Select, UDataObjects;
 
 type
 
   { TWIZEnlistAccountForSale_EnterSaleAmount }
 
-  TWIZEnlistAccountForSale_EnterSaleAmount = class(TWizardForm<TWIZOperationsModel>)
+  TWIZEnlistAccountForSale_EnterSaleAmount = class(TWizardForm<TExecuteOperationsModel>)
     chkChooseFee: TCheckBox;
     chkAttachPayload: TCheckBox;
     edtAmt: TEdit;
