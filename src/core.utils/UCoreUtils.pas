@@ -9,7 +9,7 @@ unit UCoreUtils;
 
   Acknowledgements:
     Herman Schoenfeld <herman@sphere10.com>: unit creator
-    Ugochukwu Mmaduekwe - added TOperationsManager Class
+    Ugochukwu Mmaduekwe - added TOperationsManager class
 }
 
 {$mode delphi}
@@ -67,11 +67,10 @@ type
 
   TOperationsManager = class
   private
-    class function SendPASCFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalAmount, ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
-    class function UpdateSendPASCPayload(const ASenderAccount, ADestinationAccount: TAccount; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+    class function UpdatePayload(const ASenderPublicKey, ADestinationPublicKey: TAccountKey; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
 
+    class function SendPASCFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalAmount, ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
     class function ChangeKeyFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; APublicKey: TAccountKey; ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
-    class function UpdateChangeKeyPayload(const ASenderAccount: TAccount; const APublicKey: TAccountKey; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
   public
     class function ExecuteOperations(const ANewOps: TExecuteOperationsModel; AHandler: TExecuteOperationsModel.TOperationExecuteResultHandler; var errors: ansistring): boolean; static;
     class function GetOperationShortText(const OpType, OpSubType: DWord): ansistring; static; inline;
@@ -189,10 +188,9 @@ begin
     Result := False;
 end;
 
-class function TOperationsManager.UpdateSendPASCPayload(const ASenderAccount, ADestinationAccount: TAccount; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+class function TOperationsManager.UpdatePayload(const ASenderPublicKey, ADestinationPublicKey: TAccountKey; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
 var
   LValid: boolean;
-  LWorkingAccount: TAccount;
 begin
 
   if (APayloadContent = '') then
@@ -207,17 +205,15 @@ begin
 
       akaEncryptWithSender:
       begin
-        // Use sender account public key
-        LWorkingAccount := ASenderAccount;
-        AEncodedPayloadBytes := ECIESEncrypt(LWorkingAccount.accountInfo.accountKey, APayloadContent);
+        // Use sender public key
+        AEncodedPayloadBytes := ECIESEncrypt(ASenderPublicKey, APayloadContent);
         LValid := AEncodedPayloadBytes <> '';
       end;
 
       akaEncryptWithReceiver:
       begin
-        // With destination account public key
-        LWorkingAccount := ADestinationAccount;
-        AEncodedPayloadBytes := ECIESEncrypt(LWorkingAccount.accountInfo.accountKey, APayloadContent);
+        // With destination public key
+        AEncodedPayloadBytes := ECIESEncrypt(ADestinationPublicKey, APayloadContent);
         LValid := AEncodedPayloadBytes <> '';
       end;
 
@@ -311,79 +307,7 @@ begin
     Result := False;
 end;
 
-class function TOperationsManager.UpdateChangeKeyPayload(const ASenderAccount: TAccount; const APublicKey: TAccountKey; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
-var
-  LValid: boolean;
-  LWorkingAccount: TAccount;
-begin
-
-  if (APayloadContent = '') then
-    Exit(True);
-
-  LValid := False;
-  AErrorMessage := 'An Error Occured During Payload Encryption.';
-
-  try
-
-    case APayloadEncryptionMode of
-
-      akaEncryptWithSender:
-      begin
-        // Use sender account public key
-        LWorkingAccount := ASenderAccount;
-        AEncodedPayloadBytes := ECIESEncrypt(LWorkingAccount.accountInfo.accountKey, APayloadContent);
-        LValid := AEncodedPayloadBytes <> '';
-      end;
-
-      akaEncryptWithReceiver:
-      begin
-        // With destination public key
-        AEncodedPayloadBytes := ECIESEncrypt(APublicKey, APayloadContent);
-        LValid := AEncodedPayloadBytes <> '';
-      end;
-
-      akaEncryptWithPassword:
-      begin
-        // With defined password
-        if APayloadEncryptionPassword = '' then
-        begin
-          AErrorMessage := 'Payload Encryption Password Cannot be Empty with the Chosen Option : "Encrypt With Password."';
-          Exit(False);
-        end;
-        AEncodedPayloadBytes := TAESComp.EVP_Encrypt_AES256(
-          APayloadContent, APayloadEncryptionPassword);
-        LValid := AEncodedPayloadBytes <> '';
-      end;
-
-      akaNotEncrypt:
-      begin
-        // no encryption
-        AEncodedPayloadBytes := APayloadContent;
-        LValid := True;
-      end
-
-      else
-      begin
-        AErrorMessage := 'Unknown Encryption Selected';
-        Exit(False);
-      end;
-    end;
-
-  finally
-    if LValid then
-      if Length(AEncodedPayloadBytes) > CT_MaxPayloadSize then
-      begin
-        LValid := False;
-        AErrorMessage := Format('Payload Size is %d Which is Bigger Than %d', [Length(AEncodedPayloadBytes), CT_MaxPayloadSize]);
-      end;
-    Result := LValid;
-  end;
-end;
-
-class function TOperationsManager.ExecuteOperations(
-  const ANewOps: TExecuteOperationsModel;
-  AHandler: TExecuteOperationsModel.TOperationExecuteResultHandler;
-  var errors: ansistring): boolean;
+class function TOperationsManager.ExecuteOperations(const ANewOps: TExecuteOperationsModel; AHandler: TExecuteOperationsModel.TOperationExecuteResultHandler; var errors: ansistring): boolean;
 begin
 
 end;
@@ -446,7 +370,7 @@ begin
         Exit(False);
       end;
 
-      if not UpdateSendPASCPayload(LCurrentAccount, ADestinationAccount, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
+      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, ADestinationAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
       begin
         AErrorMessage := Format('Error Encoding Payload Of Sender Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
         Exit(False);
@@ -607,7 +531,7 @@ begin
         Exit(False);
       end;
 
-      if not UpdateChangeKeyPayload(LCurrentAccount, APublicKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
+      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, APublicKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
       begin
         AErrorMessage := Format('Error Encoding Payload Of Sender Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
         Exit(False);
