@@ -1824,6 +1824,22 @@ begin
   SetLength(OperationResume.Changers,1);
   OperationResume.Changers[0] := CT_TMultiOpChangeInfo_NUL;
   OperationResume.Changers[0].Account:=FData.account_target;
+  case FData.operation_type of
+    lat_ListForSale : begin
+        if (FData.new_public_key.EC_OpenSSL_NID=CT_TECDSA_Public_Nul.EC_OpenSSL_NID) then begin
+          OperationResume.Changers[0].Changes_type:=[list_for_public_sale];
+        end else begin
+          OperationResume.Changers[0].Changes_type:=[list_for_private_sale];
+          OperationResume.Changers[0].New_Accountkey := FData.new_public_key;
+          OperationResume.Changers[0].Locked_Until_Block := FData.locked_until_block;
+        end;
+        OperationResume.Changers[0].Seller_Account:=FData.account_to_pay;
+        OperationResume.Changers[0].Account_Price:=FData.account_price;
+      end;
+    lat_DelistAccount : begin
+        OperationResume.Changers[0].Changes_type:=[delist];
+      end;
+  end;
   if (FData.account_signer = FData.account_target) then begin
     OperationResume.Changers[0].Fee:=FData.fee;
     OperationResume.Changers[0].N_Operation:=FData.n_operation;

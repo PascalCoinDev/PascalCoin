@@ -189,14 +189,14 @@ Begin
   If (Not OPR.isMultiOperation) then Begin
     jsonObject.GetAsVariant('account').Value:=OPR.AffectedAccount;
     jsonObject.GetAsVariant('signer_account').Value:=OPR.SignerAccount;
-    jsonObject.GetAsVariant('n_operation').Value:=OPR.n_operation;
+    if (OPR.n_operation>0) then jsonObject.GetAsVariant('n_operation').Value:=OPR.n_operation;
   end;
   // New V3: Will include senders[], receivers[] and changers[]
     jsonArr := jsonObject.GetAsArray('senders');
     for i:=Low(OPR.senders) to High(OPR.Senders) do begin
       auxObj := jsonArr.GetAsObject(jsonArr.Count);
       auxObj.GetAsVariant('account').Value := OPR.Senders[i].Account;
-      auxObj.GetAsVariant('n_operation').Value := OPR.Senders[i].N_Operation;
+      if (OPR.Senders[i].N_Operation>0) then auxObj.GetAsVariant('n_operation').Value := OPR.Senders[i].N_Operation;
       auxObj.GetAsVariant('amount').Value := ToJSONCurrency(OPR.Senders[i].Amount * (-1));
       auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Senders[i].Payload);
     end;
@@ -212,8 +212,8 @@ Begin
     for i:=Low(OPR.Changers) to High(OPR.Changers) do begin
       auxObj := jsonArr.GetAsObject(jsonArr.Count);
       auxObj.GetAsVariant('account').Value := OPR.Changers[i].Account;
-      auxObj.GetAsVariant('n_operation').Value := OPR.Changers[i].N_Operation;
-      If public_key in OPR.Changers[i].Changes_type then begin
+      if (OPR.Changers[i].N_Operation>0) then auxObj.GetAsVariant('n_operation').Value := OPR.Changers[i].N_Operation;
+      If (public_key in OPR.Changers[i].Changes_type) then begin
         auxObj.GetAsVariant('new_enc_pubkey').Value := TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(OPR.Changers[i].New_Accountkey));
       end;
       If account_name in OPR.Changers[i].Changes_type then begin
@@ -221,6 +221,15 @@ Begin
       end;
       If account_type in OPR.Changers[i].Changes_type then begin
         auxObj.GetAsVariant('new_type').Value := OPR.Changers[i].New_Type;
+      end;
+      if (list_for_public_sale in OPR.Changers[i].Changes_type)
+        Or (list_for_private_sale in OPR.Changers[i].Changes_type) then begin
+        auxObj.GetAsVariant('seller_account').Value := OPR.Changers[i].Seller_Account;
+        auxObj.GetAsVariant('account_price').Value := ToJSONCurrency(OPR.Changers[i].Account_Price);
+      end;
+      if (list_for_private_sale in OPR.Changers[i].Changes_type) then begin
+        auxObj.GetAsVariant('locked_until_block').Value := OPR.Changers[i].Locked_Until_Block;
+        auxObj.GetAsVariant('new_enc_pubkey').Value := TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(OPR.Changers[i].New_Accountkey));
       end;
       if (OPR.Changers[i].Fee<>0) then begin
         auxObj.GetAsVariant('fee').Value := ToJSONCurrency(OPR.Changers[i].Fee * (-1));
