@@ -977,11 +977,31 @@ begin
   OperationResume.Senders[0].N_Operation:=FData.n_operation;
   OperationResume.Senders[0].Payload:=FData.payload;
   OperationResume.Senders[0].Signature:=FData.sign;
-  SetLength(OperationResume.Receivers,1);
-  OperationResume.Receivers[0] := CT_TMultiOpReceiver_NUL;
-  OperationResume.Receivers[0].Account:=FData.target;
-  OperationResume.Receivers[0].Amount:=FData.amount;
-  OperationResume.Receivers[0].Payload:=FData.payload;
+  case FData.opTransactionStyle of
+    transaction : begin
+      SetLength(OperationResume.Receivers,1);
+      OperationResume.Receivers[0] := CT_TMultiOpReceiver_NUL;
+      OperationResume.Receivers[0].Account:=FData.target;
+      OperationResume.Receivers[0].Amount:=FData.amount;
+      OperationResume.Receivers[0].Payload:=FData.payload;
+    end;
+    buy_account,transaction_with_auto_buy_account : begin
+      SetLength(OperationResume.Receivers,2);
+      OperationResume.Receivers[0] := CT_TMultiOpReceiver_NUL;
+      OperationResume.Receivers[0].Account:=FData.target;
+      OperationResume.Receivers[0].Amount:= (FData.amount - FData.AccountPrice);
+      OperationResume.Receivers[0].Payload:=FData.payload;
+      OperationResume.Receivers[1] := CT_TMultiOpReceiver_NUL;
+      OperationResume.Receivers[1].Account:=FData.SellerAccount;
+      OperationResume.Receivers[1].Amount:= FData.AccountPrice;
+      OperationResume.Receivers[1].Payload:=FData.payload;
+      SetLength(OperationResume.Changers,1);
+      OperationResume.Changers[0] := CT_TMultiOpChangeInfo_NUL;
+      OperationResume.Changers[0].Account := FData.target;
+      OperationResume.Changers[0].Changes_type := [public_key];
+      OperationResume.Changers[0].New_Accountkey := FData.new_accountkey;
+    end;
+  end;
 end;
 
 function TOpTransaction.OperationAmount: Int64;
