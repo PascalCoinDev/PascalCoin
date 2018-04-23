@@ -115,33 +115,33 @@ end;
 
 function TWIZSendPASC_EnterQuantity.Validate(out message: ansistring): boolean;
 var
-  amount: int64;
-  i: integer;
-  acc: TAccount;
+  LAmount: int64;
+  LIdx: integer;
+  LAccount: TAccount;
 begin
   Result := True;
   if not chkallfunds.Checked then
   begin
-    if not TAccountComp.TxtToMoney(edtAmt.Text, amount) then
+    if not TAccountComp.TxtToMoney(edtAmt.Text, LAmount) then
     begin
-      message := 'Invalid amount (' + edtAmt.Text + ')';
+      message := Format('Invalid Amount "%s"', [edtAmt.Text]);
       Result := False;
       Exit;
     end;
 
-    if amount < 1 then
+    if LAmount < 1 then
     begin
-      message := 'Invalid amount (' + edtAmt.Text + '), you must send an amount greater than zero';
+      message := 'You Must Send An Amount Greater Than Zero.';
       Result := False;
       Exit;
     end;
 
-    for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
+    for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
     begin
-      acc := Model.Account.SelectedAccounts[i];
-      if acc.balance < amount then
+      LAccount := Model.Account.SelectedAccounts[LIdx];
+      if LAccount.balance < LAmount then
       begin
-        message := 'Insufficient funds in one or more accounts';
+        message := 'Insufficient Funds In One Or More Accounts.';
         Result := False;
         Exit;
       end;

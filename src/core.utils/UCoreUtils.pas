@@ -222,7 +222,7 @@ begin
         // With defined password
         if APayloadEncryptionPassword = '' then
         begin
-          AErrorMessage := 'Payload Encryption Password Cannot be Empty with the Chosen Option : "Encrypt With Password."';
+          AErrorMessage := 'Payload Encryption Password Cannot Be Empty With The Chosen Option : "Encrypt With Password."';
           Exit(False);
         end;
         AEncodedPayloadBytes := TAESComp.EVP_Encrypt_AES256(
@@ -249,7 +249,7 @@ begin
       if Length(AEncodedPayloadBytes) > CT_MaxPayloadSize then
       begin
         LValid := False;
-        AErrorMessage := Format('Payload Size is %d Which is Bigger Than %d', [Length(AEncodedPayloadBytes), CT_MaxPayloadSize]);
+        AErrorMessage := Format('Payload Size Is %d Which Is Bigger Than %d', [Length(AEncodedPayloadBytes), CT_MaxPayloadSize]);
       end;
     Result := LValid;
   end;
@@ -366,7 +366,7 @@ begin
 
       if LCurrentAccount.account = ADestinationAccount.account then
       begin
-        AErrorMessage := Format('Sender "%s" and Destination "%s" Accounts are the Same', [LCurrentAccount.AccountString, ADestinationAccount.AccountString]);
+        AErrorMessage := Format('Sender "%s" And Destination "%s" Accounts Are The Same', [LCurrentAccount.AccountString, ADestinationAccount.AccountString]);
         Exit(False);
       end;
 
@@ -411,7 +411,7 @@ begin
             end
             else
             begin
-              AErrorMessage := Format('Insufficient Funds in "%s". %s < (%s + %s = %s)', [LCurrentAccount.AccountString, TAccountComp.FormatMoney(LCurrentAccount.balance), TAccountComp.FormatMoney(AAmount), TAccountComp.FormatMoney(AFee), TAccountComp.FormatMoney(AAmount + AFee)]);
+              AErrorMessage := Format('Insufficient Funds In "%s". %s < (%s + %s = %s)', [LCurrentAccount.AccountString, TAccountComp.FormatMoney(LCurrentAccount.balance), TAccountComp.FormatMoney(AAmount), TAccountComp.FormatMoney(AFee), TAccountComp.FormatMoney(AAmount + AFee)]);
               Exit(False);
             end;
         end
@@ -423,7 +423,7 @@ begin
         LPCOperation := TOpTransaction.CreateTransaction(
           LCurrentAccount.account, LCurrentAccount.n_operation + 1, ADestinationAccount.account, LWalletKey.PrivateKey, LAmount, LFee, LPayloadEncodedBytes);
         try
-          LOperationsTxt := Format('Transaction to "%s"', [ADestinationAccount.AccountString]);
+          LOperationsTxt := Format('Transaction To "%s"', [ADestinationAccount.AccountString]);
 
           if Assigned(LPCOperation) then
           begin
@@ -443,7 +443,7 @@ begin
     end;
     if (LOperationsHashTree.OperationsCount = 0) then
     begin
-      AErrorMessage := 'No Valid Operation to Execute';
+      AErrorMessage := 'No Valid Operation To Execute';
       Exit(False);
     end;
 
@@ -507,7 +507,7 @@ begin
       if (TAccountComp.EqualAccountKeys(LCurrentAccount.accountInfo.accountKey,
         APublicKey)) then
       begin
-        AErrorMessage := 'New Key is Same as Current Key';
+        AErrorMessage := 'New Key Is Same As Current Key';
         Exit(False);
       end;
 
@@ -518,13 +518,13 @@ begin
         if (TAccountComp.IsAccountLocked(LSignerAccount.accountInfo,
           LNode.Bank.BlocksCount)) then
         begin
-          AErrorMessage := Format('Signer Account "%s" is Locked Until Block %u', [LSignerAccount.AccountString, LSignerAccount.accountInfo.locked_until_block]);
+          AErrorMessage := Format('Signer Account "%s"  Is Locked Until Block %u', [LSignerAccount.AccountString, LSignerAccount.accountInfo.locked_until_block]);
           Exit(False);
         end;
         if (not TAccountComp.EqualAccountKeys(
           LSignerAccount.accountInfo.accountKey, LCurrentAccount.accountInfo.accountKey)) then
         begin
-          AErrorMessage := Format('Signer Account %s is Not The Owner Of Account %s', [LSignerAccount.AccountString, LCurrentAccount.AccountString]);
+          AErrorMessage := Format('Signer Account %s Is Not The Owner Of Account %s', [LSignerAccount.AccountString, LCurrentAccount.AccountString]);
           Exit(False);
         end;
       end
@@ -548,9 +548,9 @@ begin
       if not Assigned(LWalletKey.PrivateKey) then
       begin
         if LWalletKey.HasPrivateKey then
-          AErrorMessage := 'Wallet is Password Protected. Please Unlock Before You Proceed.'
+          AErrorMessage := 'Wallet Is Password Protected. Please Unlock Before You Proceed.'
         else
-          AErrorMessage := Format('Only Public Key of Account %s Was Found in Wallet. You Cannot Operate This Account', [LCurrentAccount.AccountString]);
+          AErrorMessage := Format('Only Public Key of Account %s Was Found In Wallet. You Cannot Operate This Account', [LCurrentAccount.AccountString]);
         Exit(False);
       end;
 
@@ -582,7 +582,7 @@ begin
           1, LCurrentAccount.account, LWalletKey.PrivateKey, APublicKey, LFee, LPayloadEncodedBytes);
 
       try
-        LOperationsTxt := Format('Change Key to "%s"', [TAccountComp.GetECInfoTxt(APublicKey.EC_OpenSSL_NID)]);
+        LOperationsTxt := Format('Change Key To "%s"', [TAccountComp.GetECInfoTxt(APublicKey.EC_OpenSSL_NID)]);
         if Assigned(LPCOperation) then
         begin
           LOperationsHashTree.AddOperationToHashTree(LPCOperation);
@@ -659,13 +659,13 @@ begin
 
       if TAccountComp.IsAccountForSale(LCurrentAccount.accountInfo) then
       begin
-        AErrorMessage := Format('Account "%s" is Already Enlisted For Sale', [LCurrentAccount.AccountString]);
+        AErrorMessage := Format('Account "%s" Is Already Enlisted For Sale', [LCurrentAccount.AccountString]);
         Exit(False);
       end;
 
       if (ASellerAccount.account = LCurrentAccount.account) then
       begin
-        AErrorMessage := 'Seller Account Cannot be Same as Account to be Sold.';
+        AErrorMessage := 'Seller Account Cannot Be Same As Account To Be Sold.';
         Exit(False);
       end;
 
@@ -681,7 +681,7 @@ begin
         if TAccountComp.EqualAccountKeys(APublicKey,
           LCurrentAccount.accountInfo.accountKey) then
         begin
-          AErrorMessage := 'You Cannot Sell to an Account That You Want to Enlist For Sale.';
+          AErrorMessage := 'You Cannot Sell To An Account That You Want To Enlist For Sale.';
           Exit(False);
         end;
 
@@ -709,9 +709,9 @@ begin
       if not Assigned(LWalletKey.PrivateKey) then
       begin
         if LWalletKey.HasPrivateKey then
-          AErrorMessage := 'Wallet is Password Protected. Please Unlock Before You Proceed.'
+          AErrorMessage := 'Wallet Is Password Protected. Please Unlock Before You Proceed.'
         else
-          AErrorMessage := Format('Only Public Key of Account %s Was Found in Wallet. You Cannot Operate This Account', [LCurrentAccount.AccountString]);
+          AErrorMessage := Format('Only Public Key Of Account %s Was Found In Wallet. You Cannot Operate This Account', [LCurrentAccount.AccountString]);
         Exit(False);
       end;
 
@@ -740,7 +740,7 @@ begin
       end;
 
       try
-        LOperationsTxt := Format('Enlist Account For Sale at a Price of "%s" PASC', [TAccountComp.FormatMoney(ASalePrice)]);
+        LOperationsTxt := Format('Enlist Account For Sale At a Price Of "%s" PASC', [TAccountComp.FormatMoney(ASalePrice)]);
         if Assigned(LPCOperation) then
         begin
           LOperationsHashTree.AddOperationToHashTree(LPCOperation);

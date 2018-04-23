@@ -53,8 +53,8 @@ uses
 
 procedure TWIZChangeKey_SelectKey.cbNewPrivateKeyChange(Sender: TObject);
 var
-  i: integer;
-  wk: TWalletKey;
+  LIdx: integer;
+  LWalletKey: TWalletKey;
 begin
   if cbNewPrivateKey.ItemIndex < 1 then
   begin
@@ -64,19 +64,19 @@ begin
   else
   begin
     lblKeyName.Font.Color := clGreen;
-    i := PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex]);
-    wk := TWallet.Keys.Key[i];
+    LIdx := PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex]);
+    LWalletKey := TWallet.Keys.Key[LIdx];
     lblKeyName.Caption := Format('%s ',
-      [IIF(wk.Name = '', TCrypto.ToHexaString(
-      TAccountComp.AccountKey2RawString(wk.AccountKey)), wk.Name)]);
+      [IIF(LWalletKey.Name = '', TCrypto.ToHexaString(
+      TAccountComp.AccountKey2RawString(LWalletKey.AccountKey)), LWalletKey.Name)]);
   end;
 end;
 
 procedure TWIZChangeKey_SelectKey.UpdateWalletKeys();
 var
-  i: integer;
-  wk: TWalletKey;
-  s: string;
+  LIdx: integer;
+  LWalletKey: TWalletKey;
+  LBuilder: string;
 begin
   cbNewPrivateKey.items.BeginUpdate;
   try
@@ -84,13 +84,13 @@ begin
     cbNewPrivateKey.Items.Add('Select Private Key');
     if not Assigned(TWallet.Keys) then
       Exit;
-    for i := 0 to TWallet.Keys.Count - 1 do
+    for LIdx := 0 to TWallet.Keys.Count - 1 do
     begin
-      wk := TWallet.Keys.Key[i];
-      s := IIF(wk.Name = '', TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(wk.AccountKey)), wk.Name);
-      if not Assigned(wk.PrivateKey) then
-        s := s + '(*)';
-      cbNewPrivateKey.Items.AddObject(s, TObject(i));
+      LWalletKey := TWallet.Keys.Key[LIdx];
+      LBuilder := IIF(LWalletKey.Name = '', TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(LWalletKey.AccountKey)), LWalletKey.Name);
+      if not Assigned(LWalletKey.PrivateKey) then
+        LBuilder := LBuilder + '(*)';
+      cbNewPrivateKey.Items.AddObject(LBuilder, TObject(LIdx));
     end;
     cbNewPrivateKey.Sorted := True;
   finally
@@ -140,25 +140,25 @@ end;
 
 function TWIZChangeKey_SelectKey.Validate(out message: ansistring): boolean;
 var
-  i: integer;
-  tempAccountKey: TAccountKey;
+  LIdx: integer;
+  LAccountKey: TAccountKey;
 begin
   Result := True;
   if cbNewPrivateKey.ItemIndex < 1 then
   begin
-    message := 'A key must be selected';
+    message := 'A Key Must Be Selected';
     Result := False;
     Exit;
   end;
 
-  tempAccountKey := TWallet.Keys.Key[PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex])].AccountKey;
+  LAccountKey := TWallet.Keys.Key[PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex])].AccountKey;
 
-  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
-    if TAccountComp.EqualAccountKeys(Model.Account.SelectedAccounts[i].accountInfo.accountKey,
-      tempAccountKey) then
+  for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
+    if TAccountComp.EqualAccountKeys(Model.Account.SelectedAccounts[LIdx].accountInfo.accountKey,
+      LAccountKey) then
     begin
       Result := False;
-      message := 'New key is same as current key';
+      message := 'New Key Is Same As Current Key';
       Exit;
     end;
 

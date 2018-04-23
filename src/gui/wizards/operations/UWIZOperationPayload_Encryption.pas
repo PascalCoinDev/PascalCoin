@@ -90,7 +90,7 @@ begin
   if (not rbNotEncrypted.Checked) and (not rbEncryptedWithSender.Checked) and
     (not rbEncryptedWithRecipient.Checked) and (not rbEncryptedWithPassword.Checked) then
   begin
-    message := 'you must select an encryption option for payload';
+    message := 'You Must Select An Encryption Option For Payload';
     Result := False;
     Exit;
   end;

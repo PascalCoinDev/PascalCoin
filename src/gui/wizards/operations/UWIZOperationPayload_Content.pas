@@ -67,7 +67,7 @@ begin
   Result := True;
   if Length(mmoPayload.Lines.Text) > CT_MaxPayloadSize then
   begin
-    message := 'Payload is Larger than Max Payload Size "255"';
+    message := Format('Payload Size Is Larger Than Max Payload Size Which Is "%u"', [CT_MaxPayloadSize]);
     Result := False;
     Exit;
   end;

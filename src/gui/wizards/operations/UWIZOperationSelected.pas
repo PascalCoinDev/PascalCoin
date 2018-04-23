@@ -59,10 +59,10 @@ type
 
 procedure TWIZOperationSelected.OnPresent;
 var
-  Data: TOperationSelectedDataSource;
-  i: integer;
-  acc: TAccount;
-  totalBalance: int64;
+  LData: TOperationSelectedDataSource;
+  LIdx: integer;
+  LAccount: TAccount;
+  LTotalBalance: int64;
 begin
   FSelectedAccountsGrid := TVisualGrid.Create(Self);
   FSelectedAccountsGrid.CanSearch := False;
@@ -93,37 +93,40 @@ begin
     Renderer := TCellRenderers.PASC;
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
-  Data := TOperationSelectedDataSource.Create(FSelectedAccountsGrid);
-  Data.Model := Model;
-  FSelectedAccountsGrid.DataSource := Data;
+  LData := TOperationSelectedDataSource.Create(FSelectedAccountsGrid);
+  LData.Model := Model;
+  FSelectedAccountsGrid.DataSource := LData;
   paGrid.AddControlDockCenter(FSelectedAccountsGrid);
 
-  totalBalance := 0;
-  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
+  LTotalBalance := 0;
+  for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
   begin
-    acc := Model.Account.SelectedAccounts[i];
-    totalBalance := totalBalance + acc.balance;
+    LAccount := Model.Account.SelectedAccounts[LIdx];
+    LTotalBalance := LTotalBalance + LAccount.balance;
   end;
 
   lblTotalBalanceValue.Caption :=
-    Format('%s PASC', [TAccountComp.FormatMoney(totalBalance)]);
+    Format('%s PASC', [TAccountComp.FormatMoney(LTotalBalance)]);
 end;
 
 function TWIZOperationSelected.Validate(out message: ansistring): boolean;
 var
-  i: integer;
+  LIdx: integer;
+  LAccount: TAccount;
 begin
   Result := True;
 
   if Model.ExecuteOperationType = omtEnlistAccountForSale then
-    for i := Low(model.Account.SelectedAccounts) to High(model.Account.SelectedAccounts) do
-      if TAccountComp.IsAccountForSale(model.Account.SelectedAccounts[i].accountInfo) then
+    for LIdx := Low(model.Account.SelectedAccounts) to High(model.Account.SelectedAccounts) do
+    begin
+      LAccount := model.Account.SelectedAccounts[LIdx];
+      if TAccountComp.IsAccountForSale(LAccount.accountInfo) then
       begin
         Result := False;
-        message := 'Account ' + TAccountComp.AccountNumberToAccountTxtNumber(
-          model.Account.SelectedAccounts[i].account) + ' is already enlisted for sale';
+        message := Format('Account "%s" Is Already Enlisted For Sale', [LAccount.AccountString]);
         Exit;
       end;
+    end;
 
   // get signer accounts from selected accounts
   Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Model.Fee.SingleOperationFee, Model.Account.SelectedAccounts);
@@ -131,7 +134,7 @@ begin
   if Length(Model.Signer.SignerCandidates) < 1 then
   begin
     Result := False;
-    message := 'no valid signer account was found.';
+    message := 'No Valid Signer Account Was Found.';
   end;
 
 end;
@@ -140,10 +143,10 @@ end;
 
 procedure TOperationSelectedDataSource.FetchAll(const AContainer: TList<TAccount>);
 var
-  i: integer;
+  LIdx: integer;
 begin
-  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
-    AContainer.Add(Model.Account.SelectedAccounts[i]);
+  for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
+    AContainer.Add(Model.Account.SelectedAccounts[LIdx]);
 
 end;
 

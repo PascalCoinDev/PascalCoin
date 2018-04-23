@@ -47,29 +47,29 @@ end;
 
 procedure TWIZEnlistAccountForSale_EnterPublicKey.OnNext;
 begin
-   UpdatePath(ptInject, [TWIZEnlistAccountForSale_EnterLockingBlock]);
+  UpdatePath(ptInject, [TWIZEnlistAccountForSale_EnterLockingBlock]);
 end;
 
 function TWIZEnlistAccountForSale_EnterPublicKey.Validate(out message: ansistring): boolean;
 var
-  i: integer;
+  LIdx: integer;
 begin
   Result := True;
 
   if not TAccountComp.AccountKeyFromImport(Trim(mmoPublicKey.Lines.Text),
     Model.EnlistAccountForSale.NewOwnerPublicKey, message) then
   begin
-    message := 'Public key: ' + message;
+    message := Format('Error Importing Public Key, Specific Error: %s', [message]);
     Result := False;
-    exit;
+    Exit;
 
   end;
 
-  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
+  for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
     if TAccountComp.EqualAccountKeys(Model.EnlistAccountForSale.NewOwnerPublicKey,
-      Model.Account.SelectedAccounts[i].accountInfo.accountKey) then
+      Model.Account.SelectedAccounts[LIdx].accountInfo.accountKey) then
     begin
-      message := 'New public key for private sale is the same public key';
+      message := 'You Cannot Sell To An Account That You Want To Enlist For Sale.';
       Result := False;
       Exit;
     end;

@@ -45,18 +45,18 @@ end;
 
 function TWIZEnlistAccountForSale_EnterLockingBlock.Validate(out message: ansistring): boolean;
 var
-  LockedUntilBlock: cardinal;
+  LLockedUntilBlock: cardinal;
 begin
   Result := True;
 
-  LockedUntilBlock := StrToIntDef(edtBlockLock.Text, 0);
-  if LockedUntilBlock = 0 then
+  LLockedUntilBlock := StrToIntDef(edtBlockLock.Text, 0);
+  if LLockedUntilBlock = 0 then
   begin
-    message := 'Insert locking block';
+    message := 'You Didn''t Insert a Locking Block.';
     Result := False;
-    exit;
+    Exit;
   end;
-  Model.EnlistAccountForSale.LockedUntilBlock := LockedUntilBlock;
+  Model.EnlistAccountForSale.LockedUntilBlock := LLockedUntilBlock;
 
 end;
 

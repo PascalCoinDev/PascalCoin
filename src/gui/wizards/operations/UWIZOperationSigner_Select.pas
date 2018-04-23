@@ -67,25 +67,25 @@ end;
 
 procedure TWIZOperationSigner_Select.OnPresent;
 
-  function GetAccNoWithChecksum(AAccountNumber: cardinal): string;
+  function GetAccountNumberWithChecksum(AAccountNumber: cardinal): string;
   begin
     Result := TAccountComp.AccountNumberToAccountTxtNumber(AAccountNumber);
   end;
 
 var
-  acc: TAccount;
-  accNumberwithChecksum: string;
-  i: integer;
+  LAccount: TAccount;
+  LAccountNumberWithChecksum: string;
+  LIdx: integer;
 begin
   cbSignerAccount.Items.BeginUpdate;
   try
     cbSignerAccount.Items.Clear;
     cbSignerAccount.Items.Add('Select Signer Account');
-    for i := Low(Model.Signer.SignerCandidates) to High(Model.Signer.SignerCandidates) do
+    for LIdx := Low(Model.Signer.SignerCandidates) to High(Model.Signer.SignerCandidates) do
     begin
-      acc := Model.Signer.SignerCandidates[i];
-      accNumberwithChecksum := GetAccNoWithChecksum(acc.account);
-      cbSignerAccount.Items.AddObject(accNumberwithChecksum, TObject(i));
+      LAccount := Model.Signer.SignerCandidates[LIdx];
+      LAccountNumberWithChecksum := GetAccountNumberWithChecksum(LAccount.account);
+      cbSignerAccount.Items.AddObject(LAccountNumberWithChecksum, TObject(LIdx));
     end;
   finally
     cbSignerAccount.Items.EndUpdate;
@@ -114,7 +114,7 @@ begin
   Result := True;
   if cbSignerAccount.ItemIndex < 1 then
   begin
-    message := 'A signer account must be selected';
+    message := 'A Signer Account Must Be Selected';
     Result := False;
     Exit;
   end;

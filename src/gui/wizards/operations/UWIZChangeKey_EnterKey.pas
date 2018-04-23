@@ -84,26 +84,26 @@ end;
 
 function TWIZChangeKey_EnterKey.Validate(out message: ansistring): boolean;
 var
-  tempAccountKey: TAccountKey;
-  i: integer;
+  LTempAccountKey: TAccountKey;
+  LIdx: integer;
 begin
   Result := True;
   if not TAccountComp.AccountKeyFromImport(Trim(mmoNewPrivateKey.Lines.Text),
-    tempAccountKey, message) then
+    LTempAccountKey, message) then
   begin
     Result := False;
     Exit;
   end;
-  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
-    if TAccountComp.EqualAccountKeys(Model.Account.SelectedAccounts[i].accountInfo.accountKey,
-      tempAccountKey) then
+  for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
+    if TAccountComp.EqualAccountKeys(Model.Account.SelectedAccounts[LIdx].accountInfo.accountKey,
+      LTempAccountKey) then
     begin
       Result := False;
-      message := 'New key is same as current key';
+      message := 'New Key Is Same As Current Key';
       Exit;
     end;
 
-  Model.TransferAccount.AccountKey := tempAccountKey;
+  Model.TransferAccount.AccountKey := LTempAccountKey;
 end;
 
 end.

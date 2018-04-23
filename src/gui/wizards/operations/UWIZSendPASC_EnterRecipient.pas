@@ -18,7 +18,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_EnterQuantity, UDataObjects;
+  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_EnterQuantity, UCoreUtils, UDataObjects;
 
 type
 
@@ -36,7 +36,6 @@ type
     procedure btnSearchClick(Sender: TObject);
     procedure edtDestAccChange(Sender: TObject);
     procedure UpdateUI();
-
 
 
   public
@@ -62,25 +61,25 @@ end;
 
 procedure TWIZSendPASC_EnterRecipient.UpdateUI();
 var
-  tempAcc: TAccount;
-  c: cardinal;
+  LTempAccount: TAccount;
+  LAccountNumber: cardinal;
 begin
-  if TAccountComp.AccountTxtNumberToAccountNumber(edtDestAcc.Text, c) then
+  if TAccountComp.AccountTxtNumberToAccountNumber(edtDestAcc.Text, LAccountNumber) then
   begin
-    if (c < 0) or (c >= TNode.Node.Bank.AccountsCount) then
+    if (LAccountNumber < 0) or (LAccountNumber >= TNode.Node.Bank.AccountsCount) then
     begin
-      lblDestAccNumberValue.Caption := 'unknown';
-      lblDestAccNumberNameValue.Caption := 'unknown';
+      lblDestAccNumberValue.Caption := 'Unknown';
+      lblDestAccNumberNameValue.Caption := 'Unknown';
       Exit;
     end;
-    tempAcc := TNode.Node.Operations.SafeBoxTransaction.account(c);
+    LTempAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
     lblDestAccNumberValue.Caption := edtDestAcc.Text;
-    lblDestAccNumberNameValue.Caption := tempAcc.Name;
+    lblDestAccNumberNameValue.Caption := LTempAccount.Name;
   end
   else
   begin
-    lblDestAccNumberValue.Caption := 'unknown';
-    lblDestAccNumberNameValue.Caption := 'unknown';
+    lblDestAccNumberValue.Caption := 'Unknown';
+    lblDestAccNumberNameValue.Caption := 'Unknown';
   end;
 
 end;
@@ -93,71 +92,70 @@ end;
 
 procedure TWIZSendPASC_EnterRecipient.btnSearchClick(Sender: TObject);
 var
-  F: TFRMAccountSelect;
-  c: cardinal;
+  LFRMAccountSelect: TFRMAccountSelect;
+  LAccountNumber: cardinal;
 begin
-  F := TFRMAccountSelect.Create(Self);
-  F.Position := poMainFormCenter;
+  LFRMAccountSelect := TFRMAccountSelect.Create(Self);
+  LFRMAccountSelect.Position := poMainFormCenter;
   try
-    F.Node := TNode.Node;
-    F.WalletKeys := TWallet.Keys;
-    F.Filters := edtDestAcc.Tag;
-    if TAccountComp.AccountTxtNumberToAccountNumber(edtDestAcc.Text, c) then
-      F.DefaultAccount := c;
-    F.AllowSelect := True;
-    if F.ShowModal = mrOk then
-      edtDestAcc.Text := TAccountComp.AccountNumberToAccountTxtNumber(F.GetSelected);
+    LFRMAccountSelect.Node := TNode.Node;
+    LFRMAccountSelect.WalletKeys := TWallet.Keys;
+    LFRMAccountSelect.Filters := edtDestAcc.Tag;
+    if TAccountComp.AccountTxtNumberToAccountNumber(edtDestAcc.Text, LAccountNumber) then
+      LFRMAccountSelect.DefaultAccount := LAccountNumber;
+    LFRMAccountSelect.AllowSelect := True;
+    if LFRMAccountSelect.ShowModal = mrOk then
+      edtDestAcc.Text := TAccountComp.AccountNumberToAccountTxtNumber(LFRMAccountSelect.GetSelected);
   finally
-    F.Free;
+    LFRMAccountSelect.Free;
   end;
 end;
 
 
 procedure TWIZSendPASC_EnterRecipient.OnNext;
 var
-  c: cardinal;
-  aa: TAccount;
+  LAccountNumber: cardinal;
+  LAccount: TAccount;
 begin
-  TAccountComp.AccountTxtNumberToAccountNumber(edtDestAcc.Text, c);
-  Model.SendPASC.DestinationAccount := TNode.Node.Operations.SafeBoxTransaction.account(c);
+  TAccountComp.AccountTxtNumberToAccountNumber(edtDestAcc.Text, LAccountNumber);
+  Model.SendPASC.DestinationAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
   UpdatePath(ptInject, [TWIZSendPASC_EnterQuantity]);
 
 end;
 
 function TWIZSendPASC_EnterRecipient.Validate(out message: ansistring): boolean;
 
-  function GetAccNoWithChecksum(constref AAccount: TAccount): string;
+  function GetAccountNumberWithChecksum(constref AAccount: TAccount): string;
   begin
-    Result := TAccountComp.AccountNumberToAccountTxtNumber(AAccount.account);
+    Result := AAccount.AccountString;
   end;
 
 var
-  AccountNumbersWithChecksum: TArray<string>;
-  c: cardinal;
+  LAccountNumbersWithChecksum: TArray<string>;
+  LAccountNumber: cardinal;
 begin
   Result := True;
 
-  if not (TAccountComp.AccountTxtNumberToAccountNumber(edtDestAcc.Text, c)) then
+  if not (TAccountComp.AccountTxtNumberToAccountNumber(edtDestAcc.Text, LAccountNumber)) then
   begin
-    message := 'Invalid destination account (' + edtDestAcc.Text + ')';
+    message := Format('Invalid Destination Account "%s"', [edtDestAcc.Text]);
     Result := False;
     Exit;
   end;
 
-  if (c < 0) or (c >= TNode.Node.Bank.AccountsCount) then
+  if (LAccountNumber < 0) or (LAccountNumber >= TNode.Node.Bank.AccountsCount) then
   begin
-    message := 'Invalid destination account (' +
-      TAccountComp.AccountNumberToAccountTxtNumber(c) + ')';
+    message := Format('Invalid Destination Account "%s"', [TAccountComp.AccountNumberToAccountTxtNumber(LAccountNumber)]);
     Result := False;
     Exit;
   end;
 
-  AccountNumbersWithChecksum :=
-    TListTool<TAccount, string>.Transform(Model.Account.SelectedAccounts, GetAccNoWithCheckSum);
+  LAccountNumbersWithChecksum :=
+    TListTool<TAccount, string>.Transform(Model.Account.SelectedAccounts, GetAccountNumberWithChecksum);
 
-  if TArrayTool<string>.Contains(AccountNumbersWithChecksum, edtDestAcc.Text) then
+  if TArrayTool<string>.Contains(LAccountNumbersWithChecksum, edtDestAcc.Text) then
   begin
-    message := 'Sender and destination account are the same';
+    message := 'Sender And Destination Account Are Same';
     Result := False;
     Exit;
   end;

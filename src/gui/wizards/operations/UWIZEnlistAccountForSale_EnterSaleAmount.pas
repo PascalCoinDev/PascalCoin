@@ -33,7 +33,6 @@ type
     procedure UpdateUI();
 
 
-
   public
     procedure OnPresent; override;
     procedure OnNext; override;
@@ -68,11 +67,8 @@ begin
 end;
 
 procedure TWIZEnlistAccountForSale_EnterSaleAmount.OnNext;
-var
-  amount: int64;
 begin
   Model.Payload.HasPayload := chkAttachPayload.Checked;
-  TAccountComp.TxtToMoney(edtAmt.Text, Model.EnlistAccountForSale.SalePrice);
 
   if chkChooseFee.Checked then
     UpdatePath(ptInject, [TWIZOperationFee_Custom])
@@ -94,23 +90,25 @@ end;
 
 function TWIZEnlistAccountForSale_EnterSaleAmount.Validate(out message: ansistring): boolean;
 var
-  amount: int64;
+  LSaleAmount: int64;
 begin
   Result := True;
 
-  if not TAccountComp.TxtToMoney(edtAmt.Text, amount) then
+  if not TAccountComp.TxtToMoney(edtAmt.Text, LSaleAmount) then
   begin
-    message := 'Invalid amount (' + edtAmt.Text + ')';
+    message := Format('Invalid Amount "%s"', [edtAmt.Text]);
     Result := False;
     Exit;
   end;
 
-  if amount < 1 then
+  if LSaleAmount < 1 then
   begin
-    message := 'Invalid amount (' + edtAmt.Text + '), you must sell for an amount greater than zero';
+    message := 'You Must Sell For An Amount Greater Than Zero.';
     Result := False;
     Exit;
   end;
+
+  Model.EnlistAccountForSale.SalePrice := LSaleAmount;
 
 end;
 

@@ -36,8 +36,6 @@ type
     procedure fseFeeChange(Sender: TObject);
 
 
-
-
   public
     procedure OnPresent; override;
     procedure OnNext; override;
@@ -56,10 +54,10 @@ uses
 
 procedure TWIZOperationFee_Custom.UpdateUI();
 var
-  opfee: int64;
+  LOperationFee: int64;
 begin
-  TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)), opfee);
-  lblTotalFeeValue.Caption := Format('%s PASC', [TAccountComp.FormatMoney(opfee * Length(Model.Account.SelectedAccounts))]);
+  TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)), LOperationFee);
+  lblTotalFeeValue.Caption := Format('%s PASC', [TAccountComp.FormatMoney(LOperationFee * Length(Model.Account.SelectedAccounts))]);
 end;
 
 procedure TWIZOperationFee_Custom.fseFeeChange(Sender: TObject);
@@ -88,25 +86,24 @@ end;
 
 function TWIZOperationFee_Custom.Validate(out message: ansistring): boolean;
 var
-  opfee: int64;
-  i: integer;
-  acc: TAccount;
+  LOperationFee: int64;
+  LAccount: TAccount;
 begin
   Result := True;
 
-  if not TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)), opfee) then
+  if not TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)), LOperationFee) then
   begin
-    message := 'Invalid fee value "' + fseFee.ValueToStr(fseFee.Value) + '"';
+    message := Format('Invalid Fee Value "%s"', [fseFee.ValueToStr(fseFee.Value)]);
     Result := False;
     Exit;
   end;
 
-  Model.Fee.SingleOperationFee := opfee;
+  Model.Fee.SingleOperationFee := LOperationFee;
 
   if Length(Model.Account.SelectedAccounts) > 1 then
     if not (Model.Fee.SingleOperationFee > 0) then
     begin
-      message := 'zero fee only allowed for single operations.';
+      message := 'Zero Fee Is Only Allowed For Single Operations.';
       Result := False;
       Exit;
     end;
@@ -117,8 +114,9 @@ begin
 
   if Length(Model.Signer.SignerCandidates) < 1 then
   begin
+    message := 'No Valid Signer Account Was Found With The Current Requirements.';
     Result := False;
-    message := 'no valid signer account was found with the current requirements.';
+    Exit;
   end;
 
 end;

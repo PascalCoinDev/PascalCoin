@@ -33,6 +33,7 @@ type
     procedure btnSearchClick(Sender: TObject);
     procedure edtSellerAccChange(Sender: TObject);
     procedure UpdateUI();
+
   public
     procedure OnPresent; override;
     procedure OnNext; override;
@@ -56,19 +57,21 @@ end;
 
 procedure TWIZEnlistAccountForSale_EnterSeller.UpdateUI();
 var
-  LAcc: TAccount;
-  LAccNo: cardinal;
+  LAccount: TAccount;
+  LAccountNumber: cardinal;
 begin
-  if TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAcc.Text, LAccNo) then begin
-    if (LAccNo < 0) or (LAccNo >= TNode.Node.Bank.AccountsCount) then begin
+  if TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAcc.Text, LAccountNumber) then
+    if (LAccountNumber < 0) or (LAccountNumber >= TNode.Node.Bank.AccountsCount) then
+    begin
       lblSellerAccount.Caption := '';
       lblSellerAccount.Visible := False;
-    end else begin
-      LAcc := TNode.Node.Operations.SafeBoxTransaction.account(LAccNo);
-      lblSellerAccount.Caption := LAcc.DisplayString;
+    end
+    else
+    begin
+      LAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
+      lblSellerAccount.Caption := LAccount.DisplayString;
       lblSellerAccount.Visible := True;
     end;
-  end;
 end;
 
 procedure TWIZEnlistAccountForSale_EnterSeller.OnPresent;
@@ -79,66 +82,65 @@ end;
 
 procedure TWIZEnlistAccountForSale_EnterSeller.btnSearchClick(Sender: TObject);
 var
-  F: TFRMAccountSelect;
-  c: cardinal;
+  LFRMAccountSelect: TFRMAccountSelect;
+  LAccountNumber: cardinal;
 begin
-  F := TFRMAccountSelect.Create(Self);
-  F.Position := poMainFormCenter;
+  LFRMAccountSelect := TFRMAccountSelect.Create(Self);
+  LFRMAccountSelect.Position := poMainFormCenter;
   try
-    F.Node := TNode.Node;
-    F.WalletKeys := TWallet.Keys;
-    F.Filters := edtSellerAcc.Tag;
-    if TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAcc.Text, c) then
-      F.DefaultAccount := c;
-    F.AllowSelect := True;
-    if F.ShowModal = mrOk then
-      edtSellerAcc.Text := TAccountComp.AccountNumberToAccountTxtNumber(F.GetSelected);
+    LFRMAccountSelect.Node := TNode.Node;
+    LFRMAccountSelect.WalletKeys := TWallet.Keys;
+    LFRMAccountSelect.Filters := edtSellerAcc.Tag;
+    if TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAcc.Text, LAccountNumber) then
+      LFRMAccountSelect.DefaultAccount := LAccountNumber;
+    LFRMAccountSelect.AllowSelect := True;
+    if LFRMAccountSelect.ShowModal = mrOk then
+      edtSellerAcc.Text := TAccountComp.AccountNumberToAccountTxtNumber(LFRMAccountSelect.GetSelected);
   finally
-    F.Free;
+    LFRMAccountSelect.Free;
   end;
 end;
 
 
 procedure TWIZEnlistAccountForSale_EnterSeller.OnNext;
 var
-  c: cardinal;
-  aa: TAccount;
+  LAccountNumber: cardinal;
+  LAccount: TAccount;
 begin
-  TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAcc.Text, c);
-  Model.SendPASC.DestinationAccount := TNode.Node.Operations.SafeBoxTransaction.account(c);
+  TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAcc.Text, LAccountNumber);
+  Model.SendPASC.DestinationAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
 end;
 
 function TWIZEnlistAccountForSale_EnterSeller.Validate(out message: ansistring): boolean;
 var
-  i: integer;
-  c: cardinal;
+  LIdx: integer;
+  LAccountNumber: cardinal;
 begin
   Result := True;
 
-  if not (TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAcc.Text, c)) then
+  if not (TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAcc.Text, LAccountNumber)) then
   begin
-    message := 'Invalid seller account (' + edtSellerAcc.Text + ')';
+    message := Format('Invalid Seller Account "%s"', [edtSellerAcc.Text]);
     Result := False;
     Exit;
   end;
 
-  if (c < 0) or (c >= TNode.Node.Bank.AccountsCount) then
+  if (LAccountNumber < 0) or (LAccountNumber >= TNode.Node.Bank.AccountsCount) then
   begin
-    message := 'Invalid seller account (' +
-      TAccountComp.AccountNumberToAccountTxtNumber(c) + ')';
+    message := Format('Invalid Seller Account "%s"', [TAccountComp.AccountNumberToAccountTxtNumber(LAccountNumber)]);
     Result := False;
     Exit;
   end;
 
-  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
-    if (Model.Account.SelectedAccounts[i].Account = c) then
+  for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
+    if (Model.Account.SelectedAccounts[LIdx].Account = LAccountNumber) then
     begin
-      message := 'Seller account cannot be same account';
+      message := 'Seller Account Cannot Be Same As Account To Be Sold.';
       Result := False;
       Exit;
     end;
 
-  Model.EnlistAccountForSale.SellerAccount := TNode.Node.Operations.SafeBoxTransaction.account(c);
+  Model.EnlistAccountForSale.SellerAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
 
 end;
 

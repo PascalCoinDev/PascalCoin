@@ -66,7 +66,7 @@ type
 
 procedure TWIZOperationConfirmation.OnPresent;
 var
-  Data: TOperationConfirmationDataSource;
+  LData: TOperationConfirmationDataSource;
 begin
   FConfirmationGrid := TVisualGrid.Create(Self);
   FConfirmationGrid.CanSearch := False;
@@ -120,9 +120,9 @@ begin
     DataAlignment := taRightJustify;
   end;
 
-  Data := TOperationConfirmationDataSource.Create(FConfirmationGrid);
-  Data.Model := Model;
-  FConfirmationGrid.DataSource := Data;
+  LData := TOperationConfirmationDataSource.Create(FConfirmationGrid);
+  LData.Model := Model;
+  FConfirmationGrid.DataSource := LData;
   paGrid.AddControlDockCenter(FConfirmationGrid);
   lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
   if not (Model.ExecuteOperationType = omtEnlistAccountForSale) then
@@ -141,10 +141,10 @@ end;
 
 procedure TWIZOperationConfirmation.OnNext;
 var
-  locked: boolean;
+  LLocked: boolean;
 begin
-  locked := (not TWallet.Keys.HasPassword) or (not TWallet.Keys.IsValidPassword);
-  if locked then
+  LLocked := (not TWallet.Keys.HasPassword) or (not TWallet.Keys.IsValidPassword);
+  if LLocked then
     TUserInterface.UnlockWallet(Self);
 end;
 
@@ -231,10 +231,10 @@ end;
 
 procedure TOperationConfirmationDataSource.FetchAll(const AContainer: TList<TAccount>);
 var
-  i: integer;
+  LIdx: integer;
 begin
-  for i := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
-    AContainer.Add(Model.Account.SelectedAccounts[i]);
+  for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
+    AContainer.Add(Model.Account.SelectedAccounts[LIdx]);
 end;
 
 
