@@ -70,13 +70,13 @@ type
     class function UpdatePayload(const ASenderPublicKey, ADestinationPublicKey: TAccountKey; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
 
     class function SendPASCFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalAmount, ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
-    class function ChangeKeyFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; APublicKey: TAccountKey; ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
+    class function OthersFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
   public
-    class function ExecuteOperations(const ANewOps: TExecuteOperationsModel; AHandler: TExecuteOperationsModel.TOperationExecuteResultHandler; var errors: ansistring): boolean; static;
     class function GetOperationShortText(const OpType, OpSubType: DWord): ansistring; static; inline;
+    class function ExecuteOperations(const ANewOps: TExecuteOperationsModel; AHandler: TExecuteOperationsModel.TOperationExecuteResultHandler; var errors: ansistring): boolean; static;
     class function ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TExecuteOperationsModel.TSendPASCMode; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
     class function ExecuteChangeKey(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; APublicKey: TAccountKey; AFee: int64; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
-    class procedure ExecuteEnlistAccountForSale(); static;
+    class function ExecuteEnlistAccountForSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount, ASellerAccount: TAccount; const APublicKey: TAccountKey; AFee, ASalePrice: int64; ALockedUntilBlock: UInt32; const AAccountSaleMode: TExecuteOperationsModel.TAccountSaleMode; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
   end;
 
   { TOrderedAccountKeysListHelper }
@@ -255,7 +255,7 @@ begin
   end;
 end;
 
-class function TOperationsManager.ChangeKeyFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; APublicKey: TAccountKey; ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean;
+class function TOperationsManager.OthersFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean;
 var
   LAuxs, LOperationsTxt: string;
   i: integer;
@@ -324,7 +324,7 @@ var
   LNode: TNode;
   LPCOperation: TPCOperation;
   LOperationsHashTree: TOperationsHashTree;
-  LTotalAmount, LTotalFee, LAmount, LFee: int64;
+  LTotalAmount, LTotalSignerFee, LAmount, LFee: int64;
   LDoOperation: boolean;
   LOperationsTxt, LOperationToString: string;
   LIdx, LAccountIdx, LNoOfOperations: integer;
@@ -333,7 +333,7 @@ var
 begin
   if Length(ASelectedAccounts) = 0 then
   begin
-    AErrorMessage := 'No Sender Account Found';
+    AErrorMessage := 'No Selected Account Found';
     Exit(False);
   end;
 
@@ -355,7 +355,7 @@ begin
   LOperationsHashTree := TOperationsHashTree.Create;
   try
     LTotalAmount := 0;
-    LTotalFee := 0;
+    LTotalSignerFee := 0;
     LNoOfOperations := 0;
     LOperationsTxt := '';
     LOperationToString := '';
@@ -372,14 +372,14 @@ begin
 
       if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, ADestinationAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
       begin
-        AErrorMessage := Format('Error Encoding Payload Of Sender Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
+        AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
         Exit(False);
       end;
 
       LIdx := LWalletKeys.IndexOfAccountKey(LCurrentAccount.accountInfo.accountKey);
       if LIdx < 0 then
       begin
-        AErrorMessage := Format('Sender Account "%s" Private Key Not Found In Wallet', [LCurrentAccount.AccountString]);
+        AErrorMessage := Format('Selected Account "%s" Private Key Not Found In Wallet', [LCurrentAccount.AccountString]);
         Exit(False);
       end;
       LWalletKey := LWalletKeys.Key[LIdx];
@@ -423,14 +423,14 @@ begin
         LPCOperation := TOpTransaction.CreateTransaction(
           LCurrentAccount.account, LCurrentAccount.n_operation + 1, ADestinationAccount.account, LWalletKey.PrivateKey, LAmount, LFee, LPayloadEncodedBytes);
         try
-          Inc(LTotalAmount, LAmount);
-          Inc(LTotalFee, LFee);
-          Inc(LNoOfOperations);
           LOperationsTxt := Format('Transaction to "%s"', [ADestinationAccount.AccountString]);
 
           if Assigned(LPCOperation) then
           begin
             LOperationsHashTree.AddOperationToHashTree(LPCOperation);
+            Inc(LTotalAmount, LAmount);
+            Inc(LTotalSignerFee, LFee);
+            Inc(LNoOfOperations);
             if LOperationToString <> '' then
               LOperationToString := LOperationToString + #10;
             LOperationToString := LOperationToString + LPCOperation.ToString;
@@ -447,7 +447,7 @@ begin
       Exit(False);
     end;
 
-    Exit(TOperationsManager.SendPASCFinalizeAndDisplayMessage(LOperationsTxt, LOperationToString, LNoOfOperations, LTotalAmount, LTotalFee, LOperationsHashTree, AErrorMessage));
+    Exit(TOperationsManager.SendPASCFinalizeAndDisplayMessage(LOperationsTxt, LOperationToString, LNoOfOperations, LTotalAmount, LTotalSignerFee, LOperationsHashTree, AErrorMessage));
   finally
     LOperationsHashTree.Free;
   end;
@@ -464,7 +464,7 @@ var
   LTotalSignerFee, LFee: int64;
   LIsV2: boolean;
   LOperationsTxt, LOperationToString: string;
-  LIdx, LAccountIdx, LSignerNoOfOperations: integer;
+  LIdx, LAccountIdx, LNoOfOperations: integer;
   LCurrentAccount, LSignerAccount: TAccount;
   LPayloadEncodedBytes: TRawBytes;
 label
@@ -472,7 +472,7 @@ label
 begin
   if Length(ASelectedAccounts) = 0 then
   begin
-    AErrorMessage := 'No Sender Account Found';
+    AErrorMessage := 'No Selected Account Found';
     Exit(False);
   end;
 
@@ -495,7 +495,7 @@ begin
   try
     LIsV2 := LNode.Bank.SafeBox.CurrentProtocol >= CT_PROTOCOL_2;
     LTotalSignerFee := 0;
-    LSignerNoOfOperations := 0;
+    LNoOfOperations := 0;
     LOperationsTxt := '';
     LOperationToString := '';
     for LAccountIdx := Low(ASelectedAccounts) to High(ASelectedAccounts) do
@@ -503,6 +503,13 @@ begin
       loop_start:
         LPCOperation := nil; // reset LPCOperation to Nil
       LCurrentAccount := ASelectedAccounts[LAccountIdx];
+
+      if (TAccountComp.EqualAccountKeys(LCurrentAccount.accountInfo.accountKey,
+        APublicKey)) then
+      begin
+        AErrorMessage := 'New Key is Same as Current Key';
+        Exit(False);
+      end;
 
       if LNode.Bank.SafeBox.CurrentProtocol >= 1 then
       begin
@@ -524,23 +531,16 @@ begin
       else
         LSignerAccount := LCurrentAccount;
 
-      if (TAccountComp.EqualAccountKeys(LCurrentAccount.accountInfo.accountKey,
-        APublicKey)) then
-      begin
-        AErrorMessage := 'New Key is Same as Current Key';
-        Exit(False);
-      end;
-
       if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, APublicKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
       begin
-        AErrorMessage := Format('Error Encoding Payload Of Sender Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
+        AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
         Exit(False);
       end;
 
       LIdx := LWalletKeys.IndexOfAccountKey(LCurrentAccount.accountInfo.accountKey);
       if LIdx < 0 then
       begin
-        AErrorMessage := Format('Sender Account "%s" Private Key Not Found In Wallet', [LCurrentAccount.AccountString]);
+        AErrorMessage := Format('Selected Account "%s" Private Key Not Found In Wallet', [LCurrentAccount.AccountString]);
         Exit(False);
       end;
       LWalletKey := LWalletKeys.Key[LIdx];
@@ -574,7 +574,7 @@ begin
         else
           LFee := LSignerAccount.balance - UInt64(LTotalSignerFee);
         LPCOperation := TOpChangeKeySigned.Create(LSignerAccount.account,
-          LsignerAccount.n_operation + LSignerNoOfOperations + 1, LCurrentAccount.account,
+          LSignerAccount.n_operation + LNoOfOperations + 1, LCurrentAccount.account,
           LWalletKey.PrivateKey, APublicKey, LFee, LPayloadEncodedBytes);
       end
       else
@@ -582,12 +582,12 @@ begin
           1, LCurrentAccount.account, LWalletKey.PrivateKey, APublicKey, LFee, LPayloadEncodedBytes);
 
       try
-        Inc(LSignerNoOfOperations);
-        Inc(LTotalSignerFee, LFee);
         LOperationsTxt := Format('Change Key to "%s"', [TAccountComp.GetECInfoTxt(APublicKey.EC_OpenSSL_NID)]);
         if Assigned(LPCOperation) then
         begin
           LOperationsHashTree.AddOperationToHashTree(LPCOperation);
+          Inc(LNoOfOperations);
+          Inc(LTotalSignerFee, LFee);
           if LOperationToString <> '' then
             LOperationToString := LOperationToString + #10;
           LOperationToString := LOperationToString + LPCOperation.ToString;
@@ -604,16 +604,169 @@ begin
       Exit(False);
     end;
 
-    Exit(TOperationsManager.ChangeKeyFinalizeAndDisplayMessage(LOperationsTxt, LOperationToString, LSignerNoOfOperations, APublicKey, LTotalSignerFee, LOperationsHashTree, AErrorMessage));
+    Exit(TOperationsManager.OthersFinalizeAndDisplayMessage(LOperationsTxt, LOperationToString, LNoOfOperations, LTotalSignerFee, LOperationsHashTree, AErrorMessage));
   finally
     LOperationsHashTree.Free;
   end;
 
 end;
 
-class procedure TOperationsManager.ExecuteEnlistAccountForSale();
+class function TOperationsManager.ExecuteEnlistAccountForSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount, ASellerAccount: TAccount; const APublicKey: TAccountKey; AFee, ASalePrice: int64; ALockedUntilBlock: UInt32; const AAccountSaleMode: TExecuteOperationsModel.TAccountSaleMode; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+var
+  LWalletKey: TWalletKey;
+  LWalletKeys: TWalletKeys;
+  LNode: TNode;
+  LPCOperation: TPCOperation;
+  LOperationsHashTree: TOperationsHashTree;
+  LTotalSignerFee, LFee: int64;
+  LOperationsTxt, LOperationToString: string;
+  LIdx, LAccountIdx, LNoOfOperations: integer;
+  LCurrentAccount, LSignerAccount: TAccount;
+  LPayloadEncodedBytes: TRawBytes;
 begin
+  if Length(ASelectedAccounts) = 0 then
+  begin
+    AErrorMessage := 'No Selected Account Found';
+    Exit(False);
+  end;
 
+  LWalletKeys := TWallet.Keys;
+  LNode := TNode.Node;
+
+  if not Assigned(LWalletKeys) then
+  begin
+    AErrorMessage := 'No Wallet Keys Found';
+    Exit(False);
+  end;
+
+  if not Assigned(LNode) then
+  begin
+    AErrorMessage := 'No Node Found';
+    Exit(False);
+  end;
+
+  LOperationsHashTree := TOperationsHashTree.Create;
+  try
+    LTotalSignerFee := 0;
+    LNoOfOperations := 0;
+    LOperationsTxt := '';
+    LOperationToString := '';
+
+    for LAccountIdx := Low(ASelectedAccounts) to High(ASelectedAccounts) do
+    begin
+      LPCOperation := nil; // reset LPCOperation to Nil
+      LCurrentAccount := ASelectedAccounts[LAccountIdx];
+
+      if TAccountComp.IsAccountForSale(LCurrentAccount.accountInfo) then
+      begin
+        AErrorMessage := Format('Account "%s" is Already Enlisted For Sale', [LCurrentAccount.AccountString]);
+        Exit(False);
+      end;
+
+      if (ASellerAccount.account = LCurrentAccount.account) then
+      begin
+        AErrorMessage := 'Seller Account Cannot be Same as Account to be Sold.';
+        Exit(False);
+      end;
+
+      if (LNode.Node.Bank.SafeBox.CurrentProtocol = CT_PROTOCOL_1) then
+      begin
+        AErrorMessage := 'This Operation Needs PROTOCOL 2 Active';
+        Exit(False);
+      end;
+
+      if AAccountSaleMode = akaPrivateSale then
+      begin
+
+        if TAccountComp.EqualAccountKeys(APublicKey,
+          LCurrentAccount.accountInfo.accountKey) then
+        begin
+          AErrorMessage := 'You Cannot Sell to an Account That You Want to Enlist For Sale.';
+          Exit(False);
+        end;
+
+        if ALockedUntilBlock = 0 then
+        begin
+          AErrorMessage := 'You Didn''t Insert a Locking Block.';
+          Exit(False);
+        end;
+      end;
+
+      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, APublicKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
+      begin
+        AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
+        Exit(False);
+      end;
+
+      LIdx := LWalletKeys.IndexOfAccountKey(LCurrentAccount.accountInfo.accountKey);
+      if LIdx < 0 then
+      begin
+        AErrorMessage := Format('Selected Account "%s" Private Key Not Found In Wallet', [LCurrentAccount.AccountString]);
+        Exit(False);
+      end;
+      LWalletKey := LWalletKeys.Key[LIdx];
+
+      if not Assigned(LWalletKey.PrivateKey) then
+      begin
+        if LWalletKey.HasPrivateKey then
+          AErrorMessage := 'Wallet is Password Protected. Please Unlock Before You Proceed.'
+        else
+          AErrorMessage := Format('Only Public Key of Account %s Was Found in Wallet. You Cannot Operate This Account', [LCurrentAccount.AccountString]);
+        Exit(False);
+      end;
+
+      if ASignerAccount.balance > AFee then
+        LFee := AFee
+      else
+        LFee := ASignerAccount.balance;
+
+      case AAccountSaleMode of
+        akaPublicSale:
+
+          LPCOperation := TOpListAccountForSale.CreateListAccountForSale(
+            ASignerAccount.account, ASignerAccount.n_operation + 1 + LAccountIdx,
+            LCurrentAccount.account, ASalePrice, LFee, ASellerAccount.account,
+            APublicKey, 0, LWalletKey.PrivateKey, LPayloadEncodedBytes);
+
+        akaPrivateSale:
+
+          LPCOperation := TOpListAccountForSale.CreateListAccountForSale(
+            ASignerAccount.account, ASignerAccount.n_operation + 1 + LAccountIdx,
+            LCurrentAccount.account, ASalePrice, LFee, ASellerAccount.account,
+            APublicKey, ALockedUntilBlock, LWalletKey.PrivateKey, LPayloadEncodedBytes)
+
+        else
+          raise Exception.Create('Invalid Account Sale Type')
+      end;
+
+      try
+        LOperationsTxt := Format('Enlist Account For Sale at a Price of "%s" PASC', [TAccountComp.FormatMoney(ASalePrice)]);
+        if Assigned(LPCOperation) then
+        begin
+          LOperationsHashTree.AddOperationToHashTree(LPCOperation);
+          Inc(LNoOfOperations);
+          Inc(LTotalSignerFee, LFee);
+          if LOperationToString <> '' then
+            LOperationToString := LOperationToString + #10;
+          LOperationToString := LOperationToString + LPCOperation.ToString;
+        end;
+      finally
+        FreeAndNil(LPCOperation);
+      end;
+
+    end;
+
+    if (LOperationsHashTree.OperationsCount = 0) then
+    begin
+      AErrorMessage := 'No Valid Operation to Execute';
+      Exit(False);
+    end;
+
+    Exit(TOperationsManager.OthersFinalizeAndDisplayMessage(LOperationsTxt, LOperationToString, LNoOfOperations, LTotalSignerFee, LOperationsHashTree, AErrorMessage));
+
+  finally
+    LOperationsHashTree.Free;
+  end;
 end;
 
 { TCoreTool }
