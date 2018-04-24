@@ -18,7 +18,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections,
-  UWizard, UWIZOperationPayload_Content, UWIZOperationPayload_Password, UDataObjects;
+  UWizard, UWIZOperationPayload_Content, UWIZOperationPayload_Password, UCoreObjects;
 
 type
 

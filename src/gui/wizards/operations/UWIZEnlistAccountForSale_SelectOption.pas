@@ -13,7 +13,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UWizard, UDataObjects, UWIZEnlistAccountForSale_EnterPublicKey;
+  ExtCtrls, UWizard, UCoreObjects, UWIZEnlistAccountForSale_EnterPublicKey;
 
 type
 

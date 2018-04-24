@@ -15,7 +15,7 @@ unit UWIZSendPASC;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, UWizard, UCommon, UDataObjects;
+  Classes, SysUtils, Forms, Dialogs, UWizard, UCommon, UCoreObjects;
 
 type
 

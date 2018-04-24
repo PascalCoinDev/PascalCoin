@@ -17,7 +17,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UDataObjects;
+  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UCoreObjects;
 
 type
 

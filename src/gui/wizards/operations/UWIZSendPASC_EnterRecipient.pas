@@ -17,8 +17,8 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_EnterQuantity, UCoreUtils, UDataObjects;
+  ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet, UCoreObjects,
+  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZSendPASC_EnterQuantity, UCoreUtils;
 
 type
 

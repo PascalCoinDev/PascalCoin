@@ -93,7 +93,7 @@ implementation
 
 uses
   UUserInterface, UCellRenderers, UBlockChain, UWallet, UCrypto,
-  UCommon, UMemory, Generics.Defaults, UCommon.Data, UCommon.Collections, UDataObjects;
+  UCommon, UMemory, Generics.Defaults, UCommon.Data, UCommon.Collections;
 
 {$R *.lfm}
 

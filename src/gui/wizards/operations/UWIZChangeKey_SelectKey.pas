@@ -18,8 +18,8 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZOperationFee_Custom, UWIZOperationSigner_Select, UWIZOperationPayload_Encryption,
-  UDataObjects;
+  UFRMAccountSelect, UNode, UWizard, UCoreObjects,
+  UWIZOperationFee_Custom, UWIZOperationSigner_Select, UWIZOperationPayload_Encryption;
 
 type
 

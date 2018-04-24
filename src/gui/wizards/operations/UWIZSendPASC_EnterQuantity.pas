@@ -19,7 +19,7 @@ uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
   UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZOperationFee_Custom, UWIZOperationPayload_Encryption,
-  UWIZOperationSigner_Select, UDataObjects;
+  UWIZOperationSigner_Select, UCoreObjects;
 
 type
 

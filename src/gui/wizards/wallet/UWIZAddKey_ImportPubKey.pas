@@ -12,7 +12,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  UWizard, UWIZAddKey, UDataObjects;
+  UWizard, UWIZAddKey, UCoreObjects;
 
 type
 

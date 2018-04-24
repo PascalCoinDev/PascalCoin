@@ -18,7 +18,7 @@ interface
 
 uses
   Classes, SysUtils, UCrypto, UAccounts, UBlockChain, UOpTransaction, UNode, UCommon, UNetProtocol,
-  Generics.Collections, Generics.Defaults, UCoreObjects, UDataObjects, Forms, Dialogs, LCLType, UCellRenderers;
+  Generics.Collections, Generics.Defaults, UCoreObjects, Forms, Dialogs, LCLType, UCellRenderers;
 
 type
 

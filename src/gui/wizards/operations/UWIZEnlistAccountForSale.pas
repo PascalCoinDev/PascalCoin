@@ -15,7 +15,7 @@ unit UWIZEnlistAccountForSale;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon, UWizard, UAccounts, UDataObjects, LCLType;
+  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon, UWizard, UAccounts, UCoreObjects, LCLType;
 
 type
 
