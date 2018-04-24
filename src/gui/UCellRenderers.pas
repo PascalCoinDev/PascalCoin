@@ -40,7 +40,7 @@ type
 implementation
 
 uses
-  SysUtils, DateUtils, UCommon, UCommon.Data, UAccounts, UConst;
+  SysUtils, DateUtils, UCommon, UCommon.Data, UAccounts, UConst, UCoreUtils;
 
 const
   CT_PASCBALANCE_POS_COL = clGreen;
@@ -181,42 +181,7 @@ end;
 
 class function TCellRenderers.OperationShortText(const OpType, OpSubType : DWord) : AnsiString;
 begin
-  case OpType of
-    CT_PseudoOp_Reward: case OpSubType of
-      0, CT_PseudoOpSubtype_Miner : result := 'Miner Reward';
-      CT_PseudoOpSubtype_Developer : result := 'Developer Reward';
-      else result := 'Unknown';
-    end;
-    CT_Op_Transaction: case OpSubType of
-      CT_OpSubtype_TransactionSender: Result := 'Send';
-      CT_OpSubtype_TransactionReceiver: Result := 'Receive';
-      CT_OpSubtype_BuyTransactionBuyer: result := 'Buy Account Direct';
-      CT_OpSubtype_BuyTransactionTarget: result := 'Purchased Account Direct';
-      CT_OpSubtype_BuyTransactionSeller: result := 'Sold Account Direct';
-      else result := 'Unknown';
-    end;
-    CT_Op_Changekey: Result := 'Change Key (legacy)';
-    CT_Op_Recover: Result := 'Recover';
-    CT_Op_ListAccountForSale: case OpSubType of
-      CT_OpSubtype_ListAccountForPublicSale: result := 'For Sale';
-      CT_OpSubtype_ListAccountForPrivateSale: result := 'Exclusive Sale';
-      else result := 'Unknown';
-    end;
-    CT_Op_DelistAccount: result := 'Remove Sale';
-    CT_Op_BuyAccount: case OpSubType of
-      CT_OpSubtype_BuyAccountBuyer: result := 'Buy Account';
-      CT_OpSubtype_BuyAccountTarget: result := 'Purchased Account';
-      CT_OpSubtype_BuyAccountSeller: result := 'Sold Account';
-      else result := 'Unknown';
-    end;
-    CT_Op_ChangeKeySigned: result :=  'Change Key';
-    CT_Op_ChangeAccountInfo: result := 'Change Info';
-    CT_Op_MultiOperation: case OpSubType of
-      CT_OpSubtype_MultiOperation_Global: Result := 'Mixed-Transfer';
-      CT_OpSubtype_MultiOperation_AccountInfo: Result := 'Mixed-Change';
-    end;
-    else result := 'Unknown';
-  end;
+  Result := TOperationsManager.GetOperationShortText(OpType, OpSubType);
 end;
 
 class function TCellRenderers.AccountKeyShortText(const AText : AnsiString) : AnsiString;

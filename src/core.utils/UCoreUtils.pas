@@ -314,7 +314,42 @@ end;
 
 class function TOperationsManager.GetOperationShortText(const OpType, OpSubType: DWord): ansistring;
 begin
-  Result := TCellRenderers.OperationShortText(OpType, OpSubType);
+  case OpType of
+    CT_PseudoOp_Reward: case OpSubType of
+      0, CT_PseudoOpSubtype_Miner : result := 'Miner Reward';
+      CT_PseudoOpSubtype_Developer : result := 'Developer Reward';
+      else result := 'Unknown';
+    end;
+    CT_Op_Transaction: case OpSubType of
+      CT_OpSubtype_TransactionSender: Result := 'Send';
+      CT_OpSubtype_TransactionReceiver: Result := 'Receive';
+      CT_OpSubtype_BuyTransactionBuyer: result := 'Buy Account Direct';
+      CT_OpSubtype_BuyTransactionTarget: result := 'Purchased Account Direct';
+      CT_OpSubtype_BuyTransactionSeller: result := 'Sold Account Direct';
+      else result := 'Unknown';
+    end;
+    CT_Op_Changekey: Result := 'Change Key (legacy)';
+    CT_Op_Recover: Result := 'Recover';
+    CT_Op_ListAccountForSale: case OpSubType of
+      CT_OpSubtype_ListAccountForPublicSale: result := 'For Sale';
+      CT_OpSubtype_ListAccountForPrivateSale: result := 'Exclusive Sale';
+      else result := 'Unknown';
+    end;
+    CT_Op_DelistAccount: result := 'Remove Sale';
+    CT_Op_BuyAccount: case OpSubType of
+      CT_OpSubtype_BuyAccountBuyer: result := 'Buy Account';
+      CT_OpSubtype_BuyAccountTarget: result := 'Purchased Account';
+      CT_OpSubtype_BuyAccountSeller: result := 'Sold Account';
+      else result := 'Unknown';
+    end;
+    CT_Op_ChangeKeySigned: result :=  'Change Key';
+    CT_Op_ChangeAccountInfo: result := 'Change Info';
+    CT_Op_MultiOperation: case OpSubType of
+      CT_OpSubtype_MultiOperation_Global: Result := 'Mixed-Transfer';
+      CT_OpSubtype_MultiOperation_AccountInfo: Result := 'Mixed-Change';
+    end;
+    else result := 'Unknown';
+  end;
 end;
 
 class function TOperationsManager.ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TExecuteOperationsModel.TSendPASCMode; const APayloadEncryptionMode: TExecuteOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
