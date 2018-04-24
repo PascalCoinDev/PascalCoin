@@ -68,9 +68,12 @@ Also, consider a donation at PascalCoin development account: "0-10"
     - "changers" : ARRAY of objects - When accounts changed state
       - "account" : changing Account 
       - "n_operation"
-      - "new_enc_pubkey" : If public key is changed
+      - "new_enc_pubkey" : If public key is changed or when is listed for a private sale
       - "new_name" : If name is changed
       - "new_type" : If type is changed
+      - "seller_account" : If is listed for sale (public or private) will show seller account
+      - "account_price"	: PASCURRENCY - If is listed for sale (public or private) will show account price
+      - "locked_until_block" : If is listed for private sale will show block locked
       - "fee" : PASCURRENCY - In negative value, due it's outgoing from "account"
     Modified fields / DEPRECATED FIELDS
     Caused by multioperation introduction, search in "senders"/"receivers"/"changers" instead

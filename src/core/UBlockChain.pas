@@ -107,7 +107,7 @@ uses
 
 Type
   // Moved from UOpTransaction to here
-  TOpChangeAccountInfoType = (public_key,account_name,account_type);
+  TOpChangeAccountInfoType = (public_key,account_name,account_type,list_for_public_sale,list_for_private_sale,delist);
   TOpChangeAccountInfoTypes = Set of TOpChangeAccountInfoType;
 
   // MultiOp... will allow a MultiOperation
@@ -132,6 +132,9 @@ Type
     New_Accountkey: TAccountKey;  // If (changes_mask and $0001)=$0001 then change account key
     New_Name: TRawBytes;          // If (changes_mask and $0002)=$0002 then change name
     New_Type: Word;               // If (changes_mask and $0004)=$0004 then change type
+    Seller_Account : Int64;
+    Account_Price : Int64;
+    Locked_Until_Block : Cardinal;
     Fee: Int64;
     Signature: TECDSA_SIG;
   end;
@@ -472,8 +475,8 @@ Const
   CT_TOperationResume_NUL : TOperationResume = (valid:false;Block:0;NOpInsideBlock:-1;OpType:0;OpSubtype:0;time:0;AffectedAccount:0;SignerAccount:-1;n_operation:0;DestAccount:-1;SellerAccount:-1;newKey:(EC_OpenSSL_NID:0;x:'';y:'');OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:'';PrintablePayload:'';OperationHash:'';OperationHash_OLD:'';errors:'';isMultiOperation:False;Senders:Nil;Receivers:Nil;changers:Nil);
   CT_TMultiOpSender_NUL : TMultiOpSender =  (Account:0;Amount:0;N_Operation:0;Payload:'';Signature:(r:'';s:''));
   CT_TMultiOpReceiver_NUL : TMultiOpReceiver = (Account:0;Amount:0;Payload:'');
-  CT_TMultiOpChangeInfo_NUL : TMultiOpChangeInfo = (Account:0;N_Operation:0;Changes_type:[];New_Accountkey:(EC_OpenSSL_NID:0;x:'';y:'');New_Name:'';New_Type:0;Fee:0;Signature:(r:'';s:''));
-  CT_TOpChangeAccountInfoType_Txt : Array[Low(TOpChangeAccountInfoType)..High(TOpChangeAccountInfoType)] of AnsiString = ('public_key','account_name','account_type');
+  CT_TMultiOpChangeInfo_NUL : TMultiOpChangeInfo = (Account:0;N_Operation:0;Changes_type:[];New_Accountkey:(EC_OpenSSL_NID:0;x:'';y:'');New_Name:'';New_Type:0;Seller_Account:-1;Account_Price:-1;Locked_Until_Block:0;Fee:0;Signature:(r:'';s:''));
+  CT_TOpChangeAccountInfoType_Txt : Array[Low(TOpChangeAccountInfoType)..High(TOpChangeAccountInfoType)] of AnsiString = ('public_key','account_name','account_type','list_for_public_sale','list_for_private_sale','delist');
 
 implementation
 
