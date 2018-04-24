@@ -2060,6 +2060,7 @@ procedure TPCSafeBox.CheckMemory;
 Var sb : TPCSafeBox;
   tc : TTickCount;
   auxSnapshotsList : TList;
+  i : Integer;
 {$ENDIF}
 begin
   {$IFDEF FPC}
@@ -2081,6 +2082,10 @@ begin
         Self.CopyFrom(sb);
         // Restore snapshots:
         FSnapshots.Assign(auxSnapshotsList);
+        // Clear changes to do not fire key activity
+        for i := 0 to FListOfOrderedAccountKeysList.count-1 do begin
+          TOrderedAccountKeysList( FListOfOrderedAccountKeysList[i] ).ClearAccountKeyChanges;
+        end;
       finally
         auxSnapshotsList.Free;
       end;
