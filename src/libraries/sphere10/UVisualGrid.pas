@@ -55,6 +55,7 @@ uses
     function GetRow: longint;
     function GetRowCount: longint;
   public
+    Page: Integer;
     Selections: array of TRect;
     property Col: longint read GetCol;
     property Row: longint read GetRow;
@@ -303,6 +304,7 @@ uses
     FDeselectionType: TDeselectionType;
     FCurrentSelectionType: TSelectionType;
     FLastSelection: TVisualGridSelection;
+    FLastSelectionEvent: TVisualGridSelection;
     FIgnoreSelectionEvent: boolean;
     FCellPadding : TRect;
     FWidgetControl: TControl;
@@ -378,9 +380,9 @@ uses
     procedure FetchPage(out AResult: TPageFetchResult);
     procedure AfterFetchPage;
     property ActiveDataTable: PDataTable read GetActiveDataTable;
-    procedure UpdateSelection(ASelectionType: TSelectionType);
+    procedure UpdateSelection(ASelectionType: TSelectionType; AResetSelection: boolean);
     function SelectionsEquals(constref A, B: TVisualGridSelection): boolean;
-    procedure ResetLastSelection; inline;
+    procedure ResetSelection(out ASelection: TVisualGridSelection); inline;
   public
     constructor Create(Owner: TComponent); override;
     destructor Destroy; override;
@@ -849,7 +851,8 @@ begin
   FMultiSearchEdits := TObjectList<TSearchEdit>.Create;
   FColumns := TObjectList<TVisualColumn>.Create;
   FFilters := TList<TColumnFilter>.Create;
-  ResetLastSelection;
+  ResetSelection(FLastSelection);
+  ResetSelection(FLastSelectionEvent);
 
   { component layout }
 
@@ -1657,6 +1660,7 @@ begin
     Result.Selections[i].Top:=Result.Selections[i].Top-1; // - fixed row
     Result.Selections[i].Bottom:=Result.Selections[i].Bottom-1; // - fixed row
   end;
+  Result.Page := PageIndex;
 end;
 
 function TCustomVisualGrid.GetSelectedRows : TArray<Variant>;
@@ -2198,11 +2202,6 @@ begin
     Exit;
 
   FPageIndex := Value;
-  if FDeselectionType <> dtNone then
-  begin
-    ResetLastSelection;
-    UpdateSelection(stNone);
-  end;
   RefreshPageIndexData(false);
 end;
 
@@ -2300,6 +2299,25 @@ begin
 end;
 
 procedure TCustomVisualGrid.AfterFetchPage;
+
+  procedure UpdateDrawGridRect;
+  var
+    LNewRect: TGridRect;
+    LOptions: TGridOptions;
+  begin
+    LNewRect := TGridRect.Create(FLastSelectionEvent.Col, FLastSelectionEvent.Row + 1,
+      FLastSelectionEvent.Col + FLastSelectionEvent.ColCount, FLastSelectionEvent.Row + FLastSelectionEvent.RowCount);
+
+    FIgnoreSelectionEvent:=true;
+    TDrawGridAccess(FDrawGrid).MoveExtend(false, LNewRect.Left, LNewRect.Bottom);
+    FIgnoreSelectionEvent:=false;
+
+    if goRangeSelect in FDrawGrid.Options then
+      FDrawGrid.Selection := LNewRect
+    else
+      FDrawGrid.Row := FLastSelectionEvent.Row + 1;
+  end;
+
 begin
   with FLastFetchDataResult do
   if Assigned(FDataSource) then
@@ -2328,44 +2346,59 @@ begin
 
     if RefreshColumns then
       ReloadColumns;
+    // when last page has different count than all other pages
+    // we need to handle events on own way
+    FIgnoreSelectionEvent:=true;
     FDrawGrid.RowCount := Length(FDataTable.Rows) + 1;
+    FIgnoreSelectionEvent:=false;
   end;
   RefreshPageIndexAndGridInterface;
+
+  // each page means different records so selection should be not moved to
+  // new page nor deselected
+  if FLastSelectionEvent.Page = FPageIndex then
+  begin
+    UpdateSelection(FSelectionType, false);
+    UpdateDrawGridRect;
+  end
+  else
+    UpdateSelection(stNone, false);
 end;
 
-procedure TCustomVisualGrid.UpdateSelection(ASelectionType: TSelectionType);
-var
-  LSelectionEvent: boolean;
+procedure TCustomVisualGrid.UpdateSelection(ASelectionType: TSelectionType; AResetSelection: boolean);
 begin
   if FCurrentSelectionType = ASelectionType then
     Exit;
 
   FCurrentSelectionType:=ASelectionType;
-  LSelectionEvent := FCurrentSelectionType=stNone;
   case FCurrentSelectionType of
     stNone: FDrawGrid.Options:=FDefaultDrawGridOptions;
     stCell: FDrawGrid.Options:=FDefaultDrawGridOptions+[goDrawFocusSelected];
     stRow: FDrawGrid.Options:=FDefaultDrawGridOptions+[goRowSelect];
     stMultiRow: FDrawGrid.Options:=FDefaultDrawGridOptions+[goRowSelect,goRangeSelect];
   end;
-  if LSelectionEvent and Assigned(FOnSelection) then
-      FOnSelection(Self, FLastSelection);
+
+  if AResetSelection then
+    GridSelection(nil, 0, 0);
 end;
 
 function TCustomVisualGrid.SelectionsEquals(constref A, B: TVisualGridSelection
   ): boolean;
 begin
-  case FSelectionType of
-    stNone: Result := false;
-    stCell: Result := (A.Col = B.Col) and (A.Row = B.Row);
-    stRow: Result := (A.Row = B.Row);
-    stMultiRow: Result := (A.Row = B.Row) and (A.RowCount = B.RowCount);
-  end;
+  Result := A.Page = B.Page;
+  if Result then
+    case FSelectionType of
+      stNone: Result := (A.Selections = nil) and (B.Selections = nil);
+      stCell: Result := (A.Col = B.Col) and (A.Row = B.Row) and (A.ColCount = B.ColCount);
+      stRow: Result := (A.Row = B.Row)  and (A.ColCount = B.ColCount);
+      stMultiRow: Result := (A.Row = B.Row) and (A.RowCount = B.RowCount) and (A.ColCount = B.ColCount);
+    end;
 end;
 
-procedure TCustomVisualGrid.ResetLastSelection;
+procedure TCustomVisualGrid.ResetSelection(out ASelection: TVisualGridSelection);
 begin
-  FLastSelection.Selections := nil;
+  ASelection.Selections := nil;
+  ASelection.Page := -1;
 end;
 
 procedure TCustomVisualGrid.SetPageSize(Value: Integer);
@@ -2384,15 +2417,11 @@ begin
   if FSelectionType=AValue then
     Exit;
   FSelectionType:=AValue;
-  // do not select if don't need (otherwise it means false selection event and false selection in grid)
-  if (FDeselectionType = dtNone) or (FLastSelection.Selections <> nil) then
-  begin
-    // reset internal selection variable for stNone (and call event)
-    if FSelectionType = stNone then
-      ResetLastSelection;
-    UpdateSelection(FSelectionType);
-    GridSelection(Self, 0, 0)
-  end;
+  // reset internal selection variable for stNone (and call event)
+  if FSelectionType = stNone then
+    ResetSelection(FLastSelection);
+  UpdateSelection(FSelectionType, true);
+  GridSelection(Self, 0, 0)
 end;
 
 procedure TCustomVisualGrid.SetDeselectionType(AValue: TDeselectionType);
@@ -2402,16 +2431,23 @@ begin
 
   FDeselectionType:=AValue;
 
-  ResetLastSelection;
-  UpdateSelection(SelectionType);
+  if FDeselectionType = dtNone then
+  begin
+    ResetSelection(FLastSelection);
+    UpdateSelection(SelectionType, true);
+  end else
+    FLastSelection := FLastSelectionEvent;
 end;
 
 procedure TCustomVisualGrid.ClearSelection(AIgnoreDeselectionType: boolean);
 begin
   if (FDeselectionType <> dtNone) or AIgnoreDeselectionType then
   begin
-    ResetLastSelection;
-    UpdateSelection(stNone);
+    ResetSelection(FLastSelection);
+    if FLastSelectionEvent.Page <> FPageIndex then
+      GridSelection(nil, 0, 0)
+    else
+      UpdateSelection(stNone, true);
   end;
 end;
 
@@ -2519,22 +2555,41 @@ end;
 
 procedure TCustomVisualGrid.GridMouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
+var
+  LCol, LRow: Integer;
 begin
   if ColCount = 0 then
     Exit;
 
-  if FDeselectionType = dtClick then
-    case Button of
-      mbLeft:
-        if (SelectionType <> stNone) and (FDrawGrid.MouseToGridZone(X, Y) = gzNormal) then
-          if Assigned(FLastSelection.Selections) then
-          begin
-            ResetLastSelection;
-            UpdateSelection(stNone);
-            FIgnoreSelectionEvent := true;
-          end else
-            UpdateSelection(FSelectionType);
-    end;
+  // handle special case: when was selected row in fist page (for example row 20)
+  // and the last page has 10 rows, when we click to row 5 implicitly is called
+  // event for row 10 and next for row 5 (we have one extra event with row 10)
+  if (FLastSelectionEvent.Page <> FPageIndex) and (Y <> FDrawGrid.Row) then
+  begin
+    FDrawGrid.MouseToCell(X, Y, LCol, LRow);
+    FIgnoreSelectionEvent:=true;
+    TDrawGridAccess(FDrawGrid).MoveExtend(false, LCol, LRow);
+    FIgnoreSelectionEvent:=false;
+  end;
+
+  case FDeselectionType of
+    dtClick:
+      case Button of
+        mbLeft:
+          if (SelectionType <> stNone) and (FDrawGrid.MouseToGridZone(X, Y) = gzNormal) then
+            if Assigned(FLastSelectionEvent.Selections) and (FLastSelectionEvent.Page = FPageIndex) then
+            begin
+              ResetSelection(FLastSelection);
+              UpdateSelection(stNone, true);
+              FIgnoreSelectionEvent := true;
+            end else
+              UpdateSelection(FSelectionType, true);
+      end;
+    dtDefault, dtNone:
+      case Button of
+        mbLeft: UpdateSelection(FSelectionType, true);
+      end;
+  end;
 end;
 
 procedure TCustomVisualGrid.GridMouseUp(Sender: TObject; Button: TMouseButton;
@@ -2582,14 +2637,14 @@ begin
         else
         if (FCurrentSelectionType <> stNone) and SelectionsEquals(LSelection, FLastSelection) then
         begin
-          ResetLastSelection;
-          UpdateSelection(stNone)
+          ResetSelection(FLastSelection);
+          UpdateSelection(stNone, true)
         end
         else begin
           // lock for select event, otherwise we get false information about selection
           // (highly visible problem for deselection option)
           FIgnoreSelectionEvent := true;
-          UpdateSelection(FSelectionType);
+          UpdateSelection(FSelectionType, true);
           FIgnoreSelectionEvent := false;
           FLastSelection := LSelection;
           GridSelection(nil, 0, 0);
@@ -2605,9 +2660,22 @@ begin
 end;
 
 procedure TCustomVisualGrid.GridSelection(Sender: TObject; aCol, aRow: Integer);
+var
+  LSelection: TVisualGridSelection;
 begin
-  if (FCurrentSelectionType <> stNone) and Assigned(FOnSelection) and (not FIgnoreSelectionEvent) then
-    FOnSelection(Self, Selection);
+  if Assigned(FOnSelection) and (not FIgnoreSelectionEvent) then
+  begin
+    if FCurrentSelectionType = stNone then
+      ResetSelection(LSelection)
+    else
+      LSelection := Selection;
+
+    if not SelectionsEquals(FLastSelectionEvent, LSelection) then
+    begin
+      FOnSelection(Self, LSelection);
+      FLastSelectionEvent := LSelection;
+    end;
+  end;
 end;
 
 procedure TCustomVisualGrid.GridHeaderClick(Sender: TObject; IsColumn: Boolean;
