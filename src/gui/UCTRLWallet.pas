@@ -498,23 +498,10 @@ begin
 end;
 
 procedure TCTRLWallet.OnAccountsSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
-var
-  row: longint;
-  selectedAccounts: Generics.Collections.TList<cardinal>;
-  acc: cardinal;
-  GC: TDisposables;
 begin
-  selectedAccounts := GC.AddObject(TList<cardinal>.Create) as TList<cardinal>;
-
-  if ASelection.RowCount > 0 then begin
-    for row := ASelection.Row to (ASelection.Row + ASelection.RowCount - 1) do begin
-      if (TAccountComp.AccountTxtNumberToAccountNumber(FAccountsGrid.Rows[row].Account, acc)) then
-        selectedAccounts.Add(acc);
-    end;
-    FOperationsDataSource.Accounts := selectedAccounts.ToArray;
-    FOperationsGrid.Caption.Text := IIF(ASelection.RowCount = 1, Format('Account: %s', [TAccountComp.AccountNumberToAccountTxtNumber(selectedAccounts[0])]), 'Selected Accounts');
-    FOperationsGrid.RefreshGrid;
-  end else
+  if ASelection.Page >= 0 then
+    OperationsMode := womSelectedAccounts
+  else
     OperationsMode := womAllAccounts;
 end;
 
