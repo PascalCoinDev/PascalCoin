@@ -20,7 +20,7 @@ unit UFileStorage;
 interface
 
 uses
-  Classes, {$IFDEF FPC}fileutil,{$ELSE} Windows,{$ENDIF} UBlockChain, SyncObjs, UThread, UAccounts, UCrypto;
+  Classes, {$IFnDEF FPC}Windows,{$ENDIF} UBlockChain, SyncObjs, UThread, UAccounts, UCrypto;
 {$I config.inc}
 
 Type
@@ -337,25 +337,26 @@ begin
   End;
 end;
 
-function TFileStorage.DoMoveBlockChain(Start_Block: Cardinal; const DestOrphan: TOrphan; DestStorage : TStorage): Boolean;
-  Procedure DoCopyFile(sourcefn,destfn : AnsiString);
-  var sourceFS, destFS : TFileStream;
-  Begin
-    if Not FileExists(sourcefn) then Raise Exception.Create('Source file not found: '+sourcefn);
-    sourceFS := TFileStream.Create(sourcefn,fmOpenRead+fmShareDenyNone);
+Procedure DoCopyFile(sourcefn,destfn : AnsiString);
+var sourceFS, destFS : TFileStream;
+Begin
+  if Not FileExists(sourcefn) then Raise Exception.Create('Source file not found: '+sourcefn);
+  sourceFS := TFileStream.Create(sourcefn,fmOpenRead+fmShareDenyNone);
+  try
+    sourceFS.Position:=0;
+    destFS := TFileStream.Create(destfn,fmCreate+fmShareDenyWrite);
     try
-      sourceFS.Position:=0;
-      destFS := TFileStream.Create(destfn,fmCreate+fmShareDenyWrite);
-      try
-        destFS.Size:=0;
-        destFS.CopyFrom(sourceFS,sourceFS.Size);
-      finally
-        destFS.Free;
-      end;
+      destFS.Size:=0;
+      destFS.CopyFrom(sourceFS,sourceFS.Size);
     finally
-      sourceFS.Free;
+      destFS.Free;
     end;
+  finally
+    sourceFS.Free;
   end;
+end;
+
+function TFileStorage.DoMoveBlockChain(Start_Block: Cardinal; const DestOrphan: TOrphan; DestStorage : TStorage): Boolean;
 
   Procedure DoCopySafebox;
   var sr: TSearchRec;
@@ -518,7 +519,7 @@ begin
       aux_newfilename := GetFolder('') + PathDelim+'checkpoint_'+ inttostr(Bank.BlocksCount)+'.safebox';
       try
         {$IFDEF FPC}
-        CopyFile(bankfilename,aux_newfilename);
+        DoCopyFile(bankfilename,aux_newfilename);
         {$ELSE}
         CopyFile(PWideChar(bankfilename),PWideChar(aux_newfilename),False);
         {$ENDIF}
