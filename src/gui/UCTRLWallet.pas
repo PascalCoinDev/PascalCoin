@@ -547,7 +547,7 @@ begin
     ophash := FOperationsGrid.Rows[row].OPHASH;
     if TPCOperation.IsValidOperationHash(ophash) then begin
       TUserInterface.ShowOperationInfoDialog(self, ophash);
-      FOperationsGrid.ClearSelection;
+      FOperationsGrid.ClearSelection(true);
     end;
   end;
 end;
