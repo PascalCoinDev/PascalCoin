@@ -425,7 +425,7 @@ begin
     opr := CT_TOperationResume_NUL;
     if (Node.Bank.Storage.LoadBlockChainBlock(blockOps, block)) then begin
       AContainer.Add( blockOps.GetMinerRewardPseudoOperation );
-      if blockOps.Count = 0 then exit;
+     // if blockOps.Count = 0 then exit;
       for i := blockOps.Count - 1 downto 0 do begin    // reverse order
         if TPCOperation.OperationToOperationResume(block, blockOps.Operation[i], false, blockOps.Operation[i].SignerAccount, opr) then begin
           opr.NOpInsideBlock := i;
