@@ -1910,9 +1910,14 @@ begin
           GetNewBank(-1);
         end;
       end else begin
-        TLog.NewLog(ltinfo,CT_LogSender,'Found base new block: '+TPCOperationsComp.OperationBlockToText(client_op));
         // Move operations to orphan folder... (temporal... waiting for a confirmation)
-        GetNewBank(client_op.block+1);
+        if (TNode.Node.Bank.Storage.FirstBlock<client_op.block) then begin
+          TLog.NewLog(ltinfo,CT_LogSender,'Found base new block: '+TPCOperationsComp.OperationBlockToText(client_op));
+          GetNewBank(client_op.block+1);
+        end else begin
+          TLog.NewLog(ltinfo,CT_LogSender,'Found base new block: '+TPCOperationsComp.OperationBlockToText(client_op)+' lower than saved:'+IntToStr(TNode.Node.Bank.Storage.FirstBlock));
+          DownloadSafeBox(False);
+        end;
       end;
     end else begin
       TLog.NewLog(ltinfo,CT_LogSender,'My blockchain is ok! Need to download new blocks starting at '+inttostr(my_op.block+1));
