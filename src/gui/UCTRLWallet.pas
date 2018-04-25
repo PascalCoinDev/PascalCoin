@@ -72,6 +72,8 @@ type
     procedure SetOperationsHistory(AHistory: TCTRLWalletOperationsHistory);
     procedure RefreshMyAccountsCombo;
     procedure RefreshTotals;
+    procedure RefreshAccountsGrid;
+    procedure RefreshOperationsGrid;
     function GetAccounts(const AccountNumbers: TArray<cardinal>): TArray<TAccount>;
   protected
     procedure ActivateFirstTime; override;
@@ -365,6 +367,53 @@ begin
   end;
 end;
 
+procedure TCTRLWallet.RefreshAccountsGrid;
+var
+  index: integer;
+  sel: TBox<TAccountKey>;
+begin
+  if Self.AccountsMode <> wamMyAccounts then exit; // showing getpasa
+  if cbAccounts.ItemIndex = cbAccounts.Items.Count - 1 then exit; // not a key
+  index := cbAccounts.ItemIndex;
+  if index = 0 then begin
+    gpMyAccounts.Caption := 'My Accounts';
+    FAccountsDataSource.FilterKeys := TWallet.Keys.AccountsKeyList.ToArray;
+  end else begin
+    sel := TBox<TAccountKey>(cbAccounts.Items.Objects[cbAccounts.ItemIndex]);
+    gpMyAccounts.Caption := Format('%s Accounts', [TWallet.Keys[TWallet.Keys.IndexOfAccountKey(sel.Value)].Name]);
+    FAccountsDataSource.FilterKeys := TArray<TAccountKey>.Create(sel.Value);
+  end;
+  FAccountsGrid.RefreshGrid;
+end;
+
+procedure TCTRLWallet.RefreshOperationsGrid;
+
+  function GetAccNo(constref AAccount: TAccount): cardinal; overload;
+  begin
+    Result := AAccount.account;
+  end;
+
+  function GetAccNo(constref ARow: variant): cardinal; overload;
+  begin
+    Result := ARow.__KEY;
+  end;
+
+begin
+  case FOperationsMode of
+    womAllAccounts: begin
+      FOperationsGrid.Caption.Text := '';
+      FOperationsDataSource.Accounts := TWallet.Keys.AccountsKeyList.GetAccountNumbers;
+    end;
+    womSelectedAccounts:
+    begin
+      FOperationsGrid.Caption.Text := 'Selected Accounts';
+      FOperationsDataSource.Accounts := TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows, GetAccNo);
+    end else
+      raise ENotSupportedException.Create(Format('AMode %d not supported', [integer(FOperationsMode)]));
+  end;
+  FOperationsGrid.RefreshGrid;
+end;
+
 function TCTRLWallet.GetAccounts(const AccountNumbers: TArray<cardinal>): TArray<TAccount>;
 var
   acc: TAccount;
@@ -397,6 +446,8 @@ end;
 
 procedure TCTRLWallet.SetAccountsMode(AMode: TCTRLWalletAccountsMode);
 begin
+  if FAccountsMode = AMode then exit;
+
   FUILock.Acquire;
   try
     FAccountsMode := AMode;
@@ -408,15 +459,14 @@ begin
         cbAccounts.OnChange := nil; // disable event
         cbAccounts.ItemIndex :=0;
         cbAccounts.OnChange := cbAccountsChange; // re-enable event
-
-        // accounts caption
-        FAccountsGrid.Caption.Text := 'My Accounts';
-
         // ensure on accounts panel
         if FAccountsGrid.Parent <> paAccounts then begin
           paAccounts.RemoveAllControls(False);
           paAccounts.AddControlDockCenter(FAccountsGrid);
         end;
+        // Refresh grid
+        FAccountsGrid.ClearSelection();
+        RefreshAccountsGrid;
       end;
       wamFirstAccount: raise Exception.Create('Not implemented');
     end;
@@ -426,36 +476,12 @@ begin
 end;
 
 procedure TCTRLWallet.SetOperationsMode(AMode: TCTRLWalletOperationsMode);
-
-  function GetAccNo(constref AAccount: TAccount): cardinal; overload;
-  begin
-    Result := AAccount.account;
-  end;
-
-  function GetAccNo(constref ARow: variant): cardinal; overload;
-  begin
-    Result := ARow.__KEY;
-  end;
-
 begin
-  if AMode = FOperationsMode then
-    exit;
+  if FOperationsMode = AMode then exit;
   FUILock.Acquire;
   try
     FOperationsMode := AMode;
-    case AMode of
-      womAllAccounts: begin
-        FOperationsGrid.Caption.Text := '';
-        FOperationsDataSource.Accounts := TWallet.Keys.AccountsKeyList.GetAccountNumbers;
-      end;
-      womSelectedAccounts:
-      begin
-        FOperationsGrid.Caption.Text := 'Selected Accounts';
-        FOperationsDataSource.Accounts := TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows, GetAccNo);
-      end else
-        raise ENotSupportedException.Create(Format('AMode %d not supported', [integer(AMode)]));
-    end;
-    FOperationsGrid.RefreshGrid;
+    RefreshOperationsGrid;
   finally
     FUILock.Release;
   end;
@@ -499,9 +525,12 @@ end;
 
 procedure TCTRLWallet.OnAccountsSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
 begin
-  if ASelection.Page >= 0 then
-    OperationsMode := womSelectedAccounts
-  else
+  if ASelection.Page >= 0 then begin
+    if OperationsMode <> womSelectedAccounts then
+      OperationsMode := womSelectedAccounts
+    else
+      RefreshOperationsGrid // already viewing selected accounts, add to visible set
+  end else
     OperationsMode := womAllAccounts;
 end;
 
@@ -511,6 +540,7 @@ var
   v: variant;
   ophash: ansistring;
 begin
+  if ASelection.Page < 0 then exit;
   row := ASelection.Row;
   if (row >= 0) and (row < FOperationsGrid.RowCount) then begin
     v := FOperationsGrid.Rows[row];
@@ -523,25 +553,17 @@ begin
 end;
 
 procedure TCTRLWallet.cbAccountsChange(Sender: TObject);
-var
-  index: integer;
-  sel: TBox<TAccountKey>;
 begin
-  index := cbAccounts.ItemIndex;
   if cbAccounts.ItemIndex < 0 then exit;
-  if index = 0 then
-    FAccountsDataSource.FilterKeys := TWallet.Keys.AccountsKeyList.ToArray
-  else if index = cbAccounts.Items.Count - 1 then begin
-    AccountsMode := wamFirstAccount;
-    exit;
-  end else begin
-    sel := TBox<TAccountKey>(cbAccounts.Items.Objects[cbAccounts.ItemIndex]);
-    FAccountsDataSource.FilterKeys := TArray<TAccountKey>.Create(sel.Value);
-  end;
-  if Self.AccountsMode <> wamMyAccounts then
+  FAccountsGrid.ClearSelection();
+  if cbAccounts.ItemIndex = cbAccounts.Items.Count - 1 then
+    AccountsMode := wamFirstAccount
+  else if FAccountsMode = wamFirstAccount then
     AccountsMode := wamMyAccounts
   else
-    FAccountsGrid.RefreshGrid;
+    RefreshAccountsGrid;
+  if FOperationsMode <> womAllAccounts then
+    RefreshOperationsGrid;
 end;
 
 procedure TCTRLWallet.cmbDurationChange(Sender: TObject);

@@ -1,0 +1,39 @@
+object ExecuteOperations: TExecuteOperations
+  Left = 0
+  Height = 340
+  Top = 0
+  Width = 606
+  Caption = 'Execute Operations'
+  ClientHeight = 340
+  ClientWidth = 606
+  Visible = False
+  object GroupBox1: TGroupBox
+    Left = 0
+    Height = 293
+    Top = 8
+    Width = 606
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    Caption = 'Executing Operations'
+    ClientHeight = 273
+    ClientWidth = 602
+    TabOrder = 0
+    object Panel1: TPanel
+      Left = 6
+      Height = 253
+      Top = 8
+      Width = 588
+      Anchors = [akTop, akLeft, akRight, akBottom]
+      Caption = 'GRID PANEL'
+      TabOrder = 0
+    end
+  end
+  object btnClose: TButton
+    Left = 490
+    Height = 25
+    Top = 309
+    Width = 107
+    Anchors = [akRight, akBottom]
+    Caption = 'Close'
+    TabOrder = 1
+  end
+end
