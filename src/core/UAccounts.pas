@@ -766,7 +766,12 @@ end;
 class function TPascalCoinProtocol.GetRewardForNewLine(line_index: Cardinal): UInt64;
 Var n, i : Cardinal;
 begin
-  n := (line_index + 1) DIV CT_NewLineRewardDecrease;
+  {$IFDEF TESTNET}
+  // TESTNET used (line_index +1), but PRODUCTION must use (line_index)
+  n := (line_index + 1) DIV CT_NewLineRewardDecrease;  // XXXXXXXXXXXXXXX TESTNET BAD USE (line_index + 1)
+  {$ELSE}
+  n := line_index DIV CT_NewLineRewardDecrease; // FOR PRODUCTION
+  {$ENDIF}
   Result := CT_FirstReward;
   for i := 1 to n do begin
     Result := Result DIV 2;
