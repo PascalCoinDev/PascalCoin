@@ -1339,16 +1339,18 @@ begin
     buffer.Read(c,4);
     HeaderData.buffer_data_length := c;
     DataBuffer.Size := 0;
-    if buffer.Size - buffer.Position < c then begin
-      IsValidHeaderButNeedMoreData := true;
-      {$IFDEF HIGHLOG}
-      TLog.NewLog(ltdebug,className,Format('Need more data! Buffer size (%d) - position (%d) < %d - Header info: %s',
-        [buffer.Size,buffer.Position,c,HeaderDataToText(HeaderData)]));
-      {$ENDIF}
-      exit;
+    if (c>0) then begin
+      if buffer.Size - buffer.Position < c then begin
+        IsValidHeaderButNeedMoreData := true;
+        {$IFDEF HIGHLOG}
+        TLog.NewLog(ltdebug,className,Format('Need more data! Buffer size (%d) - position (%d) < %d - Header info: %s',
+          [buffer.Size,buffer.Position,c,HeaderDataToText(HeaderData)]));
+        {$ENDIF}
+        exit;
+      end;
+      DataBuffer.CopyFrom(buffer,c);
+      DataBuffer.Position := 0;
     end;
-    DataBuffer.CopyFrom(buffer,c);
-    DataBuffer.Position := 0;
     //
     if HeaderData.header_type=ntp_response then begin
       HeaderData.is_error := HeaderData.error_code<>0;
@@ -1417,7 +1419,6 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
   begin
     Result := false;
     BlocksList.Clear;
-    if (Connection.FRemoteOperationBlock.block<block_end) then block_end := Connection.FRemoteOperationBlock.block;
     // First receive operations from
     SendData := TMemoryStream.Create;
     ReceiveData := TMemoryStream.Create;
@@ -1503,6 +1504,10 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       BlocksList := TList.Create;
       try
         If Not Do_GetOperationsBlock(Nil,min,max,5000,true,BlocksList) then exit;
+        if (BlocksList.Count=0) then begin
+          Connection.DisconnectInvalidClient(false,'No received info for blocks from '+inttostr(min)+' to '+inttostr(max));
+          exit;
+        end;
         distinctmin := min;
         distinctmax := max;
         ant_nblock := -1;
@@ -2508,7 +2513,21 @@ begin
        errors := 'Invalid structure start or end: '+Inttostr(b_start)+' '+Inttostr(b_end);
        exit;
      end;
-     if (b_end>=TNetData.NetData.Bank.BlocksCount) then b_end := TNetData.NetData.Bank.BlocksCount-1;
+     if (b_end>=TNetData.NetData.Bank.BlocksCount) then begin
+       b_end := TNetData.NetData.Bank.BlocksCount-1;
+       if (b_start>b_end) then begin
+         // No data:
+         db := TMemoryStream.Create;
+         try
+           c := 0;
+           db.Write(c,4);
+           Send(ntp_response,HeaderData.operation,0,HeaderData.request_id,db);
+           Exit;
+         finally
+           db.Free;
+         end;
+       end;
+     end;
 
      DoDisconnect := false;
 
@@ -3919,8 +3938,10 @@ Var NC : TNetClient;
   ok : Boolean;
   ns : TNodeServerAddress;
 begin
+  Repeat // Face to face conflict when 2 nodes connecting together
+    Sleep(Random(1000));
+  until (Terminated) Or (Random(5)=0);
   if Terminated then exit;
-
   TLog.NewLog(ltInfo,Classname,'Starting discovery of connection '+FNodeServerAddress.ip+':'+InttoStr(FNodeServerAddress.port));
   DebugStep := 'Locking list';
   // Register attempt
