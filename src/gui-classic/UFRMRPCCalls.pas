@@ -30,7 +30,7 @@ uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls,
   StdCtrls, ValEdit, ComCtrls, Buttons, UJSONFunctions, blcksock, httpsend,
   UConst,
-  UAccounts;
+  UAccounts, Grids;
 
 type
 
@@ -80,7 +80,11 @@ Const
 
 implementation
 
-{$R *.lfm}
+{$IFnDEF FPC}
+  {$R *.dfm}
+{$ELSE}
+  {$R *.lfm}
+{$ENDIF}
 
 { TFRMRPCCalls }
 
@@ -90,7 +94,7 @@ begin
   ebMethod.Text:='';
   mJSONParams.Clear;
   mCalls.Clear;
-  vlKeyParams.Clear;
+  {$IFDEF FPC}vlKeyParams.Clear;{$ENDIF}
   vlKeyParams.TitleCaptions.Text:='Key'+#10+'Value';
   ebServerURL.Text:=FServerURL;
   pageControl.ActivePage:=tsKeyNames;
@@ -149,7 +153,7 @@ end;
 
 procedure TFRMRPCCalls.ShowCallInfo(infoType: TInfoType; value: String);
 begin
-  mCalls.Lines.Add('%s [%s] %s',[FormatDateTime('hh:nn:ss.zzz',Now),CT_TIntoType_Str[infoType],value]);
+  mCalls.Lines.Add(Format('%s [%s] %s',[FormatDateTime('hh:nn:ss.zzz',Now),CT_TIntoType_Str[infoType],value]));
 end;
 
 procedure TFRMRPCCalls.DoSendJSON(json: TPCJSONObject);

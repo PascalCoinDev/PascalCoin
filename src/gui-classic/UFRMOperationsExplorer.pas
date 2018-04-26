@@ -63,8 +63,6 @@ type
     MenuItem4: TMenuItem;
     MenuItem5: TMenuItem;
     MenuItem6: TMenuItem;
-    MenuItem7: TMenuItem;
-    MiRPCCalls: TMenuItem;
     MiActions: TMenuItem;
     MiDivider1: TMenuItem;
     MiImportOperationsFromTxt: TMenuItem;
@@ -96,7 +94,6 @@ type
     procedure bbRandomClick(Sender: TObject);
     procedure bbRemoveClick(Sender: TObject);
     procedure bbSignClick(Sender: TObject);
-    procedure Button1Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure lbOperationsClick(Sender: TObject);
@@ -351,11 +348,6 @@ begin
   end;
   Application.MessageBox(PChar(Format('Signed %d accounts',[n])),PChar(Caption),MB_OK+MB_ICONINFORMATION);
   UpdateSelectedOperationInfo;
-end;
-
-procedure TFRMOperationsExplorer.Button1Click(Sender: TObject);
-begin
-
 end;
 
 procedure TFRMOperationsExplorer.bbAddOpChangeClick(Sender: TObject);

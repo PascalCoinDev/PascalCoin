@@ -16,7 +16,6 @@ object FRMPayloadDecoder: TFRMPayloadDecoder
   OnCreate = FormCreate
   Position = poOwnerFormCenter
   LCLVersion = '1.8.0.6'
-  Visible = False
   object Label1: TLabel
     Left = 20
     Height = 13

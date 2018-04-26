@@ -30,8 +30,8 @@ uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms, Dialogs,
   ExtCtrls, ComCtrls, UWallet, StdCtrls, ULog, Grids, UAppParams, UBlockChain,
   UNode, UGridUtils, UJSONFunctions, UAccounts, Menus, ImgList, UNetProtocol,
-  UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect, UFRMRPCCalls, UConst,
-  UTxMultiOperation;
+  UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect, UConst,
+  UFRMRPCCalls, UTxMultiOperation;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;

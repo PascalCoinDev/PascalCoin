@@ -77,7 +77,11 @@ type
 
 implementation
 
-{$R *.lfm}
+{$IFnDEF FPC}
+  {$R *.dfm}
+{$ELSE}
+  {$R *.lfm}
+{$ENDIF}
 
 { TRandomGenerateOperation }
 

@@ -180,13 +180,14 @@ object FRMOperationsExplorer: TFRMOperationsExplorer
           Action = ActRemove
           TabOrder = 4
         end
-        object Button1: TButton
-          Left = 261
-          Top = 16
-          Width = 75
+        object bbRandom: TButton
+          Left = 190
+          Top = 8
+          Width = 146
           Height = 25
-          Caption = 'Button1'
+          Caption = 'RANDOM OPERATIONS'
           TabOrder = 5
+          OnClick = bbRandomClick
         end
       end
     end

@@ -69,16 +69,8 @@ uses
 {$ENDIF}
 
 procedure TFRMAbout.FormCreate(Sender: TObject);
-{$IFnDEF FPC}
-Var fvi : TFileVersionInfo;
-{$ENDIF}
 begin
-  {$IFDEF FPC}
   lblBuild.Caption :=  'Build: '+CT_ClientAppVersion;
-  {$ELSE}
-  fvi := TFolderHelper.GetTFileVersionInfo(Application.ExeName);
-  lblBuild.Caption :=  'Build: '+fvi.FileVersion;
-  {$ENDIF}
   lblProtocolVersion.Caption := Format('BlockChain Protocol: %d (%d)  -  Net Protocol: %d (%d)',[TNode.Node.Bank.SafeBox.CurrentProtocol,CT_BlockChain_Protocol_Available,
     CT_NetProtocol_Version, CT_NetProtocol_Available]);
 end;

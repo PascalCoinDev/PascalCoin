@@ -105,7 +105,7 @@ Const
   CT_NetProtocol_Version: Word = $0006; // Version 2.1.2 only allows net protocol 6 (Introduced on 2.0.0)
   // IMPORTANT NOTE!!!
   // NetProtocol_Available MUST BE always >= NetProtocol_version
-  CT_NetProtocol_Available: Word = $0006;  // Remember, >= NetProtocol_version !!!
+  CT_NetProtocol_Available: Word = $0007;  // Remember, >= NetProtocol_version !!!
 
   CT_MaxAccountOperationsPerBlockWithoutFee = 1;
 
@@ -150,7 +150,7 @@ Const
   CT_OpSubtype_MultiOperation_Global      = 91;
   CT_OpSubtype_MultiOperation_AccountInfo = 92;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'2.1.9'{$ELSE}{$IFDEF TESTNET}'TESTNET 3.1 BETA'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'2.1.9'{$ELSE}{$IFDEF TESTNET}'TESTNET 3.2 CR'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us';
 

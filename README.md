@@ -35,8 +35,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
 ## History:  
 
 ### DEVELOPMENT STATUS
-- TODO: PIP - 0010
-- TODO: Add new network operations
+- PIP - 0010: 50% inflation reduction
 - New target calc on protocol V3 in order to reduce the sinusoidal effect
   - Harmonization of the sinusoidal effect modifying the rise / fall by 50% calculating over the last 10 blocks only when increase/decrease is high
 - New Safebox Snapshoting
@@ -47,6 +46,8 @@ Also, consider a donation at PascalCoin development account: "0-10"
     - Implementation of the PIP-0013 (not exactly but with similar features)	
   - Get account (code $0031)
     - This call will allow a simple third party app communicate directly to a node to get account info (balance, n_operation, name, public key... )
+  - Reserverd codes from $1000 to $1FFF
+    - A node will not break connection if those codes are used, but will response with ERRORCODE_NOT_IMPLEMENTED ($00FF)
 - MultiOperation: PIP-0017
   - Multioperation allows a transactional like operations, they can include transactions and change info operations in a signle multioperation
     - Allow to send coins from N accounts to M receivers in a transaction mixing, without knowledge of how many coins where sent from "Alice" to "Bob" if properly mixed
