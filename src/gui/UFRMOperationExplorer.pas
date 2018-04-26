@@ -126,7 +126,7 @@ var
   LNode: TNode;
   LStart, LEnd: int64;
 begin
-  LNode := TUserInterface.Node;
+  LNode := FNodeNotifyEvents.Node;
   if FBlockEnd < 0 then
   begin
     if LNode.Bank.BlocksCount > 0 then
