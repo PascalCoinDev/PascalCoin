@@ -389,6 +389,7 @@ Type
     FReadOnly: Boolean;
     procedure SetBank(const Value: TPCBank);
   protected
+    FIsMovingBlockchain : Boolean;
     procedure SetOrphan(const Value: TOrphan); virtual;
     procedure SetReadOnly(const Value: Boolean); virtual;
     Function DoLoadBlockChain(Operations : TPCOperationsComp; Block : Cardinal) : Boolean; virtual; abstract;
@@ -2150,6 +2151,7 @@ begin
   inherited;
   FOrphan := '';
   FReadOnly := false;
+  FIsMovingBlockchain := False;
 end;
 
 procedure TStorage.DeleteBlockChainBlocks(StartingDeleteBlock: Cardinal);
@@ -2206,6 +2208,7 @@ end;
 function TStorage.SaveBank: Boolean;
 begin
   Result := true;
+  If FIsMovingBlockchain then Exit;
   if Not TPCSafeBox.MustSafeBoxBeSaved(Bank.BlocksCount) then exit; // No save
   Try
     Result := DoSaveBank;

@@ -403,6 +403,7 @@ begin
       end;
       if db is TFileStorage then TFileStorage(db).LockBlockChainStream;
       try
+        db.FIsMovingBlockchain:=True;
         ops := TPCOperationsComp.Create(Nil);
         try
           b := Start_Block;
@@ -420,6 +421,7 @@ begin
           DoCopySafebox;
         end;
       finally
+        db.FIsMovingBlockchain:=False;
         if db is TFileStorage then TFileStorage(db).UnlockBlockChainStream;
       end;
     Finally
