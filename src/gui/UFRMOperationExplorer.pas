@@ -42,20 +42,23 @@ type
     procedure miFindOperationByOpHashClick(Sender: TObject);
 
   protected
-    procedure OnNodeBlocksChanged(Sender: TObject);
+    procedure OnNodeNewAccount(Sender: TObject);
     procedure OnNodeNewOperation(Sender: TObject);
     procedure OnOperationSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
   private
     { private declarations }
     FUpdating: boolean;
     FBlockStart, FBlockEnd: int64;
+    FMaxBlocks: integer;
     FNodeNotifyEvents: TNodeNotifyEvents;
     FOperationsGrid: TVisualGrid;
     FOperationsDataSource: TOperationsDataSource;
+    procedure SetMaxBlocks(AValue: integer);
     procedure UpdateVisualGridUI();
     procedure SetBlocks(AStart, AEnd: int64);
   public
     { public declarations }
+    property MaxBlocks: integer read FMaxBlocks write SetMaxBlocks;
   end;
 
 implementation
@@ -69,12 +72,13 @@ begin
 
   // event registrations
   FNodeNotifyEvents := TNodeNotifyEvents.Create(self);
-  FNodeNotifyEvents.OnBlocksChanged := OnNodeBlocksChanged;
+  FNodeNotifyEvents.OnBlocksChanged := OnNodeNewAccount;
   FNodeNotifyEvents.OnOperationsChanged := OnNodeNewOperation;
 
   FUpdating := False;
   FBlockStart := -1;
   FBlockEnd := -1;
+  FMaxBlocks := 300;
 
   UpdateVisualGridUI();
 
@@ -95,7 +99,7 @@ begin
   TUserInterface.ShowOperationInfoDialog(Self, ophash);
 end;
 
-procedure TFRMOperationExplorer.OnNodeBlocksChanged(Sender: TObject);
+procedure TFRMOperationExplorer.OnNodeNewAccount(Sender: TObject);
 begin
   UpdateVisualGridUI(); //main
 end;
@@ -126,7 +130,7 @@ var
   LNode: TNode;
   LStart, LEnd: int64;
 begin
-  LNode := TUserInterface.Node;
+  LNode := FNodeNotifyEvents.Node;
   if FBlockEnd < 0 then
   begin
     if LNode.Bank.BlocksCount > 0 then
@@ -138,8 +142,8 @@ begin
     LEnd := FBlockEnd;
   if FBlockStart < 0 then
   begin
-    if (LEnd > 300) then
-      LStart := LEnd - 300
+    if (LEnd > MaxBlocks) then
+      LStart := LEnd - MaxBlocks
     else
       LStart := 0;
   end
@@ -249,6 +253,16 @@ begin
   FBlockEnd := AEnd;
   if (FBlockEnd > 0) and (FBlockStart > FBlockEnd) then
     FBlockStart := -1;
+  UpdateVisualGridUI();
+end;
+
+procedure TFRMOperationExplorer.SetMaxBlocks(AValue: integer);
+begin
+  if FMaxBlocks = AValue then
+    Exit;
+  FMaxBlocks := AValue;
+  if (FMaxBlocks <= 0) or (FMaxBlocks > 500) then
+    FMaxBlocks := 300;
   UpdateVisualGridUI();
 end;
 

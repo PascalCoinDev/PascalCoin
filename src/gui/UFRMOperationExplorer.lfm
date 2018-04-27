@@ -9,6 +9,7 @@ object FRMOperationExplorer: TFRMOperationExplorer
   ClientWidth = 864
   Menu = OperationsExplorerMenu
   OnCreate = FormCreate
+  Position = poMainFormCenter
   Visible = False
   object Panel1: TPanel
     Left = 0
@@ -51,17 +52,17 @@ object FRMOperationExplorer: TFRMOperationExplorer
   end
   object grpOperationExplorer: TGroupBox
     Left = 16
-    Height = 336
+    Height = 376
     Top = 72
     Width = 840
     Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'All Operations'
-    ClientHeight = 316
+    ClientHeight = 356
     ClientWidth = 836
     TabOrder = 3
     object paGrid: TPanel
       Left = 8
-      Height = 282
+      Height = 310
       Top = 16
       Width = 824
       Anchors = [akTop, akLeft, akRight, akBottom]
