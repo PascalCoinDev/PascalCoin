@@ -1402,9 +1402,10 @@ begin
       else soob := 2;}
       soob := 2;
       if (SaveToStorage) then begin
+        {Old versions:
         // Introduced on protocol v2: soob = 4 when saving to storage
-        soob := 4;
-        // XXXXXXXXXXXXXXXX
+        soob := 4;}
+        // Introduced on protocol v3: soob = 5 when saving to storage
         soob := 5; // V3 will always save PreviousUpdatedBlocks
       end;
     end;
@@ -2373,10 +2374,7 @@ end;
 
 procedure TPCOperation.FillOperationResume(Block: Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume);
 begin
-  // XXXXXXXXXXXXXXXX
-  // TODO
-  // change from class function TPCOperation.OperationToOperationResume(Block : Cardinal; Operation: TPCOperation; Affected_account_number: Cardinal; var OperationResume: TOperationResume): Boolean;
-  // to here
+  //
 end;
 
 function TPCOperation.LoadFromNettransfer(Stream: TStream): Boolean;
@@ -2665,16 +2663,8 @@ begin
 end;
 
 function TPCOperation.SaveToStorage(Stream: TStream): Boolean;
-
 begin
   Result := SaveOpToStream(Stream,True);
-  { XXXXXXXXXXXXXXX
-  DEPRECATED on V3, will use TPreviousUpdatedBlocks
-  Stream.Write(FPrevious_Signer_updated_block,Sizeof(FPrevious_Signer_updated_block));
-  Stream.Write(FPrevious_Destination_updated_block,SizeOf(FPrevious_Destination_updated_block));
-  Stream.Write(FPrevious_Seller_updated_block,SizeOf(FPrevious_Seller_updated_block));
-
-  Result := true; }
 end;
 
 function TPCOperation.Sha256: TRawBytes;
