@@ -149,7 +149,7 @@ Type
 
   { TBlockChainGrid }
 
-  TShowHashRateAs = (hr_Kilo, hr_Mega, hr_Giga, hr_Tera);
+  TShowHashRateAs = (hr_Kilo, hr_Mega, hr_Giga, hr_Tera, hr_Peta, hr_Exa);
 
   TBlockChainGrid = Class(TComponent)
   private
@@ -1086,6 +1086,8 @@ begin
           hr_Mega : s := 'Mh/s';
           hr_Giga : s := 'Gh/s';
           hr_Tera : s := 'Th/s';
+          hr_Peta : s := 'Ph/s';
+          hr_Exa  : s := 'Eh/s';
         else s := '?h/s';
         end;
       end;
@@ -1152,6 +1154,8 @@ begin
           hr_Mega : hr_base := 1000;
           hr_Giga : hr_base := 1000000;
           hr_Tera : hr_base := 1000000000;
+          hr_Peta : hr_base := 1000000000000;
+          hr_Exa  : hr_base := 1000000000000000;
         else hr_base := 1;
         end;
         s := Format('%.2n (%.2n)',[bcd.HashRateKhs/hr_base,bcd.HashRateTargetKhs/hr_base]);

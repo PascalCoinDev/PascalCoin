@@ -15,7 +15,6 @@ object FRMWalletKeys: TFRMWalletKeys
   OnCreate = FormCreate
   Position = poOwnerFormCenter
   LCLVersion = '1.8.0.6'
-  Visible = False
   object lblEncryptionTypeCaption: TLabel
     Left = 30
     Height = 13
@@ -53,16 +52,8 @@ object FRMWalletKeys: TFRMWalletKeys
     Left = 30
     Height = 13
     Top = 336
-    Width = 58
-    Caption = 'Private key:'
-    ParentColor = False
-  end
-  object lblPrivateKeyCaption2: TLabel
-    Left = 30
-    Height = 13
-    Top = 355
-    Width = 80
-    Caption = '(In hexa format)'
+    Width = 52
+    Caption = 'Public Key:'
     ParentColor = False
   end
   object lblKeysEncrypted: TLabel
