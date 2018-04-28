@@ -697,13 +697,17 @@ var
   LIdx, LCurrentIndex: integer;
   LNewName: string;
 begin
-  if (cbAccounts.ItemIndex <= 0) then
+  if (cbAccounts.ItemIndex <= 0) then begin
     ShowMessage('You Must Select a Valid Key');
+    Exit;
+  end;
   LIdx := TWallet.Keys.IndexOfAccountKey(TBox<TAccountKey>(
     cbAccounts.Items.Objects[cbAccounts.ItemIndex]).Value);
 
-  if (LIdx < 0) or (LIdx >= TWallet.Keys.Count) then
+  if (LIdx < 0) or (LIdx >= TWallet.Keys.Count) then begin
     ShowMessage('You Must Select a Valid Key');
+    Exit;
+  end;
 
   LCurrentIndex := cbAccounts.ItemIndex;
   if InputQuery('Change Key Name', 'Input New Name', LNewName) then
