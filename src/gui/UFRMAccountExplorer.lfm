@@ -8,8 +8,8 @@ object FRMAccountExplorer: TFRMAccountExplorer
   ClientHeight = 459
   ClientWidth = 926
   OnCreate = FormCreate
-  OnResize = FormResize
   Position = poOwnerFormCenter
+  LCLVersion = '1.8.2.0'
   Visible = False
   object PairSplitter1: TPairSplitter
     Left = 0

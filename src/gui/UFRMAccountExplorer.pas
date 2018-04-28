@@ -54,7 +54,6 @@ type
     procedure cmbDurationChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure FormResize(Sender: TObject);
     procedure miAccountInfoClick(Sender: TObject);
     procedure miChangeKeyClick(Sender: TObject);
     procedure miCopyOphashClick(Sender: TObject);
@@ -313,12 +312,6 @@ end;
 procedure TFRMAccountExplorer.FormDestroy(Sender: TObject);
 begin
   TWallet.Keys.OnChanged.Add(OnPrivateKeysChanged);
-end;
-
-procedure TFRMAccountExplorer.FormResize(Sender: TObject);
-begin
-  // Left hand panel is 50% the size up until a max size of 450
-
 end;
 
 procedure TFRMAccountExplorer.ActivateFirstTime;
