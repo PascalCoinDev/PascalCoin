@@ -338,11 +338,26 @@ procedure TFRMAccountExplorer.RefreshTotals;
 
 var
   LBalance: TBalanceSummary;
+  LIdx: integer;
 begin
   case FAccountsMode of
     wamMyAccounts:
     begin
-      LBalance := TWallet.Keys.AccountsKeyList.GetBalance(True);
+      if (cbAccounts.ItemIndex = 0) then
+        LBalance := TWallet.Keys.AccountsKeyList.GetBalance(True)
+      else
+      begin
+        LIdx := TWallet.Keys.IndexOfAccountKey(TBox<TAccountKey>(
+          cbAccounts.Items.Objects[cbAccounts.ItemIndex]).Value);
+
+        if (LIdx < 0) or (LIdx >= TWallet.Keys.Count) then
+        begin
+          ShowMessage('You Must Select a Valid Key');
+          Exit;
+        end;
+        LBalance := TWallet.Keys.Key[LIdx].AccountKey.GetBalance(True);
+      end;
+
       lblTotalPASC.Caption := TAccountComp.FormatMoney(LBalance.TotalPASC);
       lblTotalPASA.Caption := Format('%d', [LBalance.TotalPASA]);
     end;
@@ -690,14 +705,16 @@ var
   LIdx, LCurrentIndex: integer;
   LNewName: string;
 begin
-  if (cbAccounts.ItemIndex <= 0) then begin
+  if (cbAccounts.ItemIndex <= 0) then
+  begin
     ShowMessage('You Must Select a Valid Key');
     Exit;
   end;
   LIdx := TWallet.Keys.IndexOfAccountKey(TBox<TAccountKey>(
     cbAccounts.Items.Objects[cbAccounts.ItemIndex]).Value);
 
-  if (LIdx < 0) or (LIdx >= TWallet.Keys.Count) then begin
+  if (LIdx < 0) or (LIdx >= TWallet.Keys.Count) then
+  begin
     ShowMessage('You Must Select a Valid Key');
     Exit;
   end;

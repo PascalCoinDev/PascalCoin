@@ -13,12 +13,13 @@ unit UCoreUtils;
 }
 
 {$mode delphi}
+{$modeswitch nestedprocvars}
 
 interface
 
 uses
   Classes, SysUtils, UCrypto, UAccounts, UBlockChain, UOpTransaction, UNode, UCommon, UNetProtocol,
-  Generics.Collections, Generics.Defaults, UCoreObjects, Forms, Dialogs, LCLType, UCellRenderers;
+  Generics.Collections, Generics.Defaults, UCoreObjects, Forms, Dialogs, LCLType, UCellRenderers, UCommon.Collections;
 
 type
 
@@ -115,6 +116,15 @@ type
     property DisplayString : AnsiString read GetDisplayString;
   end;
 
+  { TAccountKeyHelper }
+
+  TAccountKeyHelper = record helper for TAccountKey
+  public
+    function GetBalance(AIncludePending: boolean = False): TBalanceSummary;
+    function GetAccounts(AIncludePending: boolean = False): TArray<TAccount>;
+    function GetAccountNumbers(AIncludePending: boolean = False): TArray<cardinal>;
+  end;
+
   { TOperationResumeHelper }
 
   TOperationResumeHelper = record helper for TOperationResume
@@ -132,6 +142,61 @@ implementation
 
 uses
   UMemory, UConst, UWallet, UECIES, UAES;
+
+{ TAccountKeyHelper }
+
+function TAccountKeyHelper.GetBalance(AIncludePending: boolean): TBalanceSummary;
+var
+  LAccount: TAccount;
+begin
+  // Build the results
+  Result := CT_BalanceSummary_Nil;
+  for LAccount in Self.GetAccounts(AIncludePending) do
+  begin
+    Inc(Result.TotalPASA);
+    Inc(Result.TotalPASC, LAccount.Balance);
+  end;
+end;
+
+function TAccountKeyHelper.GetAccounts(AIncludePending: boolean): TArray<TAccount>;
+var
+  LIdx: integer;
+  LAccount: TAccount;
+  LSafeBox: TPCSafeBox;
+  LGC: TDisposables;
+  LAccountList: TList<TAccount>;
+begin
+  LAccountList := LGC.AddObject(TList<TAccount>.Create) as TList<TAccount>;
+  LSafeBox := TNode.Node.Bank.SafeBox;
+  LSafeBox.StartThreadSafe;
+  try
+    for LIdx := 0 to LSafeBox.AccountsCount - 1 do
+    begin
+      // Load key-matching accounts
+      if AIncludePending then
+        LAccount := TNode.Node.Operations.SafeBoxTransaction.Account(LIdx)
+      else
+        LAccount := LSafeBox.Account(LIdx);
+
+      if TAccountKeyEqualityComparer.AreEqual(Self, LAccount.accountInfo.accountKey) then
+        LAccountList.Add(LAccount);
+    end;
+    Result := LAccountList.ToArray;
+  finally
+    LSafeBox.EndThreadSave;
+  end;
+end;
+
+function TAccountKeyHelper.GetAccountNumbers(AIncludePending: boolean): TArray<cardinal>;
+
+  function GetAccountNumber(constref AAccount: TAccount): cardinal;
+  begin
+    Result := AAccount.account;
+  end;
+
+begin
+  Result := TListTool<TAccount, cardinal>.Transform(GetAccounts(AIncludePending), GetAccountNumber);
+end;
 
 { TOperationsManager }
 
@@ -316,39 +381,44 @@ class function TOperationsManager.GetOperationShortText(const OpType, OpSubType:
 begin
   case OpType of
     CT_PseudoOp_Reward: case OpSubType of
-      0, CT_PseudoOpSubtype_Miner : result := 'Miner Reward';
-      CT_PseudoOpSubtype_Developer : result := 'Developer Reward';
-      else result := 'Unknown';
-    end;
+        0, CT_PseudoOpSubtype_Miner: Result := 'Miner Reward';
+        CT_PseudoOpSubtype_Developer: Result := 'Developer Reward';
+        else
+          Result := 'Unknown';
+      end;
     CT_Op_Transaction: case OpSubType of
-      CT_OpSubtype_TransactionSender: Result := 'Send';
-      CT_OpSubtype_TransactionReceiver: Result := 'Receive';
-      CT_OpSubtype_BuyTransactionBuyer: result := 'Buy Account Direct';
-      CT_OpSubtype_BuyTransactionTarget: result := 'Purchased Account Direct';
-      CT_OpSubtype_BuyTransactionSeller: result := 'Sold Account Direct';
-      else result := 'Unknown';
-    end;
+        CT_OpSubtype_TransactionSender: Result := 'Send';
+        CT_OpSubtype_TransactionReceiver: Result := 'Receive';
+        CT_OpSubtype_BuyTransactionBuyer: Result := 'Buy Account Direct';
+        CT_OpSubtype_BuyTransactionTarget: Result := 'Purchased Account Direct';
+        CT_OpSubtype_BuyTransactionSeller: Result := 'Sold Account Direct';
+        else
+          Result := 'Unknown';
+      end;
     CT_Op_Changekey: Result := 'Change Key (legacy)';
     CT_Op_Recover: Result := 'Recover';
     CT_Op_ListAccountForSale: case OpSubType of
-      CT_OpSubtype_ListAccountForPublicSale: result := 'For Sale';
-      CT_OpSubtype_ListAccountForPrivateSale: result := 'Exclusive Sale';
-      else result := 'Unknown';
-    end;
-    CT_Op_DelistAccount: result := 'Remove Sale';
+        CT_OpSubtype_ListAccountForPublicSale: Result := 'For Sale';
+        CT_OpSubtype_ListAccountForPrivateSale: Result := 'Exclusive Sale';
+        else
+          Result := 'Unknown';
+      end;
+    CT_Op_DelistAccount: Result := 'Remove Sale';
     CT_Op_BuyAccount: case OpSubType of
-      CT_OpSubtype_BuyAccountBuyer: result := 'Buy Account';
-      CT_OpSubtype_BuyAccountTarget: result := 'Purchased Account';
-      CT_OpSubtype_BuyAccountSeller: result := 'Sold Account';
-      else result := 'Unknown';
-    end;
-    CT_Op_ChangeKeySigned: result :=  'Change Key';
-    CT_Op_ChangeAccountInfo: result := 'Change Info';
+        CT_OpSubtype_BuyAccountBuyer: Result := 'Buy Account';
+        CT_OpSubtype_BuyAccountTarget: Result := 'Purchased Account';
+        CT_OpSubtype_BuyAccountSeller: Result := 'Sold Account';
+        else
+          Result := 'Unknown';
+      end;
+    CT_Op_ChangeKeySigned: Result := 'Change Key';
+    CT_Op_ChangeAccountInfo: Result := 'Change Info';
     CT_Op_MultiOperation: case OpSubType of
-      CT_OpSubtype_MultiOperation_Global: Result := 'Mixed-Transfer';
-      CT_OpSubtype_MultiOperation_AccountInfo: Result := 'Mixed-Change';
-    end;
-    else result := 'Unknown';
+        CT_OpSubtype_MultiOperation_Global: Result := 'Mixed-Transfer';
+        CT_OpSubtype_MultiOperation_AccountInfo: Result := 'Mixed-Change';
+      end;
+    else
+      Result := 'Unknown';
   end;
 end;
 
