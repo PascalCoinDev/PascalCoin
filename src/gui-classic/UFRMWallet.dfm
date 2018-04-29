@@ -1,9 +1,9 @@
 object FRMWallet: TFRMWallet
-  Left = 360
-  Top = 328
+  Left = 389
+  Top = 201
   Caption = 'Pascal Coin Wallet, JSON-RPC Miner & Explorer'
-  ClientHeight = 542
-  ClientWidth = 849
+  ClientHeight = 580
+  ClientWidth = 865
   Color = clBtnFace
   Constraints.MinHeight = 600
   Constraints.MinWidth = 865
@@ -13,7 +13,7 @@ object FRMWallet: TFRMWallet
   Font.Name = 'Tahoma'
   Font.Style = []
   Menu = MainMenu
-  OldCreateOrder = False
+  OldCreateOrder = True
   Position = poOwnerFormCenter
   OnCreate = FormCreate
   OnDestroy = FormDestroy
@@ -22,7 +22,7 @@ object FRMWallet: TFRMWallet
   object pnlTop: TPanel
     Left = 0
     Top = 0
-    Width = 849
+    Width = 865
     Height = 91
     Align = alTop
     BevelOuter = bvNone
@@ -30,9 +30,8 @@ object FRMWallet: TFRMWallet
     object Image1: TImage
       Left = 15
       Top = 15
-      Width = 60
-      Height = 60
-      AutoSize = True
+      Width = 62
+      Height = 62
       Picture.Data = {
         0954506E67496D61676589504E470D0A1A0A0000000D494844520000003C0000
         003C08060000003AFCD9720000000473424954080808087C0864880000000970
@@ -172,27 +171,35 @@ object FRMWallet: TFRMWallet
       Width = 60
       Height = 13
       Caption = 'Total Blocks:'
+      Color = clBtnFace
+      ParentColor = False
     end
     object lblCurrentBlock: TLabel
-      Left = 156
+      Left = 166
       Top = 11
       Width = 18
       Height = 13
       Caption = '000'
+      Color = clBtnFace
+      ParentColor = False
     end
     object lblCurrentBlockTimeCaption: TLabel
       Left = 90
       Top = 26
-      Width = 89
+      Width = 90
       Height = 13
-      Caption = 'Current Block age:'
+      Caption = 'Current Block Age:'
+      Color = clBtnFace
+      ParentColor = False
     end
     object lblCurrentBlockTime: TLabel
-      Left = 188
+      Left = 198
       Top = 26
       Width = 81
       Height = 13
       Caption = '000 seconds ago'
+      Color = clBtnFace
+      ParentColor = False
     end
     object lblOperationsPendingCaption: TLabel
       Left = 90
@@ -200,27 +207,35 @@ object FRMWallet: TFRMWallet
       Width = 98
       Height = 13
       Caption = 'Pending Operations:'
+      Color = clBtnFace
+      ParentColor = False
     end
     object lblOperationsPending: TLabel
-      Left = 194
+      Left = 207
       Top = 41
       Width = 18
       Height = 13
       Caption = '000'
+      Color = clBtnFace
+      ParentColor = False
     end
     object lblMiningStatusCaption: TLabel
       Left = 90
       Top = 56
-      Width = 68
+      Width = 65
       Height = 13
-      Caption = 'Miners clients:'
+      Caption = 'Miner Clients:'
+      Color = clBtnFace
+      ParentColor = False
     end
     object lblMinersClients: TLabel
-      Left = 163
+      Left = 177
       Top = 56
       Width = 18
       Height = 13
       Caption = '000'
+      Color = clBtnFace
+      ParentColor = False
     end
     object lblCurrentDifficultyCaption: TLabel
       Left = 429
@@ -228,20 +243,26 @@ object FRMWallet: TFRMWallet
       Width = 76
       Height = 13
       Caption = 'Current Target:'
+      Color = clBtnFace
+      ParentColor = False
     end
     object lblCurrentDifficulty: TLabel
-      Left = 511
+      Left = 518
       Top = 11
       Width = 18
       Height = 13
       Caption = '000'
+      Color = clBtnFace
+      ParentColor = False
     end
     object lblTimeAverage: TLabel
-      Left = 360
+      Left = 370
       Top = 26
       Width = 18
       Height = 13
       Caption = '000'
+      Color = clBtnFace
+      ParentColor = False
     end
     object Label4: TLabel
       Left = 285
@@ -249,6 +270,8 @@ object FRMWallet: TFRMWallet
       Width = 69
       Height = 13
       Caption = 'Time average:'
+      Color = clBtnFace
+      ParentColor = False
     end
     object Label8: TLabel
       Left = 90
@@ -256,13 +279,17 @@ object FRMWallet: TFRMWallet
       Width = 63
       Height = 13
       Caption = 'Node Status:'
+      Color = clBtnFace
+      ParentColor = False
     end
     object lblNodeStatus: TLabel
-      Left = 163
+      Left = 168
       Top = 70
       Width = 15
       Height = 13
       Caption = '???'
+      Color = clBtnFace
+      ParentColor = False
     end
     object Label5: TLabel
       Left = 285
@@ -270,52 +297,62 @@ object FRMWallet: TFRMWallet
       Width = 48
       Height = 13
       Caption = 'Accounts:'
+      Color = clBtnFace
+      ParentColor = False
     end
     object lblCurrentAccounts: TLabel
-      Left = 337
+      Left = 344
       Top = 11
       Width = 18
       Height = 13
       Caption = '000'
+      Color = clBtnFace
+      ParentColor = False
     end
     object lblTimeAverageAux: TLabel
-      Left = 360
+      Left = 370
       Top = 41
       Width = 18
       Height = 13
       Caption = '000'
+      Color = clBtnFace
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clGray
       Font.Height = -11
       Font.Name = 'Tahoma'
       Font.Style = []
+      ParentColor = False
       ParentFont = False
     end
     object Label16: TLabel
       Left = 360
       Top = 56
-      Width = 74
+      Width = 76
       Height = 13
-      Caption = 'Blocks found:'
+      Caption = 'Blocks Found:'
+      Color = clBtnFace
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -11
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
     end
     object lblBlocksFound: TLabel
-      Left = 440
+      Left = 450
       Top = 56
       Width = 21
       Height = 13
       Hint = 'Blocks found while Miner is running...'
       Caption = '000'
+      Color = clBtnFace
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -11
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       ParentShowHint = False
       ShowHint = True
@@ -323,15 +360,17 @@ object FRMWallet: TFRMWallet
     object lblReceivedMessages: TLabel
       Left = 360
       Top = 66
-      Width = 185
+      Width = 184
       Height = 23
       Cursor = crHandPoint
-      Caption = 'Received messages'
+      Caption = 'Received Messages'
+      Color = clBtnFace
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clRed
       Font.Height = -19
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
       OnClick = lblReceivedMessagesClick
     end
@@ -341,19 +380,21 @@ object FRMWallet: TFRMWallet
       Width = 49
       Height = 23
       Caption = 'Build'
+      Color = clBtnFace
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -19
       Font.Name = 'Tahoma'
       Font.Style = [fsBold]
+      ParentColor = False
       ParentFont = False
     end
   end
   object StatusBar: TStatusBar
     Left = 0
-    Top = 523
-    Width = 849
-    Height = 19
+    Top = 557
+    Width = 865
+    Height = 23
     Panels = <
       item
         Alignment = taCenter
@@ -372,26 +413,32 @@ object FRMWallet: TFRMWallet
   object PageControl: TPageControl
     Left = 0
     Top = 91
-    Width = 849
-    Height = 432
-    ActivePage = tsMyAccounts
+    Width = 865
+    Height = 466
+    ActivePage = tsBlockChain
     Align = alClient
     TabOrder = 2
     OnChange = PageControlChange
     object tsMyAccounts: TTabSheet
-      Caption = 'Accounts Explorer'
+      Caption = 'Account Explorer'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Splitter1: TSplitter
-        Left = 411
+        Left = 400
         Top = 66
-        Height = 338
-        ExplicitLeft = 380
+        Width = 5
+        Height = 372
+        ExplicitHeight = 374
       end
       object pnlMyAccountsTop: TPanel
         Left = 0
         Top = 0
-        Width = 841
+        Width = 857
         Height = 66
         Align = alTop
+        BevelOuter = bvNone
         TabOrder = 0
         object Label18: TLabel
           Left = 11
@@ -399,10 +446,12 @@ object FRMWallet: TFRMWallet
           Width = 61
           Height = 13
           Caption = 'Find account'
+          Color = clBtnFace
+          ParentColor = False
         end
         object sbSearchAccount: TSpeedButton
           Left = 176
-          Top = 33
+          Top = 32
           Width = 23
           Height = 22
           Glyph.Data = {
@@ -447,7 +496,7 @@ object FRMWallet: TFRMWallet
           Left = 11
           Top = 10
           Width = 235
-          Height = 17
+          Height = 19
           Caption = 'Explore accounts with one of my Wallet Keys'
           TabOrder = 1
           OnClick = cbExploreMyAccountsClick
@@ -475,8 +524,8 @@ object FRMWallet: TFRMWallet
         object cbFilterAccounts: TCheckBox
           Left = 260
           Top = 35
-          Width = 151
-          Height = 17
+          Width = 145
+          Height = 19
           Caption = 'Filter accounts by balance'
           TabOrder = 4
           OnClick = cbFilterAccountsClick
@@ -505,38 +554,30 @@ object FRMWallet: TFRMWallet
       object pnlAccounts: TPanel
         Left = 0
         Top = 66
-        Width = 411
-        Height = 338
+        Width = 400
+        Height = 372
         Align = alLeft
         BevelOuter = bvNone
         TabOrder = 1
         object dgAccounts: TDrawGrid
           Left = 0
           Top = 0
-          Width = 411
-          Height = 304
+          Width = 400
+          Height = 338
           Align = alClient
           TabOrder = 0
           OnClick = dgAccountsClick
-          OnColumnMoved = dgAccountsColumnMoved
-          OnFixedCellClick = dgAccountsFixedCellClick
-          ColWidths = (
-            64
-            64
-            64
-            64
-            64)
         end
         object pnlAccountsInfo: TPanel
           Left = 0
-          Top = 304
-          Width = 411
+          Top = 338
+          Width = 400
           Height = 34
           Align = alBottom
           BevelOuter = bvNone
           TabOrder = 1
           DesignSize = (
-            411
+            400
             34)
           object Label17: TLabel
             Left = 5
@@ -544,13 +585,17 @@ object FRMWallet: TFRMWallet
             Width = 48
             Height = 13
             Caption = 'Accounts:'
+            Color = clBtnFace
+            ParentColor = False
           end
           object Label19: TLabel
-            Left = 120
+            Left = 136
             Top = 10
-            Width = 88
+            Width = 41
             Height = 13
-            Caption = 'Accounts Balance:'
+            Caption = 'Balance:'
+            Color = clBtnFace
+            ParentColor = False
           end
           object lblAccountsCount: TLabel
             Left = 60
@@ -558,16 +603,20 @@ object FRMWallet: TFRMWallet
             Width = 18
             Height = 13
             Caption = '000'
+            Color = clBtnFace
+            ParentColor = False
           end
           object lblAccountsBalance: TLabel
-            Left = 214
+            Left = 200
             Top = 10
             Width = 18
             Height = 13
             Caption = '000'
+            Color = clBtnFace
+            ParentColor = False
           end
           object bbAccountsRefresh: TBitBtn
-            Left = 333
+            Left = 322
             Top = 6
             Width = 75
             Height = 25
@@ -608,29 +657,27 @@ object FRMWallet: TFRMWallet
         end
       end
       object pcAccountsOptions: TPageControl
-        Left = 414
+        Left = 405
         Top = 66
-        Width = 427
-        Height = 338
+        Width = 452
+        Height = 372
         ActivePage = tsAccountOperations
         Align = alClient
         TabOrder = 2
         object tsAccountOperations: TTabSheet
           Caption = 'Operations of selected Account'
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object dgAccountOperations: TDrawGrid
             Left = 0
             Top = 0
-            Width = 419
-            Height = 310
+            Width = 444
+            Height = 344
             Align = alClient
             TabOrder = 0
             OnDblClick = MiDecodePayloadClick
-            RowHeights = (
-              24
-              24
-              24
-              24
-              24)
           end
         end
         object tsMultiSelectAccounts: TTabSheet
@@ -643,21 +690,15 @@ object FRMWallet: TFRMWallet
           object dgSelectedAccounts: TDrawGrid
             Left = 41
             Top = 31
-            Width = 310
-            Height = 253
+            Width = 320
+            Height = 287
             Align = alLeft
             TabOrder = 0
-            RowHeights = (
-              24
-              24
-              24
-              24
-              24)
           end
           object pnlSelectedAccountsTop: TPanel
             Left = 0
             Top = 0
-            Width = 419
+            Width = 444
             Height = 31
             Align = alTop
             BevelOuter = bvNone
@@ -674,12 +715,14 @@ object FRMWallet: TFRMWallet
               Width = 361
               Height = 16
               Caption = 'Select multiple accounts to execute massive operations'
+              Color = clBtnFace
+              ParentColor = False
             end
           end
           object pnlSelectedAccountsBottom: TPanel
             Left = 0
-            Top = 284
-            Width = 419
+            Top = 318
+            Width = 444
             Height = 26
             Align = alBottom
             BevelOuter = bvNone
@@ -690,6 +733,8 @@ object FRMWallet: TFRMWallet
               Width = 48
               Height = 13
               Caption = 'Accounts:'
+              Color = clBtnFace
+              ParentColor = False
             end
             object lblSelectedAccountsCount: TLabel
               Left = 96
@@ -697,6 +742,8 @@ object FRMWallet: TFRMWallet
               Width = 18
               Height = 13
               Caption = '000'
+              Color = clBtnFace
+              ParentColor = False
             end
             object Label22: TLabel
               Left = 156
@@ -704,6 +751,8 @@ object FRMWallet: TFRMWallet
               Width = 88
               Height = 13
               Caption = 'Accounts Balance:'
+              Color = clBtnFace
+              ParentColor = False
             end
             object lblSelectedAccountsBalance: TLabel
               Left = 250
@@ -711,13 +760,15 @@ object FRMWallet: TFRMWallet
               Width = 18
               Height = 13
               Caption = '000'
+              Color = clBtnFace
+              ParentColor = False
             end
           end
           object pnlSelectedAccountsLeft: TPanel
             Left = 0
             Top = 31
             Width = 41
-            Height = 253
+            Height = 287
             Align = alLeft
             BevelOuter = bvNone
             TabOrder = 3
@@ -755,7 +806,7 @@ object FRMWallet: TFRMWallet
             end
           end
           object bbSelectedAccountsOperation: TBitBtn
-            Left = 357
+            Left = 367
             Top = 31
             Width = 75
             Height = 61
@@ -836,8 +887,8 @@ object FRMWallet: TFRMWallet
       object dgPendingOperations: TDrawGrid
         Left = 0
         Top = 86
-        Width = 841
-        Height = 318
+        Width = 857
+        Height = 352
         Align = alClient
         TabOrder = 0
         OnDblClick = MiDecodePayloadClick
@@ -845,7 +896,7 @@ object FRMWallet: TFRMWallet
       object pnlPendingOperations: TPanel
         Left = 0
         Top = 0
-        Width = 841
+        Width = 857
         Height = 86
         Align = alTop
         BevelOuter = bvNone
@@ -854,7 +905,7 @@ object FRMWallet: TFRMWallet
         object Label10: TLabel
           Left = 10
           Top = 10
-          Width = 821
+          Width = 837
           Height = 66
           Align = alClient
           AutoSize = False
@@ -864,21 +915,20 @@ object FRMWallet: TFRMWallet
             ' other nodes will include them when mining, so it'#39's important th' +
             'at you mine too to help include Operations to the main BlockChai' +
             'n'
+          Color = clBtnFace
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -16
           Font.Name = 'Tahoma'
           Font.Style = []
+          ParentColor = False
           ParentFont = False
           WordWrap = True
-          ExplicitLeft = 36
-          ExplicitWidth = 765
-          ExplicitHeight = 41
         end
       end
     end
     object tsBlockChain: TTabSheet
-      Caption = 'BlockChain Explorer'
+      Caption = 'Block Explorer'
       ImageIndex = 1
       ExplicitLeft = 0
       ExplicitTop = 0
@@ -887,9 +937,10 @@ object FRMWallet: TFRMWallet
       object Panel2: TPanel
         Left = 0
         Top = 0
-        Width = 841
+        Width = 857
         Height = 41
         Align = alTop
+        BevelOuter = bvNone
         TabOrder = 0
         object Label9: TLabel
           Left = 11
@@ -897,6 +948,26 @@ object FRMWallet: TFRMWallet
           Width = 102
           Height = 13
           Caption = 'Filter by blocks range'
+          Color = clBtnFace
+          ParentColor = False
+        end
+        object lblHashRateBackBlocks: TLabel
+          Left = 280
+          Top = 10
+          Width = 104
+          Height = 13
+          Caption = 'HashRate back blocks'
+          Color = clBtnFace
+          ParentColor = False
+        end
+        object lblHashRateBackBlocks1: TLabel
+          Left = 463
+          Top = 10
+          Width = 24
+          Height = 13
+          Caption = 'Units'
+          Color = clBtnFace
+          ParentColor = False
         end
         object ebBlockChainBlockStart: TEdit
           Left = 125
@@ -916,12 +987,38 @@ object FRMWallet: TFRMWallet
           OnExit = ebBlockChainBlockStartExit
           OnKeyPress = ebBlockChainBlockStartKeyPress
         end
+        object ebHashRateBackBlocks: TEdit
+          Left = 392
+          Top = 7
+          Width = 56
+          Height = 21
+          TabOrder = 2
+          OnExit = ebHashRateBackBlocksExit
+          OnKeyPress = ebHashRateBackBlocksKeyPress
+        end
+        object cbHashRateUnits: TComboBox
+          Left = 496
+          Top = 7
+          Width = 56
+          Height = 21
+          Style = csDropDownList
+          ItemIndex = 1
+          TabOrder = 3
+          Text = 'Mh/s'
+          OnChange = cbHashRateUnitsClick
+          OnClick = cbHashRateUnitsClick
+          Items.Strings = (
+            'Kh/s'
+            'Mh/s'
+            'Gh/s'
+            'Th/s')
+        end
       end
       object dgBlockChainExplorer: TDrawGrid
         Left = 0
         Top = 41
-        Width = 841
-        Height = 363
+        Width = 857
+        Height = 397
         Align = alClient
         TabOrder = 1
       end
@@ -936,9 +1033,10 @@ object FRMWallet: TFRMWallet
       object Panel1: TPanel
         Left = 0
         Top = 0
-        Width = 841
+        Width = 857
         Height = 41
         Align = alTop
+        BevelOuter = bvNone
         TabOrder = 0
         object Label2: TLabel
           Left = 11
@@ -946,6 +1044,8 @@ object FRMWallet: TFRMWallet
           Width = 102
           Height = 13
           Caption = 'Filter by blocks range'
+          Color = clBtnFace
+          ParentColor = False
         end
         object ebFilterOperationsStartBlock: TEdit
           Left = 125
@@ -969,8 +1069,8 @@ object FRMWallet: TFRMWallet
       object dgOperationsExplorer: TDrawGrid
         Left = 0
         Top = 41
-        Width = 841
-        Height = 363
+        Width = 857
+        Height = 397
         Align = alClient
         TabOrder = 1
       end
@@ -985,27 +1085,29 @@ object FRMWallet: TFRMWallet
       object pnlTopLogs: TPanel
         Left = 0
         Top = 0
-        Width = 841
+        Width = 857
         Height = 41
         Align = alTop
+        BevelOuter = bvNone
         TabOrder = 0
         object cbShowDebugLogs: TCheckBox
           Left = 15
           Top = 10
-          Width = 97
-          Height = 17
-          Caption = 'Show Debug logs'
+          Width = 102
+          Height = 19
+          Caption = 'Show Debug Logs'
           TabOrder = 0
         end
       end
       object memoLogs: TMemo
         Left = 0
         Top = 41
-        Width = 841
-        Height = 363
+        Width = 857
+        Height = 397
         Align = alClient
         ScrollBars = ssBoth
         TabOrder = 1
+        WordWrap = False
       end
     end
     object tsNodeStats: TTabSheet
@@ -1016,38 +1118,42 @@ object FRMWallet: TFRMWallet
       ExplicitWidth = 0
       ExplicitHeight = 0
       DesignSize = (
-        841
-        404)
+        857
+        438)
       object Label3: TLabel
         Left = 15
         Top = 15
-        Width = 177
+        Width = 96
         Height = 13
-        Caption = 'Active Net Connections of this Node:'
+        Caption = 'Active Connections:'
+        Color = clBtnFace
+        ParentColor = False
       end
       object Label6: TLabel
         Left = 15
-        Top = 250
-        Width = 169
+        Top = 291
+        Width = 104
         Height = 13
-        Anchors = [akLeft, akBottom]
-        Caption = 'Available or possible Node Servers:'
-        ExplicitTop = 266
+        Anchors = [akLeft, akRight, akBottom]
+        Caption = 'Known Node Servers:'
+        Color = clBtnFace
+        ParentColor = False
       end
       object Label7: TLabel
         Left = 15
-        Top = 146
-        Width = 86
+        Top = 187
+        Width = 82
         Height = 13
-        Anchors = [akLeft, akBottom]
-        Caption = 'BlackList of Nodes'
-        ExplicitTop = 162
+        Anchors = [akLeft, akRight, akBottom]
+        Caption = 'Blacklisted Nodes'
+        Color = clBtnFace
+        ParentColor = False
       end
       object memoNetConnections: TMemo
         Left = 15
         Top = 34
-        Width = 810
-        Height = 106
+        Width = 830
+        Height = 145
         Anchors = [akLeft, akTop, akRight, akBottom]
         ReadOnly = True
         ScrollBars = ssBoth
@@ -1056,8 +1162,8 @@ object FRMWallet: TFRMWallet
       end
       object memoNetServers: TMemo
         Left = 15
-        Top = 269
-        Width = 810
+        Top = 310
+        Width = 830
         Height = 116
         Anchors = [akLeft, akRight, akBottom]
         ReadOnly = True
@@ -1066,9 +1172,9 @@ object FRMWallet: TFRMWallet
         WordWrap = False
       end
       object memoNetBlackLists: TMemo
-        Left = 15
-        Top = 165
-        Width = 810
+        Left = 16
+        Top = 206
+        Width = 829
         Height = 79
         Anchors = [akLeft, akRight, akBottom]
         ReadOnly = True
@@ -1085,14 +1191,16 @@ object FRMWallet: TFRMWallet
       ExplicitWidth = 0
       ExplicitHeight = 0
       DesignSize = (
-        841
-        404)
+        857
+        438)
       object Label11: TLabel
         Left = 15
         Top = 151
         Width = 51
         Height = 13
         Caption = 'Messages:'
+        Color = clBtnFace
+        ParentColor = False
       end
       object Label12: TLabel
         Left = 315
@@ -1100,13 +1208,17 @@ object FRMWallet: TFRMWallet
         Width = 85
         Height = 13
         Caption = 'Message to send:'
+        Color = clBtnFace
+        ParentColor = False
       end
       object Label13: TLabel
         Left = 15
         Top = 11
-        Width = 107
+        Width = 109
         Height = 13
-        Caption = 'Available connections:'
+        Caption = 'Available Connections:'
+        Color = clBtnFace
+        ParentColor = False
       end
       object Label14: TLabel
         Left = 410
@@ -1116,11 +1228,13 @@ object FRMWallet: TFRMWallet
         Caption = 
           '(Messages will be encrypted, so only dest connection will be abl' +
           'e to read it)'
+        Color = clBtnFace
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clGrayText
         Font.Height = -11
         Font.Name = 'Tahoma'
         Font.Style = []
+        ParentColor = False
         ParentFont = False
       end
       object lbNetConnections: TListBox
@@ -1130,12 +1244,13 @@ object FRMWallet: TFRMWallet
         Height = 96
         ItemHeight = 13
         MultiSelect = True
+        ScrollWidth = 273
         TabOrder = 0
       end
       object bbSendAMessage: TButton
         Left = 315
         Top = 101
-        Width = 456
+        Width = 525
         Height = 25
         Caption = 'Send a Message'
         TabOrder = 1
@@ -1144,8 +1259,8 @@ object FRMWallet: TFRMWallet
       object memoMessages: TMemo
         Left = 15
         Top = 170
-        Width = 810
-        Height = 215
+        Width = 821
+        Height = 249
         Anchors = [akLeft, akTop, akRight, akBottom]
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
@@ -1153,18 +1268,17 @@ object FRMWallet: TFRMWallet
         Font.Name = 'Tahoma'
         Font.Style = []
         Lines.Strings = (
-          'dsfa '#241'ldsaf '#241'lk dasf'
-          'dsfklda'#241'fs '#241'l')
+          'dsfa '#195#177'ldsaf '#195#177'lk dasf'
+          'dsfklda'#195#177'fs '#195#177'l')
         ParentFont = False
         ReadOnly = True
         ScrollBars = ssBoth
         TabOrder = 2
-        WordWrap = False
       end
       object memoMessageToSend: TMemo
         Left = 315
         Top = 30
-        Width = 456
+        Width = 525
         Height = 61
         Lines.Strings = (
           'memoMessageToSend')
@@ -1173,50 +1287,6 @@ object FRMWallet: TFRMWallet
       end
     end
   end
-  object TrayIcon: TTrayIcon
-    Icon.Data = {
-      0000010001001010000001002000680400001600000028000000100000002000
-      0000010020000000000000000000000000000000000000000000000000000000
-      000000000000000000000000000000000053000000BE000000E8000000F70000
-      00F7000000E9000000B20000004A000000000000000000000000000000000000
-      00000000000000000015000000B6070D16CE3E6C9BC860A8F0F166B3FFFF66B3
-      FFFF66B3FFFF3E6C9BC8070F16CC000000BA0000002600000000000000000000
-      000000000028000000CC2A4A6BC05391CFFF4C86BFFF599DDFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF2A4D6BC0000000C90000001D000000000000
-      0000000000B62A4D6BC066B3FFFF33597FFF000000FF33597FFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF2A4D6BC0000000B1000000000000
-      0050070F16CC66B3FFFF66B3FFFF40709FFF000000FF22394FFF6FB7FFFF68B4
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF070F16CC000000470000
-      00C13E6C9BC866B3FFFF66B3FFFF5D96CFFF000000FF11181FFF5A7D9FFF5A81
-      A8FF4A759FFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF3E6C9BC8000000BA0000
-      00ED60A8F0F166B3FFFF6FB7FFFF8BC5FFFF000000FF000000FF43515FFF2631
-      3BFF161F27FF5180AFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF000000EF0000
-      00FD66B3FFFF66B3FFFF7DBFFFFF9DCEFFFF22292FFF000000FF000000FF0000
-      00FF000000FF000000FF0C161FFF5391CFFF66B3FFFF66B3FFFF000000FD0000
-      00FD66B3FFFF66B3FFFF84C2FFFFA6D3FFFF3E474FFF000000FF686C6FFF262B
-      2FFF1A2127FF1A242FFF000000FF192C3FFF66B3FFFF66B3FFFF000000FB0000
-      00F666B3FFFF66B3FFFF82C1FFFFA3D1FFFF61707FFF000000FF62686FFF3238
-      3FFF4A5D6FFF6895C2FF000000FF000000FF5391CFFF60A8F0F1000000ED0000
-      00CA3E6C9BC866B3FFFF76BBFFFF94CAFFFF82A0BFFF000000FF30373FFF4251
-      5FFF4B647DFF406283FF000000FF000000FF4C86BFFF3E6C9BC8000000BF0000
-      005B070D12CE66B3FFFF66B3FFFF7DBFFFFF80B0DFFF000000FF000000FF0000
-      00FF000000FF000000FF000000FF0C161FFF66B3FFFF070F16CC000000500000
-      0000000000CF2A4A6BC066B3FFFF66B3FFFF73BAFFFF1F2F3FFF1F2F3FFF1622
-      2FFF0C141DFF080E14FF2C4E6FFF599DDFFF2A4D6BC0000000B6000000000000
-      000000000030000000CF2A4D6BC066B3FFFF66B3FFFF66B3FFFF66B3FFFF599D
-      DFFF39648FFF2C4E6FFF66B3FFFF2A4D6BC0000000CF00000022000000000000
-      0000000000000000002B000000C4070D16CD3E6C9BC866B3FFFF66B3FFFF66B3
-      FFFF60A8F0F13E6C9BC8070D16CD000000C00000002600000000000000000000
-      00000000000000000000000000000000005D000000CE000000F4000000FE0000
-      00FE000000F6000000C60000005600000000000000000000000000000000FFFF
-      0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF
-      0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000}
-    Icons = ImageListIcons
-    Visible = True
-    OnDblClick = TrayIconDblClick
-    Left = 45
-    Top = 20
-  end
   object TimerUpdateStatus: TTimer
     OnTimer = TimerUpdateStatusTimer
     Left = 25
@@ -1224,11 +1294,11 @@ object FRMWallet: TFRMWallet
   end
   object MainMenu: TMainMenu
     Left = 165
-    Top = 155
+    Top = 160
     object miProject: TMenuItem
       Caption = 'Project'
       object miPrivatekeys: TMenuItem
-        Caption = 'Private keys'
+        Caption = 'Private Keys'
         ShortCut = 16464
         OnClick = miPrivatekeysClick
       end
@@ -1241,8 +1311,12 @@ object FRMWallet: TFRMWallet
         OnClick = miOptionsClick
       end
       object IPnodes1: TMenuItem
-        Caption = 'IP nodes'
+        Caption = 'Available Node List'
         OnClick = IPnodes1Click
+      end
+      object MiRPCCalls: TMenuItem
+        Caption = 'RPC Calls'
+        OnClick = MiRPCCallsClick
       end
       object N1: TMenuItem
         Caption = '-'
@@ -1322,418 +1396,5 @@ object FRMWallet: TFRMWallet
         OnClick = miAboutPascalCoinClick
       end
     end
-  end
-  object ImageListIcons: TImageList
-    Height = 48
-    Left = 105
-    Top = 180
-    Bitmap = {
-      494C010102000800380210003000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
-      0000000000003600000028000000400000003000000001002000000000000030
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000002A292929D60B0B0BF4111111EE0000006B000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000002A292929D60B0B0BF4111111EE0000006B000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00002A2B2ED766B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF5E768FC00000
-      0032000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000006D6D
-      6D9266B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF292A
-      2DD8000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000006D6D
-      6D9266B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF292A
-      2DD8000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000000000000000000000000007866B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF2C3032D50000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000000000000000000002B2F31D666B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF68ACF0F10000000B00000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000000000000000000002B2F31D666B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF68ACF0F10000000B00000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      000000000000000000000000000000000000000000007F7F7F8066B3FFFF66B3
-      FFFF000000FF000000FF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF2B2F30D600000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000000000000141415EB66B3FFFF66B3
-      FFFF000000FF000000FF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF68ACF0F100000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000000000000141415EB66B3FFFF66B3
-      FFFF000000FF000000FF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF68ACF0F100000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000066B3FFFF66B3FFFF66B3
-      FFFF000000FF000000FF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF68686897000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000003566B3FFFF66B3FFFF66B3
-      FFFF000000FF000000FF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF202222E0000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000003566B3FFFF66B3FFFF66B3
-      FFFF000000FF000000FF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF202222E0000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      000000000000000000000000000000000000202222E066B3FFFF66B3FFFF66B3
-      FFFF000000FF000000FF79BCFFFF73BAFFFF68B4FFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      000000000000000000000000000000000000586D7FBF66B3FFFF66B3FFFF67B4
-      FFFF000000FF000000FF83C1FFFF3E5F7FFF5C96CFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      000000000000000000000000000000000000586D7FBF66B3FFFF66B3FFFF67B4
-      FFFF000000FF000000FF83C1FFFF3E5F7FFF5C96CFFF66B3FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000066B3FFFF66B3FFFF66B3FFFF77BC
-      FFFF19242FFF000000FF7198BFFF12181FFF83C2FFFF70B8FFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF0000002E0000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000066B3FFFF66B3FFFF68B4FFFF7FC0
-      FFFF2D3E4FFF000000FF65829FFF26333FFF8CC6FFFF70B0EFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF0000007F0000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000066B3FFFF66B3FFFF68B4FFFF7FC0
-      FFFF2D3E4FFF000000FF65829FFF26333FFF8CC6FFFF70B0EFFF66B3FFFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF0000007F0000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000066B3FFFF66B3FFFF74BAFFFF8EC7
-      FFFF7A9DBFFF000000FF000000FF000000FF000000FF000000FF0D161FFF66B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF232323DC0000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000066B3FFFF66B3FFFF79BDFFFF94CA
-      FFFF96BADFFF000000FF000000FF000000FF000000FF000000FF000000FF3964
-      8FFF66B3FFFF66B3FFFF66B3FFFF111111EE0000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000066B3FFFF66B3FFFF79BDFFFF94CA
-      FFFF96BADFFF000000FF000000FF000000FF000000FF000000FF000000FF3964
-      8FFF66B3FFFF66B3FFFF66B3FFFF111111EE0000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000066B3FFFF66B3FFFF82C1FFFF9ECF
-      FFFFB9DCFFFF000000FF000000FF000000FF000000FF000000FF000000FF0000
-      00FF60A8EFFF66B3FFFF66B3FFFF050505FA0000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000066B3FFFF67B3FFFF85C2FFFFA3D1
-      FFFFBFDFFFFF000000FF000000FF33393FFF2A323BFF000000FF000000FF0000
-      00FF20374FFF66B3FFFF66B3FFFF020202FD0000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000066B3FFFF67B3FFFF85C2FFFFA3D1
-      FFFFBFDFFFFF000000FF000000FF33393FFF2A323BFF000000FF000000FF0000
-      00FF20374FFF66B3FFFF66B3FFFF020202FD0000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000066B3FFFF69B4FFFF88C4FFFFA7D3
-      FFFFC6E3FFFF000000FF000000FFD9ECFFFF697C8FFF000000FF659ACFFF0000
-      00FF000000FF66B3FFFF66B3FFFF0D0D0DF20000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000066B3FFFF6AB5FFFF89C4FFFFA8D4
-      FFFFC7E3FFFF000000FF000000FFDAEDFFFF51606FFF000000FF7DBFFFFF0000
-      00FF000000FF66B3FFFF66B3FFFF232323DC0000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000066B3FFFF6AB5FFFF89C4FFFFA8D4
-      FFFFC7E3FFFF000000FF000000FFDAEDFFFF51606FFF000000FF7DBFFFFF0000
-      00FF000000FF66B3FFFF66B3FFFF232323DC0000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000066B3FFFF68B4FFFF87C3FFFFA6D3
-      FFFFC3E1FFFF000000FF000000FFD5EAFFFF0B0D0FFF13191FFF7CBEFFFF0000
-      00FF000000FF66B3FFFF66B3FFFF000000780000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000066B3FFFF67B3FFFF85C2FFFFA3D1
-      FFFFBFDFFFFF000000FF000000FFCFE7FFFF000000FF25323FFF7ABDFFFF0000
-      00FF000000FF66B3FFFF66B3FFFF000000280000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000066B3FFFF67B3FFFF85C2FFFFA3D1
-      FFFFBFDFFFFF000000FF000000FFCFE7FFFF000000FF25323FFF7ABDFFFF0000
-      00FF000000FF66B3FFFF66B3FFFF000000280000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000005E768FC066B3FFFF7EBFFFFF9ACD
-      FFFFB3D9FFFF000000FF000000FFC0E0FFFF000000FF597D9FFF73BAFFFF0000
-      00FF000000FF66B3FFFF66B3FFFF000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      000000000000000000000000000000000000212223DF66B3FFFF79BDFFFF94CA
-      FFFFACD6FFFF000000FF000000FFB7DBFFFF000000FF6894BFFF375B7FFF0000
-      00FF000000FF66B3FFFF66B3FFFF000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      000000000000000000000000000000000000212223DF66B3FFFF79BDFFFF94CA
-      FFFFACD6FFFF000000FF000000FFB7DBFFFF000000FF6894BFFF375B7FFF0000
-      00FF000000FF66B3FFFF66B3FFFF000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000003F66B3FFFF6EB7FFFF87C3
-      FFFF9BCDFFFF34424FFF000000FF000000FF000000FF000000FF000000FF0000
-      00FF000000FF66B3FFFF2B2C2FD6000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000066B3FFFF68B4FFFF7FC0
-      FFFF92C9FFFF4F677FFF000000FF000000FF000000FF000000FF000000FF0000
-      00FF13212FFF66B3FFFF6E6E6E91000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000066B3FFFF68B4FFFF7FC0
-      FFFF92C9FFFF4F677FFF000000FF000000FF000000FF000000FF000000FF0000
-      00FF13212FFF66B3FFFF6E6E6E91000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      000000000000000000000000000000000000000000002B2F30D666B3FFFF70B8
-      FFFF80C0FFFF7AACDFFF000000FF000000FF000000FF000000FF000000FF2C4E
-      6FFF66B3FFFF68ACF0F100000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      000000000000000000000000000000000000000000007474748B66B3FFFF67B4
-      FFFF77BBFFFF80C0FFFF83C1FFFF7DBFFFFF558BBFFF66B3FFFF2C4E6FFF66B3
-      FFFF66B3FFFF323438D100000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      000000000000000000000000000000000000000000007474748B66B3FFFF67B4
-      FFFF77BBFFFF80C0FFFF83C1FFFF7DBFFFFF558BBFFF66B3FFFF2C4E6FFF66B3
-      FFFF66B3FFFF323438D100000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000000000000000000002B2F30D666B3
-      FFFF66B3FFFF6CB6FFFF6EB7FFFF6AB5FFFF66B3FFFF66B3FFFF060B0FFF66B3
-      FFFF68ACF0F10000000A00000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000000000000000000007878788766B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF33597FFF66B3
-      FFFF1D1E1FE20000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000000000000000000000007878788766B3
-      FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF33597FFF66B3
-      FFFF1D1E1FE20000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000005252
-      52AD66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF2526
-      27DB000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000232425DD66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF586D7FBF0000
-      0035000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000232425DD66B3FFFF66B3FFFF66B3FFFF66B3FFFF66B3FFFF586D7FBF0000
-      0035000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000003D161616E9010101FE0C0C0CF37171718E000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      000000000000000000000000000000000000424D3E000000000000003E000000
-      2800000040000000300000000100010000000000800100000000000000000000
-      000000000000000000000000FFFFFF00FC7F000000000000FC7F000000000000
-      F01F000000000000E00F000000000000E00F000000000000E007000000000000
-      C007000000000000C00700000000000080030000000000008003000000000000
-      8003000000000000800100000000000080010000000000008001000000000000
-      0001000000000000000100000000000000010000000000000001000000000000
-      0001000000000000000100000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000000000000000000
-      0000000000000000000000000000000000000000000000000001000000000000
-      0001000000000000000100000000000000010000000000000001000000000000
-      0001000000000000800100000000000080010000000000008001000000000000
-      800300000000000080030000000000008003000000000000C007000000000000
-      C007000000000000C007000000000000E00F000000000000F01F000000000000
-      F01F000000000000FC3F00000000000000000000000000000000000000000000
-      000000000000}
-  end
-  object ApplicationEvents: TApplicationEvents
-    OnMinimize = ApplicationEventsMinimize
-    Left = 145
-    Top = 225
   end
 end

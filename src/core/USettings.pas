@@ -43,6 +43,8 @@ const
   CT_PARAM_JSONRPCMinerServerActive = 'JSONRPCMinerServerActive';
   CT_PARAM_JSONRPCEnabled = 'JSONRPCEnabled';
   CT_PARAM_JSONRPCAllowedIPs = 'JSONRPCAllowedIPs';
+  CT_PARAM_HashRateAvgBlocksCount = 'HashRateAvgBlocksCount';
+  CT_PARAM_ShowHashRateAs = 'ShowHashRateAs';
 
 type
 
@@ -117,6 +119,7 @@ implementation
 
 uses
   Classes, SysUtils, UConst, UFolderHelper;
+
 
 { TSettings }
 

@@ -1120,7 +1120,7 @@ end;
 
 constructor TNetData.Create(AOwner: TComponent);
 begin
-  inherited Create(AOwner);  // XXXXXXXXXXXXX BUG
+  inherited Create(AOwner);
   FOnProcessReservedAreaMessage:=Nil;
   TLog.NewLog(ltInfo,ClassName,'TNetData.Create');
   FMaxConnections := CT_MaxClientsConnected;
@@ -1571,11 +1571,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       Bank.Storage.CopyConfiguration(TNode.Node.Bank.Storage);
       if start_block>=0 then begin
         If (TNode.Node.Bank.SafeBox.HasSnapshotForBlock(start_block-1)) then begin
-          // XXXXXXXXXXXXX
-          // XXXXXXXXXXXXX
           // Restore from a Snapshot (New on V3) instead of restore reading from File
-          // XXXXXXXXXXXXX
-          // XXXXXXXXXXXXX
           Bank.SafeBox.SetToPrevious(TNode.Node.Bank.SafeBox,start_block-1);
           Bank.UpdateValuesFromSafebox;
           IsUsingSnapshot := True;

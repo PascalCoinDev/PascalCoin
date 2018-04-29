@@ -55,7 +55,6 @@ type
     PageControl: TPageControl;
     tsMyAccounts: TTabSheet;
     tsOperations: TTabSheet;
-    TrayIcon: TTrayIcon;
     TimerUpdateStatus: TTimer;
     tsLogs: TTabSheet;
     pnlTopLogs: TPanel;
@@ -111,8 +110,6 @@ type
     N1: TMenuItem;
     MiClose: TMenuItem;
     MiDecodePayload: TMenuItem;
-    ImageListIcons: TImageList;
-    ApplicationEvents: {$IFDEF FPC}TApplicationProperties{$ELSE}TApplicationEvents{$ENDIF};
     Label5: TLabel;
     lblCurrentAccounts: TLabel;
     lblTimeAverageAux: TLabel;
@@ -201,8 +198,6 @@ type
     procedure cbExploreMyAccountsClick(Sender: TObject);
     procedure MiCloseClick(Sender: TObject);
     procedure MiDecodePayloadClick(Sender: TObject);
-    procedure TrayIconDblClick(Sender: TObject);
-    procedure ApplicationEventsMinimize(Sender: TObject);
     procedure bbSendAMessageClick(Sender: TObject);
     procedure lblReceivedMessagesClick(Sender: TObject);
     procedure ebFindAccountNumberChange(Sender: TObject);
@@ -334,6 +329,7 @@ end;
 procedure TFRMWallet.Activate;
 Var ips : AnsiString;
   nsarr : TNodeServerAddressArray;
+  i : Integer;
 begin
   inherited;
   if FIsActivated then exit;
@@ -375,6 +371,10 @@ begin
     FWalletKeys.OnChanged.Add( OnWalletChanged );
     FAccountsGrid.Node := FNode;
     FOperationsAccountGrid.Node := FNode;
+    FBlockChainGrid.HashRateAverageBlocksCount := FAppParams.ParamByName[CT_PARAM_HashRateAvgBlocksCount].GetAsInteger(50);
+    i := FAppParams.ParamByName[CT_PARAM_ShowHashRateAs].GetAsInteger(Integer({$IFDEF TESTNET}hr_Mega{$ELSE}hr_Tera{$ENDIF}));
+    if (i<Integer(Low(TShowHashRateAs))) Or (i>Integer(High(TShowHashRateAs))) then i := Integer({$IFDEF TESTNET}hr_Mega{$ELSE}hr_Tera{$ENDIF});
+    FBlockChainGrid.HashRateAs := TShowHashRateAs(i);
     // Reading database
     TThreadActivate.Create(false).FreeOnTerminate := true;
     FNodeNotifyEvents.Node := FNode;
@@ -402,18 +402,6 @@ begin
     miAboutPascalCoinClick(Nil);
   end;
 
-end;
-
-procedure TFRMWallet.ApplicationEventsMinimize(Sender: TObject);
-begin
-  {$IFnDEF FPC}
-  Hide();
-  WindowState := wsMinimized;
-  TimerUpdateStatus.Enabled := false;
-  { Show the animated tray icon and also a hint balloon. }
-  TrayIcon.Visible := True;
-  TrayIcon.ShowBalloonHint;
-  {$ENDIF}
 end;
 
 procedure TFRMWallet.bbAccountsRefreshClick(Sender: TObject);
@@ -928,14 +916,9 @@ begin
   pcAccountsOptions.ActivePage := tsAccountOperations;
   ebFilterOperationsStartBlock.Text := '';
   ebFilterOperationsEndBlock.Text := '';
+  cbExploreMyAccounts.Checked:=True; // By default
   cbExploreMyAccountsClick(nil);
 
-  TrayIcon.Visible := true;
-  TrayIcon.Hint := Self.Caption;
-  TrayIcon.BalloonTitle := 'Restoring the window.';
-  TrayIcon.BalloonHint :=
-    'Double click the system tray icon to restore Pascal Coin';
-  TrayIcon.BalloonFlags := bfInfo;
   MinersBlocksFound := 0;
   lblBuild.Caption := 'Build: '+CT_ClientAppVersion;
   {$IFDEF TESTNET}
@@ -947,6 +930,13 @@ begin
   FBackgroundPanel.Parent:=Self;
   FBackgroundPanel.Align:=alClient;
   FBackgroundPanel.Font.Size:=15;
+  cbHashRateUnits.Items.Clear;
+  cbHashRateUnits.Items.Add('Kh/s');
+  cbHashRateUnits.Items.Add('Mh/s');
+  cbHashRateUnits.Items.Add('Gh/s');
+  cbHashRateUnits.Items.Add('Th/s');
+  cbHashRateUnits.Items.Add('Ph/s');
+  cbHashRateUnits.Items.Add('Eh/s');
 end;
 
 procedure TFRMWallet.ebHashRateBackBlocksKeyPress(Sender: TObject; var Key: char);
@@ -962,6 +952,7 @@ begin
   Try
     i := StrToIntDef(ebHashRateBackBlocks.Text,-1);
     FBlockChainGrid.HashRateAverageBlocksCount:=i;
+    FAppParams.ParamByName[CT_PARAM_HashRateAvgBlocksCount].Value := FBlockChainGrid.HashRateAverageBlocksCount;
   Finally
     ebHashRateBackBlocks.Text := IntToStr(FBlockChainGrid.HashRateAverageBlocksCount);
     FUpdating := false;
@@ -978,8 +969,11 @@ begin
       1 : FBlockChainGrid.HashRateAs := hr_Mega;
       2 : FBlockChainGrid.HashRateAs := hr_Giga;
       3 : FBlockChainGrid.HashRateAs := hr_Tera;
+      4 : FBlockChainGrid.HashRateAs := hr_Peta;
+      5 : FBlockChainGrid.HashRateAs := hr_Exa;
     else FBlockChainGrid.HashRateAs := hr_Mega;
     end;
+    FAppParams.ParamByName[CT_PARAM_ShowHashRateAs].Value := Integer(FBlockChainGrid.HashRateAs);
   Finally
     FUpdating := false;
   End;
@@ -1563,8 +1557,6 @@ end;
 
 procedure TFRMWallet.OnNodeKeysActivity(Sender: TObject);
 begin
-  // XXXXXXXXXXXXXXX
-  TLog.NewLog(ltInfo,ClassName,'OnNodeKeysActivity FIRED XXXXXXXXXXXXXX');  // XXXXXXXXXXX
   DoUpdateAccounts;
 end;
 
@@ -1731,15 +1723,6 @@ begin
       TLog.NewLog(lterror,ClassName,E.Message);
     end;
   End;
-end;
-
-procedure TFRMWallet.TrayIconDblClick(Sender: TObject);
-begin
-  TrayIcon.Visible := False;
-  TimerUpdateStatus.Enabled := true;
-  Show();
-  WindowState := wsNormal;
-  Application.BringToFront();
 end;
 
 procedure TFRMWallet.UpdateAccounts(RefreshData : Boolean);
@@ -1950,6 +1933,8 @@ begin
     hr_Mega : cbHashRateUnits.ItemIndex:=1;
     hr_Giga : cbHashRateUnits.ItemIndex:=2;
     hr_Tera : cbHashRateUnits.ItemIndex:=3;
+    hr_Peta : cbHashRateUnits.ItemIndex:=4;
+    hr_Exa : cbHashRateUnits.ItemIndex:=5;
   else cbHashRateUnits.ItemIndex:=-1;
   end;
 end;
@@ -2017,7 +2002,7 @@ Var i,last_i : Integer;
 begin
   If (Not Assigned(FOrderedAccountsKeyList)) And (Assigned(FNode)) Then begin
     FOrderedAccountsKeyList := TOrderedAccountKeysList.Create(FNode.Bank.SafeBox,false);
-    FNodeNotifyEvents.WatchKeys := FOrderedAccountsKeyList; // XXXXXXXXX Assign the Keys to Watch!!!
+    FNodeNotifyEvents.WatchKeys := FOrderedAccountsKeyList;
   end;
   if (cbMyPrivateKeys.ItemIndex>=0) then last_i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex])
   else last_i := -1;

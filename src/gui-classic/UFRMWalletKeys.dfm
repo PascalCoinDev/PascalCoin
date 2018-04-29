@@ -49,16 +49,9 @@ object FRMWalletKeys: TFRMWalletKeys
   object lblPrivateKeyCaption: TLabel
     Left = 30
     Top = 336
-    Width = 58
+    Width = 52
     Height = 13
-    Caption = 'Private key:'
-  end
-  object lblPrivateKeyCaption2: TLabel
-    Left = 30
-    Top = 355
-    Width = 80
-    Height = 13
-    Caption = '(In hexa format)'
+    Caption = 'Public Key:'
   end
   object lblKeysEncrypted: TLabel
     Left = 30

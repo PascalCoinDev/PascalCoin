@@ -300,7 +300,7 @@ Type
     FLock: TPCCriticalSection; // Thread safe
     FWorkSum : UInt64;
     FCurrentProtocol: Integer;
-    // Snapshots utility new on V3  XXXXXXXXXXXXXX
+    // Snapshots utility new on V3
     FSnapshots : TList; // Will save a Snapshots lists in order to rollback Safebox to a previous block state
     FMaxSafeboxSnapshots : Integer;
     // To be added to next snapshot
@@ -329,7 +329,7 @@ Type
     Constructor Create;
     Destructor Destroy; override;
     procedure SetToPrevious(APreviousSafeBox : TPCSafeBox; StartBlock : Cardinal);
-    procedure CommitToPrevious; // XXXXXXXXXXX New: Commit changes to Previous Safebox
+    procedure CommitToPrevious;
     procedure RollBackToSnapshot(snapshotBlock : Cardinal);
     function AccountsCount: Integer;
     Function BlocksCount : Integer;
@@ -768,7 +768,7 @@ Var n, i : Cardinal;
 begin
   {$IFDEF TESTNET}
   // TESTNET used (line_index +1), but PRODUCTION must use (line_index)
-  n := (line_index + 1) DIV CT_NewLineRewardDecrease;  // XXXXXXXXXXXXXXX TESTNET BAD USE (line_index + 1)
+  n := (line_index + 1) DIV CT_NewLineRewardDecrease;  // TESTNET BAD USE (line_index + 1)
   {$ELSE}
   n := line_index DIV CT_NewLineRewardDecrease; // FOR PRODUCTION
   {$ENDIF}
@@ -2604,11 +2604,6 @@ end;
 
 function TPCSafeBox.DoUpgradeToProtocol3: Boolean;
 begin
-  // XXXXXXXXXXX
-  // XXXXXXXXXXX
-  // TODO IF NEEDED
-  // XXXXXXXXXXX
-  // XXXXXXXXXXX
   FCurrentProtocol := CT_PROTOCOL_3;
   Result := True;
   TLog.NewLog(ltInfo,ClassName,'End Upgraded to protocol 3 - New safeboxhash:'+TCrypto.ToHexaString(FSafeBoxHash));
@@ -4159,10 +4154,6 @@ begin
     end;
   end;
   // All Ok, can do changes
-  // XXXXXXXXXXXXXXXX
-  // PREVIOUS BUG !!!!
-  // On previous versions (2.1.6) this update change was made prior to check all!
-  // XXXXXXXXXXXXXXXX
   previous.UpdateIfLower(P_signer^.account,P_signer^.updated_block);
   if P_signer^.updated_block <> Origin_BlocksCount then begin
     P_signer^.previous_updated_block := P_signer^.updated_block;

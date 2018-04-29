@@ -29,6 +29,9 @@ Const
   CM_PC_WalletKeysChanged = {$IFDEF FPC}LM_USER{$ELSE}WM_USER{$ENDIF} + 1;
 
 type
+
+  { TFRMWalletKeys }
+
   TFRMWalletKeys = class(TForm)
     lbWalletKeys: TListBox;
     bbExportPrivateKey: TBitBtn;
@@ -43,7 +46,6 @@ type
     bbExportPublicKey: TBitBtn;
     bbImportPublicKey: TBitBtn;
     bbGenerateNewKey: TBitBtn;
-    lblPrivateKeyCaption2: TLabel;
     bbDelete: TBitBtn;
     lblKeysEncrypted: TLabel;
     bbUpdatePassword: TBitBtn;
@@ -492,6 +494,7 @@ procedure TFRMWalletKeys.UpdateSelectedWalletKey;
 Var
   wk : TWalletKey;
   ok : Boolean;
+  s : String;
 begin
   ok := false;
   wk := CT_TWalletKey_NUL;
@@ -501,13 +504,9 @@ begin
     lblEncryptionType.Caption := TAccountComp.GetECInfoTxt( wk.AccountKey.EC_OpenSSL_NID );
     if wk.Name='' then lblKeyName.Caption := '(No name)'
     else lblKeyName.Caption := wk.Name;
-    if Assigned(wk.PrivateKey) then begin
-      memoPrivateKey.Lines.Text :=  TCrypto.PrivateKey2Hexa(wk.PrivateKey.PrivateKey);
-      memoPrivateKey.Font.Color := clBlack;
-    end else begin
-      memoPrivateKey.Lines.Text := '(No private key)';
-      memoPrivateKey.Font.Color := clRed;
-    end;
+    memoPrivateKey.Font.Color := clBlack;
+    s := TAccountComp.AccountPublicKeyExport(wk.AccountKey);
+    memoPrivateKey.Lines.Text:=s;
   finally
     lblEncryptionTypeCaption.Enabled := ok;
     lblEncryptionType.Enabled := ok;
@@ -518,7 +517,6 @@ begin
     bbExportPrivateKey.Enabled := ok;
     bbExportPublicKey.Enabled := ok;
     bbChangeName.Enabled := ok;
-    lblPrivateKeyCaption2.Enabled := ok;
     bbDelete.Enabled := ok;
     if not ok then begin
       lblEncryptionType.Caption := '';

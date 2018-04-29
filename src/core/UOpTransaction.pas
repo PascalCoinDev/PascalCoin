@@ -973,7 +973,7 @@ begin
   SetLength(OperationResume.Senders,1);
   OperationResume.Senders[0] := CT_TMultiOpSender_NUL;
   OperationResume.Senders[0].Account:=FData.sender;
-  OperationResume.Senders[0].Amount:=Int64(FData.amount + FData.fee) * (-1);
+  OperationResume.Senders[0].Amount:=Int64(FData.amount + FData.fee);
   OperationResume.Senders[0].N_Operation:=FData.n_operation;
   OperationResume.Senders[0].Payload:=FData.payload;
   OperationResume.Senders[0].Signature:=FData.sign;
