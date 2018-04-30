@@ -195,6 +195,8 @@ const
       procedure OnBeforeFetchAll(constref AParams: TPageFetchParams); virtual;
       procedure FetchAll(const AContainer : TList<T>); virtual; abstract;
       procedure OnAfterFetchAll(constref AParams: TPageFetchParams); virtual;
+      procedure EnterLock; inline;
+      procedure ReleaseLock; inline;
     public
       constructor Create(AOwner: TComponent); override; overload;
       destructor Destroy; override;
@@ -515,7 +517,12 @@ begin
   try
      // Fetch underlying data if stale
      data := GC.AddObject( TList<T>.Create ) as TList<T>;
-     FetchAll(data);
+     EnterLock;
+     try
+       FetchAll(data);
+     finally
+       ReleaseLock;
+     end;
 
      // Filter the data
      filters := AParams.GetSearchFilters;
@@ -589,6 +596,16 @@ end;
 
 procedure TCustomDataSource<T>.OnAfterFetchAll(constref AParams: TPageFetchParams);
 begin
+end;
+
+procedure TCustomDataSource<T>.EnterLock;
+begin
+  FLock.Acquire;
+end;
+
+procedure TCustomDataSource<T>.ReleaseLock; inline;
+begin
+  FLock.Release;
 end;
 
 { TColumnFilterPredicate }

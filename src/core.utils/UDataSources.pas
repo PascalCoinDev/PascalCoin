@@ -194,16 +194,26 @@ end;
 
 function TAccountsDataSource.GetFilterKeys: TArray<TAccountKey>;
 begin
-  Result := FKeys.ToArray;
+  EnterLock;
+  try
+    Result := FKeys.ToArray;
+  finally
+    ReleaseLock;
+  end;
 end;
 
 procedure TAccountsDataSource.SetFilterKeys(const AKeys: TArray<TAccountKey>);
 var
   i: integer;
 begin
-  FKeys.Clear;
-  for i := Low(AKeys) to High(AKeys) do
-    FKeys.Add(AKeys[i]);
+  EnterLock;
+  try
+    FKeys.Clear;
+    for i := Low(AKeys) to High(AKeys) do
+      FKeys.Add(AKeys[i]);
+  finally
+    ReleaseLock;
+  end;
 end;
 
 procedure TAccountsDataSource.FetchAll(const AContainer: TList<TAccount>);
@@ -368,13 +378,23 @@ end;
 
 function TAccountsOperationsDataSource.GetAccounts: TArray<cardinal>;
 begin
-  Result := FAccounts.ToArray;
+  EnterLock;
+  try
+    Result := FAccounts.ToArray;
+  finally
+    ReleaseLock;
+  end;
 end;
 
 procedure TAccountsOperationsDataSource.SetAccounts(const AAccounts: TArray<cardinal>);
 begin
-  FAccounts.Clear;
-  FAccounts.AddRange(AAccounts);
+  EnterLock;
+  try
+    FAccounts.Clear;
+    FAccounts.AddRange(AAccounts);
+  finally
+    ReleaseLock;
+  end;
 end;
 
 procedure TAccountsOperationsDataSource.FetchAll(const AContainer: TList<TOperationResume>);
