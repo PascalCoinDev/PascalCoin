@@ -116,15 +116,6 @@ type
     property DisplayString : AnsiString read GetDisplayString;
   end;
 
-  { TAccountKeyHelper }
-
-  TAccountKeyHelper = record helper for TAccountKey
-  public
-    function GetBalance(AIncludePending: boolean = False): TBalanceSummary;
-    function GetAccounts(AIncludePending: boolean = False): TArray<TAccount>;
-    function GetAccountNumbers(AIncludePending: boolean = False): TArray<cardinal>;
-  end;
-
   { TOperationResumeHelper }
 
   TOperationResumeHelper = record helper for TOperationResume
@@ -143,60 +134,6 @@ implementation
 uses
   UMemory, UConst, UWallet, UECIES, UAES;
 
-{ TAccountKeyHelper }
-
-function TAccountKeyHelper.GetBalance(AIncludePending: boolean): TBalanceSummary;
-var
-  LAccount: TAccount;
-begin
-  // Build the results
-  Result := CT_BalanceSummary_Nil;
-  for LAccount in Self.GetAccounts(AIncludePending) do
-  begin
-    Inc(Result.TotalPASA);
-    Inc(Result.TotalPASC, LAccount.Balance);
-  end;
-end;
-
-function TAccountKeyHelper.GetAccounts(AIncludePending: boolean): TArray<TAccount>;
-var
-  LIdx: integer;
-  LAccount: TAccount;
-  LSafeBox: TPCSafeBox;
-  LGC: TDisposables;
-  LAccountList: TList<TAccount>;
-begin
-  LAccountList := LGC.AddObject(TList<TAccount>.Create) as TList<TAccount>;
-  LSafeBox := TNode.Node.Bank.SafeBox;
-  LSafeBox.StartThreadSafe;
-  try
-    for LIdx := 0 to LSafeBox.AccountsCount - 1 do
-    begin
-      // Load key-matching accounts
-      if AIncludePending then
-        LAccount := TNode.Node.Operations.SafeBoxTransaction.Account(LIdx)
-      else
-        LAccount := LSafeBox.Account(LIdx);
-
-      if TAccountKeyEqualityComparer.AreEqual(Self, LAccount.accountInfo.accountKey) then
-        LAccountList.Add(LAccount);
-    end;
-    Result := LAccountList.ToArray;
-  finally
-    LSafeBox.EndThreadSave;
-  end;
-end;
-
-function TAccountKeyHelper.GetAccountNumbers(AIncludePending: boolean): TArray<cardinal>;
-
-  function GetAccountNumber(constref AAccount: TAccount): cardinal;
-  begin
-    Result := AAccount.account;
-  end;
-
-begin
-  Result := TListTool<TAccount, cardinal>.Transform(GetAccounts(AIncludePending), GetAccountNumber);
-end;
 
 { TOperationsManager }
 
