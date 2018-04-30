@@ -36,7 +36,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="94">
+    <Units Count="95">
       <Unit0>
         <Filename Value="pascalcoin_wallet.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -541,6 +541,13 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit93>
+      <Unit94>
+        <Filename Value="gui\UFRMExecuteOperations.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="ExecuteOperations"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit94>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
