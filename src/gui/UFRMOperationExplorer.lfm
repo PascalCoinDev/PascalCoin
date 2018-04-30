@@ -1,76 +1,77 @@
 object FRMOperationExplorer: TFRMOperationExplorer
-  Left = -7
-  Height = 459
-  Top = 2
-  Width = 926
-  Caption = 'Operation Explorer'
-  ClientHeight = 459
-  ClientWidth = 926
-  Menu = OperationExplorerMenu
+  Left = 190
+  Height = 444
+  Top = 287
+  Width = 864
+  Caption = 'Operations Explorer'
+  ClientHeight = 424
+  ClientWidth = 864
+  Menu = OperationsExplorerMenu
   OnCreate = FormCreate
-  Position = poOwnerFormCenter
-  Visible = False
-  object gpFilter: TGroupBox
-    Left = 8
-    Height = 65
-    Top = 16
-    Width = 904
-    Anchors = [akTop, akLeft, akRight]
-    Caption = 'Filter By Block Range'
-    ClientHeight = 45
-    ClientWidth = 900
+  OnDestroy = FormDestroy
+  LCLVersion = '1.6.4.0'
+  object dgOperationsExplorer: TDrawGrid
+    Left = 0
+    Height = 383
+    Top = 41
+    Width = 864
+    Align = alClient
+    ExtendedSelect = False
     TabOrder = 0
-    object ebFilterOperationsStartBlock: TEdit
-      Left = 8
-      Height = 23
-      Top = 8
-      Width = 57
-      TabOrder = 0
-      TextHint = 'From'
-    end
-    object ebFilterOperationsEndBlock: TEdit
-      Left = 96
-      Height = 23
-      Top = 8
-      Width = 57
-      TabOrder = 1
-      TextHint = 'To'
-    end
+    TitleFont.Color = clWindowText
+    TitleFont.Height = -11
+    TitleFont.Name = 'Tahoma'
+    OnClick = dgOperationsExplorerClick
   end
-  object gpRecentOps: TGroupBox
-    Left = 8
-    Height = 354
-    Top = 96
-    Width = 904
-    Anchors = [akTop, akLeft, akRight, akBottom]
-    Caption = 'All Operations'
-    ClientHeight = 334
-    ClientWidth = 900
+  object Panel1: TPanel
+    Left = 0
+    Height = 41
+    Top = 0
+    Width = 864
+    Align = alTop
+    BevelOuter = bvNone
+    ClientHeight = 41
+    ClientWidth = 864
     TabOrder = 1
-    object paOperations: TPanel
-      Left = 8
-      Height = 314
-      Top = 8
-      Width = 888
-      Anchors = [akTop, akLeft, akRight, akBottom]
-      BorderSpacing.Around = 3
-      BevelOuter = bvNone
-      Caption = 'OPERATIONS PANEL'
+    object Label2: TLabel
+      Left = 11
+      Height = 15
+      Top = 10
+      Width = 112
+      Caption = 'Filter by blocks range'
       ParentColor = False
-      TabOrder = 0
     end
   end
-  object OperationExplorerMenu: TMainMenu
-    left = 728
-    top = 32
+  object ebFilterOperationsStartBlock: TEdit
+    Left = 125
+    Height = 23
+    Top = 7
+    Width = 57
+    OnExit = ebFilterOperationsAccountExit
+    OnKeyPress = ebFilterOperationsAccountKeyPress
+    TabOrder = 2
+  end
+  object ebFilterOperationsEndBlock: TEdit
+    Left = 185
+    Height = 23
+    Top = 7
+    Width = 57
+    OnExit = ebFilterOperationsAccountExit
+    OnKeyPress = ebFilterOperationsAccountKeyPress
+    TabOrder = 3
+  end
+  object OperationsExplorerMenu: TMainMenu
+    left = 560
     object miTools: TMenuItem
       Caption = 'Tools'
-      object miFindOperationByHash: TMenuItem
-        Caption = 'Find Operation By Hash'
-        OnClick = miFindOperationByHashClick
+      object miFindOperationByOpHash: TMenuItem
+        Caption = 'Find Operation by OpHash'
+        ShortCut = 116
+        OnClick = miFindOperationByOpHashClick
       end
       object miDecodePayload: TMenuItem
         Caption = 'Decode Payload'
+        ShortCut = 113
         OnClick = miDecodePayloadClick
       end
     end

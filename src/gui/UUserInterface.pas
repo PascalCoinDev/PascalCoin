@@ -866,7 +866,7 @@ begin
   FUILock.Acquire;
   Try
     if Assigned(FAccountExplorer) then
-     // FAccountExplorer.RefreshAccountsGrid(true);
+      FAccountExplorer.RefreshAccountsGrid(true);
   finally
     FUILock.Release;
   end;
@@ -878,7 +878,7 @@ begin
   try
     try
       if Assigned(FAccountExplorer) then
-       // FAccountExplorer.RefreshAccountsGrid(false);
+        FAccountExplorer.RefreshAccountsGrid(false);
       FMainForm.SyncControl.UpdateBlockChainState;
     except
       On E:Exception do begin
