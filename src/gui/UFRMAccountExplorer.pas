@@ -442,16 +442,18 @@ end;
 {%region Event Handlers: Buttons}
 
 procedure TFRMAccountExplorer.bbChangeKeyNameClick(Sender: TObject);
-var i : Integer;
-  nameString : String;
+var
+  i : Integer;
+  name : String;
 begin
   if (cbMyPrivateKeys.ItemIndex<0) then  exit;
   i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]);
   if (i<0) Or (i>=TWallet.Keys.Count) then raise Exception.Create('Must select a Key');
   name := TWallet.Keys.Key[i].Name;
-  if InputQuery('Change Key name','Input new name',nameString) then begin
+  if InputQuery('Change Key name','Input new name',name) then begin
     TWallet.Keys.SetName(i,name);
   end;
+  RefreshMyKeysCombo;
 end;
 
 procedure TFRMAccountExplorer.bbAccountsRefreshClick(Sender: TObject);

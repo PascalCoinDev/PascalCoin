@@ -1,15 +1,17 @@
 object FRMPendingOperations: TFRMPendingOperations
   Left = 156
-  Height = 357
+  Height = 337
   Top = 188
   Width = 860
+  ActiveControl = dgPendingOperations
   Caption = 'Pending Operations'
   ClientHeight = 337
   ClientWidth = 860
   Menu = PendingOperationsMenu
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  LCLVersion = '1.6.4.0'
+  Position = poOwnerFormCenter
+  Visible = False
   object pnlPendingOperations: TPanel
     Left = 0
     Height = 86

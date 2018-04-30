@@ -1,8 +1,9 @@
 object FRMBlockExplorer: TFRMBlockExplorer
   Left = 87
-  Height = 444
+  Height = 424
   Top = 135
   Width = 864
+  ActiveControl = ebBlockChainBlockEnd
   Caption = 'Block Explorer'
   ClientHeight = 424
   ClientWidth = 864
@@ -10,7 +11,7 @@ object FRMBlockExplorer: TFRMBlockExplorer
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.6.4.0'
+  Visible = False
   object Panel2: TPanel
     Left = 0
     Height = 41

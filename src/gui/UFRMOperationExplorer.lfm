@@ -1,15 +1,17 @@
 object FRMOperationExplorer: TFRMOperationExplorer
   Left = 190
-  Height = 444
+  Height = 424
   Top = 287
   Width = 864
+  ActiveControl = dgOperationsExplorer
   Caption = 'Operations Explorer'
   ClientHeight = 424
   ClientWidth = 864
   Menu = OperationsExplorerMenu
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  LCLVersion = '1.6.4.0'
+  Position = poOwnerFormCenter
+  Visible = False
   object dgOperationsExplorer: TDrawGrid
     Left = 0
     Height = 383

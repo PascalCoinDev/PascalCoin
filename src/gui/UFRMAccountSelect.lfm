@@ -3,6 +3,7 @@ object FRMAccountSelect: TFRMAccountSelect
   Height = 322
   Top = 308
   Width = 601
+  ActiveControl = cbOnlyForSale
   BorderIcons = [biSystemMenu, biMaximize]
   Caption = 'Accounts'
   ClientHeight = 322
@@ -14,7 +15,7 @@ object FRMAccountSelect: TFRMAccountSelect
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.6.4.0'
+  Visible = False
   object pnlAccountsTop: TPanel
     Left = 395
     Height = 282
@@ -241,6 +242,15 @@ object FRMAccountSelect: TFRMAccountSelect
       Width = 18
       Caption = '000'
       ParentColor = False
+    end
+    object bbTypeStats: TBitBtn
+      Left = 280
+      Height = 30
+      Top = 5
+      Width = 95
+      Caption = 'Type stats'
+      OnClick = bbTypeStatsClick
+      TabOrder = 2
     end
   end
   object dgAccounts: TDrawGrid
