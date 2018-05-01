@@ -125,7 +125,7 @@ begin
   // fields
   FAccountsDataSource := TMyAccountsDataSource.Create(Self);
   FOperationsDataSource := TAccountsOperationsDataSource.Create(Self);
-  FOperationsDataSource.Accounts := TWallet.Keys.AccountsKeyList.GetAccountNumbers;
+  FOperationsDataSource.Accounts := TCoreTool.GetUserAccountNumbers;
   FOperationsHistory := woh7Days;
   FOperationsMode:= womAllAccounts;
   FAccountsMode := wamMyAccounts;
@@ -305,7 +305,7 @@ end;
 procedure TCTRLWallet.RefreshTotals;
 var LBalance : TBalanceSummary;
 begin
-  LBalance := TWallet.Keys.AccountsKeyList.GetBalance(true);
+  LBalance := TCoretool.GetUserBalance(true);
   lblTotalPASC.Caption := TAccountComp.FormatMoney(LBalance.TotalPASC);
   lblTotalPASA.Caption := Format('%d', [LBalance.TotalPASA]);
 end;
@@ -411,7 +411,7 @@ begin
   case FOperationsMode of
     womAllAccounts: begin
       FOperationsGrid.Caption.Text := '';
-      FOperationsDataSource.Accounts := TWallet.Keys.AccountsKeyList.GetAccountNumbers;
+      FOperationsDataSource.Accounts := TCoreTool.GetUserAccountNumbers;
     end;
     womSelectedAccounts:
     begin

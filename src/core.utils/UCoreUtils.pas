@@ -60,35 +60,23 @@ type
   { TCoreTool }
 
   TCoreTool = class
+  private
+    class function GetBalanceInternal(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary;
   public
     class function GetSignerCandidates(ANumOps: integer; ASingleOperationFee: int64; const ACandidates: array of TAccount): TArray<TAccount>; static;
     class function GetOperationShortText(const OpType, OpSubType: DWord): ansistring; static; inline;
-  end;
-
-  { TOrderedAccountKeysListHelper }
-
-  TOrderedAccountKeysListHelper = class helper for TOrderedAccountKeysList
-  public
-    function GetBalance(IncludePending: boolean = False): TBalanceSummary;
-    function GetAccounts(IncludePending: boolean = False): TArray<TAccount>;
-    function GetAccountNumbers: TArray<cardinal>;
-  end;
-
-  { TSafeBoxHelper }
-
-  TSafeBoxHelper = class helper for TPCSafeBox
-  private
-    function GetBalanceInternal(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary;
-  public
-    function GetModifiedAccounts(const AAccounts: array of TAccount): TArray<TAccount>;
-    function GetBalance(const AKey: TAccountKey; IncludePending: boolean = False): TBalanceSummary; overload;
-    function GetBalance(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary; overload;
+    class function GetUserBalance(IncludePending: boolean = False): TBalanceSummary;
+    class function GetUserAccounts(IncludePending: boolean = False): TArray<TAccount>;
+    class function GetUserAccountNumbers: TArray<cardinal>;
+    class function GetModifiedAccounts(const AAccounts: array of TAccount; IncludePending : boolean = false): TArray<TAccount>;
+    class function GetBalance(const AKey: TAccountKey; IncludePending: boolean = False): TBalanceSummary; overload;
+    class function GetBalance(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary; overload;
   end;
 
   { TNodeHelper }
 
   TNodeHelper = class helper for TNode
-    function HasBestKnownBlockchainTip: boolean;
+   function HasBestKnownBlockchainTip: boolean;
   end;
 
   { TAccountHelper }
@@ -118,7 +106,6 @@ implementation
 
 uses
   UMemory, UConst, UWallet, UECIES, UAES;
-
 
 { TCoreTool }
 
@@ -195,82 +182,7 @@ begin
   end;
 end;
 
-
-{ TNodeHelper }
-
-function TNodeHelper.HasBestKnownBlockchainTip: boolean;
-var
-  LReady: boolean;
-  LMsg: ansistring;
-  LDestBlock : Cardinal;
-begin
-  LReady := Self.Bank.IsReady(LMsg);
-  if LReady and TNetData.NetData.IsGettingNewBlockChainFromClient then begin
-    LDestBlock := TNetData.NetData.MaxRemoteOperationBlock.block;
-    Result := Self.Bank.BlocksCount = TNetData.NetData.MaxRemoteOperationBlock.block;
-  end;
-end;
-
-{ TOrderedAccountKeysListHelper }
-
-function TOrderedAccountKeysListHelper.GetBalance(IncludePending: boolean = False): TBalanceSummary;
-var
-  i: integer;
-  LAccs: TArray<TAccount>;
-begin
-  Result := CT_BalanceSummary_Nil;
-  LAccs := Self.GetAccounts(IncludePending);
-  for i := Low(LAccs) to High(LAccs) do
-  begin
-    Inc(Result.TotalPASA);
-    Inc(Result.TotalPASC, LAccs[i].Balance);
-  end;
-end;
-
-function TOrderedAccountKeysListHelper.GetAccounts(IncludePending: boolean = False): TArray<TAccount>;
-var
-  i, j: integer;
-  LAccs: TList<TAccount>;
-  LAcc: TAccount;
-  LList: TOrderedCardinalList;
-  Disposables: TDisposables;
-begin
-  LAccs := Disposables.AddObject(TList<TAccount>.Create) as TList<TAccount>;
-  for i := 0 to Self.Count - 1 do
-  begin
-    LList := Self.AccountKeyList[i];
-    for j := 0 to LList.Count - 1 do
-    begin
-      if IncludePending then
-        LAcc := TNode.Node.Operations.SafeBoxTransaction.Account(j)
-      else
-        LAcc := TNode.Node.Bank.SafeBox.Account(LList.Get(j));
-      LAccs.Add(LAcc);
-    end;
-  end;
-  Result := LAccs.ToArray;
-end;
-
-function TOrderedAccountKeysListHelper.GetAccountNumbers: TArray<cardinal>;
-var
-  i, j: integer;
-  LAccs: TList<cardinal>;
-  LList: TOrderedCardinalList;
-  Disposables: TDisposables;
-begin
-  LAccs := Disposables.AddObject(TList<cardinal>.Create) as TList<cardinal>;
-  for i := 0 to Self.Count - 1 do
-  begin
-    LList := Self.AccountKeyList[i];
-    for j := 0 to LList.Count - 1 do
-      LAccs.Add(j);
-  end;
-  Result := LAccs.ToArray;
-end;
-
-{ TSafeBoxHelper }
-
-function TSafeBoxHelper.GetModifiedAccounts(const AAccounts: array of TAccount): TArray<TAccount>;
+class function TCoreTool.GetModifiedAccounts(const AAccounts: array of TAccount; IncludePending : boolean = false): TArray<TAccount>;
 var
   i: integer;
   LChanged: TList<TAccount>;
@@ -280,24 +192,30 @@ begin
   LChanged := GC.AddObject(TList<TAccount>.Create) as TList<TAccount>;
   for i := Low(AAccounts) to High(AAccounts) do
   begin
-    LAcc := Self.Account(AAccounts[i].account);
+    if IncludePending then
+      LAcc := TNode.Node.Operations.SafeBoxTransaction.Account(AAccounts[i].account)
+    else begin
+      TNode.Node.Bank.SafeBox.StartThreadSafe;
+      LAcc := TNode.Node.Bank.SafeBox.Account(AAccounts[i].account);
+      TNode.Node.Bank.SafeBox.EndThreadSave;
+    end;
     if (LAcc.n_Operation <> AAccounts[i].n_operation) or (LAcc.Balance <> AAccounts[i].balance) then
       LChanged.Add(LAcc);
   end;
   Result := LChanged.ToArray;
 end;
 
-function TSafeBoxHelper.GetBalance(const AKey: TAccountKey; IncludePending: boolean = False): TBalanceSummary;
+class function TCoreTool.GetBalance(const AKey: TAccountKey; IncludePending: boolean = False): TBalanceSummary;
 begin
   Result := GetBalance([AKey], IncludePending);
 end;
 
-function TSafeBoxHelper.GetBalance(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary;
+class function TCoreTool.GetBalance(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary;
 begin
   Result := GetBalanceInternal(AKeys, IncludePending);
 end;
 
-function TSafeBoxHelper.GetBalanceInternal(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary;
+class function TCoreTool.GetBalanceInternal(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary;
 var
   i: integer;
   LAcc: TAccount;
@@ -314,9 +232,15 @@ begin
     LKeys.Add(AKeys[i]);
 
   // Gather all referenced accounts
-  for i := 0 to Self.AccountsCount - 1 do
+  for i := 0 to TNode.Node.Bank.SafeBox.AccountsCount - 1 do
   begin
-    LAcc := Self.Account(i);
+    if IncludePending then
+      LAcc := TNode.Node.Operations.SafeBoxTransaction.Account(i)
+    else begin
+      TNode.Node.Bank.SafeBox.StartThreadSafe;
+      LAcc := TNode.Node.Bank.SafeBox.Account(i);
+      TNode.Node.Bank.SafeBox.EndThreadSave;
+    end;
     if LKeys.Contains(LAcc.accountInfo.accountKey) then
       LAccs.Add(LAcc);
   end;
@@ -329,6 +253,80 @@ begin
     Inc(Result.TotalPASC, LAcc.Balance);
   end;
 end;
+
+class function TCoreTool.GetUserBalance(IncludePending: boolean = False): TBalanceSummary;
+var
+  i: integer;
+  LAccs: TArray<TAccount>;
+begin
+  Result := CT_BalanceSummary_Nil;
+  LAccs := TCoreTool.GetUserAccounts(IncludePending);
+  for i := Low(LAccs) to High(LAccs) do
+  begin
+    Inc(Result.TotalPASA);
+    Inc(Result.TotalPASC, LAccs[i].Balance);
+  end;
+end;
+
+class function TCoreTool.GetUserAccounts(IncludePending: boolean = False): TArray<TAccount>;
+var
+  i, j: integer;
+  LAccs: TList<TAccount>;
+  LAcc: TAccount;
+  LList: TOrderedCardinalList;
+  Disposables: TDisposables;
+begin
+  LAccs := Disposables.AddObject(TList<TAccount>.Create) as TList<TAccount>;
+  for i := 0 to TWallet.Keys.Count - 1 do
+  begin
+    LList := TWallet.Keys.AccountsKeyList.AccountKeyList[i];
+    for j := 0 to LList.Count - 1 do begin
+      if IncludePending then
+        LAcc := TNode.Node.Operations.SafeBoxTransaction.Account(j)
+      else begin
+        TNode.Node.Bank.SafeBox.StartThreadSafe;
+        LAcc := TNode.Node.Bank.SafeBox.Account(LList.Get(j));
+        TNode.Node.Bank.SafeBox.EndThreadSave;
+      end;
+      LAccs.Add(LAcc);
+    end;
+  end;
+  Result := LAccs.ToArray;
+end;
+
+class function TCoreTool.GetUserAccountNumbers: TArray<cardinal>;
+var
+  i, j: integer;
+  LAccs: TSortedList<cardinal>;
+  LList: TOrderedCardinalList;
+  Disposables: TDisposables;
+begin
+  LAccs := Disposables.AddObject(TSortedList<cardinal>.Create) as TSortedList<cardinal>;
+  for i := 0 to TWallet.Keys.AccountsKeyList.Count - 1 do
+  begin
+    LList := TWallet.Keys.AccountsKeyList.AccountKeyList[i];
+    for j := 0 to LList.Count - 1 do
+      LAccs.Add(j);
+  end;
+  Result := LAccs.ToArray;
+end;
+
+
+{ TNodeHelper }
+
+function TNodeHelper.HasBestKnownBlockchainTip: boolean;
+var
+  LReady: boolean;
+  LMsg: ansistring;
+  LDestBlock : Cardinal;
+begin
+  LReady := Self.Bank.IsReady(LMsg);
+  if LReady and TNetData.NetData.IsGettingNewBlockChainFromClient then begin
+    LDestBlock := TNetData.NetData.MaxRemoteOperationBlock.block;
+    Result := Self.Bank.BlocksCount = TNetData.NetData.MaxRemoteOperationBlock.block;
+  end;
+end;
+
 
 { TAccountComparer }
 

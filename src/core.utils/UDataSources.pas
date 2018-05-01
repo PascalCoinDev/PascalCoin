@@ -250,7 +250,7 @@ var
   i: integer;
   LAccs: TArray<TAccount>;
 begin
-  LAccs := TWallet.Keys.AccountsKeyList.GetAccounts(FIncludePending);
+  LAccs := TCoreTool.GetUserAccounts(FIncludePending);
   if FKeys.Count > 0 then begin
     for i := Low(LAccs) to High(LAccs) do
       if FKeys.Contains(LAccs[i].accountInfo.accountKey) then
