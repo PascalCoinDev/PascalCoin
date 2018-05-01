@@ -143,6 +143,7 @@ begin
     Binding := 'AccountNumber';
     SortBinding := 'AccountNumber';
     DisplayBinding := 'Account';
+    SortDirection:= sdAscending;
     Width := 100;
     HeaderFontStyles := [fsBold];
     DataFontStyles := [fsBold];
