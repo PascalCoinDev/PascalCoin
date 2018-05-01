@@ -12,6 +12,7 @@ object CTRLBanner: TCTRLBanner
   Constraints.MinHeight = 80
   Constraints.MinWidth = 512
   OnCreate = FormCreate
+  LCLVersion = '1.8.2.0'
   Visible = False
   object imBackground: TImage
     Left = 0

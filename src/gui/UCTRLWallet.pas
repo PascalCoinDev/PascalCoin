@@ -1,14 +1,22 @@
 unit UCTRLWallet;
 
 {$mode delphi}
-
 {$modeswitch nestedprocvars}
+
+{ Copyright (c) 2018 Sphere 10 Software
+
+  Distributed under the MIT software license, see the accompanying file LICENSE
+  or visit http://www.opensource.org/licenses/mit-license.php.
+
+  Acknowledgements:
+  - Herman Schoenfeld: unit creator, implementation
+}
 
 interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Menus,
-  ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon.UI, Generics.Collections,
+  ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon.UI, Generics.Collections, ULog,
   UAccounts, UDataSources, UNode, UCoreObjects, UCoreUtils, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale;
 
 type
@@ -95,7 +103,7 @@ implementation
 
 uses
   UUserInterface, UCellRenderers, UBlockChain, UWallet, UCrypto,
-  UCommon, UMemory, Generics.Defaults, UCommon.Data, UCommon.Collections;
+  UCommon, UMemory, Generics.Defaults, UCommon.Data, UCommon.Collections, UWIZOperation;
 
 {$R *.lfm}
 
@@ -112,6 +120,7 @@ begin
   FNodeNotifyEvents.OnBlocksChanged := OnNodeBlocksChanged;
   FNodeNotifyEvents.OnOperationsChanged := OnNodeNewOperation;
   TWallet.Keys.OnChanged.Add(OnPrivateKeysChanged);
+  TWallet.Keys.AccountsKeyList.ClearAccountKeyChanges;   // XXXXX CLEAR BUFFER on start
 
   // fields
   FAccountsDataSource := TMyAccountsDataSource.Create(Self);
@@ -505,8 +514,8 @@ end;
 
 procedure TCTRLWallet.OnUserAccountsChanged;
 begin
-//  if NOT TUserInterface.Node.HasBestKnownBlockchainTip then
-//    exit; // node syncing
+  if NOT TUserInterface.Node.HasBestKnownBlockchainTip then
+    exit; // node syncing
 
   RefreshTotals;
   FAccountsGrid.RefreshGrid;
@@ -547,7 +556,7 @@ begin
     ophash := FOperationsGrid.Rows[row].OPHASH;
     if TPCOperation.IsValidOperationHash(ophash) then begin
       TUserInterface.ShowOperationInfoDialog(self, ophash);
-      FOperationsGrid.ClearSelection(true);
+      FOperationsGrid.ClearSelection;
     end;
   end;
 end;
@@ -612,7 +621,7 @@ procedure TCTRLWallet.miSendPASCClick(Sender: TObject);
 var
   Scoped: TDisposables;
   wiz: TWIZSendPASCWizard;
-  model: TExecuteOperationsModel;
+  model: TWIZOperationsModel;
   AccountNumbersWithoutChecksum: TArray<cardinal>;
 
   function GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
@@ -622,7 +631,7 @@ var
 
 begin
   wiz := Scoped.AddObject(TWIZSendPASCWizard.Create(nil)) as TWIZSendPASCWizard;
-  model := TExecuteOperationsModel.Create(wiz, omtSendPasc);
+  model := TWIZOperationsModel.Create(wiz, omtSendPasc);
   AccountNumbersWithoutChecksum := TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,GetAccNoWithoutChecksum);
   model.Account.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
   wiz.Start(model);
@@ -632,7 +641,7 @@ procedure TCTRLWallet.miChangeKeyClick(Sender: TObject);
 var
   Scoped: TDisposables;
   wiz: TWIZChangeKeyWizard;
-  model: TExecuteOperationsModel;
+  model: TWIZOperationsModel;
   AccountNumbersWithoutChecksum: TArray<cardinal>;
 
   function GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
@@ -642,7 +651,7 @@ var
 
 begin
   wiz := Scoped.AddObject(TWIZChangeKeyWizard.Create(nil)) as TWIZChangeKeyWizard;
-  model := TExecuteOperationsModel.Create(wiz, omtChangeKey);
+  model := TWIZOperationsModel.Create(wiz, omtChangeKey);
   AccountNumbersWithoutChecksum := TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows, GetAccNoWithoutChecksum);
   model.Account.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
   wiz.Start(model);
@@ -652,7 +661,7 @@ procedure TCTRLWallet.miEnlistAccountsForSaleClick(Sender: TObject);
 var
   Scoped: TDisposables;
   wiz: TWIZEnlistAccountForSaleWizard;
-  model: TExecuteOperationsModel;
+  model: TWIZOperationsModel;
   AccountNumbersWithoutChecksum: TArray<cardinal>;
 
    function GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
@@ -663,7 +672,7 @@ var
 
 begin
   wiz := Scoped.AddObject(TWIZEnlistAccountForSaleWizard.Create(nil)) as TWIZEnlistAccountForSaleWizard;
-  model := TExecuteOperationsModel.Create(wiz, omtEnlistAccountForSale);
+  model := TWIZOperationsModel.Create(wiz, omtEnlistAccountForSale);
   AccountNumbersWithoutChecksum := TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows, GetAccNoWithoutChecksum);
   model.Account.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
   wiz.Start(model);

@@ -460,7 +460,7 @@
         <ResourceBaseClass Value="Form"/>
       </Unit80>
       <Unit81>
-        <Filename Value="gui\wizards\operations\UWIZChangeKey.pas"/>
+        <Filename Value="gui\wizards\operations\UWIZOperation.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit81>
       <Unit82>

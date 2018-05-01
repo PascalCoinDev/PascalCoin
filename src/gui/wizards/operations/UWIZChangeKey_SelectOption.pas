@@ -17,13 +17,14 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UCoreObjects, UWizard, UWIZChangeKey_EnterKey, UWIZChangeKey_SelectKey;
+  ExtCtrls, UCoreObjects,
+  UWizard, UWIZOperation, UWIZChangeKey_EnterKey, UWIZChangeKey_SelectKey;
 
 type
 
   { TWIZChangeKey_SelectOption }
 
-  TWIZChangeKey_SelectOption = class(TWizardForm<TExecuteOperationsModel>)
+  TWIZChangeKey_SelectOption = class(TWizardForm<TWIZOperationsModel>)
     gbChangeKeyOptions: TGroupBox;
     lblTransferAccountOwnership: TLabel;
     lblNote: TLabel;

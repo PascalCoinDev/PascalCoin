@@ -15,13 +15,14 @@ unit UWIZEnlistAccountForSale;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon, UWizard, UAccounts, UCoreObjects, LCLType;
+  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon,
+  UWizard, UWIZOperation, UAccounts, UCoreObjects, LCLType;
 
 type
 
   { TWIZEnlistAccountForSaleWizard }
 
-  TWIZEnlistAccountForSaleWizard = class(TWizard<TExecuteOperationsModel>)
+  TWIZEnlistAccountForSaleWizard = class(TWizard<TWIZOperationsModel>)
   public
     constructor Create(AOwner: TComponent); override;
     function DetermineHasNext: boolean; override;
@@ -81,7 +82,7 @@ begin
 
   end;
 
-  Result := TOperationsManager.ExecuteEnlistAccountForSale(Model.Account.SelectedAccounts, Model.Signer.SignerAccount, Model.EnlistAccountForSale.SellerAccount, LPublicKey, Model.Fee.SingleOperationFee, Model.EnlistAccountForSale.SalePrice, Model.EnlistAccountForSale.LockedUntilBlock, Model.EnlistAccountForSale.AccountSaleMode, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
+  Result := TWIZOperationsHelper.ExecuteEnlistAccountForSale(Model.Account.SelectedAccounts, Model.Signer.SignerAccount, Model.EnlistAccountForSale.SellerAccount, LPublicKey, Model.Fee.SingleOperationFee, Model.EnlistAccountForSale.SalePrice, Model.EnlistAccountForSale.LockedUntilBlock, Model.EnlistAccountForSale.AccountSaleMode, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
 end;
 
 function TWIZEnlistAccountForSaleWizard.CancelRequested(out message: ansistring): boolean;

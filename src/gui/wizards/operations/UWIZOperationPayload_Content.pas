@@ -18,13 +18,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections,
-  UWizard, UWIZOperationSigner_Select, UCoreObjects;
+  UWizard, UWIZOperation, UWIZOperationSigner_Select, UCoreObjects;
 
 type
 
   { TWIZOperationPayload_Content }
 
-  TWIZOperationPayload_Content = class(TWizardForm<TExecuteOperationsModel>)
+  TWIZOperationPayload_Content = class(TWizardForm<TWIZOperationsModel>)
     grpPayload: TGroupBox;
     Label1: TLabel;
     mmoPayload: TMemo;

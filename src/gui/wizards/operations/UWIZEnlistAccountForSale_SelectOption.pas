@@ -13,13 +13,13 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UWizard, UCoreObjects, UWIZEnlistAccountForSale_EnterPublicKey;
+  ExtCtrls, UWizard, UCoreObjects, UWIZOperation, UWIZEnlistAccountForSale_EnterPublicKey;
 
 type
 
   { TWIZEnlistAccountForSale_SelectOption }
 
-  TWIZEnlistAccountForSale_SelectOption = class(TWizardForm<TExecuteOperationsModel>)
+  TWIZEnlistAccountForSale_SelectOption = class(TWizardForm<TWIZOperationsModel>)
     grpEnlistAccountForSale: TGroupBox;
     Label1: TLabel;
     Label2: TLabel;

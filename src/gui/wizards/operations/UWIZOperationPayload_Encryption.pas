@@ -18,13 +18,13 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections,
-  UWizard, UWIZOperationPayload_Content, UWIZOperationPayload_Password, UCoreObjects;
+  UWizard, UWIZOperation, UWIZOperationPayload_Content, UWIZOperationPayload_Password, UCoreObjects;
 
 type
 
   { TWIZOperationPayload_Encryption }
 
-  TWIZOperationPayload_Encryption = class(TWizardForm<TExecuteOperationsModel>)
+  TWIZOperationPayload_Encryption = class(TWizardForm<TWIZOperationsModel>)
     grpPayload: TGroupBox;
     Label1: TLabel;
     lblNoEncryption: TLabel;
@@ -55,25 +55,25 @@ procedure TWIZOperationPayload_Encryption.OnNext;
 begin
   if rbEncryptedWithRecipient.Checked then
   begin
-    Model.Payload.PayloadEncryptionMode := akaEncryptWithSender;
+    Model.Payload.PayloadEncryptionMode := pemEncryptWithSender;
   end
   else
   if rbEncryptedWithSender.Checked then
   begin
-    Model.Payload.PayloadEncryptionMode := akaEncryptWithReceiver;
+    Model.Payload.PayloadEncryptionMode := pemEncryptWithReceiver;
   end
   else
   if rbEncryptedWithPassword.Checked then
   begin
-    Model.Payload.PayloadEncryptionMode := akaEncryptWithPassword;
+    Model.Payload.PayloadEncryptionMode := pemEncryptWithPassword;
   end
   else
   if rbNotEncrypted.Checked then
   begin
-    Model.Payload.PayloadEncryptionMode := akaNotEncrypt;
+    Model.Payload.PayloadEncryptionMode := pemNotEncrypt;
   end;
   case Model.Payload.PayloadEncryptionMode of
-    akaEncryptWithPassword:
+    pemEncryptWithPassword:
     begin
       UpdatePath(ptInject, [TWIZOperationPayload_Password]);
     end

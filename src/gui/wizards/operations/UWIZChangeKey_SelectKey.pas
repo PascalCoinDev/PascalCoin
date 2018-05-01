@@ -19,13 +19,13 @@ uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
   UFRMAccountSelect, UNode, UWizard, UCoreObjects,
-  UWIZOperationFee_Custom, UWIZOperationSigner_Select, UWIZOperationPayload_Encryption;
+  UWIZOperation, UWIZOperationFee_Custom, UWIZOperationSigner_Select, UWIZOperationPayload_Encryption;
 
 type
 
   { TWIZChangeKey_SelectKey }
 
-  TWIZChangeKey_SelectKey = class(TWizardForm<TExecuteOperationsModel>)
+  TWIZChangeKey_SelectKey = class(TWizardForm<TWIZOperationsModel>)
     cbNewPrivateKey: TComboBox;
     chkAttachPayload: TCheckBox;
     chkChooseFee: TCheckBox;

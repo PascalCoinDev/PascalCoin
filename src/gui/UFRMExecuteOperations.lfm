@@ -1,39 +1,43 @@
 object ExecuteOperations: TExecuteOperations
   Left = 0
-  Height = 340
+  Height = 307
   Top = 0
-  Width = 606
+  Width = 545
+  ActiveControl = btnClose
   Caption = 'Execute Operations'
-  ClientHeight = 340
-  ClientWidth = 606
+  ClientHeight = 307
+  ClientWidth = 545
+  OnCreate = FormCreate
+  LCLVersion = '1.8.2.0'
   Visible = False
   object GroupBox1: TGroupBox
     Left = 0
-    Height = 293
+    Height = 260
     Top = 8
-    Width = 606
+    Width = 545
     Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'Executing Operations'
-    ClientHeight = 273
-    ClientWidth = 602
+    ClientHeight = 240
+    ClientWidth = 541
     TabOrder = 0
-    object Panel1: TPanel
+    object paGrid: TPanel
       Left = 6
-      Height = 253
+      Height = 220
       Top = 8
-      Width = 588
+      Width = 527
       Anchors = [akTop, akLeft, akRight, akBottom]
       Caption = 'GRID PANEL'
       TabOrder = 0
     end
   end
   object btnClose: TButton
-    Left = 490
+    Left = 429
     Height = 25
-    Top = 309
+    Top = 276
     Width = 107
     Anchors = [akRight, akBottom]
     Caption = 'Close'
+    OnClick = btnCloseClick
     TabOrder = 1
   end
 end

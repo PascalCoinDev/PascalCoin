@@ -18,13 +18,14 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, Spin, UCommon, UCommon.Collections, UWallet, UCoreObjects,
-  UFRMAccountSelect, UNode, UWizard, UWIZOperationPayload_Encryption, UWIZOperationSigner_Select;
+  UFRMAccountSelect, UNode,
+  UWizard, UWIZOperation, UWIZOperationPayload_Encryption, UWIZOperationSigner_Select;
 
 type
 
   { TWIZOperationFee_Custom }
 
-  TWIZOperationFee_Custom = class(TWizardForm<TExecuteOperationsModel>)
+  TWIZOperationFee_Custom = class(TWizardForm<TWIZOperationsModel>)
     fseFee: TFloatSpinEdit;
     gbTransactionFee: TGroupBox;
     lblestimatedfee: TLabel;

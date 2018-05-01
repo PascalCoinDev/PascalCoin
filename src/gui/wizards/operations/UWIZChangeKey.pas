@@ -15,13 +15,13 @@ unit UWIZChangeKey;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon, UWizard, UAccounts, UCoreObjects, LCLType;
+  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon, UWizard, UAccounts, UCoreObjects, UWIZOperation, LCLType;
 
 type
 
   { TWIZChangeKeyWizard }
 
-  TWIZChangeKeyWizard = class(TWizard<TExecuteOperationsModel>)
+  TWIZChangeKeyWizard = class(TWizard<TWIZOperationsModel>)
   public
     constructor Create(AOwner: TComponent); override;
     function DetermineHasNext: boolean; override;
@@ -77,7 +77,7 @@ begin
 
   end;
 
-  Result := TOperationsManager.ExecuteChangeKey(Model.Account.SelectedAccounts, Model.Signer.SignerAccount, LPublicKey, Model.Fee.SingleOperationFee, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
+  Result := TWIZOperationsHelper.ExecuteChangeKey(Model.Account.SelectedAccounts, Model.Signer.SignerAccount, LPublicKey, Model.Fee.SingleOperationFee, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
 end;
 
 function TWIZChangeKeyWizard.CancelRequested(out message: ansistring): boolean;

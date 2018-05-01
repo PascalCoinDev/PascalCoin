@@ -89,9 +89,9 @@ type
     procedure FetchAll(const AContainer: TList<TOperationResume>); override;
   end;
 
-  { TBlockChainDataSourceBase }
+  { TBlockSummarySourceBase }
 
-  TBlockChainDataSourceBase = class(TCustomDataSource<TBlockChainData>)
+  TBlockSummarySourceBase = class(TCustomDataSource<TBlockSummary>)
   public type
     TShowHashRateAs = (hr_Kilo, hr_Mega, hr_Giga, hr_Tera);
   private
@@ -109,14 +109,14 @@ type
     property EndBlock: cardinal read FEnd write FEnd;
     property HashRateAs: TShowHashRateAs read FHashRateAs write FHashRateAs;
     property HashRateAverageBlocksCount: integer read FHashRateAverageBlocksCount write FHashRateAverageBlocksCount;
-    function GetItemField(constref AItem: TBlockChainData; const ABindingName: ansistring): variant; override;
+    function GetItemField(constref AItem: TBlockSummary; const ABindingName: ansistring): variant; override;
   end;
 
-  { TBlockChainDataSource }
+  { TBlockSummarySource }
 
-  TBlockChainDataSource = class(TBlockChainDataSourceBase)
+  TBlockSummarySource = class(TBlockSummarySourceBase)
   public
-    procedure FetchAll(const AContainer: TList<TBlockChainData>); override;
+    procedure FetchAll(const AContainer: TList<TBlockSummary>); override;
   end;
 
 implementation
@@ -504,14 +504,14 @@ begin
   end;
 end;
 
-{ TBlockChainDataSourceBase }
+{ TBlockSummarySourceBase }
 
-function TBlockChainDataSourceBase.GetTimeSpan: TTimeSpan;
+function TBlockSummarySourceBase.GetTimeSpan: TTimeSpan;
 begin
   Result := TTimeSpan.FromSeconds(CT_NewLineSecondsAvg * (FEnd - FStart + 1));
 end;
 
-procedure TBlockChainDataSourceBase.SetTimeSpan(const ASpan: TTimeSpan);
+procedure TBlockSummarySourceBase.SetTimeSpan(const ASpan: TTimeSpan);
 var
   LNode: TNode;
 begin
@@ -522,7 +522,7 @@ begin
   FStart := ClipValue(FEnd - (ASpan.TotalBlockCount + 1), 0, FEnd);
 end;
 
-function TBlockChainDataSourceBase.GetColumns: TDataColumns;
+function TBlockSummarySourceBase.GetColumns: TDataColumns;
 var
   LHashType: string;
 begin
@@ -553,7 +553,7 @@ begin
   );
 end;
 
-constructor TBlockChainDataSourceBase.Create(AOwner: TComponent);
+constructor TBlockSummarySourceBase.Create(AOwner: TComponent);
 var
   LNode: TNode;
 begin
@@ -568,7 +568,7 @@ begin
   end;
 end;
 
-function TBlockChainDataSourceBase.GetItemField(constref AItem: TBlockChainData; const ABindingName: ansistring): variant;
+function TBlockSummarySourceBase.GetItemField(constref AItem: TBlockSummary; const ABindingName: ansistring): variant;
 var
   LHR_Base: int64;
   LHashType: string;
@@ -633,13 +633,13 @@ begin
     raise Exception.Create(Format('Field not found [%s]', [ABindingName]));
 end;
 
-{ TBlockChainDataSource }
+{ TBlockSummarySource }
 
-procedure TBlockChainDataSource.FetchAll(const AContainer: TList<TBlockChainData>);
+procedure TBlockSummarySource.FetchAll(const AContainer: TList<TBlockSummary>);
 var
   LStart, LEnd, LIdx: cardinal;
   LOperationComp: TPCOperationsComp;
-  LBlockChainData: TBlockChainData;
+  LBlockChainData: TBlockSummary;
   LOperationBlock: TOperationBlock;
   LBigNum: TBigNum;
   LNode: TNode;
@@ -656,7 +656,7 @@ begin
     LOperationComp.bank := LNode.Bank;
 
     for LIdx := LEnd downto LStart do begin
-      LBlockChainData := CT_TBlockChainData_NUL;
+      LBlockChainData := CT_BlockSummary_NUL;
       LOperationBlock := LNode.Bank.SafeBox.Block(LIdx).blockchainInfo;
       LBlockChainData.Block := LOperationBlock.block;
       LBlockChainData.Timestamp := LOperationBlock.timestamp;

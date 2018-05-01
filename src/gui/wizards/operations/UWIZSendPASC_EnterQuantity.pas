@@ -18,14 +18,15 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UWIZSendPASC, UWIZOperationFee_Custom, UWIZOperationPayload_Encryption,
+  UFRMAccountSelect, UNode,
+  UWizard, UWIZOperation, UWIZSendPASC, UWIZOperationFee_Custom, UWIZOperationPayload_Encryption,
   UWIZOperationSigner_Select, UCoreObjects;
 
 type
 
   { TWIZSendPASC_EnterQuantity }
 
-  TWIZSendPASC_EnterQuantity = class(TWizardForm<TExecuteOperationsModel>)
+  TWIZSendPASC_EnterQuantity = class(TWizardForm<TWIZOperationsModel>)
     chkChooseFee: TCheckBox;
     chkAttachPayload: TCheckBox;
     chkallfunds: TCheckBox;

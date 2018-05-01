@@ -2,13 +2,13 @@ unit UCTRLSyncronization;
 
 {$mode delphi}
 
-{ Copyright (c) 2018 by Herman Schoenfeld
+{ Copyright (c) 2018 Sphere 10 Software
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
   Acknowledgements:
-  - Albert Molina: portions of code copied from https://github.com/PascalCoin/PascalCoin/blob/master/Units/Forms/UFRMWallet.pas
+  - Herman Schoenfeld: unit creator, implementation
 }
 
 interface

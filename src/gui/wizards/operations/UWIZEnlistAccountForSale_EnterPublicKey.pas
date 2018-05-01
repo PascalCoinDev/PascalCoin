@@ -13,13 +13,14 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, Buttons, UCoreObjects, UWizard, UWIZEnlistAccountForSale_EnterLockingBlock;
+  ExtCtrls, Buttons, UCoreObjects,
+  UWizard, UWIZOperation, UWIZEnlistAccountForSale_EnterLockingBlock;
 
 type
 
   { TWIZEnlistAccountForSale_EnterPublicKey }
 
-  TWIZEnlistAccountForSale_EnterPublicKey = class(TWizardForm<TExecuteOperationsModel>)
+  TWIZEnlistAccountForSale_EnterPublicKey = class(TWizardForm<TWIZOperationsModel>)
     gbTransaction: TGroupBox;
     lblBlockLock: TLabel;
     lblPublicKey: TLabel;

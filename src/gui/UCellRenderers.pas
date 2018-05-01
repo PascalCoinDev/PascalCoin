@@ -181,7 +181,7 @@ end;
 
 class function TCellRenderers.OperationShortText(const OpType, OpSubType : DWord) : AnsiString;
 begin
-  Result := TOperationsManager.GetOperationShortText(OpType, OpSubType);
+  Result := TCoreTool.GetOperationShortText(OpType, OpSubType);
 end;
 
 class function TCellRenderers.AccountKeyShortText(const AText : AnsiString) : AnsiString;

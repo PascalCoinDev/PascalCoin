@@ -15,13 +15,13 @@ unit UWIZSendPASC;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, UWizard, UCommon, UCoreObjects;
+  Classes, SysUtils, Forms, Dialogs, UWizard, UCommon, UCoreObjects, UWIZOperation;
 
 type
 
   { TWIZSendPASCWizard }
 
-  TWIZSendPASCWizard = class(TWizard<TExecuteOperationsModel>)
+  TWIZSendPASCWizard = class(TWizard<TWIZOperationsModel>)
   public
     constructor Create(AOwner: TComponent); override;
     function DetermineHasNext: boolean; override;
@@ -68,7 +68,7 @@ end;
 function TWIZSendPASCWizard.FinishRequested(out message: ansistring): boolean;
 begin
   // Execute the PASC Sending here
-  Result := TOperationsManager.ExecuteSendPASC(Model.Account.SelectedAccounts, Model.SendPASC.DestinationAccount, Model.Signer.SignerAccount, Model.SendPASC.SingleAmountToSend, Model.Fee.SingleOperationFee, Model.SendPASC.SendPASCMode, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
+  Result := TWIZOperationsHelper.ExecuteSendPASC(Model.Account.SelectedAccounts, Model.SendPASC.DestinationAccount, Model.Signer.SignerAccount, Model.SendPASC.SingleAmountToSend, Model.Fee.SingleOperationFee, Model.SendPASC.SendPASCMode, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
 end;
 
 function TWIZSendPASCWizard.CancelRequested(out message: ansistring): boolean;

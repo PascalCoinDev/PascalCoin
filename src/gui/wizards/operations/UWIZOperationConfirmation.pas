@@ -17,13 +17,13 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UCoreObjects;
+  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UWIZOperation, UCoreObjects;
 
 type
 
   { TWIZOperationConfirmation }
 
-  TWIZOperationConfirmation = class(TWizardForm<TExecuteOperationsModel>)
+  TWIZOperationConfirmation = class(TWizardForm<TWIZOperationsModel>)
     GroupBox1: TGroupBox;
     lblSignerAccount: TLabel;
     lblBeneficiaryAccount: TLabel;
@@ -52,12 +52,12 @@ type
 
   TOperationConfirmationDataSource = class(TAccountsDataSourceBase)
   private
-    FModel: TExecuteOperationsModel;
+    FModel: TWIZOperationsModel;
 
   protected
     function GetColumns: TDataColumns; override;
   public
-    property Model: TExecuteOperationsModel read FModel write FModel;
+    property Model: TWIZOperationsModel read FModel write FModel;
     procedure FetchAll(const AContainer: TList<TAccount>); override;
     function GetItemField(constref AItem: TAccount; const ABindingName: ansistring): variant; override;
   end;
@@ -190,12 +190,12 @@ begin
       omtSendPasc:
       begin
         Result := IIF(Model.SendPASC.SendPASCMode = akaAllBalance, 'All Balance', Format('%s ', [TAccountComp.FormatMoney(Model.SendPASC.SingleAmountToSend)]));
-        Result := Format('%s %s', [TOperationsManager.GetOperationShortText(CT_Op_Transaction, CT_OpSubtype_TransactionSender), Result]);
+        Result := Format('%s %s', [TCoreTool.GetOperationShortText(CT_Op_Transaction, CT_OpSubtype_TransactionSender), Result]);
       end;
       omtChangeKey:
-        Result := Format('%s', [TOperationsManager.GetOperationShortText(CT_Op_ChangeKeySigned, CT_OpSubtype_ChangeKey)]);
+        Result := Format('%s', [TCoreTool.GetOperationShortText(CT_Op_ChangeKeySigned, CT_OpSubtype_ChangeKey)]);
       omtEnlistAccountForSale:
-        Result := Format('%s', [TOperationsManager.GetOperationShortText(CT_Op_ListAccountForSale, IIF(Model.EnlistAccountForSale.AccountSaleMode = akaPrivateSale, CT_OpSubtype_ListAccountForPrivateSale, CT_OpSubtype_ListAccountForPublicSale))]);
+        Result := Format('%s', [TCoreTool.GetOperationShortText(CT_Op_ListAccountForSale, IIF(Model.EnlistAccountForSale.AccountSaleMode = akaPrivateSale, CT_OpSubtype_ListAccountForPrivateSale, CT_OpSubtype_ListAccountForPublicSale))]);
 
     end
   else if ABindingName = 'Recipient' then
