@@ -117,6 +117,7 @@ Type
       class function TryParseEncryptedKey(const AKeyText, AKeyPassword : AnsiString; out AKey : TECPrivateKey) : boolean;
       class function TryParseRawKey(const ARawBytes : TRawBytes; AEncryptionTypeNID : Word; out AKey : TECPrivateKey) : boolean;
       class function TryParseHexKey(const AHexString : AnsiString; AEncryptionTypeNID : Word; out AKey : TECPrivateKey) : boolean;
+      class function GetKeyNameOrDefault(const AKey: TAccountKey) : AnsiString;
   end;
 
 Const CT_TWalletKey_NUL  : TWalletKey = (Name:'';AccountKey:(EC_OpenSSL_NID:0;x:'';y:'');CryptedKey:'';PrivateKey:Nil;SearchableAccountKey:'');
@@ -784,6 +785,20 @@ begin
       Result := false;
     end;
   end;
+end;
+
+class function TWallet.GetKeyNameOrDefault(const AKey: TAccountKey) : AnsiString;
+var
+ LIndex : Integer;
+ LKey : TWalletKey;
+begin
+  LIndex := Self.Keys.IndexOfAccountKey(AKey);
+  if LIndex >= 0 then begin
+    LKey := Self.Keys[LIndex];
+    Result := LKey.Name;
+    if LKey.HasPrivateKey then
+      Result := Result + ' (*)';
+  end else Result := TAccountComp.AccountPublicKeyExport(AKey);
 end;
 
 class procedure TWallet.CheckLoaded;
