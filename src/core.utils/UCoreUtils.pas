@@ -277,12 +277,11 @@ var
   Disposables: TDisposables;
 begin
   LAccs := Disposables.AddObject(TList<TAccount>.Create) as TList<TAccount>;
-  for i := 0 to TWallet.Keys.Count - 1 do
-  begin
+  for i := 0 to TWallet.Keys.Count - 1 do begin
     LList := TWallet.Keys.AccountsKeyList.AccountKeyList[i];
     for j := 0 to LList.Count - 1 do begin
       if IncludePending then
-        LAcc := TNode.Node.Operations.SafeBoxTransaction.Account(j)
+        LAcc := TNode.Node.Operations.SafeBoxTransaction.Account(LList.Get(j))
       else begin
         TNode.Node.Bank.SafeBox.StartThreadSafe;
         LAcc := TNode.Node.Bank.SafeBox.Account(LList.Get(j));
