@@ -6,15 +6,14 @@ object WIZOperationSelected: TWIZOperationSelected
   Caption = 'OperationSelected'
   ClientHeight = 261
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
-  object gpSelectedAccounts: TGroupBox
+  object gpSelectedAccount: TGroupBox
     Left = 4
     Height = 256
     Top = 4
     Width = 420
     Anchors = [akTop, akLeft, akRight, akBottom]
-    Caption = 'Selected Accounts'
+    Caption = 'Selected Account'
     ClientHeight = 236
     ClientWidth = 416
     TabOrder = 0

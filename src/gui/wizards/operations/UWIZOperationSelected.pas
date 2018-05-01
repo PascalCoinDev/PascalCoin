@@ -24,7 +24,7 @@ type
   { TWIZOperationSelected }
 
   TWIZOperationSelected = class(TWizardForm<TWIZOperationsModel>)
-    gpSelectedAccounts: TGroupBox;
+    gpSelectedAccount: TGroupBox;
     lblTotalBalances: TLabel;
     lblTotalBalanceValue: TLabel;
     paGrid: TPanel;
@@ -63,6 +63,7 @@ var
   LIdx: integer;
   LAccount: TAccount;
   LTotalBalance: int64;
+  LCaption: String;
 begin
   FSelectedAccountsGrid := TVisualGrid.Create(Self);
   FSelectedAccountsGrid.CanSearch := False;
@@ -71,6 +72,8 @@ begin
   FSelectedAccountsGrid.AutoPageSize := True;
   FSelectedAccountsGrid.SelectionType := stNone;
   FSelectedAccountsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
+  LCaption := 'Selected Account';
+  gpSelectedAccount.Caption := IIF(Length(Model.Account.SelectedAccounts) > 1, Format('%ss', [LCaption]), Format('%s', [LCaption]));
   with FSelectedAccountsGrid.AddColumn('Account') do
   begin
     StretchedToFill := True;

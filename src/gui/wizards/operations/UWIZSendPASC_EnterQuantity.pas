@@ -62,7 +62,7 @@ begin
   end
   else
   begin
-    edtAmt.Text := TAccountComp.FormatMoney(0);
+    edtAmt.Text := '';
     edtAmt.Enabled := True;
     Model.SendPASC.SendPASCMode := akaSpecifiedAmount;
   end;

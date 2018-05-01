@@ -6,9 +6,8 @@ object WIZOperationConfirmation: TWIZOperationConfirmation
   Caption = 'WIZOperationConfirmation'
   ClientHeight = 320
   ClientWidth = 511
-  LCLVersion = '1.8.2.0'
   Visible = False
-  object GroupBox1: TGroupBox
+  object gpConfirmOperation: TGroupBox
     Left = 10
     Height = 299
     Top = 8

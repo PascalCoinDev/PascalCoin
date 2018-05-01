@@ -27,15 +27,13 @@ type
   TWIZSendPASC_EnterRecipient = class(TWizardForm<TWIZOperationsModel>)
     edtDestAcc: TEdit;
     gbRecipient: TGroupBox;
-    lblDestAccNumber: TLabel;
-    lblDestAccNumberValue: TLabel;
-    lblDestAccNumberName: TLabel;
-    lblDestAccNumberNameValue: TLabel;
+    lblAccDetails: TLabel;
     lblDestNotice: TLabel;
     btnSearch: TSpeedButton;
     procedure btnSearchClick(Sender: TObject);
     procedure edtDestAccChange(Sender: TObject);
     procedure UpdateUI();
+
 
 
   public
@@ -68,19 +66,15 @@ begin
   begin
     if (LAccountNumber < 0) or (LAccountNumber >= TNode.Node.Bank.AccountsCount) then
     begin
-      lblDestAccNumberValue.Caption := 'Unknown';
-      lblDestAccNumberNameValue.Caption := 'Unknown';
+      lblAccDetails.Caption := '';
       Exit;
     end;
     LTempAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
-    lblDestAccNumberValue.Caption := edtDestAcc.Text;
-    lblDestAccNumberNameValue.Caption := LTempAccount.Name;
+    lblAccDetails.Caption := LTempAccount.DisplayString;
   end
   else
-  begin
-    lblDestAccNumberValue.Caption := 'Unknown';
-    lblDestAccNumberNameValue.Caption := 'Unknown';
-  end;
+    lblAccDetails.Caption := '';
+
 
 end;
 

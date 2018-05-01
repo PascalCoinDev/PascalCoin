@@ -7,7 +7,6 @@ object WIZSendPASC_EnterRecipient: TWIZSendPASC_EnterRecipient
   Caption = 'WIZSendPASC_EnterRecipient'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
   object gbRecipient: TGroupBox
     Left = 16
@@ -79,39 +78,12 @@ object WIZSendPASC_EnterRecipient: TWIZSendPASC_EnterRecipient
       ParentColor = False
       ParentFont = False
     end
-    object lblDestAccNumber: TLabel
-      Left = 8
+    object lblAccDetails: TLabel
+      Left = 208
       Height = 15
-      Top = 80
-      Width = 158
-      Caption = 'Destination Account Number:'
-      ParentColor = False
-      ParentFont = False
-    end
-    object lblDestAccNumberName: TLabel
-      Left = 8
-      Height = 15
-      Top = 108
-      Width = 193
-      Caption = 'Destination Account Number Name:'
-      ParentColor = False
-      ParentFont = False
-    end
-    object lblDestAccNumberValue: TLabel
-      Left = 224
-      Height = 15
-      Top = 80
-      Width = 92
-      Caption = 'Account Number'
-      ParentColor = False
-      ParentFont = False
-    end
-    object lblDestAccNumberNameValue: TLabel
-      Left = 224
-      Height = 15
-      Top = 108
-      Width = 121
-      Caption = 'AccountNumberName'
+      Top = 44
+      Width = 83
+      Caption = 'Account Details'
       ParentColor = False
       ParentFont = False
     end

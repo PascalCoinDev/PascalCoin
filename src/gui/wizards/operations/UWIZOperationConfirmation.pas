@@ -24,13 +24,16 @@ type
   { TWIZOperationConfirmation }
 
   TWIZOperationConfirmation = class(TWizardForm<TWIZOperationsModel>)
-    GroupBox1: TGroupBox;
+    gpConfirmOperation: TGroupBox;
+    lblPayload: TLabel;
+    lblPayload1: TLabel;
+    lblPayload2: TLabel;
     lblSignerAccount: TLabel;
     lblBeneficiaryAccount: TLabel;
-    lblPayload: TLabel;
     lblSgnAcc: TLabel;
     lblBenAcc: TLabel;
     mmoPayload: TMemo;
+    mmoPayload1: TMemo;
     paGrid: TPanel;
   private
     FConfirmationGrid: TVisualGrid;
@@ -67,7 +70,9 @@ type
 procedure TWIZOperationConfirmation.OnPresent;
 var
   LData: TOperationConfirmationDataSource;
+  LCaption: string;
 begin
+
   FConfirmationGrid := TVisualGrid.Create(Self);
   FConfirmationGrid.CanSearch := False;
   FConfirmationGrid.SortMode := smMultiColumn;
@@ -75,6 +80,8 @@ begin
   FConfirmationGrid.AutoPageSize := True;
   FConfirmationGrid.SelectionType := stNone;
   FConfirmationGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
+  LCaption := 'Confirm Operation';
+  gpConfirmOperation.Caption := IIF(Length(Model.Account.SelectedAccounts) > 1, Format('%ss', [LCaption]), Format('%s', [LCaption]));
   with FConfirmationGrid.AddColumn('Sender') do
   begin
     StretchedToFill := True;
@@ -136,7 +143,21 @@ begin
     lblBenAcc.Visible := True;
     lblBenAcc.Caption := Model.EnlistAccountForSale.SellerAccount.AccountString;
   end;
-  mmoPayload.Lines.Text := Model.Payload.Content;
+
+
+  if not Model.Payload.HasPayload then
+  begin
+    lblPayload.Visible := False;
+    mmoPayload.Visible := False;
+    paGrid.SetBounds(paGrid.Left, paGrid.Top, paGrid.Width, gpConfirmOperation.Height - 50);
+  end
+  else
+  begin
+    lblPayload.Visible := True;
+    mmoPayload.Visible := True;
+    mmoPayload.Lines.Text := Model.Payload.Content;
+    paGrid.SetBounds(paGrid.Left, paGrid.Top, paGrid.Width, gpConfirmOperation.Height - mmoPayload.Height - lblPayload.Height - 60);
+  end;
 end;
 
 procedure TWIZOperationConfirmation.OnNext;
@@ -201,10 +222,17 @@ begin
   else if ABindingName = 'Recipient' then
     case Model.ExecuteOperationType of
       omtSendPasc:
+      begin
         Result := Model.SendPASC.DestinationAccount.AccountString;
+        Result := TCellRenderers.OperationShortHash(Result);
+      end;
       omtChangeKey:
         case Model.ChangeKey.ChangeKeyMode of
-          akaTransferAccountOwnership: Result := TAccountComp.AccountPublicKeyExport(Model.TransferAccount.AccountKey);
+          akaTransferAccountOwnership:
+          begin
+            Result := TAccountComp.AccountPublicKeyExport(Model.TransferAccount.AccountKey);
+            Result := TCellRenderers.OperationShortHash(Result);
+          end;
           akaChangeAccountPrivateKey:
           begin
             Result := IIF(
@@ -214,13 +242,16 @@ begin
               );
             if not Assigned(Model.ChangeAccountPrivateKey.NewWalletKey.PrivateKey) then
               Result := Result + '(*)';
+            Result := TCellRenderers.OperationShortHash(Result);
           end
           else
             raise ENotSupportedException.Create('ChangeKeyMode');
         end;
       omtEnlistAccountForSale:
+      begin
         Result := IIF(Model.EnlistAccountForSale.AccountSaleMode = akaPrivateSale, TAccountComp.AccountPublicKeyExport(Model.EnlistAccountForSale.NewOwnerPublicKey), '');
-
+        Result := TCellRenderers.OperationShortHash(Result);
+      end;
     end
   else if ABindingName = 'Fee' then
     Result := -Model.Fee.SingleOperationFee
