@@ -132,7 +132,7 @@ begin
 
   // grids
   FAccountsGrid := TVisualGrid.Create(Self);
-  FAccountsGrid.SortMode := smMultiColumn;
+  FAccountsGrid.SortMode := smSingleColumn;
   FAccountsGrid.FetchDataInThread := false;
   FAccountsGrid.AutoPageSize := True;
   FAccountsGrid.DeselectionType := dtDefault;
@@ -143,7 +143,6 @@ begin
     Binding := 'AccountNumber';
     SortBinding := 'AccountNumber';
     DisplayBinding := 'Account';
-    SortDirection:= sdAscending;
     Width := 100;
     HeaderFontStyles := [fsBold];
     DataFontStyles := [fsBold];

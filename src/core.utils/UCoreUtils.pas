@@ -291,6 +291,7 @@ begin
     end;
   end;
   Result := LAccs.ToArray;
+  TArrayHelper<TAccount>.Sort(Result, TAccountComparer.Create);
 end;
 
 class function TCoreTool.GetUserAccountNumbers: TArray<cardinal>;
