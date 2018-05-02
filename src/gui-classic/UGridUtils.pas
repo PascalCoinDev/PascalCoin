@@ -122,7 +122,7 @@ Type
     Property OperationsResume : TOperationsResumeList read FOperationsResume;
   End;
 
-  TBlockSummary = Record
+  TBlockChainData = Record
     Block : Cardinal;
     Timestamp : Cardinal;
     BlockProtocolVersion,
@@ -145,7 +145,7 @@ Type
     TimeAverage25 : Real;
     TimeAverage10 : Real;
   End;
-  TBlockSummaryArray = Array of TBlockSummary;
+  TBlockChainDataArray = Array of TBlockChainData;
 
   { TBlockChainGrid }
 
@@ -153,7 +153,7 @@ Type
 
   TBlockChainGrid = Class(TComponent)
   private
-    FBlockChainDataArray : TBlockSummaryArray;
+    FBlockChainDataArray : TBlockChainDataArray;
     FBlockStart: Int64;
     FHashRateAs: TShowHashRateAs;
     FMaxBlocks: Integer;
@@ -193,7 +193,7 @@ Type
   End;
 
 Const
-  CT_TBlockSummary_NUL : TBlockSummary = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:-1;Volume:-1;Reward:0;Fee:0;Target:0;HashRateTargetKhs:0;HashRateKhs:0;MinerPayload:'';PoW:'';SafeBoxHash:'';AccumulatedWork:0;TimeAverage200:0;TimeAverage150:0;TimeAverage100:0;TimeAverage75:0;TimeAverage50:0;TimeAverage25:0;TimeAverage10:0);
+  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:-1;Volume:-1;Reward:0;Fee:0;Target:0;HashRateTargetKhs:0;HashRateKhs:0;MinerPayload:'';PoW:'';SafeBoxHash:'';AccumulatedWork:0;TimeAverage200:0;TimeAverage150:0;TimeAverage100:0;TimeAverage75:0;TimeAverage50:0;TimeAverage25:0;TimeAverage10:0);
 
 
 implementation
@@ -1063,7 +1063,7 @@ end;
 procedure TBlockChainGrid.OnGridDrawCell(Sender: TObject; ACol, ARow: Longint;
   Rect: TRect; State: TGridDrawState);
 Var s : String;
-  bcd : TBlockSummary;
+  bcd : TBlockChainData;
   deviation : Real;
   hr_base : Int64;
 begin
@@ -1275,7 +1275,7 @@ end;
 procedure TBlockChainGrid.UpdateBlockChainGrid;
 Var nstart,nend : Cardinal;
   opc : TPCOperationsComp;
-  bcd : TBlockSummary;
+  bcd : TBlockChainData;
   i : Integer;
   opb : TOperationBlock;
   bn : TBigNum;
@@ -1310,7 +1310,7 @@ begin
       opc.bank := Node.Bank;
       while (nstart<=nend) do begin
         i := length(FBlockChainDataArray) - (nend-nstart+1);
-        bcd := CT_TBlockSummary_NUL;
+        bcd := CT_TBlockChainData_NUL;
         opb := Node.Bank.SafeBox.Block(nend).blockchainInfo;
         bcd.Block:=opb.block;
         bcd.Timestamp := opb.timestamp;

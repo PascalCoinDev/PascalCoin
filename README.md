@@ -34,10 +34,13 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
-### DEVELOPMENT STATUS
-- PIP - 0010: 50% inflation reduction
-- New target calc on protocol V3 in order to reduce the sinusoidal effect
-  - Harmonization of the sinusoidal effect modifying the rise / fall by 50% calculating over the last 10 blocks only when increase/decrease is high
+### Build 3.0.0 - 2018-05-02
+- Implementation of Hard fork on block 210000
+  - PIP - 0010: 50% inflation reduction
+  - PIP - 0011: 20% Development reward
+  - PIP - 0017: Anonymity via transaction mixing (multioperation)
+  - New target calc on protocol V3 in order to reduce the sinusoidal effect
+    - Harmonization of the sinusoidal effect modifying the rise / fall by 50% calculating over the last 10 blocks only when increase/decrease is high
 - New Safebox Snapshoting
   - This allow quickly rollback/commit directly to Safebox instead of create a separate Safebox on memory (read from disk... use more ram...)
   - Is usefull when detecting posible orphan blocks in order to check which chain is the highest chain without duplicating a safebox to compare
@@ -83,6 +86,9 @@ Also, consider a donation at PascalCoin development account: "0-10"
     - "account" : will not be included in Multioperations, use fields in "senders"/"receivers"/"changers" instead    
     - "n_operation" will not be included in Multioperations, use fields in "senders"/"receivers"/"changers" instead
     - "payload" will not be included in Multioperations, use fields in "senders"/"receivers"/"changers" instead
+    - "sender_account" is not correct to be used. Use "account" param on "senders" array instead
+    - "dest_account" is not correct to be used. Use "account" param on "receivers" array instead
+    - "amount" is not correct to be used. Use each "amount" param on "senders/receivers" instad. Note: sender "amount" is a negative number, positive for receiver
   - New object "MultiOperation Object" : Will return info about a MultiOperation
     - "rawoperations" : HEXASTRING with this single MultiOperation in RAW format
     - "senders" : Will return an Array with Objects
