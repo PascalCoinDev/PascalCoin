@@ -306,7 +306,7 @@ begin
   begin
     LList := TWallet.Keys.AccountsKeyList.AccountKeyList[i];
     for j := 0 to LList.Count - 1 do
-      LAccs.Add(j);
+      LAccs.Add(LList.Get(j));
   end;
   Result := LAccs.ToArray;
 end;

@@ -417,21 +417,17 @@ begin
   try
     accountBlockOps := GC.AddObject(TOperationsResumeList.Create) as TOperationsResumeList;
     list := GC.AddObject(Classes.TList.Create) as Classes.TList;
-    for acc in FAccounts do
-    begin
+    for acc in FAccounts do begin
       // Load pending operations first
       list.Clear;
       accountBlockOps.Clear;
       Node.Operations.OperationsHashTree.GetOperationsAffectingAccount(acc, list);
       if list.Count > 0 then
-        for i := list.Count - 1 downto 0 do
-        begin
+        for i := list.Count - 1 downto 0 do begin
           Op := node.Operations.OperationsHashTree.GetOperation(PtrInt(list[i]));
-          if TPCOperation.OperationToOperationResume(0, Op, False, acc, OPR) then
-          begin
+          if TPCOperation.OperationToOperationResume(0, Op, False, acc, OPR) then begin
             OPR.NOpInsideBlock := i;
             OPR.Block := Node.Operations.OperationBlock.block;
-            ;
             OPR.Balance := Node.Operations.SafeBoxTransaction.Account(acc {Op.SignerAccount}).balance;
             AContainer.Add(OPR);
           end;
