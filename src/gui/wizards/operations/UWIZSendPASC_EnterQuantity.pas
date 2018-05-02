@@ -62,8 +62,8 @@ begin
   end
   else
   begin
-    edtAmt.Text := '';
     edtAmt.Enabled := True;
+    edtAmt.Text := IIF(Model.SendPASC.SingleAmountToSend = 0, '', TAccountComp.FormatMoney(Model.SendPASC.SingleAmountToSend));
     Model.SendPASC.SendPASCMode := akaSpecifiedAmount;
   end;
   Model.Payload.HasPayload := IIF(chkAttachPayload.Checked, True, False);

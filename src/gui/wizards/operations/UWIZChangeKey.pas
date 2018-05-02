@@ -33,7 +33,7 @@ type
 implementation
 
 uses
-  UCoreUtils,
+  UWallet,
   UWIZOperationSelected,
   UWIZChangeKey_SelectOption,
   UWIZOperationConfirmation;
@@ -78,6 +78,8 @@ begin
   end;
 
   Result := TWIZOperationsHelper.ExecuteChangeKey(Model.Account.SelectedAccounts, Model.Signer.SignerAccount, LPublicKey, Model.Fee.SingleOperationFee, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
+  if TWIZOperationsModel.RelockOnFinish then
+   TWallet.Keys.LockWallet;
 end;
 
 function TWIZChangeKeyWizard.CancelRequested(out message: ansistring): boolean;

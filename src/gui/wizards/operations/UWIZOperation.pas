@@ -131,6 +131,7 @@ type
 
     private
       FExecuteOperationType: TExecuteOperationType;
+      FRelockOnFinish: Boolean; static;
       FAccount: TAccountModel;
       FSendPASC: TSendPASCModel;
       FChangeKey: TChangeKeyModel;
@@ -152,6 +153,7 @@ type
       property Fee: TFeeModel read FFee;
       property Signer: TSignerModel read FSigner;
       property Payload: TPayloadModel read FPayload;
+      class property RelockOnFinish: Boolean read FRelockOnFinish write FRelockOnFinish;
   end;
 
 
@@ -180,6 +182,7 @@ constructor TWIZOperationsModel.Create(AOwner: TComponent; AType: TWIZOperations
 begin
   inherited Create(AOwner);
   FExecuteOperationType := AType;
+  FRelockOnFinish := False;
   FAccount := TAccountModel.Create(Self);
   FSendPASC := TSendPASCModel.Create(Self);
   FChangeKey := TChangeKeyModel.Create(Self);

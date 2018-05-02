@@ -31,9 +31,11 @@ object WIZOperationConfirmation: TWIZOperationConfirmation
       Left = 8
       Height = 15
       Top = 2
-      Width = 84
+      Width = 88
       Caption = 'Signer Account:'
+      Font.Style = [fsBold]
       ParentColor = False
+      ParentFont = False
     end
     object lblSgnAcc: TLabel
       Left = 112
@@ -68,9 +70,11 @@ object WIZOperationConfirmation: TWIZOperationConfirmation
       Left = 280
       Height = 15
       Top = 2
-      Width = 109
+      Width = 115
       Caption = 'Beneficiary Account:'
+      Font.Style = [fsBold]
       ParentColor = False
+      ParentFont = False
     end
     object lblBenAcc: TLabel
       Left = 408

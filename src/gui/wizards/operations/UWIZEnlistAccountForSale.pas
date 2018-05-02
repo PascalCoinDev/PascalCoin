@@ -34,7 +34,7 @@ type
 implementation
 
 uses
-  UCoreUtils,
+  UWallet,
   UWIZOperationSelected,
   UWIZEnlistAccountForSale_SelectOption,
   UWIZEnlistAccountForSale_EnterSeller,
@@ -83,6 +83,8 @@ begin
   end;
 
   Result := TWIZOperationsHelper.ExecuteEnlistAccountForSale(Model.Account.SelectedAccounts, Model.Signer.SignerAccount, Model.EnlistAccountForSale.SellerAccount, LPublicKey, Model.Fee.SingleOperationFee, Model.EnlistAccountForSale.SalePrice, Model.EnlistAccountForSale.LockedUntilBlock, Model.EnlistAccountForSale.AccountSaleMode, Model.Payload.PayloadEncryptionMode, IIF(Model.Payload.HasPayload, Model.Payload.Content, ''), Model.Payload.Password, message);
+  if TWIZOperationsModel.RelockOnFinish then
+   TWallet.Keys.LockWallet;
 end;
 
 function TWIZEnlistAccountForSaleWizard.CancelRequested(out message: ansistring): boolean;

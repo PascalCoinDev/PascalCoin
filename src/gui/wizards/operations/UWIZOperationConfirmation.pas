@@ -165,8 +165,10 @@ var
   LLocked: boolean;
 begin
   LLocked := (not TWallet.Keys.HasPassword) or (not TWallet.Keys.IsValidPassword);
-  if LLocked then
+  if LLocked then begin
     TUserInterface.UnlockWallet(Self);
+    TWIZOperationsModel.RelockOnFinish := LLocked;
+  end;
 end;
 
 { TOperationConfirmationDataSource }
@@ -230,14 +232,14 @@ begin
         case Model.ChangeKey.ChangeKeyMode of
           akaTransferAccountOwnership:
           begin
-            Result := TAccountComp.AccountPublicKeyExport(Model.TransferAccount.AccountKey);
+            Result := TAccountComp.AccountPublicKeyExport(LDestinationAccountKey);
             Result := TCellRenderers.OperationShortHash(Result);
           end;
           akaChangeAccountPrivateKey:
           begin
             Result := IIF(
               Model.ChangeAccountPrivateKey.NewWalletKey.Name = '',
-              TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(Model.ChangeAccountPrivateKey.NewWalletKey.AccountKey)),
+              TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(LDestinationAccountKey)),
               Model.ChangeAccountPrivateKey.NewWalletKey.Name
               );
             if not Assigned(Model.ChangeAccountPrivateKey.NewWalletKey.PrivateKey) then
