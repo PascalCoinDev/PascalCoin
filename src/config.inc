@@ -29,8 +29,8 @@
   {.$DEFINE Synapse_OpenSSLv10}
   {.$DEFINE Synapse_OpenSSLv11}
 
-  {.$DEFINE PRODUCTION}
-  {$DEFINE TESTNET}
+  {$DEFINE PRODUCTION}
+  {.$DEFINE TESTNET}
 
   // For GUI: Allows to show average time on blockchain explorer
   {$DEFINE SHOW_AVERAGE_TIME_STATS}
