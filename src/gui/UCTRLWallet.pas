@@ -133,7 +133,7 @@ begin
   // grids
   FAccountsGrid := TVisualGrid.Create(Self);
   FAccountsGrid.SortMode := smSingleColumn;
-  FAccountsGrid.FetchDataInThread := false;
+  FAccountsGrid.FetchDataInThread := true;
   FAccountsGrid.AutoPageSize := True;
   FAccountsGrid.DeselectionType := dtDefault;
   FAccountsGrid.SelectionType := stMultiRow;

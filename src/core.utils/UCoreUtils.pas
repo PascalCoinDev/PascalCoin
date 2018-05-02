@@ -60,17 +60,13 @@ type
   { TCoreTool }
 
   TCoreTool = class
-  private
-    class function GetBalanceInternal(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary;
   public
     class function GetSignerCandidates(ANumOps: integer; ASingleOperationFee: int64; const ACandidates: array of TAccount): TArray<TAccount>; static;
     class function GetOperationShortText(const OpType, OpSubType: DWord): ansistring; static; inline;
     class function GetUserBalance(IncludePending: boolean = False): TBalanceSummary;
-    class function GetUserAccounts(IncludePending: boolean = False): TArray<TAccount>;
+    class function GetUserAccounts(IncludePending: boolean = False): TArray<TAccount>; overload;
+    class function GetUserAccounts(out Balance: TBalanceSummary; IncludePending: boolean = False): TArray<TAccount>; overload;
     class function GetUserAccountNumbers: TArray<cardinal>;
-    class function GetModifiedAccounts(const AAccounts: array of TAccount; IncludePending : boolean = false): TArray<TAccount>;
-    class function GetBalance(const AKey: TAccountKey; IncludePending: boolean = False): TBalanceSummary; overload;
-    class function GetBalance(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary; overload;
   end;
 
   { TNodeHelper }
@@ -182,93 +178,19 @@ begin
   end;
 end;
 
-class function TCoreTool.GetModifiedAccounts(const AAccounts: array of TAccount; IncludePending : boolean = false): TArray<TAccount>;
-var
-  i: integer;
-  LChanged: TList<TAccount>;
-  LAcc: TAccount;
-  GC: TDisposables;
-begin
-  LChanged := GC.AddObject(TList<TAccount>.Create) as TList<TAccount>;
-  for i := Low(AAccounts) to High(AAccounts) do
-  begin
-    if IncludePending then
-      LAcc := TNode.Node.Operations.SafeBoxTransaction.Account(AAccounts[i].account)
-    else begin
-      TNode.Node.Bank.SafeBox.StartThreadSafe;
-      LAcc := TNode.Node.Bank.SafeBox.Account(AAccounts[i].account);
-      TNode.Node.Bank.SafeBox.EndThreadSave;
-    end;
-    if (LAcc.n_Operation <> AAccounts[i].n_operation) or (LAcc.Balance <> AAccounts[i].balance) then
-      LChanged.Add(LAcc);
-  end;
-  Result := LChanged.ToArray;
-end;
-
-class function TCoreTool.GetBalance(const AKey: TAccountKey; IncludePending: boolean = False): TBalanceSummary;
-begin
-  Result := GetBalance([AKey], IncludePending);
-end;
-
-class function TCoreTool.GetBalance(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary;
-begin
-  Result := GetBalanceInternal(AKeys, IncludePending);
-end;
-
-class function TCoreTool.GetBalanceInternal(const AKeys: array of TAccountKey; IncludePending: boolean = False): TBalanceSummary;
-var
-  i: integer;
-  LAcc: TAccount;
-  LAccs: THashSet<TAccount>;
-  LKeys: THashSet<TAccountKey>;
-  GC: TDisposables;
-begin
-  // Setup local collections
-  LAccs := GC.AddObject(THashSet<TAccount>.Create(TAccountEqualityComparer.Create)) as THashSet<TAccount>;
-  LKeys := GC.AddObject(THashSet<TAccountKey>.Create(TAccountKeyEqualityComparer.Create)) as THashSet<TAccountKey>;
-
-  // Gather all keys into hashset
-  for i := Low(AKeys) to High(AKeys) do
-    LKeys.Add(AKeys[i]);
-
-  // Gather all referenced accounts
-  for i := 0 to TNode.Node.Bank.SafeBox.AccountsCount - 1 do
-  begin
-    if IncludePending then
-      LAcc := TNode.Node.Operations.SafeBoxTransaction.Account(i)
-    else begin
-      TNode.Node.Bank.SafeBox.StartThreadSafe;
-      LAcc := TNode.Node.Bank.SafeBox.Account(i);
-      TNode.Node.Bank.SafeBox.EndThreadSave;
-    end;
-    if LKeys.Contains(LAcc.accountInfo.accountKey) then
-      LAccs.Add(LAcc);
-  end;
-
-  // Build the results
-  Result := CT_BalanceSummary_Nil;
-  for LAcc in LAccs do
-  begin
-    Inc(Result.TotalPASA);
-    Inc(Result.TotalPASC, LAcc.Balance);
-  end;
-end;
-
 class function TCoreTool.GetUserBalance(IncludePending: boolean = False): TBalanceSummary;
-var
-  i: integer;
-  LAccs: TArray<TAccount>;
 begin
-  Result := CT_BalanceSummary_Nil;
-  LAccs := TCoreTool.GetUserAccounts(IncludePending);
-  for i := Low(LAccs) to High(LAccs) do
-  begin
-    Inc(Result.TotalPASA);
-    Inc(Result.TotalPASC, LAccs[i].Balance);
-  end;
+  GetUserAccounts(Result, IncludePending);
 end;
 
 class function TCoreTool.GetUserAccounts(IncludePending: boolean = False): TArray<TAccount>;
+var
+  LBalance : TBalanceSummary;
+begin
+  Result := GetUserAccounts(LBalance, IncludePending);
+end;
+
+class function TCoreTool.GetUserAccounts(out Balance: TBalanceSummary; IncludePending: boolean = False): TArray<TAccount>;
 var
   i, j: integer;
   LAccs: TList<TAccount>;
@@ -276,22 +198,28 @@ var
   LList: TOrderedCardinalList;
   Disposables: TDisposables;
 begin
+  Balance := CT_BalanceSummary_Nil;
   LAccs := Disposables.AddObject(TList<TAccount>.Create) as TList<TAccount>;
-  for i := 0 to TWallet.Keys.Count - 1 do begin
-    LList := TWallet.Keys.AccountsKeyList.AccountKeyList[i];
-    for j := 0 to LList.Count - 1 do begin
-      if IncludePending then
-        LAcc := TNode.Node.Operations.SafeBoxTransaction.Account(LList.Get(j))
-      else begin
-        TNode.Node.Bank.SafeBox.StartThreadSafe;
-        LAcc := TNode.Node.Bank.SafeBox.Account(LList.Get(j));
-        TNode.Node.Bank.SafeBox.EndThreadSave;
+  TNode.Node.Bank.SafeBox.StartThreadSafe;
+  try
+    for i := 0 to TWallet.Keys.Count - 1 do begin
+      LList := TWallet.Keys.AccountsKeyList.AccountKeyList[i];
+      for j := 0 to LList.Count - 1 do begin
+        if IncludePending then
+          LAcc := TNode.Node.Operations.SafeBoxTransaction.Account(LList.Get(j))
+        else begin
+          LAcc := TNode.Node.Bank.SafeBox.Account(LList.Get(j));
+        end;
+        LAccs.Add(LAcc);
+        Inc(Balance.TotalPASA);
+        Inc(Balance.TotalPASC, LAcc.Balance);
       end;
-      LAccs.Add(LAcc);
     end;
+  finally
+    TNode.Node.Bank.SafeBox.EndThreadSave;
   end;
+  LAccs.Sort(TAccountComparer.Create);
   Result := LAccs.ToArray;
-  TArrayHelper<TAccount>.Sort(Result, TAccountComparer.Create);
 end;
 
 class function TCoreTool.GetUserAccountNumbers: TArray<cardinal>;
