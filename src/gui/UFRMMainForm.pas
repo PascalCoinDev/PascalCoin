@@ -145,7 +145,7 @@ begin
   AdjustStatusToolBar;
 
   CloseAction := caNone; // Will handle terminate in separate method
-  FMode := wmSync;
+  Mode := wmSync;
   FSyncControl := TCTRLSyncronization.Create(self);
   paLogoPanel.AddControlDockCenter(TCTRLBanner.Create(Self));
   paSyncPanel.AddControlDockCenter(FSyncControl);
@@ -403,7 +403,10 @@ end;
 
 procedure TFRMMainForm.tbtnSyncClick(Sender: TObject);
 begin
-  TUserInterface.ShowSyncDialog;
+  case Mode of
+    wmSync: Mode := wmWallet;
+    wmWallet: Mode := wmSync;
+  end;
 end;
 
 {%endregion}

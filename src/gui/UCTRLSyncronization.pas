@@ -17,50 +17,60 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls,
-  StdCtrls, ComCtrls, UCommon.UI;
+  StdCtrls, ComCtrls, Buttons, UCommon.UI;
 
 type
+
+  { TSyncMode }
+
+  TSyncMode = (smUnset, smInitialising, smReady);
 
   { TCTRLSyncronization }
 
   TCTRLSyncronization = class(TApplicationForm)
-    btnOpenWallet: TButton;
+    btnBack: TBitBtn;
+    imgSplash: TImage;
     Label16: TLabel;
     Label4: TLabel;
-    lblCurrentDifficultyCaption2: TLabel;
-    lblNetProtocolVersion: TLabel;
-    lblTotalAccountsLabel: TLabel;
     Label8: TLabel;
-    lblBlocksFound: TLabel;
-    lblTotalAccountsValue: TLabel;
-    lblTotalBlocksValue: TLabel;
-    lblTotalBlocksLabel: TLabel;
-    lblBlockAgeValue: TLabel;
     lblBlockAgeLabel: TLabel;
-    lblBlockTargetValue: TLabel;
-    lblProtocolVersion: TLabel;
+    lblBlockAgeValue: TLabel;
+    lblBlocksFound: TLabel;
     lblBlockTargetLabel: TLabel;
+    lblBlockTargetValue: TLabel;
     lblCurrentDifficultyCaption1: TLabel;
+    lblCurrentDifficultyCaption2: TLabel;
     lblMinersClientsValue: TLabel;
     lblMiningStatusCaption: TLabel;
+    lblNetProtocolVersion: TLabel;
     lblNodeStatus: TLabel;
-    lblPendingOperationsValue: TLabel;
     lblPendingOperationsLabel: TLabel;
+    lblPendingOperationsValue: TLabel;
+    lblProtocolVersion: TLabel;
     lblReceivedMessages: TLabel;
     lblTimeAverage: TLabel;
     lblTimeAverageAux: TLabel;
-    procedure btnOpenWalletClick(Sender:TObject);
+    lblTotalAccountsLabel: TLabel;
+    lblTotalAccountsValue: TLabel;
+    lblTotalBlocksLabel: TLabel;
+    lblTotalBlocksValue: TLabel;
+    paSplash: TPanel;
+    paSync: TPanel;
+    procedure btnBackClick(Sender: TObject);
     procedure lblReceivedMessagesClick(Sender:TObject);
   private
-    { private declarations }
     FMinedBlocksCount: Integer;
+    FMode : TSyncMode;
+    procedure SetMinedBlocksCount(const Value: Integer);
+    procedure SetSyncMode(AMode : TSyncMode);
+  protected
+    procedure ActivateFirstTime; override;
   public
-    { public declarations }
+    property MinedBlocksCount : Integer read FMinedBlocksCount write SetMinedBlocksCount;
+    property SyncMode : TSyncMode read FMode write SetSyncMode;
     procedure UpdateNodeStatus;
     procedure UpdateBlockChainState;
-    procedure SetMinedBlocksCount(const Value: Integer);
     procedure OnFinishedLoadingDatabase;
-    Property MinedBlocksCount : Integer read FMinedBlocksCount write SetMinedBlocksCount;
   end;
 
 implementation
@@ -69,7 +79,25 @@ implementation
 
 uses UNetProtocol,UTime,UConst, UUserInterface;
 
-{%region Methods}
+procedure TCTRLSyncronization.ActivateFirstTime;
+begin
+  SyncMode := smInitialising;
+end;
+
+procedure TCTRLSyncronization.SetSyncMode(AMode : TSyncMode);
+begin
+  if FMode = AMode then exit;
+  case AMode of
+    smInitialising: begin
+      paSplash.Visible:= true;
+      paSync.Visible := false;
+    end;
+    smReady: begin
+      paSplash.Visible:= false;
+      paSync.Visible := true;
+    end;
+  end;
+end;
 
 procedure TCTRLSyncronization.UpdateNodeStatus;
 Var status : AnsiString;
@@ -79,6 +107,7 @@ begin
     lblNodeStatus.Font.Color := clRed;
     lblNodeStatus.Caption := 'Initializing...';
   end else begin
+    SyncMode:=smReady;
     If TUserInterface.Node.IsReady(status) then begin
       if TNetData.NetData.NetStatistics.ActiveConnections>0 then begin
         lblNodeStatus.Font.Color := clGreen;
@@ -100,7 +129,7 @@ begin
   end;
   lblProtocolVersion.Caption := Format('%d (%d)', [TUserInterface.Node.Bank.SafeBox.CurrentProtocol,CT_BlockChain_Protocol_Available]);
   lblNetProtocolVersion.Caption := Format('%d (%d)', [CT_NetProtocol_Version, CT_NetProtocol_Available]);
-  if NOT btnOpenWallet.Enabled then begin
+  if NOT btnBack.Enabled then begin
     lblNodeStatus.Caption := 'Please wait until finished - ' + lblNodeStatus.Caption;
   end;
 end;
@@ -168,25 +197,19 @@ end;
 
 procedure TCTRLSyncronization.OnFinishedLoadingDatabase;
 begin
-  btnOpenWallet.Enabled:=true;
+  btnBack.Enabled:=true;
   TUserInterface.ShowWallet;
 end;
-
-{%endregion}
-
-{%region Handlers: widgets }
 
 procedure TCTRLSyncronization.lblReceivedMessagesClick(Sender:TObject);
 begin
   TUserInterface.ShowMessagesForm;
 end;
 
-procedure TCTRLSyncronization.btnOpenWalletClick(Sender:TObject);
+procedure TCTRLSyncronization.btnBackClick(Sender: TObject);
 begin
   TUserInterface.ShowWallet;
 end;
-
-{%endregion}
 
 end.
 

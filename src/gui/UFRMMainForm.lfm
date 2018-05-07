@@ -21,7 +21,6 @@ object FRMMainForm: TFRMMainForm
   OnResize = FormResize
   Position = poScreenCenter
   ShowHint = True
-  LCLVersion = '1.8.1.0'
   Visible = False
   object paLogoPanel: TPanel
     Left = 0
@@ -44,7 +43,7 @@ object FRMMainForm: TFRMMainForm
   end
   object paSyncPanel: TPanel
     Left = 0
-    Height = 477
+    Height = 497
     Top = 80
     Width = 865
     Align = alClient
@@ -61,14 +60,13 @@ object FRMMainForm: TFRMMainForm
   end
   object paWalletPanel: TPanel
     Left = 0
-    Height = 477
+    Height = 497
     Top = 80
     Width = 865
     Align = alClient
     BevelOuter = bvNone
     BorderStyle = bsSingle
-    Caption = 'WALLET PANEL'
-    Color = clBlue
+    Caption = 'Initialising, please wait...'
     Font.Color = clWindowText
     Font.Height = -27
     Font.Name = 'Tahoma'
@@ -79,7 +77,7 @@ object FRMMainForm: TFRMMainForm
   object sbStatusBar: TStatusBar
     Left = 0
     Height = 23
-    Top = 557
+    Top = 577
     Width = 865
     Panels = <    
       item
@@ -108,7 +106,7 @@ object FRMMainForm: TFRMMainForm
     AnchorSideBottom.Side = asrBottom
     Left = 778
     Height = 15
-    Top = 561
+    Top = 581
     Width = 70
     Align = alNone
     Anchors = [akTop, akRight]
