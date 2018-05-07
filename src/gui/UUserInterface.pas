@@ -369,6 +369,7 @@ begin
   End;
   TLog.NewLog(ltinfo,Classname,'Error quiting application - END');
   FreeAndNil(FLog);
+  Application.Terminate;
 end;
 
 class procedure TUserInterface.RunInBackground;

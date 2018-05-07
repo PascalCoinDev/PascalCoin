@@ -154,15 +154,15 @@ end;
 
 procedure TFRMMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
 begin
-  case TUserInterface.AskQuestion(Self, mtConfirmation, 'Quit PascalCoin',
-  'Are you sure you want to quit? Select ''No'' to run in background.', [mbCancel, mbNo, mbYes]) of
+  case TUserInterface.AskQuestion(Self, mtConfirmation, 'Exit PascalCoin',
+  'Are you sure you want to quit?', [mbNo, mbYes]) of
     mbYes: begin
       CanClose := false;
       PostMessage(Self.Handle, CM_PC_Terminate, 0, 0);
     end;
     mbNo: begin
       CanClose := false;
-      TUserInterface.RunInBackground;
+      //TUserInterface.RunInBackground;
     end;
     mbCancel: CanClose := false;
   end;
@@ -171,9 +171,6 @@ end;
 procedure TFRMMainForm.CM_Terminate(var Msg: TMessage);
 begin
   TUserInterface.ExitApplication;
-  // we have to terminate the program here since we have already destroyed the main form in the line executed above else
-  // we would be left in an endless loop of listening for messages with a form that is already nil.
-  Application.Terminate;
 end;
 
 procedure TFRMMainForm.ActivateFirstTime;
