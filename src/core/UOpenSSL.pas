@@ -46,21 +46,33 @@ var
   {$ENDIF}
   {$ENDIF}
 {$ELSE}
-  {$IFDEF FPC}
-  // Windows + Lazarus uses a OpenSSL v1.0 32 or 64 bits
-    {$ifdef CPU32}
-	SSL_C_LIB : AnsiString = 'libeay32.dll';
-    {$ENDIF}
-    {$ifdef CPU64}
-	SSL_C_LIB : AnsiString = 'libeay64.dll';
+  {$IFDEF OpenSSL10}
+    {$IFDEF FPC}
+      {$ifdef CPU32}
+	  SSL_C_LIB : AnsiString = 'libeay32.dll';
+      {$ENDIF}
+      {$ifdef CPU64}
+	  SSL_C_LIB : AnsiString = 'libeay64.dll';
+      {$ENDIF}
+    {$ELSE}
+      {$IFDEF CPUX64}
+        SSL_C_LIB : AnsiString = 'libeay64.dll';
+      {$ELSE}
+        SSL_C_LIB : AnsiString = 'libeay32.dll';
+      {$ENDIF}
     {$ENDIF}
   {$ELSE}
-  // Windows + Delphi only allows OpenSSL v1.0 32 bits
-  SSL_C_LIB : AnsiString = 'libeay32.dll';
+    {$ifdef CPUX64}
+      SSL_C_LIB : AnsiString = 'libcrypto-1_1-x64.dll';
+    {$ELSE}
+      SSL_C_LIB : AnsiString = 'libcrypto-1_1.dll';
+    {$ENDIF}
   {$ENDIF}
 {$ENDIF}
 
 var
+  OpenSSL_version_num: function: TC_ULONG; cdecl = nil;
+
   ERR_get_error: function: TC_ULONG; cdecl = nil;
   ERR_error_string: function(e: TC_ULONG; _buf: PAnsiChar): PAnsiChar; cdecl = nil;
   ERR_clear_error: procedure; cdecl = nil;
@@ -210,6 +222,7 @@ function LoadFunctionCLib(const FceName: String; const ACritical : Boolean = Tru
 function InitSSLFunctions : Boolean;
 function BN_num_bytes(a: PBIGNUM): TC_INT;
 procedure OpenSSL_free(ptr: Pointer);
+function OpenSSLVersion : Cardinal;
 
 implementation
 
@@ -234,6 +247,11 @@ begin
   Result := hCrypt <> 0;
 end;
 
+function OpenSSLVersion : Cardinal;
+begin
+  if Assigned(OpenSSL_version_num) then Result := OpenSSL_version_num
+  else Result := 0;
+end;
 
 function LoadFunctionCLib(const FceName: String; const ACritical : Boolean = True): Pointer;
 begin
@@ -262,6 +280,13 @@ Begin
     result := false;
     exit;
   end else result := true;
+  if @OpenSSL_version_num=nil then begin
+    // Important note: Only OpenSSL v1.1 has function "OpenSSL_version_num"
+    @OpenSSL_version_num := LoadFunctionCLib('OpenSSL_version_num',False);
+    if Not Assigned(OpenSSL_version_num) then begin
+      Raise Exception.Create('PascalCoin needs OpenSSL v1.1, your current DLL is lower version: '+SSL_C_LIB);
+    end;
+  end;
   if @ERR_get_error = nil then begin
     @ERR_get_error:= LoadFunctionCLib('ERR_get_error');
     @ERR_clear_error:= LoadFunctionCLib('ERR_clear_error');

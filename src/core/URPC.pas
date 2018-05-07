@@ -21,7 +21,7 @@ interface
 
 Uses UThread, ULog, UConst, UNode, UAccounts, UCrypto, UBlockChain,
   UNetProtocol, UOpTransaction, UWallet, UTime, UAES, UECIES, UTxMultiOperation,
-  UJSONFunctions, classes, blcksock, synsock, IniFiles, Variants, math, UBaseTypes;
+  UJSONFunctions, classes, blcksock, synsock, IniFiles, Variants, math, UBaseTypes, UOpenSSL;
 
 Const
   CT_RPC_ErrNum_InternalError = 100;
@@ -3257,6 +3257,7 @@ begin
     GetResultObject.GetAsObject('netstats').GetAsVariant('tservers').Value:=TNetData.NetData.NetStatistics.TotalServersConnections;
     GetResultObject.GetAsObject('netstats').GetAsVariant('breceived').Value:=TNetData.NetData.NetStatistics.BytesReceived;
     GetResultObject.GetAsObject('netstats').GetAsVariant('bsend').Value:=TNetData.NetData.NetStatistics.BytesSend;
+    GetResultObject.GetAsVariant('openssl').Value := IntToHex(OpenSSLVersion,8);
     nsaarr := TNetData.NetData.NodeServersAddresses.GetValidNodeServers(true,20);
     for i := low(nsaarr) to High(nsaarr) do begin
       jso := GetResultObject.GetAsArray('nodeservers').GetAsObject(i);

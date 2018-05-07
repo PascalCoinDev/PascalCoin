@@ -15,8 +15,10 @@
 
   Choose ONLY ONE of directives:
 
+    CHANGES ON 2.1.10 and V3: OpenSSL must be version 1.1
+	
     OPTIONS_BY_DEFAULT:
-      In Delphi = Synapse + OpenSSL v1.0
+      In Delphi = Synapse + OpenSSL v1.1
       In FPC = Synapse + OpenSSL v1.1
     DelphiSockets_OpenSSLv10
     Synapse_OpenSSLv10
@@ -59,20 +61,9 @@ ERROR: You must select ONLY ONE option: PRODUCTION or TESTNET
 ERROR: You must select ONE option!
 {$ENDIF}{$ENDIF}{$ENDIF}{$ENDIF}
 {$IFDEF OPTIONS_BY_DEFAULT}
-  // By default are: Delphi = Synapse + OpenSSLv10  -  FPC = Synapse + OpenSSLv11
-  {$IFDEF FPC}
-    // With Free Pascal Compiler, only Synapse + OpenSSLv1.0 for Delphi or OpenSSLv1.1 for Linux
-    {$DEFINE Synapse}
-    {$IFDEF LINUX}
-    {$UNDEF OpenSSL10}
-    {$ELSE}
-    {$DEFINE OpenSSL10}
-    {$ENDIF}
-  {$ELSE}
-    // Delphi, Synapse + OpenSSL v1.0
-    {$DEFINE Synapse}
-    {$DEFINE OpenSSL10}
-  {$ENDIF}
+  // By default are: Synapse + OpenSSLv11
+  {$DEFINE Synapse}
+  {$UNDEF OpenSSL10}
   {$IFDEF DelphiSockets_OpenSSLv10}ERROR: You selected more than 1 option{$ENDIF}
   {$IFDEF Synapse_OpenSSLv10}ERROR: You selected more than 1 option{$ENDIF}
   {$IFDEF Synapse_OpenSSLv11}ERROR: You selected more than 1 option{$ENDIF}
@@ -100,5 +91,9 @@ ERROR: You must select ONE option!
       {$ENDIF}
     {$ENDIF}
   {$ENDIF}
+{$ENDIF}
+
+{$IFDEF OpenSSL10}
+  ERROR: OpenSLL v1.0 is not longer valid, use OpenSSL v1.1 instead
 {$ENDIF}
 

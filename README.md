@@ -34,6 +34,10 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 3.0.1 - 2018-05-07
+- Deprecated use of OpenSSL v1.0 versions. Only allowed OpenSSL v1.1 versions
+- JSON-RPC Added param "openssl" on "nodestatus" call. Will return OpenSSL library version as described in OpenSSL_version_num ( https://www.openssl.org/docs/man1.1.0/crypto/OPENSSL_VERSION_NUMBER.html )
+
 ### Build 3.0.0 - 2018-05-02
 - Implementation of Hard fork on block 210000
   - PIP - 0010: 50% inflation reduction

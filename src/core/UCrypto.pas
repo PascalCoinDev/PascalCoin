@@ -142,10 +142,27 @@ uses
 Var _initialized : Boolean = false;
 
 Procedure _DoInit;
+var err : String;
+ c : Cardinal;
 Begin
   if Not (_initialized) then begin
     _initialized := true;
-    InitSSLFunctions;
+    If Not InitSSLFunctions then begin
+      err := 'Cannot load OpenSSL library '+SSL_C_LIB;
+      TLog.NewLog(ltError,'OpenSSL',err);
+      Raise Exception.Create(err);
+    end;
+    If Not Assigned(OpenSSL_version_num) then begin
+      err := 'OpenSSL library is not v1.1 version: '+SSL_C_LIB;
+      TLog.NewLog(ltError,'OpenSSL',err);
+      Raise Exception.Create(err);
+    end;
+    c := OpenSSL_version_num;
+    if (c<$10100000) Or (c>$1010FFFF) then begin
+      err := 'OpenSSL library is not v1.1 version ('+IntToHex(c,8)+'): '+SSL_C_LIB;
+      TLog.NewLog(ltError,'OpenSSL',err);
+      Raise Exception.Create(err);
+    end;
   end;
 End;
 
@@ -267,14 +284,19 @@ Var BNx,BNy : PBIGNUM;
   ctx : PBN_CTX;
   pub_key : PEC_POINT;
 begin
+  Result := False;
   BNx := BN_bin2bn(PAnsiChar(PubKey.x),length(PubKey.x),nil);
+  if Not Assigned(BNx) then Exit;
   try
     BNy := BN_bin2bn(PAnsiChar(PubKey.y),length(PubKey.y),nil);
+    if Not Assigned(BNy) then Exit;
     try
       ECG := EC_GROUP_new_by_curve_name(PubKey.EC_OpenSSL_NID);
+      if Not Assigned(ECG) then Exit;
       try
         pub_key := EC_POINT_new(ECG);
         try
+          if Not Assigned(pub_key) then Exit;
           ctx := BN_CTX_new;
           try
             Result := EC_POINT_set_affine_coordinates_GFp(ECG,pub_key,BNx,BNy,ctx)=1;
