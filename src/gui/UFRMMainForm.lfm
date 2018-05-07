@@ -10,6 +10,7 @@ object FRMMainForm: TFRMMainForm
   Constraints.MinHeight = 600
   Constraints.MinWidth = 865
   DockSite = True
+  Enabled = False
   Font.Color = clWindowText
   Font.Height = -11
   Font.Name = 'Tahoma'

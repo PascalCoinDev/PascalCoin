@@ -81,7 +81,9 @@ uses UNetProtocol,UTime,UConst, UUserInterface;
 
 procedure TCTRLSyncronization.ActivateFirstTime;
 begin
-  SyncMode := smInitialising;
+  FMode := smInitialising;
+  paSplash.Visible:= true;
+  paSync.Visible := false;
 end;
 
 procedure TCTRLSyncronization.SetSyncMode(AMode : TSyncMode);
@@ -89,10 +91,12 @@ begin
   if FMode = AMode then exit;
   case AMode of
     smInitialising: begin
+      TUserInterface.Enabled := false;
       paSplash.Visible:= true;
       paSync.Visible := false;
     end;
     smReady: begin
+      TUserInterface.Enabled := true;
       paSplash.Visible:= false;
       paSync.Visible := true;
     end;

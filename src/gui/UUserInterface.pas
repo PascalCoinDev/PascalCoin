@@ -67,6 +67,8 @@ type
       class procedure RefreshConnectionStatusDisplay;
 
       // Getters/Setters
+      class function GetEnabled : boolean; static;
+      class procedure SetEnabled(ABool: boolean); static;
       class procedure SetStatusBar0Text(const text : AnsiString); static;
       class procedure SetStatusBar1Text(const text : AnsiString); static;
       class procedure SetStatusBar2Text(const text : AnsiString); static;
@@ -95,6 +97,7 @@ type
       class procedure OnTrayIconDblClick(Sender: TObject);
     public
       // Properties
+      class property Enabled : boolean read GetEnabled write SetEnabled;
       class property Started : boolean read FStarted;
       class property Node : TNode read FNode;
       class property Log : TLog read FLog;
@@ -776,6 +779,16 @@ end;
 {%endregion}
 
 {%region Auxillary methods}
+
+class function TUserInterface.GetEnabled : boolean;
+begin
+  Result := FMainForm.Enabled;
+end;
+
+class procedure TUserInterface.SetEnabled(ABool: boolean);
+begin
+  FMainForm.Enabled:=ABool;
+end;
 
 class procedure TUserInterface.SetMainFormMode(AMode: TFRMMainFormMode);
 begin
