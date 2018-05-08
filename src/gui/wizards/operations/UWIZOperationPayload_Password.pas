@@ -18,7 +18,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Buttons, UCommon, UCommon.Collections,
-  UWizard, UWIZOperation, UWIZOperationSigner_Select, UCoreObjects;
+  UWizard, UWIZOperation, UWIZOperationSigner_Select, UWIZOperationPayload_Content, UCoreObjects;
 
 type
 
@@ -54,13 +54,7 @@ end;
 procedure TWIZOperationPayload_Password.OnNext;
 begin
   Model.Payload.Password := edtPassword.Text;
-  if Length(Model.Account.SelectedAccounts) > 1 then
-    UpdatePath(ptInject, [TWIZOperationSigner_Select])
-  else
-  begin
-    Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];
-    Model.Signer.OperationSigningMode := akaPrimary;
-  end;
+  UpdatePath(ptInject, [TWIZOperationPayload_Content]);
 end;
 
 function TWIZOperationPayload_Password.Validate(out message: ansistring): boolean;
