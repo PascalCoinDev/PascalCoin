@@ -49,6 +49,7 @@ type
       class function Many(const comparers: array of IComparer<T>) : IComparer<T>; overload;
       class function Many(const comparers: TEnumerable<__IComparer_T>) : IComparer<T>; overload;
       class function AlwaysEqual : IComparer<T>;
+      class function Inverted(const AComparer : IComparer<T>) : IComparer<T>;
     private
       // These should be nested but FPC doesn't support nested functions in generics
       class function AlwaysEqualHandler(constref Left, Right: T) : Integer;
@@ -128,7 +129,16 @@ type
       class function Transform(const AList : TList<T1>; const ATransformer : ITransformer<T1, T2>) : TArray<T2>; overload;
   end;
 
-  { Private types (implementation only) - FPC Bug 'Global Generic template references static symtable' }
+  { TSortedHashSetTool }
+
+  TSortedHashSetTool<T> = class
+    class function Pop(ASet : TSortedHashSet<T>) : T;
+  end;
+
+
+  { ================================================================================================== }
+  { IMPLEMENTATION LEVEL TYPES -- declared here due to FPC bug
+  { ================================================================================================== }
 
   { TNestedComparer }
 
@@ -171,6 +181,16 @@ type
        constructor Create(const comparers: TArray<IComparer_T>); overload;
        function Compare(constref Left, Right: T): Integer;
    end;
+
+  { TInvertedComparer }
+
+  TInvertedComparer<T> = class(TInterfacedObject, IComparer<T>)
+  private
+    FComparer : IComparer<T>;
+  public
+    constructor Create(const AComparer : IComparer<T>); overload;
+    function Compare(constref Left, Right: T): Integer;
+  end;
 
   { TNestedPredicate }
 
@@ -270,7 +290,7 @@ type
 
 implementation
 
-{%region Comparer API}
+{ TComparerTool }
 
 class function TComparerTool<T>.FromFunc(const AFunc: TNestedComparerFunc<T>) : IComparer<T>;
 begin
@@ -352,6 +372,11 @@ begin
   Result := 0;
 end;
 
+class function TComparerTool<T>.Inverted(const AComparer : IComparer<T>) : IComparer<T>;
+begin
+  Result := TInvertedComparer<T>.Create(AComparer);
+end;
+
 { TNestedComparer }
 
 constructor TNestedComparer<T>.Create(const AComparerFunc: TNestedComparerFunc<T>);
@@ -407,10 +432,18 @@ begin
   end;
 end;
 
+{ TInvertedComparer }
 
-{%endegion}
+constructor TInvertedComparer<T>.Create(const AComparer: IComparer<T>);
+begin
+  FComparer := AComparer;
+end;
 
-{%region Predicate API}
+function TInvertedComparer<T>.Compare(constref Left, Right: T): Integer;
+begin
+  Result := FComparer.Compare(Left, Right) * -1;
+end;
+
 
 { TPredicateTool }
 
@@ -635,9 +668,7 @@ begin
   end;
 end;
 
-{%endregion}
-
-{%region Transformers}
+{ Transformers }
 
 constructor TNestedTransformer<T1, T2>.Create(const AFunc: TNestedTransformFunc<T1, T2>); overload;
 begin
@@ -669,9 +700,7 @@ begin
   Result := FFunc(AItem);
 end;
 
-{%endregion}
-
-{%region TListTool}
+{ TListTool }
 
 class function TListTool<T>.Copy(const AList: TList<T>; const AIndex, ACount : SizeInt) : TList<T>;
 var
@@ -816,7 +845,19 @@ begin
     Result[i] := ATransformer.Transform(AList[i]);
 end;
 
-{%endregion}
+{ TSortedHashSetTool }
+
+class function TSortedHashSetTool<T>.Pop(ASet : TSortedHashSet<T>): T;
+var
+  LElem : T;
+begin
+  if ASet.Count = 0 then raise EArgumentException.Create('Empty set');
+  for LElem in ASet do begin
+    Result := LElem;
+    break;
+  end;
+  ASet.Remove(Result);
+end;
 
 end.
 
