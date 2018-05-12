@@ -73,6 +73,7 @@ type
     FOperationsHistory: TCTRLWalletOperationsHistory;
     FAccountsGrid: TVisualGrid;
     FOperationsGrid: TVisualGrid;
+    FBalance : TBalanceSummary;
     FAccountsDataSource: TMyAccountsDataSource;
     FOperationsDataSource: TAccountsOperationsDataSource;
     procedure SetAccountsMode(AMode: TCTRLWalletAccountsMode);
@@ -83,14 +84,14 @@ type
     procedure RefreshAccountsGrid;
     procedure RefreshOperationsGrid;
     function GetSelectedAccounts : TArray<Cardinal>;
-    function GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
   protected
     procedure ActivateFirstTime; override;
     procedure OnPrivateKeysChanged(Sender: TObject);
-    procedure OnUserAccountsChanged(Sender: TObject);
+    procedure OnUserKeyActivityDetected(Sender: TObject);
     procedure OnNodeBlocksChanged(Sender: TObject);
     procedure OnNodeNewOperation(Sender: TObject);
     procedure OnAccountsSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
+    procedure OnAccountsGridFinishedUpdating(Sender: TObject);
     procedure OnOperationSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
     procedure OnPrepareAccountPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
     procedure OnPrepareOperationsPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
@@ -118,7 +119,7 @@ begin
   // event registrations
   FNodeNotifyEvents := TNodeNotifyEvents.Create(self);
   FNodeNotifyEvents.WatchKeys := TWallet.Keys.AccountsKeyList;
-  FNodeNotifyEvents.OnKeyActivity:= OnUserAccountsChanged;
+  FNodeNotifyEvents.OnKeyActivity:= OnUserKeyActivityDetected;
   FNodeNotifyEvents.OnBlocksChanged := OnNodeBlocksChanged;
   FNodeNotifyEvents.OnOperationsChanged := OnNodeNewOperation;
   TWallet.Keys.OnChanged.Add(OnPrivateKeysChanged);
@@ -126,8 +127,10 @@ begin
 
   // fields
   FAccountsDataSource := TMyAccountsDataSource.Create(Self);
+  FAccountsDataSource.BalancePointer := @FBalance;
   FOperationsDataSource := TAccountsOperationsDataSource.Create(Self);
   FOperationsDataSource.Accounts := TCoreTool.GetUserAccountNumbers;
+  FOperationsDataSource.BlockDepth:=TTimeSpan.FromDays(7).TotalBlockCount;
   FOperationsHistory := woh7Days;
   FOperationsMode:= womAllAccounts;
   FAccountsMode := wamMyAccounts;
@@ -167,7 +170,7 @@ begin
     Renderer := TCellRenderers.PASC;
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
-
+  FAccountsGRid.OnFinishedUpdating:= OnAccountsGridFinishedUpdating;
   FAccountsGrid.OnSelection := OnAccountsSelected;
   FAccountsGrid.OnPreparePopupMenu := OnPrepareAccountPopupMenu;
 
@@ -279,9 +282,7 @@ begin
   cmbDuration.OnChange := cmbDurationChange;
   FOperationsGrid.WidgetControl := cmbDuration;
 
-  // Add datasources to grid
-  FAccountsGrid.DataSource := FAccountsDataSource;
-  FOperationsGrid.DataSource := FOperationsDataSource;
+  // NOTE: datasources are assigned to grid in FormResize
 
   // Add grid to panels
   paAccounts.AddControlDockCenter(FAccountsGrid);
@@ -294,22 +295,28 @@ begin
 end;
 
 procedure TCTRLWallet.FormResize(Sender: TObject);
+var x : integer;
 begin
-  // Left hand panel is 50% the size up until a max size of 450
+  // Grid data-sources are set here on "first form resize" in order to avoid
+  // excessive datasource fetching during initialising sequence. Note, grid
+  // refreshes on size changed, blockchain activity and when assigned to grid
+  if NOT Assigned(FAccountsGrid.DataSource) then
+    FAccountsGrid.DataSource := FAccountsDataSource;
 
+  if NOT Assigned(FOperationsGrid.DataSource) then
+    FOperationsGrid.DataSource := FOperationsDataSource;
 end;
 
 procedure TCTRLWallet.ActivateFirstTime;
 begin
-  RefreshTotals;
+  // add first time-init here
 end;
 
 procedure TCTRLWallet.RefreshTotals;
-var LBalance : TBalanceSummary;
+
 begin
-  LBalance := TCoretool.GetUserBalance(true);
-  lblTotalPASC.Caption := TAccountComp.FormatMoney(LBalance.TotalPASC);
-  lblTotalPASA.Caption := Format('%d', [LBalance.TotalPASA]);
+  lblTotalPASC.Caption := TAccountComp.FormatMoney(FBalance.TotalPASC);
+  lblTotalPASA.Caption := Format('%d', [FBalance.TotalPASA]);
 end;
 
 procedure TCTRLWallet.RefreshMyAccountsCombo;
@@ -398,17 +405,6 @@ begin
 end;
 
 procedure TCTRLWallet.RefreshOperationsGrid;
-
-  function GetAccNo(constref AAccount: TAccount): cardinal; overload;
-  begin
-    Result := AAccount.account;
-  end;
-
-  function GetAccNo(constref ARow: variant): cardinal; overload;
-  begin
-    Result := ARow.__KEY;
-  end;
-
 begin
   case FOperationsMode of
     womAllAccounts: begin
@@ -418,7 +414,7 @@ begin
     womSelectedAccounts:
     begin
       FOperationsGrid.Caption.Text := 'Selected Accounts';
-      FOperationsDataSource.Accounts := TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows, GetAccNo);
+      FOperationsDataSource.Accounts := SelectedAccounts;
     end else
       raise ENotSupportedException.Create(Format('AMode %d not supported', [integer(FOperationsMode)]));
   end;
@@ -426,6 +422,12 @@ begin
 end;
 
 function TCTRLWallet.GetSelectedAccounts : TArray<Cardinal>;
+
+  function GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
+  begin
+    Result := ARow.__KEY;
+  end;
+
 begin
   Result := TListTool<Variant, Cardinal>.Transform(FAccountsGrid.SelectedRows, GetAccNoWithoutChecksum);
 end;
@@ -463,6 +465,7 @@ end;
 
 procedure TCTRLWallet.SetOperationsMode(AMode: TCTRLWalletOperationsMode);
 begin
+  if FOperationsMode = AMode then exit;
   FUILock.Acquire;
   try
     FOperationsMode := AMode;
@@ -492,12 +495,10 @@ begin
   RefreshMyAccountsCombo;
 end;
 
-procedure TCTRLWallet.OnUserAccountsChanged;
+procedure TCTRLWallet.OnUserKeyActivityDetected;
 begin
   if NOT TUserInterface.Node.HasBestKnownBlockchainTip then
     exit; // node syncing
-
-  RefreshTotals;
   FAccountsGrid.RefreshGrid;
   FOperationsGrid.RefreshGrid;
 end;
@@ -512,10 +513,18 @@ begin
   // TODO: play operation sound tick
 end;
 
+procedure TCTRLWallet.OnAccountsGridFinishedUpdating(Sender: TObject);
+begin
+  RefreshTotals; // totals are updated by datasource, via a pointer
+end;
+
 procedure TCTRLWallet.OnAccountsSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
 begin
   if ASelection.Page >= 0 then
-    OperationsMode := womSelectedAccounts
+    if FOperationsMode <> womSelectedAccounts then
+      OperationsMode := womSelectedAccounts
+    else
+      RefreshOperationsGrid
   else
     OperationsMode := womAllAccounts;
 end;
@@ -657,13 +666,6 @@ procedure TCTRLWallet.miOperationInfoClick(Sender: TObject);
 begin
   if FOperationsGrid.Selection.RowCount = 0 then exit;
   TUserInterface.ShowOperationInfoDialog(Self, FOperationsGrid.SelectedRows[0].__KEY);
-end;
-
-{ Aux methods }
-
-function TCTRLWallet.GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
-begin
-  Result := ARow.__KEY;
 end;
 
 end.

@@ -61,14 +61,12 @@ type
   TAccountsOperationsDataSource = class(TOperationsDataSourceBase)
   private
     FBlockDepth: Cardinal;
-    FAccounts: TSortedHashSet<cardinal>;
-    function GetAccounts: TArray<cardinal>;
-    procedure SetAccounts(const AAccounts: TArray<cardinal>);
+    FAccounts: TArray<cardinal>;
+    FLastFetchID : String;
+    FLastFetchBlockOperations : TArray<TOperationResume>;
   public
-    property Accounts: TArray<cardinal> read GetAccounts write SetAccounts;
+    property Accounts: TArray<cardinal> read FAccounts write FAccounts;
     property BlockDepth: cardinal read FBlockDepth write FBlockDepth;
-    constructor Create(AOwner: TComponent); override;
-    destructor Destroy; override;
     procedure FetchAll(const AContainer: TList<TOperationResume>); override;
   end;
 
@@ -336,45 +334,23 @@ end;
 
 { TAccountsOperationsDataSource }
 
-constructor TAccountsOperationsDataSource.Create(AOwner: TComponent);
-begin
-  inherited Create(AOwner);
-  FAccounts := TSortedHashSet<cardinal>.Create;
-end;
-
-destructor TAccountsOperationsDataSource.Destroy;
-begin
-  inherited;
-  FAccounts.Free;
-end;
-
-function TAccountsOperationsDataSource.GetAccounts: TArray<cardinal>;
-begin
-  EnterLock;
-  try
-    Result := FAccounts.ToArray;
-  finally
-    ReleaseLock;
-  end;
-end;
-
-procedure TAccountsOperationsDataSource.SetAccounts(const AAccounts: TArray<cardinal>);
-begin
-  EnterLock;
-  try
-    FAccounts.Clear;
-    FAccounts.AddRange(AAccounts);
-  finally
-    ReleaseLock;
-  end;
-end;
-
 procedure TAccountsOperationsDataSource.FetchAll(const AContainer: TList<TOperationResume>);
 var
   LNode: TNode;
   LBlockDepth : Integer;
+  LFetchID : String;
+  LAccounts : TArray<Cardinal>;
+
+  function ComputeFetchID : String;
+  var LAccFetchID : string;
+  begin
+    // note: FAccounts is never empty
+    LAccFetchID := Length(FAccounts).ToString + FAccounts[Low(FAccounts)].ToString + FAccounts[High(FAccounts)].ToString;
+    Result := LAccFetchID + FBlockDepth.ToString + TCrypto.ToHexaString(LNode.Bank.SafeBox.SafeBoxHash);
+  end;
+
 begin
-  if FAccounts.Count = 0 then
+  if Length(FAccounts) = 0 then
     exit;
   LNode := TNode.Node;
   if not Assigned(LNode) then
@@ -382,9 +358,14 @@ begin
   LBlockDepth := ClipValue(FBlockDepth, 0, LNode.Bank.BlocksCount);
   LNode.Bank.SafeBox.StartThreadSafe;
   try
-    AContainer.AddRange( LNode.GetPendingOperationsAffectingAccounts(FAccounts.ToArray, 0, MaxInt) );
-    // Add caching here
-    AContainer.AddRange( LNode.GetStoredOperationsAffectingAccounts(FAccounts.ToArray, LBlockDepth, 0, MaxInt, True) );
+    AContainer.AddRange( LNode.GetPendingOperationsAffectingAccounts(FAccounts, 0, MaxInt) );
+    // Performance: only fetch from storage if state/args are different from last call
+    LFetchID := ComputeFetchID;
+    if LFetchID <> FLastFetchID then begin
+      FLastFetchID := LFetchID;
+      FLastFetchBlockOperations := LNode.GetStoredOperationsAffectingAccounts(FAccounts, LBlockDepth, 0, MaxInt, True);
+    end;
+    AContainer.AddRange( FLastFetchBlockOperations );
   finally
     LNode.Bank.SafeBox.EndThreadSave;
   end;
