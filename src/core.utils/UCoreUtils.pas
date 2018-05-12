@@ -73,6 +73,11 @@ type
 
   TNodeHelper = class helper for TNode
    function HasBestKnownBlockchainTip: boolean;
+   function BlockTip : Cardinal;
+   function GetAccount(AAccountNumber : Cardinal; AIncludePending : boolean = true) : TAccount;
+   function GetAccounts(const AAccountNumbers : array of Cardinal; AIncludePending : boolean = true) : TArray<TAccount>;
+   function GetPendingOperationsAffectingAccounts(const AAccountNumbers: array of Cardinal; ASkipCount, ATakeCount : Integer) : TArray<TOperationResume>;
+   function GetStoredOperationsAffectingAccounts(const AAccountNumbers : array of Cardinal; ABlockDepth, ASkipCount, ATakeCount : Integer; AUsePendingBalance : boolean = true) : TArray<TOperationResume>;
   end;
 
   { TAccountHelper }
@@ -101,7 +106,7 @@ type
 implementation
 
 uses
-  UMemory, UConst, UWallet, UECIES, UAES;
+  UMemory, UConst, UWallet, UECIES, UAES, ULog;
 
 { TCoreTool }
 
@@ -255,6 +260,171 @@ begin
   end;
 end;
 
+function TNodeHelper.BlockTip : Cardinal;
+begin
+  Result := ClipValue(Self.Bank.BlocksCount - 1, 0, MaxInt);
+end;
+
+function TNodeHelper.GetAccount(AAccountNumber : Cardinal; AIncludePending : boolean = true) : TAccount;
+var LOps : TArray<TAccount>;
+begin
+  LOps := Self.GetAccounts([AAccountNumber], AIncludePending);
+  Result := LOps[Low(Lops)];
+end;
+
+function TNodeHelper.GetAccounts(const AAccountNumbers : array of Cardinal; AIncludePending : boolean = true) : TArray<TAccount>;
+var i : integer;
+begin
+  SetLength(Result, Length(AAccountNumbers));
+  if AIncludePending then
+    for i := Low(AAccountNumbers) to High(AAccountNumbers) do
+      Result[i] := Self.Operations.SafeBoxTransaction.Account(AAccountNumbers[i])
+  else
+    for i := Low(AAccountNumbers) to High(AAccountNumbers) do
+      Result[i] := Self.Bank.SafeBox.Account(AAccountNumbers[i]);
+end;
+
+function TNodeHelper.GetPendingOperationsAffectingAccounts(const AAccountNumbers: array of Cardinal; ASkipCount, ATakeCount : Integer) : TArray<TOperationResume>;
+var
+  LList : Classes.TList;
+  LOps : TList<TOperationResume>;
+  LOp : TPCOperation;
+  LOpResume : TOperationResume;
+  LAccNo : Cardinal;
+  LNumOps, i : Integer;
+  GC : TDisposables;
+begin
+  LNumOps := 0;
+  LList := GC.AddObject(Classes.TList.Create) as Classes.TList;
+  LOps := GC.AddObject( TList<TOperationResume>.Create ) as TList<TOperationResume>;
+  for LAccNo in AAccountNumbers do begin
+    LList.Clear;
+    Self.Operations.OperationsHashTree.GetOperationsAffectingAccount(LAccNo, LList);
+    if LList.Count > 0 then
+      for i := LList.Count - 1 downto 0 do begin
+        Inc(LNumOps);
+        if (LNumOps > ASkipCount) AND (LNumOps <= ASkipCount + ATakeCount) then begin
+          LOp := Self.Operations.OperationsHashTree.GetOperation(PtrInt(LList[i]));
+          if TPCOperation.OperationToOperationResume(0, LOp, False, LAccNo, LOpResume) then begin
+            LOpResume.NOpInsideBlock := i;
+            LOpResume.Block := Node.Operations.OperationBlock.block;
+            LOpResume.Balance := Node.Operations.SafeBoxTransaction.Account(LAccNo {Op.SignerAccount}).balance;
+            LOps.Add(LOpResume);
+          end;
+        end;
+      end;
+  end;
+  Result := LOps.ToArray;
+end;
+
+function TNodeHelper.GetStoredOperationsAffectingAccounts(const AAccountNumbers : array of Cardinal; ABlockDepth, ASkipCount, ATakeCount : Integer; AUsePendingBalance : boolean = true) : TArray<TOperationResume>;
+type
+  __TList_Cardinal = TList<Cardinal>;
+var
+  i : Integer;
+  LBlock : Cardinal;
+  LRelevantBlockOps : Classes.TList;
+  LOp : TPCOperation;
+  LOpResume : TOperationResume;
+  LFoundOps : TList<TOperationResume>;
+  LOpsComp : TPCOperationsComp;
+  LAccountBalances : TDictionary<Cardinal, Cardinal>;
+  LAccounts : TArray<TAccount>;
+  LDisposables : TDisposables;
+  LBlockEnd, LNumOps : integer;
+  LBlockTraversal : TSortedHashSet<Cardinal>;
+  LAccountsToScanAtBlock : TObjectDictionary<Cardinal, __TList_Cardinal>;
+
+  procedure MarkAccountAsScannableAtBlock(AAccountNo, ABlockNo : cardinal);
+  begin
+    if NOT LAccountsToScanAtBlock.ContainsKey(ABlockNo) then
+      LAccountsToScanAtBlock.Add(ABlockNo, __TList_Cardinal.Create);
+    LAccountsToScanAtBlock[ABlockNo].Add(AAccountNo);
+  end;
+
+  procedure ScanBlock(ABlockNum : Cardinal);
+  var
+    i : integer;
+    LAccNo : Cardinal;
+    LPrevUpdatedBlock : Cardinal;
+    LDisposables : TDisposables;
+  begin
+    LOpsComp := LDisposables.AddObject( TPCOperationsComp.Create(nil) ) as TPCOperationsComp;
+    LRelevantBlockOps := LDisposables.AddObject( Classes.TList.Create ) as Classes.TList;
+
+    // load block
+    if not Bank.Storage.LoadBlockChainBlock(LOpsComp, ABlockNum) then begin
+      TLog.NewLog(ltdebug, ClassName, 'Block ' + inttostr(ABlockNum)+' not found. Cannot read operations');
+      exit;
+    end;
+
+    // scan for each account
+    for LAccNo in LAccountsToScanAtBlock[ABlockNum] do begin
+      LRelevantBlockOps.Clear;
+      LOpsComp.OperationsHashTree.GetOperationsAffectingAccount(LAccNo, LRelevantBlockOps);
+      for i := LRelevantBlockOps.Count - 1 downto 0 do begin
+        LOp := LOpsComp.Operation[PtrInt(LRelevantBlockOps.Items[i])];
+        If TPCOperation.OperationToOperationResume(i, LOp, False, LAccNo, LOpResume) then begin
+          LOpResume.NOpInsideBlock := LOp.tag; // Note: Used Op.tag to include operation index inside a list
+          LOpResume.time := LOpsComp.OperationBlock.timestamp;
+          LOpResume.Block := ABlockNum;
+          If LAccountBalances[LAccNo] >= 0 then begin
+            LOpResume.Balance := LAccountBalances[LAccNo];
+            LAccountBalances.AddOrSetValue(LAccNo, LOpResume.Balance - (LOpResume.Amount + LOpResume.Fee));
+          end else LOpResume.Balance := -1; // Undetermined
+
+          // Apply skip/take
+          inc(LNumOps);
+          if (LNumOps > ASkipCount) And (LNumOps <= ASkipCount + ATakeCount) then
+            LFoundOps.Add(LOpResume);
+
+          // short-cirtcuit exit if taken enough
+          if LFoundOps.Count >= ATakeCount then exit;
+        end;
+      end;
+
+      // Add previous updated block into traversal set
+      LPrevUpdatedBlock := LOpsComp.PreviousUpdatedBlocks.GetPreviousUpdatedBlock(LAccNo, ABlockNum);
+      if LPrevUpdatedBlock < ABlockNum then begin
+        LBlockTraversal.Add(LPrevUpdatedBlock);
+        MarkAccountAsScannableAtBlock(LAccNo, LPrevUpdatedBlock);
+      end;
+    end;
+  end;
+
+  function GetAccountLastUpdateBlock(constref AAccount : TAccount) : Cardinal;
+  begin
+    Result := AAccount.previous_updated_block;
+  end;
+
+begin
+  // Init
+  LNumOps := 0;
+  LBlockTraversal := LDisposables.AddObject( TSortedHashSet<Cardinal>.Create( TComparerTool<Cardinal>.Inverted( TComparer<Cardinal>.Default ) ) ) as TSortedHashSet<Cardinal>;
+  LAccountsToScanAtBlock := LDisposables.AddObject( TObjectDictionary<Cardinal, __TList_Cardinal>.Create([doOwnsValues])) as TObjectDictionary<Cardinal, __TList_Cardinal>;
+  LFoundOps := LDisposables.AddObject( TList<TOperationResume>.Create ) as TList<TOperationResume>;
+  LAccountBalances := LDisposables.AddObject(TDictionary<Cardinal, Cardinal>.Create) as TDictionary<Cardinal, Cardinal>;
+  LBlockEnd := ClipValue( Self.BlockTip - ABlockDepth, 0, Self.BlockTip);
+
+  // First get all accounts, their balances and initial traversal set
+  LAccounts := Self.GetAccounts(AAccountNumbers, AUsePendingBalance);
+  for i := Low(LAccounts) to High(LAccounts) do begin
+    LAccountBalances.AddOrSetValue(LAccounts[i].account, LAccounts[i].Balance);  // track account balances
+    LBlockTraversal.Add(LAccounts[i].previous_updated_block); // track account last updated
+    MarkAccountAsScannableAtBlock(LAccounts[i].account, LAccounts[i].previous_updated_block);
+  end;
+
+  // Traverse the set of "last updated" blocks in DESCENDING order
+  while LBlockTraversal.Count > 0 do begin
+    LBlock := TSortedHashSetTool<Cardinal>.Pop( LBlockTraversal );
+    if LBlock < LBlockEnd then continue;
+    ScanBlock(LBlock);   // note: this will update LBlockTraversals with prev updated blocks, so loops until finished
+    if LFoundOps.Count >= ATakeCount then exit;
+  end;
+
+  // return array result
+  Result := LFoundOps.ToArray;
+end;
 
 { TAccountComparer }
 
