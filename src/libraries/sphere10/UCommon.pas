@@ -59,6 +59,7 @@ function GetSetValue(const aSet:PTypeInfo; Name: String): Integer;
 { Clip/Min/Max Value }
 function ClipValue( AValue, MinValue, MaxValue: Integer) : Integer;
 function MinValue(const AArray : array of Cardinal) : Cardinal;
+function MaxValue(const AArray : array of Cardinal) : Cardinal;
 
 { DateTime functions }
 function TimeStamp : AnsiString;
@@ -725,9 +726,21 @@ end;
 function MinValue(const AArray : array of Cardinal) : Cardinal;
 var i : SizeInt;
 begin
-  Result := -1;
+  if Length(AArray) = 0 then raise EArgumentException.Create('AArray is empty');
+  Result := AArray[Low(AArray)];
   for i := Low(AArray) to High(AArray) do begin
     if Result > AArray[i] then
+      Result := AArray[i];
+  end;
+end;
+
+function MaxValue(const AArray : array of Cardinal) : Cardinal;
+var i : SizeInt;
+begin
+  if Length(AArray) = 0 then raise EArgumentException.Create('AArray is empty');
+  Result := AArray[Low(AArray)];
+  for i := Low(AArray) to High(AArray) do begin
+    if Result < AArray[i] then
       Result := AArray[i];
   end;
 end;
