@@ -124,8 +124,8 @@ object FRMAbout: TFRMAbout
     Left = 90
     Height = 25
     Top = 15
-    Width = 382
-    Caption = 'Pascal Coin Wallet, Miner && Explorer'
+    Width = 188
+    Caption = 'PascalCoin Wallet'
     Font.Color = clBlack
     Font.Height = -21
     Font.Name = 'Tahoma'
