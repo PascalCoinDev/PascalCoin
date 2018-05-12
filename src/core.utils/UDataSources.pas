@@ -47,17 +47,9 @@ type
   { TOperationsDataSourceBase }
 
   TOperationsDataSourceBase = class(TCustomDataSource<TOperationResume>)
-  private
-    FStart, FEnd: cardinal;
-    function GetTimeSpan: TTimeSpan;
-    procedure SetTimeSpan(const ASpan: TTimeSpan);
   protected
     function GetColumns: TDataColumns; override;
   public
-    constructor Create(AOwner: TComponent); override;
-    property TimeSpan: TTimeSpan read GetTimeSpan write SetTimeSpan;
-    property StartBlock: cardinal read FStart write FStart;
-    property EndBlock: cardinal read FEnd write FEnd;
     function GetItemField(constref AItem: TOperationResume; const ABindingName: ansistring): variant; override;
   end;
 
@@ -65,13 +57,15 @@ type
 
   TAccountsOperationsDataSource = class(TOperationsDataSourceBase)
   private
+    FBlockDepth: Cardinal;
     FAccounts: TSortedHashSet<cardinal>;
     function GetAccounts: TArray<cardinal>;
     procedure SetAccounts(const AAccounts: TArray<cardinal>);
   public
+    property Accounts: TArray<cardinal> read GetAccounts write SetAccounts;
+    property BlockDepth: cardinal read FBlockDepth write FBlockDepth;
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    property Accounts: TArray<cardinal> read GetAccounts write SetAccounts;
     procedure FetchAll(const AContainer: TList<TOperationResume>); override;
   end;
 
@@ -85,7 +79,11 @@ type
   { TOperationsDataSource }
 
   TOperationsDataSource = class(TOperationsDataSourceBase)
+  private
+    FStartBlock, FEndBlock: Cardinal;
   public
+    property StartBlock : Cardinal read FStartBlock write FStartBlock;
+    property EndBlock : Cardinal read FEndBlock write FEndBlock;
     procedure FetchAll(const AContainer: TList<TOperationResume>); override;
   end;
 
@@ -260,37 +258,6 @@ end;
 
 { TOperationsDataSourceBase }
 
-constructor TOperationsDataSourceBase.Create(AOwner: TComponent);
-var
-  node: TNode;
-begin
-  inherited Create(AOwner);
-  node := TNode.Node;
-  if Assigned(Node) then begin
-    FStart := 0;
-    FEnd := node.Bank.BlocksCount - 1;
-  end else begin
-    FStart := 0;
-    FEnd := 0;
-  end;
-end;
-
-function TOperationsDataSourceBase.GetTimeSpan: TTimeSpan;
-begin
-  Result := TTimeSpan.FromSeconds(CT_NewLineSecondsAvg * (FEnd - FStart + 1));
-end;
-
-procedure TOperationsDataSourceBase.SetTimeSpan(const ASpan: TTimeSpan);
-var
-  node: TNode;
-begin
-  node := TNode.Node;
-  if not Assigned(Node) then
-    exit;
-  FEnd := node.Bank.BlocksCount - 1;
-  FStart := ClipValue(FEnd - (ASpan.TotalBlockCount + 1), 0, FEnd);
-end;
-
 function TOperationsDataSourceBase.GetColumns: TDataColumns;
 begin
   Result := TDataColumns.Create(
@@ -397,49 +364,24 @@ begin
   end;
 end;
 
+
 procedure TAccountsOperationsDataSource.FetchAll(const AContainer: TList<TOperationResume>);
 var
-  block, i, keyIndex: integer;
-  OPR: TOperationResume;
-  accountBlockOps: TOperationsResumeList;
-  node: TNode;
-  list: Classes.TList;
-  Op: TPCOperation;
-  acc: cardinal;
-  GC: TDisposables;
+  LNode: TNode;
+  LBlockDepth : Integer;
 begin
   if FAccounts.Count = 0 then
     exit;
-  node := TNode.Node;
-  if not Assigned(Node) then
+  LNode := TNode.Node;
+  if not Assigned(LNode) then
     exit;
-  TNode.Node.Bank.SafeBox.StartThreadSafe;
+  LBlockDepth := ClipValue(FBlockDepth, 0, LNode.Bank.BlocksCount);
+  LNode.Bank.SafeBox.StartThreadSafe;
   try
-    accountBlockOps := GC.AddObject(TOperationsResumeList.Create) as TOperationsResumeList;
-    list := GC.AddObject(Classes.TList.Create) as Classes.TList;
-    for acc in FAccounts do begin
-      // Load pending operations first
-      list.Clear;
-      accountBlockOps.Clear;
-      Node.Operations.OperationsHashTree.GetOperationsAffectingAccount(acc, list);
-      if list.Count > 0 then
-        for i := list.Count - 1 downto 0 do begin
-          Op := node.Operations.OperationsHashTree.GetOperation(PtrInt(list[i]));
-          if TPCOperation.OperationToOperationResume(0, Op, False, acc, OPR) then begin
-            OPR.NOpInsideBlock := i;
-            OPR.Block := Node.Operations.OperationBlock.block;
-            OPR.Balance := Node.Operations.SafeBoxTransaction.Account(acc {Op.SignerAccount}).balance;
-            AContainer.Add(OPR);
-          end;
-        end;
-
-      // Load block ops
-      Node.GetStoredOperationsFromAccount(accountBlockOps, acc, MaxInt, 0, MaxInt);
-      for i := 0 to accountBlockOps.Count - 1 do
-        AContainer.Add(accountBlockOps[i]);
-    end;
+    AContainer.AddRange( LNode.GetPendingOperationsAffectingAccounts(FAccounts.ToArray, 0, MaxInt) );
+    AContainer.AddRange( LNode.GetStoredOperationsAffectingAccounts(FAccounts.ToArray, LBlockDepth, 0, MaxInt, True) );
   finally
-    TNode.Node.Bank.SafeBox.EndThreadSave;
+    LNode.Bank.SafeBox.EndThreadSave;
   end;
 end;
 
@@ -483,7 +425,7 @@ begin
   if not Assigned(Node) then
     exit;
   blockOps := GC.AddObject(TPCOperationsComp.Create(nil)) as TPCOperationsComp;
-  for block := FEnd downto FStart do
+  for block := FEndBlock downto FStartBlock do
   begin  /// iterate blocks correctly
     opr := CT_TOperationResume_NUL;
     if (Node.Bank.Storage.LoadBlockChainBlock(blockOps, block)) then begin
