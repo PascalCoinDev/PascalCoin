@@ -82,7 +82,8 @@ type
     procedure RefreshTotals;
     procedure RefreshAccountsGrid;
     procedure RefreshOperationsGrid;
-    function GetAccounts(const AccountNumbers: TArray<cardinal>): TArray<TAccount>;
+    function GetSelectedAccounts : TArray<Cardinal>;
+    function GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
   protected
     procedure ActivateFirstTime; override;
     procedure OnPrivateKeysChanged(Sender: TObject);
@@ -94,6 +95,7 @@ type
     procedure OnPrepareAccountPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
     procedure OnPrepareOperationsPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
   public
+    property SelectedAccounts : TArray<Cardinal> read GetSelectedAccounts;
     property AccountsMode: TCTRLWalletAccountsMode read FAccountsMode write SetAccountsMode;
     property OperationsMode: TCTRLWalletOperationsMode read FOperationsMode write SetOperationsMode;
     property OperationsHistory: TCTRLWalletOperationsHistory read FOperationsHistory write SetOperationsHistory;
@@ -423,34 +425,9 @@ begin
   FOperationsGrid.RefreshGrid;
 end;
 
-function TCTRLWallet.GetAccounts(const AccountNumbers: TArray<cardinal>): TArray<TAccount>;
-var
-  acc: TAccount;
-  safeBox: TPCSafeBox;
-  keys: TOrderedAccountKeysList;
-  LContainer: Generics.Collections.TList<TAccount>;
-  i: integer;
+function TCTRLWallet.GetSelectedAccounts : TArray<Cardinal>;
 begin
-  LContainer := Generics.Collections.TList<TAccount>.Create();
-  keys := TWallet.keys.AccountsKeyList;
-  safeBox := TUserInterface.Node.Bank.safeBox;
-  safeBox.StartThreadSafe;
-  try
-    LContainer.Clear;
-    try
-      // load selected user accounts
-      for i := Low(AccountNumbers) to High(AccountNumbers) do begin
-        acc := safeBox.Account(AccountNumbers[i]);
-        if keys.IndexOfAccountKey(acc.accountInfo.accountKey) >= 0 then
-          LContainer.Add(acc);
-      end;
-    finally
-      safeBox.EndThreadSave;
-    end;
-    Result := LContainer.ToArray;
-  finally
-    LContainer.Free;
-  end;
+  Result := TListTool<Variant, Cardinal>.Transform(FAccountsGrid.SelectedRows, GetAccNoWithoutChecksum);
 end;
 
 procedure TCTRLWallet.SetAccountsMode(AMode: TCTRLWalletAccountsMode);
@@ -486,10 +463,13 @@ end;
 
 procedure TCTRLWallet.SetOperationsMode(AMode: TCTRLWalletOperationsMode);
 begin
-  if FOperationsMode = AMode then exit;
   FUILock.Acquire;
   try
     FOperationsMode := AMode;
+    case AMode of
+     womSelectedAccounts: FOperationsDataSource.Accounts := SelectedAccounts;
+     womAllAccounts: FOperationsDataSource.Accounts := TCoreTool.GetUserAccountNumbers;
+    end;
     RefreshOperationsGrid;
   finally
     FUILock.Release;
@@ -500,9 +480,9 @@ procedure TCTRLWallet.SetOperationsHistory(AHistory: TCTRLWalletOperationsHistor
 begin
   FOperationsHistory := AHistory;
   case FOperationsHistory of
-    woh7Days: FOperationsDataSource.TimeSpan := TTimeSpan.FromDays(7);
-    woh30Days: FOperationsDataSource.TimeSpan := TTimeSpan.FromDays(30);
-    wohFullHistory: FOperationsDataSource.TimeSpan := TTimeSpan.FromDays(10 * 365);
+    woh7Days: FOperationsDataSource.BlockDepth := TTimeSpan.FromDays(7).TotalBlockCount;
+    woh30Days: FOperationsDataSource.BlockDepth := TTimeSpan.FromDays(30).TotalBlockCount;
+    wohFullHistory: FOperationsDataSource.BlockDepth := TTimeSpan.FromDays(10 * 365).TotalBlockCount;
   end;
   FOperationsGrid.RefreshGrid;
 end;
@@ -534,12 +514,9 @@ end;
 
 procedure TCTRLWallet.OnAccountsSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
 begin
-  if ASelection.Page >= 0 then begin
-    if OperationsMode <> womSelectedAccounts then
-      OperationsMode := womSelectedAccounts
-    else
-      RefreshOperationsGrid // already viewing selected accounts, add to visible set
-  end else
+  if ASelection.Page >= 0 then
+    OperationsMode := womSelectedAccounts
+  else
     OperationsMode := womAllAccounts;
 end;
 
@@ -622,18 +599,10 @@ var
   Scoped: TDisposables;
   wiz: TWIZSendPASCWizard;
   model: TWIZOperationsModel;
-  AccountNumbersWithoutChecksum: TArray<cardinal>;
-
-  function GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
-  begin
-    Result := ARow.__KEY;
-  end;
-
 begin
   wiz := Scoped.AddObject(TWIZSendPASCWizard.Create(nil)) as TWIZSendPASCWizard;
   model := TWIZOperationsModel.Create(wiz, omtSendPasc);
-  AccountNumbersWithoutChecksum := TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows,GetAccNoWithoutChecksum);
-  model.Account.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
+  model.Account.SelectedAccounts := TNode.Node.GetAccounts(SelectedAccounts, True);
   wiz.Start(model);
 end;
 
@@ -642,18 +611,10 @@ var
   Scoped: TDisposables;
   wiz: TWIZChangeKeyWizard;
   model: TWIZOperationsModel;
-  AccountNumbersWithoutChecksum: TArray<cardinal>;
-
-  function GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
-  begin
-    Result := ARow.__KEY;
-  end;
-
 begin
   wiz := Scoped.AddObject(TWIZChangeKeyWizard.Create(nil)) as TWIZChangeKeyWizard;
   model := TWIZOperationsModel.Create(wiz, omtChangeKey);
-  AccountNumbersWithoutChecksum := TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows, GetAccNoWithoutChecksum);
-  model.Account.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
+  model.Account.SelectedAccounts := TNode.Node.GetAccounts(SelectedAccounts, True);
   wiz.Start(model);
 end;
 
@@ -662,19 +623,10 @@ var
   Scoped: TDisposables;
   wiz: TWIZEnlistAccountForSaleWizard;
   model: TWIZOperationsModel;
-  AccountNumbersWithoutChecksum: TArray<cardinal>;
-
-   function GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
-  begin
-    Result := ARow.__KEY;
-  end;
-
-
 begin
   wiz := Scoped.AddObject(TWIZEnlistAccountForSaleWizard.Create(nil)) as TWIZEnlistAccountForSaleWizard;
   model := TWIZOperationsModel.Create(wiz, omtEnlistAccountForSale);
-  AccountNumbersWithoutChecksum := TListTool<variant, cardinal>.Transform(FAccountsGrid.SelectedRows, GetAccNoWithoutChecksum);
-  model.Account.SelectedAccounts := GetAccounts(AccountNumbersWithoutChecksum);
+  model.Account.SelectedAccounts := TNode.Node.GetAccounts(SelectedAccounts, True);
   wiz.Start(model);
 end;
 
@@ -705,6 +657,13 @@ procedure TCTRLWallet.miOperationInfoClick(Sender: TObject);
 begin
   if FOperationsGrid.Selection.RowCount = 0 then exit;
   TUserInterface.ShowOperationInfoDialog(Self, FOperationsGrid.SelectedRows[0].__KEY);
+end;
+
+{ Aux methods }
+
+function TCTRLWallet.GetAccNoWithoutChecksum(constref ARow: variant): cardinal;
+begin
+  Result := ARow.__KEY;
 end;
 
 end.
