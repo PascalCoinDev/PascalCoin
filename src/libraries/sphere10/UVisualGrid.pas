@@ -306,6 +306,7 @@ uses
     FLastSelection: TVisualGridSelection;
     FLastSelectionEvent: TVisualGridSelection;
     FIgnoreSelectionEvent: boolean;
+    FIgnoreRecalcPageCount: boolean;
     FCellPadding : TRect;
     FWidgetControl: TControl;
     FWidgetControlParent: TWinControl;
@@ -495,6 +496,7 @@ type
   protected
     FGrid: TCustomVisualGrid;
     FLastFetchDataResult: TCustomVisualGrid.TLastFetchDataResult;
+    FIgnoreRecalcPageCount: boolean;
     procedure Execute; override;
   public
     constructor Create(AGrid: TCustomVisualGrid; ARefreshColumns: boolean);
@@ -767,6 +769,7 @@ begin
   FGrid.BeforeFetchPage;
   FreeOnTerminate:=true;
   FLastFetchDataResult.RefreshColumns:=ARefreshColumns;
+  FIgnoreRecalcPageCount:=FGrid.FIgnoreRecalcPageCount;
 
   // fast copy of data (we need to draw old data for a while)
   New(FGrid.FCachedDataTable);
@@ -1709,7 +1712,10 @@ begin
   LPageSize:=StrToIntDef(FPageSizeEdit.Text, FPageSize);
   if not CheckRangeForPageSize(LPageSize) then
     SetPageSizeEditText(IntToStr(LPageSize));
+
+  FIgnoreRecalcPageCount := true;
   PageSize:=LPageSize;
+  FIgnoreRecalcPageCount := false;
 end;
 
 procedure TCustomVisualGrid.PageNavigationClick(Sender: TObject);
@@ -1992,6 +1998,8 @@ var
   var
     LCount: Integer;
   begin
+    if FIgnoreRecalcPageCount then
+      Exit(false);
     LCount := ClientRowCount;
     Result := LCount <> PageSize;
     if Result then
@@ -2011,7 +2019,7 @@ var
 begin
   // if filter is active then vgoAutoHideSearchPanel should be not considered.
   // Note: vgfSortable is not considered as 'real' filter
-  LHasFilter := (FSearchEdit.Text <> '') and (FFilters.Count > 0) and FindProperFilter;
+  LHasFilter := (FFilters.Count > 0) and FindProperFilter;
 
   SetPageIndexEditText(IntToStr(Succ(FPageIndex)));
   FPageCountLabel.Caption := Format('/%d',[FPageCount]);
@@ -2029,10 +2037,16 @@ begin
           LCountOnPage2 := FTotalDataCount - ClientRowCount;
           LGridUnusedHeight := FDrawGrid.ClientHeight - FDrawGrid.GridHeight;
           LPotentialHeight := FBottomPanel.Height + LGridUnusedHeight;
-          // vgoAutoHideSearchPanel + AutoPageSize + vgoAutoHidePaging is killer combo :P
-          if (vgoAutoHideSearchPanel in FOptions) and FTopPanel.Visible and not Assigned(FWidgetControl)
-           and not LHasFilter then
-            LPotentialHeight := LPotentialHeight + FTopPanel.Height;
+          if (vgoAutoHideSearchPanel in FOptions) and not LHasFilter then
+          begin
+            // vgoAutoHideSearchPanel + AutoPageSize + vgoAutoHidePaging is killer combo :P
+            if FTopPanel.Visible and not Assigned(FWidgetControl) then
+              LPotentialHeight := LPotentialHeight + FTopPanel.Height;
+            // the above killer combo is not all :D - there is also FTopPanelMultiSearch
+            if FTopPanelMultiSearch.Visible then
+              LPotentialHeight := LPotentialHeight + FTopPanelMultiSearch.Height;
+          end;
+
           if FBottomPanel.Visible
            and (FDrawGrid.DefaultRowHeight * LCountOnPage2 <= LPotentialHeight) then
           begin
@@ -2068,6 +2082,7 @@ begin
       LWasVisible := FTopPanel.Visible;
       FTopPanel.Visible := Assigned(FWidgetControl);
       FTopPanelRight.Visible := not Assigned(FWidgetControl);
+      FTopPanelMultiSearch.Visible := false;
       if (FTopPanel.Visible <> LWasVisible) and RecalcPageCount then
         Exit;
     end;
@@ -2077,6 +2092,7 @@ begin
     LWasVisible := FTopPanel.Visible;
     FTopPanel.Visible := FCanSearch;
     FTopPanelRight.Visible := true;
+    FTopPanelMultiSearch.Visible := smMulti = FSearchMode;
     if (FTopPanel.Visible <> LWasVisible) and RecalcPageCount then
       Exit;
   end;
@@ -2324,6 +2340,7 @@ begin
   begin
     if FromThread then
     begin
+      FIgnoreRecalcPageCount := TFetchDataThread(FActiveThread).FIgnoreRecalcPageCount;
       FActiveThread := nil;
       Dispose(FCachedDataTable);
       FCachedDataTable := nil;
@@ -2353,6 +2370,7 @@ begin
     FIgnoreSelectionEvent:=false;
   end;
   RefreshPageIndexAndGridInterface;
+  FIgnoreRecalcPageCount := false;
 
   // each page means different records so selection should be not moved to
   // new page nor deselected
