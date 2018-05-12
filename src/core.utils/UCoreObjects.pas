@@ -28,6 +28,8 @@ type
     TotalPASA : Cardinal;
   end;
 
+  PBalanceSummary = ^TBalanceSummary;
+
   { TBlockSummary }
 
   TBlockSummary = record

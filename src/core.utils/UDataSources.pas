@@ -40,7 +40,10 @@ type
   { TMyAccountsDataSource }
 
   TMyAccountsDataSource = class(TAccountsDataSource)
+  private
+    FPBalanceSummary : PBalanceSummary;
   public
+    property BalancePointer : PBalanceSummary read FPBalanceSummary write FPBalanceSummary;
     procedure FetchAll(const AContainer: TList<TAccount>); override;
   end;
 
@@ -247,8 +250,10 @@ procedure TMyAccountsDataSource.FetchAll(const AContainer: TList<TAccount>);
 var
   i: integer;
   LAccs: TArray<TAccount>;
+  LBalanceSummary : TBalanceSummary;
 begin
-  LAccs := TCoreTool.GetUserAccounts(FIncludePending);
+  LAccs := TCoreTool.GetUserAccounts(LBalanceSummary, FIncludePending);
+  FPBalanceSummary^ := LBalanceSummary;
   if FKeys.Count > 0 then begin
     for i := Low(LAccs) to High(LAccs) do
       if FKeys.Contains(LAccs[i].accountInfo.accountKey) then
@@ -364,7 +369,6 @@ begin
   end;
 end;
 
-
 procedure TAccountsOperationsDataSource.FetchAll(const AContainer: TList<TOperationResume>);
 var
   LNode: TNode;
@@ -379,6 +383,7 @@ begin
   LNode.Bank.SafeBox.StartThreadSafe;
   try
     AContainer.AddRange( LNode.GetPendingOperationsAffectingAccounts(FAccounts.ToArray, 0, MaxInt) );
+    // Add caching here
     AContainer.AddRange( LNode.GetStoredOperationsAffectingAccounts(FAccounts.ToArray, LBlockDepth, 0, MaxInt, True) );
   finally
     LNode.Bank.SafeBox.EndThreadSave;
