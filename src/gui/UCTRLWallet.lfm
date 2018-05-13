@@ -10,32 +10,31 @@ object CTRLWallet: TCTRLWallet
   ClientWidth = 1151
   OnCreate = FormCreate
   OnResize = FormResize
-  LCLVersion = '1.8.2.0'
   Visible = False
   object PairSplitter1: TPairSplitter
     Left = 0
     Height = 571
     Top = 0
-    Width = 1094
+    Width = 1151
     Align = alClient
-    Position = 424
+    Position = 360
     object PairSplitterSide1: TPairSplitterSide
       Cursor = crArrow
       Left = 0
       Height = 571
       Top = 0
-      Width = 424
-      ClientWidth = 424
+      Width = 360
+      ClientWidth = 360
       ClientHeight = 571
       object GroupBox1: TGroupBox
         Left = 8
         Height = 105
         Top = 8
-        Width = 408
+        Width = 344
         Anchors = [akTop, akLeft, akRight]
         Caption = 'Overview'
         ClientHeight = 85
-        ClientWidth = 404
+        ClientWidth = 340
         TabOrder = 0
         object Label1: TLabel
           Left = 16
@@ -58,7 +57,7 @@ object CTRLWallet: TCTRLWallet
           ParentFont = False
         end
         object lblTotalPASA: TLabel
-          Left = 284
+          Left = 220
           Height = 15
           Top = 48
           Width = 108
@@ -71,7 +70,7 @@ object CTRLWallet: TCTRLWallet
           ParentFont = False
         end
         object lblTotalPASC: TLabel
-          Left = 284
+          Left = 220
           Height = 15
           Top = 16
           Width = 106
@@ -88,17 +87,17 @@ object CTRLWallet: TCTRLWallet
         Left = 8
         Height = 440
         Top = 120
-        Width = 408
+        Width = 344
         Anchors = [akTop, akLeft, akRight, akBottom]
         Caption = 'My Accounts'
         ClientHeight = 420
-        ClientWidth = 404
+        ClientWidth = 340
         TabOrder = 1
         object cbAccounts: TComboBox
           Left = 8
           Height = 23
           Top = 8
-          Width = 384
+          Width = 320
           Anchors = [akTop, akLeft, akRight]
           ItemHeight = 15
           ItemIndex = 0
@@ -116,7 +115,7 @@ object CTRLWallet: TCTRLWallet
           Left = 8
           Height = 376
           Top = 40
-          Width = 384
+          Width = 320
           Anchors = [akTop, akLeft, akRight, akBottom]
           BorderSpacing.Around = 3
           BevelOuter = bvNone
@@ -128,27 +127,27 @@ object CTRLWallet: TCTRLWallet
     end
     object PairSplitterSide2: TPairSplitterSide
       Cursor = crArrow
-      Left = 429
+      Left = 365
       Height = 571
       Top = 0
-      Width = 665
-      ClientWidth = 665
+      Width = 786
+      ClientWidth = 786
       ClientHeight = 571
       object gpRecentOps: TGroupBox
         Left = 8
         Height = 552
         Top = 8
-        Width = 655
+        Width = 776
         Anchors = [akTop, akLeft, akRight, akBottom]
         Caption = 'Recent Operations'
         ClientHeight = 532
-        ClientWidth = 651
+        ClientWidth = 772
         TabOrder = 0
         object paOperations: TPanel
           Left = 8
           Height = 512
           Top = 16
-          Width = 639
+          Width = 760
           Anchors = [akTop, akLeft, akRight, akBottom]
           BorderSpacing.Around = 3
           BevelOuter = bvNone

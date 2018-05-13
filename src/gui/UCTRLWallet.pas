@@ -206,7 +206,7 @@ begin
   with FOperationsGrid.AddColumn('Type') do
   begin
     Sanitizer := TCellRenderers.OperationTypeSanitizer;
-    Width := 150;
+    Width := 80;
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
   with FOperationsGrid.AddColumn('Amount') do
@@ -214,8 +214,9 @@ begin
     Binding := 'AmountDecimal';
     SortBinding := 'Amount';
     DisplayBinding := 'Amount';
-    Width := 150;
+    Width := 100;
     HeaderAlignment := taRightJustify;
+    DataAlignment:=taRightJustify;
     Renderer := TCellRenderers.PASC_CheckPendingBalance;
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
@@ -497,8 +498,8 @@ end;
 
 procedure TCTRLWallet.OnUserKeyActivityDetected;
 begin
-  if NOT TUserInterface.Node.HasBestKnownBlockchainTip then
-    exit; // node syncing
+//  if NOT TUserInterface.Node.HasBestKnownBlockchainTip then
+//    exit; // node syncing
   FAccountsGrid.RefreshGrid;
   FOperationsGrid.RefreshGrid;
 end;

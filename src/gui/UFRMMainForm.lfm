@@ -2,10 +2,10 @@ object FRMMainForm: TFRMMainForm
   Left = 231
   Height = 600
   Top = 44
-  Width = 865
+  Width = 870
   Caption = 'Pascal Coin Wallet, JSON-RPC Miner & Explorer'
   ClientHeight = 600
-  ClientWidth = 865
+  ClientWidth = 870
   Color = clBtnFace
   Constraints.MinHeight = 600
   Constraints.MinWidth = 865
@@ -27,7 +27,7 @@ object FRMMainForm: TFRMMainForm
     Left = 0
     Height = 80
     Top = 0
-    Width = 865
+    Width = 870
     Align = alTop
     BevelOuter = bvNone
     Caption = 'LOGO PANEL'
@@ -44,9 +44,9 @@ object FRMMainForm: TFRMMainForm
   end
   object paSyncPanel: TPanel
     Left = 0
-    Height = 497
+    Height = 536
     Top = 80
-    Width = 865
+    Width = 870
     Align = alClient
     AutoSize = True
     BevelOuter = bvNone
@@ -61,9 +61,9 @@ object FRMMainForm: TFRMMainForm
   end
   object paWalletPanel: TPanel
     Left = 0
-    Height = 497
+    Height = 536
     Top = 80
-    Width = 865
+    Width = 870
     Align = alClient
     BevelOuter = bvNone
     BorderStyle = bsSingle
@@ -78,8 +78,8 @@ object FRMMainForm: TFRMMainForm
   object sbStatusBar: TStatusBar
     Left = 0
     Height = 23
-    Top = 577
-    Width = 865
+    Top = 616
+    Width = 870
     Panels = <    
       item
         Alignment = taCenter
@@ -105,9 +105,9 @@ object FRMMainForm: TFRMMainForm
     AnchorSideTop.Side = asrCenter
     AnchorSideBottom.Control = sbStatusBar
     AnchorSideBottom.Side = asrBottom
-    Left = 778
+    Left = 783
     Height = 15
-    Top = 581
+    Top = 620
     Width = 70
     Align = alNone
     Anchors = [akTop, akRight]
