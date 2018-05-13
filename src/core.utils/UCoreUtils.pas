@@ -77,7 +77,7 @@ type
    function GetAccount(AAccountNumber : Cardinal; AIncludePending : boolean = true) : TAccount;
    function GetAccounts(const AAccountNumbers : array of Cardinal; AIncludePending : boolean = true) : TArray<TAccount>;
    function GetPendingOperationsAffectingAccounts(const AAccountNumbers: array of Cardinal; ASkipCount, ATakeCount : Integer) : TArray<TOperationResume>;
-   function GetStoredOperationsAffectingAccounts(const AAccountNumbers : array of Cardinal; ABlockDepth, ASkipCount, ATakeCount : Integer; AUsePendingBalance : boolean = true) : TArray<TOperationResume>;
+   function GetStoredOperationsAffectingAccounts(const AAccountNumbers : array of Cardinal; ABlockDepth, ASkipCount, ATakeCount : Integer) : TArray<TOperationResume>;
   end;
 
   { TAccountHelper }
@@ -317,7 +317,7 @@ begin
   Result := LOps.ToArray;
 end;
 
-function TNodeHelper.GetStoredOperationsAffectingAccounts(const AAccountNumbers : array of Cardinal; ABlockDepth, ASkipCount, ATakeCount : Integer; AUsePendingBalance : boolean = true) : TArray<TOperationResume>;
+function TNodeHelper.GetStoredOperationsAffectingAccounts(const AAccountNumbers : array of Cardinal; ABlockDepth, ASkipCount, ATakeCount : Integer) : TArray<TOperationResume>;
 type
   __TList_Cardinal = TList<Cardinal>;
 var
@@ -334,6 +334,7 @@ var
   LBlockEnd, LNumOps : integer;
   LBlockTraversal : TSortedHashSet<Cardinal>;
   LAccountsToScanAtBlock : TObjectDictionary<Cardinal, __TList_Cardinal>;
+  LAcc : TAccount;
 
   procedure MarkAccountAsScannableAtBlock(AAccountNo, ABlockNo : cardinal);
   begin
@@ -394,7 +395,7 @@ var
 
   function GetAccountLastUpdateBlock(constref AAccount : TAccount) : Cardinal;
   begin
-    Result := AAccount.previous_updated_block;
+    Result := AAccount.updated_block;
   end;
 
 begin
@@ -405,13 +406,14 @@ begin
   LFoundOps := LDisposables.AddObject( TList<TOperationResume>.Create ) as TList<TOperationResume>;
   LAccountBalances := LDisposables.AddObject(TDictionary<Cardinal, Cardinal>.Create) as TDictionary<Cardinal, Cardinal>;
   LBlockEnd := ClipValue( Self.BlockTip - ABlockDepth, 0, Self.BlockTip);
-
   // First get all accounts, their balances and initial traversal set
-  LAccounts := Self.GetAccounts(AAccountNumbers, AUsePendingBalance);
+  LAccounts := Self.GetAccounts(AAccountNumbers, False);
   for i := Low(LAccounts) to High(LAccounts) do begin
-    LAccountBalances.AddOrSetValue(LAccounts[i].account, LAccounts[i].Balance);  // track account balances
-    LBlockTraversal.Add(LAccounts[i].previous_updated_block); // track account last updated
-    MarkAccountAsScannableAtBlock(LAccounts[i].account, LAccounts[i].previous_updated_block);
+    // if account is modified in block-tip
+    LAcc := LAccounts[i];
+    LAccountBalances.AddOrSetValue(LAcc.account, LAcc.Balance);  // track account balances
+    LBlockTraversal.Add(LAcc.updated_block);
+    MarkAccountAsScannableAtBlock(LAcc.account, LAcc.updated_block);
   end;
 
   // Traverse the set of "last updated" blocks in DESCENDING order
