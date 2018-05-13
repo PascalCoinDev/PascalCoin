@@ -347,6 +347,7 @@ var
     // note: FAccounts is never empty
     LAccFetchID := Length(FAccounts).ToString + FAccounts[Low(FAccounts)].ToString + FAccounts[High(FAccounts)].ToString;
     Result := LAccFetchID + FBlockDepth.ToString + TCrypto.ToHexaString(LNode.Bank.SafeBox.SafeBoxHash);
+
   end;
 
 begin
@@ -363,7 +364,7 @@ begin
     LFetchID := ComputeFetchID;
     if LFetchID <> FLastFetchID then begin
       FLastFetchID := LFetchID;
-      FLastFetchBlockOperations := LNode.GetStoredOperationsAffectingAccounts(FAccounts, LBlockDepth, 0, MaxInt, True);
+      FLastFetchBlockOperations := LNode.GetStoredOperationsAffectingAccounts(FAccounts, LBlockDepth, 0, MaxInt);
     end;
     AContainer.AddRange( FLastFetchBlockOperations );
   finally
