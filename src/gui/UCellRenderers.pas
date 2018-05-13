@@ -154,10 +154,21 @@ begin
 end;
 
 class procedure TCellRenderers.OPHASH (Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
+var
+  LRowData : TDataRowData;
+  LStr : AnsiString;
 begin
-  Handled := False;
+  if NOT VarIsStr(CellData) then
+    exit;
+  LStr := CellData;
+  LRowData := TDataRowData(RowData);
+ // Canvas.Font.Size := Canvas.Font.Size - 1;
+  Canvas.Font.Color := clGrayText;
+  Canvas.Font.Bold := true;
+  LStr := OperationShortHash(LStr);
+  Canvas.TextRect(Rect, Rect.Left, Rect.Top, LStr, Canvas.TextStyle);
+  Handled := true;
 end;
-
 
 { KEY }
 {   else if ABindingName = 'Key' then begin
