@@ -1567,10 +1567,10 @@ var
     end;
 
     if Assigned(AColumn) then
-      AddFilter(AColumn.SortBinding, AColumn.Filters)    // add filter for column only
+      AddFilter(AColumn.Binding, AColumn.Filters)    // add filter for column only
     else
       for LColumn in FColumns do
-        AddFilter(LColumn.SortBinding, LColumn.Filters); // add filter for all columns
+        AddFilter(LColumn.Binding, LColumn.Filters); // add filter for all columns
 
     LNewStrFilter := LNewStrFilter + QuotedStr(AExpression) + ',';
   end;
