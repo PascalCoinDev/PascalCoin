@@ -127,6 +127,7 @@ begin
 
   // fields
   FAccountsDataSource := TMyAccountsDataSource.Create(Self);
+  FAccountsDataSource.IncludePending := true;
   FAccountsDataSource.BalancePointer := @FBalance;
   FOperationsDataSource := TAccountsOperationsDataSource.Create(Self);
   FOperationsDataSource.Accounts := TCoreTool.GetUserAccountNumbers;
@@ -167,7 +168,7 @@ begin
     Width := 100;
     HeaderAlignment := taRightJustify;
     DataAlignment := taRightJustify;
-    Renderer := TCellRenderers.PASC;
+    Renderer := TCellRenderers.PASC_CheckPendingBalance;
     Filters := SORTABLE_NUMERIC_FILTER;
   end;
   FAccountsGRid.OnFinishedUpdating:= OnAccountsGridFinishedUpdating;

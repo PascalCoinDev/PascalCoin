@@ -140,7 +140,8 @@ begin
     TDataColumn.From('Price'),
     TDataColumn.From('PriceDecimal'),
     TDataColumn.From('LockedUntil'),
-    TDataColumn.From('NumberOfOperations')
+    TDataColumn.From('NOperation'),
+    TDataColumn.From('LastUpdatedBlock')
   );
 end;
 
@@ -172,8 +173,10 @@ begin
     Result := TAccountComp.FormatMoneyDecimal(AItem.accountInfo.price)
   else if ABindingName = 'LockedUntil' then
     Result := AItem.accountInfo.locked_until_block
-  else if ABindingName = 'NumberOfOperations' then
+  else if ABindingName = 'NOperation' then
     Result := AItem.n_operation
+  else if ABindingName = 'LastUpdatedBlock' then
+    Result := AItem.updated_block
   else
     raise Exception.Create(Format('Field not found "%s"', [ABindingName]));
 end;

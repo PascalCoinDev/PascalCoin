@@ -40,7 +40,7 @@ type
 implementation
 
 uses
-  SysUtils, DateUtils, UCommon, UCommon.Data, UAccounts, UConst, UCoreUtils;
+  SysUtils, DateUtils, UCommon, UCommon.Data, UAccounts, UNode, UConst, UCoreUtils;
 
 const
   CT_PASCBALANCE_POS_COL = clGreen;
@@ -112,20 +112,25 @@ var
   LTextStyle: TTextStyle;
   LRowData : TDataRowData;
   LStr : AnsiString;
-  LAllBalance : boolean;
+  LAllBalance, LPending : boolean;
 begin
   if NOT TVariantTool.IsNumeric(CellData) then
     exit;
   LValue := CellData;
   LRowData := TDataRowData(RowData);
-  if LRowData.HasData('UnixTime')  AND (LRowData['UnixTime'] = 0) then begin
+  if LRowData.HasData('UnixTime')  AND (LRowData['UnixTime'] = 0) then
+    LPending := true
+  else if LRowData.HasData('LastUpdatedBlock') AND (LRowData['LastUpdatedBlock'] > TNode.Node.BlockTip) then
+    LPending := true
+  else
+    LPending := false;
+
+  if LPending then begin
     Canvas.Font.Color := CT_PASCBALANCE_0CONF_COL;
     LStr := '(' + TAccountComp.FormatMoney(LValue) + ')';
     Canvas.TextRect(Rect, Rect.Left, Rect.Top, LStr, Canvas.TextStyle);
     Handled := true;
-    exit;
-  end;
-  PASC(Sender, ACol, ARow, Canvas, Rect, State, CellData, RowData, Handled);
+  end else PASC(Sender, ACol, ARow, Canvas, Rect, State, CellData, RowData, Handled);
 end;
 
 class procedure TCellRenderers.PASC (Sender: TObject; ACol, ARow: Longint; Canvas: TCanvas; Rect: TRect; State: TGridDrawState; const CellData, RowData: Variant; var Handled: boolean);
