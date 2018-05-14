@@ -17,27 +17,29 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, Buttons, Spin, UCommon, UCommon.Collections, UWallet, UCoreObjects,
-  UFRMAccountSelect, UNode,
-  UWizard, UWIZOperation, UWIZOperationPayload_Encryption, UWIZOperationSigner_Select;
+  ExtCtrls, Buttons, Spin, UCommon, UWallet, UCoreObjects,
+  UNode, UWizard, UWIZOperation, UWIZOperationPayload_Encryption, UWIZOperationSigner_Select;
 
 type
 
   { TWIZOperationFee_Custom }
 
   TWIZOperationFee_Custom = class(TWizardForm<TWIZOperationsModel>)
+    cbOverrideDefaultFee: TCheckBox;
     fseFee: TFloatSpinEdit;
     gbTransactionFee: TGroupBox;
     lblestimatedfee: TLabel;
     lblPASC: TLabel;
     lblNote1: TLabel;
-    lblNote2: TLabel;
     lblTotalFeeValue: TLabel;
-    procedure UpdateUI();
     procedure fseFeeChange(Sender: TObject);
-
-
+  private
+    procedure UpdateUI();
+    procedure SetFee(const AValue : int64);
+    function GetFee : Int64;
   public
+    property Fee : Int64 read GetFee write SetFee;
+    procedure Initialize; override;
     procedure OnPresent; override;
     procedure OnNext; override;
     function Validate(out message: ansistring): boolean; override;
@@ -53,17 +55,9 @@ uses
 
 { TWIZOperationFee_Custom }
 
-procedure TWIZOperationFee_Custom.UpdateUI();
-var
-  LOperationFee: int64;
+procedure TWIZOperationFee_Custom.Initialize;
 begin
-  TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)), LOperationFee);
-  lblTotalFeeValue.Caption := Format('%s PASC', [TAccountComp.FormatMoney(LOperationFee * Length(Model.Account.SelectedAccounts))]);
-end;
-
-procedure TWIZOperationFee_Custom.fseFeeChange(Sender: TObject);
-begin
-  UpdateUI();
+  Fee := TSettings.DefaultFee;
 end;
 
 procedure TWIZOperationFee_Custom.OnPresent;
@@ -74,6 +68,15 @@ end;
 
 procedure TWIZOperationFee_Custom.OnNext;
 begin
+  if cbOverrideDefaultFee.Checked then begin
+    TSettings.DefaultFee := Fee;
+    TSettings.Save;
+  end;
+
+  Model.Fee.SingleOperationFee := Fee;
+  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Fee, Model.Account.SelectedAccounts);
+
+  // TODO: move this out -- inappropriate to have payload/signer considerations here
   if Model.Payload.HasPayload then
     UpdatePath(ptInject, [TWIZOperationPayload_Encryption])
   else if Length(Model.Account.SelectedAccounts) > 1 then
@@ -86,40 +89,38 @@ begin
 end;
 
 function TWIZOperationFee_Custom.Validate(out message: ansistring): boolean;
-var
-  LOperationFee: int64;
-  LAccount: TAccount;
 begin
-  Result := True;
-
-  if not TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)), LOperationFee) then
-  begin
-    message := Format('Invalid Fee Value "%s"', [fseFee.ValueToStr(fseFee.Value)]);
+  if (Length(Model.Account.SelectedAccounts) > 1) AND (Fee = 0) then begin
+    message := 'Insufficient fee for multiple operations. Zero fees only allowed for single operation.';
     Result := False;
-    Exit;
   end;
 
-  Model.Fee.SingleOperationFee := LOperationFee;
-
-  if Length(Model.Account.SelectedAccounts) > 1 then
-    if not (Model.Fee.SingleOperationFee > 0) then
-    begin
-      message := 'Zero Fee Is Only Allowed For Single Operations.';
-      Result := False;
-      Exit;
-    end;
-
-
-  // get signer accounts from selected accounts
-  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Model.Fee.SingleOperationFee, Model.Account.SelectedAccounts);
-
-  if Length(Model.Signer.SignerCandidates) < 1 then
-  begin
+  if Length(TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Model.Fee.SingleOperationFee, Model.Account.SelectedAccounts)) = 0 then begin
     message := 'No Valid Signer Account Was Found With The Current Requirements.';
     Result := False;
     Exit;
   end;
+end;
 
+procedure TWIZOperationFee_Custom.SetFee(const AValue : int64);
+begin
+  fseFee.Value := TAccountComp.FormatMoneyDecimal(AValue);
+end;
+
+function TWIZOperationFee_Custom.GetFee : Int64;
+begin
+  if NOT TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)), Result) then
+    raise Exception.Create('Illegal value in fee selector');
+end;
+
+procedure TWIZOperationFee_Custom.UpdateUI();
+begin
+  lblTotalFeeValue.Caption := Format('%s PASC', [TAccountComp.FormatMoney(Fee * Length(Model.Account.SelectedAccounts))]);
+end;
+
+procedure TWIZOperationFee_Custom.fseFeeChange(Sender: TObject);
+begin
+  UpdateUI();
 end;
 
 end.

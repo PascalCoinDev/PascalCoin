@@ -7,23 +7,22 @@ object WIZOperationFee_Custom: TWIZOperationFee_Custom
   Caption = 'WIZOperationFee_Custom'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.2.0'
   Visible = False
   object gbTransactionFee: TGroupBox
-    Left = 14
-    Height = 232
-    Top = 8
-    Width = 400
+    Left = 0
+    Height = 248
+    Top = 0
+    Width = 422
     Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'Operation Fee'
-    ClientHeight = 212
-    ClientWidth = 396
+    ClientHeight = 228
+    ClientWidth = 418
     TabOrder = 0
     object fseFee: TFloatSpinEdit
       Left = 11
       Height = 23
       Top = 35
-      Width = 173
+      Width = 125
       DecimalPlaces = 4
       Increment = 0.0001
       MaxValue = 1
@@ -36,20 +35,12 @@ object WIZOperationFee_Custom: TWIZOperationFee_Custom
       Left = 11
       Height = 15
       Top = 8
-      Width = 207
-      Caption = 'Please enter the fee for this transaction.'
-      ParentColor = False
-    end
-    object lblNote2: TLabel
-      Left = 11
-      Height = 30
-      Top = 88
-      Width = 378
-      Caption = 'NOTE: if you are sending from multiple accounts, the fee is required for '#13#10'each sender account '
+      Width = 179
+      Caption = 'Please enter the fee per operation.'
       ParentColor = False
     end
     object lblPASC: TLabel
-      Left = 192
+      Left = 144
       Height = 15
       Top = 40
       Width = 28
@@ -59,24 +50,36 @@ object WIZOperationFee_Custom: TWIZOperationFee_Custom
       ParentFont = False
     end
     object lblestimatedfee: TLabel
-      Left = 11
+      Left = 246
       Height = 15
-      Top = 66
-      Width = 190
-      Caption = 'Estimated Fee For All Transcations:'
+      Top = 40
+      Width = 53
+      Alignment = taRightJustify
+      Anchors = [akTop, akRight]
+      Caption = 'Total Fee:'
       Font.Style = [fsBold]
       ParentColor = False
       ParentFont = False
     end
     object lblTotalFeeValue: TLabel
-      Left = 208
+      Left = 310
       Height = 15
-      Top = 66
-      Width = 28
+      Top = 40
+      Width = 112
+      Anchors = [akTop, akRight]
+      AutoSize = False
       Caption = 'xxxx'
       Font.Style = [fsBold]
       ParentColor = False
       ParentFont = False
+    end
+    object cbOverrideDefaultFee: TCheckBox
+      Left = 11
+      Height = 19
+      Top = 72
+      Width = 262
+      Caption = 'Make this my default fee for future operations'
+      TabOrder = 1
     end
   end
 end
