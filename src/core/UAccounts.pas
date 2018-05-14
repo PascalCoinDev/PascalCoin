@@ -1266,7 +1266,7 @@ end;
 
 class function TAccountComp.FormatMoneyDecimal(Money : Int64) : Single;
 begin
-  RoundTo( Money / 10000, -4);
+  Result := RoundTo( Money / 10000.0, -4);
 end;
 
 class function TAccountComp.GetECInfoTxt(const EC_OpenSSL_NID: Word): AnsiString;
