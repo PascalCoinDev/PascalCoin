@@ -92,13 +92,12 @@ function TWIZOperationFee_Custom.Validate(out message: ansistring): boolean;
 begin
   if (Length(Model.Account.SelectedAccounts) > 1) AND (Fee = 0) then begin
     message := 'Insufficient fee for multiple operations. Zero fees only allowed for single operation.';
-    Result := False;
+    Exit(false);
   end;
 
   if Length(TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Model.Fee.SingleOperationFee, Model.Account.SelectedAccounts)) = 0 then begin
     message := 'No Valid Signer Account Was Found With The Current Requirements.';
-    Result := False;
-    Exit;
+    Exit(false);
   end;
 end;
 
