@@ -133,6 +133,7 @@ Var Timestamp, nOnce : Cardinal;
   nLap : Cardinal;
   baseRealTC,baseHashingTC,finalHashingTC,lastNotifyTC : Cardinal;
   AuxStats : TMinerStats;
+  cMVFW : TMinerValuesForWork;
 begin
   UpdateState;
   nLap := 0;
@@ -145,6 +146,7 @@ begin
       baseRealTC := GetTickCount;
       FLock.Acquire;
       try
+        cMVFW := MinerValuesForWork;
       //  AuxStats := CT_TMinerStats_NULL;
         If FReadyToGPU then begin
           Timestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
@@ -175,7 +177,7 @@ begin
             inc(AuxStats.WinsCount);
             FLock.Release;
             try
-              FoundNOnce(Timestamp,nOnce);
+              FoundNOnce(cMVFW,Timestamp,nOnce);
             finally
               FLock.Acquire;
             end;

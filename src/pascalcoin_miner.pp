@@ -27,7 +27,7 @@ uses
   UBlockChain, UPoolMinerThreads, UGPUMining,
   UPoolMining, ULog, UThread, UAccounts, UCrypto,
   UConst, UTime, UNode, UNetProtocol, USha256,
-  UOpenSSL,
+  UOpenSSL, UBaseTypes,
   DelphiCL;
 
 type
@@ -58,7 +58,7 @@ type
   end;
 
 Const
-  CT_MINER_VERSION = {$IFDEF PRODUCTION}'0.6'{$ELSE}{$IFDEF TESTNET}'0.6 TESTNET'{$ELSE}ERROR{$ENDIF}{$ENDIF};
+  CT_MINER_VERSION = {$IFDEF PRODUCTION}'0.7'{$ELSE}{$IFDEF TESTNET}'0.7 TESTNET'{$ELSE}ERROR{$ENDIF}{$ENDIF};
   CT_Line_DeviceStatus = 3;
   CT_Line_ConnectionStatus = 4;
   CT_Line_MinerValues = 7;
@@ -271,14 +271,15 @@ var
   end;
 
   Procedure DoWaitAndLog;
-  Var tc : Cardinal;
+  Var tc : TTickCount;
     gs,ms : TMinerStats;
     hrReal,hrHashing, glhrHashing, glhrReal : Real;
     i : Integer;
     devt : TCustomMinerDeviceThread;
     s : String;
+    kpressed : Char;
   Begin
-    tc := GetTickCount64;
+    tc := TPlatform.GetTickCount;
     repeat
       If FPoolMinerThread.PoolMinerClient.Connected then begin
         for i:=0 to FDeviceThreads.Count-1 do begin
@@ -287,10 +288,8 @@ var
       end;
       while (Not Terminated) do begin
         sleep(100);
-        //devt := TCustomMinerDeviceThread(FDeviceThreads[0]);
-        If (tc + 1000)<GetTickCount64 then begin
+        If TPlatform.GetElapsedMilliseconds(tc)>1000 then begin
           tc := GetTickCount64;
-          //ms := devt.DeviceStats;
           For i:=0 to FDeviceThreads.Count-1 do begin
             devt := TCustomMinerDeviceThread(FDeviceThreads[i]);
             ms := devt.DeviceStats;
@@ -314,13 +313,15 @@ var
           WriteLine(CT_Line_LastFound+FDeviceThreads.Count-1,'MY VALID BLOCKS FOUND: '+IntToStr(gs.WinsCount) +' Working time: '+IntToStr(Trunc(now - FAppStartTime))+'d '+FormatDateTime('hh:nn:ss',Now-FAppStartTime) );
         end;
         If KeyPressed then begin
-          If ReadKey in ['c','C','q','Q'] then begin
+          kpressed := ReadKey;
+          If kpressed in ['c','C','q','Q'] then begin
+            TLog.NewLog(ltinfo,ClassName,'Finalizing by keypressing '+kpressed);
             WriteLine(CT_Line_Logs+FDeviceThreads.Count+CT_MaxLogs,'Finalizing...');
             terminate;
           end;
         end;
       end;
-    until Terminated;
+    until (Terminated) Or (FPoolMinerThread.Terminated);
   end;
 
   Procedure DoVisualprocess(minerName, UserName, Password : String);

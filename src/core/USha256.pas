@@ -23,8 +23,9 @@ Function CanBeModifiedOnLastChunk(MessageTotalLength : Int64; var startBytePos :
 Procedure PascalCoinPrepareLastChunk(Const messageToHash : AnsiString; out stateForLastChunk : TSHA256HASH; out bufferForLastChunk : TChunk);
 Function ExecuteLastChunk(const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal) : TSHA256HASH;
 Function ExecuteLastChunkAndDoSha256(Const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal) : TSHA256HASH;
-Procedure PascalCoinExecuteLastChunkAndDoSha256(Const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal; out ResultSha256 : AnsiString);
-Function Sha256HashToRaw(Const hash : TSHA256HASH) : AnsiString;
+Procedure PascalCoinExecuteLastChunkAndDoSha256(Const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal; var ResultSha256 : AnsiString);
+Function Sha256HashToRaw(Const hash : TSHA256HASH) : AnsiString; overload;
+procedure Sha256HashToRaw(Const hash : TSHA256HASH; var raw : AnsiString); overload;
 
 implementation
 
@@ -352,11 +353,11 @@ Begin
     Result[k]:= Result[k] + H[k];
 End;
 
-Procedure PascalCoinExecuteLastChunkAndDoSha256(Const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal; out ResultSha256 : AnsiString);
+Procedure PascalCoinExecuteLastChunkAndDoSha256(Const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal; var ResultSha256 : AnsiString);
 Var  H: TSHA256HASH;
 Begin
   H := ExecuteLastChunkAndDoSha256(stateForLastChunk,bufferForLastChunk,nPos,nOnce,Timestamp);
-  ResultSha256 := Sha256HashToRaw(H);
+  Sha256HashToRaw(H,ResultSha256);
 End;
 
 Function Sha256HashToRaw(Const hash : TSHA256HASH) : AnsiString;
@@ -373,5 +374,18 @@ begin
   end;
 End;
 
+procedure Sha256HashToRaw(Const hash : TSHA256HASH; var raw : AnsiString); overload;
+var i: Integer;
+  c : Cardinal;
+begin
+  if (length(raw)<>32) then SetLength(raw,32);
+  for i:= 0 to 7 do begin
+    c := hash[i];
+    raw[4+(i*4)] := AnsiChar(c MOD 256);
+    raw[3+(i*4)] := AnsiChar((c SHR 8) MOD 256);
+    raw[2+(i*4)] := AnsiChar((c SHR 16) MOD 256);
+    raw[1+(i*4)] := AnsiChar((c SHR 24) MOD 256);
+  end;
+end;
 
 end.

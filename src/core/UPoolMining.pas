@@ -68,7 +68,7 @@ Type
     Procedure SendJSONRPCErrorResponse(const id : Variant; const error : String);
     Procedure SendJSONRPCResponse(result : TPCJSONObject; const id : Variant);
     Procedure SendJSONRPCMethod(const method : String; params : TPCJSONList; const id : Variant);
-    Function SendJSONRPCMethodAndWait(const method : String; params : TPCJSONList; MaxWaitMiliseconds : Cardinal; resultObject : TPCJSONObject; processEventOnInvalid : TProcessJSONObjectEvent = Nil) : Boolean;
+    Function SendJSONRPCMethodAndWait(const method : String; params : TPCJSONList; MaxWaitMiliseconds : Int64; resultObject : TPCJSONObject; processEventOnInvalid : TProcessJSONObjectEvent = Nil) : Boolean;
     Function DoProcessBuffer(SenderThread : TPCThread; MaxWaitMiliseconds : Cardinal; DeleteBufferOnExit : Boolean; var ResponseMethod : String; var jsonObject : TPCJSONObject) : Boolean;
     Function GetNewId : Cardinal;
   End;
@@ -282,15 +282,11 @@ var PartialBuffer : TBytes;
       Result := true;
     end;
   end;
-var islocked : Boolean;
 begin
   Result := false;
   ResponseMethod := '';
   tc := TPlatform.GetTickCount;
-  Repeat
-    islocked := FLockProcessBuffer.TryEnter;
-  until (islocked) Or ((TPlatform.GetTickCount>(tc+MaxWaitMiliseconds)) And (MaxWaitMiliseconds<>0));
-  If Not islocked then exit;
+  If Not TPCThread.TryProtectEnterCriticalSection(Self,MaxWaitMiliseconds,FLockProcessBuffer) then Exit;
   try
     if Assigned(SenderThread) then continue := Not SenderThread.Terminated
     else continue := true;
@@ -430,10 +426,9 @@ begin
   End;
 end;
 
-function TJSONRPCTcpIpClient.SendJSONRPCMethodAndWait(const method: String; params: TPCJSONList; MaxWaitMiliseconds: Cardinal; resultObject : TPCJSONObject; processEventOnInvalid : TProcessJSONObjectEvent = Nil) : Boolean;
+function TJSONRPCTcpIpClient.SendJSONRPCMethodAndWait(const method: String; params: TPCJSONList; MaxWaitMiliseconds: Int64; resultObject : TPCJSONObject; processEventOnInvalid : TProcessJSONObjectEvent = Nil) : Boolean;
 Var nId : Cardinal;
   tc : TTickCount;
-  maxw : Cardinal;
   json : TPCJSONObject;
   rm : String;
 begin
@@ -446,10 +441,7 @@ begin
     json := TPCJSONObject.Create;
     Try
       repeat
-        maxw := MaxWaitMiliseconds - (TPlatform.GetTickCount - tc);
-        if maxw<1 then maxw := 1
-        else if maxw>10000 then maxw := 10000;
-        If DoProcessBuffer(nil,maxw,true,rm,json) then begin
+        If DoProcessBuffer(nil,MaxWaitMiliseconds,true,rm,json) then begin
           If json.AsCardinal('id',0)=nId then begin
             resultObject.Assign(json);
             Result := true;
@@ -461,7 +453,7 @@ begin
             end else TLog.NewLog(lterror,Classname,'Lost JSON message! '+json.ToJSON(false));
           end;
         end;
-      until (Result) Or (TPlatform.GetTickCount > (tc+MaxWaitMiliseconds));
+      until (Result) Or (TPlatform.GetElapsedMilliseconds(tc)>MaxWaitMiliseconds);
     finally
       json.free;
     end;
@@ -817,6 +809,7 @@ begin
     Try
       i := l.Count-1;
       while (i>=0) And (Not Assigned(nbOperations)) do begin
+        sJobInfo := 'Miner job '+IntToStr(i+1)+'/'+IntToStr(l.Count);
         P := l[i];
         // Best practices: Only will accept a solution if timestamp >= sent timestamp for this job (1.5.3)
         If (P^.SentMinTimestamp<=_timestamp) then begin
@@ -828,10 +821,10 @@ begin
             nbOperations.bank := FNodeNotifyEvents.Node.Bank;
             nbOperations.CopyFrom(P^.OperationsComp);
             nbOperations.AccountKey := MinerAccountKey;
-            sJobInfo := 'Miner job '+IntToStr(i+1)+'/'+IntToStr(l.Count);
             TLog.NewLog(ltInfo,ClassName,sJobInfo+' - Found a solution for block '+IntToStr(nbOperations.OperationBlock.block));
-          end;
-        end;
+          end else TLog.NewLog(lterror,ClassName,sJobInfo+Format(' Calculated Pow > Min PoW ->  %s > %s',
+            [TCrypto.ToHexaString(P^.OperationsComp.OperationBlock.proof_of_work),TCrypto.ToHexaString(_targetPoW)]));
+        end else TLog.NewLog(lterror,ClassName,sJobInfo+Format(' Timestamp %d < MinTimestamp %d',[_timestamp,P^.SentMinTimestamp]));
         dec(i);
       end;
     Finally
@@ -887,7 +880,7 @@ begin
       finally
         jsonobj.free;
       end;
-      sleep(10);
+      sleep(1);
     end;
   Finally
     Dec(FClientsCount);
