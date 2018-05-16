@@ -89,6 +89,7 @@ Type
     function DestinationAccount : Int64; override;
     function SellerAccount : Int64; override;
     function N_Operation : Cardinal; override;
+    function OperationAmountByAccount(account : Cardinal) : Int64; override;
     Property Data : TOpTransactionData read FData;
 
     Constructor CreateTransaction(sender, n_operation, target: Cardinal; key: TECPrivateKey; amount, fee: UInt64; payload: TRawBytes);
@@ -119,6 +120,7 @@ Type
     function DestinationAccount : Int64; override;
     function N_Operation : Cardinal; override;
     procedure AffectedAccounts(list : TList); override;
+    function OperationAmountByAccount(account : Cardinal) : Int64; override;
     Constructor Create(account_signer, n_operation, account_target: Cardinal; key:TECPrivateKey; new_account_key : TAccountKey; fee: UInt64; payload: TRawBytes);
     Property Data : TOpChangeKeyData read FData;
     Function toString : String; Override;
@@ -152,6 +154,7 @@ Type
     function OperationPayload : TRawBytes; override;
     function SignerAccount : Cardinal; override;
     function N_Operation : Cardinal; override;
+    function OperationAmountByAccount(account : Cardinal) : Int64; override;
     procedure AffectedAccounts(list : TList); override;
     Constructor Create(account_number, n_operation: Cardinal; fee: UInt64);
     Property Data : TOpRecoverFoundsData read FData;
@@ -224,6 +227,7 @@ Type
     function SellerAccount : Int64; override;
     function N_Operation : Cardinal; override;
     procedure AffectedAccounts(list : TList); override;
+    function OperationAmountByAccount(account : Cardinal) : Int64; override;
     Property Data : TOpListAccountData read FData;
     Function toString : String; Override;
   End;
@@ -276,6 +280,7 @@ Type
     function DestinationAccount : Int64; override;
     function N_Operation : Cardinal; override;
     procedure AffectedAccounts(list : TList); override;
+    function OperationAmountByAccount(account : Cardinal) : Int64; override;
     Constructor CreateChangeAccountInfo(account_signer, n_operation, account_target: Cardinal; key:TECPrivateKey;
       change_key : Boolean; const new_account_key : TAccountKey;
       change_name: Boolean; const new_name : TRawBytes;
@@ -593,6 +598,12 @@ procedure TOpChangeAccountInfo.AffectedAccounts(list: TList);
 begin
   list.Add(TObject(FData.account_signer));
   if (FData.account_target<>FData.account_signer) then list.Add(TObject(FData.account_target));
+end;
+
+function TOpChangeAccountInfo.OperationAmountByAccount(account: Cardinal): Int64;
+begin
+  if (FData.account_signer = account) then Result := Int64(FData.fee)*(-1)
+  else Result := 0;
 end;
 
 constructor TOpChangeAccountInfo.CreateChangeAccountInfo(account_signer, n_operation,
@@ -1080,6 +1091,19 @@ begin
   Result := FData.n_operation;
 end;
 
+function TOpTransaction.OperationAmountByAccount(account: Cardinal): Int64;
+begin
+  Result := 0;
+  If (FData.sender = account) then inc(Result, Int64(FData.amount+FData.fee) * (-1));
+  If (FData.target = account) then begin
+    if (FData.opTransactionStyle in [buy_account,transaction_with_auto_buy_account]) then inc(Result, FData.amount - FData.AccountPrice)
+    else inc(Result,FData.amount);
+  end;
+  If ((FData.SellerAccount = account) And (FData.opTransactionStyle in [buy_account,transaction_with_auto_buy_account] )) then begin
+    inc(Result, FData.AccountPrice)
+  end;
+end;
+
 function TOpTransaction.toString: String;
 begin
   case FData.opTransactionStyle of
@@ -1110,6 +1134,12 @@ procedure TOpChangeKey.AffectedAccounts(list: TList);
 begin
   list.Add(TObject(FData.account_signer));
   if (FData.account_target<>FData.account_signer) then list.Add(TObject(FData.account_target));
+end;
+
+function TOpChangeKey.OperationAmountByAccount(account: Cardinal): Int64;
+begin
+  if (FData.account_signer = account) then Result := Int64(FData.fee)*(-1)
+  else Result := 0;
 end;
 
 constructor TOpChangeKey.Create(account_signer, n_operation, account_target: Cardinal; key:TECPrivateKey; new_account_key : TAccountKey; fee: UInt64; payload: TRawBytes);
@@ -1573,6 +1603,12 @@ begin
   Result := FData.n_operation;
 end;
 
+function TOpRecoverFounds.OperationAmountByAccount(account: Cardinal): Int64;
+begin
+  if (FData.account = account) then Result := Int64(FData.fee)*(-1)
+  else Result := 0;
+end;
+
 function TOpRecoverFounds.toString: String;
 begin
   Result := Format('Recover founds of account %s fee:%s (n_op:%d)',[
@@ -1587,6 +1623,12 @@ begin
   list.Add(TObject(FData.account_signer));
   if FData.account_signer<>FData.account_target then
     list.Add(TObject(FData.account_target));
+end;
+
+function TOpListAccount.OperationAmountByAccount(account: Cardinal): Int64;
+begin
+  if (FData.account_signer = account) then Result := Int64(FData.fee)*(-1)
+  else Result := 0;
 end;
 
 function TOpListAccount.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean;
