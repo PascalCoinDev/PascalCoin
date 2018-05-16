@@ -876,7 +876,7 @@ begin
     bn1.Free;
   end;
   //
-  if part_A<=24 then exit;
+  if part_A<=24 then part_A:=24;
   //
   part_B := (EncodedTarget shl 8) shr 8;
   bn2 := TBigNum.Create(2);
