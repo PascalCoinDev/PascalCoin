@@ -436,18 +436,13 @@ end;
 
 class function TCrypto.ECDSASign(Key: PEC_KEY; const digest: AnsiString): TECDSA_SIG;
 Var PECS : PECDSA_SIG;
-  p, pr,ps : PAnsiChar;
+  p : PAnsiChar;
   i : Integer;
-  {$IFDEF OpenSSL10}
-  {$ELSE}
-  bnr,bns : PBIGNUM;
-  {$ENDIF}
 begin
   PECS := ECDSA_do_sign(PAnsiChar(digest),length(digest),Key);
   Try
     if PECS = Nil then raise ECryptoException.Create('Error signing');
 
-    {$IFDEF OpenSSL10}
     i := BN_num_bytes(PECS^._r);
     SetLength(Result.r,i);
     p := @Result.r[1];
@@ -457,17 +452,6 @@ begin
     SetLength(Result.s,i);
     p := @Result.s[1];
     i := BN_bn2bin(PECS^._s,p);
-    {$ELSE}
-    ECDSA_SIG_get0(PECS,@bnr,@bns);
-    i := BN_num_bytes(bnr);
-    SetLength(Result.r,i);
-    p := @Result.r[1];
-    i := BN_bn2bin(bnr,p);
-    i := BN_num_bytes(bns);
-    SetLength(Result.s,i);
-    p := @Result.s[1];
-    i := BN_bn2bin(bns,p);
-    {$ENDIF}
   Finally
     ECDSA_SIG_free(PECS);
   End;
