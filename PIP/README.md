@@ -16,14 +16,14 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [7](PIP-0007.md)      | New Wallet GUI                           | Herman Schoenfeld              | Front-End      | Draft    |
 | [8](PIP-0008.md)      | Hook(s) to start external programs       | Preben Björn Biermann Madsen   | Backend        | Draft    |
 | [9](PIP-0009.md)      | RandomHash: GPU & ASIC Resistant Hash Algorithm | Herman Schoenfeld       | Protocol       | Proposed |
-| [10](PIP-0010.md)     | 50% Inflation Reduction                  | Herman Schoenfeld              | Protocol       | Proposed |
-| [11](PIP-0011.md)     | 20% Developer Reward                     | Herman Schoenfeld              | Protocol       | Proposed |
+| [10](PIP-0010.md)     | 50% Inflation Reduction                  | Herman Schoenfeld              | Protocol       | Active   |
+| [11](PIP-0011.md)     | 20% Developer Reward                     | Herman Schoenfeld              | Protocol       | Active   |
 | [12](PIP-0012.md)     | Change account recovery to 10 years      | Herman Schoenfeld              | Protocol       | Proposed |
-| [13](PIP-0013.md)     | Allow nodes to pull pending operations   | Herman Schoenfeld              | Protocol       | Proposed |
+| [13](PIP-0013.md)     | Allow nodes to pull pending operations   | Herman Schoenfeld              | Protocol       | Active   |
 | [14](PIP-0014.md)     | New operation to certify accounts for extended recovery period   | Dr. Muhammad Amer       | Protocol       | Proposed |
 | [15](PIP-0015.md)     | Fast Block Propagation                   | Herman Schoenfeld              | Protocol       | Proposed |
 | [16](PIP-0016.md)     | Layer-2 protocol support                 | Herman Schoenfeld              | Protocol       | Proposed |
-| [17](PIP-0017.md)     | Anonymity via Transaction Mixing (phase-1)   | Herman Schoenfeld          | Protocol       | Proposed |
-| [18](PIP-0018.md)     | 10% funding allocation for Lazarus/FPC   | Herman Schoenfeld              | Process        | Proposed |
+| [17](PIP-0017.md)     | Anonymity via Transaction Mixing (phase-1)   | Herman Schoenfeld          | Protocol       | Active   |
+| [18](PIP-0018.md)     | 10% funding allocation for Lazarus/FPC   | Herman Schoenfeld              | Process        | Active   |
 | [19](PIP-0019.md)     | Balance recovered from lost accounts to be sent to developers fund   | Dr. Muhammad Amer   | Protocol        | Draft |
 
