@@ -35,22 +35,18 @@ implementation
 uses
   UWallet,
   UWIZOperationSelected,
-  UWIZSendPASC_EnterRecipient,
-  UWIZSendPASC_EnterQuantity,
+  UWIZSendPASC_Details,
   UWIZOperationConfirmation;
 
 { TWIZSendPASCWizard }
 
 constructor TWIZSendPASCWizard.Create(AOwner: TComponent);
 begin
-  inherited Create(AOwner,
-    [
+  inherited Create(AOwner,[
     TWIZOperationSelected,
-    TWIZSendPASC_EnterRecipient,
-    TWIZSendPASC_EnterQuantity,
+    TWIZSendPASC_Details,
     TWIZOperationConfirmation
-    ]
-    );
+   ]);
   TitleText := 'Send PASC';
   FinishText := 'Send PASC';
 end;

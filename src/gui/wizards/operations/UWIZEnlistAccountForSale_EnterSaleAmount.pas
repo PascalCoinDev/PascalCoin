@@ -26,10 +26,11 @@ type
   { TWIZEnlistAccountForSale_EnterSaleAmount }
 
   TWIZEnlistAccountForSale_EnterSaleAmount = class(TWizardForm<TWIZOperationsModel>)
-    chkChooseFee: TCheckBox;
     chkAttachPayload: TCheckBox;
+    chkChooseFee: TCheckBox;
     edtAmt: TEdit;
     gbSalePrice: TGroupBox;
+    gpOptions: TGroupBox;
     lblSaleAmountNotice: TLabel;
     procedure UpdateUI();
 
@@ -48,7 +49,7 @@ implementation
 uses
   UAccounts, UUserInterface, USettings;
 
-{ TWIZSendPASC_EnterQuantity }
+{ TWIZEnlistAccountForSale_EnterSaleAmount }
 
 procedure TWIZEnlistAccountForSale_EnterSaleAmount.UpdateUI();
 begin
