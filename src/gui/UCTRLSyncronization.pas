@@ -28,7 +28,8 @@ type
   { TCTRLSyncronization }
 
   TCTRLSyncronization = class(TApplicationForm)
-    btnBack: TBitBtn;
+    btnBack: TSpeedButton;
+    GroupBox1: TGroupBox;
     imgSplash: TImage;
     Label16: TLabel;
     Label4: TLabel;
