@@ -17,7 +17,8 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Menus,
   ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon.UI, Generics.Collections, ULog,
-  UAccounts, UDataSources, UNode, UCoreObjects, UCoreUtils, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale;
+  UAccounts, UDataSources, UNode, UCoreObjects, UCoreUtils, UCTRLNoAccount,
+  UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale;
 
 type
 
@@ -71,6 +72,7 @@ type
     FAccountsMode: TCTRLWalletAccountsMode;
     FOperationsMode: TCTRLWalletOperationsMode;
     FOperationsHistory: TCTRLWalletOperationsHistory;
+    FCTRLNoAccounts: TCTRLNoAccounts;
     FAccountsGrid: TVisualGrid;
     FOperationsGrid: TVisualGrid;
     FBalance : TBalanceSummary;
@@ -135,6 +137,8 @@ begin
   FOperationsHistory := woh7Days;
   FOperationsMode:= womAllAccounts;
   FAccountsMode := wamMyAccounts;
+  FCTRLNoAccounts := TCTRLNoAccounts.Create(Self);
+  FCTRLNoAccounts.BalanceSummary:=@FBalance;
 
   // grids
   FAccountsGrid := TVisualGrid.Create(Self);
@@ -458,7 +462,10 @@ begin
         FAccountsGrid.ClearSelection();
         RefreshAccountsGrid;
       end;
-      wamFirstAccount: raise Exception.Create('Not implemented');
+      wamFirstAccount: begin
+        paAccounts.RemoveAllControls(False);
+        paAccounts.AddControlDockCenter(FCTRLNoAccounts);
+      end;
     end;
   finally
     FUILock.Release;

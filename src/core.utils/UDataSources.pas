@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, UAccounts, UNode, UBlockchain, UCrypto, UCoreObjects,
-  UCommon, UMemory, UConst, UCommon.Data,
+  UCommon, UMemory, UConst, UCommon.Data, UCoreUtils,
   UCommon.Collections, Generics.Collections, Generics.Defaults, syncobjs;
 
 type
@@ -121,7 +121,7 @@ type
 implementation
 
 uses
-  Math, UCoreUtils, UWallet, UTime;
+  Math, UWallet, UTime;
 
 { TAccountsDataSourceBase }
 

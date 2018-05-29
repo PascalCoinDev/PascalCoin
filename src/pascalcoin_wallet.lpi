@@ -36,7 +36,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="94">
+    <Units Count="95">
       <Unit0>
         <Filename Value="pascalcoin_wallet.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -541,6 +541,12 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit93>
+      <Unit94>
+        <Filename Value="gui\UCTRLNoAccount.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="CTRLNoAccounts"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit94>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -551,7 +557,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);libraries\generics.collections\inc"/>
-      <OtherUnitFiles Value="core;gui;libraries\synapse;libraries\sphere10;libraries\generics.collections;libraries\pascalcoin;core.utils;gui\wizards\wallet;gui\wizards\operations;gui-classic"/>
+      <OtherUnitFiles Value="core;gui;libraries\synapse;libraries\sphere10;libraries\generics.collections;libraries\pascalcoin;core.utils;gui\wizards\wallet;gui\wizards\operations;gui-classic;gui\wizards\accounts"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
@@ -583,7 +589,7 @@
     </Other>
   </CompilerOptions>
   <Debugging>
-    <Exceptions Count="3">
+    <Exceptions Count="4">
       <Item1>
         <Name Value="EAbort"/>
       </Item1>
@@ -593,6 +599,9 @@
       <Item3>
         <Name Value="EFOpenError"/>
       </Item3>
+      <Item4>
+        <Name Value="Exception"/>
+      </Item4>
     </Exceptions>
   </Debugging>
 </CONFIG>
