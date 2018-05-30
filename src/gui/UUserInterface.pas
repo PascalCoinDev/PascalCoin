@@ -116,6 +116,10 @@ type
       class procedure CheckNodeIsReady;
 
       // Show Dialogs
+      class procedure ShowSendDialog(const AAccounts : array of Cardinal);
+      class procedure ShowChangeKeyDialog(const AAccounts : array of Cardinal);
+      class procedure ShowSellAccountsDialog(const AAccounts : array of Cardinal);
+      class procedure ShowDelistAccountsDialog(const AAccounts : array of Cardinal);
       class procedure ShowAboutBox(parentForm : TForm);
       class procedure ShowOptionsDialog(parentForm: TForm);
       class procedure ShowAccountInfoDialog(parentForm: TForm; const account : Cardinal); overload;
@@ -147,6 +151,7 @@ type
       class procedure ShowLogsForm;
       class procedure ShowWallet;
       class procedure ShowSyncDialog;
+
   end;
 
   { TLoadSafeBoxThread }
@@ -164,7 +169,8 @@ implementation
 
 uses
   UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
-  UOpenSSL, UFileStorage, UTime, UCommon, USettings, UCoreUtils;
+  UOpenSSL, UFileStorage, UTime, UCommon, USettings, UCoreUtils, UMemory,
+  UWIZOperation, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale;
 
 {%region UI Lifecyle}
 
@@ -411,6 +417,47 @@ end;
 {%endregion}
 
 {%region Show Dialogs}
+
+class procedure TUserInterface.ShowSendDialog(const AAccounts : array of Cardinal);
+var
+  Scoped: TDisposables;
+  wiz: TWIZSendPASCWizard;
+  model: TWIZOperationsModel;
+begin
+  wiz := Scoped.AddObject(TWIZSendPASCWizard.Create(nil)) as TWIZSendPASCWizard;
+  model := TWIZOperationsModel.Create(wiz, omtSendPasc);
+  model.Account.SelectedAccounts := TNode.Node.GetAccounts(AAccounts, True);
+  wiz.Start(model);
+end;
+
+class procedure TUserInterface.ShowChangeKeyDialog(const AAccounts : array of Cardinal);
+var
+  Scoped: TDisposables;
+  wiz: TWIZChangeKeyWizard;
+  model: TWIZOperationsModel;
+begin
+  wiz := Scoped.AddObject(TWIZChangeKeyWizard.Create(nil)) as TWIZChangeKeyWizard;
+  model := TWIZOperationsModel.Create(wiz, omtChangeKey);
+  model.Account.SelectedAccounts := TNode.Node.GetAccounts(AAccounts, True);
+  wiz.Start(model);
+end;
+
+class procedure TUserInterface.ShowSellAccountsDialog(const AAccounts : array of Cardinal);
+var
+  Scoped: TDisposables;
+  wiz: TWIZEnlistAccountForSaleWizard;
+  model: TWIZOperationsModel;
+begin
+  wiz := Scoped.AddObject(TWIZEnlistAccountForSaleWizard.Create(nil)) as TWIZEnlistAccountForSaleWizard;
+  model := TWIZOperationsModel.Create(wiz, omtEnlistAccountForSale);
+  model.Account.SelectedAccounts := TNode.Node.GetAccounts(AAccounts, True);
+  wiz.Start(model);
+end;
+
+class procedure TUserInterface.ShowDelistAccountsDialog(const AAccounts : array of Cardinal);
+begin
+  raise ENotImplemented.Create('Not Implemented');
+end;
 
 class procedure TUserInterface.ShowAboutBox(parentForm : TForm);
 begin

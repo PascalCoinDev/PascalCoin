@@ -18,15 +18,15 @@ object CTRLNoAccounts: TCTRLNoAccounts
     Anchors = [akLeft, akRight]
     AutoSize = False
     Caption = 'No Accounts'
-    Font.Height = -27
+    Font.Height = -20
     Font.Style = [fsBold]
     ParentColor = False
     ParentFont = False
   end
   object btnGetAcc: TBitBtn
-    Left = 176
+    Left = 96
     Height = 57
-    Top = 192
+    Top = 128
     Width = 163
     Anchors = []
     Caption = 'Get An Account'

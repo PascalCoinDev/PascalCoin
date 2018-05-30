@@ -17,9 +17,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Menus,
   ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon.UI, Generics.Collections, ULog,
-  UAccounts, UDataSources, UNode, UCoreObjects, UCoreUtils, UCTRLNoAccount,
-  UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale;
-
+  UAccounts, UDataSources, UNode, UCoreObjects, UCoreUtils, UCTRLNoAccount;
 type
 
   { TCTRLWallet }
@@ -613,44 +611,23 @@ begin
 end;
 
 procedure TCTRLWallet.miSendPASCClick(Sender: TObject);
-var
-  Scoped: TDisposables;
-  wiz: TWIZSendPASCWizard;
-  model: TWIZOperationsModel;
 begin
-  wiz := Scoped.AddObject(TWIZSendPASCWizard.Create(nil)) as TWIZSendPASCWizard;
-  model := TWIZOperationsModel.Create(wiz, omtSendPasc);
-  model.Account.SelectedAccounts := TNode.Node.GetAccounts(SelectedAccounts, True);
-  wiz.Start(model);
+  TUserInterface.ShowSendDialog(SelectedAccounts);
 end;
 
 procedure TCTRLWallet.miChangeKeyClick(Sender: TObject);
-var
-  Scoped: TDisposables;
-  wiz: TWIZChangeKeyWizard;
-  model: TWIZOperationsModel;
 begin
-  wiz := Scoped.AddObject(TWIZChangeKeyWizard.Create(nil)) as TWIZChangeKeyWizard;
-  model := TWIZOperationsModel.Create(wiz, omtChangeKey);
-  model.Account.SelectedAccounts := TNode.Node.GetAccounts(SelectedAccounts, True);
-  wiz.Start(model);
+  TUserInterface.ShowChangeKeyDialog(SelectedAccounts);
 end;
 
 procedure TCTRLWallet.miEnlistAccountsForSaleClick(Sender: TObject);
-var
-  Scoped: TDisposables;
-  wiz: TWIZEnlistAccountForSaleWizard;
-  model: TWIZOperationsModel;
 begin
-  wiz := Scoped.AddObject(TWIZEnlistAccountForSaleWizard.Create(nil)) as TWIZEnlistAccountForSaleWizard;
-  model := TWIZOperationsModel.Create(wiz, omtEnlistAccountForSale);
-  model.Account.SelectedAccounts := TNode.Node.GetAccounts(SelectedAccounts, True);
-  wiz.Start(model);
+  TUserInterface.ShowSellAccountsDialog(SelectedAccounts);
 end;
 
 procedure TCTRLWallet.miDelistAccountsFromSaleClick(Sender: TObject);
 begin
-  raise ENotImplemented.Create('not yet implemented.');
+  TUserInterface.ShowDelistAccountsDialog(SelectedAccounts);
 end;
 
 procedure TCTRLWallet.OnPrepareOperationsPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);
