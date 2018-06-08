@@ -2230,7 +2230,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       // Search by type-forSale-balance
       for i := start to FNode.Bank.AccountsCount - 1 do begin
         account := FNode.Operations.SafeBoxTransaction.Account(i);
-        if (accountType <> -1) AND (Integer(account.account_type) = accountType) then
+        if (accountType <> -1) AND (Integer(account.account_type) <> accountType) then
         begin
            Continue;
         end;
