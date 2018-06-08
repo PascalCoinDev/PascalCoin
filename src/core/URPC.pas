@@ -2180,10 +2180,15 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     accountName : TRawBytes;
     accountType : Integer;
     accountNumber : Integer;
+    accountBalanceMin : Int64;
+    accountBalanceMax : Int64;
+    accountForSale : Boolean;
+    exactMatch : Boolean;
     start, max : Integer;
     account : TAccount;
     i : Cardinal;
     errors : AnsiString;
+    addToResult : Boolean;
   begin
     // Get Parameters
     Result := False;
@@ -2191,7 +2196,10 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     accountType := params.AsInteger('type', -1);
     start := params.AsInteger('start', 0);
     max := params.AsInteger('max', 100);
-
+    accountForSale := params.AsBoolean('listed',false);
+    exactMatch := params.AsBoolean('exact',true);
+    accountBalanceMin := ToPascalCoins(params.AsDouble('min_balance',-1));
+    accountBalanceMax := ToPascalCoins(params.AsDouble('max_balance',-1));
     // Validate Parameters
     if accountName <> '' then begin
       if not FNode.Bank.SafeBox.ValidAccountName(accountName, errors) then begin
@@ -2211,7 +2219,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     output := jsonresponse.GetAsArray('result');
 
     // Search by name
-    if accountName <> '' then begin
+    if ((accountName <> '') AND (exactMatch=true)) then begin
        accountNumber := FNode.Bank.SafeBox.FindAccountByName(accountName);
        if accountNumber >= 0 then begin
           account := FNode.Operations.SafeBoxTransaction.Account(accountNumber);
@@ -2219,14 +2227,35 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
              TPascalCoinJSONComp.FillAccountObject(account,output.GetAsObject(output.Count));
        end;
     end else begin
-      // Search by type
+      // Search by type-forSale-balance
       for i := start to FNode.Bank.AccountsCount - 1 do begin
         account := FNode.Operations.SafeBoxTransaction.Account(i);
-        if (accountType = -1) OR (Integer(account.account_type) = accountType) then begin
-          // Found a match
-          TPascalCoinJSONComp.FillAccountObject(account,output.GetAsObject(output.Count));
-          if output.Count>=max then break;
+        if (accountType <> -1) AND (Integer(account.account_type) = accountType) then
+        begin
+           Continue;
         end;
+        if ((accountName<> '') AND (pos(accountName,account.name)=0)) then
+        begin
+          Continue
+        end;
+        if ((accountForSale = true) AND (account.accountInfo.state <> as_ForSale)) then
+        begin
+           Continue;
+        end;
+        if ((accountBalanceMin>0) AND (accountBalanceMax<0) AND (account.balance<accountBalanceMin)) then
+        begin
+           Continue;
+        end;
+        if (accountBalanceMin>0) AND (accountBalanceMax>0) AND ((account.balance<accountBalanceMin) OR (account.balance>accountBalanceMax)) then
+        begin
+            Continue;
+        end;
+        if ((accountBalanceMin<0) AND (accountBalanceMax>0) AND (account.balance>accountBalanceMax)) then
+        begin
+            Continue;
+        end;
+        TPascalCoinJSONComp.FillAccountObject(account,output.GetAsObject(output.Count));
+        if output.Count>=max then break;
       end;
     end;
     Result := True;
@@ -3056,7 +3085,7 @@ begin
        params.AsString('payload_method','dest'),params.AsString('pwd',''));
   end else if (method='signsendto') then begin
     // Create a Transaction operation and adds it into a "rawoperations" (that can include
-    // previous operations). This RPC method is usefull for cold storage, because doesn't
+    // previous operations). This RPC method is usefull ffor cold storage, because doesn't
     // need to check or verify accounts status/public key, assuming that passed values
     // are ok.
     // Signs a transaction of "amount" coins from "sender" to "target" with "fee", using "sender_enc_pubkey" or "sender_b58_pubkey"
