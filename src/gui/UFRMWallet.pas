@@ -31,7 +31,8 @@ uses
   Dialogs, ExtCtrls, ComCtrls, UWalletKeys, StdCtrls,
   ULog, Grids, UAppParams,
   UBlockChain, UNode, UGridUtils, UAccounts, Menus, ImgList,
-  UNetProtocol, UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect;
+  UNetProtocol, UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect,
+  System.ImageList;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;

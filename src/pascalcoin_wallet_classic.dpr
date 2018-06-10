@@ -5,11 +5,13 @@ program PascalCoin_wallet_classic;
 {$ENDIF}
 
 uses
-{$IFnDEF FPC}
-{$ELSE}
-  {$IFDEF LINUX}cthreads,{$ENDIF}
+  {$IFnDEF FPC}
+  {$ELSE}
+  {$IFDEF LINUX}
+  cthreads,
+  {$ENDIF }
   Interfaces,
-{$ENDIF}
+  {$ENDIF }
   Forms,
   UBlockChain in 'core\UBlockChain.pas',
   UCrypto in 'core\UCrypto.pas',
@@ -37,7 +39,27 @@ uses
   URPC in 'core\URPC.pas',
   UPoolMining in 'core\UPoolMining.pas',
   UOpenSSL in 'core\UOpenSSL.pas',
-  UOpenSSLdef in 'core\UOpenSSLdef.pas';
+  UOpenSSLdef in 'core\UOpenSSLdef.pas',
+  UBaseTypes in 'core\UBaseTypes.pas',
+  UAccountKeyStorage in 'core\UAccountKeyStorage.pas',
+  UTxMultiOperation in 'core\UTxMultiOperation.pas',
+  USettings in 'core\USettings.pas',
+  UAppParams in 'libraries\pascalcoin\UAppParams.pas',
+  UFolderHelper in 'libraries\pascalcoin\UFolderHelper.pas',
+  UJSONFunctions in 'libraries\pascalcoin\UJSONFunctions.pas',
+  blcksock in 'libraries\synapse\blcksock.pas',
+  synafpc in 'libraries\synapse\synafpc.pas',
+  synsock in 'libraries\synapse\synsock.pas',
+  synautil in 'libraries\synapse\synautil.pas',
+  synacode in 'libraries\synapse\synacode.pas',
+  synaip in 'libraries\synapse\synaip.pas',
+  UChunk in 'core\UChunk.pas',
+  UGridUtils in 'gui-classic\UGridUtils.pas',
+  UFRMMemoText in 'gui-classic\UFRMMemoText.pas' {FRMMemoText},
+  UFRMAccountSelect in 'gui-classic\UFRMAccountSelect.pas' {FRMAccountSelect},
+  UFRMRPCCalls in 'gui-classic\UFRMRPCCalls.pas' {FRMRPCCalls},
+  httpsend in 'libraries\synapse\httpsend.pas',
+  UFRMOperationsExplorer in 'gui-classic\UFRMOperationsExplorer.pas' {FRMOperationsExplorer};
 
 {$R *.res}
 

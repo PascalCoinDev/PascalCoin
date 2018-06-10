@@ -24,6 +24,7 @@ Uses
   fpjson, jsonparser,
   {$ELSE}
   DBXJSON,
+  JSON,
   {$ENDIF}
   SysUtils, DateUtils, Variants, Classes, ULog;
 
@@ -495,17 +496,33 @@ begin
     d := TJSONNumber(JSONValue).AsDouble;
     if Pos('.',JSONValue.ToString)>0 then i64 := 0
     else i64 := TJSONNumber(JSONValue).AsInt;
+
+    // Delphi 6 introduced "conditional compilation" and Delphi XE 6 (27) introduced FormatSettings variable.
+    {$IF Defined(DCC) and Declared(CompilerVersion) and (CompilerVersion >= 27.0)}
+    ds := FormatSettings.DecimalSeparator;
+    ts := FormatSettings.ThousandSeparator;
+    FormatSettings.DecimalSeparator := '.';
+    FormatSettings.ThousandSeparator := ',';
+    {$ELSE}
     ds := DecimalSeparator;
     ts := ThousandSeparator;
     DecimalSeparator := '.';
     ThousandSeparator := ',';
+    {$IFEND}
+
     Try
       if FormatFloat('0.###########',d)=inttostr(i64) then
         Value := i64
       else Value := d;
     Finally
+      // Delphi 6 introduced "conditional compilation" and Delphi XE 6 (27) introduced FormatSettings variable.
+      {$IF Defined(DCC) and Declared(CompilerVersion) and (CompilerVersion >= 27.0)}
+      FormatSettings.DecimalSeparator := ds;
+      FormatSettings.ThousandSeparator := ts;
+      {$ELSE}
       DecimalSeparator := ds;
       ThousandSeparator := ts;
+      {$IFEND}
     End;
   end else if JSONValue is TJSONTrue then Value := true
   else if JSONValue is TJSONFalse then Value := false
@@ -534,15 +551,28 @@ begin
     varBoolean : if (Value) then Result := 'true' else Result:='false';
     varNull : Result := 'null';
     varDate,varDouble : begin
+      {$IF Defined(DCC) and Declared(CompilerVersion) and (CompilerVersion >= 27.0)}
+      ds := FormatSettings.DecimalSeparator;
+      ts := FormatSettings.ThousandSeparator;
+      FormatSettings.DecimalSeparator := '.';
+      FormatSettings.ThousandSeparator := ',';
+      {$ELSE}
       ds := DecimalSeparator;
       ts := ThousandSeparator;
       DecimalSeparator := '.';
       ThousandSeparator := ',';
+      {$IFEND}
+
       try
         Result := FormatFloat('0.###########',Value);
       finally
+        {$IF Defined(DCC) and Declared(CompilerVersion) and (CompilerVersion >= 27.0)}
+        FormatSettings.DecimalSeparator := ds;
+        FormatSettings.ThousandSeparator := ts;
+        {$ELSE}
         DecimalSeparator := ds;
         ThousandSeparator := ts;
+        {$IFEND}
       end;
     end
   else
