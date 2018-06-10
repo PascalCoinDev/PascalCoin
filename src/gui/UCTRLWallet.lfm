@@ -1,0 +1,210 @@
+object CTRLWallet: TCTRLWallet
+  Left = -7
+  Height = 571
+  Top = 2
+  Width = 1151
+  ActiveControl = cbAccounts
+  BorderStyle = bsNone
+  Caption = 'CTRLWallet'
+  ClientHeight = 571
+  ClientWidth = 1151
+  OnCreate = FormCreate
+  OnResize = FormResize
+  Visible = False
+  object PairSplitter1: TPairSplitter
+    Left = 0
+    Height = 571
+    Top = 0
+    Width = 1151
+    Align = alClient
+    Position = 360
+    object PairSplitterSide1: TPairSplitterSide
+      Cursor = crArrow
+      Left = 0
+      Height = 571
+      Top = 0
+      Width = 360
+      ClientWidth = 360
+      ClientHeight = 571
+      object GroupBox1: TGroupBox
+        Left = 8
+        Height = 105
+        Top = 8
+        Width = 344
+        Anchors = [akTop, akLeft, akRight]
+        Caption = 'Overview'
+        ClientHeight = 85
+        ClientWidth = 340
+        TabOrder = 0
+        object Label1: TLabel
+          Left = 16
+          Height = 15
+          Top = 16
+          Width = 58
+          Caption = 'Total PASC'
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+        end
+        object Label2: TLabel
+          Left = 16
+          Height = 15
+          Top = 48
+          Width = 59
+          Caption = 'Total PASA'
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+        end
+        object lblTotalPASA: TLabel
+          Left = 220
+          Height = 15
+          Top = 48
+          Width = 108
+          Alignment = taRightJustify
+          Anchors = [akTop, akRight]
+          AutoSize = False
+          Caption = '0'
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+        end
+        object lblTotalPASC: TLabel
+          Left = 220
+          Height = 15
+          Top = 16
+          Width = 106
+          Alignment = taRightJustify
+          Anchors = [akTop, akRight]
+          AutoSize = False
+          Caption = '0'
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+        end
+      end
+      object gpMyAccounts: TGroupBox
+        Left = 8
+        Height = 440
+        Top = 120
+        Width = 344
+        Anchors = [akTop, akLeft, akRight, akBottom]
+        Caption = 'My Accounts'
+        ClientHeight = 420
+        ClientWidth = 340
+        TabOrder = 1
+        object cbAccounts: TComboBox
+          Left = 8
+          Height = 23
+          Top = 8
+          Width = 320
+          Anchors = [akTop, akLeft, akRight]
+          ItemHeight = 15
+          ItemIndex = 0
+          Items.Strings = (
+            'Show All'
+            'Show non-zero balances'
+            'Get my first account!'
+          )
+          OnChange = cbAccountsChange
+          Style = csDropDownList
+          TabOrder = 0
+          Text = 'Show All'
+        end
+        object paAccounts: TPanel
+          Left = 8
+          Height = 376
+          Top = 40
+          Width = 320
+          Anchors = [akTop, akLeft, akRight, akBottom]
+          BorderSpacing.Around = 3
+          BevelOuter = bvNone
+          Caption = 'MY ACCOUNT PANEL'
+          ParentColor = False
+          TabOrder = 1
+        end
+      end
+    end
+    object PairSplitterSide2: TPairSplitterSide
+      Cursor = crArrow
+      Left = 365
+      Height = 571
+      Top = 0
+      Width = 786
+      ClientWidth = 786
+      ClientHeight = 571
+      object gpRecentOps: TGroupBox
+        Left = 8
+        Height = 552
+        Top = 8
+        Width = 776
+        Anchors = [akTop, akLeft, akRight, akBottom]
+        Caption = 'Recent Operations'
+        ClientHeight = 532
+        ClientWidth = 772
+        TabOrder = 0
+        object paOperations: TPanel
+          Left = 8
+          Height = 512
+          Top = 16
+          Width = 760
+          Anchors = [akTop, akLeft, akRight, akBottom]
+          BorderSpacing.Around = 3
+          BevelOuter = bvNone
+          Caption = 'OPERATIONS PANEL'
+          ParentColor = False
+          TabOrder = 0
+        end
+      end
+    end
+  end
+  object mnuAccountsPopup: TPopupMenu
+    left = 768
+    top = 64
+    object miSendPASC: TMenuItem
+      Caption = 'Send PASC'
+      OnClick = miSendPASCClick
+    end
+    object miChangeKey: TMenuItem
+      Caption = 'Change Key'
+      OnClick = miChangeKeyClick
+    end
+    object miAccountsMarket: TMenuItem
+      Caption = 'Account Market'
+      object miEnlistAccountsForSale: TMenuItem
+        Caption = 'Enlist Account(s) For Sale'
+        OnClick = miEnlistAccountsForSaleClick
+      end
+      object miDelistAccountsFromSale: TMenuItem
+        Caption = 'Delist Account(s) From Sale'
+        OnClick = miDelistAccountsFromSaleClick
+      end
+    end
+    object miSep1: TMenuItem
+      Caption = '-'
+    end
+    object miAccountInfo: TMenuItem
+      Caption = 'Account Info'
+      OnClick = miAccountInfoClick
+    end
+  end
+  object mnuOperationsPopup: TPopupMenu
+    left = 896
+    top = 64
+    object miCopyOphash: TMenuItem
+      Caption = 'Copy OPHASH'
+      OnClick = miCopyOphashClick
+    end
+    object miSep2: TMenuItem
+      Caption = '-'
+    end
+    object miOperationInfo: TMenuItem
+      Caption = 'Operation Info'
+      OnClick = miOperationInfoClick
+    end
+  end
+  object mnuFirstAccountPopup: TPopupMenu
+    left = 1024
+    top = 64
+  end
+end

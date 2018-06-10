@@ -1,0 +1,30 @@
+object WIZAddKey_ImportPubKey: TWIZAddKey_ImportPubKey
+  Left = -722
+  Height = 253
+  Top = 31
+  Width = 429
+  Caption = 'WIZAddKey_ImportPubKey'
+  ClientHeight = 253
+  ClientWidth = 429
+  LCLVersion = '1.8.2.0'
+  Visible = False
+  object Label1: TLabel
+    Left = 32
+    Height = 32
+    Top = 16
+    Width = 370
+    Anchors = [akTop, akLeft, akRight]
+    AutoSize = False
+    Caption = 'Enter the public key either in the PascalCoin encoding format or raw hex format.'
+    ParentColor = False
+    WordWrap = True
+  end
+  object txtPublicKey: TMemo
+    Left = 24
+    Height = 160
+    Top = 56
+    Width = 379
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    TabOrder = 0
+  end
+end

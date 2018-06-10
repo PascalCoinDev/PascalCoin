@@ -1,0 +1,71 @@
+object FRMNodes: TFRMNodes
+  Left = 570
+  Height = 444
+  Top = 333
+  Width = 861
+  Caption = 'Nodes'
+  ClientHeight = 444
+  ClientWidth = 861
+  OnCreate = FormCreate
+  Position = poOwnerFormCenter
+  LCLVersion = '1.8.0.6'
+  object Label3: TLabel
+    Left = 15
+    Height = 15
+    Top = 15
+    Width = 106
+    Caption = 'Active Connections:'
+    ParentColor = False
+  end
+  object Label6: TLabel
+    Left = 15
+    Height = 15
+    Top = 293
+    Width = 198
+    Anchors = [akLeft, akRight, akBottom]
+    Caption = 'Known Node Servers:'
+    ParentColor = False
+  end
+  object Label7: TLabel
+    Left = 15
+    Height = 15
+    Top = 189
+    Width = 99
+    Anchors = [akLeft, akRight, akBottom]
+    Caption = 'Blacklisted Nodes'
+    ParentColor = False
+  end
+  object memoNetConnections: TMemo
+    Left = 15
+    Height = 149
+    Top = 34
+    Width = 830
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    ReadOnly = True
+    ScrollBars = ssBoth
+    TabOrder = 0
+    WordWrap = False
+  end
+  object memoNetServers: TMemo
+    Left = 15
+    Height = 116
+    Top = 314
+    Width = 830
+    Anchors = [akLeft, akRight, akBottom]
+    ReadOnly = True
+    ScrollBars = ssBoth
+    TabOrder = 1
+    WordWrap = False
+  end
+  object memoNetBlackLists: TMemo
+    Left = 16
+    Height = 79
+    Top = 210
+    Width = 829
+    Anchors = [akLeft, akRight, akBottom]
+    ReadOnly = True
+    ScrollBars = ssBoth
+    TabOrder = 2
+    WordWrap = False
+  end
+end

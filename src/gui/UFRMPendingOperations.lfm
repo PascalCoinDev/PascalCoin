@@ -1,0 +1,71 @@
+object FRMPendingOperations: TFRMPendingOperations
+  Left = 156
+  Height = 337
+  Top = 188
+  Width = 860
+  ActiveControl = dgPendingOperations
+  Caption = 'Pending Operations'
+  ClientHeight = 337
+  ClientWidth = 860
+  Menu = PendingOperationsMenu
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  Position = poOwnerFormCenter
+  Visible = False
+  object pnlPendingOperations: TPanel
+    Left = 0
+    Height = 86
+    Top = 0
+    Width = 860
+    Align = alTop
+    BevelOuter = bvNone
+    BorderWidth = 10
+    ClientHeight = 86
+    ClientWidth = 860
+    TabOrder = 0
+    object Label10: TLabel
+      Left = 10
+      Height = 66
+      Top = 10
+      Width = 840
+      Align = alClient
+      AutoSize = False
+      Caption = 'Here you can see Operations transmited/received from other nodes that will be included in next block. There is no guarantee that other nodes will include them when mining, so it''s important that you mine too to help include Operations to the main BlockChain'
+      Font.Color = clWindowText
+      Font.Height = -16
+      Font.Name = 'Tahoma'
+      ParentColor = False
+      ParentFont = False
+      WordWrap = True
+    end
+  end
+  object dgPendingOperations: TDrawGrid
+    Left = 0
+    Height = 251
+    Top = 86
+    Width = 860
+    Align = alClient
+    ExtendedSelect = False
+    TabOrder = 1
+    TitleFont.Color = clWindowText
+    TitleFont.Height = -11
+    TitleFont.Name = 'Tahoma'
+    OnDblClick = dgPendingOperationsDblClick
+  end
+  object PendingOperationsMenu: TMainMenu
+    left = 696
+    top = 48
+    object miTools: TMenuItem
+      Caption = 'Tools'
+      object miFindOperationbyOpHash: TMenuItem
+        Caption = 'Find Operation by OpHash'
+        ShortCut = 116
+        OnClick = miFindOperationbyOpHashClick
+      end
+      object miDecodePayLoad: TMenuItem
+        Caption = 'Decode Payload'
+        OnClick = miDecodePayLoadClick
+      end
+    end
+  end
+end

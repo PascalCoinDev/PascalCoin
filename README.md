@@ -1,6 +1,6 @@
 # Pascal Coin: P2P Cryptocurrency without need of historical operations.  
   
-Copyright (c) 2016 Albert Molina  
+Copyright (c) 2016-2018 PascalCoin developers based on original Albert Molina source code
   
 THIS IS EXPERIMENTAL SOFTWARE. Use it for educational purposes only.  
   
@@ -33,6 +33,223 @@ If you like it, consider a donation using BitCoin:
 Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
+
+### Build 3.0.1 - 2018-05-07
+- Deprecated use of OpenSSL v1.0 versions. Only allowed OpenSSL v1.1 versions
+- JSON-RPC Added param "openssl" on "nodestatus" call. Will return OpenSSL library version as described in OpenSSL_version_num ( https://www.openssl.org/docs/man1.1.0/crypto/OPENSSL_VERSION_NUMBER.html )
+
+### Build 3.0.0 - 2018-05-02
+- Implementation of Hard fork on block 210000
+  - PIP - 0010: 50% inflation reduction
+  - PIP - 0011: 20% Development reward
+  - PIP - 0017: Anonymity via transaction mixing (multioperation)
+  - New target calc on protocol V3 in order to reduce the sinusoidal effect
+    - Harmonization of the sinusoidal effect modifying the rise / fall by 50% calculating over the last 10 blocks only when increase/decrease is high
+- New Safebox Snapshoting
+  - This allow quickly rollback/commit directly to Safebox instead of create a separate Safebox on memory (read from disk... use more ram...)
+  - Is usefull when detecting posible orphan blocks in order to check which chain is the highest chain without duplicating a safebox to compare
+- New Node network operations
+  - Get pending operations (code $0030)
+    - Implementation of the PIP-0013 (not exactly but with similar features)	
+  - Get account (code $0031)
+    - This call will allow a simple third party app communicate directly to a node to get account info (balance, n_operation, name, public key... )
+  - Reserverd codes from $1000 to $1FFF
+    - A node will not break connection if those codes are used, but will response with ERRORCODE_NOT_IMPLEMENTED ($00FF)
+- MultiOperation: PIP-0017
+  - Multioperation allows a transactional like operations, they can include transactions and change info operations in a signle multioperation
+    - Allow to send coins from N accounts to M receivers in a transaction mixing, without knowledge of how many coins where sent from "Alice" to "Bob" if properly mixed
+	- Ophash can be previously known by all signers before signing. They must sign only if multioperation includes it's transactions as expected 
+	- OpHash of a multioperation will allow to include n_operation and account of each signer account, but md160hash chunk will be the same for all
+- JSON-RPC changes:
+  - Added param "startblock" to "getaccountoperations" in order to start searching backwards on a specific block. Note: Balance will not be returned on each operation due cannot be calculated. Default value "0" means start searching on current block as usual
+  - Operation Object changes:
+    New fields:
+    - "senders" : ARRAY of objects - When is a transaction, this array contains each sender
+      - "account" : Sending Account 
+      - "n_operation"
+      - "amount" : PASCURRENCY - In negative value, due it's outgoing from "account"
+      - "payload" : HEXASTRING
+    - "receivers" : ARRAY of objects - When is a transaction, this array contains each receiver
+      - "account" : Receiving Account 
+      - "amount" : PASCURRENCY - In positive value, due it's incoming from a sender to "account"
+      - "payload" : HEXASTRING
+    - "changers" : ARRAY of objects - When accounts changed state
+      - "account" : changing Account 
+      - "n_operation"
+      - "new_enc_pubkey" : If public key is changed or when is listed for a private sale
+      - "new_name" : If name is changed
+      - "new_type" : If type is changed
+      - "seller_account" : If is listed for sale (public or private) will show seller account
+      - "account_price"	: PASCURRENCY - If is listed for sale (public or private) will show account price
+      - "locked_until_block" : If is listed for private sale will show block locked
+      - "fee" : PASCURRENCY - In negative value, due it's outgoing from "account"
+    Modified fields / DEPRECATED FIELDS
+    Caused by multioperation introduction, search in "senders"/"receivers"/"changers" instead
+    - "balance" will not be included when is not possible to calc previous balance of account searching at the past
+    - "signer_account" will not be included in Multioperations
+    - "account" : will not be included in Multioperations, use fields in "senders"/"receivers"/"changers" instead    
+    - "n_operation" will not be included in Multioperations, use fields in "senders"/"receivers"/"changers" instead
+    - "payload" will not be included in Multioperations, use fields in "senders"/"receivers"/"changers" instead
+    - "sender_account" is not correct to be used. Use "account" param on "senders" array instead
+    - "dest_account" is not correct to be used. Use "account" param on "receivers" array instead
+    - "amount" is not correct to be used. Use each "amount" param on "senders/receivers" instad. Note: sender "amount" is a negative number, positive for receiver
+  - New object "MultiOperation Object" : Will return info about a MultiOperation
+    - "rawoperations" : HEXASTRING with this single MultiOperation in RAW format
+    - "senders" : Will return an Array with Objects
+      - "account" : Sending Account 
+      - "n_operation"
+      - "amount" : In negative value, due it's outgoing from "account"
+      - "payload"
+    - "receivers"
+      - "account" : Receiving Account 
+      - "amount" : In positive value, due it's incoming from a sender to "account"
+      - "payload"
+    - "changers" : Will return an Array with Objects
+      - "account" : changing Account 
+      - "n_operation"
+      - "new_enc_pubkey" : If public key is changed
+      - "new_name" : If name is changed
+      - "new_type" : If type is changed
+    - "amount" : PASCURRENCY Amount received by receivers
+    - "fee" : PASCURRENCY Equal to "total send" - "total received"
+	- "signed_count" : Integer with info about how many accounts are signed. Does not check if signature is valid for a multioperation not included in blockchain 
+	- "not_signed_count" : Integer with info about how many accounts are pending to be signed
+    - "signed_can_execute"	: Boolean. True if everybody signed. Does not check if MultiOperation is well formed or can be added to Network because is an offline call
+  - New method "signmessage": Signs a digest message using a public key
+    - Params:
+      - "digest" : HEXASTRING with the message to sign
+	  - "b58_pubkey" or "enc_pubkey" : HEXASTRING with the public key that will use to sign "digest" data
+    - Result: False on error
+      - "digest" : HEXASTRING with the message to sign
+	  - "enc_pubkey" : HESATRING with the public key that used to sign "digest" data
+	  - "signature" : HEXASTRING with signature
+  - New method "verifysign": Verify if a digest message is signed by a public key
+    - Params:
+      - "digest" : HEXASTRING with the message to check
+	  - "b58_pubkey" or "enc_pubkey" : HEXASTRING with the public key that used to sign "digest" data
+	  - "signature" : HEXASTRING returned by "signmessage" call
+    - Result: False on error
+      - "digest" : HEXASTRING with the message to check
+	  - "enc_pubkey" : HESATRING with the public key that used to sign "digest" data
+	  - "signature" : HEXASTRING with signature
+  - New method "multioperationaddoperation": Adds operations to a multioperation (or creates a new multioperation and adds new operations)
+    This method does not need current Safebox state, so can be used offline or on COLD wallets when all info is provided
+    - Params:
+      - "rawoperations" : HEXASTRING (optional) with previous multioperation. If is valid and contains a single  multiopertion will add operations to this one, otherwise will generate a NEW MULTIOPERATION
+	  - "auto_n_operation" : Boolean - Will fill n_operation (if not provided). Only valid if wallet is ONLINE (no cold wallets)
+      - "senders" : ARRAY of objects that will be Senders of the multioperation
+        - "account" : Integer
+        - "n_operation" : Integer (optional) - if not provided, will use current safebox n_operation+1 value (on online wallets)
+        - "amount" : PASCURRENCY in positive format
+        - "payload" : HEXASTRING
+      - "receivers" : ARRAY of objects that will be Receivers of the multioperation
+        - "account" : Integer
+        - "amount" : PASCURRENCY in positive format
+        - "payload" : HEXASTRING
+      - "changesinfo" : ARRAY of objects that will be accounts executing a changing info
+        - "account" : Integer
+        - "n_operation" : Integer (optional) - if not provided, will use current safebox n_operation+1 value (on online wallets)
+        - "new_b58_pubkey"/"new_enc_pubkey": (optional) If provided will update Public key of "account"
+        - "new_name" : STRING (optional) If provided will change account name
+        - "new_type" : Integer (optional) If provided will change account type
+    - Result:
+      If success will return a "MultiOperation Object"
+  - New method "multioperationsignoffline"
+    This method will sign a Multioperation found in a "rawoperations"
+	Must provide info about accounts and keys (current Safebox state, provided by an ONLINE wallet)
+    - Params:
+      -	"rawoperations" : HEXASTRING with 1 multioperation in Raw format
+      - "accounts_and_keys"	: ARRAY of objects with info about accounts and public keys to sign
+        - "account" : Integer 
+        - "b58_pubkey" or "enc_pubkey" : HEXASTRING with the public key of the account
+    - Result:
+      If success will return a "MultiOperation Object"
+  - New method "multioperationsignonline"
+    This method will sign a Multioperation found in a "rawoperations" based on current safebox state public keys
+	Must provide info about accounts and keys (current Safebox state, provided by an ONLINE wallet)
+    - Params:
+      -	"rawoperations" : HEXASTRING with 1 multioperation in Raw format
+    - Result:
+      If success will return a "MultiOperation Object"
+  - New method "operationsdelete"
+    This method will delete an operation included in a Raw operations object
+    - Params:
+      -	"rawoperations" : HEXASTRING with Raw Operations Object
+    - Result:
+      If success will return a "Raw Operations Object"
+      - "rawoperations" : HEXASTRING with operations in Raw format
+      - "operations" : Integer
+      - "amount" : PASCURRENCY
+      - "fee" : PASCURRENCY  
+  - Updated method "getpendings" : Added params "start" (0..N) default=0 and "max" default=100 (0 = ALL)
+    - Also fixed bug #86 : https://github.com/PascalCoin/PascalCoin/issues/86
+  - New method "getpendingscount" : Returns pending operations count
+- Daemon:
+  - Allow to force max block read from Blockchain when started using "-b MAX_BLOCK_NUMBER" param. Example "nohup ./pascalcoin_daemon -r -b 12345 &"
+- Protections against invalid nodes (scammers):
+  - Protection on GetBlocks and GetBlockOperations
+- Merged new GUI with current stable core
+- New folders organization
+- Bugs solved
+
+### Build 2.1.9 - 2018-04-16
+- Searchs last valid block found on corrupted BlockChainStream.blocks file and allows to continue from last valid one. On prior versions, app halted and needed manually file deletion
+
+### Build 2.1.8 - 2018-04-16
+- Solved bug that can cause to corrupt BlockChainStream.blocks file when detecting an orphan block and creating new BlockHeaders row (every 1000 blocks). Very rare bug, but fatal error
+
+### Build 2.1.7 - 2018-04-10
+- Remove use of TPCOperation.FSignatureChecked introduced on 2.1.6 because is not 100% secure
+- Minor bugs
+
+### Build 2.1.6 - 2018-02-14
+- Important improvements
+  - Improved speed when processing operations on start
+  - Improved speed when processing pending operations after a new block found
+  - Deleted duplicate "SanitizeOperations" call
+  - Verify signed operations only once (TPCOperation.FSignatureChecked Boolean)
+  - Improvements in search methods of TOperationsHashTree
+    - Increase speed in search methods thanks to internal ordered lists
+    - Increase speed copying thanks to using FHashTree sender buffer instad of generating new one
+  - Internal bugs
+- Those improvements solved BUG that caused operations not included to blockchain due slow processing with MemPool 
+- NOTE: It's HIGHLY RECOMMENDED to upgrade to this version
+
+### Build 2.1.5 - 2018-02-09
+- GUI changes:
+  - Allow massive accounts "change info" operation
+  - Added "account type" and "sale price" on accounts grid
+  - Show "account type" stats on search account form  
+  - Changed Icon to current PascalCoin icon
+- Pending operations buffer cached to file to allow daemon/app restart without losing pending operations
+- Less memory usage thanks to a Public keys centralised buffer
+- JSON-RPC changes
+  - Added param "n_operation" to "Operation Object" JSON-RPC call
+  - New method "findnoperation": Search an operation made to an account based on n_operation field
+    - Params:
+	  - "account" : Account
+	  - "n_operation" : n_operation field (n_operation is an incremental value to protect double spend)
+	- Result:
+	  - If success, returns an Operation Object	  
+  - New method "findnoperations": Search an operation made to an account based on n_operation 
+    - Params:
+	  - "account" : Account
+	  - "n_operation_min" : Min n_operation to search
+	  - "n_operation_max" : Max n_operation to search
+	  - "start_block" : (optional) Block number to start search. 0=Search all, including pending operations
+	- Result:
+	  - If success, returns an array of Operation Object
+  - New method "decodeophash": Decodes block/account/n_operation info of a 32 bytes ophash
+    - Params:
+      - "ophash" : HEXASTRING with an ophash (ophash is 32 bytes, so must be 64 hexa valid chars)
+    - Result:
+      - "block" : Integer. Block number. 0=unknown or pending
+      - "account" : Integer. Account number
+      - "n_operation" : Integer. n_operation used by the account. n_operation is an incremental value, cannot be used twice on same account.
+      - "md160hash" : HEXASTRING with MD160 hash
+- Solved bug that caused to delete blockchain when checking memory 
+- Solved bug in Network adjusted time on receiving connections caused by full entry buffer
+- Minor optimizations
 
 ### Build 2.1.3.0 - 2017-11-15
 - Fixed BUG when buying account assigning an invalid public key

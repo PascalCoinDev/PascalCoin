@@ -1,0 +1,89 @@
+object FRMMessages: TFRMMessages
+  Left = 208
+  Height = 441
+  Top = 47
+  Width = 874
+  Caption = 'Messages'
+  ClientHeight = 441
+  ClientWidth = 874
+  OnActivate = FormActivate
+  Position = poOwnerFormCenter    
+  LCLVersion = '1.6.4.0'
+  object Label11: TLabel
+    Left = 15
+    Height = 15
+    Top = 151
+    Width = 54
+    Caption = 'Messages:'
+    ParentColor = False
+  end
+  object Label12: TLabel
+    Left = 315
+    Height = 15
+    Top = 11
+    Width = 91
+    Caption = 'Message to send:'
+    ParentColor = False
+  end
+  object Label13: TLabel
+    Left = 15
+    Height = 15
+    Top = 11
+    Width = 121
+    Caption = 'Available Connections:'
+    ParentColor = False
+  end
+  object Label14: TLabel
+    Left = 410
+    Height = 13
+    Top = 11
+    Width = 361
+    Caption = '(Messages will be encrypted, so only dest connection will be able to read it)'
+    Font.Color = clGrayText
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    ParentColor = False
+    ParentFont = False
+  end
+  object lbNetConnections: TListBox
+    Left = 15
+    Height = 96
+    Top = 30
+    Width = 275
+    ItemHeight = 0
+    MultiSelect = True
+    ScrollWidth = 273
+    TabOrder = 0
+  end
+  object bbSendAMessage: TButton
+    Left = 315
+    Height = 25
+    Top = 101
+    Width = 525
+    Caption = 'Send a Message'
+    OnClick = bbSendAMessageClick
+    TabOrder = 1
+  end
+  object memoMessages: TMemo
+    Left = 15
+    Height = 253
+    Top = 170
+    Width = 821
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    Font.Color = clWindowText
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    ParentFont = False
+    ReadOnly = True
+    ScrollBars = ssBoth
+    TabOrder = 2
+  end
+  object memoMessageToSend: TMemo
+    Left = 315
+    Height = 61
+    Top = 30
+    Width = 525
+    TabOrder = 3
+    WantReturns = False
+  end
+end

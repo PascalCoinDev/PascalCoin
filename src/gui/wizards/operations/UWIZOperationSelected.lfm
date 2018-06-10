@@ -1,0 +1,54 @@
+object WIZOperationSelected: TWIZOperationSelected
+  Left = 0
+  Height = 261
+  Top = 0
+  Width = 429
+  Caption = 'OperationSelected'
+  ClientHeight = 261
+  ClientWidth = 429
+  Visible = False
+  object gpSelectedAccount: TGroupBox
+    Left = 4
+    Height = 256
+    Top = 4
+    Width = 420
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    Caption = 'Selected Account'
+    ClientHeight = 236
+    ClientWidth = 416
+    TabOrder = 0
+    object paGrid: TPanel
+      Left = 8
+      Height = 192
+      Top = 32
+      Width = 400
+      Anchors = [akTop, akLeft, akRight, akBottom]
+      BevelOuter = bvNone
+      Caption = 'GRID PANEL'
+      TabOrder = 0
+    end
+    object lblTotalBalances: TLabel
+      Left = 192
+      Height = 15
+      Top = 8
+      Width = 116
+      Alignment = taRightJustify
+      Anchors = [akTop, akRight]
+      AutoSize = False
+      Caption = 'Total Balance: '
+      ParentColor = False
+    end
+    object lblTotalBalanceValue: TLabel
+      Left = 312
+      Height = 15
+      Top = 8
+      Width = 96
+      Anchors = [akTop, akRight]
+      AutoSize = False
+      Caption = 'Total Balance'
+      Font.Color = clGreen
+      ParentColor = False
+      ParentFont = False
+    end
+  end
+end
