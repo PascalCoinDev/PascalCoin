@@ -1,0 +1,39 @@
+object WIZEnlistAccountForSale_EnterPublicKey: TWIZEnlistAccountForSale_EnterPublicKey
+  Left = 0
+  Height = 253
+  Top = 40
+  Width = 429
+  ActiveControl = mmoPublicKey
+  Caption = 'WIZEnlistAccountForSale_EnterPublicKey'
+  ClientHeight = 253
+  ClientWidth = 429
+  LCLVersion = '1.8.2.0'
+  Visible = False
+  object gbTransaction: TGroupBox
+    Left = 4
+    Height = 244
+    Top = 4
+    Width = 420
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    Caption = 'Buyer Key'
+    ClientHeight = 224
+    ClientWidth = 416
+    TabOrder = 0
+    object lblPublicKey: TLabel
+      Left = 8
+      Height = 15
+      Top = 8
+      Width = 321
+      Caption = 'Enter the Public Key of the buyer who will receive account(s).'
+      ParentColor = False
+    end
+    object mmoPublicKey: TMemo
+      Left = 8
+      Height = 176
+      Top = 40
+      Width = 400
+      Anchors = [akTop, akLeft, akRight, akBottom]
+      TabOrder = 0
+    end
+  end
+end

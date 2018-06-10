@@ -1,0 +1,52 @@
+object WIZAddKey_ImportPrivKey: TWIZAddKey_ImportPrivKey
+  Left = -679
+  Height = 225
+  Top = 316
+  Width = 438
+  Caption = 'WIZAddKey_ImportPrivKey'
+  ClientHeight = 225
+  ClientWidth = 438
+  LCLVersion = '1.8.2.0'
+  Visible = False
+  object Label1: TLabel
+    Left = 32
+    Height = 32
+    Top = 16
+    Width = 362
+    Anchors = [akTop, akLeft, akRight]
+    AutoSize = False
+    Caption = 'Enter the encrypted private key that you have exported from another wallet. '
+    ParentColor = False
+    WordWrap = True
+  end
+  object Label2: TLabel
+    Left = 25
+    Height = 24
+    Top = 160
+    Width = 362
+    Anchors = [akTop, akLeft, akRight]
+    AutoSize = False
+    Caption = 'Enter the password used to encrypt the key when it was exported.'
+    ParentColor = False
+    WordWrap = True
+  end
+  object txtPassword: TEdit
+    Left = 24
+    Height = 23
+    Top = 184
+    Width = 386
+    Anchors = [akTop, akLeft, akRight]
+    AutoSize = False
+    EchoMode = emPassword
+    PasswordChar = '*'
+    TabOrder = 1
+  end
+  object txtPrivateKey: TMemo
+    Left = 24
+    Height = 88
+    Top = 56
+    Width = 385
+    Anchors = [akTop, akLeft, akRight]
+    TabOrder = 0
+  end
+end

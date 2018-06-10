@@ -1,0 +1,1 @@
+This folder contains platform specific build configurations.

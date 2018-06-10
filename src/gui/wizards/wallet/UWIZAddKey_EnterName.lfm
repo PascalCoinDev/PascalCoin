@@ -1,0 +1,29 @@
+object WIZAddKey_EnterName: TWIZAddKey_EnterName
+  Left = -665
+  Height = 100
+  Top = 643
+  Width = 334
+  Caption = 'WIZAddKey_EnterName'
+  ClientHeight = 100
+  ClientWidth = 334
+  LCLVersion = '1.8.2.0'
+  Visible = False
+  object Label2: TLabel
+    Left = 17
+    Height = 15
+    Top = 16
+    Width = 130
+    Caption = 'Enter a name for this key'
+    ParentColor = False
+    WordWrap = True
+  end
+  object txtName: TEdit
+    Left = 17
+    Height = 23
+    Top = 40
+    Width = 299
+    Anchors = [akTop, akLeft, akRight]
+    AutoSize = False
+    TabOrder = 0
+  end
+end

@@ -1,0 +1,268 @@
+object FRMAccountSelect: TFRMAccountSelect
+  Left = 332
+  Top = 227
+  BorderIcons = [biSystemMenu, biMaximize]
+  Caption = 'Accounts'
+  ClientHeight = 322
+  ClientWidth = 657
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'Tahoma'
+  Font.Style = []
+  OldCreateOrder = True
+  Position = poOwnerFormCenter
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  PixelsPerInch = 96
+  TextHeight = 13
+  object pnlAccountsTop: TPanel
+    Left = 451
+    Top = 0
+    Width = 206
+    Height = 282
+    Align = alRight
+    BevelOuter = bvNone
+    TabOrder = 0
+    object cbOnlyForSale: TCheckBox
+      Left = 10
+      Top = 65
+      Width = 81
+      Height = 19
+      Caption = 'Only for sale'
+      TabOrder = 2
+    end
+    object bbSearch: TBitBtn
+      Left = 50
+      Top = 236
+      Width = 91
+      Height = 36
+      Caption = 'Search'
+      DoubleBuffered = True
+      Glyph.Data = {
+        F6060000424DF606000000000000360000002800000018000000180000000100
+        180000000000C0060000120B0000120B00000000000000000000FF00FFFF00FF
+        FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+        FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+        00FFFF00FFFF00FFABA7A68C8888C09596FF00FFFF00FFFF00FFFF00FFFF00FF
+        FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+        FFFF00FFFF00FFFF00FFFF00FFACA8A786868A2A669A4B7BA0C09494FF00FFFF
+        00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+        FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF9B9D9D5492C22E99FF1B7C
+        CB557A97C19595FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+        00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF3DADFF
+        57C1FF4DB1FF3196FA197CC9537997C19495FF00FFFF00FFFF00FFFF00FFFF00
+        FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+        00FFFF00FFFF00FF41ABFF5DBFFE4DAFFF3196FA197BC85A7A97C29594FF00FF
+        FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+        FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF42ABFE5CC0FE4DAFFF3096FA19
+        7AC8587A96C19494FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+        FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF42AC
+        FE5CC0FE4DAFFF2E94FA187AC75F7C97BB9396FF00FFFF00FFFF00FFFF00FFFF
+        00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+        FF00FFFF00FFFF00FF44ADFE5CBFFE4DB0FF2D94F81979C6437397FF00FFFF00
+        FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+        00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF46AEFE5CBFFE4CB0FF3F97ED
+        577B94FF00FFFF00FFFF00FFAE837EAE837EAE837EAE837EAE837EFF00FFFF00
+        FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF46
+        AFFE66C5FFA3CCF1BEB3AB867170A9807AAE837EE5D8BDFFFFE2FFFFE2FFFFE0
+        EEDFC6AE837EAE837EFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+        FFFF00FFFF00FFFF00FFFF00FFFF00FFDCBFB8C69E8ED8BDA3FFFFDDFFFFDDFF
+        FFDBFFFFDAFFFFDBFFFFDDFFFFE9DEC9B7AE837EFF00FFFF00FFFF00FFFF00FF
+        FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFAE857FDEC0A5FFF3
+        C1FCF1C8FFFFDAFFFFD9FFFFDAFFFFE0FFFFE4FFFFEFFFFFFFDDCAC8AE837EFF
+        00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+        AE837EFFEFB9F5D4A5FBF0C6FFFFDBFFFFDAFFFFDDFFFFEBFFFFF5FFFFFBFFFF
+        FDFFFFFEAE837EFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+        00FFFF00FFAE837EECD5B4F8D6A2F2C997FCEDC4FFFFDBFFFFDAFFFFE0FFFFF0
+        FFFFFEFFFFFDFFFFF5FFFFEBE1D3B8AE837EFF00FFFF00FFFF00FFFF00FFFF00
+        FFFF00FFFF00FFFF00FFFF00FFAE837EFFF3BFF4CB95F0C18EF9E5BAFEFDD7FF
+        FFDCFFFFDFFFFFECFFFFF8FFFFF8FFFFECFFFFE0FFFFE3AE837EFF00FFFF00FF
+        FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFAE837EFFF4C0F3C994EEB8
+        84F5D5A5FDF3CBFFFFDCFFFFDDFFFFE2FFFFE8FFFFE9FFFFE2FFFFDDFFFFE3AE
+        837EFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFAE837E
+        FFF5C3F6D19CEEB27DF1C593F7E0B3FDF7D0FFFFDCFFFFDDFFFFDDFFFFDDFFFF
+        DBFFFFDAFFFFE1AE837EFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+        00FFFF00FFAE837EECD5B4FDE6B2F3C996F2C792F3D09CF8E3B5FCF5CDFFFFDA
+        FFFFDCFFFFDBFFFFDBFFFFDCE2D3B8AE837EFF00FFFF00FFFF00FFFF00FFFF00
+        FFFF00FFFF00FFFF00FFFF00FFFF00FFAE837EFFFED0FCF0D6F8E0BEF4CF9DF3
+        CD9AF6D8AAFBEABFFDF4CBFCF7CFFEF8D1FFFFDEAE837EFF00FFFF00FFFF00FF
+        FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFAE837EE0CAB2FFFF
+        FFFEF9F2F8E1BEF1C48DEEBA85F1C491F4D1A1F8DEB0FFF7C6DDC7AEAE837EFF
+        00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
+        FF00FFAE837ED9C6C0FFFFFFFFF7D7F8DAA6F4CB95F5CD99F9D9A6FFF1BBDEC2
+        A9AE837EFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
+        00FFFF00FFFF00FFFF00FFFF00FFAE837EAE837EE8D5B4FFF9C5FFF5C0FFF5C2
+        EED8B7AE837EAE837EFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
+        FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFAE837EAE
+        837EAE837EAE837EAE837EFF00FFFF00FFFF00FFFF00FFFF00FF}
+      ParentDoubleBuffered = False
+      TabOrder = 10
+      OnClick = bbSearchClick
+    end
+    object cbOnlyForPrivateSaleToMe: TCheckBox
+      Left = 10
+      Top = 111
+      Width = 148
+      Height = 19
+      Caption = 'Only for private sale to me'
+      TabOrder = 4
+    end
+    object cbAccountsBalance: TCheckBox
+      Left = 10
+      Top = 134
+      Width = 104
+      Height = 19
+      Caption = 'Accounts Balance'
+      TabOrder = 5
+    end
+    object cbMyAccounts: TCheckBox
+      Left = 10
+      Top = 10
+      Width = 81
+      Height = 19
+      Caption = 'My Accounts'
+      TabOrder = 0
+      OnClick = cbMyAccountsClick
+    end
+    object cbMyPrivateKeys: TComboBox
+      Left = 10
+      Top = 35
+      Width = 176
+      Height = 21
+      Style = csDropDownList
+      TabOrder = 1
+      OnChange = cbMyPrivateKeysChange
+    end
+    object cbOnlyForPublicSale: TCheckBox
+      Left = 10
+      Top = 88
+      Width = 111
+      Height = 19
+      Caption = 'Only for public sale'
+      TabOrder = 3
+    end
+    object ebMinBalance: TEdit
+      Left = 16
+      Top = 160
+      Width = 73
+      Height = 21
+      TabOrder = 6
+      OnExit = ebMinBalanceExit
+    end
+    object ebMaxBalance: TEdit
+      Left = 103
+      Top = 160
+      Width = 73
+      Height = 21
+      TabOrder = 7
+      OnExit = ebMaxBalanceExit
+    end
+    object cbAccountsName: TCheckBox
+      Left = 10
+      Top = 186
+      Width = 93
+      Height = 19
+      Caption = 'Accounts name'
+      TabOrder = 8
+    end
+    object ebAccountName: TEdit
+      Left = 18
+      Top = 209
+      Width = 158
+      Height = 21
+      TabOrder = 9
+    end
+  end
+  object pnlBottom: TPanel
+    Left = 0
+    Top = 282
+    Width = 657
+    Height = 40
+    Align = alBottom
+    BevelOuter = bvNone
+    TabOrder = 1
+    DesignSize = (
+      657
+      40)
+    object Label17: TLabel
+      Left = 5
+      Top = 10
+      Width = 48
+      Height = 13
+      Caption = 'Accounts:'
+      Color = clBtnFace
+      ParentColor = False
+    end
+    object lblAccountsCount: TLabel
+      Left = 60
+      Top = 10
+      Width = 18
+      Height = 13
+      Caption = '000'
+      Color = clBtnFace
+      ParentColor = False
+    end
+    object Label19: TLabel
+      Left = 136
+      Top = 10
+      Width = 41
+      Height = 13
+      Caption = 'Balance:'
+      Color = clBtnFace
+      ParentColor = False
+    end
+    object lblAccountsBalance: TLabel
+      Left = 200
+      Top = 10
+      Width = 18
+      Height = 13
+      Caption = '000'
+      Color = clBtnFace
+      ParentColor = False
+    end
+    object bbSelect: TBitBtn
+      Left = 450
+      Top = 5
+      Width = 95
+      Height = 30
+      Anchors = [akTop, akRight]
+      Caption = 'Select'
+      DoubleBuffered = True
+      Kind = bkOK
+      ParentDoubleBuffered = False
+      TabOrder = 0
+    end
+    object bbCancel: TBitBtn
+      Left = 554
+      Top = 5
+      Width = 95
+      Height = 30
+      Anchors = [akTop, akRight]
+      DoubleBuffered = True
+      Kind = bkCancel
+      ParentDoubleBuffered = False
+      TabOrder = 1
+    end
+    object bbTypeStats: TBitBtn
+      Left = 340
+      Top = 5
+      Width = 95
+      Height = 30
+      Caption = 'Type stats'
+      DoubleBuffered = True
+      ParentDoubleBuffered = False
+      TabOrder = 2
+      OnClick = bbTypeStatsClick
+    end
+  end
+  object dgAccounts: TDrawGrid
+    Left = 0
+    Top = 0
+    Width = 451
+    Height = 282
+    Align = alClient
+    TabOrder = 2
+  end
+end

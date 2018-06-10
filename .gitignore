@@ -7,6 +7,10 @@
 ## OpenSSL 
 libeay32.dll
 libeay64.dll
+libcrypto-1_1-x64.dll
+libcrypto-1_1.dll
+libcrypto.so.1.1
+
 
 # Log files
 *.log
@@ -16,10 +20,12 @@ libeay64.dll
 *.dproj.local
 *.lps
 *.dcu
-backup/
 lib/
 PascalCoinWallet_Icon.ico
 
+#Lazarus backup files
+*.bak
+backup/
+
 ## Development miner batch file
 Run*.bat
-

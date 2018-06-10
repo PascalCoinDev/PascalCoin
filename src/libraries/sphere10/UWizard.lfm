@@ -1,0 +1,51 @@
+object WizardHostForm: TWizardHostForm
+  Left = 187
+  Height = 120
+  Top = 35
+  Width = 360
+  BorderIcons = [biSystemMenu]
+  Caption = 'Wizard'
+  ClientHeight = 120
+  ClientWidth = 360
+  OnCloseQuery = FormCloseQuery
+  Position = poOwnerFormCenter
+  LCLVersion = '1.8.2.0'
+  Visible = False
+  object FHorizonalLine: TPanel
+    Left = 0
+    Height = 1
+    Top = 65
+    Width = 358
+    Anchors = [akLeft, akRight, akBottom]
+    BorderStyle = bsSingle
+    TabOrder = 0
+  end
+  object FPreviousButton: TButton
+    Left = 16
+    Height = 25
+    Top = 81
+    Width = 136
+    Anchors = [akLeft, akBottom]
+    Caption = '&Back'
+    OnClick = FPreviousButtonClick
+    TabOrder = 1
+  end
+  object FNextButton: TButton
+    Left = 210
+    Height = 25
+    Top = 81
+    Width = 133
+    Anchors = [akRight, akBottom]
+    Caption = '&Next'
+    OnClick = FNextButtonClick
+    TabOrder = 2
+  end
+  object FWizardScreenPanel: TPanel
+    Left = 0
+    Height = 64
+    Top = 0
+    Width = 360
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    TabOrder = 3
+  end
+end
