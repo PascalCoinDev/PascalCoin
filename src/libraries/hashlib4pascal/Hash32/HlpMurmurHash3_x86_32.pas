@@ -204,7 +204,7 @@ procedure TMurmurHash3_x86_32.TransformBytes(a_data: THashLibByteArray;
 var
   len, nBlocks, i, offset: Int32;
   k: UInt32;
-  ptr_a_data: PByte;
+  ptr_a_data, ptr_Fm_buf: PByte;
 
 begin
 {$IFDEF DEBUG}
@@ -215,6 +215,43 @@ begin
   len := a_length;
   i := a_index;
   ptr_a_data := PByte(a_data);
+  System.Inc(Fm_total_length, len);
+
+  // consume last pending bytes
+
+  if ((Fm_idx <> 0) and (a_length <> 0)) then
+  begin
+    { *                       buf    data
+      idx = 1, len = 3 -> [0, 1[ + [0, 3[ => Block = [], buf []
+      idx = 1, len = 4 -> [0, 1[ + [0, 3[ => Block = [], buf = data[3, 4[
+      idx = 1, len = 5 -> [0, 1[ + [0, 3[ => Block = [], buf = data[3, 5[
+      ...
+      idx = 1, len = 7 -> [0, 1[ + [0, 3[ => Block = [3,7[, buf []
+      idx = 2, len = 3 -> [0, 2[ + [0, 2[ => Block = [], buf [2, 3[
+      idx = 2, len = 4 -> [0, 2[ + [0, 2[ => Block = [], buf [2, 4[
+      ...
+      idx = 2, len = 6 -> [0, 2[ + [0, 2[ => Block = [2,6[, buf []
+      * }
+
+{$IFDEF DEBUG}
+    System.Assert(a_index = 0); // nothing would work anyways if a_index is !=0
+{$ENDIF DEBUG}
+    while ((Fm_idx < 4) and (len <> 0)) do
+    begin
+      Fm_buf[Fm_idx] := (ptr_a_data + a_index)^;
+      System.Inc(Fm_idx);
+      System.Inc(a_index);
+      System.Dec(len);
+    end;
+    if (Fm_idx = 4) then
+    begin
+      ptr_Fm_buf := PByte(Fm_buf);
+      k := TConverters.ReadBytesAsUInt32LE(ptr_Fm_buf, 0);
+      TransformUInt32Fast(k);
+      Fm_idx := 0;
+    end;
+  end;
+
   nBlocks := len shr 2;
 
 
@@ -222,18 +259,16 @@ begin
 
   while i < nBlocks do
   begin
-    k := TConverters.ReadBytesAsUInt32LE(ptr_a_data, a_index + i * 4);
+    k := TConverters.ReadBytesAsUInt32LE(ptr_a_data, a_index + (i * 4));
 
     TransformUInt32Fast(k);
 
     System.Inc(i);
   end;
 
-  System.Inc(Fm_total_length, len);
-
-  offset := (i * 4);
-
-  while offset < len do
+  // save pending end bytes
+  offset := a_index + (i * 4);
+  while offset < (len + a_index) do
   begin
 
     ByteUpdate(a_data[offset]);

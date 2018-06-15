@@ -33,8 +33,9 @@ type
     Fm_idx: Int32;
     Fm_buf: THashLibByteArray;
 
-    procedure ByteUpdate(a_b: Byte);
+    procedure ByteUpdate(a_b: Byte); inline;
     procedure Finish();
+    procedure ProcessPendings();
 
 {$REGION 'Consts'}
 
@@ -72,13 +73,11 @@ implementation
 
 { TMurmurHash3_x86_128 }
 
-procedure TMurmurHash3_x86_128.ByteUpdate(a_b: Byte);
+procedure TMurmurHash3_x86_128.ProcessPendings;
 var
   k1, k2, k3, k4: UInt32;
   ptr_Fm_buf: PByte;
 begin
-  Fm_buf[Fm_idx] := a_b;
-  System.Inc(Fm_idx);
   if Fm_idx >= 16 then
   begin
     ptr_Fm_buf := PByte(Fm_buf);
@@ -129,6 +128,13 @@ begin
 
     Fm_idx := 0;
   end;
+end;
+
+procedure TMurmurHash3_x86_128.ByteUpdate(a_b: Byte);
+begin
+  Fm_buf[Fm_idx] := a_b;
+  System.Inc(Fm_idx);
+  ProcessPendings();
 end;
 
 constructor TMurmurHash3_x86_128.Create;
@@ -465,22 +471,44 @@ begin
   len := a_length;
   i := a_index;
   lIdx := 0;
-  nBlocks := len shr 4;
-
+  System.Inc(Fm_total_length, len);
   ptr_a_data := PByte(a_data);
+
+  // consume last pending bytes
+
+  if ((Fm_idx <> 0) and (a_length <> 0)) then
+  begin
+
+{$IFDEF DEBUG}
+    System.Assert(a_index = 0); // nothing would work anyways if a_index is !=0
+{$ENDIF DEBUG}
+    while ((Fm_idx < 16) and (len <> 0)) do
+    begin
+      Fm_buf[Fm_idx] := (ptr_a_data + a_index)^;
+      System.Inc(Fm_idx);
+      System.Inc(a_index);
+      System.Dec(len);
+    end;
+    if (Fm_idx = 16) then
+    begin
+      ProcessPendings;
+    end;
+  end;
+
+  nBlocks := len shr 4;
 
   // body
 
   while i < nBlocks do
   begin
 
-    k1 := TConverters.ReadBytesAsUInt32LE(ptr_a_data, lIdx);
+    k1 := TConverters.ReadBytesAsUInt32LE(ptr_a_data, a_index + lIdx);
     System.Inc(lIdx, 4);
-    k2 := TConverters.ReadBytesAsUInt32LE(ptr_a_data, lIdx);
+    k2 := TConverters.ReadBytesAsUInt32LE(ptr_a_data, a_index + lIdx);
     System.Inc(lIdx, 4);
-    k3 := TConverters.ReadBytesAsUInt32LE(ptr_a_data, lIdx);
+    k3 := TConverters.ReadBytesAsUInt32LE(ptr_a_data, a_index + lIdx);
     System.Inc(lIdx, 4);
-    k4 := TConverters.ReadBytesAsUInt32LE(ptr_a_data, lIdx);
+    k4 := TConverters.ReadBytesAsUInt32LE(ptr_a_data, a_index + lIdx);
     System.Inc(lIdx, 4);
 
     k1 := k1 * C1;
@@ -526,16 +554,12 @@ begin
     System.Inc(i);
   end;
 
-  System.Inc(Fm_total_length, len);
+  offset := a_index + (i * 16);
 
-  offset := (i * 16);
-
-  while offset < len do
+  while offset < (a_index + len) do
   begin
-
     ByteUpdate(a_data[offset]);
     System.Inc(offset);
-
   end;
 
 end;
