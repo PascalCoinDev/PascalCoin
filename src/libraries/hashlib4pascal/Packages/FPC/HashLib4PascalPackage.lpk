@@ -22,7 +22,7 @@
     <Description Value="HashLib4Pascal is a Delphi/FPC compatible library that provides an easy to use interface for computing hashes and checksums of strings (with a specified encoding), files, streams, byte arrays and untyped data to mention but a few.
 "/>
     <License Value="MIT License"/>
-    <Version Major="2" Minor="4"/>
+    <Version Major="2" Minor="5"/>
     <Files Count="102">
       <Item1>
         <Filename Value="..\..\Base\HlpHash.pas"/>

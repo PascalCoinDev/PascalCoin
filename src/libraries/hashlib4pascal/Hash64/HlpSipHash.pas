@@ -29,7 +29,7 @@ type
 
   strict private
 
-    Fm_v0, Fm_v1, Fm_v2, Fm_v3, Fm_key0, Fm_key1, Fm_total_length, F_m: UInt64;
+    Fm_v0, Fm_v1, Fm_v2, Fm_v3, Fm_key0, Fm_key1, Fm_total_length: UInt64;
     F_cr, F_fr, Fm_idx: Int32;
     Fm_buf: THashLibByteArray;
 
@@ -287,7 +287,8 @@ procedure TSipHash.TransformBytes(a_data: THashLibByteArray;
   a_index, a_length: Int32);
 var
   i, &length, iter, offset: Int32;
-  ptr_a_data: PByte;
+  ptr_a_data, ptr_Fm_buf: PByte;
+  m: UInt64;
 begin
 {$IFDEF DEBUG}
   System.Assert(a_index >= 0);
@@ -297,27 +298,51 @@ begin
   Length := a_length;
   i := a_index;
 
-  iter := Length shr 3;
   ptr_a_data := PByte(a_data);
+  System.Inc(Fm_total_length, Length);
+
+  // consume last pending bytes
+
+  if ((Fm_idx <> 0) and (a_length <> 0)) then
+  begin
+
+{$IFDEF DEBUG}
+    System.Assert(a_index = 0); // nothing would work anyways if a_index is !=0
+{$ENDIF DEBUG}
+    while ((Fm_idx < 8) and (Length <> 0)) do
+    begin
+      Fm_buf[Fm_idx] := (ptr_a_data + a_index)^;
+      System.Inc(Fm_idx);
+      System.Inc(a_index);
+      System.Dec(Length);
+    end;
+    if (Fm_idx = 8) then
+    begin
+      ptr_Fm_buf := PByte(Fm_buf);
+      m := TConverters.ReadBytesAsUInt64LE(ptr_Fm_buf, 0);
+      ProcessBlock(m);
+      Fm_idx := 0;
+    end;
+  end;
+
+  iter := Length shr 3;
+
+  // body
 
   while i < iter do
   begin
-    F_m := TConverters.ReadBytesAsUInt64LE(ptr_a_data, i * 8);
-    ProcessBlock(F_m);
-    F_m := 0;
+    m := TConverters.ReadBytesAsUInt64LE(ptr_a_data, a_index + (i * 8));
+    ProcessBlock(m);
     System.Inc(i);
   end;
 
-  System.Inc(Fm_total_length, Length);
+  // save pending end bytes
+  offset := a_index + (i * 8);
 
-  offset := (i * 8);
-
-  while offset < Length do
+  while offset < (Length + a_index) do
   begin
-
     ByteUpdate(a_data[offset]);
     System.Inc(offset);
-
   end;
 
 end;
