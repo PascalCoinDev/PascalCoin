@@ -610,6 +610,86 @@ implementation
 
 { TCRC }
 
+function TCRC.GetCheckValue: UInt64;
+begin
+  result := FCheckValue;
+end;
+
+function TCRC.GetInit: UInt64;
+begin
+  result := FInit;
+end;
+
+function TCRC.GetNames: THashLibStringArray;
+begin
+  result := FNames;
+end;
+
+function TCRC.GetPolynomial: UInt64;
+begin
+  result := FPolynomial;
+end;
+
+function TCRC.GetReflectIn: Boolean;
+begin
+  result := FReflectIn;
+end;
+
+function TCRC.GetReflectOut: Boolean;
+begin
+  result := FReflectOut;
+end;
+
+function TCRC.GetWidth: Int32;
+begin
+  result := FWidth;
+end;
+
+function TCRC.GetXOROut: UInt64;
+begin
+  result := FXorOut;
+end;
+
+procedure TCRC.SetCheckValue(value: UInt64);
+begin
+  FCheckValue := value;
+end;
+
+procedure TCRC.SetInit(value: UInt64);
+begin
+  FInit := value;
+end;
+
+procedure TCRC.SetNames(value: THashLibStringArray);
+begin
+  FNames := value;
+end;
+
+procedure TCRC.SetPolynomial(value: UInt64);
+begin
+  FPolynomial := value;
+end;
+
+procedure TCRC.SetReflectIn(value: Boolean);
+begin
+  FReflectIn := value;
+end;
+
+procedure TCRC.SetReflectOut(value: Boolean);
+begin
+  FReflectOut := value;
+end;
+
+procedure TCRC.SetWidth(value: Int32);
+begin
+  FWidth := value;
+end;
+
+procedure TCRC.SetXOROut(value: UInt64);
+begin
+  FXorOut := value;
+end;
+
 procedure TCRC.CalculateCRCbyTable(a_data: PByte;
   a_data_length, a_index: Int32);
 var
@@ -1197,46 +1277,6 @@ begin
   FIsTableGenerated := True;
 end;
 
-function TCRC.GetCheckValue: UInt64;
-begin
-  result := FCheckValue;
-end;
-
-function TCRC.GetInit: UInt64;
-begin
-  result := FInit;
-end;
-
-function TCRC.GetNames: THashLibStringArray;
-begin
-  result := FNames;
-end;
-
-function TCRC.GetPolynomial: UInt64;
-begin
-  result := FPolynomial;
-end;
-
-function TCRC.GetReflectIn: Boolean;
-begin
-  result := FReflectIn;
-end;
-
-function TCRC.GetReflectOut: Boolean;
-begin
-  result := FReflectOut;
-end;
-
-function TCRC.GetWidth: Int32;
-begin
-  result := FWidth;
-end;
-
-function TCRC.GetXOROut: UInt64;
-begin
-  result := FXorOut;
-end;
-
 procedure TCRC.Initialize;
 begin
   // initialize some bitmasks
@@ -1276,46 +1316,6 @@ begin
     j := j shl 1;
     i := i shr 1;
   end;
-end;
-
-procedure TCRC.SetCheckValue(value: UInt64);
-begin
-  FCheckValue := value;
-end;
-
-procedure TCRC.SetInit(value: UInt64);
-begin
-  FInit := value;
-end;
-
-procedure TCRC.SetNames(value: THashLibStringArray);
-begin
-  FNames := value;
-end;
-
-procedure TCRC.SetPolynomial(value: UInt64);
-begin
-  FPolynomial := value;
-end;
-
-procedure TCRC.SetReflectIn(value: Boolean);
-begin
-  FReflectIn := value;
-end;
-
-procedure TCRC.SetReflectOut(value: Boolean);
-begin
-  FReflectOut := value;
-end;
-
-procedure TCRC.SetWidth(value: Int32);
-begin
-  FWidth := value;
-end;
-
-procedure TCRC.SetXOROut(value: UInt64);
-begin
-  FXorOut := value;
 end;
 
 procedure TCRC.TransformBytes(a_data: THashLibByteArray;

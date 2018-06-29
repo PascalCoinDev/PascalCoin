@@ -57,6 +57,11 @@ begin
 
 end;
 
+function THashBuffer.GetIsFull: Boolean;
+begin
+  result := Fm_pos = System.Length(Fm_data);
+end;
+
 function THashBuffer.Feed(a_data: PByte; a_length_a_data: Int32;
   a_length: Int32): Boolean;
 var
@@ -151,11 +156,6 @@ end;
 function THashBuffer.GetIsEmpty: Boolean;
 begin
   result := Fm_pos = 0;
-end;
-
-function THashBuffer.GetIsFull: Boolean;
-begin
-  result := Fm_pos = System.Length(Fm_data);
 end;
 
 function THashBuffer.GetLength: Int32;
