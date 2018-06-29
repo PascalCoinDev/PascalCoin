@@ -125,6 +125,7 @@ Type
 
   TOrderedServerAddressListTS = Class
   private
+    FAllowDeleteOnClean: Boolean;
     FNetData : TNetData;
     FCritical : TPCCriticalSection;
     FListByIp : TList;
@@ -149,6 +150,7 @@ Type
     Procedure UpdateNetConnection(netConnection : TNetConnection);
     procedure GetNodeServersToConnnect(maxNodes : Integer; useArray : Boolean; var nsa : TNodeServerAddressArray);
     Function GetValidNodeServers(OnlyWhereIConnected : Boolean; Max : Integer): TNodeServerAddressArray;
+    property AllowDeleteOnClean : Boolean read FAllowDeleteOnClean write FAllowDeleteOnClean;
   End;
 
 
@@ -240,6 +242,8 @@ Type
   TNetData = Class(TComponent)
   private
     FMaxNodeServersAddressesBuffer: Integer;
+    FMaxServersConnected: Integer;
+    FMinServersConnected: Integer;
     FNetDataNotifyEventsThread : TNetDataNotifyEventsThread;
     FNodePrivateKey : TECPrivateKey;
     FNetConnections : TPCThreadList;
@@ -265,6 +269,8 @@ Type
     FNetworkAdjustedTime : TNetworkAdjustedTime;
     Procedure IncStatistics(incActiveConnections,incClientsConnections,incServersConnections,incServersConnectionsWithResponse : Integer; incBytesReceived, incBytesSend : Int64);
     procedure SetMaxNodeServersAddressesBuffer(AValue: Integer);
+    procedure SetMaxServersConnected(AValue: Integer);
+    procedure SetMinServersConnected(AValue: Integer);
     procedure SetNetConnectionsActive(const Value: Boolean);  protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     Procedure DiscoverServersTerminated(Sender : TObject);
@@ -326,6 +332,8 @@ Type
     Property NetworkAdjustedTime : TNetworkAdjustedTime read FNetworkAdjustedTime;
     Property MaxNodeServersAddressesBuffer : Integer read FMaxNodeServersAddressesBuffer write SetMaxNodeServersAddressesBuffer;
     Property OnProcessReservedAreaMessage : TProcessReservedAreaMessage read FOnProcessReservedAreaMessage write FOnProcessReservedAreaMessage;
+    Property MinServersConnected : Integer read FMinServersConnected write SetMinServersConnected;
+    Property MaxServersConnected : Integer read FMaxServersConnected write SetMaxServersConnected;
   End;
 
   { TNetConnection }
@@ -487,7 +495,11 @@ begin
       // Is an old blacklisted IP? (More than 1 hour)
       If (P^.is_blacklisted) AND
         ((forceCleanAll) OR ((P^.last_connection+(CT_LAST_CONNECTION_MAX_MINUTES)) < (UnivDateTimeToUnix(DateTime2UnivDateTime(now))))) then begin
-        SecuredDeleteFromListByIp(i);
+        if (AllowDeleteOnClean) then begin
+          SecuredDeleteFromListByIp(i);
+        end else begin
+          P^.is_blacklisted:=False;
+        end;
         inc(Result);
       end;
     end;
@@ -502,6 +514,7 @@ var i : Integer;
   nsa : TNodeServerAddress;
   currunixtimestamp : Cardinal;
 begin
+  If Not (FAllowDeleteOnClean) then Exit;
   currunixtimestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
   FCritical.Acquire;
   Try
@@ -575,6 +588,7 @@ begin
   FCritical := TPCCriticalSection.Create(Classname);
   FListByIp := TList.Create;
   FListByNetConnection := TList.Create;
+  FAllowDeleteOnClean := True;
 end;
 
 function TOrderedServerAddressListTS.DeleteNetConnection(netConnection: TNetConnection) : Boolean;
@@ -863,7 +877,8 @@ begin
   Index := L;
 end;
 
-procedure TOrderedServerAddressListTS.SetNodeServerAddress(Const nodeServerAddress: TNodeServerAddress);
+procedure TOrderedServerAddressListTS.SetNodeServerAddress(
+  const nodeServerAddress: TNodeServerAddress);
 Var i : Integer;
   P : PNodeServerAddress;
 begin
@@ -1147,6 +1162,8 @@ begin
   FNetClientsDestroyThread := TNetClientsDestroyThread.Create(Self);
   FNetworkAdjustedTime := TNetworkAdjustedTime.Create;
   FMaxNodeServersAddressesBuffer:=(CT_MAX_NODESERVERS_BUFFER DIV 2);
+  FMinServersConnected:=CT_MinServersConnected;
+  FMaxServersConnected:=CT_MaxServersConnected;
   If Not Assigned(_NetData) then _NetData := Self;
 end;
 
@@ -1267,9 +1284,9 @@ begin
   end;
   FNodeServersAddresses.CleanBlackList(False);
   If NetStatistics.ClientsConnections>0 then begin
-    j := CT_MinServersConnected - NetStatistics.ServersConnectionsWithResponse;
+    j := FMinServersConnected - NetStatistics.ServersConnectionsWithResponse;
   end else begin
-    j := CT_MaxServersConnected - NetStatistics.ServersConnectionsWithResponse;
+    j := FMaxServersConnected - NetStatistics.ServersConnectionsWithResponse;
   end;
   if j<=0 then exit;
   {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,Classname,'Discover servers start process searching up to '+inttostr(j)+' servers');{$ENDIF}
@@ -1842,6 +1859,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
             If Not IsMyBlockchainValid then begin
               TNode.Node.Bank.Storage.EraseStorage;
             end;
+            TNode.Node.Bank.Storage.SaveBank;  
             Connection.Send_GetBlocks(TNode.Node.Bank.BlocksCount,100,request_id);
             Result := true;
           end else begin
@@ -1868,6 +1886,7 @@ begin
     TLog.NewLog(ltdebug,CT_LogSender,'Is discovering servers...');
     exit;
   end;
+  if (Not Assigned(TNode.Node.Bank.StorageClass)) then Exit; 
   //
   If FIsGettingNewBlockChainFromClient then begin
     TLog.NewLog(ltdebug,CT_LogSender,'Is getting new blockchain from client...');
@@ -1971,6 +1990,22 @@ begin
   if (AValue<CT_MIN_NODESERVERS_BUFFER) then FMaxNodeServersAddressesBuffer:=CT_MIN_NODESERVERS_BUFFER
   else if (AValue>CT_MAX_NODESERVERS_BUFFER) then FMaxNodeServersAddressesBuffer:=CT_MAX_NODESERVERS_BUFFER
   else FMaxNodeServersAddressesBuffer:=AValue;
+end;
+
+procedure TNetData.SetMaxServersConnected(AValue: Integer);
+begin
+  if FMaxServersConnected=AValue then Exit;
+  if AValue<1 then FMaxServersConnected:=1
+  else FMaxServersConnected:=AValue;
+  if FMaxServersConnected<FMinServersConnected then FMinServersConnected:=FMaxServersConnected;
+end;
+
+procedure TNetData.SetMinServersConnected(AValue: Integer);
+begin
+  if FMinServersConnected=AValue then Exit;
+  if AValue<1 then FMinServersConnected:=1
+  else FMinServersConnected:=AValue;
+  if FMaxServersConnected<FMinServersConnected then FMaxServersConnected:=FMinServersConnected;
 end;
 
 class function TNetData.NetData: TNetData;
@@ -2966,7 +3001,7 @@ begin
       if (b=1) then begin
         DataBuffer.Read(c,SizeOf(c));
         start:=c;
-        max:=c;
+        max:=1; // Bug 3.0.1 (was c instead of fixed 1) 
       end else begin
         DataBuffer.Read(c,SizeOf(c));
         start:=c;
@@ -4037,7 +4072,7 @@ begin
           FNetData.FNetStatistics.ServersConnections := newstats.ServersConnections;
           FNetData.FNetStatistics.ServersConnectionsWithResponse := newstats.ServersConnectionsWithResponse;
           // Must stop clients?
-          if (nserverclients>CT_MaxServersConnected) And // This is to ensure there are more serverclients than clients
+          if (nserverclients>FNetData.MaxServersConnected) And // This is to ensure there are more serverclients than clients
              ((nserverclients + nactive + ndeleted)>=FNetData.FMaxConnections) And (Assigned(netserverclientstop)) then begin
             TLog.NewLog(ltinfo,Classname,Format('Sending FinalizeConnection to NodeConnection %s created on %s (working time %s) - NetServerClients:%d Servers_active:%d Servers_deleted:%d',
               [netserverclientstop.Client.ClientRemoteAddr,FormatDateTime('hh:nn:ss',netserverclientstop.CreatedTime),
@@ -4048,7 +4083,7 @@ begin
         finally
           FNetData.FNetConnections.UnlockList;
         end;
-        if (nactive<=CT_MaxServersConnected) And (Not Terminated) then begin
+        if (nactive<=FNetData.MaxServersConnected) And (Not Terminated) then begin
           // Discover
           FNetData.DiscoverServers;
         end;
