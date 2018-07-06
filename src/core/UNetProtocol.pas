@@ -1817,7 +1817,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       SetLength(chunks,0);
       try
         // Will obtain chunks of 10000 blocks each
-        for i:=0 to _blockcount DIV 10000 do begin
+        for i:=0 to ((_blockcount-1) DIV 10000) do begin // Bug v3.0.1 and minors
           receiveChunk := TMemoryStream.Create;
           if (Not DownloadSafeBoxChunk(_blockcount,op.initial_safe_box_hash,(i*10000),((i+1)*10000)-1,receiveChunk,safeBoxHeader,errors)) then begin
             receiveChunk.Free;
