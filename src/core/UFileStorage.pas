@@ -131,12 +131,13 @@ Var  iBlockHeaders : Integer;
   BlockHeader : TBlockHeader;
 begin
   Result := false;
+  BlockHeader := CT_TBlockHeader_NUL;
+  iBlockHeaders:=0; BlockHeaderFirstBlock:=0;
   stream := LockBlockChainStream;
   try
     if Not GetBlockHeaderFirstBytePosition(stream,Block,False,iBlockHeaders,BlockHeaderFirstBlock) then exit;
     if not StreamReadBlockHeader(stream,iBlockHeaders,BlockHeaderFirstBlock,Block,False,BlockHeader) then exit;
     Result := (BlockHeader.BlockNumber = Block) And
-        (((BlockHeader.BlockNumber MOD CT_GroupBlockSize)=0) OR (BlockHeader.StreamBlockRelStartPos>0)) And
         (BlockHeader.BlockSize>0);
   finally
     UnlockBlockChainStream;

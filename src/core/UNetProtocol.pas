@@ -1595,6 +1595,10 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
         end else begin
           // Restore a part from disk
           Bank.DiskRestoreFromOperations(start_block-1);
+          if (Bank.BlocksCount<start_block) then begin
+            TLog.NewLog(lterror,CT_LogSender,Format('No blockchain found start block %d, current %d',[start_block-1,Bank.BlocksCount]));
+            start_block := Bank.BlocksCount;
+          end;
           IsUsingSnapshot := False;
         end;
         start := start_block;
@@ -1645,7 +1649,9 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
           BlocksList.Free;
         end;
         start := Bank.BlocksCount;
-      until (Bank.BlocksCount=Connection.FRemoteOperationBlock.block+1) Or (finished);
+      until (Bank.BlocksCount=Connection.FRemoteOperationBlock.block+1) Or (finished)
+        // Allow to do not download ALL new blockchain in a separate folder, only needed blocks!
+        Or (Bank.SafeBox.WorkSum > (TNode.Node.Bank.SafeBox.WorkSum + $FFFFFFFF) );
       // New Build 1.5 more work vs more high
       // work = SUM(target) of all previous blocks (Int64)
       // -----------------------------
@@ -1664,11 +1670,13 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
               try
                 for start:=start_c to TNode.Node.Bank.BlocksCount-1 do begin
                   If TNode.Node.Bank.LoadOperations(OpExecute,start) then begin
-                    for i:=0 to OpExecute.Count-1 do begin
-                      // TODO: NEED TO EXCLUDE OPERATIONS ALREADY INCLUDED IN BLOCKCHAIN?
-                      oldBlockchainOperations.AddOperationToHashTree(OpExecute.Operation[i]);
+                    if (OpExecute.Count>0) then begin
+                      for i:=0 to OpExecute.Count-1 do begin
+                        // TODO: NEED TO EXCLUDE OPERATIONS ALREADY INCLUDED IN BLOCKCHAIN?
+                        oldBlockchainOperations.AddOperationToHashTree(OpExecute.Operation[i]);
+                      end;
+                      TLog.NewLog(ltInfo,CT_LogSender,'Recovered '+IntToStr(OpExecute.Count)+' operations from block '+IntToStr(start));
                     end;
-                    TLog.NewLog(ltInfo,CT_LogSender,'Recovered '+IntToStr(OpExecute.Count)+' operations from block '+IntToStr(start));
                   end else begin
                     TLog.NewLog(ltError,CT_LogSender,'Fatal error: Cannot read block '+IntToStr(start));
                   end;
@@ -1809,7 +1817,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       SetLength(chunks,0);
       try
         // Will obtain chunks of 10000 blocks each
-        for i:=0 to _blockcount DIV 10000 do begin
+        for i:=0 to ((_blockcount-1) DIV 10000) do begin // Bug v3.0.1 and minors
           receiveChunk := TMemoryStream.Create;
           if (Not DownloadSafeBoxChunk(_blockcount,op.initial_safe_box_hash,(i*10000),((i+1)*10000)-1,receiveChunk,safeBoxHeader,errors)) then begin
             receiveChunk.Free;
@@ -1859,7 +1867,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
             If Not IsMyBlockchainValid then begin
               TNode.Node.Bank.Storage.EraseStorage;
             end;
-            TNode.Node.Bank.Storage.SaveBank;  
+            TNode.Node.Bank.Storage.SaveBank;
             Connection.Send_GetBlocks(TNode.Node.Bank.BlocksCount,100,request_id);
             Result := true;
           end else begin
@@ -1886,7 +1894,7 @@ begin
     TLog.NewLog(ltdebug,CT_LogSender,'Is discovering servers...');
     exit;
   end;
-  if (Not Assigned(TNode.Node.Bank.StorageClass)) then Exit; 
+  if (Not Assigned(TNode.Node.Bank.StorageClass)) then Exit;
   //
   If FIsGettingNewBlockChainFromClient then begin
     TLog.NewLog(ltdebug,CT_LogSender,'Is getting new blockchain from client...');
@@ -3001,7 +3009,7 @@ begin
       if (b=1) then begin
         DataBuffer.Read(c,SizeOf(c));
         start:=c;
-        max:=1; // Bug 3.0.1 (was c instead of fixed 1) 
+        max:=1; // Bug 3.0.1 (was c instead of fixed 1)
       end else begin
         DataBuffer.Read(c,SizeOf(c));
         start:=c;
