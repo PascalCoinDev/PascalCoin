@@ -59,7 +59,8 @@ uses
   UFRMAccountSelect in 'gui-classic\UFRMAccountSelect.pas' {FRMAccountSelect},
   UFRMRPCCalls in 'gui-classic\UFRMRPCCalls.pas' {FRMRPCCalls},
   httpsend in 'libraries\synapse\httpsend.pas',
-  UFRMOperationsExplorer in 'gui-classic\UFRMOperationsExplorer.pas' {FRMOperationsExplorer};
+  UFRMOperationsExplorer in 'gui-classic\UFRMOperationsExplorer.pas' {FRMOperationsExplorer},
+  UFRMRandomOperations in 'gui-classic\UFRMRandomOperations.pas' {FRMRandomOperations};
 
 {$R *.res}
 
