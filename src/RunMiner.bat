@@ -1,0 +1,1 @@
+PascalCoinMiner.exe -p 0 -d 0 -s -n YourUserNameHere
