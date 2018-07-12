@@ -913,7 +913,7 @@ begin
       end else j:=0;
       for k:=High(FData.txSenders) downto (j+1) do FData.txSenders[k] := FData.txSenders[k-1];
       FData.txSenders[j] := senders[i];
-      inc(total_spend,senders[i].Amount);
+	  total_spend := total_spend + senders[i].Amount;
     end;
     For i:=Low(receivers) to High(receivers) do begin
       SetLength(FData.txReceivers,length(FData.txReceivers)+1);
@@ -921,27 +921,27 @@ begin
       If (length(FData.txReceivers)>0) then begin
         j := Random(length(FData.txReceivers)); // Find random position 0..n-1
       end else j:=0;
-      for k:=High(FData.txReceivers) downto (j+1) do FData.txReceivers[k] := FData.txReceivers[k-1];
+	  for k:=High(FData.txReceivers) downto (j+1) do FData.txReceivers[k] := FData.txReceivers[k-1];
       FData.txReceivers[j] := receivers[i];
-      inc(total_receive,receivers[i].Amount);
+	  total_receive := total_receive + receivers[i].Amount;
     end;
     ClearSignatures;
   end else begin
     j := length(FData.txSenders);
     SetLength(FData.txSenders,length(FData.txSenders)+length(senders));
-    For i:=Low(senders) to High(senders) do begin
+	For i:=Low(senders) to High(senders) do begin
       FData.txSenders[j+i] := senders[i];
-      inc(total_spend,senders[i].Amount);
+	  total_spend := total_spend + senders[i].Amount;
     end;
     j := length(FData.txReceivers);
     SetLength(FData.txReceivers,length(FData.txReceivers)+length(receivers));
     For i:=Low(receivers) to High(receivers) do begin
       FData.txReceivers[j+i] := receivers[i];
-      inc(total_receive,receivers[i].Amount);
+	  total_receive := total_receive + receivers[i].Amount;
     end;
   end;
-  inc(FTotalAmount,total_receive);
-  inc(FTotalFee,total_spend - total_receive);
+  FTotalAmount := FTotalAmount + total_receive;
+  FTotalFee := FTotalFee + (total_spend - total_receive);
   Result := True;
 end;
 

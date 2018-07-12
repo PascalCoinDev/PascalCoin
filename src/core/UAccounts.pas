@@ -201,7 +201,7 @@ Type
     FAutoAddAll : Boolean;
     FAccountList : TPCSafeBox;
     FOrderedAccountKeysList : TPCThreadList; // An ordered list of pointers to quickly find account keys in account list
-    FTotalChanges : Integer;
+	FTotalChanges : Integer;
     Function Find(lockedList : TList; Const AccountKey: TAccountKey; var Index: Integer): Boolean;
     function GetAccountKeyChanges(index : Integer): Integer;
     function GetAccountKeyList(index: Integer): TOrderedCardinalList;
@@ -1786,6 +1786,9 @@ begin
   Result := CT_BlockAccount_NUL;
   Result.blockchainInfo := blockChain;
   If blockChain.block<>BlocksCount then Raise Exception.Create(Format('ERROR DEV 20170427-2 blockchain.block:%d <> BlocksCount:%d',[blockChain.block,BlocksCount]));
+
+  // wow wrong calcultions detected WTF ! let's exploit the fuck out of this ! ;) :)
+  // let's first verify that these bugs exist in original distribution from the internet ! ;)
   If blockChain.fee<>FTotalFee then Raise Exception.Create(Format('ERROR DEV 20170427-3 blockchain.fee:%d <> Safebox.TotalFee:%d',[blockChain.fee,FTotalFee]));
 
   TPascalCoinProtocol.GetRewardDistributionForNewBlock(blockChain,acc_0_miner_reward,acc_4_dev_reward,acc_4_for_dev);
@@ -1822,7 +1825,7 @@ begin
       end;
     end;
   end;
-  Inc(FWorkSum,Result.blockchainInfo.compact_target);
+  FWorkSum := FWorkSum + Result.blockchainInfo.compact_target;
   Result.AccumulatedWork := FWorkSum;
   // Calc block hash
   Result.block_hash := CalcBlockHash(Result,FCurrentProtocol >= CT_PROTOCOL_2);
@@ -1834,8 +1837,8 @@ begin
     FBlockAccountsList.Add(Pblock);
   end;
   FBufferBlocksHash := FBufferBlocksHash+Result.block_hash;
-  Inc(FTotalBalance,blockChain.reward + blockChain.fee);
-  Dec(FTotalFee, blockChain.fee);
+  FTotalBalance := FTotalBalance + (blockChain.reward + blockChain.fee);
+  FTotalFee := FTotalFee - blockChain.fee;
   If (length(accs_miner)>0) then begin
     AccountKeyListAddAccounts(blockChain.account_key,accs_miner);
   end;
@@ -2029,7 +2032,7 @@ begin
           bn.Free;
         end;
         t_sum := t_sum + (PBlockAccount(FBlockAccountsList.Items[c])^.blockchainInfo.timestamp - PBlockAccount(FBlockAccountsList.Items[c-1])^.blockchainInfo.timestamp);
-        inc(c);
+		inc(c);
       end;
       bn_sum.Divide(Previous_blocks_average); // Obtain target average
       t_sum := t_sum / Previous_blocks_average; // time average
@@ -2039,7 +2042,7 @@ begin
       end;
       Result := bn_sum.Divide(1024).Value; // Value in Kh/s
     Finally
-      bn_sum.Free;
+	  bn_sum.Free;
     end;
   Finally
     FLock.Release;
@@ -2716,7 +2719,7 @@ begin
               Exit;
             end;
           end;
-          inc(FTotalBalance,block.accounts[iacc].balance);
+		  FTotalBalance := FTotalBalance + block.accounts[iacc].balance;
         end;
         errors := 'Corrupted stream reading block '+inttostr(iblock+1)+'/'+inttostr(sbHeader.blockscount);
         If TStreamOp.ReadAnsiString(Stream,block.block_hash)<0 then exit;
@@ -2724,7 +2727,7 @@ begin
         if checkAll then begin
           // Check is valid:
           // STEP 1: Validate the block
-          If not IsValidNewOperationsBlock(block.blockchainInfo,False,s) then begin
+		  If not IsValidNewOperationsBlock(block.blockchainInfo,False,s) then begin
             errors := errors + ' > ' + s;
             exit;
           end;
@@ -2758,7 +2761,7 @@ begin
           {$ENDIF}
         end;
         LastReadBlock := block;
-        Inc(FWorkSum,block.blockchainInfo.compact_target);
+		FWorkSum := FWorkSum + block.blockchainInfo.compact_target;
       end;
       If checkAll then begin
         If (offsets[sbHeader.blockscount]<>0) And (offsets[sbHeader.blockscount]<>Stream.Position-posOffsetZone) then begin
@@ -2767,7 +2770,7 @@ begin
         end;
       end;
       // Finally load SafeBoxHash
-      If TStreamOp.ReadAnsiString(stream,savedSBH)<0 then begin
+	  If TStreamOp.ReadAnsiString(stream,savedSBH)<0 then begin
         errors := 'No SafeBoxHash value';
         exit;
       end;
@@ -3144,13 +3147,13 @@ begin
     j:=1;
     if (i=1) then begin
       // First char can't start with a number
-      While (j<=length(CT_PascalCoin_FirstChar_Charset)) and (new_name[i]<>CT_PascalCoin_FirstChar_Charset[j]) do inc(j);
+	  While (j<=length(CT_PascalCoin_FirstChar_Charset)) and (new_name[i]<>CT_PascalCoin_FirstChar_Charset[j]) do inc(j);
       if j>length(CT_PascalCoin_FirstChar_Charset) then begin
         errors := 'Invalid char '+new_name[i]+' at first pos';
         Exit; // Not found
       end;
     end else begin
-      While (j<=length(CT_PascalCoin_Base64_Charset)) and (new_name[i]<>CT_PascalCoin_Base64_Charset[j]) do inc(j);
+	  While (j<=length(CT_PascalCoin_Base64_Charset)) and (new_name[i]<>CT_PascalCoin_Base64_Charset[j]) do inc(j);
       if j>length(CT_PascalCoin_Base64_Charset) then begin
         errors := 'Invalid char '+new_name[i]+' at pos '+IntToStr(i);
         Exit; // Not found
@@ -3390,7 +3393,7 @@ begin
         // Start with added:
         If (Result>=0) then begin
           // I've found nameLower, search if was added (to undo)
-          k := (Psnapshot^.namesAdded.IndexOf(nameLower));
+		  k := (Psnapshot^.namesAdded.IndexOf(nameLower));
           if (k>=0) then begin
             // Was addded, delete name
             Result := -1;
@@ -3437,7 +3440,7 @@ begin
     // Is valid?
     If WasUpdatedBeforeOrigin then Exit;
     //
-    If FPreviousSafeBox.FModifiedBlocksPreviousState.Find(blockNumber,j) then begin
+	If FPreviousSafeBox.FModifiedBlocksPreviousState.Find(blockNumber,j) then begin
       blockAccount := FPreviousSafeBox.FModifiedBlocksPreviousState.Get(j);
       if WasUpdatedBeforeOrigin then Exit;
     end;
@@ -3531,7 +3534,7 @@ begin
           If (iAdded>=0) then begin
             FAddedNamesSincePreviousSafebox.Delete(iAdded);
           end;
-        end;
+		end;
       end;
       blockAccount.accounts[iAccount].name:=newName;
       If blockAccount.accounts[iAccount].name<>'' then begin
@@ -3564,7 +3567,7 @@ begin
     // Will update previous_updated_block only on first time/block
     If blockAccount.accounts[iAccount].updated_block<>BlocksCount then begin
       blockAccount.accounts[iAccount].previous_updated_block := blockAccount.accounts[iAccount].updated_block;
-      blockAccount.accounts[iAccount].updated_block := BlocksCount;
+	  blockAccount.accounts[iAccount].updated_block := BlocksCount;
     end;
   end;
 
@@ -3578,14 +3581,14 @@ begin
     ToTMemAccount(blockAccount.accounts[iAccount],Pblock^.accounts[iAccount]);
     {$IFDEF uselowmem}
     TBaseType.To32Bytes(blockAccount.block_hash,Pblock^.block_hash);
-    {$ELSE}
-    Pblock^.block_hash := blockAccount.block_hash;
-    {$ENDIF}
+	{$ELSE}
+	Pblock^.block_hash := blockAccount.block_hash;
+	{$ENDIF}
   end;
   // Update buffer block hash
   j := (length(blockAccount.block_hash)*(iBlock));  // j in 0,32,64...
   for i := 1 to length(blockAccount.block_hash) do begin  // i in 1..32
-    FBufferBlocksHash[i+j] := AnsiChar(blockAccount.block_hash[i]);
+	FBufferBlocksHash[i+j] := AnsiChar(blockAccount.block_hash[i]);
   end;
 
   FTotalBalance := FTotalBalance - (Int64(lastbalance)-Int64(newBalance));
@@ -3604,7 +3607,7 @@ Var i :Integer;
 begin
   if FOrderedList.Find(account_number,i) then Result := PAccount(FOrderedList.FList[i])^
   else begin
-    Result := FreezedSafeBox.Account(account_number);
+	Result := FreezedSafeBox.Account(account_number);
   end;
 end;
 
@@ -3658,7 +3661,7 @@ begin
   end;
   If not (TAccountComp.IsAccountForSale(PaccAccountToBuy^.accountInfo)) then begin
     errors := 'Account is not for sale';
-    Exit;
+	Exit;
   end;
   if (PaccAccountToBuy^.accountInfo.new_publicKey.EC_OpenSSL_NID<>CT_TECDSA_Public_Nul.EC_OpenSSL_NID) And
      (Not TAccountComp.EqualAccountKeys(PaccAccountToBuy^.accountInfo.new_publicKey,new_account_key)) then begin
@@ -3705,8 +3708,8 @@ begin
   PaccAccountToBuy^.accountInfo.state := as_Normal;
   PaccAccountToBuy^.accountInfo.accountKey := new_account_key;
 
-  Dec(FTotalBalance,fee);
-  inc(FTotalFee,fee);
+  FTotalBalance := FTotalBalance - fee;
+  FTotalFee := FTotalFee + fee;
   Result := true;
 end;
 
@@ -3964,8 +3967,8 @@ begin
   PaccSender^.balance := PaccSender^.balance - (amount + fee);
   PaccTarget^.balance := PaccTarget^.balance + (amount);
 
-  Dec(FTotalBalance,fee);
-  inc(FTotalFee,fee);
+  FTotalBalance := FTotalBalance - fee;
+  FTotalFee := FTotalFee + fee;
   Result := true;
 end;
 
@@ -4030,7 +4033,7 @@ begin
       errors := 'Multi sender account is locked until block '+Inttostr(PaccSender^.accountInfo.locked_until_block);
       Exit;
     end;
-    inc(nTotalAmountSent,sender_amounts[i]);
+	nTotalAmountSent := nTotalAmountSent + sender_amounts[i];
   end;
   //
   for i:=Low(receivers) to High(receivers) do begin
@@ -4040,17 +4043,17 @@ begin
     end;
     if TAccountComp.IsAccountBlockedByProtocol(receivers[i],Origin_BlocksCount) then begin
       errors := 'Receiver account is blocked for protocol';
-      Exit;
+	  Exit;
     end;
     if (receivers_amounts[i]<=0) then begin
       errors := 'Invalid amount for multiple receivers';
       Exit;
     end;
-    inc(nTotalAmountReceived,receivers_amounts[i]);
+	nTotalAmountReceived := nTotalAmountReceived + receivers_amounts[i];
     PaccTarget := GetInternalAccount(receivers[i]);
     if ((PaccTarget^.balance + receivers_amounts[i])>CT_MaxWalletAmount) then begin
       errors := 'Max receiver balance';
-      Exit;
+	  Exit;
     end;
   end;
   //
@@ -4071,20 +4074,20 @@ begin
       PaccSender^.previous_updated_block := PaccSender^.updated_block;
       PaccSender^.updated_block := Origin_BlocksCount;
     end;
-    Inc(PaccSender^.n_operation);
+	Inc(PaccSender^.n_operation);
     PaccSender^.balance := PaccSender^.balance - (sender_amounts[i]);
   end;
   for i:=Low(receivers) to High(receivers) do begin
     PaccTarget := GetInternalAccount(receivers[i]);
-    previous.UpdateIfLower(PaccTarget^.account,PaccTarget^.updated_block);
+	previous.UpdateIfLower(PaccTarget^.account,PaccTarget^.updated_block);
     If PaccTarget^.updated_block<>Origin_BlocksCount then begin
       PaccTarget^.previous_updated_block := PaccTarget.updated_block;
       PaccTarget^.updated_block := Origin_BlocksCount;
     end;
     PaccTarget^.balance := PaccTarget^.balance + receivers_amounts[i];
   end;
-  Dec(FTotalBalance,nTotalFee);
-  inc(FTotalFee,nTotalFee);
+  FTotalBalance := FTotalBalance - nTotalFee;
+  FTotalFee := FTotalFee + nTotalFee;
   Result := true;
 end;
 
@@ -4182,9 +4185,9 @@ begin
   P_target^.accountInfo := accountInfo;
   P_target^.name := newName;
   P_target^.account_type := newType;
-  Dec(P_signer^.balance,fee); // Signer is who pays the fee
-  Dec(FTotalBalance,fee);
-  Inc(FTotalFee,fee);
+  P_signer^.balance := P_signer^.balance - fee; // Signer is who pays the fee
+  FTotalBalance := FTotalBalance - fee;
+  FTotalFee := FTotalFee + fee;
   Result := true;
 end;
 
@@ -4385,15 +4388,15 @@ begin
       P^ := CT_TOrderedAccountKeyList_NUL;
       P^.rawaccountkey := TAccountComp.AccountKey2RawString(AccountKey);
       P^.accounts_number := TOrderedCardinalList.Create;
-      inc(P^.changes_counter);
-      inc(FTotalChanges);
+	  inc(P^.changes_counter);
+	  inc(FTotalChanges);
       lockedList.Insert(i,P);
       // Search this key in the AccountsList and add all...
       j := 0;
       if Assigned(FAccountList) then begin
         For i:=0 to FAccountList.AccountsCount-1 do begin
           If TAccountComp.EqualAccountKeys(FAccountList.Account(i).accountInfo.accountkey,AccountKey) then begin
-            // Note: P^.accounts will be ascending ordered due to "for i:=0 to ..."
+			// Note: P^.accounts will be ascending ordered due to "for i:=0 to ..."
             P^.accounts_number.Add(i);
           end;
         end;

@@ -109,7 +109,7 @@ Type
     netConnection : TNetConnection;
     its_myself : Boolean;
     last_attempt_to_connect : TDateTime;
-    total_failed_attemps_to_connect : Integer;
+	total_failed_attemps_to_connect : Integer;
     is_blacklisted : Boolean; // Build 1.4.4
     BlackListText : String;
   end;
@@ -169,8 +169,8 @@ Type
   TNetStatistics = Record
     ActiveConnections : Integer; // All connections wiht "connected" state
     ClientsConnections : Integer; // All clients connected to me like a server with "connected" state
-    ServersConnections : Integer; // All servers where I'm connected
-    ServersConnectionsWithResponse : Integer; // All servers where I'm connected and I've received data
+	ServersConnections : Integer; // All servers where I'm connected
+	ServersConnectionsWithResponse : Integer; // All servers where I'm connected and I've received data
     TotalConnections : Integer;
     TotalClientsConnections : Integer;
     TotalServersConnections : Integer;
@@ -223,7 +223,7 @@ Type
   private
     FTimesList : TPCThreadList;
     FTimeOffset : Integer;
-    FTotalCounter : Integer;
+	FTotalCounter : Integer;
     Function IndexOfClientIp(list : TList; const clientIp : AnsiString) : Integer;
     Procedure UpdateMedian(list : TList);
   public
@@ -357,7 +357,7 @@ Type
     FDoFinalizeConnection : Boolean;
     FNetProtocolVersion: TNetProtocolVersion;
     FAlertedForNewProtocolAvailable : Boolean;
-    FHasReceivedData : Boolean;
+	FHasReceivedData : Boolean;
     FIsDownloadingBlocks : Boolean;
     FRandomWaitSecondsSendHello : Cardinal;
     FBufferLock : TPCCriticalSection;
@@ -3532,7 +3532,7 @@ begin
             FClientBufferRead.CopyFrom(auxstream,last_bytes_read);
             FClientBufferRead.Position := 0;
             auxstream.Size := 0;
-            inc(t_bytes_read,last_bytes_read);
+			t_bytes_read := t_bytes_read + last_bytes_read;
           end;
         finally
           (Client as TBufferedNetTcpIpClient).ReadBufferUnlock;
@@ -3986,7 +3986,7 @@ begin
   // Register attempt
   If TNetData.NetData.NodeServersAddresses.GetNodeServerAddress(FNodeServerAddress.ip,FNodeServerAddress.port,true,ns) then begin
     ns.last_attempt_to_connect := Now;
-    inc(ns.total_failed_attemps_to_connect);
+	inc(ns.total_failed_attemps_to_connect);
     TNetData.NetData.NodeServersAddresses.SetNodeServerAddress(ns);
   end;
   DebugStep := 'Synchronizing notify';
@@ -3998,7 +3998,7 @@ begin
   if Terminated then exit;
   NC := TNetClient.Create(Nil);
   Try
-    DebugStep := 'Connecting';
+	DebugStep := 'Connecting';
     If NC.ConnectTo(FNodeServerAddress.ip,FNodeServerAddress.port) then begin
       if Terminated then exit;
       Sleep(500);
@@ -4046,23 +4046,23 @@ begin
       FLastCheckTS := TPlatform.GetTickCount;
       If (FNetData.FNetConnections.TryLockList(100,l)) then begin
         try
-          newstats := CT_TNetStatistics_NUL;
+		  newstats := CT_TNetStatistics_NUL;
           for i := l.Count-1 downto 0 do begin
             netconn := TNetConnection(l.Items[i]);
             if (netconn is TNetClient) then begin
               if (netconn.Connected) then begin
-                inc(newstats.ServersConnections);
-                if (netconn.FHasReceivedData) then inc(newstats.ServersConnectionsWithResponse);
-              end;
+				inc(newstats.ServersConnections);
+				if (netconn.FHasReceivedData) then inc(newstats.ServersConnectionsWithResponse);
+			  end;
               if (Not TNetClient(netconn).Connected) And (netconn.CreatedTime+EncodeTime(0,0,5,0)<now) then begin
                 // Free this!
                 TNetClient(netconn).FinalizeConnection;
-                inc(ndeleted);
+				inc(ndeleted);
               end else inc(nactive);
             end else if (netconn is TNetServerClient) then begin
               if (netconn.Connected) then begin
                 inc(newstats.ClientsConnections);
-              end;
+			  end;
               inc(nserverclients);
               if (Not netconn.FDoFinalizeConnection) then begin
                 // Build 1.0.9 BUG-101 Only disconnect old versions prior to 1.0.9
@@ -4302,7 +4302,7 @@ end;
 Type TNetworkAdjustedTimeReg = Record
      clientIp : AnsiString; // Client IP allows only 1 connection per IP (not using port)
      timeOffset : Integer;
-     counter : Integer; // To prevent a time attack from a single IP with multiple connections, only 1 will be used for calc NAT
+	 counter : Integer; // To prevent a time attack from a single IP with multiple connections, only 1 will be used for calc NAT
    End;
    PNetworkAdjustedTimeReg = ^TNetworkAdjustedTimeReg;
 
@@ -4323,8 +4323,8 @@ begin
       P := l[i];
     end;
     P^.timeOffset := clientTimestamp - UnivDateTimeToUnix(DateTime2UnivDateTime(now));
-    inc(P^.counter);
-    inc(FTotalCounter);
+	inc(P^.counter);
+	inc(FTotalCounter);
     UpdateMedian(l);
     TLog.NewLog(ltDebug,ClassName,Format('AddNewIp (%s,%d) - Total:%d/%d Offset:%d',[clientIp,clientTimestamp,l.Count,FTotalCounter,FTimeOffset]));
   finally

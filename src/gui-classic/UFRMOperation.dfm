@@ -66,7 +66,6 @@ object FRMOperation: TFRMOperation
     Width = 130
     Height = 31
     Caption = 'Execute (F12)'
-    DoubleBuffered = True
     Glyph.Data = {
       DE010000424DDE01000000000000760000002800000024000000120000000100
       0400000000006801000000000000000000001000000000000000000000000000
@@ -85,7 +84,6 @@ object FRMOperation: TFRMOperation
       333A333333333333333338330000333333333333333333333333333333333333
       0000}
     NumGlyphs = 2
-    ParentDoubleBuffered = False
     TabOrder = 2
     OnClick = actExecuteExecute
   end
@@ -94,9 +92,8 @@ object FRMOperation: TFRMOperation
     Top = 445
     Width = 116
     Height = 31
-    DoubleBuffered = True
     Kind = bkCancel
-    ParentDoubleBuffered = False
+    NumGlyphs = 2
     TabOrder = 3
   end
   object PageControlLocked: TPageControl
@@ -108,6 +105,10 @@ object FRMOperation: TFRMOperation
     TabOrder = 1
     object tsOperation: TTabSheet
       TabVisible = False
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object lblFee: TLabel
         Left = 15
         Top = 188
@@ -474,7 +475,6 @@ object FRMOperation: TFRMOperation
               Top = 36
               Width = 31
               Height = 22
-              DoubleBuffered = True
               Glyph.Data = {
                 36050000424D3605000000000000360400002800000010000000100000000100
                 0800000000000001000000000000000000000001000000010000FF00FF008C6B
@@ -518,7 +518,6 @@ object FRMOperation: TFRMOperation
                 6247446E7336000000000B552C25263C3E4B4E483636000000000F55542F3057
                 523331020000000000000B77766D5F5C5C5C2F08000000000000001476726C5C
                 5A58100000000000000000000F0F0B0F0F0F0000000000000000}
-              ParentDoubleBuffered = False
               TabOrder = 2
               OnClick = bbChangePrivateKeyKeysClick
             end
@@ -836,7 +835,6 @@ object FRMOperation: TFRMOperation
             Top = 84
             Width = 31
             Height = 22
-            DoubleBuffered = True
             Glyph.Data = {
               36050000424D3605000000000000360400002800000010000000100000000100
               0800000000000001000000000000000000000001000000010000FF00FF008C6B
@@ -880,13 +878,16 @@ object FRMOperation: TFRMOperation
               6247446E7336000000000B552C25263C3E4B4E483636000000000F55542F3057
               523331020000000000000B77766D5F5C5C5C2F08000000000000001476726C5C
               5A58100000000000000000000F0F0B0F0F0F0000000000000000}
-            ParentDoubleBuffered = False
             TabOrder = 3
             OnClick = bbBuyNewKeyClick
           end
         end
         object tsChangeInfo: TTabSheet
           Caption = 'Change Info'
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object lblChangeInfoErrors: TLabel
             Left = 13
             Top = 10
@@ -980,7 +981,6 @@ object FRMOperation: TFRMOperation
         Width = 159
         Height = 38
         Caption = 'Password'
-        DoubleBuffered = True
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -13
@@ -1039,7 +1039,6 @@ object FRMOperation: TFRMOperation
           9191EFF6E1C9C8CDD9CC91919191919191919191919191919191C9EDF9F3F3EB
           DC91919191919191919191919191919191919191CBE0E1CF9191919191919191
           9191919191919191919191919191919191919191919191919191}
-        ParentDoubleBuffered = False
         ParentFont = False
         TabOrder = 0
         OnClick = bbPasswordClick

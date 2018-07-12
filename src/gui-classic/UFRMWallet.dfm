@@ -516,8 +516,6 @@ object FRMWallet: TFRMWallet
           Width = 126
           Height = 25
           Caption = 'Change Key name'
-          DoubleBuffered = True
-          ParentDoubleBuffered = False
           TabOrder = 2
           OnClick = bbChangeKeyNameClick
         end
@@ -622,7 +620,6 @@ object FRMWallet: TFRMWallet
             Height = 25
             Anchors = [akTop, akRight]
             Caption = 'Refresh'
-            DoubleBuffered = True
             Glyph.Data = {
               36030000424D3603000000000000360000002800000010000000100000000100
               18000000000000030000120B0000120B00000000000000000000FF00FFFF00FF
@@ -650,7 +647,6 @@ object FRMWallet: TFRMWallet
               C2A6A4FFE6D0FFE6D0FFE6D0FFE6D0FFE6D0C9B9ACDFCEC7C2A6A4FF00FFFF00
               FFFF00FFFF00FFFF00FFFF00FFFF00FFC2A6A4C2A6A4C2A6A4C2A6A4C2A6A4C2
               A6A4C2A6A4C2A6A4FF00FFFF00FFFF00FFFF00FFFF00FFFF00FF}
-            ParentDoubleBuffered = False
             TabOrder = 0
             OnClick = bbAccountsRefreshClick
           end
@@ -811,7 +807,6 @@ object FRMWallet: TFRMWallet
             Width = 75
             Height = 61
             Caption = 'Operations'
-            DoubleBuffered = True
             Glyph.Data = {
               F6060000424DF606000000000000360000002800000018000000180000000100
               180000000000C0060000120B0000120B00000000000000000000FF00FFFF00FF
@@ -870,7 +865,6 @@ object FRMWallet: TFRMWallet
               89B88989B88989B88989B88989B88989B88989B88989B88989FF00FFFF00FFFF
               00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF}
             Layout = blGlyphTop
-            ParentDoubleBuffered = False
             TabOrder = 4
             OnClick = bbSelectedAccountsOperationClick
           end
@@ -930,10 +924,6 @@ object FRMWallet: TFRMWallet
     object tsBlockChain: TTabSheet
       Caption = 'Block Explorer'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Panel2: TPanel
         Left = 0
         Top = 0

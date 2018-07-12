@@ -27,7 +27,8 @@ uses
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UNode, UWallet, UCrypto, Buttons, UBlockChain,
-  UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UFRMMemoText;
+  UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UFRMMemoText,
+  System.Actions;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -277,8 +278,8 @@ loop_start:
         end;
         if dooperation then begin
           op := TOpTransaction.CreateTransaction(account.account,account.n_operation+1,destAccount.account,wk.PrivateKey,_amount,_fee,FEncodedPayload);
-          inc(_totalamount,_amount);
-          inc(_totalfee,_fee);
+		  _totalamount := _totalamount + _amount;
+          _totalfee := _totalfee + _fee;
         end;
         operationstxt := 'Transaction to '+TAccountComp.AccountNumberToAccountTxtNumber(destAccount.account);
         {%endregion}
@@ -298,11 +299,11 @@ loop_start:
           else _fee := signerAccount.balance - uint64(_totalSignerFee);
           op := TOpChangeKeySigned.Create(signerAccount.account,signerAccount.n_operation+_signer_n_ops+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
           inc(_signer_n_ops);
-          inc(_totalSignerFee, _fee);
+          _totalSignerFee := _totalSignerFee + _fee;
         end else begin
           op := TOpChangeKey.Create(account.account,account.n_operation+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
         end;
-        inc(_totalfee,_fee);
+        _totalfee := _totalfee + _fee;
         operationstxt := 'Change private key to '+TAccountComp.GetECInfoTxt(_newOwnerPublicKey.EC_OpenSSL_NID);
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsListForSale) then begin

@@ -567,7 +567,7 @@ var SendBuffStream : TStream;
             ms.Position := ms.Size;
             ms.Write(ReceiveBuffer,last_bytes_read);
             ms.Position := lastpos;
-            inc(total_read,last_bytes_read);
+            total_read := total_read + last_bytes_read;
             total_size := ms.Size;
           Finally
             FBufferedNetTcpIpClient.ReadBufferUnlock;

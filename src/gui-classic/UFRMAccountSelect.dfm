@@ -39,7 +39,6 @@ object FRMAccountSelect: TFRMAccountSelect
       Width = 91
       Height = 36
       Caption = 'Search'
-      DoubleBuffered = True
       Glyph.Data = {
         F6060000424DF606000000000000360000002800000018000000180000000100
         180000000000C0060000120B0000120B00000000000000000000FF00FFFF00FF
@@ -97,7 +96,6 @@ object FRMAccountSelect: TFRMAccountSelect
         EED8B7AE837EAE837EFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
         FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFAE837EAE
         837EAE837EAE837EAE837EFF00FFFF00FFFF00FFFF00FFFF00FF}
-      ParentDoubleBuffered = False
       TabOrder = 10
       OnClick = bbSearchClick
     end
@@ -229,9 +227,8 @@ object FRMAccountSelect: TFRMAccountSelect
       Height = 30
       Anchors = [akTop, akRight]
       Caption = 'Select'
-      DoubleBuffered = True
       Kind = bkOK
-      ParentDoubleBuffered = False
+      NumGlyphs = 2
       TabOrder = 0
     end
     object bbCancel: TBitBtn
@@ -240,9 +237,8 @@ object FRMAccountSelect: TFRMAccountSelect
       Width = 95
       Height = 30
       Anchors = [akTop, akRight]
-      DoubleBuffered = True
       Kind = bkCancel
-      ParentDoubleBuffered = False
+      NumGlyphs = 2
       TabOrder = 1
     end
     object bbTypeStats: TBitBtn
@@ -251,8 +247,6 @@ object FRMAccountSelect: TFRMAccountSelect
       Width = 95
       Height = 30
       Caption = 'Type stats'
-      DoubleBuffered = True
-      ParentDoubleBuffered = False
       TabOrder = 2
       OnClick = bbTypeStatsClick
     end

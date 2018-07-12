@@ -318,26 +318,26 @@ begin
   while (c<FSafeBox.AccountsCount) do begin
     account := FSafeBox.Account(c);
     if (account.account_type=0) then begin
-      inc(s_0.accounts);
-      inc(s_0.balance,account.balance);
+	  inc(s_0.accounts);
+	  s_0.balance := s_0.balance + account.balance;
     end else if (account.account_type<10000) then begin
       inc(s_inv.accounts);
-      inc(s_inv.balance,account.balance);
+	  s_inv.balance := s_inv.balance + account.balance;
     end;
     k := ((account.account_type MOD 100000) DIV 10000); // k is 0..6 because account.account_type is a word 0..65535
     if (k<0) or (k>6) then k:=0;
     for i := 0 to 9 do begin
       j := ((account.account_type MOD 10000) DIV 1000); // j is 0..9
       if (j=i) then begin
-        inc(s_5[k][1][j].accounts);
-        inc(s_5[k][1][j].balance,account.balance);
-      end;
+		inc(s_5[k][1][j].accounts);
+		s_5[k][1][j].balance := s_5[k][1][j].balance + account.balance;
+	  end;
     end;
     for i := 0 to 9 do begin
       j := ((account.account_type MOD 1000) DIV 100); // j is 0..9
       if (j=i) then begin
-        inc(s_5[k][2][j].accounts);
-        inc(s_5[k][2][j].balance,account.balance);
+		inc(s_5[k][2][j].accounts);
+		s_5[k][2][j].balance := s_5[k][2][j].balance + account.balance;
       end;
     end;
     for i := 0 to 9 do begin
@@ -351,9 +351,9 @@ begin
       j := ((account.account_type MOD 10) DIV 1); // j is 0..9
       if (j=i) then begin
         inc(s_5[k][4][j].accounts);
-        inc(s_5[k][4][j].balance,account.balance);
+		s_5[k][4][j].balance := s_5[k][4][j].balance + account.balance;
       end;
-    end;
+	end;
     inc(c);
   end;
   sl := TStringList.Create;
