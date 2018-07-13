@@ -28,4 +28,5 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [19](PIP-0019.md)     | Balance recovered from lost accounts to be sent to developers fund   | Dr. Muhammad Amer   | Protocol        | Draft |
 | [20](PIP-0020.md)     | 6-month PascalCoin Foundation Budget Appropriations   | Herman Schoenfeld   | Process        | Draft |
 | [21](PIP-0021.md)     | Agreement For Funding                      | Herman Schoenfeld             | Process        | Active |
+| [22](PIP-0022.md)     | Continuous Integration                      | Benjamin Ansbach             | Process        | Draft |
 
