@@ -252,7 +252,7 @@ begin
   if MaxWaitMilliseconds>60000 then MaxWaitMilliseconds := 60000;
   {$IFDEF HIGHLOG}
   lockWatingForCounter := Lock.WaitingForCounter;
-  lockStartedTimestamp := Lock.StartedTimestamp;
+  lockStartedTimestamp := Lock.StartedTickCount;
   lockCurrThread := Lock.CurrentThread;
   {$ENDIF}
   Repeat
@@ -262,7 +262,7 @@ begin
   {$IFDEF HIGHLOG}
   if Not Result then begin
     tc2 := TPlatform.GetTickCount;
-    if lockStartedTimestamp=0 then lockStartedTimestamp := Lock.StartedTimestamp;
+    if lockStartedTimestamp=0 then lockStartedTimestamp := Lock.StartedTickCount;
     if lockStartedTimestamp=0 then tc3 := 0
     else tc3 := tc2-lockStartedTimestamp;
     s := Format('Cannot Protect a critical section %s %s class %s after %d milis locked by %s waiting %d-%d elapsed milis: %d',
@@ -362,18 +362,18 @@ begin
   Repeat
     continue := inherited TryEnter;
     if (Not continue) then begin
-      If (not logged) And ((FStartedTimestamp>0) And ((FStartedTimestamp+1000)<TPlatform.GetTickCount)) then begin
+      If (not logged) And (TPlatform.GetElapsedMilliseconds(startTC)>1000) then begin
         logged := true;
         TLog.NewLog(ltdebug,ClassName,'ALERT Critical section '+IntToHex(PtrInt(Self),8)+' '+Name+
           ' locked by '+IntToHex(FCurrentThread,8)+' waiting '+
-          IntToStr(FWaitingForCounter)+' elapsed milis: '+IntToStr(TPlatform.GetTickCount-FStartedTimestamp) );
+          IntToStr(FWaitingForCounter)+' elapsed milis: '+IntToStr(TPlatform.GetElapsedMilliseconds(startTC)));
         continue := true;
         inherited;
       end else sleep(1);
     end;
   Until continue;
   if (logged) then begin
-    TLog.NewLog(ltdebug,Classname,'ENTER Critical section '+IntToHex(PtrInt(Self),8)+' '+Name+' elapsed milis: '+IntToStr(TPlatform.GetTickCount - startTC) );
+    TLog.NewLog(ltdebug,Classname,'ENTER Critical section '+IntToHex(PtrInt(Self),8)+' '+Name+' elapsed milis: '+IntToStr(TPlatform.GetElapsedMilliseconds(startTC)) );
   end;
   FCounterLock.Acquire;
   try
@@ -382,8 +382,7 @@ begin
     FCounterLock.Release;
   end;
   FCurrentThread := TThread.CurrentThread.ThreadID;
-  FStartedTimestamp := TPlatform.GetTickCount;
-  inherited;
+  FStartedTickCount := TPlatform.GetTickCount;
 end;
 {$ENDIF}
 
@@ -408,7 +407,7 @@ end;
 procedure TPCCriticalSection.Release;
 begin
   FCurrentThread := 0;
-  FStartedTimestamp := 0;
+  FStartedTickCount := 0;
   inherited;
 end;
 
@@ -422,7 +421,7 @@ begin
   end;
   If inherited TryEnter then begin
     FCurrentThread := TThread.CurrentThread.ThreadID;
-    FStartedTimestamp := TPlatform.GetTickCount;
+    FStartedTickCount := TPlatform.GetTickCount;
     Result := true;
   end else Result := false;
   FCounterLock.Acquire;
