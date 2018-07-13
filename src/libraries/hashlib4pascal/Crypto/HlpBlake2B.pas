@@ -82,7 +82,7 @@ type
 {$IFNDEF USE_UNROLLED_VARIANT}
     procedure G(a, b, c, d, r, i: Int32); inline;
 {$ENDIF USE_UNROLLED_VARIANT}
-    procedure Compress(block: PByte; start: Int32); inline;
+    procedure Compress(block: PByte; start: Int32);
 
     procedure Finish(); inline;
 
