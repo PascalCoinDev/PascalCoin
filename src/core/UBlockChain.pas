@@ -252,7 +252,7 @@ Type
     FHashTreeOperations : TPCThreadList; // Improvement TOperationsHashTree speed 2.1.6
     FHashTree: TRawBytes;
     FOnChanged: TNotifyEvent;
-	FTotalAmount : Int64;
+    FTotalAmount : Int64;
     FTotalFee : Int64;
     Procedure InternalAddOperationToHashTree(list : TList; op : TPCOperation; CalcNewHashTree : Boolean);
     Function FindOrderedBySha(lockedThreadList : TList; const Value: TRawBytes; var Index: Integer): Boolean;
@@ -1357,7 +1357,7 @@ begin
         if (op.DoOperation(FPreviousUpdatedBlocks, SafeBoxTransaction,errors)) then begin
           inc(n);
           aux.AddOperationToHashTree(op);
-		  FOperationBlock.fee := FOperationBlock.fee + op.OperationFee;
+          FOperationBlock.fee := FOperationBlock.fee + op.OperationFee;
           {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Sanitizing (pos:'+inttostr(i+1)+'/'+inttostr(lastn)+'): '+op.ToString){$ENDIF};
         end;
       end;
@@ -1681,8 +1681,8 @@ Type TOperationHashTreeReg = Record
      POperationHashTreeReg = ^TOperationHashTreeReg;
      TOperationsHashAccountsData = Record
        account_number : Cardinal;
-	   account_count : Integer;
-	   account_without_fee : Integer;
+       account_count : Integer;
+       account_without_fee : Integer;
      end;
      POperationsHashAccountsData = ^TOperationsHashAccountsData;
 
@@ -1823,8 +1823,8 @@ begin
       P := l[i];
       // Include to hash tree
       P^.Op.tag := i;
-	  FTotalAmount := FTotalAmount + P^.Op.OperationAmount;
-	  FTotalFee := FTotalFee + P^.Op.OperationFee;
+     FTotalAmount := FTotalAmount + P^.Op.OperationAmount;
+      FTotalFee := FTotalFee + P^.Op.OperationFee;
     end;
     If Assigned(FOnChanged) then FOnChanged(Self);
   finally
@@ -1982,9 +1982,9 @@ begin
           PaccData^.account_without_fee:=0;
           FListOrderedByAccountsData.Insert(i,PaccData);
         end else PaccData := FListOrderedByAccountsData[i];
-		Inc(PaccData^.account_count);
+        Inc(PaccData^.account_count);
         If op.OperationFee=0 then begin
-		  Inc(PaccData^.account_without_fee);
+          Inc(PaccData^.account_without_fee);
         end;
       end;
     finally
@@ -2763,7 +2763,7 @@ initialization
   Initialize(CT_TOperationResume_NUL);
   with CT_TOperationResume_NUL do
   begin
-	  NOpInsideBlock:=-1;
+    NOpInsideBlock:=-1;
     SignerAccount:=-1;
     DestAccount:=-1;
     SellerAccount:=-1;

@@ -28,7 +28,7 @@ Type
     sender: Cardinal;
     n_operation : Cardinal;
     target: Cardinal;
-	amount: UInt64;
+    amount: UInt64;
     fee: UInt64;
     payload: TRawBytes;
     public_key: TECDSA_Public;
@@ -1096,18 +1096,18 @@ begin
   Result := 0;
   If (FData.sender = account) then Result := Result + (Int64(FData.amount+FData.fee) * (-1));
   If (FData.target = account) then begin
-	if (FData.opTransactionStyle in [buy_account,transaction_with_auto_buy_account]) then Result := Result + (FData.amount - FData.AccountPrice)
-	else Result := Result + FData.amount;
+  if (FData.opTransactionStyle in [buy_account,transaction_with_auto_buy_account]) then Result := Result + (FData.amount - FData.AccountPrice)
+  else Result := Result + FData.amount;
   end;
   If ((FData.SellerAccount = account) And (FData.opTransactionStyle in [buy_account,transaction_with_auto_buy_account] )) then begin
-	Result := Result + FData.AccountPrice;
+  Result := Result + FData.AccountPrice;
   end;
 end;
 
 function TOpTransaction.toString: String;
 begin
   case FData.opTransactionStyle of
-	transaction :
+    transaction :
       Result := Format('Transaction from %s to %s amount:%s fee:%s (n_op:%d) payload size:%d',[
          TAccountComp.AccountNumberToAccountTxtNumber(FData.sender),
          TAccountComp.AccountNumberToAccountTxtNumber(FData.target),
