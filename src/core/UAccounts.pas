@@ -34,18 +34,18 @@ Type
     accountKey: TAccountKey;
     // Trade info, only when state=as_ForSale
     locked_until_block : Cardinal; // 0 = Not locked
-    price : UInt64;                // 0 = invalid price
+	price : UInt64;                // 0 = invalid price
     account_to_pay : Cardinal;     // <> itself
     new_publicKey : TAccountKey;
   end;
 
   TOperationBlock = Record
     block: Cardinal;
-    account_key: TAccountKey;
+	account_key: TAccountKey;
     reward: UInt64;
     fee: UInt64;
     protocol_version: Word;     // Protocol version
-    protocol_available: Word;   // Used to upgrade protocol
+	protocol_available: Word;   // Used to upgrade protocol
     timestamp: Cardinal;        // Timestamp creation
     compact_target: Cardinal;   // Target in compact form
     nonce: Cardinal;            // Random value to generate a new P-o-W
@@ -63,7 +63,7 @@ Type
     Class Function TargetToCompact(target: TRawBytes): Cardinal;
     Class Function TargetFromCompact(encoded: Cardinal): TRawBytes;
     Class Function GetNewTarget(vteorical, vreal: Cardinal; protocol_version : Integer; isSlowMovement : Boolean; Const actualTarget: TRawBytes): TRawBytes;
-    Class Procedure CalcProofOfWork_Part1(const operationBlock : TOperationBlock; out Part1 : TRawBytes);
+	Class Procedure CalcProofOfWork_Part1(const operationBlock : TOperationBlock; out Part1 : TRawBytes);
     Class Procedure CalcProofOfWork_Part3(const operationBlock : TOperationBlock; out Part3 : TRawBytes);
     Class Procedure CalcProofOfWork(const operationBlock : TOperationBlock; out PoW : TRawBytes);
     Class Function IsValidMinerBlockPayload(const newBlockPayload : TRawBytes) : Boolean;
@@ -88,11 +88,11 @@ Type
     each row of the safebox (TBlockAccount) will have data about how to calculate
     its PoW, so next row will use row-1 info to check it's good generated thanks to PoW
 
-    This solution does not include operations, but include operations_hash value,
+	This solution does not include operations, but include operations_hash value,
     that is a SHA256 of operations.
 
     If someone wants to change the safebox and spam, will need to find values
-    to alter safebox accounts of last checkpoint and also find new blocks prior
+	to alter safebox accounts of last checkpoint and also find new blocks prior
     to honest nodes, that will be only accepted by nodes that does not have
     last blocks (only fresh nodes). This is a very hard job and not efficient
     because usually there will be few new fresh nodes per period, so only
@@ -128,18 +128,18 @@ Type
     Class Function EqualAccountInfos(const accountInfo1,accountInfo2 : TAccountInfo) : Boolean;
     Class Function EqualAccountKeys(const account1,account2 : TAccountKey) : Boolean;
     Class Function EqualAccounts(const account1,account2 : TAccount) : Boolean;
-    Class Function EqualOperationBlocks(const opBlock1,opBlock2 : TOperationBlock) : Boolean;
+	Class Function EqualOperationBlocks(const opBlock1,opBlock2 : TOperationBlock) : Boolean;
     Class Function EqualBlockAccounts(const blockAccount1,blockAccount2 : TBlockAccount) : Boolean;
     Class Function AccountNumberToAccountTxtNumber(account_number : Cardinal) : AnsiString;
     Class function AccountTxtNumberToAccountNumber(Const account_txt_number : AnsiString; var account_number : Cardinal) : Boolean;
     Class function FormatMoney(Money : Int64) : AnsiString;
     Class function FormatMoneyDecimal(Money : Int64) : Single;
     Class Function TxtToMoney(Const moneytxt : AnsiString; var money : Int64) : Boolean;
-    Class Function AccountKeyFromImport(Const HumanReadable : AnsiString; var account : TAccountKey; var errors : AnsiString) : Boolean;
+	Class Function AccountKeyFromImport(Const HumanReadable : AnsiString; var account : TAccountKey; var errors : AnsiString) : Boolean;
     Class Function AccountPublicKeyExport(Const account : TAccountKey) : AnsiString;
     Class Function AccountPublicKeyImport(Const HumanReadable : AnsiString; var account : TAccountKey; var errors : AnsiString) : Boolean;
     Class Function AccountBlock(Const account_number : Cardinal) : Cardinal;
-    Class Function AccountInfo2RawString(const AccountInfo : TAccountInfo) : TRawBytes; overload;
+	Class Function AccountInfo2RawString(const AccountInfo : TAccountInfo) : TRawBytes; overload;
     Class procedure AccountInfo2RawString(const AccountInfo : TAccountInfo; var dest : TRawBytes); overload;
     Class procedure SaveAccountToAStream(Stream: TStream; const Account : TAccount);
     Class Function RawString2AccountInfo(const rawaccstr: TRawBytes): TAccountInfo; overload;
@@ -175,7 +175,7 @@ Type
     Function Count : Integer;
     Function Find(const Value: Cardinal; var Index: Integer): Boolean;
     Procedure Disable;
-    Procedure Enable;
+	Procedure Enable;
     Property OnListChanged : TNotifyEvent read FOnListChanged write FOnListChanged;
     Procedure CopyFrom(Sender : TOrderedCardinalList);
     Function ToArray : TCardinalsArray;
@@ -186,7 +186,7 @@ Type
     protocol : Word;
     startBlock,
     endBlock,
-    blocksCount : Cardinal;
+	blocksCount : Cardinal;
     safeBoxHash : TRawBytes;
   end;
 
@@ -204,7 +204,7 @@ Type
 	FTotalChanges : Integer;
     Function Find(lockedList : TList; Const AccountKey: TAccountKey; var Index: Integer): Boolean;
     function GetAccountKeyChanges(index : Integer): Integer;
-    function GetAccountKeyList(index: Integer): TOrderedCardinalList;
+	function GetAccountKeyList(index: Integer): TOrderedCardinalList;
     function GetAccountKey(index: Integer): TAccountKey;
   protected
     Procedure ClearAccounts(RemoveAccountList : Boolean);
@@ -222,7 +222,7 @@ Type
     Property AccountKeyChanges[index : Integer] : Integer read GetAccountKeyChanges;
     procedure ClearAccountKeyChanges;
     Function Count : Integer;
-    Property SafeBox : TPCSafeBox read FAccountList;
+	Property SafeBox : TPCSafeBox read FAccountList;
     Procedure Clear;
     function ToArray : TAccountKeyArray;
     function Lock : TList;
@@ -269,7 +269,7 @@ Type
     Function Get(index : Integer) : TRawBytes;
     Procedure Delete(index : Integer);
     procedure SetTag(Const RawData : TRawBytes; newTagValue : Integer);
-    function GetTag(Const RawData : TRawBytes) : Integer; overload;
+	function GetTag(Const RawData : TRawBytes) : Integer; overload;
     function GetTag(index : Integer) : Integer; overload;
     Function IndexOf(Const RawData : TRawBytes) : Integer;
     Procedure CopyFrom(master : TOrderedRawList);
@@ -298,7 +298,7 @@ Type
     FTotalBalance: Int64;
     FSafeBoxHash : TRawBytes;
     FLock: TPCCriticalSection; // Thread safe
-    FWorkSum : UInt64;
+	FWorkSum : UInt64;
     FCurrentProtocol: Integer;
     // Snapshots utility new on V3
     FSnapshots : TList; // Will save a Snapshots lists in order to rollback Safebox to a previous block state
@@ -316,18 +316,18 @@ Type
     //
     Procedure AccountKeyListAddAccounts(Const AccountKey : TAccountKey; const accounts : Array of Cardinal);
     Procedure AccountKeyListRemoveAccount(Const AccountKey : TAccountKey; const accounts : Array of Cardinal);
-    // V3
+	// V3
     procedure SearchBlockWhenOnSeparatedChain(blockNumber : Cardinal; out blockAccount : TBlockAccount);
   protected
     FTotalFee: Int64;
     Procedure UpdateAccount(account_number : Cardinal; const newAccountInfo: TAccountInfo; const newName : TRawBytes; newType : Word; newBalance: UInt64; newN_operation: Cardinal;
               accountUpdateStyle : TAccountUpdateStyle; newUpdated_block, newPrevious_Updated_block : Cardinal);
     Function AddNew(Const blockChain : TOperationBlock) : TBlockAccount;
-    function DoUpgradeToProtocol2 : Boolean;
+	function DoUpgradeToProtocol2 : Boolean;
     function DoUpgradeToProtocol3 : Boolean;
   public
     Constructor Create;
-    Destructor Destroy; override;
+	Destructor Destroy; override;
     procedure SetToPrevious(APreviousSafeBox : TPCSafeBox; StartBlock : Cardinal);
     procedure CommitToPrevious;
     procedure RollBackToSnapshot(snapshotBlock : Cardinal);
@@ -363,7 +363,7 @@ Type
     Property SafeBoxHash : TRawBytes read FSafeBoxHash;
     Property WorkSum : UInt64 read FWorkSum;
     Property CurrentProtocol : Integer read FCurrentProtocol;
-    function CanUpgradeToProtocol(newProtocolVersion : Word) : Boolean;
+	function CanUpgradeToProtocol(newProtocolVersion : Word) : Boolean;
     procedure CheckMemory;
     Property PreviousSafeboxOriginBlock : Integer Read FPreviousSafeboxOriginBlock;
     Function GetMinimumAvailableSnapshotBlock : Integer;
@@ -392,7 +392,7 @@ Type
 
   TOrderedAccountList = Class
   private
-    FList : TList;
+	FList : TList;
     Function Find(const account_number: Cardinal; var Index: Integer): Boolean;
   public
     Constructor Create;
@@ -417,11 +417,11 @@ Type
     function GetData(index : Integer): TAccountPreviousBlockInfoData;
   public
     Constructor Create;
-    Destructor Destroy; override;
+	Destructor Destroy; override;
     Procedure UpdateIfLower(account, previous_updated_block : Cardinal);
     Function Add(account, previous_updated_block : Cardinal) : Integer;
     Procedure Remove(account : Cardinal);
-    Procedure Clear;
+	Procedure Clear;
     Procedure CopyFrom(Sender : TAccountPreviousBlockInfo);
     Function IndexOfAccount(account : Cardinal) : Integer;
     Property Data[index : Integer] : TAccountPreviousBlockInfoData read GetData;
@@ -439,7 +439,7 @@ Type
     FFreezedAccounts : TPCSafeBox;
     FTotalBalance: Int64;
     FTotalFee: Int64;
-    FOldSafeBoxHash : TRawBytes;
+	FOldSafeBoxHash : TRawBytes;
     FAccountNames_Deleted : TOrderedRawList;
     FAccountNames_Added : TOrderedRawList;
     Function Origin_BlocksCount : Cardinal;
@@ -457,14 +457,14 @@ Type
     Function UpdateAccountInfo(previous : TAccountPreviousBlockInfo; signer_account, signer_n_operation, target_account: Cardinal; accountInfo: TAccountInfo; newName : TRawBytes; newType : Word; fee: UInt64; var errors : AnsiString) : Boolean;
     Function BuyAccount(previous : TAccountPreviousBlockInfo; buyer,account_to_buy,seller: Cardinal; n_operation : Cardinal; amount, account_price, fee : UInt64; const new_account_key : TAccountKey; var errors : AnsiString) : Boolean;
     Function Commit(Const operationBlock : TOperationBlock; var errors : AnsiString) : Boolean;
-    Function Account(account_number : Cardinal) : TAccount;
+	Function Account(account_number : Cardinal) : TAccount;
     Procedure Rollback;
     Function CheckIntegrity : Boolean;
     Property FreezedSafeBox : TPCSafeBox read FFreezedAccounts;
     Property TotalFee : Int64 read FTotalFee;
     Property TotalBalance : Int64 read FTotalBalance;
     Procedure CopyFrom(transaction : TPCSafeBoxTransaction);
-    Procedure CleanTransaction;
+	Procedure CleanTransaction;
     Function ModifiedCount : Integer;
     Function Modified(index : Integer) : TAccount;
     Function FindAccountByNameInTransaction(const findName : TRawBytes; out isAddedInThisTransaction, isDeletedInThisTransaction : Boolean) : Integer;
@@ -482,28 +482,14 @@ Type
     class procedure LoadStreamFromRaw(Stream: TStream; const raw : TRawBytes);
   End;
 
+var
+  CT_OperationBlock_NUL : TOperationBlock; // initialized in initilization section
+  CT_AccountInfo_NUL : TAccountInfo;
+  CT_Account_NUL : TAccount;
+  CT_BlockAccount_NUL : TBlockAccount;
 
-
-Const
-  CT_OperationBlock_NUL : TOperationBlock = (block:0;account_key:(EC_OpenSSL_NID:0;x:'';y:'');reward:0;fee:0;protocol_version:0;
-    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:'';operations_hash:'';proof_of_work:'');
-  CT_AccountInfo_NUL : TAccountInfo = (state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:'';y:'');locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:'';y:''));
-  CT_Account_NUL : TAccount = (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:'';y:'');locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:'';y:''));balance:0;updated_block:0;n_operation:0;name:'';account_type:0;previous_updated_block:0);
-  CT_BlockAccount_NUL : TBlockAccount = (
-    blockchainInfo:(block:0;account_key:(EC_OpenSSL_NID:0;x:'';y:'');reward:0;fee:0;protocol_version:0;
-    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:'';operations_hash:'';proof_of_work:'');
-    accounts:(
-    (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:'';y:'');locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:'';y:''));balance:0;updated_block:0;n_operation:0;name:'';account_type:0;previous_updated_block:0),
-    (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:'';y:'');locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:'';y:''));balance:0;updated_block:0;n_operation:0;name:'';account_type:0;previous_updated_block:0),
-    (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:'';y:'');locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:'';y:''));balance:0;updated_block:0;n_operation:0;name:'';account_type:0;previous_updated_block:0),
-    (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:'';y:'');locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:'';y:''));balance:0;updated_block:0;n_operation:0;name:'';account_type:0;previous_updated_block:0),
-    (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:'';y:'');locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:'';y:''));balance:0;updated_block:0;n_operation:0;name:'';account_type:0;previous_updated_block:0)
-    );
-    block_hash:'';
-    accumulatedWork:0);
-
-  CT_SafeBoxChunkIdentificator = 'SafeBoxChunk';
-  CT_PCSafeBoxHeader_NUL : TPCSafeBoxHeader = (protocol:0;startBlock:0;endBlock:0;blocksCount:0;safeBoxHash:'');
+  CT_SafeBoxChunkIdentificator : string = 'SafeBoxChunk';
+  CT_PCSafeBoxHeader_NUL : TPCSafeBoxHeader;
 
 function Check_Safebox_Names_Consistency(sb : TPCSafeBox; const title :String; var errors : AnsiString) : Boolean;
 Procedure Check_Safebox_Integrity(sb : TPCSafebox; title: String);
@@ -563,7 +549,7 @@ Begin
   For i:=0 to sb.FModifiedBlocksFinalState.Count-1 do begin
     bl_modified := sb.FModifiedBlocksFinalState.Get(i);
     bl_my := sb.Block(bl_modified.blockchainInfo.block);
-    If Not TAccountComp.EqualBlockAccounts(bl_my,bl_modified) then begin
+	If Not TAccountComp.EqualBlockAccounts(bl_my,bl_modified) then begin
       Raise Exception.Create(Format('%s Integrity on modified (i)=%d for block number:%d',[title, i,bl_my.blockchainInfo.block]));
     end;
     If TBaseType.BinStrComp( sb.CalcBlockHash(bl_modified,sb.FCurrentProtocol>=CT_PROTOCOL_2), bl_modified.block_hash)<>0 then begin
@@ -595,10 +581,10 @@ Var
   tsTeorical, tsReal, factor, factorMin, factorMax, factorDivider: Int64;
 begin
   { Given a teorical time in seconds (vteorical>0) and a real time in seconds (vreal>0)
-    and an actual target, calculates a new target
+	and an actual target, calculates a new target
     by % of difference of teorical vs real.
 
-    Increment/decrement is adjusted to +-200% in a full CT_CalcNewTargetBlocksAverage round
+	Increment/decrement is adjusted to +-200% in a full CT_CalcNewTargetBlocksAverage round
     ...so each new target is a maximum +-(100% DIV (CT_CalcNewTargetBlocksAverage DIV 2)) of
     previous target. This makes target more stable.
 
@@ -657,7 +643,7 @@ begin
     bnact.RawValue := actualTarget;
     bnaux := bnact.Copy;
     try
-      bnact.Multiply(factor).Divide(factorDivider).Add(bnaux);
+	  bnact.Multiply(factor).Divide(factorDivider).Add(bnaux);
     finally
       bnaux.Free;
     end;
@@ -699,7 +685,7 @@ begin
     ms.WriteBuffer(operationBlock.operations_hash[1],length(operationBlock.operations_hash));
     // Note about fee: Fee is stored in 8 bytes, but only digest first 4 low bytes
     ms.Write(operationBlock.fee,4);
-    SetLength(Part3,ms.Size);
+	SetLength(Part3,ms.Size);
     ms.Position := 0;
     ms.ReadBuffer(Part3[1],ms.Size);
   finally
@@ -793,12 +779,12 @@ begin
     Next 3 bytes indicates next value in XOR, stored in RAW format
 
     Example: If we want a hash lower than 0x0000 0000 0000 65A0 A2F4 +29 bytes
-    Binary "0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0110 0101 1010 0000 1010 0010 1111 0100"
+	Binary "0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0110 0101 1010 0000 1010 0010 1111 0100"
     That is 49 zeros on left before first 1. So first byte is 49 decimal = 0x31
     After we have "110 0101 1010 0000 1010 0010 1111 0100 1111 0100" but we only can accept first 3 bytes,
     also note that first "1" is implicit, so value is transformed in
     binary as "10 0101 1010 0000 1010 0010 11" that is 0x96828B
-    But note that we must XOR this value, so result offset is: 0x697D74
+	But note that we must XOR this value, so result offset is: 0x697D74
     Compacted value is: 0x31697D74
 
     When translate compact target back to target: ( 0x31697D74 )
@@ -830,7 +816,7 @@ begin
     FillChar(Result[1],32,0);
     for i:=1 to Length(raw) do begin
       result[i+32-length(raw)] := raw[i];
-    end;
+	end;
   Finally
     bn.Free;
   End;
@@ -877,7 +863,7 @@ begin
     Result := (nbits shl 24) + ((bn.value AND $00FFFFFF) XOR $00FFFFFF);
   finally
     bn.Free;
-    bn2.Free;
+	bn2.Free;
   end;
 end;
 
@@ -887,12 +873,12 @@ class function TStreamOp.ReadAccountKey(Stream: TStream; var value: TAccountKey)
 begin
   if Stream.Size - Stream.Position < 2 then begin
     value := CT_TECDSA_Public_Nul;
-    Result := -1;
+	Result := -1;
     exit;
   end;
   stream.Read(value.EC_OpenSSL_NID,SizeOf(value.EC_OpenSSL_NID));
   if (ReadAnsiString(stream,value.x)<=0) then begin
-    value := CT_TECDSA_Public_Nul;
+	value := CT_TECDSA_Public_Nul;
     exit;
   end;
   if (ReadAnsiString(stream,value.y)<=0) then begin
@@ -927,7 +913,7 @@ begin
   if Stream.Size - Stream.Position < l then begin
     Stream.Position := Stream.Position - 2; // Go back!
     value := '';
-    Result := -1;
+	Result := -1;
     exit;
   end;
   SetLength(value, l);
@@ -981,12 +967,12 @@ begin
       ms := TMemoryStream.Create;
       Try
         w := CT_AccountInfo_ForSale;
-        ms.Write(w,SizeOf(w));
+		ms.Write(w,SizeOf(w));
         //
         TStreamOp.WriteAccountKey(ms,AccountInfo.accountKey);
         ms.Write(AccountInfo.locked_until_block,SizeOf(AccountInfo.locked_until_block));
         ms.Write(AccountInfo.price,SizeOf(AccountInfo.price));
-        ms.Write(AccountInfo.account_to_pay,SizeOf(AccountInfo.account_to_pay));
+		ms.Write(AccountInfo.account_to_pay,SizeOf(AccountInfo.account_to_pay));
         TStreamOp.WriteAccountKey(ms,AccountInfo.new_publicKey);
         SetLength(dest,ms.Size);
         ms.Position := 0;
@@ -1021,7 +1007,7 @@ Var s : TMemoryStream;
 begin
   s := TMemoryStream.Create;
   try
-    TStreamOp.WriteAccountKey(s,account);
+	TStreamOp.WriteAccountKey(s,account);
     SetLength(dest,s.Size);
     s.Position := 0;
     s.Read(dest[1],s.Size);
@@ -1065,22 +1051,22 @@ begin
     s1 := copy(s1,1,length(s1)-8);
     raw := TCrypto.HexaToRaw(s1);
     s1 := TCrypto.ToHexaString( TCrypto.DoSha256(raw) );
-    if copy(s1,1,8)<>s2 then begin
+	if copy(s1,1,8)<>s2 then begin
       // Invalid checksum
       errors := 'Invalid checksum';
-      exit;
+	  exit;
     end;
     try
       account := TAccountComp.RawString2Accountkey(raw);
       Result := true;
       errors := '';
     except
-      // Nothing to do... invalid
+	  // Nothing to do... invalid
       errors := 'Error on conversion from Raw to Account key';
     end;
   Finally
     BN.Free;
-    BNBase.Free;
+	BNBase.Free;
     BNAux.Free;
   end;
 end;
@@ -1112,7 +1098,7 @@ begin
     end;
   finally
     BN.Free;
-    BNMod.Free;
+	BNMod.Free;
     BNDiv.Free;
   end;
 end;
@@ -1159,10 +1145,10 @@ begin
     end;
     try
       account := TAccountComp.RawString2Accountkey(raw);
-      Result := true;
+	  Result := true;
       errors := '';
     except
-      // Nothing to do... invalid
+	  // Nothing to do... invalid
       errors := 'Error on conversion from Raw to Account key';
     end;
   Finally
@@ -1206,7 +1192,7 @@ class function TAccountComp.EqualAccountInfos(const accountInfo1,accountInfo2 : 
 begin
   Result := (accountInfo1.state = accountInfo2.state) And (EqualAccountKeys(accountInfo1.accountKey,accountInfo2.accountKey))
     And (accountInfo1.locked_until_block = accountInfo2.locked_until_block) And (accountInfo1.price = accountInfo2.price)
-    And (accountInfo1.account_to_pay = accountInfo2.account_to_pay) and (EqualAccountKeys(accountInfo1.new_publicKey,accountInfo2.new_publicKey));
+	And (accountInfo1.account_to_pay = accountInfo2.account_to_pay) and (EqualAccountKeys(accountInfo1.new_publicKey,accountInfo2.new_publicKey));
 end;
 
 class function TAccountComp.EqualAccountKeys(const account1, account2: TAccountKey): Boolean;
@@ -1221,7 +1207,7 @@ begin
           And (EqualAccountInfos(account1.accountInfo,account2.accountInfo))
           And (account1.balance = account2.balance)
           And (account1.updated_block = account2.updated_block)
-          And (account1.n_operation = account2.n_operation)
+		  And (account1.n_operation = account2.n_operation)
           And (TBaseType.BinStrComp(account1.name,account2.name)=0)
           And (account1.account_type = account2.account_type)
           And (account1.previous_updated_block = account2.previous_updated_block);
@@ -1253,7 +1239,7 @@ begin
   If Result then begin
     for i:=Low(blockAccount1.accounts) to High(blockAccount1.accounts) do begin
       Result := EqualAccounts(blockAccount1.accounts[i],blockAccount2.accounts[i]);
-      If Not Result then Exit;
+	  If Not Result then Exit;
     end;
   end;
 end;
@@ -1362,7 +1348,7 @@ begin
   errors := '';
   case accountInfo.state of
     as_Unknown: begin
-        errors := 'Account state is unknown';
+		errors := 'Account state is unknown';
         Result := false;
       end;
     as_Normal: begin
@@ -1409,7 +1395,7 @@ Var ms : TMemoryStream;
   w : Word;
 begin
   if length(rawaccstr)=0 then begin
-    dest := CT_AccountInfo_NUL;
+	dest := CT_AccountInfo_NUL;
     exit;
   end;
   ms := TMemoryStream.Create;
@@ -1451,12 +1437,12 @@ class procedure TAccountComp.RawString2Accountkey(const rawaccstr: TRawBytes; va
 Var ms : TMemoryStream;
 begin
   if length(rawaccstr)=0 then begin
-    dest := CT_TECDSA_Public_Nul;
+	dest := CT_TECDSA_Public_Nul;
     exit;
   end;
   ms := TMemoryStream.Create;
   try
-    ms.WriteBuffer(rawaccstr[1],length(rawaccstr));
+	ms.WriteBuffer(rawaccstr[1],length(rawaccstr));
     ms.Position := 0;
     TStreamOp.ReadAccountKey(ms,dest);
   finally
@@ -1488,7 +1474,7 @@ begin
       // No decimal separator, consider ThousandSeparator as a decimal separator
       s := StringReplace(moneytxt,ThousandSeparator,DecimalSeparator,[rfReplaceAll]);
     end else begin
-      s := StringReplace(moneytxt,ThousandSeparator,'',[rfReplaceAll]);
+	  s := StringReplace(moneytxt,ThousandSeparator,'',[rfReplaceAll]);
     end;
     {$IFEND}
 
@@ -1535,10 +1521,10 @@ Type
   TMemAccount = Record // TAccount with less memory usage
     // account number is discarded (-4 bytes)
     {$IFDEF useAccountKeyStorage}
-    accountInfoKS : TAccountInfoKS;
+	accountInfoKS : TAccountInfoKS;
     {$ELSE}
     accountInfo : TDynRawBytes;
-    {$ENDIF}
+	{$ENDIF}
     balance: UInt64;
     updated_block: Cardinal;
     n_operation: Cardinal;
@@ -1550,7 +1536,7 @@ Type
   TMemOperationBlock = Record // TOperationBlock with less memory usage
     // block number is discarded (-4 bytes)
     {$IFDEF useAccountKeyStorage}
-    account_keyKS: PAccountKey;
+	account_keyKS: PAccountKey;
     {$ELSE}
     account_key: TDynRawBytes;
     {$ENDIF}
@@ -1738,7 +1724,7 @@ begin
   try
     iBlock:=(Integer(account_number)  DIV CT_AccountsPerBlock);
     If (Assigned(FPreviousSafeBox)) then begin
-      SearchBlockWhenOnSeparatedChain(iBlock,blockAccount);
+	  SearchBlockWhenOnSeparatedChain(iBlock,blockAccount);
       Result := blockAccount.accounts[account_number MOD CT_AccountsPerBlock];
     end else begin
       if (iBlock<0) Or (iBlock>=FBlockAccountsList.Count) then raise Exception.Create('Invalid account: '+IntToStr(account_number));
@@ -1817,10 +1803,10 @@ begin
     end else begin
       Result.accounts[i].accountInfo.accountKey := blockChain.account_key;
       SetLength(accs_miner,length(accs_miner)+1);
-      accs_miner[High(accs_miner)] := base_addr + i;
+	  accs_miner[High(accs_miner)] := base_addr + i;
       if i=Low(Result.accounts) then begin
         // Only first account wins the reward + fee
-        Result.accounts[i].balance := acc_0_miner_reward;
+		Result.accounts[i].balance := acc_0_miner_reward;
       end else begin
       end;
     end;
@@ -1832,7 +1818,7 @@ begin
   If Assigned(FPreviousSafeBox) then begin
     FModifiedBlocksSeparatedChain.Add(Result);
   end else begin
-    New(Pblock);
+	New(Pblock);
     ToTMemBlockAccount(Result,Pblock^);
     FBlockAccountsList.Add(Pblock);
   end;
@@ -1864,22 +1850,22 @@ begin
     Psnapshot^.oldWorkSum := FWorkSum;
     Psnapshot^.oldCurrentProtocol:= FCurrentProtocol;
     FSnapshots.Add(Psnapshot);
-    FModifiedBlocksPreviousState := TOrderedBlockAccountList.Create;
+	FModifiedBlocksPreviousState := TOrderedBlockAccountList.Create;
     FModifiedBlocksFinalState := TOrderedBlockAccountList.Create;
     FAddedNamesSincePreviousSafebox := TOrderedRawList.Create;
-    FDeletedNamesSincePreviousSafebox := TOrderedRawList.Create;
+	FDeletedNamesSincePreviousSafebox := TOrderedRawList.Create;
     // Remove old snapshots!
     If (FSubChains.Count=0) And (Not Assigned(FPreviousSafeBox)) then begin
       // Remove ONLY if there is no subchain based on my snapshots!
       While (FSnapshots.Count>FMaxSafeboxSnapshots) do begin
         Psnapshot := FSnapshots[0];
         TLog.NewLog(ltdebug,Classname,Format('Deleting snapshot for block %d',[Psnapshot^.nBlockNumber]));
-        FSnapshots.Delete(0);
+		FSnapshots.Delete(0);
         FreeAndNil( Psnapshot.oldBlocks );
         FreeAndNil( Psnapshot.newBlocks );
         FreeAndNil( Psnapshot.namesAdded );
         FreeAndNil( Psnapshot.namesDeleted );
-        Psnapshot^.oldBufferBlocksHash:='';
+		Psnapshot^.oldBufferBlocksHash:='';
         Psnapshot^.oldSafeBoxHash:='';
         Dispose(Psnapshot);
       end;
@@ -1926,7 +1912,7 @@ begin
       if (block_number<0) Or (block_number>=BlocksCount) then raise Exception.Create('Invalid block number for chain: '+inttostr(block_number)+' max: '+IntToStr(BlocksCount-1));
       SearchBlockWhenOnSeparatedChain(block_number,Result);
     end else begin
-      if (block_number<0) Or (block_number>=FBlockAccountsList.Count) then raise Exception.Create('Invalid block number: '+inttostr(block_number)+' max: '+IntToStr(FBlockAccountsList.Count-1));
+	  if (block_number<0) Or (block_number>=FBlockAccountsList.Count) then raise Exception.Create('Invalid block number: '+inttostr(block_number)+' max: '+IntToStr(FBlockAccountsList.Count-1));
       ToTBlockAccount(PBlockAccount(FBlockAccountsList.Items[block_number])^,block_number,Result);
     end;
   finally
@@ -1968,12 +1954,12 @@ Var raw: TRawBytes;
 begin
   ms := TMemoryStream.Create;
   try
-    If (Not useProtocol2Method) then begin
+	If (Not useProtocol2Method) then begin
       // PROTOCOL 1 BlockHash calculation
       ms.Write(block.blockchainInfo.block,4); // Little endian
       for i := Low(block.accounts) to High(block.accounts) do begin
         ms.Write(block.accounts[i].account,4);  // Little endian
-        raw := TAccountComp.AccountInfo2RawString(block.accounts[i].accountInfo);
+		raw := TAccountComp.AccountInfo2RawString(block.accounts[i].accountInfo);
         ms.WriteBuffer(raw[1],length(raw)); // Raw bytes
         ms.Write(block.accounts[i].balance,SizeOf(Uint64));  // Little endian
         ms.Write(block.accounts[i].updated_block,4);  // Little endian
@@ -2015,12 +2001,12 @@ begin
     bn_sum := TBigNum.Create;
     try
       if (block_number=0) then begin
-        Result := 1;
+		Result := 1;
         exit;
       end;
       if (block_number<0) Or (block_number>=FBlockAccountsList.Count) then raise Exception.Create('Invalid block number: '+inttostr(block_number));
       if (Previous_blocks_average<=0) then raise Exception.Create('Dev error 20161016-1');
-      if (Previous_blocks_average>block_number) then Previous_blocks_average := block_number;
+	  if (Previous_blocks_average>block_number) then Previous_blocks_average := block_number;
       //
       c := (block_number - Previous_blocks_average)+1;
       t_sum := 0;
@@ -2099,7 +2085,7 @@ begin
         sb.CopyFrom(Self);
         Self.Clear;
         Self.CopyFrom(sb);
-        // Restore snapshots:
+		// Restore snapshots:
         FSnapshots.Assign(auxSnapshotsList);
         // Clear changes to do not fire key activity
         for i := 0 to FListOfOrderedAccountKeysList.count-1 do begin
@@ -2109,7 +2095,7 @@ begin
         auxSnapshotsList.Free;
       end;
     finally
-      sb.Free;
+	  sb.Free;
     end;
     TLog.NewLog(ltDebug,Classname,'Checked memory '+IntToStr(TPlatform.GetElapsedMilliseconds(tc))+' milliseconds');
   finally
@@ -2156,12 +2142,12 @@ begin
   StartThreadSafe;
   Try
     for i := 0 to FBlockAccountsList.Count - 1 do begin
-      P := FBlockAccountsList.Items[i];
+	  P := FBlockAccountsList.Items[i];
       Dispose(P);
     end;
     for i := 0 to FSnapshots.Count-1 do begin
       Psnapshot := (Fsnapshots[i]);
-      FreeAndNil(Psnapshot^.oldBlocks);
+	  FreeAndNil(Psnapshot^.oldBlocks);
       FreeAndNil(Psnapshot^.newBlocks);
       FreeAndNil(Psnapshot^.namesAdded);
       FreeAndNil(Psnapshot^.namesDeleted);
@@ -2203,12 +2189,12 @@ begin
       if accounts=Self then exit;
       If (Assigned(FPreviousSafeBox)) then begin
         Raise Exception.Create('Safebox is a separated chain. Cannot copy from other Safebox');
-      end;
+	  end;
       If (Assigned(accounts.FPreviousSafeBox)) then begin
         Raise Exception.Create('Cannot copy from a separated chain Safebox');
       end;
       Clear;
-      if accounts.BlocksCount>0 then begin
+	  if accounts.BlocksCount>0 then begin
         FBlockAccountsList.Capacity:=accounts.BlocksCount;
         for i := 0 to accounts.BlocksCount - 1 do begin
           BA := accounts.Block(i);
@@ -2287,7 +2273,7 @@ Var i : Integer;
 begin
   StartThreadSafe;
   Try
-    Clear;
+	Clear;
     If Assigned(FPreviousSafeBox) then begin
       FPreviousSafeBox.FSubChains.Remove(Self); // Remove from current snapshot
       FPreviousSafeBox := Nil;
@@ -2297,12 +2283,12 @@ begin
       APreviousSafeBox.StartThreadSafe;
       Try
         If (APreviousSafeBox = Self) then Raise Exception.Create('Invalid previous');
-        If Assigned(APreviousSafebox.FPreviousSafeBox) then Raise Exception.Create('Previous safebox is based on a snapshot too'); // Limitation
+		If Assigned(APreviousSafebox.FPreviousSafeBox) then Raise Exception.Create('Previous safebox is based on a snapshot too'); // Limitation
         i := APreviousSafeBox.FSnapshots.Count-1;
         while (i>=0) And (PSafeboxSnapshot( APreviousSafeBox.FSnapshots[i] )^.nBlockNumber<>StartBlock) do dec(i);
         if (i<0) then begin
           Raise Exception.Create('Previous Safebox does not contain snapshot of block '+IntToStr(StartBlock));
-        end;
+		end;
         Psnapshot:=PSafeboxSnapshot( APreviousSafeBox.FSnapshots[i] );
         FPreviousSafeBox := APreviousSafeBox;
         FPreviousSafeboxOriginBlock:=StartBlock;
@@ -2334,7 +2320,7 @@ procedure TPCSafeBox.CommitToPrevious;
     // modifiedBlocks is sorted in ASCENDING order, will create a new block on FPreviousSafeBox when needed
     For iBlock := 0 to modifiedBlocks.Count-1 do begin
       blockAccount := modifiedBlocks.Get(iBlock);
-      // Set each account to previous value:
+	  // Set each account to previous value:
       for j:=Low(blockAccount.accounts) to High(blockAccount.accounts) do begin
         FPreviousSafeBox.UpdateAccount(blockAccount.accounts[j].account,
           blockAccount.accounts[j].accountInfo,
@@ -2344,7 +2330,7 @@ procedure TPCSafeBox.CommitToPrevious;
           blockAccount.accounts[j].n_operation,
           aus_commiting_from_otherchain,
           blockAccount.accounts[j].updated_block,
-          blockAccount.accounts[j].previous_updated_block
+		  blockAccount.accounts[j].previous_updated_block
           );
       end;
     end;
@@ -2381,7 +2367,7 @@ begin
   Try
     FPreviousSafeBox.StartThreadSafe;
     Try
-      { Process is:
+	  { Process is:
         - Set Previous to snapshot state
         - for each snapshot:
            - update modified blocks
@@ -2391,12 +2377,12 @@ begin
       TLog.NewLog(ltdebug,ClassName,Format('Start CommitToPrevious - Rolling back from block %d to %d',[FPreviousSafeBox.BlocksCount-1,FPreviousSafeboxOriginBlock]));
       FPreviousSafeBox.RollBackToSnapshot(FPreviousSafeboxOriginBlock);
       {$IFDEF Check_Safebox_Names_Consistency}
-      If Not Check_Safebox_Names_Consistency(FPreviousSafeBox,'PREVIOUS WITH ROLLBACK',errors) then begin
+	  If Not Check_Safebox_Names_Consistency(FPreviousSafeBox,'PREVIOUS WITH ROLLBACK',errors) then begin
         TLog.NewLog(ltdebug,ClassName,'Check_Safebox_Names_Consistency '+errors);
       end;
       {$ENDIF}
       TLog.NewLog(ltdebug,ClassName,Format('Executing %d chain snapshots to master',[FSnapshots.Count]));
-      For i:=0 to  FSnapshots.Count-1 do begin
+	  For i:=0 to  FSnapshots.Count-1 do begin
         Pss := FSnapshots[i];
         TLog.NewLog(ltdebug,ClassName,Format('Executing %d/%d chain snapshot to master with %d blocks changed at block %d',[i+1,FSnapshots.Count,Pss^.newBlocks.Count,Pss^.nBlockNumber]));
         Try
@@ -2428,7 +2414,7 @@ begin
       If (FPreviousSafeBox.FTotalBalance<>FTotalBalance) then begin
         errors := errors+'> Invalid Balance!';
       end;
-      If (FPreviousSafeBox.FTotalFee<>FTotalFee) then begin
+	  If (FPreviousSafeBox.FTotalFee<>FTotalFee) then begin
         errors := errors+'> Invalid Fee!';
       end;
       If (FPreviousSafeBox.WorkSum<>FWorkSum) then begin
@@ -2438,12 +2424,12 @@ begin
         errors := errors+'> Invalid Protocol!';
       end;
       If (errors<>'') Then begin
-        Raise Exception.Create('Errors Commiting to previous! '+errors);
+		Raise Exception.Create('Errors Commiting to previous! '+errors);
       end;
       {$IFDEF Check_Safebox_Names_Consistency}
       If Not Check_Safebox_Names_Consistency(FPreviousSafeBox,'PREVIOUS',errors) then begin
         if errors='' then Raise Exception.Create('Check_Safebox_Names_Consistency '+errors);
-      end;
+	  end;
       if Not Check_Safebox_Names_Consistency(Self,'CHAIN',errors) then begin
         if errors='' then Raise Exception.Create('Check_Safebox_Names_Consistency '+errors);
       end;
@@ -2475,7 +2461,7 @@ procedure TPCSafeBox.RollBackToSnapshot(snapshotBlock: Cardinal);
            blockAccount.accounts[j].balance,
            blockAccount.accounts[j].n_operation,
            aus_rollback,
-           blockAccount.accounts[j].updated_block,
+		   blockAccount.accounts[j].updated_block,
            blockAccount.accounts[j].previous_updated_block
            );
        end;
@@ -2485,12 +2471,12 @@ procedure TPCSafeBox.RollBackToSnapshot(snapshotBlock: Cardinal);
    Procedure UndoAddedDeletedNames(AddedNamesList,DeletedNamesList : TOrderedRawList);
    Var i,j : Integer;
    Begin
-     // Start adding
+	 // Start adding
      For i:=0 to AddedNamesList.Count-1 do begin
        // It was added, so we MUST FIND on current names list
        If Not FOrderedByName.Find(AddedNamesList.Get(i),j) then begin
          // ERROR: It has been added, why we not found???
-         If DeletedNamesList.Find(AddedNamesList.Get(i),j) then begin
+		 If DeletedNamesList.Find(AddedNamesList.Get(i),j) then begin
          end else begin
            TLog.NewLog(lterror,ClassName,Format('ERROR DEV 20180319-1 Name %s not found at account:%d',[AddedNamesList.Get(i),AddedNamesList.GetTag(i)]));
          end;
@@ -2522,7 +2508,7 @@ begin
       - Undo current pending operations
       - For each snapshot do
         - Undo snapshot operations
-        - Undo created BlockAccount
+		- Undo created BlockAccount
       - At target snapshot:
         - Restore values
       - Clear data
@@ -2532,12 +2518,12 @@ begin
     while (iPrevSnapshotTarget>=0) And (PSafeboxSnapshot(FSnapshots[iPrevSnapshotTarget])^.nBlockNumber<>snapshotBlock) do Dec(iPrevSnapshotTarget);
     If (iPrevSnapshotTarget<0) then Raise Exception.Create('Cannot Rollback to previous Snapshot block: '+IntToStr(snapshotBlock)+' current '+IntToStr(BlocksCount));
     // Go back starting from current state
-    UndoModifiedBlocks(FModifiedBlocksPreviousState);
+	UndoModifiedBlocks(FModifiedBlocksPreviousState);
     UndoAddedDeletedNames(FAddedNamesSincePreviousSafebox,FDeletedNamesSincePreviousSafebox);
     // Go back based on snapshots: EXCEPT target
     For i:=FSnapshots.Count-1 downto (iPrevSnapshotTarget+1) do begin
       Psnapshot := FSnapshots[i];
-      TLog.NewLog(ltdebug,ClassName,Format('Executing %d/%d rollback %d blocks changed at block %d',[i+1,FSnapshots.Count,Psnapshot^.oldBlocks.Count,Psnapshot^.nBlockNumber]));
+	  TLog.NewLog(ltdebug,ClassName,Format('Executing %d/%d rollback %d blocks changed at block %d',[i+1,FSnapshots.Count,Psnapshot^.oldBlocks.Count,Psnapshot^.nBlockNumber]));
 
       // Must UNDO changes:
       UndoModifiedBlocks(Psnapshot^.oldBlocks);
@@ -2569,7 +2555,7 @@ begin
       raise Exception.Create('ERROR DEV 20180322-1 Rollback invalid BufferBlocksHash value');
     end;
 
-    FBufferBlocksHash := Psnapshot^.oldBufferBlocksHash;
+	FBufferBlocksHash := Psnapshot^.oldBufferBlocksHash;
     FTotalBalance := Psnapshot^.oldTotalBalance;
     FTotalFee := Psnapshot^.oldTotalFee;
     FSafeBoxHash := Psnapshot^.oldSafeBoxHash;
@@ -2579,12 +2565,12 @@ begin
     FAddedNamesSincePreviousSafebox.Clear;
     FDeletedNamesSincePreviousSafebox.Clear;
     FModifiedBlocksPreviousState.Clear;
-    FModifiedBlocksFinalState.Clear;
+	FModifiedBlocksFinalState.Clear;
     {$IFDEF Check_Safebox_Names_Consistency}
     if Not Check_Safebox_Names_Consistency(Self,'ROLLBACK',errors) then begin
       if errors='' then Raise Exception.Create('Check_Safebox_Names_Consistency '+errors);
     end;
-    {$ENDIF}
+	{$ENDIF}
   finally
     EndThreadSave;
   end;
@@ -2663,7 +2649,7 @@ begin
       end;
       // Offset zone
       posOffsetZone := Stream.Position;
-      If checkAll then begin
+	  If checkAll then begin
         SetLength(offsets,sbHeader.blockscount+1); // Last offset = End of blocks
         Stream.Read(offsets[0],4*(sbHeader.blockscount+1));
       end else begin
@@ -2673,12 +2659,12 @@ begin
       end;
       // Build 1.3.0 to increase reading speed:
       FBlockAccountsList.Capacity := sbHeader.blockscount;
-      SetLength(FBufferBlocksHash,sbHeader.blocksCount*32); // Initialize for high speed reading
+	  SetLength(FBufferBlocksHash,sbHeader.blocksCount*32); // Initialize for high speed reading
       errors := 'Corrupted stream';
       for iblock := 0 to sbHeader.blockscount-1 do begin
         errors := 'Corrupted stream reading block blockchain '+inttostr(iblock+1)+'/'+inttostr(sbHeader.blockscount);
         if (checkAll) then begin
-          If (offsets[iblock]<>Stream.Position-posOffsetZone) then begin
+		  If (offsets[iblock]<>Stream.Position-posOffsetZone) then begin
             errors := errors + Format(' - offset[%d]:%d <> %d Position:%d offset:%d',[iblock,offsets[iblock],Stream.Position-posOffsetZone,Stream.Position,posOffsetZone]);
             exit;
           end;
@@ -2710,7 +2696,7 @@ begin
             if Not TPCSafeBox.ValidAccountName(block.accounts[iacc].name,s) then begin
               errors := errors + ' > Invalid name "'+block.accounts[iacc].name+'": '+s;
               Exit;
-            end;
+			end;
             FOrderedByName.Add(block.accounts[iacc].name,block.accounts[iacc].account);
           end;
           If checkAll then begin
@@ -2720,12 +2706,12 @@ begin
             end;
           end;
 		  FTotalBalance := FTotalBalance + block.accounts[iacc].balance;
-        end;
+		end;
         errors := 'Corrupted stream reading block '+inttostr(iblock+1)+'/'+inttostr(sbHeader.blockscount);
         If TStreamOp.ReadAnsiString(Stream,block.block_hash)<0 then exit;
         If Stream.Read(block.accumulatedWork,SizeOf(block.accumulatedWork)) < SizeOf(block.accumulatedWork) then exit;
         if checkAll then begin
-          // Check is valid:
+		  // Check is valid:
           // STEP 1: Validate the block
 		  If not IsValidNewOperationsBlock(block.blockchainInfo,False,s) then begin
             errors := errors + ' > ' + s;
@@ -2757,7 +2743,7 @@ begin
           {$IFDEF FPC}
           FBufferBlocksHash[i+j] := AnsiChar(P^.block_hash[i-(low(FBufferBlocksHash)-low(P^.block_hash))]);
           {$ELSE}
-          FBufferBlocksHash[i+j] := AnsiChar(P^.block_hash[i-{$IFDEF uselowmem}1{$ELSE}0{$ENDIF}]);
+		  FBufferBlocksHash[i+j] := AnsiChar(P^.block_hash[i-{$IFDEF uselowmem}1{$ELSE}0{$ENDIF}]);
           {$ENDIF}
         end;
         LastReadBlock := block;
@@ -2767,12 +2753,12 @@ begin
         If (offsets[sbHeader.blockscount]<>0) And (offsets[sbHeader.blockscount]<>Stream.Position-posOffsetZone) then begin
           errors := errors + Format(' - Final offset[%d]=%d <> Eof Position:%d offset:%d',[sbHeader.blockscount,offsets[sbHeader.blockscount],Stream.Position-posOffsetZone,posOffsetZone]);
           exit;
-        end;
+		end;
       end;
       // Finally load SafeBoxHash
 	  If TStreamOp.ReadAnsiString(stream,savedSBH)<0 then begin
         errors := 'No SafeBoxHash value';
-        exit;
+		exit;
       end;
       // Check worksum value
       If sbHeader.blockscount>0 then begin
@@ -2814,12 +2800,12 @@ begin
     if Stream.Size<8 then exit;
     Stream.Read(w,SizeOf(w));
     if not (w in [CT_PROTOCOL_1,CT_PROTOCOL_2,CT_PROTOCOL_3]) then exit;
-    sbHeader.protocol := w;
+	sbHeader.protocol := w;
     Stream.Read(safeBoxBankVersion,2);
     if safeBoxBankVersion<>CT_SafeBoxBankVersion then exit;
     Stream.Read(sbHeader.blocksCount,4);
     Stream.Read(sbHeader.startBlock,4);
-    Stream.Read(sbHeader.endBlock,4);
+	Stream.Read(sbHeader.endBlock,4);
     if (sbHeader.blocksCount<=0) Or (sbHeader.blocksCount>(CT_NewLineSecondsAvg*2000000)) then exit; // Protection for corrupted data...
     offsetPos := Stream.Position;
     // Go to read SafeBoxHash
@@ -2898,7 +2884,7 @@ begin
     // Header zone
     SaveSafeBoxStreamHeader(Stream,FCurrentProtocol,FromBlock,ToBlock,BlocksCount);
     totalBlocks := ToBlock - FromBlock + 1;
-    // Offsets zone
+	// Offsets zone
     posOffsetZone:=Stream.Position;
     SetLength(raw,(totalBlocks+1)*4); // Last position = end
     FillChar(raw[1],length(raw),0);
@@ -2908,12 +2894,12 @@ begin
     for iblock := FromBlock to ToBlock do begin
       offsets[iBlock] := Stream.Position - posOffsetZone;
       SaveSafeBoxBlockToAStream(Stream,iblock);
-    end;
+	end;
     offsets[High(offsets)] := Stream.Position - posOffsetZone;
     // Save offsets zone with valid values
     posFinal := Stream.Position;
     Stream.Position := posOffsetZone;
-    for iblock := FromBlock to ToBlock+1 do begin
+	for iblock := FromBlock to ToBlock+1 do begin
       Stream.Write(offsets[iblock],SizeOf(offsets[iblock]));
     end;
     Stream.Position := posFinal;
@@ -2945,7 +2931,7 @@ begin
       errors := Format('Invalid CopySafeBoxStream(from %d, to %d)',[FromBlock,ToBlock]);
       exit;
     end;
-    If not LoadSafeBoxStreamHeader(Source,sbHeader) then begin
+	If not LoadSafeBoxStreamHeader(Source,sbHeader) then begin
       errors := 'Invalid stream. Invalid header/version';
       exit;
     end;
@@ -2955,12 +2941,12 @@ begin
     end;
     destTotalBlocks := ToBlock - FromBlock + 1;
     TLog.NewLog(ltDebug,ClassName,Format('CopySafeBoxStream from safebox with %d to %d (of %d sbh:%s) to safebox with %d and %d',
-      [sbHeader.startBlock,sbHeader.endBlock,sbHeader.BlocksCount,TCrypto.ToHexaString(sbHeader.safeBoxHash),FromBlock,ToBlock]));
+	  [sbHeader.startBlock,sbHeader.endBlock,sbHeader.BlocksCount,TCrypto.ToHexaString(sbHeader.safeBoxHash),FromBlock,ToBlock]));
     // Read Source Offset zone
     posOffsetZoneSource := Source.Position;
     SetLength(offsetsSource,(sbHeader.endBlock-sbHeader.startBlock)+2);
     Source.Read(offsetsSource[0],4*length(offsetsSource));
-    // DEST STREAM:
+	// DEST STREAM:
     // Init dest stream
     // Header zone
     SaveSafeBoxStreamHeader(Dest,sbHeader.protocol,FromBlock,ToBlock,sbHeader.blocksCount);
@@ -2992,7 +2978,7 @@ begin
     Dest.WriteBuffer(offsetsDest[0],length(offsetsDest)*4);
     Dest.Position := posFinal;
     Source.Position := offsetsSource[High(offsetsSource)] + posOffsetZoneSource;
-    TStreamOp.ReadAnsiString(Source,raw);
+	TStreamOp.ReadAnsiString(Source,raw);
     TStreamOp.WriteAnsiString(Dest,raw);
     Result := true;
   finally
@@ -3049,12 +3035,12 @@ class function TPCSafeBox.ConcatSafeBoxStream(Source1, Source2, Dest: TStream; v
       end else begin
         safeBoxStream.Seek(4*(offsetIndex),soFromCurrent);
         safeBoxStream.Read(c,4); // c is position
-      end;
+	  end;
       cLength := c + nBytes;
       safeBoxStream.Write(cLength,4);
       safeBoxStream.Position := offsetPos + c;
       safeBoxStream.CopyFrom(Stream,nBytes);
-    finally
+	finally
       safeBoxStream.Position:=offsetPos;
     end;
   end;
@@ -3086,7 +3072,7 @@ begin
        [s1Header.blocksCount,TCrypto.ToHexaString(s1Header.safeBoxHash),s1Header.protocol,
         s2Header.blocksCount,TCrypto.ToHexaString(s2Header.safeBoxHash),s2Header.protocol]);
       exit;
-    end;
+	end;
     // Save dest heaer
     destStartBlock := MinCardinal(s1Header.startBlock,s2Header.startBlock);
     destEndBlock := MaxCardinal(s1Header.endBlock,s2Header.endBlock);
@@ -3096,12 +3082,12 @@ begin
     SetLength(destOffsets,((destEndBlock-destStartBlock)+2));
     for i:=low(destOffsets) to high(destOffsets) do destOffsets[i] := 0;
     Dest.Write(destOffsets[0],((destEndBlock-destStartBlock)+2)*4);
-    Dest.Position:=destOffsetPos;
+	Dest.Position:=destOffsetPos;
     //
     nBlock := destStartBlock;
     ms := TMemoryStream.Create;
     try
-      for nBlock :=destStartBlock to destEndBlock do begin
+	  for nBlock :=destStartBlock to destEndBlock do begin
         ms.Clear;
         if (nBlock>=s1Header.startBlock) And (nBlock<=s1Header.endBlock) then begin
           c := ReadSafeBoxBlockFromStream(Source1,nBlock-s1Header.startBlock,ms);
@@ -3133,7 +3119,7 @@ class function TPCSafeBox.ValidAccountName(const new_name: TRawBytes; var errors
     }
 Const CT_PascalCoin_Base64_Charset : ShortString = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-+{}[]\_:"|<>,.?/~';
       // First char can't start with a number
-      CT_PascalCoin_FirstChar_Charset : ShortString = 'abcdefghijklmnopqrstuvwxyz!@#$%^&*()-+{}[]\_:"|<>,.?/~';
+	  CT_PascalCoin_FirstChar_Charset : ShortString = 'abcdefghijklmnopqrstuvwxyz!@#$%^&*()-+{}[]\_:"|<>,.?/~';
       CT_PascalCoin_name_min_length = 3;
       CT_PascalCoin_name_max_length = 64;
 var i,j : Integer;
@@ -3148,7 +3134,7 @@ begin
     if (i=1) then begin
       // First char can't start with a number
 	  While (j<=length(CT_PascalCoin_FirstChar_Charset)) and (new_name[i]<>CT_PascalCoin_FirstChar_Charset[j]) do inc(j);
-      if j>length(CT_PascalCoin_FirstChar_Charset) then begin
+	  if j>length(CT_PascalCoin_FirstChar_Charset) then begin
         errors := 'Invalid char '+new_name[i]+' at first pos';
         Exit; // Not found
       end;
@@ -3180,7 +3166,7 @@ begin
   // Check block
   if (BlocksCount <> newOperationBlock.block) then begin
     errors := 'block ('+inttostr(newOperationBlock.block)+') is not new position ('+inttostr(BlocksCount)+')';
-    exit;
+	exit;
   end;
 
   // fee: Cannot be checked only with the safebox
@@ -3190,12 +3176,12 @@ begin
     if (newOperationBlock.protocol_version<>CurrentProtocol) then begin
       // Protocol must be 1 or 2. If 1 then all prior blocksmust be 1 and never 2 (invalide blockchain version scenario v1...v2...v1)
       If (lastBlock.protocol_version>newOperationBlock.protocol_version) then begin
-        errors := 'Invalid PascalCoin protocol version: '+IntToStr( newOperationBlock.protocol_version )+' Current: '+IntToStr(CurrentProtocol)+' Previous:'+IntToStr(lastBlock.protocol_version);
+		errors := 'Invalid PascalCoin protocol version: '+IntToStr( newOperationBlock.protocol_version )+' Current: '+IntToStr(CurrentProtocol)+' Previous:'+IntToStr(lastBlock.protocol_version);
         exit;
       end;
       If (newOperationBlock.protocol_version=CT_PROTOCOL_3) then begin
         If (newOperationBlock.block<CT_Protocol_Upgrade_v3_MinBlock) then begin
-          errors := 'Upgrade to protocol version 3 available at block: '+IntToStr(CT_Protocol_Upgrade_v3_MinBlock);
+		  errors := 'Upgrade to protocol version 3 available at block: '+IntToStr(CT_Protocol_Upgrade_v3_MinBlock);
           exit;
         end;
       end else If (newOperationBlock.protocol_version=CT_PROTOCOL_2) then begin
@@ -3227,7 +3213,7 @@ begin
       errors := 'BlockChain Safe box hash invalid: '+TCrypto.ToHexaString(newOperationBlock.initial_safe_box_hash)+' var: '+
         TCrypto.ToHexaString(FSafeBoxHash)+
         ' Calculated:'+TCrypto.ToHexaString(CalcSafeBoxHash);
-      exit;
+	  exit;
     end;
   end;
   {$IFnDEF TESTING_NO_POW_CHECK}
@@ -3242,7 +3228,7 @@ end;
 class function TPCSafeBox.IsValidOperationBlock(const newOperationBlock: TOperationBlock; var errors: AnsiString): Boolean;
   { This class function will check a OperationBlock basic info as a valid info
 
-    Creted at Build 2.1.7 as a division of IsValidNewOperationsBlock for easily basic check TOperationBlock
+	Creted at Build 2.1.7 as a division of IsValidNewOperationsBlock for easily basic check TOperationBlock
 
     TOperationBlock contains the info of the new block, but cannot be checked with current Safebox state
     (Use IsValidNewOperationsBlock instead) and also cannot check operations, operations_hash, fees...
@@ -3274,7 +3260,7 @@ begin
       // Check if valid Zero block
       if Not (AnsiSameText(TCrypto.ToHexaString(newOperationBlock.proof_of_work),CT_Zero_Block_Proof_of_work_in_Hexa)) then begin
         errors := 'Zero block not valid, Proof of Work invalid: '+TCrypto.ToHexaString(newOperationBlock.proof_of_work)+'<>'+CT_Zero_Block_Proof_of_work_in_Hexa;
-        exit;
+		exit;
       end;
     end;
   end;
@@ -3321,7 +3307,7 @@ begin
     ts2 := Block(BlocksCount-CalcBack-1).blockchainInfo.timestamp;
     tsTeorical := (CalcBack * CT_NewLineSecondsAvg);
     tsReal := (ts1 - ts2);
-    If (protocolVersion=CT_PROTOCOL_1) then begin
+	If (protocolVersion=CT_PROTOCOL_1) then begin
       Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,protocolVersion,False,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
     end else if (protocolVersion<=CT_PROTOCOL_3) then begin
       CalcBack := CalcBack DIV CT_CalcNewTargetLimitChange_SPLIT;
@@ -3331,12 +3317,12 @@ begin
       tsRealStop := (ts1 - ts2);
       { Protocol 2 change:
         Only will increase/decrease Target if (CT_CalcNewTargetBlocksAverage DIV 10) needs to increase/decrease too, othewise use
-        current Target.
+		current Target.
         This will prevent sinusoidal movement and provide more stable hashrate, computing always time from CT_CalcNewTargetBlocksAverage }
       If ((tsTeorical>tsReal) and (tsTeoricalStop>tsRealStop))
          Or
          ((tsTeorical<tsReal) and (tsTeoricalStop<tsRealStop)) then begin
-        Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,protocolVersion,False,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
+		Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,protocolVersion,False,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
       end else begin
         if (protocolVersion=CT_PROTOCOL_2) then begin
           // Nothing to do!
@@ -3368,7 +3354,7 @@ begin
   if i>=0 then Result := FOrderedByName.GetTag(i)
   else begin
     Result := -1;
-    If Assigned(FPreviousSafeBox) then begin
+	If Assigned(FPreviousSafeBox) then begin
       // Now doesn't exists, was deleted before?
       Result := FPreviousSafeBox.FindAccountByName(nameLower);
       j := FPreviousSafeBox.FSnapshots.Count-1;
@@ -3378,12 +3364,12 @@ begin
         k := FPreviousSafeBox.FAddedNamesSincePreviousSafebox.IndexOf(nameLower);
         If (k>=0) then Result := -1;
       end;
-      // Then with deleted
+	  // Then with deleted
       If (Result<0) then begin
         // I've not found nameLower, search if was deleted
         k := (FPreviousSafeBox.FDeletedNamesSincePreviousSafebox.IndexOf(nameLower));
         If (k>=0) then begin
-          // Was deleted, rescue previous account number with name
+		  // Was deleted, rescue previous account number with name
           Result := FPreviousSafeBox.FDeletedNamesSincePreviousSafebox.GetTag(k);
         end;
       end;
@@ -3509,7 +3495,7 @@ begin
         if i<0 then begin
           If (Not Assigned(FPreviousSafeBox)) then begin
             TLog.NewLog(ltError,ClassName,'ERROR DEV 20170606-1 Name "'+blockAccount.accounts[iAccount].name+'" not found for delete on account '+IntToStr(account_number));
-          end;
+		  end;
         end else begin
           If (FOrderedByName.GetTag(i)<>account_number) then begin
             TLog.NewLog(ltError,ClassName,'ERROR DEV 20170606-3 Name "'+blockAccount.accounts[iAccount].name+'" not found for delete at suposed account '+IntToStr(account_number)+' found at '+IntToStr(FOrderedByName.GetTag(i)));
@@ -3524,7 +3510,7 @@ begin
           If (iAdded<0) then begin
             {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Deleted from PREVIOUS snapshot name:%s at account:%d',[blockAccount.accounts[iAccount].name,account_number]));{$ENDIF}
             FDeletedNamesSincePreviousSafebox.Add(blockAccount.accounts[iAccount].name,account_number); // Very important to store account_number in order to restore a snapshot!
-          end else begin
+		  end else begin
             // Was added, so delete from added
             {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Deleted from current snapshot name:%s at account:%d',[blockAccount.accounts[iAccount].name,account_number]));{$ENDIF}
             FAddedNamesSincePreviousSafebox.Delete(iAdded);
@@ -3556,7 +3542,7 @@ begin
             // Was deleted, but now adding to a new account
             {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Adding again name:%s to new account account:%d',[blockAccount.accounts[iAccount].name,account_number]));{$ENDIF}
             FAddedNamesSincePreviousSafebox.Add(blockAccount.accounts[iAccount].name,account_number);
-          end;
+		  end;
         end else begin
           // Was not deleted, Add it
           {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Adding first time at this snapshot name:%s at account:%d',[blockAccount.accounts[iAccount].name,account_number]));{$ENDIF}
@@ -3566,7 +3552,7 @@ begin
     end;
     // Will update previous_updated_block only on first time/block
     If blockAccount.accounts[iAccount].updated_block<>BlocksCount then begin
-      blockAccount.accounts[iAccount].previous_updated_block := blockAccount.accounts[iAccount].updated_block;
+	  blockAccount.accounts[iAccount].previous_updated_block := blockAccount.accounts[iAccount].updated_block;
 	  blockAccount.accounts[iAccount].updated_block := BlocksCount;
     end;
   end;
@@ -3660,12 +3646,12 @@ begin
     Exit;
   end;
   If not (TAccountComp.IsAccountForSale(PaccAccountToBuy^.accountInfo)) then begin
-    errors := 'Account is not for sale';
+	errors := 'Account is not for sale';
 	Exit;
   end;
   if (PaccAccountToBuy^.accountInfo.new_publicKey.EC_OpenSSL_NID<>CT_TECDSA_Public_Nul.EC_OpenSSL_NID) And
      (Not TAccountComp.EqualAccountKeys(PaccAccountToBuy^.accountInfo.new_publicKey,new_account_key)) then begin
-    errors := 'New public key is not equal to allowed new public key for account';
+	errors := 'New public key is not equal to allowed new public key for account';
     Exit;
   end;
   // Buy an account applies when account_to_buy.amount + operation amount >= price
@@ -3744,7 +3730,7 @@ begin
     for i := 0 to FOrderedList.FList.Count - 1 do begin
       Pa := PAccount(FOrderedList.FList[i]);
       FFreezedAccounts.UpdateAccount(Pa^.account,
-            Pa^.accountInfo,
+			Pa^.accountInfo,
             Pa^.name,
             Pa^.account_type,
             Pa^.balance,
@@ -3754,12 +3740,12 @@ begin
     end;
     //
     if (Origin_TotalBalance<>FTotalBalance) then begin
-      TLog.NewLog(lterror,ClassName,Format('Invalid integrity balance! StrongBox:%d Transaction:%d',[Origin_TotalBalance,FTotalBalance]));
+	  TLog.NewLog(lterror,ClassName,Format('Invalid integrity balance! StrongBox:%d Transaction:%d',[Origin_TotalBalance,FTotalBalance]));
     end;
     if (Origin_TotalFee<>FTotalFee) then begin
       TLog.NewLog(lterror,ClassName,Format('Invalid integrity fee! StrongBox:%d Transaction:%d',[Origin_TotalFee,FTotalFee]));
     end;
-    FFreezedAccounts.AddNew(operationBlock);
+	FFreezedAccounts.AddNew(operationBlock);
     CleanTransaction;
     //
     if (FFreezedAccounts.FCurrentProtocol<CT_PROTOCOL_2) And (operationBlock.protocol_version=CT_PROTOCOL_2) then begin
@@ -3853,7 +3839,7 @@ begin
   if FOrderedList.Find(account_number,i) then Result := PAccount(FOrderedList.FList[i])
   else begin
     i := FOrderedList.Add( FreezedSafeBox.Account(account_number) );
-    Result := PAccount(FOrderedList.FList[i]);
+	Result := PAccount(FOrderedList.FList[i]);
   end;
 end;
 
@@ -3885,7 +3871,7 @@ begin
     end;
   end else begin
     // Was found previously, check if deleted
-    if iDeleted<0 then begin
+	if iDeleted<0 then begin
       // Not deleted! "iSafebox" value contains account number using name
       Result := iSafeBox;
     end;
@@ -3942,12 +3928,12 @@ begin
     Exit;
   end;
   if (fee>CT_MaxTransactionFee) then begin
-    errors := 'Max fee';
+	errors := 'Max fee';
     Exit;
   end;
   if (TAccountComp.IsAccountLocked(PaccSender^.accountInfo,Origin_BlocksCount)) then begin
     errors := 'Sender account is locked until block '+Inttostr(PaccSender^.accountInfo.locked_until_block);
-    Exit;
+	Exit;
   end;
 
   previous.UpdateIfLower(PaccSender^.account,PaccSender^.updated_block);
@@ -3989,7 +3975,7 @@ begin
     Exit;
   end;
   if (Length(senders)<>Length(n_operations)) Or
-     (Length(senders)<>Length(sender_amounts)) Or
+	 (Length(senders)<>Length(sender_amounts)) Or
      (Length(senders)=0)
      then begin
     errors := 'Invalid senders/n_operations/amounts arrays length';
@@ -4026,7 +4012,7 @@ begin
       Exit;
     end;
     if (PaccSender^.balance < sender_amounts[i]) then begin
-      errors := 'Insuficient funds';
+	  errors := 'Insuficient funds';
       Exit;
     end;
     if (TAccountComp.IsAccountLocked(PaccSender^.accountInfo,Origin_BlocksCount)) then begin
@@ -4041,7 +4027,7 @@ begin
        errors := 'Invalid receiver on transfer';
        exit;
     end;
-    if TAccountComp.IsAccountBlockedByProtocol(receivers[i],Origin_BlocksCount) then begin
+	if TAccountComp.IsAccountBlockedByProtocol(receivers[i],Origin_BlocksCount) then begin
       errors := 'Receiver account is blocked for protocol';
 	  Exit;
     end;
@@ -4073,7 +4059,7 @@ begin
     If PaccSender^.updated_block<>Origin_BlocksCount then begin
       PaccSender^.previous_updated_block := PaccSender^.updated_block;
       PaccSender^.updated_block := Origin_BlocksCount;
-    end;
+	end;
 	Inc(PaccSender^.n_operation);
     PaccSender^.balance := PaccSender^.balance - (sender_amounts[i]);
   end;
@@ -4083,7 +4069,7 @@ begin
     If PaccTarget^.updated_block<>Origin_BlocksCount then begin
       PaccTarget^.previous_updated_block := PaccTarget.updated_block;
       PaccTarget^.updated_block := Origin_BlocksCount;
-    end;
+	end;
     PaccTarget^.balance := PaccTarget^.balance + receivers_amounts[i];
   end;
   FTotalBalance := FTotalBalance - nTotalFee;
@@ -4120,7 +4106,7 @@ begin
     Exit;
   end;
   if (P_signer^.balance < fee) then begin
-    errors := 'Insuficient founds';
+	errors := 'Insuficient founds';
     Exit;
   end;
   if (TAccountComp.IsAccountLocked(P_signer^.accountInfo,Origin_BlocksCount)) then begin
@@ -4177,7 +4163,7 @@ begin
     previous.UpdateIfLower(P_target^.account,P_target^.updated_block);
     if P_target^.updated_block <> Origin_BlocksCount then begin
       P_target^.previous_updated_block := P_target^.updated_block;
-      P_target^.updated_block := Origin_BlocksCount;
+	  P_target^.updated_block := Origin_BlocksCount;
     end;
   end;
 
@@ -4214,7 +4200,7 @@ begin
     if C < 0 then L := I + 1 else
     begin
       H := I - 1;
-      if C = 0 then
+	  if C = 0 then
       begin
         Result := True;
         L := I;
@@ -4229,7 +4215,7 @@ Var P : POrderedBlockAccount;
 begin
   If Not Find(blockAccount.blockchainInfo.block,Result) then begin
     New(P);
-    P^.block:=blockAccount.blockchainInfo.block;
+	P^.block:=blockAccount.blockchainInfo.block;
     FList.Insert(Result,P);
     ToTMemBlockAccount(blockAccount,P^.memBlock);
     If blockAccount.blockchainInfo.block>FMaxBlockNumber then FMaxBlockNumber:=blockAccount.blockchainInfo.block;
@@ -4308,7 +4294,7 @@ Var i : Integer;
   P : PAccount;
 begin
   for I := 0 to FList.Count - 1 do begin
-    P := FList[i];
+	P := FList[i];
     Dispose(P);
   end;
   FList.Clear;
@@ -4365,7 +4351,7 @@ Type
   TOrderedAccountKeyList = Record
     rawaccountkey : TRawBytes;
     accounts_number : TOrderedCardinalList;
-    changes_counter : Integer;
+	changes_counter : Integer;
   end;
   POrderedAccountKeyList = ^TOrderedAccountKeyList;
 Const
@@ -4402,7 +4388,7 @@ begin
         end;
         TLog.NewLog(ltdebug,Classname,Format('Adding account key (%d of %d) %s',[j,FAccountList.AccountsCount,TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(AccountKey))]));
       end else begin
-        TLog.NewLog(ltdebug,Classname,Format('Adding account key (no Account List) %s',[TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(AccountKey))]));
+		TLog.NewLog(ltdebug,Classname,Format('Adding account key (no Account List) %s',[TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(AccountKey))]));
       end;
     end;
   finally
@@ -4459,7 +4445,7 @@ var i : Integer;
 begin
   Lock;
   Try
-    SetLength(Result, Count);
+	SetLength(Result, Count);
     for i := 0 to Count - 1 do Result[i] := Self.AccountKey[i];
   finally
     Unlock;
@@ -4496,7 +4482,7 @@ begin
         Dispose(P);
       end else begin
         P^.accounts_number.Clear;
-      end;
+	  end;
     end;
     if RemoveAccountList then begin
       lockedList.Clear;
@@ -4647,12 +4633,12 @@ begin
   Try
     if Not Find(lockedList,AccountKey,i) then exit; // Nothing to do
     P :=  POrderedAccountKeyList(lockedList[i]);
-    inc(P^.changes_counter);
+	inc(P^.changes_counter);
     inc(FTotalChanges);
     for j := Low(accounts) to High(accounts) do begin
       P^.accounts_number.Remove(accounts[j]);
     end;
-    if (P^.accounts_number.Count=0) And (FAutoAddAll) then begin
+	if (P^.accounts_number.Count=0) And (FAutoAddAll) then begin
       // Remove from list
       lockedList.Delete(i);
       // Free it
@@ -4699,7 +4685,7 @@ begin
   H := FList.Count - 1;
   while L <= H do
   begin
-    I := (L + H) shr 1;
+	I := (L + H) shr 1;
     P := FList[i];
     C := Int64(P^.Account) - Int64(account);
     if C < 0 then L := I + 1 else
@@ -4741,12 +4727,12 @@ begin
   if Not FindAccount(account,i) then begin
     New(P);
     P^.Account:=account;
-    P^.Previous_updated_block:=previous_updated_block;
+	P^.Previous_updated_block:=previous_updated_block;
     FList.Insert(i,P);
   end else begin
     P := FList[i];
     If (P^.Previous_updated_block>previous_updated_block) then begin
-      P^.Previous_updated_block:=previous_updated_block;
+	  P^.Previous_updated_block:=previous_updated_block;
     end;
   end
 end;
@@ -4882,7 +4868,7 @@ begin
   Try
     Clear;
     for I := 0 to Sender.Count - 1 do begin
-      Add(Sender.Get(i));
+	  Add(Sender.Get(i));
     end;
   Finally
     Enable;
@@ -4929,12 +4915,12 @@ begin
   while L <= H do
   begin
     I := (L + H) shr 1;
-    C := Int64(FOrderedList[I]) - Int64(Value);
+	C := Int64(FOrderedList[I]) - Int64(Value);
     if C < 0 then L := I + 1 else
     begin
       H := I - 1;
       if C = 0 then
-      begin
+	  begin
         Result := True;
         L := I;
       end;
@@ -5107,7 +5093,7 @@ end;
 { TOrderedCardinalListWithRaw }
 
 Type TCardinalListData = Record
-    value : Cardinal;
+	value : Cardinal;
     rawData : TRawBytes;
   End;
   PCardinalListData = ^TCardinalListData;
@@ -5122,7 +5108,7 @@ begin
   while L <= H do
   begin
     I := (L + H) shr 1;
-    c := Int64(PCardinalListData(FList[I])^.value) - Int64(Value);
+	c := Int64(PCardinalListData(FList[I])^.value) - Int64(Value);
     if C < 0 then L := I + 1 else
     begin
       H := I - 1;
@@ -5154,7 +5140,7 @@ Var i : Integer;
 begin
   for i:=0 to FList.Count-1 do begin
     P := FList[i];
-    P^.rawData:='';
+	P^.rawData:='';
     Dispose(P);
   end;
   FList.Clear;
@@ -5164,12 +5150,12 @@ function TOrderedCardinalListWithRaw.Add(const Value: Cardinal; const RawData: T
 Var P : PCardinalListData;
 begin
   If Find(Value,Result) then begin
-    P := FList[Result];
+	P := FList[Result];
     P^.rawData:=RawData;
   end else begin
     New(P);
     P^.value:=Value;
-    P^.rawData:=rawData;
+	P^.rawData:=rawData;
     FList.Insert(Result,P);
   end;
 end;
@@ -5209,5 +5195,12 @@ begin
   end;
   Result := -1;
 end;
+
+initialization
+  Initialize(CT_OperationBlock_NUL);
+  Initialize(CT_AccountInfo_NUL);
+  Initialize(CT_Account_NUL);
+  Initialize(CT_BlockAccount_NUL);
+  Initialize(CT_PCSafeBoxHeader_NUL);
 
 end.

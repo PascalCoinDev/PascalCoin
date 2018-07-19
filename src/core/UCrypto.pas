@@ -130,9 +130,9 @@ Type
     Class Function TargetToHashRate(EncodedTarget : Cardinal) : TBigNum;
   End;
 
-Const
-  CT_TECDSA_Public_Nul : TECDSA_Public = (EC_OpenSSL_NID:0;x:'';y:'');
-  CT_TECDSA_SIG_Nul : TECDSA_SIG = (r:'';s:'');
+var
+  CT_TECDSA_Public_Nul : TECDSA_Public; // initialized in initialization section
+  CT_TECDSA_SIG_Nul : TECDSA_SIG;
 
 implementation
 
@@ -917,8 +917,11 @@ begin
   Result := Self;
 end;
 
-
 initialization
+  Initialize(CT_TECDSA_Public_Nul);
+  Initialize(CT_TECDSA_SIG_Nul);
+
   Randomize; // Initial random generator based on system time
 finalization
+
 end.

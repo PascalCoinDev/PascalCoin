@@ -119,7 +119,8 @@ Type
       class function TryParseHexKey(const AHexString : AnsiString; AEncryptionTypeNID : Word; out AKey : TECPrivateKey) : boolean;
   end;
 
-Const CT_TWalletKey_NUL  : TWalletKey = (Name:'';AccountKey:(EC_OpenSSL_NID:0;x:'';y:'');CryptedKey:'';PrivateKey:Nil;SearchableAccountKey:'');
+var
+  CT_TWalletKey_NUL  : TWalletKey;  // initialized in initialization section
 
 implementation
 
@@ -799,6 +800,8 @@ begin
 end;
 
 initialization
+  Initialize(CT_TWalletKey_NUL);
+
   TWallet.FKeys := nil;
 
 finalization

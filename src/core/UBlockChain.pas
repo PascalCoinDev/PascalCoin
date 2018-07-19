@@ -472,11 +472,11 @@ Type
     Property UpgradingToV2 : Boolean read FUpgradingToV2;
   End;
 
-Const
-  CT_TOperationResume_NUL : TOperationResume = (valid:false;Block:0;NOpInsideBlock:-1;OpType:0;OpSubtype:0;time:0;AffectedAccount:0;SignerAccount:-1;n_operation:0;DestAccount:-1;SellerAccount:-1;newKey:(EC_OpenSSL_NID:0;x:'';y:'');OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:'';PrintablePayload:'';OperationHash:'';OperationHash_OLD:'';errors:'';isMultiOperation:False;Senders:Nil;Receivers:Nil;changers:Nil);
-  CT_TMultiOpSender_NUL : TMultiOpSender =  (Account:0;Amount:0;N_Operation:0;Payload:'';Signature:(r:'';s:''));
-  CT_TMultiOpReceiver_NUL : TMultiOpReceiver = (Account:0;Amount:0;Payload:'');
-  CT_TMultiOpChangeInfo_NUL : TMultiOpChangeInfo = (Account:0;N_Operation:0;Changes_type:[];New_Accountkey:(EC_OpenSSL_NID:0;x:'';y:'');New_Name:'';New_Type:0;Seller_Account:-1;Account_Price:-1;Locked_Until_Block:0;Fee:0;Signature:(r:'';s:''));
+var
+  CT_TOperationResume_NUL : TOperationResume; // initialized in initialization section
+  CT_TMultiOpSender_NUL : TMultiOpSender;
+  CT_TMultiOpReceiver_NUL : TMultiOpReceiver;
+  CT_TMultiOpChangeInfo_NUL : TMultiOpChangeInfo;
   CT_TOpChangeAccountInfoType_Txt : Array[Low(TOpChangeAccountInfoType)..High(TOpChangeAccountInfoType)] of AnsiString = ('public_key','account_name','account_type','list_for_public_sale','list_for_private_sale','delist');
 
 implementation
@@ -2759,6 +2759,26 @@ begin
 end;
 
 initialization
+
+  Initialize(CT_TOperationResume_NUL);
+  with CT_TOperationResume_NUL do
+  begin
+	  NOpInsideBlock:=-1;
+    SignerAccount:=-1;
+    DestAccount:=-1;
+    SellerAccount:=-1;
+  end;
+
+  Initialize(CT_TMultiOpSender_NUL);
+  Initialize(CT_TMultiOpReceiver_NUL);
+  Initialize(CT_TMultiOpChangeInfo_NUL);
+
+  with CT_TMultiOpChangeInfo_NUL do
+  begin
+    Seller_Account:=-1;
+    Account_Price:=-1;
+  end;
+
   SetLength(_OperationsClass, 0);
   RegisterOperationsClass;
 finalization

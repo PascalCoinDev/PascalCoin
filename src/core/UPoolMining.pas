@@ -159,8 +159,8 @@ Type
 
 Function TBytesToString(Const bytes : TBytes):AnsiString;
 
-Const
-  CT_TMinerValuesForWork_NULL : TMinerValuesForWork = (block:0;version:0;part1:'';payload_start:'';part3:'';target:0;timestamp:0;target_pow:'';jobid:'');
+var
+  CT_TMinerValuesForWork_NULL : TMinerValuesForWork;  // initialized in initialization section
 
 implementation
 
@@ -1262,5 +1262,9 @@ begin
 
   inherited;
 end;
+
+initialization
+  Initialize(CT_TMinerValuesForWork_NULL);
+
 
 end.

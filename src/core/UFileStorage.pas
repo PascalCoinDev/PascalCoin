@@ -91,8 +91,10 @@ Uses ULog, SysUtils, UConst;
 
 { TFileStorage }
 
-Const CT_TBlockHeader_NUL : TBlockHeader = (BlockNumber:0;StreamBlockRelStartPos:0;BlockSize:0);
+var
+  CT_TBlockHeader_NUL : TBlockHeader; // initialized in initialization section
 
+Const
   CT_GroupBlockSize = 1000;
   CT_SizeOfBlockHeader = 16;
   {
@@ -1072,5 +1074,9 @@ begin
   until FindNext(searchRec) <> 0;
   FindClose(searchRec);
 end;
+
+initialization
+  Initialize(CT_TBlockHeader_NUL);
+
 
 end.
