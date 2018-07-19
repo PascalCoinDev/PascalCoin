@@ -522,26 +522,49 @@ begin
     i := FListByIp.Count-1;
     while (i>=0) do begin
       nsa := PNodeServerAddress( FListByIp[i] )^;
-      If (Not (nsa.is_blacklisted)) // Not blacklisted
-        And ((nsa.netConnection = Nil)  // No connection
-             OR  // Connected but a lot of time without data...
-             ((Assigned(nsa.netConnection)) AND ((nsa.last_connection + (CT_LAST_CONNECTION_MAX_MINUTES)) < currunixtimestamp )))
-        And (
-          (nsa.total_failed_attemps_to_connect>0)
-          OR
+      If
+      (
+        Not (nsa.is_blacklisted)
+      ) // Not blacklisted
+      And
+      (
+        (nsa.netConnection = Nil)  // No connection
+        OR  // Connected but a lot of time without data...
+        (
+          (Assigned(nsa.netConnection))
+          AND
           (
-           // I've not connected CT_LAST_CONNECTION_MAX_MINUTES minutes before
-           ((nsa.last_connection + (CT_LAST_CONNECTION_MAX_MINUTES)) < (currunixtimestamp))
-           And // Others have connected CT_LAST_CONNECTION_BY_SERVER_MAX_MINUTES minutes before
-           ((nsa.last_connection_by_server + (CT_LAST_CONNECTION_BY_SERVER_MAX_MINUTES)) < (currunixtimestamp))
-           And
-           ((nsa.last_connection>0) Or (nsa.last_connection_by_server>0))
-          ))
-		And (
-          (nsa.last_connection_by_me=0)
-          Or
-          ((nsa.last_connection_by_me + 86400) < (currunixtimestamp))  // Not connected in 24 hours
+            (nsa.last_connection + CT_LAST_CONNECTION_MAX_MINUTES) < currunixtimestamp
           )
+        )
+      )
+      And
+      (
+        (nsa.total_failed_attemps_to_connect>0)
+        OR
+        (
+          // I've not connected CT_LAST_CONNECTION_MAX_MINUTES minutes before
+          (
+            (nsa.last_connection + CT_LAST_CONNECTION_MAX_MINUTES) < currunixtimestamp
+          )
+          And // Others have connected CT_LAST_CONNECTION_BY_SERVER_MAX_MINUTES minutes before
+          (
+            (nsa.last_connection_by_server + CT_LAST_CONNECTION_BY_SERVER_MAX_MINUTES) < currunixtimestamp
+          )
+          And
+          (
+            (nsa.last_connection>0) Or (nsa.last_connection_by_server>0)
+          )
+        )
+      )
+      And
+      (
+        (nsa.last_connection_by_me=0)
+        Or
+        (
+          (nsa.last_connection_by_me + 86400) < currunixtimestamp
+        )  // Not connected in 24 hours
+      )
       then begin
         TLog.NewLog(ltdebug,ClassName,Format('Delete node server address: %s : %d last_connection:%d last_connection_by_server:%d total_failed_attemps:%d last_attempt_to_connect:%s ',
           [nsa.ip,nsa.port,nsa.last_connection,nsa.last_connection_by_server,nsa.total_failed_attemps_to_connect,FormatDateTime('dd/mm/yyyy hh:nn:ss',nsa.last_attempt_to_connect)]));
@@ -565,7 +588,7 @@ begin
       Dispose(P);
     end;
     inc(FNetData.FNetStatistics.NodeServersDeleted,FListByIp.count);
-	FListByIp.Clear;
+  	FListByIp.Clear;
     FListByNetConnection.Clear;
     FNetData.FNetStatistics.NodeServersListCount := 0;
   finally
@@ -742,27 +765,52 @@ begin
     j := FListByIp.Count;
     while ((length(Result)<Max) Or (Max<=0)) And (i<j) do begin
       nsa := PNodeServerAddress( FListByIp[i] )^;
-      if (Not IsBlackListed(nsa.ip))
-        And
-        ( // I've connected 1h before
-         ((nsa.last_connection>0) And ((Assigned(nsa.netConnection)) Or ((nsa.last_connection + (CT_LAST_CONNECTION_MAX_MINUTES)) > (currunixtimestamp))))
-         Or // Others have connected 3h before
-         ((nsa.last_connection_by_server>0) And ((nsa.last_connection_by_server + (CT_LAST_CONNECTION_BY_SERVER_MAX_MINUTES)) > (currunixtimestamp)))
-         Or // Peer cache
-         ((nsa.last_connection=0) And (nsa.last_connection_by_server=0))
-        )
-        And
-        ( // Never tried to connect or successfully connected
-		  (nsa.total_failed_attemps_to_connect=0)
-        )
-        And
-        ( (Not nsa.its_myself) Or (nsa.port=CT_NetServer_Port) )
-        And
+      if
+      (
+        Not IsBlackListed(nsa.ip)
+      )
+      And
+      (
+        // I've connected 1h before
         (
-          (Not OnlyWhereIConnected)
-          Or
           (nsa.last_connection>0)
+          And
+          (
+            (Assigned(nsa.netConnection))
+            Or
+            (
+              (nsa.last_connection + CT_LAST_CONNECTION_MAX_MINUTES) > currunixtimestamp
+            )
+          )
         )
+        Or // Others have connected 3h before
+        (
+          (nsa.last_connection_by_server>0)
+          And
+          (
+            (nsa.last_connection_by_server + CT_LAST_CONNECTION_BY_SERVER_MAX_MINUTES) > currunixtimestamp
+          )
+        )
+        Or // Peer cache
+        (
+          (nsa.last_connection=0) And (nsa.last_connection_by_server=0)
+        )
+      )
+      And
+      (
+        // Never tried to connect or successfully connected
+		    (nsa.total_failed_attemps_to_connect=0)
+      )
+      And
+      (
+        (Not nsa.its_myself) Or (nsa.port=CT_NetServer_Port)
+      )
+      And
+      (
+        (Not OnlyWhereIConnected)
+        Or
+        (nsa.last_connection>0)
+      )
       then begin
         SetLength(Result,length(Result)+1);
         Result[high(Result)] := nsa;
@@ -2163,7 +2211,7 @@ begin
         ( ((Operation=P^.Operation) And (request_id = P^.RequestId))
 		  Or
           ((operation=0) And (request_id=0)) ) then begin
-		l.Delete(i);
+        l.Delete(i);
         Dispose(P);
         Result := true;
         if Assigned(Sender.FTcpIpClient) then begin
