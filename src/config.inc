@@ -16,7 +16,7 @@
   Choose ONLY ONE of directives:
 
     CHANGES ON 2.1.10 and V3: OpenSSL must be version 1.1
-	
+
     OPTIONS_BY_DEFAULT:
       In Delphi = Synapse + OpenSSL v1.1
       In FPC = Synapse + OpenSSL v1.1

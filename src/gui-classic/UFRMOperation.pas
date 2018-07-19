@@ -278,7 +278,7 @@ loop_start:
         end;
         if dooperation then begin
           op := TOpTransaction.CreateTransaction(account.account,account.n_operation+1,destAccount.account,wk.PrivateKey,_amount,_fee,FEncodedPayload);
-		  _totalamount := _totalamount + _amount;
+          _totalamount := _totalamount + _amount;
           _totalfee := _totalfee + _fee;
         end;
         operationstxt := 'Transaction to '+TAccountComp.AccountNumberToAccountTxtNumber(destAccount.account);

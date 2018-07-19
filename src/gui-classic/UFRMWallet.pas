@@ -1269,7 +1269,7 @@ begin
   start := FNode.Bank.SafeBox.Account(an);
   while (an<FNode.Bank.SafeBox.AccountsCount)  do begin
     if FNode.Bank.SafeBox.Account(an).balance>start.balance then break
-	else an := an + 1;
+    else an := an + 1;
   end;
   if (an<FNode.Bank.SafeBox.AccountsCount) then FAccountsGrid.MoveRowToAccount(an)
   else raise Exception.Create('Not found any account higher than '+TAccountComp.AccountNumberToAccountTxtNumber(start.account)+' with balance higher than '+
@@ -1401,9 +1401,9 @@ begin
       for i := 0 to l.Count - 1 do begin
         P := l[i];
         if (P^.is_blacklisted) then begin
-		  inc(n);
+          inc(n);
           if Not P^.its_myself then begin
-			inc(j);
+            inc(j);
             strings.Add(Format('Blacklist IP:%s:%d LastConnection:%s Reason: %s',
               [
                P^.ip,P^.port,
@@ -1766,7 +1766,7 @@ begin
             j := FOrderedAccountsKeyList.IndexOfAccountKey(FWalletKeys[i].AccountKey);
             if (j>=0) then begin
               l := FOrderedAccountsKeyList.AccountKeyList[j];
-			  for k := 0 to l.Count - 1 do begin
+              for k := 0 to l.Count - 1 do begin
                 if applyfilter then begin
                   acc := FNode.Bank.SafeBox.Account(l.Get(k));
                   if (acc.balance>=FMinAccountBalance) And (acc.balance<=FMaxAccountBalance) then accl.Add(acc.account);
@@ -1781,7 +1781,7 @@ begin
         while (c<FNode.Bank.SafeBox.AccountsCount) do begin
           acc := FNode.Bank.SafeBox.Account(c);
           if (acc.balance>=FMinAccountBalance) And (acc.balance<=FMaxAccountBalance) then accl.Add(acc.account);
-		  inc(c);
+          inc(c);
         end;
       end;
     Finally
@@ -1789,7 +1789,7 @@ begin
     End;
     lblAccountsCount.Caption := inttostr(accl.Count);
   end else begin
-	lblAccountsCount.Caption := inttostr(FNode.Bank.AccountsCount);
+    lblAccountsCount.Caption := inttostr(FNode.Bank.AccountsCount);
   end;
   bbChangeKeyName.Enabled := cbExploreMyAccounts.Checked;
   // Show Totals:

@@ -1843,8 +1843,8 @@ begin
   if Dir = '' then
   begin
     SetLength(Path, MAX_PATH);
-	  x := GetTempPath(Length(Path), PChar(Path));
-  	SetLength(Path, x);
+      x := GetTempPath(Length(Path), PChar(Path));
+      SetLength(Path, x);
   end
   else
     Path := Dir;

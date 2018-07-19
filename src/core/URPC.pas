@@ -775,7 +775,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     OPR : TOperationResume;
     Obj : TPCJSONObject;
     OperationsResume : TOperationsResumeList;
-	i, nCounter : Integer;
+    i, nCounter : Integer;
   Begin
     Result := false;
     if (startReg<-1) or (maxReg<=0) then begin
@@ -801,7 +801,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
               if (nCounter>=startReg) And (nCounter<maxReg) then begin
                 OperationsResume.Add(OPR);
               end;
-			  inc(nCounter);
+              inc(nCounter);
             end;
           end;
         Finally
@@ -810,8 +810,8 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       end;
       if (nCounter<maxReg) then begin
         if (startReg<0) then startReg := 0; // Prevent -1 value
-		FNode.GetStoredOperationsFromAccount(OperationsResume,accountNumber,maxBlocksDepth,startReg,startReg+maxReg-1,forceStartBlock);
-	  end;
+        FNode.GetStoredOperationsFromAccount(OperationsResume,accountNumber,maxBlocksDepth,startReg,startReg+maxReg-1,forceStartBlock);
+      end;
       for i:=0 to OperationsResume.Count-1 do begin
         Obj := jsonArray.GetAsObject(jsonArray.Count);
         OPR := OperationsResume[i];
@@ -2534,7 +2534,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         iKey := _RPCServer.FWalletKeys.IndexOfAccountKey(pubKey);
         if (iKey>=0) then begin
           if (Assigned(_RPCServer.FWalletKeys.Key[iKey].PrivateKey)) then begin
-			inc(signedAccounts,multiOperation.DoSignMultiOperationSigner(nAccount,_RPCServer.FWalletKeys.Key[iKey].PrivateKey));
+            inc(signedAccounts,multiOperation.DoSignMultiOperationSigner(nAccount,_RPCServer.FWalletKeys.Key[iKey].PrivateKey));
           end;
         end;
       end;
@@ -2611,7 +2611,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
             if (iKey>=0) then begin
               if (assigned(_RPCServer.FWalletKeys.Key[iKey].PrivateKey)) then begin
                 // Can sign
-				inc(nSignedAccounts, mop.DoSignMultiOperationSigner(nAccount,_RPCServer.FWalletKeys.Key[iKey].PrivateKey) );
+                inc(nSignedAccounts, mop.DoSignMultiOperationSigner(nAccount,_RPCServer.FWalletKeys.Key[iKey].PrivateKey) );
               end;
             end;
           end;
@@ -2642,9 +2642,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       if (index>=0) And (index<senderOperationsHashTree.OperationsCount) then begin
         senderOperationsHashTree.Delete(index);
       end else begin
-		ErrorNum := CT_RPC_ErrNum_InvalidData;
+        ErrorNum := CT_RPC_ErrNum_InvalidData;
         ErrorDesc:='Cannot delete index '+IntToStr(index)+' from Raw operations length '+IntToStr(senderOperationsHashTree.OperationsCount);
-		Exit;
+        Exit;
       end;
       // Return objects:
       TPascalCoinJSONComp.FillOperationsHashTreeObject(senderOperationsHashTree,GetResultObject);
@@ -2689,7 +2689,7 @@ begin
     c := params.GetAsVariant('account').AsCardinal(CT_MaxAccount);
     if (c>=0) And (c<FNode.Bank.AccountsCount) then begin
       account := FNode.Operations.SafeBoxTransaction.Account(c);
-	  TPascalCoinJSONComp.FillAccountObject(account,GetResultObject);
+      TPascalCoinJSONComp.FillAccountObject(account,GetResultObject);
       Result := True;
     end else begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
@@ -2721,7 +2721,7 @@ begin
           TPascalCoinJSONComp.FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
         end;
         if (k>0) And ((j+1)>=(k+l)) then break;
-	  end;
+      end;
       Result := true;
     end else begin
       k := params.AsInteger('max',100);
@@ -2734,9 +2734,9 @@ begin
             account := FNode.Operations.SafeBoxTransaction.Account(ocl.Get(j));
             TPascalCoinJSONComp.FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
           end;
-		  inc(c);
+          inc(c);
           if (k>0) And (c>=(k+l)) then break;
-		end;
+        end;
         if (k>0) And (c>=(k+l)) then break;
       end;
       Result := true;
@@ -2746,7 +2746,7 @@ begin
     // Returns a number with count value
     if (params.IndexOfName('enc_pubkey')>=0) Or (params.IndexOfName('b58_pubkey')>=0) then begin
       if Not (CapturePubKey('',opr.newKey,ErrorDesc)) then begin
-		ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
+        ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
         exit;
       end;
       i := _RPCServer.WalletKeys.AccountsKeyList.IndexOfAccountKey(opr.newKey);
@@ -2763,7 +2763,7 @@ begin
       c :=0;
       for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
         ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
-		inc(c,ocl.count);
+        inc(c,ocl.count);
       end;
       jsonresponse.GetAsVariant('result').value := c;
       Result := true;
@@ -2778,12 +2778,12 @@ begin
       if (i<0) then begin
         ErrorNum := CT_RPC_ErrNum_NotFound;
         ErrorDesc := 'Public key not found in wallet';
-		exit;
+        exit;
       end;
       ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
       account.balance := 0;
       for j := 0 to ocl.Count - 1 do begin
-		account.balance := account.balance + FNode.Operations.SafeBoxTransaction.Account(ocl.Get(j)).balance;
+        account.balance := account.balance + FNode.Operations.SafeBoxTransaction.Account(ocl.Get(j)).balance;
       end;
       jsonresponse.GetAsVariant('result').value := ToJSONCurrency(account.balance);
       Result := true;
@@ -2794,12 +2794,12 @@ begin
       for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
         ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
         for j := 0 to ocl.Count - 1 do begin
-		  account.balance := account.balance + FNode.Operations.SafeBoxTransaction.Account(ocl.Get(j)).balance;
+          account.balance := account.balance + FNode.Operations.SafeBoxTransaction.Account(ocl.Get(j)).balance;
         end;
-	  end;
+      end;
       jsonresponse.GetAsVariant('result').value := ToJSONCurrency(account.balance);
       Result := true;
-	end;
+    end;
   end else if (method='getwalletpubkeys') then begin
     // Returns JSON array with pubkeys in wallet
     k := params.AsInteger('max',100);
@@ -2855,7 +2855,7 @@ begin
       c2 := params.GetAsVariant('end').AsCardinal(CT_MaxBlock);
       i := params.AsInteger('max',0);
       if (c<FNode.Bank.BlocksCount) And (i>0) And (i<=1000) then begin
-		if (c+i<FNode.Bank.BlocksCount) then c2 := c+i
+        if (c+i<FNode.Bank.BlocksCount) then c2 := c+i
         else c2 := FNode.Bank.BlocksCount-1;
       end;
     end;
@@ -2863,7 +2863,7 @@ begin
       i := 0; Result := true;
       while (c<=c2) And (Result) And (i<1000) do begin
         Result := GetBlock(c2,jsonresponse.GetAsArray('result').GetAsObject(i));
-		dec(c2); inc(i);
+        dec(c2); inc(i);
       end;
     end else begin
       ErrorNum := CT_RPC_ErrNum_InvalidBlock;

@@ -3996,15 +3996,15 @@ const
     RIPEMD160_LBLOCK    = (RIPEMD160_CBLOCK div 4);
     RIPEMD160_DIGEST_LENGTH     = 20;
 
-    PKCS5_SALT_LEN			= 8;
+    PKCS5_SALT_LEN            = 8;
 
-  SSL_MAX_SSL_SESSION_ID_LENGTH		= 32;
-  SSL_MAX_SID_CTX_LENGTH			    = 32;
+  SSL_MAX_SSL_SESSION_ID_LENGTH        = 32;
+  SSL_MAX_SID_CTX_LENGTH                = 32;
 
   SSL_MAX_KRB5_PRINCIPAL_LENGTH   = 256;
-  SSL_MIN_RSA_MODULUS_LENGTH_IN_BYTES	  = (512 div 8);
-  SSL_MAX_KEY_ARG_LENGTH			= 8;
-  SSL_MAX_MASTER_KEY_LENGTH		= 48;
+  SSL_MIN_RSA_MODULUS_LENGTH_IN_BYTES      = (512 div 8);
+  SSL_MAX_KEY_ARG_LENGTH            = 8;
+  SSL_MAX_MASTER_KEY_LENGTH        = 48;
 
 type
     qword = UInt64;
@@ -4988,11 +4988,11 @@ type
   end;
 
   CONF_IMODULE = record
-	pmod: PCONF_MODULE;
-	 _name: PAnsiChar;
-	 _value: PAnsiChar;
-	s: TC_ULONG;
-	usr_data: Pointer;
+    pmod: PCONF_MODULE;
+     _name: PAnsiChar;
+     _value: PAnsiChar;
+    s: TC_ULONG;
+    usr_data: Pointer;
   end;
 
 

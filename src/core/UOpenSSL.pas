@@ -49,10 +49,10 @@ var
   {$IFDEF OpenSSL10}
     {$IFDEF FPC}
       {$ifdef CPU32}
-	  SSL_C_LIB : AnsiString = 'libeay32.dll';
+      SSL_C_LIB : AnsiString = 'libeay32.dll';
       {$ENDIF}
       {$ifdef CPU64}
-	  SSL_C_LIB : AnsiString = 'libeay64.dll';
+      SSL_C_LIB : AnsiString = 'libeay64.dll';
       {$ENDIF}
     {$ELSE}
       {$IFDEF CPUX64}
@@ -120,13 +120,13 @@ var
   EC_GROUP_free: procedure (group: PEC_GROUP); cdecl = nil;
   EC_POINT_new: function(const group: PEC_GROUP): PEC_POINT; cdecl = nil;
   EC_POINT_free: procedure(point: PEC_POINT); cdecl = nil;
-  EC_POINT_set_affine_coordinates_GFp: function( group: PEC_GROUP; p: PEC_POINT;	 x: PBIGNUM;  y: PBIGNUM; ctx: PBN_CTX): TC_INT; cdecl = nil;
-  EC_POINT_get_affine_coordinates_GFp: function( group: PEC_GROUP;	 p: PEC_POINT; x: PBIGNUM; y: PBIGNUM; ctx: PBN_CTX): TC_INT; cdecl = nil;
+  EC_POINT_set_affine_coordinates_GFp: function( group: PEC_GROUP; p: PEC_POINT;     x: PBIGNUM;  y: PBIGNUM; ctx: PBN_CTX): TC_INT; cdecl = nil;
+  EC_POINT_get_affine_coordinates_GFp: function( group: PEC_GROUP;     p: PEC_POINT; x: PBIGNUM; y: PBIGNUM; ctx: PBN_CTX): TC_INT; cdecl = nil;
   EC_POINT_mul: function( group: PEC_GROUP; r: PEC_POINT;  bn: PBIGNUM;  pq: PEC_POINT;  bm: PBIGNUM; ctx: PBN_CTX): TC_INT; cdecl = nil;
   EC_POINT_point2oct: function( group: PEC_GROUP;  p: PEC_POINT; form: point_conversion_form_t; buf: PAnsiChar; len: TC_SIZE_T; ctx: PBN_CTX): TC_SIZE_T; cdecl = nil;
   EC_POINT_oct2point: function( group: PEC_GROUP; p: PEC_POINT;  buf: PAnsiChar; len: TC_SIZE_T; ctx: PBN_CTX): TC_INT; cdecl = nil;
   EC_POINT_point2bn: function( group: PEC_GROUP;  point: PEC_POINT; form: point_conversion_form_t; b: PBIGNUM; ctx: PBN_CTX): PBIGNUM; cdecl = nil;
-  EC_POINT_bn2point: function( group: PEC_GROUP;  b: PBIGNUM;	point: PEC_POINT; ctx: PBN_CTX): PEC_POINT; cdecl = nil;
+  EC_POINT_bn2point: function( group: PEC_GROUP;  b: PBIGNUM;    point: PEC_POINT; ctx: PBN_CTX): PEC_POINT; cdecl = nil;
 
   CRYPTO_free : procedure(ptr : Pointer) cdecl = nil;
 

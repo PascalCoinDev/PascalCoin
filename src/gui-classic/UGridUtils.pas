@@ -953,7 +953,7 @@ begin
                 end;
               end;
             end else break;
-			bend := bend - 1;
+            bend := bend - 1;
           end;
         finally
           opc.Free;
@@ -1301,7 +1301,7 @@ begin
 
     if (FBlockStart>=0) And (FBlockStart<Node.Bank.BlocksCount) then nstart := FBlockStart
     else begin
-	  if nend>MaxBlocks then nstart := nend - MaxBlocks + 1
+      if nend>MaxBlocks then nstart := nend - MaxBlocks + 1
       else nstart := 0;
     end;
     SetLength(FBlockChainDataArray,nend - nstart +1);
@@ -1342,13 +1342,13 @@ begin
         bcd.TimeAverage25:=Node.Bank.GetTargetSecondsAverage(bcd.Block,25);
         bcd.TimeAverage10:=Node.Bank.GetTargetSecondsAverage(bcd.Block,10);
         FBlockChainDataArray[i] := bcd;
-		if (nend>0) then dec(nend) else break;
+        if (nend>0) then dec(nend) else break;
       end;
     finally
       opc.Free;
     end;
   finally
-	if Assigned(FDrawGrid) then begin
+    if Assigned(FDrawGrid) then begin
       if Length(FBlockChainDataArray)>0 then FDrawGrid.RowCount := length(FBlockChainDataArray)+1
       else FDrawGrid.RowCount := 2;
       FDrawGrid.Invalidate;

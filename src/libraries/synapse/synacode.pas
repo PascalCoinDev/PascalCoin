@@ -1015,7 +1015,7 @@ begin
       ArrByteToLong(BufAnsiChar, BufLong);
       Transform(State, Buflong);
       I := partLen;
-  		while I + 63 < InputLen do
+          while I + 63 < InputLen do
       begin
         ArrLongToByte(BufLong, BufAnsiChar);
         {$IFDEF SYNACODE_NATIVE}
@@ -1026,8 +1026,8 @@ begin
         {$ENDIF}
         ArrByteToLong(BufAnsiChar, BufLong);
         Transform(State, Buflong);
-	  	  inc(I, 64);
-		  end;
+            inc(I, 64);
+          end;
       Index := 0;
     end
     else
