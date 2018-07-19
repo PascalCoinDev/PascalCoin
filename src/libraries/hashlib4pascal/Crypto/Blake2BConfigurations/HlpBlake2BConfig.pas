@@ -50,15 +50,6 @@ implementation
 
 { TBlake2BConfig }
 
-constructor TBlake2BConfig.Create(AHashSize: THashSize);
-begin
-  if not (Int32(AHashSize) in [20, 32, 48, 64]) then
-  begin
-    raise EArgumentHashLibException.CreateRes(@SInvalidHashSize);
-  end;
-  HashSize := Int32(AHashSize);
-end;
-
 function TBlake2BConfig.GetHashSize: Int32;
 begin
   result := FHashSize;
@@ -97,6 +88,15 @@ end;
 procedure TBlake2BConfig.SetSalt(value: THashLibByteArray);
 begin
   FSalt := value;
+end;
+
+constructor TBlake2BConfig.Create(AHashSize: THashSize);
+begin
+  if not (Int32(AHashSize) in [20, 32, 48, 64]) then
+  begin
+    raise EArgumentHashLibException.CreateRes(@SInvalidHashSize);
+  end;
+  HashSize := Int32(AHashSize);
 end;
 
 end.

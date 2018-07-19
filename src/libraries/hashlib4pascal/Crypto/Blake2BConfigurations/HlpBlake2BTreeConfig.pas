@@ -43,11 +43,6 @@ implementation
 
 { TBlake2BTreeConfig }
 
-constructor TBlake2BTreeConfig.Create;
-begin
-  IntermediateHashSize := 64;
-end;
-
 class function TBlake2BTreeConfig.CreateInterleaved(parallelism: Int32)
   : IBlake2BTreeConfig;
 begin
@@ -95,6 +90,11 @@ end;
 procedure TBlake2BTreeConfig.SetMaxHeight(value: Int32);
 begin
   FMaxHeight := value;
+end;
+
+constructor TBlake2BTreeConfig.Create;
+begin
+  IntermediateHashSize := 64;
 end;
 
 end.
