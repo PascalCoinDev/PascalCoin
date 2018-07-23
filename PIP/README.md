@@ -30,4 +30,5 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [21](PIP-0021.md)     | Agreement For Funding                      | Herman Schoenfeld             | Process        | Active |
 | [22](PIP-0022.md)     | Continuous Integration                      | Benjamin Ansbach             | Process        | Draft |
 | [23](PIP-0023.md)     | JSON RPC PASCURRENCY format                 | Benjamin Ansbach     | Backend, Documentation | Draft |
+| [24](PIP-0024.md)     | Account Data                                | Herman Schoenfeld            | Protocol       | Draft |
 
