@@ -24,7 +24,7 @@ type
     /// <param name="Size">Size of the Array to Reverse.</param>
 
     class procedure ReverseByteArray(Source, Dest: Pointer;
-      Size: int64); static;
+      Size: Int64); static;
 
     /// <summary>
     /// Calculates Arithmetic shift right.
@@ -43,19 +43,18 @@ type
     /// <returns>Shifted value.</returns>
     /// Implementation was found here <see cref="https://github.com/Spelt/ZXing.Delphi/blob/master/Lib/Classes/Common/MathUtils.pas" />
 
-    class function Asr64(Value: int64; ShiftBits: Int32): int64; static; inline;
+    class function Asr64(Value: Int64; ShiftBits: Int32): Int64; static; inline;
 
-    class function RotateLeft8(a_value: Byte; a_n: Int32): Byte; overload;
+    class function RotateLeft8(a_value: Byte; a_n: Int32): Byte; static; inline;
+    class function RotateLeft32(a_value: UInt32; a_n: Int32): UInt32;
       static; inline;
-    class function RotateLeft32(a_value: UInt32; a_n: Int32): UInt32; overload;
+    class function RotateLeft64(a_value: UInt64; a_n: Int32): UInt64;
       static; inline;
-    class function RotateLeft64(a_value: UInt64; a_n: Int32): UInt64; overload;
+    class function RotateRight8(a_value: Byte; a_n: Int32): Byte;
       static; inline;
-    class function RotateRight8(a_value: Byte; a_n: Int32): Byte; overload;
+    class function RotateRight32(a_value: UInt32; a_n: Int32): UInt32;
       static; inline;
-    class function RotateRight32(a_value: UInt32; a_n: Int32): UInt32; overload;
-      static; inline;
-    class function RotateRight64(a_value: UInt64; a_n: Int32): UInt64; overload;
+    class function RotateRight64(a_value: UInt64; a_n: Int32): UInt64;
       static; inline;
 
   end;
@@ -64,7 +63,7 @@ implementation
 
 { TBits }
 
-class procedure TBits.ReverseByteArray(Source, Dest: Pointer; Size: int64);
+class procedure TBits.ReverseByteArray(Source, Dest: Pointer; Size: Int64);
 var
   ptr_src, ptr_dest: PByte;
 begin
@@ -162,7 +161,7 @@ begin
 {$ENDIF FPC}
 end;
 
-class function TBits.Asr64(Value: int64; ShiftBits: Int32): int64;
+class function TBits.Asr64(Value: Int64; ShiftBits: Int32): Int64;
 begin
 {$IFDEF FPC}
   Result := SarInt64(Value, ShiftBits);
