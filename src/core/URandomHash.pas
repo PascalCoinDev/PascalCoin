@@ -404,7 +404,7 @@ begin
   LChunkLength := System.Length(AChunk);
   System.SetLength(Result, LChunkLength);
   for i := System.Low(AChunk) to System.High(AChunk) do
-    Result[i] := Byte(TBits.RotateLeft32(AChunk[i], i));
+    Result[i] := TBits.RotateLeft8(AChunk[i], i);
 end;
 
 function TRandomHash.MemTransform8(const AChunk: TBytes): TBytes;
@@ -414,7 +414,7 @@ begin
   LChunkLength := System.Length(AChunk);
   System.SetLength(Result, LChunkLength);
   for i := System.Low(AChunk) to System.High(AChunk) do
-    Result[i] := Byte(TBits.RotateRight32(AChunk[i], i));
+    Result[i] := TBits.RotateRight8(AChunk[i], i);
 end;
 
 function TRandomHash.Expand(const AInput: TBytes; AExpansionFactor: Int32): TBytes;

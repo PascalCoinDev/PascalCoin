@@ -45,9 +45,13 @@ type
 
     class function Asr64(Value: int64; ShiftBits: Int32): int64; static; inline;
 
+    class function RotateLeft8(a_value: Byte; a_n: Int32): Byte; overload;
+      static; inline;
     class function RotateLeft32(a_value: UInt32; a_n: Int32): UInt32; overload;
       static; inline;
     class function RotateLeft64(a_value: UInt64; a_n: Int32): UInt64; overload;
+      static; inline;
+    class function RotateRight8(a_value: Byte; a_n: Int32): Byte; overload;
       static; inline;
     class function RotateRight32(a_value: UInt32; a_n: Int32): UInt32; overload;
       static; inline;
@@ -174,6 +178,20 @@ begin
 {$ENDIF FPC}
 end;
 
+class function TBits.RotateLeft8(a_value: Byte; a_n: Int32): Byte;
+begin
+{$IFDEF DEBUG}
+  System.Assert(a_n >= 0);
+{$ENDIF DEBUG}
+{$IFDEF FPC}
+  Result := RolByte(a_value, a_n);
+{$ELSE}
+  a_n := a_n and 7;
+
+  Result := (a_value shl a_n) or (a_value shr (8 - a_n));
+{$ENDIF FPC}
+end;
+
 class function TBits.RotateLeft32(a_value: UInt32; a_n: Int32): UInt32;
 begin
 {$IFDEF DEBUG}
@@ -199,6 +217,20 @@ begin
   a_n := a_n and 63;
 
   Result := (a_value shl a_n) or (a_value shr (64 - a_n));
+{$ENDIF FPC}
+end;
+
+class function TBits.RotateRight8(a_value: Byte; a_n: Int32): Byte;
+begin
+{$IFDEF DEBUG}
+  System.Assert(a_n >= 0);
+{$ENDIF DEBUG}
+{$IFDEF FPC}
+  Result := RorByte(a_value, a_n);
+{$ELSE}
+  a_n := a_n and 7;
+
+  Result := (a_value shr a_n) or (a_value shl (8 - a_n));
 {$ENDIF FPC}
 end;
 
