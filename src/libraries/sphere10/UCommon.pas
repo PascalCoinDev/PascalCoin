@@ -39,6 +39,7 @@ const
 
 { Converts a string to hexidecimal format }
 function String2Hex(const Buffer: AnsiString): AnsiString;
+function Buffer2Hex(const ABuffer: TBytes) : AnsiString;
 
 { Binary-safe StrComp replacement. StrComp will return 0 for when str1 and str2 both start with NUL character. }
 function BinStrComp(const Str1, Str2 : AnsiString): Integer;
@@ -354,6 +355,22 @@ begin
   Result := '';
   for n := 1 to Length(Buffer) do
     Result := LowerCase(Result + IntToHex(Ord(Buffer[n]), 2));
+end;
+
+
+function Buffer2Hex(const ABuffer: TBytes) : AnsiString;
+var
+  i : Integer;
+  s : AnsiString;
+  b : Byte;
+begin
+  System.SetLength(Result, System.Length(ABuffer)*2);
+  for i := 0 to System.Length( ABuffer ) - 1 do begin
+    b := Ord(ABuffer[i+1]);
+    s := IntToHex(b,2);
+    Result[(i*2)+1] := s[1];
+    Result[(i*2)+2] := s[2];
+  end;
 end;
 
 function BinStrComp(const Str1, Str2: AnsiString): integer;
