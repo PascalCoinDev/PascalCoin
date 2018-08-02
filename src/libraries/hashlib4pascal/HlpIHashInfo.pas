@@ -8,7 +8,7 @@ uses
   HlpHashLibTypes,
   HlpIKDF,
   HlpIHash,
-  HlpNullable in '..\Nullable\HlpNullable.pas';
+  HlpNullable;
 
 type
 
