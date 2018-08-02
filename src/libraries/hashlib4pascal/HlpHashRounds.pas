@@ -1,5 +1,7 @@
 unit HlpHashRounds;
 
+{$I HashLib.inc}
+
 interface
 
 type

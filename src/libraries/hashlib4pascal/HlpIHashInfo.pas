@@ -1,5 +1,7 @@
 unit HlpIHashInfo;
 
+{$I HashLib.inc}
+
 interface
 
 uses
