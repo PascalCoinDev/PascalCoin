@@ -19,9 +19,12 @@ interface
 uses
   Classes, SysUtils, Forms, Controls,ExtCtrls,
   FGL, Graphics, Generics.Collections, Generics.Defaults, syncobjs,
-  UMemory;
+  UMemory, LMessages, UCommon;
 
 type
+
+  { TApplicationForm }
+
   TApplicationForm = class(TForm)
     private
       FActivatedCount : UInt32;
@@ -39,13 +42,13 @@ type
       procedure DoClose(var CloseAction: TCloseAction); override;
       procedure DoDestroy; override;
       procedure DoDestroyed; virtual;
+    public
+      property ActivationCount : UInt32 read FActivatedCount;
+      function AutoDispose(AObject : TObject) : TObject;
     published
       property CloseAction : TCloseAction read FCloseAction write FCloseAction;
       property OnActivateFirstTime : TNotifyEvent read FActivateFirstTime write FActivateFirstTime;
       property OnDestroyed : TNotifyEvent read FDestroyed write FDestroyed;
-    public
-      property ActivationCount : UInt32 read FActivatedCount;
-      function AutoDispose(AObject : TObject) : TObject;
   end;
 
   { TWinControlHelper }
@@ -66,7 +69,11 @@ type
     procedure SetImageListPicture(AImageList: TImageList; AIndex : SizeInt);
   end;
 
+
+
 implementation
+
+uses LCLIntf;
 
 {%region TApplicationForm}
 
@@ -180,7 +187,4 @@ end;
 
 {%endregion}
 
-
 end.
-
-
