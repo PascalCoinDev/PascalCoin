@@ -266,20 +266,20 @@ type
       FHandler : TNotifyManyEvent;
       FTimer: TTimer;
       FMode : TThrottledEventMode;
+      FInterval : TTimeSpan;
       FLastClientNotify : TDateTime;
       FLastActualNotify : TDateTime;
       FSuppressedInvocations : Integer;
       procedure SetInterval(const ATimeSpan : TTimeSpan);
-      function GetInterval : TTimeSpan;
       procedure OnTimer(Sender: TObject);
       procedure NotifyNow;
       procedure NotifyLater;
     public
-      property Interval : TTimeSpan read GetInterval write SetInterval;
+      property Interval : TTimeSpan read FInterval write SetInterval;
       property Mode : TThrottledEventMode read FMode write FMode;
       property LastClientNotify : TDateTime read FLastClientNotify;
       property LastActualNotify : TDateTime read FLastActualNotify;
-      property SuppressedInvocations : Integer read FSuppressedInvocations write FSuppressedInvocations;
+      property SuppressedInvocations : Integer read FSuppressedInvocations;
       constructor Create(Owner:TComponent); override;
       procedure Add(AListener : TNotifyEvent);
       procedure Remove(AListener : TNotifyEvent);
@@ -1254,7 +1254,7 @@ constructor TThrottledEvent.Create(Owner:TComponent);
 begin
   Inherited Create(Owner);
   FTimer := TTimer.Create(Self);
-  FTimer.Interval := CT_DEFAULT_DELAYEDREFRESH_MS;
+  FInterval := TTimeSpan.FromMilliseconds( CT_DEFAULT_DELAYEDREFRESH_MS );
   FTimer.OnTimer := OnTimer;
   FTimer.Enabled := false;
   FSuppressedInvocations:=0;
@@ -1278,7 +1278,7 @@ var LIdleDuration : TTimeSpan;
 begin
   FLastClientNotify:=Now;
   LIdleDuration := TTimeSpan.Subtract(Now, FLastActualNotify);
-  if (FMode = temNone) OR ((NOT FTimer.Enabled) AND (LIdleDuration > Interval)) then
+  if (FMode = temNone) OR ((NOT FTimer.Enabled) AND (LIdleDuration > Interval) AND (FMode <> temNotifyOnEventBurstFinished)) then
     NotifyNow
   else
     NotifyLater;
@@ -1295,8 +1295,10 @@ end;
 procedure TThrottledEvent.NotifyLater;
 begin
   inc(FSuppressedInvocations);
-  if NOT FTimer.Enabled then
+  if NOT FTimer.Enabled then begin
+    FTimer.Interval := ClipValue( Round( Abs( FInterval.TotalMilliseconds ) ), 10, High(integer)) ;
     FTimer.Enabled:=true;
+  end;
 end;
 
 procedure TThrottledEvent.OnTimer(Sender: TObject);
@@ -1306,13 +1308,17 @@ begin
     temNone: NotifyNow;
     temNotifyEveryInterval: begin
       LDuration := TTimeSpan.Subtract(Now, FLastActualNotify);
-      if LDuration > Interval then
-        NotifyNow;
+      if LDuration > FInterval then
+        NotifyNow
+      else
+        FTimer.Interval := ClipValue( Round( Abs ( (FInterval - LDuration).TotalMilliseconds)), 10, High(integer));
     end;
     temNotifyOnEventBurstFinished: begin
       LDuration := TTimeSpan.Subtract(Now, FLastClientNotify);
-      if LDuration > Interval then
-        NotifyNow;
+      if LDuration > FInterval then
+        NotifyNow
+      else
+        FTimer.Interval := ClipValue( Round( Abs ( (FInterval - LDuration).TotalMilliseconds)), 10, High(integer));
     end;
   end;
 end;
@@ -1321,13 +1327,7 @@ procedure TThrottledEvent.SetInterval(const ATimeSpan : TTimeSpan);
 begin
   if ATimeSpan.TotalMilliseconds = 0 then
     raise EArgumentOutOfRangeException.Create('ATimeSpan was 0');
-
-  FTimer.Interval := round( abs( ATimeSpan.TotalMilliseconds ) );
-end;
-
-function TThrottledEvent.GetInterval : TTimeSpan;
-begin
- Result := TTimeSpan.FromMilliseconds( FTimer.Interval );
+  FInterval := ATimeSpan;
 end;
 
 {%endregion}
