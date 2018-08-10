@@ -61,7 +61,7 @@ Type
     Function DoSaveBlockChain(Operations : TPCOperationsComp) : Boolean; override;
     Function DoMoveBlockChain(Start_Block : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean; override;
     Function DoSaveBank : Boolean; override;
-    Function DoRestoreBank(max_block : Int64) : Boolean; override;
+    Function DoRestoreBank(max_block : Int64; restoreProgressNotify : TProgressNotify) : Boolean; override;
     Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal); override;
     Function BlockExists(Block : Cardinal) : Boolean; override;
     Function LockBlockChainStream : TFileStream;
@@ -436,7 +436,7 @@ begin
   End;
 end;
 
-function TFileStorage.DoRestoreBank(max_block: Int64): Boolean;
+function TFileStorage.DoRestoreBank(max_block: Int64; restoreProgressNotify : TProgressNotify): Boolean;
 var
     sr: TSearchRec;
     FileAttrs: Integer;
@@ -446,7 +446,7 @@ var
     ms : TMemoryStream;
     errors : AnsiString;
     blockscount : Cardinal;
-    sbHeader : TPCSafeBoxHeader;
+    sbHeader, goodSbHeader : TPCSafeBoxHeader;
 begin
   LockBlockChainStream;
   Try
@@ -463,6 +463,7 @@ begin
               (sbHeader.startBlock=0) And (sbHeader.endBlock=sbHeader.startBlock+sbHeader.blocksCount-1) then begin
               filename := auxfn;
               blockscount := sbHeader.blocksCount;
+              goodSbHeader := sbHeader;
             end;
           end;
         end;
@@ -470,7 +471,7 @@ begin
       FindClose(sr);
     end;
     if (filename<>'') then begin
-      TLog.NewLog(ltinfo,Self.ClassName,'Loading SafeBox with '+inttostr(blockscount)+' blocks from file '+filename);
+      TLog.NewLog(ltinfo,Self.ClassName,'Loading SafeBox protocol:'+IntToStr(goodSbHeader.protocol)+' with '+inttostr(blockscount)+' blocks from file '+filename);
       fs := TFileStream.Create(filename,fmOpenRead);
       try
         ms := TMemoryStream.Create;
@@ -478,7 +479,7 @@ begin
           ms.CopyFrom(fs,0);
           fs.Position := 0;
           ms.Position := 0;
-          if not Bank.LoadBankFromStream(ms,False,errors) then begin
+          if not Bank.LoadBankFromStream(ms,False,restoreProgressNotify,errors) then begin
             TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+filename+ ' Error: '+errors);
           end;
         Finally

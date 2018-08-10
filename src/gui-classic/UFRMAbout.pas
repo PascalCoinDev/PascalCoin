@@ -60,7 +60,7 @@ uses
   ShellApi,
 {$ELSE}
 {$ENDIF}
-  UFolderHelper, UConst, UNode;
+  UFolderHelper, UConst, UNode, UOpenSSL;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -70,7 +70,7 @@ uses
 
 procedure TFRMAbout.FormCreate(Sender: TObject);
 begin
-  lblBuild.Caption :=  'Build: '+CT_ClientAppVersion;
+  lblBuild.Caption :=  'Build: '+CT_ClientAppVersion+' OpenSSL: '+IntToHex(OpenSSLVersion,8);
   lblProtocolVersion.Caption := Format('BlockChain Protocol: %d (%d)  -  Net Protocol: %d (%d)',[TNode.Node.Bank.SafeBox.CurrentProtocol,CT_BlockChain_Protocol_Available,
     CT_NetProtocol_Version, CT_NetProtocol_Available]);
 end;

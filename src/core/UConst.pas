@@ -81,7 +81,7 @@ Const
 
   CT_MaxClientsConnected = {$IFDEF FPC}140{$ELSE}80{$ENDIF};
 
-  CT_BankToDiskEveryNBlocks = {$IFDEF PRODUCTION}100{$ELSE}10{$ENDIF}; // Build 1.5 changed from 500 to 100;
+  CT_BankToDiskEveryNBlocks = {$IFDEF PRODUCTION}100{$ELSE}100{$ENDIF}; // Build 1.5 changed from 500 to 100;
 
   CT_NID_secp256k1 = 714;
   CT_NID_secp384r1 = 715;
@@ -95,12 +95,16 @@ Const
   CT_PROTOCOL_1 = 1;
   CT_PROTOCOL_2 = 2;
   CT_PROTOCOL_3 = 3;
+  CT_PROTOCOL_4 = 4;
+  CT_BUILD_PROTOCOL = CT_PROTOCOL_3;
+
   CT_BlockChain_Protocol_Available: Word = $0003; // Protocol 3 flag
   CT_Protocol_Upgrade_v2_MinBlock = {$IFDEF PRODUCTION}115000{$ELSE}50{$ENDIF};
   CT_Protocol_Upgrade_v3_MinBlock = {$IFDEF PRODUCTION}210000{$ELSE}250{$ENDIF};
+  CT_Protocol_Upgrade_v4_MinBlock = {$IFDEF PRODUCTION}999999{$ELSE}400{$ENDIF}; // NOTE: Upgrade to V4 not decided!   TODO!
 
 
-  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$03000040{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
+  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$04000000{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
 
   CT_NetProtocol_Version: Word = $0007; // Version 3.0.2 only allows net protocol 7 (Introduced on 3.0.0)
   // IMPORTANT NOTE!!!
@@ -126,6 +130,8 @@ Const
   CT_Op_ChangeAccountInfo = $08;
   // Protocol 3 new operations
   CT_Op_MultiOperation = $09;  // PIP-0017
+  // Protocol 4 new operations
+  CT_Op_Data = $0A;            // PIP-0016
 
   CT_Protocol_v3_PIP11_Percent = 20; // PIP-0011 20% Percent proposed and voted by PIP-0011
 
@@ -149,8 +155,12 @@ Const
   CT_OpSubtype_ChangeAccountInfo          = 81;
   CT_OpSubtype_MultiOperation_Global      = 91;
   CT_OpSubtype_MultiOperation_AccountInfo = 92;
+  CT_OpSubtype_Data_GlobalInfo            = 101;
+  CT_OpSubtype_Data_Sender                = 102;
+  CT_OpSubtype_Data_Signer                = 103;
+  CT_OpSubtype_Data_Receiver              = 104;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'3.0.1'{$ELSE}{$IFDEF TESTNET}'TESTNET 3.3.1'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'3.0.2'{$ELSE}{$IFDEF TESTNET}'TESTNET 3.0.2'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us';
 

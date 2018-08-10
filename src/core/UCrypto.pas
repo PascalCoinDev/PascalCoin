@@ -510,6 +510,11 @@ begin
   end else begin
     Result := false;
   end;
+  {$IFDEF HIGHLOG}
+  TLog.NewLog(ltdebug,ClassName,Format('ECDSAVerify %s x:%s y:%s Digest:%s Signature r:%s s:%s',
+    [TAccountComp.GetECInfoTxt(PubKey.EC_OpenSSL_NID),ToHexaString(PubKey.x),ToHexaString(PubKey.y),
+      ToHexaString(digest),ToHexaString(Signature.r),ToHexaString(Signature.s)]));
+  {$ENDIF}
   BN_CTX_free(ctx);
   EC_POINT_free(pub_key);
   EC_GROUP_free(ECG);

@@ -388,9 +388,9 @@ object FRMWallet: TFRMWallet
     Height = 466
     Top = 91
     Width = 865
-    ActivePage = tsBlockChain
+    ActivePage = tsMyAccounts
     Align = alClient
-    TabIndex = 2
+    TabIndex = 0
     TabOrder = 2
     OnChange = PageControlChange
     object tsMyAccounts: TTabSheet

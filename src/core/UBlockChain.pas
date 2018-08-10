@@ -214,6 +214,7 @@ Type
     procedure AffectedAccounts(list : TList); virtual; abstract;
     class function OpType: Byte; virtual; abstract;
     Class Function OperationToOperationResume(Block : Cardinal; Operation : TPCOperation; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean; virtual;
+    Function GetDigestToSign(current_protocol : Word) : TRawBytes; virtual; abstract;
     function OperationAmount : Int64; virtual; abstract;
     function OperationAmountByAccount(account : Cardinal) : Int64; virtual;
     function OperationFee: Int64; virtual; abstract;
@@ -396,7 +397,7 @@ Type
     Function DoSaveBlockChain(Operations : TPCOperationsComp) : Boolean; virtual; abstract;
     Function DoMoveBlockChain(StartBlock : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean; virtual; abstract;
     Function DoSaveBank : Boolean; virtual; abstract;
-    Function DoRestoreBank(max_block : Int64) : Boolean; virtual; abstract;
+    Function DoRestoreBank(max_block : Int64; restoreProgressNotify : TProgressNotify) : Boolean; virtual; abstract;
     Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal); virtual; abstract;
     Function BlockExists(Block : Cardinal) : Boolean; virtual; abstract;
     function GetFirstBlockNumber: Int64; virtual; abstract;
@@ -412,7 +413,7 @@ Type
     Function MoveBlockChainBlocks(StartBlock : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean;
     Procedure DeleteBlockChainBlocks(StartingDeleteBlock : Cardinal);
     Function SaveBank : Boolean;
-    Function RestoreBank(max_block : Int64) : Boolean;
+    Function RestoreBank(max_block : Int64; restoreProgressNotify : TProgressNotify = Nil) : Boolean;
     Constructor Create(AOwner : TComponent); Override;
     Property Orphan : TOrphan read FOrphan write SetOrphan;
     Property ReadOnly : Boolean read FReadOnly write SetReadOnly;
@@ -455,12 +456,12 @@ Type
     procedure AssignTo(Dest: TPersistent); Override;
     function GetActualTargetSecondsAverage(BackBlocks : Cardinal): Real;
     function GetTargetSecondsAverage(FromBlock,BackBlocks : Cardinal): Real;
-    function LoadBankFromStream(Stream : TStream; useSecureLoad : Boolean; var errors : AnsiString) : Boolean;
+    function LoadBankFromStream(Stream : TStream; useSecureLoad : Boolean; progressNotify : TProgressNotify; var errors : AnsiString) : Boolean;
     Procedure Clear;
     Function LoadOperations(Operations : TPCOperationsComp; Block : Cardinal) : Boolean;
     Property SafeBox : TPCSafeBox read FSafeBox;
     Function AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var newBlock: TBlockAccount; var errors: AnsiString): Boolean;
-    Procedure DiskRestoreFromOperations(max_block : Int64);
+    Procedure DiskRestoreFromOperations(max_block : Int64; restoreProgressNotify : TProgressNotify = Nil);
     Procedure UpdateValuesFromSafebox;
     Procedure NewLog(Operations: TPCOperationsComp; Logtype: TLogType; Logtxt: AnsiString);
     Property OnLog: TPCBankLog read FOnLog write FOnLog;
@@ -633,17 +634,19 @@ begin
   End;
 end;
 
-procedure TPCBank.DiskRestoreFromOperations(max_block : Int64);
+procedure TPCBank.DiskRestoreFromOperations(max_block : Int64; restoreProgressNotify : TProgressNotify = Nil);
 Var
   errors: AnsiString;
   newBlock: TBlockAccount;
   Operations: TPCOperationsComp;
   n : Int64;
+  tc : TTickCount;
 begin
   if FIsRestoringFromFile then begin
     TLog.NewLog(lterror,Classname,'Is Restoring!!!');
     raise Exception.Create('Is restoring!');
   end;
+  tc := TPlatform.GetTickCount;
   TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
   try
     FUpgradingToV2 := NOT Storage.HasUpgradedToVersion2;
@@ -653,7 +656,7 @@ begin
       Storage.Initialize;
       If (max_block<Storage.LastBlock) then n := max_block
       else n := Storage.LastBlock;
-      Storage.RestoreBank(n);
+      Storage.RestoreBank(n,restoreProgressNotify);
       // Restore last blockchain
       if (BlocksCount>0) And (SafeBox.CurrentProtocol=CT_PROTOCOL_1) then begin
         if Not Storage.LoadBlockChainBlock(FLastBlockCache,BlocksCount-1) then begin
@@ -679,6 +682,10 @@ begin
                 If (BlocksCount MOD (CT_BankToDiskEveryNBlocks*10))=0 then begin
                   Storage.SaveBank;
                 end;
+                if (Assigned(restoreProgressNotify)) And (TPlatform.GetElapsedMilliseconds(tc)>1000) then begin
+                  tc := TPlatform.GetTickCount;
+                  restoreProgressNotify(Self,Format('Reading blockchain block %d/%d',[Operations.OperationBlock.block,Storage.LastBlock]),BlocksCount,Storage.LastBlock);
+                end;
               end;
             end else break;
           end else break;
@@ -701,7 +708,7 @@ procedure TPCBank.UpdateValuesFromSafebox;
 Var aux : AnsiString;
   i : Integer;
 begin
-  { Will update current Bank state based on Safbox state
+  { Will update current Bank state based on Safebox state
     Used when commiting a Safebox or rolling back }
   Try
     TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
@@ -790,7 +797,7 @@ begin
   end else Result := true;
 end;
 
-function TPCBank.LoadBankFromStream(Stream: TStream; useSecureLoad : Boolean; var errors: AnsiString): Boolean;
+function TPCBank.LoadBankFromStream(Stream: TStream; useSecureLoad : Boolean; progressNotify : TProgressNotify; var errors: AnsiString): Boolean;
 Var LastReadBlock : TBlockAccount;
   i : Integer;
   auxSB : TPCSafeBox;
@@ -800,7 +807,7 @@ begin
     If useSecureLoad then begin
       // When on secure load will load Stream in a separate SafeBox, changing only real SafeBox if successfully
       auxSB := TPCSafeBox.Create;
-      Result := auxSB.LoadSafeBoxFromStream(Stream,true,LastReadBlock,errors);
+      Result := auxSB.LoadSafeBoxFromStream(Stream,true,progressNotify,LastReadBlock,errors);
       If Not Result then Exit;
     end;
     TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
@@ -808,7 +815,7 @@ begin
       If Assigned(auxSB) then begin
         SafeBox.CopyFrom(auxSB);
       end else begin
-        Result := SafeBox.LoadSafeBoxFromStream(Stream,false,LastReadBlock,errors);
+        Result := SafeBox.LoadSafeBoxFromStream(Stream,false,progressNotify,LastReadBlock,errors);
       end;
       If Not Result then exit;
       If SafeBox.BlocksCount>0 then FLastOperationBlock := SafeBox.Block(SafeBox.BlocksCount-1).blockchainInfo
@@ -969,6 +976,8 @@ begin
         FOperationBlock.protocol_version := CT_PROTOCOL_2; // If minting... upgrade to Protocol 2
       end else if (FOperationBlock.protocol_version=CT_PROTOCOL_2) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_3)) then begin
         FOperationBlock.protocol_version := CT_PROTOCOL_3; // If minting... upgrade to Protocol 3
+      end else if (FOperationBlock.protocol_version=CT_PROTOCOL_3) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_4)) then begin
+        FOperationBlock.protocol_version := CT_PROTOCOL_4; // If minting... upgrade to Protocol 4
       end;
       FOperationBlock.block := FBank.BlocksCount;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(FBank.BlocksCount);
@@ -1195,7 +1204,7 @@ begin
     // In build prior to 1.0.4 soob only can have 2 values: 0 or 1
     // In build 1.0.4 soob can has 2 more values: 2 or 3
     // In build 2.0 soob can has 1 more value: 4
-    // In build 3.0 soob can hast value: 5
+    // In build 3.0 soob can have value: 5
     // In future, old values 0 and 1 will no longer be used!
     // - Value 0 and 2 means that contains also operations
     // - Value 1 and 3 means that only contains operationblock info
@@ -1328,6 +1337,9 @@ begin
       end else if (FOperationBlock.protocol_version=CT_PROTOCOL_2) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_3)) then begin
         TLog.NewLog(ltinfo,ClassName,'New miner protocol version to 3 at sanitize');
         FOperationBlock.protocol_version := CT_PROTOCOL_3;
+      end else if (FOperationBlock.protocol_version=CT_PROTOCOL_3) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_4)) then begin
+        TLog.NewLog(ltinfo,ClassName,'New miner protocol version to 4 at sanitize');
+        FOperationBlock.protocol_version := CT_PROTOCOL_4;
       end;
       FOperationBlock.block := FBank.BlocksCount;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(FBank.BlocksCount);
@@ -2201,9 +2213,9 @@ begin
   Result := DoMoveBlockChain(StartBlock,DestOrphan,DestStorage);
 end;
 
-function TStorage.RestoreBank(max_block: Int64): Boolean;
+function TStorage.RestoreBank(max_block: Int64; restoreProgressNotify : TProgressNotify = Nil): Boolean;
 begin
-  Result := DoRestoreBank(max_block);
+  Result := DoRestoreBank(max_block,restoreProgressNotify);
 end;
 
 function TStorage.SaveBank: Boolean;
@@ -2469,8 +2481,7 @@ begin
 end;
 
 class function TPCOperation.OperationToOperationResume(Block : Cardinal; Operation: TPCOperation; getInfoForAllAccounts : Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume): Boolean;
-Var spayload : AnsiString;
-  s : AnsiString;
+Var s : AnsiString;
 begin
   OperationResume := CT_TOperationResume_NUL;
   OperationResume.Block:=Block;
@@ -2609,6 +2620,9 @@ begin
       OperationResume.OperationTxt := Operation.ToString;
       OperationResume.Amount := Operation.OperationAmountByAccount(Affected_account_number);
       OperationResume.Fee := 0;
+      Result := True;
+    end;
+    CT_Op_Data : Begin
       Result := True;
     end
   else Exit;

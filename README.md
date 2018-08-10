@@ -34,6 +34,36 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+TODO: Bug in Lazarus optimization cause Access Violation on "getpendings" call (must be 0 or 1). techworker/ugo4brain in discord 2018-05-11 #development channel
+### Build XXXXXX - CURRENT
+- Implementation of Hard fork on block XXXXXXX (PENDING... TODO !)
+  - PIP - 0016: Layer-2 protocol support
+  - New digest hash for signature verifications
+  - Added OrderedAccountKeysList that allows an indexed search of public keys in the safebox with mem optimization
+- JSON-RPC changes:
+  - New params for "findaccounts":
+    - "exact" (Boolean, True by default): Only apply when "name" param has value, will return exact match or not
+    - "listed" (Boolean, False by default): Will return only listed for sale accounts
+    - "min_balance","max_balance" (PASCURRENCY): Filter by balance
+  - New return param in "Multioperation Object"
+    - "digest" (HEXASTRING): Returns the digest value that must be signed
+  - New param for "multioperationsignoffline"
+    - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
+  - New param for "signsendto"
+    - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
+  - New param for "signchangekey"
+    - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
+  - New param for "signlistaccountforsale"
+    - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
+  - New param for "signdelistaccountforsale"
+    - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
+  - New param for "signchangeaccountinfo"
+    - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
+  - New param for "signbuyaccount"
+    - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
+- Bug fixed: DoProcess_GetAccount_Request request type=1 (single account) didn't returned only 1
+
+
 ### Build 3.0.1 - 2018-05-07
 - Deprecated use of OpenSSL v1.0 versions. Only allowed OpenSSL v1.1 versions
 - JSON-RPC Added param "openssl" on "nodestatus" call. Will return OpenSSL library version as described in OpenSSL_version_num ( https://www.openssl.org/docs/man1.1.0/crypto/OPENSSL_VERSION_NUMBER.html )
