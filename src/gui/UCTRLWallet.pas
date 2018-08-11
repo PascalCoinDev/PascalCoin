@@ -129,7 +129,7 @@ begin
   TWallet.Keys.OnChanged.Add(OnPrivateKeysChanged);
   TWallet.Keys.AccountsKeyList.ClearAccountKeyChanges;   // XXXXX CLEAR BUFFER on start
   FBalanceUpdatedEvent := TThrottledEvent.Create(Self);
-  FBalanceUpdatedEvent.Mode := temNotifyOnEventBurstFinished;
+  FBalanceUpdatedEvent.Mode := temNotifyOnEventBurstStartAndFinished;
   FBalanceUpdatedEvent.Interval := TTimeSpan.FromSeconds(10);
   FBalanceUpdatedEvent.Add(OnUserBalanceChanged);
 

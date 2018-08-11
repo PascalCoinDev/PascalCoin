@@ -261,7 +261,7 @@ type
     public const
       CT_DEFAULT_DELAYEDREFRESH_MS = 1000;
     public type
-      TThrottledEventMode = (temNone, temNotifyEveryInterval, temNotifyOnEventBurstFinished);
+      TThrottledEventMode = (temNone, temNotifyEveryInterval, temNotifyOnEventBurstFinished, temNotifyOnEventBurstStartAndFinished);
     private
       FHandler : TNotifyManyEvent;
       FTimer: TTimer;
@@ -1313,7 +1313,7 @@ begin
       else
         FTimer.Interval := ClipValue( Round( Abs ( (FInterval - LDuration).TotalMilliseconds)), 10, High(integer));
     end;
-    temNotifyOnEventBurstFinished: begin
+    temNotifyOnEventBurstStartAndFinished, temNotifyOnEventBurstFinished: begin
       LDuration := TTimeSpan.Subtract(Now, FLastClientNotify);
       if LDuration > FInterval then
         NotifyNow
