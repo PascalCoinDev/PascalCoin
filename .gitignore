@@ -29,3 +29,7 @@ backup/
 
 ## Development miner batch file
 Run*.bat
+
+
+## Bin folders (Unit test projects, etc)
+bin/

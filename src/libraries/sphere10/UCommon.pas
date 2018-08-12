@@ -406,6 +406,9 @@ begin
   LHexLength := System.Length(AHexString);
   LHexStart := 1;
   if AHexString.StartsWith('0x') then begin
+    // Special case: 0x0 = empty byte array
+    if (LHexLength = 3) AND (AHexString[3] = '0') then
+      Exit(true);
     dec(LHexLength, 2);
     inc(LHexStart, 2);
   end;
@@ -430,6 +433,9 @@ var
   b : Byte;
 begin
   LLen := System.Length(ABytes)*2;
+  if LLen = 0 then
+    Exit(IIF(AUsePrefix, '0x0', ''));
+
   if AUsePrefix then
     inc(LLen, 2);
 
