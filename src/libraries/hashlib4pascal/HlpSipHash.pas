@@ -52,13 +52,13 @@ type
 
     function GetKeyLength(): TNullableInteger;
     function GetKey: THashLibByteArray;
-    procedure SetKey(value: THashLibByteArray);
+    procedure SetKey(const value: THashLibByteArray);
 
   public
     constructor Create(a_compression_rounds: Int32 = 2;
       a_finalization_rounds: Int32 = 4);
     procedure Initialize(); override;
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal: IHashResult; override;
     property KeyLength: TNullableInteger read GetKeyLength;
@@ -264,7 +264,7 @@ begin
 
 end;
 
-procedure TSipHash.SetKey(value: THashLibByteArray);
+procedure TSipHash.SetKey(const value: THashLibByteArray);
 begin
   if (value = Nil) then
   begin
@@ -283,7 +283,7 @@ begin
   end;
 end;
 
-procedure TSipHash.TransformBytes(a_data: THashLibByteArray;
+procedure TSipHash.TransformBytes(const a_data: THashLibByteArray;
   a_index, a_length: Int32);
 var
   i, &length, iter, offset: Int32;

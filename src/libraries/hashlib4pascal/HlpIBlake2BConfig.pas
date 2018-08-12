@@ -11,14 +11,14 @@ type
   IBlake2BConfig = interface(IInterface)
     ['{176861A3-B06E-4CA3-A1BB-DDEAFF40BFE1}']
     function GetPersonalisation: THashLibByteArray;
-    procedure SetPersonalisation(value: THashLibByteArray);
+    procedure SetPersonalisation(const value: THashLibByteArray);
     property Personalisation: THashLibByteArray read GetPersonalisation
       write SetPersonalisation;
     function GetSalt: THashLibByteArray;
-    procedure SetSalt(value: THashLibByteArray);
+    procedure SetSalt(const value: THashLibByteArray);
     property Salt: THashLibByteArray read GetSalt write SetSalt;
     function GetKey: THashLibByteArray;
-    procedure SetKey(value: THashLibByteArray);
+    procedure SetKey(const value: THashLibByteArray);
     property Key: THashLibByteArray read GetKey write SetKey;
     function GetHashSize: Int32;
     procedure SetHashSize(value: Int32);

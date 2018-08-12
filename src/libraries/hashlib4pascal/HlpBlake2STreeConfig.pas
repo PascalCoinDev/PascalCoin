@@ -94,6 +94,7 @@ end;
 
 constructor TBlake2STreeConfig.Create;
 begin
+  Inherited Create();
   IntermediateHashSize := 32;
 end;
 

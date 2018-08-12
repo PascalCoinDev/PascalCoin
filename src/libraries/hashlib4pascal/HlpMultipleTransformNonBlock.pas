@@ -32,10 +32,11 @@ type
     constructor Create(a_hash_size, a_block_size: Int32);
     destructor Destroy; override;
     procedure Initialize(); override;
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
-    function ComputeBytes(a_data: THashLibByteArray): IHashResult; override;
+    function ComputeBytes(const a_data: THashLibByteArray)
+      : IHashResult; override;
 
   end;
 
@@ -68,8 +69,8 @@ begin
   FBuffer.SetSize(0);
 end;
 
-procedure TMultipleTransformNonBlock.TransformBytes(a_data: THashLibByteArray;
-  a_index, a_length: Int32);
+procedure TMultipleTransformNonBlock.TransformBytes(const a_data
+  : THashLibByteArray; a_index, a_length: Int32);
 begin
 {$IFDEF DEBUG}
   System.Assert(a_index >= 0);
@@ -85,8 +86,8 @@ begin
   Initialize();
 end;
 
-function TMultipleTransformNonBlock.ComputeBytes(a_data: THashLibByteArray)
-  : IHashResult;
+function TMultipleTransformNonBlock.ComputeBytes(const a_data
+  : THashLibByteArray): IHashResult;
 begin
   Initialize();
   result := ComputeAggregatedBytes(a_data);

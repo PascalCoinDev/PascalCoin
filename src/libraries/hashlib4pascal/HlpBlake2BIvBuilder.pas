@@ -30,11 +30,11 @@ type
     class constructor Blake2BIvBuilder();
 
   public
-    class function ConfigB(config: IBlake2BConfig;
-      treeConfig: IBlake2BTreeConfig): THashLibUInt64Array; static;
+    class function ConfigB(const config: IBlake2BConfig;
+      const treeConfig: IBlake2BTreeConfig): THashLibUInt64Array; static;
 
-    class procedure ConfigBSetNode(rawConfig: THashLibUInt64Array; depth: Byte;
-      nodeOffset: UInt64); static; inline;
+    class procedure ConfigBSetNode(const rawConfig: THashLibUInt64Array;
+      depth: Byte; nodeOffset: UInt64); static; inline;
 
   end;
 
@@ -51,16 +51,18 @@ begin
   FSequentialTreeConfig.MaxHeight := 1;
 end;
 
-class function TBlake2BIvBuilder.ConfigB(config: IBlake2BConfig;
-  treeConfig: IBlake2BTreeConfig): THashLibUInt64Array;
+class function TBlake2BIvBuilder.ConfigB(const config: IBlake2BConfig;
+  const treeConfig: IBlake2BTreeConfig): THashLibUInt64Array;
 var
   isSequential: Boolean;
+  LtreeConfig: IBlake2BTreeConfig;
   rawConfig: THashLibUInt64Array;
 begin
-  isSequential := treeConfig = Nil;
+  LtreeConfig := treeConfig;
+  isSequential := LtreeConfig = Nil;
   if (isSequential) then
   begin
-    treeConfig := FSequentialTreeConfig;
+    LtreeConfig := FSequentialTreeConfig;
   end;
   System.SetLength(rawConfig, 8);
 
@@ -84,22 +86,22 @@ begin
   end;
 
   // FanOut
-  rawConfig[0] := rawConfig[0] or (UInt32(treeConfig.FanOut) shl 16);
+  rawConfig[0] := rawConfig[0] or (UInt32(LtreeConfig.FanOut) shl 16);
   // Depth
-  rawConfig[0] := rawConfig[0] or (UInt32(treeConfig.MaxHeight) shl 24);
+  rawConfig[0] := rawConfig[0] or (UInt32(LtreeConfig.MaxHeight) shl 24);
   // Leaf length
   rawConfig[0] := rawConfig[0] or
-    ((UInt64(UInt32(treeConfig.LeafSize))) shl 32);
+    ((UInt64(UInt32(LtreeConfig.LeafSize))) shl 32);
 
   // Inner length
-  if ((not isSequential) and ((treeConfig.IntermediateHashSize <= 0) or
-    (treeConfig.IntermediateHashSize > 64))) then
+  if ((not isSequential) and ((LtreeConfig.IntermediateHashSize <= 0) or
+    (LtreeConfig.IntermediateHashSize > 64))) then
   begin
     raise EArgumentOutOfRangeHashLibException.Create
       ('treeConfig.TreeIntermediateHashSize');
   end;
   rawConfig[2] := rawConfig[2] or
-    (UInt32(treeConfig.IntermediateHashSize) shl 8);
+    (UInt32(LtreeConfig.IntermediateHashSize) shl 8);
 
   // Salt
   if (config.Salt <> Nil) then
@@ -129,8 +131,8 @@ begin
   result := rawConfig;
 end;
 
-class procedure TBlake2BIvBuilder.ConfigBSetNode(rawConfig: THashLibUInt64Array;
-  depth: Byte; nodeOffset: UInt64);
+class procedure TBlake2BIvBuilder.ConfigBSetNode(const rawConfig
+  : THashLibUInt64Array; depth: Byte; nodeOffset: UInt64);
 begin
   rawConfig[1] := nodeOffset;
   rawConfig[2] := (rawConfig[2] and (not UInt64($FF))) or depth;

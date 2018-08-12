@@ -42,7 +42,7 @@ type
 
     function GetKeyLength(): TNullableInteger;
     function GetKey: THashLibByteArray; inline;
-    procedure SetKey(value: THashLibByteArray); inline;
+    procedure SetKey(const value: THashLibByteArray); inline;
 
   strict protected
     function ComputeAggregatedBytes(a_data: THashLibByteArray)
@@ -249,7 +249,7 @@ begin
 
 end;
 
-procedure TMurmur2_64.SetKey(value: THashLibByteArray);
+procedure TMurmur2_64.SetKey(const value: THashLibByteArray);
 begin
   if (value = Nil) then
   begin

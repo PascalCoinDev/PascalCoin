@@ -26,22 +26,22 @@ type
     FbOff: Int32;
 
     procedure InternalUpdate(input: Byte); inline;
-    procedure xor512(A, B: THashLibByteArray); inline;
-    procedure E(K, a_m: THashLibByteArray);
-    procedure F(V: THashLibByteArray);
-    procedure g_N(a_h, a_N, a_m: THashLibByteArray); inline;
-    procedure addMod512(A: THashLibByteArray; num: Int32); overload;
-    procedure addMod512(A, B: THashLibByteArray); overload;
-    procedure reverse(src, dst: THashLibByteArray);
+    procedure xor512(const A, B: THashLibByteArray); inline;
+    procedure E(const K, a_m: THashLibByteArray);
+    procedure F(const V: THashLibByteArray);
+    procedure g_N(const a_h, a_N, a_m: THashLibByteArray); inline;
+    procedure addMod512(const A: THashLibByteArray; num: Int32); overload;
+    procedure addMod512(const A, B: THashLibByteArray); overload;
+    procedure reverse(const src, dst: THashLibByteArray);
 
     class constructor GOST3411_2012();
 
   strict protected
-    constructor Create(a_hash_size: Int32; IV: THashLibByteArray);
+    constructor Create(a_hash_size: Int32; const IV: THashLibByteArray);
 
   public
     procedure Initialize; override;
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_data_length: Int32); override;
     function TransformFinal: IHashResult; override;
 
@@ -78,7 +78,7 @@ implementation
 
 { TGOST3411_2012Base }
 
-procedure TGOST3411_2012.xor512(A, B: THashLibByteArray);
+procedure TGOST3411_2012.xor512(const A, B: THashLibByteArray);
 var
   i: Integer;
 begin
@@ -88,7 +88,7 @@ begin
   end;
 end;
 
-procedure TGOST3411_2012.addMod512(A: THashLibByteArray; num: Int32);
+procedure TGOST3411_2012.addMod512(const A: THashLibByteArray; num: Int32);
 var
   c, i: Int32;
 begin
@@ -109,7 +109,7 @@ begin
 
 end;
 
-procedure TGOST3411_2012.addMod512(A, B: THashLibByteArray);
+procedure TGOST3411_2012.addMod512(const A, B: THashLibByteArray);
 var
   i, c: Int32;
 begin
@@ -124,7 +124,8 @@ begin
   end;
 end;
 
-constructor TGOST3411_2012.Create(a_hash_size: Int32; IV: THashLibByteArray);
+constructor TGOST3411_2012.Create(a_hash_size: Int32;
+  const IV: THashLibByteArray);
 begin
   Inherited Create(a_hash_size, 64);
   System.SetLength(FIV, 64);
@@ -144,7 +145,7 @@ begin
   System.Move(IV[0], Fh[0], 64 * System.SizeOf(Byte));
 end;
 
-procedure TGOST3411_2012.E(K, a_m: THashLibByteArray);
+procedure TGOST3411_2012.E(const K, a_m: THashLibByteArray);
 var
   i: Int32;
 begin
@@ -163,7 +164,7 @@ begin
   xor512(K, FKi);
 end;
 
-procedure TGOST3411_2012.F(V: THashLibByteArray);
+procedure TGOST3411_2012.F(const V: THashLibByteArray);
 var
   res: array [0 .. 7] of UInt64;
   r: UInt64;
@@ -1509,7 +1510,7 @@ begin
 {$ENDREGION}
 end;
 
-procedure TGOST3411_2012.g_N(a_h, a_N, a_m: THashLibByteArray);
+procedure TGOST3411_2012.g_N(const a_h, a_N, a_m: THashLibByteArray);
 begin
   System.Move(a_h[0], Ftmp[0], 64 * System.SizeOf(Byte));
 
@@ -1546,7 +1547,7 @@ begin
   end;
 end;
 
-procedure TGOST3411_2012.reverse(src, dst: THashLibByteArray);
+procedure TGOST3411_2012.reverse(const src, dst: THashLibByteArray);
 var
   len, i: Int32;
 begin
@@ -1557,7 +1558,7 @@ begin
   end;
 end;
 
-procedure TGOST3411_2012.TransformBytes(a_data: THashLibByteArray;
+procedure TGOST3411_2012.TransformBytes(const a_data: THashLibByteArray;
   a_index, a_data_length: Int32);
 begin
   while ((FbOff <> 64) and (a_data_length > 0)) do

@@ -40,7 +40,7 @@ type
     ['{DD5E0FE4-3573-4051-B7CF-F23BABE982D8}']
 
     function GetKey(): THashLibByteArray;
-    procedure SetKey(value: THashLibByteArray);
+    procedure SetKey(const value: THashLibByteArray);
     property Key: THashLibByteArray read GetKey write SetKey;
     function GetKeyLength(): TNullableInteger;
     property KeyLength: TNullableInteger read GetKeyLength;

@@ -35,10 +35,10 @@ type
   public
 
     constructor Create(_poly, _Init: UInt64; _refIn, _refOut: Boolean;
-      _XorOut, _check: UInt64; _Names: THashLibStringArray);
+      _XorOut, _check: UInt64; const _Names: THashLibStringArray);
 
     procedure Initialize(); override;
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
 
@@ -63,7 +63,7 @@ implementation
 { TCRC32 }
 
 constructor TCRC32.Create(_poly, _Init: UInt64; _refIn, _refOut: Boolean;
-  _XorOut, _check: UInt64; _Names: THashLibStringArray);
+  _XorOut, _check: UInt64; const _Names: THashLibStringArray);
 begin
   Inherited Create(4, 1);
   FCRCAlgorithm := TCRC.Create(32, _poly, _Init, _refIn, _refOut, _XorOut,
@@ -75,7 +75,7 @@ begin
   FCRCAlgorithm.Initialize;
 end;
 
-procedure TCRC32.TransformBytes(a_data: THashLibByteArray;
+procedure TCRC32.TransformBytes(const a_data: THashLibByteArray;
   a_index, a_length: Int32);
 begin
   FCRCAlgorithm.TransformBytes(a_data, a_index, a_length);

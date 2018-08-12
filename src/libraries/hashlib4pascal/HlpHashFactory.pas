@@ -118,18 +118,21 @@ type
 
       class function CreateCRC(_Width: Int32; _poly, _Init: UInt64;
         _refIn, _refOut: Boolean; _XorOut, _check: UInt64;
-        _Names: THashLibStringArray): IHash; overload; static;
+        const _Names: THashLibStringArray): IHash; overload; static;
 
       class function CreateCRC(_value: TCRCStandard): IHash; overload; static;
 
       class function CreateCRC16(_poly, _Init: UInt64; _refIn, _refOut: Boolean;
-        _XorOut, _check: UInt64; _Names: THashLibStringArray): IHash; static;
+        _XorOut, _check: UInt64; const _Names: THashLibStringArray)
+        : IHash; static;
 
       class function CreateCRC32(_poly, _Init: UInt64; _refIn, _refOut: Boolean;
-        _XorOut, _check: UInt64; _Names: THashLibStringArray): IHash; static;
+        _XorOut, _check: UInt64; const _Names: THashLibStringArray)
+        : IHash; static;
 
       class function CreateCRC64(_poly, _Init: UInt64; _refIn, _refOut: Boolean;
-        _XorOut, _check: UInt64; _Names: THashLibStringArray): IHash; static;
+        _XorOut, _check: UInt64; const _Names: THashLibStringArray)
+        : IHash; static;
 
       /// <summary>
       /// BUYPASS, polynomial = $8005
@@ -367,14 +370,16 @@ type
       class function CreateSHA3_384(): IHash; static;
       class function CreateSHA3_512(): IHash; static;
 
-      class function CreateBlake2B(config: IBlake2BConfig = Nil): IHash; static;
+      class function CreateBlake2B(const config: IBlake2BConfig = Nil)
+        : IHash; static;
 
       class function CreateBlake2B_160(): IHash; static;
       class function CreateBlake2B_256(): IHash; static;
       class function CreateBlake2B_384(): IHash; static;
       class function CreateBlake2B_512(): IHash; static;
 
-      class function CreateBlake2S(config: IBlake2SConfig = Nil): IHash; static;
+      class function CreateBlake2S(const config: IBlake2SConfig = Nil)
+        : IHash; static;
 
       class function CreateBlake2S_128(): IHash; static;
       class function CreateBlake2S_160(): IHash; static;
@@ -390,7 +395,7 @@ type
 
     public
 
-      class function CreateHMAC(a_hash: IHash): IHMAC; static;
+      class function CreateHMAC(const a_hash: IHash): IHMAC; static;
 
     end;
 
@@ -416,8 +421,8 @@ type
       /// <exception cref="EArgumentNilHashLibException">The password, salt or algorithm is Nil.</exception>
       /// <exception cref="EArgumentHashLibException">The iteration is less than 1.</exception>
 
-      class function CreatePBKDF2_HMAC(a_hash: IHash;
-        a_password, a_salt: THashLibByteArray; a_iterations: UInt32)
+      class function CreatePBKDF2_HMAC(const a_hash: IHash;
+        const a_password, a_salt: THashLibByteArray; a_iterations: UInt32)
         : IPBKDF2_HMAC; static;
 
     end;
@@ -437,7 +442,7 @@ end;
 
 class function THashFactory.TChecksum.CreateCRC(_Width: Int32;
   _poly, _Init: UInt64; _refIn, _refOut: Boolean; _XorOut, _check: UInt64;
-  _Names: THashLibStringArray): IHash;
+  const _Names: THashLibStringArray): IHash;
 begin
   Result := TCRC.Create(_Width, _poly, _Init, _refIn, _refOut, _XorOut,
     _check, _Names);
@@ -450,7 +455,7 @@ end;
 
 class function THashFactory.TChecksum.CreateCRC16(_poly, _Init: UInt64;
   _refIn, _refOut: Boolean; _XorOut, _check: UInt64;
-  _Names: THashLibStringArray): IHash;
+  const _Names: THashLibStringArray): IHash;
 begin
   Result := TCRC16.Create(_poly, _Init, _refIn, _refOut, _XorOut,
     _check, _Names);
@@ -463,7 +468,7 @@ end;
 
 class function THashFactory.TChecksum.CreateCRC32(_poly, _Init: UInt64;
   _refIn, _refOut: Boolean; _XorOut, _check: UInt64;
-  _Names: THashLibStringArray): IHash;
+  const _Names: THashLibStringArray): IHash;
 begin
   Result := TCRC32.Create(_poly, _Init, _refIn, _refOut, _XorOut,
     _check, _Names);
@@ -481,7 +486,7 @@ end;
 
 class function THashFactory.TChecksum.CreateCRC64(_poly, _Init: UInt64;
   _refIn, _refOut: Boolean; _XorOut, _check: UInt64;
-  _Names: THashLibStringArray): IHash;
+  const _Names: THashLibStringArray): IHash;
 begin
   Result := TCRC64.Create(_poly, _Init, _refIn, _refOut, _XorOut,
     _check, _Names);
@@ -922,8 +927,8 @@ begin
   Result := TSHA3_512.Create();
 end;
 
-class function THashFactory.TCrypto.CreateBlake2B
-  (config: IBlake2BConfig): IHash;
+class function THashFactory.TCrypto.CreateBlake2B(const config
+  : IBlake2BConfig): IHash;
 begin
   if config = Nil then
   begin
@@ -959,8 +964,8 @@ begin
     (TBlake2BConfig.Create(THashSize.hsHashSize512));
 end;
 
-class function THashFactory.TCrypto.CreateBlake2S
-  (config: IBlake2SConfig): IHash;
+class function THashFactory.TCrypto.CreateBlake2S(const config
+  : IBlake2SConfig): IHash;
 begin
   if config = Nil then
   begin
@@ -1139,7 +1144,7 @@ end;
 
 { THashFactory.THMAC }
 
-class function THashFactory.THMAC.CreateHMAC(a_hash: IHash): IHMAC;
+class function THashFactory.THMAC.CreateHMAC(const a_hash: IHash): IHMAC;
 begin
 
   if Supports(a_hash, IHMAC) then
@@ -1157,8 +1162,9 @@ end;
 
 { TKDF.TPBKDF2_HMAC }
 
-class function TKDF.TPBKDF2_HMAC.CreatePBKDF2_HMAC(a_hash: IHash;
-  a_password, a_salt: THashLibByteArray; a_iterations: UInt32): IPBKDF2_HMAC;
+class function TKDF.TPBKDF2_HMAC.CreatePBKDF2_HMAC(const a_hash: IHash;
+  const a_password, a_salt: THashLibByteArray; a_iterations: UInt32)
+  : IPBKDF2_HMAC;
 begin
 
   if not(System.Assigned(a_hash)) then

@@ -48,7 +48,8 @@ type
 
     Fm_hash: THashLibByteArray;
 
-    class function SlowEquals(a_ar1, a_ar2: THashLibByteArray): Boolean; static;
+    class function SlowEquals(const a_ar1, a_ar2: THashLibByteArray)
+      : Boolean; static;
 
   public
 
@@ -57,7 +58,7 @@ type
     constructor Create(a_hash: UInt16); overload;
     constructor Create(a_hash: UInt32); overload;
     constructor Create(a_hash: UInt64); overload;
-    constructor Create(a_hash: THashLibByteArray); overload;
+    constructor Create(const a_hash: THashLibByteArray); overload;
 
     function GetBytes(): THashLibByteArray;
     function GetUInt8(): UInt8;
@@ -66,7 +67,7 @@ type
     function GetInt32(): Int32;
     function GetUInt64(): UInt64;
     function ToString(a_group: Boolean = false): String; reintroduce;
-    function Equals(a_hashResult: IHashResult): Boolean; reintroduce;
+    function Equals(const a_hashResult: IHashResult): Boolean; reintroduce;
     function GetHashCode(): {$IFDEF DELPHI}Int32; {$ELSE}PtrInt;
 {$ENDIF DELPHI}override;
 
@@ -78,41 +79,45 @@ implementation
 
 constructor THashResult.Create(a_hash: UInt64);
 begin
-
+  Inherited Create();
   Fm_hash := THashLibByteArray.Create(Byte(a_hash shr 56), Byte(a_hash shr 48),
     Byte(a_hash shr 40), Byte(a_hash shr 32), Byte(a_hash shr 24),
     Byte(a_hash shr 16), Byte(a_hash shr 8), Byte(a_hash));
 end;
 
-constructor THashResult.Create(a_hash: THashLibByteArray);
+constructor THashResult.Create(const a_hash: THashLibByteArray);
 begin
+  Inherited Create();
   Fm_hash := a_hash;
 end;
 
 constructor THashResult.Create(a_hash: UInt32);
 begin
+  Inherited Create();
   Fm_hash := THashLibByteArray.Create(Byte(a_hash shr 24), Byte(a_hash shr 16),
     Byte(a_hash shr 8), Byte(a_hash));
 end;
 
 constructor THashResult.Create(a_hash: UInt8);
 begin
+  Inherited Create();
   Fm_hash := THashLibByteArray.Create(a_hash);
 end;
 
 constructor THashResult.Create(a_hash: UInt16);
 begin
+  Inherited Create();
   Fm_hash := THashLibByteArray.Create(Byte(a_hash shr 8), Byte(a_hash));
 end;
 
 constructor THashResult.Create(a_hash: Int32);
 begin
+  Inherited Create();
   Fm_hash := THashLibByteArray.Create(Byte(TBits.Asr32(a_hash, 24)),
     Byte(TBits.Asr32(a_hash, 16)), Byte(TBits.Asr32(a_hash, 8)), Byte(a_hash));
 end;
 
-function THashResult.Equals(a_hashResult: IHashResult): Boolean;
-
+function THashResult.Equals(const a_hashResult: IHashResult): Boolean;
 begin
   result := THashResult.SlowEquals(a_hashResult.GetBytes(), Fm_hash);
 end;
@@ -245,7 +250,8 @@ end;
 
 {$B+}
 
-class function THashResult.SlowEquals(a_ar1, a_ar2: THashLibByteArray): Boolean;
+class function THashResult.SlowEquals(const a_ar1,
+  a_ar2: THashLibByteArray): Boolean;
 var
   I: Int32;
   diff: UInt32;

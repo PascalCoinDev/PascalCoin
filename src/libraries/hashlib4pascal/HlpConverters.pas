@@ -29,7 +29,7 @@ type
       : THashLibStringArray; static;
 
 {$IFDEF DEBUG}
-    class procedure Check(a_in: THashLibByteArray;
+    class procedure Check(const a_in: THashLibByteArray;
       a_in_size, a_out_size: Int32); overload; static;
 {$ENDIF DEBUG}
     class procedure swap_copy_str_to_u32(src: Pointer; src_index: Int32;
@@ -85,12 +85,12 @@ type
       a_index: Int32); overload; static; inline;
 
     class function ConvertStringToBytes(const a_in: String;
-      a_encoding: TEncoding): THashLibByteArray; overload; static;
+      const a_encoding: TEncoding): THashLibByteArray; overload; static;
 
-    class function ConvertHexStringToBytes(a_in: String): THashLibByteArray;
-      static; inline;
+    class function ConvertHexStringToBytes(const a_in: String)
+      : THashLibByteArray; static; inline;
 
-    class function ConvertBytesToHexString(a_in: THashLibByteArray;
+    class function ConvertBytesToHexString(const a_in: THashLibByteArray;
       a_group: Boolean): String; static;
 
   end;
@@ -101,7 +101,7 @@ implementation
 
 {$IFDEF DEBUG}
 
-class procedure TConverters.Check(a_in: THashLibByteArray;
+class procedure TConverters.Check(const a_in: THashLibByteArray;
   a_in_size, a_out_size: Int32);
 begin
   System.Assert(((System.length(a_in) * a_in_size) mod a_out_size) = 0);
@@ -338,8 +338,8 @@ begin
   a_out[a_index + 7] := Byte(a_in);
 end;
 
-class function TConverters.ConvertBytesToHexString(a_in: THashLibByteArray;
-  a_group: Boolean): String;
+class function TConverters.ConvertBytesToHexString
+  (const a_in: THashLibByteArray; a_group: Boolean): String;
 var
   I: Int32;
   hex, workstring: String;
@@ -388,21 +388,24 @@ begin
   result := hex;
 end;
 
-class function TConverters.ConvertHexStringToBytes(a_in: String)
+class function TConverters.ConvertHexStringToBytes(const a_in: String)
   : THashLibByteArray;
+var
+  l_in: String;
 begin
-  a_in := StringReplace(a_in, '-', '', [rfIgnoreCase, rfReplaceAll]);
+  l_in := a_in;
+  l_in := StringReplace(l_in, '-', '', [rfIgnoreCase, rfReplaceAll]);
 
 {$IFDEF DEBUG}
-  System.Assert(System.length(a_in) and 1 = 0);
+  System.Assert(System.length(l_in) and 1 = 0);
 {$ENDIF DEBUG}
-  System.SetLength(result, System.length(a_in) shr 1);
-  HexToBin(PChar(a_in), @result[0], System.length(result));
+  System.SetLength(result, System.length(l_in) shr 1);
+  HexToBin(PChar(l_in), @result[0], System.length(result));
 
 end;
 
 class function TConverters.ConvertStringToBytes(const a_in: String;
-  a_encoding: TEncoding): THashLibByteArray;
+  const a_encoding: TEncoding): THashLibByteArray;
 begin
 
   if a_encoding = Nil then

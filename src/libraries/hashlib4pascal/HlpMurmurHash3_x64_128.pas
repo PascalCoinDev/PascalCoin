@@ -61,12 +61,12 @@ type
 {$ENDREGION}
     function GetKeyLength(): TNullableInteger;
     function GetKey: THashLibByteArray; inline;
-    procedure SetKey(value: THashLibByteArray); inline;
+    procedure SetKey(const value: THashLibByteArray); inline;
 
   public
     constructor Create();
     procedure Initialize(); override;
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal: IHashResult; override;
     property KeyLength: TNullableInteger read GetKeyLength;
@@ -394,7 +394,7 @@ begin
 
 end;
 
-procedure TMurmurHash3_x64_128.SetKey(value: THashLibByteArray);
+procedure TMurmurHash3_x64_128.SetKey(const value: THashLibByteArray);
 begin
   if (value = Nil) then
   begin
@@ -412,7 +412,7 @@ begin
   end;
 end;
 
-procedure TMurmurHash3_x64_128.TransformBytes(a_data: THashLibByteArray;
+procedure TMurmurHash3_x64_128.TransformBytes(const a_data: THashLibByteArray;
   a_index, a_length: Int32);
 var
   len, nBlocks, i, offset, lIdx: Int32;

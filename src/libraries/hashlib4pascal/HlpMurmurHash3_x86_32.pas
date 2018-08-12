@@ -49,12 +49,12 @@ type
 
     function GetKeyLength(): TNullableInteger;
     function GetKey: THashLibByteArray; inline;
-    procedure SetKey(value: THashLibByteArray); inline;
+    procedure SetKey(const value: THashLibByteArray); inline;
 
   public
     constructor Create();
     procedure Initialize(); override;
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal: IHashResult; override;
     property KeyLength: TNullableInteger read GetKeyLength;
@@ -172,7 +172,7 @@ begin
   result := TConverters.ReadUInt32AsBytesLE(Fm_key);
 end;
 
-procedure TMurmurHash3_x86_32.SetKey(value: THashLibByteArray);
+procedure TMurmurHash3_x86_32.SetKey(const value: THashLibByteArray);
 begin
   if (value = Nil) then
   begin
@@ -199,7 +199,7 @@ begin
   Fm_idx := 0;
 end;
 
-procedure TMurmurHash3_x86_32.TransformBytes(a_data: THashLibByteArray;
+procedure TMurmurHash3_x86_32.TransformBytes(const a_data: THashLibByteArray;
   a_index, a_length: Int32);
 var
   len, nBlocks, i, offset: Int32;
@@ -279,9 +279,20 @@ begin
 end;
 
 function TMurmurHash3_x86_32.TransformFinal: IHashResult;
+var
+  tempBufByte: THashLibByteArray;
+  tempBufUInt32: THashLibUInt32Array;
 begin
   Finish();
-  result := THashResult.Create(Fm_h);
+
+  tempBufUInt32 := THashLibUInt32Array.Create(Fm_h);
+  System.SetLength(tempBufByte, System.Length(tempBufUInt32) *
+    System.SizeOf(UInt32));
+  TConverters.be32_copy(PCardinal(tempBufUInt32), 0, PByte(tempBufByte), 0,
+    System.Length(tempBufByte));
+
+  result := THashResult.Create(tempBufByte);
+
   Initialize();
 end;
 
