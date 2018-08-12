@@ -48,8 +48,8 @@ type
 
   public
 
-    constructor Create(a_underlyingHash: IHash;
-      a_password, a_salt: THashLibByteArray; a_iterations: UInt32);
+    constructor Create(const a_underlyingHash: IHash;
+      const a_password, a_salt: THashLibByteArray; a_iterations: UInt32);
 
     /// <summary>
     /// Returns the pseudo-random bytes for this object.
@@ -69,8 +69,8 @@ uses
 
 { TPBKDF2_HMACNotBuildInAdapter }
 
-constructor TPBKDF2_HMACNotBuildInAdapter.Create(a_underlyingHash: IHash;
-  a_password, a_salt: THashLibByteArray; a_iterations: UInt32);
+constructor TPBKDF2_HMACNotBuildInAdapter.Create(const a_underlyingHash: IHash;
+  const a_password, a_salt: THashLibByteArray; a_iterations: UInt32);
 begin
   Inherited Create();
   FHash := a_underlyingHash;

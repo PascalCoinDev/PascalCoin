@@ -20,7 +20,7 @@ type
   public
     constructor Create();
     procedure Initialize(); override;
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
   end;
@@ -40,7 +40,7 @@ begin
   Fm_hash := 1315423911;
 end;
 
-procedure TJS.TransformBytes(a_data: THashLibByteArray;
+procedure TJS.TransformBytes(const a_data: THashLibByteArray;
   a_index, a_length: Int32);
 var
   i: Int32;

@@ -40,7 +40,7 @@ type
 
     function GetKeyLength(): TNullableInteger;
     function GetKey: THashLibByteArray; inline;
-    procedure SetKey(value: THashLibByteArray); inline;
+    procedure SetKey(const value: THashLibByteArray); inline;
 
   type
 
@@ -60,7 +60,7 @@ type
   public
     constructor Create();
     procedure Initialize(); override;
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
     property KeyLength: TNullableInteger read GetKeyLength;
@@ -102,7 +102,7 @@ begin
 
 end;
 
-procedure TXXHash32.SetKey(value: THashLibByteArray);
+procedure TXXHash32.SetKey(const value: THashLibByteArray);
 begin
   if (value = Nil) then
   begin
@@ -117,7 +117,7 @@ begin
   end;
 end;
 
-procedure TXXHash32.TransformBytes(a_data: THashLibByteArray;
+procedure TXXHash32.TransformBytes(const a_data: THashLibByteArray;
   a_index, a_length: Int32);
 var
   v1, v2, v3, v4: UInt32;

@@ -36,11 +36,11 @@ type
     M = UInt32($5BD1E995);
     R = Int32(24);
 
-    function InternalComputeBytes(a_data: THashLibByteArray): Int32;
+    function InternalComputeBytes(const a_data: THashLibByteArray): Int32;
     procedure TransformUInt32Fast(a_data: UInt32); inline;
     function GetKeyLength(): TNullableInteger;
     function GetKey: THashLibByteArray; inline;
-    procedure SetKey(value: THashLibByteArray); inline;
+    procedure SetKey(const value: THashLibByteArray); inline;
 
   strict protected
     function ComputeAggregatedBytes(a_data: THashLibByteArray)
@@ -70,7 +70,7 @@ begin
   result := TConverters.ReadUInt32AsBytesLE(Fm_key);
 end;
 
-procedure TMurmur2.SetKey(value: THashLibByteArray);
+procedure TMurmur2.SetKey(const value: THashLibByteArray);
 begin
   if (value = Nil) then
   begin
@@ -106,7 +106,7 @@ begin
   inherited Initialize();
 end;
 
-function TMurmur2.InternalComputeBytes(a_data: THashLibByteArray): Int32;
+function TMurmur2.InternalComputeBytes(const a_data: THashLibByteArray): Int32;
 var
   &length, current_index: Int32;
   k: UInt32;

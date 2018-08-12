@@ -32,17 +32,17 @@ type
 
     function GetName: String; override;
 
-    function GetKey(): THashLibByteArray; virtual;
+    function GetKey(): THashLibByteArray;
     function GetKeyLength(): TNullableInteger;
-    procedure SetKey(value: THashLibByteArray); virtual;
+    procedure SetKey(const value: THashLibByteArray);
     procedure UpdatePads();
 
   public
 
-    constructor Create(a_underlyingHash: IHash);
+    constructor Create(const a_underlyingHash: IHash);
     procedure Initialize(); override;
     function TransformFinal(): IHashResult; override;
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     property Key: THashLibByteArray read GetKey write SetKey;
     property Name: String read GetName;
@@ -54,7 +54,7 @@ implementation
 
 { THMACNotBuildInAdapter }
 
-constructor THMACNotBuildInAdapter.Create(a_underlyingHash: IHash);
+constructor THMACNotBuildInAdapter.Create(const a_underlyingHash: IHash);
 begin
   Inherited Create(a_underlyingHash.HashSize, a_underlyingHash.BlockSize);
   Fm_hash := a_underlyingHash;
@@ -74,7 +74,7 @@ begin
   result := Nil;
 end;
 
-procedure THMACNotBuildInAdapter.SetKey(value: THashLibByteArray);
+procedure THMACNotBuildInAdapter.SetKey(const value: THashLibByteArray);
 begin
   if (value = Nil) then
   begin
@@ -132,7 +132,7 @@ begin
 
 end;
 
-procedure THMACNotBuildInAdapter.TransformBytes(a_data: THashLibByteArray;
+procedure THMACNotBuildInAdapter.TransformBytes(const a_data: THashLibByteArray;
   a_index, a_length: Int32);
 begin
 {$IFDEF DEBUG}

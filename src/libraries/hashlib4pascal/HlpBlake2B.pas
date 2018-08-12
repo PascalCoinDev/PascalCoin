@@ -93,9 +93,9 @@ type
 
   public
     constructor Create(); overload;
-    constructor Create(config: IBlake2BConfig); overload;
+    constructor Create(const config: IBlake2BConfig); overload;
     procedure Initialize; override;
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_data_length: Int32); override;
     function TransformFinal: IHashResult; override;
 
@@ -112,7 +112,7 @@ end;
 
 constructor TBlake2B.Create();
 begin
-  Create(TBlake2BConfig.Create());
+  Create(TBlake2BConfig.Create() as IBlake2BConfig);
 end;
 
 {$IFNDEF USE_UNROLLED_VARIANT}
@@ -1596,27 +1596,30 @@ begin
 {$ENDIF USE_UNROLLED_VARIANT}
 end;
 
-constructor TBlake2B.Create(config: IBlake2BConfig);
+constructor TBlake2B.Create(const config: IBlake2BConfig);
+var
+  Lconfig: IBlake2BConfig;
 begin
 
+  Lconfig := config;
   FBlockSize := BlockSizeInBytes;
 
-  if (config = Nil) then
+  if (Lconfig = Nil) then
   begin
-    config := FDefaultConfig;
+    Lconfig := FDefaultConfig;
   end;
 
-  FrawConfig := TBlake2BIvBuilder.ConfigB(config, Nil);
-  if ((config.Key <> Nil) and (System.Length(config.Key) <> 0)) then
+  FrawConfig := TBlake2BIvBuilder.ConfigB(Lconfig, Nil);
+  if ((Lconfig.Key <> Nil) and (System.Length(Lconfig.Key) <> 0)) then
   begin
 
-    FKey := System.Copy(config.Key, System.Low(config.Key),
-      System.Length(config.Key));
+    FKey := System.Copy(Lconfig.Key, System.Low(Lconfig.Key),
+      System.Length(Lconfig.Key));
 
     System.SetLength(FKey, FBlockSize);
 
   end;
-  FHashSize := config.HashSize;
+  FHashSize := Lconfig.HashSize;
 
   System.SetLength(Fm_state, 8);
 
@@ -1684,7 +1687,7 @@ begin
 
 end;
 
-procedure TBlake2B.TransformBytes(a_data: THashLibByteArray;
+procedure TBlake2B.TransformBytes(const a_data: THashLibByteArray;
   a_index, a_data_length: Int32);
 var
   offset, bufferRemaining: Int32;

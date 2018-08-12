@@ -31,26 +31,26 @@ type
 
     function ComputeString(const a_data: String; a_encoding: TEncoding)
       : IHashResult;
-    function ComputeBytes(a_data: THashLibByteArray): IHashResult;
+    function ComputeBytes(const a_data: THashLibByteArray): IHashResult;
     function ComputeUntyped(const a_data; a_length: Int64): IHashResult;
-    function ComputeStream(a_stream: TStream; a_length: Int64 = -1)
+    function ComputeStream(const a_stream: TStream; a_length: Int64 = -1)
       : IHashResult;
     function ComputeFile(const a_file_name: String; a_from: Int64 = 0;
       a_length: Int64 = -1): IHashResult;
 
     procedure Initialize();
 
-    procedure TransformBytes(a_data: THashLibByteArray); overload;
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray); overload;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index: Int32); overload;
-    procedure TransformBytes(a_data: THashLibByteArray; a_index: Int32;
+    procedure TransformBytes(const a_data: THashLibByteArray; a_index: Int32;
       a_length: Int32); overload;
     procedure TransformUntyped(const a_data; a_length: Int64);
 
     function TransformFinal(): IHashResult;
 
-    procedure TransformString(const a_data: String; a_encoding: TEncoding);
-    procedure TransformStream(a_stream: TStream; a_length: Int64 = -1);
+    procedure TransformString(const a_data: String; const a_encoding: TEncoding);
+    procedure TransformStream(const a_stream: TStream; a_length: Int64 = -1);
     procedure TransformFile(const a_file_name: String; a_from: Int64 = 0;
       a_length: Int64 = -1);
 

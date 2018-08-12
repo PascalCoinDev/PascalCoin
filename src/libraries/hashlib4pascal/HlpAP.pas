@@ -21,7 +21,7 @@ type
   public
     constructor Create();
     procedure Initialize(); override;
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
 
@@ -42,7 +42,7 @@ begin
   Fm_index := 0;
 end;
 
-procedure TAP.TransformBytes(a_data: THashLibByteArray;
+procedure TAP.TransformBytes(const a_data: THashLibByteArray;
   a_index, a_length: Int32);
 var
   i: Int32;

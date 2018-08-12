@@ -25,13 +25,13 @@ type
     FPersonalisation, FSalt, FKey: THashLibByteArray;
 
     function GetPersonalisation: THashLibByteArray; inline;
-    procedure SetPersonalisation(value: THashLibByteArray); inline;
+    procedure SetPersonalisation(const value: THashLibByteArray); inline;
 
     function GetSalt: THashLibByteArray; inline;
-    procedure SetSalt(value: THashLibByteArray); inline;
+    procedure SetSalt(const value: THashLibByteArray); inline;
 
     function GetKey: THashLibByteArray; inline;
-    procedure SetKey(value: THashLibByteArray); inline;
+    procedure SetKey(const value: THashLibByteArray); inline;
 
     function GetHashSize: Int32; inline;
     procedure SetHashSize(value: Int32); inline;
@@ -75,24 +75,25 @@ begin
   FHashSize := value;
 end;
 
-procedure TBlake2BConfig.SetKey(value: THashLibByteArray);
+procedure TBlake2BConfig.SetKey(const value: THashLibByteArray);
 begin
   FKey := value;
 end;
 
-procedure TBlake2BConfig.SetPersonalisation(value: THashLibByteArray);
+procedure TBlake2BConfig.SetPersonalisation(const value: THashLibByteArray);
 begin
   FPersonalisation := value;
 end;
 
-procedure TBlake2BConfig.SetSalt(value: THashLibByteArray);
+procedure TBlake2BConfig.SetSalt(const value: THashLibByteArray);
 begin
   FSalt := value;
 end;
 
 constructor TBlake2BConfig.Create(AHashSize: THashSize);
 begin
-  if not (Int32(AHashSize) in [20, 32, 48, 64]) then
+  Inherited Create();
+  if not(Int32(AHashSize) in [20, 32, 48, 64]) then
   begin
     raise EArgumentHashLibException.CreateRes(@SInvalidHashSize);
   end;

@@ -18,7 +18,7 @@ type
     function GetInt32(): Int32;
     function GetUInt64(): UInt64;
     function ToString(a_group: Boolean = false): String;
-    function Equals(a_hashResult: IHashResult): Boolean; overload;
+    function Equals(const a_hashResult: IHashResult): Boolean; overload;
     function GetHashCode(): {$IFDEF DELPHI}Int32; {$ELSE}PtrInt;
 {$ENDIF DELPHI}
   end;

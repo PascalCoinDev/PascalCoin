@@ -23,7 +23,7 @@ type
   public
     constructor Create();
     procedure Initialize(); override;
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
   end;
@@ -43,7 +43,7 @@ begin
   Fm_a := 63689;
 end;
 
-procedure TRS.TransformBytes(a_data: THashLibByteArray;
+procedure TRS.TransformBytes(const a_data: THashLibByteArray;
   a_index, a_length: Int32);
 var
   i: Int32;

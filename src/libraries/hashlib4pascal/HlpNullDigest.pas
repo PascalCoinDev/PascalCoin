@@ -23,7 +23,7 @@ type
     constructor Create();
     destructor Destroy(); override;
     procedure Initialize(); override;
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
   end;
@@ -52,7 +52,7 @@ begin
   BlockSize := 0;
 end;
 
-procedure TNullDigest.TransformBytes(a_data: THashLibByteArray;
+procedure TNullDigest.TransformBytes(const a_data: THashLibByteArray;
   a_index, a_length: Int32);
 begin
   FbOut.Write(a_data[a_index], a_length);

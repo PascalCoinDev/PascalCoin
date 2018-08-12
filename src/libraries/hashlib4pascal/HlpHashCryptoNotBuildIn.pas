@@ -28,7 +28,7 @@ type
   public
     constructor Create(a_hash_size, a_block_size: Int32;
       a_buffer_size: Int32 = -1);
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     procedure Initialize(); override;
     function TransformFinal(): IHashResult; override;
@@ -65,7 +65,7 @@ begin
   TransformBlock(PByte(Fm_buffer.GetBytes()), Fm_buffer.Length, 0);
 end;
 
-procedure TBlockHash.TransformBytes(a_data: THashLibByteArray;
+procedure TBlockHash.TransformBytes(const a_data: THashLibByteArray;
   a_index, a_length: Int32);
 var
   ptr_a_data: PByte;

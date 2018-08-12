@@ -556,7 +556,7 @@ type
     Delta = Int32(7);
 
     function GetNames: THashLibStringArray; inline;
-    procedure SetNames(value: THashLibStringArray); inline;
+    procedure SetNames(const value: THashLibStringArray); inline;
     function GetWidth: Int32; inline;
     procedure SetWidth(value: Int32); inline;
     function GetPolynomial: UInt64; inline;
@@ -595,10 +595,10 @@ type
 
     constructor Create(_Width: Int32; _poly, _Init: UInt64;
       _refIn, _refOut: Boolean; _XorOut, _check: UInt64;
-      _Names: THashLibStringArray);
+      const _Names: THashLibStringArray);
 
     procedure Initialize(); override;
-    procedure TransformBytes(a_data: THashLibByteArray;
+    procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
 
@@ -660,7 +660,7 @@ begin
   FInit := value;
 end;
 
-procedure TCRC.SetNames(value: THashLibStringArray);
+procedure TCRC.SetNames(const value: THashLibStringArray);
 begin
   FNames := value;
 end;
@@ -763,7 +763,7 @@ end;
 
 constructor TCRC.Create(_Width: Int32; _poly, _Init: UInt64;
   _refIn, _refOut: Boolean; _XorOut, _check: UInt64;
-  _Names: THashLibStringArray);
+  const _Names: THashLibStringArray);
 begin
 
   FIsTableGenerated := False;
@@ -1215,8 +1215,8 @@ begin
         THashLibStringArray.Create('CRC-64', 'CRC-64/ECMA-182'));
 
     TCRCStandard.CRC64_GOISO:
-      result := TCRC.Create(64, $000000000000001B, UInt64($FFFFFFFFFFFFFFFF), True,
-        True, UInt64($FFFFFFFFFFFFFFFF), UInt64($B90956C775A41001),
+      result := TCRC.Create(64, $000000000000001B, UInt64($FFFFFFFFFFFFFFFF),
+        True, True, UInt64($FFFFFFFFFFFFFFFF), UInt64($B90956C775A41001),
         THashLibStringArray.Create('CRC-64/GO-ISO'));
 
     TCRCStandard.CRC64_WE:
@@ -1318,7 +1318,7 @@ begin
   end;
 end;
 
-procedure TCRC.TransformBytes(a_data: THashLibByteArray;
+procedure TCRC.TransformBytes(const a_data: THashLibByteArray;
   a_index, a_length: Int32);
 var
   i: Int32;
