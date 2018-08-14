@@ -20,9 +20,16 @@ unit UJSONFunctions;
 interface
 
 Uses
+{$IFNDEF VER210}
+{$DEFINE DELPHIXE}
+{$ENDIF}
+
   {$IFDEF FPC}
   fpjson, jsonparser,
   {$ELSE}
+  {$IFDEF DELPHIXE}
+  System.JSON,
+  {$ENDIF}
   DBXJSON,
   {$ENDIF}
   SysUtils, DateUtils, Variants, Classes, ULog;
@@ -495,17 +502,17 @@ begin
     d := TJSONNumber(JSONValue).AsDouble;
     if Pos('.',JSONValue.ToString)>0 then i64 := 0
     else i64 := TJSONNumber(JSONValue).AsInt;
-    ds := DecimalSeparator;
-    ts := ThousandSeparator;
-    DecimalSeparator := '.';
-    ThousandSeparator := ',';
+    ds := {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DecimalSeparator;
+    ts := {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ThousandSeparator;
+    {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DecimalSeparator := '.';
+    {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ThousandSeparator := ',';
     Try
       if FormatFloat('0.###########',d)=inttostr(i64) then
         Value := i64
       else Value := d;
     Finally
-      DecimalSeparator := ds;
-      ThousandSeparator := ts;
+      {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DecimalSeparator := ds;
+      {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ThousandSeparator := ts;
     End;
   end else if JSONValue is TJSONTrue then Value := true
   else if JSONValue is TJSONFalse then Value := false
@@ -534,15 +541,15 @@ begin
     varBoolean : if (Value) then Result := 'true' else Result:='false';
     varNull : Result := 'null';
     varDate,varDouble : begin
-      ds := DecimalSeparator;
-      ts := ThousandSeparator;
-      DecimalSeparator := '.';
-      ThousandSeparator := ',';
+      ds := {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DecimalSeparator;
+      ts := {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ThousandSeparator;
+      {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DecimalSeparator := '.';
+      {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ThousandSeparator := ',';
       try
         Result := FormatFloat('0.###########',Value);
       finally
-        DecimalSeparator := ds;
-        ThousandSeparator := ts;
+        {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DecimalSeparator := ds;
+        {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ThousandSeparator := ts;
       end;
     end
   else

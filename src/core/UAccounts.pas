@@ -1473,6 +1473,10 @@ begin
   end;
 end;
 
+{$IFNDEF VER210}
+{$DEFINE DELPHIXE}
+{$ENDIF}
+
 class function TAccountComp.TxtToMoney(const moneytxt: AnsiString;
   var money: Int64): Boolean;
 Var s : AnsiString;
@@ -1484,11 +1488,11 @@ begin
     exit;
   end;
   try
-    If pos(DecimalSeparator,moneytxt)<=0 then begin
+    If pos({$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DecimalSeparator,moneytxt)<=0 then begin
       // No decimal separator, consider ThousandSeparator as a decimal separator
-      s := StringReplace(moneytxt,ThousandSeparator,DecimalSeparator,[rfReplaceAll]);
+      s := StringReplace(moneytxt,{$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ThousandSeparator,{$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DecimalSeparator,[rfReplaceAll]);
     end else begin
-      s := StringReplace(moneytxt,ThousandSeparator,'',[rfReplaceAll]);
+      s := StringReplace(moneytxt,{$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ThousandSeparator,'',[rfReplaceAll]);
     end;
     money := Round( StrToFloat(s)*10000 );
     Result := true;
