@@ -1,16 +1,13 @@
-unit URandomHash;
-
 {
-  Copyright (c) Herman Schoenfeld
+  Copyright (c) Herman Schoenfeld 2018
 
   RandomHash reference implementation (PIP-0009).
-
-  PROVIDED FOR CODE-REVIEW PURPOSES ONLY. ACTUAL HASH OUTPUTS WILL BE DIFFERENT WITH PENDING COMMITS.
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 }
 
+unit URandomHash;
 
 {%region Compiler Directives}
 {$IFDEF FPC}
@@ -105,7 +102,7 @@ type
       N = 5;            // Number of hashing rounds required to compute a nonce (total rounds = 2^N - 1)
       M = 10 * 1024;    // 10KB The memory expansion unit (in bytes)
 
-    private
+    {$IFNDEF UNITTESTS}private{$ELSE}public{$ENDIF}
       FMurmurHash3_x86_32 : IHash;
       FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
       function ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes; inline;
@@ -264,7 +261,6 @@ begin
   Result := LRoundOutputs.ToArray;
 end;
 
-
 function TRandomHash.ChangeNonce(const ABlockHeader: TBytes;  ANonce: Int32): TBytes;
 const
   LNonceOffset = 4;
@@ -336,13 +332,17 @@ end;
 
 function TRandomHash.MemTransform2(const AChunk: TBytes): TBytes;
 var
-  i, LChunkLength, LPivot: Int32;
+  i, LChunkLength, LPivot, LOdd: Int32;
 begin
   LChunkLength := System.Length(AChunk);
   LPivot := LChunkLength SHR 1;
+  LOdd := LChunkLength MOD 2;
   System.SetLength(Result, LChunkLength);
-  System.Move(AChunk[LPivot], Result[0], LPivot);
-  System.Move(AChunk[System.Low(AChunk)], Result[LPivot], LPivot);
+  System.Move(AChunk[LPivot + LOdd], Result[0], LPivot);
+  System.Move(AChunk[0], Result[LPivot + LOdd], LPivot);
+  // Set middle-byte for odd-length arrays
+  if LOdd = 1 then
+    Result[LPivot] := AChunk[LPivot];
 end;
 
 function TRandomHash.MemTransform3(const AChunk: TBytes): TBytes;
@@ -351,50 +351,63 @@ var
 begin
   LChunkLength := System.Length(AChunk);
   System.SetLength(Result, LChunkLength);
-  for i := System.Low(AChunk) to System.High(AChunk) do
+  for i := 0 to High(AChunk) do
     Result[i] := AChunk[LChunkLength - i - 1];
 end;
 
 function TRandomHash.MemTransform4(const AChunk: TBytes): TBytes;
 var
-  i, LChunkLength, LPivot: Int32;
+  i, LChunkLength, LPivot, LOdd: Int32;
 begin
   LChunkLength := System.Length(AChunk);
-  LPivot := LChunkLength shr 1;
+  LPivot := LChunkLength SHR 1;
+  LOdd := LChunkLength MOD 2;
   System.SetLength(Result, LChunkLength);
-  for i := System.Low(AChunk) to System.Pred(LPivot) do
+  for i := 0 to System.Pred(LPivot) do
   begin
     Result[(i * 2)] := AChunk[i];
-    Result[(i * 2) + 1] := AChunk[i + LPivot];
+    Result[(i * 2) + 1] := AChunk[i + LPivot + LOdd];
   end;
+  // Set final byte for odd-lengths
+  if LOdd = 1 THEN
+    Result[High(Result)] := AChunk[LPivot];
 end;
 
 function TRandomHash.MemTransform5(const AChunk: TBytes): TBytes;
 var
-  i, LChunkLength, LPivot: Int32;
+  i, LChunkLength, LPivot, LOdd: Int32;
 begin
   LChunkLength := System.Length(AChunk);
-  LPivot := LChunkLength shr 1;
+  LPivot := LChunkLength SHR 1;
+  LOdd := LChunkLength MOD 2;
   System.SetLength(Result, LChunkLength);
   for i := System.Low(AChunk) to System.Pred(LPivot) do
   begin
-    Result[(i * 2)] := AChunk[i + LPivot];
+    Result[(i * 2)] := AChunk[i + LPivot + LOdd];
     Result[(i * 2) + 1] := AChunk[i];
   end;
+  // Set final byte for odd-lengths
+  if LOdd = 1 THEN
+    Result[High(Result)] := AChunk[LPivot];
 end;
 
 function TRandomHash.MemTransform6(const AChunk: TBytes): TBytes;
 var
-  i, LChunkLength, LPivot: Int32;
+  i, LChunkLength, LPivot, LOffset: Int32;
 begin
   LChunkLength := System.Length(AChunk);
-  LPivot := LChunkLength shr 1;
+  LPivot := LChunkLength SHR 1;
+  LOffset := LChunkLength MOD 2;
   System.SetLength(Result, LChunkLength);
-  for i := System.Low(AChunk) to System.Pred(LPivot) do
+  for i := 0 to System.Pred(LPivot) do
   begin
     Result[i] := AChunk[(i * 2)] xor AChunk[(i * 2) + 1];
-    Result[i + LPivot] := AChunk[i + 1] xor AChunk[LChunkLength - i - 1];
+    Result[i + LPivot + LOffset] := AChunk[i] xor AChunk[LChunkLength - i - 1];
   end;
+  // Set middle-byte for odd-lengths
+  if LOffset = 1 THEN
+    Result[LPivot] := AChunk[LPivot];
+
 end;
 
 function TRandomHash.MemTransform7(const AChunk: TBytes): TBytes;
@@ -403,7 +416,7 @@ var
 begin
   LChunkLength := System.Length(AChunk);
   System.SetLength(Result, LChunkLength);
-  for i := System.Low(AChunk) to System.High(AChunk) do
+  for i := 0 to System.High(AChunk) do
     Result[i] := TBits.RotateLeft8(AChunk[i], i);
 end;
 
@@ -413,7 +426,7 @@ var
 begin
   LChunkLength := System.Length(AChunk);
   System.SetLength(Result, LChunkLength);
-  for i := System.Low(AChunk) to System.High(AChunk) do
+  for i := 0 to System.High(AChunk) do
     Result[i] := TBits.RotateRight8(AChunk[i], i);
 end;
 
