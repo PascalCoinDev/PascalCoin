@@ -37,13 +37,13 @@ const
 { GLOBAL FUNCTIONS }
 
 { Converts a string to hexidecimal format }
-function String2Hex(const Buffer: AnsiString): AnsiString;
-function Hex2Bytes(const AHexString: AnsiString): TBytes; overload;
-function TryHex2Bytes(const AHexString: AnsiString; out ABytes : TBytes): boolean; overload;
-function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : AnsiString;
+function String2Hex(const Buffer: String): String;
+function Hex2Bytes(const AHexString: String): TBytes; overload;
+function TryHex2Bytes(const AHexString: String; out ABytes : TBytes): boolean; overload;
+function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : String;
 
 { Binary-safe StrComp replacement. StrComp will return 0 for when str1 and str2 both start with NUL character. }
-function BinStrComp(const Str1, Str2 : AnsiString): Integer;
+function BinStrComp(const Str1, Str2 : String): Integer;
 function BytesCompare(const ABytes1, ABytes2: TBytes): integer;
 
 { Ternary operator equivalent of predicate ? (true-val) : (false-value) }
@@ -65,8 +65,8 @@ function MinValue(const AArray : array of Cardinal) : Cardinal;
 function MaxValue(const AArray : array of Cardinal) : Cardinal;
 
 { DateTime functions }
-function TimeStamp : AnsiString;
-function UtcTimeStamp : AnsiString;
+function TimeStamp : String;
+function UtcTimeStamp : String;
 
 type
 
@@ -381,7 +381,7 @@ var
 
 {%region Global functions }
 
-function String2Hex(const Buffer: AnsiString): AnsiString;
+function String2Hex(const Buffer: String): String;
 var
   n: Integer;
 begin
@@ -390,16 +390,16 @@ begin
     Result := LowerCase(Result + IntToHex(Ord(Buffer[n]), 2));
 end;
 
-function Hex2Bytes(const AHexString: AnsiString): TBytes;
+function Hex2Bytes(const AHexString: String): TBytes;
 begin
   if NOT TryHex2Bytes(AHexString, Result) then
     raise EArgumentOutOfRangeException.Create('Invalidly formatted hexadecimal string.');
 end;
 
-function TryHex2Bytes(const AHexString: AnsiString; out ABytes : TBytes): boolean; overload;
+function TryHex2Bytes(const AHexString: String; out ABytes : TBytes): boolean; overload;
 var
   P : PAnsiChar;
-  LHexString : AnsiString;
+  LHexString : String;
   LHexIndex, LHexLength, LHexStart : Integer;
 begin
   SetLength(ABytes, 0);
@@ -426,10 +426,10 @@ begin
   Result := (LHexIndex = (LHexLength DIV 2));
 end;
 
-function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : AnsiString;
+function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : String;
 var
   i, LStart, LLen : Integer;
-  s : AnsiString;
+  s : String;
   b : Byte;
 begin
   LLen := System.Length(ABytes)*2;
@@ -458,7 +458,7 @@ begin
   end;
 end;
 
-function BinStrComp(const Str1, Str2: AnsiString): integer;
+function BinStrComp(const Str1, Str2: String): integer;
 var Str1Len, Str2Len, i : Integer;
 begin
    Str1Len := Length(Str1);
@@ -895,12 +895,12 @@ end;
 
 {%region Date/Time Support }
 
-function TimeStamp : AnsiString;
+function TimeStamp : String;
 begin
   Result := FormatDateTime('yyy-mm-dd hh:nn:ss', Now);
 end;
 
-function UtcTimeStamp : AnsiString;
+function UtcTimeStamp : String;
 begin
   raise Exception.Create(sNotImplemented);
 end;

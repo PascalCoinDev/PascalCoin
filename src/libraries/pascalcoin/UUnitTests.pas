@@ -19,6 +19,12 @@ type
   end;
 
 
+  TTestItem<TInput1, TInput2, TExpected> = record
+    Input1 : TInput1;
+    Input2 : TInput2;
+    Expected : TExpected;
+  end;
+
   { PascalCoin Unit Test }
 
   TPascalCoinUnitTest = class(TTestCase)

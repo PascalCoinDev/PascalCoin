@@ -162,7 +162,6 @@ type
       function NextUSingle: Single; inline;
   end;
 
-
 resourcestring
   SUnSupportedHash = 'Unsupported Hash Selected';
   SInvalidRound = 'Round must be between 0 and N inclusive';
