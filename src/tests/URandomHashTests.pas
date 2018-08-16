@@ -717,104 +717,36 @@ begin
   end;
 end;
 
-procedure TRandomHashTest.TestSHA2_256;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateSHA2_256(), DATA_SHA2_256);
-end;
-
-procedure TRandomHashTest.TestSHA2_384;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateSHA2_384(), DATA_SHA2_384);
-end;
-
-procedure TRandomHashTest.TestSHA3_256;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateSHA3_256(), DATA_SHA3_256);
-end;
-
-procedure TRandomHashTest.TestSHA3_384;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateSHA3_384(), DATA_SHA3_384);
-end;
-
-procedure TRandomHashTest.TestSHA3_512;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateSHA3_512(), DATA_SHA3_512);
-end;
-
-procedure TRandomHashTest.TestRIPEMD160;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateRIPEMD160(), DATA_RIPEMD160);
-end;
-
-procedure TRandomHashTest.TestRIPEMD256;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateRIPEMD256(), DATA_RIPEMD256);
-end;
-
-procedure TRandomHashTest.TestRIPEMD320;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateRIPEMD320(), DATA_RIPEMD320);
-end;
-
-procedure TRandomHashTest.TestBLAKE2B;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateBlake2B(), DATA_BLAKE2B);
-end;
-
-procedure TRandomHashTest.TestBLAKE2S;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateBlake2S(), DATA_BLAKE2S);
-end;
-
-procedure TRandomHashTest.TestTIGER2_5_192;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateTiger2_5_192(), DATA_TIGER2_5_192);
-end;
-
-procedure TRandomHashTest.TestSNEFRU_8_256;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateSnefru_8_256(), DATA_SNEFRU_8_256);
-end;
-
-procedure TRandomHashTest.TestGRINDAHL512;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateGrindahl512(), DATA_GRINDAHL512);
-end;
-
-procedure TRandomHashTest.TestHAVAL_5_256;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateHaval_5_256(), DATA_HAVAL_5_256);
-end;
-
-procedure TRandomHashTest.TestMD5;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateMD5(), DATA_MD5);
-end;
-
-procedure TRandomHashTest.TestRADIOGATUN32;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateRadioGatun32(), DATA_RADIOGATUN32);
-end;
-
-procedure TRandomHashTest.TestWHIRLPOOL;
-begin
-  TestSubHash(THashFactory.TCrypto.CreateWhirlPool(), DATA_WHIRLPOOL);
-end;
-
-procedure TRandomHashTest.TestMURMUR3_32;
-begin
-  TestSubHash(THashFactory.THash32.CreateMurmurHash3_x86_32(), DATA_MURMUR3_32);
-end;
-
-procedure TRandomHashTest.TestSubHash(AHasher : IHash; const ATestData : array of TTestItem<Integer, String>);
+procedure TRandomHashTest.TestExpand;
 var
-  LInput : TBytes;
-  LCase : TTestItem<Integer, String>;
+  LCase : TTestItem<String, Integer, String>;
+  LHasher : TRandomHash;
+  LDisposables : TDisposables;
 begin
-  for LCase in ATestData do begin
-    LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input);
-    AssertEquals(ParseBytes(LCase.Expected), AHasher.ComputeBytes(LInput).GetBytes);
+  LHasher := LDisposables.AddObject( TRandomHash.Create ) as TRandomHash;
+  for LCase in DATA_EXPAND do
+    AssertEquals(Hex2Bytes(LCase.Expected), LHasher.Expand(Hex2Bytes(LCase.Input1), LCase.Input2));
+   // WriteLn(Bytes2Hex(LHasher.Expand(Hex2Bytes(LCase.Input1), LCase.Input2), True));
+end;
+
+procedure TRandomHashTest.TestCompress;
+var
+  LCase : TTestItem<String, String>;
+  LHasher : TRandomHash;
+  LDisposables : TDisposables;
+  LInputs : TArray<TBytes>;
+
+  function ParseHex(constref AHex : String) : TBytes;
+  begin
+    Result := Hex2Bytes(AHex);
+  end;
+
+begin
+  LHasher := LDisposables.AddObject( TRandomHash.Create ) as TRandomHash;
+  for LCase in DATA_COMPRESS do begin
+    LInputs := TListTool<String, TBytes>.Transform(LCase.Input.Split([';']), ParseHex);
+    AssertEquals(Hex2Bytes(LCase.Expected), LHasher.Compress(LInputs));
+   //WriteLn(Bytes2Hex(LHasher.Compress(LInputs)));
   end;
 end;
 
@@ -953,36 +885,104 @@ begin
   end;
 end;
 
-procedure TRandomHashTest.TestExpand;
-var
-  LCase : TTestItem<String, Integer, String>;
-  LHasher : TRandomHash;
-  LDisposables : TDisposables;
+procedure TRandomHashTest.TestSHA2_256;
 begin
-  LHasher := LDisposables.AddObject( TRandomHash.Create ) as TRandomHash;
-  for LCase in DATA_EXPAND do
-    AssertEquals(Hex2Bytes(LCase.Expected), LHasher.Expand(Hex2Bytes(LCase.Input1), LCase.Input2));
-   // WriteLn(Bytes2Hex(LHasher.Expand(Hex2Bytes(LCase.Input1), LCase.Input2), True));
+  TestSubHash(THashFactory.TCrypto.CreateSHA2_256(), DATA_SHA2_256);
 end;
 
-procedure TRandomHashTest.TestCompress;
-var
-  LCase : TTestItem<String, String>;
-  LHasher : TRandomHash;
-  LDisposables : TDisposables;
-  LInputs : TArray<TBytes>;
-
-  function ParseHex(constref AHex : String) : TBytes;
-  begin
-    Result := Hex2Bytes(AHex);
-  end;
-
+procedure TRandomHashTest.TestSHA2_384;
 begin
-  LHasher := LDisposables.AddObject( TRandomHash.Create ) as TRandomHash;
-  for LCase in DATA_COMPRESS do begin
-    LInputs := TListTool<String, TBytes>.Transform(LCase.Input.Split([';']), ParseHex);
-    AssertEquals(Hex2Bytes(LCase.Expected), LHasher.Compress(LInputs));
-   //WriteLn(Bytes2Hex(LHasher.Compress(LInputs)));
+  TestSubHash(THashFactory.TCrypto.CreateSHA2_384(), DATA_SHA2_384);
+end;
+
+procedure TRandomHashTest.TestSHA3_256;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateSHA3_256(), DATA_SHA3_256);
+end;
+
+procedure TRandomHashTest.TestSHA3_384;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateSHA3_384(), DATA_SHA3_384);
+end;
+
+procedure TRandomHashTest.TestSHA3_512;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateSHA3_512(), DATA_SHA3_512);
+end;
+
+procedure TRandomHashTest.TestRIPEMD160;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateRIPEMD160(), DATA_RIPEMD160);
+end;
+
+procedure TRandomHashTest.TestRIPEMD256;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateRIPEMD256(), DATA_RIPEMD256);
+end;
+
+procedure TRandomHashTest.TestRIPEMD320;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateRIPEMD320(), DATA_RIPEMD320);
+end;
+
+procedure TRandomHashTest.TestBLAKE2B;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateBlake2B(), DATA_BLAKE2B);
+end;
+
+procedure TRandomHashTest.TestBLAKE2S;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateBlake2S(), DATA_BLAKE2S);
+end;
+
+procedure TRandomHashTest.TestTIGER2_5_192;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateTiger2_5_192(), DATA_TIGER2_5_192);
+end;
+
+procedure TRandomHashTest.TestSNEFRU_8_256;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateSnefru_8_256(), DATA_SNEFRU_8_256);
+end;
+
+procedure TRandomHashTest.TestGRINDAHL512;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateGrindahl512(), DATA_GRINDAHL512);
+end;
+
+procedure TRandomHashTest.TestHAVAL_5_256;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateHaval_5_256(), DATA_HAVAL_5_256);
+end;
+
+procedure TRandomHashTest.TestMD5;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateMD5(), DATA_MD5);
+end;
+
+procedure TRandomHashTest.TestRADIOGATUN32;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateRadioGatun32(), DATA_RADIOGATUN32);
+end;
+
+procedure TRandomHashTest.TestWHIRLPOOL;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateWhirlPool(), DATA_WHIRLPOOL);
+end;
+
+procedure TRandomHashTest.TestMURMUR3_32;
+begin
+  TestSubHash(THashFactory.THash32.CreateMurmurHash3_x86_32(), DATA_MURMUR3_32);
+end;
+
+procedure TRandomHashTest.TestSubHash(AHasher : IHash; const ATestData : array of TTestItem<Integer, String>);
+var
+  LInput : TBytes;
+  LCase : TTestItem<Integer, String>;
+begin
+  for LCase in ATestData do begin
+    LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input);
+    AssertEquals(ParseBytes(LCase.Expected), AHasher.ComputeBytes(LInput).GetBytes);
   end;
 end;
 
