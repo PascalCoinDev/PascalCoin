@@ -8,7 +8,7 @@ This software is a Node of the Pascal Coin P2P Cryptocurrency.
 It can be used to Mine and Explore blocks and operations.  
   
 Distributed under the MIT software license, see the accompanying file  
-LICENSE  or visit http://www.opensource.org/licenses/mit-license.php.  
+LICENSE  or visit https://www.opensource.org/licenses/mit-license.php.  
 
 This product includes software developed by the OpenSSL Project and Denis  
 Grinyuk (https://github.com/Arvur/OpenSSL-Delphi), and some  
