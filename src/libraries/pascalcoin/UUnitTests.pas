@@ -7,7 +7,7 @@ unit UUnitTests;
 interface
 
 uses
-  Classes, SysUtils, {$IFDEF FPC}fpcunit,testregistry {$ELSE}DUnitX.TestFramework, DUnitX.DUnitCompatibility{$ENDIF FPC}, variants;
+  Classes, SysUtils, {$IFDEF FPC}fpcunit,testregistry {$ELSE}TestFramework {$ENDIF FPC}, variants;
 
 type
 
@@ -29,16 +29,16 @@ type
 
   TPascalCoinUnitTest = class(TTestCase)
   protected
-    class function ParseBytes(const AStr : String) : TBytes;   // if stars with 0x parses as input hexstring else ascii
-    class procedure AssertEquals(const AMessage: string; const Expected, Actual: TBytes); overload;
-    class procedure AssertEquals(const Expected, Actual: TBytes); overload;
+     function ParseBytes(const AStr : String) : TBytes;   // if stars with 0x parses as input hexstring else ascii
+     procedure AssertEquals(const AMessage: string; const Expected, Actual: TBytes); overload;
+     procedure AssertEquals(const Expected, Actual: TBytes); overload;
   end;
 
 implementation
 
 uses UCommon;
 
-class function TPascalCoinUnitTest.ParseBytes(const AStr : String) : TBytes;
+function TPascalCoinUnitTest.ParseBytes(const AStr : String) : TBytes;
 begin
   if AStr.StartsWith('0x') then
     Result := Hex2Bytes(AStr)
@@ -46,16 +46,16 @@ begin
     Result := TEncoding.ASCII.GetBytes(AStr);
 end;
 
-class procedure TPascalCoinUnitTest.AssertEquals(const AMessage: string; const Expected, Actual: TBytes);
+procedure TPascalCoinUnitTest.AssertEquals(const AMessage: string; const Expected, Actual: TBytes);
 begin
 {$IFDEF FPC}
   AssertTrue(AMessage, BytesCompare(Expected, Actual) = 0, CallerAddr);
 {$ELSE}
-  Assert.IsTrue(BytesCompare(Expected, Actual) = 0, AMessage);
+  CheckTrue(BytesCompare(Expected, Actual) = 0, AMessage);
 {$ENDIF}
 end;
 
-class procedure TPascalCoinUnitTest.AssertEquals(const Expected, Actual: TBytes);
+procedure TPascalCoinUnitTest.AssertEquals(const Expected, Actual: TBytes);
 begin
 {$IFDEF FPC}
   AssertEquals(ComparisonMsg(Bytes2Hex(Expected, True), Bytes2Hex(Actual, True)), Expected, Actual);

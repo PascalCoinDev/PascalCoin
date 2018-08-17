@@ -3,17 +3,15 @@ unit URandomHashTests.Delphi;
 interface
 
 uses
-  Classes, SysUtils, {$IFDEF FPC}fpcunit,testregistry {$ELSE}DUnitX.TestFramework, DUnitX.DUnitCompatibility{$ENDIF FPC},
+  Classes, SysUtils, {$IFDEF FPC}fpcunit,testregistry {$ELSE}TestFramework {$ENDIF FPC},
   UUnitTests, HlpIHash;
 
 type
 
   { TRandomHashTest }
 
-  [TestFixture]
   TRandomHashTest = class(TPascalCoinUnitTest)
-  public
-    [TestCase]
+  published
     procedure TestRandomHash_Standard;
   end;
 
@@ -52,6 +50,6 @@ end;
 
 initialization
 
-  TDUnitX.RegisterTestFixture(TRandomHashTest);
+  RegisterTest(TRandomHashTest.Suite);
 
 end.

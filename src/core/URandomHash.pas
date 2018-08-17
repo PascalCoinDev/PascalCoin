@@ -122,7 +122,7 @@ type
       function Hash(const ABlockHeader: TBytes; ARound: Int32) : TArray<TBytes>; overload;
     public
       constructor Create;
-      destructor Destroy;
+      destructor Destroy; override;
       function Hash(const ABlockHeader: TBytes): TBytes; overload; inline;
       class function Compute(const ABlockHeader: TBytes): TBytes; overload; static; inline;
   end;
@@ -201,6 +201,7 @@ begin
  FMurmurHash3_x86_32 := nil;
  for i := Low(FHashAlg) to High(FHashAlg) do
    FHashAlg[i] := nil;
+ inherited Destroy;
 end;
 
 class function TRandomHash.Compute(const ABlockHeader: TBytes): TBytes;

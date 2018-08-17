@@ -7,7 +7,7 @@ program RandomHash.Tests;
 
 uses
   Forms,
-  DUnitX.TestFramework, DUnitX.DUnitCompatibility,
+  TestFramework,
   GUITestRunner,
   TextTestRunner,
   URandomHash in '..\core\URandomHash.pas',
