@@ -20,7 +20,8 @@ interface
 
 uses
   Classes, SysUtils, Generics.Collections, Generics.Defaults,
-  Variants, LazUTF8, math, typinfo, UMemory, ExtCtrls;
+  {$IFNDEF FPC}System.Types, System.TimeSpan,{$ENDIF} Variants,
+  {$IFDEF FPC}LazUTF8,{$ENDIF} math, typinfo, UMemory, ExtCtrls;
 
 { CONSTANTS }
 
@@ -56,8 +57,10 @@ function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: string)
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: TObject): TObject; overload;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: variant): variant; overload;
 
+{$IFDEF FPC}
 function GetSetName(const aSet:PTypeInfo; Value: Integer):string;
 function GetSetValue(const aSet:PTypeInfo; Name: String): Integer;
+{$ENDIF}
 
 { Clip/Min/Max Value }
 function ClipValue( AValue, MinValue, MaxValue: Integer) : Integer;
@@ -69,6 +72,11 @@ function TimeStamp : String;
 function UtcTimeStamp : String;
 
 type
+
+  {$IFNDEF FPC}
+  // Delphi compatibility
+  SizeInt = NativeInt;
+  {$ENDIF}
 
   {$IFDEF FPC}
 
@@ -91,6 +99,9 @@ type
       function GetTotalSeconds: Double;
       function GetTotalMilliseconds: Double;
       class function Normalize(const ADateTime : TDateTime) : Int64; inline; static;
+      class function GetMinValue : TTimeSpan; static; inline; // cannot be var due to FPC bug
+      class function GetMaxValue : TTimeSpan; static; inline; // cannot be var due to FPC bug
+      class function GetZeroValue : TTimeSpan; static; inline; // cannot be var due to FPC bug
     public
       constructor Create(Hours, Minutes, Seconds: Integer); overload;
       constructor Create(Days, Hours, Minutes, Seconds: Integer); overload;
@@ -133,6 +144,9 @@ type
       property TotalMinutes: Double read GetTotalMinutes;
       property TotalSeconds: Double read GetTotalSeconds;
       property TotalMilliseconds: Double read GetTotalMilliseconds;
+      class property MinValue: TTimeSpan read GetMinValue;
+      class property MaxValue: TTimeSpan read GetMaxValue;
+      class property ZeroValue: TTimeSpan read GetZeroValue;
     end;
 
   {$ENDIF}
@@ -143,7 +157,8 @@ type
     private
       FValue : T;
     public
-      Instances: Integer; static;
+      class var Instances: Integer;
+    public
       property Value : T read FValue write FValue;
       class constructor Create;
       constructor Create(const AValue : T); overload;
@@ -314,7 +329,7 @@ type
       class function Create(const item0 : T; const item1 : T; const item2 : T; const item3 : T) : TArray<T>; overload; static;
       class function Create(const item0 : T; const item1 : T; const item2 : T; const item3 : T; const item4 : T) : TArray<T>; overload; static;
       class function Create(const item0 : T; const item1 : T; const item2 : T; const item3 : T; const item4 : T; const item5 : T) : TArray<T>; overload; static;
-      class function _Length(const Values: array of T) : SizeInt; static; inline;
+      class function _Length(const Values: array of T) : SizeInt; static; {$IFDEF FPC}inline;{$endif}
       class function ToArray(Enumerable: TEnumerable<T>; Count: SizeInt): TArray<T>; static;
   end;
 
@@ -322,7 +337,9 @@ type
 
   TVariantTool = class
     public
-      class function IsNumeric(const AValue : Variant) : boolean;
+      class function IsBool(const AValue : Variant) : boolean; inline;
+      class function IsNumeric(const AValue : Variant) : boolean; inline;
+      class function CompareVariant(const ALeft, ARight : Variant) : Integer; inline;
       class function TryParseBool(const AValue : Variant; out ABoolean : boolean) : boolean;
       class function VarToInt(const AVariant: Variant): integer;
       class function MatchTextExact(const AValue, AMatch : Variant) : boolean;
@@ -338,18 +355,19 @@ type
       class function NumericBetweenExclusive(const AValue, Lower, Upper : Variant) : boolean;
   end;
 
+  { TFileStreamHelper }
+
+  TFileStreamHelper = class helper for TFileStream
+    {$IFNDEF FPC}
+    procedure WriteAnsiString(const AString : String);
+    {$ENDIF}
+  end;
+
   { TFileTool }
 
   TFileTool = class
     class procedure AppendText(const AFileName: string; const AText: string);
   end;
-
-{ COMPLEX CONSTANTS }
-
-const
-    MinTimeSpan : TTimeSpan = (FMillis: Low(Int64));
-    MaxTimeSpan: TTimeSpan = (FMillis: High(Int64));
-    ZeroTimeSpan: TTimeSpan = (FMillis: 0);
 
 resourcestring
   sNotImplemented = 'Not implemented';
@@ -369,6 +387,12 @@ const
     ShortTimeFormat : 'hh:nn:zzz';
     LongTimeFormat : 'hh:nn:zzz'
   );
+
+  {$IFDEF FPC}
+  MinTimeSpan : TTimeSpan = (FMillis: Low(Int64));
+  MaxTimeSpan: TTimeSpan = (FMillis: High(Int64));
+  ZeroTimeSpan: TTimeSpan = (FMillis: 0);
+  {$ENDIF}
 
 { VARIABLES }
 
@@ -568,6 +592,22 @@ class function TTimeSpan.Normalize(const ADateTime : TDateTime) : Int64; static;
 begin
   Result := MilliSecondsBetween(ADateTime, MinDateTime);
 end;
+
+class function TTimeSpan.GetMinValue : TTimeSpan;
+begin
+  Result := MinTimeSpan;
+end;
+
+class function TTimeSpan.GetMaxValue : TTimeSpan; static; inline;
+begin
+  Result := MaxTimeSpan;
+end;
+
+class function TTimeSpan.GetZeroValue : TTimeSpan; static; inline;
+begin
+  Result := ZeroValue;
+end;
+
 
 constructor TTimeSpan.Create(Hours, Minutes, Seconds: Integer);
 begin
@@ -796,6 +836,8 @@ begin
     Result := AFalseResult;
 end;
 
+{$IFDEF FPC}
+
 { Enums }
 
 function GetSetName(const aSet:PTypeInfo; Value: Integer):string;
@@ -836,6 +878,8 @@ begin
     end;
   end;
 end;
+
+{$ENDIF}
 
 { Clip/Min/Max Value }
 
@@ -1576,15 +1620,33 @@ end;
 
 {%region TVariantTool}
 
+class function TVariantTool.IsBool(const AValue : Variant) : boolean;
+begin
+{$IFDEF FPC}
+  Result := VarIsBool(AValue);
+{$ELSE}
+  Result := VarIsType(AValue, VarBoolean);
+{$ENDIF}
+end;
+
 class function TVariantTool.IsNumeric(const AValue : Variant) : boolean;
 begin
   // VarIsNumeric seems to be broken
   case VarType(AValue) of
     varsmallint, varinteger, varsingle,
-    vardouble, varcurrency, varboolean, vardecimal,
-    varshortint, varbyte, varword, varlongword, varint64, varqword : Result := true;
+    vardouble, varcurrency, varboolean, {$IFDEF FPC}vardecimal,{$ENDIF}
+    varshortint, varbyte, varword, varlongword, varint64 {$IFDEF FPC},varqword {$ENDIF} : Result := true;
     else Result := false;
   end;
+end;
+
+class function TVariantTool.CompareVariant(const ALeft, ARight : Variant) : Integer;
+begin
+{$IFDEF FPC}
+  Result := TCompare.Variant(@ALeft, @ARight);
+{$ELSE}
+  Result := Integer(VarCompareValue(ALeft, ARight));
+{$ENDIF}
 end;
 
 class function TVariantTool.TryParseBool(const AValue : Variant; out ABoolean : boolean) : boolean;
@@ -1593,7 +1655,7 @@ var
 begin
   ABoolean := false;
   Result := false;
-  if VarIsBool(AValue) then begin
+  if IsBool(AValue) then begin
     ABoolean := Boolean(AValue);
     Result := true;
   end else if VarIsNumeric(AValue) then
@@ -1649,31 +1711,31 @@ begin
   if NOT IsNumeric(AValue) then
     Exit(false);
 
-  IF VarIsBool(AValue) then begin
+  IF IsBool(AValue) then begin
     if TryParseBool(AMatch, bmatch) then begin
       Result := (Boolean(AValue) = bmatch);
     end else begin
       Result := false;
       end
   end else begin
-    Result := TCompare.Variant(@AValue, @AMatch) = 0;
+    Result := CompareVariant(AValue, AMatch) = 0;
   end;
 end;
 
 class function TVariantTool.NumericLT(const AValue, AMatch : Variant) : boolean;
 begin
-  if (NOT IsNumeric(AValue)) OR (VarIsBool(AValue)) then
+  if (NOT IsNumeric(AValue)) OR (IsBool(AValue)) then
     Exit(false);
-  Result := TCompare.Variant(@AValue, @AMatch) = -1;
+  Result := CompareVariant(AValue, AMatch) = -1;
 end;
 
 class function TVariantTool.NumericLTE(const AValue, AMatch : Variant) : boolean;
 var
   cmp : Integer;
 begin
-  if (NOT IsNumeric(AValue)) OR (VarIsBool(AValue)) then
+  if (NOT IsNumeric(AValue)) OR (IsBool(AValue)) then
     Exit(false);
-  cmp := TCompare.Variant(@AValue, @AMatch);
+  cmp := CompareVariant(AValue, AMatch);
   Result := (cmp = -1) OR (cmp = 0);
 end;
 
@@ -1681,9 +1743,9 @@ class function TVariantTool.NumericGT(const AValue, AMatch : Variant) : boolean;
 var
   cmp : Integer;
 begin
-  if (NOT IsNumeric(AValue)) OR (VarIsBool(AValue)) then
+  if (NOT IsNumeric(AValue)) OR (IsBool(AValue)) then
     Exit(false);
-  cmp := TCompare.Variant(@AValue, @AMatch);
+  cmp := CompareVariant(AValue, AMatch);
   Result := (cmp = 1);
 end;
 
@@ -1691,9 +1753,9 @@ class function TVariantTool.NumericGTE(const AValue, AMatch : Variant) : boolean
 var
   cmp : Integer;
 begin
-  if (NOT IsNumeric(AValue)) OR (VarIsBool(AValue)) then
+  if (NOT IsNumeric(AValue)) OR (IsBool(AValue)) then
     Exit(false);
-  cmp := TCompare.Variant(@AValue, @AMatch);
+  cmp := CompareVariant(AValue, AMatch);
   Result := (cmp = 1) OR (cmp = 0);
 end;
 
@@ -1701,10 +1763,10 @@ class function TVariantTool.NumericBetweenInclusive(const AValue, Lower, Upper :
 var
   lowercmp, uppercmp : Integer;
 begin
-  if (NOT IsNumeric(AValue)) OR (VarIsBool(AValue)) then
+  if (NOT IsNumeric(AValue)) OR (IsBool(AValue)) then
     Exit(false);
-  lowercmp := TCompare.Variant(@AValue, @Lower);
-  uppercmp := TCompare.Variant(@AValue, @Upper);
+  lowercmp := CompareVariant(AValue, Lower);
+  uppercmp := CompareVariant(AValue, Upper);
   Result := ((lowercmp = 1) OR (lowercmp = 0)) AND ((uppercmp = -1) OR (uppercmp = 0));
 end;
 
@@ -1714,12 +1776,23 @@ var
 begin
   if NOT IsNumeric(AValue) then
     Exit(false);
-  lowercmp := TCompare.Variant(@AValue, @Lower);
-  uppercmp := TCompare.Variant(@AValue, @Upper);
+  lowercmp := CompareVariant(AValue, Lower);
+  uppercmp := CompareVariant(AValue, Upper);
   Result := (lowercmp = 1) AND (uppercmp = -1);
 end;
 
 {%endregion}
+
+
+{ TFileStreamHelper }
+{$IFNDEF FPC}
+procedure TFileStreamHelper.WriteAnsiString(const AString : String);
+begin
+   Self.WriteBuffer(Pointer(AString)^, Length(AString));
+end;
+{$ENDIF}
+
+
 
 {%region TFileTool }
 
@@ -1742,6 +1815,7 @@ begin
 end;
 
 {%endregion}
+
 
 initialization
   MinTimeStampDateTime:= StrToDateTime('1980-01-01 00:00:000', IntlDateTimeFormat);

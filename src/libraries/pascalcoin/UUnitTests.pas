@@ -7,7 +7,7 @@ unit UUnitTests;
 interface
 
 uses
-  Classes, SysUtils, {$IFDEF FPC}fpcunit,testregistry {$ELSE}TestFramework{$ENDIF FPC}, variants;
+  Classes, SysUtils, {$IFDEF FPC}fpcunit,testregistry {$ELSE}DUnitX.TestFramework, DUnitX.DUnitCompatibility{$ENDIF FPC}, variants;
 
 type
 
@@ -46,14 +46,22 @@ begin
     Result := TEncoding.ASCII.GetBytes(AStr);
 end;
 
-class procedure TPascalCoinUnitTest.AssertEquals(const AMessage: string; const Expected, Actual: TBytes); overload;
+class procedure TPascalCoinUnitTest.AssertEquals(const AMessage: string; const Expected, Actual: TBytes);
 begin
+{$IFDEF FPC}
   AssertTrue(AMessage, BytesCompare(Expected, Actual) = 0, CallerAddr);
+{$ELSE}
+  Assert.IsTrue(BytesCompare(Expected, Actual) = 0, AMessage);
+{$ENDIF}
 end;
 
-class procedure TPascalCoinUnitTest.AssertEquals(const Expected, Actual: TBytes); overload;
+class procedure TPascalCoinUnitTest.AssertEquals(const Expected, Actual: TBytes);
 begin
+{$IFDEF FPC}
   AssertEquals(ComparisonMsg(Bytes2Hex(Expected, True), Bytes2Hex(Actual, True)), Expected, Actual);
+{$ELSE}
+  AssertEquals('TODO', Expected, Actual);
+{$ENDIF}
 end;
 
 end.

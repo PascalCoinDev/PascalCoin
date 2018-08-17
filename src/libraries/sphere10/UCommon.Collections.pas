@@ -13,9 +13,10 @@
 
 unit UCommon.Collections;
 
-{$mode delphi}
-
-{$modeswitch nestedprocvars}
+{$IFDEF FPC}
+  {$mode delphi}
+  {$modeswitch nestedprocvars}
+{$endif}
 
 interface
 

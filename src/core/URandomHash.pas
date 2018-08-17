@@ -106,7 +106,7 @@ type
       FMurmurHash3_x86_32 : IHash;
       FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
       function ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes; inline;
-      function MemTransform1(const AChunk: TBytes): TBytes; inline;
+      function MemTransform1(const AChunk: TBytes): TBytes; {$IFDEF FPC}inline;{$ENDIF}
       function MemTransform2(const AChunk: TBytes): TBytes; inline;
       function MemTransform3(const AChunk: TBytes): TBytes; inline;
       function MemTransform4(const AChunk: TBytes): TBytes; inline;
@@ -329,7 +329,7 @@ var
   i, LChunkLength : UInt32;
   LState : UInt32;
 
-  function XorShift32 : UInt32; inline;
+  function XorShift32 : UInt32; {$IFDEF FPC}inline;{$ENDIF}
   begin
     LState := LState XOR (LState SHL 13);
     LState := LState XOR (LState SHR 17);
