@@ -101,13 +101,6 @@
         <OptimizationLevel Value="4"/>
       </Optimizations>
     </CodeGeneration>
-    <Linking>
-      <Options>
-        <Win32>
-          <GraphicApplication Value="True"/>
-        </Win32>
-      </Options>
-    </Linking>
     <Other>
       <CustomOptions Value="-dUNITTESTS"/>
     </Other>
