@@ -34,6 +34,9 @@
   {$DEFINE PRODUCTION}
   {.$DEFINE TESTNET}
 
+  // Used to activate RandomHash in V4 hard-fork
+  {$DEFINE ACTIVATE_RANDOMHASH_V4}
+
   // Account Key Storage is for memory reduction because uses a unified storage to store all public keys and then use only a pointer to them
   {$DEFINE useAccountKeyStorage}
 

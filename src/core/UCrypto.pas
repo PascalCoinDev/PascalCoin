@@ -77,6 +77,7 @@ Type
     class procedure DoSha256(const TheMessage : AnsiString; out ResultSha256 : TRawBytes);  overload;
     class function DoDoubleSha256(const TheMessage : AnsiString) : TRawBytes; overload;
     class procedure DoDoubleSha256(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
+    class procedure DoRandomHash(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
     class function DoRipeMD160_HEXASTRING(const TheMessage : AnsiString) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(const TheMessage : AnsiString) : TRawBytes; overload;
@@ -137,7 +138,7 @@ Const
 implementation
 
 uses
-  ULog, UConst, UAccounts;
+  ULog, UConst, UAccounts, URandomHash;
 
 Var _initialized : Boolean = false;
 
@@ -640,6 +641,20 @@ begin
        Result := false;
        exit;
     end;
+end;
+
+{ New at Build 4.0.0 }
+
+class procedure TCrypto.DoRandomHash(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
+var
+  LInput : TBytes;
+  LResult : TBytes;
+begin
+  if Length(ResultSha256) <> 32 then SetLength(ResultSha256, 32);
+  SetLength(LInput, plength);
+  Move(p^, LInput[0], plength);
+  LResult := TRandomHash.Compute(LInput);
+  Move(LResult[0], ResultSha256[1], 32);
 end;
 
 { TBigNum }

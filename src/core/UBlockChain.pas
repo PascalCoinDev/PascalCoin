@@ -901,7 +901,6 @@ Begin
   end;
 End;
 
-
 function TPCOperationsComp.AddOperations(operations: TOperationsHashTree; var errors: AnsiString): Integer;
 Var i : Integer;
   e : AnsiString;
@@ -939,7 +938,10 @@ begin
   FStreamPoW.WriteBuffer(FDigest_Part3[1],length(FDigest_Part3));
   FStreamPoW.Write(FOperationBlock.timestamp,4);
   FStreamPoW.Write(FOperationBlock.nonce,4);
-  TCrypto.DoDoubleSha256(FStreamPoW.Memory,length(FDigest_Part1)+length(FDigest_Part2_Payload)+length(FDigest_Part3)+8,PoW);
+  if CT_ACTIVATE_RANDOMHASH_V4 AND (FOperationBlock.block >= CT_Protocol_Upgrade_v4_MinBlock) then
+    TCrypto.DoRandomHash(FStreamPoW.Memory,length(FDigest_Part1)+length(FDigest_Part2_Payload)+length(FDigest_Part3)+8,PoW)
+  else
+    TCrypto.DoDoubleSha256(FStreamPoW.Memory,length(FDigest_Part1)+length(FDigest_Part2_Payload)+length(FDigest_Part3)+8,PoW);
 end;
 
 procedure TPCOperationsComp.Calc_Digest_Parts;

@@ -16,7 +16,7 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
         <DCC_DcuOutput>.\lib</DCC_DcuOutput>
-        <DCC_UnitSearchPath>.\core;.\gui-classic;.\libraries\pascalcoin;.\libraries\synapse;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>.\core;.\gui-classic;.\libraries\pascalcoin;.\libraries\synapse;.\libraries\generics.collections;.\libraries\hashlib4pascal;.\libraries\sphere10;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_DependencyCheckOutputName>pascalcoin_wallet_classic.exe</DCC_DependencyCheckOutputName>
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <DCC_Platform>x86</DCC_Platform>

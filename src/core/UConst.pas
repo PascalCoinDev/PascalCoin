@@ -178,6 +178,8 @@ Const
   CT_MOLINA  = 1;
   CT_MOLINA_DECIMAL = {$IFDEF FPC}Real(CT_MOLINA/1000.0);{$ELSE}0.0001;{$ENDIF}
 
+  CT_ACTIVATE_RANDOMHASH_V4 = {$IFDEF ACTIVATE_RANDOMHASH_V4}True{$ELSE}False{$ENDIF};
+
   // App Params
   CT_PARAM_GridAccountsStream = 'GridAccountsStreamV2';
   CT_PARAM_GridAccountsPos = 'GridAccountsPos';
