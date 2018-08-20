@@ -31,8 +31,8 @@ const
 
   DATA_RANDOMHASH_STANDARD_EXPECTED : array[1..3] of String = (
     '0x291ef6d7f9babe3d2d4fd6560c7eefc7a9937126fd13d5af6fd0474b6dfac215',
-    '0xf0803f016666d6a236701ade96fdc48a23d9eaa8c03097e5e9f690b5142b2537',
-    '0x3cc5de8f601ce1ec7adbd765884d6c0f486de4c3a535a36a8658253edb2a80f3'
+    '0xb0806f69c78d5129bca60e35902ddd88a24bda32cbd32612828e797163221013',
+    '0x1a0b8000d591a948e038c43af0abb4ee504f08fcf869e55a9e4dda4384719eb7'
   );
 
 { TRandomHashTest }

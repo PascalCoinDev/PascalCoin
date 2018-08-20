@@ -262,25 +262,24 @@ begin
 end;
 
 function TRandomHash.ChangeNonce(const ABlockHeader: TBytes;  ANonce: Int32): TBytes;
-const
-  LNonceOffset = 4;
+var
+  LHeaderLength : Integer;
 begin
- // IMPORTANT: Prior to RandomHash, when calculating the proof-of-work the hashable digest
- // includes the nonce at a variable offset. Post RandomHash, the hashable digest
- // includes the nonce at fixed offset 4.
+  // NOTE: NONCE is last 4 bytes of header!
 
- // Clone the original header
- Result := Copy(ABlockHeader);
+  // Clone the original header
+  Result := Copy(ABlockHeader);
 
- // If digest not big enough to contain a nonce, just return the clone
- if Length(ABlockHeader) < (LNonceOffset + 4) then
-   exit;
+  // If digest not big enough to contain a nonce, just return the clone
+  LHeaderLength := Length(ABlockHeader);
+  if LHeaderLength < 4 then
+    exit;
 
- // Overwrite the nonce in little-endian
- Result[LNonceOffset+0] := Byte(ANonce);
- Result[LNonceOffset+1] := (ANonce SHR 8) AND 255;
- Result[LNonceOffset+2] := (ANonce SHR 16) AND 255;
- Result[LNonceOffset+3] := (ANonce SHR 24) AND 255;
+  // Overwrite the nonce in little-endian
+  Result[LHeaderLength - 4] := Byte(ANonce);
+  Result[LHeaderLength - 3] := (ANonce SHR 8) AND 255;
+  Result[LHeaderLength - 2] := (ANonce SHR 16) AND 255;
+  Result[LHeaderLength - 1] := (ANonce SHR 24) AND 255;
 end;
 
 function TRandomHash.Checksum(const AInput: TBytes): UInt32;

@@ -75,30 +75,30 @@ const
 
   DATA_RANDOMHASH_STANDARD : array[1..3] of TTestItem<String, String> = (
     (Input: '0x0';                                         Expected: '0x291ef6d7f9babe3d2d4fd6560c7eefc7a9937126fd13d5af6fd0474b6dfac215'),
-    (Input: 'The quick brown fox jumps over the lazy dog'; Expected: '0xf0803f016666d6a236701ade96fdc48a23d9eaa8c03097e5e9f690b5142b2537'),
-    (Input: '0x000102030405060708090a0b0c0d0e0f';          Expected: '0x3cc5de8f601ce1ec7adbd765884d6c0f486de4c3a535a36a8658253edb2a80f3')
+    (Input: 'The quick brown fox jumps over the lazy dog'; Expected: '0xb0806f69c78d5129bca60e35902ddd88a24bda32cbd32612828e797163221013'),
+    (Input: '0x000102030405060708090a0b0c0d0e0f';          Expected: '0x1a0b8000d591a948e038c43af0abb4ee504f08fcf869e55a9e4dda4384719eb7')
   );
 
   {  Hash Test Data }
 
   DATA_RANDOMHASH : array[1..16] of TTestItem<Integer, String> = (
     { NOTE: Input denotes the number of bytes to take from DATA_BYTES when executing test }
-    (Input: 17;  Expected: '0x1c2c68706de444e1a558a0c5f67c9a1c6dbabed2d06f05292a5cb36609a585b6'),
-    (Input: 31;  Expected: '0xb88cde4e34ff634d12004e478064196774056f9e67f8ca64567742dc4a235bb8'),
-    (Input: 32;  Expected: '0x9359c4501002d0b41117514bbed6c00cd80d0976228bb25c365556cf3805ab99'),
-    (Input: 33;  Expected: '0x748ed7dc1f602e02409941a4ebc073d5e9ea5a3d0fcb2b1c3cf1b4104a5a9d25'),
-    (Input: 34;  Expected: '0x9e054c16ecb138d9ed84dbd20a54d3e28ae017f0f9359efffe5303be001fce19'),
-    (Input: 63;  Expected: '0xdb88d990b0e7fd4fcf5a110a25b83fcb84f5403946842b3f9acfc738ebf787b4'),
-    (Input: 64;  Expected: '0x0678571f8b8a667a6f95f8740927c632e81e6e9f326bf269ce3a73a4cf97a3e8'),
-    (Input: 65;  Expected: '0x65598aaf999229833ec016ccb002b75363ecfd179073ac96da89b1bed893ade5'),
-    (Input: 100; Expected: '0x8a70682cf64b81c57b6eb4dac9db9e054e9886363505becbbfd042ddf71b0da1'),
-    (Input: 117; Expected: '0x3f61746fcd1d50eaaa90cf3b9ae874e879d0a992aa229a27a97bbf1de95adc30'),
-    (Input: 127; Expected: '0x49f86984f83d9cbb14ff970bfb75c5e598fde2be14ad940c844b7bd75b679f40'),
-    (Input: 128; Expected: '0xef3cc6610cbe6a1f200ba7226c6345aa578404e75be9210ac0b503cb223a0ffc'),
-    (Input: 129; Expected: '0xd33937aaf54b3fb644a6a025a4a0859922bc89c934293168d921d23df3e19a27'),
-    (Input: 178; Expected: '0xb3e1ba983b0374364dce85ec5dbf462c5c053499f8cff47e86f24bc7c6f96a25'),
-    (Input: 199; Expected: '0xa41feb6ff4b59220594f20fa1698b5fa0ea2b3618642115b11742dabdb1bb253'),
-    (Input: 200; Expected: '0x8e83296ee2a7300981afa8e41fd2293f49a6b2a5e43ec9566f4ab2dae42eccfc')
+    (Input: 17;  Expected: '0xa2f0fcf62a70137334ee50ab96e0375f7b4f0b13dd14875a2282e96336f35798'),
+    (Input: 31;  Expected: '0x51c29ca5be81a0a6777e9675399227da3f7a60aaf1986f6d927e857df7a3f1a7'),
+    (Input: 32;  Expected: '0x4eebd9540e3fc77e557acdf2214c82b55bf1b0c65a3a4d63dff63e881f7ac07f'),
+    (Input: 33;  Expected: '0x03db8c5c4d943946a5d9b8ac4bce9527b0e2ec4a33d9897d029181686c20303c'),
+    (Input: 34;  Expected: '0xf6e2cc2f910ad523de062a56a262d078642727df61b3c81a289b6bca17614763'),
+    (Input: 63;  Expected: '0x26ce87858e10ffd624ae44b02ccaba768f2795b3f6981ff411df87a0486333b8'),
+    (Input: 64;  Expected: '0xef1013891c70aeaa19f2427af08e7cee84be32af155ea46bf7907112ded92b79'),
+    (Input: 65;  Expected: '0x336ea62e998fa1c61fd49d27f9765b8e1bf0426561859ff60e7516c77b25fa03'),
+    (Input: 100; Expected: '0x816870ca911cd9a441ec51597b75f9e1293af969475344c443072bc633905b7a'),
+    (Input: 117; Expected: '0xec4161a72efd11cce933f2bc4117c7be637f02457c024fb22e0f381aae450984'),
+    (Input: 127; Expected: '0x8cd3adec737e6c75ff40168319fbdefd45babe8c7648be1f244ce3cf29b78972'),
+    (Input: 128; Expected: '0x3f3b94bf6601f925045df128498b82494284c5988aada0728de34cdb3ee989e6'),
+    (Input: 129; Expected: '0xde57563024c76505ea2abd7d2e939a1d8bbfcb0e05a673e128623a3be377c29b'),
+    (Input: 178; Expected: '0xd7edbc889d0cecde74a43c5a07afcbee6dfa902dbe43db212e64817d68c0697c'),
+    (Input: 199; Expected: '0xe07f4f20de8a43bdeee3cd6f3cddbf2e8e16e36a9a9b3624024cba7aa8690bc6'),
+    (Input: 200; Expected: '0x25f3c67004af2c7dff3aeae980170b9517672a949870538714bb16fba6d93d4a')
   );
 
   DATA_EXPAND : array[1..48] of TTestItem<UInt32, UInt32, UInt32> = (
