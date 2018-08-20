@@ -35,7 +35,6 @@ const
     '0x3cc5de8f601ce1ec7adbd765884d6c0f486de4c3a535a36a8658253edb2a80f3'
   );
 
-
 { TRandomHashTest }
 
 procedure TRandomHashTest.TestRandomHash_Standard;

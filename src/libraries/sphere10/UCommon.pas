@@ -38,10 +38,10 @@ const
 { GLOBAL FUNCTIONS }
 
 { Converts a string to hexidecimal format }
-function String2Hex(const Buffer: String): String;
-function Hex2Bytes(const AHexString: String): TBytes; overload;
-function TryHex2Bytes(const AHexString: String; out ABytes : TBytes): boolean; overload;
-function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : String;
+function String2Hex(const Buffer: AnsiString): AnsiString;
+function Hex2Bytes(const AHexString: AnsiString): TBytes; overload;
+function TryHex2Bytes(const AHexString: AnsiString; out ABytes : TBytes): boolean; overload;
+function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : AnsiString;
 
 { Binary-safe StrComp replacement. StrComp will return 0 for when str1 and str2 both start with NUL character. }
 function BinStrComp(const Str1, Str2 : String): Integer;
@@ -375,7 +375,7 @@ resourcestring
 
 implementation
 
-uses dateutils;
+uses dateutils, {$IFDEF FPC}StrUtils{$ELSE}System.AnsiStrings{$ENDIF};
 
 { CONSTANTS }
 const
@@ -405,31 +405,32 @@ var
 
 {%region Global functions }
 
-function String2Hex(const Buffer: String): String;
+function String2Hex(const Buffer: AnsiString): AnsiString;
 var
   n: Integer;
 begin
   Result := '';
   for n := 1 to Length(Buffer) do
-    Result := LowerCase(Result + IntToHex(Ord(Buffer[n]), 2));
+    Result := AnsiLowerCase(Result + IntToHex(Ord(Buffer[n]), 2));
 end;
 
-function Hex2Bytes(const AHexString: String): TBytes;
+function Hex2Bytes(const AHexString: AnsiString): TBytes;
 begin
   if NOT TryHex2Bytes(AHexString, Result) then
     raise EArgumentOutOfRangeException.Create('Invalidly formatted hexadecimal string.');
 end;
 
-function TryHex2Bytes(const AHexString: String; out ABytes : TBytes): boolean; overload;
+function TryHex2Bytes(const AHexString: AnsiString; out ABytes : TBytes): boolean; overload;
 var
   P : PAnsiChar;
-  LHexString : String;
+  LHexString : AnsiString;
   LHexIndex, LHexLength, LHexStart : Integer;
 begin
   SetLength(ABytes, 0);
   LHexLength := System.Length(AHexString);
   LHexStart := 1;
-  if AHexString.StartsWith('0x') then begin
+  if AnsiStartsText('0x', AHexString) then begin
+
     // Special case: 0x0 = empty byte array
     if (LHexLength = 3) AND (AHexString[3] = '0') then
       Exit(true);
@@ -450,10 +451,10 @@ begin
   Result := (LHexIndex = (LHexLength DIV 2));
 end;
 
-function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : String;
+function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : AnsiString;
 var
   i, LStart, LLen : Integer;
-  s : String;
+  s : AnsiString;
   b : Byte;
 begin
   LLen := System.Length(ABytes)*2;
