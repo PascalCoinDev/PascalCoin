@@ -6,7 +6,7 @@ uses
   Interfaces,
   Forms,
   GuiTestRunner,
-  URandomHashTests;
+  URandomHashTests, UCommon.Collections;
 
 {$R *.res}
 
