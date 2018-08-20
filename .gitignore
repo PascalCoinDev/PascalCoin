@@ -16,7 +16,7 @@ libcrypto.so.1.1
 *.log
 
 # Lazarus-related changes
-*.dproj
+#*.dproj
 *.dproj.local
 *.lps
 *.dcu
@@ -36,3 +36,4 @@ bin/
 ## Delphi files
 __history/
 dunit.ini
+*.res
