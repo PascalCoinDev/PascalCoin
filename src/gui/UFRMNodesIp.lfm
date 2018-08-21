@@ -13,7 +13,7 @@ object FRMNodesIp: TFRMNodesIp
   Font.Height = -11
   Font.Name = 'Tahoma'
   Position = poOwnerFormCenter
-  LCLVersion = '1.8.0.6'
+  LCLVersion = '1.8.4.0'
   Visible = False
   object Label1: TLabel
     Left = 30

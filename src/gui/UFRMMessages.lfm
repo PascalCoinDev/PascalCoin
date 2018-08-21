@@ -7,8 +7,9 @@ object FRMMessages: TFRMMessages
   ClientHeight = 441
   ClientWidth = 874
   OnActivate = FormActivate
-  Position = poOwnerFormCenter    
-  LCLVersion = '1.6.4.0'
+  Position = poOwnerFormCenter
+  LCLVersion = '1.8.4.0'
+  Visible = False
   object Label11: TLabel
     Left = 15
     Height = 15

@@ -6,7 +6,7 @@ object WIZAddKey_ImportPrivKey: TWIZAddKey_ImportPrivKey
   Caption = 'WIZAddKey_ImportPrivKey'
   ClientHeight = 225
   ClientWidth = 438
-  LCLVersion = '1.8.2.0'
+  LCLVersion = '1.8.4.0'
   Visible = False
   object Label1: TLabel
     Left = 32

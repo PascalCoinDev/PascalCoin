@@ -1,13 +1,14 @@
-{
-  Copyright (c) 2017 - 2018 Sphere 10 Software
+{ Copyright (c) 2017 - 2018 Sphere 10 Software <https://www.sphere10.com>
 
-  Common unit usable across all tiers.
+  Common tools.
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
   Acknowledgements:
-    Herman Schoenfeld
+  - Herman Schoenfeld: main author
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
 unit UCommon;

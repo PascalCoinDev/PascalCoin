@@ -1,16 +1,18 @@
-{
-  Copyright (c) 2017 - 2018 Sphere 10 Software
+unit UCommon.UI;
 
-  Common GUI unit usable across all tiers.
+{ Copyright (c) 2017 - 2018 Sphere 10 Software <https://www.sphere10.com>
+
+  Common UI tools.
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
   Acknowledgements:
-    Herman Schoenfeld
+  - Herman Schoenfeld: main author
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
-unit UCommon.UI;
 
 {$mode delphi}
 

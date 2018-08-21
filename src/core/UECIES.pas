@@ -1,21 +1,20 @@
 unit UECIES;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
-
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
 
 { Pascal implementation of ECIES functions to encrypt/decrypt data using AES
   and EC keys.
@@ -34,8 +33,11 @@ unit UECIES;
   to use strong anti-corruption in encrypted data because I will include it
   in a blockchain, so corruption is not possible. (for now ;-). Using MD5 safe space
   for me.
+}
 
-  }
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
 
 {$I config.inc}
 

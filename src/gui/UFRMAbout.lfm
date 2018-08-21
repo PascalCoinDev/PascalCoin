@@ -15,6 +15,7 @@ object FRMAbout: TFRMAbout
   Font.Name = 'Tahoma'
   OnCreate = FormCreate
   Position = poOwnerFormCenter
+  LCLVersion = '1.8.4.0'
   Visible = False
   object Image1: TImage
     Left = 15

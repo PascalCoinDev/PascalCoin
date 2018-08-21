@@ -1,17 +1,18 @@
-﻿{
-  Copyright (c) 2017 - 2018 Sphere 10 Software
+﻿unit UVisualGrid;
 
-  An enterprise-class grid component with datasource, paging, searching capability.
+{ Copyright (c) 2017 - 2018 Sphere 10 Software <https://www.sphere10.com>
+
+  Enterprise-class grid control for Lazarus/FPC.
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  Credits:
-     Herman Schoenfeld
-     Maciej Izak (hnb)
+  Acknowledgements:
+  - Herman Schoenfeld: main author
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
-unit UVisualGrid;
 
 {$MODE DELPHI}
 

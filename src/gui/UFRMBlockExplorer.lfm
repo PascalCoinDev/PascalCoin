@@ -11,6 +11,7 @@ object FRMBlockExplorer: TFRMBlockExplorer
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
+  LCLVersion = '1.8.4.0'
   Visible = False
   object Panel2: TPanel
     Left = 0
@@ -42,7 +43,7 @@ object FRMBlockExplorer: TFRMBlockExplorer
   end
   object dgBlockChainExplorer: TDrawGrid
     Left = 0
-    Height = 383
+    Height = 363
     Top = 41
     Width = 864
     Align = alClient

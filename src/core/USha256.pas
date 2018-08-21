@@ -1,5 +1,17 @@
 unit USha256;
 
+{ Copyright (c) 2016 by PacalCoin Developers
+
+  Distributed under the MIT software license, see the accompanying file LICENSE
+  or visit http://www.opensource.org/licenses/mit-license.php.
+
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
 
 {$IFDEF FPC}
   {$MODE delphi}

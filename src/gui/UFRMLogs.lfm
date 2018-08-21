@@ -9,7 +9,8 @@ object FRMLogs: TFRMLogs
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.6.4.0'
+  LCLVersion = '1.8.4.0'
+  Visible = False
   object pnlTopLogs: TPanel
     Left = 0
     Height = 41

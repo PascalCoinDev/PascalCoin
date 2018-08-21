@@ -1,13 +1,18 @@
-{
-  Copyright (c) 2017 Sphere 10 Software
+unit UWizard;
 
-  Author: Herman Schoenfeld <herman@sphere10.com>
+{ Copyright (c) 2017 - 2018 Sphere 10 Software <https://www.sphere10.com>
+
+  Wizard scren framework for Lazarus/FPC.
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
+
+  Acknowledgements:
+  - Herman Schoenfeld: main author
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
-unit UWizard;
 
 {$IFDEF FPC}
   {$MODE Delphi}

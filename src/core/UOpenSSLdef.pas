@@ -5,18 +5,20 @@ unit UOpenSSLdef;
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  Acknowledgements
+  - Portions of this unit contains code from
+    https://github.com/Arvur/OpenSSL-Delphi (unspecified license, public code)
+
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  ********************
-  Note:
-  This unit contains code obtained from https://github.com/Arvur/OpenSSL-Delphi
-  Unknown license but public
-
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
 
 interface
 

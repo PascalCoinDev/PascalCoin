@@ -1,5 +1,6 @@
-{
-  Copyright (c) 2017 - 2018 Sphere 10 Software
+unit UMemory;
+
+{ Copyright (c) 2017 - 2018 Sphere 10 Software <https://www.sphere10.com>
 
   Memory management routines.
 
@@ -7,11 +8,12 @@
   or visit http://www.opensource.org/licenses/mit-license.php.
 
   Acknowledgements:
-    Herman Schoenfeld
-    Dmitriy Pomerantsev <pda2@yandex.ru>: scope management inspired by https://github.com/pda0/AutoScope/blob/master/AutoScope.pas
+  - Herman Schoenfeld: main author
+  - Dmitriy Pomerantsev <pda2@yandex.ru>: scope management inspired by https://github.com/pda0/AutoScope/blob/master/AutoScope.pas
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
-unit UMemory;
 
 {$IFDEF FPC}
   {$MODE DELPHI}{$H+}

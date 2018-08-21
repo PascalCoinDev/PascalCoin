@@ -1,21 +1,20 @@
 unit UNode;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
-
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
 
 { UNode contains the basic structure to operate
   - An app can only contains 1 node.
@@ -25,7 +24,12 @@ unit UNode;
     - 1 Operations (Operations has actual BlockChain with Operations and SafeBankTransaction to operate with the Bank)
     - 0..x NetClients
     - 0..x Miners
-    }
+ }
+
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 
 interface
 

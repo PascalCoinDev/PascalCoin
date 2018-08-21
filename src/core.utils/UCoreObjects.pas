@@ -1,14 +1,16 @@
 unit UCoreObjects;
 
-{ Copyright (c) 2018 by PascalCoin Project
-
-  Contains common types for Core module.
+{ Copyright (c) 2018 by Herman Schoenfeld
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  Acknowledgements:
-    Herman Schoenfeld <herman@sphere10.com>: unit creator
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
 {$mode delphi}
