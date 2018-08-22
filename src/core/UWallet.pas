@@ -23,7 +23,7 @@ unit UWallet;
 interface
 
 uses
-  Classes, USettings, UBlockChain, UAccounts, UCrypto, UBaseTypes;
+  Classes, USettings, UBlockChain, UAccounts, UCrypto, UBaseTypes, UCommon;
 
 Type
   TWalletKey = Record
@@ -44,7 +44,7 @@ Type
     FIsValidPassword: Boolean;
     FWalletFileName: AnsiString;
     FIsReadingStream : Boolean;
-    FOnChanged: TNotifyEventToMany;
+    FOnChanged: TNotifyManyEvent;
     function GetHasPassword : boolean;
     function GetKey(index: Integer): TWalletKey;
     procedure SetWalletPassword(const Value: AnsiString);
@@ -67,7 +67,7 @@ Type
     Procedure Clear; virtual;
     Function Count : Integer;
     Property WalletFileName : AnsiString read FWalletFileName write SetWalletFileName;
-    Property OnChanged : TNotifyEventToMany read FOnChanged;
+    Property OnChanged : TNotifyManyEvent read FOnChanged;
     Procedure SetName(index : Integer; Const newName : AnsiString);
     Function LockWallet : Boolean;
   End;
@@ -227,7 +227,6 @@ begin
   FWalletPassword := '';
   FSearchableKeys := TList.Create;
   FIsReadingStream := false;
-  FOnChanged := TNotifyEventToMany.Create;
 end;
 
 procedure TWalletKeys.Delete(index: Integer);
@@ -243,7 +242,6 @@ end;
 
 destructor TWalletKeys.destroy;
 begin
-  FreeAndNil(FOnChanged);
   FreeAndNil(FWalletFileStream);
   Clear;
   FreeAndNil(FSearchableKeys);

@@ -34,7 +34,7 @@ unit UNode;
 interface
 
 uses
-  Classes, UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, SyncObjs, ULog;
+  Classes, SysUtils, UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, SyncObjs, ULog;
 
 {$I config.inc}
 
@@ -117,7 +117,22 @@ Type
     Constructor Create(ANodeNotifyEvents : TNodeNotifyEvents);
   End;
 
+  { TNodeMessage Event }
+
   TNodeMessageEvent = Procedure(NetConnection : TNetConnection; MessageData : TRawBytes) of object;
+
+  { TNodeMessageManyEvent }
+
+  TNodeMessageManyEvent = TArray<TNodeMessageEvent>;
+
+  { TNodeMessageManyEventHelper }
+
+  TNodeMessageManyEventHelper = record helper for TNodeMessageManyEvent
+    procedure Add(listener : TNodeMessageEvent);
+    procedure Remove(listener : TNodeMessageEvent);
+    procedure Invoke(NetConnection : TNetConnection; MessageData : TRawBytes);
+  end;
+
   { TNodeNotifyEvents is ThreadSafe and will only notify in the main thread }
   TNodeNotifyEvents = Class(TComponent)
   private
@@ -169,7 +184,7 @@ Type
 
 implementation
 
-Uses UOpTransaction, SysUtils,  UConst, UTime;
+Uses UOpTransaction, UConst, UTime, UCommon;
 
 var _Node : TNode;
 
@@ -1116,6 +1131,27 @@ end;
 procedure TNode.SetNodeLogFilename(const Value: AnsiString);
 begin
   FNodeLog.FileName := Value;
+end;
+
+{ TNodeMessageManyEventHelper }
+
+procedure TNodeMessageManyEventHelper.Add(listener : TNodeMessageEvent);
+begin
+  if TArrayTool<TNodeMessageEvent>.IndexOf(self, listener) = -1 then begin
+    TArrayTool<TNodeMessageEvent>.Add(self, listener);
+  end;
+end;
+
+procedure TNodeMessageManyEventHelper.Remove(listener : TNodeMessageEvent);
+begin
+  TArrayTool<TNodeMessageEvent>.Remove(self, listener);
+end;
+
+procedure TNodeMessageManyEventHelper.Invoke(NetConnection : TNetConnection; MessageData : TRawBytes);
+var i : Integer;
+begin
+  for i := low(self) to high(self) do
+    self[i](NetConnection, MessageData);
 end;
 
 { TNodeNotifyEvents }

@@ -313,7 +313,8 @@ implementation
 Uses UFolderHelper, UOpenSSL, UOpenSSLdef, UTime, UFileStorage,
   UThread, UOpTransaction, UECIES, UFRMPascalCoinWalletConfig,
   UFRMOperationsExplorer,
-  UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText, USettings;
+  UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText,
+  USettings, UCommon;
 
 Type
 

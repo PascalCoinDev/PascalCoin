@@ -23,7 +23,8 @@ unit UAccounts;
 interface
 
 uses
-  Classes, UConst, UCrypto, SyncObjs, UThread, UBaseTypes;
+  Classes, SysUtils, UConst, UCrypto, SyncObjs, UThread, UBaseTypes;
+
 {$I config.inc}
 
 Type
@@ -287,7 +288,21 @@ Type
   TOrderedAccountList = Class;
   TOrderedBlockAccountList = Class;
 
+  { TProgressNotify }
+
   TProgressNotify = procedure(sender : TObject; const message : AnsiString; curPos, totalCount : Int64) of object;
+
+  { TProgressNotifyMany }
+
+  TProgressNotifyMany = TArray<TProgressNotify>;
+
+  { TProgressNotifyManyHelper }
+
+  TProgressNotifyManyHelper = record helper for TProgressNotifyMany
+    procedure Add(listener : TProgressNotify);
+    procedure Remove(listener : TProgressNotify);
+    procedure Invoke(sender : TObject; const message : AnsiString; curPos, totalCount : Int64);
+  end;
 
   { TPCSafeBox }
 
@@ -523,7 +538,7 @@ Procedure Check_Safebox_Integrity(sb : TPCSafebox; title: String);
 implementation
 
 uses
-  SysUtils, ULog, UOpenSSLdef, UOpenSSL, UAccountKeyStorage, math;
+  ULog, UOpenSSLdef, UOpenSSL, UAccountKeyStorage, math, UCommon;
 
 { This function is for testing purpose only.
   Will check if Account Names are well assigned and stored }
@@ -1514,6 +1529,27 @@ begin
   list.Add(TObject(CT_NID_secp384r1)); // = 715
   list.Add(TObject(CT_NID_sect283k1)); // = 729
   list.Add(TObject(CT_NID_secp521r1)); // = 716
+end;
+
+{ TProgressNotifyManyHelper }
+
+procedure TProgressNotifyManyHelper.Add(listener : TProgressNotify);
+begin
+  if TArrayTool<TProgressNotify>.IndexOf(self, listener) = -1 then begin
+    TArrayTool<TProgressNotify>.Add(self, listener);
+  end;
+end;
+
+procedure TProgressNotifyManyHelper.Remove(listener : TProgressNotify);
+begin
+  TArrayTool<TProgressNotify>.Remove(self, listener);
+end;
+
+procedure TProgressNotifyManyHelper.Invoke(sender : TObject; const message : AnsiString; curPos, totalCount : Int64);
+var i : Integer;
+begin
+  for i := low(self) to high(self) do
+    self[i](sender, message, curPos, totalCount);
 end;
 
 { TPCSafeBox }

@@ -25,6 +25,7 @@ interface
 uses
 {$IFnDEF FPC}
   Windows,
+  System.Actions,
 {$ELSE}
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
@@ -180,7 +181,8 @@ type
 implementation
 
 uses
-  UECIES, UConst, UOpTransaction, UFRMNewPrivateKeyType, UAES, UFRMWalletKeys;
+  UECIES, UConst, UOpTransaction, UFRMNewPrivateKeyType, UAES, UFRMWalletKeys,
+  UCommon;
 
 {$IFnDEF FPC}
   {$R *.dfm}

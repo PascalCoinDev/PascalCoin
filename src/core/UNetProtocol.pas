@@ -29,7 +29,7 @@ Uses
   {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
   UBlockChain, Classes, SysUtils, UAccounts, UThread,
-  UCrypto, UTCPIP, SyncObjs, UBaseTypes;
+  UCrypto, UTCPIP, SyncObjs, UBaseTypes, UCommon;
 
 {$I config.inc}
 
@@ -256,7 +256,7 @@ Type
     FRegisteredRequests : TPCThreadList;
     FIsDiscoveringServers : Boolean;
     FIsGettingNewBlockChainFromClient : Boolean;
-    FOnConnectivityChanged : TNotifyEventToMany;
+    FOnConnectivityChanged : TNotifyManyEvent;
     FOnNetConnectionsUpdated: TNotifyEvent;
     FOnNodeServersUpdated: TNotifyEvent;
     FOnBlackListUpdated: TNotifyEvent;
@@ -319,7 +319,7 @@ Type
     Property IsGettingNewBlockChainFromClient : Boolean read FIsGettingNewBlockChainFromClient;
     Property MaxRemoteOperationBlock : TOperationBlock read FMaxRemoteOperationBlock;
     Property NodePrivateKey : TECPrivateKey read FNodePrivateKey;
-    property OnConnectivityChanged : TNotifyEventToMany read FOnConnectivityChanged;
+    property OnConnectivityChanged : TNotifyManyEvent read FOnConnectivityChanged;
     Property OnNetConnectionsUpdated : TNotifyEvent read FOnNetConnectionsUpdated write FOnNetConnectionsUpdated;
     Property OnNodeServersUpdated : TNotifyEvent read FOnNodeServersUpdated write FOnNodeServersUpdated;
     Property OnBlackListUpdated : TNotifyEvent read FOnBlackListUpdated write FOnBlackListUpdated;
@@ -1146,7 +1146,7 @@ begin
   SetLength(FFixedServers,0);
   FMaxRemoteOperationBlock := CT_OperationBlock_NUL;
   FNetStatistics := CT_TNetStatistics_NUL;
-  FOnConnectivityChanged := TNotifyEventToMany.Create;
+  //FOnConnectivityChanged := TNotifyEventToMany.Create; //xxxxxxxxxxxxxxxxxx HS - removed TNotifyEventMany auto-collected
   FOnStatisticsChanged := Nil;
   FOnNetConnectionsUpdated := Nil;
   FOnNodeServersUpdated := Nil;
