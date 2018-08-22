@@ -95,9 +95,6 @@ type
       class function GetEnabled : boolean; static;
       class procedure SetEnabled(ABool: boolean); static;
       class procedure SetState(AState : TUserInterfaceState); static;
-      //TODO: remove
-      class procedure SetMainFormMode(AMode: TFRMMainFormMode); static;
-      class function GetMainFormMode : TFRMMainFormMode; static;
 
       // Handlers
       class procedure OnSettingsChanged(Sender: TObject);
@@ -131,7 +128,6 @@ type
       class property Node : TNode read FNode;
       class property Log : TLog read FLog;
       class property PoolMiningServer : TPoolMiningServer read FPoolMiningServer;
-      class property MainFormMode : TFRMMainFormMode read GetMainFormMode write SetMainFormMode;
 
       // Events
       class property AppStarted : TNotifyManyEvent read FAppStarted;
@@ -192,7 +188,6 @@ type
       class procedure ShowLogsForm;
       class procedure ShowWallet;
       class procedure ShowSyncDialog;
-
   end;
 
   { TLoadSafeBoxThread }
@@ -242,7 +237,6 @@ begin
     FMessagesNotificationText := '';
 
     // Create root form and dependent components
-    FMainForm := mainForm as TFRMMainForm;
     FMainForm.CloseAction := caNone;     // wallet is destroyed on ExitApplication
     if (FMainForm = nil)
       then raise Exception.Create('Main form is not TWallet');
@@ -989,21 +983,6 @@ begin
     exit;
   FState := AState;
   NotifyStateChanged(nil);
-end;
-
-class procedure TUserInterface.SetMainFormMode(AMode: TFRMMainFormMode);
-begin
-  if AMode <> FMainForm.Mode then
-    case AMode of
-      wmWallet: ShowWallet;
-      wmSync: ShowSyncDialog;
-      else raise Exception.Create('[Internal Error] TUserInterface.SetWalletMode - unsupported mode');
-    end;
-end;
-
-class function TUserInterface.GetMainFormMode : TFRMMainFormMode;
-begin
-  Result := FMainForm.Mode;
 end;
 
 class procedure TUserInterface.NotifyLoadedEvent(Sender: TObject);
