@@ -53,6 +53,37 @@ type
       property OnDestroyed : TNotifyEvent read FDestroyed write FDestroyed;
   end;
 
+  { TThrottledEvent }
+
+  TThrottledEvent = class(TComponent)
+    public const
+      CT_DEFAULT_DELAYEDREFRESH_MS = 1000;
+    public type
+      TThrottledEventMode = (temNone, temNotifyEveryInterval, temNotifyOnEventBurstFinished, temNotifyOnEventBurstStartAndFinished);
+    private
+      FHandler : TNotifyManyEvent;
+      FTimer: TTimer;
+      FMode : TThrottledEventMode;
+      FInterval : TTimeSpan;
+      FLastClientNotify : TDateTime;
+      FLastActualNotify : TDateTime;
+      FSuppressedInvocations : Integer;
+      procedure SetInterval(const ATimeSpan : TTimeSpan);
+      procedure OnTimer(Sender: TObject);
+      procedure NotifyNow;
+      procedure NotifyLater;
+    public
+      property Interval : TTimeSpan read FInterval write SetInterval;
+      property Mode : TThrottledEventMode read FMode write FMode;
+      property LastClientNotify : TDateTime read FLastClientNotify;
+      property LastActualNotify : TDateTime read FLastActualNotify;
+      property SuppressedInvocations : Integer read FSuppressedInvocations;
+      constructor Create(Owner:TComponent); override;
+      procedure Add(AListener : TNotifyEvent);
+      procedure Remove(AListener : TNotifyEvent);
+      procedure Notify;
+  end;
+
   { TWinControlHelper }
 
   TWinControlHelper = class helper for TWinControl
@@ -70,8 +101,6 @@ type
   TImageHelper = class helper for TImage
     procedure SetImageListPicture(AImageList: TImageList; AIndex : SizeInt);
   end;
-
-
 
 implementation
 
@@ -134,6 +163,90 @@ begin
   DoDestroyed;
   if Assigned(FDestroyed) then
     FDestroyed(Self);
+end;
+
+{%endregion}
+
+{%region TThrottledEvent }
+
+constructor TThrottledEvent.Create(Owner:TComponent);
+begin
+  Inherited Create(Owner);
+  FTimer := TTimer.Create(Self);
+  FInterval := TTimeSpan.FromMilliseconds( CT_DEFAULT_DELAYEDREFRESH_MS );
+  FTimer.OnTimer := OnTimer;
+  FTimer.Enabled := false;
+  FSuppressedInvocations:=0;
+  FLastClientNotify := MinDateTime;
+  FLastActualNotify := MinDateTime;
+  FMode:=temNone;
+end;
+
+procedure TThrottledEvent.Add(AListener : TNotifyEvent);
+begin
+  FHandler.Add(AListener);
+end;
+
+procedure TThrottledEvent.Remove(AListener : TNotifyEvent);
+begin
+  FHandler.Remove(AListener);
+end;
+
+procedure TThrottledEvent.Notify;
+var LIdleDuration : TTimeSpan;
+begin
+  FLastClientNotify:=Now;
+  LIdleDuration := TTimeSpan.Subtract(Now, FLastActualNotify);
+  if (FMode = temNone) OR ((NOT FTimer.Enabled) AND (LIdleDuration > Interval) AND (FMode <> temNotifyOnEventBurstFinished)) then
+    NotifyNow
+  else
+    NotifyLater;
+end;
+
+procedure TThrottledEvent.NotifyNow;
+begin
+  FTimer.Enabled := false;
+  FLastActualNotify:=Now;
+  FHandler.Invoke(nil);
+  FSuppressedInvocations:=0;
+end;
+
+procedure TThrottledEvent.NotifyLater;
+begin
+  inc(FSuppressedInvocations);
+  if NOT FTimer.Enabled then begin
+    FTimer.Interval := ClipValue( Round( Abs( FInterval.TotalMilliseconds ) ), 10, High(integer)) ;
+    FTimer.Enabled:=true;
+  end;
+end;
+
+procedure TThrottledEvent.OnTimer(Sender: TObject);
+var LDuration : TTimeSpan;
+begin
+  case FMode of
+    temNone: NotifyNow;
+    temNotifyEveryInterval: begin
+      LDuration := TTimeSpan.Subtract(Now, FLastActualNotify);
+      if LDuration > FInterval then
+        NotifyNow
+      else
+        FTimer.Interval := ClipValue( Round( Abs ( (FInterval - LDuration).TotalMilliseconds)), 10, High(integer));
+    end;
+    temNotifyOnEventBurstStartAndFinished, temNotifyOnEventBurstFinished: begin
+      LDuration := TTimeSpan.Subtract(Now, FLastClientNotify);
+      if LDuration > FInterval then
+        NotifyNow
+      else
+        FTimer.Interval := ClipValue( Round( Abs ( (FInterval - LDuration).TotalMilliseconds)), 10, High(integer));
+    end;
+  end;
+end;
+
+procedure TThrottledEvent.SetInterval(const ATimeSpan : TTimeSpan);
+begin
+  if ATimeSpan.TotalMilliseconds = 0 then
+    raise EArgumentOutOfRangeException.Create('ATimeSpan was 0');
+  FInterval := ATimeSpan;
 end;
 
 {%endregion}
