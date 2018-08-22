@@ -45,23 +45,22 @@ type
     memoNetConnections: TMemo;
     memoNetServers: TMemo;
     procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
   private
     { private declarations }
     procedure CM_NetConnectionUpdated(var Msg: TMessage); message CM_PC_NetConnectionUpdated;
     procedure CM_BlackListUpdated(var Msg: TMessage); message CM_PC_BlackListUpdated;
     procedure CM_NetNodeServersUpdated(var Msg: TMessage); message CM_PC_NetNodeServersUpdated;
+    procedure OnNetConnectionsUpdated(Sender: TObject);
+    procedure OnNetNodeServersUpdated(Sender: TObject);
+    procedure OnNetBlackListUpdated(Sender: TObject);
   public
     { public declarations }
-
-    // TODO - refactor this out with TNotifyManyEvent so form subscribes directly to event
-    procedure OnNetConnectionsUpdated;
-    procedure OnNetBlackListUpdated;
-    procedure OnNetNodeServersUpdated;
   end;
 
 implementation
 
-Uses UTime;
+uses UCommon, UUserInterface, UTime;
 
 {$R *.lfm}
 
@@ -69,11 +68,20 @@ Uses UTime;
 
 procedure TFRMNodes.FormCreate(Sender: TObject);
 begin
-  OnNetConnectionsUpdated;
-  OnNetNodeServersUpdated;
-  OnNetBlackListUpdated;
+  TUserInterface.NetConnectionsUpdated.Add(OnNetConnectionsUpdated);
+  TUserInterface.NetNodeServersUpdated.Add(OnNetNodeServersUpdated);
+  TUserInterface.NetBlackListUpdated.Add(OnNetBlackListUpdated);
+  OnNetConnectionsUpdated(Self);
+  OnNetNodeServersUpdated(Self);
+  OnNetBlackListUpdated(Self);
 end;
 
+procedure TFRMNodes.FormDestroy(Sender: TObject);
+begin
+  TUserInterface.NetConnectionsUpdated.Remove(OnNetConnectionsUpdated);
+  TUserInterface.NetNodeServersUpdated.Remove(OnNetNodeServersUpdated);
+  TUserInterface.NetBlackListUpdated.Remove(OnNetBlackListUpdated);
+end;
 
 procedure TFRMNodes.CM_NetConnectionUpdated(var Msg: TMessage);
 Const CT_BooleanToString : Array[Boolean] of String = ('False','True');
@@ -153,7 +161,7 @@ begin
   end;
 end;
 
-procedure TFRMNodes.OnNetConnectionsUpdated;
+procedure TFRMNodes.OnNetConnectionsUpdated(Sender: TObject);
 begin
   // Ensure handled in UI thread
   PostMessage(Self.Handle,CM_PC_NetConnectionUpdated,0,0);
@@ -208,7 +216,7 @@ begin
   end;
 end;
 
-procedure TFRMNodes.OnNetNodeServersUpdated;
+procedure TFRMNodes.OnNetNodeServersUpdated(Sender: TObject);
 begin
   // Ensure handled in UI thread
   PostMessage(Self.Handle,CM_PC_NetNodeServersUpdated,0,0);
@@ -252,7 +260,7 @@ begin
   end;
 end;
 
-procedure TFRMNodes.OnNetBlackListUpdated;
+procedure TFRMNodes.OnNetBlackListUpdated(Sender: TObject);
 begin
   // Ensure handled in UI thread
   PostMessage(Self.Handle,CM_PC_BlackListUpdated,0,0);

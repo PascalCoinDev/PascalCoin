@@ -8,7 +8,6 @@ object ExecuteOperations: TExecuteOperations
   ClientHeight = 307
   ClientWidth = 545
   OnCreate = FormCreate
-  LCLVersion = '1.8.4.0'
   Visible = False
   object GroupBox1: TGroupBox
     Left = 0

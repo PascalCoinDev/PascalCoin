@@ -243,12 +243,16 @@
       <Unit41>
         <Filename Value="gui\UFRMAccountInfo.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="FRMAccountInfo"/>
         <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit41>
       <Unit42>
         <Filename Value="gui\UFRMMemoText.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="FRMMemoText"/>
         <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit42>
       <Unit43>
         <Filename Value="gui\UFRMSaleAccounts.pas"/>

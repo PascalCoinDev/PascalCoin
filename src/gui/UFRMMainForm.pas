@@ -106,9 +106,15 @@ type
     procedure CM_ConnectivityChanged(var Msg: TMessage); message CM_PC_ConnectivityChanged;
     procedure CM_Terminate(var Msg: TMessage); message CM_PC_Terminate;
     procedure CM_ModeChanged(var Msg: TMessage); message CM_PC_ModeChanged;
+
+    procedure OnAppStarted(Sender: TObject);
+    procedure OnLoaded(Sender: TObject);
     procedure OnConnectivityChanged(Sender: TObject);
+    procedure OnNetStatisticsChanged(Sender: TObject);
     procedure OnWalletChanged(Sender: TObject);
+    procedure OnUIRefreshTimer(Sender: TObject);
   protected
+    procedure RefreshConnectionStatusDisplay;
     procedure RefreshWalletLockIcon;
     procedure RefreshConnectivityIcon;
     procedure ActivateFirstTime; override;
@@ -117,14 +123,13 @@ type
   public
     property SyncControl : TCTRLSyncronization read FSyncControl;
     property Mode : TFRMMainFormMode read FMode write SetMode;
-    procedure OnFinishedLoadingDatabase;
   end;
 
 implementation
 
 {$R *.lfm}
 
-uses LCLIntf, UUserInterface, UThread, UOpTransaction, UWizard;
+uses LCLIntf, UUserInterface, UThread, UOpTransaction, UWizard, UTime;
 
 const
   CT_FOOTER_TOOLBAR_LEFT_PADDING = 8;
@@ -182,16 +187,23 @@ end;
 
 procedure TFRMMainForm.ActivateFirstTime;
 begin
+  // Event subscriptions on activate, not create, due to load-time sequence
+  TUserInterface.AppStarted.Add(OnAppStarted);
   TWallet.Keys.OnChanged.Add(OnWalletChanged);
   TNetData.NetData.OnConnectivityChanged.Add(OnConnectivityChanged);
+  TUserInterface.NetStatisticsChanged.Add(OnNetStatisticsChanged);
+  TUserInterface.UIRefreshTimer.Add(OnUIRefreshTimer);
   RefreshWalletLockIcon;
   RefreshConnectivityIcon;
 end;
 
 procedure TFRMMainForm.FormDestroy(Sender: TObject);
 begin
+  TUserInterface.AppStarted.Remove(OnAppStarted);
   TWallet.Keys.OnChanged.Remove(OnWalletChanged);
   TNetData.NetData.OnConnectivityChanged.Remove(OnConnectivityChanged);
+  TUserInterface.NetStatisticsChanged.Remove(OnNetStatisticsChanged);
+  TUserInterface.UIRefreshTimer.Remove(OnUIRefreshTimer);
 end;
 
 {%endregion}
@@ -230,6 +242,23 @@ const
 begin
   tbtnConnectivity.ImageIndex := ImageIndexConst[TNetData.NetData.NetConnectionsActive];
   tbtnConnectivity.Hint :=  HintConst[TNetData.NetData.NetConnectionsActive];
+end;
+
+procedure TFRMMainForm.RefreshConnectionStatusDisplay;
+var errors : AnsiString;
+begin
+  //HS XXXXXXXXXXXX was triggering below handlers, ignore?
+  //FMainForm.SyncControl.UpdateNodeStatus;
+  //HandleNetStatisticsChangedBackend(FMainForm);
+  if Assigned(TUserInterface.Node) then begin
+    if TUserInterface.Node.IsBlockChainValid(errors) then begin
+      sbStatusBar.Panels[2].Text := Format('Last account time:%s', [FormatDateTime('dd/mm/yyyy hh:nn:ss',UnivDateTime2LocalDateTime(UnixToUnivDateTime( TUserInterface.Node.Bank.LastOperationBlock.timestamp )))]);
+    end else begin
+      sbStatusBar.Panels[2].Text := 'NO BLOCKCHAIN: '+errors;
+    end;
+  end else begin
+    sbStatusBar.Panels[2].Text := '';
+  end;
 end;
 
 procedure TFRMMainForm.SetMode(AMode: TFRMMainFormMode);
@@ -284,7 +313,7 @@ begin
   Self.Enabled:=true;
 end;
 
-procedure TFRMMainForm.OnFinishedLoadingDatabase;
+procedure TFRMMainForm.OnLoaded(Sender: TObject);
 begin
   // Ensure handled in UI thread
   PostMessage(Self.Handle,CM_PC_FinishedLoadingDatabase,0,0);
@@ -306,10 +335,36 @@ begin
   RefreshConnectivityIcon;
 end;
 
+procedure TFRMMainForm.OnAppStarted(Sender: TObject);
+begin
+  RefreshConnectionStatusDisplay;
+end;
+
 procedure TFRMMainForm.OnConnectivityChanged(Sender: TObject);
 begin
   // Ensure handled in UI thread
   PostMessage(Self.Handle,CM_PC_ConnectivityChanged,0,0);
+end;
+
+procedure TFRMMainForm.OnNetStatisticsChanged(Sender: TObject);
+Var NS : TNetStatistics;
+begin
+  if Assigned(TUserInterface.Node) then begin
+    If TUserInterface.Node.NetServer.Active then begin
+      sbStatusBar.Panels[0].Text := 'Active (port: '+Inttostr(TUserInterface.Node.NetServer.Port)+')';
+    end else sbStatusBar.Panels[0].Text := 'Server Inactive';
+    NS := TNetData.NetData.NetStatistics;
+    sbStatusBar.Panels[1].Text  := Format('Connections: %d Clients: %d Servers: %d - Rcvd: %d kb Sent: %d kb',
+      [NS.ActiveConnections,NS.ClientsConnections, NS.ServersConnections, NS.BytesReceived DIV 1024, NS.BytesSend DIV 1024]);
+  end else begin
+    sbStatusBar.Panels[0].Text := '';
+    sbStatusBar.Panels[1].Text := '';
+  end;
+end;
+
+procedure TFRMMainForm.OnUIRefreshTimer(Sender: TObject);
+begin
+  RefreshConnectionStatusDisplay;
 end;
 
 {%endregion}

@@ -11,11 +11,10 @@ object FRMAccountExplorer: TFRMAccountExplorer
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.8.4.0'
   Visible = False
   object Splitter1: TSplitter
     Left = 380
-    Height = 365
+    Height = 385
     Top = 66
     Width = 5
   end
@@ -141,17 +140,17 @@ object FRMAccountExplorer: TFRMAccountExplorer
   end
   object pnlAccounts: TPanel
     Left = 0
-    Height = 365
+    Height = 385
     Top = 66
     Width = 380
     Align = alLeft
     BevelOuter = bvNone
-    ClientHeight = 365
+    ClientHeight = 385
     ClientWidth = 380
     TabOrder = 1
     object dgAccounts: TDrawGrid
       Left = 0
-      Height = 331
+      Height = 351
       Top = 0
       Width = 380
       Align = alClient
@@ -165,7 +164,7 @@ object FRMAccountExplorer: TFRMAccountExplorer
     object pnlAccountsInfo: TPanel
       Left = 0
       Height = 34
-      Top = 331
+      Top = 351
       Width = 380
       Align = alBottom
       BevelOuter = bvNone
@@ -246,7 +245,7 @@ object FRMAccountExplorer: TFRMAccountExplorer
   end
   object pcAccountsOptions: TPageControl
     Left = 385
-    Height = 365
+    Height = 385
     Top = 66
     Width = 483
     ActivePage = tsAccountOperations
@@ -255,11 +254,11 @@ object FRMAccountExplorer: TFRMAccountExplorer
     TabOrder = 2
     object tsAccountOperations: TTabSheet
       Caption = 'Operations of selected Account'
-      ClientHeight = 337
+      ClientHeight = 357
       ClientWidth = 475
       object dgAccountOperations: TDrawGrid
         Left = 0
-        Height = 337
+        Height = 357
         Top = 0
         Width = 475
         Align = alClient

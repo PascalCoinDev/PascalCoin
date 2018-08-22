@@ -186,9 +186,6 @@ type
     procedure sbSelectedAccountsAddClick(Sender: TObject);
     procedure sbSelectedAccountsDelAllClick(Sender: TObject);
     procedure sbSelectedAccountsDelClick(Sender: TObject);
-    procedure RefreshAccountsGrid(RefreshData : Boolean);
-    procedure RefreshMyKeysCombo;
-    procedure OnAccountsSelectedGridUpdated(Sender: TObject);
   private
     { private declarations }
     FAccountsGrid : TAccountsGrid;
@@ -197,7 +194,13 @@ type
     FOrderedAccountsKeyList : TOrderedAccountKeysList;
     FMinAccountBalance : Int64;
     FMaxAccountBalance : Int64;
+    procedure RefreshMyKeysCombo;
+    procedure RefreshAccountsGrid(RefreshData : Boolean);
+    procedure OnLoaded(Sender: TObject);
+    procedure OnAccountsChanged(Sender: TObject);
+    procedure OnBlocksChanged(Sender: TObject);
     procedure OnPrivateKeysChanged(Sender: TObject);
+    procedure OnAccountsSelectedGridUpdated(Sender: TObject);
   public
     { public declarations }
     procedure OnSelectedAccountChanged;
@@ -237,15 +240,21 @@ begin
   // Get account list from SafeBox
   FOrderedAccountsKeyList := TOrderedAccountKeysList.Create(TUserInterface.Node.Bank.SafeBox,false);
 
-  // Subscribe to wallet events
+  // Subscribe to events
+  TUserInterface.Loaded.Add(OnLoaded);
   TWallet.Keys.OnChanged.Add(OnPrivateKeysChanged);
+  TUserInterface.AccountsChanged.Add(OnAccountsChanged);
+  TUserInterface.BlocksChanged.Add(OnBlocksChanged);
   Refresh;
 end;
 
 procedure TFRMAccountExplorer.FormDestroy(Sender: TObject);
 begin
-  // Unsubscribe from wallet events
+  // Unsubscribe from events
+  TUserInterface.Loaded.Remove(OnLoaded);
   TWallet.Keys.OnChanged.Remove(OnPrivateKeysChanged);
+  TUserInterface.AccountsChanged.Remove(OnAccountsChanged);
+  TUserInterface.BlocksChanged.Remove(OnBlocksChanged);
 
   // Nullify fields
   FAccountOperationsGrid.Node := Nil;
@@ -410,6 +419,21 @@ end;
 {%endregion}
 
 {%region Event Handlers: Blockchain }
+
+procedure TFRMAccountExplorer.OnLoaded(Sender: TObject);
+begin
+  RefreshAccountsGrid(true);
+end;
+
+procedure TFRMAccountExplorer.OnAccountsChanged(Sender: TObject);
+begin
+  RefreshAccountsGrid(true);
+end;
+
+procedure TFRMAccountExplorer.OnBlocksChanged(Sender: TObject);
+begin
+  RefreshAccountsGrid(false);
+end;
 
 procedure TFRMAccountExplorer.OnPrivateKeysChanged(Sender: TObject);
 begin

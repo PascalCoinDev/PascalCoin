@@ -29,7 +29,7 @@ type
 
   { TExecuteOperations }
 
-  TExecuteOperations = class(TApplicationFormEx)
+  TExecuteOperations = class(TApplicationForm)
     btnClose: TButton;
     GroupBox1: TGroupBox;
     paGrid: TPanel;
@@ -48,11 +48,8 @@ type
 
 implementation
 
-
-type
-
-
-  TExecuteOperationResultDataSource : class(TDataSource<
+//type
+//  TExecuteOperationResultDataSource : class(TDataSource<
 
 {$R *.lfm}
 

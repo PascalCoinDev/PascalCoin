@@ -43,14 +43,15 @@ type
     memoMessageToSend: TMemo;
     procedure bbSendAMessageClick(Sender: TObject);
     procedure FormActivate(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
   private
     FMessagesUnreadCount : Integer;
     { private declarations }
     procedure UpdateAvailableConnections;
-
+    procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : TRawBytes);
   public
     { public declarations }
-    Procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : TRawBytes);
   end;
 
 implementation
@@ -64,9 +65,17 @@ uses UUserInterface, USettings;
 procedure TFRMMessages.FormActivate(Sender: TObject);
 begin
   UpdateAvailableConnections;
-  TUserInterface.MessagesNotificationText := '';
 end;
 
+procedure TFRMMessages.FormCreate(Sender: TObject);
+begin
+  TUserInterface.NodeMessageEvent.Add(OnNodeMessageEvent);
+end;
+
+procedure TFRMMessages.FormDestroy(Sender: TObject);
+begin
+  TUserInterface.NodeMessageEvent.Remove(OnNodeMessageEvent);
+end;
 
 procedure TFRMMessages.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: TRawBytes);
 Var s : String;
@@ -90,9 +99,8 @@ begin
   end else begin
     memoMessages.Lines.Add(DateTimeToStr(now)+' Internal message: '+MessageData);
   end;
-  if FMessagesUnreadCount>1 then TUserInterface.MessagesNotificationText := Format('You have received %d messages',[FMessagesUnreadCount])
-  else TUserInterface.MessagesNotificationText := 'You have received 1 message';
 end;
+
 
 procedure TFRMMessages.UpdateAvailableConnections;
 Var i : integer;
