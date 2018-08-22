@@ -358,8 +358,14 @@ begin
   // Exit application
   TLog.NewLog(ltinfo,Classname,'Quit Application - START');
   Try
-    step := 'Saving Settings';
+    step := 'Deregistering events';
     TSettings.OnChanged.Remove(OnSettingsChanged);
+    FUIRefreshTimer.Remove(OnUITimerRefresh);
+    FReceivedHelloMessage.Remove(OnReceivedHelloMessage);
+    FLoaded.Remove(OnLoaded);
+    FUIRefreshTimer.Remove(OnUITimerRefresh);
+
+    step := 'Saving Settings';
     TSettings.Save;
 
     // Destroys root form, non-modal forms and all their attached components
