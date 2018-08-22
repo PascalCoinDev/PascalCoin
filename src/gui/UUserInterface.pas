@@ -237,6 +237,7 @@ begin
     FMessagesNotificationText := '';
 
     // Create root form and dependent components
+    FMainForm := mainForm as TFRMMainForm;
     FMainForm.CloseAction := caNone;     // wallet is destroyed on ExitApplication
     if (FMainForm = nil)
       then raise Exception.Create('Main form is not TWallet');
@@ -482,6 +483,7 @@ begin
   FPoolMiningServer.Active := TSettings.MinerServerRpcActive;
   FPoolMiningServer.OnMiningServerNewBlockFound := NotifyMiningServerNewBlockFoundEvent;
   State := uisLoaded;
+  ShowWallet;
 end;
 
 class procedure TUserInterface.OnUITimerRefresh(Sender: Tobject);

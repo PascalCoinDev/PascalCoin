@@ -185,7 +185,6 @@ begin
   lblReceivedMessages.Caption := text;
 end;
 
-
 procedure TCTRLSyncronization.SetStatusText(AColour: TColor; AText: String);
 begin
   lblNodeStatus.Font.Color := AColour;
