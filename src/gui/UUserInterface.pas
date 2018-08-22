@@ -78,7 +78,6 @@ type
       FLoading : TProgressNotifyMany; static;
       FLoaded : TNotifyManyEvent; static;
       FStateChanged : TNotifyManyEvent; static;
-      FSettingsChanged : TNotifyManyEvent; static;
       FAccountsChanged : TNotifyManyEvent; static;
       FBlocksChanged : TNotifyManyEvent; static;
       FReceivedHelloMessage : TNotifyManyEvent; static;
@@ -113,7 +112,6 @@ type
       class procedure NotifyLoadedEvent(Sender: TObject);
       class procedure NotifyLoadingEvent(Sender: TObject; const message: AnsiString; curPos, totalCount: Int64);
       class procedure NotifyStateChanged(Sender: TObject);
-      class procedure NotifySettingsChangedEvent(Sender: TObject);
       class procedure NotifyAccountsChangedEvent(Sender: TObject);
       class procedure NotifyBlocksChangedEvent(Sender: TObject);
       class procedure NotifyReceivedHelloMessageEvent(Sender: TObject);
@@ -140,7 +138,6 @@ type
       class property Loading : TProgressNotifyMany read FLoading;
       class property Loaded : TNotifyManyEvent read FLoaded;
       class property StateChanged : TNotifyManyEvent read FStateChanged;
-      class property SettingsChanged : TNotifyManyEvent read FSettingsChanged;
       class property AccountsChanged : TNotifyManyEvent read FAccountsChanged;
       class property BlocksChanged : TNotifyManyEvent read FBlocksChanged;
       class property ReceivedHelloMessage : TNotifyManyEvent read FReceivedHelloMessage;
@@ -362,7 +359,7 @@ begin
   TLog.NewLog(ltinfo,Classname,'Quit Application - START');
   Try
     step := 'Saving Settings';
-    TSettings.OnChanged.Remove(NotifySettingsChangedEvent);
+    TSettings.OnChanged.Remove(OnSettingsChanged);
     TSettings.Save;
 
     // Destroys root form, non-modal forms and all their attached components
@@ -1016,11 +1013,6 @@ end;
 class procedure TUserInterface.NotifyStateChanged(Sender: TObject);
 begin
   TUserInterface.FStateChanged.Invoke(Sender);
-end;
-
-class procedure TUserInterface.NotifySettingsChangedEvent(Sender: TObject);
-begin
-  TUserInterface.FSettingsChanged.Invoke(Sender);
 end;
 
 class procedure TUserInterface.NotifyAccountsChangedEvent(Sender: TObject);
