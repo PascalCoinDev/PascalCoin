@@ -87,6 +87,9 @@ type
     class function ConvertStringToBytes(const a_in: String;
       const a_encoding: TEncoding): THashLibByteArray; overload; static;
 
+    class function ConvertBytesToString(const a_in: THashLibByteArray;
+      const a_encoding: TEncoding): String; overload; static;
+
     class function ConvertHexStringToBytes(const a_in: String)
       : THashLibByteArray; static; inline;
 
@@ -417,6 +420,22 @@ begin
   result := a_encoding.GetBytes(UnicodeString(a_in));
 {$ELSE}
   result := a_encoding.GetBytes(a_in);
+{$ENDIF FPC}
+end;
+
+class function TConverters.ConvertBytesToString(const a_in: THashLibByteArray;
+  const a_encoding: TEncoding): String;
+begin
+
+  if a_encoding = Nil then
+  begin
+    raise EArgumentNilHashLibException.CreateRes(@SEncodingInstanceNil);
+  end;
+
+{$IFDEF FPC}
+  result := String(a_encoding.GetString(a_in));
+{$ELSE}
+  result := a_encoding.GetString(a_in);
 {$ENDIF FPC}
 end;
 
