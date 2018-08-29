@@ -155,7 +155,7 @@ begin
 {$ENDIF DELPHIXE7_UP}
 {$IFDEF FPC}
   TempHolder := EncodeStringBase64
-    (String(TEncoding.UTF8.GetString(Self.Fm_hash)));
+    (TConverters.ConvertBytesToString(Self.Fm_hash, TEncoding.UTF8));
 {$ENDIF FPC}
 {$IFDEF DELPHIXE7_UP}
   Temp := StringReplace(TNetEncoding.base64.EncodeBytesToString(TempHolder),
