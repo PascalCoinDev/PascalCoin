@@ -23,7 +23,7 @@ interface
 {$I config.inc}
 
 uses
-  Classes, SysUtils, syncobjs, UThread, UPoolMining, UAccounts, UCrypto, ULog, UBlockChain, USha256;
+  Classes, SysUtils, syncobjs, UThread, UPoolMining, UAccounts, UCrypto, ULog, UBlockChain, USha256, URandomHash;
 
 type
   TMinerStats = Record
@@ -457,22 +457,32 @@ begin
 end;
 
 procedure TCustomMinerDeviceThread.FoundNOnce(const usedMinerValuesForWork : TMinerValuesForWork; Timestamp, nOnce: Cardinal);
-Var digest,dsha256  : TRawBytes;
+var
+  digest,LHash  : TRawBytes;
+  LUseRandomHash : Boolean;
 begin
   // Validation
   digest := usedMinerValuesForWork.part1+usedMinerValuesForWork.payload_start+usedMinerValuesForWork.part3+'00000000';
   if length(digest)<8 then exit;
+  LUseRandomHash := CT_ACTIVATE_RANDOMHASH_V4 AND (usedMinerValuesForWork.block >= CT_Protocol_Upgrade_v4_MinBlock);
   // Add timestamp and nonce
   move(Timestamp,digest[length(digest)-7],4);
   move(nOnce,digest[length(digest)-3],4);
-  dsha256 := TCrypto.DoSha256(TCrypto.DoSha256(digest));
-  if (dsha256 <= usedMinerValuesForWork.target_pow) then begin
+  if LUseRandomHash then
+    LHash := TCrypto.DoRandomHash(digest)
+  else
+    LHash := TCrypto.DoSha256(TCrypto.DoSha256(digest));
+  if (LHash <= usedMinerValuesForWork.target_pow) then begin
     FPoolMinerThread.OnMinerNewBlockFound(self,usedMinerValuesForWork,Timestamp,nOnce);
     If Assigned(FOnFoundNOnce) then FOnFoundNOnce(Self,Timestamp,nOnce);
   end else begin
     inc(FGlobaDeviceStats.Invalids);
-    TLog.NewLog(lterror,Self.Classname,Format('Invalid Double Sha256 found. Timestamp %s nOnce %s DSHA256 %s Valid POW %s',
-      [IntToHex(Timestamp,8),IntToHex(nOnce,8),TCrypto.ToHexaString(dsha256),TCrypto.ToHexaString(usedMinerValuesForWork.target_pow)]));
+    if LUseRandomHash then
+      TLog.NewLog(lterror,Self.Classname,Format('Invalid RandomHash found. Timestamp %s nOnce %s RNDHASH %s Valid POW %s',
+        [IntToHex(Timestamp,8),IntToHex(nOnce,8),TCrypto.ToHexaString(LHash),TCrypto.ToHexaString(usedMinerValuesForWork.target_pow)]))
+    else
+      TLog.NewLog(lterror,Self.Classname,Format('Invalid SHA2-256D found. Timestamp %s nOnce %s DSHA256 %s Valid POW %s',
+        [IntToHex(Timestamp,8),IntToHex(nOnce,8),TCrypto.ToHexaString(LHash),TCrypto.ToHexaString(usedMinerValuesForWork.target_pow)]));
   end;
 end;
 
@@ -722,6 +732,7 @@ Var
   //
   AuxStats : TMinerStats;
   dstep : Integer;
+  LUseRandomHash : boolean;
 begin
   DebugStep := '----------';
   AuxStats := CT_TMinerStats_NULL;
@@ -732,6 +743,7 @@ begin
       Try
       dstep := 1;
       AuxStats := CT_TMinerStats_NULL;
+      LUseRandomHash := CT_ACTIVATE_RANDOMHASH_V4 AND (FCurrentMinerValuesForWork.block >= CT_Protocol_Upgrade_v4_MinBlock);
       If (FCPUDeviceThread.Paused) then sleep(1)
       else begin
         dstep := 2;
@@ -744,7 +756,7 @@ begin
           if ts<=FCurrentMinerValuesForWork.timestamp then ts := FCurrentMinerValuesForWork.timestamp+1;
 
           If FDigestStreamMsg.Size>8 then begin
-            if FCPUDeviceThread.FUseOpenSSLFunctions then begin
+            if FCPUDeviceThread.FUseOpenSSLFunctions OR LUseRandomHash then begin
               FDigestStreamMsg.Position:=FDigestStreamMsg.Size - 8;
               FDigestStreamMsg.Write(ts,4);
               baseHashingTC:=GetTickCount;
@@ -752,7 +764,10 @@ begin
               for i := 1 to CT_Rounds do begin
                 FDigestStreamMsg.Position := FDigestStreamMsg.Size - 4;
                 FDigestStreamMsg.Write(nonce,4);
-                TCrypto.DoDoubleSha256(FDigestStreamMsg.Memory,FDigestStreamMsg.Size,resultPoW);
+                if LUseRandomHash then
+                  TCrypto.DoRandomHash(FDigestStreamMsg.Memory,FDigestStreamMsg.Size,resultPoW)
+                else
+                  TCrypto.DoDoubleSha256(FDigestStreamMsg.Memory,FDigestStreamMsg.Size,resultPoW);
                 if resultPoW < FCurrentMinerValuesForWork.target_pow then begin
                   if Terminated then exit;
                   inc(AuxStats.WinsCount);
@@ -773,7 +788,7 @@ begin
             end else begin
               baseHashingTC:=GetTickCount;
               for i := 1 to CT_Rounds do begin
-                PascalCoinExecuteLastChunkAndDoSha256(FInternalSha256,FInternalChunk,FChangeTimestampAndNOnceBytePos,nonce,ts,resultPoW);
+                PascalCoinExecuteLastChunkAndDoSha256(FInternalSha256,FInternalChunk,FChangeTimestampAndNOnceBytePos,nonce,ts,resultPoW); // Note: RandomHash is handled above
                 if resultPoW < FCurrentMinerValuesForWork.target_pow then begin
                   if Terminated then exit;
                   inc(AuxStats.WinsCount);

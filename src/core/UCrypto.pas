@@ -80,6 +80,7 @@ Type
     class procedure DoSha256(const TheMessage : AnsiString; out ResultSha256 : TRawBytes);  overload;
     class function DoDoubleSha256(const TheMessage : AnsiString) : TRawBytes; overload;
     class procedure DoDoubleSha256(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
+    class function DoRandomHash(const TheMessage : AnsiString) : TRawBytes; overload;
     class procedure DoRandomHash(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
     class function DoRipeMD160_HEXASTRING(const TheMessage : AnsiString) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
@@ -647,6 +648,11 @@ begin
 end;
 
 { New at Build 4.0.0 }
+
+class function TCrypto.DoRandomHash(const TheMessage: AnsiString): TRawBytes;
+begin
+  DoRandomHash(PAnsiChar(TheMessage),Length(TheMessage),Result);
+end;
 
 class procedure TCrypto.DoRandomHash(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
 var
