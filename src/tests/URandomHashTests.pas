@@ -74,31 +74,31 @@ const
   { RandomHash Official Values }
 
   DATA_RANDOMHASH_STANDARD : array[1..3] of TTestItem<String, String> = (
-    (Input: '0x0';                                         Expected: '0x291ef6d7f9babe3d2d4fd6560c7eefc7a9937126fd13d5af6fd0474b6dfac215'),
-    (Input: 'The quick brown fox jumps over the lazy dog'; Expected: '0xb0806f69c78d5129bca60e35902ddd88a24bda32cbd32612828e797163221013'),
-    (Input: '0x000102030405060708090a0b0c0d0e0f';          Expected: '0x1a0b8000d591a948e038c43af0abb4ee504f08fcf869e55a9e4dda4384719eb7')
+    (Input: '0x0';                                         Expected: '0xe7779c7bbbe0b69a8414ab63c6b18346ddf9cf655041085b3ee11b3495daf57b'),
+    (Input: 'The quick brown fox jumps over the lazy dog'; Expected: '0x0e65317e63f1ea77412d60355d8935666b2f185af87c051ca337dadd86309048'),
+    (Input: '0x000102030405060708090a0b0c0d0e0f';          Expected: '0x63a425043511e4a7a622528077e75c687644de80ea4735c5703eb7b66f22c21b')
   );
 
   {  Hash Test Data }
 
   DATA_RANDOMHASH : array[1..16] of TTestItem<Integer, String> = (
     { NOTE: Input denotes the number of bytes to take from DATA_BYTES when executing test }
-    (Input: 17;  Expected: '0xa2f0fcf62a70137334ee50ab96e0375f7b4f0b13dd14875a2282e96336f35798'),
-    (Input: 31;  Expected: '0x51c29ca5be81a0a6777e9675399227da3f7a60aaf1986f6d927e857df7a3f1a7'),
-    (Input: 32;  Expected: '0x4eebd9540e3fc77e557acdf2214c82b55bf1b0c65a3a4d63dff63e881f7ac07f'),
-    (Input: 33;  Expected: '0x03db8c5c4d943946a5d9b8ac4bce9527b0e2ec4a33d9897d029181686c20303c'),
-    (Input: 34;  Expected: '0xf6e2cc2f910ad523de062a56a262d078642727df61b3c81a289b6bca17614763'),
-    (Input: 63;  Expected: '0x26ce87858e10ffd624ae44b02ccaba768f2795b3f6981ff411df87a0486333b8'),
-    (Input: 64;  Expected: '0xef1013891c70aeaa19f2427af08e7cee84be32af155ea46bf7907112ded92b79'),
-    (Input: 65;  Expected: '0x336ea62e998fa1c61fd49d27f9765b8e1bf0426561859ff60e7516c77b25fa03'),
-    (Input: 100; Expected: '0x816870ca911cd9a441ec51597b75f9e1293af969475344c443072bc633905b7a'),
-    (Input: 117; Expected: '0xec4161a72efd11cce933f2bc4117c7be637f02457c024fb22e0f381aae450984'),
-    (Input: 127; Expected: '0x8cd3adec737e6c75ff40168319fbdefd45babe8c7648be1f244ce3cf29b78972'),
-    (Input: 128; Expected: '0x3f3b94bf6601f925045df128498b82494284c5988aada0728de34cdb3ee989e6'),
-    (Input: 129; Expected: '0xde57563024c76505ea2abd7d2e939a1d8bbfcb0e05a673e128623a3be377c29b'),
-    (Input: 178; Expected: '0xd7edbc889d0cecde74a43c5a07afcbee6dfa902dbe43db212e64817d68c0697c'),
-    (Input: 199; Expected: '0xe07f4f20de8a43bdeee3cd6f3cddbf2e8e16e36a9a9b3624024cba7aa8690bc6'),
-    (Input: 200; Expected: '0x25f3c67004af2c7dff3aeae980170b9517672a949870538714bb16fba6d93d4a')
+    (Input: 17;  Expected: '0xd6575e1efec5b1b145433a80292a7b0bcbc3323505efbbcf39c56f300f257ee3'),
+    (Input: 31;  Expected: '0xca5cad7ba4b02159da3b672ed71adbbbdde215cc591cf970a99eed8c8a6c09ba'),
+    (Input: 32;  Expected: '0x69155c619a312714818804191652e1444c32283cf2ef50fac22491a2eb87db9d'),
+    (Input: 33;  Expected: '0xc5a3136a156ccd09f341500ae3d8756ccd4096f7be94fb71d1246264a617f407'),
+    (Input: 34;  Expected: '0xf733846e696ffe0557c6ffde679d843370c23c9061799794e5fe33bc9ee7c4d5'),
+    (Input: 63;  Expected: '0x8f6ae20a7603334925baac0f1cdbfcab2330be28b9bc511fe8b02606c7f96fd1'),
+    (Input: 64;  Expected: '0xe4dc577038e56e2652df91fbbcc471ee2d9fbfcc76b7c6d0156a5c40dce9cf1c'),
+    (Input: 65;  Expected: '0x1f528c66b12904f06f9ab9e8368e05534499cec5827605a66b0ac8c357543889'),
+    (Input: 100; Expected: '0x0011a30c706cf828cb47d7e2a5f142ced1d638100c3a2cfd17feded2891b9c09'),
+    (Input: 117; Expected: '0x9a74753f6e963c89bbbdab807841416dc80e364edc5f75f94c1b0dfd8ab5e9ca'),
+    (Input: 127; Expected: '0x949e44924db224b53961f0d2900ae1f056ca24e27ac67900ad7f996c0b4f33ad'),
+    (Input: 128; Expected: '0x2e6e0d4e6417e58bde53707bab560cc55f0f85f06a2459934c481286d652b750'),
+    (Input: 129; Expected: '0x6d97906c9a9e66ebb18bc610d88896baecede741891fd509c02f3aaf3b5c3453'),
+    (Input: 178; Expected: '0xcfdcd3374468e34d6c199c48b5de29bd2dda6924a0bf634d476793f307fc32a1'),
+    (Input: 199; Expected: '0x8ecc076c830ce19463835d36dc63fcc04deabba62cea05e680afcda834720147'),
+    (Input: 200; Expected: '0xd01efdfaad8841b4df8f1d83388b97a342d63026adce6fd7e4a5168951a5ed0f')
   );
 
   DATA_EXPAND : array[1..48] of TTestItem<UInt32, UInt32, UInt32> = (
@@ -120,39 +120,39 @@ const
     (Input1: 199; Input2: 0; Expected: 866217581),
     (Input1: 200; Input2: 0; Expected: 1143690750),
 
-    (Input1: 17;  Input2: 1; Expected: 2042848117),
-    (Input1: 31;  Input2: 1; Expected: 2365845451),
-    (Input1: 32;  Input2: 1; Expected: 83057313),
-    (Input1: 33;  Input2: 1; Expected: 2259992744),
-    (Input1: 34;  Input2: 1; Expected: 1693187113),
-    (Input1: 63;  Input2: 1; Expected: 870135599),
-    (Input1: 64;  Input2: 1; Expected: 894781912),
-    (Input1: 65;  Input2: 1; Expected: 2374869825),
-    (Input1: 100; Input2: 1; Expected: 2965796412),
-    (Input1: 117; Input2: 1; Expected: 3765264627),
-    (Input1: 127; Input2: 1; Expected: 1634512827),
-    (Input1: 128; Input2: 1; Expected: 3880654080),
-    (Input1: 129; Input2: 1; Expected: 4169907402),
-    (Input1: 178; Input2: 1; Expected: 789363935),
-    (Input1: 199; Input2: 1; Expected: 1389192467),
-    (Input1: 200; Input2: 1; Expected: 3730043244),
+    (Input1: 17;  Input2: 1; Expected: 3581193580),
+    (Input1: 31;  Input2: 1; Expected: 1386229068),
+    (Input1: 32;  Input2: 1; Expected: 3890645761),
+    (Input1: 33;  Input2: 1; Expected: 4284681929),
+    (Input1: 34;  Input2: 1; Expected: 1294183718),
+    (Input1: 63;  Input2: 1; Expected: 4018048932),
+    (Input1: 64;  Input2: 1; Expected: 2232140808),
+    (Input1: 65;  Input2: 1; Expected: 3134940738),
+    (Input1: 100; Input2: 1; Expected: 2689666356),
+    (Input1: 117; Input2: 1; Expected: 3368324847),
+    (Input1: 127; Input2: 1; Expected: 3911039685),
+    (Input1: 128; Input2: 1; Expected: 3836201651),
+    (Input1: 129; Input2: 1; Expected: 3007233924),
+    (Input1: 178; Input2: 1; Expected: 367519821),
+    (Input1: 199; Input2: 1; Expected: 2047231351),
+    (Input1: 200; Input2: 1; Expected: 3735937648),
 
-    (Input1: 17;  Input2: 5; Expected: 1953376007),
-    (Input1: 31;  Input2: 5; Expected: 3393744524),
-    (Input1: 32;  Input2: 5; Expected: 656655776),
-    (Input1: 33;  Input2: 5; Expected: 2244154114),
-    (Input1: 34;  Input2: 5; Expected: 2047272425),
-    (Input1: 63;  Input2: 5; Expected: 3521880614),
-    (Input1: 64;  Input2: 5; Expected: 604121061),
-    (Input1: 65;  Input2: 5; Expected: 2374002551),
-    (Input1: 100; Input2: 5; Expected: 643287059),
-    (Input1: 117; Input2: 5; Expected: 2767996695),
-    (Input1: 127; Input2: 5; Expected: 1771221488),
-    (Input1: 128; Input2: 5; Expected: 3132080449),
-    (Input1: 129; Input2: 5; Expected: 3094522235),
-    (Input1: 178; Input2: 5; Expected: 560074601),
-    (Input1: 199; Input2: 5; Expected: 2622473806),
-    (Input1: 200; Input2: 5; Expected: 2027119783)
+    (Input1: 17;  Input2: 5; Expected: 3329498543),
+    (Input1: 31;  Input2: 5; Expected: 2003154781),
+    (Input1: 32;  Input2: 5; Expected: 4200513415),
+    (Input1: 33;  Input2: 5; Expected: 1296024659),
+    (Input1: 34;  Input2: 5; Expected: 182984701),
+    (Input1: 63;  Input2: 5; Expected: 1182610625),
+    (Input1: 64;  Input2: 5; Expected: 1222195093),
+    (Input1: 65;  Input2: 5; Expected: 167712570),
+    (Input1: 100; Input2: 5; Expected: 3906891364),
+    (Input1: 117; Input2: 5; Expected: 2341042960),
+    (Input1: 127; Input2: 5; Expected: 2642756379),
+    (Input1: 128; Input2: 5; Expected: 150560827),
+    (Input1: 129; Input2: 5; Expected: 873026048),
+    (Input1: 178; Input2: 5; Expected: 3944463006),
+    (Input1: 199; Input2: 5; Expected: 609969253),
+    (Input1: 200; Input2: 5; Expected: 767678687)
   );
 
   DATA_COMPRESS : array[1..2] of TTestItem<String, String> = (

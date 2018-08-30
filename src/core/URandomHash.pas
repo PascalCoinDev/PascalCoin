@@ -105,8 +105,8 @@ type
 
   TRandomHash = class sealed(TObject)
     const
-      N = 5;            // Number of hashing rounds required to compute a nonce (total rounds = 2^N - 1)
-      M = 10 * 1024;    // 10KB The memory expansion unit (in bytes)
+      N = 5;              // Number of hashing rounds required to compute a nonce (total rounds = 2^N - 1)
+      M = (10 * 1024)*11; // 10KB The memory expansion unit (in bytes)
 
     {$IFNDEF UNITTESTS}private{$ELSE}public{$ENDIF}
       FMurmurHash3_x86_32 : IHash;
