@@ -486,10 +486,7 @@ Const
 implementation
 
 uses
-  {Messages, }
-  SysUtils, Variants, {Graphics,}
-  {Controls, Forms,}
-  Dialogs, {StdCtrls,}
+  SysUtils, Variants,
   UTime, UConst, UOpTransaction, UBaseTypes;
 
 { TPCBank }
