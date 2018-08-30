@@ -757,7 +757,7 @@ begin
     ms.Write(operationBlock.fee,4);
     ms.Write(operationBlock.timestamp,4);
     ms.Write(operationBlock.nonce,4);
-    if CT_ACTIVATE_RANDOMHASH_V4 AND (operationBlock.block >= CT_Protocol_Upgrade_v4_MinBlock) then
+    if CT_ACTIVATE_RANDOMHASH_V4 AND (operationBlock.protocol_version >= CT_PROTOCOL_4) then
       TCrypto.DoRandomHash(ms.Memory,ms.Size,PoW)
     else
       TCrypto.DoDoubleSha256(ms.Memory,ms.Size,PoW);

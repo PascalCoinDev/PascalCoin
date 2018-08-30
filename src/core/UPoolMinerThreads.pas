@@ -466,7 +466,7 @@ begin
   // Validation
   digest := usedMinerValuesForWork.part1+usedMinerValuesForWork.payload_start+usedMinerValuesForWork.part3+'00000000';
   if length(digest)<8 then exit;
-  LUseRandomHash := CT_ACTIVATE_RANDOMHASH_V4 AND (usedMinerValuesForWork.block >= CT_Protocol_Upgrade_v4_MinBlock);
+  LUseRandomHash := CT_ACTIVATE_RANDOMHASH_V4 AND (usedMinerValuesForWork.version >= CT_PROTOCOL_4);
   // Add timestamp and nonce
   move(Timestamp,digest[length(digest)-7],4);
   move(nOnce,digest[length(digest)-3],4);
@@ -759,7 +759,7 @@ begin
           if (LUseRandomHash) then begin
             roundsToDo := 20;
           end else begin
-            roundsToDo := 5000;
+            roundsToDo := 10000;
           end;
           baseRealTC := TPlatform.GetTickCount;
           If (nonce<FMinNOnce) Or (nonce>FMaxNOnce) then nonce:=FMinNOnce;
