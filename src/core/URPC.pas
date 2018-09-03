@@ -40,6 +40,7 @@ Const
   CT_RPC_ErrNum_WalletPasswordProtected = 1015;
   CT_RPC_ErrNum_InvalidData = 1016;
   CT_RPC_ErrNum_InvalidSignature = 1020;
+  CT_RPC_ErrNum_NotAllowedCall = 1021;
 
 Type
 
@@ -73,6 +74,7 @@ Type
     FRPCLog : TLog;
     FCallsCounter : Int64;
     FValidIPs: AnsiString;
+    FAllowUsePrivateKeys: Boolean;
     procedure SetActive(AValue: Boolean);
     procedure SetIniFileName(const Value: AnsiString);
     procedure SetLogFileName(const Value: AnsiString);
@@ -92,6 +94,7 @@ Type
     Property IniFileName : AnsiString read FIniFileName write SetIniFileName;
     Property LogFileName : AnsiString read GetLogFileName write SetLogFileName;
     Property ValidIPs : AnsiString read FValidIPs write SetValidIPs;
+    Property AllowUsePrivateKeys : Boolean read FAllowUsePrivateKeys write FAllowUsePrivateKeys; // New v4 protection for free access server
   end;
 
   { TRPCServerThread }
@@ -456,8 +459,11 @@ procedure TRPCServer.SetValidIPs(const Value: AnsiString);
 begin
   if FValidIPs=Value then exit;
   FValidIPs := Value;
-  if FValidIPs='' then TLog.NewLog(ltupdate,Classname,'Updated RPC Server valid IPs to ALL')
-  else TLog.NewLog(ltupdate,Classname,'Updated RPC Server valid IPs to: '+FValidIPs)
+  if FValidIPs='' then begin
+    TLog.NewLog(ltupdate,Classname,'Updated RPC Server valid IPs to ALL');
+    // New Build 3.0.2
+    FAllowUsePrivateKeys := False; // By default, when opening RPC server to all IP's, use of private keys is forbidden to protect server
+  end else TLog.NewLog(ltupdate,Classname,'Updated RPC Server valid IPs to: '+FValidIPs)
 end;
 
 function TRPCServer.IsValidClientIP(const clientIp: String; clientPort: Word): Boolean;
@@ -480,6 +486,7 @@ begin
   FPort := CT_JSONRPC_Port;
   FCallsCounter := 0;
   FValidIPs := '127.0.0.1;localhost'; // New Build 1.5 - By default, only localhost can access to RPC
+  FAllowUsePrivateKeys := True;       // New Build 3.0.2 - By default RPC allows to use private keys functions
   If Not assigned(_RPCServer) then _RPCServer := Self;
 end;
 
@@ -2698,6 +2705,11 @@ begin
   if (method='addnode') then begin
     // Param "nodes" contains ip's and ports in format "ip1:port1;ip2:port2 ...". If port is not specified, use default
     // Returns quantity of nodes added
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid external calls
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     TNode.DecodeIpStringToNodeServerAddressArray(params.AsString('nodes',''),nsaarr);
     for i:=low(nsaarr) to high(nsaarr) do begin
       TNetData.NetData.AddServer(nsaarr[i]);
@@ -2720,6 +2732,12 @@ begin
   end else if (method='findaccounts') then begin
     Result := FindAccounts(params, jsonarr);
   end else if (method='getwalletaccounts') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
+
     // Returns JSON array with accounts in Wallet
     jsonarr := jsonresponse.GetAsArray('result');
     if (params.IndexOfName('enc_pubkey')>=0) Or (params.IndexOfName('b58_pubkey')>=0) then begin
@@ -2763,6 +2781,11 @@ begin
       Result := true;
     end;
   end else if (method='getwalletaccountscount') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     // New Build 1.1.1
     // Returns a number with count value
     if (params.IndexOfName('enc_pubkey')>=0) Or (params.IndexOfName('b58_pubkey')>=0) then begin
@@ -2790,6 +2813,11 @@ begin
       Result := true;
     end;
   end else if (method='getwalletcoins') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     if (params.IndexOfName('enc_pubkey')>=0) Or (params.IndexOfName('b58_pubkey')>=0) then begin
       if Not (CapturePubKey('',opr.newKey,ErrorDesc)) then begin
         ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
@@ -2822,6 +2850,11 @@ begin
       Result := true;
     end;
   end else if (method='getwalletpubkeys') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     // Returns JSON array with pubkeys in wallet
     k := params.AsInteger('max',100);
     j := params.AsInteger('start',0);
@@ -2837,6 +2870,11 @@ begin
     end;
     Result := true;
   end else if (method='getwalletpubkey') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     if Not (CapturePubKey('',opr.newKey,ErrorDesc)) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
       exit;
@@ -3094,6 +3132,11 @@ begin
     // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
     // Returns a JSON "Operation Resume format" object when successfull
     // Note: "ophash" will contain block "0" = "pending block"
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     If Not _RPCServer.WalletKeys.IsValidPassword then begin
       ErrorNum := CT_RPC_ErrNum_WalletPasswordProtected;
       ErrorDesc := 'Wallet is password protected. Unlock first';
@@ -3114,6 +3157,11 @@ begin
     // If "payload" is present, it will be encoded using "payload_method"
     // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
     // Returns a JSON "Operations info" containing old "rawoperations" plus new Transaction
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     If Not _RPCServer.WalletKeys.IsValidPassword then begin
       ErrorNum := CT_RPC_ErrNum_WalletPasswordProtected;
       ErrorDesc := 'Wallet is password protected. Unlock first';
@@ -3143,6 +3191,11 @@ begin
     // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
     // Returns a JSON "Operation Resume format" object when successfull
     // Note: "ophash" will contain block "0" = "pending block"
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     If Not _RPCServer.WalletKeys.IsValidPassword then begin
       ErrorNum := CT_RPC_ErrNum_WalletPasswordProtected;
       ErrorDesc := 'Wallet is password protected. Unlock first';
@@ -3172,6 +3225,11 @@ begin
     // If "payload" is present, it will be encoded using "payload_method"
     // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
     // Returns a JSON object with result information
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     If Not _RPCServer.WalletKeys.IsValidPassword then begin
       ErrorNum := CT_RPC_ErrNum_WalletPasswordProtected;
       ErrorDesc := 'Wallet is password protected. Unlock first';
@@ -3202,6 +3260,11 @@ begin
     // If "payload" is present, it will be encoded using "payload_method"
     // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
     // Returns a JSON "Operations info" containing old "rawoperations" plus new Transaction
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     If Not _RPCServer.WalletKeys.IsValidPassword then begin
       ErrorNum := CT_RPC_ErrNum_WalletPasswordProtected;
       ErrorDesc := 'Wallet is password protected. Unlock first';
@@ -3234,23 +3297,68 @@ begin
        params.AsString('payload_method','dest'),params.AsString('pwd',''));
   end else if (method='listaccountforsale') then begin
     // Will put a single account in "for sale" state
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     Result := ListAccountForSale(params);
   end else if (method='signlistaccountforsale') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     Result := SignListAccountForSaleColdWallet(params.AsString('rawoperations',''),params);
   end else if (method='delistaccountforsale') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     Result := DelistAccountForSale(params);
   end else if (method='signdelistaccountforsale') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     Result := SignDelistAccountForSaleColdWallet(params.AsString('rawoperations',''),params);
   end else if (method='buyaccount') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     Result := BuyAccount(params);
   end else if (method='signbuyaccount') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     Result := SignBuyAccountColdWallet(params.AsString('rawoperations',''),params);
   end else if (method='changeaccountinfo') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     Result := ChangeAccountInfo(params);
   end else if (method='signchangeaccountinfo') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     Result := SignChangeAccountInfoColdWallet(params.AsString('rawoperations',''),params);
   // V3 new calls
   end else if (method='signmessage') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     params.DeleteName('signature');
     Result := DoSignOrVerifyMessage(params);
   end else if (method='verifysign') then begin
@@ -3262,8 +3370,18 @@ begin
   end else if (method='multioperationaddoperation') then begin
     Result := MultiOperationAddOperation(params.AsString('rawoperations',''),params);
   end else if (method='multioperationsignoffline') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     Result := MultiOperationSignCold(params.AsString('rawoperations',''),params);
   end else if (method='multioperationsignonline') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     Result := MultiOperationSignOnline(params.AsString('rawoperations',''));
   //
   end else if (method='operationsinfo') then begin
@@ -3273,6 +3391,11 @@ begin
 
   //
   end else if (method='nodestatus') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid external calls
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     // Returns a JSON Object with Node status
     GetResultObject.GetAsVariant('ready').Value := False;
     If FNode.IsReady(ansistr) then begin
@@ -3378,6 +3501,11 @@ begin
        opr.newKey,
        params.AsString('payload_method',''),params.AsString('pwd',''));
   end else if (method='payloaddecrypt') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     // Decrypts a "payload" searching for wallet private keys and for array of strings in "pwds" param
     // Returns an JSON Object with "result" (Boolean) and
     if (params.AsString('payload','')='') then begin
@@ -3392,6 +3520,11 @@ begin
     end;
     Result := DoDecrypt(TCrypto.HexaToRaw(params.AsString('payload','')),params.GetAsArray('pwds'));
   end else if (method='getconnections') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     // Returns an array of connections objects with info about state
     GetConnections;
     Result := true;
@@ -3399,6 +3532,11 @@ begin
     // Creates a new private key and stores it on the wallet, returning Public key JSON object
     // Param "ec_nid" can be 714=secp256k1 715=secp384r1 729=secp283k1 716=secp521r1. (Default = CT_Default_EC_OpenSSL_NID)
     // Param "name" is name for this address
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     If Not _RPCServer.WalletKeys.IsValidPassword then begin
       ErrorNum := CT_RPC_ErrNum_WalletPasswordProtected;
       ErrorDesc := 'Wallet is password protected. Unlock first';
@@ -3414,11 +3552,21 @@ begin
       ecpkey.Free;
     end;
   end else if (method='lock') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     jsonresponse.GetAsVariant('result').Value := _RPCServer.WalletKeys.LockWallet;
     Result := true;
   end else if (method='unlock') then begin
     // Unlocks the Wallet with "pwd" password
     // Returns Boolean if wallet is unlocked
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     if (params.IndexOfName('pwd')<0) then begin
       ErrorNum:= CT_RPC_ErrNum_InvalidData;
       ErrorDesc := 'Need param "pwd"';
@@ -3433,6 +3581,11 @@ begin
     // Changes the Wallet password with "pwd" param
     // Must be unlocked first
     // Returns Boolean if wallet password changed
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     If Not _RPCServer.WalletKeys.IsValidPassword then begin
       ErrorNum := CT_RPC_ErrNum_WalletPasswordProtected;
       ErrorDesc := 'Wallet is password protected. Unlock first';
@@ -3449,17 +3602,32 @@ begin
     Result := true;
   end else if (method='stopnode') then begin
     // Stops communications to other nodes
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     FNode.NetServer.Active := false;
     TNetData.NetData.NetConnectionsActive:=false;
     jsonresponse.GetAsVariant('result').Value := true;
     Result := true;
   end else if (method='startnode') then begin
     // Stops communications to other nodes
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     FNode.NetServer.Active := true;
     TNetData.NetData.NetConnectionsActive:=true;
     jsonresponse.GetAsVariant('result').Value := true;
     Result := true;
   end else if (method='cleanblacklist') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
     jsonresponse.GetAsVariant('result').Value := TNetData.NetData.NodeServersAddresses.CleanBlackList(True);
     Result := True;
   end else begin

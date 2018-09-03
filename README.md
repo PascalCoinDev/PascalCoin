@@ -41,6 +41,8 @@ TODO: Bug in Lazarus optimization cause Access Violation on "getpendings" call (
   - New digest hash for signature verifications
   - Added OrderedAccountKeysList that allows an indexed search of public keys in the safebox with mem optimization
 - JSON-RPC changes:
+  - New protection for "open ports" server: When a server has whitelist to ALL IP's access to JSON-RPC calls, all calls that use the wallet keys are protected to avoid hacking
+    - Added param "RPC_ALLOWUSEPRIVATEKEYS" on pascalcoin_daemon.ini file
   - New params for "findaccounts":
     - "exact" (Boolean, True by default): Only apply when "name" param has value, will return exact match or not
     - "listed" (Boolean, False by default): Will return only listed for sale accounts

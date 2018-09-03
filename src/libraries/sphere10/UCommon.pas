@@ -22,7 +22,7 @@ interface
 uses
   Classes, SysUtils, Generics.Collections, Generics.Defaults,
   {$IFNDEF FPC}System.Types, System.TimeSpan,{$ENDIF} Variants,
-  {$IFDEF FPC}LazUTF8,{$ENDIF} math, typinfo, UMemory;
+  math, typinfo, UMemory;
 
 { CONSTANTS }
 
