@@ -112,7 +112,7 @@ type
       FMurmurHash3_x86_32 : IHash;
       FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
       function ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes; inline;
-      function MemTransform1(const AChunk: TBytes): TBytes; {$IFDEF FPC}inline;{$ENDIF}
+      function MemTransform1(const AChunk: TBytes): TBytes; inline;
       function MemTransform2(const AChunk: TBytes): TBytes; inline;
       function MemTransform3(const AChunk: TBytes): TBytes; inline;
       function MemTransform4(const AChunk: TBytes): TBytes; inline;
@@ -123,6 +123,39 @@ type
       function Expand(const AInput: TBytes; AExpansionFactor: Int32) : TBytes;
       function Compress(const AInputs: TArray<TBytes>): TBytes; inline;
       function ChangeNonce(const ABlockHeader: TBytes; ANonce: Int32): TBytes; inline;
+      function Checksum(const AInput: TBytes): UInt32; overload; inline;
+      function Checksum(const AInput: TArray<TBytes>): UInt32; overload; inline;
+      function Hash(const ABlockHeader: TBytes; ARound: Int32) : TArray<TBytes>; overload;
+    public
+      constructor Create;
+      destructor Destroy; override;
+      function Hash(const ABlockHeader: TBytes): TBytes; overload; inline;
+      class function Compute(const ABlockHeader: TBytes): TBytes; overload; static; inline;
+  end;
+
+ { TRandomHashFast }
+
+  TRandomHashFast = class sealed(TObject)
+    const
+      N = 5;               // Number of hashing rounds required to compute a nonce (total rounds = 2^N - 1)
+      M = (10 * 1024) * 5; // 10KB The memory expansion unit (in bytes)
+
+    {$IFNDEF UNITTESTS}private{$ELSE}public{$ENDIF}
+      FMurmurHash3_x86_32 : IHash;
+      FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
+      function ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes; inline;
+      procedure MemTransform1(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform2(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform3(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform4(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform5(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform6(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform7(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform8(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      function Expand(const AInput: TBytes; AExpansionFactor: Int32) : TBytes;
+      function Compress(const AInputs: TArray<TBytes>): TBytes; inline;
+      function ChangeNonce(const ABlockHeader: TBytes; ANonce: Int32): TBytes; inline;
+      function Checksum(const AInput: TBytes; AOffset, ALength: Integer): UInt32; overload; inline;
       function Checksum(const AInput: TBytes): UInt32; overload; inline;
       function Checksum(const AInput: TArray<TBytes>): UInt32; overload; inline;
       function Hash(const ABlockHeader: TBytes; ARound: Int32) : TArray<TBytes>; overload;
@@ -168,13 +201,33 @@ type
       function NextUSingle: Single; inline;
   end;
 
+  { TXorShift32 }
+
+  TXorShift32 = class
+  public
+    class function Next(var AState : UInt32) : UInt32; inline; static;
+  end;
+
 resourcestring
   SUnSupportedHash = 'Unsupported Hash Selected';
   SInvalidRound = 'Round must be between 0 and N inclusive';
+  SOverlappingArgs = 'Overlapping read/write regions';
+  SBufferTooSmall = 'Buffer too small to apply memory transform';
 
 implementation
 
 uses UMemory;
+
+{ Global Functions }
+
+class function TXorShift32.Next(var AState : UInt32) : UInt32;
+begin
+  AState := AState XOR (AState SHL 13);
+  AState := AState XOR (AState SHR 17);
+  AState := AState XOR (AState SHL 5);
+  Result := AState;
+end;
+
 
 { TRandomHash }
 
@@ -212,10 +265,10 @@ end;
 
 class function TRandomHash.Compute(const ABlockHeader: TBytes): TBytes;
 var
-  LHasher : TRandomHash;
+  LHasher : TRandomHashFast;
   LDisposables : TDisposables;
 begin
- LHasher := LDisposables.AddObject( TRandomHash.Create ) as TRandomHash;
+ LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
  Result := LHasher.Hash(ABlockHeader);
 end;
 
@@ -334,15 +387,6 @@ function TRandomHash.MemTransform1(const AChunk: TBytes): TBytes;
 var
   i, LChunkLength : UInt32;
   LState : UInt32;
-
-  function XorShift32 : UInt32; {$IFDEF FPC}inline;{$ENDIF}
-  begin
-    LState := LState XOR (LState SHL 13);
-    LState := LState XOR (LState SHR 17);
-    LState := LState XOR (LState SHL 5);
-    Result := LState;
-  end;
-
 begin
   // Seed XorShift32 with non-zero seed (checksum of input or 1)
   LState := Checksum(AChunk);
@@ -353,7 +397,7 @@ begin
   LChunkLength := Length(AChunk);
   SetLength(Result, LChunkLength);
   for i := 0 to High(AChunk) do
-    Result[i] := AChunk[XorShift32 MOD LChunkLength];
+    Result[i] := AChunk[TXorShift32.Next(LState) MOD LChunkLength];
 end;
 
 function TRandomHash.MemTransform2(const AChunk: TBytes): TBytes;
@@ -487,6 +531,355 @@ begin
       7: LOutput := ContencateByteArrays(LOutput, MemTransform8(LNextChunk));
     end;
     LBytesToAdd := LBytesToAdd - Length(LNextChunk);
+  end;
+  Result := LOutput;
+end;
+
+{ TRandomHashFast }
+
+constructor TRandomHashFast.Create;
+begin
+  FMurmurHash3_x86_32 := THashFactory.THash32.CreateMurmurHash3_x86_32();
+  FHashAlg[0] := THashFactory.TCrypto.CreateSHA2_256();
+  FHashAlg[1] := THashFactory.TCrypto.CreateSHA2_384();
+  FHashAlg[2] := THashFactory.TCrypto.CreateSHA2_512();
+  FHashAlg[3] := THashFactory.TCrypto.CreateSHA3_256();
+  FHashAlg[4] := THashFactory.TCrypto.CreateSHA3_384();
+  FHashAlg[5] := THashFactory.TCrypto.CreateSHA3_512();
+  FHashAlg[6] := THashFactory.TCrypto.CreateRIPEMD160();
+  FHashAlg[7] := THashFactory.TCrypto.CreateRIPEMD256();
+  FHashAlg[8] := THashFactory.TCrypto.CreateRIPEMD320();
+  FHashAlg[9] := THashFactory.TCrypto.CreateBlake2B_512();
+  FHashAlg[10] := THashFactory.TCrypto.CreateBlake2S_256();
+  FHashAlg[11] := THashFactory.TCrypto.CreateTiger2_5_192();
+  FHashAlg[12] := THashFactory.TCrypto.CreateSnefru_8_256();
+  FHashAlg[13] := THashFactory.TCrypto.CreateGrindahl512();
+  FHashAlg[14] := THashFactory.TCrypto.CreateHaval_5_256();
+  FHashAlg[15] := THashFactory.TCrypto.CreateMD5();
+  FHashAlg[16] := THashFactory.TCrypto.CreateRadioGatun32();
+  FHashAlg[17] := THashFactory.TCrypto.CreateWhirlPool();
+end;
+
+destructor TRandomHashFast.Destroy;
+var i : integer;
+begin
+ FMurmurHash3_x86_32 := nil;
+ for i := Low(FHashAlg) to High(FHashAlg) do
+   FHashAlg[i] := nil;
+ inherited Destroy;
+end;
+
+class function TRandomHashFast.Compute(const ABlockHeader: TBytes): TBytes;
+var
+  LHasher : TRandomHash;
+  LDisposables : TDisposables;
+begin
+ LHasher := LDisposables.AddObject( TRandomHash.Create ) as TRandomHash;
+ Result := LHasher.Hash(ABlockHeader);
+end;
+
+function TRandomHashFast.Hash(const ABlockHeader: TBytes): TBytes;
+var
+  LAllOutputs: TArray<TBytes>;
+  LSeed: UInt32;
+begin
+  LAllOutputs := Hash(ABlockHeader, N);
+  Result := FHashAlg[0].ComputeBytes(Compress(LAllOutputs)).GetBytes;
+end;
+
+function TRandomHashFast.Hash(const ABlockHeader: TBytes; ARound: Int32) : TArray<TBytes>;
+var
+  LRoundOutputs: TList<TBytes>;
+  LSeed: UInt32;
+  LGen: TMersenne32;
+  LRoundInput, LOtherNonceHeader, LOutput, LBytes: TBytes;
+  LParentOutputs, LNeighborOutputs, LToArray: TArray<TBytes>;
+  LHashFunc: IHash;
+  i: Int32;
+  LDisposables : TDisposables;
+begin
+  if (ARound < 1) or (ARound > N) then
+    raise EArgumentOutOfRangeException.CreateRes(@SInvalidRound);
+
+  LRoundOutputs := LDisposables.AddObject( TList<TBytes>.Create() ) as TList<TBytes>;
+  LGen := LDisposables.AddObject( TMersenne32.Create(0) ) as TMersenne32;
+  if ARound = 1 then  begin
+    LSeed := Checksum(ABlockHeader);
+    LGen.Initialize(LSeed);
+    LRoundInput := ABlockHeader;
+  end else begin
+    LParentOutputs := Hash(ABlockHeader, ARound - 1);
+    LSeed := Checksum(LParentOutputs);
+    LGen.Initialize(LSeed);
+    LRoundOutputs.AddRange( LParentOutputs );
+    LOtherNonceHeader := ChangeNonce(ABlockHeader, LGen.NextUInt32);
+    LNeighborOutputs := Hash(LOtherNonceHeader, ARound - 1);
+    LRoundOutputs.AddRange(LNeighborOutputs);
+    LRoundInput := Compress( LRoundOutputs.ToArray );
+  end;
+
+  LHashFunc := FHashAlg[LGen.NextUInt32 mod 18];
+  LOutput := LHashFunc.ComputeBytes(LRoundInput).GetBytes;
+  LOutput := Expand(LOutput, N - ARound);
+  LRoundOutputs.Add(LOutput);
+
+  Result := LRoundOutputs.ToArray;
+end;
+
+function TRandomHashFast.ChangeNonce(const ABlockHeader: TBytes;  ANonce: Int32): TBytes;
+var
+  LHeaderLength : Integer;
+begin
+  // NOTE: NONCE is last 4 bytes of header!
+
+  // Clone the original header
+  Result := Copy(ABlockHeader);
+
+  // If digest not big enough to contain a nonce, just return the clone
+  LHeaderLength := Length(ABlockHeader);
+  if LHeaderLength < 4 then
+    exit;
+
+  // Overwrite the nonce in little-endian
+  Result[LHeaderLength - 4] := Byte(ANonce);
+  Result[LHeaderLength - 3] := (ANonce SHR 8) AND 255;
+  Result[LHeaderLength - 2] := (ANonce SHR 16) AND 255;
+  Result[LHeaderLength - 1] := (ANonce SHR 24) AND 255;
+end;
+
+function TRandomHashFast.Checksum(const AInput: TBytes): UInt32;
+begin
+  Result := Checksum(AInput, 0, Length(AInput));
+end;
+
+function TRandomHashFast.Checksum(const AInput: TBytes; AOffset, ALength: Integer): UInt32;
+begin
+   FMurmurHash3_x86_32.TransformBytes(AInput, AOffset, ALength);
+   Result := FMurmurHash3_x86_32.TransformFinal.GetUInt32();
+end;
+
+function TRandomHashFast.Checksum(const AInput : TArray<TBytes>): UInt32;
+var
+  i: Int32;
+begin
+  FMurmurHash3_x86_32.Initialize;
+  for i := Low(AInput) to High(AInput) do
+  begin
+    FMurmurHash3_x86_32.TransformBytes(AInput[i]);
+  end;
+  Result := FMurmurHash3_x86_32.TransformFinal.GetUInt32;
+end;
+
+function TRandomHashFast.Compress(const AInputs : TArray<TBytes>): TBytes;
+var
+  i: Int32;
+  LSeed: UInt32;
+  LSource: TBytes;
+  LGen: TMersenne32;
+  LDisposables : TDisposables;
+begin
+  SetLength(Result, 100);
+  LSeed := Checksum(AInputs);
+  LGen := LDisposables.AddObject( TMersenne32.Create( LSeed ) ) as TMersenne32;
+  for i := 0 to 99 do
+  begin
+    LSource := AInputs[LGen.NextUInt32 mod Length(AInputs)];
+    Result[i] := LSource[LGen.NextUInt32 mod Length(LSource)];
+  end;
+end;
+
+function TRandomHashFast.ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes;
+begin
+  SetLength(Result, Length(AChunk1) + Length(AChunk2));
+  Move(AChunk1[0], Result[0], Length(AChunk1));
+  Move(AChunk2[0], Result[Length(AChunk1)], Length(AChunk2));
+end;
+
+procedure TRandomHashFast.MemTransform1(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+var
+  i, LReadEnd, LWriteEnd : UInt32;
+  LState : UInt32;
+begin
+  LReadEnd := AReadStart + ALength - 1;
+  LWriteEnd := AWriteStart + ALength - 1;
+  if LReadEnd >= AWriteStart then
+    raise EArgumentOutOfRangeException.Create(SOverlappingArgs);
+
+  // Seed XorShift32 with non-zero seed (checksum of input or 1)
+  LState := Checksum(ABuffer, AReadStart, ALength);
+  if LState = 0 then
+    LState := 1;
+
+  // Select random bytes from input using XorShift32 RNG
+  for i := AWriteStart to LWriteEnd do
+    ABuffer[i] := ABuffer[TXorShift32.Next(LState) MOD ALength];
+end;
+
+procedure TRandomHashFast.MemTransform2(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+var
+  i, LReadEnd, LWriteEnd, LPivot, LOdd: Int32;
+begin
+  LReadEnd := AReadStart + ALength - 1;
+  LWriteEnd := AWriteStart + ALength - 1;
+  if LReadEnd >= AWriteStart then
+    raise EArgumentOutOfRangeException.Create(SOverlappingArgs);
+  if LWriteEnd >= Length(ABuffer) then
+    raise EArgumentOutOfRangeException.Create(SBufferTooSmall);
+
+  LPivot := ALength SHR 1;
+  LOdd := ALength MOD 2;
+  Move(ABuffer[AReadStart + LPivot + LOdd], ABuffer[AWriteStart], LPivot);
+  Move(ABuffer[AReadStart], ABuffer[AWriteStart + LPivot + LOdd], LPivot);
+  // Set middle-byte for odd-length arrays
+  if LOdd = 1 then
+    ABuffer[AWriteStart + LPivot] := ABuffer[AReadStart + LPivot];
+end;
+
+procedure TRandomHashFast.MemTransform3(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+var
+  i, LReadEnd, LWriteEnd: Int32;
+begin
+  LReadEnd := AReadStart + ALength - 1;
+  LWriteEnd := AWriteStart + ALength - 1;
+  if LReadEnd >= AWriteStart then
+    raise EArgumentOutOfRangeException.Create(SOverlappingArgs);
+  if LWriteEnd >= Length(ABuffer) then
+    raise EArgumentOutOfRangeException.Create(SBufferTooSmall);
+
+  for i := 0 to ALength do
+    ABuffer[AWriteStart + i] := ABuffer[AReadStart + ALength - i - 1];
+end;
+
+procedure TRandomHashFast.MemTransform4(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+var
+  i, LReadEnd, LWriteEnd, LPivot, LOdd: Int32;
+begin
+  LReadEnd := AReadStart + ALength - 1;
+  LWriteEnd := AWriteStart + ALength - 1;
+  if LReadEnd >= AWriteStart then
+    raise EArgumentOutOfRangeException.Create(SOverlappingArgs);
+  if LWriteEnd >= Length(ABuffer) then
+    raise EArgumentOutOfRangeException.Create(SBufferTooSmall);
+
+  LPivot := ALength SHR 1;
+  LOdd := ALength MOD 2;
+  for i := 0 to Pred(LPivot) do
+  begin
+    ABuffer[AWriteStart + (i * 2)] := ABuffer[AReadStart + i];
+    ABuffer[AWriteStart + (i * 2) + 1] := ABuffer[AReadStart + i + LPivot + LOdd];
+  end;
+  // Set final byte for odd-lengths
+  if LOdd = 1 THEN
+    ABuffer[LWriteEnd] := ABuffer[AReadStart + LPivot];
+end;
+
+procedure TRandomHashFast.MemTransform5(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+var
+  i, LReadEnd, LWriteEnd, LPivot, LOdd: Int32;
+begin
+  LReadEnd := AReadStart + ALength - 1;
+  LWriteEnd := AWriteStart + ALength - 1;
+  if LReadEnd >= AWriteStart then
+    raise EArgumentOutOfRangeException.Create(SOverlappingArgs);
+  if LWriteEnd >= Length(ABuffer) then
+    raise EArgumentOutOfRangeException.Create(SBufferTooSmall);
+
+  LPivot := ALength SHR 1;
+  LOdd := ALength MOD 2;
+  for i := 0 to Pred(LPivot) do
+  begin
+    ABuffer[AWriteStart + (i * 2)] := ABuffer[AReadStart + i + LPivot + LOdd];
+    ABuffer[AWriteStart + (i * 2) + 1] := ABuffer[AReadStart + i];
+  end;
+  // Set final byte for odd-lengths
+  if LOdd = 1 THEN
+    ABuffer[LWriteEnd] := ABuffer[AReadStart + LPivot];
+end;
+
+procedure TRandomHashFast.MemTransform6(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+var
+  i, LReadEnd, LWriteEnd, LPivot, LOdd: Int32;
+begin
+  LReadEnd := AReadStart + ALength - 1;
+  LWriteEnd := AWriteStart + ALength - 1;
+  if LReadEnd >= AWriteStart then
+    raise EArgumentOutOfRangeException.Create(SOverlappingArgs);
+  if LWriteEnd >= Length(ABuffer) then
+    raise EArgumentOutOfRangeException.Create(SBufferTooSmall);
+
+  LPivot := ALength SHR 1;
+  LOdd := ALength MOD 2;
+  for i := 0 to Pred(LPivot) do
+  begin
+    ABuffer[AWriteStart + i] := ABuffer[AReadStart + (i * 2)] xor ABuffer[(i * 2) + 1];
+    ABuffer[AWriteStart + i + LPivot + LOdd] := ABuffer[AReadStart + i] xor ABuffer[AReadStart + ALength - i - 1];
+  end;
+  // Set middle-byte for odd-lengths
+  if LOdd = 1 THEN
+    ABuffer[AWriteStart + LPivot] := ABuffer[AReadStart + ALength - 1];
+end;
+
+procedure TRandomHashFast.MemTransform7(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+var
+  i, LReadEnd, LWriteEnd: Int32;
+begin
+  LReadEnd := AReadStart + ALength - 1;
+  LWriteEnd := AWriteStart + ALength - 1;
+  if LReadEnd >= AWriteStart then
+    raise EArgumentOutOfRangeException.Create(SOverlappingArgs);
+  if LWriteEnd >= Length(ABuffer) then
+    raise EArgumentOutOfRangeException.Create(SBufferTooSmall);
+
+  for i := 0 to Pred(ALength) do
+    ABuffer[AWriteStart + i] := TBits.RotateLeft8(ABuffer[AReadStart + i], ALength - i);
+end;
+
+procedure TRandomHashFast.MemTransform8(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+var
+  i, LChunkLength, LReadEnd, LWriteEnd: Int32;
+begin
+  LReadEnd := AReadStart + ALength - 1;
+  LWriteEnd := AWriteStart + ALength - 1;
+  if LReadEnd >= AWriteStart then
+    raise EArgumentOutOfRangeException.Create(SOverlappingArgs);
+  if LWriteEnd >= Length(ABuffer) then
+    raise EArgumentOutOfRangeException.Create(SBufferTooSmall);
+
+  for i := 0 to Pred(ALength) do
+    ABuffer[AWriteStart + i] := TBits.RotateRight8(ABuffer[AReadStart + i], ALength - i);
+end;
+
+function TRandomHashFast.Expand(const AInput: TBytes; AExpansionFactor: Int32): TBytes;
+var
+  LOutput: TBytes;
+  LReadEnd, LCopyLen, LInputSize : UInt32;
+  LGen: TMersenne32;
+  LDisposables : TDisposables;
+begin
+  LInputSize := Length (AInput);
+  LGen := LDisposables.AddObject( TMersenne32.Create ( Checksum(AInput) ) ) as TMersenne32;
+  SetLength(LOutput, LInputSize + (AExpansionFactor * M));
+
+  // Copy the genesis blob
+  Move(AInput[0], LOutput[0], LInputSize);
+  LReadEnd := LInputSize - 1;
+  LCopyLen := LReadEnd+1;
+
+  while LReadEnd < Pred(Length(LOutput)) do
+  begin
+    if (LReadEnd + 1 + LCopyLen) > Length(LOutput) then
+      LCopyLen := Length(LOutput) - (LReadEnd + 1);
+    case LGen.NextUInt32 mod 8 of
+      0: MemTransform1(LOutput, 0, LReadEnd+1, LCopyLen);
+      1: MemTransform2(LOutput, 0, LReadEnd+1, LCopyLen);
+      2: MemTransform3(LOutput, 0, LReadEnd+1, LCopyLen);
+      3: MemTransform4(LOutput, 0, LReadEnd+1, LCopyLen);
+      4: MemTransform5(LOutput, 0, LReadEnd+1, LCopyLen);
+      5: MemTransform6(LOutput, 0, LReadEnd+1, LCopyLen);
+      6: MemTransform7(LOutput, 0, LReadEnd+1, LCopyLen);
+      7: MemTransform8(LOutput, 0, LReadEnd+1, LCopyLen);
+    end;
+    Inc(LReadEnd, LCopyLen);
   end;
   Result := LOutput;
 end;

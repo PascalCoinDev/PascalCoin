@@ -61,6 +61,33 @@ type
     procedure TestMURMUR3_32;
   end;
 
+  { TRandomHashFastTest }
+
+  TRandomHashFastTest = class(TPascalCoinUnitTest)
+  public type
+    TFastTransformProc = procedure(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer) of object;
+  private
+    procedure TestMemTransform(ATransform : TFastTransformProc; const ATestData : array of TTestItem<Integer, String>);
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestRandomHash_Standard;
+    procedure TestRandomHash;
+    procedure TestExpand;
+    procedure TestCompress;
+    procedure TestChecksum_1;
+    procedure TestChecksum_2;
+    procedure TestMemTransform1;
+    procedure TestMemTransform2;
+    procedure TestMemTransform3;
+    procedure TestMemTransform4;
+    procedure TestMemTransform5;
+    procedure TestMemTransform6;
+    procedure TestMemTransform7;
+    procedure TestMemTransform8;
+  end;
+
 implementation
 
 uses variants, UCommon, UCommon.Collections, UMemory, URandomHash, HlpHashFactory, HlpBitConverter, strutils;
@@ -749,8 +776,8 @@ var
   LCase : TTestItem<String, String>;
 begin
   for LCase in DATA_RANDOMHASH_STANDARD do
-    //AssertEquals(ParseBytes(LCase.Expected), TRandomHash.Compute(ParseBytes(LCase.Input)));
-    WriteLn(Format('%s', [Bytes2Hex(TRandomHash.Compute(ParseBytes(LCase.Input)), True)]));
+    AssertEquals(ParseBytes(LCase.Expected), TRandomHash.Compute(ParseBytes(LCase.Input)));
+    //WriteLn(Format('%s', [Bytes2Hex(TRandomHash.Compute(ParseBytes(LCase.Input)), True)]));
 end;
 
 procedure TRandomHashTest.TestRandomHash;
@@ -760,8 +787,8 @@ var
 begin
   for LCase in DATA_RANDOMHASH do begin
     LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input);
-    //AssertEquals(ParseBytes(LCase.Expected), TRandomHash.Compute(LInput));
-    WriteLn(Format('%s', [Bytes2Hex(TRandomHash.Compute(LInput), True)]));
+    AssertEquals(ParseBytes(LCase.Expected), TRandomHash.Compute(LInput));
+    //WriteLn(Format('%s', [Bytes2Hex(TRandomHash.Compute(LInput), True)]));
   end;
 end;
 
@@ -777,8 +804,8 @@ begin
   LMurMur3 := THashFactory.THash32.CreateMurmurHash3_x86_32();
   for LCase in DATA_EXPAND do begin
     LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input1);
-    //AssertEquals(LCase.Expected, LMurMur3.ComputeBytes(LHasher.Expand(LInput, LCase.Input2)).GetUInt32);
-    WriteLn(LMurMur3.ComputeBytes(LHasher.Expand(LInput, LCase.Input2)).GetUInt32);
+    AssertEquals(LCase.Expected, LMurMur3.ComputeBytes(LHasher.Expand(LInput, LCase.Input2)).GetUInt32);
+    //WriteLn(LMurMur3.ComputeBytes(LHasher.Expand(LInput, LCase.Input2)).GetUInt32);
   end;
 
 end;
@@ -1042,12 +1069,207 @@ begin
   end;
 end;
 
+{ TRandomHashFastTest }
+
+procedure TRandomHashFastTest.SetUp;
+begin
+  inherited;
+end;
+
+procedure TRandomHashFastTest.TearDown;
+begin
+  inherited;
+end;
+
+procedure TRandomHashFastTest.TestRandomHash_Standard;
+var
+  LCase : TTestItem<String, String>;
+begin
+  for LCase in DATA_RANDOMHASH_STANDARD do
+    AssertEquals(ParseBytes(LCase.Expected), TRandomHashFast.Compute(ParseBytes(LCase.Input)));
+end;
+
+procedure TRandomHashFastTest.TestRandomHash;
+var
+  LInput : TBytes;
+  LCase : TTestItem<Integer, String>;
+begin
+  for LCase in DATA_RANDOMHASH do begin
+    LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input);
+    AssertEquals(ParseBytes(LCase.Expected), TRandomHashFast.Compute(LInput));
+  end;
+end;
+
+procedure TRandomHashFastTest.TestExpand;
+var
+  LCase : TTestItem<UInt32, UInt32, UInt32>;
+  LInput : TBytes;
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+  LMurMur3 : IHash;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  LMurMur3 := THashFactory.THash32.CreateMurmurHash3_x86_32();
+  for LCase in DATA_EXPAND do begin
+    LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input1);
+    AssertEquals(LCase.Expected, LMurMur3.ComputeBytes(LHasher.Expand(LInput, LCase.Input2)).GetUInt32);
+    //WriteLn(LMurMur3.ComputeBytes(LHasher.Expand(LInput, LCase.Input2)).GetUInt32);
+  end;
+end;
+
+procedure TRandomHashFastTest.TestCompress;
+var
+  LCase : TTestItem<String, String>;
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+  LInputs : TArray<TBytes>;
+
+  function ParseHex(constref AHex : String) : TBytes;
+  begin
+    Result := Hex2Bytes(AHex);
+  end;
+
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  for LCase in DATA_COMPRESS do begin
+    LInputs := TListTool<String, TBytes>.Transform(LCase.Input.Split([';']), ParseHex);
+    AssertEquals(Hex2Bytes(LCase.Expected), LHasher.Compress(LInputs));
+   //WriteLn(Bytes2Hex(LHasher.Compress(LInputs)));
+  end;
+end;
+
+procedure TRandomHashFastTest.TestChecksum_1;
+var
+  LInput : TBytes;
+  LCase : TTestItem<Integer, UInt32>;
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  for LCase in DATA_CHECKSUM do begin
+    LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input);
+    AssertEquals(LCase.Expected, LHasher.CheckSum(LInput));
+  end;
+end;
+
+procedure TRandomHashFastTest.TestChecksum_2;
+var
+  LInput : TBytes;
+  LInputs : TArray<TBytes>;
+  LCase : TTestItem<Integer, UInt32>;
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+  i : UInt32;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  for LCase in DATA_CHECKSUM do begin
+    LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input);
+    // Split into arrays of 1 byte
+    SetLength(LInputs, Length(LInput));
+    for i := 0 to Pred(Length(LInput)) do begin
+      SetLength(LInputs[i], 1);
+      LInputs[i][0] := LInput[i];
+    end;
+    AssertEquals(LCase.Expected, LHasher.CheckSum(LInputs));
+  end;
+end;
+
+procedure TRandomHashFastTest.TestMemTransform1;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform(LHasher.MemTransform1, DATA_MEMTRANSFORM1);
+end;
+
+procedure TRandomHashFastTest.TestMemTransform2;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform(LHasher.MemTransform2, DATA_MEMTRANSFORM2);
+end;
+
+procedure TRandomHashFastTest.TestMemTransform3;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform(LHasher.MemTransform3, DATA_MEMTRANSFORM3);
+end;
+
+procedure TRandomHashFastTest.TestMemTransform4;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform(LHasher.MemTransform4, DATA_MEMTRANSFORM4);
+end;
+
+procedure TRandomHashFastTest.TestMemTransform5;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform(LHasher.MemTransform5, DATA_MEMTRANSFORM5);
+end;
+
+procedure TRandomHashFastTest.TestMemTransform6;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform(LHasher.MemTransform6, DATA_MEMTRANSFORM6);
+end;
+
+procedure TRandomHashFastTest.TestMemTransform7;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform(LHasher.MemTransform7, DATA_MEMTRANSFORM7);
+end;
+
+procedure TRandomHashFastTest.TestMemTransform8;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform(LHasher.MemTransform8, DATA_MEMTRANSFORM8);
+end;
+
+procedure TRandomHashFastTest.TestMemTransform(ATransform : TFastTransformProc; const ATestData : array of TTestItem<Integer, String>);
+var
+  LCase : TTestItem<Integer, String>;
+  LInput, LBuff : TBytes;
+begin
+  for LCase in ATestData do begin
+    LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input);
+    SetLength(LBuff, Length(LInput)*2);
+    System.Move(LInput[0], LBuff[0], Length(LInput));
+    ATransform(LBuff, 0, Length(LInput), Length(LInput));
+    LBuff := TArrayTool<byte>.Copy(LBuff, Length(LInput), Length(LInput));
+    AssertEquals(Hex2Bytes(LCase.Expected), LBuff);
+    //WriteLn((Bytes2Hex(ATransform(LInput), True)));
+  end;
+end;
+
 initialization
 
 {$IFDEF FPC}
   RegisterTest(TRandomHashTest);
+  RegisterTest(TRandomHashFastTest);
 {$ELSE}
   TDUnitX.RegisterTextFixture(TRandomHashTest);
+  TDUnitX.RegisterTextFixture(TRandomHashFastTest);
 {$ENDIF FPC}
 
 end.
