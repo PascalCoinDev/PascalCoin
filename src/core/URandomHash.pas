@@ -715,7 +715,7 @@ begin
 
   // Select random bytes from input using XorShift32 RNG
   for i := AWriteStart to LWriteEnd do
-    ABuffer[i] := ABuffer[AReadStart + TXorShift32.Next(LState) MOD ALength];
+    ABuffer[i] := ABuffer[AReadStart + (TXorShift32.Next(LState) MOD ALength)];
 end;
 
 procedure TRandomHashFast.MemTransform2(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
@@ -883,6 +883,7 @@ begin
       7: MemTransform8(LOutput, 0, LReadEnd+1, LCopyLen);
     end;
     Inc(LReadEnd, LCopyLen);
+    Inc(LCopyLen, LCopyLen);
   end;
   Result := LOutput;
 end;
