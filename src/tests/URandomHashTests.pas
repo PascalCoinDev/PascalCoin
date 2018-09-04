@@ -22,9 +22,6 @@ type
   private
     procedure TestSubHash(AHasher : IHash; const ATestData : array of TTestItem<Integer, String>);
     procedure TestMemTransform(ATransform : TTransformProc; const ATestData : array of TTestItem<Integer, String>);
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
   published
     procedure TestRandomHash_Standard;
     procedure TestRandomHash;
@@ -65,13 +62,10 @@ type
 
   TRandomHashFastTest = class(TPascalCoinUnitTest)
   public type
-    TFastTransformProc = procedure(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer) of object;
+    TFastTransformProc = procedure(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer) of object;
   private
     procedure TestMemTransform(ATransform : TFastTransformProc; const ATestData : array of TTestItem<Integer, String>);
     procedure TestMemTransform_Padding(ATransform : TFastTransformProc);
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
   published
     procedure TestRandomHash_Standard;
     procedure TestRandomHash;
@@ -96,6 +90,14 @@ type
     procedure TestMemTransform6;
     procedure TestMemTransform7;
     procedure TestMemTransform8;
+  end;
+
+  { TRandomHashStressTest }
+
+  TRandomHashStressTest = class(TPascalCoinUnitTest)
+  published
+    procedure Standard_1000_Hashes;
+    procedure Optimised_1000_Hashes;
   end;
 
 implementation
@@ -771,16 +773,6 @@ const
 
 { TRandomHashTest }
 
-procedure TRandomHashTest.SetUp;
-begin
-  inherited;
-end;
-
-procedure TRandomHashTest.TearDown;
-begin
-  inherited;
-end;
-
 procedure TRandomHashTest.TestRandomHash_Standard;
 var
   LCase : TTestItem<String, String>;
@@ -1081,16 +1073,6 @@ end;
 
 { TRandomHashFastTest }
 
-procedure TRandomHashFastTest.SetUp;
-begin
-  inherited;
-end;
-
-procedure TRandomHashFastTest.TearDown;
-begin
-  inherited;
-end;
-
 procedure TRandomHashFastTest.TestRandomHash_Standard;
 var
   LCase : TTestItem<String, String>;
@@ -1214,7 +1196,6 @@ begin
   LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
   TestMemTransform_Padding(LHasher.MemTransform3);
 end;
-
 
 procedure TRandomHashFastTest.TestMemTransform4_Padding;
 var
@@ -1409,14 +1390,51 @@ begin
   end;
 end;
 
+{ TRandomHashStressTest }
+
+
+procedure TRandomHashStressTest.Standard_1000_Hashes;
+const
+  NUM_ITER = 1000;
+var
+  i : Integer;
+  LBuff : TBytes;
+  LHasher : TRandomHash;
+  LDisposables : TDisposables;
+begin
+  LBuff := ParseBytes(DATA_BYTES);
+  LHasher := LDisposables.AddObject( TRandomHash.Create ) as TRandomHash;
+  for i := 1 to NUM_ITER do
+    LBuff := LHasher.Hash(LBuff);
+  // no exceptions should occur
+end;
+
+procedure TRandomHashStressTest.Optimised_1000_Hashes;
+const
+  NUM_ITER = 1000;
+var
+  i : Integer;
+  LBuff : TBytes;
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LBuff := ParseBytes(DATA_BYTES);
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  for i := 1 to NUM_ITER do
+    LBuff := LHasher.Hash(LBuff);
+  // no exceptions should occur
+end;
+
 initialization
 
 {$IFDEF FPC}
   RegisterTest(TRandomHashTest);
   RegisterTest(TRandomHashFastTest);
+  RegisterTest(TRandomHashStressTest);
 {$ELSE}
   TDUnitX.RegisterTextFixture(TRandomHashTest);
   TDUnitX.RegisterTextFixture(TRandomHashFastTest);
+  TDUnitX.RegisterTextFixture(TRandomHashStressTest);
 {$ENDIF FPC}
 
 end.
