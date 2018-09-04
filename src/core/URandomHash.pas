@@ -143,15 +143,14 @@ type
     {$IFNDEF UNITTESTS}private{$ELSE}public{$ENDIF}
       FMurmurHash3_x86_32 : IHash;
       FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
-      function ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes; inline;
-      procedure MemTransform1(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
-      procedure MemTransform2(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
-      procedure MemTransform3(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
-      procedure MemTransform4(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
-      procedure MemTransform5(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
-      procedure MemTransform6(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
-      procedure MemTransform7(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
-      procedure MemTransform8(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform1(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform2(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform3(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform4(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform5(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform6(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform7(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform8(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
       function Expand(const AInput: TBytes; AExpansionFactor: Int32) : TBytes;
       function Compress(const AInputs: TArray<TBytes>): TBytes; inline;
       function ChangeNonce(const ABlockHeader: TBytes; ANonce: Int32): TBytes; inline;
@@ -691,14 +690,7 @@ begin
   end;
 end;
 
-function TRandomHashFast.ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes;
-begin
-  SetLength(Result, Length(AChunk1) + Length(AChunk2));
-  Move(AChunk1[0], Result[0], Length(AChunk1));
-  Move(AChunk2[0], Result[Length(AChunk1)], Length(AChunk2));
-end;
-
-procedure TRandomHashFast.MemTransform1(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+procedure TRandomHashFast.MemTransform1(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
 var
   i, LReadEnd, LWriteEnd : UInt32;
   LState : UInt32;
@@ -718,7 +710,7 @@ begin
     ABuffer[i] := ABuffer[AReadStart + (TXorShift32.Next(LState) MOD ALength)];
 end;
 
-procedure TRandomHashFast.MemTransform2(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+procedure TRandomHashFast.MemTransform2(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
 var
   i, LReadEnd, LWriteEnd, LPivot, LOdd: Int32;
 begin
@@ -738,9 +730,10 @@ begin
     ABuffer[AWriteStart + LPivot] := ABuffer[AReadStart + LPivot];
 end;
 
-procedure TRandomHashFast.MemTransform3(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+procedure TRandomHashFast.MemTransform3(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
 var
   i, LReadEnd, LWriteEnd: Int32;
+  LReadPtr, LWritePtr : PByte;
 begin
   LReadEnd := AReadStart + ALength - 1;
   LWriteEnd := AWriteStart + ALength - 1;
@@ -749,11 +742,16 @@ begin
   if LWriteEnd >= Length(ABuffer) then
     raise EArgumentOutOfRangeException.Create(SBufferTooSmall);
 
-  for i := 0 to ALength do
-    ABuffer[AWriteStart + i] := ABuffer[AReadStart + ALength - i - 1];
+  LReadPtr := PByte(ABuffer) + AReadStart;
+  LWritePtr := PByte(ABuffer) + LWriteEnd;
+  for i := 0 to Pred(ALength) do begin
+    LWritePtr^ := LReadPtr^;
+    Inc(LReadPtr);
+    Dec(LWritePtr);
+  end;
 end;
 
-procedure TRandomHashFast.MemTransform4(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+procedure TRandomHashFast.MemTransform4(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
 var
   i, LReadEnd, LWriteEnd, LPivot, LOdd: Int32;
 begin
@@ -776,7 +774,7 @@ begin
     ABuffer[LWriteEnd] := ABuffer[AReadStart + LPivot];
 end;
 
-procedure TRandomHashFast.MemTransform5(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+procedure TRandomHashFast.MemTransform5(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
 var
   i, LReadEnd, LWriteEnd, LPivot, LOdd: Int32;
 begin
@@ -799,7 +797,7 @@ begin
     ABuffer[LWriteEnd] := ABuffer[AReadStart + LPivot];
 end;
 
-procedure TRandomHashFast.MemTransform6(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+procedure TRandomHashFast.MemTransform6(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
 var
   i, LReadEnd, LWriteEnd, LPivot, LOdd: Int32;
 begin
@@ -822,7 +820,7 @@ begin
     ABuffer[AWriteStart + LPivot] := ABuffer[AReadStart + ALength - 1];
 end;
 
-procedure TRandomHashFast.MemTransform7(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+procedure TRandomHashFast.MemTransform7(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
 var
   i, LReadEnd, LWriteEnd: Int32;
 begin
@@ -837,7 +835,7 @@ begin
     ABuffer[AWriteStart + i] := TBits.RotateLeft8(ABuffer[AReadStart + i], ALength - i);
 end;
 
-procedure TRandomHashFast.MemTransform8(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+procedure TRandomHashFast.MemTransform8(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
 var
   i, LChunkLength, LReadEnd, LWriteEnd: Int32;
 begin
@@ -867,6 +865,7 @@ begin
   Move(AInput[0], LOutput[0], LInputSize);
   LReadEnd := LInputSize - 1;
   LCopyLen := LInputSize;
+
 
   while LReadEnd < Pred(Length(LOutput)) do
   begin
