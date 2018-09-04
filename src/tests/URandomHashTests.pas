@@ -69,6 +69,8 @@ type
   published
     procedure TestRandomHash_Standard;
     procedure TestRandomHash;
+    procedure TestRandomHash_CachedHeaderConsistency;
+    procedure TestRandomHash_NonceOptimization;
     procedure TestExpand;
     procedure TestCompress;
     procedure TestChecksum_1;
@@ -96,8 +98,9 @@ type
 
   TRandomHashStressTest = class(TPascalCoinUnitTest)
   published
-    procedure Standard_1000_Hashes;
-    procedure Optimised_1000_Hashes;
+    procedure Reference1000;
+    procedure Optimized1000;
+    procedure OptimizedWithCPUOptimization1000;
   end;
 
 implementation
@@ -1092,6 +1095,48 @@ begin
   end;
 end;
 
+procedure TRandomHashFastTest.TestRandomHash_CachedHeaderConsistency;
+var
+  LInput, LOutput : TBytes;
+  LCase : TTestItem<Integer, String>;
+  LOptimized : TRandomHashFast;
+  LNonce : UInt32;
+  LDisposables : TDisposables;
+begin
+  LOptimized := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  for LCase in DATA_RANDOMHASH do begin
+    LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input);
+    LOutput := LOptimized.Hash(LInput);
+    LNonce := LOptimized.GetNonce(LOptimized.CachedHeader);
+    AssertEquals(LNonce, LOptimized.CachedNonce);
+  end;
+end;
+
+procedure TRandomHashFastTest.TestRandomHash_NonceOptimization;
+var
+  LInput, LOutput : TBytes;
+  LCase : TTestItem<Integer, String>;
+  LReference : TRandomHash;
+  LOptimized : TRandomHashFast;
+  LNonce : UInt32;
+  LDisposables : TDisposables;
+begin
+  LReference := LDisposables.AddObject( TRandomHash.Create ) as TRandomHash;
+  LOptimized := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  for LCase in DATA_RANDOMHASH do begin
+    LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input);
+
+    // Do 1 round of optimized hashing to cache a nonce
+    LOutput := LOptimized.Hash(LInput);
+
+    // Test consistency of cached nonce hash with reference impl
+    LInput := LOptimized.CachedHeader;
+
+    // Test reference hash of cached header same as optimized
+    AssertEquals(LReference.Hash(LInput), LOptimized.Hash(LInput));
+  end;
+end;
+
 procedure TRandomHashFastTest.TestExpand;
 var
   LCase : TTestItem<UInt32, UInt32, UInt32>;
@@ -1392,8 +1437,7 @@ end;
 
 { TRandomHashStressTest }
 
-
-procedure TRandomHashStressTest.Standard_1000_Hashes;
+procedure TRandomHashStressTest.Reference1000;
 const
   NUM_ITER = 1000;
 var
@@ -1409,7 +1453,7 @@ begin
   // no exceptions should occur
 end;
 
-procedure TRandomHashStressTest.Optimised_1000_Hashes;
+procedure TRandomHashStressTest.Optimized1000;
 const
   NUM_ITER = 1000;
 var
@@ -1422,6 +1466,23 @@ begin
   LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
   for i := 1 to NUM_ITER do
     LBuff := LHasher.Hash(LBuff);
+  // no exceptions should occur
+end;
+
+procedure TRandomHashStressTest.OptimizedWithCPUOptimization1000;
+const
+  NUM_ITER = 1000;
+var
+  i : Integer;
+  LBuff : TBytes;
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LBuff := ParseBytes(DATA_BYTES);
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  LHasher.Hash(LBuff);
+  for i := 1 to Pred(NUM_ITER) do
+    LBuff := LHasher.Hash(LHasher.CachedHeader);
   // no exceptions should occur
 end;
 

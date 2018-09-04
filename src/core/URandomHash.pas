@@ -106,7 +106,7 @@ type
   TRandomHash = class sealed(TObject)
     const
       N = 5;               // Number of hashing rounds required to compute a nonce (total rounds = 2^N - 1)
-      M = (10 * 1024) * 5; // 10KB The memory expansion unit (in bytes)
+      M = (10 * 1024) * 5; // The memory expansion unit (in bytes)
 
     {$IFNDEF UNITTESTS}private{$ELSE}public{$ENDIF}
       FMurmurHash3_x86_32 : IHash;
@@ -122,7 +122,7 @@ type
       function MemTransform8(const AChunk: TBytes): TBytes; inline;
       function Expand(const AInput: TBytes; AExpansionFactor: Int32) : TBytes;
       function Compress(const AInputs: TArray<TBytes>): TBytes; inline;
-      function ChangeNonce(const ABlockHeader: TBytes; ANonce: Int32): TBytes; inline;
+      function ChangeNonce(const ABlockHeader: TBytes; ANonce: UInt32): TBytes; inline;
       function Checksum(const AInput: TBytes): UInt32; overload; inline;
       function Checksum(const AInput: TArray<TBytes>): UInt32; overload; inline;
       function Hash(const ABlockHeader: TBytes; ARound: Int32) : TArray<TBytes>; overload;
@@ -139,10 +139,15 @@ type
     const
       N = 5;               // Number of hashing rounds required to compute a nonce (total rounds = 2^N - 1)
       M = (10 * 1024) * 5; // 10KB The memory expansion unit (in bytes)
-
+    private
+      function GetCachedHeader : TBytes;
     {$IFNDEF UNITTESTS}private{$ELSE}public{$ENDIF}
       FMurmurHash3_x86_32 : IHash;
       FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
+      FCachedHeader : TBytes;
+      FCachedNonce : UInt32;
+      FCachedOutput : TArray<TBytes>;
+
       procedure MemTransform1(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
       procedure MemTransform2(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
       procedure MemTransform3(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
@@ -153,12 +158,15 @@ type
       procedure MemTransform8(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
       function Expand(const AInput: TBytes; AExpansionFactor: Int32) : TBytes;
       function Compress(const AInputs: TArray<TBytes>): TBytes; inline;
-      function ChangeNonce(const ABlockHeader: TBytes; ANonce: Int32): TBytes; inline;
+      function GetNonce(const ABlockHeader: TBytes) : UInt32;
+      function ChangeNonce(const ABlockHeader: TBytes; ANonce: UInt32): TBytes; inline;
       function Checksum(const AInput: TBytes; AOffset, ALength: Integer): UInt32; overload; inline;
       function Checksum(const AInput: TBytes): UInt32; overload; inline;
       function Checksum(const AInput: TArray<TBytes>): UInt32; overload; inline;
       function Hash(const ABlockHeader: TBytes; ARound: Int32) : TArray<TBytes>; overload;
     public
+      property CachedHeader : TBytes read GetCachedHeader;
+      property CachedNonce : UInt32 read FCachedNonce;
       constructor Create;
       destructor Destroy; override;
       function Hash(const ABlockHeader: TBytes): TBytes; overload; inline;
@@ -212,6 +220,7 @@ resourcestring
   SInvalidRound = 'Round must be between 0 and N inclusive';
   SOverlappingArgs = 'Overlapping read/write regions';
   SBufferTooSmall = 'Buffer too small to apply memory transform';
+  SBlockHeaderTooSmallForNonce = 'Buffer too small to contain nonce';
 
 implementation
 
@@ -284,7 +293,7 @@ var
   LRoundOutputs: TList<TBytes>;
   LSeed: UInt32;
   LGen: TMersenne32;
-  LRoundInput, LOtherNonceHeader, LOutput, LBytes: TBytes;
+  LRoundInput, LNeighbourNonceHeader, LOutput, LBytes: TBytes;
   LParentOutputs, LNeighborOutputs, LToArray: TArray<TBytes>;
   LHashFunc: IHash;
   i: Int32;
@@ -304,8 +313,8 @@ begin
     LSeed := Checksum(LParentOutputs);
     LGen.Initialize(LSeed);
     LRoundOutputs.AddRange( LParentOutputs );
-    LOtherNonceHeader := ChangeNonce(ABlockHeader, LGen.NextUInt32);
-    LNeighborOutputs := Hash(LOtherNonceHeader, ARound - 1);
+    LNeighbourNonceHeader := ChangeNonce(ABlockHeader, LGen.NextUInt32);
+    LNeighborOutputs := Hash(LNeighbourNonceHeader, ARound - 1);
     LRoundOutputs.AddRange(LNeighborOutputs);
     LRoundInput := Compress( LRoundOutputs.ToArray );
   end;
@@ -318,7 +327,7 @@ begin
   Result := LRoundOutputs.ToArray;
 end;
 
-function TRandomHash.ChangeNonce(const ABlockHeader: TBytes;  ANonce: Int32): TBytes;
+function TRandomHash.ChangeNonce(const ABlockHeader: TBytes;  ANonce: UInt32): TBytes;
 var
   LHeaderLength : Integer;
 begin
@@ -590,10 +599,10 @@ var
   LRoundOutputs: TList<TBytes>;
   LSeed: UInt32;
   LGen: TMersenne32;
-  LRoundInput, LOtherNonceHeader, LOutput, LBytes: TBytes;
+  LRoundInput, LNeighbourNonceHeader, LOutput, LBytes: TBytes;
   LParentOutputs, LNeighborOutputs, LToArray: TArray<TBytes>;
   LHashFunc: IHash;
-  i: Int32;
+  i, LNeighbourNonce, LSeedToCache: UInt32;
   LDisposables : TDisposables;
 begin
   if (ARound < 1) or (ARound > N) then
@@ -601,17 +610,36 @@ begin
 
   LRoundOutputs := LDisposables.AddObject( TList<TBytes>.Create() ) as TList<TBytes>;
   LGen := LDisposables.AddObject( TMersenne32.Create(0) ) as TMersenne32;
-  if ARound = 1 then  begin
+  if ARound = 1 then begin
     LSeed := Checksum(ABlockHeader);
     LGen.Initialize(LSeed);
     LRoundInput := ABlockHeader;
   end else begin
-    LParentOutputs := Hash(ABlockHeader, ARound - 1);
+
+    if (ARound = N) and (Length(ABlockHeader) >= 4) AND (FCachedNonce = GetNonce(ABlockHeader)) and BytesEqual(ABlockHeader, FCachedHeader) then begin
+      // Parent (round N - 1) has already been calculated so re-use values. This saves 50% of calculations!
+      LParentOutputs := FCachedOutput;
+    end else begin
+      // Need to calculate parent output
+      LParentOutputs := Hash(ABlockHeader, ARound - 1);
+    end;
     LSeed := Checksum(LParentOutputs);
+
     LGen.Initialize(LSeed);
     LRoundOutputs.AddRange( LParentOutputs );
-    LOtherNonceHeader := ChangeNonce(ABlockHeader, LGen.NextUInt32);
-    LNeighborOutputs := Hash(LOtherNonceHeader, ARound - 1);
+
+    // Determine the neighbouring nonce
+    LNeighbourNonce := LGen.NextUInt32;
+    LNeighbourNonceHeader := ChangeNonce(ABlockHeader, LNeighbourNonce);
+    LNeighborOutputs := Hash(LNeighbourNonceHeader, ARound - 1);
+
+    // Cache neighbour nonce n-1 calculation if on final round (neighbour will be next nonce)
+    if (ARound = N) then begin
+      FCachedNonce := LNeighbourNonce;
+      FCachedHeader := LNeighbourNonceHeader;
+      FCachedOutput := LNeighborOutputs;
+    end;
+
     LRoundOutputs.AddRange(LNeighborOutputs);
     LRoundInput := Compress( LRoundOutputs.ToArray );
   end;
@@ -624,7 +652,21 @@ begin
   Result := LRoundOutputs.ToArray;
 end;
 
-function TRandomHashFast.ChangeNonce(const ABlockHeader: TBytes;  ANonce: Int32): TBytes;
+function TRandomHashFast.GetNonce(const ABlockHeader: TBytes) : UInt32;
+var LLen : Integer;
+begin
+ LLen := Length(ABlockHeader);
+ if LLen < 4 then
+   raise EArgumentOutOfRangeException.CreateRes(@SBlockHeaderTooSmallForNonce);
+
+ // Last 4 bytes are nonce (LE)
+ Result := ABlockHeader[LLen - 4] OR
+           (ABlockHeader[LLen - 3] SHL 8) OR
+           (ABlockHeader[LLen - 2] SHL 16) OR
+           (ABlockHeader[LLen - 1] SHL 24);
+end;
+
+function TRandomHashFast.ChangeNonce(const ABlockHeader: TBytes; ANonce: UInt32): TBytes;
 var
   LHeaderLength : Integer;
 begin
@@ -885,6 +927,16 @@ begin
     Inc(LCopyLen, LCopyLen);
   end;
   Result := LOutput;
+end;
+
+function TRandomHashFast.GetCachedHeader : TBytes;
+begin
+  if Assigned(FCachedHeader) then begin
+    SetLength(Result, Length(FCachedHeader));
+    Move(FCachedHeader[0], Result[0], Length(FCachedHeader));
+  end else begin
+    SetLength(Result, 0);
+  end;
 end;
 
 { TMersenne32 }
