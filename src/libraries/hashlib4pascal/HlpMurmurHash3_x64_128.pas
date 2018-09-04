@@ -449,6 +449,10 @@ begin
     begin
       ProcessPendings;
     end;
+  end
+  else
+  begin
+    i := 0;
   end;
 
   nBlocks := len shr 4;

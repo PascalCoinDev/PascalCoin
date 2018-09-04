@@ -232,7 +232,6 @@ begin
       ...
       idx = 2, len = 6 -> [0, 2[ + [0, 2[ => Block = [2,6[, buf []
       * }
-
 {$IFDEF DEBUG}
     System.Assert(a_index = 0); // nothing would work anyways if a_index is !=0
 {$ENDIF DEBUG}
@@ -250,6 +249,10 @@ begin
       TransformUInt32Fast(k);
       Fm_idx := 0;
     end;
+  end
+  else
+  begin
+    i := 0;
   end;
 
   nBlocks := len shr 2;
@@ -260,7 +263,6 @@ begin
   while i < nBlocks do
   begin
     k := TConverters.ReadBytesAsUInt32LE(ptr_a_data, a_index + (i * 4));
-
     TransformUInt32Fast(k);
 
     System.Inc(i);
@@ -270,7 +272,6 @@ begin
   offset := a_index + (i * 4);
   while offset < (len + a_index) do
   begin
-
     ByteUpdate(a_data[offset]);
     System.Inc(offset);
 
