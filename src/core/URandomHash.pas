@@ -216,7 +216,7 @@ resourcestring
 
 implementation
 
-uses UMemory;
+uses UCommon, UMemory;
 
 { Global Functions }
 
@@ -227,7 +227,6 @@ begin
   AState := AState XOR (AState SHL 5);
   Result := AState;
 end;
-
 
 { TRandomHash }
 
@@ -265,10 +264,10 @@ end;
 
 class function TRandomHash.Compute(const ABlockHeader: TBytes): TBytes;
 var
-  LHasher : TRandomHashFast;
+  LHasher : TRandomHash;
   LDisposables : TDisposables;
 begin
- LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+ LHasher := LDisposables.AddObject( TRandomHash.Create ) as TRandomHash;
  Result := LHasher.Hash(ABlockHeader);
 end;
 
@@ -297,7 +296,7 @@ begin
 
   LRoundOutputs := LDisposables.AddObject( TList<TBytes>.Create() ) as TList<TBytes>;
   LGen := LDisposables.AddObject( TMersenne32.Create(0) ) as TMersenne32;
-  if ARound = 1 then  begin
+  if ARound = 1 then begin
     LSeed := Checksum(ABlockHeader);
     LGen.Initialize(LSeed);
     LRoundInput := ABlockHeader;
@@ -571,10 +570,10 @@ end;
 
 class function TRandomHashFast.Compute(const ABlockHeader: TBytes): TBytes;
 var
-  LHasher : TRandomHash;
+  LHasher : TRandomHashFast;
   LDisposables : TDisposables;
 begin
- LHasher := LDisposables.AddObject( TRandomHash.Create ) as TRandomHash;
+ LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
  Result := LHasher.Hash(ABlockHeader);
 end;
 
@@ -654,7 +653,11 @@ end;
 
 function TRandomHashFast.Checksum(const AInput: TBytes; AOffset, ALength: Integer): UInt32;
 begin
-   FMurmurHash3_x86_32.TransformBytes(AInput, AOffset, ALength);
+   if AOffset = 0 then
+     FMurmurHash3_x86_32.TransformBytes(AInput, AOffset, ALength)
+   else
+     //TODO: Fix MurMur3 implementation in HashLib4Pascal to support non-zero offset
+     FMurmurHash3_x86_32.TransformBytes(TArrayTool<Byte>.Copy(AInput, AOffset, ALength), 0, ALength);
    Result := FMurmurHash3_x86_32.TransformFinal.GetUInt32();
 end;
 
@@ -712,7 +715,7 @@ begin
 
   // Select random bytes from input using XorShift32 RNG
   for i := AWriteStart to LWriteEnd do
-    ABuffer[i] := ABuffer[TXorShift32.Next(LState) MOD ALength];
+    ABuffer[i] := ABuffer[AReadStart + TXorShift32.Next(LState) MOD ALength];
 end;
 
 procedure TRandomHashFast.MemTransform2(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
@@ -811,7 +814,7 @@ begin
   LOdd := ALength MOD 2;
   for i := 0 to Pred(LPivot) do
   begin
-    ABuffer[AWriteStart + i] := ABuffer[AReadStart + (i * 2)] xor ABuffer[(i * 2) + 1];
+    ABuffer[AWriteStart + i] := ABuffer[AReadStart + (i * 2)] xor ABuffer[AReadStart + (i * 2) + 1];
     ABuffer[AWriteStart + i + LPivot + LOdd] := ABuffer[AReadStart + i] xor ABuffer[AReadStart + ALength - i - 1];
   end;
   // Set middle-byte for odd-lengths
@@ -863,7 +866,7 @@ begin
   // Copy the genesis blob
   Move(AInput[0], LOutput[0], LInputSize);
   LReadEnd := LInputSize - 1;
-  LCopyLen := LReadEnd+1;
+  LCopyLen := LInputSize;
 
   while LReadEnd < Pred(Length(LOutput)) do
   begin

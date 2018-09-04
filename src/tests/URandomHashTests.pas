@@ -68,6 +68,7 @@ type
     TFastTransformProc = procedure(const ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer) of object;
   private
     procedure TestMemTransform(ATransform : TFastTransformProc; const ATestData : array of TTestItem<Integer, String>);
+    procedure TestMemTransform_Padding(ATransform : TFastTransformProc);
   protected
     procedure SetUp; override;
     procedure TearDown; override;
@@ -78,6 +79,15 @@ type
     procedure TestCompress;
     procedure TestChecksum_1;
     procedure TestChecksum_2;
+
+    procedure TestMemTransform1_Padding;
+    procedure TestMemTransform2_Padding;
+    procedure TestMemTransform3_Padding;
+    procedure TestMemTransform4_Padding;
+    procedure TestMemTransform5_Padding;
+    procedure TestMemTransform6_Padding;
+    procedure TestMemTransform7_Padding;
+    procedure TestMemTransform8_Padding;
     procedure TestMemTransform1;
     procedure TestMemTransform2;
     procedure TestMemTransform3;
@@ -1107,12 +1117,16 @@ var
   LHasher : TRandomHashFast;
   LDisposables : TDisposables;
   LMurMur3 : IHash;
+  i : Integer;
 begin
   LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
   LMurMur3 := THashFactory.THash32.CreateMurmurHash3_x86_32();
+  i := 0;
   for LCase in DATA_EXPAND do begin
     LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input1);
+    //WriteLn(Format('Case %d', [i]));
     AssertEquals(LCase.Expected, LMurMur3.ComputeBytes(LHasher.Expand(LInput, LCase.Input2)).GetUInt32);
+    Inc(i);
     //WriteLn(LMurMur3.ComputeBytes(LHasher.Expand(LInput, LCase.Input2)).GetUInt32);
   end;
 end;
@@ -1172,6 +1186,79 @@ begin
     end;
     AssertEquals(LCase.Expected, LHasher.CheckSum(LInputs));
   end;
+end;
+
+procedure TRandomHashFastTest.TestMemTransform1_Padding;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform_Padding(LHasher.MemTransform1);
+end;
+
+procedure TRandomHashFastTest.TestMemTransform2_Padding;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform_Padding(LHasher.MemTransform2);
+end;
+
+procedure TRandomHashFastTest.TestMemTransform3_Padding;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform_Padding(LHasher.MemTransform3);
+end;
+
+
+procedure TRandomHashFastTest.TestMemTransform4_Padding;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform_Padding(LHasher.MemTransform4);
+end;
+
+procedure TRandomHashFastTest.TestMemTransform5_Padding;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform_Padding(LHasher.MemTransform5);
+end;
+
+procedure TRandomHashFastTest.TestMemTransform6_Padding;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform_Padding(LHasher.MemTransform6);
+end;
+
+procedure TRandomHashFastTest.TestMemTransform7_Padding;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform_Padding(LHasher.MemTransform7);
+end;
+
+procedure TRandomHashFastTest.TestMemTransform8_Padding;
+var
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  TestMemTransform_Padding(LHasher.MemTransform8);
 end;
 
 procedure TRandomHashFastTest.TestMemTransform1;
@@ -1246,19 +1333,79 @@ begin
   TestMemTransform(LHasher.MemTransform8, DATA_MEMTRANSFORM8);
 end;
 
+procedure TRandomHashFastTest.TestMemTransform_Padding(ATransform : TFastTransformProc);
+var
+  LCase : TTestItem<Integer, String>;
+  LInput, LLeftPad, LRightPad, LExpected, LOutput, LBuff : TBytes;
+  i, LInputLen : Integer;
+begin
+  // Setup input
+  LInput := TBytes.Create(01, 02, 03, 04, 05);// ParseBytes(DATA_BYTES);
+  LInputLen := Length(LInput);
+
+  // Determine the expected value (transform with no padding)
+  SetLength(LBuff, LInputLen*2);
+  Move(LInput[0], LBuff[0], LInputLen);
+  ATransform(LBuff, 0, LInputLen, LInputLen);
+  LExpected := TArrayTool<byte>.Copy(LBuff, LInputLen, LInputLen);
+
+  for i := 0 to 999 do begin
+    // prepare padding
+    SetLength(LLeftPad, i);
+    SetLength(LRightPad, i);
+    FillByte(LLeftPad[0], i, 0);
+    FillByte(LRightPad[0], i, 0);
+
+    // prepare output
+    SetLength(LOutput, Length(LInput));
+    FillByte(LOutput[0], Length(LOutput), 0);
+
+    // prepare input buffer
+    LBuff := TArrayTool<byte>.Concat([LLeftPad, LInput, LOutput, LRightPad]);
+
+    // transform the input in-place
+    ATransform(LBuff, Length(LLeftPad), Length(LLeftPad) + Length(LInput), Length(LInput));
+
+    // extract the output
+    LOutput := TArrayTool<byte>.Copy(LBuff, Length(LLeftPad) + Length(LInput), Length(LInput));
+
+    // perform check
+    AssertEquals(LExpected, LOutput);
+  end;
+end;
+
 procedure TRandomHashFastTest.TestMemTransform(ATransform : TFastTransformProc; const ATestData : array of TTestItem<Integer, String>);
 var
   LCase : TTestItem<Integer, String>;
-  LInput, LBuff : TBytes;
+  LInput, LLeftPad, LRightPad, LOutput, LBuff : TBytes;
+  i : Integer;
 begin
+  i := 0;
+  SetLength(LLeftPad, i);
+  SetLength(LRightPad, i);
   for LCase in ATestData do begin
+    { Buffer set as LLLINPUT00000RRR where L= Left padding, INPUT = data item to transform, 0 = where transform will be written, R = right padding }
     LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input);
-    SetLength(LBuff, Length(LInput)*2);
-    System.Move(LInput[0], LBuff[0], Length(LInput));
-    ATransform(LBuff, 0, Length(LInput), Length(LInput));
-    LBuff := TArrayTool<byte>.Copy(LBuff, Length(LInput), Length(LInput));
-    AssertEquals(Hex2Bytes(LCase.Expected), LBuff);
-    //WriteLn((Bytes2Hex(ATransform(LInput), True)));
+    SetLength(LOutput, Length(LInput));
+
+    // prepare input buffer
+    LBuff := TArrayTool<byte>.Concat([LLeftPad, LInput, LOutput, LRightPad]);
+
+    // transform the input in-place
+    ATransform(LBuff, Length(LLeftPad), Length(LLeftPad) + Length(LInput), Length(LInput));
+
+    // extract the output
+    LOutput := TArrayTool<byte>.Copy(LBuff, Length(LLeftPad) + Length(LInput), Length(LInput));
+
+    // perform check
+    AssertEquals(Hex2Bytes(LCase.Expected), LOutput);
+
+    // alter padding for next round
+    Inc(i);
+    SetLength(LLeftPad, i);
+    SetLength(LRightPad, i);
+    LLeftPad[i - 1] := i mod 256;
+    LRightPad[i - 1] := i mod 256;
   end;
 end;
 
