@@ -47,6 +47,7 @@ function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : AnsiStr
 { Binary-safe StrComp replacement. StrComp will return 0 for when str1 and str2 both start with NUL character. }
 function BinStrComp(const Str1, Str2 : String): Integer;
 function BytesCompare(const ABytes1, ABytes2: TBytes): integer;
+function BytesEqual(const ABytes1, ABytes2 : TBytes) : boolean; inline;
 
 { Ternary operator equivalent of predicate ? (true-val) : (false-value) }
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Cardinal): Cardinal; overload;
@@ -497,6 +498,17 @@ begin
        end
      end;
    end;
+end;
+
+function BytesEqual(const ABytes1, ABytes2 : TBytes) : boolean;
+var ABytes1Len, ABytes2Len : Integer;
+begin
+  ABytes1Len := Length(ABytes1);
+  ABytes2Len := Length(ABytes2);
+  if (ABytes1Len <> ABytes2Len) OR (ABytes1Len = 0) then
+    Result := False
+  else
+    Result := CompareMem(@ABytes1[0], @ABytes2[0], ABytes1Len);
 end;
 
 {%endregion}
