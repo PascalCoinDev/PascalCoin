@@ -72,16 +72,16 @@ type
     class function ReadUInt64AsBytesLE(a_in: UInt64): THashLibByteArray;
       overload; static; inline;
 
-    class procedure ReadUInt32AsBytesLE(a_in: UInt32; a_out: THashLibByteArray;
+    class procedure ReadUInt32AsBytesLE(a_in: UInt32; const a_out: THashLibByteArray;
       a_index: Int32); overload; static; inline;
 
-    class procedure ReadUInt32AsBytesBE(a_in: UInt32; a_out: THashLibByteArray;
+    class procedure ReadUInt32AsBytesBE(a_in: UInt32; const a_out: THashLibByteArray;
       a_index: Int32); overload; static; inline;
 
-    class procedure ReadUInt64AsBytesLE(a_in: UInt64; a_out: THashLibByteArray;
+    class procedure ReadUInt64AsBytesLE(a_in: UInt64; const a_out: THashLibByteArray;
       a_index: Int32); overload; static; inline;
 
-    class procedure ReadUInt64AsBytesBE(a_in: UInt64; a_out: THashLibByteArray;
+    class procedure ReadUInt64AsBytesBE(a_in: UInt64; const a_out: THashLibByteArray;
       a_index: Int32); overload; static; inline;
 
     class function ConvertStringToBytes(const a_in: String;
@@ -298,7 +298,7 @@ begin
 end;
 
 class procedure TConverters.ReadUInt32AsBytesLE(a_in: UInt32;
-  a_out: THashLibByteArray; a_index: Int32);
+  const a_out: THashLibByteArray; a_index: Int32);
 begin
   a_out[a_index] := Byte(a_in);
   a_out[a_index + 1] := Byte(a_in shr 8);
@@ -307,7 +307,7 @@ begin
 end;
 
 class procedure TConverters.ReadUInt32AsBytesBE(a_in: UInt32;
-  a_out: THashLibByteArray; a_index: Int32);
+  const a_out: THashLibByteArray; a_index: Int32);
 begin
   a_out[a_index] := Byte(a_in shr 24);
   a_out[a_index + 1] := Byte(a_in shr 16);
@@ -316,7 +316,7 @@ begin
 end;
 
 class procedure TConverters.ReadUInt64AsBytesLE(a_in: UInt64;
-  a_out: THashLibByteArray; a_index: Int32);
+  const a_out: THashLibByteArray; a_index: Int32);
 begin
   a_out[a_index] := Byte(a_in);
   a_out[a_index + 1] := Byte(a_in shr 8);
@@ -329,7 +329,7 @@ begin
 end;
 
 class procedure TConverters.ReadUInt64AsBytesBE(a_in: UInt64;
-  a_out: THashLibByteArray; a_index: Int32);
+  const a_out: THashLibByteArray; a_index: Int32);
 begin
   a_out[a_index] := Byte(a_in shr 56);
   a_out[a_index + 1] := Byte(a_in shr 48);
