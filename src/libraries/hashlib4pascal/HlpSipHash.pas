@@ -323,6 +323,10 @@ begin
       ProcessBlock(m);
       Fm_idx := 0;
     end;
+  end
+  else
+  begin
+    i := 0;
   end;
 
   iter := Length shr 3;
