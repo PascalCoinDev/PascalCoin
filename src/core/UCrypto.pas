@@ -25,7 +25,7 @@ unit UCrypto;
 interface
 
 uses
-  Classes, SysUtils, UOpenSSL, UOpenSSLdef;
+  Classes, SysUtils, UOpenSSL, UOpenSSLdef, URandomHash;
 
 Type
   ECryptoException = Class(Exception);
@@ -82,6 +82,7 @@ Type
     class procedure DoDoubleSha256(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
     class function DoRandomHash(const TheMessage : AnsiString) : TRawBytes; overload;
     class procedure DoRandomHash(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
+    class procedure DoRandomHash(AFastHasher : TRandomHashFast; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
     class function DoRipeMD160_HEXASTRING(const TheMessage : AnsiString) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(const TheMessage : AnsiString) : TRawBytes; overload;
@@ -142,7 +143,7 @@ Const
 implementation
 
 uses
-  ULog, UConst, UAccounts, URandomHash;
+  ULog, UConst, UAccounts;
 
 Var _initialized : Boolean = false;
 
@@ -662,7 +663,19 @@ begin
   if Length(ResultSha256) <> 32 then SetLength(ResultSha256, 32);
   SetLength(LInput, plength);
   Move(p^, LInput[0], plength);
-  LResult := TRandomHash.Compute(LInput);
+  LResult := TRandomHashFast.Compute(LInput);
+  Move(LResult[0], ResultSha256[1], 32);
+end;
+
+class procedure TCrypto.DoRandomHash(AFastHasher : TRandomHashFast; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
+var
+  LInput : TBytes;
+  LResult : TBytes;
+begin
+  if Length(ResultSha256) <> 32 then SetLength(ResultSha256, 32);
+  SetLength(LInput, plength);
+  Move(p^, LInput[0], plength);
+  LResult := AFastHasher.Hash(LInput);
   Move(LResult[0], ResultSha256[1], 32);
 end;
 

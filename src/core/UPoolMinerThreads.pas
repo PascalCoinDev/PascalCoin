@@ -43,6 +43,7 @@ Const
 Type
 
   TCustomMinerDeviceThread = Class;
+
   TCustomMinerDeviceThreadClass = Class of TCustomMinerDeviceThread;
 
   TOnFoundNonce = Procedure(Sender : TCustomMinerDeviceThread; Timestamp, nOnce : Cardinal) of object;
@@ -81,6 +82,7 @@ Type
   End;
 
   { TCustomMinerDeviceThread }
+
   TCustomMinerDeviceThread = Class(TPCThread)
   private
     FIsMining: Boolean;
@@ -116,8 +118,6 @@ Type
     Property IsMining : Boolean read FIsMining write SetIsMining;
     Property PoolMinerThread : TPoolMinerThread read FPoolMinerThread;
   end;
-
-
 
   { TCPUDeviceThread }
 
@@ -164,7 +164,7 @@ Type
 
 implementation
 
-uses UConst, UTime, UJSONFunctions, UNode, UNetProtocol;
+uses UConst, UTime, UJSONFunctions, UNode, UNetProtocol, UMemory;
 
 { TPoolMinerThread }
 
@@ -739,11 +739,14 @@ Var
   AuxStats : TMinerStats;
   dstep : Integer;
   LUseRandomHash : boolean;
+  LRandomHasher : TRandomHashFast;
+  LDisposables : TDisposables;
 begin
   DebugStep := '----------';
   AuxStats := CT_TMinerStats_NULL;
   nonce := 0;
   dstep := 0;
+  LRandomHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
   Try
     while (Not Terminated) And (Not FCPUDeviceThread.Terminated) do begin
       Try
@@ -776,9 +779,10 @@ begin
               for i := 1 to roundsToDo do begin
                 FDigestStreamMsg.Position := FDigestStreamMsg.Size - 4;
                 FDigestStreamMsg.Write(nonce,4);
-                if LUseRandomHash then
-                  TCrypto.DoRandomHash(FDigestStreamMsg.Memory,FDigestStreamMsg.Size,resultPoW)
-                else
+                if LUseRandomHash then begin
+                  // Note if i > 1 then FDigestStreamMsg.Memory == LHasher.NextHeader (needs to be for CPU optimization to work)
+                  TCrypto.DoRandomHash(LRandomHasher,FDigestStreamMsg.Memory,FDigestStreamMsg.Size,resultPoW);
+                end else
                   TCrypto.DoDoubleSha256(FDigestStreamMsg.Memory,FDigestStreamMsg.Size,resultPoW);
                 if resultPoW < FCurrentMinerValuesForWork.target_pow then begin
                   if (Terminated) Or (FCPUDeviceThread.Terminated) then exit;
@@ -794,7 +798,9 @@ begin
                   end;
                   dstep := 8;
                 end;
-                if (nonce)<FMaxNOnce then inc(nonce) else nonce := FMinNOnce;
+                if LUseRandomHash then
+                  nonce := LRandomHasher.NextNonce
+                else if (nonce)<FMaxNOnce then inc(nonce) else nonce := FMinNOnce;
               end;
               finalHashingTC:=TPlatform.GetTickCount;
             end else begin
