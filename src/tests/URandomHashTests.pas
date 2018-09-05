@@ -71,6 +71,7 @@ type
     procedure TestRandomHash;
     procedure TestRandomHash_CachedHeaderConsistency;
     procedure TestRandomHash_NonceOptimization;
+    procedure TestRandomHash_OptimalNonceSet;
     procedure TestExpand;
     procedure TestCompress;
     procedure TestChecksum_1;
@@ -141,6 +142,19 @@ const
     (Input: 178; Expected: '0x78731c92386f6e3e024ef49096782812f0cfbbc2c179de9dbeec2c22faebce89'),
     (Input: 199; Expected: '0x121f5286f7ddb462100556f142048c962839554b8cb55a648afb742f9d8d398f'),
     (Input: 200; Expected: '0x488bdfcf90f4b5c0803691562bb30604e9c3b39ed37e8eea9957ed8ae12dec26')
+  );
+
+  DATA_RANDOMHASH_OPTIMAL_NONCESET : array[1..100] of UInt32 = (
+    { These is optimal nonceset for CPU optimized mining starting with DATA_BYTES as initial block header }
+    3069945400, 2894709675, 1561269480, 3709359162, 2319787398, 3469273288, 2165748579, 410191319, 3608549958, 1974915349, 2363626475,
+    2548419799, 1823243182, 2294194608, 2811822650, 1012595382, 1092960857, 2782130538, 1982611689, 3100121871, 2270918976, 558577795,
+    2602811692, 4159717317, 785699107, 2186194385, 1034122923, 3839875076, 1682247977, 3676810924, 1273798997, 1148982166, 2734953558,
+    1415853762, 4205729760, 765141560, 20322278, 31405433, 1372749894, 2429062937, 1922093937, 3803474393, 2563777622, 3993339204,
+    1157535065, 446159258, 3194232545, 4126577194, 1870725135, 1160276278, 1428921085, 2867908339, 1946859222, 528575112, 379687846,
+    3828220365, 1373182914, 3161692348, 2095512829, 1380741873, 3907258631, 3555518702, 526588200, 4063802913, 1155384674, 3931593099,
+    401714470, 3665001943, 3278099097, 354142354, 3141798166, 1380691927, 2643014168, 204089028, 472568518, 91687646, 1852951886, 4191405957,
+    1144622813, 1964089047, 1983711164, 982279936, 518506898, 3755482421, 1146753313, 2929206712, 890294739, 1916889493, 2887125739, 1767848779,
+    4220416848, 820754393, 2797119783, 931262717, 3806560848, 1898763983, 3316775846, 2509067536, 3600478831, 3997502592
   );
 
   DATA_EXPAND : array[1..48] of TTestItem<UInt32, UInt32, UInt32> = (
@@ -1107,8 +1121,8 @@ begin
   for LCase in DATA_RANDOMHASH do begin
     LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input);
     LOutput := LOptimized.Hash(LInput);
-    LNonce := LOptimized.GetNonce(LOptimized.CachedHeader);
-    AssertEquals(LNonce, LOptimized.CachedNonce);
+    LNonce := LOptimized.GetNonce(LOptimized.NextHeader);
+    AssertEquals(LNonce, LOptimized.NextNonce);
   end;
 end;
 
@@ -1130,10 +1144,27 @@ begin
     LOutput := LOptimized.Hash(LInput);
 
     // Test consistency of cached nonce hash with reference impl
-    LInput := LOptimized.CachedHeader;
+    LInput := LOptimized.NextHeader;
 
     // Test reference hash of cached header same as optimized
     AssertEquals(LReference.Hash(LInput), LOptimized.Hash(LInput));
+  end;
+end;
+
+procedure TRandomHashFastTest.TestRandomHash_OptimalNonceSet;
+var
+  LExpectedNextNonce : UInt32;
+  LBuff : TBytes;
+  LHasher : TRandomHashFast;
+  LDisposables : TDisposables;
+begin
+  LBuff := ParseBytes(DATA_BYTES);
+  LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  LHasher.Hash(LBuff);
+  for LExpectedNextNonce in DATA_RANDOMHASH_OPTIMAL_NONCESET do begin
+    AssertEquals(LExpectedNextNonce, LHasher.NextNonce);
+    //Write(Format(', %u', [LHasher.NextNonce]));
+    LBuff := LHasher.Hash(LHasher.NextHeader);
   end;
 end;
 
@@ -1482,7 +1513,7 @@ begin
   LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
   LHasher.Hash(LBuff);
   for i := 1 to Pred(NUM_ITER) do
-    LBuff := LHasher.Hash(LHasher.CachedHeader);
+    LBuff := LHasher.Hash(LHasher.NextHeader);
   // no exceptions should occur
 end;
 
@@ -1491,11 +1522,11 @@ initialization
 {$IFDEF FPC}
   RegisterTest(TRandomHashTest);
   RegisterTest(TRandomHashFastTest);
-  RegisterTest(TRandomHashStressTest);
+  //RegisterTest(TRandomHashStressTest);
 {$ELSE}
   TDUnitX.RegisterTextFixture(TRandomHashTest);
   TDUnitX.RegisterTextFixture(TRandomHashFastTest);
-  TDUnitX.RegisterTextFixture(TRandomHashStressTest);
+  //TDUnitX.RegisterTextFixture(TRandomHashStressTest);
 {$ENDIF FPC}
 
 end.

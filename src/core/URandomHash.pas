@@ -165,8 +165,8 @@ type
       function Checksum(const AInput: TArray<TBytes>): UInt32; overload; inline;
       function Hash(const ABlockHeader: TBytes; ARound: Int32) : TArray<TBytes>; overload;
     public
-      property CachedHeader : TBytes read GetCachedHeader;
-      property CachedNonce : UInt32 read FCachedNonce;
+      property NextHeader : TBytes read GetCachedHeader;
+      property NextNonce : UInt32 read FCachedNonce;
       constructor Create;
       destructor Destroy; override;
       function Hash(const ABlockHeader: TBytes): TBytes; overload; inline;
