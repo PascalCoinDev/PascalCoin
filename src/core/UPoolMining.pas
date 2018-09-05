@@ -1195,7 +1195,7 @@ begin
         end;
       end;
     end else begin
-      if (FMinerValuesForWork.target<CT_MinCompactTarget) then begin
+      if (FMinerValuesForWork.target>=CT_MinCompactTarget) then begin
         // target_pow has no value... assigning target!
         FMinerValuesForWork.target_pow:=TPascalCoinProtocol.TargetFromCompact(FMinerValuesForWork.target);
       end else begin
