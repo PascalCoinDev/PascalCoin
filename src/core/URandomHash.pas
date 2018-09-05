@@ -694,12 +694,8 @@ end;
 
 function TRandomHashFast.Checksum(const AInput: TBytes; AOffset, ALength: Integer): UInt32;
 begin
-   if AOffset = 0 then
-     FMurmurHash3_x86_32.TransformBytes(AInput, AOffset, ALength)
-   else
-     //TODO: Fix MurMur3 implementation in HashLib4Pascal to support non-zero offset
-     FMurmurHash3_x86_32.TransformBytes(TArrayTool<Byte>.Copy(AInput, AOffset, ALength), 0, ALength);
-   Result := FMurmurHash3_x86_32.TransformFinal.GetUInt32();
+  FMurmurHash3_x86_32.TransformBytes(AInput, AOffset, ALength);
+  Result := FMurmurHash3_x86_32.TransformFinal.GetUInt32();
 end;
 
 function TRandomHashFast.Checksum(const AInput : TArray<TBytes>): UInt32;
