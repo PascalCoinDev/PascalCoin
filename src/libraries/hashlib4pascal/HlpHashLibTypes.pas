@@ -25,6 +25,7 @@ type
   EArgumentNilHashLibException = class(EHashLibException);
   EArgumentOutOfRangeHashLibException = class(EHashLibException);
   ENullReferenceHashLibException = class(EHashLibException);
+  ENotImplementedHashLibException = class(EHashLibException);
   EUnsupportedTypeHashLibException = class(EHashLibException);
 
 {$IFDEF HAS_UNITSCOPE}

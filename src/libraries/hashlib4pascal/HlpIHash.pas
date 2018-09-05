@@ -49,7 +49,10 @@ type
 
     function TransformFinal(): IHashResult;
 
-    procedure TransformString(const a_data: String; const a_encoding: TEncoding);
+    function Clone(): IHash;
+
+    procedure TransformString(const a_data: String;
+      const a_encoding: TEncoding);
     procedure TransformStream(const a_stream: TStream; a_length: Int64 = -1);
     procedure TransformFile(const a_file_name: String; a_from: Int64 = 0;
       a_length: Int64 = -1);

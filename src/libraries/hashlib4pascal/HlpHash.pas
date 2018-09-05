@@ -24,6 +24,7 @@ resourcestring
   // SInvalidHashSize = '"HashSize" Must Be Greater Than Zero';
   SUnAssignedStream = 'Input Stream Is Unassigned';
   SFileNotExist = 'Specified File Not Found';
+  SNotYetImplemented = 'Not Yet Implemented For "%s"';
 
 type
   THash = class abstract(TInterfacedObject, IHash)
@@ -76,6 +77,8 @@ type
       a_length: Int64 = -1);
     procedure Initialize(); virtual; abstract;
     function TransformFinal(): IHashResult; virtual; abstract;
+
+    function Clone(): IHash; virtual;
 
     property BufferSize: Int32 read GetBufferSize write SetBufferSize;
   end;
@@ -228,6 +231,12 @@ begin
   TransformFile(a_file_name, a_from, a_length);
   result := TransformFinal();
 
+end;
+
+function THash.Clone(): IHash;
+begin
+  raise ENotImplementedHashLibException.CreateResFmt
+    (@SNotYetImplemented, [Name]);
 end;
 
 function THash.ComputeBytes(const a_data: THashLibByteArray): IHashResult;

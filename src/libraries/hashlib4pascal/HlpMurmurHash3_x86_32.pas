@@ -16,6 +16,7 @@ uses
   HlpIHashInfo,
   HlpNullable,
   HlpHash,
+  HlpIHash,
   HlpHashResult,
   HlpIHashResult,
   HlpBits;
@@ -57,6 +58,7 @@ type
     procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal: IHashResult; override;
+    function Clone(): IHash; override;
     property KeyLength: TNullableInteger read GetKeyLength;
     property Key: THashLibByteArray read GetKey write SetKey;
 
@@ -65,6 +67,20 @@ type
 implementation
 
 { TMurmurHash3_x86_32 }
+
+function TMurmurHash3_x86_32.Clone: IHash;
+var
+  HashInstance: TMurmurHash3_x86_32;
+begin
+  HashInstance := TMurmurHash3_x86_32.Create();
+  HashInstance.Fm_key := Fm_key;
+  HashInstance.Fm_h := Fm_h;
+  HashInstance.Fm_total_length := Fm_total_length;
+  HashInstance.Fm_idx := Fm_idx;
+  HashInstance.Fm_buf := System.Copy(Fm_buf);
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TMurmurHash3_x86_32.Create;
 begin
