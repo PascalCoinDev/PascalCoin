@@ -55,7 +55,7 @@
     </SearchPaths>
     <CodeGeneration>
       <Optimizations>
-        <OptimizationLevel Value="3"/>
+        <OptimizationLevel Value="4"/>
       </Optimizations>
     </CodeGeneration>
   </CompilerOptions>

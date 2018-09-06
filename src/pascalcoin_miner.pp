@@ -271,15 +271,16 @@ var
   end;
 
   Procedure DoWaitAndLog;
-  Var tc : TTickCount;
-    gs,ms : TMinerStats;
+  var
+    LTickCount : TTickCount;
+    LGlobalStats, LMinerStats : TMinerStats;
     hrReal,hrHashing, glhrHashing, glhrReal : Real;
     i : Integer;
     devt : TCustomMinerDeviceThread;
-    s : String;
-    kpressed : Char;
+    LStr : String;
+    LKeyPressed : Char;
   Begin
-    tc := TPlatform.GetTickCount;
+    LTickCount := TPlatform.GetTickCount;
     repeat
       If FPoolMinerThread.PoolMinerClient.Connected then begin
         for i:=0 to FDeviceThreads.Count-1 do begin
@@ -288,34 +289,36 @@ var
       end;
       while (Not Terminated) do begin
         sleep(100);
-        If TPlatform.GetElapsedMilliseconds(tc)>1000 then begin
-          tc := GetTickCount64;
+        If TPlatform.GetElapsedMilliseconds(LTickCount)>1000 then begin
+          LTickCount := GetTickCount64;
           For i:=0 to FDeviceThreads.Count-1 do begin
             devt := TCustomMinerDeviceThread(FDeviceThreads[i]);
-            ms := devt.DeviceStats;
-            if ms.WorkingMillisecondsHashing>0 then hrHashing := (((ms.RoundsCount DIV Int64(ms.WorkingMillisecondsHashing)))/(1000))
-            else hrHashing := 0;
-            gs := devt.GlobalDeviceStats;
-            If ms.RoundsCount>0 then begin
-              s := FormatDateTime('hh:nn:ss',now)+Format(' Miner:"%s" at %0.2f MH/s - Rounds: %0.2f G Found: %d',[devt.MinerValuesForWork.payload_start,hrHashing, gs.RoundsCount/1000000000, gs.WinsCount]);
-              If (gs.Invalids>0) then s := s +' '+inttostr(gs.Invalids)+' ERRORS!';
-              WriteLine(CT_Line_MiningStatus+i,s);
+            LMinerStats := devt.DeviceStats;
+            if LMinerStats.WorkingMillisecondsHashing>0 then
+              hrHashing := LMinerStats.RoundsCount / (LMinerStats.WorkingMillisecondsHashing / 1000)
+            else
+              hrHashing := 0;
+            LGlobalStats := devt.GlobalDeviceStats;
+            If LMinerStats.RoundsCount>0 then begin
+              LStr := FormatDateTime('hh:nn:ss',now)+Format(' Miner:"%s" at %0.2f H/s - Rounds: %d Found: %d',[devt.MinerValuesForWork.payload_start,hrHashing, LGlobalStats.RoundsCount, LGlobalStats.WinsCount]);
+              If (LGlobalStats.Invalids>0) then LStr := LStr +' '+inttostr(LGlobalStats.Invalids)+' ERRORS!';
+              WriteLine(CT_Line_MiningStatus+i,LStr);
             end else begin
-              If gs.RoundsCount>0 then begin
-                s := FormatDateTime('hh:nn:ss',now)+Format(' Miner:"%s" **NOT MINING** - Rounds: %0.2f G Found: %d',[devt.MinerValuesForWork.payload_start,gs.RoundsCount/1000000000, gs.WinsCount]);
-                If (gs.Invalids>0) then s := s +' '+inttostr(gs.Invalids)+' ERRORS!';
+              If LGlobalStats.RoundsCount>0 then begin
+                LStr := FormatDateTime('hh:nn:ss',now)+Format(' Miner:"%s" **NOT MINING** - Rounds: %d Found: %d',[devt.MinerValuesForWork.payload_start,LGlobalStats.RoundsCount, LGlobalStats.WinsCount]);
+                If (LGlobalStats.Invalids>0) then LStr := LStr +' '+inttostr(LGlobalStats.Invalids)+' ERRORS!';
               end else begin
-                s := FormatDateTime('hh:nn:ss',now)+' Not mining...';
+                LStr := FormatDateTime('hh:nn:ss',now)+' Not mining...';
               end;
-              WriteLine(CT_Line_MiningStatus+i,s);
+              WriteLine(CT_Line_MiningStatus+i,LStr);
             end;
           end;
-          WriteLine(CT_Line_LastFound+FDeviceThreads.Count-1,'MY VALID BLOCKS FOUND: '+IntToStr(gs.WinsCount) +' Working time: '+IntToStr(Trunc(now - FAppStartTime))+'d '+FormatDateTime('hh:nn:ss',Now-FAppStartTime) );
+          WriteLine(CT_Line_LastFound+FDeviceThreads.Count-1,'MY VALID BLOCKS FOUND: '+IntToStr(LGlobalStats.WinsCount) +' Working time: '+IntToStr(Trunc(now - FAppStartTime))+'d '+FormatDateTime('hh:nn:ss',Now-FAppStartTime) );
         end;
         If KeyPressed then begin
-          kpressed := ReadKey;
-          If kpressed in ['c','C','q','Q'] then begin
-            TLog.NewLog(ltinfo,ClassName,'Finalizing by keypressing '+kpressed);
+          LKeyPressed := ReadKey;
+          If LKeyPressed in ['c','C','q','Q'] then begin
+            TLog.NewLog(ltinfo,ClassName,'Finalizing by keypressing '+LKeyPressed);
             WriteLine(CT_Line_Logs+FDeviceThreads.Count+CT_MaxLogs,'Finalizing...');
             terminate;
           end;

@@ -49,6 +49,7 @@
       <Unit3>
         <Filename Value="..\libraries\generics.collections\generics.collections.pas"/>
         <IsPartOfProject Value="True"/>
+        <UnitName Value="Generics.Collections"/>
       </Unit3>
       <Unit4>
         <Filename Value="..\libraries\generics.collections\generics.defaults.pas"/>

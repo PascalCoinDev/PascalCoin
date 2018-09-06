@@ -56,6 +56,7 @@ type
     procedure TestRADIOGATUN32;
     procedure TestWHIRLPOOL;
     procedure TestMURMUR3_32;
+    procedure TestMURMUR3_32_Clone;
   end;
 
   { TRandomHashFastTest }
@@ -72,10 +73,12 @@ type
     procedure TestRandomHash_CachedHeaderConsistency;
     procedure TestRandomHash_NonceOptimization;
     procedure TestRandomHash_OptimalNonceSet;
+    procedure TestRandomHash_MemoryLeak_SingleRound;
+    procedure TestRandomHash_MemoryLeaks;
     procedure TestExpand;
     procedure TestCompress;
     procedure TestChecksum_1;
-    procedure TestChecksum_2;
+    procedure TestChecksummedByteCollection_Checksum;
 
     procedure TestMemTransform1_Padding;
     procedure TestMemTransform2_Padding;
@@ -95,6 +98,17 @@ type
     procedure TestMemTransform8;
   end;
 
+  { TRandomHashFast_TChecksummedByteCollectionTest }
+
+  TRandomHashFast_TChecksummedByteCollectionTest = class(TPascalCoinUnitTest)
+  published
+    procedure TestSingle;
+    procedure TestDouble;
+    procedure TestComplex;
+    procedure TestToByteArray_Simple;
+    procedure TestToByteArray_Complex;
+  end;
+
   { TRandomHashStressTest }
 
   TRandomHashStressTest = class(TPascalCoinUnitTest)
@@ -106,7 +120,9 @@ type
 
 implementation
 
-uses variants, UCommon, UCommon.Collections, UMemory, URandomHash, HlpHashFactory, HlpBitConverter, strutils;
+uses
+  variants, UCommon, UCommon.Collections, UMemory, URandomHash, HlpHashFactory,
+  HlpBitConverter, strutils, Generics.Collections;
 
 const
 
@@ -1077,6 +1093,28 @@ begin
   TestSubHash(THashFactory.THash32.CreateMurmurHash3_x86_32(), DATA_MURMUR3_32);
 end;
 
+procedure TRandomHashTest.TestMURMUR3_32_Clone;
+var
+  LInput : TBytes;
+  LCase : TTestItem<Integer, String>;
+  LHasher, LClone1, LClone2 : IHash;
+begin
+  LHasher := THashFactory.THash32.CreateMurmurHash3_x86_32();
+  for LCase in DATA_MURMUR3_32 do begin
+    LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input);
+    LHasher.TransformBytes(LInput);
+    LClone1 := LHasher.Clone();
+    AssertEquals(ParseBytes(LCase.Expected), LHasher.TransformFinal().GetBytes);
+    LClone2 := LClone1.Clone();
+    AssertEquals(ParseBytes(LCase.Expected), LClone1.TransformFinal().GetBytes);
+    AssertEquals(ParseBytes(LCase.Expected), LClone2.TransformFinal().GetBytes);
+  end;
+end;
+
+{begin
+  TestSubHash(THashFactory.THash32.CreateMurmurHash3_x86_32(), DATA_MURMUR3_32);
+end;}
+
 procedure TRandomHashTest.TestSubHash(AHasher : IHash; const ATestData : array of TTestItem<Integer, String>);
 var
   LInput : TBytes;
@@ -1168,6 +1206,48 @@ begin
   end;
 end;
 
+procedure TRandomHashFastTest.TestRandomHash_MemoryLeak_SingleRound;
+
+  procedure RunTest;
+  const
+    NUM_ITER = 100;
+  var
+    i : Integer;
+    LHasher : TRandomHashFast;
+  begin
+    LHasher := TRandomHashFast.Create;
+    LHasher.Hash(ParseBytes(DATA_BYTES));
+    LHasher.Free;
+  end;
+
+begin
+  AssertEquals(0, TRandomHashFast.TChecksummedByteCollection.Instances);
+  RunTest;
+  AssertEquals(0, TRandomHashFast.TChecksummedByteCollection.Instances);
+end;
+
+procedure TRandomHashFastTest.TestRandomHash_MemoryLeaks;
+
+  procedure RunTest;
+    const
+      NUM_ITER = 100;
+    var
+      i : Integer;
+      LHasher : TRandomHashFast;
+    begin
+      LHasher := TRandomHashFast.Create;
+      LHasher.Hash(ParseBytes(DATA_BYTES));
+      for i := 1 to Pred(NUM_ITER) do
+        LHasher.Hash(LHasher.NextHeader);
+      LHasher.Free;
+    end;
+
+begin
+  AssertEquals(0, TRandomHashFast.TChecksummedByteCollection.Instances);
+  RunTest;
+  AssertEquals(0, TRandomHashFast.TChecksummedByteCollection.Instances);
+end;
+
 procedure TRandomHashFastTest.TestExpand;
 var
   LCase : TTestItem<UInt32, UInt32, UInt32>;
@@ -1194,7 +1274,8 @@ var
   LCase : TTestItem<String, String>;
   LHasher : TRandomHashFast;
   LDisposables : TDisposables;
-  LInputs : TArray<TBytes>;
+  LInputs : TRandomHashFast.TChecksummedByteCollection;
+
 
   function ParseHex(constref AHex : String) : TBytes;
   begin
@@ -1204,7 +1285,7 @@ var
 begin
   LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
   for LCase in DATA_COMPRESS do begin
-    LInputs := TListTool<String, TBytes>.Transform(LCase.Input.Split([';']), ParseHex);
+    LInputs := LDisposables.AddObject( TRandomHashFast.TChecksummedByteCollection.Create( TListTool<String, TBytes>.Transform(LCase.Input.Split([';']), ParseHex) ) ) as TRandomHashFast.TChecksummedByteCollection;
     AssertEquals(Hex2Bytes(LCase.Expected), LHasher.Compress(LInputs));
    //WriteLn(Bytes2Hex(LHasher.Compress(LInputs)));
   end;
@@ -1224,25 +1305,25 @@ begin
   end;
 end;
 
-procedure TRandomHashFastTest.TestChecksum_2;
+procedure TRandomHashFastTest.TestChecksummedByteCollection_Checksum;
 var
   LInput : TBytes;
-  LInputs : TArray<TBytes>;
+  LInputs : TRandomHashFast.TChecksummedByteCollection;
   LCase : TTestItem<Integer, UInt32>;
   LHasher : TRandomHashFast;
   LDisposables : TDisposables;
   i : UInt32;
 begin
   LHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  LInputs := LDisposables.AddObject( TRandomHashFast.TChecksummedByteCollection.Create) as TRandomHashFast.TChecksummedByteCollection;
   for LCase in DATA_CHECKSUM do begin
     LInput := TArrayTool<byte>.Copy(ParseBytes(DATA_BYTES), 0, LCase.Input);
     // Split into arrays of 1 byte
-    SetLength(LInputs, Length(LInput));
     for i := 0 to Pred(Length(LInput)) do begin
-      SetLength(LInputs[i], 1);
-      LInputs[i][0] := LInput[i];
+      LInputs.Add(TBytes.Create(LInput[i]));
     end;
-    AssertEquals(LCase.Expected, LHasher.CheckSum(LInputs));
+    AssertEquals(LCase.Expected, LInputs.Checksum);
+    LInputs.Clear;
   end;
 end;
 
@@ -1466,6 +1547,105 @@ begin
   end;
 end;
 
+{ TRandomHashFast_TChecksummedByteCollectionTest }
+
+procedure TRandomHashFast_TChecksummedByteCollectionTest.TestSingle;
+var
+  LReference : TRandomHash;
+  LTest : TRandomHashFast.TChecksummedByteCollection;
+  LDisposables : TDisposables;
+  LBytes : TBytes;
+begin
+  LReference := LDisposables.AddObject( TRandomHash.Create ) as TRandomHash;
+  LTest := LDisposables.AddObject( TRandomHashFast.TChecksummedByteCollection.Create ) as TRandomHashFast.TChecksummedByteCollection;
+  LBytes := ParseBytes(DATA_BYTES);
+  LTest.Add(LBytes);
+  AssertEquals(LReference.Checksum(LBytes), LTest.Checksum);
+end;
+
+procedure TRandomHashFast_TChecksummedByteCollectionTest.TestDouble;
+var
+  LReference : TRandomHash;
+  LTest : TRandomHashFast.TChecksummedByteCollection;
+  LDisposables : TDisposables;
+  LBytes : TBytes;
+  LDummy : UInt32;
+begin
+  LReference := LDisposables.AddObject( TRandomHash.Create ) as TRandomHash;
+  LTest := LDisposables.AddObject( TRandomHashFast.TChecksummedByteCollection.Create ) as TRandomHashFast.TChecksummedByteCollection;
+  LBytes := ParseBytes(DATA_BYTES);
+  LTest.Add(LBytes);
+  LDummy := LTest.Checksum;
+  LTest.Add(LBytes);
+  AssertEquals(LReference.Checksum(TArray<TBytes>.Create(LBytes, LBytes)), LTest.Checksum);
+end;
+
+procedure TRandomHashFast_TChecksummedByteCollectionTest.TestComplex;
+var
+  LReference : TRandomHash;
+  LTest : TRandomHashFast.TChecksummedByteCollection;
+  LDisposables : TDisposables;
+  LBytes : TBytes;
+  i, LDummy : UInt32;
+  LTempBytes : TList<Byte>;
+begin
+  LReference := LDisposables.AddObject( TRandomHash.Create ) as TRandomHash;
+  LTempBytes := LDisposables.AddObject( TList<Byte>.Create ) as TList<Byte>;
+  LTest := LDisposables.AddObject( TRandomHashFast.TChecksummedByteCollection.Create ) as TRandomHashFast.TChecksummedByteCollection;
+  LBytes := ParseBytes(DATA_BYTES);
+
+  // break up input into escalating size arrays [A], [B,C], [D,E,F], ....
+  for i := 0 to Pred(Length(LBytes)) do begin
+    LTempBytes.Add(LBytes[i]);
+    if (LTest.Count = 0) OR (LTempBytes.Count > Length(LTest.Get(LTest.Count - 1))) then begin
+      LTest.Add(LTempBytes.ToArray);
+      LTempBytes.Clear;
+      LDummy := LTest.Checksum;  // call checksum to force partial evaluation
+    end;
+  end;
+  LTest.Add(LTempBytes.ToArray); // add last incomplete chunk
+  AssertEquals(LReference.Checksum(LBytes), LTest.Checksum);
+end;
+
+procedure TRandomHashFast_TChecksummedByteCollectionTest.TestToByteArray_Simple;
+var
+  LTest : TRandomHashFast.TChecksummedByteCollection;
+  LDisposables : TDisposables;
+  LBytes : TBytes;
+begin
+  LTest := LDisposables.AddObject( TRandomHashFast.TChecksummedByteCollection.Create ) as TRandomHashFast.TChecksummedByteCollection;
+  LTest.Add(nil);
+  LTest.Add(TBytes.Create(1));
+  LTest.Add(nil);
+  LTest.AddRange( TArray<TBytes>.Create(nil, TBytes.Create(2), nil, TBytes.Create(3) ));
+  LBytes := LTest.ToByteArray;
+  AssertEquals(TBytes.Create(1,2,3), LBytes);
+end;
+
+procedure TRandomHashFast_TChecksummedByteCollectionTest.TestToByteArray_Complex;
+var
+  LTest : TRandomHashFast.TChecksummedByteCollection;
+  LDisposables : TDisposables;
+  LBytes : TBytes;
+  LDummy, i : UInt32;
+  LTempBytes : TList<Byte>;
+begin
+  LTempBytes := LDisposables.AddObject( TList<Byte>.Create ) as TList<Byte>;
+  LTest := LDisposables.AddObject( TRandomHashFast.TChecksummedByteCollection.Create ) as TRandomHashFast.TChecksummedByteCollection;
+  LBytes := ParseBytes(DATA_BYTES);
+
+  // break up input into escalating size arrays [A], [B,C], [D,E,F], ....
+  for i := 0 to Pred(Length(LBytes)) do begin
+    LTempBytes.Add(LBytes[i]);
+    if (LTest.Count = 0) OR (LTempBytes.Count > Length(LTest.Get(LTest.Count - 1))) then begin
+      LTest.Add(LTempBytes.ToArray);
+      LTempBytes.Clear;
+    end;
+  end;
+  LTest.Add(LTempBytes.ToArray); // add last incomplete chunk
+  AssertEquals(LBytes, LTest.ToByteArray);
+end;
+
 { TRandomHashStressTest }
 
 procedure TRandomHashStressTest.Reference1000;
@@ -1522,10 +1702,12 @@ initialization
 {$IFDEF FPC}
   RegisterTest(TRandomHashTest);
   RegisterTest(TRandomHashFastTest);
-  //RegisterTest(TRandomHashStressTest);
+  RegisterTest(TRandomHashFast_TChecksummedByteCollectionTest);
+ // RegisterTest(TRandomHashStressTest);
 {$ELSE}
   TDUnitX.RegisterTextFixture(TRandomHashTest);
   TDUnitX.RegisterTextFixture(TRandomHashFastTest);
+  TDUnitX.RegisterTextFixture(TRandomHashFast_TChecksummedByteCollectionTest);
   //TDUnitX.RegisterTextFixture(TRandomHashStressTest);
 {$ENDIF FPC}
 
