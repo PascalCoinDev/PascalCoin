@@ -63,9 +63,10 @@ Type
 
   TPascalCoinProtocol = Class
   public
+    Class Function MinimumTarget(protocol_version : Integer): Cardinal;
     Class Function GetRewardForNewLine(line_index: Cardinal): UInt64;
-    Class Function TargetToCompact(target: TRawBytes): Cardinal;
-    Class Function TargetFromCompact(encoded: Cardinal): TRawBytes;
+    Class Function TargetToCompact(target: TRawBytes; protocol_version : Integer): Cardinal;
+    Class Function TargetFromCompact(encoded: Cardinal; protocol_version : Integer): TRawBytes;
     Class Function GetNewTarget(vteorical, vreal: Cardinal; protocol_version : Integer; isSlowMovement : Boolean; Const actualTarget: TRawBytes): TRawBytes;
     Class Procedure CalcProofOfWork_Part1(const operationBlock : TOperationBlock; out Part1 : TRawBytes);
     Class Procedure CalcProofOfWork_Part3(const operationBlock : TOperationBlock; out Part3 : TRawBytes);
@@ -689,7 +690,8 @@ begin
       bnaux.Free;
     end;
     // Adjust to TargetCompact limitations:
-    Result := TargetFromCompact(TargetToCompact(bnact.RawValue));
+    Result := TargetFromCompact(TargetToCompact(bnact.RawValue,protocol_version),protocol_version);
+    //
   finally
     bnact.Free;
   end;
@@ -810,7 +812,16 @@ begin
     Result := CT_MinReward;
 end;
 
-class function TPascalCoinProtocol.TargetFromCompact(encoded: Cardinal): TRawBytes;
+class function TPascalCoinProtocol.MinimumTarget(protocol_version: Integer): Cardinal;
+begin
+  if protocol_version<CT_PROTOCOL_4 then begin
+    Result := CT_MinCompactTarget_v1;
+  end else begin
+    Result := CT_MinCompactTarget_v4;
+  end;
+end;
+
+class function TPascalCoinProtocol.TargetFromCompact(encoded: Cardinal; protocol_version : Integer): TRawBytes;
 Var
   nbits, high, offset, i: Cardinal;
   bn: TBigNum;
@@ -842,7 +853,12 @@ begin
     Note that is not exactly the same than expected due to compacted format
     }
   nbits := encoded shr 24;
-  i := CT_MinCompactTarget shr 24;
+
+  if (protocol_version<CT_PROTOCOL_4) then begin
+    i := CT_MinCompactTarget_v1 shr 24;
+  end else begin
+    i := CT_MinCompactTarget_v4 shr 24;
+  end;
   if nbits < i then
     nbits := i; // min nbits
   if nbits > 231 then
@@ -866,11 +882,11 @@ begin
   End;
 end;
 
-class function TPascalCoinProtocol.TargetToCompact(target: TRawBytes): Cardinal;
+class function TPascalCoinProtocol.TargetToCompact(target: TRawBytes; protocol_version : Integer): Cardinal;
 Var
   bn, bn2: TBigNum;
   i: Int64;
-  nbits: Cardinal;
+  nbits, min_compact_target: Cardinal;
   c: AnsiChar;
   raw : TRawBytes;
   j : Integer;
@@ -897,12 +913,15 @@ begin
       bn2.RShift(1);
       inc(nbits);
     end;
-    i := CT_MinCompactTarget shr 24;
+
+    min_compact_target := MinimumTarget(protocol_version);
+    i := min_compact_target shr 24;
     if (nbits < i) then
     begin
-      Result := CT_MinCompactTarget;
+      Result := min_compact_target;
       exit;
     end;
+
     bn.RShift((256 - 25) - nbits);
     Result := (nbits shl 24) + ((bn.value AND $00FFFFFF) XOR $00FFFFFF);
   finally
@@ -3310,8 +3329,8 @@ begin
   end;
   // compact_target
   target_hash:=GetActualTargetHash(newOperationBlock.protocol_version);
-  if (newOperationBlock.compact_target <> TPascalCoinProtocol.TargetToCompact(target_hash)) then begin
-    errors := 'Invalid target found:'+IntToHex(newOperationBlock.compact_target,8)+' actual:'+IntToHex(TPascalCoinProtocol.TargetToCompact(target_hash),8);
+  if (newOperationBlock.compact_target <> TPascalCoinProtocol.TargetToCompact(target_hash,newOperationBlock.protocol_version)) then begin
+    errors := 'Invalid target found:'+IntToHex(newOperationBlock.compact_target,8)+' actual:'+IntToHex(TPascalCoinProtocol.TargetToCompact(target_hash,newOperationBlock.protocol_version),8);
     exit;
   end;
   // initial_safe_box_hash: Only can be checked when adding new blocks, not when restoring a safebox
@@ -3405,7 +3424,7 @@ Var ts1, ts2, tsTeorical, tsReal, tsTeoricalStop, tsRealStop: Int64;
 begin
   if (BlocksCount <= 1) then begin
     // Important: CT_MinCompactTarget is applied for blocks 0 until ((CT_CalcNewDifficulty*2)-1)
-    Result := TPascalCoinProtocol.TargetFromCompact(CT_MinCompactTarget);
+    Result := TPascalCoinProtocol.TargetFromCompact(CT_MinCompactTarget_v1,CT_PROTOCOL_1);
   end else begin
     if BlocksCount > CT_CalcNewTargetBlocksAverage then CalcBack := CT_CalcNewTargetBlocksAverage
     else CalcBack := BlocksCount-1;
@@ -3416,7 +3435,7 @@ begin
     tsTeorical := (CalcBack * CT_NewLineSecondsAvg);
     tsReal := (ts1 - ts2);
     If (protocolVersion=CT_PROTOCOL_1) then begin
-      Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,protocolVersion,False,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
+      Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,protocolVersion,False,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target,lastBlock.protocol_version));
     end else if (protocolVersion<=CT_PROTOCOL_4) then begin
       CalcBack := CalcBack DIV CT_CalcNewTargetLimitChange_SPLIT;
       If CalcBack=0 then CalcBack := 1;
@@ -3430,15 +3449,15 @@ begin
       If ((tsTeorical>tsReal) and (tsTeoricalStop>tsRealStop))
          Or
          ((tsTeorical<tsReal) and (tsTeoricalStop<tsRealStop)) then begin
-        Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,protocolVersion,False,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
+        Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,protocolVersion,False,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target,lastBlock.protocol_version));
       end else begin
         if (protocolVersion=CT_PROTOCOL_2) then begin
           // Nothing to do!
-          Result:=TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target);
+          Result:=TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target,lastBlock.protocol_version);
         end else begin
           // New on V3 protocol:
           // Harmonization of the sinusoidal effect modifying the rise / fall over the "stop" area
-          Result := TPascalCoinProtocol.GetNewTarget(tsTeoricalStop,tsRealStop,protocolVersion,True,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target));
+          Result := TPascalCoinProtocol.GetNewTarget(tsTeoricalStop,tsRealStop,protocolVersion,True,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target,lastBlock.protocol_version));
         end;
       end;
     end else begin
@@ -3449,7 +3468,7 @@ end;
 
 function TPCSafeBox.GetActualCompactTargetHash(protocolVersion : Word): Cardinal;
 begin
-  Result := TPascalCoinProtocol.TargetToCompact(GetActualTargetHash(protocolVersion));
+  Result := TPascalCoinProtocol.TargetToCompact(GetActualTargetHash(protocolVersion),protocolVersion);
 end;
 
 function TPCSafeBox.FindAccountByName(aName: AnsiString): Integer;

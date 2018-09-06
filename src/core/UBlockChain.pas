@@ -990,7 +990,7 @@ begin
     end else begin
       FOperationBlock.block := 0;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(0);
-      FOperationBlock.compact_target := CT_MinCompactTarget;
+      FOperationBlock.compact_target := CT_MinCompactTarget_v1;
       FOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash); // Nothing for first line
       FOperationBlock.protocol_version := CT_PROTOCOL_1;
     end;
@@ -1352,7 +1352,7 @@ begin
     end else begin
       FOperationBlock.block := 0;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(0);
-      FOperationBlock.compact_target := CT_MinCompactTarget;
+      FOperationBlock.compact_target := CT_MinCompactTarget_v1;
       FOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash);
       FOperationBlock.protocol_version := CT_PROTOCOL_1;
     end;

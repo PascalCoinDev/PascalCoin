@@ -59,6 +59,7 @@ Type
     FMinerThreads: Integer;
     FGlobalMinerValuesForWork : TMinerValuesForWork;
     FTestingPoWLeftBits: Byte;
+    FTestingMode: Boolean;
     Procedure OnPoolMinerClientConnectionChanged(Sender : TObject);
     Procedure OnPoolMinerMustChangeValues(Sender : TObject);
     Procedure OnMinerNewBlockFound(sender : TCustomMinerDeviceThread; const usedMinerValuesForWork : TMinerValuesForWork; Timestamp : Cardinal; NOnce : Cardinal);
@@ -79,6 +80,7 @@ Type
     procedure DevicesUnlock;
     Property MinerAddName : String read FMinerAddName write SetMinerAddName;
     Property TestingPoWLeftBits : Byte read FTestingPoWLeftBits write SetTestingPoWLeftBits;
+    Property TestingMode : Boolean read FTestingMode write FTestingMode;
   End;
 
   { TCustomMinerDeviceThread }
@@ -178,8 +180,9 @@ begin
   DebugStep:='Starting';
   Try
     while not Terminated do begin
-      DebugStep:='Not connected';
-      if not FPoolMinerClient.Connected then begin
+      if FTestingMode then begin
+      end else if not FPoolMinerClient.Connected then begin
+        DebugStep:='Not connected';
         If Not FPoolMinerClient.Connect then begin
         end else begin
           TLog.NewLog(ltinfo,ClassName,'Starting connection to '+FPoolMinerClient.ClientRemoteAddr);
@@ -234,6 +237,7 @@ begin
   FMinerThreads := 0;
   FMinerAddName:='';
   FTestingPoWLeftBits := 0;
+  FTestingMode := False;
   inherited Create(false);
 end;
 
@@ -385,8 +389,8 @@ begin
       If FTestingPoWLeftBits>0 then begin
         auxminervfw := minervfw;
         auxminervfw.target:= ((((auxminervfw.target AND $FF000000) SHR 24)-FTestingPoWLeftBits) SHL 24) + (minervfw.target AND $00FFFFFF);
-        If auxminervfw.target<CT_MinCompactTarget then auxminervfw.target:=CT_MinCompactTarget;
-        auxminervfw.target_pow:=TPascalCoinProtocol.TargetFromCompact(auxminervfw.target);
+        If auxminervfw.target<(TPascalCoinProtocol.MinimumTarget(minervfw.version)) then auxminervfw.target:=TPascalCoinProtocol.MinimumTarget(minervfw.version);
+        auxminervfw.target_pow:=TPascalCoinProtocol.TargetFromCompact(auxminervfw.target,minervfw.version);
         TCustomMinerDeviceThread(l[i]).SetMinerValuesForWork(auxminervfw);
       end else begin
         TCustomMinerDeviceThread(l[i]).SetMinerValuesForWork(minervfw);
@@ -608,7 +612,8 @@ var l : TList;
 begin
   needminers := FCPUs;
   if (FMinerValuesForWork.part1='') or (FPaused) then needminers := 0;
-  if Not FPoolMinerThread.PoolMinerClient.Connected then needminers := 0;
+  If (Not FPoolMinerThread.TestingMode) And
+     (Not FPoolMinerThread.PoolMinerClient.Connected) then needminers := 0;
   l := FCPUsThreads.LockList;
   try
     if l.Count=needminers then exit;
