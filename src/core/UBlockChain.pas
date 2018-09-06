@@ -958,6 +958,7 @@ begin
 end;
 
 procedure TPCOperationsComp.Clear(DeleteOperations : Boolean);
+var resetNewTarget : Boolean;
 begin
   Lock;
   Try
@@ -973,6 +974,7 @@ begin
 
     FOperationBlock.timestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
     if Assigned(FBank) then begin
+      resetNewTarget := False;
       FOperationBlock.protocol_version := FBank.SafeBox.CurrentProtocol;
       If (FOperationBlock.protocol_version=CT_PROTOCOL_1) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_2)) then begin
         FOperationBlock.protocol_version := CT_PROTOCOL_2; // If minting... upgrade to Protocol 2
@@ -980,10 +982,17 @@ begin
         FOperationBlock.protocol_version := CT_PROTOCOL_3; // If minting... upgrade to Protocol 3
       end else if (FOperationBlock.protocol_version=CT_PROTOCOL_3) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_4)) then begin
         FOperationBlock.protocol_version := CT_PROTOCOL_4; // If minting... upgrade to Protocol 4
+        {$IFDEF ACTIVATE_RANDOMHASH_V4}
+        resetNewTarget := True; // RandomHash algo will reset new target on V4
+        {$ENDIF}
       end;
       FOperationBlock.block := FBank.BlocksCount;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(FBank.BlocksCount);
-      FOperationBlock.compact_target := FBank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
+      if (resetNewTarget) then begin
+        FOperationBlock.compact_target := TPascalCoinProtocol.MinimumTarget(FOperationBlock.protocol_version);
+      end else begin
+        FOperationBlock.compact_target := FBank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
+      end;
       FOperationBlock.initial_safe_box_hash := FBank.SafeBox.SafeBoxHash;
       If FBank.LastOperationBlock.timestamp>FOperationBlock.timestamp then
         FOperationBlock.timestamp := FBank.LastOperationBlock.timestamp;
@@ -1327,11 +1336,13 @@ Var i,n,lastn : Integer;
   op : TPCOperation;
   errors : AnsiString;
   aux,aux2 : TOperationsHashTree;
+  resetNewTarget : Boolean;
 begin
   Lock;
   Try
     FOperationBlock.timestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
     if Assigned(FBank) then begin
+      resetNewTarget := False;
       FOperationBlock.protocol_version := FBank.SafeBox.CurrentProtocol;
       If (FOperationBlock.protocol_version=CT_PROTOCOL_1) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_2)) then begin
         TLog.NewLog(ltinfo,ClassName,'New miner protocol version to 2 at sanitize');
@@ -1342,10 +1353,17 @@ begin
       end else if (FOperationBlock.protocol_version=CT_PROTOCOL_3) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_4)) then begin
         TLog.NewLog(ltinfo,ClassName,'New miner protocol version to 4 at sanitize');
         FOperationBlock.protocol_version := CT_PROTOCOL_4;
+        {$IFDEF ACTIVATE_RANDOMHASH_V4}
+        resetNewTarget := True; // RandomHash algo will reset new target on V4
+        {$ENDIF}
       end;
       FOperationBlock.block := FBank.BlocksCount;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(FBank.BlocksCount);
-      FOperationBlock.compact_target := FBank.SafeBox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
+      if (resetNewTarget) then begin
+        FOperationBlock.compact_target := TPascalCoinProtocol.MinimumTarget(FOperationBlock.protocol_version);
+      end else begin
+        FOperationBlock.compact_target := FBank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
+      end;
       FOperationBlock.initial_safe_box_hash := FBank.SafeBox.SafeBoxHash;
       If FBank.LastOperationBlock.timestamp>FOperationBlock.timestamp then
         FOperationBlock.timestamp := FBank.LastOperationBlock.timestamp;

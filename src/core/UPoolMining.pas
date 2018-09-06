@@ -31,6 +31,8 @@ Uses
   UTCPIP, SysUtils, UThread, SyncObjs, Classes, UJSONFunctions, UAES, UNode,
   UCrypto, UAccounts, UConst, UBlockChain;
 
+{$I config.inc}
+
 Const
   CT_PoolMining_Method_STATUS = 'status';
   CT_PoolMining_Method_MINER_NOTIFY = 'miner-notify'; // Server message to clients to update miners PoW data
@@ -816,7 +818,9 @@ begin
         P := l[i];
         // Best practices: Only will accept a solution if timestamp >= sent timestamp for this job (1.5.3)
         If (P^.SentMinTimestamp<=_timestamp) then begin
-          _targetPoW := FNodeNotifyEvents.Node.Bank.SafeBox.GetActualTargetHash(P^.OperationsComp.OperationBlock.protocol_version);
+
+          _targetPow := TPascalCoinProtocol.TargetFromCompact( P^.OperationsComp.OperationBlock.compact_target, P^.OperationsComp.OperationBlock.protocol_version );
+
           P^.OperationsComp.Update_And_RecalcPOW(_nOnce,_timestamp,_payload);
           if (P^.OperationsComp.OperationBlock.proof_of_work<=_targetPoW) then begin
             // Candidate!

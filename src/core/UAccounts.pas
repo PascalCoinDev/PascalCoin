@@ -854,11 +854,7 @@ begin
     }
   nbits := encoded shr 24;
 
-  if (protocol_version<CT_PROTOCOL_4) then begin
-    i := CT_MinCompactTarget_v1 shr 24;
-  end else begin
-    i := CT_MinCompactTarget_v4 shr 24;
-  end;
+  i := MinimumTarget(protocol_version) shr 24;
   if nbits < i then
     nbits := i; // min nbits
   if nbits > 231 then
@@ -3280,6 +3276,8 @@ function TPCSafeBox.IsValidNewOperationsBlock(const newOperationBlock: TOperatio
 var target_hash, pow : TRawBytes;
   i : Integer;
   lastBlock : TOperationBlock;
+  isChangeTargetBlock : Boolean;
+  newMinimumTargetBlock : Cardinal;
 begin
   Result := False;
   errors := '';
@@ -3293,6 +3291,7 @@ begin
 
   // fee: Cannot be checked only with the safebox
   // protocol available is not checked
+  isChangeTargetBlock := False;
   if (newOperationBlock.block > 0) then begin
     // protocol
     if (newOperationBlock.protocol_version<>CurrentProtocol) then begin
@@ -3306,6 +3305,11 @@ begin
           errors := 'Upgrade to protocol version 4 available at block: '+IntToStr(CT_Protocol_Upgrade_v4_MinBlock);
           exit;
         end;
+        {$IFDEF ACTIVATE_RANDOMHASH_V4}
+        // Change target on first block of V4 protocol
+        isChangeTargetBlock := true;
+        newMinimumTargetBlock := TPascalCoinProtocol.MinimumTarget(CT_PROTOCOL_4);
+        {$ENDIF}
       end else If (newOperationBlock.protocol_version=CT_PROTOCOL_3) then begin
         If (newOperationBlock.block<CT_Protocol_Upgrade_v3_MinBlock) then begin
           errors := 'Upgrade to protocol version 3 available at block: '+IntToStr(CT_Protocol_Upgrade_v3_MinBlock);
@@ -3327,11 +3331,19 @@ begin
       exit;
     end;
   end;
-  // compact_target
-  target_hash:=GetActualTargetHash(newOperationBlock.protocol_version);
-  if (newOperationBlock.compact_target <> TPascalCoinProtocol.TargetToCompact(target_hash,newOperationBlock.protocol_version)) then begin
-    errors := 'Invalid target found:'+IntToHex(newOperationBlock.compact_target,8)+' actual:'+IntToHex(TPascalCoinProtocol.TargetToCompact(target_hash,newOperationBlock.protocol_version),8);
-    exit;
+  if (isChangeTargetBlock) then begin
+    target_hash := TPascalCoinProtocol.TargetFromCompact(newMinimumTargetBlock,newOperationBlock.protocol_version);
+    if (newOperationBlock.compact_target <> newMinimumTargetBlock) then begin
+      errors := 'Invalid target found:'+IntToHex(newOperationBlock.compact_target,8)+' actual:'+IntToHex(TPascalCoinProtocol.TargetToCompact(target_hash,newOperationBlock.protocol_version),8);
+      exit;
+    end;
+  end else begin
+    // compact_target
+    target_hash:=GetActualTargetHash(newOperationBlock.protocol_version);
+    if (newOperationBlock.compact_target <> TPascalCoinProtocol.TargetToCompact(target_hash,newOperationBlock.protocol_version)) then begin
+      errors := 'Invalid target found:'+IntToHex(newOperationBlock.compact_target,8)+' actual:'+IntToHex(TPascalCoinProtocol.TargetToCompact(target_hash,newOperationBlock.protocol_version),8);
+      exit;
+    end;
   end;
   // initial_safe_box_hash: Only can be checked when adding new blocks, not when restoring a safebox
   If checkSafeBoxHash then begin
