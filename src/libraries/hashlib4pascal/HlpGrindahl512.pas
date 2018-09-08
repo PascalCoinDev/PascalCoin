@@ -10,10 +10,13 @@ uses
 {$ENDIF DELPHI2010}
   HlpHashLibTypes,
 {$IFDEF DELPHI}
+  HlpHash,
+  HlpHashBuffer,
   HlpBitConverter,
 {$ENDIF DELPHI}
   HlpBits,
   HlpConverters,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashCryptoNotBuildIn;
 
@@ -179,6 +182,7 @@ type
   public
     constructor Create();
     procedure Initialize(); override;
+    function Clone(): IHash; override;
 
   end;
 
@@ -197,6 +201,19 @@ begin
     result[j] := TBits.RotateRight64(s_master_table[j], i * 8);
     System.Inc(j);
   end;
+end;
+
+function TGrindahl512.Clone(): IHash;
+var
+  HashInstance: TGrindahl512;
+begin
+  HashInstance := TGrindahl512.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_temp := System.Copy(Fm_temp);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
 end;
 
 constructor TGrindahl512.Create;

@@ -5,32 +5,34 @@ unit HlpTiger;
 interface
 
 uses
-{$IFDEF DELPHI2010}
-  SysUtils, // to get rid of compiler hint "not inlined" on Delphi 2010.
-{$ENDIF DELPHI2010}
+{$IFDEF HAS_UNITSCOPE}
+  System.SysUtils,
+{$ELSE}
+  SysUtils,
+{$ENDIF HAS_UNITSCOPE}
 {$IFDEF DELPHI}
   HlpBitConverter,
   HlpHashBuffer,
+  HlpHash,
 {$ENDIF DELPHI}
   HlpHashLibTypes,
   HlpConverters,
   HlpHashRounds,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashCryptoNotBuildIn;
 
 resourcestring
   SInvalidTigerHashSize =
     'Tiger HashSize Must be Either 128 bit(16 byte), 160 bit(20 byte) or 192 bit(24 byte)';
+  SInvalidHashRound = 'Specified HashRound Is Invalid or UnSupported "%d"';
 
 type
   TTiger = class abstract(TBlockHash, ICryptoNotBuildIn, ITransformBlock)
 
   strict private
 
-    Fm_rounds: Int32;
-
 {$REGION 'Consts'}
-
   const
 
     C1 = UInt64($A5A5A5A5A5A5A5A5);
@@ -558,14 +560,18 @@ type
 
 {$ENDREGION}
   strict protected
+    Fm_rounds: Int32;
     Fm_hash: THashLibUInt64Array;
 
     constructor Create(a_hash_size: Int32; a_rounds: THashRounds);
 
+    function GetName: String; override;
     function GetResult(): THashLibByteArray; override;
     procedure Finish(); override;
     procedure TransformBlock(a_data: PByte; a_data_length: Int32;
       a_index: Int32); override;
+
+    function GetHashRound(AHashRound: Int32): THashRounds; inline;
 
   public
     procedure Initialize(); override;
@@ -578,6 +584,7 @@ type
 
   public
     constructor Create(a_hash_size: Int32; a_rounds: THashRounds);
+    function Clone(): IHash; override;
 
   end;
 
@@ -589,6 +596,7 @@ type
     constructor CreateRound3();
     constructor CreateRound4();
     constructor CreateRound5();
+    function Clone(): IHash; override;
 
   end;
 
@@ -600,6 +608,7 @@ type
     constructor CreateRound3();
     constructor CreateRound4();
     constructor CreateRound5();
+    function Clone(): IHash; override;
 
   end;
 
@@ -610,12 +619,32 @@ type
     constructor CreateRound3();
     constructor CreateRound4();
     constructor CreateRound5();
+    function Clone(): IHash; override;
 
   end;
 
 implementation
 
 { TTiger }
+
+function TTiger.GetHashRound(AHashRound: Int32): THashRounds;
+begin
+  case AHashRound of
+    3:
+      Result := THashRounds.hrRounds3;
+    4:
+      Result := THashRounds.hrRounds4;
+    5:
+      Result := THashRounds.hrRounds5;
+    8:
+      Result := THashRounds.hrRounds8
+  else
+    begin
+      raise EArgumentInvalidHashLibException.CreateResFmt(@SInvalidHashRound,
+        [AHashRound]);
+    end;
+  end;
+end;
 
 constructor TTiger.Create(a_hash_size: Int32; a_rounds: THashRounds);
 begin
@@ -650,11 +679,17 @@ begin
 
 end;
 
+function TTiger.GetName: String;
+begin
+  Result := Format('%s_%u_%u', [Self.ClassParent.ClassName, Fm_rounds,
+    Self.HashSize * 8]);
+end;
+
 function TTiger.GetResult: THashLibByteArray;
 begin
-  System.SetLength(result, HashSize);
-  TConverters.le64_copy(PUInt64(Fm_hash), 0, PByte(result), 0,
-    System.Length(result));
+  System.SetLength(Result, HashSize);
+  TConverters.le64_copy(PUInt64(Fm_hash), 0, PByte(Result), 0,
+    System.Length(Result));
 end;
 
 procedure TTiger.Initialize;
@@ -973,11 +1008,23 @@ begin
   Fm_hash[1] := b - Fm_hash[1];
   Fm_hash[2] := Fm_hash[2] + c;
 
-  System.FillChar(data, System.SizeOf(data), 0);
+  System.FillChar(data, System.SizeOf(data), UInt64(0));
 
 end;
 
 { TTiger_128 }
+
+function TTiger_128.Clone(): IHash;
+var
+  HashInstance: TTiger_128;
+begin
+  HashInstance := TTiger_128.Create(HashSize, GetHashRound(Fm_rounds));
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  Result := HashInstance as IHash;
+  Result.BufferSize := BufferSize;
+end;
 
 constructor TTiger_128.CreateRound3;
 begin
@@ -996,6 +1043,18 @@ end;
 
 { TTiger_160 }
 
+function TTiger_160.Clone(): IHash;
+var
+  HashInstance: TTiger_160;
+begin
+  HashInstance := TTiger_160.Create(HashSize, GetHashRound(Fm_rounds));
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  Result := HashInstance as IHash;
+  Result.BufferSize := BufferSize;
+end;
+
 constructor TTiger_160.CreateRound3;
 begin
   Inherited Create(20, THashRounds.hrRounds3);
@@ -1013,6 +1072,18 @@ end;
 
 { TTiger_192 }
 
+function TTiger_192.Clone(): IHash;
+var
+  HashInstance: TTiger_192;
+begin
+  HashInstance := TTiger_192.Create(HashSize, GetHashRound(Fm_rounds));
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  Result := HashInstance as IHash;
+  Result.BufferSize := BufferSize;
+end;
+
 constructor TTiger_192.CreateRound3;
 begin
   Inherited Create(24, THashRounds.hrRounds3);
@@ -1029,6 +1100,18 @@ begin
 end;
 
 { TTiger_Base }
+
+function TTiger_Base.Clone(): IHash;
+var
+  HashInstance: TTiger_Base;
+begin
+  HashInstance := TTiger_Base.Create(HashSize, GetHashRound(Fm_rounds));
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  Result := HashInstance as IHash;
+  Result.BufferSize := BufferSize;
+end;
 
 constructor TTiger_Base.Create(a_hash_size: Int32; a_rounds: THashRounds);
 begin

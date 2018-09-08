@@ -10,6 +10,7 @@ uses
 {$ENDIF DELPHI2010}
   HlpHashLibTypes,
 {$IFDEF DELPHI}
+  HlpHash,
   HlpHashBuffer,
   HlpBitConverter,
 {$ENDIF DELPHI}
@@ -17,6 +18,7 @@ uses
   HlpHashSize,
   HlpHashRounds,
   HlpConverters,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashCryptoNotBuildIn;
 
@@ -93,6 +95,7 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -102,6 +105,7 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -111,6 +115,7 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -120,6 +125,7 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -129,6 +135,7 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -138,6 +145,7 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -147,6 +155,7 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -156,6 +165,7 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -165,6 +175,7 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -174,6 +185,7 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -183,6 +195,7 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -192,6 +205,7 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -201,6 +215,7 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -210,6 +225,7 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -219,6 +235,7 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -784,7 +801,7 @@ begin
   Fm_hash[6] := Fm_hash[6] + g;
   Fm_hash[7] := Fm_hash[7] + h;
 
-  System.FillChar(temp, System.SizeOf(temp), 0);
+  System.FillChar(temp, System.SizeOf(temp), UInt32(0));
 end;
 
 { THaval4 }
@@ -1365,7 +1382,7 @@ begin
   Fm_hash[6] := Fm_hash[6] + g;
   Fm_hash[7] := Fm_hash[7] + h;
 
-  System.FillChar(temp, System.SizeOf(temp), 0);
+  System.FillChar(temp, System.SizeOf(temp), UInt32(0));
 
 end;
 
@@ -2074,11 +2091,25 @@ begin
   Fm_hash[6] := Fm_hash[6] + g;
   Fm_hash[7] := Fm_hash[7] + h;
 
-  System.FillChar(temp, System.SizeOf(temp), 0);
+  System.FillChar(temp, System.SizeOf(temp), UInt32(0));
 
 end;
 
 { THaval_3_128 }
+
+function THaval_3_128.Clone(): IHash;
+var
+  HashInstance: THaval_3_128;
+begin
+  HashInstance := THaval_3_128.Create();
+  HashInstance.Fm_rounds := Fm_rounds;
+  HashInstance.FHashSize := FHashSize;
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor THaval_3_128.Create;
 begin
@@ -2087,12 +2118,40 @@ end;
 
 { THaval_4_128 }
 
+function THaval_4_128.Clone(): IHash;
+var
+  HashInstance: THaval_4_128;
+begin
+  HashInstance := THaval_4_128.Create();
+  HashInstance.Fm_rounds := Fm_rounds;
+  HashInstance.FHashSize := FHashSize;
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
+
 constructor THaval_4_128.Create;
 begin
   inherited Create(THashSize.hsHashSize128);
 end;
 
 { THaval_5_128 }
+
+function THaval_5_128.Clone(): IHash;
+var
+  HashInstance: THaval_5_128;
+begin
+  HashInstance := THaval_5_128.Create();
+  HashInstance.Fm_rounds := Fm_rounds;
+  HashInstance.FHashSize := FHashSize;
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor THaval_5_128.Create;
 begin
@@ -2101,12 +2160,40 @@ end;
 
 { THaval_3_160 }
 
+function THaval_3_160.Clone(): IHash;
+var
+  HashInstance: THaval_3_160;
+begin
+  HashInstance := THaval_3_160.Create();
+  HashInstance.Fm_rounds := Fm_rounds;
+  HashInstance.FHashSize := FHashSize;
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
+
 constructor THaval_3_160.Create;
 begin
   inherited Create(THashSize.hsHashSize160);
 end;
 
 { THaval_4_160 }
+
+function THaval_4_160.Clone(): IHash;
+var
+  HashInstance: THaval_4_160;
+begin
+  HashInstance := THaval_4_160.Create();
+  HashInstance.Fm_rounds := Fm_rounds;
+  HashInstance.FHashSize := FHashSize;
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor THaval_4_160.Create;
 begin
@@ -2115,12 +2202,40 @@ end;
 
 { THaval_5_160 }
 
+function THaval_5_160.Clone(): IHash;
+var
+  HashInstance: THaval_5_160;
+begin
+  HashInstance := THaval_5_160.Create();
+  HashInstance.Fm_rounds := Fm_rounds;
+  HashInstance.FHashSize := FHashSize;
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
+
 constructor THaval_5_160.Create;
 begin
   inherited Create(THashSize.hsHashSize160);
 end;
 
 { THaval_3_192 }
+
+function THaval_3_192.Clone(): IHash;
+var
+  HashInstance: THaval_3_192;
+begin
+  HashInstance := THaval_3_192.Create();
+  HashInstance.Fm_rounds := Fm_rounds;
+  HashInstance.FHashSize := FHashSize;
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor THaval_3_192.Create;
 begin
@@ -2129,12 +2244,40 @@ end;
 
 { THaval_4_192 }
 
+function THaval_4_192.Clone(): IHash;
+var
+  HashInstance: THaval_4_192;
+begin
+  HashInstance := THaval_4_192.Create();
+  HashInstance.Fm_rounds := Fm_rounds;
+  HashInstance.FHashSize := FHashSize;
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
+
 constructor THaval_4_192.Create;
 begin
   inherited Create(THashSize.hsHashSize192);
 end;
 
 { THaval_5_192 }
+
+function THaval_5_192.Clone(): IHash;
+var
+  HashInstance: THaval_5_192;
+begin
+  HashInstance := THaval_5_192.Create();
+  HashInstance.Fm_rounds := Fm_rounds;
+  HashInstance.FHashSize := FHashSize;
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor THaval_5_192.Create;
 begin
@@ -2143,12 +2286,40 @@ end;
 
 { THaval_3_224 }
 
+function THaval_3_224.Clone(): IHash;
+var
+  HashInstance: THaval_3_224;
+begin
+  HashInstance := THaval_3_224.Create();
+  HashInstance.Fm_rounds := Fm_rounds;
+  HashInstance.FHashSize := FHashSize;
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
+
 constructor THaval_3_224.Create;
 begin
   inherited Create(THashSize.hsHashSize224);
 end;
 
 { THaval_4_224 }
+
+function THaval_4_224.Clone(): IHash;
+var
+  HashInstance: THaval_4_224;
+begin
+  HashInstance := THaval_4_224.Create();
+  HashInstance.Fm_rounds := Fm_rounds;
+  HashInstance.FHashSize := FHashSize;
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor THaval_4_224.Create;
 begin
@@ -2157,12 +2328,40 @@ end;
 
 { THaval_5_224 }
 
+function THaval_5_224.Clone(): IHash;
+var
+  HashInstance: THaval_5_224;
+begin
+  HashInstance := THaval_5_224.Create();
+  HashInstance.Fm_rounds := Fm_rounds;
+  HashInstance.FHashSize := FHashSize;
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
+
 constructor THaval_5_224.Create;
 begin
   inherited Create(THashSize.hsHashSize224);
 end;
 
 { THaval_3_256 }
+
+function THaval_3_256.Clone(): IHash;
+var
+  HashInstance: THaval_3_256;
+begin
+  HashInstance := THaval_3_256.Create();
+  HashInstance.Fm_rounds := Fm_rounds;
+  HashInstance.FHashSize := FHashSize;
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor THaval_3_256.Create;
 begin
@@ -2171,12 +2370,40 @@ end;
 
 { THaval_4_256 }
 
+function THaval_4_256.Clone(): IHash;
+var
+  HashInstance: THaval_4_256;
+begin
+  HashInstance := THaval_4_256.Create();
+  HashInstance.Fm_rounds := Fm_rounds;
+  HashInstance.FHashSize := FHashSize;
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
+
 constructor THaval_4_256.Create;
 begin
   inherited Create(THashSize.hsHashSize256);
 end;
 
 { THaval_5_256 }
+
+function THaval_5_256.Clone(): IHash;
+var
+  HashInstance: THaval_5_256;
+begin
+  HashInstance := THaval_5_256.Create();
+  HashInstance.Fm_rounds := Fm_rounds;
+  HashInstance.FHashSize := FHashSize;
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor THaval_5_256.Create;
 begin

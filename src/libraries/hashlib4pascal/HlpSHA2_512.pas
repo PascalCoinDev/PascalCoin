@@ -11,7 +11,10 @@ uses
   HlpHashLibTypes,
 {$IFDEF DELPHI}
   HlpBitConverter,
+  HlpHashBuffer,
+  HlpHash,
 {$ENDIF DELPHI}
+  HlpIHash,
   HlpSHA2_512Base,
   HlpConverters;
 
@@ -24,12 +27,25 @@ type
   public
     constructor Create();
     procedure Initialize(); override;
+    function Clone(): IHash; override;
 
   end;
 
 implementation
 
 { TSHA2_512 }
+
+function TSHA2_512.Clone(): IHash;
+var
+  HashInstance: TSHA2_512;
+begin
+  HashInstance := TSHA2_512.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TSHA2_512.Create;
 begin

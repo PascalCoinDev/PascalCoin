@@ -7,6 +7,7 @@ interface
 uses
   HlpHashLibTypes,
   HlpHash,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashResult,
   HlpIHashResult;
@@ -24,12 +25,24 @@ type
     procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
+    function Clone(): IHash; override;
 
   end;
 
 implementation
 
 { TAP }
+
+function TAP.Clone(): IHash;
+var
+  HashInstance: TAP;
+begin
+  HashInstance := TAP.Create();
+  HashInstance.Fm_hash := Fm_hash;
+  HashInstance.Fm_index := Fm_index;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TAP.Create;
 begin

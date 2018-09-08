@@ -6,6 +6,7 @@ interface
 
 uses
   HlpHash,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashResult,
   HlpIHashResult,
@@ -20,11 +21,6 @@ type
     FC: THashLibMatrixByteArray;
     FT: THashLibMatrixUInt64Array;
 
-  var
-    FIV, FN, FSigma, FKi, Fm, Fh, Ftmp, Fblock: THashLibByteArray;
-
-    FbOff: Int32;
-
     procedure InternalUpdate(input: Byte); inline;
     procedure xor512(const A, B: THashLibByteArray); inline;
     procedure E(const K, a_m: THashLibByteArray);
@@ -37,6 +33,12 @@ type
     class constructor GOST3411_2012();
 
   strict protected
+
+  var
+    FIV, FN, FSigma, FKi, Fm, Fh, Ftmp, Fblock: THashLibByteArray;
+
+    FbOff: Int32;
+
     constructor Create(a_hash_size: Int32; const IV: THashLibByteArray);
 
   public
@@ -59,6 +61,7 @@ type
   public
     constructor Create();
     function TransformFinal: IHashResult; override;
+    function Clone(): IHash; override;
   end;
 
 type
@@ -72,6 +75,7 @@ type
     class constructor TGOST3411_2012_512();
   public
     constructor Create();
+    function Clone(): IHash; override;
   end;
 
 implementation
@@ -80,7 +84,7 @@ implementation
 
 procedure TGOST3411_2012.xor512(const A, B: THashLibByteArray);
 var
-  i: Integer;
+  i: Int32;
 begin
   for i := 0 to System.Pred(64) do
   begin
@@ -338,7 +342,7 @@ begin
   V[57] := Byte(r shr 8);
   V[56] := Byte(r);
 
-  System.FillChar(res, System.SizeOf(res), 0);
+  System.FillChar(res, System.SizeOf(res), UInt64(0));
 end;
 
 class constructor TGOST3411_2012.GOST3411_2012;
@@ -1627,6 +1631,24 @@ end;
 
 { TGOST3411_2012_256 }
 
+function TGOST3411_2012_256.Clone(): IHash;
+var
+  HashInstance: TGOST3411_2012_256;
+begin
+  HashInstance := TGOST3411_2012_256.Create();
+  HashInstance.FIV := System.Copy(FIV);
+  HashInstance.FN := System.Copy(FN);
+  HashInstance.FSigma := System.Copy(FSigma);
+  HashInstance.FKi := System.Copy(FKi);
+  HashInstance.Fm := System.Copy(Fm);
+  HashInstance.Fh := System.Copy(Fh);
+  HashInstance.Ftmp := System.Copy(Ftmp);
+  HashInstance.Fblock := System.Copy(Fblock);
+  HashInstance.FbOff := FbOff;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
+
 constructor TGOST3411_2012_256.Create();
 begin
   inherited Create(32, FIV_256);
@@ -1652,6 +1674,24 @@ begin
 end;
 
 { TGOST3411_2012_512 }
+
+function TGOST3411_2012_512.Clone(): IHash;
+var
+  HashInstance: TGOST3411_2012_512;
+begin
+  HashInstance := TGOST3411_2012_512.Create();
+  HashInstance.FIV := System.Copy(FIV);
+  HashInstance.FN := System.Copy(FN);
+  HashInstance.FSigma := System.Copy(FSigma);
+  HashInstance.FKi := System.Copy(FKi);
+  HashInstance.Fm := System.Copy(Fm);
+  HashInstance.Fh := System.Copy(Fh);
+  HashInstance.Ftmp := System.Copy(Ftmp);
+  HashInstance.Fblock := System.Copy(Fblock);
+  HashInstance.FbOff := FbOff;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TGOST3411_2012_512.Create();
 begin

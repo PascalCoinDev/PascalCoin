@@ -12,8 +12,10 @@ uses
 {$IFDEF DELPHI}
   HlpBitConverter,
   HlpHashBuffer,
+  HlpHash,
 {$ENDIF DELPHI}
   HlpConverters,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashCryptoNotBuildIn;
 
@@ -58,9 +60,9 @@ type
 {$ENDREGION}
     class constructor WhirlPool;
 
-    class function packIntoUInt64(b7, b6, b5, b4, b3, b2, b1, b0: UInt32)
+    class function PackIntoUInt64(b7, b6, b5, b4, b3, b2, b1, b0: UInt32)
       : UInt64; static; inline;
-    class function maskWithReductionPolynomial(input: UInt32): UInt32;
+    class function MaskWithReductionPolynomial(input: UInt32): UInt32;
       static; inline;
 
   strict protected
@@ -72,12 +74,25 @@ type
   public
     constructor Create();
     procedure Initialize(); override;
+    function Clone(): IHash; override;
 
   end;
 
 implementation
 
 { TWhirlPool }
+
+function TWhirlPool.Clone(): IHash;
+var
+  HashInstance: TWhirlPool;
+begin
+  HashInstance := TWhirlPool.Create();
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TWhirlPool.Create;
 begin
@@ -129,14 +144,14 @@ begin
   Inherited Initialize();
 end;
 
-class function TWhirlPool.maskWithReductionPolynomial(input: UInt32): UInt32;
+class function TWhirlPool.MaskWithReductionPolynomial(input: UInt32): UInt32;
 begin
   if (input >= $100) then
     input := input xor REDUCTION_POLYNOMIAL;
   result := input;
 end;
 
-class function TWhirlPool.packIntoUInt64(b7, b6, b5, b4, b3, b2, b1,
+class function TWhirlPool.PackIntoUInt64(b7, b6, b5, b4, b3, b2, b1,
   b0: UInt32): UInt64;
 begin
   result := (UInt64(b7) shl 56) xor (UInt64(b6) shl 48) xor (UInt64(b5) shl 40)
@@ -223,7 +238,7 @@ begin
     System.Inc(i);
   end;
 
-  System.FillChar(data, System.SizeOf(data), 0);
+  System.FillChar(data, System.SizeOf(data), UInt64(0));
 
 end;
 
@@ -249,20 +264,20 @@ begin
 
   begin
     v1 := s_SBOX[i];
-    v2 := maskWithReductionPolynomial(v1 shl 1);
-    v4 := maskWithReductionPolynomial(v2 shl 1);
+    v2 := MaskWithReductionPolynomial(v1 shl 1);
+    v4 := MaskWithReductionPolynomial(v2 shl 1);
     v5 := v4 xor v1;
-    v8 := maskWithReductionPolynomial(v4 shl 1);
+    v8 := MaskWithReductionPolynomial(v4 shl 1);
     v9 := v8 xor v1;
 
-    Fs_C0[i] := packIntoUInt64(v1, v1, v4, v1, v8, v5, v2, v9);
-    Fs_C1[i] := packIntoUInt64(v9, v1, v1, v4, v1, v8, v5, v2);
-    Fs_C2[i] := packIntoUInt64(v2, v9, v1, v1, v4, v1, v8, v5);
-    Fs_C3[i] := packIntoUInt64(v5, v2, v9, v1, v1, v4, v1, v8);
-    Fs_C4[i] := packIntoUInt64(v8, v5, v2, v9, v1, v1, v4, v1);
-    Fs_C5[i] := packIntoUInt64(v1, v8, v5, v2, v9, v1, v1, v4);
-    Fs_C6[i] := packIntoUInt64(v4, v1, v8, v5, v2, v9, v1, v1);
-    Fs_C7[i] := packIntoUInt64(v1, v4, v1, v8, v5, v2, v9, v1);
+    Fs_C0[i] := PackIntoUInt64(v1, v1, v4, v1, v8, v5, v2, v9);
+    Fs_C1[i] := PackIntoUInt64(v9, v1, v1, v4, v1, v8, v5, v2);
+    Fs_C2[i] := PackIntoUInt64(v2, v9, v1, v1, v4, v1, v8, v5);
+    Fs_C3[i] := PackIntoUInt64(v5, v2, v9, v1, v1, v4, v1, v8);
+    Fs_C4[i] := PackIntoUInt64(v8, v5, v2, v9, v1, v1, v4, v1);
+    Fs_C5[i] := PackIntoUInt64(v1, v8, v5, v2, v9, v1, v1, v4);
+    Fs_C6[i] := PackIntoUInt64(v4, v1, v8, v5, v2, v9, v1, v1);
+    Fs_C7[i] := PackIntoUInt64(v1, v4, v1, v8, v5, v2, v9, v1);
 
     System.Inc(i);
   end;

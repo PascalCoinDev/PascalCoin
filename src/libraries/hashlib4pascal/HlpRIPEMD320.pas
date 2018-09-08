@@ -11,9 +11,12 @@ uses
   HlpMDBase,
 {$IFDEF DELPHI}
   HlpBitConverter,
+  HlpHashBuffer,
+  HlpHash,
 {$ENDIF DELPHI}
   HlpBits,
   HlpConverters,
+  HlpIHash,
   HlpIHashInfo;
 
 type
@@ -26,12 +29,25 @@ type
   public
     constructor Create();
     procedure Initialize(); override;
+    function Clone(): IHash; override;
 
   end;
 
 implementation
 
 { TRIPEMD320 }
+
+function TRIPEMD320.Clone(): IHash;
+var
+  HashInstance: TRIPEMD320;
+begin
+  HashInstance := TRIPEMD320.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TRIPEMD320.Create;
 begin
@@ -572,7 +588,7 @@ begin
   Fm_state[8] := Fm_state[8] + d;
   Fm_state[9] := Fm_state[9] + e;
 
-  System.FillChar(data, System.SizeOf(data), 0);
+  System.FillChar(data, System.SizeOf(data), UInt32(0));
 
 end;
 

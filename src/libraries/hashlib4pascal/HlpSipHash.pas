@@ -13,10 +13,8 @@ uses
   HlpConverters,
   HlpIHashInfo,
   HlpNullable,
-{$IFDEF DELPHI}
-  HlpBitConverter,
-{$ENDIF DELPHI}
   HlpHash,
+  HlpIHash,
   HlpHashResult,
   HlpIHashResult,
   HlpBits;
@@ -29,12 +27,7 @@ type
 
   strict private
 
-    Fm_v0, Fm_v1, Fm_v2, Fm_v3, Fm_key0, Fm_key1, Fm_total_length: UInt64;
-    F_cr, F_fr, Fm_idx: Int32;
-    Fm_buf: THashLibByteArray;
-
 {$REGION 'Consts'}
-
   const
     V0 = UInt64($736F6D6570736575);
     V1 = UInt64($646F72616E646F6D);
@@ -53,6 +46,12 @@ type
     function GetKeyLength(): TNullableInteger;
     function GetKey: THashLibByteArray;
     procedure SetKey(const value: THashLibByteArray);
+
+  strict protected
+
+    Fm_v0, Fm_v1, Fm_v2, Fm_v3, Fm_key0, Fm_key1, Fm_total_length: UInt64;
+    F_cr, F_fr, Fm_idx: Int32;
+    Fm_buf: THashLibByteArray;
 
   public
     constructor Create(a_compression_rounds: Int32 = 2;
@@ -75,12 +74,33 @@ type
   public
 
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
 implementation
 
 { TSipHash2_4 }
+
+function TSipHash2_4.Clone(): IHash;
+var
+  HashInstance: TSipHash2_4;
+begin
+  HashInstance := TSipHash2_4.Create();
+  HashInstance.Fm_v0 := Fm_v0;
+  HashInstance.Fm_v1 := Fm_v1;
+  HashInstance.Fm_v2 := Fm_v2;
+  HashInstance.Fm_v3 := Fm_v3;
+  HashInstance.Fm_key0 := Fm_key0;
+  HashInstance.Fm_key1 := Fm_key1;
+  HashInstance.Fm_total_length := Fm_total_length;
+  HashInstance.F_cr := F_cr;
+  HashInstance.F_fr := F_fr;
+  HashInstance.Fm_idx := Fm_idx;
+  HashInstance.Fm_buf := System.Copy(Fm_buf);
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TSipHash2_4.Create;
 begin

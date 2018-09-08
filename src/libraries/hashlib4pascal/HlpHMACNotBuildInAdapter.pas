@@ -44,6 +44,7 @@ type
     function TransformFinal(): IHashResult; override;
     procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
+    function Clone(): IHash; override;
     property Key: THashLibByteArray read GetKey write SetKey;
     property Name: String read GetName;
     property KeyLength: TNullableInteger read GetKeyLength;
@@ -53,6 +54,19 @@ type
 implementation
 
 { THMACNotBuildInAdapter }
+
+function THMACNotBuildInAdapter.Clone(): IHash;
+var
+  HmacInstance: THMACNotBuildInAdapter;
+begin
+  HmacInstance := THMACNotBuildInAdapter.Create(Fm_hash.Clone());
+  HmacInstance.Fm_opad := System.Copy(Fm_opad);
+  HmacInstance.Fm_ipad := System.Copy(Fm_ipad);
+  HmacInstance.Fm_key := System.Copy(Fm_key);
+  HmacInstance.Fm_blocksize := Fm_blocksize;
+  result := HmacInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor THMACNotBuildInAdapter.Create(const a_underlyingHash: IHash);
 begin
@@ -102,8 +116,8 @@ begin
     LKey := Key;
   end;
 
-  System.FillChar(Fm_ipad[0], LBlockSize * System.SizeOf(Byte), $36);
-  System.FillChar(Fm_opad[0], LBlockSize * System.SizeOf(Byte), $5C);
+  System.FillChar(Fm_ipad[0], LBlockSize * System.SizeOf(Byte), Byte($36));
+  System.FillChar(Fm_opad[0], LBlockSize * System.SizeOf(Byte), Byte($5C));
 
   Idx := 0;
   while (Idx < System.Length(LKey)) and (Idx < LBlockSize) do
@@ -145,8 +159,7 @@ end;
 
 function THMACNotBuildInAdapter.GetName: String;
 begin
-  result := Format('%s(%s)', [Self.ClassName, (Self.Fm_hash as THash)
-    .ClassName]);
+  result := Format('%s(%s)', ['THMAC', Fm_hash.Name]);
 
 end;
 

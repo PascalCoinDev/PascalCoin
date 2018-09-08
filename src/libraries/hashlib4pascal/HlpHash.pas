@@ -24,7 +24,7 @@ resourcestring
   // SInvalidHashSize = '"HashSize" Must Be Greater Than Zero';
   SUnAssignedStream = 'Input Stream Is Unassigned';
   SFileNotExist = 'Specified File Not Found';
-  SNotYetImplemented = 'Not Yet Implemented For "%s"';
+  SCloneNotYetImplemented = 'Clone Not Yet Implemented For "%s"';
 
 type
   THash = class abstract(TInterfacedObject, IHash)
@@ -236,7 +236,7 @@ end;
 function THash.Clone(): IHash;
 begin
   raise ENotImplementedHashLibException.CreateResFmt
-    (@SNotYetImplemented, [Name]);
+    (@SCloneNotYetImplemented, [Name]);
 end;
 
 function THash.ComputeBytes(const a_data: THashLibByteArray): IHashResult;

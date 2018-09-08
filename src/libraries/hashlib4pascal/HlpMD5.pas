@@ -12,7 +12,10 @@ uses
   HlpMDBase,
 {$IFDEF DELPHI}
   HlpBitConverter,
+  HlpHashBuffer,
+  HlpHash,
 {$ENDIF DELPHI}
+  HlpIHash,
   HlpConverters,
   HlpIHashInfo;
 
@@ -25,12 +28,25 @@ type
 
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
 implementation
 
 { TMD5 }
+
+function TMD5.Clone(): IHash;
+var
+  HashInstance: TMD5;
+begin
+  HashInstance := TMD5.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TMD5.Create;
 begin
@@ -188,7 +204,7 @@ begin
   Fm_state[2] := Fm_state[2] + C;
   Fm_state[3] := Fm_state[3] + D;
 
-  System.FillChar(data, System.SizeOf(data), 0);
+  System.FillChar(data, System.SizeOf(data), UInt32(0));
 
 end;
 

@@ -12,8 +12,10 @@ uses
 {$IFDEF DELPHI}
   HlpHashBuffer,
   HlpBitConverter,
+  HlpHash,
 {$ENDIF DELPHI}
   HlpIHashInfo,
+  HlpIHash,
   HlpHashCryptoNotBuildIn,
   HlpConverters,
   HlpHashSize,
@@ -22,11 +24,8 @@ uses
 type
   TSHA3 = class abstract(TBlockHash, ICryptoNotBuildIn, ITransformBlock)
 
-  strict private
-    Fm_state: THashLibUInt64Array;
-
   strict protected
-
+    Fm_state: THashLibUInt64Array;
     FHashSize, FBlockSize: Int32;
 
     (*
@@ -65,6 +64,7 @@ type
   public
 
     constructor Create();
+    function Clone(): IHash; override;
   end;
 
 type
@@ -74,6 +74,7 @@ type
   public
 
     constructor Create();
+    function Clone(): IHash; override;
   end;
 
 type
@@ -83,6 +84,7 @@ type
   public
 
     constructor Create();
+    function Clone(): IHash; override;
   end;
 
 type
@@ -92,6 +94,7 @@ type
   public
 
     constructor Create();
+    function Clone(): IHash; override;
   end;
 
 implementation
@@ -2780,10 +2783,22 @@ begin
   Fm_state[23] := Aso;
   Fm_state[24] := Asu;
 
-  System.FillChar(data, System.SizeOf(data), 0);
+  System.FillChar(data, System.SizeOf(data), UInt64(0));
 end;
 
 { TSHA3_224 }
+
+function TSHA3_224.Clone(): IHash;
+var
+  HashInstance: TSHA3_224;
+begin
+  HashInstance := TSHA3_224.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TSHA3_224.Create;
 begin
@@ -2792,6 +2807,18 @@ end;
 
 { TSHA3_256 }
 
+function TSHA3_256.Clone(): IHash;
+var
+  HashInstance: TSHA3_256;
+begin
+  HashInstance := TSHA3_256.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
+
 constructor TSHA3_256.Create;
 begin
   Inherited Create(THashSize.hsHashSize256);
@@ -2799,12 +2826,36 @@ end;
 
 { TSHA3_384 }
 
+function TSHA3_384.Clone(): IHash;
+var
+  HashInstance: TSHA3_384;
+begin
+  HashInstance := TSHA3_384.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
+
 constructor TSHA3_384.Create;
 begin
   Inherited Create(THashSize.hsHashSize384);
 end;
 
 { TSHA3_512 }
+
+function TSHA3_512.Clone(): IHash;
+var
+  HashInstance: TSHA3_512;
+begin
+  HashInstance := TSHA3_512.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TSHA3_512.Create;
 begin

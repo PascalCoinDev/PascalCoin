@@ -11,7 +11,7 @@ uses
 
 resourcestring
   SInvalidHashSize =
-    'BLAKE2B HashSize must be restricted to one of the following [20, 32, 48, 64]';
+    'BLAKE2B HashSize must be restricted to one of the following [20, 32, 48, 64], "%d"';
 
 type
 
@@ -23,6 +23,8 @@ type
 
     FHashSize: Int32;
     FPersonalisation, FSalt, FKey: THashLibByteArray;
+
+    procedure ValidateHashSize(AHashSize: Int32); inline;
 
     function GetPersonalisation: THashLibByteArray; inline;
     procedure SetPersonalisation(const value: THashLibByteArray); inline;
@@ -50,6 +52,15 @@ implementation
 
 { TBlake2BConfig }
 
+procedure TBlake2BConfig.ValidateHashSize(AHashSize: Int32);
+begin
+  if not((AHashSize) in [20, 32, 48, 64]) then
+  begin
+    raise EArgumentHashLibException.CreateResFmt(@SInvalidHashSize,
+      [Int32(AHashSize)]);
+  end;
+end;
+
 function TBlake2BConfig.GetHashSize: Int32;
 begin
   result := FHashSize;
@@ -72,6 +83,7 @@ end;
 
 procedure TBlake2BConfig.SetHashSize(value: Int32);
 begin
+  ValidateHashSize(value);
   FHashSize := value;
 end;
 
@@ -91,13 +103,13 @@ begin
 end;
 
 constructor TBlake2BConfig.Create(AHashSize: THashSize);
+var
+  LHashSize: Int32;
 begin
   Inherited Create();
-  if not(Int32(AHashSize) in [20, 32, 48, 64]) then
-  begin
-    raise EArgumentHashLibException.CreateRes(@SInvalidHashSize);
-  end;
-  HashSize := Int32(AHashSize);
+  LHashSize := Int32(AHashSize);
+  ValidateHashSize(LHashSize);
+  FHashSize := LHashSize;
 end;
 
 end.

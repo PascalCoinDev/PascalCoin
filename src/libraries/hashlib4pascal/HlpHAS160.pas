@@ -10,10 +10,12 @@ uses
 {$ENDIF DELPHI2010}
   HlpHashLibTypes,
 {$IFDEF DELPHI}
+  HlpHash,
   HlpHashBuffer,
   HlpBitConverter,
 {$ENDIF DELPHI}
   HlpConverters,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashCryptoNotBuildIn;
 
@@ -50,11 +52,24 @@ type
   public
     constructor Create();
     procedure Initialize(); override;
+    function Clone(): IHash; override;
   end;
 
 implementation
 
 { THAS160 }
+
+function THAS160.Clone(): IHash;
+var
+  HashInstance: THAS160;
+begin
+  HashInstance := THAS160.Create();
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor THAS160.Create;
 begin
@@ -202,7 +217,7 @@ begin
   Fm_hash[3] := Fm_hash[3] + D;
   Fm_hash[4] := Fm_hash[4] + E;
 
-  System.FillChar(data, System.SizeOf(data), 0);
+  System.FillChar(data, System.SizeOf(data), UInt32(0));
 
 end;
 

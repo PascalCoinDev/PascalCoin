@@ -6,7 +6,11 @@ interface
 
 uses
   HlpHashLibTypes,
+{$IFDEF DELPHI}
+  HlpHash,
+{$ENDIF DELPHI}
   HlpBits,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashResult,
   HlpIHashResult,
@@ -17,10 +21,11 @@ type
   TDEK = class sealed(TMultipleTransformNonBlock, IHash32, ITransformBlock)
 
   strict protected
-    function ComputeAggregatedBytes(a_data: THashLibByteArray)
+    function ComputeAggregatedBytes(const a_data: THashLibByteArray)
       : IHashResult; override;
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -33,7 +38,19 @@ begin
   Inherited Create(4, 1);
 end;
 
-function TDEK.ComputeAggregatedBytes(a_data: THashLibByteArray): IHashResult;
+function TDEK.Clone(): IHash;
+var
+  HashInstance: TDEK;
+begin
+  HashInstance := TDEK.Create();
+  FBuffer.Position := 0;
+  HashInstance.FBuffer.CopyFrom(FBuffer, FBuffer.Size);
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
+
+function TDEK.ComputeAggregatedBytes(const a_data: THashLibByteArray)
+  : IHashResult;
 var
   hash: UInt32;
   i: Int32;

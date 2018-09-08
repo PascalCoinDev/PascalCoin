@@ -6,6 +6,10 @@ interface
 
 uses
   HlpHashLibTypes,
+{$IFDEF DELPHI}
+  HlpHash,
+{$ENDIF DELPHI}
+  HlpIHash,
   HlpIHashInfo,
   HlpHashResult,
   HlpIHashResult,
@@ -17,10 +21,11 @@ type
     ITransformBlock)
 
   strict protected
-    function ComputeAggregatedBytes(a_data: THashLibByteArray)
+    function ComputeAggregatedBytes(const a_data: THashLibByteArray)
       : IHashResult; override;
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -33,7 +38,18 @@ begin
   Inherited Create(4, 4);
 end;
 
-function TSuperFast.ComputeAggregatedBytes(a_data: THashLibByteArray)
+function TSuperFast.Clone(): IHash;
+var
+  HashInstance: TSuperFast;
+begin
+  HashInstance := TSuperFast.Create();
+  FBuffer.Position := 0;
+  HashInstance.FBuffer.CopyFrom(FBuffer, FBuffer.Size);
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
+
+function TSuperFast.ComputeAggregatedBytes(const a_data: THashLibByteArray)
   : IHashResult;
 var
   hash, tmp, u1: UInt32;

@@ -7,6 +7,7 @@ interface
 uses
   HlpHashLibTypes,
   HlpHash,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashResult,
   HlpIHashResult;
@@ -26,11 +27,23 @@ type
     procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
+    function Clone(): IHash; override;
   end;
 
 implementation
 
 { TRS }
+
+function TRS.Clone(): IHash;
+var
+  HashInstance: TRS;
+begin
+  HashInstance := TRS.Create();
+  HashInstance.Fm_hash := Fm_hash;
+  HashInstance.Fm_a := Fm_a;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TRS.Create;
 begin

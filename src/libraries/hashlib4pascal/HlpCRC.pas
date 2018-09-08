@@ -9,12 +9,15 @@ interface
 
 uses
 {$IFDEF HAS_UNITSCOPE}
+  System.SysUtils,
   System.TypInfo,
 {$ELSE}
+  SysUtils,
   TypInfo,
 {$ENDIF HAS_UNITSCOPE}
   HlpHashLibTypes,
   HlpHash,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashResult,
   HlpIHashResult,
@@ -550,7 +553,6 @@ type
     FReflectIn, FReflectOut, FIsTableGenerated: Boolean;
 
     Fm_CRCTable: THashLibUInt64Array;
-    Fptr_Fm_CRCTable: PUInt64;
 
   const
     Delta = Int32(7);
@@ -591,6 +593,9 @@ type
     property XOROut: UInt64 read GetXOROut write SetXOROut;
     property CheckValue: UInt64 read GetCheckValue write SetCheckValue;
 
+  strict protected
+    function GetName: String; override;
+
   public
 
     constructor Create(_Width: Int32; _poly, _Init: UInt64;
@@ -601,6 +606,8 @@ type
     procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
+
+    function Clone(): IHash; override;
 
     class function CreateCRCObject(a_value: TCRCStandard): ICRC; static;
 
@@ -690,6 +697,11 @@ begin
   FXorOut := value;
 end;
 
+function TCRC.GetName: String;
+begin
+  result := Format('T%s', [(Self as ICRC).Names[0]]);
+end;
+
 procedure TCRC.CalculateCRCbyTable(a_data: PByte;
   a_data_length, a_index: Int32);
 var
@@ -705,7 +717,7 @@ begin
   begin
     while Length > 0 do
     begin
-      tmp := (tmp shr 8) xor Fptr_Fm_CRCTable[Byte(tmp xor a_data[i])];
+      tmp := (tmp shr 8) xor Fm_CRCTable[Byte(tmp xor a_data[i])];
       System.Inc(i);
       System.Dec(Length);
     end;
@@ -716,7 +728,7 @@ begin
 
     while Length > 0 do
     begin
-      tmp := (tmp shl 8) xor Fptr_Fm_CRCTable
+      tmp := (tmp shl 8) xor Fm_CRCTable
         [Byte((tmp shr (Width - 8)) xor a_data[i])];
       System.Inc(i);
       System.Dec(Length);
@@ -759,6 +771,21 @@ begin
     System.Dec(Length);
   end;
 
+end;
+
+function TCRC.Clone(): IHash;
+var
+  HashInstance: TCRC;
+begin
+  HashInstance := TCRC.Create(Width, Polynomial, Init, ReflectIn, ReflectOut,
+    XOROut, CheckValue, System.Copy(Names));
+  HashInstance.Fm_CRCMask := Fm_CRCMask;
+  HashInstance.Fm_CRCHighBitMask := Fm_CRCHighBitMask;
+  HashInstance.Fm_hash := Fm_hash;
+  HashInstance.FIsTableGenerated := FIsTableGenerated;
+  HashInstance.Fm_CRCTable := System.Copy(Fm_CRCTable);
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
 end;
 
 constructor TCRC.Create(_Width: Int32; _poly, _Init: UInt64;
@@ -1244,7 +1271,6 @@ var
   i, j: Int32;
 begin
   System.SetLength(Fm_CRCTable, 256);
-  Fptr_Fm_CRCTable := PUInt64(Fm_CRCTable);
   i := 0;
   while i < 256 do
   begin
@@ -1270,7 +1296,7 @@ begin
       crc := Reflect(crc, Width);
     end;
     crc := crc and Fm_CRCMask;
-    Fptr_Fm_CRCTable[i] := crc;
+    Fm_CRCTable[i] := crc;
     System.Inc(i);
   end;
 

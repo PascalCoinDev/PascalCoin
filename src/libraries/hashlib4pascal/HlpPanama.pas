@@ -9,8 +9,11 @@ uses
   HlpBits,
 {$IFDEF DELPHI}
   HlpBitConverter,
+  HlpHashBuffer,
+  HlpHash,
 {$ENDIF DELPHI}
   HlpConverters,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashCryptoNotBuildIn;
 
@@ -38,12 +41,35 @@ type
   public
     constructor Create();
     procedure Initialize(); override;
+    function Clone(): IHash; override;
 
   end;
 
 implementation
 
 { TPanama }
+
+function TPanama.Clone(): IHash;
+var
+  HashInstance: TPanama;
+  Idx: Int32;
+begin
+  HashInstance := TPanama.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Ftheta := System.Copy(Ftheta);
+  HashInstance.Fgamma := System.Copy(Fgamma);
+  HashInstance.Fpi := System.Copy(Fpi);
+  // since System.Copy() does not support jagged arrays (multidimensional dynamic arrays, we improvise)
+  for Idx := System.Low(Fm_stages) to System.High(Fm_stages) do
+  begin
+    HashInstance.Fm_stages[Idx] := System.Copy(Fm_stages[Idx]);
+  end;
+  HashInstance.Fm_tap := Fm_tap;
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TPanama.Create;
 var
@@ -214,6 +240,17 @@ begin
   System.FillChar(Fm_state[0], System.Length(Fm_state) * System.SizeOf(UInt32),
     UInt32(0));
 
+  System.FillChar(Ftheta[0], System.Length(Ftheta) * System.SizeOf(UInt32),
+    UInt32(0));
+
+  System.FillChar(Fgamma[0], System.Length(Fgamma) * System.SizeOf(UInt32),
+    UInt32(0));
+
+  System.FillChar(Fpi[0], System.Length(Fpi) * System.SizeOf(UInt32),
+    UInt32(0));
+
+  Fm_tap := 0;
+
   for i := System.Low(Fm_stages) to System.High(Fm_stages) do
   begin
     System.FillChar(Fm_stages[i, 0], System.Length(Fm_stages[i]) *
@@ -276,7 +313,7 @@ begin
   Fm_state[15] := Ftheta[15] xor Fm_stages[tap16, 6];
   Fm_state[16] := Ftheta[16] xor Fm_stages[tap16, 7];
 
-  System.FillChar(work_buffer, System.SizeOf(work_buffer), 0);
+  System.FillChar(work_buffer, System.SizeOf(work_buffer), UInt32(0));
 
 end;
 

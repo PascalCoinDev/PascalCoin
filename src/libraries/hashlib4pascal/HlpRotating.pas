@@ -8,6 +8,7 @@ uses
   HlpHashLibTypes,
   HlpBits,
   HlpHash,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashResult,
   HlpIHashResult;
@@ -24,11 +25,22 @@ type
     procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
+    function Clone(): IHash; override;
   end;
 
 implementation
 
 { TRotating }
+
+function TRotating.Clone(): IHash;
+var
+  HashInstance: TRotating;
+begin
+  HashInstance := TRotating.Create();
+  HashInstance.Fm_hash := Fm_hash;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TRotating.Create;
 begin
