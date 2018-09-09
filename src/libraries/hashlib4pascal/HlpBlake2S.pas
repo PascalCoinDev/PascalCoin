@@ -21,6 +21,7 @@ uses
   HlpIHashResult,
   HlpIBlake2SConfig,
   HlpBlake2SConfig,
+  HlpIBlake2STreeConfig,
   HlpBlake2SIvBuilder,
   HlpIHash,
   HlpIHashInfo,
@@ -98,6 +99,8 @@ type
   public
     constructor Create(); overload;
     constructor Create(const config: IBlake2SConfig); overload;
+    constructor Create(const config: IBlake2SConfig;
+      const treeConfig: IBlake2STreeConfig); overload;
     procedure Initialize; override;
     procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_data_length: Int32); override;
@@ -1425,6 +1428,12 @@ begin
 end;
 
 constructor TBlake2S.Create(const config: IBlake2SConfig);
+begin
+  Create(config, Nil);
+end;
+
+constructor TBlake2S.Create(const config: IBlake2SConfig;
+  const treeConfig: IBlake2STreeConfig);
 var
   Lconfig: IBlake2SConfig;
 begin
@@ -1437,7 +1446,7 @@ begin
     Lconfig := FDefaultConfig;
   end;
 
-  FrawConfig := TBlake2SIvBuilder.ConfigS(Lconfig, Nil);
+  FrawConfig := TBlake2SIvBuilder.ConfigS(Lconfig, treeConfig);
   if ((Lconfig.Key <> Nil) and (System.Length(Lconfig.Key) <> 0)) then
   begin
 
