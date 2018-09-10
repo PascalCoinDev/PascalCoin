@@ -12,6 +12,10 @@ uses
 resourcestring
   SInvalidHashSize =
     'BLAKE2S HashSize must be restricted to one of the following [16, 20, 28, 32], "%d"';
+  SInvalidKeyLength = '"Key" Length Must Not Be Greater Than 32, "%d"';
+  SInvalidPersonalisationLength =
+    '"Personalisation" Length Must Be Equal To 8, "%d"';
+  SInvalidSaltLength = '"Salt" Length Must Be Equal To 8, "%d"';
 
 type
 
@@ -25,6 +29,10 @@ type
     FPersonalisation, FSalt, FKey: THashLibByteArray;
 
     procedure ValidateHashSize(AHashSize: Int32); inline;
+    procedure ValidateKeyLength(const AKey: THashLibByteArray); inline;
+    procedure ValidatePersonalisationLength(const APersonalisation
+      : THashLibByteArray); inline;
+    procedure ValidateSaltLength(const ASalt: THashLibByteArray); inline;
 
     function GetPersonalisation: THashLibByteArray; inline;
     procedure SetPersonalisation(const value: THashLibByteArray); inline;
@@ -61,6 +69,52 @@ begin
   end;
 end;
 
+procedure TBlake2SConfig.ValidateKeyLength(const AKey: THashLibByteArray);
+var
+  KeyLength: Int32;
+begin
+  if (AKey <> Nil) then
+  begin
+    KeyLength := System.Length(AKey);
+    if (KeyLength > 32) then
+    begin
+      raise EArgumentOutOfRangeHashLibException.CreateResFmt(@SInvalidKeyLength,
+        [KeyLength]);
+    end;
+  end;
+end;
+
+procedure TBlake2SConfig.ValidatePersonalisationLength(const APersonalisation
+  : THashLibByteArray);
+var
+  PersonalisationLength: Int32;
+begin
+  if (APersonalisation <> Nil) then
+  begin
+    PersonalisationLength := System.Length(APersonalisation);
+    if (PersonalisationLength <> 8) then
+    begin
+      raise EArgumentOutOfRangeHashLibException.CreateResFmt
+        (@SInvalidPersonalisationLength, [PersonalisationLength]);
+    end;
+  end;
+end;
+
+procedure TBlake2SConfig.ValidateSaltLength(const ASalt: THashLibByteArray);
+var
+  SaltLength: Int32;
+begin
+  if (ASalt <> Nil) then
+  begin
+    SaltLength := System.Length(ASalt);
+    if (SaltLength <> 8) then
+    begin
+      raise EArgumentOutOfRangeHashLibException.CreateResFmt
+        (@SInvalidSaltLength, [SaltLength]);
+    end;
+  end;
+end;
+
 function TBlake2SConfig.GetHashSize: Int32;
 begin
   result := FHashSize;
@@ -89,16 +143,19 @@ end;
 
 procedure TBlake2SConfig.SetKey(const value: THashLibByteArray);
 begin
+  ValidateKeyLength(value);
   FKey := value;
 end;
 
 procedure TBlake2SConfig.SetPersonalisation(const value: THashLibByteArray);
 begin
+  ValidatePersonalisationLength(value);
   FPersonalisation := value;
 end;
 
 procedure TBlake2SConfig.SetSalt(const value: THashLibByteArray);
 begin
+  ValidateSaltLength(value);
   FSalt := value;
 end;
 
