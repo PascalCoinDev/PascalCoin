@@ -1011,7 +1011,7 @@ begin
     FIsOnlyOperationBlock := false;
   Finally
     try
-      CalcProofOfWork(true,FOperationBlock.proof_of_work);
+      Calc_Digest_Parts; // Does not need to recalc PoW
     finally
       Unlock;
     end;
@@ -1058,7 +1058,7 @@ begin
     end;
     FPreviousUpdatedBlocks.CopyFrom(Operations.FPreviousUpdatedBlocks);
     // Recalc all
-    CalcProofOfWork(true,FOperationBlock.proof_of_work);
+    Calc_Digest_Parts; // Does not need to recalc PoW
   finally
     Unlock;
   end;
@@ -1400,7 +1400,7 @@ begin
       FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
     End;
   Finally
-    CalcProofOfWork(true,FOperationBlock.proof_of_work);
+    Calc_Digest_Parts; // Does not need to recalc PoW
     Unlock;
   End;
   if (n>0) then begin
