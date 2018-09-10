@@ -226,9 +226,11 @@ type
     procedure cbFilterAccountsClick(Sender: TObject);
     procedure MiFindOperationbyOpHashClick(Sender: TObject);
     procedure MiAccountInformationClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
   private
     FLastNodesCacheUpdatedTS : TDateTime;
     FBackgroundPanel : TPanel;
+    FBackgroundLabel : TLabel;
     FMinersBlocksFound: Integer;
     procedure SetMinersBlocksFound(const Value: Integer);
     Procedure CheckIsReady;
@@ -264,6 +266,7 @@ type
     FRPCServer : TRPCServer;
     FMustProcessWalletChanged : Boolean;
     FMustProcessNetConnectionUpdated : Boolean;
+    FThreadActivate : TObject;
     Procedure OnNewAccount(Sender : TObject);
     Procedure OnReceivedHelloMessage(Sender : TObject);
     Procedure OnNetStatisticsChanged(Sender : TObject);
@@ -331,22 +334,32 @@ Type
 procedure TThreadActivate.OnProgressNotify(sender: TObject; const mesage: AnsiString; curPos, totalCount: Int64);
 var pct : String;
 begin
-  If Assigned(FRMWallet.FBackgroundPanel) then begin
-   // FRMWallet.FBackgroundPanel.Font.Color:=lblNodeStatus.Font.Color;
+  If Assigned(FRMWallet.FBackgroundLabel) then begin
     if (totalCount>0) then pct := Format('%.1f',[curPos*100/totalCount])+'%'
     else pct := '';
-    FRMWallet.FBackgroundPanel.Caption:='Please wait until finished: '+mesage+' '+pct;
+    FRMWallet.FBackgroundLabel.Caption:='Please wait until finished: '+mesage+' '+pct;
   end;
 end;
 
 procedure TThreadActivate.BCExecute;
+Var node : TNode;
+  currentProcess : AnsiString;
 begin
   // Read Operations saved from disk
   TNode.Node.InitSafeboxAndOperations($FFFFFFFF,OnProgressNotify); // New Build 2.1.4 to load pending operations buffer
   TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
   TNode.Node.NetServer.Active := true;
-  Synchronize( FRMWallet.DoUpdateAccounts );
-  Synchronize( FRMWallet.FinishedLoadingApp );
+  if (TNode.Node.Bank.BlocksCount<=1) then begin
+    while (Not Terminated) And (Not TNode.Node.IsReady(currentProcess) Or (TNode.Node.Bank.BlocksCount<=1)) do begin
+      FRMWallet.FBackgroundLabel.Caption:='Please wait until finished: '+currentProcess;
+      Sleep(5);
+    end;
+  end;
+  if Not Terminated then begin
+    Synchronize( FRMWallet.DoUpdateAccounts );
+    Synchronize( FRMWallet.FinishedLoadingApp );
+  end;
+  FRMWallet.FThreadActivate := Nil;
 end;
 
 { TFRMWallet }
@@ -400,7 +413,9 @@ begin
     if (i<Integer(Low(TShowHashRateAs))) Or (i>Integer(High(TShowHashRateAs))) then i := Integer({$IFDEF TESTNET}hr_Mega{$ELSE}hr_Tera{$ENDIF});
     FBlockChainGrid.HashRateAs := TShowHashRateAs(i);
     // Reading database
-    TThreadActivate.Create(false).FreeOnTerminate := true;
+    FThreadActivate := TThreadActivate.Create(true);
+    TThreadActivate(FThreadActivate).FreeOnTerminate := true;
+    TThreadActivate(FThreadActivate).Suspended := False;
     UpdateConfigChanged;
     UpdateNodeStatus;
   Except
@@ -778,9 +793,9 @@ begin
   FNode.Operations.AccountKey := GetAccountKeyForMiner;
   FPoolMiningServer.Active := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].GetAsBoolean(true);
   FPoolMiningServer.OnMiningServerNewBlockFound := OnMiningServerNewBlockFound;
-  If Assigned(FBackgroundPanel) then begin
-    FreeAndNil(FBackgroundPanel);
-  end;
+  FreeAndNil(FBackgroundLabel);
+  FreeAndNil(FBackgroundPanel);
+
   PageControl.Visible:=True;
   PageControl.Enabled:=True;
 
@@ -986,11 +1001,21 @@ begin
   Result := false;
 end;
 
+procedure TFRMWallet.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  if Assigned(FThreadActivate) then begin
+    TThreadActivate(FThreadActivate).Terminate;
+    FThreadActivate := Nil;
+  end;
+end;
+
 procedure TFRMWallet.FormCreate(Sender: TObject);
 Var i : Integer;
 begin
   FLastNodesCacheUpdatedTS := Now;
   FBackgroundPanel := Nil;
+  FBackgroundLabel := Nil;
+  FThreadActivate := Nil;
   FMustProcessWalletChanged := false;
   FMustProcessNetConnectionUpdated := false;
   FRPCServer := Nil;
@@ -1065,6 +1090,14 @@ begin
   FBackgroundPanel.Parent:=Self;
   FBackgroundPanel.Align:=alClient;
   FBackgroundPanel.Font.Size:=15;
+  FBackgroundPanel.BevelWidth := 10;
+  FBackgroundLabel := TLabel.Create(Self);
+  FBackgroundLabel.Parent := FBackgroundPanel;
+  FBackgroundLabel.Align := alClient;
+  FBackgroundLabel.Layout := tlCenter;
+  FBackgroundLabel.Font.Size := 18;
+  FBackgroundLabel.Alignment := taCenter;
+  FBackgroundLabel.WordWrap := True;
   cbHashRateUnits.Items.Clear;
   cbHashRateUnits.Items.Add('Kh/s');
   cbHashRateUnits.Items.Add('Mh/s');
@@ -1124,6 +1157,11 @@ Var i : Integer;
 begin
   TLog.NewLog(ltinfo,Classname,'Destroying form - START');
   Try
+    if Assigned(FThreadActivate) then begin
+      TThreadActivate(FThreadActivate).Terminate;
+      FThreadActivate := Nil;
+    end;
+
   FreeAndNil(FRPCServer);
   FreeAndNil(FPoolMiningServer);
   step := 'Saving params';
@@ -1698,7 +1736,6 @@ end;
 procedure TFRMWallet.OnNodeKeysActivity(Sender: TObject);
 begin
   DoUpdateAccounts;
-//  Application.ProcessMessages; // XXXXXXXXXXX
 end;
 
 procedure TFRMWallet.OnReceivedHelloMessage(Sender: TObject);
@@ -1858,7 +1895,6 @@ begin
     UpdateConnectionStatus;
     UpdateBlockChainState;
     UpdateNodeStatus;
-//    Application.ProcessMessages; // XXXXXXXXXXX
   Except
     On E:Exception do begin
       E.Message := 'Exception at TimerUpdate '+E.ClassName+': '+E.Message;
@@ -1947,7 +1983,6 @@ begin
   // Show Totals:
   lblAccountsBalance.Caption := TAccountComp.FormatMoney(FAccountsGrid.AccountsBalance);
   UpdateOperations;
-//  Application.ProcessMessages; // XXXXXXXXXXX
 end;
 
 procedure TFRMWallet.UpdateAvailableConnections;
@@ -2126,8 +2161,8 @@ begin
         lblNodeStatus.Font.Color := clGreen;
         if TNetData.NetData.IsDiscoveringServers then begin
           lblNodeStatus.Caption := 'Discovering servers';
-        end else if TNetData.NetData.IsGettingNewBlockChainFromClient then begin
-          lblNodeStatus.Caption := 'Obtaining new blockchain';
+        end else if TNetData.NetData.IsGettingNewBlockChainFromClient(status) then begin
+          lblNodeStatus.Caption := 'Obtaining new blockchain '+status;
         end else begin
           lblNodeStatus.Caption := 'Running';
         end;
@@ -2140,9 +2175,9 @@ begin
       lblNodeStatus.Caption := status;
     end;
   end;
-  If Assigned(FBackgroundPanel) then begin
-    FBackgroundPanel.Font.Color:=lblNodeStatus.Font.Color;
-    FBackgroundPanel.Caption:='Please wait until finished: '+lblNodeStatus.Caption;
+  If Assigned(FBackgroundLabel) then begin
+    FBackgroundLabel.Font.Color:=lblNodeStatus.Font.Color;
+    FBackgroundLabel.Caption:='Please wait until finished: '+lblNodeStatus.Caption;
   end;
 end;
 

@@ -3404,8 +3404,8 @@ begin
         GetResultObject.GetAsVariant('ready').Value := True;
         if TNetData.NetData.IsDiscoveringServers then begin
           GetResultObject.GetAsVariant('status_s').Value := 'Discovering servers';
-        end else if TNetData.NetData.IsGettingNewBlockChainFromClient then begin
-          GetResultObject.GetAsVariant('status_s').Value := 'Obtaining new blockchain';
+        end else if TNetData.NetData.IsGettingNewBlockChainFromClient(ansistr) then begin
+          GetResultObject.GetAsVariant('status_s').Value := ansistr;
         end else begin
           GetResultObject.GetAsVariant('status_s').Value := 'Running';
         end;

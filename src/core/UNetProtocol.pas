@@ -256,6 +256,7 @@ Type
     FRegisteredRequests : TPCThreadList;
     FIsDiscoveringServers : Boolean;
     FIsGettingNewBlockChainFromClient : Boolean;
+    FNewBlockChainFromClientStatus : String;
     FOnConnectivityChanged : TNotifyManyEvent;
     FOnNetConnectionsUpdated: TNotifyEvent;
     FOnNodeServersUpdated: TNotifyEvent;
@@ -311,12 +312,13 @@ Type
     Function FindConnectionByClientRandomValue(Sender : TNetConnection) : TNetConnection;
     Procedure DiscoverServers;
     Procedure DisconnectClients;
+    procedure OnReadingNewSafeboxProgressNotify(sender : TObject; const mesage : AnsiString; curPos, totalCount : Int64);
     Procedure GetNewBlockChainFromClient(Connection : TNetConnection; const why : String);
     Property NodeServersAddresses : TOrderedServerAddressListTS read FNodeServersAddresses;
     Property NetConnections : TPCThreadList read FNetConnections;
     Property NetStatistics : TNetStatistics read FNetStatistics;
     Property IsDiscoveringServers : Boolean read FIsDiscoveringServers;
-    Property IsGettingNewBlockChainFromClient : Boolean read FIsGettingNewBlockChainFromClient;
+    function IsGettingNewBlockChainFromClient(var status : AnsiString) : Boolean;
     Property MaxRemoteOperationBlock : TOperationBlock read FMaxRemoteOperationBlock;
     Property NodePrivateKey : TECPrivateKey read FNodePrivateKey;
     property OnConnectivityChanged : TNotifyManyEvent read FOnConnectivityChanged;
@@ -1158,6 +1160,7 @@ begin
   FLastRequestId := 0;
   FNetConnections := TPCThreadList.Create('TNetData_NetConnections');
   FIsGettingNewBlockChainFromClient := false;
+  FNewBlockChainFromClientStatus := '';
   FNodePrivateKey := TECPrivateKey.Create;
   FNodePrivateKey.GenerateRandomPrivateKey(CT_Default_EC_OpenSSL_NID);
   FThreadCheckConnections := TThreadCheckConnections.Create(Self);
@@ -1802,6 +1805,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     errors : AnsiString;
     chunks : Array of TSafeBoxChunkData;
     i : Integer;
+    newSafeBox : TPCSafeBox;
   Begin
     Result := False;
     // Will try to download penultimate saved safebox
@@ -1821,6 +1825,8 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       try
         // Will obtain chunks of 10000 blocks each
         for i:=0 to ((_blockcount-1) DIV 10000) do begin // Bug v3.0.1 and minors
+          FNewBlockChainFromClientStatus := Format('Receiving new safebox with %d blocks (step %d/%d) from %s',
+            [_blockcount,i+1,((_blockcount-1) DIV 10000)+1,Connection.ClientRemoteAddr]);
           receiveChunk := TMemoryStream.Create;
           if (Not DownloadSafeBoxChunk(_blockcount,op.initial_safe_box_hash,(i*10000),((i+1)*10000)-1,receiveChunk,safeBoxHeader,errors)) then begin
             receiveChunk.Free;
@@ -1862,10 +1868,9 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       // Now receiveData is the ALL safebox
       TNode.Node.DisableNewBlocks;
       try
-        TNode.Node.Bank.SafeBox.StartThreadSafe;
-        try
+          FNewBlockChainFromClientStatus := Format('Received new safebox with %d blocks from %s',[_blockcount,Connection.ClientRemoteAddr]);
           receiveData.Position:=0;
-          If TNode.Node.Bank.LoadBankFromStream(receiveData,True,Nil,errors) then begin
+          If TNode.Node.Bank.LoadBankFromStream(receiveData,True,OnReadingNewSafeboxProgressNotify,errors) then begin
             TLog.NewLog(ltInfo,ClassName,'Received new safebox!');
             If Not IsMyBlockchainValid then begin
               TNode.Node.Bank.Storage.EraseStorage;
@@ -1877,9 +1882,6 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
             Connection.DisconnectInvalidClient(false,'Cannot load from stream! '+errors);
             exit;
           end;
-        finally
-          TNode.Node.Bank.SafeBox.EndThreadSave;
-        end;
       finally
         TNode.Node.EnableNewBlocks;
       end;
@@ -1905,6 +1907,7 @@ begin
   end else TLog.NewLog(ltdebug,CT_LogSender,'Starting receiving: '+why);
   Try
     FIsGettingNewBlockChainFromClient := true;
+    FNewBlockChainFromClientStatus := Format('Downloading block %d from %s',[Connection.RemoteOperationBlock.block,Connection.ClientRemoteAddr]);
     FMaxRemoteOperationBlock := Connection.FRemoteOperationBlock;
     if TNode.Node.Bank.BlocksCount=0 then begin
       TLog.NewLog(ltdebug,CT_LogSender,'I have no blocks');
@@ -1993,6 +1996,12 @@ begin
   if (incBytesReceived<>0) Or (incBytesSend<>0) then begin
     NotifyNetConnectionUpdated;
   end;
+end;
+
+function TNetData.IsGettingNewBlockChainFromClient(var status: AnsiString): Boolean;
+begin
+  status := FNewBlockChainFromClientStatus;
+  Result := FIsGettingNewBlockChainFromClient;
 end;
 
 procedure TNetData.SetMaxNodeServersAddressesBuffer(AValue: Integer);
@@ -2084,6 +2093,14 @@ end;
 procedure TNetData.NotifyStatisticsChanged;
 begin
   FNetDataNotifyEventsThread.FNotifyOnStatisticsChanged := true;
+end;
+
+procedure TNetData.OnReadingNewSafeboxProgressNotify(sender: TObject; const mesage: AnsiString; curPos, totalCount: Int64);
+Var pct : String;
+begin
+  if (totalCount>0) then pct := FormatFloat('0.00',curPos*100/totalCount)+'%' else pct := '';
+
+  FNewBlockChainFromClientStatus := Format('Checking new safebox: %s %s',[mesage,pct]);
 end;
 
 class function TNetData.OperationToText(operation: Word): AnsiString;
