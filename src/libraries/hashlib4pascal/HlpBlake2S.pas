@@ -16,7 +16,6 @@ uses
 {$ENDIF DELPHI}
   HlpBits,
   HlpHash,
-  HlpHashSize,
   HlpHashResult,
   HlpIHashResult,
   HlpIBlake2SConfig,
@@ -30,8 +29,6 @@ uses
 
 resourcestring
   SInvalidConfigLength = 'Config Length Must Be 8 Words';
-  SInvalidHashSize =
-    'BLAKE2S HashSize must be restricted to one of the following [16, 20, 28, 32], "%d"';
 
 type
   TBlake2S = class sealed(THash, ICryptoNotBuildIn, ITransformBlock)
@@ -90,8 +87,6 @@ type
 
     procedure Finish(); inline;
 
-    function GetHashSize(AHashSize: Int32): THashSize; inline;
-
   strict protected
 
     function GetName: String; override;
@@ -112,25 +107,6 @@ type
 implementation
 
 { TBlake2S }
-
-function TBlake2S.GetHashSize(AHashSize: Int32): THashSize;
-begin
-  case AHashSize of
-    16:
-      Result := THashSize.hsHashSize128;
-    20:
-      Result := THashSize.hsHashSize160;
-    28:
-      Result := THashSize.hsHashSize224;
-    32:
-      Result := THashSize.hsHashSize256;
-  else
-    begin
-      raise EArgumentInvalidHashLibException.CreateResFmt(@SInvalidHashSize,
-        [AHashSize]);
-    end;
-  end;
-end;
 
 class constructor TBlake2S.Blake2SConfig;
 begin
@@ -163,7 +139,7 @@ function TBlake2S.Clone(): IHash;
 var
   HashInstance: TBlake2S;
 begin
-  HashInstance := TBlake2S.Create(TBlake2SConfig.Create(GetHashSize(FHashSize))
+  HashInstance := TBlake2S.Create(TBlake2SConfig.Create(FHashSize)
     as IBlake2SConfig);
   System.Move(F_m, HashInstance.F_m, System.SizeOf(F_m));
   HashInstance.FrawConfig := System.Copy(FrawConfig);
