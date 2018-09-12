@@ -670,7 +670,6 @@ Var i,j, iStart : Integer;
   l : TList;
   ns : TNodeServerAddress;
 begin
-  SetLength(nsa,0);
   FCritical.Acquire;
   Try
     l := TList.Create;
@@ -686,6 +685,7 @@ begin
           end;
         end;
       end else begin
+        SetLength(nsa,0);
         if FListByIp.Count>0 then begin
           iStart := Random(FListByIp.Count);
           i := iStart;
