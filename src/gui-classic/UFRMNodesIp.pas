@@ -67,6 +67,7 @@ uses
 procedure TFRMNodesIp.bbOkClick(Sender: TObject);
 Var nsarr : TNodeServerAddressArray;
   ips : AnsiString;
+  i : Integer;
 begin
   TNode.DecodeIpStringToNodeServerAddressArray(memoNodesIp.Lines.Text,nsarr);
   if (length(nsarr)=0) And (cbTryOnlyWithThisServers.Checked) then begin
@@ -82,6 +83,9 @@ begin
       Application.MessageBox(PChar('Restart application to take effect'),PChar(Application.Title),MB_OK);
     end else begin
       FAppParams.ParamByName[CT_PARAM_TryToConnectOnlyWithThisFixedServers].SetAsString('');
+      for i:=Low(nsarr) to High(nsarr) do begin
+        TNetData.NetData.AddServer(nsarr[i]);
+      end;
       setlength(nsarr,0);
       TNetData.NetData.DiscoverFixedServersOnly(nsarr);
     end;
