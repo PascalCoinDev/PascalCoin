@@ -150,9 +150,11 @@ begin
 {$ELSE}
   Result := Value shr ShiftBits;
   if (Value and $80000000) > 0 then
+  begin
     // if you don't want to cast ($FFFFFFFF) to an Int32,
     // simply replace it with (-1) to avoid range check error.
     Result := Result or (Int32($FFFFFFFF) shl (32 - ShiftBits));
+  end;
 
   /// ++++++ Alternative Variant ++++++ ///
 
@@ -168,7 +170,9 @@ begin
 {$ELSE}
   Result := Value shr ShiftBits;
   if (Value and $8000000000000000) > 0 then
+  begin
     Result := Result or ($FFFFFFFFFFFFFFFF shl (64 - ShiftBits));
+  end;
 
   /// ++++++ Alternative Variant ++++++ ///
 
