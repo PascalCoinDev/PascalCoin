@@ -2725,8 +2725,10 @@ Var
   nPos,posOffsetZone : Int64;
   offsets : Array of Cardinal;
   sbHeader : TPCSafeBoxHeader;
+  tc : TTickCount;
 begin
   If Assigned(FPreviousSafeBox) then Raise Exception.Create('Cannot loadSafeBoxFromStream on a Safebox in a Separate chain');
+  tc := TPlatform.GetTickCount;
   StartThreadSafe;
   try
     Clear;
@@ -2736,12 +2738,12 @@ begin
         errors := 'Invalid stream. Invalid header/version';
         exit;
       end;
-      errors := 'Invalid version or corrupted stream';
+      errors := 'Invalid protocol version or corrupted stream ('+IntToStr(sbHeader.protocol)+')';
       case sbHeader.protocol of
         CT_PROTOCOL_1 : FCurrentProtocol := 1;
         CT_PROTOCOL_2 : FCurrentProtocol := 2;
         CT_PROTOCOL_3 : FCurrentProtocol := 3;
-        CT_PROTOCOL_4 : FCurrentProtocol := 4;
+        CT_PROTOCOL_4 : FCurrentProtocol := 3; // In order to allow Upgrade to V4
       else exit;
       end;
       if (sbHeader.blocksCount=0) Or (sbHeader.startBlock<>0) Or (sbHeader.endBlock<>(sbHeader.blocksCount-1)) then begin
@@ -2767,7 +2769,8 @@ begin
       SetLength(FBufferBlocksHash,sbHeader.blocksCount*32); // Initialize for high speed reading
       errors := 'Corrupted stream';
       for iblock := 0 to sbHeader.blockscount-1 do begin
-        if (Assigned(progressNotify)) and ((iblock MOD 1000)=0) then begin
+        if (Assigned(progressNotify)) and ((TPlatform.GetElapsedMilliseconds(tc)>=500)) then begin
+          tc := TPlatform.GetTickCount;
           progressNotify(Self,Format('Reading Safebox block %d/%d',[iblock+1,sbHeader.endBlock-sbHeader.startBlock+1]),iblock,sbHeader.endBlock-sbHeader.startBlock+1);
         end;
         errors := 'Corrupted stream reading block blockchain '+inttostr(iblock+1)+'/'+inttostr(sbHeader.blockscount);
@@ -2856,6 +2859,10 @@ begin
         end;
         LastReadBlock := block;
         Inc(FWorkSum,block.blockchainInfo.compact_target);
+        // Upgrade to Protocol 4 step:
+        if (block.blockchainInfo.protocol_version>FCurrentProtocol) And (block.blockchainInfo.protocol_version = CT_PROTOCOL_4) then begin
+          FCurrentProtocol := CT_PROTOCOL_4;
+        end;
       end;
       if (Assigned(progressNotify)) then begin
         progressNotify(Self,'Checking Safebox integrity',sbHeader.blocksCount,sbHeader.blocksCount);

@@ -105,7 +105,7 @@ Const
   CT_PROTOCOL_4 = 4;
   CT_BUILD_PROTOCOL = CT_PROTOCOL_3;
 
-  CT_BlockChain_Protocol_Available: Word = $0003; // Protocol 3 flag
+  CT_BlockChain_Protocol_Available: Word = 4; // Protocol 4 flag
   CT_Protocol_Upgrade_v2_MinBlock = {$IFDEF PRODUCTION}115000{$ELSE}50{$ENDIF};
   CT_Protocol_Upgrade_v3_MinBlock = {$IFDEF PRODUCTION}210000{$ELSE}250{$ENDIF};
   CT_Protocol_Upgrade_v4_MinBlock = {$IFDEF PRODUCTION}999999{$ELSE}400{$ENDIF}; // NOTE: Upgrade to V4 not decided!   TODO!

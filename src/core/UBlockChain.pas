@@ -815,7 +815,7 @@ begin
       If Assigned(auxSB) then begin
         SafeBox.CopyFrom(auxSB);
       end else begin
-        Result := SafeBox.LoadSafeBoxFromStream(Stream,false,progressNotify,LastReadBlock,errors);
+        Result := SafeBox.LoadSafeBoxFromStream(Stream,False,progressNotify,LastReadBlock,errors);
       end;
       If Not Result then exit;
       If SafeBox.BlocksCount>0 then FLastOperationBlock := SafeBox.Block(SafeBox.BlocksCount-1).blockchainInfo
