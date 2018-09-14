@@ -351,7 +351,7 @@ begin
   TNode.Node.NetServer.Active := true;
   if (TNode.Node.Bank.BlocksCount<=1) then begin
     while (Not Terminated) And (Not TNode.Node.IsReady(currentProcess) Or (TNode.Node.Bank.BlocksCount<=1)) do begin
-      FRMWallet.FBackgroundLabel.Caption:='Please wait until finished: '+currentProcess;
+      FRMWallet.UpdateNodeStatus;
       Sleep(5);
     end;
   end;
