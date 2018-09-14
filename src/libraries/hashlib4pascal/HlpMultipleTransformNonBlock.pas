@@ -20,12 +20,13 @@ type
   TMultipleTransformNonBlock = class abstract(THash, INonBlockHash)
 
   strict private
-    FBuffer: TMemoryStream;
 
     function Aggregate(): THashLibByteArray;
 
   strict protected
-    function ComputeAggregatedBytes(a_data: THashLibByteArray): IHashResult;
+    FBuffer: TMemoryStream;
+
+    function ComputeAggregatedBytes(const a_data: THashLibByteArray): IHashResult;
       virtual; abstract;
 
   public

@@ -8,6 +8,7 @@ uses
   HlpHashLibTypes,
   HlpIHashInfo,
   HlpHash,
+  HlpIHash,
   HlpHashResult,
   HlpIHashResult;
 
@@ -28,12 +29,24 @@ type
     procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal: IHashResult; override;
+    function Clone(): IHash; override;
 
   end;
 
 implementation
 
 { TAdler32 }
+
+function TAdler32.Clone(): IHash;
+var
+  HashInstance: TAdler32;
+begin
+  HashInstance := TAdler32.Create();
+  HashInstance.Fm_a := Fm_a;
+  HashInstance.Fm_b := Fm_b;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TAdler32.Create;
 begin

@@ -8,7 +8,9 @@ uses
   HlpHashLibTypes,
 {$IFDEF DELPHI}
   HlpHashBuffer,
+  HlpHash,
 {$ENDIF DELPHI}
+  HlpIHash,
   HlpIHashInfo,
   HlpHashCryptoNotBuildIn;
 
@@ -68,12 +70,26 @@ type
   public
     constructor Create();
     procedure Initialize(); override;
+    function Clone(): IHash; override;
 
   end;
 
 implementation
 
 { TMD2 }
+
+function TMD2.Clone(): IHash;
+var
+  HashInstance: TMD2;
+begin
+  HashInstance := TMD2.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_checksum := System.Copy(Fm_checksum);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TMD2.Create;
 begin
@@ -163,7 +179,7 @@ begin
     t := Fm_checksum[i];
   end;
 
-  System.FillChar(temp, System.SizeOf(temp), 0);
+  System.FillChar(temp, System.SizeOf(temp), Byte(0));
 
 end;
 

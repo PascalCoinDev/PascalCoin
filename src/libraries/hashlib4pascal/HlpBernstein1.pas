@@ -7,6 +7,7 @@ interface
 uses
   HlpHashLibTypes,
   HlpHash,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashResult,
   HlpIHashResult;
@@ -23,11 +24,22 @@ type
     procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
+    function Clone(): IHash; override;
   end;
 
 implementation
 
 { TBernstein1 }
+
+function TBernstein1.Clone(): IHash;
+var
+  HashInstance: TBernstein1;
+begin
+  HashInstance := TBernstein1.Create();
+  HashInstance.Fm_hash := Fm_hash;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TBernstein1.Create;
 begin

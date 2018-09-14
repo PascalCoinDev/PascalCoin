@@ -5,17 +5,21 @@ unit HlpSnefru;
 interface
 
 uses
-{$IFDEF DELPHI2010}
-  SysUtils, // to get rid of compiler hint "not inlined" on Delphi 2010.
-{$ENDIF DELPHI2010}
+{$IFDEF HAS_UNITSCOPE}
+  System.SysUtils,
+{$ELSE}
+  SysUtils,
+{$ENDIF HAS_UNITSCOPE}
   HlpHashLibTypes,
 {$IFDEF DELPHI}
+  HlpHash,
   HlpHashBuffer,
   HlpBitConverter,
 {$ENDIF DELPHI}
   HlpBits,
   HlpHashSize,
   HlpConverters,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashCryptoNotBuildIn;
 
@@ -24,6 +28,7 @@ resourcestring
     'Snefru Security Level Cannot be Less than 1. Standard Level is 8';
   SInvalidSnefruHashSize =
     'Snefru HashSize Must be Either 128 bit(16 byte) or 256 bit(32 byte)';
+  SInvalidHashSize = 'Specified HashSize Is Invalid or UnSupported "%d"';
 
 type
 
@@ -43,7 +48,10 @@ type
 
     class constructor Snefru();
 
+    function GetHashSize(AHashSize: Int32): THashSize; inline;
+
   strict protected
+    function GetName: String; override;
     function GetResult(): THashLibByteArray; override;
     procedure Finish(); override;
     procedure TransformBlock(a_data: PByte; a_data_length: Int32;
@@ -58,12 +66,40 @@ type
     /// <returns></returns>
     constructor Create(a_security_level: Int32; a_hash_size: THashSize);
     procedure Initialize(); override;
+    function Clone(): IHash; override;
 
   end;
 
 implementation
 
 { TSnefru }
+
+function TSnefru.GetHashSize(AHashSize: Int32): THashSize;
+begin
+  case AHashSize of
+    16:
+      Result := THashSize.hsHashSize128;
+    32:
+      Result := THashSize.hsHashSize256
+  else
+    begin
+      raise EArgumentInvalidHashLibException.CreateResFmt(@SInvalidHashSize,
+        [AHashSize]);
+    end;
+  end;
+end;
+
+function TSnefru.Clone(): IHash;
+var
+  HashInstance: TSnefru;
+begin
+  HashInstance := TSnefru.Create(Fm_security_level, GetHashSize(FHashSize));
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  Result := HashInstance as IHash;
+  Result.BufferSize := BufferSize;
+end;
 
 constructor TSnefru.Create(a_security_level: Int32; a_hash_size: THashSize);
 begin
@@ -100,11 +136,17 @@ begin
 
 end;
 
+function TSnefru.GetName: String;
+begin
+  Result := Format('%s_%u_%u', [Self.ClassName, Fm_security_level,
+    Self.HashSize * 8]);
+end;
+
 function TSnefru.GetResult: THashLibByteArray;
 begin
-  System.SetLength(result, System.Length(Fm_state) * System.SizeOf(UInt32));
-  TConverters.be32_copy(PCardinal(Fm_state), 0, PByte(result), 0,
-    System.Length(result));
+  System.SetLength(Result, System.Length(Fm_state) * System.SizeOf(UInt32));
+  TConverters.be32_copy(PCardinal(Fm_state), 0, PByte(Result), 0,
+    System.Length(Result));
 end;
 
 procedure TSnefru.Initialize;
@@ -206,7 +248,7 @@ begin
     Fm_state[7] := Fm_state[7] xor work[8];
   end;
 
-  System.FillChar(work, System.SizeOf(work), 0);
+  System.FillChar(work, System.SizeOf(work), UInt32(0));
 
 end;
 

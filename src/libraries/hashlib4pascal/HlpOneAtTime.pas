@@ -7,6 +7,7 @@ interface
 uses
   HlpHashLibTypes,
   HlpHash,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashResult,
   HlpIHashResult;
@@ -23,11 +24,22 @@ type
     procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
+    function Clone(): IHash; override;
   end;
 
 implementation
 
 { TOneAtTime }
+
+function TOneAtTime.Clone(): IHash;
+var
+  HashInstance: TOneAtTime;
+begin
+  HashInstance := TOneAtTime.Create();
+  HashInstance.Fm_hash := Fm_hash;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TOneAtTime.Create;
 begin

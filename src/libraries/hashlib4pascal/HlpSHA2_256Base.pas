@@ -941,7 +941,7 @@ begin
   Fm_state[6] := Fm_state[6] + G;
   Fm_state[7] := Fm_state[7] + H;
 
-  System.FillChar(data, System.SizeOf(data), 0);
+  System.FillChar(data, System.SizeOf(data), UInt32(0));
 
 end;
 

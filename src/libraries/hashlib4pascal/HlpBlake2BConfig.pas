@@ -11,7 +11,11 @@ uses
 
 resourcestring
   SInvalidHashSize =
-    'BLAKE2B HashSize must be restricted to one of the following [20, 32, 48, 64]';
+    'BLAKE2B HashSize must be restricted to one of the following [1 .. 64], "%d"';
+  SInvalidKeyLength = '"Key" Length Must Not Be Greater Than 64, "%d"';
+  SInvalidPersonalisationLength =
+    '"Personalisation" Length Must Be Equal To 16, "%d"';
+  SInvalidSaltLength = '"Salt" Length Must Be Equal To 16, "%d"';
 
 type
 
@@ -23,6 +27,12 @@ type
 
     FHashSize: Int32;
     FPersonalisation, FSalt, FKey: THashLibByteArray;
+
+    procedure ValidateHashSize(AHashSize: Int32); inline;
+    procedure ValidateKeyLength(const AKey: THashLibByteArray); inline;
+    procedure ValidatePersonalisationLength(const APersonalisation
+      : THashLibByteArray); inline;
+    procedure ValidateSaltLength(const ASalt: THashLibByteArray); inline;
 
     function GetPersonalisation: THashLibByteArray; inline;
     procedure SetPersonalisation(const value: THashLibByteArray); inline;
@@ -38,6 +48,8 @@ type
 
   public
     constructor Create(AHashSize: THashSize = THashSize.hsHashSize512);
+      overload;
+    constructor Create(AHashSize: Int32); overload;
     property Personalisation: THashLibByteArray read GetPersonalisation
       write SetPersonalisation;
     property Salt: THashLibByteArray read GetSalt write SetSalt;
@@ -49,6 +61,61 @@ type
 implementation
 
 { TBlake2BConfig }
+
+procedure TBlake2BConfig.ValidateHashSize(AHashSize: Int32);
+begin
+  if not((AHashSize) in [1 .. 64]) or (((AHashSize * 8) and 7) <> 0) then
+  begin
+    raise EArgumentHashLibException.CreateResFmt(@SInvalidHashSize,
+      [AHashSize]);
+  end;
+end;
+
+procedure TBlake2BConfig.ValidateKeyLength(const AKey: THashLibByteArray);
+var
+  KeyLength: Int32;
+begin
+  if (AKey <> Nil) then
+  begin
+    KeyLength := System.Length(AKey);
+    if (KeyLength > 64) then
+    begin
+      raise EArgumentOutOfRangeHashLibException.CreateResFmt(@SInvalidKeyLength,
+        [KeyLength]);
+    end;
+  end;
+end;
+
+procedure TBlake2BConfig.ValidatePersonalisationLength(const APersonalisation
+  : THashLibByteArray);
+var
+  PersonalisationLength: Int32;
+begin
+  if (APersonalisation <> Nil) then
+  begin
+    PersonalisationLength := System.Length(APersonalisation);
+    if (PersonalisationLength <> 16) then
+    begin
+      raise EArgumentOutOfRangeHashLibException.CreateResFmt
+        (@SInvalidPersonalisationLength, [PersonalisationLength]);
+    end;
+  end;
+end;
+
+procedure TBlake2BConfig.ValidateSaltLength(const ASalt: THashLibByteArray);
+var
+  SaltLength: Int32;
+begin
+  if (ASalt <> Nil) then
+  begin
+    SaltLength := System.Length(ASalt);
+    if (SaltLength <> 16) then
+    begin
+      raise EArgumentOutOfRangeHashLibException.CreateResFmt
+        (@SInvalidSaltLength, [SaltLength]);
+    end;
+  end;
+end;
 
 function TBlake2BConfig.GetHashSize: Int32;
 begin
@@ -72,32 +139,43 @@ end;
 
 procedure TBlake2BConfig.SetHashSize(value: Int32);
 begin
+  ValidateHashSize(value);
   FHashSize := value;
 end;
 
 procedure TBlake2BConfig.SetKey(const value: THashLibByteArray);
 begin
+  ValidateKeyLength(value);
   FKey := value;
 end;
 
 procedure TBlake2BConfig.SetPersonalisation(const value: THashLibByteArray);
 begin
+  ValidatePersonalisationLength(value);
   FPersonalisation := value;
 end;
 
 procedure TBlake2BConfig.SetSalt(const value: THashLibByteArray);
 begin
+  ValidateSaltLength(value);
   FSalt := value;
 end;
 
 constructor TBlake2BConfig.Create(AHashSize: THashSize);
+var
+  LHashSize: Int32;
 begin
   Inherited Create();
-  if not(Int32(AHashSize) in [20, 32, 48, 64]) then
-  begin
-    raise EArgumentHashLibException.CreateRes(@SInvalidHashSize);
-  end;
-  HashSize := Int32(AHashSize);
+  LHashSize := Int32(AHashSize);
+  ValidateHashSize(LHashSize);
+  FHashSize := LHashSize;
+end;
+
+constructor TBlake2BConfig.Create(AHashSize: Int32);
+begin
+  Inherited Create();
+  ValidateHashSize(AHashSize);
+  FHashSize := AHashSize;
 end;
 
 end.

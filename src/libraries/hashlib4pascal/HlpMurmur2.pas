@@ -10,8 +10,9 @@ uses
 {$ENDIF DELPHI2010}
   HlpHashLibTypes,
 {$IFDEF DELPHI}
-  HlpBitConverter,
+  HlpHash,
 {$ENDIF DELPHI}
+  HlpIHash,
   HlpConverters,
   HlpIHashInfo,
   HlpHashResult,
@@ -43,12 +44,13 @@ type
     procedure SetKey(const value: THashLibByteArray); inline;
 
   strict protected
-    function ComputeAggregatedBytes(a_data: THashLibByteArray)
+    function ComputeAggregatedBytes(const a_data: THashLibByteArray)
       : IHashResult; override;
 
   public
     constructor Create();
     procedure Initialize(); override;
+    function Clone(): IHash; override;
     property KeyLength: TNullableInteger read GetKeyLength;
     property Key: THashLibByteArray read GetKey write SetKey;
 
@@ -175,7 +177,21 @@ begin
   result := Int32(Fm_h);
 end;
 
-function TMurmur2.ComputeAggregatedBytes(a_data: THashLibByteArray)
+function TMurmur2.Clone(): IHash;
+var
+  HashInstance: TMurmur2;
+begin
+  HashInstance := TMurmur2.Create();
+  HashInstance.Fm_key := Fm_key;
+  HashInstance.Fm_working_key := Fm_working_key;
+  HashInstance.Fm_h := Fm_h;
+  FBuffer.Position := 0;
+  HashInstance.FBuffer.CopyFrom(FBuffer, FBuffer.Size);
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
+
+function TMurmur2.ComputeAggregatedBytes(const a_data: THashLibByteArray)
   : IHashResult;
 
 begin

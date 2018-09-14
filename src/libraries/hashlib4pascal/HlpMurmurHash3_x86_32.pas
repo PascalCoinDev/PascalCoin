@@ -68,7 +68,7 @@ implementation
 
 { TMurmurHash3_x86_32 }
 
-function TMurmurHash3_x86_32.Clone: IHash;
+function TMurmurHash3_x86_32.Clone(): IHash;
 var
   HashInstance: TMurmurHash3_x86_32;
 begin

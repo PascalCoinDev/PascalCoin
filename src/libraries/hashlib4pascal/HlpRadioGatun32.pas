@@ -8,9 +8,12 @@ uses
   HlpHashLibTypes,
 {$IFDEF DELPHI}
   HlpBitConverter,
+  HlpHashBuffer,
+  HlpHash,
 {$ENDIF DELPHI}
   HlpBits,
   HlpConverters,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashCryptoNotBuildIn;
 
@@ -34,12 +37,31 @@ type
   public
     constructor Create();
     procedure Initialize(); override;
+    function Clone(): IHash; override;
 
   end;
 
 implementation
 
 { TRadioGatun32 }
+
+function TRadioGatun32.Clone(): IHash;
+var
+  HashInstance: TRadioGatun32;
+  Idx: Int32;
+begin
+  HashInstance := TRadioGatun32.Create();
+  HashInstance.Fm_mill := System.Copy(Fm_mill);
+  // since System.Copy() does not support jagged arrays (multidimensional dynamic arrays, we improvise)
+  for Idx := System.Low(Fm_belt) to System.High(Fm_belt) do
+  begin
+    HashInstance.Fm_belt[Idx] := System.Copy(Fm_belt[Idx]);
+  end;
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TRadioGatun32.Create;
 var
@@ -100,7 +122,6 @@ begin
 
   TConverters.le32_copy(PCardinal(tempRes), 0, PByte(result), 0,
     System.Length(result));
-
 end;
 
 procedure TRadioGatun32.Initialize;
@@ -117,6 +138,7 @@ begin
 
     System.FillChar(Fm_belt[i][0], System.Length(Fm_belt[i]) *
       System.SizeOf(UInt32), UInt32(0));
+
     System.Inc(i);
   end;
 
@@ -207,7 +229,7 @@ begin
 
   RoundFunction();
 
-  System.FillChar(data, System.SizeOf(data), 0);
+  System.FillChar(data, System.SizeOf(data), UInt32(0));
 end;
 
 end.

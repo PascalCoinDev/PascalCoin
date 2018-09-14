@@ -9,6 +9,7 @@ uses
   SysUtils,
   HlpHashLibTypes,
   HlpHash,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashResult,
   HlpIHashResult;
@@ -26,11 +27,23 @@ type
     procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
+    function Clone(): IHash; override;
   end;
 
 implementation
 
 { TNullDigest }
+
+function TNullDigest.Clone(): IHash;
+var
+  HashInstance: TNullDigest;
+begin
+  HashInstance := TNullDigest.Create();
+  FbOut.Position := 0;
+  HashInstance.FbOut.CopyFrom(FbOut, FbOut.Size);
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TNullDigest.Create;
 begin

@@ -7,9 +7,7 @@ interface
 uses
   HlpHashLibTypes,
   HlpHash,
-{$IFDEF DELPHI}
-  HlpBitConverter,
-{$ENDIF DELPHI}
+  HlpIHash,
   HlpConverters,
   HlpIHashInfo,
   HlpHashResult,
@@ -52,6 +50,8 @@ type
       Fmemsize, Fv1, Fv2, Fv3, Fv4: UInt32;
       Fmemory: THashLibByteArray;
 
+      function Clone(): TXXH_State; inline;
+
     end;
 
   strict private
@@ -63,6 +63,7 @@ type
     procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
+    function Clone(): IHash; override;
     property KeyLength: TNullableInteger read GetKeyLength;
     property Key: THashLibByteArray read GetKey write SetKey;
 
@@ -70,7 +71,33 @@ type
 
 implementation
 
+{ TXXHash32.TXXH_State }
+
+function TXXHash32.TXXH_State.Clone(): TXXH_State;
+begin
+  result := Default (TXXH_State);
+  result.Ftotal_len := Ftotal_len;
+  result.Fmemsize := Fmemsize;
+  result.Fv1 := Fv1;
+  result.Fv2 := Fv2;
+  result.Fv3 := Fv3;
+  result.Fv4 := Fv4;
+  result.Fmemory := System.Copy(Fmemory);
+end;
+
 { TXXHash32 }
+
+function TXXHash32.Clone(): IHash;
+var
+  HashInstance: TXXHash32;
+begin
+  HashInstance := TXXHash32.Create();
+  HashInstance.Fm_key := Fm_key;
+  HashInstance.Fm_hash := Fm_hash;
+  HashInstance.F_state := F_state.Clone();
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TXXHash32.Create;
 begin

@@ -5,9 +5,13 @@ unit HlpSHA1;
 interface
 
 uses
-
   HlpBits,
-  HlpSHA0;
+{$IFDEF DELPHI}
+  HlpHashBuffer,
+  HlpHash,
+{$ENDIF DELPHI}
+  HlpSHA0,
+  HlpIHash;
 
 type
   TSHA1 = class sealed(TSHA0)
@@ -20,12 +24,25 @@ type
     // called for classes if none is defined by the developer but I just put it
     // for readability reasons.
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
 implementation
 
 { TSHA1 }
+
+function TSHA1.Clone(): IHash;
+var
+  HashInstance: TSHA1;
+begin
+  HashInstance := TSHA1.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TSHA1.Create;
 begin

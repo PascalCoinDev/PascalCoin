@@ -36,6 +36,7 @@ type
     function Feed(a_data: PByte; a_length_a_data: Int32; a_length: Int32)
       : Boolean; overload;
     function ToString(): String;
+    function Clone(): THashBuffer; inline;
 
     property IsEmpty: Boolean read GetIsEmpty;
     property IsFull: Boolean read GetIsFull;
@@ -46,6 +47,13 @@ type
 implementation
 
 { THashBuffer }
+
+function THashBuffer.Clone(): THashBuffer;
+begin
+  result := Default(THashBuffer);
+  result.Fm_data := System.Copy(Fm_data);
+  result.Fm_pos := Fm_pos;
+end;
 
 constructor THashBuffer.Create(a_length: Int32);
 begin
@@ -148,7 +156,7 @@ end;
 function THashBuffer.GetBytesZeroPadded: THashLibByteArray;
 begin
   System.FillChar(Fm_data[Fm_pos], (System.Length(Fm_data) - Fm_pos) *
-    System.SizeOf(Byte), 0);
+    System.SizeOf(Byte), Byte(0));
   Fm_pos := 0;
   result := Fm_data;
 end;
@@ -171,7 +179,7 @@ end;
 procedure THashBuffer.Initialize;
 begin
   Fm_pos := 0;
-  System.FillChar(Fm_data[0], System.Length(Fm_data) * System.SizeOf(Byte), 0);
+  System.FillChar(Fm_data[0], System.Length(Fm_data) * System.SizeOf(Byte), Byte(0));
 end;
 
 function THashBuffer.ToString: String;

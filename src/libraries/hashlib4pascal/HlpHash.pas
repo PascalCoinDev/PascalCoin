@@ -24,7 +24,7 @@ resourcestring
   // SInvalidHashSize = '"HashSize" Must Be Greater Than Zero';
   SUnAssignedStream = 'Input Stream Is Unassigned';
   SFileNotExist = 'Specified File Not Found';
-  SNotYetImplemented = 'Not Yet Implemented For "%s"';
+  SCloneNotYetImplemented = 'Clone Not Yet Implemented For "%s"';
 
 type
   THash = class abstract(TInterfacedObject, IHash)
@@ -236,7 +236,7 @@ end;
 function THash.Clone(): IHash;
 begin
   raise ENotImplementedHashLibException.CreateResFmt
-    (@SNotYetImplemented, [Name]);
+    (@SCloneNotYetImplemented, [Name]);
 end;
 
 function THash.ComputeBytes(const a_data: THashLibByteArray): IHashResult;
@@ -287,13 +287,16 @@ begin
   begin
     if (a_length > -1) then
     begin
-
       if ((a_stream.Position + a_length) > a_stream.Size) then
+      begin
         raise EIndexOutOfRangeHashLibException.CreateRes(@SIndexOutOfRange);
+      end;
     end;
 
     if (a_stream.Position >= a_stream.Size) then
+    begin
       Exit;
+    end;
   end
   else
   begin
@@ -365,7 +368,9 @@ begin
   System.Assert((a_length = -1) or (a_length > 0));
 {$ENDIF DEBUG}
   if not FileExists(a_file_name) then
+  begin
     raise EArgumentHashLibException.CreateRes(@SFileNotExist);
+  end;
 
   MyFileStream := TFileStream.Create(a_file_name, fmOpenRead or
     fmShareDenyWrite);

@@ -7,9 +7,10 @@ interface
 uses
   HlpHashLibTypes,
 {$IFDEF DELPHI}
-  HlpBitConverter,
+  HlpHash,
 {$ENDIF DELPHI}
   HlpConverters,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashResult,
   HlpIHashResult,
@@ -45,12 +46,13 @@ type
     procedure SetKey(const value: THashLibByteArray); inline;
 
   strict protected
-    function ComputeAggregatedBytes(a_data: THashLibByteArray)
+    function ComputeAggregatedBytes(const a_data: THashLibByteArray)
       : IHashResult; override;
 
   public
     constructor Create();
     procedure Initialize(); override;
+    function Clone(): IHash; override;
     property KeyLength: TNullableInteger read GetKeyLength;
     property Key: THashLibByteArray read GetKey write SetKey;
 
@@ -60,7 +62,20 @@ implementation
 
 { TMurmur2_64 }
 
-function TMurmur2_64.ComputeAggregatedBytes(a_data: THashLibByteArray)
+function TMurmur2_64.Clone(): IHash;
+var
+  HashInstance: TMurmur2_64;
+begin
+  HashInstance := TMurmur2_64.Create();
+  HashInstance.Fm_key := Fm_key;
+  HashInstance.Fm_working_key := Fm_working_key;
+  FBuffer.Position := 0;
+  HashInstance.FBuffer.CopyFrom(FBuffer, FBuffer.Size);
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
+
+function TMurmur2_64.ComputeAggregatedBytes(const a_data: THashLibByteArray)
   : IHashResult;
 var
   &length, current_index: Int32;

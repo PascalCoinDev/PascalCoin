@@ -6,7 +6,11 @@ interface
 
 uses
   HlpHashLibTypes,
+{$IFDEF DELPHI}
+  HlpHash,
+{$ENDIF DELPHI}
   HlpBits,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashResult,
   HlpIHashResult,
@@ -17,10 +21,11 @@ type
   TJenkins3 = class sealed(TMultipleTransformNonBlock, IHash32, ITransformBlock)
 
   strict protected
-    function ComputeAggregatedBytes(a_data: THashLibByteArray)
+    function ComputeAggregatedBytes(const a_data: THashLibByteArray)
       : IHashResult; override;
   public
     constructor Create();
+    function Clone(): IHash; override;
 
   end;
 
@@ -33,7 +38,18 @@ begin
   Inherited Create(4, 12);
 end;
 
-function TJenkins3.ComputeAggregatedBytes(a_data: THashLibByteArray)
+function TJenkins3.Clone(): IHash;
+var
+  HashInstance: TJenkins3;
+begin
+  HashInstance := TJenkins3.Create();
+  FBuffer.Position := 0;
+  HashInstance.FBuffer.CopyFrom(FBuffer, FBuffer.Size);
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
+
+function TJenkins3.ComputeAggregatedBytes(const a_data: THashLibByteArray)
   : IHashResult;
 var
   &length, currentIndex, i1, i2, i3, i4: Int32;

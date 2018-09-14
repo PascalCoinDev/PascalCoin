@@ -12,9 +12,11 @@ uses
 {$IFDEF DELPHI}
   HlpHashBuffer,
   HlpBitConverter,
+  HlpHash,
 {$ENDIF DELPHI}
   HlpHashLibTypes,
   HlpConverters,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashCryptoNotBuildIn;
 
@@ -44,12 +46,25 @@ type
   public
     constructor Create();
     procedure Initialize(); override;
+    function Clone(): IHash; override;
 
   end;
 
 implementation
 
 { TSHA0 }
+
+function TSHA0.Clone(): IHash;
+var
+  HashInstance: TSHA0;
+begin
+  HashInstance := TSHA0.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 constructor TSHA0.Create;
 begin
@@ -559,7 +574,7 @@ begin
   Fm_state[3] := Fm_state[3] + D;
   Fm_state[4] := Fm_state[4] + E;
 
-  System.FillChar(data, System.SizeOf(data), 0);
+  System.FillChar(data, System.SizeOf(data), UInt32(0));
 
 end;
 

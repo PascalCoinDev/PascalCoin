@@ -7,11 +7,13 @@ interface
 uses
   HlpHashLibTypes,
 {$IFDEF DELPHI}
+  HlpHash,
   HlpHashBuffer,
   HlpBitConverter,
 {$ENDIF DELPHI}
   HlpBits,
   HlpConverters,
+  HlpIHash,
   HlpIHashInfo,
   HlpHashCryptoNotBuildIn;
 
@@ -39,12 +41,26 @@ type
   public
     constructor Create();
     procedure Initialize(); override;
+    function Clone(): IHash; override;
 
   end;
 
 implementation
 
 { TGost }
+
+function TGost.Clone(): IHash;
+var
+  HashInstance: TGost;
+begin
+  HashInstance := TGost.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_hash := System.Copy(Fm_hash);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  result := HashInstance as IHash;
+  result.BufferSize := BufferSize;
+end;
 
 procedure TGost.Compress(a_m: PCardinal);
 var
@@ -452,8 +468,8 @@ begin
 
   Compress(@(m[0]));
 
-  System.FillChar(m, System.SizeOf(m), 0);
-  System.FillChar(data, System.SizeOf(data), 0);
+  System.FillChar(m, System.SizeOf(m), UInt32(0));
+  System.FillChar(data, System.SizeOf(data), UInt32(0));
 
 end;
 
