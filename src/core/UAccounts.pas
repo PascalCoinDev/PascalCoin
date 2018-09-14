@@ -384,6 +384,7 @@ Type
     Function Block(block_number : Cardinal) : TBlockAccount;
     Function CalcSafeBoxHash : TRawBytes;
     Function CalcBlockHashRateInKhs(block_number : Cardinal; Previous_blocks_average : Cardinal) : Int64;
+    Function CalcBlockHashRateInHs(block_number : Cardinal; Previous_blocks_average : Cardinal) : TBigNum;
     Property TotalBalance : Int64 read FTotalBalance;
     Procedure StartThreadSafe;
     Procedure EndThreadSave;
@@ -2066,18 +2067,17 @@ begin
   end;
 end;
 
-function TPCSafeBox.CalcBlockHashRateInKhs(block_number: Cardinal;
-  Previous_blocks_average: Cardinal): Int64;
+function TPCSafeBox.CalcBlockHashRateInHs(block_number, Previous_blocks_average: Cardinal): TBigNum;
 Var c,t : Cardinal;
   t_sum : Extended;
-  bn, bn_sum : TBigNum;
+  bn : TBigNum;
 begin
   FLock.Acquire;
   Try
-    bn_sum := TBigNum.Create;
+    Result := TBigNum.Create;
     try
       if (block_number=0) then begin
-        Result := 1;
+        Result.Value := 1;
         exit;
       end;
       if (block_number<0) Or (block_number>=FBlockAccountsList.Count) then raise Exception.Create('Invalid block number: '+inttostr(block_number));
@@ -2089,26 +2089,37 @@ begin
       while (c<=block_number) do begin
         bn := TBigNum.TargetToHashRate(PBlockAccount(FBlockAccountsList.Items[c])^.blockchainInfo.compact_target);
         try
-          bn_sum.Add(bn);
+          Result.Add(bn);
         finally
           bn.Free;
         end;
         t_sum := t_sum + (PBlockAccount(FBlockAccountsList.Items[c])^.blockchainInfo.timestamp - PBlockAccount(FBlockAccountsList.Items[c-1])^.blockchainInfo.timestamp);
         inc(c);
       end;
-      bn_sum.Divide(Previous_blocks_average); // Obtain target average
+      Result.Divide(Previous_blocks_average); // Obtain target average
       t_sum := t_sum / Previous_blocks_average; // time average
       t := Round(t_sum);
       if (t<>0) then begin
-        bn_sum.Divide(t);
+        Result.Divide(t);
       end;
-      Result := bn_sum.Divide(1024).Value; // Value in Kh/s
-    Finally
-      bn_sum.Free;
+    Except
+      Result.Free;
+      Raise;
     end;
   Finally
     FLock.Release;
   End;
+end;
+
+function TPCSafeBox.CalcBlockHashRateInKhs(block_number: Cardinal; Previous_blocks_average: Cardinal): Int64;
+var bn : TBigNum;
+begin
+  bn := CalcBlockHashRateInHs(block_number,Previous_blocks_average);
+  try
+    Result := bn.Divide(1000).Value; // Value in Kh/s
+  finally
+    bn.Free;
+  end;
 end;
 
 function TPCSafeBox.CalcSafeBoxHash: TRawBytes;
