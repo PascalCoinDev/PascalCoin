@@ -918,12 +918,23 @@ begin
     bn1.Free;
   end;
   //
-  if part_A<=24 then part_A:=24;
-  //
   part_B := (EncodedTarget shl 8) shr 8;
+  //
+  if (part_A<24) then begin
+    // exponent is negative... 2^(Part_A-24)
+    part_B := (part_B shr (24-part_A));
+    bn1 := TBigNum.Create(part_B);
+    Try
+      Result.Add(bn1);
+      Exit;
+    Finally
+      bn1.Free;
+    End;
+  end;
+  //
   bn2 := TBigNum.Create(2);
   Try
-    bn1 := TBigNum.Create(part_A - 24);
+    bn1 := TBigNum.Create(Int64(part_A) - 24);
     ctx := BN_CTX_new;
     try
       If BN_exp(bn2.FBN,bn2.FBN,bn1.FBN,ctx)<>1 then raise Exception.Create('Error 20161017-4');
