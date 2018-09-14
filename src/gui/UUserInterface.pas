@@ -491,11 +491,12 @@ var
   LActive, LDiscoveringPeers, LGettingNewBlockchain, LRemoteHasBiggerBlock, LNoConnections : boolean;
   LState : TUserInterfaceState;
   LLocalTip, LRemoteTip : Cardinal;
+  LMsg : AnsiString;
 begin
   LState := FState;
   LActive := FNode.NetServer.Active;
   LDiscoveringPeers := TNetData.NetData.IsDiscoveringServers;
-  LGettingNewBlockchain := TNetData.NetData.IsGettingNewBlockChainFromClient;
+  LGettingNewBlockchain := TNetData.NetData.IsGettingNewBlockChainFromClient(LMsg);
   LLocalTip := Node.Bank.BlocksCount;
   LRemoteTip := TNetData.NetData.MaxRemoteOperationBlock.block;
   LRemoteHasBiggerBlock := LRemoteTip > LLocalTip;

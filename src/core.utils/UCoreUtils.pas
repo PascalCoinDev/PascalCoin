@@ -258,7 +258,7 @@ var
   LDestBlock : Cardinal;
 begin
   LReady := Self.Bank.IsReady(LMsg);
-  if LReady and TNetData.NetData.IsGettingNewBlockChainFromClient then begin
+  if LReady and TNetData.NetData.IsGettingNewBlockChainFromClient(LMsg) then begin
     LDestBlock := TNetData.NetData.MaxRemoteOperationBlock.block;
     Result := Self.Bank.BlocksCount = TNetData.NetData.MaxRemoteOperationBlock.block;
   end;
