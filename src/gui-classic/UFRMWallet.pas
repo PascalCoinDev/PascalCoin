@@ -1099,6 +1099,7 @@ begin
   FBackgroundLabel.Alignment := taCenter;
   FBackgroundLabel.WordWrap := True;
   cbHashRateUnits.Items.Clear;
+  cbHashRateUnits.Items.Add('h/s');
   cbHashRateUnits.Items.Add('Kh/s');
   cbHashRateUnits.Items.Add('Mh/s');
   cbHashRateUnits.Items.Add('Gh/s');
@@ -1137,12 +1138,13 @@ begin
   FUpdating := True;
   Try
     case cbHashRateUnits.ItemIndex of
-      0 : FBlockChainGrid.HashRateAs := hr_Kilo;
-      1 : FBlockChainGrid.HashRateAs := hr_Mega;
-      2 : FBlockChainGrid.HashRateAs := hr_Giga;
-      3 : FBlockChainGrid.HashRateAs := hr_Tera;
-      4 : FBlockChainGrid.HashRateAs := hr_Peta;
-      5 : FBlockChainGrid.HashRateAs := hr_Exa;
+      0 : FBlockChainGrid.HashRateAs := hr_Unit;
+      1 : FBlockChainGrid.HashRateAs := hr_Kilo;
+      2 : FBlockChainGrid.HashRateAs := hr_Mega;
+      3 : FBlockChainGrid.HashRateAs := hr_Giga;
+      4 : FBlockChainGrid.HashRateAs := hr_Tera;
+      5 : FBlockChainGrid.HashRateAs := hr_Peta;
+      6 : FBlockChainGrid.HashRateAs := hr_Exa;
     else FBlockChainGrid.HashRateAs := hr_Mega;
     end;
     FAppParams.ParamByName[CT_PARAM_ShowHashRateAs].Value := Integer(FBlockChainGrid.HashRateAs);
@@ -2122,12 +2124,13 @@ begin
   else FMinerPrivateKeyType := mpk_Random;
   ebHashRateBackBlocks.Text := IntToStr(FBlockChainGrid.HashRateAverageBlocksCount);
   Case FBlockChainGrid.HashRateAs of
-    hr_Kilo : cbHashRateUnits.ItemIndex:=0;
-    hr_Mega : cbHashRateUnits.ItemIndex:=1;
-    hr_Giga : cbHashRateUnits.ItemIndex:=2;
-    hr_Tera : cbHashRateUnits.ItemIndex:=3;
-    hr_Peta : cbHashRateUnits.ItemIndex:=4;
-    hr_Exa : cbHashRateUnits.ItemIndex:=5;
+    hr_Unit : cbHashRateUnits.ItemIndex:=0;
+    hr_Kilo : cbHashRateUnits.ItemIndex:=1;
+    hr_Mega : cbHashRateUnits.ItemIndex:=2;
+    hr_Giga : cbHashRateUnits.ItemIndex:=3;
+    hr_Tera : cbHashRateUnits.ItemIndex:=4;
+    hr_Peta : cbHashRateUnits.ItemIndex:=5;
+    hr_Exa : cbHashRateUnits.ItemIndex:=6;
   else cbHashRateUnits.ItemIndex:=-1;
   end;
 end;
