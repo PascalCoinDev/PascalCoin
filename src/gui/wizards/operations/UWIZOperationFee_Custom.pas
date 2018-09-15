@@ -97,6 +97,7 @@ end;
 
 function TWIZOperationFee_Custom.Validate(out message: ansistring): boolean;
 begin
+  Result := True;
   if (Length(Model.Account.SelectedAccounts) > 1) AND (Fee = 0) then begin
     message := 'Zero fees only allowed for a single operation.';
     Exit(false);
