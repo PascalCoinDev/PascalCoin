@@ -2828,6 +2828,22 @@ begin
     end;
     TPascalCoinJSONComp.FillPublicKeyObject(_RPCServer.WalletKeys.AccountsKeyList.AccountKey[i],GetResultObject);
     Result := true;
+  end else if (method='importpubkey') then begin
+       ansistr:= params.AsString('name','');
+
+       if ((params.IndexOfName('b58_pubkey')>=0) AND (ansistr<>'')) then begin
+         if Not (CapturePubKey('',destpubkey,ErrorDesc)) then begin
+            ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
+            exit;
+         end;
+         _RPCServer.WalletKeys.AddPublicKey(ansistr,destpubkey);
+       end else begin
+         ErrorNum := CT_RPC_ErrNum_InvalidData;
+         ErrorDesc := 'Needed both parameters b58_pubkey and name';
+         exit;
+    end;
+    TPascalCoinJSONComp.FillPublicKeyObject(destpubkey,GetResultObject);
+    Result := true;
   end else if (method='getblock') then begin
     // Param "block" contains block number (0..getblockcount-1)
     // Returns JSON object with block information
