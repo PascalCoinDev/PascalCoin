@@ -370,6 +370,11 @@ type
       class function CreateSHA3_384(): IHash; static;
       class function CreateSHA3_512(): IHash; static;
 
+      class function CreateKeccak_224(): IHash; static;
+      class function CreateKeccak_256(): IHash; static;
+      class function CreateKeccak_384(): IHash; static;
+      class function CreateKeccak_512(): IHash; static;
+
       class function CreateBlake2B(const config: IBlake2BConfig = Nil)
         : IHash; static;
 
@@ -684,49 +689,49 @@ class function THashFactory.TCrypto.CreateHaval(a_rounds: THashRounds;
   a_hash_size: THashSize): IHash;
 begin
   case a_rounds of
-    hrRounds3:
+    THashRounds.hrRounds3:
       case a_hash_size of
-        hsHashSize128:
+        THashSize.hsHashSize128:
           Result := CreateHaval_3_128();
-        hsHashSize160:
+        THashSize.hsHashSize160:
           Result := CreateHaval_3_160();
-        hsHashSize192:
+        THashSize.hsHashSize192:
           Result := CreateHaval_3_192();
-        hsHashSize224:
+        THashSize.hsHashSize224:
           Result := CreateHaval_3_224();
-        hsHashSize256:
+        THashSize.hsHashSize256:
           Result := CreateHaval_3_256();
       else
         raise EArgumentHashLibException.CreateRes(@SInvalidHavalHashSize);
       end;
 
-    hrRounds4:
+    THashRounds.hrRounds4:
       case a_hash_size of
-        hsHashSize128:
+        THashSize.hsHashSize128:
           Result := CreateHaval_4_128();
-        hsHashSize160:
+        THashSize.hsHashSize160:
           Result := CreateHaval_4_160();
-        hsHashSize192:
+        THashSize.hsHashSize192:
           Result := CreateHaval_4_192();
-        hsHashSize224:
+        THashSize.hsHashSize224:
           Result := CreateHaval_4_224();
-        hsHashSize256:
+        THashSize.hsHashSize256:
           Result := CreateHaval_4_256();
       else
         raise EArgumentHashLibException.CreateRes(@SInvalidHavalHashSize);
       end;
 
-    hrRounds5:
+    THashRounds.hrRounds5:
       case a_hash_size of
-        hsHashSize128:
+        THashSize.hsHashSize128:
           Result := CreateHaval_5_128();
-        hsHashSize160:
+        THashSize.hsHashSize160:
           Result := CreateHaval_5_160();
-        hsHashSize192:
+        THashSize.hsHashSize192:
           Result := CreateHaval_5_192();
-        hsHashSize224:
+        THashSize.hsHashSize224:
           Result := CreateHaval_5_224();
-        hsHashSize256:
+        THashSize.hsHashSize256:
           Result := CreateHaval_5_256();
       else
         raise EArgumentHashLibException.CreateRes(@SInvalidHavalHashSize);
@@ -925,6 +930,26 @@ end;
 class function THashFactory.TCrypto.CreateSHA3_512: IHash;
 begin
   Result := TSHA3_512.Create();
+end;
+
+class function THashFactory.TCrypto.CreateKeccak_224: IHash;
+begin
+  Result := TKeccak_224.Create();
+end;
+
+class function THashFactory.TCrypto.CreateKeccak_256: IHash;
+begin
+  Result := TKeccak_256.Create();
+end;
+
+class function THashFactory.TCrypto.CreateKeccak_384: IHash;
+begin
+  Result := TKeccak_384.Create();
+end;
+
+class function THashFactory.TCrypto.CreateKeccak_512: IHash;
+begin
+  Result := TKeccak_512.Create();
 end;
 
 class function THashFactory.TCrypto.CreateBlake2B(const config

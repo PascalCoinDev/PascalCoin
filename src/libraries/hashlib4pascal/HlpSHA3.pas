@@ -5,9 +5,11 @@ unit HlpSHA3;
 interface
 
 uses
-{$IFDEF DELPHI2010}
-  SysUtils, // to get rid of compiler hint "not inlined" on Delphi 2010.
-{$ENDIF DELPHI2010}
+{$IFDEF HAS_UNITSCOPE}
+  System.SysUtils,
+{$ELSE}
+  SysUtils,
+{$ENDIF HAS_UNITSCOPE}
   HlpBits,
 {$IFDEF DELPHI}
   HlpHashBuffer,
@@ -21,12 +23,21 @@ uses
   HlpHashSize,
   HlpHashLibTypes;
 
+resourcestring
+  SInvalidHashMode = 'Only "[%s]" HashModes are Supported';
+
 type
   TSHA3 = class abstract(TBlockHash, ICryptoNotBuildIn, ITransformBlock)
 
+  type
+{$SCOPEDENUMS ON}
+    THashMode = (hmKeccak = $1, hmSHA3 = $6);
+{$SCOPEDENUMS OFF}
   strict protected
+
     Fm_state: THashLibUInt64Array;
     FHashSize, FBlockSize: Int32;
+    FHashMode: THashMode;
 
     (*
       {$REGION 'Consts'}
@@ -45,6 +56,7 @@ type
 
       {$ENDREGION}
     *)
+    function GetName: String; override;
     constructor Create(a_hash_size: THashSize);
 
     procedure Finish(); override;
@@ -97,6 +109,46 @@ type
     function Clone(): IHash; override;
   end;
 
+type
+
+  TKeccak_224 = class sealed(TSHA3)
+
+  public
+
+    constructor Create();
+    function Clone(): IHash; override;
+  end;
+
+type
+
+  TKeccak_256 = class sealed(TSHA3)
+
+  public
+
+    constructor Create();
+    function Clone(): IHash; override;
+  end;
+
+type
+
+  TKeccak_384 = class sealed(TSHA3)
+
+  public
+
+    constructor Create();
+    function Clone(): IHash; override;
+  end;
+
+type
+
+  TKeccak_512 = class sealed(TSHA3)
+
+  public
+
+    constructor Create();
+    function Clone(): IHash; override;
+  end;
+
 implementation
 
 { TSHA3 }
@@ -120,7 +172,7 @@ begin
   buffer_pos := Fm_buffer.Pos;
   block := Fm_buffer.GetBytesZeroPadded();
 
-  block[buffer_pos] := $6;
+  block[buffer_pos] := Int32(FHashMode);
   block[FBlockSize - 1] := block[FBlockSize - 1] xor $80;
 
   TransformBlock(PByte(block), System.Length(block), 0);
@@ -133,13 +185,28 @@ begin
 
 end;
 
+function TSHA3.GetName: String;
+begin
+  case FHashMode of
+    TSHA3.THashMode.hmKeccak:
+      Result := Format('%s_%u', ['TKeccak', Self.HashSize * 8]);
+    TSHA3.THashMode.hmSHA3:
+      Result := Self.ClassName;
+  else
+    begin
+      raise EArgumentInvalidHashLibException.CreateResFmt(@SInvalidHashMode,
+        ['hmKeccak, hmSHA3']);
+    end;
+  end;
+end;
+
 function TSHA3.GetResult: THashLibByteArray;
 begin
 
-  System.SetLength(result, FHashSize);
+  System.SetLength(Result, FHashSize);
 
-  TConverters.le64_copy(PUInt64(Fm_state), 0, PByte(result), 0,
-    System.Length(result));
+  TConverters.le64_copy(PUInt64(Fm_state), 0, PByte(Result), 0,
+    System.Length(Result));
 
 end;
 
@@ -2796,13 +2863,14 @@ begin
   HashInstance.Fm_state := System.Copy(Fm_state);
   HashInstance.Fm_buffer := Fm_buffer.Clone();
   HashInstance.Fm_processed_bytes := Fm_processed_bytes;
-  result := HashInstance as IHash;
-  result.BufferSize := BufferSize;
+  Result := HashInstance as IHash;
+  Result.BufferSize := BufferSize;
 end;
 
 constructor TSHA3_224.Create;
 begin
   Inherited Create(THashSize.hsHashSize224);
+  FHashMode := THashMode.hmSHA3;
 end;
 
 { TSHA3_256 }
@@ -2815,13 +2883,14 @@ begin
   HashInstance.Fm_state := System.Copy(Fm_state);
   HashInstance.Fm_buffer := Fm_buffer.Clone();
   HashInstance.Fm_processed_bytes := Fm_processed_bytes;
-  result := HashInstance as IHash;
-  result.BufferSize := BufferSize;
+  Result := HashInstance as IHash;
+  Result.BufferSize := BufferSize;
 end;
 
 constructor TSHA3_256.Create;
 begin
   Inherited Create(THashSize.hsHashSize256);
+  FHashMode := THashMode.hmSHA3;
 end;
 
 { TSHA3_384 }
@@ -2834,13 +2903,14 @@ begin
   HashInstance.Fm_state := System.Copy(Fm_state);
   HashInstance.Fm_buffer := Fm_buffer.Clone();
   HashInstance.Fm_processed_bytes := Fm_processed_bytes;
-  result := HashInstance as IHash;
-  result.BufferSize := BufferSize;
+  Result := HashInstance as IHash;
+  Result.BufferSize := BufferSize;
 end;
 
 constructor TSHA3_384.Create;
 begin
   Inherited Create(THashSize.hsHashSize384);
+  FHashMode := THashMode.hmSHA3;
 end;
 
 { TSHA3_512 }
@@ -2853,13 +2923,94 @@ begin
   HashInstance.Fm_state := System.Copy(Fm_state);
   HashInstance.Fm_buffer := Fm_buffer.Clone();
   HashInstance.Fm_processed_bytes := Fm_processed_bytes;
-  result := HashInstance as IHash;
-  result.BufferSize := BufferSize;
+  Result := HashInstance as IHash;
+  Result.BufferSize := BufferSize;
 end;
 
 constructor TSHA3_512.Create;
 begin
   Inherited Create(THashSize.hsHashSize512);
+  FHashMode := THashMode.hmSHA3;
+end;
+
+{ TKeccak_224 }
+
+function TKeccak_224.Clone(): IHash;
+var
+  HashInstance: TKeccak_224;
+begin
+  HashInstance := TKeccak_224.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  Result := HashInstance as IHash;
+  Result.BufferSize := BufferSize;
+end;
+
+constructor TKeccak_224.Create;
+begin
+  Inherited Create(THashSize.hsHashSize224);
+  FHashMode := THashMode.hmKeccak;
+end;
+
+{ TKeccak_256 }
+
+function TKeccak_256.Clone(): IHash;
+var
+  HashInstance: TKeccak_256;
+begin
+  HashInstance := TKeccak_256.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  Result := HashInstance as IHash;
+  Result.BufferSize := BufferSize;
+end;
+
+constructor TKeccak_256.Create;
+begin
+  Inherited Create(THashSize.hsHashSize256);
+  FHashMode := THashMode.hmKeccak;
+end;
+
+{ TKeccak_384 }
+
+function TKeccak_384.Clone(): IHash;
+var
+  HashInstance: TKeccak_384;
+begin
+  HashInstance := TKeccak_384.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  Result := HashInstance as IHash;
+  Result.BufferSize := BufferSize;
+end;
+
+constructor TKeccak_384.Create;
+begin
+  Inherited Create(THashSize.hsHashSize384);
+  FHashMode := THashMode.hmKeccak;
+end;
+
+{ TKeccak_512 }
+
+function TKeccak_512.Clone(): IHash;
+var
+  HashInstance: TKeccak_512;
+begin
+  HashInstance := TKeccak_512.Create();
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  Result := HashInstance as IHash;
+  Result.BufferSize := BufferSize;
+end;
+
+constructor TKeccak_512.Create;
+begin
+  Inherited Create(THashSize.hsHashSize512);
+  FHashMode := THashMode.hmKeccak;
 end;
 
 end.
