@@ -16,7 +16,7 @@ type
     ['{0C375CFF-B379-41B8-955F-A32E22991651}']
   end;
 
-  IBlockHash = Interface(IHash)
+  IBlockHash = Interface(IInterface)
     ['{3B9A2D29-AC4E-44E4-92B1-6AF9A64DFF0A}']
   end;
 
@@ -24,11 +24,11 @@ type
     ['{7C7E8B14-DBC7-44A3-BB7C-B24E0BFAA09C}']
   end;
 
-  IChecksum = Interface(IInterface)
+  IChecksum = Interface(IHash)
     ['{EF0885C5-D331-44D8-89CA-05409E20F76E}']
   end;
 
-  ICrypto = Interface(IBlockHash)
+  ICrypto = Interface(IHash)
     ['{5C669048-644C-4E96-B411-9FEA603D7086}']
   end;
 

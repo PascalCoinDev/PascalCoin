@@ -14,7 +14,7 @@ uses
   HlpIHashResult;
 
 type
-  TRotating = class sealed(THash, IHash32, IBlockHash, ITransformBlock)
+  TRotating = class sealed(THash, IHash32, ITransformBlock)
   strict private
 
     Fm_hash: UInt32;

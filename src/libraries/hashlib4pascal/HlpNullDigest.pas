@@ -15,7 +15,7 @@ uses
   HlpIHashResult;
 
 type
-  TNullDigest = class sealed(THash, IBlockHash, ITransformBlock)
+  TNullDigest = class sealed(THash, ITransformBlock)
   strict private
   var
     FbOut: TMemoryStream;

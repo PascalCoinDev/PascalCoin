@@ -5,12 +5,12 @@ unit HlpICRC;
 interface
 
 uses
-  HlpIHash,
+  HlpIHashInfo,
   HlpHashLibTypes;
 
 type
 
-  ICRC = Interface(IHash)
+  ICRC = Interface(IChecksum)
     ['{44A105E5-6716-43C0-BE69-AE80F87FDC39}']
 
     function GetNames: THashLibStringArray;

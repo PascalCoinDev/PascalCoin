@@ -13,7 +13,7 @@ uses
   HlpIHashResult;
 
 type
-  TOneAtTime = class sealed(THash, IHash32, IBlockHash, ITransformBlock)
+  TOneAtTime = class sealed(THash, IHash32, ITransformBlock)
   strict private
 
     Fm_hash: UInt32;

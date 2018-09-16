@@ -13,7 +13,7 @@ uses
   HlpIHashResult;
 
 type
-  TSDBM = class sealed(THash, IHash32, IBlockHash, ITransformBlock)
+  TSDBM = class sealed(THash, IHash32, ITransformBlock)
   strict private
 
     Fm_hash: UInt32;

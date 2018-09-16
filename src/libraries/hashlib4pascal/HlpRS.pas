@@ -13,7 +13,7 @@ uses
   HlpIHashResult;
 
 type
-  TRS = class sealed(THash, IHash32, IBlockHash, ITransformBlock)
+  TRS = class sealed(THash, IHash32, ITransformBlock)
   strict private
 
     Fm_hash, Fm_a: UInt32;
