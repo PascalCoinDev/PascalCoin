@@ -49,6 +49,7 @@ Const
 
   CT_NetOp_GetPendingOperations = $0030; // Obtain pending operations
   CT_NetOp_GetAccount           = $0031; // Obtain account info
+  CT_NetOp_GetPubkeyAccounts    = $0032; // Obtain public key accounts
 
   CT_NetOp_Reserved_Start       = $1000; // This will provide a reserved area
   CT_NetOp_Reserved_End         = $1FFF; // End of reserved area
@@ -60,7 +61,8 @@ Const
   CT_NetError_InvalidDataBufferInfo = $0010;
   CT_NetError_InternalServerError = $0011;
   CT_NetError_InvalidNewAccount = $0012;
-  CT_NetError_SafeboxNotFound = $00020;
+  CT_NetError_SafeboxNotFound = $0020;
+  CT_NetError_NotAvailable = $0021;
 
   CT_LAST_CONNECTION_BY_SERVER_MAX_MINUTES = 60*60*3;
   CT_LAST_CONNECTION_MAX_MINUTES = 60*60;
@@ -385,6 +387,7 @@ Type
     Procedure DoProcess_GetSafeBox_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetPendingOperations_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetAccount_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
+    Procedure DoProcess_GetPubkeyAccounts_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetPendingOperations;
     Procedure SetClient(Const Value : TNetTcpIpClient);
     Function ReadTcpClientBuffer(MaxWaitMiliseconds : Cardinal; var HeaderData : TNetHeaderData; BufferData : TStream) : Boolean;
@@ -2116,6 +2119,7 @@ begin
     CT_NetOp_GetSafeBox : Result := 'GET SAFEBOX';
     CT_NetOp_GetPendingOperations : Result := 'GET PENDING OPERATIONS';
     CT_NetOp_GetAccount : Result := 'GET ACCOUNT';
+    CT_NetOp_GetPubkeyAccounts : Result := 'GET PUBKEY ACCOUNTS';
   else Result := 'UNKNOWN OPERATION '+Inttohex(operation,4);
   end;
 end;
@@ -2976,6 +2980,90 @@ begin
   end;
 end;
 
+procedure TNetConnection.DoProcess_GetPubkeyAccounts_Request(HeaderData: TNetHeaderData; DataBuffer: TStream);
+Const CT_Max_Accounts_per_call = 1000;
+var responseStream, accountsStream : TMemoryStream;
+  start,max,iPubKey : Integer;
+  c, nAccounts : Cardinal;
+  acc : TAccount;
+  DoDisconnect : Boolean;
+  errors : AnsiString;
+  pubKey : TAccountKey;
+  sbakl : TOrderedAccountKeysList;
+  ocl : TOrderedCardinalList;
+begin
+  {
+  This call is used to obtain Accounts used by a Public key
+    - Also will return current node block number
+    - If a returned data has updated_block value = (current block+1) that means that Account is currently affected by a pending operation in the pending operations
+  Request fields
+    - Public key
+    - start position
+    - max
+  Returns:
+    - current block number (4 bytes): Note, if an account has updated_block > current block means that has been updated and is in pending state
+    - count (4 bytes)
+    - for 1 to count:  TAccountComp.SaveAccountToAStream
+  }
+  errors := '';
+  DoDisconnect := True;
+  responseStream := TMemoryStream.Create;
+  accountsStream := TMemoryStream.Create;
+  try
+    // Response first 4 bytes are current block number
+    c := TNode.Node.Bank.BlocksCount-1;
+    responseStream.Write(c,SizeOf(c));
+    //
+    if HeaderData.header_type<>ntp_request then begin
+      errors := 'Not request';
+      Exit;
+    end;
+    if TStreamOp.ReadAccountKey(DataBuffer,pubKey)<0 then begin
+      errors := 'Invalid public key';
+      Exit;
+    end;
+    DataBuffer.Read(c,SizeOf(c));
+    start:=c;
+    DataBuffer.Read(c,SizeOf(c));
+    max:=c;
+    If max>CT_Max_Accounts_per_call then max := CT_Max_Accounts_per_call;
+    if (start<0) Or (max<0) then begin
+      errors := 'Invalid start/max value';
+      Exit;
+    end;
+    //
+    nAccounts := 0;
+    sbakl := TNode.Node.Bank.SafeBox.OrderedAccountKeysList;
+    if Assigned(sbakl) then begin
+      iPubKey := sbakl.IndexOfAccountKey(pubKey);
+      if (iPubKey>=0) then begin
+        ocl := sbakl.AccountKeyList[iPubKey];
+        while (start<ocl.Count) And (max>0) do begin
+          acc := TNode.Node.Operations.SafeBoxTransaction.Account(ocl.Get(start));
+          TAccountComp.SaveAccountToAStream(accountsStream,acc);
+          inc(nAccounts);
+          inc(start);
+          dec(max);
+        end;
+      end;
+      // Save & send
+      responseStream.Write(nAccounts,SizeOf(nAccounts));  // nAccounts = 4 bytes
+      responseStream.CopyFrom(accountsStream,0); // Copy all
+      DoDisconnect := False;
+      Send(ntp_response,HeaderData.operation,0,HeaderData.request_id,responseStream);
+    end else begin
+      DoDisconnect := False;
+      SendError(ntp_response,HeaderData.operation,HeaderData.request_id,CT_NetError_NotAvailable,'No OrderedAccountKeysList available');
+    end;
+  finally
+    responseStream.Free;
+    accountsStream.Free;
+    if DoDisconnect then begin
+      DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(HeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
+    end;
+  end;
+end;
+
 procedure TNetConnection.DoProcess_GetAccount_Request(HeaderData: TNetHeaderData; DataBuffer: TStream);
 Const CT_Max_Accounts_per_call = 1000;
 var responseStream : TMemoryStream;
@@ -3412,6 +3500,11 @@ begin
                       DoProcess_GetAccount_Request(HeaderData,ReceiveDataBuffer)
                     else TLog.NewLog(ltdebug,Classname,'Received old response of: '+TNetData.HeaderDataToText(HeaderData));
                   end;
+                  CT_NetOp_GetPubkeyAccounts : Begin
+                    if (HeaderData.header_type=ntp_request) then
+                      DoProcess_GetPubkeyAccounts_Request(HeaderData,ReceiveDataBuffer)
+                    else TLog.NewLog(ltdebug,Classname,'Received old response of: '+TNetData.HeaderDataToText(HeaderData));
+                  End;
                   CT_NetOp_Reserved_Start..CT_NetOp_Reserved_End : Begin
                     // This will allow to do nothing if not implemented
                     reservedResponse := TMemoryStream.Create;
