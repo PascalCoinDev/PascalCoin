@@ -47,6 +47,7 @@ TODO: Bug in Lazarus optimization cause Access Violation on "getpendings" call (
     - "exact" (Boolean, True by default): Only apply when "name" param has value, will return exact match or not
     - "listed" (Boolean, False by default): Will return only listed for sale accounts
     - "min_balance","max_balance" (PASCURRENCY): Filter by balance
+	- "enc_pubkey" or "b58_pubkey": If provided will search accounts with this pubkey. In this case the "start" param value is the position of indexed public keys list instead of accounts numbers
   - New return param in "Multioperation Object"
     - "digest" (HEXASTRING): Returns the digest value that must be signed
   - New param for "multioperationsignoffline"

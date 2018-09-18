@@ -2206,13 +2206,15 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     accountNumber : Integer;
     accountBalanceMin : Int64;
     accountBalanceMax : Int64;
-    accountForSale : Boolean;
+    accountForSale, searchByPubkey : Boolean;
     exactMatch : Boolean;
-    start, max : Integer;
+    start, max, iPubKey : Integer;
     account : TAccount;
     i : Cardinal;
     errors : AnsiString;
+    auxErrors : String;
     addToResult : Boolean;
+    accPubKey : TAccountKey;
   begin
     // Get Parameters
     Result := False;
@@ -2225,7 +2227,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     accountBalanceMin := ToPascalCoins(params.AsDouble('min_balance',-1));
     accountBalanceMax := ToPascalCoins(params.AsDouble('max_balance',-1));
     // Validate Parameters
-    if accountName <> '' then begin
+    if (accountName <> '') And (exactMatch) then begin
       if not FNode.Bank.SafeBox.ValidAccountName(accountName, errors) then begin
         ErrorNum := CT_RPC_ErrNum_InvalidAccountName;
         ErrorDesc := errors;
@@ -2233,6 +2235,11 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       end;
     end;
 
+    if start < 0 then begin
+      ErrorNum := CT_RPC_ErrNum_InvalidData;
+      ErrorDesc := '"start" param must be >=0';
+      exit;
+    end;
     if max <= 0 then begin
       ErrorNum := CT_RPC_ErrNum_InvalidData;
       ErrorDesc := '"max" param must be greater than zero';
@@ -2242,18 +2249,40 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     // Declare return result (empty by default)
     output := jsonresponse.GetAsArray('result');
 
+    // Search by accPubKey (if provided)
+    If CapturePubKey('',accPubKey,auxErrors) then begin
+      // Must match accPubKey
+      if (Not Assigned(FNode.Bank.SafeBox.OrderedAccountKeysList)) then begin
+        ErrorNum := CT_RPC_ErrNum_NotImplemented;
+        ErrorDesc := 'Not allowed search by public key';
+        Exit;
+      end;
+      searchByPubkey := True;
+      iPubKey := FNode.Bank.SafeBox.OrderedAccountKeysList.IndexOfAccountKey(accPubKey);
+      if (iPubKey<0) then begin
+        // No account available with this pubkey
+        Exit;
+      end;
+    end else searchByPubkey := False;
     // Search by name
     if ((accountName <> '') AND (exactMatch=true)) then begin
        accountNumber := FNode.Bank.SafeBox.FindAccountByName(accountName);
        if accountNumber >= 0 then begin
           account := FNode.Operations.SafeBoxTransaction.Account(accountNumber);
-          if (accountType = -1) OR (Integer(account.account_type) = accountType) then
+          if ((accountType = -1) OR (Integer(account.account_type) = accountType))
+             AND
+             ((Not searchByPubkey) OR (TAccountComp.EqualAccountKeys(accPubKey,account.accountInfo.accountKey))) then
              TPascalCoinJSONComp.FillAccountObject(account,output.GetAsObject(output.Count));
        end;
     end else begin
       // Search by type-forSale-balance
       for i := start to FNode.Bank.AccountsCount - 1 do begin
-        account := FNode.Operations.SafeBoxTransaction.Account(i);
+        if (searchByPubkey) then begin
+          if (i>=FNode.Bank.SafeBox.OrderedAccountKeysList.AccountKeyList[iPubKey].Count) then Break;
+          account := FNode.Operations.SafeBoxTransaction.Account( FNode.Bank.SafeBox.OrderedAccountKeysList.AccountKeyList[iPubKey].Get(i) );
+        end else begin
+          account := FNode.Operations.SafeBoxTransaction.Account(i);
+        end;
         if (accountType <> -1) AND (Integer(account.account_type) <> accountType) then
         begin
            Continue;
