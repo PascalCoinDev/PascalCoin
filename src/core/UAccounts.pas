@@ -939,10 +939,12 @@ begin
   stream.Read(value.EC_OpenSSL_NID,SizeOf(value.EC_OpenSSL_NID));
   if (ReadAnsiString(stream,value.x)<=0) then begin
     value := CT_TECDSA_Public_Nul;
+    Result := -1;
     exit;
   end;
   if (ReadAnsiString(stream,value.y)<=0) then begin
     value := CT_TECDSA_Public_Nul;
+    Result := -1;
     exit;
   end;
   Result := value.EC_OpenSSL_NID;
