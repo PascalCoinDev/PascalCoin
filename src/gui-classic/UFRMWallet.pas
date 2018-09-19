@@ -315,7 +315,7 @@ implementation
 
 Uses UFolderHelper, UOpenSSL, UOpenSSLdef, UTime, UFileStorage,
   UThread, UOpTransaction, UECIES, UFRMPascalCoinWalletConfig,
-  UFRMOperationsExplorer,
+  UFRMOperationsExplorer, UBaseTypes,
   UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText,
   USettings, UCommon;
 
@@ -324,7 +324,11 @@ Type
   { TThreadActivate }
 
   TThreadActivate = Class(TPCThread)
+  private
+    FLastTC : TTickCount;
+    FLastMsg : String;
     procedure OnProgressNotify(sender : TObject; const mesage : AnsiString; curPos, totalCount : Int64);
+    procedure ThreadSafeNotify;
   protected
     procedure BCExecute; override;
   End;
@@ -334,25 +338,39 @@ Type
 procedure TThreadActivate.OnProgressNotify(sender: TObject; const mesage: AnsiString; curPos, totalCount: Int64);
 var pct : String;
 begin
-  If Assigned(FRMWallet.FBackgroundLabel) then begin
+  If TPlatform.GetElapsedMilliseconds(FLastTC)>500 then begin
+    FLastTC := TPlatform.GetTickCount;
     if (totalCount>0) then pct := Format('%.1f',[curPos*100/totalCount])+'%'
     else pct := '';
-    FRMWallet.FBackgroundLabel.Caption:='Please wait until finished: '+mesage+' '+pct;
+    FLastMsg:='Please wait until finished: '+mesage+' '+pct;
+    Synchronize(ThreadSafeNotify);
   end;
 end;
 
-procedure TThreadActivate.BCExecute;
-Var node : TNode;
-  currentProcess : AnsiString;
+procedure TThreadActivate.ThreadSafeNotify;
 begin
+  If (FLastMsg<>'') then begin
+    if Assigned(FRMWallet.FBackgroundLabel) then begin
+      FRMWallet.FBackgroundLabel.Caption:=FLastMsg;
+    end;
+  end else FRMWallet.UpdateNodeStatus;
+end;
+
+procedure TThreadActivate.BCExecute;
+Var currentProcess : AnsiString;
+begin
+  FLastTC := 0;
+  FLastMsg := '';
   // Read Operations saved from disk
   TNode.Node.InitSafeboxAndOperations($FFFFFFFF,OnProgressNotify); // New Build 2.1.4 to load pending operations buffer
   TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
   TNode.Node.NetServer.Active := true;
+  FLastTC := 0;
+  FLastMsg := '';
   if (TNode.Node.Bank.BlocksCount<=1) then begin
     while (Not Terminated) And (Not TNode.Node.IsReady(currentProcess) Or (TNode.Node.Bank.BlocksCount<=1)) do begin
-      FRMWallet.UpdateNodeStatus;
-      Sleep(5);
+      Synchronize(ThreadSafeNotify);
+      Sleep(200);
     end;
   end;
   if Not Terminated then begin
