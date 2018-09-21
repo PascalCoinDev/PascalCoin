@@ -1902,6 +1902,8 @@ begin
     TLog.NewLog(ltdebug,CT_LogSender,'Is discovering servers...');
     exit;
   end;
+  if (Not TNode.Node.UpdateBlockchain) then Exit;
+
   if (Not Assigned(TNode.Node.Bank.StorageClass)) then Exit;
   //
   If FIsGettingNewBlockChainFromClient then begin
@@ -4229,6 +4231,8 @@ Var i,j : Integer;
   lop : TOperationBlock;
   nc : TNetConnection;
 begin
+  if Not TNode.Node.UpdateBlockchain then Exit;
+
   // Search better candidates:
   candidates := TList.Create;
   try

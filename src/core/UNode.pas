@@ -57,6 +57,8 @@ Type
     FPeerCache : AnsiString;
     FDisabledsNewBlocksCount : Integer;
     FSentOperations : TOrderedRawList;
+    FBroadcastData : Boolean;
+    FUpdateBlockchain: Boolean;
     {$IFDEF BufferOfFutureOperations}
     FBufferAuxWaitingOperations : TOperationsHashTree;
     {$ENDIF}
@@ -102,6 +104,9 @@ Type
     Property OperationSequenceLock : TPCCriticalSection read FOperationSequenceLock;
     function TryLockNode(MaxWaitMilliseconds : Cardinal) : Boolean;
     procedure UnlockNode;
+    //
+    Property BroadcastData : Boolean read FBroadcastData write FBroadcastData;
+    Property UpdateBlockchain : Boolean read FUpdateBlockchain write FUpdateBlockchain;
   End;
 
   TNodeNotifyEvents = Class;
@@ -296,11 +301,13 @@ begin
           TLog.NewLog(ltdebug,ClassName,'Buffer Sent operations: '+IntToStr(FSentOperations.Count));
           // Notify to clients
           {$IFnDEF TESTING_NO_POW_CHECK}
-          j := TNetData.NetData.ConnectionsCountAll;
-          for i:=0 to j-1 do begin
-            if (TNetData.NetData.GetConnection(i,nc)) then begin
-              if (nc<>SenderConnection) And (nc.Connected) then begin
-                TThreadNodeNotifyNewBlock.Create(nc,Bank.LastBlockFound,opsht);
+          if FBroadcastData then begin
+            j := TNetData.NetData.ConnectionsCountAll;
+            for i:=0 to j-1 do begin
+              if (TNetData.NetData.GetConnection(i,nc)) then begin
+                if (nc<>SenderConnection) And (nc.Connected) then begin
+                  TThreadNodeNotifyNewBlock.Create(nc,Bank.LastBlockFound,opsht);
+                end;
               end;
             end;
           end;
@@ -487,11 +494,13 @@ begin
       end;
     end;
     if Result=0 then exit;
-    // Send to other nodes
-    j := TNetData.NetData.ConnectionsCountAll;
-    for i:=0 to j-1 do begin
-      If TNetData.NetData.GetConnection(i,nc) then begin
-        if (nc<>SenderConnection) And (nc.Connected) then TThreadNodeNotifyOperations.Create(nc,valids_operations);
+    if FBroadcastData then begin
+      // Send to other nodes
+      j := TNetData.NetData.ConnectionsCountAll;
+      for i:=0 to j-1 do begin
+        If TNetData.NetData.GetConnection(i,nc) then begin
+          if (nc<>SenderConnection) And (nc.Connected) then TThreadNodeNotifyOperations.Create(nc,valids_operations);
+        end;
       end;
     end;
   finally
@@ -539,6 +548,8 @@ begin
   {$IFDEF BufferOfFutureOperations}
   FBufferAuxWaitingOperations := TOperationsHashTree.Create;
   {$ENDIF}
+  FBroadcastData := True;
+  FUpdateBlockchain := True;
   if Not Assigned(_Node) then _Node := Self;
 end;
 
