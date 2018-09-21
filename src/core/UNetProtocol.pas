@@ -2005,8 +2005,9 @@ end;
 
 function TNetData.IsGettingNewBlockChainFromClient(var status: AnsiString): Boolean;
 begin
-  status := FNewBlockChainFromClientStatus;
   Result := FIsGettingNewBlockChainFromClient;
+  if (Result) then  status := FNewBlockChainFromClientStatus
+  else status := '';
 end;
 
 procedure TNetData.SetMaxNodeServersAddressesBuffer(AValue: Integer);

@@ -712,12 +712,11 @@ begin
   CurrentProcess := '';
   if FBank.IsReady(CurrentProcess) then begin
     if FNetServer.Active then begin
-      if TNetData.NetData.IsGettingNewBlockChainFromClient(CurrentProcess) then begin
-        CurrentProcess := CurrentProcess;
-      end else begin
+      if Not TNetData.NetData.IsGettingNewBlockChainFromClient(CurrentProcess) then begin
         if TNetData.NetData.MaxRemoteOperationBlock.block>FOperations.OperationBlock.block then begin
           CurrentProcess := 'Found block '+inttostr(TNetData.NetData.MaxRemoteOperationBlock.block)+' (Wait until downloaded)';
         end else begin
+          CurrentProcess := '';
           Result := true;
         end;
       end;
