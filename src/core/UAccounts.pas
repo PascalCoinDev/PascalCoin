@@ -147,6 +147,7 @@ Type
     Class Function AccountInfo2RawString(const AccountInfo : TAccountInfo) : TRawBytes; overload;
     Class procedure AccountInfo2RawString(const AccountInfo : TAccountInfo; var dest : TRawBytes); overload;
     Class procedure SaveAccountToAStream(Stream: TStream; const Account : TAccount);
+    Class function LoadAccountFromStream(Stream: TStream; var Account : TAccount) : Boolean;
     Class Function RawString2AccountInfo(const rawaccstr: TRawBytes): TAccountInfo; overload;
     Class procedure RawString2AccountInfo(const rawaccstr: TRawBytes; var dest : TAccountInfo); overload;
     Class Function IsAccountLocked(const AccountInfo : TAccountInfo; blocks_count : Cardinal) : Boolean;
@@ -430,6 +431,7 @@ Type
     Function Add(Const account : TAccount) : Integer;
     Function Count : Integer;
     Function Get(index : Integer) : TAccount;
+    Function IndexOf(account_number: Cardinal) : Integer;
   End;
 
   TAccountPreviousBlockInfoData = Record
@@ -1049,7 +1051,10 @@ begin
 end;
 
 class procedure TAccountComp.SaveAccountToAStream(Stream: TStream; const Account: TAccount);
+var w : Word;
 begin
+  w := CT_PROTOCOL_4;
+  Stream.Write(w,SizeOf(w));
   Stream.Write(Account.account,Sizeof(Account.account));
   TStreamOp.WriteAnsiString(Stream,AccountInfo2RawString(Account.accountInfo));
   Stream.Write(Account.balance,Sizeof(Account.balance));
@@ -1057,6 +1062,27 @@ begin
   Stream.Write(Account.n_operation,Sizeof(Account.n_operation));
   TStreamOp.WriteAnsiString(Stream,Account.name);
   Stream.Write(Account.account_type,SizeOf(Account.account_type));
+end;
+
+class function TAccountComp.LoadAccountFromStream(Stream: TStream; var Account: TAccount): Boolean;
+var w : Word;
+  s : AnsiString;
+begin
+  Account := CT_Account_NUL;
+  Result := False;
+  if (Stream.Size - Stream.Position<8) then Exit;
+  Stream.Read(w,SizeOf(w));
+  if Not (w in [CT_PROTOCOL_4]) then Exit;
+  Stream.Read(Account.account,Sizeof(Account.account));
+  if TStreamOp.ReadAnsiString(Stream,s) < 0 then Exit;
+  TAccountComp.RawString2AccountInfo(s,Account.accountInfo);
+  if (Stream.Size - Stream.Position<20) then Exit;
+  Stream.Read(Account.balance,Sizeof(Account.balance));
+  Stream.Read(Account.updated_block,Sizeof(Account.updated_block));
+  Stream.Read(Account.n_operation,Sizeof(Account.n_operation));
+  if TStreamOp.ReadAnsiString(Stream,Account.name)<0 then Exit;
+  if Stream.Read(Account.account_type,SizeOf(Account.account_type)) <> 2 then Exit;
+  Result := True;
 end;
 
 class function TAccountComp.AccountKey2RawString(const account: TAccountKey): TRawBytes;
@@ -4545,6 +4571,11 @@ end;
 function TOrderedAccountList.Get(index: Integer): TAccount;
 begin
   Result := PAccount(FList.Items[index])^;
+end;
+
+function TOrderedAccountList.IndexOf(account_number: Cardinal): Integer;
+begin
+  If Not Find(account_number,Result) then Result := -1;
 end;
 
 { TOrderedAccountKeysList }
