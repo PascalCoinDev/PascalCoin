@@ -2385,7 +2385,7 @@ begin
   FNetLock := TPCCriticalSection.Create('TNetConnection_NetLock');
   FLastDataReceivedTS := 0;
   FLastDataSendedTS := 0;
-  FRandomWaitSecondsSendHello := 90 + Random(60);
+  FRandomWaitSecondsSendHello := (CT_NewLineSecondsAvg DIV 3) + Random(CT_NewLineSecondsAvg DIV 5);
   FTcpIpClient := Nil;
   FRemoteOperationBlock := CT_OperationBlock_NUL;
   FRemoteAccumulatedWork := 0;
@@ -3641,7 +3641,7 @@ begin
           last_bytes_read := auxstream.size;
           if last_bytes_read>0 then begin
             FLastDataReceivedTS := TPlatform.GetTickCount;
-            FRandomWaitSecondsSendHello := 90 + Random(60);
+            FRandomWaitSecondsSendHello := (CT_NewLineSecondsAvg DIV 3) + Random(CT_NewLineSecondsAvg DIV 5);
 
             FClientBufferRead.Position := FClientBufferRead.size; // Go to the end
             auxstream.Position := 0;
@@ -3750,7 +3750,7 @@ begin
         ClientRemoteAddr);
       (Client as TBufferedNetTcpIpClient).WriteBufferToSend(Buffer);
       FLastDataSendedTS := TPlatform.GetTickCount;
-      FRandomWaitSecondsSendHello := 90 + Random(60);
+      FRandomWaitSecondsSendHello := (CT_NewLineSecondsAvg DIV 3) + Random(CT_NewLineSecondsAvg DIV 5);
     Finally
       FNetLock.Release;
     End;
