@@ -19,7 +19,7 @@ Installing a fresh node will quickly sync becuase it downloads the SafeBox from 
 
 ## Specification
 
-Put a button on the main screen titled "Quick Sync". Clicking the button will delete files in the Data folder and allow the node to quickly sync. Advise to the user that this will delete all current history within the blockchain files. Allow user to click Yes/Confirm or No/Cancel to execute action.
+Give the user an option upon startup if they want to Quick Sync after x amount of days. The user can toggle this option and set the x amount of days in the Options Menu. If the user wants to Quick Sync, then the files in the Data folder will be removed and a fresh SafeBox will be downloaded.
  
 ## Rationale
 
