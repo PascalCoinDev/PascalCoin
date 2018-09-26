@@ -15,7 +15,7 @@ Allow a node that has been offline for a while an option to "Quick Sync".
  
 ## Motivation
 
-Installing a fresh node will quickly sync becuase it downloads the SafeBox from the network. If a node is not fresh and has not synced in a while, the node will download the blockchain files and will take longer to sync. It has been known that deleting the files in the Data folder will force the node to retrieve the latest SafeBox instead of downloading blockchain files. This allows the node to sync quickly.
+Installing a fresh node will quickly sync because it downloads the SafeBox from the network. If a node is not fresh and has not synced in a while, the node will download the blockchain files and will take longer to sync. It has been known that deleting the files in the Data folder will force the node to retrieve the latest SafeBox instead of downloading blockchain files. This allows the node to sync quickly.
 
 ## Specification
 
@@ -23,7 +23,7 @@ Give the user an option upon startup if they want to Quick Sync after x amount o
  
 ## Rationale
 
-A feature of this coin is that it syncs quickly, but if the node has been offline for some time, the sync takes longer. The removal of needing to download the blockchain files could relieve unncessary network congestion.
+A feature of this coin is that it syncs quickly, but if the node has been offline for some time, the sync takes longer. The removal of needing to download the blockchain files could relieve unnecessary network congestion.
 
 ## Backwards Compatibility
 
