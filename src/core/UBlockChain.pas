@@ -192,7 +192,7 @@ Type
   End;
 
   TOpReference = UInt64;
-  TOpReferenceArray = TArray<TopReference>;
+  TOpReferenceArray = Array of TopReference;
 
   { TPCOperation }
 
