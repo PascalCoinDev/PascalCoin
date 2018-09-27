@@ -192,22 +192,7 @@ Type
   End;
 
   TOpReference = UInt64;
-  TOrderedOpReferenceList = Class
-    FList : TList;
-  private
-    function FindOpReference(AOpReference : TOpReference; var Index: Integer): Boolean;
-    function FindAccount(AAccount : Cardinal; var Index: Integer): Boolean;
-  public
-    Constructor Create;
-    Destructor Destroy; override;
-    function IndexOf(AOpReference : TOpReference) : Integer; overload;
-    function IndexOfAccount(AAccount : Cardinal) : Integer;
-    function Get(AIndex : Integer) : TOpReference;
-    function Count: Integer;
-    procedure Delete(AIndex : Integer);
-    procedure Clear;
-    function Add(AOpReference : TOpReference) : Integer;
-  End;
+  TOpReferenceArray = TArray<TopReference>;
 
   { TPCOperation }
 
@@ -262,6 +247,8 @@ Type
     Class function EqualOperationHashes(Const operationHash1, operationHash2 : TRawBytes) : Boolean;
     Class function FinalOperationHashAsHexa(Const operationHash : TRawBytes) : AnsiString;
     class function OperationHashAsHexa(const operationHash : TRawBytes) : AnsiString;
+    class function GetOpReferenceAccount(const opReference : TOpReference) : Cardinal;
+    class function GetOpReferenceN_Operation(const opReference : TOpReference) : Cardinal;
     function Sha256 : TRawBytes;
     function GetOpReference : TOpReference;
   End;
@@ -272,13 +259,14 @@ Type
   private
     FListOrderedByAccountsData : TList;
     FListOrderedBySha256 : TList; // Improvement TOperationsHashTree speed 2.1.6
-    FListOrderedByOpReference : TOrderedOpReferenceList;
+    FListOrderedByOpReference : TList;
     FHashTreeOperations : TPCThreadList; // Improvement TOperationsHashTree speed 2.1.6
     FHashTree: TRawBytes;
     FOnChanged: TNotifyEvent;
     FTotalAmount : Int64;
     FTotalFee : Int64;
     Procedure InternalAddOperationToHashTree(list : TList; op : TPCOperation; CalcNewHashTree : Boolean);
+    Function FindOrderedByOpReference(lockedThreadList : TList; const Value: TOpReference; var Index: Integer): Boolean;
     Function FindOrderedBySha(lockedThreadList : TList; const Value: TRawBytes; var Index: Integer): Boolean;
     Function FindOrderedByAccountData(lockedThreadList : TList; const account_number : Cardinal; var Index: Integer): Boolean;
     function GetHashTree: TRawBytes;
@@ -299,6 +287,8 @@ Type
     function IndexOfOperation(op : TPCOperation) : Integer;
     function CountOperationsBySameSignerWithoutFee(account_number : Cardinal) : Integer;
     Procedure Delete(index : Integer);
+    function IndexOfOpReference(const opReference : TOpReference) : Integer;
+    procedure RemoveByOpReference(const opReference : TOpReference);
     Property OnChanged : TNotifyEvent read FOnChanged write FOnChanged;
   End;
 
@@ -1823,7 +1813,7 @@ begin
   FOnChanged:=Nil;
   FListOrderedBySha256 := TList.Create;
   FListOrderedByAccountsData := TList.Create;
-  FListOrderedByOpReference := TOrderedOpReferenceList.Create;
+  FListOrderedByOpReference := TList.Create;
   FTotalAmount := 0;
   FTotalFee := 0;
   FHashTree := '';
@@ -1840,9 +1830,18 @@ begin
   try
     P := l[index];
     // Delete from Ordered by OpReference
-    if Not FListOrderedByOpReference.FindOpReference(P^.Op.GetOpReference,i) then begin
-      TLog.NewLog(ltError,ClassName,'DEV ERROR 20180629-1 Operation not found in ordered by reference list: '+P^.Op.ToString);
-    end else FListOrderedByOpReference.Delete(i);
+    if Not FindOrderedByOpReference(l,P^.Op.GetOpReference,iDel) then begin
+      TLog.NewLog(ltError,ClassName,'DEV ERROR 20180927-1 Operation not found in ordered by reference list: '+P^.Op.ToString);
+    end else begin
+      iValuePosDeleted := PtrInt(FListOrderedByOpReference[iDel]);
+      FListOrderedBySha256.Delete(iDel);
+      // Decrease values > iValuePosDeleted
+      for i := 0 to FListOrderedByOpReference.Count - 1 do begin
+        if PtrInt(FListOrderedByOpReference[i])>iValuePosDeleted then begin
+          FListOrderedByOpReference[i] := TObject( PtrInt(FListOrderedByOpReference[i]) - 1 );
+        end;
+      end;
+    end;
     // Delete from Ordered
     If Not FindOrderedBySha(l,P^.Op.Sha256,iDel) then begin
       TLog.NewLog(ltError,ClassName,'DEV ERROR 20180213-1 Operation not found in ordered list: '+P^.Op.ToString);
@@ -1976,6 +1975,17 @@ begin
   End;
 end;
 
+function TOperationsHashTree.IndexOfOpReference(const opReference: TOpReference): Integer;
+Var l : TList;
+begin
+  l := FHashTreeOperations.LockList;
+  Try
+    if not FindOrderedByOpReference(l,opReference,Result) then Result := -1;
+  Finally
+    FHashTreeOperations.UnlockList;
+  End;
+end;
+
 function TOperationsHashTree.CountOperationsBySameSignerWithoutFee(account_number: Cardinal): Integer;
 Var l : TList;
   i : Integer;
@@ -2022,7 +2032,11 @@ begin
       TCrypto.DoSha256(h,FHashTree);
     end;
     npos := list.Add(P);
-    FListOrderedByOpReference.Add(op.GetOpReference);
+    //
+    if Not FindOrderedByOpReference(list,op.GetOpReference,i) then begin
+      FListOrderedByOpReference.Insert(i,TObject(npos));
+    end;
+
     // Improvement: Will allow to add duplicate Operations, so add only first to orderedBySha
     If Not FindOrderedBySha(list,op.Sha256,i) then begin
       // Protection: Will add only once
@@ -2108,6 +2122,33 @@ begin
   Index := L;
 end;
 
+function TOperationsHashTree.FindOrderedByOpReference(lockedThreadList: TList; const Value: TOpReference; var Index: Integer): Boolean;
+var L, H, I : Integer;
+  iLockedThreadListPos : PtrInt;
+  C : Int64;
+  P : POperationHashTreeReg;
+begin
+  Result := False;
+  L := 0;
+  H := FListOrderedByOpReference.Count - 1;
+  while L <= H do
+  begin
+    I := (L + H) shr 1;
+    iLockedThreadListPos := PtrInt(FListOrderedByOpReference[I]);
+    C := Int64(POperationHashTreeReg(lockedThreadList[iLockedThreadListPos])^.Op.GetOpReference) - Int64(Value);
+    if C < 0 then L := I + 1 else
+    begin
+      H := I - 1;
+      if C = 0 then
+      begin
+        Result := True;
+        L := I;
+      end;
+    end;
+  end;
+  Index := L;
+end;
+
 function TOperationsHashTree.LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage : Boolean; LoadProtocolVersion : Word; PreviousUpdatedBlocks : TAccountPreviousBlockInfo; var errors: AnsiString): Boolean;
 Var c, i: Cardinal;
   OpType: Cardinal;
@@ -2174,6 +2215,22 @@ begin
   finally
     FHashTreeOperations.UnlockList;
   end;
+end;
+
+procedure TOperationsHashTree.RemoveByOpReference(const opReference: TOpReference);
+var i : Integer;
+  l : TList;
+  iLockedThreadListPos : PtrInt;
+begin
+  l := FHashTreeOperations.LockList;
+  Try
+    if FindOrderedByOpReference(l,opReference,i) then begin
+      iLockedThreadListPos := PtrInt(FListOrderedByOpReference[i]);
+      Delete(iLockedThreadListPos);
+    end;
+  Finally
+    FHashTreeOperations.UnlockList;
+  End;
 end;
 
 function TOperationsHashTree.SaveOperationsHashTreeToStream(Stream: TStream; SaveToStorage: Boolean): Boolean;
@@ -2348,12 +2405,21 @@ begin
 end;
 
 function TPCOperation.GetOpReference: TOpReference;
-  // XXXXXXXXX
   // Described on PIP-0015 by Herman Schoenfeld
   // Will return a 64 bit value composed by SignerAccount (first 4 bytes) and n_Operation (last 4 bytes)
   // Will allow to quick search an Operation in a TOperationsHashTree object
 begin
   Result := ((UInt64(SignerAccount) SHL 32) OR UInt64(N_Operation));
+end;
+
+class function TPCOperation.GetOpReferenceAccount(const opReference: TOpReference): Cardinal;
+begin
+  Result := Cardinal(opReference SHR 32);
+end;
+
+class function TPCOperation.GetOpReferenceN_Operation(const opReference: TOpReference): Cardinal;
+begin
+  Result := Cardinal(opReference);
 end;
 
 procedure TPCOperation.SignerAccounts(list: TList);
@@ -2826,142 +2892,6 @@ begin
   finally
     FList.UnlockList;
   end;
-end;
-
-{ TOrderedOpReferenceList }
-
-{$UNDEF IS64BITS}
-{$IFDEF CPU64BITS}{$DEFINE IS64BITS}{$ENDIF}
-{$IFDEF FPC}{$IFDEF CPU64}{$DEFINE IS64BITS}{$ENDIF}{$ENDIF}
-{$IFNDEF IS64BITS}
-Type POpReference = ^TOpReference;
-{$ENDIF}
-
-function TOrderedOpReferenceList.Add(AOpReference: TOpReference) : Integer;
-  {$IFNDEF IS64BITS}
-var p : POpReference;
-  {$ENDIF}
-begin
-  FindOpReference(AOpReference,Result);
-  // Will allow duplicates
-  {$IFNDEF IS64BITS}
-  new(p);
-  p^ := AOpReference;
-  FList.Insert(Result,p);
-  {$ELSE}
-  FList.Insert(Result,TObject(AOpReference));
-  {$ENDIF}
-end;
-
-procedure TOrderedOpReferenceList.Clear;
-Var i : Integer;
-  {$IFNDEF IS64BITS}
-  p : POpReference;
-  {$ENDIF}
-begin
-  {$IFNDEF IS64BITS}
-  for i := 0 to FList.Count-1 do begin
-    p := FList[i];
-    Dispose(p);
-  end;
-  {$ENDIF}
-  FList.Clear;
-end;
-
-function TOrderedOpReferenceList.Count: Integer;
-begin
-  Result := FList.Count;
-end;
-
-constructor TOrderedOpReferenceList.Create;
-begin
-  FList := TList.Create;
-end;
-
-procedure TOrderedOpReferenceList.Delete(AIndex: Integer);
-  {$IFNDEF IS64BITS}
-var p : POpReference;
-  {$ENDIF}
-begin
-  {$IFNDEF IS64BITS}
-  p := FList[AIndex];
-  Dispose(p);
-  {$ENDIF}
-  FList.Delete(AIndex);
-end;
-
-destructor TOrderedOpReferenceList.Destroy;
-begin
-  Clear;
-  FreeAndNil(FList);
-  inherited;
-end;
-
-function TOrderedOpReferenceList.FindAccount(AAccount: Cardinal; var Index: Integer): Boolean;
-var
-  cCurrent : TOpReference;
-begin
-  Result := FindOpReference((AAccount SHL 32),Index);
-  if (Not Result) And (Index<FList.Count) then begin
-    // Check if Index is same AAccount value
-    {$IFNDEF IS64BITS}
-    cCurrent := POpReference( FList[Index] )^;
-    {$ELSE}
-    cCurrent := TOpReference(FList[Index]);
-    {$ENDIF}
-    if (cCurrent SHR 32)=AAccount then Result := True;
-  end;
-end;
-
-function TOrderedOpReferenceList.FindOpReference(AOpReference: TOpReference; var Index: Integer): Boolean;
-var L, H, I: Integer;
-  cCurrent : TOpReference;
-  C : Int64;
-begin
-  Result := False;
-  L := 0;
-  H := FList.Count - 1;
-  while L <= H do
-  begin
-    I := (L + H) shr 1;
-    // Capture value
-    {$IFNDEF IS64BITS}
-    cCurrent := POpReference( FList[I] )^;
-    {$ELSE}
-    cCurrent := TOpReference(FList[I]);
-    {$ENDIF}
-
-    C := Int64(cCurrent) - Int64(AOpReference);
-    if C < 0 then L := I + 1 else
-    begin
-      H := I - 1;
-      if C = 0 then
-      begin
-        Result := True;
-        L := I;
-      end;
-    end;
-  end;
-  Index := L;
-end;
-
-function TOrderedOpReferenceList.Get(AIndex: Integer): TOpReference;
-begin
-  {$IFNDEF IS64BITS}
-  Result := POpReference( FList[AIndex] )^;
-  {$ELSE}
-  Result := TOpReference(FList[AIndex]);
-  {$ENDIF}
-end;
-
-function TOrderedOpReferenceList.IndexOf(AOpReference: TOpReference): Integer;
-begin
-  if Not FindOpReference(AOpReference,Result) then Result := -1;
-end;
-
-function TOrderedOpReferenceList.IndexOfAccount(AAccount: Cardinal): Integer;
-begin
-  if Not FindAccount(AAccount,Result) then Result := -1;
 end;
 
 initialization
