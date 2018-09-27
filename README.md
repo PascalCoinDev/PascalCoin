@@ -37,6 +37,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
 TODO: Bug in Lazarus optimization cause Access Violation on "getpendings" call (must be 0 or 1). techworker/ugo4brain in discord 2018-05-11 #development channel
 ### Build XXXXXX - CURRENT
 - Implementation of Hard fork on block XXXXXXX (PENDING... TODO !)
+  - PIP - 0015: Fast Block Propagation
   - PIP - 0016: Layer-2 protocol support
   - New digest hash for signature verifications
   - Added OrderedAccountKeysList that allows an indexed search of public keys in the safebox with mem optimization
