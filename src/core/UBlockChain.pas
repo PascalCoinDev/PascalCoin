@@ -901,6 +901,11 @@ Begin
       Result := op.DoOperation(FPreviousUpdatedBlocks, FSafeBoxTransaction, errors);
     end else Result := true;
     if Result then begin
+      if FIsOnlyOperationBlock then begin
+        // Clear fee values and put to False
+        FIsOnlyOperationBlock := False;
+        FOperationBlock.fee := 0;
+      end;
       FOperationsHashTree.AddOperationToHashTree(op);
       FOperationBlock.fee := FOperationBlock.fee + op.OperationFee;
       FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
@@ -1980,7 +1985,8 @@ Var l : TList;
 begin
   l := FHashTreeOperations.LockList;
   Try
-    if not FindOrderedByOpReference(l,opReference,Result) then Result := -1;
+    if not FindOrderedByOpReference(l,opReference,Result) then Result := -1
+    else Result := PtrInt(FListOrderedByOpReference.Items[Result]);
   Finally
     FHashTreeOperations.UnlockList;
   End;

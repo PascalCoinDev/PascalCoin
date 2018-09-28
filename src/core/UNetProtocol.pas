@@ -3393,25 +3393,36 @@ begin
               if DataBuffer.Read(oprefcount,SizeOf(oprefcount))<>SizeOf(oprefcount) then Exit;
               if DataBuffer.Size - DataBuffer.Position < (oprefcount * SizeOf(TOpReference)) then Exit;
               SetLength(opReferencesArr,oprefcount);
-              for i := 1 to oprefcount do begin
-                if DataBuffer.Read(opReference,SizeOf(opReference))<>SizeOf(opReference) then Exit;
-                opReferencesArr[High(opReferencesArr)] := opReference;
+              if (oprefcount>0) then begin
+                for i := 0 to Integer(Integer(oprefcount)-1) do begin
+                  if DataBuffer.Read(opReference,SizeOf(opReference))<>SizeOf(opReference) then Exit;
+                  opReferencesArr[i] := opReference;
+                end;
               end;
               DoDisconnect := False;
               // Try TNode locking process
               If TNode.Node.TryLockNode(3000) then begin
                 Try
                   if (op.OperationBlock.block<>TNode.Node.Bank.BlocksCount) then Exit; // Meanwhile other threads have added it
-                  // Fill not found operations:
+                  // Fill not included operations:
                   for i:=0 to High(opReferencesArr) do begin
                     iNodeOpReference := TNode.Node.Operations.OperationsHashTree.IndexOfOpReference(opReferencesArr[i]);
                     if iNodeOpReference<0 then begin
                       // Warning: Operation not found on mempool... cannot continue, must call block
-                      TLog.NewLog(ltinfo,ClassName,Format('OpReference %d:%d not found on MemPool for new block %d at OpReference %d/%d',
+                      TLog.NewLog(ltError,ClassName,Format('OpReference %d:%d not found on MemPool for new block %d at OpReference %d/%d',
                         [TPCOperation.GetOpReferenceAccount(opReferencesArr[i]),TPCOperation.GetOpReferenceN_Operation(opReferencesArr[i]),
                         op.OperationBlock.block,i+1,Length(opReferencesArr)]));
                       Send_GetBlocks(op.OperationBlock.block,1,oprefcount);
                       Exit;
+                    end else begin
+                      // Add it!
+                      if Not (op.AddOperation(True,TNode.Node.Operations.Operation[iNodeOpReference],errors)) then begin
+                        TLog.NewLog(ltError,ClassName,Format('OpReference %d:%d (%d/%d) from MemPool invalid to be added at block %d - Error:%s',
+                          [TPCOperation.GetOpReferenceAccount(opReferencesArr[i]),TPCOperation.GetOpReferenceN_Operation(opReferencesArr[i]),
+                          i+1,Length(opReferencesArr),op.OperationBlock.block,errors]));
+                        Send_GetBlocks(op.OperationBlock.block,1,oprefcount);
+                        Exit;
+                      end;
                     end;
                   end;
                 Finally
