@@ -1839,27 +1839,36 @@ begin
       TLog.NewLog(ltError,ClassName,'DEV ERROR 20180927-1 Operation not found in ordered by reference list: '+P^.Op.ToString);
     end else begin
       iValuePosDeleted := PtrInt(FListOrderedByOpReference[iDel]);
-      FListOrderedBySha256.Delete(iDel);
-      // Decrease values > iValuePosDeleted
-      for i := 0 to FListOrderedByOpReference.Count - 1 do begin
-        if PtrInt(FListOrderedByOpReference[i])>iValuePosDeleted then begin
-          FListOrderedByOpReference[i] := TObject( PtrInt(FListOrderedByOpReference[i]) - 1 );
-        end;
+      if (iValuePosDeleted<>index) then begin
+        if (POperationHashTreeReg(l[iValuePosDeleted])^.Op.GetOpReference <> P^.Op.GetOpReference) then
+          TLog.NewLog(lterror,ClassName,Format('DEV ERROR 20180928-2 [%d]=%d <> %d',[iDel,iValuePosDeleted,index]));
+      end;
+      FListOrderedByOpReference.Delete(iDel);
+    end;
+    // Decrease FListOrderedByOpReference values > index
+    for i := 0 to FListOrderedByOpReference.Count - 1 do begin
+      if PtrInt(FListOrderedByOpReference[i])>index then begin
+        FListOrderedByOpReference[i] := TObject( PtrInt(FListOrderedByOpReference[i]) - 1 );
       end;
     end;
+
     // Delete from Ordered
     If Not FindOrderedBySha(l,P^.Op.Sha256,iDel) then begin
       TLog.NewLog(ltError,ClassName,'DEV ERROR 20180213-1 Operation not found in ordered list: '+P^.Op.ToString);
     end else begin
       iValuePosDeleted := PtrInt(FListOrderedBySha256[iDel]);
+      if (iValuePosDeleted<>index) then
+        TLog.NewLog(lterror,ClassName,Format('DEV ERROR 20180928-3 [%d]=%d <> %d',[iDel,iValuePosDeleted,index]));
+
       FListOrderedBySha256.Delete(iDel);
-      // Decrease values > iValuePosDeleted
-      for i := 0 to FListOrderedBySha256.Count - 1 do begin
-        if PtrInt(FListOrderedBySha256[i])>iValuePosDeleted then begin
-          FListOrderedBySha256[i] := TObject( PtrInt(FListOrderedBySha256[i]) - 1 );
-        end;
+    end;
+    // Decrease FListOrderedBySha256 values > index
+    for i := 0 to FListOrderedBySha256.Count - 1 do begin
+      if PtrInt(FListOrderedBySha256[i])>index then begin
+        FListOrderedBySha256[i] := TObject( PtrInt(FListOrderedBySha256[i]) - 1 );
       end;
     end;
+
     // Delete from account Data
     If Not FindOrderedByAccountData(l,P^.Op.SignerAccount,i) then begin
       TLog.NewLog(ltError,ClassName,Format('DEV ERROR 20180213-3 account %d not found in ordered list: %s',[P^.Op.SignerAccount,P^.Op.ToString]));
@@ -2041,7 +2050,7 @@ begin
     //
     if Not FindOrderedByOpReference(list,op.GetOpReference,i) then begin
       FListOrderedByOpReference.Insert(i,TObject(npos));
-    end;
+    end; // TODO: Do not allow duplicate OpReferences?
 
     // Improvement: Will allow to add duplicate Operations, so add only first to orderedBySha
     If Not FindOrderedBySha(list,op.Sha256,i) then begin
