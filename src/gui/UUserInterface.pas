@@ -27,7 +27,7 @@ uses
   Dialogs, LCLType,
   UCommon, UCommon.UI,
   UBlockChain, UAccounts, UNode, UWallet, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining,
-  ULog, UThread, UNetProtocol, UCrypto,
+  ULog, UThread, UNetProtocol, UCrypto, UBaseTypes,
   UFRMMainForm, UCTRLSyncronization, UFRMAccountExplorer, UFRMOperationExplorer, UFRMPendingOperations, UFRMOperation,
   UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys;
 

@@ -25,12 +25,12 @@ unit UCrypto;
 interface
 
 uses
-  Classes, SysUtils, UOpenSSL, UOpenSSLdef, URandomHash;
+  Classes, SysUtils, UOpenSSL, UOpenSSLdef, URandomHash, UBaseTypes;
 
 Type
   ECryptoException = Class(Exception);
 
-  TRawBytes = AnsiString;
+  // TRawBytes = AnsiString; XXXXXXXX Definded at UBaseTypes
   PRawBytes = ^TRawBytes;
 
   TECDSA_SIG = record

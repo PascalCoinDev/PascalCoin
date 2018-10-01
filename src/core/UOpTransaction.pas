@@ -22,7 +22,7 @@ unit UOpTransaction;
 
 interface
 
-Uses UCrypto, UBlockChain, Classes, UAccounts;
+Uses UCrypto, UBlockChain, Classes, UAccounts, UBaseTypes;
 
 Type
   // Operations Type

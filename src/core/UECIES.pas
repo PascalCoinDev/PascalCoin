@@ -43,7 +43,7 @@ unit UECIES;
 
 interface
 
-Uses UOpenSSLdef, UOpenSSL, UCrypto, ULog, UConst;
+Uses UOpenSSLdef, UOpenSSL, UCrypto, ULog, UConst, UBaseTypes;
 
 Const CT_Max_Bytes_To_Encrypt = 32000;
 

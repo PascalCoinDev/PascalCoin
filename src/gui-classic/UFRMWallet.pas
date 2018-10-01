@@ -34,7 +34,7 @@ uses
   ExtCtrls, ComCtrls, UWallet, StdCtrls, ULog, Grids, UAppParams, UBlockChain,
   UNode, UGridUtils, UJSONFunctions, UAccounts, Menus, ImgList, UNetProtocol,
   UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect, UConst,
-  UAccountKeyStorage,
+  UAccountKeyStorage, UBaseTypes,
   UFRMRPCCalls, UTxMultiOperation;
 
 Const
@@ -315,7 +315,7 @@ implementation
 
 Uses UFolderHelper, UOpenSSL, UOpenSSLdef, UTime, UFileStorage,
   UThread, UOpTransaction, UECIES, UFRMPascalCoinWalletConfig,
-  UFRMOperationsExplorer, UBaseTypes,
+  UFRMOperationsExplorer,
   UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText,
   USettings, UCommon;
 

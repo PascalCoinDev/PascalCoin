@@ -23,7 +23,7 @@ unit UTxMultiOperation;
 interface
 
 uses
-  Classes, SysUtils, UCrypto, UBlockChain, UAccounts;
+  Classes, SysUtils, UCrypto, UBlockChain, UAccounts, UBaseTypes;
 
 Type
 

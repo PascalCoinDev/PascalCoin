@@ -23,7 +23,7 @@ unit UBlockChain;
 interface
 
 uses
-  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs;
+  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs, UBaseTypes;
 {$I config.inc}
 
 {
@@ -497,7 +497,7 @@ implementation
 
 uses
   SysUtils, Variants,
-  UTime, UConst, UOpTransaction, UBaseTypes;
+  UTime, UConst, UOpTransaction;
 
 { TPCBank }
 

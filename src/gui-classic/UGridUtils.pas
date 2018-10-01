@@ -31,7 +31,7 @@ uses
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
   Classes, Grids, UNode, UAccounts, UBlockChain, UAppParams,
-  UWallet, UCrypto, UPoolMining, URPC;
+  UWallet, UCrypto, UPoolMining, URPC, UBaseTypes;
 
 Type
   // TAccountsGrid implements a visual integration of TDrawGrid

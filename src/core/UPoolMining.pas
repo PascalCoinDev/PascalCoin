@@ -29,7 +29,7 @@ Uses
   {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
   UTCPIP, SysUtils, UThread, SyncObjs, Classes, UJSONFunctions, UAES, UNode,
-  UCrypto, UAccounts, UConst, UBlockChain;
+  UCrypto, UAccounts, UConst, UBlockChain, UBaseTypes;
 
 {$I config.inc}
 
@@ -169,7 +169,7 @@ Const
 
 implementation
 
-Uses ULog, Variants, UTime, UNetProtocol, UBaseTypes;
+Uses ULog, Variants, UTime, UNetProtocol;
 
 Type TPendingResponseMessage = Record
        sendDateTime : TDateTime;

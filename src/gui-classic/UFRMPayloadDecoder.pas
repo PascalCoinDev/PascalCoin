@@ -106,7 +106,7 @@ implementation
   {$R *.lfm}
 {$ENDIF}
 
-Uses UNode, UTime, UECIES, UAES, UAccounts, UFRMMemoText;
+Uses UNode, UTime, UECIES, UAES, UAccounts, UFRMMemoText, UBaseTypes;
 
 { TFRMPayloadDecoder }
 

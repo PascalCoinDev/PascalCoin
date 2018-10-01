@@ -32,7 +32,7 @@ unit UAES;
 interface
 
 uses
-  SysUtils, UCrypto;
+  SysUtils, UCrypto, UBaseTypes;
 
 Type
   TAESComp = Class

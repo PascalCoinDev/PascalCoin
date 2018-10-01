@@ -25,7 +25,7 @@ interface
 uses
   LCLIntf, LCLType,
   SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Menus, UCommon.UI,
+  Dialogs, StdCtrls, Menus, UCommon.UI, UBaseTypes,
   UNode, UNetProtocol, UCrypto, UFRMMainForm,UConst;
 
 type

@@ -26,7 +26,7 @@ uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UCommon.UI,
-  UNode, UWallet, UCrypto, Buttons, UBlockChain,
+  UNode, UWallet, UCrypto, Buttons, UBlockChain, UBaseTypes,
   UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UCommon;
 
 Const
