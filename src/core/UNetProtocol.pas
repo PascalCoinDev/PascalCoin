@@ -45,6 +45,7 @@ Const
   CT_NetOp_GetBlocks            = $0010;
   CT_NetOp_NewBlock             = $0011;
   CT_NetOp_NewBlock_Fast_Propagation = $0012; // New V4 protocol: Allows PIP-0015 Fast block propagation
+  CT_NetOp_GetBlockchainOperations   = $0013; // New V4 protocol: Allows PIP-0015 Fast block propagation
   CT_NetOp_AddOperations        = $0020;
   CT_NetOp_GetSafeBox           = $0021; // V2 Protocol: Allows to send/receive Safebox in chunk parts
 
@@ -70,6 +71,8 @@ Const
   CT_MAX_NODESERVERS_ON_HELLO = 10;
   CT_MIN_NODESERVERS_BUFFER = 50;
   CT_MAX_NODESERVERS_BUFFER = 300;
+
+  CT_MAX_OPS_PER_BLOCKCHAINOPERATIONS = 10000;
 
 Type
   {
@@ -381,6 +384,7 @@ Type
     Procedure DoProcess_Message(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetBlocks_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetBlocks_Response(HeaderData : TNetHeaderData; DataBuffer: TStream);
+    Procedure DoProcess_GetBlockchainOperations_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetOperationsBlock_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_NewBlock(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_AddOperations(HeaderData : TNetHeaderData; DataBuffer: TStream);
@@ -688,6 +692,7 @@ begin
             end;
           end;
         end;
+        SetLength(nsa,0);
       end else begin
         SetLength(nsa,0);
         if FListByIp.Count>0 then begin
@@ -2120,6 +2125,7 @@ begin
     CT_NetOp_GetBlockHeaders : Result := 'GET BLOCK HEADERS';
     CT_NetOp_NewBlock : Result := 'NEW BLOCK';
     CT_NetOp_NewBlock_Fast_Propagation : Result := 'NEW BLOCK FAST PROPAGATION';
+    CT_NetOp_GetBlockchainOperations : Result := 'GET BLOCKCHAIN OPERATIONS';
     CT_NetOp_AddOperations : Result := 'ADD OPERATIONS';
     CT_NetOp_GetSafeBox : Result := 'GET SAFEBOX';
     CT_NetOp_GetPendingOperations : Result := 'GET PENDING OPERATIONS';
@@ -2551,6 +2557,99 @@ begin
       end;
     finally
       operations.Free;
+    end;
+  end;
+end;
+
+procedure TNetConnection.DoProcess_GetBlockchainOperations_Request(HeaderData: TNetHeaderData; DataBuffer: TStream);
+  {
+  As described on PIP-0015 this will return Operations stored in a specified Block of the Blockchain
+  Input:
+    operations_count : 4 bytes
+    foreach operations_count
+      BLOCK_OP_REF : 8 bytes -> BLOCK_OP_REF = (QWord(BlockNumber) SHL 32) BIT-OR QWord(OperationIndex)
+  Output:
+    operations_count : 4 bytes -> Must match input.operations_count
+    foreach operations_count
+      op_size : 4 bytes
+      op_data : (op_size) bytes
+  }
+  function GetBlock(bufferOperationsBlock : TList; nBlock : Integer) : TPCOperationsComp;
+  var i : Integer;
+  begin
+    // Search at buffer:
+    i := 0; Result := Nil;
+    while (i<bufferOperationsBlock.Count) And (TPCOperationsComp( bufferOperationsBlock[i] ).OperationBlock.block <> nBlock) do inc(i);
+    if (i>=bufferOperationsBlock.Count) then begin
+      // Not found !
+      Result := TPCOperationsComp.Create(Nil);
+      if Not TNode.Node.Bank.LoadOperations(Result,nBlock) then FreeAndNil(Result);
+    end else Result := TPCOperationsComp( bufferOperationsBlock[i] );
+  end;
+Var input_operations_count, cBlock, cBlockOpIndex, c : Cardinal;
+  block_op_ref : UInt64;
+  i : Integer;
+  bufferOperationsBlock : TList;
+  opc : TPCOperationsComp;
+  outputBuffer : TStream;
+  opindexdata : TStream;
+  opsdata : TBytes;
+  errors : AnsiString;
+  DoDisconnect : Boolean;
+
+begin
+  errors := 'Invalid structure';
+  DoDisconnect := true;
+  outputBuffer := TMemoryStream.Create;
+  try
+    if HeaderData.header_type<>ntp_request then begin
+      errors := 'Not request';
+      Exit;
+    end;
+    DataBuffer.Read(input_operations_count,SizeOf(input_operations_count));
+    if (input_operations_count>CT_MAX_OPS_PER_BLOCKCHAINOPERATIONS) then Exit;
+    outputBuffer.Write(input_operations_count,SizeOf(input_operations_count));
+    bufferOperationsBlock := TList.Create;
+    opindexdata := TStream.Create;
+    Try
+      for i := 1 to input_operations_count do begin
+        if DataBuffer.Read(block_op_ref,SizeOf(block_op_ref))<>SizeOf(block_op_ref) then Exit; // read 8 bytes
+        cBlock := block_op_ref SHR 32;
+        cBlockOpIndex := Cardinal(block_op_ref AND ($00000000FFFFFFFF));
+        opc := GetBlock(bufferOperationsBlock, cBlock);
+        if Assigned(opc) then begin
+          if (cBlockOpIndex<opc.Count) then begin
+            opsdata := opc.Operation[cBlockOpIndex].GetOperationStreamData;
+            c := Length(opsdata);
+            outputBuffer.Write(c,SizeOf(c));
+            outputBuffer.WriteBuffer(opsdata,Length(opsdata));
+            SetLength(opsdata,0);
+          end else begin
+            // OpIndex not found on block -> Add NIL reference: data 0 size = No operation
+            c := 0;
+            outputBuffer.Write(c,SizeOf(c));
+          end;
+        end else begin
+          // Block not found -> Add NIL reference: data 0 size = No operation
+          c := 0;
+          outputBuffer.Write(c,SizeOf(c));
+        end;
+      end;
+      DoDisconnect := False;
+      // Send back
+      outputBuffer.Position := 0;
+      Send(ntp_response,HeaderData.operation,0,HeaderData.request_id,outputBuffer);
+    Finally
+      opindexdata.Free;
+      for i := 0 to bufferOperationsBlock.Count-1 do begin
+        TPCOperationsComp(bufferOperationsBlock[i]).Free;
+      end;
+      bufferOperationsBlock.Free;
+    End;
+  finally
+    outputBuffer.Free;
+    if DoDisconnect then begin
+      DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(HeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
     end;
   end;
 end;
@@ -3352,14 +3451,120 @@ begin
 end;
 
 procedure TNetConnection.DoProcess_NewBlock(HeaderData: TNetHeaderData; DataBuffer: TStream);
-var op : TPCOperationsComp;
-var bacc : TBlockAccount;
-  errors : AnsiString;
+Type
+  TNewFastPropagationBlockOperation = Record
+    opReference : TOpReference;
+    opStreamData : TBytes;
+  end;
+  TNewFastPropagationBlockOperationsArray = Array of TNewFastPropagationBlockOperation;
+
+var operationsComp : TPCOperationsComp;
   DoDisconnect : Boolean;
-  oprefcount : Cardinal;
-  i, iNodeOpReference : Integer;
-  opReference : TOpReference;
-  opReferencesArr : TOpReferenceArray;
+  errors : AnsiString;
+
+  function ProcessNewFastBlockPropagation : Boolean;
+  var nfpboarr : TNewFastPropagationBlockOperationsArray;
+    oprefcount, notFoundOpReferencesCount, c : Cardinal;
+    i,iNodeOpReference : Integer;
+    sendStream, receiveStream : TStream;
+    block_op_ref : UInt64;
+    headerData : TNetHeaderData;
+    auxOp : TPCOperation;
+    tc : TTickCount;
+  begin
+    Result := False;
+    DoDisconnect := True;
+    tc := TPlatform.GetTickCount;
+    SetLength(nfpboarr,0);
+    if DataBuffer.Read(oprefcount,SizeOf(oprefcount))<>SizeOf(oprefcount) then Exit;
+    if DataBuffer.Size - DataBuffer.Position < (oprefcount * SizeOf(TOpReference)) then Exit;
+    SetLength(nfpboarr,oprefcount);
+    if (oprefcount>0) then begin
+      for i := 0 to Integer(Integer(oprefcount)-1) do begin
+        if DataBuffer.Read(nfpboarr[i].opReference,SizeOf(TOpReference))<>SizeOf(TOpReference) then Exit;
+        SetLength(nfpboarr[i].opStreamData,0);
+      end;
+    end;
+    DoDisconnect := False;
+    notFoundOpReferencesCount := 0;
+    // Try TNode locking process
+    If Not TNode.Node.TryLockNode(3000) then Exit; // Cannot lock...
+    Try
+      if (operationsComp.OperationBlock.block<>TNode.Node.Bank.BlocksCount) then Exit; // Meanwhile other threads have added it
+      // Fill not included operations:
+      for i:=0 to High(nfpboarr) do begin
+        iNodeOpReference := TNode.Node.Operations.OperationsHashTree.IndexOfOpReference(nfpboarr[i].opReference);
+        if iNodeOpReference>=0 then begin
+          nfpboarr[i].opStreamData := TNode.Node.Operations.OperationsHashTree.GetOperation(iNodeOpReference).GetOperationStreamData;
+        end else begin
+          inc(notFoundOpReferencesCount);
+        end;
+      end;
+    Finally
+      TNode.Node.UnlockNode;
+    End;
+    if (notFoundOpReferencesCount>CT_MAX_OPS_PER_BLOCKCHAINOPERATIONS) then begin
+      // A lot of operations pending! Calling GetBlocks
+      TLog.NewLog(ltdebug,ClassName,Format('Too many pending operations (%d of %d) in Fast propagation block %d',[notFoundOpReferencesCount,oprefcount,operationsComp.OperationBlock.block]));
+      Exit;
+    end else if (notFoundOpReferencesCount>0) then begin
+      // Must obtain not found calling CT_NetOp_GetBlockchainOperations
+      TLog.NewLog(ltdebug,ClassName,Format('Pending operations (%d of %d) in Fast propagation block %d',[notFoundOpReferencesCount,oprefcount,operationsComp.OperationBlock.block]));
+      sendStream := TMemoryStream.Create;
+      receiveStream := TMemoryStream.Create;
+      Try
+        sendStream.Write(notFoundOpReferencesCount,SizeOf(notFoundOpReferencesCount)); // 4 bytes for count
+        for i:=0 to High(nfpboarr) do begin
+          if Length(nfpboarr[i].opStreamData)=0 then begin
+            // Need this!
+            block_op_ref := UInt64(UInt64(operationsComp.OperationBlock.block) SHL 32) + i;
+            sendStream.Write(block_op_ref,SizeOf(block_op_ref)); // 8 bytes for Block_op_ref
+          end;
+        end;
+        // Send & wait
+        if Not DoSendAndWaitForResponse(CT_NetOp_GetBlockchainOperations,TNetData.NetData.NewRequestId,sendStream,receiveStream,30000,headerData) then begin
+          TLog.NewLog(ltdebug,ClassName,Format('Not received Pending operations (%d of %d) in Fast propagation block %d',[notFoundOpReferencesCount,oprefcount,operationsComp.OperationBlock.block]));
+          Exit;
+        end;
+        DoDisconnect := True; // If bad received data... then DoDisconnect
+        if (headerData.is_error) then Exit;
+        receiveStream.Position := 0;
+        receiveStream.Read(c,SizeOf(c));
+        if (c<>notFoundOpReferencesCount) then Exit; // Error!
+        // Process Response
+        for i:=0 to High(nfpboarr) do begin
+          if Length(nfpboarr[i].opStreamData)=0 then begin
+            // Read it from response:
+            if receiveStream.Read(c,SizeOf(c)) <> SizeOf(c) then Exit;
+            if receiveStream.Size - receiveStream.Position < c then Exit; // Not enough received data
+            SetLength(nfpboarr[i].opStreamData,c);
+            receiveStream.ReadBuffer(nfpboarr[i].opStreamData,c);
+          end;
+        end;
+        DoDisconnect := False;
+      finally
+        sendStream.Free;
+        receiveStream.Free;
+      end;
+    end;
+    // Now we have nfpboarr with full data
+    for i := 0 to High(nfpboarr) do begin
+      auxOp := TPCOperation.GetOperationFromStreamData( nfpboarr[i].opStreamData );
+      if not Assigned(auxOp) then begin
+      end else begin
+        if Not operationsComp.AddOperation(False,auxOp,errors) then Exit;
+        auxOp.Free;
+      end;
+    end;
+    // Finished
+    if (notFoundOpReferencesCount > 0) then begin
+      TLog.NewLog(ltdebug,ClassName,Format('Processed NewFastBlockPropagation with Pending operations (%d of %d) in Fast propagation block %d for %d miliseconds',[notFoundOpReferencesCount,oprefcount,operationsComp.OperationBlock.block,TPlatform.GetElapsedMilliseconds(tc)]));
+    end;
+    DoDisconnect := False;
+    Result := True;
+  end;
+var bacc : TBlockAccount;
+  c : Cardinal;
 begin
   errors := '';
   DoDisconnect := true;
@@ -3368,84 +3573,50 @@ begin
       errors := 'Not autosend';
       exit;
     end;
-    op := TPCOperationsComp.Create(nil);
+    operationsComp := TPCOperationsComp.Create(nil);
     try
-      op.bank := TNode.Node.Bank;
-      if Not op.LoadBlockFromStream(DataBuffer,errors) then begin
+      operationsComp.bank := TNode.Node.Bank;
+      if Not operationsComp.LoadBlockFromStream(DataBuffer,errors) then begin
         errors := 'Error decoding new account: '+errors;
         exit;
       end else begin
         DoDisconnect := false;
         DataBuffer.Read(FRemoteAccumulatedWork,SizeOf(FRemoteAccumulatedWork));
-        if op.IsOnlyOperationBlock then begin
-          TLog.NewLog(ltdebug,ClassName,'Received NEW FAST PROPAGATION BLOCK with height: '+inttostr(op.OperationBlock.block)+' Accumulated work '+IntToStr(FRemoteAccumulatedWork));
+        if operationsComp.IsOnlyOperationBlock then begin
+          TLog.NewLog(ltdebug,ClassName,'Received NEW FAST PROPAGATION BLOCK with height: '+inttostr(operationsComp.OperationBlock.block)+' Accumulated work '+IntToStr(FRemoteAccumulatedWork)+' from '+ClientRemoteAddr);
         end else begin
-          TLog.NewLog(ltdebug,ClassName,'Received NEW BLOCK with height: '+inttostr(op.OperationBlock.block)+' Accumulated work '+IntToStr(FRemoteAccumulatedWork));
+          TLog.NewLog(ltdebug,ClassName,'Received NEW BLOCK with height: '+inttostr(operationsComp.OperationBlock.block)+' Accumulated work '+IntToStr(FRemoteAccumulatedWork)+' from '+ClientRemoteAddr);
         end;
-        FRemoteOperationBlock := op.OperationBlock;
+        FRemoteOperationBlock := operationsComp.OperationBlock;
         if (FRemoteAccumulatedWork>TNode.Node.Bank.SafeBox.WorkSum) then begin
-          if (op.OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
+          if (operationsComp.OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
             // New block candidate:
-            if (op.IsOnlyOperationBlock) then begin
+            if (operationsComp.IsOnlyOperationBlock) then begin
               // Received a FAST PROPAGATION BLOCK as described at PIP-0015
               // Fill operations reference:
-              DoDisconnect := True;
-              if DataBuffer.Read(oprefcount,SizeOf(oprefcount))<>SizeOf(oprefcount) then Exit;
-              if DataBuffer.Size - DataBuffer.Position < (oprefcount * SizeOf(TOpReference)) then Exit;
-              SetLength(opReferencesArr,oprefcount);
-              if (oprefcount>0) then begin
-                for i := 0 to Integer(Integer(oprefcount)-1) do begin
-                  if DataBuffer.Read(opReference,SizeOf(opReference))<>SizeOf(opReference) then Exit;
-                  opReferencesArr[i] := opReference;
+              If Not ProcessNewFastBlockPropagation then begin
+                if DoDisconnect then Exit
+                else begin
+                  Send_GetBlocks(operationsComp.OperationBlock.block,1,c);
+                  Exit;
                 end;
               end;
-              DoDisconnect := False;
-              // Try TNode locking process
-              If TNode.Node.TryLockNode(3000) then begin
-                Try
-                  if (op.OperationBlock.block<>TNode.Node.Bank.BlocksCount) then Exit; // Meanwhile other threads have added it
-                  // Fill not included operations:
-                  for i:=0 to High(opReferencesArr) do begin
-                    iNodeOpReference := TNode.Node.Operations.OperationsHashTree.IndexOfOpReference(opReferencesArr[i]);
-                    if iNodeOpReference<0 then begin
-                      // Warning: Operation not found on mempool... cannot continue, must call block
-                      TLog.NewLog(ltError,ClassName,Format('OpReference %d:%d not found on MemPool for new block %d at OpReference %d/%d',
-                        [TPCOperation.GetOpReferenceAccount(opReferencesArr[i]),TPCOperation.GetOpReferenceN_Operation(opReferencesArr[i]),
-                        op.OperationBlock.block,i+1,Length(opReferencesArr)]));
-                      Send_GetBlocks(op.OperationBlock.block,1,oprefcount);
-                      Exit;
-                    end else begin
-                      // Add it!
-                      if Not (op.AddOperation(True,TNode.Node.Operations.Operation[iNodeOpReference],errors)) then begin
-                        TLog.NewLog(ltError,ClassName,Format('OpReference %d:%d (%d/%d) from MemPool invalid to be added at block %d - Error:%s',
-                          [TPCOperation.GetOpReferenceAccount(opReferencesArr[i]),TPCOperation.GetOpReferenceN_Operation(opReferencesArr[i]),
-                          i+1,Length(opReferencesArr),op.OperationBlock.block,errors]));
-                        Send_GetBlocks(op.OperationBlock.block,1,oprefcount);
-                        Exit;
-                      end;
-                    end;
-                  end;
-                Finally
-                  TNode.Node.UnlockNode;
-                End;
-              end;
             end;
-            //
-            If Not TNode.Node.AddNewBlockChain(Self,op,bacc,errors) then begin
+            If Not TNode.Node.AddNewBlockChain(Self,operationsComp,bacc,errors) then begin
               // Really is a new block? (Check it)
-              if (op.OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
+              if (operationsComp.OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
                 // Received a new invalid block... perhaps I'm an orphan blockchain
                 TNetData.NetData.GetNewBlockChainFromClient(Self,'Higher Work with same block height. I''m a orphan blockchain candidate');
               end;
             end;
           end else begin
             // Received a new higher work
-            TNetData.NetData.GetNewBlockChainFromClient(Self,Format('Higher Work and distinct blocks count. Need to download BlocksCount:%d  my BlocksCount:%d',[op.OperationBlock.block+1,TNode.Node.Bank.BlocksCount]));
+            TNetData.NetData.GetNewBlockChainFromClient(Self,Format('Higher Work and distinct blocks count. Need to download BlocksCount:%d  my BlocksCount:%d',[operationsComp.OperationBlock.block+1,TNode.Node.Bank.BlocksCount]));
           end;
         end;
       end;
     finally
-      op.Free;
+      operationsComp.Free;
     end;
   finally
     if DoDisconnect then begin
@@ -3523,6 +3694,11 @@ begin
                   End;
                   CT_NetOp_NewBlock, CT_NetOp_NewBlock_Fast_Propagation : Begin
                     DoProcess_NewBlock(HeaderData,ReceiveDataBuffer);
+                  End;
+                  CT_NetOp_GetBlockchainOperations : Begin
+                    if HeaderData.header_type=ntp_request then
+                      DoProcess_GetBlockchainOperations_Request(HeaderData,ReceiveDataBuffer)
+                    else TLog.NewLog(ltdebug,Classname,'Received old response of: '+TNetData.HeaderDataToText(HeaderData));
                   End;
                   CT_NetOp_AddOperations : Begin
                     DoProcess_AddOperations(HeaderData,ReceiveDataBuffer);

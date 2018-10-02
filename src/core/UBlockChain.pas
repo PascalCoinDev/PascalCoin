@@ -23,7 +23,7 @@ unit UBlockChain;
 interface
 
 uses
-  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs, UBaseTypes;
+  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs, UBaseTypes, SysUtils;
 {$I config.inc}
 
 {
@@ -251,6 +251,9 @@ Type
     class function GetOpReferenceN_Operation(const opReference : TOpReference) : Cardinal;
     function Sha256 : TRawBytes;
     function GetOpReference : TOpReference;
+    //
+    function GetOperationStreamData : TBytes;
+    class function GetOperationFromStreamData(StreamData : TBytes) : TPCOperation;
   End;
 
   { TOperationsHashTree }
@@ -496,7 +499,7 @@ Const
 implementation
 
 uses
-  SysUtils, Variants,
+  Variants,
   UTime, UConst, UOpTransaction;
 
 { TPCBank }
@@ -2417,6 +2420,54 @@ begin
       ms.Free;
     end;
   end else Raise Exception.Create('ERROR DEV 20170426-1'); // This should never happen, if good coded
+end;
+
+class function TPCOperation.GetOperationFromStreamData(StreamData : TBytes): TPCOperation;
+  // Loads an TPCOperation saved using "GetOperationStreamData"
+  // 1 byte for OpType
+  // N bytes for Operation specific data (saved at SaveOpToStream)
+Var stream : TStream;
+  b : Byte;
+  j: Integer;
+  OpClass: TPCOperationClass;
+  auxOp: TPCOperation;
+begin
+  Result := Nil;
+  stream := TMemoryStream.Create;
+  Try
+    stream.WriteBuffer(StreamData,Length(StreamData));
+    stream.Position := 0;
+    stream.Read(b,1);
+    j := TPCOperationsComp.IndexOfOperationClassByOpType(b);
+    if j >= 0 then
+      OpClass := _OperationsClass[j]
+    else Exit;
+    auxOp := OpClass.Create;
+    if auxOp.LoadOpFromStream(stream,False) then Result := auxOp
+    else auxOp.Free;
+  Finally
+    stream.Free;
+  End;
+end;
+
+function TPCOperation.GetOperationStreamData: TBytes;
+  // OperationStreamData fills an array of bytes with info needed to store an operation
+  // 1 byte for OpType
+  // N bytes for Operation specific data (saved at SaveOpToStream)
+var stream : TStream;
+  b : Byte;
+begin
+  stream := TMemoryStream.Create;
+  Try
+    b := OpType;
+    stream.Write(b,1);
+    SaveOpToStream(stream,False);
+    SetLength(Result,stream.Size);
+    stream.Position := 0;
+    stream.ReadBuffer(Result,stream.Size);
+  Finally
+    stream.Free;
+  End;
 end;
 
 function TPCOperation.GetOpReference: TOpReference;
