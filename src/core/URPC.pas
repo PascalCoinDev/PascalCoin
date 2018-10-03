@@ -279,7 +279,7 @@ Begin
     as_ForSale : begin
       jsonObj.GetAsVariant('state').Value:='listed';
       jsonObj.GetAsVariant('locked_until_block').Value:=account.accountInfo.locked_until_block;
-      jsonObj.GetAsVariant('price').Value:=account.accountInfo.price;
+      jsonObj.GetAsVariant('price').Value:=ToJSONCurrency(account.accountInfo.price);
       jsonObj.GetAsVariant('seller_account').Value:=account.accountInfo.account_to_pay;
       jsonObj.GetAsVariant('private_sale').Value:= (account.accountInfo.new_publicKey.EC_OpenSSL_NID<>0);
       if not (account.accountInfo.new_publicKey.EC_OpenSSL_NID<>0) then begin

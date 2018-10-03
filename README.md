@@ -65,6 +65,8 @@ TODO: Bug in Lazarus optimization cause Access Violation on "getpendings" call (
     - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
   - New param for "signbuyaccount"
     - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
+  - Account Object change:
+    - Changed return value of "price". Previously was returned without decimals in native value (inconsistency bug), now will be returned as a PASCURRENCY (with 4 decimals)
 - Bug fixed: DoProcess_GetAccount_Request request type=1 (single account) didn't returned only 1
 
 
