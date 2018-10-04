@@ -52,7 +52,7 @@ Type
   private
     class function OperationsHashTreeToHexaString(Const OperationsHashTree : TOperationsHashTree) : AnsiString;
   public
-    class function ToJSONCurrency(pascalCoins : Int64) : Real;
+    class function ToJSONCurrency(pascalCoins : Int64) : Currency;
     class procedure FillAccountObject(Const account : TAccount; jsonObj : TPCJSONObject);
     class procedure FillBlockObject(nBlock : Cardinal; ANode : TNode; jsonObject: TPCJSONObject);
     class procedure FillOperationObject(Const OPR : TOperationResume; currentNodeBlocksCount : Cardinal; jsonObject : TPCJSONObject);
@@ -132,7 +132,7 @@ var _RPCServer : TRPCServer = Nil;
 
 { TPascalCoinJSONComp }
 
-class function TPascalCoinJSONComp.ToJSONCurrency(pascalCoins: Int64): Real;
+class function TPascalCoinJSONComp.ToJSONCurrency(pascalCoins: Int64): Currency;
 Begin
   Result := RoundTo( pascalCoins / 10000 , -4);
 end;

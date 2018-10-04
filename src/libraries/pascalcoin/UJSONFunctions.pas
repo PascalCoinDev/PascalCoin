@@ -510,7 +510,7 @@ begin
     {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DecimalSeparator := '.';
     {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ThousandSeparator := ',';
     Try
-      if FormatFloat('0.###########',d)=inttostr(i64) then
+      if FormatFloat('0.##########',d)=inttostr(i64) then
         Value := i64
       else Value := d;
     Finally
@@ -543,13 +543,14 @@ begin
     varLongWord,varInt64 : Result := VarToStr(Value);
     varBoolean : if (Value) then Result := 'true' else Result:='false';
     varNull : Result := 'null';
-    varDate,varDouble : begin
+    varDate,varDouble,varcurrency : begin
       ds := {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DecimalSeparator;
       ts := {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ThousandSeparator;
       {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DecimalSeparator := '.';
       {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ThousandSeparator := ',';
       try
-        Result := FormatFloat('0.###########',Value);
+        if VarType(Value)=varcurrency then Result := FormatFloat('0.0000',Value)
+        else Result := FormatFloat('0.##########',Value);
       finally
         {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DecimalSeparator := ds;
         {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ThousandSeparator := ts;
