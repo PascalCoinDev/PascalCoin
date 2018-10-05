@@ -39,6 +39,7 @@ TODO: Bug in Lazarus optimization cause Access Violation on "getpendings" call (
 - Implementation of Hard fork on block XXXXXXX (PENDING... TODO !)
   - PIP - 0015: Fast Block Propagation
   - PIP - 0016: Layer-2 protocol support
+  - Limit blockchain to allow max only one 0-fee operation by signer per block (prior was limited by network, not by core)
   - New digest hash for signature verifications
   - Added OrderedAccountKeysList that allows an indexed search of public keys in the safebox with mem optimization
 - JSON-RPC changes:
