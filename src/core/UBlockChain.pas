@@ -269,6 +269,7 @@ Type
     FTotalAmount : Int64;
     FTotalFee : Int64;
     FMax0feeOperationsBySigner : Integer;
+    function InternalCanAddOperationToHashTree(lockedThreadList : TList; op : TPCOperation) : Boolean;
     function InternalAddOperationToHashTree(list : TList; op : TPCOperation; CalcNewHashTree : Boolean) : Boolean;
     Function FindOrderedByOpReference(lockedThreadList : TList; const Value: TOpReference; var Index: Integer): Boolean;
     Function FindOrderedBySha(lockedThreadList : TList; const Value: TRawBytes; var Index: Integer): Boolean;
@@ -278,6 +279,7 @@ Type
   public
     Constructor Create;
     Destructor Destroy; Override;
+    function CanAddOperationToHashTree(op : TPCOperation) : Boolean;
     function AddOperationToHashTree(op : TPCOperation) : Boolean;
     Procedure ClearHastThree;
     Property HashTree : TRawBytes read GetHashTree;
@@ -906,7 +908,12 @@ Begin
         exit;
       end;
       // Only process when in current address, prevent do it when reading operations from file
-      Result := op.DoOperation(FPreviousUpdatedBlocks, FSafeBoxTransaction, errors);
+      if FOperationsHashTree.CanAddOperationToHashTree(op) then begin
+        Result := op.DoOperation(FPreviousUpdatedBlocks, FSafeBoxTransaction, errors);
+      end else begin
+        errors := 'Cannot add operation. Limits reached';
+        Exit;
+      end;
     end else Result := true;
     if Result then begin
       if FOperationsHashTree.AddOperationToHashTree(op) then begin
@@ -1431,16 +1438,18 @@ begin
       lastn := FOperationsHashTree.OperationsCount;
       for i:=0 to lastn-1 do begin
         op := FOperationsHashTree.GetOperation(i);
-        if (op.DoOperation(FPreviousUpdatedBlocks, SafeBoxTransaction,errors)) then begin
-          if aux.AddOperationToHashTree(op) then begin
-            inc(n);
-            inc(FOperationBlock.fee,op.OperationFee);
-            {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Sanitizing (pos:'+inttostr(i+1)+'/'+inttostr(lastn)+'): '+op.ToString){$ENDIF};
-          end else begin
-            TLog.NewLog(lterror,ClassName,Format('Undo operation.DoExecute at Sanitize due limits reached. Executing %d operations',[FOperationsHashTree.OperationsCount]));
-            FPreviousUpdatedBlocks.Clear;
-            FSafeBoxTransaction.Rollback;
-            for iUndo := 0 to FOperationsHashTree.OperationsCount-1 do FOperationsHashTree.GetOperation(iUndo).DoOperation(FPreviousUpdatedBlocks, FSafeBoxTransaction, auxs);
+        if (aux.CanAddOperationToHashTree(op)) then begin
+          if (op.DoOperation(FPreviousUpdatedBlocks, SafeBoxTransaction,errors)) then begin
+            if aux.AddOperationToHashTree(op) then begin
+              inc(n);
+              inc(FOperationBlock.fee,op.OperationFee);
+              {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Sanitizing (pos:'+inttostr(i+1)+'/'+inttostr(lastn)+'): '+op.ToString){$ENDIF};
+            end else begin
+              TLog.NewLog(lterror,ClassName,Format('Undo operation.DoExecute at Sanitize due limits reached. Executing %d operations',[aux.OperationsCount]));
+              FPreviousUpdatedBlocks.Clear;
+              FSafeBoxTransaction.Rollback;
+              for iUndo := 0 to aux.OperationsCount-1 do aux.GetOperation(iUndo).DoOperation(FPreviousUpdatedBlocks, FSafeBoxTransaction, auxs);
+            end;
           end;
         end;
       end;
@@ -1780,6 +1789,17 @@ begin
   end;
 end;
 
+function TOperationsHashTree.CanAddOperationToHashTree(op: TPCOperation): Boolean;
+Var lockedList : TList;
+begin
+  lockedList := FHashTreeOperations.LockList;
+  Try
+    Result := InternalCanAddOperationToHashTree(lockedList,op);
+  Finally
+    FHashTreeOperations.UnlockList;
+  End;
+end;
+
 procedure TOperationsHashTree.ClearHastThree;
 var l : TList;
   i : Integer;
@@ -2064,27 +2084,10 @@ Var msCopy : TMemoryStream;
   i,npos,iListSigners : Integer;
   listSigners : TList;
 begin
-  Result := False;
-  // Protections:
-  // Protect 0-fee operations
-  if (op.OperationFee=0) And (FMax0feeOperationsBySigner>=0) then begin
-    if (FMax0feeOperationsBySigner=0) then Exit // Not allowed 0-fee operations!
-    else if (FMax0feeOperationsBySigner>0) then begin
-      listSigners := TList.Create;
-      try
-        op.SignerAccounts(listSigners);
-        for iListSigners:=0 to listSigners.Count-1 do begin
-          If FindOrderedByAccountData(list,PtrInt(listSigners[iListSigners]),i) then begin
-            PaccData := FListOrderedByAccountsData[i];
-            if (PaccData^.account_without_fee>=FMax0feeOperationsBySigner) then Exit; // Limit 0-fee reached
-          end;
-        end;
-      finally
-        listSigners.Free;
-      end;
-    end;
-  end;
-  Result := True; // Will add:
+  if Not InternalCanAddOperationToHashTree(list,op) then begin
+    Result := False;
+    Exit;
+  end else Result := True; // Will add:
   msCopy := TMemoryStream.Create;
   try
     New(P);
@@ -2143,6 +2146,34 @@ begin
   inc(FTotalAmount,op.OperationAmount);
   inc(FTotalFee,op.OperationFee);
   If Assigned(FOnChanged) then FOnChanged(Self);
+end;
+
+function TOperationsHashTree.InternalCanAddOperationToHashTree(lockedThreadList : TList; op: TPCOperation): Boolean;
+Var PaccData : POperationsHashAccountsData;
+  iListSigners,iFound : Integer;
+  listSigners : TList;
+begin
+  Result := False;
+  // Protections:
+  // Protect 0-fee operations
+  if (op.OperationFee=0) And (FMax0feeOperationsBySigner>=0) then begin
+    if (FMax0feeOperationsBySigner=0) then Exit // Not allowed 0-fee operations!
+    else if (FMax0feeOperationsBySigner>0) then begin
+      listSigners := TList.Create;
+      try
+        op.SignerAccounts(listSigners);
+        for iListSigners:=0 to listSigners.Count-1 do begin
+          If FindOrderedByAccountData(lockedThreadList,PtrInt(listSigners[iListSigners]),iFound) then begin
+            PaccData := FListOrderedByAccountsData[iFound];
+            if (PaccData^.account_without_fee>=FMax0feeOperationsBySigner) then Exit; // Limit 0-fee reached
+          end;
+        end;
+      finally
+        listSigners.Free;
+      end;
+    end;
+  end;
+  Result := True;
 end;
 
 function TOperationsHashTree.FindOrderedBySha(lockedThreadList : TList; const Value: TRawBytes; var Index: Integer): Boolean;
