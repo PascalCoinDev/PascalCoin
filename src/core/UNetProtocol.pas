@@ -60,6 +60,7 @@ Const
 
   CT_NetError_InvalidProtocolVersion = $0001;
   CT_NetError_IPBlackListed = $0002;
+  CT_NetError_NotFound = $0003;
   CT_NetError_InvalidDataBufferInfo = $0010;
   CT_NetError_InternalServerError = $0011;
   CT_NetError_InvalidNewAccount = $0012;
@@ -2830,12 +2831,17 @@ begin
     end;
     DataBuffer.Read(b_start,4);
     DataBuffer.Read(b_end,4);
-    if (b_start<0) Or (b_start>b_end) Or (b_start>=TNode.Node.Bank.BlocksCount) then begin
+    if (b_start<0) Or (b_start>b_end) then begin
       errors := 'Invalid start ('+Inttostr(b_start)+') or end ('+Inttostr(b_end)+') of count ('+Inttostr(TNode.Node.Bank.BlocksCount)+')';
       exit;
     end;
 
     DoDisconnect := false;
+
+    if (b_start>=TNode.Node.Bank.BlocksCount) then begin
+      SendError(ntp_response,HeaderData.operation,HeaderData.request_id,CT_NetError_NotFound,Format('Block %d not found',[b_start]));
+      Exit;
+    end;
 
     if (b_end>=TNode.Node.Bank.BlocksCount) then b_end := TNode.Node.Bank.BlocksCount-1;
     inc_b := ((b_end - b_start) DIV CT_Max_Positions)+1;
@@ -3522,7 +3528,7 @@ var operationsComp : TPCOperationsComp;
           end;
         end;
         // Send & wait
-        if Not DoSendAndWaitForResponse(CT_NetOp_GetBlockchainOperations,TNetData.NetData.NewRequestId,sendStream,receiveStream,30000,headerData) then begin
+        if Not DoSendAndWaitForResponse(CT_NetOp_GetBlockchainOperations,TNetData.NetData.NewRequestId,sendStream,receiveStream,5000,headerData) then begin
           TLog.NewLog(ltdebug,ClassName,Format('Not received Pending operations (%d of %d) in Fast propagation block %d',[notFoundOpReferencesCount,oprefcount,operationsComp.OperationBlock.block]));
           Exit;
         end;
