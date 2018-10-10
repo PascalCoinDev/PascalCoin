@@ -24,7 +24,8 @@ interface
 
 Uses UThread, ULog, UConst, UNode, UAccounts, UCrypto, UBlockChain,
   UNetProtocol, UOpTransaction, UWallet, UTime, UAES, UECIES, UTxMultiOperation,
-  UJSONFunctions, classes, blcksock, synsock, IniFiles, Variants, math, UBaseTypes, UOpenSSL;
+  UJSONFunctions, classes, blcksock, synsock, IniFiles, Variants, math, UBaseTypes, UOpenSSL,
+  UNetProtection;
 
 Const
   CT_RPC_ErrNum_InternalError = 100;
@@ -861,6 +862,41 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       end;
     finally
       TNetData.NetData.NetConnections.UnlockList;
+    end;
+  end;
+
+  Procedure Get_node_ip_stats;
+  var aip : String;
+    i : Integer;
+    json, newJson : TPCJSONObject;
+    ipInfo : TIpInfo;
+  begin
+    aip := Trim(params.AsString('ip',''));
+    if aip<>'' then begin
+      json := TNetData.NetData.IpInfos.Lock(aip,False);
+      Try
+        newJson := TPCJSONObject.Create;
+        newJson.GetAsVariant('ip').Value := aip;
+        newJson.GetAsObject('values').Assign(json);
+        GetResultArray.Insert(GetResultArray.Count,newJson);
+      Finally
+        TNetData.NetData.IpInfos.Unlock;
+      End;
+    end else begin
+      for i :=0 to TNetData.NetData.IpInfos.Count-1 do begin
+        ipInfo := TNetData.NetData.IpInfos.Lock(i);
+        Try
+          newJson := TPCJSONObject.Create;
+          newJson.GetAsVariant('ip').Value := ipInfo.ip;
+          newJson.GetAsObject('values').Assign(ipInfo.json);
+          GetResultArray.Insert(GetResultArray.Count,newJson);
+        Finally
+          TNetData.NetData.IpInfos.Unlock;
+        End;
+      end;
+    end;
+    if params.AsBoolean('clear',False) then begin
+      TNetData.NetData.IpInfos.Clear;
     end;
   end;
 
@@ -3674,6 +3710,14 @@ begin
       Exit;
     end;
     jsonresponse.GetAsVariant('result').Value := TNetData.NetData.NodeServersAddresses.CleanBlackList(True);
+    Result := True;
+  end else if (method='node_ip_stats') then begin
+    if (Not _RPCServer.AllowUsePrivateKeys) then begin
+      // Protection when server is locked to avoid private keys call
+      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
+      Exit;
+    end;
+    Get_node_ip_stats;
     Result := True;
   end else begin
     ErrorNum := CT_RPC_ErrNum_MethodNotFound;
