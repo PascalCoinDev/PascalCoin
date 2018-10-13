@@ -76,11 +76,14 @@ function TNullDigest.TransformFinal: IHashResult;
 var
   res: THashLibByteArray;
 begin
-  FbOut.Position := 0;
-  System.SetLength(res, FbOut.Size);
-  FbOut.Read(res[0], FbOut.Size);
-  result := THashResult.Create(res);
-  Initialize();
+  try
+    FbOut.Position := 0;
+    System.SetLength(res, FbOut.Size);
+    FbOut.Read(res[0], FbOut.Size);
+    result := THashResult.Create(res);
+  finally
+    Initialize();
+  end;
 end;
 
 end.
