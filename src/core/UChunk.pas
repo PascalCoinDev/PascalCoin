@@ -89,7 +89,10 @@ begin
       DestStream.Write(c,SizeOf(c)); // Save 4 random bytes, latter will be changed
       //
       // Zip it and add to Stream
-      cs := Tcompressionstream.create(cldefault,DestStream);
+      cs := Tcompressionstream.create(clMax,DestStream);
+        // Note: Previously was using clDefault, but found a bug for FreePascal 3.0.4
+        // https://bugs.freepascal.org/view.php?id=34422
+        // On 2018-10-15 changed clDefault to cl Max
       try
         cs.CopyFrom(auxStream,auxStream.Size); // compressing
       finally
