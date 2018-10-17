@@ -75,6 +75,7 @@ Const
   CT_MAX_NODESERVERS_BUFFER = 300;
 
   CT_MAX_OPS_PER_BLOCKCHAINOPERATIONS = 10000;
+  CT_MAX_SAFEBOXCHUNK_BLOCKS = 30000;
 
 Type
   {
@@ -1840,7 +1841,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     try
       SetLength(chunks,0);
       try
-        // Will obtain chunks of 10000 blocks each
+        // Will obtain chunks of 10000 blocks each -> Note: Maximum is CT_MAX_SAFEBOXCHUNK_BLOCKS
         for i:=0 to ((_blockcount-1) DIV 10000) do begin // Bug v3.0.1 and minors
           FNewBlockChainFromClientStatus := Format('Receiving new safebox with %d blocks (step %d/%d) from %s',
             [_blockcount,i+1,((_blockcount-1) DIV 10000)+1,Connection.ClientRemoteAddr]);
@@ -2914,6 +2915,11 @@ begin
   TStreamOp.ReadAnsiString(DataBuffer,_safeboxHash);
   DataBuffer.Read(_from,SizeOf(_from));
   DataBuffer.Read(_to,SizeOf(_to));
+  // Protections:
+  if (_from>_to) Or (_from + CT_MAX_SAFEBOXCHUNK_BLOCKS <= _to) then begin
+    DisconnectInvalidClient(False,Format('Invalid GetSafebox values on request. From:%d to:%d',[_from,_to]));
+    Exit;
+  end;
   //
   sbStream := TNode.Node.Bank.Storage.CreateSafeBoxStream(_blockcount);
   try
@@ -3617,6 +3623,11 @@ begin
               end;
             end;
             If Not TNode.Node.AddNewBlockChain(Self,operationsComp,bacc,errors) then begin
+              // Check valid header, if not, scammer... Disconnect
+              if Not TPCSafeBox.IsValidOperationBlock(operationsComp.OperationBlock,errors) then begin
+                DoDisconnect := True;
+                Exit;
+              end;
               // Really is a new block? (Check it)
               if (operationsComp.OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
                 // Received a new invalid block... perhaps I'm an orphan blockchain
@@ -3703,7 +3714,7 @@ begin
                   CT_NetOp_GetBlocks : Begin
                     if HeaderData.header_type=ntp_request then begin
                       if TNetData.NetData.IpInfos.ReachesLimits(Client.RemoteHost,CT_NetTransferType[HeaderData.header_type],TNetData.OperationToText(HeaderData.operation),HeaderData.buffer_data_length,
-                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(600,100,0),TLimitLifetime.Create(10,5,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
+                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(300,100,0),TLimitLifetime.Create(10,5,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
                       else DoProcess_GetBlocks_Request(HeaderData,ReceiveDataBuffer)
                     end else if HeaderData.header_type=ntp_response then begin
                       DoProcess_GetBlocks_Response(HeaderData,ReceiveDataBuffer);
@@ -3712,14 +3723,12 @@ begin
                   CT_NetOp_GetBlockHeaders : Begin
                     if HeaderData.header_type=ntp_request then begin
                       if TNetData.NetData.IpInfos.ReachesLimits(Client.RemoteHost,CT_NetTransferType[HeaderData.header_type],TNetData.OperationToText(HeaderData.operation),HeaderData.buffer_data_length,
-                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(60,20,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
+                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(30,30,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
                       else DoProcess_GetOperationsBlock_Request(HeaderData,ReceiveDataBuffer)
                     end else TLog.NewLog(ltdebug,Classname,'Received old response of: '+TNetData.HeaderDataToText(HeaderData));
                   End;
                   CT_NetOp_NewBlock, CT_NetOp_NewBlock_Fast_Propagation : Begin
-                    if TNetData.NetData.IpInfos.ReachesLimits(Client.RemoteHost,CT_NetTransferType[HeaderData.header_type],TNetData.OperationToText(HeaderData.operation),HeaderData.buffer_data_length,
-                      TArray<TLimitLifetime>.Create(TLimitLifetime.Create(60,20,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
-                    else DoProcess_NewBlock(HeaderData,ReceiveDataBuffer);
+                    DoProcess_NewBlock(HeaderData,ReceiveDataBuffer);
                   End;
                   CT_NetOp_GetBlockchainOperations : Begin
                     if HeaderData.header_type=ntp_request then begin
@@ -3750,7 +3759,7 @@ begin
                   CT_NetOp_GetAccount : Begin
                     if (HeaderData.header_type=ntp_request) then begin
                       if TNetData.NetData.IpInfos.ReachesLimits(Client.RemoteHost,CT_NetTransferType[HeaderData.header_type],TNetData.OperationToText(HeaderData.operation),HeaderData.buffer_data_length,
-                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(60,60,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
+                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(30,60,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
                       else DoProcess_GetAccount_Request(HeaderData,ReceiveDataBuffer)
                     end else TLog.NewLog(ltdebug,Classname,'Received old response of: '+TNetData.HeaderDataToText(HeaderData));
                   end;
