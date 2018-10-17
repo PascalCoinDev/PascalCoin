@@ -2,7 +2,13 @@ unit URandomHash;
 
 { Copyright (c) 2018 by Herman Schoenfeld
 
-  RandomHash reference implementation (PIP-0009).
+  PIP-0009: RandomHash Reference Implementation
+
+  Notes:
+  1. TRandomHash - standard use hasher
+  2. TRandomHashFast - optimized, mining hasher
+  3. TMersenne32 - mersenne twister random number generator
+  4. TXorShift32 - lightning fast random number generator (used in memtransform0)
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
@@ -106,7 +112,7 @@ type
   TRandomHash = class sealed(TObject)
     const
       N = 5;               // Number of hashing rounds required to compute a nonce (total rounds = 2^N - 1)
-      M = (10 * 1024) * 5; // The memory expansion unit (in bytes)
+      M = (10 * 1024) * 5; // The memory expansion unit (in bytes), total bytes =
 
     {$IFNDEF UNITTESTS}private{$ELSE}public{$ENDIF}
       FMurmurHash3_x86_32 : IHash;
