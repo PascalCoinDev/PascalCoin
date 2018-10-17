@@ -1,9 +1,14 @@
-{ *********************************************************** }
-{ *                     HashLib Library                     * }
-{ *      Copyright (c) Ugochukwu Mmaduekwe 2016 - 2018      * }
-{ *********************************************************** }
+{ *********************************************************************************** }
+{ *                                 HashLib Library                                 * }
+{ *                  Copyright (c) 2016 - 2018 Ugochukwu Mmaduekwe                  * }
+{ *                 Github Repository <https://github.com/Xor-el>                   * }
 
-(* &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& *)
+{ *  Distributed under the MIT software license, see the accompanying file LICENSE  * }
+{ *          or visit http://www.opensource.org/licenses/mit-license.php.           * }
+
+{ * ******************************************************************************* * }
+
+(* &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& *)
 
 
  {$DEFINE DELPHI}

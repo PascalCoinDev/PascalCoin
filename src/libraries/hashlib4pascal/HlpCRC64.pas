@@ -24,7 +24,7 @@ type
 
   end;
 
-  TCRC64 = class(THash, IChecksum, IBlockHash, IHash64, ITransformBlock)
+  TCRC64 = class(THash, IChecksum, IHash64, ITransformBlock)
 
   strict private
 

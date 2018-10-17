@@ -13,7 +13,7 @@ uses
   HlpIHashResult;
 
 type
-  TBernstein1 = class sealed(THash, IHash32, IBlockHash, ITransformBlock)
+  TBernstein1 = class sealed(THash, IHash32, ITransformBlock)
   strict private
 
     Fm_hash: UInt32;

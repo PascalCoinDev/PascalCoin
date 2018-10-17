@@ -24,7 +24,7 @@ type
 
   end;
 
-  TCRC16 = class(THash, IChecksum, IBlockHash, IHash16, ITransformBlock)
+  TCRC16 = class(THash, IChecksum, IHash16, ITransformBlock)
 
   strict private
 

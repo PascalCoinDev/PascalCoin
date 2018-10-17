@@ -14,7 +14,7 @@ uses
 
 type
 
-  TBKDR = class sealed(THash, IHash32, IBlockHash, ITransformBlock)
+  TBKDR = class sealed(THash, IHash32, ITransformBlock)
   strict private
 
     Fm_hash: UInt32;

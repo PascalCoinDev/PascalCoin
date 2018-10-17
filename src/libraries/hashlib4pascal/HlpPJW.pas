@@ -13,7 +13,7 @@ uses
   HlpIHashResult;
 
 type
-  TPJW = class sealed(THash, IHash32, IBlockHash, ITransformBlock)
+  TPJW = class sealed(THash, IHash32, ITransformBlock)
   strict private
 
     Fm_hash: UInt32;

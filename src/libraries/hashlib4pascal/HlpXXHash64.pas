@@ -20,7 +20,7 @@ resourcestring
 
 type
 
-  TXXHash64 = class sealed(THash, IHash64, IBlockHash, IHashWithKey,
+  TXXHash64 = class sealed(THash, IHash64, IHashWithKey,
     ITransformBlock)
 
   strict private

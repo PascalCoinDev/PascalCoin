@@ -13,7 +13,7 @@ uses
   HlpIHashResult;
 
 type
-  TAdler32 = class sealed(THash, IChecksum, IBlockHash, IHash32,
+  TAdler32 = class sealed(THash, IChecksum, IHash32,
     ITransformBlock)
 
   strict private

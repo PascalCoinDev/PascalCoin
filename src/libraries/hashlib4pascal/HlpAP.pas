@@ -13,7 +13,7 @@ uses
   HlpIHashResult;
 
 type
-  TAP = class sealed(THash, IHash32, IBlockHash, ITransformBlock)
+  TAP = class sealed(THash, IHash32, ITransformBlock)
   strict private
 
     Fm_hash: UInt32;

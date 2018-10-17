@@ -13,7 +13,7 @@ uses
   HlpIHashResult;
 
 type
-  TFNV64 = class sealed(THash, IHash64, IBlockHash, ITransformBlock)
+  TFNV64 = class sealed(THash, IHash64, ITransformBlock)
   strict private
 
     Fm_hash: UInt64;
