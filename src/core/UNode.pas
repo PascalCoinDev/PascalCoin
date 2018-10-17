@@ -7,7 +7,7 @@ unit UNode;
 
   This unit is a part of the PascalCoin Project, an infinitely scalable
   cryptocurrency. Find us here:
-  Web: https://pascalcoin.org
+  Web: https://www.pascalcoin.org
   Source: https://github.com/PascalCoin/PascalCoin
 
   If you like it, consider a donation using Bitcoin:
