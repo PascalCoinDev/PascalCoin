@@ -870,6 +870,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     i : Integer;
     json, newJson : TPCJSONObject;
     ipInfo : TIpInfo;
+    aDisconnectedOnly : Boolean;
   begin
     aip := Trim(params.AsString('ip',''));
     if aip<>'' then begin
@@ -883,13 +884,16 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         TNetData.NetData.IpInfos.Unlock;
       End;
     end else begin
+      aDisconnectedOnly := params.AsBoolean('only-disconnected',False);
       for i :=0 to TNetData.NetData.IpInfos.Count-1 do begin
         ipInfo := TNetData.NetData.IpInfos.Lock(i);
         Try
-          newJson := TPCJSONObject.Create;
-          newJson.GetAsVariant('ip').Value := ipInfo.ip;
-          newJson.GetAsObject('values').Assign(ipInfo.json);
-          GetResultArray.Insert(GetResultArray.Count,newJson);
+          if (Not aDisconnectedOnly) Or (Assigned(ipInfo.json.FindName('disconnect'))) then begin
+            newJson := TPCJSONObject.Create;
+            newJson.GetAsVariant('ip').Value := ipInfo.ip;
+            newJson.GetAsObject('values').Assign(ipInfo.json);
+            GetResultArray.Insert(GetResultArray.Count,newJson);
+          end;
         Finally
           TNetData.NetData.IpInfos.Unlock;
         End;

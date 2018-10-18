@@ -108,7 +108,7 @@ Const
   CT_BlockChain_Protocol_Available: Word = 4; // Protocol 4 flag
   CT_Protocol_Upgrade_v2_MinBlock = {$IFDEF PRODUCTION}115000{$ELSE}50{$ENDIF};
   CT_Protocol_Upgrade_v3_MinBlock = {$IFDEF PRODUCTION}210000{$ELSE}250{$ENDIF};
-  CT_Protocol_Upgrade_v4_MinBlock = {$IFDEF PRODUCTION}999999{$ELSE}400{$ENDIF}; // NOTE: Upgrade to V4 not decided!   TODO!
+  CT_Protocol_Upgrade_v4_MinBlock = {$IFDEF PRODUCTION}99999999{$ELSE}400{$ENDIF}; // NOTE: Upgrade to V4 not decided!   TODO!
 
 
   CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$04000000{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!

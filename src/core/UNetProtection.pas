@@ -210,7 +210,7 @@ begin
   currts := UnivDateTimeToUnix( DateTime2UnivDateTime(now) );
   json := Lock(AIp,True);
   Try
-    arr := json.GetAsArray('diconnect');
+    arr := json.GetAsArray('disconnect');
     objinfo := arr.GetAsObject(arr.Count);
     objinfo.GetAsVariant('updated_ts').Value := currts;
     objinfo.GetAsVariant('reason').Value := AReason;
