@@ -1715,7 +1715,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
             If IsUsingSnapshot then begin
               TLog.NewLog(ltInfo,CT_LogSender,'Commiting new chain to Safebox');
               Bank.SafeBox.CommitToPrevious;
-              Bank.UpdateValuesFromSafebox;
+              TNode.Node.Bank.UpdateValuesFromSafebox; // BUG 2018-10-14 -> Must update TNode.Node.Bank instead of Bank, because FLastBlockCache must upgrade
               {$IFDEF Check_Safebox_Names_Consistency}
               If Not Check_Safebox_Names_Consistency(Bank.SafeBox,'Commited',errors) then begin
                 TLog.NewLog(lterror,CT_LogSender,'Fatal safebox consistency error getting bank at block '+IntTosTr(start_block)+' : '+errors);
