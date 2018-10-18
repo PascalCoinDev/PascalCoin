@@ -697,7 +697,8 @@ begin
                 break;
               end else begin
                 // To prevent continuous saving...
-                If (BlocksCount MOD (CT_BankToDiskEveryNBlocks*10))=0 then begin
+                if ((BlocksCount+(CT_BankToDiskEveryNBlocks*2)) >= Storage.LastBlock ) or
+                   ((BlocksCount MOD (CT_BankToDiskEveryNBlocks*10))=0) then begin
                   Storage.SaveBank;
                 end;
                 if (Assigned(restoreProgressNotify)) And (TPlatform.GetElapsedMilliseconds(tc)>1000) then begin
