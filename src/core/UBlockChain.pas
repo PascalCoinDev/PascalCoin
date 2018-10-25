@@ -1313,7 +1313,7 @@ begin
     FOperationBlock.fee := 0;
     if FOperationBlock.protocol_version>=CT_PROTOCOL_4 then begin
       FOperationsHashTree.Max0feeOperationsBySigner := 1;
-    end;
+    end else FOperationsHashTree.Max0feeOperationsBySigner := -1;
     Result := FOperationsHashTree.LoadOperationsHashTreeFromStream(Stream,LoadingFromStorage,load_protocol_version,FPreviousUpdatedBlocks,errors);
     if not Result then begin
       exit;
