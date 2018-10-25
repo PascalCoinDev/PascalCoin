@@ -1035,7 +1035,7 @@ begin
       FOperationBlock.block := FBank.BlocksCount;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(FBank.BlocksCount);
       if (resetNewTarget) then begin
-        FOperationBlock.compact_target := TPascalCoinProtocol.MinimumTarget(FOperationBlock.protocol_version);
+        FOperationBlock.compact_target := TPascalCoinProtocol.ResetTarget(FOperationBlock.compact_target,FOperationBlock.protocol_version);
       end else begin
         FOperationBlock.compact_target := FBank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
       end;
@@ -1411,7 +1411,7 @@ begin
 
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(FBank.BlocksCount);
       if (resetNewTarget) then begin
-        FOperationBlock.compact_target := TPascalCoinProtocol.MinimumTarget(FOperationBlock.protocol_version);
+        FOperationBlock.compact_target := TPascalCoinProtocol.ResetTarget(FOperationBlock.compact_target,FOperationBlock.protocol_version);
       end else begin
         FOperationBlock.compact_target := FBank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
       end;

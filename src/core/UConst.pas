@@ -66,10 +66,16 @@ Const
   CT_MaxWalletAmount = 10000000000000; // ... can be deleted
   //
   CT_MinCompactTarget_v1: Cardinal = {$IFDEF PRODUCTION}$19000000{$ELSE}{$IFDEF TESTNET}$17000000{$ELSE}{$ENDIF}{$ENDIF}; // First compact target of block 0
-  CT_MinCompactTarget_v4: Cardinal = // First compact target of block if using Protocol 4 or higher
+  CT_MinCompactTarget_v4: Cardinal = // Minimum compact target of block if using Protocol 4 or higher
     {$IFDEF ACTIVATE_RANDOMHASH_V4}
-    {$IFDEF PRODUCTION}$0D000000{$ELSE}{$IFDEF TESTNET}$08000000{$ELSE}{$ENDIF}{$ENDIF}
+    {$IFDEF PRODUCTION}$12000000{$ELSE}{$IFDEF TESTNET}$08000000{$ELSE}{$ENDIF}{$ENDIF}
     {$ELSE}CT_MinCompactTarget_v1{$ENDIF};
+
+  {$IFDEF ACTIVATE_RANDOMHASH_V4}
+  CT_CompactTarget_Reset_v4: Cardinal = // First compact target of block if using Protocol 4 and RandomHash is Active
+    {$IFDEF PRODUCTION}$16000000{$ELSE}$08000000{$ENDIF};
+  {$ENDIF}
+
 
   CT_CalcNewTargetBlocksAverage: Cardinal = 100;
   CT_CalcNewTargetLimitChange_SPLIT = 10;

@@ -64,6 +64,7 @@ Type
   TPascalCoinProtocol = Class
   public
     Class Function MinimumTarget(protocol_version : Integer): Cardinal;
+    Class Function ResetTarget(current_target : Cardinal; protocol_version : Integer): Cardinal;
     Class Function GetRewardForNewLine(line_index: Cardinal): UInt64;
     Class Function TargetToCompact(target: TRawBytes; protocol_version : Integer): Cardinal;
     Class Function TargetFromCompact(encoded: Cardinal; protocol_version : Integer): TRawBytes;
@@ -822,6 +823,17 @@ begin
   end else begin
     Result := CT_MinCompactTarget_v4;
   end;
+end;
+
+class function TPascalCoinProtocol.ResetTarget(current_target: Cardinal; protocol_version: Integer): Cardinal;
+begin
+  {$IFDEF ACTIVATE_RANDOMHASH_V4}
+  if protocol_version=CT_PROTOCOL_4 then begin
+    Result := CT_CompactTarget_Reset_v4
+  end else Result := current_target;
+  {$ELSE}
+  Result := current_target;
+  {$ENDIF}
 end;
 
 class function TPascalCoinProtocol.TargetFromCompact(encoded: Cardinal; protocol_version : Integer): TRawBytes;
@@ -3354,7 +3366,7 @@ begin
         {$IFDEF ACTIVATE_RANDOMHASH_V4}
         // Change target on first block of V4 protocol
         isChangeTargetBlock := true;
-        newMinimumTargetBlock := TPascalCoinProtocol.MinimumTarget(CT_PROTOCOL_4);
+        newMinimumTargetBlock := TPascalCoinProtocol.ResetTarget(newOperationBlock.compact_target,CT_PROTOCOL_4);
         {$ENDIF}
       end else If (newOperationBlock.protocol_version=CT_PROTOCOL_3) then begin
         If (newOperationBlock.block<CT_Protocol_Upgrade_v3_MinBlock) then begin
