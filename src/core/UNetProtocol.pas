@@ -264,7 +264,7 @@ Type
     FOnProcessReservedAreaMessage: TProcessReservedAreaMessage;
     FRegisteredRequests : TPCThreadList;
     FIsDiscoveringServers : Boolean;
-    FIsGettingNewBlockChainFromClient : Boolean;
+    FLockGettingNewBlockChainFromClient : TPCCriticalSection;
     FNewBlockChainFromClientStatus : String;
     FOnConnectivityChanged : TNotifyManyEvent;
     FOnNetConnectionsUpdated: TNotifyEvent;
@@ -1173,7 +1173,7 @@ begin
   FNodeServersAddresses := TOrderedServerAddressListTS.Create(Self);
   FLastRequestId := 0;
   FNetConnections := TPCThreadList.Create('TNetData_NetConnections');
-  FIsGettingNewBlockChainFromClient := false;
+  FLockGettingNewBlockChainFromClient := TPCCriticalSection.Create('LockGettingNewBlockChainFromClient');
   FNewBlockChainFromClientStatus := '';
   FNodePrivateKey := TECPrivateKey.Create;
   FNodePrivateKey.GenerateRandomPrivateKey(CT_Default_EC_OpenSSL_NID);
@@ -1248,6 +1248,7 @@ begin
   FreeAndNil(FRegisteredRequests);
   FreeAndNil(FNetworkAdjustedTime);
   FreeAndNil(FIpInfos);
+  FreeAndNil(FLockGettingNewBlockChainFromClient);
   inherited;
   if (_NetData=Self) then _NetData := Nil;
   TLog.NewLog(ltInfo,ClassName,'TNetData.Destroy END');
@@ -1921,12 +1922,12 @@ begin
 
   if (Not Assigned(TNode.Node.Bank.StorageClass)) then Exit;
   //
-  If FIsGettingNewBlockChainFromClient then begin
+  if Not FLockGettingNewBlockChainFromClient.TryEnter then begin
     TLog.NewLog(ltdebug,CT_LogSender,'Is getting new blockchain from client...');
     exit;
-  end else TLog.NewLog(ltdebug,CT_LogSender,'Starting receiving: '+why);
+  end;
   Try
-    FIsGettingNewBlockChainFromClient := true;
+    TLog.NewLog(ltdebug,CT_LogSender,'Starting receiving: '+why);
     FNewBlockChainFromClientStatus := Format('Downloading block %d from %s',[Connection.RemoteOperationBlock.block,Connection.ClientRemoteAddr]);
     FMaxRemoteOperationBlock := Connection.FRemoteOperationBlock;
     if TNode.Node.Bank.BlocksCount=0 then begin
@@ -1980,7 +1981,7 @@ begin
     end;
   Finally
     TLog.NewLog(ltdebug,CT_LogSender,'Finalizing');
-    FIsGettingNewBlockChainFromClient := false;
+    FLockGettingNewBlockChainFromClient.Release;
   end;
 end;
 
@@ -2020,9 +2021,17 @@ end;
 
 function TNetData.IsGettingNewBlockChainFromClient(var status: AnsiString): Boolean;
 begin
-  Result := FIsGettingNewBlockChainFromClient;
-  if (Result) then  status := FNewBlockChainFromClientStatus
-  else status := '';
+  if FLockGettingNewBlockChainFromClient.TryEnter then begin
+    try
+      Result := False;
+      status := '';
+    finally
+      FLockGettingNewBlockChainFromClient.Release;
+    end;
+  end else begin
+    status := FNewBlockChainFromClientStatus;
+    Result := True;
+  end;
 end;
 
 procedure TNetData.SetMaxNodeServersAddressesBuffer(AValue: Integer);
@@ -3738,14 +3747,12 @@ begin
                     end else TLog.NewLog(ltdebug,Classname,'Received old response of: '+TNetData.HeaderDataToText(HeaderData));
                   End;
                   CT_NetOp_AddOperations : Begin
-                    if TNetData.NetData.IpInfos.ReachesLimits(Client.RemoteHost,CT_NetTransferType[HeaderData.header_type],TNetData.OperationToText(HeaderData.operation),HeaderData.buffer_data_length,
-                      TArray<TLimitLifetime>.Create(TLimitLifetime.Create(20,20,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
-                    else DoProcess_AddOperations(HeaderData,ReceiveDataBuffer);
+                    DoProcess_AddOperations(HeaderData,ReceiveDataBuffer);
                   End;
                   CT_NetOp_GetSafeBox : Begin
                     if HeaderData.header_type=ntp_request then begin
                       if TNetData.NetData.IpInfos.ReachesLimits(Client.RemoteHost,CT_NetTransferType[HeaderData.header_type],TNetData.OperationToText(HeaderData.operation),HeaderData.buffer_data_length,
-                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(3600,100,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
+                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(3600,100,0),TLimitLifetime.Create(30,30,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
                       else DoProcess_GetSafeBox_Request(HeaderData,ReceiveDataBuffer)
                     end else DisconnectInvalidClient(false,'Received '+TNetData.HeaderDataToText(HeaderData));
                   end;
