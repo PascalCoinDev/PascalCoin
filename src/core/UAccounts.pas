@@ -2875,9 +2875,11 @@ begin
         if checkAll then begin
           // Check is valid:
           // STEP 1: Validate the block
-          If not IsValidNewOperationsBlock(block.blockchainInfo,False,s) then begin
-            errors := errors + ' > ' + s;
-            exit;
+          if ((iblock + (CT_BankToDiskEveryNBlocks * 20)) >= sbHeader.blockscount) then begin
+            If not IsValidNewOperationsBlock(block.blockchainInfo,False,s) then begin
+              errors := errors + ' > ' + s;
+              exit;
+            end;
           end;
           // STEP 2: Check if valid block hash
           if CalcBlockHash(block,FCurrentProtocol>=CT_PROTOCOL_2)<>block.block_hash then begin
