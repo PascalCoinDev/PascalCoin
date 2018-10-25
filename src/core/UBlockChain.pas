@@ -1031,7 +1031,7 @@ begin
       end;
       if (FOperationBlock.protocol_version>=CT_PROTOCOL_4) then begin
         FOperationsHashTree.Max0feeOperationsBySigner := 1; // Limit to 1 0-fee operation by signer
-      end;
+      end else FOperationsHashTree.Max0feeOperationsBySigner := -1;
       FOperationBlock.block := FBank.BlocksCount;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(FBank.BlocksCount);
       if (resetNewTarget) then begin
@@ -1048,6 +1048,7 @@ begin
       FOperationBlock.compact_target := CT_MinCompactTarget_v1;
       FOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash); // Nothing for first line
       FOperationBlock.protocol_version := CT_PROTOCOL_1;
+      FOperationsHashTree.Max0feeOperationsBySigner := -1;
     end;
     FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
     FOperationBlock.fee := 0;
@@ -1435,7 +1436,7 @@ begin
     Try
       if (FOperationBlock.protocol_version>=CT_PROTOCOL_4) then begin
         aux.Max0feeOperationsBySigner := 1;
-      end;
+      end else aux.Max0feeOperationsBySigner := -1;
       lastn := FOperationsHashTree.OperationsCount;
       for i:=0 to lastn-1 do begin
         op := FOperationsHashTree.GetOperation(i);
