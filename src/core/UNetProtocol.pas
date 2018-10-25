@@ -2809,6 +2809,7 @@ begin
           FIsDownloadingBlocks := false;
           exit;
         end;
+        sleep(1);
       end;
       FIsDownloadingBlocks := false;
       if ((opcount>0) And (FRemoteOperationBlock.block>=TNode.Node.Bank.BlocksCount)) then begin

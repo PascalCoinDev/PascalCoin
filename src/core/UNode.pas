@@ -1281,6 +1281,7 @@ begin
       If FNodeNotifyEvents.FWatchKeys.HasAccountKeyChanged then begin
         FNodeNotifyEvents.FWatchKeys.ClearAccountKeyChanges;
         if Assigned(FNodeNotifyEvents.FOnKeyActivity) then begin
+          DebugStep:='Notify WatchKeys OnKeyActivity';
           FNodeNotifyEvents.FOnKeyActivity(FNodeNotifyEvents);
         end;
       end;
