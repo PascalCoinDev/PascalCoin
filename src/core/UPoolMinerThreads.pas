@@ -97,6 +97,7 @@ Type
     FGlobaDeviceStats : TMinerStats;
     FPartialDeviceStats : TMinerStats;
     FPoolMinerThread : TPoolMinerThread;
+    FLastDigest : TRawBytes;
     procedure SetIsMining(AValue: Boolean);
     procedure SetPaused(AValue: Boolean);
   protected
@@ -422,6 +423,7 @@ begin
   FOnStateChanged:=Nil;
   FPaused:=true;
   FLastActiveTC := 0;
+  FLastDigest:='';
   SetMinerValuesForWork(InitialMinerValuesForWork);
   PoolMinerThread.FDevicesList.Add(Self);
   inherited Create(false);
@@ -470,6 +472,8 @@ begin
   // Validation
   digest := usedMinerValuesForWork.part1+usedMinerValuesForWork.payload_start+usedMinerValuesForWork.part3+'00000000';
   if length(digest)<8 then exit;
+  if TBaseType.BinStrComp(digest,FLastDigest)=0 then Exit;
+  FLastDigest := digest;
   LUseRandomHash := CT_ACTIVATE_RANDOMHASH_V4 AND (usedMinerValuesForWork.version >= CT_PROTOCOL_4);
   // Add timestamp and nonce
   move(Timestamp,digest[length(digest)-7],4);
@@ -479,6 +483,7 @@ begin
   else
     LHash := TCrypto.DoSha256(TCrypto.DoSha256(digest));
   if (LHash <= usedMinerValuesForWork.target_pow) then begin
+    inc(FGlobaDeviceStats.WinsCount);
     FPoolMinerThread.OnMinerNewBlockFound(self,usedMinerValuesForWork,Timestamp,nOnce);
     If Assigned(FOnFoundNOnce) then FOnFoundNOnce(Self,Timestamp,nOnce);
   end else begin
@@ -791,7 +796,6 @@ begin
                   TCrypto.DoDoubleSha256(FDigestStreamMsg.Memory,FDigestStreamMsg.Size,resultPoW);
                 if resultPoW < FCurrentMinerValuesForWork.target_pow then begin
                   if (Terminated) Or (FCPUDeviceThread.Terminated) then exit;
-                  inc(AuxStats.WinsCount);
                   dstep := 5;
                   FLock.Release;
                   try
@@ -814,7 +818,6 @@ begin
                 PascalCoinExecuteLastChunkAndDoSha256(FInternalSha256,FInternalChunk,FChangeTimestampAndNOnceBytePos,nonce,ts,resultPoW); // Note: RandomHash is handled above
                 if resultPoW < FCurrentMinerValuesForWork.target_pow then begin
                   if Terminated then exit;
-                  inc(AuxStats.WinsCount);
                   FLock.Release;
                   try
                     FCPUDeviceThread.FoundNOnce(FCurrentMinerValuesForWork, ts,nonce);
