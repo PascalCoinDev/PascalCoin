@@ -3117,7 +3117,6 @@ begin
         for i := j to FNode.Operations.Count-1 do begin
           If TPCOperation.OperationToOperationResume(0,FNode.Operations.Operation[i],True,FNode.Operations.Operation[i].SignerAccount,opr) then begin
             opr.NOpInsideBlock:=i;
-            opr.time:=pcops.OperationBlock.timestamp;
             opr.Balance := -1; // Don't include!
             FillOperationResumeToJSONObject(opr,jsonarr.GetAsObject(jsonarr.Count));
           end;
