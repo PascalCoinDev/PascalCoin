@@ -34,15 +34,14 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
-TODO: Bug in Lazarus optimization cause Access Violation on "getpendings" call (must be 0 or 1). techworker/ugo4brain in discord 2018-05-11 #development channel
 ### Build 4.0.0 - 2018-10-26
 - MANDATORY UPGRADE - HARD FORK ACTIVATION WILL OCCUR ON BLOCK 260000
   - PIP - 0009: RandomHash
     - RandomHash is a new hash algo created by Herman Schoenfeld, see https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0009.md 
   - PIP - 0015: Fast Block Propagation
-  - PIP - 0016: Layer-2 protocol support
-  - Limit blockchain to allow max only one 0-fee operation by signer per block (prior was limited by network, not by core)
-  - New digest hash for signature verifications
+  - PIP - 0016: Layer-2 protocol support 
+  - Critical bug fix: New digest hash for signature verifications
+  - Limit blockchain to allow max only one 0-fee operation by signer per block (prior was limited by network, not by core)  
   - Added OrderedAccountKeysList that allows an indexed search of public keys in the safebox with mem optimization
   - Improved net protections
 - JSON-RPC changes:

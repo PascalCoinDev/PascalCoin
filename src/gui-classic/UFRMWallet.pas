@@ -1339,7 +1339,6 @@ end;
 procedure TFRMWallet.LoadAppParams;
 Var ms : TMemoryStream;
   s : AnsiString;
-  fvi : TFileVersionInfo;
 begin
   ms := TMemoryStream.Create;
   Try
@@ -1352,9 +1351,8 @@ begin
   End;
   If FAppParams.FindParam(CT_PARAM_MinerName)=Nil then begin
     // New configuration... assigning a new random value
-    fvi := TFolderHelper.GetTFileVersionInfo(Application.ExeName);
     FAppParams.ParamByName[CT_PARAM_MinerName].SetAsString('New Node '+DateTimeToStr(Now)+' - '+
-      fvi.InternalName+' Build:'+fvi.FileVersion);
+      CT_ClientAppVersion);
   end;
   FBlockChainGrid.ShowTimeAverageColumns:={$IFDEF SHOW_AVERAGE_TIME_STATS}True;{$ELSE}False;{$ENDIF}
   UpdateConfigChanged;

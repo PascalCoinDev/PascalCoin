@@ -31,8 +31,8 @@
   {.$DEFINE Synapse_OpenSSLv10}
   {.$DEFINE Synapse_OpenSSLv11}
 
-  {.$DEFINE PRODUCTION}
-  {$DEFINE TESTNET}
+  {$DEFINE PRODUCTION}
+  {.$DEFINE TESTNET}
 
   // Used to activate RandomHash in V4 hard-fork
   {$DEFINE ACTIVATE_RANDOMHASH_V4}
