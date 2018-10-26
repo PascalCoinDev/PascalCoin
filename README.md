@@ -72,6 +72,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
     - Changed return value of "price". Previously was returned without decimals in native value (inconsistency bug), now will be returned as a PASCURRENCY (with 4 decimals)
 - Bug fixed: DoProcess_GetAccount_Request request type=1 (single account) didn't returned only 1
 - Bug fixed: Invalid "lastBlockCache" value when found and orphan block that causes invalid propagation until a new block is found. Fixed.
+- Bug fixed: "Access violation" on "getpendings" JSON-RPC call when pendings count>0
 - Net protocol upgraded to "8" in order to accept new network p2p calls:
   - "Fast block propagation" : NetOp 0x0012 for PIP-0015 
   - "Get blockchain operations": NetOp 0x0013 for PIP-0015
