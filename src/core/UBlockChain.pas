@@ -477,7 +477,7 @@ Type
     procedure AssignTo(Dest: TPersistent); Override;
     function GetActualTargetSecondsAverage(BackBlocks : Cardinal): Real;
     function GetTargetSecondsAverage(FromBlock,BackBlocks : Cardinal): Real;
-    function LoadBankFromStream(Stream : TStream; useSecureLoad : Boolean; progressNotify : TProgressNotify; var errors : AnsiString) : Boolean;
+    function LoadBankFromStream(Stream : TStream; useSecureLoad : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; var errors : AnsiString) : Boolean;
     Procedure Clear;
     Function LoadOperations(Operations : TPCOperationsComp; Block : Cardinal) : Boolean;
     Property SafeBox : TPCSafeBox read FSafeBox;
@@ -816,7 +816,7 @@ begin
   end else Result := true;
 end;
 
-function TPCBank.LoadBankFromStream(Stream: TStream; useSecureLoad : Boolean; progressNotify : TProgressNotify; var errors: AnsiString): Boolean;
+function TPCBank.LoadBankFromStream(Stream: TStream; useSecureLoad : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; var errors: AnsiString): Boolean;
 Var LastReadBlock : TBlockAccount;
   i : Integer;
   auxSB : TPCSafeBox;
@@ -826,7 +826,7 @@ begin
     If useSecureLoad then begin
       // When on secure load will load Stream in a separate SafeBox, changing only real SafeBox if successfully
       auxSB := TPCSafeBox.Create;
-      Result := auxSB.LoadSafeBoxFromStream(Stream,true,progressNotify,LastReadBlock,errors);
+      Result := auxSB.LoadSafeBoxFromStream(Stream,true,checkSafeboxHash,progressNotify,LastReadBlock,errors);
       If Not Result then Exit;
     end;
     TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
@@ -834,7 +834,7 @@ begin
       If Assigned(auxSB) then begin
         SafeBox.CopyFrom(auxSB);
       end else begin
-        Result := SafeBox.LoadSafeBoxFromStream(Stream,False,progressNotify,LastReadBlock,errors);
+        Result := SafeBox.LoadSafeBoxFromStream(Stream,False,checkSafeboxHash,progressNotify,LastReadBlock,errors);
       end;
       If Not Result then exit;
       If SafeBox.BlocksCount>0 then FLastOperationBlock := SafeBox.Block(SafeBox.BlocksCount-1).blockchainInfo

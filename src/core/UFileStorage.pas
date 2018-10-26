@@ -482,7 +482,7 @@ begin
           ms.CopyFrom(fs,0);
           fs.Position := 0;
           ms.Position := 0;
-          if not Bank.LoadBankFromStream(ms,False,restoreProgressNotify,errors) then begin
+          if not Bank.LoadBankFromStream(ms,False,'',restoreProgressNotify,errors) then begin
             TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+filename+ ' Error: '+errors);
           end;
         Finally

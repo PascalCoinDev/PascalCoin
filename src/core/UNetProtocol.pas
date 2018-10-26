@@ -1889,7 +1889,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       try
           FNewBlockChainFromClientStatus := Format('Received new safebox with %d blocks from %s',[_blockcount,Connection.ClientRemoteAddr]);
           receiveData.Position:=0;
-          If TNode.Node.Bank.LoadBankFromStream(receiveData,True,OnReadingNewSafeboxProgressNotify,errors) then begin
+          If TNode.Node.Bank.LoadBankFromStream(receiveData,True,op.initial_safe_box_hash,OnReadingNewSafeboxProgressNotify,errors) then begin
             TLog.NewLog(ltInfo,ClassName,'Received new safebox!');
             If Not IsMyBlockchainValid then begin
               TNode.Node.Bank.Storage.EraseStorage;
