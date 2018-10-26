@@ -915,7 +915,9 @@ end;
 procedure TFRMWallet.InitMenuForTesting;
 var mi : TMenuItem;
 begin
-  miAbout.AddSeparator;
+  mi := TMenuItem.Create(MainMenu);
+  mi.Caption:='-';
+  miAbout.Add(mi);
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Create a block';
   mi.OnClick:=Test_CreateABlock;

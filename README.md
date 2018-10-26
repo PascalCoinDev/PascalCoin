@@ -35,13 +35,16 @@ Also, consider a donation at PascalCoin development account: "0-10"
 ## History:  
 
 TODO: Bug in Lazarus optimization cause Access Violation on "getpendings" call (must be 0 or 1). techworker/ugo4brain in discord 2018-05-11 #development channel
-### Build XXXXXX - CURRENT
-- Implementation of Hard fork on block XXXXXXX (PENDING... TODO !)
+### Build 4.0.0 - 2018-10-26
+- MANDATORY UPGRADE - HARD FORK ACTIVATION WILL OCCUR ON BLOCK 260000
+  - PIP - 0009: RandomHash
+    - RandomHash is a new hash algo created by Herman Schoenfeld, see https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0009.md 
   - PIP - 0015: Fast Block Propagation
   - PIP - 0016: Layer-2 protocol support
   - Limit blockchain to allow max only one 0-fee operation by signer per block (prior was limited by network, not by core)
   - New digest hash for signature verifications
   - Added OrderedAccountKeysList that allows an indexed search of public keys in the safebox with mem optimization
+  - Improved net protections
 - JSON-RPC changes:
   - New protection for "open ports" server: When a server has whitelist to ALL IP's access to JSON-RPC calls, all calls that use the wallet keys are protected to avoid hacking
     - Added param "RPC_ALLOWUSEPRIVATEKEYS" on pascalcoin_daemon.ini file
@@ -69,7 +72,11 @@ TODO: Bug in Lazarus optimization cause Access Violation on "getpendings" call (
   - Account Object change:
     - Changed return value of "price". Previously was returned without decimals in native value (inconsistency bug), now will be returned as a PASCURRENCY (with 4 decimals)
 - Bug fixed: DoProcess_GetAccount_Request request type=1 (single account) didn't returned only 1
-
+- Bug fixed: Invalid "lastBlockCache" value when found and orphan block that causes invalid propagation until a new block is found. Fixed.
+- Net protocol upgraded to "8" in order to accept new network p2p calls:
+  - "Fast block propagation" : NetOp 0x0012 for PIP-0015 
+  - "Get blockchain operations": NetOp 0x0013 for PIP-0015
+  - "Get Public key accounts": NetOp 0x0032
 
 ### Build 3.0.1 - 2018-05-07
 - Deprecated use of OpenSSL v1.0 versions. Only allowed OpenSSL v1.1 versions

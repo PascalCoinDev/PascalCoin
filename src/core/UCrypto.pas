@@ -30,7 +30,6 @@ uses
 Type
   ECryptoException = Class(Exception);
 
-  // TRawBytes = AnsiString; XXXXXXXX Definded at UBaseTypes
   PRawBytes = ^TRawBytes;
 
   TECDSA_SIG = record

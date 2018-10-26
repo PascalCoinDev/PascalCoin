@@ -1162,7 +1162,6 @@ begin
   SetLength(FFixedServers,0);
   FMaxRemoteOperationBlock := CT_OperationBlock_NUL;
   FNetStatistics := CT_TNetStatistics_NUL;
-  //FOnConnectivityChanged := TNotifyEventToMany.Create; //xxxxxxxxxxxxxxxxxx HS - removed TNotifyEventMany auto-collected
   FOnStatisticsChanged := Nil;
   FOnNetConnectionsUpdated := Nil;
   FOnNodeServersUpdated := Nil;
@@ -4247,7 +4246,6 @@ begin
     try
       request_id := TNetData.NetData.NewRequestId;
       if (FNetProtocolVersion.protocol_available = CT_NetProtocol_Available)
-        and (pos(CT_ClientAppVersion,FClientAppVersion)>0) // XXXXXXXXXXXX Albert: ONLY FOR TESTING PURPOSE, NOT NEEDED ON PRODUCTION, TODO REMOVE
         then begin
         // Will send a FAST PROPAGATION BLOCK as described at PIP-0015
         netOp := CT_NetOp_NewBlock_Fast_Propagation;

@@ -73,7 +73,7 @@ Const
 
   {$IFDEF ACTIVATE_RANDOMHASH_V4}
   CT_CompactTarget_Reset_v4: Cardinal = // First compact target of block if using Protocol 4 and RandomHash is Active
-    {$IFDEF PRODUCTION}$17000000{$ELSE}$08000000{$ENDIF};
+    {$IFDEF PRODUCTION}$16000000{$ELSE}$08000000{$ENDIF};
   {$ENDIF}
 
 
@@ -109,20 +109,20 @@ Const
   CT_PROTOCOL_2 = 2;
   CT_PROTOCOL_3 = 3;
   CT_PROTOCOL_4 = 4;
-  CT_BUILD_PROTOCOL = CT_PROTOCOL_3;
+  CT_BUILD_PROTOCOL = CT_PROTOCOL_4;
 
   CT_BlockChain_Protocol_Available: Word = 4; // Protocol 4 flag
   CT_Protocol_Upgrade_v2_MinBlock = {$IFDEF PRODUCTION}115000{$ELSE}50{$ENDIF};
   CT_Protocol_Upgrade_v3_MinBlock = {$IFDEF PRODUCTION}210000{$ELSE}250{$ENDIF};
-  CT_Protocol_Upgrade_v4_MinBlock = {$IFDEF PRODUCTION}99999999{$ELSE}400{$ENDIF}; // NOTE: Upgrade to V4 not decided!   TODO!
+  CT_Protocol_Upgrade_v4_MinBlock = {$IFDEF PRODUCTION}260000{$ELSE}400{$ENDIF};
 
 
   CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$04000000{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
 
-  CT_NetProtocol_Version: Word = $0007; // Version 3.0.2 only allows net protocol 7 (Introduced on 3.0.0)
+  CT_NetProtocol_Version: Word = $0007;
   // IMPORTANT NOTE!!!
   // NetProtocol_Available MUST BE always >= NetProtocol_version
-  CT_NetProtocol_Available: Word = {$IFDEF PRODUCTION}$0007{$ELSE}$0008{$ENDIF};  // Remember, >= NetProtocol_version !!!
+  CT_NetProtocol_Available: Word = {$IFDEF PRODUCTION}$0008{$ELSE}$0008{$ENDIF};  // Version 4.0.0 will start accepting protocol 8
 
   CT_MaxAccountOperationsPerBlockWithoutFee = 1;
 
@@ -173,14 +173,15 @@ Const
   CT_OpSubtype_Data_Signer                = 103;
   CT_OpSubtype_Data_Receiver              = 104;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'3.0.2'{$ELSE}{$IFDEF TESTNET}'TESTNET 3.0.6'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'4.0.0'{$ELSE}{$IFDEF TESTNET}'TESTNET 4.0.0'{$ELSE}{$ENDIF}{$ENDIF};
 
-  CT_Discover_IPs = 'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us'{$IFDEF TESTNET}+';99.254.181.147;159.89.12.242;18.236.158.185'{$ENDIF};
+  CT_Discover_IPs = {$IFDEF PRODUCTION}'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us'
+                    {$ELSE}'pascaltestnet1.dynamic-dns.net;pascaltestnet2.dynamic-dns.net;pascaltestnet1.dns1.us;pascaltestnet2.dns1.us'{$ENDIF};
 
   CT_TRUE_FALSE : Array[Boolean] Of AnsiString = ('FALSE','TRUE');
 
   CT_MAX_0_fee_operations_per_block_by_miner = {$IFDEF PRODUCTION}2000{$ELSE}{$IFDEF TESTNET}2000{$ELSE}{$ENDIF}{$ENDIF};
-  CT_MAX_Operations_per_block_by_miner =  {$IFDEF PRODUCTION}10000{$ELSE}{$IFDEF TESTNET}50000{$ELSE}{$ENDIF}{$ENDIF};
+  CT_MAX_Operations_per_block_by_miner =  {$IFDEF PRODUCTION}20000{$ELSE}{$IFDEF TESTNET}50000{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_MAX_MultiOperation_Senders = 100;
   CT_MAX_MultiOperation_Receivers = 1000;
