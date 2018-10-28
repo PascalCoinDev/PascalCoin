@@ -36,20 +36,15 @@ const
   MaxSeconds = MaxMilliseconds div 60;
   MinSeconds = MinMilliseconds div 60;
 
-{ GLOBAL FUNCTIONS }
+{ GLOBAL HELPER FUNCTIONS }
 
-{ Converts a string to hexidecimal format }
 function String2Hex(const Buffer: AnsiString): AnsiString;
 function Hex2Bytes(const AHexString: AnsiString): TBytes; overload;
 function TryHex2Bytes(const AHexString: AnsiString; out ABytes : TBytes): boolean; overload;
 function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : AnsiString;
-
-{ Binary-safe StrComp replacement. StrComp will return 0 for when str1 and str2 both start with NUL character. }
-function BinStrComp(const Str1, Str2 : String): Integer;
+function BinStrComp(const Str1, Str2 : String): Integer; // Binary-safe StrComp replacement. StrComp will return 0 for when str1 and str2 both start with NUL character.
 function BytesCompare(const ABytes1, ABytes2: TBytes): integer;
 function BytesEqual(const ABytes1, ABytes2 : TBytes) : boolean; inline;
-
-{ Ternary operator equivalent of predicate ? (true-val) : (false-value) }
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Cardinal): Cardinal; overload;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Integer): Integer; overload;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Int64): Int64; overload;
@@ -58,20 +53,13 @@ function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Double)
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: string): string; overload;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: TObject): TObject; overload;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: variant): variant; overload;
-
+function ClipValue( AValue, MinValue, MaxValue: Integer) : Integer;
+function MinValue(const AArray : array of Cardinal) : Cardinal;
+function MaxValue(const AArray : array of Cardinal) : Cardinal;
 {$IFDEF FPC}
 function GetSetName(const aSet:PTypeInfo; Value: Integer):string;
 function GetSetValue(const aSet:PTypeInfo; Name: String): Integer;
 {$ENDIF}
-
-{ Clip/Min/Max Value }
-function ClipValue( AValue, MinValue, MaxValue: Integer) : Integer;
-function MinValue(const AArray : array of Cardinal) : Cardinal;
-function MaxValue(const AArray : array of Cardinal) : Cardinal;
-
-{ DateTime functions }
-function TimeStamp : String;
-function UtcTimeStamp : String;
 
 type
 
@@ -167,6 +155,52 @@ type
       destructor Destroy; override;
   end;
 
+  { TLogSeverity }
+
+  TLogSeverity = (lsDebug, lsInfo, lsWarning, lsError);
+
+  { TLogMessage }
+
+  TLogMessage = record
+  private
+    FTimestamp : TDateTime;
+    FSeverity : TLogSeverity;
+    FText : String;
+  public
+    property TimeStamp : TDateTime read FTimestamp;
+    property Severity : TLogSeverity read FSeverity;
+    property Text : String read FText;
+    class function From(const AText : String; ASeverity : TLogSeverity; ATimeStamp : TDateTime) : TLogMessage; static; overload;
+    class function From(const AText : String; ASeverity : TLogSeverity = lsError) : TLogMessage; static; overload;
+  end;
+
+  { TResult }
+
+  TResult = record
+  private
+    FMessages : TArray<TLogMessage>;
+    FValue : Variant;
+    FHasError : boolean;
+    function GetIsSuccess : boolean; inline;
+  public
+    property Messages : TArray<TLogMessage> read FMessages;
+    property Value : Variant read FValue write FValue;  // used to carry an optional return value
+    property IsFailure : boolean read FHasError;
+    property IsSuccess : boolean read GetIsSuccess;
+    procedure Add(const ALogMessage : TLogMessage); overload;
+    procedure Add(ASeverity : TLogSeverity; const AString : String); overload;
+    procedure AddDebug(const AString : String);
+    procedure AddInfo(const AString : String);
+    procedure AddWarning(const AString : String);
+    procedure AddError(const AString : String);
+    function ToString(AIncludeTimeStamp : boolean = false) : String; overload;
+    function ToString(AIncludeTimeStamp, AIncludeSeverity : boolean) : String; overload;
+    class function Success : TResult; static;
+    class function Success(const AText : String) : TResult; static; overload;
+    class function Failure : TResult; static; overload;
+    class function Failure(const AText : String) : TResult; static; overload;
+  end;
+
   { TDateTimeHelper }
 
   TDateTimeHelper = record helper for TDateTime
@@ -183,6 +217,7 @@ type
      function GetTime: TDateTime; inline;
      function GetYear: Word; inline;
      class function GetNow: TDateTime; static; inline;
+     class function GetNowUtc: TDateTime; static; inline;
      class function GetToday: TDateTime; static; inline;
      class function GetTomorrow: TDateTime; static; inline;
      class function GetYesterDay: TDateTime; static; inline;
@@ -190,6 +225,7 @@ type
      class function Create(const aYear, aMonth, aDay: Word): TDateTime; overload; static; inline;
      class function Create(const aYear, aMonth, aDay, aHour, aMinute, aSecond, aMillisecond: Word): TDateTime; overload; static; inline;
 
+     class property NowUtc: TDateTime read GetNowUtc;
      class property Now: TDateTime read GetNow;
      class property Today: TDateTime read GetToday;
      class property Yesterday: TDateTime read GetYesterDay;
@@ -209,6 +245,7 @@ type
      property Second: Word read GetSecond;
      property Millisecond: Word read GetMillisecond;
 
+     function ToIntlString : String; inline;
      function ToString(const aFormatStr: string = ''): string; inline;
 
      function StartOfYear: TDateTime; inline;
@@ -343,12 +380,15 @@ type
 resourcestring
   sNotImplemented = 'Not implemented';
   sInvalidParameter_OutOfBounds = 'Invalid Parameter: %s out of bounds';
+  sLogDebug = 'DEBUG';
+  sLogInfo = 'INFO';
+  sLogWarn = 'WARNING';
+  sLogError = 'ERROR';
 
 implementation
 
 uses dateutils, {$IFDEF FPC}StrUtils{$ELSE}System.AnsiStrings{$ENDIF};
 
-{ CONSTANTS }
 const
   IntlDateTimeFormat : TFormatSettings = (
     DateSeparator : '-';
@@ -365,16 +405,13 @@ const
   ZeroTimeSpan: TTimeSpan = (FMillis: 0);
   {$ENDIF}
 
-{ VARIABLES }
-
 var
-  {DynamicType: TDynamic = nil;}
   MinTimeStampDateTime : TDateTime = 0;
   VarTrue : Variant;
   VarFalse : Variant;
 
 
-{%region Global functions }
+{ Global helper functions }
 
 function String2Hex(const Buffer: AnsiString): AnsiString;
 var
@@ -511,11 +548,148 @@ begin
     Result := CompareMem(@ABytes1[0], @ABytes2[0], ABytes1Len);
 end;
 
-{%endregion}
+function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Cardinal): Cardinal;
+begin
+  if ACondition then
+    Result := ATrueResult
+  else
+    Result := AFalseResult;
+end;
+
+function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Integer): Integer;
+begin
+  if ACondition then
+    Result := ATrueResult
+  else
+    Result := AFalseResult;
+end;
+
+function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Int64): Int64;
+begin
+  if ACondition then
+    Result := ATrueResult
+  else
+    Result := AFalseResult;
+end;
+
+function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: UInt64): UInt64;
+begin
+  if ACondition then
+    Result := ATrueResult
+  else
+    Result := AFalseResult;
+end;
+
+function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Double): Double;
+begin
+  if ACondition then
+    Result := ATrueResult
+  else
+    Result := AFalseResult;
+end;
+
+function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: string): string;
+begin
+  if ACondition then
+    Result := ATrueResult
+  else
+    Result := AFalseResult;
+end;
+
+function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: TObject): TObject;
+begin
+  if ACondition then
+    Result := ATrueResult
+  else
+    Result := AFalseResult;
+end;
+
+function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: variant): variant;
+begin
+  if ACondition then
+    Result := ATrueResult
+  else
+    Result := AFalseResult;
+end;
+
+function ClipValue( AValue, MinValue, MaxValue: Integer) : Integer;
+begin
+  if AValue < MinValue then
+    Result := MinValue
+  else if AValue > MaxValue then
+    Result := MaxValue
+  else
+    Result := AValue
+end;
+
+function MinValue(const AArray : array of Cardinal) : Cardinal;
+var i : SizeInt;
+begin
+  if Length(AArray) = 0 then raise EArgumentException.Create('AArray is empty');
+  Result := AArray[Low(AArray)];
+  for i := Low(AArray) to High(AArray) do begin
+    if Result > AArray[i] then
+      Result := AArray[i];
+  end;
+end;
+
+function MaxValue(const AArray : array of Cardinal) : Cardinal;
+var i : SizeInt;
+begin
+  if Length(AArray) = 0 then raise EArgumentException.Create('AArray is empty');
+  Result := AArray[Low(AArray)];
+  for i := Low(AArray) to High(AArray) do begin
+    if Result < AArray[i] then
+      Result := AArray[i];
+  end;
+end;
 
 {$IFDEF FPC}
 
-{%region TTimeSpan }
+function GetSetName(const aSet:PTypeInfo; Value: Integer):string;
+var
+  vData1 : PTypeData;
+  vData2 : PTypeData;
+  vCntr  : Integer;
+  v: Integer;
+begin
+  Result := '';
+  if aSet^.Kind = tkSet then begin
+    vData1 := GetTypeData(aSet);
+    vData2 := GetTypeData(vData1^.CompType);
+    for vCntr := vData2^.MinValue to vData2^.MaxValue do
+      if (Value shr vCntr) and 1 <> 0 then
+        Result := Result+ GetEnumName(vData1^.CompType,vCntr)+',';
+    if Result <> '' then Delete(Result, Length(Result), 1);
+  end;
+end;
+
+function GetSetValue(const aSet:PTypeInfo; Name: String): Integer;
+var
+  vData1 : PTypeData;
+  vData2 : PTypeData;
+  vCntr  : Integer;
+  p      : Integer;
+begin
+  Result := 0;
+  if aSet^.Kind = tkSet then begin
+    vData1 := GetTypeData(aSet);
+    vData2 := GetTypeData(vData1^.CompType);
+    for vCntr := vData2^.MinValue to vData2^.MaxValue do begin
+      p := pos(GetEnumName(vData1^.CompType, vCntr), Name);
+      if p = 0 then
+        Continue;
+      if (p = 1) or (Name[p-1] = ',') then
+        Result := Result or (1 shl vCntr);
+    end;
+  end;
+end;
+
+{$ENDIF}
+
+{$IFDEF FPC}
+
+{ TTimeSpan }
 
 class constructor TTimeSpan.Create;
 begin
@@ -748,154 +922,7 @@ begin
   AString := Value.ToString;
 end;
 
-{%endregion}
-
 {$ENDIF}
-
-{%region Language-level tools }
-
-function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Cardinal): Cardinal;
-begin
-  if ACondition then
-    Result := ATrueResult
-  else
-    Result := AFalseResult;
-end;
-
-function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Integer): Integer;
-begin
-  if ACondition then
-    Result := ATrueResult
-  else
-    Result := AFalseResult;
-end;
-
-function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Int64): Int64;
-begin
-  if ACondition then
-    Result := ATrueResult
-  else
-    Result := AFalseResult;
-end;
-
-function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: UInt64): UInt64;
-begin
-  if ACondition then
-    Result := ATrueResult
-  else
-    Result := AFalseResult;
-end;
-
-function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Double): Double;
-begin
-  if ACondition then
-    Result := ATrueResult
-  else
-    Result := AFalseResult;
-end;
-
-function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: string): string;
-begin
-  if ACondition then
-    Result := ATrueResult
-  else
-    Result := AFalseResult;
-end;
-
-function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: TObject): TObject;
-begin
-  if ACondition then
-    Result := ATrueResult
-  else
-    Result := AFalseResult;
-end;
-
-function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: variant): variant;
-begin
-  if ACondition then
-    Result := ATrueResult
-  else
-    Result := AFalseResult;
-end;
-
-{$IFDEF FPC}
-
-{ Enums }
-
-function GetSetName(const aSet:PTypeInfo; Value: Integer):string;
-var
-  vData1 : PTypeData;
-  vData2 : PTypeData;
-  vCntr  : Integer;
-  v: Integer;
-begin
-  Result := '';
-  if aSet^.Kind = tkSet then begin
-    vData1 := GetTypeData(aSet);
-    vData2 := GetTypeData(vData1^.CompType);
-    for vCntr := vData2^.MinValue to vData2^.MaxValue do
-      if (Value shr vCntr) and 1 <> 0 then
-        Result := Result+ GetEnumName(vData1^.CompType,vCntr)+',';
-    if Result <> '' then Delete(Result, Length(Result), 1);
-  end;
-end;
-
-function GetSetValue(const aSet:PTypeInfo; Name: String): Integer;
-var
-  vData1 : PTypeData;
-  vData2 : PTypeData;
-  vCntr  : Integer;
-  p      : Integer;
-begin
-  Result := 0;
-  if aSet^.Kind = tkSet then begin
-    vData1 := GetTypeData(aSet);
-    vData2 := GetTypeData(vData1^.CompType);
-    for vCntr := vData2^.MinValue to vData2^.MaxValue do begin
-      p := pos(GetEnumName(vData1^.CompType, vCntr), Name);
-      if p = 0 then
-        Continue;
-      if (p = 1) or (Name[p-1] = ',') then
-        Result := Result or (1 shl vCntr);
-    end;
-  end;
-end;
-
-{$ENDIF}
-
-{ Clip/Min/Max Value }
-
-function ClipValue( AValue, MinValue, MaxValue: Integer) : Integer;
-begin
-  if AValue < MinValue then
-    Result := MinValue
-  else if AValue > MaxValue then
-    Result := MaxValue
-  else
-    Result := AValue
-end;
-
-function MinValue(const AArray : array of Cardinal) : Cardinal;
-var i : SizeInt;
-begin
-  if Length(AArray) = 0 then raise EArgumentException.Create('AArray is empty');
-  Result := AArray[Low(AArray)];
-  for i := Low(AArray) to High(AArray) do begin
-    if Result > AArray[i] then
-      Result := AArray[i];
-  end;
-end;
-
-function MaxValue(const AArray : array of Cardinal) : Cardinal;
-var i : SizeInt;
-begin
-  if Length(AArray) = 0 then raise EArgumentException.Create('AArray is empty');
-  Result := AArray[Low(AArray)];
-  for i := Low(AArray) to High(AArray) do begin
-    if Result < AArray[i] then
-      Result := AArray[i];
-  end;
-end;
 
 { TBox }
 
@@ -917,19 +944,115 @@ begin
   Dec(Instances);
 end;
 
-{%endregion}
+{ TLogMessage }
 
-{%region Date/Time Support }
-
-function TimeStamp : String;
+class function TLogMessage.From(const AText : String; ASeverity : TLogSeverity; ATimeStamp : TDateTime) : TLogMessage;
 begin
-  Result := FormatDateTime('yyy-mm-dd hh:nn:ss', Now);
+  Result := From(AText, lsError);
 end;
 
-function UtcTimeStamp : String;
+class function TLogMessage.From(const AText : String; ASeverity : TLogSeverity = lsError) : TLogMessage;
 begin
-  raise Exception.Create(sNotImplemented);
+  Result.FTimeStamp := TDateTime.NowUtc;
+  Result.FSeverity := ASeverity;
+  Result.FText := AText;
 end;
+
+{ TResult }
+
+function TResult.GetIsSuccess : boolean;
+begin
+  Result := NOT FHasError;
+end;
+
+procedure TResult.Add(const ALogMessage : TLogMessage); overload;
+begin
+  TArrayTool<TLogMessage>.Add(FMessages, ALogMessage);
+  if ALogMessage.Severity = lsError then
+    Self.FHasError := true;
+end;
+
+procedure TResult.Add(ASeverity : TLogSeverity; const AString : String); overload;
+begin
+  Add(TLogMessage.From(AString, ASeverity));
+end;
+
+procedure TResult.AddDebug(const AString : String);
+begin
+  Add(lsDebug, AString);
+end;
+
+procedure TResult.AddInfo(const AString : String);
+begin
+  Add(lsInfo, AString);
+end;
+
+procedure TResult.AddWarning(const AString : String);
+begin
+  Add(lsWarning, AString);
+end;
+
+procedure TResult.AddError(const AString : String);
+begin
+  Add(lsError, AString);
+end;
+
+function TResult.ToString(AIncludeTimeStamp : boolean = false) : String;
+begin
+  Result := ToString(AIncludeTimeStamp, false);
+end;
+
+function TResult.ToString(AIncludeTimeStamp, AIncludeSeverity : boolean) : String;
+var
+  i : integer;
+  LLine : String;
+begin
+  Result := '';
+  for i := Low(Messages) to High(Messages) do begin
+    LLine := '';
+    if AIncludeTimeStamp then
+      LLine := LLine + '[' + Messages[i].TimeStamp.ToIntlString + '] ';
+    if AIncludeSeverity then
+      case Messages[i].Severity of
+        lsDebug: LLine := LLine + ' ' + sLogDebug + ': ';
+        lsInfo: LLine := LLine + ' ' + sLogInfo + ': ';
+        lsWarning: LLine := LLine + ' ' + sLogWarn + ': ';
+        lsError: LLine := LLine + ' ' + sLogError + ': ';
+      end;
+    LLine := LLine + Messages[i].Text;
+    if i < High(Messages) then
+      LLine := LLine + sLineBreak;
+    Result := Result + LLine;
+  end;
+end;
+
+class function TResult.Success : TResult; static;
+begin
+  SetLength(Result.FMessages, 0);
+  Result.FValue := Variants.Null;
+  Result.FHasError := false;
+end;
+
+class function TResult.Success(const AText : String) : TResult; static; overload;
+begin
+  Result := Success;
+  Result.AddInfo(AText);
+end;
+
+class function TResult.Failure : TResult; static; overload;
+begin
+  SetLength(Result.FMessages, 0);
+  Result.FValue := Variants.Null;
+  Result.FHasError := true;
+end;
+
+class function TResult.Failure(const AText : String) : TResult; static; overload;
+begin
+  Result := Failure;
+  Result.AddError(AText);
+end;
+
+{ TDateTimeHelper }
 
 function TDateTimeHelper.AddDays(const aNumberOfDays: Integer): TDateTime;
 begin
@@ -1058,6 +1181,11 @@ begin
   Result := SysUtils.Now;
 end;
 
+class function TDateTimeHelper.GetNowUtc: TDateTime;
+begin
+  Result := LocalTimeToUniversal(SysUtils.Now);
+end;
+
 function TDateTimeHelper.GetSecond: Word;
 begin
   Result := SecondOf(Self);
@@ -1166,6 +1294,11 @@ begin
   Result := StartOfTheYear(Self);
 end;
 
+function TDateTimeHelper.ToIntlString : String;
+begin
+  Result := ToString('yyy-mm-dd hh:nn:ss');
+end;
+
 function TDateTimeHelper.ToString(const aFormatStr: string): string;
 begin
   if aFormatStr = '' then
@@ -1232,9 +1365,7 @@ begin
   Result := DateUtils.YearsBetween(Self, aDateTime);
 end;
 
-{%endregion}
-
-{%region TNotifyManyEventHelper}
+{ TNotifyManyEventHelper }
 
 procedure TNotifyManyEventHelper.Add(listener : TNotifyEvent);
 begin
@@ -1255,9 +1386,7 @@ begin
     self[i](sender);
 end;
 
-{%endregion}
-
-{%region TNotifyManyEventHelperEx}
+{ TNotifyManyEventHelperEx }
 
 procedure TNotifyManyEventExHelper.Add(listener : TNotifyEventEx);
 begin
@@ -1278,9 +1407,7 @@ begin
     self[i](sender, args);
 end;
 
-{%endregion}
-
-{%region TArrayTool}
+{ TArrayTool }
 
 class function TArrayTool<T>.Empty : TArray<T>;
 begin
@@ -1514,9 +1641,7 @@ begin
    Result := Length(Values);
 end;
 
-{%endregion}
-
-{%region TVariantTool}
+{ TVariantTool }
 
 class function TVariantTool.IsBool(const AValue : Variant) : boolean;
 begin
@@ -1679,8 +1804,6 @@ begin
   Result := (lowercmp = 1) AND (uppercmp = -1);
 end;
 
-{%endregion}
-
 { TFileStreamHelper }
 {$IFNDEF FPC}
 procedure TFileStreamHelper.WriteAnsiString(const AString : String);
@@ -1689,7 +1812,7 @@ begin
 end;
 {$ENDIF}
 
-{%region TFileTool }
+{ TFileTool }
 
 class procedure TFileTool.AppendText(const AFileName: string; const AText: string);
 var
@@ -1708,8 +1831,6 @@ begin
     fstream.Free;
   end;
 end;
-
-{%endregion}
 
 initialization
   MinTimeStampDateTime:= StrToDateTime('1980-01-01 00:00:000', IntlDateTimeFormat);
