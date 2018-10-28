@@ -170,8 +170,8 @@ type
     property TimeStamp : TDateTime read FTimestamp;
     property Severity : TLogSeverity read FSeverity;
     property Text : String read FText;
-    class function From(const AText : String; ASeverity : TLogSeverity; ATimeStamp : TDateTime) : TLogMessage; static; overload;
-    class function From(const AText : String; ASeverity : TLogSeverity = lsError) : TLogMessage; static; overload;
+    class function From(const AText : String; ASeverity : TLogSeverity; ATimeStamp : TDateTime) : TLogMessage; overload; static;
+    class function From(const AText : String; ASeverity : TLogSeverity = lsError) : TLogMessage; overload; static;
   end;
 
   { TResult }
@@ -195,10 +195,10 @@ type
     procedure AddError(const AString : String);
     function ToString(AIncludeTimeStamp : boolean = false) : String; overload;
     function ToString(AIncludeTimeStamp, AIncludeSeverity : boolean) : String; overload;
-    class function Success : TResult; static;
-    class function Success(const AText : String) : TResult; static; overload;
-    class function Failure : TResult; static; overload;
-    class function Failure(const AText : String) : TResult; static; overload;
+    class function Success : TResult; overload; static;
+    class function Success(const AText : String) : TResult; overload; static;
+    class function Failure : TResult; overload; static;
+    class function Failure(const AText : String) : TResult; overload; static;
   end;
 
   { TDateTimeHelper }
@@ -965,14 +965,14 @@ begin
   Result := NOT FHasError;
 end;
 
-procedure TResult.Add(const ALogMessage : TLogMessage); overload;
+procedure TResult.Add(const ALogMessage : TLogMessage);
 begin
   TArrayTool<TLogMessage>.Add(FMessages, ALogMessage);
   if ALogMessage.Severity = lsError then
     Self.FHasError := true;
 end;
 
-procedure TResult.Add(ASeverity : TLogSeverity; const AString : String); overload;
+procedure TResult.Add(ASeverity : TLogSeverity; const AString : String);
 begin
   Add(TLogMessage.From(AString, ASeverity));
 end;
@@ -1026,27 +1026,27 @@ begin
   end;
 end;
 
-class function TResult.Success : TResult; static;
+class function TResult.Success : TResult;
 begin
   SetLength(Result.FMessages, 0);
   Result.FValue := Variants.Null;
   Result.FHasError := false;
 end;
 
-class function TResult.Success(const AText : String) : TResult; static; overload;
+class function TResult.Success(const AText : String) : TResult;
 begin
   Result := Success;
   Result.AddInfo(AText);
 end;
 
-class function TResult.Failure : TResult; static; overload;
+class function TResult.Failure : TResult;
 begin
   SetLength(Result.FMessages, 0);
   Result.FValue := Variants.Null;
   Result.FHasError := true;
 end;
 
-class function TResult.Failure(const AText : String) : TResult; static; overload;
+class function TResult.Failure(const AText : String) : TResult;
 begin
   Result := Failure;
   Result.AddError(AText);
@@ -1183,7 +1183,11 @@ end;
 
 class function TDateTimeHelper.GetNowUtc: TDateTime;
 begin
+{$IFDEF FPC}
   Result := LocalTimeToUniversal(SysUtils.Now);
+{$ELSE}
+  Result := TTimeZone.Local.ToUniversalTime(SysUtils.Now);
+{$ENDIF}
 end;
 
 function TDateTimeHelper.GetSecond: Word;
