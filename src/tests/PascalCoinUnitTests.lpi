@@ -32,7 +32,7 @@
         <PackageName Value="FCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="13">
+    <Units Count="16">
       <Unit0>
         <Filename Value="PascalCoinUnitTests.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -88,6 +88,18 @@
         <Filename Value="..\libraries\sphere10\UCommon.Collections.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit12>
+      <Unit13>
+        <Filename Value="UCommon.Collections.Tests.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit13>
+      <Unit14>
+        <Filename Value="UCommon.Tests.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit14>
+      <Unit15>
+        <Filename Value="UMemory.Tests.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit15>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
