@@ -319,6 +319,9 @@ begin
         if lastUpdatedTs+FMaxStatsLifetime < currts then begin
           inc(FDeletedStatsCount);
           lasts.Delete(i);
+        end else if lastUpdatedTs > currts then begin
+          // Detected a TimeZone time change ( Daylight saving time ) because lastUpdatedTs > Current
+          // Nothing to do
         end else begin
           for j := Low(limits) to High(limits) do begin
             if (limits[j].MaxBackSeconds>0) And (lastUpdatedTs+limits[j].MaxBackSeconds>=currts) then begin
