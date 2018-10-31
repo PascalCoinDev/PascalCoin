@@ -34,6 +34,12 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 4.0.1 - 2018-10-31
+- Fixed a critical "Access violation" at "Fast Block Propagation" process
+- Fixed a critical "Access violation" at "Get blockchain operations" process
+- Fixed a memory leak at "Get Block operations"
+- Updated Net protocol available to 9 (8 was introduced at build 4.0.0)
+
 ### Build 4.0.0 - 2018-10-26
 - MANDATORY UPGRADE - HARD FORK ACTIVATION WILL OCCUR ON BLOCK 260000
   - PIP - 0009: RandomHash
