@@ -122,7 +122,7 @@ Const
   CT_NetProtocol_Version: Word = $0007;
   // IMPORTANT NOTE!!!
   // NetProtocol_Available MUST BE always >= NetProtocol_version
-  CT_NetProtocol_Available: Word = {$IFDEF PRODUCTION}$0008{$ELSE}$0008{$ENDIF};  // Version 4.0.0 will start accepting protocol 8
+  CT_NetProtocol_Available: Word = {$IFDEF PRODUCTION}$0009{$ELSE}$0009{$ENDIF};  // Version 4.0.0 will start accepting protocol 8 but 4.0.1 will accept 9 due to 4.0.0 bug
 
   CT_MaxAccountOperationsPerBlockWithoutFee = 1;
 
@@ -173,7 +173,7 @@ Const
   CT_OpSubtype_Data_Signer                = 103;
   CT_OpSubtype_Data_Receiver              = 104;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'4.0.0'{$ELSE}{$IFDEF TESTNET}'TESTNET 4.0.0'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'4.0.1'{$ELSE}{$IFDEF TESTNET}'TESTNET 4.0.1'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs = {$IFDEF PRODUCTION}'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us'
                     {$ELSE}'pascaltestnet1.dynamic-dns.net;pascaltestnet2.dynamic-dns.net;pascaltestnet1.dns1.us;pascaltestnet2.dns1.us'{$ENDIF};
