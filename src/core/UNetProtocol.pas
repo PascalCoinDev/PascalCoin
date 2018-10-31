@@ -2601,7 +2601,8 @@ procedure TNetConnection.DoProcess_GetBlockchainOperations_Request(HeaderData: T
     if (i>=bufferOperationsBlock.Count) then begin
       // Not found !
       Result := TPCOperationsComp.Create(Nil);
-      if Not TNode.Node.Bank.LoadOperations(Result,nBlock) then FreeAndNil(Result);
+      if Not TNode.Node.Bank.LoadOperations(Result,nBlock) then FreeAndNil(Result)
+      else bufferOperationsBlock.Add(Result); // Memory leak on v4.0.0
     end else Result := TPCOperationsComp( bufferOperationsBlock[i] );
   end;
 Var input_operations_count, cBlock, cBlockOpIndex, c : Cardinal;
@@ -2616,7 +2617,7 @@ Var input_operations_count, cBlock, cBlockOpIndex, c : Cardinal;
   DoDisconnect : Boolean;
 
 begin
-  errors := 'Invalid structure';
+  errors := 'Invalid GetBlockchainOperations_Request structure';
   DoDisconnect := true;
   outputBuffer := TMemoryStream.Create;
   try
@@ -2624,14 +2625,20 @@ begin
       errors := 'Not request';
       Exit;
     end;
-    DataBuffer.Read(input_operations_count,SizeOf(input_operations_count));
-    if (input_operations_count>CT_MAX_OPS_PER_BLOCKCHAINOPERATIONS) then Exit;
+    if DataBuffer.Read(input_operations_count,SizeOf(input_operations_count))<>SizeOf(input_operations_count) then Exit;
+    if (input_operations_count>CT_MAX_OPS_PER_BLOCKCHAINOPERATIONS) then begin
+      errors := Format('Inputs %d > %d',[input_operations_count,CT_MAX_OPS_PER_BLOCKCHAINOPERATIONS]);
+      Exit;
+    end;
     outputBuffer.Write(input_operations_count,SizeOf(input_operations_count));
     bufferOperationsBlock := TList.Create;
     opindexdata := TStream.Create;
     Try
       for i := 1 to input_operations_count do begin
-        if DataBuffer.Read(block_op_ref,SizeOf(block_op_ref))<>SizeOf(block_op_ref) then Exit; // read 8 bytes
+        if DataBuffer.Read(block_op_ref,SizeOf(block_op_ref))<>SizeOf(block_op_ref) then begin
+          errors := Format('Cannot read enough data at pos %d/%d',[i,input_operations_count]);
+          Exit; // read 8 bytes
+        end;
         cBlock := block_op_ref SHR 32;
         cBlockOpIndex := Cardinal(block_op_ref AND ($00000000FFFFFFFF));
         opc := GetBlock(bufferOperationsBlock, cBlock);
@@ -2640,7 +2647,7 @@ begin
             opsdata := opc.Operation[cBlockOpIndex].GetOperationStreamData;
             c := Length(opsdata);
             outputBuffer.Write(c,SizeOf(c));
-            outputBuffer.WriteBuffer(opsdata,Length(opsdata));
+            outputBuffer.WriteBuffer(opsdata[0],Length(opsdata)); // Fixed bug 4.0.0
             SetLength(opsdata,0);
           end else begin
             // OpIndex not found on block -> Add NIL reference: data 0 size = No operation
@@ -2648,7 +2655,7 @@ begin
             outputBuffer.Write(c,SizeOf(c));
           end;
         end else begin
-          // Block not found -> Add NIL reference: data 0 size = No operation
+          // Block operation not found -> Add NIL reference: data 0 size = No operation
           c := 0;
           outputBuffer.Write(c,SizeOf(c));
         end;
@@ -3503,8 +3510,10 @@ var operationsComp : TPCOperationsComp;
   begin
     Result := False;
     DoDisconnect := True;
+    errors := 'Invalid structure data in ProcessNewFastBlockPropagation';
     tc := TPlatform.GetTickCount;
     SetLength(nfpboarr,0);
+    try
     if DataBuffer.Read(oprefcount,SizeOf(oprefcount))<>SizeOf(oprefcount) then Exit;
     if DataBuffer.Size - DataBuffer.Position < (oprefcount * SizeOf(TOpReference)) then Exit;
     SetLength(nfpboarr,oprefcount);
@@ -3567,7 +3576,7 @@ var operationsComp : TPCOperationsComp;
             if receiveStream.Read(c,SizeOf(c)) <> SizeOf(c) then Exit;
             if receiveStream.Size - receiveStream.Position < c then Exit; // Not enough received data
             SetLength(nfpboarr[i].opStreamData,c);
-            receiveStream.ReadBuffer(nfpboarr[i].opStreamData,c);
+            receiveStream.ReadBuffer(nfpboarr[i].opStreamData[0],c); // Fixed bug 4.0.0
           end;
         end;
         DoDisconnect := False;
@@ -3580,6 +3589,8 @@ var operationsComp : TPCOperationsComp;
     for i := 0 to High(nfpboarr) do begin
       auxOp := TPCOperation.GetOperationFromStreamData( nfpboarr[i].opStreamData );
       if not Assigned(auxOp) then begin
+        errors := Format('Op index not available (%d/%d) OpReference:%d size:%d',[i,High(nfpboarr),nfpboarr[i].opReference,Length(nfpboarr[i].opStreamData)]);
+        Exit;
       end else begin
         if Not operationsComp.AddOperation(False,auxOp,errors) then Exit;
         auxOp.Free;
@@ -3588,6 +3599,13 @@ var operationsComp : TPCOperationsComp;
     // Finished
     if (notFoundOpReferencesCount > 0) then begin
       TLog.NewLog(ltdebug,ClassName,Format('Processed NewFastBlockPropagation with Pending operations (%d of %d) in Fast propagation block %d for %d miliseconds',[notFoundOpReferencesCount,oprefcount,operationsComp.OperationBlock.block,TPlatform.GetElapsedMilliseconds(tc)]));
+    end;
+    finally
+      // Clean memory
+      for i := 0 to High(nfpboarr) do begin
+        SetLength(nfpboarr[i].opStreamData,0);
+      end;
+      SetLength(nfpboarr,0);
     end;
     DoDisconnect := False;
     Result := True;

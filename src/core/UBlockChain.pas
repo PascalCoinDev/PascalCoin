@@ -2534,7 +2534,7 @@ begin
   Result := Nil;
   stream := TMemoryStream.Create;
   Try
-    stream.WriteBuffer(StreamData,Length(StreamData));
+    stream.WriteBuffer(StreamData[0],Length(StreamData)); // Fixed bug 4.0.0
     stream.Position := 0;
     stream.Read(b,1);
     j := TPCOperationsComp.IndexOfOperationClassByOpType(b);
@@ -2563,7 +2563,7 @@ begin
     SaveOpToStream(stream,False);
     SetLength(Result,stream.Size);
     stream.Position := 0;
-    stream.ReadBuffer(Result,stream.Size);
+    stream.ReadBuffer(Result[0],stream.Size); // Fixed bug 4.0.0
   Finally
     stream.Free;
   End;

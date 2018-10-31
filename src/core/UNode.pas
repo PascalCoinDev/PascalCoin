@@ -305,8 +305,13 @@ begin
             j := TNetData.NetData.ConnectionsCountAll;
             for i:=0 to j-1 do begin
               if (TNetData.NetData.GetConnection(i,nc)) then begin
-                if (nc<>SenderConnection) And (nc.Connected) And (nc.RemoteOperationBlock.block>0) then begin
-                  TThreadNodeNotifyNewBlock.Create(nc,Bank.LastBlockFound,opsht);
+                if (nc.Connected) And (nc.RemoteOperationBlock.block>0) then begin
+                  if (nc<>SenderConnection) then begin
+                    TThreadNodeNotifyNewBlock.Create(nc,Bank.LastBlockFound,opsht);
+                  end else if (opsht.OperationsCount>0) then begin
+                    // New 4.0.1 Notify not added operations
+                    TThreadNodeNotifyOperations.Create(nc,opsht);
+                  end;
                 end;
               end;
             end;
