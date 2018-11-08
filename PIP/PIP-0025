@@ -1,0 +1,38 @@
+<pre>
+  PIP: PIP-0025
+  Title: Quick Sync
+  Type: Front-End
+  Impact: None - GUI
+  Author: Jason Knapp <i>&lt;jmknapp80@gmail.com&gt;</i>
+  Comments-URI:
+  Status: Draft
+  Created: 2018/09-26
+</pre>
+
+## Summary
+
+Allow a node that has been offline for a while an option to "Quick Sync".
+ 
+## Motivation
+
+Installing a fresh node will quickly sync because it downloads the SafeBox from the network. If a node is not fresh and has not synced in a while, the node will download the blockchain files and will take longer to sync. It has been known that deleting the files in the Data folder will force the node to retrieve the latest SafeBox instead of downloading blockchain files. This allows the node to sync quickly.
+
+## Specification
+
+Give the user an option upon startup if they want to Quick Sync after x amount of days. The user can toggle this option and set the x amount of days in the Options Menu. If the user wants to Quick Sync, then the files in the Data folder will be removed and a fresh SafeBox will be downloaded.
+ 
+## Rationale
+
+A feature of this coin is that it syncs quickly, but if the node has been offline for some time, the sync takes longer. The removal of needing to download the blockchain files could relieve unnecessary network congestion.
+
+## Backwards Compatibility
+
+N/A
+ 
+## Reference Implementation
+
+N/A
+ 
+## Links
+
+N/A
