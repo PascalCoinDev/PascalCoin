@@ -7,6 +7,7 @@
 
   Acknowledgements:
   - Herman Schoenfeld: main author
+  - Ugochukwu Mmaduekwe: Add "TLogicalCPUCount" Class
 
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
@@ -21,8 +22,11 @@ interface
 
 uses
   Classes, SysUtils, Generics.Collections, Generics.Defaults,
-  {$IFNDEF FPC}System.Types, System.TimeSpan,{$ENDIF} Variants,
-  math, typinfo, UMemory;
+  {$IFNDEF FPC}System.Types, System.TimeSpan,
+  {$ELSE}{$IFDEF LINUX} {$linklib c} ctypes, {$ENDIF LINUX}
+  {$IFDEF WINDOWS} Windows, {$ENDIF WINDOWS}
+  {$IF DEFINED(DARWIN) OR DEFINED(FREEBSD)} ctypes, sysctl, {$ENDIF}
+  {$ENDIF} Variants, math, typinfo, UMemory;
 
 { CONSTANTS }
 
@@ -377,6 +381,16 @@ type
     class procedure AppendText(const AFileName: string; const AText: string);
   end;
 
+  { TLogicalCPUCount }
+
+  TLogicalCPUCount = class sealed(TObject)
+
+  public
+    //returns number of cores: a computer with two hyperthreaded cores will report 4
+    class function GetLogicalCPUCount(): Int32; static;
+
+  end;
+
 resourcestring
   sNotImplemented = 'Not implemented';
   sInvalidParameter_OutOfBounds = 'Invalid Parameter: %s out of bounds';
@@ -403,6 +417,12 @@ const
   MinTimeSpan : TTimeSpan = (FMillis: Low(Int64));
   MaxTimeSpan: TTimeSpan = (FMillis: High(Int64));
   ZeroTimeSpan: TTimeSpan = (FMillis: 0);
+
+  {$IF DEFINED(LINUX)}
+  _SC_NPROCESSORS_ONLN = 83;
+
+  function sysconf(i: cint): clong; cdecl; external Name 'sysconf';
+  {$ENDIF LINUX}
   {$ENDIF}
 
 var
@@ -1834,6 +1854,71 @@ begin
   finally
     fstream.Free;
   end;
+end;
+
+{ TLogicalCPUCount }
+
+class function TLogicalCPUCount.GetLogicalCPUCount(): Int32;
+{$IFDEF FPC}
+{$IFDEF WINDOWS}
+var
+  LIdx: Int32;
+  LProcessAffinityMask, LSystemAffinityMask: DWORD_PTR;
+  LMask: DWORD;
+  LSystemInfo: SYSTEM_INFO;
+{$ENDIF WINDOWS}
+{$IF DEFINED(DARWIN) OR DEFINED(FREEBSD)}
+var
+  LMib: array[0..1] of cint;
+  Llen, Lt: cint;
+{$ENDIF}
+{$ENDIF FPC}
+
+begin
+{$IFNDEF FPC}
+  // For Delphi
+  Result := System.CPUCount;
+{$ELSE}
+{$IF DEFINED(WINDOWS)}
+  //returns total number of processors available to system including logical hyperthreaded processors
+  if GetProcessAffinityMask(GetCurrentProcess, LProcessAffinityMask,
+    LSystemAffinityMask) then
+  begin
+    Result := 0;
+    for LIdx := 0 to 31 do
+    begin
+      LMask := DWORD(1) shl LIdx;
+      if (LProcessAffinityMask and LMask) <> 0 then
+      begin
+        System.Inc(Result);
+      end;
+    end;
+  end
+  else
+  begin
+    // can't get the affinity mask so we just report the total number of processors
+    GetSystemInfo(LSystemInfo);
+    Result := LSystemInfo.dwNumberOfProcessors;
+  end;
+  {$ELSEIF DEFINED(DARWIN) OR DEFINED(FREEBSD)}
+
+  LMib[0] := CTL_HW;
+  LMib[1] := HW_NCPU;
+  Llen := System.SizeOf(Lt);
+  {$IF DEFINED(VER3_0_0) OR DEFINED(VER3_0_2)}
+  fpsysctl(PChar(@LMib), 2, @Lt, @Llen, nil, 0);
+  {$ELSE}
+  fpsysctl(@LMib, 2, @Lt, @Llen, nil, 0);
+  {$ENDIF}
+  Result := Lt;
+
+  {$ELSEIF DEFINED(LINUX)}
+  Result := sysconf(_SC_NPROCESSORS_ONLN);
+  {$ELSE}
+  // Fallback for other platforms
+  Result := 1;
+{$ENDIF WINDOWS}
+{$ENDIF FPC}
 end;
 
 initialization
