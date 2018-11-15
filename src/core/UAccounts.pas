@@ -2644,6 +2644,9 @@ procedure TPCSafeBox.RollBackToSnapshot(snapshotBlock: Cardinal);
 Var i,iPrevSnapshotTarget : Integer;
   Psnapshot : PSafeboxSnapshot;
   PBlock : PBlockAccount;
+  {$IFDEF Check_Safebox_Names_Consistency}
+  errors : AnsiString;
+  {$ENDIF}
 begin
   StartThreadSafe;
   Try

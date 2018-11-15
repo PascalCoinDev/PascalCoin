@@ -1955,6 +1955,12 @@ begin
     end;
 
     if (NOT TPCOperationsComp.EqualsOperationBlock(my_op,client_op)) then begin
+      if (my_op.protocol_version > client_op.protocol_version) then begin // Version 4.0.2 protection against going back to previous protocol with highest blockchain
+        TPCOperationsComp.OperationBlockToText(my_op);
+        TLog.NewLog(lterror,CT_LogSender,Format('Detected an orphan highest blockchain in an old protocol. Detected: %s - My data: %s',[TPCOperationsComp.OperationBlockToText(client_op),TPCOperationsComp.OperationBlockToText(my_op)]));
+        Connection.DisconnectInvalidClient(false,'Detected an orphan highest blockchain in an old protocol');
+        Exit;
+      end;
       TLog.NewLog(ltinfo,CT_LogSender,'My blockchain is not equal... received: '+TPCOperationsComp.OperationBlockToText(client_op)+' My: '+TPCOperationsComp.OperationBlockToText(my_op));
       if Not FindLastSameBlockByOperationsBlock(0,client_op.block,client_op) then begin
         TLog.NewLog(ltinfo,CT_LogSender,'No found base block to start process... Receiving ALL');
@@ -2706,6 +2712,7 @@ begin
        exit;
      end;
      if (b_end>=TNetData.NetData.Bank.BlocksCount) then begin
+       errors := Format('b_end:%d >= current block:%d b_start:%d',[b_end,TNetData.NetData.Bank.BlocksCount,b_start]);
        b_end := TNetData.NetData.Bank.BlocksCount-1;
        if (b_start>b_end) then begin
          // No data:
