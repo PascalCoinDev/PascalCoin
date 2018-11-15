@@ -25,7 +25,7 @@ interface
 {$I config.inc}
 
 uses
-  Classes, SysUtils, syncobjs, UThread, UPoolMining, UAccounts, UCrypto, ULog, UBlockChain, USha256, URandomHash, UBaseTypes;
+  Classes, SysUtils, syncobjs, UThread, UPoolMining, UAccounts, UCrypto, ULog, UBlockChain, USha256, URandomHash, UBaseTypes, UCommon;
 
 type
   TMinerStats = Record
@@ -672,7 +672,7 @@ end;
 
 function TCPUDeviceThread.MinerDeviceName: String;
 begin
-  Result := 'CPU miner with '+inttostr(FCPUs)+' ('+inttostr(CPUCount)+' CPU''s available)';
+  Result := 'CPU miner with '+inttostr(FCPUs)+' ('+inttostr(TLogicalCPUCount.GetLogicalCPUCount())+' CPU''s available)';
 end;
 
 procedure TCPUDeviceThread.SetCPUs(AValue: Integer);
@@ -680,7 +680,7 @@ begin
   if FCPUs=AValue then Exit;
   FCPUs:=AValue;
   if FCPUs<0 then FCPUs := 0;
-  if (FCPUs>CPUCount) And (CPUCount>0) then FCPUs := CPUCount;
+  if (FCPUs>TLogicalCPUCount.GetLogicalCPUCount()) And (TLogicalCPUCount.GetLogicalCPUCount()>0) then FCPUs := TLogicalCPUCount.GetLogicalCPUCount();
   CheckCPUs;
 end;
 
