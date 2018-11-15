@@ -1300,7 +1300,15 @@ begin
   else
     // Random
     PublicK := CT_TECDSA_Public_Nul;
-    if FWalletKeys.Count>0 then PublicK := FWalletKeys.Key[Random(FWalletKeys.Count)].AccountKey;
+    if FWalletKeys.Count>0 then begin
+      i := Random(FWalletKeys.Count);
+      if (FWalletKeys.Key[i].CryptedKey='') then begin
+        // Not valid, search for first valid:
+        i:=0;
+        while (i<FWalletKeys.Count) And (FWalletKeys.Key[i].CryptedKey='') do inc(i);
+        if i<FWalletKeys.Count then PublicK := FWalletKeys.Key[i].AccountKey;
+      end else PublicK := FWalletKeys.Key[i].AccountKey;
+    end;
   end;
   i := FWalletKeys.IndexOfAccountKey(PublicK);
   if i>=0 then begin
@@ -1312,6 +1320,12 @@ begin
       PK.GenerateRandomPrivateKey(CT_Default_EC_OpenSSL_NID);
       FWalletKeys.AddPrivateKey('New for miner '+DateTimeToStr(Now), PK);
       PublicK := PK.PublicKey;
+      // Set to AppParams if not mpk_NewEachTime
+      if (FMinerPrivateKeyType<>mpk_NewEachTime) then begin
+        FAppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].Value:=TAccountComp.AccountKey2RawString(PublicK);
+        FMinerPrivateKeyType:=mpk_Selected;
+        FAppParams.ParamByName[CT_PARAM_MinerPrivateKeyType].Value := Integer(mpk_Selected);
+      end;
     finally
       PK.Free;
     end;
