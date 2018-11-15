@@ -160,6 +160,7 @@ Type
     FChangeTimestampAndNOnceBytePos : Integer;
     FDigestStreamMsg : TMemoryStream;
     FMinNOnce,FMaxNOnce : Cardinal;
+    FResetNOnce : Boolean;						  
     procedure BCExecute; override;
   public
     Constructor Create(CPUDeviceThread : TCPUDeviceThread);
@@ -723,6 +724,7 @@ begin
         cpu.FDigestStreamMsg.size := 0;
         cpu.FChangeTimestampAndNOnceBytePos:=npos;
         cpu.FMinNOnce:=nextmin;
+        cpu.FResetNOnce:=True;
         if (FCPUs>0) then cpu.FMaxNOnce:=nextmin + (Cardinal($FFFFFFFF) DIV FCPUs) - 1
         else cpu.FMaxNOnce:= nextmin + (Cardinal($FFFFFFFF)) - 1;
         nextmin := cpu.FMaxNOnce+1;
@@ -787,7 +789,12 @@ begin
             roundsToDo := 10000;
           end;
           baseRealTC := TPlatform.GetTickCount;
-          If (nonce<FMinNOnce) Or (nonce>FMaxNOnce) then nonce:=FMinNOnce;
+          If (FResetNOnce) then begin
+            FResetNOnce := False;
+            If (nonce<FMinNOnce) Or (nonce>FMaxNOnce) then begin
+              nonce:=FMinNOnce;
+            end;
+          end;
           // Timestamp
           ts := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
           if ts<=FCurrentMinerValuesForWork.timestamp then ts := FCurrentMinerValuesForWork.timestamp+1;
@@ -869,6 +876,7 @@ begin
   FLock := TCriticalSection.Create;
   FDigestStreamMsg := TMemoryStream.Create;
   FMinNOnce := 0; FMaxNOnce:=$FFFFFFFF;
+  FResetNOnce:=True;
   inherited Create(false);
 end;
 
