@@ -81,6 +81,7 @@ Type
     Property MinerAddName : String read FMinerAddName write SetMinerAddName;
     Property TestingPoWLeftBits : Byte read FTestingPoWLeftBits write SetTestingPoWLeftBits;
     Property TestingMode : Boolean read FTestingMode write FTestingMode;
+    class Function UseRandomHash(const AProtocolVersion : Word) : Boolean;
   End;
 
   { TCustomMinerDeviceThread }
@@ -295,6 +296,11 @@ begin
   FDevicesList.UnlockList;
 end;
 
+class function TPoolMinerThread.UseRandomHash(const AProtocolVersion : Word) : Boolean;
+begin
+  Result := (CT_ACTIVATE_RANDOMHASH_V4 AND (AProtocolVersion >= CT_PROTOCOL_4));
+end;
+
 function TPoolMinerThread.GlobalMinerStats: TMinerStats;
 Var l : TList;
   i : Integer;
@@ -381,12 +387,14 @@ begin
     for i := 0 to l.Count - 1 do begin
       minervfw := FGlobalMinerValuesForWork;
       minervfw.payload_start:=minervfw.payload_start+FMinerAddName;
-      if (l.count>1) then minervfw.payload_start:=minervfw.payload_start+'/'+inttostr(i);
-      repeat
-        digest := minervfw.part1 + minervfw.payload_start + minervfw.part3 + '00000000';
-        ok := CanBeModifiedOnLastChunk(length(digest),j);
-        if (not ok) then minervfw.payload_start:=minervfw.payload_start+'-';
-      until (Ok);
+      if (l.count>1) then minervfw.payload_start:=minervfw.payload_start+inttostr(i);
+      if Not TPoolMinerThread.UseRandomHash(minervfw.version) then begin
+        repeat // Prepare payload_start with SHA256 compatible last chunk size
+          digest := minervfw.part1 + minervfw.payload_start + minervfw.part3 + '00000000';
+          ok := CanBeModifiedOnLastChunk(length(digest),j);
+          if (not ok) then minervfw.payload_start:=minervfw.payload_start+'-';
+        until (Ok);
+      end;
       If FTestingPoWLeftBits>0 then begin
         auxminervfw := minervfw;
         auxminervfw.target:= ((((auxminervfw.target AND $FF000000) SHR 24)-FTestingPoWLeftBits) SHL 24) + (minervfw.target AND $00FFFFFF);
@@ -474,7 +482,7 @@ begin
   if length(digest)<8 then exit;
   if TBaseType.BinStrComp(digest,FLastDigest)=0 then Exit;
   FLastDigest := digest;
-  LUseRandomHash := CT_ACTIVATE_RANDOMHASH_V4 AND (usedMinerValuesForWork.version >= CT_PROTOCOL_4);
+  LUseRandomHash := TPoolMinerThread.UseRandomHash(usedMinerValuesForWork.version);
   // Add timestamp and nonce
   move(Timestamp,digest[length(digest)-7],4);
   move(nOnce,digest[length(digest)-3],4);
@@ -523,15 +531,15 @@ end;
 procedure TCustomMinerDeviceThread.SetMinerValuesForWork(const Value: TMinerValuesForWork);
 var i,aux : Integer;
   canWork : Boolean;
-  oldPayload : String;
 begin
   FMinerValuesForWork := Value;
-  oldPayload := FMinerValuesForWork.payload_start;
-  Repeat
-    i := Length(FMinerValuesForWork.part1)+Length(FMinerValuesForWork.payload_start)+Length(FMinerValuesForWork.part3)+8;
-    canWork := CanBeModifiedOnLastChunk(i,aux);
-    If Not canWork then FMinerValuesForWork.payload_start:=FMinerValuesForWork.payload_start+' ';
-  until (canWork);
+  if Not TPoolMinerThread.UseRandomHash(FMinerValuesForWork.version) then begin
+    repeat // Prepare payload_start with SHA256 compatible last chunk size
+      i := Length(FMinerValuesForWork.part1)+Length(FMinerValuesForWork.payload_start)+Length(FMinerValuesForWork.part3)+8;
+      canWork := CanBeModifiedOnLastChunk(i,aux);
+      If Not canWork then FMinerValuesForWork.payload_start:=FMinerValuesForWork.payload_start+' ';
+    until (canWork);
+  end;
   TLog.NewLog(ltinfo,classname,Format('Updated MinerValuesForWork: Target:%s Payload:%s Target_PoW:%s',[IntToHex(FMinerValuesForWork.target,8),FMinerValuesForWork.payload_start,TCrypto.ToHexaString(FMinerValuesForWork.target_pow)]));
   If Assigned(FOnMinerValuesChanged) then FOnMinerValuesChanged(Self);
 end;
@@ -693,11 +701,15 @@ begin
     // Prepare final data:
     CheckCPUs;
     npos := 0;
-    repeat
+    if Not TPoolMinerThread.UseRandomHash(FMinerValuesForWork.version) then begin
+      repeat // Prepare payload_start with SHA256 compatible last chunk size
+        digest := FMinerValuesForWork.part1 + FMinerValuesForWork.payload_start + FMinerValuesForWork.part3 + '00000000';
+        ok := CanBeModifiedOnLastChunk(length(digest),npos);
+        if (not ok) then FMinerValuesForWork.payload_start:=FMinerValuesForWork.payload_start+'.';
+      until (Ok);
+    end else begin
       digest := FMinerValuesForWork.part1 + FMinerValuesForWork.payload_start + FMinerValuesForWork.part3 + '00000000';
-      ok := CanBeModifiedOnLastChunk(length(digest),npos);
-      if (not ok) then FMinerValuesForWork.payload_start:=FMinerValuesForWork.payload_start+'.';
-    until (Ok);
+    end;
     PascalCoinPrepareLastChunk(digest,sflc,lc);
     nextmin := 0;
     for i:=0 to l.count-1 do begin
@@ -768,7 +780,7 @@ begin
         dstep := 2;
         FLock.Acquire;
         try
-          LUseRandomHash := CT_ACTIVATE_RANDOMHASH_V4 AND (FCurrentMinerValuesForWork.version >= CT_PROTOCOL_4);
+          LUseRandomHash := TPoolMinerThread.UseRandomHash(FCurrentMinerValuesForWork.version);
           if (LUseRandomHash) then begin
             roundsToDo := 20;
           end else begin

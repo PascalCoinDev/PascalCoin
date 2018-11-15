@@ -189,7 +189,7 @@ begin
           end;
           if (nLap<CT_MAX_LAPS) then inc(nLap) else nLap := 0;
           inc(AuxStats.RoundsCount,CT_LAPS_ROUND);
-        end;
+        end else sleep(1);
       finally
         FLock.Release;
       end;
@@ -326,6 +326,11 @@ begin
   FLock.Acquire;
   try
     FReadyToGPU := (MinerValuesForWork.part1<>'') And (Assigned(FDCLKernel));
+    if (FReadyToGPU) And (TPoolMinerThread.UseRandomHash(MinerValuesForWork.version)) then begin
+      // V4 RandomHash not available on GPU mining
+      FReadyToGPU:=False;
+      TLog.NewLog(ltError,ClassName,'RandomHash not available on GPU. Set to CPU');
+    end;
     If (Not FReadyToGPU) then begin
       IsMining := false;
       exit;
