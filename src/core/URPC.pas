@@ -2140,7 +2140,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
 
   function BuyAccount(params : TPCJSONObject) : boolean;
   Var OperationsHashTree : TOperationsHashTree;
-    buyer_account : TAccount;
+    buyer_account, account_to_purchase : TAccount;
     opt : TPCOperation;
     opr : TOperationResume;
     errors : AnsiString;
@@ -2163,6 +2163,24 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           Exit;
         end;
         buyer_account := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        // Check params
+        c_account := params.AsInteger('account_to_purchase',MaxInt);
+        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Invalid account to purchase '+params.AsString('account_to_purchase','');
+          Exit;
+        end;
+        account_to_purchase := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        if Not TAccountComp.IsAccountForSale(account_to_purchase.accountInfo) then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+          ErrorDesc := 'Account is not for sale: '+params.AsString('account_to_purchase','');
+          Exit;
+        end;
+        // Fill automatic params
+        if (params.IndexOfName('price')<0) then
+          params.GetAsVariant('price').Value := ToJSONCurrency( account_to_purchase.accountInfo.price );
+        if (params.IndexOfName('seller_account')<0) then
+          params.GetAsVariant('seller_account').Value := account_to_purchase.accountInfo.account_to_pay;
         If not SignBuyAccountEx(params,OperationsHashTree,FNode.Bank.SafeBox.CurrentProtocol,buyer_account.accountInfo.accountKey,buyer_account.n_operation) then Exit;
         opt := OperationsHashTree.GetOperation(0);
         If not FNode.AddOperation(Nil,opt,errors) then begin
