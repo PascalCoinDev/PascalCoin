@@ -1,26 +1,29 @@
 unit UBlockChain;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
-
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
 
 interface
 
 uses
-  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs;
+  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs, UBaseTypes, SysUtils;
 {$I config.inc}
 
 {
@@ -188,6 +191,9 @@ Type
     Property OperationResume[index : Integer] : TOperationResume read GetOperationResume; default;
   End;
 
+  TOpReference = UInt64;
+  TOpReferenceArray = Array of TopReference;
+
   { TPCOperation }
 
   TPCOperation = Class
@@ -214,6 +220,7 @@ Type
     procedure AffectedAccounts(list : TList); virtual; abstract;
     class function OpType: Byte; virtual; abstract;
     Class Function OperationToOperationResume(Block : Cardinal; Operation : TPCOperation; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean; virtual;
+    Function GetDigestToSign(current_protocol : Word) : TRawBytes; virtual; abstract;
     function OperationAmount : Int64; virtual; abstract;
     function OperationAmountByAccount(account : Cardinal) : Int64; virtual;
     function OperationFee: Int64; virtual; abstract;
@@ -240,7 +247,13 @@ Type
     Class function EqualOperationHashes(Const operationHash1, operationHash2 : TRawBytes) : Boolean;
     Class function FinalOperationHashAsHexa(Const operationHash : TRawBytes) : AnsiString;
     class function OperationHashAsHexa(const operationHash : TRawBytes) : AnsiString;
+    class function GetOpReferenceAccount(const opReference : TOpReference) : Cardinal;
+    class function GetOpReferenceN_Operation(const opReference : TOpReference) : Cardinal;
     function Sha256 : TRawBytes;
+    function GetOpReference : TOpReference;
+    //
+    function GetOperationStreamData : TBytes;
+    class function GetOperationFromStreamData(StreamData : TBytes) : TPCOperation;
   End;
 
   { TOperationsHashTree }
@@ -249,19 +262,25 @@ Type
   private
     FListOrderedByAccountsData : TList;
     FListOrderedBySha256 : TList; // Improvement TOperationsHashTree speed 2.1.6
+    FListOrderedByOpReference : TList;
     FHashTreeOperations : TPCThreadList; // Improvement TOperationsHashTree speed 2.1.6
     FHashTree: TRawBytes;
     FOnChanged: TNotifyEvent;
     FTotalAmount : Int64;
     FTotalFee : Int64;
-    Procedure InternalAddOperationToHashTree(list : TList; op : TPCOperation; CalcNewHashTree : Boolean);
+    FMax0feeOperationsBySigner : Integer;
+    function InternalCanAddOperationToHashTree(lockedThreadList : TList; op : TPCOperation) : Boolean;
+    function InternalAddOperationToHashTree(list : TList; op : TPCOperation; CalcNewHashTree : Boolean) : Boolean;
+    Function FindOrderedByOpReference(lockedThreadList : TList; const Value: TOpReference; var Index: Integer): Boolean;
     Function FindOrderedBySha(lockedThreadList : TList; const Value: TRawBytes; var Index: Integer): Boolean;
     Function FindOrderedByAccountData(lockedThreadList : TList; const account_number : Cardinal; var Index: Integer): Boolean;
     function GetHashTree: TRawBytes;
+    procedure SetMax0feeOperationsBySigner(const Value: Integer);
   public
     Constructor Create;
     Destructor Destroy; Override;
-    Procedure AddOperationToHashTree(op : TPCOperation);
+    function CanAddOperationToHashTree(op : TPCOperation) : Boolean;
+    function AddOperationToHashTree(op : TPCOperation) : Boolean;
     Procedure ClearHastThree;
     Property HashTree : TRawBytes read GetHashTree;
     Function OperationsCount : Integer;
@@ -275,7 +294,10 @@ Type
     function IndexOfOperation(op : TPCOperation) : Integer;
     function CountOperationsBySameSignerWithoutFee(account_number : Cardinal) : Integer;
     Procedure Delete(index : Integer);
+    function IndexOfOpReference(const opReference : TOpReference) : Integer;
+    procedure RemoveByOpReference(const opReference : TOpReference);
     Property OnChanged : TNotifyEvent read FOnChanged write FOnChanged;
+    Property Max0feeOperationsBySigner : Integer Read FMax0feeOperationsBySigner write SetMax0feeOperationsBySigner;
   End;
 
   { TPCOperationsComp }
@@ -396,7 +418,7 @@ Type
     Function DoSaveBlockChain(Operations : TPCOperationsComp) : Boolean; virtual; abstract;
     Function DoMoveBlockChain(StartBlock : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean; virtual; abstract;
     Function DoSaveBank : Boolean; virtual; abstract;
-    Function DoRestoreBank(max_block : Int64) : Boolean; virtual; abstract;
+    Function DoRestoreBank(max_block : Int64; restoreProgressNotify : TProgressNotify) : Boolean; virtual; abstract;
     Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal); virtual; abstract;
     Function BlockExists(Block : Cardinal) : Boolean; virtual; abstract;
     function GetFirstBlockNumber: Int64; virtual; abstract;
@@ -412,7 +434,7 @@ Type
     Function MoveBlockChainBlocks(StartBlock : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean;
     Procedure DeleteBlockChainBlocks(StartingDeleteBlock : Cardinal);
     Function SaveBank : Boolean;
-    Function RestoreBank(max_block : Int64) : Boolean;
+    Function RestoreBank(max_block : Int64; restoreProgressNotify : TProgressNotify = Nil) : Boolean;
     Constructor Create(AOwner : TComponent); Override;
     Property Orphan : TOrphan read FOrphan write SetOrphan;
     Property ReadOnly : Boolean read FReadOnly write SetReadOnly;
@@ -455,12 +477,12 @@ Type
     procedure AssignTo(Dest: TPersistent); Override;
     function GetActualTargetSecondsAverage(BackBlocks : Cardinal): Real;
     function GetTargetSecondsAverage(FromBlock,BackBlocks : Cardinal): Real;
-    function LoadBankFromStream(Stream : TStream; useSecureLoad : Boolean; var errors : AnsiString) : Boolean;
+    function LoadBankFromStream(Stream : TStream; useSecureLoad : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; var errors : AnsiString) : Boolean;
     Procedure Clear;
     Function LoadOperations(Operations : TPCOperationsComp; Block : Cardinal) : Boolean;
     Property SafeBox : TPCSafeBox read FSafeBox;
     Function AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var newBlock: TBlockAccount; var errors: AnsiString): Boolean;
-    Procedure DiskRestoreFromOperations(max_block : Int64);
+    Procedure DiskRestoreFromOperations(max_block : Int64; restoreProgressNotify : TProgressNotify = Nil);
     Procedure UpdateValuesFromSafebox;
     Procedure NewLog(Operations: TPCOperationsComp; Logtype: TLogType; Logtxt: AnsiString);
     Property OnLog: TPCBankLog read FOnLog write FOnLog;
@@ -482,11 +504,8 @@ var
 implementation
 
 uses
-  {Messages, }
-  SysUtils, Variants, {Graphics,}
-  {Controls, Forms,}
-  Dialogs, {StdCtrls,}
-  UTime, UConst, UOpTransaction, UBaseTypes;
+  Variants,
+  UTime, UConst, UOpTransaction;
 
 { TPCBank }
 
@@ -633,17 +652,19 @@ begin
   End;
 end;
 
-procedure TPCBank.DiskRestoreFromOperations(max_block : Int64);
+procedure TPCBank.DiskRestoreFromOperations(max_block : Int64; restoreProgressNotify : TProgressNotify = Nil);
 Var
   errors: AnsiString;
   newBlock: TBlockAccount;
   Operations: TPCOperationsComp;
   n : Int64;
+  tc : TTickCount;
 begin
   if FIsRestoringFromFile then begin
     TLog.NewLog(lterror,Classname,'Is Restoring!!!');
     raise Exception.Create('Is restoring!');
   end;
+  tc := TPlatform.GetTickCount;
   TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
   try
     FUpgradingToV2 := NOT Storage.HasUpgradedToVersion2;
@@ -653,7 +674,7 @@ begin
       Storage.Initialize;
       If (max_block<Storage.LastBlock) then n := max_block
       else n := Storage.LastBlock;
-      Storage.RestoreBank(n);
+      Storage.RestoreBank(n,restoreProgressNotify);
       // Restore last blockchain
       if (BlocksCount>0) And (SafeBox.CurrentProtocol=CT_PROTOCOL_1) then begin
         if Not Storage.LoadBlockChainBlock(FLastBlockCache,BlocksCount-1) then begin
@@ -676,8 +697,13 @@ begin
                 break;
               end else begin
                 // To prevent continuous saving...
-                If (BlocksCount MOD (CT_BankToDiskEveryNBlocks*10))=0 then begin
+                if ((BlocksCount+(CT_BankToDiskEveryNBlocks*2)) >= Storage.LastBlock ) or
+                   ((BlocksCount MOD (CT_BankToDiskEveryNBlocks*10))=0) then begin
                   Storage.SaveBank;
+                end;
+                if (Assigned(restoreProgressNotify)) And (TPlatform.GetElapsedMilliseconds(tc)>1000) then begin
+                  tc := TPlatform.GetTickCount;
+                  restoreProgressNotify(Self,Format('Reading blockchain block %d/%d',[Operations.OperationBlock.block,Storage.LastBlock]),BlocksCount,Storage.LastBlock);
                 end;
               end;
             end else break;
@@ -701,7 +727,7 @@ procedure TPCBank.UpdateValuesFromSafebox;
 Var aux : AnsiString;
   i : Integer;
 begin
-  { Will update current Bank state based on Safbox state
+  { Will update current Bank state based on Safebox state
     Used when commiting a Safebox or rolling back }
   Try
     TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
@@ -790,7 +816,7 @@ begin
   end else Result := true;
 end;
 
-function TPCBank.LoadBankFromStream(Stream: TStream; useSecureLoad : Boolean; var errors: AnsiString): Boolean;
+function TPCBank.LoadBankFromStream(Stream: TStream; useSecureLoad : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; var errors: AnsiString): Boolean;
 Var LastReadBlock : TBlockAccount;
   i : Integer;
   auxSB : TPCSafeBox;
@@ -800,7 +826,7 @@ begin
     If useSecureLoad then begin
       // When on secure load will load Stream in a separate SafeBox, changing only real SafeBox if successfully
       auxSB := TPCSafeBox.Create;
-      Result := auxSB.LoadSafeBoxFromStream(Stream,true,LastReadBlock,errors);
+      Result := auxSB.LoadSafeBoxFromStream(Stream,true,checkSafeboxHash,progressNotify,LastReadBlock,errors);
       If Not Result then Exit;
     end;
     TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
@@ -808,7 +834,7 @@ begin
       If Assigned(auxSB) then begin
         SafeBox.CopyFrom(auxSB);
       end else begin
-        Result := SafeBox.LoadSafeBoxFromStream(Stream,false,LastReadBlock,errors);
+        Result := SafeBox.LoadSafeBoxFromStream(Stream,False,checkSafeboxHash,progressNotify,LastReadBlock,errors);
       end;
       If Not Result then exit;
       If SafeBox.BlocksCount>0 then FLastOperationBlock := SafeBox.Block(SafeBox.BlocksCount-1).blockchainInfo
@@ -866,6 +892,8 @@ var
   _OperationsClass: Array of TPCOperationClass;
 
 function TPCOperationsComp.AddOperation(Execute: Boolean; op: TPCOperation; var errors: AnsiString): Boolean;
+var i : Integer;
+  auxs : AnsiString;
 Begin
   Lock;
   Try
@@ -881,19 +909,40 @@ Begin
         exit;
       end;
       // Only process when in current address, prevent do it when reading operations from file
-      Result := op.DoOperation(FPreviousUpdatedBlocks, FSafeBoxTransaction, errors);
+      if FOperationsHashTree.CanAddOperationToHashTree(op) then begin
+        Result := op.DoOperation(FPreviousUpdatedBlocks, FSafeBoxTransaction, errors);
+      end else begin
+        errors := 'Cannot add operation. Limits reached';
+        Exit;
+      end;
     end else Result := true;
     if Result then begin
-      FOperationsHashTree.AddOperationToHashTree(op);
-      FOperationBlock.fee := FOperationBlock.fee + op.OperationFee;
-      FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
-      if FDisableds<=0 then Calc_Digest_Parts;
+      if FOperationsHashTree.AddOperationToHashTree(op) then begin
+        if FIsOnlyOperationBlock then begin
+          // Clear fee values and put to False
+          FIsOnlyOperationBlock := False;
+          FOperationBlock.fee := op.OperationFee;
+        end else begin
+          FOperationBlock.fee := FOperationBlock.fee + op.OperationFee;
+        end;
+        FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
+        if FDisableds<=0 then Calc_Digest_Parts;
+      end else begin
+        errors := 'Cannot add operation. Limits reached';
+        if (Execute) then begin
+          // Undo execute
+          TLog.NewLog(lterror,ClassName,Format('Undo operation.DoExecute due limits reached. Executing %d operations',[FOperationsHashTree.OperationsCount]));
+          FPreviousUpdatedBlocks.Clear;
+          FSafeBoxTransaction.Rollback;
+          for i := 0 to FOperationsHashTree.OperationsCount-1 do FOperationsHashTree.GetOperation(i).DoOperation(FPreviousUpdatedBlocks, FSafeBoxTransaction, auxs);
+        end;
+        Result := False;
+      end;
     end;
   finally
     Unlock;
   end;
 End;
-
 
 function TPCOperationsComp.AddOperations(operations: TOperationsHashTree; var errors: AnsiString): Integer;
 Var i : Integer;
@@ -932,7 +981,10 @@ begin
   FStreamPoW.WriteBuffer(FDigest_Part3[1],length(FDigest_Part3));
   FStreamPoW.Write(FOperationBlock.timestamp,4);
   FStreamPoW.Write(FOperationBlock.nonce,4);
-  TCrypto.DoDoubleSha256(FStreamPoW.Memory,length(FDigest_Part1)+length(FDigest_Part2_Payload)+length(FDigest_Part3)+8,PoW);
+  if CT_ACTIVATE_RANDOMHASH_V4 AND (FOperationBlock.protocol_version >= CT_PROTOCOL_4) then
+    TCrypto.DoRandomHash(FStreamPoW.Memory,length(FDigest_Part1)+length(FDigest_Part2_Payload)+length(FDigest_Part3)+8,PoW)
+  else
+    TCrypto.DoDoubleSha256(FStreamPoW.Memory,length(FDigest_Part1)+length(FDigest_Part2_Payload)+length(FDigest_Part3)+8,PoW);
 end;
 
 procedure TPCOperationsComp.Calc_Digest_Parts;
@@ -949,6 +1001,7 @@ begin
 end;
 
 procedure TPCOperationsComp.Clear(DeleteOperations : Boolean);
+var resetNewTarget : Boolean;
 begin
   Lock;
   Try
@@ -964,24 +1017,38 @@ begin
 
     FOperationBlock.timestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
     if Assigned(FBank) then begin
+      resetNewTarget := False;
       FOperationBlock.protocol_version := FBank.SafeBox.CurrentProtocol;
       If (FOperationBlock.protocol_version=CT_PROTOCOL_1) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_2)) then begin
         FOperationBlock.protocol_version := CT_PROTOCOL_2; // If minting... upgrade to Protocol 2
       end else if (FOperationBlock.protocol_version=CT_PROTOCOL_2) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_3)) then begin
         FOperationBlock.protocol_version := CT_PROTOCOL_3; // If minting... upgrade to Protocol 3
+      end else if (FOperationBlock.protocol_version=CT_PROTOCOL_3) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_4)) then begin
+        FOperationBlock.protocol_version := CT_PROTOCOL_4; // If minting... upgrade to Protocol 4
+        {$IFDEF ACTIVATE_RANDOMHASH_V4}
+        resetNewTarget := True; // RandomHash algo will reset new target on V4
+        {$ENDIF}
       end;
+      if (FOperationBlock.protocol_version>=CT_PROTOCOL_4) then begin
+        FOperationsHashTree.Max0feeOperationsBySigner := 1; // Limit to 1 0-fee operation by signer
+      end else FOperationsHashTree.Max0feeOperationsBySigner := -1;
       FOperationBlock.block := FBank.BlocksCount;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(FBank.BlocksCount);
-      FOperationBlock.compact_target := FBank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
+      if (resetNewTarget) then begin
+        FOperationBlock.compact_target := TPascalCoinProtocol.ResetTarget(FOperationBlock.compact_target,FOperationBlock.protocol_version);
+      end else begin
+        FOperationBlock.compact_target := FBank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
+      end;
       FOperationBlock.initial_safe_box_hash := FBank.SafeBox.SafeBoxHash;
       If FBank.LastOperationBlock.timestamp>FOperationBlock.timestamp then
         FOperationBlock.timestamp := FBank.LastOperationBlock.timestamp;
     end else begin
       FOperationBlock.block := 0;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(0);
-      FOperationBlock.compact_target := CT_MinCompactTarget;
+      FOperationBlock.compact_target := CT_MinCompactTarget_v1;
       FOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash); // Nothing for first line
       FOperationBlock.protocol_version := CT_PROTOCOL_1;
+      FOperationsHashTree.Max0feeOperationsBySigner := -1;
     end;
     FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
     FOperationBlock.fee := 0;
@@ -991,7 +1058,7 @@ begin
     FIsOnlyOperationBlock := false;
   Finally
     try
-      CalcProofOfWork(true,FOperationBlock.proof_of_work);
+      Calc_Digest_Parts; // Does not need to recalc PoW
     finally
       Unlock;
     end;
@@ -1038,7 +1105,7 @@ begin
     end;
     FPreviousUpdatedBlocks.CopyFrom(Operations.FPreviousUpdatedBlocks);
     // Recalc all
-    CalcProofOfWork(true,FOperationBlock.proof_of_work);
+    Calc_Digest_Parts; // Does not need to recalc PoW
   finally
     Unlock;
   end;
@@ -1195,7 +1262,7 @@ begin
     // In build prior to 1.0.4 soob only can have 2 values: 0 or 1
     // In build 1.0.4 soob can has 2 more values: 2 or 3
     // In build 2.0 soob can has 1 more value: 4
-    // In build 3.0 soob can hast value: 5
+    // In build 3.0 soob can have value: 5
     // In future, old values 0 and 1 will no longer be used!
     // - Value 0 and 2 means that contains also operations
     // - Value 1 and 3 means that only contains operationblock info
@@ -1245,6 +1312,9 @@ begin
     // Fee will be calculated for each operation. Set it to 0 and check later for integrity
     lastfee := OperationBlock.fee;
     FOperationBlock.fee := 0;
+    if FOperationBlock.protocol_version>=CT_PROTOCOL_4 then begin
+      FOperationsHashTree.Max0feeOperationsBySigner := 1;
+    end else FOperationsHashTree.Max0feeOperationsBySigner := -1;
     Result := FOperationsHashTree.LoadOperationsHashTreeFromStream(Stream,LoadingFromStorage,load_protocol_version,FPreviousUpdatedBlocks,errors);
     if not Result then begin
       exit;
@@ -1312,15 +1382,17 @@ procedure TPCOperationsComp.SanitizeOperations;
     Finally calculates new operation pow
     It's used when a new account has beed found by other chanels (miners o nodes...)
     }
-Var i,n,lastn : Integer;
+Var i,n,lastn, iUndo : Integer;
   op : TPCOperation;
-  errors : AnsiString;
+  errors, auxs : AnsiString;
   aux,aux2 : TOperationsHashTree;
+  resetNewTarget : Boolean;
 begin
   Lock;
   Try
     FOperationBlock.timestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
     if Assigned(FBank) then begin
+      resetNewTarget := False;
       FOperationBlock.protocol_version := FBank.SafeBox.CurrentProtocol;
       If (FOperationBlock.protocol_version=CT_PROTOCOL_1) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_2)) then begin
         TLog.NewLog(ltinfo,ClassName,'New miner protocol version to 2 at sanitize');
@@ -1328,17 +1400,28 @@ begin
       end else if (FOperationBlock.protocol_version=CT_PROTOCOL_2) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_3)) then begin
         TLog.NewLog(ltinfo,ClassName,'New miner protocol version to 3 at sanitize');
         FOperationBlock.protocol_version := CT_PROTOCOL_3;
+      end else if (FOperationBlock.protocol_version=CT_PROTOCOL_3) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_4)) then begin
+        TLog.NewLog(ltinfo,ClassName,'New miner protocol version to 4 at sanitize');
+        FOperationBlock.protocol_version := CT_PROTOCOL_4;
+        {$IFDEF ACTIVATE_RANDOMHASH_V4}
+        resetNewTarget := True; // RandomHash algo will reset new target on V4
+        {$ENDIF}
       end;
       FOperationBlock.block := FBank.BlocksCount;
+
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(FBank.BlocksCount);
-      FOperationBlock.compact_target := FBank.SafeBox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
+      if (resetNewTarget) then begin
+        FOperationBlock.compact_target := TPascalCoinProtocol.ResetTarget(FOperationBlock.compact_target,FOperationBlock.protocol_version);
+      end else begin
+        FOperationBlock.compact_target := FBank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
+      end;
       FOperationBlock.initial_safe_box_hash := FBank.SafeBox.SafeBoxHash;
       If FBank.LastOperationBlock.timestamp>FOperationBlock.timestamp then
         FOperationBlock.timestamp := FBank.LastOperationBlock.timestamp;
     end else begin
       FOperationBlock.block := 0;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(0);
-      FOperationBlock.compact_target := CT_MinCompactTarget;
+      FOperationBlock.compact_target := CT_MinCompactTarget_v1;
       FOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash);
       FOperationBlock.protocol_version := CT_PROTOCOL_1;
     end;
@@ -1351,14 +1434,26 @@ begin
     FPreviousUpdatedBlocks.Clear;
     aux := TOperationsHashTree.Create;
     Try
+      if (FOperationBlock.protocol_version>=CT_PROTOCOL_4) then begin
+        aux.Max0feeOperationsBySigner := 1;
+      end else aux.Max0feeOperationsBySigner := -1;
       lastn := FOperationsHashTree.OperationsCount;
       for i:=0 to lastn-1 do begin
         op := FOperationsHashTree.GetOperation(i);
-        if (op.DoOperation(FPreviousUpdatedBlocks, SafeBoxTransaction,errors)) then begin
-          inc(n);
-          aux.AddOperationToHashTree(op);
-          FOperationBlock.fee := FOperationBlock.fee + op.OperationFee;
-          {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Sanitizing (pos:'+inttostr(i+1)+'/'+inttostr(lastn)+'): '+op.ToString){$ENDIF};
+        if (aux.CanAddOperationToHashTree(op)) then begin
+          if (op.DoOperation(FPreviousUpdatedBlocks, SafeBoxTransaction,errors)) then begin
+            if aux.AddOperationToHashTree(op) then begin
+              inc(n);
+              inc(FOperationBlock.fee,op.OperationFee);
+              FOperationBlock.fee := FOperationBlock.fee + op.OperationFee;
+              {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Sanitizing (pos:'+inttostr(i+1)+'/'+inttostr(lastn)+'): '+op.ToString){$ENDIF};
+            end else begin
+              TLog.NewLog(lterror,ClassName,Format('Undo operation.DoExecute at Sanitize due limits reached. Executing %d operations',[aux.OperationsCount]));
+              FPreviousUpdatedBlocks.Clear;
+              FSafeBoxTransaction.Rollback;
+              for iUndo := 0 to aux.OperationsCount-1 do aux.GetOperation(iUndo).DoOperation(FPreviousUpdatedBlocks, FSafeBoxTransaction, auxs);
+            end;
+          end;
         end;
       end;
     Finally
@@ -1368,7 +1463,7 @@ begin
       FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
     End;
   Finally
-    CalcProofOfWork(true,FOperationBlock.proof_of_work);
+    Calc_Digest_Parts; // Does not need to recalc PoW
     Unlock;
   End;
   if (n>0) then begin
@@ -1686,15 +1781,26 @@ Type TOperationHashTreeReg = Record
      end;
      POperationsHashAccountsData = ^TOperationsHashAccountsData;
 
-procedure TOperationsHashTree.AddOperationToHashTree(op: TPCOperation);
+function TOperationsHashTree.AddOperationToHashTree(op: TPCOperation) : Boolean;
 Var l : TList;
 begin
   l := FHashTreeOperations.LockList;
   try
-    InternalAddOperationToHashTree(l,op,True);
+    Result := InternalAddOperationToHashTree(l,op,True);
   finally
     FHashTreeOperations.UnlockList;
   end;
+end;
+
+function TOperationsHashTree.CanAddOperationToHashTree(op: TPCOperation): Boolean;
+Var lockedList : TList;
+begin
+  lockedList := FHashTreeOperations.LockList;
+  Try
+    Result := InternalCanAddOperationToHashTree(lockedList,op);
+  Finally
+    FHashTreeOperations.UnlockList;
+  End;
 end;
 
 procedure TOperationsHashTree.ClearHastThree;
@@ -1721,6 +1827,7 @@ begin
       l.Clear;
       FListOrderedBySha256.Clear;
       FListOrderedByAccountsData.Clear;
+      FListOrderedByOpReference.Clear;
       FHashTree := '';
     End;
     If Assigned(FOnChanged) then FOnChanged(Self);
@@ -1744,6 +1851,7 @@ begin
     FOnChanged := Nil;
     try
       ClearHastThree;
+      FMax0feeOperationsBySigner := Sender.Max0feeOperationsBySigner;
       lsender := Sender.FHashTreeOperations.LockList;
       try
         for i := 0 to lsender.Count - 1 do begin
@@ -1770,9 +1878,11 @@ begin
   FOnChanged:=Nil;
   FListOrderedBySha256 := TList.Create;
   FListOrderedByAccountsData := TList.Create;
+  FListOrderedByOpReference := TList.Create;
   FTotalAmount := 0;
   FTotalFee := 0;
   FHashTree := '';
+  FMax0feeOperationsBySigner := -1; // Unlimited by default
   FHashTreeOperations := TPCThreadList.Create('TOperationsHashTree_HashTreeOperations');
 end;
 
@@ -1785,20 +1895,41 @@ begin
   l := FHashTreeOperations.LockList;
   try
     P := l[index];
+    // Delete from Ordered by OpReference
+    if Not FindOrderedByOpReference(l,P^.Op.GetOpReference,iDel) then begin
+      TLog.NewLog(ltError,ClassName,'DEV ERROR 20180927-1 Operation not found in ordered by reference list: '+P^.Op.ToString);
+    end else begin
+      iValuePosDeleted := PtrInt(FListOrderedByOpReference[iDel]);
+      if (iValuePosDeleted<>index) then begin
+        if (POperationHashTreeReg(l[iValuePosDeleted])^.Op.GetOpReference <> P^.Op.GetOpReference) then
+          TLog.NewLog(lterror,ClassName,Format('DEV ERROR 20180928-2 [%d]=%d <> %d',[iDel,iValuePosDeleted,index]));
+      end;
+      FListOrderedByOpReference.Delete(iDel);
+    end;
+    // Decrease FListOrderedByOpReference values > index
+    for i := 0 to FListOrderedByOpReference.Count - 1 do begin
+      if PtrInt(FListOrderedByOpReference[i])>index then begin
+        FListOrderedByOpReference[i] := TObject( PtrInt(FListOrderedByOpReference[i]) - 1 );
+      end;
+    end;
 
     // Delete from Ordered
     If Not FindOrderedBySha(l,P^.Op.Sha256,iDel) then begin
       TLog.NewLog(ltError,ClassName,'DEV ERROR 20180213-1 Operation not found in ordered list: '+P^.Op.ToString);
     end else begin
       iValuePosDeleted := PtrInt(FListOrderedBySha256[iDel]);
+      if (iValuePosDeleted<>index) then
+        TLog.NewLog(lterror,ClassName,Format('DEV ERROR 20180928-3 [%d]=%d <> %d',[iDel,iValuePosDeleted,index]));
+
       FListOrderedBySha256.Delete(iDel);
-      // Decrease values > iValuePosDeleted
-      for i := 0 to FListOrderedBySha256.Count - 1 do begin
-        if PtrInt(FListOrderedBySha256[i])>iValuePosDeleted then begin
-          FListOrderedBySha256[i] := TObject( PtrInt(FListOrderedBySha256[i]) - 1 );
-        end;
+    end;
+    // Decrease FListOrderedBySha256 values > index
+    for i := 0 to FListOrderedBySha256.Count - 1 do begin
+      if PtrInt(FListOrderedBySha256[i])>index then begin
+        FListOrderedBySha256[i] := TObject( PtrInt(FListOrderedBySha256[i]) - 1 );
       end;
     end;
+
     // Delete from account Data
     If Not FindOrderedByAccountData(l,P^.Op.SignerAccount,i) then begin
       TLog.NewLog(ltError,ClassName,Format('DEV ERROR 20180213-3 account %d not found in ordered list: %s',[P^.Op.SignerAccount,P^.Op.ToString]));
@@ -1840,6 +1971,7 @@ begin
   SetLength(FHashTree,0);
   FreeAndNil(FListOrderedBySha256);
   FreeAndNil(FListOrderedByAccountsData);
+  FreeAndNil(FListOrderedByOpReference);
   inherited;
 end;
 
@@ -1918,6 +2050,18 @@ begin
   End;
 end;
 
+function TOperationsHashTree.IndexOfOpReference(const opReference: TOpReference): Integer;
+Var l : TList;
+begin
+  l := FHashTreeOperations.LockList;
+  Try
+    if not FindOrderedByOpReference(l,opReference,Result) then Result := -1
+    else Result := PtrInt(FListOrderedByOpReference.Items[Result]);
+  Finally
+    FHashTreeOperations.UnlockList;
+  End;
+end;
+
 function TOperationsHashTree.CountOperationsBySameSignerWithoutFee(account_number: Cardinal): Integer;
 Var l : TList;
   i : Integer;
@@ -1935,7 +2079,7 @@ begin
   End;
 end;
 
-procedure TOperationsHashTree.InternalAddOperationToHashTree(list: TList; op: TPCOperation; CalcNewHashTree : Boolean);
+function TOperationsHashTree.InternalAddOperationToHashTree(list: TList; op: TPCOperation; CalcNewHashTree : Boolean) : Boolean;
 Var msCopy : TMemoryStream;
   h : TRawBytes;
   P : POperationHashTreeReg;
@@ -1943,6 +2087,10 @@ Var msCopy : TMemoryStream;
   i,npos,iListSigners : Integer;
   listSigners : TList;
 begin
+  if Not InternalCanAddOperationToHashTree(list,op) then begin
+    Result := False;
+    Exit;
+  end else Result := True; // Will add:
   msCopy := TMemoryStream.Create;
   try
     New(P);
@@ -1964,6 +2112,11 @@ begin
       TCrypto.DoSha256(h,FHashTree);
     end;
     npos := list.Add(P);
+    //
+    if Not FindOrderedByOpReference(list,op.GetOpReference,i) then begin
+      FListOrderedByOpReference.Insert(i,TObject(npos));
+    end; // TODO: Do not allow duplicate OpReferences?
+
     // Improvement: Will allow to add duplicate Operations, so add only first to orderedBySha
     If Not FindOrderedBySha(list,op.Sha256,i) then begin
       // Protection: Will add only once
@@ -1996,6 +2149,34 @@ begin
   FTotalAmount := FTotalAmount + op.OperationAmount;
   FTotalFee := FTotalFee + op.OperationFee;
   If Assigned(FOnChanged) then FOnChanged(Self);
+end;
+
+function TOperationsHashTree.InternalCanAddOperationToHashTree(lockedThreadList : TList; op: TPCOperation): Boolean;
+Var PaccData : POperationsHashAccountsData;
+  iListSigners,iFound : Integer;
+  listSigners : TList;
+begin
+  Result := False;
+  // Protections:
+  // Protect 0-fee operations
+  if (op.OperationFee=0) And (FMax0feeOperationsBySigner>=0) then begin
+    if (FMax0feeOperationsBySigner=0) then Exit // Not allowed 0-fee operations!
+    else if (FMax0feeOperationsBySigner>0) then begin
+      listSigners := TList.Create;
+      try
+        op.SignerAccounts(listSigners);
+        for iListSigners:=0 to listSigners.Count-1 do begin
+          If FindOrderedByAccountData(lockedThreadList,PtrInt(listSigners[iListSigners]),iFound) then begin
+            PaccData := FListOrderedByAccountsData[iFound];
+            if (PaccData^.account_without_fee>=FMax0feeOperationsBySigner) then Exit; // Limit 0-fee reached
+          end;
+        end;
+      finally
+        listSigners.Free;
+      end;
+    end;
+  end;
+  Result := True;
 end;
 
 function TOperationsHashTree.FindOrderedBySha(lockedThreadList : TList; const Value: TRawBytes; var Index: Integer): Boolean;
@@ -2036,6 +2217,33 @@ begin
   begin
     I := (L + H) shr 1;
     C := Int64(POperationsHashAccountsData(FListOrderedByAccountsData[I])^.account_number) - Int64(account_number);
+    if C < 0 then L := I + 1 else
+    begin
+      H := I - 1;
+      if C = 0 then
+      begin
+        Result := True;
+        L := I;
+      end;
+    end;
+  end;
+  Index := L;
+end;
+
+function TOperationsHashTree.FindOrderedByOpReference(lockedThreadList: TList; const Value: TOpReference; var Index: Integer): Boolean;
+var L, H, I : Integer;
+  iLockedThreadListPos : PtrInt;
+  C : Int64;
+  P : POperationHashTreeReg;
+begin
+  Result := False;
+  L := 0;
+  H := FListOrderedByOpReference.Count - 1;
+  while L <= H do
+  begin
+    I := (L + H) shr 1;
+    iLockedThreadListPos := PtrInt(FListOrderedByOpReference[I]);
+    C := Int64(POperationHashTreeReg(lockedThreadList[iLockedThreadListPos])^.Op.GetOpReference) - Int64(Value);
     if C < 0 then L := I + 1 else
     begin
       H := I - 1;
@@ -2117,6 +2325,22 @@ begin
   end;
 end;
 
+procedure TOperationsHashTree.RemoveByOpReference(const opReference: TOpReference);
+var i : Integer;
+  l : TList;
+  iLockedThreadListPos : PtrInt;
+begin
+  l := FHashTreeOperations.LockList;
+  Try
+    if FindOrderedByOpReference(l,opReference,i) then begin
+      iLockedThreadListPos := PtrInt(FListOrderedByOpReference[i]);
+      Delete(iLockedThreadListPos);
+    end;
+  Finally
+    FHashTreeOperations.UnlockList;
+  End;
+end;
+
 function TOperationsHashTree.SaveOperationsHashTreeToStream(Stream: TStream; SaveToStorage: Boolean): Boolean;
 Var c, i, OpType: Cardinal;
   bcop: TPCOperation;
@@ -2138,6 +2362,16 @@ begin
   Finally
     FHashTreeOperations.UnlockList;
   End;
+end;
+
+procedure TOperationsHashTree.SetMax0feeOperationsBySigner(const Value: Integer);
+var nv : Integer;
+begin
+  if Value<0 then nv:=-1
+  else nv := Value;
+  if nv=FMax0feeOperationsBySigner then Exit;
+  FMax0feeOperationsBySigner := nv;
+  ClearHastThree;
 end;
 
 { TStorage }
@@ -2201,9 +2435,9 @@ begin
   Result := DoMoveBlockChain(StartBlock,DestOrphan,DestStorage);
 end;
 
-function TStorage.RestoreBank(max_block: Int64): Boolean;
+function TStorage.RestoreBank(max_block: Int64; restoreProgressNotify : TProgressNotify = Nil): Boolean;
 begin
-  Result := DoRestoreBank(max_block);
+  Result := DoRestoreBank(max_block,restoreProgressNotify);
 end;
 
 function TStorage.SaveBank: Boolean;
@@ -2286,6 +2520,72 @@ begin
       ms.Free;
     end;
   end else Raise Exception.Create('ERROR DEV 20170426-1'); // This should never happen, if good coded
+end;
+
+class function TPCOperation.GetOperationFromStreamData(StreamData : TBytes): TPCOperation;
+  // Loads an TPCOperation saved using "GetOperationStreamData"
+  // 1 byte for OpType
+  // N bytes for Operation specific data (saved at SaveOpToStream)
+Var stream : TStream;
+  b : Byte;
+  j: Integer;
+  OpClass: TPCOperationClass;
+  auxOp: TPCOperation;
+begin
+  Result := Nil;
+  stream := TMemoryStream.Create;
+  Try
+    stream.WriteBuffer(StreamData[0],Length(StreamData)); // Fixed bug 4.0.0
+    stream.Position := 0;
+    stream.Read(b,1);
+    j := TPCOperationsComp.IndexOfOperationClassByOpType(b);
+    if j >= 0 then
+      OpClass := _OperationsClass[j]
+    else Exit;
+    auxOp := OpClass.Create;
+    if auxOp.LoadOpFromStream(stream,False) then Result := auxOp
+    else auxOp.Free;
+  Finally
+    stream.Free;
+  End;
+end;
+
+function TPCOperation.GetOperationStreamData: TBytes;
+  // OperationStreamData fills an array of bytes with info needed to store an operation
+  // 1 byte for OpType
+  // N bytes for Operation specific data (saved at SaveOpToStream)
+var stream : TStream;
+  b : Byte;
+begin
+  stream := TMemoryStream.Create;
+  Try
+    b := OpType;
+    stream.Write(b,1);
+    SaveOpToStream(stream,False);
+    SetLength(Result,stream.Size);
+    stream.Position := 0;
+    stream.ReadBuffer(Result[0],stream.Size); // Fixed bug 4.0.0
+  Finally
+    stream.Free;
+  End;
+end;
+
+function TPCOperation.GetOpReference: TOpReference;
+  // Described on PIP-0015 by Herman Schoenfeld
+  // Will return a 64 bit value composed by SignerAccount (first 4 bytes) and n_Operation (last 4 bytes)
+  // Will allow to quick search an Operation in a TOperationsHashTree object
+begin
+  Result := ((UInt64(SignerAccount) SHL 32) OR UInt64(N_Operation));
+end;
+
+class function TPCOperation.GetOpReferenceAccount(const opReference: TOpReference): Cardinal;
+begin
+  Result := Cardinal(opReference SHR 32);
+end;
+
+class function TPCOperation.GetOpReferenceN_Operation(const opReference: TOpReference): Cardinal;
+begin
+  Result := Cardinal(opReference);
 end;
 
 procedure TPCOperation.SignerAccounts(list: TList);
@@ -2469,8 +2769,7 @@ begin
 end;
 
 class function TPCOperation.OperationToOperationResume(Block : Cardinal; Operation: TPCOperation; getInfoForAllAccounts : Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume): Boolean;
-Var spayload : AnsiString;
-  s : AnsiString;
+Var s : AnsiString;
 begin
   OperationResume := CT_TOperationResume_NUL;
   OperationResume.Block:=Block;
@@ -2609,6 +2908,9 @@ begin
       OperationResume.OperationTxt := Operation.ToString;
       OperationResume.Amount := Operation.OperationAmountByAccount(Affected_account_number);
       OperationResume.Fee := 0;
+      Result := True;
+    end;
+    CT_Op_Data : Begin
       Result := True;
     end
   else Exit;

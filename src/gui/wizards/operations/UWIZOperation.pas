@@ -1,16 +1,23 @@
 unit UWIZOperation;
 
-{$mode delphi}
-
-{ Copyright (c) 2018 Sphere 10 Software (http://www.sphere10.com/)
+{ Copyright (c) 2018 by Sphere 10 Software <http://www.sphere10.com/>
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
+
   Acknowledgements:
-  Ugochukwu Mmaduekwe - main developer
-  Herman Schoenfeld - designer
+  - Ugochukwu Mmaduekwe - main developer
+  - Herman Schoenfeld - designer
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
+
+{$mode delphi}
 
 interface
 
@@ -174,7 +181,7 @@ type
 implementation
 
 uses
-  UCrypto, UECIES, UAES, UConst, UCoreUtils, UOpTransaction;
+  UCrypto, UECIES, UAES, UConst, UCoreUtils, UOpTransaction, UUserInterface;
 
 { TWIZOperationsModel }
 
@@ -477,7 +484,7 @@ begin
       if LDoOperation then
       begin
         LPCOperation := TOpTransaction.CreateTransaction(
-          LCurrentAccount.account, LCurrentAccount.n_operation + 1, ADestinationAccount.account, LWalletKey.PrivateKey, LAmount, LFee, LPayloadEncodedBytes);
+           TUserInterface.Node.Bank.Safebox.CurrentProtocol, LCurrentAccount.account, LCurrentAccount.n_operation + 1, ADestinationAccount.account, LWalletKey.PrivateKey, LAmount, LFee, LPayloadEncodedBytes);
         try
           LOperationsTxt := Format('Transaction To "%s"', [ADestinationAccount.AccountString]);
 
@@ -629,12 +636,12 @@ begin
           LFee := AFee
         else
           LFee := LSignerAccount.balance - UInt64(LTotalSignerFee);
-        LPCOperation := TOpChangeKeySigned.Create(LSignerAccount.account,
+        LPCOperation := TOpChangeKeySigned.Create(TUserInterface.Node.Bank.Safebox.CurrentProtocol, LSignerAccount.account,
           LSignerAccount.n_operation + LNoOfOperations + 1, LCurrentAccount.account,
           LWalletKey.PrivateKey, APublicKey, LFee, LPayloadEncodedBytes);
       end
       else
-        LPCOperation := TOpChangeKey.Create(LCurrentAccount.account, LCurrentAccount.n_operation +
+        LPCOperation := TOpChangeKey.Create(TUserInterface.Node.Bank.Safebox.CurrentProtocol, LCurrentAccount.account, LCurrentAccount.n_operation +
           1, LCurrentAccount.account, LWalletKey.PrivateKey, APublicKey, LFee, LPayloadEncodedBytes);
 
       try
@@ -780,17 +787,16 @@ begin
         akaPublicSale:
 
           LPCOperation := TOpListAccountForSale.CreateListAccountForSale(
-            ASignerAccount.account, ASignerAccount.n_operation + 1 + LAccountIdx,
+            TUserInterface.Node.Bank.Safebox.CurrentProtocol, ASignerAccount.account, ASignerAccount.n_operation + 1 + LAccountIdx,
             LCurrentAccount.account, ASalePrice, LFee, ASellerAccount.account,
             APublicKey, 0, LWalletKey.PrivateKey, LPayloadEncodedBytes);
 
         akaPrivateSale:
 
           LPCOperation := TOpListAccountForSale.CreateListAccountForSale(
-            ASignerAccount.account, ASignerAccount.n_operation + 1 + LAccountIdx,
+            TUserInterface.Node.Bank.Safebox.CurrentProtocol, ASignerAccount.account, ASignerAccount.n_operation + 1 + LAccountIdx,
             LCurrentAccount.account, ASalePrice, LFee, ASellerAccount.account,
             APublicKey, ALockedUntilBlock, LWalletKey.PrivateKey, LPayloadEncodedBytes)
-
         else
           raise Exception.Create('Invalid Account Sale Type')
       end;

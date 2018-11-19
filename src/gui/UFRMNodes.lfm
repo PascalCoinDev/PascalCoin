@@ -3,12 +3,14 @@ object FRMNodes: TFRMNodes
   Height = 444
   Top = 333
   Width = 861
+  ActiveControl = memoNetConnections
   Caption = 'Nodes'
   ClientHeight = 444
   ClientWidth = 861
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.8.0.6'
+  Visible = False
   object Label3: TLabel
     Left = 15
     Height = 15

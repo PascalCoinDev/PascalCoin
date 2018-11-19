@@ -1,15 +1,22 @@
 unit UFRMMessages;
 
-{$mode delphi}
-
 { Copyright (c) 2018 by Herman Schoenfeld
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
+
   Acknowledgements:
-  - Albert Molina: portions of code copied from https://github.com/PascalCoin/PascalCoin/blob/master/Units/Forms/UFRMWallet.pas
+  - Albert Molina: portions of code copied from https://github.com/PascalCoin/PascalCoin/blob/Releases/2.1.6/Units/Forms/UFRMWallet.pas
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
+
+{$mode delphi}
 
 interface
 
@@ -18,7 +25,7 @@ interface
 uses
   LCLIntf, LCLType,
   SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Menus, UCommon.UI,
+  Dialogs, StdCtrls, Menus, UCommon.UI, UBaseTypes,
   UNode, UNetProtocol, UCrypto, UFRMMainForm,UConst;
 
 type
@@ -36,14 +43,15 @@ type
     memoMessageToSend: TMemo;
     procedure bbSendAMessageClick(Sender: TObject);
     procedure FormActivate(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
   private
     FMessagesUnreadCount : Integer;
     { private declarations }
     procedure UpdateAvailableConnections;
-
+    procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : TRawBytes);
   public
     { public declarations }
-    Procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : TRawBytes);
   end;
 
 implementation
@@ -57,9 +65,17 @@ uses UUserInterface, USettings;
 procedure TFRMMessages.FormActivate(Sender: TObject);
 begin
   UpdateAvailableConnections;
-  TUserInterface.MessagesNotificationText := '';
 end;
 
+procedure TFRMMessages.FormCreate(Sender: TObject);
+begin
+  TUserInterface.NodeMessageEvent.Add(OnNodeMessageEvent);
+end;
+
+procedure TFRMMessages.FormDestroy(Sender: TObject);
+begin
+  TUserInterface.NodeMessageEvent.Remove(OnNodeMessageEvent);
+end;
 
 procedure TFRMMessages.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: TRawBytes);
 Var s : String;
@@ -83,9 +99,8 @@ begin
   end else begin
     memoMessages.Lines.Add(DateTimeToStr(now)+' Internal message: '+MessageData);
   end;
-  if FMessagesUnreadCount>1 then TUserInterface.MessagesNotificationText := Format('You have received %d messages',[FMessagesUnreadCount])
-  else TUserInterface.MessagesNotificationText := 'You have received 1 message';
 end;
+
 
 procedure TFRMMessages.UpdateAvailableConnections;
 Var i : integer;

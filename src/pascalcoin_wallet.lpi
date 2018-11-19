@@ -28,15 +28,12 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <RequiredPackages Count="2">
+    <RequiredPackages Count="1">
       <Item1>
-        <PackageName Value="multithreadprocslaz"/>
-      </Item1>
-      <Item2>
         <PackageName Value="LCL"/>
-      </Item2>
+      </Item1>
     </RequiredPackages>
-    <Units Count="95">
+    <Units Count="96">
       <Unit0>
         <Filename Value="pascalcoin_wallet.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -243,12 +240,16 @@
       <Unit41>
         <Filename Value="gui\UFRMAccountInfo.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="FRMAccountInfo"/>
         <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit41>
       <Unit42>
         <Filename Value="gui\UFRMMemoText.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="FRMMemoText"/>
         <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit42>
       <Unit43>
         <Filename Value="gui\UFRMSaleAccounts.pas"/>
@@ -545,8 +546,13 @@
         <Filename Value="gui\UCTRLNoAccount.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="CTRLNoAccounts"/>
+        <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit94>
+      <Unit95>
+        <Filename Value="core\URandomHash.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit95>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -557,7 +563,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);libraries\generics.collections\inc"/>
-      <OtherUnitFiles Value="core;gui;libraries\synapse;libraries\sphere10;libraries\generics.collections;libraries\pascalcoin;core.utils;gui\wizards\wallet;gui\wizards\operations;gui-classic;gui\wizards\accounts"/>
+      <OtherUnitFiles Value="core;gui;libraries\synapse;libraries\sphere10;libraries\hashlib4pascal;libraries\generics.collections;libraries\pascalcoin;core.utils;gui\wizards\wallet;gui\wizards\operations;gui-classic"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>

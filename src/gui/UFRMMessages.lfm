@@ -3,12 +3,16 @@ object FRMMessages: TFRMMessages
   Height = 441
   Top = 47
   Width = 874
+  ActiveControl = lbNetConnections
   Caption = 'Messages'
   ClientHeight = 441
   ClientWidth = 874
   OnActivate = FormActivate
-  Position = poOwnerFormCenter    
-  LCLVersion = '1.6.4.0'
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  Position = poOwnerFormCenter
+  LCLVersion = '1.8.4.0'
+  Visible = False
   object Label11: TLabel
     Left = 15
     Height = 15

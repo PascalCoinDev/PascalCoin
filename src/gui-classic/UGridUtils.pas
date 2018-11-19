@@ -1,21 +1,24 @@
 unit UGridUtils;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
-
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
 
 interface
 
@@ -28,7 +31,7 @@ uses
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
   Classes, Grids, UNode, UAccounts, UBlockChain, UAppParams,
-  UWallet, UCrypto, UPoolMining, URPC;
+  UWallet, UCrypto, UPoolMining, URPC, UBaseTypes;
 
 Type
   // TAccountsGrid implements a visual integration of TDrawGrid
@@ -131,6 +134,8 @@ Type
     Volume : Int64;
     Reward, Fee : Int64;
     Target : Cardinal;
+    HashRateTargetHs : Double;
+    HashRateHs : Double;
     HashRateTargetKhs : Int64;
     HashRateKhs : Int64;
     MinerPayload : TRawBytes;
@@ -149,7 +154,7 @@ Type
 
   { TBlockChainGrid }
 
-  TShowHashRateAs = (hr_Kilo, hr_Mega, hr_Giga, hr_Tera, hr_Peta, hr_Exa);
+  TShowHashRateAs = (hr_Unit, hr_Kilo, hr_Mega, hr_Giga, hr_Tera, hr_Peta, hr_Exa);
 
   TBlockChainGrid = Class(TComponent)
   private
@@ -193,7 +198,7 @@ Type
   End;
 
 Const
-  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:-1;Volume:-1;Reward:0;Fee:0;Target:0;HashRateTargetKhs:0;HashRateKhs:0;MinerPayload:'';PoW:'';SafeBoxHash:'';AccumulatedWork:0;TimeAverage200:0;TimeAverage150:0;TimeAverage100:0;TimeAverage75:0;TimeAverage50:0;TimeAverage25:0;TimeAverage10:0);
+  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:-1;Volume:-1;Reward:0;Fee:0;Target:0;HashRateTargetHs:0;HashRateHs:0;HashRateTargetKhs:0;HashRateKhs:0;MinerPayload:'';PoW:'';SafeBoxHash:'';AccumulatedWork:0;TimeAverage200:0;TimeAverage150:0;TimeAverage100:0;TimeAverage75:0;TimeAverage50:0;TimeAverage25:0;TimeAverage10:0);
 
 
 implementation
@@ -1082,6 +1087,7 @@ begin
       6 : s := 'Target';
       7 : begin
         case HashRateAs of
+          hr_Unit : s := 'h/s';
           hr_Kilo : s := 'Kh/s';
           hr_Mega : s := 'Mh/s';
           hr_Giga : s := 'Gh/s';
@@ -1149,16 +1155,22 @@ begin
         s := IntToHex(bcd.Target,8);
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter]);
       end else if ACol=7 then begin
-        case HashRateAs of
-          hr_Kilo : hr_base := 1;
-          hr_Mega : hr_base := 1000;
-          hr_Giga : hr_base := 1000000;
-          hr_Tera : hr_base := 1000000000;
-          hr_Peta : hr_base := 1000000000000;
-          hr_Exa  : hr_base := 1000000000000000;
-        else hr_base := 1;
+        if (HashRateAs = hr_Unit) then begin
+          s := Format('%.0n (%.0n)',[bcd.HashRateHs,bcd.HashRateTargetHs]);
+        end else if (HashRateAs = hr_Kilo) then begin
+          s := Format('%.2n (%.2n)',[bcd.HashRateHs/1000,bcd.HashRateTargetHs/1000]);
+        end else begin
+          case HashRateAs of
+            hr_Kilo : hr_base := 1;
+            hr_Mega : hr_base := 1000;
+            hr_Giga : hr_base := 1000000;
+            hr_Tera : hr_base := 1000000000;
+            hr_Peta : hr_base := 1000000000000;
+            hr_Exa  : hr_base := 1000000000000000;
+          else hr_base := 1;
+          end;
+          s := Format('%.2n (%.2n)',[bcd.HashRateKhs/hr_base,bcd.HashRateTargetKhs/hr_base]);
         end;
-        s := Format('%.2n (%.2n)',[bcd.HashRateKhs/hr_base,bcd.HashRateTargetKhs/hr_base]);
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter]);
       end else if ACol=8 then begin
         if TCrypto.IsHumanReadable(bcd.MinerPayload) then
@@ -1319,10 +1331,18 @@ begin
         bcd.Reward := opb.reward;
         bcd.Fee := opb.fee;
         bcd.Target := opb.compact_target;
-        bcd.HashRateKhs := Node.Bank.SafeBox.CalcBlockHashRateInKhs(bcd.Block,HashRateAverageBlocksCount);
+        bn := Node.Bank.SafeBox.CalcBlockHashRateInHs(bcd.Block,HashRateAverageBlocksCount);
+        try
+          bcd.HashRateHs := bn.Value;
+          bcd.HashRateKhs := bn.Divide(1000).Value;
+        finally
+          bn.Free;
+        end;
+        // bcd.HashRateKhs := Node.Bank.SafeBox.CalcBlockHashRateInKhs(bcd.Block,HashRateAverageBlocksCount); XXXXXXXX
         bn := TBigNum.TargetToHashRate(opb.compact_target);
         Try
-          bcd.HashRateTargetKhs := bn.Divide(1024).Divide(CT_NewLineSecondsAvg).Value;
+          bcd.HashRateTargetHs := bn.Value / (CT_NewLineSecondsAvg);
+          bcd.HashRateTargetKhs := bn.Divide(1000).Divide(CT_NewLineSecondsAvg).Value;
         finally
           bn.Free;
         end;

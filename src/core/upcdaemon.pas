@@ -1,19 +1,22 @@
 unit upcdaemon;
 
-{$mode objfpc}{$H+}
-
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{$mode objfpc}{$H+}
 
 interface
 
@@ -30,6 +33,7 @@ Const
   CT_INI_IDENT_NODE_MAX_CONNECTIONS = 'NODE_MAX_CONNECTIONS';
   CT_INI_IDENT_RPC_PORT = 'RPC_PORT';
   CT_INI_IDENT_RPC_WHITELIST = 'RPC_WHITELIST';
+  CT_INI_IDENT_RPC_ALLOWUSEPRIVATEKEYS = 'RPC_ALLOWUSEPRIVATEKEYS';
   CT_INI_IDENT_RPC_SAVELOGS = 'RPC_SAVELOGS';
   CT_INI_IDENT_RPC_SERVERMINER_PORT = 'RPC_SERVERMINER_PORT';
   CT_INI_IDENT_MINER_B58_PUBLICKEY = 'RPC_SERVERMINER_B58_PUBKEY';
@@ -109,6 +113,7 @@ var
     FRPC.WalletKeys := FWalletKeys;
     FRPC.Port:=port;
     FRPC.Active:=true;
+    FRPC.AllowUsePrivateKeys:=FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_RPC_ALLOWUSEPRIVATEKEYS,True);
     FRPC.ValidIPs:=FIniFile.ReadString(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_RPC_WHITELIST,'127.0.0.1;');
     TLog.NewLog(ltInfo,ClassName,'RPC server is active on port '+IntToStr(port));
     If FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_RPC_SAVELOGS,true) then begin

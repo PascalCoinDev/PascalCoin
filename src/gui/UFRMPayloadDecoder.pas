@@ -1,19 +1,22 @@
 unit UFRMPayloadDecoder;
 
-{$mode Delphi}
-
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{$mode Delphi}
 
 interface
 
@@ -93,7 +96,7 @@ implementation
 
 {$R *.lfm}
 
-Uses UNode, UTime, UECIES, UAES, UAccounts, UCommon, UFRMMemoText, USettings;
+Uses UNode, UTime, UECIES, UAES, UAccounts, UCommon, UFRMMemoText, USettings, UBaseTypes;
 
 { TFRMPayloadDecoder }
 

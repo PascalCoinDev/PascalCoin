@@ -11,6 +11,7 @@ object FRMPendingOperations: TFRMPendingOperations
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
+  LCLVersion = '1.8.4.0'
   Visible = False
   object pnlPendingOperations: TPanel
     Left = 0
@@ -41,7 +42,7 @@ object FRMPendingOperations: TFRMPendingOperations
   end
   object dgPendingOperations: TDrawGrid
     Left = 0
-    Height = 251
+    Height = 231
     Top = 86
     Width = 860
     Align = alClient

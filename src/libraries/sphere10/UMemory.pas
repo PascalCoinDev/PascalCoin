@@ -1,5 +1,6 @@
-{
-  Copyright (c) 2017 - 2018 Sphere 10 Software
+unit UMemory;
+
+{ Copyright (c) 2017 - 2018 Sphere 10 Software <https://www.sphere10.com>
 
   Memory management routines.
 
@@ -7,11 +8,12 @@
   or visit http://www.opensource.org/licenses/mit-license.php.
 
   Acknowledgements:
-    Herman Schoenfeld
-    Dmitriy Pomerantsev <pda2@yandex.ru>: scope management inspired by https://github.com/pda0/AutoScope/blob/master/AutoScope.pas
+  - Herman Schoenfeld: main author
+  - Dmitriy Pomerantsev <pda2@yandex.ru>: scope management inspired by https://github.com/pda0/AutoScope/blob/master/AutoScope.pas
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
-unit UMemory;
 
 {$IFDEF FPC}
   {$MODE DELPHI}{$H+}
@@ -64,42 +66,6 @@ type
       property Objects[const AnObject: TObject]: TObject read AddObject; default;
   end;
 
-  { TAutoPtr - for disposing single instances }
-
-  TAutoPtr<T> = record
-    private type
-      __TAutoPtr_T = TAutoPtr<T>;
-      __PAutoPtr_T = ^__TAutoPtr_T;
-      TGuard = class(TInterfacedObject)
-        private
-          FOwner: __PAutoPtr_T;
-        public
-          FDisposePolicy : TDisposePolicy;
-          constructor Create(AAutoPtrRec: __PAutoPtr_T);
-          destructor Destroy; override;
-      end;
-    private
-      FGuardian: IInterface;
-      FPointer:  Pointer;
-      class procedure Initialize(var AAutoPtr: __TAutoPtr_T); static;
-      class procedure Finalize(var AAutoPtr: __TAutoPtr_T); static;
-      function GetPointer : Pointer; inline;
-      procedure SetPointer(Ptr: Pointer); inline; overload;
-      function GetObject : TObject; inline;
-      procedure SetObject(const AnObject: TObject); inline; overload;
-      function GetValue : T; inline;
-      procedure SetValue(const AValue : T); inline; overload;
-      procedure CheckGuard; inline;
-    public
-      property Pointer_ : Pointer read GetPointer write SetPointer;
-      property Object_ : TObject read GetObject write SetObject;
-      property Value : T read GetValue write SetValue;
-      procedure SetPointer(Ptr: Pointer; ADisposePolicy : TDisposePolicy); inline; overload;
-      procedure SetObject(const AnObject: TObject; ADisposePolicy : TDisposePolicy); inline; overload;
-      procedure SetValue(const AValue : T; ADisposePolicy : TDisposePolicy); inline; overload;
-      procedure DangerousUpdateDisposePolicy(ADisposePolicy : TDisposePolicy);
-      procedure Clear;
-  end;
 
 implementation
 
@@ -242,118 +208,6 @@ begin
   if not Assigned(FGuardian) then
     FGuardian := TGuard.Create(@Self);
   UnregisterPointer(P);
-end;
-
-{ TAutoPtr }
-
-constructor TAutoPtr<T>.TGuard.Create(AAutoPtrRec: __PAutoPtr_T);
-begin
-  FOwner := AAutoPtrRec;
-  FDisposePolicy := idpNone;
-  TAutoPtr<T>.Initialize(FOwner^);
-end;
-
-procedure TAutoPtr<T>.DangerousUpdateDisposePolicy(ADisposePolicy : TDisposePolicy);
-begin
-  CheckGuard;
-  TGuard(FGuardian).FDisposePolicy := ADisposePolicy;
-end;
-
-destructor TAutoPtr<T>.TGuard.Destroy;
-begin
-  inherited;
-  try
-    TAutoPtr<T>.Finalize(FOwner^);
-  except
-    FreeInstance;
-    raise;
-  end;
-end;
-
-class procedure TAutoPtr<T>.Initialize(var AAutoPtr: __TAutoPtr_T);
-begin
-  AAutoPtr.FGuardian := nil;
-  AAutoPtr.FPointer := nil;
-end;
-
-class procedure TAutoPtr<T>.Finalize(var AAutoPtr: __TAutoPtr_T);
-begin
-  AAutoPtr.Clear;
-end;
-
-procedure TAutoPtr<T>.Clear;
-begin
-  CheckGuard;
-  if FPointer <> nil then begin
-    case TGuard(FGuardian).FDisposePolicy of
-      idpNone: ;
-      idpNil: FPointer := nil;
-      idpFree, idpFreeAndNil: FreeAndNil ( FPointer );
-      idpRelease: raise ENotSupportedException.Create('Dispose policy idpRelease not supported');
-      idpFreeMem: System.FreeMem(FPointer);
-      else raise ENotSupportedException.Create('Dispose policy not supported');
-    end;
-
-    FPointer := nil;
-    // avoid FGuard nullifcation due to recursive calls
-  end;
-end;
-
-function TAutoPtr<T>.GetPointer : Pointer;
-begin
-  CheckGuard;
-  Result := FPointer;
-end;
-
-procedure TAutoPtr<T>.SetPointer(Ptr: Pointer);
-begin
-  SetPointer(Ptr, idpFree);
-end;
-
-procedure TAutoPtr<T>.SetPointer(Ptr: Pointer; ADisposePolicy : TDisposePolicy);
-begin
-  CheckGuard;
-  if FPointer <> nil then
-    Clear;
-  FPointer := Ptr;
-  TGuard(FGuardian).FDisposePolicy := ADisposePolicy;
-end;
-
-function TAutoPtr<T>.GetObject : TObject;
-begin
-  Result := TObject(GetPointer);
-end;
-
-procedure TAutoPtr<T>.SetObject(const AnObject: TObject);
-begin
-  SetObject(AnObject , idpFree);
-end;
-
-
-procedure TAutoPtr<T>.SetObject(const AnObject: TObject; ADisposePolicy : TDisposePolicy);
-begin
-  SetPointer( Pointer(AnObject), ADisposePolicy);
-end;
-
-function TAutoPtr<T>.GetValue : TObject;
-begin
-  Result := T(GetPointer);
-end;
-
-procedure TAutoPtr<T>.SetValue(const AValue: T);
-begin
-  SetValue(AValue, idpFree);
-end;
-
-procedure TAutoPtr<T>.SetValue(const AValue: T; ADisposePolicy : TDisposePolicy);
-begin
-  SetObject(TObject(AValue), ADisposePolicy);
-end;
-
-procedure TAutoPtr<T>.CheckGuard;
-begin
-  if not Assigned(FGuardian) then
-    FGuardian := TGuard.Create(@Self);
 end;
 
 end.

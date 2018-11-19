@@ -1,24 +1,33 @@
 unit UUserInterface;
 
-{$mode delphi}
-
 { Copyright (c) 2018 by Herman Schoenfeld
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
+
   Acknowledgements:
-  - Albert Molina: portions of code copied from https://github.com/PascalCoin/PascalCoin/blob/master/Units/Forms/UFRMWallet.pas
+  - Albert Molina: portions of code copied from https://github.com/PascalCoin/PascalCoin/blob/Releases/2.1.6/Units/Forms/UFRMWallet.pas
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
+
+{$mode delphi}
 
 interface
 
 {$I ..\config.inc}
 
 uses
-  SysUtils, Classes, Forms, Controls, {$IFDEF WINDOWS}Windows,{$ENDIF} ExtCtrls, Dialogs, LCLType,
-  UCommon.UI, UBlockChain, UAccounts, UNode, UWallet, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining,
-  ULog, UThread, UNetProtocol, UCrypto,
+  SysUtils, Classes, Forms, Controls, {$IFDEF WINDOWS}Windows,{$ENDIF} ExtCtrls,
+  Dialogs, LCLType,
+  UCommon, UCommon.UI,
+  UBlockChain, UAccounts, UNode, UWallet, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining,
+  ULog, UThread, UNetProtocol, UCrypto, UBaseTypes,
   UFRMMainForm, UCTRLSyncronization, UFRMAccountExplorer, UFRMOperationExplorer, UFRMPendingOperations, UFRMOperation,
   UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys;
 
@@ -26,6 +35,9 @@ type
   { Forward Declarations }
 
   TLoadDatabaseThread = class;
+
+  { TUserInterfaceState }
+  TUserInterfaceState = (uisLoading, uisLoaded, uisDiscoveringPeers, uisSyncronizingBlockchain, uisActive, uisIsolated, uisDisconnected, uisError);
 
   { TUserInterface }
 
@@ -62,51 +74,76 @@ type
       FStatusBar2Text : AnsiString; static;
       FMessagesNotificationText : AnsiString; static;
       FDisplayedStartupSyncDialog : boolean; static;
-
-      // Methods
-      class procedure RefreshConnectionStatusDisplay;
+      FAppStarted : TNotifyManyEvent; static;
+      FLoading : TProgressNotifyMany; static;
+      FLoaded : TNotifyManyEvent; static;
+      FStateChanged : TNotifyManyEvent; static;
+      FAccountsChanged : TNotifyManyEvent; static;
+      FBlocksChanged : TNotifyManyEvent; static;
+      FReceivedHelloMessage : TNotifyManyEvent; static;
+      FNodeMessageEvent : TNodeMessageManyEvent; static;
+      FNetStatisticsChanged : TNotifyManyEvent; static;
+      FNetConnectionsUpdated : TNotifyManyEvent; static;
+      FNetNodeServersUpdated : TNotifyManyEvent; static;
+      FNetBlackListUpdated : TNotifyManyEvent; static;
+      FMiningServerNewBlockFound : TNotifyManyEvent; static;
+      FUIRefreshTimer : TNotifyManyEvent; static;
+      FState : TUserInterfaceState; static;
+      FStateText : String; static;
 
       // Getters/Setters
       class function GetEnabled : boolean; static;
       class procedure SetEnabled(ABool: boolean); static;
-      class procedure SetStatusBar0Text(const text : AnsiString); static;
-      class procedure SetStatusBar1Text(const text : AnsiString); static;
-      class procedure SetStatusBar2Text(const text : AnsiString); static;
-      class procedure SetMessagesNotificationText(const text : AnsiString); static;
-      class procedure SetMainFormMode(AMode: TFRMMainFormMode); static;
-      class function GetMainFormMode : TFRMMainFormMode; static;
-
-      // Aux methods
-      class procedure FinishedLoadingDatabase;
+      class procedure SetState(AState : TUserInterfaceState); static;
 
       // Handlers
-      class procedure OnTimerUpdateStatusTimer(Sender: TObject);
-      class procedure OnSubFormDestroyed(Sender: TObject);
-
-      // Backend Handlers (TODO: refactor this out with TNotifyManyEvents)
       class procedure OnSettingsChanged(Sender: TObject);
-      class procedure OnAccountsChanged(Sender: TObject);
-      class procedure OnBlocksChanged(Sender: TObject);
+      class procedure OnLoaded(Sender: TObject);
+      class procedure OnUITimerRefresh(Sender: TObject);
       class procedure OnReceivedHelloMessage(Sender: TObject);
-      class procedure OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: TRawBytes);
-      class procedure OnNetStatisticsChanged(Sender: TObject);
-      class procedure OnNetConnectionsUpdated(Sender: TObject);
-      class procedure OnNetNodeServersUpdated(Sender: TObject);
-      class procedure OnNetBlackListUpdated(Sender: TObject);
       class procedure OnMiningServerNewBlockFound(Sender: TObject);
+      class procedure OnSubFormDestroyed(Sender: TObject);
       class procedure OnTrayIconDblClick(Sender: TObject);
+
+      // Aux
+      class procedure NotifyLoadedEvent(Sender: TObject);
+      class procedure NotifyLoadingEvent(Sender: TObject; const message: AnsiString; curPos, totalCount: Int64);
+      class procedure NotifyStateChanged(Sender: TObject);
+      class procedure NotifyAccountsChangedEvent(Sender: TObject);
+      class procedure NotifyBlocksChangedEvent(Sender: TObject);
+      class procedure NotifyReceivedHelloMessageEvent(Sender: TObject);
+      class procedure NotifyNodeMessageEventEvent(NetConnection: TNetConnection; MessageData: TRawBytes);
+      class procedure NotifyNetStatisticsChangedEvent(Sender: TObject);
+      class procedure NotifyNetConnectionsUpdatedEvent(Sender: TObject);
+      class procedure NotifyNetNodeServersUpdatedEvent(Sender: TObject);
+      class procedure NotifyNetBlackListUpdatedEvent(Sender: TObject);
+      class procedure NotifyMiningServerNewBlockFoundEvent(Sender: TObject);
+      class procedure NotifyUIRefreshTimerEvent(Sender: TObject);
     public
       // Properties
       class property Enabled : boolean read GetEnabled write SetEnabled;
       class property Started : boolean read FStarted;
+      class property State : TUserInterfaceState read FState write SetState;
+      class property StateText : string read FStateText;
       class property Node : TNode read FNode;
       class property Log : TLog read FLog;
       class property PoolMiningServer : TPoolMiningServer read FPoolMiningServer;
-      class property MainFormMode : TFRMMainFormMode read GetMainFormMode write SetMainFormMode;
-      class property StatusBar0Text : AnsiString read FStatusBar0Text write SetStatusBar0Text;
-      class property StatusBar1Text : AnsiString read FStatusBar1Text write SetStatusBar1Text;
-      class property StatusBar2Text : AnsiString read FStatusBar2Text write SetStatusBar2Text;
-      class property MessagesNotificationText : AnsiString read FMessagesNotificationText write SetMessagesNotificationText;
+
+      // Events
+      class property AppStarted : TNotifyManyEvent read FAppStarted;
+      class property Loading : TProgressNotifyMany read FLoading;
+      class property Loaded : TNotifyManyEvent read FLoaded;
+      class property StateChanged : TNotifyManyEvent read FStateChanged;
+      class property AccountsChanged : TNotifyManyEvent read FAccountsChanged;
+      class property BlocksChanged : TNotifyManyEvent read FBlocksChanged;
+      class property ReceivedHelloMessage : TNotifyManyEvent read FReceivedHelloMessage;
+      class property NodeMessageEvent : TNodeMessageManyEvent read FNodeMessageEvent;
+      class property NetStatisticsChanged : TNotifyManyEvent read FNetStatisticsChanged;
+      class property NetConnectionsUpdated : TNotifyManyEvent read FNetConnectionsUpdated;
+      class property NetNodeServersUpdated : TNotifyManyEvent read FNetNodeServersUpdated;
+      class property NetBlackListUpdated : TNotifyManyEvent read FNetBlackListUpdated;
+      class property MiningServerNewBlockFound : TNotifyManyEvent read FMiningServerNewBlockFound;
+      class property UIRefreshTimer : TNotifyManyEvent read FUIRefreshTimer;
 
       // Methods
       class procedure StartApplication(mainForm : TForm);
@@ -151,13 +188,14 @@ type
       class procedure ShowLogsForm;
       class procedure ShowWallet;
       class procedure ShowSyncDialog;
-
   end;
 
   { TLoadSafeBoxThread }
 
   TLoadDatabaseThread = Class(TPCThread)
   protected
+    procedure OnProgressNotify(sender : TObject; const message : AnsiString; curPos, totalCount : Int64);
+    procedure OnLoaded;
     procedure BCExecute; override;
   End;
 
@@ -169,7 +207,7 @@ implementation
 
 uses
   UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
-  UOpenSSL, UFileStorage, UTime, UCommon, USettings, UCoreUtils, UMemory,
+  UOpenSSL, UFileStorage, UTime, USettings, UCoreUtils, UMemory,
   UWIZOperation, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale;
 
 {%region UI Lifecyle}
@@ -245,11 +283,12 @@ begin
     FNode := TNode.Node;
     FNode.NetServer.Port := TSettings.InternetServerPort;
     FNode.PeerCache := TSettings.PeerCache+';'+CT_Discover_IPs;
+    FReceivedHelloMessage.Add(OnReceivedHelloMessage);
 
     // Subscribe to Node events (TODO refactor with FNotifyEvents)
     FNodeNotifyEvents := TNodeNotifyEvents.Create(FMainForm);
-    FNodeNotifyEvents.OnBlocksChanged := OnBlocksChanged;
-    FNodeNotifyEvents.OnNodeMessageEvent :=  OnNodeMessageEvent;
+    FNodeNotifyEvents.OnBlocksChanged := NotifyBlocksChangedEvent;
+    FNodeNotifyEvents.OnNodeMessageEvent :=  NotifyNodeMessageEventEvent;
 
     // Start RPC server
     FRPCServer := TRPCServer.Create;
@@ -264,24 +303,26 @@ begin
     TFileStorage(FNode.Bank.Storage).Initialize;
 
     // Reading database
+    State := uisLoading;
+    FLoaded.Add(OnLoaded);
     TLoadDatabaseThread.Create(false).FreeOnTerminate := true;
 
     // Init
-    TNetData.NetData.OnReceivedHelloMessage := OnReceivedHelloMessage;
-    TNetData.NetData.OnStatisticsChanged := OnNetStatisticsChanged;
-    TNetData.NetData.OnNetConnectionsUpdated := OnNetConnectionsUpdated;
-    TNetData.NetData.OnNodeServersUpdated := OnNetNodeServersUpdated;
-    TNetData.NetData.OnBlackListUpdated := OnNetBlackListUpdated;
+    TNetData.NetData.OnReceivedHelloMessage := NotifyReceivedHelloMessageEvent;
+    TNetData.NetData.OnStatisticsChanged := NotifyNetStatisticsChangedEvent;
+    TNetData.NetData.OnNetConnectionsUpdated := NotifyNetConnectionsUpdatedEvent;
+    TNetData.NetData.OnNodeServersUpdated := NotifyNetNodeServersUpdatedEvent;
+    TNetData.NetData.OnBlackListUpdated := NotifyNetBlackListUpdatedEvent;
 
     // Start refresh timer
-    FTimerUpdateStatus.OnTimer := OnTimerUpdateStatusTimer;
+    FTimerUpdateStatus.OnTimer := NotifyUIRefreshTimerEvent;
     FTimerUpdateStatus.Interval := 1000;
     FTimerUpdateStatus.Enabled := true;
+    FUIRefreshTimer.Add(OnUITimerRefresh); //TODO: move to initialisation?
 
     // open the sync dialog
-    FMainForm.SyncControl.UpdateBlockChainState;   //TODO fix this work-flow
-    RefreshConnectionStatusDisplay;
     FStarted := true;
+    FAppStarted.Invoke(nil);
   Except
     On E:Exception do begin
       E.Message := 'An error occurred during initialization. Application cannot continue:'+#10+#10+E.Message+#10+#10+'Application will close...';
@@ -290,15 +331,8 @@ begin
     end;
   end;
 
-
   // Notify accounts changed
-  OnAccountsChanged(FMainForm);
-
-  // Refresh status bar since may not have been displayed
-  SetStatusBar0Text(FStatusBar0Text);
-  SetStatusBar0Text(FStatusBar1Text);
-  SetStatusBar0Text(FStatusBar2Text);
-  SetMessagesNotificationText(FMessagesNotificationText);
+  NotifyAccountsChangedEvent(FMainForm);
 
   // Show sync dialog
   ShowSyncDialog;
@@ -319,8 +353,14 @@ begin
   // Exit application
   TLog.NewLog(ltinfo,Classname,'Quit Application - START');
   Try
-    step := 'Saving Settings';
+    step := 'Deregistering events';
     TSettings.OnChanged.Remove(OnSettingsChanged);
+    FUIRefreshTimer.Remove(OnUITimerRefresh);
+    FReceivedHelloMessage.Remove(OnReceivedHelloMessage);
+    FLoaded.Remove(OnLoaded);
+    FUIRefreshTimer.Remove(OnUITimerRefresh);
+
+    step := 'Saving Settings';
     TSettings.Save;
 
     // Destroys root form, non-modal forms and all their attached components
@@ -399,7 +439,41 @@ begin
   Application.BringToFront();
 end;
 
-class procedure TUserInterface.FinishedLoadingDatabase;
+{%endregion}
+
+{%region UI Handlers }
+
+class procedure TUserInterface.OnTrayIconDblClick(Sender: TObject);
+begin
+  RunInForeground;
+end;
+
+class procedure TUserInterface.OnSubFormDestroyed(Sender: TObject);
+begin
+  try
+    FUILock.Acquire;
+    if Sender = FAccountExplorer then
+      FAccountExplorer := nil // form free's on close
+    else if Sender = FPendingOperationForm then
+      FPendingOperationForm := nil // form free's on close
+    else if Sender = FOperationsExplorerForm then
+      FOperationsExplorerForm := nil // form free's on close
+    else if Sender = FBlockExplorerForm then
+      FBlockExplorerForm := nil // form free's on close
+    else if Sender = FLogsForm then
+      FLogsForm := nil // form free's on close
+    else if Sender = FNodesForm then
+      FNodesForm := nil // form free's on close
+    else if Sender = FMessagesForm then
+      FMessagesForm := nil
+    else
+      raise Exception.Create('Internal Error: [NotifySubFormDestroyed] encountered an unknown sub-form instance');
+  finally
+    FUILock.Release;
+  end;
+end;
+
+class procedure TUserInterface.OnLoaded(Sender: TObject);
 begin
   FPoolMiningServer := TPoolMiningServer.Create;
   FPoolMiningServer.Port := TSettings.MinerServerRpcPort;
@@ -407,11 +481,101 @@ begin
   FPoolMiningServer.MinerPayload := TSettings.MinerName;
   FNode.Operations.AccountKey := TWallet.MiningKey;
   FPoolMiningServer.Active := TSettings.MinerServerRpcActive;
-  FPoolMiningServer.OnMiningServerNewBlockFound := OnMiningServerNewBlockFound;
-  FMainForm.SyncControl.OnFinishedLoadingDatabase;
-  FMainForm.OnFinishedLoadingDatabase;
-  // Refresh UI
-  OnAccountsChanged(FMainForm);
+  FPoolMiningServer.OnMiningServerNewBlockFound := NotifyMiningServerNewBlockFoundEvent;
+  State := uisLoaded;
+  ShowWallet;
+end;
+
+class procedure TUserInterface.OnUITimerRefresh(Sender: Tobject);
+var
+  LActive, LDiscoveringPeers, LGettingNewBlockchain, LRemoteHasBiggerBlock, LNoConnections : boolean;
+  LState : TUserInterfaceState;
+  LLocalTip, LRemoteTip : Cardinal;
+  LMsg : AnsiString;
+begin
+  LState := FState;
+  LActive := FNode.NetServer.Active;
+  LDiscoveringPeers := TNetData.NetData.IsDiscoveringServers;
+  LGettingNewBlockchain := TNetData.NetData.IsGettingNewBlockChainFromClient(LMsg);
+  LLocalTip := Node.Bank.BlocksCount;
+  LRemoteTip := TNetData.NetData.MaxRemoteOperationBlock.block;
+  LRemoteHasBiggerBlock := LRemoteTip > LLocalTip;
+  LNoConnections := TNetData.NetData.NetStatistics.ActiveConnections = 0;
+
+  if LActive then begin
+    if LDiscoveringPeers then
+      LState := uisDiscoveringPeers;
+
+    if LGettingNewBlockchain OR LRemoteHasBiggerBlock then
+      LState := uisSyncronizingBlockchain;
+
+    if LNoConnections then
+      LState := uisIsolated;
+
+    if (NOT LDiscoveringPeers) AND (NOT LGettingNewBlockchain) AND (NOT LRemoteHasBiggerBlock) AND (NOT LNoConnections) then
+      LState := uisActive;
+
+  end else LState := uisDisconnected;
+  State := LState;
+end;
+
+class procedure TUserInterface.OnSettingsChanged(Sender: TObject);
+Var wa : Boolean;
+  i : Integer;
+begin
+  if TSettings.SaveLogFiles then begin
+    if TSettings.SaveDebugLogs then
+      FLog.SaveTypes := CT_TLogTypes_ALL
+    else
+      FLog.SaveTypes := CT_TLogTypes_DEFAULT;
+    FLog.FileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'PascalCointWallet.log';
+  end else begin
+    FLog.SaveTypes := [];
+    FLog.FileName := '';
+  end;
+  if Assigned(FNode) then begin
+    wa := FNode.NetServer.Active;
+    FNode.NetServer.Port := TSettings.InternetServerPort;
+    FNode.NetServer.Active := wa;
+    FNode.Operations.BlockPayload := TSettings.MinerName;
+    FNode.NodeLogFilename := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'blocks.log';
+  end;
+  if Assigned(FPoolMiningServer) then begin
+    if FPoolMiningServer.Port <> TSettings.MinerServerRpcPort then begin
+      FPoolMiningServer.Active := false;
+      FPoolMiningServer.Port := TSettings.MinerServerRpcPort;
+    end;
+    FPoolMiningServer.Active :=TSettings.MinerServerRpcActive;
+    FPoolMiningServer.UpdateAccountAndPayload(TWallet.MiningKey, TSettings.MinerName);
+  end;
+  if Assigned(FRPCServer) then begin
+    FRPCServer.Active := TSettings.RpcPortEnabled;
+    FRPCServer.ValidIPs := TSettings.RpcAllowedIPs;
+  end;
+end;
+
+class procedure TUserInterface.OnReceivedHelloMessage(Sender: TObject);
+Var nsarr : TNodeServerAddressArray;
+  i : Integer;
+  s : AnsiString;
+begin
+  // Internal handler
+  // No lock required
+  //CheckMining;
+  // Update node servers Peer Cache
+  nsarr := TNetData.NetData.NodeServersAddresses.GetValidNodeServers(true,0);
+  s := '';
+  for i := low(nsarr) to High(nsarr) do begin
+    if (s<>'') then s := s+';';
+    s := s + nsarr[i].ip+':'+IntToStr( nsarr[i].port );
+  end;
+  TSettings.PeerCache := s;
+
+end;
+
+class procedure TUserInterface.OnMiningServerNewBlockFound(Sender: TObject);
+begin
+  FPoolMiningServer.MinerAccountKey := TWallet.MiningKey;
 end;
 
 {%endregion}
@@ -801,28 +965,6 @@ begin
   end;
 end;
 
-class procedure TUserInterface.RefreshConnectionStatusDisplay;
-var errors : AnsiString;
-begin
-  FUILock.Acquire;
-  Try
-    FMainForm.SyncControl.UpdateNodeStatus;
-    OnNetStatisticsChanged(FMainForm);
-    if Assigned(FNode) then begin
-      if FNode.IsBlockChainValid(errors) then begin
-        StatusBar2Text := Format('Last account time:%s',
-         [FormatDateTime('dd/mm/yyyy hh:nn:ss',UnivDateTime2LocalDateTime(UnixToUnivDateTime( FNode.Bank.LastOperationBlock.timestamp )))]);
-      end else begin
-        StatusBar2Text := 'NO BLOCKCHAIN: '+errors;
-      end;
-    end else begin
-      StatusBar2Text := '';
-    end;
-  finally
-    FUILock.Release;
-  end;
-end;
-
 {%endregion}
 
 {%region Auxillary methods}
@@ -834,269 +976,104 @@ end;
 
 class procedure TUserInterface.SetEnabled(ABool: boolean);
 begin
-  FMainForm.Enabled:=ABool;
-end;
-
-class procedure TUserInterface.SetMainFormMode(AMode: TFRMMainFormMode);
-begin
-  if AMode <> FMainForm.Mode then
-    case AMode of
-      wmWallet: ShowWallet;
-      wmSync: ShowSyncDialog;
-      else raise Exception.Create('[Internal Error] TUserInterface.SetWalletMode - unsupported mode');
-    end;
-end;
-
-class function TUserInterface.GetMainFormMode : TFRMMainFormMode;
-begin
-  Result := FMainForm.Mode;
-end;
-
-class procedure TUserInterface.SetStatusBar0Text(const text : AnsiString); static;
-begin
-  FStatusBar0Text := text;
   if Assigned(FMainForm) then
-    FMainForm.sbStatusBar.Panels[0].Text := FStatusBar0Text;
+    FMainForm.Enabled:=ABool;
 end;
 
-class procedure TUserInterface.SetStatusBar1Text(const text : AnsiString); static;
+class procedure TUserInterface.SetState(AState : TUserInterfaceState); static;
 begin
-  FStatusBar1Text := text;
-  if Assigned(FMainForm) then
-    FMainForm.sbStatusBar.Panels[1].Text := text;
+  if AState = FState then
+    exit;
+  FState := AState;
+  NotifyStateChanged(nil);
 end;
 
-class procedure TUserInterface.SetStatusBar2Text(const text : AnsiString); static;
+class procedure TUserInterface.NotifyLoadedEvent(Sender: TObject);
 begin
-  FStatusBar2Text := text;
-  if Assigned(FMainForm) then
-    FMainForm.sbStatusBar.Panels[2].Text := text;
+  TUserInterface.FLoaded.Invoke(Sender);
 end;
 
-class procedure TUserInterface.SetMessagesNotificationText(const text : AnsiString); static;
+class procedure TUserInterface.NotifyLoadingEvent(Sender: TObject; const message: AnsiString; curPos, totalCount: Int64);
 begin
-  FMessagesNotificationText := text;
-  if Assigned(FMainForm.SyncControl) then begin
-    if (text = '') then
-      FMainForm.SyncControl.lblReceivedMessages.Visible := false;
-    FMainForm.SyncControl.lblReceivedMessages.Caption := text;
-  end;
+  TUserInterface.FLoading.Invoke(Sender, message, curPos, totalCount);
 end;
 
-{%endregion}
-
-{%region Handlers -- TODO: many need to be refactored out with TNotifyManyEvent}
-
-class procedure TUserInterface.OnSettingsChanged(Sender: TObject);
-Var wa : Boolean;
-  i : Integer;
+class procedure TUserInterface.NotifyStateChanged(Sender: TObject);
 begin
-  if TSettings.SaveLogFiles then begin
-    if TSettings.SaveDebugLogs then
-      FLog.SaveTypes := CT_TLogTypes_ALL
-    else
-      FLog.SaveTypes := CT_TLogTypes_DEFAULT;
-    FLog.FileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'PascalCointWallet.log';
-  end else begin
-    FLog.SaveTypes := [];
-    FLog.FileName := '';
-  end;
-  if Assigned(FNode) then begin
-    wa := FNode.NetServer.Active;
-    FNode.NetServer.Port := TSettings.InternetServerPort;
-    FNode.NetServer.Active := wa;
-    FNode.Operations.BlockPayload := TSettings.MinerName;
-    FNode.NodeLogFilename := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'blocks.log';
-  end;
-  if Assigned(FPoolMiningServer) then begin
-    if FPoolMiningServer.Port <> TSettings.MinerServerRpcPort then begin
-      FPoolMiningServer.Active := false;
-      FPoolMiningServer.Port := TSettings.MinerServerRpcPort;
-    end;
-    FPoolMiningServer.Active :=TSettings.MinerServerRpcActive;
-    FPoolMiningServer.UpdateAccountAndPayload(TWallet.MiningKey, TSettings.MinerName);
-  end;
-  if Assigned(FRPCServer) then begin
-    FRPCServer.Active := TSettings.RpcPortEnabled;
-    FRPCServer.ValidIPs := TSettings.RpcAllowedIPs;
-  end;
+  TUserInterface.FStateChanged.Invoke(Sender);
 end;
 
-class procedure TUserInterface.OnAccountsChanged(Sender: TObject);
+class procedure TUserInterface.NotifyAccountsChangedEvent(Sender: TObject);
 begin
-  FUILock.Acquire;
-  Try
-    if Assigned(FAccountExplorer) then
-      FAccountExplorer.RefreshAccountsGrid(true);
-  finally
-    FUILock.Release;
-  end;
+  TUserInterface.FAccountsChanged.Invoke(Sender);
 end;
 
-class procedure TUserInterface.OnBlocksChanged(Sender: TObject);
+class procedure TUserInterface.NotifyBlocksChangedEvent(Sender: TObject);
 begin
-  FUILock.Acquire;
-  try
-    try
-      if Assigned(FAccountExplorer) then
-        FAccountExplorer.RefreshAccountsGrid(false);
-      FMainForm.SyncControl.UpdateBlockChainState;
-    except
-      On E:Exception do begin
-        E.Message := 'Error at OnNewAccount '+E.Message;
-        Raise;
-      end;
-    end;
-  finally
-    FUILock.Release;
-  end;
+  TUserInterface.FBlocksChanged.Invoke(Sender);
 end;
 
-class procedure TUserInterface.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: TRawBytes);
+class procedure TUserInterface.NotifyNodeMessageEventEvent(NetConnection: TNetConnection; MessageData: TRawBytes);
 begin
-  FUILock.Acquire;
-  Try
-    if Assigned(FMessagesForm) then
-      FMessagesForm.OnNodeMessageEvent(NetConnection, MessageData);
-  finally
-      FUILock.Release;
-  end;
+  TUserInterface.FNodeMessageEvent.Invoke(NetConnection, MessageData);
 end;
 
-class procedure TUserInterface.OnReceivedHelloMessage(Sender: TObject);
-Var nsarr : TNodeServerAddressArray;
-  i : Integer;
-  s : AnsiString;
+class procedure TUserInterface.NotifyReceivedHelloMessageEvent(Sender: TObject);
 begin
-  // No lock required
-  //CheckMining;
-  // Update node servers Peer Cache
-  nsarr := TNetData.NetData.NodeServersAddresses.GetValidNodeServers(true,0);
-  s := '';
-  for i := low(nsarr) to High(nsarr) do begin
-    if (s<>'') then s := s+';';
-    s := s + nsarr[i].ip+':'+IntToStr( nsarr[i].port );
-  end;
-  TSettings.PeerCache := s;
-  TNode.Node.PeerCache := s;
+  TUserInterface.FReceivedHelloMessage.Invoke(Sender);;
 end;
 
-class procedure TUserInterface.OnNetStatisticsChanged(Sender: TObject);
-Var NS : TNetStatistics;
+class procedure TUserInterface.NotifyNetStatisticsChangedEvent(Sender: TObject);
 begin
-  FUILock.Acquire;   // TODO - lock may not be required
-  Try
-    //HS CheckMining;
-    if Assigned(FNode) then begin
-      If FNode.NetServer.Active then begin
-        StatusBar0Text := 'Active (Port '+Inttostr(FNode.NetServer.Port)+')';
-      end else StatusBar0Text := 'Server stopped';
-      NS := TNetData.NetData.NetStatistics;
-      StatusBar1Text := Format('Connections:%d Clients:%d Servers:%d - Rcvd:%d Kb Send:%d Kb',
-        [NS.ActiveConnections,NS.ClientsConnections,NS.ServersConnections,NS.BytesReceived DIV 1024,NS.BytesSend DIV 1024]);
-    end else begin
-      StatusBar0Text := '';
-      StatusBar1Text := '';
-    end;
-  finally
-      FUILock.Release;
-  end;
+  TUserInterface.FNetStatisticsChanged.Invoke(Sender);
 end;
 
-class procedure TUserInterface.OnNetConnectionsUpdated(Sender: TObject);
+class procedure TUserInterface.NotifyNetConnectionsUpdatedEvent(Sender: TObject);
 begin
-  try
-    FUILock.Acquire;
-    if Assigned(FNodesForm) then
-      FNodesForm.OnNetConnectionsUpdated;
-  finally
-    FUILock.Release;
-  end;
+  TUserInterface.FNetConnectionsUpdated.Invoke(Sender);
 end;
 
-class procedure TUserInterface.OnNetNodeServersUpdated(Sender: TObject);
+class procedure TUserInterface.NotifyNetNodeServersUpdatedEvent(Sender: TObject);
 begin
-  try
-    FUILock.Acquire;
-    if Assigned(FNodesForm) then
-      FNodesForm.OnNetNodeServersUpdated;
-  finally
-    FUILock.Release;
-  end;
+  TUserInterface.NetNodeServersUpdated.Invoke(Sender);
 end;
 
-class procedure TUserInterface.OnNetBlackListUpdated(Sender: TObject);
+class procedure TUserInterface.NotifyNetBlackListUpdatedEvent(Sender: TObject);
 begin
-  try
-    FUILock.Acquire;
-    if Assigned(FNodesForm) then
-      FNodesForm.OnNetBlackListUpdated;
-  finally
-    FUILock.Release;
-  end;
+  TUserInterface.FNetBlackListUpdated.Invoke(Sender);
 end;
 
-class procedure TUserInterface.OnMiningServerNewBlockFound(Sender: TObject);
+class procedure TUserInterface.NotifyMiningServerNewBlockFoundEvent(Sender: TObject);
 begin
-  // No lock required
-  FPoolMiningServer.MinerAccountKey := TWallet.MiningKey;
+  TUserInterface.FMiningServerNewBlockFound.Invoke(Sender);
 end;
 
-class procedure TUserInterface.OnTimerUpdateStatusTimer(Sender: TObject);
+class procedure TUserInterface.NotifyUIRefreshTimerEvent(Sender: TObject);
 begin
-  Try
-    RefreshConnectionStatusDisplay;
-    FMainForm.SyncControl.UpdateBlockChainState;
-    FMainForm.SyncControl.UpdateNodeStatus;
-  Except
-    On E:Exception do begin
-      E.Message := 'Exception at TimerUpdate '+E.ClassName+': '+E.Message;
-      TLog.NewLog(lterror,ClassName,E.Message);
-    end;
-  End;
-end;
-
-class procedure TUserInterface.OnTrayIconDblClick(Sender: TObject);
-begin
-  RunInForeground;
-end;
-
-class procedure TUserInterface.OnSubFormDestroyed(Sender: TObject);
-begin
-  try
-    FUILock.Acquire;
-    if Sender = FAccountExplorer then
-      FAccountExplorer := nil // form free's on close
-    else if Sender = FPendingOperationForm then
-      FPendingOperationForm := nil // form free's on close
-    else if Sender = FOperationsExplorerForm then
-      FOperationsExplorerForm := nil // form free's on close
-    else if Sender = FBlockExplorerForm then
-      FBlockExplorerForm := nil // form free's on close
-    else if Sender = FLogsForm then
-      FLogsForm := nil // form free's on close
-    else if Sender = FNodesForm then
-      FNodesForm := nil // form free's on close
-    else if Sender = FMessagesForm then
-      FMessagesForm := nil
-    else
-      raise Exception.Create('Internal Error: [NotifySubFormDestroyed] encountered an unknown sub-form instance');
-  finally
-    FUILock.Release;
-  end;
+  TUserInterface.FUIRefreshTimer.Invoke(Sender);
 end;
 
 {%endregion}
 
 { TLoadDatabaseThread }
 
+procedure TLoadDatabaseThread.OnProgressNotify(sender: TObject; const message: AnsiString; curPos, totalCount: Int64);
+begin
+  TUserInterface.NotifyLoadingEvent(sender, message, curPos, totalCount);
+end;
+
+procedure TLoadDatabaseThread.OnLoaded;
+begin
+  TUserInterface.NotifyLoadedEvent(Self);
+end;
+
 procedure TLoadDatabaseThread.BCExecute;
 begin
   // Read Operations saved from disk
-  TNode.Node.InitSafeboxAndOperations; // New Build 2.1.4 to load pending operations buffer
+  TNode.Node.InitSafeboxAndOperations($FFFFFFFF, OnProgressNotify);
   TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
   TNode.Node.NetServer.Active := true;
-  Synchronize( TUserInterface.FinishedLoadingDatabase );
+  Synchronize( OnLoaded );
 end;
 
 initialization
@@ -1104,4 +1081,3 @@ initialization
 finalization
 // TODO - final cleanup here, show a modal dialog?
 end.
-

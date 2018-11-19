@@ -1,30 +1,39 @@
 unit UJSONFunctions;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
-
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
 
 interface
 
 Uses
+{$IFNDEF VER210}
+{$DEFINE DELPHIXE}
+{$ENDIF}
+
   {$IFDEF FPC}
   fpjson, jsonparser,
   {$ELSE}
+  {$IFDEF DELPHIXE}
+  System.JSON,
+  {$ENDIF}
   DBXJSON,
-  JSON,
   {$ENDIF}
   SysUtils, DateUtils, Variants, Classes, ULog;
 
@@ -496,7 +505,6 @@ begin
     d := TJSONNumber(JSONValue).AsDouble;
     if Pos('.',JSONValue.ToString)>0 then i64 := 0
     else i64 := TJSONNumber(JSONValue).AsInt;
-
     // Delphi 6 introduced "conditional compilation" and Delphi XE 6 (27) introduced FormatSettings variable.
     {$IF Defined(DCC) and Declared(CompilerVersion) and (CompilerVersion >= 27.0)}
     ds := FormatSettings.DecimalSeparator;
@@ -511,7 +519,7 @@ begin
     {$IFEND}
 
     Try
-      if FormatFloat('0.###########',d)=inttostr(i64) then
+      if FormatFloat('0.##########',d)=inttostr(i64) then
         Value := i64
       else Value := d;
     Finally
@@ -564,7 +572,8 @@ begin
       {$IFEND}
 
       try
-        Result := FormatFloat('0.###########',Value);
+        if VarType(Value)=varcurrency then Result := FormatFloat('0.0000',Value)
+        else Result := FormatFloat('0.##########',Value);
       finally
         {$IF Defined(DCC) and Declared(CompilerVersion) and (CompilerVersion >= 27.0)}
         FormatSettings.DecimalSeparator := ds;

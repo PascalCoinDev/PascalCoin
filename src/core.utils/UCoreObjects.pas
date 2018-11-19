@@ -1,14 +1,16 @@
 unit UCoreObjects;
 
-{ Copyright (c) 2018 by PascalCoin Project
-
-  Contains common types for Core module.
+{ Copyright (c) 2018 by Herman Schoenfeld
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  Acknowledgements:
-    Herman Schoenfeld <herman@sphere10.com>: unit creator
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
 {$mode delphi}
@@ -16,7 +18,7 @@ unit UCoreObjects;
 interface
 
 uses
-  Classes, SysUtils, UCrypto, UAccounts, UBlockChain, UWallet, UCommon,
+  Classes, SysUtils, UCrypto, UAccounts, UBlockChain, UWallet, UCommon, UBaseTypes,
   Generics.Collections, Generics.Defaults;
 
 type

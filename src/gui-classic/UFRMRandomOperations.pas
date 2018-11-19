@@ -71,8 +71,8 @@ type
   private
   public
     class function GetRandomSigner(const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt; out iKey : Integer; out nAccount : Cardinal) : Boolean;
-    class function GenerateOpTransaction(const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt) : Boolean;
-    class function GenerateOpMultiOperation(const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt) : Boolean;
+    class function GenerateOpTransaction(current_protocol : Word; const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt) : Boolean;
+    class function GenerateOpMultiOperation(current_protocol : Word; const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt) : Boolean;
   end;
 
 implementation
@@ -112,7 +112,7 @@ begin
   Result := True;
 end;
 
-class function TRandomGenerateOperation.GenerateOpTransaction(const operationsComp: TPCOperationsComp; const aWalletKeys: TWalletKeysExt): Boolean;
+class function TRandomGenerateOperation.GenerateOpTransaction(current_protocol : Word; const operationsComp: TPCOperationsComp; const aWalletKeys: TWalletKeysExt): Boolean;
 var nAccount : Cardinal;
   iKey : Integer;
   opTx : TOpTransaction;
@@ -139,7 +139,7 @@ begin
   until (destAcc.account <> senderAcc.account);
 
   // Search account
-  opTx := TOpTransaction.CreateTransaction(senderAcc.account,senderAcc.n_operation+1,destAcc.account,aWalletKeys.Key[iKey].PrivateKey,amount,fees,'');
+  opTx := TOpTransaction.CreateTransaction(current_protocol,senderAcc.account,senderAcc.n_operation+1,destAcc.account,aWalletKeys.Key[iKey].PrivateKey,amount,fees,'');
   Try
     Result := operationsComp.AddOperation(True,opTx,errors);
   finally
@@ -147,7 +147,7 @@ begin
   end;
 end;
 
-class function TRandomGenerateOperation.GenerateOpMultiOperation(const operationsComp: TPCOperationsComp; const aWalletKeys: TWalletKeysExt): Boolean;
+class function TRandomGenerateOperation.GenerateOpMultiOperation(current_protocol : Word; const operationsComp: TPCOperationsComp; const aWalletKeys: TWalletKeysExt): Boolean;
    procedure DoSign(opMulti : TOpMultiOperation);
    var n : Integer;
      i,j : Integer;
@@ -158,7 +158,7 @@ class function TRandomGenerateOperation.GenerateOpMultiOperation(const operation
        If (j>=0) then begin
          // Can sign
          If (Assigned(aWalletKeys.Key[j].PrivateKey)) then begin
-           inc(n, opMulti.DoSignMultiOperationSigner(opMulti.Data.txSenders[i].Account,aWalletKeys.Key[j].PrivateKey));
+           inc(n, opMulti.DoSignMultiOperationSigner(current_protocol,opMulti.Data.txSenders[i].Account,aWalletKeys.Key[j].PrivateKey));
          end;
        end;
      end;
@@ -167,7 +167,7 @@ class function TRandomGenerateOperation.GenerateOpMultiOperation(const operation
        If (j>=0) then begin
          // Can sign
          If (Assigned(aWalletKeys.Key[j].PrivateKey)) then begin
-           inc(n, opMulti.DoSignMultiOperationSigner(opMulti.Data.changesInfo[i].Account,aWalletKeys.Key[j].PrivateKey));
+           inc(n, opMulti.DoSignMultiOperationSigner(current_protocol,opMulti.Data.changesInfo[i].Account,aWalletKeys.Key[j].PrivateKey));
          end;
        end;
      end;
@@ -319,10 +319,10 @@ begin
   While (nCounter<max) And (Not FStopRandomOperations) do begin
     Case Random(30) of
       0..20 : begin
-        If TRandomGenerateOperation.GenerateOpTransaction(operationsComp,FSourceWalletKeys) then inc(nCounter);
+        If TRandomGenerateOperation.GenerateOpTransaction(SourceNode.Bank.SafeBox.CurrentProtocol,operationsComp,FSourceWalletKeys) then inc(nCounter);
       end;
       21..25 : begin
-        If TRandomGenerateOperation.GenerateOpMultiOperation(operationsComp,FSourceWalletKeys) then inc(nCounter);
+        If TRandomGenerateOperation.GenerateOpMultiOperation(SourceNode.Bank.SafeBox.CurrentProtocol,operationsComp,FSourceWalletKeys) then inc(nCounter);
       end;
     else Sleep(10);
     end;

@@ -1,26 +1,29 @@
 unit UTxMultiOperation;
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ENDIF}
-
-{ Copyright (c) 2018 by Albert Molina - PascalCoin developers
+{ Copyright (c) 2018 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
 
 interface
 
 uses
-  Classes, SysUtils, UCrypto, UBlockChain, UAccounts;
+  Classes, SysUtils, UCrypto, UBlockChain, UAccounts, UBaseTypes;
 
 Type
 
@@ -115,8 +118,7 @@ Type
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
     procedure AffectedAccounts(list : TList); override;
     //
-    Function GetTransactionHashToSign : TRawBytes;
-    Function DoSignMultiOperationSigner(SignerAccount : Cardinal; key : TECPrivateKey) : Integer;
+    Function DoSignMultiOperationSigner(current_protocol : Word; SignerAccount : Cardinal; key : TECPrivateKey) : Integer;
     class function OpType : Byte; override;
     function OperationAmount : Int64; override;
     function OperationFee : Int64; override;
@@ -130,7 +132,7 @@ Type
     function GetAccountN_Operation(account : Cardinal) : Cardinal; override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
     //
-    Constructor CreateMultiOperation(const senders : TMultiOpSenders; const receivers : TMultiOpReceivers; const changes : TMultiOpChangesInfo; const senders_keys, changes_keys: Array of TECPrivateKey);
+    Constructor CreateMultiOperation(current_protocol : Word; const senders : TMultiOpSenders; const receivers : TMultiOpReceivers; const changes : TMultiOpChangesInfo; const senders_keys, changes_keys: Array of TECPrivateKey);
     Destructor Destroy; override;
     Function AddTx(const senders : TMultiOpSenders; const receivers : TMultiOpReceivers; setInRandomOrder : Boolean) : Boolean;
     Function AddChangeInfos(const changes : TMultiOpChangesInfo; setInRandomOrder : Boolean) : Boolean;
@@ -147,6 +149,7 @@ Type
     //
     Function toString : String; Override;
     Property Data : TOpMultiOperationData read FData;
+    Function GetDigestToSign(current_protocol : Word) : TRawBytes; override;
   End;
 
 implementation
@@ -446,7 +449,7 @@ begin
   SetLength(errors,0);
   // Do check it!
   Try
-    ophtosign := GetTransactionHashToSign;
+    ophtosign := GetDigestToSign(AccountTransaction.FreezedSafeBox.CurrentProtocol);
     // Tx verification
     For i:=Low(FData.txSenders) to High(FData.txSenders) do begin
       acc := AccountTransaction.Account(FData.txSenders[i].Account);
@@ -692,29 +695,7 @@ begin
   end;
 end;
 
-function TOpMultiOperation.GetTransactionHashToSign : TRawBytes;
-Var ms : TMemoryStream;
-  rb : TRawBytes;
-  old : Boolean;
-begin
-  ms := TMemoryStream.Create;
-  try
-    old := FSaveSignatureValue;
-    Try
-      FSaveSignatureValue:=False;
-      SaveOpToStream(ms,False);
-    finally
-      FSaveSignatureValue:=old;
-    end;
-    SetLength(Result,ms.Size);
-    ms.Position := 0;
-    ms.ReadBuffer(Result[1],ms.Size);
-  finally
-    ms.Free;
-  end;
-end;
-
-function TOpMultiOperation.DoSignMultiOperationSigner(SignerAccount : Cardinal; key : TECPrivateKey) : Integer;
+function TOpMultiOperation.DoSignMultiOperationSigner(current_protocol : Word; SignerAccount : Cardinal; key : TECPrivateKey) : Integer;
 Var i : Integer;
   raw : TRawBytes;
   _sign : TECDSA_SIG;
@@ -723,7 +704,7 @@ begin
   If Not Assigned(key.PrivateKey) then begin
     exit;
   end;
-  raw := GetTransactionHashToSign;
+  raw := GetDigestToSign(current_protocol);
   Try
     _sign := TCrypto.ECDSASign(key.PrivateKey,raw);
   Except
@@ -848,7 +829,7 @@ begin
   until i<0;
 end;
 
-constructor TOpMultiOperation.CreateMultiOperation(
+constructor TOpMultiOperation.CreateMultiOperation(current_protocol : Word;
   const senders: TMultiOpSenders; const receivers: TMultiOpReceivers;
   const changes: TMultiOpChangesInfo; const senders_keys,
   changes_keys: array of TECPrivateKey);
@@ -862,13 +843,13 @@ begin
   If (length(senders_keys)<>length(senders)) then exit; // Cannot sign!
   If (length(changes_keys)<>length(changes)) then exit; // Cannot sign!
   For i:=low(senders) to high(senders) do begin
-    If DoSignMultiOperationSigner(senders[i].Account,senders_keys[i])=0 then begin
+    If DoSignMultiOperationSigner(current_protocol,senders[i].Account,senders_keys[i])=0 then begin
       TLog.NewLog(lterror,Classname,'Error signing a new MultiOperation sender');
       Exit;
     end;
   end;
   For i:=Low(changes) to high(changes) do begin
-    If DoSignMultiOperationSigner(changes[i].Account,changes_keys[i])=0 then begin
+    If DoSignMultiOperationSigner(current_protocol,changes[i].Account,changes_keys[i])=0 then begin
       TLog.NewLog(lterror,Classname,'Error signing a new MultiOperation change');
       Exit;
     end;
@@ -1038,6 +1019,35 @@ begin
     [length(FData.txSenders),length(FData.txReceivers),length(FData.changesInfo),
      TAccountComp.FormatMoney(FTotalAmount),
      TAccountComp.FormatMoney(FTotalFee)]);
+end;
+
+function TOpMultiOperation.GetDigestToSign(current_protocol : Word): TRawBytes;
+Var ms : TMemoryStream;
+  rb : TRawBytes;
+  old : Boolean;
+  b : Byte;
+begin
+  ms := TMemoryStream.Create;
+  try
+    old := FSaveSignatureValue;
+    Try
+      FSaveSignatureValue:=False;
+      SaveOpToStream(ms,False);
+    finally
+      FSaveSignatureValue:=old;
+    end;
+    if (current_protocol<=CT_PROTOCOL_3) then begin
+      ms.Position := 0;
+      setlength(Result,ms.Size);
+      ms.ReadBuffer(Result[1],ms.Size);
+    end else begin
+      b := OpType;
+      ms.Write(b,1);
+      Result := TCrypto.DoSha256(ms.Memory,ms.Size);
+    end;
+  finally
+    ms.Free;
+  end;
 end;
 
 end.

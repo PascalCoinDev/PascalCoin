@@ -1,16 +1,23 @@
 unit UWIZOperationSelected;
 
-{$mode delphi}
-
-{ Copyright (c) 2018 Sphere 10 Software (http://www.sphere10.com/)
+{ Copyright (c) 2018 by Sphere 10 Software <http://www.sphere10.com/>
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
+
   Acknowledgements:
-  Ugochukwu Mmaduekwe - main developer
-  Herman Schoenfeld - designer
+  - Ugochukwu Mmaduekwe - main developer
+  - Herman Schoenfeld - designer
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
+
+{$mode delphi}
 
 interface
 

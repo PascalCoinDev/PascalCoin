@@ -8,6 +8,7 @@ object CTRLNoAccounts: TCTRLNoAccounts
   Caption = 'CTRLNoAccounts'
   ClientHeight = 257
   ClientWidth = 349
+  LCLVersion = '1.8.4.0'
   Visible = False
   object lblGetFirstAccount: TLabel
     Left = 16

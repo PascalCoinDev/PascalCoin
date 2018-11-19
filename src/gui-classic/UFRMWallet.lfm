@@ -1,6 +1,6 @@
 object FRMWallet: TFRMWallet
   Left = 389
-  Height = 600
+  Height = 580
   Top = 201
   Width = 865
   Caption = 'Pascal Coin Wallet, JSON-RPC Miner & Explorer'
@@ -16,7 +16,8 @@ object FRMWallet: TFRMWallet
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.8.0.6'
+  LCLVersion = '1.8.4.0'
+  Visible = False
   object pnlTop: TPanel
     Left = 0
     Height = 91
@@ -365,7 +366,7 @@ object FRMWallet: TFRMWallet
   object StatusBar: TStatusBar
     Left = 0
     Height = 23
-    Top = 557
+    Top = 537
     Width = 865
     Panels = <    
       item
@@ -385,21 +386,21 @@ object FRMWallet: TFRMWallet
   end
   object PageControl: TPageControl
     Left = 0
-    Height = 466
+    Height = 446
     Top = 91
     Width = 865
-    ActivePage = tsBlockChain
+    ActivePage = tsMyAccounts
     Align = alClient
-    TabIndex = 2
+    TabIndex = 0
     TabOrder = 2
     OnChange = PageControlChange
     object tsMyAccounts: TTabSheet
       Caption = 'Account Explorer'
-      ClientHeight = 440
+      ClientHeight = 420
       ClientWidth = 857
       object Splitter1: TSplitter
         Left = 400
-        Height = 374
+        Height = 354
         Top = 66
         Width = 5
       end
@@ -525,17 +526,17 @@ object FRMWallet: TFRMWallet
       end
       object pnlAccounts: TPanel
         Left = 0
-        Height = 374
+        Height = 354
         Top = 66
         Width = 400
         Align = alLeft
         BevelOuter = bvNone
-        ClientHeight = 374
+        ClientHeight = 354
         ClientWidth = 400
         TabOrder = 1
         object dgAccounts: TDrawGrid
           Left = 0
-          Height = 340
+          Height = 320
           Top = 0
           Width = 400
           Align = alClient
@@ -549,7 +550,7 @@ object FRMWallet: TFRMWallet
         object pnlAccountsInfo: TPanel
           Left = 0
           Height = 34
-          Top = 340
+          Top = 320
           Width = 400
           Align = alBottom
           BevelOuter = bvNone
@@ -630,7 +631,7 @@ object FRMWallet: TFRMWallet
       end
       object pcAccountsOptions: TPageControl
         Left = 405
-        Height = 374
+        Height = 354
         Top = 66
         Width = 452
         ActivePage = tsAccountOperations
@@ -639,11 +640,11 @@ object FRMWallet: TFRMWallet
         TabOrder = 2
         object tsAccountOperations: TTabSheet
           Caption = 'Operations of selected Account'
-          ClientHeight = 348
+          ClientHeight = 328
           ClientWidth = 444
           object dgAccountOperations: TDrawGrid
             Left = 0
-            Height = 348
+            Height = 328
             Top = 0
             Width = 444
             Align = alClient

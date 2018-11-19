@@ -1,21 +1,24 @@
 unit UPoolMining;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
-
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
 
 interface
 
@@ -26,7 +29,9 @@ Uses
   {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
   UTCPIP, SysUtils, UThread, SyncObjs, Classes, UJSONFunctions, UAES, UNode,
-  UCrypto, UAccounts, UConst, UBlockChain;
+  UCrypto, UAccounts, UConst, UBlockChain, UBaseTypes;
+
+{$I config.inc}
 
 Const
   CT_PoolMining_Method_STATUS = 'status';
@@ -164,7 +169,7 @@ var
 
 implementation
 
-Uses ULog, Variants, UTime, UNetProtocol, UBaseTypes;
+Uses ULog, Variants, UTime, UNetProtocol;
 
 Type TPendingResponseMessage = Record
        sendDateTime : TDateTime;
@@ -813,7 +818,9 @@ begin
         P := l[i];
         // Best practices: Only will accept a solution if timestamp >= sent timestamp for this job (1.5.3)
         If (P^.SentMinTimestamp<=_timestamp) then begin
-          _targetPoW := FNodeNotifyEvents.Node.Bank.SafeBox.GetActualTargetHash(P^.OperationsComp.OperationBlock.protocol_version);
+
+          _targetPow := TPascalCoinProtocol.TargetFromCompact( P^.OperationsComp.OperationBlock.compact_target, P^.OperationsComp.OperationBlock.protocol_version );
+
           P^.OperationsComp.Update_And_RecalcPOW(_nOnce,_timestamp,_payload);
           if (P^.OperationsComp.OperationBlock.proof_of_work<=_targetPoW) then begin
             // Candidate!
@@ -956,7 +963,7 @@ begin
     params.GetAsVariant('payload_start').Value := TCrypto.ToHexaString( Operations.OperationBlock.block_payload );
     params.GetAsVariant('part3').Value := TCrypto.ToHexaString( Operations.PoW_Digest_Part3 );
     params.GetAsVariant('target').Value := Operations.OperationBlock.compact_target;
-    params.GetAsVariant('target_pow').Value := TCrypto.ToHexaString(TPascalCoinProtocol.TargetFromCompact(Operations.OperationBlock.compact_target));
+    params.GetAsVariant('target_pow').Value := TCrypto.ToHexaString(TPascalCoinProtocol.TargetFromCompact(Operations.OperationBlock.compact_target,Operations.OperationBlock.protocol_version));
 
     ts := TNetData.NetData.NetworkAdjustedTime.GetAdjustedTime;
     if (ts<FNodeNotifyEvents.Node.Bank.LastBlockFound.OperationBlock.timestamp) then begin
@@ -1173,28 +1180,28 @@ Var _t : Cardinal;
 begin
   FMinerValuesForWork := Value;
   If FStratum_Target_PoW<>'' then begin
-    FMinerValuesForWork.target:=TPascalCoinProtocol.TargetToCompact(FStratum_Target_PoW);
-    FMinerValuesForWork.target_pow:=TPascalCoinProtocol.TargetFromCompact(FMinerValuesForWork.target);
+    FMinerValuesForWork.target:=TPascalCoinProtocol.TargetToCompact(FStratum_Target_PoW,FMinerValuesForWork.version);
+    FMinerValuesForWork.target_pow:=TPascalCoinProtocol.TargetFromCompact(FMinerValuesForWork.target,FMinerValuesForWork.version);
   end else begin
     // Check that target and target_pow are equal!
-    _t_pow := TPascalCoinProtocol.TargetFromCompact(FMinerValuesForWork.target);
+    _t_pow := TPascalCoinProtocol.TargetFromCompact(FMinerValuesForWork.target,FMinerValuesForWork.version);
     if (length(FMinerValuesForWork.target_pow)=32) then begin
-      _t := TPascalCoinProtocol.TargetToCompact(FMinerValuesForWork.target_pow);
-      if (FMinerValuesForWork.target<CT_MinCompactTarget) then begin
+      _t := TPascalCoinProtocol.TargetToCompact(FMinerValuesForWork.target_pow,FMinerValuesForWork.version);
+      if (FMinerValuesForWork.target<TPascalCoinProtocol.MinimumTarget(FMinerValuesForWork.version)) then begin
         // target has no valid value... assigning compact_target!
-        FMinerValuesForWork.target:=TPascalCoinProtocol.TargetToCompact(_t_pow);
+        FMinerValuesForWork.target:=TPascalCoinProtocol.TargetToCompact(_t_pow,FMinerValuesForWork.version);
       end else if (_t_pow<>FMinerValuesForWork.target_pow) Or (_t<>FMinerValuesForWork.target) then begin
         TLog.NewLog(ltError,Classname,'Received bad values for target and target_pow!');
-        If (FMinerValuesForWork.target<CT_MinCompactTarget) then begin
-          FMinerValuesForWork.target_pow:=TPascalCoinProtocol.TargetFromCompact(FMinerValuesForWork.target);
+        If (FMinerValuesForWork.target<TPascalCoinProtocol.MinimumTarget(FMinerValuesForWork.version)) then begin
+          FMinerValuesForWork.target_pow:=TPascalCoinProtocol.TargetFromCompact(FMinerValuesForWork.target,FMinerValuesForWork.version);
         end else begin
-          FMinerValuesForWork.target:=TPascalCoinProtocol.TargetToCompact(_t_pow);
+          FMinerValuesForWork.target:=TPascalCoinProtocol.TargetToCompact(_t_pow,FMinerValuesForWork.version);
         end;
       end;
     end else begin
-      if (FMinerValuesForWork.target<CT_MinCompactTarget) then begin
+      if (FMinerValuesForWork.target>=TPascalCoinProtocol.MinimumTarget(FMinerValuesForWork.version)) then begin
         // target_pow has no value... assigning target!
-        FMinerValuesForWork.target_pow:=TPascalCoinProtocol.TargetFromCompact(FMinerValuesForWork.target);
+        FMinerValuesForWork.target_pow:=TPascalCoinProtocol.TargetFromCompact(FMinerValuesForWork.target,FMinerValuesForWork.version);
       end else begin
         // Invalid target and compact_target
         FMinerValuesForWork.target := CT_TMinerValuesForWork_NULL.target;

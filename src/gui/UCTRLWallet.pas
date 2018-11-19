@@ -1,23 +1,28 @@
 unit UCTRLWallet;
 
-{$mode delphi}
-{$modeswitch nestedprocvars}
-
-{ Copyright (c) 2018 Sphere 10 Software
+{ Copyright (c) 2018 by Herman Schoenfeld
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  Acknowledgements:
-  - Herman Schoenfeld: unit creator, implementation
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
+
+{$mode delphi}
+{$modeswitch nestedprocvars}
 
 interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, Menus,
-  ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon.UI, Generics.Collections, ULog,
-  UAccounts, UDataSources, UNode, UCoreObjects, UCoreUtils, UCTRLNoAccount;
+  ExtCtrls, PairSplitter, Buttons, UVisualGrid, UCommon, UCommon.UI, Generics.Collections,
+  ULog, UAccounts, UDataSources, UNode, UCoreObjects, UCoreUtils, UCTRLNoAccount;
+
 type
 
   { TCTRLWallet }
@@ -67,6 +72,7 @@ type
     procedure miDelistAccountsFromSaleClick(Sender: TObject);
   private
     FNodeNotifyEvents: TNodeNotifyEvents;
+    FBalanceUpdatedEvent : TThrottledEvent;
     FAccountsMode: TCTRLWalletAccountsMode;
     FOperationsMode: TCTRLWalletOperationsMode;
     FOperationsHistory: TCTRLWalletOperationsHistory;
@@ -80,6 +86,7 @@ type
     procedure SetOperationsMode(AMode: TCTRLWalletOperationsMode);
     procedure SetOperationsHistory(AHistory: TCTRLWalletOperationsHistory);
     procedure RefreshMyAccountsCombo;
+    procedure RefreshBalances;
     procedure RefreshTotals;
     procedure RefreshAccountsGrid;
     procedure RefreshOperationsGrid;
@@ -88,6 +95,7 @@ type
     procedure ActivateFirstTime; override;
     procedure OnPrivateKeysChanged(Sender: TObject);
     procedure OnUserKeyActivityDetected(Sender: TObject);
+    procedure OnUserBalanceChanged(Sender: TObject);
     procedure OnNodeBlocksChanged(Sender: TObject);
     procedure OnNodeNewOperation(Sender: TObject);
     procedure OnAccountsSelected(Sender: TObject; constref ASelection: TVisualGridSelection);
@@ -106,7 +114,7 @@ implementation
 
 uses
   UUserInterface, UCellRenderers, UBlockChain, UWallet, UCrypto,
-  UCommon, UMemory, Generics.Defaults, UCommon.Data, UCommon.Collections, UWIZOperation;
+  UMemory, Generics.Defaults, UCommon.Data, UCommon.Collections, UWIZOperation;
 
 {$R *.lfm}
 
@@ -124,6 +132,10 @@ begin
   FNodeNotifyEvents.OnOperationsChanged := OnNodeNewOperation;
   TWallet.Keys.OnChanged.Add(OnPrivateKeysChanged);
   TWallet.Keys.AccountsKeyList.ClearAccountKeyChanges;   // XXXXX CLEAR BUFFER on start
+  FBalanceUpdatedEvent := TThrottledEvent.Create(Self);
+  FBalanceUpdatedEvent.Mode := temNotifyOnEventBurstStartAndFinished;
+  FBalanceUpdatedEvent.Interval := TTimeSpan.FromSeconds(10);
+  FBalanceUpdatedEvent.Add(OnUserBalanceChanged);
 
   // fields
   FAccountsDataSource := TMyAccountsDataSource.Create(Self);
@@ -316,8 +328,14 @@ begin
   // add first time-init here
 end;
 
-procedure TCTRLWallet.RefreshTotals;
+procedure TCTRLWallet.RefreshBalances;
+begin
+  FAccountsGrid.RefreshGrid;
+  FOperationsGrid.RefreshGrid;
+  // Note: RefreshTotals is called after FAccountsGrid finishes updating (since it uses it's internal data)
+end;
 
+procedure TCTRLWallet.RefreshTotals;
 begin
   lblTotalPASC.Caption := TAccountComp.FormatMoney(FBalance.TotalPASC);
   lblTotalPASA.Caption := Format('%d', [FBalance.TotalPASA]);
@@ -504,10 +522,17 @@ end;
 
 procedure TCTRLWallet.OnUserKeyActivityDetected;
 begin
-//  if NOT TUserInterface.Node.HasBestKnownBlockchainTip then
-//    exit; // node syncing
-  FAccountsGrid.RefreshGrid;
-  FOperationsGrid.RefreshGrid;
+  // This handler is called every time a block is downloaded. If we refreshed GUI here it would
+  // result in severe back-end blocking and slow-down, as the GUI refreshed on every block during
+  // a syncronization. As a result, we throttle the GUI refresh via FBalanceUpdatedEvent which
+  // waits until 5 seconds of idle before calling OnUserBalanceChanged which then updates GUI.
+  FBalanceUpdatedEvent.Notify;
+end;
+
+procedure TCTRLWallet.OnUserBalanceChanged(Sender: TObject);
+begin
+  // Invocation of this event hander is throttled by FBalanceUpdatedEvent.
+  RefreshBalances;
 end;
 
 procedure TCTRLWallet.OnNodeBlocksChanged(Sender: TObject);

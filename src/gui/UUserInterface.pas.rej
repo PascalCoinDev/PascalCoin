@@ -1,0 +1,5 @@
+diff a/src/gui/UUserInterface.pas b/src/gui/UUserInterface.pas	(rejected hunks)
+@@ -239,3 +239,2 @@
+     // Create root form and dependent components
+-    FMainForm := mainForm as TFRMMainForm;
+     FMainForm.CloseAction := caNone;     // wallet is destroyed on ExitApplication

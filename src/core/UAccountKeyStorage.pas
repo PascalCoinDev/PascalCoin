@@ -10,11 +10,11 @@ uses
   Classes, SysUtils, UAccounts, UThread, UBaseTypes;
 
 type
-  TAccountKeyStorateData = record
+  TAccountKeyStorageData = record
     ptrAccountKey : PAccountKey;
     counter : Integer;
   end;
-  PAccountKeyStorageData = ^TAccountKeyStorateData;
+  PAccountKeyStorageData = ^TAccountKeyStorageData;
 
   { TAccountKeyStorage }
 
@@ -28,6 +28,7 @@ type
     constructor Create;
     destructor Destroy; override;
     function AddAccountKey(Const accountKey: TAccountKey) : PAccountKey;
+    function AddAccountKeyExt(Const accountKey: TAccountKey) : PAccountKeyStorageData;
     procedure RemoveAccountKey(Const accountKey: TAccountKey);
     class function KS : TAccountKeyStorage;
     function LockList : TList;
@@ -118,6 +119,29 @@ begin
       P^.ptrAccountKey^:=accountKey;
       Result := P^.ptrAccountKey;
       l.Insert(i,P);
+    end;
+  finally
+    FAccountKeys.UnlockList;
+  end;
+end;
+
+function TAccountKeyStorage.AddAccountKeyExt(const accountKey: TAccountKey): PAccountKeyStorageData;
+  // This function will return allocated pointer and will increase counter like AddAccountKey
+var l : TList;
+  i : Integer;
+begin
+  Result := Nil;
+  l := FAccountKeys.LockList;
+  try
+    If Find(l,accountKey,i) then begin
+      Result := PAccountKeyStorageData(l[i]);
+      inc(Result^.counter);
+    end else begin
+      New(Result);
+      New(Result^.ptrAccountKey);
+      Result^.counter:=1;
+      Result^.ptrAccountKey^:=accountKey;
+      l.Insert(i,Result);
     end;
   finally
     FAccountKeys.UnlockList;

@@ -12,6 +12,7 @@ object CTRLWallet: TCTRLWallet
   OnResize = FormResize
   Visible = False
   object PairSplitter1: TPairSplitter
+    Cursor = crDefault
     Left = 0
     Height = 571
     Top = 0

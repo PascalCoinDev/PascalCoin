@@ -8,6 +8,9 @@ object CTRLSyncronization: TCTRLSyncronization
   Caption = 'Synchronization'
   ClientHeight = 428
   ClientWidth = 728
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  LCLVersion = '1.8.4.0'
   Visible = False
   object paSplash: TPanel
     Left = 0

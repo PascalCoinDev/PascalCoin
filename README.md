@@ -34,6 +34,56 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 4.0.1 - 2018-10-31
+- Fixed a critical "Access violation" at "Fast Block Propagation" process
+- Fixed a critical "Access violation" at "Get blockchain operations" process
+- Fixed a memory leak at "Get Block operations"
+- Updated Net protocol available to 9 (8 was introduced at build 4.0.0)
+
+### Build 4.0.0 - 2018-10-26
+- MANDATORY UPGRADE - HARD FORK ACTIVATION WILL OCCUR ON BLOCK 260000
+  - PIP - 0009: RandomHash
+    - RandomHash is a new hash algo created by Herman Schoenfeld, see https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0009.md 
+  - PIP - 0015: Fast Block Propagation
+  - PIP - 0016: Layer-2 protocol support 
+  - Critical bug fix: New digest hash for signature verifications
+  - Limit blockchain to allow max only one 0-fee operation by signer per block (prior was limited by network, not by core)  
+  - Added OrderedAccountKeysList that allows an indexed search of public keys in the safebox with mem optimization
+  - Improved net protections
+- JSON-RPC changes:
+  - New protection for "open ports" server: When a server has whitelist to ALL IP's access to JSON-RPC calls, all calls that use the wallet keys are protected to avoid hacking
+    - Added param "RPC_ALLOWUSEPRIVATEKEYS" on pascalcoin_daemon.ini file
+  - New params for "findaccounts":
+    - "exact" (Boolean, True by default): Only apply when "name" param has value, will return exact match or not
+    - "listed" (Boolean, False by default): Will return only listed for sale accounts
+    - "min_balance","max_balance" (PASCURRENCY): Filter by balance
+	- "enc_pubkey" or "b58_pubkey": If provided will search accounts with this pubkey. In this case the "start" param value is the position of indexed public keys list instead of accounts numbers
+  - New return param in "Multioperation Object"
+    - "digest" (HEXASTRING): Returns the digest value that must be signed
+  - New param for "multioperationsignoffline"
+    - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
+  - New param for "signsendto"
+    - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
+  - New param for "signchangekey"
+    - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
+  - New param for "signlistaccountforsale"
+    - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
+  - New param for "signdelistaccountforsale"
+    - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
+  - New param for "signchangeaccountinfo"
+    - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
+  - New param for "signbuyaccount"
+    - "protocol" (Integer): Must provide protocol version. By default will use build protocol constant CT_BUILD_PROTOCOL
+  - Account Object change:
+    - Changed return value of "price". Previously was returned without decimals in native value (inconsistency bug), now will be returned as a PASCURRENCY (with 4 decimals)
+- Bug fixed: DoProcess_GetAccount_Request request type=1 (single account) didn't returned only 1
+- Bug fixed: Invalid "lastBlockCache" value when found and orphan block that causes invalid propagation until a new block is found. Fixed.
+- Bug fixed: "Access violation" on "getpendings" JSON-RPC call when pendings count>0
+- Net protocol upgraded to "8" in order to accept new network p2p calls:
+  - "Fast block propagation" : NetOp 0x0012 for PIP-0015 
+  - "Get blockchain operations": NetOp 0x0013 for PIP-0015
+  - "Get Public key accounts": NetOp 0x0032
+
 ### Build 3.0.1 - 2018-05-07
 - Deprecated use of OpenSSL v1.0 versions. Only allowed OpenSSL v1.1 versions
 - JSON-RPC Added param "openssl" on "nodestatus" call. Will return OpenSSL library version as described in OpenSSL_version_num ( https://www.openssl.org/docs/man1.1.0/crypto/OPENSSL_VERSION_NUMBER.html )

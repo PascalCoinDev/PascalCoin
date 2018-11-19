@@ -60,7 +60,8 @@ uses
   UFRMRPCCalls in 'gui-classic\UFRMRPCCalls.pas' {FRMRPCCalls},
   httpsend in 'libraries\synapse\httpsend.pas',
   UFRMOperationsExplorer in 'gui-classic\UFRMOperationsExplorer.pas' {FRMOperationsExplorer},
-  UFRMRandomOperations in 'gui-classic\UFRMRandomOperations.pas' {FRMRandomOperations};
+  UFRMRandomOperations in 'gui-classic\UFRMRandomOperations.pas' {FRMRandomOperations},
+  URandomHash in 'core\URandomHash.pas';
 
 {$R *.res}
 

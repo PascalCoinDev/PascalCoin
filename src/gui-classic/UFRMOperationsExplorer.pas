@@ -334,7 +334,7 @@ begin
     If (j>=0) then begin
       // Can sign
       If (Assigned(FSourceWalletKeys.Key[j].PrivateKey)) then begin
-        inc(n, mop.DoSignMultiOperationSigner(mop.Data.txSenders[i].Account,FSourceWalletKeys.Key[j].PrivateKey));
+        inc(n, mop.DoSignMultiOperationSigner(SourceNode.Bank.SafeBox.CurrentProtocol,mop.Data.txSenders[i].Account,FSourceWalletKeys.Key[j].PrivateKey));
       end;
     end;
   end;
@@ -343,7 +343,7 @@ begin
     If (j>=0) then begin
       // Can sign
       If (Assigned(FSourceWalletKeys.Key[j].PrivateKey)) then begin
-        inc(n, mop.DoSignMultiOperationSigner(mop.Data.changesInfo[i].Account,FSourceWalletKeys.Key[j].PrivateKey));
+        inc(n, mop.DoSignMultiOperationSigner(SourceNode.Bank.SafeBox.CurrentProtocol,mop.Data.changesInfo[i].Account,FSourceWalletKeys.Key[j].PrivateKey));
       end;
     end;
   end;

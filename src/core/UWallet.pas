@@ -1,26 +1,29 @@
 unit UWallet;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
-
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
 
 interface
 
 uses
-  Classes, USettings, UBlockChain, UAccounts, UCrypto, UBaseTypes;
+  Classes, USettings, UBlockChain, UAccounts, UCrypto, UBaseTypes, UCommon;
 
 Type
   TWalletKey = Record
@@ -41,7 +44,7 @@ Type
     FIsValidPassword: Boolean;
     FWalletFileName: AnsiString;
     FIsReadingStream : Boolean;
-    FOnChanged: TNotifyEventToMany;
+    FOnChanged: TNotifyManyEvent;
     function GetHasPassword : boolean;
     function GetKey(index: Integer): TWalletKey;
     procedure SetWalletPassword(const Value: AnsiString);
@@ -64,7 +67,7 @@ Type
     Procedure Clear; virtual;
     Function Count : Integer;
     Property WalletFileName : AnsiString read FWalletFileName write SetWalletFileName;
-    Property OnChanged : TNotifyEventToMany read FOnChanged;
+    Property OnChanged : TNotifyManyEvent read FOnChanged;
     Procedure SetName(index : Integer; Const newName : AnsiString);
     Function LockWallet : Boolean;
   End;
@@ -225,7 +228,6 @@ begin
   FWalletPassword := '';
   FSearchableKeys := TList.Create;
   FIsReadingStream := false;
-  FOnChanged := TNotifyEventToMany.Create;
 end;
 
 procedure TWalletKeys.Delete(index: Integer);
@@ -241,7 +243,6 @@ end;
 
 destructor TWalletKeys.destroy;
 begin
-  FreeAndNil(FOnChanged);
   FreeAndNil(FWalletFileStream);
   Clear;
   FreeAndNil(FSearchableKeys);

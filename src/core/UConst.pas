@@ -1,21 +1,24 @@
 unit UConst;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
-
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
 
 interface
 
@@ -62,7 +65,17 @@ Const
   CT_MaxTransactionFee = 100000000;
   CT_MaxWalletAmount = 10000000000000; // ... can be deleted
   //
-  CT_MinCompactTarget: Cardinal = {$IFDEF PRODUCTION}$19000000{$ELSE}{$IFDEF TESTNET}$17000000{$ELSE}{$ENDIF}{$ENDIF}; // First compact target of block 0
+  CT_MinCompactTarget_v1: Cardinal = {$IFDEF PRODUCTION}$19000000{$ELSE}{$IFDEF TESTNET}$17000000{$ELSE}{$ENDIF}{$ENDIF}; // First compact target of block 0
+  CT_MinCompactTarget_v4: Cardinal = // Minimum compact target of block if using Protocol 4 or higher
+    {$IFDEF ACTIVATE_RANDOMHASH_V4}
+    {$IFDEF PRODUCTION}$12000000{$ELSE}{$IFDEF TESTNET}$08000000{$ELSE}{$ENDIF}{$ENDIF}
+    {$ELSE}CT_MinCompactTarget_v1{$ENDIF};
+
+  {$IFDEF ACTIVATE_RANDOMHASH_V4}
+  CT_CompactTarget_Reset_v4: Cardinal = // First compact target of block if using Protocol 4 and RandomHash is Active
+    {$IFDEF PRODUCTION}$16000000{$ELSE}$08000000{$ENDIF};
+  {$ENDIF}
+
 
   CT_CalcNewTargetBlocksAverage: Cardinal = 100;
   CT_CalcNewTargetLimitChange_SPLIT = 10;
@@ -81,7 +94,7 @@ Const
 
   CT_MaxClientsConnected = {$IFDEF FPC}140{$ELSE}80{$ENDIF};
 
-  CT_BankToDiskEveryNBlocks = {$IFDEF PRODUCTION}100{$ELSE}10{$ENDIF}; // Build 1.5 changed from 500 to 100;
+  CT_BankToDiskEveryNBlocks = {$IFDEF PRODUCTION}100{$ELSE}100{$ENDIF}; // Build 1.5 changed from 500 to 100;
 
   CT_NID_secp256k1 = 714;
   CT_NID_secp384r1 = 715;
@@ -95,17 +108,21 @@ Const
   CT_PROTOCOL_1 = 1;
   CT_PROTOCOL_2 = 2;
   CT_PROTOCOL_3 = 3;
-  CT_BlockChain_Protocol_Available: Word = $0003; // Protocol 3 flag
+  CT_PROTOCOL_4 = 4;
+  CT_BUILD_PROTOCOL = CT_PROTOCOL_4;
+
+  CT_BlockChain_Protocol_Available: Word = 4; // Protocol 4 flag
   CT_Protocol_Upgrade_v2_MinBlock = {$IFDEF PRODUCTION}115000{$ELSE}50{$ENDIF};
   CT_Protocol_Upgrade_v3_MinBlock = {$IFDEF PRODUCTION}210000{$ELSE}250{$ENDIF};
+  CT_Protocol_Upgrade_v4_MinBlock = {$IFDEF PRODUCTION}260000{$ELSE}400{$ENDIF};
 
 
-  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$03000040{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
+  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$04000000{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
 
-  CT_NetProtocol_Version: Word = $0007; // Version 3.0.2 only allows net protocol 7 (Introduced on 3.0.0)
+  CT_NetProtocol_Version: Word = $0007;
   // IMPORTANT NOTE!!!
   // NetProtocol_Available MUST BE always >= NetProtocol_version
-  CT_NetProtocol_Available: Word = $0007;  // Remember, >= NetProtocol_version !!!
+  CT_NetProtocol_Available: Word = {$IFDEF PRODUCTION}$0009{$ELSE}$0009{$ENDIF};  // Version 4.0.0 will start accepting protocol 8 but 4.0.1 will accept 9 due to 4.0.0 bug
 
   CT_MaxAccountOperationsPerBlockWithoutFee = 1;
 
@@ -126,6 +143,8 @@ Const
   CT_Op_ChangeAccountInfo = $08;
   // Protocol 3 new operations
   CT_Op_MultiOperation = $09;  // PIP-0017
+  // Protocol 4 new operations
+  CT_Op_Data = $0A;            // PIP-0016
 
   CT_Protocol_v3_PIP11_Percent = 20; // PIP-0011 20% Percent proposed and voted by PIP-0011
 
@@ -149,15 +168,20 @@ Const
   CT_OpSubtype_ChangeAccountInfo          = 81;
   CT_OpSubtype_MultiOperation_Global      = 91;
   CT_OpSubtype_MultiOperation_AccountInfo = 92;
+  CT_OpSubtype_Data_GlobalInfo            = 101;
+  CT_OpSubtype_Data_Sender                = 102;
+  CT_OpSubtype_Data_Signer                = 103;
+  CT_OpSubtype_Data_Receiver              = 104;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'3.0.1'{$ELSE}{$IFDEF TESTNET}'TESTNET 3.3.1'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'4.0.1'{$ELSE}{$IFDEF TESTNET}'TESTNET 4.0.1'{$ELSE}{$ENDIF}{$ENDIF};
 
-  CT_Discover_IPs =  'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us';
+  CT_Discover_IPs = {$IFDEF PRODUCTION}'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us'
+                    {$ELSE}'pascaltestnet1.dynamic-dns.net;pascaltestnet2.dynamic-dns.net;pascaltestnet1.dns1.us;pascaltestnet2.dns1.us'{$ENDIF};
 
   CT_TRUE_FALSE : Array[Boolean] Of AnsiString = ('FALSE','TRUE');
 
   CT_MAX_0_fee_operations_per_block_by_miner = {$IFDEF PRODUCTION}2000{$ELSE}{$IFDEF TESTNET}2000{$ELSE}{$ENDIF}{$ENDIF};
-  CT_MAX_Operations_per_block_by_miner =  {$IFDEF PRODUCTION}10000{$ELSE}{$IFDEF TESTNET}50000{$ELSE}{$ENDIF}{$ENDIF};
+  CT_MAX_Operations_per_block_by_miner =  {$IFDEF PRODUCTION}20000{$ELSE}{$IFDEF TESTNET}50000{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_MAX_MultiOperation_Senders = 100;
   CT_MAX_MultiOperation_Receivers = 1000;
@@ -167,6 +191,8 @@ Const
 
   CT_MOLINA  = 1;
   CT_MOLINA_DECIMAL = {$IFDEF FPC}Real(CT_MOLINA/1000.0);{$ELSE}0.0001;{$ENDIF}
+
+  CT_ACTIVATE_RANDOMHASH_V4 = {$IFDEF ACTIVATE_RANDOMHASH_V4}True{$ELSE}False{$ENDIF};
 
   // App Params
   CT_PARAM_GridAccountsStream = 'GridAccountsStreamV2';

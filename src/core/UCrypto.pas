@@ -1,33 +1,35 @@
 unit UCrypto;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
-
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
 
 {$I config.inc}
 
 interface
 
 uses
-  Classes, SysUtils, UOpenSSL, UOpenSSLdef;
+  Classes, SysUtils, UOpenSSL, UOpenSSLdef, URandomHash, UBaseTypes;
 
 Type
   ECryptoException = Class(Exception);
 
-  TRawBytes = AnsiString;
   PRawBytes = ^TRawBytes;
 
   TECDSA_SIG = record
@@ -77,6 +79,9 @@ Type
     class procedure DoSha256(const TheMessage : AnsiString; out ResultSha256 : TRawBytes);  overload;
     class function DoDoubleSha256(const TheMessage : AnsiString) : TRawBytes; overload;
     class procedure DoDoubleSha256(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
+    class function DoRandomHash(const TheMessage : AnsiString) : TRawBytes; overload;
+    class procedure DoRandomHash(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
+    class procedure DoRandomHash(AFastHasher : TRandomHashFast; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
     class function DoRipeMD160_HEXASTRING(const TheMessage : AnsiString) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(const TheMessage : AnsiString) : TRawBytes; overload;
@@ -510,6 +515,11 @@ begin
   end else begin
     Result := false;
   end;
+  {$IFDEF HIGHLOG}
+  TLog.NewLog(ltdebug,ClassName,Format('ECDSAVerify %s x:%s y:%s Digest:%s Signature r:%s s:%s',
+    [TAccountComp.GetECInfoTxt(PubKey.EC_OpenSSL_NID),ToHexaString(PubKey.x),ToHexaString(PubKey.y),
+      ToHexaString(digest),ToHexaString(Signature.r),ToHexaString(Signature.s)]));
+  {$ENDIF}
   BN_CTX_free(ctx);
   EC_POINT_free(pub_key);
   EC_GROUP_free(ECG);
@@ -635,6 +645,37 @@ begin
        Result := false;
        exit;
     end;
+end;
+
+{ New at Build 4.0.0 }
+
+class function TCrypto.DoRandomHash(const TheMessage: AnsiString): TRawBytes;
+begin
+  DoRandomHash(PAnsiChar(TheMessage),Length(TheMessage),Result);
+end;
+
+class procedure TCrypto.DoRandomHash(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
+var
+  LInput : TBytes;
+  LResult : TBytes;
+begin
+  if Length(ResultSha256) <> 32 then SetLength(ResultSha256, 32);
+  SetLength(LInput, plength);
+  Move(p^, LInput[0], plength);
+  LResult := TRandomHashFast.Compute(LInput);
+  Move(LResult[0], ResultSha256[1], 32);
+end;
+
+class procedure TCrypto.DoRandomHash(AFastHasher : TRandomHashFast; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
+var
+  LInput : TBytes;
+  LResult : TBytes;
+begin
+  if Length(ResultSha256) <> 32 then SetLength(ResultSha256, 32);
+  SetLength(LInput, plength);
+  Move(p^, LInput[0], plength);
+  LResult := AFastHasher.Hash(LInput);
+  Move(LResult[0], ResultSha256[1], 32);
 end;
 
 { TBigNum }
@@ -876,12 +917,23 @@ begin
     bn1.Free;
   end;
   //
-  if part_A<=24 then part_A:=24;
-  //
   part_B := (EncodedTarget shl 8) shr 8;
+  //
+  if (part_A<24) then begin
+    // exponent is negative... 2^(Part_A-24)
+    part_B := (part_B shr (24-part_A));
+    bn1 := TBigNum.Create(part_B);
+    Try
+      Result.Add(bn1);
+      Exit;
+    Finally
+      bn1.Free;
+    End;
+  end;
+  //
   bn2 := TBigNum.Create(2);
   Try
-    bn1 := TBigNum.Create(part_A - 24);
+    bn1 := TBigNum.Create(Int64(part_A) - 24);
     ctx := BN_CTX_new;
     try
       If BN_exp(bn2.FBN,bn2.FBN,bn1.FBN,ctx)<>1 then raise Exception.Create('Error 20161017-4');

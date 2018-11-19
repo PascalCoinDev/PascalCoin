@@ -50,7 +50,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="core;libraries\pasopencl;libraries\synapse;libraries\pascalcoin"/>
+      <OtherUnitFiles Value="core;libraries\pasopencl;libraries\synapse;libraries\sphere10;libraries\hashlib4pascal;libraries\generics.collections;libraries\pascalcoin"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <CodeGeneration>
@@ -58,6 +58,11 @@
         <OptimizationLevel Value="3"/>
       </Optimizations>
     </CodeGeneration>
+    <Linking>
+      <Debugging>
+        <GenerateDebugInfo Value="False"/>
+      </Debugging>
+    </Linking>
   </CompilerOptions>
   <Debugging>
     <Exceptions Count="3">

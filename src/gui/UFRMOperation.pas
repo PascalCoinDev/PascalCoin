@@ -1,19 +1,22 @@
 unit UFRMOperation;
 
-{$mode delphi}
-
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{$mode delphi}
 
 interface
 
@@ -23,7 +26,7 @@ uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UCommon.UI,
-  UNode, UWallet, UCrypto, Buttons, UBlockChain,
+  UNode, UWallet, UCrypto, Buttons, UBlockChain, UBaseTypes,
   UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UCommon;
 
 Const
@@ -247,7 +250,8 @@ loop_start:
         end else begin
         end;
         if dooperation then begin
-          op := TOpTransaction.CreateTransaction(account.account,account.n_operation+1,destAccount.account,wk.PrivateKey,_amount,_fee,FEncodedPayload);
+          op := TOpTransaction.CreateTransaction(FNode.Bank.SafeBox.CurrentProtocol,
+          account.account,account.n_operation+1,destAccount.account,wk.PrivateKey,_amount,_fee,FEncodedPayload);
           inc(_totalamount,_amount);
           inc(_totalfee,_fee);
         end;
@@ -267,11 +271,11 @@ loop_start:
           if uint64(_totalSignerFee) >= signerAccount.balance then _fee := 0
           else if signerAccount.balance - uint64(_totalSignerFee) > uint64(DefaultFee) then _fee := DefaultFee
           else _fee := signerAccount.balance - uint64(_totalSignerFee);
-          op := TOpChangeKeySigned.Create(signerAccount.account,signerAccount.n_operation+_signer_n_ops+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
+          op := TOpChangeKeySigned.Create(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+_signer_n_ops+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
           inc(_signer_n_ops);
           inc(_totalSignerFee, _fee);
         end else begin
-          op := TOpChangeKey.Create(account.account,account.n_operation+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
+          op := TOpChangeKey.Create(FNode.Bank.SafeBox.CurrentProtocol,account.account,account.n_operation+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
         end;
         inc(_totalfee,_fee);
         operationstxt := 'Change private key to '+TAccountComp.GetECInfoTxt(_newOwnerPublicKey.EC_OpenSSL_NID);
@@ -283,9 +287,9 @@ loop_start:
         if signerAccount.balance>DefaultFee then _fee := DefaultFee
         else _fee := signerAccount.balance;
         if (rbListAccountForPublicSale.Checked) then begin
-          op := TOpListAccountForSale.CreateListAccountForSale(signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,CT_TECDSA_Public_Nul,0,wk.PrivateKey,FEncodedPayload);
+          op := TOpListAccountForSale.CreateListAccountForSale(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,CT_TECDSA_Public_Nul,0,wk.PrivateKey,FEncodedPayload);
         end else if (rbListAccountForPrivateSale.Checked) then begin
-          op := TOpListAccountForSale.CreateListAccountForSale(signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,_newOwnerPublicKey,_lockedUntil,wk.PrivateKey,FEncodedPayload);
+          op := TOpListAccountForSale.CreateListAccountForSale(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,_newOwnerPublicKey,_lockedUntil,wk.PrivateKey,FEncodedPayload);
         end else raise Exception.Create('Select Sale type');
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsDelist) then begin
@@ -294,12 +298,12 @@ loop_start:
         // Special fee account:
         if signerAccount.balance>DefaultFee then _fee := DefaultFee
         else _fee := signerAccount.balance;
-        op := TOpDelistAccountForSale.CreateDelistAccountForSale(signerAccount.account,signerAccount.n_operation+1+iAcc,account.account,_fee,wk.PrivateKey,FEncodedPayload);
+        op := TOpDelistAccountForSale.CreateDelistAccountForSale(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1+iAcc,account.account,_fee,wk.PrivateKey,FEncodedPayload);
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsBuyAccount) then begin
         {%region Operation: Buy Account}
         if Not UpdateOpBuyAccount(account,accountToBuy,_amount,_newOwnerPublicKey,errors) then raise Exception.Create(errors);
-        op := TOpBuyAccount.CreateBuy(account.account,account.n_operation+1,accountToBuy.account,accountToBuy.accountInfo.account_to_pay,
+        op := TOpBuyAccount.CreateBuy(FNode.Bank.SafeBox.CurrentProtocol,account.account,account.n_operation+1,accountToBuy.account,accountToBuy.accountInfo.account_to_pay,
           accountToBuy.accountInfo.price,_amount,_fee,_newOwnerPublicKey,wk.PrivateKey,FEncodedPayload);
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsChangeInfo) then begin
@@ -307,7 +311,7 @@ loop_start:
         if not UpdateOpChangeInfo(account,signerAccount,_changeName,_newName,_changeType,_newType,errors) then raise Exception.Create(errors);
         if signerAccount.balance>DefaultFee then _fee := DefaultFee
         else _fee := signerAccount.balance;
-        op := TOpChangeAccountInfo.CreateChangeAccountInfo(signerAccount.account,signerAccount.n_operation+1,account.account,wk.PrivateKey,false,CT_TECDSA_Public_Nul,
+        op := TOpChangeAccountInfo.CreateChangeAccountInfo(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1,account.account,wk.PrivateKey,false,CT_TECDSA_Public_Nul,
            _changeName,_newName,_changeType,_newType,_fee,FEncodedPayload);
         {%endregion}
       end else begin

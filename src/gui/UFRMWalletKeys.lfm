@@ -9,7 +9,7 @@ object FRMWalletKeys: TFRMWalletKeys
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.8.2.0'
+  LCLVersion = '1.8.4.0'
   Visible = False
   object lbWalletKeys: TListBox
     Left = 24

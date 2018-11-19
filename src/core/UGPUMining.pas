@@ -1,19 +1,24 @@
 unit UGPUMining;
 
-{$mode delphi}
-
-{ Copyright (c) 2017 by Albert Molina
+{ Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{$IFDEF FPC}
+{$mode delphi}
+{$ENDIF}
 
 interface
 
@@ -184,7 +189,7 @@ begin
           end;
           if (nLap<CT_MAX_LAPS) then inc(nLap) else nLap := 0;
           inc(AuxStats.RoundsCount,CT_LAPS_ROUND);
-        end;
+        end else sleep(1);
       finally
         FLock.Release;
       end;
@@ -321,6 +326,11 @@ begin
   FLock.Acquire;
   try
     FReadyToGPU := (MinerValuesForWork.part1<>'') And (Assigned(FDCLKernel));
+    if (FReadyToGPU) And (TPoolMinerThread.UseRandomHash(MinerValuesForWork.version)) then begin
+      // V4 RandomHash not available on GPU mining
+      FReadyToGPU:=False;
+      TLog.NewLog(ltError,ClassName,'RandomHash not available on GPU. Set to CPU');
+    end;
     If (Not FReadyToGPU) then begin
       IsMining := false;
       exit;

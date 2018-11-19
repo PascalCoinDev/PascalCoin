@@ -1,21 +1,24 @@
 unit UChunk;
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ENDIF}
-
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
+
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
 
 interface
 
@@ -86,7 +89,10 @@ begin
       DestStream.Write(c,SizeOf(c)); // Save 4 random bytes, latter will be changed
       //
       // Zip it and add to Stream
-      cs := Tcompressionstream.create(cldefault,DestStream);
+      cs := Tcompressionstream.create(clFastest,DestStream);
+        // Note: Previously was using clDefault, but found a bug for FreePascal 3.0.4
+        // https://bugs.freepascal.org/view.php?id=34422
+        // On 2018-10-15 changed clDefault to clFastest
       try
         cs.CopyFrom(auxStream,auxStream.Size); // compressing
       finally

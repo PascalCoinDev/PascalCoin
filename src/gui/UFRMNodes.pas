@@ -1,15 +1,22 @@
 unit UFRMNodes;
 
-{$mode delphi}
-
 { Copyright (c) 2018 by Herman Schoenfeld
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
+
   Acknowledgements:
-  Portions of methods were copied from original UFRMWallet.pas, Copyright (c) Albert Molina 2016.
+  - Albert Molina: portions of code copied from https://github.com/PascalCoin/PascalCoin/blob/Releases/2.1.6/Units/Forms/UFRMWallet.pas
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
+
+{$mode delphi}
 
 interface
 
@@ -38,23 +45,22 @@ type
     memoNetConnections: TMemo;
     memoNetServers: TMemo;
     procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
   private
     { private declarations }
     procedure CM_NetConnectionUpdated(var Msg: TMessage); message CM_PC_NetConnectionUpdated;
     procedure CM_BlackListUpdated(var Msg: TMessage); message CM_PC_BlackListUpdated;
     procedure CM_NetNodeServersUpdated(var Msg: TMessage); message CM_PC_NetNodeServersUpdated;
+    procedure OnNetConnectionsUpdated(Sender: TObject);
+    procedure OnNetNodeServersUpdated(Sender: TObject);
+    procedure OnNetBlackListUpdated(Sender: TObject);
   public
     { public declarations }
-
-    // TODO - refactor this out with TNotifyManyEvent so form subscribes directly to event
-    procedure OnNetConnectionsUpdated;
-    procedure OnNetBlackListUpdated;
-    procedure OnNetNodeServersUpdated;
   end;
 
 implementation
 
-Uses UTime;
+uses UCommon, UUserInterface, UTime;
 
 {$R *.lfm}
 
@@ -62,11 +68,20 @@ Uses UTime;
 
 procedure TFRMNodes.FormCreate(Sender: TObject);
 begin
-  OnNetConnectionsUpdated;
-  OnNetNodeServersUpdated;
-  OnNetBlackListUpdated;
+  TUserInterface.NetConnectionsUpdated.Add(OnNetConnectionsUpdated);
+  TUserInterface.NetNodeServersUpdated.Add(OnNetNodeServersUpdated);
+  TUserInterface.NetBlackListUpdated.Add(OnNetBlackListUpdated);
+  OnNetConnectionsUpdated(Self);
+  OnNetNodeServersUpdated(Self);
+  OnNetBlackListUpdated(Self);
 end;
 
+procedure TFRMNodes.FormDestroy(Sender: TObject);
+begin
+  TUserInterface.NetConnectionsUpdated.Remove(OnNetConnectionsUpdated);
+  TUserInterface.NetNodeServersUpdated.Remove(OnNetNodeServersUpdated);
+  TUserInterface.NetBlackListUpdated.Remove(OnNetBlackListUpdated);
+end;
 
 procedure TFRMNodes.CM_NetConnectionUpdated(var Msg: TMessage);
 Const CT_BooleanToString : Array[Boolean] of String = ('False','True');
@@ -146,7 +161,7 @@ begin
   end;
 end;
 
-procedure TFRMNodes.OnNetConnectionsUpdated;
+procedure TFRMNodes.OnNetConnectionsUpdated(Sender: TObject);
 begin
   // Ensure handled in UI thread
   PostMessage(Self.Handle,CM_PC_NetConnectionUpdated,0,0);
@@ -201,7 +216,7 @@ begin
   end;
 end;
 
-procedure TFRMNodes.OnNetNodeServersUpdated;
+procedure TFRMNodes.OnNetNodeServersUpdated(Sender: TObject);
 begin
   // Ensure handled in UI thread
   PostMessage(Self.Handle,CM_PC_NetNodeServersUpdated,0,0);
@@ -245,7 +260,7 @@ begin
   end;
 end;
 
-procedure TFRMNodes.OnNetBlackListUpdated;
+procedure TFRMNodes.OnNetBlackListUpdated(Sender: TObject);
 begin
   // Ensure handled in UI thread
   PostMessage(Self.Handle,CM_PC_BlackListUpdated,0,0);

@@ -1,21 +1,20 @@
 unit UNode;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
-
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
 
 { UNode contains the basic structure to operate
   - An app can only contains 1 node.
@@ -25,12 +24,17 @@ unit UNode;
     - 1 Operations (Operations has actual BlockChain with Operations and SafeBankTransaction to operate with the Bank)
     - 0..x NetClients
     - 0..x Miners
-    }
+ }
+
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 
 interface
 
 uses
-  Classes, UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, SyncObjs, ULog;
+  Classes, SysUtils, UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, SyncObjs, ULog, UBaseTypes;
 
 {$I config.inc}
 
@@ -53,6 +57,8 @@ Type
     FPeerCache : AnsiString;
     FDisabledsNewBlocksCount : Integer;
     FSentOperations : TOrderedRawList;
+    FBroadcastData : Boolean;
+    FUpdateBlockchain: Boolean;
     {$IFDEF BufferOfFutureOperations}
     FBufferAuxWaitingOperations : TOperationsHashTree;
     {$ENDIF}
@@ -87,7 +93,7 @@ Type
     Function FindNOperation(block, account, n_operation : Cardinal; var OpResume : TOperationResume) : TSearchOperationResult;
     Function FindNOperations(account, start_block : Cardinal; allow_search_previous : Boolean; n_operation_low, n_operation_high : Cardinal; OpResumeList : TOperationsResumeList) : TSearchOperationResult;
     //
-    Procedure InitSafeboxAndOperations(max_block_to_read : Cardinal = $FFFFFFFF);
+    Procedure InitSafeboxAndOperations(max_block_to_read : Cardinal = $FFFFFFFF; restoreProgressNotify : TProgressNotify = Nil);
     Procedure AutoDiscoverNodes(Const ips : AnsiString);
     Function IsBlockChainValid(var WhyNot : AnsiString) : Boolean;
     Function IsReady(Var CurrentProcess : AnsiString) : Boolean;
@@ -98,6 +104,9 @@ Type
     Property OperationSequenceLock : TPCCriticalSection read FOperationSequenceLock;
     function TryLockNode(MaxWaitMilliseconds : Cardinal) : Boolean;
     procedure UnlockNode;
+    //
+    Property BroadcastData : Boolean read FBroadcastData write FBroadcastData;
+    Property UpdateBlockchain : Boolean read FUpdateBlockchain write FUpdateBlockchain;
   End;
 
   TNodeNotifyEvents = Class;
@@ -113,7 +122,22 @@ Type
     Constructor Create(ANodeNotifyEvents : TNodeNotifyEvents);
   End;
 
+  { TNodeMessage Event }
+
   TNodeMessageEvent = Procedure(NetConnection : TNetConnection; MessageData : TRawBytes) of object;
+
+  { TNodeMessageManyEvent }
+
+  TNodeMessageManyEvent = TArray<TNodeMessageEvent>;
+
+  { TNodeMessageManyEventHelper }
+
+  TNodeMessageManyEventHelper = record helper for TNodeMessageManyEvent
+    procedure Add(listener : TNodeMessageEvent);
+    procedure Remove(listener : TNodeMessageEvent);
+    procedure Invoke(NetConnection : TNetConnection; MessageData : TRawBytes);
+  end;
+
   { TNodeNotifyEvents is ThreadSafe and will only notify in the main thread }
   TNodeNotifyEvents = Class(TComponent)
   private
@@ -165,7 +189,7 @@ Type
 
 implementation
 
-Uses UOpTransaction, SysUtils,  UConst, UTime;
+Uses UOpTransaction, UConst, UTime, UCommon;
 
 var _Node : TNode;
 
@@ -277,11 +301,18 @@ begin
           TLog.NewLog(ltdebug,ClassName,'Buffer Sent operations: '+IntToStr(FSentOperations.Count));
           // Notify to clients
           {$IFnDEF TESTING_NO_POW_CHECK}
-          j := TNetData.NetData.ConnectionsCountAll;
-          for i:=0 to j-1 do begin
-            if (TNetData.NetData.GetConnection(i,nc)) then begin
-              if (nc<>SenderConnection) And (nc.Connected) then begin
-                TThreadNodeNotifyNewBlock.Create(nc,Bank.LastBlockFound,opsht);
+          if FBroadcastData then begin
+            j := TNetData.NetData.ConnectionsCountAll;
+            for i:=0 to j-1 do begin
+              if (TNetData.NetData.GetConnection(i,nc)) then begin
+                if (nc.Connected) And (nc.RemoteOperationBlock.block>0) then begin
+                  if (nc<>SenderConnection) then begin
+                    TThreadNodeNotifyNewBlock.Create(nc,Bank.LastBlockFound,opsht);
+                  end else if (opsht.OperationsCount>0) then begin
+                    // New 4.0.1 Notify not added operations
+                    TThreadNodeNotifyOperations.Create(nc,opsht);
+                  end;
+                end;
               end;
             end;
           end;
@@ -468,11 +499,13 @@ begin
       end;
     end;
     if Result=0 then exit;
-    // Send to other nodes
-    j := TNetData.NetData.ConnectionsCountAll;
-    for i:=0 to j-1 do begin
-      If TNetData.NetData.GetConnection(i,nc) then begin
-        if (nc<>SenderConnection) And (nc.Connected) then TThreadNodeNotifyOperations.Create(nc,valids_operations);
+    if FBroadcastData then begin
+      // Send to other nodes
+      j := TNetData.NetData.ConnectionsCountAll;
+      for i:=0 to j-1 do begin
+        If TNetData.NetData.GetConnection(i,nc) then begin
+          if (nc<>SenderConnection) And (nc.Connected) And (nc.RemoteOperationBlock.block>0) then TThreadNodeNotifyOperations.Create(nc,valids_operations);
+        end;
       end;
     end;
   finally
@@ -520,6 +553,8 @@ begin
   {$IFDEF BufferOfFutureOperations}
   FBufferAuxWaitingOperations := TOperationsHashTree.Create;
   {$ENDIF}
+  FBroadcastData := True;
+  FUpdateBlockchain := True;
   if Not Assigned(_Node) then _Node := Self;
 end;
 
@@ -682,12 +717,11 @@ begin
   CurrentProcess := '';
   if FBank.IsReady(CurrentProcess) then begin
     if FNetServer.Active then begin
-      if TNetData.NetData.IsGettingNewBlockChainFromClient then begin
-        CurrentProcess := 'Obtaining valid BlockChain - Found block '+inttostr(TNetData.NetData.MaxRemoteOperationBlock.block);
-      end else begin
+      if Not TNetData.NetData.IsGettingNewBlockChainFromClient(CurrentProcess) then begin
         if TNetData.NetData.MaxRemoteOperationBlock.block>FOperations.OperationBlock.block then begin
           CurrentProcess := 'Found block '+inttostr(TNetData.NetData.MaxRemoteOperationBlock.block)+' (Wait until downloaded)';
         end else begin
+          CurrentProcess := '';
           Result := true;
         end;
       end;
@@ -949,13 +983,13 @@ begin
   Result := found;
 end;
 
-procedure TNode.InitSafeboxAndOperations(max_block_to_read : Cardinal);
+procedure TNode.InitSafeboxAndOperations(max_block_to_read : Cardinal = $FFFFFFFF; restoreProgressNotify : TProgressNotify = Nil);
 var opht : TOperationsHashTree;
   oprl : TOperationsResumeList;
   errors : AnsiString;
   n : Integer;
 begin
-  Bank.DiskRestoreFromOperations(max_block_to_read);
+  Bank.DiskRestoreFromOperations(max_block_to_read,restoreProgressNotify);
   opht := TOperationsHashTree.Create;
   oprl := TOperationsResumeList.Create;
   try
@@ -1114,6 +1148,27 @@ begin
   FNodeLog.FileName := Value;
 end;
 
+{ TNodeMessageManyEventHelper }
+
+procedure TNodeMessageManyEventHelper.Add(listener : TNodeMessageEvent);
+begin
+  if TArrayTool<TNodeMessageEvent>.IndexOf(self, listener) = -1 then begin
+    TArrayTool<TNodeMessageEvent>.Add(self, listener);
+  end;
+end;
+
+procedure TNodeMessageManyEventHelper.Remove(listener : TNodeMessageEvent);
+begin
+  TArrayTool<TNodeMessageEvent>.Remove(self, listener);
+end;
+
+procedure TNodeMessageManyEventHelper.Invoke(NetConnection : TNetConnection; MessageData : TRawBytes);
+var i : Integer;
+begin
+  for i := low(self) to high(self) do
+    self[i](NetConnection, MessageData);
+end;
+
 { TNodeNotifyEvents }
 
 constructor TNodeNotifyEvents.Create(AOwner: TComponent);
@@ -1231,6 +1286,7 @@ begin
       If FNodeNotifyEvents.FWatchKeys.HasAccountKeyChanged then begin
         FNodeNotifyEvents.FWatchKeys.ClearAccountKeyChanges;
         if Assigned(FNodeNotifyEvents.FOnKeyActivity) then begin
+          DebugStep:='Notify WatchKeys OnKeyActivity';
           FNodeNotifyEvents.FOnKeyActivity(FNodeNotifyEvents);
         end;
       end;

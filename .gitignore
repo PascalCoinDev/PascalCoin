@@ -16,7 +16,7 @@ libcrypto.so.1.1
 *.log
 
 # Lazarus-related changes
-*.dproj
+#*.dproj
 *.dproj.local
 *.lps
 *.dcu
@@ -30,3 +30,11 @@ backup/
 
 ## Development miner batch file
 Run*.bat
+
+## Bin folders (Unit test projects, etc)
+bin/
+
+## Delphi files
+__history/
+dunit.ini
+*.res

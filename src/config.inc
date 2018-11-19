@@ -34,6 +34,12 @@
   {$DEFINE PRODUCTION}
   {.$DEFINE TESTNET}
 
+  // Used to activate RandomHash in V4 hard-fork
+  {$DEFINE ACTIVATE_RANDOMHASH_V4}
+
+  // Account Key Storage is for memory reduction because uses a unified storage to store all public keys and then use only a pointer to them
+  {$DEFINE useAccountKeyStorage}
+
   // For GUI: Allows to show average time on blockchain explorer
   {$DEFINE SHOW_AVERAGE_TIME_STATS}
 
@@ -95,5 +101,10 @@ ERROR: You must select ONE option!
 
 {$IFDEF OpenSSL10}
   ERROR: OpenSLL v1.0 is not longer valid, use OpenSSL v1.1 instead
+{$ENDIF}
+{$IFDEF PRODUCTION}
+{$IFDEF TESTING_NO_POW_CHECK}
+  ERROR: TESTING_NO_POW_CHECK not valid on PRODUCTION MODE! Use it for testing purposes only!
+{$ENDIF}
 {$ENDIF}
 

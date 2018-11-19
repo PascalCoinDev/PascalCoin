@@ -9,7 +9,7 @@ object WizardHostForm: TWizardHostForm
   ClientWidth = 360
   OnCloseQuery = FormCloseQuery
   Position = poOwnerFormCenter
-  LCLVersion = '1.8.2.0'
+  LCLVersion = '1.8.4.0'
   Visible = False
   object FHorizonalLine: TPanel
     Left = 0

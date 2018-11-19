@@ -1,5 +1,6 @@
-{
-  Copyright (c) 2017 - 2018 Sphere 10 Software
+unit UCommon.Collections;
+
+{ Copyright (c) 2017 - 2018 Sphere 10 Software <https://www.sphere10.com>
 
   Common tools and extensions for Generics.Collections and collections in general usable
   across all tiers.
@@ -8,14 +9,15 @@
   or visit http://www.opensource.org/licenses/mit-license.php.
 
   Acknowledgements:
-    Herman Schoenfeld
+  - Herman Schoenfeld: main author
+
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
-unit UCommon.Collections;
-
-{$mode delphi}
-
-{$modeswitch nestedprocvars}
+{$IFDEF FPC}
+  {$mode delphi}
+  {$modeswitch nestedprocvars}
+{$endif}
 
 interface
 

@@ -1,21 +1,20 @@
 unit UAES;
 
-{$IFDEF FPC}
-  {$MODE Delphi}
-{$ENDIF}
-
 { Copyright (c) 2016 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
 
-  This unit is a part of Pascal Coin, a P2P crypto currency without need of
-  historical operations.
+  This unit is a part of the PascalCoin Project, an infinitely scalable
+  cryptocurrency. Find us here:
+  Web: https://www.pascalcoin.org
+  Source: https://github.com/PascalCoin/PascalCoin
 
-  If you like it, consider a donation using BitCoin:
+  If you like it, consider a donation using Bitcoin:
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
-  }
+  THIS LICENSE HEADER MUST NOT BE REMOVED.
+}
 
 { This unit is used to encrypt/decrypt using AES256
   Basic source code found at internet:
@@ -23,14 +22,17 @@ unit UAES;
 
   Original source code probably copyright of Marco Ferrante (ferrante@disi.unige.it) and "shunty" user:
   http://stackoverflow.com/users/197962/shunty
+}
 
-  }
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
 
 {$I config.inc}
 interface
 
 uses
-  SysUtils, UCrypto;
+  SysUtils, UCrypto, UBaseTypes;
 
 Type
   TAESComp = Class
