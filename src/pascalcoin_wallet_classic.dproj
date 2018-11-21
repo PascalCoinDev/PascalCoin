@@ -17,10 +17,10 @@
     <PropertyGroup Condition="'$(Base)'!=''">
         <DCC_DcuOutput>.\lib</DCC_DcuOutput>
         <DCC_UnitSearchPath>.\core;.\gui-classic;.\libraries\pascalcoin;.\libraries\synapse;.\libraries\generics.collections;.\libraries\hashlib4pascal;.\libraries\sphere10;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
-        <DCC_DependencyCheckOutputName>pascalcoin_wallet_classic.exe</DCC_DependencyCheckOutputName>
+        <DCC_DependencyCheckOutputName>pascalcoin_wallet.exe</DCC_DependencyCheckOutputName>
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <DCC_Platform>x86</DCC_Platform>
-        <SanitizedProjectName>pascalcoin_wallet_classic</SanitizedProjectName>
+        <SanitizedProjectName>pascalcoin_wallet</SanitizedProjectName>
         <DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;Posix;Winapi;$(DCC_Namespace)</DCC_Namespace>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_MajorVer>3</VerInfo_MajorVer>

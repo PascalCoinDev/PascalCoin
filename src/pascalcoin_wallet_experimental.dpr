@@ -1,4 +1,4 @@
-program PascalCoinWallet;
+program PascalCoinWalletExperimental;
 
 {$mode delphi}
 {$DEFINE UseCThreads}

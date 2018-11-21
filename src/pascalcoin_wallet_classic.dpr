@@ -1,4 +1,4 @@
-program PascalCoin_wallet_classic;
+program PascalCoin_Wallet_Classic;
 
 {$IFDEF FPC}
   {$MODE Delphi}

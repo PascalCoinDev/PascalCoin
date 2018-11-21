@@ -14,7 +14,6 @@
       <Title Value="PascalCoinWalletLazarus"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
-      <Icon Value="0"/>
     </General>
     <i18n>
       <EnableI18N LFM="False"/>
@@ -46,7 +45,7 @@
       <Unit0>
         <Filename Value="pascalcoin_wallet_classic.dpr"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="PascalCoin_wallet_classic"/>
+        <UnitName Value="PascalCoin_wallet"/>
       </Unit0>
       <Unit1>
         <Filename Value="core\UBlockChain.pas"/>

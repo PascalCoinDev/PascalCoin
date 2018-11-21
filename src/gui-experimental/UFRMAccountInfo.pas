@@ -1,6 +1,6 @@
 unit UFRMAccountInfo;
 
-{ Copyright (c) 2016 by PacalCoin Developers
+{ Copyright (c) 2016 by PascalCoin Developers
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
