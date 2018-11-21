@@ -144,13 +144,15 @@ begin
       end;
     End;
   finally
-    l := _threads.LockList;
-    Try
-      i := l.Remove(Self);
-      {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Finalizing Thread in pos '+inttostr(i+1)+'/'+inttostr(l.Count+1)+' working time: '+FormatFloat('0.000',TPlatform.GetElapsedMilliseconds(FStartTickCount) / 1000)+' sec');{$ENDIF}
-    Finally
-      _threads.UnlockList;
-    End;
+    if Assigned(_threads) then begin
+      l := _threads.LockList;
+      Try
+        i := l.Remove(Self);
+        {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Finalizing Thread in pos '+inttostr(i+1)+'/'+inttostr(l.Count+1)+' working time: '+FormatFloat('0.000',TPlatform.GetElapsedMilliseconds(FStartTickCount) / 1000)+' sec');{$ENDIF}
+      Finally
+        _threads.UnlockList;
+      End;
+    end;
   end;
 end;
 
