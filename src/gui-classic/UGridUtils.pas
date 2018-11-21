@@ -210,7 +210,7 @@ uses
 { TAccountsGrid }
 
 Const CT_ColumnHeader : Array[TAccountColumnType] Of String =
-  ('Account N.','Key','Balance','Updated','N Op.','S','Name','Type','Price');
+  ('Account No','Key','Balance','Updated','N Op.','S','Name','Type','Price');
 
 function TAccountsGrid.AccountNumber(GridRow: Integer): Int64;
 begin
@@ -237,7 +237,7 @@ begin
   FDrawGrid := Nil;
   SetLength(FColumns,7);
   FColumns[0].ColumnType := act_account_number;
-  FColumns[0].width := 65;
+  FColumns[0].width := 75;
   FColumns[1].ColumnType := act_name;
   FColumns[1].width := 80;
   FColumns[2].ColumnType := act_balance;
