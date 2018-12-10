@@ -1182,7 +1182,6 @@ begin
   FMessages := TStringList.Create;
   FPendingNotificationsList := TPCThreadList.Create('TNodeNotifyEvents_PendingNotificationsList');
   FThreadSafeNodeNotifyEvent := TThreadSafeNodeNotifyEvent.Create(Self);
-  FThreadSafeNodeNotifyEvent.FreeOnTerminate := true; // This is to prevent locking when freeing component
   Node := _Node;
 end;
 
@@ -1191,6 +1190,8 @@ begin
   if Assigned(FNode) then FNode.FNotifyList.Remove(Self);
   FThreadSafeNodeNotifyEvent.FNodeNotifyEvents := Nil;
   FThreadSafeNodeNotifyEvent.Terminate;
+  FThreadSafeNodeNotifyEvent.WaitFor;
+  FreeAndNil(FThreadSafeNodeNotifyEvent);
   FreeAndNil(FPendingNotificationsList);
   FreeAndNil(FMessages);
   inherited;
@@ -1247,7 +1248,7 @@ end;
 constructor TThreadSafeNodeNotifyEvent.Create(ANodeNotifyEvents: TNodeNotifyEvents);
 begin
   FNodeNotifyEvents := ANodeNotifyEvents;
-  Inherited Create(false);
+  Inherited Create(False);
 end;
 
 procedure TThreadSafeNodeNotifyEvent.SynchronizedProcess;
