@@ -27,9 +27,9 @@ interface
 {$IFNDEF FPC}
   // See http://wiki.freepascal.org/Code_Conversion_Guide
 type
-  PtrInt = integer;
-  PtrUInt = cardinal;
-  TThreadID = Cardinal;
+  PtrInt = NativeInt;
+  PtrUInt = NativeUInt;
+  TThreadID = NativeUInt;
 {$ENDIF}
 
 Const
@@ -119,7 +119,7 @@ Const
 
   CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$04000000{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
 
-  CT_NetProtocol_Version: Word = $0007;
+  CT_NetProtocol_Version: Word = $0009; // Version 4.0.2 Will allow only net protocol 9
   // IMPORTANT NOTE!!!
   // NetProtocol_Available MUST BE always >= NetProtocol_version
   CT_NetProtocol_Available: Word = {$IFDEF PRODUCTION}$0009{$ELSE}$0009{$ENDIF};  // Version 4.0.0 will start accepting protocol 8 but 4.0.1 will accept 9 due to 4.0.0 bug
@@ -173,7 +173,7 @@ Const
   CT_OpSubtype_Data_Signer                = 103;
   CT_OpSubtype_Data_Receiver              = 104;
 
-  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'4.0.1'{$ELSE}{$IFDEF TESTNET}'TESTNET 4.0.1'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : AnsiString = {$IFDEF PRODUCTION}'4.0.2'{$ELSE}{$IFDEF TESTNET}'TESTNET 4.0.2'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs = {$IFDEF PRODUCTION}'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us'
                     {$ELSE}'pascaltestnet1.dynamic-dns.net;pascaltestnet2.dynamic-dns.net;pascaltestnet1.dns1.us;pascaltestnet2.dns1.us'{$ENDIF};
