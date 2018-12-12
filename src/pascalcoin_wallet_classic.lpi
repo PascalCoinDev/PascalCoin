@@ -14,15 +14,15 @@
       <Title Value="PascalCoinWalletLazarus"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
+      <Icon Value="0"/>
     </General>
     <i18n>
       <EnableI18N LFM="False"/>
     </i18n>
     <VersionInfo>
       <UseVersionInfo Value="True"/>
-      <MajorVersionNr Value="2"/>
-      <MinorVersionNr Value="1"/>
-      <RevisionNr Value="6"/>
+      <MajorVersionNr Value="4"/>
+      <RevisionNr Value="2"/>
       <StringTable ProductVersion="0.0.0.0"/>
     </VersionInfo>
     <BuildModes Count="1">
@@ -45,7 +45,7 @@
       <Unit0>
         <Filename Value="pascalcoin_wallet_classic.dpr"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="PascalCoin_wallet"/>
+        <UnitName Value="PascalCoin_wallet_classic"/>
       </Unit0>
       <Unit1>
         <Filename Value="core\UBlockChain.pas"/>
@@ -212,7 +212,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="core;gui-classic;libraries\synapse;libraries\sphere10;libraries\hashlib4pascal;libraries\generics.collections;libraries\pascalcoin"/>
+      <OtherUnitFiles Value="core;gui-classic;libraries\synapse;libraries\sphere10;libraries\hashlib4pascal;libraries\generics.collections;libraries\pascalcoin;libraries\paszlib"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>

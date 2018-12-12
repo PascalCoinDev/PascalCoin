@@ -23,7 +23,17 @@ unit UChunk;
 interface
 
 uses
-  Classes, SysUtils,  ZLib, {$IFDEF FPC} zStream, {$ENDIF}
+  Classes, SysUtils,
+  {$IFDEF FPC}
+    // NOTE:
+    // Due to FreePascal 3.0.4 (and earlier) bug, will not use internal "paszlib" package, use modified instead
+    // Updated on PascalCoin v4.0.2
+    {$IFDEF VER3_2}
+      zStream, // <- Not used in current FreePascal v3.0.4 caused by a bug: https://bugs.freepascal.org/view.php?id=34422
+    {$ELSE}
+      paszlib_zStream,
+    {$ENDIF}
+  {$ENDIF}
   UAccounts, ULog, UConst, UCrypto;
 
 type
