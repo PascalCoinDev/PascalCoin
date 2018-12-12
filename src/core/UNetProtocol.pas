@@ -4270,13 +4270,8 @@ begin
     data := TMemoryStream.Create;
     try
       request_id := TNetData.NetData.NewRequestId;
-      if (FNetProtocolVersion.protocol_available = CT_NetProtocol_Available)
-        then begin
-        // Will send a FAST PROPAGATION BLOCK as described at PIP-0015
-        netOp := CT_NetOp_NewBlock_Fast_Propagation;
-      end else begin
-        netOp := CT_NetOp_NewBlock;
-      end;
+      // Will send a FAST PROPAGATION BLOCK as described at PIP-0015
+      netOp := CT_NetOp_NewBlock_Fast_Propagation;
       NewBlock.SaveBlockToStream(netOp = CT_NetOp_NewBlock_Fast_Propagation,data); // Will save all only if not FAST PROPAGATION
       data.Write(TNode.Node.Bank.SafeBox.WorkSum,SizeOf(TNode.Node.Bank.SafeBox.WorkSum));
       if (netOp = CT_NetOp_NewBlock_Fast_Propagation) then begin
