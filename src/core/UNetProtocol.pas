@@ -3959,8 +3959,14 @@ begin
           FClientBufferRead.Size:=0;
           DisconnectInvalidClient(false,'Invalid data received in buffer ('+inttostr(deletedBytes)+' bytes)');
         end else if (IsValidHeaderButNeedMoreData) then begin
-          TLog.NewLog(ltDebug,ClassName,Format('Not enough data received - Received %d bytes from TcpClient buffer of %s after max %d miliseconds. Elapsed: %d - HeaderData: %s',
-            [FClientBufferRead.Size, Client.ClientRemoteAddr,MaxWaitMiliseconds,TPlatform.GetTickCount-tc,TNetData.HeaderDataToText(HeaderData)]));
+          if (t_bytes_read>0) then begin
+            TLog.NewLog(ltDebug,ClassName,Format('Not enough data received - Received %d bytes from TcpClient buffer of %s after max %d miliseconds. Elapsed: %d - HeaderData: %s',
+              [FClientBufferRead.Size, Client.ClientRemoteAddr,MaxWaitMiliseconds,TPlatform.GetTickCount-tc,TNetData.HeaderDataToText(HeaderData)]));
+          end else if (TPlatform.GetElapsedMilliseconds(FLastDataReceivedTS)>60000) then begin
+            TLog.NewLog(lterror,ClassName,Format('Closing connection to %s due not received expected data. Received:%d Expected:%d ElapsedMilis:%d',
+              [Client.ClientRemoteAddr,FClientBufferRead.Size,HeaderData.buffer_data_length,TPlatform.GetElapsedMilliseconds(FLastDataReceivedTS)]));
+            Connected:=False;
+          end;
         end;
       end;
     Finally
