@@ -1970,7 +1970,7 @@ begin
       // Remove ONLY if there is no subchain based on my snapshots!
       While (FSnapshots.Count>FMaxSafeboxSnapshots) do begin
         Psnapshot := FSnapshots[0];
-        TLog.NewLog(ltdebug,Classname,Format('Deleting snapshot for block %d',[Psnapshot^.nBlockNumber]));
+        {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,Format('Deleting snapshot for block %d',[Psnapshot^.nBlockNumber]));{$ENDIF}
         FSnapshots.Delete(0);
         FreeAndNil( Psnapshot.oldBlocks );
         FreeAndNil( Psnapshot.newBlocks );

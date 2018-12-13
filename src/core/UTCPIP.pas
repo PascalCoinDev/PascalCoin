@@ -577,7 +577,7 @@ var SendBuffStream : TStream;
           End;
         end;
       until (last_bytes_read<sizeof(ReceiveBuffer)) Or (Terminated) Or (Not FBufferedNetTcpIpClient.Connected);
-      If total_read>0 then TLog.NewLog(ltdebug,ClassName,Format('Received %d bytes. Buffer length: %d bytes',[total_read,total_size]));
+      {$IFDEF HIGHLOG}If total_read>0 then TLog.NewLog(ltdebug,ClassName,Format('Received %d bytes. Buffer length: %d bytes',[total_read,total_size]));{$ENDIF}
     end else begin
       if FBufferedNetTcpIpClient.SocketError<>0 then FBufferedNetTcpIpClient.Disconnect;
     end;
@@ -597,7 +597,7 @@ var SendBuffStream : TStream;
     if (SendBuffStream.Size>0) then begin
       SendBuffStream.Position := 0;
       FBufferedNetTcpIpClient.SendStream(SendBuffStream);
-      TLog.NewLog(ltdebug,ClassName,Format('Sent %d bytes',[SendBuffStream.Size]));
+      {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Sent %d bytes',[SendBuffStream.Size]));{$ENDIF}
       SendBuffStream.Size := 0;
     end;
   end;
