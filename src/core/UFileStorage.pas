@@ -303,7 +303,7 @@ begin
     fs.Position:=0;
     fs.Size:=0;
     OperationsHashTree.SaveOperationsHashTreeToStream(fs,true);
-    TLog.NewLog(ltdebug,ClassName,Format('DoSavePendingBufferOperations operations:%d',[OperationsHashTree.OperationsCount]));
+    {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('DoSavePendingBufferOperations operations:%d',[OperationsHashTree.OperationsCount]));{$ENDIF}
   finally
     UnlockBlockChainStream;
   end;

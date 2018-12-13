@@ -541,11 +541,12 @@ begin
     end;
   end;
 
-  If Not TCrypto.ECDSAVerify(account_signer.accountInfo.accountkey,GetDigestToSign(AccountTransaction.FreezedSafeBox.CurrentProtocol),FData.sign) then begin
-    errors := 'Invalid sign';
-    FHasValidSignature := false;
-    exit;
-  end else FHasValidSignature := true;
+  // Check signature
+  If Not IsValidECDSASignature(account_signer.accountInfo.accountkey,AccountTransaction.FreezedSafeBox.CurrentProtocol,FData.sign) then begin
+    errors := 'Invalid ECDSA signature';
+    Exit;
+  end;
+
   FPrevious_Signer_updated_block := account_signer.updated_block;
   FPrevious_Destination_updated_block := account_target.updated_block;
   If (public_key in FData.changes_type) then begin
@@ -735,7 +736,6 @@ function TOpTransaction.DoOperation(AccountPreviousUpdatedBlock : TAccountPrevio
 Var s_new, t_new : Int64;
   totalamount : Cardinal;
   sender,target,seller : TAccount;
-  _h : TRawBytes;
   _IsBuyTransaction :  Boolean;
 begin
   Result := false;
@@ -806,13 +806,11 @@ begin
   end;
 
   // Check signature
-  _h := GetDigestToSign(AccountTransaction.FreezedSafeBox.CurrentProtocol);
-  if (Not TCrypto.ECDSAVerify(sender.accountInfo.accountkey,_h,FData.sign)) then begin
-    errors := 'Invalid sign';
-    FHasValidSignature := false;
+  If Not IsValidECDSASignature(sender.accountInfo.accountkey,AccountTransaction.FreezedSafeBox.CurrentProtocol,FData.sign) then begin
+    errors := 'Invalid ECDSA signature';
     Exit;
-  end else FHasValidSignature := true;
-  //
+  end;
+
   FPrevious_Signer_updated_block := sender.updated_block;
   FPrevious_Destination_updated_block := target.updated_block;
 
@@ -1272,11 +1270,11 @@ begin
     end;
   end;
 
-  If Not TCrypto.ECDSAVerify(account_signer.accountInfo.accountkey,GetDigestToSign(AccountTransaction.FreezedSafeBox.CurrentProtocol),FData.sign) then begin
-    errors := 'Invalid sign';
-    FHasValidSignature := false;
-    exit;
-  end else FHasValidSignature := true;
+  // Check signature
+  If Not IsValidECDSASignature(account_signer.accountInfo.accountkey,AccountTransaction.FreezedSafeBox.CurrentProtocol,FData.sign) then begin
+    errors := 'Invalid ECDSA signature';
+    Exit;
+  end;
 
   FPrevious_Signer_updated_block := account_signer.updated_block;
   FPrevious_Destination_updated_block := account_target.updated_block;
@@ -1756,11 +1754,11 @@ begin
     exit;
   end;
 
-  If Not TCrypto.ECDSAVerify(account_signer.accountInfo.accountkey,GetDigestToSign(AccountTransaction.FreezedSafeBox.CurrentProtocol),FData.sign) then begin
-    errors := 'Invalid sign';
-    FHasValidSignature := false;
-    exit;
-  end else FHasValidSignature := true;
+  // Check signature
+  If Not IsValidECDSASignature(account_signer.accountInfo.accountkey,AccountTransaction.FreezedSafeBox.CurrentProtocol,FData.sign) then begin
+    errors := 'Invalid ECDSA signature';
+    Exit;
+  end;
 
   FPrevious_Signer_updated_block := account_signer.updated_block;
   FPrevious_Destination_updated_block := account_target.updated_block;
@@ -2299,11 +2297,11 @@ begin
     Exit;
   end;
 
-  If Not TCrypto.ECDSAVerify(account_signer.accountInfo.accountkey,GetDigestToSign(AccountTransaction.FreezedSafeBox.CurrentProtocol),FData.sign) then begin
-    errors := 'Invalid sign';
-    FHasValidSignature := false;
+  // Check signature
+  If Not IsValidECDSASignature(account_signer.accountInfo.accountkey,AccountTransaction.FreezedSafeBox.CurrentProtocol,FData.sign) then begin
+    errors := 'Invalid ECDSA signature';
     Exit;
-  end else FHasValidSignature := true;
+  end;
 
   Result := AccountTransaction.TransferAmount(AccountPreviousUpdatedBlock,
     FData.account_sender,FData.account_signer,FData.account_target,

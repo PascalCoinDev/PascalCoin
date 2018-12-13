@@ -445,8 +445,14 @@ var i : Integer;
   ophtosign : TRawBytes;
 begin
   // Init
-  FHasValidSignature:=False;
   SetLength(errors,0);
+  If FHasValidSignature then begin
+    // Will reuse FHasValidSignature if checked previously and was True
+    // Introduced on Build 4.0.2 to increase speed using MEMPOOL verified operations instead of verify again everytime
+    // Multioperations will not use standard TPCOperation.IsValidECDSASignature call because will need to check more than 1 signature
+    Result := True;
+    Exit;
+  end;
   // Do check it!
   Try
     ophtosign := GetDigestToSign(AccountTransaction.FreezedSafeBox.CurrentProtocol);

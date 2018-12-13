@@ -107,6 +107,7 @@ Type
     //
     Property BroadcastData : Boolean read FBroadcastData write FBroadcastData;
     Property UpdateBlockchain : Boolean read FUpdateBlockchain write FUpdateBlockchain;
+    procedure MarkVerifiedECDSASignaturesFromMemPool(newOperationsToValidate : TPCOperationsComp);
   End;
 
   TNodeNotifyEvents = Class;
@@ -234,6 +235,7 @@ begin
         errors := 'Duplicated block';
         exit;
       end;
+      MarkVerifiedECDSASignaturesFromMemPool(NewBlockOperations); // Improvement speed v4.0.2
       // Improvement TNode speed 2.1.6
       // Does not need to save a FOperations backup because is Sanitized by "TNode.OnBankNewBlock"
       Result := Bank.AddNewBlockChainBlock(NewBlockOperations,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,newBlockAccount,errors);
@@ -666,6 +668,25 @@ end;
 procedure TNode.UnlockNode;
 begin
   FLockNodeOperations.Release;
+end;
+
+procedure TNode.MarkVerifiedECDSASignaturesFromMemPool(newOperationsToValidate: TPCOperationsComp);
+begin
+  // Introduced on Build 4.0.2 to increase speed using MEMPOOL verified operations instead of verify again everytime
+  // Will check if "newOperationsToValidate" operations are on MEMPOOL. If found, will set same FHasValidSignature value in order to mark as verified
+  if newOperationsToValidate = FOperations then Exit; // Is the same, do nothing
+  if newOperationsToValidate.OperationBlock.protocol_version <> newOperationsToValidate.OperationBlock.protocol_version then Exit; // Must be same protocol
+  newOperationsToValidate.Lock;
+  try
+    FLockNodeOperations.Acquire;
+    try
+      Operations.OperationsHashTree.MarkVerifiedECDSASignatures(newOperationsToValidate.OperationsHashTree);
+    finally
+      FLockNodeOperations.Release;
+    end;
+  finally
+    newOperationsToValidate.Unlock;
+  end;
 end;
 
 class function TNode.EncodeNodeServerAddressArrayToIpString(
@@ -1308,7 +1329,7 @@ begin
     try
       DebugStep := 'Checking connected';
       if Not FNetconnection.Connected then exit;
-      TLog.NewLog(ltdebug,ClassName,'Sending new block found to '+FNetConnection.Client.ClientRemoteAddr);
+      {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,'Sending new block found to '+FNetConnection.Client.ClientRemoteAddr);{$ENDIF}
       DebugStep := 'Sending';
       FNetConnection.Send_NewBlockFound(FNewBlockOperations);
       DebugStep := 'Checking connected again';

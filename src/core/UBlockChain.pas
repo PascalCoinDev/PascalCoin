@@ -212,6 +212,7 @@ Type
     Property Previous_Signer_updated_block : Cardinal read FPrevious_Signer_updated_block; // deprecated
     Property Previous_Destination_updated_block : Cardinal read FPrevious_Destination_updated_block; // deprecated
     Property Previous_Seller_updated_block : Cardinal read FPrevious_Seller_updated_block; // deprecated
+    function IsValidECDSASignature(const PubKey: TECDSA_Public; current_protocol : Word; const Signature: TECDSA_SIG): Boolean;
   public
     constructor Create; virtual;
     destructor Destroy; override;
@@ -298,6 +299,7 @@ Type
     procedure RemoveByOpReference(const opReference : TOpReference);
     Property OnChanged : TNotifyEvent read FOnChanged write FOnChanged;
     Property Max0feeOperationsBySigner : Integer Read FMax0feeOperationsBySigner write SetMax0feeOperationsBySigner;
+    procedure MarkVerifiedECDSASignatures(operationsHashTreeToMark : TOperationsHashTree);
   End;
 
   { TPCOperationsComp }
@@ -2104,6 +2106,7 @@ begin
     h := FHashTree + op.Sha256;
     P^.Op.FBufferedSha256:=op.FBufferedSha256;
     P^.Op.tag := list.Count;
+    P^.Op.FHasValidSignature := op.FHasValidSignature; // Improvement speed v4.0.2 reusing previously signed value
     // Improvement TOperationsHashTree speed 2.1.6
     // Include to hash tree (Only if CalcNewHashTree=True)
     If (CalcNewHashTree) And (Length(FHashTree)=32) then begin
@@ -2311,6 +2314,46 @@ begin
   If Assigned(FOnChanged) then FOnChanged(Self);
   errors := '';
   Result := true;
+end;
+
+procedure TOperationsHashTree.MarkVerifiedECDSASignatures(operationsHashTreeToMark: TOperationsHashTree);
+var i, iPosInMyList, nMarkedAsGood : Integer;
+  opToMark, opInMyList : TPCOperation;
+  myList, listToMark : TList;
+begin
+  // Introduced on Build 4.0.2 to increase speed
+  // Will search each "operationsHashTreeToMark" operation on my current list. If found, will set same FHasValidSignature in order to mark operation in "operationsHashTreeToMark" as verified
+  If Self=operationsHashTreeToMark then Exit;
+  nMarkedAsGood := 0;
+  myList := FHashTreeOperations.LockList;
+  try
+    if myList.Count<=0 then Exit; // Nothing to search...
+    listToMark := operationsHashTreeToMark.FHashTreeOperations.LockList;
+    Try
+      if listToMark.Count<=0 then Exit; // Nothing to search...
+      for i:=0 to listToMark.Count-1 do begin
+        opToMark := POperationHashTreeReg(listToMark[i])^.Op;
+        if Not opToMark.FHasValidSignature then begin
+          // Check if found
+          iPosInMyList := Self.IndexOfOperation(opToMark);
+          if (iPosInMyList>=0) then begin
+            opInMyList := POperationHashTreeReg(myList[iPosInMyList])^.Op;
+            if (opInMyList.FHasValidSignature) then begin
+              opToMark.FHasValidSignature:=True;
+              inc(nMarkedAsGood);
+            end;
+          end;
+        end;
+      end;
+      if nMarkedAsGood>0 then begin
+        TLog.NewLog(ltdebug,ClassName,Format('Marked %d/%d operations as ValidSignature from MemPool with %d operations',[nMarkedAsGood,listToMark.Count,myList.Count]));
+      end;
+    finally
+      operationsHashTreeToMark.FHashTreeOperations.UnlockList;
+    end;
+  finally
+    FHashTreeOperations.UnlockList;
+  end;
 end;
 
 function TOperationsHashTree.OperationsCount: Integer;
@@ -2674,6 +2717,16 @@ end;
 procedure TPCOperation.FillOperationResume(Block: Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume);
 begin
   //
+end;
+
+function TPCOperation.IsValidECDSASignature(const PubKey: TECDSA_Public; current_protocol: Word; const Signature: TECDSA_SIG): Boolean;
+begin
+  // Will reuse FHasValidSignature if checked previously and was True
+  // Introduced on Build 4.0.2 to increase speed using MEMPOOL verified operations instead of verify again everytime
+  if (Not FHasValidSignature) then begin
+    FHasValidSignature := TCrypto.ECDSAVerify(PubKey,GetDigestToSign(current_protocol),Signature);
+  end;
+  Result := FHasValidSignature;
 end;
 
 function TPCOperation.LoadFromNettransfer(Stream: TStream): Boolean;

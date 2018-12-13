@@ -1653,6 +1653,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
                 IsAScam := true;
                 break;
               end;
+              TNode.Node.MarkVerifiedECDSASignaturesFromMemPool(OpExecute); // Improvement speed v4.0.2
               if Bank.AddNewBlockChainBlock(OpExecute,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,newBlock,errors) then begin
                 inc(i);
               end else begin
@@ -2192,7 +2193,7 @@ begin
     P^.RequestId := request_id;
     P^.SendTime := Now;
     l.Add(P);
-    TLog.NewLog(ltdebug,Classname,'Registering request to '+Sender.ClientRemoteAddr+' Op:'+OperationToText(operation)+' Id:'+inttostr(request_id)+' Total pending:'+Inttostr(l.Count));
+    {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Registering request to '+Sender.ClientRemoteAddr+' Op:'+OperationToText(operation)+' Id:'+inttostr(request_id)+' Total pending:'+Inttostr(l.Count));{$ENDIF}
   Finally
     FRegisteredRequests.UnlockList;
   End;
@@ -2223,11 +2224,13 @@ begin
         l.Delete(i);
         Dispose(P);
         Result := true;
+        {$IFDEF HIGHLOG}
         if Assigned(Sender.FTcpIpClient) then begin
           TLog.NewLog(ltdebug,Classname,'Unregistering request to '+Sender.ClientRemoteAddr+' Op:'+OperationToText(operation)+' Id:'+inttostr(request_id)+' Total pending:'+Inttostr(l.Count));
         end else begin
           TLog.NewLog(ltdebug,Classname,'Unregistering request to (NIL) Op:'+OperationToText(operation)+' Id:'+inttostr(request_id)+' Total pending:'+Inttostr(l.Count));
         end;
+        {$ENDIF}
       end;
     end;
   finally
@@ -2492,6 +2495,7 @@ procedure TNetConnection.DoProcessBuffer;
 Var HeaderData : TNetHeaderData;
   ms : TMemoryStream;
   ops : AnsiString;
+  iPending : Integer;
 begin
   if FDoFinalizeConnection then begin
     TLog.NewLog(ltdebug,Classname,'Executing DoFinalizeConnection at client '+ClientRemoteAddr);
@@ -2509,11 +2513,14 @@ begin
   If ((FLastDataReceivedTS>0) Or ( NOT (Self is TNetServerClient)))
      AND ((FLastDataReceivedTS+(1000*FRandomWaitSecondsSendHello)<TPlatform.GetTickCount) AND (FLastDataSendedTS+(1000*FRandomWaitSecondsSendHello)<TPlatform.GetTickCount)) then begin
      // Build 1.4 -> Changing wait time from 120 secs to a random seconds value
-    If TNetData.NetData.PendingRequest(Self,ops)>=2 then begin
+    iPending := TNetData.NetData.PendingRequest(Self,ops);
+    If iPending>=2 then begin
       TLog.NewLog(ltDebug,Classname,'Pending requests without response... closing connection to '+ClientRemoteAddr+' > '+ops);
       Connected := false;
     end else begin
-      TLog.NewLog(ltDebug,Classname,'Sending Hello to check connection to '+ClientRemoteAddr+' > '+ops);
+      if iPending>0 then begin
+        TLog.NewLog(ltDebug,Classname,'Sending Hello to check connection to '+ClientRemoteAddr+' > '+ops);
+      end;
       Send_Hello(ntp_request,TNetData.NetData.NewRequestId);
     end;
   end else if (Self is TNetServerClient) AND (FLastDataReceivedTS=0) And (FCreatedTime+EncodeTime(0,1,0,0)<Now) then begin
@@ -2807,6 +2814,7 @@ begin
            exit;
         end;
         if (op.OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
+          TNode.Node.MarkVerifiedECDSASignaturesFromMemPool(op); // Improvement speed v4.0.2
           if (TNode.Node.Bank.AddNewBlockChainBlock(op,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock, newBlockAccount,errors)) then begin
             // Ok, one more!
           end else begin
@@ -3401,7 +3409,7 @@ Begin
           ClientAppVersion := other_version;
           if (DataBuffer.Size-DataBuffer.Position>=SizeOf(FRemoteAccumulatedWork)) then begin
             DataBuffer.Read(FRemoteAccumulatedWork,SizeOf(FRemoteAccumulatedWork));
-            TLog.NewLog(ltdebug,ClassName,'Received HELLO with height: '+inttostr(op.OperationBlock.block)+' Accumulated work '+IntToStr(FRemoteAccumulatedWork));
+            TLog.NewLog(ltdebug,ClassName,'Received HELLO with height: '+inttostr(op.OperationBlock.block)+' Accumulated work '+IntToStr(FRemoteAccumulatedWork)+ ' Remote block: '+TPCOperationsComp.OperationBlockToText(FRemoteOperationBlock));
           end;
         end;
         //
@@ -3414,7 +3422,7 @@ Begin
         end;
       end;
 
-      TLog.NewLog(ltdebug,Classname,'Hello received: '+TPCOperationsComp.OperationBlockToText(FRemoteOperationBlock));
+      {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Hello received: '+TPCOperationsComp.OperationBlockToText(FRemoteOperationBlock));{$ENDIF}
       if (HeaderData.header_type in [ntp_request,ntp_response]) then begin
         // Response:
         if (HeaderData.header_type=ntp_request) then begin
@@ -3726,7 +3734,7 @@ begin
               iDebugStep := 500;
               TNetData.NetData.NodeServersAddresses.UpdateNetConnection(Self);
               iDebugStep := 800;
-              TLog.NewLog(ltDebug,Classname,'Received '+CT_NetTransferType[HeaderData.header_type]+' operation:'+TNetData.OperationToText(HeaderData.operation)+' id:'+Inttostr(HeaderData.request_id)+' Buffer size:'+Inttostr(HeaderData.buffer_data_length) );
+              {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,Classname,'Received '+CT_NetTransferType[HeaderData.header_type]+' operation:'+TNetData.OperationToText(HeaderData.operation)+' id:'+Inttostr(HeaderData.request_id)+' Buffer size:'+Inttostr(HeaderData.buffer_data_length) );{$ENDIF}
               if (RequestId=HeaderData.request_id) And (HeaderData.header_type=ntp_response) then begin
                 Result := true;
               end else begin
@@ -4048,10 +4056,10 @@ begin
     Buffer.Position := 0;
     TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
     Try
-      TLog.NewLog(ltDebug,Classname,'Sending: '+CT_NetTransferType[NetTranferType]+' operation:'+
+      {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,Classname,'Sending: '+CT_NetTransferType[NetTranferType]+' operation:'+
         TNetData.OperationToText(operation)+' id:'+Inttostr(request_id)+' errorcode:'+InttoStr(errorcode)+
         ' Size:'+InttoStr(Buffer.Size)+'b '+s+'to '+
-        ClientRemoteAddr);
+        ClientRemoteAddr);{$ENDIF}
       (Client as TBufferedNetTcpIpClient).WriteBufferToSend(Buffer);
       FLastDataSendedTS := TPlatform.GetTickCount;
       FRandomWaitSecondsSendHello := (CT_NewLineSecondsAvg DIV 3) + Random(CT_NewLineSecondsAvg DIV 5);
@@ -4266,7 +4274,7 @@ begin
     end;
     // Checking if operationblock is the same to prevent double messaging...
     If (TPCOperationsComp.EqualsOperationBlock(FRemoteOperationBlock,NewBlock.OperationBlock)) then begin
-      TLog.NewLog(ltDebug,ClassName,'This connection has the same block, does not need to send');
+      {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,ClassName,'This connection has the same block, does not need to send');{$ENDIF}
       exit;
     end;
     if (TNode.Node.Bank.BlocksCount<>NewBlock.OperationBlock.block+1) then begin
@@ -4870,7 +4878,7 @@ begin
     P^.timeOffset := clientTimestamp - UnivDateTimeToUnix(DateTime2UnivDateTime(now));
     if (lastOffset<>P^.timeOffset) then begin
       UpdateMedian(l);
-      TLog.NewLog(ltDebug,ClassName,Format('UpdateIp (%s,%d) - Total:%d/%d Offset:%d',[clientIp,clientTimestamp,l.Count,FTotalCounter,FTimeOffset]));
+      {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,ClassName,Format('UpdateIp (%s,%d) - Total:%d/%d Offset:%d',[clientIp,clientTimestamp,l.Count,FTotalCounter,FTimeOffset]));{$ENDIF}
     end;
   finally
     FTimesList.UnlockList;
