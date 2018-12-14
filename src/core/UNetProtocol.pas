@@ -2435,7 +2435,7 @@ end;
 destructor TNetConnection.Destroy;
 begin
   Try
-    TLog.NewLog(ltdebug,ClassName,'Destroying '+Classname+' '+IntToHex(PtrInt(Self),8));
+    {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,'Destroying '+Classname+' '+IntToHex(PtrInt(Self),8));{$ENDIF}
 
     Connected := false;
 
@@ -4126,7 +4126,7 @@ begin
         finally
           data.Free;
         end;
-      end else TLog.NewLog(ltdebug,ClassName,Format('Not sending any operations to %s (inProc:%d, Received:%d, Sent:%d)',[ClientRemoteAddr,nOpsToSend,FBufferReceivedOperationsHash.Count,FBufferToSendOperations.OperationsCount]));
+      end{$IFDEF HIGHLOG} else TLog.NewLog(ltdebug,ClassName,Format('Not sending any operations to %s (inProc:%d, Received:%d, Sent:%d)',[ClientRemoteAddr,nOpsToSend,FBufferReceivedOperationsHash.Count,FBufferToSendOperations.OperationsCount])){$ENDIF};
     finally
       FBufferLock.Release;
     end;
@@ -4396,7 +4396,7 @@ end;
 
 destructor TNetClient.Destroy;
 begin
-  TLog.NewLog(ltdebug,Classname,'Starting TNetClient.Destroy');
+  {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Starting TNetClient.Destroy');{$ENDIF}
   FNetClientThread.OnTerminate := Nil;
   if Not FNetClientThread.Terminated then begin
     FNetClientThread.Terminate;

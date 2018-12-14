@@ -200,7 +200,7 @@ function TNode.AddNewBlockChain(SenderConnection: TNetConnection; NewBlockOperat
   var newBlockAccount: TBlockAccount; var errors: AnsiString): Boolean;
 Var i,j,maxResend : Integer;
   nc : TNetConnection;
-  s : String;
+  s,sClientRemoteAddr : String;
   OpBlock : TOperationBlock;
   opsht : TOperationsHashTree;
   minBlockResend : Cardinal;
@@ -208,9 +208,11 @@ Var i,j,maxResend : Integer;
 begin
   Result := false;
   errors := '';
+  if Assigned(SenderConnection) then sClientRemoteAddr := SenderConnection.ClientRemoteAddr
+  else sClientRemoteAddr:='(SELF)';
   if FDisabledsNewBlocksCount>0 then begin
     TLog.NewLog(lterror,Classname,Format('Cannot Add new BlockChain due is adding disabled - Connection:%s NewBlock:%s',[
-    Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
+    sClientRemoteAddr,TPCOperationsComp.OperationBlockToText(NewBlockOperations.OperationBlock)]));
     errors := 'Adding blocks is disabled';
     exit;
   end;
@@ -221,9 +223,9 @@ begin
       exit;
     end;
     OpBlock := NewBlockOperations.OperationBlock;
-    TLog.NewLog(ltdebug,Classname,Format('AddNewBlockChain Connection:%s NewBlock:%s',[
-      Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(OpBlock)]));
-    If Not TPCThread.TryProtectEnterCriticalSection(Self,2000,FLockNodeOperations) then begin
+    TLog.NewLog(ltdebug,Classname,Format('Starting AddNewBlockChain %d Operations %d from %s NewBlock:%s',[
+      OpBlock.block,NewBlockOperations.Count,sClientRemoteAddr,TPCOperationsComp.OperationBlockToText(OpBlock)]));
+    If Not TPCThread.TryProtectEnterCriticalSection(Self,5000,FLockNodeOperations) then begin
       If NewBlockOperations.OperationBlock.block<>Bank.BlocksCount then exit;
       s := 'Cannot AddNewBlockChain due blocking lock operations node';
       TLog.NewLog(lterror,Classname,s);
@@ -241,7 +243,7 @@ begin
       Result := Bank.AddNewBlockChainBlock(NewBlockOperations,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,newBlockAccount,errors);
       if Result then begin
         if Assigned(SenderConnection) then begin
-          FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload,
+          FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,sClientRemoteAddr,OpBlock.block_payload,
             OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
         end else begin
           FNodeLog.NotifyNewLog(ltupdate,ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,'NIL',OpBlock.block_payload,
@@ -249,7 +251,7 @@ begin
         end;
       end else begin
         if Assigned(SenderConnection) then begin
-          FNodeLog.NotifyNewLog(lterror,SenderConnection.ClassName,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[OpBlock.block,SenderConnection.ClientRemoteAddr,OpBlock.block_payload,errors,
+          FNodeLog.NotifyNewLog(lterror,SenderConnection.ClassName,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[OpBlock.block,sClientRemoteAddr,OpBlock.block_payload,errors,
             OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
         end else begin
           FNodeLog.NotifyNewLog(lterror,ClassName,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[OpBlock.block,'NIL',OpBlock.block_payload,errors,
@@ -325,8 +327,8 @@ begin
       end;
     finally
       FLockNodeOperations.Release;
-      TLog.NewLog(ltdebug,Classname,Format('Finalizing AddNewBlockChain Connection:%s NewBlock:%s',[
-        Inttohex(PtrInt(SenderConnection),8),TPCOperationsComp.OperationBlockToText(OpBlock) ]));
+      TLog.NewLog(ltdebug,Classname,Format('Finalizing AddNewBlockChain %d Operations %d from %s NewBlock:%s',[
+        OpBlock.block,NewBlockOperations.Count,sClientRemoteAddr,TPCOperationsComp.OperationBlockToText(OpBlock)]));
     End;
   finally
     NewBlockOperations.Unlock;
@@ -384,7 +386,7 @@ function TNode.AddOperations(SenderConnection : TNetConnection; OperationsHashTr
   end;
   {$ENDIF}
 Var
-  i,j : Integer;
+  i,j,nSpam,nError,nRepeated : Integer;
   valids_operations : TOperationsHashTree;
   nc : TNetConnection;
   e : AnsiString;
@@ -401,11 +403,14 @@ begin
     exit;
   end;
   Result := 0;
+  nSpam := 0;
+  nRepeated := 0;
+  nError := 0;
   errors := '';
   valids_operations := TOperationsHashTree.Create;
   try
-    TLog.NewLog(ltdebug,Classname,Format('AddOperations Connection:%s Operations:%d',[
-      Inttohex(PtrInt(SenderConnection),8),OperationsHashTree.OperationsCount]));
+    {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,Format('AddOperations Connection:%s Operations:%d',[
+      Inttohex(PtrInt(SenderConnection),8),OperationsHashTree.OperationsCount]));{$ENDIF}
     if Not TPCThread.TryProtectEnterCriticalSection(Self,4000,FLockNodeOperations) then begin
       s := 'Cannot AddOperations due blocking lock operations node';
       TLog.NewLog(lterror,Classname,s);
@@ -421,10 +426,11 @@ begin
           // Protocol 2 limitation: In order to prevent spam of operations without Fee, will protect it
           If (ActOp.OperationFee=0) And (Bank.SafeBox.CurrentProtocol>=CT_PROTOCOL_2) And
              (FOperations.OperationsHashTree.CountOperationsBySameSignerWithoutFee(ActOp.SignerAccount)>=CT_MaxAccountOperationsPerBlockWithoutFee) then begin
+            inc(nSpam);
             e := Format('Account %s zero fee operations per block limit:%d',[TAccountComp.AccountNumberToAccountTxtNumber(ActOp.SignerAccount),CT_MaxAccountOperationsPerBlockWithoutFee]);
             if (errors<>'') then errors := errors+' ';
             errors := errors+'Op '+IntToStr(j+1)+'/'+IntToStr(OperationsHashTree.OperationsCount)+':'+e;
-            TLog.NewLog(ltdebug,Classname,Format('AddOperation invalid/duplicated %d/%d: %s  - Error:%s',
+            TLog.NewLog(ltdebug,Classname,Format('AddOperation spam %d/%d: %s  - Error:%s',
               [(j+1),OperationsHashTree.OperationsCount,ActOp.ToString,e]));
             if Assigned(OperationsResult) then begin
               TPCOperation.OperationToOperationResume(0,ActOp,True,ActOp.SignerAccount,OPR);
@@ -447,10 +453,13 @@ begin
                 OperationsResult.Add(OPR);
               end;
             end else begin
+              inc(nError);
               if (errors<>'') then errors := errors+' ';
               errors := errors+'Op '+IntToStr(j+1)+'/'+IntToStr(OperationsHashTree.OperationsCount)+':'+e;
+              {$IFDEF HIGHLOG}
               TLog.NewLog(ltdebug,Classname,Format('AddOperation invalid/duplicated %d/%d: %s  - Error:%s',
                 [(j+1),OperationsHashTree.OperationsCount,ActOp.ToString,e]));
+              {$ENDIF}
               if Assigned(OperationsResult) then begin
                 TPCOperation.OperationToOperationResume(0,ActOp,True,ActOp.SignerAccount,OPR);
                 OPR.valid := false;
@@ -475,6 +484,7 @@ begin
             end;
           end;
         end else begin
+          inc(nRepeated);
           e := Format('AddOperation made before %d/%d: %s',[(j+1),OperationsHashTree.OperationsCount,ActOp.ToString]);
           if (errors<>'') then errors := errors+' ';
           errors := errors + e;
@@ -496,8 +506,10 @@ begin
     finally
       FLockNodeOperations.Release;
       if Result<>0 then begin
-        TLog.NewLog(ltdebug,Classname,Format('Finalizing AddOperations Connection:%s Operations:%d valids:%d',[
-          Inttohex(PtrInt(SenderConnection),8),OperationsHashTree.OperationsCount,Result ]));
+        if Assigned(SenderConnection) then begin
+          s := SenderConnection.ClientRemoteAddr;
+        end else s := '(SELF)';
+        TLog.NewLog(ltdebug,Classname,Format('Finalizing AddOperations from %s Operations:%d valids:%d spam:%d invalids:%d repeated:%d',[s,OperationsHashTree.OperationsCount,Result,nSpam,nError,nRepeated]));
       end;
     end;
     if Result=0 then exit;
@@ -1325,7 +1337,7 @@ end;
 procedure TThreadNodeNotifyNewBlock.BCExecute;
 begin
   DebugStep := 'Locking';
-  if TNetData.NetData.ConnectionLock(Self,FNetConnection,500) then begin
+  if TNetData.NetData.ConnectionLock(Self,FNetConnection,5000) then begin
     try
       DebugStep := 'Checking connected';
       if Not FNetconnection.Connected then exit;
@@ -1371,8 +1383,8 @@ end;
 
 procedure TThreadNodeNotifyOperations.BCExecute;
 begin
-  Sleep(Random(5000)); // Delay 0..5 seconds to allow receive data and don't send if not necessary
-  if TNetData.NetData.ConnectionLock(Self, FNetConnection, 500) then begin
+  Sleep(Random(3000)); // Delay 0..3 seconds to allow receive data and don't send if not necessary
+  if TNetData.NetData.ConnectionLock(Self, FNetConnection, 5000) then begin
     try
       if Not FNetconnection.Connected then exit;
       FNetConnection.Send_AddOperations(Nil);

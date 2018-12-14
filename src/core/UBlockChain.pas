@@ -2317,7 +2317,7 @@ begin
 end;
 
 procedure TOperationsHashTree.MarkVerifiedECDSASignatures(operationsHashTreeToMark: TOperationsHashTree);
-var i, iPosInMyList, nMarkedAsGood : Integer;
+var i, iPosInMyList, nMarkedAsGood, nAlreadyMarked : Integer;
   opToMark, opInMyList : TPCOperation;
   myList, listToMark : TList;
 begin
@@ -2325,6 +2325,7 @@ begin
   // Will search each "operationsHashTreeToMark" operation on my current list. If found, will set same FHasValidSignature in order to mark operation in "operationsHashTreeToMark" as verified
   If Self=operationsHashTreeToMark then Exit;
   nMarkedAsGood := 0;
+  nAlreadyMarked := 0;
   myList := FHashTreeOperations.LockList;
   try
     if myList.Count<=0 then Exit; // Nothing to search...
@@ -2339,15 +2340,16 @@ begin
           if (iPosInMyList>=0) then begin
             opInMyList := POperationHashTreeReg(myList[iPosInMyList])^.Op;
             if (opInMyList.FHasValidSignature) then begin
-              opToMark.FHasValidSignature:=True;
-              inc(nMarkedAsGood);
+              if (opToMark.FHasValidSignature) then inc(nAlreadyMarked)
+              else begin
+                opToMark.FHasValidSignature:=True;
+                inc(nMarkedAsGood);
+              end;
             end;
           end;
         end;
       end;
-      if nMarkedAsGood>0 then begin
-        TLog.NewLog(ltdebug,ClassName,Format('Marked %d/%d operations as ValidSignature from MemPool with %d operations',[nMarkedAsGood,listToMark.Count,myList.Count]));
-      end;
+      TLog.NewLog(ltdebug,ClassName,Format('Marked %d/%d operations as ValidSignature (%d before) from MemPool with %d operations',[nMarkedAsGood,listToMark.Count,nAlreadyMarked,myList.Count]));
     finally
       operationsHashTreeToMark.FHashTreeOperations.UnlockList;
     end;
