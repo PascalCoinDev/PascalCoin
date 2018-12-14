@@ -1048,22 +1048,30 @@ function TNetData.ConnectionLock(Sender : TObject; ObjectPointer: TObject; MaxWa
 var i : Integer;
   l : TList;
   nc : TNetConnection;
+  tc : TTickCount;
 begin
-  Result := false; nc := Nil;
+  Result := False; nc := Nil;
+  tc := TPlatform.GetTickCount;
+  if MaxWaitMiliseconds>60000 then MaxWaitMiliseconds := 60000;
   l := FNetConnections.LockList;
   try
     for i := 0 to l.Count - 1 do begin
       if (TObject(l[i])=ObjectPointer) then begin
         if (Not (TNetConnection(l[i]).FDoFinalizeConnection)) And (TNetConnection(l[i]).Connected) then begin
           nc := TNetConnection(l[i]);
-          exit;
-        end else exit;
+          Exit;
+        end else Exit;
       end;
     end;
   finally
     FNetConnections.UnlockList;
     if Assigned(nc) then begin
-      Result := TPCThread.TryProtectEnterCriticalSection(Sender,MaxWaitMiliseconds,nc.FNetLock);
+      repeat
+        if (nc.Connected) and Assigned(nc.FNetLock) then begin
+          If nc.FNetLock.TryEnter then Result := True
+          else Sleep(1);
+        end else Exit;
+      until (Result) Or (TPlatform.GetElapsedMilliseconds(tc)>MaxWaitMiliseconds);
     end;
   end;
 end;
