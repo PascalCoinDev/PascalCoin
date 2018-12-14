@@ -1059,7 +1059,7 @@ begin
       if (TObject(l[i])=ObjectPointer) then begin
         if (Not (TNetConnection(l[i]).FDoFinalizeConnection)) And (TNetConnection(l[i]).Connected) then begin
           nc := TNetConnection(l[i]);
-          Exit;
+          Break;
         end else Exit;
       end;
     end;
