@@ -1065,14 +1065,14 @@ begin
     end;
   finally
     FNetConnections.UnlockList;
-    if Assigned(nc) then begin
-      repeat
-        if (nc.Connected) and Assigned(nc.FNetLock) then begin
-          If nc.FNetLock.TryEnter then Result := True
-          else Sleep(1);
-        end else Exit;
-      until (Result) Or (TPlatform.GetElapsedMilliseconds(tc)>MaxWaitMiliseconds);
-    end;
+  end;
+  if Assigned(nc) then begin
+    repeat
+      if (nc.Connected) and Assigned(nc.FNetLock) then begin
+        If nc.FNetLock.TryEnter then Result := True
+        else Sleep(1);
+      end else Exit;
+    until (Result) Or (TPlatform.GetElapsedMilliseconds(tc)>MaxWaitMiliseconds);
   end;
 end;
 

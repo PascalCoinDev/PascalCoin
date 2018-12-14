@@ -33,6 +33,8 @@ uses
     {$ELSE}
       paszlib_zStream,
     {$ENDIF}
+  {$ELSE}
+  zlib,
   {$ENDIF}
   UAccounts, ULog, UConst, UCrypto;
 
