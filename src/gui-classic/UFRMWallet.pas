@@ -237,11 +237,14 @@ type
     Procedure FinishedLoadingApp;
     Procedure FillAccountInformation(Const Strings : TStrings; Const AccountNumber : Cardinal);
     Procedure FillOperationInformation(Const Strings : TStrings; Const OperationResume : TOperationResume);
-    {$IFDEF TESTING_NO_POW_CHECK}
+    {$IFDEF TESTNET}
     Procedure InitMenuForTesting;
+    Procedure Test_RandomOperations(Sender: TObject);
+    {$IFDEF TESTING_NO_POW_CHECK}
     Procedure Test_CreateABlock(Sender: TObject);
-    Procedure Test_ShowPublicKeys(Sender: TObject);
     {$ENDIF}
+    {$ENDIF}
+    Procedure Test_ShowPublicKeys(Sender: TObject);
   protected
     { Private declarations }
     FNode : TNode;
@@ -316,6 +319,9 @@ implementation
 Uses UFolderHelper, UOpenSSL, UOpenSSLdef, UTime, UFileStorage,
   UThread, UOpTransaction, UECIES, UFRMPascalCoinWalletConfig,
   UFRMOperationsExplorer,
+  {$IFDEF TESTNET}
+  UFRMRandomOperations,
+  {$ENDIF}
   UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText,
   USettings, UCommon;
 
@@ -911,23 +917,30 @@ begin
   end;
 end;
 
-{$IFDEF TESTING_NO_POW_CHECK}
+{$IFDEF TESTNET}
 procedure TFRMWallet.InitMenuForTesting;
 var mi : TMenuItem;
 begin
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='-';
   miAbout.Add(mi);
+  {$IFDEF TESTING_NO_POW_CHECK}
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Create a block';
   mi.OnClick:=Test_CreateABlock;
   miAbout.Add(mi);
+  {$ENDIF}
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Show public keys state';
   mi.OnClick:=Test_ShowPublicKeys;
   miAbout.Add(mi);
+  mi := TMenuItem.Create(MainMenu);
+  mi.Caption:='Create Random operations';
+  mi.OnClick:=Test_RandomOperations;
+  miAbout.Add(mi);
 end;
 
+{$IFDEF TESTING_NO_POW_CHECK}
 procedure TFRMWallet.Test_CreateABlock(Sender: TObject);
 var ops : TPCOperationsComp;
   nba : TBlockAccount;
@@ -949,6 +962,21 @@ begin
   Raise Exception.Create('NOT ALLOWED!');
   {$ENDIF}
 end;
+{$ENDIF}
+
+procedure TFRMWallet.Test_RandomOperations(Sender: TObject);
+Var FRM : TFRMRandomOperations;
+begin
+  FRM := TFRMRandomOperations.Create(Self);
+  Try
+    FRM.SourceNode := FNode;
+    FRM.SourceWalletKeys := FWalletKeys;
+    FRM.ShowModal;
+  finally
+    FRM.Free;
+  end;
+end;
+{$ENDIF}
 
 procedure TFRMWallet.Test_ShowPublicKeys(Sender: TObject);
 var F : TFRMMemoText;
@@ -1014,7 +1042,6 @@ begin
     sl.Free;
   end;
 end;
-{$ENDIF}
 
 function TFRMWallet.ForceMining: Boolean;
 begin
@@ -1032,6 +1059,11 @@ end;
 procedure TFRMWallet.FormCreate(Sender: TObject);
 Var i : Integer;
 begin
+  {$IFNDEF FPC}
+  {$IFDEF TESTNET}
+  System.ReportMemoryLeaksOnShutdown := True; // Delphi memory leaks testing
+  {$ENDIF}
+  {$ENDIF}
   FLastNodesCacheUpdatedTS := Now;
   FBackgroundPanel := Nil;
   FBackgroundLabel := Nil;
@@ -1126,7 +1158,7 @@ begin
   cbHashRateUnits.Items.Add('Th/s');
   cbHashRateUnits.Items.Add('Ph/s');
   cbHashRateUnits.Items.Add('Eh/s');
-  {$IFDEF TESTING_NO_POW_CHECK}
+  {$IFDEF TESTNET}
   // Things for testing purposes only
   InitMenuForTesting;
   {$ENDIF}

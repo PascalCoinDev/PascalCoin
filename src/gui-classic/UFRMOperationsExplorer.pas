@@ -23,7 +23,7 @@ interface
 
 uses
   {$IFnDEF FPC}
-    Windows, AppEvnts,
+    Windows, AppEvnts, System.Actions,
   {$ELSE}
     LCLIntf, LCLType, LMessages, FileUtil,
   {$ENDIF}

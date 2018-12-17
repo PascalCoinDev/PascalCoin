@@ -29,9 +29,42 @@ uses
   {$ENDIF}
   Classes, SysUtils,  Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Menus, ActnList, UAccounts, UBlockChain, UNode, UCrypto, UBaseTypes,
-  UWallet, UConst, UTxMultiOperation, UOpTransaction;
+  UWallet, UConst, UTxMultiOperation, UOpTransaction, UThread;
 
 type
+
+  { TRandomGeneratorThread }
+
+  TRandomGeneratorThread = Class(TPCThread)
+  private
+    FLastCall_Error: String;
+    FLastCall_OperationsExecuted: Integer;
+    FLastCall_OperationsFailed: Integer;
+    FLastCall_OperationsTotal: Integer;
+    FOnUpdated: TNotifyEvent;
+    FNeedSanitize : Boolean;
+    FAllowExecute: Boolean;
+    procedure OnBankNewBlock(Sender : TObject);
+  protected
+    FBankNotify : TPCBankNotify;
+    FSourceNode: TNode;
+    FSourceWalletKeys: TWalletKeysExt;
+    FnOperationsCreated : Int64;
+    FnOperationsCreatedFailed : Int64;
+    FnOperationsExecutedOk : Int64;
+    FnCallsToAddNodeTotal : Int64;
+    FnCallsToAddNodeFailed : Int64;
+    procedure BCExecute; override;
+  public
+    Constructor Create(ASourceNode: TNode; ASourceWalletKeys: TWalletKeysExt);
+    Destructor Destroy; override;
+    property LastCall_OperationsTotal : Integer read FLastCall_OperationsTotal;
+    property LastCall_OperationsExecuted : Integer read FLastCall_OperationsExecuted;
+    property LastCall_OperationsFailed : Integer read FLastCall_OperationsFailed;
+    property LastCall_Error : String read FLastCall_Error;
+    property OnUpdated : TNotifyEvent read FOnUpdated write FOnUpdated;
+    property AllowExecute : Boolean read FAllowExecute write FAllowExecute;
+  end;
 
   { TFRMRandomOperations }
 
@@ -50,16 +83,16 @@ type
   private
     FSourceNode: TNode;
     FSourceWalletKeys: TWalletKeysExt;
-    FStopRandomOperations : Boolean;
-    FIsProcessingRandomOperations : Boolean;
     FBankNotify : TPCBankNotify;
     FCurrOperationsComp : TPCOperationsComp;
+    FRandomGeneratorThread : TRandomGeneratorThread;
     procedure SetSourceNode(AValue: TNode);
     procedure SetSourceWalletKeys(AValue: TWalletKeysExt);
-    procedure DoRandomOperations(max : Integer; operationsComp : TPCOperationsComp);
-    procedure DoProcessRandomOperations;
     procedure NewLog(logTxt : String);
     procedure OnBankNewBlock(Sender : TObject);
+    procedure UpdateRandomGeneratorThread(DestroyOnly : Boolean);
+    procedure OnRandomGeneratoThreadUpdated(Sender : TObject);
+    function IsProcessingRandomOperations : Boolean;
   public
     Property SourceNode : TNode read FSourceNode write SetSourceNode;
     Property SourceWalletKeys : TWalletKeysExt read FSourceWalletKeys write SetSourceWalletKeys;
@@ -82,6 +115,114 @@ implementation
 {$ELSE}
   {$R *.lfm}
 {$ENDIF}
+
+Uses ULog;
+
+{ TRandomGeneratorThread }
+
+procedure TRandomGeneratorThread.OnBankNewBlock(Sender: TObject);
+begin
+  FNeedSanitize := True;
+end;
+
+procedure TRandomGeneratorThread.BCExecute;
+Var nCounter, nTotalRound, iLastSend, i : Integer;
+  operationsComp : TPCOperationsComp;
+  ohtToAdd : TOperationsHashTree;
+  errors : AnsiString;
+  nAddedOperations : Integer;
+begin
+  operationsComp := TPCOperationsComp.Create(Nil);
+  try
+    operationsComp.bank := FSourceNode.Bank;
+    iLastSend := -1;
+    while (Not Terminated) do begin
+      nTotalRound := Random(100);
+      nCounter := 0;
+      if FNeedSanitize then begin
+        FNeedSanitize := False;
+        operationsComp.SanitizeOperations;
+        iLastSend := operationsComp.Count-1;
+        TLog.NewLog(ltdebug,ClassName,Format('Sanitized. Current pending operations %d',[operationsComp.Count]));
+      end;
+      while (nCounter<nTotalRound) And (Not Terminated) And (FAllowExecute) do begin
+        inc(nCounter);
+        //
+        Case Random(30) of
+          0..20 : begin
+            If TRandomGenerateOperation.GenerateOpTransaction(FSourceNode.Bank.SafeBox.CurrentProtocol,operationsComp,FSourceWalletKeys) then inc(FnOperationsCreated)
+            else inc(FnOperationsCreatedFailed);
+          end;
+          21..25 : begin
+            If TRandomGenerateOperation.GenerateOpMultiOperation(FSourceNode.Bank.SafeBox.CurrentProtocol,operationsComp,FSourceWalletKeys) then inc(FnOperationsCreated)
+            else inc(FnOperationsCreatedFailed);
+          end;
+        end;
+      end;
+      if (Not Terminated) And (Not FNeedSanitize) And (FAllowExecute) then begin
+        //
+        ohtToAdd := TOperationsHashTree.Create;
+        Try
+          for i := iLastSend+1 to operationsComp.OperationsHashTree.OperationsCount-1 do begin
+            ohtToAdd.AddOperationToHashTree(operationsComp.Operation[i]);
+          end;
+          errors := '';
+          nAddedOperations := FSourceNode.AddOperations(Nil,ohtToAdd,nil,errors);
+          iLastSend := operationsComp.OperationsHashTree.OperationsCount-1;
+          // Notify info
+          inc(FnCallsToAddNodeTotal);
+          inc(FnOperationsExecutedOk,nAddedOperations);
+          FLastCall_OperationsTotal:=ohtToAdd.OperationsCount;
+          FLastCall_OperationsExecuted:=nAddedOperations;
+          FLastCall_OperationsFailed:=ohtToAdd.OperationsCount - nAddedOperations;
+          FLastCall_Error:=errors;
+          if (ohtToAdd.OperationsCount <> nAddedOperations) then begin
+            inc(FnOperationsCreatedFailed,(ohtToAdd.OperationsCount - nAddedOperations));
+            inc(FnCallsToAddNodeFailed,1);
+          end;
+        Finally
+          ohtToAdd.Free;
+        End;
+        //
+        if Assigned(FOnUpdated) then FOnUpdated(Self);
+      end;
+      Sleep(1);
+    end;
+  finally
+    operationsComp.Free;
+  end;
+end;
+
+constructor TRandomGeneratorThread.Create(ASourceNode: TNode; ASourceWalletKeys: TWalletKeysExt);
+begin
+  FSourceNode := ASourceNode;
+  FSourceWalletKeys := ASourceWalletKeys;
+  FnOperationsCreated := 0;
+  FnOperationsCreatedFailed := 0;
+  FnOperationsExecutedOk := 0;
+  FnCallsToAddNodeTotal := 0;
+  FnCallsToAddNodeFailed := 0;
+  FLastCall_Error:='';
+  FLastCall_OperationsFailed:=0;
+  FLastCall_OperationsExecuted:=0;
+  FLastCall_OperationsTotal:=0;
+  //FOperationsComp := TPCOperationsComp.Create(Nil);
+  //FOperationsComp.bank := FSourceNode.Bank;
+  FBankNotify := TPCBankNotify.Create(Nil);
+  FBankNotify.Bank := FSourceNode.Bank;
+  FBankNotify.OnNewBlock:=OnBankNewBlock;
+  FNeedSanitize := True;
+  FAllowExecute := False;
+  inherited Create(False);
+end;
+
+destructor TRandomGeneratorThread.Destroy;
+begin
+  FBankNotify.Bank := Nil;
+  FBankNotify.OnNewBlock := Nil;
+  FBankNotify.Free;
+  inherited Destroy;
+end;
 
 { TRandomGenerateOperation }
 
@@ -255,16 +396,16 @@ procedure TFRMRandomOperations.FormCreate(Sender: TObject);
 begin
   FSourceNode := Nil;
   FSourceWalletKeys := Nil;
-  FIsProcessingRandomOperations := False;
-  FStopRandomOperations := True;
   FBankNotify := TPCBankNotify.Create(Nil);
   FBankNotify.OnNewBlock:=OnBankNewBlock;
   FCurrOperationsComp := TPCOperationsComp.Create(Nil);
+  FRandomGeneratorThread := Nil;
   mLogs.Clear;
 end;
 
 procedure TFRMRandomOperations.FormDestroy(Sender: TObject);
 begin
+  UpdateRandomGeneratorThread(True);
   FreeAndNil(FBankNotify);
   FreeAndNil(FCurrOperationsComp);
 end;
@@ -272,10 +413,14 @@ end;
 procedure TFRMRandomOperations.bbRandomOperationsClick(Sender: TObject);
 begin
   {$IFDEF TESTNET}
-  If FIsProcessingRandomOperations then begin
-    FStopRandomOperations := True;
+  If IsProcessingRandomOperations then begin
+    FRandomGeneratorThread.AllowExecute := False;
+    bbRandomOperations.Caption:='GENERATE RANDOM';
   end else begin
-    DoProcessRandomOperations;
+    if Assigned(FRandomGeneratorThread) then begin
+      FRandomGeneratorThread.AllowExecute := True;
+      bbRandomOperations.Caption:='STOP RANDOM';
+    end else bbRandomOperations.Caption:='???';
   end;
   {$ELSE}
   Raise Exception.Create('Random operations not valid in PRODUCTION MODE');
@@ -284,13 +429,11 @@ end;
 
 procedure TFRMRandomOperations.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
-  FStopRandomOperations := True;
   CloseAction := caFree;
 end;
 
 procedure TFRMRandomOperations.FormCloseQuery(Sender: TObject; var CanClose: boolean);
 begin
-  FStopRandomOperations := True;
   CanClose := True;
 end;
 
@@ -299,71 +442,25 @@ begin
   if FSourceNode=AValue then Exit;
   FBankNotify.Bank := Nil;
   FSourceNode:=AValue;
+
   If Assigned(AValue) then begin
     FBankNotify.Bank := AValue.Bank;
     FCurrOperationsComp.bank := AValue.Bank;
   end;
+  UpdateRandomGeneratorThread(False);
 end;
 
 procedure TFRMRandomOperations.SetSourceWalletKeys(AValue: TWalletKeysExt);
 begin
   if FSourceWalletKeys=AValue then Exit;
   FSourceWalletKeys:=AValue;
-end;
-
-procedure TFRMRandomOperations.DoRandomOperations(max: Integer; operationsComp : TPCOperationsComp);
-Var
-  nCounter : Integer;
-begin
-  nCounter := 0;
-  While (nCounter<max) And (Not FStopRandomOperations) do begin
-    Case Random(30) of
-      0..20 : begin
-        If TRandomGenerateOperation.GenerateOpTransaction(SourceNode.Bank.SafeBox.CurrentProtocol,operationsComp,FSourceWalletKeys) then inc(nCounter);
-      end;
-      21..25 : begin
-        If TRandomGenerateOperation.GenerateOpMultiOperation(SourceNode.Bank.SafeBox.CurrentProtocol,operationsComp,FSourceWalletKeys) then inc(nCounter);
-      end;
-    else Sleep(10);
-    end;
-    Application.ProcessMessages;
-  end;
-end;
-
-procedure TFRMRandomOperations.DoProcessRandomOperations;
-Var errors : AnsiString;
-  i : Integer;
-begin
-  newLog('Start Random');
-  Try
-    FCurrOperationsComp.Clear(True);
-    FStopRandomOperations:=False;
-    FIsProcessingRandomOperations:=True;
-    Try
-      bbRandomOperations.Caption:='STOP';
-      Application.ProcessMessages;
-      While (FIsProcessingRandomOperations) And (Not FStopRandomOperations) do begin
-        //
-        FCurrOperationsComp.Clear(True);
-        FCurrOperationsComp.SafeBoxTransaction.CopyFrom(FSourceNode.Operations.SafeBoxTransaction);
-        //
-        DoRandomOperations(Random(50),FCurrOperationsComp);
-        i := FSourceNode.AddOperations(Nil,FCurrOperationsComp.OperationsHashTree,nil,errors);
-        //
-        newLog(Format('Added %d/%d operations - Errors: %s',[i,FCurrOperationsComp.Count, errors]));
-        Application.ProcessMessages;
-      end;
-    finally
-      FIsProcessingRandomOperations := False;
-      bbRandomOperations.Caption:='Random Operations';
-    end;
-  finally
-    newLog('End Random');
-  end;
+  UpdateRandomGeneratorThread(False);
 end;
 
 procedure TFRMRandomOperations.NewLog(logTxt: String);
 begin
+  if length(logTxt)>300 then logTxt := Copy(logTxt,1,300)+'...';
+  
   mLogs.Lines.Add(Format('%s %s',[FormatDateTime('hh:nn:ss.zzz',Now),logTxt]));
 end;
 
@@ -371,6 +468,32 @@ procedure TFRMRandomOperations.OnBankNewBlock(Sender: TObject);
 begin
   NewLog(Format('Updating to new block %d',[FBankNotify.Bank.BlocksCount]));
   FCurrOperationsComp.SanitizeOperations;
+end;
+
+procedure TFRMRandomOperations.UpdateRandomGeneratorThread(DestroyOnly : Boolean);
+begin
+  if Assigned(FRandomGeneratorThread) then begin
+    FRandomGeneratorThread.AllowExecute:=False;
+    FRandomGeneratorThread.Terminate;
+    FRandomGeneratorThread.WaitFor;
+    FreeAndNil(FRandomGeneratorThread);
+  end;
+  if (Not DestroyOnly) And Assigned(FSourceNode) And Assigned(FSourceWalletKeys) then begin
+    FRandomGeneratorThread := TRandomGeneratorThread.Create(FSourceNode,FSourceWalletKeys);
+    FRandomGeneratorThread.OnUpdated:=OnRandomGeneratoThreadUpdated;
+  end;
+end;
+
+procedure TFRMRandomOperations.OnRandomGeneratoThreadUpdated(Sender: TObject);
+Var RGT : TRandomGeneratorThread;
+begin
+  RGT := TRandomGeneratorThread(Sender);
+  NewLog(Format('Generated %d Operations-> Ok:%d Failed:%d Errors:%s',[RGT.LastCall_OperationsTotal,RGT.LastCall_OperationsExecuted,RGT.LastCall_OperationsFailed,RGT.LastCall_Error]));
+end;
+
+function TFRMRandomOperations.IsProcessingRandomOperations: Boolean;
+begin
+  Result := Assigned(FRandomGeneratorThread) And (FRandomGeneratorThread.AllowExecute);
 end;
 
 end.
