@@ -4275,7 +4275,7 @@ begin
       errors := 'Multi sender account is locked until block '+Inttostr(PaccSender^.accountInfo.locked_until_block);
       Exit;
     end;
-    inc(nTotalAmountSent,sender_amounts[i]);
+    inc(nTotalAmountSent,Int64(sender_amounts[i]));
   end;
   //
   for i:=Low(receivers) to High(receivers) do begin
@@ -4291,7 +4291,7 @@ begin
       errors := 'Invalid amount for multiple receivers';
       Exit;
     end;
-    inc(nTotalAmountReceived,receivers_amounts[i]);
+    inc(nTotalAmountReceived,Int64(receivers_amounts[i]));
     PaccTarget := GetInternalAccount(receivers[i]);
     if ((PaccTarget^.balance + receivers_amounts[i])>CT_MaxWalletAmount) then begin
       errors := 'Max receiver balance';
@@ -4301,7 +4301,7 @@ begin
   //
   nTotalFee := nTotalAmountSent - nTotalAmountReceived;
   If (nTotalAmountSent<nTotalAmountReceived) then begin
-    errors := 'Total amount sent < total amount received';
+    errors := Format('Total amount sent %d < %d total amount received. fee %d',[nTotalAmountSent,nTotalAmountReceived,nTotalFee]);
     Exit;
   end;
   if (nTotalFee>CT_MaxTransactionFee) then begin
