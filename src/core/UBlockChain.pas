@@ -204,6 +204,7 @@ Type
     FPrevious_Destination_updated_block : Cardinal;
     FPrevious_Seller_updated_block : Cardinal;
     FHasValidSignature : Boolean;
+    FUsedPubkeyForSignature : TECDSA_Public;
     FBufferedSha256 : TRawBytes;
     procedure InitializeData; virtual;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; virtual; abstract;
@@ -213,6 +214,7 @@ Type
     Property Previous_Destination_updated_block : Cardinal read FPrevious_Destination_updated_block; // deprecated
     Property Previous_Seller_updated_block : Cardinal read FPrevious_Seller_updated_block; // deprecated
     function IsValidECDSASignature(const PubKey: TECDSA_Public; current_protocol : Word; const Signature: TECDSA_SIG): Boolean;
+    procedure CopyUsedPubkeySignatureFrom(SourceOperation : TPCOperation); virtual;
   public
     constructor Create; virtual;
     destructor Destroy; override;
@@ -2107,6 +2109,8 @@ begin
     P^.Op.FBufferedSha256:=op.FBufferedSha256;
     P^.Op.tag := list.Count;
     P^.Op.FHasValidSignature := op.FHasValidSignature; // Improvement speed v4.0.2 reusing previously signed value
+    P^.Op.FUsedPubkeyForSignature := op.FUsedPubkeyForSignature;
+    P^.Op.CopyUsedPubkeySignatureFrom(op);
     // Improvement TOperationsHashTree speed 2.1.6
     // Include to hash tree (Only if CalcNewHashTree=True)
     If (CalcNewHashTree) And (Length(FHashTree)=32) then begin
@@ -2343,6 +2347,8 @@ begin
               if (opToMark.FHasValidSignature) then inc(nAlreadyMarked)
               else begin
                 opToMark.FHasValidSignature:=True;
+                opToMark.FUsedPubkeyForSignature:=opInMyList.FUsedPubkeyForSignature;
+                opToMark.CopyUsedPubkeySignatureFrom(opInMyList);
                 inc(nMarkedAsGood);
               end;
             end;
@@ -2534,6 +2540,7 @@ constructor TPCOperation.Create;
 begin
   FHasValidSignature := False;
   FBufferedSha256:='';
+  FUsedPubkeyForSignature := CT_TECDSA_Public_Nul;
   InitializeData;
 end;
 
@@ -2713,6 +2720,7 @@ begin
   FPrevious_Destination_updated_block := 0;
   FPrevious_Seller_updated_block := 0;
   FHasValidSignature := false;
+  FUsedPubkeyForSignature:=CT_TECDSA_Public_Nul;
   FBufferedSha256:='';
 end;
 
@@ -2725,10 +2733,25 @@ function TPCOperation.IsValidECDSASignature(const PubKey: TECDSA_Public; current
 begin
   // Will reuse FHasValidSignature if checked previously and was True
   // Introduced on Build 4.0.2 to increase speed using MEMPOOL verified operations instead of verify again everytime
+  if (FHasValidSignature) then begin
+    If Not TAccountComp.EqualAccountKeys(PubKey,FUsedPubkeyForSignature) then begin
+      TLog.NewLog(lterror,ClassName,Format('Detected incorrect previous use of signature used pubkey:%s current pubkey:%s',[TAccountComp.AccountPublicKeyExport(FUsedPubkeyForSignature),TAccountComp.AccountPublicKeyExport(PubKey)]));
+      FHasValidSignature := False;
+      FUsedPubkeyForSignature := CT_TECDSA_Public_Nul;
+    end;
+  end;
   if (Not FHasValidSignature) then begin
     FHasValidSignature := TCrypto.ECDSAVerify(PubKey,GetDigestToSign(current_protocol),Signature);
+    If FHasValidSignature then begin;
+      FUsedPubkeyForSignature := PubKey;
+    end;
   end;
   Result := FHasValidSignature;
+end;
+
+procedure TPCOperation.CopyUsedPubkeySignatureFrom(SourceOperation: TPCOperation);
+begin
+  //
 end;
 
 function TPCOperation.LoadFromNettransfer(Stream: TStream): Boolean;

@@ -100,6 +100,9 @@ Type
   private
     FData : TOpMultiOperationData;
     //
+    FtxSendersPubkeysUsedForSign : array of TAccountKey;
+    FchangesInfoPubkeysUsedForSign : array of TAccountKey;
+    //
     FSaveSignatureValue : Boolean;
     FTotalAmount : Int64;
     FTotalFee : Int64;
@@ -110,6 +113,7 @@ Type
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
     procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
+    procedure CopyUsedPubkeySignatureFrom(SourceOperation : TPCOperation); override;
   public
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
 
@@ -242,6 +246,25 @@ begin
   end;
 end;
 
+procedure TOpMultiOperation.CopyUsedPubkeySignatureFrom(SourceOperation: TPCOperation);
+var sourcemulti : TOpMultiOperation;
+  i : Integer;
+begin
+  inherited CopyUsedPubkeySignatureFrom(SourceOperation);
+  // Source MUST BE a TOpMultiOperation
+  if (SourceOperation is TOpMultiOperation) then begin
+    sourcemulti := TOpMultiOperation(SourceOperation);
+    SetLength(FtxSendersPubkeysUsedForSign,Length(sourcemulti.FtxSendersPubkeysUsedForSign));
+    for i:=0 to High(FtxSendersPubkeysUsedForSign) do begin
+      FtxSendersPubkeysUsedForSign[i] := sourcemulti.FtxSendersPubkeysUsedForSign[i];
+    end;
+    SetLength(FchangesInfoPubkeysUsedForSign,Length(sourcemulti.FchangesInfoPubkeysUsedForSign));
+    for i:=0 to High(FchangesInfoPubkeysUsedForSign) do begin
+      FchangesInfoPubkeysUsedForSign[i] := sourcemulti.FchangesInfoPubkeysUsedForSign[i];
+    end;
+  end else Raise Exception.Create('ERROR DEV 20181217-1 Source must be a TOpMultiOperation. Self:'+toString+' Source:'+SourceOperation.ToString);
+end;
+
 function TOpMultiOperation.IndexOfAccountChangeNameTo(const newName: AnsiString): Integer;
 begin
   If (newName<>'') then begin
@@ -262,6 +285,9 @@ begin
   for i:=0 to High(FData.changesInfo) do begin
     FData.changesInfo[i].Signature := CT_TECDSA_SIG_Nul;
   end;
+  FHasValidSignature:=False;
+  SetLength(FtxSendersPubkeysUsedForSign,0);
+  SetLength(FchangesInfoPubkeysUsedForSign,0);
 end;
 
 procedure TOpMultiOperation.InitializeData;
@@ -273,6 +299,8 @@ begin
   FSaveSignatureValue := True;
   FTotalAmount:=0;
   FTotalFee:=0;
+  SetLength(FtxSendersPubkeysUsedForSign,0);
+  SetLength(FchangesInfoPubkeysUsedForSign,0);
 end;
 
 function TOpMultiOperation.SaveOpToStream(Stream: TStream; SaveExtendedData: Boolean): Boolean;
@@ -350,6 +378,8 @@ begin
   FTotalAmount:=0;
   FTotalFee:=0;
   FHasValidSignature:=False;
+  SetLength(FtxSendersPubkeysUsedForSign,0);
+  SetLength(FchangesInfoPubkeysUsedForSign,0);
 
   SetLength(txsenders,0);
   SetLength(txreceivers,0);
@@ -446,13 +476,10 @@ var i : Integer;
 begin
   // Init
   SetLength(errors,0);
-  If FHasValidSignature then begin
-    // Will reuse FHasValidSignature if checked previously and was True
-    // Introduced on Build 4.0.2 to increase speed using MEMPOOL verified operations instead of verify again everytime
-    // Multioperations will not use standard TPCOperation.IsValidECDSASignature call because will need to check more than 1 signature
-    Result := True;
-    Exit;
-  end;
+  // Will reuse FHasValidSignature if checked previously and was True and was signed using same public keys
+  // Introduced on Build 4.0.2 to increase speed using MEMPOOL verified operations instead of verify again everytime
+  // Multioperations will not use standard TPCOperation.IsValidECDSASignature call because will need to check more than 1 signature
+  Result := False;
   // Do check it!
   Try
     ophtosign := GetDigestToSign(AccountTransaction.FreezedSafeBox.CurrentProtocol);
@@ -461,7 +488,12 @@ begin
       acc := AccountTransaction.Account(FData.txSenders[i].Account);
       If (length(FData.txSenders[i].Signature.r)>0) And
          (length(FData.txSenders[i].Signature.s)>0) then begin
-        If Not TCrypto.ECDSAVerify(acc.accountInfo.accountkey,ophtosign,FData.txSenders[i].Signature) then begin
+        If (FHasValidSignature) And (i<=High(FtxSendersPubkeysUsedForSign)) And (TAccountComp.EqualAccountKeys(FtxSendersPubkeysUsedForSign[i],acc.accountInfo.accountKey)) then begin
+          // Nothing to do, previously signed using same public key
+        end else If TCrypto.ECDSAVerify(acc.accountInfo.accountkey,ophtosign,FData.txSenders[i].Signature) then begin
+          if length(FtxSendersPubkeysUsedForSign)<=i then SetLength(FtxSendersPubkeysUsedForSign,i+1);
+          FtxSendersPubkeysUsedForSign[i] := acc.accountInfo.accountKey;
+        end else begin
           errors := Format('Invalid signature for sender %d/%d',[i+1,length(FData.txSenders)]);
           Exit;
         end;
@@ -475,7 +507,12 @@ begin
       acc := AccountTransaction.Account(FData.changesInfo[i].Account);
       If (length(FData.changesInfo[i].Signature.r)>0) And
          (length(FData.changesInfo[i].Signature.s)>0) then begin
-        If Not TCrypto.ECDSAVerify(acc.accountInfo.accountkey,ophtosign,FData.changesInfo[i].Signature) then begin
+        If (FHasValidSignature) And (i<=High(FchangesInfoPubkeysUsedForSign)) And (TAccountComp.EqualAccountKeys(FchangesInfoPubkeysUsedForSign[i],acc.accountInfo.accountKey)) then begin
+          // Nothing to do, previously signed using same public key
+        end else If TCrypto.ECDSAVerify(acc.accountInfo.accountkey,ophtosign,FData.changesInfo[i].Signature) then begin
+          if length(FchangesInfoPubkeysUsedForSign)<=i then SetLength(FchangesInfoPubkeysUsedForSign,i+1);
+          FchangesInfoPubkeysUsedForSign[i] := acc.accountInfo.accountKey;
+        end else begin
           errors := Format('Invalid signature for change info %d/%d',[i+1,length(FData.changesInfo)]);
           Exit;
         end;
@@ -485,9 +522,9 @@ begin
       end;
     end;
     // If here... all Ok
-    FHasValidSignature:=True;
+    Result:=True;
   finally
-    Result := FHasValidSignature;
+    FHasValidSignature := Result;
   end;
 end;
 

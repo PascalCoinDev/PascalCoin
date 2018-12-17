@@ -456,10 +456,8 @@ begin
               inc(nError);
               if (errors<>'') then errors := errors+' ';
               errors := errors+'Op '+IntToStr(j+1)+'/'+IntToStr(OperationsHashTree.OperationsCount)+':'+e;
-              {$IFDEF HIGHLOG}
               TLog.NewLog(ltdebug,Classname,Format('AddOperation invalid/duplicated %d/%d: %s  - Error:%s',
                 [(j+1),OperationsHashTree.OperationsCount,ActOp.ToString,e]));
-              {$ENDIF}
               if Assigned(OperationsResult) then begin
                 TPCOperation.OperationToOperationResume(0,ActOp,True,ActOp.SignerAccount,OPR);
                 OPR.valid := false;

@@ -640,6 +640,7 @@ begin
   if Assigned(key) then begin
     FData.sign := TCrypto.ECDSASign(key.PrivateKey, GetDigestToSign(current_protocol));
     FHasValidSignature := true;
+    FUsedPubkeyForSignature := key.PublicKey;
   end else begin
     TLog.NewLog(ltdebug,Classname,'No key for signing a new Change Info operation');
     FHasValidSignature := false;
@@ -726,6 +727,7 @@ begin
   if Assigned(key) then begin
     FData.sign := TCrypto.ECDSASign(key.PrivateKey, GetDigestToSign(current_protocol));
     FHasValidSignature := true;
+    FUsedPubkeyForSignature := key.PublicKey;
   end else begin
     TLog.NewLog(ltdebug,Classname,'No key for signing a new Transaction');
     FHasValidSignature := false;
@@ -1183,6 +1185,7 @@ begin
   if Assigned(key) then begin
     FData.sign := TCrypto.ECDSASign(key.PrivateKey, GetDigestToSign(current_protocol));
     FHasValidSignature := true;
+    FUsedPubkeyForSignature := key.PublicKey;
   end else begin
     TLog.NewLog(ltdebug,Classname,'No key for signing a new Change key');
     FHasValidSignature := false;
@@ -2021,6 +2024,7 @@ begin
   if Assigned(key) then begin
     FData.sign := TCrypto.ECDSASign(key.PrivateKey, GetDigestToSign(current_protocol));
     FHasValidSignature := true;
+    FUsedPubkeyForSignature := key.PublicKey;
   end else begin
     TLog.NewLog(ltdebug,Classname,'No key for signing a new list account for sale operation');
     FHasValidSignature := false;
@@ -2051,6 +2055,7 @@ begin
   if Assigned(key) then begin
     FData.sign := TCrypto.ECDSASign(key.PrivateKey, GetDigestToSign(current_protocol));
     FHasValidSignature := true;
+    FUsedPubkeyForSignature := key.PublicKey;
   end else begin
     TLog.NewLog(ltdebug,Classname,'No key for signing a delist account operation');
     FHasValidSignature := false;
@@ -2090,6 +2095,7 @@ begin
   if Assigned(key) then begin
     FData.sign := TCrypto.ECDSASign(key.PrivateKey, GetDigestToSign(current_protocol));
     FHasValidSignature := true;
+    FUsedPubkeyForSignature := key.PublicKey;
   end else begin
     TLog.NewLog(ltdebug,Classname,'No key for signing a new Buy operation');
     FHasValidSignature := false;
@@ -2380,6 +2386,7 @@ begin
   if Assigned(signer_key) then begin
     FData.sign := TCrypto.ECDSASign(signer_key.PrivateKey, GetDigestToSign(CT_PROTOCOL_4));
     FHasValidSignature := true;
+    FUsedPubkeyForSignature := signer_key.PublicKey;
   end else begin
     TLog.NewLog(ltdebug,Classname,'No key for signing a new OpData');
     FHasValidSignature := false;
