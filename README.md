@@ -40,6 +40,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
 - Fixed a decompression bug caused by FreePascal "paszlib" package bug on version 3.0.4 -> https://bugs.freepascal.org/view.php?id=34422
 - Allow only connections using Net protocol >= 9  (Introduced on Build 4.0.1)
 - Fill automatic params at "buyaccount" RPC call: Will set 'price' and 'seller_account' values to current safebox values if not provided
+- Improved memory usage on mempool operations (TPCOperationsStorage)
 - Important logs reduction to store only logs that are important
 - Fixed minor bugs and minor improvements (See GitHub commits since 2018-10-31)
 
