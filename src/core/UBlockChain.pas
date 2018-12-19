@@ -198,7 +198,6 @@ Type
 
   TPCOperation = Class
   Private
-    Ftag: integer;
   Protected
     FPrevious_Signer_updated_block: Cardinal;
     FPrevious_Destination_updated_block : Cardinal;
@@ -236,7 +235,6 @@ Type
     function SellerAccount : Int64; virtual;
     function N_Operation : Cardinal; virtual; abstract;
     function GetAccountN_Operation(account : Cardinal) : Cardinal; virtual;
-    Property tag : integer read Ftag Write Ftag;
     function SaveToNettransfer(Stream: TStream): Boolean;
     function LoadFromNettransfer(Stream: TStream): Boolean;
     function SaveToStorage(Stream: TStream): Boolean;
@@ -258,6 +256,42 @@ Type
     function GetOperationStreamData : TBytes;
     class function GetOperationFromStreamData(StreamData : TBytes) : TPCOperation;
   End;
+
+  TPCOperationStorage = Record
+    ptrPCOperation : TPCOperation;
+    locksCount : Integer;
+  end;
+  PPCOperationTStorage = ^TPCOperationStorage;
+
+  { TPCOperationsStorage }
+
+  // TPCOperationsStorage will be used as a global Operations storage useful when
+  // operations are stored on TOperationsHashTree because will use only one instance
+  // of operation used on multiple OperationsHashTree lists. For example when
+  // propagating operations to connected nodes, will only use one instance
+  TPCOperationsStorage = Class
+  private
+    FIntTotalAdded : Integer;
+    FIntTotalDeleted : Integer;
+    FMaxLocksCount : Integer;
+    FMaxLocksValue : Integer;
+    FPCOperationsStorageList : TPCThreadList; // Lock thread to POperationTStorage list
+    Function FindOrderedByPtrPCOperation(lockedThreadList : TList; const Value: TPCOperation; out Index: Integer): Boolean;
+  protected
+  public
+    Constructor Create;
+    Destructor Destroy; override;
+    //
+    function LockPCOperationsStorage : TList;
+    procedure UnlockPCOperationsStorage;
+    Function Count : Integer;
+    procedure AddPCOperation(APCOperation : TPCOperation);
+    procedure RemovePCOperation(APCOperation : TPCOperation);
+    function FindPCOperation(APCOperation : TPCOperation) : Boolean;
+    function FindPCOperationAndIncCounterIfFound(APCOperation : TPCOperation) : Boolean;
+    class function PCOperationsStorage : TPCOperationsStorage;
+    procedure GetStats(strings : TStrings);
+  end;
 
   { TOperationsHashTree }
 
@@ -510,6 +544,199 @@ implementation
 uses
   Variants,
   UTime, UConst, UOpTransaction;
+
+{ TPCOperationsStorage }
+
+var
+   _PCOperationsStorage : TPCOperationsStorage;
+
+function TPCOperationsStorage.FindOrderedByPtrPCOperation(lockedThreadList: TList; const Value: TPCOperation; out Index: Integer): Boolean;
+var L, H, I: Integer;
+  C : PtrInt;
+begin
+  Result := False;
+  L := 0;
+  H := lockedThreadList.Count - 1;
+  while L <= H do
+  begin
+    I := (L + H) shr 1;
+    C := PtrInt(PPCOperationTStorage(lockedThreadList[I])^.ptrPCOperation) - PtrInt(Value);
+    if C < 0 then L := I + 1 else
+    begin
+      H := I - 1;
+      if C = 0 then
+      begin
+        Result := True;
+        L := I;
+      end;
+    end;
+  end;
+  Index := L;
+end;
+
+constructor TPCOperationsStorage.Create;
+begin
+  FPCOperationsStorageList := TPCThreadList.Create(ClassName);
+  FIntTotalAdded := 0;
+  FIntTotalDeleted := 0;
+  FMaxLocksCount := 0;
+  FMaxLocksValue := 0;
+end;
+
+destructor TPCOperationsStorage.Destroy;
+Var list : TList;
+  P : PPCOperationTStorage;
+  i : Integer;
+  pc : TPCOperation;
+begin
+  list := LockPCOperationsStorage;
+  try
+    for i:=0 to list.Count-1 do begin
+      P := list[i];
+      pc := P^.ptrPCOperation;
+      P^.ptrPCOperation := Nil;
+      P^.locksCount:=-1;
+      pc.Free;
+      Dispose(P);
+    end;
+    inc(FIntTotalDeleted,list.Count);
+  finally
+    list.Clear;
+    UnlockPCOperationsStorage;
+  end;
+  FreeAndNil(FPCOperationsStorageList);
+  inherited Destroy;
+end;
+
+function TPCOperationsStorage.LockPCOperationsStorage: TList;
+begin
+  Result := FPCOperationsStorageList.LockList;
+end;
+
+procedure TPCOperationsStorage.UnlockPCOperationsStorage;
+begin
+  FPCOperationsStorageList.UnlockList;
+end;
+
+function TPCOperationsStorage.Count: Integer;
+var list : TList;
+begin
+  list := LockPCOperationsStorage;
+  try
+    Result := list.Count;
+  finally
+    UnlockPCOperationsStorage;
+  end;
+end;
+
+procedure TPCOperationsStorage.AddPCOperation(APCOperation: TPCOperation);
+var P : PPCOperationTStorage;
+  list : TList;
+  iPos : Integer;
+begin
+  list := LockPCOperationsStorage;
+  try
+    if FindOrderedByPtrPCOperation(list,APCOperation,iPos) then begin
+      P := list[iPos];
+    end else begin
+      New(P);
+      P^.locksCount:=0;
+      P^.ptrPCOperation := APCOperation;
+      list.Insert(iPos,P);
+    end;
+    inc(P^.locksCount);
+    inc(FIntTotalAdded);
+    if (P^.locksCount>FMaxLocksValue) then begin
+      FMaxLocksValue:=P^.locksCount;
+      FMaxLocksCount:=0;
+    end;
+    inc(FMaxLocksCount);
+  finally
+    UnlockPCOperationsStorage;
+  end;
+end;
+
+procedure TPCOperationsStorage.RemovePCOperation(APCOperation: TPCOperation);
+var P : PPCOperationTStorage;
+  list : TList;
+  iPos : Integer;
+begin
+  list := LockPCOperationsStorage;
+  try
+    if FindOrderedByPtrPCOperation(list,APCOperation,iPos) then begin
+      P := list[iPos];
+      Dec(P^.locksCount);
+      if (P^.locksCount<=0) then begin
+        // Remove
+        list.Delete(iPos);
+        P^.ptrPCOperation := Nil;
+        Dispose(P);
+        APCOperation.Free;
+      end;
+      inc(FIntTotalDeleted);
+    end else begin
+      TLog.NewLog(lterror,ClassName,'ERROR DEV 20181218-2 Operation not found in storage to remove: '+APCOperation.ToString);
+    end;
+  finally
+    UnlockPCOperationsStorage;
+  end;
+end;
+
+function TPCOperationsStorage.FindPCOperation(APCOperation: TPCOperation): Boolean;
+var list : TList;
+  iPos : Integer;
+begin
+  list := LockPCOperationsStorage;
+  Try
+    Result := FindOrderedByPtrPCOperation(list,APCOperation,iPos);
+  finally
+    UnlockPCOperationsStorage;
+  end;
+end;
+
+function TPCOperationsStorage.FindPCOperationAndIncCounterIfFound(APCOperation: TPCOperation): Boolean;
+var list : TList;
+  iPos : Integer;
+begin
+  list := LockPCOperationsStorage;
+  Try
+    Result := FindOrderedByPtrPCOperation(list,APCOperation,iPos);
+    if Result then begin
+      Inc(PPCOperationTStorage(list[iPos])^.locksCount);
+      inc(FIntTotalAdded);
+      if (PPCOperationTStorage(list[iPos])^.locksCount>FMaxLocksValue) then begin
+        FMaxLocksValue:=PPCOperationTStorage(list[iPos])^.locksCount;
+        FMaxLocksCount:=0;
+      end;
+      inc(FMaxLocksCount);
+    end;
+  finally
+    UnlockPCOperationsStorage;
+  end;
+end;
+
+class function TPCOperationsStorage.PCOperationsStorage: TPCOperationsStorage;
+begin
+  Result := _PCOperationsStorage;
+end;
+
+procedure TPCOperationsStorage.GetStats(strings: TStrings);
+var list : TList;
+  i : Integer;
+  P : PPCOperationTStorage;
+begin
+  list := LockPCOperationsStorage;
+  try
+    strings.Add(Format('%s Operations:%d Added:%d Deleted:%d',[ClassName,list.Count,FIntTotalAdded,FIntTotalDeleted]));
+    strings.Add(Format('MaxLocks:%d MaxLocksCount:%d',[FMaxLocksValue,FMaxLocksCount]));
+    for i:=0 to list.Count-1 do begin
+      P := PPCOperationTStorage(list[i]);
+      strings.Add(Format('%d %s',[P^.locksCount,P^.ptrPCOperation.ToString]));
+    end;
+  finally
+    UnlockPCOperationsStorage;
+  end;
+end;
 
 { TPCBank }
 
@@ -1819,7 +2046,7 @@ begin
     Try
       for i := 0 to l.Count - 1 do begin
         P := l[i];
-        P^.Op.Free;
+        _PCOperationsStorage.RemovePCOperation(P^.Op);
         Dispose(P);
       end;
       for i:=0 to FListOrderedByAccountsData.Count-1 do begin
@@ -1947,7 +2174,7 @@ begin
     end;
 
     l.Delete(index);
-    P^.Op.Free;
+    _PCOperationsStorage.RemovePCOperation(P^.Op);
     Dispose(P);
     // Recalc operations hash
     FTotalAmount := 0;
@@ -1956,7 +2183,6 @@ begin
     for i := 0 to l.Count - 1 do begin
       P := l[i];
       // Include to hash tree
-      P^.Op.tag := i;
       inc(FTotalAmount,P^.Op.OperationAmount);
       inc(FTotalFee,P^.Op.OperationFee);
     end;
@@ -2084,7 +2310,7 @@ end;
 
 function TOperationsHashTree.InternalAddOperationToHashTree(list: TList; op: TPCOperation; CalcNewHashTree : Boolean) : Boolean;
 Var msCopy : TMemoryStream;
-  h : TRawBytes;
+  hForNewHash : TRawBytes;
   P : POperationHashTreeReg;
   PaccData : POperationsHashAccountsData;
   i,npos,iListSigners : Integer;
@@ -2094,28 +2320,34 @@ begin
     Result := False;
     Exit;
   end else Result := True; // Will add:
-  msCopy := TMemoryStream.Create;
-  try
     New(P);
-    P^.Op := TPCOperation( op.NewInstance );
-    P^.Op.InitializeData;
-    op.SaveOpToStream(msCopy,true);
-    msCopy.Position := 0;
-    P^.Op.LoadOpFromStream(msCopy, true);
-    P^.Op.FPrevious_Signer_updated_block := op.Previous_Signer_updated_block;
-    P^.Op.FPrevious_Destination_updated_block := op.FPrevious_Destination_updated_block;
-    P^.Op.FPrevious_Seller_updated_block := op.FPrevious_Seller_updated_block;
-    h := FHashTree + op.Sha256;
-    P^.Op.FBufferedSha256:=op.FBufferedSha256;
-    P^.Op.tag := list.Count;
-    P^.Op.FHasValidSignature := op.FHasValidSignature; // Improvement speed v4.0.2 reusing previously signed value
-    P^.Op.FUsedPubkeyForSignature := op.FUsedPubkeyForSignature;
-    P^.Op.CopyUsedPubkeySignatureFrom(op);
+    if Not _PCOperationsStorage.FindPCOperationAndIncCounterIfFound(op) then begin
+      msCopy := TMemoryStream.Create;
+      try
+        P^.Op := TPCOperation( op.NewInstance );
+        P^.Op.InitializeData;
+        op.SaveOpToStream(msCopy,true);
+        msCopy.Position := 0;
+        P^.Op.LoadOpFromStream(msCopy, true);
+        P^.Op.FPrevious_Signer_updated_block := op.Previous_Signer_updated_block;
+        P^.Op.FPrevious_Destination_updated_block := op.FPrevious_Destination_updated_block;
+        P^.Op.FPrevious_Seller_updated_block := op.FPrevious_Seller_updated_block;
+        P^.Op.FHasValidSignature := op.FHasValidSignature; // Improvement speed v4.0.2 reusing previously signed value
+        P^.Op.FUsedPubkeyForSignature := op.FUsedPubkeyForSignature;
+        P^.Op.FBufferedSha256:=op.FBufferedSha256;
+        P^.Op.CopyUsedPubkeySignatureFrom(op);
+        _PCOperationsStorage.AddPCOperation(P^.Op);
+      finally
+        msCopy.Free;
+      end;
+    end else P^.Op := op; // Use same!
+
     // Improvement TOperationsHashTree speed 2.1.6
     // Include to hash tree (Only if CalcNewHashTree=True)
     If (CalcNewHashTree) And (Length(FHashTree)=32) then begin
       // TCrypto.DoSha256(FHashTree+op.Sha256,FHashTree);  COMPILER BUG 2.1.6: Using FHashTree as a "out" param can be initialized prior to be updated first parameter!
-      TCrypto.DoSha256(h,FHashTree);
+      hForNewHash := FHashTree + op.Sha256;
+      TCrypto.DoSha256(hForNewHash,FHashTree);
     end;
     npos := list.Add(P);
     //
@@ -2149,9 +2381,6 @@ begin
     finally
       listSigners.Free;
     end;
-  finally
-    msCopy.Free;
-  end;
   inc(FTotalAmount,op.OperationAmount);
   inc(FTotalFee,op.OperationFee);
   If Assigned(FOnChanged) then FOnChanged(Self);
@@ -2715,7 +2944,6 @@ end;
 
 procedure TPCOperation.InitializeData;
 begin
-  FTag := 0;
   FPrevious_Signer_updated_block := 0;
   FPrevious_Destination_updated_block := 0;
   FPrevious_Seller_updated_block := 0;
@@ -3140,6 +3368,7 @@ end;
 initialization
   SetLength(_OperationsClass, 0);
   RegisterOperationsClass;
+  _PCOperationsStorage := TPCOperationsStorage.Create;
 finalization
-
+  FreeAndNil(_PCOperationsStorage);
 end.

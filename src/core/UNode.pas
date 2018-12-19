@@ -827,7 +827,7 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
           for i := l.Count - 1 downto 0 do begin
             op := opc.Operation[PtrInt(l.Items[i])];
             If TPCOperation.OperationToOperationResume(block_number,Op,False,account_number,OPR) then begin
-              OPR.NOpInsideBlock := Op.tag; // Note: Used Op.tag to include operation index inside a list
+              OPR.NOpInsideBlock := PtrInt(l.Items[i]);
               OPR.time := opc.OperationBlock.timestamp;
               OPR.Block := block_number;
               If last_balance>=0 then begin
