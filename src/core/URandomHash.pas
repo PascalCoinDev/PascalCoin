@@ -1002,6 +1002,7 @@ end;
 function TRandomHashFast.TChecksummedByteCollection.Clone : TChecksummedByteCollection;
 begin
   Result := TChecksummedByteCollection.Create;
+  FreeAndNil( Result.FBytes ); // Memory Leak prevention prior to create new structure
   Result.FBytes := TList<TBytes>.Create(Self.FBytes);
   Result.FComputedIndex:= Self.FComputedIndex;
   Result.FChecksum:= Self.FChecksum;
