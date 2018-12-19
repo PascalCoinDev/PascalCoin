@@ -271,6 +271,7 @@ Type
   // propagating operations to connected nodes, will only use one instance
   TPCOperationsStorage = Class
   private
+    FIntTotalNewOps : Integer;
     FIntTotalAdded : Integer;
     FIntTotalDeleted : Integer;
     FMaxLocksCount : Integer;
@@ -577,6 +578,7 @@ end;
 constructor TPCOperationsStorage.Create;
 begin
   FPCOperationsStorageList := TPCThreadList.Create(ClassName);
+  FIntTotalNewOps := 0;
   FIntTotalAdded := 0;
   FIntTotalDeleted := 0;
   FMaxLocksCount := 0;
@@ -643,6 +645,7 @@ begin
       P^.locksCount:=0;
       P^.ptrPCOperation := APCOperation;
       list.Insert(iPos,P);
+      inc(FIntTotalNewOps);
     end;
     inc(P^.locksCount);
     inc(FIntTotalAdded);
@@ -727,7 +730,7 @@ var list : TList;
 begin
   list := LockPCOperationsStorage;
   try
-    strings.Add(Format('%s Operations:%d Added:%d Deleted:%d',[ClassName,list.Count,FIntTotalAdded,FIntTotalDeleted]));
+    strings.Add(Format('%s Operations:%d NewAdded:%d Added:%d Deleted:%d',[ClassName,list.Count,FIntTotalNewOps,FIntTotalAdded,FIntTotalDeleted]));
     strings.Add(Format('MaxLocks:%d MaxLocksCount:%d',[FMaxLocksValue,FMaxLocksCount]));
     for i:=0 to list.Count-1 do begin
       P := PPCOperationTStorage(list[i]);
