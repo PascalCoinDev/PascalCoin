@@ -3530,9 +3530,11 @@ var operationsComp : TPCOperationsComp;
     headerData : TNetHeaderData;
     auxOp : TPCOperation;
     tc : TTickCount;
+    original_OperationBlock : TOperationBlock;
   begin
     Result := False;
     DoDisconnect := True;
+    original_OperationBlock := operationsComp.OperationBlock;
     errors := 'Invalid structure data in ProcessNewFastBlockPropagation';
     tc := TPlatform.GetTickCount;
     SetLength(nfpboarr,0);
@@ -3622,6 +3624,18 @@ var operationsComp : TPCOperationsComp;
     // Finished
     if (notFoundOpReferencesCount > 0) then begin
       TLog.NewLog(ltdebug,ClassName,Format('Processed NewFastBlockPropagation with Pending operations (%d of %d) in Fast propagation block %d for %d miliseconds',[notFoundOpReferencesCount,oprefcount,operationsComp.OperationBlock.block,TPlatform.GetElapsedMilliseconds(tc)]));
+    end;
+    // Check that operationsComp.operationBlock is equal to received
+    If Not TAccountComp.EqualOperationBlocks(operationsComp.OperationBlock,original_OperationBlock) then begin
+      // This can happen when a OpReference in my MEMPOOL is different to an OpReference in the miner, causing different OperationsHash value
+      // This means a possible double spend found
+      TLog.NewLog(lterror,ClassName,Format('Constructed a distinct FAST PROPAGATION block with my mempool operations. Received: %s Constructed: %s',
+        [TPCOperationsComp.OperationBlockToText(original_OperationBlock),TPCOperationsComp.OperationBlockToText(operationsComp.OperationBlock)]));
+      if Not TPCSafeBox.IsValidOperationBlock(original_OperationBlock,errors) then begin
+        // This means a scammer!
+        DoDisconnect := True;
+      end;
+      Exit;
     end;
     finally
       // Clean memory
