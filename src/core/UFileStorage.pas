@@ -39,6 +39,7 @@ Type
 
   TFileStorage = Class(TStorage)
   private
+    FLowMemoryUsage: Boolean;
     FStorageLock : TPCCriticalSection;
     FBlockChainStream : TFileStream;
     FPendingBufferOperationsStream : TFileStream;
@@ -86,6 +87,7 @@ Type
     Procedure SetBlockChainFile(BlockChainFileName : AnsiString);
     Function HasUpgradedToVersion2 : Boolean; override;
     Procedure CleanupVersion1Data; override;
+    property LowMemoryUsage : Boolean read FLowMemoryUsage write FLowMemoryUsage;
   End;
 
 implementation
@@ -208,6 +210,7 @@ end;
 constructor TFileStorage.Create(AOwner: TComponent);
 begin
   inherited;
+  FLowMemoryUsage := False;
   FDatabaseFolder := '';
   FBlockChainFileName := '';
   FBlockChainStream := Nil;
@@ -462,7 +465,7 @@ begin
         if (sr.Attr and FileAttrs) = FileAttrs then begin
           auxfn := folder+PathDelim+sr.Name;
           If LoadBankFileInfo(auxfn,sbHeader) then begin
-            if (((max_block<0) Or (sbHeader.blocksCount<=max_block)) AND (sbHeader.blocksCount>blockscount)) And
+            if (((max_block<0) Or (sbHeader.endBlock<=max_block)) AND (sbHeader.blocksCount>blockscount)) And
               (sbHeader.startBlock=0) And (sbHeader.endBlock=sbHeader.startBlock+sbHeader.blocksCount-1) then begin
               filename := auxfn;
               blockscount := sbHeader.blocksCount;
@@ -477,17 +480,23 @@ begin
       TLog.NewLog(ltinfo,Self.ClassName,'Loading SafeBox protocol:'+IntToStr(goodSbHeader.protocol)+' with '+inttostr(blockscount)+' blocks from file '+filename);
       fs := TFileStream.Create(filename,fmOpenRead);
       try
-        ms := TMemoryStream.Create;
-        Try
-          ms.CopyFrom(fs,0);
-          fs.Position := 0;
-          ms.Position := 0;
-          if not Bank.LoadBankFromStream(ms,False,'',restoreProgressNotify,errors) then begin
+        fs.Position := 0;
+        if LowMemoryUsage then begin
+          if not Bank.LoadBankFromStream(fs,False,'',restoreProgressNotify,errors) then begin
             TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+filename+ ' Error: '+errors);
           end;
-        Finally
-          ms.Free;
-        End;
+        end else begin
+          ms := TMemoryStream.Create;
+          Try
+            ms.CopyFrom(fs,0);
+            ms.Position := 0;
+            if not Bank.LoadBankFromStream(ms,False,'',restoreProgressNotify,errors) then begin
+              TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+filename+ ' Error: '+errors);
+            end;
+          Finally
+            ms.Free;
+          End;
+        end;
       finally
         fs.Free;
       end;
@@ -509,14 +518,18 @@ begin
     fs := TFileStream.Create(bankfilename,fmCreate);
     try
       fs.Size := 0;
-      ms := TMemoryStream.Create;
-      try
-        Bank.SafeBox.SaveSafeBoxToAStream(ms,0,Bank.SafeBox.BlocksCount-1);
-        ms.Position := 0;
-        fs.Position := 0;
-        fs.CopyFrom(ms,0);
-      finally
-        ms.Free;
+      fs.Position:=0;
+      if LowMemoryUsage then begin
+        Bank.SafeBox.SaveSafeBoxToAStream(fs,0,Bank.SafeBox.BlocksCount-1);
+      end else begin
+        ms := TMemoryStream.Create;
+        try
+          Bank.SafeBox.SaveSafeBoxToAStream(ms,0,Bank.SafeBox.BlocksCount-1);
+          ms.Position := 0;
+          fs.CopyFrom(ms,0);
+        finally
+          ms.Free;
+        end;
       end;
     finally
       fs.Free;
@@ -560,7 +573,7 @@ begin
   Finally
     UnlockBlockChainStream;
   End;
-  if Assigned(Bank) then SaveBank;
+  if Assigned(Bank) then SaveBank(False);
 end;
 
 Const CT_SafeboxsToStore = 10;
@@ -569,8 +582,12 @@ class function TFileStorage.GetSafeboxCheckpointingFileName(const BaseDataFolder
 begin
   Result := '';
   If not ForceDirectories(BaseDataFolder) then exit;
-  // We will store checkpointing
-  Result := BaseDataFolder + PathDelim+'checkpoint'+ inttostr((block DIV CT_BankToDiskEveryNBlocks) MOD CT_SafeboxsToStore)+'.safebox';
+  if TPCSafeBox.MustSafeBoxBeSaved(block) then begin
+    // We will store checkpointing
+    Result := BaseDataFolder + PathDelim+'checkpoint'+ inttostr((block DIV CT_BankToDiskEveryNBlocks) MOD CT_SafeboxsToStore)+'.safebox';
+  end else begin
+    Result := BaseDataFolder + PathDelim+'checkpoint_'+inttostr(block)+'.safebox';
+  end;
 end;
 
 function TFileStorage.GetBlockHeaderFirstBytePosition(Stream : TStream; Block: Cardinal; CanInitialize : Boolean; var iBlockHeaders : Integer; var BlockHeaderFirstBlock: Cardinal): Boolean;
