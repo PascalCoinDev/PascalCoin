@@ -320,7 +320,7 @@ Type
     FOrderedAccountKeysList : TOrderedAccountKeysList;
     //
     FListOfOrderedAccountKeysList : TList;
-    FBufferBlocksHash: TRawBytes;
+    FBufferBlocksHash: TBytesBuffer;
     FOrderedByName : TOrderedRawList;
     FTotalBalance: Int64;
     FSafeBoxHash : TRawBytes;
@@ -369,7 +369,7 @@ Type
     Class Function LoadSafeBoxStreamHeader(Stream : TStream; var sbHeader : TPCSafeBoxHeader) : Boolean;
     Class Function SaveSafeBoxStreamHeader(Stream : TStream; protocol : Word; OffsetStartBlock, OffsetEndBlock, CurrentSafeBoxBlocksCount : Cardinal) : Boolean;
     Class Function MustSafeBoxBeSaved(BlocksCount : Cardinal) : Boolean;
-    Procedure SaveSafeBoxBlockToAStream(Stream : TStream; nBlock : Cardinal);
+    Procedure SaveSafeBoxBlockToAStream(DestStream : TStream; nBlock : Cardinal);
     Procedure SaveSafeBoxToAStream(Stream : TStream; FromBlock, ToBlock : Cardinal);
     class Function CopySafeBoxStream(Source,Dest : TStream; FromBlock, ToBlock : Cardinal; var errors : AnsiString) : Boolean;
     class Function ConcatSafeBoxStream(Source1, Source2, Dest : TStream; var errors : AnsiString) : Boolean;
@@ -590,7 +590,7 @@ end;
 Procedure Check_Safebox_Integrity(sb : TPCSafebox; title: String);
 var i,j,maxBlock : Integer;
   bl_my, bl_modified : TBlockAccount;
-  auxH : TRawBytes;
+  auxH : TBytesBuffer;
 Begin
   For i:=0 to sb.FModifiedBlocksFinalState.Count-1 do begin
     bl_modified := sb.FModifiedBlocksFinalState.Get(i);
@@ -602,20 +602,25 @@ Begin
       Raise Exception.Create(Format('%s Integrity on block hash (i)=%d for block number:%d',[title, i,bl_my.blockchainInfo.block]));
     end;
   end;
-  auxH := '';
-  maxBlock := sb.BlocksCount;
-  for i:=0 to sb.BlocksCount-1 do begin
-    bl_my := sb.Block(i);
-    for j:=Low(bl_my.accounts) to High(bl_my.accounts) do begin
-      If maxBlock < (bl_my.accounts[j].updated_block) then begin
-        Raise Exception.Create(Format('%s Integrity on (i)=%d for block account:%d updated on %d > maxBlock %d',[title, i,bl_my.accounts[j].account,bl_my.accounts[j].updated_block,maxBlock]));
+  auxH := TBytesBuffer.Create(1024);
+  Try
+    maxBlock := sb.BlocksCount;
+    auxH.SetLength(sb.BlocksCount*32);
+    for i:=0 to sb.BlocksCount-1 do begin
+      bl_my := sb.Block(i);
+      for j:=Low(bl_my.accounts) to High(bl_my.accounts) do begin
+        If maxBlock < (bl_my.accounts[j].updated_block) then begin
+          Raise Exception.Create(Format('%s Integrity on (i)=%d for block account:%d updated on %d > maxBlock %d',[title, i,bl_my.accounts[j].account,bl_my.accounts[j].updated_block,maxBlock]));
+        end;
       end;
+      auxH.Replace(i*32,bl_my.block_hash[1],Length(bl_my.block_hash));
     end;
-    auxH := auxH + bl_my.block_hash;
-  end;
-  If TBaseType.BinStrComp(sb.FBufferBlocksHash,auxH)<>0 then begin
-    Raise Exception.Create(Format('%s Integrity different Buffer Block Hash',[title]));
-  end;
+    if (sb.FBufferBlocksHash.Compare(auxH)<>0) then begin
+      Raise Exception.Create(Format('%s Integrity different Buffer Block Hash',[title]));
+    end;
+  Finally
+    auxH.Free;
+  End;
 end;
 
 
@@ -1817,7 +1822,7 @@ Type
     newBlocks : TOrderedBlockAccountList; // Saves final blocks values on modified blocks
     namesDeleted : TOrderedRawList;
     namesAdded : TOrderedRawList;
-    oldBufferBlocksHash: TRawBytes;
+    oldBufferBlocksHash: TBytesBuffer;
     oldTotalBalance: Int64;
     oldTotalFee: Int64;
     oldSafeBoxHash : TRawBytes;
@@ -1827,7 +1832,7 @@ Type
   PSafeboxSnapshot = ^TSafeboxSnapshot;
 
 Const
-  CT_TSafeboxSnapshot_NUL : TSafeboxSnapshot = (nBlockNumber : 0; oldBlocks : Nil; newBlocks : Nil; namesDeleted : Nil; namesAdded : Nil;oldBufferBlocksHash:'';oldTotalBalance:0;oldTotalFee:0;oldSafeBoxHash:'';oldWorkSum:0;oldCurrentProtocol:0);
+  CT_TSafeboxSnapshot_NUL : TSafeboxSnapshot = (nBlockNumber : 0; oldBlocks : Nil; newBlocks : Nil; namesDeleted : Nil; namesAdded : Nil;oldBufferBlocksHash:Nil;oldTotalBalance:0;oldTotalFee:0;oldSafeBoxHash:'';oldWorkSum:0;oldCurrentProtocol:0);
 
 function TPCSafeBox.Account(account_number: Cardinal): TAccount;
 var
@@ -1933,7 +1938,7 @@ begin
     ToTMemBlockAccount(Result,Pblock^);
     FBlockAccountsList.Add(Pblock);
   end;
-  FBufferBlocksHash := FBufferBlocksHash+Result.block_hash;
+  FBufferBlocksHash.Add(Result.block_hash[1],Length(Result.block_hash));
   Inc(FTotalBalance,blockChain.reward + blockChain.fee);
   Dec(FTotalFee, blockChain.fee);
   If (length(accs_miner)>0) then begin
@@ -1954,7 +1959,7 @@ begin
     Psnapshot^.newBlocks := FModifiedBlocksFinalState;
     Psnapshot^.namesDeleted := FDeletedNamesSincePreviousSafebox;
     Psnapshot^.namesAdded := FAddedNamesSincePreviousSafebox;
-    Psnapshot^.oldBufferBlocksHash:=FBufferBlocksHash;
+    Psnapshot^.oldBufferBlocksHash := TBytesBuffer.CreateCopy(FBufferBlocksHash);
     Psnapshot^.oldTotalBalance:=FTotalBalance;
     Psnapshot^.oldTotalFee:=FTotalFee;
     Psnapshot^.oldSafeBoxHash := FSafeBoxHash;
@@ -1972,11 +1977,11 @@ begin
         Psnapshot := FSnapshots[0];
         {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,Format('Deleting snapshot for block %d',[Psnapshot^.nBlockNumber]));{$ENDIF}
         FSnapshots.Delete(0);
-        FreeAndNil( Psnapshot.oldBlocks );
-        FreeAndNil( Psnapshot.newBlocks );
-        FreeAndNil( Psnapshot.namesAdded );
-        FreeAndNil( Psnapshot.namesDeleted );
-        Psnapshot^.oldBufferBlocksHash:='';
+        FreeAndNil( Psnapshot^.oldBlocks );
+        FreeAndNil( Psnapshot^.newBlocks );
+        FreeAndNil( Psnapshot^.namesAdded );
+        FreeAndNil( Psnapshot^.namesDeleted );
+        FreeAndNil( Psnapshot^.oldBufferBlocksHash );
         Psnapshot^.oldSafeBoxHash:='';
         Dispose(Psnapshot);
       end;
@@ -2167,8 +2172,8 @@ begin
   StartThreadSafe;
   try
     // If No buffer to hash is because it's firts block... so use Genesis: CT_Genesis_Magic_String_For_Old_Block_Hash
-    if (FBufferBlocksHash='') then Result := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash)
-    else Result := TCrypto.DoSha256(FBufferBlocksHash);
+    if (FBufferBlocksHash.Length=0) then Result := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash)
+    else Result := TCrypto.DoSha256(FBufferBlocksHash.Memory,FBufferBlocksHash.Length);
   finally
     EndThreadSave;
   end;
@@ -2284,7 +2289,7 @@ begin
       FreeAndNil(Psnapshot^.newBlocks);
       FreeAndNil(Psnapshot^.namesAdded);
       FreeAndNil(Psnapshot^.namesDeleted);
-      Psnapshot^.oldBufferBlocksHash:='';
+      FreeAndNil(Psnapshot^.oldBufferBlocksHash);
       Psnapshot^.oldSafeBoxHash:='';
       Dispose(Psnapshot);
     end;
@@ -2294,7 +2299,7 @@ begin
     For i:=0 to FListOfOrderedAccountKeysList.count-1 do begin
       TOrderedAccountKeysList( FListOfOrderedAccountKeysList[i] ).ClearAccounts(False);
     end;
-    FBufferBlocksHash := '';
+    FBufferBlocksHash.Clear;
     FTotalBalance := 0;
     FTotalFee := 0;
     FSafeBoxHash := CalcSafeBoxHash;
@@ -2351,7 +2356,7 @@ begin
       end;
       FTotalBalance := accounts.TotalBalance;
       FTotalFee := accounts.FTotalFee;
-      FBufferBlocksHash := accounts.FBufferBlocksHash;
+      FBufferBlocksHash.CopyFrom(accounts.FBufferBlocksHash);
       FSafeBoxHash := accounts.FSafeBoxHash;
       FWorkSum := accounts.FWorkSum;
       FCurrentProtocol := accounts.FCurrentProtocol;
@@ -2381,6 +2386,7 @@ begin
   FDeletedNamesSincePreviousSafebox := TOrderedRawList.Create;
   FSubChains := TList.Create;
   FOrderedAccountKeysList := TOrderedAccountKeysList.Create(Nil,True);
+  FBufferBlocksHash := TBytesBuffer.Create(1000*32);
   Clear;
 end;
 
@@ -2408,6 +2414,7 @@ begin
     FPreviousSafeBox := Nil;
     FPreviousSafeboxOriginBlock:=-1;
   end;
+  FreeAndNil(FBufferBlocksHash);
   inherited;
 end;
 
@@ -2439,7 +2446,7 @@ begin
         //
         FPreviousSafeBox.FSubChains.Add(Self);
         //
-        FBufferBlocksHash := Psnapshot^.oldBufferBlocksHash;
+        FBufferBlocksHash.CopyFrom( Psnapshot^.oldBufferBlocksHash );
         FTotalBalance := Psnapshot^.oldTotalBalance;
         FTotalFee := Psnapshot^.oldTotalFee;
         FSafeBoxHash := Psnapshot^.oldSafeBoxHash;
@@ -2552,7 +2559,7 @@ begin
       If TBaseType.BinStrComp(FPreviousSafeBox.FSafeBoxHash,FSafeBoxHash)<>0 then begin
         errors := errors+'> Invalid SafeBoxHash!';
       end;
-      If TBaseType.BinStrComp(FPreviousSafeBox.FBufferBlocksHash,FBufferBlocksHash)<>0 then begin
+      if FPreviousSafeBox.FBufferBlocksHash.Compare(FBufferBlocksHash)<>0 then begin
         errors := errors+'> Invalid BufferBlocksHash!';
       end;
       If (FPreviousSafeBox.FTotalBalance<>FTotalBalance) then begin
@@ -2683,7 +2690,7 @@ begin
       Dispose(PBlock);
 
       // Redo FBufferBlocksHash
-      SetLength(FBufferBlocksHash,Length(FBufferBlocksHash)-32);
+      FBufferBlocksHash.SetLength(FBufferBlocksHash.Length - 32);
 
       // Delete
       FSnapshots.Delete(i);
@@ -2691,18 +2698,17 @@ begin
       Psnapshot^.newBlocks.Free;
       Psnapshot^.namesAdded.Free;
       Psnapshot^.namesDeleted.Free;
-      Psnapshot^.oldBufferBlocksHash := '';
+      Psnapshot^.oldBufferBlocksHash.Free;
       Psnapshot^.oldSafeBoxHash := '';
       Dispose(Psnapshot);
     end;
     // Set saved Safebox values:
     Psnapshot := FSnapshots[iPrevSnapshotTarget];
 
-    If TBaseType.BinStrComp(FBufferBlocksHash,Psnapshot^.oldBufferBlocksHash)<>0 then begin
+    if FBufferBlocksHash.Compare(Psnapshot^.oldBufferBlocksHash)<>0 then begin
       raise Exception.Create('ERROR DEV 20180322-1 Rollback invalid BufferBlocksHash value');
     end;
 
-    FBufferBlocksHash := Psnapshot^.oldBufferBlocksHash;
     FTotalBalance := Psnapshot^.oldTotalBalance;
     FTotalFee := Psnapshot^.oldTotalFee;
     FSafeBoxHash := Psnapshot^.oldSafeBoxHash;
@@ -2733,11 +2739,11 @@ begin
   // Recalc all BlockAccounts block_hash value
   aux := CalcSafeBoxHash;
   TLog.NewLog(ltInfo,ClassName,'Start Upgrade to protocol 2 - Old Safeboxhash:'+TCrypto.ToHexaString(FSafeBoxHash)+' calculated: '+TCrypto.ToHexaString(aux)+' Blocks: '+IntToStr(BlocksCount));
-  FBufferBlocksHash:='';
+  FBufferBlocksHash.Clear;
   for block_number := 0 to BlocksCount - 1 do begin
     {$IFDEF uselowmem}
     TBaseType.To32Bytes(CalcBlockHash( Block(block_number), True),PBlockAccount(FBlockAccountsList.Items[block_number])^.block_hash);
-    FBufferBlocksHash := FBufferBlocksHash+TBaseType.ToRawBytes(PBlockAccount(FBlockAccountsList.Items[block_number])^.block_hash);
+    FBufferBlocksHash.Add( PBlockAccount(FBlockAccountsList.Items[block_number])^.block_hash[0], 32 );
     {$ELSE}
     PBlockAccount(FBlockAccountsList.Items[block_number])^.block_hash := CalcBlockHash( Block(block_number), True);
     FBufferBlocksHash := FBufferBlocksHash+PBlockAccount(FBlockAccountsList.Items[block_number])^.block_hash;
@@ -2820,7 +2826,7 @@ begin
       end;
       // Build 1.3.0 to increase reading speed:
       FBlockAccountsList.Capacity := sbHeader.blockscount;
-      SetLength(FBufferBlocksHash,sbHeader.blocksCount*32); // Initialize for high speed reading
+      FBufferBlocksHash.SetLength(sbHeader.blocksCount*32);
       errors := 'Corrupted stream';
       for iblock := 0 to sbHeader.blockscount-1 do begin
         if (Assigned(progressNotify)) and ((TPlatform.GetElapsedMilliseconds(tc)>=500)) then begin
@@ -2911,13 +2917,7 @@ begin
         end;
         // BufferBlocksHash fill with data
         j := (length(P^.block_hash)*(iBlock));
-        for i := 1 to length(P^.block_hash) do begin
-          {$IFDEF FPC}
-          FBufferBlocksHash[i+j] := AnsiChar(P^.block_hash[i-(low(FBufferBlocksHash)-low(P^.block_hash))]);
-          {$ELSE}
-          FBufferBlocksHash[i+j] := AnsiChar(P^.block_hash[i-{$IFDEF uselowmem}1{$ELSE}0{$ENDIF}]);
-          {$ENDIF}
-        end;
+        FBufferBlocksHash.Replace( j, P^.block_hash[0], 32 );
         LastReadBlock := block;
         Inc(FWorkSum,block.blockchainInfo.compact_target);
         // Upgrade to Protocol 4 step:
@@ -3041,26 +3041,38 @@ begin
   Result := (BlocksCount MOD CT_BankToDiskEveryNBlocks)=0;
 end;
 
-procedure TPCSafeBox.SaveSafeBoxBlockToAStream(Stream: TStream; nBlock: Cardinal);
+procedure TPCSafeBox.SaveSafeBoxBlockToAStream(DestStream: TStream; nBlock: Cardinal);
 var b : TBlockAccount;
   iacc : integer;
+  Stream : TStream;
 begin
   b := Block(nblock);
-  TAccountComp.SaveTOperationBlockToStream(Stream,b.blockchainInfo);
-  for iacc := Low(b.accounts) to High(b.accounts) do begin
-    Stream.Write(b.accounts[iacc].account,Sizeof(b.accounts[iacc].account));
-    TStreamOp.WriteAnsiString(Stream,TAccountComp.AccountInfo2RawString(b.accounts[iacc].accountInfo));
-    Stream.Write(b.accounts[iacc].balance,Sizeof(b.accounts[iacc].balance));
-    Stream.Write(b.accounts[iacc].updated_block,Sizeof(b.accounts[iacc].updated_block));
-    Stream.Write(b.accounts[iacc].n_operation,Sizeof(b.accounts[iacc].n_operation));
-    If FCurrentProtocol>=CT_PROTOCOL_2 then begin
-      TStreamOp.WriteAnsiString(Stream,b.accounts[iacc].name);
-      Stream.Write(b.accounts[iacc].account_type,SizeOf(b.accounts[iacc].account_type));
-    end;
-    Stream.Write(b.accounts[iacc].previous_updated_block,Sizeof(b.accounts[iacc].previous_updated_block));
+  if DestStream is TMemoryStream then Stream := DestStream
+  else begin
+    Stream := TMemoryStream.Create;
   end;
-  TStreamOp.WriteAnsiString(Stream,b.block_hash);
-  Stream.Write(b.accumulatedWork,Sizeof(b.accumulatedWork));
+  try
+    TAccountComp.SaveTOperationBlockToStream(Stream,b.blockchainInfo);
+    for iacc := Low(b.accounts) to High(b.accounts) do begin
+      Stream.Write(b.accounts[iacc].account,Sizeof(b.accounts[iacc].account));
+      TStreamOp.WriteAnsiString(Stream,TAccountComp.AccountInfo2RawString(b.accounts[iacc].accountInfo));
+      Stream.Write(b.accounts[iacc].balance,Sizeof(b.accounts[iacc].balance));
+      Stream.Write(b.accounts[iacc].updated_block,Sizeof(b.accounts[iacc].updated_block));
+      Stream.Write(b.accounts[iacc].n_operation,Sizeof(b.accounts[iacc].n_operation));
+      If FCurrentProtocol>=CT_PROTOCOL_2 then begin
+        TStreamOp.WriteAnsiString(Stream,b.accounts[iacc].name);
+        Stream.Write(b.accounts[iacc].account_type,SizeOf(b.accounts[iacc].account_type));
+      end;
+      Stream.Write(b.accounts[iacc].previous_updated_block,Sizeof(b.accounts[iacc].previous_updated_block));
+    end;
+    TStreamOp.WriteAnsiString(Stream,b.block_hash);
+    Stream.Write(b.accumulatedWork,Sizeof(b.accumulatedWork));
+  finally
+    if (Stream<>DestStream) then begin
+      DestStream.CopyFrom(Stream,0);
+      Stream.Free;
+    end;
+  end;
 end;
 
 procedure TPCSafeBox.SaveSafeBoxToAStream(Stream: TStream; FromBlock, ToBlock : Cardinal);
@@ -3787,9 +3799,7 @@ begin
   end;
   // Update buffer block hash
   j := (length(blockAccount.block_hash)*(iBlock));  // j in 0,32,64...
-  for i := 1 to length(blockAccount.block_hash) do begin  // i in 1..32
-    FBufferBlocksHash[i+j] := AnsiChar(blockAccount.block_hash[i]);
-  end;
+  FBufferBlocksHash.Replace(j,blockAccount.block_hash[1],32);
 
   FTotalBalance := FTotalBalance - (Int64(lastbalance)-Int64(newBalance));
   FTotalFee := FTotalFee + (Int64(lastbalance)-Int64(newBalance));
