@@ -36,6 +36,33 @@ Type
 
   TRawBytes = AnsiString;
 
+  { TBytesBuffer }
+
+  TBytesBuffer = Class
+  private
+    FBytes : TBytes;
+    FDefaultIncrement: Integer;
+    FUsedBytes : Integer;
+    procedure IncreaseSize(newSize : Integer);
+    procedure SetDefaultIncrement(AValue: Integer);
+  public
+    constructor Create(ADefaultIncrement : Integer);
+    constructor CreateCopy(ABytesBuffer : TBytesBuffer);
+    destructor Destroy; override;
+    function Length : Integer;
+    function Add(const buffer : TBytes) : Integer; overload;
+    function Add(var buffer; bufferSize : Integer) : Integer; overload;
+    function Replace(startPos : Integer; const buffer : TBytes) : Integer; overload;
+    function Replace(startPos : Integer; var buffer; bufferSize : Integer) : Integer; overload;
+    property DefaultIncrement : Integer read FDefaultIncrement write SetDefaultIncrement;
+    function Compare(ABytesBuffer : TBytesBuffer) : Integer;
+    procedure SetLength(ANewLength : Integer);
+    function Memory : Pointer;
+    procedure Clear;
+    procedure CopyFrom(ABytesBuffer : TBytesBuffer);
+  end;
+
+
   { TBaseType }
 
   TBaseType = Class
@@ -310,6 +337,120 @@ class function TPlatform.GetTickCount: TTickCount;
 begin
   Result := {$IFDEF CPU64}GetTickCount64{$ELSE}{$IFNDEF FPC}Windows.{$ELSE}SysUtils.{$ENDIF}GetTickCount{$ENDIF};
 end;
+
+{ TBytesBuffer }
+
+procedure TBytesBuffer.IncreaseSize(newSize: Integer);
+var actSize, auxSize : Integer;
+begin
+  actSize := System.Length(FBytes);
+  If actSize<newSize then begin
+    auxSize := actSize;
+    repeat
+      auxSize := auxSize + FDefaultIncrement;
+    until auxSize >= newSize;
+    System.SetLength(FBytes,auxSize);
+    FillByte(FBytes[actSize],auxSize - actSize +1,0);
+  end;
+end;
+
+procedure TBytesBuffer.SetDefaultIncrement(AValue: Integer);
+begin
+  if AValue<0 then FDefaultIncrement:=1024
+  else if AValue>(1024*1024) then FDefaultIncrement := 1024*1024
+  else FDefaultIncrement:=AValue;
+end;
+
+procedure TBytesBuffer.SetLength(ANewLength: Integer);
+begin
+  if ANewLength<0 then raise Exception.Create(Format('Invalid new Length value %d at %s',[ANewLength,ClassName]));
+  IncreaseSize(ANewLength);
+  FUsedBytes := ANewLength;
+end;
+
+function TBytesBuffer.Add(var buffer; bufferSize: Integer): Integer;
+begin
+  Result := Replace(Length,buffer,bufferSize);
+end;
+
+function TBytesBuffer.Add(const buffer: TBytes): Integer;
+begin
+  Result := Replace(Length,buffer);
+end;
+
+procedure TBytesBuffer.Clear;
+begin
+  System.SetLength(FBytes,0);
+  FUsedBytes := 0;
+end;
+
+function TBytesBuffer.Compare(ABytesBuffer: TBytesBuffer): Integer;
+var i : Integer;
+begin
+  Result := 0;
+  if ABytesBuffer=Self then Exit;
+  if Length<ABytesBuffer.Length then Result := -1
+  else if Length>ABytesBuffer.Length then Result := 1
+  else begin
+    i := 0;
+    while (Result=0) And (i<(Length)) do begin
+      Result := Self.FBytes[i] - ABytesBuffer.FBytes[i];
+      inc(i);
+    end;
+  end;
+end;
+
+procedure TBytesBuffer.CopyFrom(ABytesBuffer: TBytesBuffer);
+begin
+  System.SetLength(FBytes,System.Length(ABytesBuffer.FBytes));
+  Move(ABytesBuffer.FBytes[0],FBytes[0],System.Length(FBytes));
+  FUsedBytes := ABytesBuffer.FUsedBytes;
+  FDefaultIncrement := ABytesBuffer.FDefaultIncrement;
+end;
+
+constructor TBytesBuffer.Create(ADefaultIncrement: Integer);
+begin
+  System.SetLength(FBytes,0);
+  FUsedBytes:=0;
+  SetDefaultIncrement(ADefaultIncrement);
+end;
+
+constructor TBytesBuffer.CreateCopy(ABytesBuffer: TBytesBuffer);
+begin
+  Create(ABytesBuffer.DefaultIncrement);
+  CopyFrom(ABytesBuffer);
+end;
+
+destructor TBytesBuffer.Destroy;
+begin
+  System.SetLength(FBytes,0);
+  FUsedBytes:=0;
+  inherited Destroy;
+end;
+
+function TBytesBuffer.Length: Integer;
+begin
+  Result := FUsedBytes;
+end;
+
+function TBytesBuffer.Memory: Pointer;
+begin
+  Result := addr(FBytes[0]);
+end;
+
+function TBytesBuffer.Replace(startPos: Integer; var buffer; bufferSize : Integer): Integer;
+begin
+  IncreaseSize(startPos+1+bufferSize);
+  Move(buffer,FBytes[startPos],bufferSize);
+  if (startPos + bufferSize)>FUsedBytes then FUsedBytes := (startPos + bufferSize);
+  Result := FUsedBytes;
+end;
+
+function TBytesBuffer.Replace(startPos: Integer; const buffer: TBytes): Integer;
+begin
+  Result := Replace(startPos,buffer[0],System.Length(buffer));
+end;
+
 
 end.
 
