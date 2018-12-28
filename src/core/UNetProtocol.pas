@@ -1552,7 +1552,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     repeat
       BlocksList := TList.Create;
       try
-        If Not Do_GetOperationsBlock(Nil,min,max,5000,true,BlocksList) then exit;
+        If Not Do_GetOperationsBlock(Nil,min,max,20000,true,BlocksList) then exit;
         if (BlocksList.Count=0) then begin
           Connection.DisconnectInvalidClient(false,'No received info for blocks from '+inttostr(min)+' to '+inttostr(max));
           exit;
@@ -1627,6 +1627,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
         end else begin
           // Restore a part from disk
           Bank.DiskRestoreFromOperations(start_block-1);
+          Bank.Storage.SaveBank(True);
           if (Bank.BlocksCount<start_block) then begin
             TLog.NewLog(lterror,CT_LogSender,Format('No blockchain found start block %d, current %d',[start_block-1,Bank.BlocksCount]));
             start_block := Bank.BlocksCount;
@@ -1902,7 +1903,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
             If Not IsMyBlockchainValid then begin
               TNode.Node.Bank.Storage.EraseStorage;
             end;
-            TNode.Node.Bank.Storage.SaveBank;
+            TNode.Node.Bank.Storage.SaveBank(False);
             Connection.Send_GetBlocks(TNode.Node.Bank.BlocksCount,100,request_id);
             Result := true;
           end else begin
@@ -1972,12 +1973,8 @@ begin
       end;
       TLog.NewLog(ltinfo,CT_LogSender,'My blockchain is not equal... received: '+TPCOperationsComp.OperationBlockToText(client_op)+' My: '+TPCOperationsComp.OperationBlockToText(my_op));
       if Not FindLastSameBlockByOperationsBlock(0,client_op.block,client_op) then begin
-        TLog.NewLog(ltinfo,CT_LogSender,'No found base block to start process... Receiving ALL');
-        If (Connection.FRemoteOperationBlock.protocol_version>=CT_PROTOCOL_2) then begin
-          DownloadSafeBox(False);
-        end else begin
-          GetNewBank(-1);
-        end;
+        Connection.DisconnectInvalidClient(false,'No found any base block to start process...');
+        Exit;
       end else begin
         // Move operations to orphan folder... (temporal... waiting for a confirmation)
         if (TNode.Node.Bank.Storage.FirstBlock<client_op.block) then begin
