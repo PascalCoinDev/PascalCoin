@@ -1939,8 +1939,8 @@ begin
     FBlockAccountsList.Add(Pblock);
   end;
   FBufferBlocksHash.Add(Result.block_hash[1],Length(Result.block_hash));
-  Inc(FTotalBalance,blockChain.reward + blockChain.fee);
-  Dec(FTotalFee, blockChain.fee);
+  Inc(FTotalBalance,Int64(blockChain.reward + blockChain.fee));
+  Dec(FTotalFee, Int64(blockChain.fee));
   If (length(accs_miner)>0) then begin
     AccountKeyListAddAccounts(blockChain.account_key,accs_miner);
   end;
@@ -2876,7 +2876,7 @@ begin
               Exit;
             end;
           end;
-          inc(FTotalBalance,block.accounts[iacc].balance);
+          inc(FTotalBalance,Int64(block.accounts[iacc].balance));
         end;
         errors := 'Corrupted stream reading block '+inttostr(iblock+1)+'/'+inttostr(sbHeader.blockscount);
         If TStreamOp.ReadAnsiString(Stream,block.block_hash)<0 then exit;
@@ -3918,8 +3918,8 @@ begin
   PaccAccountToBuy^.accountInfo.state := as_Normal;
   PaccAccountToBuy^.accountInfo.accountKey := new_account_key;
 
-  Dec(FTotalBalance,fee);
-  inc(FTotalFee,fee);
+  Dec(FTotalBalance,Int64(fee));
+  inc(FTotalFee,Int64(fee));
   Result := true;
 end;
 
@@ -4219,8 +4219,8 @@ begin
   end;
   PaccTarget^.balance := PaccTarget^.balance + (amount);
 
-  Dec(FTotalBalance,fee);
-  inc(FTotalFee,fee);
+  Dec(FTotalBalance,Int64(fee));
+  inc(FTotalFee,Int64(fee));
   Result := true;
 end;
 
@@ -4437,9 +4437,9 @@ begin
   P_target^.accountInfo := accountInfo;
   P_target^.name := newName;
   P_target^.account_type := newType;
-  Dec(P_signer^.balance,fee); // Signer is who pays the fee
-  Dec(FTotalBalance,fee);
-  Inc(FTotalFee,fee);
+  Dec(P_signer^.balance,Int64(fee)); // Signer is who pays the fee
+  Dec(FTotalBalance,Int64(fee));
+  Inc(FTotalFee,Int64(fee));
   Result := true;
 end;
 
