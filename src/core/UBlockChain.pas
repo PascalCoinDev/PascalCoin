@@ -459,7 +459,7 @@ Type
     Function DoSaveBank : Boolean; virtual; abstract;
     Function DoRestoreBank(max_block : Int64; restoreProgressNotify : TProgressNotify) : Boolean; virtual; abstract;
     Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal); virtual; abstract;
-    Function BlockExists(Block : Cardinal) : Boolean; virtual; abstract;
+    Function DoBlockExists(Block : Cardinal) : Boolean; virtual; abstract;
     function GetFirstBlockNumber: Int64; virtual; abstract;
     function GetLastBlockNumber: Int64; virtual; abstract;
     function DoInitialize:Boolean; virtual; abstract;
@@ -472,7 +472,7 @@ Type
     Function SaveBlockChainBlock(Operations : TPCOperationsComp) : Boolean;
     Function MoveBlockChainBlocks(StartBlock : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean;
     Procedure DeleteBlockChainBlocks(StartingDeleteBlock : Cardinal);
-    Function SaveBank : Boolean;
+    Function SaveBank(forceSave : Boolean) : Boolean;
     Function RestoreBank(max_block : Int64; restoreProgressNotify : TProgressNotify = Nil) : Boolean;
     Constructor Create(AOwner : TComponent); Override;
     Property Orphan : TOrphan read FOrphan write SetOrphan;
@@ -488,6 +488,7 @@ Type
     Procedure EraseStorage;
     Procedure SavePendingBufferOperations(OperationsHashTree : TOperationsHashTree);
     Procedure LoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree);
+    Function BlockExists(Block : Cardinal) : Boolean;
   End;
 
   TStorageClass = Class of TStorage;
@@ -933,7 +934,7 @@ begin
                 // To prevent continuous saving...
                 if ((BlocksCount+(CT_BankToDiskEveryNBlocks*2)) >= Storage.LastBlock ) or
                    ((BlocksCount MOD (CT_BankToDiskEveryNBlocks*10))=0) then begin
-                  Storage.SaveBank;
+                  Storage.SaveBank(False);
                 end;
                 if (Assigned(restoreProgressNotify)) And (TPlatform.GetElapsedMilliseconds(tc)>1000) then begin
                   tc := TPlatform.GetTickCount;
@@ -2658,6 +2659,11 @@ end;
 
 { TStorage }
 
+function TStorage.BlockExists(Block: Cardinal): Boolean;
+begin
+  Result := DoBlockExists(Block);
+end;
+
 procedure TStorage.CopyConfiguration(const CopyFrom: TStorage);
 begin
   Orphan := CopyFrom.Orphan;
@@ -2722,11 +2728,11 @@ begin
   Result := DoRestoreBank(max_block,restoreProgressNotify);
 end;
 
-function TStorage.SaveBank: Boolean;
+function TStorage.SaveBank(forceSave : Boolean): Boolean;
 begin
   Result := true;
   If FIsMovingBlockchain then Exit;
-  if Not TPCSafeBox.MustSafeBoxBeSaved(Bank.BlocksCount) then exit; // No save
+  if (Not forceSave) AND (Not TPCSafeBox.MustSafeBoxBeSaved(Bank.BlocksCount)) then exit; // No save
   Try
     Result := DoSaveBank;
     FBank.SafeBox.CheckMemory;

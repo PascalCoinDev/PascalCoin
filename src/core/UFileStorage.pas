@@ -67,7 +67,7 @@ Type
     Function DoSaveBank : Boolean; override;
     Function DoRestoreBank(max_block : Int64; restoreProgressNotify : TProgressNotify) : Boolean; override;
     Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal); override;
-    Function BlockExists(Block : Cardinal) : Boolean; override;
+    Function DoBlockExists(Block : Cardinal) : Boolean; override;
     Function LockBlockChainStream : TFileStream;
     Procedure UnlockBlockChainStream;
     Function LoadBankFileInfo(Const Filename : AnsiString; var safeBoxHeader : TPCSafeBoxHeader) : Boolean;
@@ -129,7 +129,7 @@ Const CT_TBlockHeader_NUL : TBlockHeader = (BlockNumber:0;StreamBlockRelStartPos
 
   }
 
-function TFileStorage.BlockExists(Block: Cardinal): Boolean;
+function TFileStorage.DoBlockExists(Block: Cardinal): Boolean;
 Var  iBlockHeaders : Integer;
   BlockHeaderFirstBlock : Cardinal;
   stream : TStream;
