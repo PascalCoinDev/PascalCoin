@@ -40,6 +40,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
 - Fixed a decompression bug caused by FreePascal "paszlib" package bug on version 3.0.4 -> https://bugs.freepascal.org/view.php?id=34422
 - Allow download new safebox (instead of download pending blocks) when difference > TNode.MinFutureBlocksToDownloadNewSafebox
   - 7 days by default for Production, 1 for Testnet
+  - Disabled by default on Daemon, configure on INI file with MINPENDINGBLOCKSTODOWNLOADCHECKPOINT
   - Will not delete current blockchain, but will not download pending blocks between last block saved and current network checkpoint block
 - Allow only connections using Net protocol >= 9  (Introduced on Build 4.0.1)
 - Fill automatic params at "buyaccount" RPC call: Will set 'price' and 'seller_account' values to current safebox values if not provided

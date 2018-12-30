@@ -41,6 +41,8 @@ Const
   CT_INI_IDENT_MINER_MAX_CONNECTIONS = 'RPC_SERVERMINER_MAX_CONNECTIONS';
   CT_INI_IDENT_MINER_MAX_OPERATIONS_PER_BLOCK = 'RPC_SERVERMINER_MAX_OPERATIONS_PER_BLOCK';
   CT_INI_IDENT_MINER_MAX_ZERO_FEE_OPERATIONS  = 'RPC_SERVERMINER_MAX_ZERO_FEE_OPERATIONS';
+  CT_INI_IDENT_LOWMEMORY = 'LOWMEMORY';
+  CT_INI_IDENT_MINPENDINGBLOCKSTODOWNLOADCHECKPOINT = 'MINPENDINGBLOCKSTODOWNLOADCHECKPOINT';
 
 Type
   { TPCDaemonThread }
@@ -211,6 +213,9 @@ begin
         // Check Database
         FNode.Bank.StorageClass := TFileStorage;
         TFileStorage(FNode.Bank.Storage).DatabaseFolder := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data';
+        TFileStorage(FNode.Bank.Storage).LowMemoryUsage := FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_LOWMEMORY,False);
+        // By default daemon will not download checkpoint except if specified on INI file
+        TNetData.NetData.MinFutureBlocksToDownloadNewSafebox := FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_MINPENDINGBLOCKSTODOWNLOADCHECKPOINT,0);
         // Reading database
         FNode.InitSafeboxAndOperations(MaxBlockToRead);
         FWalletKeys.SafeBox := FNode.Node.Bank.SafeBox;
