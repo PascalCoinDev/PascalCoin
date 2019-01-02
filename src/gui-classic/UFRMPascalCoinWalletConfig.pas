@@ -91,7 +91,7 @@ type
 
 implementation
 
-uses UConst, UAccounts, ULog, UCrypto, UFolderHelper, USettings;
+uses UConst, UAccounts, ULog, UCrypto, UFolderHelper, USettings, UGUIUtils;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -153,16 +153,16 @@ begin
   if Not FWalletKeys.IsValidPassword then begin
     s := '';
     Repeat
-      if Not InputQuery('Wallet Password','Insert Wallet Password',s) then exit;
+      if Not InputQueryPassword('Wallet Password','Insert Wallet Password',s) then exit;
       FWalletKeys.WalletPassword := s;
       if Not FWalletKeys.IsValidPassword then Application.MessageBox(PChar('Invalid password'),PChar(Application.Title),MB_ICONERROR+MB_OK);
     Until FWalletKeys.IsValidPassword;
   end;
   if FWalletKeys.IsValidPassword then begin
     s := ''; s2 := '';
-    if Not InputQuery('Change password','Type new password',s) then exit;
+    if Not InputQueryPassword('Change password','Type new password',s) then exit;
     if trim(s)<>s then raise Exception.Create('Password cannot start or end with a space character');
-    if Not InputQuery('Change password','Type new password again',s2) then exit;
+    if Not InputQueryPassword('Change password','Type new password again',s2) then exit;
     if s<>s2 then raise Exception.Create('Two passwords are different!');
 
     FWalletKeys.WalletPassword := s;

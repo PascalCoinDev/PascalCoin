@@ -183,7 +183,7 @@ implementation
 
 uses
   UECIES, UConst, UOpTransaction, UFRMNewPrivateKeyType, UAES, UFRMWalletKeys,
-  UCommon;
+  UCommon, UGUIUtils;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -446,7 +446,7 @@ begin
   end else begin
     s := '';
     Repeat
-      if Not InputQuery('Wallet password','Enter wallet password',s) then exit;
+      if Not InputQueryPassword('Wallet password','Enter wallet password',s) then exit;
       FWalletKeys.WalletPassword := s;
     Until FWalletKeys.IsValidPassword;
     SetWalletKeys(WalletKeys);

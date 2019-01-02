@@ -95,7 +95,7 @@ uses
 {$ELSE}
   LCLIntf, LCLType,
 {$ENDIF}
-  UCrypto, UAccounts, UFRMNewPrivateKeyType, UAES, UBaseTypes, UCommon;
+  UCrypto, UAccounts, UFRMNewPrivateKeyType, UAES, UBaseTypes, UCommon, UGUIUtils;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -167,8 +167,8 @@ begin
   CheckIsWalletKeyValidPassword;
   if Not GetSelectedWalletKey(wk) then exit;
   if Assigned(wk.PrivateKey) then begin
-    if InputQuery('Export private key','Insert a password to export',pwd1) then begin
-      if InputQuery('Export private key','Repeat the password to export',pwd2) then begin
+    if InputQueryPassword('Export private key','Insert a password to export',pwd1) then begin
+      if InputQueryPassword('Export private key','Repeat the password to export',pwd2) then begin
         if pwd1<>pwd2 then raise Exception.Create('Passwords does not match!');
         enc := TCrypto.ToHexaString( TAESComp.EVP_Encrypt_AES256( wk.PrivateKey.ExportToRaw,pwd1) );
         Clipboard.AsText := enc;
@@ -230,7 +230,7 @@ begin
     if wki.Count<=0 then raise Exception.Create('Wallet file has no valid data');
     pwd := '';
     While (Not wki.IsValidPassword) do begin
-      if Not InputQuery('Import','Enter the wallet file password:',pwd) then exit;
+      if Not InputQueryPassword('Import','Enter the wallet file password:',pwd) then exit;
       wki.WalletPassword := pwd;
       if not wki.IsValidPassword then begin
         If Application.MessageBox(PChar('Password entered is not valid, retry?'),PChar(Application.Title),MB_ICONERROR+MB_YESNO)<>Idyes then exit;
@@ -298,7 +298,7 @@ var s : String;
       Repeat
         s := '';
         desenc := '';
-        if InputQuery('Import private key','Enter the password:',s) then begin
+        if InputQueryPassword('Import private key','Enter the password:',s) then begin
           If (TAESComp.EVP_Decrypt_AES256(enc,s,desenc)) then begin
             if (desenc<>'') then begin
               EC := TECPrivateKey.ImportFromRaw(desenc);
@@ -400,9 +400,9 @@ Var s,s2 : String;
 begin
   if FWalletKeys.IsValidPassword then begin
     s := ''; s2 := '';
-    if Not InputQuery('Change password','Enter new password',s) then exit;
+    if Not InputQueryPassword('Change password','Enter new password',s) then exit;
     if trim(s)<>s then raise Exception.Create('Password cannot start or end with a space character');
-    if Not InputQuery('Change password','Enter new password again',s2) then exit;
+    if Not InputQueryPassword('Change password','Enter new password again',s2) then exit;
     if s<>s2 then raise Exception.Create('Two passwords are different!');
 
     FWalletKeys.WalletPassword := s;
@@ -414,7 +414,7 @@ begin
   end else begin
     s := '';
     Repeat
-      if Not InputQuery('Wallet password','Enter wallet password',s) then exit;
+      if Not InputQueryPassword('Wallet password','Enter wallet password',s) then exit;
       FWalletKeys.WalletPassword := s;
       if Not FWalletKeys.IsValidPassword then Application.MessageBox(PChar('Invalid password'),PChar(Application.Title),MB_ICONERROR+MB_OK);
     Until FWalletKeys.IsValidPassword;

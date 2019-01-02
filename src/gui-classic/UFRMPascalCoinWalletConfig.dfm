@@ -131,9 +131,8 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Top = 475
     Width = 75
     Height = 25
-    DoubleBuffered = True
     Kind = bkOK
-    ParentDoubleBuffered = False
+    NumGlyphs = 2
     TabOrder = 16
     OnClick = bbOkClick
   end
@@ -142,9 +141,8 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Top = 475
     Width = 75
     Height = 25
-    DoubleBuffered = True
     Kind = bkCancel
-    ParentDoubleBuffered = False
+    NumGlyphs = 2
     TabOrder = 17
   end
   object udInternetServerPort: TUpDown
@@ -174,7 +172,6 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Width = 336
     Height = 38
     Caption = 'Wallet Password'
-    DoubleBuffered = True
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -13
@@ -233,7 +230,6 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
       9191EFF6E1C9C8CDD9CC91919191919191919191919191919191C9EDF9F3F3EB
       DC91919191919191919191919191919191919191CBE0E1CF9191919191919191
       9191919191919191919191919191919191919191919191919191}
-    ParentDoubleBuffered = False
     ParentFont = False
     TabOrder = 0
     OnClick = bbUpdatePasswordClick
@@ -329,7 +325,6 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Width = 120
     Height = 25
     Caption = 'Open Data folder'
-    DoubleBuffered = True
     Glyph.Data = {
       36030000424D3603000000000000360000002800000010000000100000000100
       18000000000000030000120B0000120B00000000000000000000FF00FF078DBE
@@ -357,7 +352,6 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
       FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
       FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
       00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF}
-    ParentDoubleBuffered = False
     TabOrder = 15
     OnClick = bbOpenDataFolderClick
   end
