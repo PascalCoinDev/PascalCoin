@@ -15,8 +15,7 @@ object FRMAbout: TFRMAbout
   Font.Name = 'Tahoma'
   OnCreate = FormCreate
   Position = poOwnerFormCenter
-  LCLVersion = '1.8.4.0'
-  Visible = False
+  LCLVersion = '1.8.0.6'
   object Image1: TImage
     Left = 15
     Height = 60
@@ -251,7 +250,7 @@ object FRMAbout: TFRMAbout
     Width = 478
     BorderStyle = bsNone
     Lines.Strings = (
-      'Copyright (c) 2016 - 2018 PascalCoin developers'
+      'Copyright (c) 2016 - 2019 PascalCoin developers'
       'Based on Albert Molina original source code'
       ''
       'Pascal Coin is P2P cryptocurrency without the need for historical operations. This software comprises a node within the PascalCoin network.'

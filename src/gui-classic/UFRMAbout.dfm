@@ -256,15 +256,13 @@ object FRMAbout: TFRMAbout
     BorderStyle = bsNone
     Ctl3D = False
     Lines.Strings = (
-      'Copyright (c) 2016 Albert Molina'
+      'Copyright (c) 2016 - 2019 PascalCoin developers'
+      'Based on Albert Molina original source code'
       ''
       
-        'This software is a Node of the Pascal Coin P2P Cryptocurrency. A' +
-        ' Crypto currency '
-      
-        'without need of historical operations. It can be used to Mine an' +
-        'd Explore blocks '
-      'and operations.'
+        'Pascal Coin is P2P cryptocurrency without the need for historica' +
+        'l operations. This '
+      'software comprises a node within the PascalCoin network.'
       ''
       
         'Distributed under the MIT software license, see the accompanying' +
@@ -279,12 +277,15 @@ object FRMAbout: TFRMAbout
         'This product includes software developed by the OpenSSL Project ' +
         'and Denis '
       
-        'Grinyuk (https://github.com/Arvur/OpenSSL-Delphi), and some cryp' +
-        'tographic '
+        'Grinyuk (https://github.com/Arvur/OpenSSL-Delphi), some cryptogr' +
+        'aphic '
       
         'functions inspirated in code written by Ladar Levison and Marco ' +
-        'Ferrante. Original '
-      'source code is written in Pascal Language and is available at '
+        'Ferrante, and '
+      'Synapse Socket code copyright of Lukas Gebauer.'
+      
+        'Original source code is written in Pascal Language and is availa' +
+        'ble at '
       'https://github.com/PascalCoin/PascalCoin'
       ''
       'If you like it, consider a donation using BitCoin:'
@@ -300,9 +301,8 @@ object FRMAbout: TFRMAbout
     Width = 111
     Height = 31
     Caption = 'Close'
-    DoubleBuffered = True
     Kind = bkOK
-    ParentDoubleBuffered = False
+    NumGlyphs = 2
     TabOrder = 1
   end
 end

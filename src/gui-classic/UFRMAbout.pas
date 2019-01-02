@@ -73,7 +73,7 @@ uses
 
 procedure TFRMAbout.FormCreate(Sender: TObject);
 begin
-  lblBuild.Caption :=  'Build: '+CT_ClientAppVersion+' OpenSSL: '+IntToHex(OpenSSLVersion,8);
+  lblBuild.Caption :=  'Build: '+CT_ClientAppVersion+' OpenSSL: '+IntToHex(OpenSSLVersion,8)+' Compiler: '{$IFDEF FPC}+'FPC'{$IFDEF CPU32}+' 32b'{$ELSE}+' 64b'{$ENDIF}{$ELSE}+'Delphi'{$IFDEF CPU32BITS}+' 32b'{$ELSE}+' 64b'{$ENDIF}{$ENDIF};
   lblProtocolVersion.Caption := Format('BlockChain Protocol: %d (%d)  -  Net Protocol: %d (%d)',[TNode.Node.Bank.SafeBox.CurrentProtocol,CT_BlockChain_Protocol_Available,
     CT_NetProtocol_Version, CT_NetProtocol_Available]);
 end;
