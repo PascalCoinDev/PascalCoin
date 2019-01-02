@@ -365,7 +365,7 @@ Type
     Class Function CalcBlockHash(const block : TBlockAccount; useProtocol2Method : Boolean):TRawBytes;
     Class Function BlockAccountToText(Const block : TBlockAccount):AnsiString;
     Function LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; var LastReadBlock : TBlockAccount; var errors : AnsiString) : Boolean; overload;
-    Function LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; var LastReadBlock : TBlockAccount; var errors : AnsiString) : Boolean; overload;
+    Function LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var LastReadBlock : TBlockAccount; var errors : AnsiString) : Boolean; overload;
     Class Function LoadSafeBoxStreamHeader(Stream : TStream; var sbHeader : TPCSafeBoxHeader) : Boolean;
     Class Function SaveSafeBoxStreamHeader(Stream : TStream; protocol : Word; OffsetStartBlock, OffsetEndBlock, CurrentSafeBoxBlocksCount : Cardinal) : Boolean;
     Class Function MustSafeBoxBeSaved(BlocksCount : Cardinal) : Boolean;
@@ -2774,7 +2774,7 @@ begin
   FLock.Release;
 end;
 
-function TPCSafeBox.LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; var LastReadBlock : TBlockAccount; var errors : AnsiString) : Boolean;
+function TPCSafeBox.LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var LastReadBlock : TBlockAccount; var errors : AnsiString) : Boolean;
 Var
   iblock,iacc : Cardinal;
   s : AnsiString;
@@ -2786,8 +2786,11 @@ Var
   offsets : Array of Cardinal;
   sbHeader : TPCSafeBoxHeader;
   tc : TTickCount;
+  previous_Block : TBlockAccount;
+  do_check_blockchain_info : Boolean;
 begin
   If Assigned(FPreviousSafeBox) then Raise Exception.Create('Cannot loadSafeBoxFromStream on a Safebox in a Separate chain');
+  if (previousCheckedSafebox = Self) then previousCheckedSafebox := Nil; // Protection
   tc := TPlatform.GetTickCount;
   StartThreadSafe;
   try
@@ -2828,6 +2831,7 @@ begin
       FBlockAccountsList.Capacity := sbHeader.blockscount;
       FBufferBlocksHash.SetLength(sbHeader.blocksCount*32);
       errors := 'Corrupted stream';
+      do_check_blockchain_info := Not Assigned(previousCheckedSafebox);
       for iblock := 0 to sbHeader.blockscount-1 do begin
         if (Assigned(progressNotify)) and ((TPlatform.GetElapsedMilliseconds(tc)>=500)) then begin
           tc := TPlatform.GetTickCount;
@@ -2882,19 +2886,28 @@ begin
         If TStreamOp.ReadAnsiString(Stream,block.block_hash)<0 then exit;
         If Stream.Read(block.accumulatedWork,SizeOf(block.accumulatedWork)) < SizeOf(block.accumulatedWork) then exit;
         if checkAll then begin
+          if (Not do_check_blockchain_info) then begin
+            // Only check if block not found on previous or different block
+            if previousCheckedSafebox.BlocksCount>block.blockchainInfo.block then begin
+              previous_Block := previousCheckedSafebox.Block( block.blockchainInfo.block );
+              do_check_blockchain_info := Not TAccountComp.EqualOperationBlocks(block.blockchainInfo,previous_Block.blockchainInfo);
+            end else do_check_blockchain_info := True;
+          end else do_check_blockchain_info := True;
           // Check is valid:
-          // STEP 1: Validate the block
-          {$IFDEF TESTNET}
-            // For TESTNET increase speed purposes, will only check latests blocks
-          if ((iblock + (CT_BankToDiskEveryNBlocks * 10)) >= sbHeader.blockscount) then begin
-          {$ENDIF}
-            If not IsValidNewOperationsBlock(block.blockchainInfo,False,s) then begin
-              errors := errors + ' > ' + s;
-              exit;
+          if do_check_blockchain_info then begin
+            // STEP 1: Validate the block
+            {$IFDEF TESTNET}
+              // For TESTNET increase speed purposes, will only check latests blocks
+            if ((iblock + (CT_BankToDiskEveryNBlocks * 10)) >= sbHeader.blockscount) then begin
+            {$ENDIF}
+              If not IsValidNewOperationsBlock(block.blockchainInfo,False,s) then begin
+                errors := errors + ' > ' + s;
+                exit;
+              end;
+            {$IFDEF TESTNET}
             end;
-          {$IFDEF TESTNET}
+            {$ENDIF}
           end;
-          {$ENDIF}
           // STEP 2: Check if valid block hash
           if CalcBlockHash(block,FCurrentProtocol>=CT_PROTOCOL_2)<>block.block_hash then begin
             errors := errors + ' > Invalid block hash '+inttostr(iblock+1)+'/'+inttostr(sbHeader.blockscount);
@@ -2973,7 +2986,7 @@ function TPCSafeBox.LoadSafeBoxFromStream(Stream: TStream; checkAll: Boolean; va
 var pn : TProgressNotify;
 begin
   pn := Nil;
-  Result := LoadSafeBoxFromStream(Stream,checkAll,'',pn,LastReadBlock,errors);
+  Result := LoadSafeBoxFromStream(Stream,checkAll,'',pn,Nil,LastReadBlock,errors);
 end;
 
 class function TPCSafeBox.LoadSafeBoxStreamHeader(Stream: TStream; var sbHeader : TPCSafeBoxHeader) : Boolean;
