@@ -40,7 +40,9 @@ type
 
   TFRMPascalCoinWalletConfig = class(TForm)
     cbJSONRPCMinerServerActive: TCheckBox;
+    cbDownloadNewCheckpoint: TCheckBox;
     ebDefaultFee: TEdit;
+    ebMinFutureBlocksToDownloadNewSafebox: TEdit;
     Label1: TLabel;
     cbSaveLogFiles: TCheckBox;
     cbShowLogs: TCheckBox;
@@ -70,6 +72,7 @@ type
     ebJSONRPCAllowedIPs: TEdit;
     Label6: TLabel;
     Label7: TLabel;
+    procedure cbDownloadNewCheckpointClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure bbOkClick(Sender: TObject);
     procedure bbUpdatePasswordClick(Sender: TObject);
@@ -91,7 +94,7 @@ type
 
 implementation
 
-uses UConst, UAccounts, ULog, UCrypto, UFolderHelper, USettings, UGUIUtils;
+uses UConst, UAccounts, ULog, UCrypto, UFolderHelper, USettings, UGUIUtils, UNetProtocol;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -133,6 +136,11 @@ begin
   AppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].SetAsInteger(udJSONRPCMinerServerPort.Position);
   AppParams.ParamByName[CT_PARAM_JSONRPCEnabled].SetAsBoolean(cbJSONRPCPortEnabled.Checked);
   AppParams.ParamByName[CT_PARAM_JSONRPCAllowedIPs].SetAsString(ebJSONRPCAllowedIPs.Text);
+  if cbDownloadNewCheckpoint.Checked then begin
+    i := StrToIntDef(ebMinFutureBlocksToDownloadNewSafebox.Text,0);
+    AppParams.ParamByName[CT_PARAM_MinFutureBlocksToDownloadNewSafebox].SetAsInteger(i);
+    AppParams.ParamByName[CT_PARAM_AllowDownloadNewCheckpointIfOlderThan].SetAsBoolean(i>200);
+  end else AppParams.ParamByName[CT_PARAM_AllowDownloadNewCheckpointIfOlderThan].SetAsBoolean(False);
 
   ModalResult := MrOk;
 end;
@@ -195,6 +203,12 @@ begin
   lblDefaultJSONRPCMinerServerPort.Caption := Format('(Default %d)',[CT_JSONRPCMinerServer_Port]);
 end;
 
+procedure TFRMPascalCoinWalletConfig.cbDownloadNewCheckpointClick(
+  Sender: TObject);
+begin
+  UpdateWalletConfig;
+end;
+
 procedure TFRMPascalCoinWalletConfig.SetAppParams(const Value: TAppParams);
 Var i : Integer;
 begin
@@ -219,6 +233,8 @@ begin
     udJSONRPCMinerServerPort.Position := AppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port);
     cbJSONRPCPortEnabled.Checked := AppParams.ParamByName[CT_PARAM_JSONRPCEnabled].GetAsBoolean(false);
     ebJSONRPCAllowedIPs.Text := AppParams.ParamByName[CT_PARAM_JSONRPCAllowedIPs].GetAsString('127.0.0.1;');
+    ebMinFutureBlocksToDownloadNewSafebox.Text := IntToStr(AppParams.ParamByName[CT_PARAM_MinFutureBlocksToDownloadNewSafebox].GetAsInteger(TNetData.NetData.MinFutureBlocksToDownloadNewSafebox));
+    cbDownloadNewCheckpoint.Checked:= AppParams.ParamByName[CT_PARAM_AllowDownloadNewCheckpointIfOlderThan].GetAsBoolean(TNetData.NetData.MinFutureBlocksToDownloadNewSafebox>200);
   Except
     On E:Exception do begin
       TLog.NewLog(lterror,ClassName,'Exception at SetAppParams: '+E.Message);
@@ -226,6 +242,7 @@ begin
   End;
   cbSaveLogFilesClick(nil);
   cbJSONRPCPortEnabledClick(nil);
+  UpdateWalletConfig;
 end;
 
 procedure TFRMPascalCoinWalletConfig.SetWalletKeys(const Value: TWalletKeys);
@@ -275,6 +292,7 @@ begin
 
   end else bbUpdatePassword.Caption := '(Wallet password)';
   bbUpdatePassword.Enabled := Assigned(FWAlletKeys);
+  ebMinFutureBlocksToDownloadNewSafebox.Enabled:=cbDownloadNewCheckpoint.Checked;
 end;
 
 end.

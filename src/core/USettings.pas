@@ -51,6 +51,8 @@ const
   CT_PARAM_JSONRPCAllowedIPs = 'JSONRPCAllowedIPs';
   CT_PARAM_HashRateAvgBlocksCount = 'HashRateAvgBlocksCount';
   CT_PARAM_ShowHashRateAs = 'ShowHashRateAs';
+  CT_PARAM_AllowDownloadNewCheckpointIfOlderThan = 'AllowDownloadNewCheckpointIfOlderThan';
+  CT_PARAM_MinFutureBlocksToDownloadNewSafebox = 'MinFutureBlocksToDownloadNewSafebox';
 
 type
 

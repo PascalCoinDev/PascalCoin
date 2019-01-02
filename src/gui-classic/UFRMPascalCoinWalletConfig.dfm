@@ -4,7 +4,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
   Caption = 'Options'
-  ClientHeight = 519
+  ClientHeight = 540
   ClientWidth = 374
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -19,7 +19,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   TextHeight = 13
   object Label1: TLabel
     Left = 30
-    Top = 390
+    Top = 405
     Width = 120
     Height = 13
     Caption = 'Default fee for operation'
@@ -102,48 +102,48 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   end
   object ebDefaultFee: TEdit
     Left = 170
-    Top = 387
+    Top = 402
     Width = 56
     Height = 21
     Alignment = taRightJustify
-    TabOrder = 10
+    TabOrder = 12
     Text = '0'
   end
   object cbSaveLogFiles: TCheckBox
     Left = 15
-    Top = 414
+    Top = 429
     Width = 97
     Height = 17
     Caption = 'Save log file'
-    TabOrder = 11
+    TabOrder = 13
     OnClick = cbSaveLogFilesClick
   end
   object cbShowLogs: TCheckBox
     Left = 15
-    Top = 452
+    Top = 467
     Width = 97
     Height = 17
     Caption = 'Show logs'
-    TabOrder = 13
+    TabOrder = 15
   end
   object bbOk: TBitBtn
     Left = 176
-    Top = 475
+    Top = 490
     Width = 75
     Height = 25
     Kind = bkOK
     NumGlyphs = 2
-    TabOrder = 16
+    TabOrder = 18
     OnClick = bbOkClick
   end
   object bbCancel: TBitBtn
     Left = 266
-    Top = 475
+    Top = 490
     Width = 75
     Height = 25
     Kind = bkCancel
     NumGlyphs = 2
-    TabOrder = 17
+    TabOrder = 19
   end
   object udInternetServerPort: TUpDown
     Left = 226
@@ -244,11 +244,11 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   end
   object cbShowModalMessages: TCheckBox
     Left = 170
-    Top = 414
+    Top = 429
     Width = 171
     Height = 17
     Caption = 'Show modal messages'
-    TabOrder = 14
+    TabOrder = 16
   end
   object udJSONRPCMinerServerPort: TUpDown
     Left = 226
@@ -313,15 +313,15 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   end
   object cbSaveDebugLogs: TCheckBox
     Left = 31
-    Top = 432
+    Top = 447
     Width = 97
     Height = 17
     Caption = 'Save debug logs too'
-    TabOrder = 12
+    TabOrder = 14
   end
   object bbOpenDataFolder: TBitBtn
     Left = 15
-    Top = 475
+    Top = 490
     Width = 120
     Height = 25
     Caption = 'Open Data folder'
@@ -352,7 +352,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
       FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
       FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
       00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF}
-    TabOrder = 15
+    TabOrder = 17
     OnClick = bbOpenDataFolderClick
   end
   object cbJSONRPCPortEnabled: TCheckBox
@@ -371,5 +371,23 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Height = 21
     TabOrder = 5
     Text = 'ebJSONRPCAllowedIPs'
+  end
+  object ebMinFutureBlocksToDownloadNewSafebox: TEdit
+    Left = 296
+    Top = 373
+    Width = 53
+    Height = 21
+    Alignment = taRightJustify
+    TabOrder = 11
+    Text = '0'
+  end
+  object cbDownloadNewCheckpoint: TCheckBox
+    Left = 16
+    Top = 373
+    Width = 271
+    Height = 19
+    Caption = 'Download new Checkpoint if blockchain older than...'
+    TabOrder = 10
+    OnClick = cbDownloadNewCheckpointClick
   end
 end

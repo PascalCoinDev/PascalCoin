@@ -2197,6 +2197,11 @@ begin
     hr_Exa : cbHashRateUnits.ItemIndex:=6;
   else cbHashRateUnits.ItemIndex:=-1;
   end;
+  if TNetData.NetDataExists then begin
+    if FAppParams.ParamByName[CT_PARAM_AllowDownloadNewCheckpointIfOlderThan].GetAsBoolean(TNetData.NetData.MinFutureBlocksToDownloadNewSafebox>200) then begin
+      TNetData.NetData.MinFutureBlocksToDownloadNewSafebox:=FAppParams.ParamByName[CT_PARAM_MinFutureBlocksToDownloadNewSafebox].GetAsInteger(TNetData.NetData.MinFutureBlocksToDownloadNewSafebox);
+    end else TNetData.NetData.MinFutureBlocksToDownloadNewSafebox:=0;
+  end;
 end;
 
 procedure TFRMWallet.UpdateConnectionStatus;
