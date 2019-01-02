@@ -336,7 +336,7 @@ begin
   Result := False;
   bn := BN_new;
   try
-    if BN_hex2bn(@bn,PAnsiChar(hexa))=0 then Raise ECryptoException.Create('Invalid Hexadecimal value:'+hexa);
+    if BN_hex2bn(@bn,PAnsiChar(hexa))=0 then Raise ECryptoException.Create('Invalid Hexadecimal value:'+TCrypto.ToHexaString(hexa));
 
     if Assigned(FPrivateKey) then EC_KEY_free(FPrivateKey);
     FEC_OpenSSL_NID := EC_OpenSSL_NID;

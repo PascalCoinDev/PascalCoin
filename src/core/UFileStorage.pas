@@ -482,7 +482,7 @@ begin
       try
         fs.Position := 0;
         if LowMemoryUsage then begin
-          if not Bank.LoadBankFromStream(fs,False,'',restoreProgressNotify,errors) then begin
+          if not Bank.LoadBankFromStream(fs,False,'',Nil,restoreProgressNotify,errors) then begin
             TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+filename+ ' Error: '+errors);
           end;
         end else begin
@@ -490,7 +490,7 @@ begin
           Try
             ms.CopyFrom(fs,0);
             ms.Position := 0;
-            if not Bank.LoadBankFromStream(ms,False,'',restoreProgressNotify,errors) then begin
+            if not Bank.LoadBankFromStream(ms,False,'',Nil,restoreProgressNotify,errors) then begin
               TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+filename+ ' Error: '+errors);
             end;
           Finally
