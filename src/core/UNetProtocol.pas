@@ -1323,7 +1323,7 @@ Var P : PNodeServerAddress;
 begin
   if Not FNetConnectionsActive then exit;
   if TPCThread.ThreadClassFound(TThreadDiscoverConnection,nil)>=0 then begin
-    TLog.NewLog(ltInfo,ClassName,'Already discovering servers...');
+    {$IFDEF HIGHLOG}TLog.NewLog(ltInfo,ClassName,'Already discovering servers...');{$ENDIF}
     exit;
   end;
   FNodeServersAddresses.CleanBlackList(False);
@@ -1357,8 +1357,8 @@ begin
   if TPCThread.ThreadClassFound(TThreadDiscoverConnection,Nil)>=0 then exit;
   FIsDiscoveringServers := false;
   // If here, discover servers finished, so we can try to get/receive data
-  TLog.NewLog(ltDebug,Classname,Format('Discovering servers finished. Now we have %d active connections and %d connections to other servers',
-    [ConnectionsCount(false),ConnectionsCount(true)]));
+  {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,Classname,Format('Discovering servers finished. Now we have %d active connections and %d connections to other servers',
+    [ConnectionsCount(false),ConnectionsCount(true)]));{$ENDIF}
   if TPCThread.ThreadClassFound(TThreadGetNewBlockChainFromClient,nil)>=0 then exit;
   TThreadGetNewBlockChainFromClient.Create;
 end;
@@ -2503,7 +2503,7 @@ begin
       Client.RemoteHost := ServerIP;
       if ServerPort<=0 then ServerPort := CT_NetServer_Port;
       Client.RemotePort := ServerPort;
-      TLog.NewLog(ltDebug,Classname,'Trying to connect to a server at: '+ClientRemoteAddr);
+      {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,Classname,'Trying to connect to a server at: '+ClientRemoteAddr);{$ENDIF}
       TNetData.NetData.NodeServersAddresses.GetNodeServerAddress(Client.RemoteHost,Client.RemotePort,true,nsa);
       nsa.netConnection := Self;
       TNetData.NetData.NodeServersAddresses.SetNodeServerAddress(nsa);
@@ -2520,7 +2520,7 @@ begin
       TNetData.NetData.NodeServersAddresses.SetNodeServerAddress(nsa);
       Result := Send_Hello(ntp_request,TNetData.NetData.NewRequestId);
     end else begin
-      TLog.NewLog(ltDebug,Classname,'Cannot connect to a server at: '+ClientRemoteAddr);
+      {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,Classname,'Cannot connect to a server at: '+ClientRemoteAddr);{$ENDIF}
     end;
   finally
     FIsConnecting:=False;
@@ -3927,7 +3927,7 @@ begin
                   CT_NetOp_GetSafeBox : Begin
                     if HeaderData.header_type=ntp_request then begin
                       if TNetData.NetData.IpInfos.ReachesLimits(Client.RemoteHost,CT_NetTransferType[HeaderData.header_type],TNetData.OperationToText(HeaderData.operation),HeaderData.buffer_data_length,
-                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(3600,100,0),TLimitLifetime.Create(30,30,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
+                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(1200,100,0),TLimitLifetime.Create(10,40,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
                       else DoProcess_GetSafeBox_Request(HeaderData,ReceiveDataBuffer)
                     end else DisconnectInvalidClient(false,'Received '+TNetData.HeaderDataToText(HeaderData));
                   end;
@@ -3941,7 +3941,7 @@ begin
                   CT_NetOp_GetAccount : Begin
                     if (HeaderData.header_type=ntp_request) then begin
                       if TNetData.NetData.IpInfos.ReachesLimits(Client.RemoteHost,CT_NetTransferType[HeaderData.header_type],TNetData.OperationToText(HeaderData.operation),HeaderData.buffer_data_length,
-                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(30,60,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
+                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(10,60,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
                       else DoProcess_GetAccount_Request(HeaderData,ReceiveDataBuffer)
                     end else TLog.NewLog(ltdebug,Classname,'Received old response of: '+TNetData.HeaderDataToText(HeaderData));
                   end;
@@ -3995,7 +3995,7 @@ end;
 procedure TNetConnection.FinalizeConnection;
 begin
   If FDoFinalizeConnection then exit;
-  TLog.NewLog(ltdebug,ClassName,'Executing FinalizeConnection to '+ClientRemoteAddr);
+  {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,'Executing FinalizeConnection to '+ClientRemoteAddr);{$ENDIF}
   FDoFinalizeConnection := true;
 end;
 
@@ -4567,7 +4567,7 @@ begin
     Sleep(Random(1000));
   until (Terminated) Or (Random(5)=0);
   if Terminated then exit;
-  TLog.NewLog(ltInfo,Classname,'Starting discovery of connection '+FNodeServerAddress.ip+':'+InttoStr(FNodeServerAddress.port));
+  {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Starting discovery of connection '+FNodeServerAddress.ip+':'+InttoStr(FNodeServerAddress.port));{$ENDIF}
   DebugStep := 'Locking list';
   // Register attempt
   If TNetData.NetData.NodeServersAddresses.GetNodeServerAddress(FNodeServerAddress.ip,FNodeServerAddress.port,true,ns) then begin

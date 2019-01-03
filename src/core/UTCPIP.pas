@@ -254,7 +254,7 @@ begin
         FRemoteHost := FTcpBlockSocket.GetRemoteSinIP;
         FRemotePort := FTcpBlockSocket.GetRemoteSinPort;
         DoOnConnect;
-      end else TLog.NewLog(ltdebug,Classname,'Cannot connect to a server at: '+ClientRemoteAddr+' Reason: '+FTcpBlockSocket.GetErrorDescEx);
+      end{$IFDEF HIGHLOG} else TLog.NewLog(ltdebug,Classname,'Cannot connect to a server at: '+ClientRemoteAddr+' Reason: '+FTcpBlockSocket.GetErrorDescEx){$ENDIF};
     Except
       On E:Exception do begin
         SocketError := FTcpBlockSocket.LastError;
