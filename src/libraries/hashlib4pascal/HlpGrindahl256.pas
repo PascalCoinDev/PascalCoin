@@ -178,8 +178,8 @@ begin
 
   System.SetLength(result, 8 * System.SizeOf(UInt32));
 
-  TConverters.be32_copy(PCardinal(Fm_state) + 5, 0, PByte(result), 0,
-    System.Length(result));
+  TConverters.be32_copy(PCardinal(Fm_state), 5 * System.SizeOf(UInt32),
+    PByte(result), 0, System.Length(result));
 
 end;
 

@@ -8,6 +8,7 @@ uses
   HlpIHash,
   HlpKDF,
   HlpIHashInfo,
+  HlpHMACNotBuildInAdapter,
   HlpBitConverter,
   HlpHashLibTypes;
 
@@ -63,9 +64,6 @@ type
   end;
 
 implementation
-
-uses
-  HlpHashFactory; // placed here because of circular dependency.
 
 { TPBKDF2_HMACNotBuildInAdapter }
 
@@ -129,7 +127,7 @@ end;
 function TPBKDF2_HMACNotBuildInAdapter.GetBytes(bc: Int32): THashLibByteArray;
 var
   LKey, LT_block: THashLibByteArray;
-  LOffset, LSize, LRemainder: Int32;
+  LOffset, LSize, LRemainder, LRemCount: Int32;
 begin
 
   if (bc <= 0) then
@@ -171,10 +169,16 @@ begin
     end
     else
     begin
-      System.Move(LT_block[0], LKey[LOffset], LRemainder);
-      System.Move(LT_block[LRemainder], Fbuffer[FstartIndex],
-        FBlockSize - LRemainder);
-      FendIndex := FendIndex + (FBlockSize - LRemainder);
+      if LRemainder > 0 then
+      begin
+        System.Move(LT_block[0], LKey[LOffset], LRemainder);
+      end;
+      LRemCount := FBlockSize - LRemainder;
+      if LRemCount > 0 then
+      begin
+        System.Move(LT_block[LRemainder], Fbuffer[FstartIndex], LRemCount);
+      end;
+      FendIndex := FendIndex + LRemCount;
       result := LKey;
       Exit;
     end;
@@ -189,9 +193,8 @@ begin
     System.FillChar(Fbuffer[0], System.Length(Fbuffer) *
       System.SizeOf(Byte), Byte(0));
 
-  FHMAC := THashFactory.THMAC.CreateHMAC(FHash);
+  FHMAC := THMACNotBuildInAdapter.CreateHMAC(FHash, FPassword);
 
-  FHMAC.Key := System.Copy(FPassword);
   FBlockSize := FHMAC.HashSize;
   System.SetLength(Fbuffer, FBlockSize);
   FBlock := 1;

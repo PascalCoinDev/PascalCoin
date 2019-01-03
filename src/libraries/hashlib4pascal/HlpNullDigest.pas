@@ -68,8 +68,11 @@ end;
 procedure TNullDigest.TransformBytes(const a_data: THashLibByteArray;
   a_index, a_length: Int32);
 begin
-  FbOut.Write(a_data[a_index], a_length);
-  HashSize := Int32(FbOut.Size);
+  if a_data <> Nil then
+  begin
+    FbOut.Write(a_data[a_index], a_length);
+    HashSize := Int32(FbOut.Size);
+  end;
 end;
 
 function TNullDigest.TransformFinal: IHashResult;
@@ -77,9 +80,12 @@ var
   res: THashLibByteArray;
 begin
   try
-    FbOut.Position := 0;
-    System.SetLength(res, FbOut.Size);
-    FbOut.Read(res[0], FbOut.Size);
+    if FbOut.Size > 0 then
+    begin
+      FbOut.Position := 0;
+      System.SetLength(res, FbOut.Size);
+      FbOut.Read(res[0], FbOut.Size);
+    end;
     result := THashResult.Create(res);
   finally
     Initialize();

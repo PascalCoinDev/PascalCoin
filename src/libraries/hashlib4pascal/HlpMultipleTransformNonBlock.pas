@@ -26,8 +26,8 @@ type
   strict protected
     FBuffer: TMemoryStream;
 
-    function ComputeAggregatedBytes(const a_data: THashLibByteArray): IHashResult;
-      virtual; abstract;
+    function ComputeAggregatedBytes(const a_data: THashLibByteArray)
+      : IHashResult; virtual; abstract;
 
   public
     constructor Create(a_hash_size, a_block_size: Int32);
@@ -47,9 +47,13 @@ implementation
 
 function TMultipleTransformNonBlock.Aggregate: THashLibByteArray;
 begin
-  FBuffer.Position := 0;
-  System.SetLength(result, FBuffer.Size);
-  FBuffer.Read(result[0], FBuffer.Size);
+  Result := Nil;
+  if FBuffer.Size > 0 then
+  begin
+    FBuffer.Position := 0;
+    System.SetLength(Result, FBuffer.Size);
+    FBuffer.Read(Result[0], FBuffer.Size);
+  end;
 end;
 
 constructor TMultipleTransformNonBlock.Create(a_hash_size, a_block_size: Int32);
@@ -67,7 +71,7 @@ end;
 procedure TMultipleTransformNonBlock.Initialize;
 begin
   FBuffer.Clear;
-  FBuffer.SetSize(0);
+  FBuffer.SetSize(Int64(0));
 end;
 
 procedure TMultipleTransformNonBlock.TransformBytes(const a_data
@@ -83,7 +87,7 @@ end;
 
 function TMultipleTransformNonBlock.TransformFinal: IHashResult;
 begin
-  result := ComputeAggregatedBytes(Aggregate());
+  Result := ComputeAggregatedBytes(Aggregate());
   Initialize();
 end;
 
@@ -91,7 +95,7 @@ function TMultipleTransformNonBlock.ComputeBytes(const a_data
   : THashLibByteArray): IHashResult;
 begin
   Initialize();
-  result := ComputeAggregatedBytes(a_data);
+  Result := ComputeAggregatedBytes(a_data);
 end;
 
 end.

@@ -39,7 +39,8 @@ type
 
   public
 
-    constructor Create(const a_underlyingHash: IHash);
+    constructor Create(const a_underlyingHash: IHash;
+      const a_hmacKey: THashLibByteArray = Nil);
     procedure Initialize(); override;
     function TransformFinal(): IHashResult; override;
     procedure TransformBytes(const a_data: THashLibByteArray;
@@ -48,6 +49,9 @@ type
     property Key: THashLibByteArray read GetKey write SetKey;
     property Name: String read GetName;
     property KeyLength: TNullableInteger read GetKeyLength;
+
+    class function CreateHMAC(const a_hash: IHash;
+      const a_hmacKey: THashLibByteArray): IHMAC; static;
 
   end;
 
@@ -59,21 +63,21 @@ function THMACNotBuildInAdapter.Clone(): IHash;
 var
   HmacInstance: THMACNotBuildInAdapter;
 begin
-  HmacInstance := THMACNotBuildInAdapter.Create(Fm_hash.Clone());
+  HmacInstance := THMACNotBuildInAdapter.Create(Fm_hash.Clone(), Fm_key);
   HmacInstance.Fm_opad := System.Copy(Fm_opad);
   HmacInstance.Fm_ipad := System.Copy(Fm_ipad);
-  HmacInstance.Fm_key := System.Copy(Fm_key);
   HmacInstance.Fm_blocksize := Fm_blocksize;
   result := HmacInstance as IHash;
   result.BufferSize := BufferSize;
 end;
 
-constructor THMACNotBuildInAdapter.Create(const a_underlyingHash: IHash);
+constructor THMACNotBuildInAdapter.Create(const a_underlyingHash: IHash;
+  const a_hmacKey: THashLibByteArray);
 begin
   Inherited Create(a_underlyingHash.HashSize, a_underlyingHash.BlockSize);
   Fm_hash := a_underlyingHash;
   Fm_blocksize := Fm_hash.BlockSize;
-  System.SetLength(Fm_key, 0);
+  SetKey(a_hmacKey);
   System.SetLength(Fm_ipad, Fm_blocksize);
   System.SetLength(Fm_opad, Fm_blocksize);
 end;
@@ -160,6 +164,22 @@ end;
 function THMACNotBuildInAdapter.GetName: String;
 begin
   result := Format('%s(%s)', ['THMAC', Fm_hash.Name]);
+end;
+
+class function THMACNotBuildInAdapter.CreateHMAC(const a_hash: IHash;
+  const a_hmacKey: THashLibByteArray): IHMAC;
+begin
+
+  if Supports(a_hash, IHMAC) then
+  begin
+    result := (a_hash) as IHMAC;
+    Exit;
+  end
+  else
+  begin
+    result := THMACNotBuildInAdapter.Create(a_hash, a_hmacKey);
+    Exit;
+  end;
 
 end;
 

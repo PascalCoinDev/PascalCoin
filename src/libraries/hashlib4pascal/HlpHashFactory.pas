@@ -5,11 +5,6 @@ unit HlpHashFactory;
 interface
 
 uses
-{$IFDEF HAS_UNITSCOPE}
-  System.SysUtils,
-{$ELSE}
-  SysUtils,
-{$ENDIF HAS_UNITSCOPE}
   HlpHashRounds,
   HlpHashSize,
   HlpIHash,
@@ -375,6 +370,9 @@ type
       class function CreateKeccak_384(): IHash; static;
       class function CreateKeccak_512(): IHash; static;
 
+      class function CreateShake_128(a_xof_size: THashSize): IHash; static;
+      class function CreateShake_256(a_xof_size: THashSize): IHash; static;
+
       class function CreateBlake2B(const config: IBlake2BConfig = Nil)
         : IHash; static;
 
@@ -400,7 +398,8 @@ type
 
     public
 
-      class function CreateHMAC(const a_hash: IHash): IHMAC; static;
+      class function CreateHMAC(const a_hash: IHash;
+        const a_hmacKey: THashLibByteArray = Nil): IHMAC; static;
 
     end;
 
@@ -932,6 +931,18 @@ begin
   Result := TSHA3_512.Create();
 end;
 
+class function THashFactory.TCrypto.CreateShake_128
+  (a_xof_size: THashSize): IHash;
+begin
+  Result := (TShake_128.Create() as IXOF).SetXOFOutputSize(a_xof_size);
+end;
+
+class function THashFactory.TCrypto.CreateShake_256
+  (a_xof_size: THashSize): IHash;
+begin
+  Result := (TShake_256.Create() as IXOF).SetXOFOutputSize(a_xof_size);
+end;
+
 class function THashFactory.TCrypto.CreateKeccak_224: IHash;
 begin
   Result := TKeccak_224.Create();
@@ -1169,20 +1180,10 @@ end;
 
 { THashFactory.THMAC }
 
-class function THashFactory.THMAC.CreateHMAC(const a_hash: IHash): IHMAC;
+class function THashFactory.THMAC.CreateHMAC(const a_hash: IHash;
+  const a_hmacKey: THashLibByteArray): IHMAC;
 begin
-
-  if Supports(a_hash, IHMAC) then
-  begin
-    Result := (a_hash) as IHMAC;
-    Exit;
-  end
-  else
-  begin
-    Result := THMACNotBuildInAdapter.Create(a_hash);
-    Exit;
-  end;
-
+  Result := THMACNotBuildInAdapter.CreateHMAC(a_hash, a_hmacKey);
 end;
 
 { TKDF.TPBKDF2_HMAC }

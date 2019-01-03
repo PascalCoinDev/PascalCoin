@@ -72,17 +72,17 @@ type
     class function ReadUInt64AsBytesLE(a_in: UInt64): THashLibByteArray;
       overload; static; inline;
 
-    class procedure ReadUInt32AsBytesLE(a_in: UInt32; const a_out: THashLibByteArray;
-      a_index: Int32); overload; static; inline;
+    class procedure ReadUInt32AsBytesLE(a_in: UInt32;
+      const a_out: THashLibByteArray; a_index: Int32); overload; static; inline;
 
-    class procedure ReadUInt32AsBytesBE(a_in: UInt32; const a_out: THashLibByteArray;
-      a_index: Int32); overload; static; inline;
+    class procedure ReadUInt32AsBytesBE(a_in: UInt32;
+      const a_out: THashLibByteArray; a_index: Int32); overload; static; inline;
 
-    class procedure ReadUInt64AsBytesLE(a_in: UInt64; const a_out: THashLibByteArray;
-      a_index: Int32); overload; static; inline;
+    class procedure ReadUInt64AsBytesLE(a_in: UInt64;
+      const a_out: THashLibByteArray; a_index: Int32); overload; static; inline;
 
-    class procedure ReadUInt64AsBytesBE(a_in: UInt64; const a_out: THashLibByteArray;
-      a_index: Int32); overload; static; inline;
+    class procedure ReadUInt64AsBytesBE(a_in: UInt64;
+      const a_out: THashLibByteArray; a_index: Int32); overload; static; inline;
 
     class function ConvertStringToBytes(const a_in: String;
       const a_encoding: TEncoding): THashLibByteArray; overload; static;
@@ -403,8 +403,12 @@ begin
   System.Assert(System.length(l_in) and 1 = 0);
 {$ENDIF DEBUG}
   System.SetLength(result, System.length(l_in) shr 1);
-  HexToBin(PChar(l_in), @result[0], System.length(result));
 
+{$IFNDEF NEXTGEN}
+  HexToBin(PChar(l_in), @result[0], System.length(result));
+{$ELSE}
+  HexToBin(PChar(l_in), 0, result, 0, System.length(l_in));
+{$ENDIF !NEXTGEN}
 end;
 
 class function TConverters.ConvertStringToBytes(const a_in: String;

@@ -1441,7 +1441,8 @@ begin
 end;
 
 procedure TBlake2S.Finish;
-
+var
+  count: Int32;
 begin
 
   // Last compression
@@ -1450,8 +1451,12 @@ begin
 
   F_finalizationFlag0 := System.High(UInt32);
 
-  System.FillChar(F_buf[F_bufferFilled],
-    (System.Length(F_buf) - F_bufferFilled), Byte(0));
+  count := System.Length(F_buf) - F_bufferFilled;
+
+  if count > 0 then
+  begin
+    System.FillChar(F_buf[F_bufferFilled], count, Byte(0));
+  end;
 
   Compress(PByte(F_buf), 0);
 
@@ -1520,7 +1525,10 @@ begin
   if ((F_bufferFilled > 0) and (a_data_length > bufferRemaining)) then
   begin
 
-    System.Move(a_data[offset], F_buf[F_bufferFilled], bufferRemaining);
+    if bufferRemaining > 0 then
+    begin
+      System.Move(a_data[offset], F_buf[F_bufferFilled], bufferRemaining);
+    end;
     F_counter0 := F_counter0 + UInt32(BlockSizeInBytes);
     if (F_counter0 = 0) then
     begin

@@ -72,6 +72,13 @@
 // Disable Duplicate Constructor Warnings
 {$WARN DUPLICATE_CTOR_DTOR OFF}
 
+ // XE3 and Above
+{$IF CompilerVersion >= 24.0}
+{$DEFINE DELPHIXE3_UP}
+{$LEGACYIFEND ON}
+{$ZEROBASEDSTRINGS OFF}
+{$IFEND}
+
  // 2010 only
 {$IF CompilerVersion = 21.0}
 {$DEFINE DELPHI2010}
@@ -96,13 +103,6 @@
 // XE3 and Below
 {$IF CompilerVersion <= 24.0}
 {$DEFINE DELPHIXE3_DOWN}
-{$IFEND}
-
- // XE3 and Above
-{$IF CompilerVersion >= 24.0}
-{$DEFINE DELPHIXE3_UP}
-{$LEGACYIFEND ON}
-{$ZEROBASEDSTRINGS OFF}
 {$IFEND}
 
   // XE7 and Above

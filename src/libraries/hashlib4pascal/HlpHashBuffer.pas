@@ -12,6 +12,9 @@ uses
 {$ENDIF HAS_UNITSCOPE}
   HlpHashLibTypes;
 
+resourcestring
+  SHashBufferMessage = 'HashBuffer, Length: %d, Pos: %d, IsEmpty: %s';
+
 type
   THashBuffer = record
 
@@ -179,13 +182,14 @@ end;
 procedure THashBuffer.Initialize;
 begin
   Fm_pos := 0;
-  System.FillChar(Fm_data[0], System.Length(Fm_data) * System.SizeOf(Byte), Byte(0));
+  System.FillChar(Fm_data[0], System.Length(Fm_data) *
+    System.SizeOf(Byte), Byte(0));
 end;
 
 function THashBuffer.ToString: String;
 begin
-  result := Format('HashBuffer, Length: %d, Pos: %d, IsEmpty: %s',
-    [Self.Length, Self.Pos, BoolToStr(Self.IsEmpty, True)]);
+  result := Format(SHashBufferMessage, [Self.Length, Self.Pos,
+    BoolToStr(Self.IsEmpty, True)]);
 end;
 
 end.

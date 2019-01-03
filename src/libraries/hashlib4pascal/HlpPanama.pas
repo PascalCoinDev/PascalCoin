@@ -169,8 +169,8 @@ begin
 
   System.SetLength(result, 8 * System.SizeOf(UInt32));
 
-  TConverters.le32_copy(PCardinal(Fm_state) + 9, 0, PByte(result), 0,
-    System.Length(result));
+  TConverters.le32_copy(PCardinal(Fm_state), 9 * System.SizeOf(UInt32),
+    PByte(result), 0, System.Length(result));
 
 end;
 

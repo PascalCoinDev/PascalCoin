@@ -45,16 +45,13 @@ begin
   begin
     a_buffer_size := a_block_size;
   end;
-
   Fm_buffer := THashBuffer.Create(a_buffer_size);
-
 end;
 
 procedure TBlockHash.Initialize;
 begin
   Fm_buffer.Initialize();
   Fm_processed_bytes := 0;
-
 end;
 
 procedure TBlockHash.TransformBuffer;
@@ -90,7 +87,6 @@ begin
   begin
     Fm_processed_bytes := Fm_processed_bytes + UInt64(Fm_buffer.Length);
     TransformBlock(ptr_a_data, Fm_buffer.Length, a_index);
-    // TransformBlock(ptr_a_data, a_length, a_index);
     a_index := a_index + (Fm_buffer.Length);
     a_length := a_length - (Fm_buffer.Length);
   end;

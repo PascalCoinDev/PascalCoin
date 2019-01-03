@@ -8,6 +8,7 @@ uses
   HlpHashLibTypes,
   HlpIKDF,
   HlpIHash,
+  HlpHashSize,
   HlpNullable;
 
 type
@@ -81,6 +82,14 @@ type
 
   IHashWithKey = Interface(IWithKey)
     ['{D38AE885-651F-4F15-BF90-5B64A0F24E49}']
+  end;
+
+  IXOF = Interface(IHash)
+    ['{944ED7F0-D033-4489-A5DD-9C83353F23F0}']
+    function GetXOFSize: THashSize;
+    procedure SetXOFSize(a_xof_size: THashSize);
+    property XOFSize: THashSize read GetXOFSize write SetXOFSize;
+    function SetXOFOutputSize(a_xof_size: THashSize): IXOF;
   end;
 
 implementation

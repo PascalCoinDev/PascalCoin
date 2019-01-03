@@ -263,8 +263,8 @@ begin
 
   System.SetLength(result, 8 * System.SizeOf(UInt64));
 
-  TConverters.be64_copy(PUInt64(Fm_state) + 5, 0, PByte(result), 0,
-    System.Length(result));
+  TConverters.be64_copy(PUInt64(Fm_state), 5 * System.SizeOf(UInt64),
+    PByte(result), 0, System.Length(result));
 
 end;
 

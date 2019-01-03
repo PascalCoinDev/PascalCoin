@@ -18,6 +18,8 @@ uses
 {$ENDIF DELPHI}
   HlpIHashInfo,
   HlpIHash,
+  HlpHashResult,
+  HlpIHashResult,
   HlpHashCryptoNotBuildIn,
   HlpConverters,
   HlpHashSize,
@@ -25,13 +27,14 @@ uses
 
 resourcestring
   SInvalidHashMode = 'Only "[%s]" HashModes are Supported';
+  SInvalidXOFSize = 'XOFSize in Bits must be Divisible by 8.';
 
 type
   TSHA3 = class abstract(TBlockHash, ICryptoNotBuildIn, ITransformBlock)
 
   type
 {$SCOPEDENUMS ON}
-    THashMode = (hmKeccak = $1, hmSHA3 = $6);
+    THashMode = (hmKeccak = $1, hmSHA3 = $6, hmShake = $1F);
 {$SCOPEDENUMS OFF}
   strict protected
 
@@ -153,6 +156,41 @@ type
     function Clone(): IHash; override;
   end;
 
+type
+  TShake = class abstract(TSHA3, IXOF)
+  strict private
+  var
+    FXOFSize: THashSize;
+    function GetXOFSize: THashSize; inline;
+    procedure SetXOFSize(a_xof_size: THashSize); inline;
+  strict protected
+    constructor Create(a_hash_size: THashSize);
+    function SetXOFOutputSize(a_xof_size: THashSize): IXOF;
+    property XOFSize: THashSize read GetXOFSize write SetXOFSize;
+
+  public
+    function GetResult(): THashLibByteArray; override;
+    function TransformFinal(): IHashResult; override;
+  end;
+
+type
+  TShake_128 = class sealed(TShake)
+
+  public
+
+    constructor Create();
+    function Clone(): IHash; override;
+  end;
+
+type
+  TShake_256 = class sealed(TShake)
+
+  public
+
+    constructor Create();
+    function Clone(): IHash; override;
+  end;
+
 implementation
 
 { TSHA3 }
@@ -197,10 +235,13 @@ begin
       Result := Format('%s_%u', ['TKeccak', Self.HashSize * 8]);
     TSHA3.THashMode.hmSHA3:
       Result := Self.ClassName;
+    TSHA3.THashMode.hmShake:
+      Result := Format('%s_%s_%u', [Self.ClassName, 'XOFSizeInBits',
+        Int32((Self as IXOF).XOFSize) * 8]);
   else
     begin
       raise EArgumentInvalidHashLibException.CreateResFmt(@SInvalidHashMode,
-        ['hmKeccak, hmSHA3']);
+        ['hmKeccak, hmSHA3, hmShake']);
     end;
   end;
 end;
@@ -236,9 +277,9 @@ end;
 procedure TSHA3.TransformBlock(a_data: PByte; a_data_length: Int32;
   a_index: Int32);
 var
-  data: array [0 .. 17] of UInt64;
+  data: array [0 .. 20] of UInt64;
   Ca, Ce, Ci, Co, Cu, De, Di, &Do, Du, Da: UInt64;
-  j: Int32;
+  j, upcount: Int32;
 {$IFDEF USE_UNROLLED_VARIANT}
   Aba, Abe, Abi, Abo, Abu, Aga, Age, Agi, Ago, Agu, Aka, Ake, Aki, Ako, Aku,
     Ama, Ame, Ami, Amo, Amu, Asa, Ase, Asi, Aso, Asu, Bba, Bbe, Bbi, Bbo, Bbu,
@@ -253,8 +294,8 @@ begin
   TConverters.le64_copy(a_data, a_index, @(data[0]), 0, a_data_length);
 
   j := 0;
-
-  while j < (FBlockSize shr 3) do
+  upcount := FBlockSize shr 3;
+  while j < upcount do
   begin
     Fm_state[j] := Fm_state[j] xor data[j];
     System.Inc(j);
@@ -3096,6 +3137,118 @@ constructor TKeccak_512.Create;
 begin
   Inherited Create(THashSize.hsHashSize512);
   FHashMode := THashMode.hmKeccak;
+end;
+
+{ TShake }
+
+constructor TShake.Create(a_hash_size: THashSize);
+begin
+  Inherited Create(a_hash_size);
+  FHashMode := THashMode.hmShake;
+end;
+
+function TShake.GetResult: THashLibByteArray;
+var
+  buffer_pos, Idx, LXofSize: Int32;
+  block: THashLibByteArray;
+begin
+  buffer_pos := Fm_buffer.Pos;
+  block := Fm_buffer.GetBytesZeroPadded();
+
+  LXofSize := Int32(FXOFSize);
+  Idx := 0;
+
+  while Idx < LXofSize do
+  begin
+    if buffer_pos >= FBlockSize then
+    begin
+      TransformBlock(PByte(block), System.Length(block), 0);
+      buffer_pos := 0;
+    end;
+    System.Inc(Idx);
+  end;
+
+  System.SetLength(Result, LXofSize);
+
+  TConverters.le64_copy(PUInt64(Fm_state), 0, PByte(Result), 0,
+    System.Length(Result));
+
+end;
+
+function TShake.GetXOFSize: THashSize;
+begin
+  Result := FXOFSize;
+end;
+
+function TShake.TransformFinal: IHashResult;
+var
+  tempresult: THashLibByteArray;
+begin
+  Finish();
+{$IFDEF DEBUG}
+  System.Assert(Fm_buffer.IsEmpty);
+{$ENDIF DEBUG}
+  tempresult := GetResult();
+{$IFDEF DEBUG}
+  System.Assert(System.Length(tempresult) = Int32(XOFSize));
+{$ENDIF DEBUG}
+  Initialize();
+  Result := THashResult.Create(tempresult);
+end;
+
+function TShake.SetXOFOutputSize(a_xof_size: THashSize): IXOF;
+begin
+  If ((Int32(a_xof_size) * 8) and $7) <> 0 then
+  begin
+    raise EArgumentInvalidHashLibException.CreateRes(@SInvalidXOFSize);
+  end;
+  FXOFSize := a_xof_size;
+  Result := Self;
+end;
+
+procedure TShake.SetXOFSize(a_xof_size: THashSize);
+begin
+  SetXOFOutputSize(a_xof_size);
+end;
+
+{ TShake_128 }
+
+function TShake_128.Clone(): IHash;
+var
+  HashInstance: TShake_128;
+begin
+  HashInstance := (TShake_128.Create() as IXOF)
+    .SetXOFOutputSize((Self as IXOF).XOFSize) as TShake_128;
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  Result := HashInstance as IHash;
+  Result.BufferSize := BufferSize;
+end;
+
+constructor TShake_128.Create;
+begin
+  Inherited Create(THashSize.hsHashSize128);
+end;
+
+{ TShake_256 }
+
+function TShake_256.Clone(): IHash;
+var
+  HashInstance: TShake_256;
+begin
+  HashInstance := (TShake_256.Create() as IXOF)
+    .SetXOFOutputSize((Self as IXOF).XOFSize) as TShake_256;
+  HashInstance.Fm_state := System.Copy(Fm_state);
+  HashInstance.Fm_buffer := Fm_buffer.Clone();
+  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
+  Result := HashInstance as IHash;
+  Result.BufferSize := BufferSize;
+end;
+
+constructor TShake_256.Create;
+begin
+  Inherited Create(THashSize.hsHashSize256);
 end;
 
 end.

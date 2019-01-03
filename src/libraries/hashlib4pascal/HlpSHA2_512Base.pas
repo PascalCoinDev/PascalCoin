@@ -536,7 +536,7 @@ begin
   // Step 2
 
   // R0
-  h := h + ($428A2F98D728AE22 + data[0] + ((TBits.RotateLeft64(e, 50))
+  h := h + (UInt64($428A2F98D728AE22) + data[0] + ((TBits.RotateLeft64(e, 50))
     xor (TBits.RotateLeft64(e, 46)) xor (TBits.RotateLeft64(e, 23))) +
     ((e and f) xor (not e and g)));
 
@@ -544,7 +544,7 @@ begin
   h := h + (((TBits.RotateLeft64(a, 36)) xor (TBits.RotateLeft64(a, 30))
     xor (TBits.RotateLeft64(a, 25))) + ((a and b) xor (a and c) xor (b and c)));
 
-  g := g + ($7137449123EF65CD + data[1] + ((TBits.RotateLeft64(d, 50))
+  g := g + (UInt64($7137449123EF65CD) + data[1] + ((TBits.RotateLeft64(d, 50))
     xor (TBits.RotateLeft64(d, 46)) xor (TBits.RotateLeft64(d, 23))) +
     ((d and e) xor (not d and f)));
 
@@ -552,7 +552,7 @@ begin
   g := g + (((TBits.RotateLeft64(h, 36)) xor (TBits.RotateLeft64(h, 30))
     xor (TBits.RotateLeft64(h, 25))) + ((h and a) xor (h and b) xor (a and b)));
 
-  f := f + ($B5C0FBCFEC4D3B2F + data[2] + ((TBits.RotateLeft64(c, 50))
+  f := f + (UInt64($B5C0FBCFEC4D3B2F) + data[2] + ((TBits.RotateLeft64(c, 50))
     xor (TBits.RotateLeft64(c, 46)) xor (TBits.RotateLeft64(c, 23))) +
     ((c and d) xor (not c and e)));
 
@@ -560,7 +560,7 @@ begin
   f := f + (((TBits.RotateLeft64(g, 36)) xor (TBits.RotateLeft64(g, 30))
     xor (TBits.RotateLeft64(g, 25))) + ((g and h) xor (g and a) xor (h and a)));
 
-  e := e + ($E9B5DBA58189DBBC + data[3] + ((TBits.RotateLeft64(b, 50))
+  e := e + (UInt64($E9B5DBA58189DBBC) + data[3] + ((TBits.RotateLeft64(b, 50))
     xor (TBits.RotateLeft64(b, 46)) xor (TBits.RotateLeft64(b, 23))) +
     ((b and c) xor (not b and d)));
 
@@ -568,7 +568,7 @@ begin
   e := e + (((TBits.RotateLeft64(f, 36)) xor (TBits.RotateLeft64(f, 30))
     xor (TBits.RotateLeft64(f, 25))) + ((f and g) xor (f and h) xor (g and h)));
 
-  d := d + ($3956C25BF348B538 + data[4] + ((TBits.RotateLeft64(a, 50))
+  d := d + (UInt64($3956C25BF348B538) + data[4] + ((TBits.RotateLeft64(a, 50))
     xor (TBits.RotateLeft64(a, 46)) xor (TBits.RotateLeft64(a, 23))) +
     ((a and b) xor (not a and c)));
 
@@ -576,7 +576,7 @@ begin
   d := d + (((TBits.RotateLeft64(e, 36)) xor (TBits.RotateLeft64(e, 30))
     xor (TBits.RotateLeft64(e, 25))) + ((e and f) xor (e and g) xor (f and g)));
 
-  c := c + ($59F111F1B605D019 + data[5] + ((TBits.RotateLeft64(h, 50))
+  c := c + (UInt64($59F111F1B605D019) + data[5] + ((TBits.RotateLeft64(h, 50))
     xor (TBits.RotateLeft64(h, 46)) xor (TBits.RotateLeft64(h, 23))) +
     ((h and a) xor (not h and b)));
 
@@ -584,7 +584,7 @@ begin
   c := c + (((TBits.RotateLeft64(d, 36)) xor (TBits.RotateLeft64(d, 30))
     xor (TBits.RotateLeft64(d, 25))) + ((d and e) xor (d and f) xor (e and f)));
 
-  b := b + ($923F82A4AF194F9B + data[6] + ((TBits.RotateLeft64(g, 50))
+  b := b + (UInt64($923F82A4AF194F9B) + data[6] + ((TBits.RotateLeft64(g, 50))
     xor (TBits.RotateLeft64(g, 46)) xor (TBits.RotateLeft64(g, 23))) +
     ((g and h) xor (not g and a)));
 
@@ -592,7 +592,7 @@ begin
   b := b + (((TBits.RotateLeft64(c, 36)) xor (TBits.RotateLeft64(c, 30))
     xor (TBits.RotateLeft64(c, 25))) + ((c and d) xor (c and e) xor (d and e)));
 
-  a := a + ($AB1C5ED5DA6D8118 + data[7] + ((TBits.RotateLeft64(f, 50))
+  a := a + (UInt64($AB1C5ED5DA6D8118) + data[7] + ((TBits.RotateLeft64(f, 50))
     xor (TBits.RotateLeft64(f, 46)) xor (TBits.RotateLeft64(f, 23))) +
     ((f and g) xor (not f and h)));
 
@@ -601,7 +601,7 @@ begin
     xor (TBits.RotateLeft64(b, 25))) + ((b and c) xor (b and d) xor (c and d)));
 
   // R1
-  h := h + ($D807AA98A3030242 + data[8] + ((TBits.RotateLeft64(e, 50))
+  h := h + (UInt64($D807AA98A3030242) + data[8] + ((TBits.RotateLeft64(e, 50))
     xor (TBits.RotateLeft64(e, 46)) xor (TBits.RotateLeft64(e, 23))) +
     ((e and f) xor (not e and g)));
 
@@ -609,7 +609,7 @@ begin
   h := h + (((TBits.RotateLeft64(a, 36)) xor (TBits.RotateLeft64(a, 30))
     xor (TBits.RotateLeft64(a, 25))) + ((a and b) xor (a and c) xor (b and c)));
 
-  g := g + ($12835B0145706FBE + data[9] + ((TBits.RotateLeft64(d, 50))
+  g := g + (UInt64($12835B0145706FBE) + data[9] + ((TBits.RotateLeft64(d, 50))
     xor (TBits.RotateLeft64(d, 46)) xor (TBits.RotateLeft64(d, 23))) +
     ((d and e) xor (not d and f)));
 
@@ -617,7 +617,7 @@ begin
   g := g + (((TBits.RotateLeft64(h, 36)) xor (TBits.RotateLeft64(h, 30))
     xor (TBits.RotateLeft64(h, 25))) + ((h and a) xor (h and b) xor (a and b)));
 
-  f := f + ($243185BE4EE4B28C + data[10] + ((TBits.RotateLeft64(c, 50))
+  f := f + (UInt64($243185BE4EE4B28C) + data[10] + ((TBits.RotateLeft64(c, 50))
     xor (TBits.RotateLeft64(c, 46)) xor (TBits.RotateLeft64(c, 23))) +
     ((c and d) xor (not c and e)));
 
@@ -625,7 +625,7 @@ begin
   f := f + (((TBits.RotateLeft64(g, 36)) xor (TBits.RotateLeft64(g, 30))
     xor (TBits.RotateLeft64(g, 25))) + ((g and h) xor (g and a) xor (h and a)));
 
-  e := e + ($550C7DC3D5FFB4E2 + data[11] + ((TBits.RotateLeft64(b, 50))
+  e := e + (UInt64($550C7DC3D5FFB4E2) + data[11] + ((TBits.RotateLeft64(b, 50))
     xor (TBits.RotateLeft64(b, 46)) xor (TBits.RotateLeft64(b, 23))) +
     ((b and c) xor (not b and d)));
 
@@ -633,7 +633,7 @@ begin
   e := e + (((TBits.RotateLeft64(f, 36)) xor (TBits.RotateLeft64(f, 30))
     xor (TBits.RotateLeft64(f, 25))) + ((f and g) xor (f and h) xor (g and h)));
 
-  d := d + ($72BE5D74F27B896F + data[12] + ((TBits.RotateLeft64(a, 50))
+  d := d + (UInt64($72BE5D74F27B896F) + data[12] + ((TBits.RotateLeft64(a, 50))
     xor (TBits.RotateLeft64(a, 46)) xor (TBits.RotateLeft64(a, 23))) +
     ((a and b) xor (not a and c)));
 
@@ -641,7 +641,7 @@ begin
   d := d + (((TBits.RotateLeft64(e, 36)) xor (TBits.RotateLeft64(e, 30))
     xor (TBits.RotateLeft64(e, 25))) + ((e and f) xor (e and g) xor (f and g)));
 
-  c := c + ($80DEB1FE3B1696B1 + data[13] + ((TBits.RotateLeft64(h, 50))
+  c := c + (UInt64($80DEB1FE3B1696B1) + data[13] + ((TBits.RotateLeft64(h, 50))
     xor (TBits.RotateLeft64(h, 46)) xor (TBits.RotateLeft64(h, 23))) +
     ((h and a) xor (not h and b)));
 
@@ -649,7 +649,7 @@ begin
   c := c + (((TBits.RotateLeft64(d, 36)) xor (TBits.RotateLeft64(d, 30))
     xor (TBits.RotateLeft64(d, 25))) + ((d and e) xor (d and f) xor (e and f)));
 
-  b := b + ($9BDC06A725C71235 + data[14] + ((TBits.RotateLeft64(g, 50))
+  b := b + (UInt64($9BDC06A725C71235) + data[14] + ((TBits.RotateLeft64(g, 50))
     xor (TBits.RotateLeft64(g, 46)) xor (TBits.RotateLeft64(g, 23))) +
     ((g and h) xor (not g and a)));
 
@@ -657,7 +657,7 @@ begin
   b := b + (((TBits.RotateLeft64(c, 36)) xor (TBits.RotateLeft64(c, 30))
     xor (TBits.RotateLeft64(c, 25))) + ((c and d) xor (c and e) xor (d and e)));
 
-  a := a + ($C19BF174CF692694 + data[15] + ((TBits.RotateLeft64(f, 50))
+  a := a + (UInt64($C19BF174CF692694) + data[15] + ((TBits.RotateLeft64(f, 50))
     xor (TBits.RotateLeft64(f, 46)) xor (TBits.RotateLeft64(f, 23))) +
     ((f and g) xor (not f and h)));
 
@@ -667,7 +667,7 @@ begin
 
   // R2
 
-  h := h + ($E49B69C19EF14AD2 + data[16] + ((TBits.RotateLeft64(e, 50))
+  h := h + (UInt64($E49B69C19EF14AD2) + data[16] + ((TBits.RotateLeft64(e, 50))
     xor (TBits.RotateLeft64(e, 46)) xor (TBits.RotateLeft64(e, 23))) +
     ((e and f) xor (not e and g)));
 
@@ -675,7 +675,7 @@ begin
   h := h + (((TBits.RotateLeft64(a, 36)) xor (TBits.RotateLeft64(a, 30))
     xor (TBits.RotateLeft64(a, 25))) + ((a and b) xor (a and c) xor (b and c)));
 
-  g := g + ($EFBE4786384F25E3 + data[17] + ((TBits.RotateLeft64(d, 50))
+  g := g + (UInt64($EFBE4786384F25E3) + data[17] + ((TBits.RotateLeft64(d, 50))
     xor (TBits.RotateLeft64(d, 46)) xor (TBits.RotateLeft64(d, 23))) +
     ((d and e) xor (not d and f)));
 
@@ -683,7 +683,7 @@ begin
   g := g + (((TBits.RotateLeft64(h, 36)) xor (TBits.RotateLeft64(h, 30))
     xor (TBits.RotateLeft64(h, 25))) + ((h and a) xor (h and b) xor (a and b)));
 
-  f := f + ($0FC19DC68B8CD5B5 + data[18] + ((TBits.RotateLeft64(c, 50))
+  f := f + (UInt64($0FC19DC68B8CD5B5) + data[18] + ((TBits.RotateLeft64(c, 50))
     xor (TBits.RotateLeft64(c, 46)) xor (TBits.RotateLeft64(c, 23))) +
     ((c and d) xor (not c and e)));
 
@@ -691,7 +691,7 @@ begin
   f := f + (((TBits.RotateLeft64(g, 36)) xor (TBits.RotateLeft64(g, 30))
     xor (TBits.RotateLeft64(g, 25))) + ((g and h) xor (g and a) xor (h and a)));
 
-  e := e + ($240CA1CC77AC9C65 + data[19] + ((TBits.RotateLeft64(b, 50))
+  e := e + (UInt64($240CA1CC77AC9C65) + data[19] + ((TBits.RotateLeft64(b, 50))
     xor (TBits.RotateLeft64(b, 46)) xor (TBits.RotateLeft64(b, 23))) +
     ((b and c) xor (not b and d)));
 
@@ -699,7 +699,7 @@ begin
   e := e + (((TBits.RotateLeft64(f, 36)) xor (TBits.RotateLeft64(f, 30))
     xor (TBits.RotateLeft64(f, 25))) + ((f and g) xor (f and h) xor (g and h)));
 
-  d := d + ($2DE92C6F592B0275 + data[20] + ((TBits.RotateLeft64(a, 50))
+  d := d + (UInt64($2DE92C6F592B0275) + data[20] + ((TBits.RotateLeft64(a, 50))
     xor (TBits.RotateLeft64(a, 46)) xor (TBits.RotateLeft64(a, 23))) +
     ((a and b) xor (not a and c)));
 
@@ -707,7 +707,7 @@ begin
   d := d + (((TBits.RotateLeft64(e, 36)) xor (TBits.RotateLeft64(e, 30))
     xor (TBits.RotateLeft64(e, 25))) + ((e and f) xor (e and g) xor (f and g)));
 
-  c := c + ($4A7484AA6EA6E483 + data[21] + ((TBits.RotateLeft64(h, 50))
+  c := c + (UInt64($4A7484AA6EA6E483) + data[21] + ((TBits.RotateLeft64(h, 50))
     xor (TBits.RotateLeft64(h, 46)) xor (TBits.RotateLeft64(h, 23))) +
     ((h and a) xor (not h and b)));
 
@@ -715,7 +715,7 @@ begin
   c := c + (((TBits.RotateLeft64(d, 36)) xor (TBits.RotateLeft64(d, 30))
     xor (TBits.RotateLeft64(d, 25))) + ((d and e) xor (d and f) xor (e and f)));
 
-  b := b + ($5CB0A9DCBD41FBD4 + data[22] + ((TBits.RotateLeft64(g, 50))
+  b := b + (UInt64($5CB0A9DCBD41FBD4) + data[22] + ((TBits.RotateLeft64(g, 50))
     xor (TBits.RotateLeft64(g, 46)) xor (TBits.RotateLeft64(g, 23))) +
     ((g and h) xor (not g and a)));
 
@@ -723,7 +723,7 @@ begin
   b := b + (((TBits.RotateLeft64(c, 36)) xor (TBits.RotateLeft64(c, 30))
     xor (TBits.RotateLeft64(c, 25))) + ((c and d) xor (c and e) xor (d and e)));
 
-  a := a + ($76F988DA831153B5 + data[23] + ((TBits.RotateLeft64(f, 50))
+  a := a + (UInt64($76F988DA831153B5) + data[23] + ((TBits.RotateLeft64(f, 50))
     xor (TBits.RotateLeft64(f, 46)) xor (TBits.RotateLeft64(f, 23))) +
     ((f and g) xor (not f and h)));
 
@@ -733,7 +733,7 @@ begin
 
   // R3
 
-  h := h + ($983E5152EE66DFAB + data[24] + ((TBits.RotateLeft64(e, 50))
+  h := h + (UInt64($983E5152EE66DFAB) + data[24] + ((TBits.RotateLeft64(e, 50))
     xor (TBits.RotateLeft64(e, 46)) xor (TBits.RotateLeft64(e, 23))) +
     ((e and f) xor (not e and g)));
 
@@ -741,7 +741,7 @@ begin
   h := h + (((TBits.RotateLeft64(a, 36)) xor (TBits.RotateLeft64(a, 30))
     xor (TBits.RotateLeft64(a, 25))) + ((a and b) xor (a and c) xor (b and c)));
 
-  g := g + ($A831C66D2DB43210 + data[25] + ((TBits.RotateLeft64(d, 50))
+  g := g + (UInt64($A831C66D2DB43210) + data[25] + ((TBits.RotateLeft64(d, 50))
     xor (TBits.RotateLeft64(d, 46)) xor (TBits.RotateLeft64(d, 23))) +
     ((d and e) xor (not d and f)));
 
@@ -749,7 +749,7 @@ begin
   g := g + (((TBits.RotateLeft64(h, 36)) xor (TBits.RotateLeft64(h, 30))
     xor (TBits.RotateLeft64(h, 25))) + ((h and a) xor (h and b) xor (a and b)));
 
-  f := f + ($B00327C898FB213F + data[26] + ((TBits.RotateLeft64(c, 50))
+  f := f + (UInt64($B00327C898FB213F) + data[26] + ((TBits.RotateLeft64(c, 50))
     xor (TBits.RotateLeft64(c, 46)) xor (TBits.RotateLeft64(c, 23))) +
     ((c and d) xor (not c and e)));
 
@@ -757,7 +757,7 @@ begin
   f := f + (((TBits.RotateLeft64(g, 36)) xor (TBits.RotateLeft64(g, 30))
     xor (TBits.RotateLeft64(g, 25))) + ((g and h) xor (g and a) xor (h and a)));
 
-  e := e + ($BF597FC7BEEF0EE4 + data[27] + ((TBits.RotateLeft64(b, 50))
+  e := e + (UInt64($BF597FC7BEEF0EE4) + data[27] + ((TBits.RotateLeft64(b, 50))
     xor (TBits.RotateLeft64(b, 46)) xor (TBits.RotateLeft64(b, 23))) +
     ((b and c) xor (not b and d)));
 
@@ -765,7 +765,7 @@ begin
   e := e + (((TBits.RotateLeft64(f, 36)) xor (TBits.RotateLeft64(f, 30))
     xor (TBits.RotateLeft64(f, 25))) + ((f and g) xor (f and h) xor (g and h)));
 
-  d := d + ($C6E00BF33DA88FC2 + data[28] + ((TBits.RotateLeft64(a, 50))
+  d := d + (UInt64($C6E00BF33DA88FC2) + data[28] + ((TBits.RotateLeft64(a, 50))
     xor (TBits.RotateLeft64(a, 46)) xor (TBits.RotateLeft64(a, 23))) +
     ((a and b) xor (not a and c)));
 
@@ -773,7 +773,7 @@ begin
   d := d + (((TBits.RotateLeft64(e, 36)) xor (TBits.RotateLeft64(e, 30))
     xor (TBits.RotateLeft64(e, 25))) + ((e and f) xor (e and g) xor (f and g)));
 
-  c := c + ($D5A79147930AA725 + data[29] + ((TBits.RotateLeft64(h, 50))
+  c := c + (UInt64($D5A79147930AA725) + data[29] + ((TBits.RotateLeft64(h, 50))
     xor (TBits.RotateLeft64(h, 46)) xor (TBits.RotateLeft64(h, 23))) +
     ((h and a) xor (not h and b)));
 
@@ -781,7 +781,7 @@ begin
   c := c + (((TBits.RotateLeft64(d, 36)) xor (TBits.RotateLeft64(d, 30))
     xor (TBits.RotateLeft64(d, 25))) + ((d and e) xor (d and f) xor (e and f)));
 
-  b := b + ($06CA6351E003826F + data[30] + ((TBits.RotateLeft64(g, 50))
+  b := b + (UInt64($06CA6351E003826F) + data[30] + ((TBits.RotateLeft64(g, 50))
     xor (TBits.RotateLeft64(g, 46)) xor (TBits.RotateLeft64(g, 23))) +
     ((g and h) xor (not g and a)));
 
@@ -789,7 +789,7 @@ begin
   b := b + (((TBits.RotateLeft64(c, 36)) xor (TBits.RotateLeft64(c, 30))
     xor (TBits.RotateLeft64(c, 25))) + ((c and d) xor (c and e) xor (d and e)));
 
-  a := a + ($142929670A0E6E70 + data[31] + ((TBits.RotateLeft64(f, 50))
+  a := a + (UInt64($142929670A0E6E70) + data[31] + ((TBits.RotateLeft64(f, 50))
     xor (TBits.RotateLeft64(f, 46)) xor (TBits.RotateLeft64(f, 23))) +
     ((f and g) xor (not f and h)));
 
@@ -799,7 +799,7 @@ begin
 
   // R4
 
-  h := h + ($27B70A8546D22FFC + data[32] + ((TBits.RotateLeft64(e, 50))
+  h := h + (UInt64($27B70A8546D22FFC) + data[32] + ((TBits.RotateLeft64(e, 50))
     xor (TBits.RotateLeft64(e, 46)) xor (TBits.RotateLeft64(e, 23))) +
     ((e and f) xor (not e and g)));
 
@@ -807,7 +807,7 @@ begin
   h := h + (((TBits.RotateLeft64(a, 36)) xor (TBits.RotateLeft64(a, 30))
     xor (TBits.RotateLeft64(a, 25))) + ((a and b) xor (a and c) xor (b and c)));
 
-  g := g + ($2E1B21385C26C926 + data[33] + ((TBits.RotateLeft64(d, 50))
+  g := g + (UInt64($2E1B21385C26C926) + data[33] + ((TBits.RotateLeft64(d, 50))
     xor (TBits.RotateLeft64(d, 46)) xor (TBits.RotateLeft64(d, 23))) +
     ((d and e) xor (not d and f)));
 
@@ -815,7 +815,7 @@ begin
   g := g + (((TBits.RotateLeft64(h, 36)) xor (TBits.RotateLeft64(h, 30))
     xor (TBits.RotateLeft64(h, 25))) + ((h and a) xor (h and b) xor (a and b)));
 
-  f := f + ($4D2C6DFC5AC42AED + data[34] + ((TBits.RotateLeft64(c, 50))
+  f := f + (UInt64($4D2C6DFC5AC42AED) + data[34] + ((TBits.RotateLeft64(c, 50))
     xor (TBits.RotateLeft64(c, 46)) xor (TBits.RotateLeft64(c, 23))) +
     ((c and d) xor (not c and e)));
 
@@ -823,7 +823,7 @@ begin
   f := f + (((TBits.RotateLeft64(g, 36)) xor (TBits.RotateLeft64(g, 30))
     xor (TBits.RotateLeft64(g, 25))) + ((g and h) xor (g and a) xor (h and a)));
 
-  e := e + ($53380D139D95B3DF + data[35] + ((TBits.RotateLeft64(b, 50))
+  e := e + (UInt64($53380D139D95B3DF) + data[35] + ((TBits.RotateLeft64(b, 50))
     xor (TBits.RotateLeft64(b, 46)) xor (TBits.RotateLeft64(b, 23))) +
     ((b and c) xor (not b and d)));
 
@@ -831,7 +831,7 @@ begin
   e := e + (((TBits.RotateLeft64(f, 36)) xor (TBits.RotateLeft64(f, 30))
     xor (TBits.RotateLeft64(f, 25))) + ((f and g) xor (f and h) xor (g and h)));
 
-  d := d + ($650A73548BAF63DE + data[36] + ((TBits.RotateLeft64(a, 50))
+  d := d + (UInt64($650A73548BAF63DE) + data[36] + ((TBits.RotateLeft64(a, 50))
     xor (TBits.RotateLeft64(a, 46)) xor (TBits.RotateLeft64(a, 23))) +
     ((a and b) xor (not a and c)));
 
@@ -839,7 +839,7 @@ begin
   d := d + (((TBits.RotateLeft64(e, 36)) xor (TBits.RotateLeft64(e, 30))
     xor (TBits.RotateLeft64(e, 25))) + ((e and f) xor (e and g) xor (f and g)));
 
-  c := c + ($766A0ABB3C77B2A8 + data[37] + ((TBits.RotateLeft64(h, 50))
+  c := c + (UInt64($766A0ABB3C77B2A8) + data[37] + ((TBits.RotateLeft64(h, 50))
     xor (TBits.RotateLeft64(h, 46)) xor (TBits.RotateLeft64(h, 23))) +
     ((h and a) xor (not h and b)));
 
@@ -847,7 +847,7 @@ begin
   c := c + (((TBits.RotateLeft64(d, 36)) xor (TBits.RotateLeft64(d, 30))
     xor (TBits.RotateLeft64(d, 25))) + ((d and e) xor (d and f) xor (e and f)));
 
-  b := b + ($81C2C92E47EDAEE6 + data[38] + ((TBits.RotateLeft64(g, 50))
+  b := b + (UInt64($81C2C92E47EDAEE6) + data[38] + ((TBits.RotateLeft64(g, 50))
     xor (TBits.RotateLeft64(g, 46)) xor (TBits.RotateLeft64(g, 23))) +
     ((g and h) xor (not g and a)));
 
@@ -855,7 +855,7 @@ begin
   b := b + (((TBits.RotateLeft64(c, 36)) xor (TBits.RotateLeft64(c, 30))
     xor (TBits.RotateLeft64(c, 25))) + ((c and d) xor (c and e) xor (d and e)));
 
-  a := a + ($92722C851482353B + data[39] + ((TBits.RotateLeft64(f, 50))
+  a := a + (UInt64($92722C851482353B) + data[39] + ((TBits.RotateLeft64(f, 50))
     xor (TBits.RotateLeft64(f, 46)) xor (TBits.RotateLeft64(f, 23))) +
     ((f and g) xor (not f and h)));
 
@@ -865,7 +865,7 @@ begin
 
   // R5
 
-  h := h + ($A2BFE8A14CF10364 + data[40] + ((TBits.RotateLeft64(e, 50))
+  h := h + (UInt64($A2BFE8A14CF10364) + data[40] + ((TBits.RotateLeft64(e, 50))
     xor (TBits.RotateLeft64(e, 46)) xor (TBits.RotateLeft64(e, 23))) +
     ((e and f) xor (not e and g)));
 
@@ -873,7 +873,7 @@ begin
   h := h + (((TBits.RotateLeft64(a, 36)) xor (TBits.RotateLeft64(a, 30))
     xor (TBits.RotateLeft64(a, 25))) + ((a and b) xor (a and c) xor (b and c)));
 
-  g := g + ($A81A664BBC423001 + data[41] + ((TBits.RotateLeft64(d, 50))
+  g := g + (UInt64($A81A664BBC423001) + data[41] + ((TBits.RotateLeft64(d, 50))
     xor (TBits.RotateLeft64(d, 46)) xor (TBits.RotateLeft64(d, 23))) +
     ((d and e) xor (not d and f)));
 
@@ -881,7 +881,7 @@ begin
   g := g + (((TBits.RotateLeft64(h, 36)) xor (TBits.RotateLeft64(h, 30))
     xor (TBits.RotateLeft64(h, 25))) + ((h and a) xor (h and b) xor (a and b)));
 
-  f := f + ($C24B8B70D0F89791 + data[42] + ((TBits.RotateLeft64(c, 50))
+  f := f + (UInt64($C24B8B70D0F89791) + data[42] + ((TBits.RotateLeft64(c, 50))
     xor (TBits.RotateLeft64(c, 46)) xor (TBits.RotateLeft64(c, 23))) +
     ((c and d) xor (not c and e)));
 
@@ -889,7 +889,7 @@ begin
   f := f + (((TBits.RotateLeft64(g, 36)) xor (TBits.RotateLeft64(g, 30))
     xor (TBits.RotateLeft64(g, 25))) + ((g and h) xor (g and a) xor (h and a)));
 
-  e := e + ($C76C51A30654BE30 + data[43] + ((TBits.RotateLeft64(b, 50))
+  e := e + (UInt64($C76C51A30654BE30) + data[43] + ((TBits.RotateLeft64(b, 50))
     xor (TBits.RotateLeft64(b, 46)) xor (TBits.RotateLeft64(b, 23))) +
     ((b and c) xor (not b and d)));
 
@@ -897,7 +897,7 @@ begin
   e := e + (((TBits.RotateLeft64(f, 36)) xor (TBits.RotateLeft64(f, 30))
     xor (TBits.RotateLeft64(f, 25))) + ((f and g) xor (f and h) xor (g and h)));
 
-  d := d + ($D192E819D6EF5218 + data[44] + ((TBits.RotateLeft64(a, 50))
+  d := d + (UInt64($D192E819D6EF5218) + data[44] + ((TBits.RotateLeft64(a, 50))
     xor (TBits.RotateLeft64(a, 46)) xor (TBits.RotateLeft64(a, 23))) +
     ((a and b) xor (not a and c)));
 
@@ -905,7 +905,7 @@ begin
   d := d + (((TBits.RotateLeft64(e, 36)) xor (TBits.RotateLeft64(e, 30))
     xor (TBits.RotateLeft64(e, 25))) + ((e and f) xor (e and g) xor (f and g)));
 
-  c := c + ($D69906245565A910 + data[45] + ((TBits.RotateLeft64(h, 50))
+  c := c + (UInt64($D69906245565A910) + data[45] + ((TBits.RotateLeft64(h, 50))
     xor (TBits.RotateLeft64(h, 46)) xor (TBits.RotateLeft64(h, 23))) +
     ((h and a) xor (not h and b)));
 
@@ -913,7 +913,7 @@ begin
   c := c + (((TBits.RotateLeft64(d, 36)) xor (TBits.RotateLeft64(d, 30))
     xor (TBits.RotateLeft64(d, 25))) + ((d and e) xor (d and f) xor (e and f)));
 
-  b := b + ($F40E35855771202A + data[46] + ((TBits.RotateLeft64(g, 50))
+  b := b + (UInt64($F40E35855771202A) + data[46] + ((TBits.RotateLeft64(g, 50))
     xor (TBits.RotateLeft64(g, 46)) xor (TBits.RotateLeft64(g, 23))) +
     ((g and h) xor (not g and a)));
 
@@ -921,7 +921,7 @@ begin
   b := b + (((TBits.RotateLeft64(c, 36)) xor (TBits.RotateLeft64(c, 30))
     xor (TBits.RotateLeft64(c, 25))) + ((c and d) xor (c and e) xor (d and e)));
 
-  a := a + ($106AA07032BBD1B8 + data[47] + ((TBits.RotateLeft64(f, 50))
+  a := a + (UInt64($106AA07032BBD1B8) + data[47] + ((TBits.RotateLeft64(f, 50))
     xor (TBits.RotateLeft64(f, 46)) xor (TBits.RotateLeft64(f, 23))) +
     ((f and g) xor (not f and h)));
 
@@ -931,7 +931,7 @@ begin
 
   // R6
 
-  h := h + ($19A4C116B8D2D0C8 + data[48] + ((TBits.RotateLeft64(e, 50))
+  h := h + (UInt64($19A4C116B8D2D0C8) + data[48] + ((TBits.RotateLeft64(e, 50))
     xor (TBits.RotateLeft64(e, 46)) xor (TBits.RotateLeft64(e, 23))) +
     ((e and f) xor (not e and g)));
 
@@ -939,7 +939,7 @@ begin
   h := h + (((TBits.RotateLeft64(a, 36)) xor (TBits.RotateLeft64(a, 30))
     xor (TBits.RotateLeft64(a, 25))) + ((a and b) xor (a and c) xor (b and c)));
 
-  g := g + ($1E376C085141AB53 + data[49] + ((TBits.RotateLeft64(d, 50))
+  g := g + (UInt64($1E376C085141AB53) + data[49] + ((TBits.RotateLeft64(d, 50))
     xor (TBits.RotateLeft64(d, 46)) xor (TBits.RotateLeft64(d, 23))) +
     ((d and e) xor (not d and f)));
 
@@ -947,7 +947,7 @@ begin
   g := g + (((TBits.RotateLeft64(h, 36)) xor (TBits.RotateLeft64(h, 30))
     xor (TBits.RotateLeft64(h, 25))) + ((h and a) xor (h and b) xor (a and b)));
 
-  f := f + ($2748774CDF8EEB99 + data[50] + ((TBits.RotateLeft64(c, 50))
+  f := f + (UInt64($2748774CDF8EEB99) + data[50] + ((TBits.RotateLeft64(c, 50))
     xor (TBits.RotateLeft64(c, 46)) xor (TBits.RotateLeft64(c, 23))) +
     ((c and d) xor (not c and e)));
 
@@ -955,7 +955,7 @@ begin
   f := f + (((TBits.RotateLeft64(g, 36)) xor (TBits.RotateLeft64(g, 30))
     xor (TBits.RotateLeft64(g, 25))) + ((g and h) xor (g and a) xor (h and a)));
 
-  e := e + ($34B0BCB5E19B48A8 + data[51] + ((TBits.RotateLeft64(b, 50))
+  e := e + (UInt64($34B0BCB5E19B48A8) + data[51] + ((TBits.RotateLeft64(b, 50))
     xor (TBits.RotateLeft64(b, 46)) xor (TBits.RotateLeft64(b, 23))) +
     ((b and c) xor (not b and d)));
 
@@ -963,7 +963,7 @@ begin
   e := e + (((TBits.RotateLeft64(f, 36)) xor (TBits.RotateLeft64(f, 30))
     xor (TBits.RotateLeft64(f, 25))) + ((f and g) xor (f and h) xor (g and h)));
 
-  d := d + ($391C0CB3C5C95A63 + data[52] + ((TBits.RotateLeft64(a, 50))
+  d := d + (UInt64($391C0CB3C5C95A63) + data[52] + ((TBits.RotateLeft64(a, 50))
     xor (TBits.RotateLeft64(a, 46)) xor (TBits.RotateLeft64(a, 23))) +
     ((a and b) xor (not a and c)));
 
@@ -971,7 +971,7 @@ begin
   d := d + (((TBits.RotateLeft64(e, 36)) xor (TBits.RotateLeft64(e, 30))
     xor (TBits.RotateLeft64(e, 25))) + ((e and f) xor (e and g) xor (f and g)));
 
-  c := c + ($4ED8AA4AE3418ACB + data[53] + ((TBits.RotateLeft64(h, 50))
+  c := c + (UInt64($4ED8AA4AE3418ACB) + data[53] + ((TBits.RotateLeft64(h, 50))
     xor (TBits.RotateLeft64(h, 46)) xor (TBits.RotateLeft64(h, 23))) +
     ((h and a) xor (not h and b)));
 
@@ -979,7 +979,7 @@ begin
   c := c + (((TBits.RotateLeft64(d, 36)) xor (TBits.RotateLeft64(d, 30))
     xor (TBits.RotateLeft64(d, 25))) + ((d and e) xor (d and f) xor (e and f)));
 
-  b := b + ($5B9CCA4F7763E373 + data[54] + ((TBits.RotateLeft64(g, 50))
+  b := b + (UInt64($5B9CCA4F7763E373) + data[54] + ((TBits.RotateLeft64(g, 50))
     xor (TBits.RotateLeft64(g, 46)) xor (TBits.RotateLeft64(g, 23))) +
     ((g and h) xor (not g and a)));
 
@@ -987,7 +987,7 @@ begin
   b := b + (((TBits.RotateLeft64(c, 36)) xor (TBits.RotateLeft64(c, 30))
     xor (TBits.RotateLeft64(c, 25))) + ((c and d) xor (c and e) xor (d and e)));
 
-  a := a + ($682E6FF3D6B2B8A3 + data[55] + ((TBits.RotateLeft64(f, 50))
+  a := a + (UInt64($682E6FF3D6B2B8A3) + data[55] + ((TBits.RotateLeft64(f, 50))
     xor (TBits.RotateLeft64(f, 46)) xor (TBits.RotateLeft64(f, 23))) +
     ((f and g) xor (not f and h)));
 
@@ -997,7 +997,7 @@ begin
 
   // R7
 
-  h := h + ($748F82EE5DEFB2FC + data[56] + ((TBits.RotateLeft64(e, 50))
+  h := h + (UInt64($748F82EE5DEFB2FC) + data[56] + ((TBits.RotateLeft64(e, 50))
     xor (TBits.RotateLeft64(e, 46)) xor (TBits.RotateLeft64(e, 23))) +
     ((e and f) xor (not e and g)));
 
@@ -1005,7 +1005,7 @@ begin
   h := h + (((TBits.RotateLeft64(a, 36)) xor (TBits.RotateLeft64(a, 30))
     xor (TBits.RotateLeft64(a, 25))) + ((a and b) xor (a and c) xor (b and c)));
 
-  g := g + ($78A5636F43172F60 + data[57] + ((TBits.RotateLeft64(d, 50))
+  g := g + (UInt64($78A5636F43172F60) + data[57] + ((TBits.RotateLeft64(d, 50))
     xor (TBits.RotateLeft64(d, 46)) xor (TBits.RotateLeft64(d, 23))) +
     ((d and e) xor (not d and f)));
 
@@ -1013,7 +1013,7 @@ begin
   g := g + (((TBits.RotateLeft64(h, 36)) xor (TBits.RotateLeft64(h, 30))
     xor (TBits.RotateLeft64(h, 25))) + ((h and a) xor (h and b) xor (a and b)));
 
-  f := f + ($84C87814A1F0AB72 + data[58] + ((TBits.RotateLeft64(c, 50))
+  f := f + (UInt64($84C87814A1F0AB72) + data[58] + ((TBits.RotateLeft64(c, 50))
     xor (TBits.RotateLeft64(c, 46)) xor (TBits.RotateLeft64(c, 23))) +
     ((c and d) xor (not c and e)));
 
@@ -1021,7 +1021,7 @@ begin
   f := f + (((TBits.RotateLeft64(g, 36)) xor (TBits.RotateLeft64(g, 30))
     xor (TBits.RotateLeft64(g, 25))) + ((g and h) xor (g and a) xor (h and a)));
 
-  e := e + ($8CC702081A6439EC + data[59] + ((TBits.RotateLeft64(b, 50))
+  e := e + (UInt64($8CC702081A6439EC) + data[59] + ((TBits.RotateLeft64(b, 50))
     xor (TBits.RotateLeft64(b, 46)) xor (TBits.RotateLeft64(b, 23))) +
     ((b and c) xor (not b and d)));
 
@@ -1029,7 +1029,7 @@ begin
   e := e + (((TBits.RotateLeft64(f, 36)) xor (TBits.RotateLeft64(f, 30))
     xor (TBits.RotateLeft64(f, 25))) + ((f and g) xor (f and h) xor (g and h)));
 
-  d := d + ($90BEFFFA23631E28 + data[60] + ((TBits.RotateLeft64(a, 50))
+  d := d + (UInt64($90BEFFFA23631E28) + data[60] + ((TBits.RotateLeft64(a, 50))
     xor (TBits.RotateLeft64(a, 46)) xor (TBits.RotateLeft64(a, 23))) +
     ((a and b) xor (not a and c)));
 
@@ -1037,7 +1037,7 @@ begin
   d := d + (((TBits.RotateLeft64(e, 36)) xor (TBits.RotateLeft64(e, 30))
     xor (TBits.RotateLeft64(e, 25))) + ((e and f) xor (e and g) xor (f and g)));
 
-  c := c + ($A4506CEBDE82BDE9 + data[61] + ((TBits.RotateLeft64(h, 50))
+  c := c + (UInt64($A4506CEBDE82BDE9) + data[61] + ((TBits.RotateLeft64(h, 50))
     xor (TBits.RotateLeft64(h, 46)) xor (TBits.RotateLeft64(h, 23))) +
     ((h and a) xor (not h and b)));
 
@@ -1045,7 +1045,7 @@ begin
   c := c + (((TBits.RotateLeft64(d, 36)) xor (TBits.RotateLeft64(d, 30))
     xor (TBits.RotateLeft64(d, 25))) + ((d and e) xor (d and f) xor (e and f)));
 
-  b := b + ($BEF9A3F7B2C67915 + data[62] + ((TBits.RotateLeft64(g, 50))
+  b := b + (UInt64($BEF9A3F7B2C67915) + data[62] + ((TBits.RotateLeft64(g, 50))
     xor (TBits.RotateLeft64(g, 46)) xor (TBits.RotateLeft64(g, 23))) +
     ((g and h) xor (not g and a)));
 
@@ -1053,7 +1053,7 @@ begin
   b := b + (((TBits.RotateLeft64(c, 36)) xor (TBits.RotateLeft64(c, 30))
     xor (TBits.RotateLeft64(c, 25))) + ((c and d) xor (c and e) xor (d and e)));
 
-  a := a + ($C67178F2E372532B + data[63] + ((TBits.RotateLeft64(f, 50))
+  a := a + (UInt64($C67178F2E372532B) + data[63] + ((TBits.RotateLeft64(f, 50))
     xor (TBits.RotateLeft64(f, 46)) xor (TBits.RotateLeft64(f, 23))) +
     ((f and g) xor (not f and h)));
 
@@ -1063,7 +1063,7 @@ begin
 
   // R8
 
-  h := h + ($CA273ECEEA26619C + data[64] + ((TBits.RotateLeft64(e, 50))
+  h := h + (UInt64($CA273ECEEA26619C) + data[64] + ((TBits.RotateLeft64(e, 50))
     xor (TBits.RotateLeft64(e, 46)) xor (TBits.RotateLeft64(e, 23))) +
     ((e and f) xor (not e and g)));
 
@@ -1071,7 +1071,7 @@ begin
   h := h + (((TBits.RotateLeft64(a, 36)) xor (TBits.RotateLeft64(a, 30))
     xor (TBits.RotateLeft64(a, 25))) + ((a and b) xor (a and c) xor (b and c)));
 
-  g := g + ($D186B8C721C0C207 + data[65] + ((TBits.RotateLeft64(d, 50))
+  g := g + (UInt64($D186B8C721C0C207) + data[65] + ((TBits.RotateLeft64(d, 50))
     xor (TBits.RotateLeft64(d, 46)) xor (TBits.RotateLeft64(d, 23))) +
     ((d and e) xor (not d and f)));
 
@@ -1079,7 +1079,7 @@ begin
   g := g + (((TBits.RotateLeft64(h, 36)) xor (TBits.RotateLeft64(h, 30))
     xor (TBits.RotateLeft64(h, 25))) + ((h and a) xor (h and b) xor (a and b)));
 
-  f := f + ($EADA7DD6CDE0EB1E + data[66] + ((TBits.RotateLeft64(c, 50))
+  f := f + (UInt64($EADA7DD6CDE0EB1E) + data[66] + ((TBits.RotateLeft64(c, 50))
     xor (TBits.RotateLeft64(c, 46)) xor (TBits.RotateLeft64(c, 23))) +
     ((c and d) xor (not c and e)));
 
@@ -1087,7 +1087,7 @@ begin
   f := f + (((TBits.RotateLeft64(g, 36)) xor (TBits.RotateLeft64(g, 30))
     xor (TBits.RotateLeft64(g, 25))) + ((g and h) xor (g and a) xor (h and a)));
 
-  e := e + ($F57D4F7FEE6ED178 + data[67] + ((TBits.RotateLeft64(b, 50))
+  e := e + (UInt64($F57D4F7FEE6ED178) + data[67] + ((TBits.RotateLeft64(b, 50))
     xor (TBits.RotateLeft64(b, 46)) xor (TBits.RotateLeft64(b, 23))) +
     ((b and c) xor (not b and d)));
 
@@ -1095,7 +1095,7 @@ begin
   e := e + (((TBits.RotateLeft64(f, 36)) xor (TBits.RotateLeft64(f, 30))
     xor (TBits.RotateLeft64(f, 25))) + ((f and g) xor (f and h) xor (g and h)));
 
-  d := d + ($06F067AA72176FBA + data[68] + ((TBits.RotateLeft64(a, 50))
+  d := d + (UInt64($06F067AA72176FBA) + data[68] + ((TBits.RotateLeft64(a, 50))
     xor (TBits.RotateLeft64(a, 46)) xor (TBits.RotateLeft64(a, 23))) +
     ((a and b) xor (not a and c)));
 
@@ -1103,7 +1103,7 @@ begin
   d := d + (((TBits.RotateLeft64(e, 36)) xor (TBits.RotateLeft64(e, 30))
     xor (TBits.RotateLeft64(e, 25))) + ((e and f) xor (e and g) xor (f and g)));
 
-  c := c + ($0A637DC5A2C898A6 + data[69] + ((TBits.RotateLeft64(h, 50))
+  c := c + (UInt64($0A637DC5A2C898A6) + data[69] + ((TBits.RotateLeft64(h, 50))
     xor (TBits.RotateLeft64(h, 46)) xor (TBits.RotateLeft64(h, 23))) +
     ((h and a) xor (not h and b)));
 
@@ -1111,7 +1111,7 @@ begin
   c := c + (((TBits.RotateLeft64(d, 36)) xor (TBits.RotateLeft64(d, 30))
     xor (TBits.RotateLeft64(d, 25))) + ((d and e) xor (d and f) xor (e and f)));
 
-  b := b + ($113F9804BEF90DAE + data[70] + ((TBits.RotateLeft64(g, 50))
+  b := b + (UInt64($113F9804BEF90DAE) + data[70] + ((TBits.RotateLeft64(g, 50))
     xor (TBits.RotateLeft64(g, 46)) xor (TBits.RotateLeft64(g, 23))) +
     ((g and h) xor (not g and a)));
 
@@ -1119,7 +1119,7 @@ begin
   b := b + (((TBits.RotateLeft64(c, 36)) xor (TBits.RotateLeft64(c, 30))
     xor (TBits.RotateLeft64(c, 25))) + ((c and d) xor (c and e) xor (d and e)));
 
-  a := a + ($1B710B35131C471B + data[71] + ((TBits.RotateLeft64(f, 50))
+  a := a + (UInt64($1B710B35131C471B) + data[71] + ((TBits.RotateLeft64(f, 50))
     xor (TBits.RotateLeft64(f, 46)) xor (TBits.RotateLeft64(f, 23))) +
     ((f and g) xor (not f and h)));
 
@@ -1129,7 +1129,7 @@ begin
 
   // R9
 
-  h := h + ($28DB77F523047D84 + data[72] + ((TBits.RotateLeft64(e, 50))
+  h := h + (UInt64($28DB77F523047D84) + data[72] + ((TBits.RotateLeft64(e, 50))
     xor (TBits.RotateLeft64(e, 46)) xor (TBits.RotateLeft64(e, 23))) +
     ((e and f) xor (not e and g)));
 
@@ -1137,7 +1137,7 @@ begin
   h := h + (((TBits.RotateLeft64(a, 36)) xor (TBits.RotateLeft64(a, 30))
     xor (TBits.RotateLeft64(a, 25))) + ((a and b) xor (a and c) xor (b and c)));
 
-  g := g + ($32CAAB7B40C72493 + data[73] + ((TBits.RotateLeft64(d, 50))
+  g := g + (UInt64($32CAAB7B40C72493) + data[73] + ((TBits.RotateLeft64(d, 50))
     xor (TBits.RotateLeft64(d, 46)) xor (TBits.RotateLeft64(d, 23))) +
     ((d and e) xor (not d and f)));
 
@@ -1145,7 +1145,7 @@ begin
   g := g + (((TBits.RotateLeft64(h, 36)) xor (TBits.RotateLeft64(h, 30))
     xor (TBits.RotateLeft64(h, 25))) + ((h and a) xor (h and b) xor (a and b)));
 
-  f := f + ($3C9EBE0A15C9BEBC + data[74] + ((TBits.RotateLeft64(c, 50))
+  f := f + (UInt64($3C9EBE0A15C9BEBC) + data[74] + ((TBits.RotateLeft64(c, 50))
     xor (TBits.RotateLeft64(c, 46)) xor (TBits.RotateLeft64(c, 23))) +
     ((c and d) xor (not c and e)));
 
@@ -1153,7 +1153,7 @@ begin
   f := f + (((TBits.RotateLeft64(g, 36)) xor (TBits.RotateLeft64(g, 30))
     xor (TBits.RotateLeft64(g, 25))) + ((g and h) xor (g and a) xor (h and a)));
 
-  e := e + ($431D67C49C100D4C + data[75] + ((TBits.RotateLeft64(b, 50))
+  e := e + (UInt64($431D67C49C100D4C) + data[75] + ((TBits.RotateLeft64(b, 50))
     xor (TBits.RotateLeft64(b, 46)) xor (TBits.RotateLeft64(b, 23))) +
     ((b and c) xor (not b and d)));
 
@@ -1161,7 +1161,7 @@ begin
   e := e + (((TBits.RotateLeft64(f, 36)) xor (TBits.RotateLeft64(f, 30))
     xor (TBits.RotateLeft64(f, 25))) + ((f and g) xor (f and h) xor (g and h)));
 
-  d := d + ($4CC5D4BECB3E42B6 + data[76] + ((TBits.RotateLeft64(a, 50))
+  d := d + (UInt64($4CC5D4BECB3E42B6) + data[76] + ((TBits.RotateLeft64(a, 50))
     xor (TBits.RotateLeft64(a, 46)) xor (TBits.RotateLeft64(a, 23))) +
     ((a and b) xor (not a and c)));
 
@@ -1169,7 +1169,7 @@ begin
   d := d + (((TBits.RotateLeft64(e, 36)) xor (TBits.RotateLeft64(e, 30))
     xor (TBits.RotateLeft64(e, 25))) + ((e and f) xor (e and g) xor (f and g)));
 
-  c := c + ($597F299CFC657E2A + data[77] + ((TBits.RotateLeft64(h, 50))
+  c := c + (UInt64($597F299CFC657E2A) + data[77] + ((TBits.RotateLeft64(h, 50))
     xor (TBits.RotateLeft64(h, 46)) xor (TBits.RotateLeft64(h, 23))) +
     ((h and a) xor (not h and b)));
 
@@ -1177,7 +1177,7 @@ begin
   c := c + (((TBits.RotateLeft64(d, 36)) xor (TBits.RotateLeft64(d, 30))
     xor (TBits.RotateLeft64(d, 25))) + ((d and e) xor (d and f) xor (e and f)));
 
-  b := b + ($5FCB6FAB3AD6FAEC + data[78] + ((TBits.RotateLeft64(g, 50))
+  b := b + (UInt64($5FCB6FAB3AD6FAEC) + data[78] + ((TBits.RotateLeft64(g, 50))
     xor (TBits.RotateLeft64(g, 46)) xor (TBits.RotateLeft64(g, 23))) +
     ((g and h) xor (not g and a)));
 
@@ -1185,7 +1185,7 @@ begin
   b := b + (((TBits.RotateLeft64(c, 36)) xor (TBits.RotateLeft64(c, 30))
     xor (TBits.RotateLeft64(c, 25))) + ((c and d) xor (c and e) xor (d and e)));
 
-  a := a + ($6C44198C4A475817 + data[79] + ((TBits.RotateLeft64(f, 50))
+  a := a + (UInt64($6C44198C4A475817) + data[79] + ((TBits.RotateLeft64(f, 50))
     xor (TBits.RotateLeft64(f, 46)) xor (TBits.RotateLeft64(f, 23))) +
     ((f and g) xor (not f and h)));
 

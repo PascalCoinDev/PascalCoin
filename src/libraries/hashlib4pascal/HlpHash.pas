@@ -20,8 +20,6 @@ uses
 resourcestring
   SIndexOutOfRange = 'Current Index Is Out Of Range';
   SInvalidBufferSize = '"BufferSize" Must Be Greater Than Zero';
-  // SInvalidBlockSize = '"BlockSize" Must Be Greater Than Zero';
-  // SInvalidHashSize = '"HashSize" Must Be Greater Than Zero';
   SUnAssignedStream = 'Input Stream Is Unassigned';
   SFileNotExist = 'Specified File Not Found';
   SCloneNotYetImplemented = 'Clone Not Yet Implemented For "%s"';
@@ -128,14 +126,7 @@ end;
 
 procedure THash.SetBlockSize(value: Int32);
 begin
-  // if value > 0 then
-  // begin
   Fm_block_size := value;
-  // end
-  // else
-  // begin
-  // raise EArgumentHashLibException.CreateRes(@SInvalidBlockSize);
-  // end;
 end;
 
 function THash.GetHashSize: Int32;
@@ -145,14 +136,7 @@ end;
 
 procedure THash.SetHashSize(value: Int32);
 begin
-  // if value > 0 then
-  // begin
   Fm_hash_size := value;
-  // end
-  // else
-  // begin
-  // raise EArgumentHashLibException.CreateRes(@SInvalidHashSize);
-  // end;
 end;
 
 function THash.ComputeString(const a_data: String; a_encoding: TEncoding)
@@ -330,9 +314,8 @@ begin
       else
       begin
         TransformBytes(data, 0, readed);
-        total := total + readed;
       end;
-    end
+    end;
 
   end
   else
@@ -352,7 +335,7 @@ begin
         TransformBytes(data, 0, readed);
         total := total + readed;
       end;
-    end
+    end;
 
   end;
 

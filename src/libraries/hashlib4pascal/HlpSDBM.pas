@@ -64,8 +64,8 @@ begin
   i := a_index;
   while a_length > 0 do
   begin
-    Fm_hash := a_data[i] + Int64(Fm_hash shl 6) + Int64(Fm_hash shl 16)
-      - Fm_hash;
+    Fm_hash := UInt32(a_data[i] + Int64(Fm_hash shl 6) + Int64(Fm_hash shl 16)
+      - Fm_hash);
     System.Inc(i);
     System.Dec(a_length);
   end;
