@@ -842,7 +842,7 @@ begin
   FLastOperationBlock := TPCOperationsComp.GetFirstBlock;
   FLastOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash); // Genesis hash
   FLastBlockCache.Clear(true);
-  NewLog(Nil, ltupdate, 'Clear Bank');
+  {$IFDEF HIGHLOG}NewLog(Nil, ltdebug, 'Clear Bank');{$ENDIF}
 end;
 
 constructor TPCBank.Create(AOwner: TComponent);

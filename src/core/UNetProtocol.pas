@@ -1942,7 +1942,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     end;
   end;
 
-  procedure DownloadNewBlockchain(start_block : Int64);
+  procedure DownloadNewBlockchain(start_block : Int64; IsMyBlockChainOk : Boolean);
   var safeboxStream : TMemoryStream;
     newTmpBank : TPCBank;
     safebox_last_operation_block : TOperationBlock;
@@ -2026,8 +2026,8 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
         safeboxStream.Free;
       End;
     end else begin
-      if start_block = TNode.Node.Bank.LastOperationBlock.block+1 then begin
-        Connection.Send_GetBlocks(start_block,100,rid);
+      if IsMyBlockChainOk then begin
+        Connection.Send_GetBlocks(start_block,1,rid);
       end else begin
         GetNewBank(start_block);
       end;
@@ -2095,7 +2095,7 @@ begin
         // Move operations to orphan folder... (temporal... waiting for a confirmation)
         if (TNode.Node.Bank.Storage.FirstBlock<client_op.block) then begin
           TLog.NewLog(ltinfo,CT_LogSender,'Found base new block: '+TPCOperationsComp.OperationBlockToText(client_op));
-          DownloadNewBlockchain(client_op.block+1);
+          DownloadNewBlockchain(client_op.block+1,False);
         end else begin
           TLog.NewLog(ltinfo,CT_LogSender,'Found base new block: '+TPCOperationsComp.OperationBlockToText(client_op)+' lower than saved:'+IntToStr(TNode.Node.Bank.Storage.FirstBlock));
           DownloadSafeBox(False);
@@ -2104,7 +2104,7 @@ begin
     end else begin
       TLog.NewLog(ltinfo,CT_LogSender,'My blockchain is ok! Need to download new blocks starting at '+inttostr(my_op.block+1));
       // High to new value:
-      DownloadNewBlockchain(my_op.block+1);
+      DownloadNewBlockchain(my_op.block+1,True);
     end;
   Finally
     TLog.NewLog(ltdebug,CT_LogSender,'Finalizing');
