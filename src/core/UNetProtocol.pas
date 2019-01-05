@@ -2513,7 +2513,7 @@ begin
       FNetLock.Release;
     End;
     if Result then begin
-      TLog.NewLog(ltDebug,Classname,'Connected to a possible server at: '+ClientRemoteAddr);
+      {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,Classname,'Connected to a possible server at: '+ClientRemoteAddr);{$ENDIF}
       TNetData.NetData.NodeServersAddresses.GetNodeServerAddress(Client.RemoteHost,Client.RemotePort,true,nsa);
       nsa.netConnection := Self;
       nsa.last_connection_by_me := (UnivDateTimeToUnix(DateTime2UnivDateTime(now)));
@@ -3670,22 +3670,24 @@ var operationsComp : TPCOperationsComp;
     end;
     DoDisconnect := False;
     notFoundOpReferencesCount := 0;
-    // Try TNode locking process
-    If Not TNode.Node.TryLockNode(3000) then Exit; // Cannot lock...
-    Try
-      if (operationsComp.OperationBlock.block<>TNode.Node.Bank.BlocksCount) then Exit; // Meanwhile other threads have added it
-      // Fill not included operations:
-      for i:=0 to High(nfpboarr) do begin
-        iNodeOpReference := TNode.Node.Operations.OperationsHashTree.IndexOfOpReference(nfpboarr[i].opReference);
-        if iNodeOpReference>=0 then begin
-          nfpboarr[i].opStreamData := TNode.Node.Operations.OperationsHashTree.GetOperation(iNodeOpReference).GetOperationStreamData;
-        end else begin
-          inc(notFoundOpReferencesCount);
+    if (oprefcount>0) then begin
+      // Try TNode locking process
+      If Not TNode.Node.TryLockNode(3000) then Exit; // Cannot lock...
+      Try
+        if (operationsComp.OperationBlock.block<>TNode.Node.Bank.BlocksCount) then Exit; // Meanwhile other threads have added it
+        // Fill not included operations:
+        for i:=0 to High(nfpboarr) do begin
+          iNodeOpReference := TNode.Node.Operations.OperationsHashTree.IndexOfOpReference(nfpboarr[i].opReference);
+          if iNodeOpReference>=0 then begin
+            nfpboarr[i].opStreamData := TNode.Node.Operations.OperationsHashTree.GetOperation(iNodeOpReference).GetOperationStreamData;
+          end else begin
+            inc(notFoundOpReferencesCount);
+          end;
         end;
-      end;
-    Finally
-      TNode.Node.UnlockNode;
-    End;
+      Finally
+        TNode.Node.UnlockNode;
+      End;
+    end;
     if (notFoundOpReferencesCount>CT_MAX_OPS_PER_BLOCKCHAINOPERATIONS) then begin
       // A lot of operations pending! Calling GetBlocks
       TLog.NewLog(ltdebug,ClassName,Format('Too many pending operations (%d of %d) in Fast propagation block %d',[notFoundOpReferencesCount,oprefcount,operationsComp.OperationBlock.block]));
@@ -4365,7 +4367,7 @@ begin
       data.Write(nsa.last_connection,4);
     end;
     // Send client version
-    TStreamOp.WriteAnsiString(data,CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$ENDIF}{$IFDEF FPC}{$IFDEF LCL}+'L'{$ELSE}+'F'{$ENDIF}{$ENDIF});
+    TStreamOp.WriteAnsiString(data,TNode.NodeVersion);
     // Build 1.5 send accumulated work
     data.Write(TNode.Node.Bank.SafeBox.WorkSum,SizeOf(TNode.Node.Bank.SafeBox.WorkSum));
     //
@@ -4490,7 +4492,7 @@ end;
 procedure TNetConnection.TcpClient_OnConnect(Sender: TObject);
 begin
   TNetData.NetData.IncStatistics(1,0,1,0,0,0);
-  TLog.NewLog(ltInfo,Classname,'Connected to a server '+ClientRemoteAddr);
+  TLog.NewLog(ltdebug,Classname,'Connected to a server '+ClientRemoteAddr);
   TNetData.NetData.NotifyNetConnectionUpdated;
 end;
 
@@ -5046,7 +5048,7 @@ begin
     for i := 0 to list.Count - 1 do begin
       s := s + ',' + IntToStr(PNetworkAdjustedTimeReg(list[i])^.timeOffset);
     end;
-    TLog.NewLog(ltinfo,ClassName,
+    TLog.NewLog(ltdebug,ClassName,
       Format('Updated NAT median offset. My offset is now %d (before %d) based on %d/%d connections %s',[FTimeOffset,last,list.Count,FTotalCounter,s]));
   end;
 end;

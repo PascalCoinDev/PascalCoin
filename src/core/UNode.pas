@@ -108,6 +108,7 @@ Type
     Property BroadcastData : Boolean read FBroadcastData write FBroadcastData;
     Property UpdateBlockchain : Boolean read FUpdateBlockchain write FUpdateBlockchain;
     procedure MarkVerifiedECDSASignaturesFromMemPool(newOperationsToValidate : TPCOperationsComp);
+    class function NodeVersion : AnsiString;
   End;
 
   TNodeNotifyEvents = Class;
@@ -549,7 +550,7 @@ begin
   FNodeLog.ProcessGlobalLogs := false;
   RegisterOperationsClass;
   if Assigned(_Node) then raise Exception.Create('Duplicate nodes protection');
-  TLog.NewLog(ltInfo,ClassName,'TNode.Create');
+  TLog.NewLog(ltInfo,ClassName,'TNode.Create '+NodeVersion);
   inherited;
   FDisabledsNewBlocksCount := 0;
   FLockNodeOperations := TPCCriticalSection.Create('TNode_LockNodeOperations');
@@ -776,6 +777,11 @@ end;
 class function TNode.NodeExists: Boolean;
 begin
   Result := Assigned(_Node);
+end;
+
+class function TNode.NodeVersion: AnsiString;
+begin
+  Result := CT_ClientAppVersion{$IFDEF LINUX}+'l'{$ELSE}+'w'{$ENDIF}{$IFDEF FPC}{$IFDEF LCL}+'L'{$ELSE}+'F'{$ENDIF}{$ENDIF}{$IFDEF FPC}{$IFDEF CPU32}+'32b'{$ELSE}+'64b'{$ENDIF}{$ELSE}{$IFDEF CPU32BITS}+'32b'{$ELSE}+'64b'{$ENDIF}{$ENDIF};
 end;
 
 procedure TNode.Notification(AComponent: TComponent; Operation: TOperation);
