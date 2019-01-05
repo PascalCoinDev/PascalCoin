@@ -29,7 +29,7 @@ uses
   UBlockChain, UAccounts, UNode, UWallet, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining,
   ULog, UThread, UNetProtocol, UCrypto, UBaseTypes,
   UFRMMainForm, UCTRLSyncronization, UFRMAccountExplorer, UFRMOperationExplorer, UFRMPendingOperations, UFRMOperation,
-  UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys;
+  UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys {$IFDEF TESTNET},UFRMRandomOperations, UAccountKeyStorage{$ENDIF};
 
 type
   { Forward Declarations }
@@ -151,6 +151,11 @@ type
       class procedure RunInBackground;
       class procedure RunInForeground;
       class procedure CheckNodeIsReady;
+      {$IFDEF TESTNET}
+      {$IFDEF TESTING_NO_POW_CHECK}
+      class procedure CreateABlock;
+      {$ENDIF}
+      {$ENDIF}
 
       // Show Dialogs
       class procedure ShowSendDialog(const AAccounts : array of Cardinal);
@@ -171,6 +176,10 @@ type
       class procedure ShowMemoText(parentForm: TForm; const ATitle : AnsiString; text : TStrings); overload;
       class procedure UnlockWallet(parentForm: TForm);
       class procedure ChangeWalletPassword(parentForm: TForm);
+      {$IFDEF TESTNET}
+      class procedure ShowPublicKeysDialog(parentForm: TForm);
+      class procedure ShowRandomOperationsDialog(parentForm: TForm);
+      {$ENDIF}
       class procedure ShowInfo(parentForm : TForm; const ACaption, APrompt : String);
       class procedure ShowWarning(parentForm : TForm; const ACaption, APrompt : String);
       class procedure ShowError(parentForm : TForm; const ACaption, APrompt : String);
@@ -486,7 +495,7 @@ begin
   ShowWallet;
 end;
 
-class procedure TUserInterface.OnUITimerRefresh(Sender: Tobject);
+class procedure TUserInterface.OnUITimerRefresh(Sender: TObject);
 var
   LActive, LDiscoveringPeers, LGettingNewBlockchain, LRemoteHasBiggerBlock, LNoConnections : boolean;
   LState : TUserInterfaceState;
@@ -775,6 +784,108 @@ begin
   'Please ensure you remember your password.'+#10+
   'If you lose your password your accounts and funds will be lost forever.');
 end;
+
+{$IFDEF TESTNET}
+class procedure TUserInterface.ShowRandomOperationsDialog(parentForm: TForm);
+begin
+  with TFRMRandomOperations.Create(parentForm) do begin
+    try
+      SourceNode := TUserInterface.Node;
+      SourceWalletKeys := TWallet.Keys;
+      ShowModal;
+    finally
+      Free;
+    end;
+  end;
+end;
+
+class procedure TUserInterface.ShowPublicKeysDialog(parentForm: TForm);
+var
+  sl : TStrings;
+  ak : TAccountKey;
+  i, nmin,nmax : Integer;
+  l : TList;
+  Pacsd : PAccountKeyStorageData;
+  acc : TAccount;
+begin
+   sl := TStringList.Create;
+  try
+    for i:=0 to FNode.Bank.SafeBox.AccountsCount-1 do begin
+      acc := FNode.Bank.SafeBox.Account(i);
+      if acc.accountInfo.new_publicKey.EC_OpenSSL_NID<>0 then begin
+        sl.Add(Format('Account %d new public key %d %s',[acc.account,
+          acc.accountInfo.new_publicKey.EC_OpenSSL_NID,
+          TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(acc.accountInfo.new_publicKey))]));
+      end;
+    end;
+    l := TAccountKeyStorage.KS.LockList;
+    try
+      sl.Add(Format('%d public keys in TAccountKeyStorage data',[l.count]));
+      for i:=0 to l.count-1 do begin
+        Pacsd := l[i];
+        if (Pacsd^.counter<=0) then begin
+          sl.Add(Format('%d/%d public keys counter %d',[i+1,l.count,Pacsd^.counter]));
+        end;
+        if FNode.Bank.SafeBox.OrderedAccountKeysList.IndexOfAccountKey(Pacsd^.ptrAccountKey^)<0 then begin
+          sl.Add(Format('%d/%d public keys counter %d Type %d NOT FOUND %s',[i+1,l.count,Pacsd^.counter,
+          Pacsd^.ptrAccountKey^.EC_OpenSSL_NID,
+          TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(Pacsd^.ptrAccountKey^))]));
+        end;
+      end;
+    finally
+      TAccountKeyStorage.KS.UnlockList;
+    end;
+    sl.Add(Format('%d public keys in %d accounts',[FNode.Bank.SafeBox.OrderedAccountKeysList.Count,FNode.Bank.Safebox.AccountsCount]));
+    for i:=0 to FNode.Bank.SafeBox.OrderedAccountKeysList.Count-1 do begin
+      ak := FNode.Bank.SafeBox.OrderedAccountKeysList.AccountKey[i];
+      if ( FNode.Bank.SafeBox.OrderedAccountKeysList.AccountKeyList[i].Count > 0) then begin
+        nmin := FNode.Bank.SafeBox.OrderedAccountKeysList.AccountKeyList[i].Get(0);
+        nmax := FNode.Bank.SafeBox.OrderedAccountKeysList.AccountKeyList[i].Get( FNode.Bank.SafeBox.OrderedAccountKeysList.AccountKeyList[i].Count-1 );
+      end else begin
+        nmin := -1; nmax := -1;
+      end;
+      sl.Add(Format('%d/%d %d accounts (%d to %d) for key type %d %s',[
+        i+1,FNode.Bank.SafeBox.OrderedAccountKeysList.Count,
+        FNode.Bank.SafeBox.OrderedAccountKeysList.AccountKeyList[i].Count,
+        nmin,nmax,
+        ak.EC_OpenSSL_NID,
+        TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(ak)) ]));
+    end;
+    with TFRMMemoText.Create(parentForm) do begin
+    try
+      InitData('Keys in safebox',sl.Text);
+      ShowModal;
+    finally
+      Free;
+    end;
+
+    end;
+  finally
+    sl.Free;
+  end;
+end;
+
+{$IFDEF TESTING_NO_POW_CHECK}
+class procedure TUserInterface.CreateABlock;
+var
+  ops : TPCOperationsComp;
+  nba : TBlockAccount;
+  errors : AnsiString;
+begin
+  ops := TPCOperationsComp.Create(Nil);
+  Try
+    ops.bank := FNode.Bank;
+    ops.CopyFrom(FNode.Operations);
+    ops.BlockPayload:= IntToStr(FNode.Bank.BlocksCount);
+    ops.nonce := FNode.Bank.BlocksCount;
+    ops.UpdateTimestamp;
+    FNode.AddNewBlockChain(Nil,ops,nba,errors);
+  finally
+    ops.Free;
+  end;
+end;
+{$ENDIF}
+{$ENDIF}
 
 class procedure TUserInterface.UnlockWallet(parentForm: TForm);
 Var pwd : String;

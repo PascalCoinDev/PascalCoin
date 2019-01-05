@@ -113,6 +113,14 @@ type
     procedure OnNetStatisticsChanged(Sender: TObject);
     procedure OnWalletChanged(Sender: TObject);
     procedure OnUIRefreshTimer(Sender: TObject);
+    {$IFDEF TESTNET}
+    procedure InitMenuForTesting;
+    procedure Test_RandomOperations(Sender: TObject);
+    procedure Test_ShowPublicKeys(Sender: TObject);
+    {$IFDEF TESTING_NO_POW_CHECK}
+    procedure Test_CreateABlock(Sender: TObject);
+    {$ENDIF}
+    {$ENDIF}
   protected
     procedure RefreshConnectionStatusDisplay;
     procedure RefreshWalletLockIcon;
@@ -162,6 +170,10 @@ begin
   paLogoPanel.AddControlDockCenter(TCTRLBanner.Create(Self));
   paSyncPanel.AddControlDockCenter(FSyncControl);
   // note: wallet control is lazily constructed
+  {$IFDEF TESTNET}
+  // Things for testing purposes only
+  InitMenuForTesting;
+  {$ENDIF}
 end;
 
 procedure TFRMMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
@@ -367,6 +379,46 @@ begin
   RefreshConnectionStatusDisplay;
 end;
 
+{$IFDEF TESTNET}
+procedure TFRMMainForm.InitMenuForTesting;
+var mi : TMenuItem;
+begin
+  mi := TMenuItem.Create(meMainMenu);
+  mi.Caption:='-';
+  miAboutMenu.Add(mi);
+  {$IFDEF TESTING_NO_POW_CHECK}
+  mi := TMenuItem.Create(meMainMenu);
+  mi.Caption:='Create a block';
+  mi.OnClick:=Test_CreateABlock;
+  miAboutMenu.Add(mi);
+  {$ENDIF}
+  mi := TMenuItem.Create(meMainMenu);
+  mi.Caption:='Show public keys state';
+  mi.OnClick:=Test_ShowPublicKeys;
+  miAboutMenu.Add(mi);
+  mi := TMenuItem.Create(meMainMenu);
+  mi.Caption:='Create Random operations';
+  mi.OnClick:=Test_RandomOperations;
+  miAboutMenu.Add(mi);
+end;
+
+procedure TFRMMainForm.Test_RandomOperations(Sender: TObject);
+begin
+  TUserInterface.ShowRandomOperationsDialog(Self);
+end;
+
+procedure TFRMMainForm.Test_ShowPublicKeys(Sender: TObject);
+begin
+  TUserInterface.ShowPublicKeysDialog(Self);
+end;
+{$IFDEF TESTING_NO_POW_CHECK}
+procedure TFRMMainForm.Test_CreateABlock(Sender: TObject);
+begin
+  TUserInterface.CreateABlock;
+end;
+{$ENDIF}
+{$ENDIF}
+
 {%endregion}
 
 {%region Handlers: Menu Items }
@@ -421,7 +473,7 @@ begin
   TUserInterface.ShowAboutBox(Self);
 end;
 
-procedure TFRMMainForm.MiCloseClick(Sender: TObject);
+procedure TFRMMainForm.miCloseClick(Sender: TObject);
 begin
   Close;
 end;

@@ -1,29 +1,18 @@
 unit UFRMMemoText;
 
-{ Copyright (c) 2016 by PascalCoin Developers
-
-  Distributed under the MIT software license, see the accompanying file LICENSE
-  or visit http://www.opensource.org/licenses/mit-license.php.
-
-  This unit is a part of the PascalCoin Project, an infinitely scalable
-  cryptocurrency. Find us here:
-  Web: https://www.pascalcoin.org
-  Source: https://github.com/PascalCoin/PascalCoin
-
-  THIS LICENSE HEADER MUST NOT BE REMOVED.
-}
-
 interface
 
-{$I ..\config.inc}
-
 uses
+{$IFnDEF FPC}
+  Windows,
+{$ELSE}
   LCLIntf, LCLType, LMessages,
+{$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Buttons, ExtCtrls, UCommon.UI;
+  Dialogs, StdCtrls, Buttons, ExtCtrls;
 
 type
-  TFRMMemoText = class(TApplicationForm)
+  TFRMMemoText = class(TForm)
     pnlBottom: TPanel;
     Memo: TMemo;
     bbCancel: TBitBtn;
@@ -32,20 +21,23 @@ type
     { Private declarations }
   public
     { Public declarations }
-    Procedure InitData(Title : String; text : String);
+    Procedure InitData(const Title : String; const text : String);
   end;
 
 implementation
 
-{$R *.lfm}
-
+{$IFnDEF FPC}
+  {$R *.dfm}
+{$ELSE}
+  {$R *.lfm}
+{$ENDIF}
 
 procedure TFRMMemoText.FormCreate(Sender: TObject);
 begin
   Memo.Clear;
 end;
 
-procedure TFRMMemoText.InitData(Title, text: String);
+procedure TFRMMemoText.InitData(const Title, text: String);
 begin
   Caption := Title;
   Memo.Lines.Text := text;

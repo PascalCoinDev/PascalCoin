@@ -82,7 +82,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="95">
+    <Units Count="97">
       <Unit0>
         <Filename Value="pascalcoin_wallet_experimental.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -599,6 +599,17 @@
         <Filename Value="core\URandomHash.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit94>
+      <Unit95>
+        <Filename Value="gui-experimental\UFRMRandomOperations.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="FRMRandomOperations"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit95>
+      <Unit96>
+        <Filename Value="gui-experimental\UFRMMemoText.lfm"/>
+        <IsPartOfProject Value="True"/>
+      </Unit96>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
