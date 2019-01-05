@@ -559,7 +559,7 @@ begin
   FBCBankNotify.Bank := FBank;
   FBCBankNotify.OnNewBlock := OnBankNewBlock;
   FNetServer := TNetServer.Create;
-  FOperations := TPCOperationsComp.Create(Self);
+  FOperations := TPCOperationsComp.Create(Nil);
   FOperations.bank := FBank;
   FNotifyList := TList.Create;
   {$IFDEF BufferOfFutureOperations}

@@ -341,7 +341,7 @@ Type
 
   { TPCOperationsComp }
 
-  TPCOperationsComp = Class(TComponent)
+  TPCOperationsComp = Class
   private
     FBank: TPCBank;
     FSafeBoxTransaction : TPCSafeBoxTransaction;
@@ -370,11 +370,10 @@ Type
     procedure SetBlockPayload(const Value: TRawBytes);
     procedure OnOperationsHashTreeChanged(Sender : TObject);
   protected
-    procedure Notification(AComponent: TComponent; Operation: TOperation); Override;
     function SaveBlockToStreamExt(save_only_OperationBlock : Boolean; Stream: TStream; SaveToStorage : Boolean): Boolean;
     function LoadBlockFromStreamExt(Stream: TStream; LoadingFromStorage : Boolean; var errors: AnsiString): Boolean;
   public
-    Constructor Create(AOwner: TComponent); Override;
+    Constructor Create(ABank: TPCBank);
     Destructor Destroy; Override;
     Procedure CopyFromExceptAddressKey(Operations : TPCOperationsComp);
     Procedure CopyFrom(Operations : TPCOperationsComp);
@@ -1351,9 +1350,8 @@ begin
   Result := FOperationsHashTree.OperationsCount;
 end;
 
-constructor TPCOperationsComp.Create(AOwner: TComponent);
+constructor TPCOperationsComp.Create(ABank: TPCBank);
 begin
-  inherited Create(AOwner);
   FOperationsLock := TPCCriticalSection.Create('TPCOperationsComp_OPERATIONSLOCK');
   FDisableds := 0;
   FStreamPoW := TMemoryStream.Create;
@@ -1364,8 +1362,8 @@ begin
   FOperationBlock := GetFirstBlock;
   FSafeBoxTransaction := Nil;
   FPreviousUpdatedBlocks := TAccountPreviousBlockInfo.Create;
-  if Assigned(AOwner) And (AOwner is TPCBank) then begin
-    SetBank( TPCBank(AOwner) );
+  if Assigned(ABank) then begin
+    SetBank( TPCBank(ABank) );
   end else Clear(true);
 end;
 
@@ -1577,18 +1575,6 @@ begin
     Result := true;
   finally
     Unlock;
-  end;
-end;
-
-procedure TPCOperationsComp.Notification(AComponent: TComponent;
-  Operation: TOperation);
-begin
-  inherited;
-  if (Operation = opRemove) then begin
-    if AComponent = FBank then begin
-      FBank := Nil;
-      FreeAndNil(FSafeBoxTransaction);
-    end;
   end;
 end;
 
@@ -1840,7 +1826,6 @@ begin
   end;
   FBank := value;
   if Assigned(value) then begin
-    value.FreeNotification(Self);
     FSafeBoxTransaction := TPCSafeBoxTransaction.Create(FBank.SafeBox);
   end;
   Clear(true);
