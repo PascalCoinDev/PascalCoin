@@ -33,8 +33,10 @@ type
   { TFRMPascalCoinWalletConfig }
 
   TFRMPascalCoinWalletConfig = class(TApplicationForm)
+    cbDownloadNewCheckpoint: TCheckBox;
     cbJSONRPCMinerServerActive: TCheckBox;
     ebDefaultFee: TEdit;
+    ebMinFutureBlocksToDownloadNewSafebox: TEdit;
     Label1: TLabel;
     cbSaveLogFiles: TCheckBox;
     cbShowLogs: TCheckBox;
@@ -64,6 +66,7 @@ type
     ebJSONRPCAllowedIPs: TEdit;
     Label6: TLabel;
     Label7: TLabel;
+    procedure cbDownloadNewCheckpointClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure bbOkClick(Sender: TObject);
     procedure bbUpdatePasswordClick(Sender: TObject);
@@ -110,6 +113,12 @@ begin
     TSettings.MinerSelectedPrivateKey := TAccountComp.AccountKey2RawString(TWallet.Keys.Key[i].AccountKey);
   end else mpk := mpk_Random;
 
+    if cbDownloadNewCheckpoint.Checked then begin
+    i := StrToIntDef(ebMinFutureBlocksToDownloadNewSafebox.Text,0);
+    TSettings.MinFutureBlocksToDownloadNewSafebox := i;
+    TSettings.AllowDownloadNewCheckpointIfOlderThan := i > 200;
+  end else TSettings.AllowDownloadNewCheckpointIfOlderThan := False;
+
   TSettings.MinerPrivateKeyType := mpk;
   TSettings.MinerServerRpcActive := cbJSONRPCMinerServerActive.Checked;
   TSettings.MinerServerRpcPort := udJSONRPCMinerServerPort.Position;
@@ -126,11 +135,10 @@ end;
 
 procedure TFRMPascalCoinWalletConfig.bbOpenDataFolderClick(Sender: TObject);
 begin
-  OpenDocument(pchar(TFolderHelper.GetPascalCoinDataFolder))
+  OpenDocument(PChar(TFolderHelper.GetPascalCoinDataFolder))
 end;
 
 procedure TFRMPascalCoinWalletConfig.bbUpdatePasswordClick(Sender: TObject);
-Var s,s2 : String;
 begin
   TUserInterface.ChangeWalletPassword(Self)
 end;
@@ -155,6 +163,12 @@ begin
   lblDefaultJSONRPCMinerServerPort.Caption := Format('(Default %d)',[CT_JSONRPCMinerServer_Port]);
   RefreshUI;
   TWallet.Keys.OnChanged.Add(OnWalletChanged);
+end;
+
+procedure TFRMPascalCoinWalletConfig.cbDownloadNewCheckpointClick(
+  Sender: TObject);
+begin
+  RefreshUI_WalletAspect;
 end;
 
 procedure TFRMPascalCoinWalletConfig.FormDestroy(Sender: TObject);
@@ -195,6 +209,8 @@ begin
     udJSONRPCMinerServerPort.Position := TSettings.MinerServerRpcPort;
     cbJSONRPCPortEnabled.Checked := TSettings.RpcPortEnabled;
     ebJSONRPCAllowedIPs.Text := TSettings.RpcAllowedIPs;
+    cbDownloadNewCheckpoint.Checked := TSettings.AllowDownloadNewCheckpointIfOlderThan;
+    ebMinFutureBlocksToDownloadNewSafebox.Text := IntToStr(TSettings.MinFutureBlocksToDownloadNewSafebox);
   Except
     On E:Exception do begin
       TLog.NewLog(lterror,ClassName,'Exception at SetAppParams: '+E.Message);
@@ -232,6 +248,8 @@ begin
     iselected :=  cbPrivateKeyToMine.Items.IndexOfObject(TObject(iselected));
     cbPrivateKeyToMine.ItemIndex := iselected;
   end;
+  bbUpdatePassword.Enabled := Assigned(TWallet.Keys);
+  ebMinFutureBlocksToDownloadNewSafebox.Enabled:= cbDownloadNewCheckpoint.Checked;
 end;
 
 end.

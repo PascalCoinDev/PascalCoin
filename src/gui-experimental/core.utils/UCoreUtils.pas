@@ -370,7 +370,7 @@ var
       for i := LRelevantBlockOps.Count - 1 downto 0 do begin
         LOp := LOpsComp.Operation[PtrInt(LRelevantBlockOps.Items[i])];
         If TPCOperation.OperationToOperationResume(i, LOp, False, LAccNo, LOpResume) then begin
-          LOpResume.NOpInsideBlock := LOp.tag; // Note: Used Op.tag to include operation index inside a list
+       //   LOpResume.NOpInsideBlock := LOp.tag; // Note: Used Op.tag to include operation index inside a list
           LOpResume.time := LOpsComp.OperationBlock.timestamp;
           LOpResume.Block := ABlockNum;
           If LAccountBalances[LAccNo] >= 0 then begin

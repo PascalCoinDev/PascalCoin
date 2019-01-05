@@ -15,7 +15,7 @@ uses
   UUserInterface,
   UFRMMainForm;
 
-{$R *.res}
+//{$R *.res}
 
 var
    mainForm : TFRMMainForm;

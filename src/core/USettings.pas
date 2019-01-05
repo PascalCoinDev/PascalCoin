@@ -66,9 +66,13 @@ type
     private
       class var FOnChanged : TNotifyManyEvent;
       class var FAppParams : TAppParams;
+      class function GetAllowDownloadNewCheckpointIfOlderThan: Boolean; static;
       class function GetInternetServerPort : Integer; static;
+      class function GetMinFutureBlocksToDownloadNewSafebox: Integer; static;
+      class procedure SetAllowDownloadNewCheckpointIfOlderThan(ABool: Boolean); static;
       class procedure SetInternetServerPort(AInt:Integer); static;
       class function GetRpcPortEnabled : boolean; static;
+      class procedure SetMinFutureBlocksToDownloadNewSafebox(AInt: Integer); static;
       class procedure SetRpcPortEnabled(ABool: boolean); static;
       class function GetDefaultFee : Int64; static;
       class procedure SetDefaultFee(AInt64: Int64); static;
@@ -120,6 +124,8 @@ type
       class property ShowModalMessages : boolean read GetShowModalMessages write SetShowModalMessages;
       class property PeerCache : string read GetPeerCache write SetPeerCache;
       class property TryConnectOnlyWithThisFixedServers : string read GetTryConnectOnlyWithThisFixedServers write SetTryConnectOnlyWithThisFixedServers;
+      class property MinFutureBlocksToDownloadNewSafebox : Integer read GetMinFutureBlocksToDownloadNewSafebox write SetMinFutureBlocksToDownloadNewSafebox;
+      class property AllowDownloadNewCheckpointIfOlderThan : Boolean read GetAllowDownloadNewCheckpointIfOlderThan write SetAllowDownloadNewCheckpointIfOlderThan;
       class property AppParams : TAppParams read FAppParams;
   end;
 
@@ -148,6 +154,26 @@ begin
   Result := FAppParams.ParamByName[CT_PARAM_InternetServerPort].GetAsInteger(CT_NetServer_Port);
 end;
 
+class function TSettings.GetAllowDownloadNewCheckpointIfOlderThan: Boolean;
+  static;
+begin
+  CheckLoaded;
+  Result := FAppParams.ParamByName[CT_PARAM_AllowDownloadNewCheckpointIfOlderThan].GetAsBoolean(False);
+end;
+
+class function TSettings.GetMinFutureBlocksToDownloadNewSafebox: Integer;
+  static;
+begin
+  CheckLoaded;
+  Result := FAppParams.ParamByName[CT_PARAM_MinFutureBlocksToDownloadNewSafebox].GetAsInteger(0);
+end;
+
+class procedure TSettings.SetAllowDownloadNewCheckpointIfOlderThan(ABool: Boolean); static;
+begin
+  CheckLoaded;
+  FAppParams.ParamByName[CT_PARAM_AllowDownloadNewCheckpointIfOlderThan].SetAsBoolean(ABool);
+end;
+
 class procedure TSettings.SetInternetServerPort(AInt:Integer);
 begin
   CheckLoaded;
@@ -158,6 +184,12 @@ class function TSettings.GetRpcPortEnabled : boolean;
 begin
   CheckLoaded;
   Result := FAppParams.ParamByName[CT_PARAM_JSONRPCEnabled].GetAsBoolean(false);
+end;
+
+class procedure TSettings.SetMinFutureBlocksToDownloadNewSafebox(AInt: Integer); static;
+begin
+  CheckLoaded;
+  FAppParams.ParamByName[CT_PARAM_MinFutureBlocksToDownloadNewSafebox].SetAsInteger(AInt);
 end;
 
 class procedure TSettings.SetRpcPortEnabled(ABool: boolean);
