@@ -23,9 +23,7 @@ unit UWIZOperationPayload_Encryption;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, Buttons, UCommon, UCommon.Collections,
-  UWizard, UWIZOperation, UWIZOperationPayload_Content, UWIZOperationPayload_Password, UCoreObjects;
+  StdCtrls, ExtCtrls, UWizard, UWIZOperation;
 
 type
 
@@ -54,7 +52,10 @@ implementation
 {$R *.lfm}
 
 uses
-  UAccounts, UUserInterface;
+  UAccounts,
+  UCoreObjects,
+  UWIZOperationPayload_Content,
+  UWIZOperationPayload_Password;
 
 { TWIZOperationPayload_Encryption }
 

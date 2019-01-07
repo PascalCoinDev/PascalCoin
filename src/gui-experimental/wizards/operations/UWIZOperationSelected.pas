@@ -22,9 +22,7 @@ unit UWIZOperationSelected;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UVisualGrid, UCommon.Data, UCellRenderers,
-  UWizard, UWIZOperation, UCoreObjects;
+  Classes, SysUtils, StdCtrls, ExtCtrls, Graphics, UVisualGrid, UCellRenderers, UWizard, UWIZOperation;
 
 type
 
@@ -48,7 +46,15 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, UCoreUtils, UDataSources, UCommon, UCommon.UI, Generics.Collections;
+uses
+  UCommon,
+  UAccounts,
+  UCommon.UI,
+  UCoreUtils,
+  UCoreObjects,
+  UCommon.Data,
+  UDataSources,
+  Generics.Collections;
 
 type
 

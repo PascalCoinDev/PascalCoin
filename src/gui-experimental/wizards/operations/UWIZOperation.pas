@@ -22,14 +22,13 @@ unit UWIZOperation;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, UBaseTypes, UCommon, UWizard, UAccounts, UBlockChain, UNode, UWallet, UCoreObjects, LCLType;
+  Classes, SysUtils, UAccounts, UWallet, UBaseTypes, UCoreObjects;
 
 type
 
   { TWIZOperationsModel }
 
   TWIZOperationsModel = class(TComponent)
-
     public type
 
       { TOperationExecuteResultHandler }
@@ -141,9 +140,6 @@ type
   end;
 
 implementation
-
-uses
-  UCrypto, UECIES, UAES, UConst, UCoreUtils, UOpTransaction, UUserInterface;
 
 { TWIZOperationsModel }
 

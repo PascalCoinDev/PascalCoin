@@ -22,8 +22,7 @@ unit UWIZEnlistAccountForSale;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon,
-  UWizard, UWIZOperation, UAccounts, UCoreObjects, LCLType;
+  Classes, StdCtrls, UWizard, UWIZOperation;
 
 type
 
@@ -41,7 +40,12 @@ type
 implementation
 
 uses
-  UWallet, UCoreUtils,
+  UCommon,
+  UCrypto,
+  UWallet,
+  UAccounts,
+  UCoreUtils,
+  UCoreObjects,
   UWIZOperationSelected,
   UWIZEnlistAccountForSale_SelectOption,
   UWIZEnlistAccountForSale_EnterSeller,

@@ -23,9 +23,7 @@ unit UWIZEnlistAccountForSale_EnterSeller;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UCoreObjects, UWIZOperation;
+  SysUtils, Forms, StdCtrls, Buttons, Controls, Graphics, UWizard, UWIZOperation;
 
 type
 
@@ -53,7 +51,11 @@ implementation
 {$R *.lfm}
 
 uses
-  UAccounts, UUserInterface, USettings, UCoreUtils;
+  UNode,
+  UWallet,
+  UAccounts,
+  UCoreUtils,
+  UFRMAccountSelect;
 
 { TWIZEnlistAccountForSale_EnterSeller }
 

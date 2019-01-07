@@ -23,8 +23,7 @@ unit UWIZOperationConfirmation;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UVisualGrid, UCellRenderers, UCommon.Data, UWizard, UWIZOperation, UCoreObjects;
+  Classes, SysUtils, StdCtrls, ExtCtrls, Graphics, UVisualGrid, UCellRenderers, UWizard, UWIZOperation;
 
 type
 
@@ -54,7 +53,19 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, UCrypto, UConst, UWallet, UUserInterface, UDataSources, UCommon, UCommon.UI, Generics.Collections, UCoreUtils;
+uses
+  UConst,
+  UCrypto,
+  UWallet,
+  UCommon,
+  UAccounts,
+  UCoreUtils,
+  UCoreObjects,
+  UCommon.UI,
+  UCommon.Data,
+  UDataSources,
+  UUserInterface,
+  Generics.Collections;
 
 type
 

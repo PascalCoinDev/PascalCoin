@@ -18,8 +18,7 @@ unit UWIZAddKey_Start;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  UWizard, UWIZAddKey, UCoreObjects;
+  StdCtrls, UWizard, UWIZAddKey;
 
 type
 
@@ -43,7 +42,10 @@ implementation
 {$R *.lfm}
 
 uses
-   UWIZAddKey_GenerateOrImport, UWIZAddKey_ImportPrivKey, UWIZAddKey_ImportPubKey, UWIZAddKey_EnterName;
+  UWIZAddKey_EnterName,
+  UWIZAddKey_ImportPubKey,
+  UWIZAddKey_ImportPrivKey,
+  UWIZAddKey_GenerateOrImport;
 
 { TWIZAddKey_Start }
 
@@ -54,7 +56,7 @@ begin
     Model.Action := akaImportPublicKey;
     UpdatePath(ptReplaceAllNext, [TWIZAddKey_ImportPubKey, TWIZAddKey_EnterName]);
   end else begin
-    UpdatePath(ptReplaceAllNext, [TWIZAddKey_GenerateOrImport, TWIZAddKey_ImportPrivKey]);//, TWIZAddKey_ImportPrivKey, TWIZAddKey_Finish]);
+    UpdatePath(ptReplaceAllNext, [TWIZAddKey_GenerateOrImport, TWIZAddKey_ImportPrivKey]);
   end;
 end;
 

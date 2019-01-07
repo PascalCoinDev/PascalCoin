@@ -23,9 +23,7 @@ unit UWIZEnlistAccountForSale_EnterLockingBlock;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, Buttons,
-  UWizard, UWIZOperation, UCoreObjects, UWIZEnlistAccountForSale_EnterSeller;
+  SysUtils, StdCtrls, UWizard, UWIZOperation;
 
 type
 
@@ -45,9 +43,6 @@ implementation
 
 {$R *.lfm}
 
-uses
-  UAccounts;
-
 { TWIZEnlistAccountForSale_EnterLockingBlock }
 
 procedure TWIZEnlistAccountForSale_EnterLockingBlock.OnPresent;
@@ -64,7 +59,7 @@ begin
   LLockedUntilBlock := StrToIntDef(edtBlockLock.Text, 0);
   if LLockedUntilBlock = 0 then
   begin
-    message := 'You Didn''t Insert a Locking Block.';
+    message := 'You Didn''t Insert a Valid Locking Block.';
     Result := False;
     Exit;
   end;

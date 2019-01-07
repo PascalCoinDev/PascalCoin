@@ -18,8 +18,7 @@ unit UWIZAddKey_EnterName;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UWizard, UWIZAddKey, UCoreObjects;
+  SysUtils, StdCtrls, UWizard, UWIZAddKey;
 
 type
 

@@ -22,7 +22,7 @@ unit UWIZSendPASC;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, UWizard, UCommon, UCoreObjects, UWIZOperation;
+  Classes, UWizard, UWIZOperation;
 
 type
 
@@ -41,10 +41,11 @@ implementation
 
 uses
   UWallet,
+  UCommon,
+  UCoreUtils,
   UWIZOperationSelected,
   UWIZSendPASC_Details,
-  UWIZOperationConfirmation,
-  UCoreUtils;
+  UWIZOperationConfirmation;
 
 { TWIZSendPASCWizard }
 

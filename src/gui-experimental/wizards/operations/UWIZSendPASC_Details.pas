@@ -23,9 +23,7 @@ unit UWIZSendPASC_Details;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet, UCoreObjects,
-  UFRMAccountSelect, UNode, UWizard, UWIZOperation, UWIZSendPASC, UCoreUtils;
+  Classes, SysUtils, Forms, Dialogs, Controls, StdCtrls, ExtCtrls, Buttons, UWizard, UWIZOperation;
 
 type
 
@@ -63,9 +61,20 @@ implementation
 {$R *.lfm}
 
 uses
-  Generics.Collections, UMemory,
-  UAccounts, UUserInterface, USettings,
-  UWIZOperationFee_Custom, UWIZOperationPayload_Encryption, UWIZOperationSigner_Select;
+  UNode,
+  UWallet,
+  UCommon,
+  UMemory,
+  UAccounts,
+  USettings,
+  UCoreUtils,
+  UCoreObjects,
+  UFRMAccountSelect,
+  UCommon.Collections,
+  Generics.Collections,
+  UWIZOperationFee_Custom,
+  UWIZOperationSigner_Select,
+  UWIZOperationPayload_Encryption;
 
 { TWIZSendPASC_Details }
 

@@ -18,8 +18,7 @@ unit UWIZAddKey_ImportPubKey;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  UWizard, UWIZAddKey, UCoreObjects;
+  StdCtrls, UWizard, UWIZAddKey;
 
 type
 
@@ -39,7 +38,8 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts;
+uses
+  UAccounts;
 
 { TWIZAddKey_ImportPubKey }
 

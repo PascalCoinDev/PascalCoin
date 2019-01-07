@@ -18,8 +18,7 @@ unit UWIZAddKey_ImportPrivKey;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  UWizard, UWIZAddKey, UCoreObjects;
+  StdCtrls, UWizard, UWIZAddKey;
 
 type
 
@@ -40,7 +39,9 @@ implementation
 
 {$R *.lfm}
 
-uses UCrypto, UWallet;
+uses
+  UCrypto,
+  UWallet;
 
 { TWIZAddKey_ImportPrivKey }
 

@@ -216,8 +216,8 @@ implementation
 
 uses
   UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
-  UOpenSSL, UFileStorage, UTime, USettings, UCoreUtils, UCoreObjects, UMemory,
-  UWIZOperation, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale;
+  UOpenSSL, UFileStorage, UTime, USettings, UCoreUtils, UMemory,
+  UWIZOperation, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale, UCoreObjects;
 
 {%region UI Lifecyle}
 
@@ -739,6 +739,7 @@ begin
     try
       Caption := ATitle;
       Memo.Append(text);
+      Position := poMainFormCenter;
       ShowModal;
     finally
       Free;
@@ -752,6 +753,7 @@ begin
     try
       Caption := ATitle;
       Memo.Lines.Assign(text);
+      Position := poMainFormCenter;
       ShowModal;
     finally
       Free;

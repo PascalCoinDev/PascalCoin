@@ -23,10 +23,7 @@ unit UWIZChangeKey_SelectKey;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UCoreObjects,
-  UWIZOperation, UWIZOperationFee_Custom, UWIZOperationSigner_Select, UWIZOperationPayload_Encryption;
+  SysUtils, StdCtrls, Graphics, UWizard, UWIZOperation;
 
 type
 
@@ -54,7 +51,15 @@ implementation
 {$R *.lfm}
 
 uses
-  UAccounts, UCrypto, UUserInterface, USettings;
+  UWallet,
+  UCommon,
+  UCrypto,
+  UAccounts,
+  USettings,
+  UCoreObjects,
+  UWIZOperationFee_Custom,
+  UWIZOperationSigner_Select,
+  UWIZOperationPayload_Encryption;
 
 { TWIZChangeKey_SelectKey }
 

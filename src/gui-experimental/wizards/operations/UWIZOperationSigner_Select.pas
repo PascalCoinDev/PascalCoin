@@ -23,9 +23,7 @@ unit UWIZOperationSigner_Select;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, Buttons, UCommon, UCommon.Collections, UWallet,
-  UFRMAccountSelect, UNode, UWizard, UCoreObjects, UWIZOperation;
+  SysUtils, Graphics, StdCtrls, ExtCtrls, UWizard, UWIZOperation;
 
 type
 
@@ -52,7 +50,8 @@ implementation
 {$R *.lfm}
 
 uses
-  UAccounts, UUserInterface, USettings;
+  UAccounts,
+  UCoreObjects;
 
 { TWIZOperationSigner_Select }
 

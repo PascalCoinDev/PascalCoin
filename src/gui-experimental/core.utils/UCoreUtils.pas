@@ -22,10 +22,8 @@ unit UCoreUtils;
 interface
 
 uses
-  Classes, SysUtils, UCrypto, UAccounts, UBlockChain, UOpTransaction, UNode,
-  UBaseTypes, UCommon, UNetProtocol, UCoreObjects,UCommon.Collections,
-  Generics.Collections, Generics.Defaults,
-  Forms, Dialogs, LCLType, UCellRenderers;
+  Classes, SysUtils, Forms, Dialogs, LCLType, UAccounts, UBlockChain, UNode,
+  UBaseTypes, UCommon, UCoreObjects, UCommon.Collections, Generics.Defaults;
 
 type
 
@@ -122,10 +120,21 @@ type
     class function ExecuteEnlistAccountForSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount, ASellerAccount: TAccount; const APublicKey: TAccountKey; AFee, ASalePrice: int64; ALockedUntilBlock: UInt32; const AAccountSaleMode: TAccountSaleMode; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
   end;
 
+
 implementation
 
 uses
-  UMemory, UConst, UWallet, UUserInterface, UECIES, UAES, ULog;
+  ULog,
+  UAES,
+  UConst,
+  UECIES,
+  UCrypto,
+  UMemory,
+  UWallet,
+  UNetProtocol,
+  UUserInterface,
+  UOpTransaction,
+  Generics.Collections;
 
 { TCoreTool }
 
@@ -262,6 +271,7 @@ begin
   end;
   Result := LAccs.ToArray;
 end;
+
 
 { TNodeHelper }
 

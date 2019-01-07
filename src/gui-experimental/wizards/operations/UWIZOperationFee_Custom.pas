@@ -23,9 +23,7 @@ unit UWIZOperationFee_Custom;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, Buttons, Spin, UCommon, UWallet, UCoreObjects,
-  UNode, UWizard, UWIZOperation, UWIZOperationPayload_Encryption, UWIZOperationSigner_Select;
+  SysUtils, StdCtrls, Spin, UWizard, UWIZOperation;
 
 type
 
@@ -58,7 +56,12 @@ implementation
 {$R *.lfm}
 
 uses
-  UAccounts, UCoreUtils, UUserInterface, USettings;
+  UAccounts,
+  USettings,
+  UCoreUtils,
+  UCoreObjects,
+  UWIZOperationSigner_Select,
+  UWIZOperationPayload_Encryption;
 
 { TWIZOperationFee_Custom }
 

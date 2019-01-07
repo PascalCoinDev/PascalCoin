@@ -23,9 +23,7 @@ unit UWIZChangeKey_SelectOption;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UCoreObjects,
-  UWizard, UWIZOperation, UWIZChangeKey_EnterKey, UWIZChangeKey_SelectKey;
+  StdCtrls, UWizard, UWIZOperation;
 
 type
 
@@ -48,7 +46,10 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, USettings, UDataSources, UCommon, UCommon.UI, Generics.Collections;
+uses
+  UCoreObjects,
+  UWIZChangeKey_EnterKey,
+  UWIZChangeKey_SelectKey;
 
 { TWIZChangeKey_SelectOption }
 

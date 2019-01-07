@@ -18,7 +18,7 @@ unit UWIZAddKey_SelectEncryption;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls, UWizard, UWIZAddKey, UCoreObjects;
+  Classes, SysUtils, StdCtrls, ExtCtrls, UWizard, UWIZAddKey;
 
 type
 
@@ -37,7 +37,10 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, UConst, UMemory;
+uses
+  UAccounts,
+  UConst,
+  UMemory;
 
 { TWIZAddKey_SelectEncryption }
 
@@ -46,7 +49,6 @@ var
   i : Integer;
   GC : TDisposables;
   availableEncryptionTypes : TList;
-  name, desc : UTF8String;
 begin
   rgKeyType.Items.Clear;
   availableEncryptionTypes := GC.AddObject( TList.Create ) as TList;
@@ -86,7 +88,7 @@ begin
     CT_NID_secp521r1 : begin
       Result := 'SECP521R1 - Quantum-resistant (largest key)';
     end
-    else Result := '(Unknown ID:'+inttostr(EC_OpenSSL_NID)+')';
+    else Result := '(Unknown ID:'+ IntToStr(EC_OpenSSL_NID)+')';
   end;
 end;
 

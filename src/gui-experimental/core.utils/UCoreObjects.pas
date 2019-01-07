@@ -18,8 +18,7 @@ unit UCoreObjects;
 interface
 
 uses
-  Classes, SysUtils, UCrypto, UAccounts, UBlockChain, UWallet, UCommon, UBaseTypes,
-  Generics.Collections, Generics.Defaults;
+  UBaseTypes;
 
 type
 

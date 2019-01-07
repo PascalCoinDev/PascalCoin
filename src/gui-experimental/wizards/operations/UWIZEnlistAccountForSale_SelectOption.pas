@@ -23,8 +23,7 @@ unit UWIZEnlistAccountForSale_SelectOption;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, UWizard, UCoreObjects, UWIZOperation, UWIZEnlistAccountForSale_EnterPublicKey;
+  StdCtrls, UWizard, UWIZOperation;
 
 type
 
@@ -47,7 +46,9 @@ implementation
 
 {$R *.lfm}
 
-uses UAccounts, USettings, UDataSources, UCommon, UCommon.UI, Generics.Collections;
+uses
+  UCoreObjects,
+  UWIZEnlistAccountForSale_EnterPublicKey;
 
 { TWIZEnlistAccountForSale_SelectOption }
 

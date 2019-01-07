@@ -18,8 +18,7 @@ unit UWIZAddKey_GenerateOrImport;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  UWizard, UWIZAddKey, UCoreObjects;
+  StdCtrls, UWizard, UWIZAddKey;
 
 type
 
@@ -39,7 +38,10 @@ implementation
 
 {$R *.lfm}
 
-uses UWIZAddKey_ImportPrivKey, UWIZAddKey_SelectEncryption, UWIZAddKey_EnterName;
+uses
+  UWIZAddKey_ImportPrivKey,
+  UWIZAddKey_SelectEncryption,
+  UWIZAddKey_EnterName;
 
 procedure TWIZAddKey_GenerateOrImport.OnNext;
 begin

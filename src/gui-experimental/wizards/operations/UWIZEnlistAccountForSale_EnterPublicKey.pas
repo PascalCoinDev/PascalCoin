@@ -23,9 +23,7 @@ unit UWIZEnlistAccountForSale_EnterPublicKey;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, Buttons, UCoreObjects,
-  UWizard, UWIZOperation, UWIZEnlistAccountForSale_EnterLockingBlock;
+  SysUtils, StdCtrls, UWizard, UWIZOperation;
 
 type
 
@@ -48,7 +46,8 @@ implementation
 {$R *.lfm}
 
 uses
-  UAccounts;
+  UAccounts,
+  UWIZEnlistAccountForSale_EnterLockingBlock;
 
 { TWIZEnlistAccountForSale_EnterPublicKey }
 
