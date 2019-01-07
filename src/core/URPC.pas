@@ -614,8 +614,8 @@ begin
             try
               methodName := jsonobj.AsString('method','');
               paramsTxt := jsonobj.GetAsObject('params').ToJSON(false);
-              TLog.NewLog(ltinfo,Classname,FSock.GetRemoteSinIP+':'+inttostr(FSock.GetRemoteSinPort)+' Processing method '+jsonobj.AsString('method',''));
-              Valid := ProcessMethod(jsonobj.AsString('method',''),jsonobj.GetAsObject('params'),jsonresponse,errNum,errDesc);
+              {$IFDEF HIGHLOG}TLog.NewLog(ltinfo,Classname,FSock.GetRemoteSinIP+':'+inttostr(FSock.GetRemoteSinPort)+' Processing method '+methodName+' params '+paramsTxt);{$ENDIF}
+              Valid := ProcessMethod(methodName,jsonobj.GetAsObject('params'),jsonresponse,errNum,errDesc);
               if not Valid then begin
                 if (errNum<>0) or (errDesc<>'') then begin
                   jsonresponse.GetAsObject('error').GetAsVariant('code').Value:=errNum;
@@ -627,7 +627,7 @@ begin
               end;
             Except
               on E:Exception do begin
-                TLog.NewLog(lterror,Classname,'Exception processing method'+jsonobj.AsString('method','')+' ('+E.ClassName+'): '+E.Message);
+                TLog.NewLog(lterror,Classname,'Exception processing method'+methodName+' ('+E.ClassName+'): '+E.Message);
                 jsonresponse.GetAsObject('error').GetAsVariant('code').Value:=CT_RPC_ErrNum_InternalError;
                 jsonresponse.GetAsObject('error').GetAsVariant('message').Value:=E.Message;
                 valid:=False;
@@ -671,7 +671,7 @@ begin
           FSock.SendBuffer(addr(jsonresponsetxt[1]),Length(jsonresponsetxt));
         end;
       end;
-      _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),'Method:'+methodName+' Params:'+paramsTxt+' '+Inttostr(errNum)+':'+errDesc+' Time:'+FormatFloat('0.000',(TPlatform.GetTickCount - tc)/1000));
+      _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),'Method:'+methodName+' Params:'+paramsTxt+' '+Inttostr(errNum)+':'+errDesc+' Time:'+FormatFloat('0.000',(TPlatform.GetElapsedMilliseconds(tc)/1000)));
     finally
       jsonresponse.free;
       Headers.Free;
@@ -2788,7 +2788,7 @@ begin
   ErrorNum:=0;
   ErrorDesc:='';
   Result := false;
-  TLog.NewLog(ltdebug,ClassName,'Processing RPC-JSON method '+method);
+  {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,'Processing RPC-JSON method '+method);{$ENDIF}
   if (method='addnode') then begin
     // Param "nodes" contains ip's and ports in format "ip1:port1;ip2:port2 ...". If port is not specified, use default
     // Returns quantity of nodes added
