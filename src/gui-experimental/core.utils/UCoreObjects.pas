@@ -23,6 +23,30 @@ uses
 
 type
 
+  { TExecuteOperationType }
+
+  TExecuteOperationType = (omtAccount, omtSendPasc, omtChangeKey, omtTransferAccount, omtChangeAccountPrivateKey, omtAddKey, omtEnlistAccountForSale);
+
+  { TPayloadEncryptionMode }
+
+  TPayloadEncryptionMode = (pemEncryptWithSender, pemEncryptWithReceiver, pemEncryptWithPassword, pemNotEncrypt);
+
+  { TOperationSigningMode }
+
+  TOperationSigningMode = (akaPrimary, akaSecondary);
+
+  { TChangeKeyMode }
+
+  TChangeKeyMode = (akaTransferAccountOwnership, akaChangeAccountPrivateKey);
+
+  { TSendPASCMode }
+
+  TSendPASCMode = (akaAllBalance, akaSpecifiedAmount);
+
+  { TAccountSaleMode }
+  TAccountSaleMode = (akaPublicSale, akaPrivateSale);
+
+
   { TBalanceSummary }
 
   TBalanceSummary = record

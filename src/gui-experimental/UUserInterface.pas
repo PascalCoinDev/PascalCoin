@@ -216,7 +216,7 @@ implementation
 
 uses
   UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
-  UOpenSSL, UFileStorage, UTime, USettings, UCoreUtils, UMemory,
+  UOpenSSL, UFileStorage, UTime, USettings, UCoreUtils, UCoreObjects, UMemory,
   UWIZOperation, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale;
 
 {%region UI Lifecyle}

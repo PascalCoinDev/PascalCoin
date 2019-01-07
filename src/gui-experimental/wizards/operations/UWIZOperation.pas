@@ -29,31 +29,8 @@ type
   { TWIZOperationsModel }
 
   TWIZOperationsModel = class(TComponent)
-    public
-      type
 
-      { TExecuteOperationType }
-
-      TExecuteOperationType = (omtAccount, omtSendPasc, omtChangeKey, omtTransferAccount, omtChangeAccountPrivateKey, omtAddKey, omtEnlistAccountForSale);
-
-      { TPayloadEncryptionMode }
-
-      TPayloadEncryptionMode = (pemEncryptWithSender, pemEncryptWithReceiver, pemEncryptWithPassword, pemNotEncrypt);
-
-      { TOperationSigningMode }
-
-      TOperationSigningMode = (akaPrimary, akaSecondary);
-
-      { TChangeKeyMode }
-
-      TChangeKeyMode = (akaTransferAccountOwnership, akaChangeAccountPrivateKey);
-
-      { TSendPASCMode }
-
-      TSendPASCMode = (akaAllBalance, akaSpecifiedAmount);
-
-      { TAccountSaleMode }
-      TAccountSaleMode = (akaPublicSale, akaPrivateSale);
+    public type
 
       { TOperationExecuteResultHandler }
 
@@ -168,14 +145,14 @@ type
 
   TWIZOperationsHelper = class
   private
-    class function UpdatePayload(const ASenderPublicKey, ADestinationPublicKey: TAccountKey; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+    class function UpdatePayload(const ASenderPublicKey, ADestinationPublicKey: TAccountKey; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
     class function SendPASCFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalAmount, ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
     class function OthersFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
   public
     class function ExecuteOperations(const ANewOps: TWIZOperationsModel; AHandler: TWIZOperationsModel.TOperationExecuteResultHandler; var errors: ansistring): boolean; static;
-    class function ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TWIZOperationsModel.TSendPASCMode; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
-    class function ExecuteChangeKey(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; APublicKey: TAccountKey; AFee: int64; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
-    class function ExecuteEnlistAccountForSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount, ASellerAccount: TAccount; const APublicKey: TAccountKey; AFee, ASalePrice: int64; ALockedUntilBlock: UInt32; const AAccountSaleMode: TWIZOperationsModel.TAccountSaleMode; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
+    class function ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TSendPASCMode; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
+    class function ExecuteChangeKey(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; APublicKey: TAccountKey; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
+    class function ExecuteEnlistAccountForSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount, ASellerAccount: TAccount; const APublicKey: TAccountKey; AFee, ASalePrice: int64; ALockedUntilBlock: UInt32; const AAccountSaleMode: TAccountSaleMode; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
   end;
 
 implementation
@@ -185,7 +162,7 @@ uses
 
 { TWIZOperationsModel }
 
-constructor TWIZOperationsModel.Create(AOwner: TComponent; AType: TWIZOperationsModel.TExecuteOperationType);
+constructor TWIZOperationsModel.Create(AOwner: TComponent; AType: TExecuteOperationType);
 begin
   inherited Create(AOwner);
   FExecuteOperationType := AType;
@@ -256,7 +233,7 @@ begin
     Result := False;
 end;
 
-class function TWIZOperationsHelper.UpdatePayload(const ASenderPublicKey, ADestinationPublicKey: TAccountKey; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+class function TWIZOperationsHelper.UpdatePayload(const ASenderPublicKey, ADestinationPublicKey: TAccountKey; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
 var
   LValid: boolean;
 begin
@@ -380,7 +357,7 @@ begin
 
 end;
 
-class function TWIZOperationsHelper.ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TWIZOperationsModel.TSendPASCMode; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+class function TWIZOperationsHelper.ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TSendPASCMode; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
 var
   LWalletKey: TWalletKey;
   LWalletKeys: TWalletKeys;
@@ -517,7 +494,7 @@ begin
 
 end;
 
-class function TWIZOperationsHelper.ExecuteChangeKey(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; APublicKey: TAccountKey; AFee: int64; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+class function TWIZOperationsHelper.ExecuteChangeKey(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; APublicKey: TAccountKey; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
 var
   LWalletKey: TWalletKey;
   LWalletKeys: TWalletKeys;
@@ -674,7 +651,7 @@ begin
 
 end;
 
-class function TWIZOperationsHelper.ExecuteEnlistAccountForSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount, ASellerAccount: TAccount; const APublicKey: TAccountKey; AFee, ASalePrice: int64; ALockedUntilBlock: UInt32; const AAccountSaleMode: TWIZOperationsModel.TAccountSaleMode; const APayloadEncryptionMode: TWIZOperationsModel.TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+class function TWIZOperationsHelper.ExecuteEnlistAccountForSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount, ASellerAccount: TAccount; const APublicKey: TAccountKey; AFee, ASalePrice: int64; ALockedUntilBlock: UInt32; const AAccountSaleMode: TAccountSaleMode; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
 var
   LWalletKey: TWalletKey;
   LWalletKeys: TWalletKeys;
