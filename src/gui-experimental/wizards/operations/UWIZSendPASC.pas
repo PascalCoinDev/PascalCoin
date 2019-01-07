@@ -43,7 +43,8 @@ uses
   UWallet,
   UWIZOperationSelected,
   UWIZSendPASC_Details,
-  UWIZOperationConfirmation;
+  UWIZOperationConfirmation,
+  UCoreUtils;
 
 { TWIZSendPASCWizard }
 

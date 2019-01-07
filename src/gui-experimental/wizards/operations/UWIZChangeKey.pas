@@ -33,7 +33,7 @@ type
 implementation
 
 uses
-  UWallet,
+  UWallet, UCoreUtils,
   UWIZOperationSelected,
   UWIZChangeKey_SelectOption,
   UWIZOperationConfirmation;

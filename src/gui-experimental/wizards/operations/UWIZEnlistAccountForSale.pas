@@ -41,7 +41,7 @@ type
 implementation
 
 uses
-  UWallet,
+  UWallet, UCoreUtils,
   UWIZOperationSelected,
   UWIZEnlistAccountForSale_SelectOption,
   UWIZEnlistAccountForSale_EnterSeller,

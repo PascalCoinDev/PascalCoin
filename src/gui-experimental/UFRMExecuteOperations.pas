@@ -11,8 +11,7 @@ unit UFRMExecuteOperations;
   Source: https://github.com/PascalCoin/PascalCoin
 
   Acknowledgements:
-  - Ugochukwu Mmaduekwe - main developer
-  - Herman Schoenfeld - designer
+  - Herman Schoenfeld - developer
 
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
