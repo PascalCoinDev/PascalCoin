@@ -217,7 +217,7 @@ implementation
 uses
   UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
   UOpenSSL, UFileStorage, UTime, USettings, UCoreUtils, UMemory,
-  UWIZOperation, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale, UCoreObjects;
+  UWIZOperation, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale, UWIZDelistAccountFromSale, UCoreObjects;
 
 {%region UI Lifecyle}
 
@@ -628,8 +628,15 @@ begin
 end;
 
 class procedure TUserInterface.ShowDelistAccountsDialog(const AAccounts : array of Cardinal);
+var
+  Scoped: TDisposables;
+  wiz: TWIZDelistAccountFromSaleWizard;
+  model: TWIZOperationsModel;
 begin
-  raise ENotImplemented.Create('Not Implemented');
+  wiz := Scoped.AddObject(TWIZDelistAccountFromSaleWizard.Create(nil)) as TWIZDelistAccountFromSaleWizard;
+  model := TWIZOperationsModel.Create(wiz, omtDelistAccountFromSale);
+  model.Account.SelectedAccounts := TNode.Node.GetAccounts(AAccounts, True);
+  wiz.Start(model);
 end;
 
 class procedure TUserInterface.ShowAboutBox(parentForm : TForm);
@@ -659,6 +666,7 @@ begin
     Init(CT_TOperationResume_NUL);
     if ophash <> '' then
       DoFind(ophash);
+    Position := poMainFormCenter;
     ShowModal;
   finally
     Free;
@@ -670,6 +678,7 @@ begin
   with TFRMPayloadDecoder.Create(parentForm) do
   try
     Init(operation);
+    Position := poMainFormCenter;
     ShowModal;
   finally
     Free;

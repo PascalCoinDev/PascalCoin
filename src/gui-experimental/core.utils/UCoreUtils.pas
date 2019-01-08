@@ -22,7 +22,7 @@ unit UCoreUtils;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, LCLType, UAccounts, UBlockChain, UNode,
+  Classes, SysUtils, Forms, Dialogs, LCLType, UAccounts, UBlockChain, UNode, UWallet,
   UBaseTypes, UCommon, UCoreObjects, UCommon.Collections, Generics.Defaults;
 
 type
@@ -76,12 +76,12 @@ type
   { TNodeHelper }
 
   TNodeHelper = class helper for TNode
-   function HasBestKnownBlockchainTip: boolean;
-   function BlockTip : Cardinal;
-   function GetAccount(AAccountNumber : Cardinal; AIncludePending : boolean = true) : TAccount;
-   function GetAccounts(const AAccountNumbers : array of Cardinal; AIncludePending : boolean = true) : TArray<TAccount>;
-   function GetPendingOperationsAffectingAccounts(const AAccountNumbers: array of Cardinal; ASkipCount, ATakeCount : Integer) : TArray<TOperationResume>;
-   function GetStoredOperationsAffectingAccounts(const AAccountNumbers : array of Cardinal; ABlockDepth, ASkipCount, ATakeCount : Integer) : TArray<TOperationResume>;
+    function HasBestKnownBlockchainTip: boolean;
+    function BlockTip: cardinal;
+    function GetAccount(AAccountNumber: cardinal; AIncludePending: boolean = True): TAccount;
+    function GetAccounts(const AAccountNumbers: array of cardinal; AIncludePending: boolean = True): TArray<TAccount>;
+    function GetPendingOperationsAffectingAccounts(const AAccountNumbers: array of cardinal; ASkipCount, ATakeCount: integer): TArray<TOperationResume>;
+    function GetStoredOperationsAffectingAccounts(const AAccountNumbers: array of cardinal; ABlockDepth, ASkipCount, ATakeCount: integer): TArray<TOperationResume>;
   end;
 
   { TAccountHelper }
@@ -111,6 +111,7 @@ type
 
   TWIZOperationsHelper = class
   private
+    class function ValidateOperationsInput(const ASelectedAccounts: TArray<TAccount>; AWalletKeys: TWalletKeys; ANode: TNode; var AErrorMessage: string): boolean; static;
     class function UpdatePayload(const ASenderPublicKey, ADestinationPublicKey: TAccountKey; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
     class function SendPASCFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalAmount, ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
     class function OthersFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
@@ -118,6 +119,7 @@ type
     class function ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TSendPASCMode; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
     class function ExecuteChangeKey(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; APublicKey: TAccountKey; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
     class function ExecuteEnlistAccountForSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount, ASellerAccount: TAccount; const APublicKey: TAccountKey; AFee, ASalePrice: int64; ALockedUntilBlock: UInt32; const AAccountSaleMode: TAccountSaleMode; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
+    class function ExecuteDelistAccountFromSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
   end;
 
 
@@ -130,9 +132,7 @@ uses
   UECIES,
   UCrypto,
   UMemory,
-  UWallet,
   UNetProtocol,
-  UUserInterface,
   UOpTransaction,
   Generics.Collections;
 
@@ -218,7 +218,7 @@ end;
 
 class function TCoreTool.GetUserAccounts(IncludePending: boolean = False): TArray<TAccount>;
 var
-  LBalance : TBalanceSummary;
+  LBalance: TBalanceSummary;
 begin
   Result := GetUserAccounts(LBalance, IncludePending);
 end;
@@ -235,14 +235,15 @@ begin
   LAccs := Disposables.AddObject(TList<TAccount>.Create) as TList<TAccount>;
   TNode.Node.Bank.SafeBox.StartThreadSafe;
   try
-    for i := 0 to TWallet.Keys.Count - 1 do begin
+    for i := 0 to TWallet.Keys.Count - 1 do
+    begin
       LList := TWallet.Keys.AccountsKeyList.AccountKeyList[i];
-      for j := 0 to LList.Count - 1 do begin
+      for j := 0 to LList.Count - 1 do
+      begin
         if IncludePending then
           LAcc := TNode.Node.Operations.SafeBoxTransaction.Account(LList.Get(j))
-        else begin
+        else
           LAcc := TNode.Node.Bank.SafeBox.Account(LList.Get(j));
-        end;
         LAccs.Add(LAcc);
         Inc(Balance.TotalPASA);
         Inc(Balance.TotalPASC, LAcc.Balance);
@@ -279,29 +280,32 @@ function TNodeHelper.HasBestKnownBlockchainTip: boolean;
 var
   LReady: boolean;
   LMsg: ansistring;
-  LDestBlock : Cardinal;
+  LDestBlock: cardinal;
 begin
   LReady := Self.Bank.IsReady(LMsg);
-  if LReady and TNetData.NetData.IsGettingNewBlockChainFromClient(LMsg) then begin
+  if LReady and TNetData.NetData.IsGettingNewBlockChainFromClient(LMsg) then
+  begin
     LDestBlock := TNetData.NetData.MaxRemoteOperationBlock.block;
     Result := Self.Bank.BlocksCount = TNetData.NetData.MaxRemoteOperationBlock.block;
   end;
 end;
 
-function TNodeHelper.BlockTip : Cardinal;
+function TNodeHelper.BlockTip: cardinal;
 begin
   Result := ClipValue(Self.Bank.BlocksCount - 1, 0, MaxInt);
 end;
 
-function TNodeHelper.GetAccount(AAccountNumber : Cardinal; AIncludePending : boolean = true) : TAccount;
-var LOps : TArray<TAccount>;
+function TNodeHelper.GetAccount(AAccountNumber: cardinal; AIncludePending: boolean = True): TAccount;
+var
+  LOps: TArray<TAccount>;
 begin
   LOps := Self.GetAccounts([AAccountNumber], AIncludePending);
   Result := LOps[Low(Lops)];
 end;
 
-function TNodeHelper.GetAccounts(const AAccountNumbers : array of Cardinal; AIncludePending : boolean = true) : TArray<TAccount>;
-var i : integer;
+function TNodeHelper.GetAccounts(const AAccountNumbers: array of cardinal; AIncludePending: boolean = True): TArray<TAccount>;
+var
+  i: integer;
 begin
   SetLength(Result, Length(AAccountNumbers));
   if AIncludePending then
@@ -312,28 +316,32 @@ begin
       Result[i] := Self.Bank.SafeBox.Account(AAccountNumbers[i]);
 end;
 
-function TNodeHelper.GetPendingOperationsAffectingAccounts(const AAccountNumbers: array of Cardinal; ASkipCount, ATakeCount : Integer) : TArray<TOperationResume>;
+function TNodeHelper.GetPendingOperationsAffectingAccounts(const AAccountNumbers: array of cardinal; ASkipCount, ATakeCount: integer): TArray<TOperationResume>;
 var
-  LList : Classes.TList;
-  LOps : TList<TOperationResume>;
-  LOp : TPCOperation;
-  LOpResume : TOperationResume;
-  LAccNo : Cardinal;
-  LNumOps, i : Integer;
-  GC : TDisposables;
+  LList: Classes.TList;
+  LOps: TList<TOperationResume>;
+  LOp: TPCOperation;
+  LOpResume: TOperationResume;
+  LAccNo: cardinal;
+  LNumOps, i: integer;
+  GC: TDisposables;
 begin
   LNumOps := 0;
   LList := GC.AddObject(Classes.TList.Create) as Classes.TList;
-  LOps := GC.AddObject( TList<TOperationResume>.Create ) as TList<TOperationResume>;
-  for LAccNo in AAccountNumbers do begin
+  LOps := GC.AddObject(TList<TOperationResume>.Create) as TList<TOperationResume>;
+  for LAccNo in AAccountNumbers do
+  begin
     LList.Clear;
     Self.Operations.OperationsHashTree.GetOperationsAffectingAccount(LAccNo, LList);
     if LList.Count > 0 then
-      for i := LList.Count - 1 downto 0 do begin
+      for i := LList.Count - 1 downto 0 do
+      begin
         Inc(LNumOps);
-        if (LNumOps > ASkipCount) AND (LNumOps <= ASkipCount + ATakeCount) then begin
+        if (LNumOps > ASkipCount) and (LNumOps <= ASkipCount + ATakeCount) then
+        begin
           LOp := Self.Operations.OperationsHashTree.GetOperation(PtrInt(LList[i]));
-          if TPCOperation.OperationToOperationResume(0, LOp, False, LAccNo, LOpResume) then begin
+          if TPCOperation.OperationToOperationResume(0, LOp, False, LAccNo, LOpResume) then
+          begin
             LOpResume.NOpInsideBlock := i;
             LOpResume.Block := Node.Operations.OperationBlock.block;
             LOpResume.Balance := Node.Operations.SafeBoxTransaction.Account(LAccNo {Op.SignerAccount}).balance;
@@ -345,83 +353,92 @@ begin
   Result := LOps.ToArray;
 end;
 
-function TNodeHelper.GetStoredOperationsAffectingAccounts(const AAccountNumbers : array of Cardinal; ABlockDepth, ASkipCount, ATakeCount : Integer) : TArray<TOperationResume>;
+function TNodeHelper.GetStoredOperationsAffectingAccounts(const AAccountNumbers: array of cardinal; ABlockDepth, ASkipCount, ATakeCount: integer): TArray<TOperationResume>;
 type
-  __TList_Cardinal = TList<Cardinal>;
+  __TList_Cardinal = TList<cardinal>;
 var
-  i : Integer;
-  LBlock : Cardinal;
-  LRelevantBlockOps : Classes.TList;
-  LOp : TPCOperation;
-  LOpResume : TOperationResume;
-  LFoundOps : TList<TOperationResume>;
-  LOpsComp : TPCOperationsComp;
-  LAccountBalances : TDictionary<Cardinal, Cardinal>;
-  LAccounts : TArray<TAccount>;
-  LDisposables : TDisposables;
-  LBlockEnd, LNumOps : integer;
-  LBlockTraversal : TSortedHashSet<Cardinal>;
-  LAccountsToScanAtBlock : TObjectDictionary<Cardinal, __TList_Cardinal>;
-  LAcc : TAccount;
+  i: integer;
+  LBlock: cardinal;
+  LRelevantBlockOps: Classes.TList;
+  LOp: TPCOperation;
+  LOpResume: TOperationResume;
+  LFoundOps: TList<TOperationResume>;
+  LOpsComp: TPCOperationsComp;
+  LAccountBalances: TDictionary<cardinal, cardinal>;
+  LAccounts: TArray<TAccount>;
+  LDisposables: TDisposables;
+  LBlockEnd, LNumOps: integer;
+  LBlockTraversal: TSortedHashSet<cardinal>;
+  LAccountsToScanAtBlock: TObjectDictionary<cardinal, __TList_Cardinal>;
+  LAcc: TAccount;
 
-  procedure MarkAccountAsScannableAtBlock(AAccountNo, ABlockNo : cardinal);
+  procedure MarkAccountAsScannableAtBlock(AAccountNo, ABlockNo: cardinal);
   begin
-    if NOT LAccountsToScanAtBlock.ContainsKey(ABlockNo) then
+    if not LAccountsToScanAtBlock.ContainsKey(ABlockNo) then
       LAccountsToScanAtBlock.Add(ABlockNo, __TList_Cardinal.Create);
     LAccountsToScanAtBlock[ABlockNo].Add(AAccountNo);
   end;
 
-  procedure ScanBlock(ABlockNum : Cardinal);
+  procedure ScanBlock(ABlockNum: cardinal);
   var
-    i : integer;
-    LAccNo : Cardinal;
-    LPrevUpdatedBlock : Cardinal;
-    LDisposables : TDisposables;
+    i: integer;
+    LAccNo: cardinal;
+    LPrevUpdatedBlock: cardinal;
+    LDisposables: TDisposables;
   begin
-    LOpsComp := LDisposables.AddObject( TPCOperationsComp.Create(nil) ) as TPCOperationsComp;
-    LRelevantBlockOps := LDisposables.AddObject( Classes.TList.Create ) as Classes.TList;
+    LOpsComp := LDisposables.AddObject(TPCOperationsComp.Create(nil)) as TPCOperationsComp;
+    LRelevantBlockOps := LDisposables.AddObject(Classes.TList.Create) as Classes.TList;
 
     // load block
-    if not Bank.Storage.LoadBlockChainBlock(LOpsComp, ABlockNum) then begin
-      TLog.NewLog(ltdebug, ClassName, 'Block ' + inttostr(ABlockNum)+' not found. Cannot read operations');
+    if not Bank.Storage.LoadBlockChainBlock(LOpsComp, ABlockNum) then
+    begin
+      TLog.NewLog(ltdebug, ClassName, 'Block ' + IntToStr(ABlockNum) + ' not found. Cannot read operations');
       exit;
     end;
 
     // scan for each account
-    for LAccNo in LAccountsToScanAtBlock[ABlockNum] do begin
+    for LAccNo in LAccountsToScanAtBlock[ABlockNum] do
+    begin
       LRelevantBlockOps.Clear;
       LOpsComp.OperationsHashTree.GetOperationsAffectingAccount(LAccNo, LRelevantBlockOps);
-      for i := LRelevantBlockOps.Count - 1 downto 0 do begin
+      for i := LRelevantBlockOps.Count - 1 downto 0 do
+      begin
         LOp := LOpsComp.Operation[PtrInt(LRelevantBlockOps.Items[i])];
-        If TPCOperation.OperationToOperationResume(i, LOp, False, LAccNo, LOpResume) then begin
+        if TPCOperation.OperationToOperationResume(i, LOp, False, LAccNo, LOpResume) then
+        begin
           LOpResume.NOpInsideBlock := PtrInt(LRelevantBlockOps.Items[i]);
           LOpResume.time := LOpsComp.OperationBlock.timestamp;
           LOpResume.Block := ABlockNum;
-          If LAccountBalances[LAccNo] >= 0 then begin
+          if LAccountBalances[LAccNo] >= 0 then
+          begin
             LOpResume.Balance := LAccountBalances[LAccNo];
             LAccountBalances.AddOrSetValue(LAccNo, LOpResume.Balance - (LOpResume.Amount + LOpResume.Fee));
-          end else LOpResume.Balance := -1; // Undetermined
+          end
+          else
+            LOpResume.Balance := -1; // Undetermined
 
           // Apply skip/take
-          inc(LNumOps);
-          if (LNumOps > ASkipCount) And (LNumOps <= ASkipCount + ATakeCount) then
+          Inc(LNumOps);
+          if (LNumOps > ASkipCount) and (LNumOps <= ASkipCount + ATakeCount) then
             LFoundOps.Add(LOpResume);
 
           // short-cirtcuit exit if taken enough
-          if LFoundOps.Count >= ATakeCount then exit;
+          if LFoundOps.Count >= ATakeCount then
+            exit;
         end;
       end;
 
       // Add previous updated block into traversal set
       LPrevUpdatedBlock := LOpsComp.PreviousUpdatedBlocks.GetPreviousUpdatedBlock(LAccNo, ABlockNum);
-      if LPrevUpdatedBlock < ABlockNum then begin
+      if LPrevUpdatedBlock < ABlockNum then
+      begin
         LBlockTraversal.Add(LPrevUpdatedBlock);
         MarkAccountAsScannableAtBlock(LAccNo, LPrevUpdatedBlock);
       end;
     end;
   end;
 
-  function GetAccountLastUpdateBlock(constref AAccount : TAccount) : Cardinal;
+  function GetAccountLastUpdateBlock(constref AAccount: TAccount): cardinal;
   begin
     Result := AAccount.updated_block;
   end;
@@ -429,14 +446,15 @@ var
 begin
   // Init
   LNumOps := 0;
-  LBlockTraversal := LDisposables.AddObject( TSortedHashSet<Cardinal>.Create( TComparerTool<Cardinal>.Inverted( TComparer<Cardinal>.Default ) ) ) as TSortedHashSet<Cardinal>;
-  LAccountsToScanAtBlock := LDisposables.AddObject( TObjectDictionary<Cardinal, __TList_Cardinal>.Create([doOwnsValues])) as TObjectDictionary<Cardinal, __TList_Cardinal>;
-  LFoundOps := LDisposables.AddObject( TList<TOperationResume>.Create ) as TList<TOperationResume>;
-  LAccountBalances := LDisposables.AddObject(TDictionary<Cardinal, Cardinal>.Create) as TDictionary<Cardinal, Cardinal>;
-  LBlockEnd := ClipValue( Self.BlockTip - ABlockDepth, 0, Self.BlockTip);
+  LBlockTraversal := LDisposables.AddObject(TSortedHashSet<cardinal>.Create(TComparerTool<cardinal>.Inverted(TComparer<cardinal>.Default))) as TSortedHashSet<cardinal>;
+  LAccountsToScanAtBlock := LDisposables.AddObject(TObjectDictionary<cardinal, __TList_Cardinal>.Create([doOwnsValues])) as TObjectDictionary<cardinal, __TList_Cardinal>;
+  LFoundOps := LDisposables.AddObject(TList<TOperationResume>.Create) as TList<TOperationResume>;
+  LAccountBalances := LDisposables.AddObject(TDictionary<cardinal, cardinal>.Create) as TDictionary<cardinal, cardinal>;
+  LBlockEnd := ClipValue(Self.BlockTip - ABlockDepth, 0, Self.BlockTip);
   // First get all accounts, their balances and initial traversal set
   LAccounts := Self.GetAccounts(AAccountNumbers, False);
-  for i := Low(LAccounts) to High(LAccounts) do begin
+  for i := Low(LAccounts) to High(LAccounts) do
+  begin
     // if account is modified in block-tip
     LAcc := LAccounts[i];
     LAccountBalances.AddOrSetValue(LAcc.account, LAcc.Balance);  // track account balances
@@ -445,11 +463,14 @@ begin
   end;
 
   // Traverse the set of "last updated" blocks in DESCENDING order
-  while LBlockTraversal.Count > 0 do begin
-    LBlock := TSortedHashSetTool<Cardinal>.Pop( LBlockTraversal );
-    if LBlock < LBlockEnd then continue;
+  while LBlockTraversal.Count > 0 do
+  begin
+    LBlock := TSortedHashSetTool<cardinal>.Pop(LBlockTraversal);
+    if LBlock < LBlockEnd then
+      continue;
     ScanBlock(LBlock);   // note: this will update LBlockTraversals with prev updated blocks, so loops until finished
-    if LFoundOps.Count >= ATakeCount then exit;
+    if LFoundOps.Count >= ATakeCount then
+      exit;
   end;
 
   // return array result
@@ -630,6 +651,28 @@ begin
 end;
 
 { TWIZOperationsHelper }
+
+class function TWIZOperationsHelper.ValidateOperationsInput(const ASelectedAccounts: TArray<TAccount>; AWalletKeys: TWalletKeys; ANode: TNode; var AErrorMessage: string): boolean;
+begin
+  Result := True;
+  if Length(ASelectedAccounts) = 0 then
+  begin
+    AErrorMessage := 'No Selected Account Found';
+    Exit(False);
+  end;
+
+  if not Assigned(AWalletKeys) then
+  begin
+    AErrorMessage := 'No Wallet Keys Found';
+    Exit(False);
+  end;
+
+  if not Assigned(ANode) then
+  begin
+    AErrorMessage := 'No Node Found';
+    Exit(False);
+  end;
+end;
 
 class function TWIZOperationsHelper.SendPASCFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalAmount, ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean;
 var
@@ -812,31 +855,17 @@ var
   LOperationsHashTree: TOperationsHashTree;
   LTotalAmount, LTotalSignerFee, LAmount, LFee: int64;
   LDoOperation: boolean;
-  LOperationsTxt, LOperationToString: string;
+  LOperationsTxt, LOperationToString, LTemp: string;
   LIdx, LAccountIdx, LNoOfOperations: integer;
   LCurrentAccount: TAccount;
   LPayloadEncodedBytes: TRawBytes;
 begin
-  if Length(ASelectedAccounts) = 0 then
-  begin
-    AErrorMessage := 'No Selected Account Found';
-    Exit(False);
-  end;
 
   LWalletKeys := TWallet.Keys;
   LNode := TNode.Node;
 
-  if not Assigned(LWalletKeys) then
-  begin
-    AErrorMessage := 'No Wallet Keys Found';
+  if not TWIZOperationsHelper.ValidateOperationsInput(ASelectedAccounts, LWalletKeys, LNode, AErrorMessage) then
     Exit(False);
-  end;
-
-  if not Assigned(LNode) then
-  begin
-    AErrorMessage := 'No Node Found';
-    Exit(False);
-  end;
 
   LOperationsHashTree := TOperationsHashTree.Create;
   try
@@ -907,9 +936,13 @@ begin
       if LDoOperation then
       begin
         LPCOperation := TOpTransaction.CreateTransaction(
-           TUserInterface.Node.Bank.Safebox.CurrentProtocol, LCurrentAccount.account, LCurrentAccount.n_operation + 1, ADestinationAccount.account, LWalletKey.PrivateKey, LAmount, LFee, LPayloadEncodedBytes);
+          TNode.Node.Bank.Safebox.CurrentProtocol, LCurrentAccount.account, LCurrentAccount.n_operation + 1, ADestinationAccount.account, LWalletKey.PrivateKey, LAmount, LFee, LPayloadEncodedBytes);
         try
-          LOperationsTxt := Format('Transaction To "%s"', [ADestinationAccount.AccountString]);
+          LTemp := Format('%d. Transfer of %s PASC from %s to %s %s', [LNoOfOperations + 1, TAccountComp.FormatMoney(LAmount), LCurrentAccount.AccountString, ADestinationAccount.AccountString, sLineBreak]);
+          if LOperationsTxt <> '' then
+            LOperationsTxt := LOperationsTxt + LTemp + sLineBreak
+          else
+            LOperationsTxt := sLineBreak + LTemp;
 
           if Assigned(LPCOperation) then
           begin
@@ -949,33 +982,19 @@ var
   LOperationsHashTree: TOperationsHashTree;
   LTotalSignerFee, LFee: int64;
   LIsV2: boolean;
-  LOperationsTxt, LOperationToString: string;
+  LOperationsTxt, LOperationToString, LTemp: string;
   LIdx, LAccountIdx, LNoOfOperations: integer;
   LCurrentAccount, LSignerAccount: TAccount;
   LPayloadEncodedBytes: TRawBytes;
 label
   loop_start;
 begin
-  if Length(ASelectedAccounts) = 0 then
-  begin
-    AErrorMessage := 'No Selected Account Found';
-    Exit(False);
-  end;
 
   LWalletKeys := TWallet.Keys;
   LNode := TNode.Node;
 
-  if not Assigned(LWalletKeys) then
-  begin
-    AErrorMessage := 'No Wallet Keys Found';
+  if not TWIZOperationsHelper.ValidateOperationsInput(ASelectedAccounts, LWalletKeys, LNode, AErrorMessage) then
     Exit(False);
-  end;
-
-  if not Assigned(LNode) then
-  begin
-    AErrorMessage := 'No Node Found';
-    Exit(False);
-  end;
 
   LOperationsHashTree := TOperationsHashTree.Create;
   try
@@ -1059,16 +1078,21 @@ begin
           LFee := AFee
         else
           LFee := LSignerAccount.balance - UInt64(LTotalSignerFee);
-        LPCOperation := TOpChangeKeySigned.Create(TUserInterface.Node.Bank.Safebox.CurrentProtocol, LSignerAccount.account,
+        LPCOperation := TOpChangeKeySigned.Create(TNode.Node.Bank.Safebox.CurrentProtocol, LSignerAccount.account,
           LSignerAccount.n_operation + LNoOfOperations + 1, LCurrentAccount.account,
           LWalletKey.PrivateKey, APublicKey, LFee, LPayloadEncodedBytes);
       end
       else
-        LPCOperation := TOpChangeKey.Create(TUserInterface.Node.Bank.Safebox.CurrentProtocol, LCurrentAccount.account, LCurrentAccount.n_operation +
+        LPCOperation := TOpChangeKey.Create(TNode.Node.Bank.Safebox.CurrentProtocol, LCurrentAccount.account, LCurrentAccount.n_operation +
           1, LCurrentAccount.account, LWalletKey.PrivateKey, APublicKey, LFee, LPayloadEncodedBytes);
 
       try
-        LOperationsTxt := Format('Change Key To "%s"', [TAccountComp.GetECInfoTxt(APublicKey.EC_OpenSSL_NID)]);
+        LTemp := Format('%d. Change Key To %s', [LNoOfOperations + 1, TAccountComp.GetECInfoTxt(APublicKey.EC_OpenSSL_NID), sLineBreak]);
+        if LOperationsTxt <> '' then
+          LOperationsTxt := LOperationsTxt + LTemp + sLineBreak
+        else
+          LOperationsTxt := sLineBreak + LTemp;
+
         if Assigned(LPCOperation) then
         begin
           LOperationsHashTree.AddOperationToHashTree(LPCOperation);
@@ -1105,31 +1129,17 @@ var
   LPCOperation: TPCOperation;
   LOperationsHashTree: TOperationsHashTree;
   LTotalSignerFee, LFee: int64;
-  LOperationsTxt, LOperationToString: string;
+  LOperationsTxt, LOperationToString, LTemp: string;
   LIdx, LAccountIdx, LNoOfOperations: integer;
   LCurrentAccount, LSignerAccount: TAccount;
   LPayloadEncodedBytes: TRawBytes;
 begin
-  if Length(ASelectedAccounts) = 0 then
-  begin
-    AErrorMessage := 'No Selected Account Found';
-    Exit(False);
-  end;
 
   LWalletKeys := TWallet.Keys;
   LNode := TNode.Node;
 
-  if not Assigned(LWalletKeys) then
-  begin
-    AErrorMessage := 'No Wallet Keys Found';
+  if not TWIZOperationsHelper.ValidateOperationsInput(ASelectedAccounts, LWalletKeys, LNode, AErrorMessage) then
     Exit(False);
-  end;
-
-  if not Assigned(LNode) then
-  begin
-    AErrorMessage := 'No Node Found';
-    Exit(False);
-  end;
 
   LOperationsHashTree := TOperationsHashTree.Create;
   try
@@ -1155,12 +1165,6 @@ begin
         Exit(False);
       end;
 
-      if (LNode.Node.Bank.SafeBox.CurrentProtocol = CT_PROTOCOL_1) then
-      begin
-        AErrorMessage := 'This Operation Needs PROTOCOL 2 Active';
-        Exit(False);
-      end;
-
       if AAccountSaleMode = akaPrivateSale then
       begin
 
@@ -1178,7 +1182,7 @@ begin
         end;
       end;
 
-      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, APublicKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
+      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, ASignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
       begin
         AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
         Exit(False);
@@ -1210,14 +1214,14 @@ begin
         akaPublicSale:
 
           LPCOperation := TOpListAccountForSale.CreateListAccountForSale(
-            TUserInterface.Node.Bank.Safebox.CurrentProtocol, ASignerAccount.account, ASignerAccount.n_operation + 1 + LAccountIdx,
+            TNode.Node.Bank.Safebox.CurrentProtocol, ASignerAccount.account, ASignerAccount.n_operation + 1 + LAccountIdx,
             LCurrentAccount.account, ASalePrice, LFee, ASellerAccount.account,
             APublicKey, 0, LWalletKey.PrivateKey, LPayloadEncodedBytes);
 
         akaPrivateSale:
 
           LPCOperation := TOpListAccountForSale.CreateListAccountForSale(
-            TUserInterface.Node.Bank.Safebox.CurrentProtocol, ASignerAccount.account, ASignerAccount.n_operation + 1 + LAccountIdx,
+            TNode.Node.Bank.Safebox.CurrentProtocol, ASignerAccount.account, ASignerAccount.n_operation + 1 + LAccountIdx,
             LCurrentAccount.account, ASalePrice, LFee, ASellerAccount.account,
             APublicKey, ALockedUntilBlock, LWalletKey.PrivateKey, LPayloadEncodedBytes)
         else
@@ -1225,7 +1229,118 @@ begin
       end;
 
       try
-        LOperationsTxt := Format('Enlist Account For Sale At a Price Of "%s" PASC', [TAccountComp.FormatMoney(ASalePrice)]);
+        LTemp := Format('%d. Enlist Account %s For Sale At a Price Of %s PASC %s', [LNoOfOperations + 1, LCurrentAccount.DisplayString, TAccountComp.FormatMoney(ASalePrice), sLineBreak]);
+        if LOperationsTxt <> '' then
+          LOperationsTxt := LOperationsTxt + LTemp + sLineBreak
+        else
+          LOperationsTxt := sLineBreak + LTemp;
+
+        if Assigned(LPCOperation) then
+        begin
+          LOperationsHashTree.AddOperationToHashTree(LPCOperation);
+          Inc(LNoOfOperations);
+          Inc(LTotalSignerFee, LFee);
+          if LOperationToString <> '' then
+            LOperationToString := LOperationToString + #10;
+          LOperationToString := LOperationToString + LPCOperation.ToString;
+        end;
+      finally
+        FreeAndNil(LPCOperation);
+      end;
+
+    end;
+
+    if (LOperationsHashTree.OperationsCount = 0) then
+    begin
+      AErrorMessage := 'No Valid Operation to Execute';
+      Exit(False);
+    end;
+
+    Exit(TWIZOperationsHelper.OthersFinalizeAndDisplayMessage(LOperationsTxt, LOperationToString, LNoOfOperations, LTotalSignerFee, LOperationsHashTree, AErrorMessage));
+
+  finally
+    LOperationsHashTree.Free;
+  end;
+end;
+
+class function TWIZOperationsHelper.ExecuteDelistAccountFromSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+var
+  LWalletKey: TWalletKey;
+  LWalletKeys: TWalletKeys;
+  LNode: TNode;
+  LPCOperation: TPCOperation;
+  LOperationsHashTree: TOperationsHashTree;
+  LTotalSignerFee, LFee: int64;
+  LOperationsTxt, LOperationToString, LTemp: string;
+  LIdx, LAccountIdx, LNoOfOperations: integer;
+  LCurrentAccount, LSignerAccount: TAccount;
+  LPayloadEncodedBytes: TRawBytes;
+begin
+
+  LWalletKeys := TWallet.Keys;
+  LNode := TNode.Node;
+
+  if not TWIZOperationsHelper.ValidateOperationsInput(ASelectedAccounts, LWalletKeys, LNode, AErrorMessage) then
+    Exit(False);
+
+  LOperationsHashTree := TOperationsHashTree.Create;
+  try
+    LTotalSignerFee := 0;
+    LNoOfOperations := 0;
+    LOperationsTxt := '';
+    LOperationToString := '';
+
+    for LAccountIdx := Low(ASelectedAccounts) to High(ASelectedAccounts) do
+    begin
+      LPCOperation := nil; // reset LPCOperation to Nil
+      LCurrentAccount := ASelectedAccounts[LAccountIdx];
+
+      if not TAccountComp.IsAccountForSale(LCurrentAccount.accountInfo) then
+      begin
+        AErrorMessage := Format('Account "%s" is not enlisted for sale so cannot be delisted', [LCurrentAccount.AccountString]);
+        Exit(False);
+      end;
+
+
+      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, ASignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
+      begin
+        AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
+        Exit(False);
+      end;
+
+      LIdx := LWalletKeys.IndexOfAccountKey(LCurrentAccount.accountInfo.accountKey);
+      if LIdx < 0 then
+      begin
+        AErrorMessage := Format('Selected Account "%s" Private Key Not Found In Wallet', [LCurrentAccount.AccountString]);
+        Exit(False);
+      end;
+      LWalletKey := LWalletKeys.Key[LIdx];
+
+      if not Assigned(LWalletKey.PrivateKey) then
+      begin
+        if LWalletKey.HasPrivateKey then
+          AErrorMessage := 'Wallet Is Password Protected. Please Unlock Before You Proceed.'
+        else
+          AErrorMessage := Format('Only Public Key Of Account %s Was Found In Wallet. You Cannot Operate This Account', [LCurrentAccount.AccountString]);
+        Exit(False);
+      end;
+
+      if ASignerAccount.balance > AFee then
+        LFee := AFee
+      else
+        LFee := ASignerAccount.balance;
+
+      LPCOperation := TOpDelistAccountForSale.CreateDelistAccountForSale(TNode.Node.Bank.Safebox.CurrentProtocol,
+        ASignerAccount.account, ASignerAccount.n_operation + 1 + LAccountIdx, LCurrentAccount.account, LFee, LWalletKey.PrivateKey,
+        LPayloadEncodedBytes);
+
+      try
+        LTemp := Format('%d. Delist Account %s From Sale %s', [LNoOfOperations + 1, LCurrentAccount.DisplayString, sLineBreak]);
+        if LOperationsTxt <> '' then
+          LOperationsTxt := LOperationsTxt + LTemp + sLineBreak
+        else
+          LOperationsTxt := sLineBreak + LTemp;
+
         if Assigned(LPCOperation) then
         begin
           LOperationsHashTree.AddOperationToHashTree(LPCOperation);
