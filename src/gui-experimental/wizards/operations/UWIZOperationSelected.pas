@@ -76,7 +76,7 @@ var
   LIdx: integer;
   LAccount: TAccount;
   LTotalBalance: int64;
-  LCaption: String;
+  LCaption: string;
 begin
   FSelectedAccountsGrid := TVisualGrid.Create(Self);
   FSelectedAccountsGrid.CanSearch := False;
@@ -132,17 +132,31 @@ var
 begin
   Result := True;
 
-  if Model.ExecuteOperationType = omtEnlistAccountForSale then
-    for LIdx := Low(model.Account.SelectedAccounts) to High(model.Account.SelectedAccounts) do
-    begin
-      LAccount := model.Account.SelectedAccounts[LIdx];
-      if TAccountComp.IsAccountForSale(LAccount.accountInfo) then
+  case Model.ExecuteOperationType of
+    omtEnlistAccountForSale:
+      for LIdx := Low(model.Account.SelectedAccounts) to High(model.Account.SelectedAccounts) do
       begin
-        Result := False;
-        message := Format('Account "%s" Is Already Enlisted For Sale', [LAccount.AccountString]);
-        Exit;
+        LAccount := model.Account.SelectedAccounts[LIdx];
+        if TAccountComp.IsAccountForSale(LAccount.accountInfo) then
+        begin
+          Result := False;
+          message := Format('Account "%s" is already enlisted for sale', [LAccount.AccountString]);
+          Exit;
+        end;
       end;
-    end;
+
+    omtDelistAccountFromSale:
+      for LIdx := Low(model.Account.SelectedAccounts) to High(model.Account.SelectedAccounts) do
+      begin
+        LAccount := model.Account.SelectedAccounts[LIdx];
+        if not TAccountComp.IsAccountForSale(LAccount.accountInfo) then
+        begin
+          Result := False;
+          message := Format('Account "%s" is not enlisted for sale so cannot be delisted', [LAccount.AccountString]);
+          Exit;
+        end;
+      end;
+  end;
 
   // get signer accounts from selected accounts
   Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Model.Fee.SingleOperationFee, Model.Account.SelectedAccounts);

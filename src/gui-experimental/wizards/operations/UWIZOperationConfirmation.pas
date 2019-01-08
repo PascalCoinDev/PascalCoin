@@ -237,6 +237,8 @@ begin
         Result := Format('%s', [TCoreTool.GetOperationShortText(CT_Op_ChangeKeySigned, CT_OpSubtype_ChangeKey)]);
       omtEnlistAccountForSale:
         Result := Format('%s', [TCoreTool.GetOperationShortText(CT_Op_ListAccountForSale, IIF(Model.EnlistAccountForSale.AccountSaleMode = akaPrivateSale, CT_OpSubtype_ListAccountForPrivateSale, CT_OpSubtype_ListAccountForPublicSale))]);
+      omtDelistAccountFromSale:
+        Result := Format('%s', [TCoreTool.GetOperationShortText(CT_Op_DelistAccount, CT_OpSubtype_DelistAccount)]);
 
     end
   else if ABindingName = 'Recipient' then
@@ -271,6 +273,10 @@ begin
       begin
         Result := IIF(Model.EnlistAccountForSale.AccountSaleMode = akaPrivateSale, TAccountComp.AccountPublicKeyExport(Model.EnlistAccountForSale.NewOwnerPublicKey), '');
         Result := TCellRenderers.OperationShortHash(Result);
+      end;
+      omtDelistAccountFromSale:
+      begin
+        Result := '';
       end;
     end
   else if ABindingName = 'Fee' then
