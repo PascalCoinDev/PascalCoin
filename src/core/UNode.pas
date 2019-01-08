@@ -396,14 +396,13 @@ Var
   ActOp : TPCOperation;
   {$IFDEF BufferOfFutureOperations}sAcc : TAccount;{$ENDIF}
 begin
-  Result := -1;
+  Result := -1; // -1 Means Node is blocked or disabled
   if Assigned(OperationsResult) then OperationsResult.Clear;
   if FDisabledsNewBlocksCount>0 then begin
     errors := Format('Cannot Add Operations due is adding disabled - OpCount:%d',[OperationsHashTree.OperationsCount]);
     TLog.NewLog(ltinfo,Classname,errors);
     exit;
   end;
-  Result := 0;
   nSpam := 0;
   nRepeated := 0;
   nError := 0;
@@ -418,6 +417,7 @@ begin
       if TThread.CurrentThread.ThreadID=MainThreadID then raise Exception.Create(s) else exit;
     end;
     try
+      Result := 0;
       {$IFDEF BufferOfFutureOperations}
       Process_BufferOfFutureOperations(valids_operations);
       {$ENDIF}
