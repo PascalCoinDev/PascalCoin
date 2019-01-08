@@ -2549,7 +2549,7 @@ begin
   FLastHelloReceivedTS := 0;
   FLastDataReceivedTS := 0;
   FLastDataSendedTS := 0;
-  FRandomWaitSecondsSendHello := (CT_NewLineSecondsAvg DIV 3) + Random(CT_NewLineSecondsAvg DIV 5);
+  FRandomWaitSecondsSendHello := (CT_NewLineSecondsAvg DIV 3) + Random(CT_NewLineSecondsAvg DIV 2);
   FTcpIpClient := Nil;
   FRemoteOperationBlock := CT_OperationBlock_NUL;
   FRemoteAccumulatedWork := 0;
@@ -3552,6 +3552,7 @@ Begin
       end;
 
       FLastHelloReceivedTS:=TPlatform.GetTickCount;
+      FRandomWaitSecondsSendHello := (CT_NewLineSecondsAvg DIV 3) + Random(CT_NewLineSecondsAvg DIV 2);
 
       {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Hello received: '+TPCOperationsComp.OperationBlockToText(FRemoteOperationBlock));{$ENDIF}
       if (HeaderData.header_type in [ntp_request,ntp_response]) then begin
@@ -3889,7 +3890,7 @@ begin
                 case HeaderData.operation of
                   CT_NetOp_Hello : Begin
                     if TNetData.NetData.IpInfos.ReachesLimits(Client.RemoteHost,CT_NetTransferType[HeaderData.header_type],TNetData.OperationToText(HeaderData.operation),HeaderData.buffer_data_length,
-                      TArray<TLimitLifetime>.Create(TLimitLifetime.Create(CT_NewLineSecondsAvg * 2,10,20000))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
+                      TArray<TLimitLifetime>.Create(TLimitLifetime.Create(CT_NewLineSecondsAvg * 2,20,20000))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
                     else begin
                       iDebugStep := 1100;
                       DoProcess_Hello(HeaderData,ReceiveDataBuffer);
@@ -3922,7 +3923,7 @@ begin
                   CT_NetOp_GetBlockchainOperations : Begin
                     if HeaderData.header_type=ntp_request then begin
                       if TNetData.NetData.IpInfos.ReachesLimits(Client.RemoteHost,CT_NetTransferType[HeaderData.header_type],TNetData.OperationToText(HeaderData.operation),HeaderData.buffer_data_length,
-                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(60,5,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
+                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(60,10,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
                       else DoProcess_GetBlockchainOperations_Request(HeaderData,ReceiveDataBuffer)
                     end else TLog.NewLog(ltdebug,Classname,'Received old response of: '+TNetData.HeaderDataToText(HeaderData));
                   End;
@@ -4090,7 +4091,6 @@ begin
           last_bytes_read := auxstream.size;
           if last_bytes_read>0 then begin
             FLastDataReceivedTS := TPlatform.GetTickCount;
-            FRandomWaitSecondsSendHello := (CT_NewLineSecondsAvg DIV 3) + Random(CT_NewLineSecondsAvg DIV 5);
 
             FClientBufferRead.Position := FClientBufferRead.size; // Go to the end
             auxstream.Position := 0;
@@ -4209,7 +4209,6 @@ begin
         ClientRemoteAddr);{$ENDIF}
       (Client as TBufferedNetTcpIpClient).WriteBufferToSend(Buffer);
       FLastDataSendedTS := TPlatform.GetTickCount;
-      FRandomWaitSecondsSendHello := (CT_NewLineSecondsAvg DIV 3) + Random(CT_NewLineSecondsAvg DIV 5);
     Finally
       FNetLock.Release;
     End;
