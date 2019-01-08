@@ -978,7 +978,9 @@ Var P : PNodeServerAddress;
   currunixtimestamp : Cardinal;
   nsa : TNodeServerAddress;
 begin
-  if trim(NodeServerAddress.ip)='' then exit;
+  if (trim(NodeServerAddress.ip)='')
+     or (SameText(NodeServerAddress.ip,'localhost'))
+     or (SameText('127.',Copy(NodeServerAddress.ip,1,4))) then Exit;
 
   if (NodeServerAddress.port<=0) then NodeServerAddress.port := CT_NetServer_Port
   else if (NodeServerAddress.port<>CT_NetServer_Port) then exit;
@@ -2598,7 +2600,7 @@ begin
     TLog.NewLog(lterror,Classname,'Disconecting '+ClientRemoteAddr+' > '+Why);
   end;
   FIsMyselfServer := ItsMyself;
-  include_in_list := (Not SameText(Client.RemoteHost,'localhost')) And (Not SameText(Client.RemoteHost,'127.0.0.1'))
+  include_in_list := (Not SameText(Client.RemoteHost,'localhost')) And (Not SameText('127.',Copy(Client.RemoteHost,1,4)))
     And (Not SameText('192.168.',Copy(Client.RemoteHost,1,8)))
     And (Not SameText('10.',Copy(Client.RemoteHost,1,3)));
   if include_in_list then begin
@@ -3510,7 +3512,7 @@ Begin
       TLog.NewLog(ltDebug,ClassName,'Corrected timestamp for node ('+ClientRemoteAddr+') old offset: '+IntToStr(lastTimestampDiff)+' current offset '+IntToStr(FTimestampDiff) );
     end;
 
-    if (connection_has_a_server>0) And (Not SameText(Client.RemoteHost,'localhost')) And (Not SameText(Client.RemoteHost,'127.0.0.1'))
+    if (connection_has_a_server>0) And (Not SameText(Client.RemoteHost,'localhost')) And (Not SameText('127.',Copy(Client.RemoteHost,1,4)))
       And (Not SameText('192.168.',Copy(Client.RemoteHost,1,8)))
       And (Not SameText('10.',Copy(Client.RemoteHost,1,3)))
       And (Not TAccountComp.EqualAccountKeys(FClientPublicKey,TNetData.NetData.FNodePrivateKey.PublicKey)) then begin
