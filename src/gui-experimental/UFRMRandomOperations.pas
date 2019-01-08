@@ -103,8 +103,9 @@ type
   TRandomGenerateOperation = Class
   private
   public
+    class function GetRandomOwnDestination(const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt; out nAccount : Cardinal) : Boolean;
     class function GetRandomSigner(const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt; out iKey : Integer; out nAccount : Cardinal) : Boolean;
-    class function GenerateOpTransaction(current_protocol : Word; const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt) : Boolean;
+    class function GenerateOpTransactions(current_protocol : Word; Maxtransaction : Integer; const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt) : Integer;
     class function GenerateOpMultiOperation(current_protocol : Word; const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt) : Boolean;
   end;
 
@@ -150,8 +151,7 @@ begin
         //
         Case Random(30) of
           0..20 : begin
-            If TRandomGenerateOperation.GenerateOpTransaction(FSourceNode.Bank.SafeBox.CurrentProtocol,operationsComp,FSourceWalletKeys) then inc(FnOperationsCreated)
-            else inc(FnOperationsCreatedFailed);
+            inc(FnOperationsCreated,TRandomGenerateOperation.GenerateOpTransactions(FSourceNode.Bank.SafeBox.CurrentProtocol,100,operationsComp,FSourceWalletKeys));
           end;
           21..25 : begin
             If TRandomGenerateOperation.GenerateOpMultiOperation(FSourceNode.Bank.SafeBox.CurrentProtocol,operationsComp,FSourceWalletKeys) then inc(FnOperationsCreated)
@@ -226,65 +226,94 @@ end;
 
 { TRandomGenerateOperation }
 
-class function TRandomGenerateOperation.GetRandomSigner(const operationsComp: TPCOperationsComp; const aWalletKeys: TWalletKeysExt; out iKey: Integer; out nAccount: Cardinal): Boolean;
-var availAccounts : TOrderedCardinalList;
-  acc : TAccount;
-  i, nRounds : Integer;
+class function TRandomGenerateOperation.GetRandomOwnDestination(const operationsComp: TPCOperationsComp; const aWalletKeys: TWalletKeysExt; out nAccount: Cardinal): Boolean;
+var
+  nRounds : Integer;
+  iKey, iNAcc : Integer;
 begin
-  Result := False; iKey := -1; nAccount:=0; nRounds := 0;
+  Result := False; nAccount:=0; nRounds := 0;
   if (aWalletKeys.AccountsKeyList.Count<=0) then Exit;
+  iKey := Random( aWalletKeys.AccountsKeyList.Count );
   Repeat
-    iKey := Random( aWalletKeys.AccountsKeyList.Count );
-    i := aWalletKeys.AccountsKeyList.Count;
-    if i<0 then Exit;
-    availAccounts := aWalletKeys.AccountsKeyList.AccountKeyList[iKey];
-    if availAccounts.Count<=0 then Exit; // No valid accounts
-    i := availAccounts.Count;
-    if (i<0) then Exit;
-    // Sender:
-    nAccount := availAccounts.Get( Random(availAccounts.Count) );
-    acc.balance := 0;
-    If Not TAccountComp.IsAccountBlockedByProtocol(nAccount,operationsComp.SafeBoxTransaction.FreezedSafeBox.BlocksCount) then begin
-      if (operationsComp.OperationsHashTree.CountOperationsBySameSignerWithoutFee(nAccount)<=0) then acc := operationsComp.SafeBoxTransaction.Account(nAccount);
+    if (aWalletKeys.AccountsKeyList.AccountKeyList[iKey].Count>0) then begin
+      // Destination;
+      iNAcc := Random(aWalletKeys.AccountsKeyList.AccountKeyList[iKey].Count);
+      nAccount := aWalletKeys.AccountsKeyList.AccountKeyList[iKey].Get( iNAcc );
+      Result := True;
     end;
-    inc(nRounds);
-    if (nRounds>1000) then Exit;
-  until (acc.balance>0);
-  Result := True;
+    if (iKey<aWalletKeys.AccountsKeyList.Count-1) then inc(iKey) else begin
+      iKey:=0;
+      inc(nRounds);
+    end;
+  until (Result) Or (nRounds>0);
 end;
 
-class function TRandomGenerateOperation.GenerateOpTransaction(current_protocol : Word; const operationsComp: TPCOperationsComp; const aWalletKeys: TWalletKeysExt): Boolean;
-var nAccount : Cardinal;
-  iKey : Integer;
+class function TRandomGenerateOperation.GetRandomSigner(const operationsComp: TPCOperationsComp; const aWalletKeys: TWalletKeysExt; out iKey: Integer; out nAccount: Cardinal): Boolean;
+var
+  bRoundsIKey, bRoundsNAccount : Boolean;
+  iInt : Integer;
+begin
+  Result := False; iKey := -1; nAccount:=0;
+  if (aWalletKeys.AccountsKeyList.Count<=0) then Exit;
+  iKey := Random( aWalletKeys.AccountsKeyList.Count );
+  bRoundsIKey := False;
+  Repeat
+    if (aWalletKeys.Key[iKey].HasPrivateKey) And (Assigned(aWalletKeys.Key[iKey].PrivateKey)) And (aWalletKeys.AccountsKeyList.AccountKeyList[iKey].Count>0) then begin
+      // Sender:
+      bRoundsNAccount := False;
+      iInt := Random(aWalletKeys.AccountsKeyList.AccountKeyList[iKey].Count);
+      Repeat
+        nAccount := aWalletKeys.AccountsKeyList.AccountKeyList[iKey].Get( iInt );
+        If Not TAccountComp.IsAccountBlockedByProtocol(nAccount,operationsComp.SafeBoxTransaction.FreezedSafeBox.BlocksCount) then begin
+          if (operationsComp.OperationsHashTree.CountOperationsBySameSignerWithoutFee(nAccount)<=0) then begin
+            Result := True;
+            Exit;
+          end;
+        end;
+        if (iInt < aWalletKeys.AccountsKeyList.AccountKeyList[iKey].Count-1) then inc(iInt)
+        else begin
+          iInt := 0;
+          if bRoundsNAccount then Break
+          else bRoundsNAccount:=True;
+        end;
+      until (Result);
+    end;
+    if (iKey<aWalletKeys.AccountsKeyList.Count-1) then inc(iKey) else begin
+      iKey:=0;
+      if bRoundsIKey then Break
+      else bRoundsIKey:=True;
+    end;
+  until (Result);
+end;
+
+class function TRandomGenerateOperation.GenerateOpTransactions(current_protocol : Word; Maxtransaction : Integer; const operationsComp: TPCOperationsComp; const aWalletKeys: TWalletKeysExt): Integer;
+var nAccount, nAccountTarget : Cardinal;
+  iKey, nRounds : Integer;
   opTx : TOpTransaction;
-  senderAcc,destAcc : TAccount;
+  senderAcc : TAccount;
   amount,fees : Int64;
   errors : AnsiString;
 begin
-  Result := False;
+  Result := 0;
   If Not GetRandomSigner(operationsComp,aWalletKeys,iKey,nAccount) then Exit;
-  senderAcc := operationsComp.SafeBoxTransaction.Account(nAccount);
-  amount := Random(Integer(senderAcc.balance));
-  if amount<=0 then Exit;
-  If (senderAcc.balance - amount)>0 then begin
-    fees := Random( senderAcc.balance - amount )
-  end else fees := 0;
+  if Not GetRandomOwnDestination(operationsComp,aWalletKeys,nAccountTarget) then Exit;
+  if (nAccount = nAccountTarget) then Exit;
+  nRounds := 0;
+  while (nRounds<Maxtransaction) do begin
+    senderAcc := operationsComp.SafeBoxTransaction.Account(nAccount);
+    amount := 1; // Minimal amount
+    if (Random(500)<1) then fees := 0
+    else fees := 1; // Minimal fee
+    if (senderAcc.balance>2) then begin
+      opTx := TOpTransaction.CreateTransaction(current_protocol,senderAcc.account,senderAcc.n_operation+1,nAccountTarget,aWalletKeys.Key[iKey].PrivateKey,amount,fees,'');
+      Try
+        if operationsComp.AddOperation(True,opTx,errors) then inc(Result);
+      finally
+        opTx.Free;
+      end;
+    end;
 
-  iKey := aWalletKeys.IndexOfAccountKey( aWalletKeys.AccountsKeyList.AccountKey[iKey] );
-  if iKey<0 then Exit;
-  if Not aWalletKeys.Key[iKey].HasPrivateKey then Exit;
-  if Not Assigned(aWalletKeys.Key[iKey].PrivateKey) then Exit;
-  // Dest
-  Repeat
-    destAcc := operationsComp.SafeBoxTransaction.Account( Random(operationsComp.SafeBoxTransaction.FreezedSafeBox.AccountsCount) );
-  until (destAcc.account <> senderAcc.account);
-
-  // Search account
-  opTx := TOpTransaction.CreateTransaction(current_protocol,senderAcc.account,senderAcc.n_operation+1,destAcc.account,aWalletKeys.Key[iKey].PrivateKey,amount,fees,'');
-  Try
-    Result := operationsComp.AddOperation(True,opTx,errors);
-  finally
-    opTx.Free;
+    inc(nRounds);
   end;
 end;
 
