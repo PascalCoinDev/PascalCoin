@@ -366,7 +366,7 @@ Type
     FTcpIpClient : TNetTcpIpClient;
     FRemoteOperationBlock : TOperationBlock;
     FRemoteAccumulatedWork : UInt64;
-    FLastHelloReceivedTS : TTickCount;
+    FLastHelloTS : TTickCount;
     FLastDataReceivedTS : TTickCount;
     FLastDataSendedTS : TTickCount;
     FClientBufferRead : TStream;
@@ -2546,7 +2546,7 @@ begin
   FIsWaitingForResponse := false;
   FClientBufferRead := TMemoryStream.Create;
   FNetLock := TPCCriticalSection.Create('TNetConnection_NetLock');
-  FLastHelloReceivedTS := 0;
+  FLastHelloTS := 0;
   FLastDataReceivedTS := 0;
   FLastDataSendedTS := 0;
   FRandomWaitSecondsSendHello := (CT_NewLineSecondsAvg DIV 3) + Random(CT_NewLineSecondsAvg DIV 2);
@@ -2641,7 +2641,7 @@ begin
     ms.Free;
   end;
   If ((FLastDataReceivedTS>0) Or ( NOT (Self is TNetServerClient)))
-    and (TPlatform.GetElapsedMilliseconds(FLastHelloReceivedTS)>(1000*FRandomWaitSecondsSendHello)) then begin
+    and (TPlatform.GetElapsedMilliseconds(FLastHelloTS)>(1000*FRandomWaitSecondsSendHello)) then begin
     iPending := TNetData.NetData.PendingRequest(Self,ops);
     If iPending>=2 then begin
       TLog.NewLog(ltDebug,Classname,'Pending requests without response... closing connection to '+ClientRemoteAddr+' > '+ops);
@@ -3551,7 +3551,7 @@ Begin
         end;
       end;
 
-      FLastHelloReceivedTS:=TPlatform.GetTickCount;
+      FLastHelloTS:=TPlatform.GetTickCount;
       FRandomWaitSecondsSendHello := (CT_NewLineSecondsAvg DIV 3) + Random(CT_NewLineSecondsAvg DIV 2);
 
       {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Hello received: '+TPCOperationsComp.OperationBlockToText(FRemoteOperationBlock));{$ENDIF}
@@ -4375,6 +4375,7 @@ begin
     //
     Send(NetTranferType,CT_NetOp_Hello,0,request_id,data);
     Result := Client.Connected;
+    FLastHelloTS := TPlatform.GetTickCount;
   finally
     data.Free;
   end;
