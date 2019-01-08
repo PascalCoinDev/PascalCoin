@@ -1,6 +1,6 @@
 # Pascal Coin: P2P Cryptocurrency without need of historical operations.  
   
-Copyright (c) 2016-2018 PascalCoin developers based on original Albert Molina source code
+Copyright (c) 2016-2019 PascalCoin developers based on original Albert Molina source code
   
 THIS IS EXPERIMENTAL SOFTWARE. Use it for educational purposes only.  
   
@@ -34,7 +34,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
-### Build 4.0.2e - RELEASE CANDIDATE - 2018-01-05
+### Build 4.0.2 - 2019-01-08
 - Improvement speed (high performance): checking valid signature only once if operation is on mempool and was verified previously
 - Improved operations/blocks propagation
 - Fixed a decompression bug caused by FreePascal "paszlib" package bug on version 3.0.4 -> https://bugs.freepascal.org/view.php?id=34422
