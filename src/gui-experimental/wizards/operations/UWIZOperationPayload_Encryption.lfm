@@ -7,7 +7,6 @@ object WIZOperationPayload_Encryption: TWIZOperationPayload_Encryption
   Caption = 'Form1'
   ClientHeight = 320
   ClientWidth = 511
-  LCLVersion = '1.8.4.0'
   Visible = False
   object grpPayload: TGroupBox
     Left = 8
@@ -33,9 +32,11 @@ object WIZOperationPayload_Encryption: TWIZOperationPayload_Encryption
       Top = 40
       Width = 98
       Caption = 'No Encryption'
+      Checked = True
       Font.Style = [fsBold]
       ParentFont = False
       TabOrder = 0
+      TabStop = True
     end
     object lblNoEncryption: TLabel
       Left = 32
@@ -55,7 +56,7 @@ object WIZOperationPayload_Encryption: TWIZOperationPayload_Encryption
       ParentFont = False
       TabOrder = 1
     end
-    object lblNoEncryption1: TLabel
+    object lblEncryptWithRecipientKey: TLabel
       Left = 32
       Height = 15
       Top = 120
@@ -69,13 +70,11 @@ object WIZOperationPayload_Encryption: TWIZOperationPayload_Encryption
       Top = 160
       Width = 154
       Caption = 'Encrypt with sender key'
-      Checked = True
       Font.Style = [fsBold]
       ParentFont = False
       TabOrder = 2
-      TabStop = True
     end
-    object lblNoEncryption2: TLabel
+    object lblEncryptWithSenderKey: TLabel
       Left = 32
       Height = 40
       Top = 184
@@ -96,7 +95,7 @@ object WIZOperationPayload_Encryption: TWIZOperationPayload_Encryption
       ParentFont = False
       TabOrder = 3
     end
-    object Label1: TLabel
+    object lblEncryptWithPassword: TLabel
       Left = 32
       Height = 15
       Top = 256

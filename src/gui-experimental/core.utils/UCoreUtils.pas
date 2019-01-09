@@ -111,8 +111,9 @@ type
 
   TWIZOperationsHelper = class
   private
+    class function IsOwnerOfWallet(AAccount: TAccount; AWalletKeys: TWalletKeys; out AWalletKey: TWalletKey; var AErrorMessage: string): boolean; static;
     class function ValidateOperationsInput(const ASelectedAccounts: TArray<TAccount>; AWalletKeys: TWalletKeys; ANode: TNode; var AErrorMessage: string): boolean; static;
-    class function UpdatePayload(const ASenderPublicKey, ADestinationPublicKey: TAccountKey; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+    class function UpdatePayload(const ASenderPublicKey, ADestinationPublicKey: TAccountKey; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
     class function SendPASCFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalAmount, ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
     class function OthersFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
   public
@@ -674,6 +675,29 @@ begin
   end;
 end;
 
+class function TWIZOperationsHelper.IsOwnerOfWallet(AAccount: TAccount; AWalletKeys: TWalletKeys; out AWalletKey: TWalletKey; var AErrorMessage: string): boolean;
+var
+  LIdx: Int32;
+begin
+  Result := True;
+  LIdx := AWalletKeys.IndexOfAccountKey(AAccount.accountInfo.accountKey);
+  if LIdx < 0 then
+  begin
+    AErrorMessage := Format('Selected Account "%s" Private Key Not Found In Wallet', [AAccount.AccountString]);
+    Exit(False);
+  end;
+  AWalletKey := AWalletKeys.Key[LIdx];
+
+  if not Assigned(AWalletKey.PrivateKey) then
+  begin
+    if AWalletKey.HasPrivateKey then
+      AErrorMessage := 'Wallet is Password Protected. Please Unlock Before You Proceed.'
+    else
+      AErrorMessage := Format('Only Public Key of Account %s Was Found in Wallet. You Cannot Operate This Account', [AAccount.AccountString]);
+    Exit(False);
+  end;
+end;
+
 class function TWIZOperationsHelper.SendPASCFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalAmount, ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean;
 var
   LAuxs, LOperationsTxt: string;
@@ -749,7 +773,7 @@ begin
         LValid := AEncodedPayloadBytes <> '';
       end;
 
-      pemEncryptWithReceiver:
+      pemEncryptWithRecipient:
       begin
         // With destination public key
         AEncodedPayloadBytes := ECIESEncrypt(ADestinationPublicKey, APayloadContent);
@@ -856,7 +880,7 @@ var
   LTotalAmount, LTotalSignerFee, LAmount, LFee: int64;
   LDoOperation: boolean;
   LOperationsTxt, LOperationToString, LTemp: string;
-  LIdx, LAccountIdx, LNoOfOperations: integer;
+  LAccountIdx, LNoOfOperations: integer;
   LCurrentAccount: TAccount;
   LPayloadEncodedBytes: TRawBytes;
 begin
@@ -879,6 +903,9 @@ begin
       LPCOperation := nil; // reset LPCOperation to Nil
       LCurrentAccount := ASelectedAccounts[LAccountIdx];
 
+    if not TWIZOperationsHelper.IsOwnerOfWallet(LCurrentAccount, LWalletKeys, LWalletKey, AErrorMessage) then
+       Exit(False);
+
       if LCurrentAccount.account = ADestinationAccount.account then
       begin
         AErrorMessage := Format('Sender "%s" And Destination "%s" Accounts Are The Same', [LCurrentAccount.AccountString, ADestinationAccount.AccountString]);
@@ -888,23 +915,6 @@ begin
       if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, ADestinationAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
       begin
         AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
-        Exit(False);
-      end;
-
-      LIdx := LWalletKeys.IndexOfAccountKey(LCurrentAccount.accountInfo.accountKey);
-      if LIdx < 0 then
-      begin
-        AErrorMessage := Format('Selected Account "%s" Private Key Not Found In Wallet', [LCurrentAccount.AccountString]);
-        Exit(False);
-      end;
-      LWalletKey := LWalletKeys.Key[LIdx];
-
-      if not Assigned(LWalletKey.PrivateKey) then
-      begin
-        if LWalletKey.HasPrivateKey then
-          AErrorMessage := 'Wallet is Password Protected. Please Unlock Before You Proceed.'
-        else
-          AErrorMessage := Format('Only Public Key of Account %s Was Found in Wallet. You Cannot Operate This Account', [LCurrentAccount.AccountString]);
         Exit(False);
       end;
 
@@ -983,7 +993,7 @@ var
   LTotalSignerFee, LFee: int64;
   LIsV2: boolean;
   LOperationsTxt, LOperationToString, LTemp: string;
-  LIdx, LAccountIdx, LNoOfOperations: integer;
+  LAccountIdx, LNoOfOperations: integer;
   LCurrentAccount, LSignerAccount: TAccount;
   LPayloadEncodedBytes: TRawBytes;
 label
@@ -1006,8 +1016,11 @@ begin
     for LAccountIdx := Low(ASelectedAccounts) to High(ASelectedAccounts) do
     begin
       loop_start:
-        LPCOperation := nil; // reset LPCOperation to Nil
+      LPCOperation := nil; // reset LPCOperation to Nil
       LCurrentAccount := ASelectedAccounts[LAccountIdx];
+
+    if not TWIZOperationsHelper.IsOwnerOfWallet(LCurrentAccount, LWalletKeys, LWalletKey, AErrorMessage) then
+       Exit(False);
 
       if (TAccountComp.EqualAccountKeys(LCurrentAccount.accountInfo.accountKey,
         APublicKey)) then
@@ -1016,7 +1029,7 @@ begin
         Exit(False);
       end;
 
-      if LNode.Bank.SafeBox.CurrentProtocol >= 1 then
+      if LNode.Bank.SafeBox.CurrentProtocol >= CT_PROTOCOL_1 then
       begin
         // Signer:
         LSignerAccount := ASignerAccount;
@@ -1042,23 +1055,6 @@ begin
         Exit(False);
       end;
 
-      LIdx := LWalletKeys.IndexOfAccountKey(LCurrentAccount.accountInfo.accountKey);
-      if LIdx < 0 then
-      begin
-        AErrorMessage := Format('Selected Account "%s" Private Key Not Found In Wallet', [LCurrentAccount.AccountString]);
-        Exit(False);
-      end;
-      LWalletKey := LWalletKeys.Key[LIdx];
-
-      if not Assigned(LWalletKey.PrivateKey) then
-      begin
-        if LWalletKey.HasPrivateKey then
-          AErrorMessage := 'Wallet Is Password Protected. Please Unlock Before You Proceed.'
-        else
-          AErrorMessage := Format('Only Public Key of Account %s Was Found In Wallet. You Cannot Operate This Account', [LCurrentAccount.AccountString]);
-        Exit(False);
-      end;
-
       if LIsV2 then
       begin
         // must ensure is Signer account last if included in sender accounts (not necessarily ordered enumeration)
@@ -1071,7 +1067,7 @@ begin
         end;
 
         // Maintain correct signer fee distribution
-        if Uint64(LTotalSignerFee) >= LSignerAccount.balance then
+        if UInt64(LTotalSignerFee) >= LSignerAccount.balance then
           LFee := 0
         else if LSignerAccount.balance - uint64(LTotalSignerFee) >
           UInt64(AFee) then
@@ -1130,7 +1126,7 @@ var
   LOperationsHashTree: TOperationsHashTree;
   LTotalSignerFee, LFee: int64;
   LOperationsTxt, LOperationToString, LTemp: string;
-  LIdx, LAccountIdx, LNoOfOperations: integer;
+  LAccountIdx, LNoOfOperations: integer;
   LCurrentAccount, LSignerAccount: TAccount;
   LPayloadEncodedBytes: TRawBytes;
 begin
@@ -1152,6 +1148,9 @@ begin
     begin
       LPCOperation := nil; // reset LPCOperation to Nil
       LCurrentAccount := ASelectedAccounts[LAccountIdx];
+
+      if not TWIZOperationsHelper.IsOwnerOfWallet(LCurrentAccount, LWalletKeys, LWalletKey, AErrorMessage) then
+         Exit(False);
 
       if TAccountComp.IsAccountForSale(LCurrentAccount.accountInfo) then
       begin
@@ -1177,31 +1176,20 @@ begin
 
         if ALockedUntilBlock = 0 then
         begin
-          AErrorMessage := 'You Didn''t Insert a Locking Block.';
+          AErrorMessage := 'You Didn''t Insert a Valid Locking Block.';
           Exit(False);
         end;
+      end;
+
+      if (LNode.Bank.SafeBox.CurrentProtocol = CT_PROTOCOL_1) then
+      begin
+          AErrorMessage := 'This Operation Needs PROTOCOL 2 Active';
+          Exit(False);
       end;
 
       if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, ASignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
       begin
         AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
-        Exit(False);
-      end;
-
-      LIdx := LWalletKeys.IndexOfAccountKey(LCurrentAccount.accountInfo.accountKey);
-      if LIdx < 0 then
-      begin
-        AErrorMessage := Format('Selected Account "%s" Private Key Not Found In Wallet', [LCurrentAccount.AccountString]);
-        Exit(False);
-      end;
-      LWalletKey := LWalletKeys.Key[LIdx];
-
-      if not Assigned(LWalletKey.PrivateKey) then
-      begin
-        if LWalletKey.HasPrivateKey then
-          AErrorMessage := 'Wallet Is Password Protected. Please Unlock Before You Proceed.'
-        else
-          AErrorMessage := Format('Only Public Key Of Account %s Was Found In Wallet. You Cannot Operate This Account', [LCurrentAccount.AccountString]);
         Exit(False);
       end;
 
@@ -1272,7 +1260,7 @@ var
   LOperationsHashTree: TOperationsHashTree;
   LTotalSignerFee, LFee: int64;
   LOperationsTxt, LOperationToString, LTemp: string;
-  LIdx, LAccountIdx, LNoOfOperations: integer;
+  LAccountIdx, LNoOfOperations: integer;
   LCurrentAccount, LSignerAccount: TAccount;
   LPayloadEncodedBytes: TRawBytes;
 begin
@@ -1295,33 +1283,42 @@ begin
       LPCOperation := nil; // reset LPCOperation to Nil
       LCurrentAccount := ASelectedAccounts[LAccountIdx];
 
+      if not TWIZOperationsHelper.IsOwnerOfWallet(LCurrentAccount, LWalletKeys, LWalletKey, AErrorMessage) then
+         Exit(False);
+
       if not TAccountComp.IsAccountForSale(LCurrentAccount.accountInfo) then
       begin
         AErrorMessage := Format('Account "%s" is not enlisted for sale so cannot be delisted', [LCurrentAccount.AccountString]);
         Exit(False);
       end;
 
+      if (TAccountComp.IsAccountLocked(LCurrentAccount.accountInfo, LNode.Bank.BlocksCount)) then
+      begin
+          AErrorMessage := Format('Target Account "%s"  Is Locked Until Block %u', [LCurrentAccount.AccountString, LCurrentAccount.accountInfo.locked_until_block]);
+          Exit(False);
+      end;
+
+      if (TAccountComp.IsAccountLocked(LSignerAccount.accountInfo, LNode.Bank.BlocksCount)) then
+      begin
+          AErrorMessage := Format('Signer Account "%s"  Is Locked Until Block %u', [LSignerAccount.AccountString, LSignerAccount.accountInfo.locked_until_block]);
+          Exit(False);
+      end;
+
+      if (not TAccountComp.EqualAccountKeys(LSignerAccount.accountInfo.accountKey, LCurrentAccount.accountInfo.accountKey)) then
+      begin
+          AErrorMessage := Format('Signer Account %s Is Not The Owner Of Delisted Account %s', [LSignerAccount.AccountString, LCurrentAccount.AccountString]);
+          Exit(False);
+      end;
+
+      if (LNode.Bank.SafeBox.CurrentProtocol = CT_PROTOCOL_1) then
+      begin
+          AErrorMessage := 'This Operation Needs PROTOCOL 2 Active';
+          Exit(False);
+      end;
 
       if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, ASignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
       begin
         AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
-        Exit(False);
-      end;
-
-      LIdx := LWalletKeys.IndexOfAccountKey(LCurrentAccount.accountInfo.accountKey);
-      if LIdx < 0 then
-      begin
-        AErrorMessage := Format('Selected Account "%s" Private Key Not Found In Wallet', [LCurrentAccount.AccountString]);
-        Exit(False);
-      end;
-      LWalletKey := LWalletKeys.Key[LIdx];
-
-      if not Assigned(LWalletKey.PrivateKey) then
-      begin
-        if LWalletKey.HasPrivateKey then
-          AErrorMessage := 'Wallet Is Password Protected. Please Unlock Before You Proceed.'
-        else
-          AErrorMessage := Format('Only Public Key Of Account %s Was Found In Wallet. You Cannot Operate This Account', [LCurrentAccount.AccountString]);
         Exit(False);
       end;
 

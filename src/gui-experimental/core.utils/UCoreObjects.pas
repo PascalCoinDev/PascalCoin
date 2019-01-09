@@ -24,11 +24,11 @@ type
 
   { TExecuteOperationType }
 
-  TExecuteOperationType = (omtAccount, omtSendPasc, omtChangeKey, omtTransferAccount, omtChangeAccountPrivateKey, omtAddKey, omtEnlistAccountForSale, omtDelistAccountFromSale);
+  TExecuteOperationType = (omtAccount, omtSendPasc, omtChangeKey, omtTransferAccount, omtChangeAccountPrivateKey, omtAddKey, omtEnlistAccountForSale, omtDelistAccountFromSale, omtChangeInfo);
 
   { TPayloadEncryptionMode }
 
-  TPayloadEncryptionMode = (pemEncryptWithSender, pemEncryptWithReceiver, pemEncryptWithPassword, pemNotEncrypt);
+  TPayloadEncryptionMode = (pemEncryptWithSender, pemEncryptWithRecipient, pemEncryptWithPassword, pemNotEncrypt);
 
   { TOperationSigningMode }
 

@@ -91,6 +91,10 @@ var
   LCaption: string;
 begin
 
+  lblBeneficiaryAccount.Visible := False;
+  lblBenAcc.Visible := False;
+  lblSgnAcc.Caption := Model.Signer.SignerAccount.AccountString;
+
   FConfirmationGrid := TVisualGrid.Create(Self);
   FConfirmationGrid.CanSearch := False;
   FConfirmationGrid.SortMode := smMultiColumn;
@@ -149,19 +153,17 @@ begin
   LData.Model := Model;
   FConfirmationGrid.DataSource := LData;
   paGrid.AddControlDockCenter(FConfirmationGrid);
-  lblSgnAcc.Caption := TAccountComp.AccountNumberToAccountTxtNumber(Model.Signer.SignerAccount.account);
-  if not (Model.ExecuteOperationType = omtEnlistAccountForSale) then
-  begin
-    lblBeneficiaryAccount.Visible := False;
-    lblBenAcc.Visible := False;
-  end
-  else
-  begin
-    lblBeneficiaryAccount.Visible := True;
-    lblBenAcc.Visible := True;
-    lblBenAcc.Caption := Model.EnlistAccountForSale.SellerAccount.AccountString;
-  end;
 
+  case Model.ExecuteOperationType of
+    omtChangeInfo:
+      lblSgnAcc.Caption := IIF(Length(Model.Account.SelectedAccounts) > 1, '**Signer Account *is* Processed Account**', lblSgnAcc.Caption);
+    omtEnlistAccountForSale:
+    begin
+      lblBeneficiaryAccount.Visible := True;
+      lblBenAcc.Visible := True;
+      lblBenAcc.Caption := Model.EnlistAccountForSale.SellerAccount.AccountString;
+    end;
+  end;
 
   if not Model.Payload.HasPayload then
   begin
@@ -183,7 +185,8 @@ var
   LLocked: boolean;
 begin
   LLocked := (not TWallet.Keys.HasPassword) or (not TWallet.Keys.IsValidPassword);
-  if LLocked then begin
+  if LLocked then
+  begin
     TUserInterface.UnlockWallet(Self);
     TWIZOperationsModel.RelockOnFinish := LLocked;
   end;
@@ -194,7 +197,7 @@ end;
 function TOperationConfirmationDataSource.GetColumns: TDataColumns;
 begin
   Result := TArrayTool<TDataColumn>.Concat([
-     Inherited,
+      Inherited,
     // Additional columns
     TDataColumns.Create(
     TDataColumn.From('Operation'),
@@ -275,9 +278,8 @@ begin
         Result := TCellRenderers.OperationShortHash(Result);
       end;
       omtDelistAccountFromSale:
-      begin
         Result := '';
-      end;
+
     end
   else if ABindingName = 'Fee' then
     Result := -Model.Fee.SingleOperationFee

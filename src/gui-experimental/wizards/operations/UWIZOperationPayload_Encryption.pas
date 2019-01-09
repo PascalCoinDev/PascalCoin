@@ -31,10 +31,10 @@ type
 
   TWIZOperationPayload_Encryption = class(TWizardForm<TWIZOperationsModel>)
     grpPayload: TGroupBox;
-    Label1: TLabel;
+    lblEncryptWithPassword: TLabel;
     lblNoEncryption: TLabel;
-    lblNoEncryption1: TLabel;
-    lblNoEncryption2: TLabel;
+    lblEncryptWithRecipientKey: TLabel;
+    lblEncryptWithSenderKey: TLabel;
     lblNote1: TLabel;
     paPayload: TPanel;
     rbEncryptedWithRecipient: TRadioButton;
@@ -42,6 +42,7 @@ type
     rbEncryptedWithPassword: TRadioButton;
     rbNotEncrypted: TRadioButton;
   public
+    procedure OnPresent; override;
     procedure OnNext; override;
     function Validate(out message: ansistring): boolean; override;
   end;
@@ -59,36 +60,35 @@ uses
 
 { TWIZOperationPayload_Encryption }
 
+procedure TWIZOperationPayload_Encryption.OnPresent;
+begin
+  case Model.ExecuteOperationType of
+    omtChangeInfo:
+    begin
+      rbEncryptedWithRecipient.Enabled := False;
+      lblEncryptWithRecipientKey.Enabled := False;
+    end;
+  end;
+end;
+
 procedure TWIZOperationPayload_Encryption.OnNext;
 begin
   if rbEncryptedWithRecipient.Checked then
-  begin
-    Model.Payload.PayloadEncryptionMode := pemEncryptWithSender;
-  end
+    Model.Payload.PayloadEncryptionMode := pemEncryptWithRecipient
   else
   if rbEncryptedWithSender.Checked then
-  begin
-    Model.Payload.PayloadEncryptionMode := pemEncryptWithReceiver;
-  end
+    Model.Payload.PayloadEncryptionMode := pemEncryptWithSender
   else
   if rbEncryptedWithPassword.Checked then
-  begin
-    Model.Payload.PayloadEncryptionMode := pemEncryptWithPassword;
-  end
+    Model.Payload.PayloadEncryptionMode := pemEncryptWithPassword
   else
   if rbNotEncrypted.Checked then
-  begin
     Model.Payload.PayloadEncryptionMode := pemNotEncrypt;
-  end;
   case Model.Payload.PayloadEncryptionMode of
     pemEncryptWithPassword:
-    begin
-      UpdatePath(ptInject, [TWIZOperationPayload_Password]);
-    end
+      UpdatePath(ptInject, [TWIZOperationPayload_Password])
     else
-    begin
       UpdatePath(ptInject, [TWIZOperationPayload_Content]);
-    end;
   end;
 end;
 
@@ -101,6 +101,15 @@ begin
     message := 'You Must Select An Encryption Option For Payload';
     Result := False;
     Exit;
+  end;
+
+  case Model.ExecuteOperationType of
+    omtChangeInfo:
+    begin
+      message := 'This operation does not support this type of payload encryption';
+      Result := False;
+      Exit;
+    end;
   end;
 end;
 
