@@ -34,6 +34,8 @@ type
   const
     BUFFER_SIZE = Int32(64 * 1024); // 64Kb
 
+  strict protected
+
     function GetBlockSize: Int32; virtual;
     procedure SetBlockSize(value: Int32); virtual;
 
@@ -42,8 +44,6 @@ type
 
     function GetBufferSize: Int32; inline;
     procedure SetBufferSize(value: Int32); inline;
-
-  strict protected
 
     function GetName: String; virtual;
 

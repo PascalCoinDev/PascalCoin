@@ -48,7 +48,7 @@ type
 
     class constructor Snefru();
 
-    function GetHashSize(AHashSize: Int32): THashSize; inline;
+    function GetSnefruHashSize(AHashSize: Int32): THashSize; inline;
 
   strict protected
     function GetName: String; override;
@@ -74,7 +74,7 @@ implementation
 
 { TSnefru }
 
-function TSnefru.GetHashSize(AHashSize: Int32): THashSize;
+function TSnefru.GetSnefruHashSize(AHashSize: Int32): THashSize;
 begin
   case AHashSize of
     16:
@@ -93,7 +93,7 @@ function TSnefru.Clone(): IHash;
 var
   HashInstance: TSnefru;
 begin
-  HashInstance := TSnefru.Create(Fm_security_level, GetHashSize(FHashSize));
+  HashInstance := TSnefru.Create(Fm_security_level, GetSnefruHashSize(FHashSize));
   HashInstance.Fm_state := System.Copy(Fm_state);
   HashInstance.Fm_buffer := Fm_buffer.Clone();
   HashInstance.Fm_processed_bytes := Fm_processed_bytes;

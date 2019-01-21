@@ -18,7 +18,7 @@ resourcestring
 type
   THashBuffer = record
 
-  strict private
+  private
 
     Fm_data: THashLibByteArray;
     Fm_pos: Int32;
