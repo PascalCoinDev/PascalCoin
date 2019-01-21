@@ -34,7 +34,7 @@ unit UNode;
 interface
 
 uses
-  Classes, SysUtils, UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, SyncObjs, ULog, UBaseTypes;
+  Classes, SysUtils, UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, SyncObjs, ULog, UBaseTypes, UPCOrderedLists;
 
 {$I config.inc}
 

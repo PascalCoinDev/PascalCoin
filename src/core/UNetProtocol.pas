@@ -29,7 +29,7 @@ Uses
   {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
   UBlockChain, Classes, SysUtils, UAccounts, UThread,
-  UCrypto, UTCPIP, SyncObjs, UBaseTypes, UCommon,
+  UCrypto, UTCPIP, SyncObjs, UBaseTypes, UCommon, UPCOrderedLists,
   UNetProtection;
 
 {$I config.inc}

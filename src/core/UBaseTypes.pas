@@ -1,6 +1,6 @@
 unit UBaseTypes;
 
-{ Copyright (c) 2017 by Albert Molina
+{ Copyright (c) 2017-19 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
@@ -14,6 +14,11 @@ unit UBaseTypes;
   16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk
 
   THIS LICENSE HEADER MUST NOT BE REMOVED.
+
+
+  This Unit will define basic Types of data for PascalCoin
+  This unit must not need other units from PascalCoin, is a "top" unit
+
 }
 
 {$IFDEF FPC}
@@ -27,7 +32,7 @@ uses
 
 Type
   // Raw data in a maximum 65k bytes
-  TDynRawBytes = Array of Byte;
+  TDynRawBytes = TBytes;
   // Raw data in a maximum 256 bytes
   T256RawBytes = TDynRawBytes;
 
@@ -102,21 +107,6 @@ Type
     class function GetTickCount : TTickCount;
     class function GetElapsedMilliseconds(Const previousTickCount : TTickCount) : Int64;
   End;
-
-  //HS -- removed, TNotifyManyEvent in UCommon.pas
-  {TNotifyEventToMany = Class
-  private
-    FList : Array of TNotifyEvent;
-  public
-    function IndexOf(search : TNotifyEvent) : Integer;
-    procedure Add(newNotifyEvent : TNotifyEvent);
-    procedure Remove(removeNotifyEvent : TNotifyEvent);
-    procedure Invoke(sender : TObject);
-    function Count : Integer;
-    procedure Delete(index : Integer);
-    Constructor Create;
-  End;}
-
 
 implementation
 

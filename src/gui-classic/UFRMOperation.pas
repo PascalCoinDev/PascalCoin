@@ -32,7 +32,7 @@ uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UNode, UWallet, UCrypto, Buttons, UBlockChain,
   UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UFRMMemoText,
-  UBaseTypes;
+  UBaseTypes, UPCOrderedLists;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;

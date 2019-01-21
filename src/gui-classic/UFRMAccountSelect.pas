@@ -30,7 +30,7 @@ uses
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, UAccounts, Grids, StdCtrls, Buttons, ExtCtrls, UWallet, UNode,
-  UGridUtils, UConst, UThread;
+  UGridUtils, UConst, UThread, UPCOrderedLists;
 
 const
   CT_AS_MyAccounts = $0001;
