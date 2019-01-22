@@ -429,8 +429,10 @@ begin
              (FOperations.OperationsHashTree.CountOperationsBySameSignerWithoutFee(ActOp.SignerAccount)>=CT_MaxAccountOperationsPerBlockWithoutFee) then begin
             inc(nSpam);
             e := Format('Account %s zero fee operations per block limit:%d',[TAccountComp.AccountNumberToAccountTxtNumber(ActOp.SignerAccount),CT_MaxAccountOperationsPerBlockWithoutFee]);
-            if (errors<>'') then errors := errors+' ';
-            errors := errors+'Op '+IntToStr(j+1)+'/'+IntToStr(OperationsHashTree.OperationsCount)+':'+e;
+            if (nSpam<=5) then begin  // To Limit errors in a String... speed up
+              if (errors<>'') then errors := errors+' ';
+              errors := errors+'Op '+IntToStr(j+1)+'/'+IntToStr(OperationsHashTree.OperationsCount)+':'+e;
+            end;
             TLog.NewLog(ltdebug,Classname,Format('AddOperation spam %d/%d: %s  - Error:%s',
               [(j+1),OperationsHashTree.OperationsCount,ActOp.ToString,e]));
             if Assigned(OperationsResult) then begin
@@ -455,8 +457,10 @@ begin
               end;
             end else begin
               inc(nError);
-              if (errors<>'') then errors := errors+' ';
-              errors := errors+'Op '+IntToStr(j+1)+'/'+IntToStr(OperationsHashTree.OperationsCount)+':'+e;
+              if (nError<=5) then begin  // To Limit errors in a String... speed up
+                if (errors<>'') then errors := errors+' ';
+                errors := errors+'Op '+IntToStr(j+1)+'/'+IntToStr(OperationsHashTree.OperationsCount)+':'+e;
+              end;
               TLog.NewLog(ltdebug,Classname,Format('AddOperation invalid/duplicated %d/%d: %s  - Error:%s',
                 [(j+1),OperationsHashTree.OperationsCount,ActOp.ToString,e]));
               if Assigned(OperationsResult) then begin
@@ -485,8 +489,10 @@ begin
         end else begin
           inc(nRepeated);
           e := Format('AddOperation made before %d/%d: %s',[(j+1),OperationsHashTree.OperationsCount,ActOp.ToString]);
-          if (errors<>'') then errors := errors+' ';
-          errors := errors + e;
+          if (nRepeated<=5) then begin  // To Limit errors in a String... speed up
+            if (errors<>'') then errors := errors+' ';
+            errors := errors + e;
+          end;
           if Assigned(OperationsResult) then begin
             TPCOperation.OperationToOperationResume(0,ActOp,True,ActOp.SignerAccount,OPR);
             OPR.valid := false;
