@@ -23,7 +23,8 @@ unit UBlockChain;
 interface
 
 uses
-  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs, UBaseTypes, SysUtils;
+  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs, UBaseTypes, SysUtils,
+  UPCDataTypes;
 {$I config.inc}
 
 {
@@ -1210,9 +1211,9 @@ begin
     Calc_Digest_Parts;
   end;
   FStreamPoW.Position := 0;
-  FStreamPoW.WriteBuffer(FDigest_Part1[1],length(FDigest_Part1));
-  FStreamPoW.WriteBuffer(FDigest_Part2_Payload[1],length(FDigest_Part2_Payload));
-  FStreamPoW.WriteBuffer(FDigest_Part3[1],length(FDigest_Part3));
+  FStreamPoW.WriteBuffer(FDigest_Part1[Low(FDigest_Part1)],Length(FDigest_Part1));
+  FStreamPoW.WriteBuffer(FDigest_Part2_Payload[Low(FDigest_Part2_Payload)],Length(FDigest_Part2_Payload));
+  FStreamPoW.WriteBuffer(FDigest_Part3[Low(FDigest_Part3)],Length(FDigest_Part3));
   FStreamPoW.Write(FOperationBlock.timestamp,4);
   FStreamPoW.Write(FOperationBlock.nonce,4);
   if CT_ACTIVATE_RANDOMHASH_V4 AND (FOperationBlock.protocol_version >= CT_PROTOCOL_4) then
@@ -2788,8 +2789,8 @@ begin
     try
       SaveOpToStream(ms,False);
       ms.Position := 0;
-      setlength(Result,ms.Size);
-      ms.ReadBuffer(Result[1],ms.Size);
+      SetLength(Result,ms.Size);
+      ms.ReadBuffer(Result[Low(Result)],ms.Size);
     finally
       ms.Free;
     end;
@@ -2877,17 +2878,17 @@ begin
   block :=0;
   account :=0;
   n_operation :=0;
-  md160Hash:='';
+  SetLength(md160Hash,0);
   if length(operationHash)<>32 then exit;
   ms := TMemoryStream.Create;
   try
-    ms.Write(operationHash[1],length(operationHash));
+    ms.Write(operationHash[Low(operationHash)],Length(operationHash));
     ms.position := 0;
     ms.Read(block,4);
     ms.Read(account,4);
     ms.Read(n_operation,4);
     SetLength(md160Hash, 20);
-    ms.ReadBuffer(md160Hash[1], 20);
+    ms.ReadBuffer(md160Hash[Low(md160Hash)], 20);
     Result := true;
   finally
     ms.free;
@@ -3029,10 +3030,10 @@ begin
     // BUG IN PREVIOUS VERSIONS: (1.5.5 and prior)
     // Function DoRipeMD160 returned a 40 bytes value, because data was converted in hexa string!
     // So, here we used only first 20 bytes, and WHERE HEXA values, so only 16 diff values per 2 byte!
-    ms.WriteBuffer(TCrypto.DoRipeMD160_HEXASTRING(op.GetBufferForOpHash(False))[1],20);
+    ms.WriteBuffer(TCrypto.DoRipeMD160_HEXASTRING(op.GetBufferForOpHash(False))[Low(TRawBytes)],20);
     SetLength(Result,ms.size);
     ms.Position:=0;
-    ms.Read(Result[1],ms.size);
+    ms.Read(Result[Low(Result)],ms.size);
   finally
     ms.Free;
   end;
@@ -3058,10 +3059,10 @@ begin
     _o := op.N_Operation;
     ms.Write(_a,4);    // Save Account (4 bytes)
     ms.Write(_o,4);    // Save N_Operation (4 bytes)
-    ms.WriteBuffer(TCrypto.DoRipeMD160AsRaw(op.GetBufferForOpHash(True))[1],20); // Calling GetBufferForOpHash(TRUE) is the same than data used for Sha256
+    ms.WriteBuffer(TCrypto.DoRipeMD160AsRaw(op.GetBufferForOpHash(True))[Low(TRawBytes)],20); // Calling GetBufferForOpHash(TRUE) is the same than data used for Sha256
     SetLength(Result,ms.size);
     ms.Position:=0;
-    ms.Read(Result[1],ms.size);
+    ms.Read(Result[Low(Result)],ms.size);
   finally
     ms.Free;
   end;

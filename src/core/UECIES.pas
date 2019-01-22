@@ -43,7 +43,7 @@ unit UECIES;
 
 interface
 
-Uses UOpenSSLdef, UOpenSSL, UCrypto, ULog, UConst, UBaseTypes;
+Uses UOpenSSLdef, UOpenSSL, UCrypto, ULog, UConst, UBaseTypes, UPCDataTypes;
 
 Const CT_Max_Bytes_To_Encrypt = 32000;
 
@@ -270,7 +270,7 @@ begin
         // Initialize the cipher with the envelope key.
         if (EVP_EncryptInit_ex(pcipher,EVP_aes_256_cbc,nil,@envelope_key,@iv)<>1) or
           (EVP_CIPHER_CTX_set_padding(pcipher,0)<>1) or
-          (EVP_EncryptUpdate(pcipher,body,body_length,@MessageToEncrypt[1],
+          (EVP_EncryptUpdate(pcipher,body,body_length,@MessageToEncrypt[Low(MessageToEncrypt)],
             Length(MessageToEncrypt) - (Length(MessageToEncrypt) MOD block_length))<>1) then begin
               TLog.NewLog(lterror,'ECIES',Format('An error occurred while trying to secure the data using the chosen symmetric cipher. {error = %s}',
               [ERR_error_string(ERR_get_error(),nil)]));
@@ -291,7 +291,7 @@ begin
           {$ELSE}
           FillMemory(@block,length(block),0);
           {$ENDIF}
-          CopyMemory(@block,Pointer(PtrInt(@MessageToEncrypt[1])+body_length),Length(MessageToEncrypt)-body_length);
+          CopyMemory(@block,Pointer(PtrInt(@MessageToEncrypt[Low(MessageToEncrypt)])+body_length),Length(MessageToEncrypt)-body_length);
           // Advance the body pointer to the location of the remaining space, and calculate just how much room is still available.
           body := Pointer(PtrInt(body)+body_length);
           body_length := secure_body_length(cryptex) - body_length;
@@ -353,7 +353,7 @@ begin
         {$ENDIF}
       End;
       SetLength(Result,secure_total_length(cryptex));
-      CopyMemory(@Result[1],cryptex,length(Result));
+      CopyMemory(@Result[Low(Result)],cryptex,Length(Result));
     finally
       secure_free(cryptex);
     end;
@@ -411,7 +411,7 @@ var
 Begin
   Result := false;
   Decrypted := '';
-  cryptex := Psecure_t(@MessageToDecrypt[1]);
+  cryptex := Psecure_t(@MessageToDecrypt[Low(MessageToDecrypt)]);
   // Make sure we are generating enough key material for the symmetric ciphers.
   key_length := EVP_CIPHER_key_length(EVP_aes_256_cbc);
   if (key_length*2>SHA512_DIGEST_LENGTH) then begin
@@ -510,7 +510,7 @@ Begin
         exit;
       end;
       SetLength(Decrypted,secure_orig_length(cryptex));
-      CopyMemory(@Decrypted[1],output,length(Decrypted));
+      CopyMemory(@Decrypted[Low(Decrypted)],output,length(Decrypted));
       Result := true;
     finally
       {$IFDEF OpenSSL10}

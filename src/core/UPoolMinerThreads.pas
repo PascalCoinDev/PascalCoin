@@ -705,7 +705,7 @@ begin
     if Not TPoolMinerThread.UseRandomHash(FMinerValuesForWork.version) then begin
       repeat // Prepare payload_start with SHA256 compatible last chunk size
         digest := FMinerValuesForWork.part1 + FMinerValuesForWork.payload_start + FMinerValuesForWork.part3 + '00000000';
-        ok := CanBeModifiedOnLastChunk(length(digest),npos);
+        ok := CanBeModifiedOnLastChunk(Length(digest),npos);
         if (not ok) then FMinerValuesForWork.payload_start:=FMinerValuesForWork.payload_start+'.';
       until (Ok);
     end else begin
@@ -728,7 +728,7 @@ begin
         if (FCPUs>0) then cpu.FMaxNOnce:=nextmin + (Cardinal($FFFFFFFF) DIV FCPUs) - 1
         else cpu.FMaxNOnce:= nextmin + (Cardinal($FFFFFFFF)) - 1;
         nextmin := cpu.FMaxNOnce+1;
-        cpu.FDigestStreamMsg.WriteBuffer(digest[1],length(digest));
+        cpu.FDigestStreamMsg.WriteBuffer(digest[Low(digest)],Length(digest));
       finally
         cpu.Flock.Release;
       end;

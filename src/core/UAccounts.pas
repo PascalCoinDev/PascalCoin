@@ -23,7 +23,8 @@ unit UAccounts;
 interface
 
 uses
-  Classes, SysUtils, UConst, UCrypto, SyncObjs, UThread, UBaseTypes, UPCOrderedLists;
+  Classes, SysUtils, UConst, UCrypto, SyncObjs, UThread, UBaseTypes,
+  UPCOrderedLists, UPCDataTypes;
 
 {$I config.inc}
 
@@ -543,7 +544,7 @@ Begin
           Raise Exception.Create(Format('%s Integrity on (i)=%d for block account:%d updated on %d > maxBlock %d',[title, i,bl_my.accounts[j].account,bl_my.accounts[j].updated_block,maxBlock]));
         end;
       end;
-      auxH.Replace(i*32,bl_my.block_hash[1],Length(bl_my.block_hash));
+      auxH.Replace(i*32,bl_my.block_hash[Low(bl_my.block_hash)],Length(bl_my.block_hash));
     end;
     if (sb.FBufferBlocksHash.Compare(auxH)<>0) then begin
       Raise Exception.Create(Format('%s Integrity different Buffer Block Hash',[title]));
@@ -638,21 +639,21 @@ end;
 
 class procedure TPascalCoinProtocol.CalcProofOfWork_Part1(const operationBlock: TOperationBlock; out Part1: TRawBytes);
 var ms : TMemoryStream;
-  s : AnsiString;
+  accKeyRaw : TRawBytes;
 begin
   ms := TMemoryStream.Create;
   try
     // Part 1
     ms.Write(operationBlock.block,Sizeof(operationBlock.block)); // Little endian
-    s := TAccountComp.AccountKey2RawString(operationBlock.account_key);
-    ms.WriteBuffer(s[1],length(s));
+    accKeyRaw := TAccountComp.AccountKey2RawString(operationBlock.account_key);
+    ms.WriteBuffer(accKeyRaw[Low(accKeyRaw)],Length(accKeyRaw));
     ms.Write(operationBlock.reward,Sizeof(operationBlock.reward)); // Little endian
     ms.Write(operationBlock.protocol_version,Sizeof(operationBlock.protocol_version)); // Little endian
     ms.Write(operationBlock.protocol_available,Sizeof(operationBlock.protocol_available)); // Little endian
     ms.Write(operationBlock.compact_target,Sizeof(operationBlock.compact_target)); // Little endian
     SetLength(Part1,ms.Size);
     ms.Position:=0;
-    ms.Read(Part1[1],ms.Size);
+    ms.Read(Part1[Low(Part1)],ms.Size);
   finally
     ms.Free;
   end;
@@ -663,13 +664,13 @@ var ms : TMemoryStream;
 begin
   ms := TMemoryStream.Create;
   try
-    ms.WriteBuffer(operationBlock.initial_safe_box_hash[1],length(operationBlock.initial_safe_box_hash));
-    ms.WriteBuffer(operationBlock.operations_hash[1],length(operationBlock.operations_hash));
+    ms.WriteBuffer(operationBlock.initial_safe_box_hash[Low(operationBlock.initial_safe_box_hash)],length(operationBlock.initial_safe_box_hash));
+    ms.WriteBuffer(operationBlock.operations_hash[Low(operationBlock.operations_hash)],length(operationBlock.operations_hash));
     // Note about fee: Fee is stored in 8 bytes, but only digest first 4 low bytes
     ms.Write(operationBlock.fee,4);
     SetLength(Part3,ms.Size);
     ms.Position := 0;
-    ms.ReadBuffer(Part3[1],ms.Size);
+    ms.ReadBuffer(Part3[Low(Part3)],ms.Size);
   finally
     ms.Free;
   end;
@@ -677,23 +678,23 @@ end;
 
 class procedure TPascalCoinProtocol.CalcProofOfWork(const operationBlock: TOperationBlock; out PoW: TRawBytes);
 var ms : TMemoryStream;
-  s : AnsiString;
+  accKeyRaw : TRawBytes;
 begin
   ms := TMemoryStream.Create;
   try
     // Part 1
     ms.Write(operationBlock.block,Sizeof(operationBlock.block)); // Little endian
-    s := TAccountComp.AccountKey2RawString(operationBlock.account_key);
-    ms.WriteBuffer(s[1],length(s));
+    accKeyRaw := TAccountComp.AccountKey2RawString(operationBlock.account_key);
+    ms.WriteBuffer(accKeyRaw[Low(accKeyRaw)],Length(accKeyRaw));
     ms.Write(operationBlock.reward,Sizeof(operationBlock.reward)); // Little endian
     ms.Write(operationBlock.protocol_version,Sizeof(operationBlock.protocol_version)); // Little endian
     ms.Write(operationBlock.protocol_available,Sizeof(operationBlock.protocol_available)); // Little endian
     ms.Write(operationBlock.compact_target,Sizeof(operationBlock.compact_target)); // Little endian
     // Part 2
-    ms.WriteBuffer(operationBlock.block_payload[1],length(operationBlock.block_payload));
+    ms.WriteBuffer(operationBlock.block_payload[Low(operationBlock.block_payload)],Length(operationBlock.block_payload));
     // Part 3
-    ms.WriteBuffer(operationBlock.initial_safe_box_hash[1],length(operationBlock.initial_safe_box_hash));
-    ms.WriteBuffer(operationBlock.operations_hash[1],length(operationBlock.operations_hash));
+    ms.WriteBuffer(operationBlock.initial_safe_box_hash[Low(operationBlock.initial_safe_box_hash)],length(operationBlock.initial_safe_box_hash));
+    ms.WriteBuffer(operationBlock.operations_hash[Low(operationBlock.operations_hash)],length(operationBlock.operations_hash));
     // Note about fee: Fee is stored in 8 bytes (Int64), but only digest first 4 low bytes
     ms.Write(operationBlock.fee,4);
     ms.Write(operationBlock.timestamp,4);
@@ -773,7 +774,7 @@ end;
 
 class function TPascalCoinProtocol.TargetFromCompact(encoded: Cardinal; protocol_version : Integer): TRawBytes;
 Var
-  nbits, high, offset, i: Cardinal;
+  nbits, offset, i: Cardinal;
   bn: TBigNum;
   raw : TRawBytes;
 begin
@@ -819,9 +820,9 @@ begin
     bn.LShift(256 - nbits - 25);
     raw := bn.RawValue;
     SetLength(Result,32);
-    FillChar(Result[1],32,0);
-    for i:=1 to Length(raw) do begin
-      result[i+32-length(raw)] := raw[i];
+    FillChar(Result[Low(Result)],32,0);
+    for i:=Low(raw) to High(raw) do begin
+      result[i+32-Length(raw)] := raw[i];
     end;
   Finally
     bn.Free;
@@ -843,8 +844,8 @@ begin
     raise Exception.Create('Invalid target to compact: '+TCrypto.ToHexaString(target)+' ('+inttostr(length(target))+')');
   end;
   SetLength(raw,32);
-  FillChar(raw[1],32,0);
-  for j:=1 to length(target) do begin
+  FillChar(raw[Low(raw)],32,0);
+  for j:=Low(target) to High(target) do begin
     raw[j+32-length(target)] := target[j];
   end;
   target := raw;
@@ -903,33 +904,33 @@ class function TStreamOp.SaveStreamToRaw(Stream: TStream): TRawBytes;
 begin
   SetLength(Result,Stream.Size);
   Stream.Position:=0;
-  Stream.ReadBuffer(Result[1],Stream.Size);
+  Stream.ReadBuffer(Result[Low(Result)],Stream.Size);
 end;
 
 class procedure TStreamOp.LoadStreamFromRaw(Stream: TStream; const raw: TRawBytes);
 begin
-  Stream.WriteBuffer(raw[1],Length(raw));
+  Stream.WriteBuffer(raw[Low(raw)],Length(raw));
 end;
 
 class function TStreamOp.ReadAnsiString(Stream: TStream; var value: AnsiString): Integer;
 Var
-  l: Word;
+  w: Word;
 begin
   if Stream.Size - Stream.Position < 2 then begin
     value := '';
     Result := -1;
     exit;
   end;
-  Stream.Read(l, 2);
-  if Stream.Size - Stream.Position < l then begin
+  Stream.Read(w, 2);
+  if Stream.Size - Stream.Position < w then begin
     Stream.Position := Stream.Position - 2; // Go back!
     value := '';
     Result := -1;
     exit;
   end;
-  SetLength(value, l);
-  Stream.ReadBuffer(value[1], l);
-  Result := l+2;
+  SetLength(value, w);
+  Stream.ReadBuffer(value[Low(value)], w);
+  Result := w+2;
 end;
 
 class function TStreamOp.WriteAccountKey(Stream: TStream; const value: TAccountKey): Integer;
@@ -941,18 +942,18 @@ end;
 
 class function TStreamOp.WriteAnsiString(Stream: TStream; const value: AnsiString): Integer;
 Var
-  l: Word;
+  w: Word;
 begin
   if (Length(value)>(256*256)) then begin
     TLog.NewLog(lterror,Classname,'Invalid stream size! '+Inttostr(Length(value)));
     raise Exception.Create('Invalid stream size! '+Inttostr(Length(value)));
   end;
 
-  l := Length(value);
-  Stream.Write(l, 2);
-  if (l > 0) then
-    Stream.WriteBuffer(value[1], Length(value));
-  Result := l+2;
+  w := Length(value);
+  Stream.Write(w, 2);
+  if (w > 0) then
+    Stream.WriteBuffer(value[Low(value)], Length(value));
+  Result := w+2;
 end;
 
 { TAccountComp }
@@ -987,7 +988,7 @@ begin
         TStreamOp.WriteAccountKey(ms,AccountInfo.new_publicKey);
         SetLength(dest,ms.Size);
         ms.Position := 0;
-        ms.Read(dest[1],ms.Size);
+        ms.Read(dest[Low(dest)],ms.Size);
       Finally
         ms.Free;
       end;
@@ -1045,7 +1046,7 @@ begin
     TStreamOp.WriteAccountKey(s,account);
     SetLength(dest,s.Size);
     s.Position := 0;
-    s.Read(dest[1],s.Size);
+    s.Read(dest[Low(dest)],s.Size);
   finally
     s.Free;
   end;
@@ -1429,13 +1430,13 @@ class procedure TAccountComp.RawString2AccountInfo(const rawaccstr: TRawBytes; v
 Var ms : TMemoryStream;
   w : Word;
 begin
-  if length(rawaccstr)=0 then begin
+  if Length(rawaccstr)=0 then begin
     dest := CT_AccountInfo_NUL;
     exit;
   end;
   ms := TMemoryStream.Create;
   Try
-    ms.WriteBuffer(rawaccstr[1],length(rawaccstr));
+    ms.WriteBuffer(rawaccstr[Low(rawaccstr)],Length(rawaccstr));
     ms.Position := 0;
     If ms.Read(w,SizeOf(w))<>SizeOf(w) then exit;
     case w of
@@ -1477,7 +1478,7 @@ begin
   end;
   ms := TMemoryStream.Create;
   try
-    ms.WriteBuffer(rawaccstr[1],length(rawaccstr));
+    ms.WriteBuffer(rawaccstr[Low(rawaccstr)],Length(rawaccstr));
     ms.Position := 0;
     TStreamOp.ReadAccountKey(ms,dest);
   finally
@@ -1868,7 +1869,7 @@ begin
     ToTMemBlockAccount(Result,Pblock^);
     FBlockAccountsList.Add(Pblock);
   end;
-  FBufferBlocksHash.Add(Result.block_hash[1],Length(Result.block_hash));
+  FBufferBlocksHash.Add(Result.block_hash[Low(Result.block_hash)],Length(Result.block_hash));
   Inc(FTotalBalance,Int64(blockChain.reward + blockChain.fee));
   Dec(FTotalFee, Int64(blockChain.fee));
   If (length(accs_miner)>0) then begin
@@ -2012,7 +2013,7 @@ begin
       for i := Low(block.accounts) to High(block.accounts) do begin
         ms.Write(block.accounts[i].account,4);  // Little endian
         raw := TAccountComp.AccountInfo2RawString(block.accounts[i].accountInfo);
-        ms.WriteBuffer(raw[1],length(raw)); // Raw bytes
+        ms.WriteBuffer(raw[Low(raw)],Length(raw)); // Raw bytes
         ms.Write(block.accounts[i].balance,SizeOf(Uint64));  // Little endian
         ms.Write(block.accounts[i].updated_block,4);  // Little endian
         ms.Write(block.accounts[i].n_operation,4); // Little endian
@@ -2024,13 +2025,13 @@ begin
       for i := Low(block.accounts) to High(block.accounts) do begin
         ms.Write(block.accounts[i].account,4);  // Little endian
         raw := TAccountComp.AccountInfo2RawString(block.accounts[i].accountInfo);
-        ms.WriteBuffer(raw[1],length(raw)); // Raw bytes
+        ms.WriteBuffer(raw[Low(raw)],Length(raw)); // Raw bytes
         ms.Write(block.accounts[i].balance,SizeOf(Uint64));  // Little endian
         ms.Write(block.accounts[i].updated_block,4);  // Little endian
         ms.Write(block.accounts[i].n_operation,4); // Little endian
         // Use new Protocol 2 fields
-        If length(block.accounts[i].name)>0 then begin
-          ms.WriteBuffer(block.accounts[i].name[1],length(block.accounts[i].name));
+        If Length(block.accounts[i].name)>0 then begin
+          ms.WriteBuffer(block.accounts[i].name[Low(block.accounts[i].name)],Length(block.accounts[i].name));
         end;
         ms.Write(block.accounts[i].account_type,2);
       end;
@@ -3035,8 +3036,8 @@ begin
     // Offsets zone
     posOffsetZone:=Stream.Position;
     SetLength(raw,(totalBlocks+1)*4); // Last position = end
-    FillChar(raw[1],length(raw),0);
-    Stream.WriteBuffer(raw[1],length(raw));
+    FillChar(raw[Low(raw)],Length(raw),0);
+    Stream.WriteBuffer(raw[Low(raw)],Length(raw));
     setLength(offsets,totalBlocks+1); // c = total blocks  - Last position = offset to end
     // Blocks zone
     for iblock := FromBlock to ToBlock do begin
@@ -3093,7 +3094,7 @@ begin
     // Read Source Offset zone
     posOffsetZoneSource := Source.Position;
     SetLength(offsetsSource,(sbHeader.endBlock-sbHeader.startBlock)+2);
-    Source.Read(offsetsSource[0],4*length(offsetsSource));
+    Source.Read(offsetsSource[0],4*Length(offsetsSource));
     // DEST STREAM:
     // Init dest stream
     // Header zone
@@ -3101,8 +3102,8 @@ begin
     // Offsets zone
     posOffsetZoneDest:=Dest.Position;
     SetLength(raw,(destTotalBlocks+1)*4); // Cardinal = 4 bytes for each block + End position
-    FillChar(raw[1],length(raw),0);
-    Dest.WriteBuffer(raw[1],length(raw));
+    FillChar(raw[Low(raw)],Length(raw),0);
+    Dest.WriteBuffer(raw[Low(raw)],Length(raw));
     setLength(offsetsDest,destTotalBlocks+1);
     // Blocks zone
     posBlocksZoneDest := Dest.Position;
@@ -3123,7 +3124,7 @@ begin
     end;
     offsetsDest[high(offsetsDest)] := posFinal - posOffsetZoneDest;
 
-    Dest.WriteBuffer(offsetsDest[0],length(offsetsDest)*4);
+    Dest.WriteBuffer(offsetsDest[0],Length(offsetsDest)*4);
     Dest.Position := posFinal;
     Source.Position := offsetsSource[High(offsetsSource)] + posOffsetZoneSource;
     TStreamOp.ReadAnsiString(Source,raw);
@@ -3741,8 +3742,8 @@ begin
     {$ENDIF}
   end;
   // Update buffer block hash
-  j := (length(blockAccount.block_hash)*(iBlock));  // j in 0,32,64...
-  FBufferBlocksHash.Replace(j,blockAccount.block_hash[1],32);
+  j := (Length(blockAccount.block_hash)*(iBlock));  // j in 0,32,64...
+  FBufferBlocksHash.Replace(j,blockAccount.block_hash[Low(blockAccount.block_hash)],32);
 
   FTotalBalance := FTotalBalance - (Int64(lastbalance)-Int64(newBalance));
   FTotalFee := FTotalFee + (Int64(lastbalance)-Int64(newBalance));

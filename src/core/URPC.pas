@@ -25,7 +25,7 @@ interface
 Uses UThread, ULog, UConst, UNode, UAccounts, UCrypto, UBlockChain,
   UNetProtocol, UOpTransaction, UWallet, UTime, UAES, UECIES, UTxMultiOperation,
   UJSONFunctions, classes, blcksock, synsock, IniFiles, Variants, math, UBaseTypes, UOpenSSL,
-  UPCOrderedLists,
+  UPCOrderedLists, UPCDataTypes,
   UNetProtection;
 
 Const
@@ -390,7 +390,7 @@ Begin
     OperationsHashTree.SaveOperationsHashTreeToStream(ms,false);
     ms.Position := 0;
     SetLength(raw,ms.Size);
-    ms.ReadBuffer(raw[1],ms.Size);
+    ms.ReadBuffer(raw[Low(raw)],ms.Size);
     Result := TCrypto.ToHexaString(raw);
   Finally
     ms.Free;
@@ -669,7 +669,7 @@ begin
             Fsock.sendstring(headers[n] + CRLF);
         end;
         if Fsock.lasterror = 0 then begin
-          FSock.SendBuffer(addr(jsonresponsetxt[1]),Length(jsonresponsetxt));
+          FSock.SendBuffer(addr(jsonresponsetxt[Low(jsonresponsetxt)]),Length(jsonresponsetxt));
         end;
       end;
       _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),'Method:'+methodName+' Params:'+paramsTxt+' '+Inttostr(errNum)+':'+errDesc+' Time:'+FormatFloat('0.000',(TPlatform.GetElapsedMilliseconds(tc)/1000)));
@@ -724,7 +724,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
     ms := TMemoryStream.Create;
     Try
-      ms.WriteBuffer(raw[1],length(raw));
+      ms.WriteBuffer(raw[Low(raw)],Length(raw));
       ms.Position := 0;
       OperationsHashTree := TOperationsHashTree.Create;
       if (raw<>'') then begin

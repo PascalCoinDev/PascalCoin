@@ -163,7 +163,7 @@ begin
     if assigned(FFileStream) And (logType in FSaveTypes) then begin
       if TThread.CurrentThread.ThreadID=MainThreadID then tid := ' MAIN:' else tid:=' TID:';
       s := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz',now)+tid+IntToHex(PtrInt(TThread.CurrentThread.ThreadID),8)+' ['+CT_LogType[logtype]+'] <'+sender+'> '+logtext+#13#10;
-      FFileStream.Write(s[1],length(s));
+      FFileStream.Write(s[Low(s)],Length(s));
     end;
     if Assigned(FOnInThreadNewLog) then begin
       FOnInThreadNewLog(logtype,now,TThread.CurrentThread.ThreadID,sender,logtext);

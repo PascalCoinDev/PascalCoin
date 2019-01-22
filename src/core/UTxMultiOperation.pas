@@ -23,7 +23,7 @@ unit UTxMultiOperation;
 interface
 
 uses
-  Classes, SysUtils, UCrypto, UBlockChain, UAccounts, UBaseTypes;
+  Classes, SysUtils, UCrypto, UBlockChain, UAccounts, UBaseTypes, UPCDataTypes;
 
 Type
 
@@ -1081,8 +1081,8 @@ begin
     end;
     if (current_protocol<=CT_PROTOCOL_3) then begin
       ms.Position := 0;
-      setlength(Result,ms.Size);
-      ms.ReadBuffer(Result[1],ms.Size);
+      SetLength(Result,ms.Size);
+      ms.ReadBuffer(Result[Low(Result)],ms.Size);
     end else begin
       b := OpType;
       ms.Write(b,1);

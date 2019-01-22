@@ -149,14 +149,14 @@ end;
 class function TAESComp.EVP_Decrypt_AES256(const EncryptedMessage: TRawBytes; APassword: AnsiString; var Decrypted : AnsiString) : Boolean;
 Var bytes_encrypted, bytes_password, bytes_result : TBytes;
 begin
-  SetLength(bytes_encrypted,length(EncryptedMessage));
-  CopyMemory(bytes_encrypted,@EncryptedMessage[1],length(EncryptedMessage));
-  SetLength(bytes_password,length(APassword));
-  CopyMemory(bytes_password,@APassword[1],length(APassword));
+  SetLength(bytes_encrypted,Length(EncryptedMessage));
+  CopyMemory(bytes_encrypted,@EncryptedMessage[Low(EncryptedMessage)],Length(EncryptedMessage));
+  SetLength(bytes_password,Length(APassword));
+  CopyMemory(bytes_password,@APassword[Low(APassword)],Length(APassword));
   Result := EVP_Decrypt_AES256(bytes_encrypted,bytes_password,bytes_result);
   if Result then begin
-    SetLength(Decrypted,length(bytes_result));
-    CopyMemory(@Decrypted[1],bytes_result,length(bytes_result));
+    SetLength(Decrypted,Length(bytes_result));
+    CopyMemory(@Decrypted[Low(Decrypted)],bytes_result,Length(bytes_result));
   end else Decrypted := '';
 end;
 
@@ -214,13 +214,13 @@ end;
 class function TAESComp.EVP_Encrypt_AES256(const TheMessage, APassword: AnsiString): AnsiString;
 Var bytes_message, bytes_password, bytes_result : TBytes;
 begin
-  SetLength(bytes_message,length(TheMessage));
-  CopyMemory(bytes_message,@TheMessage[1],length(TheMessage));
-  SetLength(bytes_password,length(APassword));
-  CopyMemory(bytes_password,@APassword[1],length(APassword));
+  SetLength(bytes_message,Length(TheMessage));
+  CopyMemory(bytes_message,@TheMessage[Low(TheMessage)],Length(TheMessage));
+  SetLength(bytes_password,Length(APassword));
+  CopyMemory(bytes_password,@APassword[Low(APassword)],Length(APassword));
   bytes_result := EVP_Encrypt_AES256(bytes_message,bytes_password);
-  SetLength(Result,length(bytes_result));
-  CopyMemory(@Result[1],bytes_result,length(bytes_result));
+  SetLength(Result,Length(bytes_result));
+  CopyMemory(@Result[Low(Result)],bytes_result,Length(bytes_result));
 end;
 
 class function TAESComp.EVP_Encrypt_AES256(Value, APassword: TBytes): TBytes;

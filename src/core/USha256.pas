@@ -169,7 +169,7 @@ begin
     Stream.Position:= 0;
     m := Sha256HashToRaw(CalcSHA256(Stream));
     Stream.size := 0;
-    Stream.WriteBuffer(m[1],32);
+    Stream.WriteBuffer(m[Low(m)],32);
     Stream.Position:= 0;
     Result := CalcSHA256(Stream);
   finally

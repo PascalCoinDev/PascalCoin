@@ -25,24 +25,10 @@ unit UCrypto;
 interface
 
 uses
-  Classes, SysUtils, UOpenSSL, UOpenSSLdef, URandomHash, UBaseTypes;
+  Classes, SysUtils, UOpenSSL, UOpenSSLdef, URandomHash, UBaseTypes, UPCDataTypes;
 
 Type
   ECryptoException = Class(Exception);
-
-  PRawBytes = ^TRawBytes;
-
-  TECDSA_SIG = record
-     r: TRawBytes;
-     s: TRawBytes;
-  end; { record }
-
-  TECDSA_Public = record
-     EC_OpenSSL_NID : Word;
-     x: TRawBytes;
-     y: TRawBytes;
-  end;
-  PECDSA_Public = ^TECDSA_Public;
 
   TECPrivateKey = Class
   private
@@ -193,11 +179,11 @@ begin
   Try
     ms.Write(FEC_OpenSSL_NID,sizeof(FEC_OpenSSL_NID));
     SetLength(aux,BN_num_bytes(EC_KEY_get0_private_key(FPrivateKey)));
-    BN_bn2bin(EC_KEY_get0_private_key(FPrivateKey),@aux[1]);
+    BN_bn2bin(EC_KEY_get0_private_key(FPrivateKey),@aux[Low(aux)]);
     TStreamOp.WriteAnsiString(ms,aux);
     SetLength(Result,ms.Size);
     ms.Position := 0;
-    ms.Read(Result[1],ms.Size);
+    ms.Read(Result[Low(Result)],ms.Size);
   Finally
     ms.Free;
   End;
@@ -225,9 +211,9 @@ begin
   Try
     EC_POINT_get_affine_coordinates_GFp(EC_KEY_get0_group(FPrivateKey),EC_KEY_get0_public_key(FPrivateKey),BNx,BNy,ctx);
     SetLength(Result.x,BN_num_bytes(BNx));
-    BN_bn2bin(BNx,@Result.x[1]);
+    BN_bn2bin(BNx,@Result.x[Low(Result.x)]);
     SetLength(Result.y,BN_num_bytes(BNy));
-    BN_bn2bin(BNy,@Result.y[1]);
+    BN_bn2bin(BNy,@Result.y[Low(Result.y)]);
   Finally
     BN_CTX_free(ctx);
     BN_free(BNx);
@@ -250,11 +236,11 @@ begin
   Result := Nil;
   ms := TMemoryStream.Create;
   Try
-    ms.WriteBuffer(raw[1],length(raw));
+    ms.WriteBuffer(raw[Low(raw)],Length(raw));
     ms.Position := 0;
     if ms.Read(ECID,sizeof(ECID))<>sizeof(ECID) then exit;
     If TStreamOp.ReadAnsiString(ms,aux)<0 then exit;
-    BNx := BN_bin2bn(PAnsiChar(aux),length(aux),nil);
+    BNx := BN_bin2bn(PAnsiChar(aux),Length(aux),nil);
     if assigned(BNx) then begin
       try
         PAC := BN_bn2hex(BNx);
@@ -369,7 +355,7 @@ class procedure TCrypto.DoDoubleSha256(p: PAnsiChar; plength: Cardinal; out Resu
 Var PS : PAnsiChar;
 begin
   If length(ResultSha256)<>32 then SetLength(ResultSha256,32);
-  PS := @ResultSha256[1];
+  PS := @ResultSha256[Low(ResultSha256)];
   SHA256(p,plength,PS);
   SHA256(PS,32,PS);
 end;
@@ -399,7 +385,7 @@ class function TCrypto.DoRipeMD160AsRaw(p: PAnsiChar; plength: Cardinal): TRawBy
 Var PS : PAnsiChar;
 begin
   SetLength(Result,20);
-  PS := @Result[1];
+  PS := @Result[Low(Result)];
   RIPEMD160(p,plength,PS);
 end;
 
@@ -407,7 +393,7 @@ class function TCrypto.DoRipeMD160AsRaw(const TheMessage: AnsiString): TRawBytes
 Var PS : PAnsiChar;
 begin
   SetLength(Result,20);
-  PS := @Result[1];
+  PS := @Result[Low(Result)];
   RIPEMD160(PAnsiChar(TheMessage),Length(TheMessage),PS);
 end;
 
@@ -415,7 +401,7 @@ class function TCrypto.DoSha256(p: PAnsiChar; plength: Cardinal): TRawBytes;
 Var PS : PAnsiChar;
 begin
   SetLength(Result,32);
-  PS := @Result[1];
+  PS := @Result[Low(Result)];
   SHA256(p,plength,PS);
 end;
 
@@ -423,7 +409,7 @@ class function TCrypto.DoSha256(const TheMessage: AnsiString): TRawBytes;
 Var PS : PAnsiChar;
 begin
   SetLength(Result,32);
-  PS := @Result[1];
+  PS := @Result[Low(Result)];
   SHA256(PAnsiChar(TheMessage),Length(TheMessage),PS);
 end;
 
@@ -435,7 +421,7 @@ class procedure TCrypto.DoSha256(const TheMessage: AnsiString; out ResultSha256:
 Var PS : PAnsiChar;
 begin
   If length(ResultSha256)<>32 then SetLength(ResultSha256,32);
-  PS := @ResultSha256[1];
+  PS := @ResultSha256[Low(ResultSha256)];
   SHA256(PAnsiChar(TheMessage),Length(TheMessage),PS);
 end;
 
@@ -450,12 +436,12 @@ begin
 
     i := BN_num_bytes(PECS^._r);
     SetLength(Result.r,i);
-    p := @Result.r[1];
+    p := @Result.r[Low(Result.r)];
     i := BN_bn2bin(PECS^._r,p);
 
     i := BN_num_bytes(PECS^._s);
     SetLength(Result.s,i);
-    p := @Result.s[1];
+    p := @Result.s[Low(Result.s)];
     i := BN_bn2bin(PECS^._s,p);
   Finally
     ECDSA_SIG_free(PECS);
@@ -533,13 +519,13 @@ Var P : PAnsiChar;
  i : Integer;
 begin
   Result := '';
-  if ((length(HexaString) MOD 2)<>0) Or (length(HexaString)=0) then exit;
-  SetLength(result,length(HexaString) DIV 2);
-  P := @Result[1];
+  if ((Length(HexaString) MOD 2)<>0) Or (Length(HexaString)=0) then exit;
+  SetLength(result,Length(HexaString) DIV 2);
+  P := @Result[Low(Result)];
   lc := LowerCase(HexaString);
-  i := HexToBin(PAnsiChar(@lc[1]),P,length(Result));
-  if (i<>(length(HexaString) DIV 2)) then begin
-    TLog.NewLog(lterror,Classname,'Invalid HEXADECIMAL string result '+inttostr(i)+'<>'+inttostr(length(HexaString) DIV 2)+': '+HexaString);
+  i := HexToBin(PAnsiChar(@lc[Low(lc)]),P,Length(Result));
+  if (i<>(Length(HexaString) DIV 2)) then begin
+    TLog.NewLog(lterror,Classname,'Invalid HEXADECIMAL string result '+inttostr(i)+'<>'+inttostr(Length(HexaString) DIV 2)+': '+HexaString);
     Result := '';
   end;
 end;
@@ -550,16 +536,16 @@ Var P : PAnsiChar;
  i : Integer;
 begin
   Result := False; raw := '';
-  if ((length(HexaString) MOD 2)<>0) then Exit;
-  if (length(HexaString)=0) then begin
+  if ((Length(HexaString) MOD 2)<>0) then Exit;
+  if (Length(HexaString)=0) then begin
     Result := True;
     exit;
   end;
-  SetLength(raw,length(HexaString) DIV 2);
-  P := @raw[1];
+  SetLength(raw,Length(HexaString) DIV 2);
+  P := @raw[Low(raw)];
   lc := LowerCase(HexaString);
-  i := HexToBin(PAnsiChar(@lc[1]),P,length(raw));
-  Result := (i = (length(HexaString) DIV 2));
+  i := HexToBin(PAnsiChar(@lc[Low(lc)]),P,Length(raw));
+  Result := (i = (Length(HexaString) DIV 2));
 end;
 
 class procedure TCrypto.InitCrypto;
@@ -663,7 +649,7 @@ begin
   SetLength(LInput, plength);
   Move(p^, LInput[0], plength);
   LResult := TRandomHashFast.Compute(LInput);
-  Move(LResult[0], ResultSha256[1], 32);
+  Move(LResult[0], ResultSha256[Low(ResultSha256)], 32);
 end;
 
 class procedure TCrypto.DoRandomHash(AFastHasher : TRandomHashFast; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
@@ -675,7 +661,7 @@ begin
   SetLength(LInput, plength);
   Move(p^, LInput[0], plength);
   LResult := AFastHasher.Hash(LInput);
-  Move(LResult[0], ResultSha256[1], 32);
+  Move(LResult[0], ResultSha256[Low(ResultSha256)], 32);
 end;
 
 { TBigNum }
@@ -780,7 +766,7 @@ Var p : PAnsiChar;
 begin
   i := BN_num_bytes(FBN);
   SetLength(Result,i);
-  p := @Result[1];
+  p := @Result[Low(Result)];
   i := BN_bn2bin(FBN,p);
 end;
 

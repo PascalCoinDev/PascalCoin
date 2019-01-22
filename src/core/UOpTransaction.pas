@@ -22,7 +22,7 @@ unit UOpTransaction;
 
 interface
 
-Uses UCrypto, UBlockChain, Classes, UAccounts, UBaseTypes;
+Uses UCrypto, UBlockChain, Classes, UAccounts, UBaseTypes, UPCDataTypes;
 
 Type
   // Operations Type
@@ -689,7 +689,7 @@ begin
     if (current_protocol<=CT_PROTOCOL_3) then begin
       Stream.Position := 0;
       setlength(Result,Stream.Size);
-      Stream.ReadBuffer(Result[1],Stream.Size);
+      Stream.ReadBuffer(Result[Low(Result)],Stream.Size);
     end else begin
       b := OpType;
       Stream.Write(b,1);
@@ -895,20 +895,20 @@ begin
       ms.Write(FData.target,Sizeof(FData.target));
       ms.Write(FData.amount,Sizeof(FData.amount));
       ms.Write(FData.fee,Sizeof(FData.fee));
-      if length(FData.payload)>0 then
-        ms.WriteBuffer(FData.payload[1],length(FData.payload));
+      if Length(FData.payload)>0 then
+        ms.WriteBuffer(FData.payload[Low(FData.payload)],Length(FData.payload));
       ms.Write(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID));
-      if length(FData.public_key.x)>0 then
-        ms.WriteBuffer(FData.public_key.x[1],length(FData.public_key.x));
-      if length(FData.public_key.y)>0 then
-        ms.WriteBuffer(FData.public_key.y[1],length(FData.public_key.y));
-      if length(FData.sign.r)>0 then
-        ms.WriteBuffer(FData.sign.r[1],length(FData.sign.r));
-      if length(FData.sign.s)>0 then
-        ms.WriteBuffer(FData.sign.s[1],length(FData.sign.s));
+      if Length(FData.public_key.x)>0 then
+        ms.WriteBuffer(FData.public_key.x[Low(FData.public_key.x)],Length(FData.public_key.x));
+      if Length(FData.public_key.y)>0 then
+        ms.WriteBuffer(FData.public_key.y[Low(FData.public_key.y)],Length(FData.public_key.y));
+      if Length(FData.sign.r)>0 then
+        ms.WriteBuffer(FData.sign.r[Low(FData.sign.r)],Length(FData.sign.r));
+      if Length(FData.sign.s)>0 then
+        ms.WriteBuffer(FData.sign.s[Low(FData.sign.s)],Length(FData.sign.s));
       SetLength(Result,ms.Size);
       ms.Position := 0;
-      ms.ReadBuffer(Result[1],ms.Size);
+      ms.ReadBuffer(Result[Low(Result)],ms.Size);
     finally
       ms.Free;
     end;
@@ -1122,26 +1122,26 @@ begin
     ms.Write(FData.target,Sizeof(FData.target));
     ms.Write(FData.amount,Sizeof(FData.amount));
     ms.Write(FData.fee,Sizeof(FData.fee));
-    if length(FData.payload)>0 then
-      ms.WriteBuffer(FData.payload[1],length(FData.payload));
+    if Length(FData.payload)>0 then
+      ms.WriteBuffer(FData.payload[Low(FData.payload)],Length(FData.payload));
     ms.Write(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID));
-    if length(FData.public_key.x)>0 then
-      ms.WriteBuffer(FData.public_key.x[1],length(FData.public_key.x));
-    if length(FData.public_key.y)>0 then
-      ms.WriteBuffer(FData.public_key.y[1],length(FData.public_key.y));
+    if Length(FData.public_key.x)>0 then
+      ms.WriteBuffer(FData.public_key.x[Low(FData.public_key.x)],Length(FData.public_key.x));
+    if Length(FData.public_key.y)>0 then
+      ms.WriteBuffer(FData.public_key.y[Low(FData.public_key.y)],Length(FData.public_key.y));
     if FData.opTransactionStyle=buy_account then begin
       ms.Write(FData.AccountPrice,Sizeof(FData.AccountPrice));
       ms.Write(FData.SellerAccount,Sizeof(FData.SellerAccount));
       ms.Write(FData.new_accountkey.EC_OpenSSL_NID,Sizeof(FData.new_accountkey.EC_OpenSSL_NID));
-      if length(FData.new_accountkey.x)>0 then
-        ms.WriteBuffer(FData.new_accountkey.x[1],length(FData.new_accountkey.x));
-      if length(FData.new_accountkey.y)>0 then
-        ms.WriteBuffer(FData.new_accountkey.y[1],length(FData.new_accountkey.y));
+      if Length(FData.new_accountkey.x)>0 then
+        ms.WriteBuffer(FData.new_accountkey.x[Low(FData.new_accountkey.x)],Length(FData.new_accountkey.x));
+      if Length(FData.new_accountkey.y)>0 then
+        ms.WriteBuffer(FData.new_accountkey.y[Low(FData.new_accountkey.y)],Length(FData.new_accountkey.y));
     end;
     if (current_protocol<=CT_PROTOCOL_3) then begin
       ms.Position := 0;
       SetLength(Result,ms.Size);
-      ms.ReadBuffer(Result[1],ms.Size);
+      ms.ReadBuffer(Result[Low(Result)],ms.Size);
     end else begin
       b := OpType;
       ms.Write(b,1);
@@ -1307,23 +1307,23 @@ begin
       ms.Write(FData.account_signer,Sizeof(FData.account_signer)); //Protocol 1 does not allow signer/target. signer=target always
       ms.Write(FData.n_operation,Sizeof(FData.n_operation));
       ms.Write(FData.fee,Sizeof(FData.fee));
-      if length(FData.payload)>0 then
-        ms.WriteBuffer(FData.payload[1],length(FData.payload));
+      if Length(FData.payload)>0 then
+        ms.WriteBuffer(FData.payload[Low(FData.payload)],Length(FData.payload));
       ms.Write(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID));
-      if length(FData.public_key.x)>0 then
-        ms.WriteBuffer(FData.public_key.x[1],length(FData.public_key.x));
-      if length(FData.public_key.y)>0 then
-        ms.WriteBuffer(FData.public_key.y[1],length(FData.public_key.y));
+      if Length(FData.public_key.x)>0 then
+        ms.WriteBuffer(FData.public_key.x[Low(FData.public_key.x)],Length(FData.public_key.x));
+      if Length(FData.public_key.y)>0 then
+        ms.WriteBuffer(FData.public_key.y[Low(FData.public_key.y)],Length(FData.public_key.y));
       s := TAccountComp.AccountKey2RawString(FData.new_accountkey);
-      if length(s)>0 then
-        ms.WriteBuffer(s[1],length(s));
-      if length(FData.sign.r)>0 then
-        ms.WriteBuffer(FData.sign.r[1],length(FData.sign.r));
-      if length(FData.sign.s)>0 then
-        ms.WriteBuffer(FData.sign.s[1],length(FData.sign.s));
+      if Length(s)>0 then
+        ms.WriteBuffer(s[Low(s)],Length(s));
+      if Length(FData.sign.r)>0 then
+        ms.WriteBuffer(FData.sign.r[Low(FData.sign.r)],Length(FData.sign.r));
+      if Length(FData.sign.s)>0 then
+        ms.WriteBuffer(FData.sign.s[Low(FData.sign.s)],Length(FData.sign.s));
       ms.Position := 0;
       setlength(Result,ms.Size);
-      ms.ReadBuffer(Result[1],ms.Size);
+      ms.ReadBuffer(Result[Low(Result)],ms.Size);
     finally
       ms.Free;
     end;
@@ -1456,20 +1456,20 @@ begin
     if (FData.account_signer<>FData.account_target) then ms.Write(FData.account_target,Sizeof(FData.account_target));
     ms.Write(FData.n_operation,Sizeof(FData.n_operation));
     ms.Write(FData.fee,Sizeof(FData.fee));
-    if length(FData.payload)>0 then
-      ms.WriteBuffer(FData.payload[1],length(FData.payload));
+    if Length(FData.payload)>0 then
+      ms.WriteBuffer(FData.payload[Low(FData.payload)],Length(FData.payload));
     ms.Write(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID));
-    if length(FData.public_key.x)>0 then
-      ms.WriteBuffer(FData.public_key.x[1],length(FData.public_key.x));
-    if length(FData.public_key.y)>0 then
-      ms.WriteBuffer(FData.public_key.y[1],length(FData.public_key.y));
+    if Length(FData.public_key.x)>0 then
+      ms.WriteBuffer(FData.public_key.x[Low(FData.public_key.x)],Length(FData.public_key.x));
+    if Length(FData.public_key.y)>0 then
+      ms.WriteBuffer(FData.public_key.y[Low(FData.public_key.y)],Length(FData.public_key.y));
     s := TAccountComp.AccountKey2RawString(FData.new_accountkey);
-    if length(s)>0 then
-      ms.WriteBuffer(s[1],length(s));
+    if Length(s)>0 then
+      ms.WriteBuffer(s[Low(s)],Length(s));
     if (current_protocol<=CT_PROTOCOL_3) then begin
       ms.Position := 0;
-      setlength(Result,ms.Size);
-      ms.ReadBuffer(Result[1],ms.Size);
+      SetLength(Result,ms.Size);
+      ms.ReadBuffer(Result[Low(Result)],ms.Size);
     end else begin
       b := OpType;
       ms.Write(b,1);
@@ -1549,7 +1549,7 @@ begin
       ms.Write(FData.fee,Sizeof(FData.fee));
       ms.Position := 0;
       SetLength(Result,ms.Size);
-      ms.ReadBuffer(Result[1],ms.Size);
+      ms.ReadBuffer(Result[Low(Result)],ms.Size);
     finally
       ms.Free;
     end;
@@ -1975,21 +1975,21 @@ begin
     ms.Write(FData.account_price,Sizeof(FData.account_price));
     ms.Write(FData.account_to_pay,Sizeof(FData.account_to_pay));
     ms.Write(FData.fee,Sizeof(FData.fee));
-    if length(FData.payload)>0 then
-      ms.WriteBuffer(FData.payload[1],length(FData.payload));
+    if Length(FData.payload)>0 then
+      ms.WriteBuffer(FData.payload[Low(FData.payload)],Length(FData.payload));
     ms.Write(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID));
-    if length(FData.public_key.x)>0 then
-      ms.WriteBuffer(FData.public_key.x[1],length(FData.public_key.x));
-    if length(FData.public_key.y)>0 then
-      ms.WriteBuffer(FData.public_key.y[1],length(FData.public_key.y));
+    if Length(FData.public_key.x)>0 then
+      ms.WriteBuffer(FData.public_key.x[Low(FData.public_key.x)],Length(FData.public_key.x));
+    if Length(FData.public_key.y)>0 then
+      ms.WriteBuffer(FData.public_key.y[Low(FData.public_key.y)],Length(FData.public_key.y));
     s := TAccountComp.AccountKey2RawString(FData.new_public_key);
-    if length(s)>0 then
-      ms.WriteBuffer(s[1],length(s));
+    if Length(s)>0 then
+      ms.WriteBuffer(s[Low(s)],Length(s));
     ms.Write(FData.locked_until_block,Sizeof(FData.locked_until_block));
     if (current_protocol<=CT_PROTOCOL_3) then begin
       ms.Position := 0;
-      setlength(Result,ms.Size);
-      ms.ReadBuffer(Result[1],ms.Size);
+      SetLength(Result,ms.Size);
+      ms.ReadBuffer(Result[Low(Result)],ms.Size);
     end else begin
       b := OpType;
       ms.Write(b,1);

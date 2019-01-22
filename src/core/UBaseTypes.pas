@@ -75,7 +75,7 @@ Type
     class procedure T32BytesToRawBytes(const source : T32Bytes; var dest : TDynRawBytes); overload;
     class function T32BytesToRawBytes(const source : T32Bytes) : TDynRawBytes; overload;
     class function TRawBytesTo32Left0Padded(const source : TDynRawBytes) : T32Bytes;
-    class function Copy(const source : T32bytes; start, length : Integer) : ShortString; overload;
+    class function Copy(const source : T32bytes; astart, alength : Integer) : ShortString; overload;
     class function Copy(const source : T256RawBytes; var dest : T256RawBytes) : ShortString; overload;
     class function To256RawBytes(const source : TRawBytes) : T256RawBytes; overload;
     class procedure To256RawBytes(const source : TRawBytes; var dest : T256RawBytes); overload;
@@ -145,17 +145,17 @@ begin
   end;
 end;
 
-class function TBaseType.Copy(const source: T32bytes; start, length: Integer): ShortString;
+class function TBaseType.Copy(const source: T32bytes; astart, alength: Integer): ShortString;
 begin
-  if (length+start)>32 then raise Exception.Create('ERROR DEV 20170601-1');
-  SetLength(Result,length);
-  move(source[start],Result[1],length);
+  if (alength+astart)>32 then raise Exception.Create('ERROR DEV 20170601-1');
+  SetLength(Result,alength);
+  move(source[astart],Result[Low(Result)],alength);
 end;
 
 class function TBaseType.Copy(const source: T256RawBytes; var dest: T256RawBytes): ShortString;
 var i : Integer;
 begin
-  SetLength(dest,length(source));
+  SetLength(dest,Length(source));
   for i:=0 to high(dest) do begin
     dest[i] := source[i];
   end;
@@ -163,38 +163,38 @@ end;
 
 class function TBaseType.To256RawBytes(const source: TRawBytes): T256RawBytes;
 begin
-  SetLength(Result,length(source));
-  move(source[1],Result[0],length(source));
+  SetLength(Result,Length(source));
+  move(source[Low(source)],Result[0],Length(source));
 end;
 
 class procedure TBaseType.To256RawBytes(const source: TRawBytes; var dest: T256RawBytes);
 begin
-  SetLength(dest,length(source));
-  move(source[1],dest[0],length(source));
+  SetLength(dest,Length(source));
+  move(source[Low(source)],dest[0],Length(source));
 end;
 
 class function TBaseType.ToRawBytes(const source: T256RawBytes): TRawBytes;
 begin
-  SetLength(Result,length(source));
-  move(source[0],Result[1],length(source));
+  SetLength(Result,Length(source));
+  move(source[0],Result[Low(Result)],Length(source));
 end;
 
 class procedure TBaseType.ToRawBytes(const source: T256RawBytes; var dest: TRawBytes);
 begin
-  SetLength(dest,length(source));
-  move(source[0],dest[1],length(source));
+  SetLength(dest,Length(source));
+  move(source[0],dest[Low(dest)],Length(source));
 end;
 
 class function TBaseType.ToRawBytes(const source: T32Bytes): TRawBytes;
 begin
-  SetLength(Result,length(source));
-  move(source[0],Result[1],length(source));
+  SetLength(Result,Length(source));
+  move(source[0],Result[Low(Result)],Length(source));
 end;
 
 class procedure TBaseType.ToRawBytes(const source: T32Bytes; var dest: TRawBytes);
 begin
-  SetLength(dest,length(source));
-  move(source[0],dest[1],length(source));
+  SetLength(dest,Length(source));
+  move(source[0],dest[Low(dest)],Length(source));
 end;
 
 class function TBaseType.To32Bytes(const source: TRawBytes): T32Bytes;
@@ -208,7 +208,7 @@ begin
   FillByte(dest[0],32,0);
   i := length(source);
   if (i>32) then i:=32;
-  move(source[1],dest[0],i);
+  move(source[Low(source)],dest[0],i);
 end;
 
 class procedure TBaseType.Fill0(var dest: T32Bytes);
