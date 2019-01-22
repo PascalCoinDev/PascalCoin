@@ -183,7 +183,7 @@ implementation
 
 uses
   UECIES, UConst, UOpTransaction, UFRMNewPrivateKeyType, UAES, UFRMWalletKeys,
-  UCommon, UGUIUtils;
+  UCommon, UGUIUtils, UPCDataTypes;
 
 {$IFnDEF FPC}
   {$R *.dfm}

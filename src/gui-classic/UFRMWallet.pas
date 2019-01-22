@@ -34,7 +34,7 @@ uses
   ExtCtrls, ComCtrls, UWallet, StdCtrls, ULog, Grids, UAppParams, UBlockChain,
   UNode, UGridUtils, UJSONFunctions, UAccounts, Menus, ImgList, UNetProtocol,
   UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect, UConst,
-  UAccountKeyStorage, UBaseTypes,
+  UAccountKeyStorage, UBaseTypes, UPCDataTypes,
   UFRMRPCCalls, UTxMultiOperation;
 
 Const
