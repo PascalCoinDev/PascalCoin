@@ -135,6 +135,7 @@ uses
   UMemory,
   UNetProtocol,
   UOpTransaction,
+  UPCOrderedLists,
   Generics.Collections;
 
 { TCoreTool }

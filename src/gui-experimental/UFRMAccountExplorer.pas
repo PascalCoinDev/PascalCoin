@@ -212,7 +212,8 @@ implementation
 {$R *.lfm}
 
 uses UFRMAccountSelect, UConst, USettings, UFRMOperation,
-     UWallet, UCrypto, UFRMMemoText, UUserInterface, UCommon;
+     UWallet, UCrypto, UFRMMemoText, UUserInterface, UCommon,
+     UPCOrderedLists;
 
 { TFRMAccountExplorer }
 

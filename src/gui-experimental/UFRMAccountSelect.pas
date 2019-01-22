@@ -26,7 +26,7 @@ uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, UAccounts, Grids, StdCtrls, Buttons, ExtCtrls, UCommon.UI,
-  UWallet, UNode, UGridUtils, UFRMMemoText, UConst, UThread;
+  UWallet, UNode, UGridUtils, UFRMMemoText, UConst, UThread, UPCOrderedLists;
 
 const
   CT_AS_MyAccounts = $0001;

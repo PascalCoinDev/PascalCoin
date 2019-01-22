@@ -29,7 +29,8 @@ uses
   UBlockChain, UAccounts, UNode, UWallet, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining,
   ULog, UThread, UNetProtocol, UCrypto, UBaseTypes,
   UFRMMainForm, UCTRLSyncronization, UFRMAccountExplorer, UFRMOperationExplorer, UFRMPendingOperations, UFRMOperation,
-  UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys {$IFDEF TESTNET},UFRMRandomOperations, UAccountKeyStorage{$ENDIF};
+  UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys,
+  UPCOrderedLists {$IFDEF TESTNET},UFRMRandomOperations, UAccountKeyStorage{$ENDIF};
 
 type
   { Forward Declarations }
