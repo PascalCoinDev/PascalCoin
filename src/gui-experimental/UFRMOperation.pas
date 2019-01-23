@@ -27,8 +27,7 @@ uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UCommon.UI,
   UNode, UWallet, UCrypto, Buttons, UBlockChain, UBaseTypes,
-  UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UCommon,
-  UPCOrderedLists;
+  UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UCommon, UPCOrderedLists;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;

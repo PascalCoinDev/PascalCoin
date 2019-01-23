@@ -82,7 +82,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="100">
+    <Units Count="102">
       <Unit0>
         <Filename Value="pascalcoin_wallet_experimental.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -625,6 +625,17 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit99>
+      <Unit100>
+        <Filename Value="gui-experimental\wizards\operations\UWIZChangeAccountInfo.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit100>
+      <Unit101>
+        <Filename Value="gui-experimental\wizards\operations\UWIZChangeAccountInfo_Details.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="WIZChangeAccountInfo_Details"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit101>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

@@ -71,9 +71,7 @@ begin
     Model.EnlistAccountForSale.NewOwnerPublicKey, message) then
   begin
     message := Format('Error Importing Public Key, Specific Error: %s', [message]);
-    Result := False;
-    Exit;
-
+    Exit(False);
   end;
 
   for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
@@ -81,8 +79,7 @@ begin
       Model.Account.SelectedAccounts[LIdx].accountInfo.accountKey) then
     begin
       message := 'You Cannot Sell To An Account That You Want To Enlist For Sale.';
-      Result := False;
-      Exit;
+      Exit(False);
     end;
 
 end;

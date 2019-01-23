@@ -47,8 +47,6 @@ type
     procedure txtRecipientChange(Sender: TObject);
     procedure UpdateUI();
 
-
-
   public
     procedure OnPresent; override;
     procedure OnNext; override;
@@ -73,7 +71,6 @@ uses
   UCommon.Collections,
   Generics.Collections,
   UWIZOperationFee_Custom,
-  UWIZOperationSigner_Select,
   UWIZOperationPayload_Encryption;
 
 { TWIZSendPASC_Details }
@@ -91,7 +88,8 @@ begin
   txtRecipient.SetFocus;
 
   // Quantity section
-  if Length(Model.Account.SelectedAccounts) > 1 then begin
+  if Length(Model.Account.SelectedAccounts) > 1 then
+  begin
     chkCustomFee.Checked := True;
     chkCustomFee.Enabled := False;
   end;
@@ -104,19 +102,23 @@ var
 begin
   // Recipient section
   if TAccountComp.AccountTxtNumberToAccountNumber(txtRecipient.Text, LAccountNumber) then
-   if ((LAccountNumber < 0) or (LAccountNumber >= TNode.Node.Bank.AccountsCount)) then
-     lblRecipientDetails.Caption := ''
-  else begin
-    LTempAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
-    lblRecipientDetails.Caption := LTempAccount.name;
-  end;
+    if ((LAccountNumber < 0) or (LAccountNumber >= TNode.Node.Bank.AccountsCount)) then
+      lblRecipientDetails.Caption := ''
+    else
+    begin
+      LTempAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
+      lblRecipientDetails.Caption := LTempAccount.Name;
+    end;
 
   // Quantity section
-  if chkSendAll.Checked then begin
+  if chkSendAll.Checked then
+  begin
     txtAmount.Text := 'ALL BALANCE';
     txtAmount.Enabled := False;
     Model.SendPASC.SendPASCMode := akaAllBalance;
-  end else begin
+  end
+  else
+  begin
     txtAmount.Enabled := True;
     txtAmount.Text := IIF(Model.SendPASC.SingleAmountToSend = 0, '', TAccountComp.FormatMoney(Model.SendPASC.SingleAmountToSend));
     Model.SendPASC.SendPASCMode := akaSpecifiedAmount;
@@ -127,20 +129,23 @@ procedure TWIZSendPASC_Details.OnNext;
 var
   LAccountNumber: cardinal;
   LAccount: TAccount;
-  LWizStepsToInject : TList<TComponentClass>;
-  LDisposables : TDisposables;
+  LWizStepsToInject: TList<TComponentClass>;
+  LDisposables: TDisposables;
 begin
-  LWizStepsToInject := LDisposables.AddObject( TList<TComponentClass>.Create ) as TList<TComponentClass>;
+  LWizStepsToInject := LDisposables.AddObject(TList<TComponentClass>.Create) as TList<TComponentClass>;
 
   // Recipient section
   TAccountComp.AccountTxtNumberToAccountNumber(txtRecipient.Text, LAccountNumber);
   Model.SendPASC.DestinationAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
 
   // Quantity section
-  if chkSendAll.Checked then begin
+  if chkSendAll.Checked then
+  begin
     Model.SendPASC.SendPASCMode := akaAllBalance;
-    Model.SendPASC.SingleAmountToSend := 0 // all balance
-  end else begin
+    Model.SendPASC.SingleAmountToSend := 0; // all balance
+  end
+  else
+  begin
     Model.SendPASC.SendPASCMode := akaSpecifiedAmount;
     TAccountComp.TxtToMoney(txtAmount.Text, Model.SendPASC.SingleAmountToSend);
   end;
@@ -156,9 +161,8 @@ begin
     LWizStepsToInject.Add(TWIZOperationPayload_Encryption);
 
   // Signer section
-  if Length(Model.Account.SelectedAccounts) > 1 then
-    LWizStepsToInject.Add(TWIZOperationSigner_Select)
-  else begin
+  if Length(Model.Account.SelectedAccounts) = 1 then
+  begin
     Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];
     Model.Signer.OperationSigningMode := akaPrimary;
   end;
@@ -183,48 +187,49 @@ var
   LAccount: TAccount;
 begin
   Result := True;
-  message := '';
   // Recipient section
-  if not (TAccountComp.AccountTxtNumberToAccountNumber(txtRecipient.Text, LAccountNumber)) then begin
-    message := message + Format('Invalid Destination Account "%s"', [txtRecipient.Text]) + LineEnding;
-    Result := False;
-    Exit;
+  if not (TAccountComp.AccountTxtNumberToAccountNumber(txtRecipient.Text, LAccountNumber)) then
+  begin
+    message := Format('Invalid destination account "%s"', [txtRecipient.Text]);
+    Exit(False);
   end;
 
-  if (LAccountNumber < 0) or (LAccountNumber >= TNode.Node.Bank.AccountsCount) then begin
-    message := message + Format('Invalid Destination Account "%s"', [TAccountComp.AccountNumberToAccountTxtNumber(LAccountNumber)]) + LineEnding;
-    Result := False;
-    Exit;
+  if (LAccountNumber < 0) or (LAccountNumber >= TNode.Node.Bank.AccountsCount) then
+  begin
+    message := Format('Invalid destination account "%s"', [TAccountComp.AccountNumberToAccountTxtNumber(LAccountNumber)]);
+    Exit(False);
   end;
 
   LAccountNumbersWithChecksum := TListTool<TAccount, string>.Transform(Model.Account.SelectedAccounts, GetAccountNumberWithChecksum);
 
-  if TArrayTool<string>.Contains(LAccountNumbersWithChecksum, txtRecipient.Text) then begin
-    message := message + 'Sender And Destination Account Are Same' + LineEnding;
-    Result := False;
-    Exit;
+  if TArrayTool<string>.Contains(LAccountNumbersWithChecksum, txtRecipient.Text) then
+  begin
+    message := 'Sender and destination account are same';
+    Exit(False);
   end;
 
   // Quantity section
-  if not chkSendAll.Checked then begin
-    if not TAccountComp.TxtToMoney(txtAmount.Text, LAmount) then  begin
-      message := message + Format('Invalid quantity to send "%s"', [txtAmount.Text]) + LineEnding;
-      Result := False;
-      Exit;
+  if not chkSendAll.Checked then
+  begin
+    if not TAccountComp.TxtToMoney(txtAmount.Text, LAmount) then
+    begin
+      message := Format('Invalid quantity to send "%s"', [txtAmount.Text]);
+      Exit(False);
     end;
 
-    if LAmount < 1 then begin
-      message := message + 'You Must Send An Amount Greater Than Zero.' + LineEnding;
-      Result := False;
-      Exit;
+    if LAmount < 1 then
+    begin
+      message := 'You Must Send An Amount Greater Than Zero.';
+      Exit(False);
     end;
 
-    for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do begin
+    for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
+    begin
       LAccount := Model.Account.SelectedAccounts[LIdx];
-      if LAccount.balance < LAmount then begin
-        message := message + 'Insufficient Funds In One Or More Accounts.' + LineEnding;
-        Result := False;
-        Exit;
+      if LAccount.balance < LAmount then
+      begin
+        message := Format('Account balance in %s (%s PASC) is less than specified amount (%s PASC) to send', [LAccount.AccountString, TAccountComp.FormatMoney(LAccount.balance), TAccountComp.FormatMoney(LAmount)]);
+        Exit(False);
       end;
     end;
   end;

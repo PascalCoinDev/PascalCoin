@@ -3,6 +3,7 @@ object WIZDelistAccountFromSale_Options: TWIZDelistAccountFromSale_Options
   Height = 263
   Top = 0
   Width = 429
+  ActiveControl = chkChooseFee
   Caption = 'WIZDelistAccountFromSale_Options'
   ClientHeight = 263
   ClientWidth = 429

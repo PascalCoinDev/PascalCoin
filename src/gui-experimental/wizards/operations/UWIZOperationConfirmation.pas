@@ -34,9 +34,7 @@ type
     lblPayload: TLabel;
     lblPayload1: TLabel;
     lblPayload2: TLabel;
-    lblSignerAccount: TLabel;
     lblBeneficiaryAccount: TLabel;
-    lblSgnAcc: TLabel;
     lblBenAcc: TLabel;
     mmoPayload: TMemo;
     mmoPayload1: TMemo;
@@ -93,7 +91,6 @@ begin
 
   lblBeneficiaryAccount.Visible := False;
   lblBenAcc.Visible := False;
-  lblSgnAcc.Caption := Model.Signer.SignerAccount.AccountString;
 
   FConfirmationGrid := TVisualGrid.Create(Self);
   FConfirmationGrid.CanSearch := False;
@@ -115,6 +112,15 @@ begin
     DataFontStyles := [fsBold];
   end;
   with FConfirmationGrid.AddColumn('Recipient') do
+  begin
+    StretchedToFill := True;
+    Filters := SORTABLE_TEXT_FILTER;
+    HeaderFontStyles := [fsBold];
+    DataFontStyles := [fsBold];
+    HeaderAlignment := taRightJustify;
+    DataAlignment := taRightJustify;
+  end;
+  with FConfirmationGrid.AddColumn('Signer') do
   begin
     StretchedToFill := True;
     Filters := SORTABLE_TEXT_FILTER;
@@ -155,8 +161,6 @@ begin
   paGrid.AddControlDockCenter(FConfirmationGrid);
 
   case Model.ExecuteOperationType of
-    omtChangeInfo:
-      lblSgnAcc.Caption := IIF(Length(Model.Account.SelectedAccounts) > 1, '**Signer Account *is* Processed Account**', lblSgnAcc.Caption);
     omtEnlistAccountForSale:
     begin
       lblBeneficiaryAccount.Visible := True;
@@ -197,11 +201,12 @@ end;
 function TOperationConfirmationDataSource.GetColumns: TDataColumns;
 begin
   Result := TArrayTool<TDataColumn>.Concat([
-      Inherited,
+     Inherited,
     // Additional columns
     TDataColumns.Create(
     TDataColumn.From('Operation'),
     TDataColumn.From('Recipient'),
+    TDataColumn.From('Signer'),
     TDataColumn.From('Fee')
     )
     ]);
@@ -242,6 +247,8 @@ begin
         Result := Format('%s', [TCoreTool.GetOperationShortText(CT_Op_ListAccountForSale, IIF(Model.EnlistAccountForSale.AccountSaleMode = akaPrivateSale, CT_OpSubtype_ListAccountForPrivateSale, CT_OpSubtype_ListAccountForPublicSale))]);
       omtDelistAccountFromSale:
         Result := Format('%s', [TCoreTool.GetOperationShortText(CT_Op_DelistAccount, CT_OpSubtype_DelistAccount)]);
+      omtChangeInfo:
+        Result := Format('%s', [TCoreTool.GetOperationShortText(CT_Op_ChangeAccountInfo, CT_OpSubtype_ChangeAccountInfo)]);
 
     end
   else if ABindingName = 'Recipient' then
@@ -277,9 +284,31 @@ begin
         Result := IIF(Model.EnlistAccountForSale.AccountSaleMode = akaPrivateSale, TAccountComp.AccountPublicKeyExport(Model.EnlistAccountForSale.NewOwnerPublicKey), '');
         Result := TCellRenderers.OperationShortHash(Result);
       end;
-      omtDelistAccountFromSale:
+      omtDelistAccountFromSale, omtChangeInfo:
         Result := '';
 
+    end
+  else if ABindingName = 'Signer' then
+    case Model.ExecuteOperationType of
+      omtSendPasc:
+      begin
+        Result := inherited GetItemField(AItem, 'Account');
+      end;
+      omtChangeInfo:
+      begin
+        if Length(Model.Account.SelectedAccounts) = 1 then
+        begin
+          Result := Model.Signer.SignerAccount.AccountString;
+        end
+        else
+        begin
+          Result := inherited GetItemField(AItem, 'Account');
+        end;
+      end
+      else
+      begin
+        Result := Model.Signer.SignerAccount.AccountString;
+      end;
     end
   else if ABindingName = 'Fee' then
     Result := -Model.Fee.SingleOperationFee

@@ -29,8 +29,7 @@ uses
   UBlockChain, UAccounts, UNode, UWallet, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining,
   ULog, UThread, UNetProtocol, UCrypto, UBaseTypes,
   UFRMMainForm, UCTRLSyncronization, UFRMAccountExplorer, UFRMOperationExplorer, UFRMPendingOperations, UFRMOperation,
-  UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys,
-  UPCOrderedLists {$IFDEF TESTNET},UFRMRandomOperations, UAccountKeyStorage{$ENDIF};
+  UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys, UPCOrderedLists {$IFDEF TESTNET},UFRMRandomOperations, UAccountKeyStorage{$ENDIF};
 
 type
   { Forward Declarations }
@@ -163,6 +162,7 @@ type
       class procedure ShowChangeKeyDialog(const AAccounts : array of Cardinal);
       class procedure ShowSellAccountsDialog(const AAccounts : array of Cardinal);
       class procedure ShowDelistAccountsDialog(const AAccounts : array of Cardinal);
+      class procedure ShowChangeAccountInfoDialog(const AAccounts : array of Cardinal);
       class procedure ShowAboutBox(parentForm : TForm);
       class procedure ShowOptionsDialog(parentForm: TForm);
       class procedure ShowAccountInfoDialog(parentForm: TForm; const account : Cardinal); overload;
@@ -218,7 +218,7 @@ implementation
 uses
   UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
   UOpenSSL, UFileStorage, UTime, USettings, UCoreUtils, UMemory,
-  UWIZOperation, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale, UWIZDelistAccountFromSale, UCoreObjects;
+  UWIZOperation, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale, UWIZDelistAccountFromSale, UWIZChangeAccountInfo, UCoreObjects;
 
 {%region UI Lifecyle}
 
@@ -636,6 +636,19 @@ var
 begin
   wiz := Scoped.AddObject(TWIZDelistAccountFromSaleWizard.Create(nil)) as TWIZDelistAccountFromSaleWizard;
   model := TWIZOperationsModel.Create(wiz, omtDelistAccountFromSale);
+  model.Account.SelectedAccounts := TNode.Node.GetAccounts(AAccounts, True);
+  wiz.Start(model);
+end;
+
+class procedure TUserInterface.ShowChangeAccountInfoDialog(
+  const AAccounts: array of Cardinal);
+var
+  Scoped: TDisposables;
+  wiz: TWIZChangeAccountInfoWizard;
+  model: TWIZOperationsModel;
+begin
+  wiz := Scoped.AddObject(TWIZChangeAccountInfoWizard.Create(nil)) as TWIZChangeAccountInfoWizard;
+  model := TWIZOperationsModel.Create(wiz, omtChangeInfo);
   model.Account.SelectedAccounts := TNode.Node.GetAccounts(AAccounts, True);
   wiz.Start(model);
 end;

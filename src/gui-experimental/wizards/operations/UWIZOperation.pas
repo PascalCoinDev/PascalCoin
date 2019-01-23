@@ -112,6 +112,14 @@ type
         EncodedBytes: TRawBytes;
       end;
 
+      { TChangeAccountInfoModel }
+
+      TChangeAccountInfoModel = class(TComponent)
+      public
+        NewName: string;
+        NewType: Word;
+      end;
+
     private
       FExecuteOperationType: TExecuteOperationType;
       FRelockOnFinish: Boolean; static;
@@ -124,6 +132,7 @@ type
       FFee: TFeeModel;
       FSigner: TSignerModel;
       FPayload: TPayloadModel;
+      FChangeAccountInfo: TChangeAccountInfoModel;
     public
       constructor Create(AOwner: TComponent; AType: TExecuteOperationType); overload;
       property ExecuteOperationType: TExecuteOperationType read FExecuteOperationType;
@@ -136,6 +145,7 @@ type
       property Fee: TFeeModel read FFee;
       property Signer: TSignerModel read FSigner;
       property Payload: TPayloadModel read FPayload;
+      property ChangeAccountInfo: TChangeAccountInfoModel read FChangeAccountInfo;
       class property RelockOnFinish: Boolean read FRelockOnFinish write FRelockOnFinish;
   end;
 
@@ -157,6 +167,7 @@ begin
   FFee := TFeeModel.Create(Self);
   FSigner := TSignerModel.Create(Self);
   FPayload := TPayloadModel.Create(Self);
+  FChangeAccountInfo := TChangeAccountInfoModel.Create(Self);
 end;
 
 end.

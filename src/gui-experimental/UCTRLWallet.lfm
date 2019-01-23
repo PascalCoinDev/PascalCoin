@@ -170,6 +170,10 @@ object CTRLWallet: TCTRLWallet
       Caption = 'Change Key'
       OnClick = miChangeKeyClick
     end
+    object miChangeAccountInfo: TMenuItem
+      Caption = 'Change Account Info'
+      OnClick = miChangeAccountInfoClick
+    end
     object miAccountsMarket: TMenuItem
       Caption = 'Account Market'
       object miEnlistAccountsForSale: TMenuItem

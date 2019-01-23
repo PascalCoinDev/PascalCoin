@@ -7,7 +7,6 @@ object WIZEnlistAccountForSale_EnterPublicKey: TWIZEnlistAccountForSale_EnterPub
   Caption = 'WIZEnlistAccountForSale_EnterPublicKey'
   ClientHeight = 253
   ClientWidth = 429
-  LCLVersion = '1.8.4.0'
   Visible = False
   object gbTransaction: TGroupBox
     Left = 4

@@ -23,20 +23,20 @@ unit UWIZEnlistAccountForSale_EnterSeller;
 interface
 
 uses
-  SysUtils, Forms, StdCtrls, Buttons, Controls, Graphics, UWizard, UWIZOperation;
+  SysUtils, Forms, StdCtrls, Buttons, Controls, Graphics, UWizard, UWIZOperation, Classes;
 
 type
 
   { TWIZEnlistAccountForSale_EnterSeller }
 
   TWIZEnlistAccountForSale_EnterSeller = class(TWizardForm<TWIZOperationsModel>)
-    edtSellerAcc: TEdit;
-    gbSeller: TGroupBox;
-    lblSellerAccount: TLabel;
-    lblDestNotice: TLabel;
     btnSearch: TSpeedButton;
+    edtBeneficiaryAcc: TEdit;
+    gbBeneficiary: TGroupBox;
+    lblBeneficiaryDetails: TLabel;
+    lblBeneficiaryNotice: TLabel;
     procedure btnSearchClick(Sender: TObject);
-    procedure edtSellerAccChange(Sender: TObject);
+    procedure edtBeneficiaryAccChange(Sender: TObject);
     procedure UpdateUI();
 
   public
@@ -59,34 +59,29 @@ uses
 
 { TWIZEnlistAccountForSale_EnterSeller }
 
-procedure TWIZEnlistAccountForSale_EnterSeller.edtSellerAccChange(Sender: TObject);
-begin
-  UpdateUI();
-end;
-
 procedure TWIZEnlistAccountForSale_EnterSeller.UpdateUI();
 var
   LAccount: TAccount;
   LAccountNumber: cardinal;
 begin
-  if TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAcc.Text, LAccountNumber) then
+  if TAccountComp.AccountTxtNumberToAccountNumber(edtBeneficiaryAcc.Text, LAccountNumber) then
     if (LAccountNumber < 0) or (LAccountNumber >= TNode.Node.Bank.AccountsCount) then
     begin
-      lblSellerAccount.Caption := '';
-      lblSellerAccount.Visible := False;
+      lblBeneficiaryDetails.Caption := '';
+      lblBeneficiaryDetails.Visible := False;
     end
     else
     begin
       LAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
-      lblSellerAccount.Caption := LAccount.DisplayString;
-      lblSellerAccount.Visible := True;
+      lblBeneficiaryDetails.Caption := LAccount.Name;
+      lblBeneficiaryDetails.Visible := True;
     end;
 end;
 
 procedure TWIZEnlistAccountForSale_EnterSeller.OnPresent;
 begin
   UpdateUI();
-  edtSellerAcc.SetFocus;
+  edtBeneficiaryAcc.SetFocus;
 end;
 
 procedure TWIZEnlistAccountForSale_EnterSeller.btnSearchClick(Sender: TObject);
@@ -99,24 +94,28 @@ begin
   try
     LFRMAccountSelect.Node := TNode.Node;
     LFRMAccountSelect.WalletKeys := TWallet.Keys;
-    LFRMAccountSelect.Filters := edtSellerAcc.Tag;
-    if TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAcc.Text, LAccountNumber) then
+    LFRMAccountSelect.Filters := edtBeneficiaryAcc.Tag;
+    if TAccountComp.AccountTxtNumberToAccountNumber(edtBeneficiaryAcc.Text, LAccountNumber) then
       LFRMAccountSelect.DefaultAccount := LAccountNumber;
     LFRMAccountSelect.AllowSelect := True;
     if LFRMAccountSelect.ShowModal = mrOk then
-      edtSellerAcc.Text := TAccountComp.AccountNumberToAccountTxtNumber(LFRMAccountSelect.GetSelected);
+      edtBeneficiaryAcc.Text := TAccountComp.AccountNumberToAccountTxtNumber(LFRMAccountSelect.GetSelected);
   finally
     LFRMAccountSelect.Free;
   end;
 end;
 
+procedure TWIZEnlistAccountForSale_EnterSeller.edtBeneficiaryAccChange(Sender: TObject);
+begin
+  UpdateUI();
+end;
 
 procedure TWIZEnlistAccountForSale_EnterSeller.OnNext;
 var
   LAccountNumber: cardinal;
   LAccount: TAccount;
 begin
-  TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAcc.Text, LAccountNumber);
+  TAccountComp.AccountTxtNumberToAccountNumber(edtBeneficiaryAcc.Text, LAccountNumber);
   Model.SendPASC.DestinationAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
 end;
 
@@ -127,9 +126,9 @@ var
 begin
   Result := True;
 
-  if not (TAccountComp.AccountTxtNumberToAccountNumber(edtSellerAcc.Text, LAccountNumber)) then
+  if not (TAccountComp.AccountTxtNumberToAccountNumber(edtBeneficiaryAcc.Text, LAccountNumber)) then
   begin
-    message := Format('Invalid Seller Account "%s"', [edtSellerAcc.Text]);
+    message := Format('Invalid Seller Account "%s"', [edtBeneficiaryAcc.Text]);
     Result := False;
     Exit;
   end;
