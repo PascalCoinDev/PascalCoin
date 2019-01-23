@@ -155,20 +155,18 @@ begin
 end;
 
 class function TSettings.GetAllowDownloadNewCheckpointIfOlderThan: Boolean;
-  static;
 begin
   CheckLoaded;
   Result := FAppParams.ParamByName[CT_PARAM_AllowDownloadNewCheckpointIfOlderThan].GetAsBoolean(False);
 end;
 
 class function TSettings.GetMinFutureBlocksToDownloadNewSafebox: Integer;
-  static;
 begin
   CheckLoaded;
   Result := FAppParams.ParamByName[CT_PARAM_MinFutureBlocksToDownloadNewSafebox].GetAsInteger(0);
 end;
 
-class procedure TSettings.SetAllowDownloadNewCheckpointIfOlderThan(ABool: Boolean); static;
+class procedure TSettings.SetAllowDownloadNewCheckpointIfOlderThan(ABool: Boolean);
 begin
   CheckLoaded;
   FAppParams.ParamByName[CT_PARAM_AllowDownloadNewCheckpointIfOlderThan].SetAsBoolean(ABool);
@@ -186,7 +184,7 @@ begin
   Result := FAppParams.ParamByName[CT_PARAM_JSONRPCEnabled].GetAsBoolean(false);
 end;
 
-class procedure TSettings.SetMinFutureBlocksToDownloadNewSafebox(AInt: Integer); static;
+class procedure TSettings.SetMinFutureBlocksToDownloadNewSafebox(AInt: Integer);
 begin
   CheckLoaded;
   FAppParams.ParamByName[CT_PARAM_MinFutureBlocksToDownloadNewSafebox].SetAsInteger(AInt);
