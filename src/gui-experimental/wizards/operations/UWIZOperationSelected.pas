@@ -37,6 +37,7 @@ type
     FSelectedAccountsGrid: TVisualGrid;
   public
     procedure OnPresent; override;
+    procedure OnNext; override;
     function Validate(out message: ansistring): boolean; override;
   end;
 
@@ -48,6 +49,7 @@ implementation
 
 uses
   UCommon,
+  USettings,
   UAccounts,
   UCommon.UI,
   UCoreUtils,
@@ -125,6 +127,14 @@ begin
     Format('%s PASC', [TAccountComp.FormatMoney(LTotalBalance)]);
 end;
 
+procedure TWIZOperationSelected.OnNext;
+var
+  LAllUserAccountsExcludingPending: TArray<TAccount>;
+begin
+  LAllUserAccountsExcludingPending := TCoreTool.GetUserAccounts(False);
+  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), IIF(TSettings.DefaultFee = 0, 1, TSettings.DefaultFee), LAllUserAccountsExcludingPending);
+end;
+
 function TWIZOperationSelected.Validate(out message: ansistring): boolean;
 var
   LIdx: integer;
@@ -133,6 +143,16 @@ begin
   Result := True;
 
   case Model.ExecuteOperationType of
+
+    omtSendPasc:
+    begin
+        if not (TCoreTool.AreAccountBalancesGreaterThan(Model.Account.SelectedAccounts, 0, LAccount)) then
+        begin
+          message := Format('Account %s has zero balance so it cannot be part of a send operation.', [LAccount.AccountString]);
+          Exit(False);
+        end;
+    end;
+
     omtEnlistAccountForSale:
       for LIdx := Low(model.Account.SelectedAccounts) to High(model.Account.SelectedAccounts) do
       begin
@@ -156,15 +176,6 @@ begin
           Exit;
         end;
       end;
-  end;
-
-  // get signer accounts from selected accounts
-  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Model.Fee.SingleOperationFee, Model.Account.SelectedAccounts);
-
-  if Length(Model.Signer.SignerCandidates) < 1 then
-  begin
-    Result := False;
-    message := 'No Valid Signer Account Was Found.';
   end;
 
 end;

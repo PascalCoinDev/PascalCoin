@@ -39,6 +39,7 @@ type
     procedure UpdateUI();
 
 
+
   public
     procedure OnPresent; override;
     procedure OnNext; override;
@@ -88,12 +89,9 @@ begin
     Model.Fee.SingleOperationFee := TSettings.DefaultFee;
     if Model.Payload.HasPayload then
       UpdatePath(ptInject, [TWIZOperationPayload_Encryption])
-    else if Length(Model.Account.SelectedAccounts) > 1 then
-      UpdatePath(ptInject, [TWIZOperationSigner_Select])
     else
     begin
-      Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];
-      Model.Signer.OperationSigningMode := akaPrimary;
+      UpdatePath(ptInject, [TWIZOperationSigner_Select]);
     end;
   end;
 

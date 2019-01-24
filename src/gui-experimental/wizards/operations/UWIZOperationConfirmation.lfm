@@ -6,6 +6,7 @@ object WIZOperationConfirmation: TWIZOperationConfirmation
   Caption = 'WIZOperationConfirmation'
   ClientHeight = 320
   ClientWidth = 511
+  LCLVersion = '1.8.2.0'
   Visible = False
   object gpConfirmOperation: TGroupBox
     Left = 10
@@ -26,24 +27,6 @@ object WIZOperationConfirmation: TWIZOperationConfirmation
       BevelOuter = bvNone
       Caption = 'GRID PANEL'
       TabOrder = 0
-    end
-    object lblSignerAccount: TLabel
-      Left = 8
-      Height = 15
-      Top = 2
-      Width = 88
-      Caption = 'Signer Account:'
-      Font.Style = [fsBold]
-      ParentColor = False
-      ParentFont = False
-    end
-    object lblSgnAcc: TLabel
-      Left = 112
-      Height = 15
-      Top = 2
-      Width = 53
-      Caption = 'lblSgnAcc'
-      ParentColor = False
     end
     object mmoPayload: TMemo
       Left = 8
@@ -67,7 +50,7 @@ object WIZOperationConfirmation: TWIZOperationConfirmation
       ParentFont = False
     end
     object lblBeneficiaryAccount: TLabel
-      Left = 280
+      Left = 8
       Height = 15
       Top = 2
       Width = 115
@@ -77,7 +60,7 @@ object WIZOperationConfirmation: TWIZOperationConfirmation
       ParentFont = False
     end
     object lblBenAcc: TLabel
-      Left = 408
+      Left = 130
       Height = 15
       Top = 2
       Width = 53

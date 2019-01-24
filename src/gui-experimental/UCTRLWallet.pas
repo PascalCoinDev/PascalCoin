@@ -40,6 +40,7 @@ type
     Label2: TLabel;
     lblTotalPASA: TLabel;
     lblTotalPASC: TLabel;
+    miChangeAccountInfo: TMenuItem;
     miCopyOphash: TMenuItem;
     miOperationInfo: TMenuItem;
     miSendPASC: TMenuItem;
@@ -63,6 +64,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormResize(Sender: TObject);
+    procedure miChangeAccountInfoClick(Sender: TObject);
     procedure miAccountInfoClick(Sender: TObject);
     procedure miChangeKeyClick(Sender: TObject);
     procedure miCopyOphashClick(Sender: TObject);
@@ -520,7 +522,7 @@ begin
   RefreshMyAccountsCombo;
 end;
 
-procedure TCTRLWallet.OnUserKeyActivityDetected;
+procedure TCTRLWallet.OnUserKeyActivityDetected(Sender: TObject);
 begin
   // This handler is called every time a block is downloaded. If we refreshed GUI here it would
   // result in severe back-end blocking and slow-down, as the GUI refreshed on every block during
@@ -619,6 +621,7 @@ begin
   miChangeKey.Caption := IIF(ASelection.RowCount = 1, 'Change Key', 'Change All Key');
   miEnlistAccountsForSale.Caption := IIF(ASelection.RowCount = 1, 'Enlist Account For Sale', 'Enlist All Account For Sale');
   miDelistAccountsFromSale.Caption := IIF(ASelection.RowCount = 1, 'Delist Account From Sale', 'Delist All Account From Sale');
+  miChangeAccountInfo.Caption := IIF(ASelection.RowCount = 1, 'Change Account Information', 'Change Accounts Information');
   if ASelection.RowCount = 1 then begin
     if not TAccountComp.AccountTxtNumberToAccountNumber(FAccountsGrid.Rows[ASelection.Row].Account, accNo) then
       raise Exception.Create('Error Parsing Account Number From Grid');
@@ -653,6 +656,11 @@ end;
 procedure TCTRLWallet.miDelistAccountsFromSaleClick(Sender: TObject);
 begin
   TUserInterface.ShowDelistAccountsDialog(SelectedAccounts);
+end;
+
+procedure TCTRLWallet.miChangeAccountInfoClick(Sender: TObject);
+begin
+  TUserInterface.ShowChangeAccountInfoDialog(SelectedAccounts);
 end;
 
 procedure TCTRLWallet.OnPrepareOperationsPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);

@@ -60,13 +60,26 @@ end;
 procedure TWIZOperationPayload_Content.OnNext;
 begin
   Model.Payload.Content := mmoPayload.Lines.Text;
-  if Length(Model.Account.SelectedAccounts) > 1 then
-    UpdatePath(ptInject, [TWIZOperationSigner_Select])
-  else
-  begin
-    Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];
-    Model.Signer.OperationSigningMode := akaPrimary;
+
+  case Model.ExecuteOperationType of
+    omtSendPasc:
+    begin
+      // do nothing
+    end;
+
+    omtChangeInfo:
+    begin
+      if Length(Model.Account.SelectedAccounts) = 1 then
+      begin
+        UpdatePath(ptInject, [TWIZOperationSigner_Select]);
+      end;
+    end
+    else
+    begin
+      UpdatePath(ptInject, [TWIZOperationSigner_Select]);
+    end;
   end;
+
 end;
 
 function TWIZOperationPayload_Content.Validate(out message: ansistring): boolean;

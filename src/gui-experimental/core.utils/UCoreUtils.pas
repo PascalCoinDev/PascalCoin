@@ -71,6 +71,7 @@ type
     class function GetUserAccounts(IncludePending: boolean = False): TArray<TAccount>; overload;
     class function GetUserAccounts(out Balance: TBalanceSummary; IncludePending: boolean = False): TArray<TAccount>; overload;
     class function GetUserAccountNumbers: TArray<cardinal>;
+    class function AreAccountBalancesGreaterThan(const ACandidates: array of TAccount; AAmount: int64; var AFaultyAccount: TAccount): boolean; static;
   end;
 
   { TNodeHelper }
@@ -117,10 +118,11 @@ type
     class function SendPASCFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalAmount, ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
     class function OthersFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
   public
-    class function ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TSendPASCMode; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
+    class function ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TSendPASCMode; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
     class function ExecuteChangeKey(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; APublicKey: TAccountKey; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
     class function ExecuteEnlistAccountForSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount, ASellerAccount: TAccount; const APublicKey: TAccountKey; AFee, ASalePrice: int64; ALockedUntilBlock: UInt32; const AAccountSaleMode: TAccountSaleMode; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
     class function ExecuteDelistAccountFromSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
+    class function ExecuteChangeAccountInfo(const ASelectedAccounts, ASignerAccounts: TArray<TAccount>; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; const ANewName: string; const ANewType: word; var AErrorMessage: string): boolean; static;
   end;
 
 
@@ -273,6 +275,23 @@ begin
       LAccs.Add(LList.Get(j));
   end;
   Result := LAccs.ToArray;
+end;
+
+class function TCoreTool.AreAccountBalancesGreaterThan(const ACandidates: array of TAccount; AAmount: int64; var AFaultyAccount: TAccount): boolean;
+var
+  LIdx: integer;
+  LAcc: TAccount;
+begin
+  Result := True;
+  for LIdx := Low(ACandidates) to High(ACandidates) do
+  begin
+    LAcc := ACandidates[LIdx];
+    if not (LAcc.Balance > AAmount) then
+    begin
+      AFaultyAccount := LAcc;
+      Exit(False);
+    end;
+  end;
 end;
 
 
@@ -871,7 +890,7 @@ begin
     Result := False;
 end;
 
-class function TWIZOperationsHelper.ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount, ASignerAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TSendPASCMode; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+class function TWIZOperationsHelper.ExecuteSendPASC(const ASelectedAccounts: TArray<TAccount>; const ADestinationAccount: TAccount; AAmount, AFee: int64; const ASendPASCMode: TSendPASCMode; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
 var
   LWalletKey: TWalletKey;
   LWalletKeys: TWalletKeys;
@@ -904,8 +923,8 @@ begin
       LPCOperation := nil; // reset LPCOperation to Nil
       LCurrentAccount := ASelectedAccounts[LAccountIdx];
 
-    if not TWIZOperationsHelper.IsOwnerOfWallet(LCurrentAccount, LWalletKeys, LWalletKey, AErrorMessage) then
-       Exit(False);
+      if not TWIZOperationsHelper.IsOwnerOfWallet(LCurrentAccount, LWalletKeys, LWalletKey, AErrorMessage) then
+        Exit(False);
 
       if LCurrentAccount.account = ADestinationAccount.account then
       begin
@@ -921,28 +940,30 @@ begin
 
       LDoOperation := True;
 
-      if LCurrentAccount.balance > 0 then
-        case ASendPASCMode of
-          akaAllBalance:
+      case ASendPASCMode of
+        akaAllBalance:
+          if LCurrentAccount.balance > 0 then
           begin
-            LAmount := LCurrentAccount.balance - AFee;
-            LFee := AFee;
-          end;
-
-          akaSpecifiedAmount:
-            if LCurrentAccount.balance >= UInt64(AAmount + AFee) then
+            if LCurrentAccount.balance > AFee then
             begin
-              LAmount := AAmount;
+              LAmount := LCurrentAccount.balance - AFee;
               LFee := AFee;
             end
             else
             begin
-              AErrorMessage := Format('Insufficient Funds In "%s". %s < (%s + %s = %s)', [LCurrentAccount.AccountString, TAccountComp.FormatMoney(LCurrentAccount.balance), TAccountComp.FormatMoney(AAmount), TAccountComp.FormatMoney(AFee), TAccountComp.FormatMoney(AAmount + AFee)]);
-              Exit(False);
+              LAmount := LCurrentAccount.balance;
+              LFee := 0;
             end;
-        end
-      else
-        LDoOperation := False;
+          end
+          else
+            LDoOperation := False;
+
+        akaSpecifiedAmount:
+          if LCurrentAccount.balance > UInt64(AFee) then
+            LFee := AFee
+          else
+            LFee := LCurrentAccount.balance;
+      end;
 
       if LDoOperation then
       begin
@@ -1003,6 +1024,7 @@ begin
 
   LWalletKeys := TWallet.Keys;
   LNode := TNode.Node;
+  LSignerAccount := ASignerAccount;
 
   if not TWIZOperationsHelper.ValidateOperationsInput(ASelectedAccounts, LWalletKeys, LNode, AErrorMessage) then
     Exit(False);
@@ -1017,11 +1039,11 @@ begin
     for LAccountIdx := Low(ASelectedAccounts) to High(ASelectedAccounts) do
     begin
       loop_start:
-      LPCOperation := nil; // reset LPCOperation to Nil
+        LPCOperation := nil; // reset LPCOperation to Nil
       LCurrentAccount := ASelectedAccounts[LAccountIdx];
 
-    if not TWIZOperationsHelper.IsOwnerOfWallet(LCurrentAccount, LWalletKeys, LWalletKey, AErrorMessage) then
-       Exit(False);
+      if not TWIZOperationsHelper.IsOwnerOfWallet(LCurrentAccount, LWalletKeys, LWalletKey, AErrorMessage) then
+        Exit(False);
 
       if (TAccountComp.EqualAccountKeys(LCurrentAccount.accountInfo.accountKey,
         APublicKey)) then
@@ -1070,7 +1092,7 @@ begin
         // Maintain correct signer fee distribution
         if UInt64(LTotalSignerFee) >= LSignerAccount.balance then
           LFee := 0
-        else if LSignerAccount.balance - uint64(LTotalSignerFee) >
+        else if LSignerAccount.balance - UInt64(LTotalSignerFee) >
           UInt64(AFee) then
           LFee := AFee
         else
@@ -1134,6 +1156,7 @@ begin
 
   LWalletKeys := TWallet.Keys;
   LNode := TNode.Node;
+  LSignerAccount := ASignerAccount;
 
   if not TWIZOperationsHelper.ValidateOperationsInput(ASelectedAccounts, LWalletKeys, LNode, AErrorMessage) then
     Exit(False);
@@ -1151,7 +1174,7 @@ begin
       LCurrentAccount := ASelectedAccounts[LAccountIdx];
 
       if not TWIZOperationsHelper.IsOwnerOfWallet(LCurrentAccount, LWalletKeys, LWalletKey, AErrorMessage) then
-         Exit(False);
+        Exit(False);
 
       if TAccountComp.IsAccountForSale(LCurrentAccount.accountInfo) then
       begin
@@ -1184,33 +1207,33 @@ begin
 
       if (LNode.Bank.SafeBox.CurrentProtocol = CT_PROTOCOL_1) then
       begin
-          AErrorMessage := 'This Operation Needs PROTOCOL 2 Active';
-          Exit(False);
+        AErrorMessage := 'This Operation Needs PROTOCOL 2 Active';
+        Exit(False);
       end;
 
-      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, ASignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
+      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, LSignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
       begin
         AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
         Exit(False);
       end;
 
-      if ASignerAccount.balance > AFee then
+      if LSignerAccount.balance > UInt64(AFee) then
         LFee := AFee
       else
-        LFee := ASignerAccount.balance;
+        LFee := LSignerAccount.balance;
 
       case AAccountSaleMode of
         akaPublicSale:
 
           LPCOperation := TOpListAccountForSale.CreateListAccountForSale(
-            TNode.Node.Bank.Safebox.CurrentProtocol, ASignerAccount.account, ASignerAccount.n_operation + 1 + LAccountIdx,
+            TNode.Node.Bank.Safebox.CurrentProtocol, LSignerAccount.account, LSignerAccount.n_operation + 1 + LAccountIdx,
             LCurrentAccount.account, ASalePrice, LFee, ASellerAccount.account,
             APublicKey, 0, LWalletKey.PrivateKey, LPayloadEncodedBytes);
 
         akaPrivateSale:
 
           LPCOperation := TOpListAccountForSale.CreateListAccountForSale(
-            TNode.Node.Bank.Safebox.CurrentProtocol, ASignerAccount.account, ASignerAccount.n_operation + 1 + LAccountIdx,
+            TNode.Node.Bank.Safebox.CurrentProtocol, LSignerAccount.account, LSignerAccount.n_operation + 1 + LAccountIdx,
             LCurrentAccount.account, ASalePrice, LFee, ASellerAccount.account,
             APublicKey, ALockedUntilBlock, LWalletKey.PrivateKey, LPayloadEncodedBytes)
         else
@@ -1268,6 +1291,7 @@ begin
 
   LWalletKeys := TWallet.Keys;
   LNode := TNode.Node;
+  LSignerAccount := ASignerAccount;
 
   if not TWIZOperationsHelper.ValidateOperationsInput(ASelectedAccounts, LWalletKeys, LNode, AErrorMessage) then
     Exit(False);
@@ -1285,7 +1309,7 @@ begin
       LCurrentAccount := ASelectedAccounts[LAccountIdx];
 
       if not TWIZOperationsHelper.IsOwnerOfWallet(LCurrentAccount, LWalletKeys, LWalletKey, AErrorMessage) then
-         Exit(False);
+        Exit(False);
 
       if not TAccountComp.IsAccountForSale(LCurrentAccount.accountInfo) then
       begin
@@ -1295,41 +1319,41 @@ begin
 
       if (TAccountComp.IsAccountLocked(LCurrentAccount.accountInfo, LNode.Bank.BlocksCount)) then
       begin
-          AErrorMessage := Format('Target Account "%s"  Is Locked Until Block %u', [LCurrentAccount.AccountString, LCurrentAccount.accountInfo.locked_until_block]);
-          Exit(False);
+        AErrorMessage := Format('Target Account "%s"  Is Locked Until Block %u', [LCurrentAccount.AccountString, LCurrentAccount.accountInfo.locked_until_block]);
+        Exit(False);
       end;
 
       if (TAccountComp.IsAccountLocked(LSignerAccount.accountInfo, LNode.Bank.BlocksCount)) then
       begin
-          AErrorMessage := Format('Signer Account "%s"  Is Locked Until Block %u', [LSignerAccount.AccountString, LSignerAccount.accountInfo.locked_until_block]);
-          Exit(False);
+        AErrorMessage := Format('Signer Account "%s"  Is Locked Until Block %u', [LSignerAccount.AccountString, LSignerAccount.accountInfo.locked_until_block]);
+        Exit(False);
       end;
 
       if (not TAccountComp.EqualAccountKeys(LSignerAccount.accountInfo.accountKey, LCurrentAccount.accountInfo.accountKey)) then
       begin
-          AErrorMessage := Format('Signer Account %s Is Not The Owner Of Delisted Account %s', [LSignerAccount.AccountString, LCurrentAccount.AccountString]);
-          Exit(False);
+        AErrorMessage := Format('Signer Account %s Is Not The Owner Of Delisted Account %s', [LSignerAccount.AccountString, LCurrentAccount.AccountString]);
+        Exit(False);
       end;
 
       if (LNode.Bank.SafeBox.CurrentProtocol = CT_PROTOCOL_1) then
       begin
-          AErrorMessage := 'This Operation Needs PROTOCOL 2 Active';
-          Exit(False);
+        AErrorMessage := 'This Operation Needs PROTOCOL 2 Active';
+        Exit(False);
       end;
 
-      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, ASignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
+      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, LSignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
       begin
         AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
         Exit(False);
       end;
 
-      if ASignerAccount.balance > AFee then
+      if LSignerAccount.balance > UInt64(AFee) then
         LFee := AFee
       else
-        LFee := ASignerAccount.balance;
+        LFee := LSignerAccount.balance;
 
       LPCOperation := TOpDelistAccountForSale.CreateDelistAccountForSale(TNode.Node.Bank.Safebox.CurrentProtocol,
-        ASignerAccount.account, ASignerAccount.n_operation + 1 + LAccountIdx, LCurrentAccount.account, LFee, LWalletKey.PrivateKey,
+        LSignerAccount.account, LSignerAccount.n_operation + 1 + LAccountIdx, LCurrentAccount.account, LFee, LWalletKey.PrivateKey,
         LPayloadEncodedBytes);
 
       try
@@ -1366,5 +1390,171 @@ begin
     LOperationsHashTree.Free;
   end;
 end;
+
+class function TWIZOperationsHelper.ExecuteChangeAccountInfo(const ASelectedAccounts, ASignerAccounts: TArray<TAccount>; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; const ANewName: string; const ANewType: word; var AErrorMessage: string): boolean;
+var
+  LWalletKey: TWalletKey;
+  LWalletKeys: TWalletKeys;
+  LNode: TNode;
+  LPCOperation: TPCOperation;
+  LOperationsHashTree: TOperationsHashTree;
+  LTotalSignerFee, LFee: int64;
+  LOperationsTxt, LOperationToString, LTemp, LNewName: string;
+  LAccountIdx, LNoOfOperations, LAccNumberIndex: integer;
+  LCurrentAccount, LSignerAccount: TAccount;
+  LPayloadEncodedBytes: TRawBytes;
+  LChangeType, LChangeName: boolean;
+begin
+
+  LWalletKeys := TWallet.Keys;
+  LNode := TNode.Node;
+  LChangeName := False;
+  LChangeType := False;
+
+  if not TWIZOperationsHelper.ValidateOperationsInput(ASelectedAccounts, LWalletKeys, LNode, AErrorMessage) then
+    Exit(False);
+
+  LOperationsHashTree := TOperationsHashTree.Create;
+  try
+    LTotalSignerFee := 0;
+    LNoOfOperations := 0;
+    LOperationsTxt := '';
+    LOperationToString := '';
+
+    for LAccountIdx := Low(ASelectedAccounts) to High(ASelectedAccounts) do
+    begin
+      LPCOperation := nil; // reset LPCOperation to Nil
+      LCurrentAccount := ASelectedAccounts[LAccountIdx];
+
+      if Length(ASelectedAccounts) = 1 then
+      begin
+        LSignerAccount := ASignerAccounts[0];
+
+        LNewName := LowerCase(Trim(ANewName));
+
+        if LNewName <> LCurrentAccount.Name then
+        begin
+          LChangeName := True;
+          if LNewName <> '' then
+          begin
+            if (not TPCSafeBox.ValidAccountName(LNewName, AErrorMessage)) then
+            begin
+              AErrorMessage := Format('New name "%s" is not a valid name: %s ', [LNewName, AErrorMessage]);
+              Exit(False);
+            end;
+            LAccNumberIndex := (TNode.Node.Bank.SafeBox.FindAccountByName(LNewName));
+            if (LAccNumberIndex >= 0) then
+            begin
+              AErrorMessage := Format('Name "%s" is used by account %s ', [LNewName, TAccountComp.AccountNumberToAccountTxtNumber(LAccNumberIndex)]);
+              Exit(False);
+            end;
+          end;
+        end;
+
+        if (LNewName = LCurrentAccount.Name) and (ANewType = LCurrentAccount.account_type) then
+        begin
+          AErrorMessage := 'New account name and type are same as former.';
+          Exit(False);
+        end;
+
+      end
+      else
+      begin
+        LSignerAccount := LCurrentAccount;
+      end;
+
+      LChangeType := ANewType <> LCurrentAccount.account_type;
+
+      if not TWIZOperationsHelper.IsOwnerOfWallet(LCurrentAccount, LWalletKeys, LWalletKey, AErrorMessage) then
+        Exit(False);
+
+      if (TAccountComp.IsAccountLocked(LCurrentAccount.accountInfo, LNode.Bank.BlocksCount)) then
+      begin
+        AErrorMessage := Format('Target Account "%s" Is Locked Until Block %u', [LCurrentAccount.AccountString, LCurrentAccount.accountInfo.locked_until_block]);
+        Exit(False);
+      end;
+
+      if (TAccountComp.IsAccountLocked(LSignerAccount.accountInfo, LNode.Bank.BlocksCount)) then
+      begin
+        AErrorMessage := Format('Signer Account "%s" Is Locked Until Block %u', [LSignerAccount.AccountString, LSignerAccount.accountInfo.locked_until_block]);
+        Exit(False);
+      end;
+
+      if (not TAccountComp.EqualAccountKeys(LSignerAccount.accountInfo.accountKey, LCurrentAccount.accountInfo.accountKey)) then
+      begin
+        AErrorMessage := Format('Signer Account %s Is Not The Owner Of Target Account %s', [LSignerAccount.AccountString, LCurrentAccount.AccountString]);
+        Exit(False);
+      end;
+
+      if (LNode.Bank.SafeBox.CurrentProtocol = CT_PROTOCOL_1) then
+      begin
+        AErrorMessage := 'This Operation Needs PROTOCOL 2 Active';
+        Exit(False);
+      end;
+
+      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, LSignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
+      begin
+        AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
+        Exit(False);
+      end;
+
+      if LSignerAccount.balance > UInt64(AFee) then
+        LFee := AFee
+      else
+        LFee := LSignerAccount.balance;
+
+
+      LPCOperation := TOpChangeAccountInfo.CreateChangeAccountInfo(TNode.Node.Bank.Safebox.CurrentProtocol,
+        LSignerAccount.account, LSignerAccount.n_operation + 1, LCurrentAccount.account, LWalletKey.PrivateKey, False, CT_TECDSA_Public_Nul,
+        LChangeName, LNewName, LChangeType, ANewType, LFee, LPayloadEncodedBytes);
+
+      try
+        if (LChangeName) and (LChangeType) then
+        begin
+          LTemp := Format('%d. Change Account %s Name and Type from [%s, %d] To [%s, %d] %s', [LNoOfOperations + 1, LCurrentAccount.DisplayString, LCurrentAccount.Name, LCurrentAccount.account_type, LNewName, ANewType, sLineBreak]);
+        end
+        else if LChangeName then
+        begin
+          LTemp := Format('%d. Change Account %s Name from [%s] To [%s] %s', [LNoOfOperations + 1, LCurrentAccount.DisplayString, LCurrentAccount.Name, LNewName, sLineBreak]);
+        end
+        else if LChangeType then
+        begin
+          LTemp := Format('%d. Change Account %s Type from [%d] To [%d] %s', [LNoOfOperations + 1, LCurrentAccount.DisplayString, LCurrentAccount.account_type, ANewType, sLineBreak]);
+        end;
+
+        if LOperationsTxt <> '' then
+          LOperationsTxt := LOperationsTxt + LTemp + sLineBreak
+        else
+          LOperationsTxt := sLineBreak + LTemp;
+
+        if Assigned(LPCOperation) then
+        begin
+          LOperationsHashTree.AddOperationToHashTree(LPCOperation);
+          Inc(LNoOfOperations);
+          Inc(LTotalSignerFee, LFee);
+          if LOperationToString <> '' then
+            LOperationToString := LOperationToString + #10;
+          LOperationToString := LOperationToString + LPCOperation.ToString;
+        end;
+      finally
+        FreeAndNil(LPCOperation);
+      end;
+
+    end;
+
+    if (LOperationsHashTree.OperationsCount = 0) then
+    begin
+      AErrorMessage := 'No Valid Operation to Execute';
+      Exit(False);
+    end;
+
+    Exit(TWIZOperationsHelper.OthersFinalizeAndDisplayMessage(LOperationsTxt, LOperationToString, LNoOfOperations, LTotalSignerFee, LOperationsHashTree, AErrorMessage));
+
+  finally
+    LOperationsHashTree.Free;
+  end;
+end;
+
+
 
 end.

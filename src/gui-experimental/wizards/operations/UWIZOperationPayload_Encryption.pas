@@ -98,7 +98,7 @@ begin
   if (not rbNotEncrypted.Checked) and (not rbEncryptedWithSender.Checked) and
     (not rbEncryptedWithRecipient.Checked) and (not rbEncryptedWithPassword.Checked) then
   begin
-    message := 'You Must Select An Encryption Option For Payload';
+    message := 'You must select an encryption option for payload';
     Result := False;
     Exit;
   end;
@@ -106,9 +106,11 @@ begin
   case Model.ExecuteOperationType of
     omtChangeInfo:
     begin
-      message := 'This operation does not support this type of payload encryption';
-      Result := False;
-      Exit;
+      if rbEncryptedWithRecipient.Checked then
+      begin
+        message := 'This operation does not support this type of payload encryption';
+        Exit(False);
+      end;
     end;
   end;
 end;

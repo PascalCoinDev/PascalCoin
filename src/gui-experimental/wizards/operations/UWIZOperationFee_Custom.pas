@@ -40,10 +40,10 @@ type
     procedure fseFeeChange(Sender: TObject);
   private
     procedure UpdateUI();
-    procedure SetFee(const AValue : int64);
-    function GetFee : Int64;
+    procedure SetFee(const AValue: int64);
+    function GetFee: int64;
   public
-    property Fee : Int64 read GetFee write SetFee;
+    property Fee: int64 read GetFee write SetFee;
     procedure Initialize; override;
     procedure OnPresent; override;
     procedure OnNext; override;
@@ -77,50 +77,70 @@ begin
 end;
 
 procedure TWIZOperationFee_Custom.OnNext;
+var
+  LAllUserAccountsExcludingPending: TArray<TAccount>;
 begin
-  if cbOverrideDefaultFee.Checked then begin
+  if cbOverrideDefaultFee.Checked then
+  begin
     TSettings.DefaultFee := Fee;
     TSettings.Save;
   end;
-
-  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Fee, Model.Account.SelectedAccounts);
+  LAllUserAccountsExcludingPending := TCoreTool.GetUserAccounts(False);
+  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Fee, LAllUserAccountsExcludingPending);
   Model.Fee.SingleOperationFee := Fee;
 
   // TODO: move this out -- inappropriate to have payload/signer considerations here
+
   if Model.Payload.HasPayload then
-    UpdatePath(ptInject, [TWIZOperationPayload_Encryption])
-  else if Length(Model.Account.SelectedAccounts) > 1 then
-    UpdatePath(ptInject, [TWIZOperationSigner_Select])
+  begin
+    UpdatePath(ptInject, [TWIZOperationPayload_Encryption]);
+  end
   else
   begin
-    Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];
-    Model.Signer.OperationSigningMode := akaPrimary;
+    case Model.ExecuteOperationType of
+      omtSendPasc:
+      begin
+        // do nothing
+      end;
+
+      omtChangeInfo:
+      begin
+        if Length(Model.Account.SelectedAccounts) = 1 then
+        begin
+          UpdatePath(ptInject, [TWIZOperationSigner_Select]);
+        end;
+      end
+      else
+      begin
+        UpdatePath(ptInject, [TWIZOperationSigner_Select]);
+      end;
+    end;
+
   end;
+
 end;
 
 function TWIZOperationFee_Custom.Validate(out message: ansistring): boolean;
+var
+  LAcc: TAccount;
 begin
   Result := True;
-  if (Length(Model.Account.SelectedAccounts) > 1) AND (Fee = 0) then begin
+  if (Length(Model.Account.SelectedAccounts) > 1) and (Fee = 0) then
+  begin
     message := 'Zero fees only allowed for a single operation.';
-    Exit(false);
-  end;
-
-  if Length(TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Fee, Model.Account.SelectedAccounts)) = 0 then begin
-    message := 'Insufficient funds in selected account(s) to cover the total fee.';
-    Exit(false);
+    Exit(False);
   end;
 end;
 
-procedure TWIZOperationFee_Custom.SetFee(const AValue : int64);
+procedure TWIZOperationFee_Custom.SetFee(const AValue: int64);
 begin
   fseFee.Value := TAccountComp.FormatMoneyDecimal(AValue);
 end;
 
-function TWIZOperationFee_Custom.GetFee : Int64;
+function TWIZOperationFee_Custom.GetFee: int64;
 begin
-  if NOT TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)), Result) then
-    raise Exception.Create('Illegal value in fee selector');
+  if not TAccountComp.TxtToMoney(Trim(fseFee.ValueToStr(fseFee.Value)), Result) then
+    raise Exception.Create('Invalid value in fee selector');
 end;
 
 procedure TWIZOperationFee_Custom.UpdateUI();
