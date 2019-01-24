@@ -460,8 +460,8 @@ end;
 
 class procedure TUserInterface.OnSubFormDestroyed(Sender: TObject);
 begin
+  FUILock.Acquire;
   try
-    FUILock.Acquire;
     if Sender = FAccountExplorer then
       FAccountExplorer := nil // form free's on close
     else if Sender = FPendingOperationForm then
@@ -962,8 +962,8 @@ end;
 
 class procedure TUserInterface.ShowAccountExplorer;
 begin
+  FUILock.Acquire;
   try
-    FUILock.Acquire;
     if not Assigned(FAccountExplorer) then begin
        FAccountExplorer := TFRMAccountExplorer.Create(FMainForm);
        FAccountExplorer.CloseAction:= caFree;
@@ -978,8 +978,8 @@ end;
 
 class procedure TUserInterface.ShowBlockExplorer;
 begin
+  FUILock.Acquire;
   try
-    FUILock.Acquire;
     if not Assigned(FBlockExplorerForm) then begin
        FBlockExplorerForm := TFRMBlockExplorer.Create(FMainForm);
        FBlockExplorerForm.CloseAction:= caFree;
@@ -993,8 +993,8 @@ end;
 
 class procedure TUserInterface.ShowOperationsExplorer;
 begin
+  FUILock.Acquire;
   try
-    FUILock.Acquire;
     if not Assigned(FOperationsExplorerForm) then begin
       FOperationsExplorerForm := TFRMOperationExplorer.Create(FMainForm);
       FOperationsExplorerForm.CloseAction:= caFree;
@@ -1008,8 +1008,8 @@ end;
 
 class procedure TUserInterface.ShowPendingOperations;
 begin
+  FUILock.Acquire;
   try
-    FUILock.Acquire;
     if not Assigned(FPendingOperationForm) then begin
       FPendingOperationForm := TFRMPendingOperations.Create(FMainForm);
       FPendingOperationForm.CloseAction:= caFree;
@@ -1023,8 +1023,8 @@ end;
 
 class procedure TUserInterface.ShowMessagesForm;
 begin
+  FUILock.Acquire;
   try
-    FUILock.Acquire;
     if not Assigned(FMessagesForm) then begin
        FMessagesForm := TFRMMessages.Create(FMainForm);
        FMessagesForm.CloseAction:= caFree;
@@ -1038,8 +1038,8 @@ end;
 
 class procedure TUserInterface.ShowNodesForm;
 begin
+  FUILock.Acquire;
   try
-    FUILock.Acquire;
     if not Assigned(FNodesForm) then begin
        FNodesForm := TFRMNodes.Create(FMainForm);
        FNodesForm.CloseAction:= caFree;
@@ -1053,8 +1053,8 @@ end;
 
 class procedure TUserInterface.ShowLogsForm;
 begin
+  FUILock.Acquire;
   try
-    FUILock.Acquire;
     if not Assigned(FLogsForm) then begin
        FLogsForm := TFRMLogs.Create(FMainForm);
        FLogsForm.CloseAction:= caFree;
