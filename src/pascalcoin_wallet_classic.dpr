@@ -68,6 +68,5 @@ begin
   {$IFDEF WINDOWS}Application.MainFormOnTaskbar := True;{$ENDIF}
   Application.Title := 'Pascal Coin Wallet, Miner & Explorer';
   Application.CreateForm(TFRMWallet, FRMWallet);
-  Application.CreateForm(TFRMWallet, FRMWallet);
   Application.Run;
 end.
