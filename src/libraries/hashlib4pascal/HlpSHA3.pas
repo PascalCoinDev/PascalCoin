@@ -160,13 +160,13 @@ type
   TShake = class abstract(TSHA3, IXOF)
   strict private
   var
-    FXOFSize: THashSize;
-    function GetXOFSize: THashSize; inline;
-    procedure SetXOFSize(a_xof_size: THashSize); inline;
+    FXOFSize: Int32;
+    function GetXOFSize: Int32; inline;
+    procedure SetXOFSize(a_xof_size_in_bits: Int32); inline;
   strict protected
     constructor Create(a_hash_size: THashSize);
-    function SetXOFOutputSize(a_xof_size: THashSize): IXOF;
-    property XOFSize: THashSize read GetXOFSize write SetXOFSize;
+    function SetXOFOutputSize(a_xof_size_in_bits: Int32): IXOF;
+    property XOFSize: Int32 read GetXOFSize write SetXOFSize;
 
   public
     function GetResult(): THashLibByteArray; override;
@@ -237,7 +237,7 @@ begin
       Result := Self.ClassName;
     TSHA3.THashMode.hmShake:
       Result := Format('%s_%s_%u', [Self.ClassName, 'XOFSizeInBits',
-        Int32((Self as IXOF).XOFSize) * 8]);
+        (Self as IXOF).XOFSize]);
   else
     begin
       raise EArgumentInvalidHashLibException.CreateResFmt(@SInvalidHashMode,
@@ -3155,7 +3155,7 @@ begin
   buffer_pos := Fm_buffer.Pos;
   block := Fm_buffer.GetBytesZeroPadded();
 
-  LXofSize := Int32(FXOFSize);
+  LXofSize := FXOFSize shr 3;
   Idx := 0;
 
   while Idx < LXofSize do
@@ -3175,7 +3175,7 @@ begin
 
 end;
 
-function TShake.GetXOFSize: THashSize;
+function TShake.GetXOFSize: Int32;
 begin
   Result := FXOFSize;
 end;
@@ -3190,25 +3190,25 @@ begin
 {$ENDIF DEBUG}
   tempresult := GetResult();
 {$IFDEF DEBUG}
-  System.Assert(System.Length(tempresult) = Int32(XOFSize));
+  System.Assert(System.Length(tempresult) = (XOFSize shr 3));
 {$ENDIF DEBUG}
   Initialize();
   Result := THashResult.Create(tempresult);
 end;
 
-function TShake.SetXOFOutputSize(a_xof_size: THashSize): IXOF;
+function TShake.SetXOFOutputSize(a_xof_size_in_bits: Int32): IXOF;
 begin
-  If ((Int32(a_xof_size) * 8) and $7) <> 0 then
+  If (a_xof_size_in_bits and $7) <> 0 then
   begin
     raise EArgumentInvalidHashLibException.CreateRes(@SInvalidXOFSize);
   end;
-  FXOFSize := a_xof_size;
+  FXOFSize := a_xof_size_in_bits;
   Result := Self;
 end;
 
-procedure TShake.SetXOFSize(a_xof_size: THashSize);
+procedure TShake.SetXOFSize(a_xof_size_in_bits: Int32);
 begin
-  SetXOFOutputSize(a_xof_size);
+  SetXOFOutputSize(a_xof_size_in_bits);
 end;
 
 { TShake_128 }

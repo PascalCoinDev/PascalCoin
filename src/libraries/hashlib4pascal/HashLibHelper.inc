@@ -1,6 +1,6 @@
 { *********************************************************************************** }
 { *                                 HashLib Library                                 * }
-{ *                  Copyright (c) 2016 - 2018 Ugochukwu Mmaduekwe                  * }
+{ *                  Copyright (c) 2016 - 2019 Ugochukwu Mmaduekwe                  * }
 { *                 Github Repository <https://github.com/Xor-el>                   * }
 
 { *  Distributed under the MIT software license, see the accompanying file LICENSE  * }
