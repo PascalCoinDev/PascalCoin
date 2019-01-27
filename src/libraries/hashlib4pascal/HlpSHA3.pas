@@ -27,7 +27,7 @@ uses
 
 resourcestring
   SInvalidHashMode = 'Only "[%s]" HashModes are Supported';
-  SInvalidXOFSize = 'XOFSize in Bits must be Divisible by 8.';
+  SInvalidXOFSize = 'XOFSize in Bits must not be Negative and be Divisible by 8.';
 
 type
   TSHA3 = class abstract(TBlockHash, ICryptoNotBuildIn, ITransformBlock)
@@ -3198,7 +3198,7 @@ end;
 
 function TShake.SetXOFOutputSize(a_xof_size_in_bits: Int32): IXOF;
 begin
-  If (a_xof_size_in_bits and $7) <> 0 then
+  If (a_xof_size_in_bits < 0) or ((a_xof_size_in_bits and $7) <> 0) then
   begin
     raise EArgumentInvalidHashLibException.CreateRes(@SInvalidXOFSize);
   end;
