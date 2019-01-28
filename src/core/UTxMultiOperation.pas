@@ -117,9 +117,9 @@ Type
   public
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
 
-    function CheckSignatures(AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean;
+    function CheckSignatures(AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean;
 
-    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
+    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
     procedure AffectedAccounts(list : TList); override;
     //
     Function DoSignMultiOperationSigner(current_protocol : Word; SignerAccount : Cardinal; key : TECPrivateKey) : Integer;
@@ -469,7 +469,7 @@ begin
   end;
 end;
 
-function TOpMultiOperation.CheckSignatures(AccountTransaction: TPCSafeBoxTransaction; var errors: AnsiString): Boolean;
+function TOpMultiOperation.CheckSignatures(AccountTransaction: TPCSafeBoxTransaction; var errors: String): Boolean;
 var i : Integer;
   acc : TAccount;
   ophtosign : TRawBytes;
@@ -528,7 +528,7 @@ begin
   end;
 end;
 
-function TOpMultiOperation.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction: TPCSafeBoxTransaction; var errors: AnsiString): Boolean;
+function TOpMultiOperation.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction: TPCSafeBoxTransaction; var errors: String): Boolean;
 var i,j : Integer;
   txs : TMultiOpSender;
   txr : TMultiOpReceiver;

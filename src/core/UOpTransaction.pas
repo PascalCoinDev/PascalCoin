@@ -79,7 +79,7 @@ Type
     procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
   public
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
-    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
+    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
     procedure AffectedAccounts(list : TList); override;
     //
     class function OpType : Byte; override;
@@ -112,7 +112,7 @@ Type
     class function OpType : Byte; override;
 
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
-    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
+    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
     function OperationAmount : Int64; override;
     function OperationFee : Int64; override;
     function OperationPayload : TRawBytes; override;
@@ -149,7 +149,7 @@ Type
     class function OpType : Byte; override;
 
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
-    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
+    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
     function OperationAmount : Int64; override;
     function OperationFee : Int64; override;
     function OperationPayload : TRawBytes; override;
@@ -217,7 +217,7 @@ Type
     Function IsDelist : Boolean; virtual; abstract;
 
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
-    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
+    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
     function OperationAmount : Int64; override;
     function OperationFee : Int64; override;
     function OperationPayload : TRawBytes; override;
@@ -270,7 +270,7 @@ Type
     class function OpType : Byte; override;
 
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
-    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
+    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
     function OperationAmount : Int64; override;
     function OperationFee : Int64; override;
     function OperationPayload : TRawBytes; override;
@@ -318,7 +318,7 @@ Type
     class function OpType : Byte; override;
 
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
-    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean; override;
+    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
     function OperationAmount : Int64; override;
     function OperationFee : Int64; override;
     function OperationPayload : TRawBytes; override;
@@ -452,7 +452,7 @@ begin
   Result:=inherited GetBufferForOpHash(True);
 end;
 
-function TOpChangeAccountInfo.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean;
+function TOpChangeAccountInfo.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean;
 Var account_signer, account_target : TAccount;
 begin
   Result := false;
@@ -734,7 +734,7 @@ begin
   end;
 end;
 
-function TOpTransaction.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean;
+function TOpTransaction.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean;
 Var s_new, t_new : Int64;
   totalamount : Cardinal;
   sender,target,seller : TAccount;
@@ -1192,7 +1192,7 @@ begin
   end;
 end;
 
-function TOpChangeKey.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean;
+function TOpChangeKey.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean;
 Var account_signer, account_target : TAccount;
 begin
   Result := false;
@@ -1503,7 +1503,7 @@ begin
   FHasValidSignature := true; // Recover founds doesn't need a signature
 end;
 
-function TOpRecoverFounds.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean;
+function TOpRecoverFounds.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean;
 Var acc : TAccount;
 begin
   Result := false;
@@ -1653,7 +1653,7 @@ begin
   else Result := 0;
 end;
 
-function TOpListAccount.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : AnsiString) : Boolean;
+function TOpListAccount.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean;
 Var account_signer, account_target : TAccount;
 begin
   Result := false;
@@ -2216,7 +2216,7 @@ end;
 
 function TOpData.DoOperation(
   AccountPreviousUpdatedBlock: TAccountPreviousBlockInfo;
-  AccountTransaction: TPCSafeBoxTransaction; var errors: AnsiString): Boolean;
+  AccountTransaction: TPCSafeBoxTransaction; var errors: String): Boolean;
 Var account_signer, account_sender, account_target : TAccount;
 begin
   Result := false;

@@ -80,10 +80,10 @@ Type
     //
     Property Operations : TPCOperationsComp read FOperations;
     //
-    Function AddNewBlockChain(SenderConnection : TNetConnection; NewBlockOperations: TPCOperationsComp; var newBlockAccount: TBlockAccount; var errors: AnsiString): Boolean;
-    Function AddOperations(SenderConnection : TNetConnection; OperationsHashTree : TOperationsHashTree; OperationsResult : TOperationsResumeList; var errors: AnsiString): Integer;
-    Function AddOperation(SenderConnection : TNetConnection; Operation : TPCOperation; var errors: AnsiString): Boolean;
-    Function SendNodeMessage(Target : TNetConnection; TheMessage : AnsiString; var errors : AnsiString) : Boolean;
+    Function AddNewBlockChain(SenderConnection : TNetConnection; NewBlockOperations: TPCOperationsComp; var newBlockAccount: TBlockAccount; var errors: String): Boolean;
+    Function AddOperations(SenderConnection : TNetConnection; OperationsHashTree : TOperationsHashTree; OperationsResult : TOperationsResumeList; var errors: String): Integer;
+    Function AddOperation(SenderConnection : TNetConnection; Operation : TPCOperation; var errors: String): Boolean;
+    Function SendNodeMessage(Target : TNetConnection; TheMessage : AnsiString; var errors : String) : Boolean;
     //
     Procedure NotifyBlocksChanged;
     //
@@ -96,7 +96,7 @@ Type
     Procedure InitSafeboxAndOperations(max_block_to_read : Cardinal = $FFFFFFFF; restoreProgressNotify : TProgressNotify = Nil);
     Procedure AutoDiscoverNodes(Const ips : AnsiString);
     Function IsBlockChainValid(var WhyNot : AnsiString) : Boolean;
-    Function IsReady(Var CurrentProcess : AnsiString) : Boolean;
+    Function IsReady(Var CurrentProcess : String) : Boolean;
     Property PeerCache : AnsiString read FPeerCache write FPeerCache;
     Procedure DisableNewBlocks;
     Procedure EnableNewBlocks;
@@ -198,7 +198,7 @@ var _Node : TNode;
 { TNode }
 
 function TNode.AddNewBlockChain(SenderConnection: TNetConnection; NewBlockOperations: TPCOperationsComp;
-  var newBlockAccount: TBlockAccount; var errors: AnsiString): Boolean;
+  var newBlockAccount: TBlockAccount; var errors: String): Boolean;
 Var i,j,maxResend : Integer;
   nc : TNetConnection;
   s,sClientRemoteAddr : String;
@@ -340,7 +340,7 @@ begin
   end;
 end;
 
-function TNode.AddOperation(SenderConnection : TNetConnection; Operation: TPCOperation; var errors: AnsiString): Boolean;
+function TNode.AddOperation(SenderConnection : TNetConnection; Operation: TPCOperation; var errors: String): Boolean;
 var ops : TOperationsHashTree;
 begin
   ops := TOperationsHashTree.Create;
@@ -352,7 +352,7 @@ begin
   End;
 end;
 
-function TNode.AddOperations(SenderConnection : TNetConnection; OperationsHashTree : TOperationsHashTree; OperationsResult : TOperationsResumeList; var errors: AnsiString): Integer;
+function TNode.AddOperations(SenderConnection : TNetConnection; OperationsHashTree : TOperationsHashTree; OperationsResult : TOperationsResumeList; var errors: String): Integer;
   {$IFDEF BufferOfFutureOperations}
   Procedure Process_BufferOfFutureOperations(valids_operations : TOperationsHashTree);
   Var i,j, nAdded, nDeleted : Integer;
@@ -390,7 +390,7 @@ Var
   i,j,nSpam,nError,nRepeated : Integer;
   valids_operations : TOperationsHashTree;
   nc : TNetConnection;
-  e : AnsiString;
+  e : String;
   s : String;
   OPR : TOperationResume;
   ActOp : TPCOperation;
@@ -749,7 +749,7 @@ begin
   Result := true;
 end;
 
-function TNode.IsReady(Var CurrentProcess: AnsiString): Boolean;
+function TNode.IsReady(Var CurrentProcess: String): Boolean;
 begin
   Result := false;
   CurrentProcess := '';
@@ -1029,7 +1029,7 @@ end;
 procedure TNode.InitSafeboxAndOperations(max_block_to_read : Cardinal = $FFFFFFFF; restoreProgressNotify : TProgressNotify = Nil);
 var opht : TOperationsHashTree;
   oprl : TOperationsResumeList;
-  errors : AnsiString;
+  errors : String;
   n : Integer;
 begin
   Bank.DiskRestoreFromOperations(max_block_to_read,restoreProgressNotify);
@@ -1151,7 +1151,7 @@ begin
   NotifyBlocksChanged;
 end;
 
-function TNode.SendNodeMessage(Target: TNetConnection; TheMessage: AnsiString; var errors: AnsiString): Boolean;
+function TNode.SendNodeMessage(Target: TNetConnection; TheMessage: AnsiString; var errors: String): Boolean;
 Var i,j : Integer;
   nc : TNetConnection;
   s : String;

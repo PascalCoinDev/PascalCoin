@@ -712,7 +712,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     Result := Round(jsonCurr * 10000);
   End;
 
-  Function HexaStringToOperationsHashTree(Const HexaStringOperationsHashTree : AnsiString; out OperationsHashTree : TOperationsHashTree; var errors : AnsiString) : Boolean;
+  Function HexaStringToOperationsHashTree(Const HexaStringOperationsHashTree : AnsiString; out OperationsHashTree : TOperationsHashTree; var errors : String) : Boolean;
   var raw : TRawBytes;
     ms : TMemoryStream;
   Begin
@@ -739,7 +739,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     End;
   End;
 
-  Function HexaStringToOperationsHashTreeAndGetMultioperation(Const HexaStringOperationsHashTree : AnsiString; canCreateNewOne : Boolean; out OperationsHashTree : TOperationsHashTree; out multiOperation : TOpMultiOperation; var errors : AnsiString) : Boolean;
+  Function HexaStringToOperationsHashTreeAndGetMultioperation(Const HexaStringOperationsHashTree : AnsiString; canCreateNewOne : Boolean; out OperationsHashTree : TOperationsHashTree; out multiOperation : TOpMultiOperation; var errors : String) : Boolean;
     { This function will return true only if HexaString contains only 1 operation and is a multioperation.
       Also, if "canCreateNewOne" is true and has no operations, then will create new one and return True
       }
@@ -973,7 +973,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
   Var opt : TOpTransaction;
     sacc,tacc : TAccount;
-    errors : AnsiString;
+    errors : String;
     opr : TOperationResume;
   begin
     FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent sends
@@ -1020,7 +1020,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     amount, fee : UInt64; Const RawPayload : TRawBytes; Const Payload_method, EncodePwd : AnsiString) : Boolean;
   // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
   var OperationsHashTree : TOperationsHashTree;
-    errors : AnsiString;
+    errors : String;
     opt : TOpTransaction;
   begin
     Result := false;
@@ -1073,7 +1073,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
   Var opck : TOpChangeKey;
     acc_signer : TAccount;
-    errors : AnsiString;
+    errors : String;
     opr : TOperationResume;
   begin
     FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
@@ -1176,7 +1176,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
   End;
 
-  Function GetCardinalsValues(ordinals_coma_separated : String; cardinals : TOrderedCardinalList; var errors : AnsiString) : Boolean;
+  Function GetCardinalsValues(ordinals_coma_separated : String; cardinals : TOrderedCardinalList; var errors : String) : Boolean;
   Var i,istart : Integer;
     ctxt : String;
     an : Cardinal;
@@ -1226,7 +1226,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   Var opck : TOpChangeKey;
     acc : TAccount;
     i, ian : Integer;
-    errors : AnsiString;
+    errors : String;
     opr : TOperationResume;
     accountsnumber : TOrderedCardinalList;
     operationsht : TOperationsHashTree;
@@ -1294,7 +1294,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     fee : UInt64; Const RawPayload : TRawBytes; Const Payload_method, EncodePwd : AnsiString) : Boolean;
   // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
   var OperationsHashTree : TOperationsHashTree;
-    errors : AnsiString;
+    errors : String;
     opck : TOpChangeKey;
   begin
     Result := false;
@@ -1320,7 +1320,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
 
   Function OperationsInfo(Const HexaStringOperationsHashTree : AnsiString; jsonArray : TPCJSONArray) : Boolean;
   var OperationsHashTree : TOperationsHashTree;
-    errors : AnsiString;
+    errors : String;
     OPR : TOperationResume;
     Obj : TPCJSONObject;
     Op : TPCOperation;
@@ -1350,7 +1350,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
 
   Function ExecuteOperations(Const HexaStringOperationsHashTree : AnsiString) : Boolean;
   var OperationsHashTree : TOperationsHashTree;
-    errors : AnsiString;
+    errors : String;
     i : Integer;
     OperationsResumeList : TOperationsResumeList;
   Begin
@@ -1448,15 +1448,15 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   End;
 
   Function CapturePubKeyExt(const jsonObjParams : TPCJSONObject; const prefix : String; var pubkey : TAccountKey; var errortxt : String) : Boolean;
-  var ansistr : AnsiString;
+  var errors_aux : String;
     auxpubkey : TAccountKey;
   begin
     pubkey := CT_Account_NUL.accountInfo.accountKey;
     errortxt := '';
     Result := false;
     if (jsonObjparams.IndexOfName(prefix+'b58_pubkey')>=0) then begin
-      If Not TAccountComp.AccountPublicKeyImport(jsonObjparams.AsString(prefix+'b58_pubkey',''),pubkey,ansistr) then begin
-        errortxt:= 'Invalid value of param "'+prefix+'b58_pubkey": '+ansistr;
+      If Not TAccountComp.AccountPublicKeyImport(jsonObjparams.AsString(prefix+'b58_pubkey',''),pubkey,errors_aux) then begin
+        errortxt:= 'Invalid value of param "'+prefix+'b58_pubkey": '+errors_aux;
         exit;
       end;
       if (jsonObjparams.IndexOfName(prefix+'enc_pubkey')>=0) then begin
@@ -1473,8 +1473,8 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       end;
       pubkey := TAccountComp.RawString2Accountkey(TCrypto.HexaToRaw(jsonObjparams.AsString(prefix+'enc_pubkey','')));
     end;
-    If Not TAccountComp.IsValidAccountKey(pubkey,ansistr) then begin
-      errortxt := 'Invalid public key: '+ansistr;
+    If Not TAccountComp.IsValidAccountKey(pubkey,errors_aux) then begin
+      errortxt := 'Invalid public key: '+errors_aux;
     end else Result := true;
   end;
 
@@ -1555,7 +1555,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   end;
 
   function SignListAccountForSaleColdWallet(Const HexaStringOperationsHashTree : AnsiString; params : TPCJSONObject) : boolean;
-  var errors : AnsiString;
+  var errors : String;
     OperationsHashTree : TOperationsHashTree;
     accountpubkey : TAccountKey;
     last_n_operation : Cardinal;
@@ -1742,7 +1742,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   end;
 
   function SignChangeAccountInfoColdWallet(Const HexaStringOperationsHashTree : AnsiString; params : TPCJSONObject) : boolean;
-  var errors : AnsiString;
+  var errors : String;
     OperationsHashTree : TOperationsHashTree;
     accountpubkey : TAccountKey;
     last_n_operation : Cardinal;
@@ -1771,7 +1771,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   end;
 
   function SignDelistAccountForSaleColdWallet(Const HexaStringOperationsHashTree : AnsiString; params : TPCJSONObject) : boolean;
-  var errors : AnsiString;
+  var errors : String;
     OperationsHashTree : TOperationsHashTree;
     accountpubkey : TAccountKey;
     last_n_operation : Cardinal;
@@ -1869,7 +1869,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   end;
 
   function SignBuyAccountColdWallet(Const HexaStringOperationsHashTree : AnsiString; params : TPCJSONObject) : boolean;
-  var errors : AnsiString;
+  var errors : String;
     OperationsHashTree : TOperationsHashTree;
     accountpubkey : TAccountKey;
     last_n_operation : Cardinal;
@@ -1902,7 +1902,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     account_signer, account_target : TAccount;
     opt : TPCOperation;
     opr : TOperationResume;
-    errors : AnsiString;
+    errors : String;
     c_account : Cardinal;
   Begin
     FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
@@ -1961,7 +1961,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     account_signer, account_target : TAccount;
     opt : TPCOperation;
     opr : TOperationResume;
-    errors : AnsiString;
+    errors : String;
     c_account : Cardinal;
   Begin
     FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
@@ -2020,7 +2020,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     buyer_account, account_to_purchase : TAccount;
     opt : TPCOperation;
     opr : TOperationResume;
-    errors : AnsiString;
+    errors : String;
     c_account : Cardinal;
   Begin
     FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
@@ -2080,7 +2080,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     account_signer, account_target : TAccount;
     opt : TPCOperation;
     opr : TOperationResume;
-    errors : AnsiString;
+    errors : String;
     c_account : Cardinal;
   Begin
     FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
@@ -2146,7 +2146,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     start, max, iPubKey : Integer;
     account : TAccount;
     i : Cardinal;
-    errors : AnsiString;
+    errors : String;
     auxErrors : String;
     addToResult : Boolean;
     accPubKey : TAccountKey;
@@ -2303,7 +2303,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       Result := FNode.Operations.SafeBoxTransaction.Account( nAccount );
     end;
 
-  var errors : AnsiString;
+  var errors : String;
     OperationsHashTree : TOperationsHashTree;
     jsonArr : TPCJSONArray;
     i,j : Integer;
@@ -2532,7 +2532,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   end;
 
   function MultiOperationSignCold(Const HexaStringOperationsHashTree : AnsiString; params : TPCJSONObject) : boolean;
-  var errors : AnsiString;
+  var errors : String;
     senderOperationsHashTree : TOperationsHashTree;
     mop : TOpMultiOperation;
     i,j : Integer;
@@ -2569,7 +2569,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
   end;
   function MultiOperationSignOnline(Const HexaStringOperationsHashTree : AnsiString) : boolean;
-  var errors : AnsiString;
+  var errors : String;
     senderOperationsHashTree : TOperationsHashTree;
     j,iKey,nSignedAccounts : Integer;
     mop : TOpMultiOperation;
@@ -2622,7 +2622,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
 
   function RawOperations_Delete(Const HexaStringOperationsHashTree : AnsiString; index : Integer) : boolean;
   var senderOperationsHashTree : TOperationsHashTree;
-    errors : AnsiString;
+    errors : String;
   begin
     Result := False;
     if Not HexaStringToOperationsHashTree(HexaStringOperationsHashTree,senderOperationsHashTree,errors) then begin
@@ -2651,7 +2651,7 @@ Var c,c2,c3 : Cardinal;
   i,j,k,l : Integer;
   account : TAccount;
   senderpubkey,destpubkey : TAccountKey;
-  ansistr : AnsiString;
+  ansistr : String;
   nsaarr : TNodeServerAddressArray;
   pcops : TPCOperationsComp;
   ecpkey : TECPrivateKey;

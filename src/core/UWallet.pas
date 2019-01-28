@@ -641,7 +641,7 @@ end;
 
 class procedure TWallet.ImportPublicKey(Const AName, AKeyImportText : AnsiString);
 var raw : TRawBytes;
-  errors : AnsiString;
+  errors : String;
   accountKey : TAccountKey;
 begin
   CheckLoaded;

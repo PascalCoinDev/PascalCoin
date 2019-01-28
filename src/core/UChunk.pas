@@ -45,15 +45,15 @@ type
   TPCChunk = Class
   private
   public
-    class function SaveSafeBoxChunkFromSafeBox(SafeBoxStream, DestStream : TStream; fromBlock, toBlock : Cardinal; var errors : AnsiString) : Boolean;
-    class function LoadSafeBoxFromChunk(Chunk, DestStream : TStream; var safeBoxHeader : TPCSafeBoxHeader; var errors : AnsiString) : Boolean;
+    class function SaveSafeBoxChunkFromSafeBox(SafeBoxStream, DestStream : TStream; fromBlock, toBlock : Cardinal; var errors : String) : Boolean;
+    class function LoadSafeBoxFromChunk(Chunk, DestStream : TStream; var safeBoxHeader : TPCSafeBoxHeader; var errors : String) : Boolean;
   end;
 
 implementation
 
 { TPCChunk }
 
-class function TPCChunk.SaveSafeBoxChunkFromSafeBox(SafeBoxStream, DestStream : TStream; fromBlock, toBlock: Cardinal; var errors : AnsiString) : Boolean;
+class function TPCChunk.SaveSafeBoxChunkFromSafeBox(SafeBoxStream, DestStream : TStream; fromBlock, toBlock: Cardinal; var errors : String) : Boolean;
 Var
   c: Cardinal;
   cs : Tcompressionstream;
@@ -125,7 +125,7 @@ begin
   end;
 end;
 
-class function TPCChunk.LoadSafeBoxFromChunk(Chunk, DestStream: TStream; var safeBoxHeader : TPCSafeBoxHeader; var errors: AnsiString): Boolean;
+class function TPCChunk.LoadSafeBoxFromChunk(Chunk, DestStream: TStream; var safeBoxHeader : TPCSafeBoxHeader; var errors: String): Boolean;
 var raw : TRawBytes;
   w : Word;
   cUncompressed, cCompressed : Cardinal;

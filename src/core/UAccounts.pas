@@ -120,11 +120,11 @@ Type
   TAccountComp = Class
   private
   public
-    Class Function IsValidAccountKey(const account: TAccountKey; var errors : AnsiString): Boolean;
-    Class Function IsValidAccountInfo(const accountInfo: TAccountInfo; var errors : AnsiString): Boolean;
+    Class Function IsValidAccountKey(const account: TAccountKey; var errors : String): Boolean;
+    Class Function IsValidAccountInfo(const accountInfo: TAccountInfo; var errors : String): Boolean;
     Class Function IsAccountForSale(const accountInfo: TAccountInfo) : Boolean;
     Class Function IsAccountForSaleAcceptingTransactions(const accountInfo: TAccountInfo) : Boolean;
-    Class Function GetECInfoTxt(Const EC_OpenSSL_NID: Word) : AnsiString;
+    Class Function GetECInfoTxt(Const EC_OpenSSL_NID: Word) : String;
     Class Procedure ValidsEC_OpenSSL_NID(list : TList);
     Class Function AccountKey2RawString(const account: TAccountKey): TRawBytes; overload;
     Class procedure AccountKey2RawString(const account: TAccountKey; var dest: TRawBytes); overload;
@@ -137,14 +137,14 @@ Type
     Class Function EqualAccounts(const account1,account2 : TAccount) : Boolean;
     Class Function EqualOperationBlocks(const opBlock1,opBlock2 : TOperationBlock) : Boolean;
     Class Function EqualBlockAccounts(const blockAccount1,blockAccount2 : TBlockAccount) : Boolean;
-    Class Function AccountNumberToAccountTxtNumber(account_number : Cardinal) : AnsiString;
-    Class function AccountTxtNumberToAccountNumber(Const account_txt_number : AnsiString; var account_number : Cardinal) : Boolean;
-    Class function FormatMoney(Money : Int64) : AnsiString;
+    Class Function AccountNumberToAccountTxtNumber(account_number : Cardinal) : String;
+    Class function AccountTxtNumberToAccountNumber(Const account_txt_number : String; var account_number : Cardinal) : Boolean;
+    Class function FormatMoney(Money : Int64) : String;
     Class function FormatMoneyDecimal(Money : Int64) : Single;
-    Class Function TxtToMoney(Const moneytxt : AnsiString; var money : Int64) : Boolean;
-    Class Function AccountKeyFromImport(Const HumanReadable : AnsiString; var account : TAccountKey; var errors : AnsiString) : Boolean;
-    Class Function AccountPublicKeyExport(Const account : TAccountKey) : AnsiString;
-    Class Function AccountPublicKeyImport(Const HumanReadable : AnsiString; var account : TAccountKey; var errors : AnsiString) : Boolean;
+    Class Function TxtToMoney(Const moneytxt : String; var money : Int64) : Boolean;
+    Class Function AccountKeyFromImport(Const HumanReadable : String; var account : TAccountKey; var errors : String) : Boolean;
+    Class Function AccountPublicKeyExport(Const account : TAccountKey) : String;
+    Class Function AccountPublicKeyImport(Const HumanReadable : String; var account : TAccountKey; var errors : String) : Boolean;
     Class Function AccountBlock(Const account_number : Cardinal) : Cardinal;
     Class Function AccountInfo2RawString(const AccountInfo : TAccountInfo) : TRawBytes; overload;
     Class procedure AccountInfo2RawString(const AccountInfo : TAccountInfo; var dest : TRawBytes); overload;
@@ -155,7 +155,7 @@ Type
     Class Function IsAccountLocked(const AccountInfo : TAccountInfo; blocks_count : Cardinal) : Boolean;
     Class procedure SaveTOperationBlockToStream(const stream : TStream; const operationBlock:TOperationBlock);
     Class Function LoadTOperationBlockFromStream(const stream : TStream; var operationBlock:TOperationBlock) : Boolean;
-    Class Function AccountToTxt(const Account : TAccount) : AnsiString;
+    Class Function AccountToTxt(const Account : TAccount) : String;
   End;
 
   { Estimated TAccount size:
@@ -224,7 +224,7 @@ Type
 
   { TProgressNotify }
 
-  TProgressNotify = procedure(sender : TObject; const message : AnsiString; curPos, totalCount : Int64) of object;
+  TProgressNotify = procedure(sender : TObject; const message : String; curPos, totalCount : Int64) of object;
 
   { TProgressNotifyMany }
 
@@ -235,7 +235,7 @@ Type
   TProgressNotifyManyHelper = record helper for TProgressNotifyMany
     procedure Add(listener : TProgressNotify);
     procedure Remove(listener : TProgressNotify);
-    procedure Invoke(sender : TObject; const message : AnsiString; curPos, totalCount : Int64);
+    procedure Invoke(sender : TObject; const message : String; curPos, totalCount : Int64);
   end;
 
   { TPCSafeBox }
@@ -294,20 +294,20 @@ Type
     Function BlocksCount : Integer;
     Procedure CopyFrom(accounts : TPCSafeBox);
     Class Function CalcBlockHash(const block : TBlockAccount; useProtocol2Method : Boolean):TRawBytes;
-    Class Function BlockAccountToText(Const block : TBlockAccount):AnsiString;
-    Function LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; var LastReadBlock : TBlockAccount; var errors : AnsiString) : Boolean; overload;
-    Function LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var LastReadBlock : TBlockAccount; var errors : AnsiString) : Boolean; overload;
+    Class Function BlockAccountToText(Const block : TBlockAccount):String;
+    Function LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; var LastReadBlock : TBlockAccount; var errors : String) : Boolean; overload;
+    Function LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var LastReadBlock : TBlockAccount; var errors : String) : Boolean; overload;
     Class Function LoadSafeBoxStreamHeader(Stream : TStream; var sbHeader : TPCSafeBoxHeader) : Boolean;
     Class Function SaveSafeBoxStreamHeader(Stream : TStream; protocol : Word; OffsetStartBlock, OffsetEndBlock, CurrentSafeBoxBlocksCount : Cardinal) : Boolean;
     Class Function MustSafeBoxBeSaved(BlocksCount : Cardinal) : Boolean;
     Procedure SaveSafeBoxBlockToAStream(DestStream : TStream; nBlock : Cardinal);
     Procedure SaveSafeBoxToAStream(Stream : TStream; FromBlock, ToBlock : Cardinal);
-    class Function CopySafeBoxStream(Source,Dest : TStream; FromBlock, ToBlock : Cardinal; var errors : AnsiString) : Boolean;
-    class Function ConcatSafeBoxStream(Source1, Source2, Dest : TStream; var errors : AnsiString) : Boolean;
-    class function ValidAccountName(const new_name : TRawBytes; var errors : AnsiString) : Boolean;
+    class Function CopySafeBoxStream(Source,Dest : TStream; FromBlock, ToBlock : Cardinal; var errors : String) : Boolean;
+    class Function ConcatSafeBoxStream(Source1, Source2, Dest : TStream; var errors : String) : Boolean;
+    class function ValidAccountName(const new_name : TRawBytes; var errors : String) : Boolean;
 
-    Function IsValidNewOperationsBlock(Const newOperationBlock : TOperationBlock; checkSafeBoxHash : Boolean; var errors : AnsiString) : Boolean;
-    class Function IsValidOperationBlock(Const newOperationBlock : TOperationBlock; var errors : AnsiString) : Boolean;
+    Function IsValidNewOperationsBlock(Const newOperationBlock : TOperationBlock; checkSafeBoxHash : Boolean; var errors : String) : Boolean;
+    class Function IsValidOperationBlock(Const newOperationBlock : TOperationBlock; var errors : String) : Boolean;
     Function GetActualTargetHash(protocolVersion : Word): TRawBytes;
     Function GetActualCompactTargetHash(protocolVersion : Word): Cardinal;
     Function FindAccountByName(const aName : String) : Integer; overload;
@@ -416,11 +416,11 @@ Type
   public
     Constructor Create(SafeBox : TPCSafeBox);
     Destructor Destroy; override;
-    Function TransferAmount(previous : TAccountPreviousBlockInfo; sender,signer,target : Cardinal; n_operation : Cardinal; amount, fee : UInt64; var errors : AnsiString) : Boolean;
-    Function TransferAmounts(previous : TAccountPreviousBlockInfo; const senders, n_operations : Array of Cardinal; const sender_amounts : Array of UInt64; const receivers : Array of Cardinal; const receivers_amounts : Array of UInt64; var errors : AnsiString) : Boolean;
-    Function UpdateAccountInfo(previous : TAccountPreviousBlockInfo; signer_account, signer_n_operation, target_account: Cardinal; accountInfo: TAccountInfo; newName : TRawBytes; newType : Word; fee: UInt64; var errors : AnsiString) : Boolean;
-    Function BuyAccount(previous : TAccountPreviousBlockInfo; buyer,account_to_buy,seller: Cardinal; n_operation : Cardinal; amount, account_price, fee : UInt64; const new_account_key : TAccountKey; var errors : AnsiString) : Boolean;
-    Function Commit(Const operationBlock : TOperationBlock; var errors : AnsiString) : Boolean;
+    Function TransferAmount(previous : TAccountPreviousBlockInfo; sender,signer,target : Cardinal; n_operation : Cardinal; amount, fee : UInt64; var errors : String) : Boolean;
+    Function TransferAmounts(previous : TAccountPreviousBlockInfo; const senders, n_operations : Array of Cardinal; const sender_amounts : Array of UInt64; const receivers : Array of Cardinal; const receivers_amounts : Array of UInt64; var errors : String) : Boolean;
+    Function UpdateAccountInfo(previous : TAccountPreviousBlockInfo; signer_account, signer_n_operation, target_account: Cardinal; accountInfo: TAccountInfo; newName : TRawBytes; newType : Word; fee: UInt64; var errors : String) : Boolean;
+    Function BuyAccount(previous : TAccountPreviousBlockInfo; buyer,account_to_buy,seller: Cardinal; n_operation : Cardinal; amount, account_price, fee : UInt64; const new_account_key : TAccountKey; var errors : String) : Boolean;
+    Function Commit(Const operationBlock : TOperationBlock; var errors : String) : Boolean;
     Function Account(account_number : Cardinal) : TAccount;
     Procedure Rollback;
     Function CheckIntegrity : Boolean;
@@ -470,7 +470,7 @@ Const
   CT_SafeBoxChunkIdentificator = 'SafeBoxChunk';
   CT_PCSafeBoxHeader_NUL : TPCSafeBoxHeader = (protocol:0;startBlock:0;endBlock:0;blocksCount:0;safeBoxHash:Nil);
 
-function Check_Safebox_Names_Consistency(sb : TPCSafeBox; const title :String; var errors : AnsiString) : Boolean;
+function Check_Safebox_Names_Consistency(sb : TPCSafeBox; const title :String; var errors : String) : Boolean;
 Procedure Check_Safebox_Integrity(sb : TPCSafebox; title: String);
 
 implementation
@@ -480,7 +480,7 @@ uses
 
 { This function is for testing purpose only.
   Will check if Account Names are well assigned and stored }
-function Check_Safebox_Names_Consistency(sb : TPCSafeBox; const title :String; var errors : AnsiString) : Boolean;
+function Check_Safebox_Names_Consistency(sb : TPCSafeBox; const title :String; var errors : String) : Boolean;
 Var i,j : Integer;
   acc : TAccount;
   auxs : TRawBytes;
@@ -1063,7 +1063,7 @@ begin
   end;
 end;
 
-class function TAccountComp.AccountKeyFromImport(const HumanReadable: AnsiString; var account: TAccountKey; var errors : AnsiString): Boolean;
+class function TAccountComp.AccountKeyFromImport(const HumanReadable: String; var account: TAccountKey; var errors : String): Boolean;
 Var raw : TRawBytes;
   BN, BNAux, BNBase : TBigNum;
   i,j : Integer;
@@ -1118,7 +1118,7 @@ begin
   end;
 end;
 
-class function TAccountComp.AccountNumberToAccountTxtNumber(account_number: Cardinal): AnsiString;
+class function TAccountComp.AccountNumberToAccountTxtNumber(account_number: Cardinal): String;
 Var an : int64;
 begin
   an := account_number; // Converting to int64 to prevent overflow when *101
@@ -1126,7 +1126,7 @@ begin
   Result := IntToStr(account_number)+'-'+Inttostr(an);
 end;
 
-class function TAccountComp.AccountPublicKeyExport(const account: TAccountKey): AnsiString;
+class function TAccountComp.AccountPublicKeyExport(const account: TAccountKey): String;
 Var raw : TRawBytes;
   BN, BNMod, BNDiv : TBigNum;
   i : Integer;
@@ -1151,12 +1151,12 @@ begin
 end;
 
 class function TAccountComp.AccountPublicKeyImport(
-  const HumanReadable: AnsiString; var account: TAccountKey;
-  var errors: AnsiString): Boolean;
+  const HumanReadable: String; var account: TAccountKey;
+  var errors: String): Boolean;
 Var raw : TRawBytes;
   BN, BNAux, BNBase : TBigNum;
   i,j : Integer;
-  s1,s2 : AnsiString;
+  s1,s2 : String;
   i64 : Int64;
   b : Byte;
 begin
@@ -1205,7 +1205,7 @@ begin
   end;
 end;
 
-class function TAccountComp.AccountTxtNumberToAccountNumber(const account_txt_number: AnsiString; var account_number: Cardinal): Boolean;
+class function TAccountComp.AccountTxtNumberToAccountNumber(const account_txt_number: String; var account_number: Cardinal): Boolean;
 Var i : Integer;
   char1 : AnsiChar;
   char2 : AnsiChar;
@@ -1292,7 +1292,7 @@ begin
 end;
 
 
-class function TAccountComp.FormatMoney(Money: Int64): AnsiString;
+class function TAccountComp.FormatMoney(Money: Int64): String;
 begin
   Result := FormatFloat('#,###0.0000',(Money/10000));
 end;
@@ -1302,7 +1302,7 @@ begin
   Result := RoundTo( Money / 10000.0, -4);
 end;
 
-class function TAccountComp.GetECInfoTxt(const EC_OpenSSL_NID: Word): AnsiString;
+class function TAccountComp.GetECInfoTxt(const EC_OpenSSL_NID: Word): String;
 begin
   case EC_OpenSSL_NID of
     CT_NID_secp256k1 : begin
@@ -1335,7 +1335,7 @@ begin
 end;
 
 class function TAccountComp.IsAccountForSaleAcceptingTransactions(const accountInfo: TAccountInfo): Boolean;
-var errors : AnsiString;
+var errors : String;
 begin
   Result := (AccountInfo.state=as_ForSale) And (IsValidAccountKey(AccountInfo.new_publicKey,errors));
 end;
@@ -1382,15 +1382,15 @@ begin
   Result := True;
 end;
 
-class function TAccountComp.AccountToTxt(const Account: TAccount): AnsiString;
+class function TAccountComp.AccountToTxt(const Account: TAccount): String;
 begin
   Result := Format('%s Balance:%s N_Op:%d UpdB:%d Type:%d Name:%s PK:%s',[AccountNumberToAccountTxtNumber(Account.account),
     FormatMoney(Account.balance),Account.n_operation,Account.updated_block,Account.account_type,
       Account.name.ToPrintable,TCrypto.ToHexaString(TAccountComp.AccountInfo2RawString(Account.accountInfo))]);
 end;
 
-class function TAccountComp.IsValidAccountInfo(const accountInfo: TAccountInfo; var errors: AnsiString): Boolean;
-Var s : AnsiString;
+class function TAccountComp.IsValidAccountInfo(const accountInfo: TAccountInfo; var errors: String): Boolean;
+Var s : String;
 begin
   errors := '';
   case accountInfo.state of
@@ -1410,7 +1410,7 @@ begin
   end;
 end;
 
-class function TAccountComp.IsValidAccountKey(const account: TAccountKey; var errors : AnsiString): Boolean;
+class function TAccountComp.IsValidAccountKey(const account: TAccountKey; var errors : String): Boolean;
 begin
   errors := '';
   case account.EC_OpenSSL_NID of
@@ -1501,9 +1501,9 @@ end;
 {$DEFINE DELPHIXE}
 {$ENDIF}
 
-class function TAccountComp.TxtToMoney(const moneytxt: AnsiString;
+class function TAccountComp.TxtToMoney(const moneytxt: String;
   var money: Int64): Boolean;
-Var s : AnsiString;
+Var s : String;
   i : Integer;
 begin
   money := 0;
@@ -1548,7 +1548,7 @@ begin
   TArrayTool<TProgressNotify>.Remove(self, listener);
 end;
 
-procedure TProgressNotifyManyHelper.Invoke(sender : TObject; const message : AnsiString; curPos, totalCount : Int64);
+procedure TProgressNotifyManyHelper.Invoke(sender : TObject; const message : String; curPos, totalCount : Int64);
 var i : Integer;
 begin
   for i := low(self) to high(self) do
@@ -1984,7 +1984,7 @@ begin
   end;
 end;
 
-class function TPCSafeBox.BlockAccountToText(const block: TBlockAccount): AnsiString;
+class function TPCSafeBox.BlockAccountToText(const block: TBlockAccount): String;
 begin
   Result := Format('Block:%d Timestamp:%d BlockHash:%s',
     [block.blockchainInfo.block, block.blockchainInfo.timestamp,
@@ -2451,7 +2451,7 @@ procedure TPCSafeBox.CommitToPrevious;
     FPreviousSafeBox.AddNew(Block(Psnapshot^.nBlockNumber).blockchainInfo);
   end;
 
-Var errors : AnsiString;
+Var errors : String;
   i : Integer;
   Pss : PSafeboxSnapshot;
 begin
@@ -2594,7 +2594,7 @@ Var i,iPrevSnapshotTarget : Integer;
   Psnapshot : PSafeboxSnapshot;
   PBlock : PBlockAccount;
   {$IFDEF Check_Safebox_Names_Consistency}
-  errors : AnsiString;
+  errors : String;
   {$ENDIF}
 begin
   StartThreadSafe;
@@ -2716,7 +2716,7 @@ begin
   FLock.Release;
 end;
 
-function TPCSafeBox.LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var LastReadBlock : TBlockAccount; var errors : AnsiString) : Boolean;
+function TPCSafeBox.LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var LastReadBlock : TBlockAccount; var errors : String) : Boolean;
 Var
   iblock,iacc : Cardinal;
   raw : TRawBytes;
@@ -2730,7 +2730,7 @@ Var
   tc : TTickCount;
   previous_Block : TBlockAccount;
   do_check_blockchain_info : Boolean;
-  aux_errors : AnsiString;
+  aux_errors : String;
 begin
   If Assigned(FPreviousSafeBox) then Raise Exception.Create('Cannot loadSafeBoxFromStream on a Safebox in a Separate chain');
   if (previousCheckedSafebox = Self) then previousCheckedSafebox := Nil; // Protection
@@ -2925,7 +2925,7 @@ begin
   end;
 end;
 
-function TPCSafeBox.LoadSafeBoxFromStream(Stream: TStream; checkAll: Boolean; var LastReadBlock: TBlockAccount; var errors: AnsiString): Boolean;
+function TPCSafeBox.LoadSafeBoxFromStream(Stream: TStream; checkAll: Boolean; var LastReadBlock: TBlockAccount; var errors: String): Boolean;
 var pn : TProgressNotify;
 begin
   pn := Nil;
@@ -3076,7 +3076,7 @@ begin
   end;
 end;
 
-class function TPCSafeBox.CopySafeBoxStream(Source, Dest: TStream; FromBlock,ToBlock: Cardinal; var errors : AnsiString) : Boolean;
+class function TPCSafeBox.CopySafeBoxStream(Source, Dest: TStream; FromBlock,ToBlock: Cardinal; var errors : String) : Boolean;
 Var
   iblock : Cardinal;
   raw : TRawBytes;
@@ -3147,7 +3147,7 @@ begin
   end;
 end;
 
-class function TPCSafeBox.ConcatSafeBoxStream(Source1, Source2, Dest: TStream; var errors: AnsiString): Boolean;
+class function TPCSafeBox.ConcatSafeBoxStream(Source1, Source2, Dest: TStream; var errors: String): Boolean;
   function MinCardinal(v1,v2 : Cardinal) : Cardinal;
   begin
     if v1<v2 then Result:=v1
@@ -3273,7 +3273,7 @@ begin
   end;
 end;
 
-class function TPCSafeBox.ValidAccountName(const new_name: TRawBytes; var errors : AnsiString): Boolean;
+class function TPCSafeBox.ValidAccountName(const new_name: TRawBytes; var errors : String): Boolean;
   { Note:
     This function is case senstive, and only lower case chars are valid.
     Execute a LowerCase() prior to call this function!
@@ -3311,7 +3311,7 @@ begin
   Result := True;
 end;
 
-function TPCSafeBox.IsValidNewOperationsBlock(const newOperationBlock: TOperationBlock; checkSafeBoxHash : Boolean; var errors: AnsiString): Boolean;
+function TPCSafeBox.IsValidNewOperationsBlock(const newOperationBlock: TOperationBlock; checkSafeBoxHash : Boolean; var errors: String): Boolean;
   { This function will check a OperationBlock info as a valid candidate to be included in the safebox
 
     TOperationBlock contains the info of the new block EXCEPT the operations, including only operations_hash value (SHA256 of the Operations)
@@ -3408,7 +3408,7 @@ begin
   Result := IsValidOperationBlock(newOperationBlock,errors);
 end;
 
-class function TPCSafeBox.IsValidOperationBlock(const newOperationBlock: TOperationBlock; var errors: AnsiString): Boolean;
+class function TPCSafeBox.IsValidOperationBlock(const newOperationBlock: TOperationBlock; var errors: String): Boolean;
   { This class function will check a OperationBlock basic info as a valid info
 
     Creted at Build 2.1.7 as a division of IsValidNewOperationsBlock for easily basic check TOperationBlock
@@ -3783,7 +3783,7 @@ end;
 
 function TPCSafeBoxTransaction.BuyAccount(previous : TAccountPreviousBlockInfo; buyer, account_to_buy,
   seller: Cardinal; n_operation: Cardinal; amount, account_price, fee: UInt64;
-  const new_account_key: TAccountKey; var errors: AnsiString): Boolean;
+  const new_account_key: TAccountKey; var errors: String): Boolean;
 Var PaccBuyer, PaccAccountToBuy, PaccSeller : PAccount;
 begin
   Result := false;
@@ -3899,7 +3899,7 @@ begin
 end;
 
 function TPCSafeBoxTransaction.Commit(const operationBlock: TOperationBlock;
-  var errors: AnsiString): Boolean;
+  var errors: String): Boolean;
 Var i : Integer;
   Pa : PAccount;
 begin
@@ -4080,7 +4080,7 @@ begin
 end;
 
 function TPCSafeBoxTransaction.TransferAmount(previous : TAccountPreviousBlockInfo; sender,signer,target: Cardinal;
-  n_operation: Cardinal; amount, fee: UInt64; var errors: AnsiString): Boolean;
+  n_operation: Cardinal; amount, fee: UInt64; var errors: String): Boolean;
 Var
   PaccSender, PaccTarget,PaccSigner : PAccount;
 begin
@@ -4185,7 +4185,7 @@ end;
 function TPCSafeBoxTransaction.TransferAmounts(previous : TAccountPreviousBlockInfo; const senders,
   n_operations: array of Cardinal; const sender_amounts: array of UInt64;
   const receivers: array of Cardinal; const receivers_amounts: array of UInt64;
-  var errors: AnsiString): Boolean;
+  var errors: String): Boolean;
 Var i,j : Integer;
   PaccSender, PaccTarget : PAccount;
   nTotalAmountSent, nTotalAmountReceived, nTotalFee : Int64;
@@ -4303,7 +4303,7 @@ end;
 
 function TPCSafeBoxTransaction.UpdateAccountInfo(previous : TAccountPreviousBlockInfo;
   signer_account, signer_n_operation, target_account: Cardinal;
-  accountInfo: TAccountInfo; newName: TRawBytes; newType: Word; fee: UInt64; var errors: AnsiString): Boolean;
+  accountInfo: TAccountInfo; newName: TRawBytes; newType: Word; fee: UInt64; var errors: String): Boolean;
 Var i : Integer;
   P_signer, P_target : PAccount;
 begin

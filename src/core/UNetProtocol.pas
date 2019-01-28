@@ -326,13 +326,13 @@ Type
     Function FindConnectionByClientRandomValue(Sender : TNetConnection) : TNetConnection;
     Procedure DiscoverServers;
     Procedure DisconnectClients;
-    procedure OnReadingNewSafeboxProgressNotify(sender : TObject; const mesage : AnsiString; curPos, totalCount : Int64);
+    procedure OnReadingNewSafeboxProgressNotify(sender : TObject; const mesage : String; curPos, totalCount : Int64);
     Procedure GetNewBlockChainFromClient(Connection : TNetConnection; const why : String);
     Property NodeServersAddresses : TOrderedServerAddressListTS read FNodeServersAddresses;
     Property NetConnections : TPCThreadList read FNetConnections;
     Property NetStatistics : TNetStatistics read FNetStatistics;
     Property IsDiscoveringServers : Boolean read FIsDiscoveringServers;
-    function IsGettingNewBlockChainFromClient(var status : AnsiString) : Boolean;
+    function IsGettingNewBlockChainFromClient(var status : String) : Boolean;
     Property MaxRemoteOperationBlock : TOperationBlock read FMaxRemoteOperationBlock;
     Property NodePrivateKey : TECPrivateKey read FNodePrivateKey;
     property OnConnectivityChanged : TNotifyManyEvent read FOnConnectivityChanged;
@@ -1478,7 +1478,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     headerdata : TNetHeaderData;
     op : TPCOperationsComp;
     request_id,opcount,i, last_n_block : Cardinal;
-    errors : AnsiString;
+    errors : String;
     noperation : Integer;
   begin
     Result := false;
@@ -1560,7 +1560,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     auxBlock, sbBlock : TOperationBlock;
     distinctmax,distinctmin : Cardinal;
     BlocksList : TList;
-    errors : AnsiString;
+    errors : String;
   Begin
     Result := false;
     OperationBlock := CT_OperationBlock_NUL;
@@ -1618,7 +1618,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     oldBlockchainOperations : TOperationsHashTree;
     opsResume : TOperationsResumeList;
     newBlock : TBlockAccount;
-    errors : AnsiString;
+    errors : String;
     start,start_c : Cardinal;
     finished : Boolean;
     Bank : TPCBank;
@@ -1790,7 +1790,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
   End;
 
   Function DownloadSafeBoxChunk(safebox_blockscount : Cardinal; Const sbh : TRawBytes; from_block, to_block : Cardinal; receivedDataUnzipped : TStream;
-    var safeBoxHeader : TPCSafeBoxHeader; var errors : AnsiString) : Boolean;
+    var safeBoxHeader : TPCSafeBoxHeader; var errors : String) : Boolean;
   Var sendData,receiveData : TStream;
     headerdata : TNetHeaderData;
     request_id : Cardinal;
@@ -1846,7 +1846,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     chunks : Array of TSafeBoxChunkData;
     receiveChunk, chunk1 : TStream;
     safeBoxHeader : TPCSafeBoxHeader;
-    errors : AnsiString;
+    errors : String;
     i : Integer;
   Begin
     Result := False;
@@ -1913,7 +1913,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
   Function DownloadSafeBox(IsMyBlockchainValid : Boolean) : Boolean;
   var receiveData : TStream;
     op : TOperationBlock;
-    errors : AnsiString;
+    errors : String;
     request_id : Cardinal;
   Begin
     Result := False;
@@ -1951,7 +1951,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     safebox_last_operation_block : TOperationBlock;
     newBlock : TBlockAccount;
     opComp : TPCOperationsComp;
-    errors : AnsiString;
+    errors : String;
     blocksList : TList;
     i : Integer;
     rid : Cardinal;
@@ -2039,7 +2039,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
 
 var rid : Cardinal;
   my_op, client_op : TOperationBlock;
-  errors : AnsiString;
+  errors : String;
 begin
   // Protection against discovering servers...
   if FIsDiscoveringServers then begin
@@ -2149,7 +2149,7 @@ begin
   end;
 end;
 
-function TNetData.IsGettingNewBlockChainFromClient(var status: AnsiString): Boolean;
+function TNetData.IsGettingNewBlockChainFromClient(var status: String): Boolean;
 begin
   if FLockGettingNewBlockChainFromClient.TryEnter then begin
     try
@@ -2262,7 +2262,7 @@ begin
   FNetDataNotifyEventsThread.FNotifyOnStatisticsChanged := true;
 end;
 
-procedure TNetData.OnReadingNewSafeboxProgressNotify(sender: TObject; const mesage: AnsiString; curPos, totalCount: Int64);
+procedure TNetData.OnReadingNewSafeboxProgressNotify(sender: TObject; const mesage: String; curPos, totalCount: Int64);
 Var pct : String;
 begin
   if (totalCount>0) then pct := FormatFloat('0.00',curPos*100/totalCount)+'%' else pct := '';
@@ -2667,7 +2667,7 @@ var c,i : Integer;
     opclass : TPCOperationClass;
     op : TPCOperation;
     operations : TOperationsHashTree;
-    errors : AnsiString;
+    errors : String;
   DoDisconnect : Boolean;
 begin
   DoDisconnect := true;
@@ -2914,7 +2914,7 @@ procedure TNetConnection.DoProcess_GetBlocks_Response(HeaderData: TNetHeaderData
   var op : TPCOperationsComp;
     opcount,i : Cardinal;
     newBlockAccount : TBlockAccount;
-  errors : AnsiString;
+  errors : String;
   DoDisconnect : Boolean;
 begin
   DoDisconnect := true;
@@ -3059,7 +3059,7 @@ Var _blockcount : Cardinal;
   responseStream : TStream;
   antPos : Int64;
   sbHeader : TPCSafeBoxHeader;
-  errors : AnsiString;
+  errors : String;
 begin
   {
   This call is used to obtain a chunk of the safebox
@@ -3196,7 +3196,7 @@ Var dataSend, dataReceived : TMemoryStream;
   b : Byte;
   headerData : TNetHeaderData;
   opht : TOperationsHashTree;
-  errors : AnsiString;
+  errors : String;
   i : Integer;
 begin
   {$IFDEF PRODUCTION}
@@ -3458,7 +3458,7 @@ end;
 
 procedure TNetConnection.DoProcess_Hello(HeaderData: TNetHeaderData; DataBuffer: TStream);
 var op, myLastOp : TPCOperationsComp;
-    errors : AnsiString;
+    errors : String;
     connection_has_a_server : Word;
     i,c : Integer;
     nsa : TNodeServerAddress;
@@ -3645,7 +3645,7 @@ Type
 
 var operationsComp : TPCOperationsComp;
   DoDisconnect : Boolean;
-  errors : AnsiString;
+  errors : String;
 
   function ProcessNewFastBlockPropagation : Boolean;
   var nfpboarr : TNewFastPropagationBlockOperationsArray;

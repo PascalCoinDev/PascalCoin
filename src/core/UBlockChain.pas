@@ -219,7 +219,7 @@ Type
     constructor Create; virtual;
     destructor Destroy; override;
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; virtual;
-    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors: AnsiString): Boolean; virtual; abstract;
+    function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors: String): Boolean; virtual; abstract;
     procedure AffectedAccounts(list : TList); virtual; abstract;
     class function OpType: Byte; virtual; abstract;
     Class Function OperationToOperationResume(Block : Cardinal; Operation : TPCOperation; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean; virtual;
@@ -329,7 +329,7 @@ Type
     Property TotalAmount : Int64 read FTotalAmount;
     Property TotalFee : Int64 read FTotalFee;
     function SaveOperationsHashTreeToStream(Stream: TStream; SaveToStorage : Boolean): Boolean;
-    function LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage : Boolean; LoadProtocolVersion : Word; PreviousUpdatedBlocks : TAccountPreviousBlockInfo; var errors : AnsiString): Boolean;
+    function LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage : Boolean; LoadProtocolVersion : Word; PreviousUpdatedBlocks : TAccountPreviousBlockInfo; var errors : String): Boolean;
     function IndexOfOperation(op : TPCOperation) : Integer;
     function CountOperationsBySameSignerWithoutFee(account_number : Cardinal) : Integer;
     Procedure Delete(index : Integer);
@@ -372,14 +372,14 @@ Type
     procedure OnOperationsHashTreeChanged(Sender : TObject);
   protected
     function SaveBlockToStreamExt(save_only_OperationBlock : Boolean; Stream: TStream; SaveToStorage : Boolean): Boolean;
-    function LoadBlockFromStreamExt(Stream: TStream; LoadingFromStorage : Boolean; var errors: AnsiString): Boolean;
+    function LoadBlockFromStreamExt(Stream: TStream; LoadingFromStorage : Boolean; var errors: String): Boolean;
   public
     Constructor Create(ABank: TPCBank);
     Destructor Destroy; Override;
     Procedure CopyFromExceptAddressKey(Operations : TPCOperationsComp);
     Procedure CopyFrom(Operations : TPCOperationsComp);
-    Function AddOperation(Execute : Boolean; op: TPCOperation; var errors: AnsiString): Boolean;
-    Function AddOperations(operations: TOperationsHashTree; var errors: AnsiString): Integer;
+    Function AddOperation(Execute : Boolean; op: TPCOperation; var errors: String): Boolean;
+    Function AddOperations(operations: TOperationsHashTree; var errors: String): Integer;
     Property Operation[index: Integer]: TPCOperation read GetOperation;
     Property bank: TPCBank read FBank write SetBank;
     Procedure Clear(DeleteOperations : Boolean);
@@ -395,11 +395,11 @@ Type
     procedure UpdateTimestamp;
     function SaveBlockToStorage(Stream: TStream): Boolean;
     function SaveBlockToStream(save_only_OperationBlock : Boolean; Stream: TStream): Boolean;
-    function LoadBlockFromStorage(Stream: TStream; var errors: AnsiString): Boolean;
-    function LoadBlockFromStream(Stream: TStream; var errors: AnsiString): Boolean;
+    function LoadBlockFromStorage(Stream: TStream; var errors: String): Boolean;
+    function LoadBlockFromStream(Stream: TStream; var errors: String): Boolean;
     //
     Function GetMinerRewardPseudoOperation : TOperationResume;
-    Function ValidateOperationBlock(var errors : AnsiString) : Boolean;
+    Function ValidateOperationBlock(var errors : String) : Boolean;
     Property IsOnlyOperationBlock : Boolean read FIsOnlyOperationBlock;
     Procedure Lock;
     Procedure Unlock;
@@ -517,11 +517,11 @@ Type
     procedure AssignTo(Dest: TPersistent); Override;
     function GetActualTargetSecondsAverage(BackBlocks : Cardinal): Real;
     function GetTargetSecondsAverage(FromBlock,BackBlocks : Cardinal): Real;
-    function LoadBankFromStream(Stream : TStream; useSecureLoad : Boolean; checkSafeboxHash : TRawBytes; previousCheckedSafebox : TPCSafebox; progressNotify : TProgressNotify; var errors : AnsiString) : Boolean;
+    function LoadBankFromStream(Stream : TStream; useSecureLoad : Boolean; checkSafeboxHash : TRawBytes; previousCheckedSafebox : TPCSafebox; progressNotify : TProgressNotify; var errors : String) : Boolean;
     Procedure Clear;
     Function LoadOperations(Operations : TPCOperationsComp; Block : Cardinal) : Boolean;
     Property SafeBox : TPCSafeBox read FSafeBox;
-    Function AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var newBlock: TBlockAccount; var errors: AnsiString): Boolean;
+    Function AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var newBlock: TBlockAccount; var errors: String): Boolean;
     Procedure DiskRestoreFromOperations(max_block : Int64; restoreProgressNotify : TProgressNotify = Nil);
     Procedure UpdateValuesFromSafebox;
     Procedure NewLog(Operations: TPCOperationsComp; Logtype: TLogType; Logtxt: AnsiString);
@@ -529,7 +529,7 @@ Type
     Property LastOperationBlock : TOperationBlock read FLastOperationBlock; // TODO: Use
     Property Storage : TStorage read GetStorage;
     Property StorageClass : TStorageClass read FStorageClass write SetStorageClass;
-    Function IsReady(Var CurrentProcess : AnsiString) : Boolean;
+    Function IsReady(Var CurrentProcess : String) : Boolean;
     Property LastBlockFound : TPCOperationsComp read FLastBlockCache;
     Property UpgradingToV2 : Boolean read FUpgradingToV2;
   End;
@@ -749,7 +749,7 @@ begin
   Result := FSafeBox.AccountsCount;
 end;
 
-function TPCBank.AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var newBlock: TBlockAccount; var errors: AnsiString): Boolean;
+function TPCBank.AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var newBlock: TBlockAccount; var errors: String): Boolean;
 Var
   buffer, pow: AnsiString;
   i : Integer;
@@ -889,7 +889,7 @@ end;
 
 procedure TPCBank.DiskRestoreFromOperations(max_block : Int64; restoreProgressNotify : TProgressNotify = Nil);
 Var
-  errors: AnsiString;
+  errors: String;
   newBlock: TBlockAccount;
   Operations: TPCOperationsComp;
   n : Int64;
@@ -1039,7 +1039,7 @@ begin
   Result := FStorage;
 end;
 
-function TPCBank.IsReady(Var CurrentProcess: AnsiString): Boolean;
+function TPCBank.IsReady(Var CurrentProcess: String): Boolean;
 begin
   Result := false;
   CurrentProcess := '';
@@ -1051,7 +1051,7 @@ begin
   end else Result := true;
 end;
 
-function TPCBank.LoadBankFromStream(Stream: TStream; useSecureLoad : Boolean; checkSafeboxHash : TRawBytes; previousCheckedSafebox : TPCSafebox; progressNotify : TProgressNotify; var errors: AnsiString): Boolean;
+function TPCBank.LoadBankFromStream(Stream: TStream; useSecureLoad : Boolean; checkSafeboxHash : TRawBytes; previousCheckedSafebox : TPCSafebox; progressNotify : TProgressNotify; var errors: String): Boolean;
 Var LastReadBlock : TBlockAccount;
   i : Integer;
   auxSB : TPCSafeBox;
@@ -1126,9 +1126,9 @@ end;
 var
   _OperationsClass: Array of TPCOperationClass;
 
-function TPCOperationsComp.AddOperation(Execute: Boolean; op: TPCOperation; var errors: AnsiString): Boolean;
+function TPCOperationsComp.AddOperation(Execute: Boolean; op: TPCOperation; var errors: String): Boolean;
 var i : Integer;
-  auxs : AnsiString;
+  auxs : String;
 Begin
   Lock;
   Try
@@ -1179,9 +1179,9 @@ Begin
   end;
 End;
 
-function TPCOperationsComp.AddOperations(operations: TOperationsHashTree; var errors: AnsiString): Integer;
+function TPCOperationsComp.AddOperations(operations: TOperationsHashTree; var errors: String): Integer;
 Var i : Integer;
-  e : AnsiString;
+  e : String;
 begin
   Lock;
   try
@@ -1463,17 +1463,17 @@ begin
   Result := -1;
 end;
 
-function TPCOperationsComp.LoadBlockFromStorage(Stream: TStream; var errors: AnsiString): Boolean;
+function TPCOperationsComp.LoadBlockFromStorage(Stream: TStream; var errors: String): Boolean;
 begin
   Result := LoadBlockFromStreamExt(Stream,true,errors);
 end;
 
-function TPCOperationsComp.LoadBlockFromStream(Stream: TStream; var errors: AnsiString): Boolean;
+function TPCOperationsComp.LoadBlockFromStream(Stream: TStream; var errors: String): Boolean;
 begin
   Result := LoadBlockFromStreamExt(Stream,false,errors);
 end;
 
-function TPCOperationsComp.LoadBlockFromStreamExt(Stream: TStream; LoadingFromStorage: Boolean; var errors: AnsiString): Boolean;
+function TPCOperationsComp.LoadBlockFromStreamExt(Stream: TStream; LoadingFromStorage: Boolean; var errors: String): Boolean;
 Var i : Integer;
   lastfee : UInt64;
   soob : Byte;
@@ -1606,7 +1606,7 @@ procedure TPCOperationsComp.SanitizeOperations;
     }
 Var i,n,lastn, iUndo : Integer;
   op : TPCOperation;
-  errors, auxs : AnsiString;
+  errors, auxs : String;
   aux,aux2 : TOperationsHashTree;
   resetNewTarget : Boolean;
 begin
@@ -1881,7 +1881,7 @@ begin
    Result.OperationTxt := 'Miner reward';
 end;
 
-function TPCOperationsComp.ValidateOperationBlock(var errors : AnsiString): Boolean;
+function TPCOperationsComp.ValidateOperationBlock(var errors : String): Boolean;
 Var i : Integer;
 begin
   errors := '';
@@ -2484,7 +2484,7 @@ begin
   Index := L;
 end;
 
-function TOperationsHashTree.LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage : Boolean; LoadProtocolVersion : Word; PreviousUpdatedBlocks : TAccountPreviousBlockInfo; var errors: AnsiString): Boolean;
+function TOperationsHashTree.LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage : Boolean; LoadProtocolVersion : Word; PreviousUpdatedBlocks : TAccountPreviousBlockInfo; var errors: String): Boolean;
 Var c, i: Cardinal;
   OpType: Cardinal;
   bcop: TPCOperation;

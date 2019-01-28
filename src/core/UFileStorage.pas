@@ -314,7 +314,7 @@ end;
 
 procedure TFileStorage.DoLoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree);
 Var fs : TFileStream;
-  errors : AnsiString;
+  errors : String;
   n : Integer;
 begin
   LockBlockChainStream;
@@ -452,7 +452,7 @@ var
     filename,auxfn : AnsiString;
     fs : TFileStream;
     ms : TMemoryStream;
-    errors : AnsiString;
+    errors : String;
     blockscount : Cardinal;
     sbHeader, goodSbHeader : TPCSafeBoxHeader;
 begin
@@ -903,7 +903,7 @@ end;
 
 function TFileStorage.StreamBlockRead(Stream : TStream; iBlockHeaders : Integer; BlockHeaderFirstBlock, Block : Cardinal; Operations : TPCOperationsComp) : Boolean;
 Var p : Int64;
-  errors : AnsiString;
+  errors : String;
   streamFirstBlock,
   _BlockSizeC,
   _intBlockIndex : Cardinal;

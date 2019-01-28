@@ -713,7 +713,7 @@ var tree : TOperationsHashTree;
 Var i,j : Integer;
   MasterOp : TPCOperationsComp;
   op : TPCOperation;
-  Var errors : AnsiString;
+  errors : String;
 begin
   MasterOp := FNodeNotifyEvents.Node.Operations;
   MasterOp.Lock;
@@ -774,7 +774,7 @@ end;
 function TPoolMiningServer.MinerSubmit(Client: TJSONRPCTcpIpClient; params: TPCJSONObject; const id : Variant): Boolean;
 Var s : String;
   nbOperations : TPCOperationsComp;
-  errors, sJobInfo : AnsiString;
+  errors, sJobInfo : String;
   nba : TBlockAccount;
   json : TPCJSONObject;
   p1,p2,p3 : TRawBytes;
