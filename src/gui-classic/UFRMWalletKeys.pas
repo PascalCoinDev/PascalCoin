@@ -370,7 +370,7 @@ var s : String;
  raw : TRawBytes;
  EC : TECPrivateKey;
  account : TAccountKey;
- errors : AnsiString;
+ errors : String;
 begin
   CheckIsWalletKeyValidPassword;
   if Not Assigned(WalletKeys) then exit;

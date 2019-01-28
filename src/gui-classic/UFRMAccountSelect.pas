@@ -158,7 +158,7 @@ procedure TSearchThread.BCExecute;
     account : TAccount;
     isValid : Boolean;
     validAccKey : Boolean;
-    errors : AnsiString;
+    errors : String;
     i : Integer;
   begin
     SetLength(FAccounts,0);

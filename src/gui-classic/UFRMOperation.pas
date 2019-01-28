@@ -155,15 +155,15 @@ type
     Procedure UpdateWalletKeys;
     { Private declarations }
     Procedure UpdateAccountsInfo;
-    Function UpdateFee(var Fee : Int64; errors : AnsiString) : Boolean;
-    Function UpdateOperationOptions(var errors : AnsiString) : Boolean;
-    Function UpdatePayload(Const SenderAccount : TAccount; var errors : AnsiString) : Boolean;
-    Function UpdateOpTransaction(Const SenderAccount : TAccount; var DestAccount : TAccount; var amount : Int64; var errors : AnsiString) : Boolean;
-    Function UpdateOpChangeKey(Const TargetAccount : TAccount; var SignerAccount : TAccount; var NewPublicKey : TAccountKey; var errors : AnsiString) : Boolean;
-    Function UpdateOpListForSale(Const TargetAccount : TAccount; var SalePrice : Int64; var SellerAccount,SignerAccount : TAccount; var NewOwnerPublicKey : TAccountKey; var LockedUntilBlock : Cardinal; var errors : AnsiString) : Boolean;
-    Function UpdateOpDelist(Const TargetAccount : TAccount; var SignerAccount : TAccount; var errors : AnsiString) : Boolean;
-    Function UpdateOpBuyAccount(Const SenderAccount : TAccount; var AccountToBuy : TAccount; var amount : Int64; var NewPublicKey : TAccountKey; var errors : AnsiString) : Boolean;
-    Function UpdateOpChangeInfo(Const TargetAccount : TAccount; var SignerAccount : TAccount; var changeName : Boolean; var newName : TRawBytes; var changeType : Boolean; var newType : Word; var errors : AnsiString) : Boolean;
+    Function UpdateFee(var Fee : Int64; errors : String) : Boolean;
+    Function UpdateOperationOptions(var errors : String) : Boolean;
+    Function UpdatePayload(Const SenderAccount : TAccount; var errors : String) : Boolean;
+    Function UpdateOpTransaction(Const SenderAccount : TAccount; var DestAccount : TAccount; var amount : Int64; var errors : String) : Boolean;
+    Function UpdateOpChangeKey(Const TargetAccount : TAccount; var SignerAccount : TAccount; var NewPublicKey : TAccountKey; var errors : String) : Boolean;
+    Function UpdateOpListForSale(Const TargetAccount : TAccount; var SalePrice : Int64; var SellerAccount,SignerAccount : TAccount; var NewOwnerPublicKey : TAccountKey; var LockedUntilBlock : Cardinal; var errors : String) : Boolean;
+    Function UpdateOpDelist(Const TargetAccount : TAccount; var SignerAccount : TAccount; var errors : String) : Boolean;
+    Function UpdateOpBuyAccount(Const SenderAccount : TAccount; var AccountToBuy : TAccount; var amount : Int64; var NewPublicKey : TAccountKey; var errors : String) : Boolean;
+    Function UpdateOpChangeInfo(Const TargetAccount : TAccount; var SignerAccount : TAccount; var changeName : Boolean; var newName : TRawBytes; var changeType : Boolean; var newType : Word; var errors : String) : Boolean;
     procedure SetDefaultFee(const Value: Int64);
     Procedure OnSenderAccountsChanged(Sender : TObject);
     procedure OnWalletKeysChanged(Sender : TObject);
@@ -216,7 +216,7 @@ end;
 { TFRMOperation }
 
 procedure TFRMOperation.actExecuteExecute(Sender: TObject);
-Var errors : AnsiString;
+Var errors : String;
   P : PAccount;
   i,iAcc : Integer;
   wk : TWalletKey;
@@ -440,7 +440,7 @@ end;
 
 procedure TFRMOperation.bbPasswordClick(Sender: TObject);
 Var s : String;
-  errors : AnsiString;
+  errors : String;
 begin
   if FWalletKeys.IsValidPassword then begin
   end else begin
@@ -598,7 +598,7 @@ begin
 end;
 
 procedure TFRMOperation.ebNewPublicKeyExit(Sender: TObject);
-var errors : AnsiString;
+var errors : String;
 begin
   UpdateOperationOptions(errors);
 end;
@@ -645,7 +645,7 @@ begin
 end;
 
 procedure TFRMOperation.memoPayloadClick(Sender: TObject);
-Var errors : AnsiString;
+Var errors : String;
 begin
   if SenderAccounts.Count>0 then begin
     UpdatePayload(TNode.Node.Bank.SafeBox.Account(SenderAccounts.Get(0)),errors);
@@ -653,7 +653,7 @@ begin
 end;
 
 procedure TFRMOperation.OnSenderAccountsChanged(Sender: TObject);
-Var errors : AnsiString;
+Var errors : String;
 begin
   if SenderAccounts.Count>1 then begin
     ebAmount.Text := 'ALL BALANCE';
@@ -683,7 +683,7 @@ begin
 end;
 
 procedure TFRMOperation.PageControlOpTypeChange(Sender: TObject);
-var errors : AnsiString;
+var errors : String;
 begin
   UpdateOperationOptions(errors);
 end;
@@ -781,7 +781,7 @@ begin
   End;
 end;
 
-function TFRMOperation.UpdateFee(var Fee: Int64; errors: AnsiString): Boolean;
+function TFRMOperation.UpdateFee(var Fee: Int64; errors: String): Boolean;
 begin
   errors := '';
   if trim(ebFee.Text)<>'' then begin
@@ -794,12 +794,12 @@ begin
 end;
 
 procedure TFRMOperation.updateInfoClick(Sender: TObject);
-Var errors : AnsiString;
+Var errors : String;
 begin
   UpdateOperationOptions(errors);
 end;
 
-function TFRMOperation.UpdateOpBuyAccount(const SenderAccount: TAccount; var AccountToBuy: TAccount; var amount: Int64; var NewPublicKey: TAccountKey; var errors: AnsiString): Boolean;
+function TFRMOperation.UpdateOpBuyAccount(const SenderAccount: TAccount; var AccountToBuy: TAccount; var amount: Int64; var NewPublicKey: TAccountKey; var errors: String): Boolean;
 var c : Cardinal;
   i : Integer;
 begin
@@ -854,7 +854,7 @@ begin
 end;
 
 function TFRMOperation.UpdateOpChangeInfo(const TargetAccount: TAccount; var SignerAccount : TAccount;
-   var changeName : Boolean; var newName: TRawBytes; var changeType : Boolean; var newType: Word; var errors: AnsiString): Boolean;
+   var changeName : Boolean; var newName: TRawBytes; var changeType : Boolean; var newType: Word; var errors: String): Boolean;
 var auxC : Cardinal;
   i : Integer;
   errCode : Integer;
@@ -937,7 +937,7 @@ begin
   end;
 end;
 
-function TFRMOperation.UpdateOpChangeKey(Const TargetAccount : TAccount; var SignerAccount : TAccount; var NewPublicKey: TAccountKey; var errors: AnsiString): Boolean;
+function TFRMOperation.UpdateOpChangeKey(Const TargetAccount : TAccount; var SignerAccount : TAccount; var NewPublicKey: TAccountKey; var errors: String): Boolean;
 var i : Integer;
   auxC : Cardinal;
 begin
@@ -1001,7 +1001,7 @@ begin
   end;
 end;
 
-function TFRMOperation.UpdateOpDelist(const TargetAccount : TAccount; var SignerAccount : TAccount; var errors: AnsiString): Boolean;
+function TFRMOperation.UpdateOpDelist(const TargetAccount : TAccount; var SignerAccount : TAccount; var errors: String): Boolean;
 Var auxC : Cardinal;
 begin
   lblDelistErrors.Caption := '';
@@ -1051,11 +1051,11 @@ begin
   end;
 end;
 
-function TFRMOperation.UpdateOperationOptions(var errors : AnsiString) : Boolean;
+function TFRMOperation.UpdateOperationOptions(var errors : String) : Boolean;
 Var
   iWallet,iAcc : Integer;
   wk : TWalletKey;
-  e : AnsiString;
+  e : String;
   sender_account,dest_account,seller_account, account_to_buy, signer_account : TAccount;
   publicKey : TAccountKey;
   salePrice, amount : Int64;
@@ -1163,7 +1163,7 @@ end;
 function TFRMOperation.UpdateOpListForSale(const TargetAccount: TAccount;
   var SalePrice: Int64; var SellerAccount, SignerAccount: TAccount;
   var NewOwnerPublicKey: TAccountKey; var LockedUntilBlock: Cardinal;
-  var errors: AnsiString): Boolean;
+  var errors: String): Boolean;
 var auxC : Cardinal;
 begin
   Result := False;
@@ -1257,7 +1257,7 @@ begin
   End;
 end;
 
-function TFRMOperation.UpdateOpTransaction(const SenderAccount: TAccount;  var DestAccount: TAccount; var amount: Int64;  var errors: AnsiString): Boolean;
+function TFRMOperation.UpdateOpTransaction(const SenderAccount: TAccount;  var DestAccount: TAccount; var amount: Int64;  var errors: String): Boolean;
 Var c : Cardinal;
 begin
   Result := False;
@@ -1298,7 +1298,7 @@ begin
 end;
 
 function TFRMOperation.UpdatePayload(const SenderAccount: TAccount;
-  var errors: AnsiString): Boolean;
+  var errors: String): Boolean;
 Var payload_u : AnsiString;
   payload_encrypted : TRawBytes;
   account : TAccount;

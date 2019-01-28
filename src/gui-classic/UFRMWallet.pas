@@ -333,7 +333,7 @@ Type
   private
     FLastTC : TTickCount;
     FLastMsg : String;
-    procedure OnProgressNotify(sender : TObject; const mesage : AnsiString; curPos, totalCount : Int64);
+    procedure OnProgressNotify(sender : TObject; const mesage : String; curPos, totalCount : Int64);
     procedure ThreadSafeNotify;
   protected
     procedure BCExecute; override;
@@ -341,7 +341,7 @@ Type
 
 { TThreadActivate }
 
-procedure TThreadActivate.OnProgressNotify(sender: TObject; const mesage: AnsiString; curPos, totalCount: Int64);
+procedure TThreadActivate.OnProgressNotify(sender: TObject; const mesage: String; curPos, totalCount: Int64);
 var pct : String;
 begin
   If TPlatform.GetElapsedMilliseconds(FLastTC)>500 then begin
@@ -363,7 +363,7 @@ begin
 end;
 
 procedure TThreadActivate.BCExecute;
-Var currentProcess : AnsiString;
+Var currentProcess : String;
 begin
   FLastTC := 0;
   FLastMsg := '';
@@ -500,7 +500,7 @@ end;
 
 procedure TFRMWallet.bbSendAMessageClick(Sender: TObject);
 Var basem,m : String;
-  them, errors : AnsiString;
+  them, errors : String;
   i,n : Integer;
   nc : TNetConnection;
 begin
@@ -565,7 +565,7 @@ begin
 end;
 
 procedure TFRMWallet.CheckIsReady;
-Var isready : AnsiString;
+Var isready : String;
 begin
   if Not Assigned(FNode) then Abort;
 
@@ -2205,7 +2205,7 @@ begin
 end;
 
 procedure TFRMWallet.UpdateConnectionStatus;
-var errors : AnsiString;
+var errors : String;
 begin
   UpdateNodeStatus;
   OnNetStatisticsChanged(Nil);
@@ -2222,7 +2222,7 @@ begin
 end;
 
 procedure TFRMWallet.UpdateNodeStatus;
-Var status : AnsiString;
+Var status : String;
 begin
   If Not Assigned(FNode) then begin
     lblNodeStatus.Font.Color := clRed;

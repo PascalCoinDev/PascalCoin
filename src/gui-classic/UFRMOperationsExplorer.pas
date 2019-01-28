@@ -357,7 +357,7 @@ Var op : TPCOperation;
   aux : String;
   nAccount,n_operation : Cardinal;
   changes : TMultiOpChangesInfo;
-  new_name, errors : AnsiString;
+  new_name, errors : String;
   new_type : Word;
   new_account_key : TAccountKey;
 label LBL_start_changer;
@@ -494,7 +494,7 @@ end;
 
 procedure TFRMOperationsExplorer.ActExecuteOperationExecute(Sender: TObject);
 Var op : TPCOperation;
-  errors : AnsiString;
+  errors : String;
 begin
   If Not Assigned(FSourceNode) then Raise Exception.Create('No node to Execute');
   op := GetSelectedOperation;
@@ -531,7 +531,7 @@ Var i : Integer;
   raw : TRawBytes;
   aux : AnsiString;
   auxS : String;
-  errors : AnsiString;
+  errors : String;
   opht : TOperationsHashTree;
   ms : TMemoryStream;
 begin
