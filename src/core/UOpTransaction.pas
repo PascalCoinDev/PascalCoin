@@ -62,8 +62,8 @@ Type
   End;
 
 Const
-  CT_TOpTransactionData_NUL : TOpTransactionData = (sender:0;n_operation:0;target:0;amount:0;fee:0;payload:'';public_key:(EC_OpenSSL_NID:0;x:'';y:'');sign:(r:'';s:'');opTransactionStyle:transaction;AccountPrice:0;SellerAccount:0;new_accountkey:(EC_OpenSSL_NID:0;x:'';y:''));
-  CT_TOpChangeKeyData_NUL : TOpChangeKeyData = (account_signer:0;account_target:0;n_operation:0;fee:0;payload:'';public_key:(EC_OpenSSL_NID:0;x:'';y:'');new_accountkey:(EC_OpenSSL_NID:0;x:'';y:'');sign:(r:'';s:''));
+  CT_TOpTransactionData_NUL : TOpTransactionData = (sender:0;n_operation:0;target:0;amount:0;fee:0;payload:Nil;public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);sign:(r:Nil;s:Nil);opTransactionStyle:transaction;AccountPrice:0;SellerAccount:0;new_accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));
+  CT_TOpChangeKeyData_NUL : TOpChangeKeyData = (account_signer:0;account_target:0;n_operation:0;fee:0;payload:Nil;public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);new_accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);sign:(r:Nil;s:Nil));
   CT_TOpRecoverFoundsData_NUL : TOpRecoverFoundsData = (account:0;n_operation:0;fee:0);
 
 Type
@@ -197,9 +197,9 @@ Type
 
 
 Const
-  CT_TOpListAccountData_NUL : TOpListAccountData = (account_signer:0;account_target:0;operation_type:lat_Unknown;n_operation:0;account_price:0;account_to_pay:0;fee:0;payload:'';public_key:(EC_OpenSSL_NID:0;x:'';y:'');new_public_key:(EC_OpenSSL_NID:0;x:'';y:'');locked_until_block:0;sign:(r:'';s:''));
-  CT_TOpChangeAccountInfoData_NUL : TOpChangeAccountInfoData = (account_signer:0;account_target:0;n_operation:0;fee:0;payload:'';public_key:(EC_OpenSSL_NID:0;x:'';y:'');changes_type:[];
-    new_accountkey:(EC_OpenSSL_NID:0;x:'';y:'');new_name:'';new_type:0;sign:(r:'';s:''));
+  CT_TOpListAccountData_NUL : TOpListAccountData = (account_signer:0;account_target:0;operation_type:lat_Unknown;n_operation:0;account_price:0;account_to_pay:0;fee:0;payload:Nil;public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);new_public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;sign:(r:Nil;s:Nil));
+  CT_TOpChangeAccountInfoData_NUL : TOpChangeAccountInfoData = (account_signer:0;account_target:0;n_operation:0;fee:0;payload:Nil;public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);changes_type:[];
+    new_accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);new_name:Nil;new_type:0;sign:(r:Nil;s:Nil));
 
 Type
 
@@ -339,7 +339,7 @@ Type
   End;
 
 Const
-  CT_TOpDataData_NUL : TOpDataData = (account_signer:0;account_sender:0;account_target:0;n_operation:0;dataType:0;dataSequence:0;amount:0;fee:0;payload:'';sign:(r:'';s:''));
+  CT_TOpDataData_NUL : TOpDataData = (account_signer:0;account_sender:0;account_target:0;n_operation:0;dataType:0;dataSequence:0;amount:0;fee:0;payload:Nil;sign:(r:Nil;s:Nil));
 
 Procedure RegisterOperationsClass;
 
@@ -509,11 +509,11 @@ begin
     end;
   end;
   If (account_name in FData.changes_type) then begin
-    If (FData.new_name<>'') then begin
+    If (Length(FData.new_name)>0) then begin
       If Not TPCSafeBox.ValidAccountName(FData.new_name,errors) then Exit;
     end;
   end else begin
-    If (FData.new_name<>'') then begin
+    If (Length(FData.new_name)>0) then begin
       errors := 'Invalid data in new_name field';
       Exit;
     end;
@@ -654,7 +654,7 @@ begin
   If (public_key IN FData.changes_type) then s := 'new public key '+TAccountComp.GetECInfoTxt(FData.new_accountkey.EC_OpenSSL_NID);
   If (account_name IN FData.changes_type)  then begin
     if s<>'' then s:=s+', ';
-    s := s + 'new name to "'+FData.new_name+'"';
+    s := s + 'new name to "'+FData.new_name.ToPrintable+'"';
   end;
   If (account_type IN FData.changes_type)  then begin
     if s<>'' then s:=s+', ';
@@ -1298,7 +1298,7 @@ end;
 
 function TOpChangeKey.GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes;
 var ms : TMemoryStream;
-  s : AnsiString;
+  raw : TRawBytes;
 begin
   If UseProtocolV2 then Result := inherited GetBufferForOpHash(UseProtocolV2)
   else begin
@@ -1314,9 +1314,9 @@ begin
         ms.WriteBuffer(FData.public_key.x[Low(FData.public_key.x)],Length(FData.public_key.x));
       if Length(FData.public_key.y)>0 then
         ms.WriteBuffer(FData.public_key.y[Low(FData.public_key.y)],Length(FData.public_key.y));
-      s := TAccountComp.AccountKey2RawString(FData.new_accountkey);
-      if Length(s)>0 then
-        ms.WriteBuffer(s[Low(s)],Length(s));
+      raw := TAccountComp.AccountKey2RawString(FData.new_accountkey);
+      if Length(raw)>0 then
+        ms.WriteBuffer(raw[Low(raw)],Length(raw));
       if Length(FData.sign.r)>0 then
         ms.WriteBuffer(FData.sign.r[Low(FData.sign.r)],Length(FData.sign.r));
       if Length(FData.sign.s)>0 then
@@ -1337,7 +1337,7 @@ begin
 end;
 
 function TOpChangeKey.LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean;
-var s : AnsiString;
+var raw : TRawBytes;
 begin
   Result := false;
   if Stream.Size-Stream.Position < 16  then exit; // Invalid stream
@@ -1353,8 +1353,8 @@ begin
   if Stream.Read(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID))<0 then exit;
   if TStreamOp.ReadAnsiString(Stream,FData.public_key.x)<0 then exit;
   if TStreamOp.ReadAnsiString(Stream,FData.public_key.y)<0 then exit;
-  if TStreamOp.ReadAnsiString(Stream,s)<0 then exit;
-  FData.new_accountkey := TAccountComp.RawString2Accountkey(s);
+  if TStreamOp.ReadAnsiString(Stream,raw)<0 then exit;
+  FData.new_accountkey := TAccountComp.RawString2Accountkey(raw);
   if TStreamOp.ReadAnsiString(Stream,FData.sign.r)<0 then exit;
   if TStreamOp.ReadAnsiString(Stream,FData.sign.s)<0 then exit;
   Result := true;
@@ -1447,7 +1447,7 @@ end;
 
 function TOpChangeKey.GetDigestToSign(current_protocol : Word): TRawBytes;
 var ms : TMemoryStream;
-  s : AnsiString;
+  raw : TRawBytes;
   b : Byte;
 begin
   ms := TMemoryStream.Create;
@@ -1463,9 +1463,9 @@ begin
       ms.WriteBuffer(FData.public_key.x[Low(FData.public_key.x)],Length(FData.public_key.x));
     if Length(FData.public_key.y)>0 then
       ms.WriteBuffer(FData.public_key.y[Low(FData.public_key.y)],Length(FData.public_key.y));
-    s := TAccountComp.AccountKey2RawString(FData.new_accountkey);
-    if Length(s)>0 then
-      ms.WriteBuffer(s[Low(s)],Length(s));
+    raw := TAccountComp.AccountKey2RawString(FData.new_accountkey);
+    if Length(raw)>0 then
+      ms.WriteBuffer(raw[Low(raw)],Length(raw));
     if (current_protocol<=CT_PROTOCOL_3) then begin
       ms.Position := 0;
       SetLength(Result,ms.Size);
@@ -1594,7 +1594,7 @@ end;
 
 function TOpRecoverFounds.OperationPayload: TRawBytes;
 begin
-  Result := '';
+  SetLength(Result,0);
 end;
 
 class function TOpRecoverFounds.OpType: Byte;
@@ -1635,7 +1635,7 @@ end;
 
 function TOpRecoverFounds.GetDigestToSign(current_protocol : Word): TRawBytes;
 begin
-  Result := ''; // Nothing to be signed!
+  SetLength(Result,0); // Nothing to be signed!
 end;
 
 { TOpListAccount }
@@ -1803,7 +1803,7 @@ begin
 end;
 
 function TOpListAccount.LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean;
-var s : AnsiString;
+var raw : TRawBytes;
   w : Word;
 begin
   Result := false;
@@ -1823,8 +1823,8 @@ begin
     if Stream.Read(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID))<0 then exit;
     if TStreamOp.ReadAnsiString(Stream,FData.public_key.x)<0 then exit;
     if TStreamOp.ReadAnsiString(Stream,FData.public_key.y)<0 then exit;
-    if TStreamOp.ReadAnsiString(Stream,s)<0 then exit;
-    FData.new_public_key := TAccountComp.RawString2Accountkey(s);
+    if TStreamOp.ReadAnsiString(Stream,raw)<0 then exit;
+    FData.new_public_key := TAccountComp.RawString2Accountkey(raw);
     Stream.Read(FData.locked_until_block,Sizeof(FData.locked_until_block));
   end;
   Stream.Read(FData.fee,Sizeof(FData.fee));

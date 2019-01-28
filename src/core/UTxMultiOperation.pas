@@ -106,7 +106,7 @@ Type
     FSaveSignatureValue : Boolean;
     FTotalAmount : Int64;
     FTotalFee : Int64;
-    Function IndexOfAccountChangeNameTo(const newName : AnsiString) : Integer;
+    Function IndexOfAccountChangeNameTo(const newName : TRawBytes) : Integer;
     procedure ClearSignatures;
   protected
     procedure InitializeData; override;
@@ -265,12 +265,12 @@ begin
   end else Raise Exception.Create('ERROR DEV 20181217-1 Source must be a TOpMultiOperation. Self:'+toString+' Source:'+SourceOperation.ToString);
 end;
 
-function TOpMultiOperation.IndexOfAccountChangeNameTo(const newName: AnsiString): Integer;
+function TOpMultiOperation.IndexOfAccountChangeNameTo(const newName: TRawBytes): Integer;
 begin
-  If (newName<>'') then begin
+  If (Length(newName)>0) then begin
     for Result:=0 to high(FData.changesInfo) do begin
       If (account_name in FData.changesInfo[Result].Changes_type) And
-         (AnsiCompareText(FData.changesInfo[Result].New_Name,newName)=0) then exit;
+         (TBaseType.Equals(FData.changesInfo[Result].New_Name,newName)) then exit;
     end;
   end;
   Result := -1;
@@ -656,7 +656,7 @@ begin
       end;
     end;
     If (account_name in chi.changes_type) then begin
-      If (chi.New_Name<>'') then begin
+      If (Length(chi.New_Name)>0) then begin
         If Not TPCSafeBox.ValidAccountName(chi.New_Name,errors) then Exit;
         // Check name not found!
         j := AccountTransaction.FindAccountByNameInTransaction(chi.New_Name,newNameWasAdded, newNameWasDeleted);
@@ -666,7 +666,7 @@ begin
         end;
       end;
     end else begin
-      If (chi.New_Name<>'') then begin
+      If (Length(chi.New_Name)>0) then begin
         errors := 'Invalid data in new_name field';
         Exit;
       end;
@@ -790,7 +790,7 @@ end;
 
 function TOpMultiOperation.OperationPayload: TRawBytes;
 begin
-  Result := '';
+  SetLength(Result,0);
 end;
 
 function TOpMultiOperation.SignerAccount: Cardinal;
