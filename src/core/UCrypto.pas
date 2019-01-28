@@ -44,7 +44,7 @@ Type
     Property PrivateKey : PEC_KEY read FPrivateKey;
     Property PublicKey : TECDSA_Public read GetPublicKey;
     Property PublicKeyPoint : PEC_POINT read GetPublicKeyPoint;
-    Function SetPrivateKeyFromHexa(EC_OpenSSL_NID : Word; hexa : AnsiString) : Boolean;
+    Function SetPrivateKeyFromHexa(EC_OpenSSL_NID : Word; const hexa : AnsiString) : Boolean;
     Property EC_OpenSSL_NID : Word Read FEC_OpenSSL_NID;
     class function IsValidPublicKey(PubKey : TECDSA_Public) : Boolean;
     Function ExportToRaw : TRawBytes;
@@ -57,24 +57,24 @@ Type
   private
   public
     class function IsHexString(const AHexString: AnsiString) : boolean;
-    class function ToHexaString(const raw : TRawBytes) : AnsiString;
+    class function ToHexaString(const raw : TRawBytes) : AnsiString; // DEPRECATED: Use TRawBytes.ToHexaString instead
     class function HexaToRaw(const HexaString : AnsiString) : TRawBytes; overload;
     class function HexaToRaw(const HexaString : AnsiString; out raw : TRawBytes) : Boolean; overload;
     class function DoSha256(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
-    class function DoSha256(const TheMessage : AnsiString) : TRawBytes; overload;
-    class procedure DoSha256(const TheMessage : AnsiString; out ResultSha256 : TRawBytes);  overload;
-    class function DoDoubleSha256(const TheMessage : AnsiString) : TRawBytes; overload;
+    class function DoSha256(const TheMessage : TRawBytes) : TRawBytes; overload;
+    class procedure DoSha256(const TheMessage : TRawBytes; out ResultSha256 : TRawBytes);  overload;
+    class function DoDoubleSha256(const TheMessage : TRawBytes) : TRawBytes; overload;
     class procedure DoDoubleSha256(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
-    class function DoRandomHash(const TheMessage : AnsiString) : TRawBytes; overload;
+    class function DoRandomHash(const TheMessage : TRawBytes) : TRawBytes; overload;
     class procedure DoRandomHash(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
     class procedure DoRandomHash(AFastHasher : TRandomHashFast; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
-    class function DoRipeMD160_HEXASTRING(const TheMessage : AnsiString) : TRawBytes; overload;
+    class function DoRipeMD160_HEXASTRING(const TheMessage : TRawBytes) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
-    class function DoRipeMD160AsRaw(const TheMessage : AnsiString) : TRawBytes; overload;
+    class function DoRipeMD160AsRaw(const TheMessage : TRawBytes) : TRawBytes; overload;
     class function PrivateKey2Hexa(Key : PEC_KEY) : AnsiString;
-    class function ECDSASign(Key : PEC_KEY; const digest : AnsiString) : TECDSA_SIG;
-    class function ECDSAVerify(EC_OpenSSL_NID : Word; PubKey : EC_POINT; const digest : AnsiString; Signature : TECDSA_SIG) : Boolean; overload;
-    class function ECDSAVerify(PubKey : TECDSA_Public; const digest : AnsiString; Signature : TECDSA_SIG) : Boolean; overload;
+    class function ECDSASign(Key : PEC_KEY; const digest : TRawBytes) : TECDSA_SIG;
+    class function ECDSAVerify(EC_OpenSSL_NID : Word; PubKey : EC_POINT; const digest : TRawBytes; Signature : TECDSA_SIG) : Boolean; overload;
+    class function ECDSAVerify(PubKey : TECDSA_Public; const digest : TRawBytes; Signature : TECDSA_SIG) : Boolean; overload;
     class procedure InitCrypto;
     class function IsHumanReadable(Const ReadableText : TRawBytes) : Boolean;
     class function EncodeSignature(const signature : TECDSA_SIG) : TRawBytes;
@@ -122,8 +122,8 @@ Type
   End;
 
 Const
-  CT_TECDSA_Public_Nul : TECDSA_Public = (EC_OpenSSL_NID:0;x:'';y:'');
-  CT_TECDSA_SIG_Nul : TECDSA_SIG = (r:'';s:'');
+  CT_TECDSA_Public_Nul : TECDSA_Public = (EC_OpenSSL_NID:0;x:Nil;y:Nil);
+  CT_TECDSA_SIG_Nul : TECDSA_SIG = (r:Nil;s:Nil);
 
 implementation
 
@@ -314,7 +314,7 @@ begin
   FPrivateKey := Value;
 end;
 
-function TECPrivateKey.SetPrivateKeyFromHexa(EC_OpenSSL_NID : Word; hexa : AnsiString) : Boolean;
+function TECPrivateKey.SetPrivateKeyFromHexa(EC_OpenSSL_NID : Word; const hexa : AnsiString) : Boolean;
 var bn : PBIGNUM;
   ctx : PBN_CTX;
   pub_key : PEC_POINT;
@@ -322,7 +322,7 @@ begin
   Result := False;
   bn := BN_new;
   try
-    if BN_hex2bn(@bn,PAnsiChar(hexa))=0 then Raise ECryptoException.Create('Invalid Hexadecimal value:'+TCrypto.ToHexaString(hexa));
+    if BN_hex2bn(@bn,PAnsiChar(hexa))=0 then Raise ECryptoException.Create('Invalid hexa string to convert to Hexadecimal value');
 
     if Assigned(FPrivateKey) then EC_KEY_free(FPrivateKey);
     FEC_OpenSSL_NID := EC_OpenSSL_NID;
@@ -360,25 +360,27 @@ begin
   SHA256(PS,32,PS);
 end;
 
-class function TCrypto.DoDoubleSha256(const TheMessage: AnsiString): TRawBytes;
+class function TCrypto.DoDoubleSha256(const TheMessage: TRawBytes): TRawBytes;
 begin
   Result := DoSha256(DoSha256(TheMessage));
 end;
 
-class function TCrypto.DoRipeMD160_HEXASTRING(const TheMessage: AnsiString): TRawBytes;
+class function TCrypto.DoRipeMD160_HEXASTRING(const TheMessage: TRawBytes): TRawBytes;
 Var PS : PAnsiChar;
   PC : PAnsiChar;
   i : Integer;
+  tmp : String;
 begin
   GetMem(PS,33);
-  RIPEMD160(PAnsiChar(TheMessage),Length(TheMessage),PS);
+  RIPEMD160(PAnsiChar(@TheMessage[Low(TheMessage)]),Length(TheMessage),PS);
   PC := PS;
-  Result := '';
-  for I := 1 to 20 do begin
-    Result := Result + IntToHex(PtrInt(PC^),2);
+  tmp := '';
+  for i := 1 to 20 do begin
+    tmp := tmp + IntToHex(PtrInt(PC^),2);
     inc(PC);
   end;
   FreeMem(PS,33);
+  Result := TEncoding.ASCII.GetBytes(tmp);
 end;
 
 class function TCrypto.DoRipeMD160AsRaw(p: PAnsiChar; plength: Cardinal): TRawBytes;
@@ -389,12 +391,12 @@ begin
   RIPEMD160(p,plength,PS);
 end;
 
-class function TCrypto.DoRipeMD160AsRaw(const TheMessage: AnsiString): TRawBytes;
+class function TCrypto.DoRipeMD160AsRaw(const TheMessage: TRawBytes): TRawBytes;
 Var PS : PAnsiChar;
 begin
   SetLength(Result,20);
   PS := @Result[Low(Result)];
-  RIPEMD160(PAnsiChar(TheMessage),Length(TheMessage),PS);
+  RIPEMD160(PAnsiChar(@TheMessage[Low(TheMessage)]),Length(TheMessage),PS);
 end;
 
 class function TCrypto.DoSha256(p: PAnsiChar; plength: Cardinal): TRawBytes;
@@ -405,32 +407,32 @@ begin
   SHA256(p,plength,PS);
 end;
 
-class function TCrypto.DoSha256(const TheMessage: AnsiString): TRawBytes;
+class function TCrypto.DoSha256(const TheMessage: TRawBytes): TRawBytes;
 Var PS : PAnsiChar;
 begin
   SetLength(Result,32);
   PS := @Result[Low(Result)];
-  SHA256(PAnsiChar(TheMessage),Length(TheMessage),PS);
+  SHA256(@TheMessage[Low(TheMessage)],Length(TheMessage),PS);
 end;
 
 { New at Build 2.1.6
   Note: Delphi is slowly when working with Strings (allowing space)... so to
   increase speed we use a String as a pointer, and only increase speed if
   needed. Also the same with functions "GetMem" and "FreeMem" }
-class procedure TCrypto.DoSha256(const TheMessage: AnsiString; out ResultSha256: TRawBytes);
+class procedure TCrypto.DoSha256(const TheMessage: TRawBytes; out ResultSha256: TRawBytes);
 Var PS : PAnsiChar;
 begin
   If length(ResultSha256)<>32 then SetLength(ResultSha256,32);
   PS := @ResultSha256[Low(ResultSha256)];
-  SHA256(PAnsiChar(TheMessage),Length(TheMessage),PS);
+  SHA256(@TheMessage[Low(TheMessage)],Length(TheMessage),PS);
 end;
 
-class function TCrypto.ECDSASign(Key: PEC_KEY; const digest: AnsiString): TECDSA_SIG;
+class function TCrypto.ECDSASign(Key: PEC_KEY; const digest: TRawBytes): TECDSA_SIG;
 Var PECS : PECDSA_SIG;
   p : PAnsiChar;
   i : Integer;
 begin
-  PECS := ECDSA_do_sign(PAnsiChar(digest),length(digest),Key);
+  PECS := ECDSA_do_sign(PAnsiChar(@digest[Low(digest)]),Length(digest),Key);
   Try
     if PECS = Nil then raise ECryptoException.Create('Error signing');
 
@@ -448,7 +450,7 @@ begin
   End;
 end;
 
-class function TCrypto.ECDSAVerify(EC_OpenSSL_NID : Word; PubKey: EC_POINT; const digest: AnsiString; Signature: TECDSA_SIG): Boolean;
+class function TCrypto.ECDSAVerify(EC_OpenSSL_NID : Word; PubKey: EC_POINT; const digest: TRawBytes; Signature: TECDSA_SIG): Boolean;
 Var PECS : PECDSA_SIG;
   PK : PEC_KEY;
   {$IFDEF OpenSSL10}
@@ -472,7 +474,7 @@ begin
 
     PK := EC_KEY_new_by_curve_name(EC_OpenSSL_NID);
     EC_KEY_set_public_key(PK,@PubKey);
-    Case ECDSA_do_verify(PAnsiChar(digest),length(digest),PECS,PK) of
+    Case ECDSA_do_verify(@digest[Low(digest)],Length(digest),PECS,PK) of
       1 : Result := true;
       0 : Result := false;
     Else
@@ -484,7 +486,7 @@ begin
   End;
 end;
 
-class function TCrypto.ECDSAVerify(PubKey: TECDSA_Public; const digest: AnsiString; Signature: TECDSA_SIG): Boolean;
+class function TCrypto.ECDSAVerify(PubKey: TECDSA_Public; const digest: TRawBytes; Signature: TECDSA_SIG): Boolean;
 Var BNx,BNy : PBIGNUM;
   ECG : PEC_GROUP;
   ctx : PBN_CTX;
@@ -518,15 +520,15 @@ Var P : PAnsiChar;
  lc : AnsiString;
  i : Integer;
 begin
-  Result := '';
+  SetLength(Result,0);
   if ((Length(HexaString) MOD 2)<>0) Or (Length(HexaString)=0) then exit;
-  SetLength(result,Length(HexaString) DIV 2);
+  SetLength(Result,Length(HexaString) DIV 2);
   P := @Result[Low(Result)];
   lc := LowerCase(HexaString);
   i := HexToBin(PAnsiChar(@lc[Low(lc)]),P,Length(Result));
   if (i<>(Length(HexaString) DIV 2)) then begin
     TLog.NewLog(lterror,Classname,'Invalid HEXADECIMAL string result '+inttostr(i)+'<>'+inttostr(Length(HexaString) DIV 2)+': '+HexaString);
-    Result := '';
+    SetLength(Result,0);
   end;
 end;
 
@@ -535,7 +537,8 @@ Var P : PAnsiChar;
  lc : AnsiString;
  i : Integer;
 begin
-  Result := False; raw := '';
+  Result := False;
+  SetLength(raw,0);
   if ((Length(HexaString) MOD 2)<>0) then Exit;
   if (Length(HexaString)=0) then begin
     Result := True;
@@ -554,11 +557,12 @@ begin
 end;
 
 class function TCrypto.IsHumanReadable(const ReadableText: TRawBytes): Boolean;
+  // Will return TRUE if all bytes are between 32..126 (ASCII printable bytes)
 Var i : Integer;
 Begin
   Result := true;
-  for i := 1 to length(ReadableText) do begin
-    if (ord(ReadableText[i])<32) Or (ord(ReadableText[i])>=255) then begin
+  for i := Low(ReadableText) to High(ReadableText) do begin
+    if (ord(ReadableText[i])<32) Or (ord(ReadableText[i])>=127) then begin
       Result := false;
       Exit;
     end;
@@ -600,23 +604,13 @@ class function TCrypto.PrivateKey2Hexa(Key: PEC_KEY): AnsiString;
 Var p : PAnsiChar;
 begin
   p := BN_bn2hex(EC_KEY_get0_private_key(Key));
-//  p := BN_bn2hex(Key^.priv_key);
   Result := strpas(p);
   OPENSSL_free(p);
 end;
 
 class function TCrypto.ToHexaString(const raw: TRawBytes): AnsiString;
-Var i : Integer;
-  s : AnsiString;
-  b : Byte;
 begin
-  SetLength(Result,length(raw)*2);
-  for i := 0 to length(raw)-1 do begin
-    b := Ord(raw[i+1]);
-    s := IntToHex(b,2);
-    Result[(i*2)+1] := s[1];
-    Result[(i*2)+2] := s[2];
-  end;
+  Result := raw.ToHexaString;
 end;
 
 class function TCrypto.IsHexString(const AHexString: AnsiString) : boolean;
@@ -624,7 +618,7 @@ var
   i : Integer;
 begin
   Result := true;
-  for i := 1 to length(AHexString) do
+  for i := Low(AHexString) to High(AHexString) do
     if (NOT (AHexString[i] in ['0'..'9'])) AND
        (NOT (AHexString[i] in ['a'..'f'])) AND
        (NOT (AHexString[i] in ['A'..'F'])) then begin
@@ -635,9 +629,9 @@ end;
 
 { New at Build 4.0.0 }
 
-class function TCrypto.DoRandomHash(const TheMessage: AnsiString): TRawBytes;
+class function TCrypto.DoRandomHash(const TheMessage: TRawBytes): TRawBytes;
 begin
-  DoRandomHash(PAnsiChar(TheMessage),Length(TheMessage),Result);
+  Result := TRandomHashFast.Compute(TheMessage);
 end;
 
 class procedure TCrypto.DoRandomHash(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
