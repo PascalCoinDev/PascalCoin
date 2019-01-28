@@ -424,7 +424,7 @@ Var i : Integer;
 begin
   for i:=0 to FList.Count-1 do begin
     P := FList[i];
-    P^.rawData:='';
+    SetLength(P^.rawData,0);
     Dispose(P);
   end;
   FList.Clear;

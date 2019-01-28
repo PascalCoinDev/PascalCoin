@@ -36,7 +36,7 @@ uses
   {$ELSE}
   zlib,
   {$ENDIF}
-  UAccounts, ULog, UConst, UCrypto;
+  UAccounts, ULog, UConst, UCrypto, UBaseTypes;
 
 type
 
@@ -84,7 +84,7 @@ begin
     TLog.NewLog(ltDebug,ClassName,Format('Saving safebox chunk from %d to %d (current blockscount: %d)',[FromBlock,ToBlock,sbHeader.blocksCount]));
 
     // Header:
-    TStreamOp.WriteAnsiString(DestStream,CT_SafeBoxChunkIdentificator);
+    TStreamOp.WriteAnsiString(DestStream,TEncoding.ASCII.GetBytes(CT_SafeBoxChunkIdentificator));
     DestStream.Write(CT_SafeBoxBankVersion,SizeOf(CT_SafeBoxBankVersion));
     //
     auxStream := TMemoryStream.Create;
@@ -126,7 +126,7 @@ begin
 end;
 
 class function TPCChunk.LoadSafeBoxFromChunk(Chunk, DestStream: TStream; var safeBoxHeader : TPCSafeBoxHeader; var errors: AnsiString): Boolean;
-var s : AnsiString;
+var raw : TRawBytes;
   w : Word;
   cUncompressed, cCompressed : Cardinal;
   ds : Tdecompressionstream;
@@ -138,8 +138,8 @@ begin
   safeBoxHeader := CT_PCSafeBoxHeader_NUL;
   // Header:
   errors := 'Invalid stream header';
-  TStreamOp.ReadAnsiString(Chunk,s);
-  If (s<>CT_SafeBoxChunkIdentificator) then begin
+  TStreamOp.ReadAnsiString(Chunk,raw);
+  If (Not TBaseType.Equals(raw,TEncoding.ASCII.GetBytes(CT_SafeBoxChunkIdentificator))) then begin
     exit;
   end;
   Chunk.Read(w,sizeof(w));
