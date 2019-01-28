@@ -38,10 +38,10 @@ Type
   TAESComp = Class
   private
   public
-    Class function EVP_Encrypt_AES256(Value: TBytes; APassword: TBytes): TBytes; overload;
-    Class function EVP_Decrypt_AES256(const Value: TBytes; APassword: TBytes; var Decrypted: TBytes) : Boolean; overload;
-    Class function EVP_Encrypt_AES256(Const TheMessage, APassword : AnsiString): AnsiString; overload;
-    Class function EVP_Decrypt_AES256(const EncryptedMessage: TRawBytes; APassword: AnsiString; var Decrypted : AnsiString) : Boolean; overload;
+    Class function EVP_Encrypt_AES256(const TheMessage, APassword: TRawBytes): TRawBytes; overload;
+    Class function EVP_Encrypt_AES256(const TheMessage: TRawBytes; const APassword : String): TRawBytes; overload;
+    Class function EVP_Decrypt_AES256(const EncryptedMessage, APassword: TRawBytes; var Decrypted: TRawBytes) : Boolean; overload;
+    Class function EVP_Decrypt_AES256(const EncryptedMessage: TRawBytes; const APassword: String; var Decrypted : TRawBytes) : Boolean; overload;
   End;
 
 {$IFDEF FPC}
@@ -73,14 +73,14 @@ begin
   RAND_pseudo_bytes(@result[0], PKCS5_SALT_LEN);
 end;
 
-Function EVP_GetKeyIV(APassword: TBytes; ACipher: PEVP_CIPHER; const ASalt: TBytes; out Key, IV: TBytes) : Boolean;
+Function EVP_GetKeyIV(APassword: TRawBytes; ACipher: PEVP_CIPHER; const ASalt: TRawBytes; out Key, IV: TRawBytes) : Boolean;
 var
   pctx: PEVP_MD_CTX;
   {$IFDEF OpenSSL10}
   ctx: EVP_MD_CTX;
   {$ENDIF}
   hash: PEVP_MD;
-  mdbuff: TBytes;
+  mdbuff: TRawBytes;
   mds: integer;
   nkey, niv: integer;
 begin
@@ -146,21 +146,14 @@ end;
 
 { TAESComp }
 
-class function TAESComp.EVP_Decrypt_AES256(const EncryptedMessage: TRawBytes; APassword: AnsiString; var Decrypted : AnsiString) : Boolean;
-Var bytes_encrypted, bytes_password, bytes_result : TBytes;
+class function TAESComp.EVP_Decrypt_AES256(const EncryptedMessage: TRawBytes; const APassword: String; var Decrypted : TRawBytes) : Boolean;
+Var bytes_password : TRawBytes;
 begin
-  SetLength(bytes_encrypted,Length(EncryptedMessage));
-  CopyMemory(bytes_encrypted,@EncryptedMessage[Low(EncryptedMessage)],Length(EncryptedMessage));
-  SetLength(bytes_password,Length(APassword));
-  CopyMemory(bytes_password,@APassword[Low(APassword)],Length(APassword));
-  Result := EVP_Decrypt_AES256(bytes_encrypted,bytes_password,bytes_result);
-  if Result then begin
-    SetLength(Decrypted,Length(bytes_result));
-    CopyMemory(@Decrypted[Low(Decrypted)],bytes_result,Length(bytes_result));
-  end else Decrypted := '';
+  bytes_password.FromString(APassword);
+  Result := EVP_Decrypt_AES256(EncryptedMessage,bytes_password,Decrypted);
 end;
 
-class function TAESComp.EVP_Decrypt_AES256(const Value: TBytes; APassword: TBytes; var Decrypted: TBytes) : Boolean;
+class function TAESComp.EVP_Decrypt_AES256(const EncryptedMessage, APassword: TRawBytes; var Decrypted: TRawBytes) : Boolean;
 var
   cipher: PEVP_CIPHER;
   pctx: PEVP_CIPHER_CTX;
@@ -174,9 +167,9 @@ begin
   cipher := EVP_aes_256_cbc;
   SetLength(salt, SALT_SIZE);
   // First read the magic text and the salt - if any
-  if (length(Value)>=SALT_MAGIC_LEN) AND (AnsiString(TEncoding.ASCII.GetString(Value, 0, SALT_MAGIC_LEN)) = SALT_MAGIC) then
+  if (length(EncryptedMessage)>=SALT_MAGIC_LEN) AND (AnsiString(TEncoding.ASCII.GetString(EncryptedMessage, 0, SALT_MAGIC_LEN)) = SALT_MAGIC) then
   begin
-    Move(Value[SALT_MAGIC_LEN], salt[0], SALT_SIZE);
+    Move(EncryptedMessage[SALT_MAGIC_LEN], salt[0], SALT_SIZE);
     If Not EVP_GetKeyIV(APassword, cipher, salt, key, iv) then exit;
     src_start := SALT_MAGIC_LEN + SALT_SIZE;
   end
@@ -193,9 +186,9 @@ begin
   {$ENDIF}
   try
     If EVP_DecryptInit(pctx, cipher, @key[0], @iv[0])<>1 then exit;
-    SetLength(buf, Length(Value));
+    SetLength(buf, Length(EncryptedMessage));
     buf_start := 0;
-    If EVP_DecryptUpdate(pctx, @buf[buf_start], out_len, @Value[src_start], Length(Value) - src_start)<>1 then exit;
+    If EVP_DecryptUpdate(pctx, @buf[buf_start], out_len, @EncryptedMessage[src_start], Length(EncryptedMessage) - src_start)<>1 then exit;
     Inc(buf_start, out_len);
     If EVP_DecryptFinal(pctx, @buf[buf_start], out_len)<>1 then exit;
     Inc(buf_start, out_len);
@@ -211,19 +204,14 @@ begin
   end;
 end;
 
-class function TAESComp.EVP_Encrypt_AES256(const TheMessage, APassword: AnsiString): AnsiString;
-Var bytes_message, bytes_password, bytes_result : TBytes;
+class function TAESComp.EVP_Encrypt_AES256(const TheMessage: TRawBytes; const APassword : String): TRawBytes;
+Var bytes_password : TRawBytes;
 begin
-  SetLength(bytes_message,Length(TheMessage));
-  CopyMemory(bytes_message,@TheMessage[Low(TheMessage)],Length(TheMessage));
-  SetLength(bytes_password,Length(APassword));
-  CopyMemory(bytes_password,@APassword[Low(APassword)],Length(APassword));
-  bytes_result := EVP_Encrypt_AES256(bytes_message,bytes_password);
-  SetLength(Result,Length(bytes_result));
-  CopyMemory(@Result[Low(Result)],bytes_result,Length(bytes_result));
+  bytes_password.FromString(APassword);
+  Result := EVP_Encrypt_AES256(TheMessage,bytes_password);
 end;
 
-class function TAESComp.EVP_Encrypt_AES256(Value, APassword: TBytes): TBytes;
+class function TAESComp.EVP_Encrypt_AES256(const TheMessage, APassword: TRawBytes): TRawBytes;
 var
   cipher: PEVP_CIPHER;
   pctx: PEVP_CIPHER_CTX;
@@ -247,13 +235,13 @@ begin
   try
     EVP_EncryptInit(pctx, cipher, @key[0], @iv[0]);
     block_size := EVP_CIPHER_CTX_block_size(pctx);
-    SetLength(buf, Length(Value) + block_size + SALT_MAGIC_LEN + PKCS5_SALT_LEN);
+    SetLength(buf, Length(TheMessage) + block_size + SALT_MAGIC_LEN + PKCS5_SALT_LEN);
     buf_start := 0;
     Move(PAnsiChar(SALT_MAGIC)^, buf[buf_start], SALT_MAGIC_LEN);
     Inc(buf_start, SALT_MAGIC_LEN);
     Move(salt[0], buf[buf_start], PKCS5_SALT_LEN);
     Inc(buf_start, PKCS5_SALT_LEN);
-    EVP_EncryptUpdate(pctx, @buf[buf_start], out_len, @Value[0], Length(Value));
+    EVP_EncryptUpdate(pctx, @buf[buf_start], out_len, @TheMessage[0], Length(TheMessage));
     Inc(buf_start, out_len);
     EVP_EncryptFinal(pctx, @buf[buf_start], out_len);
     Inc(buf_start, out_len);
