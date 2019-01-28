@@ -106,13 +106,13 @@ Type
     //
     is_error : Boolean;
     error_code : Integer;
-    error_text : AnsiString;
+    error_text : String;
   end;
 
   TNetConnection = Class;
 
   TNodeServerAddress = Record
-    ip : AnsiString;
+    ip : String;
     port : Word;
     last_connection : Cardinal;
     last_connection_by_server : Cardinal;
@@ -412,7 +412,7 @@ Type
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     Procedure Send(NetTranferType : TNetTransferType; operation, errorcode : Word; request_id : Integer; DataBuffer : TStream);
-    Procedure SendError(NetTranferType : TNetTransferType; operation, request_id : Integer; error_code : Integer; error_text : AnsiString);
+    Procedure SendError(NetTranferType : TNetTransferType; operation, request_id : Integer; error_code : Integer; const error_text : String);
   public
     Constructor Create(AOwner : TComponent); override;
     Destructor Destroy; override;
@@ -1419,12 +1419,12 @@ begin
     if HeaderData.header_type=ntp_response then begin
       HeaderData.is_error := HeaderData.error_code<>0;
       if HeaderData.is_error then begin
-        TStreamOp.ReadAnsiString(DataBuffer,HeaderData.error_text);
+        TStreamOp.ReadString(DataBuffer,HeaderData.error_text);
       end;
     end else begin
       HeaderData.is_error := HeaderData.error_code<>0;
       if HeaderData.is_error then begin
-        TStreamOp.ReadAnsiString(DataBuffer,HeaderData.error_text);
+        TStreamOp.ReadString(DataBuffer,HeaderData.error_text);
       end;
     end;
     if (HeaderData.is_error) then begin
@@ -1819,12 +1819,12 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
           Connection.DisconnectInvalidClient(false,'Invalid received chunk: '+errors);
           exit;
         end;
-        If (safeBoxHeader.safeBoxHash<>sbh) or (safeBoxHeader.startBlock<>from_block) or (safeBoxHeader.endBlock<>c) or
+        If (Not (TBaseType.Equals(safeBoxHeader.safeBoxHash,sbh))) or (safeBoxHeader.startBlock<>from_block) or (safeBoxHeader.endBlock<>c) or
           (safeBoxHeader.blocksCount<>safebox_blockscount) or (safeBoxHeader.protocol<CT_PROTOCOL_2) or
           (safeBoxHeader.protocol>CT_BlockChain_Protocol_Available) then begin
           errors := Format('Invalid received chunk based on call: Blockscount:%d %d - from:%d %d to %d %d - SafeboxHash:%s %s',
               [safeBoxHeader.blocksCount,safebox_blockscount,safeBoxHeader.startBlock,from_block,safeBoxHeader.endBlock,c,
-               TCrypto.ToHexaString(safeBoxHeader.safeBoxHash),TCrypto.ToHexaString(sbh)]);
+               safeBoxHeader.safeBoxHash.ToHexaString,sbh.ToHexaString]);
           Connection.DisconnectInvalidClient(false,'Invalid received chunk: '+errors);
           exit;
         end;
@@ -3466,7 +3466,7 @@ var op, myLastOp : TPCOperationsComp;
     connection_ts : Cardinal;
    Duplicate : TNetConnection;
    RawAccountKey : TRawBytes;
-   other_version : AnsiString;
+   other_version : String;
    isFirstHello : Boolean;
    lastTimestampDiff : Integer;
 Begin
@@ -3529,13 +3529,13 @@ Begin
         DataBuffer.Read(c,4);
         for i := 1 to c do begin
           nsa := CT_TNodeServerAddress_NUL;
-          TStreamOp.ReadAnsiString(DataBuffer,nsa.ip);
+          TStreamOp.ReadString(DataBuffer,nsa.ip);
           DataBuffer.Read(nsa.port,2);
           DataBuffer.Read(nsa.last_connection_by_server,4);
           If (nsa.last_connection_by_server>0) And (i<=CT_MAX_NODESERVERS_ON_HELLO) then // Protect massive data
             TNetData.NetData.AddServer(nsa);
         end;
-        if TStreamOp.ReadAnsiString(DataBuffer,other_version)>=0 then begin
+        if TStreamOp.ReadString(DataBuffer,other_version)>=0 then begin
           // Captures version
           ClientAppVersion := other_version;
           if (DataBuffer.Size-DataBuffer.Position>=SizeOf(FRemoteAccumulatedWork)) then begin
@@ -3597,7 +3597,7 @@ end;
 
 procedure TNetConnection.DoProcess_Message(HeaderData: TNetHeaderData; DataBuffer: TStream);
 Var   errors : AnsiString;
-  decrypted,messagecrypted : AnsiString;
+  decrypted,messagecrypted : TRawBytes;
   DoDisconnect : boolean;
 begin
   errors := '';
@@ -3618,11 +3618,11 @@ begin
 
     DoDisconnect := false;
     if TCrypto.IsHumanReadable(decrypted) then
-      TLog.NewLog(ltinfo,Classname,'Received new message from '+ClientRemoteAddr+' Message ('+inttostr(length(decrypted))+' bytes): '+decrypted)
+      TLog.NewLog(ltinfo,Classname,'Received new message from '+ClientRemoteAddr+' Message ('+inttostr(length(decrypted))+' bytes): '+decrypted.ToPrintable)
     else
-      TLog.NewLog(ltinfo,Classname,'Received new message from '+ClientRemoteAddr+' Message ('+inttostr(length(decrypted))+' bytes) in hexadecimal: '+TCrypto.ToHexaString(decrypted));
+      TLog.NewLog(ltinfo,Classname,'Received new message from '+ClientRemoteAddr+' Message ('+inttostr(length(decrypted))+' bytes) in hexadecimal: '+decrypted.ToHexaString);
     Try
-      TNode.Node.NotifyNetClientMessage(Self,decrypted);
+      TNode.Node.NotifyNetClientMessage(Self,decrypted.ToString);
     Except
       On E:Exception do begin
         TLog.NewLog(lterror,Classname,'Error processing received message. '+E.ClassName+' '+E.Message);
@@ -4057,7 +4057,8 @@ begin
         FNetProtocolVersion := HeaderData.protocol;
         // Build 1.0.4 accepts net protocol 1 and 2
         if HeaderData.protocol.protocol_version>CT_NetProtocol_Available then begin
-          TNode.Node.NotifyNetClientMessage(Nil,'Detected a higher Net protocol version at '+
+          TNode.Node.NotifyNetClientMessage(Nil,
+            'Detected a higher Net protocol version at '+
             ClientRemoteAddr+' (v '+inttostr(HeaderData.protocol.protocol_version)+' '+inttostr(HeaderData.protocol.protocol_available)+') '+
             '... check that your version is Ok! Visit official download website for possible updates: https://sourceforge.net/projects/pascalcoin/');
           DisconnectInvalidClient(false,Format('Invalid Net protocol version found: %d available: %d',[HeaderData.protocol.protocol_version,HeaderData.protocol.protocol_available]));
@@ -4066,7 +4067,8 @@ begin
         end else begin
           if (FNetProtocolVersion.protocol_available>CT_NetProtocol_Available) And (Not FAlertedForNewProtocolAvailable) then begin
             FAlertedForNewProtocolAvailable := true;
-            TNode.Node.NotifyNetClientMessage(Nil,'Detected a new Net protocol version at '+
+            TNode.Node.NotifyNetClientMessage(Nil,
+              'Detected a new Net protocol version at '+
               ClientRemoteAddr+' (v '+inttostr(HeaderData.protocol.protocol_version)+' '+inttostr(HeaderData.protocol.protocol_available)+') '+
               '... Visit official download website for possible updates: https://sourceforge.net/projects/pascalcoin/');
           end;
@@ -4221,12 +4223,12 @@ begin
 end;
 
 procedure TNetConnection.SendError(NetTranferType: TNetTransferType; operation,
-  request_id: Integer; error_code: Integer; error_text: AnsiString);
+  request_id: Integer; error_code: Integer; const error_text: String);
 var buffer : TStream;
 begin
   buffer := TMemoryStream.Create;
   Try
-    TStreamOp.WriteAnsiString(buffer,error_text);
+    TStreamOp.WriteAnsiString(buffer,TEncoding.ASCII.GetBytes(error_text));
     Send(NetTranferType,operation,error_code,request_id,buffer);
   Finally
     buffer.Free;
@@ -4366,12 +4368,12 @@ begin
     data.Write(i,4);
     for i := 0 to High(nsarr) do begin
       nsa := nsarr[i];
-      TStreamOp.WriteAnsiString(data, nsa.ip);
+      TStreamOp.WriteAnsiString(data,TEncoding.ASCII.GetBytes(nsa.ip));
       data.Write(nsa.port,2);
       data.Write(nsa.last_connection,4);
     end;
     // Send client version
-    TStreamOp.WriteAnsiString(data,TNode.NodeVersion);
+    TStreamOp.WriteAnsiString(data,TEncoding.ASCII.GetBytes(TNode.NodeVersion));
     // Build 1.5 send accumulated work
     data.Write(TNode.Node.Bank.SafeBox.WorkSum,SizeOf(TNode.Node.Bank.SafeBox.WorkSum));
     //
@@ -4392,7 +4394,7 @@ begin
   data := TMemoryStream.Create;
   Try
     // Cypher message:
-    cyp := ECIESEncrypt(FClientPublicKey,TheMessage);
+    cyp := ECIESEncrypt(FClientPublicKey,TEncoding.ASCII.GetBytes(TheMessage));
     TStreamOp.WriteAnsiString(data,cyp);
     Send(ntp_autosend,CT_NetOp_Message,0,0,data);
     Result := true;
