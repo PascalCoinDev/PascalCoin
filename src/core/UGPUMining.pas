@@ -318,14 +318,13 @@ procedure TGPUDeviceThread.UpdateBuffers;
 Var stateforlastchunk : TSHA256HASH;
   bufferForLastChunk : TChunk;
   i : Integer;
-  canWork : Boolean;
-  s,s2 : AnsiString;
+  digest,raw : TBytes;
   b : Byte;
   c1,c2 : Cardinal;
 begin
   FLock.Acquire;
   try
-    FReadyToGPU := (MinerValuesForWork.part1<>'') And (Assigned(FDCLKernel));
+    FReadyToGPU := (Length(MinerValuesForWork.part1)>0) And (Assigned(FDCLKernel));
     if (FReadyToGPU) And (TPoolMinerThread.UseRandomHash(MinerValuesForWork.version)) then begin
       // V4 RandomHash not available on GPU mining
       FReadyToGPU:=False;
@@ -335,14 +334,10 @@ begin
       IsMining := false;
       exit;
     end;
-    Repeat
-      i := Length(MinerValuesForWork.part1)+Length(MinerValuesForWork.payload_start)+Length(MinerValuesForWork.part3)+8;
-      canWork := CanBeModifiedOnLastChunk(i,FChangeTimestampAndNOnceBytePos);
-      If Not canWork then FMinerValuesForWork.payload_start:=MinerValuesForWork.payload_start+'.';
-    until (canWork);
+    UpdateMinerValuesForWorkLength(FMinerValuesForWork,FChangeTimestampAndNOnceBytePos);
     FillChar(FKernelArg1[0],29*4,#0);
-    s := MinerValuesForWork.part1+MinerValuesForWork.payload_start+MinerValuesForWork.part3+'00000000';
-    PascalCoinPrepareLastChunk(s,stateforlastchunk,bufferForLastChunk);
+    CreateDigest(MinerValuesForWork,0,0,digest);
+    PascalCoinPrepareLastChunk(digest,stateforlastchunk,bufferForLastChunk);
     // FKernelArg1[0..15] = data for last chunk
     move(bufferForLastChunk[0],FKernelArg1[0],16*4);
     For i:=0 to 15 do begin
@@ -354,15 +349,14 @@ begin
     // FKernelArg1[25] = high-order 12 bits for nOnce (see .cl file to know)
     // FKernelArg1[26..28] = Mask (obtained  from target_pow)
     FillChar(FKernelArg1[26],4*3,#0);
-    s := MinerValuesForWork.target_pow;
-    i := 1;
-    while (length(s)>=i) And (i<=4*3) do begin
-      b := Byte(s[i]);
+    i := 0;
+    while (High(MinerValuesForWork.target_pow)>=i) And (i<4*3) do begin
+      b := MinerValuesForWork.target_pow[i];
       b := b XOR $FF;
-      c1 := FKernelArg1[26+((i-1) DIV 4)]; // Last value
-      c2 := b SHL (((4-i) MOD 4)*8);
+      c1 := FKernelArg1[26+(i DIV 4)]; // Last value
+      c2 := b SHL ((3-(i MOD 4))*8);
       c2 := c1 OR c2;
-      FKernelArg1[26+((i-1) DIV 4)] := c2;
+      FKernelArg1[26+(i DIV 4)] := c2;
       if (b<>$FF) then break; // Found first 1 bit
       inc(i);
     end;

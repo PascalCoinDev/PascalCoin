@@ -87,7 +87,7 @@ Type
     FMinerValuesForWork: TMinerValuesForWork;
     FOnMinerMustChangeValues: TNotifyEvent;
     FPassword: String;
-    FPoolFinalMinerName: String;
+    FPoolFinalMinerName: TRawBytes;
     FPoolType: TPoolType;
     FStratum_Target_PoW: TRawBytes;
     FUserName: String;
@@ -103,7 +103,7 @@ Type
     Property PoolType : TPoolType read FPoolType write FPoolType;
     Property UserName : String read FUserName write FUserName;
     Property Password : String read FPassword write FPassword;
-    Property PoolFinalMinerName : String read FPoolFinalMinerName;
+    Property PoolFinalMinerName : TRawBytes read FPoolFinalMinerName;
     Property Stratum_Target_PoW : TRawBytes read FStratum_Target_PoW;
   End;
 
@@ -165,7 +165,7 @@ Type
 Function TBytesToString(Const bytes : TBytes):AnsiString;
 
 Const
-  CT_TMinerValuesForWork_NULL : TMinerValuesForWork = (block:0;version:0;part1:'';payload_start:'';part3:'';target:0;timestamp:0;target_pow:'';jobid:'');
+  CT_TMinerValuesForWork_NULL : TMinerValuesForWork = (block:0;version:0;part1:Nil;payload_start:Nil;part3:Nil;target:0;timestamp:0;target_pow:Nil;jobid:'');
 
 implementation
 
@@ -625,7 +625,7 @@ begin
   FNodeNotifyEvents.Node := TNode.Node;
   FMinerOperations := TPCOperationsComp.Create(FNodeNotifyEvents.Node.Bank);
   FMinerAccountKey := CT_TECDSA_Public_Nul;
-  FMinerPayload := '';
+  FMinerPayload := Nil;
   FPoolJobs := TPCThreadList.Create('TPoolMiningServer_PoolJobs');
   FPoolThread := TPoolMiningServerThread.Create(Self);
   FMax0FeeOperationsPerBlock := CT_MAX_0_fee_operations_per_block_by_miner;
@@ -781,7 +781,8 @@ Var s : String;
   P : PPoolJob;
   i : Integer;
   l : TList;
-  _payloadHexa,_payload : AnsiString;
+  _payloadHexa : AnsiString;
+  _payloadRaw : TRawBytes;
   _timestamp, _nOnce : Cardinal;
   _targetPoW : TRawBytes;
 begin
@@ -800,11 +801,10 @@ begin
   nbOperations := Nil;
   Try
     _payloadHexa := params.AsString('payload','');
-    _payload := TCrypto.HexaToRaw(_payloadHexa);
-    if FMinerPayload<>'' then begin
-      if (copy(_payload,1,length(FMinerPayload))<>FMinerPayload) then begin
-        if _payload='' then _payload := _payloadHexa;
-        Client.SendJSONRPCErrorResponse(id,'Invalid payload ('+_payload+'). Need start with: '+FMinerPayload);
+    _payloadRaw := TCrypto.HexaToRaw(_payloadHexa);
+    if Length(FMinerPayload)>0 then begin
+      if (Not TBaseType.Equals(copy(_payloadRaw,Low(_payloadRaw),length(FMinerPayload)),FMinerPayload)) then begin
+        Client.SendJSONRPCErrorResponse(id,'Invalid payload ('+_payloadHexa+'). Need start with: '+TCrypto.ToHexaString(FMinerPayload));
         exit;
       end;
     end;
@@ -821,8 +821,8 @@ begin
 
           _targetPow := TPascalCoinProtocol.TargetFromCompact( P^.OperationsComp.OperationBlock.compact_target, P^.OperationsComp.OperationBlock.protocol_version );
 
-          P^.OperationsComp.Update_And_RecalcPOW(_nOnce,_timestamp,_payload);
-          if (P^.OperationsComp.OperationBlock.proof_of_work<=_targetPoW) then begin
+          P^.OperationsComp.Update_And_RecalcPOW(_nOnce,_timestamp,_payloadRaw);
+          if (TBaseType.BinStrComp(P^.OperationsComp.OperationBlock.proof_of_work,_targetPoW)<=0) then begin
             // Candidate!
             nbOperations := TPCOperationsComp.Create(Nil);
             nbOperations.bank := FNodeNotifyEvents.Node.Bank;
@@ -844,7 +844,7 @@ begin
         try
           json.GetAsVariant('block').Value := FNodeNotifyEvents.Node.Bank.LastOperationBlock.block;
           json.GetAsVariant('pow').Value := TCrypto.ToHexaString( FNodeNotifyEvents.Node.Bank.LastOperationBlock.proof_of_work );
-          json.GetAsVariant('payload').Value := nbOperations.BlockPayload;
+          json.GetAsVariant('payload').Value := nbOperations.BlockPayload.ToString;
           json.GetAsVariant('timestamp').Value := nbOperations.timestamp;
           json.GetAsVariant('nonce').Value := nbOperations.nonce;
           inc(FClientsWins);
@@ -854,10 +854,10 @@ begin
         end;
         if Assigned(FOnMiningServerNewBlockFound) then FOnMiningServerNewBlockFound(Self);
       end else begin
-        Client.SendJSONRPCErrorResponse(id,'Error: '+errors+' executing '+sJobInfo+' payload:'+nbOperations.BlockPayload+' timestamp:'+InttoStr(nbOperations.timestamp)+' nonce:'+IntToStr(nbOperations.nonce));
+        Client.SendJSONRPCErrorResponse(id,'Error: '+errors+' executing '+sJobInfo+' payload:'+TCrypto.ToHexaString(nbOperations.BlockPayload)+' timestamp:'+InttoStr(nbOperations.timestamp)+' nonce:'+IntToStr(nbOperations.nonce));
       end;
     end else begin
-      Client.SendJSONRPCErrorResponse(id,'Error: No valid job found with these values! (Perhaps prior block job or old job) payload:'+_payload+' timestamp:'+InttoStr(_timestamp)+' nonce:'+IntToStr(_nonce));
+      Client.SendJSONRPCErrorResponse(id,'Error: No valid job found with these values! (Perhaps prior block job or old job) payload:'+_payloadHexa+' timestamp:'+InttoStr(_timestamp)+' nonce:'+IntToStr(_nonce));
     end;
   Finally
     if Assigned(nbOperations) then nbOperations.Free;
@@ -979,7 +979,7 @@ begin
 
     TLog.NewLog(ltInfo,ClassName,
       Format('Sending job %d to miner - Block:%d Ops:%d Target:%s PayloadStart:%s',
-      [nJobs,Operations.OperationBlock.block,Operations.Count,IntToHex(Operations.OperationBlock.compact_target,8),Operations.OperationBlock.block_payload]));
+      [nJobs,Operations.OperationBlock.block,Operations.Count,IntToHex(Operations.OperationBlock.compact_target,8),Operations.OperationBlock.block_payload.ToPrintable]));
   Finally
     params.Free;
   End;
@@ -1051,8 +1051,8 @@ begin
   FPoolType:=ptNone;
   FUserName:='';
   FPassword:='';
-  FPoolFinalMinerName:='';
-  FStratum_Target_PoW:='';
+  FPoolFinalMinerName:=Nil;
+  FStratum_Target_PoW:=Nil;
   inherited;
 end;
 
@@ -1087,18 +1087,18 @@ begin
             raws := TCrypto.HexaToRaw(s);
             If (length(s)>0) And (length(raws)=0) then begin
               TLog.NewLog(lterror,ClassName,'Invalid value to assign as a Miner name. Not hexadecimal '+s);
-              FPoolFinalMinerName:='';
+              FPoolFinalMinerName:=Nil;
             end else begin
               FPoolFinalMinerName := raws;
-              for i:=1 to length(raws) do begin
-                if Not (raws[i] in [#32..#254]) then begin
+              for i:=Low(raws) to High(raws) do begin
+                if Not (raws[i] in [32..254]) then begin
                   TLog.NewLog(ltError,ClassName,'Invalid proposed miner name. Value at pos '+inttostr(i)+' is not #32..#254: '+IntToStr(integer(raws[i])));
-                  FPoolFinalMinerName:='';
+                  FPoolFinalMinerName:=Nil;
                   break;
                 end;
               end;
             end;
-            TLog.NewLog(ltInfo,Classname,'Final miner name: "'+FPoolFinalMinerName+'" (Length '+IntToStr(length(FPoolFinalMinerName)));
+            TLog.NewLog(ltInfo,Classname,'Final miner name: "'+FPoolFinalMinerName.ToPrintable+'" (Length '+IntToStr(length(FPoolFinalMinerName)));
           end;
         end else raise Exception.Create('Not response to "'+CT_PoolMining_Method_STRATUM_MINING_SUBSCRIBE+'" method for user "'+UserName+'"');
       end else raise Exception.Create('Not response to "'+CT_PoolMining_Method_STRATUM_MINING_AUTHORIZE+'" method for user "'+UserName+'"');
@@ -1179,7 +1179,7 @@ Var _t : Cardinal;
   _t_pow : TRawBytes;
 begin
   FMinerValuesForWork := Value;
-  If FStratum_Target_PoW<>'' then begin
+  If Length(FStratum_Target_PoW)>0 then begin
     FMinerValuesForWork.target:=TPascalCoinProtocol.TargetToCompact(FStratum_Target_PoW,FMinerValuesForWork.version);
     FMinerValuesForWork.target_pow:=TPascalCoinProtocol.TargetFromCompact(FMinerValuesForWork.target,FMinerValuesForWork.version);
   end else begin
@@ -1190,7 +1190,7 @@ begin
       if (FMinerValuesForWork.target<TPascalCoinProtocol.MinimumTarget(FMinerValuesForWork.version)) then begin
         // target has no valid value... assigning compact_target!
         FMinerValuesForWork.target:=TPascalCoinProtocol.TargetToCompact(_t_pow,FMinerValuesForWork.version);
-      end else if (_t_pow<>FMinerValuesForWork.target_pow) Or (_t<>FMinerValuesForWork.target) then begin
+      end else if (Not TBaseType.Equals(_t_pow,FMinerValuesForWork.target_pow)) Or (_t<>FMinerValuesForWork.target) then begin
         TLog.NewLog(ltError,Classname,'Received bad values for target and target_pow!');
         If (FMinerValuesForWork.target<TPascalCoinProtocol.MinimumTarget(FMinerValuesForWork.version)) then begin
           FMinerValuesForWork.target_pow:=TPascalCoinProtocol.TargetFromCompact(FMinerValuesForWork.target,FMinerValuesForWork.version);
@@ -1209,7 +1209,7 @@ begin
       end;
     end;
   end;
-  If (FPoolType=ptIdentify) And (FPoolFinalMinerName<>'') then FMinerValuesForWork.payload_start:=FPoolFinalMinerName;
+  If (FPoolType=ptIdentify) And (Length(FPoolFinalMinerName)>0) then FMinerValuesForWork.payload_start:=FPoolFinalMinerName;
   if Assigned(FOnMinerMustChangeValues) then FOnMinerMustChangeValues(Self);
 end;
 

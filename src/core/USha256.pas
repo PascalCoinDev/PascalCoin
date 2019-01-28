@@ -32,12 +32,12 @@ function SHA256ToStr(Hash: TSHA256HASH): String;
 
 
 Function CanBeModifiedOnLastChunk(MessageTotalLength : Int64; var startBytePos : integer) : Boolean;
-Procedure PascalCoinPrepareLastChunk(Const messageToHash : AnsiString; out stateForLastChunk : TSHA256HASH; out bufferForLastChunk : TChunk);
+Procedure PascalCoinPrepareLastChunk(Const messageToHash : TBytes; out stateForLastChunk : TSHA256HASH; out bufferForLastChunk : TChunk);
 Function ExecuteLastChunk(const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal) : TSHA256HASH;
 Function ExecuteLastChunkAndDoSha256(Const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal) : TSHA256HASH;
-Procedure PascalCoinExecuteLastChunkAndDoSha256(Const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal; var ResultSha256 : AnsiString);
+Procedure PascalCoinExecuteLastChunkAndDoSha256(Const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal; var ResultSha256 : TBytes);
 Function Sha256HashToRaw(Const hash : TSHA256HASH) : AnsiString; overload;
-procedure Sha256HashToRaw(Const hash : TSHA256HASH; var raw : AnsiString); overload;
+procedure Sha256HashToRaw(Const hash : TSHA256HASH; var raw : TBytes); overload;
 
 implementation
 
@@ -256,7 +256,7 @@ Begin
   Result := (startBytePos >= 0) And ((startBytePos MOD 4)=0) And (startBytePos<=48);
 End;
 
-Procedure PascalCoinPrepareLastChunk(Const messageToHash : AnsiString; out stateForLastChunk : TSHA256HASH; out bufferForLastChunk : TChunk);
+Procedure PascalCoinPrepareLastChunk(Const messageToHash : TBytes; out stateForLastChunk : TSHA256HASH; out bufferForLastChunk : TChunk);
 var
   i,j,k,iPos: Integer;
   Size: int64;
@@ -283,7 +283,7 @@ begin
     FillChar(P^,64*2,#0);
     i := length(messageToHash) - iPos;
     if (i > 64) then i:=64;
-    Move(messageToHash[iPos+1],P[0],i);
+    Move(messageToHash[iPos],P[0],i);
     if (i = 64) then
     begin
       inc(iPos,i);
@@ -365,7 +365,7 @@ Begin
     Result[k]:= Result[k] + H[k];
 End;
 
-Procedure PascalCoinExecuteLastChunkAndDoSha256(Const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal; var ResultSha256 : AnsiString);
+Procedure PascalCoinExecuteLastChunkAndDoSha256(Const stateForLastChunk : TSHA256HASH; const bufferForLastChunk : TChunk; nPos : Integer; nOnce,Timestamp : Cardinal; var ResultSha256 : TBytes);
 Var  H: TSHA256HASH;
 Begin
   H := ExecuteLastChunkAndDoSha256(stateForLastChunk,bufferForLastChunk,nPos,nOnce,Timestamp);
@@ -386,17 +386,17 @@ begin
   end;
 End;
 
-procedure Sha256HashToRaw(Const hash : TSHA256HASH; var raw : AnsiString); overload;
+procedure Sha256HashToRaw(Const hash : TSHA256HASH; var raw : TBytes); overload;
 var i: Integer;
   c : Cardinal;
 begin
   if (length(raw)<>32) then SetLength(raw,32);
   for i:= 0 to 7 do begin
     c := hash[i];
-    raw[4+(i*4)] := AnsiChar(c MOD 256);
-    raw[3+(i*4)] := AnsiChar((c SHR 8) MOD 256);
-    raw[2+(i*4)] := AnsiChar((c SHR 16) MOD 256);
-    raw[1+(i*4)] := AnsiChar((c SHR 24) MOD 256);
+    raw[3+(i*4)] := (c MOD 256);
+    raw[2+(i*4)] := ((c SHR 8) MOD 256);
+    raw[1+(i*4)] := ((c SHR 16) MOD 256);
+    raw[  (i*4)] := ((c SHR 24) MOD 256);
   end;
 end;
 
