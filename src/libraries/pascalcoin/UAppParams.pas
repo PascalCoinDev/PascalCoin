@@ -23,89 +23,143 @@ unit UAppParams;
 interface
 
 uses
-  Classes;
+  Classes, SysUtils;
 
 Type
-  TAppParamType = (ptString, ptInteger, ptLongWord, ptInt64, ptBoolean, ptStream);
+  TAppParamType = (ptString, ptInteger, ptLongWord, ptInt64, ptBoolean, ptBytes);
 
   TAppParams = Class;
+
+  { TAppParam }
 
   TAppParam = Class
     FAppParams : TAppParams;
     Function LoadFromStream(Stream : TStream) : Boolean;
     Procedure SaveToStream(Stream : TStream);
   private
-    FParamName: AnsiString;
+    FParamName: String;
     FValue: Variant;
+    FBytesValue : TBytes;
     FParamType: TAppParamType;
-    procedure SetParamName(const Value: AnsiString);
+    procedure SetParamName(const Value: String);
     procedure SetValue(const Value: Variant);
     procedure SetParamType(const Value: TAppParamType);
     function GetIsNull: Boolean;
   protected
   published
   public
-    Constructor Create(AParamName : AnsiString);
-    Property ParamName : AnsiString read FParamName write SetParamName;
+    Constructor Create(AParamName : String);
+    Destructor Destroy; override;
+    Property ParamName : String read FParamName write SetParamName;
     Property Value : Variant read FValue write SetValue;
     Property ParamType : TAppParamType read FParamType write SetParamType;
     Procedure SetAsInteger(IntValue : Integer);
     Procedure SetAsCardinal(CardValue : Cardinal);
-    Procedure SetAsString(StringValue : AnsiString);
+    Procedure SetAsString(StringValue : String);
     Procedure SetAsInt64(Int64Value : Int64);
     Procedure SetAsBoolean(BoolValue : Boolean);
     Procedure SetAsStream(Stream : TStream);
+    Procedure SetAsTBytes(Bytes : TBytes);
     Property IsNull : Boolean read GetIsNull;
-    function GetAsString(Const DefValue : AnsiString): AnsiString;
+    function GetAsString(Const DefValue : String): String;
     function GetAsBoolean(Const DefValue : Boolean): Boolean;
     function GetAsInteger(Const DefValue : Integer): Integer;
     function GetAsInt64(Const DefValue : Int64): Int64;
     function GetAsStream(Stream : TStream) : Integer;
+    function GetAsTBytes(Const DefValue : TBytes) : TBytes;
   End;
 
   TAppParams = Class(TComponent)
   private
     FParamsStream : TFileStream;
     FParams : TList;
-    FFileName: AnsiString;
+    FFileName: String;
     Function LoadFromStream(Stream : TStream) : Boolean;
     Procedure SaveToStream(Stream : TStream);
-    function GetParam(ParamName: AnsiString): TAppParam;
+    function GetParam(ParamName: String): TAppParam;
     Procedure InternalClear;
-    Function IndexOfParam(Const ParamName : AnsiString) : Integer;
-    procedure SetFileName(const Value: AnsiString);
+    Function IndexOfParam(Const ParamName : String) : Integer;
+    procedure SetFileName(const Value: String);
     Procedure Save;
   protected
   public
     Constructor Create(AOwner : TComponent); override;
     Destructor Destroy; override;
     Class function AppParams : TAppParams;
-    Property FileName : AnsiString read FFileName write SetFileName;
-    Property ParamByName[ParamName : AnsiString] : TAppParam read GetParam;
+    Property FileName : String read FFileName write SetFileName;
+    Property ParamByName[ParamName : String] : TAppParam read GetParam;
     Procedure Clear;
-    Procedure Delete(Const ParamName : AnsiString);
+    Procedure Delete(Const ParamName : String);
     Function Count : Integer;
     Function Param(index : Integer) : TAppParam;
-    Function FindParam(Const ParamName : AnsiString) : TAppParam;
+    Function FindParam(Const ParamName : String) : TAppParam;
   End;
 
 implementation
 
 uses
-  Variants, UAccounts, SysUtils;
+  Variants;
 
 Const
   CT_AppParams_File_Magic = 'TAppParams';
 
 Var _appParams : TAppParams;
 
+function Internal_ReadBytes(Stream: TStream; var value: TBytes): Integer;
+Var
+  w: Word;
+begin
+  if Stream.Size - Stream.Position < 2 then begin
+    SetLength(value,0);
+    Result := -1;
+    Exit;
+  end;
+  Stream.Read(w, 2);
+  if Stream.Size - Stream.Position < w then begin
+    Stream.Position := Stream.Position - 2; // Go back!
+    SetLength(value,0);
+    Result := -1;
+    Exit;
+  end;
+  SetLength(value, w);
+  if (w>0) then begin
+    Stream.ReadBuffer(value[Low(value)], w);
+  end;
+  Result := w+2;
+end;
+
+
+function Internal_WriteBytes(Stream: TStream; const value: TBytes): Integer; overload;
+Var
+  w: Word;
+begin
+  if (Length(value)>(256*256)) then begin
+    raise Exception.Create('Invalid stream size! '+Inttostr(Length(value)));
+  end;
+
+  w := Length(value);
+  Stream.Write(w, 2);
+  if (w > 0) then
+    Stream.WriteBuffer(value[Low(value)], Length(value));
+  Result := w+2;
+end;
+
+
 { TAppParam }
 
-constructor TAppParam.Create(AParamName: AnsiString);
+constructor TAppParam.Create(AParamName: String);
 begin
   FAppParams := Nil;
   FParamName := AParamName;
   FValue := Null;
+  FBytesValue := Nil;
+end;
+
+destructor TAppParam.Destroy;
+begin
+  FValue := Null;
+  FBytesValue := Nil;
+  inherited Destroy;
 end;
 
 function TAppParam.GetAsBoolean(const DefValue: Boolean): Boolean;
@@ -145,22 +199,38 @@ begin
 end;
 
 function TAppParam.GetAsStream(Stream: TStream): Integer;
-var s : AnsiString;
+var bytes : TBytes;
 begin
   Stream.Size := 0;
   if IsNull then Result := 0
   else begin
-    s := VarToStrDef(FValue,'');
-    Stream.Size := 0;
-    Stream.WriteBuffer(s[1],length(s));
-    Stream.Position := 0;
+    bytes := GetAsTBytes(Nil);
+    if Length(bytes)>0 then begin
+      Stream.WriteBuffer(bytes[0],Length(bytes));
+      Stream.Position := 0;
+    end;
+    Result := Length(bytes);
   end;
 end;
 
-function TAppParam.GetAsString(Const DefValue : AnsiString): AnsiString;
+function TAppParam.GetAsString(const DefValue: String): String;
 begin
   if IsNull then Result := DefValue
   else Result := VarToStrDef(FValue,DefValue);
+end;
+
+function TAppParam.GetAsTBytes(const DefValue: TBytes): TBytes;
+begin
+  if IsNull then SetLength(Result,0)
+  else begin
+    Try
+    if (ParamType=(ptString)) then begin
+      Result := TEncoding.ANSI.GetBytes(VarToStr(FValue));
+    end else Result := Copy(FBytesValue);
+    Except
+      Result := DefValue;
+    End;
+  end;
 end;
 
 function TAppParam.GetIsNull: Boolean;
@@ -168,16 +238,18 @@ begin
   Result := VarIsNull( FValue );
 end;
 
-Function TAppParam.LoadFromStream(Stream: TStream)  : Boolean;
+function TAppParam.LoadFromStream(Stream: TStream): Boolean;
 Var bpt : Byte;
   pt : TAppParamType;
-  s : AnsiString;
   i : Integer;
   c : Cardinal;
   i64 : Int64;
+  bytes : TBytes;
 begin
   Result := false;
-  if TStreamOp.ReadAnsiString(Stream,FParamName)<0 then exit;
+  // 2 bytes for length
+  if Internal_ReadBytes(Stream,bytes)<0 then exit;
+  FParamName := TEncoding.ANSI.GetString(bytes);
   Stream.Read(bpt,1);
   if (bpt>=Integer(low(pt))) And (bpt<=Integer(high(pt))) then pt := TAppParamType(bpt)
   else pt := ptString;
@@ -187,8 +259,8 @@ begin
   else begin
     case pt of
       ptString : begin
-        If TStreamOp.ReadAnsiString(Stream,s)<0 then exit;
-        FValue := s;
+        If Internal_ReadBytes(Stream,bytes)<0 then exit;
+        FValue := TEncoding.ANSI.GetString(bytes);
       end;
       ptInteger : begin
         if Stream.Read(i,sizeof(i))<sizeof(i) then exit;
@@ -207,9 +279,10 @@ begin
         if bpt=0 then FValue := false
         else FValue := true;
       End;
-      ptStream : Begin
-        if TStreamOp.ReadAnsiString(Stream,s)<0 then exit;
-        FValue := s;
+      ptBytes : Begin
+        if Internal_ReadBytes(Stream,bytes)<0 then exit;
+        FValue := 0; // Init as a Zero to set to "not null"
+        FBytesValue := Copy(bytes);
       End
     else
       raise Exception.Create('Development error 20160613-1');
@@ -224,7 +297,7 @@ var b : Byte;
   c : Cardinal;
   i64 : Int64;
 begin
-  TStreamOp.WriteAnsiString(Stream,FParamName);
+  Internal_WriteBytes(Stream,TEncoding.ANSI.GetBytes(FParamName));
   b := Byte(FParamType);
   Stream.Write(b,1);
   if IsNull then begin
@@ -235,7 +308,7 @@ begin
     Stream.Write(b,1);
     case FParamType of
       ptString : begin
-        TStreamOp.WriteAnsiString(Stream,VarToStr(FValue));
+        Internal_WriteBytes(Stream,TEncoding.ANSI.GetBytes(VarToStr(FValue)));
       end;
       ptInteger : begin
         i := FValue;
@@ -254,8 +327,8 @@ begin
         else b := 0;
         Stream.Write(b,sizeof(b));
       End;
-      ptStream : Begin
-        TStreamOp.WriteAnsiString(Stream,VarToStrDef(FValue,''));
+      ptBytes : Begin
+        Internal_WriteBytes(Stream,FBytesValue);
       End
     else
       raise Exception.Create('Development error 20160613-2');
@@ -292,17 +365,17 @@ begin
 end;
 
 procedure TAppParam.SetAsStream(Stream: TStream);
-var s : AnsiString;
+var bytes : TBytes;
 begin
   Stream.Position := 0;
-  setlength(s,Stream.Size);
-  Stream.ReadBuffer(s[1],Stream.Size);
-  FParamType := ptString;
-  FValue := s;
-  If Assigned(FAppParams) then FAppParams.Save;
+  setlength(bytes,Stream.Size);
+  if (Stream.Size>0) then begin
+    Stream.ReadBuffer(bytes[0],Stream.Size);
+  end;
+  SetAsTBytes(bytes);
 end;
 
-procedure TAppParam.SetAsString(StringValue: AnsiString);
+procedure TAppParam.SetAsString(StringValue: String);
 begin
   if (FParamType=ptString) And (GetAsString('')=StringValue) then exit;
 
@@ -311,7 +384,15 @@ begin
   If Assigned(FAppParams) then FAppParams.Save;
 end;
 
-procedure TAppParam.SetParamName(const Value: AnsiString);
+procedure TAppParam.SetAsTBytes(Bytes: TBytes);
+begin
+  FParamType := ptBytes;
+  FBytesValue := Copy(bytes);
+  FValue := 0; // Init as a Zero to set to "not null"
+  If Assigned(FAppParams) then FAppParams.Save;
+end;
+
+procedure TAppParam.SetParamName(const Value: String);
 begin
   FParamName := Value;
   If Assigned(FAppParams) then FAppParams.Save;
@@ -325,7 +406,10 @@ end;
 
 procedure TAppParam.SetValue(const Value: Variant);
 begin
-  FValue := Value;
+  if FParamType=ptBytes then begin
+    FValue := Null;
+    FBytesValue := Nil;
+  end else FValue := Value;
   If Assigned(FAppParams) then FAppParams.Save;
 end;
 
@@ -360,7 +444,7 @@ begin
 
 end;
 
-procedure TAppParams.Delete(const ParamName: AnsiString);
+procedure TAppParams.Delete(const ParamName: String);
 Var P : TAppParam;
   i : Integer;
 begin
@@ -382,7 +466,7 @@ begin
 
 end;
 
-function TAppParams.FindParam(const ParamName: AnsiString): TAppParam;
+function TAppParams.FindParam(const ParamName: String): TAppParam;
 Var i : Integer;
 begin
   i := IndexOfParam(ParamName);
@@ -390,7 +474,7 @@ begin
   else Result := Nil;
 end;
 
-function TAppParams.GetParam(ParamName: AnsiString): TAppParam;
+function TAppParams.GetParam(ParamName: String): TAppParam;
 Var i : Integer;
   P : TAppParam;
 begin
@@ -403,7 +487,7 @@ begin
   Result := P;
 end;
 
-function TAppParams.IndexOfParam(const ParamName: AnsiString): Integer;
+function TAppParams.IndexOfParam(const ParamName: String): Integer;
 begin
   for Result := 0 to FParams.Count - 1 do begin
     if AnsiSameText(ParamName,TAppParam(FParams[Result]).ParamName) then exit;
@@ -423,14 +507,15 @@ begin
 end;
 
 function TAppParams.LoadFromStream(Stream: TStream): Boolean;
-Var s : AnsiString;
-  i,c : Integer;
+Var bytes : TBytes;
+  i : Integer;
+  c: Int32;
   P : TAppParam;
 begin
   Result := false;
   InternalClear;
-  If TStreamOp.ReadAnsiString(Stream,s)<0 then exit;
-  If s<>CT_AppParams_File_Magic then raise Exception.Create('Invalid file type');
+  If Internal_ReadBytes(Stream,bytes)<0 then exit;
+  If TEncoding.ANSI.GetString(bytes)<>CT_AppParams_File_Magic then raise Exception.Create('Invalid file type');
   Stream.Read(c,sizeof(c));
   for i := 0 to c-1 do begin
     P := TAppParam(TAppParam.NewInstance);
@@ -456,19 +541,24 @@ begin
 end;
 
 procedure TAppParams.SaveToStream(Stream: TStream);
-Var s : AnsiString;
-  i : Integer;
+Var i : Int32;
 begin
-  s := CT_AppParams_File_Magic;
-  TStreamOp.WriteAnsiString(Stream,s);
+  Internal_WriteBytes(Stream,TEncoding.ANSI.GetBytes(CT_AppParams_File_Magic));
   i := FParams.Count;
   Stream.Write(i,sizeof(i));
   for i := 0 to FParams.Count - 1 do begin
-    TAppParam(FParams[i]).SaveToStream(Stream);
+    Try
+      TAppParam(FParams[i]).SaveToStream(Stream);
+    Except
+      On E:Exception do begin
+        E.Message := 'Error saving param '+TAppParam(FParams[i]).ParamName+': '+E.Message;
+        Raise;
+      end;
+    end;
   end;
 end;
 
-procedure TAppParams.SetFileName(const Value: AnsiString);
+procedure TAppParams.SetFileName(const Value: String);
 Var fm : Word;
 begin
   if FFileName=Value then exit;
