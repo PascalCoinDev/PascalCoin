@@ -117,13 +117,13 @@ Type
       class procedure ImportPublicKey(Const AName, AKeyImportText : AnsiString);
       class function RestoreWallet(const AFileName, APassword: AnsiString) : TRestoreWalletResult;
       class procedure BackupWallet(const AFileName: AnsiString);
-      class function TryDecryptPrivateKey(const AEncryptedKeyText, APassword:AnsiString; out APrivateKey : TECPrivateKey; out AMessage : AnsiString) : boolean;
-      class function TryParseEncryptedKey(const AKeyText, AKeyPassword : AnsiString; out AKey : TECPrivateKey) : boolean;
+      class function TryDecryptPrivateKey(const AEncryptedKeyHexString,APassword:AnsiString; out APrivateKey : TECPrivateKey; out AMessage : AnsiString) : boolean;
+      class function TryParseEncryptedKey(const AKeyHexString, AKeyPassword : AnsiString; out AKey : TECPrivateKey) : boolean;
       class function TryParseRawKey(const ARawBytes : TRawBytes; AEncryptionTypeNID : Word; out AKey : TECPrivateKey) : boolean;
       class function TryParseHexKey(const AHexString : AnsiString; AEncryptionTypeNID : Word; out AKey : TECPrivateKey) : boolean;
   end;
 
-Const CT_TWalletKey_NUL  : TWalletKey = (Name:'';AccountKey:(EC_OpenSSL_NID:0;x:'';y:'');CryptedKey:'';PrivateKey:Nil;SearchableAccountKey:'');
+Const CT_TWalletKey_NUL  : TWalletKey = (Name:'';AccountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);CryptedKey:Nil;PrivateKey:Nil;SearchableAccountKey:Nil);
 
 implementation
 
@@ -153,6 +153,7 @@ end;
 function TWalletKeys.AddPrivateKey(Const Name : AnsiString; ECPrivateKey: TECPrivateKey): Integer;
 Var P : PWalletKey;
   s : AnsiString;
+  raw_priv2hexa : TRawBytes;
 begin
   if Not Find(ECPrivateKey.PublicKey,Result) then begin
     // Result is new position
@@ -160,7 +161,8 @@ begin
     P^ := CT_TWalletKey_NUL;
     P^.Name := Name;
     P^.AccountKey := ECPrivateKey.PublicKey;
-    P^.CryptedKey := TAESComp.EVP_Encrypt_AES256(TCrypto.PrivateKey2Hexa(ECPrivateKey.PrivateKey),WalletPassword);
+    raw_priv2hexa.FromString(TCrypto.PrivateKey2Hexa(ECPrivateKey.PrivateKey));
+    P^.CryptedKey := TAESComp.EVP_Encrypt_AES256(raw_priv2hexa,WalletPassword);
     P^.PrivateKey := TECPrivateKey.Create;
     P^.PrivateKey.SetPrivateKeyFromHexa(ECPrivateKey.EC_OpenSSL_NID, TCrypto.PrivateKey2Hexa(ECPrivateKey.PrivateKey));
     P^.SearchableAccountKey := TAccountComp.AccountKey2RawString(ECPrivateKey.PublicKey);
@@ -172,7 +174,8 @@ begin
       // overriding watch-only public key with full private/public key data, so double-check private key matches
       If Not TAccountComp.EqualAccountKeys(P^.AccountKey,ECPrivateKey.PublicKey) then
         raise Exception.Create('[UWallet.pas] TWalletKeys.AddPrivateKey - consistency check failed when overriding watch-only key');
-      P^.CryptedKey := TAESComp.EVP_Encrypt_AES256(TCrypto.PrivateKey2Hexa(ECPrivateKey.PrivateKey), WalletPassword);
+      raw_priv2hexa.FromString(TCrypto.PrivateKey2Hexa(ECPrivateKey.PrivateKey));
+      P^.CryptedKey := TAESComp.EVP_Encrypt_AES256(raw_priv2hexa,WalletPassword);
       P^.PrivateKey := TECPrivateKey.Create;
       P^.PrivateKey.SetPrivateKeyFromHexa(ECPrivateKey.EC_OpenSSL_NID, TCrypto.PrivateKey2Hexa(ECPrivateKey.PrivateKey));
     end;
@@ -190,7 +193,7 @@ begin
     P^ := CT_TWalletKey_NUL;
     P^.Name := Name;
     P^.AccountKey := ECDSA_Public;
-    P^.CryptedKey := '';
+    P^.CryptedKey := Nil;
     P^.PrivateKey := Nil;
     P^.SearchableAccountKey := TAccountComp.AccountKey2RawString(ECDSA_Public);
     FSearchableKeys.Insert(Result,P);
@@ -277,7 +280,7 @@ end;
 procedure TWalletKeys.GeneratePrivateKeysFromPassword;
 Var i : Integer;
  P : PWalletKey;
- s : TRawBytes;
+ raw : TRawBytes;
  isOk : Boolean;
 begin
   FIsValidPassword := false;
@@ -289,12 +292,12 @@ begin
   // try to unencrypt
   for i := 0 to FSearchableKeys.Count - 1 do begin
     P := FSearchableKeys[i];
-    if P^.CryptedKey<>'' then begin
-      isOk := TAESComp.EVP_Decrypt_AES256( P^.CryptedKey, FWalletPassword, s );
+    if P^.HasPrivateKey then begin
+      isOk := TAESComp.EVP_Decrypt_AES256( P^.CryptedKey, TEncoding.ASCII.GetBytes(FWalletPassword), raw );
       If isOk then begin
         P^.PrivateKey := TECPrivateKey.Create;
         try
-          P^.PrivateKey.SetPrivateKeyFromHexa(P^.AccountKey.EC_OpenSSL_NID,s);
+          P^.PrivateKey.SetPrivateKeyFromHexa(P^.AccountKey.EC_OpenSSL_NID,TEncoding.ASCII.GetString(raw));
         except on E: Exception do begin
             P^.PrivateKey.Free;
             P^.PrivateKey := Nil;
@@ -321,7 +324,7 @@ end;
 
 procedure TWalletKeys.LoadFromStream(Stream: TStream);
 Var fileversion,i,l,j : Integer;
-  s : AnsiString;
+  raw : TRawBytes;
   P : PWalletKey;
   wk : TWalletKey;
 begin
@@ -330,8 +333,8 @@ begin
   FIsReadingStream := true;
   try
     if Stream.Size - Stream.Position > 0 then begin
-      TStreamOp.ReadAnsiString(Stream,s);
-      if Not AnsiSameStr(s,CT_PrivateKeyFile_Magic) then raise Exception.Create('Invalid '+Classname+' stream');
+      TStreamOp.ReadAnsiString(Stream,raw);
+      if Not AnsiSameStr(TEncoding.ASCII.GetString(raw),CT_PrivateKeyFile_Magic) then raise Exception.Create('Invalid '+Classname+' stream');
       // Read version:
       Stream.Read(fileversion,4);
       if (fileversion<>CT_PrivateKeyFile_Version) then begin
@@ -342,7 +345,8 @@ begin
       Stream.Read(l,4);
       for i := 0 to l - 1 do begin
         wk := CT_TWalletKey_NUL;
-        TStreamOp.ReadAnsiString(Stream,wk.Name);
+        TStreamOp.ReadAnsiString(Stream,raw);
+        wk.Name := TEncoding.ASCII.GetString(raw);
         Stream.Read(wk.AccountKey.EC_OpenSSL_NID,sizeof(wk.AccountKey.EC_OpenSSL_NID));
         TStreamOp.ReadAnsiString(Stream,wk.AccountKey.x);
         TStreamOp.ReadAnsiString(Stream,wk.AccountKey.y);
@@ -377,14 +381,14 @@ begin
   if Not Assigned(Stream) then exit;
   Stream.Size := 0;
   Stream.Position:=0;
-  TStreamOp.WriteAnsiString(Stream,CT_PrivateKeyFile_Magic);
+  TStreamOp.WriteAnsiString(Stream,TEncoding.ASCII.GetBytes(CT_PrivateKeyFile_Magic));
   i := CT_PrivateKeyFile_Version;
   Stream.Write(i,4);
   i := FSearchableKeys.Count;
   Stream.Write(i,4);
   for i := 0 to FSearchableKeys.Count - 1 do begin
     P := FSearchableKeys[i];
-    TStreamOp.WriteAnsiString(Stream,P^.Name);
+    TStreamOp.WriteAnsiString(Stream,TEncoding.ASCII.GetBytes(P^.Name));
     Stream.Write(P^.AccountKey.EC_OpenSSL_NID,sizeof(P^.AccountKey.EC_OpenSSL_NID));
     TStreamOp.WriteAnsiString(Stream,P^.AccountKey.x);
     TStreamOp.WriteAnsiString(Stream,P^.AccountKey.y);
@@ -419,13 +423,15 @@ end;
 procedure TWalletKeys.SetWalletPassword(const Value: AnsiString);
 Var i : Integer;
   P : PWalletKey;
+  raw_priv2hexa : TRawBytes;
 begin
   if FWalletPassword=Value then exit;
   FWalletPassword := Value;
   for i := 0 to FSearchableKeys.Count - 1 do begin
     P := FSearchableKeys[i];
     If Assigned(P^.PrivateKey) then begin
-      P^.CryptedKey := TAESComp.EVP_Encrypt_AES256(TCrypto.PrivateKey2Hexa(P^.PrivateKey.PrivateKey),FWalletPassword);
+      raw_priv2hexa.FromString(TCrypto.PrivateKey2Hexa(P^.PrivateKey.PrivateKey));
+      P^.CryptedKey := TAESComp.EVP_Encrypt_AES256(raw_priv2hexa,FWalletPassword);
     end else begin
       if FIsValidPassword then begin
         TLog.NewLog(lterror,Classname,Format('Fatal error: Private key not found %d/%d',[i+1,FSearchableKeys.Count]));
@@ -530,14 +536,20 @@ begin
   end;
   i := FKeys.IndexOfAccountKey(PublicK);
   if i>=0 then begin
-    if (FKeys.Key[i].CryptedKey='') then i:=-1;
-  end else begin
+    if (Length(FKeys.Key[i].CryptedKey)=0) then i:=-1;
+  end;
+  if i<0 then begin
     // Generate a new key
     PK := TECPrivateKey.Create;
     try
       PK.GenerateRandomPrivateKey(CT_Default_EC_OpenSSL_NID);
       FKeys.AddPrivateKey('User Key '+FormatDateTime('YYYY-MM-DD hh:nn' ,Now), PK);
       PublicK := PK.PublicKey;
+      // Set to Settings if not mpk_NewEachTime
+      if (TSettings.MinerPrivateKeyType<>mpk_NewEachTime) then begin
+        TSettings.MinerPrivateKeyType:=mpk_Selected;
+        TSettings.MinerSelectedPrivateKey := TAccountComp.AccountKey2RawString(PublicK);
+      end;
     finally
       PK.Free;
     end;
@@ -602,7 +614,7 @@ end;
 
 class function TWallet.ExportPrivateKey(const AKey: TWalletKey; const APassword: AnsiString) : AnsiString;
 begin
-  Result := TCrypto.ToHexaString(TAESComp.EVP_Encrypt_AES256(AKey.PrivateKey.ExportToRaw, APassword));
+  Result := TCrypto.ToHexaString(TAESComp.EVP_Encrypt_AES256(AKey.PrivateKey.ExportToRaw, TEncoding.ANSI.GetBytes(APassword)));
 end;
 
 class procedure TWallet.ImportPrivateKey(const AName, AKeyImportText, APassword: AnsiString);
@@ -628,15 +640,15 @@ begin
 end;
 
 class procedure TWallet.ImportPublicKey(Const AName, AKeyImportText : AnsiString);
-var
-  raw, errors : AnsiString;
+var raw : TRawBytes;
+  errors : AnsiString;
   accountKey : TAccountKey;
 begin
   CheckLoaded;
   CheckUnlocked;
   If not TAccountComp.AccountPublicKeyImport(AKeyImportText, accountKey, errors) then begin
     raw := TCrypto.HexaToRaw(AKeyImportText);
-    if trim(raw)='' then
+    if Length(raw)=0 then
       raise Exception.Create('Invalid public key value (Not hexa or not an imported format)'+#10+errors);
     accountKey := TAccountComp.RawString2Accountkey(raw);
   end;
@@ -712,23 +724,23 @@ begin
   end;
 end;
 
-class function TWallet.TryDecryptPrivateKey(const AEncryptedKeyText, APassword:AnsiString; out APrivateKey : TECPrivateKey; out AMessage : AnsiString) : boolean;
+class function TWallet.TryDecryptPrivateKey(const AEncryptedKeyHexString, APassword:AnsiString; out APrivateKey : TECPrivateKey; out AMessage : AnsiString) : boolean;
 var
  parseResult : Boolean;
 begin
   APrivateKey := nil;
   AMessage := '';
-  if NOT TCrypto.IsHexString(AEncryptedKeyText) then begin
+  if NOT TCrypto.IsHexString(AEncryptedKeyHexString) then begin
     Result := false;
     AMessage := 'Invalid key text. You must enter a hexadecimal value ("0".."9" or "A".."F").';
     exit;
   end;
-  case Length(AEncryptedKeyText) div 2 of
-    32: parseResult := TryParseRawKey(AEncryptedKeyText, CT_NID_secp256k1, APrivateKey);
-    35,36: parseResult := TryParseRawKey(AEncryptedKeyText, CT_NID_sect283k1, APrivateKey);
-    48: parseResult := TryParseRawKey(AEncryptedKeyText, CT_NID_secp384r1, APrivateKey);
-    65,66: parseResult := TryParseRawKey(AEncryptedKeyText, CT_NID_secp521r1, APrivateKey);
-    64, 80, 96: parseResult := TryParseEncryptedKey(AEncryptedKeyText, APassword, APrivateKey);
+  case Length(AEncryptedKeyHexString) div 2 of
+    32: parseResult := TryParseHexKey(AEncryptedKeyHexString, CT_NID_secp256k1, APrivateKey);
+    35,36: parseResult := TryParseHexKey(AEncryptedKeyHexString, CT_NID_sect283k1, APrivateKey);
+    48: parseResult := TryParseHexKey(AEncryptedKeyHexString, CT_NID_secp384r1, APrivateKey);
+    65,66: parseResult := TryParseHexKey(AEncryptedKeyHexString, CT_NID_secp521r1, APrivateKey);
+    64, 80, 96: parseResult := TryParseEncryptedKey(AEncryptedKeyHexString, APassword, APrivateKey);
     else begin
       result := false;
       AMessage := 'Invalidly formatted private key string. Ensure it is an encrypted private key export or raw private key hexstring.';
@@ -737,7 +749,7 @@ begin
   end;
   if NOT parseResult then begin
     Result := false;
-    if Length(AEncryptedKeyText) div 2 in [64, 80, 96] then
+    if Length(AEncryptedKeyHexString) div 2 in [64, 80, 96] then
       AMessage := 'Incorrect password'
     else
       AMessage := 'Unencrypted key data is invalid or corrupted';
@@ -752,19 +764,21 @@ begin
   Result := true;
 end;
 
-class function TWallet.TryParseEncryptedKey(const AKeyText, AKeyPassword : AnsiString; out AKey : TECPrivateKey) : boolean;
+class function TWallet.TryParseEncryptedKey(const AKeyHexString, AKeyPassword : AnsiString; out AKey : TECPrivateKey) : boolean;
 var
- decrypt : AnsiString;
+ decrypt : TRawBytes;
 begin
   AKey := nil;
-  if NOT TCrypto.IsHexString(AKeyText) then begin
+  if NOT TCrypto.IsHexString(AKeyHexString) then begin
     Result := false;
     exit;
   end;
-  decrypt := '';
-  If (TAESComp.EVP_Decrypt_AES256(TCrypto.HexaToRaw(AKeyText),AKeyPassword,decrypt)) AND (decrypt<>'') then begin
-    AKey := TECPrivateKey.ImportFromRaw(decrypt);
-    Result := Assigned(AKey);
+  decrypt := Nil;
+  If (TAESComp.EVP_Decrypt_AES256(TCrypto.HexaToRaw(AKeyHexString),AKeyPassword,decrypt)) then begin
+    if (Length(decrypt)>0) then begin
+      AKey := TECPrivateKey.ImportFromRaw(decrypt);
+      Result := Assigned(AKey);
+    end else Result := False;
   end else begin
     Result := false;
   end;

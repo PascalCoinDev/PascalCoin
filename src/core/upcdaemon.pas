@@ -146,7 +146,7 @@ var
         If s<>'' then TLog.NewLog(lterror,Classname,'Invalid INI file public key: '+errors);
         i := 0;
         While (i<FWalletKeys.Count) And (pubkey.EC_OpenSSL_NID=CT_TECDSA_Public_Nul.EC_OpenSSL_NID) do begin
-          if (FWalletKeys.Key[i].CryptedKey<>'') then pubkey := FWalletKeys[i].AccountKey
+          if (Length(FWalletKeys.Key[i].CryptedKey)>0) then pubkey := FWalletKeys[i].AccountKey
           else inc(i);
         end;
         if (pubkey.EC_OpenSSL_NID=CT_TECDSA_Public_Nul.EC_OpenSSL_NID) then begin
@@ -179,7 +179,7 @@ var
       TLog.NewLog(ltinfo,ClassName,Format('Activating RPC Miner Server on port %d, name "%s", max conections %d and public key %s',
         [port,s,maxconnections,TAccountComp.AccountPublicKeyExport(pubkey)]));
       FMinerServer := TPoolMiningServer.Create;
-      FMinerServer.UpdateAccountAndPayload(pubkey,s);
+      FMinerServer.UpdateAccountAndPayload(pubkey,TEncoding.ANSI.GetBytes(s));
       FMinerServer.Port:=port;
       FMinerServer.Active:=True;
       FMinerServer.MaxConnections:=maxconnections;

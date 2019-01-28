@@ -321,9 +321,11 @@ begin
   Try
     fs := GetPendingBufferOperationsStream;
     fs.Position:=0;
-    If OperationsHashTree.LoadOperationsHashTreeFromStream(fs,true,CT_PROTOCOL_3,Nil,errors) then begin
-      TLog.NewLog(ltInfo,ClassName,Format('DoLoadPendingBufferOperations loaded operations:%d',[OperationsHashTree.OperationsCount]));
-    end else TLog.NewLog(ltError,ClassName,Format('DoLoadPendingBufferOperations ERROR: loaded operations:%d errors:%s',[OperationsHashTree.OperationsCount,errors]));
+    if fs.Size>0 then begin
+      If OperationsHashTree.LoadOperationsHashTreeFromStream(fs,true,CT_PROTOCOL_3,Nil,errors) then begin
+        TLog.NewLog(ltInfo,ClassName,Format('DoLoadPendingBufferOperations loaded operations:%d',[OperationsHashTree.OperationsCount]));
+      end else TLog.NewLog(ltError,ClassName,Format('DoLoadPendingBufferOperations ERROR: loaded operations:%d errors:%s',[OperationsHashTree.OperationsCount,errors]));
+    end;
   finally
     UnlockBlockChainStream;
   end;
@@ -482,7 +484,7 @@ begin
       try
         fs.Position := 0;
         if LowMemoryUsage then begin
-          if not Bank.LoadBankFromStream(fs,False,'',Nil,restoreProgressNotify,errors) then begin
+          if not Bank.LoadBankFromStream(fs,False,Nil,Nil,restoreProgressNotify,errors) then begin
             TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+filename+ ' Error: '+errors);
           end;
         end else begin
@@ -490,7 +492,7 @@ begin
           Try
             ms.CopyFrom(fs,0);
             ms.Position := 0;
-            if not Bank.LoadBankFromStream(ms,False,'',Nil,restoreProgressNotify,errors) then begin
+            if not Bank.LoadBankFromStream(ms,False,Nil,Nil,restoreProgressNotify,errors) then begin
               TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+filename+ ' Error: '+errors);
             end;
           Finally

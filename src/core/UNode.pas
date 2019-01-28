@@ -76,7 +76,7 @@ Type
     Destructor Destroy; override;
     Property Bank : TPCBank read FBank;
     Function NetServer : TNetServer;
-    Procedure NotifyNetClientMessage(Sender : TNetConnection; Const TheMessage : AnsiString);
+    Procedure NotifyNetClientMessage(Sender : TNetConnection; Const TheMessage : String);
     //
     Property Operations : TPCOperationsComp read FOperations;
     //
@@ -126,7 +126,7 @@ Type
 
   { TNodeMessage Event }
 
-  TNodeMessageEvent = Procedure(NetConnection : TNetConnection; MessageData : TRawBytes) of object;
+  TNodeMessageEvent = Procedure(NetConnection : TNetConnection; MessageData : String) of object;
 
   { TNodeMessageManyEvent }
 
@@ -137,7 +137,7 @@ Type
   TNodeMessageManyEventHelper = record helper for TNodeMessageManyEvent
     procedure Add(listener : TNodeMessageEvent);
     procedure Remove(listener : TNodeMessageEvent);
-    procedure Invoke(NetConnection : TNetConnection; MessageData : TRawBytes);
+    procedure Invoke(NetConnection : TNetConnection; MessageData : String);
   end;
 
   { TNodeNotifyEvents is ThreadSafe and will only notify in the main thread }
@@ -244,18 +244,18 @@ begin
       Result := Bank.AddNewBlockChainBlock(NewBlockOperations,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,newBlockAccount,errors);
       if Result then begin
         if Assigned(SenderConnection) then begin
-          FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,sClientRemoteAddr,OpBlock.block_payload,
+          FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,sClientRemoteAddr,OpBlock.block_payload.ToPrintable,
             OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
         end else begin
-          FNodeLog.NotifyNewLog(ltupdate,ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,'NIL',OpBlock.block_payload,
+          FNodeLog.NotifyNewLog(ltupdate,ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,'NIL',OpBlock.block_payload.ToPrintable,
             OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
         end;
       end else begin
         if Assigned(SenderConnection) then begin
-          FNodeLog.NotifyNewLog(lterror,SenderConnection.ClassName,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[OpBlock.block,sClientRemoteAddr,OpBlock.block_payload,errors,
+          FNodeLog.NotifyNewLog(lterror,SenderConnection.ClassName,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[OpBlock.block,sClientRemoteAddr,OpBlock.block_payload.ToPrintable,errors,
             OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
         end else begin
-          FNodeLog.NotifyNewLog(lterror,ClassName,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[OpBlock.block,'NIL',OpBlock.block_payload,errors,
+          FNodeLog.NotifyNewLog(lterror,ClassName,Format(';%d;%s;%s;%s;%d;%d;%d;%s',[OpBlock.block,'NIL',OpBlock.block_payload.ToPrintable,errors,
             OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
         end;
       end;
@@ -439,7 +439,7 @@ begin
               TPCOperation.OperationToOperationResume(0,ActOp,True,ActOp.SignerAccount,OPR);
               OPR.valid := false;
               OPR.NOpInsideBlock:=-1;
-              OPR.OperationHash := '';
+              OPR.OperationHash := Nil;
               OPR.errors := e;
               OperationsResult.Add(OPR);
             end;
@@ -467,7 +467,7 @@ begin
                 TPCOperation.OperationToOperationResume(0,ActOp,True,ActOp.SignerAccount,OPR);
                 OPR.valid := false;
                 OPR.NOpInsideBlock:=-1;
-                OPR.OperationHash := '';
+                OPR.OperationHash := Nil;
                 OPR.errors := e;
                 OperationsResult.Add(OPR);
               end;
@@ -497,7 +497,7 @@ begin
             TPCOperation.OperationToOperationResume(0,ActOp,True,ActOp.SignerAccount,OPR);
             OPR.valid := false;
             OPR.NOpInsideBlock:=-1;
-            OPR.OperationHash := '';
+            OPR.OperationHash := Nil;
             OPR.errors := e;
             OperationsResult.Add(OPR);
           end;
@@ -1134,7 +1134,7 @@ begin
   Result := sor = found;
 end;
 
-procedure TNode.NotifyNetClientMessage(Sender: TNetConnection; const TheMessage: AnsiString);
+procedure TNode.NotifyNetClientMessage(Sender: TNetConnection; const TheMessage: String);
 Var i : Integer;
   s : AnsiString;
 begin
@@ -1205,7 +1205,7 @@ begin
   TArrayTool<TNodeMessageEvent>.Remove(self, listener);
 end;
 
-procedure TNodeMessageManyEventHelper.Invoke(NetConnection : TNetConnection; MessageData : TRawBytes);
+procedure TNodeMessageManyEventHelper.Invoke(NetConnection : TNetConnection; MessageData : String);
 var i : Integer;
 begin
   for i := low(self) to high(self) do
