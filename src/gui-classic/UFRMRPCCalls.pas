@@ -186,9 +186,9 @@ begin
   ms := TMemoryStream.Create;
   Try
     ms.Size := 0;
-    TStreamOp.LoadStreamFromRaw(ms,json.ToJSON(False));
+    TStreamOp.LoadStreamFromRaw(ms,TEncoding.ANSI.GetBytes(json.ToJSON(False)));
     If Not DoHttpPostBinary(ebServerURL.Text,ms) then ShowCallInfo(error,'no valid response from '+ebServerURL.Text);
-    s := TStreamOp.SaveStreamToRaw(ms);
+    s := TEncoding.ANSI.GetString(TStreamOp.SaveStreamToRaw(ms));
     ShowCallInfo(response,s);
     if DecodeJSONResult(s,jsonResult) then begin
       Try

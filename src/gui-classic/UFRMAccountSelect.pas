@@ -30,7 +30,7 @@ uses
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, UAccounts, Grids, StdCtrls, Buttons, ExtCtrls, UWallet, UNode,
-  UGridUtils, UConst, UThread, UPCOrderedLists;
+  UGridUtils, UConst, UThread, UPCOrderedLists, UBaseTypes;
 
 const
   CT_AS_MyAccounts = $0001;
@@ -46,7 +46,7 @@ type
     onlyForPublicSale,
     onlyForPrivateSaleToMe : Boolean;
     minBal,maxBal : Int64;
-    searchName : AnsiString;
+    searchName : TRawBytes;
   end;
 
   TSearchProcedure = procedure(Const searchFound : TCardinalsArray; const searchValues : TSearchValues) of object;
@@ -186,8 +186,8 @@ procedure TSearchThread.BCExecute;
       If IsValid then begin
         IsValid := (account.balance>=FSearchValues.minBal) And ((FSearchValues.maxBal<0) Or (account.balance<=FSearchValues.maxBal));
       end;
-      If IsValid And (FSearchValues.searchName<>'') then begin
-        i := ansipos(FSearchValues.searchName,account.name);
+      If IsValid And (Length(FSearchValues.searchName)>0) then begin
+        i := TBaseType.FindIn(FSearchValues.searchName,account.name);
         IsValid := i>0;
       end;
       //
@@ -497,15 +497,15 @@ begin
     ebMaxBalance.Font.Color:=clGray;
   end;
   if (cbAccountsName.Checked) then begin
-    searchValues.searchName := LowerCase(Trim(ebAccountName.Text));
+    searchValues.searchName.FromString(ebAccountName.Text);
     ebAccountName.ParentFont:=True;
   end else begin
-    searchValues.searchName:='';
+    searchValues.searchName:=Nil;
     ebAccountName.Font.Color := clGray;
   end;
   If (searchValues.inAccountKey.EC_OpenSSL_NID=0) AND (searchValues.inWalletKeys=Nil) And (searchValues.maxBal<0) And (searchValues.minBal<=0) And
      (Not searchValues.onlyForPrivateSaleToMe) And (Not searchValues.onlyForPublicSale) And (Not searchValues.onlyForSale) And
-     (searchValues.searchName='') then begin
+     (Length(searchValues.searchName)=0) then begin
     FAccountsGrid.ShowAllAccounts:=True;
     lblAccountsCount.Caption := IntToStr(FAccountsGrid.Node.Bank.SafeBox.AccountsCount);
     lblAccountsBalance.Caption := TAccountComp.FormatMoney(FAccountsGrid.AccountsBalance);

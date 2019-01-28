@@ -198,7 +198,7 @@ Type
   End;
 
 Const
-  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:-1;Volume:-1;Reward:0;Fee:0;Target:0;HashRateTargetHs:0;HashRateHs:0;HashRateTargetKhs:0;HashRateKhs:0;MinerPayload:'';PoW:'';SafeBoxHash:'';AccumulatedWork:0;TimeAverage200:0;TimeAverage150:0;TimeAverage100:0;TimeAverage75:0;TimeAverage50:0;TimeAverage25:0;TimeAverage10:0);
+  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:-1;Volume:-1;Reward:0;Fee:0;Target:0;HashRateTargetHs:0;HashRateHs:0;HashRateTargetKhs:0;HashRateKhs:0;MinerPayload:Nil;PoW:Nil;SafeBoxHash:Nil;AccumulatedWork:0;TimeAverage200:0;TimeAverage150:0;TimeAverage100:0;TimeAverage75:0;TimeAverage50:0;TimeAverage25:0;TimeAverage10:0);
 
 
 implementation
@@ -509,7 +509,7 @@ begin
           DrawGrid.Canvas.Ellipse(Rect.Left+1,Rect.Top+1,Rect.Right-1,Rect.Bottom-1);
         End;
         act_name : Begin
-          s := account.name;
+          s := account.name.ToPrintable;
           Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
         end;
         act_type : Begin
@@ -1174,7 +1174,7 @@ begin
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter]);
       end else if ACol=8 then begin
         if TCrypto.IsHumanReadable(bcd.MinerPayload) then
-          s := bcd.MinerPayload
+          s := TEncoding.ANSI.GetString(bcd.MinerPayload)
         else s := TCrypto.ToHexaString( bcd.MinerPayload );
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter]);
       end else if ACol=9 then begin
@@ -1338,7 +1338,6 @@ begin
         finally
           bn.Free;
         end;
-        // bcd.HashRateKhs := Node.Bank.SafeBox.CalcBlockHashRateInKhs(bcd.Block,HashRateAverageBlocksCount); XXXXXXXX
         bn := TBigNum.TargetToHashRate(opb.compact_target);
         Try
           bcd.HashRateTargetHs := bn.Value / (CT_NewLineSecondsAvg);

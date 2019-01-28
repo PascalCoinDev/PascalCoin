@@ -278,7 +278,7 @@ type
     procedure OnNetConnectionsUpdated(Sender : TObject);
     procedure OnNetNodeServersUpdated(Sender : TObject);
     procedure OnNetBlackListUpdated(Sender : TObject);
-    Procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : TRawBytes);
+    Procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : String);
     Procedure OnNodeKeysActivity(Sender : TObject);
     Procedure OnSelectedAccountsGridUpdated(Sender : TObject);
     Procedure OnMiningServerNewBlockFound(Sender : TObject);
@@ -512,7 +512,7 @@ begin
   basem := memoMessageToSend.Lines.Text;
   m := '';
   // Clear non valid characters:
-  for i := 1 to length(basem) do begin
+  for i := Low(basem) to High(basem) do begin
     if basem[i] in [#32..#127] then m := m + basem[i]
     else m:=m+'.';
   end;
@@ -813,7 +813,7 @@ begin
   FPoolMiningServer := TPoolMiningServer.Create;
   FPoolMiningServer.Port := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port);
   FPoolMiningServer.MinerAccountKey := GetAccountKeyForMiner;
-  FPoolMiningServer.MinerPayload := FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString('');
+  FPoolMiningServer.MinerPayload := TEncoding.ANSI.GetBytes( FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString('') );
   FNode.Operations.AccountKey := GetAccountKeyForMiner;
   FPoolMiningServer.Active := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].GetAsBoolean(true);
   FPoolMiningServer.OnMiningServerNewBlockFound := OnMiningServerNewBlockFound;
@@ -835,7 +835,7 @@ Var account : TAccount;
 begin
   if AccountNumber<0 then exit;
   account := FNode.Operations.SafeBoxTransaction.Account(AccountNumber);
-  if account.name<>'' then s:='Name: '+account.name
+  if Length(account.name)>0 then s:='Name: '+TEncoding.ANSI.GetString(account.name)
   else s:='';
   Strings.Add(Format('Account: %s %s Type:%d',[TAccountComp.AccountNumberToAccountTxtNumber(AccountNumber),s,account.account_type]));
   Strings.Add('');
@@ -894,10 +894,10 @@ begin
   end;
   Strings.Add(Format('OpType:%d Subtype:%d',[OperationResume.OpType,OperationResume.OpSubtype]));
   Strings.Add(Format('Operation Hash (ophash): %s',[TCrypto.ToHexaString(OperationResume.OperationHash)]));
-  If (OperationResume.OperationHash_OLD<>'') then begin
+  If (Length(OperationResume.OperationHash_OLD)>0) then begin
     Strings.Add(Format('Old Operation Hash (old_ophash): %s',[TCrypto.ToHexaString(OperationResume.OperationHash_OLD)]));
   end;
-  if (OperationResume.OriginalPayload<>'') then begin
+  if (Length(OperationResume.OriginalPayload)>0) then begin
     Strings.Add(Format('Payload length:%d',[length(OperationResume.OriginalPayload)]));
     If OperationResume.PrintablePayload<>'' then begin
       Strings.Add(Format('Payload (human): %s',[OperationResume.PrintablePayload]));
@@ -1327,24 +1327,24 @@ begin
   case FMinerPrivateKeyType of
     mpk_NewEachTime: PublicK := CT_TECDSA_Public_Nul;
     mpk_Selected: begin
-      PublicK := TAccountComp.RawString2Accountkey(FAppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].GetAsString(''));
+      PublicK := TAccountComp.RawString2Accountkey(FAppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].GetAsTBytes(Nil));
     end;
   else
     // Random
     PublicK := CT_TECDSA_Public_Nul;
     if FWalletKeys.Count>0 then begin
       i := Random(FWalletKeys.Count);
-      if (FWalletKeys.Key[i].CryptedKey='') then begin
+      if (Length(FWalletKeys.Key[i].CryptedKey)=0) then begin
         // Not valid, search for first valid:
         i:=0;
-        while (i<FWalletKeys.Count) And (FWalletKeys.Key[i].CryptedKey='') do inc(i);
+        while (i<FWalletKeys.Count) And (Length(FWalletKeys.Key[i].CryptedKey)=0) do inc(i);
         if i<FWalletKeys.Count then PublicK := FWalletKeys.Key[i].AccountKey;
       end else PublicK := FWalletKeys.Key[i].AccountKey;
     end;
   end;
   i := FWalletKeys.IndexOfAccountKey(PublicK);
   if i>=0 then begin
-    if (FWalletKeys.Key[i].CryptedKey='') then i:=-1;
+    if (Length(FWalletKeys.Key[i].CryptedKey)=0) then i:=-1;
   end;
   if i<0 then begin
     PK := TECPrivateKey.Create;
@@ -1354,7 +1354,7 @@ begin
       PublicK := PK.PublicKey;
       // Set to AppParams if not mpk_NewEachTime
       if (FMinerPrivateKeyType<>mpk_NewEachTime) then begin
-        FAppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].Value:=TAccountComp.AccountKey2RawString(PublicK);
+        FAppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].SetAsTBytes(TAccountComp.AccountKey2RawString(PublicK));
         FMinerPrivateKeyType:=mpk_Selected;
         FAppParams.ParamByName[CT_PARAM_MinerPrivateKeyType].Value := Integer(mpk_Selected);
       end;
@@ -1772,7 +1772,7 @@ begin
   //
 end;
 
-procedure TFRMWallet.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: TRawBytes);
+procedure TFRMWallet.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: String);
 Var s : String;
 begin
   inc(FMessagesUnreadCount);
@@ -1783,11 +1783,11 @@ begin
     if FAppParams.ParamByName[CT_PARAM_ShowModalMessages].GetAsBoolean(false) then begin
       s := DateTimeToStr(now)+' Message from '+NetConnection.ClientRemoteAddr+#10+
          'Length '+inttostr(length(MessageData))+' bytes'+#10+#10;
-      if TCrypto.IsHumanReadable(MessageData) then begin
+      if TCrypto.IsHumanReadable(TEncoding.ANSI.GetBytes(MessageData)) then begin
          s := s + MessageData;
       end else begin
          s := s +'Value in hexadecimal:'+#10+
-              TCrypto.ToHexaString(MessageData);
+              TCrypto.ToHexaString(TEncoding.ANSI.GetBytes(MessageData));
       end;
       Application.MessageBox(PChar(s),PChar(Application.Title),MB_ICONINFORMATION+MB_OK);
     end;
@@ -2168,7 +2168,7 @@ begin
     wa := FNode.NetServer.Active;
     FNode.NetServer.Port := FAppParams.ParamByName[CT_PARAM_InternetServerPort].GetAsInteger(CT_NetServer_Port);
     FNode.NetServer.Active := wa;
-    FNode.Operations.BlockPayload := FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString('');
+    FNode.Operations.BlockPayload := TEncoding.ANSI.GetBytes(FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString(''));
     FNode.NodeLogFilename := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'blocks.log';
   end;
   if Assigned(FPoolMiningServer) then begin
@@ -2177,7 +2177,7 @@ begin
       FPoolMiningServer.Port := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port);
     end;
     FPoolMiningServer.Active :=FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].GetAsBoolean(true);
-    FPoolMiningServer.UpdateAccountAndPayload(GetAccountKeyForMiner,FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString(''));
+    FPoolMiningServer.UpdateAccountAndPayload(GetAccountKeyForMiner,TEncoding.ANSI.GetBytes(FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString('')));
   end;
   if Assigned(FRPCServer) then begin
     FRPCServer.Active := FAppParams.ParamByName[CT_PARAM_JSONRPCEnabled].GetAsBoolean(false);
@@ -2287,7 +2287,7 @@ begin
         s := wk.Name;
       end;
       if Not Assigned(wk.PrivateKey) then begin
-        if wk.CryptedKey<>'' then s:=s+' (Encrypted, need password)';
+        if Length(wk.CryptedKey)>0 then s:=s+' (Encrypted, need password)';
         s:=s+' (* without key)';
       end;
       cbMyPrivateKeys.Items.AddObject(s,TObject(i));

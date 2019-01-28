@@ -123,7 +123,7 @@ begin
     if cbPrivateKeyToMine.ItemIndex<0 then raise Exception.Create('Must select a private key');
     i := PtrInt(cbPrivateKeyToMine.Items.Objects[cbPrivateKeyToMine.ItemIndex]);
     if (i<0) Or (i>=FWalletKeys.Count) then raise Exception.Create('Invalid private key');
-    AppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].SetAsString( TAccountComp.AccountKey2RawString( FWalletKeys.Key[i].AccountKey ) );
+    AppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].SetAsTBytes( TAccountComp.AccountKey2RawString( FWalletKeys.Key[i].AccountKey ) );
   end else mpk := mpk_Random;
 
   AppParams.ParamByName[CT_PARAM_MinerPrivateKeyType].SetAsInteger(integer(mpk));
@@ -254,8 +254,9 @@ end;
 
 procedure TFRMPascalCoinWalletConfig.UpdateWalletConfig;
 Var i, iselected : Integer;
-  s : String;
+  raw : TBytes;
   wk : TWalletKey;
+  auxs : String;
 begin
   if Assigned(FWalletKeys) then begin
     if FWalletKeys.IsValidPassword then begin
@@ -271,18 +272,18 @@ begin
     for i := 0 to FWalletKeys.Count - 1 do begin
       wk := FWalletKeys.Key[i];
       if (wk.Name='') then begin
-        s := TCrypto.ToHexaString( TAccountComp.AccountKey2RawString(wk.AccountKey));
+        auxs := TCrypto.ToHexaString( TAccountComp.AccountKey2RawString(wk.AccountKey));
       end else begin
-        s := wk.Name;
+        auxs := wk.Name;
       end;
-      if wk.CryptedKey<>'' then begin
-        cbPrivateKeyToMine.Items.AddObject(s,TObject(i));
+      if (Length(wk.CryptedKey)>0) then begin
+        cbPrivateKeyToMine.Items.AddObject(auxs,TObject(i));
       end;
     end;
     cbPrivateKeyToMine.Sorted := true;
     if Assigned(FAppParams) then begin
-      s := FAppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].GetAsString('');
-      iselected := FWalletKeys.IndexOfAccountKey(TAccountComp.RawString2Accountkey(s));
+      raw := FAppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].GetAsTBytes(Nil);
+      iselected := FWalletKeys.IndexOfAccountKey(TAccountComp.RawString2Accountkey(raw));
       if iselected>=0 then begin
         iselected :=  cbPrivateKeyToMine.Items.IndexOfObject(TObject(iselected));
         cbPrivateKeyToMine.ItemIndex := iselected;

@@ -357,7 +357,7 @@ Var op : TPCOperation;
   aux : String;
   nAccount,n_operation : Cardinal;
   changes : TMultiOpChangesInfo;
-  new_name,errors : AnsiString;
+  new_name, errors : AnsiString;
   new_type : Word;
   new_account_key : TAccountKey;
 label LBL_start_changer;
@@ -391,7 +391,7 @@ LBL_start_changer:
     If Assigned(FSourceNode) then begin
       If (nAccount<FSourceNode.Bank.AccountsCount) then begin
         n_operation := FSourceNode.Bank.SafeBox.Account(nAccount).n_operation+1;
-        new_name:= FSourceNode.Bank.SafeBox.Account(nAccount).name;
+        new_name:= TEncoding.ANSI.GetString( FSourceNode.Bank.SafeBox.Account(nAccount).name );
         new_type:= FSourceNode.Bank.SafeBox.Account(nAccount).account_type;
         new_account_key := FSourceNode.Bank.SafeBox.Account(nAccount).accountInfo.accountKey;
       end;
@@ -408,7 +408,7 @@ LBL_start_changer:
       aux := new_name;
       If Not InputQuery(Caption,Format('New name for account %s:',[TAccountComp.AccountNumberToAccountTxtNumber(nAccount)]),aux) then Break;
       aux := LowerCase(aux);
-    Until (aux='') Or (TPCSafeBox.ValidAccountName(aux,errors));
+    Until (aux='') Or (TPCSafeBox.ValidAccountName(TEncoding.ANSI.GetBytes(aux),errors));
     new_name := aux;
 
     aux := IntToStr(new_type);
@@ -428,7 +428,7 @@ LBL_start_changer:
     changes[high(changes)] := CT_TMultiOpChangeInfo_NUL;
     changes[high(changes)].Account:=nAccount;
     changes[high(changes)].Changes_type:=[account_name,account_type];
-    changes[high(changes)].New_Name:=new_name;
+    changes[high(changes)].New_Name:=TEncoding.ANSI.GetBytes(new_name);
     changes[high(changes)].New_Type:=new_type;
     If new_account_key.EC_OpenSSL_NID<>CT_TECDSA_Public_Nul.EC_OpenSSL_NID then begin
       changes[high(changes)].Changes_type:=changes[high(changes)].Changes_type + [public_key];
