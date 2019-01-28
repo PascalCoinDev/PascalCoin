@@ -535,10 +535,10 @@ Type
   End;
 
 Const
-  CT_TOperationResume_NUL : TOperationResume = (valid:false;Block:0;NOpInsideBlock:-1;OpType:0;OpSubtype:0;time:0;AffectedAccount:0;SignerAccount:-1;n_operation:0;DestAccount:-1;SellerAccount:-1;newKey:(EC_OpenSSL_NID:0;x:'';y:'');OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:'';PrintablePayload:'';OperationHash:'';OperationHash_OLD:'';errors:'';isMultiOperation:False;Senders:Nil;Receivers:Nil;changers:Nil);
-  CT_TMultiOpSender_NUL : TMultiOpSender =  (Account:0;Amount:0;N_Operation:0;Payload:'';Signature:(r:'';s:''));
-  CT_TMultiOpReceiver_NUL : TMultiOpReceiver = (Account:0;Amount:0;Payload:'');
-  CT_TMultiOpChangeInfo_NUL : TMultiOpChangeInfo = (Account:0;N_Operation:0;Changes_type:[];New_Accountkey:(EC_OpenSSL_NID:0;x:'';y:'');New_Name:'';New_Type:0;Seller_Account:-1;Account_Price:-1;Locked_Until_Block:0;Fee:0;Signature:(r:'';s:''));
+  CT_TOperationResume_NUL : TOperationResume = (valid:false;Block:0;NOpInsideBlock:-1;OpType:0;OpSubtype:0;time:0;AffectedAccount:0;SignerAccount:-1;n_operation:0;DestAccount:-1;SellerAccount:-1;newKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:Nil;PrintablePayload:'';OperationHash:Nil;OperationHash_OLD:Nil;errors:'';isMultiOperation:False;Senders:Nil;Receivers:Nil;changers:Nil);
+  CT_TMultiOpSender_NUL : TMultiOpSender =  (Account:0;Amount:0;N_Operation:0;Payload:Nil;Signature:(r:Nil;s:Nil));
+  CT_TMultiOpReceiver_NUL : TMultiOpReceiver = (Account:0;Amount:0;Payload:Nil);
+  CT_TMultiOpChangeInfo_NUL : TMultiOpChangeInfo = (Account:0;N_Operation:0;Changes_type:[];New_Accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);New_Name:Nil;New_Type:0;Seller_Account:-1;Account_Price:-1;Locked_Until_Block:0;Fee:0;Signature:(r:Nil;s:Nil));
   CT_TOpChangeAccountInfoType_Txt : Array[Low(TOpChangeAccountInfoType)..High(TOpChangeAccountInfoType)] of AnsiString = ('public_key','account_name','account_type','list_for_public_sale','list_for_private_sale','delist');
 
 implementation
@@ -840,7 +840,7 @@ procedure TPCBank.Clear;
 begin
   SafeBox.Clear;
   FLastOperationBlock := TPCOperationsComp.GetFirstBlock;
-  FLastOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash); // Genesis hash
+  FLastOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(TEncoding.ASCII.GetBytes(CT_Genesis_Magic_String_For_Old_Block_Hash)); // Genesis hash
   FLastBlockCache.Clear(true);
   {$IFDEF HIGHLOG}NewLog(Nil, ltdebug, 'Clear Bank');{$ENDIF}
 end;
@@ -969,7 +969,7 @@ begin
     try
       FLastBlockCache.Clear(True);
       FLastOperationBlock := TPCOperationsComp.GetFirstBlock;
-      FLastOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash); // Genesis hash
+      FLastOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(TEncoding.ASCII.GetBytes(CT_Genesis_Magic_String_For_Old_Block_Hash)); // Genesis hash
       If FSafeBox.BlocksCount>0 then begin
         Storage.Initialize;
         If Storage.LoadBlockChainBlock(FLastBlockCache,FSafeBox.BlocksCount-1) then begin
@@ -1075,7 +1075,7 @@ begin
       If SafeBox.BlocksCount>0 then FLastOperationBlock := SafeBox.Block(SafeBox.BlocksCount-1).blockchainInfo
       else begin
         FLastOperationBlock := TPCOperationsComp.GetFirstBlock;
-        FLastOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash); // Genesis hash
+        FLastOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(TEncoding.ASCII.GetBytes(CT_Genesis_Magic_String_For_Old_Block_Hash)); // Genesis hash
       end;
     finally
       FBankLock.Release;
@@ -1281,14 +1281,14 @@ begin
       FOperationBlock.block := 0;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(0);
       FOperationBlock.compact_target := CT_MinCompactTarget_v1;
-      FOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash); // Nothing for first line
+      FOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(TEncoding.ASCII.GetBytes(CT_Genesis_Magic_String_For_Old_Block_Hash)); // Nothing for first line
       FOperationBlock.protocol_version := CT_PROTOCOL_1;
       FOperationsHashTree.Max0feeOperationsBySigner := -1;
     end;
     FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
     FOperationBlock.fee := 0;
     FOperationBlock.nonce := 0;
-    FOperationBlock.proof_of_work := '';
+    FOperationBlock.proof_of_work:=Nil;
     FOperationBlock.protocol_available := CT_BlockChain_Protocol_Available;
     FIsOnlyOperationBlock := false;
   Finally
@@ -1398,10 +1398,10 @@ begin
            And (OperationBlock1.timestamp=OperationBlock2.timestamp)
            And (OperationBlock1.compact_target=OperationBlock2.compact_target)
            And (OperationBlock1.nonce=OperationBlock2.nonce)
-           And (OperationBlock1.block_payload=OperationBlock2.block_payload)
-           And (OperationBlock1.initial_safe_box_hash=OperationBlock2.initial_safe_box_hash)
-           And (OperationBlock1.operations_hash=OperationBlock2.operations_hash)
-           And (OperationBlock1.proof_of_work=OperationBlock2.proof_of_work);
+           And (TBaseType.Equals(OperationBlock1.block_payload,OperationBlock2.block_payload))
+           And (TBaseType.Equals(OperationBlock1.initial_safe_box_hash,OperationBlock2.initial_safe_box_hash))
+           And (TBaseType.Equals(OperationBlock1.operations_hash,OperationBlock2.operations_hash))
+           And (TBaseType.Equals(OperationBlock1.proof_of_work,OperationBlock2.proof_of_work));
 end;
 
 function TPCOperationsComp.GetAccountKey: TAccountKey;
@@ -1477,7 +1477,7 @@ function TPCOperationsComp.LoadBlockFromStreamExt(Stream: TStream; LoadingFromSt
 Var i : Integer;
   lastfee : UInt64;
   soob : Byte;
-  m: AnsiString;
+  raw: TRawBytes;
   load_protocol_version : Word;
 begin
   Lock;
@@ -1528,8 +1528,8 @@ begin
 
     if Stream.Read(FOperationBlock.block, Sizeof(FOperationBlock.block))<0 then exit;
 
-    if TStreamOp.ReadAnsiString(Stream, m) < 0 then exit;
-    FOperationBlock.account_key := TAccountComp.RawString2Accountkey(m);
+    if TStreamOp.ReadAnsiString(Stream, raw) < 0 then exit;
+    FOperationBlock.account_key := TAccountComp.RawString2Accountkey(raw);
     if Stream.Read(FOperationBlock.reward, Sizeof(FOperationBlock.reward)) < 0 then exit;
     if Stream.Read(FOperationBlock.fee, Sizeof(FOperationBlock.fee)) < 0 then exit;
     if Stream.Read(FOperationBlock.timestamp, Sizeof(FOperationBlock.timestamp)) < 0 then exit;
@@ -1583,7 +1583,7 @@ class function TPCOperationsComp.OperationBlockToText(const OperationBlock: TOpe
 begin
   Result := Format('Block:%d Timestamp:%d Reward:%d Fee:%d Target:%d PoW:%s Payload:%s Nonce:%d OperationsHash:%s SBH:%s',[operationBlock.block,
     operationblock.timestamp,operationblock.reward,operationblock.fee, OperationBlock.compact_target, TCrypto.ToHexaString(operationblock.proof_of_work),
-    OperationBlock.block_payload,OperationBlock.nonce,TCrypto.ToHexaString(OperationBlock.operations_hash),
+    OperationBlock.block_payload.ToPrintable,OperationBlock.nonce,TCrypto.ToHexaString(OperationBlock.operations_hash),
     TCrypto.ToHexaString(OperationBlock.initial_safe_box_hash)]);
 end;
 
@@ -1644,10 +1644,10 @@ begin
       FOperationBlock.block := 0;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(0);
       FOperationBlock.compact_target := CT_MinCompactTarget_v1;
-      FOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(CT_Genesis_Magic_String_For_Old_Block_Hash);
+      FOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(TEncoding.ASCII.GetBytes(CT_Genesis_Magic_String_For_Old_Block_Hash));
       FOperationBlock.protocol_version := CT_PROTOCOL_1;
     end;
-    FOperationBlock.proof_of_work := '';
+    FOperationBlock.proof_of_work:=Nil;
     FOperationBlock.protocol_available := CT_BlockChain_Protocol_Available;
     n := 0;
     FOperationBlock.fee := 0;
@@ -2048,7 +2048,7 @@ begin
       FListOrderedBySha256.Clear;
       FListOrderedByAccountsData.Clear;
       FListOrderedByOpReference.Clear;
-      FHashTree := '';
+      FHashTree:=Nil;
     End;
     If Assigned(FOnChanged) then FOnChanged(Self);
   finally
@@ -2101,7 +2101,7 @@ begin
   FListOrderedByOpReference := TList.Create;
   FTotalAmount := 0;
   FTotalFee := 0;
-  FHashTree := '';
+  FHashTree := Nil;
   FMax0feeOperationsBySigner := -1; // Unlimited by default
   FHashTreeOperations := TPCThreadList.Create('TOperationsHashTree_HashTreeOperations');
 end;
@@ -2169,7 +2169,7 @@ begin
     // Recalc operations hash
     FTotalAmount := 0;
     FTotalFee := 0;
-    FHashTree := ''; // Init to future recalc
+    FHashTree := Nil; // Init to future recalc
     for i := 0 to l.Count - 1 do begin
       P := l[i];
       // Include to hash tree
@@ -2187,7 +2187,7 @@ begin
   FOnChanged := Nil;
   ClearHastThree;
   FreeAndNil(FHashTreeOperations);
-  SetLength(FHashTree,0);
+  FHashTree := Nil;
   FreeAndNil(FListOrderedBySha256);
   FreeAndNil(FListOrderedByAccountsData);
   FreeAndNil(FListOrderedByOpReference);
@@ -2198,16 +2198,18 @@ function TOperationsHashTree.GetHashTree: TRawBytes;
 Var l : TList;
   i : Integer;
   P : POperationHashTreeReg;
+  tmpRaw : TRawBytes;
 begin
   if Length(FHashTree)<>32 then begin
     l := FHashTreeOperations.LockList;
     Try
-      TCrypto.DoSha256('',FHashTree);
+      TCrypto.DoSha256(Nil,FHashTree);
       for i := 0 to l.Count - 1 do begin
         P := l[i];
         // Include to hash tree
         // TCrypto.DoSha256(FHashTree+P^.Op.Sha256,FHashTree);  COMPILER BUG 2.1.6: Using FHashTree as a "out" param can be initialized prior to be updated first parameter!
-        FHashTree := TCrypto.DoSha256(FHashTree+P^.Op.Sha256);
+        TBaseType.Concat(FHashTree,P^.Op.Sha256,tmpRaw);
+        FHashTree := TCrypto.DoSha256(tmpRaw);
       end;
     Finally
       FHashTreeOperations.UnlockList;
@@ -2336,7 +2338,7 @@ begin
     // Include to hash tree (Only if CalcNewHashTree=True)
     If (CalcNewHashTree) And (Length(FHashTree)=32) then begin
       // TCrypto.DoSha256(FHashTree+op.Sha256,FHashTree);  COMPILER BUG 2.1.6: Using FHashTree as a "out" param can be initialized prior to be updated first parameter!
-      hForNewHash := FHashTree + op.Sha256;
+      TBaseType.Concat(FHashTree,op.Sha256,hForNewHash);
       TCrypto.DoSha256(hForNewHash,FHashTree);
     end;
     npos := list.Add(P);
@@ -2763,7 +2765,7 @@ end;
 constructor TPCOperation.Create;
 begin
   FHasValidSignature := False;
-  FBufferedSha256:='';
+  FBufferedSha256:=Nil;
   FUsedPubkeyForSignature := CT_TECDSA_Public_Nul;
   InitializeData;
 end;
@@ -2878,7 +2880,7 @@ begin
   block :=0;
   account :=0;
   n_operation :=0;
-  SetLength(md160Hash,0);
+  md160Hash := Nil;
   if length(operationHash)<>32 then exit;
   ms := TMemoryStream.Create;
   try
@@ -2944,7 +2946,7 @@ begin
   FPrevious_Seller_updated_block := 0;
   FHasValidSignature := false;
   FUsedPubkeyForSignature:=CT_TECDSA_Public_Nul;
-  FBufferedSha256:='';
+  FBufferedSha256 := Nil;
 end;
 
 procedure TPCOperation.FillOperationResume(Block: Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume);
@@ -3216,7 +3218,7 @@ begin
   else Exit;
   end;
   OperationResume.OriginalPayload := Operation.OperationPayload;
-  If TCrypto.IsHumanReadable(OperationResume.OriginalPayload) then OperationResume.PrintablePayload := OperationResume.OriginalPayload
+  If TCrypto.IsHumanReadable(OperationResume.OriginalPayload) then OperationResume.PrintablePayload := OperationResume.OriginalPayload.ToPrintable
   else OperationResume.PrintablePayload := TCrypto.ToHexaString(OperationResume.OriginalPayload);
   OperationResume.OperationHash:=TPCOperation.OperationHashValid(Operation,Block);
   if (Block>0) And (Block<CT_Protocol_Upgrade_v2_MinBlock) then begin
