@@ -28,7 +28,7 @@ uses
 
 Type
   TWalletKey = Record
-    Name : AnsiString;
+    Name : String;
     AccountKey : TAccountKey;
     CryptedKey : TRawBytes;
     PrivateKey : TECPrivateKey;
@@ -39,18 +39,18 @@ Type
   TWalletKeys = Class(TComponent)
   private
     FSearchableKeys : TList;
-    FFileName: AnsiString;
-    FWalletPassword: AnsiString;
+    FFileName: String;
+    FWalletPassword: String;
     FWalletFileStream : TFileStream;
     FIsValidPassword: Boolean;
-    FWalletFileName: AnsiString;
+    FWalletFileName: String;
     FIsReadingStream : Boolean;
     FOnChanged: TNotifyManyEvent;
     function GetHasPassword : boolean;
     function GetKey(index: Integer): TWalletKey;
-    procedure SetWalletPassword(const Value: AnsiString);
+    procedure SetWalletPassword(const Value: String);
     Procedure GeneratePrivateKeysFromPassword;
-    procedure SetWalletFileName(const Value: AnsiString);
+    procedure SetWalletFileName(const Value: String);
     Function Find(Const AccountKey: TAccountKey; var Index: Integer): Boolean;
   public
     Property Key[index : Integer] : TWalletKey read GetKey; default;
@@ -60,16 +60,16 @@ Type
     Procedure SaveToStream(Stream : TStream);
     Property IsValidPassword : Boolean read FIsValidPassword;
     property HasPassword : boolean read GetHasPassword;
-    Property WalletPassword : AnsiString read FWalletPassword write SetWalletPassword;
-    Function AddPrivateKey(Const Name : AnsiString; ECPrivateKey : TECPrivateKey) : Integer; virtual;
-    Function AddPublicKey(Const Name : AnsiString; ECDSA_Public : TECDSA_Public) : Integer; virtual;
+    Property WalletPassword : String read FWalletPassword write SetWalletPassword;
+    Function AddPrivateKey(Const Name : String; ECPrivateKey : TECPrivateKey) : Integer; virtual;
+    Function AddPublicKey(Const Name : String; ECDSA_Public : TECDSA_Public) : Integer; virtual;
     Function IndexOfAccountKey(AccountKey : TAccountKey) : Integer;
     Procedure Delete(index : Integer); virtual;
     Procedure Clear; virtual;
     Function Count : Integer;
-    Property WalletFileName : AnsiString read FWalletFileName write SetWalletFileName;
+    Property WalletFileName : String read FWalletFileName write SetWalletFileName;
     Property OnChanged : TNotifyManyEvent read FOnChanged;
-    Procedure SetName(index : Integer; Const newName : AnsiString);
+    Procedure SetName(index : Integer; Const newName : String);
     Function LockWallet : Boolean;
   End;
 
@@ -81,8 +81,8 @@ Type
   public
     Constructor Create(AOwner : TComponent); override;
     Destructor destroy; override;
-    Function AddPrivateKey(Const Name : AnsiString; ECPrivateKey : TECPrivateKey) : Integer; override;
-    Function AddPublicKey(Const Name : AnsiString; ECDSA_Public : TECDSA_Public) : Integer; override;
+    Function AddPrivateKey(Const Name : String; ECPrivateKey : TECPrivateKey) : Integer; override;
+    Function AddPublicKey(Const Name : String; ECDSA_Public : TECDSA_Public) : Integer; override;
     Procedure Delete(index : Integer); override;
     Procedure Clear; override;
     Property AccountsKeyList : TOrderedAccountKeysList read FOrderedAccountKeysList;
@@ -110,17 +110,17 @@ Type
       class procedure Load;
       class function HasKey(const AKey: TWalletKey) : boolean;
       class procedure DeleteKey(const AKey: TWalletKey);
-      class procedure GenerateNewKey(const AName: AnsiString; AEncryptionTypeNID : Word);
-      class function ExportPublicKey(const AKey: TWalletKey) : AnsiString;
-      class function ExportPrivateKey(const AKey: TWalletKey; const APassword: AnsiString) : AnsiString;
-      class procedure ImportPrivateKey(const AName, AKeyImportText, APassword: AnsiString);
-      class procedure ImportPublicKey(Const AName, AKeyImportText : AnsiString);
-      class function RestoreWallet(const AFileName, APassword: AnsiString) : TRestoreWalletResult;
-      class procedure BackupWallet(const AFileName: AnsiString);
-      class function TryDecryptPrivateKey(const AEncryptedKeyHexString,APassword:AnsiString; out APrivateKey : TECPrivateKey; out AMessage : AnsiString) : boolean;
-      class function TryParseEncryptedKey(const AKeyHexString, AKeyPassword : AnsiString; out AKey : TECPrivateKey) : boolean;
+      class procedure GenerateNewKey(const AName: String; AEncryptionTypeNID : Word);
+      class function ExportPublicKey(const AKey: TWalletKey) : String;
+      class function ExportPrivateKey(const AKey: TWalletKey; const APassword: String) : String;
+      class procedure ImportPrivateKey(const AName, AKeyImportText, APassword: String);
+      class procedure ImportPublicKey(Const AName, AKeyImportText : String);
+      class function RestoreWallet(const AFileName, APassword: String) : TRestoreWalletResult;
+      class procedure BackupWallet(const AFileName: String);
+      class function TryDecryptPrivateKey(const AEncryptedKeyHexString,APassword:String; out APrivateKey : TECPrivateKey; out AMessage : String) : boolean;
+      class function TryParseEncryptedKey(const AKeyHexString, AKeyPassword : String; out AKey : TECPrivateKey) : boolean;
       class function TryParseRawKey(const ARawBytes : TRawBytes; AEncryptionTypeNID : Word; out AKey : TECPrivateKey) : boolean;
-      class function TryParseHexKey(const AHexString : AnsiString; AEncryptionTypeNID : Word; out AKey : TECPrivateKey) : boolean;
+      class function TryParseHexKey(const AHexString : String; AEncryptionTypeNID : Word; out AKey : TECPrivateKey) : boolean;
   end;
 
 Const CT_TWalletKey_NUL  : TWalletKey = (Name:'';AccountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);CryptedKey:Nil;PrivateKey:Nil;SearchableAccountKey:Nil);
@@ -150,7 +150,7 @@ begin
   Result := NOT ((IsValidPassword = True) AND (WalletPassword = ''));
 end;
 
-function TWalletKeys.AddPrivateKey(Const Name : AnsiString; ECPrivateKey: TECPrivateKey): Integer;
+function TWalletKeys.AddPrivateKey(Const Name : String; ECPrivateKey: TECPrivateKey): Integer;
 Var P : PWalletKey;
   s : AnsiString;
   raw_priv2hexa : TRawBytes;
@@ -184,7 +184,7 @@ begin
   FOnChanged.Invoke(Self);
 end;
 
-function TWalletKeys.AddPublicKey(const Name: AnsiString; ECDSA_Public: TECDSA_Public): Integer;
+function TWalletKeys.AddPublicKey(const Name: String; ECDSA_Public: TECDSA_Public): Integer;
 Var P : PWalletKey;
 begin
   if Not Find(ECDSA_Public,Result) then begin
@@ -396,7 +396,7 @@ begin
   end;
 end;
 
-procedure TWalletKeys.SetName(index: Integer; const newName: AnsiString);
+procedure TWalletKeys.SetName(index: Integer; const newName: String);
 begin
   if PWalletKey(FSearchableKeys[index])^.Name=newName then exit;
   PWalletKey(FSearchableKeys[index])^.Name := newName;
@@ -404,7 +404,7 @@ begin
   FOnChanged.Invoke(Self);
 end;
 
-procedure TWalletKeys.SetWalletFileName(const Value: AnsiString);
+procedure TWalletKeys.SetWalletFileName(const Value: String);
 var fm : Word;
 begin
   if FWalletFileName = Value then exit;
@@ -420,7 +420,7 @@ begin
   end;
 end;
 
-procedure TWalletKeys.SetWalletPassword(const Value: AnsiString);
+procedure TWalletKeys.SetWalletPassword(const Value: String);
 Var i : Integer;
   P : PWalletKey;
   raw_priv2hexa : TRawBytes;
@@ -447,7 +447,7 @@ end;
 
 { TWalletKeysExt }
 
-function TWalletKeysExt.AddPrivateKey(const Name: AnsiString;
+function TWalletKeysExt.AddPrivateKey(const Name: String;
   ECPrivateKey: TECPrivateKey): Integer;
 begin
   Result := inherited AddPrivateKey(Name,ECPrivateKey);
@@ -456,7 +456,7 @@ begin
   end;
 end;
 
-function TWalletKeysExt.AddPublicKey(const Name: AnsiString;
+function TWalletKeysExt.AddPublicKey(const Name: String;
   ECDSA_Public: TECDSA_Public): Integer;
 begin
   Result := inherited AddPublicKey(Name,ECDSA_Public);
@@ -594,7 +594,7 @@ begin
     raise Exception.Create('Key not found');
 end;
 
-class procedure TWallet.GenerateNewKey(const AName: AnsiString; AEncryptionTypeNID : Word);
+class procedure TWallet.GenerateNewKey(const AName: String; AEncryptionTypeNID : Word);
 var
   privateKey : TECPrivateKey;
 begin
@@ -607,19 +607,19 @@ begin
   end;
 end;
 
-class function TWallet.ExportPublicKey(const AKey: TWalletKey) : AnsiString;
+class function TWallet.ExportPublicKey(const AKey: TWalletKey) : String;
 begin
   Result := TAccountComp.AccountPublicKeyExport(AKey.AccountKey);
 end;
 
-class function TWallet.ExportPrivateKey(const AKey: TWalletKey; const APassword: AnsiString) : AnsiString;
+class function TWallet.ExportPrivateKey(const AKey: TWalletKey; const APassword: String) : String;
 begin
   Result := TCrypto.ToHexaString(TAESComp.EVP_Encrypt_AES256(AKey.PrivateKey.ExportToRaw, TEncoding.ANSI.GetBytes(APassword)));
 end;
 
-class procedure TWallet.ImportPrivateKey(const AName, AKeyImportText, APassword: AnsiString);
+class procedure TWallet.ImportPrivateKey(const AName, AKeyImportText, APassword: String);
 var
- message : AnsiString;
+ message : String;
  EC : TECPrivateKey;
  i : Integer;
 begin
@@ -639,7 +639,7 @@ begin
   end;
 end;
 
-class procedure TWallet.ImportPublicKey(Const AName, AKeyImportText : AnsiString);
+class procedure TWallet.ImportPublicKey(Const AName, AKeyImportText : String);
 var raw : TRawBytes;
   errors : String;
   accountKey : TAccountKey;
@@ -659,7 +659,7 @@ begin
   FKeys.AddPublicKey(AName, accountKey);
 end;
 
-class function TWallet.RestoreWallet(const AFileName, APassword: AnsiString) : TRestoreWalletResult;
+class function TWallet.RestoreWallet(const AFileName, APassword: String) : TRestoreWalletResult;
 var
   wki : TWalletKeys;
   i, j : Integer;
@@ -710,7 +710,7 @@ begin
   end;
 end;
 
-class procedure TWallet.BackupWallet(const AFileName : AnsiString);
+class procedure TWallet.BackupWallet(const AFileName : String);
 var
   fs : TFileStream;
 begin
@@ -724,7 +724,7 @@ begin
   end;
 end;
 
-class function TWallet.TryDecryptPrivateKey(const AEncryptedKeyHexString, APassword:AnsiString; out APrivateKey : TECPrivateKey; out AMessage : AnsiString) : boolean;
+class function TWallet.TryDecryptPrivateKey(const AEncryptedKeyHexString, APassword:String; out APrivateKey : TECPrivateKey; out AMessage : String) : boolean;
 var
  parseResult : Boolean;
 begin
@@ -764,7 +764,7 @@ begin
   Result := true;
 end;
 
-class function TWallet.TryParseEncryptedKey(const AKeyHexString, AKeyPassword : AnsiString; out AKey : TECPrivateKey) : boolean;
+class function TWallet.TryParseEncryptedKey(const AKeyHexString, AKeyPassword : String; out AKey : TECPrivateKey) : boolean;
 var
  decrypt : TRawBytes;
 begin
@@ -789,7 +789,7 @@ begin
   Result := TryParseHexKey(TCrypto.ToHexaString(ARawBytes), AEncryptionTypeNID, AKey);
 end;
 
-class function TWallet.TryParseHexKey(const AHexString : AnsiString; AEncryptionTypeNID : Word; out AKey : TECPrivateKey) : boolean;
+class function TWallet.TryParseHexKey(const AHexString : String; AEncryptionTypeNID : Word; out AKey : TECPrivateKey) : boolean;
 begin
   AKey := TECPrivateKey.Create;
   Try
