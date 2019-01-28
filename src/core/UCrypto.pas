@@ -44,7 +44,7 @@ Type
     Property PrivateKey : PEC_KEY read FPrivateKey;
     Property PublicKey : TECDSA_Public read GetPublicKey;
     Property PublicKeyPoint : PEC_POINT read GetPublicKeyPoint;
-    Function SetPrivateKeyFromHexa(EC_OpenSSL_NID : Word; const hexa : AnsiString) : Boolean;
+    Function SetPrivateKeyFromHexa(EC_OpenSSL_NID : Word; const hexa : String) : Boolean;
     Property EC_OpenSSL_NID : Word Read FEC_OpenSSL_NID;
     class function IsValidPublicKey(PubKey : TECDSA_Public) : Boolean;
     Function ExportToRaw : TRawBytes;
@@ -56,10 +56,10 @@ Type
   TCrypto = Class
   private
   public
-    class function IsHexString(const AHexString: AnsiString) : boolean;
-    class function ToHexaString(const raw : TRawBytes) : AnsiString; // DEPRECATED: Use TRawBytes.ToHexaString instead
-    class function HexaToRaw(const HexaString : AnsiString) : TRawBytes; overload;
-    class function HexaToRaw(const HexaString : AnsiString; out raw : TRawBytes) : Boolean; overload;
+    class function IsHexString(const AHexString: String) : boolean;
+    class function ToHexaString(const raw : TRawBytes) : String; // DEPRECATED: Use TRawBytes.ToHexaString instead
+    class function HexaToRaw(const HexaString : String) : TRawBytes; overload;
+    class function HexaToRaw(const HexaString : String; out raw : TRawBytes) : Boolean; overload;
     class function DoSha256(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     class function DoSha256(const TheMessage : TRawBytes) : TRawBytes; overload;
     class procedure DoSha256(const TheMessage : TRawBytes; out ResultSha256 : TRawBytes);  overload;
@@ -71,7 +71,7 @@ Type
     class function DoRipeMD160_HEXASTRING(const TheMessage : TRawBytes) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(const TheMessage : TRawBytes) : TRawBytes; overload;
-    class function PrivateKey2Hexa(Key : PEC_KEY) : AnsiString;
+    class function PrivateKey2Hexa(Key : PEC_KEY) : String;
     class function ECDSASign(Key : PEC_KEY; const digest : TRawBytes) : TECDSA_SIG;
     class function ECDSAVerify(EC_OpenSSL_NID : Word; PubKey : EC_POINT; const digest : TRawBytes; Signature : TECDSA_SIG) : Boolean; overload;
     class function ECDSAVerify(PubKey : TECDSA_Public; const digest : TRawBytes; Signature : TECDSA_SIG) : Boolean; overload;
@@ -84,18 +84,18 @@ Type
   TBigNum = Class
   private
     FBN : PBIGNUM;
-    procedure SetHexaValue(const Value: AnsiString);
-    function GetHexaValue: AnsiString;
+    procedure SetHexaValue(const Value: String);
+    function GetHexaValue: String;
     procedure SetValue(const Value: Int64);
     function GetValue: Int64;
-    function GetDecimalValue: AnsiString;
-    procedure SetDecimalValue(const Value: AnsiString);
+    function GetDecimalValue: String;
+    procedure SetDecimalValue(const Value: String);
     function GetRawValue: TRawBytes;
     procedure SetRawValue(const Value: TRawBytes);
   public
     Constructor Create; overload;
     Constructor Create(initialValue : Int64); overload;
-    Constructor Create(hexaValue : AnsiString); overload;
+    Constructor Create(const hexaValue : String); overload;
     Destructor Destroy; override;
     Function Copy : TBigNum;
     Function Add(BN : TBigNum) : TBigNum; overload;
@@ -111,13 +111,13 @@ Type
     Function Divide(int : Int64) : TBigNum; overload;
     Procedure Divide(dividend, remainder : TBigNum); overload;
     Function ToInt64(var int : Int64) : TBigNum;
-    Function ToDecimal : AnsiString;
-    Property HexaValue : AnsiString read GetHexaValue write SetHexaValue;
+    Function ToDecimal : String;
+    Property HexaValue : String read GetHexaValue write SetHexaValue;
     Property RawValue : TRawBytes read GetRawValue write SetRawValue;
-    Property DecimalValue : AnsiString read GetDecimalValue write SetDecimalValue;
+    Property DecimalValue : String read GetDecimalValue write SetDecimalValue;
     Property Value : Int64 read GetValue write SetValue;
     Function IsZero : Boolean;
-    Class Function HexaToDecimal(hexa : AnsiString) : AnsiString;
+    Class Function HexaToDecimal(hexa : String) : String;
     Class Function TargetToHashRate(EncodedTarget : Cardinal) : TBigNum;
   End;
 
@@ -314,15 +314,17 @@ begin
   FPrivateKey := Value;
 end;
 
-function TECPrivateKey.SetPrivateKeyFromHexa(EC_OpenSSL_NID : Word; const hexa : AnsiString) : Boolean;
+function TECPrivateKey.SetPrivateKeyFromHexa(EC_OpenSSL_NID : Word; const hexa : String) : Boolean;
 var bn : PBIGNUM;
   ctx : PBN_CTX;
   pub_key : PEC_POINT;
+  tmp_ansistring : RawByteString;
 begin
   Result := False;
   bn := BN_new;
   try
-    if BN_hex2bn(@bn,PAnsiChar(hexa))=0 then Raise ECryptoException.Create('Invalid hexa string to convert to Hexadecimal value');
+    tmp_ansistring := hexa;
+    if BN_hex2bn(@bn,PAnsiChar(tmp_ansistring))=0 then Raise ECryptoException.Create('Invalid hexa string to convert to Hexadecimal value');
 
     if Assigned(FPrivateKey) then EC_KEY_free(FPrivateKey);
     FEC_OpenSSL_NID := EC_OpenSSL_NID;
@@ -515,7 +517,7 @@ begin
   BN_free(BNy);
 end;
 
-class function TCrypto.HexaToRaw(const HexaString: AnsiString): TRawBytes;
+class function TCrypto.HexaToRaw(const HexaString: String): TRawBytes;
 Var P : PAnsiChar;
  lc : AnsiString;
  i : Integer;
@@ -532,7 +534,7 @@ begin
   end;
 end;
 
-class function TCrypto.HexaToRaw(const HexaString: AnsiString; out raw: TRawBytes): Boolean;
+class function TCrypto.HexaToRaw(const HexaString: String; out raw: TRawBytes): Boolean;
 Var P : PAnsiChar;
  lc : AnsiString;
  i : Integer;
@@ -600,7 +602,7 @@ begin
   end;
 end;
 
-class function TCrypto.PrivateKey2Hexa(Key: PEC_KEY): AnsiString;
+class function TCrypto.PrivateKey2Hexa(Key: PEC_KEY): String;
 Var p : PAnsiChar;
 begin
   p := BN_bn2hex(EC_KEY_get0_private_key(Key));
@@ -608,12 +610,12 @@ begin
   OPENSSL_free(p);
 end;
 
-class function TCrypto.ToHexaString(const raw: TRawBytes): AnsiString;
+class function TCrypto.ToHexaString(const raw: TRawBytes): String;
 begin
   Result := raw.ToHexaString;
 end;
 
-class function TCrypto.IsHexString(const AHexString: AnsiString) : boolean;
+class function TCrypto.IsHexString(const AHexString: String) : boolean;
 var
   i : Integer;
 begin
@@ -690,7 +692,7 @@ begin
   Create(0);
 end;
 
-constructor TBigNum.Create(hexaValue: AnsiString);
+constructor TBigNum.Create(const hexaValue: String);
 begin
   Create(0);
   SetHexaValue(hexaValue);
@@ -738,7 +740,7 @@ begin
   Result := Self;
 end;
 
-function TBigNum.GetDecimalValue: AnsiString;
+function TBigNum.GetDecimalValue: String;
 var p : PAnsiChar;
 begin
   p := BN_bn2dec(FBN);
@@ -746,7 +748,7 @@ begin
   OpenSSL_free(p);
 end;
 
-function TBigNum.GetHexaValue: AnsiString;
+function TBigNum.GetHexaValue: String;
 Var p : PAnsiChar;
 begin
   p := BN_bn2hex(FBN);
@@ -775,7 +777,7 @@ begin
   val(a,Result,err);
 end;
 
-class function TBigNum.HexaToDecimal(hexa: AnsiString): AnsiString;
+class function TBigNum.HexaToDecimal(hexa: String): String;
 Var bn : TBigNum;
 begin
   bn := TBigNum.Create(hexa);
@@ -827,16 +829,20 @@ begin
   Result := Self;
 end;
 
-procedure TBigNum.SetDecimalValue(const Value: AnsiString);
+procedure TBigNum.SetDecimalValue(const Value: String);
 Var i : Integer;
+  tmp_ansistring : RawByteString;
 begin
-  if BN_dec2bn(@FBN,PAnsiChar(Value))=0 then raise ECryptoException.Create('Error on dec2bn');
+  tmp_ansistring := Value;
+  if BN_dec2bn(@FBN,PAnsiChar(tmp_ansistring))=0 then raise ECryptoException.Create('Error on dec2bn');
 end;
 
-procedure TBigNum.SetHexaValue(const Value: AnsiString);
+procedure TBigNum.SetHexaValue(const Value: String);
 Var i : Integer;
+  tmp_ansistring : RawByteString;
 begin
-  i := BN_hex2bn(@FBN,PAnsiChar(Value));
+  tmp_ansistring := Value;
+  i := BN_hex2bn(@FBN,PAnsiChar(tmp_ansistring));
   if i=0 then begin
       Raise ECryptoException.Create('Invalid Hexadecimal value:'+Value);
   end;
@@ -928,7 +934,7 @@ begin
   End;
 end;
 
-function TBigNum.ToDecimal: AnsiString;
+function TBigNum.ToDecimal: String;
 var p : PAnsiChar;
 begin
   p := BN_bn2dec(FBN);
