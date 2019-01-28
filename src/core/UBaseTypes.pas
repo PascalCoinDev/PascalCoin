@@ -39,7 +39,19 @@ Type
   // Fixed 32 bytes length (or empty)
   T32Bytes = Array[0..31] of byte;
 
-  TRawBytes = AnsiString;
+  TRawBytes = TBytes;
+
+  { TRawBytesHelper }
+
+  TRawBytesHelper = record helper for TRawBytes
+    function ToString : String; // Returns a String type
+    function ToPrintable : String; // Returns a printable string with chars from #32..#126, other chars will be printed as #126 "~"
+    function ToHexaString : String; // Returns an Hexastring, so each byte will be printed as an hexadecimal (double size)
+    procedure FromString(const AValue : String); // Will store a RAW bytes assuming each char of the string is a byte -> ALERT: Do not use when the String contains chars encoded with multibyte character set!
+    function Add(const ARawValue : TRawBytes) : TRawBytes; // Will concat a new RawBytes value to current value
+    function IsEmpty : Boolean; // Will return TRUE when Length = 0
+  end;
+
 
   { TBytesBuffer }
 
@@ -89,13 +101,16 @@ Type
     class function IsEmpty(const value : T32Bytes) : Boolean;
     class procedure Concat(const addBytes : T32Bytes; var target : TDynRawBytes); overload;
     class procedure Concat(const leftBytes,rightBytes : T32Bytes; var target : TDynRawBytes); overload;
+    class procedure Concat(const leftBytes,rightBytes : TDynRawBytes; var target : TDynRawBytes); overload;
     class function Equals(const v1,v2 : T32Bytes) : Boolean; overload;
     class function Equals(const v1,v2 : TDynRawBytes) : Boolean; overload;
     class function Higher(const vHigh,vLow : T32Bytes) : Boolean;
-    class function Compare(const leftBytes,rightBytes : T32Bytes) : Integer;
+    class function Compare(const leftBytes,rightBytes : T32Bytes) : Integer; overload;
+    class function FindIn(const subst, target : TRawBytes) : Integer;
+    class function StartsWith(const subst, target : TRawBytes) : Boolean;
     // Herman functions moved from "Common"
     { Binary-safe StrComp replacement. StrComp will return 0 for when str1 and str2 both start with NUL character. }
-    class function BinStrComp(const Str1, Str2 : AnsiString): Integer;
+    class function BinStrComp(const Str1, Str2 : TRawBytes): Integer;
   end;
 
   // TickCount is platform specific (32 or 64 bits)
@@ -113,6 +128,65 @@ implementation
 {$IFNDEF FPC}
 Uses windows;
 {$ENDIF}
+
+{ TRawBytesHelper }
+
+function TRawBytesHelper.ToPrintable: String;
+var i,inc_i : Integer;
+  rbs : RawByteString; //
+begin
+  SetLength(rbs,Length(Self));
+  inc_i := Low(rbs) - Low(Self);
+  for i:=Low(Self) to High(Self) do begin
+    if (Self[i] in [32..126]) then rbs[i+inc_i] := AnsiChar(Self[i])
+    else rbs[i+inc_i] := AnsiChar(126);
+  end;
+  Result := rbs;
+end;
+
+function TRawBytesHelper.ToString: String;
+begin
+  if Length(Self)>0 then begin
+    Result := TEncoding.ANSI.GetString(Self);
+  end else Result := '';
+end;
+
+procedure TRawBytesHelper.FromString(const AValue: String);
+var i : Integer;
+begin
+  SetLength(Self,Length(AValue));
+  for i := 0 to Length(AValue)-1 do begin
+    Self[i] := Byte(AValue.Chars[i]);
+  end;
+end;
+
+function TRawBytesHelper.Add(const ARawValue: TRawBytes): TRawBytes;
+var iNext : Integer;
+begin
+  iNext := Length(Self);
+  SetLength(Self,Length(Self)+Length(ARawValue));
+  move(ARawValue[0],Self[iNext],Length(ARawValue));
+  Result := Self;
+end;
+
+function TRawBytesHelper.IsEmpty: Boolean;
+begin
+  Result := Length(Self)=0;
+end;
+
+function TRawBytesHelper.ToHexaString: String;
+Var i : Integer;
+  rbs : RawByteString;
+  raw_as_hex : TRawBytes;
+begin
+  SetLength(raw_as_hex,length(Self)*2);
+  for i := Low(Self) to High(Self) do begin
+    rbs := IntToHex(Self[i],2);
+    move(rbs[Low(rbs)],raw_as_hex[i*2],1);
+    move(rbs[Low(rbs)+1],raw_as_hex[(i*2)+1],1);
+  end;
+  Result := raw_as_hex.ToString;
+end;
 
 { TBaseType }
 
@@ -216,6 +290,20 @@ begin
   FillByte(dest[0],32,0);
 end;
 
+class function TBaseType.FindIn(const subst, target: TRawBytes): Integer;
+var iSubs, iTarget : Integer;
+begin
+  Result := -1;
+  for iTarget := 0 to (High(target)-Length(subst)+1) do begin
+    iSubs := 0;
+    while (iSubs<=High(subst)) and (target[iSubs+iTarget]=subst[iSubs]) do inc(iSubs);
+    if (iSubs>High(subst)) then begin
+      Result := iTarget;
+      Exit;
+    end;
+  end;
+end;
+
 class function TBaseType.IsEmpty(const value: T32Bytes): Boolean;
 Var i : Integer;
 begin
@@ -226,6 +314,14 @@ begin
     end;
   end;
   Result := True;
+end;
+
+class function TBaseType.StartsWith(const subst, target: TRawBytes): Boolean;
+var i : Integer;
+begin
+  i := Low(subst);
+  while (i<=High(subst)) and (i<=High(target)) and (target[i]=subst[i]) do inc(i);
+  Result := (i>High(subst)) and (i>High(target));
 end;
 
 class procedure TBaseType.Concat(const addBytes: T32Bytes; var target: TDynRawBytes);
@@ -241,6 +337,13 @@ begin
   move(rightBytes,target[32],32);
 end;
 
+class procedure TBaseType.Concat(const leftBytes, rightBytes: TDynRawBytes; var target: TDynRawBytes);
+begin
+  SetLength(target,Length(leftBytes)+Length(rightBytes));
+  move(leftBytes[Low(leftBytes)],target[0],Length(leftBytes));
+  move(rightBytes[Low(rightBytes)],target[High(leftBytes)+1],Length(rightBytes));
+end;
+
 class function TBaseType.Equals(const v1, v2: T32Bytes) : Boolean;
 Var i : Integer;
 begin
@@ -254,19 +357,14 @@ begin
 end;
 
 class function TBaseType.Equals(const v1, v2: TDynRawBytes): Boolean;
-Var i : Integer;
 begin
   If Length(v1)<>Length(v2) then begin
     Result := False;
-    Exit;
+  end else if Length(v1)=0 then begin
+    Result := True;
+  end else begin
+    Result := CompareMem(@v1[Low(v1)],@v2[Low(v2)],Length(v1));
   end;
-  for i:=0 to high(v1) do begin
-    If v1[i]<>v2[i] then begin
-      Result := False;
-      Exit;
-    end;
-  end;
-  Result := True;
 end;
 
 class function TBaseType.Higher(const vHigh, vLow: T32Bytes): Boolean;
@@ -284,24 +382,26 @@ begin
   Result := False; // No higher, equal
 end;
 
-class function TBaseType.BinStrComp(const Str1, Str2: AnsiString): Integer;
+class function TBaseType.BinStrComp(const Str1, Str2: TRawBytes): Integer;
 var Str1Len, Str2Len, i : Integer;
 begin
    Str1Len := Length(Str1);
    Str2Len := Length(Str2);
-   if (Str1Len < Str2Len) then
+   if ((Str1Len=0) and (Str2Len=0)) or (@Str1[Low(Str1)] = @Str2[Low(Str2)]) then
+     Result := 0
+   else if (Str1Len < Str2Len) then
      Result := -1
    else if (Str1Len > Str2Len) then
      Result := 1
    else begin
      Result := 0;
-     for i:= 1 to Str1Len do begin
+     for i:= Low(Str1) to High(Str1) do begin
        if Str1[i] < Str2[i] then begin
          Result := -1;
-         break;
+         Break;
        end else if Str1[i] > Str2[i] then begin
          Result := 1;
-         break;
+         Break;
        end
      end;
    end;
