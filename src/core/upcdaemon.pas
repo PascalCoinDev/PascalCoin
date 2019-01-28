@@ -81,7 +81,7 @@ Type
   TPCDaemonMapper = Class(TCustomDaemonMapper)
   private
     FLog : TLog;
-    procedure OnPascalCoinInThreadLog(logtype : TLogType; Time : TDateTime; AThreadID : TThreadID; Const sender, logtext : AnsiString);
+    procedure OnPascalCoinInThreadLog(logtype : TLogType; Time : TDateTime; AThreadID : TThreadID; Const sender, logtext : String);
   protected
     Procedure DoOnCreate; override;
     Procedure DoOnDestroy; override;
@@ -341,7 +341,7 @@ end;
 { TPCDaemonMapper }
 
 procedure TPCDaemonMapper.OnPascalCoinInThreadLog(logtype: TLogType;
-  Time: TDateTime; AThreadID: TThreadID; const sender, logtext: AnsiString);
+  Time: TDateTime; AThreadID: TThreadID; const sender, logtext: String);
 Var s : AnsiString;
 begin
 //  If Not SameText(sender,TPCDaemonThread.ClassName) then exit;

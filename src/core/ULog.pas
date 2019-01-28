@@ -29,7 +29,7 @@ type
   TLogType = (ltinfo, ltupdate, lterror, ltdebug);
   TLogTypes = set of TLogType;
 
-  TNewLogEvent = procedure(logtype : TLogType; Time : TDateTime; ThreadID : TThreadID; Const sender, logtext : AnsiString) of object;
+  TNewLogEvent = procedure(logtype : TLogType; Time : TDateTime; ThreadID : TThreadID; Const sender, logtext : String) of object;
 
   TLog = Class;
 
@@ -48,7 +48,7 @@ type
     Logtype : TLogType;
     Time : TDateTime;
     ThreadID : TThreadID;
-    Sender, Logtext : AnsiString
+    Sender, Logtext : String
   End;
 
   TLog = Class(TComponent)
@@ -57,28 +57,28 @@ type
     FOnNewLog: TNewLogEvent;
     FOnInThreadNewLog : TNewLogEvent;
     FFileStream : TFileStream;
-    FFileName: AnsiString;
+    FFileName: String;
     FSaveTypes: TLogTypes;
     FThreadSafeLogEvent : TThreadSafeLogEvent;
     FProcessGlobalLogs: Boolean;
     FLock : TCriticalSection;
-    procedure SetFileName(const Value: AnsiString);
+    procedure SetFileName(const Value: String);
   protected
-    Procedure DoLog(logtype : TLogType; sender, logtext : AnsiString); virtual;
+    Procedure DoLog(logtype : TLogType; const sender, logtext : String); virtual;
   public
     Constructor Create(AOwner : TComponent); override;
     Destructor Destroy; override;
     Class Procedure NewLog(logtype : TLogType; Const sender, logtext : String);
     Property OnInThreadNewLog : TNewLogEvent read FOnInThreadNewLog write FOnInThreadNewLog;
     Property OnNewLog : TNewLogEvent read FOnNewLog write FOnNewLog;
-    Property FileName : AnsiString read FFileName write SetFileName;
+    Property FileName : String read FFileName write SetFileName;
     Property SaveTypes : TLogTypes read FSaveTypes write FSaveTypes;
     Property ProcessGlobalLogs : Boolean read FProcessGlobalLogs write FProcessGlobalLogs;
     Procedure NotifyNewLog(logtype : TLogType; Const sender, logtext : String);
   End;
 
 Const
-  CT_LogType : Array[TLogType] of AnsiString = ('Info','Update','Error','Debug');
+  CT_LogType : Array[TLogType] of String = ('Info','Update','Error','Debug');
   CT_TLogTypes_ALL : TLogTypes = [ltinfo, ltupdate, lterror, ltdebug];
   CT_TLogTypes_DEFAULT : TLogTypes = [ltinfo, ltupdate, lterror];
 
@@ -138,7 +138,7 @@ begin
   inherited;
 end;
 
-procedure TLog.DoLog(logtype: TLogType; sender, logtext: AnsiString);
+procedure TLog.DoLog(logtype: TLogType; const sender, logtext: String);
 begin
 //
 end;
@@ -155,7 +155,7 @@ begin
 end;
 
 procedure TLog.NotifyNewLog(logtype: TLogType; Const sender, logtext: String);
-Var s,tid : AnsiString;
+Var s,tid : RawByteString;
   P : PLogData;
 begin
   FLock.Acquire;
@@ -184,7 +184,7 @@ begin
   DoLog(logtype,sender,logtext);
 end;
 
-procedure TLog.SetFileName(const Value: AnsiString);
+procedure TLog.SetFileName(const Value: String);
 var fm : Word;
 begin
   if FFileName = Value then exit;

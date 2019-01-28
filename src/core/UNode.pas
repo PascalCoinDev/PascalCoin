@@ -94,8 +94,8 @@ Type
     Function FindNOperations(account, start_block : Cardinal; allow_search_previous : Boolean; n_operation_low, n_operation_high : Cardinal; OpResumeList : TOperationsResumeList) : TSearchOperationResult;
     //
     Procedure InitSafeboxAndOperations(max_block_to_read : Cardinal = $FFFFFFFF; restoreProgressNotify : TProgressNotify = Nil);
-    Procedure AutoDiscoverNodes(Const ips : AnsiString);
-    Function IsBlockChainValid(var WhyNot : AnsiString) : Boolean;
+    Procedure AutoDiscoverNodes(Const ips : String);
+    Function IsBlockChainValid(var WhyNot : String) : Boolean;
     Function IsReady(Var CurrentProcess : String) : Boolean;
     Property PeerCache : AnsiString read FPeerCache write FPeerCache;
     Procedure DisableNewBlocks;
@@ -536,7 +536,7 @@ begin
   end;
 end;
 
-procedure TNode.AutoDiscoverNodes(const ips: AnsiString);
+procedure TNode.AutoDiscoverNodes(const ips: String);
 Var i,j : Integer;
   nsarr : TNodeServerAddressArray;
 begin
@@ -725,7 +725,7 @@ begin
   Result := FNodeLog.FileName;
 end;
 
-function TNode.IsBlockChainValid(var WhyNot : AnsiString): Boolean;
+function TNode.IsBlockChainValid(var WhyNot : String): Boolean;
 Var unixtimediff : Integer;
 begin
   Result :=false;

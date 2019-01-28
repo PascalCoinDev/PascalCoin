@@ -36,38 +36,38 @@ var
   {$IFEND}
   {$IFDEF OpenSSL10}
   {$IFDEF LINUX}
-  SSL_C_LIB : AnsiString = './libcrypto.so.1.0.0';
+  SSL_C_LIB : String = './libcrypto.so.1.0.0';
   {$ELSE}
-  SSL_C_LIB : AnsiString = './libcrypto.1.0.0.dylib';
+  SSL_C_LIB : String = './libcrypto.1.0.0.dylib';
   {$ENDIF}
   {$ELSE}
   {$IFDEF LINUX}
-  SSL_C_LIB : AnsiString = './libcrypto.so.1.1';
+  SSL_C_LIB : String = './libcrypto.so.1.1';
   {$ELSE}
-  SSL_C_LIB : AnsiString = './libcrypto.1.1.dylib';
+  SSL_C_LIB : String = './libcrypto.1.1.dylib';
   {$ENDIF}
   {$ENDIF}
 {$ELSE}
   {$IFDEF OpenSSL10}
     {$IFDEF FPC}
       {$ifdef CPU32}
-	  SSL_C_LIB : AnsiString = 'libeay32.dll';
+	  SSL_C_LIB : String = 'libeay32.dll';
       {$ENDIF}
       {$ifdef CPU64}
-	  SSL_C_LIB : AnsiString = 'libeay64.dll';
+	  SSL_C_LIB : String = 'libeay64.dll';
       {$ENDIF}
     {$ELSE}
       {$IFDEF CPUX64}
-        SSL_C_LIB : AnsiString = 'libeay64.dll';
+        SSL_C_LIB : String = 'libeay64.dll';
       {$ELSE}
-        SSL_C_LIB : AnsiString = 'libeay32.dll';
+        SSL_C_LIB : String = 'libeay32.dll';
       {$ENDIF}
     {$ENDIF}
   {$ELSE}
     {$ifdef CPUX64}
-      SSL_C_LIB : AnsiString = 'libcrypto-1_1-x64.dll';
+      SSL_C_LIB : String = 'libcrypto-1_1-x64.dll';
     {$ELSE}
-      SSL_C_LIB : AnsiString = 'libcrypto-1_1.dll';
+      SSL_C_LIB : String = 'libcrypto-1_1.dll';
     {$ENDIF}
   {$ENDIF}
 {$ENDIF}
@@ -243,7 +243,11 @@ begin
     {$IFDEF UNIX}
     hCrypt := LoadLibrary(SSL_C_LIB);
     {$ELSE}
-    hCrypt := LoadLibraryA(PAnsiChar(SSL_C_LIB));
+      {$IFDEF FPC}
+    hCrypt := LoadLibrary(PAnsiChar(SSL_C_LIB));
+      {$ELSE}
+    hCrypt := LoadLibrary(PWideChar(SSL_C_LIB));
+      {$ENDIF}
     {$ENDIF}
   end;
   Result := hCrypt <> 0;

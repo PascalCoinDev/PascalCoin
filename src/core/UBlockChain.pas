@@ -157,15 +157,15 @@ Type
     DestAccount : Int64;   //
     SellerAccount : Int64; // Protocol 2 - only used when is a pay to transaction
     newKey : TAccountKey;
-    OperationTxt : AnsiString;
+    OperationTxt : String;
     Amount : Int64;
     Fee : Int64;
     Balance : Int64;
     OriginalPayload : TRawBytes;
-    PrintablePayload : AnsiString;
+    PrintablePayload : String;
     OperationHash : TRawBytes;
     OperationHash_OLD : TRawBytes; // Will include old oeration hash value
-    errors : AnsiString;
+    errors : String;
     // New on V3 for PIP-0017
     isMultiOperation : Boolean;
     Senders : TMultiOpSenders;
