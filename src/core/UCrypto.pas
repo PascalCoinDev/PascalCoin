@@ -518,22 +518,38 @@ begin
 end;
 
 class function TCrypto.HexaToRaw(const HexaString: String): TRawBytes;
+Var P : PAnsiChar;
+ lc : AnsiString;
+ i : Integer;
 begin
-  HexaToRaw(HexaString,Result);
+  SetLength(Result,0);
+  if ((Length(HexaString) MOD 2)<>0) Or (Length(HexaString)=0) then exit;
+  SetLength(Result,Length(HexaString) DIV 2);
+  P := @Result[Low(Result)];
+  lc := LowerCase(HexaString);
+  i := HexToBin(PAnsiChar(@lc[Low(lc)]),P,Length(Result));
+  if (i<>(Length(HexaString) DIV 2)) then begin
+    TLog.NewLog(lterror,Classname,'Invalid HEXADECIMAL string result '+inttostr(i)+'<>'+inttostr(Length(HexaString) DIV 2)+': '+HexaString);
+    SetLength(Result,0);
+  end;
 end;
 
 class function TCrypto.HexaToRaw(const HexaString: String; out raw: TRawBytes): Boolean;
-Var P : PByte;
+Var P : PAnsiChar;
+ lc : AnsiString;
  i : Integer;
- ansi : AnsiString;
 begin
+  Result := False;
   SetLength(raw,0);
-  if ((Length(HexaString) MOD 2)<>0) then Exit(False);
-  if (Length(HexaString)=0) then Exit(True);
+  if ((Length(HexaString) MOD 2)<>0) then Exit;
+  if (Length(HexaString)=0) then begin
+    Result := True;
+    exit;
+  end;
   SetLength(raw,Length(HexaString) DIV 2);
   P := @raw[Low(raw)];
-  ansi := HexaString;
-  i := HexToBin(PAnsiChar(ansi),P,Length(raw));
+  lc := LowerCase(HexaString);
+  i := HexToBin(PAnsiChar(@lc[Low(lc)]),P,Length(raw));
   Result := (i = (Length(HexaString) DIV 2));
 end;
 
