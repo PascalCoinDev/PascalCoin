@@ -2583,6 +2583,7 @@ end;
 procedure TNetConnection.DisconnectInvalidClient(ItsMyself : Boolean; const why: String);
 Var include_in_list : Boolean;
   ns : TNodeServerAddress;
+  aux_s : String;
 begin
   FIsDownloadingBlocks := false;
   if ItsMyself then begin
@@ -2591,9 +2592,10 @@ begin
     TLog.NewLog(lterror,Classname,'Disconecting '+ClientRemoteAddr+' > '+Why);
   end;
   FIsMyselfServer := ItsMyself;
-  include_in_list := (Not SameText(Client.RemoteHost,'localhost')) And (Not SameText('127.',Client.RemoteHost.Substring(0,4)))
-    And (Not SameText('192.168.',Client.RemoteHost.Substring(0,8)))
-    And (Not SameText('10.',Client.RemoteHost.Substring(0,3)));
+  aux_s := Client.RemoteHost;
+  include_in_list := (Not SameText(aux_s,'localhost')) And (Not SameText('127.',aux_s.Substring(0,4)))
+    And (Not SameText('192.168.',aux_s.Substring(0,8)))
+    And (Not SameText('10.',aux_s.Substring(0,3)));
   if include_in_list then begin
     If TNetData.NetData.NodeServersAddresses.GetNodeServerAddress(Client.RemoteHost,Client.RemotePort,true,ns) then begin
       ns.last_connection := UnivDateTimeToUnix(DateTime2UnivDateTime(now));

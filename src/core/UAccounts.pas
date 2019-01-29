@@ -837,7 +837,6 @@ Var
   bn, bn2: TBigNum;
   i: Int64;
   nbits, min_compact_target: Cardinal;
-  c: AnsiChar;
   raw : TRawBytes;
   j : Integer;
 begin
@@ -969,7 +968,7 @@ begin
 end;
 
 { TAccountComp }
-Const CT_Base58 : AnsiString = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+Const CT_Base58 : String = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
 class function TAccountComp.AccountBlock(const account_number: Cardinal): Cardinal;
 begin
@@ -1065,58 +1064,8 @@ begin
 end;
 
 class function TAccountComp.AccountKeyFromImport(const HumanReadable: String; var account: TAccountKey; var errors : String): Boolean;
-Var raw : TRawBytes;
-  BN, BNAux, BNBase : TBigNum;
-  i,j : Integer;
-  s1,s2 : RawByteString;
-  i64 : Int64;
-  b : Byte;
 begin
-  result := false;
-  errors := 'Invalid length';
-  account := CT_TECDSA_Public_Nul;
-  if length(HumanReadable)<20 then exit;
-  BN := TBigNum.Create(0);
-  BNAux := TBigNum.Create;
-  BNBase := TBigNum.Create(1);
-  try
-    for i := length(HumanReadable) downto 1 do begin
-      if (HumanReadable[i]<>' ') then begin
-        j := pos(HumanReadable[i],CT_Base58);
-        if j=0 then begin
-          errors := 'Invalid char "'+HumanReadable[i]+'" at pos '+inttostr(i)+'/'+inttostr(length(HumanReadable));
-          exit;
-        end;
-        BNAux.Value := j-1;
-        BNAux.Multiply(BNBase);
-        BN.Add(BNAux);
-        BNBase.Multiply(length(CT_Base58));
-      end;
-    end;
-    // Last 8 hexa chars are the checksum of others
-    s1 := Copy(BN.HexaValue,3,length(BN.HexaValue));
-    s2 := copy(s1,length(s1)-7,8);
-    s1 := copy(s1,1,length(s1)-8);
-    raw := TCrypto.HexaToRaw(s1);
-    s1 := TCrypto.ToHexaString( TCrypto.DoSha256(raw) );
-    if copy(s1,1,8)<>s2 then begin
-      // Invalid checksum
-      errors := 'Invalid checksum';
-      exit;
-    end;
-    try
-      account := TAccountComp.RawString2Accountkey(raw);
-      Result := true;
-      errors := '';
-    except
-      // Nothing to do... invalid
-      errors := 'Error on conversion from Raw to Account key';
-    end;
-  Finally
-    BN.Free;
-    BNBase.Free;
-    BNAux.Free;
-  end;
+  Result := AccountPublicKeyImport(HumanReadable,account,errors);
 end;
 
 class function TAccountComp.AccountNumberToAccountTxtNumber(account_number: Cardinal): String;
@@ -1141,7 +1090,7 @@ begin
     BN.HexaValue := '01'+raw.ToHexaString+TCrypto.ToHexaString(Copy(TCrypto.DoSha256(raw),0,4));
     while (Not BN.IsZero) do begin
       BN.Divide(BNDiv,BNMod);
-      If (BNMod.Value>=0) And (BNMod.Value<length(CT_Base58)) then Result := CT_Base58[Byte(BNMod.Value)+Low(String)] + Result
+      If (BNMod.Value>=0) And (BNMod.Value<Length(CT_Base58)) then Result := CT_Base58.Chars[Byte(BNMod.Value)] + Result
       else raise Exception.Create('Error converting to Base 58');
     end;
   finally
@@ -1151,53 +1100,58 @@ begin
   end;
 end;
 
-class function TAccountComp.AccountPublicKeyImport(
-  const HumanReadable: String; var account: TAccountKey;
-  var errors: String): Boolean;
-Var raw : TRawBytes;
+class function TAccountComp.AccountPublicKeyImport(const HumanReadable: String; var account: TAccountKey; var errors: String): Boolean;
+Var raw,rawPubKey,rawChecksum_Calculated,rawChecksum_Stored : TRawBytes;
   BN, BNAux, BNBase : TBigNum;
   i,j : Integer;
-  s1,s2 : String;
-  i64 : Int64;
-  b : Byte;
 begin
-  result := false;
-  errors := 'Invalid length';
+  Result := false;
   account := CT_TECDSA_Public_Nul;
-  if length(HumanReadable)<20 then exit;
+  if Length(HumanReadable)<20 then begin
+    errors := 'Invalid length';
+    Exit(False);
+  end;
   BN := TBigNum.Create(0);
   BNAux := TBigNum.Create;
   BNBase := TBigNum.Create(1);
   try
-    for i := length(HumanReadable) downto 1 do begin
-      j := pos(HumanReadable[i],CT_Base58);
-      if j=0 then begin
-        errors := 'Invalid char "'+HumanReadable[i]+'" at pos '+inttostr(i)+'/'+inttostr(length(HumanReadable));
-        exit;
+    for i := Length(HumanReadable)-1 downto 0 do begin
+      j := CT_Base58.IndexOf(HumanReadable.Chars[i]);
+      if j<0 then begin
+        errors := 'Invalid char "'+HumanReadable.Chars[i]+'" at pos '+inttostr(i+1)+'/'+inttostr(Length(HumanReadable));
+        Exit(False);
       end;
-      BNAux.Value := j-1;
+      BNAux.Value := j;
       BNAux.Multiply(BNBase);
       BN.Add(BNAux);
-      BNBase.Multiply(length(CT_Base58));
+      BNBase.Multiply(Length(CT_Base58));
     end;
     // Last 8 hexa chars are the checksum of others
-    s1 := Copy(BN.HexaValue,3,length(BN.HexaValue));
-    s2 := copy(s1,length(s1)-7,8);
-    s1 := copy(s1,1,length(s1)-8);
-    raw := TCrypto.HexaToRaw(s1);
-    s1 := TCrypto.ToHexaString( TCrypto.DoSha256(raw) );
-    if copy(s1,1,8)<>s2 then begin
+    raw := TCrypto.HexaToRaw(BN.HexaValue);
+    if (Length(raw)<5) then begin
+      errors := 'Invalid decoded';
+      Exit(False);
+    end;
+    if (raw[0]<>1) then begin
+      errors := 'Invalid start value';
+      Exit(False);
+    end;
+    rawPubKey := Copy(raw,1,Length(raw)-5);
+    rawChecksum_Stored := Copy(raw,Length(raw)-4,4);
+    rawChecksum_Calculated := Copy(TCrypto.DoSha256(rawPubKey),0,4);
+    if (Not TBaseType.Equals(rawChecksum_Calculated,rawChecksum_Stored)) then begin
       // Invalid checksum
       errors := 'Invalid checksum';
-      exit;
+      Exit(False);
     end;
     try
-      account := TAccountComp.RawString2Accountkey(raw);
-      Result := true;
+      account := TAccountComp.RawString2Accountkey(rawPubKey);
       errors := '';
+      Result := True;
     except
       // Nothing to do... invalid
       errors := 'Error on conversion from Raw to Account key';
+      Result := False;
     end;
   Finally
     BN.Free;
@@ -1207,31 +1161,35 @@ begin
 end;
 
 class function TAccountComp.AccountTxtNumberToAccountNumber(const account_txt_number: String; var account_number: Cardinal): Boolean;
+  // PascalCoin account number can be a simple number "123456" or a number with checksum separated by "-","." or "_"
+  // The CHECKSUM is 2 digits between 10..88 (89 posibilities)
+  // Calculation of checksum: Account number multiplied by 101, moduled by 89 and adding 10
+  // Example:
+  //   "1234" : Good, no checksum
+  //   "1234-5" : Invalid. Correct checksum is 44  (((1234 * 101) MODULUS 89)+10)=44
+  //   "1234-44" : Good, checksum for 1234 is 44
+  //   "1234 44" : Invalid. Separator is not "-","." or "_"
 Var i : Integer;
-  char1 : AnsiChar;
-  char2 : AnsiChar;
   an,rn,anaux : Int64;
 begin
-  Result := false;
-  if length(trim(account_txt_number))=0 then exit;
+  if Length(Trim(account_txt_number))=0 then Exit(False);
   an := 0;
-  i := 1;
-  while (i<=length(account_txt_number)) do begin
-    if account_txt_number[i] in ['0'..'9'] then begin
-      an := (an * 10) + ord( account_txt_number[i] ) - ord('0');
+  i := 0;
+  while (i<Length(account_txt_number)) do begin
+    if account_txt_number.Chars[i] in ['0'..'9'] then begin
+      an := (an * 10) + ord( account_txt_number.Chars[i] ) - ord('0');
     end else begin
-      break;
+      Break;
     end;
     inc(i);
   end;
   account_number := an;
-  if (i>length(account_txt_number)) then begin
-    result := true;
-    exit;
+  if (i>=Length(account_txt_number)) then begin
+    Exit(True);
   end;
-  if (account_txt_number[i] in ['-','.',' ']) then inc(i);
-  if length(account_txt_number)-1<>i then exit;
-  rn := StrToIntDef(copy(account_txt_number,i,length(account_txt_number)),0);
+  if (account_txt_number.Chars[i] in ['-','.','_']) then inc(i);
+  if i>=Length(account_txt_number) then Exit(False);  // Found invalid chars after account number
+  rn := StrToIntDef(account_txt_number.Substring(i,Length(account_txt_number)),0);
   anaux := ((an * 101) MOD 89)+10;
   Result := rn = anaux;
 end;
