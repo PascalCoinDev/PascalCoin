@@ -53,7 +53,7 @@ type
     FTcpBlockSocket : TTCPBlockSocket;
     {$IFDEF Synapse}
     FConnected : Boolean;
-    FRemoteHost : AnsiString;
+    FRemoteHost : String;
     FRemotePort : Word;
     FBytesReceived, FBytesSent : Int64;
     FLock : TPCCriticalSection;
@@ -64,9 +64,9 @@ type
     FSocketError: Integer;
     FLastCommunicationTime : TDateTime;
     function GetConnected: Boolean;
-    function GetRemoteHost: AnsiString;
+    function GetRemoteHost: String;
     function GetRemotePort: Word;
-    procedure SetRemoteHost(const Value: AnsiString);
+    procedure SetRemoteHost(const Value: String);
     procedure SetRemotePort(const Value: Word);
     procedure SetOnConnect(const Value: TNotifyEvent);
     procedure SetOnDisconnect(const Value: TNotifyEvent);
@@ -82,8 +82,8 @@ type
   public
     Constructor Create(AOwner : TComponent); override;
     Destructor Destroy; override;
-    Function ClientRemoteAddr : AnsiString;
-    Property RemoteHost : AnsiString read GetRemoteHost Write SetRemoteHost;
+    Function ClientRemoteAddr : String;
+    Property RemoteHost : String read GetRemoteHost Write SetRemoteHost;
     Property RemotePort : Word read GetRemotePort write SetRemotePort;
     Property Connected : Boolean read GetConnected;
     Procedure Disconnect;
@@ -226,7 +226,7 @@ begin
   {$ENDIF}
 end;
 
-function TNetTcpIpClient.ClientRemoteAddr: AnsiString;
+function TNetTcpIpClient.ClientRemoteAddr: String;
 begin
   If Assigned(FTcpBlockSocket) then begin
     {$IFDEF DelphiSockets}
@@ -311,7 +311,7 @@ begin
 end;
 
 procedure TNetTcpIpClient.Disconnect;
-Var DebugStep : AnsiString;
+Var DebugStep : String;
 begin
   {$IFDEF DelphiSockets}
   FTcpBlockSocket.Disconnect;
@@ -386,7 +386,7 @@ begin
   {$ENDIF}
 end;
 
-function TNetTcpIpClient.GetRemoteHost: AnsiString;
+function TNetTcpIpClient.GetRemoteHost: String;
 begin
   {$IFDEF DelphiSockets}
   Result := FTcpBlockSocket.RemoteHost;
@@ -497,7 +497,7 @@ begin
   {$ENDIF}
 end;
 
-procedure TNetTcpIpClient.SetRemoteHost(const Value: AnsiString);
+procedure TNetTcpIpClient.SetRemoteHost(const Value: String);
 begin
   {$IFDEF DelphiSockets}
   FTcpBlockSocket.RemoteHost := Value;

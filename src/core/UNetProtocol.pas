@@ -143,7 +143,7 @@ Type
     FListByIp : TList;
     FListByNetConnection : TList;
     Procedure SecuredDeleteFromListByIp(index : Integer);
-    Function SecuredFindByIp(const ip : AnsiString; port : Word; var Index: Integer): Boolean;
+    Function SecuredFindByIp(const ip : String; port : Word; var Index: Integer): Boolean;
     Function SecuredFindByNetConnection(const search : TNetConnection; var Index: Integer): Boolean;
   protected
     function DeleteNetConnection(netConnection : TNetConnection) : Boolean;
@@ -156,8 +156,8 @@ Type
     procedure CleanNodeServersList;
     Function LockList : TList;
     Procedure UnlockList;
-    function IsBlackListed(const ip: AnsiString): Boolean;
-    function GetNodeServerAddress(const ip : AnsiString; port:Word; CanAdd : Boolean; var nodeServerAddress : TNodeServerAddress) : Boolean;
+    function IsBlackListed(const ip: String): Boolean;
+    function GetNodeServerAddress(const ip : String; port:Word; CanAdd : Boolean; var nodeServerAddress : TNodeServerAddress) : Boolean;
     procedure SetNodeServerAddress(const nodeServerAddress : TNodeServerAddress);
     Procedure UpdateNetConnection(netConnection : TNetConnection);
     procedure GetNodeServersToConnnect(maxNodes : Integer; useArray : Boolean; var nsa : TNodeServerAddressArray);
@@ -236,14 +236,14 @@ Type
     FTimesList : TPCThreadList;
     FTimeOffset : Integer;
     FTotalCounter : Integer;
-    Function IndexOfClientIp(list : TList; const clientIp : AnsiString) : Integer;
+    Function IndexOfClientIp(list : TList; const clientIp : String) : Integer;
     Procedure UpdateMedian(list : TList);
   public
     constructor Create;
     destructor Destroy; override;
-    procedure UpdateIp(const clientIp : AnsiString; clientTimestamp : Cardinal);
-    procedure AddNewIp(const clientIp : AnsiString; clientTimestamp : Cardinal);
-    procedure RemoveIp(const clientIp : AnsiString);
+    procedure UpdateIp(const clientIp : String; clientTimestamp : Cardinal);
+    procedure AddNewIp(const clientIp : String; clientTimestamp : Cardinal);
+    procedure RemoveIp(const clientIp : String);
     function GetAdjustedTime : Cardinal;
     property TimeOffset : Integer read FTimeOffset;
     function GetMaxAllowedTimestampForNewBlock : Cardinal;
@@ -295,9 +295,9 @@ Type
     Procedure DiscoverServersTerminated(Sender : TObject);
     procedure DoProcessReservedAreaMessage(senderConnection : TNetConnection; const headerData : TNetHeaderData; receivedData : TStream; responseData : TStream); virtual;
   public
-    Class function HeaderDataToText(const HeaderData : TNetHeaderData) : AnsiString;
+    Class function HeaderDataToText(const HeaderData : TNetHeaderData) : String;
     Class function ExtractHeaderInfo(buffer : TStream; var HeaderData : TNetHeaderData; DataBuffer : TStream; var IsValidHeaderButNeedMoreData : Boolean) : Boolean;
-    Class Function OperationToText(operation : Word) : AnsiString;
+    Class Function OperationToText(operation : Word) : String;
     // Only 1 NetData
     Class Function NetData : TNetData;
     Class Function NetDataExists : Boolean;
@@ -308,7 +308,7 @@ Type
     Function NewRequestId : Cardinal;
     Procedure RegisterRequest(Sender: TNetConnection; operation : Word; request_id : Cardinal);
     Function UnRegisterRequest(Sender: TNetConnection; operation : Word; request_id : Cardinal) : Boolean;
-    Function PendingRequest(Sender : TNetConnection; var requests_data : AnsiString ) : Integer;
+    Function PendingRequest(Sender : TNetConnection; var requests_data : String ) : Integer;
     Procedure AddServer(NodeServerAddress : TNodeServerAddress);
     //
     Procedure DiscoverFixedServersOnly(const FixedServers : TNodeServerAddressArray);
@@ -376,7 +376,7 @@ Type
     FIsMyselfServer : Boolean;
     FClientPublicKey : TAccountKey;
     FCreatedTime: TDateTime;
-    FClientAppVersion: AnsiString;
+    FClientAppVersion: String;
     FDoFinalizeConnection : Boolean;
     FNetProtocolVersion: TNetProtocolVersion;
     FAlertedForNewProtocolAvailable : Boolean;
@@ -386,7 +386,7 @@ Type
     FBufferLock : TPCCriticalSection;
     FBufferReceivedOperationsHash : TOrderedRawList;
     FBufferToSendOperations : TOperationsHashTree;
-    FClientTimestampIp : AnsiString;
+    FClientTimestampIp : String;
     function GetConnected: Boolean;
     procedure SetConnected(const Value: Boolean);
     procedure TcpClient_OnConnect(Sender: TObject);
@@ -407,7 +407,7 @@ Type
     Procedure DoProcess_GetPendingOperations;
     Procedure SetClient(Const Value : TNetTcpIpClient);
     Function ReadTcpClientBuffer(MaxWaitMiliseconds : Cardinal; var HeaderData : TNetHeaderData; BufferData : TStream) : Boolean;
-    Procedure DisconnectInvalidClient(ItsMyself : Boolean; Const why : AnsiString);
+    Procedure DisconnectInvalidClient(ItsMyself : Boolean; Const why : String);
     function GetClient: TNetTcpIpClient;
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
@@ -424,10 +424,10 @@ Type
     Function Send_NewBlockFound(Const NewBlock : TPCOperationsComp) : Boolean;
     Function Send_GetBlocks(StartAddress, quantity : Cardinal; var request_id : Cardinal) : Boolean;
     Function Send_AddOperations(Operations : TOperationsHashTree) : Boolean;
-    Function Send_Message(Const TheMessage : AnsiString) : Boolean;
+    Function Send_Message(Const TheMessage : String) : Boolean;
     Function AddOperationsToBufferForSend(Operations : TOperationsHashTree) : Integer;
     Property Client : TNetTcpIpClient read GetClient;
-    Function ClientRemoteAddr : AnsiString;
+    Function ClientRemoteAddr : String;
     property TimestampDiff : Integer read FTimestampDiff;
     property RemoteOperationBlock : TOperationBlock read FRemoteOperationBlock;
     //
@@ -435,7 +435,7 @@ Type
     //
     Property IsMyselfServer : Boolean read FIsMyselfServer;
     Property CreatedTime : TDateTime read FCreatedTime;
-    Property ClientAppVersion : AnsiString read FClientAppVersion write FClientAppVersion;
+    Property ClientAppVersion : String read FClientAppVersion write FClientAppVersion;
     Procedure FinalizeConnection;
   End;
 
@@ -500,7 +500,7 @@ uses
   UConst, ULog, UNode, UTime, UECIES, UChunk;
 
 Const
-  CT_NetTransferType : Array[TNetTransferType] of AnsiString = ('Unknown','Request','Response','Autosend');
+  CT_NetTransferType : Array[TNetTransferType] of String = ('Unknown','Request','Response','Autosend');
   CT_NetHeaderData : TNetHeaderData = (header_type:ntp_unknown;protocol:(protocol_version:0;protocol_available:0);operation:0;request_id:0;buffer_data_length:0;is_error:false;error_code:0;error_text:'');
 
 
@@ -640,7 +640,7 @@ begin
   inherited Destroy;
 end;
 
-function TOrderedServerAddressListTS.GetNodeServerAddress(const ip: AnsiString; port: Word; CanAdd: Boolean; var nodeServerAddress: TNodeServerAddress): Boolean;
+function TOrderedServerAddressListTS.GetNodeServerAddress(const ip: String; port: Word; CanAdd: Boolean; var nodeServerAddress: TNodeServerAddress): Boolean;
 Var i : Integer;
   P : PNodeServerAddress;
 begin
@@ -805,7 +805,7 @@ begin
   end;
 end;
 
-function TOrderedServerAddressListTS.IsBlackListed(const ip: AnsiString): Boolean;
+function TOrderedServerAddressListTS.IsBlackListed(const ip: String): Boolean;
 Var i : Integer;
   P : PNodeServerAddress;
 begin
@@ -849,7 +849,7 @@ begin
   inc(FNetData.FNetStatistics.NodeServersDeleted);
 end;
 
-function TOrderedServerAddressListTS.SecuredFindByIp(const ip: AnsiString; port: Word; var Index: Integer): Boolean;
+function TOrderedServerAddressListTS.SecuredFindByIp(const ip: String; port: Word; var Index: Integer): Boolean;
 var L, H, I, C: Integer;
   PN : PNodeServerAddress;
 begin
@@ -961,15 +961,6 @@ end;
 Var _NetData : TNetData = nil;
 
 Type PNetRequestRegistered = ^TNetRequestRegistered;
-
-function SortNodeServerAddress(Item1, Item2: Pointer): Integer;
-Var P1,P2 : PNodeServerAddress;
-Begin
-  P1 := Item1;
-  P2 := Item2;
-  Result := AnsiCompareText(P1.ip,P2.ip);
-  if Result=0 then Result := P1.port - P2.port;
-End;
 
 procedure TNetData.AddServer(NodeServerAddress: TNodeServerAddress);
 Var P : PNodeServerAddress;
@@ -2115,7 +2106,7 @@ begin
   end;
 end;
 
-class function TNetData.HeaderDataToText(const HeaderData: TNetHeaderData): AnsiString;
+class function TNetData.HeaderDataToText(const HeaderData: TNetHeaderData): String;
 begin
   Result := CT_NetTransferType[HeaderData.header_type]+' Operation:'+TNetData.OperationToText(HeaderData.operation);
   if HeaderData.is_error then begin
@@ -2270,7 +2261,7 @@ begin
   FNewBlockChainFromClientStatus := Format('Checking new safebox: %s %s',[mesage,pct]);
 end;
 
-class function TNetData.OperationToText(operation: Word): AnsiString;
+class function TNetData.OperationToText(operation: Word): String;
 begin
   case operation of
     CT_NetOp_Hello : Result := 'HELLO';
@@ -2290,7 +2281,7 @@ begin
   end;
 end;
 
-function TNetData.PendingRequest(Sender: TNetConnection; var requests_data : AnsiString): Integer;
+function TNetData.PendingRequest(Sender: TNetConnection; var requests_data : String): Integer;
 Var P : PNetRequestRegistered;
   i : Integer;
   l : TList;
@@ -2485,7 +2476,7 @@ begin
   end;
 end;
 
-function TNetConnection.ClientRemoteAddr: AnsiString;
+function TNetConnection.ClientRemoteAddr: String;
 begin
   If Assigned(FTcpIpClient) then begin
     Result := FtcpIpClient.ClientRemoteAddr
@@ -2589,7 +2580,7 @@ begin
   End;
 end;
 
-procedure TNetConnection.DisconnectInvalidClient(ItsMyself : Boolean; const why: AnsiString);
+procedure TNetConnection.DisconnectInvalidClient(ItsMyself : Boolean; const why: String);
 Var include_in_list : Boolean;
   ns : TNodeServerAddress;
 begin
@@ -2600,9 +2591,9 @@ begin
     TLog.NewLog(lterror,Classname,'Disconecting '+ClientRemoteAddr+' > '+Why);
   end;
   FIsMyselfServer := ItsMyself;
-  include_in_list := (Not SameText(Client.RemoteHost,'localhost')) And (Not SameText('127.',Copy(Client.RemoteHost,1,4)))
-    And (Not SameText('192.168.',Copy(Client.RemoteHost,1,8)))
-    And (Not SameText('10.',Copy(Client.RemoteHost,1,3)));
+  include_in_list := (Not SameText(Client.RemoteHost,'localhost')) And (Not SameText('127.',Client.RemoteHost.Substring(0,4)))
+    And (Not SameText('192.168.',Client.RemoteHost.Substring(0,8)))
+    And (Not SameText('10.',Client.RemoteHost.Substring(0,3)));
   if include_in_list then begin
     If TNetData.NetData.NodeServersAddresses.GetNodeServerAddress(Client.RemoteHost,Client.RemotePort,true,ns) then begin
       ns.last_connection := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
@@ -2626,7 +2617,7 @@ end;
 procedure TNetConnection.DoProcessBuffer;
 Var HeaderData : TNetHeaderData;
   ms : TMemoryStream;
-  ops : AnsiString;
+  ops : String;
   iPending : Integer;
 begin
   if FDoFinalizeConnection then begin
@@ -2757,7 +2748,7 @@ Var input_operations_count, cBlock, cBlockOpIndex, c : Cardinal;
   outputBuffer : TStream;
   opindexdata : TStream;
   opsdata : TBytes;
-  errors : AnsiString;
+  errors : String;
   DoDisconnect : Boolean;
 
 begin
@@ -2828,7 +2819,7 @@ Var b,b_start,b_end:Cardinal;
     op : TPCOperationsComp;
     db : TMemoryStream;
     c : Cardinal;
-  errors : AnsiString;
+  errors : String;
   DoDisconnect : Boolean;
   posquantity : Int64;
 begin
@@ -2985,7 +2976,7 @@ procedure TNetConnection.DoProcess_GetOperationsBlock_Request(HeaderData: TNetHe
 Const CT_Max_Positions = 10;
 Var inc_b,b,b_start,b_end, total_b:Cardinal;
   db,msops : TMemoryStream;
-  errors, blocksstr : AnsiString;
+  errors, blocksstr : String;
   DoDisconnect : Boolean;
   ob : TOperationBlock;
 begin
@@ -3065,7 +3056,7 @@ begin
   This call is used to obtain a chunk of the safebox
   Request:
   BlockCount (4 bytes) - The safebox checkpoint
-  SafeboxHash (AnsiString) - The safeboxhash of that checkpoint
+  SafeboxHash (TRawBytes) - The safeboxhash of that checkpoint
   StartPos (4 bytes) - The start index (0..BlockCount-1)
   EndPos   (4 bytes) - The final index (0..BlockCount-1)
     If valid info:
@@ -3120,7 +3111,7 @@ var responseStream : TMemoryStream;
   b : Byte;
   c : Cardinal;
   DoDisconnect : Boolean;
-  errors : AnsiString;
+  errors : String;
   opht : TOperationsHashTree;
 begin
   {
@@ -3273,7 +3264,7 @@ var responseStream, accountsStream : TMemoryStream;
   c, nAccounts : Cardinal;
   acc : TAccount;
   DoDisconnect : Boolean;
-  errors : AnsiString;
+  errors : String;
   pubKey : TAccountKey;
   sbakl : TOrderedAccountKeysList;
   ocl : TOrderedCardinalList;
@@ -3358,7 +3349,7 @@ var responseStream : TMemoryStream;
   c : Cardinal;
   acc : TAccount;
   DoDisconnect : Boolean;
-  errors : AnsiString;
+  errors : String;
 begin
   {
   This call is used to obtain an Account data
@@ -3596,7 +3587,7 @@ Begin
 end;
 
 procedure TNetConnection.DoProcess_Message(HeaderData: TNetHeaderData; DataBuffer: TStream);
-Var   errors : AnsiString;
+Var   errors : String;
   decrypted,messagecrypted : TRawBytes;
   DoDisconnect : boolean;
 begin
@@ -4155,7 +4146,9 @@ procedure TNetConnection.Send(NetTranferType: TNetTransferType; operation, error
 Var l : Cardinal;
    w : Word;
   Buffer : TStream;
-  s : AnsiString;
+  {$IFDEF HIGHLOG}
+  s : String;
+  {$ENDIF}
 begin
   Buffer := TMemoryStream.Create;
   try
@@ -4198,11 +4191,11 @@ begin
       Buffer.Write(l,4);
       DataBuffer.Position := 0;
       Buffer.CopyFrom(DataBuffer,DataBuffer.Size);
-      s := '(Data:'+inttostr(DataBuffer.Size)+'b) ';
+      {$IFDEF HIGHLOG}s := '(Data:'+inttostr(DataBuffer.Size)+'b) ';{$ENDIF}
     end else begin
       l := 0;
       Buffer.Write(l,4);
-      s := '';
+      {$IFDEF HIGHLOG}s := '';{$ENDIF}
     end;
     Buffer.Position := 0;
     TPCThread.ProtectEnterCriticalSection(Self,FNetLock);
@@ -4385,7 +4378,7 @@ begin
   end;
 end;
 
-function TNetConnection.Send_Message(const TheMessage: AnsiString): Boolean;
+function TNetConnection.Send_Message(const TheMessage: String): Boolean;
 Var data : TStream;
   cyp : TRawBytes;
 begin
@@ -4897,13 +4890,13 @@ end;
 { TNetworkAdjustedTime }
 
 Type TNetworkAdjustedTimeReg = Record
-     clientIp : AnsiString; // Client IP allows only 1 connection per IP (not using port)
+     clientIp : String; // Client IP allows only 1 connection per IP (not using port)
      timeOffset : Integer;
      counter : Integer; // To prevent a time attack from a single IP with multiple connections, only 1 will be used for calc NAT
    End;
    PNetworkAdjustedTimeReg = ^TNetworkAdjustedTimeReg;
 
-procedure TNetworkAdjustedTime.AddNewIp(const clientIp: AnsiString; clientTimestamp : Cardinal);
+procedure TNetworkAdjustedTime.AddNewIp(const clientIp: String; clientTimestamp : Cardinal);
 Var l : TList;
   i : Integer;
   P : PNetworkAdjustedTimeReg;
@@ -4971,15 +4964,15 @@ begin
   end;
 end;
 
-function TNetworkAdjustedTime.IndexOfClientIp(list: TList; const clientIp: AnsiString): Integer;
+function TNetworkAdjustedTime.IndexOfClientIp(list: TList; const clientIp: String): Integer;
 begin
   for Result := 0 to list.Count - 1 do begin
-    if AnsiSameStr(PNetworkAdjustedTimeReg(list[result])^.clientIp,clientIp) then exit;
+    if SameStr(PNetworkAdjustedTimeReg(list[result])^.clientIp,clientIp) then exit;
   end;
   Result := -1;
 end;
 
-procedure TNetworkAdjustedTime.RemoveIp(const clientIp: AnsiString);
+procedure TNetworkAdjustedTime.RemoveIp(const clientIp: String);
 Var l : TList;
   i : Integer;
   P : PNetworkAdjustedTimeReg;
@@ -5010,7 +5003,7 @@ begin
   Result := PNetworkAdjustedTimeReg(p1)^.timeOffset - PNetworkAdjustedTimeReg(p2)^.timeOffset;
 end;
 
-procedure TNetworkAdjustedTime.UpdateIp(const clientIp: AnsiString; clientTimestamp: Cardinal);
+procedure TNetworkAdjustedTime.UpdateIp(const clientIp: String; clientTimestamp: Cardinal);
 Var l : TList;
   i : Integer;
   P : PNetworkAdjustedTimeReg;

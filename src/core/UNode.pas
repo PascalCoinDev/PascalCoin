@@ -54,7 +54,7 @@ Type
     FOperations : TPCOperationsComp;
     FNetServer : TNetServer;
     FBCBankNotify : TPCBankNotify;
-    FPeerCache : AnsiString;
+    FPeerCache : String;
     FDisabledsNewBlocksCount : Integer;
     FSentOperations : TOrderedRawList;
     FBroadcastData : Boolean;
@@ -63,15 +63,15 @@ Type
     FBufferAuxWaitingOperations : TOperationsHashTree;
     {$ENDIF}
     Procedure OnBankNewBlock(Sender : TObject);
-    procedure SetNodeLogFilename(const Value: AnsiString);
-    function GetNodeLogFilename: AnsiString;
+    procedure SetNodeLogFilename(const Value: String);
+    function GetNodeLogFilename: String;
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
     Class Function Node : TNode;
     Class Function NodeExists : Boolean;
-    Class Procedure DecodeIpStringToNodeServerAddressArray(Const Ips : AnsiString; Var NodeServerAddressArray : TNodeServerAddressArray);
-    Class Function EncodeNodeServerAddressArrayToIpString(Const NodeServerAddressArray : TNodeServerAddressArray) : AnsiString;
+    Class Procedure DecodeIpStringToNodeServerAddressArray(Const Ips : String; Var NodeServerAddressArray : TNodeServerAddressArray);
+    Class Function EncodeNodeServerAddressArrayToIpString(Const NodeServerAddressArray : TNodeServerAddressArray) : String;
     Constructor Create(AOwner : TComponent); override;
     Destructor Destroy; override;
     Property Bank : TPCBank read FBank;
@@ -83,7 +83,7 @@ Type
     Function AddNewBlockChain(SenderConnection : TNetConnection; NewBlockOperations: TPCOperationsComp; var newBlockAccount: TBlockAccount; var errors: String): Boolean;
     Function AddOperations(SenderConnection : TNetConnection; OperationsHashTree : TOperationsHashTree; OperationsResult : TOperationsResumeList; var errors: String): Integer;
     Function AddOperation(SenderConnection : TNetConnection; Operation : TPCOperation; var errors: String): Boolean;
-    Function SendNodeMessage(Target : TNetConnection; TheMessage : AnsiString; var errors : String) : Boolean;
+    Function SendNodeMessage(Target : TNetConnection; const TheMessage : String; var errors : String) : Boolean;
     //
     Procedure NotifyBlocksChanged;
     //
@@ -97,10 +97,10 @@ Type
     Procedure AutoDiscoverNodes(Const ips : String);
     Function IsBlockChainValid(var WhyNot : String) : Boolean;
     Function IsReady(Var CurrentProcess : String) : Boolean;
-    Property PeerCache : AnsiString read FPeerCache write FPeerCache;
+    Property PeerCache : String read FPeerCache write FPeerCache;
     Procedure DisableNewBlocks;
     Procedure EnableNewBlocks;
-    Property NodeLogFilename : AnsiString read GetNodeLogFilename write SetNodeLogFilename;
+    Property NodeLogFilename : String read GetNodeLogFilename write SetNodeLogFilename;
     Property OperationSequenceLock : TPCCriticalSection read FOperationSequenceLock;
     function TryLockNode(MaxWaitMilliseconds : Cardinal) : Boolean;
     procedure UnlockNode;
@@ -108,7 +108,7 @@ Type
     Property BroadcastData : Boolean read FBroadcastData write FBroadcastData;
     Property UpdateBlockchain : Boolean read FUpdateBlockchain write FUpdateBlockchain;
     procedure MarkVerifiedECDSASignaturesFromMemPool(newOperationsToValidate : TPCOperationsComp);
-    class function NodeVersion : AnsiString;
+    class function NodeVersion : String;
   End;
 
   TNodeNotifyEvents = Class;
@@ -358,7 +358,7 @@ function TNode.AddOperations(SenderConnection : TNetConnection; OperationsHashTr
   Var i,j, nAdded, nDeleted : Integer;
     sAcc : TAccount;
     ActOp : TPCOperation;
-    e : AnsiString;
+    e : String;
   Begin
     // Prior to add new operations, will try to add waiting ones
     nAdded := 0; nDeleted := 0;
@@ -578,11 +578,11 @@ begin
 end;
 
 class procedure TNode.DecodeIpStringToNodeServerAddressArray(
-  const Ips: AnsiString; Var NodeServerAddressArray: TNodeServerAddressArray);
-  Function GetIp(var ips_string : AnsiString; var nsa : TNodeServerAddress) : Boolean;
+  const Ips: String; Var NodeServerAddressArray: TNodeServerAddressArray);
+  Function GetIp(var ips_string : String; var nsa : TNodeServerAddress) : Boolean;
   Const CT_IP_CHARS = ['a'..'z','A'..'Z','0'..'9','.','-','_'];
   var i : Integer;
-    port : AnsiString;
+    port : String;
   begin
     nsa := CT_TNodeServerAddress_NUL;
     Result := false;
@@ -590,28 +590,32 @@ class procedure TNode.DecodeIpStringToNodeServerAddressArray(
       ips_string := '';
       exit;
     end;
-    i := 1;
-    while (i<length(ips_string)) AND (NOT (ips_string[i] IN CT_IP_CHARS)) do inc(i);
-    if (i>1) then ips_string := copy(ips_string,i,length(ips_string));
-    //
-    i := 1;
-    while (i<=length(ips_string)) and (ips_string[i] in CT_IP_CHARS) do inc(i);
-    nsa.ip := copy(ips_string,1,i-1);
-    if (i<=length(ips_string)) and (ips_string[i]=':') then begin
-      inc(i);
-      port := '';
-      while (i<=length(ips_string)) and (ips_string[i] in ['0'..'9']) do begin
-        port := port + ips_string[i];
+    // Delete invalid chars:
+    i := 0;
+    while (i<=High(ips_string)) AND (NOT (ips_string.Chars[i] IN CT_IP_CHARS)) do inc(i);
+    if (i>Low(ips_string)) then ips_string := ips_string.Substring(i,Length(ips_string));
+    // Capture IP value
+    i := 0;
+    while (i<=High(ips_string)) and (ips_string.Chars[i] in CT_IP_CHARS) do inc(i);
+    if (i>0) then begin
+      nsa.ip := ips_string.Substring(0,i);
+      // Capture possible :Port value
+      if (i<=High(ips_string)) and (ips_string.Chars[i]=':') then begin
         inc(i);
+        port := '';
+        while (i<=High(ips_string)) and (ips_string.Chars[i] in ['0'..'9']) do begin
+          port := port + ips_string.Chars[i];
+          inc(i);
+        end;
+        nsa.port := StrToIntDef(port,0);
       end;
-      nsa.port := StrToIntDef(port,0);
     end;
-    ips_string := copy(ips_string,i+1,length(ips_string));
+    ips_string := ips_string.Substring(i+1,Length(ips_string));
     if nsa.port=0 then nsa.port := CT_NetServer_Port;
-    Result := (trim(nsa.ip)<>'');
+    Result := (Trim(nsa.ip)<>'');
   end;
 Var i,j : Integer;
-  ips_string : AnsiString;
+  ips_string : String;
   nsa : TNodeServerAddress;
 begin
   SetLength(NodeServerAddressArray,0);
@@ -621,7 +625,7 @@ begin
       SetLength(NodeServerAddressArray,length(NodeServerAddressArray)+1);
       NodeServerAddressArray[High(NodeServerAddressArray)] := nsa;
     end;
-  until (ips_string='');
+  until (Length(ips_string)=0);
 end;
 
 destructor TNode.Destroy;
@@ -706,8 +710,7 @@ begin
   end;
 end;
 
-class function TNode.EncodeNodeServerAddressArrayToIpString(
-  const NodeServerAddressArray: TNodeServerAddressArray): AnsiString;
+class function TNode.EncodeNodeServerAddressArrayToIpString(const NodeServerAddressArray: TNodeServerAddressArray): String;
 var i : Integer;
 begin
   Result := '';
@@ -720,7 +723,7 @@ begin
   end;
 end;
 
-function TNode.GetNodeLogFilename: AnsiString;
+function TNode.GetNodeLogFilename: String;
 begin
   Result := FNodeLog.FileName;
 end;
@@ -785,7 +788,7 @@ begin
   Result := Assigned(_Node);
 end;
 
-class function TNode.NodeVersion: AnsiString;
+class function TNode.NodeVersion: String;
 begin
   Result := CT_ClientAppVersion{$IFDEF LINUX}+'L'{$ELSE}+'W'{$ENDIF}{$IFDEF FPC}{$IFDEF LCL}+'l'{$ELSE}+'f'{$ENDIF}{$ENDIF}{$IFDEF FPC}{$IFDEF CPU32}+'32b'{$ELSE}+'64b'{$ENDIF}{$ELSE}{$IFDEF CPU32BITS}+'32b'{$ELSE}+'64b'{$ENDIF}{$ENDIF};
 end;
@@ -1136,7 +1139,6 @@ end;
 
 procedure TNode.NotifyNetClientMessage(Sender: TNetConnection; const TheMessage: String);
 Var i : Integer;
-  s : AnsiString;
 begin
   for i := 0 to FNotifyList.Count-1 do begin
     if Assigned( TNodeNotifyEvents( FNotifyList[i] ).OnNodeMessageEvent) then begin
@@ -1151,7 +1153,7 @@ begin
   NotifyBlocksChanged;
 end;
 
-function TNode.SendNodeMessage(Target: TNetConnection; TheMessage: AnsiString; var errors: String): Boolean;
+function TNode.SendNodeMessage(Target: TNetConnection; const TheMessage: String; var errors: String): Boolean;
 Var i,j : Integer;
   nc : TNetConnection;
   s : String;
@@ -1186,7 +1188,7 @@ begin
   end;
 end;
 
-procedure TNode.SetNodeLogFilename(const Value: AnsiString);
+procedure TNode.SetNodeLogFilename(const Value: String);
 begin
   FNodeLog.FileName := Value;
 end;
