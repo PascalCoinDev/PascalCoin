@@ -838,7 +838,7 @@ procedure TPCBank.Clear;
 begin
   SafeBox.Clear;
   FLastOperationBlock := TPCOperationsComp.GetFirstBlock;
-  FLastOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(TEncoding.ASCII.GetBytes(CT_Genesis_Magic_String_For_Old_Block_Hash)); // Genesis hash
+  FLastOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash; // Genesis hash
   FLastBlockCache.Clear(true);
   {$IFDEF HIGHLOG}NewLog(Nil, ltdebug, 'Clear Bank');{$ENDIF}
 end;
@@ -967,7 +967,7 @@ begin
     try
       FLastBlockCache.Clear(True);
       FLastOperationBlock := TPCOperationsComp.GetFirstBlock;
-      FLastOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(TEncoding.ASCII.GetBytes(CT_Genesis_Magic_String_For_Old_Block_Hash)); // Genesis hash
+      FLastOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash; // Genesis hash
       If FSafeBox.BlocksCount>0 then begin
         Storage.Initialize;
         If Storage.LoadBlockChainBlock(FLastBlockCache,FSafeBox.BlocksCount-1) then begin
@@ -1073,7 +1073,7 @@ begin
       If SafeBox.BlocksCount>0 then FLastOperationBlock := SafeBox.Block(SafeBox.BlocksCount-1).blockchainInfo
       else begin
         FLastOperationBlock := TPCOperationsComp.GetFirstBlock;
-        FLastOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(TEncoding.ASCII.GetBytes(CT_Genesis_Magic_String_For_Old_Block_Hash)); // Genesis hash
+        FLastOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash; // Genesis hash
       end;
     finally
       FBankLock.Release;
@@ -1279,7 +1279,7 @@ begin
       FOperationBlock.block := 0;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(0);
       FOperationBlock.compact_target := CT_MinCompactTarget_v1;
-      FOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(TEncoding.ASCII.GetBytes(CT_Genesis_Magic_String_For_Old_Block_Hash)); // Nothing for first line
+      FOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash; // Nothing for first line
       FOperationBlock.protocol_version := CT_PROTOCOL_1;
       FOperationsHashTree.Max0feeOperationsBySigner := -1;
     end;
@@ -1642,7 +1642,7 @@ begin
       FOperationBlock.block := 0;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(0);
       FOperationBlock.compact_target := CT_MinCompactTarget_v1;
-      FOperationBlock.initial_safe_box_hash := TCrypto.DoSha256(TEncoding.ASCII.GetBytes(CT_Genesis_Magic_String_For_Old_Block_Hash));
+      FOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash;
       FOperationBlock.protocol_version := CT_PROTOCOL_1;
     end;
     FOperationBlock.proof_of_work:=Nil;

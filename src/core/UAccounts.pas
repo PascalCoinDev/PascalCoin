@@ -300,6 +300,7 @@ Type
     Class Function LoadSafeBoxStreamHeader(Stream : TStream; var sbHeader : TPCSafeBoxHeader) : Boolean;
     Class Function SaveSafeBoxStreamHeader(Stream : TStream; protocol : Word; OffsetStartBlock, OffsetEndBlock, CurrentSafeBoxBlocksCount : Cardinal) : Boolean;
     Class Function MustSafeBoxBeSaved(BlocksCount : Cardinal) : Boolean;
+    Class Function InitialSafeboxHash : TRawBytes;
     Procedure SaveSafeBoxBlockToAStream(DestStream : TStream; nBlock : Cardinal);
     Procedure SaveSafeBoxToAStream(Stream : TStream; FromBlock, ToBlock : Cardinal);
     class Function CopySafeBoxStream(Source,Dest : TStream; FromBlock, ToBlock : Cardinal; var errors : String) : Boolean;
@@ -2114,7 +2115,7 @@ begin
   StartThreadSafe;
   try
     // If No buffer to hash is because it's firts block... so use Genesis: CT_Genesis_Magic_String_For_Old_Block_Hash
-    if (FBufferBlocksHash.Length=0) then Result := TCrypto.DoSha256(TEncoding.ASCII.GetBytes(CT_Genesis_Magic_String_For_Old_Block_Hash))
+    if (FBufferBlocksHash.Length=0) then Result := InitialSafeboxHash
     else Result := TCrypto.DoSha256(FBufferBlocksHash.Memory,FBufferBlocksHash.Length);
   finally
     EndThreadSave;
@@ -3309,6 +3310,16 @@ begin
     end;
   end;
   Result := True;
+end;
+
+var _initialSafeboxHash : TRawBytes = Nil;
+
+class function TPCSafeBox.InitialSafeboxHash: TRawBytes;
+begin
+  if (Length(_initialSafeboxHash)=0) then begin
+     _initialSafeboxHash := TCrypto.DoSha256(TEncoding.ASCII.GetBytes(CT_Genesis_Magic_String_For_Old_Block_Hash))
+  end;
+  Result := Copy(_initialSafeboxHash);
 end;
 
 function TPCSafeBox.IsValidNewOperationsBlock(const newOperationBlock: TOperationBlock; checkSafeBoxHash : Boolean; var errors: String): Boolean;
