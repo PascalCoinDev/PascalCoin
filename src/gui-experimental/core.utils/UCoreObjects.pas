@@ -99,9 +99,9 @@ const
     Target: 0;
     HashRateTargetKhs: 0;
     HashRateKhs: 0;
-    MinerPayload: '';
-    PoW: '';
-    SafeBoxHash: '';
+    MinerPayload: Nil;
+    PoW: Nil;
+    SafeBoxHash: Nil;
     AccumulatedWork: 0;
     TimeAverage200: 0;
     TimeAverage150: 0;

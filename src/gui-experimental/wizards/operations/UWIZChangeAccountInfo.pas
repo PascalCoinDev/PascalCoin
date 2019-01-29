@@ -75,7 +75,7 @@ function TWIZChangeAccountInfoWizard.FinishRequested(out message: ansistring): b
 var
   LAccountArray: array of TAccount;
 begin
-  if Length(Model.Account.SelectedAccounts) = 1 then
+  if Model.Account.Count = 1 then
   begin
     SetLength(LAccountArray, 1);
     LAccountArray[0] := Model.Signer.SignerAccount;

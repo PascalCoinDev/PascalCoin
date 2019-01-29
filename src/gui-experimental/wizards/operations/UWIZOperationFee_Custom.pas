@@ -86,7 +86,7 @@ begin
     TSettings.Save;
   end;
   LAllUserAccountsExcludingPending := TCoreTool.GetUserAccounts(False);
-  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), Fee, LAllUserAccountsExcludingPending);
+  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Model.Account.Count, Fee, LAllUserAccountsExcludingPending);
   Model.Fee.SingleOperationFee := Fee;
 
   // TODO: move this out -- inappropriate to have payload/signer considerations here
@@ -105,7 +105,7 @@ begin
 
       omtChangeInfo:
       begin
-        if Length(Model.Account.SelectedAccounts) = 1 then
+        if Model.Account.Count = 1 then
         begin
           UpdatePath(ptInject, [TWIZOperationSigner_Select]);
         end;
@@ -125,7 +125,7 @@ var
   LAcc: TAccount;
 begin
   Result := True;
-  if (Length(Model.Account.SelectedAccounts) > 1) and (Fee = 0) then
+  if (Model.Account.Count > 1) and (Fee = 0) then
   begin
     message := 'Zero fees only allowed for a single operation.';
     Exit(False);
@@ -145,7 +145,7 @@ end;
 
 procedure TWIZOperationFee_Custom.UpdateUI();
 begin
-  lblTotalFeeValue.Caption := Format('%s PASC', [TAccountComp.FormatMoney(Fee * Length(Model.Account.SelectedAccounts))]);
+  lblTotalFeeValue.Caption := Format('%s PASC', [TAccountComp.FormatMoney(Fee * Model.Account.Count)]);
 end;
 
 procedure TWIZOperationFee_Custom.fseFeeChange(Sender: TObject);

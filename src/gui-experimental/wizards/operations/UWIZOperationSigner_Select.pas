@@ -121,8 +121,7 @@ begin
   if cbSignerAccount.ItemIndex < 1 then
   begin
     message := 'A Signer Account Must Be Selected';
-    Result := False;
-    Exit;
+    Exit(False);
   end;
 
 end;

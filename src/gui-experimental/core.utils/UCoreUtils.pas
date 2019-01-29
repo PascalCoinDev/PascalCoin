@@ -122,7 +122,7 @@ type
     class function ExecuteChangeKey(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; APublicKey: TAccountKey; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
     class function ExecuteEnlistAccountForSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount, ASellerAccount: TAccount; const APublicKey: TAccountKey; AFee, ASalePrice: int64; ALockedUntilBlock: UInt32; const AAccountSaleMode: TAccountSaleMode; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
     class function ExecuteDelistAccountFromSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
-    class function ExecuteChangeAccountInfo(const ASelectedAccounts, ASignerAccounts: TArray<TAccount>; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; const ANewName: string; const ANewType: word; var AErrorMessage: string): boolean; static;
+    class function ExecuteChangeAccountInfo(const ASelectedAccounts, ASignerAccounts: TArray<TAccount>; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; const ANewName: TRawBytes; const ANewType: word; var AErrorMessage: string): boolean; static;
   end;
 
 
@@ -546,9 +546,9 @@ end;
 
 class function TAccountKeyComparer.DoCompare(constref ALeft, ARight: TAccountKey): integer;
 begin
-  Result := BinStrComp(ALeft.x, ARight.x);
+  Result := BytesCompare(ALeft.x, ARight.x);
   if Result = 0 then
-    Result := BinStrComp(ALeft.y, ARight.y);
+    Result := BytesCompare(ALeft.y, ARight.y);
 end;
 
 { TAccountKeyEqualityComparer }
@@ -570,7 +570,7 @@ end;
 
 class function TAccountKeyEqualityComparer.CalcHashCode(constref AValue: TAccountKey): UInt32;
 begin
-  Result := TEqualityComparer<ansistring>.Default.GetHashCode(IntToStr(AValue.EC_OpenSSL_NID) + AValue.x + AValue.y);
+  Result := TEqualityComparer<ansistring>.Default.GetHashCode(IntToStr(AValue.EC_OpenSSL_NID) + AValue.x.ToString + AValue.y.ToString);
 end;
 
 { TAccountHelper }
@@ -583,8 +583,8 @@ end;
 function TAccountHelper.GetDisplayString: ansistring;
 begin
   Result := GetAccountString;
-  if Self.Name <> '' then
-    Result := Result + ': ' + Self.Name;
+  if Self.Name <> Nil then
+    Result := Result + ': ' + Self.Name.ToString;
 end;
 
 function TAccountHelper.GetInfoText(const ABank: TPCBank): utf8string;
@@ -593,7 +593,7 @@ var
   GC: TDisposables;
 begin
   builder := GC.AddObject(TStringList.Create) as TStrings;
-  builder.Append(Format('Account: %s %s Type:%d', [TAccountComp.AccountNumberToAccountTxtNumber(self.account), IIF(Self.Name <> '', 'Name: ' + Self.Name, ''), Self.account_type]));
+  builder.Append(Format('Account: %s %s Type:%d', [TAccountComp.AccountNumberToAccountTxtNumber(self.account), IIF(Self.Name <> Nil, 'Name: ' + Self.Name.ToString, ''), Self.account_type]));
   builder.Append('');
   builder.Append(Format('Current balance: %s', [TAccountComp.FormatMoney(Self.balance)]));
   builder.Append('');
@@ -650,9 +650,9 @@ begin
   builder.Add(Format('%s', [Self.OperationTxt]));
   builder.Add(Format('OpType:%d Subtype:%d', [Self.OpType, Self.OpSubtype]));
   builder.Add(Format('Operation Hash (ophash): %s', [TCrypto.ToHexaString(Self.OperationHash)]));
-  if (Self.OperationHash_OLD <> '') then
+  if (Self.OperationHash_OLD <> Nil) then
     builder.Add(Format('Old Operation Hash (old_ophash): %s', [TCrypto.ToHexaString(Self.OperationHash_OLD)]));
-  if (Self.OriginalPayload <> '') then
+  if (Self.OriginalPayload <> Nil) then
   begin
     builder.Add(Format('Payload length:%d', [length(Self.OriginalPayload)]));
     if Self.PrintablePayload <> '' then
@@ -789,15 +789,15 @@ begin
       pemEncryptWithSender:
       begin
         // Use sender public key
-        AEncodedPayloadBytes := ECIESEncrypt(ASenderPublicKey, APayloadContent);
-        LValid := AEncodedPayloadBytes <> '';
+        AEncodedPayloadBytes := ECIESEncrypt(ASenderPublicKey, TEncoding.ANSI.GetBytes(APayloadContent));
+        LValid := AEncodedPayloadBytes <> Nil;
       end;
 
       pemEncryptWithRecipient:
       begin
         // With destination public key
-        AEncodedPayloadBytes := ECIESEncrypt(ADestinationPublicKey, APayloadContent);
-        LValid := AEncodedPayloadBytes <> '';
+        AEncodedPayloadBytes := ECIESEncrypt(ADestinationPublicKey, TEncoding.ANSI.GetBytes(APayloadContent));
+        LValid := AEncodedPayloadBytes <> Nil;
       end;
 
       pemEncryptWithPassword:
@@ -809,14 +809,14 @@ begin
           Exit(False);
         end;
         AEncodedPayloadBytes := TAESComp.EVP_Encrypt_AES256(
-          APayloadContent, APayloadEncryptionPassword);
-        LValid := AEncodedPayloadBytes <> '';
+          TEncoding.ANSI.GetBytes(APayloadContent), TEncoding.ANSI.GetBytes(APayloadEncryptionPassword));
+        LValid := AEncodedPayloadBytes <> Nil;
       end;
 
       pemNotEncrypt:
       begin
         // no encryption
-        AEncodedPayloadBytes := APayloadContent;
+        AEncodedPayloadBytes := TEncoding.ANSI.GetBytes(APayloadContent);
         LValid := True;
       end
 
@@ -1391,7 +1391,7 @@ begin
   end;
 end;
 
-class function TWIZOperationsHelper.ExecuteChangeAccountInfo(const ASelectedAccounts, ASignerAccounts: TArray<TAccount>; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; const ANewName: string; const ANewType: word; var AErrorMessage: string): boolean;
+class function TWIZOperationsHelper.ExecuteChangeAccountInfo(const ASelectedAccounts, ASignerAccounts: TArray<TAccount>; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; const ANewName: TRawBytes; const ANewType: word; var AErrorMessage: string): boolean;
 var
   LWalletKey: TWalletKey;
   LWalletKeys: TWalletKeys;
@@ -1399,10 +1399,10 @@ var
   LPCOperation: TPCOperation;
   LOperationsHashTree: TOperationsHashTree;
   LTotalSignerFee, LFee: int64;
-  LOperationsTxt, LOperationToString, LTemp, LNewName: string;
+  LOperationsTxt, LOperationToString, LTemp: string;
   LAccountIdx, LNoOfOperations, LAccNumberIndex: integer;
   LCurrentAccount, LSignerAccount: TAccount;
-  LPayloadEncodedBytes: TRawBytes;
+  LPayloadEncodedBytes, LNewName: TRawBytes;
   LChangeType, LChangeName: boolean;
 begin
 
@@ -1430,28 +1430,28 @@ begin
       begin
         LSignerAccount := ASignerAccounts[0];
 
-        LNewName := LowerCase(Trim(ANewName));
+        LNewName := ANewName;
 
-        if LNewName <> LCurrentAccount.Name then
+        If not TBaseType.Equals(LNewName,LCurrentAccount.name) then
         begin
           LChangeName := True;
-          if LNewName <> '' then
+          if LNewName <> Nil then
           begin
             if (not TPCSafeBox.ValidAccountName(LNewName, AErrorMessage)) then
             begin
-              AErrorMessage := Format('New name "%s" is not a valid name: %s ', [LNewName, AErrorMessage]);
+              AErrorMessage := Format('New name "%s" is not a valid name: %s ', [LNewName.ToPrintable, AErrorMessage]);
               Exit(False);
             end;
             LAccNumberIndex := (TNode.Node.Bank.SafeBox.FindAccountByName(LNewName));
             if (LAccNumberIndex >= 0) then
             begin
-              AErrorMessage := Format('Name "%s" is used by account %s ', [LNewName, TAccountComp.AccountNumberToAccountTxtNumber(LAccNumberIndex)]);
+              AErrorMessage := Format('Name "%s" is used by account %s ', [LNewName.ToPrintable, TAccountComp.AccountNumberToAccountTxtNumber(LAccNumberIndex)]);
               Exit(False);
             end;
           end;
         end;
 
-        if (LNewName = LCurrentAccount.Name) and (ANewType = LCurrentAccount.account_type) then
+        if (TBaseType.Equals(LNewName, LCurrentAccount.Name)) and (ANewType = LCurrentAccount.account_type) then
         begin
           AErrorMessage := 'New account name and type are same as former.';
           Exit(False);
@@ -1511,11 +1511,11 @@ begin
       try
         if (LChangeName) and (LChangeType) then
         begin
-          LTemp := Format('%d. Change Account %s Name and Type from [%s, %d] To [%s, %d] %s', [LNoOfOperations + 1, LCurrentAccount.DisplayString, LCurrentAccount.Name, LCurrentAccount.account_type, LNewName, ANewType, sLineBreak]);
+          LTemp := Format('%d. Change Account %s Name and Type from [%s, %d] To [%s, %d] %s', [LNoOfOperations + 1, LCurrentAccount.DisplayString, LCurrentAccount.Name.ToPrintable, LCurrentAccount.account_type, LNewName.ToPrintable, ANewType, sLineBreak]);
         end
         else if LChangeName then
         begin
-          LTemp := Format('%d. Change Account %s Name from [%s] To [%s] %s', [LNoOfOperations + 1, LCurrentAccount.DisplayString, LCurrentAccount.Name, LNewName, sLineBreak]);
+          LTemp := Format('%d. Change Account %s Name from [%s] To [%s] %s', [LNoOfOperations + 1, LCurrentAccount.DisplayString, LCurrentAccount.Name.ToPrintable, LNewName.ToPrintable, sLineBreak]);
         end
         else if LChangeType then
         begin

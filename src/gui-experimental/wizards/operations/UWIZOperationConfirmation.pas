@@ -100,7 +100,7 @@ begin
   FConfirmationGrid.SelectionType := stNone;
   FConfirmationGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
   LCaption := 'Confirm Operation';
-  gpConfirmOperation.Caption := IIF(Length(Model.Account.SelectedAccounts) > 1, Format('%ss', [LCaption]), Format('%s', [LCaption]));
+  gpConfirmOperation.Caption := IIF(Model.Account.Count > 1, Format('%ss', [LCaption]), Format('%s', [LCaption]));
   with FConfirmationGrid.AddColumn('Sender') do
   begin
     StretchedToFill := True;
@@ -296,7 +296,7 @@ begin
       end;
       omtChangeInfo:
       begin
-        if Length(Model.Account.SelectedAccounts) = 1 then
+        if Model.Account.Count = 1 then
         begin
           Result := Model.Signer.SignerAccount.AccountString;
         end

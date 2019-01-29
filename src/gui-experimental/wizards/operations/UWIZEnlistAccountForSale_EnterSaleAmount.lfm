@@ -7,6 +7,7 @@ object WIZEnlistAccountForSale_EnterSaleAmount: TWIZEnlistAccountForSale_EnterSa
   Caption = 'WIZEnlistAccountForSale_EnterSaleAmount'
   ClientHeight = 253
   ClientWidth = 429
+  LCLVersion = '1.8.2.0'
   Visible = False
   object gbSalePrice: TGroupBox
     Left = 4

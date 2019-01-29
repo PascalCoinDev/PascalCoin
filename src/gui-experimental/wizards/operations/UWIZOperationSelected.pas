@@ -88,7 +88,7 @@ begin
   FSelectedAccountsGrid.SelectionType := stNone;
   FSelectedAccountsGrid.Options := [vgoColAutoFill, vgoColSizing, vgoSortDirectionAllowNone, vgoAutoHidePaging];
   LCaption := 'Selected Account';
-  gpSelectedAccount.Caption := IIF(Length(Model.Account.SelectedAccounts) > 1, Format('%ss', [LCaption]), Format('%s', [LCaption]));
+  gpSelectedAccount.Caption := IIF(Model.Account.Count > 1, Format('%ss', [LCaption]), Format('%s', [LCaption]));
   with FSelectedAccountsGrid.AddColumn('Account') do
   begin
     StretchedToFill := True;
@@ -132,7 +132,7 @@ var
   LAllUserAccountsExcludingPending: TArray<TAccount>;
 begin
   LAllUserAccountsExcludingPending := TCoreTool.GetUserAccounts(False);
-  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Length(Model.Account.SelectedAccounts), IIF(TSettings.DefaultFee = 0, 1, TSettings.DefaultFee), LAllUserAccountsExcludingPending);
+  Model.Signer.SignerCandidates := TCoreTool.GetSignerCandidates(Model.Account.Count, IIF(TSettings.DefaultFee = 0, 1, TSettings.DefaultFee), LAllUserAccountsExcludingPending);
 end;
 
 function TWIZOperationSelected.Validate(out message: ansistring): boolean;
@@ -159,9 +159,8 @@ begin
         LAccount := model.Account.SelectedAccounts[LIdx];
         if TAccountComp.IsAccountForSale(LAccount.accountInfo) then
         begin
-          Result := False;
           message := Format('Account "%s" is already enlisted for sale', [LAccount.AccountString]);
-          Exit;
+          Exit(False);
         end;
       end;
 
@@ -171,9 +170,8 @@ begin
         LAccount := model.Account.SelectedAccounts[LIdx];
         if not TAccountComp.IsAccountForSale(LAccount.accountInfo) then
         begin
-          Result := False;
           message := Format('Account "%s" is not enlisted for sale so cannot be delisted', [LAccount.AccountString]);
-          Exit;
+          Exit(False);
         end;
       end;
   end;

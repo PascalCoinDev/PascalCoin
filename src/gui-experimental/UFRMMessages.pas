@@ -49,7 +49,7 @@ type
     FMessagesUnreadCount : Integer;
     { private declarations }
     procedure UpdateAvailableConnections;
-    procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : TRawBytes);
+    procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : String);
   public
     { public declarations }
   end;
@@ -77,7 +77,7 @@ begin
   TUserInterface.NodeMessageEvent.Remove(OnNodeMessageEvent);
 end;
 
-procedure TFRMMessages.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: TRawBytes);
+procedure TFRMMessages.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: String);
 Var s : String;
 begin
   inc(FMessagesUnreadCount);
@@ -88,11 +88,11 @@ begin
     if TSettings.ShowModalMessages then begin
       s := DateTimeToStr(now)+' Message from '+NetConnection.ClientRemoteAddr+#10+
          'Length '+inttostr(length(MessageData))+' bytes'+#10+#10;
-      if TCrypto.IsHumanReadable(MessageData) then begin
+      if TCrypto.IsHumanReadable(TEncoding.ANSI.GetBytes(MessageData)) then begin
          s := s + MessageData;
       end else begin
          s := s +'Value in hexadecimal:'+#10+
-              TCrypto.ToHexaString(MessageData);
+              TCrypto.ToHexaString(TEncoding.ANSI.GetBytes(MessageData));
       end;
       Application.MessageBox(PChar(s),PChar(Application.Title),MB_ICONINFORMATION+MB_OK);
     end;
@@ -148,7 +148,7 @@ begin
   basem := memoMessageToSend.Lines.Text;
   m := '';
   // Clear non valid characters:
-  for i := 1 to length(basem) do begin
+   for i := Low(basem) to High(basem) do begin
     if basem[i] in [#32..#127] then m := m + basem[i]
     else m:=m+'.';
   end;

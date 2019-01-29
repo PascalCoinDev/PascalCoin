@@ -56,7 +56,7 @@ uses
 
 procedure TWIZDelistAccountFromSale_Options.OnPresent;
 begin
-  if Length(Model.Account.SelectedAccounts) > 1 then
+  if Model.Account.Count > 1 then
   begin
     chkChooseFee.Checked := True;
     chkChooseFee.Enabled := False;

@@ -20,7 +20,7 @@ interface
 
 uses
   Classes, SysUtils, UAccounts, UNode, UBlockchain, UCrypto, UCoreObjects,
-  UCommon, UMemory, UConst, UCommon.Data, UCoreUtils,
+  UCommon, UMemory, UConst, UCommon.Data, UCoreUtils, UBaseTypes,
   UCommon.Collections, Generics.Collections, Generics.Defaults, syncobjs;
 
 type
@@ -167,7 +167,7 @@ begin
   else if ABindingName = 'Account' then
     Result := AItem.AccountString
   else if ABindingName = 'Name' then
-    Result := AItem.Name
+    Result := AItem.Name.ToPrintable
   else if ABindingName = 'Display' then
     Result := AItem.DisplayString
   else if ABindingName = 'Balance' then

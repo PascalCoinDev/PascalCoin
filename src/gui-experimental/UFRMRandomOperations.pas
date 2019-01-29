@@ -305,7 +305,7 @@ begin
     if (Random(500)<1) then fees := 0
     else fees := 1; // Minimal fee
     if (senderAcc.balance>2) then begin
-      opTx := TOpTransaction.CreateTransaction(current_protocol,senderAcc.account,senderAcc.n_operation+1,nAccountTarget,aWalletKeys.Key[iKey].PrivateKey,amount,fees,'');
+      opTx := TOpTransaction.CreateTransaction(current_protocol,senderAcc.account,senderAcc.n_operation+1,nAccountTarget,aWalletKeys.Key[iKey].PrivateKey,amount,fees,Nil);
       Try
         if operationsComp.AddOperation(True,opTx,errors) then inc(Result);
       finally
@@ -394,7 +394,7 @@ begin
               end;
               1 : begin
                 changer.Changes_type:=[account_name];
-                changer.New_Name:='random'+IntToStr(Random(100)); // <- This will generate collisions
+                changer.New_Name:=TEncoding.ANSI.GetBytes('random'+IntToStr(Random(100))); // <- This will generate collisions
               end;
             else
               changer.Changes_type:=[account_type];

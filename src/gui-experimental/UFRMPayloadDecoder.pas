@@ -343,7 +343,7 @@ begin
 end;
 
 procedure TFRMPayloadDecoder.TryToDecode;
-  Function UseWallet(Const raw : TRawBytes; var Decrypted : AnsiString; var WalletKey : TWalletKey) : Boolean;
+  Function UseWallet(Const raw : TRawBytes; var Decrypted : TRawBytes; var WalletKey : TWalletKey) : Boolean;
   Var i : Integer;
   begin
     Result := false;
@@ -359,7 +359,7 @@ procedure TFRMPayloadDecoder.TryToDecode;
 
   end;
 
-  Function  UsePassword(const raw : TRawBytes; var Decrypted,PasswordUsed : AnsiString) : Boolean;
+  Function  UsePassword(const raw : TRawBytes; var Decrypted: TRawBytes; var PasswordUsed : AnsiString) : Boolean;
   Var i : Integer;
   Begin
     Result := false;
@@ -377,24 +377,25 @@ procedure TFRMPayloadDecoder.TryToDecode;
 
 Var raw : TRawBytes;
   WalletKey : TWalletKey;
-  Decrypted,PasswordUsed : AnsiString;
+  Decrypted: TRawBytes;
+  PasswordUsed : AnsiString;
   ok : boolean;
 begin
   ok := true;
   raw := FOpResume.OriginalPayload;
-  if raw<>'' then begin
+  if Length(raw)>0 then begin
     // First try to a human readable...
     if (cbMethodPublicPayload.Checked) and (TCrypto.IsHumanReadable(raw)) then begin
       if cbShowAsHexadecimal.Checked then memoDecoded.Lines.Text := TCrypto.ToHexaString(raw)
-      else memoDecoded.Lines.Text := raw;
+      else memoDecoded.Lines.Text := TEncoding.ANSI.GetString(raw);
       lblDecodedMethod.Caption := 'Not encrypted payload';
     end else if (cbUsingPrivateKeys.Checked) And (UseWallet(raw,Decrypted,WalletKey)) then begin
       if cbShowAsHexadecimal.Checked then memoDecoded.Lines.Text := TCrypto.ToHexaString(Decrypted)
-      else memoDecoded.Lines.Text := Decrypted;
+      else memoDecoded.Lines.Text := TEncoding.ANSI.GetString(Decrypted);
       lblDecodedMethod.Caption := 'Encrypted with EC '+TAccountComp.GetECInfoTxt(WalletKey.PrivateKey.EC_OpenSSL_NID);
     end else if (cbUsingPasswords.Checked) And (UsePassword(raw,Decrypted,PasswordUsed)) then begin
       if cbShowAsHexadecimal.Checked then memoDecoded.Lines.Text := TCrypto.ToHexaString(Decrypted)
-      else memoDecoded.Lines.Text := Decrypted;
+      else memoDecoded.Lines.Text := TEncoding.ANSI.GetString(Decrypted);
       lblDecodedMethod.Caption := 'Encrypted with pwd:"'+PasswordUsed+'"';
     end else begin
       memoDecoded.Lines.Text := 'CANNOT DECRYPT';

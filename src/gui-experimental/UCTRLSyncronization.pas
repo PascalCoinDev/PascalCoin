@@ -78,7 +78,7 @@ type
     procedure OnAppStarted(Sender: TObject);
     procedure OnBlocksChanged(Sender: TObject);
     procedure OnUIRefreshTimer(Sender: TObject);
-    procedure OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: TRawBytes);
+    procedure OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: String);
   protected
     procedure ActivateFirstTime; override;
   public
@@ -150,7 +150,7 @@ begin
   UpdateNodeStatus;
 end;
 
-procedure TCTRLSyncronization.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: TRawBytes);
+procedure TCTRLSyncronization.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: String);
 begin
   inc(FMessagesUnreadCount);
   if FMessagesUnreadCount>1 then

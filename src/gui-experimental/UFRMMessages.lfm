@@ -11,7 +11,7 @@ object FRMMessages: TFRMMessages
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.8.4.0'
+  LCLVersion = '1.8.2.0'
   Visible = False
   object Label11: TLabel
     Left = 15

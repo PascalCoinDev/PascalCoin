@@ -11,7 +11,8 @@ object FRMRandomOperations: TFRMRandomOperations
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.8.0.6'
+  LCLVersion = '1.8.2.0'
+  Visible = False
   object pnlTop: TPanel
     Left = 0
     Height = 66

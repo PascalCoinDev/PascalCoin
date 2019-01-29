@@ -68,8 +68,7 @@ begin
   if Length(Trim(edtPassword.Text)) = 0 then
   begin
     message := 'Password Cannot Be Empty';
-    Result := False;
-    Exit;
+    Exit(False);
   end;
 end;
 

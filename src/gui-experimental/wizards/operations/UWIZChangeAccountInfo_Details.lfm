@@ -8,6 +8,7 @@ object WIZChangeAccountInfo_Details: TWIZChangeAccountInfo_Details
   Caption = 'WIZChangeAccountInfo_Details'
   ClientHeight = 379
   ClientWidth = 450
+  LCLVersion = '1.8.2.0'
   Visible = False
   object gbName: TGroupBox
     Left = 8
@@ -37,8 +38,8 @@ object WIZChangeAccountInfo_Details: TWIZChangeAccountInfo_Details
       Left = 16
       Height = 15
       Top = 8
-      Width = 141
-      Caption = 'Please enter the new name'
+      Width = 121
+      Caption = 'Please enter new name'
       ParentColor = False
       ParentFont = False
     end
@@ -84,8 +85,8 @@ object WIZChangeAccountInfo_Details: TWIZChangeAccountInfo_Details
       Left = 16
       Height = 15
       Top = 11
-      Width = 134
-      Caption = 'Please enter the new type'
+      Width = 114
+      Caption = 'Please enter new type'
       ParentColor = False
     end
     object lblTypeDetails: TLabel

@@ -7,6 +7,7 @@ object WIZDelistAccountFromSale_Options: TWIZDelistAccountFromSale_Options
   Caption = 'WIZDelistAccountFromSale_Options'
   ClientHeight = 263
   ClientWidth = 429
+  LCLVersion = '1.8.2.0'
   Visible = False
   object gbOptions: TGroupBox
     Left = 4
