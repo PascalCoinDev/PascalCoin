@@ -34,6 +34,11 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### CURRENT DEVELOPMENT (4.0.3a)
+- Major refactoring: 
+  - Change TRawBytes from "AnsiString" to "TBytes" type
+  - Do not use AnsiString type for simple string types, use String instead
+
 ### Build 4.0.2 - 2019-01-08
 - Improvement speed (high performance): checking valid signature only once if operation is on mempool and was verified previously
 - Improved operations/blocks propagation
