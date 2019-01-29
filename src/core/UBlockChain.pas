@@ -2920,10 +2920,10 @@ class function TPCOperation.EqualOperationHashes(const operationHash1,operationH
 var b0,b1,b2,r1,r2 : TRawBytes;
 begin
   // First 4 bytes of OpHash are block number. If block=0 then is an unknown block, otherwise must match
-  b1 := copy(operationHash1,1,4);
-  b2 := copy(operationHash2,1,4);
-  r1 := copy(operationHash1,5,length(operationHash1)-4);
-  r2 := copy(operationHash2,5,length(operationHash2)-4);
+  b1 := copy(operationHash1,Low(operationHash1),4);
+  b2 := copy(operationHash2,Low(operationHash2),4);
+  r1 := copy(operationHash1,4,Length(operationHash1)-4);
+  r2 := copy(operationHash2,4,Length(operationHash2)-4);
   b0 := TCrypto.HexaToRaw('00000000');
   Result := (TBaseType.BinStrComp(r1,r2)=0) // Both right parts must be equal
     AND ((TBaseType.BinStrComp(b1,b0)=0) Or (TBaseType.BinStrComp(b2,b0)=0) Or (TBaseType.BinStrComp(b1,b2)=0)); // b is 0 value or b1=b2 (b = block number)
