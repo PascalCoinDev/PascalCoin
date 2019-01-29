@@ -65,7 +65,7 @@ begin
 end;
 {$ENDIF}
 
-CONST SALT_MAGIC: AnsiString = 'Salted__'; SALT_MAGIC_LEN: integer = 8; SALT_SIZE = 8;
+CONST SALT_MAGIC: RawByteString = 'Salted__'; SALT_MAGIC_LEN: integer = 8; SALT_SIZE = 8;
 
 function EVP_GetSalt: TBytes;
 begin
@@ -167,7 +167,7 @@ begin
   cipher := EVP_aes_256_cbc;
   SetLength(salt, SALT_SIZE);
   // First read the magic text and the salt - if any
-  if (length(EncryptedMessage)>=SALT_MAGIC_LEN) AND (AnsiString(TEncoding.ASCII.GetString(EncryptedMessage, 0, SALT_MAGIC_LEN)) = SALT_MAGIC) then
+  if (length(EncryptedMessage)>=SALT_MAGIC_LEN) AND (TEncoding.ASCII.GetString(EncryptedMessage, 0, SALT_MAGIC_LEN) = SALT_MAGIC) then
   begin
     Move(EncryptedMessage[SALT_MAGIC_LEN], salt[0], SALT_SIZE);
     If Not EVP_GetKeyIV(APassword, cipher, salt, key, iv) then exit;
@@ -237,7 +237,7 @@ begin
     block_size := EVP_CIPHER_CTX_block_size(pctx);
     SetLength(buf, Length(TheMessage) + block_size + SALT_MAGIC_LEN + PKCS5_SALT_LEN);
     buf_start := 0;
-    Move(PAnsiChar(SALT_MAGIC)^, buf[buf_start], SALT_MAGIC_LEN);
+    Move(PChar(SALT_MAGIC)^, buf[buf_start], SALT_MAGIC_LEN);
     Inc(buf_start, SALT_MAGIC_LEN);
     Move(salt[0], buf[buf_start], PKCS5_SALT_LEN);
     Inc(buf_start, PKCS5_SALT_LEN);
