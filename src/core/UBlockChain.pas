@@ -243,12 +243,12 @@ Type
     Property HasValidSignature : Boolean read FHasValidSignature;
     Class function OperationHash_OLD(op : TPCOperation; Block : Cardinal) : TRawBytes;
     Class function OperationHashValid(op : TPCOperation; Block : Cardinal) : TRawBytes;
-    class function IsValidOperationHash(const AOpHash : AnsiString) : Boolean;
-    class function TryParseOperationHash(const AOpHash : AnsiString; var block, account, n_operation: Cardinal; var md160Hash : TRawBytes) : Boolean;
+    class function IsValidOperationHash(const AOpHash : String) : Boolean;
+    class function TryParseOperationHash(const AOpHash : String; var block, account, n_operation: Cardinal; var md160Hash : TRawBytes) : Boolean;
     Class function DecodeOperationHash(Const operationHash : TRawBytes; var block, account,n_operation : Cardinal; var md160Hash : TRawBytes) : Boolean;
     Class function EqualOperationHashes(Const operationHash1, operationHash2 : TRawBytes) : Boolean;
-    Class function FinalOperationHashAsHexa(Const operationHash : TRawBytes) : AnsiString;
-    class function OperationHashAsHexa(const operationHash : TRawBytes) : AnsiString;
+    Class function FinalOperationHashAsHexa(Const operationHash : TRawBytes) : String;
+    class function OperationHashAsHexa(const operationHash : TRawBytes) : String;
     class function GetOpReferenceAccount(const opReference : TOpReference) : Cardinal;
     class function GetOpReferenceN_Operation(const opReference : TOpReference) : Cardinal;
     function Sha256 : TRawBytes;
@@ -385,7 +385,7 @@ Type
     Procedure Clear(DeleteOperations : Boolean);
     Function Count: Integer;
     Property OperationBlock: TOperationBlock read FOperationBlock;
-    Class Function OperationBlockToText(const OperationBlock: TOperationBlock) : AnsiString;
+    Class Function OperationBlockToText(const OperationBlock: TOperationBlock) : String;
     Class Function SaveOperationBlockToStream(Const OperationBlock: TOperationBlock; Stream: TStream) : Boolean;
     Property AccountKey: TAccountKey read GetAccountKey write SetAccountKey;
     Property nonce: Cardinal read GetnOnce write SetnOnce;
@@ -422,7 +422,7 @@ Type
     Property PreviousUpdatedBlocks : TAccountPreviousBlockInfo read FPreviousUpdatedBlocks; // New Protocol V3 struct to store previous updated blocks
   End;
 
-  TPCBankLog = procedure(sender: TPCBank; Operations: TPCOperationsComp; Logtype: TLogType ; Logtxt: AnsiString) of object;
+  TPCBankLog = procedure(sender: TPCBank; Operations: TPCOperationsComp; Logtype: TLogType ; const Logtxt: String) of object;
 
   TPCBankNotify = Class(TComponent)
   private
@@ -439,7 +439,7 @@ Type
     Property OnNewBlock : TNotifyEvent read FOnNewBlock write FOnNewBlock;
   End;
 
-  TOrphan = AnsiString;
+  TOrphan = RawByteString;
 
   { TStorage }
 
@@ -524,7 +524,7 @@ Type
     Function AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var newBlock: TBlockAccount; var errors: String): Boolean;
     Procedure DiskRestoreFromOperations(max_block : Int64; restoreProgressNotify : TProgressNotify = Nil);
     Procedure UpdateValuesFromSafebox;
-    Procedure NewLog(Operations: TPCOperationsComp; Logtype: TLogType; Logtxt: AnsiString);
+    Procedure NewLog(Operations: TPCOperationsComp; Logtype: TLogType; const Logtxt: String);
     Property OnLog: TPCBankLog read FOnLog write FOnLog;
     Property LastOperationBlock : TOperationBlock read FLastOperationBlock; // TODO: Use
     Property Storage : TStorage read GetStorage;
@@ -539,7 +539,7 @@ Const
   CT_TMultiOpSender_NUL : TMultiOpSender =  (Account:0;Amount:0;N_Operation:0;Payload:Nil;Signature:(r:Nil;s:Nil));
   CT_TMultiOpReceiver_NUL : TMultiOpReceiver = (Account:0;Amount:0;Payload:Nil);
   CT_TMultiOpChangeInfo_NUL : TMultiOpChangeInfo = (Account:0;N_Operation:0;Changes_type:[];New_Accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);New_Name:Nil;New_Type:0;Seller_Account:-1;Account_Price:-1;Locked_Until_Block:0;Fee:0;Signature:(r:Nil;s:Nil));
-  CT_TOpChangeAccountInfoType_Txt : Array[Low(TOpChangeAccountInfoType)..High(TOpChangeAccountInfoType)] of AnsiString = ('public_key','account_name','account_type','list_for_public_sale','list_for_private_sale','delist');
+  CT_TOpChangeAccountInfoType_Txt : Array[Low(TOpChangeAccountInfoType)..High(TOpChangeAccountInfoType)] of String = ('public_key','account_name','account_type','list_for_public_sale','list_for_private_sale','delist');
 
 implementation
 
@@ -750,9 +750,7 @@ begin
 end;
 
 function TPCBank.AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var newBlock: TBlockAccount; var errors: String): Boolean;
-Var
-  buffer, pow: AnsiString;
-  i : Integer;
+Var i : Integer;
 begin
   TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
   Try
@@ -959,7 +957,7 @@ begin
 end;
 
 procedure TPCBank.UpdateValuesFromSafebox;
-Var aux : AnsiString;
+Var aux : String;
   i : Integer;
 begin
   { Will update current Bank state based on Safebox state
@@ -1104,8 +1102,8 @@ begin
   end;
 end;
 
-procedure TPCBank.NewLog(Operations: TPCOperationsComp; Logtype: TLogType; Logtxt: AnsiString);
-var s : AnsiString;
+procedure TPCBank.NewLog(Operations: TPCOperationsComp; Logtype: TLogType; const Logtxt: String);
+var s : String;
 begin
   if Assigned(Operations) then s := Operations.ClassName
   else s := Classname;
@@ -1579,7 +1577,7 @@ begin
   end;
 end;
 
-class function TPCOperationsComp.OperationBlockToText(const OperationBlock: TOperationBlock): AnsiString;
+class function TPCOperationsComp.OperationBlockToText(const OperationBlock: TOperationBlock): String;
 begin
   Result := Format('Block:%d Timestamp:%d Reward:%d Fee:%d Target:%d PoW:%s Payload:%s Nonce:%d OperationsHash:%s SBH:%s',[operationBlock.block,
     operationblock.timestamp,operationblock.reward,operationblock.fee, OperationBlock.compact_target, TCrypto.ToHexaString(operationblock.proof_of_work),
@@ -2897,17 +2895,17 @@ begin
   end;
 end;
 
-class function TPCOperation.IsValidOperationHash(const AOpHash : AnsiString) : Boolean;
+class function TPCOperation.IsValidOperationHash(const AOpHash : String) : Boolean;
 var block, account, n_operation: Cardinal; md160Hash : TRawBytes;
 begin
   Result := TryParseOperationHash(AOpHash, block, account, n_operation, md160Hash);
 end;
 
-class function TPCOperation.TryParseOperationHash(const AOpHash : AnsiString; var block, account, n_operation: Cardinal; var md160Hash : TRawBytes) : Boolean;
+class function TPCOperation.TryParseOperationHash(const AOpHash : String; var block, account, n_operation: Cardinal; var md160Hash : TRawBytes) : Boolean;
 var
   ophash : TRawBytes;
 begin
-  ophash := TCrypto.HexaToRaw(trim(AOpHash));
+  ophash := TCrypto.HexaToRaw(Trim(AOpHash));
   if Length(ophash) = 0 then
     Exit(false);
   If not TPCOperation.DecodeOperationHash(ophash,block,account,n_operation,md160Hash) then
@@ -2929,12 +2927,12 @@ begin
     AND ((TBaseType.BinStrComp(b1,b0)=0) Or (TBaseType.BinStrComp(b2,b0)=0) Or (TBaseType.BinStrComp(b1,b2)=0)); // b is 0 value or b1=b2 (b = block number)
 end;
 
-class function TPCOperation.FinalOperationHashAsHexa(const operationHash: TRawBytes): AnsiString;
+class function TPCOperation.FinalOperationHashAsHexa(const operationHash: TRawBytes): String;
 begin
-  Result := TCrypto.ToHexaString(Copy(operationHash,5,28));
+  Result := TCrypto.ToHexaString(Copy(operationHash,4,28));
 end;
 
-class function TPCOperation.OperationHashAsHexa(const operationHash: TRawBytes): AnsiString;
+class function TPCOperation.OperationHashAsHexa(const operationHash: TRawBytes): String;
 begin
   Result := TCrypto.ToHexaString(operationHash);
 end;
@@ -3071,7 +3069,7 @@ begin
 end;
 
 class function TPCOperation.OperationToOperationResume(Block : Cardinal; Operation: TPCOperation; getInfoForAllAccounts : Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume): Boolean;
-Var s : AnsiString;
+Var s : String;
 begin
   OperationResume := CT_TOperationResume_NUL;
   OperationResume.Block:=Block;
