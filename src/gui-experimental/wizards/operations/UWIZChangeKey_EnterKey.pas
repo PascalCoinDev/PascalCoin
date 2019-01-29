@@ -59,7 +59,7 @@ uses
 
 procedure TWIZChangeKey_EnterKey.OnPresent;
 begin
-  if Length(Model.Account.SelectedAccounts) > 1 then
+  if Model.Account.Count > 1 then
   begin
     chkChooseFee.Checked := True;
     chkChooseFee.Enabled := False;
@@ -97,16 +97,14 @@ begin
   if not TAccountComp.AccountKeyFromImport(Trim(mmoNewPrivateKey.Lines.Text),
     LTempAccountKey, message) then
   begin
-    Result := False;
-    Exit;
+    Exit(False);
   end;
   for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
     if TAccountComp.EqualAccountKeys(Model.Account.SelectedAccounts[LIdx].accountInfo.accountKey,
       LTempAccountKey) then
     begin
-      Result := False;
       message := 'New Key Is Same As Current Key';
-      Exit;
+      Exit(False);
     end;
 
   Model.TransferAccount.AccountKey := LTempAccountKey;

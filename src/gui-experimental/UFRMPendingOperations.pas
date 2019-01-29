@@ -55,7 +55,7 @@ var
 
 implementation
 
-uses UUserInterface;
+uses UUserInterface, UBlockChain;
 
 {$R *.lfm}
 
@@ -92,7 +92,7 @@ end;
 
 procedure TFRMPendingOperations.dgPendingOperationsDblClick(Sender: TObject);
 begin
-  TUserInterface.ShowOperationInfoDialog(Self, FPendingOperationsGrid.SelectedOperation.OperationHash);
+  TUserInterface.ShowOperationInfoDialog(Self, TPCOperation.OperationHashAsHexa(FPendingOperationsGrid.SelectedOperation.OperationHash));
 end;
 
 end.

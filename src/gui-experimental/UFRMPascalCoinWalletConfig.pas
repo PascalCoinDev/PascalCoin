@@ -222,8 +222,9 @@ end;
 
 procedure TFRMPascalCoinWalletConfig.RefreshUI_WalletAspect;
 Var i, iselected : Integer;
-  s : String;
+  auxs : String;
   wk : TWalletKey;
+  raw: TBytes;
 begin
   if TWallet.Keys.HasPassword then
     bbUpdatePassword.Caption := 'Change Wallet password'
@@ -233,17 +234,17 @@ begin
   for i := 0 to TWallet.Keys.Count - 1 do begin
     wk := TWallet.Keys.Key[i];
     if (wk.Name='') then begin
-      s := TCrypto.ToHexaString( TAccountComp.AccountKey2RawString(wk.AccountKey));
+      auxs := TCrypto.ToHexaString( TAccountComp.AccountKey2RawString(wk.AccountKey));
     end else begin
-      s := wk.Name;
+      auxs := wk.Name;
     end;
-    if wk.CryptedKey<>'' then begin
-      cbPrivateKeyToMine.Items.AddObject(s,TObject(i));
+    if (Length(wk.CryptedKey)>0) then begin
+      cbPrivateKeyToMine.Items.AddObject(auxs,TObject(i));
     end;
   end;
   cbPrivateKeyToMine.Sorted := true;
-  s := TSettings.MinerSelectedPrivateKey;
-  iselected := TWallet.Keys.IndexOfAccountKey(TAccountComp.RawString2Accountkey(s));
+  raw := TSettings.MinerSelectedPrivateKey;
+  iselected := TWallet.Keys.IndexOfAccountKey(TAccountComp.RawString2Accountkey(raw));
   if iselected >= 0 then begin
     iselected :=  cbPrivateKeyToMine.Items.IndexOfObject(TObject(iselected));
     cbPrivateKeyToMine.ItemIndex := iselected;

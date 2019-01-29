@@ -16,6 +16,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
+  LCLVersion = '1.8.2.0'
   Visible = False
   object Label1: TLabel
     Left = 24

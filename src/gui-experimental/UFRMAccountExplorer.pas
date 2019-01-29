@@ -211,7 +211,7 @@ implementation
 
 {$R *.lfm}
 
-uses UFRMAccountSelect, UConst, USettings, UFRMOperation,
+uses UFRMAccountSelect, UConst, USettings,
      UWallet, UCrypto, UFRMMemoText, UUserInterface, UCommon, UPCOrderedLists;
 
 { TFRMAccountExplorer }
@@ -739,7 +739,7 @@ end;
 
 procedure TFRMAccountExplorer.miDecodePayloadClick(Sender: TObject);
 begin
-  TUserInterface.ShowOperationInfoDialog(Self, FAccountOperationsGrid.SelectedOperation.OperationHash);
+  TUserInterface.ShowOperationInfoDialog(Self, TPCOperation.OperationHashAsHexa(FAccountOperationsGrid.SelectedOperation.OperationHash));
 end;
 
 procedure TFRMAccountExplorer.miRemoveAccountFromSelectedClick(Sender: TObject);

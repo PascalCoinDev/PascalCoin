@@ -42,6 +42,7 @@ type
       TAccountModel = class(TComponent)
       public
         SelectedAccounts: TArray<TAccount>;
+        Count: Integer;
       end;
 
       { TSendPASCModel }
@@ -116,7 +117,7 @@ type
 
       TChangeAccountInfoModel = class(TComponent)
       public
-        NewName: string;
+        NewName: TRawBytes;
         NewType: Word;
       end;
 

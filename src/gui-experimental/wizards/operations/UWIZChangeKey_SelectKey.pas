@@ -118,7 +118,7 @@ begin
   else
     cbNewPrivateKey.ItemIndex := Model.ChangeAccountPrivateKey.SelectedIndex;
   cbNewPrivateKeyChange(Self);
-  if Length(Model.Account.SelectedAccounts) > 1 then
+  if Model.Account.Count > 1 then
   begin
     chkChooseFee.Checked := True;
     chkChooseFee.Enabled := False;
@@ -156,8 +156,7 @@ begin
   if cbNewPrivateKey.ItemIndex < 1 then
   begin
     message := 'A Key Must Be Selected';
-    Result := False;
-    Exit;
+    Exit(False);
   end;
 
   LAccountKey := TWallet.Keys.Key[PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex])].AccountKey;
@@ -166,9 +165,8 @@ begin
     if TAccountComp.EqualAccountKeys(Model.Account.SelectedAccounts[LIdx].accountInfo.accountKey,
       LAccountKey) then
     begin
-      Result := False;
       message := 'New Key Is Same As Current Key';
-      Exit;
+      Exit(False);
     end;
 
 end;

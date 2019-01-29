@@ -69,7 +69,7 @@ end;
 procedure TWIZEnlistAccountForSale_EnterSaleAmount.OnPresent;
 begin
   UpdateUI();
-  if Length(Model.Account.SelectedAccounts) > 1 then
+  if Model.Account.Count > 1 then
   begin
     chkChooseFee.Checked := True;
     chkChooseFee.Enabled := False;
@@ -106,15 +106,13 @@ begin
   if not TAccountComp.TxtToMoney(edtAmt.Text, LSaleAmount) then
   begin
     message := Format('Invalid Amount "%s"', [edtAmt.Text]);
-    Result := False;
-    Exit;
+    Exit(False);
   end;
 
   if LSaleAmount < 1 then
   begin
     message := 'You Must Sell For An Amount Greater Than Zero.';
-    Result := False;
-    Exit;
+    Exit(False);
   end;
 
   Model.EnlistAccountForSale.SalePrice := LSaleAmount;

@@ -7,6 +7,7 @@ object WIZOperationSigner_Select: TWIZOperationSigner_Select
   Caption = 'WIZOperationSigner_Select'
   ClientHeight = 253
   ClientWidth = 429
+  LCLVersion = '1.8.2.0'
   Visible = False
   object gbTransaction: TGroupBox
     Left = 16

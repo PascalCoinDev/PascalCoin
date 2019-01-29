@@ -69,7 +69,7 @@ begin
 
     omtChangeInfo:
     begin
-      if Length(Model.Account.SelectedAccounts) = 1 then
+      if Model.Account.Count = 1 then
       begin
         UpdatePath(ptInject, [TWIZOperationSigner_Select]);
       end;
@@ -88,8 +88,7 @@ begin
   if Length(mmoPayload.Lines.Text) > CT_MaxPayloadSize then
   begin
     message := Format('Payload Size Is Larger Than Max Payload Size Which Is "%u"', [CT_MaxPayloadSize]);
-    Result := False;
-    Exit;
+    Exit(False);
   end;
 end;
 

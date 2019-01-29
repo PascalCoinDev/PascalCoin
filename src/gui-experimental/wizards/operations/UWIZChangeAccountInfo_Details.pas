@@ -45,6 +45,8 @@ type
     procedure txtTypeChange(Sender: TObject);
     procedure UpdateUI();
 
+
+
   public
     procedure OnPresent; override;
     procedure OnNext; override;
@@ -64,6 +66,7 @@ uses
   UAccounts,
   USettings,
   UCoreUtils,
+  UBaseTypes,
   UCoreObjects,
   UFRMAccountSelect,
   UCommon.Collections,
@@ -89,7 +92,7 @@ begin
   UpdateUI();
   txtType.Text := '0';
 
-  if Length(Model.Account.SelectedAccounts) > 1 then
+  if Model.Account.Count > 1 then
   begin
     gbName.Enabled := False;
   end
@@ -126,7 +129,7 @@ begin
     LWizStepsToInject.Add(TWIZOperationPayload_Encryption);
 
   // Signer section
-  if Length(Model.Account.SelectedAccounts) = 1 then
+  if Model.Account.Count = 1 then
   begin
     LWizStepsToInject.Add(TWIZOperationSigner_Select); // special case for changeaccount info wizard
   end;
@@ -140,7 +143,7 @@ function TWIZChangeAccountInfo_Details.Validate(out message: ansistring): boolea
 var
   LAccNumberIndex, LIdx, LErrCode: integer;
   LCurrentAccount: TAccount;
-  LNewName: string;
+  LNewName: TRawBytes;
   LNewType: word;
 begin
   Result := True;
@@ -157,30 +160,29 @@ begin
     end;
 
     // New name (only for single operations)
-    if Length(Model.Account.SelectedAccounts) = 1 then
+    if Model.Account.Count = 1 then
     begin
-      LNewName := LowerCase(Trim(txtName.Text));
+      LNewName.FromString(LowerCase(Trim(txtName.Text)));
 
-      if LNewName <> LCurrentAccount.Name then
+      if not TBaseType.Equals(LNewName, LCurrentAccount.Name) then
       begin
-
-        if LNewName <> '' then
+        if LNewName <> nil then
         begin
           if (not TPCSafeBox.ValidAccountName(LNewName, message)) then
           begin
-            message := Format('New name "%s" is not a valid name: %s ', [LNewName, message]);
+            message := Format('New name "%s" is not a valid name: %s ', [LNewName.ToPrintable, message]);
             Exit(False);
           end;
           LAccNumberIndex := (TNode.Node.Bank.SafeBox.FindAccountByName(LNewName));
           if (LAccNumberIndex >= 0) then
           begin
-            message := Format('Name "%s" is used by account %s ', [LNewName, TAccountComp.AccountNumberToAccountTxtNumber(LAccNumberIndex)]);
+            message := Format('Name "%s" is used by account %s ', [LNewName.ToPrintable, TAccountComp.AccountNumberToAccountTxtNumber(LAccNumberIndex)]);
             Exit(False);
           end;
         end;
       end;
 
-      if (LNewName = LCurrentAccount.Name) and (LNewType = LCurrentAccount.account_type) then
+      if (TBaseType.Equals(LNewName, LCurrentAccount.Name)) and (LNewType = LCurrentAccount.account_type) then
       begin
         message := 'New account name and type are same as former.';
         Exit(False);

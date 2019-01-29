@@ -99,8 +99,7 @@ begin
     (not rbEncryptedWithRecipient.Checked) and (not rbEncryptedWithPassword.Checked) then
   begin
     message := 'You must select an encryption option for payload';
-    Result := False;
-    Exit;
+    Exit(False);
   end;
 
   case Model.ExecuteOperationType of

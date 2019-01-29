@@ -55,6 +55,7 @@ uses
   UWallet,
   UAccounts,
   UCoreUtils,
+  UBaseTypes,
   UFRMAccountSelect;
 
 { TWIZEnlistAccountForSale_EnterSeller }
@@ -73,7 +74,7 @@ begin
     else
     begin
       LAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
-      lblBeneficiaryDetails.Caption := LAccount.Name;
+      lblBeneficiaryDetails.Caption := LAccount.Name.ToPrintable;
       lblBeneficiaryDetails.Visible := True;
     end;
 end;
@@ -129,23 +130,20 @@ begin
   if not (TAccountComp.AccountTxtNumberToAccountNumber(edtBeneficiaryAcc.Text, LAccountNumber)) then
   begin
     message := Format('Invalid Seller Account "%s"', [edtBeneficiaryAcc.Text]);
-    Result := False;
-    Exit;
+    Exit(False);
   end;
 
   if (LAccountNumber < 0) or (LAccountNumber >= TNode.Node.Bank.AccountsCount) then
   begin
     message := Format('Invalid Seller Account "%s"', [TAccountComp.AccountNumberToAccountTxtNumber(LAccountNumber)]);
-    Result := False;
-    Exit;
+    Exit(False);
   end;
 
   for LIdx := Low(Model.Account.SelectedAccounts) to High(Model.Account.SelectedAccounts) do
     if (Model.Account.SelectedAccounts[LIdx].Account = LAccountNumber) then
     begin
       message := 'Seller Account Cannot Be Same As Account To Be Sold.';
-      Result := False;
-      Exit;
+      Exit(False);
     end;
 
   Model.EnlistAccountForSale.SellerAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);

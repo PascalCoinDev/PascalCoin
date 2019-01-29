@@ -112,7 +112,7 @@ type
       class procedure NotifyAccountsChangedEvent(Sender: TObject);
       class procedure NotifyBlocksChangedEvent(Sender: TObject);
       class procedure NotifyReceivedHelloMessageEvent(Sender: TObject);
-      class procedure NotifyNodeMessageEventEvent(NetConnection: TNetConnection; MessageData: TRawBytes);
+      class procedure NotifyNodeMessageEventEvent(NetConnection: TNetConnection; MessageData: String);
       class procedure NotifyNetStatisticsChangedEvent(Sender: TObject);
       class procedure NotifyNetConnectionsUpdatedEvent(Sender: TObject);
       class procedure NotifyNetNodeServersUpdatedEvent(Sender: TObject);
@@ -488,7 +488,7 @@ begin
   FPoolMiningServer := TPoolMiningServer.Create;
   FPoolMiningServer.Port := TSettings.MinerServerRpcPort;
   FPoolMiningServer.MinerAccountKey := TWallet.MiningKey;
-  FPoolMiningServer.MinerPayload := TSettings.MinerName;
+  FPoolMiningServer.MinerPayload := TEncoding.ANSI.GetBytes(TSettings.MinerName);
   FNode.Operations.AccountKey := TWallet.MiningKey;
   FPoolMiningServer.Active := TSettings.MinerServerRpcActive;
   FPoolMiningServer.OnMiningServerNewBlockFound := NotifyMiningServerNewBlockFoundEvent;
@@ -547,7 +547,7 @@ begin
     wa := FNode.NetServer.Active;
     FNode.NetServer.Port := TSettings.InternetServerPort;
     FNode.NetServer.Active := wa;
-    FNode.Operations.BlockPayload := TSettings.MinerName;
+    FNode.Operations.BlockPayload := TEncoding.ANSI.GetBytes(TSettings.MinerName);
     FNode.NodeLogFilename := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'blocks.log';
   end;
   if Assigned(FPoolMiningServer) then begin
@@ -556,7 +556,7 @@ begin
       FPoolMiningServer.Port := TSettings.MinerServerRpcPort;
     end;
     FPoolMiningServer.Active :=TSettings.MinerServerRpcActive;
-    FPoolMiningServer.UpdateAccountAndPayload(TWallet.MiningKey, TSettings.MinerName);
+    FPoolMiningServer.UpdateAccountAndPayload(TWallet.MiningKey, TEncoding.ANSI.GetBytes(TSettings.MinerName));
   end;
   if Assigned(FRPCServer) then begin
     FRPCServer.Active := TSettings.RpcPortEnabled;
@@ -601,6 +601,7 @@ begin
   wiz := Scoped.AddObject(TWIZSendPASCWizard.Create(nil)) as TWIZSendPASCWizard;
   model := TWIZOperationsModel.Create(wiz, omtSendPasc);
   model.Account.SelectedAccounts := TNode.Node.GetAccounts(AAccounts, True);
+  model.Account.Count := Length(model.Account.SelectedAccounts);
   wiz.Start(model);
 end;
 
@@ -613,6 +614,7 @@ begin
   wiz := Scoped.AddObject(TWIZChangeKeyWizard.Create(nil)) as TWIZChangeKeyWizard;
   model := TWIZOperationsModel.Create(wiz, omtChangeKey);
   model.Account.SelectedAccounts := TNode.Node.GetAccounts(AAccounts, True);
+  model.Account.Count := Length(model.Account.SelectedAccounts);
   wiz.Start(model);
 end;
 
@@ -625,6 +627,7 @@ begin
   wiz := Scoped.AddObject(TWIZEnlistAccountForSaleWizard.Create(nil)) as TWIZEnlistAccountForSaleWizard;
   model := TWIZOperationsModel.Create(wiz, omtEnlistAccountForSale);
   model.Account.SelectedAccounts := TNode.Node.GetAccounts(AAccounts, True);
+  model.Account.Count := Length(model.Account.SelectedAccounts);
   wiz.Start(model);
 end;
 
@@ -637,6 +640,7 @@ begin
   wiz := Scoped.AddObject(TWIZDelistAccountFromSaleWizard.Create(nil)) as TWIZDelistAccountFromSaleWizard;
   model := TWIZOperationsModel.Create(wiz, omtDelistAccountFromSale);
   model.Account.SelectedAccounts := TNode.Node.GetAccounts(AAccounts, True);
+  model.Account.Count := Length(model.Account.SelectedAccounts);
   wiz.Start(model);
 end;
 
@@ -650,6 +654,7 @@ begin
   wiz := Scoped.AddObject(TWIZChangeAccountInfoWizard.Create(nil)) as TWIZChangeAccountInfoWizard;
   model := TWIZOperationsModel.Create(wiz, omtChangeInfo);
   model.Account.SelectedAccounts := TNode.Node.GetAccounts(AAccounts, True);
+  model.Account.Count := Length(model.Account.SelectedAccounts);
   wiz.Start(model);
 end;
 
@@ -1149,7 +1154,7 @@ begin
   TUserInterface.FBlocksChanged.Invoke(Sender);
 end;
 
-class procedure TUserInterface.NotifyNodeMessageEventEvent(NetConnection: TNetConnection; MessageData: TRawBytes);
+class procedure TUserInterface.NotifyNodeMessageEventEvent(NetConnection: TNetConnection; MessageData: String);
 begin
   TUserInterface.FNodeMessageEvent.Invoke(NetConnection, MessageData);
 end;

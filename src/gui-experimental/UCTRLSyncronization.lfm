@@ -10,7 +10,7 @@ object CTRLSyncronization: TCTRLSyncronization
   ClientWidth = 728
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  LCLVersion = '1.8.4.0'
+  LCLVersion = '1.8.2.0'
   Visible = False
   object paSplash: TPanel
     Left = 0

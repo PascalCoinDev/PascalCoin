@@ -158,7 +158,7 @@ type
     Function UpdateOpListForSale(Const TargetAccount : TAccount; var SalePrice : Int64; var SellerAccount,SignerAccount : TAccount; var NewOwnerPublicKey : TAccountKey; var LockedUntilBlock : Cardinal; var errors : AnsiString) : Boolean;
     Function UpdateOpDelist(Const TargetAccount : TAccount; var SignerAccount : TAccount; var errors : AnsiString) : Boolean;
     Function UpdateOpBuyAccount(Const SenderAccount : TAccount; var AccountToBuy : TAccount; var amount : Int64; var NewPublicKey : TAccountKey; var errors : AnsiString) : Boolean;
-    Function UpdateOpChangeInfo(Const TargetAccount : TAccount; var SignerAccount : TAccount; var changeName : Boolean; var newName : AnsiString; var changeType : Boolean; var newType : Word; var errors : AnsiString) : Boolean;
+    Function UpdateOpChangeInfo(Const TargetAccount : TAccount; var SignerAccount : TAccount; var changeName : Boolean; var newName : TRawBytes; var changeType : Boolean; var newType : Word; var errors : AnsiString) : Boolean;
     procedure SetDefaultFee(const Value: Int64);
     Procedure OnSenderAccountsChanged(Sender : TObject);
     procedure OnWalletKeysChanged(Sender : TObject);
@@ -607,7 +607,7 @@ begin
   end;
   If SenderAccounts.Count>=1 then begin
     ebSignerAccount.text := TAccountComp.AccountNumberToAccountTxtNumber(SenderAccounts.Get(0));
-    ebChangeName.Text := FNode.Operations.SafeBoxTransaction.Account(SenderAccounts.Get(0)).name;
+    ebChangeName.Text := FNode.Operations.SafeBoxTransaction.Account(SenderAccounts.Get(0)).name.ToPrintable;
     ebChangeType.Text := IntToStr(FNode.Operations.SafeBoxTransaction.Account(SenderAccounts.Get(0)).account_type);
   end else begin
     ebSignerAccount.text := '';
@@ -795,7 +795,7 @@ begin
 end;
 
 function TFRMOperation.UpdateOpChangeInfo(const TargetAccount: TAccount; var SignerAccount : TAccount;
-   var changeName : Boolean; var newName: AnsiString; var changeType : Boolean; var newType: Word; var errors: AnsiString): Boolean;
+   var changeName : Boolean; var newName: TRawBytes; var changeType : Boolean; var newType: Word; var errors: AnsiString): Boolean;
 var auxC : Cardinal;
   i : Integer;
   errCode : Integer;
@@ -836,17 +836,17 @@ begin
       exit;
     end;
     // New name and type
-    newName := LowerCase( Trim(ebChangeName.Text) );
-    If newName<>TargetAccount.name then begin
+    newName.FromString(LowerCase( Trim(ebChangeName.Text) ));
+    If Not TBaseType.Equals(newName,TargetAccount.name) then begin
       changeName:=True;
-      If newName<>'' then begin
+      If Length(newName)>0 then begin
         if (Not TPCSafeBox.ValidAccountName(newName,errors)) then begin
-          errors := '"'+newName+'" is not a valid name: '+errors;
+          errors := '"'+newName.ToPrintable+'" is not a valid name: '+errors;
           Exit;
         end;
         i := (FNode.Bank.SafeBox.FindAccountByName(newName));
         if (i>=0) then begin
-          errors := 'Name "'+newName+'" is used by account '+TAccountComp.AccountNumberToAccountTxtNumber(i);
+          errors := 'Name "'+newName.ToPrintable+'" is used by account '+TAccountComp.AccountNumberToAccountTxtNumber(i);
           Exit;
         end;
       end;
@@ -998,7 +998,7 @@ Var
   salePrice, amount : Int64;
   auxC : Cardinal;
   changeName,changeType : Boolean;
-  newName : AnsiString;
+  newName : TRawBytes;
   newType : Word;
 begin
   Result := false;
@@ -1244,8 +1244,8 @@ Var payload_u : AnsiString;
   wk : TWalletKey;
 begin
   valid := false;
-  payload_encrypted := '';
-  FEncodedPayload := '';
+  payload_encrypted := Nil;
+  FEncodedPayload := Nil;
   errors := 'Unknown error';
   payload_u := memoPayload.Lines.Text;
   try
@@ -1257,8 +1257,8 @@ begin
       // Use sender
       errors := 'Error encrypting';
       account := FNode.Operations.SafeBoxTransaction.Account(SenderAccount.account);
-      payload_encrypted := ECIESEncrypt(account.accountInfo.accountKey,payload_u);
-      valid := payload_encrypted<>'';
+      payload_encrypted := ECIESEncrypt(account.accountInfo.accountKey,TEncoding.ANSI.GetBytes(payload_u));
+      valid := Length(payload_encrypted)>0;
     end else if (rbEncryptedWithEC.Checked) then begin
       errors := 'Error encrypting';
       if (PageControlOpType.ActivePage=tsTransaction) or (PageControlOpType.ActivePage=tsListForSale) or (PageControlOpType.ActivePage=tsDelist)
@@ -1293,8 +1293,8 @@ begin
           exit;
         end;
         account := FNode.Operations.SafeBoxTransaction.Account(dest_account_number);
-        payload_encrypted := ECIESEncrypt(account.accountInfo.accountKey,payload_u);
-        valid := payload_encrypted<>'';
+        payload_encrypted := ECIESEncrypt(account.accountInfo.accountKey,TEncoding.ANSI.GetBytes(payload_u));
+        valid := Length(payload_encrypted)>0;
       end else if (PageControlOpType.ActivePage=tsChangePrivateKey) then begin
         if (rbChangeKeyWithAnother.Checked) then begin
           // With new key generated
@@ -1315,8 +1315,8 @@ begin
           exit;
         end;
         if public_key.EC_OpenSSL_NID<>CT_Account_NUL.accountInfo.accountKey.EC_OpenSSL_NID then begin
-          payload_encrypted := ECIESEncrypt(public_key,payload_u);
-          valid := payload_encrypted<>'';
+          payload_encrypted := ECIESEncrypt(public_key,TEncoding.ANSI.GetBytes(payload_u));
+          valid := Length(payload_encrypted)>0;
         end else begin
           valid := false;
           errors := 'Selected private key is not valid to encode';
@@ -1326,10 +1326,10 @@ begin
         errors := 'This operation does not allow this kind of payload';
       end;
     end else if (rbEncrptedWithPassword.Checked) then begin
-      payload_encrypted := TAESComp.EVP_Encrypt_AES256(payload_u,ebEncryptPassword.Text);
-      valid := payload_encrypted<>'';
+      payload_encrypted := TAESComp.EVP_Encrypt_AES256(TEncoding.ANSI.GetBytes(payload_u),TEncoding.ANSI.GetBytes(ebEncryptPassword.Text));
+      valid := Length(payload_encrypted)>0;
     end else if (rbNotEncrypted.Checked) then begin
-      payload_encrypted := payload_u;
+      payload_encrypted := TEncoding.ANSI.GetBytes(payload_u);
       valid := true;
     end else begin
       errors := 'Must select an encryption option for payload';

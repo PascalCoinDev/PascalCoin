@@ -66,6 +66,7 @@ uses
   UAccounts,
   USettings,
   UCoreUtils,
+  UBaseTypes,
   UCoreObjects,
   UFRMAccountSelect,
   UCommon.Collections,
@@ -88,7 +89,7 @@ begin
   txtRecipient.SetFocus;
 
   // Quantity section
-  if Length(Model.Account.SelectedAccounts) > 1 then
+  if Model.Account.Count > 1 then
   begin
     chkCustomFee.Checked := True;
     chkCustomFee.Enabled := False;
@@ -107,7 +108,7 @@ begin
     else
     begin
       LTempAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
-      lblRecipientDetails.Caption := LTempAccount.Name;
+      lblRecipientDetails.Caption := LTempAccount.Name.ToPrintable;
     end;
 
   // Quantity section
@@ -161,7 +162,7 @@ begin
     LWizStepsToInject.Add(TWIZOperationPayload_Encryption);
 
   // Signer section
-  if Length(Model.Account.SelectedAccounts) = 1 then
+  if Model.Account.Count = 1 then
   begin
     Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];
     Model.Signer.OperationSigningMode := akaPrimary;

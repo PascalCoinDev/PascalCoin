@@ -60,8 +60,7 @@ begin
   if LLockedUntilBlock = 0 then
   begin
     message := 'You Didn''t Insert a Valid Locking Block.';
-    Result := False;
-    Exit;
+    Exit(False);
   end;
   Model.EnlistAccountForSale.LockedUntilBlock := LLockedUntilBlock;
 
