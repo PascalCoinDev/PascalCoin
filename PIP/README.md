@@ -31,5 +31,5 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [22](PIP-0022.md)     | Continuous Integration                      | Benjamin Ansbach             | Process        | Draft |
 | [23](PIP-0023.md)     | JSON RPC PASCURRENCY format                 | Benjamin Ansbach     | Backend, Documentation | Draft |
 | [24](PIP-0024.md)     | Account Data                                | Herman Schoenfeld            | Protocol       | Draft |
-| [26](PIP-0026.md)     | URI Scheme Proposal Draft for PascalCoin                                | Ugochukwu Mmaduekwe            | Front-End       | Draft |
+| [26](PIP-0026.md)     | URI Scheme Proposal                                | Ugochukwu Mmaduekwe            | Front-End       | Draft |
 
