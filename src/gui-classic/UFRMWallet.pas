@@ -316,7 +316,7 @@ implementation
   {$R *.lfm}
 {$ENDIF}
 
-Uses UFolderHelper, UOpenSSL, UOpenSSLdef, UTime, UFileStorage,
+Uses UFolderHelper, UOpenSSL, UTime, UFileStorage,
   UThread, UOpTransaction, UECIES, UFRMPascalCoinWalletConfig,
   UFRMOperationsExplorer,
   {$IFDEF TESTNET}
