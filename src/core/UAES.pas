@@ -44,26 +44,9 @@ Type
     Class function EVP_Decrypt_AES256(const EncryptedMessage: TRawBytes; const APassword: String; var Decrypted : TRawBytes) : Boolean; overload;
   End;
 
-{$IFDEF FPC}
-procedure CopyMemory(Destination: Pointer; Source: Pointer; Length: DWORD);
-{$ENDIF}
-
 implementation
 
-uses
-{$IFnDEF FPC}
-  Windows,
-{$ELSE}
-  {LCLIntf, LCLType, LMessages,}
-{$ENDIF}
-  UOpenSSL, UOpenSSLdef;
-
-{$IFDEF FPC}
-procedure CopyMemory(Destination: Pointer; Source: Pointer; Length: DWORD);
-begin
-  Move(Source^, Destination^, Length);
-end;
-{$ENDIF}
+uses UOpenSSL;
 
 CONST SALT_MAGIC: RawByteString = 'Salted__'; SALT_MAGIC_LEN: integer = 8; SALT_SIZE = 8;
 

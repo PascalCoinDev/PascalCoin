@@ -43,7 +43,7 @@ unit UECIES;
 
 interface
 
-Uses UOpenSSLdef, UOpenSSL, UCrypto, ULog, UConst, UBaseTypes, UPCDataTypes;
+Uses UOpenSSL, UCrypto, ULog, UConst, UBaseTypes, UPCDataTypes;
 
 Const CT_Max_Bytes_To_Encrypt = 32000;
 
@@ -55,11 +55,7 @@ function ECIESDecrypt(EC_OpenSSL_NID : Word; PrivateKey: PEC_KEY; logErrors : Bo
 
 implementation
 
-uses
-{$IFnDEF FPC}
-  Windows,
-{$ENDIF}
-  SysUtils, UAES;
+uses SysUtils;
 
 Type
   Psecure_t = Pointer;
@@ -251,11 +247,7 @@ begin
         exit;
       end;
       // For now we use an empty initialization vector.
-      {$IFDEF FPC}
-      FillByte(iv,EVP_MAX_IV_LENGTH,0);
-      {$ELSE}
-      FillMemory(@iv,EVP_MAX_IV_LENGTH,0);
-      {$ENDIF}
+      FillChar(iv,EVP_MAX_IV_LENGTH,0);
       // Setup the cipher context, the body length, and store a pointer to the body buffer location.
 
       {$IFDEF OpenSSL10}
@@ -285,13 +277,8 @@ begin
             exit;
           end;
           // Copy the remaining data into our partial block buffer. The memset() call ensures any extra bytes will be zero'ed out.
-          //SetLength(block,EVP_MAX_BLOCK_LENGTH);
-          {$IFDEF FPC}
-          FillByte(block,length(block),0);
-          {$ELSE}
-          FillMemory(@block,length(block),0);
-          {$ENDIF}
-          CopyMemory(@block,Pointer(PtrInt(@RawToEncrypt[Low(RawToEncrypt)])+body_length),Length(RawToEncrypt)-body_length);
+          FillChar(block,length(block),0);
+          Move(RawToEncrypt[Low(RawToEncrypt)+body_length],block,Length(RawToEncrypt)-body_length);
           // Advance the body pointer to the location of the remaining space, and calculate just how much room is still available.
           body := Pointer(PtrInt(body)+body_length);
           body_length := secure_body_length(cryptex) - body_length;
@@ -353,7 +340,7 @@ begin
         {$ENDIF}
       End;
       SetLength(Result,secure_total_length(cryptex));
-      CopyMemory(@Result[Low(Result)],cryptex,Length(Result));
+      Move(cryptex^,Result[Low(Result)],Length(Result));
     finally
       secure_free(cryptex);
     end;
@@ -429,11 +416,7 @@ Begin
     // Use the intersection of the provided keys to generate the envelope data used by the ciphers below.
     // The ecies_key_derivation() function uses SHA 512 to ensure we have a sufficient amount of envelope key
     // material and that the material created is sufficiently secure.
-    {$IFDEF FPC}
-    FillByte(envelope_key,length(envelope_key),0);
-    {$ELSE}
-    FillMemory(@envelope_key,length(envelope_key),0);
-    {$ENDIF}
+    FillChar(envelope_key,length(envelope_key),0);
     if (ECDH_compute_key(@envelope_key,SHA512_DIGEST_LENGTH,EC_KEY_get0_public_key(ephemeral),
       PrivateKey, ecies_key_derivation_512)<>SHA512_DIGEST_LENGTH) then begin
       if logErrors then TLog.NewLog(lterror,'ECIES',Format('An error occurred while trying to compute the envelope key. {error = %s}',[ERR_error_string(ERR_get_error, nil)]));
@@ -478,13 +461,8 @@ Begin
   block := output;
   try
     // For now we use an empty initialization vector. We also clear out the result buffer just to be on the safe side.
-    {$IFDEF FPC}
-    FillByte(iv,EVP_MAX_IV_LENGTH,0);
-    FillByte(output^,output_length+1,0);
-    {$ELSE}
-    FillMemory(@iv,EVP_MAX_IV_LENGTH,0);
-    FillMemory(output,output_length+1,0);
-    {$ENDIF}
+    FillChar(iv,EVP_MAX_IV_LENGTH,0);
+    FillChar(output^,output_length+1,0);
     {$IFDEF OpenSSL10}
     EVP_CIPHER_CTX_init(@cipher);
     pcipher := @cipher;
@@ -510,7 +488,7 @@ Begin
         exit;
       end;
       SetLength(Decrypted,secure_orig_length(cryptex));
-      CopyMemory(@Decrypted[Low(Decrypted)],output,length(Decrypted));
+      Move(output^,Decrypted[Low(Decrypted)],length(Decrypted));
       Result := true;
     finally
       {$IFDEF OpenSSL10}
