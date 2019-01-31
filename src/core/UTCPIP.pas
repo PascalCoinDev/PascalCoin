@@ -24,26 +24,29 @@ interface
 
 {$I config.inc}
 
+{
+  Change log: 2019-01-31
+  Due to Android development, can't use Synapse and will use Indy components provided by Delphi (See confi.inc file)
+
+}
+
 {$IFDEF DelphiSockets}{$IFDEF Synapse}DelphiSockets and Synapse are defined! Choose one!{$ENDIF}{$ENDIF}
 {$IFNDEF DelphiSockets}{$IFNDEF Synapse}Nor DelphiSockets nor Synapse are defined! Choose one!{$ENDIF}{$ENDIF}
 
 uses
-  {$IFDEF UNIX}
-  //cthreads,
-  {$ENDIF}
   {$IFDEF Synapse}
   blcksock,
   synsock,  // synsock choose Socket by OS
   {$ENDIF}
   {$IFDEF DelphiSockets}
-  Sockets,
+  IdTcpClient, IdTCPServer, IdGlobal, IdContext, IdTCPConnection,
   {$ENDIF}
   Classes, Sysutils, UBaseTypes,
   UThread, SyncObjs;
 
 type
   {$IFDEF DelphiSockets}
-  TTCPBlockSocket = TCustomIpClient;
+  TTCPBlockSocket = TIdTCPConnection;
   {$ENDIF}
 
   { TNetTcpIpClient }
@@ -51,11 +54,11 @@ type
   TNetTcpIpClient = Class(TComponent)
   private
     FTcpBlockSocket : TTCPBlockSocket;
-    {$IFDEF Synapse}
+    FBytesReceived, FBytesSent : Int64;
     FConnected : Boolean;
+    {$IFDEF Synapse}
     FRemoteHost : String;
     FRemotePort : Word;
-    FBytesReceived, FBytesSent : Int64;
     FLock : TPCCriticalSection;
     FSendBufferLock : TPCCriticalSection;
     {$ENDIF}
@@ -162,7 +165,7 @@ type
   TNetTcpIpServer = Class(TObject)
   private
     {$IFDEF DelphiSockets}
-    FTcpIpServer : TTcpServer;
+    FTcpIpServer : TIdTcpServer;
     {$ENDIF}
     {$IFDEF Synapse}
     FTcpIpServer : TTcpIpServerListenerThread;
@@ -175,7 +178,7 @@ type
     function GetActive: Boolean;
     procedure SetPort(const Value: Word);  // When a connection is established to a new client, a TNetConnection is created (p2p)
     function GetPort: Word;
-    procedure OnTcpServerAccept(Sender: TObject; ClientSocket: TTCPBlockSocket);
+    procedure OnTcpServerAccept({$IFDEF DelphiSockets}AContext: TIdContext{$ELSE}Sender: TObject; ClientSocket: TTCPBlockSocket{$ENDIF});
     procedure SetNetTcpIpClientClass(const Value: TNetTcpIpClientClass);
   protected
     Procedure OnNewIncommingConnection(Sender : TObject; Client : TNetTcpIpClient); virtual;
@@ -198,7 +201,9 @@ implementation
 
 uses
 {$IFnDEF FPC}
+  {$IFDEF MSWINDOWS}
   Windows,
+  {$ENDIF}
 {$ELSE}
   {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
@@ -208,29 +213,23 @@ uses
 
 function TNetTcpIpClient.BytesReceived: Int64;
 begin
-  {$IFDEF DelphiSockets}
-  Result := FTcpBlockSocket.BytesReceived;
-  {$ENDIF}
-  {$IFDEF Synapse}
   Result := FBytesReceived;
-  {$ENDIF}
 end;
 
 function TNetTcpIpClient.BytesSent: Int64;
 begin
-  {$IFDEF DelphiSockets}
-  Result := FTcpBlockSocket.BytesSent;
-  {$ENDIF}
-  {$IFDEF Synapse}
   Result := FBytesSent;
-  {$ENDIF}
 end;
 
 function TNetTcpIpClient.ClientRemoteAddr: String;
 begin
   If Assigned(FTcpBlockSocket) then begin
     {$IFDEF DelphiSockets}
-    Result := FTcpBlockSocket.RemoteHost+':'+FTcpBlockSocket.RemotePort;
+    if (FTcpBlockSocket is TIdTCPClient) then
+      Result := TIdTCPClient(FTcpBlockSocket).Host+':'+IntToStr(TIdTCPClient(FTcpBlockSocket).Port)
+    else if Assigned(FTcpBlockSocket.IOHandler) then begin
+      Result := FTcpBlockSocket.IOHandler.Host+':'+IntToStr(FTcpBlockSocket.IOHandler.Port);
+    end else Result := '';
     {$ENDIF}
     {$IFDEF Synapse}
     Result := FRemoteHost+':'+inttostr(FRemotePort);
@@ -242,7 +241,17 @@ function TNetTcpIpClient.Connect: Boolean;
 begin
   {$IFDEF DelphiSockets}
   FSocketError := 0;
-  Result := FTcpBlockSocket.Connect;
+  Try
+    (FTcpBlockSocket as TIdTCPClient).Connect;
+    FConnected := True;
+    Result := True;
+  Except
+    On E:Exception do begin
+      Result := False;
+      {$IFDEF HIGHLOG}TLog.NewLog(lterror,ClassName,'Cannot connect to a server at: '+ClientRemoteAddr+' Reason: ('+E.ClassName+') '+E.Message);{$ENDIF}
+      Disconnect;
+    end;
+  End;
   {$ENDIF}
   {$IFDEF Synapse}
   FLock.Acquire;
@@ -278,10 +287,11 @@ begin
   FSocketError := 0;
   FLastCommunicationTime := 0;
   {$IFDEF DelphiSockets}
-  FTcpBlockSocket := TTcpClient.Create(Nil);
-  FTcpBlockSocket.OnConnect := OnConnect;
-  FTcpBlockSocket.OnDisconnect := OnDisconnect;
-  FTcpBlockSocket.OnError := TCustomIpClient_OnError;
+  FTcpBlockSocket := TIdTCPClient.Create(Nil);
+  TIdTCPClient(FTcpBlockSocket).OnConnected := OnConnect;
+  FTcpBlockSocket.OnDisconnected := OnDisconnect;
+  TIdTCPClient(FTcpBlockSocket).ConnectTimeout := 5000;
+  TIdTCPClient(FTcpBlockSocket).ReadTimeout := 5000;
   {$ENDIF}
   {$IFDEF Synapse}
   FLock := TPCCriticalSection.Create('TNetTcpIpClient_Lock');
@@ -292,10 +302,10 @@ begin
   FTcpBlockSocket.ConnectionTimeout := 5000; // Build 1.5.0 was default
   FRemoteHost := '';
   FRemotePort  := 0;
+  {$ENDIF}
+  FConnected := False;
   FBytesReceived := 0;
   FBytesSent := 0;
-  FConnected := False;
-  {$ENDIF}
 end;
 
 destructor TNetTcpIpClient.Destroy;
@@ -314,7 +324,11 @@ procedure TNetTcpIpClient.Disconnect;
 Var DebugStep : String;
 begin
   {$IFDEF DelphiSockets}
-  FTcpBlockSocket.Disconnect;
+  Try
+    FTcpBlockSocket.Disconnect;
+  Finally
+    FConnected := False;
+  End;
   {$ENDIF}
   {$IFDEF Synapse}
   if Not FConnected then exit;
@@ -355,7 +369,11 @@ procedure TNetTcpIpClient.DoWaitForData(WaitMilliseconds: Integer; var HasData: 
 Begin
   {$IFDEF DelphiSockets}
   FSocketError := 0;
-  HasData := FTcpBlockSocket.WaitForData(WaitMilliseconds);
+  HasData := Not FTcpBlockSocket.IOHandler.InputBufferIsEmpty;
+  if Not HasData then begin
+    FTcpBlockSocket.IOHandler.CheckForDataOnSource(WaitMilliseconds);
+    HasData := Not FTcpBlockSocket.IOHandler.InputBufferIsEmpty;
+  end;
   {$ENDIF}
   {$IFDEF Synapse}
   FLock.Acquire;
@@ -379,7 +397,7 @@ end;
 function TNetTcpIpClient.GetConnected: Boolean;
 begin
   {$IFDEF DelphiSockets}
-  Result := FTcpBlockSocket.Connected;
+  Result := FConnected;
   {$ENDIF}
   {$IFDEF Synapse}
   Result := FConnected;
@@ -389,7 +407,11 @@ end;
 function TNetTcpIpClient.GetRemoteHost: String;
 begin
   {$IFDEF DelphiSockets}
-  Result := FTcpBlockSocket.RemoteHost;
+  if (FTcpBlockSocket is TIdTCPClient) then
+    Result := TIdTCPClient(FTcpBlockSocket).Host
+  else if Assigned(FTcpBlockSocket.IOHandler) then begin
+    Result := FTcpBlockSocket.IOHandler.Host
+  end else Result := '';
   {$ENDIF}
   {$IFDEF Synapse}
   Result := FRemoteHost;
@@ -399,7 +421,11 @@ end;
 function TNetTcpIpClient.GetRemotePort: Word;
 begin
   {$IFDEF DelphiSockets}
-  Result := StrToIntDef(FTcpBlockSocket.RemotePort,0);
+  if (FTcpBlockSocket is TIdTCPClient) then
+    Result := TIdTCPClient(FTcpBlockSocket).Port
+  else if Assigned(FTcpBlockSocket.IOHandler) then begin
+    Result := FTcpBlockSocket.IOHandler.Port;
+  end else Result := 0;
   {$ENDIF}
   {$IFDEF Synapse}
   Result := FRemotePort;
@@ -407,10 +433,25 @@ begin
 end;
 
 function TNetTcpIpClient.ReceiveBuf(var Buf; BufSize: Integer): Integer;
+{$IFDEF DelphiSockets}
+var LBytes : TIdBytes;
+  LHasData : Boolean;
+  LExtractBytes : Integer;
+{$ENDIF}
 begin
   {$IFDEF DelphiSockets}
   FSocketError := 0;
-  Result := FTcpBlockSocket.ReceiveBuf(Buf,BufSize);
+  if FTcpBlockSocket.IOHandler.InputBuffer.Size<=0 then begin
+    LHasData := FTcpBlockSocket.IOHandler.CheckForDataOnSource(1);
+  end else LHasData := True;
+  if LHasData then begin
+    LExtractBytes := FTcpBlockSocket.IOHandler.InputBuffer.Size;
+    if LExtractBytes>BufSize then LExtractBytes := BufSize;
+    FTcpBlockSocket.IOHandler.InputBuffer.ExtractToBytes(LBytes,LExtractBytes);
+    move(LBytes[0],buf,Length(LBytes));
+    Result := Length(LBytes);
+    inc(FBytesReceived,Result);
+  end else Result := 0;
   {$ENDIF}
   {$IFDEF Synapse}
   Result := 0;
@@ -444,8 +485,9 @@ begin
   sp := Stream.Position;
   {$IFDEF DelphiSockets}
   FSocketError := 0;
-  FTcpBlockSocket.SendStream(Stream);
+  FTcpBlockSocket.IOHandler.Write(Stream);
   Result := Stream.Position - sp;
+  inc(FBytesSent,Result);
   {$ENDIF}
   {$IFDEF Synapse}
   Result := 0;
@@ -485,7 +527,8 @@ procedure TNetTcpIpClient.SetOnConnect(const Value: TNotifyEvent);
 begin
   FOnConnect := Value;
   {$IFDEF DelphiSockets}
-  FTcpBlockSocket.OnConnect := FOnConnect;
+  if (FTcpBlockSocket is TIdTCPClient) then
+    TIdTCPClient(FTcpBlockSocket).OnConnected := FOnConnect;
   {$ENDIF}
 end;
 
@@ -493,14 +536,15 @@ procedure TNetTcpIpClient.SetOnDisconnect(const Value: TNotifyEvent);
 begin
   FOnDisconnect := Value;
   {$IFDEF DelphiSockets}
-  FTcpBlockSocket.OnDisconnect := FOnDisconnect;
+  FTcpBlockSocket.OnDisconnected := FOnDisconnect;
   {$ENDIF}
 end;
 
 procedure TNetTcpIpClient.SetRemoteHost(const Value: String);
 begin
   {$IFDEF DelphiSockets}
-  FTcpBlockSocket.RemoteHost := Value;
+  if (FTcpBlockSocket is TIdTCPClient) then
+    TIdTCPClient(FTcpBlockSocket).Host := Value;
   {$ENDIF}
   {$IFDEF Synapse}
   FRemoteHost := Value;
@@ -510,7 +554,8 @@ end;
 procedure TNetTcpIpClient.SetRemotePort(const Value: Word);
 begin
   {$IFDEF DelphiSockets}
-  FTcpBlockSocket.RemotePort := IntToStr(Value);
+  if (FTcpBlockSocket is TIdTCPClient) then
+    TIdTCPClient(FTcpBlockSocket).Port := Value;
   {$ENDIF}
   {$IFDEF Synapse}
   FRemotePort := Value;
@@ -620,8 +665,7 @@ begin
   end;
 end;
 
-constructor TBufferedNetTcpIpClientThread.Create(
-  ABufferedNetTcpIpClient: TBufferedNetTcpIpClient);
+constructor TBufferedNetTcpIpClientThread.Create(ABufferedNetTcpIpClient: TBufferedNetTcpIpClient);
 begin
   FBufferedNetTcpIpClient := ABufferedNetTcpIpClient;
   inherited Create(false);
@@ -703,9 +747,9 @@ begin
   FTcpIpServer := Nil;
   FMaxConnections := CT_MaxClientsConnected;
   {$IFDEF DelphiSockets}
-  FTcpIpServer := TTcpServer.Create(Nil);
-  FTcpIpServer.OnAccept := OnTcpServerAccept;
-  FTcpIpServer.ServerSocketThread.ThreadCacheSize := CT_MaxClientsConnected;
+  FTcpIpServer := TIdTCPServer.Create(Nil);
+  FTcpIpServer.OnExecute := OnTcpServerAccept;
+  FTcpIpServer.MaxConnections := CT_MaxClientsConnected;
   {$ELSE}
   FActive := false;
   {$ENDIF}
@@ -735,12 +779,15 @@ procedure TNetTcpIpServer.SetMaxConnections(AValue: Integer);
 begin
   if FMaxConnections=AValue then Exit;
   FMaxConnections:=AValue;
+  {$IFDEF DelphiSockets}
+  FTcpIpServer.MaxConnections := AValue;
+  {$ENDIF}
 end;
 
 function TNetTcpIpServer.GetPort: Word;
 begin
   {$IFDEF DelphiSockets}
-  Result := StrToIntDef(FTcpIpServer.LocalPort,0);
+  Result := FTcpIpServer.DefaultPort;
   {$ELSE}
   Result := FPort;
   {$ENDIF}
@@ -761,15 +808,10 @@ begin
   //
 end;
 
-procedure TNetTcpIpServer.OnTcpServerAccept(Sender: TObject; ClientSocket: TTCPBlockSocket);
+procedure TNetTcpIpServer.OnTcpServerAccept({$IFDEF DelphiSockets}AContext: TIdContext{$ELSE}Sender: TObject; ClientSocket: TTCPBlockSocket{$ENDIF});
 Var n : TNetTcpIpClient;
   oldSocket : TTCPBlockSocket;
 begin
-  {$IFDEF DelphiSockets}
-  If FTcpIpServer.ServerSocketThread.ThreadCacheSize <> MaxConnections then
-      FTcpIpServer.ServerSocketThread.ThreadCacheSize := MaxConnections;
-  {$ENDIF}
-
   n := FNetTcpIpClientClass.Create(Nil);
   Try
     {$IFDEF Synapse}
@@ -777,9 +819,13 @@ begin
     try
     {$ENDIF}
       oldSocket := n.FTcpBlockSocket;
+      {$IFDEF DelphiSockets}
+      n.FTcpBlockSocket := AContext.Connection;
+      {$ELSE}
       n.FTcpBlockSocket := ClientSocket;
-      {$IFDEF Synapse}
+      {$ENDIF}
       n.FConnected := True;
+      {$IFDEF Synapse}
       n.RemoteHost := ClientSocket.GetRemoteSinIP;
       n.RemotePort := ClientSocket.GetRemoteSinPort;
       ClientSocket.SocksTimeout := 5000; //New 1.5.1
@@ -792,7 +838,7 @@ begin
     {$ENDIF}
     FNetClients.Add(n);
     try
-      OnNewIncommingConnection(Sender,n);
+      OnNewIncommingConnection({$IFDEF DelphiSockets}Self{$ELSE}Sender{$ENDIF},n);
     finally
       FNetClients.Remove(n);
     end;
@@ -831,7 +877,7 @@ end;
 procedure TNetTcpIpServer.SetPort(const Value: Word);
 begin
   {$IFDEF DelphiSockets}
-  FTcpIpServer.LocalPort := IntToStr(Value);
+  FTcpIpServer.DefaultPort := Value;
   {$ELSE}
   FPort := Value;
   {$ENDIF}

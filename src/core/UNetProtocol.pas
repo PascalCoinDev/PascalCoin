@@ -24,9 +24,10 @@ interface
 
 Uses
 {$IFnDEF FPC}
+  {$IFDEF MSWINDOWS}
   Windows,
+  {$ENDIF}
 {$ELSE}
-  {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
   UBlockChain, Classes, SysUtils, UAccounts, UThread,
   UCrypto, UTCPIP, SyncObjs, UBaseTypes, UCommon, UPCOrderedLists,
@@ -2623,8 +2624,10 @@ Var HeaderData : TNetHeaderData;
   iPending : Integer;
 begin
   if FDoFinalizeConnection then begin
-    TLog.NewLog(ltdebug,Classname,'Executing DoFinalizeConnection at client '+ClientRemoteAddr);
-    Connected := false;
+    if Connected then begin
+      TLog.NewLog(ltdebug,Classname,'Executing DoFinalizeConnection at client '+ClientRemoteAddr);
+      Connected := false;
+    end;
   end;
   if Not Connected then exit;
   ms := TMemoryStream.Create;
@@ -4882,10 +4885,15 @@ begin
 end;
 
 procedure TNetClientsDestroyThread.WaitForTerminatedAllConnections;
+var LTC : TTickCount;
 begin
+  LTC := TPlatform.GetTickCount;
   while (Not FTerminatedAllConnections) do begin
-    TLog.NewLog(ltdebug,ClassName,'Waiting all connections terminated');
-    Sleep(100);
+    if TPlatform.GetElapsedMilliseconds(LTC)>1000 then begin
+      LTC := TPlatform.GetTickCount;
+      TLog.NewLog(ltdebug,ClassName,'Waiting all connections terminated');
+    end;
+    Sleep(50);
   end;
 end;
 
