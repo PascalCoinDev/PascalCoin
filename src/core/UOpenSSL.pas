@@ -26,14 +26,14 @@ interface
   {$MODE Delphi}
 {$ENDIF}
 
-Uses UOpenSSLdef;
 {$I config.inc}
 
+{$IFDEF ANDROID}
+Uses UBaseTypes;
+{$ENDIF}
+
 var
-{$IFDEF UNIX}
-  {$IF not (Defined(LINUX) or Defined(DARWIN))}
-    {$ERROR 'unsupported target'}
-  {$IFEND}
+{$IF Defined(UNIX) or Defined(ANDROID) or Defined(DARWIN)}
   {$IFDEF OpenSSL10}
   {$IFDEF LINUX}
   SSL_C_LIB : String = './libcrypto.so.1.0.0';
@@ -41,7 +41,7 @@ var
   SSL_C_LIB : String = './libcrypto.1.0.0.dylib';
   {$ENDIF}
   {$ELSE}
-  {$IFDEF LINUX}
+  {$IF Defined(LINUX) or Defined(ANDROID)}
   SSL_C_LIB : String = './libcrypto.so.1.1';
   {$ELSE}
   SSL_C_LIB : String = './libcrypto.1.1.dylib';
@@ -71,6 +71,151 @@ var
     {$ENDIF}
   {$ENDIF}
 {$ENDIF}
+
+const
+  SHA_LBLOCK                  = 16;
+  RIPEMD160_CBLOCK            = 64;
+  RIPEMD160_LBLOCK            = (RIPEMD160_CBLOCK div 4);
+  PKCS5_SALT_LEN              = 8;
+  EVP_MAX_MD_SIZE             = 64;
+  SHA512_DIGEST_LENGTH        = 64;
+  EVP_MAX_IV_LENGTH           = 16;
+  EVP_MAX_BLOCK_LENGTH        = 32;
+  POINT_CONVERSION_COMPRESSED = 2;
+  //
+  SN_secp256k1                = 'secp256k1';
+  NID_secp256k1               = 714;
+  SN_secp384r1                = 'secp384r1';
+  NID_secp384r1               = 715;
+  SN_sect283k1                = 'sect283k1';
+  CT_NID_sect283k1            = 729;
+  SN_secp521r1                = 'secp521r1';
+  CT_NID_secp521r1            = 716;
+type
+  size_t = Word;
+  qword = UInt64;
+  PVOID = Pointer;
+  TC_INT   = LongInt;
+  PC_INT   = ^TC_INT;
+  TC_UINT  = LongWord;
+  PC_UINT  = ^TC_UINT;
+  TC_LONG  = LongInt;
+  PC_LONG = ^TC_LONG;
+  TC_ULONG = LongWord;
+  PC_ULONG = ^TC_ULONG;
+  TC_ULONGLONG = qword;
+  TC_time_t = TC_LONG;
+  TC_USHORT = Word;
+  PC_USHORT = ^TC_USHORT;
+  TC_SIZE_T = LongWord;
+  PC_SIZE_T = ^TC_SIZE_T;
+  BN_ULONG = TC_ULONGLONG;
+  PBN_ULONG = ^BN_ULONG;
+  DES_LONG= TC_ULONG;
+  PDES_LONG = ^DES_LONG;
+  point_conversion_form_t = byte;
+  TC_OSSL_SSIZE_T = TC_LONG;
+  IDEA_INT = TC_UINT;
+  MD4_LONG = TC_ULONG;
+  MD5_LONG = TC_ULONG;
+  RC2_INT = TC_UINT;
+  RC4_INT = TC_UINT;
+  RC5_32_INT = TC_ULONG;
+  RIPEMD160_LONG = TC_ULONG;
+  SHA_LONG = TC_ULONG;
+  SHA_LONG64 = UInt64;
+  PBN_CTX = Pointer;
+  BIGNUM = record
+    d : PBN_ULONG;
+    top : TC_INT;
+    dmax : TC_INT;
+    neg : TC_INT;
+    flags : TC_INT;
+  end;
+  PBIGNUM = ^BIGNUM;
+  PPBIGNUM = ^PBIGNUM;
+  PEC_KEY = Pointer;
+  PPEC_KEY = ^PEC_KEY;
+  PEC_GROUP = Pointer;
+  PPEC_GROUP = ^PEC_GROUP;
+  PEC_POINT = ^EC_POINT;
+  PEC_METHOD = Pointer;
+  EC_POINT = record
+    meth: PEC_METHOD;
+    X: BIGNUM;
+    Y: BIGNUM;
+    Z: BIGNUM;
+    Z_is_one: TC_INT;
+  end;
+  PSHA256_CTX = ^SHA256_CTX;
+  PPSHA256_CTX = ^PSHA256_CTX;
+  SHA256_CTX = record
+    _h: array[0..7] of SHA_LONG;
+    _Nl,_Nh: SHA_LONG;
+    _data: array[0..SHA_LBLOCK-1] of SHA_LONG;
+    _num,_md_len: TC_UINT;
+  end; { record }
+  PRIPEMD160_CTX = ^RIPEMD160_CTX;
+  PPRIPEMD160_CTX = ^PRIPEMD160_CTX;
+  RIPEMD160_CTX = record
+    _A,_B,_C,_D,_E: RIPEMD160_LONG;
+    _Nl,_Nh: RIPEMD160_LONG;
+    _data: array [0..RIPEMD160_LBLOCK-1] of RIPEMD160_LONG;
+    _num: TC_UINT;
+  end; { record }
+  PECDSA_SIG = ^ECDSA_SIG;
+  PPECDSA_SIG = ^PECDSA_SIG;
+  ECDSA_SIG = record
+      _r: PBIGNUM;
+      _s: PBIGNUM;
+  end; { record }
+  PEVP_MD_CTX = Pointer;
+  PPEVP_MD_CTX = ^PEVP_MD_CTX;
+  PEVP_MD = ^EVP_MD;
+  PPEVP_MD = ^PEVP_MD;
+  PENGINE = Pointer;
+  PPENGINE = ^PENGINE;
+  PEVP_CIPHER = ^EVP_CIPHER;
+  PPEVP_CIPHER = ^PEVP_CIPHER;
+  PEVP_CIPHER_CTX = Pointer;
+  PASN1_TYPE = Pointer;
+  EVP_CIPHER = record
+    nid : TC_Int;
+    block_size : TC_Int;
+    key_len : TC_Int;
+    iv_len : TC_Int;
+    flags : TC_ULONG;
+    init : function (ctx : PEVP_CIPHER_CTX; key : PAnsiChar; iv : PAnsiChar; enc : TC_Int): TC_Int; cdecl;
+    do_cipher : function (ctx : PEVP_CIPHER_CTX; _out : PAnsiChar; _in : PAnsiChar; inl : size_t) : TC_Int; cdecl;
+    cleanup : function (_para1 : PEVP_CIPHER_CTX): TC_Int; cdecl;
+    ctx_size : TC_Int;
+    set_asn1_parameters : function (_para1 : PEVP_CIPHER_CTX; _para2 : PASN1_TYPE) : TC_Int; cdecl;
+    get_asn1_parameters :function (_para1 : PEVP_CIPHER_CTX; _para2 :  PASN1_TYPE) : TC_Int; cdecl;
+    ctrl : function (_para1 : PEVP_CIPHER_CTX; _type : TC_Int; arg : TC_Int;  ptr : Pointer): TC_Int; cdecl;
+    app_data : Pointer;
+  end;
+  ecdh_kdf = function(const _in: Pointer; _inlen: TC_SIZE_T; _out: Pointer; var _outlen: TC_SIZE_T): pointer; cdecl;
+  PHMAC_CTX = Pointer;
+  PPHMAC_CTX = ^PHMAC_CTX;
+  EVP_MD = record
+    _type : TC_Int;
+    pkey_type : TC_Int;
+    md_size : TC_Int;
+    flags : TC_ULONG;
+    init : function (ctx : PEVP_MD_CTX) : TC_Int; cdecl;
+    update : function (ctx : PEVP_MD_CTX; data : Pointer; count : size_t):TC_Int; cdecl;
+    _final : function (ctx : PEVP_MD_CTX; md : PAnsiChar) : TC_Int; cdecl;
+    copy : function (_to : PEVP_MD_CTX; from : PEVP_MD_CTX ) : TC_Int; cdecl;
+    cleanup : function(ctx : PEVP_MD_CTX) : TC_Int; cdecl;
+    sign : function(_type : TC_Int; m : PAnsiChar; m_length : TC_UINT;  sigret : PAnsiChar; siglen : TC_UINT; key : Pointer) : TC_Int; cdecl;
+    verify : function(_type : TC_Int; m : PAnsiChar; m_length : PAnsiChar;  sigbuf : PAnsiChar; siglen : TC_UINT; key : Pointer) : TC_Int; cdecl;
+    required_pkey_type : array [0..4] of TC_Int;
+    block_size : TC_Int;
+    ctx_size : TC_Int;
+    md_ctrl: function( ctx: PEVP_MD_CTX; cmd: TC_INT; p1: TC_INT; p2: Pointer): TC_INT; cdecl;
+  end;
+
+
 
 var
   OpenSSL_version_num: function: TC_ULONG; cdecl = nil;
@@ -225,10 +370,13 @@ function InitSSLFunctions : Boolean;
 function BN_num_bytes(a: PBIGNUM): TC_INT;
 procedure OpenSSL_free(ptr: Pointer);
 function OpenSSLVersion : Cardinal;
+function CaptureLastSSLError : String;
 
 implementation
 
-uses {$IFDEF UNIX}dynlibs{$ELSE}windows{$ENDIF}, sysutils;
+uses {$IFDEF UNIX}dynlibs,{$ENDIF}
+  {$IFDEF MSWINDOWS} windows,{$ENDIF}
+  sysutils;
 
 var hCrypt: THandle = 0;
 
@@ -267,7 +415,7 @@ begin
   {$IFDEF UNIX}
   Result := GetProcAddress(SSLCryptHandle, AnsiString(FceName));
   {$ELSE}
-  Result := Windows.GetProcAddress(SSLCryptHandle, PChar(FceName));
+  Result := {Windows.}GetProcAddress(SSLCryptHandle, PChar(FceName));
   {$ENDIF}
   if ACritical then begin
     if Result = nil then begin
@@ -445,6 +593,15 @@ begin
   if @CRYPTO_Free <> nil then begin
     CRYPTO_free(ptr);
   end;
+end;
+
+function CaptureLastSSLError : String;
+begin
+  {$IFDEF NO_ANSISTRING}
+  Result := ''; // TODO
+  {$ELSE}
+  Result := ERR_error_string(ERR_get_error(),nil);
+  {$ENDIF}
 end;
 
 initialization
