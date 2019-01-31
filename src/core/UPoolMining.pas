@@ -302,7 +302,7 @@ begin
         if (ms.Size)>0 then begin
           lasti := length(FReceivedBuffer);
           setLength(FReceivedBuffer,length(FReceivedBuffer)+ms.Size);
-          CopyMemory(@FReceivedBuffer[lasti],ms.Memory,ms.Size);
+          move(ms.Memory^,FReceivedBuffer[lasti],ms.Size);
           last_bytes_read := ms.Size;
           ms.Size := 0;
         end;
