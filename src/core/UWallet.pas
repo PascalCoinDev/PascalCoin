@@ -22,8 +22,21 @@ unit UWallet;
 
 interface
 
+{$I config.inc}
+
+{$IFDEF ANDROID}
+  {$UNDEF INTERNAL_USE_SETTINGS_UNIT}
+  {$UNDEF INTERNAL_USE_FOLDERHELPER_UNIT}
+{$ELSE}
+  {$DEFINE INTERNAL_USE_SETTINGS_UNIT}
+  {$DEFINE INTERNAL_USE_FOLDERHELPER_UNIT}
+{$ENDIF}
+
 uses
-  Classes, USettings, UBlockChain, UAccounts, UCrypto, UBaseTypes, UCommon,
+  Classes, UBlockChain, UAccounts, UCrypto, UBaseTypes, UCommon,
+  {$IFDEF INTERNAL_USE_SETTINGS_UNIT}
+  USettings,
+  {$ENDIF}
   UPCDataTypes;
 
 Type
@@ -101,13 +114,19 @@ Type
     private
       class var FKeys : TWalletKeysExt;
       class function GetKeys : TWalletKeysExt; static;
+      {$IFDEF INTERNAL_USE_SETTINGS_UNIT}
       class function GetMiningKey : TAccountKey; static;
+      {$ENDIF}
       class procedure CheckLoaded;
       class procedure CheckUnlocked;
     public
       class property Keys : TWalletKeysExt read GetKeys;
+      {$IFDEF INTERNAL_USE_SETTINGS_UNIT}
       class property MiningKey : TAccountKey read GetMiningKey;
+      {$ENDIF}
+      {$IFDEF INTERNAL_USE_FOLDERHELPER_UNIT}
       class procedure Load;
+      {$ENDIF}
       class function HasKey(const AKey: TWalletKey) : boolean;
       class procedure DeleteKey(const AKey: TWalletKey);
       class procedure GenerateNewKey(const AName: String; AEncryptionTypeNID : Word);
@@ -128,7 +147,11 @@ Const CT_TWalletKey_NUL  : TWalletKey = (Name:'';AccountKey:(EC_OpenSSL_NID:0;x:
 implementation
 
 uses
-  SysUtils, UConst, ULog, UAES, UFolderHelper;
+  SysUtils, UConst, ULog,
+  {$IFDEF INTERNAL_USE_FOLDERHELPER_UNIT}
+  UFolderHelper,
+  {$ENDIF}
+  UAES;
 
 Const
   CT_PrivateKeyFile_Magic = 'TWalletKeys';
@@ -152,7 +175,6 @@ end;
 
 function TWalletKeys.AddPrivateKey(Const Name : String; ECPrivateKey: TECPrivateKey): Integer;
 Var P : PWalletKey;
-  s : AnsiString;
   raw_priv2hexa : TRawBytes;
 begin
   if Not Find(ECPrivateKey.PublicKey,Result) then begin
@@ -519,6 +541,7 @@ end;
 
 { TWallet }
 
+{$IFDEF INTERNAL_USE_SETTINGS_UNIT}
 class function TWallet.GetMiningKey: TAccountKey;
 Var PK : TECPrivateKey;
   i : Integer;
@@ -556,6 +579,7 @@ begin
   end;
   Result := PublicK;
 end;
+{$ENDIF}
 
 class function TWallet.GetKeys : TWalletKeysExt;
 begin
@@ -563,6 +587,7 @@ begin
   Result := FKeys;
 end;
 
+{$IFDEF INTERNAL_USE_FOLDERHELPER_UNIT}
 class procedure TWallet.Load;
 begin
   try
@@ -576,6 +601,7 @@ begin
     end;
   end;
 end;
+{$ENDIF}
 
 class function TWallet.HasKey(const AKey: TWalletKey) : boolean;
 begin
