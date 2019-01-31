@@ -25,10 +25,12 @@ unit UCrypto;
 interface
 
 uses
-  Classes, SysUtils, UOpenSSL, UOpenSSLdef, URandomHash, UBaseTypes, UPCDataTypes;
+  Classes, SysUtils, UOpenSSL, URandomHash, UBaseTypes, UPCDataTypes;
 
 Type
   ECryptoException = Class(Exception);
+
+  { TECPrivateKey }
 
   TECPrivateKey = Class
   private
@@ -46,7 +48,8 @@ Type
     Property PublicKeyPoint : PEC_POINT read GetPublicKeyPoint;
     Function SetPrivateKeyFromHexa(EC_OpenSSL_NID : Word; const hexa : String) : Boolean;
     Property EC_OpenSSL_NID : Word Read FEC_OpenSSL_NID;
-    class function IsValidPublicKey(PubKey : TECDSA_Public) : Boolean;
+    class function IsValidPublicKey(PubKey : TECDSA_Public; var errors : String) : Boolean; overload;
+    class function IsValidPublicKey(PubKey : TECDSA_Public) : Boolean; overload;
     Function ExportToRaw : TRawBytes;
     class Function ImportFromRaw(Const raw : TRawBytes) : TECPrivateKey; static;
   End;
@@ -59,7 +62,7 @@ Type
     class function IsHexString(const AHexString: String) : boolean;
     class function ToHexaString(const raw : TRawBytes) : String; // DEPRECATED: Use TRawBytes.ToHexaString instead
     class function HexaToRaw(const HexaString : String) : TRawBytes; overload;
-    class function HexaToRaw(const HexaString : String; out raw : TRawBytes) : Boolean; overload;
+    class function HexaToRaw(const HexaString : String; var raw : TRawBytes) : Boolean; overload;
     class function DoSha256(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     class function DoSha256(const TheMessage : TRawBytes) : TRawBytes; overload;
     class procedure DoSha256(const TheMessage : TRawBytes; out ResultSha256 : TRawBytes);  overload;
@@ -269,7 +272,7 @@ begin
   End;
 end;
 
-class function TECPrivateKey.IsValidPublicKey(PubKey: TECDSA_Public): Boolean;
+class function TECPrivateKey.IsValidPublicKey(PubKey: TECDSA_Public; var errors : String): Boolean;
 Var BNx,BNy : PBIGNUM;
   ECG : PEC_GROUP;
   ctx : PBN_CTX;
@@ -291,6 +294,9 @@ begin
           ctx := BN_CTX_new;
           try
             Result := EC_POINT_set_affine_coordinates_GFp(ECG,pub_key,BNx,BNy,ctx)=1;
+            if not Result then begin
+              errors := Format('Invalid Public key type:%d - Length x:%d y:%d Error:%s',[PubKey.EC_OpenSSL_NID,length(PubKey.x),length(PubKey.y), CaptureLastSSLError]);
+            end;
           finally
             BN_CTX_free(ctx);
           end;
@@ -306,6 +312,12 @@ begin
   finally
     BN_free(BNx);
   end;
+end;
+
+class function TECPrivateKey.IsValidPublicKey(PubKey: TECDSA_Public): Boolean;
+var Ltmp : String;
+begin
+  Result := IsValidPublicKey(PubKey,Ltmp);
 end;
 
 procedure TECPrivateKey.SetPrivateKey(const Value: PEC_KEY);
@@ -471,7 +483,7 @@ begin
     BN_bin2bn(PAnsiChar(Signature.s),length(Signature.s),bns);}
     bnr := BN_bin2bn(PAnsiChar(Signature.r),length(Signature.r),nil);
     bns := BN_bin2bn(PAnsiChar(Signature.s),length(Signature.s),nil);
-    if ECDSA_SIG_set0(PECS,bnr,bns)<>1 then Raise Exception.Create('Dev error 20161019-1 '+ERR_error_string(ERR_get_error(),nil));
+    if ECDSA_SIG_set0(PECS,bnr,bns)<>1 then Raise Exception.Create('Dev error 20161019-1 '+CaptureLastSSLError);
     {$ENDIF}
 
     PK := EC_KEY_new_by_curve_name(EC_OpenSSL_NID);
@@ -522,19 +534,27 @@ begin
   HexaToRaw(HexaString,Result);
 end;
 
-class function TCrypto.HexaToRaw(const HexaString: String; out raw: TRawBytes): Boolean;
-Var P : PAnsiChar;
- i : Integer;
- ansi : AnsiString;
+class function TCrypto.HexaToRaw(const HexaString: String; var raw: TRawBytes): Boolean;
+Var i : Integer;
+  LHexaRaw : TRawBytes;
+  {$IFDEF FPC}
+  P : PAnsiChar;
+  {$ENDIF}
 begin
-  SetLength(raw,0);
-  if ((Length(HexaString) MOD 2)<>0) then Exit(False);
-  if (Length(HexaString)=0) then Exit(True);
-  SetLength(raw,Length(HexaString) DIV 2);
-  P := @raw[Low(raw)];
-  ansi := HexaString;
-  i := HexToBin(PAnsiChar(ansi),P,Length(raw));
-  Result := (i = (Length(HexaString) DIV 2));
+  LHexaRaw.FromString(LowerCase(HexaString));
+  if (Length(LHexaRaw)=0) then begin
+    SetLength(raw,0);
+    Exit(True);
+  end;
+  if ((Length(LHexaRaw) MOD 2)<>0) then Exit(False); // odd string
+  SetLength(raw,Length(LHexaRaw) DIV 2);
+  {$IFDEF FPC}
+  P := @raw[0];
+  i := HexToBin(PAnsiChar(LHexaRaw.ToString),P,Length(raw));
+  {$ELSE}
+  i := HexToBin(LHexaRaw,0,raw,0,Length(raw));
+  {$ENDIF}
+  Result := (i = (Length(raw)));
 end;
 
 class procedure TCrypto.InitCrypto;
@@ -590,7 +610,11 @@ class function TCrypto.PrivateKey2Hexa(Key: PEC_KEY): String;
 Var p : PAnsiChar;
 begin
   p := BN_bn2hex(EC_KEY_get0_private_key(Key));
-  Result := strpas(p);
+  {$IFDEF NO_ANSISTRING}
+  Result := p^; // TODO: Not tested when AnsiString not available!
+  {$ELSE}
+  Result := StrPas(p);
+  {$ENDIF}
   OPENSSL_free(p);
 end;
 
@@ -728,7 +752,11 @@ function TBigNum.GetDecimalValue: String;
 var p : PAnsiChar;
 begin
   p := BN_bn2dec(FBN);
-  Result := strpas(p);
+  {$IFDEF NO_ANSISTRING}
+  Result := p^; // TODO: Not tested when AnsiString not available!
+  {$ELSE}
+  Result := StrPas(p);
+  {$ENDIF}
   OpenSSL_free(p);
 end;
 
@@ -736,7 +764,11 @@ function TBigNum.GetHexaValue: String;
 Var p : PAnsiChar;
 begin
   p := BN_bn2hex(FBN);
-  Result := strpas( p );
+  {$IFDEF NO_ANSISTRING}
+  Result := p^; // TODO: Not tested when AnsiString not available!
+  {$ELSE}
+  Result := StrPas(p);
+  {$ENDIF}
   OPENSSL_free(p);
 end;
 
@@ -752,13 +784,17 @@ end;
 
 function TBigNum.GetValue: Int64;
 Var p : PAnsiChar;
-  a : AnsiString;
+  a : RawByteString;
   err : Integer;
 begin
   p := BN_bn2dec(FBN);
-  a := strpas(p);
+  {$IFDEF NO_ANSISTRING}
+  a := p^; // TODO: Not tested when AnsiString not available!
+  {$ELSE}
+  a := StrPas(p);
+  {$ENDIF}
   OPENSSL_free(p);
-  val(a,Result,err);
+  Val(a,Result,err);
 end;
 
 class function TBigNum.HexaToDecimal(hexa: String): String;
@@ -770,7 +806,7 @@ begin
 end;
 
 function TBigNum.IsZero: Boolean;
-Var dv : AnsiString;
+Var dv : String;
 begin
   dv := DecimalValue;
   Result := dv='0';
@@ -837,7 +873,7 @@ var p : PBIGNUM;
 begin
   p := BN_bin2bn(PAnsiChar(Value),length(Value),FBN);
   if (p<>FBN) Or (p=Nil) then Raise ECryptoException.Create('Error decoding Raw value to BigNum "'+TCrypto.ToHexaString(Value)+'" ('+inttostr(length(value))+')'+#10+
-    ERR_error_string(ERR_get_error(),nil));
+    CaptureLastSSLError);
 end;
 
 procedure TBigNum.SetValue(const Value: Int64);
@@ -922,19 +958,27 @@ function TBigNum.ToDecimal: String;
 var p : PAnsiChar;
 begin
   p := BN_bn2dec(FBN);
-  Result := strpas(p);
+  {$IFDEF NO_ANSISTRING}
+  Result := p^; // TODO: Not tested when AnsiString not available!
+  {$ELSE}
+  Result := StrPas(p);
+  {$ENDIF}
   OpenSSL_free(p);
 end;
 
 function TBigNum.ToInt64(var int: Int64): TBigNum;
-Var s : AnsiString;
+Var s : String;
  err : Integer;
  p : PAnsiChar;
 begin
   p := BN_bn2dec(FBN);
-  s := strpas( p );
+  {$IFDEF NO_ANSISTRING}
+  s := p^; // TODO: Not tested when AnsiString not available!
+  {$ELSE}
+  s := StrPas(p);
+  {$ENDIF}
   OPENSSL_free(p);
-  val(s,int,err);
+  Val(s,int,err);
   if err<>0 then int := 0;
   Result := Self;
 end;

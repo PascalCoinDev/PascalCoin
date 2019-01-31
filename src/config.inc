@@ -68,7 +68,13 @@ ERROR: You must select ONE option!
 {$ENDIF}{$ENDIF}{$ENDIF}{$ENDIF}
 {$IFDEF OPTIONS_BY_DEFAULT}
   // By default are: Synapse + OpenSSLv11
-  {$DEFINE Synapse}
+  {$IFDEF ANDROID} 
+    // Android usage (on Delphi) does not use Synapse
+	{$UNDEF Synapse}
+	{$DEFINE DelphiSockets}
+  {$ELSE}
+	{$DEFINE Synapse}
+  {$ENDIF}
   {$UNDEF OpenSSL10}
   {$IFDEF DelphiSockets_OpenSSLv10}ERROR: You selected more than 1 option{$ENDIF}
   {$IFDEF Synapse_OpenSSLv10}ERROR: You selected more than 1 option{$ENDIF}
@@ -108,3 +114,12 @@ ERROR: You must select ONE option!
 {$ENDIF}
 {$ENDIF}
 
+{$ifNdef FPC}
+  // We are on Delphi compiler
+  {$ifdef ANDROID}
+    // On Delphi and Android environment, AnsiString is not available
+    {$DEFINE NO_ANSISTRING}
+  {$ELSE}
+    {$UNDEF NO_ANSISTRING}
+  {$ENDIF}
+{$ENDIF}
