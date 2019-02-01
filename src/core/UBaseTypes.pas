@@ -30,7 +30,16 @@ interface
 uses
   Classes, SysUtils;
 
+{$I config.inc}
+
 Type
+  {$IFDEF NO_ANSISTRING}
+    // When Delphi + Android, then no ANSISTRING available
+    PAnsiChar = PByte;
+    PPAnsiChar = ^PAnsiChar;
+  {$ENDIF}
+
+
   // Raw data in a maximum 65k bytes
   TDynRawBytes = TBytes;
   // Raw data in a maximum 256 bytes
@@ -87,8 +96,6 @@ Type
     class procedure T32BytesToRawBytes(const source : T32Bytes; var dest : TDynRawBytes); overload;
     class function T32BytesToRawBytes(const source : T32Bytes) : TDynRawBytes; overload;
     class function TRawBytesTo32Left0Padded(const source : TDynRawBytes) : T32Bytes;
-    class function Copy(const source : T32bytes; astart, alength : Integer) : ShortString; overload;
-    class function Copy(const source : T256RawBytes; var dest : T256RawBytes) : ShortString; overload;
     class function To256RawBytes(const source : TRawBytes) : T256RawBytes; overload;
     class procedure To256RawBytes(const source : TRawBytes; var dest : T256RawBytes); overload;
     class function ToRawBytes(const source : T256RawBytes) : TRawBytes; overload;
@@ -123,10 +130,36 @@ Type
     class function GetElapsedMilliseconds(Const previousTickCount : TTickCount) : Int64;
   End;
 
+{$IFDEF NO_ANSISTRING}
+function StrPas(ptrAnsiChar : PAnsiChar) : String;
+{$ENDIF}
+
 implementation
 
 {$IFNDEF FPC}
+  {$IFDEF MSWINDOWS}
 Uses windows;
+  {$ENDIF}
+{$ENDIF}
+
+{$IFDEF NO_ANSISTRING}
+function StrPas(ptrAnsiChar : PAnsiChar) : String;
+var LRaw : TRawBytes;
+  LPtr : PByte;
+  LByte : Byte;
+begin
+  SetLength(LRaw,0);
+  LPtr := ptrAnsiChar;
+  repeat
+    LByte := Byte(LPtr^);
+    if LByte<>0 then begin
+      SetLength(LRaw,Length(LRaw)+1);
+      LRaw[High(LRaw)] := LByte;
+    end;
+    LPtr := LPtr + 1;
+  until (LByte=0);
+  Result := LRaw.ToString;
+end;
 {$ENDIF}
 
 { TRawBytesHelper }
@@ -138,8 +171,8 @@ begin
   SetLength(rbs,Length(Self));
   inc_i := Low(rbs) - Low(Self);
   for i:=Low(Self) to High(Self) do begin
-    if (Self[i] in [32..126]) then rbs[i+inc_i] := AnsiChar(Self[i])
-    else rbs[i+inc_i] := AnsiChar(126);
+    if (Self[i] in [32..126]) then move(Self[i],rbs[i+inc_i],1)
+    else rbs[i+inc_i] := Chr(126);
   end;
   Result := rbs;
 end;
@@ -216,22 +249,6 @@ begin
   while (i<32) And (i<=high(source)) do begin
     Result[i+32-length(source)] := source[i];
     inc(i);
-  end;
-end;
-
-class function TBaseType.Copy(const source: T32bytes; astart, alength: Integer): ShortString;
-begin
-  if (alength+astart)>32 then raise Exception.Create('ERROR DEV 20170601-1');
-  SetLength(Result,alength);
-  move(source[astart],Result[Low(Result)],alength);
-end;
-
-class function TBaseType.Copy(const source: T256RawBytes; var dest: T256RawBytes): ShortString;
-var i : Integer;
-begin
-  SetLength(dest,Length(source));
-  for i:=0 to high(dest) do begin
-    dest[i] := source[i];
   end;
 end;
 
@@ -425,7 +442,13 @@ end;
 
 class function TPlatform.GetTickCount: TTickCount;
 begin
-  Result := {$IFDEF CPU64}GetTickCount64{$ELSE}{$IFNDEF FPC}Windows.{$ELSE}SysUtils.{$ENDIF}GetTickCount{$ENDIF};
+  Result := {$IFDEF CPU64}GetTickCount64{$ELSE}
+   {$IFDEF FPC}System.GetTickCount{$ELSE}
+     {$IFDEF MSWINDOWS}Windows.GetTickCount{$ELSE}
+     TThread.GetTickCount;
+     {$ENDIF}
+   {$ENDIF}
+  {$ENDIF}
 end;
 
 { TBytesBuffer }
