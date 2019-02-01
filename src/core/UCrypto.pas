@@ -146,6 +146,7 @@ Begin
       TLog.NewLog(ltError,'OpenSSL',err);
       Raise Exception.Create(err);
     end;
+    {$IFNDEF OpenSSL10}
     If Not Assigned(OpenSSL_version_num) then begin
       err := 'OpenSSL library is not v1.1 version: '+SSL_C_LIB;
       TLog.NewLog(ltError,'OpenSSL',err);
@@ -157,6 +158,7 @@ Begin
       TLog.NewLog(ltError,'OpenSSL',err);
       Raise Exception.Create(err);
     end;
+    {$ENDIF}
   end;
 End;
 
@@ -250,7 +252,7 @@ begin
         try
           Result := TECPrivateKey.Create;
           Try
-            If Not Result.SetPrivateKeyFromHexa(ECID,PAC) then begin
+            If Not Result.SetPrivateKeyFromHexa(ECID,{$IFDEF NO_ANSISTRING}UBaseTypes.{$ENDIF}StrPas(PAC)) then begin
               FreeAndNil(Result);
             end;
           Except
@@ -611,7 +613,7 @@ Var p : PAnsiChar;
 begin
   p := BN_bn2hex(EC_KEY_get0_private_key(Key));
   {$IFDEF NO_ANSISTRING}
-  Result := p^; // TODO: Not tested when AnsiString not available!
+  Result := UBaseTypes.StrPas(p); // TODO: Not tested when AnsiString not available!
   {$ELSE}
   Result := StrPas(p);
   {$ENDIF}
@@ -753,7 +755,7 @@ var p : PAnsiChar;
 begin
   p := BN_bn2dec(FBN);
   {$IFDEF NO_ANSISTRING}
-  Result := p^; // TODO: Not tested when AnsiString not available!
+  Result := UBaseTypes.StrPas(p); // TODO: Not tested when AnsiString not available!
   {$ELSE}
   Result := StrPas(p);
   {$ENDIF}
@@ -765,7 +767,7 @@ Var p : PAnsiChar;
 begin
   p := BN_bn2hex(FBN);
   {$IFDEF NO_ANSISTRING}
-  Result := p^; // TODO: Not tested when AnsiString not available!
+  Result := UBaseTypes.StrPas(p); // TODO: Not tested when AnsiString not available!
   {$ELSE}
   Result := StrPas(p);
   {$ENDIF}
@@ -789,7 +791,7 @@ Var p : PAnsiChar;
 begin
   p := BN_bn2dec(FBN);
   {$IFDEF NO_ANSISTRING}
-  a := p^; // TODO: Not tested when AnsiString not available!
+  a := UBaseTypes.StrPas(p); // TODO: Not tested when AnsiString not available!
   {$ELSE}
   a := StrPas(p);
   {$ENDIF}
@@ -959,7 +961,7 @@ var p : PAnsiChar;
 begin
   p := BN_bn2dec(FBN);
   {$IFDEF NO_ANSISTRING}
-  Result := p^; // TODO: Not tested when AnsiString not available!
+  Result := UBaseTypes.StrPas(p); // TODO: Not tested when AnsiString not available!
   {$ELSE}
   Result := StrPas(p);
   {$ENDIF}
@@ -973,7 +975,7 @@ Var s : String;
 begin
   p := BN_bn2dec(FBN);
   {$IFDEF NO_ANSISTRING}
-  s := p^; // TODO: Not tested when AnsiString not available!
+  s := UBaseTypes.StrPas(p); // TODO: Not tested when AnsiString not available!
   {$ELSE}
   s := StrPas(p);
   {$ENDIF}
