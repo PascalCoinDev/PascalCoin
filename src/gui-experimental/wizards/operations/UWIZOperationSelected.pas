@@ -144,11 +144,11 @@ begin
 
   case Model.ExecuteOperationType of
 
-    omtSendPasc:
+    omtSendPasc, omtBuyAccount:
     begin
         if not (TCoreTool.AreAccountBalancesGreaterThan(Model.Account.SelectedAccounts, 0, LAccount)) then
         begin
-          message := Format('Account %s has zero balance so it cannot be part of a send operation.', [LAccount.AccountString]);
+          message := Format('Account %s has zero balance so it cannot be part of this type of operation.', [LAccount.AccountString]);
           Exit(False);
         end;
     end;

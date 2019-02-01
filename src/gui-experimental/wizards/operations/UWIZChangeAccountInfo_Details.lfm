@@ -8,7 +8,6 @@ object WIZChangeAccountInfo_Details: TWIZChangeAccountInfo_Details
   Caption = 'WIZChangeAccountInfo_Details'
   ClientHeight = 379
   ClientWidth = 450
-  LCLVersion = '1.8.2.0'
   Visible = False
   object gbName: TGroupBox
     Left = 8

@@ -249,6 +249,8 @@ begin
         Result := Format('%s', [TCoreTool.GetOperationShortText(CT_Op_DelistAccount, CT_OpSubtype_DelistAccount)]);
       omtChangeInfo:
         Result := Format('%s', [TCoreTool.GetOperationShortText(CT_Op_ChangeAccountInfo, CT_OpSubtype_ChangeAccountInfo)]);
+      omtBuyAccount:
+        Result := Format('%s', [TCoreTool.GetOperationShortText(CT_Op_BuyAccount, CT_OpSubtype_BuyAccountBuyer)]);
 
     end
   else if ABindingName = 'Recipient' then
@@ -285,12 +287,18 @@ begin
         Result := TCellRenderers.OperationShortHash(Result);
       end;
       omtDelistAccountFromSale, omtChangeInfo:
+      begin
         Result := '';
-
+      end;
+      omtBuyAccount:
+      begin
+        Result := TAccountComp.AccountPublicKeyExport(Model.BuyAccount.NewOwnerPublicKey);
+        Result := TCellRenderers.OperationShortHash(Result);
+      end
     end
   else if ABindingName = 'Signer' then
     case Model.ExecuteOperationType of
-      omtSendPasc:
+      omtSendPasc, omtBuyAccount:
       begin
         Result := inherited GetItemField(AItem, 'Account');
       end;

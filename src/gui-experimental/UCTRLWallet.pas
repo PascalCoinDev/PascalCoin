@@ -40,6 +40,7 @@ type
     Label2: TLabel;
     lblTotalPASA: TLabel;
     lblTotalPASC: TLabel;
+    miBuyAccount: TMenuItem;
     miChangeAccountInfo: TMenuItem;
     miCopyOphash: TMenuItem;
     miOperationInfo: TMenuItem;
@@ -64,6 +65,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormResize(Sender: TObject);
+    procedure miBuyAccountClick(Sender: TObject);
     procedure miChangeAccountInfoClick(Sender: TObject);
     procedure miAccountInfoClick(Sender: TObject);
     procedure miChangeKeyClick(Sender: TObject);
@@ -617,6 +619,7 @@ var
 begin
   miSep1.Visible := ASelection.RowCount = 1;
   miAccountInfo.Visible := ASelection.RowCount = 1;
+  miBuyAccount.Visible := ASelection.RowCount = 1;
   miSendPASC.Caption := IIF(ASelection.RowCount = 1, 'Send PASC', 'Send All PASC');
   miChangeKey.Caption := IIF(ASelection.RowCount = 1, 'Change Key', 'Change All Key');
   miEnlistAccountsForSale.Caption := IIF(ASelection.RowCount = 1, 'Enlist Account For Sale', 'Enlist All Account For Sale');
@@ -661,6 +664,11 @@ end;
 procedure TCTRLWallet.miChangeAccountInfoClick(Sender: TObject);
 begin
   TUserInterface.ShowChangeAccountInfoDialog(SelectedAccounts);
+end;
+
+procedure TCTRLWallet.miBuyAccountClick(Sender: TObject);
+begin
+  TUserInterface.ShowBuyAccountDialog(SelectedAccounts);
 end;
 
 procedure TCTRLWallet.OnPrepareOperationsPopupMenu(Sender: TObject; constref ASelection: TVisualGridSelection; out APopupMenu: TPopupMenu);

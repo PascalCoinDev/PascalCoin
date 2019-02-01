@@ -3,13 +3,13 @@ object FRMWalletKeys: TFRMWalletKeys
   Height = 477
   Top = 191
   Width = 661
+  ActiveControl = lbWalletKeys
   Caption = 'Wallet Keys'
   ClientHeight = 477
   ClientWidth = 661
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.8.4.0'
   Visible = False
   object lbWalletKeys: TListBox
     Left = 24

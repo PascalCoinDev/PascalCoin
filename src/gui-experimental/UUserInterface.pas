@@ -163,6 +163,7 @@ type
       class procedure ShowSellAccountsDialog(const AAccounts : array of Cardinal);
       class procedure ShowDelistAccountsDialog(const AAccounts : array of Cardinal);
       class procedure ShowChangeAccountInfoDialog(const AAccounts : array of Cardinal);
+      class procedure ShowBuyAccountDialog(const AAccounts : array of Cardinal);
       class procedure ShowAboutBox(parentForm : TForm);
       class procedure ShowOptionsDialog(parentForm: TForm);
       class procedure ShowAccountInfoDialog(parentForm: TForm; const account : Cardinal); overload;
@@ -218,7 +219,7 @@ implementation
 uses
   UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
   UOpenSSL, UFileStorage, UTime, USettings, UCoreUtils, UMemory,
-  UWIZOperation, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale, UWIZDelistAccountFromSale, UWIZChangeAccountInfo, UCoreObjects;
+  UWIZOperation, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale, UWIZDelistAccountFromSale, UWIZChangeAccountInfo, UWIZBuyAccount, UCoreObjects;
 
 {%region UI Lifecyle}
 
@@ -653,6 +654,20 @@ var
 begin
   wiz := Scoped.AddObject(TWIZChangeAccountInfoWizard.Create(nil)) as TWIZChangeAccountInfoWizard;
   model := TWIZOperationsModel.Create(wiz, omtChangeInfo);
+  model.Account.SelectedAccounts := TNode.Node.GetAccounts(AAccounts, True);
+  model.Account.Count := Length(model.Account.SelectedAccounts);
+  wiz.Start(model);
+end;
+
+class procedure TUserInterface.ShowBuyAccountDialog(
+  const AAccounts: array of Cardinal);
+var
+  Scoped: TDisposables;
+  wiz: TWIZBuyAccountWizard;
+  model: TWIZOperationsModel;
+begin
+  wiz := Scoped.AddObject(TWIZBuyAccountWizard.Create(nil)) as TWIZBuyAccountWizard;
+  model := TWIZOperationsModel.Create(wiz, omtBuyAccount);
   model.Account.SelectedAccounts := TNode.Node.GetAccounts(AAccounts, True);
   model.Account.Count := Length(model.Account.SelectedAccounts);
   wiz.Start(model);

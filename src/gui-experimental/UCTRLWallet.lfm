@@ -185,6 +185,10 @@ object CTRLWallet: TCTRLWallet
         OnClick = miDelistAccountsFromSaleClick
       end
     end
+    object miBuyAccount: TMenuItem
+      Caption = 'Buy Account'
+      OnClick = miBuyAccountClick
+    end
     object miSep1: TMenuItem
       Caption = '-'
     end

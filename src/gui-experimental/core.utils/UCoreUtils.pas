@@ -123,6 +123,7 @@ type
     class function ExecuteEnlistAccountForSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount, ASellerAccount: TAccount; const APublicKey: TAccountKey; AFee, ASalePrice: int64; ALockedUntilBlock: UInt32; const AAccountSaleMode: TAccountSaleMode; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
     class function ExecuteDelistAccountFromSale(const ASelectedAccounts: TArray<TAccount>; const ASignerAccount: TAccount; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
     class function ExecuteChangeAccountInfo(const ASelectedAccounts, ASignerAccounts: TArray<TAccount>; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; const ANewName: TRawBytes; const ANewType: word; var AErrorMessage: string): boolean; static;
+    class function ExecuteBuyAccount(const ASelectedAccounts: TArray<TAccount>; const AAccountToBuy: TAccount; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; const AAmount: int64; const ANewOwnerPublicKey: TAccountKey; var AErrorMessage: string): boolean; static;
   end;
 
 
@@ -583,7 +584,7 @@ end;
 function TAccountHelper.GetDisplayString: ansistring;
 begin
   Result := GetAccountString;
-  if Self.Name <> Nil then
+  if Self.Name <> nil then
     Result := Result + ': ' + Self.Name.ToString;
 end;
 
@@ -593,7 +594,7 @@ var
   GC: TDisposables;
 begin
   builder := GC.AddObject(TStringList.Create) as TStrings;
-  builder.Append(Format('Account: %s %s Type:%d', [TAccountComp.AccountNumberToAccountTxtNumber(self.account), IIF(Self.Name <> Nil, 'Name: ' + Self.Name.ToString, ''), Self.account_type]));
+  builder.Append(Format('Account: %s %s Type:%d', [TAccountComp.AccountNumberToAccountTxtNumber(self.account), IIF(Self.Name <> nil, 'Name: ' + Self.Name.ToString, ''), Self.account_type]));
   builder.Append('');
   builder.Append(Format('Current balance: %s', [TAccountComp.FormatMoney(Self.balance)]));
   builder.Append('');
@@ -650,9 +651,9 @@ begin
   builder.Add(Format('%s', [Self.OperationTxt]));
   builder.Add(Format('OpType:%d Subtype:%d', [Self.OpType, Self.OpSubtype]));
   builder.Add(Format('Operation Hash (ophash): %s', [TCrypto.ToHexaString(Self.OperationHash)]));
-  if (Self.OperationHash_OLD <> Nil) then
+  if (Self.OperationHash_OLD <> nil) then
     builder.Add(Format('Old Operation Hash (old_ophash): %s', [TCrypto.ToHexaString(Self.OperationHash_OLD)]));
-  if (Self.OriginalPayload <> Nil) then
+  if (Self.OriginalPayload <> nil) then
   begin
     builder.Add(Format('Payload length:%d', [length(Self.OriginalPayload)]));
     if Self.PrintablePayload <> '' then
@@ -790,14 +791,14 @@ begin
       begin
         // Use sender public key
         AEncodedPayloadBytes := ECIESEncrypt(ASenderPublicKey, TEncoding.ANSI.GetBytes(APayloadContent));
-        LValid := AEncodedPayloadBytes <> Nil;
+        LValid := AEncodedPayloadBytes <> nil;
       end;
 
       pemEncryptWithRecipient:
       begin
         // With destination public key
         AEncodedPayloadBytes := ECIESEncrypt(ADestinationPublicKey, TEncoding.ANSI.GetBytes(APayloadContent));
-        LValid := AEncodedPayloadBytes <> Nil;
+        LValid := AEncodedPayloadBytes <> nil;
       end;
 
       pemEncryptWithPassword:
@@ -810,7 +811,7 @@ begin
         end;
         AEncodedPayloadBytes := TAESComp.EVP_Encrypt_AES256(
           TEncoding.ANSI.GetBytes(APayloadContent), TEncoding.ANSI.GetBytes(APayloadEncryptionPassword));
-        LValid := AEncodedPayloadBytes <> Nil;
+        LValid := AEncodedPayloadBytes <> nil;
       end;
 
       pemNotEncrypt:
@@ -1097,12 +1098,13 @@ begin
           LFee := AFee
         else
           LFee := LSignerAccount.balance - UInt64(LTotalSignerFee);
-        LPCOperation := TOpChangeKeySigned.Create(TNode.Node.Bank.Safebox.CurrentProtocol, LSignerAccount.account,
+
+        LPCOperation := TOpChangeKeySigned.Create(LNode.Bank.Safebox.CurrentProtocol, LSignerAccount.account,
           LSignerAccount.n_operation + LNoOfOperations + 1, LCurrentAccount.account,
           LWalletKey.PrivateKey, APublicKey, LFee, LPayloadEncodedBytes);
       end
       else
-        LPCOperation := TOpChangeKey.Create(TNode.Node.Bank.Safebox.CurrentProtocol, LCurrentAccount.account, LCurrentAccount.n_operation +
+        LPCOperation := TOpChangeKey.Create(LNode.Bank.Safebox.CurrentProtocol, LCurrentAccount.account, LCurrentAccount.n_operation +
           1, LCurrentAccount.account, LWalletKey.PrivateKey, APublicKey, LFee, LPayloadEncodedBytes);
 
       try
@@ -1211,29 +1213,29 @@ begin
         Exit(False);
       end;
 
+      if LSignerAccount.balance > UInt64(AFee) then
+        LFee := AFee
+      else
+        LFee := LSignerAccount.balance;
+
       if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, LSignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
       begin
         AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
         Exit(False);
       end;
 
-      if LSignerAccount.balance > UInt64(AFee) then
-        LFee := AFee
-      else
-        LFee := LSignerAccount.balance;
-
       case AAccountSaleMode of
         akaPublicSale:
 
           LPCOperation := TOpListAccountForSale.CreateListAccountForSale(
-            TNode.Node.Bank.Safebox.CurrentProtocol, LSignerAccount.account, LSignerAccount.n_operation + 1 + LAccountIdx,
+            LNode.Bank.Safebox.CurrentProtocol, LSignerAccount.account, LSignerAccount.n_operation + 1 + LAccountIdx,
             LCurrentAccount.account, ASalePrice, LFee, ASellerAccount.account,
             APublicKey, 0, LWalletKey.PrivateKey, LPayloadEncodedBytes);
 
         akaPrivateSale:
 
           LPCOperation := TOpListAccountForSale.CreateListAccountForSale(
-            TNode.Node.Bank.Safebox.CurrentProtocol, LSignerAccount.account, LSignerAccount.n_operation + 1 + LAccountIdx,
+            LNode.Bank.Safebox.CurrentProtocol, LSignerAccount.account, LSignerAccount.n_operation + 1 + LAccountIdx,
             LCurrentAccount.account, ASalePrice, LFee, ASellerAccount.account,
             APublicKey, ALockedUntilBlock, LWalletKey.PrivateKey, LPayloadEncodedBytes)
         else
@@ -1341,18 +1343,18 @@ begin
         Exit(False);
       end;
 
+      if LSignerAccount.balance > UInt64(AFee) then
+        LFee := AFee
+      else
+        LFee := LSignerAccount.balance;
+
       if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, LSignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
       begin
         AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
         Exit(False);
       end;
 
-      if LSignerAccount.balance > UInt64(AFee) then
-        LFee := AFee
-      else
-        LFee := LSignerAccount.balance;
-
-      LPCOperation := TOpDelistAccountForSale.CreateDelistAccountForSale(TNode.Node.Bank.Safebox.CurrentProtocol,
+      LPCOperation := TOpDelistAccountForSale.CreateDelistAccountForSale(LNode.Bank.Safebox.CurrentProtocol,
         LSignerAccount.account, LSignerAccount.n_operation + 1 + LAccountIdx, LCurrentAccount.account, LFee, LWalletKey.PrivateKey,
         LPayloadEncodedBytes);
 
@@ -1432,10 +1434,10 @@ begin
 
         LNewName := ANewName;
 
-        If not TBaseType.Equals(LNewName,LCurrentAccount.name) then
+        if not TBaseType.Equals(LNewName, LCurrentAccount.Name) then
         begin
           LChangeName := True;
-          if LNewName <> Nil then
+          if LNewName <> nil then
           begin
             if (not TPCSafeBox.ValidAccountName(LNewName, AErrorMessage)) then
             begin
@@ -1492,19 +1494,19 @@ begin
         Exit(False);
       end;
 
+      if LSignerAccount.balance > UInt64(AFee) then
+        LFee := AFee
+      else
+        LFee := LSignerAccount.balance;
+
       if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, LSignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
       begin
         AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
         Exit(False);
       end;
 
-      if LSignerAccount.balance > UInt64(AFee) then
-        LFee := AFee
-      else
-        LFee := LSignerAccount.balance;
 
-
-      LPCOperation := TOpChangeAccountInfo.CreateChangeAccountInfo(TNode.Node.Bank.Safebox.CurrentProtocol,
+      LPCOperation := TOpChangeAccountInfo.CreateChangeAccountInfo(LNode.Bank.Safebox.CurrentProtocol,
         LSignerAccount.account, LSignerAccount.n_operation + 1, LCurrentAccount.account, LWalletKey.PrivateKey, False, CT_TECDSA_Public_Nul,
         LChangeName, LNewName, LChangeType, ANewType, LFee, LPayloadEncodedBytes);
 
@@ -1521,6 +1523,114 @@ begin
         begin
           LTemp := Format('%d. Change Account %s Type from [%d] To [%d] %s', [LNoOfOperations + 1, LCurrentAccount.DisplayString, LCurrentAccount.account_type, ANewType, sLineBreak]);
         end;
+
+        if LOperationsTxt <> '' then
+          LOperationsTxt := LOperationsTxt + LTemp + sLineBreak
+        else
+          LOperationsTxt := sLineBreak + LTemp;
+
+        if Assigned(LPCOperation) then
+        begin
+          LOperationsHashTree.AddOperationToHashTree(LPCOperation);
+          Inc(LNoOfOperations);
+          Inc(LTotalSignerFee, LFee);
+          if LOperationToString <> '' then
+            LOperationToString := LOperationToString + #10;
+          LOperationToString := LOperationToString + LPCOperation.ToString;
+        end;
+      finally
+        FreeAndNil(LPCOperation);
+      end;
+
+    end;
+
+    if (LOperationsHashTree.OperationsCount = 0) then
+    begin
+      AErrorMessage := 'No Valid Operation to Execute';
+      Exit(False);
+    end;
+
+    Exit(TWIZOperationsHelper.OthersFinalizeAndDisplayMessage(LOperationsTxt, LOperationToString, LNoOfOperations, LTotalSignerFee, LOperationsHashTree, AErrorMessage));
+
+  finally
+    LOperationsHashTree.Free;
+  end;
+end;
+
+class function TWIZOperationsHelper.ExecuteBuyAccount(const ASelectedAccounts: TArray<TAccount>; const AAccountToBuy: TAccount; AFee: int64; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent, APayloadEncryptionPassword: string; const AAmount: int64; const ANewOwnerPublicKey: TAccountKey; var AErrorMessage: string): boolean;
+var
+  LWalletKey: TWalletKey;
+  LWalletKeys: TWalletKeys;
+  LNode: TNode;
+  LPCOperation: TPCOperation;
+  LOperationsHashTree: TOperationsHashTree;
+  LTotalSignerFee, LFee: int64;
+  LOperationsTxt, LOperationToString, LTemp: string;
+  LAccountIdx, LNoOfOperations, LAccNumberIndex: integer;
+  LCurrentAccount, LSignerAccount: TAccount;
+  LPayloadEncodedBytes, LNewName: TRawBytes;
+begin
+
+  LWalletKeys := TWallet.Keys;
+  LNode := TNode.Node;
+
+  if not TWIZOperationsHelper.ValidateOperationsInput(ASelectedAccounts, LWalletKeys, LNode, AErrorMessage) then
+    Exit(False);
+
+  LOperationsHashTree := TOperationsHashTree.Create;
+  try
+    LTotalSignerFee := 0;
+    LNoOfOperations := 0;
+    LOperationsTxt := '';
+    LOperationToString := '';
+    // although buyaccount does not support multioperation for now, this loop was intentionally put here
+    for LAccountIdx := Low(ASelectedAccounts) to High(ASelectedAccounts) do
+    begin
+      LPCOperation := nil; // reset LPCOperation to Nil
+      LCurrentAccount := ASelectedAccounts[LAccountIdx];
+      LSignerAccount := LCurrentAccount;
+
+      if Length(ASelectedAccounts) <> 1 then
+      begin
+        AErrorMessage := 'Cannot Buy Accounts With MultiOperations. Use Only 1 Account';
+        Exit(False);
+      end;
+
+      if (LNode.Bank.SafeBox.CurrentProtocol = CT_PROTOCOL_1) then
+      begin
+        AErrorMessage := 'This Operation Needs PROTOCOL 2 Active';
+        Exit(False);
+      end;
+
+      if not TAccountComp.IsAccountForSale(AAccountToBuy.accountInfo) then
+      begin
+        AErrorMessage := Format('Account "%s" is not enlisted for sale', [AAccountToBuy.AccountString]);
+        Exit(False);
+      end;
+
+      if LSignerAccount.balance > UInt64(AFee) then
+        LFee := AFee
+      else
+        LFee := LSignerAccount.balance;
+
+
+      if ((AAmount + LFee) > LCurrentAccount.balance) then
+      begin
+        AErrorMessage := Format('Insufficient Funds in Account "%s" to buy Account "%s"', [LCurrentAccount.AccountString, AAccountToBuy.AccountString]);
+        Exit(False);
+      end;
+
+      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, LSignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
+      begin
+        AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
+        Exit(False);
+      end;
+
+      LPCOperation := TOpBuyAccount.CreateBuy(LNode.Bank.Safebox.CurrentProtocol, LCurrentAccount.account, LCurrentAccount.n_operation + 1, AAccountToBuy.account, AAccountToBuy.accountInfo.account_to_pay,
+        AAccountToBuy.accountInfo.price, AAmount, LFee, ANewOwnerPublicKey, LWalletKey.PrivateKey, LPayloadEncodedBytes);
+
+      try
+      LTemp := Format('%d. Buy Account %s for %s PASC %s', [LNoOfOperations + 1, AAccountToBuy.AccountString, TAccountComp.FormatMoney(AAmount), sLineBreak]);
 
         if LOperationsTxt <> '' then
           LOperationsTxt := LOperationsTxt + LTemp + sLineBreak

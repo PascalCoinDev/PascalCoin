@@ -104,7 +104,6 @@ begin
         LBuilder := LBuilder + '(*)';
       cbNewPrivateKey.Items.AddObject(LBuilder, TObject(LIdx));
     end;
-    cbNewPrivateKey.Sorted := True;
   finally
     cbNewPrivateKey.Items.EndUpdate;
   end;
@@ -118,12 +117,14 @@ begin
   else
     cbNewPrivateKey.ItemIndex := Model.ChangeAccountPrivateKey.SelectedIndex;
   cbNewPrivateKeyChange(Self);
+  cbNewPrivateKey.SetFocus;
+
   if Model.Account.Count > 1 then
   begin
     chkChooseFee.Checked := True;
     chkChooseFee.Enabled := False;
   end;
-  cbNewPrivateKey.SetFocus;
+
 end;
 
 procedure TWIZChangeKey_SelectKey.OnNext;

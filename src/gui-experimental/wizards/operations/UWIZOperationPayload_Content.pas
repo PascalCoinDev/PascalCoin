@@ -62,7 +62,7 @@ begin
   Model.Payload.Content := mmoPayload.Lines.Text;
 
   case Model.ExecuteOperationType of
-    omtSendPasc:
+    omtSendPasc, omtBuyAccount:
     begin
       // do nothing
     end;

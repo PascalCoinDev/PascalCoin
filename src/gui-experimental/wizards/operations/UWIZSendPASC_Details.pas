@@ -47,6 +47,7 @@ type
     procedure txtRecipientChange(Sender: TObject);
     procedure UpdateUI();
 
+
   public
     procedure OnPresent; override;
     procedure OnNext; override;
@@ -160,13 +161,6 @@ begin
   Model.Payload.HasPayload := IIF(chkPayload.Checked, True, False);
   if Model.Payload.HasPayload then
     LWizStepsToInject.Add(TWIZOperationPayload_Encryption);
-
-  // Signer section
-  if Model.Account.Count = 1 then
-  begin
-    Model.Signer.SignerAccount := Model.Account.SelectedAccounts[0];
-    Model.Signer.OperationSigningMode := akaPrimary;
-  end;
 
   // Update wizard flow if applicable
   if LWizStepsToInject.Count > 0 then

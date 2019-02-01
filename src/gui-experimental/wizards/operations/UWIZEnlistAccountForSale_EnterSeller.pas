@@ -83,6 +83,7 @@ procedure TWIZEnlistAccountForSale_EnterSeller.OnPresent;
 begin
   UpdateUI();
   edtBeneficiaryAcc.SetFocus;
+  edtBeneficiaryAcc.Tag := CT_AS_MyAccounts;
 end;
 
 procedure TWIZEnlistAccountForSale_EnterSeller.btnSearchClick(Sender: TObject);

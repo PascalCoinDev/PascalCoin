@@ -24,7 +24,7 @@ type
 
   { TExecuteOperationType }
 
-  TExecuteOperationType = (omtAccount, omtSendPasc, omtChangeKey, omtTransferAccount, omtChangeAccountPrivateKey, omtAddKey, omtEnlistAccountForSale, omtDelistAccountFromSale, omtChangeInfo);
+  TExecuteOperationType = (omtAccount, omtSendPasc, omtChangeKey, omtTransferAccount, omtChangeAccountPrivateKey, omtAddKey, omtEnlistAccountForSale, omtDelistAccountFromSale, omtChangeInfo, omtBuyAccount);
 
   { TPayloadEncryptionMode }
 

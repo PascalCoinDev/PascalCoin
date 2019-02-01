@@ -98,7 +98,7 @@ begin
   else
   begin
     case Model.ExecuteOperationType of
-      omtSendPasc:
+      omtSendPasc, omtBuyAccount:
       begin
         // do nothing
       end;

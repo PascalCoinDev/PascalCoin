@@ -121,6 +121,16 @@ type
         NewType: Word;
       end;
 
+      { TBuyAccountModel }
+
+      TBuyAccountModel = class(TComponent)
+      public
+        AccountToBuy: TAccount;
+        Amount: Int64;
+        NewOwnerPublicKey: TAccountKey;
+        SelectedIndex: integer;
+      end;
+
     private
       FExecuteOperationType: TExecuteOperationType;
       FRelockOnFinish: Boolean; static;
@@ -134,6 +144,7 @@ type
       FSigner: TSignerModel;
       FPayload: TPayloadModel;
       FChangeAccountInfo: TChangeAccountInfoModel;
+      FBuyAccount: TBuyAccountModel;
     public
       constructor Create(AOwner: TComponent; AType: TExecuteOperationType); overload;
       property ExecuteOperationType: TExecuteOperationType read FExecuteOperationType;
@@ -147,6 +158,7 @@ type
       property Signer: TSignerModel read FSigner;
       property Payload: TPayloadModel read FPayload;
       property ChangeAccountInfo: TChangeAccountInfoModel read FChangeAccountInfo;
+      property BuyAccount: TBuyAccountModel read FBuyAccount;
       class property RelockOnFinish: Boolean read FRelockOnFinish write FRelockOnFinish;
   end;
 
@@ -169,6 +181,7 @@ begin
   FSigner := TSignerModel.Create(Self);
   FPayload := TPayloadModel.Create(Self);
   FChangeAccountInfo := TChangeAccountInfoModel.Create(Self);
+  FBuyAccount := TBuyAccountModel.Create(Self);
 end;
 
 end.
