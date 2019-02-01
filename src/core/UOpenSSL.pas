@@ -33,41 +33,28 @@ Uses UBaseTypes;
 {$ENDIF}
 
 var
+
 {$IF Defined(UNIX) or Defined(ANDROID) or Defined(DARWIN)}
+  SSL_C_LIB : String = 'libcrypto';
   {$IFDEF OpenSSL10}
-  {$IFDEF LINUX}
-  SSL_C_LIB : String = './libcrypto.so.1.0.0';
+  SSL_C_LIB_Versions : array [0..4] of string = ('','.10','.1.0.2','.1.0.1','.1.0.0');
   {$ELSE}
-  SSL_C_LIB : String = './libcrypto.1.0.0.dylib';
-  {$ENDIF}
-  {$ELSE}
-  {$IF Defined(LINUX) or Defined(ANDROID)}
-  SSL_C_LIB : String = './libcrypto.so.1.1';
-  {$ELSE}
-  SSL_C_LIB : String = './libcrypto.1.1.dylib';
-  {$ENDIF}
+  SSL_C_LIB_Versions : array [0..2] of string = ('.1.1','.1.1.0','.1.1.1');
   {$ENDIF}
 {$ELSE}
+  // We are on Windows Systems
+  SSL_C_LIB_Versions : array [0..0] of string = (''); // No versioning available
   {$IFDEF OpenSSL10}
-    {$IFDEF FPC}
-      {$ifdef CPU32}
-	  SSL_C_LIB : String = 'libeay32.dll';
-      {$ENDIF}
-      {$ifdef CPU64}
-	  SSL_C_LIB : String = 'libeay64.dll';
-      {$ENDIF}
+    {$IF Defined(CPU64) or Defined(CPUX64)}
+  SSL_C_LIB : String = 'libeay64';
     {$ELSE}
-      {$IFDEF CPUX64}
-        SSL_C_LIB : String = 'libeay64.dll';
-      {$ELSE}
-        SSL_C_LIB : String = 'libeay32.dll';
-      {$ENDIF}
+  SSL_C_LIB : String = 'libeay32';
     {$ENDIF}
   {$ELSE}
-    {$ifdef CPUX64}
-      SSL_C_LIB : String = 'libcrypto-1_1-x64.dll';
+    {$IF Defined(CPU64) or Defined(CPUX64)}
+  SSL_C_LIB : String = 'libcrypto-1_1-x64';
     {$ELSE}
-      SSL_C_LIB : String = 'libcrypto-1_1.dll';
+  SSL_C_LIB : String = 'libcrypto-1_1';
     {$ENDIF}
   {$ENDIF}
 {$ENDIF}
@@ -169,7 +156,8 @@ type
       _r: PBIGNUM;
       _s: PBIGNUM;
   end; { record }
-  PEVP_MD_CTX = Pointer;
+  EVP_MD_CTX = Pointer;
+  PEVP_MD_CTX = ^EVP_MD_CTX;
   PPEVP_MD_CTX = ^PEVP_MD_CTX;
   PEVP_MD = ^EVP_MD;
   PPEVP_MD = ^PEVP_MD;
@@ -177,7 +165,8 @@ type
   PPENGINE = ^PENGINE;
   PEVP_CIPHER = ^EVP_CIPHER;
   PPEVP_CIPHER = ^PEVP_CIPHER;
-  PEVP_CIPHER_CTX = Pointer;
+  EVP_CIPHER_CTX = Pointer;
+  PEVP_CIPHER_CTX = ^EVP_CIPHER_CTX;
   PASN1_TYPE = Pointer;
   EVP_CIPHER = record
     nid : TC_Int;
@@ -195,7 +184,8 @@ type
     app_data : Pointer;
   end;
   ecdh_kdf = function(const _in: Pointer; _inlen: TC_SIZE_T; _out: Pointer; var _outlen: TC_SIZE_T): pointer; cdecl;
-  PHMAC_CTX = Pointer;
+  HMAC_CTX = Pointer;
+  PHMAC_CTX = ^HMAC_CTX;
   PPHMAC_CTX = ^PHMAC_CTX;
   EVP_MD = record
     _type : TC_Int;
@@ -371,6 +361,7 @@ function BN_num_bytes(a: PBIGNUM): TC_INT;
 procedure OpenSSL_free(ptr: Pointer);
 function OpenSSLVersion : Cardinal;
 function CaptureLastSSLError : String;
+function GetOpenSSLLibraryName : String;
 
 implementation
 
@@ -379,24 +370,64 @@ uses {$IFDEF UNIX}dynlibs,{$ENDIF}
   sysutils;
 
 var hCrypt: THandle = 0;
+  _LibraryName : String = '';
+
+function GetOpenSSLLibraryName : String;
+begin
+  Result := _LibraryName;
+end;
+
 
 function SSLCryptHandle: THandle;
 begin
   Result := hCrypt;
 end;
 
+
+function TryToLoadLibrary(const ALibName : String; const ALibVersions : array of String) : HMODULE;
+  function GetLibName(const APath, AVersion : String) : String;
+  var LExtension : String;
+  begin
+    {$IF Defined(IOS) or Defined(DARWIN)}
+    LExtension := '.dylib';
+    Result := APath+ALibName+AVersion+LExtension;
+    {$ELSE}
+      {$IF Defined(UNIX) or Defined(ANDROID)}
+    LExtension := '.so';
+    Result := APath+ALibName+LExtension+AVersion;
+      {$ELSE}
+    LExtension := '.dll';
+    Result := APath+ALibName+AVersion+LExtension;
+      {$ENDIF}
+    {$ENDIF}
+  end;
+var
+  i,jRound : Integer;
+  LPath : String;
+begin
+  Result := 0;
+  // First round will try to load library on same folder than app
+  for jRound := 1 to 2 do begin
+    if jRound=1 then LPath := '.'+PathDelim
+    else LPath := ''; // Second round, no Path (OS will search)
+    for i := Low(ALibVersions) to High(ALibVersions) do begin
+      _LibraryName := GetLibName(LPath,ALibVersions[i]);
+      {$IFDEF FPC}
+      Result := LoadLibrary(PAnsiChar(_LibraryName));
+      {$ELSE}
+      Result := LoadLibrary(PWideChar(_LibraryName));
+      {$ENDIF}
+      if Result <> 0 then begin
+        Break;
+      end else _LibraryName := '';
+    end;
+  end;
+end;
+
 function LoadSSLCrypt: Boolean;
 begin
   If hCrypt=0 then begin
-    {$IFDEF UNIX}
-    hCrypt := LoadLibrary(SSL_C_LIB);
-    {$ELSE}
-      {$IFDEF FPC}
-    hCrypt := LoadLibrary(PAnsiChar(SSL_C_LIB));
-      {$ELSE}
-    hCrypt := LoadLibrary(PWideChar(SSL_C_LIB));
-      {$ENDIF}
-    {$ENDIF}
+    hCrypt := TryToLoadLibrary(SSL_C_LIB,SSL_C_LIB_Versions);
   end;
   Result := hCrypt <> 0;
 end;
@@ -438,7 +469,9 @@ Begin
     // Important note: Only OpenSSL v1.1 has function "OpenSSL_version_num"
     @OpenSSL_version_num := LoadFunctionCLib('OpenSSL_version_num',False);
     if Not Assigned(OpenSSL_version_num) then begin
+      {$IFNDEF OpenSSL10}
       Raise Exception.Create('PascalCoin needs OpenSSL v1.1, your current DLL is lower version: '+SSL_C_LIB);
+      {$ENDIF}
     end;
   end;
   if @ERR_get_error = nil then begin
@@ -492,10 +525,6 @@ Begin
     @EC_POINT_mul:= LoadFunctionCLib('EC_POINT_mul');
     @EC_POINT_point2oct:= LoadFunctionCLib('EC_POINT_point2oct');
     @EC_POINT_oct2point:= LoadFunctionCLib('EC_POINT_oct2point');
-    @EC_POINT_point2bn:= LoadFunctionCLib('EC_POINT_point2bn');
-    @EC_POINT_bn2point:= LoadFunctionCLib('EC_POINT_bn2point');
-
-    @CRYPTO_free := LoadFunctionCLib('CRYPTO_free');
 
     @SHA256_Init:= LoadFunctionCLib('SHA256_Init');
     @SHA256_Update:= LoadFunctionCLib('SHA256_Update');
@@ -504,11 +533,7 @@ Begin
     @SHA256_Transform:= LoadFunctionCLib('SHA256_Transform');
     @SHA512:= LoadFunctionCLib('SHA512');
 
-    @RIPEMD160_Init:= LoadFunctionCLib('RIPEMD160_Init');
-    @RIPEMD160_Update:= LoadFunctionCLib('RIPEMD160_Update');
-    @RIPEMD160_Final:= LoadFunctionCLib('RIPEMD160_Final');
     @RIPEMD160:= LoadFunctionCLib('RIPEMD160');
-    @RIPEMD160_Transform:= LoadFunctionCLib('RIPEMD160_Transform');
 
     @ECDSA_SIG_new:= LoadFunctionCLib('ECDSA_SIG_new');
     @ECDSA_SIG_free:= LoadFunctionCLib('ECDSA_SIG_free');
@@ -551,12 +576,19 @@ Begin
     @EVP_DecryptInit:= LoadFunctionCLib('EVP_DecryptInit');
     @EVP_DecryptInit_ex:= LoadFunctionCLib('EVP_DecryptInit_ex');
     @EVP_DecryptUpdate:= LoadFunctionCLib('EVP_DecryptUpdate');
-    @EVP_DecryptFinal:= LoadFunctionCLib('EVP_DecryptFinal');
+
+    @EVP_DecryptFinal:= LoadFunctionCLib('EVP_DecryptFinal',False);
+    if (Not Assigned(@EVP_DecryptFinal)) then
+      EVP_DecryptFinal:= LoadFunctionCLib('EVP_DecryptFinal_ex');
+
     @EVP_EncryptInit:= LoadFunctionCLib('EVP_EncryptInit');
     @EVP_EncryptInit_ex:= LoadFunctionCLib('EVP_EncryptInit_ex');
     @EVP_EncryptUpdate:= LoadFunctionCLib('EVP_EncryptUpdate');
     @EVP_EncryptFinal_ex:= LoadFunctionCLib('EVP_EncryptFinal_ex');
-    @EVP_EncryptFinal:= LoadFunctionCLib('EVP_EncryptFinal');
+    @EVP_EncryptFinal:= LoadFunctionCLib('EVP_EncryptFinal',False);
+    if (Not Assigned(@EVP_DecryptFinal)) then
+      EVP_EncryptFinal:=EVP_EncryptFinal_ex;
+
     @EVP_CIPHER_CTX_block_size:= LoadFunctionCLib('EVP_CIPHER_CTX_block_size');
     @EVP_md5:= LoadFunctionCLib('EVP_md5');
     @EVP_CIPHER_key_length:= LoadFunctionCLib('EVP_CIPHER_key_length');
@@ -579,7 +611,10 @@ Begin
     @HMAC_Final:= LoadFunctionCLib('HMAC_Final');
     @HMAC:= LoadFunctionCLib('HMAC');
     @HMAC_CTX_copy:= LoadFunctionCLib('HMAC_CTX_copy');
-    @HMAC_CTX_set_flags:= LoadFunctionCLib('HMAC_CTX_set_flags');
+
+    @CRYPTO_free := LoadFunctionCLib('CRYPTO_free',False);
+    if (Not Assigned(@CRYPTO_free)) then
+      @CRYPTO_free := LoadFunctionCLib('OPENSSL_free',False);
   end;
 End;
 
@@ -598,7 +633,7 @@ end;
 function CaptureLastSSLError : String;
 begin
   {$IFDEF NO_ANSISTRING}
-  Result := ''; // TODO
+  Result := UBaseTypes.StrPas(ERR_error_string(ERR_get_error(),nil));
   {$ELSE}
   Result := ERR_error_string(ERR_get_error(),nil);
   {$ENDIF}
