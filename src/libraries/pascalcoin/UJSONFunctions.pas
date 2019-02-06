@@ -503,7 +503,7 @@ begin
   {$ELSE}
   if JSONValue is TJSONNumber then begin
     d := TJSONNumber(JSONValue).AsDouble;
-    if Pos('.',JSONValue.ToString)>0 then i64 := 0
+    if JSONValue.ToString.IndexOf('.')>=0 then i64 := 0
     else i64 := TJSONNumber(JSONValue).AsInt;
     ds := {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DecimalSeparator;
     ts := {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ThousandSeparator;
@@ -717,11 +717,11 @@ end;
 procedure TPCJSONObject.CheckValidName(Name: String);
 Var i : Integer;
 begin
-  for i := 1 to Length(Name) do begin
-    if i=1 then begin
-      if Not (Name[i] in ['a'..'z','A'..'Z','0'..'9','_','.']) then raise Exception.Create(Format('Invalid char %s at pos %d/%d',[Name[i],i,length(Name)]));
+  for i := 0 to Length(Name)-1 do begin
+    if i=0 then begin
+      if Not (Name.Chars[i] in ['a'..'z','A'..'Z','0'..'9','_','.']) then raise Exception.Create(Format('Invalid char %s at pos %d/%d',[Name.Chars[i],i+1,length(Name)]));
     end else begin
-      if Not (Name[i] in ['a'..'z','A'..'Z','0'..'9','_','-','.']) then raise Exception.Create(Format('Invalid char %s at pos %d/%d',[Name[i],i,length(Name)]));
+      if Not (Name.Chars[i] in ['a'..'z','A'..'Z','0'..'9','_','-','.']) then raise Exception.Create(Format('Invalid char %s at pos %d/%d',[Name.Chars[i],i+1,length(Name)]));
     end;
   end;
 end;

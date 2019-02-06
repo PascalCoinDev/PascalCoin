@@ -42,10 +42,10 @@ const
 
 { GLOBAL HELPER FUNCTIONS }
 
-function String2Hex(const Buffer: AnsiString): AnsiString;
+{function String2Hex(const Buffer: AnsiString): AnsiString;
 function Hex2Bytes(const AHexString: AnsiString): TBytes; overload;
 function TryHex2Bytes(const AHexString: AnsiString; out ABytes : TBytes): boolean; overload;
-function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : AnsiString;
+function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : AnsiString;}
 function BinStrComp(const Str1, Str2 : String): Integer; // Binary-safe StrComp replacement. StrComp will return 0 for when str1 and str2 both start with NUL character.
 function BytesCompare(const ABytes1, ABytes2: TBytes): integer;
 function BytesEqual(const ABytes1, ABytes2 : TBytes) : boolean; inline;
@@ -401,7 +401,7 @@ resourcestring
 
 implementation
 
-uses dateutils, {$IFDEF FPC}StrUtils{$ELSE}System.AnsiStrings{$ENDIF};
+uses dateutils {$IFDEF FPC},StrUtils{$ELSE}{,System.AnsiStrings}{$ENDIF};
 
 const
   IntlDateTimeFormat : TFormatSettings = (
@@ -433,7 +433,7 @@ var
 
 { Global helper functions }
 
-function String2Hex(const Buffer: AnsiString): AnsiString;
+{function String2Hex(const Buffer: AnsiString): AnsiString;
 var
   n: Integer;
 begin
@@ -509,7 +509,7 @@ begin
     Result[(i*2)+ LStart + 1] := s[2];
     Inc(i);
   end;
-end;
+end;      }
 
 function BinStrComp(const Str1, Str2: String): integer;
 var Str1Len, Str2Len, i : Integer;
