@@ -38,6 +38,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
 - Major refactoring: 
   - Change TRawBytes from "AnsiString" to "TBytes" type
   - Do not use AnsiString type for simple string types, use String instead
+  - Allow usage of native CryptoLib4Pascal libraries that will disable usage of OpenSSL libraries (not actived by default)
 
 ### Build 4.0.2 - 2019-01-08
 - Improvement speed (high performance): checking valid signature only once if operation is on mempool and was verified previously
