@@ -35,6 +35,11 @@ unit UPCCryptoLib4Pascal;
 
 interface
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
+
 Uses SysUtils, UBaseTypes, UPCDataTypes,
   ClpBigInteger,
   ClpSecureRandom,
