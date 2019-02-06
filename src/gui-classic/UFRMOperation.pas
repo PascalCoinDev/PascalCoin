@@ -32,6 +32,7 @@ uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UNode, UWallet, UCrypto, Buttons, UBlockChain,
   UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UFRMMemoText,
+  UPCEncryption,
   UBaseTypes, UPCOrderedLists;
 
 Const
@@ -182,7 +183,7 @@ type
 implementation
 
 uses
-  UECIES, UConst, UOpTransaction, UFRMNewPrivateKeyType, UAES, UFRMWalletKeys,
+  UConst, UOpTransaction, UFRMNewPrivateKeyType, UFRMWalletKeys,
   UCommon, UGUIUtils, UPCDataTypes, ULog;
 
 {$IFnDEF FPC}
@@ -1322,7 +1323,7 @@ begin
       // Use sender
       errors := 'Error encrypting';
       account := FNode.Operations.SafeBoxTransaction.Account(SenderAccount.account);
-      payload_encrypted := ECIESEncrypt(account.accountInfo.accountKey,TEncoding.ANSI.GetBytes(payload_u));
+      TPCEncryption.DoPascalCoinECIESEncrypt(account.accountInfo.accountKey,TEncoding.ANSI.GetBytes(payload_u),payload_encrypted);
       valid := Length(payload_encrypted)>0;
     end else if (rbEncryptedWithEC.Checked) then begin
       errors := 'Error encrypting';
@@ -1358,7 +1359,7 @@ begin
           exit;
         end;
         account := FNode.Operations.SafeBoxTransaction.Account(dest_account_number);
-        payload_encrypted := ECIESEncrypt(account.accountInfo.accountKey,TEncoding.ANSI.GetBytes(payload_u));
+        TPCEncryption.DoPascalCoinECIESEncrypt(account.accountInfo.accountKey,TEncoding.ANSI.GetBytes(payload_u),payload_encrypted);
         valid := Length(payload_encrypted)>0;
       end else if (PageControlOpType.ActivePage=tsChangePrivateKey) then begin
         if (rbChangeKeyWithAnother.Checked) then begin
@@ -1380,7 +1381,7 @@ begin
           exit;
         end;
         if public_key.EC_OpenSSL_NID<>CT_Account_NUL.accountInfo.accountKey.EC_OpenSSL_NID then begin
-          payload_encrypted := ECIESEncrypt(public_key,TEncoding.ANSI.GetBytes(payload_u));
+          TPCEncryption.DoPascalCoinECIESEncrypt(public_key,TEncoding.ANSI.GetBytes(payload_u),payload_encrypted);
           valid := Length(payload_encrypted)>0;
         end else begin
           valid := false;
@@ -1391,7 +1392,7 @@ begin
         errors := 'This operation does not allow this kind of payload';
       end;
     end else if (rbEncrptedWithPassword.Checked) then begin
-      payload_encrypted := TAESComp.EVP_Encrypt_AES256(TEncoding.ANSI.GetBytes(payload_u),TEncoding.ANSI.GetBytes(ebEncryptPassword.Text));
+      payload_encrypted := TPCEncryption.DoPascalCoinAESEncrypt(TEncoding.ANSI.GetBytes(payload_u),TEncoding.ANSI.GetBytes(ebEncryptPassword.Text));
       valid := Length(payload_encrypted)>0;
     end else if (rbNotEncrypted.Checked) then begin
       payload_encrypted := TEncoding.ANSI.GetBytes(payload_u);

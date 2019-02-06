@@ -30,6 +30,10 @@ unit UPCEncryption;
 
 interface
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 {$I config.inc}
 
 {$IF (not Defined(Use_OpenSSL)) and (not Defined(Use_CryptoLib4Pascal))}

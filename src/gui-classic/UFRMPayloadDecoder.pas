@@ -106,7 +106,7 @@ implementation
   {$R *.lfm}
 {$ENDIF}
 
-Uses UNode, UTime, UECIES, UAES, UAccounts, UFRMMemoText, UBaseTypes;
+Uses UNode, UTime, UPCEncryption, UAccounts, UFRMMemoText, UBaseTypes;
 
 { TFRMPayloadDecoder }
 
@@ -369,7 +369,7 @@ procedure TFRMPayloadDecoder.TryToDecode;
     for i := 0 to FWalletKeys.Count - 1 do begin
       WalletKey := FWalletKeys.Key[i];
       If Assigned(WalletKey.PrivateKey) then begin
-        If ECIESDecrypt(WalletKey.PrivateKey.EC_OpenSSL_NID,WalletKey.PrivateKey.PrivateKey,false,raw,Decrypted) then begin
+        if TPCEncryption.DoPascalCoinECIESDecrypt(WalletKey.PrivateKey.PrivateKey,raw,Decrypted) then begin
           Result := true;
           exit;
         end;
@@ -383,7 +383,7 @@ procedure TFRMPayloadDecoder.TryToDecode;
   Begin
     Result := false;
     for i := 0 to memoPasswords.Lines.Count - 1 do begin
-      if (TAESComp.EVP_Decrypt_AES256(raw,memoPasswords.Lines[i],Decrypted)) then begin
+      if TPCEncryption.DoPascalCoinAESDecrypt(raw,TEncoding.ANSI.GetBytes(memoPasswords.Lines[i]),Decrypted) then begin
         if (TCrypto.IsHumanReadable(Decrypted)) then begin
           Result := true;
           PasswordUsed := memoPasswords.Lines[i];

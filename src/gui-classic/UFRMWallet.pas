@@ -317,7 +317,7 @@ implementation
 {$ENDIF}
 
 Uses UFolderHelper, UOpenSSL, UTime, UFileStorage,
-  UThread, UOpTransaction, UECIES, UFRMPascalCoinWalletConfig,
+  UThread, UOpTransaction, UFRMPascalCoinWalletConfig,
   UFRMOperationsExplorer,
   {$IFDEF TESTNET}
   UFRMRandomOperations,

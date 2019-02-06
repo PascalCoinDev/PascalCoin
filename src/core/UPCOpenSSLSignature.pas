@@ -26,6 +26,11 @@ unit UPCOpenSSLSignature;
 
 interface
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
+
 {$I config.inc}
 
 {$IF (not Defined(Use_OpenSSL))}

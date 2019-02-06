@@ -233,7 +233,6 @@ begin
     Exit;
   end;
   {$IFDEF Use_OpenSSL}
-  end;
   SetLength(Result,BN_num_bytes(EC_KEY_get0_private_key(FPrivateKeyInfo.EC_KEY_Ptr)));
   BN_bn2bin(EC_KEY_get0_private_key(FPrivateKeyInfo.EC_KEY_Ptr),@Result[Low(Result)]);
   {$ELSE}
