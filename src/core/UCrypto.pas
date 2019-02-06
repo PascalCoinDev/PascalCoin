@@ -22,10 +22,24 @@ unit UCrypto;
 
 {$I config.inc}
 
+{$IF (not Defined(Use_CryptoLib4Pascal)) and (not Defined(Use_OpenSSL))}
+  ERROR: At least Use_CryptoLib4Pascal or Use_OpenSSL must be defined!
+{$ENDIF}
+
 interface
 
 uses
-  Classes, SysUtils, UOpenSSL, URandomHash, UBaseTypes, UPCDataTypes;
+  Classes, SysUtils,
+  {$IFDEF Use_OpenSSL}
+  UOpenSSL,
+  UPCOpenSSLSignature,
+  {$ENDIF}
+  {$IFDEF Use_CryptoLib4Pascal}
+  UPCCryptoLib4Pascal,
+  ClpBigInteger,
+  ClpCryptoLibTypes,
+  {$ENDIF}
+  URandomHash, UBaseTypes, UPCDataTypes;
 
 Type
   ECryptoException = Class(Exception);
@@ -34,24 +48,27 @@ Type
 
   TECPrivateKey = Class
   private
-    FPrivateKey: PEC_KEY;
-    FEC_OpenSSL_NID : Word;
-    procedure SetPrivateKey(const Value: PEC_KEY);
+    FPrivateKeyInfo: TECPrivateKeyInfo;
+    procedure SetPrivateKeyInfo(const Value: TECPrivateKeyInfo);
     function GetPublicKey: TECDSA_Public;
-    function GetPublicKeyPoint: PEC_POINT;
+    function GetEC_OpenSSL_NID: Word;
   public
     Constructor Create;
     Procedure GenerateRandomPrivateKey(EC_OpenSSL_NID : Word);
     Destructor Destroy; override;
-    Property PrivateKey : PEC_KEY read FPrivateKey;
+    Property PrivateKey : TECPrivateKeyInfo read FPrivateKeyInfo;
     Property PublicKey : TECDSA_Public read GetPublicKey;
-    Property PublicKeyPoint : PEC_POINT read GetPublicKeyPoint;
-    Function SetPrivateKeyFromHexa(EC_OpenSSL_NID : Word; const hexa : String) : Boolean;
-    Property EC_OpenSSL_NID : Word Read FEC_OpenSSL_NID;
+    Function SetPrivateKeyFromHexa(AEC_OpenSSL_NID : Word; const hexa : String) : Boolean;
+    Property EC_OpenSSL_NID : Word Read GetEC_OpenSSL_NID;
     class function IsValidPublicKey(PubKey : TECDSA_Public; var errors : String) : Boolean; overload;
     class function IsValidPublicKey(PubKey : TECDSA_Public) : Boolean; overload;
+    // Exports a Private key in a RAW saving 2 bytes for EC_OpenSSL_NID, 2 bytes for private key length and private key as a RAW
     Function ExportToRaw : TRawBytes;
+    // Imports a Private key saved with "ExportToRaw" format
     class Function ImportFromRaw(Const raw : TRawBytes) : TECPrivateKey; static;
+    // Exports only the private key as a Raw, without info of EC_OpenSSL_NID
+    Function PrivateKeyAsRaw : TRawBytes; // Return only Private key without info of curve used
+    function HasPrivateKey : Boolean;
   End;
 
   { TCrypto }
@@ -74,10 +91,10 @@ Type
     class function DoRipeMD160_HEXASTRING(const TheMessage : TRawBytes) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(const TheMessage : TRawBytes) : TRawBytes; overload;
-    class function PrivateKey2Hexa(Key : PEC_KEY) : String;
-    class function ECDSASign(Key : PEC_KEY; const digest : TRawBytes) : TECDSA_SIG;
-    class function ECDSAVerify(EC_OpenSSL_NID : Word; PubKey : EC_POINT; const digest : TRawBytes; Signature : TECDSA_SIG) : Boolean; overload;
-    class function ECDSAVerify(PubKey : TECDSA_Public; const digest : TRawBytes; Signature : TECDSA_SIG) : Boolean; overload;
+    // Saves only the PrivKey value in Hexastring
+    class function PrivateKey2Hexa(const APrivateKeyInfo : TECPrivateKeyInfo) : String;
+    class function ECDSASign(const Key : TECPrivateKeyInfo; const digest : TRawBytes) : TECDSA_SIG;
+    class function ECDSAVerify(const PubKey : TECDSA_Public; const digest : TRawBytes; const Signature : TECDSA_SIG) : Boolean; overload;
     class procedure InitCrypto;
     class function IsHumanReadable(Const ReadableText : TRawBytes) : Boolean;
     class function EncodeSignature(const signature : TECDSA_SIG) : TRawBytes;
@@ -86,7 +103,11 @@ Type
 
   TBigNum = Class
   private
+    {$IFDEF Use_OpenSSL}
     FBN : PBIGNUM;
+    {$ELSE}
+    FBigInteger : TBigInteger;
+    {$ENDIF}
     procedure SetHexaValue(const Value: String);
     function GetHexaValue: String;
     procedure SetValue(const Value: Int64);
@@ -113,7 +134,6 @@ Type
     Function Divide(BN : TBigNum) : TBigNum; overload;
     Function Divide(int : Int64) : TBigNum; overload;
     Procedure Divide(dividend, remainder : TBigNum); overload;
-    Function ToInt64(var int : Int64) : TBigNum;
     Function ToDecimal : String;
     Property HexaValue : String read GetHexaValue write SetHexaValue;
     Property RawValue : TRawBytes read GetRawValue write SetRawValue;
@@ -135,6 +155,7 @@ uses
 
 Var _initialized : Boolean = false;
 
+{$IFDEF Use_OpenSSL}
 Procedure _DoInit;
 var err : String;
  c : Cardinal;
@@ -161,18 +182,24 @@ Begin
     {$ENDIF}
   end;
 End;
+{$ENDIF}
 
 { TECPrivateKey }
 
 constructor TECPrivateKey.Create;
 begin
-  FPrivateKey := Nil;
-  FEC_OpenSSL_NID := CT_Default_EC_OpenSSL_NID;
+  FPrivateKeyInfo.EC_KEY_Ptr := Nil;
+  FPrivateKeyInfo.RAW_PrivKey := Nil;
+  FPrivateKeyInfo.EC_OpenSSL_NID := CT_Default_EC_OpenSSL_NID;
 end;
 
 destructor TECPrivateKey.Destroy;
 begin
-  if Assigned(FPrivateKey) then EC_KEY_free(FPrivateKey);
+  {$IFDEF Use_OpenSSL}
+  if Assigned(FPrivateKeyInfo.EC_KEY_Ptr) then EC_KEY_free(FPrivateKeyInfo.EC_KEY_Ptr);
+  {$ENDIF}
+  FPrivateKeyInfo.EC_KEY_Ptr := Nil;
+  FPrivateKeyInfo.RAW_PrivKey := Nil;
   inherited;
 end;
 
@@ -182,9 +209,13 @@ Var ms : TStream;
 begin
   ms := TMemoryStream.Create;
   Try
-    ms.Write(FEC_OpenSSL_NID,sizeof(FEC_OpenSSL_NID));
-    SetLength(aux,BN_num_bytes(EC_KEY_get0_private_key(FPrivateKey)));
-    BN_bn2bin(EC_KEY_get0_private_key(FPrivateKey),@aux[Low(aux)]);
+    ms.Write(FPrivateKeyInfo.EC_OpenSSL_NID,sizeof(FPrivateKeyInfo.EC_OpenSSL_NID));
+    {$IFDEF Use_OpenSSL}
+    SetLength(aux,BN_num_bytes(EC_KEY_get0_private_key(FPrivateKeyInfo.EC_KEY_Ptr)));
+    BN_bn2bin(EC_KEY_get0_private_key(FPrivateKeyInfo.EC_KEY_Ptr),@aux[Low(aux)]);
+    {$ELSE}
+    aux := FPrivateKeyInfo.RAW_PrivKey;
+    {$ENDIF}
     TStreamOp.WriteAnsiString(ms,aux);
     SetLength(Result,ms.Size);
     ms.Position := 0;
@@ -194,27 +225,64 @@ begin
   End;
 end;
 
-procedure TECPrivateKey.GenerateRandomPrivateKey(EC_OpenSSL_NID : Word);
-Var i : Integer;
+function TECPrivateKey.PrivateKeyAsRaw: TRawBytes;
 begin
-  if Assigned(FPrivateKey) then EC_KEY_free(FPrivateKey);
-  FEC_OpenSSL_NID := EC_OpenSSL_NID;
-  FPrivateKey := EC_KEY_new_by_curve_name(EC_OpenSSL_NID);
-  i := EC_KEY_generate_key(FPrivateKey);
+  // NOTE: Only returns private key as a RAW without info of EC_OPENSSL_NID
+  If Not HasPrivateKey then begin
+    SetLength(Result,0);
+    Exit;
+  end;
+  {$IFDEF Use_OpenSSL}
+  end;
+  SetLength(Result,BN_num_bytes(EC_KEY_get0_private_key(FPrivateKeyInfo.EC_KEY_Ptr)));
+  BN_bn2bin(EC_KEY_get0_private_key(FPrivateKeyInfo.EC_KEY_Ptr),@Result[Low(Result)]);
+  {$ELSE}
+  Result := System.Copy(FPrivateKeyInfo.RAW_PrivKey);
+  {$ENDIF}
+end;
+
+procedure TECPrivateKey.GenerateRandomPrivateKey(EC_OpenSSL_NID : Word);
+{$IFDEF Use_OpenSSL}
+Var i : Integer;
+{$ENDIF}
+begin
+  FPrivateKeyInfo.EC_OpenSSL_NID := EC_OpenSSL_NID;
+  {$IFDEF Use_OpenSSL}
+  if Assigned(FPrivateKeyInfo.EC_KEY_Ptr) then EC_KEY_free(FPrivateKeyInfo.EC_KEY_Ptr);
+  FPrivateKeyInfo.EC_KEY_Ptr := EC_KEY_new_by_curve_name(EC_OpenSSL_NID);
+  i := EC_KEY_generate_key(FPrivateKeyInfo.EC_KEY_Ptr);
   if i<>1 then Raise ECryptoException.Create('Error generating new Random Private Key');
+  {$ELSE}
+  FPrivateKeyInfo.EC_KEY_Ptr := Nil;
+  {$ENDIF}
+  {$IFDEF Use_CryptoLib4Pascal}
+  if Not Assigned(FPrivateKeyInfo.EC_KEY_Ptr) then begin
+    FPrivateKeyInfo.RAW_PrivKey := TPCCryptoLib4Pascal.DoGetRandomPrivateKey(EC_OpenSSL_NID);
+  end else FPrivateKeyInfo.RAW_PrivKey := Nil;
+  {$ELSE}
+  FPrivateKeyInfo.RAW_PrivKey := Nil;
+  {$ENDIF}
+end;
+
+function TECPrivateKey.GetEC_OpenSSL_NID: Word;
+begin
+  Result := FPrivateKeyInfo.EC_OpenSSL_NID;
 end;
 
 function TECPrivateKey.GetPublicKey: TECDSA_Public;
+{$IFDEF Use_OpenSSL}
 var ps : PAnsiChar;
   BNx,BNy : PBIGNUM;
   ctx : PBN_CTX;
+{$ENDIF}
 begin
-  Result.EC_OpenSSL_NID := FEC_OpenSSL_NID;
+{$IFDEF Use_OpenSSL}
+  Result.EC_OpenSSL_NID := FPrivateKeyInfo.EC_OpenSSL_NID;
   ctx := BN_CTX_new;
   BNx := BN_new;
   BNy := BN_new;
   Try
-    EC_POINT_get_affine_coordinates_GFp(EC_KEY_get0_group(FPrivateKey),EC_KEY_get0_public_key(FPrivateKey),BNx,BNy,ctx);
+    EC_POINT_get_affine_coordinates_GFp(EC_KEY_get0_group(FPrivateKeyInfo.EC_KEY_Ptr),EC_KEY_get0_public_key(FPrivateKeyInfo.EC_KEY_Ptr),BNx,BNy,ctx);
     SetLength(Result.x,BN_num_bytes(BNx));
     BN_bn2bin(BNx,@Result.x[Low(Result.x)]);
     SetLength(Result.y,BN_num_bytes(BNy));
@@ -224,27 +292,37 @@ begin
     BN_free(BNx);
     BN_free(BNy);
   End;
+{$ELSE}
+  Result := TPCCryptoLib4Pascal.DoGetPublicKey(EC_OpenSSL_NID,FPrivateKeyInfo.RAW_PrivKey);
+{$ENDIF}
 end;
 
-function TECPrivateKey.GetPublicKeyPoint: PEC_POINT;
+function TECPrivateKey.HasPrivateKey: Boolean;
 begin
-  Result := EC_KEY_get0_public_key(FPrivateKey);
+  {$IFDEF Use_OpenSSL}
+  Result := Assigned(FPrivateKeyInfo.EC_KEY_Ptr);
+  {$ELSE}
+  Result := Length(FPrivateKeyInfo.RAW_PrivKey)>0;
+  {$ENDIF}
 end;
 
 class function TECPrivateKey.ImportFromRaw(const raw: TRawBytes): TECPrivateKey;
 Var ms : TStream;
   aux : TRawBytes;
+  {$IFDEF Use_OpenSSL}
   BNx : PBIGNUM;
-  ECID : Word;
   PAC : PAnsiChar;
+  {$ENDIF}
+  LNewPrivateKeyInfo : TECPrivateKeyInfo;
 begin
   Result := Nil;
   ms := TMemoryStream.Create;
   Try
     ms.WriteBuffer(raw[Low(raw)],Length(raw));
     ms.Position := 0;
-    if ms.Read(ECID,sizeof(ECID))<>sizeof(ECID) then exit;
+    if ms.Read(LNewPrivateKeyInfo.EC_OpenSSL_NID,sizeof(LNewPrivateKeyInfo.EC_OpenSSL_NID))<>sizeof(LNewPrivateKeyInfo.EC_OpenSSL_NID) then exit;
     If TStreamOp.ReadAnsiString(ms,aux)<0 then exit;
+    {$IFDEF Use_OpenSSL}
     BNx := BN_bin2bn(PAnsiChar(aux),Length(aux),nil);
     if assigned(BNx) then begin
       try
@@ -252,14 +330,14 @@ begin
         try
           Result := TECPrivateKey.Create;
           Try
-            If Not Result.SetPrivateKeyFromHexa(ECID,{$IFDEF NO_ANSISTRING}UBaseTypes.{$ENDIF}StrPas(PAC)) then begin
+            If Not Result.SetPrivateKeyFromHexa(LNewPrivateKeyInfo.EC_OpenSSL_NID,{$IFDEF NO_ANSISTRING}UBaseTypes.{$ENDIF}StrPas(PAC)) then begin
               FreeAndNil(Result);
             end;
           Except
             On E:Exception do begin
               FreeAndNil(Result);
               // Note: Will not raise Exception, only will log it
-              TLog.NewLog(lterror,ClassName,'Error importing private key from '+TCrypto.ToHexaString(raw)+' ECID:'+IntToStr(ECID)+' ('+E.ClassName+'): '+E.Message);
+              TLog.NewLog(lterror,ClassName,'Error importing private key from '+TCrypto.ToHexaString(raw)+' ECID:'+IntToStr(LNewPrivateKeyInfo.EC_OpenSSL_NID)+' ('+E.ClassName+'): '+E.Message);
             end;
           end;
         finally
@@ -269,17 +347,33 @@ begin
         BN_free(BNx);
       end;
     end;
+    {$ELSE}
+    Result := TECPrivateKey.Create;
+    Try
+      LNewPrivateKeyInfo.RAW_PrivKey := aux;
+      Result.SetPrivateKeyInfo(LNewPrivateKeyInfo);
+    Except
+      On E:Exception do begin
+        FreeAndNil(Result);
+        // Note: Will not raise Exception, only will log it
+        TLog.NewLog(lterror,ClassName,'Error importing private key from '+raw.ToHexaString+' ECID:'+IntToStr(LNewPrivateKeyInfo.EC_OpenSSL_NID)+' ('+E.ClassName+'): '+E.Message);
+      end;
+    End;
+    {$ENDIF}
   Finally
     ms.Free;
   End;
 end;
 
 class function TECPrivateKey.IsValidPublicKey(PubKey: TECDSA_Public; var errors : String): Boolean;
+{$IFDEF Use_OpenSSL}
 Var BNx,BNy : PBIGNUM;
   ECG : PEC_GROUP;
   ctx : PBN_CTX;
   pub_key : PEC_POINT;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   Result := False;
   BNx := BN_bin2bn(PAnsiChar(PubKey.x),length(PubKey.x),nil);
   if Not Assigned(BNx) then Exit;
@@ -314,6 +408,10 @@ begin
   finally
     BN_free(BNx);
   end;
+{$ELSE}
+  Result := True;
+  // TODO!!!!!
+{$ENDIF}
 end;
 
 class function TECPrivateKey.IsValidPublicKey(PubKey: TECDSA_Public): Boolean;
@@ -322,35 +420,44 @@ begin
   Result := IsValidPublicKey(PubKey,Ltmp);
 end;
 
-procedure TECPrivateKey.SetPrivateKey(const Value: PEC_KEY);
+procedure TECPrivateKey.SetPrivateKeyInfo(const Value: TECPrivateKeyInfo);
 begin
-  if Assigned(FPrivateKey) then EC_KEY_free(FPrivateKey);
-  FPrivateKey := Value;
+  {$IFDEF Use_OpenSSL}
+  if Assigned(FPrivateKeyInfo.EC_KEY_Ptr) then EC_KEY_free(FPrivateKeyInfo.EC_KEY_Ptr);
+  {$ENDIF}
+  FPrivateKeyInfo := Value;
 end;
 
-function TECPrivateKey.SetPrivateKeyFromHexa(EC_OpenSSL_NID : Word; const hexa : String) : Boolean;
+function TECPrivateKey.SetPrivateKeyFromHexa(AEC_OpenSSL_NID : Word; const hexa : String) : Boolean;
+{$IFDEF Use_OpenSSL}
 var bn : PBIGNUM;
   ctx : PBN_CTX;
   pub_key : PEC_POINT;
   tmp_ansistring : RawByteString;
+{$ELSE}
+var tmp_raw : TRawBytes;
+{$ENDIF}
 begin
   Result := False;
+  {$IFDEF Use_OpenSSL}
   bn := BN_new;
   try
     tmp_ansistring := hexa;
     if BN_hex2bn(@bn,PAnsiChar(tmp_ansistring))=0 then Raise ECryptoException.Create('Invalid hexa string to convert to Hexadecimal value');
 
-    if Assigned(FPrivateKey) then EC_KEY_free(FPrivateKey);
-    FEC_OpenSSL_NID := EC_OpenSSL_NID;
-    FPrivateKey := EC_KEY_new_by_curve_name(EC_OpenSSL_NID);
-    If Not Assigned(FPrivateKey) then Exit;
-    if EC_KEY_set_private_key(FPrivateKey,bn)<>1 then raise ECryptoException.Create('Invalid num to set as private key');
+    if Assigned(FPrivateKeyInfo.EC_KEY_Ptr) then EC_KEY_free(FPrivateKeyInfo.EC_KEY_Ptr);
+    FPrivateKeyInfo.EC_KEY_Ptr := Nil;
+
+    FPrivateKeyInfo.EC_OpenSSL_NID := EC_OpenSSL_NID;
+    FPrivateKeyInfo.EC_KEY_Ptr := EC_KEY_new_by_curve_name(EC_OpenSSL_NID);
+    If Not Assigned(FPrivateKeyInfo.EC_KEY_Ptr) then Exit;
+    if EC_KEY_set_private_key(FPrivateKeyInfo.EC_KEY_Ptr,bn)<>1 then raise ECryptoException.Create('Invalid num to set as private key');
     //
     ctx := BN_CTX_new;
-    pub_key := EC_POINT_new(EC_KEY_get0_group(FPrivateKey));
+    pub_key := EC_POINT_new(EC_KEY_get0_group(FPrivateKeyInfo.EC_KEY_Ptr));
     try
-      if EC_POINT_mul(EC_KEY_get0_group(FPrivateKey),pub_key,bn,nil,nil,ctx)<>1 then raise ECryptoException.Create('Error obtaining public key');
-      EC_KEY_set_public_key(FPrivateKey,pub_key);
+      if EC_POINT_mul(EC_KEY_get0_group(FPrivateKeyInfo.EC_KEY_Ptr),pub_key,bn,nil,nil,ctx)<>1 then raise ECryptoException.Create('Error obtaining public key');
+      EC_KEY_set_public_key(FPrivateKeyInfo.EC_KEY_Ptr,pub_key);
     finally
       BN_CTX_free(ctx);
       EC_POINT_free(pub_key);
@@ -358,6 +465,13 @@ begin
   finally
     BN_free(bn);
   end;
+  {$ELSE}
+  if Not TCrypto.HexaToRaw(hexa,tmp_raw) then Raise ECryptoException.Create('Invalid hexa string to convert to Hexadecimal value');
+  FPrivateKeyInfo.EC_OpenSSL_NID := AEC_OpenSSL_NID;
+  FPrivateKeyInfo.EC_KEY_Ptr := Nil;
+  FPrivateKeyInfo.RAW_PrivKey := tmp_raw;
+  // TODO: Check is valid!
+  {$ENDIF}
   Result := True;
 end;
 
@@ -368,12 +482,24 @@ end;
   increase speed we use a String as a pointer, and only increase speed if
   needed. Also the same with functions "GetMem" and "FreeMem" }
 class procedure TCrypto.DoDoubleSha256(p: PAnsiChar; plength: Cardinal; out ResultSha256: TRawBytes);
+{$IFDEF Use_OpenSSL}
 Var PS : PAnsiChar;
+{$ELSE}
+var LRaw : TRawBytes;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   If length(ResultSha256)<>32 then SetLength(ResultSha256,32);
   PS := @ResultSha256[Low(ResultSha256)];
   SHA256(p,plength,PS);
   SHA256(PS,32,PS);
+{$ELSE}
+  SetLength(LRaw,plength);
+  move(p^,LRaw[0],plength);
+  TPCCryptoLib4Pascal.DoSHA256(LRaw,ResultSha256);
+  LRaw := System.Copy(ResultSha256);
+  TPCCryptoLib4Pascal.DoSHA256(LRaw,ResultSha256);
+{$ENDIF}
 end;
 
 class function TCrypto.DoDoubleSha256(const TheMessage: TRawBytes): TRawBytes;
@@ -382,53 +508,91 @@ begin
 end;
 
 class function TCrypto.DoRipeMD160_HEXASTRING(const TheMessage: TRawBytes): TRawBytes;
+{$IFDEF Use_OpenSSL}
 Var PS : PAnsiChar;
   PC : PAnsiChar;
   i : Integer;
-  tmp : String;
+  Ltmp : String;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   GetMem(PS,33);
   RIPEMD160(PAnsiChar(@TheMessage[Low(TheMessage)]),Length(TheMessage),PS);
   PC := PS;
-  tmp := '';
+  Ltmp := '';
   for i := 1 to 20 do begin
-    tmp := tmp + IntToHex(PtrInt(PC^),2);
+    Ltmp := Ltmp + IntToHex(PtrInt(PC^),2);
     inc(PC);
   end;
   FreeMem(PS,33);
-  Result := TEncoding.ASCII.GetBytes(tmp);
+  Result := TEncoding.ASCII.GetBytes(Ltmp);
+{$ELSE}
+  Result.FromString(DoRipeMD160AsRaw(TheMessage).ToHexaString.Substring(0,40));
+{$ENDIF}
 end;
 
 class function TCrypto.DoRipeMD160AsRaw(p: PAnsiChar; plength: Cardinal): TRawBytes;
-Var PS : PAnsiChar;
+{$IFDEF Use_OpenSSL}
+var PS : PAnsiChar;
+{$ELSE}
+var Ltmp : TRawBytes;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   SetLength(Result,20);
   PS := @Result[Low(Result)];
   RIPEMD160(p,plength,PS);
+{$ELSE}
+  SetLength(Ltmp,plength);
+  move(p^,Ltmp[0],plength);
+  Result := DoRipeMD160AsRaw(Ltmp);
+{$ENDIF}
 end;
 
 class function TCrypto.DoRipeMD160AsRaw(const TheMessage: TRawBytes): TRawBytes;
+{$IFDEF Use_OpenSSL}
 Var PS : PAnsiChar;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   SetLength(Result,20);
   PS := @Result[Low(Result)];
   RIPEMD160(PAnsiChar(@TheMessage[Low(TheMessage)]),Length(TheMessage),PS);
+{$ELSE}
+  TPCCryptoLib4Pascal.DoRIPEMD160(TheMessage,Result);
+{$ENDIF}
 end;
 
 class function TCrypto.DoSha256(p: PAnsiChar; plength: Cardinal): TRawBytes;
+{$IFDEF Use_OpenSSL}
 Var PS : PAnsiChar;
+{$ELSE}
+var Ltmp : TRawBytes;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   SetLength(Result,32);
   PS := @Result[Low(Result)];
   SHA256(p,plength,PS);
+{$ELSE}
+  SetLength(Ltmp,plength);
+  move(p^,Ltmp[0],plength);
+  Result := DoSha256(Ltmp);
+{$ENDIF}
 end;
 
 class function TCrypto.DoSha256(const TheMessage: TRawBytes): TRawBytes;
+{$IFDEF Use_OpenSSL}
 Var PS : PAnsiChar;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   SetLength(Result,32);
   PS := @Result[Low(Result)];
   SHA256(@TheMessage[Low(TheMessage)],Length(TheMessage),PS);
+{$ELSE}
+  TPCCryptoLib4Pascal.DoSHA256(TheMessage,Result);
+{$ENDIF}
 end;
 
 { New at Build 2.1.6
@@ -436,99 +600,35 @@ end;
   increase speed we use a String as a pointer, and only increase speed if
   needed. Also the same with functions "GetMem" and "FreeMem" }
 class procedure TCrypto.DoSha256(const TheMessage: TRawBytes; out ResultSha256: TRawBytes);
+{$IFDEF Use_OpenSSL}
 Var PS : PAnsiChar;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   If length(ResultSha256)<>32 then SetLength(ResultSha256,32);
   PS := @ResultSha256[Low(ResultSha256)];
   SHA256(@TheMessage[Low(TheMessage)],Length(TheMessage),PS);
+{$ELSE}
+  TPCCryptoLib4Pascal.DoSHA256(TheMessage,ResultSha256);
+{$ENDIF}
 end;
 
-class function TCrypto.ECDSASign(Key: PEC_KEY; const digest: TRawBytes): TECDSA_SIG;
-Var PECS : PECDSA_SIG;
-  p : PAnsiChar;
-  i : Integer;
+class function TCrypto.ECDSASign(const Key: TECPrivateKeyInfo; const digest: TRawBytes): TECDSA_SIG;
 begin
-  PECS := ECDSA_do_sign(PAnsiChar(@digest[Low(digest)]),Length(digest),Key);
-  Try
-    if PECS = Nil then raise ECryptoException.Create('Error signing');
-
-    i := BN_num_bytes(PECS^._r);
-    SetLength(Result.r,i);
-    p := @Result.r[Low(Result.r)];
-    i := BN_bn2bin(PECS^._r,p);
-
-    i := BN_num_bytes(PECS^._s);
-    SetLength(Result.s,i);
-    p := @Result.s[Low(Result.s)];
-    i := BN_bn2bin(PECS^._s,p);
-  Finally
-    ECDSA_SIG_free(PECS);
-  End;
+{$IFDEF Use_OpenSSL}
+  TPCOpenSSLSignature.DoECDSASign(Key.EC_OpenSSL_NID,Key.EC_KEY_Ptr,digest,Result);
+{$ELSE}
+  TPCCryptoLib4Pascal.DoECDSASign(Key.EC_OpenSSL_NID,Key.RAW_PrivKey,digest,Result);
+{$ENDIF}
 end;
 
-class function TCrypto.ECDSAVerify(EC_OpenSSL_NID : Word; PubKey: EC_POINT; const digest: TRawBytes; Signature: TECDSA_SIG): Boolean;
-Var PECS : PECDSA_SIG;
-  PK : PEC_KEY;
-  {$IFDEF OpenSSL10}
-  {$ELSE}
-  bnr,bns : PBIGNUM;
-  {$ENDIF}
+class function TCrypto.ECDSAVerify(const PubKey: TECDSA_Public; const digest: TRawBytes; const Signature: TECDSA_SIG): Boolean;
 begin
-  PECS := ECDSA_SIG_new;
-  Try
-    {$IFDEF OpenSSL10}
-    BN_bin2bn(PAnsiChar(Signature.r),length(Signature.r),PECS^._r);
-    BN_bin2bn(PAnsiChar(Signature.s),length(Signature.s),PECS^._s);
-    {$ELSE}
-{    ECDSA_SIG_get0(PECS,@bnr,@bns);
-    BN_bin2bn(PAnsiChar(Signature.r),length(Signature.r),bnr);
-    BN_bin2bn(PAnsiChar(Signature.s),length(Signature.s),bns);}
-    bnr := BN_bin2bn(PAnsiChar(Signature.r),length(Signature.r),nil);
-    bns := BN_bin2bn(PAnsiChar(Signature.s),length(Signature.s),nil);
-    if ECDSA_SIG_set0(PECS,bnr,bns)<>1 then Raise Exception.Create('Dev error 20161019-1 '+CaptureLastSSLError);
-    {$ENDIF}
-
-    PK := EC_KEY_new_by_curve_name(EC_OpenSSL_NID);
-    EC_KEY_set_public_key(PK,@PubKey);
-    Case ECDSA_do_verify(@digest[Low(digest)],Length(digest),PECS,PK) of
-      1 : Result := true;
-      0 : Result := false;
-    Else
-      raise ECryptoException.Create('Error on Verify');
-    End;
-    EC_KEY_free(PK);
-  Finally
-    ECDSA_SIG_free(PECS);
-  End;
-end;
-
-class function TCrypto.ECDSAVerify(PubKey: TECDSA_Public; const digest: TRawBytes; Signature: TECDSA_SIG): Boolean;
-Var BNx,BNy : PBIGNUM;
-  ECG : PEC_GROUP;
-  ctx : PBN_CTX;
-  pub_key : PEC_POINT;
-begin
-  BNx := BN_bin2bn(PAnsiChar(PubKey.x),length(PubKey.x),nil);
-  BNy := BN_bin2bn(PAnsiChar(PubKey.y),length(PubKey.y),nil);
-
-  ECG := EC_GROUP_new_by_curve_name(PubKey.EC_OpenSSL_NID);
-  pub_key := EC_POINT_new(ECG);
-  ctx := BN_CTX_new;
-  if EC_POINT_set_affine_coordinates_GFp(ECG,pub_key,BNx,BNy,ctx)=1 then begin
-    Result := ECDSAVerify(PubKey.EC_OpenSSL_NID, pub_key^,digest,signature);
-  end else begin
-    Result := false;
-  end;
-  {$IFDEF HIGHLOG}
-  TLog.NewLog(ltdebug,ClassName,Format('ECDSAVerify %s x:%s y:%s Digest:%s Signature r:%s s:%s',
-    [TAccountComp.GetECInfoTxt(PubKey.EC_OpenSSL_NID),ToHexaString(PubKey.x),ToHexaString(PubKey.y),
-      ToHexaString(digest),ToHexaString(Signature.r),ToHexaString(Signature.s)]));
-  {$ENDIF}
-  BN_CTX_free(ctx);
-  EC_POINT_free(pub_key);
-  EC_GROUP_free(ECG);
-  BN_free(BNx);
-  BN_free(BNy);
+{$IFDEF Use_OpenSSL}
+  Result := TPCOpenSSLSignature.DoECDSAVerify(PubKey,digest,Signature);
+{$ELSE}
+  Result := TPCCryptoLib4Pascal.DoECDSAVerify(PubKey,digest,Signature);
+{$ENDIF}
 end;
 
 class function TCrypto.HexaToRaw(const HexaString: String): TRawBytes;
@@ -561,7 +661,9 @@ end;
 
 class procedure TCrypto.InitCrypto;
 begin
+{$IFDEF Use_OpenSSL}
   _DoInit;
+{$ENDIF}
 end;
 
 class function TCrypto.IsHumanReadable(const ReadableText: TRawBytes): Boolean;
@@ -608,16 +710,22 @@ begin
   end;
 end;
 
-class function TCrypto.PrivateKey2Hexa(Key: PEC_KEY): String;
+class function TCrypto.PrivateKey2Hexa(const APrivateKeyInfo : TECPrivateKeyInfo): String;
+{$IFDEF Use_OpenSSL}
 Var p : PAnsiChar;
+{$ENDIF}
 begin
-  p := BN_bn2hex(EC_KEY_get0_private_key(Key));
+{$IFDEF Use_OpenSSL}
+  p := BN_bn2hex(EC_KEY_get0_private_key(APrivateKeyInfo.EC_KEY_Ptr));
   {$IFDEF NO_ANSISTRING}
   Result := UBaseTypes.StrPas(p); // TODO: Not tested when AnsiString not available!
   {$ELSE}
   Result := StrPas(p);
   {$ENDIF}
   OPENSSL_free(p);
+{$ELSE}
+  Result := APrivateKeyInfo.RAW_PrivKey.ToHexaString;
+{$ENDIF}
 end;
 
 class function TCrypto.ToHexaString(const raw: TRawBytes): String;
@@ -674,7 +782,11 @@ end;
 
 function TBigNum.Add(BN: TBigNum): TBigNum;
 begin
+  {$IFDEF Use_OpenSSL}
   BN_add(FBN,BN.FBN,FBN);
+  {$ELSE}
+  FBigInteger := FBigInteger.Add(BN.FBigInteger);
+  {$ENDIF}
   Result := Self;
 end;
 
@@ -688,13 +800,21 @@ end;
 
 function TBigNum.CompareTo(BN: TBigNum): Integer;
 begin
+  {$IFDEF Use_OpenSSL}
   Result := BN_cmp(FBN,BN.FBN);
+  {$ELSE}
+  Result := FBigInteger.CompareTo(BN.FBigInteger);
+  {$ENDIF}
 end;
 
 function TBigNum.Copy: TBigNum;
 begin
   Result := TBigNum.Create(0);
+  {$IFDEF Use_OpenSSL}
   BN_copy(Result.FBN,FBN);
+  {$ELSE}
+  Result.FBigInteger := FBigInteger; // Make a copy
+  {$ENDIF}
 end;
 
 constructor TBigNum.Create;
@@ -710,22 +830,38 @@ end;
 
 constructor TBigNum.Create(initialValue : Int64);
 begin
+  {$IFDEF Use_OpenSSL}
   FBN := BN_new;
+  {$ELSE}
+  FBigInteger := TBigInteger.Zero;
+  {$ENDIF}
   SetValue(initialValue);
 end;
 
 destructor TBigNum.Destroy;
 begin
+  {$IFDEF Use_OpenSSL}
   BN_free(FBN);
+  {$ENDIF}
   inherited;
 end;
 
 procedure TBigNum.Divide(dividend, remainder: TBigNum);
+{$IFDEF Use_OpenSSL}
 Var ctx : PBN_CTX;
+{$ELSE}
+var Ltmp : TCryptoLibGenericArray<TBigInteger>;
+{$ENDIF}
 begin
+  {$IFDEF Use_OpenSSL}
   ctx := BN_CTX_new;
   BN_div(FBN,remainder.FBN,FBN,dividend.FBN,ctx);
   BN_CTX_free(ctx);
+  {$ELSE}
+  Ltmp := FBigInteger.DivideAndRemainder(dividend.FBigInteger);
+  FBigInteger := Ltmp[0];
+  remainder.FBigInteger := Ltmp[1];
+  {$ENDIF}
 end;
 
 function TBigNum.Divide(int: Int64): TBigNum;
@@ -737,9 +873,12 @@ begin
 end;
 
 function TBigNum.Divide(BN: TBigNum): TBigNum;
+{$IFDEF Use_OpenSSL}
 Var _div,_rem : PBIGNUM;
   ctx : PBN_CTX;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   _div := BN_new;
   _rem := BN_new;
   ctx := BN_CTX_new;
@@ -747,12 +886,18 @@ begin
   BN_free(_div);
   BN_free(_rem);
   BN_CTX_free(ctx);
+{$ELSE}
+  FBigInteger := FBigInteger.Divide(BN.FBigInteger);
+{$ENDIF}
   Result := Self;
 end;
 
 function TBigNum.GetDecimalValue: String;
+{$IFDEF Use_OpenSSL}
 var p : PAnsiChar;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   p := BN_bn2dec(FBN);
   {$IFDEF NO_ANSISTRING}
   Result := UBaseTypes.StrPas(p); // TODO: Not tested when AnsiString not available!
@@ -760,11 +905,17 @@ begin
   Result := StrPas(p);
   {$ENDIF}
   OpenSSL_free(p);
+{$ELSE}
+  Result := FBigInteger.ToString;
+{$ENDIF}
 end;
 
 function TBigNum.GetHexaValue: String;
+{$IFDEF Use_OpenSSL}
 Var p : PAnsiChar;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   p := BN_bn2hex(FBN);
   {$IFDEF NO_ANSISTRING}
   Result := UBaseTypes.StrPas(p); // TODO: Not tested when AnsiString not available!
@@ -772,23 +923,35 @@ begin
   Result := StrPas(p);
   {$ENDIF}
   OPENSSL_free(p);
+{$ELSE}
+  Result := FBigInteger.ToByteArrayUnsigned.ToHexaString;
+{$ENDIF}
 end;
 
 function TBigNum.GetRawValue: TRawBytes;
+{$IFDEF Use_OpenSSL}
 Var p : PAnsiChar;
   i : Integer;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   i := BN_num_bytes(FBN);
   SetLength(Result,i);
   p := @Result[Low(Result)];
   i := BN_bn2bin(FBN,p);
+{$ELSE}
+  Result := FBigInteger.ToByteArrayUnsigned;
+{$ENDIF}
 end;
 
 function TBigNum.GetValue: Int64;
+{$IFDEF Use_OpenSSL}
 Var p : PAnsiChar;
   a : RawByteString;
   err : Integer;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   p := BN_bn2dec(FBN);
   {$IFDEF NO_ANSISTRING}
   a := UBaseTypes.StrPas(p); // TODO: Not tested when AnsiString not available!
@@ -797,6 +960,9 @@ begin
   {$ENDIF}
   OPENSSL_free(p);
   Val(a,Result,err);
+{$ELSE}
+  Result := FBigInteger.Int64Value;
+{$ENDIF}
 end;
 
 class function TBigNum.HexaToDecimal(hexa: String): String;
@@ -816,81 +982,133 @@ end;
 
 function TBigNum.LShift(nbits: Integer): TBigNum;
 begin
+{$IFDEF Use_OpenSSL}
   if BN_lshift(FBN,FBN,nbits)<>1 then raise ECryptoException.Create('Error on LShift');
+{$ELSE}
+  FBigInteger := FBigInteger.ShiftLeft(nbits);
+{$ENDIF}
   Result := Self;
 end;
 
 function TBigNum.Multiply(int: Int64): TBigNum;
+{$IFDEF Use_OpenSSL}
 Var n : TBigNum;
   ctx : PBN_CTX;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   n := TBigNum.Create(int);
   Try
     ctx := BN_CTX_new;
     if BN_mul(FBN,FBN,n.FBN,ctx)<>1 then raise ECryptoException.Create('Error on multiply');
-    Result := Self;
   Finally
     BN_CTX_free(ctx);
     n.Free;
   End;
+{$ELSE}
+  FBigInteger := FBigInteger.Multiply(TBigInteger.Create(IntToStr(int)));
+{$ENDIF}
+  Result := Self;
 end;
 
 function TBigNum.RShift(nbits: Integer): TBigNum;
 begin
+{$IFDEF Use_OpenSSL}
   if BN_rshift(FBN,FBN,nbits)<>1 then raise ECryptoException.Create('Error on LShift');
+{$ELSE}
+  FBigInteger := FBigInteger.ShiftRight(nbits);
+{$ENDIF}
   Result := Self;
 end;
 
 function TBigNum.Multiply(BN: TBigNum): TBigNum;
+{$IFDEF Use_OpenSSL}
 Var ctx : PBN_CTX;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   ctx := BN_CTX_new;
   if BN_mul(FBN,FBN,BN.FBN,ctx)<>1 then raise ECryptoException.Create('Error on multiply');
   Result := Self;
   BN_CTX_free(ctx);
+{$ELSE}
+  FBigInteger := FBigInteger.Multiply(BN.FBigInteger);
+{$ENDIF}
   Result := Self;
 end;
 
 procedure TBigNum.SetDecimalValue(const Value: String);
+{$IFDEF Use_OpenSSL}
 Var i : Integer;
   tmp_ansistring : RawByteString;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   tmp_ansistring := Value;
   if BN_dec2bn(@FBN,PAnsiChar(tmp_ansistring))=0 then raise ECryptoException.Create('Error on dec2bn');
+{$ELSE}
+  FBigInteger := TBigInteger.Create(Value);
+{$ENDIF}
 end;
 
 procedure TBigNum.SetHexaValue(const Value: String);
+{$IFDEF Use_OpenSSL}
 Var i : Integer;
   tmp_ansistring : RawByteString;
+{$ELSE}
+var LRaw : TBytes;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   tmp_ansistring := Value;
   i := BN_hex2bn(@FBN,PAnsiChar(tmp_ansistring));
   if i=0 then begin
       Raise ECryptoException.Create('Invalid Hexadecimal value:'+Value);
   end;
+{$ELSE}
+  if not TCrypto.HexaToRaw(value,LRaw) then
+      Raise ECryptoException.Create('Invalid Hexadecimal value:'+Value);
+  FBigInteger := TBigInteger.Create(1,LRaw);
+{$ENDIF}
 end;
 
 procedure TBigNum.SetRawValue(const Value: TRawBytes);
+{$IFDEF Use_OpenSSL}
 var p : PBIGNUM;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   p := BN_bin2bn(PAnsiChar(Value),length(Value),FBN);
   if (p<>FBN) Or (p=Nil) then Raise ECryptoException.Create('Error decoding Raw value to BigNum "'+TCrypto.ToHexaString(Value)+'" ('+inttostr(length(value))+')'+#10+
     CaptureLastSSLError);
+{$ELSE}
+  FBigInteger := TBigInteger.Create(1,Value);
+{$ENDIF}
 end;
 
 procedure TBigNum.SetValue(const Value: Int64);
+{$IFDEF Use_OpenSSL}
 var a : UInt64;
+{$ENDIF}
 begin
+{$IFDEF Use_OpenSSL}
   if Value<0 then a := (Value * (-1))
   else a := Value;
   if BN_set_word(FBN,a)<>1 then raise ECryptoException.Create('Error on set Value');
   if Value<0 then BN_set_negative(FBN,1)
   else BN_set_negative(FBN,0);
+{$ELSE}
+  FBigInteger := TBigInteger.Create(IntToStr(Value));
+{$ENDIF}
 end;
 
 function TBigNum.Sub(BN: TBigNum): TBigNum;
 begin
+{$IFDEF Use_OpenSSL}
   BN_sub(FBN,FBN,BN.FBN);
+{$ELSE}
+  FBigInteger := FBigInteger.Subtract(BN.FBigInteger);
+{$ENDIF}
   Result := Self;
 end;
 
@@ -903,9 +1121,14 @@ begin
 end;
 
 class function TBigNum.TargetToHashRate(EncodedTarget: Cardinal): TBigNum;
-Var bn1,bn2 : TBigNum;
+Var
   part_A, part_B : Cardinal;
+{$IFDEF Use_OpenSSL}
   ctx : PBN_CTX;
+  bn1,bn2 : TBigNum;
+{$ELSE}
+  LBigInt : TBigInteger;
+{$ENDIF}
 begin
   { Target is 2 parts: First byte (A) is "0" bits on the left. Bytes 1,2,3 (B) are number after first "1" bit
     Example: Target 23FEBFCE
@@ -916,6 +1139,7 @@ begin
   }
   Result := TBigNum.Create(2);
   part_A := EncodedTarget shr 24;
+  {$IFDEF Use_OpenSSL}
   bn1 := TBigNum.Create(part_A);
   ctx := BN_CTX_new;
   try
@@ -924,12 +1148,16 @@ begin
     BN_CTX_free(ctx);
     bn1.Free;
   end;
+  {$ELSE}
+  Result.FBigInteger := Result.FBigInteger.Pow(part_A);
+  {$ENDIF}
   //
   part_B := (EncodedTarget shl 8) shr 8;
   //
   if (part_A<24) then begin
     // exponent is negative... 2^(Part_A-24)
     part_B := (part_B shr (24-part_A));
+    {$IFDEF Use_OpenSSL}
     bn1 := TBigNum.Create(part_B);
     Try
       Result.Add(bn1);
@@ -937,8 +1165,13 @@ begin
     Finally
       bn1.Free;
     End;
+    {$ELSE}
+    Result.FBigInteger := Result.FBigInteger.Add(TBigInteger.Create(IntToStr(part_b)));
+    Exit;
+    {$ENDIF}
   end;
   //
+  {$IFDEF Use_OpenSSL}
   bn2 := TBigNum.Create(2);
   Try
     bn1 := TBigNum.Create(Int64(part_A) - 24);
@@ -954,35 +1187,17 @@ begin
   Finally
     bn2.Free;
   End;
+  {$ELSE}
+  LBigInt := TBigInteger.Two;
+  LBigInt := LBigInt.Pow(Int64(part_A)-24);
+  LBigInt := LBigInt.Multiply(TBigInteger.Create(IntToStr(part_b)));
+  Result.FBigInteger := Result.FBigInteger.Add(LBigInt);
+  {$ENDIF}
 end;
 
 function TBigNum.ToDecimal: String;
-var p : PAnsiChar;
 begin
-  p := BN_bn2dec(FBN);
-  {$IFDEF NO_ANSISTRING}
-  Result := UBaseTypes.StrPas(p); // TODO: Not tested when AnsiString not available!
-  {$ELSE}
-  Result := StrPas(p);
-  {$ENDIF}
-  OpenSSL_free(p);
-end;
-
-function TBigNum.ToInt64(var int: Int64): TBigNum;
-Var s : String;
- err : Integer;
- p : PAnsiChar;
-begin
-  p := BN_bn2dec(FBN);
-  {$IFDEF NO_ANSISTRING}
-  s := UBaseTypes.StrPas(p); // TODO: Not tested when AnsiString not available!
-  {$ELSE}
-  s := StrPas(p);
-  {$ENDIF}
-  OPENSSL_free(p);
-  Val(s,int,err);
-  if err<>0 then int := 0;
-  Result := Self;
+  Result := GetDecimalValue;
 end;
 
 

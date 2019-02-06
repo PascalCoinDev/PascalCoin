@@ -477,7 +477,7 @@ Procedure Check_Safebox_Integrity(sb : TPCSafebox; title: String);
 implementation
 
 uses
-  ULog, UOpenSSLdef, UOpenSSL, UAccountKeyStorage, math, UCommon;
+  ULog, UAccountKeyStorage, math, UCommon;
 
 { This function is for testing purpose only.
   Will check if Account Names are well assigned and stored }
@@ -1374,16 +1374,12 @@ begin
   errors := '';
   case account.EC_OpenSSL_NID of
     CT_NID_secp256k1,CT_NID_secp384r1,CT_NID_sect283k1,CT_NID_secp521r1 : begin
-      Result := TECPrivateKey.IsValidPublicKey(account);
-      if Not Result then begin
-        errors := Format('Invalid AccountKey type:%d - Length x:%d y:%d Error:%s',[account.EC_OpenSSL_NID,length(account.x),length(account.y),  ERR_error_string(ERR_get_error(),nil)]);
-      end;
+      Result := TECPrivateKey.IsValidPublicKey(account,errors);
     end;
   else
     errors := Format('Invalid AccountKey type:%d (Unknown type) - Length x:%d y:%d',[account.EC_OpenSSL_NID,length(account.x),length(account.y)]);
     Result := False;
   end;
-  if (errors='') And (Not Result) then errors := ERR_error_string(ERR_get_error(),nil);
 end;
 
 class function TAccountComp.PrivateToAccountkey(key: TECPrivateKey): TAccountKey;
@@ -3237,9 +3233,9 @@ class function TPCSafeBox.ValidAccountName(const new_name: TRawBytes; var errors
     This function is case senstive, and only lower case chars are valid.
     Execute a LowerCase() prior to call this function!
     }
-Const CT_PascalCoin_Base64_Charset : ShortString = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-+{}[]\_:"|<>,.?/~';
+Const CT_PascalCoin_Base64_Charset : RawByteString = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-+{}[]\_:"|<>,.?/~';
       // First char can't start with a number
-      CT_PascalCoin_FirstChar_Charset : ShortString = 'abcdefghijklmnopqrstuvwxyz!@#$%^&*()-+{}[]\_:"|<>,.?/~';
+      CT_PascalCoin_FirstChar_Charset : RawByteString = 'abcdefghijklmnopqrstuvwxyz!@#$%^&*()-+{}[]\_:"|<>,.?/~';
       CT_PascalCoin_name_min_length = 3;
       CT_PascalCoin_name_max_length = 64;
 var i,j : Integer;

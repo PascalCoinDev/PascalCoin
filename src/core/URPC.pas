@@ -22,8 +22,10 @@ unit URPC;
 
 interface
 
+{$I config.inc}
+
 Uses UThread, ULog, UConst, UNode, UAccounts, UCrypto, UBlockChain,
-  UNetProtocol, UOpTransaction, UWallet, UTime, UAES, UECIES, UTxMultiOperation,
+  UNetProtocol, UOpTransaction, UWallet, UTime, UPCEncryption, UTxMultiOperation,
   UJSONFunctions, classes, blcksock, synsock,
   IniFiles, Variants, math, UBaseTypes, UOpenSSL,
   UPCOrderedLists, UPCDataTypes,
@@ -934,11 +936,11 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     if (length(RawPayload)>0) then begin
       if (Payload_method='none') then EncodedRAWPayload:=RawPayload
       else if (Payload_method='dest') then begin
-        EncodedRAWPayload := ECIESEncrypt(targetAccountKey,RawPayload);
+        TPCEncryption.DoPascalCoinECIESEncrypt(targetAccountKey,RawPayload,EncodedRAWPayload);
       end else if (Payload_method='sender') then begin
-        EncodedRAWPayload := ECIESEncrypt(senderAccounKey,RawPayload);
+        TPCEncryption.DoPascalCoinECIESEncrypt(senderAccounKey,RawPayload,EncodedRAWPayload);
       end else if (Payload_method='aes') then begin
-        EncodedRAWPayload := TAESComp.EVP_Encrypt_AES256(RawPayload,TEncoding.ANSI.GetBytes(EncodePwdForAES));
+        EncodedRAWPayload := TPCEncryption.DoPascalCoinAESEncrypt(RawPayload,TEncoding.ANSI.GetBytes(EncodePwdForAES));
       end else begin
         ErrorNum:=CT_RPC_ErrNum_InvalidOperation;
         ErrorDesc:='Invalid encode payload method: '+Payload_method;
@@ -1388,9 +1390,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     if (length(RawPayload)>0) then begin
       if (Payload_method='none') then f_raw:=RawPayload
       else if (Payload_method='pubkey') then begin
-        f_raw := ECIESEncrypt(pub_key,RawPayload);
+        TPCEncryption.DoPascalCoinECIESEncrypt(pub_key,RawPayload,f_raw);
       end else if (Payload_method='aes') then begin
-        f_raw := TAESComp.EVP_Encrypt_AES256(RawPayload,TEncoding.ANSI.GetBytes(EncodePwdForAES));
+        f_raw := TPCEncryption.DoPascalCoinAESEncrypt(RawPayload,TEncoding.ANSI.GetBytes(EncodePwdForAES));
       end else begin
         ErrorNum:=CT_RPC_ErrNum_InvalidOperation;
         ErrorDesc:='Invalid encode payload method: '+Payload_method;
@@ -1416,7 +1418,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     for i := 0 to _RPCServer.WalletKeys.Count - 1 do begin
       pkey := _RPCServer.WalletKeys.Key[i].PrivateKey;
       if (assigned(pkey)) then begin
-        If ECIESDecrypt(pkey.EC_OpenSSL_NID,pkey.PrivateKey,false,RawEncryptedPayload,decrypted_payload) then begin
+        if TPCEncryption.DoPascalCoinECIESDecrypt(pkey.PrivateKey,RawEncryptedPayload,decrypted_payload) then begin
           GetResultObject.GetAsVariant('result').Value:= true;
           GetResultObject.GetAsVariant('enc_payload').Value:= TCrypto.ToHexaString(RawEncryptedPayload);
           GetResultObject.GetAsVariant('unenc_payload').Value:= decrypted_payload;
@@ -1424,12 +1426,12 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           GetResultObject.GetAsVariant('payload_method').Value:= 'key';
           GetResultObject.GetAsVariant('enc_pubkey').Value:= TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(pkey.PublicKey));
           Result := true;
-          exit;
+          Exit;
         end;
       end;
     end;
     for i := 0 to jsonArrayPwds.Count - 1 do begin
-      if TAESComp.EVP_Decrypt_AES256(RawEncryptedPayload,jsonArrayPwds.GetAsVariant(i).AsString(''),decrypted_payload) then begin
+      if TPCEncryption.DoPascalCoinAESDecrypt(RawEncryptedPayload,TEncoding.ANSI.GetBytes(jsonArrayPwds.GetAsVariant(i).AsString('')),decrypted_payload) then begin
         GetResultObject.GetAsVariant('result').Value:= true;
         GetResultObject.GetAsVariant('enc_payload').Value:= TCrypto.ToHexaString(RawEncryptedPayload);
         GetResultObject.GetAsVariant('unenc_payload').Value:= decrypted_payload;

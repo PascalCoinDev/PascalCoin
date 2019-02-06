@@ -24,7 +24,9 @@ interface
 
 uses
 {$IFnDEF FPC}
+  {$IFDEF WINDOWS}
   Windows,
+  {$ENDIF}
 {$ELSE}
   {$IFDEF LINUX}cthreads,{$ENDIF}
 {$ENDIF}

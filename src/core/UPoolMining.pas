@@ -22,16 +22,16 @@ unit UPoolMining;
 
 interface
 
+{$I config.inc}
+
 Uses
 {$IFnDEF FPC}
   Windows,
 {$ELSE}
   {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
-  UTCPIP, SysUtils, UThread, SyncObjs, Classes, UJSONFunctions, UAES, UNode,
+  UTCPIP, SysUtils, UThread, SyncObjs, Classes, UJSONFunctions, UPCEncryption, UNode,
   UCrypto, UAccounts, UConst, UBlockChain, UBaseTypes;
-
-{$I config.inc}
 
 Const
   CT_PoolMining_Method_STATUS = 'status';

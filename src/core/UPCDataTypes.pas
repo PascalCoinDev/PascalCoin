@@ -27,6 +27,12 @@ uses
 
 type
 
+  TECPrivateKeyInfo = record
+    EC_OpenSSL_NID : Word;
+    EC_KEY_Ptr : Pointer;    // Used when compiled with $DEFINE Use_OpenSSL
+    RAW_PrivKey : TRawBytes; // Used when compiled with $DEFINE Use_CryptoLib4Pascal
+  end;
+
   { TECDSA_Public is a public key information }
   TECDSA_Public = record
      EC_OpenSSL_NID : Word;

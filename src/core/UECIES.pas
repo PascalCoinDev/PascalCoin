@@ -41,6 +41,10 @@ unit UECIES;
 
 {$I config.inc}
 
+{$IF not Defined(Use_OpenSSL)}
+  {$Message Warn 'ERROR: Use_OpenSSL is not defined, you should not use this UNIT!'}
+{$ENDIF}
+
 interface
 
 Uses UOpenSSL, UCrypto, ULog, UConst, UBaseTypes, UPCDataTypes;

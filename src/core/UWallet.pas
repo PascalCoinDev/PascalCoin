@@ -151,7 +151,7 @@ uses
   {$IFDEF INTERNAL_USE_FOLDERHELPER_UNIT}
   UFolderHelper,
   {$ENDIF}
-  UAES;
+  UPCEncryption;
 
 Const
   CT_PrivateKeyFile_Magic = 'TWalletKeys';
@@ -175,8 +175,9 @@ end;
 
 function TWalletKeys.AddPrivateKey(Const Name : String; ECPrivateKey: TECPrivateKey): Integer;
 Var P : PWalletKey;
-  raw_priv2hexa : TRawBytes;
+  raw_priv2hexa, LWalletPassword : TRawBytes;
 begin
+  LWalletPassword.FromString(WalletPassword);
   if Not Find(ECPrivateKey.PublicKey,Result) then begin
     // Result is new position
     New(P);
@@ -184,7 +185,7 @@ begin
     P^.Name := Name;
     P^.AccountKey := ECPrivateKey.PublicKey;
     raw_priv2hexa.FromString(TCrypto.PrivateKey2Hexa(ECPrivateKey.PrivateKey));
-    P^.CryptedKey := TAESComp.EVP_Encrypt_AES256(raw_priv2hexa,WalletPassword);
+    P^.CryptedKey := TPCEncryption.DoPascalCoinAESEncrypt(raw_priv2hexa,LWalletPassword);
     P^.PrivateKey := TECPrivateKey.Create;
     P^.PrivateKey.SetPrivateKeyFromHexa(ECPrivateKey.EC_OpenSSL_NID, TCrypto.PrivateKey2Hexa(ECPrivateKey.PrivateKey));
     P^.SearchableAccountKey := TAccountComp.AccountKey2RawString(ECPrivateKey.PublicKey);
@@ -197,7 +198,7 @@ begin
       If Not TAccountComp.EqualAccountKeys(P^.AccountKey,ECPrivateKey.PublicKey) then
         raise Exception.Create('[UWallet.pas] TWalletKeys.AddPrivateKey - consistency check failed when overriding watch-only key');
       raw_priv2hexa.FromString(TCrypto.PrivateKey2Hexa(ECPrivateKey.PrivateKey));
-      P^.CryptedKey := TAESComp.EVP_Encrypt_AES256(raw_priv2hexa,WalletPassword);
+      P^.CryptedKey := TPCEncryption.DoPascalCoinAESEncrypt(raw_priv2hexa,LWalletPassword);
       P^.PrivateKey := TECPrivateKey.Create;
       P^.PrivateKey.SetPrivateKeyFromHexa(ECPrivateKey.EC_OpenSSL_NID, TCrypto.PrivateKey2Hexa(ECPrivateKey.PrivateKey));
     end;
@@ -315,7 +316,7 @@ begin
   for i := 0 to FSearchableKeys.Count - 1 do begin
     P := FSearchableKeys[i];
     if P^.HasPrivateKey then begin
-      isOk := TAESComp.EVP_Decrypt_AES256( P^.CryptedKey, TEncoding.ASCII.GetBytes(FWalletPassword), raw );
+      isOk := TPCEncryption.DoPascalCoinAESDecrypt(P^.CryptedKey, TEncoding.ASCII.GetBytes(FWalletPassword), raw );
       If isOk then begin
         P^.PrivateKey := TECPrivateKey.Create;
         try
@@ -453,7 +454,7 @@ begin
     P := FSearchableKeys[i];
     If Assigned(P^.PrivateKey) then begin
       raw_priv2hexa.FromString(TCrypto.PrivateKey2Hexa(P^.PrivateKey.PrivateKey));
-      P^.CryptedKey := TAESComp.EVP_Encrypt_AES256(raw_priv2hexa,FWalletPassword);
+      P^.CryptedKey :=  TPCEncryption.DoPascalCoinAESEncrypt(raw_priv2hexa,TEncoding.ASCII.GetBytes(FWalletPassword));
     end else begin
       if FIsValidPassword then begin
         TLog.NewLog(lterror,Classname,Format('Fatal error: Private key not found %d/%d',[i+1,FSearchableKeys.Count]));
@@ -640,7 +641,7 @@ end;
 
 class function TWallet.ExportPrivateKey(const AKey: TWalletKey; const APassword: String) : String;
 begin
-  Result := TCrypto.ToHexaString(TAESComp.EVP_Encrypt_AES256(AKey.PrivateKey.ExportToRaw, TEncoding.ANSI.GetBytes(APassword)));
+  Result := TPCEncryption.DoPascalCoinAESEncrypt(AKey.PrivateKey.ExportToRaw,TEncoding.ANSI.GetBytes(APassword)).ToHexaString;
 end;
 
 class procedure TWallet.ImportPrivateKey(const AName, AKeyImportText, APassword: String);
@@ -800,7 +801,7 @@ begin
     exit;
   end;
   decrypt := Nil;
-  If (TAESComp.EVP_Decrypt_AES256(TCrypto.HexaToRaw(AKeyHexString),AKeyPassword,decrypt)) then begin
+  if TPCEncryption.DoPascalCoinAESDecrypt(TCrypto.HexaToRaw(AKeyHexString),TEncoding.ANSI.GetBytes(AKeyPassword),decrypt) then begin
     if (Length(decrypt)>0) then begin
       AKey := TECPrivateKey.ImportFromRaw(decrypt);
       Result := Assigned(AKey);

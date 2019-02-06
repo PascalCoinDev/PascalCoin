@@ -149,7 +149,7 @@ Type
     Function IndexOfAccountReceiver(nAccount : Cardinal; startPos : Integer) : Integer;
     Function IndexOfAccountChanger(nAccount : Cardinal) : Integer; overload;
     class Function IndexOfAccountChanger(nAccount : Cardinal; startPos : Integer; const changesInfo : TMultiOpChangesInfo) : Integer; overload;
-    class Function OpChangeAccountInfoTypesToText(const OpChangeAccountInfoTypes : TOpChangeAccountInfoTypes) : AnsiString;
+    class Function OpChangeAccountInfoTypesToText(const OpChangeAccountInfoTypes : TOpChangeAccountInfoTypes) : String;
     //
     Function toString : String; Override;
     Property Data : TOpMultiOperationData read FData;
@@ -197,7 +197,7 @@ begin
   Result := -1;
 end;
 
-class function TOpMultiOperation.OpChangeAccountInfoTypesToText(const OpChangeAccountInfoTypes: TOpChangeAccountInfoTypes): AnsiString;
+class function TOpMultiOperation.OpChangeAccountInfoTypesToText(const OpChangeAccountInfoTypes: TOpChangeAccountInfoTypes): String;
 Var opcit : TOpChangeAccountInfoType;
 begin
   Result := '';
@@ -211,7 +211,7 @@ end;
 
 procedure TOpMultiOperation.FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume);
 Var iSender,iReceiver,iChanger : Integer;
-  changerTxt : AnsiString;
+  changerTxt : String;
 begin
   inherited FillOperationResume(Block, getInfoForAllAccounts, Affected_account_number, OperationResume);
   OperationResume.isMultiOperation:=True;
@@ -744,7 +744,7 @@ Var i : Integer;
   _sign : TECDSA_SIG;
 begin
   Result := 0;
-  If Not Assigned(key.PrivateKey) then begin
+  If Not key.HasPrivateKey then begin
     exit;
   end;
   raw := GetDigestToSign(current_protocol);

@@ -498,7 +498,7 @@ Const
 implementation
 
 uses
-  UConst, ULog, UNode, UTime, UECIES, UChunk;
+  UConst, ULog, UNode, UTime, UPCEncryption, UChunk;
 
 Const
   CT_NetTransferType : Array[TNetTransferType] of String = ('Unknown','Request','Response','Autosend');
@@ -3607,7 +3607,7 @@ begin
       errors := 'Invalid message data';
       exit;
     end;
-    If Not ECIESDecrypt(TNetData.NetData.FNodePrivateKey.EC_OpenSSL_NID,TNetData.NetData.FNodePrivateKey.PrivateKey,false,messagecrypted,decrypted) then begin
+    if not TPCEncryption.DoPascalCoinECIESDecrypt(TNetData.NetData.NodePrivateKey.PrivateKey,messagecrypted,decrypted) then begin
       errors := 'Error on decrypting message';
       exit;
     end;
@@ -4392,7 +4392,7 @@ begin
   data := TMemoryStream.Create;
   Try
     // Cypher message:
-    cyp := ECIESEncrypt(FClientPublicKey,TEncoding.ASCII.GetBytes(TheMessage));
+    TPCEncryption.DoPascalCoinECIESEncrypt(FClientPublicKey,TEncoding.ASCII.GetBytes(TheMessage),cyp);
     TStreamOp.WriteAnsiString(data,cyp);
     Send(ntp_autosend,CT_NetOp_Message,0,0,data);
     Result := true;

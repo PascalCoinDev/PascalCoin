@@ -172,7 +172,7 @@ begin
   begin
     I := (L + H) shr 1;
     PN := lockedList.Items[I];
-    C := CompareStr( PN.ip, ip );
+    C := CompareStr( PN^.ip, ip );
     if C < 0 then L := I + 1 else
     begin
       H := I - 1;
