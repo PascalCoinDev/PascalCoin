@@ -292,44 +292,64 @@ end;
 class function TConverters.ReadBytesAsUInt32LE(a_in: PByte;
   a_index: Int32): UInt32;
 begin
+{$IFDEF FPC}
 {$IFDEF FPC_REQUIRES_PROPER_ALIGNMENT}
   System.Move(a_in[a_index], result, System.SizeOf(UInt32));
 {$ELSE}
   result := PCardinal(a_in + a_index)^;
 {$ENDIF FPC_REQUIRES_PROPER_ALIGNMENT}
+{$ELSE}
+  // Delphi does not handle unaligned memory access on ARM Devices properly.
+  System.Move(a_in[a_index], result, System.SizeOf(UInt32));
+{$ENDIF FPC}
   result := le2me_32(result);
 end;
 
 class function TConverters.ReadBytesAsUInt32BE(a_in: PByte;
   a_index: Int32): UInt32;
 begin
+{$IFDEF FPC}
 {$IFDEF FPC_REQUIRES_PROPER_ALIGNMENT}
   System.Move(a_in[a_index], result, System.SizeOf(UInt32));
 {$ELSE}
   result := PCardinal(a_in + a_index)^;
 {$ENDIF FPC_REQUIRES_PROPER_ALIGNMENT}
+{$ELSE}
+  // Delphi does not handle unaligned memory access on ARM Devices properly.
+  System.Move(a_in[a_index], result, System.SizeOf(UInt32));
+{$ENDIF FPC}
   result := be2me_32(result);
 end;
 
 class function TConverters.ReadBytesAsUInt64LE(a_in: PByte;
   a_index: Int32): UInt64;
 begin
+{$IFDEF FPC}
 {$IFDEF FPC_REQUIRES_PROPER_ALIGNMENT}
   System.Move(a_in[a_index], result, System.SizeOf(UInt64));
 {$ELSE}
   result := PUInt64(a_in + a_index)^;
 {$ENDIF FPC_REQUIRES_PROPER_ALIGNMENT}
+{$ELSE}
+  // Delphi does not handle unaligned memory access on ARM Devices properly.
+  System.Move(a_in[a_index], result, System.SizeOf(UInt64));
+{$ENDIF FPC}
   result := le2me_64(result);
 end;
 
 class function TConverters.ReadBytesAsUInt64BE(a_in: PByte;
   a_index: Int32): UInt64;
 begin
+{$IFDEF FPC}
 {$IFDEF FPC_REQUIRES_PROPER_ALIGNMENT}
   System.Move(a_in[a_index], result, System.SizeOf(UInt64));
 {$ELSE}
   result := PUInt64(a_in + a_index)^;
 {$ENDIF FPC_REQUIRES_PROPER_ALIGNMENT}
+{$ELSE}
+  // Delphi does not handle unaligned memory access on ARM Devices properly.
+  System.Move(a_in[a_index], result, System.SizeOf(UInt64));
+{$ENDIF FPC}
   result := be2me_64(result);
 end;
 

@@ -15,7 +15,7 @@ type
   strict private
 
   const
-    No_Shortcut = Char($FFFF);
+    Null_Char = Char(0);
 
   var
     FAllZeroShortcut, FAllSpaceShortcut: Char;
@@ -28,7 +28,8 @@ type
     function GetAllSpaceShortcut: Char; inline;
     function GetAllZeroShortcut: Char; inline;
 
-    class function GetNoShortcut: Char; static; inline;
+    class function GetNullChar: Char; static; inline;
+
     class function GetZ85: IBase85Alphabet; static; inline;
     class function GetAscii85: IBase85Alphabet; static; inline;
 
@@ -36,26 +37,37 @@ type
 
   public
 
+    /// <summary>
+    /// Gets a value indicating whether the alphabet uses one of shortcut characters for all spaces
+    /// or all zeros.
+    /// </summary>
     property HasShortcut: Boolean read GetHasShortcut;
-    property AllZeroShortcut: Char read GetAllZeroShortcut;
-    property AllSpaceShortcut: Char read GetAllSpaceShortcut;
-
-    class property NoShortcut: Char read GetNoShortcut;
 
     /// <summary>
-    /// ZeroMQ Z85 Alphabet
+    /// Gets the character to be used for "all zeros"
+    /// </summary>
+
+    property AllZeroShortcut: Char read GetAllZeroShortcut;
+    /// <summary>
+    /// Gets the character to be used for "all spaces"
+    /// </summary>
+    property AllSpaceShortcut: Char read GetAllSpaceShortcut;
+
+    /// <summary>
+    /// Gets ZeroMQ Z85 Alphabet
     /// </summary>
     class property Z85: IBase85Alphabet read GetZ85;
 
     /// <summary>
-    /// Adobe Ascii85 Alphabet (each character is directly produced by raw
+    /// Get Adobe Ascii85 Alphabet (each character is directly produced by raw
     /// value + 33)
     /// </summary>
     class property Ascii85: IBase85Alphabet read GetAscii85;
 
+    class property NullChar: Char read GetNullChar;
+
     constructor Create(const alphabet: String;
-      AllZeroShortcut: Char = No_Shortcut;
-      AllSpaceShortcut: Char = No_Shortcut);
+      AllZeroShortcut: Char = Null_Char; AllSpaceShortcut: Char = Null_Char);
     destructor Destroy; override;
   end;
 
@@ -95,14 +107,14 @@ begin
   Result := FAllZeroShortcut;
 end;
 
-class function TBase85Alphabet.GetNoShortcut: Char;
+class function TBase85Alphabet.GetNullChar: Char;
 begin
-  Result := No_Shortcut;
+  Result := Null_Char;
 end;
 
 function TBase85Alphabet.GetHasShortcut: Boolean;
 begin
-  Result := (AllSpaceShortcut <> NoShortcut) or (AllZeroShortcut <> NoShortcut);
+  Result := (AllSpaceShortcut <> NullChar) or (AllZeroShortcut <> NullChar);
 end;
 
 class function TBase85Alphabet.GetZ85: IBase85Alphabet;

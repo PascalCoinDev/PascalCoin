@@ -15,7 +15,7 @@ uses
 resourcestring
   SAlphabetNil = 'Alphabet Instance cannot be Nil "%s"';
   SUnExpectedCharacter =
-    'Unexpected Character "%s" In The Middle Of a Regular Block';
+    'Unexpected Shortcut Character In The Middle Of a Regular Block';
 
 type
   TBase85 = class sealed(TInterfacedObject, IBase85)
@@ -35,7 +35,7 @@ type
       numBytesToWrite: Int32); static; inline;
 
     class procedure WriteShortcut(var pOutput: PByte; blockIndex: Int32;
-      c: Char; value: Int64); static; inline;
+      value: Int64); static; inline;
 
     class function GetDecodeBufferLength(textLen: Int32;
       usingShortcuts: Boolean): Int32; static; inline;
@@ -57,7 +57,8 @@ type
       : TSimpleBaseLibByteArray; overload;
 
     procedure WriteOutput(var pOutput: PChar; const table: String; input: Int64;
-      stringLength: Int32; hasShortcut: Boolean); inline;
+      stringLength: Int32; usesZeroShortcut, usesSpaceShortcut
+      : Boolean); inline;
 
   public
 
@@ -94,27 +95,27 @@ implementation
 { TBase85 }
 
 procedure TBase85.WriteOutput(var pOutput: PChar; const table: String;
-  input: Int64; stringLength: Int32; hasShortcut: Boolean);
+  input: Int64; stringLength: Int32; usesZeroShortcut, usesSpaceShortcut
+  : Boolean);
 var
   i: Int32;
   result: Int64;
 begin
-  // handle "z" shortcut
-  if (hasShortcut) then
+  // handle shortcuts
+  if (input = 0) and (usesZeroShortcut) then
   begin
-    if (input = 0) then
-    begin
-      pOutput^ := Falphabet.AllZeroShortcut;
-      System.Inc(pOutput);
-      Exit;
-    end;
-    if (input = allSpace) then
-    begin
-      pOutput^ := Falphabet.AllSpaceShortcut;
-      System.Inc(pOutput);
-      Exit;
-    end;
+    pOutput^ := Falphabet.AllZeroShortcut;
+    System.Inc(pOutput);
+    Exit;
   end;
+
+  if (input = allSpace) and (usesSpaceShortcut) then
+  begin
+    pOutput^ := Falphabet.AllSpaceShortcut;
+    System.Inc(pOutput);
+    Exit;
+  end;
+
   // map the 4-byte packet to to 5-byte octets
   i := stringBlockSize - 1;
   while i >= 0 do
@@ -146,12 +147,11 @@ begin
 end;
 
 class procedure TBase85.WriteShortcut(var pOutput: PByte; blockIndex: Int32;
-  c: Char; value: Int64);
+  value: Int64);
 begin
   if (blockIndex <> 0) then
   begin
-    raise EArgumentSimpleBaseLibException.CreateResFmt
-      (@SUnExpectedCharacter, [c]);
+    raise EArgumentSimpleBaseLibException.CreateRes(@SUnExpectedCharacter);
   end;
   WriteDecodedValue(pOutput, value, byteBlockSize);
 end;
@@ -204,8 +204,8 @@ begin
   end;
   allZeroChar := Falphabet.AllZeroShortcut;
   allSpaceChar := Falphabet.AllSpaceShortcut;
-  checkZero := allZeroChar <> TBase85Alphabet.NoShortcut;
-  checkSpace := allSpaceChar <> TBase85Alphabet.NoShortcut;
+  checkZero := allZeroChar <> TBase85Alphabet.NullChar;
+  checkSpace := allSpaceChar <> TBase85Alphabet.NullChar;
   usingShortcuts := checkZero or checkSpace;
   // allocate a larger buffer if we're using shortcuts
 
@@ -234,12 +234,12 @@ begin
     // handle shortcut characters
     if ((checkZero) and (c = allZeroChar)) then
     begin
-      WriteShortcut(pDecodeBuffer, blockIndex, allZeroChar, 0);
+      WriteShortcut(pDecodeBuffer, blockIndex, 0);
       continue;
     end;
     if ((checkSpace) and (c = allSpaceChar)) then
     begin
-      WriteShortcut(pDecodeBuffer, blockIndex, allSpaceChar, allSpace);
+      WriteShortcut(pDecodeBuffer, blockIndex, allSpace);
       continue;
     end;
 
@@ -298,7 +298,7 @@ var
   bytesLen, maxOutputLen, fullLen, remainingBytes, n, outputLen: Int32;
   input: Int64;
   t1, t2, t3, t4: UInt32;
-  hasShortcut: Boolean;
+  usesZeroShortcut, usesSpaceShortcut: Boolean;
   output: TSimpleBaseLibCharArray;
   table: string;
   inputPtr, pInput, pInputEnd: PByte;
@@ -310,7 +310,8 @@ begin
   begin
     Exit;
   end;
-  hasShortcut := Falphabet.hasShortcut;
+  usesZeroShortcut := Falphabet.AllZeroShortcut <> TBase85Alphabet.NullChar;
+  usesSpaceShortcut := Falphabet.AllSpaceShortcut <> TBase85Alphabet.NullChar;
 
   // adjust output length based on prefix and suffix settings
   // we know output length is too large but we will handle it later.
@@ -339,10 +340,11 @@ begin
     t4 := (UInt32(pInput^));
     System.Inc(pInput);
     input := t1 or t2 or t3 or t4;
-    WriteOutput(pOutput, table, input, stringBlockSize, hasShortcut);
+    WriteOutput(pOutput, table, input, stringBlockSize, usesZeroShortcut,
+      usesSpaceShortcut);
   end;
 
-  // remaining part?
+  // check if a part is remaining
   remainingBytes := bytesLen - fullLen;
   if (remainingBytes > 0) then
   begin
@@ -355,7 +357,8 @@ begin
       System.Inc(n);
     end;
 
-    WriteOutput(pOutput, table, input, remainingBytes + 1, hasShortcut);
+    WriteOutput(pOutput, table, input, remainingBytes + 1, usesZeroShortcut,
+      usesSpaceShortcut);
   end;
 
   outputLen := Int32(pOutput - outputPtr);

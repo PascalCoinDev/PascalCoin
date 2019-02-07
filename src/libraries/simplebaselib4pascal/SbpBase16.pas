@@ -92,6 +92,7 @@ begin
   end;
   if ((textLen and 1) <> 0) then
   begin
+    Ltext := '';
     if System.Length(text) > 0 then
     begin
       System.SetString(Ltext, PChar(@text[0]), System.Length(text));

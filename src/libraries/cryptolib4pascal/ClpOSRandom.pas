@@ -199,7 +199,6 @@ end;
 class function TOSRandom.GenRandomBytesIOSDelphi(len: Int32;
   const data: PByte): Int32;
 begin
-  // UNTESTED !!!, Please Take Note.
   result := SecRandomCopyBytes(kSecRandomDefault, LongWord(len), data);
 end;
 
