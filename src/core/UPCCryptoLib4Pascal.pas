@@ -214,9 +214,9 @@ begin
   LPublicKey := TECKeyPairGenerator.GetCorrespondingPublicKey(LECPrivateKeyParameters);
 
   Result.EC_OpenSSL_NID := AEC_OpenSSL_NID;
-  Result.X := LPublicKey.Q.AffineXCoord.ToBigInteger().ToByteArray();
-  Result.Y := LPublicKey.Q.AffineYCoord.ToBigInteger().ToByteArray();
-end;
+  Result.X := LPublicKey.Q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned();
+  Result.Y := LPublicKey.Q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned();
+ end;
 
 class function TPCCryptoLib4Pascal.DoGetRandomPrivateKey(const AEC_OpenSSL_NID: Word): TBytes;
 var
