@@ -95,7 +95,8 @@ uses
 {$ELSE}
   LCLIntf, LCLType,
 {$ENDIF}
-  UCrypto, UAccounts, UFRMNewPrivateKeyType, UAES, UBaseTypes, UCommon, UGUIUtils;
+  UCrypto, UAccounts, UFRMNewPrivateKeyType, UBaseTypes, UPCEncryption,
+  UCommon, UGUIUtils;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -170,7 +171,7 @@ begin
     if InputQueryPassword('Export private key','Insert a password to export',pwd1) then begin
       if InputQueryPassword('Export private key','Repeat the password to export',pwd2) then begin
         if pwd1<>pwd2 then raise Exception.Create('Passwords does not match!');
-        enc := TCrypto.ToHexaString( TAESComp.EVP_Encrypt_AES256( wk.PrivateKey.ExportToRaw,TEncoding.ANSI.GetBytes(pwd1)) );
+        enc := TPCEncryption.DoPascalCoinAESEncrypt(wk.PrivateKey.ExportToRaw,TEncoding.ANSI.GetBytes(pwd1)).ToHexaString;
         Clipboard.AsText := enc;
         Application.MessageBox(PChar('The password has been encrypted with your password and copied to the clipboard.'+
           #10+#10+
@@ -294,12 +295,14 @@ var s : String;
   end;
 
   function ParseEncryptedKey : boolean;
+  var LRawPassword : TRawBytes;
   begin
       Repeat
         s := '';
         desenc := Nil;
         if InputQueryPassword('Import private key','Enter the password:',s) then begin
-          If (TAESComp.EVP_Decrypt_AES256(enc,s,desenc)) then begin
+          LRawPassword.FromString(s);
+          if TPCEncryption.DoPascalCoinAESDecrypt(enc,LRawPassword,desenc) then begin
             if Length(desenc)>0 then begin
               EC := TECPrivateKey.ImportFromRaw(desenc);
               ParseEncryptedKey := True;

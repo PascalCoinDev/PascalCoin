@@ -35,7 +35,8 @@ uses
   UNode, UGridUtils, UJSONFunctions, UAccounts, Menus, ImgList, UNetProtocol,
   UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect, UConst,
   UAccountKeyStorage, UBaseTypes, UPCDataTypes,
-  UFRMRPCCalls, UTxMultiOperation;
+  UFRMRPCCalls, UTxMultiOperation,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -578,7 +579,7 @@ procedure TFRMWallet.CM_NetConnectionUpdated(var Msg: TMessage);
 Const CT_BooleanToString : Array[Boolean] of String = ('False','True');
 Var i : integer;
  NC : TNetConnection;
- l : TList;
+ l : TList<TNetConnection>;
  sClientApp, sLastConnTime : String;
  strings, sNSC, sRS, sDisc : TStrings;
  hh,nn,ss,ms : Word;
@@ -984,7 +985,7 @@ var F : TFRMMemoText;
   sl : TStrings;
   ak : TAccountKey;
   nmin,nmax : Integer;
-  l : TList;
+  l : TList<Pointer>;
   Pacsd : PAccountKeyStorageData;
   acc : TAccount;
 begin
@@ -1630,7 +1631,7 @@ procedure TFRMWallet.OnNetBlackListUpdated(Sender: TObject);
 Const CT_TRUE_FALSE : Array[Boolean] Of AnsiString = ('FALSE','TRUE');
 Var i,j,n : integer;
  P : PNodeServerAddress;
- l : TList;
+ l : TList<Pointer>;
  strings : TStrings;
 begin
   l := TNetData.NetData.NodeServersAddresses.LockList;
@@ -1673,7 +1674,7 @@ end;
 procedure TFRMWallet.OnNetNodeServersUpdated(Sender: TObject);
 Var i : integer;
  P : PNodeServerAddress;
- l : TList;
+ l : TList<Pointer>;
  strings : TStrings;
  s : String;
 begin
@@ -2054,7 +2055,7 @@ end;
 procedure TFRMWallet.UpdateAvailableConnections;
 Var i : integer;
  NC : TNetConnection;
- l : TList;
+ l : TList<TNetConnection>;
 begin
   if Not TNetData.NetData.NetConnections.TryLockList(100,l) then exit;
   try
@@ -2085,15 +2086,12 @@ end;
 
 procedure TFRMWallet.UpdateBlockChainState;
 Var isMining : boolean;
-//  hr : Int64;
   i,mc : Integer;
   s : String;
-  mtl : TList;
   f, favg : real;
 begin
   UpdateNodeStatus;
   mc := 0;
-//  hr := 0;
   if Assigned(FNode) then begin
     if FNode.Bank.BlocksCount>0 then begin
       lblCurrentBlock.Caption :=  Inttostr(FNode.Bank.BlocksCount)+' (0..'+Inttostr(FNode.Bank.BlocksCount-1)+')'; ;

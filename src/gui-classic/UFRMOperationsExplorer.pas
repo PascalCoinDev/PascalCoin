@@ -29,7 +29,8 @@ uses
   {$ENDIF}
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, ExtCtrls,
   Menus, ActnList, UAccounts, UBlockChain, UNode, UCrypto, UBaseTypes,
-  UFileStorage, UWallet, UConst, UTxMultiOperation, UOpTransaction, URPC, UJSONFunctions;
+  UFileStorage, UWallet, UConst, UTxMultiOperation, UOpTransaction, URPC,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF}, UJSONFunctions;
 
 
 type
@@ -660,7 +661,7 @@ procedure TFRMOperationsExplorer.UpdateSelectedOperationInfo;
 Var op : TPCOperation;
   opht : TOperationsHashTree;
   i : Integer;
-  l : TList;
+  l : TList<Cardinal>;
   aux : String;
   raw : TRawBytes;
   ms : TMemoryStream;
@@ -678,7 +679,7 @@ begin
     mOperationInfo.Lines.Add(Format('%s',[op.ToString]));
     mOperationInfo.Lines.Add('');
     mOperationInfo.Lines.Add(Format('OpType:%d ClassName:%s',[op.OpType,op.ClassName]));
-    l := TList.Create;
+    l := TList<Cardinal>.Create;
     Try
       op.AffectedAccounts(l); aux := '';
       For i:=0 to l.Count-1 do begin

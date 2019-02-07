@@ -31,7 +31,8 @@ uses
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
   Classes, Grids, UNode, UAccounts, UBlockChain, UAppParams,
-  UWallet, UCrypto, UPoolMining, URPC, UBaseTypes, UPCOrderedLists;
+  UWallet, UCrypto, UPoolMining, URPC, UBaseTypes, UPCOrderedLists,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Type
   // TAccountsGrid implements a visual integration of TDrawGrid
@@ -781,17 +782,16 @@ begin
 end;
 
 procedure TOperationsGrid.OnNodeNewOperation(Sender: TObject);
-Var //Op : TPCOperation;
-  l : TList;
+Var l : TList<Cardinal>;
 begin
   Try
     if (AccountNumber<0) then begin
       If (FPendingOperations) then UpdateAccountOperations;
     end else begin
-      l := TList.Create;
+      l := TList<Cardinal>.Create;
       Try
         If Node.Operations.OperationsHashTree.GetOperationsAffectingAccount(AccountNumber,l)>0 then begin
-          if l.IndexOf(TObject(PtrInt(AccountNumber)))>=0 then UpdateAccountOperations;
+          if l.IndexOf(AccountNumber)>=0 then UpdateAccountOperations;
         end;
       Finally
         l.Free;
@@ -897,7 +897,7 @@ begin
 end;
 
 procedure TOperationsGrid.UpdateAccountOperations;
-Var list : TList;
+Var list : TList<Cardinal>;
   i,j : Integer;
   OPR : TOperationResume;
   Op : TPCOperation;
@@ -965,11 +965,11 @@ begin
         end;
 
       end else begin
-        list := TList.Create;
+        list := TList<Cardinal>.Create;
         Try
           Node.Operations.OperationsHashTree.GetOperationsAffectingAccount(AccountNumber,list);
           for i := list.Count - 1 downto 0 do begin
-            Op := Node.Operations.OperationsHashTree.GetOperation(PtrInt(list[i]));
+            Op := Node.Operations.OperationsHashTree.GetOperation((list[i]));
             If TPCOperation.OperationToOperationResume(0,Op,False,AccountNumber,OPR) then begin
               OPR.NOpInsideBlock := i;
               OPR.Block := Node.Operations.OperationBlock.block;
