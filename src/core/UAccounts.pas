@@ -24,7 +24,8 @@ interface
 
 uses
   Classes, SysUtils, UConst, UCrypto, SyncObjs, UThread, UBaseTypes,
-  UPCOrderedLists, UPCDataTypes;
+  UPCOrderedLists, UPCDataTypes,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 {$I config.inc}
 
@@ -183,9 +184,9 @@ Type
   Private
     FAutoAddAll : Boolean;
     FAccountList : TPCSafeBox;
-    FOrderedAccountKeysList : TPCThreadList; // An ordered list of pointers to quickly find account keys in account list
+    FOrderedAccountKeysList : TPCThreadList<Pointer>; // An ordered list of pointers to quickly find account keys in account list
     FTotalChanges : Integer;
-    Function Find(lockedList : TList; Const AccountKey: TAccountKey; var Index: Integer): Boolean;
+    Function Find(lockedList : TList<Pointer>; Const AccountKey: TAccountKey; var Index: Integer): Boolean;
     function GetAccountKeyChanges(index : Integer): Integer;
     function GetAccountKeyList(index: Integer): TOrderedCardinalList;
     function GetAccountKey(index: Integer): TAccountKey;
@@ -208,7 +209,7 @@ Type
     Property SafeBox : TPCSafeBox read FAccountList;
     Procedure Clear;
     function ToArray : TAccountKeyArray;
-    function Lock : TList;
+    function Lock : TList<Pointer>;
     procedure Unlock;
     function HasAccountKeyChanged : Boolean;
     procedure CopyFrom(const source : TOrderedAccountKeysList);
@@ -244,13 +245,13 @@ Type
 
   TPCSafeBox = Class
   private
-    FBlockAccountsList : TList; // Used when has no PreviousSafebox
+    FBlockAccountsList : TList<Pointer>; // Used when has no PreviousSafebox
     FModifiedBlocksSeparatedChain : TOrderedBlockAccountList; // Used when has PreviousSafebox (Used if we are on a Separated chain)
     //
     // OrderedAccountKeysList (Added after Build 3.0.1) allows an indexed search of public keys in the safebox with mem optimization
     FOrderedAccountKeysList : TOrderedAccountKeysList;
     //
-    FListOfOrderedAccountKeysList : TList;
+    FListOfOrderedAccountKeysList : TList<TOrderedAccountKeysList>;
     FBufferBlocksHash: TBytesBuffer;
     FOrderedByName : TOrderedRawList;
     FTotalBalance: Int64;
@@ -259,7 +260,7 @@ Type
     FWorkSum : UInt64;
     FCurrentProtocol: Integer;
     // Snapshots utility new on V3
-    FSnapshots : TList; // Will save a Snapshots lists in order to rollback Safebox to a previous block state
+    FSnapshots : TList<Pointer>; // Will save a Snapshots lists in order to rollback Safebox to a previous block state
     FMaxSafeboxSnapshots : Integer;
     // To be added to next snapshot
     FModifiedBlocksPreviousState : TOrderedBlockAccountList;
@@ -270,7 +271,7 @@ Type
     FPreviousSafeBox : TPCSafeBox;  // PreviousSafebox is the Safebox with snpashots where this safebox searches
     FPreviousSafeboxOriginBlock : Integer;
     // Has chains based on this Safebox?
-    FSubChains : TList; // Will link to subchains (other safebox) based on a current snapshot of this safebox
+    FSubChains : TList<TPCSafeBox>; // Will link to subchains (other safebox) based on a current snapshot of this safebox
     //
     Procedure AccountKeyListAddAccounts(Const AccountKey : TAccountKey; const accounts : Array of Cardinal);
     Procedure AccountKeyListRemoveAccount(Const AccountKey : TAccountKey; const accounts : Array of Cardinal);
@@ -340,7 +341,7 @@ Type
   TOrderedBlockAccountList = Class
   private
     FMaxBlockNumber : Integer;
-    FList : TList;
+    FList : TList<Pointer>;
     Function Find(const block_number: Cardinal; out Index: Integer): Boolean;
     Function SaveBlockAccount(Const blockAccount : TBlockAccount; UpdateIfFound : Boolean) : Integer;
   public
@@ -356,7 +357,7 @@ Type
 
   TOrderedAccountList = Class
   private
-    FList : TList;
+    FList : TList<Pointer>;
     Function Find(const account_number: Cardinal; var Index: Integer): Boolean;
   public
     Constructor Create;
@@ -377,7 +378,7 @@ Type
 
   TAccountPreviousBlockInfo = Class
   private
-    FList : TList;
+    FList : TList<Pointer>;
     Function FindAccount(const account: Cardinal; var Index: Integer): Boolean;
     function GetData(index : Integer): TAccountPreviousBlockInfoData;
   public
@@ -452,12 +453,12 @@ Type
 
 Const
   CT_OperationBlock_NUL : TOperationBlock = (block:0;account_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);reward:0;fee:0;protocol_version:0;
-    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:Nil;operations_hash:Nil;proof_of_work:Nil);
+    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:Nil;initial_safe_box_hash:Nil;operations_hash:Nil;proof_of_work:Nil);
   CT_AccountInfo_NUL : TAccountInfo = (state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));
   CT_Account_NUL : TAccount = (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_block:0;n_operation:0;name:Nil;account_type:0;previous_updated_block:0);
   CT_BlockAccount_NUL : TBlockAccount = (
     blockchainInfo:(block:0;account_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);reward:0;fee:0;protocol_version:0;
-    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:Nil;operations_hash:Nil;proof_of_work:Nil);
+    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:Nil;initial_safe_box_hash:Nil;operations_hash:Nil;proof_of_work:Nil);
     accounts:(
     (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_block:0;n_operation:0;name:Nil;account_type:0;previous_updated_block:0),
     (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_block:0;n_operation:0;name:Nil;account_type:0;previous_updated_block:0),
@@ -1079,7 +1080,6 @@ end;
 class function TAccountComp.AccountPublicKeyExport(const account: TAccountKey): String;
 Var raw : TRawBytes;
   BN, BNMod, BNDiv : TBigNum;
-  i : Integer;
 begin
   Result := '';
   raw := AccountKey2RawString(account);
@@ -1459,7 +1459,6 @@ end;
 class function TAccountComp.TxtToMoney(const moneytxt: String;
   var money: Int64): Boolean;
 Var s : String;
-  i : Integer;
 begin
   money := 0;
   if Trim(moneytxt)='' then begin
@@ -2095,7 +2094,7 @@ procedure TPCSafeBox.CheckMemory;
 {$IFDEF FPC}
 Var sb : TPCSafeBox;
   tc : TTickCount;
-  auxSnapshotsList : TList;
+  auxSnapshotsList : TList<Pointer>;
   i : Integer;
 {$ENDIF}
 begin
@@ -2107,17 +2106,21 @@ begin
     sb := TPCSafeBox.Create;
     try
       //
-      auxSnapshotsList := TList.Create;
+      auxSnapshotsList := TList<Pointer>.Create;
       Try
         // Save snapshots:
-        auxSnapshotsList.Assign(FSnapshots);
+        for i:=0 to FSnapshots.Count-1 do begin
+          auxSnapshotsList.Add(FSnapshots.Items[i]);
+        end;
         FSnapshots.Clear;
         //
         sb.CopyFrom(Self);
         Self.Clear;
         Self.CopyFrom(sb);
         // Restore snapshots:
-        FSnapshots.Assign(auxSnapshotsList);
+        for i:=0 to auxSnapshotsList.Count-1 do begin
+          FSnapshots.Add(auxSnapshotsList.Items[i]);
+        end;
         // Clear changes to do not fire key activity
         for i := 0 to FListOfOrderedAccountKeysList.count-1 do begin
           TOrderedAccountKeysList( FListOfOrderedAccountKeysList[i] ).ClearAccountKeyChanges;
@@ -2269,11 +2272,11 @@ constructor TPCSafeBox.Create;
 begin
   FMaxSafeboxSnapshots:=CT_DEFAULT_MaxSafeboxSnapshots;
   FLock := TPCCriticalSection.Create('TPCSafeBox_Lock');
-  FBlockAccountsList := TList.Create;
-  FListOfOrderedAccountKeysList := TList.Create;
+  FBlockAccountsList := TList<Pointer>.Create;
+  FListOfOrderedAccountKeysList := TList<TOrderedAccountKeysList>.Create;
   FCurrentProtocol := CT_PROTOCOL_1;
   FOrderedByName := TOrderedRawList.Create;
-  FSnapshots := TList.Create;
+  FSnapshots := TList<Pointer>.Create;
   FPreviousSafeBox := Nil;
   FPreviousSafeboxOriginBlock := -1;
   FModifiedBlocksSeparatedChain := TOrderedBlockAccountList.Create;
@@ -2281,7 +2284,7 @@ begin
   FModifiedBlocksFinalState := TOrderedBlockAccountList.Create;
   FAddedNamesSincePreviousSafebox := TOrderedRawList.Create;
   FDeletedNamesSincePreviousSafebox := TOrderedRawList.Create;
-  FSubChains := TList.Create;
+  FSubChains := TList<TPCSafeBox>.Create;
   FOrderedAccountKeysList := TOrderedAccountKeysList.Create(Nil,True);
   FBufferBlocksHash := TBytesBuffer.Create(1000*32);
   Clear;
@@ -4416,7 +4419,7 @@ end;
 
 constructor TOrderedBlockAccountList.Create;
 begin
-  FList := TList.Create;
+  FList := TList<Pointer>.Create;
   FMaxBlockNumber:=-1;
 end;
 
@@ -4496,7 +4499,7 @@ end;
 
 constructor TOrderedAccountList.Create;
 begin
-  FList := TList.Create;
+  FList := TList<Pointer>.Create;
 end;
 
 destructor TOrderedAccountList.Destroy;
@@ -4563,7 +4566,7 @@ end;
 procedure TOrderedAccountKeysList.AddAccountKey(const AccountKey: TAccountKey);
 Var P : POrderedAccountKeyList;
   i,j : Integer;
-  lockedList, safeboxLockedList : TList;
+  lockedList, safeboxLockedList : TList<Pointer>;
 begin
   lockedList := Lock;
   Try
@@ -4621,7 +4624,7 @@ end;
 procedure TOrderedAccountKeysList.AddAccounts(const AccountKey: TAccountKey; const accounts: array of Cardinal);
 Var P : POrderedAccountKeyList;
   i,i2 : Integer;
-  lockedList : TList;
+  lockedList : TList<Pointer>;
 begin
   lockedList := Lock;
   Try
@@ -4671,7 +4674,7 @@ begin
   end;
 end;
 
-function TOrderedAccountKeysList.Lock: TList;
+function TOrderedAccountKeysList.Lock: TList<Pointer>;
 begin
   Result := FOrderedAccountKeysList.LockList;
 end;
@@ -4687,7 +4690,7 @@ begin
 end;
 
 procedure TOrderedAccountKeysList.CopyFrom(const source: TOrderedAccountKeysList);
-var selfList,sourceList : TList;
+var selfList,sourceList : TList<Pointer>;
   i : Integer;
   newP,sourceP : POrderedAccountKeyList;
 begin
@@ -4723,7 +4726,7 @@ end;
 procedure TOrderedAccountKeysList.ClearAccounts(RemoveAccountList : Boolean);
 Var P : POrderedAccountKeyList;
   i : Integer;
-  lockedList : TList;
+  lockedList : TList<Pointer>;
 begin
   lockedList := Lock;
   Try
@@ -4750,7 +4753,7 @@ begin
 end;
 
 function TOrderedAccountKeysList.Count: Integer;
-var lockedList : TList;
+var lockedList : TList<Pointer>;
 begin
   lockedList := Lock;
   Try
@@ -4767,7 +4770,7 @@ begin
   FAutoAddAll := AutoAddAll;
   FAccountList := AccountList;
   FTotalChanges:=0;
-  FOrderedAccountKeysList := TPCThreadList.Create(ClassName);
+  FOrderedAccountKeysList := TPCThreadList<Pointer>.Create(ClassName);
   if Assigned(AccountList) then begin
     Lock;
     Try
@@ -4794,7 +4797,7 @@ begin
   inherited;
 end;
 
-function TOrderedAccountKeysList.Find(lockedList : TList; const AccountKey: TAccountKey; var Index: Integer): Boolean;
+function TOrderedAccountKeysList.Find(lockedList : TList<Pointer>; const AccountKey: TAccountKey; var Index: Integer): Boolean;
 var L, H, I: Integer;
   C : Int64;
   {$IFDEF useAccountKeyStorage}
@@ -4836,7 +4839,7 @@ begin
 end;
 
 function TOrderedAccountKeysList.GetAccountKeyChanges(index : Integer): Integer;
-var lockedList : TList;
+var lockedList : TList<Pointer>;
 begin
   lockedList := Lock;
   Try
@@ -4847,7 +4850,7 @@ begin
 end;
 
 function TOrderedAccountKeysList.GetAccountKey(index: Integer): TAccountKey;
-Var lockedList : TList;
+Var lockedList : TList<Pointer>;
   {$IFDEF useAccountKeyStorage}
   {$ELSE}
   raw : TRawBytes;
@@ -4867,7 +4870,7 @@ begin
 end;
 
 function TOrderedAccountKeysList.GetAccountKeyList(index: Integer): TOrderedCardinalList;
-var lockedList : TList;
+var lockedList : TList<Pointer>;
 begin
   lockedList := Lock;
   Try
@@ -4878,7 +4881,7 @@ begin
 end;
 
 function TOrderedAccountKeysList.IndexOfAccountKey(const AccountKey: TAccountKey): Integer;
-var lockedList : TList;
+var lockedList : TList<Pointer>;
 begin
   lockedList := Lock;
   Try
@@ -4890,7 +4893,7 @@ end;
 
 procedure TOrderedAccountKeysList.ClearAccountKeyChanges;
 var i : Integer;
-  lockedList : TList;
+  lockedList : TList<Pointer>;
 begin
   lockedList := Lock;
   Try
@@ -4906,7 +4909,7 @@ end;
 procedure TOrderedAccountKeysList.RemoveAccounts(const AccountKey: TAccountKey; const accounts: array of Cardinal);
 Var P : POrderedAccountKeyList;
   i,j : Integer;
-  lockedList : TList;
+  lockedList : TList<Pointer>;
 begin
   lockedList := Lock;
   Try
@@ -4935,7 +4938,7 @@ end;
 procedure TOrderedAccountKeysList.RemoveAccountKey(const AccountKey: TAccountKey);
 Var P : POrderedAccountKeyList;
   i,j : Integer;
-  lockedList : TList;
+  lockedList : TList<Pointer>;
 begin
   lockedList := Lock;
   Try
@@ -4993,7 +4996,7 @@ end;
 
 constructor TAccountPreviousBlockInfo.Create;
 begin
-  FList := TList.Create;
+  FList := TList<Pointer>.Create;
 end;
 
 destructor TAccountPreviousBlockInfo.Destroy;

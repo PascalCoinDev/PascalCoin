@@ -24,6 +24,7 @@ interface
 
 uses
   Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs, UBaseTypes, SysUtils,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
   UPCDataTypes;
 {$I config.inc}
 
@@ -180,7 +181,7 @@ Type
 
   TOperationsResumeList = Class
   private
-    FList : TPCThreadList;
+    FList : TPCThreadList<Pointer>;
     function GetOperationResume(index: Integer): TOperationResume;
   public
     Constructor Create;
@@ -220,7 +221,7 @@ Type
     destructor Destroy; override;
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; virtual;
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors: String): Boolean; virtual; abstract;
-    procedure AffectedAccounts(list : TList); virtual; abstract;
+    procedure AffectedAccounts(list : TList<Cardinal>); virtual; abstract;
     class function OpType: Byte; virtual; abstract;
     Class Function OperationToOperationResume(Block : Cardinal; Operation : TPCOperation; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean; virtual;
     Function GetDigestToSign(current_protocol : Word) : TRawBytes; virtual; abstract;
@@ -229,7 +230,7 @@ Type
     function OperationFee: Int64; virtual; abstract;
     function OperationPayload : TRawBytes; virtual; abstract;
     function SignerAccount : Cardinal; virtual; abstract;
-    procedure SignerAccounts(list : TList); virtual;
+    procedure SignerAccounts(list : TList<Cardinal>); virtual;
     function IsSignerAccount(account : Cardinal) : Boolean; virtual;
     function IsAffectedAccount(account : Cardinal) : Boolean; virtual;
     function DestinationAccount : Int64; virtual;
@@ -277,14 +278,14 @@ Type
     FIntTotalDeleted : Integer;
     FMaxLocksCount : Integer;
     FMaxLocksValue : Integer;
-    FPCOperationsStorageList : TPCThreadList; // Lock thread to POperationTStorage list
-    Function FindOrderedByPtrPCOperation(lockedThreadList : TList; const Value: TPCOperation; out Index: Integer): Boolean;
+    FPCOperationsStorageList : TPCThreadList<Pointer>; // Lock thread to POperationTStorage list
+    Function FindOrderedByPtrPCOperation(lockedThreadList : TList<Pointer>; const Value: TPCOperation; out Index: Integer): Boolean;
   protected
   public
     Constructor Create;
     Destructor Destroy; override;
     //
-    function LockPCOperationsStorage : TList;
+    function LockPCOperationsStorage : TList<Pointer>;
     procedure UnlockPCOperationsStorage;
     Function Count : Integer;
     procedure AddPCOperation(APCOperation : TPCOperation);
@@ -299,20 +300,20 @@ Type
 
   TOperationsHashTree = Class
   private
-    FListOrderedByAccountsData : TList;
-    FListOrderedBySha256 : TList; // Improvement TOperationsHashTree speed 2.1.6
-    FListOrderedByOpReference : TList;
-    FHashTreeOperations : TPCThreadList; // Improvement TOperationsHashTree speed 2.1.6
+    FListOrderedByAccountsData : TList<Pointer>;
+    FListOrderedBySha256 : TList<Integer>; // Improvement TOperationsHashTree speed 2.1.6
+    FListOrderedByOpReference : TList<Integer>;
+    FHashTreeOperations : TPCThreadList<Pointer>; // Improvement TOperationsHashTree speed 2.1.6
     FHashTree: TRawBytes;
     FOnChanged: TNotifyEvent;
     FTotalAmount : Int64;
     FTotalFee : Int64;
     FMax0feeOperationsBySigner : Integer;
-    function InternalCanAddOperationToHashTree(lockedThreadList : TList; op : TPCOperation) : Boolean;
-    function InternalAddOperationToHashTree(list : TList; op : TPCOperation; CalcNewHashTree : Boolean) : Boolean;
-    Function FindOrderedByOpReference(lockedThreadList : TList; const Value: TOpReference; var Index: Integer): Boolean;
-    Function FindOrderedBySha(lockedThreadList : TList; const Value: TRawBytes; var Index: Integer): Boolean;
-    Function FindOrderedByAccountData(lockedThreadList : TList; const account_number : Cardinal; var Index: Integer): Boolean;
+    function InternalCanAddOperationToHashTree(lockedThreadList : TList<Pointer>; op : TPCOperation) : Boolean;
+    function InternalAddOperationToHashTree(list : TList<Pointer>; op : TPCOperation; CalcNewHashTree : Boolean) : Boolean;
+    Function FindOrderedByOpReference(lockedThreadList : TList<Pointer>; const Value: TOpReference; var Index: Integer): Boolean;
+    Function FindOrderedBySha(lockedThreadList : TList<Pointer>; const Value: TRawBytes; var Index: Integer): Boolean;
+    Function FindOrderedByAccountData(lockedThreadList : TList<Pointer>; const account_number : Cardinal; var Index: Integer): Boolean;
     function GetHashTree: TRawBytes;
     procedure SetMax0feeOperationsBySigner(const Value: Integer);
   public
@@ -324,7 +325,7 @@ Type
     Property HashTree : TRawBytes read GetHashTree;
     Function OperationsCount : Integer;
     Function GetOperation(index : Integer) : TPCOperation;
-    Function GetOperationsAffectingAccount(account_number : Cardinal; List : TList) : Integer;
+    Function GetOperationsAffectingAccount(account_number : Cardinal; List : TList<Cardinal>) : Integer;
     Procedure CopyFromHashTree(Sender : TOperationsHashTree);
     Property TotalAmount : Int64 read FTotalAmount;
     Property TotalFee : Int64 read FTotalFee;
@@ -505,7 +506,7 @@ Type
     FUpgradingToV2: Boolean;
     FOnLog: TPCBankLog;
     FBankLock: TPCCriticalSection;
-    FNotifyList : TList;
+    FNotifyList : TList<TPCBankNotify>;
     FStorageClass: TStorageClass;
     function GetStorage: TStorage;
     procedure SetStorageClass(const Value: TStorageClass);
@@ -552,7 +553,7 @@ uses
 var
    _PCOperationsStorage : TPCOperationsStorage;
 
-function TPCOperationsStorage.FindOrderedByPtrPCOperation(lockedThreadList: TList; const Value: TPCOperation; out Index: Integer): Boolean;
+function TPCOperationsStorage.FindOrderedByPtrPCOperation(lockedThreadList: TList<Pointer>; const Value: TPCOperation; out Index: Integer): Boolean;
 var L, H, I: Integer;
   C : PtrInt;
 begin
@@ -578,7 +579,7 @@ end;
 
 constructor TPCOperationsStorage.Create;
 begin
-  FPCOperationsStorageList := TPCThreadList.Create(ClassName);
+  FPCOperationsStorageList := TPCThreadList<Pointer>.Create(ClassName);
   FIntTotalNewOps := 0;
   FIntTotalAdded := 0;
   FIntTotalDeleted := 0;
@@ -587,7 +588,7 @@ begin
 end;
 
 destructor TPCOperationsStorage.Destroy;
-Var list : TList;
+Var list : TList<Pointer>;
   P : PPCOperationTStorage;
   i : Integer;
   pc : TPCOperation;
@@ -611,7 +612,7 @@ begin
   inherited Destroy;
 end;
 
-function TPCOperationsStorage.LockPCOperationsStorage: TList;
+function TPCOperationsStorage.LockPCOperationsStorage: TList<Pointer>;
 begin
   Result := FPCOperationsStorageList.LockList;
 end;
@@ -622,7 +623,7 @@ begin
 end;
 
 function TPCOperationsStorage.Count: Integer;
-var list : TList;
+var list : TList<Pointer>;
 begin
   list := LockPCOperationsStorage;
   try
@@ -634,7 +635,7 @@ end;
 
 procedure TPCOperationsStorage.AddPCOperation(APCOperation: TPCOperation);
 var P : PPCOperationTStorage;
-  list : TList;
+  list : TList<Pointer>;
   iPos : Integer;
 begin
   list := LockPCOperationsStorage;
@@ -662,7 +663,7 @@ end;
 
 procedure TPCOperationsStorage.RemovePCOperation(APCOperation: TPCOperation);
 var P : PPCOperationTStorage;
-  list : TList;
+  list : TList<Pointer>;
   iPos : Integer;
 begin
   list := LockPCOperationsStorage;
@@ -687,7 +688,7 @@ begin
 end;
 
 function TPCOperationsStorage.FindPCOperation(APCOperation: TPCOperation): Boolean;
-var list : TList;
+var list : TList<Pointer>;
   iPos : Integer;
 begin
   list := LockPCOperationsStorage;
@@ -699,7 +700,7 @@ begin
 end;
 
 function TPCOperationsStorage.FindPCOperationAndIncCounterIfFound(APCOperation: TPCOperation): Boolean;
-var list : TList;
+var list : TList<Pointer>;
   iPos : Integer;
 begin
   list := LockPCOperationsStorage;
@@ -725,7 +726,7 @@ begin
 end;
 
 procedure TPCOperationsStorage.GetStats(strings: TStrings);
-var list : TList;
+var list : TList<Pointer>;
   i : Integer;
   P : PPCOperationTStorage;
 begin
@@ -852,7 +853,7 @@ begin
   FIsRestoringFromFile := False;
   FOnLog := Nil;
   FSafeBox := TPCSafeBox.Create;
-  FNotifyList := TList.Create;
+  FNotifyList := TList<TPCBankNotify>.Create;
   FLastBlockCache := TPCOperationsComp.Create(Nil);
   FIsRestoringFromFile:=False;
   FUpgradingToV2:=False;
@@ -2000,7 +2001,7 @@ Type TOperationHashTreeReg = Record
      POperationsHashAccountsData = ^TOperationsHashAccountsData;
 
 function TOperationsHashTree.AddOperationToHashTree(op: TPCOperation) : Boolean;
-Var l : TList;
+Var l : TList<Pointer>;
 begin
   l := FHashTreeOperations.LockList;
   try
@@ -2011,7 +2012,7 @@ begin
 end;
 
 function TOperationsHashTree.CanAddOperationToHashTree(op: TPCOperation): Boolean;
-Var lockedList : TList;
+Var lockedList : TList<Pointer>;
 begin
   lockedList := FHashTreeOperations.LockList;
   Try
@@ -2022,7 +2023,7 @@ begin
 end;
 
 procedure TOperationsHashTree.ClearHastThree;
-var l : TList;
+var l : TList<Pointer>;
   i : Integer;
   P : POperationHashTreeReg;
   PaccData : POperationsHashAccountsData;
@@ -2056,7 +2057,7 @@ end;
 
 procedure TOperationsHashTree.CopyFromHashTree(Sender: TOperationsHashTree);
 Var i : Integer;
-  lme, lsender : TList;
+  lme, lsender : TList<Pointer>;
   PSender : POperationHashTreeReg;
   lastNE : TNotifyEvent;
 begin
@@ -2094,18 +2095,18 @@ end;
 constructor TOperationsHashTree.Create;
 begin
   FOnChanged:=Nil;
-  FListOrderedBySha256 := TList.Create;
-  FListOrderedByAccountsData := TList.Create;
-  FListOrderedByOpReference := TList.Create;
+  FListOrderedBySha256 := TList<Integer>.Create;
+  FListOrderedByAccountsData := TList<Pointer>.Create;
+  FListOrderedByOpReference := TList<Integer>.Create;
   FTotalAmount := 0;
   FTotalFee := 0;
   FHashTree := Nil;
   FMax0feeOperationsBySigner := -1; // Unlimited by default
-  FHashTreeOperations := TPCThreadList.Create('TOperationsHashTree_HashTreeOperations');
+  FHashTreeOperations := TPCThreadList<Pointer>.Create('TOperationsHashTree_HashTreeOperations');
 end;
 
 procedure TOperationsHashTree.Delete(index: Integer);
-Var l : TList;
+Var l : TList<Pointer>;
   P : POperationHashTreeReg;
   i,iDel,iValuePosDeleted : Integer;
   PaccData : POperationsHashAccountsData;
@@ -2127,7 +2128,7 @@ begin
     // Decrease FListOrderedByOpReference values > index
     for i := 0 to FListOrderedByOpReference.Count - 1 do begin
       if PtrInt(FListOrderedByOpReference[i])>index then begin
-        FListOrderedByOpReference[i] := TObject( PtrInt(FListOrderedByOpReference[i]) - 1 );
+        FListOrderedByOpReference[i] := ( (FListOrderedByOpReference[i]) - 1 );
       end;
     end;
 
@@ -2144,7 +2145,7 @@ begin
     // Decrease FListOrderedBySha256 values > index
     for i := 0 to FListOrderedBySha256.Count - 1 do begin
       if PtrInt(FListOrderedBySha256[i])>index then begin
-        FListOrderedBySha256[i] := TObject( PtrInt(FListOrderedBySha256[i]) - 1 );
+        FListOrderedBySha256[i] := ( (FListOrderedBySha256[i]) - 1 );
       end;
     end;
 
@@ -2193,7 +2194,7 @@ begin
 end;
 
 function TOperationsHashTree.GetHashTree: TRawBytes;
-Var l : TList;
+Var l : TList<Pointer>;
   i : Integer;
   P : POperationHashTreeReg;
   tmpRaw : TRawBytes;
@@ -2217,7 +2218,7 @@ begin
 end;
 
 function TOperationsHashTree.GetOperation(index: Integer): TPCOperation;
-Var l : TList;
+Var l : TList<Pointer>;
 begin
   l := FHashTreeOperations.LockList;
   try
@@ -2227,20 +2228,21 @@ begin
   end;
 end;
 
-function TOperationsHashTree.GetOperationsAffectingAccount(account_number: Cardinal; List: TList): Integer;
+function TOperationsHashTree.GetOperationsAffectingAccount(account_number: Cardinal; List: TList<Cardinal>): Integer;
   // This function retrieves operations from HashTree that affeccts to an account_number
-Var l,intl : TList;
+Var l : TList<Pointer>;
+  intl : TList<Cardinal>;
   i,j : Integer;
 begin
   List.Clear;
   l := FHashTreeOperations.LockList;
   try
-    intl := TList.Create;
+    intl := TList<Cardinal>.Create;
     try
       for i := 0 to l.Count - 1 do begin
         intl.Clear;
         POperationHashTreeReg(l[i])^.Op.AffectedAccounts(intl);
-        if intl.IndexOf(TObject(account_number))>=0 then List.Add(TObject(i));
+        if intl.IndexOf(account_number)>=0 then List.Add(Cardinal(i));
       end;
     finally
       intl.Free;
@@ -2253,7 +2255,7 @@ end;
 
 function TOperationsHashTree.IndexOfOperation(op: TPCOperation): Integer;
 Var iPosInOrdered : Integer;
-  l : TList;
+  l : TList<Pointer>;
   OpSha256 : TRawBytes;
 begin
   OpSha256 := op.Sha256;
@@ -2270,7 +2272,7 @@ begin
 end;
 
 function TOperationsHashTree.IndexOfOpReference(const opReference: TOpReference): Integer;
-Var l : TList;
+Var l : TList<Pointer>;
 begin
   l := FHashTreeOperations.LockList;
   Try
@@ -2282,7 +2284,7 @@ begin
 end;
 
 function TOperationsHashTree.CountOperationsBySameSignerWithoutFee(account_number: Cardinal): Integer;
-Var l : TList;
+Var l : TList<Pointer>;
   i : Integer;
 begin
   Result := 0;
@@ -2298,13 +2300,13 @@ begin
   End;
 end;
 
-function TOperationsHashTree.InternalAddOperationToHashTree(list: TList; op: TPCOperation; CalcNewHashTree : Boolean) : Boolean;
+function TOperationsHashTree.InternalAddOperationToHashTree(list: TList<Pointer>; op: TPCOperation; CalcNewHashTree : Boolean) : Boolean;
 Var msCopy : TMemoryStream;
   hForNewHash : TRawBytes;
   P : POperationHashTreeReg;
   PaccData : POperationsHashAccountsData;
   i,npos,iListSigners : Integer;
-  listSigners : TList;
+  listSigners : TList<Cardinal>;
 begin
   if Not InternalCanAddOperationToHashTree(list,op) then begin
     Result := False;
@@ -2342,23 +2344,23 @@ begin
     npos := list.Add(P);
     //
     if Not FindOrderedByOpReference(list,op.GetOpReference,i) then begin
-      FListOrderedByOpReference.Insert(i,TObject(npos));
+      FListOrderedByOpReference.Insert(i, npos);
     end; // TODO: Do not allow duplicate OpReferences?
 
     // Improvement: Will allow to add duplicate Operations, so add only first to orderedBySha
     If Not FindOrderedBySha(list,op.Sha256,i) then begin
       // Protection: Will add only once
-      FListOrderedBySha256.Insert(i,TObject(npos));
+      FListOrderedBySha256.Insert(i, npos);
     end;
     // Improvement TOperationsHashTree speed 2.1.6
     // Mantain an ordered Accounts list with data
-    listSigners := TList.Create;
+    listSigners := TList<Cardinal>.Create;
     try
       op.SignerAccounts(listSigners);
       for iListSigners:=0 to listSigners.Count-1 do begin
-        If Not FindOrderedByAccountData(list,PtrInt(listSigners[iListSigners]),i) then begin
+        If Not FindOrderedByAccountData(list,listSigners[iListSigners],i) then begin
           New(PaccData);
-          PaccData^.account_number:=PtrInt(listSigners[iListSigners]);
+          PaccData^.account_number:=listSigners[iListSigners];
           PaccData^.account_count:=0;
           PaccData^.account_without_fee:=0;
           FListOrderedByAccountsData.Insert(i,PaccData);
@@ -2376,10 +2378,10 @@ begin
   If Assigned(FOnChanged) then FOnChanged(Self);
 end;
 
-function TOperationsHashTree.InternalCanAddOperationToHashTree(lockedThreadList : TList; op: TPCOperation): Boolean;
+function TOperationsHashTree.InternalCanAddOperationToHashTree(lockedThreadList : TList<Pointer>; op: TPCOperation): Boolean;
 Var PaccData : POperationsHashAccountsData;
   iListSigners,iFound : Integer;
-  listSigners : TList;
+  listSigners : TList<Cardinal>;
 begin
   Result := False;
   // Protections:
@@ -2387,11 +2389,11 @@ begin
   if (op.OperationFee=0) And (FMax0feeOperationsBySigner>=0) then begin
     if (FMax0feeOperationsBySigner=0) then Exit // Not allowed 0-fee operations!
     else if (FMax0feeOperationsBySigner>0) then begin
-      listSigners := TList.Create;
+      listSigners := TList<Cardinal>.Create;
       try
         op.SignerAccounts(listSigners);
         for iListSigners:=0 to listSigners.Count-1 do begin
-          If FindOrderedByAccountData(lockedThreadList,PtrInt(listSigners[iListSigners]),iFound) then begin
+          If FindOrderedByAccountData(lockedThreadList,(listSigners[iListSigners]),iFound) then begin
             PaccData := FListOrderedByAccountsData[iFound];
             if (PaccData^.account_without_fee>=FMax0feeOperationsBySigner) then Exit; // Limit 0-fee reached
           end;
@@ -2404,7 +2406,7 @@ begin
   Result := True;
 end;
 
-function TOperationsHashTree.FindOrderedBySha(lockedThreadList : TList; const Value: TRawBytes; var Index: Integer): Boolean;
+function TOperationsHashTree.FindOrderedBySha(lockedThreadList : TList<Pointer>; const Value: TRawBytes; var Index: Integer): Boolean;
 var L, H, I : Integer;
   iLockedThreadListPos : PtrInt;
   C : Int64;
@@ -2431,7 +2433,7 @@ begin
   Index := L;
 end;
 
-function TOperationsHashTree.FindOrderedByAccountData(lockedThreadList: TList; const account_number: Cardinal; var Index: Integer): Boolean;
+function TOperationsHashTree.FindOrderedByAccountData(lockedThreadList: TList<Pointer>; const account_number: Cardinal; var Index: Integer): Boolean;
 var L, H, I : Integer;
   C : Int64;
 begin
@@ -2455,7 +2457,7 @@ begin
   Index := L;
 end;
 
-function TOperationsHashTree.FindOrderedByOpReference(lockedThreadList: TList; const Value: TOpReference; var Index: Integer): Boolean;
+function TOperationsHashTree.FindOrderedByOpReference(lockedThreadList: TList<Pointer>; const Value: TOpReference; var Index: Integer): Boolean;
 var L, H, I : Integer;
   iLockedThreadListPos : PtrInt;
   C : Int64;
@@ -2542,7 +2544,7 @@ end;
 procedure TOperationsHashTree.MarkVerifiedECDSASignatures(operationsHashTreeToMark: TOperationsHashTree);
 var i, iPosInMyList, nMarkedAsGood, nAlreadyMarked : Integer;
   opToMark, opInMyList : TPCOperation;
-  myList, listToMark : TList;
+  myList, listToMark : TList<Pointer>;
 begin
   // Introduced on Build 4.0.2 to increase speed
   // Will search each "operationsHashTreeToMark" operation on my current list. If found, will set same FHasValidSignature in order to mark operation in "operationsHashTreeToMark" as verified
@@ -2584,7 +2586,7 @@ begin
 end;
 
 function TOperationsHashTree.OperationsCount: Integer;
-Var l : TList;
+Var l : TList<Pointer>;
 begin
   l := FHashTreeOperations.LockList;
   try
@@ -2596,7 +2598,7 @@ end;
 
 procedure TOperationsHashTree.RemoveByOpReference(const opReference: TOpReference);
 var i : Integer;
-  l : TList;
+  l : TList<Pointer>;
   iLockedThreadListPos : PtrInt;
 begin
   l := FHashTreeOperations.LockList;
@@ -2613,7 +2615,7 @@ end;
 function TOperationsHashTree.SaveOperationsHashTreeToStream(Stream: TStream; SaveToStorage: Boolean): Boolean;
 Var c, i, OpType: Cardinal;
   bcop: TPCOperation;
-  l : TList;
+  l : TList<Pointer>;
 begin
   l := FHashTreeOperations.LockList;
   Try
@@ -2863,10 +2865,10 @@ begin
   Result := Cardinal(opReference);
 end;
 
-procedure TPCOperation.SignerAccounts(list: TList);
+procedure TPCOperation.SignerAccounts(list: TList<Cardinal>);
 begin
   list.Clear;
-  list.Add(TObject(SignerAccount));
+  list.Add(SignerAccount);
 end;
 
 class function TPCOperation.DecodeOperationHash(const operationHash: TRawBytes;
@@ -3232,12 +3234,12 @@ begin
 end;
 
 function TPCOperation.IsAffectedAccount(account: Cardinal): Boolean;
-Var l : TList;
+Var l : TList<Cardinal>;
 begin
-  l := TList.Create;
+  l := TList<Cardinal>.Create;
   Try
     AffectedAccounts(l);
-    Result := (l.IndexOf(TObject(account))>=0);
+    Result := (l.IndexOf(account)>=0);
   finally
     l.Free;
   end;
@@ -3297,7 +3299,7 @@ end;
 procedure TOperationsResumeList.Clear;
 Var P : POperationResume;
   i : Integer;
-  l : TList;
+  l : TList<Pointer>;
 begin
   l := FList.LockList;
   try
@@ -3312,7 +3314,7 @@ begin
 end;
 
 function TOperationsResumeList.Count: Integer;
-Var l : TList;
+Var l : TList<Pointer>;
 begin
   l := FList.LockList;
   Try
@@ -3324,12 +3326,12 @@ end;
 
 constructor TOperationsResumeList.Create;
 begin
-  FList := TPCThreadList.Create('TOperationsResumeList_List');
+  FList := TPCThreadList<Pointer>.Create('TOperationsResumeList_List');
 end;
 
 procedure TOperationsResumeList.Delete(index: Integer);
 Var P : POperationResume;
-  l : TList;
+  l : TList<Pointer>;
 begin
   l := FList.LockList;
   Try
@@ -3349,7 +3351,7 @@ begin
 end;
 
 function TOperationsResumeList.GetOperationResume(index: Integer): TOperationResume;
-Var l : TList;
+Var l : TList<Pointer>;
 begin
   l := FList.LockList;
   try

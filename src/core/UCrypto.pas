@@ -270,8 +270,7 @@ end;
 
 function TECPrivateKey.GetPublicKey: TECDSA_Public;
 {$IFDEF Use_OpenSSL}
-var ps : PAnsiChar;
-  BNx,BNy : PBIGNUM;
+var BNx,BNy : PBIGNUM;
   ctx : PBN_CTX;
 {$ENDIF}
 begin
@@ -315,6 +314,9 @@ Var ms : TStream;
   LNewPrivateKeyInfo : TECPrivateKeyInfo;
 begin
   Result := Nil;
+  LNewPrivateKeyInfo.EC_OpenSSL_NID := 0;
+  LNewPrivateKeyInfo.EC_KEY_Ptr := Nil;
+  LNewPrivateKeyInfo.RAW_PrivKey := Nil;
   ms := TMemoryStream.Create;
   Try
     ms.WriteBuffer(raw[Low(raw)],Length(raw));
@@ -425,6 +427,9 @@ begin
   if Assigned(FPrivateKeyInfo.EC_KEY_Ptr) then EC_KEY_free(FPrivateKeyInfo.EC_KEY_Ptr);
   {$ENDIF}
   FPrivateKeyInfo := Value;
+  {$IFNDEF Use_OpenSSL}
+  FPrivateKeyInfo.EC_KEY_Ptr := Nil;
+  {$ENDIF}
 end;
 
 function TECPrivateKey.SetPrivateKeyFromHexa(AEC_OpenSSL_NID : Word; const hexa : String) : Boolean;
@@ -447,7 +452,7 @@ begin
     if Assigned(FPrivateKeyInfo.EC_KEY_Ptr) then EC_KEY_free(FPrivateKeyInfo.EC_KEY_Ptr);
     FPrivateKeyInfo.EC_KEY_Ptr := Nil;
 
-    FPrivateKeyInfo.EC_OpenSSL_NID := EC_OpenSSL_NID;
+    FPrivateKeyInfo.EC_OpenSSL_NID := AEC_OpenSSL_NID;
     FPrivateKeyInfo.EC_KEY_Ptr := EC_KEY_new_by_curve_name(EC_OpenSSL_NID);
     If Not Assigned(FPrivateKeyInfo.EC_KEY_Ptr) then Exit;
     if EC_KEY_set_private_key(FPrivateKeyInfo.EC_KEY_Ptr,bn)<>1 then raise ECryptoException.Create('Invalid num to set as private key');

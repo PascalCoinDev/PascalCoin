@@ -37,6 +37,7 @@ uses
   {$IFDEF INTERNAL_USE_SETTINGS_UNIT}
   USettings,
   {$ENDIF}
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
   UPCDataTypes;
 
 Type
@@ -51,7 +52,7 @@ Type
 
   TWalletKeys = Class(TComponent)
   private
-    FSearchableKeys : TList;
+    FSearchableKeys : TList<Pointer>;
     FFileName: String;
     FWalletPassword: String;
     FWalletFileStream : TFileStream;
@@ -252,7 +253,7 @@ begin
   FIsValidPassword := false;
   FWalletFileStream := Nil;
   FWalletPassword := '';
-  FSearchableKeys := TList.Create;
+  FSearchableKeys := TList<Pointer>.Create;
   FIsReadingStream := false;
 end;
 
@@ -305,6 +306,7 @@ Var i : Integer;
  P : PWalletKey;
  raw : TRawBytes;
  isOk : Boolean;
+ LtmpECPrivKey : TECPrivateKey;
 begin
   FIsValidPassword := false;
   isOk := true;
@@ -318,15 +320,20 @@ begin
     if P^.HasPrivateKey then begin
       isOk := TPCEncryption.DoPascalCoinAESDecrypt(P^.CryptedKey, TEncoding.ASCII.GetBytes(FWalletPassword), raw );
       If isOk then begin
-        P^.PrivateKey := TECPrivateKey.Create;
+        LtmpECPrivKey := TECPrivateKey.Create;
         try
-          P^.PrivateKey.SetPrivateKeyFromHexa(P^.AccountKey.EC_OpenSSL_NID,TEncoding.ASCII.GetString(raw));
-        except on E: Exception do begin
-            P^.PrivateKey.Free;
-            P^.PrivateKey := Nil;
+          LtmpECPrivKey.SetPrivateKeyFromHexa(P^.AccountKey.EC_OpenSSL_NID,TEncoding.ASCII.GetString(raw));
+          if not TAccountComp.EqualAccountKeys(LtmpECPrivKey.PublicKey,P^.AccountKey) then begin
+            TLog.NewLog(lterror,ClassName,Format('Private key and public key does not match! %s <> %s',
+              [TAccountComp.AccountPublicKeyExport(LtmpECPrivKey.PublicKey),
+               TAccountComp.AccountPublicKeyExport(P^.AccountKey)]));
+            LtmpECPrivKey.Free;
+          end else P^.PrivateKey := LtmpECPrivKey;
+        except
+          on E: Exception do begin
+            LtmpECPrivKey.Free;
             isOk := false;
             TLog.NewLog(lterror,ClassName,Format('Fatal error when generating EC private key %d/%d: %s',[i+1,FSearchableKeys.Count,E.Message]));
-            //disabled exit... continue: exit;
           end;
         end;
       end;

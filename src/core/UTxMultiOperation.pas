@@ -23,7 +23,9 @@ unit UTxMultiOperation;
 interface
 
 uses
-  Classes, SysUtils, UCrypto, UBlockChain, UAccounts, UBaseTypes, UPCDataTypes;
+  Classes, SysUtils, UCrypto, UBlockChain, UAccounts, UBaseTypes,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
+  UPCDataTypes;
 
 Type
 
@@ -120,7 +122,7 @@ Type
     function CheckSignatures(AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean;
 
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
-    procedure AffectedAccounts(list : TList); override;
+    procedure AffectedAccounts(list : TList<Cardinal>); override;
     //
     Function DoSignMultiOperationSigner(current_protocol : Word; SignerAccount : Cardinal; key : TECPrivateKey) : Integer;
     class function OpType : Byte; override;
@@ -128,7 +130,7 @@ Type
     function OperationFee : Int64; override;
     function OperationPayload : TRawBytes; override;
     function SignerAccount : Cardinal; override;
-    procedure SignerAccounts(list : TList); override;
+    procedure SignerAccounts(list : TList<Cardinal>); override;
     function IsSignerAccount(account : Cardinal) : Boolean; override;
     function DestinationAccount : Int64; override;
     function SellerAccount : Int64; override;
@@ -720,11 +722,11 @@ begin
   Result := True;
 end;
 
-procedure TOpMultiOperation.AffectedAccounts(list: TList);
+procedure TOpMultiOperation.AffectedAccounts(list: TList<Cardinal>);
 Var i : Integer;
   Procedure _doAdd(nAcc : Cardinal);
   Begin
-    If list.IndexOf(TObject(nAcc))<0 then list.Add(TObject(nAcc));
+    If list.IndexOf(nAcc)<0 then list.Add(nAcc);
   end;
 begin
   For i:=low(FData.txSenders) to High(FData.txSenders) do begin
@@ -801,15 +803,15 @@ begin
   else Result := MaxInt;
 end;
 
-procedure TOpMultiOperation.SignerAccounts(list: TList);
+procedure TOpMultiOperation.SignerAccounts(list: TList<Cardinal>);
 var i : Integer;
 begin
   list.Clear;
   for i := 0 to High(FData.txSenders) do begin
-    list.Add(TObject(FData.txSenders[i].Account));
+    list.Add(FData.txSenders[i].Account);
   end;
   for i:= 0 to High(FData.changesInfo) do begin
-    if list.IndexOf(TObject(FData.changesInfo[i].Account))<0 then list.Add(TObject(FData.changesInfo[i].Account));
+    if list.IndexOf(FData.changesInfo[i].Account)<0 then list.Add(FData.changesInfo[i].Account);
   end;
 end;
 

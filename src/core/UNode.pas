@@ -34,7 +34,9 @@ unit UNode;
 interface
 
 uses
-  Classes, SysUtils, UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, SyncObjs, ULog, UBaseTypes, UPCOrderedLists;
+  Classes, SysUtils,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
+  UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, SyncObjs, ULog, UBaseTypes, UPCOrderedLists;
 
 {$I config.inc}
 
@@ -44,12 +46,14 @@ Type
 
   TSearchOperationResult = (found, invalid_params, blockchain_block_not_found);
 
+  TNodeNotifyEvents = Class;
+
   TNode = Class(TComponent)
   private
     FNodeLog : TLog;
     FLockNodeOperations : TPCCriticalSection;
     FOperationSequenceLock : TPCCriticalSection;
-    FNotifyList : TList;
+    FNotifyList : TList<TNodeNotifyEvents>;
     FBank : TPCBank;
     FOperations : TPCOperationsComp;
     FNetServer : TNetServer;
@@ -111,8 +115,6 @@ Type
     class function NodeVersion : String;
   End;
 
-  TNodeNotifyEvents = Class;
-
   TThreadSafeNodeNotifyEvent = Class(TPCThread)
     FNodeNotifyEvents : TNodeNotifyEvents;
     FNotifyBlocksChanged : Boolean;
@@ -145,7 +147,7 @@ Type
   private
     FNode: TNode;
     FOnKeyActivity: TNotifyEvent;
-    FPendingNotificationsList : TPCThreadList;
+    FPendingNotificationsList : TPCThreadList<Pointer>;
     FThreadSafeNodeNotifyEvent : TThreadSafeNodeNotifyEvent;
     FOnBlocksChanged: TNotifyEvent;
     FOnOperationsChanged: TNotifyEvent;
@@ -568,7 +570,7 @@ begin
   FNetServer := TNetServer.Create;
   FOperations := TPCOperationsComp.Create(Nil);
   FOperations.bank := FBank;
-  FNotifyList := TList.Create;
+  FNotifyList := TList<TNodeNotifyEvents>.Create;
   {$IFDEF BufferOfFutureOperations}
   FBufferAuxWaitingOperations := TOperationsHashTree.Create;
   {$ENDIF}
@@ -815,7 +817,7 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
   var opc : TPCOperationsComp;
     op : TPCOperation;
     OPR : TOperationResume;
-    l : TList;
+    l : TList<Cardinal>;
     i : Integer;
     last_block_number : Integer;
     found_in_block : Boolean;
@@ -825,7 +827,7 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
     if (act_depth<=0) then exit;
     opc := TPCOperationsComp.Create(Nil);
     Try
-      l := TList.Create;
+      l := TList<Cardinal>.Create;
       try
         last_block_number := block_number+1;
         while (last_block_number>block_number) And (act_depth>0)
@@ -1225,7 +1227,7 @@ begin
   FWatchKeys := Nil;
   FOnKeyActivity:=Nil;
   FMessages := TStringList.Create;
-  FPendingNotificationsList := TPCThreadList.Create('TNodeNotifyEvents_PendingNotificationsList');
+  FPendingNotificationsList := TPCThreadList<Pointer>.Create('TNodeNotifyEvents_PendingNotificationsList');
   FThreadSafeNodeNotifyEvent := TThreadSafeNodeNotifyEvent.Create(Self);
   Node := _Node;
 end;

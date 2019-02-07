@@ -103,7 +103,7 @@ unit URandomHash;
 
 interface
 
-uses Generics.Collections, SysUtils, HlpIHash, HlpBits, HlpHashFactory;
+uses {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF}, SysUtils, HlpIHash, HlpBits, HlpHashFactory;
 
 type
 

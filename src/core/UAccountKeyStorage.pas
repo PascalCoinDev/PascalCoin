@@ -7,7 +7,8 @@ unit UAccountKeyStorage;
 interface
 
 uses
-  Classes, SysUtils, UAccounts, UThread, UBaseTypes;
+  Classes, SysUtils, UAccounts, UThread, UBaseTypes,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 type
   TAccountKeyStorageData = record
@@ -22,8 +23,8 @@ type
   // Based on tests, allows a 10-20% memory reduction when multiple accounts use the same Account key
   TAccountKeyStorage = Class
   private
-    FAccountKeys : TPCThreadList;
-    Function Find(list : TList; const accountKey: TAccountKey; var Index: Integer): Boolean;
+    FAccountKeys : TPCThreadList<Pointer>;
+    Function Find(list : TList<Pointer>; const accountKey: TAccountKey; out Index: Integer): Boolean;
   public
     constructor Create;
     destructor Destroy; override;
@@ -31,7 +32,7 @@ type
     function AddAccountKeyExt(Const accountKey: TAccountKey) : PAccountKeyStorageData;
     procedure RemoveAccountKey(Const accountKey: TAccountKey);
     class function KS : TAccountKeyStorage;
-    function LockList : TList;
+    function LockList : TList<Pointer>;
     procedure UnlockList;
   end;
 
@@ -44,7 +45,7 @@ var _aks : TAccountKeyStorage = Nil;
 
 { TAccountKeyStorage }
 
-function TAccountKeyStorage.Find(list : TList; const accountKey: TAccountKey; var Index: Integer): Boolean;
+function TAccountKeyStorage.Find(list : TList<Pointer>; const accountKey: TAccountKey; out Index: Integer): Boolean;
 var L, H, I: Integer;
   C : Integer;
 begin
@@ -76,11 +77,11 @@ end;
 
 constructor TAccountKeyStorage.Create;
 begin
-  FAccountKeys := TPCThreadList.Create('TAccountKeyStorage');
+  FAccountKeys := TPCThreadList<Pointer>.Create('TAccountKeyStorage');
 end;
 
 destructor TAccountKeyStorage.Destroy;
-Var l : TList;
+Var l : TList<Pointer>;
   i : Integer;
   P1 : PAccountKeyStorageData;
   P2 : PAccountKey;
@@ -102,7 +103,7 @@ begin
 end;
 
 function TAccountKeyStorage.AddAccountKey(const accountKey: TAccountKey): PAccountKey;
-var l : TList;
+var l : TList<Pointer>;
   i : Integer;
   P : PAccountKeyStorageData;
 begin
@@ -127,7 +128,7 @@ end;
 
 function TAccountKeyStorage.AddAccountKeyExt(const accountKey: TAccountKey): PAccountKeyStorageData;
   // This function will return allocated pointer and will increase counter like AddAccountKey
-var l : TList;
+var l : TList<Pointer>;
   i : Integer;
 begin
   Result := Nil;
@@ -149,7 +150,7 @@ begin
 end;
 
 procedure TAccountKeyStorage.RemoveAccountKey(const accountKey: TAccountKey);
-var l : TList;
+var l : TList<Pointer>;
   i : Integer;
   P : PAccountKeyStorageData;
 begin
@@ -177,7 +178,7 @@ begin
   Result := _aks;
 end;
 
-function TAccountKeyStorage.LockList: TList;
+function TAccountKeyStorage.LockList: TList<Pointer>;
 begin
   Result := FAccountKeys.LockList;
 end;

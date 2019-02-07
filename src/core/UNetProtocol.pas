@@ -31,6 +31,8 @@ Uses
 {$ENDIF}
   UBlockChain, Classes, SysUtils, UAccounts, UThread,
   UCrypto, UTCPIP, SyncObjs, UBaseTypes, UCommon, UPCOrderedLists,
+  {$IFNDEF FPC}System.Generics.Collections,System.Generics.Defaults
+  {$ELSE}Generics.Collections,Generics.Defaults{$ENDIF},
   UNetProtection;
 
 {$I config.inc}
@@ -141,8 +143,8 @@ Type
     FAllowDeleteOnClean: Boolean;
     FNetData : TNetData;
     FCritical : TPCCriticalSection;
-    FListByIp : TList;
-    FListByNetConnection : TList;
+    FListByIp : TList<Pointer>;
+    FListByNetConnection : TList<Pointer>;
     Procedure SecuredDeleteFromListByIp(index : Integer);
     Function SecuredFindByIp(const ip : String; port : Word; var Index: Integer): Boolean;
     Function SecuredFindByNetConnection(const search : TNetConnection; var Index: Integer): Boolean;
@@ -155,7 +157,7 @@ Type
     Function Count : Integer;
     Function CleanBlackList(forceCleanAll : Boolean) : Integer;
     procedure CleanNodeServersList;
-    Function LockList : TList;
+    Function LockList : TList<Pointer>;
     Procedure UnlockList;
     function IsBlackListed(const ip: String): Boolean;
     function GetNodeServerAddress(const ip : String; port:Word; CanAdd : Boolean; var nodeServerAddress : TNodeServerAddress) : Boolean;
@@ -234,11 +236,11 @@ Type
 
   TNetworkAdjustedTime = Class
   private
-    FTimesList : TPCThreadList;
+    FTimesList : TPCThreadList<Pointer>;
     FTimeOffset : Integer;
     FTotalCounter : Integer;
-    Function IndexOfClientIp(list : TList; const clientIp : String) : Integer;
-    Procedure UpdateMedian(list : TList);
+    Function IndexOfClientIp(list : TList<Pointer>; const clientIp : String) : Integer;
+    Procedure UpdateMedian(list : TList<Pointer>);
   public
     constructor Create;
     destructor Destroy; override;
@@ -260,11 +262,11 @@ Type
     FMinServersConnected: Integer;
     FNetDataNotifyEventsThread : TNetDataNotifyEventsThread;
     FNodePrivateKey : TECPrivateKey;
-    FNetConnections : TPCThreadList;
+    FNetConnections : TPCThreadList<TNetConnection>;
     FNodeServersAddresses : TOrderedServerAddressListTS;
     FLastRequestId : Cardinal;
     FOnProcessReservedAreaMessage: TProcessReservedAreaMessage;
-    FRegisteredRequests : TPCThreadList;
+    FRegisteredRequests : TPCThreadList<Pointer>;
     FIsDiscoveringServers : Boolean;
     FLockGettingNewBlockChainFromClient : TPCCriticalSection;
     FNewBlockChainFromClientStatus : String;
@@ -330,7 +332,7 @@ Type
     procedure OnReadingNewSafeboxProgressNotify(sender : TObject; const mesage : String; curPos, totalCount : Int64);
     Procedure GetNewBlockChainFromClient(Connection : TNetConnection; const why : String);
     Property NodeServersAddresses : TOrderedServerAddressListTS read FNodeServersAddresses;
-    Property NetConnections : TPCThreadList read FNetConnections;
+    Property NetConnections : TPCThreadList<TNetConnection> read FNetConnections;
     Property NetStatistics : TNetStatistics read FNetStatistics;
     Property IsDiscoveringServers : Boolean read FIsDiscoveringServers;
     function IsGettingNewBlockChainFromClient(var status : String) : Boolean;
@@ -612,8 +614,8 @@ constructor TOrderedServerAddressListTS.Create(ANetData : TNetData);
 begin
   FNetData := ANetData;
   FCritical := TPCCriticalSection.Create(Classname);
-  FListByIp := TList.Create;
-  FListByNetConnection := TList.Create;
+  FListByIp := TList<Pointer>.Create;
+  FListByNetConnection := TList<Pointer>.Create;
   FAllowDeleteOnClean := True;
 end;
 
@@ -669,7 +671,7 @@ begin
 end;
 
 procedure TOrderedServerAddressListTS.GetNodeServersToConnnect(maxNodes: Integer; useArray : Boolean; var nsa: TNodeServerAddressArray);
-  Procedure sw(l : TList);
+  Procedure sw(l : TList<Pointer>);
   Var i,j,x,y : Integer;
   begin
     if l.Count<=1 then exit;
@@ -688,12 +690,12 @@ procedure TOrderedServerAddressListTS.GetNodeServersToConnnect(maxNodes: Integer
   End;
 Var i,j, iStart : Integer;
   P : PNodeServerAddress;
-  l : TList;
+  l : TList<Pointer>;
   ns : TNodeServerAddress;
 begin
   FCritical.Acquire;
   Try
-    l := TList.Create;
+    l := TList<Pointer>.Create;
     Try
       if useArray then begin
         for i := 0 to High(nsa) do begin
@@ -828,7 +830,7 @@ begin
   End;
 end;
 
-function TOrderedServerAddressListTS.LockList: TList;
+function TOrderedServerAddressListTS.LockList: TList<Pointer>;
 begin
   FCritical.Acquire;
   Result := FListByIp;
@@ -966,13 +968,12 @@ Type PNetRequestRegistered = ^TNetRequestRegistered;
 procedure TNetData.AddServer(NodeServerAddress: TNodeServerAddress);
 Var P : PNodeServerAddress;
   i : Integer;
-  l : TList;
   currunixtimestamp : Cardinal;
   nsa : TNodeServerAddress;
 begin
   if (trim(NodeServerAddress.ip)='')
      or (SameText(NodeServerAddress.ip,'localhost'))
-     or (SameText('127.',Copy(NodeServerAddress.ip,1,4))) then Exit;
+     or (SameText('127.',NodeServerAddress.ip.Substring(0,4))) then Exit;
 
   if (NodeServerAddress.port<=0) then NodeServerAddress.port := CT_NetServer_Port
   else if (NodeServerAddress.port<>CT_NetServer_Port) then exit;
@@ -999,11 +1000,11 @@ begin
 end;
 
 function TNetData.Connection(index: Integer): TNetConnection;
-Var l : TList;
+Var l : TList<TNetConnection>;
 begin
   l := FNetConnections.LockList;
   try
-    Result := TNetConnection( l[index] );
+    Result := ( l[index] );
   finally
     FNetConnections.UnlockList;
   end;
@@ -1011,7 +1012,7 @@ end;
 
 function TNetData.ConnectionExists(ObjectPointer: TObject): Boolean;
 var i : Integer;
-  l : TList;
+  l : TList<TNetConnection>;
 begin
   Result := false;
   l := FNetConnections.LockList;
@@ -1029,7 +1030,7 @@ end;
 
 function TNetData.ConnectionExistsAndActive(ObjectPointer: TObject): Boolean;
 var i : Integer;
-  l : TList;
+  l : TList<TNetConnection>;
 begin
   Result := false;
   l := FNetConnections.LockList;
@@ -1047,7 +1048,7 @@ end;
 
 function TNetData.ConnectionLock(Sender : TObject; ObjectPointer: TObject; MaxWaitMiliseconds : Cardinal) : Boolean;
 var i : Integer;
-  l : TList;
+  l : TList<TNetConnection>;
   nc : TNetConnection;
   tc : TTickCount;
 begin
@@ -1079,7 +1080,7 @@ end;
 
 function TNetData.ConnectionsCount(CountOnlyNetClients : Boolean): Integer;
 var i : Integer;
-  l : TList;
+  l : TList<TNetConnection>;
 begin
   l := FNetConnections.LockList;
   try
@@ -1095,7 +1096,7 @@ begin
 end;
 
 function TNetData.ConnectionsCountAll: Integer;
-Var l : TList;
+Var l : TList<TNetConnection>;
 begin
   l := FNetConnections.LockList;
   try
@@ -1106,7 +1107,7 @@ begin
 end;
 
 function TNetData.ConnectionsCountClients: Integer;
-Var l : TList; i : Integer;
+Var l : TList<TNetConnection>; i : Integer;
 begin
   Result := 0;
   l := FNetConnections.LockList;
@@ -1120,7 +1121,7 @@ begin
 end;
 
 function TNetData.ConnectionsCountServerClients: Integer;
-Var l : TList; i : Integer;
+Var l : TList<TNetConnection>; i : Integer;
 begin
   Result := 0;
   l := FNetConnections.LockList;
@@ -1135,7 +1136,7 @@ end;
 
 procedure TNetData.ConnectionUnlock(ObjectPointer: TObject);
 var i : Integer;
-  l : TList;
+  l : TList<TNetConnection>;
   nc : TNetConnection;
 begin
   l := FNetConnections.LockList;
@@ -1178,10 +1179,10 @@ begin
   FOnReceivedHelloMessage := Nil;
   FOnGetNewBlockchainFromClientDownloadNewSafebox := Nil;
   FIsDiscoveringServers := false;
-  FRegisteredRequests := TPCThreadList.Create('TNetData_RegisteredRequests');
+  FRegisteredRequests := TPCThreadList<Pointer>.Create('TNetData_RegisteredRequests');
   FNodeServersAddresses := TOrderedServerAddressListTS.Create(Self);
   FLastRequestId := 0;
-  FNetConnections := TPCThreadList.Create('TNetData_NetConnections');
+  FNetConnections := TPCThreadList<TNetConnection>.Create('TNetData_NetConnections');
   FLockGettingNewBlockChainFromClient := TPCCriticalSection.Create('LockGettingNewBlockChainFromClient');
   FNewBlockChainFromClientStatus := '';
   FNodePrivateKey := TECPrivateKey.Create;
@@ -1204,7 +1205,7 @@ begin
 end;
 
 destructor TNetData.Destroy;
-Var l : TList;
+Var l : TList<TNetConnection>;
   i : Integer;
   tdc : TThreadDiscoverConnection;
 begin
@@ -1270,12 +1271,12 @@ end;
 
 procedure TNetData.DisconnectClients;
 var i : Integer;
-  l : TList;
+  l : TList<TNetConnection>;
 begin
   l := FNetConnections.LockList;
   Try
     for i := l.Count - 1 downto 0 do begin
-      if TObject(l[i]) is TNetClient then begin
+      if (l[i] is TNetClient) then begin
         TNetClient(l[i]).Connected := false;
         TNetClient(l[i]).FinalizeConnection;
       end;
@@ -1298,20 +1299,8 @@ begin
 end;
 
 procedure TNetData.DiscoverServers;
-  Procedure sw(l : TList);
-  Var i,j,x,y : Integer;
-  begin
-    if l.Count<=1 then exit;
-    j := Random(l.Count)*3;
-    for i := 0 to j do begin
-      x := Random(l.Count);
-      y := Random(l.Count);
-      if x<>y then l.Exchange(x,y);
-    end;
-  end;
 Var P : PNodeServerAddress;
   i,j,k : Integer;
-  l,lns : TList;
   tdc : TThreadDiscoverConnection;
   canAdd : Boolean;
   nsa : TNodeServerAddressArray;
@@ -1430,7 +1419,7 @@ begin
 end;
 
 function TNetData.FindConnectionByClientRandomValue(Sender: TNetConnection): TNetConnection;
-Var l : TList;
+Var l : TList<TNetConnection>;
   i : Integer;
 begin
   l := FNetConnections.LockList;
@@ -1446,7 +1435,7 @@ begin
 end;
 
 function TNetData.GetConnection(index: Integer; var NetConnection : TNetConnection) : Boolean;
-Var l : TList;
+Var l : TList<TNetConnection>;
 begin
   Result := false; NetConnection := Nil;
   l := FNetConnections.LockList;
@@ -1465,7 +1454,7 @@ procedure TNetData.GetNewBlockChainFromClient(Connection: TNetConnection;
   const why: String);
 Const CT_LogSender = 'GetNewBlockChainFromClient';
 
-  function Do_GetOperationsBlock(AssignToBank : TPCBank; block_start,block_end, MaxWaitMilliseconds : Cardinal; OnlyOperationBlock : Boolean; BlocksList : TList) : Boolean;
+  function Do_GetOperationsBlock(AssignToBank : TPCBank; block_start,block_end, MaxWaitMilliseconds : Cardinal; OnlyOperationBlock : Boolean; BlocksList : TList<TPCOperationsComp>) : Boolean;
   Var SendData,ReceiveData : TMemoryStream;
     headerdata : TNetHeaderData;
     op : TPCOperationsComp;
@@ -1526,11 +1515,11 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
   end;
 
   function Do_GetOperationBlock(block, MaxWaitMilliseconds : Cardinal; var OperationBlock : TOperationBlock) : Boolean;
-  Var BlocksList : TList;
+  Var BlocksList : TList<TPCOperationsComp>;
     i : Integer;
   begin
     OperationBlock := CT_OperationBlock_NUL;
-    BlocksList := TList.Create;
+    BlocksList := TList<TPCOperationsComp>.Create;
     try
       Result := Do_GetOperationsBlock(TNode.Node.Bank,block,block,MaxWaitMilliseconds,True,BlocksList);
       // Build 2.1.7 - Included protection agains not good block received
@@ -1551,13 +1540,13 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     ant_nblock : Int64;
     auxBlock, sbBlock : TOperationBlock;
     distinctmax,distinctmin : Cardinal;
-    BlocksList : TList;
+    BlocksList : TList<TPCOperationsComp>;
     errors : String;
   Begin
     Result := false;
     OperationBlock := CT_OperationBlock_NUL;
     repeat
-      BlocksList := TList.Create;
+      BlocksList := TList<TPCOperationsComp>.Create;
       try
         If Not Do_GetOperationsBlock(Nil,min,max,20000,true,BlocksList) then exit;
         if (BlocksList.Count=0) then begin
@@ -1604,7 +1593,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
   End;
 
   procedure GetNewBank(start_block : Int64);
-  Var BlocksList : TList;
+  Var BlocksList : TList<TPCOperationsComp>;
     i : Integer;
     OpComp,OpExecute : TPCOperationsComp;
     oldBlockchainOperations : TOperationsHashTree;
@@ -1653,7 +1642,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       // Receive new blocks:
       finished := false;
       repeat
-        BlocksList := TList.Create;
+        BlocksList := TList<TPCOperationsComp>.Create;
         try
           finished := NOT Do_GetOperationsBlock(Bank,start,start + 50,30000,false,BlocksList);
           i := 0;
@@ -1944,7 +1933,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     newBlock : TBlockAccount;
     opComp : TPCOperationsComp;
     errors : String;
-    blocksList : TList;
+    blocksList : TList<TPCOperationsComp>;
     i : Integer;
     rid : Cardinal;
     download_new_safebox : Boolean;
@@ -1975,7 +1964,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
               TLog.NewLog(ltInfo,ClassName,'Received new safebox!');
               newTmpBank.Storage.SaveBank(True); // Saving bank
               // Receive at least 1 new block
-              blocksList := TList.Create;
+              blocksList := TList<TPCOperationsComp>.Create;
               try
                 if Not Do_GetOperationsBlock(newTmpBank,safebox_last_operation_block.block,safebox_last_operation_block.block+10,20000,False,blocksList) then begin
                   TLog.NewLog(ltError,ClassName,Format('Cannot receive at least 1 new block:%d',[safebox_last_operation_block.block]));
@@ -2207,14 +2196,14 @@ begin
 end;
 
 procedure TNetData.Notification(AComponent: TComponent; Operation: TOperation);
-Var l : TList;
+Var l : TList<TNetConnection>;
 begin
   inherited;
-  if Operation=OpRemove then begin
+  if (Operation=OpRemove) and Assigned(AComponent) and (AComponent is TNetConnection) then begin
     if not (csDestroying in ComponentState) then begin
       l := FNetConnections.LockList;
       try
-        if l.Remove(AComponent)>=0 then begin
+        if l.Remove(TNetConnection(AComponent))>=0 then begin
           NotifyNetConnectionUpdated;
         end;
       finally
@@ -2285,7 +2274,7 @@ end;
 function TNetData.PendingRequest(Sender: TNetConnection; var requests_data : String): Integer;
 Var P : PNetRequestRegistered;
   i : Integer;
-  l : TList;
+  l : TList<Pointer>;
 begin
   requests_data := '';
   l := FRegisteredRequests.LockList;
@@ -2306,7 +2295,7 @@ end;
 
 procedure TNetData.RegisterRequest(Sender: TNetConnection; operation: Word; request_id: Cardinal);
 Var P : PNetRequestRegistered;
-  l : TList;
+  l : TList<Pointer>;
 begin
   l := FRegisteredRequests.LockList;
   Try
@@ -2333,7 +2322,7 @@ end;
 function TNetData.UnRegisterRequest(Sender: TNetConnection; operation: Word; request_id: Cardinal): Boolean;
 Var P : PNetRequestRegistered;
   i : Integer;
-  l : TList;
+  l : TList<Pointer>;
 begin
   Result := false;
   l := FRegisteredRequests.LockList;
@@ -2486,7 +2475,6 @@ end;
 
 function TNetConnection.ConnectTo(ServerIP: String; ServerPort: Word) : Boolean;
 Var nsa : TNodeServerAddress;
-  lns : TList;
   i : Integer;
 begin
   If FIsConnecting then Exit;
@@ -2732,7 +2720,7 @@ procedure TNetConnection.DoProcess_GetBlockchainOperations_Request(HeaderData: T
       op_size : 4 bytes
       op_data : (op_size) bytes
   }
-  function GetBlock(bufferOperationsBlock : TList; nBlock : Integer) : TPCOperationsComp;
+  function GetBlock(bufferOperationsBlock : TList<TPCOperationsComp>; nBlock : Integer) : TPCOperationsComp;
   var i : Integer;
   begin
     // Search at buffer:
@@ -2748,7 +2736,7 @@ procedure TNetConnection.DoProcess_GetBlockchainOperations_Request(HeaderData: T
 Var input_operations_count, cBlock, cBlockOpIndex, c : Cardinal;
   block_op_ref : UInt64;
   i : Integer;
-  bufferOperationsBlock : TList;
+  bufferOperationsBlock : TList<TPCOperationsComp>;
   opc : TPCOperationsComp;
   outputBuffer : TStream;
   opindexdata : TStream;
@@ -2771,7 +2759,7 @@ begin
       Exit;
     end;
     outputBuffer.Write(input_operations_count,SizeOf(input_operations_count));
-    bufferOperationsBlock := TList.Create;
+    bufferOperationsBlock := TList<TPCOperationsComp>.Create;
     opindexdata := TStream.Create;
     Try
       for i := 1 to input_operations_count do begin
@@ -3508,9 +3496,9 @@ Begin
       TLog.NewLog(ltDebug,ClassName,'Corrected timestamp for node ('+ClientRemoteAddr+') old offset: '+IntToStr(lastTimestampDiff)+' current offset '+IntToStr(FTimestampDiff) );
     end;
 
-    if (connection_has_a_server>0) And (Not SameText(Client.RemoteHost,'localhost')) And (Not SameText('127.',Copy(Client.RemoteHost,1,4)))
-      And (Not SameText('192.168.',Copy(Client.RemoteHost,1,8)))
-      And (Not SameText('10.',Copy(Client.RemoteHost,1,3)))
+    if (connection_has_a_server>0) And (Not SameText(Client.RemoteHost,'localhost')) And (Not SameText('127.',Client.RemoteHost.Substring(0,4)))
+      And (Not SameText('192.168.',Client.RemoteHost.Substring(0,8)))
+      And (Not SameText('10.',Client.RemoteHost.Substring(0,3)))
       And (Not TAccountComp.EqualAccountKeys(FClientPublicKey,TNetData.NetData.FNodePrivateKey.PublicKey)) then begin
       nsa := CT_TNodeServerAddress_NUL;
       nsa.ip := Client.RemoteHost;
@@ -4623,7 +4611,7 @@ end;
 { TThreadCheckConnections }
 
 procedure TThreadCheckConnections.BCExecute;
-Var l : TList;
+Var l : TList<TNetConnection>;
   i, nactive,ndeleted,nserverclients : Integer;
   netconn : TNetConnection;
   netserverclientstop : TNetServerClient;
@@ -4705,14 +4693,14 @@ end;
 procedure TThreadGetNewBlockChainFromClient.BCExecute;
 Var i,j : Integer;
   maxWork : UInt64;
-  candidates : TList;
+  candidates : TList<TNetConnection>;
   lop : TOperationBlock;
   nc : TNetConnection;
 begin
   if Not TNode.Node.UpdateBlockchain then Exit;
 
   // Search better candidates:
-  candidates := TList.Create;
+  candidates := TList<TNetConnection>.Create;
   try
     lop := CT_OperationBlock_NUL;
     TNetData.NetData.FMaxRemoteOperationBlock := CT_OperationBlock_NUL;
@@ -4836,10 +4824,10 @@ end;
 { TNetClientsDestroyThread }
 
 procedure TNetClientsDestroyThread.BCExecute;
-Var l,l_to_del : TList;
+Var l,l_to_del : TList<TNetConnection>;
   i : Integer;
 begin
-  l_to_del := TList.Create;
+  l_to_del := TList<TNetConnection>.Create;
   Try
     while not Terminated do begin
       l_to_del.Clear;
@@ -4907,7 +4895,7 @@ Type TNetworkAdjustedTimeReg = Record
    PNetworkAdjustedTimeReg = ^TNetworkAdjustedTimeReg;
 
 procedure TNetworkAdjustedTime.AddNewIp(const clientIp: String; clientTimestamp : Cardinal);
-Var l : TList;
+Var l : TList<Pointer>;
   i : Integer;
   P : PNetworkAdjustedTimeReg;
 begin
@@ -4934,7 +4922,7 @@ end;
 
 constructor TNetworkAdjustedTime.Create;
 begin
-  FTimesList := TPCThreadList.Create('TNetworkAdjustedTime_TimesList');
+  FTimesList := TPCThreadList<Pointer>.Create('TNetworkAdjustedTime_TimesList');
   FTimeOffset := 0;
   FTotalCounter := 0;
 end;
@@ -4942,7 +4930,7 @@ end;
 destructor TNetworkAdjustedTime.Destroy;
 Var P : PNetworkAdjustedTimeReg;
   i : Integer;
-  l : TList;
+  l : TList<Pointer>;
 begin
   l := FTimesList.LockList;
   try
@@ -4964,7 +4952,7 @@ begin
 end;
 
 function TNetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock: Cardinal;
-var l : TList;
+var l : TList<Pointer>;
 begin
   l := FTimesList.LockList;
   try
@@ -4974,7 +4962,7 @@ begin
   end;
 end;
 
-function TNetworkAdjustedTime.IndexOfClientIp(list: TList; const clientIp: String): Integer;
+function TNetworkAdjustedTime.IndexOfClientIp(list: TList<Pointer>; const clientIp: String): Integer;
 begin
   for Result := 0 to list.Count - 1 do begin
     if SameStr(PNetworkAdjustedTimeReg(list[result])^.clientIp,clientIp) then exit;
@@ -4983,7 +4971,7 @@ begin
 end;
 
 procedure TNetworkAdjustedTime.RemoveIp(const clientIp: String);
-Var l : TList;
+Var l : TList<Pointer>;
   i : Integer;
   P : PNetworkAdjustedTimeReg;
 begin
@@ -5008,13 +4996,8 @@ begin
   end;
 end;
 
-function SortPNetworkAdjustedTimeReg(p1, p2: pointer): integer;
-begin
-  Result := PNetworkAdjustedTimeReg(p1)^.timeOffset - PNetworkAdjustedTimeReg(p2)^.timeOffset;
-end;
-
 procedure TNetworkAdjustedTime.UpdateIp(const clientIp: String; clientTimestamp: Cardinal);
-Var l : TList;
+Var l : TList<Pointer>;
   i : Integer;
   P : PNetworkAdjustedTimeReg;
   lastOffset : Integer;
@@ -5039,13 +5022,47 @@ begin
   end;
 end;
 
-procedure TNetworkAdjustedTime.UpdateMedian(list : TList);
+{$IFDEF FPC}
+type
+  TPNetworkAdjustedTimeReg = class(TInterfacedObject, IComparer<Pointer>)
+  public
+    function Compare(constref ALeft, ARight: Pointer): Integer;
+  end;
+
+{ TPNetworkAdjustedTimeReg }
+
+function TPNetworkAdjustedTimeReg.Compare(constref ALeft, ARight: Pointer): Integer;
+begin
+  Result := PNetworkAdjustedTimeReg(ALeft)^.timeOffset - PNetworkAdjustedTimeReg(ARight)^.timeOffset;
+end;
+{$ENDIF}
+
+procedure TNetworkAdjustedTime.UpdateMedian(list : TList<Pointer>);
 Var last : Integer;
   i : Integer;
   s : String;
+{$IFNDEF FPC}
+  LComparison : TComparison<Pointer>;
+{$ELSE}
+  LComparer : TPNetworkAdjustedTimeReg;
+{$ENDIF}
 begin
   last := FTimeOffset;
-  list.Sort(SortPNetworkAdjustedTimeReg);
+  {$IFDEF FPC}
+  LComparer := TPNetworkAdjustedTimeReg.Create;
+  try
+    list.Sort(LComparer);
+  finally
+    LComparer.Free;
+  end;
+  {$ELSE}
+  LComparison :=
+  function(const Left, Right: Pointer): Integer
+  begin
+    Result := PNetworkAdjustedTimeReg(Left)^.timeOffset - PNetworkAdjustedTimeReg(Right)^.timeOffset;
+  end;
+  List.Sort(TComparer<Pointer>.Construct(LComparison));
+  {$ENDIF}
   if list.Count<CT_MinNodesToCalcNAT then begin
     FTimeOffset := 0;
   end else if ((list.Count MOD 2)=0) then begin

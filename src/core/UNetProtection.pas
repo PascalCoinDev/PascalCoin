@@ -33,7 +33,9 @@ unit UNetProtection;
 
 interface
 
-Uses SysUtils, Classes, UJSONFunctions, UThread, ULog, UTime;
+Uses SysUtils, Classes, UJSONFunctions, UThread, ULog, UTime,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
+
 
 Type
   TIpInfo = Record
@@ -51,11 +53,11 @@ Type
 
   TIpInfos = Class
   private
-    FThreadList : TPCThreadList;
+    FThreadList : TPCThreadList<Pointer>;
     FMaxStatsLifetime: Integer;
     FMaxStatsCount: Integer;
     FDeletedStatsCount: Int64;
-    function Find(lockedList : TList; const ip : String; var Index: Integer): Boolean;
+    function Find(lockedList : TList<Pointer>; const ip : String; var Index: Integer): Boolean;
     procedure SetMaxStatsLifetime(const Value: Integer);
     procedure CleanLastStatsByUpdatedTimestamp(minTimestamp : Integer);
     procedure SetMaxStatsCount(const Value: Integer);
@@ -85,7 +87,7 @@ procedure TIpInfos.CleanLastStatsByUpdatedTimestamp(minTimestamp: Integer);
 var jsonOpType, relJsonOpType, relJsonNetTransferType : TPCJSONObject;
   lasts : TPCJSONArray;
   iIp, i,j,k : Integer;
-  list : TList;
+  list : TList<Pointer>;
   p : PIpInfo;
 begin
   list := FThreadList.LockList;
@@ -124,7 +126,7 @@ end;
 procedure TIpInfos.Clear;
 var p : PIpInfo;
   i : Integer;
-  list : TList;
+  list : TList<Pointer>;
 begin
   list := FThreadList.LockList;
   Try
@@ -148,7 +150,7 @@ end;
 
 constructor TIpInfos.Create;
 begin
-  FThreadList := TPCThreadList.Create(Self.ClassName);
+  FThreadList := TPCThreadList<Pointer>.Create(Self.ClassName);
   FMaxStatsLifetime := 60*60*24; // Last values by 24 hours by default
   FMaxStatsCount := 1000; // Max 1000 last stats by default
   FDeletedStatsCount := 0;
@@ -161,7 +163,7 @@ begin
   inherited;
 end;
 
-function TIpInfos.Find(lockedList : TList; const ip: String; var Index: Integer): Boolean;
+function TIpInfos.Find(lockedList : TList<Pointer>; const ip: String; var Index: Integer): Boolean;
 var L, H, I, C: Integer;
   PN : PIpInfo;
 begin
@@ -187,7 +189,7 @@ begin
 end;
 
 function TIpInfos.Lock(index: Integer): TIpInfo;
-var list : TList;
+var list : TList<Pointer>;
 begin
   list := FThreadList.LockList;
   if (list.Count>index) then begin
@@ -229,7 +231,7 @@ begin
 end;
 
 function TIpInfos.Lock(const AIp: String; MarkAsUpdated: Boolean): TPCJSONObject;
-var list : TList;
+var list : TList<Pointer>;
   i : Integer;
   p : PIpInfo;
 begin

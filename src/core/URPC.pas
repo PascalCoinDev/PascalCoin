@@ -29,6 +29,7 @@ Uses UThread, ULog, UConst, UNode, UAccounts, UCrypto, UBlockChain,
   UJSONFunctions, classes, blcksock, synsock,
   IniFiles, Variants, math, UBaseTypes, UOpenSSL,
   UPCOrderedLists, UPCDataTypes,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
   UNetProtection;
 
 Const
@@ -787,7 +788,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   end;
 
   Function GetAccountOperations(accountNumber : Cardinal; jsonArray : TPCJSONArray; maxBlocksDepth, startReg, maxReg: Integer; forceStartBlock : Cardinal) : Boolean;
-  var list : TList;
+  var list : TList<Cardinal>;
     Op : TPCOperation;
     OPR : TOperationResume;
     Obj : TPCJSONObject;
@@ -806,7 +807,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       if ((startReg=-1) And (forceStartBlock=0)) then begin
         // 1.5.5 change: If start=-1 then will include PENDING OPERATIONS, otherwise not.
         // Only will return pending operations if start=0, otherwise
-        list := TList.Create;
+        list := TList<Cardinal>.Create;
         Try
           FNode.Operations.OperationsHashTree.GetOperationsAffectingAccount(accountNumber,list);
           for i := list.Count - 1 downto 0 do begin
@@ -842,7 +843,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
 
   Procedure GetConnections;
   var i : Integer;
-    l : TList;
+    l : TList<TNetConnection>;
     nc : TNetConnection;
     obj: TPCJSONObject;
   Begin
@@ -2574,7 +2575,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     senderOperationsHashTree : TOperationsHashTree;
     j,iKey,nSignedAccounts : Integer;
     mop : TOpMultiOperation;
-    lSigners : TList;
+    lSigners : TList<Cardinal>;
     nAccount : Integer;
     pubKey : TAccountKey;
   begin
@@ -2592,7 +2593,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
     Try
       nSignedAccounts := 0;
-      lSigners := TList.Create;
+      lSigners := TList<Cardinal>.Create;
       Try
         mop.SignerAccounts(lSigners);
         for j:=0 to lSigners.Count-1 do begin

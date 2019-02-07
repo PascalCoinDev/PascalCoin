@@ -31,7 +31,8 @@ Uses
   {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
   UTCPIP, SysUtils, UThread, SyncObjs, Classes, UJSONFunctions, UPCEncryption, UNode,
-  UCrypto, UAccounts, UConst, UBlockChain, UBaseTypes;
+  UCrypto, UAccounts, UConst, UBlockChain, UBaseTypes,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Const
   CT_PoolMining_Method_STATUS = 'status';
@@ -65,7 +66,7 @@ Type
     FLockProcessBuffer : TPCCriticalSection;
     FReceivedBuffer : TBytes;
     FLockReceivedBuffer : TPCCriticalSection;
-    FPendingResponseMessages : TPCThreadList;
+    FPendingResponseMessages : TPCThreadList<Pointer>;
   protected
   public
     Constructor Create(AOwner : TComponent); override;
@@ -129,7 +130,7 @@ Type
     FClientsWins: Integer;
     FClientsCount: Integer;
     FOnMiningServerNewBlockFound: TNotifyEvent;
-    FPoolJobs : TPCThreadList;
+    FPoolJobs : TPCThreadList<Pointer>;
     FPoolThread : TPoolMiningServerThread;
     FMinerOperations : TPCOperationsComp;
     FMaxOperationsPerBlock: Integer;
@@ -199,12 +200,12 @@ begin
   SetLength(FReceivedBuffer,0);
   FLockProcessBuffer := TPCCriticalSection.Create('TJSONRPCTcpIpClient_LockProcessBuffer');
   FLockReceivedBuffer := TPCCriticalSection.Create('TJSONRPCTcpIpClient_LockReceivedBuffer');
-  FPendingResponseMessages := TPCThreadList.Create('TJSONRPCTcpIpClient_PendingResponseMessages');
+  FPendingResponseMessages := TPCThreadList<Pointer>.Create('TJSONRPCTcpIpClient_PendingResponseMessages');
 end;
 
 destructor TJSONRPCTcpIpClient.Destroy;
 var P : PPendingResponseMessage;
-  l : TList;
+  l : TList<Pointer>;
   i : Integer;
 begin
   l := FPendingResponseMessages.LockList;
@@ -232,7 +233,7 @@ var last_bytes_read : Integer;
   i,lasti : Integer;
   continue : Boolean;
   procedure FlushBufferPendingMessages(doSearchId : Boolean; idValue : Integer);
-  var l : TList;
+  var l : TList<Pointer>;
     i : Integer;
     P : PPendingResponseMessage;
   Begin
@@ -392,7 +393,6 @@ Var json : TPCJSONObject;
   stream : TMemoryStream;
   b : Byte;
   P : PPendingResponseMessage;
-  l : TList;
 begin
   json := TPCJSONObject.Create;
   Try
@@ -515,7 +515,8 @@ Type
 procedure TPoolMiningServer.CaptureNewJobAndSendToMiners;
 Var P, PToDelete : PPoolJob;
   i : Integer;
-  l : TList;
+  l : TList<Pointer>;
+  l2 : TList<TNetTcpIpClient>;
   doAdd : Boolean;
   params : TPCJSONObject;
   OpB : TOperationBlock;
@@ -575,13 +576,13 @@ begin
   if (doAdd) And (Assigned(P)) then begin
     params := TPCJSONObject.Create;
     Try
-      l := NetTcpIpClientsLock;
+      l2 := NetTcpIpClientsLock;
       Try
-        for i := 0 to l.Count - 1 do begin
+        for i := 0 to l2.Count - 1 do begin
           if Not Active then exit;
-          SendJobToMiner(P^.OperationsComp,l[i],false,null);
+          SendJobToMiner(P^.OperationsComp,l2[i] as TJSONRPCTcpIpClient,false,null);
         end;
-        TLog.NewLog(ltDebug,ClassName,'Sending job to miners: '+TPCOperationsComp.OperationBlockToText(P^.OperationsComp.OperationBlock)+' Cache blocks:'+Inttostr(l.Count));
+        TLog.NewLog(ltDebug,ClassName,'Sending job to miners: '+TPCOperationsComp.OperationBlockToText(P^.OperationsComp.OperationBlock)+' Cache blocks:'+Inttostr(l2.Count));
       Finally
         NetTcpIpClientsUnlock;
       End;
@@ -594,7 +595,7 @@ end;
 procedure TPoolMiningServer.ClearPoolJobs;
 Var P : PPoolJob;
   i : Integer;
-  l : TList;
+  l : TList<Pointer>;
 begin
   l := FPoolJobs.LockList;
   Try
@@ -626,7 +627,7 @@ begin
   FMinerOperations := TPCOperationsComp.Create(FNodeNotifyEvents.Node.Bank);
   FMinerAccountKey := CT_TECDSA_Public_Nul;
   FMinerPayload := Nil;
-  FPoolJobs := TPCThreadList.Create('TPoolMiningServer_PoolJobs');
+  FPoolJobs := TPCThreadList<Pointer>.Create('TPoolMiningServer_PoolJobs');
   FPoolThread := TPoolMiningServerThread.Create(Self);
   FMax0FeeOperationsPerBlock := CT_MAX_0_fee_operations_per_block_by_miner;
   FMaxOperationsPerBlock := CT_MAX_Operations_per_block_by_miner;
@@ -780,7 +781,7 @@ Var s : String;
   p1,p2,p3 : TRawBytes;
   P : PPoolJob;
   i : Integer;
-  l : TList;
+  l : TList<Pointer>;
   _payloadHexa : AnsiString;
   _payloadRaw : TRawBytes;
   _timestamp, _nOnce : Cardinal;
@@ -912,7 +913,7 @@ var params : TPCJSONObject;
   ts : Cardinal;
 Var P : PPoolJob;
   i,nJobs : Integer;
-  l : TList;
+  l : TList<Pointer>;
 begin
   if FClientsCount<=0 then exit;
   if (Not Assigned(Operations)) then begin

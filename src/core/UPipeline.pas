@@ -20,7 +20,7 @@ unit UPipeline;
 interface
 
 uses
-  Generics.Collections, Classes, SyncObjs, SysUtils, UThread;
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF}, Classes, SyncObjs, SysUtils, UThread;
 
 Type
   { TPipelineQueue }

@@ -25,7 +25,8 @@ interface
 {$I config.inc}
 
 uses
-  Classes, SysUtils, syncobjs, UThread, UPoolMining, UAccounts, UCrypto, ULog, UBlockChain, USha256, URandomHash, UBaseTypes, UCommon;
+  Classes, SysUtils, syncobjs, UThread, UPoolMining, UAccounts, UCrypto, ULog, UBlockChain, USha256, URandomHash, UBaseTypes, UCommon,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 type
   TMinerStats = Record
@@ -55,7 +56,7 @@ Type
     FMinerAddName: String;
     FPoolMinerClient : TPoolMinerClient;
     FOnConnectionStateChanged: TNotifyEvent;
-    FDevicesList : TPCThreadList;
+    FDevicesList : TPCThreadList<TCustomMinerDeviceThread>;
     FMinerThreads: Integer;
     FGlobalMinerValuesForWork : TMinerValuesForWork;
     FTestingPoWLeftBits: Byte;
@@ -76,7 +77,7 @@ Type
     Function CurrentMinerStats : TMinerStats;
     Function GlobalMinerStats : TMinerStats;
     Property GlobalMinerValuesForWork : TMinerValuesForWork read FGlobalMinerValuesForWork;
-    Function DevicesLock : TList;
+    Function DevicesLock : TList<TCustomMinerDeviceThread>;
     procedure DevicesUnlock;
     Property MinerAddName : String read FMinerAddName write SetMinerAddName;
     Property TestingPoWLeftBits : Byte read FTestingPoWLeftBits write SetTestingPoWLeftBits;
@@ -93,7 +94,7 @@ Type
     FOnMinerValuesChanged: TNotifyEvent;
     FOnStateChanged: TNotifyEvent;
     FPaused: Boolean;
-    FLastStats : TPCThreadList;
+    FLastStats : TPCThreadList<Pointer>;
     FLastActiveTC : TTickCount;
     FGlobaDeviceStats : TMinerStats;
     FPartialDeviceStats : TMinerStats;
@@ -125,12 +126,14 @@ Type
     Property PoolMinerThread : TPoolMinerThread read FPoolMinerThread;
   end;
 
+  TCPUOpenSSLMinerThread = Class;
+
   { TCPUDeviceThread }
 
   TCPUDeviceThread = Class(TCustomMinerDeviceThread)
   private
     FCPUs: Integer;
-    FCPUsThreads : TPCThreadList;
+    FCPUsThreads : TPCThreadList<TCPUOpenSSLMinerThread>;
     FUseOpenSSLFunctions: Boolean;
     procedure SetCPUs(AValue: Integer);
     Procedure CheckCPUs;
@@ -180,7 +183,7 @@ Var nID : Cardinal;
   json : TPCJSONObject;
   i : Integer;
   ResponseMethod : String;
-  l : TList;
+  l : TList<TCustomMinerDeviceThread>;
 begin
   DebugStep:='Starting';
   Try
@@ -238,7 +241,7 @@ begin
   FPoolMinerClient.OnConnect := OnPoolMinerClientConnectionChanged;
   FPoolMinerClient.OnDisconnect := OnPoolMinerClientConnectionChanged;
   FOnConnectionStateChanged := Nil;
-  FDevicesList := TPCThreadList.Create('TPoolMinerThread_DevicesList');
+  FDevicesList := TPCThreadList<TCustomMinerDeviceThread>.Create('TPoolMinerThread_DevicesList');
   FMinerThreads := 0;
   FMinerAddName:='';
   FTestingPoWLeftBits := 0;
@@ -247,7 +250,7 @@ begin
 end;
 
 function TPoolMinerThread.CurrentMinerStats: TMinerStats;
-Var l : TList;
+Var l : TList<TCustomMinerDeviceThread>;
   i : Integer;
   ms : TMinerStats;
 begin
@@ -270,7 +273,7 @@ end;
 
 destructor TPoolMinerThread.Destroy;
 Var i : Integer;
-  l : TList;
+  l : TList<TCustomMinerDeviceThread>;
 begin
   l := FDevicesList.LockList;
   try
@@ -289,7 +292,7 @@ begin
   inherited;
 end;
 
-function TPoolMinerThread.DevicesLock: TList;
+function TPoolMinerThread.DevicesLock: TList<TCustomMinerDeviceThread>;
 begin
   Result := FDevicesList.LockList;
 end;
@@ -305,7 +308,7 @@ begin
 end;
 
 function TPoolMinerThread.GlobalMinerStats: TMinerStats;
-Var l : TList;
+Var l : TList<TCustomMinerDeviceThread>;
   i : Integer;
   ms : TMinerStats;
 begin
@@ -359,7 +362,7 @@ begin
 end;
 
 procedure TPoolMinerThread.OnPoolMinerClientConnectionChanged(Sender: TObject);
-Var l : TList;
+Var l : TList<TCustomMinerDeviceThread>;
   i : Integer;
 begin
   TLog.NewLog(ltInfo,ClassName,'Connection state changed. New Value:'+inttostr(Integer(FPoolMinerClient.Connected)));
@@ -375,7 +378,7 @@ begin
 end;
 
 procedure TPoolMinerThread.OnPoolMinerMustChangeValues(Sender: TObject);
-Var l : TList;
+Var l : TList<TCustomMinerDeviceThread>;
   i,j : Integer;
   digest_length : Integer;
   ok : Boolean;
@@ -436,7 +439,7 @@ begin
   FMinerValuesForWork := CT_TMinerValuesForWork_NULL;
   FPartialDeviceStats := CT_TMinerStats_NULL;
   FGlobaDeviceStats := CT_TMinerStats_NULL;
-  FLastStats := TPCThreadList.Create('TCustomMinerDeviceThread_LastStats');
+  FLastStats := TPCThreadList<Pointer>.Create('TCustomMinerDeviceThread_LastStats');
   FOnFoundNOnce:=Nil;
   FOnMinerValuesChanged:=Nil;
   FOnStateChanged:=Nil;
@@ -451,21 +454,22 @@ end;
 destructor TCustomMinerDeviceThread.Destroy;
 Var i : Integer;
   P : PTimeMinerStats;
-  l : TList;
+  ldevices : TList<TCustomMinerDeviceThread>;
+  lstats : TList<Pointer>;
 begin
-  l := FPoolMinerThread.FDevicesList.LockList;
+  ldevices := FPoolMinerThread.FDevicesList.LockList;
   try
-    l.Remove(Self);
+    ldevices.Remove(Self);
   finally
     FPoolMinerThread.FDevicesList.UnlockList;
   end;
-  l := FLastStats.LockList;
+  lstats := FLastStats.LockList;
   try
-    for i:=0 to l.Count-1 do begin
-      P := l[i];
+    for i:=0 to lstats.Count-1 do begin
+      P := lstats[i];
       Dispose(P);
     end;
-    l.clear;
+    lstats.clear;
   finally
     FLastStats.UnlockList;
   end;
@@ -596,7 +600,7 @@ Type TTimeMinerStats = Record
        stats : TMinerStats;
      end;
   PTimeMinerStats = ^TTimeMinerStats;
-Var l : TList;
+Var l : TList<Pointer>;
   i : Integer;
   P : PTimeMinerStats;
   minTC : TTickCount;
@@ -653,7 +657,7 @@ begin
 end;
 
 procedure TCPUDeviceThread.CheckCPUs;
-var l : TList;
+var l : TList<TCPUOpenSSLMinerThread>;
   mt : TCPUOpenSSLMinerThread;
   needminers : Integer;
 begin
@@ -684,7 +688,7 @@ end;
 
 constructor TCPUDeviceThread.Create(PoolMinerThread: TPoolMinerThread; InitialMinerValuesForWork: TMinerValuesForWork);
 begin
-  FCPUsThreads := TPCThreadList.Create('TCPUDeviceThread_CPUsThreads');
+  FCPUsThreads := TPCThreadList<TCPUOpenSSLMinerThread>.Create('TCPUDeviceThread_CPUsThreads');
   FCPUs:=0;
   FUseOpenSSLFunctions := True;
   inherited Create(PoolMinerThread, InitialMinerValuesForWork);
@@ -719,7 +723,7 @@ begin
 end;
 
 procedure TCPUDeviceThread.SetMinerValuesForWork(const Value: TMinerValuesForWork);
-Var l : TList;
+Var l : TList<TCPUOpenSSLMinerThread>;
   i : Integer;
   nextmin : Cardinal;
   npos : Integer;

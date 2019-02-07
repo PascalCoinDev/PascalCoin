@@ -38,7 +38,7 @@ interface
   ERROR: Use_OpenSSL is not defined!
 {$ENDIF}
 
-Uses SysUtils, UBaseTypes,
+Uses SysUtils,
   UOpenSSL,
   UPCDataTypes;
 

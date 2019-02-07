@@ -35,7 +35,8 @@ Uses
   {$ENDIF}
   DBXJSON,
   {$ENDIF}
-  SysUtils, DateUtils, Variants, Classes, ULog;
+  SysUtils, DateUtils, Variants, Classes, ULog,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Type
   {$IFDEF FPC}
@@ -105,7 +106,7 @@ Type
 
   TPCJSONList = Class(TPCJSONData)
   private
-    FList : TList;
+    FList : TList<TPCJSONData>;
     function GetItems(Index: Integer): TPCJSONData;
     procedure SetItems(Index: Integer; const Value: TPCJSONData);
   protected
@@ -319,7 +320,7 @@ constructor TPCJSONList.Create;
 begin
   inherited;
   FParent := Nil;
-  FList := TList.Create;
+  FList := TList<TPCJSONData>.Create;
 end;
 
 procedure TPCJSONList.Delete(index: Integer);

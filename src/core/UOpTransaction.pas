@@ -22,7 +22,9 @@ unit UOpTransaction;
 
 interface
 
-Uses UCrypto, UBlockChain, Classes, UAccounts, UBaseTypes, UPCDataTypes;
+Uses UCrypto, UBlockChain, Classes, UAccounts, UBaseTypes,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
+  UPCDataTypes;
 
 Type
   // Operations Type
@@ -80,7 +82,7 @@ Type
   public
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; override;
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
-    procedure AffectedAccounts(list : TList); override;
+    procedure AffectedAccounts(list : TList<Cardinal>); override;
     //
     class function OpType : Byte; override;
     function OperationAmount : Int64; override;
@@ -119,7 +121,7 @@ Type
     function SignerAccount : Cardinal; override;
     function DestinationAccount : Int64; override;
     function N_Operation : Cardinal; override;
-    procedure AffectedAccounts(list : TList); override;
+    procedure AffectedAccounts(list : TList<Cardinal>); override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
     Constructor Create(current_protocol : Word; account_signer, n_operation, account_target: Cardinal; key:TECPrivateKey; new_account_key : TAccountKey; fee: UInt64; payload: TRawBytes);
     Property Data : TOpChangeKeyData read FData;
@@ -156,7 +158,7 @@ Type
     function SignerAccount : Cardinal; override;
     function N_Operation : Cardinal; override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
-    procedure AffectedAccounts(list : TList); override;
+    procedure AffectedAccounts(list : TList<Cardinal>); override;
     Constructor Create(account_number, n_operation: Cardinal; fee: UInt64);
     Property Data : TOpRecoverFoundsData read FData;
     Function toString : String; Override;
@@ -225,7 +227,7 @@ Type
     function DestinationAccount : Int64; override;
     function SellerAccount : Int64; override;
     function N_Operation : Cardinal; override;
-    procedure AffectedAccounts(list : TList); override;
+    procedure AffectedAccounts(list : TList<Cardinal>); override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
     Property Data : TOpListAccountData read FData;
     Function toString : String; Override;
@@ -277,7 +279,7 @@ Type
     function SignerAccount : Cardinal; override;
     function DestinationAccount : Int64; override;
     function N_Operation : Cardinal; override;
-    procedure AffectedAccounts(list : TList); override;
+    procedure AffectedAccounts(list : TList<Cardinal>); override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
     Constructor CreateChangeAccountInfo(current_protocol : word;
       account_signer, n_operation, account_target: Cardinal; key:TECPrivateKey;
@@ -325,7 +327,7 @@ Type
     function SignerAccount : Cardinal; override;
     function DestinationAccount : Int64; override;
     function N_Operation : Cardinal; override;
-    procedure AffectedAccounts(list : TList); override;
+    procedure AffectedAccounts(list : TList<Cardinal>); override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
     Constructor CreateOpData(
       account_signer, account_sender, account_target : Cardinal; signer_key:TECPrivateKey;
@@ -596,10 +598,10 @@ begin
   Result := FData.n_operation;
 end;
 
-procedure TOpChangeAccountInfo.AffectedAccounts(list: TList);
+procedure TOpChangeAccountInfo.AffectedAccounts(list: TList<Cardinal>);
 begin
-  list.Add(TObject(FData.account_signer));
-  if (FData.account_target<>FData.account_signer) then list.Add(TObject(FData.account_target));
+  list.Add(FData.account_signer);
+  if (FData.account_target<>FData.account_signer) then list.Add(FData.account_target);
 end;
 
 function TOpChangeAccountInfo.OperationAmountByAccount(account: Cardinal): Int64;
@@ -702,12 +704,12 @@ end;
 
 { TOpTransaction }
 
-procedure TOpTransaction.AffectedAccounts(list: TList);
+procedure TOpTransaction.AffectedAccounts(list: TList<Cardinal>);
 begin
-  list.Add(TObject(FData.sender));
-  list.Add(TObject(FData.target));
+  list.Add(FData.sender);
+  list.Add(FData.target);
   if (FData.opTransactionStyle in [transaction_with_auto_buy_account, buy_account]) then begin
-    list.Add(TObject(FData.SellerAccount));
+    list.Add(FData.SellerAccount);
   end;
 end;
 
@@ -1154,10 +1156,10 @@ end;
 
 { TOpChangeKey }
 
-procedure TOpChangeKey.AffectedAccounts(list: TList);
+procedure TOpChangeKey.AffectedAccounts(list: TList<Cardinal>);
 begin
-  list.Add(TObject(FData.account_signer));
-  if (FData.account_target<>FData.account_signer) then list.Add(TObject(FData.account_target));
+  list.Add(FData.account_signer);
+  if (FData.account_target<>FData.account_signer) then list.Add(FData.account_target);
 end;
 
 function TOpChangeKey.OperationAmountByAccount(account: Cardinal): Int64;
@@ -1489,9 +1491,9 @@ end;
 
 { TOpRecoverFounds }
 
-procedure TOpRecoverFounds.AffectedAccounts(list: TList);
+procedure TOpRecoverFounds.AffectedAccounts(list: TList<Cardinal>);
 begin
-  list.Add(TObject(FData.account));
+  list.Add(FData.account);
 end;
 
 constructor TOpRecoverFounds.Create(account_number, n_operation : Cardinal; fee: UInt64);
@@ -1640,11 +1642,11 @@ end;
 
 { TOpListAccount }
 
-procedure TOpListAccount.AffectedAccounts(list: TList);
+procedure TOpListAccount.AffectedAccounts(list: TList<Cardinal>);
 begin
-  list.Add(TObject(FData.account_signer));
+  list.Add(FData.account_signer);
   if FData.account_signer<>FData.account_target then
-    list.Add(TObject(FData.account_target));
+    list.Add(FData.account_target);
 end;
 
 function TOpListAccount.OperationAmountByAccount(account: Cardinal): Int64;
@@ -2344,14 +2346,14 @@ begin
   Result := FData.n_operation;
 end;
 
-procedure TOpData.AffectedAccounts(list: TList);
+procedure TOpData.AffectedAccounts(list: TList<Cardinal>);
 begin
-  list.Add(TObject(FData.account_signer));
+  list.Add(FData.account_signer);
   if (FData.account_signer<>FData.account_sender) then begin
-    list.Add(TObject(FData.account_sender));
+    list.Add(FData.account_sender);
   end;
   if (FData.account_signer<>FData.account_target) And (FData.account_sender<>FData.account_target) then begin
-    list.Add(TObject(FData.account_target));
+    list.Add(FData.account_target);
   end;
 end;
 

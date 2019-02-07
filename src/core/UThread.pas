@@ -30,6 +30,7 @@ uses
 {$ELSE}
   {$IFDEF LINUX}cthreads,{$ENDIF}
 {$ENDIF}
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
   Classes, SyncObjs, UBaseTypes;
 
 {$I config.inc}
@@ -80,18 +81,18 @@ Type
     property Terminated;
   End;
 
-  TPCThreadList = class
+  TPCThreadList<T> = class
   private
-    FList: TList;
+    FList: TList<T>;
     FLock: TPCCriticalSection;
   public
     constructor Create(const AName : String);
     destructor Destroy; override;
-    function Add(Item: Pointer) : Integer;
+    function Add(Item: T) : Integer;
     procedure Clear;
-    procedure Remove(Item: Pointer); inline;
-    function LockList: TList;
-    function TryLockList(MaxWaitMilliseconds : Cardinal; var lockedList : TList) : Boolean;
+    procedure Remove(Item: T); inline;
+    function LockList: TList<T>;
+    function TryLockList(MaxWaitMilliseconds : Cardinal; var lockedList : TList<T>) : Boolean;
     procedure UnlockList; inline;
   end;
 
@@ -103,7 +104,7 @@ uses
 
 { TPCThread }
 
-Var _threads : TPCThreadList;
+Var _threads : TPCThreadList<TPCThread>;
 
 
 
@@ -124,7 +125,7 @@ begin
 end;
 
 procedure TPCThread.Execute;
-Var l : TList;
+Var l : TList<TPCThread>;
   i : Integer;
 begin
   FStartTickCount := TPlatform.GetTickCount;
@@ -159,7 +160,7 @@ begin
 end;
 
 class function TPCThread.GetThread(index: Integer): TPCThread;
-Var l : TList;
+Var l : TList<TPCThread>;
 begin
   Result := Nil;
   l := _threads.LockList;
@@ -172,7 +173,7 @@ begin
 end;
 
 class function TPCThread.GetThreadByClass(tclass: TPCThreadClass; Exclude: TObject): TPCThread;
-Var l : TList;
+Var l : TList<TPCThread>;
   i : Integer;
 begin
   Result := Nil;
@@ -202,7 +203,7 @@ begin
 end;
 
 class function TPCThread.ThreadClassFound(tclass: TPCThreadClass; Exclude : TObject): Integer;
-Var l : TList;
+Var l : TList<TPCThread>;
 begin
   Result := -1;
   if Not Assigned(_threads) then exit;
@@ -218,7 +219,7 @@ begin
 end;
 
 class function TPCThread.ThreadCount: Integer;
-Var l : TList;
+Var l : TList<TPCThread>;
 begin
   l := _threads.LockList;
   try
@@ -229,7 +230,7 @@ begin
 end;
 
 class procedure TPCThread.ThreadsListInfo(list: TStrings);
-Var l : TList;
+Var l : TList<TPCThread>;
   i : Integer;
 begin
   l := _threads.LockList;
@@ -286,7 +287,7 @@ end;
 
 { TPCThreadList }
 
-function TPCThreadList.Add(Item: Pointer) : Integer;
+function TPCThreadList<T>.Add(Item: T) : Integer;
 begin
   LockList;
   Try
@@ -296,7 +297,7 @@ begin
   End;
 end;
 
-procedure TPCThreadList.Clear;
+procedure TPCThreadList<T>.Clear;
 begin
   LockList;
   Try
@@ -306,13 +307,13 @@ begin
   End;
 end;
 
-constructor TPCThreadList.Create(const AName : String);
+constructor TPCThreadList<T>.Create(const AName : String);
 begin
   FLock := TPCCriticalSection.Create(AName);
-  FList := TList.Create;
+  FList := TList<T>.Create;
 end;
 
-destructor TPCThreadList.Destroy;
+destructor TPCThreadList<T>.Destroy;
 begin
   LockList;
   try
@@ -324,13 +325,13 @@ begin
   end;
 end;
 
-function TPCThreadList.LockList: TList;
+function TPCThreadList<T>.LockList: TList<T>;
 begin
   TPCThread.ProtectEnterCriticalSection(Self,FLock);
   Result := FList;
 end;
 
-procedure TPCThreadList.Remove(Item: Pointer);
+procedure TPCThreadList<T>.Remove(Item: T);
 begin
   LockList;
   try
@@ -340,13 +341,13 @@ begin
   end;
 end;
 
-function TPCThreadList.TryLockList(MaxWaitMilliseconds: Cardinal; var lockedList: TList): Boolean;
+function TPCThreadList<T>.TryLockList(MaxWaitMilliseconds: Cardinal; var lockedList: TList<T>): Boolean;
 begin
   lockedList := FList;
   Result := TPCThread.TryProtectEnterCriticalSection(Self,MaxWaitMilliseconds,FLock);
 end;
 
-procedure TPCThreadList.UnlockList;
+procedure TPCThreadList<T>.UnlockList;
 begin
   FLock.Release;
 end;
@@ -441,7 +442,7 @@ end;
 {$ENDIF}
 
 initialization
-  _threads := TPCThreadList.Create('GLOBAL_THREADS');
+  _threads := TPCThreadList<TPCThread>.Create('GLOBAL_THREADS');
 finalization
   FreeAndNil(_threads);
 end.

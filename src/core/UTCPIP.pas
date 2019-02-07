@@ -19,7 +19,7 @@ unit UTCPIP;
 interface
 
 {$IFDEF FPC}
-  {$mode objfpc}
+  {$mode delphi}
 {$ENDIF}
 
 {$I config.inc}
@@ -42,7 +42,9 @@ uses
   IdTcpClient, IdTCPServer, IdGlobal, IdContext, IdTCPConnection,
   {$ENDIF}
   Classes, Sysutils, UBaseTypes,
-  UThread, SyncObjs;
+  UThread,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
+  SyncObjs;
 
 type
   {$IFDEF DelphiSockets}
@@ -172,7 +174,7 @@ type
     FPort : Word;
     FActive : Boolean;
     {$ENDIF}
-    FNetClients : TPCThreadList;
+    FNetClients : TPCThreadList<TNetTcpIpClient>;
     FMaxConnections : Integer;
     FNetTcpIpClientClass : TNetTcpIpClientClass;
     function GetActive: Boolean;
@@ -191,7 +193,7 @@ type
     Property Port : Word read GetPort Write SetPort;
     Property MaxConnections : Integer read FMaxConnections Write SetMaxConnections;
     Property NetTcpIpClientClass : TNetTcpIpClientClass read FNetTcpIpClientClass write SetNetTcpIpClientClass;
-    Function NetTcpIpClientsLock : TList;
+    Function NetTcpIpClientsLock : TList<TNetTcpIpClient>;
     Procedure NetTcpIpClientsUnlock;
     Procedure WaitUntilNetTcpIpClientsFinalized;
   End;
@@ -753,7 +755,7 @@ begin
   {$ELSE}
   FActive := false;
   {$ENDIF}
-  FNetClients := TPCThreadList.Create('TNetTcpIpServer_NetClients');
+  FNetClients := TPCThreadList<TNetTcpIpClient>.Create('TNetTcpIpServer_NetClients');
 end;
 
 destructor TNetTcpIpServer.Destroy;
@@ -793,7 +795,7 @@ begin
   {$ENDIF}
 end;
 
-function TNetTcpIpServer.NetTcpIpClientsLock: TList;
+function TNetTcpIpServer.NetTcpIpClientsLock: TList<TNetTcpIpClient>;
 begin
   Result := FNetClients.LockList;
 end;
@@ -884,7 +886,7 @@ begin
 end;
 
 procedure TNetTcpIpServer.WaitUntilNetTcpIpClientsFinalized;
-Var l : TList;
+Var l : TList<TNetTcpIpClient>;
 begin
   if Active then Active := false;
   Repeat
@@ -904,7 +906,7 @@ end;
 procedure TTcpIpServerListenerThread.BCExecute;
 var ClientSocket: TSocket;
     ClientThread: TTcpIpSocketThread;
-    lSockets : TList;
+    lSockets : TList<TTcpIpSocketThread>;
     i : Integer;
 begin
   FServerSocket.CreateSocket;
@@ -920,7 +922,7 @@ begin
     exit;
   end;
   FServerSocket.Listen;
-  lSockets := TList.Create;
+  lSockets := TList<TTcpIpSocketThread>.Create;
   try
     while (Not Terminated) And (FNetTcpIpServerServer.Active) do begin
       If (FServerSocket.CanRead(100)) And (lSockets.Count<FNetTcpIpServerServer.MaxConnections) then begin

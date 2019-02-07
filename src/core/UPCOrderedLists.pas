@@ -23,7 +23,8 @@ unit UPCOrderedLists;
 interface
 
 uses
-  Classes, SysUtils, UBaseTypes;
+  Classes, SysUtils, UBaseTypes,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Type
   TCardinalsArray = Array of Cardinal;
@@ -34,7 +35,7 @@ Type
 
   TOrderedCardinalList = Class
   private
-    FOrderedList : TList;
+    FOrderedList : TList<Cardinal>;
     FDisabledsCount : Integer;
     FModifiedWhileDisabled : Boolean;
     FOnListChanged: TNotifyEvent;
@@ -62,7 +63,7 @@ Type
 
   TOrderedCardinalListWithRaw = Class
   private
-    FList : TList;
+    FList : TList<Pointer>;
     Function Find(value : Cardinal; var Index: Integer): Boolean;
   public
     Constructor Create;
@@ -83,7 +84,7 @@ Type
 
   TOrderedRawList = Class
   private
-    FList : TList;
+    FList : TList<Pointer>;
   public
     Constructor Create;
     Destructor Destroy; Override;
@@ -120,7 +121,7 @@ begin
         FOrderedList.Capacity:=nc;
       end;
     end;
-    FOrderedList.Insert(Result,TObject(Value));
+    FOrderedList.Insert(Result,(Value));
     NotifyChanged;
   end;
 end;
@@ -154,7 +155,7 @@ end;
 
 constructor TOrderedCardinalList.Create;
 begin
-  FOrderedList := TList.Create;
+  FOrderedList := TList<Cardinal>.Create;
   FDisabledsCount := 0;
   FModifiedWhileDisabled := false;
 end;
@@ -291,7 +292,7 @@ end;
 
 constructor TOrderedRawList.Create;
 begin
-  FList := TList.Create;
+  FList := TList<Pointer>.Create;
 end;
 
 procedure TOrderedRawList.Delete(index: Integer);
@@ -408,7 +409,7 @@ end;
 
 constructor TOrderedCardinalListWithRaw.Create;
 begin
-  FList := TList.Create;
+  FList := TList<Pointer>.Create;
 end;
 
 destructor TOrderedCardinalListWithRaw.Destroy;

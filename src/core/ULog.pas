@@ -23,7 +23,9 @@ unit ULog;
 interface
 
 uses
-  Classes, UThread, SyncObjs, UConst;
+  Classes, UThread, SyncObjs, UConst,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
+
 
 type
   TLogType = (ltinfo, ltupdate, lterror, ltdebug);
@@ -53,7 +55,7 @@ type
 
   TLog = Class(TComponent)
   private
-    FLogDataList : TThreadList;
+    FLogDataList : TThreadList<Pointer>;
     FOnNewLog: TNewLogEvent;
     FOnInThreadNewLog : TNewLogEvent;
     FFileStream : TFileStream;
@@ -87,7 +89,7 @@ implementation
 
 uses SysUtils;
 
-var _logs : TList;
+var _logs : TList<TLog>;
 Type PLogData = ^TLogData;
 
 { TLog }
@@ -96,13 +98,13 @@ constructor TLog.Create(AOwner: TComponent);
 begin
   FLock := TCriticalSection.Create;
   FProcessGlobalLogs := true;
-  FLogDataList := TThreadList.Create;
+  FLogDataList := TThreadList<Pointer>.Create;
   FFileStream := Nil;
   FFileName := '';
   FSaveTypes := CT_TLogTypes_DEFAULT;
   FOnInThreadNewLog:=Nil;
   FOnNewLog:=Nil;
-  if (Not assigned(_logs)) then _logs := TList.Create;
+  if (Not assigned(_logs)) then _logs := TList<TLog>.Create;
   _logs.Add(self);
   FThreadSafeLogEvent := TThreadSafeLogEvent.Create(true);
   FThreadSafeLogEvent.FLog := Self;
@@ -112,7 +114,7 @@ end;
 
 destructor TLog.Destroy;
 var
-  l : TList;
+  l : TList<Pointer>;
   i : Integer;
   P : PLogData;
 begin
@@ -220,7 +222,7 @@ begin
 end;
 
 procedure TThreadSafeLogEvent.SynchronizedProcess;
-Var l : TList;
+Var l : TList<Pointer>;
   i : Integer;
   P : PLogData;
 begin
