@@ -928,7 +928,7 @@ begin
   {$ENDIF}
   OPENSSL_free(p);
 {$ELSE}
-  Result := FBigInteger.ToString(16);
+  Result := FBigInteger.ToByteArrayUnsigned.ToHexaString;
 {$ENDIF}
 end;
 
