@@ -4410,7 +4410,7 @@ begin
     P^.block:=blockAccount.blockchainInfo.block;
     FList.Insert(Result,P);
     ToTMemBlockAccount(blockAccount,P^.memBlock);
-    If blockAccount.blockchainInfo.block>FMaxBlockNumber then FMaxBlockNumber:=blockAccount.blockchainInfo.block;
+    If Integer(blockAccount.blockchainInfo.block)>FMaxBlockNumber then FMaxBlockNumber:=blockAccount.blockchainInfo.block;
   end else if (UpdateIfFound) then begin
     P := FList[Result];
     ToTMemBlockAccount(blockAccount,P^.memBlock);
@@ -4444,12 +4444,12 @@ end;
 
 function TOrderedBlockAccountList.AddIfNotExists(const blockAccount: TBlockAccount): Integer;
 begin
-  SaveBlockAccount(blockAccount,False);
+  Result := SaveBlockAccount(blockAccount,False);
 end;
 
 function TOrderedBlockAccountList.Add(const blockAccount: TBlockAccount): Integer;
 begin
-  SaveBlockAccount(blockAccount,True);
+  Result := SaveBlockAccount(blockAccount,True);
 end;
 
 function TOrderedBlockAccountList.Count: Integer;
@@ -4565,7 +4565,7 @@ end;
 
 procedure TOrderedAccountKeysList.AddAccountKey(const AccountKey: TAccountKey);
 Var P : POrderedAccountKeyList;
-  i,j : Integer;
+  i : Integer;
   lockedList, safeboxLockedList : TList<Pointer>;
 begin
   lockedList := Lock;
@@ -4583,7 +4583,6 @@ begin
       inc(FTotalChanges);
       lockedList.Insert(i,P);
       // Search this key in the AccountsList and add all...
-      j := 0;
       if Assigned(FAccountList) then begin
         If (Assigned(FAccountList.OrderedAccountKeysList)) And (FAccountList.OrderedAccountKeysList<>Self) then begin
           safeboxLockedList := FAccountList.OrderedAccountKeysList.Lock;
@@ -4623,7 +4622,7 @@ end;
 
 procedure TOrderedAccountKeysList.AddAccounts(const AccountKey: TAccountKey; const accounts: array of Cardinal);
 Var P : POrderedAccountKeyList;
-  i,i2 : Integer;
+  i : Integer;
   lockedList : TList<Pointer>;
 begin
   lockedList := Lock;
@@ -4937,7 +4936,7 @@ end;
 
 procedure TOrderedAccountKeysList.RemoveAccountKey(const AccountKey: TAccountKey);
 Var P : POrderedAccountKeyList;
-  i,j : Integer;
+  i : Integer;
   lockedList : TList<Pointer>;
 begin
   lockedList := Lock;
