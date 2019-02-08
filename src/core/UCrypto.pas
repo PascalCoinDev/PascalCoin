@@ -928,7 +928,7 @@ begin
   {$ENDIF}
   OPENSSL_free(p);
 {$ELSE}
-  Result := FBigInteger.ToByteArrayUnsigned.ToHexaString;
+  Result := FBigInteger.ToString(16);
 {$ENDIF}
 end;
 
@@ -936,6 +936,9 @@ function TBigNum.GetRawValue: TRawBytes;
 {$IFDEF Use_OpenSSL}
 Var p : PAnsiChar;
   i : Integer;
+{$ELSE}
+ var
+ LBigInteger: TBigInteger;
 {$ENDIF}
 begin
 {$IFDEF Use_OpenSSL}
@@ -944,7 +947,10 @@ begin
   p := @Result[Low(Result)];
   i := BN_bn2bin(FBN,p);
 {$ELSE}
-  Result := FBigInteger.ToByteArrayUnsigned;
+ if FBigInteger.SignValue < 0 then LBigInteger := FBigInteger.Negate // make copy !!! important
+ else
+  LBigInteger := FBigInteger;
+  Result := LBigInteger.ToByteArrayUnsigned;
 {$ENDIF}
 end;
 
@@ -1060,7 +1066,9 @@ procedure TBigNum.SetHexaValue(const Value: String);
 Var i : Integer;
   tmp_ansistring : RawByteString;
 {$ELSE}
-var LRaw : TBytes;
+var
+ LValue: String;
+ LowIndex: Integer;
 {$ENDIF}
 begin
 {$IFDEF Use_OpenSSL}
@@ -1070,9 +1078,13 @@ begin
       Raise ECryptoException.Create('Invalid Hexadecimal value:'+Value);
   end;
 {$ELSE}
-  if not TCrypto.HexaToRaw(value,LRaw) then
+  LowIndex := Low(Value);
+  if Value[LowIndex] = '-' then LValue := System.Copy(Value, LowIndex + 1, High(Value) - 1)
+  else
+ LValue := Value;
+  if not TCrypto.IsHexString(LValue) then
       Raise ECryptoException.Create('Invalid Hexadecimal value:'+Value);
-  FBigInteger := TBigInteger.Create(1,LRaw);
+  FBigInteger := TBigInteger.Create(Value, 16);
 {$ENDIF}
 end;
 
