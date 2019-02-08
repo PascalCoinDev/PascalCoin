@@ -2548,11 +2548,9 @@ destructor TNetConnection.Destroy;
 begin
   Try
     {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,'Destroying '+Classname+' '+IntToHex(PtrInt(Self),8));{$ENDIF}
-
     Connected := false;
-
-    TNetData.NetData.NodeServersAddresses.DeleteNetConnection(Self);
   Finally
+    TNetData.NetData.NodeServersAddresses.DeleteNetConnection(Self);
     TNetData.NetData.FNetConnections.Remove(Self);
   End;
   TNetData.NetData.UnRegisterRequest(Self,0,0);
@@ -4826,6 +4824,7 @@ end;
 procedure TNetClientsDestroyThread.BCExecute;
 Var l,l_to_del : TList<TNetConnection>;
   i : Integer;
+  LNetConnection : TNetConnection;
 begin
   l_to_del := TList<TNetConnection>.Create;
   Try
@@ -4849,8 +4848,16 @@ begin
         TLog.NewLog(ltDebug,ClassName,'Destroying NetClients: '+inttostr(l_to_del.Count));
         for i := 0 to l_to_del.Count - 1 do begin
           Try
-            DebugStep := 'Destroying NetClient '+TNetConnection(l_to_del[i]).ClientRemoteAddr;
-            TNetConnection(l_to_del[i]).Free;
+            LNetConnection := l_to_del[i];
+            DebugStep := 'Destroying NetClient '+LNetConnection.ClientRemoteAddr;
+            {$IFDEF AUTOREFCOUNT}
+            { On Delphi mobile, the Free method is not called. We need this
+            manual calls to remove this connection from TNetData lists}
+            TNetData.NetData.NodeServersAddresses.DeleteNetConnection(LNetConnection);
+            TNetData.NetData.FNetConnections.Remove(LNetConnection);
+            TNetData.NetData.UnRegisterRequest(LNetConnection,0,0);
+            {$ENDIF}
+            LNetConnection.Free;
           Except
             On E:Exception do begin
               TLog.NewLog(ltError,ClassName,'Exception destroying TNetConnection '+IntToHex(PtrInt(l_to_del[i]),8)+': ('+E.ClassName+') '+E.Message );
