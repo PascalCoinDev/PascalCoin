@@ -28,7 +28,6 @@ uses
   UNetProtocol in 'core\UNetProtocol.pas',
   UNode in 'core\UNode.pas',
   UOpenSSL in 'core\UOpenSSL.pas',
-  UOpenSSLdef in 'core\UOpenSSLdef.pas',
   UOpTransaction in 'core\UOpTransaction.pas',
   UPoolMinerThreads in 'core\UPoolMinerThreads.pas',
   UPoolMining in 'core\UPoolMining.pas',
