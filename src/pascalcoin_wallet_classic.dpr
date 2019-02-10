@@ -30,7 +30,6 @@ uses
   UOpenSSL in 'core\UOpenSSL.pas',
   UOpenSSLdef in 'core\UOpenSSLdef.pas',
   UOpTransaction in 'core\UOpTransaction.pas',
-  UPipeline in 'core\UPipeline.pas',
   UPoolMinerThreads in 'core\UPoolMinerThreads.pas',
   UPoolMining in 'core\UPoolMining.pas',
   URandomHash in 'core\URandomHash.pas',

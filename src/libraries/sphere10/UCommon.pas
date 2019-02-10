@@ -42,10 +42,10 @@ const
 
 { GLOBAL HELPER FUNCTIONS }
 
-{function String2Hex(const Buffer: AnsiString): AnsiString;
-function Hex2Bytes(const AHexString: AnsiString): TBytes; overload;
-function TryHex2Bytes(const AHexString: AnsiString; out ABytes : TBytes): boolean; overload;
-function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : AnsiString;}
+function String2Hex(const Buffer: String): String;
+function Hex2Bytes(const AHexString: String): TBytes; overload;
+function TryHex2Bytes(const AHexString: String; out ABytes : TBytes): boolean; overload;
+function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : String;
 function BinStrComp(const Str1, Str2 : String): Integer; // Binary-safe StrComp replacement. StrComp will return 0 for when str1 and str2 both start with NUL character.
 function BytesCompare(const ABytes1, ABytes2: TBytes): integer;
 function BytesEqual(const ABytes1, ABytes2 : TBytes) : boolean; inline;
@@ -371,7 +371,7 @@ type
 
   TFileStreamHelper = class helper for TFileStream
     {$IFNDEF FPC}
-    procedure WriteAnsiString(const AString : String);
+    procedure WriteString(const AString : String);
     {$ENDIF}
   end;
 
@@ -433,7 +433,7 @@ var
 
 { Global helper functions }
 
-{function String2Hex(const Buffer: AnsiString): AnsiString;
+function String2Hex(const Buffer: String): String;
 var
   n: Integer;
 begin
@@ -442,16 +442,16 @@ begin
     Result := AnsiLowerCase(Result + IntToHex(Ord(Buffer[n]), 2));
 end;
 
-function Hex2Bytes(const AHexString: AnsiString): TBytes;
+function Hex2Bytes(const AHexString: String): TBytes;
 begin
   if NOT TryHex2Bytes(AHexString, Result) then
     raise EArgumentOutOfRangeException.Create('Invalidly formatted hexadecimal string.');
 end;
 
-function TryHex2Bytes(const AHexString: AnsiString; out ABytes : TBytes): boolean; overload;
+function TryHex2Bytes(const AHexString: String; out ABytes : TBytes): boolean; overload;
 var
   P : PAnsiChar;
-  LHexString : AnsiString;
+  LHexString : String;
   LHexIndex, LHexLength, LHexStart : Integer;
 begin
   SetLength(ABytes, 0);
@@ -479,10 +479,10 @@ begin
   Result := (LHexIndex = (LHexLength DIV 2));
 end;
 
-function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : AnsiString;
+function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : String;
 var
   i, LStart, LLen : Integer;
-  s : AnsiString;
+  s : String;
   b : Byte;
 begin
   LLen := System.Length(ABytes)*2;
@@ -509,7 +509,7 @@ begin
     Result[(i*2)+ LStart + 1] := s[2];
     Inc(i);
   end;
-end;      }
+end;
 
 function BinStrComp(const Str1, Str2: String): integer;
 var Str1Len, Str2Len, i : Integer;
@@ -1830,7 +1830,7 @@ end;
 
 { TFileStreamHelper }
 {$IFNDEF FPC}
-procedure TFileStreamHelper.WriteAnsiString(const AString : String);
+procedure TFileStreamHelper.WriteString(const AString : String);
 begin
    Self.WriteBuffer(Pointer(AString)^, Length(AString));
 end;

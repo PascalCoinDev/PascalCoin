@@ -124,7 +124,6 @@
         <DCCReference Include="core\UOpenSSL.pas"/>
         <DCCReference Include="core\UOpenSSLdef.pas"/>
         <DCCReference Include="core\UOpTransaction.pas"/>
-        <DCCReference Include="core\UPipeline.pas"/>
         <DCCReference Include="core\UPoolMinerThreads.pas"/>
         <DCCReference Include="core\UPoolMining.pas"/>
         <DCCReference Include="core\URandomHash.pas"/>

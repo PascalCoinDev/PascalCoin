@@ -32,7 +32,7 @@
         <PackageName Value="FCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="19">
+    <Units Count="17">
       <Unit0>
         <Filename Value="PascalCoinUnitTests.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -101,17 +101,9 @@
         <IsPartOfProject Value="True"/>
       </Unit15>
       <Unit16>
-        <Filename Value="..\libraries\pascalcoin\UPipeline.pas"/>
+        <Filename Value="UThread.Tests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit16>
-      <Unit17>
-        <Filename Value="UPipeline.Tests.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit17>
-      <Unit18>
-        <Filename Value="..\core\UPipeline.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit18>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -125,13 +117,10 @@
       <OtherUnitFiles Value="..\..\src;..\core;..\libraries\generics.collections;..\libraries\hashlib4pascal;..\libraries\sphere10;..\libraries\pascalcoin"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
-    <CodeGeneration>
-      <Optimizations>
-        <OptimizationLevel Value="4"/>
-      </Optimizations>
-    </CodeGeneration>
     <Linking>
       <Options>
+        <PassLinkerOptions Value="True"/>
+        <LinkerOptions Value=" -dUseCThreads"/>
         <Win32>
           <GraphicApplication Value="True"/>
         </Win32>
