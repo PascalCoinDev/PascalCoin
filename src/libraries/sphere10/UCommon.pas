@@ -401,7 +401,7 @@ resourcestring
 
 implementation
 
-uses dateutils {$IFDEF FPC},StrUtils{$ELSE}{,System.AnsiStrings}{$ENDIF};
+uses dateutils, StrUtils;
 
 const
   IntlDateTimeFormat : TFormatSettings = (
@@ -457,7 +457,7 @@ begin
   SetLength(ABytes, 0);
   LHexLength := System.Length(AHexString);
   LHexStart := 1;
-  if AnsiStartsText('0x', AHexString) then begin
+  if {$IFDEF FPC}AnsiStartsText{$ELSE}StartsText{$ENDIF}('0x', AHexString) then begin
 
     // Special case: 0x0 = empty byte array
     if (LHexLength = 3) AND (AHexString[3] = '0') then
@@ -1850,7 +1850,7 @@ begin
     fstream.Seek(0, soFromEnd);
   end;
   try
-    fstream.WriteAnsiString(AText+#13#10);
+    fstream.{$IFDEF FPC}WriteAnsiString{$ELSE}WriteString{$ENDIF}(AText+#13#10);
   finally
     fstream.Free;
   end;
