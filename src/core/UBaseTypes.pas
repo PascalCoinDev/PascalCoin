@@ -443,7 +443,7 @@ end;
 class function TPlatform.GetTickCount: TTickCount;
 begin
   Result := {$IFDEF CPU64}GetTickCount64{$ELSE}
-   {$IFDEF FPC}System.GetTickCount{$ELSE}
+   {$IFDEF FPC}SysUtils.GetTickCount{$ELSE}
      {$IFDEF MSWINDOWS}Windows.GetTickCount{$ELSE}
      TThread.GetTickCount;
      {$ENDIF}
