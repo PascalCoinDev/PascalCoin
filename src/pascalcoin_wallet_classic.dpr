@@ -41,7 +41,6 @@ uses
   UTxMultiOperation in 'core\UTxMultiOperation.pas',
   UWallet in 'core\UWallet.pas',
   UFRMAbout in 'gui-classic\UFRMAbout.pas' {FRMAbout},
-  UFRMAccountInfo in 'gui-classic\UFRMAccountInfo.pas' {FRMAccountInfo},
   UFRMAccountSelect in 'gui-classic\UFRMAccountSelect.pas' {FRMAccountSelect},
   UFRMMemoText in 'gui-classic\UFRMMemoText.pas' {FRMMemoText},
   UFRMNewPrivateKeyType in 'gui-classic\UFRMNewPrivateKeyType.pas' {FRMNewPrivateKeyType},

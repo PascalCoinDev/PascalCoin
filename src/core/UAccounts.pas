@@ -126,7 +126,7 @@ Type
     Class Function IsAccountForSale(const accountInfo: TAccountInfo) : Boolean;
     Class Function IsAccountForSaleAcceptingTransactions(const accountInfo: TAccountInfo) : Boolean;
     Class Function GetECInfoTxt(Const EC_OpenSSL_NID: Word) : String;
-    Class Procedure ValidsEC_OpenSSL_NID(list : TList);
+    Class Procedure ValidsEC_OpenSSL_NID(list : TList<Word>);
     Class Function AccountKey2RawString(const account: TAccountKey): TRawBytes; overload;
     Class procedure AccountKey2RawString(const account: TAccountKey; var dest: TRawBytes); overload;
     Class Function RawString2Accountkey(const rawaccstr: TRawBytes): TAccountKey; overload;
@@ -1479,13 +1479,13 @@ begin
   end;
 end;
 
-class procedure TAccountComp.ValidsEC_OpenSSL_NID(list: TList);
+class procedure TAccountComp.ValidsEC_OpenSSL_NID(list: TList<Word>);
 begin
   list.Clear;
-  list.Add(TObject(CT_NID_secp256k1)); // = 714
-  list.Add(TObject(CT_NID_secp384r1)); // = 715
-  list.Add(TObject(CT_NID_sect283k1)); // = 729
-  list.Add(TObject(CT_NID_secp521r1)); // = 716
+  list.Add((CT_NID_secp256k1)); // = 714
+  list.Add((CT_NID_secp384r1)); // = 715
+  list.Add((CT_NID_sect283k1)); // = 729
+  list.Add((CT_NID_secp521r1)); // = 716
 end;
 
 { TProgressNotifyManyHelper }
