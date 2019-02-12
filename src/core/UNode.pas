@@ -91,7 +91,8 @@ Type
     //
     Procedure NotifyBlocksChanged;
     //
-    procedure GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDepth, StartOperation, EndOperation : Integer; SearchBackwardsStartingAtBlock : Cardinal=0);
+    procedure GetStoredOperationsFromAccount(AOwnerThread : TPCThread; const OperationsResume: TList<TOperationResume>; account_number: Cardinal; MaxDepth, StartOperation, EndOperation : Integer; SearchBackwardsStartingAtBlock : Cardinal=0); overload;
+    procedure GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDepth, StartOperation, EndOperation : Integer; SearchBackwardsStartingAtBlock : Cardinal=0); overload;
     Function FindOperation(Const OperationComp : TPCOperationsComp; Const OperationHash : TRawBytes; var block : Cardinal; var operation_block_index : Integer) : Boolean;
     Function FindOperationExt(Const OperationComp : TPCOperationsComp; Const OperationHash : TRawBytes; var block : Cardinal; var operation_block_index : Integer) : TSearchOperationResult;
     Function FindNOperation(block, account, n_operation : Cardinal; var OpResume : TOperationResume) : TSearchOperationResult;
@@ -808,7 +809,8 @@ begin
   end;
 end;
 
-procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDepth, StartOperation, EndOperation: Integer; SearchBackwardsStartingAtBlock : Cardinal = 0);
+procedure TNode.GetStoredOperationsFromAccount(AOwnerThread : TPCThread; const OperationsResume: TList<TOperationResume>; account_number: Cardinal;
+  MaxDepth, StartOperation, EndOperation: Integer; SearchBackwardsStartingAtBlock: Cardinal);
   // Optimization:
   // For better performance, will only include at "OperationsResume" values betweeen "startOperation" and "endOperation"
 
@@ -824,6 +826,9 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
     acc_0_miner_reward, acc_4_dev_reward : Int64;
     acc_4_for_dev : Boolean;
   begin
+    if Assigned(AOwnerThread) then begin
+      if AOwnerThread.terminated then Exit;
+    end;
     if (act_depth<=0) then exit;
     opc := TPCOperationsComp.Create(Nil);
     Try
@@ -833,6 +838,9 @@ procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperatio
         while (last_block_number>block_number) And (act_depth>0)
           And (block_number >= (account_number DIV CT_AccountsPerBlock))
           And (nOpsCounter <= EndOperation) do begin
+          if Assigned(AOwnerThread) then begin
+            if AOwnerThread.terminated then Exit;
+          end;
           found_in_block := False;
           last_block_number := block_number;
           l.Clear;
@@ -923,6 +931,21 @@ begin
       lastBalance := -1;
     end;
     DoGetFromBlock(startBlock,lastBalance,MaxDepth,0,startBlock<>acc.updated_block);
+  end;
+end;
+
+procedure TNode.GetStoredOperationsFromAccount(const OperationsResume: TOperationsResumeList; account_number: Cardinal; MaxDepth, StartOperation, EndOperation: Integer; SearchBackwardsStartingAtBlock : Cardinal = 0);
+var LOpList : TList<TOperationResume>;
+  i : Integer;
+begin
+  LOpList := TList<TOperationResume>.Create;
+  try
+    GetStoredOperationsFromAccount(Nil,LOpList,account_number,MaxDepth,StartOperation,EndOperation,SearchBackwardsStartingAtBlock);
+    for i := 0 to LOpList.Count-1 do begin
+      OperationsResume.Add(LOpList[i]);
+    end;
+  finally
+    LOpList.Free;
   end;
 end;
 

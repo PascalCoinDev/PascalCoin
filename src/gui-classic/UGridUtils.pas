@@ -30,7 +30,7 @@ uses
 {$ELSE}
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
-  Classes, Grids, UNode, UAccounts, UBlockChain, UAppParams,
+  Classes, Grids, UNode, UAccounts, UBlockChain, UAppParams, UThread,
   UWallet, UCrypto, UPoolMining, URPC, UBaseTypes, UPCOrderedLists,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
@@ -83,6 +83,17 @@ Type
     Function SelectedAccounts(accounts : TOrderedCardinalList) : Integer;
   End;
 
+  TOperationsGrid = Class;
+
+  TOperationsGridUpdateThread = Class(TPCThread)
+    FOperationsGrid : TOperationsGrid;
+    procedure DoUpdateOperationsGrid(ANode : TNode; var AList : TList<TOperationResume>);
+  protected
+    procedure BCExecute; override;
+  public
+    constructor Create(AOperationsGrid : TOperationsGrid);
+  End;
+
   TOperationsGrid = Class(TComponent)
   private
     FDrawGrid: TDrawGrid;
@@ -93,6 +104,7 @@ Type
     FBlockStart: Int64;
     FBlockEnd: Int64;
     FMustShowAlwaysAnAccount: Boolean;
+    FOperationsGridUpdateThread : TOperationsGridUpdateThread;
     Procedure OnNodeNewOperation(Sender : TObject);
     Procedure OnNodeNewAccount(Sender : TObject);
     Procedure InitGrid;
@@ -151,7 +163,19 @@ Type
     TimeAverage25 : Real;
     TimeAverage10 : Real;
   End;
-  TBlockChainDataArray = Array of TBlockChainData;
+
+  TBlockChainGrid = Class;
+
+  TBlockChainGridUpdateThread = Class(TPCThread)
+    FBlockChainGrid : TBlockChainGrid;
+    FBlockStart, FBlockEnd : Int64;
+    procedure DoUpdateBlockChainGrid(ANode : TNode; var AList : TList<TBlockChainData>; ABlockStart, ABlockEnd : Int64);
+  protected
+    procedure BCExecute; override;
+  public
+    constructor Create(ABlockChainGrid : TBlockChainGrid);
+  End;
+
 
   { TBlockChainGrid }
 
@@ -159,7 +183,7 @@ Type
 
   TBlockChainGrid = Class(TComponent)
   private
-    FBlockChainDataArray : TBlockChainDataArray;
+    FBlockChainDataList : TList<TBlockChainData>;
     FBlockStart: Int64;
     FHashRateAs: TShowHashRateAs;
     FMaxBlocks: Integer;
@@ -168,6 +192,7 @@ Type
     FNodeNotifyEvents : TNodeNotifyEvents;
     FHashRateAverageBlocksCount: Integer;
     FShowTimeAverageColumns: Boolean;
+    FBlockChainGridUpdateThread : TBlockChainGridUpdateThread;
     Procedure OnNodeNewAccount(Sender : TObject);
     Procedure InitGrid;
     procedure OnGridDrawCell(Sender: TObject; ACol, ARow: Longint; Rect: TRect; State: TGridDrawState);
@@ -448,9 +473,7 @@ begin
     C.ColumnType := act_account_number;
     C.width := -1;
   end;
-  {.$IFDEF FPC}
   DrawGrid.Canvas.Font.Color:=clBlack;
-  {.$ENDIF}
   if (ARow=0) then begin
     // Header
     s := CT_ColumnHeader[C.ColumnType];
@@ -621,6 +644,127 @@ begin
   InitGrid;
 end;
 
+{ TOperationsGridUpdateThread }
+
+procedure TOperationsGridUpdateThread.BCExecute;
+var list : TList<TOperationResume>;
+  i : Integer;
+begin
+  list := TList<TOperationResume>.Create;
+  try
+    DoUpdateOperationsGrid(FOperationsGrid.Node,list);
+    if (Not Terminated) then begin
+      FOperationsGrid.FOperationsResume.Clear;
+      for i := 0 to list.Count-1 do begin
+        FOperationsGrid.FOperationsResume.Add(list[i]);
+      end;
+      FOperationsGrid.InitGrid;
+    end;
+  finally
+    list.Free;
+  end;
+end;
+
+constructor TOperationsGridUpdateThread.Create(AOperationsGrid: TOperationsGrid);
+begin
+  FOperationsGrid := AOperationsGrid;
+  inherited Create(True);
+  FreeOnTerminate := False;
+  Suspended := False;
+end;
+
+procedure TOperationsGridUpdateThread.DoUpdateOperationsGrid(ANode: TNode; var AList: TList<TOperationResume>);
+Var list : TList<Cardinal>;
+  i,j : Integer;
+  OPR : TOperationResume;
+  Op : TPCOperation;
+  opc : TPCOperationsComp;
+  bstart,bend : int64;
+  LOperationsResume : TOperationsResumeList;
+begin
+  if Not Assigned(ANode) then exit;
+  AList.Clear;
+  Try
+    if (FOperationsGrid.MustShowAlwaysAnAccount) And (FOperationsGrid.AccountNumber<0) then exit;
+
+    if FOperationsGrid.FPendingOperations then begin
+      for i := ANode.Operations.Count - 1 downto 0 do begin
+        Op := ANode.Operations.OperationsHashTree.GetOperation(i);
+        If TPCOperation.OperationToOperationResume(0,Op,True,Op.SignerAccount,OPR) then begin
+          OPR.NOpInsideBlock := i;
+          OPR.Block := ANode.Bank.BlocksCount;
+          OPR.Balance := ANode.Operations.SafeBoxTransaction.Account(Op.SignerAccount).balance;
+          AList.Add(OPR);
+        end;
+      end;
+    end else begin
+      if FOperationsGrid.AccountNumber<0 then begin
+        opc := TPCOperationsComp.Create(Nil);
+        try
+          opc.bank := ANode.Bank;
+          If FOperationsGrid.FBlockEnd<0 then begin
+            If ANode.Bank.BlocksCount>0 then bend := ANode.Bank.BlocksCount-1
+            else bend := 0;
+          end else bend := FOperationsGrid.FBlockEnd;
+          if FOperationsGrid.FBlockStart<0 then begin
+            if (bend > 300) then bstart := bend - 300
+            else bstart := 0;
+          end else bstart:= FOperationsGrid.FBlockStart;
+          If bstart<0 then bstart := 0;
+          if bend>=ANode.Bank.BlocksCount then bend:=ANode.Bank.BlocksCount;
+          while (bstart<=bend) and (Not Terminated) do begin
+            opr := CT_TOperationResume_NUL;
+            if (ANode.Bank.Storage.LoadBlockChainBlock(opc,bend)) then begin
+              // Reward operation
+              OPR := CT_TOperationResume_NUL;
+              OPR.valid := true;
+              OPR.Block := bend;
+              OPR.time := opc.OperationBlock.timestamp;
+              OPR.AffectedAccount := bend * CT_AccountsPerBlock;
+              OPR.Amount := opc.OperationBlock.reward;
+              OPR.Fee := opc.OperationBlock.fee;
+              OPR.Balance := OPR.Amount+OPR.Fee;
+              OPR.OperationTxt := 'Blockchain reward';
+              AList.Add(OPR);
+              // Reverse operations inside a block
+              for i := opc.Count - 1 downto 0 do begin
+                if TPCOperation.OperationToOperationResume(bend,opc.Operation[i],True,opc.Operation[i].SignerAccount,opr) then begin
+                  opr.NOpInsideBlock := i;
+                  opr.Block := bend;
+                  opr.time := opc.OperationBlock.timestamp;
+                  AList.Add(opr);
+                end;
+              end;
+            end else break;
+            dec(bend);
+          end;
+        finally
+          opc.Free;
+        end;
+
+      end else begin
+        list := TList<Cardinal>.Create;
+        Try
+          ANode.Operations.OperationsHashTree.GetOperationsAffectingAccount(FOperationsGrid.AccountNumber,list);
+          for i := list.Count - 1 downto 0 do begin
+            Op := ANode.Operations.OperationsHashTree.GetOperation((list[i]));
+            If TPCOperation.OperationToOperationResume(0,Op,False,FOperationsGrid.AccountNumber,OPR) then begin
+              OPR.NOpInsideBlock := i;
+              OPR.Block := ANode.Operations.OperationBlock.block;
+              OPR.Balance := ANode.Operations.SafeBoxTransaction.Account(FOperationsGrid.AccountNumber).balance;
+              AList.Add(OPR);
+            end;
+          end;
+        Finally
+          list.Free;
+        End;
+        ANode.GetStoredOperationsFromAccount(Self,AList,FOperationsGrid.AccountNumber,100,0,5000);
+      end;
+    end;
+  Finally
+  End;
+end;
+
 { TOperationsGrid }
 
 constructor TOperationsGrid.Create(AOwner: TComponent);
@@ -635,11 +779,17 @@ begin
   FBlockStart := -1;
   FBlockEnd := -1;
   FPendingOperations := false;
+  FOperationsGridUpdateThread := Nil;
   inherited;
 end;
 
 destructor TOperationsGrid.Destroy;
 begin
+  If Assigned(FOperationsGridUpdateThread) then begin
+    FOperationsGridUpdateThread.Terminate;
+    FOperationsGridUpdateThread.WaitFor;
+    FreeAndNil(FOperationsGridUpdateThread);
+  end;
   FOperationsResume.Free;
   FNodeNotifyEvents.Free;
   inherited;
@@ -689,9 +839,7 @@ procedure TOperationsGrid.OnGridDrawCell(Sender: TObject; ACol, ARow: Integer; R
 Var s : String;
   opr : TOperationResume;
 begin
-  {.$IFDEF FPC}
   DrawGrid.Canvas.Font.Color:=clBlack;
-  {.$ENDIF}
   opr := CT_TOperationResume_NUL;
   Try
   if (ARow=0) then begin
@@ -855,6 +1003,11 @@ end;
 procedure TOperationsGrid.SetNode(const Value: TNode);
 begin
   if GetNode=Value then exit;
+  If Assigned(FOperationsGridUpdateThread) then begin
+    FOperationsGridUpdateThread.Terminate;
+    FOperationsGridUpdateThread.WaitFor;
+    FreeAndNil(FOperationsGridUpdateThread);
+  end;
   FNodeNotifyEvents.Node := Value;
   UpdateAccountOperations; // New Build 1.0.3
 end;
@@ -897,95 +1050,126 @@ begin
 end;
 
 procedure TOperationsGrid.UpdateAccountOperations;
-Var list : TList<Cardinal>;
-  i,j : Integer;
-  OPR : TOperationResume;
-  Op : TPCOperation;
-  opc : TPCOperationsComp;
-  bstart,bend : int64;
 begin
-  FOperationsResume.Clear;
-  Try
-    if Not Assigned(Node) then exit;
-    if (MustShowAlwaysAnAccount) And (AccountNumber<0) then exit;
+  if Not Assigned(Node) then exit;
+  If Assigned(FOperationsGridUpdateThread) then begin
+    FOperationsGridUpdateThread.Terminate;
+    FOperationsGridUpdateThread.WaitFor;
+    FreeAndNil(FOperationsGridUpdateThread);
+  end;
+  FOperationsGridUpdateThread := TOperationsGridUpdateThread.Create(Self);
+end;
 
-    if FPendingOperations then begin
-      for i := Node.Operations.Count - 1 downto 0 do begin
-        Op := Node.Operations.OperationsHashTree.GetOperation(i);
-        If TPCOperation.OperationToOperationResume(0,Op,True,Op.SignerAccount,OPR) then begin
-          OPR.NOpInsideBlock := i;
-          OPR.Block := Node.Bank.BlocksCount;
-          OPR.Balance := Node.Operations.SafeBoxTransaction.Account(Op.SignerAccount).balance;
-          FOperationsResume.Add(OPR);
-        end;
+{ TBlockChainGridUpdateThread }
+
+procedure TBlockChainGridUpdateThread.BCExecute;
+var Llist : TList<TBlockChainData>;
+  i : Integer;
+  LBlockStart, LBlockEnd : Integer;
+begin
+  if (Not Assigned(FBlockChainGrid.Node)) Or (Terminated) then Exit;
+
+  if (FBlockChainGrid.FBlockStart>FBlockChainGrid.FBlockEnd) And (FBlockChainGrid.FBlockStart>=0) then FBlockChainGrid.FBlockEnd := -1;
+  if (FBlockChainGrid.FBlockEnd>=0) And (FBlockChainGrid.FBlockEnd<FBlockChainGrid.FBlockStart) then FBlockChainGrid.FBlockStart:=-1;
+
+  if FBlockChainGrid.FBlockStart>(FBlockChainGrid.FNodeNotifyEvents.Node.Bank.BlocksCount-1) then FBlockChainGrid.FBlockStart := -1;
+  if (FBlockChainGrid.FBlockEnd>=0) And (FBlockChainGrid.FBlockEnd<FBlockChainGrid.Node.Bank.BlocksCount) then begin
+    LBlockEnd := FBlockChainGrid.FBlockEnd
+  end else begin
+    if (FBlockChainGrid.FBlockStart>=0) And (FBlockChainGrid.FBlockStart+FBlockChainGrid.MaxBlocks<=FBlockChainGrid.Node.Bank.BlocksCount) then LBlockEnd := FBlockChainGrid.FBlockStart + FBlockChainGrid.MaxBlocks - 1
+    else LBlockEnd := FBlockChainGrid.Node.Bank.BlocksCount-1;
+  end;
+
+  if (FBlockChainGrid.FBlockStart>=0) And (FBlockChainGrid.FBlockStart<FBlockChainGrid.Node.Bank.BlocksCount) then LBlockStart := FBlockChainGrid.FBlockStart
+  else begin
+    if LBlockEnd>FBlockChainGrid.MaxBlocks then LBlockStart := LBlockEnd - FBlockChainGrid.MaxBlocks + 1
+    else LBlockStart := 0;
+  end;
+
+
+  Llist := TList<TBlockChainData>.Create;
+  try
+    DoUpdateBlockChainGrid(FBlockChainGrid.Node,Llist,LBlockStart,LBlockEnd);
+    if (Not Terminated) then begin
+      FBlockChainGrid.FBlockChainDataList.clear;
+      for i := 0 to Llist.Count-1 do begin
+        FBlockChainGrid.FBlockChainDataList.Add(Llist[i]);
       end;
-    end else begin
-      if AccountNumber<0 then begin
-        opc := TPCOperationsComp.Create(Nil);
-        try
-          opc.bank := Node.Bank;
-          If FBlockEnd<0 then begin
-            If Node.Bank.BlocksCount>0 then bend := Node.Bank.BlocksCount-1
-            else bend := 0;
-          end else bend := FBlockEnd;
-          if FBlockStart<0 then begin
-            if (bend > 300) then bstart := bend - 300
-            else bstart := 0;
-          end else bstart:= FBlockStart;
-          If bstart<0 then bstart := 0;
-          if bend>=Node.Bank.BlocksCount then bend:=Node.Bank.BlocksCount;
-          while (bstart<=bend) do begin
-            opr := CT_TOperationResume_NUL;
-            if (Node.Bank.Storage.LoadBlockChainBlock(opc,bend)) then begin
-              // Reward operation
-              OPR := CT_TOperationResume_NUL;
-              OPR.valid := true;
-              OPR.Block := bend;
-              OPR.time := opc.OperationBlock.timestamp;
-              OPR.AffectedAccount := bend * CT_AccountsPerBlock;
-              OPR.Amount := opc.OperationBlock.reward;
-              OPR.Fee := opc.OperationBlock.fee;
-              OPR.Balance := OPR.Amount+OPR.Fee;
-              OPR.OperationTxt := 'Blockchain reward';
-              FOperationsResume.Add(OPR);
-              // Reverse operations inside a block
-              for i := opc.Count - 1 downto 0 do begin
-                if TPCOperation.OperationToOperationResume(bend,opc.Operation[i],True,opc.Operation[i].SignerAccount,opr) then begin
-                  opr.NOpInsideBlock := i;
-                  opr.Block := bend;
-                  opr.time := opc.OperationBlock.timestamp;
-                  FOperationsResume.Add(opr);
-                end;
-              end;
-            end else break;
-            dec(bend);
-          end;
-        finally
-          opc.Free;
-        end;
-
-      end else begin
-        list := TList<Cardinal>.Create;
-        Try
-          Node.Operations.OperationsHashTree.GetOperationsAffectingAccount(AccountNumber,list);
-          for i := list.Count - 1 downto 0 do begin
-            Op := Node.Operations.OperationsHashTree.GetOperation((list[i]));
-            If TPCOperation.OperationToOperationResume(0,Op,False,AccountNumber,OPR) then begin
-              OPR.NOpInsideBlock := i;
-              OPR.Block := Node.Operations.OperationBlock.block;
-              OPR.Balance := Node.Operations.SafeBoxTransaction.Account(AccountNumber).balance;
-              FOperationsResume.Add(OPR);
-            end;
-          end;
-        Finally
-          list.Free;
-        End;
-        Node.GetStoredOperationsFromAccount(FOperationsResume,AccountNumber,100,0,5000);
+      if Assigned(FBlockChainGrid.DrawGrid) then begin
+        if Llist.Count>0 then FBlockChainGrid.DrawGrid.RowCount := Llist.Count+1
+        else FBlockChainGrid.DrawGrid.RowCount := 2;
+        FBlockChainGrid.FDrawGrid.Invalidate;
       end;
     end;
-  Finally
-    InitGrid;
-  End;
+  finally
+    Llist.Free;
+  end;
+end;
+
+constructor TBlockChainGridUpdateThread.Create(ABlockChainGrid : TBlockChainGrid);
+begin
+  FBlockChainGrid := ABlockChainGrid;
+  inherited Create(True);
+  FreeOnTerminate := False;
+  Suspended := False;
+end;
+
+procedure TBlockChainGridUpdateThread.DoUpdateBlockChainGrid(ANode: TNode; var AList: TList<TBlockChainData>; ABlockStart, ABlockEnd : Int64);
+Var opc : TPCOperationsComp;
+  bcd : TBlockChainData;
+  opb : TOperationBlock;
+  bn : TBigNum;
+begin
+  opc := TPCOperationsComp.Create(Nil);
+  try
+    opc.bank := ANode.Bank;
+    while (ABlockStart<=ABlockEnd) and (Not Terminated) do begin
+      bcd := CT_TBlockChainData_NUL;
+      opb := ANode.Bank.SafeBox.Block(ABlockEnd).blockchainInfo;
+      bcd.Block:=opb.block;
+      bcd.Timestamp := opb.timestamp;
+      bcd.BlockProtocolVersion := opb.protocol_version;
+      bcd.BlockProtocolAvailable := opb.protocol_available;
+      bcd.Reward := opb.reward;
+      bcd.Fee := opb.fee;
+      bcd.Target := opb.compact_target;
+      bn := ANode.Bank.SafeBox.CalcBlockHashRateInHs(bcd.Block,FBlockChainGrid.HashRateAverageBlocksCount);
+      try
+        bcd.HashRateHs := bn.Value;
+        bcd.HashRateKhs := bn.Divide(1000).Value;
+      finally
+        bn.Free;
+      end;
+      bn := TBigNum.TargetToHashRate(opb.compact_target);
+      Try
+        bcd.HashRateTargetHs := bn.Value / (CT_NewLineSecondsAvg);
+        bcd.HashRateTargetKhs := bn.Divide(1000).Divide(CT_NewLineSecondsAvg).Value;
+      finally
+        bn.Free;
+      end;
+      bcd.MinerPayload := opb.block_payload;
+      bcd.PoW := opb.proof_of_work;
+      bcd.SafeBoxHash := opb.initial_safe_box_hash;
+      bcd.AccumulatedWork := ANode.Bank.SafeBox.Block(bcd.Block).AccumulatedWork;
+      if (Not Terminated) then begin
+        If (ANode.Bank.LoadOperations(opc,ABlockEnd)) then begin
+          bcd.OperationsCount := opc.Count;
+          bcd.Volume := opc.OperationsHashTree.TotalAmount + opc.OperationsHashTree.TotalFee;
+        end;
+        bcd.TimeAverage200:=ANode.Bank.GetTargetSecondsAverage(bcd.Block,200);
+        bcd.TimeAverage150:=ANode.Bank.GetTargetSecondsAverage(bcd.Block,150);
+        bcd.TimeAverage100:=ANode.Bank.GetTargetSecondsAverage(bcd.Block,100);
+        bcd.TimeAverage75:=ANode.Bank.GetTargetSecondsAverage(bcd.Block,75);
+        bcd.TimeAverage50:=ANode.Bank.GetTargetSecondsAverage(bcd.Block,50);
+        bcd.TimeAverage25:=ANode.Bank.GetTargetSecondsAverage(bcd.Block,25);
+        bcd.TimeAverage10:=ANode.Bank.GetTargetSecondsAverage(bcd.Block,10);
+        AList.Add(bcd);
+        if (ABlockEnd>0) then dec(ABlockEnd) else Break;
+      end;
+    end;
+  finally
+    opc.Free;
+  end;
 end;
 
 { TBlockChainGrid }
@@ -1000,16 +1184,23 @@ begin
   FNodeNotifyEvents := TNodeNotifyEvents.Create(Self);
   FNodeNotifyEvents.OnBlocksChanged := OnNodeNewAccount;
   FHashRateAverageBlocksCount := 50;
-  SetLength(FBlockChainDataArray,0);
+  FBlockChainDataList := TList<TBlockChainData>.Create;
   FShowTimeAverageColumns:=False;
   FHashRateAs:={$IFDEF PRODUCTION}hr_Giga{$ELSE}hr_Mega{$ENDIF};
+  FBlockChainGridUpdateThread := Nil;
 end;
 
 destructor TBlockChainGrid.Destroy;
 begin
+  If Assigned(FBlockChainGridUpdateThread) then begin
+    FBlockChainGridUpdateThread.Terminate;
+    FBlockChainGridUpdateThread.WaitFor;
+    FreeAndNil(FBlockChainGridUpdateThread);
+  end;
   FNodeNotifyEvents.OnBlocksChanged := Nil;
   FNodeNotifyEvents.Node := Nil;
   FreeAndNil(FNodeNotifyEvents);
+  FreeAndNil(FBlockChainDataList);
   inherited;
 end;
 
@@ -1072,9 +1263,7 @@ Var s : String;
   deviation : Real;
   hr_base : Int64;
 begin
-  {.$IFDEF FPC}
   DrawGrid.Canvas.Font.Color:=clBlack;
-  {.$ENDIF}
   if (ARow=0) then begin
     // Header
     case ACol of
@@ -1113,8 +1302,8 @@ begin
     else DrawGrid.Canvas.Brush.Color := clWindow;
     DrawGrid.Canvas.FillRect(Rect);
     InflateRect(Rect,-2,-1);
-    if ((ARow-1)<=High(FBlockChainDataArray)) then begin
-      bcd := FBlockChainDataArray[ARow-1];
+    if ((ARow-1)<FBlockChainDataList.Count) then begin
+      bcd := FBlockChainDataList[ARow-1];
       if ACol=0 then begin
         s := IntToStr(bcd.Block);
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter]);
@@ -1133,7 +1322,7 @@ begin
       end else if ACol=3 then begin
         if bcd.Volume>=0 then begin
           s := TAccountComp.FormatMoney(bcd.Volume);
-          if FBlockChainDataArray[ARow-1].Volume>0 then DrawGrid.Canvas.Font.Color := ClGreen
+          if FBlockChainDataList[ARow-1].Volume>0 then DrawGrid.Canvas.Font.Color := ClGreen
           else DrawGrid.Canvas.Font.Color := clGrayText;
           Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
         end else begin
@@ -1143,7 +1332,7 @@ begin
         end;
       end else if ACol=4 then begin
         s := TAccountComp.FormatMoney(bcd.Reward);
-        if FBlockChainDataArray[ARow-1].Reward>0 then DrawGrid.Canvas.Font.Color := ClGreen
+        if FBlockChainDataList[ARow-1].Reward>0 then DrawGrid.Canvas.Font.Color := ClGreen
         else DrawGrid.Canvas.Font.Color := clGrayText;
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
       end else if ACol=5 then begin
@@ -1285,94 +1474,13 @@ end;
 
 
 procedure TBlockChainGrid.UpdateBlockChainGrid;
-Var nstart,nend : Cardinal;
-  opc : TPCOperationsComp;
-  bcd : TBlockChainData;
-  i : Integer;
-  opb : TOperationBlock;
-  bn : TBigNum;
 begin
-  if (FBlockStart>FBlockEnd) And (FBlockStart>=0) then FBlockEnd := -1;
-  if (FBlockEnd>=0) And (FBlockEnd<FBlockStart) then FBlockStart:=-1;
-
-  if Not Assigned(FNodeNotifyEvents.Node) then exit;
-
-  if FBlockStart>(FNodeNotifyEvents.Node.Bank.BlocksCount-1) then FBlockStart := -1;
-
-  try
-    if Node.Bank.BlocksCount<=0 then begin
-      SetLength(FBlockChainDataArray,0);
-      exit;
-    end;
-    if (FBlockEnd>=0) And (FBlockEnd<Node.Bank.BlocksCount) then begin
-      nend := FBlockEnd
-    end else begin
-      if (FBlockStart>=0) And (FBlockStart+MaxBlocks<=Node.Bank.BlocksCount) then nend := FBlockStart + MaxBlocks - 1
-      else nend := Node.Bank.BlocksCount-1;
-    end;
-
-    if (FBlockStart>=0) And (FBlockStart<Node.Bank.BlocksCount) then nstart := FBlockStart
-    else begin
-      if nend>MaxBlocks then nstart := nend - MaxBlocks + 1
-      else nstart := 0;
-    end;
-    SetLength(FBlockChainDataArray,nend - nstart +1);
-    opc := TPCOperationsComp.Create(Nil);
-    try
-      opc.bank := Node.Bank;
-      while (nstart<=nend) do begin
-        i := length(FBlockChainDataArray) - (nend-nstart+1);
-        bcd := CT_TBlockChainData_NUL;
-        opb := Node.Bank.SafeBox.Block(nend).blockchainInfo;
-        bcd.Block:=opb.block;
-        bcd.Timestamp := opb.timestamp;
-        bcd.BlockProtocolVersion := opb.protocol_version;
-        bcd.BlockProtocolAvailable := opb.protocol_available;
-        bcd.Reward := opb.reward;
-        bcd.Fee := opb.fee;
-        bcd.Target := opb.compact_target;
-        bn := Node.Bank.SafeBox.CalcBlockHashRateInHs(bcd.Block,HashRateAverageBlocksCount);
-        try
-          bcd.HashRateHs := bn.Value;
-          bcd.HashRateKhs := bn.Divide(1000).Value;
-        finally
-          bn.Free;
-        end;
-        bn := TBigNum.TargetToHashRate(opb.compact_target);
-        Try
-          bcd.HashRateTargetHs := bn.Value / (CT_NewLineSecondsAvg);
-          bcd.HashRateTargetKhs := bn.Divide(1000).Divide(CT_NewLineSecondsAvg).Value;
-        finally
-          bn.Free;
-        end;
-        bcd.MinerPayload := opb.block_payload;
-        bcd.PoW := opb.proof_of_work;
-        bcd.SafeBoxHash := opb.initial_safe_box_hash;
-        bcd.AccumulatedWork := Node.Bank.SafeBox.Block(bcd.Block).AccumulatedWork;
-        if (Node.Bank.LoadOperations(opc,nend)) then begin
-          bcd.OperationsCount := opc.Count;
-          bcd.Volume := opc.OperationsHashTree.TotalAmount + opc.OperationsHashTree.TotalFee;
-        end;
-        bcd.TimeAverage200:=Node.Bank.GetTargetSecondsAverage(bcd.Block,200);
-        bcd.TimeAverage150:=Node.Bank.GetTargetSecondsAverage(bcd.Block,150);
-        bcd.TimeAverage100:=Node.Bank.GetTargetSecondsAverage(bcd.Block,100);
-        bcd.TimeAverage75:=Node.Bank.GetTargetSecondsAverage(bcd.Block,75);
-        bcd.TimeAverage50:=Node.Bank.GetTargetSecondsAverage(bcd.Block,50);
-        bcd.TimeAverage25:=Node.Bank.GetTargetSecondsAverage(bcd.Block,25);
-        bcd.TimeAverage10:=Node.Bank.GetTargetSecondsAverage(bcd.Block,10);
-        FBlockChainDataArray[i] := bcd;
-        if (nend>0) then dec(nend) else break;
-      end;
-    finally
-      opc.Free;
-    end;
-  finally
-    if Assigned(FDrawGrid) then begin
-      if Length(FBlockChainDataArray)>0 then FDrawGrid.RowCount := length(FBlockChainDataArray)+1
-      else FDrawGrid.RowCount := 2;
-      FDrawGrid.Invalidate;
-    end;
+  If Assigned(FBlockChainGridUpdateThread) then begin
+    FBlockChainGridUpdateThread.Terminate;
+    FBlockChainGridUpdateThread.WaitFor;
+    FreeAndNil(FBlockChainGridUpdateThread);
   end;
+  FBlockChainGridUpdateThread := TBlockChainGridUpdateThread.Create(Self);
 end;
 
 end.
