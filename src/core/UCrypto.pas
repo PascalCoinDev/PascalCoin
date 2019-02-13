@@ -49,6 +49,7 @@ Type
   TECPrivateKey = Class
   private
     FPrivateKeyInfo: TECPrivateKeyInfo;
+    FBufferedPublicKey : TECDSA_Public;
     procedure SetPrivateKeyInfo(const Value: TECPrivateKeyInfo);
     function GetPublicKey: TECDSA_Public;
     function GetEC_OpenSSL_NID: Word;
@@ -191,6 +192,7 @@ begin
   FPrivateKeyInfo.EC_KEY_Ptr := Nil;
   FPrivateKeyInfo.RAW_PrivKey := Nil;
   FPrivateKeyInfo.EC_OpenSSL_NID := CT_Default_EC_OpenSSL_NID;
+  FBufferedPublicKey := CT_TECDSA_Public_Nul;
 end;
 
 destructor TECPrivateKey.Destroy;
@@ -261,6 +263,7 @@ begin
   {$ELSE}
   FPrivateKeyInfo.RAW_PrivKey := Nil;
   {$ENDIF}
+  FBufferedPublicKey := CT_TECDSA_Public_Nul;
 end;
 
 function TECPrivateKey.GetEC_OpenSSL_NID: Word;
@@ -274,6 +277,9 @@ var BNx,BNy : PBIGNUM;
   ctx : PBN_CTX;
 {$ENDIF}
 begin
+  if FBufferedPublicKey.EC_OpenSSL_NID<>CT_TECDSA_Public_Nul.EC_OpenSSL_NID then begin
+    Exit(FBufferedPublicKey);
+  end;
 {$IFDEF Use_OpenSSL}
   Result.EC_OpenSSL_NID := FPrivateKeyInfo.EC_OpenSSL_NID;
   ctx := BN_CTX_new;
@@ -293,6 +299,7 @@ begin
 {$ELSE}
   Result := TPCCryptoLib4Pascal.DoGetPublicKey(EC_OpenSSL_NID,FPrivateKeyInfo.RAW_PrivKey);
 {$ENDIF}
+  FBufferedPublicKey := Result;
 end;
 
 function TECPrivateKey.HasPrivateKey: Boolean;
@@ -430,6 +437,7 @@ begin
   {$IFNDEF Use_OpenSSL}
   FPrivateKeyInfo.EC_KEY_Ptr := Nil;
   {$ENDIF}
+  FBufferedPublicKey := CT_TECDSA_Public_Nul;
 end;
 
 function TECPrivateKey.SetPrivateKeyFromHexa(AEC_OpenSSL_NID : Word; const hexa : String) : Boolean;
@@ -477,6 +485,7 @@ begin
   // TODO: Check is valid!
   {$ENDIF}
   Result := True;
+  FBufferedPublicKey := CT_TECDSA_Public_Nul;
 end;
 
 { TCrypto }
