@@ -145,6 +145,7 @@ Uses
   ClpECKeyPairGenerator,
   //
   HlpSHA2_256,
+  HlpRIPEMD160,
   //
   UAccounts,
   UConst,
@@ -381,13 +382,25 @@ begin
 end;
 
 class procedure TPCCryptoLib4Pascal.DoRIPEMD160(const AInput: TBytes; var AOutput: TBytes);
+Var Lrmd160 : TRIPEMD160;
 begin
-  AOutput := TDigestUtilities.CalculateDigest('RIPEMD160', AInput);
+  Lrmd160 := TRIPEMD160.Create;
+  try
+    AOutput := Lrmd160.ComputeBytes(AInput).GetBytes;
+  finally
+    Lrmd160.Free;
+  end;
 end;
 
 class procedure TPCCryptoLib4Pascal.DoSHA256(const AInput: TBytes; var AOutput: TBytes);
+var Lsha : TSHA2_256;
 begin
-  AOutput := TDigestUtilities.CalculateDigest('SHA-256', AInput);
+  Lsha := TSHA2_256.Create;
+  try
+    AOutput := Lsha.ComputeBytes(AInput).GetBytes;
+  finally
+    Lsha.Free;
+  end;
 end;
 
 class function TPCCryptoLib4Pascal.EVP_GetKeyIV(const APasswordBytes,
