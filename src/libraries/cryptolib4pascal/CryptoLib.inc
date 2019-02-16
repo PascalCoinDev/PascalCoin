@@ -122,6 +122,12 @@
 {$DEFINE DELPHIXE3_DOWN}
 {$IFEND}
 
+ // XE4 and Above
+{$IF CompilerVersion >= 25.0}
+{$DEFINE DELPHIXE4_UP}
+{$DEFINE SHIFT_OVERFLOW_BUG_FIXED}
+{$IFEND}
+
   // XE7 and Above
 {$IF CompilerVersion >= 28.0}
 {$DEFINE DELPHIXE7_UP}
