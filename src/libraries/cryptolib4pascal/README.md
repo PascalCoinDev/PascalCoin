@@ -58,7 +58,7 @@ secp112r2, sect163r2, secp128r2.
  
     FreePascal 3.0.4 and Above.
     
-    Delphi XE6 and Above. (might work in earlier versions though.)
+    Delphi Tokyo and Above. (might work in earlier versions though.)
 
 **Installing the Library.**
 

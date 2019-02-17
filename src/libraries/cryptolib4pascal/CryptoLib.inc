@@ -138,15 +138,15 @@
 {$DEFINE DELPHI10.2_TOKYO_UP}
 {$IFEND}
 
-  // 2010 and Above
-{$IFNDEF DELPHI2010_UP}
-{$MESSAGE ERROR 'This Library requires Delphi 2010 or higher.'}
-{$ENDIF}
-
   // 10.2 Tokyo and Above
 {$IFDEF DELPHI10.2_TOKYO_UP}
 {$WARN COMBINING_SIGNED_UNSIGNED OFF}
 {$WARN COMBINING_SIGNED_UNSIGNED64 OFF}
+{$ENDIF}
+
+  // 10.2 Tokyo and Above
+{$IFNDEF DELPHI10.2_TOKYO_UP}
+{$MESSAGE ERROR 'This Library requires Delphi Tokyo or higher.'}
 {$ENDIF}
 
 
