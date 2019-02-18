@@ -294,9 +294,7 @@ begin
 {$IFDEF FPC}
   Result := RolByte(a_value, a_n);
 {$ELSE}
-{$IFNDEF SHIFT_OVERFLOW_BUG_FIXED}
   a_n := a_n and 7;
-{$ENDIF SHIFT_OVERFLOW_BUG_FIXED}
   Result := (a_value shl a_n) or (a_value shr (8 - a_n));
 {$ENDIF FPC}
 end;
@@ -339,9 +337,7 @@ begin
 {$IFDEF FPC}
   Result := RorByte(a_value, a_n);
 {$ELSE}
-{$IFNDEF SHIFT_OVERFLOW_BUG_FIXED}
   a_n := a_n and 7;
-{$ENDIF SHIFT_OVERFLOW_BUG_FIXED}
   Result := (a_value shr a_n) or (a_value shl (8 - a_n));
 {$ENDIF FPC}
 end;
