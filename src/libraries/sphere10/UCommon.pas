@@ -43,8 +43,8 @@ const
 { GLOBAL HELPER FUNCTIONS }
 
 function String2Hex(const Buffer: String): String;
-function Hex2Bytes(const AHexString: String): TBytes; overload;
-function TryHex2Bytes(const AHexString: String; out ABytes : TBytes): boolean; overload;
+//function Hex2Bytes(const AHexString: String): TBytes; overload;
+//function TryHex2Bytes(const AHexString: String; out ABytes : TBytes): boolean; overload;
 function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : String;
 function BinStrComp(const Str1, Str2 : String): Integer; // Binary-safe StrComp replacement. StrComp will return 0 for when str1 and str2 both start with NUL character.
 function BytesCompare(const ABytes1, ABytes2: TBytes): integer;
@@ -442,13 +442,13 @@ begin
     Result := AnsiLowerCase(Result + IntToHex(Ord(Buffer[n]), 2));
 end;
 
-function Hex2Bytes(const AHexString: String): TBytes;
+{function Hex2Bytes(const AHexString: String): TBytes;
 begin
   if NOT TryHex2Bytes(AHexString, Result) then
     raise EArgumentOutOfRangeException.Create('Invalidly formatted hexadecimal string.');
 end;
-
-function TryHex2Bytes(const AHexString: String; out ABytes : TBytes): boolean; overload;
+}
+{function TryHex2Bytes(const AHexString: String; out ABytes : TBytes): boolean; overload;
 var
   P : PAnsiChar;
   LHexString : String;
@@ -457,7 +457,7 @@ begin
   SetLength(ABytes, 0);
   LHexLength := System.Length(AHexString);
   LHexStart := 1;
-  if {$IFDEF FPC}AnsiStartsText{$ELSE}StartsText{$ENDIF}('0x', AHexString) then begin
+  if {$IFDEF FPCAnsiStartsText{$ELSEStartsText{$ENDIF('0x', AHexString) then begin
 
     // Special case: 0x0 = empty byte array
     if (LHexLength = 3) AND (AHexString[3] = '0') then
@@ -477,7 +477,7 @@ begin
   LHexString := LowerCase(AHexString);
   LHexIndex := HexToBin(PAnsiChar(@LHexString[LHexStart]), P, System.Length(ABytes));
   Result := (LHexIndex = (LHexLength DIV 2));
-end;
+end;}
 
 function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : String;
 var
