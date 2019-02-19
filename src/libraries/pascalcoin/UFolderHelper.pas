@@ -20,6 +20,8 @@ unit UFolderHelper;
   {$MODE Delphi}
 {$ENDIF}
 
+{$I config.inc}
+
 interface
 
 Type TFileVersionInfo = record
