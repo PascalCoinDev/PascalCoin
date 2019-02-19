@@ -671,7 +671,7 @@ begin
             Fsock.sendstring(headers[n] + CRLF);
         end;
         if Fsock.lasterror = 0 then begin
-          FSock.SendBuffer(addr(jsonresponsetxt[Low(jsonresponsetxt)]),Length(jsonresponsetxt));
+          FSock.SendString(jsonresponsetxt);
         end;
       end;
       _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),'Method:'+methodName+' Params:'+paramsTxt+' '+Inttostr(errNum)+':'+errDesc+' Time:'+FormatFloat('0.000',(TPlatform.GetElapsedMilliseconds(tc)/1000)));
