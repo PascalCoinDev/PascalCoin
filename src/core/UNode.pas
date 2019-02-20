@@ -194,7 +194,7 @@ Type
 
 implementation
 
-Uses UOpTransaction, UConst, UTime, UCommon;
+Uses UOpTransaction, UConst, UTime, UCommon, UPCOperationsSignatureValidator;
 
 var _Node : TNode;
 
@@ -424,6 +424,7 @@ begin
       {$IFDEF BufferOfFutureOperations}
       Process_BufferOfFutureOperations(valids_operations);
       {$ENDIF}
+
       for j := 0 to OperationsHashTree.OperationsCount-1 do begin
         ActOp := OperationsHashTree.GetOperation(j);
         If (FOperations.OperationsHashTree.IndexOfOperation(ActOp)<0) then begin
@@ -477,12 +478,14 @@ begin
               {$IFDEF BufferOfFutureOperations}
               // Used to solve 2.0.0 "invalid order of operations" bug
               If (Assigned(SenderConnection)) Then begin
-                sAcc := FOperations.SafeBoxTransaction.Account(ActOp.SignerAccount);
-                If (sAcc.n_operation<ActOp.N_Operation) Or
-                   ((sAcc.n_operation=ActOp.N_Operation) AND (sAcc.balance=0) And (ActOp.OperationFee>0) And (ActOp.OpType = CT_Op_Changekey)) then begin
-                  If FBufferAuxWaitingOperations.IndexOfOperation(ActOp)<0 then begin
-                    FBufferAuxWaitingOperations.AddOperationToHashTree(ActOp);
-                    TLog.NewLog(ltInfo,Classname,Format('New FromBufferWaitingOperations %d/%d (new buffer size:%d): %s',[j+1,OperationsHashTree.OperationsCount,FBufferAuxWaitingOperations.OperationsCount,ActOp.ToString]));
+                if ActOp.SignerAccount<FOperations.SafeBoxTransaction.FreezedSafeBox.AccountsCount then begin
+                  sAcc := FOperations.SafeBoxTransaction.Account(ActOp.SignerAccount);
+                  If (sAcc.n_operation<ActOp.N_Operation) Or
+                     ((sAcc.n_operation=ActOp.N_Operation) AND (sAcc.balance=0) And (ActOp.OperationFee>0) And (ActOp.OpType = CT_Op_Changekey)) then begin
+                    If FBufferAuxWaitingOperations.IndexOfOperation(ActOp)<0 then begin
+                      FBufferAuxWaitingOperations.AddOperationToHashTree(ActOp);
+                      TLog.NewLog(ltInfo,Classname,Format('New FromBufferWaitingOperations %d/%d (new buffer size:%d): %s',[j+1,OperationsHashTree.OperationsCount,FBufferAuxWaitingOperations.OperationsCount,ActOp.ToString]));
+                    end;
                   end;
                 end;
               end;

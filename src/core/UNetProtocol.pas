@@ -500,7 +500,8 @@ Const
 implementation
 
 uses
-  UConst, ULog, UNode, UTime, UPCEncryption, UChunk;
+  UConst, ULog, UNode, UTime, UPCEncryption, UChunk,
+  UPCOperationsBlockValidator, UPCOperationsSignatureValidator;
 
 Const
   CT_NetTransferType : Array[TNetTransferType] of String = ('Unknown','Request','Response','Autosend');
@@ -2893,11 +2894,15 @@ begin
 end;
 
 procedure TNetConnection.DoProcess_GetBlocks_Response(HeaderData: TNetHeaderData; DataBuffer: TStream);
-  var op : TPCOperationsComp;
-    opcount,i : Cardinal;
+  var LTmpOp : TPCOperationsComp;
+    LOpCountCardinal,c : Cardinal;
+    LOpCount : Integer;
+    i : Integer;
     newBlockAccount : TBlockAccount;
   errors : String;
   DoDisconnect : Boolean;
+  LBlocks : TList<TPCOperationsComp>;
+  LSafeboxTransaction : TPCSafeBoxTransaction;
 begin
   DoDisconnect := true;
   try
@@ -2911,50 +2916,75 @@ begin
     end;
     // DataBuffer contains: from and to
     errors := 'Invalid structure';
-    op := TPCOperationsComp.Create(nil);
+    LBlocks := TList<TPCOperationsComp>.Create;
     Try
-      op.bank := TNode.Node.Bank;
       if DataBuffer.Size-DataBuffer.Position<4 then begin
         DisconnectInvalidClient(false,'DoProcess_GetBlocks_Response invalid format: '+errors);
         exit;
       end;
-      DataBuffer.Read(opcount,4);
+      DataBuffer.Read(LOpCountCardinal,4);
+      LOpCount := LOpCountCardinal;
       DoDisconnect :=false;
-      for I := 1 to opcount do begin
-        if Not op.LoadBlockFromStream(DataBuffer,errors) then begin
-           errors := 'Error decoding block '+inttostr(i)+'/'+inttostr(opcount)+' Errors:'+errors;
-           DoDisconnect := true;
-           exit;
+      for i := 0 to LOpCount-1 do begin
+        LTmpOp := TPCOperationsComp.Create(nil);
+        try
+          LTmpOp.bank := TNode.Node.Bank;
+          if Not LTmpOp.LoadBlockFromStream(DataBuffer,errors) then begin
+             errors := 'Error decoding block '+inttostr(i+1)+'/'+inttostr(LOpCount)+' Errors:'+errors;
+             DoDisconnect := true;
+             Exit;
+          end;
+
+          if (LTmpOp.OperationBlock.block=TNode.Node.Bank.BlocksCount+i) then begin
+            TNode.Node.MarkVerifiedECDSASignaturesFromMemPool(LTmpOp); // Improvement speed v4.0.2
+            LBlocks.Add(LTmpOp);
+            LTmpOp := Nil;
+          end else Break;
+        finally
+          FreeAndNil(LTmpOp);
         end;
-        if (op.OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
-          TNode.Node.MarkVerifiedECDSASignaturesFromMemPool(op); // Improvement speed v4.0.2
-          if (TNode.Node.Bank.AddNewBlockChainBlock(op,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock, newBlockAccount,errors)) then begin
+      end;
+
+      TPCOperationsBlockValidator.MultiThreadValidateOperationsBlock(LBlocks);
+      LSafeboxTransaction := TPCSafeBoxTransaction.Create(TNode.Node.Bank.SafeBox);
+      try
+        TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(LSafeboxTransaction,LBlocks);
+      finally
+        LSafeboxTransaction.Free;
+      end;
+
+      for i := 0 to LBlocks.Count-1 do begin
+        if (LBlocks[i].OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
+          if (TNode.Node.Bank.AddNewBlockChainBlock(LBlocks[i],TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock, newBlockAccount,errors)) then begin
             // Ok, one more!
           end else begin
             // Is not a valid entry????
             // Perhaps an orphan blockchain: Me or Client!
             TLog.NewLog(ltinfo,Classname,'Distinct operation block found! My:'+
                 TPCOperationsComp.OperationBlockToText(TNode.Node.Bank.SafeBox.Block(TNode.Node.Bank.BlocksCount-1).blockchainInfo)+
-                ' remote:'+TPCOperationsComp.OperationBlockToText(op.OperationBlock)+' Errors: '+errors);
+                ' remote:'+TPCOperationsComp.OperationBlockToText(LBlocks[i].OperationBlock)+' Errors: '+errors);
           end;
         end else begin
           // Receiving an unexpected operationblock
-          TLog.NewLog(lterror,classname,'Received a distinct block, finalizing: '+TPCOperationsComp.OperationBlockToText(op.OperationBlock)+' (My block: '+TPCOperationsComp.OperationBlockToText(TNode.Node.Bank.LastOperationBlock)+')' );
+          TLog.NewLog(lterror,classname,'Received a distinct block, finalizing: '+TPCOperationsComp.OperationBlockToText(LBlocks[i].OperationBlock)+' (My block: '+TPCOperationsComp.OperationBlockToText(TNode.Node.Bank.LastOperationBlock)+')' );
           FIsDownloadingBlocks := false;
           exit;
         end;
         sleep(1);
       end;
       FIsDownloadingBlocks := false;
-      if ((opcount>0) And (FRemoteOperationBlock.block>=TNode.Node.Bank.BlocksCount)) then begin
-        Send_GetBlocks(TNode.Node.Bank.BlocksCount,100,i);
+      if ((LOpCount>0) And (FRemoteOperationBlock.block>=TNode.Node.Bank.BlocksCount)) then begin
+        Send_GetBlocks(TNode.Node.Bank.BlocksCount,100,c);
       end else begin
         // No more blocks to download, download Pending operations
         DoProcess_GetPendingOperations;
       end;
       TNode.Node.NotifyBlocksChanged;
     Finally
-      op.Free;
+      for i := 0 to LBlocks.Count-1 do begin
+        LBlocks[i].Free;
+      end;
+      LBlocks.Free;
     End;
   Finally
     if DoDisconnect then begin

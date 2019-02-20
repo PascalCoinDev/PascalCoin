@@ -98,6 +98,8 @@ Type
     Constructor CreateTransaction(current_protocol : Word; sender, n_operation, target: Cardinal; key: TECPrivateKey; amount, fee: UInt64; payload: TRawBytes);
     Function toString : String; Override;
     Function GetDigestToSign(current_protocol : Word) : TRawBytes; override;
+
+    function IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction : TPCSafeBoxTransaction) : Boolean; override;
   End;
 
   { TOpChangeKey }
@@ -127,6 +129,8 @@ Type
     Property Data : TOpChangeKeyData read FData;
     Function toString : String; Override;
     Function GetDigestToSign(current_protocol : Word) : TRawBytes; override;
+
+    function IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction : TPCSafeBoxTransaction) : Boolean; override;
   End;
 
   { TOpChangeKeySigned }
@@ -163,6 +167,7 @@ Type
     Property Data : TOpRecoverFoundsData read FData;
     Function toString : String; Override;
     Function GetDigestToSign(current_protocol : Word) : TRawBytes; override;
+    function IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction : TPCSafeBoxTransaction) : Boolean; override;
   End;
 
   // NEW OPERATIONS PROTOCOL 2
@@ -232,6 +237,7 @@ Type
     Property Data : TOpListAccountData read FData;
     Function toString : String; Override;
     Function GetDigestToSign(current_protocol : Word) : TRawBytes; override;
+    function IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction : TPCSafeBoxTransaction) : Boolean; override;
   End;
 
   TOpListAccountForSale = Class(TOpListAccount)
@@ -290,6 +296,8 @@ Type
     Property Data : TOpChangeAccountInfoData read FData;
     Function toString : String; Override;
     Function GetDigestToSign(current_protocol : Word) : TRawBytes; override;
+
+    function IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction : TPCSafeBoxTransaction) : Boolean; override;
   End;
 
 
@@ -338,6 +346,7 @@ Type
     Property Data : TOpDataData read FData;
     Function toString : String; Override;
     Function GetDigestToSign(current_protocol : Word) : TRawBytes; override;
+    function IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction : TPCSafeBoxTransaction) : Boolean; override;
   End;
 
 Const
@@ -370,6 +379,13 @@ procedure TOpChangeAccountInfo.InitializeData;
 begin
   inherited InitializeData;
   FData := CT_TOpChangeAccountInfoData_NUL;
+end;
+
+function TOpChangeAccountInfo.IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction: TPCSafeBoxTransaction): Boolean;
+var LAccount : TAccount;
+begin
+  LAccount := ASafeBoxTransaction.Account(FData.account_signer);
+  Result := IsValidECDSASignature(LAccount.accountInfo.accountkey,ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol,FData.sign);
 end;
 
 function TOpChangeAccountInfo.SaveOpToStream(Stream: TStream; SaveExtendedData: Boolean): Boolean;
@@ -923,6 +939,13 @@ begin
   FData := CT_TOpTransactionData_NUL;
 end;
 
+function TOpTransaction.IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction: TPCSafeBoxTransaction): Boolean;
+var LAccount : TAccount;
+begin
+  LAccount := ASafeBoxTransaction.Account(FData.sender);
+  Result := IsValidECDSASignature(LAccount.accountInfo.accountkey,ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol,FData.sign);
+end;
+
 function TOpTransaction.LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean;
 var b : Byte;
 begin
@@ -1338,6 +1361,13 @@ begin
   FData := CT_TOpChangeKeyData_NUL;
 end;
 
+function TOpChangeKey.IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction: TPCSafeBoxTransaction): Boolean;
+var LAccount : TAccount;
+begin
+  LAccount := ASafeBoxTransaction.Account(FData.account_signer);
+  Result := IsValidECDSASignature(LAccount.accountInfo.accountkey,ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol,FData.sign);
+end;
+
 function TOpChangeKey.LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean;
 var raw : TRawBytes;
 begin
@@ -1562,6 +1592,11 @@ procedure TOpRecoverFounds.InitializeData;
 begin
   inherited;
   FData := CT_TOpRecoverFoundsData_NUL;
+end;
+
+function TOpRecoverFounds.IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction: TPCSafeBoxTransaction): Boolean;
+begin
+  Result := True; // Nobody signs here
 end;
 
 function TOpRecoverFounds.LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean;
@@ -1802,6 +1837,13 @@ end;
 function TOpListAccount.IsPrivateSale: Boolean;
 begin
   Result := (Not IsDelist) And (FData.new_public_key.EC_OpenSSL_NID<>0);
+end;
+
+function TOpListAccount.IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction: TPCSafeBoxTransaction): Boolean;
+var LAccount : TAccount;
+begin
+  LAccount := ASafeBoxTransaction.Account(FData.account_signer);
+  Result := IsValidECDSASignature(LAccount.accountInfo.accountkey,ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol,FData.sign);
 end;
 
 function TOpListAccount.LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean;
@@ -2122,6 +2164,13 @@ procedure TOpData.InitializeData;
 begin
   inherited InitializeData;
   FData := CT_TOpDataData_NUL;
+end;
+
+function TOpData.IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction: TPCSafeBoxTransaction): Boolean;
+var LAccount : TAccount;
+begin
+  LAccount := ASafeBoxTransaction.Account(FData.account_signer);
+  Result := IsValidECDSASignature(LAccount.accountInfo.accountkey,ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol,FData.sign);
 end;
 
 function TOpData.SaveOpToStream(Stream: TStream; SaveExtendedData: Boolean): Boolean;

@@ -156,6 +156,8 @@ Type
     Function toString : String; Override;
     Property Data : TOpMultiOperationData read FData;
     Function GetDigestToSign(current_protocol : Word) : TRawBytes; override;
+
+    function IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction : TPCSafeBoxTransaction) : Boolean; override;
   End;
 
 implementation
@@ -819,6 +821,12 @@ function TOpMultiOperation.IsSignerAccount(account: Cardinal): Boolean;
 begin
   // This function will override previous due it can be Multi signed
   Result := (IndexOfAccountSender(account)>=0) Or (IndexOfAccountChanger(account)>=0);
+end;
+
+function TOpMultiOperation.IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction: TPCSafeBoxTransaction): Boolean;
+var errors : String;
+begin
+  Result := CheckSignatures(ASafeBoxTransaction,errors);
 end;
 
 function TOpMultiOperation.DestinationAccount: Int64;
