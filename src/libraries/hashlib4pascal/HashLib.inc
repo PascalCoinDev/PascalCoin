@@ -105,24 +105,20 @@
 {$DEFINE DELPHIXE3_DOWN}
 {$IFEND}
 
+ // XE4 and Above
+{$IF CompilerVersion >= 25.0}
+{$DEFINE DELPHIXE4_UP}
+{$DEFINE SHIFT_OVERFLOW_BUG_FIXED}
+{$IFEND}
+
   // XE7 and Above
 {$IF CompilerVersion >= 28.0}
 {$DEFINE DELPHIXE7_UP}
 {$IFEND}
 
-  // 10.2 Tokyo and Above
-{$IF CompilerVersion >= 32.0}
-{$DEFINE DELPHI10.2_TOKYO_UP}
-{$IFEND}
-
   // 2010 and Above
 {$IFNDEF DELPHI2010_UP}
 {$MESSAGE ERROR 'This Library requires Delphi 2010 or higher.'}
-{$ENDIF}
-
-  // 10.2 Tokyo and Above
-{$IFDEF DELPHI10.2_TOKYO_UP}
-{$WARN COMBINING_SIGNED_UNSIGNED64 OFF}
 {$ENDIF}
 
 

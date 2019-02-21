@@ -29,7 +29,8 @@ uses
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Buttons, ExtCtrls, UWallet,UCrypto;
+  Dialogs, StdCtrls, Buttons, ExtCtrls, UWallet, UCrypto,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 type
   TFRMNewPrivateKeyType = class(TForm)
@@ -78,18 +79,18 @@ begin
 end;
 
 procedure TFRMNewPrivateKeyType.FormCreate(Sender: TObject);
-Var l : TList;
+Var l : TList<Word>;
   i : Integer;
 begin
   FGeneratedPrivateKey := Nil;
   FWalletKeys := Nil;
   ebName.Text := DateTimeToStr(now);
   rgKeyType.Items.Clear;
-  l := TList.Create;
+  l := TList<Word>.Create;
   Try
     TAccountComp.ValidsEC_OpenSSL_NID(l);
     for i := 0 to l.Count - 1 do begin
-      rgKeyType.Items.AddObject(TAccountComp.GetECInfoTxt(PtrInt(l[i])),l[i]);
+      rgKeyType.Items.AddObject(TAccountComp.GetECInfoTxt(l[i]),TObject(l[i]));
     end;
   Finally
     l.free;

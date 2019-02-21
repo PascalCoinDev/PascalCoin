@@ -20,6 +20,8 @@ unit UFolderHelper;
   {$MODE Delphi}
 {$ENDIF}
 
+{$I config.inc}
+
 interface
 
 Type TFileVersionInfo = record
@@ -44,7 +46,7 @@ Type TFileVersionInfo = record
 
   TFolderHelper = record
   strict private
-    {$IFnDEF FPC}
+    {$IF (not Defined(FPC)) and (Defined(MSWINDOWS))}
     class function GetFolder(const aCSIDL: Integer): string; static;
     {$ENDIF}
     class function GetAppDataFolder : string; static;
@@ -57,20 +59,21 @@ implementation
 
 uses
 {$IFnDEF FPC}
+  {$IFDEF MSWINDOWS}
   Windows, ShlObj,
   {$DEFINE FILEVERSIONINFO}
+  {$ELSE}
+  System.IOUtils,
+  {$ENDIF}
 {$ELSE}
   {$IFDEF WIN}
   Windows,
   {$DEFINE FILEVERSIONINFO}
   {$ENDIF}
-  {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
   SysUtils;
 
-{$I config.inc}
-
-{$IFnDEF FPC}
+{$IF (not Defined(FPC)) and (Defined(MSWINDOWS))}
 function SHGetFolderPath(hwnd: HWND; csidl: Integer; hToken: THandle;
   dwFlags: DWord; pszPath: LPWSTR): HRESULT; stdcall;
   forward;
@@ -86,11 +89,15 @@ begin
   Result :=GetEnvironmentVariable('HOME');
   {$ENDIF}
   {$ELSE}
+  {$IFDEF MSWINDOWS}
   Result := GetFolder(CSIDL_APPDATA); // c:\Users\(User Name)\AppData\Roaming
+  {$ELSE}
+  Result := TPath.GetDocumentsPath;
+  {$ENDIF}
   {$ENDIF}
 end;
 
-{$IFnDEF FPC}
+{$IF (not Defined(FPC)) and (Defined(MSWINDOWS))}
 class function TFolderHelper.GetFolder(const aCSIDL: Integer): string;
 var
   FolderPath: array[0 .. MAX_PATH] of Char;

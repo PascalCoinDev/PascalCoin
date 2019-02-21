@@ -126,7 +126,7 @@ Type
     Class Function IsAccountForSale(const accountInfo: TAccountInfo) : Boolean;
     Class Function IsAccountForSaleAcceptingTransactions(const accountInfo: TAccountInfo) : Boolean;
     Class Function GetECInfoTxt(Const EC_OpenSSL_NID: Word) : String;
-    Class Procedure ValidsEC_OpenSSL_NID(list : TList);
+    Class Procedure ValidsEC_OpenSSL_NID(list : TList<Word>);
     Class Function AccountKey2RawString(const account: TAccountKey): TRawBytes; overload;
     Class procedure AccountKey2RawString(const account: TAccountKey; var dest: TRawBytes); overload;
     Class Function RawString2Accountkey(const rawaccstr: TRawBytes): TAccountKey; overload;
@@ -308,7 +308,7 @@ Type
     class Function ConcatSafeBoxStream(Source1, Source2, Dest : TStream; var errors : String) : Boolean;
     class function ValidAccountName(const new_name : TRawBytes; var errors : String) : Boolean;
 
-    Function IsValidNewOperationsBlock(Const newOperationBlock : TOperationBlock; checkSafeBoxHash : Boolean; var errors : String) : Boolean;
+    Function IsValidNewOperationsBlock(Const newOperationBlock : TOperationBlock; checkSafeBoxHash, checkValidOperationsBlock : Boolean; var errors : String) : Boolean;
     class Function IsValidOperationBlock(Const newOperationBlock : TOperationBlock; var errors : String) : Boolean;
     Function GetActualTargetHash(protocolVersion : Word): TRawBytes;
     Function GetActualCompactTargetHash(protocolVersion : Word): Cardinal;
@@ -1479,13 +1479,13 @@ begin
   end;
 end;
 
-class procedure TAccountComp.ValidsEC_OpenSSL_NID(list: TList);
+class procedure TAccountComp.ValidsEC_OpenSSL_NID(list: TList<Word>);
 begin
   list.Clear;
-  list.Add(TObject(CT_NID_secp256k1)); // = 714
-  list.Add(TObject(CT_NID_secp384r1)); // = 715
-  list.Add(TObject(CT_NID_sect283k1)); // = 729
-  list.Add(TObject(CT_NID_secp521r1)); // = 716
+  list.Add((CT_NID_secp256k1)); // = 714
+  list.Add((CT_NID_secp384r1)); // = 715
+  list.Add((CT_NID_sect283k1)); // = 729
+  list.Add((CT_NID_secp521r1)); // = 716
 end;
 
 { TProgressNotifyManyHelper }
@@ -2801,7 +2801,7 @@ begin
               // For TESTNET increase speed purposes, will only check latests blocks
             if ((iblock + (CT_BankToDiskEveryNBlocks * 10)) >= sbHeader.blockscount) then begin
             {$ENDIF}
-              If not IsValidNewOperationsBlock(block.blockchainInfo,False,aux_errors) then begin
+              If not IsValidNewOperationsBlock(block.blockchainInfo,False,True,aux_errors) then begin
                 errors := errors + ' > ' + aux_errors;
                 exit;
               end;
@@ -3279,7 +3279,7 @@ begin
   Result := Copy(_initialSafeboxHash);
 end;
 
-function TPCSafeBox.IsValidNewOperationsBlock(const newOperationBlock: TOperationBlock; checkSafeBoxHash : Boolean; var errors: String): Boolean;
+function TPCSafeBox.IsValidNewOperationsBlock(const newOperationBlock: TOperationBlock; checkSafeBoxHash, checkValidOperationsBlock : Boolean; var errors: String): Boolean;
   { This function will check a OperationBlock info as a valid candidate to be included in the safebox
 
     TOperationBlock contains the info of the new block EXCEPT the operations, including only operations_hash value (SHA256 of the Operations)
@@ -3373,7 +3373,9 @@ begin
     exit;
   end;
   {$ENDIF}
-  Result := IsValidOperationBlock(newOperationBlock,errors);
+  if checkValidOperationsBlock then begin
+    Result := IsValidOperationBlock(newOperationBlock,errors);
+  end else Result := True;
 end;
 
 class function TPCSafeBox.IsValidOperationBlock(const newOperationBlock: TOperationBlock; var errors: String): Boolean;

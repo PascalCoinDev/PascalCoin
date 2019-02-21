@@ -17,6 +17,7 @@ uses
   HlpCRC,
   HlpCRC16,
   HlpCRC32,
+  HlpCRC32Fast,
   HlpCRC64,
   // Hash32 Units //
   HlpAP,
@@ -136,12 +137,12 @@ type
       class function CreateCRC16_BUYPASS(): IHash; static;
 
       /// <summary>
-      /// PKZIP, polynomial = $04C11DB7
+      /// PKZIP, polynomial = $04C11DB7, reversed = $EDB88320
       /// </summary>
       /// <returns></returns>
       class function CreateCRC32_PKZIP(): IHash; static;
       /// <summary>
-      /// Castagnoli, polynomial = $1EDC6F41
+      /// Castagnoli, polynomial = $1EDC6F41, reversed = $82F63B78
       /// </summary>
       /// <returns></returns>
       class function CreateCRC32_CASTAGNOLI(): IHash; static;
@@ -480,12 +481,12 @@ end;
 
 class function THashFactory.TChecksum.CreateCRC32_CASTAGNOLI: IHash;
 begin
-  Result := TCRC32_CASTAGNOLI.Create();
+  Result := HlpCRC32Fast.TCRC32_CASTAGNOLI.Create();
 end;
 
 class function THashFactory.TChecksum.CreateCRC32_PKZIP: IHash;
 begin
-  Result := TCRC32_PKZIP.Create();
+  Result := HlpCRC32Fast.TCRC32_PKZIP.Create();
 end;
 
 class function THashFactory.TChecksum.CreateCRC64(_poly, _Init: UInt64;
@@ -931,14 +932,14 @@ begin
   Result := TSHA3_512.Create();
 end;
 
-class function THashFactory.TCrypto.CreateShake_128
-  (a_xof_size_in_bits: Int32): IHash;
+class function THashFactory.TCrypto.CreateShake_128(a_xof_size_in_bits
+  : Int32): IHash;
 begin
   Result := (TShake_128.Create() as IXOF).SetXOFOutputSize(a_xof_size_in_bits);
 end;
 
-class function THashFactory.TCrypto.CreateShake_256
-  (a_xof_size_in_bits: Int32): IHash;
+class function THashFactory.TCrypto.CreateShake_256(a_xof_size_in_bits
+  : Int32): IHash;
 begin
   Result := (TShake_256.Create() as IXOF).SetXOFOutputSize(a_xof_size_in_bits);
 end;

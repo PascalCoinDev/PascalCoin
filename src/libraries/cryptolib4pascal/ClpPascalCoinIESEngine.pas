@@ -32,7 +32,7 @@ uses
   ClpParametersWithIV,
   ClpIKeyParser,
   ClpIEphemeralKeyPair,
-  ClpKDFParameters,
+  ClpKdfParameters,
   ClpIKdfParameters,
   ClpIIESWithCipherParameters,
   ClpIESEngine,

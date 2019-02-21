@@ -23,7 +23,7 @@ interface
 
 uses
   Generics.Collections,
-  ClpIPreCompCallback,
+  ClpIPreCompCallBack,
   ClpCryptoLibTypes,
   ClpIFiniteField,
   ClpIPreCompInfo,

@@ -257,6 +257,8 @@ Type
     //
     function GetOperationStreamData : TBytes;
     class function GetOperationFromStreamData(StreamData : TBytes) : TPCOperation;
+    //
+    function IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction : TPCSafeBoxTransaction) : Boolean; virtual; abstract;
   End;
 
   TPCOperationStorage = Record
@@ -339,6 +341,9 @@ Type
     Property OnChanged : TNotifyEvent read FOnChanged write FOnChanged;
     Property Max0feeOperationsBySigner : Integer Read FMax0feeOperationsBySigner write SetMax0feeOperationsBySigner;
     procedure MarkVerifiedECDSASignatures(operationsHashTreeToMark : TOperationsHashTree);
+
+    // Will add all operations of the HashTree to then end of AList without removing previous objects
+    function GetOperationsList(AList : TList<TPCOperation>; AAddOnlyOperationsWithoutNotVerifiedSignature : Boolean) : Integer;
   End;
 
   { TPCOperationsComp }
@@ -357,6 +362,7 @@ Type
     FDisableds : Integer;
     FOperationsLock : TPCCriticalSection;
     FPreviousUpdatedBlocks : TAccountPreviousBlockInfo; // New Protocol V3 struct to store previous updated blocks
+    FHasValidOperationBlockInfo : Boolean;
     function GetOperation(index: Integer): TPCOperation;
     procedure SetBank(const value: TPCBank);
     procedure SetnOnce(const value: Cardinal);
@@ -421,6 +427,7 @@ Type
     Property PoW_Digest_Part3 : TRawBytes read FDigest_Part3;
     //
     Property PreviousUpdatedBlocks : TAccountPreviousBlockInfo read FPreviousUpdatedBlocks; // New Protocol V3 struct to store previous updated blocks
+    Property HasValidOperationBlockInfo : Boolean read FHasValidOperationBlockInfo write FHasValidOperationBlockInfo;
   End;
 
   TPCBankLog = procedure(sender: TPCBank; Operations: TPCOperationsComp; Logtype: TLogType ; const Logtxt: String) of object;
@@ -546,7 +553,9 @@ implementation
 
 uses
   Variants,
-  UTime, UConst, UOpTransaction;
+  UTime, UConst, UOpTransaction, UPCOrderedLists,
+  UPCOperationsSignatureValidator,
+  UPCOperationsBlockValidator;
 
 { TPCOperationsStorage }
 
@@ -890,9 +899,12 @@ procedure TPCBank.DiskRestoreFromOperations(max_block : Int64; restoreProgressNo
 Var
   errors: String;
   newBlock: TBlockAccount;
-  Operations: TPCOperationsComp;
   n : Int64;
   tc : TTickCount;
+  LBlocks : TList<TPCOperationsComp>;
+  LTmpPCOperationsComp : TPCOperationsComp;
+  i,j : Integer;
+  LSafeboxTransaction : TPCSafeBoxTransaction;
 begin
   if FIsRestoringFromFile then begin
     TLog.NewLog(lterror,Classname,'Is Restoring!!!');
@@ -919,16 +931,42 @@ begin
         end;
       end;
       NewLog(Nil, ltinfo,'Start restoring from disk operations (Max '+inttostr(max_block)+') BlockCount: '+inttostr(BlocksCount)+' Orphan: ' +Storage.Orphan);
-      Operations := TPCOperationsComp.Create(Self);
+      LBlocks := TList<TPCOperationsComp>.Create;
       try
         while ((BlocksCount<=max_block)) do begin
-          if Storage.BlockExists(BlocksCount) then begin
-            if Storage.LoadBlockChainBlock(Operations,BlocksCount) then begin
+          i := BlocksCount;
+          j := i + 99;
+          // Load a batch of TPCOperationsComp;
+          try
+            while ((i<=max_block) and (i<=j)) do begin
+              if Storage.BlockExists(i) then begin
+                LTmpPCOperationsComp := TPCOperationsComp.Create(Self);
+                if Storage.LoadBlockChainBlock(LTmpPCOperationsComp,i) then begin
+                  LBlocks.Add(LTmpPCOperationsComp);
+                  inc(i);
+                end else begin
+                  LTmpPCOperationsComp.Free;
+                  Break;
+                end;
+              end else Break;
+            end;
+
+            if (LBlocks.Count=0) then Exit;
+            
+            TPCOperationsBlockValidator.MultiThreadValidateOperationsBlock(LBlocks);
+            LSafeboxTransaction := TPCSafeBoxTransaction.Create(SafeBox);
+            try
+              TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(LSafeboxTransaction,LBlocks);
+            finally
+              LSafeboxTransaction.Free;
+            end;
+
+            for i := 0 to LBlocks.Count-1 do begin
               SetLength(errors,0);
-              if Not AddNewBlockChainBlock(Operations,0,newBlock,errors) then begin
-                NewLog(Operations, lterror,'Error restoring block: ' + Inttostr(BlocksCount)+ ' Errors: ' + errors);
+              if Not AddNewBlockChainBlock(LBlocks[i],0,newBlock,errors) then begin
+                NewLog(LBlocks[i], lterror,'Error restoring block: ' + Inttostr(BlocksCount)+ ' Errors: ' + errors);
                 Storage.DeleteBlockChainBlocks(BlocksCount);
-                break;
+                Exit;
               end else begin
                 // To prevent continuous saving...
                 if ((BlocksCount+(CT_BankToDiskEveryNBlocks*2)) >= Storage.LastBlock ) or
@@ -937,17 +975,26 @@ begin
                 end;
                 if (Assigned(restoreProgressNotify)) And (TPlatform.GetElapsedMilliseconds(tc)>1000) then begin
                   tc := TPlatform.GetTickCount;
-                  restoreProgressNotify(Self,Format('Reading blockchain block %d/%d',[Operations.OperationBlock.block,Storage.LastBlock]),BlocksCount,Storage.LastBlock);
+                  restoreProgressNotify(Self,Format('Reading blockchain block %d/%d',[LBlocks[i].OperationBlock.block,Storage.LastBlock]),BlocksCount,Storage.LastBlock);
                 end;
               end;
-            end else break;
-          end else break;
-        end;
-        if FUpgradingToV2 then Storage.CleanupVersion1Data;
+            end;
+          finally
+            // Free blocks
+            for i := 0 to LBlocks.Count-1 do begin
+              LBlocks[i].Free;
+            end;
+            LBlocks.Clear;
+          end;
+
+        end; // while
+
       finally
-        Operations.Free;
+        LBlocks.Free;
+        if FUpgradingToV2 then Storage.CleanupVersion1Data;
+        NewLog(Nil, ltinfo,'End restoring from disk operations (Max '+inttostr(max_block)+') Orphan: ' + Storage.Orphan+' Restored '+Inttostr(BlocksCount)+' blocks');
       end;
-      NewLog(Nil, ltinfo,'End restoring from disk operations (Max '+inttostr(max_block)+') Orphan: ' + Storage.Orphan+' Restored '+Inttostr(BlocksCount)+' blocks');
+
     finally
       FIsRestoringFromFile := False;
       FUpgradingToV2 := false;
@@ -1249,6 +1296,8 @@ begin
     // Note:
     // This function does not initializes "account_key" nor "block_payload" fields
 
+    FHasValidOperationBlockInfo := False;
+
     FOperationBlock.timestamp := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
     if Assigned(FBank) then begin
       resetNewTarget := False;
@@ -1315,6 +1364,7 @@ begin
     FDigest_Part1 := Operations.FDigest_Part1;
     FDigest_Part2_Payload := Operations.FDigest_Part2_Payload;
     FDigest_Part3 := Operations.FDigest_Part3;
+    FHasValidOperationBlockInfo := Operations.FHasValidOperationBlockInfo;
   finally
     Operations.Unlock;
     Unlock;
@@ -1338,6 +1388,8 @@ begin
       FSafeBoxTransaction.CopyFrom(Operations.FSafeBoxTransaction);
     end;
     FPreviousUpdatedBlocks.CopyFrom(Operations.FPreviousUpdatedBlocks);
+
+    FHasValidOperationBlockInfo := False;
     // Recalc all
     Calc_Digest_Parts; // Does not need to recalc PoW
   finally
@@ -1362,6 +1414,7 @@ begin
   FOperationBlock := GetFirstBlock;
   FSafeBoxTransaction := Nil;
   FPreviousUpdatedBlocks := TAccountPreviousBlockInfo.Create;
+  FHasValidOperationBlockInfo := False;
   if Assigned(ABank) then begin
     SetBank( TPCBank(ABank) );
   end else Clear(true);
@@ -1896,10 +1949,13 @@ begin
       exit;
     end;
     // Check OperationBlock info:
-    If not SafeBoxTransaction.FreezedSafeBox.IsValidNewOperationsBlock(OperationBlock,True,errors) then exit;
+    If not SafeBoxTransaction.FreezedSafeBox.IsValidNewOperationsBlock(OperationBlock,True,Not HasValidOperationBlockInfo, errors) then exit;
     // Execute SafeBoxTransaction operations:
     SafeBoxTransaction.Rollback;
     FPreviousUpdatedBlocks.Clear;
+    //
+    TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(SafeBoxTransaction,OperationsHashTree);
+    //
     for i := 0 to Count - 1 do begin
       If Not Operation[i].DoOperation(FPreviousUpdatedBlocks, SafeBoxTransaction,errors) then begin
         errors := 'Error executing operation '+inttostr(i+1)+'/'+inttostr(Count)+': '+errors;
@@ -2248,6 +2304,27 @@ begin
       intl.Free;
     end;
     Result := List.Count;
+  finally
+    FHashTreeOperations.UnlockList;
+  end;
+end;
+
+function TOperationsHashTree.GetOperationsList(AList: TList<TPCOperation>; AAddOnlyOperationsWithoutNotVerifiedSignature : Boolean) : Integer;
+Var LList : TList<Pointer>;
+  i : Integer;
+  LOp : TPCOperation;
+begin
+  Result := 0;
+  LList := FHashTreeOperations.LockList;
+  try
+    for i := 0 to LList.Count-1 do begin
+      LOp := POperationHashTreeReg(LList[i])^.Op;
+      if (Not AAddOnlyOperationsWithoutNotVerifiedSignature) or
+        (AAddOnlyOperationsWithoutNotVerifiedSignature and (not LOp.HasValidSignature)) then begin
+        AList.Add( LOp );
+        inc(Result);
+      end;
+    end;
   finally
     FHashTreeOperations.UnlockList;
   end;

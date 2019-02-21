@@ -259,20 +259,6 @@ begin
 {$ENDIF FPC}
 end;
 
-class function TBits.RotateLeft8(a_value: Byte; a_n: Int32): Byte;
-begin
-{$IFDEF DEBUG}
-  System.Assert(a_n >= 0);
-{$ENDIF DEBUG}
-{$IFDEF FPC}
-  Result := RolByte(a_value, a_n);
-{$ELSE}
-  a_n := a_n and 7;
-
-  Result := (a_value shl a_n) or (a_value shr (8 - a_n));
-{$ENDIF FPC}
-end;
-
 class function TBits.NegativeLeftShift32(Value: UInt32;
   ShiftBits: Int32): UInt32;
 begin
@@ -300,6 +286,19 @@ begin
   Result := Value shr (64 + ShiftBits);
 end;
 
+class function TBits.RotateLeft8(a_value: Byte; a_n: Int32): Byte;
+begin
+{$IFDEF DEBUG}
+  System.Assert(a_n >= 0);
+{$ENDIF DEBUG}
+{$IFDEF FPC}
+  Result := RolByte(a_value, a_n);
+{$ELSE}
+  a_n := a_n and 7;
+  Result := (a_value shl a_n) or (a_value shr (8 - a_n));
+{$ENDIF FPC}
+end;
+
 class function TBits.RotateLeft32(a_value: UInt32; a_n: Int32): UInt32;
 begin
 {$IFDEF DEBUG}
@@ -308,8 +307,9 @@ begin
 {$IFDEF FPC}
   Result := RolDWord(a_value, a_n);
 {$ELSE}
+{$IFNDEF SHIFT_OVERFLOW_BUG_FIXED}
   a_n := a_n and 31;
-
+{$ENDIF SHIFT_OVERFLOW_BUG_FIXED}
   Result := (a_value shl a_n) or (a_value shr (32 - a_n));
 {$ENDIF FPC}
 end;
@@ -322,8 +322,9 @@ begin
 {$IFDEF FPC}
   Result := RolQWord(a_value, a_n);
 {$ELSE}
+{$IFNDEF SHIFT_OVERFLOW_BUG_FIXED}
   a_n := a_n and 63;
-
+{$ENDIF SHIFT_OVERFLOW_BUG_FIXED}
   Result := (a_value shl a_n) or (a_value shr (64 - a_n));
 {$ENDIF FPC}
 end;
@@ -337,7 +338,6 @@ begin
   Result := RorByte(a_value, a_n);
 {$ELSE}
   a_n := a_n and 7;
-
   Result := (a_value shr a_n) or (a_value shl (8 - a_n));
 {$ENDIF FPC}
 end;
@@ -350,8 +350,9 @@ begin
 {$IFDEF FPC}
   Result := RorDWord(a_value, a_n);
 {$ELSE}
+{$IFNDEF SHIFT_OVERFLOW_BUG_FIXED}
   a_n := a_n and 31;
-
+{$ENDIF SHIFT_OVERFLOW_BUG_FIXED}
   Result := (a_value shr a_n) or (a_value shl (32 - a_n));
 {$ENDIF FPC}
 end;
@@ -364,8 +365,9 @@ begin
 {$IFDEF FPC}
   Result := RorQWord(a_value, a_n);
 {$ELSE}
+{$IFNDEF SHIFT_OVERFLOW_BUG_FIXED}
   a_n := a_n and 63;
-
+{$ENDIF SHIFT_OVERFLOW_BUG_FIXED}
   Result := (a_value shr a_n) or (a_value shl (64 - a_n));
 {$ENDIF FPC}
 end;
