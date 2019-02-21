@@ -30,7 +30,11 @@ interface
 
 {$I config.inc}
 
-Uses UThread, UAccounts, UPCOrderedLists, UBlockChain,
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
+Uses Classes, UThread, UAccounts, UBlockChain,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 type
