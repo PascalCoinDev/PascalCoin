@@ -65,7 +65,7 @@ begin
   i := a_index;
   while a_length > 0 do
   begin
-    Fm_hash := UInt64(Fm_hash * 1099511628211) xor a_data[i];
+    Fm_hash := UInt64(Fm_hash * UInt64(1099511628211)) xor a_data[i];
     System.Inc(i);
     System.Dec(a_length);
   end;

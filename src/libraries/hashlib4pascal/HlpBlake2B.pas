@@ -1748,7 +1748,7 @@ begin
     begin
       System.Move(a_data[offset], F_buf[F_bufferFilled], bufferRemaining);
     end;
-    F_counter0 := F_counter0 + BlockSizeInBytes;
+    F_counter0 := F_counter0 + UInt64(BlockSizeInBytes);
     if (F_counter0 = 0) then
     begin
       System.Inc(F_counter1);
@@ -1761,7 +1761,7 @@ begin
 
   while (a_data_length > BlockSizeInBytes) do
   begin
-    F_counter0 := F_counter0 + BlockSizeInBytes;
+    F_counter0 := F_counter0 + UInt64(BlockSizeInBytes);
     if (F_counter0 = 0) then
     begin
       System.Inc(F_counter1);
