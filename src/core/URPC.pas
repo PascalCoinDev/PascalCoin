@@ -794,6 +794,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     Obj : TPCJSONObject;
     OperationsResume : TOperationsResumeList;
     i, nCounter : Integer;
+    LLockedMempool : TPCOperationsComp;
   Begin
     Result := false;
     if (startReg<-1) or (maxReg<=0) then begin
@@ -809,18 +810,23 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         // Only will return pending operations if start=0, otherwise
         list := TList<Cardinal>.Create;
         Try
-          FNode.Operations.OperationsHashTree.GetOperationsAffectingAccount(accountNumber,list);
-          for i := list.Count - 1 downto 0 do begin
-            Op := FNode.Operations.OperationsHashTree.GetOperation(PtrInt(list[i]));
-            If TPCOperation.OperationToOperationResume(0,Op,False,accountNumber,OPR) then begin
-              OPR.NOpInsideBlock := i;
-              OPR.Block := FNode.Operations.OperationBlock.block;
-              OPR.Balance := FNode.Operations.SafeBoxTransaction.Account(accountNumber).balance;
-              if (nCounter>=startReg) And (nCounter<maxReg) then begin
-                OperationsResume.Add(OPR);
+          LLockedMempool := FNode.LockMempoolRead;
+          try
+            LLockedMempool.OperationsHashTree.GetOperationsAffectingAccount(accountNumber,list);
+            for i := list.Count - 1 downto 0 do begin
+              Op := LLockedMempool.OperationsHashTree.GetOperation(list[i]);
+              If TPCOperation.OperationToOperationResume(0,Op,False,accountNumber,OPR) then begin
+                OPR.NOpInsideBlock := i;
+                OPR.Block := LLockedMempool.OperationBlock.block;
+                OPR.Balance := LLockedMempool.SafeBoxTransaction.Account(accountNumber).balance;
+                if (nCounter>=startReg) And (nCounter<maxReg) then begin
+                  OperationsResume.Add(OPR);
+                end;
+                inc(nCounter);
               end;
-              inc(nCounter);
             end;
+          finally
+            FNode.UnlockMempoolRead;
           end;
         Finally
           list.Free;
@@ -993,8 +999,8 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
         Exit;
       end;
-      sacc := FNode.Operations.SafeBoxTransaction.Account(sender);
-      tacc := FNode.Operations.SafeBoxTransaction.Account(target);
+      sacc := FNode.GetMempoolAccount(sender);
+      tacc := FNode.GetMempoolAccount(target);
 
       opt := CreateOperationTransaction(FNode.Bank.SafeBox.CurrentProtocol,sender,target,sacc.n_operation,amount,fee,sacc.accountInfo.accountKey,tacc.accountInfo.accountKey,RawPayload,Payload_method,EncodePwd);
       if opt=nil then exit;
@@ -1086,7 +1092,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
         Exit;
       end;
-      acc_signer := FNode.Operations.SafeBoxTransaction.Account(account_signer);
+      acc_signer := FNode.GetMempoolAccount(account_signer);
 
       opck := CreateOperationChangeKey(FNode.Bank.SafeBox.CurrentProtocol,account_signer,acc_signer.n_operation,account_target,acc_signer.accountInfo.accountKey,new_pub_key,fee,RawPayload,Payload_method,EncodePwd);
       if not assigned(opck) then exit;
@@ -1253,7 +1259,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
               ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
               Exit;
             end;
-            acc := FNode.Operations.SafeBoxTransaction.Account(accountsnumber.Get(ian));
+            acc := FNode.GetMempoolAccount(accountsnumber.Get(ian));
             opck := CreateOperationChangeKey(FNode.Bank.SafeBox.CurrentProtocol,acc.account,acc.n_operation,acc.account,acc.accountInfo.accountKey,new_pub_key,fee,RawPayload,Payload_method,EncodePwd);
             if not assigned(opck) then exit;
             try
@@ -1923,7 +1929,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           ErrorDesc := 'Invalid account_signer '+params.AsString('account_signer','');
           Exit;
         end;
-        account_signer := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        account_signer := FNode.GetMempoolAccount(c_account);
         if (params.IndexOfName('account_target')<0) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
           ErrorDesc := 'Need account_target param';
@@ -1935,7 +1941,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           ErrorDesc := 'Invalid account_target '+params.AsString('account_target','');
           Exit;
         end;
-        account_target := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        account_target := FNode.GetMempoolAccount(c_account);
         if (Not TAccountComp.EqualAccountKeys(account_signer.accountInfo.accountKey,account_target.accountInfo.accountKey)) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
           ErrorDesc := 'account_signer and account_target have distinct keys. Cannot sign';
@@ -1982,7 +1988,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           ErrorDesc := 'Invalid account_signer '+params.AsString('account_signer','');
           Exit;
         end;
-        account_signer := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        account_signer := FNode.GetMempoolAccount(c_account);
         if (params.IndexOfName('account_target')<0) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
           ErrorDesc := 'Need account_target param';
@@ -1994,7 +2000,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           ErrorDesc := 'Invalid account_target '+params.AsString('account_target','');
           Exit;
         end;
-        account_target := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        account_target := FNode.GetMempoolAccount(c_account);
         if (Not TAccountComp.EqualAccountKeys(account_signer.accountInfo.accountKey,account_target.accountInfo.accountKey)) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
           ErrorDesc := 'account_signer and account_target have distinct keys. Cannot sign';
@@ -2041,7 +2047,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           ErrorDesc := 'Invalid account '+params.AsString('buyer_account','');
           Exit;
         end;
-        buyer_account := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        buyer_account := FNode.GetMempoolAccount(c_account);
         // Check params
         c_account := params.AsInteger('account_to_purchase',MaxInt);
         if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
@@ -2049,7 +2055,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           ErrorDesc := 'Invalid account to purchase '+params.AsString('account_to_purchase','');
           Exit;
         end;
-        account_to_purchase := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        account_to_purchase := FNode.GetMempoolAccount(c_account);
         if Not TAccountComp.IsAccountForSale(account_to_purchase.accountInfo) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
           ErrorDesc := 'Account is not for sale: '+params.AsString('account_to_purchase','');
@@ -2101,7 +2107,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           ErrorDesc := 'Invalid account_signer '+params.AsString('account_signer','');
           Exit;
         end;
-        account_signer := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        account_signer := FNode.GetMempoolAccount(c_account);
         if (params.IndexOfName('account_target')<0) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
           ErrorDesc := 'Need account_target param';
@@ -2113,7 +2119,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           ErrorDesc := 'Invalid account_target '+params.AsString('account_target','');
           Exit;
         end;
-        account_target := FNode.Operations.SafeBoxTransaction.Account(c_account);
+        account_target := FNode.GetMempoolAccount(c_account);
         if (Not TAccountComp.EqualAccountKeys(account_signer.accountInfo.accountKey,account_target.accountInfo.accountKey)) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
           ErrorDesc := 'account_signer and account_target have distinct keys. Cannot sign';
@@ -2205,7 +2211,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     if ((Length(accountName)>0) AND (exactMatch=true)) then begin
        accountNumber := FNode.Bank.SafeBox.FindAccountByName(accountName);
        if accountNumber >= 0 then begin
-          account := FNode.Operations.SafeBoxTransaction.Account(accountNumber);
+          account := FNode.GetMempoolAccount(accountNumber);
           if ((accountType = -1) OR (Integer(account.account_type) = accountType))
              AND
              ((Not searchByPubkey) OR (TAccountComp.EqualAccountKeys(accPubKey,account.accountInfo.accountKey))) then
@@ -2216,9 +2222,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       for i := start to FNode.Bank.AccountsCount - 1 do begin
         if (searchByPubkey) then begin
           if (i>=FNode.Bank.SafeBox.OrderedAccountKeysList.AccountKeyList[iPubKey].Count) then Break;
-          account := FNode.Operations.SafeBoxTransaction.Account( FNode.Bank.SafeBox.OrderedAccountKeysList.AccountKeyList[iPubKey].Get(i) );
+          account := FNode.GetMempoolAccount( FNode.Bank.SafeBox.OrderedAccountKeysList.AccountKeyList[iPubKey].Get(i) );
         end else begin
-          account := FNode.Operations.SafeBoxTransaction.Account(i);
+          account := FNode.GetMempoolAccount(i);
         end;
         if (accountType <> -1) AND (Integer(account.account_type) <> accountType) then
         begin
@@ -2302,7 +2308,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     Begin
       Result := CT_Account_NUL;
       if (nAccount<0) Or (nAccount>=FNode.Bank.AccountsCount) then Exit;
-      Result := FNode.Operations.SafeBoxTransaction.Account( nAccount );
+      Result := FNode.GetMempoolAccount( nAccount );
     end;
 
   var errors : String;
@@ -2600,7 +2606,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           nAccount := PtrInt(lSigners[j]);
           if (nAccount>=0) And (nAccount<FNode.Bank.AccountsCount) then begin
             // Try to
-            pubKey := FNode.Operations.SafeBoxTransaction.Account(nAccount).accountInfo.accountKey;
+            pubKey := FNode.GetMempoolAccount(nAccount).accountInfo.accountKey;
             // Is mine?
             iKey := _RPCServer.FWalletKeys.IndexOfAccountKey(pubKey);
             if (iKey>=0) then begin
@@ -2688,7 +2694,7 @@ begin
     // Returns JSON Object with account information based on BlockChain + Pending operations
     c := params.GetAsVariant('account').AsCardinal(CT_MaxAccount);
     if (c>=0) And (c<FNode.Bank.AccountsCount) then begin
-      account := FNode.Operations.SafeBoxTransaction.Account(c);
+      account := FNode.GetMempoolAccount(c);
       TPascalCoinJSONComp.FillAccountObject(account,GetResultObject);
       Result := True;
     end else begin
@@ -2723,7 +2729,7 @@ begin
       l := params.AsInteger('start',0);
       for j := 0 to ocl.Count - 1 do begin
         if (j>=l) then begin
-          account := FNode.Operations.SafeBoxTransaction.Account(ocl.Get(j));
+          account := FNode.GetMempoolAccount(ocl.Get(j));
           TPascalCoinJSONComp.FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
         end;
         if (k>0) And ((j+1)>=(k+l)) then break;
@@ -2737,7 +2743,7 @@ begin
         ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
         for j := 0 to ocl.Count - 1 do begin
           if (c>=l) then begin
-            account := FNode.Operations.SafeBoxTransaction.Account(ocl.Get(j));
+            account := FNode.GetMempoolAccount(ocl.Get(j));
             TPascalCoinJSONComp.FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
           end;
           inc(c);
@@ -2799,7 +2805,7 @@ begin
       ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
       account.balance := 0;
       for j := 0 to ocl.Count - 1 do begin
-        inc(account.balance, FNode.Operations.SafeBoxTransaction.Account(ocl.Get(j)).balance );
+        inc(account.balance, FNode.GetMempoolAccount(ocl.Get(j)).balance );
       end;
       jsonresponse.GetAsVariant('result').value := ToJSONCurrency(account.balance);
       Result := true;
@@ -2810,7 +2816,7 @@ begin
       for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
         ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
         for j := 0 to ocl.Count - 1 do begin
-          inc(account.balance, FNode.Operations.SafeBoxTransaction.Account(ocl.Get(j)).balance );
+          inc(account.balance, FNode.GetMempoolAccount(ocl.Get(j)).balance );
         end;
       end;
       jsonresponse.GetAsVariant('result').value := ToJSONCurrency(account.balance);
@@ -3012,13 +3018,18 @@ begin
     If FNode.TryLockNode(5000) then begin
       Try
         jsonarr := GetResultArray;
-        for i := j to FNode.Operations.Count-1 do begin
-          If TPCOperation.OperationToOperationResume(0,FNode.Operations.Operation[i],True,FNode.Operations.Operation[i].SignerAccount,opr) then begin
-            opr.NOpInsideBlock:=i;
-            opr.Balance := -1; // Don't include!
-            FillOperationResumeToJSONObject(opr,jsonarr.GetAsObject(jsonarr.Count));
+        pcops := FNode.LockMempoolRead;
+        try
+          for i := j to pcops.Count-1 do begin
+            If TPCOperation.OperationToOperationResume(0,pcops.Operation[i],True,pcops.Operation[i].SignerAccount,opr) then begin
+              opr.NOpInsideBlock:=i;
+              opr.Balance := -1; // Don't include!
+              FillOperationResumeToJSONObject(opr,jsonarr.GetAsObject(jsonarr.Count));
+            end;
+            if (k>0) And (jsonarr.Count>=k) then break;
           end;
-          if (k>0) And (jsonarr.Count>=k) then break;
+        finally
+          FNode.UnlockMempoolRead;
         end;
       finally
         FNode.UnlockNode;
@@ -3029,7 +3040,7 @@ begin
       ErrorDesc := 'Node is busy';
     end;
   end else if (method='getpendingscount') then begin
-    jsonresponse.GetAsVariant('result').Value := FNode.Operations.Count;
+    jsonresponse.GetAsVariant('result').Value := FNode.MempoolOperationsCount;
     Result := true;
   end else if (method='decodeophash') then begin
     // Search for an operation based on "ophash"

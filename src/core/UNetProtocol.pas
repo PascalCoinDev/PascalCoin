@@ -3134,6 +3134,7 @@ var responseStream : TMemoryStream;
   DoDisconnect : Boolean;
   errors : String;
   opht : TOperationsHashTree;
+  LLockedMempool : TPCOperationsComp;
 begin
   {
   This call is used to obtain pending operations not included in blockchain
@@ -3157,7 +3158,7 @@ begin
     DataBuffer.Read(b,1);
     if (b=1) then begin
       // Return count
-      c := TNode.Node.Operations.Count;
+      c := TNode.Node.MempoolOperationsCount;
       responseStream.Write(c,SizeOf(c));
     end else if (b=2) then begin
       // Return from start to start+max
@@ -3172,17 +3173,17 @@ begin
       end;
       opht := TOperationsHashTree.Create;
       Try
-        TNode.Node.Operations.Lock;
+        LLockedMempool := TNode.Node.LockMempoolRead;
         Try
-          if (start >= TNode.Node.Operations.Count) Or (max=0) then begin
+          if (start >= LLockedMempool.Count) Or (max=0) then begin
           end else begin
-            if (start + max >= TNode.Node.Operations.Count) then max := TNode.Node.Operations.Count - start;
+            if (start + max >= LLockedMempool.Count) then max := LLockedMempool.Count - start;
             for i:=start to (start + max -1) do begin
-              opht.AddOperationToHashTree(TNode.Node.Operations.OperationsHashTree.GetOperation(i));
+              opht.AddOperationToHashTree(LLockedMempool.OperationsHashTree.GetOperation(i));
             end;
           end;
         finally
-          TNode.Node.Operations.Unlock;
+          TNode.Node.UnlockMempoolRead;
         end;
         opht.SaveOperationsHashTreeToStream(responseStream,False);
       Finally
@@ -3337,7 +3338,7 @@ begin
       if (iPubKey>=0) then begin
         ocl := sbakl.AccountKeyList[iPubKey];
         while (start<ocl.Count) And (max>0) do begin
-          acc := TNode.Node.Operations.SafeBoxTransaction.Account(ocl.Get(start));
+          acc := TNode.Node.GetMempoolAccount(ocl.Get(start));
           TAccountComp.SaveAccountToAStream(accountsStream,acc);
           inc(nAccounts);
           inc(start);
@@ -3435,7 +3436,7 @@ begin
         c := max;
         responseStream.Write(c,SizeOf(c));
         for i:=start to (start + max -1) do begin
-          acc := TNode.Node.Operations.SafeBoxTransaction.Account(i);
+          acc := TNode.Node.GetMempoolAccount(i);
           TAccountComp.SaveAccountToAStream(responseStream,acc);
         end;
       end;
@@ -3447,7 +3448,7 @@ begin
       for i:=1 to max do begin
         DataBuffer.Read(c,SizeOf(c));
         if (c>=0) And (c<TNode.Node.Bank.AccountsCount) then begin
-          acc := TNode.Node.Operations.SafeBoxTransaction.Account(c);
+          acc := TNode.Node.GetMempoolAccount(c);
           TAccountComp.SaveAccountToAStream(responseStream,acc);
         end else begin
           errors := 'Invalid account number '+Inttostr(c);
@@ -3669,6 +3670,7 @@ var operationsComp : TPCOperationsComp;
     auxOp : TPCOperation;
     tc : TTickCount;
     original_OperationBlock : TOperationBlock;
+    LLockedMempool : TPCOperationsComp;
   begin
     Result := False;
     DoDisconnect := True;
@@ -3694,13 +3696,18 @@ var operationsComp : TPCOperationsComp;
       Try
         if (operationsComp.OperationBlock.block<>TNode.Node.Bank.BlocksCount) then Exit; // Meanwhile other threads have added it
         // Fill not included operations:
-        for i:=0 to High(nfpboarr) do begin
-          iNodeOpReference := TNode.Node.Operations.OperationsHashTree.IndexOfOpReference(nfpboarr[i].opReference);
-          if iNodeOpReference>=0 then begin
-            nfpboarr[i].opStreamData := TNode.Node.Operations.OperationsHashTree.GetOperation(iNodeOpReference).GetOperationStreamData;
-          end else begin
-            inc(notFoundOpReferencesCount);
+        LLockedMempool := TNode.Node.LockMempoolRead;
+        try
+          for i:=0 to High(nfpboarr) do begin
+            iNodeOpReference := LLockedMempool.OperationsHashTree.IndexOfOpReference(nfpboarr[i].opReference);
+            if iNodeOpReference>=0 then begin
+              nfpboarr[i].opStreamData := LLockedMempool.OperationsHashTree.GetOperation(iNodeOpReference).GetOperationStreamData;
+            end else begin
+              inc(notFoundOpReferencesCount);
+            end;
           end;
+        finally
+          TNode.Node.UnlockMempoolRead;
         end;
       Finally
         TNode.Node.UnlockNode;

@@ -903,7 +903,7 @@ Var
   tc : TTickCount;
   LBlocks : TList<TPCOperationsComp>;
   LTmpPCOperationsComp : TPCOperationsComp;
-  i,j : Integer;
+  i,j, LProgressBlock, LProgressEndBlock : Integer;
   LSafeboxTransaction : TPCSafeBoxTransaction;
 begin
   if FIsRestoringFromFile then begin
@@ -933,6 +933,8 @@ begin
       NewLog(Nil, ltinfo,'Start restoring from disk operations (Max '+inttostr(max_block)+') BlockCount: '+inttostr(BlocksCount)+' Orphan: ' +Storage.Orphan);
       LBlocks := TList<TPCOperationsComp>.Create;
       try
+        LProgressBlock := 0;
+        LProgressEndBlock := Storage.LastBlock - BlocksCount;
         while ((BlocksCount<=max_block)) do begin
           i := BlocksCount;
           j := i + 99;
@@ -962,6 +964,7 @@ begin
             end;
 
             for i := 0 to LBlocks.Count-1 do begin
+              inc(LProgressBlock);
               SetLength(errors,0);
               if Not AddNewBlockChainBlock(LBlocks[i],0,newBlock,errors) then begin
                 NewLog(LBlocks[i], lterror,'Error restoring block: ' + Inttostr(BlocksCount)+ ' Errors: ' + errors);
@@ -975,7 +978,7 @@ begin
                 end;
                 if (Assigned(restoreProgressNotify)) And (TPlatform.GetElapsedMilliseconds(tc)>1000) then begin
                   tc := TPlatform.GetTickCount;
-                  restoreProgressNotify(Self,Format('Reading blockchain block %d/%d',[LBlocks[i].OperationBlock.block,Storage.LastBlock]),BlocksCount,Storage.LastBlock);
+                  restoreProgressNotify(Self,Format('Reading blockchain block %d/%d',[LBlocks[i].OperationBlock.block,Storage.LastBlock]),LProgressBlock,LProgressEndBlock);
                 end;
               end;
             end;

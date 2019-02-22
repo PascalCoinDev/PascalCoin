@@ -520,6 +520,7 @@ Var P, PToDelete : PPoolJob;
   doAdd : Boolean;
   params : TPCJSONObject;
   OpB : TOperationBlock;
+  LLockedMempool : TPCOperationsComp;
 begin
   if Not Active then exit;
   if FClientsCount<=0 then exit;
@@ -530,11 +531,16 @@ begin
     if l.count=0 then doAdd := true
     else begin
       P := l[l.Count-1];
-      if (FNodeNotifyEvents.Node.Operations.OperationsHashTree.HashTree<>P^.OperationsComp.OperationsHashTree.HashTree) then begin
-        doAdd := (P^.SentDateTime + EncodeTime(0,0,CT_WAIT_SECONDS_BEFORE_SEND_NEW_JOB,0)) < Now;
-      end else begin
-        // No new operations waiting to be sent, but to prevent "old time mining", we will send new job with time:
-        doAdd := ((P^.SentDateTime + EncodeTime(0,0,CT_MAX_SECONDS_BETWEEN_JOBS,0)) < Now);
+      LLockedMempool := FNodeNotifyEvents.Node.LockMempoolRead;
+      try
+        if (Not TBaseType.Equals(LLockedMempool.OperationsHashTree.HashTree,P^.OperationsComp.OperationsHashTree.HashTree)) then begin
+          doAdd := (P^.SentDateTime + EncodeTime(0,0,CT_WAIT_SECONDS_BEFORE_SEND_NEW_JOB,0)) < Now;
+        end else begin
+          // No new operations waiting to be sent, but to prevent "old time mining", we will send new job with time:
+          doAdd := ((P^.SentDateTime + EncodeTime(0,0,CT_MAX_SECONDS_BETWEEN_JOBS,0)) < Now);
+        end;
+      finally
+        FNodeNotifyEvents.Node.UnlockMempoolRead;
       end;
     end;
     if doAdd then begin
@@ -712,24 +718,23 @@ var tree : TOperationsHashTree;
     tree.AddOperationToHashTree(Op);
   End;
 Var i,j : Integer;
-  MasterOp : TPCOperationsComp;
+  LLockedMempool : TPCOperationsComp;
   op : TPCOperation;
   errors : String;
 begin
-  MasterOp := FNodeNotifyEvents.Node.Operations;
-  MasterOp.Lock;
+  LLockedMempool := FNodeNotifyEvents.Node.LockMempoolRead;
   Try
     FMinerOperations.Lock;
     Try
       tree := TOperationsHashTree.Create;
       try
-        if (Not (TPCOperationsComp.EqualsOperationBlock(FMinerOperations.OperationBlock,MasterOp.OperationBlock))) then begin
+        if (Not (TPCOperationsComp.EqualsOperationBlock(FMinerOperations.OperationBlock,LLockedMempool.OperationBlock))) then begin
           FMinerOperations.Clear(true);
-          if MasterOp.Count>0 then begin
+          if LLockedMempool.Count>0 then begin
             // First round: Select with fee > 0
             i := 0;
-            while (tree.OperationsCount<MaxOperationsPerBlock) And (i<MasterOp.OperationsHashTree.OperationsCount) do begin
-              op := MasterOp.OperationsHashTree.GetOperation(i);
+            while (tree.OperationsCount<MaxOperationsPerBlock) And (i<LLockedMempool.OperationsHashTree.OperationsCount) do begin
+              op := LLockedMempool.OperationsHashTree.GetOperation(i);
               if op.OperationFee>0 then begin
                 DoAdd(op,false);
               end;
@@ -738,8 +743,8 @@ begin
             // Second round: Allow fee = 0
             j := 0;
             i := 0;
-            while (tree.OperationsCount<MaxOperationsPerBlock) And (i<MasterOp.OperationsHashTree.OperationsCount) And (j<Max0FeeOperationsPerBlock) do begin
-              op := MasterOp.OperationsHashTree.GetOperation(i);
+            while (tree.OperationsCount<MaxOperationsPerBlock) And (i<LLockedMempool.OperationsHashTree.OperationsCount) And (j<Max0FeeOperationsPerBlock) do begin
+              op := LLockedMempool.OperationsHashTree.GetOperation(i);
               if op.OperationFee=0 then begin
                 DoAdd(op,True);
                 inc(j);
@@ -748,12 +753,12 @@ begin
             end;
             // Add operations:
             i := FMinerOperations.AddOperations(tree,errors);
-            if (i<>tree.OperationsCount) Or (i<>MasterOp.OperationsHashTree.OperationsCount) then begin
+            if (i<>tree.OperationsCount) Or (i<>LLockedMempool.OperationsHashTree.OperationsCount) then begin
               TLog.NewLog(ltDebug,ClassName,Format('Cannot add all operations! Master:%d Selected:%d Added:%d - Errors: %s',
-                [MasterOp.OperationsHashTree.OperationsCount,tree.OperationsCount,i,errors]));
+                [LLockedMempool.OperationsHashTree.OperationsCount,tree.OperationsCount,i,errors]));
             end;
           end else begin
-            FMinerOperations.CopyFrom(MasterOp);
+            FMinerOperations.CopyFrom(LLockedMempool);
           end;
           //
           TLog.NewLog(ltInfo,ClassName,Format('New miner operations:%d Hash:%s %s',
@@ -768,7 +773,7 @@ begin
       FMinerOperations.Unlock;
     end;
   Finally
-    MasterOp.Unlock;
+    FNodeNotifyEvents.Node.UnlockMempoolRead;
   End;
 end;
 
