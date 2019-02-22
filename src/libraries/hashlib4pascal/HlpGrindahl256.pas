@@ -190,13 +190,9 @@ begin
 
   System.SetLength(Fs_table_0, System.Length(s_master_table));
 
-{$IFDEF DELPHIXE2_UP}
   LowVal1 := System.Low(s_master_table);
   LowVal2 := System.Low(Fs_table_0);
-{$ELSE}
-  LowVal1 := 0;
-  LowVal2 := 0;
-{$ENDIF DELPHIXE2_UP}
+
   System.Move(s_master_table[LowVal1], Fs_table_0[LowVal2],
     System.SizeOf(s_master_table));
 
