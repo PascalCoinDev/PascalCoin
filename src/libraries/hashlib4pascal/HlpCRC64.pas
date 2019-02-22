@@ -7,6 +7,7 @@ interface
 uses
   HlpHashLibTypes,
   HlpHash,
+  HlpIHash,
   HlpICRC,
   HlpIHashResult,
   HlpIHashInfo,
@@ -38,10 +39,11 @@ type
     procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
+    function Clone(): IHash; override;
 
   end;
 
-  TCRC64_ECMA = class sealed(TCRC64)
+  TCRC64_ECMA_182 = class sealed(TCRC64)
 
   public
     constructor Create();
@@ -51,6 +53,11 @@ type
 implementation
 
 { TCRC64 }
+
+function TCRC64.Clone(): IHash;
+begin
+  result := FCRCAlgorithm.Clone();
+end;
 
 constructor TCRC64.Create(_poly, _Init: UInt64; _refIn, _refOut: Boolean;
   _XorOut, _check: UInt64; const _Names: THashLibStringArray);
@@ -76,9 +83,9 @@ begin
   result := FCRCAlgorithm.TransformFinal();
 end;
 
-{ TCRC64_ECMA }
+{ TCRC64_ECMA_182 }
 
-constructor TCRC64_ECMA.Create;
+constructor TCRC64_ECMA_182.Create;
 begin
   Inherited Create(TCRC64Polynomials.ECMA_182, $0000000000000000, false, false,
     $0000000000000000, $6C40DF5F0B497347,

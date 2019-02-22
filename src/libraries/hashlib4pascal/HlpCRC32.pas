@@ -8,6 +8,7 @@ uses
 
   HlpHashLibTypes,
   HlpHash,
+  HlpIHash,
   HlpICRC,
   HlpIHashResult,
   HlpIHashInfo,
@@ -41,6 +42,7 @@ type
     procedure TransformBytes(const a_data: THashLibByteArray;
       a_index, a_length: Int32); override;
     function TransformFinal(): IHashResult; override;
+    function Clone(): IHash; override;
 
   end;
 
@@ -61,6 +63,11 @@ type
 implementation
 
 { TCRC32 }
+
+function TCRC32.Clone(): IHash;
+begin
+  Result := FCRCAlgorithm.Clone();
+end;
 
 constructor TCRC32.Create(_poly, _Init: UInt64; _refIn, _refOut: Boolean;
   _XorOut, _check: UInt64; const _Names: THashLibStringArray);
@@ -83,7 +90,7 @@ end;
 
 function TCRC32.TransformFinal: IHashResult;
 begin
-  result := FCRCAlgorithm.TransformFinal();
+  Result := FCRCAlgorithm.TransformFinal();
 end;
 
 { TCRC32_PKZIP }

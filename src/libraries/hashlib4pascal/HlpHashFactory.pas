@@ -150,7 +150,7 @@ type
       /// ECMA-182, polynomial = $42F0E1EBA9EA3693
       /// </summary>
       /// <returns></returns>
-      class function CreateCRC64_ECMA(): IHash; static;
+      class function CreateCRC64_ECMA_182(): IHash; static;
 
       class function CreateAdler32: IHash; static;
     end;
@@ -497,9 +497,9 @@ begin
     _check, _Names);
 end;
 
-class function THashFactory.TChecksum.CreateCRC64_ECMA: IHash;
+class function THashFactory.TChecksum.CreateCRC64_ECMA_182: IHash;
 begin
-  Result := TCRC64_ECMA.Create();
+  Result := TCRC64_ECMA_182.Create();
 end;
 
 class function THashFactory.TChecksum.CreateAdler32: IHash;

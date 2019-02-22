@@ -40,7 +40,8 @@ type
   strict private
 
   const
-    CRC32_PKZIP_Polynomial = UInt32($EDB88320); // Polynomial Reversed
+    // Polynomial Reversed
+    CRC32_PKZIP_Polynomial = UInt32($EDB88320);
     class var
 
       FCRC32_PKZIP_Table: THashLibUInt32Array;
@@ -94,14 +95,23 @@ begin
       LKIdx := 0;
       while LKIdx < System.Pred(9) do
       begin
-        if (LRes and 1) = 1 then
-        begin
+        { *
+          // branched variant
+          if (LRes and 1) = 1 then
+          begin
           LRes := APolynomial xor (LRes shr 1)
-        end
-        else
-        begin
+          end
+          else
+          begin
           LRes := LRes shr 1;
-        end;
+          end;
+          * }
+        { *
+          // branchless variant
+          LRes := (LRes shr 1) xor (LRes and 1) * APolynomial;
+          * }
+        // faster branchless variant
+        LRes := (LRes shr 1) xor (-Int32(LRes and 1) and APolynomial);
         Result[(LJIdx * 256) + LIdx] := LRes;
         System.Inc(LKIdx);
       end;
@@ -115,7 +125,7 @@ var
   LCRC, LA, LB, LC, LD: UInt32;
   LCRCTable: THashLibUInt32Array;
 begin
-  LCRC := not FCurrentCRC;
+  LCRC := not FCurrentCRC; // LCRC := System.High(UInt32) xor FCurrentCRC;
   LCRCTable := ACRCTable;
   while ALength >= 16 do
   begin
@@ -135,9 +145,10 @@ begin
       [(9 * 256) + AData[AIndex + 6]] xor LCRCTable
       [(8 * 256) + AData[AIndex + 7]];
 
-    LD := LCRCTable[(15 * 256) + (Byte(LCRC) xor AData[AIndex])] xor LCRCTable
-      [(14 * 256) + (Byte(LCRC shr 8) xor AData[AIndex + 1])] xor LCRCTable
-      [(13 * 256) + (Byte(LCRC shr 16) xor AData[AIndex + 2])] xor LCRCTable
+    LD := LCRCTable[(15 * 256) + ((LCRC and $FF) xor AData[AIndex])
+      ] xor LCRCTable[(14 * 256) + (((LCRC shr 8) and $FF) xor AData[AIndex + 1]
+      )] xor LCRCTable[(13 * 256) + (((LCRC shr 16) and $FF) xor AData
+      [AIndex + 2])] xor LCRCTable
       [(12 * 256) + ((LCRC shr 24) xor AData[AIndex + 3])];
 
     LCRC := LD xor LC xor LB xor LA;
@@ -153,7 +164,7 @@ begin
     System.Dec(ALength);
   end;
 
-  FCurrentCRC := not LCRC;
+  FCurrentCRC := not LCRC; // FCurrentCRC := LCRC xor System.High(UInt32);
 end;
 
 constructor TCRC32Fast.Create();
