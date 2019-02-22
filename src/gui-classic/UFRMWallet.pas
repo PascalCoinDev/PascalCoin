@@ -347,7 +347,7 @@ var pct : String;
 begin
   If TPlatform.GetElapsedMilliseconds(FLastTC)>500 then begin
     FLastTC := TPlatform.GetTickCount;
-    if (totalCount>0) then pct := Format('%.1f',[curPos*100/totalCount])+'%'
+    if (totalCount>0) then pct := Format('%.2f',[curPos*100/totalCount])+'%'
     else pct := '';
     FLastMsg:='Please wait until finished: '+mesage+' '+pct;
     Synchronize(ThreadSafeNotify);
@@ -799,6 +799,7 @@ begin
 end;
 
 procedure TFRMWallet.FinishedLoadingApp;
+var LLockedMempool : TPCOperationsComp;
 begin
   FNodeNotifyEvents.Node := FNode;
   // Init
@@ -815,7 +816,12 @@ begin
   FPoolMiningServer.Port := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port);
   FPoolMiningServer.MinerAccountKey := GetAccountKeyForMiner;
   FPoolMiningServer.MinerPayload := TEncoding.ANSI.GetBytes( FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString('') );
-  FNode.Operations.AccountKey := GetAccountKeyForMiner;
+  LLockedMempool := FNode.LockMempoolWrite;
+  try
+    LLockedMempool.AccountKey := GetAccountKeyForMiner;
+  finally
+    FNode.UnlockMempoolWrite;
+  end;
   FPoolMiningServer.Active := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].GetAsBoolean(true);
   FPoolMiningServer.OnMiningServerNewBlockFound := OnMiningServerNewBlockFound;
   FreeAndNil(FBackgroundLabel);
@@ -835,7 +841,7 @@ Var account : TAccount;
   s : String;
 begin
   if AccountNumber<0 then exit;
-  account := FNode.Operations.SafeBoxTransaction.Account(AccountNumber);
+  account := FNode.GetMempoolAccount(AccountNumber);
   if Length(account.name)>0 then s:='Name: '+TEncoding.ANSI.GetString(account.name)
   else s:='';
   Strings.Add(Format('Account: %s %s Type:%d',[TAccountComp.AccountNumberToAccountTxtNumber(AccountNumber),s,account.account_type]));
@@ -2089,6 +2095,7 @@ Var isMining : boolean;
   i,mc : Integer;
   s : String;
   f, favg : real;
+  LLockedMempool : TPCOperationsComp;
 begin
   UpdateNodeStatus;
   mc := 0;
@@ -2098,12 +2105,12 @@ begin
     end else lblCurrentBlock.Caption :=  '(none)';
     lblCurrentAccounts.Caption := Inttostr(FNode.Bank.AccountsCount);
     lblCurrentBlockTime.Caption := UnixTimeToLocalElapsedTime(FNode.Bank.LastOperationBlock.timestamp);
-    FNode.Operations.Lock;
+    LLockedMempool := FNode.LockMempoolRead;
     try
-      lblOperationsPending.Caption := Inttostr(FNode.Operations.Count);
-      lblCurrentDifficulty.Caption := InttoHex(FNode.Operations.OperationBlock.compact_target,8);
+      lblOperationsPending.Caption := Inttostr(LLockedMempool.Count);
+      lblCurrentDifficulty.Caption := InttoHex(LLockedMempool.OperationBlock.compact_target,8);
     finally
-      FNode.Operations.Unlock;
+      FNode.UnlockMempoolRead;
     end;
     favg := FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage);
     f := (CT_NewLineSecondsAvg - favg) / CT_NewLineSecondsAvg;
@@ -2148,6 +2155,7 @@ end;
 procedure TFRMWallet.UpdateConfigChanged;
 Var wa : Boolean;
   i : Integer;
+  LLockedMempool : TPCOperationsComp;
 begin
   tsLogs.TabVisible := FAppParams.ParamByName[CT_PARAM_ShowLogs].GetAsBoolean(false);
   if (Not tsLogs.TabVisible) then begin
@@ -2166,7 +2174,12 @@ begin
     wa := FNode.NetServer.Active;
     FNode.NetServer.Port := FAppParams.ParamByName[CT_PARAM_InternetServerPort].GetAsInteger(CT_NetServer_Port);
     FNode.NetServer.Active := wa;
-    FNode.Operations.BlockPayload := TEncoding.ANSI.GetBytes(FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString(''));
+    LLockedMempool := FNode.LockMempoolWrite;
+    try
+      LLockedMempool.BlockPayload := TEncoding.ANSI.GetBytes(FAppParams.ParamByName[CT_PARAM_MinerName].GetAsString(''));
+    finally
+      FNode.UnlockMempoolWrite;
+    end;
     FNode.NodeLogFilename := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'blocks.log';
   end;
   if Assigned(FPoolMiningServer) then begin

@@ -254,7 +254,7 @@ begin
     for iAcc := 0 to Length(_senderAccounts) - 1 do begin
 loop_start:
       op := Nil;
-      account := FNode.Operations.SafeBoxTransaction.Account(_senderAccounts[iAcc]);
+      account := FNode.GetMempoolAccount(_senderAccounts[iAcc]);
       If Not UpdatePayload(account, errors) then
         raise Exception.Create('Error encoding payload of sender account '+TAccountComp.AccountNumberToAccountTxtNumber(account.account)+': '+errors);
       i := WalletKeys.IndexOfAccountKey(account.accountInfo.accountKey);
@@ -612,7 +612,7 @@ end;
 
 function TFRMOperation.GetDefaultSenderAccount: TAccount;
 begin
-  if FSenderAccounts.Count>=1 then Result := FNode.Operations.SafeBoxTransaction.Account( FSenderAccounts.Get(0) )
+  if FSenderAccounts.Count>=1 then Result := FNode.GetMempoolAccount( FSenderAccounts.Get(0) )
   else Result := CT_Account_NUL;
 end;
 
@@ -667,8 +667,8 @@ begin
   end;
   If SenderAccounts.Count>=1 then begin
     ebSignerAccount.text := TAccountComp.AccountNumberToAccountTxtNumber(SenderAccounts.Get(0));
-    ebChangeName.Text := FNode.Operations.SafeBoxTransaction.Account(SenderAccounts.Get(0)).name.ToPrintable;
-    ebChangeType.Text := IntToStr(FNode.Operations.SafeBoxTransaction.Account(SenderAccounts.Get(0)).account_type);
+    ebChangeName.Text := FNode.GetMempoolAccount(SenderAccounts.Get(0)).name.ToPrintable;
+    ebChangeType.Text := IntToStr(FNode.GetMempoolAccount(SenderAccounts.Get(0)).account_type);
   end else begin
     ebSignerAccount.text := '';
     ebChangeName.Text := '';
@@ -759,7 +759,7 @@ begin
       ebSenderAccount.Text := TAccountComp.AccountNumberToAccountTxtNumber(SenderAccounts.Get(0));
       memoAccounts.Visible := false;
       ebSenderAccount.Visible := true;
-      balance := TNode.Node.Operations.SafeBoxTransaction.Account(SenderAccounts.Get(0)).balance;
+      balance := TNode.Node.GetMempoolAccount(SenderAccounts.Get(0)).balance;
     end else begin
       // Multiple sender accounts
       lblAccountCaption.Caption := 'Accounts';
@@ -767,7 +767,7 @@ begin
       ebSenderAccount.Visible := false;
       accountstext := '';
       for i := 0 to SenderAccounts.Count - 1 do begin
-         acc := TNode.Node.Operations.SafeBoxTransaction.Account(SenderAccounts.Get(i));
+         acc := TNode.Node.GetMempoolAccount(SenderAccounts.Get(i));
          balance := balance + acc.balance;
          if (accountstext<>'') then accountstext:=accountstext+'; ';
          accountstext := accountstext+TAccountComp.AccountNumberToAccountTxtNumber(acc.account)+' ('+TAccountComp.FormatMoney(acc.balance)+')';
@@ -820,7 +820,7 @@ begin
       errors := 'Invalid account number';
       exit;
     end;
-    AccountToBuy := FNode.Operations.SafeBoxTransaction.Account(c);
+    AccountToBuy := FNode.GetMempoolAccount(c);
     If not TAccountComp.IsAccountForSale(AccountToBuy.accountInfo) then begin
       errors := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(c)+' is not for sale';
       exit;
@@ -882,7 +882,7 @@ begin
       errors := 'Signer account does not exists '+TAccountComp.AccountNumberToAccountTxtNumber(auxC);
       exit;
     end;
-    SignerAccount := FNode.Operations.SafeBoxTransaction.Account(auxC);
+    SignerAccount := FNode.GetMempoolAccount(auxC);
     if (TAccountComp.IsAccountLocked(SignerAccount.accountInfo,FNode.Bank.BlocksCount)) then begin
       errors := 'Signer account '+TAccountComp.AccountNumberToAccountTxtNumber(SignerAccount.account)+' is locked until block '+IntToStr(SignerAccount.accountInfo.locked_until_block);
       exit;
@@ -981,7 +981,7 @@ begin
         errors := 'Signer account does not exists '+TAccountComp.AccountNumberToAccountTxtNumber(auxC);
         exit;
       end;
-      SignerAccount := FNode.Operations.SafeBoxTransaction.Account(auxC);
+      SignerAccount := FNode.GetMempoolAccount(auxC);
       if (TAccountComp.IsAccountLocked(SignerAccount.accountInfo,FNode.Bank.BlocksCount)) then begin
         errors := 'Signer account '+TAccountComp.AccountNumberToAccountTxtNumber(SignerAccount.account)+' is locked until block '+IntToStr(SignerAccount.accountInfo.locked_until_block);
         exit;
@@ -1027,7 +1027,7 @@ begin
       errors := 'Signer account does not exists '+TAccountComp.AccountNumberToAccountTxtNumber(auxC);
       exit;
     end;
-    SignerAccount := FNode.Operations.SafeBoxTransaction.Account(auxC);
+    SignerAccount := FNode.GetMempoolAccount(auxC);
     if (TAccountComp.IsAccountLocked(SignerAccount.accountInfo,FNode.Bank.BlocksCount)) then begin
       errors := 'Signer account '+TAccountComp.AccountNumberToAccountTxtNumber(SignerAccount.account)+' is locked until block '+IntToStr(SignerAccount.accountInfo.locked_until_block);
       exit;
@@ -1199,7 +1199,7 @@ begin
         errors := 'Signer account does not exists '+TAccountComp.AccountNumberToAccountTxtNumber(auxC);
         exit;
       end;
-      SignerAccount := FNode.Operations.SafeBoxTransaction.Account(auxC);
+      SignerAccount := FNode.GetMempoolAccount(auxC);
       // Seller
       If Not TAccountComp.AccountTxtNumberToAccountNumber(ebSellerAccount.Text,auxC) then begin
         errors := 'Invalid seller account';
@@ -1214,7 +1214,7 @@ begin
         exit;
       end;
 
-      SellerAccount := FNode.Operations.SafeBoxTransaction.Account(auxC);
+      SellerAccount := FNode.GetMempoolAccount(auxC);
       if rbListAccountForPrivateSale.Checked then begin
         lblSaleNewOwnerPublicKey.Enabled := true;
         ebSaleNewOwnerPublicKey.Enabled := true;
@@ -1275,7 +1275,7 @@ begin
     lblTransactionErrors.Caption := errors;
     exit;
   end;
-  DestAccount := TNode.Node.Operations.SafeBoxTransaction.Account(c);
+  DestAccount := TNode.Node.GetMempoolAccount(c);
   if SenderAccounts.Count=1 then begin
     if not TAccountComp.TxtToMoney(ebAmount.Text,amount) then begin
       errors := 'Invalid amount ('+ebAmount.Text+')';
@@ -1322,7 +1322,7 @@ begin
     if (rbEncryptedWithOldEC.Checked) then begin
       // Use sender
       errors := 'Error encrypting';
-      account := FNode.Operations.SafeBoxTransaction.Account(SenderAccount.account);
+      account := FNode.GetMempoolAccount(SenderAccount.account);
       TPCEncryption.DoPascalCoinECIESEncrypt(account.accountInfo.accountKey,TEncoding.ANSI.GetBytes(payload_u),payload_encrypted);
       valid := Length(payload_encrypted)>0;
     end else if (rbEncryptedWithEC.Checked) then begin
@@ -1358,7 +1358,7 @@ begin
           errors := 'Invalid payload encrypted account number: '+TAccountComp.AccountNumberToAccountTxtNumber(dest_account_number);
           exit;
         end;
-        account := FNode.Operations.SafeBoxTransaction.Account(dest_account_number);
+        account := FNode.GetMempoolAccount(dest_account_number);
         TPCEncryption.DoPascalCoinECIESEncrypt(account.accountInfo.accountKey,TEncoding.ANSI.GetBytes(payload_u),payload_encrypted);
         valid := Length(payload_encrypted)>0;
       end else if (PageControlOpType.ActivePage=tsChangePrivateKey) then begin

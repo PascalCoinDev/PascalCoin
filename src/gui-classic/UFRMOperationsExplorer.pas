@@ -604,11 +604,17 @@ begin
 end;
 
 procedure TFRMOperationsExplorer.SetSourceNode(AValue: TNode);
+var LLockedMempool : TPCOperationsComp;
 begin
   if FSourceNode=AValue then Exit;
   FSourceNode:=AValue;
   If Assigned(FSourceNode) then begin
-    FOperationsHashTree.CopyFromHashTree(FSourceNode.Operations.OperationsHashTree);
+    LLockedMempool := FSourceNode.LockMempoolRead;
+    try
+      FOperationsHashTree.CopyFromHashTree(LLockedMempool.OperationsHashTree);
+    finally
+      FSourceNode.UnlockMempoolRead;
+    end;
   end else FOperationsHashTree.ClearHastThree;
 end;
 

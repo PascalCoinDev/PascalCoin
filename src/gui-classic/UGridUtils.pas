@@ -482,7 +482,7 @@ begin
     n_acc := AccountNumber(ARow);
     if (n_acc>=0) then begin
       if (n_acc>=Node.Bank.AccountsCount) then account := CT_Account_NUL
-      else account := Node.Operations.SafeBoxTransaction.Account(n_acc);
+      else account := Node.GetMempoolAccount(n_acc);
       ndiff := Node.Bank.BlocksCount - account.updated_block;
       if (gdSelected in State) then
         If (gdFocused in State) then DrawGrid.Canvas.Brush.Color := clGradientActiveCaption
@@ -681,6 +681,7 @@ Var list : TList<Cardinal>;
   opc : TPCOperationsComp;
   bstart,bend : int64;
   LOperationsResume : TOperationsResumeList;
+  LLockedMempool : TPCOperationsComp;
 begin
   if Not Assigned(ANode) then exit;
   AList.Clear;
@@ -688,14 +689,19 @@ begin
     if (FOperationsGrid.MustShowAlwaysAnAccount) And (FOperationsGrid.AccountNumber<0) then exit;
 
     if FOperationsGrid.FPendingOperations then begin
-      for i := ANode.Operations.Count - 1 downto 0 do begin
-        Op := ANode.Operations.OperationsHashTree.GetOperation(i);
-        If TPCOperation.OperationToOperationResume(0,Op,True,Op.SignerAccount,OPR) then begin
-          OPR.NOpInsideBlock := i;
-          OPR.Block := ANode.Bank.BlocksCount;
-          OPR.Balance := ANode.Operations.SafeBoxTransaction.Account(Op.SignerAccount).balance;
-          AList.Add(OPR);
+      LLockedMempool := ANode.LockMempoolRead;
+      try
+        for i := LLockedMempool.Count - 1 downto 0 do begin
+          Op := LLockedMempool.OperationsHashTree.GetOperation(i);
+          If TPCOperation.OperationToOperationResume(0,Op,True,Op.SignerAccount,OPR) then begin
+            OPR.NOpInsideBlock := i;
+            OPR.Block := ANode.Bank.BlocksCount;
+            OPR.Balance := LLockedMempool.SafeBoxTransaction.Account(Op.SignerAccount).balance;
+            AList.Add(OPR);
+          end;
         end;
+      finally
+        ANode.UnlockMempoolRead;
       end;
     end else begin
       if FOperationsGrid.AccountNumber<0 then begin
@@ -745,15 +751,20 @@ begin
       end else begin
         list := TList<Cardinal>.Create;
         Try
-          ANode.Operations.OperationsHashTree.GetOperationsAffectingAccount(FOperationsGrid.AccountNumber,list);
-          for i := list.Count - 1 downto 0 do begin
-            Op := ANode.Operations.OperationsHashTree.GetOperation((list[i]));
-            If TPCOperation.OperationToOperationResume(0,Op,False,FOperationsGrid.AccountNumber,OPR) then begin
-              OPR.NOpInsideBlock := i;
-              OPR.Block := ANode.Operations.OperationBlock.block;
-              OPR.Balance := ANode.Operations.SafeBoxTransaction.Account(FOperationsGrid.AccountNumber).balance;
-              AList.Add(OPR);
+          LLockedMempool := ANode.LockMempoolRead;
+          try
+            LLockedMempool.OperationsHashTree.GetOperationsAffectingAccount(FOperationsGrid.AccountNumber,list);
+            for i := list.Count - 1 downto 0 do begin
+              Op := LLockedMempool.OperationsHashTree.GetOperation((list[i]));
+              If TPCOperation.OperationToOperationResume(0,Op,False,FOperationsGrid.AccountNumber,OPR) then begin
+                OPR.NOpInsideBlock := i;
+                OPR.Block := LLockedMempool.OperationBlock.block;
+                OPR.Balance := LLockedMempool.SafeBoxTransaction.Account(FOperationsGrid.AccountNumber).balance;
+                AList.Add(OPR);
+              end;
             end;
+          finally
+            ANode.UnlockMempoolRead;
           end;
         Finally
           list.Free;
@@ -931,6 +942,7 @@ end;
 
 procedure TOperationsGrid.OnNodeNewOperation(Sender: TObject);
 Var l : TList<Cardinal>;
+  LLockedMempool : TPCOperationsComp;
 begin
   Try
     if (AccountNumber<0) then begin
@@ -938,8 +950,13 @@ begin
     end else begin
       l := TList<Cardinal>.Create;
       Try
-        If Node.Operations.OperationsHashTree.GetOperationsAffectingAccount(AccountNumber,l)>0 then begin
-          if l.IndexOf(AccountNumber)>=0 then UpdateAccountOperations;
+        LLockedMempool := Node.LockMempoolRead;
+        try
+          If LLockedMempool.OperationsHashTree.GetOperationsAffectingAccount(AccountNumber,l)>0 then begin
+            if l.IndexOf(AccountNumber)>=0 then UpdateAccountOperations;
+          end;
+        finally
+          Node.UnlockMempoolRead;
         end;
       Finally
         l.Free;
