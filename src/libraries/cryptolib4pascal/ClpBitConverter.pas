@@ -392,12 +392,7 @@ class function TBitConverter.ToString(const value: TCryptoLibByteArray): String;
 var
   LowVal: Int32;
 begin
-
-{$IFDEF DELPHIXE2_UP}
   LowVal := System.Low(value);
-{$ELSE}
-  LowVal := 0;
-{$ENDIF DELPHIXE2_UP}
   result := ToString(value, LowVal);
 end;
 
@@ -428,8 +423,6 @@ begin
     b := value[Index];
     System.Inc(Index);
 
-    // chArray[Idx] := GetHexValue(b div 16);
-    // chArray[Idx + 1] := GetHexValue(b mod 16);
     chArray[Idx] := GetHexValue(b shr 4);
     chArray[Idx + 1] := GetHexValue(b and 15);
     chArray[Idx + 2] := '-';
@@ -437,11 +430,7 @@ begin
     System.Inc(Idx, 3);
   end;
 
-{$IFDEF DELPHIXE2_UP}
   LowVal := System.Low(chArray);
-{$ELSE}
-  LowVal := 0;
-{$ENDIF DELPHIXE2_UP}
   System.SetString(result, PChar(@chArray[LowVal]), System.Length(chArray) - 1);
 
 end;

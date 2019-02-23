@@ -100,11 +100,6 @@
 {$DEFINE HAS_UNITSCOPE}
 {$IFEND}
 
-// XE3 and Below
-{$IF CompilerVersion <= 24.0}
-{$DEFINE DELPHIXE3_DOWN}
-{$IFEND}
-
  // XE4 and Above
 {$IF CompilerVersion >= 25.0}
 {$DEFINE DELPHIXE4_UP}
