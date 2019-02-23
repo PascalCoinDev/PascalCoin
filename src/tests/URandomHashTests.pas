@@ -40,6 +40,7 @@ type
     procedure TestMemTransform8;
     procedure TestSHA2_256;
     procedure TestSHA2_384;
+    procedure TestSHA2_512;
     procedure TestSHA3_256;
     procedure TestSHA3_384;
     procedure TestSHA3_512;
@@ -1011,6 +1012,11 @@ end;
 procedure TRandomHashTest.TestSHA2_384;
 begin
   TestSubHash(THashFactory.TCrypto.CreateSHA2_384(), DATA_SHA2_384);
+end;
+
+procedure TRandomHashTest.TestSHA2_512;
+begin
+  TestSubHash(THashFactory.TCrypto.CreateSHA2_512(), DATA_SHA2_512);
 end;
 
 procedure TRandomHashTest.TestSHA3_256;
