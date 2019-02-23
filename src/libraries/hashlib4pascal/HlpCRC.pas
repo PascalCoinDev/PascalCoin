@@ -25,6 +25,7 @@ uses
 
 resourcestring
   SUnSupportedCRCType = 'UnSupported CRC Type: "%s"';
+  SWidthOutOfRange = 'Width Must be Between 3 and 64. "%d"';
 
 {$REGION 'CRC Standards'}
 
@@ -548,9 +549,9 @@ type
 
     FNames: THashLibStringArray;
     FWidth: Int32;
-    FPolynomial, FInit, FXorOut, FCheckValue, Fm_CRCMask, Fm_CRCHighBitMask,
-      Fm_hash: UInt64;
-    FReflectIn, FReflectOut, FIsTableGenerated: Boolean;
+    FPolynomial, FInitial, FOutputXor, FCheckValue, Fm_CRCMask,
+      Fm_CRCHighBitMask, Fm_hash: UInt64;
+    FIsInputReflected, FIsOutputReflected, FIsTableGenerated: Boolean;
 
     Fm_CRCTable: THashLibUInt64Array;
 
@@ -563,19 +564,19 @@ type
     procedure SetWidth(value: Int32); inline;
     function GetPolynomial: UInt64; inline;
     procedure SetPolynomial(value: UInt64); inline;
-    function GetInit: UInt64; inline;
-    procedure SetInit(value: UInt64); inline;
-    function GetReflectIn: Boolean; inline;
-    procedure SetReflectIn(value: Boolean); inline;
-    function GetReflectOut: Boolean; inline;
-    procedure SetReflectOut(value: Boolean); inline;
-    function GetXOROut: UInt64; inline;
-    procedure SetXOROut(value: UInt64); inline;
+    function GetInitial: UInt64; inline;
+    procedure SetInitial(value: UInt64); inline;
+    function GetIsInputReflected: Boolean; inline;
+    procedure SetIsInputReflected(value: Boolean); inline;
+    function GetIsOutputReflected: Boolean; inline;
+    procedure SetIsOutputReflected(value: Boolean); inline;
+    function GetOutputXor: UInt64; inline;
+    procedure SetOutputXor(value: UInt64); inline;
     function GetCheckValue: UInt64; inline;
     procedure SetCheckValue(value: UInt64); inline;
 
     procedure GenerateTable();
-    // tables work only for 8, 16, 24, 32 bit CRC
+    // tables work only for CRCs with width > 7
     procedure CalculateCRCbyTable(a_data: PByte; a_data_length, a_index: Int32);
     // fast bit by bit algorithm without augmented zero bytes.
     // does not use lookup table, suited for polynomial orders between 1...32.
@@ -587,10 +588,12 @@ type
     property Names: THashLibStringArray read GetNames write SetNames;
     property Width: Int32 read GetWidth write SetWidth;
     property Polynomial: UInt64 read GetPolynomial write SetPolynomial;
-    property Init: UInt64 read GetInit write SetInit;
-    property ReflectIn: Boolean read GetReflectIn write SetReflectIn;
-    property ReflectOut: Boolean read GetReflectOut write SetReflectOut;
-    property XOROut: UInt64 read GetXOROut write SetXOROut;
+    property Initial: UInt64 read GetInitial write SetInitial;
+    property IsInputReflected: Boolean read GetIsInputReflected
+      write SetIsInputReflected;
+    property IsOutputReflected: Boolean read GetIsOutputReflected
+      write SetIsOutputReflected;
+    property OutputXor: UInt64 read GetOutputXor write SetOutputXor;
     property CheckValue: UInt64 read GetCheckValue write SetCheckValue;
 
   strict protected
@@ -598,9 +601,9 @@ type
 
   public
 
-    constructor Create(_Width: Int32; _poly, _Init: UInt64;
-      _refIn, _refOut: Boolean; _XorOut, _check: UInt64;
-      const _Names: THashLibStringArray);
+    constructor Create(AWidth: Int32; APolynomial, AInitial: UInt64;
+      AIsInputReflected, AIsOutputReflected: Boolean;
+      AOutputXor, ACheckValue: UInt64; const ANames: THashLibStringArray);
 
     procedure Initialize(); override;
     procedure TransformBytes(const a_data: THashLibByteArray;
@@ -622,9 +625,9 @@ begin
   result := FCheckValue;
 end;
 
-function TCRC.GetInit: UInt64;
+function TCRC.GetInitial: UInt64;
 begin
-  result := FInit;
+  result := FInitial;
 end;
 
 function TCRC.GetNames: THashLibStringArray;
@@ -637,14 +640,14 @@ begin
   result := FPolynomial;
 end;
 
-function TCRC.GetReflectIn: Boolean;
+function TCRC.GetIsInputReflected: Boolean;
 begin
-  result := FReflectIn;
+  result := FIsInputReflected;
 end;
 
-function TCRC.GetReflectOut: Boolean;
+function TCRC.GetIsOutputReflected: Boolean;
 begin
-  result := FReflectOut;
+  result := FIsOutputReflected;
 end;
 
 function TCRC.GetWidth: Int32;
@@ -652,9 +655,9 @@ begin
   result := FWidth;
 end;
 
-function TCRC.GetXOROut: UInt64;
+function TCRC.GetOutputXor: UInt64;
 begin
-  result := FXorOut;
+  result := FOutputXor;
 end;
 
 procedure TCRC.SetCheckValue(value: UInt64);
@@ -662,9 +665,9 @@ begin
   FCheckValue := value;
 end;
 
-procedure TCRC.SetInit(value: UInt64);
+procedure TCRC.SetInitial(value: UInt64);
 begin
-  FInit := value;
+  FInitial := value;
 end;
 
 procedure TCRC.SetNames(const value: THashLibStringArray);
@@ -677,14 +680,14 @@ begin
   FPolynomial := value;
 end;
 
-procedure TCRC.SetReflectIn(value: Boolean);
+procedure TCRC.SetIsInputReflected(value: Boolean);
 begin
-  FReflectIn := value;
+  FIsInputReflected := value;
 end;
 
-procedure TCRC.SetReflectOut(value: Boolean);
+procedure TCRC.SetIsOutputReflected(value: Boolean);
 begin
-  FReflectOut := value;
+  FIsOutputReflected := value;
 end;
 
 procedure TCRC.SetWidth(value: Int32);
@@ -692,9 +695,9 @@ begin
   FWidth := value;
 end;
 
-procedure TCRC.SetXOROut(value: UInt64);
+procedure TCRC.SetOutputXor(value: UInt64);
 begin
-  FXorOut := value;
+  FOutputXor := value;
 end;
 
 function TCRC.GetName: String;
@@ -713,7 +716,7 @@ begin
   i := a_index;
   tmp := Fm_hash;
 
-  if (ReflectIn) then
+  if (IsInputReflected) then
   begin
     while Length > 0 do
     begin
@@ -751,7 +754,7 @@ begin
   while Length > 0 do
   begin
     c := UInt64(a_data[i]);
-    if (ReflectIn) then
+    if (IsInputReflected) then
     begin
       c := Reflect(c, 8);
     end;
@@ -777,8 +780,8 @@ function TCRC.Clone(): IHash;
 var
   HashInstance: TCRC;
 begin
-  HashInstance := TCRC.Create(Width, Polynomial, Init, ReflectIn, ReflectOut,
-    XOROut, CheckValue, System.Copy(Names));
+  HashInstance := TCRC.Create(Width, Polynomial, Initial, IsInputReflected,
+    IsOutputReflected, OutputXor, CheckValue, System.Copy(Names));
   HashInstance.Fm_CRCMask := Fm_CRCMask;
   HashInstance.Fm_CRCHighBitMask := Fm_CRCHighBitMask;
   HashInstance.Fm_hash := Fm_hash;
@@ -788,16 +791,22 @@ begin
   result.BufferSize := BufferSize;
 end;
 
-constructor TCRC.Create(_Width: Int32; _poly, _Init: UInt64;
-  _refIn, _refOut: Boolean; _XorOut, _check: UInt64;
-  const _Names: THashLibStringArray);
+constructor TCRC.Create(AWidth: Int32; APolynomial, AInitial: UInt64;
+  AIsInputReflected, AIsOutputReflected: Boolean;
+  AOutputXor, ACheckValue: UInt64; const ANames: THashLibStringArray);
 begin
+
+  if not(AWidth in [3 .. 64]) then
+  begin
+    raise EArgumentOutOfRangeHashLibException.CreateResFmt(@SWidthOutOfRange,
+      [AWidth]);
+  end;
 
   FIsTableGenerated := False;
 
   Inherited Create(-1, -1); // Dummy State
 
-  case _Width of
+  case AWidth of
     0 .. 7:
       begin
         Self.HashSize := 1;
@@ -824,14 +833,14 @@ begin
 
   end;
 
-  Names := _Names;
-  Width := _Width;
-  Polynomial := _poly;
-  Init := _Init;
-  ReflectIn := _refIn;
-  ReflectOut := _refOut;
-  XOROut := _XorOut;
-  CheckValue := _check;
+  Names := ANames;
+  Width := AWidth;
+  Polynomial := APolynomial;
+  Initial := AInitial;
+  IsInputReflected := AIsInputReflected;
+  IsOutputReflected := AIsOutputReflected;
+  OutputXor := AOutputXor;
+  CheckValue := ACheckValue;
 
 end;
 
@@ -1275,7 +1284,7 @@ begin
   while i < 256 do
   begin
     crc := UInt64(i);
-    if (ReflectIn) then
+    if (IsInputReflected) then
     begin
       crc := Reflect(crc, 8);
     end;
@@ -1291,7 +1300,7 @@ begin
       System.Inc(j);
     end;
 
-    if (ReflectIn) then
+    if (IsInputReflected) then
     begin
       crc := Reflect(crc, Width);
     end;
@@ -1308,7 +1317,7 @@ begin
   // initialize some bitmasks
   Fm_CRCMask := (((UInt64(1) shl (Width - 1)) - 1) shl 1) or 1;
   Fm_CRCHighBitMask := UInt64(1) shl (Width - 1);
-  Fm_hash := Init;
+  Fm_hash := Initial;
 
   if (Width > Delta) then // then use table
   begin
@@ -1318,7 +1327,7 @@ begin
       GenerateTable();
     end;
 
-    if (ReflectIn) then
+    if (IsInputReflected) then
       Fm_hash := Reflect(Fm_hash, Width);
 
   end;
@@ -1386,20 +1395,20 @@ begin
 
   if Width > Delta then
   begin
-    if (ReflectIn xor ReflectOut) then
+    if (IsInputReflected xor IsOutputReflected) then
     begin
       Fm_hash := Reflect(Fm_hash, Width);
     end;
   end
   else
   begin
-    if (ReflectOut) then
+    if (IsOutputReflected) then
     begin
       Fm_hash := Reflect(Fm_hash, Width);
     end;
   end;
 
-  Fm_hash := Fm_hash xor XOROut;
+  Fm_hash := Fm_hash xor OutputXor;
   Fm_hash := Fm_hash and Fm_CRCMask;
 
   if Width = 21 then // special case
