@@ -413,7 +413,7 @@ begin
       P^.method:=method;
       FPendingResponseMessages.Add(P);
     end;
-    TLog.NewLog(ltInfo,Classname,'Sending JSON: '+json.ToJSON(false));
+    {$IFDEF HIGHLOG}TLog.NewLog(ltInfo,Classname,'Sending JSON: '+json.ToJSON(false));{$ENDIF}
     stream := TMemoryStream.Create;
     try
       json.SaveToStream(stream);
@@ -565,7 +565,7 @@ begin
         P := Nil;
       end else begin
         i := l.Add(P);
-        TLog.NewLog(ltDebug,ClassName,'Added new job '+IntToStr(i+1)+'/'+IntToStr(l.Count));
+        {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,ClassName,'Added new job '+IntToStr(i+1)+'/'+IntToStr(l.Count));{$ENDIF}
       end;
     end;
     // Clean buffer jobs
@@ -588,7 +588,7 @@ begin
           if Not Active then exit;
           SendJobToMiner(P^.OperationsComp,l2[i] as TJSONRPCTcpIpClient,false,null);
         end;
-        TLog.NewLog(ltDebug,ClassName,'Sending job to miners: '+TPCOperationsComp.OperationBlockToText(P^.OperationsComp.OperationBlock)+' Cache blocks:'+Inttostr(l2.Count));
+        {$IFDEF HIGHLOG}TLog.NewLog(ltDebug,ClassName,'Sending job to miners: '+TPCOperationsComp.OperationBlockToText(P^.OperationsComp.OperationBlock)+' Cache blocks:'+Inttostr(l2.Count));{$ENDIF}
       Finally
         NetTcpIpClientsUnlock;
       End;
@@ -761,8 +761,8 @@ begin
             FMinerOperations.CopyFrom(LLockedMempool);
           end;
           //
-          TLog.NewLog(ltInfo,ClassName,Format('New miner operations:%d Hash:%s %s',
-            [FMinerOperations.OperationsHashTree.OperationsCount,TCrypto.ToHexaString(FMinerOperations.OperationsHashTree.HashTree),TCrypto.ToHexaString(FMinerOperations.OperationBlock.operations_hash)]));
+          {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('New miner operations:%d Hash:%s %s',
+            [FMinerOperations.OperationsHashTree.OperationsCount,TCrypto.ToHexaString(FMinerOperations.OperationsHashTree.HashTree),TCrypto.ToHexaString(FMinerOperations.OperationBlock.operations_hash)]));{$ENDIF}
         end else begin
           TLog.NewLog(ltDebug,ClassName,Format('No need to change Miner buffer. Operations:%d',[FMinerOperations.OperationsHashTree.OperationsCount]));
         end;
@@ -927,7 +927,7 @@ begin
     Try
       if l.count>0 then P := l[l.Count-1] // The last
       else begin
-        TLog.NewLog(ltInfo,ClassName,'Creating new job for miner');
+        //TLog.NewLog(ltInfo,ClassName,'Creating new job for miner');
         New(P);
         P^.SentDateTime := now;
         P^.SentMinTimestamp := TNetData.NetData.NetworkAdjustedTime.GetAdjustedTime;
@@ -983,7 +983,7 @@ begin
       Client.SendJSONRPCMethod(CT_PoolMining_Method_MINER_NOTIFY,params,Null);
     end;
 
-    TLog.NewLog(ltInfo,ClassName,
+    TLog.NewLog(ltdebug,ClassName,
       Format('Sending job %d to miner - Block:%d Ops:%d Target:%s PayloadStart:%s',
       [nJobs,Operations.OperationBlock.block,Operations.Count,IntToHex(Operations.OperationBlock.compact_target,8),Operations.OperationBlock.block_payload.ToPrintable]));
   Finally
@@ -1125,7 +1125,7 @@ Var method : String;
   mvfw : TMinerValuesForWork;
   prev_pow,proposed_pow : TRawBytes;
 begin
-  TLog.NewLog(ltInfo,ClassName,'Received JSON: '+json.ToJSON(false));
+  TLog.NewLog(ltdebug,ClassName,'Received JSON: '+json.ToJSON(false));
   params := Nil;
   params_as_object := Nil;
   params_as_array := Nil;
