@@ -903,7 +903,7 @@ Var
   tc : TTickCount;
   LBlocks : TList<TPCOperationsComp>;
   LTmpPCOperationsComp : TPCOperationsComp;
-  i,j, LProgressBlock, LProgressEndBlock : Integer;
+  i,j, LProgressBlock, LProgressEndBlock, LOpsInBlocks : Integer;
   LSafeboxTransaction : TPCSafeBoxTransaction;
 begin
   if FIsRestoringFromFile then begin
@@ -940,11 +940,13 @@ begin
           j := i + 99;
           // Load a batch of TPCOperationsComp;
           try
+            LOpsInBlocks := 0;
             while ((i<=max_block) and (i<=j)) do begin
               if Storage.BlockExists(i) then begin
                 LTmpPCOperationsComp := TPCOperationsComp.Create(Self);
                 if Storage.LoadBlockChainBlock(LTmpPCOperationsComp,i) then begin
                   LBlocks.Add(LTmpPCOperationsComp);
+                  inc(LOpsInBlocks, LTmpPCOperationsComp.Count);
                   inc(i);
                 end else begin
                   LTmpPCOperationsComp.Free;
@@ -954,11 +956,15 @@ begin
             end;
 
             if (LBlocks.Count=0) then Exit;
-            
+
+            if Assigned(restoreProgressNotify) then begin
+              restoreProgressNotify(Self,Format('Reading blocks from %d to %d with %d operations',[BlocksCount,i,LOpsInBlocks]),0,0);
+            end;
+
             TPCOperationsBlockValidator.MultiThreadValidateOperationsBlock(LBlocks);
             LSafeboxTransaction := TPCSafeBoxTransaction.Create(SafeBox);
             try
-              TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(LSafeboxTransaction,LBlocks);
+              TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(LSafeboxTransaction,LBlocks,restoreProgressNotify);
             finally
               LSafeboxTransaction.Free;
             end;
@@ -1957,7 +1963,7 @@ begin
     SafeBoxTransaction.Rollback;
     FPreviousUpdatedBlocks.Clear;
     //
-    TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(SafeBoxTransaction,OperationsHashTree);
+    TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(SafeBoxTransaction,OperationsHashTree,Nil);
     //
     for i := 0 to Count - 1 do begin
       If Not Operation[i].DoOperation(FPreviousUpdatedBlocks, SafeBoxTransaction,errors) then begin

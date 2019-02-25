@@ -60,15 +60,16 @@ type
     FSafeBoxTransaction : TPCSafeBoxTransaction;
     FValidatedOkCount : Integer;
     FValidatedErrorCount : Integer;
+    FProgressNotify : TProgressNotify;
   protected
     function GetNextOperation(AValidatorThread : TPCOperationsSignatureValidatorThread) : TPCOperation;
     procedure SetOperationCheckResult(AValidatorThread : TPCOperationsSignatureValidatorThread; APCOperation : TPCOperation; AValidated : Boolean);
   public
-    Constructor Create(ASafeBoxTransaction : TPCSafeBoxTransaction);
+    Constructor Create(ASafeBoxTransaction : TPCSafeBoxTransaction; AProgressNotify : TProgressNotify);
     destructor Destroy; override;
     function Validate(AOperationsList : TList<TPCOperation>) : Integer;
-    class procedure MultiThreadPreValidateSignatures(ASafeBoxTransaction : TPCSafeBoxTransaction; AOperationsHashTree : TOperationsHashTree); overload;
-    class procedure MultiThreadPreValidateSignatures(ASafeBoxTransaction : TPCSafeBoxTransaction; APCOperationsCompList: TList<TPCOperationsComp>); overload;
+    class procedure MultiThreadPreValidateSignatures(ASafeBoxTransaction : TPCSafeBoxTransaction; AOperationsHashTree : TOperationsHashTree; AProgressNotify : TProgressNotify); overload;
+    class procedure MultiThreadPreValidateSignatures(ASafeBoxTransaction : TPCSafeBoxTransaction; APCOperationsCompList: TList<TPCOperationsComp>; AProgressNotify : TProgressNotify); overload;
   End;
 
 implementation
@@ -82,13 +83,14 @@ var _Cpus : Integer = 0;
 
 { TPCOperationsSignatureValidator }
 
-constructor TPCOperationsSignatureValidator.Create(ASafeBoxTransaction: TPCSafeBoxTransaction);
+constructor TPCOperationsSignatureValidator.Create(ASafeBoxTransaction: TPCSafeBoxTransaction; AProgressNotify : TProgressNotify);
 begin
   FSafeBoxTransaction := ASafeBoxTransaction;
   FLastIndexOperations := -1;
   FLock := TPCCriticalSection.Create('');
   FValidatedOkCount := 0;
   FValidatedErrorCount := 0;
+  FProgressNotify := AProgressNotify;
 end;
 
 destructor TPCOperationsSignatureValidator.Destroy;
@@ -114,7 +116,7 @@ begin
 end;
 
 class procedure TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(
-  ASafeBoxTransaction: TPCSafeBoxTransaction; APCOperationsCompList: TList<TPCOperationsComp>);
+  ASafeBoxTransaction: TPCSafeBoxTransaction; APCOperationsCompList: TList<TPCOperationsComp>; AProgressNotify : TProgressNotify);
 var LList : TList<TPCOperation>;
   i : Integer;
   LMultiThreadValidator : TPCOperationsSignatureValidator;
@@ -132,7 +134,7 @@ begin
       APCOperationsCompList[i].OperationsHashTree.GetOperationsList(LList,True);
     end;
     LTC := TPlatform.GetTickCount;
-    LMultiThreadValidator := TPCOperationsSignatureValidator.Create(ASafeBoxTransaction);
+    LMultiThreadValidator := TPCOperationsSignatureValidator.Create(ASafeBoxTransaction,AProgressNotify);
     try
       LValidatedTotal := LMultiThreadValidator.Validate(LList);
       LValidatedOk := LMultiThreadValidator.FValidatedOkCount;
@@ -153,7 +155,7 @@ end;
 
 
 class procedure TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(
-  ASafeBoxTransaction: TPCSafeBoxTransaction; AOperationsHashTree: TOperationsHashTree);
+  ASafeBoxTransaction: TPCSafeBoxTransaction; AOperationsHashTree: TOperationsHashTree; AProgressNotify : TProgressNotify);
 var LMultiThreadValidator : TPCOperationsSignatureValidator;
   LValidatedOk, LValidatedError, LValidatedTotal : Integer;
   LTC : TTickCount;
@@ -166,7 +168,7 @@ begin
   if AOperationsHashTree.OperationsCount<_Cpus then Exit;   // If less than cpus, no need for multithreading...
 
   LTC := TPlatform.GetTickCount;
-  LMultiThreadValidator := TPCOperationsSignatureValidator.Create(ASafeBoxTransaction);
+  LMultiThreadValidator := TPCOperationsSignatureValidator.Create(ASafeBoxTransaction,AProgressNotify);
   try
     LList := TList<TPCOperation>.Create;
     Try
@@ -202,6 +204,25 @@ begin
 end;
 
 function TPCOperationsSignatureValidator.Validate(AOperationsList : TList<TPCOperation>) : Integer;
+var LLastTC : TTickCount;
+  procedure DoNotify;
+  var LMsg : String;
+    LCurPos,LTotal : Int64;
+  begin
+    if (Assigned(FProgressNotify)) and (TPlatform.GetElapsedMilliseconds(LLastTC)>200) then begin
+      LLastTC := TPlatform.GetTickCount;
+      FLock.Acquire;
+      try
+        LMsg := Format('Validating signatures %d/%d',[FLastIndexOperations,FOperationsList.Count]);
+        LCurPos := FLastIndexOperations;
+        LTotal := FOperationsList.Count;
+      finally
+        FLock.Release;
+      end;
+      //
+      FProgressNotify(Self,LMsg,LCurPos,LTotal);
+    end;
+  end;
 var LMaxThreads : Integer;
   LThreads : TList<TPCOperationsSignatureValidatorThread>;
   i,LTerminatedThreads : Integer;
@@ -232,7 +253,9 @@ begin
       LThreads[i].Suspended := False;
     end;
     // Step 3: Wait until error of finalized
+    LLastTC := TPlatform.GetTickCount;
     repeat
+      DoNotify;
       LTerminatedThreads := 0;
       for i := 0 to LThreads.Count-1 do begin
         if LThreads[i].Terminated then inc(LTerminatedThreads);
@@ -245,6 +268,7 @@ begin
       LThreads[i].WaitFor;
       LThreads[i].Free;
     end;
+    LThreads.Free;
   End;
   Result := FOperationsList.Count;
 end;

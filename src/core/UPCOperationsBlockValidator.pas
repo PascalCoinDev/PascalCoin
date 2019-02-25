@@ -190,6 +190,7 @@ begin
       LThreads[i].WaitFor;
       LThreads[i].Free;
     end;
+    LThreads.Free;
   End;
   AValidatedOkCount := FValidatedOkCount;
   AValidatedErrorCount := FValidatedErrorCount;

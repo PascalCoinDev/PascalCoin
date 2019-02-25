@@ -2948,7 +2948,7 @@ begin
       TPCOperationsBlockValidator.MultiThreadValidateOperationsBlock(LBlocks);
       LSafeboxTransaction := TPCSafeBoxTransaction.Create(TNode.Node.Bank.SafeBox);
       try
-        TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(LSafeboxTransaction,LBlocks);
+        TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(LSafeboxTransaction,LBlocks,Nil);
       finally
         LSafeboxTransaction.Free;
       end;
