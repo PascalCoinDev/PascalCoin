@@ -44,8 +44,8 @@ const
 
 
 function String2Hex(const Buffer: String): String;
-function Hex2Bytes(const AHexString: String): TBytes; overload;
 {$IFDEF UNITTESTS}
+function Hex2Bytes(const AHexString: String): TBytes; overload;
 function TryHex2Bytes(const AHexString: String; out ABytes : TBytes): boolean; overload;
 function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : String;
 {$ENDIF}
