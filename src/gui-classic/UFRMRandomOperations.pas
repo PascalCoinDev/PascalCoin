@@ -29,7 +29,7 @@ uses
   {$ENDIF}
   Classes, SysUtils,  Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, Menus, ActnList, UAccounts, UBlockChain, UNode, UCrypto, UBaseTypes,
-  UWallet, UConst, UTxMultiOperation, UOpTransaction, UThread;
+  UWallet, UConst, UTxMultiOperation, UOpTransaction, UThread, ULog;
 
 type
 
@@ -86,6 +86,7 @@ type
     FBankNotify : TPCBankNotify;
     FCurrOperationsComp : TPCOperationsComp;
     FRandomGeneratorThread : TRandomGeneratorThread;
+    FInternalLog : TLog;
     procedure SetSourceNode(AValue: TNode);
     procedure SetSourceWalletKeys(AValue: TWalletKeysExt);
     procedure NewLog(logTxt : String);
@@ -93,6 +94,7 @@ type
     procedure UpdateRandomGeneratorThread(DestroyOnly : Boolean);
     procedure OnRandomGeneratoThreadUpdated(Sender : TObject);
     function IsProcessingRandomOperations : Boolean;
+    procedure OnInternalLog(logtype : TLogType; Time : TDateTime; ThreadID : TThreadID; Const sender, logtext : String);
   public
     Property SourceNode : TNode read FSourceNode write SetSourceNode;
     Property SourceWalletKeys : TWalletKeysExt read FSourceWalletKeys write SetSourceWalletKeys;
@@ -116,8 +118,6 @@ implementation
 {$ELSE}
   {$R *.lfm}
 {$ENDIF}
-
-Uses ULog;
 
 { TRandomGeneratorThread }
 
@@ -429,6 +429,9 @@ begin
   FBankNotify.OnNewBlock:=OnBankNewBlock;
   FCurrOperationsComp := TPCOperationsComp.Create(Nil);
   FRandomGeneratorThread := Nil;
+  FInternalLog := TLog.Create(Self);
+  FInternalLog.ProcessGlobalLogs := False;
+  FInternalLog.OnNewLog := OnInternalLog;
   mLogs.Clear;
 end;
 
@@ -489,14 +492,19 @@ end;
 procedure TFRMRandomOperations.NewLog(logTxt: String);
 begin
   if length(logTxt)>300 then logTxt := Copy(logTxt,1,300)+'...';
-  
-  mLogs.Lines.Add(Format('%s %s',[FormatDateTime('hh:nn:ss.zzz',Now),logTxt]));
+  FInternalLog.NotifyNewLog(ltdebug,'',logTxt);
 end;
 
 procedure TFRMRandomOperations.OnBankNewBlock(Sender: TObject);
 begin
   NewLog(Format('Updating to new block %d',[FBankNotify.Bank.BlocksCount]));
   FCurrOperationsComp.SanitizeOperations;
+end;
+
+procedure TFRMRandomOperations.OnInternalLog(logtype: TLogType; Time: TDateTime;
+  ThreadID: TThreadID; const sender, logtext: String);
+begin
+  mLogs.Lines.Add(Format('%s %s',[FormatDateTime('hh:nn:ss.zzz',Now),logtext]));
 end;
 
 procedure TFRMRandomOperations.UpdateRandomGeneratorThread(DestroyOnly : Boolean);
