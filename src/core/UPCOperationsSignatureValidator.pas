@@ -69,6 +69,7 @@ type
     destructor Destroy; override;
     function Validate(AOperationsList : TList<TPCOperation>) : Integer;
     class procedure MultiThreadPreValidateSignatures(ASafeBoxTransaction : TPCSafeBoxTransaction; AOperationsHashTree : TOperationsHashTree; AProgressNotify : TProgressNotify); overload;
+    class procedure MultiThreadPreValidateSignatures(ASafeBoxTransaction : TPCSafeBoxTransaction; APCOperationsList : TList<TPCOperation>; AProgressNotify : TProgressNotify); overload;
     class procedure MultiThreadPreValidateSignatures(ASafeBoxTransaction : TPCSafeBoxTransaction; APCOperationsCompList: TList<TPCOperationsComp>; AProgressNotify : TProgressNotify); overload;
   End;
 
@@ -113,6 +114,35 @@ begin
   finally
     FLock.Release;
   end;
+end;
+
+class procedure TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(ASafeBoxTransaction: TPCSafeBoxTransaction;
+  APCOperationsList: TList<TPCOperation>; AProgressNotify: TProgressNotify);
+var
+  i : Integer;
+  LMultiThreadValidator : TPCOperationsSignatureValidator;
+  LValidatedOk, LValidatedError, LValidatedTotal : Integer;
+  LTC : TTickCount;
+begin
+  if _Cpus<=0 then begin
+    _Cpus := TLogicalCPUCount.GetLogicalCPUCount;
+  end;
+  if _Cpus<=1 then Exit;
+
+    LTC := TPlatform.GetTickCount;
+    LMultiThreadValidator := TPCOperationsSignatureValidator.Create(ASafeBoxTransaction,AProgressNotify);
+    try
+      LValidatedTotal := LMultiThreadValidator.Validate(APCOperationsList);
+      LValidatedOk := LMultiThreadValidator.FValidatedOkCount;
+      LValidatedError := LMultiThreadValidator.FValidatedErrorCount;
+      LTC := TPlatform.GetElapsedMilliseconds(LTC);
+      if (LValidatedTotal>0) and (LTC>0) and ((LValidatedOk>0) or (LValidatedError>0))  then begin
+        TLog.NewLog(ltdebug,ClassName,Format('Validated %d operations with %d signatures Ok and %d signatures Error in %d miliseconds avg %.2f op/sec',[LValidatedTotal,LValidatedOk,LValidatedError,LTC,LValidatedTotal*1000/LTC]));
+      end;
+    finally
+      LMultiThreadValidator.Free;
+    end;
+
 end;
 
 class procedure TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(
