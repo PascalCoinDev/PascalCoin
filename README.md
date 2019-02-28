@@ -34,11 +34,24 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
-### CURRENT DEVELOPMENT (4.0.3a)
+### CURRENT DEVELOPMENT (4.0.3b)
 - Major refactoring: 
   - Change TRawBytes from "AnsiString" to "TBytes" type
   - Do not use AnsiString type for simple string types, use String instead
-  - Allow usage of native CryptoLib4Pascal libraries that will disable usage of OpenSSL libraries (not actived by default)
+  - Usage of TList<T> type
+  - Allow compilation using Delphi 10.2 and multidevice (Firemonkey)
+- Core features
+  - Added CryptoLib4Pascal library that will allow to replace OpenSSL in a future for a Pascal pure native cryptographic suite (for testing purposes at this moment, not actived by default)
+  - Important log reduction
+  - Adding multithreading validation
+    - Multithreading validating Signatures
+    - Multithreading validating Blocks headers (TOperationBlock)
+- Fixed core bugs:
+  - Miner bug after loading blocks on start-up if last saved block was a checkpoint block
+- Gui-Classic
+  - Multithread on User Accounts to avoid freeze when updating data
+  - Fixed Minor bugs
+  
 
 ### Build 4.0.2 - 2019-01-08
 - Improvement speed (high performance): checking valid signature only once if operation is on mempool and was verified previously
