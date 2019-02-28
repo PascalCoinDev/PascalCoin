@@ -294,6 +294,7 @@ begin
         while (Not Terminated) and (i<FAccountsGridFilter.OrderedAccountsKeyList.Count)
           and ((FAccountsGridFilter.indexAccountsKeyList<0) or (FAccountsGridFilter.indexAccountsKeyList=i)) do begin
 
+          LNode.bank.SafeBox.StartThreadSafe;
           FAccountsGridFilter.OrderedAccountsKeyList.Lock; // Protection v4
           Try
             l := FAccountsGridFilter.OrderedAccountsKeyList.AccountKeyList[i];
@@ -312,6 +313,7 @@ begin
             end;
           finally
             FAccountsGridFilter.OrderedAccountsKeyList.Unlock;
+            LNode.Bank.SafeBox.EndThreadSave;
           end;
           inc(i);
         end;
