@@ -160,8 +160,11 @@ begin
   if _Cpus<=0 then begin
     _Cpus := TLogicalCPUCount.GetLogicalCPUCount;
   end;
-  LMaxThreads := _Cpus-1;
+  if (_Cpus>2) then LMaxThreads := _Cpus-1
+  else LMaxThreads := _Cpus;
   if (LMaxThreads<=0) then LMaxThreads := 1;
+  if (LMaxThreads>7) then LMaxThreads := 7;
+
   LThreads := TList<TPCOperationsBlockValidatorThread>.Create;
   Try
     // Init values
