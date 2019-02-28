@@ -3105,7 +3105,7 @@ begin
       end;
       antPos := sbStream.Position;
       TPCSafeBox.LoadSafeBoxStreamHeader(sbStream,sbHeader);
-      If sbHeader.safeBoxHash<>_safeboxHash then begin
+      If Not TBaseType.Equals(sbHeader.safeBoxHash,_safeboxHash) then begin
         DisconnectInvalidClient(false,Format('Invalid safeboxhash on GetSafeBox request (Real:%s > Requested:%s)',[TCrypto.ToHexaString(sbHeader.safeBoxHash),TCrypto.ToHexaString(_safeboxHash)]));
         exit;
       end;
