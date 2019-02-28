@@ -506,11 +506,11 @@ begin
   If (searchValues.inAccountKey.EC_OpenSSL_NID=0) AND (searchValues.inWalletKeys=Nil) And (searchValues.maxBal<0) And (searchValues.minBal<=0) And
      (Not searchValues.onlyForPrivateSaleToMe) And (Not searchValues.onlyForPublicSale) And (Not searchValues.onlyForSale) And
      (Length(searchValues.searchName)=0) then begin
-    FAccountsGrid.ShowAllAccounts:=True;
+    FAccountsGrid.AccountsGridDatasource := acds_Node;
     lblAccountsCount.Caption := IntToStr(FAccountsGrid.Node.Bank.SafeBox.AccountsCount);
     lblAccountsBalance.Caption := TAccountComp.FormatMoney(FAccountsGrid.AccountsBalance);
   end else begin
-    FAccountsGrid.ShowAllAccounts:=False;
+    FAccountsGrid.AccountsGridDatasource := acds_InternalList;
     FSearchThread.DoSearch(searchValues);
   end;
 end;
