@@ -35,7 +35,7 @@ Uses
   {$ELSE}Generics.Collections,Generics.Defaults{$ENDIF},
   UNetProtection;
 
-{$I config.inc}
+{$I ./../config.inc}
 
 Const
   CT_MagicRequest = $0001;
@@ -413,12 +413,13 @@ Type
     Procedure DisconnectInvalidClient(ItsMyself : Boolean; Const why : String);
     function GetClient: TNetTcpIpClient;
   protected
-    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     Procedure Send(NetTranferType : TNetTransferType; operation, errorcode : Word; request_id : Integer; DataBuffer : TStream);
+    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     Procedure SendError(NetTranferType : TNetTransferType; operation, request_id : Integer; error_code : Integer; const error_text : String);
   public
     Constructor Create(AOwner : TComponent); override;
     Destructor Destroy; override;
+    Procedure DoSend(ANetTranferType: TNetTransferType; AOperation, AErrorcode: Word; ARequest_id: Integer; ADataBuffer: TStream);
     Function DoSendAndWaitForResponse(operation: Word; RequestId: Integer; SendDataBuffer, ReceiveDataBuffer: TStream; MaxWaitTime : Cardinal; var HeaderData : TNetHeaderData) : Boolean;
     Function ConnectTo(ServerIP: String; ServerPort:Word) : Boolean;
     Property Connected : Boolean read GetConnected write SetConnected;
@@ -1005,7 +1006,8 @@ Var l : TList<TNetConnection>;
 begin
   l := FNetConnections.LockList;
   try
-    Result := ( l[index] );
+    if (index>=0) And (index<l.Count) then Result := ( l[index] )
+    else Result := Nil;
   finally
     FNetConnections.UnlockList;
   end;
@@ -3859,6 +3861,11 @@ begin
       DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(HeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
     end;
   end;
+end;
+
+procedure TNetConnection.DoSend(ANetTranferType: TNetTransferType; AOperation, AErrorcode: Word; ARequest_id: Integer; ADataBuffer: TStream);
+begin
+  Send(ANetTranferType, AOperation, AErrorcode, ARequest_id, ADataBuffer);
 end;
 
 function TNetConnection.DoSendAndWaitForResponse(operation: Word;

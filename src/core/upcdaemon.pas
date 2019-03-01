@@ -18,6 +18,8 @@ unit upcdaemon;
 
 {$mode objfpc}{$H+}
 
+{$I ./../config.inc}
+
 interface
 
 uses
@@ -90,6 +92,10 @@ Type
 
 
 implementation
+
+{$IFDEF TESTNET}
+uses UPCTNetDataExtraMessages;
+{$ENDIF}
 
 Var _FLog : TLog;
 
@@ -207,6 +213,9 @@ begin
       FWalletKeys.WalletFileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
       // Creating Node:
       FNode := TNode.Node;
+      {$IFDEF TESTNET}
+      TPCTNetDataExtraMessages.InitNetDataExtraMessages(FNode,TNetData.NetData,FWalletKeys);
+      {$ENDIF}
       // RPC Server
       InitRPCServer;
       Try
