@@ -233,6 +233,9 @@ type
     FBackgroundPanel : TPanel;
     FBackgroundLabel : TLabel;
     FMinersBlocksFound: Integer;
+    {$IFDEF TESTNET}
+    FLastAskForAccountTC : TTickCount;
+    {$ENDIF}
     procedure SetMinersBlocksFound(const Value: Integer);
     Procedure CheckIsReady;
     Procedure FinishedLoadingApp;
@@ -241,6 +244,7 @@ type
     {$IFDEF TESTNET}
     Procedure InitMenuForTesting;
     Procedure Test_RandomOperations(Sender: TObject);
+    Procedure Test_AskForFreeAccount(Sender: TObject);
     {$IFDEF TESTING_NO_POW_CHECK}
     Procedure Test_CreateABlock(Sender: TObject);
     {$ENDIF}
@@ -322,6 +326,7 @@ Uses UFolderHelper, UOpenSSL, UTime, UFileStorage,
   UFRMOperationsExplorer,
   {$IFDEF TESTNET}
   UFRMRandomOperations,
+  UPCTNetDataExtraMessages,
   {$ENDIF}
   UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText,
   USettings, UCommon, UPCOrderedLists;
@@ -443,6 +448,9 @@ begin
     TThreadActivate(FThreadActivate).Suspended := False;
     UpdateConfigChanged;
     UpdateNodeStatus;
+    {$IFDEF TESTNET}
+    TPCTNetDataExtraMessages.InitNetDataExtraMessages(FNode,TNetData.NetData,FWalletKeys);
+    {$ENDIF}
   Except
     On E:Exception do begin
       E.Message := 'An error occurred during initialization. Application cannot continue:'+#10+#10+E.Message+#10+#10+'Application will close...';
@@ -583,6 +591,9 @@ Var i : integer;
  sClientApp, sLastConnTime : String;
  strings, sNSC, sRS, sDisc : TStrings;
  hh,nn,ss,ms : Word;
+ {$IFDEF TESTNET}
+ LFoundAccounts : Integer;
+ {$ENDIF}
 begin
   Try
     if Not TNetData.NetData.NetConnections.TryLockList(100,l) then exit;
@@ -655,6 +666,25 @@ begin
   Finally
     FMustProcessNetConnectionUpdated := false;
   End;
+  {$IFDEF TESTNET}
+  // TESTNET ONLY: Will automatic ask for get an account to other nodes if I have not enough
+  if TPlatform.GetElapsedMilliseconds(FLastAskForAccountTC)<60000 then Exit; // 1 per minute
+  FLastAskForAccountTC := TPlatform.GetTickCount;
+  LFoundAccounts := 0;
+  FNode.Bank.SafeBox.StartThreadSafe;
+  try
+    for i := 0 to FWalletKeys.AccountsKeyList.Count-1 do begin
+      inc(LFoundAccounts,FWalletKeys.AccountsKeyList.AccountKeyList[i].Count);
+      if LFoundAccounts>5 then Break;
+    end;
+  finally
+    FNode.Bank.SafeBox.EndThreadSave;
+  end;
+  if LFoundAccounts<5 then begin
+    // Will only ask if I have less than 5 accounts
+    TPCTNetDataExtraMessages.AskForFreeAccount(GetAccountKeyForMiner);
+  end;
+  {$ENDIF}
 end;
 
 procedure TFRMWallet.CM_WalletChanged(var Msg: TMessage);
@@ -945,6 +975,10 @@ begin
   mi.Caption:='Create Random operations';
   mi.OnClick:=Test_RandomOperations;
   miAbout.Add(mi);
+  mi := TMenuItem.Create(MainMenu);
+  mi.Caption:='Ask for Free Account';
+  mi.OnClick:=Test_AskForFreeAccount;
+  miAbout.Add(mi);
 end;
 
 {$IFDEF TESTING_NO_POW_CHECK}
@@ -983,6 +1017,15 @@ begin
     FRM.Free;
   end;
 end;
+
+Procedure TFRMWallet.Test_AskForFreeAccount(Sender: TObject);
+var i : Integer;
+begin
+  i := TPCTNetDataExtraMessages.AskForFreeAccount(GetAccountKeyForMiner);
+  if i>0 then ShowMessage(Format('Asked for a free account to %d nodes...',[i]))
+  else ShowMessage('Sorry. No nodes available to ask for a free account');
+end;
+
 {$ENDIF}
 
 procedure TFRMWallet.Test_ShowPublicKeys(Sender: TObject);
@@ -1070,6 +1113,9 @@ begin
   {$IFDEF TESTNET}
   System.ReportMemoryLeaksOnShutdown := True; // Delphi memory leaks testing
   {$ENDIF}
+  {$ENDIF}
+  {$IFDEF TESTNET}
+  FLastAskForAccountTC := 0;
   {$ENDIF}
   FLastNodesCacheUpdatedTS := Now;
   FBackgroundPanel := Nil;
