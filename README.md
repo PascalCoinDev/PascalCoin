@@ -35,6 +35,8 @@ Also, consider a donation at PascalCoin development account: "0-10"
 ## History:  
 
 ### CURRENT DEVELOPMENT (4.0.3b)
+- TESTNET:
+  - Added functions to automatically receive new accounts for new installed fresh nodes
 - Major refactoring: 
   - Change TRawBytes from "AnsiString" to "TBytes" type
   - Do not use AnsiString type for simple string types, use String instead
