@@ -88,7 +88,7 @@ type
     function GetXOFSize: Int32;
     procedure SetXOFSize(a_xof_size_in_bits: Int32);
     property XOFSize: Int32 read GetXOFSize write SetXOFSize;
-    function SetXOFOutputSize(a_xof_size: Int32): IXOF;
+    function SetXOFOutputSize(a_xof_size_in_bits: Int32): IXOF;
   end;
 
 implementation
