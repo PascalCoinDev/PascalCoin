@@ -33,4 +33,5 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [24](PIP-0024.md)     | Account Data                                | Herman Schoenfeld            | Protocol       | Draft |
 | [26](PIP-0026.md)     | URI Scheme Proposal                                | Ugochukwu Mmaduekwe            | Front-End       | Draft |
 | [27](PIP-0027.md)     | E-PASA: Layer-2 Addresses                   | Herman Schoenfeld            | Front-End       | Draft |
+| [28](PIP-0028.md)     | E-OP: Layer-2 operation encoding standard for smart-contracts | Herman Schoenfeld            | Front-End       | Draft |
 
