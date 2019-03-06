@@ -478,7 +478,7 @@ Procedure Check_Safebox_Integrity(sb : TPCSafebox; title: String);
 implementation
 
 uses
-  ULog, UAccountKeyStorage, math, UCommon;
+  ULog, UAccountKeyStorage, math, UCommon, UPCOperationsBlockValidator;
 
 { This function is for testing purpose only.
   Will check if Account Names are well assigned and stored }
@@ -2685,16 +2685,24 @@ Var
   nPos,posOffsetZone : Int64;
   offsets : Array of Cardinal;
   sbHeader : TPCSafeBoxHeader;
-  tc : TTickCount;
+  tc, LStartTickCount : TTickCount;
   previous_Block : TBlockAccount;
   do_check_blockchain_info : Boolean;
   aux_errors : String;
+  LUseMultiThreadOperationsBlockValidator, LAddToMultiThreadOperationsBlockValidator : Boolean;
+  LPCOperationsBlockValidator : TPCOperationsBlockValidator;
+  LValidatedOPOk, LValidatedOPError, LValidatedOPPending : Integer;
 begin
+  LPCOperationsBlockValidator := Nil;
+  if checkAll then begin
+    LUseMultiThreadOperationsBlockValidator := TLogicalCPUCount.GetLogicalCPUCount>1;
+  end else LUseMultiThreadOperationsBlockValidator := False;
   If Assigned(FPreviousSafeBox) then Raise Exception.Create('Cannot loadSafeBoxFromStream on a Safebox in a Separate chain');
   if (previousCheckedSafebox = Self) then previousCheckedSafebox := Nil; // Protection
   tc := TPlatform.GetTickCount;
   StartThreadSafe;
   try
+    LStartTickCount := tc;
     Clear;
     Result := false;
     Try
@@ -2733,6 +2741,12 @@ begin
       FBufferBlocksHash.SetLength(sbHeader.blocksCount*32);
       errors := 'Corrupted stream';
       do_check_blockchain_info := Not Assigned(previousCheckedSafebox);
+      if checkAll then
+        LPCOperationsBlockValidator := TPCOperationsBlockValidator.Create
+      else LPCOperationsBlockValidator := Nil;
+      try
+        if Assigned(LPCOperationsBlockValidator) then
+          LPCOperationsBlockValidator.StartThreads;
       for iblock := 0 to sbHeader.blockscount-1 do begin
         if (Assigned(progressNotify)) and ((TPlatform.GetElapsedMilliseconds(tc)>=500)) then begin
           tc := TPlatform.GetTickCount;
@@ -2786,6 +2800,7 @@ begin
         errors := 'Corrupted stream reading block '+inttostr(iblock+1)+'/'+inttostr(sbHeader.blockscount);
         If TStreamOp.ReadAnsiString(Stream,block.block_hash)<0 then exit;
         If Stream.Read(block.accumulatedWork,SizeOf(block.accumulatedWork)) < SizeOf(block.accumulatedWork) then exit;
+
         if checkAll then begin
           if (Not do_check_blockchain_info) then begin
             // Only check if block not found on previous or different block
@@ -2801,14 +2816,19 @@ begin
               // For TESTNET increase speed purposes, will only check latests blocks
             if ((iblock + (CT_BankToDiskEveryNBlocks * 10)) >= sbHeader.blockscount) then begin
             {$ENDIF}
-              If not IsValidNewOperationsBlock(block.blockchainInfo,False,True,aux_errors) then begin
+              LAddToMultiThreadOperationsBlockValidator := (LUseMultiThreadOperationsBlockValidator) and (block.blockchainInfo.protocol_version>=CT_PROTOCOL_4) and (Assigned(LPCOperationsBlockValidator));
+              If not IsValidNewOperationsBlock(block.blockchainInfo,False,Not LAddToMultiThreadOperationsBlockValidator,aux_errors) then begin
                 errors := errors + ' > ' + aux_errors;
                 exit;
+              end;
+              if (LAddToMultiThreadOperationsBlockValidator) then begin
+                LPCOperationsBlockValidator.AddToValidate(block.blockchainInfo);
               end;
             {$IFDEF TESTNET}
             end;
             {$ENDIF}
           end;
+
           // STEP 2: Check if valid block hash
           if (Not TBaseType.Equals(CalcBlockHash(block,FCurrentProtocol>=CT_PROTOCOL_2),block.block_hash)) then begin
             errors := errors + ' > Invalid block hash '+inttostr(iblock+1)+'/'+inttostr(sbHeader.blockscount);
@@ -2838,6 +2858,24 @@ begin
         if (block.blockchainInfo.protocol_version>FCurrentProtocol) And (block.blockchainInfo.protocol_version = CT_PROTOCOL_4) then begin
           FCurrentProtocol := CT_PROTOCOL_4;
         end;
+      end;
+        if Assigned(LPCOperationsBlockValidator) then begin
+          repeat
+            LPCOperationsBlockValidator.GetStatus(LValidatedOPOk, LValidatedOPError, LValidatedOPPending);
+            if LValidatedOPError>0 then begin
+              LPCOperationsBlockValidator.FillErrors(errors);
+              Exit;
+            end;
+            if LValidatedOPPending>0 then begin
+              if (Assigned(progressNotify)) and ((TPlatform.GetElapsedMilliseconds(tc)>=500)) then begin
+                tc := TPlatform.GetTickCount;
+                progressNotify(Self,Format('Validating OperationBlock info %d/%d',[LValidatedOPOk,LValidatedOPOk+LValidatedOPPending]),LValidatedOPOk,LValidatedOPOk+LValidatedOPPending);
+              end;
+            end else Sleep(100);
+          until LValidatedOPPending<=0 ;
+        end;
+      finally
+        LPCOperationsBlockValidator.Free;
       end;
       if (Assigned(progressNotify)) then begin
         progressNotify(Self,'Checking Safebox integrity',sbHeader.blocksCount,sbHeader.blocksCount);
@@ -2881,6 +2919,8 @@ begin
   Finally
     EndThreadSave;
   end;
+  TLog.NewLog(ltdebug,ClassName,Format('Finalized read Safebox from blocks %d to %d (total %d blocks) in %.2f seconds',
+    [sbHeader.startBlock,sbHeader.endBlock,sbHeader.blocksCount,TPlatform.GetElapsedMilliseconds(LStartTickCount)/1000]));
 end;
 
 function TPCSafeBox.LoadSafeBoxFromStream(Stream: TStream; checkAll: Boolean; var LastReadBlock: TBlockAccount; var errors: String): Boolean;
