@@ -811,11 +811,11 @@ procedure TAccountsGrid.UpdateAccountsBalance;
 var i : Integer;
   LAcc : TAccount;
 begin
-  if Assigned(Node) and (AccountsGridDatasource=acds_InternalList) then begin
-    FAccountsBalance := 0;
+  if Assigned(Node) then begin
     case FAccountsGridDatasource of
       acds_Node: FAccountsBalance := Node.Bank.SafeBox.TotalBalance;
       acds_InternalList: begin
+        FAccountsBalance := 0;
         for i := 0 to FAccountsList.Count - 1 do begin
           LAcc := Node.Bank.SafeBox.Account( FAccountsList.Get(i) );
           inc(FAccountsBalance, LAcc.balance);

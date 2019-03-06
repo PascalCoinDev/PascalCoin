@@ -2049,9 +2049,10 @@ begin
     exit;
   end;
   LApplyfilter := (cbFilterAccounts.Checked) and ((FMinAccountBalance>0) Or ((FMaxAccountBalance<CT_MaxWalletAmount) and (FMaxAccountBalance>=0)));
-  if (Not cbExploreMyAccounts.Checked) And (not LApplyfilter) then
-    FAccountsGrid.AccountsGridDatasource := acds_Node
-  else begin
+  if (Not cbExploreMyAccounts.Checked) And (not LApplyfilter) then begin
+    FAccountsGrid.AccountsGridDatasource := acds_Node;
+    FAccountsGrid.UpdateData;
+  end else begin
     LFilters := FAccountsGrid.AccountsGridFilter;
     LFilters.MinBalance := FMinAccountBalance;
     LFilters.MaxBalance := FMaxAccountBalance;
