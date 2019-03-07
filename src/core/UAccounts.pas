@@ -2823,6 +2823,11 @@ begin
               end;
               if (LAddToMultiThreadOperationsBlockValidator) then begin
                 LPCOperationsBlockValidator.AddToValidate(block.blockchainInfo);
+                LPCOperationsBlockValidator.GetStatus(LValidatedOPOk, LValidatedOPError, LValidatedOPPending);
+                if LValidatedOPError>0 then begin
+                  LPCOperationsBlockValidator.FillErrors(errors);
+                  Exit;
+                end;
               end;
             {$IFDEF TESTNET}
             end;
