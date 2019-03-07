@@ -2870,8 +2870,8 @@ begin
               if (Assigned(progressNotify)) and ((TPlatform.GetElapsedMilliseconds(tc)>=500)) then begin
                 tc := TPlatform.GetTickCount;
                 progressNotify(Self,Format('Validating OperationBlock info %d/%d',[LValidatedOPOk,LValidatedOPOk+LValidatedOPPending]),LValidatedOPOk,LValidatedOPOk+LValidatedOPPending);
-              end;
-            end else Sleep(100);
+              end else Sleep(100)
+            end;
           until LValidatedOPPending<=0 ;
         end;
       finally
