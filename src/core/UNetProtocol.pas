@@ -1425,7 +1425,6 @@ function TNetData.FindConnectionByClientRandomValue(Sender: TNetConnection): TNe
 Var l : TList<TNetConnection>;
   i : Integer;
 begin
-  {$IFNDEF TESTNET}
   l := FNetConnections.LockList;
   try
     for i := 0 to L.Count - 1 do begin
@@ -1435,7 +1434,6 @@ begin
   finally
     FNetConnections.UnlockList;
   end;
-  {$ENDIF}
   Result := Nil;
 end;
 
