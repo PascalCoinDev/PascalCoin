@@ -275,6 +275,7 @@ type
     FMustProcessWalletChanged : Boolean;
     FMustProcessNetConnectionUpdated : Boolean;
     FThreadActivate : TObject;
+    FLastAccountsGridInvalidateTC : TTickCount;
     Procedure OnNewAccount(Sender : TObject);
     Procedure OnReceivedHelloMessage(Sender : TObject);
     Procedure OnNetStatisticsChanged(Sender : TObject);
@@ -1117,6 +1118,7 @@ begin
   {$IFDEF TESTNET}
   FLastAskForAccountTC := 0;
   {$ENDIF}
+  FLastAccountsGridInvalidateTC := TPlatform.GetTickCount;
   FLastNodesCacheUpdatedTS := Now;
   FBackgroundPanel := Nil;
   FBackgroundLabel := Nil;
@@ -2045,7 +2047,10 @@ begin
   if Not Assigned(FNode) then Exit;
 
   if Not RefreshData then begin
-    dgAccounts.Invalidate;
+    if TPlatform.GetElapsedMilliseconds(FLastAccountsGridInvalidateTC)>1000 then begin
+      FLastAccountsGridInvalidateTC := TPlatform.GetTickCount;
+      dgAccounts.Invalidate;
+    end;
     exit;
   end;
   LApplyfilter := (cbFilterAccounts.Checked) and ((FMinAccountBalance>0) Or ((FMaxAccountBalance<CT_MaxWalletAmount) and (FMaxAccountBalance>=0)));
