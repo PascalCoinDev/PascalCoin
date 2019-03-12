@@ -57,6 +57,7 @@ Type
     FAccountsGridFilter : TAccountsGridFilter;
     FBalance : Int64;
     FIsProcessing : Boolean;
+    FProcessedList : TOrderedCardinalList;
   protected
     procedure SynchronizedOnTerminated;
     procedure BCExecute; override;
@@ -271,7 +272,7 @@ uses
 { TAccountsGridUpdateThread }
 
 procedure TAccountsGridUpdateThread.BCExecute;
-Var Laccl, LacclTemp : TOrderedCardinalList;
+Var
   l : TOrderedCardinalList;
   i,j : Integer;
   c  : Cardinal;
@@ -283,10 +284,6 @@ begin
   FBalance := 0;
   LNode := FAccountsGrid.Node;
   try
-    Laccl := TOrderedCardinalList.Create;
-    Try
-      Laccl.Clear;
-
       if (Assigned(FAccountsGridFilter.OrderedAccountsKeyList)) then begin
         if (FAccountsGridFilter.indexAccountsKeyList<0) then i := 0
         else i := FAccountsGridFilter.indexAccountsKeyList;
@@ -302,11 +299,11 @@ begin
               LAccount := LNode.Bank.SafeBox.Account(l.Get(j));
               if LApplyfilter then begin
                 if (LAccount.balance>=FAccountsGridFilter.MinBalance) And ((FAccountsGridFilter.MaxBalance<0) Or (LAccount.balance<=FAccountsGridFilter.MaxBalance)) then begin
-                  Laccl.Add(LAccount.account);
+                  FProcessedList.Add(LAccount.account);
                   FBalance := FBalance + LAccount.balance;
                 end;
               end else begin
-                Laccl.Add(LAccount.account);
+                FProcessedList.Add(LAccount.account);
                 FBalance := FBalance + LAccount.balance;
               end;
               if Terminated then Exit;
@@ -322,26 +319,12 @@ begin
         while (c<LNode.Bank.SafeBox.AccountsCount) and (Not Terminated) do begin
           LAccount := LNode.Bank.SafeBox.Account(c);
           if (LAccount.balance>=FAccountsGridFilter.MinBalance) And ((FAccountsGridFilter.MaxBalance<0) Or (LAccount.balance<=FAccountsGridFilter.MaxBalance)) then begin
-            Laccl.Add(LAccount.account);
+            FProcessedList.Add(LAccount.account);
             FBalance := FBalance + LAccount.balance;
           end;
           inc(c);
         end;
       end;
-    Finally
-      try
-        if Not Terminated then begin
-          LacclTemp := FAccountsGrid.LockAccountsList;
-          try
-            LacclTemp.CopyFrom(Laccl);
-          finally
-            FAccountsGrid.UnlockAccountsList;
-          end;
-        end;
-      finally
-        Laccl.Free;
-      end;
-    End;
   Finally
     FisProcessing := False;
     if Not Terminated then
@@ -356,18 +339,29 @@ begin
   FAccountsGrid := AAccountsGrid;
   FAccountsGridFilter := AAccountsGridFilter;
   FisProcessing := True;
+  FProcessedList := TOrderedCardinalList.Create;
   Suspended := False;
 end;
 
 destructor TAccountsGridUpdateThread.Destroy;
 begin
+  FreeAndNil(FProcessedList);
   inherited;
 end;
 
 procedure TAccountsGridUpdateThread.SynchronizedOnTerminated;
+var LacclTemp : TOrderedCardinalList;
 begin
-  FAccountsGrid.FAccountsBalance := FBalance;
-  if Assigned(FAccountsGrid.FOnAccountsGridUpdatedData) then  FAccountsGrid.FOnAccountsGridUpdatedData(FAccountsGrid);
+  if Not Terminated then begin
+    FAccountsGrid.FAccountsBalance := FBalance;
+    LacclTemp := FAccountsGrid.LockAccountsList;
+    try
+      LacclTemp.CopyFrom( FProcessedList );
+    finally
+      FAccountsGrid.UnlockAccountsList;
+    end;
+    if Assigned(FAccountsGrid.FOnAccountsGridUpdatedData) then  FAccountsGrid.FOnAccountsGridUpdatedData(FAccountsGrid);
+  end;
 end;
 
 { TAccountsGrid }
