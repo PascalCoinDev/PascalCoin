@@ -395,7 +395,7 @@ begin
   if FBufferLastAccountNumber<>AAccountNumber then begin
     FBufferNodeAccountsCount := Node.Bank.AccountsCount;
     if (AAccountNumber>=FBufferNodeAccountsCount) then FBufferLastAccount := CT_Account_NUL
-    else Node.GetMempoolAccount(AAccountNumber);
+    else FBufferLastAccount := Node.GetMempoolAccount(AAccountNumber);
     FBufferNodeBlocksCount := Node.Bank.BlocksCount;
     FBufferLastAccountNumber := AAccountNumber;
   end;
