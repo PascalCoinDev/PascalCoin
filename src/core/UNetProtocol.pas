@@ -2630,7 +2630,7 @@ begin
   If ((FLastDataReceivedTS>0) Or ( NOT (Self is TNetServerClient)))
     and (TPlatform.GetElapsedMilliseconds(FLastHelloTS)>(1000*FRandomWaitSecondsSendHello)) then begin
     iPending := TNetData.NetData.PendingRequest(Self,ops);
-    If iPending>=2 then begin
+    If iPending>=3 then begin
       TLog.NewLog(ltDebug,Classname,'Pending requests without response... closing connection to '+ClientRemoteAddr+' > '+ops);
       Connected := false;
     end else begin
