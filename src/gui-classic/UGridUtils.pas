@@ -57,6 +57,7 @@ Type
     FAccountsGridFilter : TAccountsGridFilter;
     FBalance : Int64;
     FIsProcessing : Boolean;
+    FProcessedList : TOrderedCardinalList;
   protected
     procedure SynchronizedOnTerminated;
     procedure BCExecute; override;
@@ -81,8 +82,15 @@ Type
     FAccountsGridFilter: TAccountsGridFilter;
     FOnAccountsGridUpdatedData: TNotifyEvent;
     FAccountsGridDatasource: TAccountsGridDatasource;
+    //
+    FBufferLastAccountNumber : Integer;
+    FBufferLastAccount : TAccount;
+    FBufferNodeAccountsCount : Integer;
+    FBufferNodeBlocksCount : Integer;
+    //
     procedure SetDrawGrid(const Value: TDrawGrid);
     Procedure InitGrid;
+    Procedure InitGridRowCount;
     Procedure OnNodeNewOperation(Sender : TObject);
     procedure OnGridDrawCell(Sender: TObject; ACol, ARow: Longint; Rect: TRect; State: TGridDrawState);
     procedure SetNode(const Value: TNode);
@@ -95,6 +103,7 @@ Type
     procedure UpdateAccountsBalance;
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); Override;
+    procedure BufferGetAccount(AAccountNumber : Integer; var AAccount : TAccount; var ANodeBlocksCount, ANodeAccountsCount : Integer);
   public
     Constructor Create(AOwner : TComponent); override;
     Destructor Destroy; override;
@@ -271,7 +280,7 @@ uses
 { TAccountsGridUpdateThread }
 
 procedure TAccountsGridUpdateThread.BCExecute;
-Var Laccl, LacclTemp : TOrderedCardinalList;
+Var
   l : TOrderedCardinalList;
   i,j : Integer;
   c  : Cardinal;
@@ -283,10 +292,6 @@ begin
   FBalance := 0;
   LNode := FAccountsGrid.Node;
   try
-    Laccl := TOrderedCardinalList.Create;
-    Try
-      Laccl.Clear;
-
       if (Assigned(FAccountsGridFilter.OrderedAccountsKeyList)) then begin
         if (FAccountsGridFilter.indexAccountsKeyList<0) then i := 0
         else i := FAccountsGridFilter.indexAccountsKeyList;
@@ -302,11 +307,11 @@ begin
               LAccount := LNode.Bank.SafeBox.Account(l.Get(j));
               if LApplyfilter then begin
                 if (LAccount.balance>=FAccountsGridFilter.MinBalance) And ((FAccountsGridFilter.MaxBalance<0) Or (LAccount.balance<=FAccountsGridFilter.MaxBalance)) then begin
-                  Laccl.Add(LAccount.account);
+                  FProcessedList.Add(LAccount.account);
                   FBalance := FBalance + LAccount.balance;
                 end;
               end else begin
-                Laccl.Add(LAccount.account);
+                FProcessedList.Add(LAccount.account);
                 FBalance := FBalance + LAccount.balance;
               end;
               if Terminated then Exit;
@@ -322,26 +327,12 @@ begin
         while (c<LNode.Bank.SafeBox.AccountsCount) and (Not Terminated) do begin
           LAccount := LNode.Bank.SafeBox.Account(c);
           if (LAccount.balance>=FAccountsGridFilter.MinBalance) And ((FAccountsGridFilter.MaxBalance<0) Or (LAccount.balance<=FAccountsGridFilter.MaxBalance)) then begin
-            Laccl.Add(LAccount.account);
+            FProcessedList.Add(LAccount.account);
             FBalance := FBalance + LAccount.balance;
           end;
           inc(c);
         end;
       end;
-    Finally
-      try
-        if Not Terminated then begin
-          LacclTemp := FAccountsGrid.LockAccountsList;
-          try
-            LacclTemp.CopyFrom(Laccl);
-          finally
-            FAccountsGrid.UnlockAccountsList;
-          end;
-        end;
-      finally
-        Laccl.Free;
-      end;
-    End;
   Finally
     FisProcessing := False;
     if Not Terminated then
@@ -356,18 +347,29 @@ begin
   FAccountsGrid := AAccountsGrid;
   FAccountsGridFilter := AAccountsGridFilter;
   FisProcessing := True;
+  FProcessedList := TOrderedCardinalList.Create;
   Suspended := False;
 end;
 
 destructor TAccountsGridUpdateThread.Destroy;
 begin
+  FreeAndNil(FProcessedList);
   inherited;
 end;
 
 procedure TAccountsGridUpdateThread.SynchronizedOnTerminated;
+var LacclTemp : TOrderedCardinalList;
 begin
-  FAccountsGrid.FAccountsBalance := FBalance;
-  if Assigned(FAccountsGrid.FOnAccountsGridUpdatedData) then  FAccountsGrid.FOnAccountsGridUpdatedData(FAccountsGrid);
+  if Not Terminated then begin
+    FAccountsGrid.FAccountsBalance := FBalance;
+    LacclTemp := FAccountsGrid.LockAccountsList;
+    try
+      LacclTemp.CopyFrom( FProcessedList );
+    finally
+      FAccountsGrid.UnlockAccountsList;
+    end;
+    if Assigned(FAccountsGrid.FOnAccountsGridUpdatedData) then  FAccountsGrid.FOnAccountsGridUpdatedData(FAccountsGrid);
+  end;
 end;
 
 { TAccountsGrid }
@@ -385,6 +387,21 @@ begin
   end else if GridRow<=FAccountsList.Count then begin
     Result := (FAccountsList.Get(GridRow-1));
   end else Result := -1;
+end;
+
+procedure TAccountsGrid.BufferGetAccount(AAccountNumber: Integer;
+  var AAccount: TAccount; var ANodeBlocksCount, ANodeAccountsCount: Integer);
+begin
+  if FBufferLastAccountNumber<>AAccountNumber then begin
+    FBufferNodeAccountsCount := Node.Bank.AccountsCount;
+    if (AAccountNumber>=FBufferNodeAccountsCount) then FBufferLastAccount := CT_Account_NUL
+    else FBufferLastAccount := Node.GetMempoolAccount(AAccountNumber);
+    FBufferNodeBlocksCount := Node.Bank.BlocksCount;
+    FBufferLastAccountNumber := AAccountNumber;
+  end;
+  AAccount := FBufferLastAccount;
+  ANodeBlocksCount := FBufferNodeBlocksCount;
+  ANodeAccountsCount := FBufferNodeAccountsCount;
 end;
 
 constructor TAccountsGrid.Create(AOwner: TComponent);
@@ -417,6 +434,7 @@ begin
   FOnAccountsGridUpdatedData := Nil;
   FAccountsGridFilter := CT_TAccountsGridFilter_NUL;
   FAccountsGridDatasource := acds_Node;
+  FBufferLastAccountNumber := -1;
 end;
 
 destructor TAccountsGrid.Destroy;
@@ -430,7 +448,7 @@ end;
 function TAccountsGrid.GetAccountsCount: Integer;
 begin
   if Not Assigned(Node) then Exit(0);
-  
+
   case FAccountsGridDatasource of
     acds_Node: Result := Node.Bank.AccountsCount;
   else
@@ -447,15 +465,7 @@ procedure TAccountsGrid.InitGrid;
 Var i : Integer;
 begin
   if Not assigned(DrawGrid) then exit;
-  if FAccountsGridDatasource=acds_Node then begin
-    if Assigned(Node) then begin
-      if Node.Bank.AccountsCount<1 then DrawGrid.RowCount := 2
-      else DrawGrid.RowCount := Node.Bank.AccountsCount+1;
-    end else DrawGrid.RowCount := 2;
-  end else begin
-    if FAccountsList.Count<1 then DrawGrid.RowCount := 2
-    else DrawGrid.RowCount := FAccountsList.Count+1;
-  end;
+  InitGridRowCount;
   DrawGrid.FixedRows := 1;
   if Length(FColumns)=0 then DrawGrid.ColCount := 1
   else DrawGrid.ColCount := Length(FColumns);
@@ -469,8 +479,27 @@ begin
     {goColMoving, goEditing, }goTabs, goRowSelect, {goAlwaysShowEditor,}
     goThumbTracking{$IFnDEF FPC}, goFixedColClick, goFixedRowClick, goFixedHotTrack{$ENDIF}];
   if FAllowMultiSelect then DrawGrid.Options := DrawGrid.Options + [goRangeSelect];
+  FBufferLastAccountNumber := -1;
   FDrawGrid.Invalidate;
   if Assigned(FOnUpdated) then FOnUpdated(Self);
+end;
+
+procedure TAccountsGrid.InitGridRowCount;
+var LRowCount : Integer;
+begin
+  if Not assigned(DrawGrid) then exit;
+  if FAccountsGridDatasource=acds_Node then begin
+    if Assigned(Node) then begin
+      if Node.Bank.AccountsCount<1 then LRowCount := 2
+      else LRowCount := Node.Bank.AccountsCount+1;
+    end else LRowCount := 2;
+  end else begin
+    if FAccountsList.Count<1 then LRowCount := 2
+    else LRowCount := FAccountsList.Count+1;
+  end;
+  if DrawGrid.RowCount<>LRowCount then DrawGrid.RowCount:=LRowCount;
+  FBufferLastAccountNumber := -1;
+  FDrawGrid.Invalidate;
 end;
 
 function TAccountsGrid.IsUpdatingData: Boolean;
@@ -588,7 +617,8 @@ Begin
 end;
 {$ENDIF}
 
-procedure TAccountsGrid.OnGridDrawCell(Sender: TObject; ACol, ARow: Integer; Rect: TRect; State: TGridDrawState);
+procedure TAccountsGrid.OnGridDrawCell(Sender: TObject; ACol, ARow: Longint;
+  Rect: TRect; State: TGridDrawState);
   Function FromColorToColor(colorstart,colordest : Integer; step,totalsteps : Integer) : Integer;
   var sr,sg,sb,dr,dg,db : Byte;
     i : Integer;
@@ -611,6 +641,7 @@ Var C : TAccountColumn;
   n_acc : Int64;
   account : TAccount;
   ndiff : Cardinal;
+  LNodeBlocksCount,LNodeAccountsCount : Integer;
 begin
   if Not Assigned(Node) then exit;
 
@@ -628,9 +659,8 @@ begin
   end else begin
     n_acc := AccountNumber(ARow);
     if (n_acc>=0) then begin
-      if (n_acc>=Node.Bank.AccountsCount) then account := CT_Account_NUL
-      else account := Node.GetMempoolAccount(n_acc);
-      ndiff := Node.Bank.BlocksCount - account.updated_block;
+      BufferGetAccount(n_acc,account,LNodeBlocksCount,LNodeAccountsCount);
+      ndiff := LNodeBlocksCount - account.updated_block;
       if (gdSelected in State) then
         If (gdFocused in State) then DrawGrid.Canvas.Brush.Color := clGradientActiveCaption
         else DrawGrid.Canvas.Brush.Color := clGradientInactiveCaption
@@ -668,7 +698,7 @@ begin
           Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
         End;
         act_updated_state : Begin
-          if TAccountComp.IsAccountBlockedByProtocol(account.account,Node.Bank.BlocksCount) then begin
+          if TAccountComp.IsAccountBlockedByProtocol(account.account,LNodeBlocksCount) then begin
             DrawGrid.Canvas.Brush.Color := clRed;
           end else if ndiff=0 then begin
             DrawGrid.Canvas.Brush.Color := RGB(255,128,0);
@@ -692,7 +722,7 @@ begin
             // Show price for sale
             s := TAccountComp.FormatMoney(account.accountInfo.price);
             if TAccountComp.IsAccountForSaleAcceptingTransactions(account.accountInfo) then begin
-              if TAccountComp.IsAccountLocked(account.accountInfo,Node.Bank.BlocksCount) then begin
+              if TAccountComp.IsAccountLocked(account.accountInfo,LNodeBlocksCount) then begin
                 DrawGrid.Canvas.Font.Color := clNavy;
               end else begin
                 DrawGrid.Canvas.Font.Color := clRed;
@@ -713,6 +743,7 @@ end;
 
 procedure TAccountsGrid.OnNodeNewOperation(Sender: TObject);
 begin
+  FBufferLastAccountNumber := -1;
   If Assigned(FDrawGrid) then FDrawGrid.Invalidate;
 end;
 
@@ -804,7 +835,7 @@ end;
 procedure TAccountsGrid.UnlockAccountsList;
 begin
   UpdateAccountsBalance;
-  InitGrid;
+  InitGridRowCount;
 end;
 
 procedure TAccountsGrid.UpdateAccountsBalance;
@@ -837,7 +868,7 @@ begin
       end;
     end;
   end;
-  InitGrid;
+  InitGridRowCount;
   if Assigned(FOnAccountsGridUpdatedData) then FOnAccountsGridUpdatedData(Self);
 end;
 

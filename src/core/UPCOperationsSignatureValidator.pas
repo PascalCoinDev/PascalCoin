@@ -310,13 +310,19 @@ end;
 
 procedure TPCOperationsSignatureValidatorThread.BCExecute;
 var LOperation : TPCOperation;
+    LIsValid : Boolean;
 begin
   repeat
     LOperation := FValidator.GetNextOperation(Self);
     if Assigned(LOperation) then begin
       if Not LOperation.HasValidSignature then begin
         // Only will validate if HasValidSignature is False (Not validated before)
-        FValidator.SetOperationCheckResult(Self,LOperation, LOperation.IsValidSignatureBasedOnCurrentSafeboxState(FValidator.FSafeBoxTransaction));
+        try
+          LIsValid := LOperation.IsValidSignatureBasedOnCurrentSafeboxState(FValidator.FSafeBoxTransaction);
+        except
+          LIsValid := False;
+        end;
+        FValidator.SetOperationCheckResult(Self,LOperation, LIsValid);
       end;
     end;
   until (Not Assigned(LOperation)) or (Terminated);
