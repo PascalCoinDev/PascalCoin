@@ -13,10 +13,10 @@ uses
   HlpHashLibTypes;
 
 resourcestring
-  SInvalidArgument =
+  SInvalidByteCount =
     '"bc (ByteCount)" Argument must be a value greater than zero.';
   SInvalidIndex = 'Invalid start or end index in the internal buffer';
-  SUninitializedInstance = '"IHash" instance is uninitialized';
+  SNotInitializedIHashInstance = '"IHash" instance is uninitialized';
   SEmptyPassword = 'Password can''t be empty';
   SEmptySalt = 'Salt can''t be empty';
   SIterationtooSmall = 'Iteration must be greater than zero.';
@@ -131,7 +131,7 @@ var
 begin
 
   if (bc <= 0) then
-    raise EArgumentOutOfRangeHashLibException.CreateRes(@SInvalidArgument);
+    raise EArgumentOutOfRangeHashLibException.CreateRes(@SInvalidByteCount);
 
   System.SetLength(LKey, bc);
 

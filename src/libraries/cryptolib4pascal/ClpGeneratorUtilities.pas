@@ -196,6 +196,8 @@ begin
 
   AddKgAlgorithm('BLOWFISH', ['1.3.6.1.4.1.3029.1.2']);
 
+  AddKgAlgorithm('SALSA20', []);
+
   //
   // HMac key generators
   //
@@ -244,7 +246,7 @@ begin
   AddKpgAlgorithm('ECDSA', []);
 
   AddDefaultKeySizeEntries(128, ['AES128', 'BLOWFISH', 'HMACMD2', 'HMACMD4',
-    'HMACMD5', 'HMACRIPEMD128']);
+    'HMACMD5', 'HMACRIPEMD128', 'SALSA20']);
   AddDefaultKeySizeEntries(160, ['HMACRIPEMD160', 'HMACSHA1']);
   AddDefaultKeySizeEntries(192, ['AES', 'AES192', 'HMACTIGER']);
   AddDefaultKeySizeEntries(224, ['HMACSHA3-224', 'HMACSHA224',

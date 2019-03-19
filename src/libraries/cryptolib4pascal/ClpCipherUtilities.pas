@@ -33,16 +33,21 @@ uses
   ClpIBlockCipherModes,
   ClpBufferedBlockCipher,
   ClpIBufferedBlockCipher,
+  ClpBufferedStreamCipher,
+  ClpIBufferedStreamCipher,
   ClpPaddedBufferedBlockCipher,
   ClpIPaddedBufferedBlockCipher,
   ClpNistObjectIdentifiers,
   ClpIAsn1Objects,
   ClpIBufferedCipher,
   ClpIBlockCipher,
+  ClpIStreamCipher,
   ClpAesEngine,
   ClpIAesEngine,
   ClpBlowfishEngine,
   ClpIBlowfishEngine,
+  ClpSalsa20Engine,
+  ClpISalsa20Engine,
   ClpIBlockCipherPadding;
 
 resourcestring
@@ -51,6 +56,8 @@ resourcestring
   SUnRecognizedCipher = '"Cipher " %s Not Recognised.';
   SSICModeWarning =
     'Warning: SIC-Mode Can Become a TwoTime-Pad if the Blocksize of the Cipher is Too Small. Use a Cipher With a Block Size of at Least 128 bits (e.g. AES)';
+  SModeAndPaddingNotNeededStreamCipher =
+    'Modes and Paddings Not Used for Stream Ciphers';
 
 type
 
@@ -63,7 +70,7 @@ type
 
   type
 {$SCOPEDENUMS ON}
-    TCipherAlgorithm = (AES, BLOWFISH);
+    TCipherAlgorithm = (AES, BLOWFISH, SALSA20);
     TCipherMode = (NONE, CBC, CFB, CTR, ECB, OFB, SIC);
     TCipherPadding = (NOPADDING, ISO10126PADDING, ISO10126D2PADDING,
       ISO10126_2PADDING, ISO7816_4PADDING, ISO9797_1PADDING, PKCS5,
@@ -191,6 +198,7 @@ var
   cipherPadding: TCipherPadding;
   cipherMode: TCipherMode;
   blockCipher: IBlockCipher;
+  streamCipher: IStreamCipher;
   padding: IBlockCipherPadding;
 begin
   if (algorithm = '') then
@@ -230,12 +238,29 @@ begin
     TCipherAlgorithm.BLOWFISH:
       begin
         blockCipher := TBlowfishEngine.Create() as IBlowfishEngine;
+      end;
+    TCipherAlgorithm.SALSA20:
+      begin
+        streamCipher := TSalsa20Engine.Create() as ISalsa20Engine;
       end
   else
     begin
       raise ESecurityUtilityCryptoLibException.CreateResFmt
         (@SUnRecognizedCipher, [algorithm]);
     end;
+  end;
+
+  if (streamCipher <> Nil) then
+  begin
+    if (System.Length(parts) > 1) then
+    begin
+      raise EArgumentCryptoLibException.CreateRes
+        (@SModeAndPaddingNotNeededStreamCipher);
+    end;
+
+    Result := TBufferedStreamCipher.Create(streamCipher)
+      as IBufferedStreamCipher;
+    Exit;
   end;
 
   padded := true;
