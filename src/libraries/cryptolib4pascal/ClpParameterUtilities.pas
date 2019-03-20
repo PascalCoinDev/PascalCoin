@@ -131,6 +131,7 @@ begin
     TNistObjectIdentifiers.IdAes256Cfb.ID,
     TNistObjectIdentifiers.IdAes256Ecb.ID,
     TNistObjectIdentifiers.IdAes256Ofb.ID]);
+  AddAlgorithm('SALSA20', []);
 
   AddBasicIVSizeEntries(16, ['AES', 'AES128', 'AES192', 'AES256']);
 

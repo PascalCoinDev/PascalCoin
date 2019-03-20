@@ -56,6 +56,7 @@ type
 
   strict protected
 
+    function GetAlgorithmName: String; virtual; abstract;
     function GetBufferSize: Int32; inline;
     procedure SetBufferSize(value: Int32); inline;
     function GetOnProgress: TBufferedCipherProgressEvent; inline;
@@ -122,7 +123,6 @@ type
 
     procedure Reset(); virtual; abstract;
 
-    function GetAlgorithmName: String; virtual; abstract;
     property AlgorithmName: String read GetAlgorithmName;
 
     /// <summary>

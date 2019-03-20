@@ -58,9 +58,6 @@
 // It does not affect the binary size or generated code
 {$DEFINITIONINFO ON}
 
-// Disable Hints.
-{$HINTS OFF}
-
 // Disable Overflow and RangeChecks.
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
@@ -81,11 +78,6 @@
 {$ZEROBASEDSTRINGS OFF}
 {$IFEND}
 
- // 2010 only
-{$IF CompilerVersion = 21.0}
-{$DEFINE DELPHI2010}
-{$IFEND}
-
   // 2010 and Above
 {$IF CompilerVersion >= 21.0}
 {$DEFINE DELPHI2010_UP}
@@ -96,36 +88,9 @@
 {$DEFINE DELPHIXE_UP}
 {$IFEND}
 
-  // XE2 and Above
-{$IF CompilerVersion >= 23.0}
-{$DEFINE DELPHIXE2_UP}
-{$DEFINE HAS_UNITSCOPE}
-{$IFEND}
-
-// XE3 and Below
-{$IF CompilerVersion <= 24.0}
-{$DEFINE DELPHIXE3_DOWN}
-{$IFEND}
-
-  // XE7 and Above
-{$IF CompilerVersion >= 28.0}
-{$DEFINE DELPHIXE7_UP}
-{$IFEND}
-
-  // 10.2 Tokyo and Above
-{$IF CompilerVersion >= 32.0}
-{$DEFINE DELPHI10.2_TOKYO_UP}
-{$IFEND}
-
   // 2010 and Above
 {$IFNDEF DELPHI2010_UP}
 {$MESSAGE ERROR 'This Library requires Delphi 2010 or higher.'}
-{$ENDIF}
-
-  // 10.2 Tokyo and Above
-{$IFDEF DELPHI10.2_TOKYO_UP}
-{$WARN COMBINING_SIGNED_UNSIGNED OFF}
-{$WARN COMBINING_SIGNED_UNSIGNED64 OFF}
 {$ENDIF}
 
 

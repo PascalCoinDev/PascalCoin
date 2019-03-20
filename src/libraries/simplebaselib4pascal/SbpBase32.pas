@@ -208,7 +208,6 @@ begin
 
   bitsLeft := bitsPerByte;
   currentByte := Int32(Byte(pInput^));
-  outputPad := 0;
 
   while (pInput <> pEnd) do
   begin

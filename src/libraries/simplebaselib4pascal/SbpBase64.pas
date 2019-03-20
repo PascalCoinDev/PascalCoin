@@ -221,7 +221,6 @@ begin
   if (padding = 0) then
   begin
     resultPtr^ := Byte(((temp1 and $03) shl 6) or temp2);
-    System.Inc(resultPtr);
   end;
 
 end;
@@ -316,7 +315,6 @@ begin
   else
   begin
     b3 := InputPtr^;
-    System.Inc(InputPtr);
   end;
 
   OutputPtr^ := table[(TBits.Asr32((b1 and $FC), 2)) + 1];
@@ -343,8 +341,6 @@ begin
   begin
     OutputPtr^ := table[(b3 and $3F) + 1]
   end;
-
-  System.Inc(OutputPtr);
 
   if (not Falphabet.PaddingEnabled) then
   begin

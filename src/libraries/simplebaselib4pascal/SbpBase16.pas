@@ -60,8 +60,6 @@ class function TBase16.Decode(const text: TSimpleBaseLibCharArray)
 
   function GetHexByte(c: Int32): Int32; inline;
   begin
-    Result := -1;
-
     case c of
       Ord('0') .. Ord('9'):
         Result := c - Ord('0');

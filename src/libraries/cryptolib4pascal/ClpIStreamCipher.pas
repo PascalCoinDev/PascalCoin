@@ -17,7 +17,7 @@
 
 unit ClpIStreamCipher;
 
-{$I ..\Include\CryptoLib.inc}
+{$I CryptoLib.inc}
 
 interface
 
@@ -28,7 +28,7 @@ uses
 type
   /// <remarks>the interface stream ciphers conform to.</remarks>
   IStreamCipher = interface(IInterface)
-   ['{A4366B7A-2BC4-4D92-AEF2-512B621CA746}']
+    ['{A4366B7A-2BC4-4D92-AEF2-512B621CA746}']
 
     /// <summary>The name of the algorithm this cipher implements.</summary>
     function GetAlgorithmName: String;
@@ -39,19 +39,35 @@ type
     /// <param name="parameters">The key or other data required by the cipher.</param>
     procedure Init(forEncryption: Boolean; const parameters: ICipherParameters);
 
-    /// <summary>Indicates whether this cipher can handle partial blocks.</summary>
-    function GetIsPartialBlockOkay: Boolean;
-    property IsPartialBlockOkay: Boolean read GetIsPartialBlockOkay;
+    /// <summary>encrypt/decrypt a single byte returning the result.</summary>
+    /// <param name="input">the byte to be processed.</param>
+    /// <returns>the result of processing the input byte.</returns>
+    function ReturnByte(input: Byte): Byte;
 
-    /// <summary>Process a block.</summary>
-    /// <param name="inBuf">The input buffer.</param>
-    /// <param name="inOff">The offset into <paramref>inBuf</paramref> that the input block begins.</param>
-    /// <param name="outBuf">The output buffer.</param>
-    /// <param name="outOff">The offset into <paramref>outBuf</paramref> to write the output block.</param>
-    /// <exception cref="DataLengthException">If input block is wrong size, or outBuf too small.</exception>
-    /// <returns>The number of bytes processed and produced.</returns>
-    function ProcessBlock(inBuf: TCryptoLibByteArray; inOff: Int32;
-      outBuf: TCryptoLibByteArray; outOff: Int32): Int32;
+    /// <summary>
+    /// Process a block of bytes from <c>input</c> putting the result into <c>
+    /// output</c>.
+    /// </summary>
+    /// <param name="inBytes">
+    /// The input byte array.
+    /// </param>
+    /// <param name="inOff">
+    /// The offset into <c>input</c> where the data to be processed starts.
+    /// </param>
+    /// <param name="len">
+    /// The number of bytes to be processed.
+    /// </param>
+    /// <param name="outBytes">
+    /// The output buffer the processed bytes go into.
+    /// </param>
+    /// <param name="outOff">
+    /// The offset into <c>output</c> the processed data starts at.
+    /// </param>
+    /// <exception cref="EDataLengthCryptoLibException">
+    /// If the output buffer is too small.
+    /// </exception>
+    procedure ProcessBytes(const inBytes: TCryptoLibByteArray;
+      inOff, len: Int32; const outBytes: TCryptoLibByteArray; outOff: Int32);
 
     /// <summary>
     /// Reset the cipher to the same state as it was after the last init (if there was one).

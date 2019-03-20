@@ -8,6 +8,7 @@ uses
   HlpHashLibTypes,
   HlpIKDF,
   HlpIHash,
+  HlpArgon2TypeAndVersion,
   HlpNullable;
 
 type
@@ -55,6 +56,14 @@ type
     ['{D7E23DFB-036D-44AD-AA0C-FB83C9970565}']
   end;
 
+  IPBKDF_Argon2 = Interface(IKDF)
+    ['{A2BF19D2-8CEE-45B7-93A1-110A63A0A5A7}']
+  end;
+
+  IPBKDF_Argon2NotBuildIn = Interface(IPBKDF_Argon2)
+    ['{666D652C-E4E5-4C72-B09F-145495D1A95D}']
+  end;
+
   IHMAC = Interface(IWithKey)
     ['{A6D4DCC6-F6C3-4110-8CA2-FBE85227676E}']
   end;
@@ -89,6 +98,57 @@ type
     procedure SetXOFSize(a_xof_size_in_bits: Int32);
     property XOFSize: Int32 read GetXOFSize write SetXOFSize;
     function SetXOFOutputSize(a_xof_size_in_bits: Int32): IXOF;
+  end;
+
+type
+  IArgon2Parameters = interface(IInterface)
+    ['{566D3381-57F1-4EE0-81EC-3DB21FF49FBC}']
+    procedure Clear();
+
+    function GetSalt(): THashLibByteArray;
+    property Salt: THashLibByteArray read GetSalt;
+    function GetSecret(): THashLibByteArray;
+    property Secret: THashLibByteArray read GetSecret;
+    function GetAdditional(): THashLibByteArray;
+    property Additional: THashLibByteArray read GetAdditional;
+    function GetIterations(): Int32;
+    property Iterations: Int32 read GetIterations;
+    function GetMemory(): Int32;
+    property Memory: Int32 read GetMemory;
+    function GetLanes(): Int32;
+    property Lanes: Int32 read GetLanes;
+    function GetType(): TArgon2Type;
+    property &Type: TArgon2Type read GetType;
+    function GetVersion(): TArgon2Version;
+    property Version: TArgon2Version read GetVersion;
+  end;
+
+type
+  IArgon2ParametersBuilder = interface(IInterface)
+    ['{DD0EF0C0-BAB8-4587-95FD-B9A266E67BC1}']
+
+    function WithParallelism(AParallelism: Int32): IArgon2ParametersBuilder;
+
+    function WithSalt(const ASalt: THashLibByteArray): IArgon2ParametersBuilder;
+
+    function WithSecret(const ASecret: THashLibByteArray)
+      : IArgon2ParametersBuilder;
+
+    function WithAdditional(const AAdditional: THashLibByteArray)
+      : IArgon2ParametersBuilder;
+
+    function WithIterations(AIterations: Int32): IArgon2ParametersBuilder;
+
+    function WithMemoryAsKB(AMemory: Int32): IArgon2ParametersBuilder;
+
+    function WithMemoryPowOfTwo(AMemory: Int32): IArgon2ParametersBuilder;
+
+    function WithVersion(AVersion: TArgon2Version): IArgon2ParametersBuilder;
+
+    procedure Clear();
+
+    function Build(): IArgon2Parameters;
+
   end;
 
 implementation

@@ -17,7 +17,7 @@
 
 unit ClpISignersEncodings;
 
-{$I ..\Include\CryptoLib.inc}
+{$I CryptoLib.inc}
 
 interface
 
@@ -79,11 +79,6 @@ type
       pos: Int32): TBigInteger;
     function EncodeValue(const n, x: TBigInteger): IDerInteger;
 
-    function Decode(const n: TBigInteger; const encoding: TCryptoLibByteArray)
-      : TCryptoLibGenericArray<TBigInteger>;
-
-    function Encode(const n, r, s: TBigInteger): TCryptoLibByteArray;
-
   end;
 
 type
@@ -95,11 +90,6 @@ type
       off, len: Int32): TBigInteger;
     procedure EncodeValue(const n, x: TBigInteger;
       const buf: TCryptoLibByteArray; off, len: Int32);
-
-    function Decode(const n: TBigInteger; const encoding: TCryptoLibByteArray)
-      : TCryptoLibGenericArray<TBigInteger>;
-
-    function Encode(const n, r, s: TBigInteger): TCryptoLibByteArray;
 
   end;
 

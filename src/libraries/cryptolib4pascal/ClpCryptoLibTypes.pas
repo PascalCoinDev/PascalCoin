@@ -55,6 +55,7 @@ type
   ESecurityUtilityCryptoLibException = class(ECryptoLibException);
   EAccessCryptoLibException = class(ECryptoLibException);
   EDataLengthCryptoLibException = class(ECryptoLibException);
+  EMaxBytesExceededCryptoLibException = class(ECryptoLibException);
   EOutputLengthCryptoLibException = class(ECryptoLibException);
   EBadBlockCryptoLibException = class(ECryptoLibException);
 

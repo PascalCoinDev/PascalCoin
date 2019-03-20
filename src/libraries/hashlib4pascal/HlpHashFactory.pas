@@ -90,7 +90,9 @@ uses
   // HMAC Unit
   HlpHMACNotBuildInAdapter,
   // PBKDF2_HMAC Unit
-  HlpPBKDF2_HMACNotBuildInAdapter;
+  HlpPBKDF2_HMACNotBuildInAdapter,
+  // PBKDF_Argon2 Unit
+  HlpPBKDF_Argon2NotBuildInAdapter;
 
 type
   THashFactory = class sealed(TObject)
@@ -417,18 +419,66 @@ type
     public
 
       /// <summary>
-      /// Initializes a new interface instance of the TPBKDF2_HMAC class using a password, a salt, a number of iterations and an Instance of an "IHash" to be used as an "IHMAC" hashing implementation to derive the key.
+      /// Initializes a new interface instance of the TPBKDF2_HMAC class
+      /// using a password, a salt, a number of iterations and an Instance of
+      /// an "IHash" to be used as an "IHMAC" hashing implementation to
+      /// derive the key.
       /// </summary>
-      /// <param name="a_hash">The name of the "IHash" implementation to be transformed to an "IHMAC" Instance so it can be used to derive the key.</param>
-      /// <param name="password">The password to derive the key for.</param>
-      /// <param name="salt">The salt to use to derive the key.</param>
-      /// <param name="iterations">The number of iterations to use to derive the key.</param>
-      /// <exception cref="EArgumentNilHashLibException">The password, salt or algorithm is Nil.</exception>
-      /// <exception cref="EArgumentHashLibException">The iteration is less than 1.</exception>
-
+      /// <param name="a_hash">
+      /// The name of the "IHash" implementation to be transformed to an
+      /// "IHMAC" Instance so it can be used to derive the key.
+      /// </param>
+      /// <param name="a_password">
+      /// The password to derive the key for.
+      /// </param>
+      /// <param name="a_salt">
+      /// The salt to use to derive the key.
+      /// </param>
+      /// <param name="a_iterations">
+      /// The number of iterations to use to derive the key.
+      /// </param>
+      /// <returns>
+      /// The PKDF2_HMAC KDF Interface Instance <br />
+      /// </returns>
+      /// <exception cref="EArgumentNilHashLibException">
+      /// The password, salt or algorithm is Nil.
+      /// </exception>
+      /// <exception cref="EArgumentHashLibException">
+      /// The iteration is less than 1.
+      /// </exception>
       class function CreatePBKDF2_HMAC(const a_hash: IHash;
         const a_password, a_salt: THashLibByteArray; a_iterations: UInt32)
         : IPBKDF2_HMAC; static;
+
+    end;
+
+
+    // ====================== TPBKDF_Argon2 ====================== //
+
+  type
+    TPBKDF_Argon2 = class sealed(TObject)
+
+    public
+
+      /// <summary>
+      /// Initializes a new interface instance of the TPBKDF_Argon2 class
+      /// using a password and an Argon2 parameter object to derive
+      /// the key.
+      /// </summary>
+      /// <param name="APassword">
+      /// The password to derive the key for. <br />
+      /// </param>
+      /// <param name="AArgon2Parameters">
+      /// The object to use for the Argon2 KDF
+      /// </param>
+      /// <returns>
+      /// The Argon2 KDF Interface Instance
+      /// </returns>
+      /// /// <exception cref="EArgumentNilHashLibException">
+      /// The password or builder instance is Nil.
+      /// </exception>
+      class function CreatePBKDF_Argon2(const APassword: THashLibByteArray;
+        const AArgon2Parameters: IArgon2Parameters): IPBKDF_Argon2; static;
 
     end;
 
@@ -1195,7 +1245,7 @@ class function TKDF.TPBKDF2_HMAC.CreatePBKDF2_HMAC(const a_hash: IHash;
 begin
 
   if not(System.Assigned(a_hash)) then
-    raise EArgumentNilHashLibException.CreateRes(@SUninitializedInstance);
+    raise EArgumentNilHashLibException.CreateRes(@SNotInitializedIHashInstance);
 
   if (a_password = Nil) then
     raise EArgumentNilHashLibException.CreateRes(@SEmptyPassword);
@@ -1208,6 +1258,22 @@ begin
 
   Result := TPBKDF2_HMACNotBuildInAdapter.Create(a_hash, a_password, a_salt,
     a_iterations);
+end;
+
+{ TKDF.TPBKDF_Argon2 }
+
+class function TKDF.TPBKDF_Argon2.CreatePBKDF_Argon2(const APassword
+  : THashLibByteArray; const AArgon2Parameters: IArgon2Parameters)
+  : IPBKDF_Argon2;
+begin
+  if not(System.Assigned(AArgon2Parameters)) then
+    raise EArgumentNilHashLibException.CreateRes
+      (@SArgon2ParameterBuilderNotInitialized);
+
+  if (APassword = Nil) then
+    raise EArgumentNilHashLibException.CreateRes(@SEmptyPassword);
+
+  Result := TPBKDF_Argon2NotBuildInAdapter.Create(APassword, AArgon2Parameters)
 end;
 
 end.
