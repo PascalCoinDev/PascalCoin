@@ -163,7 +163,7 @@ begin
     jsonObject.GetAsVariant('timestamp').Value:=Int64(ob.timestamp);
     jsonObject.GetAsVariant('target').Value:=Int64(ob.compact_target);
     jsonObject.GetAsVariant('nonce').Value:=Int64(ob.nonce);
-    jsonObject.GetAsVariant('payload').Value:=ob.block_payload;
+    jsonObject.GetAsVariant('payload').Value:=ob.block_payload.ToString;
     jsonObject.GetAsVariant('sbh').Value:=TCrypto.ToHexaString(ob.initial_safe_box_hash);
     jsonObject.GetAsVariant('oph').Value:=TCrypto.ToHexaString(ob.operations_hash);
     jsonObject.GetAsVariant('pow').Value:=TCrypto.ToHexaString(ob.proof_of_work);
@@ -294,7 +294,7 @@ Begin
     end
   else raise Exception.Create('ERROR DEV 20170425-1');
   end;
-  jsonObj.GetAsVariant('name').Value := account.name;
+  jsonObj.GetAsVariant('name').Value := account.name.ToPrintable;
   jsonObj.GetAsVariant('type').Value := account.account_type;
 end;
 
