@@ -1191,8 +1191,8 @@ begin
           If (op.SignerAccount=account) then begin
             opHashValid := TPCOperation.OperationHashValid(op,0);
             opHash_OLD := TPCOperation.OperationHash_OLD(op,0);
-            If (opHashValid=OperationHash) or
-              ((FBank.BlocksCount<CT_Protocol_Upgrade_v2_MinBlock) And (opHash_OLD=OperationHash)) then begin
+            If TBaseType.Equals(opHashValid,OperationHash) or
+              ((FBank.BlocksCount<CT_Protocol_Upgrade_v2_MinBlock) And (TBaseType.Equals(opHash_OLD,OperationHash))) then begin
               operation_block_index:=i;
               OperationComp.CopyFrom(LLockedMempool);
               Result := found;
@@ -1226,13 +1226,13 @@ begin
         If (aux_n_op=n_operation) then begin
           // Possible candidate or dead
           opHashValid := TPCOperation.OperationHashValid(op,initial_block);
-          If (opHashValid=OperationHash) then begin
+          If (TBaseType.Equals(opHashValid,OperationHash)) then begin
             operation_block_index:=i;
             Result := found;
             exit;
           end else if (block<CT_Protocol_Upgrade_v2_MinBlock) then begin
             opHash_OLD := TPCOperation.OperationHash_OLD(op,initial_block);
-            if (opHash_OLD=OperationHash) then begin
+            if (TBaseType.Equals(opHash_OLD,OperationHash)) then begin
               operation_block_index:=i;
               Result := found;
               exit;
