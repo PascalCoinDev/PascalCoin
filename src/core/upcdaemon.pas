@@ -25,7 +25,7 @@ interface
 uses
   Classes, SysUtils, daemonapp,
   SyncObjs, UOpenSSL, UCrypto, UNode, UFileStorage, UFolderHelper, UWallet, UConst, ULog, UNetProtocol,
-  IniFiles,
+  IniFiles, UBaseTypes,
   UThread, URPC, UPoolMining, UAccounts;
 
 Const
@@ -45,6 +45,7 @@ Const
   CT_INI_IDENT_MINER_MAX_ZERO_FEE_OPERATIONS  = 'RPC_SERVERMINER_MAX_ZERO_FEE_OPERATIONS';
   CT_INI_IDENT_LOWMEMORY = 'LOWMEMORY';
   CT_INI_IDENT_MINPENDINGBLOCKSTODOWNLOADCHECKPOINT = 'MINPENDINGBLOCKSTODOWNLOADCHECKPOINT';
+  CT_INI_IDENT_PEERCACHE = 'PEERCACHE';
 
 Type
   { TPCDaemonThread }
@@ -53,6 +54,8 @@ Type
   private
     FIniFile : TIniFile;
     FMaxBlockToRead: Int64;
+    FLastNodesCacheUpdatedTS : TTickCount;
+    procedure OnNetDataReceivedHelloMessage(Sender : TObject);
   protected
     Procedure BCExecute; override;
   public
@@ -100,6 +103,24 @@ uses UPCTNetDataExtraMessages;
 Var _FLog : TLog;
 
 { TPCDaemonThread }
+
+procedure TPCDaemonThread.OnNetDataReceivedHelloMessage(Sender: TObject);
+Var LNsarr : TNodeServerAddressArray;
+  i : Integer;
+  s : AnsiString;
+begin
+  If (TPlatform.GetElapsedMilliseconds(FLastNodesCacheUpdatedTS)<60000) then Exit; // Prevent continuous saving
+  FLastNodesCacheUpdatedTS := TPlatform.GetTickCount;
+  // Update node servers Peer Cache
+  LNsarr := TNetData.NetData.NodeServersAddresses.GetValidNodeServers(true,0);
+  s := '';
+  for i := low(LNsarr) to High(LNsarr) do begin
+    if (s<>'') then s := s+';';
+    s := s + LNsarr[i].ip+':'+IntToStr( LNsarr[i].port );
+  end;
+  FIniFile.WriteString(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_PEERCACHE,s);
+  TNode.Node.PeerCache := s;
+end;
 
 procedure TPCDaemonThread.BCExecute;
 var
@@ -225,6 +246,8 @@ begin
         TFileStorage(FNode.Bank.Storage).LowMemoryUsage := FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_LOWMEMORY,False);
         // By default daemon will not download checkpoint except if specified on INI file
         TNetData.NetData.MinFutureBlocksToDownloadNewSafebox := FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_MINPENDINGBLOCKSTODOWNLOADCHECKPOINT,0);
+        TNetData.NetData.OnReceivedHelloMessage:=@OnNetDataReceivedHelloMessage;
+        FNode.PeerCache:=  FIniFile.ReadString(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_PEERCACHE,'');
         // Reading database
         FNode.InitSafeboxAndOperations(MaxBlockToRead);
         FWalletKeys.SafeBox := FNode.Node.Bank.SafeBox;
@@ -261,6 +284,7 @@ end;
 constructor TPCDaemonThread.Create;
 begin
   inherited Create(True);
+  FLastNodesCacheUpdatedTS := TPlatform.GetTickCount;
   FIniFile := TIniFile.Create(ExtractFileDir(Application.ExeName)+PathDelim+'pascalcoin_daemon.ini');
   If FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_SAVELOGS,true) then begin
     _FLog.SaveTypes:=CT_TLogTypes_ALL;
