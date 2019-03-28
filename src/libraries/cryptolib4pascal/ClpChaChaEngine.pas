@@ -23,6 +23,7 @@ interface
 
 uses
   SysUtils,
+  ClpIStreamCipher,
   ClpIChaChaEngine,
   ClpSalsa20Engine,
   ClpConverters,
@@ -33,7 +34,7 @@ type
   /// <summary>
   /// Implementation of Daniel J. Bernstein's ChaCha stream cipher.
   /// </summary>
-  TChaChaEngine = class sealed(TSalsa20Engine, IChaChaEngine)
+  TChaChaEngine = class sealed(TSalsa20Engine, IChaChaEngine, IStreamCipher)
 
   strict private
     /// <summary>

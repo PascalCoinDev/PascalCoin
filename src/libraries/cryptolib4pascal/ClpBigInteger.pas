@@ -305,13 +305,14 @@ type
     class procedure ShiftRightOneInPlace(start: Int32;
       const mag: TCryptoLibInt32Array); static;
 
+{$IFNDEF _FIXINSIGHT_}
     /// <summary>
     /// returns x = x - y - we assume x is &gt;= y
     /// </summary>
     class function Subtract(xStart: Int32; const x: TCryptoLibInt32Array;
       yStart: Int32; const y: TCryptoLibInt32Array): TCryptoLibInt32Array;
       overload; static;
-
+{$ENDIF}
     class function doSubBigLil(const bigMag, lilMag: TCryptoLibInt32Array)
       : TCryptoLibInt32Array; static; inline;
 
@@ -2739,6 +2740,8 @@ begin
   Result := TBigInteger.Create(1, yVal, True);
 end;
 
+{$IFNDEF _FIXINSIGHT_}
+
 class function TBigInteger.Subtract(xStart: Int32;
   const x: TCryptoLibInt32Array; yStart: Int32; const y: TCryptoLibInt32Array)
   : TCryptoLibInt32Array;
@@ -2780,6 +2783,7 @@ begin
 
   Result := x;
 end;
+{$ENDIF}
 
 class procedure TBigInteger.MontgomeryReduce(const x, m: TCryptoLibInt32Array;
   mDash: UInt32);

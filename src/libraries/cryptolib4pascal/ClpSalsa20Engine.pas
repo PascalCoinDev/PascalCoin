@@ -25,10 +25,10 @@ uses
   SysUtils,
   ClpBits,
   ClpCheck,
+  ClpIStreamCipher,
   ClpISalsa20Engine,
   ClpIKeyParameter,
   ClpICipherParameters,
-  ClpParametersWithIV,
   ClpIParametersWithIV,
   ClpConverters,
   ClpCryptoLibTypes;
@@ -56,7 +56,7 @@ type
   /// <summary>
   /// Implementation of Daniel J. Bernstein's Salsa20 stream cipher, Snuffle 2005
   /// </summary>
-  TSalsa20Engine = class(TInterfacedObject, ISalsa20Engine)
+  TSalsa20Engine = class(TInterfacedObject, ISalsa20Engine, IStreamCipher)
 
   strict private
   const

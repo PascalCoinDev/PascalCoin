@@ -277,7 +277,6 @@ type
 
     function GetAlgorithmName: String; virtual;
     function GetIsPartialBlockOkay: Boolean; virtual;
-    function GetBlockSize(): Int32; virtual;
 
   public
 
@@ -300,6 +299,8 @@ type
       const output: TCryptoLibByteArray; outOff: Int32): Int32; virtual;
 
     procedure Reset(); virtual;
+
+    function GetBlockSize(): Int32; virtual;
 
     property AlgorithmName: String read GetAlgorithmName;
     property IsPartialBlockOkay: Boolean read GetIsPartialBlockOkay;

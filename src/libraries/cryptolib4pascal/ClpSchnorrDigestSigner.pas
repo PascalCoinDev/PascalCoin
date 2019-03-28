@@ -32,7 +32,6 @@ uses
   ClpBigInteger,
   ClpCryptoLibTypes,
   ClpIParametersWithRandom,
-  ClpSignersEncodings,
   ClpIAsymmetricKeyParameter,
   ClpICipherParameters,
   ClpISigner;

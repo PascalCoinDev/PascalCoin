@@ -103,11 +103,6 @@ type
     procedure EncodeValue(const n, x: TBigInteger;
       const buf: TCryptoLibByteArray; off, len: Int32);
 
-    function Decode(const n: TBigInteger; const encoding: TCryptoLibByteArray)
-      : TCryptoLibGenericArray<TBigInteger>;
-
-    function Encode(const n, r, s: TBigInteger): TCryptoLibByteArray;
-
   end;
 
 implementation

@@ -5,6 +5,7 @@ unit SbpBase58;
 interface
 
 uses
+  Math,
   SbpSimpleBaseLibTypes,
   SbpUtilities,
   SbpBase58Alphabet,
@@ -94,6 +95,7 @@ const
   reductionFactor = Int32(733);
 var
   textLen, numZeroes, outputLen, carry, resultLen, LowPoint: Int32;
+  tempDouble: Double;
   inputPtr, pEnd, pInput: PChar;
   outputPtr, pOutputEnd, pDigit, pOutput: PByte;
   FirstChar, c: Char;
@@ -130,7 +132,8 @@ begin
     Exit;
   end;
 
-  outputLen := ((textLen * reductionFactor) div 1000) + 1;
+  tempDouble := ((textLen * reductionFactor) / 1000.0) + 1;
+  outputLen := Int32(Round(tempDouble));
   table := Falphabet.ReverseLookupTable;
   System.SetLength(output, outputLen);
   outputPtr := PByte(output);

@@ -22,7 +22,9 @@ unit ClpIBlockCipherModes;
 interface
 
 uses
-  ClpIBlockCipher;
+  ClpIBlockCipher,
+  ClpIBufferedBlockCipher,
+  ClpCryptoLibTypes;
 
 type
   ICbcBlockCipher = interface(IBlockCipher)
@@ -81,6 +83,26 @@ type
     /// return the underlying block cipher that we are wrapping.
     /// </returns>
     function GetUnderlyingCipher(): IBlockCipher;
+
+  end;
+
+type
+  ICtsBlockCipher = interface(IBufferedBlockCipher)
+
+    ['{4D02FD0B-47D6-4914-B31F-5869FF364558}']
+
+    function GetOutputSize(inputLen: Int32): Int32;
+
+    function GetUpdateOutputSize(inputLen: Int32): Int32;
+
+    function ProcessByte(input: Byte; const output: TCryptoLibByteArray;
+      outOff: Int32): Int32;
+
+    function ProcessBytes(const input: TCryptoLibByteArray;
+      inOff, Length: Int32; const output: TCryptoLibByteArray;
+      outOff: Int32): Int32;
+
+    function DoFinal(const output: TCryptoLibByteArray; outOff: Int32): Int32;
 
   end;
 

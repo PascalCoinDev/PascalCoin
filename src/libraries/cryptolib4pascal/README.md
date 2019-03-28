@@ -1,5 +1,5 @@
 # CryptoLib4Pascal [![License](http://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Xor-el/CryptoLib4Pascal/blob/master/LICENSE)
-CryptoLib4Pascal is a Cryptographic Package for Delphi/FreePascal Compilers that provides at the moment support for creating, signing and verifying DSA, ECDSA, ECNR and ECSchnorr signatures using various curves and hashes, AES, Blowfish Encryption and Decryption (With various modes and paddings) and ECIES.
+CryptoLib4Pascal is a Cryptographic Package for Delphi/FreePascal Compilers that provides at the moment support for creating, signing and verifying DSA, ECDSA, ECNR and ECSchnorr signatures using various curves and hashes, AES, Rijndael, Blowfish and Speck Block Encryption and Decryption (With various modes and paddings), Salsa20, XSalsa20, ChaCha Stream Ciphers and ECIES.
 
 **Supported Elliptic Curves:**
 

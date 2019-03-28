@@ -39,7 +39,7 @@ uses
   ClpIParametersWithIV,
   ClpIKeyParser,
   ClpIEphemeralKeyPair,
-  ClpKDFParameters,
+  ClpKdfParameters,
   ClpIKdfParameters,
   ClpIIESWithCipherParameters,
   ClpConverters,

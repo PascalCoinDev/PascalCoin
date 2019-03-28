@@ -22,6 +22,7 @@ unit ClpXSalsa20Engine;
 interface
 
 uses
+  ClpIStreamCipher,
   ClpSalsa20Engine,
   ClpIXSalsa20Engine,
   ClpConverters,
@@ -38,7 +39,7 @@ type
   /// <remarks>
   /// XSalsa20 requires a 256 bit key, and a 192 bit nonce.
   /// </remarks>
-  TXSalsa20Engine = class sealed(TSalsa20Engine, IXSalsa20Engine)
+  TXSalsa20Engine = class sealed(TSalsa20Engine, IXSalsa20Engine, IStreamCipher)
 
   strict protected
     function GetAlgorithmName: String; override;

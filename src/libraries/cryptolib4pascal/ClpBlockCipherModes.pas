@@ -25,6 +25,7 @@ uses
   Math,
   SysUtils,
   ClpIBlockCipher,
+  ClpBufferedBlockCipher,
   ClpICipherParameters,
   ClpIParametersWithIV,
   ClpArrayUtils,
@@ -43,6 +44,9 @@ resourcestring
     'CTR/SIC mode requires IV no greater than: %u bytes';
   SInvalidTooSmallIVLength = 'CTR/SIC mode requires IV of at least: %u bytes';
 {$ENDIF}
+  SUnsupportedCipher = 'CtsBlockCipher Can Only Accept ECB or CBC Ciphers';
+  SNegativeInputLength = 'Can''t Have a Negative Input Length!';
+  SCTSDoFinalError = 'Need at Least One Block of Input For CTS';
 
 type
 
@@ -613,6 +617,98 @@ type
 
   end;
 
+type
+
+  /// <summary>
+  /// A Cipher Text Stealing (CTS) mode cipher. CTS allows block ciphers to
+  /// be used to produce cipher text which is the same outLength as the plain
+  /// text.
+  /// </summary>
+  TCtsBlockCipher = class sealed(TBufferedBlockCipher, ICtsBlockCipher)
+
+  strict private
+    FblockSize: Int32;
+
+  public
+
+    /// <summary>
+    /// Create a buffered block cipher that uses Cipher Text Stealing
+    /// </summary>
+    /// <param name="cipher">
+    /// the underlying block cipher this buffering object wraps.
+    /// </param>
+    constructor Create(const cipher: IBlockCipher);
+
+    /// <summary>
+    /// return the size of the output buffer required for an update plus a
+    /// doFinal with an input of len bytes.
+    /// </summary>
+    /// <param name="inputLen">
+    /// the outLength of the input.
+    /// </param>
+    /// <returns>
+    /// the space required to accommodate a call to update and doFinal with
+    /// length bytes of input.
+    /// </returns>
+    function GetOutputSize(inputLen: Int32): Int32; override;
+
+    /// <summary>
+    /// return the size of the output buffer required for an update an input
+    /// of len bytes.
+    /// </summary>
+    /// <param name="inputLen">
+    /// the outLength of the input.
+    /// </param>
+    /// <returns>
+    /// the space required to accommodate a call to update with length bytes
+    /// of input.
+    /// </returns>
+    function GetUpdateOutputSize(inputLen: Int32): Int32; override;
+
+    function ProcessByte(input: Byte; const output: TCryptoLibByteArray;
+      outOff: Int32): Int32; override;
+
+    /// <summary>
+    /// process an array of bytes, producing output if necessary.
+    /// </summary>
+    /// <param name="input">
+    /// the input byte array.
+    /// </param>
+    /// <param name="inOff">
+    /// the offset at which the input data starts.
+    /// </param>
+    /// <param name="Length">
+    /// the number of bytes to be copied out of the input array.
+    /// </param>
+    /// <param name="output">
+    /// the space for any output that might be produced.
+    /// </param>
+    /// <param name="outOff">
+    /// the offset from which the output will be copied.
+    /// </param>
+    /// <returns>
+    /// the number of output bytes copied to out.
+    /// </returns>
+    function ProcessBytes(const input: TCryptoLibByteArray; inOff, len: Int32;
+      const output: TCryptoLibByteArray; outOff: Int32): Int32; override;
+
+    /// <summary>
+    /// Process the last block in the buffer.
+    /// </summary>
+    /// <param name="output">
+    /// the array the block currently being held is copied into.
+    /// </param>
+    /// <param name="outOff">
+    /// the offset at which the copying starts.
+    /// </param>
+    /// <returns>
+    /// the number of output bytes copied to out.
+    /// </returns>
+    function DoFinal(const output: TCryptoLibByteArray; outOff: Int32)
+      : Int32; override;
+
+  end;
+
 implementation
 
 { TCbcBlockCipher }
@@ -631,17 +727,17 @@ end;
 function TCbcBlockCipher.DecryptBlock(const input: TCryptoLibByteArray;
   inOff: Int32; const outBytes: TCryptoLibByteArray; outOff: Int32): Int32;
 var
-  length, I: Int32;
+  Length, I: Int32;
   tmp: TCryptoLibByteArray;
 begin
-  if ((inOff + FblockSize) > System.length(input)) then
+  if ((inOff + FblockSize) > System.Length(input)) then
   begin
     raise EDataLengthCryptoLibException.CreateRes(@SInputBufferTooShort);
   end;
 
   System.Move(input[inOff], FcbcNextV[0], FblockSize * System.SizeOf(Byte));
 
-  length := Fcipher.ProcessBlock(input, inOff, outBytes, outOff);
+  Length := Fcipher.ProcessBlock(input, inOff, outBytes, outOff);
 
 
   // XOR the FcbcV and the output
@@ -666,7 +762,7 @@ function TCbcBlockCipher.EncryptBlock(const input: TCryptoLibByteArray;
 var
   I, &length: Int32;
 begin
-  if ((inOff + FblockSize) > System.length(input)) then
+  if ((inOff + FblockSize) > System.Length(input)) then
   begin
     raise EDataLengthCryptoLibException.CreateRes(@SInputBufferTooShort);
   end;
@@ -683,7 +779,7 @@ begin
 
   // copy ciphertext to FcbcV
 
-  System.Move(outBytes[outOff], FcbcV[0], System.length(FcbcV) *
+  System.Move(outBytes[outOff], FcbcV[0], System.Length(FcbcV) *
     System.SizeOf(Byte));
 
   result := &length;
@@ -691,8 +787,8 @@ end;
 
 procedure TCbcBlockCipher.Reset;
 begin
-  System.Move(FIV[0], FcbcV[0], System.length(FIV));
-  TArrayUtils.Fill(FcbcNextV, 0, System.length(FcbcNextV), Byte(0));
+  System.Move(FIV[0], FcbcV[0], System.Length(FIV));
+  TArrayUtils.Fill(FcbcNextV, 0, System.Length(FcbcNextV), Byte(0));
 
   Fcipher.Reset();
 end;
@@ -733,12 +829,12 @@ begin
   begin
     iv := ivParam.GetIV();
 
-    if (System.length(iv) <> FblockSize) then
+    if (System.Length(iv) <> FblockSize) then
     begin
       raise EArgumentCryptoLibException.CreateRes(@SInvalidIVLength);
     end;
 
-    System.Move(iv[0], FIV[0], System.length(iv) * System.SizeOf(Byte));
+    System.Move(iv[0], FIV[0], System.Length(iv) * System.SizeOf(Byte));
 
     Lparameters := ivParam.parameters;
   end;
@@ -789,12 +885,12 @@ function TCfbBlockCipher.DecryptBlock(const input: TCryptoLibByteArray;
 var
   I, count: Int32;
 begin
-  if ((inOff + FblockSize) > System.length(input)) then
+  if ((inOff + FblockSize) > System.Length(input)) then
   begin
     raise EDataLengthCryptoLibException.CreateRes(@SInputBufferTooShort);
   end;
 
-  if ((outOff + FblockSize) > System.length(outBytes)) then
+  if ((outOff + FblockSize) > System.Length(outBytes)) then
   begin
     raise EDataLengthCryptoLibException.CreateRes(@SOutputBufferTooShort);
   end;
@@ -804,13 +900,13 @@ begin
   //
   // change over the input block.
   //
-  count := (System.length(FcfbV) - FblockSize) * System.SizeOf(Byte);
+  count := (System.Length(FcfbV) - FblockSize) * System.SizeOf(Byte);
   if count > 0 then
   begin
     System.Move(FcfbV[FblockSize], FcfbV[0], count);
   end;
 
-  System.Move(input[inOff], FcfbV[(System.length(FcfbV) - FblockSize)],
+  System.Move(input[inOff], FcfbV[(System.Length(FcfbV) - FblockSize)],
     FblockSize * System.SizeOf(Byte));
 
   // XOR the FcfbV with the ciphertext producing the plaintext
@@ -828,12 +924,12 @@ function TCfbBlockCipher.EncryptBlock(const input: TCryptoLibByteArray;
 var
   I, count: Int32;
 begin
-  if ((inOff + FblockSize) > System.length(input)) then
+  if ((inOff + FblockSize) > System.Length(input)) then
   begin
     raise EDataLengthCryptoLibException.CreateRes(@SInputBufferTooShort);
   end;
 
-  if ((outOff + FblockSize) > System.length(outBytes)) then
+  if ((outOff + FblockSize) > System.Length(outBytes)) then
   begin
     raise EDataLengthCryptoLibException.CreateRes(@SOutputBufferTooShort);
   end;
@@ -850,14 +946,14 @@ begin
   //
   // change over the input block.
   //
-  count := (System.length(FcfbV) - FblockSize) * System.SizeOf(Byte);
+  count := (System.Length(FcfbV) - FblockSize) * System.SizeOf(Byte);
 
   if count > 0 then
   begin
     System.Move(FcfbV[FblockSize], FcfbV[0], count);
   end;
 
-  System.Move(outBytes[outOff], FcfbV[(System.length(FcfbV) - FblockSize)],
+  System.Move(outBytes[outOff], FcfbV[(System.Length(FcfbV) - FblockSize)],
     FblockSize * System.SizeOf(Byte));
 
   result := FblockSize;
@@ -865,7 +961,7 @@ end;
 
 procedure TCfbBlockCipher.Reset;
 begin
-  System.Move(FIV[0], FcfbV[0], System.length(FIV));
+  System.Move(FIV[0], FcfbV[0], System.Length(FIV));
 
   Fcipher.Reset();
 end;
@@ -905,9 +1001,9 @@ begin
   begin
     iv := ivParam.GetIV();
 
-    diff := System.length(FIV) - System.length(iv);
+    diff := System.Length(FIV) - System.Length(iv);
 
-    System.Move(iv[0], FIV[diff], System.length(iv) * System.SizeOf(Byte));
+    System.Move(iv[0], FIV[diff], System.Length(iv) * System.SizeOf(Byte));
     TArrayUtils.Fill(FIV, 0, diff, Byte(0));
 
     Lparameters := ivParam.parameters;
@@ -952,7 +1048,7 @@ end;
 
 procedure TOfbBlockCipher.Reset;
 begin
-  System.Move(FIV[0], FofbV[0], System.length(FIV));
+  System.Move(FIV[0], FofbV[0], System.Length(FIV));
 
   Fcipher.Reset();
 
@@ -994,13 +1090,13 @@ begin
   begin
     iv := ivParam.GetIV();
 
-    if (System.length(iv) < System.length(FIV)) then
+    if (System.Length(iv) < System.Length(FIV)) then
     begin
       // prepend the supplied IV with zeros (per FIPS PUB 81)
-      System.Move(iv[0], FIV[System.length(FIV) - System.length(iv)],
-        System.length(iv) * System.SizeOf(Byte));
+      System.Move(iv[0], FIV[System.Length(FIV) - System.Length(iv)],
+        System.Length(iv) * System.SizeOf(Byte));
 
-      for I := 0 to System.Pred(System.length(FIV) - System.length(iv)) do
+      for I := 0 to System.Pred(System.Length(FIV) - System.Length(iv)) do
       begin
         FIV[I] := 0;
       end;
@@ -1008,7 +1104,7 @@ begin
     end
     else
     begin
-      System.Move(iv[0], FIV[0], System.length(FIV) * System.SizeOf(Byte));
+      System.Move(iv[0], FIV[0], System.Length(FIV) * System.SizeOf(Byte));
     end;
 
     Lparameters := ivParam.parameters;
@@ -1029,12 +1125,12 @@ function TOfbBlockCipher.ProcessBlock(const input: TCryptoLibByteArray;
 var
   I, count: Int32;
 begin
-  if ((inOff + FblockSize) > System.length(input)) then
+  if ((inOff + FblockSize) > System.Length(input)) then
   begin
     raise EDataLengthCryptoLibException.CreateRes(@SInputBufferTooShort);
   end;
 
-  if ((outOff + FblockSize) > System.length(output)) then
+  if ((outOff + FblockSize) > System.Length(output)) then
   begin
     raise EDataLengthCryptoLibException.CreateRes(@SOutputBufferTooShort);
   end;
@@ -1054,14 +1150,14 @@ begin
   //
   // change over the input block.
   //
-  count := (System.length(FofbV) - FblockSize) * System.SizeOf(Byte);
+  count := (System.Length(FofbV) - FblockSize) * System.SizeOf(Byte);
 
   if count > 0 then
   begin
     System.Move(FofbV[FblockSize], FofbV[0], count);
   end;
 
-  System.Move(FofbOutV[0], FofbV[(System.length(FofbV) - FblockSize)],
+  System.Move(FofbOutV[0], FofbV[(System.Length(FofbV) - FblockSize)],
     FblockSize * System.SizeOf(Byte));
 
   result := FblockSize;
@@ -1082,8 +1178,8 @@ end;
 
 procedure TSicBlockCipher.Reset;
 begin
-  TArrayUtils.Fill(Fcounter, 0, System.length(Fcounter), Byte(0));
-  System.Move(FIV[0], Fcounter[0], System.length(FIV) * System.SizeOf(Byte));
+  TArrayUtils.Fill(Fcounter, 0, System.Length(Fcounter), Byte(0));
+  System.Move(FIV[0], Fcounter[0], System.Length(FIV) * System.SizeOf(Byte));
 
   Fcipher.Reset();
 
@@ -1125,7 +1221,7 @@ begin
   begin
     FIV := ivParam.GetIV();
 
-    if (FblockSize < System.length(FIV)) then
+    if (FblockSize < System.Length(FIV)) then
     begin
       raise EArgumentCryptoLibException.CreateResFmt(@SInvalidTooLargeIVLength,
         [FblockSize]);
@@ -1133,7 +1229,7 @@ begin
 
     maxCounterSize := Min(8, FblockSize div 2);
 
-    if ((FblockSize - System.length(FIV)) > maxCounterSize) then
+    if ((FblockSize - System.Length(FIV)) > maxCounterSize) then
     begin
       raise EArgumentCryptoLibException.CreateResFmt(@SInvalidTooSmallIVLength,
         [FblockSize - maxCounterSize]);
@@ -1163,12 +1259,12 @@ var
   I, J: Int32;
 begin
 
-  if ((inOff + FblockSize) > System.length(input)) then
+  if ((inOff + FblockSize) > System.Length(input)) then
   begin
     raise EDataLengthCryptoLibException.CreateRes(@SInputBufferTooShort);
   end;
 
-  if ((outOff + FblockSize) > System.length(output)) then
+  if ((outOff + FblockSize) > System.Length(output)) then
   begin
     raise EDataLengthCryptoLibException.CreateRes(@SOutputBufferTooShort);
   end;
@@ -1178,14 +1274,14 @@ begin
   //
   // XOR the counterOut with the plaintext producing the cipher text
   //
-  for I := 0 to System.Pred(System.length(FcounterOut)) do
+  for I := 0 to System.Pred(System.Length(FcounterOut)) do
   begin
 
     output[outOff + I] := Byte(FcounterOut[I] xor input[inOff + I]);
   end;
 
   // Increment the counter
-  J := System.length(Fcounter);
+  J := System.Length(Fcounter);
   System.Dec(J);
   System.Inc(Fcounter[J]);
   while ((J >= 0) and (Fcounter[J] = 0)) do
@@ -1194,7 +1290,225 @@ begin
     System.Inc(Fcounter[J]);
   end;
 
-  result := System.length(Fcounter);
+  result := System.Length(Fcounter);
+end;
+
+{ TCtsBlockCipher }
+
+constructor TCtsBlockCipher.Create(const cipher: IBlockCipher);
+begin
+  Inherited Create();
+  if Supports(cipher, ICfbBlockCipher) or Supports(cipher, IOfbBlockCipher) or
+    Supports(cipher, ISicBlockCipher) or Supports(cipher, ICtsBlockCipher) then
+  begin
+    raise EArgumentCryptoLibException.CreateRes(@SUnsupportedCipher);
+  end;
+
+  Fcipher := cipher;
+
+  FblockSize := Fcipher.GetBlockSize();
+  System.SetLength(Fbuf, FblockSize * 2);
+  FbufOff := 0;
+end;
+
+function TCtsBlockCipher.DoFinal(const output: TCryptoLibByteArray;
+  outOff: Int32): Int32;
+var
+  blockSize, len, I: Int32;
+  block, lastBlock: TCryptoLibByteArray;
+  c: IBlockCipher;
+begin
+  if ((FbufOff + outOff) > System.Length(output)) then
+  begin
+    raise EDataLengthCryptoLibException.CreateRes
+      (@SOutputBufferTooSmallForDoFinal);
+  end;
+
+  blockSize := Fcipher.GetBlockSize();
+  len := FbufOff - blockSize;
+  System.SetLength(block, blockSize);
+
+  if (FforEncryption) then
+  begin
+    if (FbufOff < blockSize) then
+    begin
+      raise EDataLengthCryptoLibException.CreateRes(@SCTSDoFinalError);
+    end;
+
+    Fcipher.ProcessBlock(Fbuf, 0, block, 0);
+
+    if (FbufOff > blockSize) then
+    begin
+
+      I := FbufOff;
+      while I <> System.Length(Fbuf) do
+      begin
+        Fbuf[I] := block[I - blockSize];
+        System.Inc(I);
+      end;
+
+      I := blockSize;
+      while I <> FbufOff do
+      begin
+        Fbuf[I] := Fbuf[I] xor (block[I - blockSize]);
+        System.Inc(I);
+      end;
+
+      if Supports(Fcipher, ICbcBlockCipher) then
+      begin
+        c := (Fcipher as ICbcBlockCipher).GetUnderlyingCipher();
+
+        c.ProcessBlock(Fbuf, blockSize, output, outOff);
+      end
+      else
+      begin
+        Fcipher.ProcessBlock(Fbuf, blockSize, output, outOff);
+      end;
+
+      System.Move(block[0], output[outOff + blockSize],
+        len * System.SizeOf(Byte));
+    end
+    else
+    begin
+      System.Move(block[0], output[outOff], blockSize * System.SizeOf(Byte));
+    end;
+  end
+  else
+  begin
+
+    if (FbufOff < blockSize) then
+    begin
+      raise EDataLengthCryptoLibException.CreateRes(@SCTSDoFinalError);
+    end;
+
+    System.SetLength(lastBlock, blockSize);
+
+    if (FbufOff > blockSize) then
+    begin
+
+      if Supports(Fcipher, ICbcBlockCipher) then
+      begin
+        c := (Fcipher as ICbcBlockCipher).GetUnderlyingCipher();
+
+        c.ProcessBlock(Fbuf, 0, block, 0);
+      end
+      else
+      begin
+        Fcipher.ProcessBlock(Fbuf, 0, block, 0);
+      end;
+
+      I := blockSize;
+      while I <> FbufOff do
+      begin
+        lastBlock[I - blockSize] := Byte(block[I - blockSize] xor Fbuf[I]);
+        System.Inc(I);
+      end;
+
+      System.Move(Fbuf[blockSize], block[0], len * System.SizeOf(Byte));
+      Fcipher.ProcessBlock(block, 0, output, outOff);
+      System.Move(lastBlock[0], output[outOff + blockSize],
+        len * System.SizeOf(Byte));
+    end
+    else
+    begin
+      Fcipher.ProcessBlock(Fbuf, 0, block, 0);
+      System.Move(block[0], output[outOff], blockSize * System.SizeOf(Byte));
+    end;
+
+  end;
+
+  result := FbufOff;
+
+  Reset();
+end;
+
+function TCtsBlockCipher.GetOutputSize(inputLen: Int32): Int32;
+begin
+  result := inputLen + FbufOff;
+end;
+
+function TCtsBlockCipher.GetUpdateOutputSize(inputLen: Int32): Int32;
+var
+  total, leftOver: Int32;
+begin
+  total := inputLen + FbufOff;
+  leftOver := total mod System.Length(Fbuf);
+
+  if (leftOver = 0) then
+  begin
+    result := total - System.Length(Fbuf);
+    Exit;
+  end;
+  result := total - leftOver;
+end;
+
+function TCtsBlockCipher.ProcessByte(input: Byte;
+  const output: TCryptoLibByteArray; outOff: Int32): Int32;
+begin
+  result := 0;
+
+  if (FbufOff = System.Length(Fbuf)) then
+  begin
+    result := Fcipher.ProcessBlock(Fbuf, 0, output, outOff);
+    System.Move(Fbuf[FblockSize], Fbuf[0], FblockSize * System.SizeOf(Byte));
+    FbufOff := FblockSize;
+  end;
+
+  Fbuf[FbufOff] := input;
+  System.Inc(FbufOff);
+end;
+
+function TCtsBlockCipher.ProcessBytes(const input: TCryptoLibByteArray;
+  inOff, len: Int32; const output: TCryptoLibByteArray; outOff: Int32): Int32;
+var
+  blockSize, Length, gapLen: Int32;
+begin
+  if (len < 0) then
+  begin
+    raise EInvalidArgument.CreateRes(@SNegativeInputLength);
+  end;
+
+  blockSize := GetBlockSize();
+  Length := GetUpdateOutputSize(len);
+
+  if (Length > 0) then
+  begin
+    if ((outOff + Length) > System.Length(output)) then
+    begin
+      raise EDataLengthCryptoLibException.CreateRes(@SOutputBufferTooShort);
+    end;
+  end;
+
+  result := 0;
+  gapLen := System.Length(Fbuf) - FbufOff;
+
+  if (len > gapLen) then
+  begin
+    System.Move(input[inOff], Fbuf[FbufOff], gapLen * System.SizeOf(Byte));
+
+    result := result + Fcipher.ProcessBlock(Fbuf, 0, output, outOff);
+    System.Move(Fbuf[blockSize], Fbuf[0], blockSize * System.SizeOf(Byte));
+
+    FbufOff := blockSize;
+
+    len := len - gapLen;
+    inOff := inOff + gapLen;
+
+    while (len > blockSize) do
+    begin
+      System.Move(input[inOff], Fbuf[FbufOff], blockSize * System.SizeOf(Byte));
+      result := result + Fcipher.ProcessBlock(Fbuf, 0, output, outOff + result);
+      System.Move(Fbuf[blockSize], Fbuf[0], blockSize * System.SizeOf(Byte));
+
+      len := len - blockSize;
+      inOff := inOff + blockSize;
+    end;
+  end;
+
+  System.Move(input[inOff], Fbuf[FbufOff], len * System.SizeOf(Byte));
+
+  FbufOff := FbufOff + len;
+
 end;
 
 end.

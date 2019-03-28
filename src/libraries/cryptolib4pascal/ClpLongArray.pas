@@ -515,8 +515,8 @@ type
     class procedure FlipVector(const x: TCryptoLibInt64Array; xOff: Int32;
       const y: TCryptoLibInt64Array; yOff, yLen, bits: Int32); static;
 
-    class procedure SquareInPlace(const x: TCryptoLibInt64Array; xLen, m: Int32;
-      const ks: TCryptoLibInt32Array); static; inline;
+    class procedure SquareInPlace(const x: TCryptoLibInt64Array; xLen: Int32);
+      static; inline;
 
     class procedure Interleave(const x: TCryptoLibInt64Array; xOff: Int32;
       const z: TCryptoLibInt64Array; zOff, count, width: Int32); static; inline;
@@ -603,8 +603,7 @@ type
     function ModReduce(m: Int32; const ks: TCryptoLibInt32Array)
       : TLongArray; inline;
 
-    function Multiply(const other: TLongArray; m: Int32;
-      const ks: TCryptoLibInt32Array): TLongArray;
+    function Multiply(const other: TLongArray): TLongArray;
 
     procedure Reduce(m: Int32; const ks: TCryptoLibInt32Array); inline;
 
@@ -614,8 +613,7 @@ type
     function ModSquareN(n, m: Int32; const ks: TCryptoLibInt32Array)
       : TLongArray; inline;
 
-    function Square(m: Int32; const ks: TCryptoLibInt32Array)
-      : TLongArray; inline;
+    function Square(): TLongArray; inline;
 
     function ModInverse(m: Int32; const ks: TCryptoLibInt32Array): TLongArray;
 
@@ -787,7 +785,7 @@ begin
 end;
 
 class procedure TLongArray.SquareInPlace(const x: TCryptoLibInt64Array;
-  xLen, m: Int32; const ks: TCryptoLibInt32Array);
+  xLen: Int32);
 var
   pos: Int32;
   xVal: Int64;
@@ -2241,7 +2239,7 @@ begin
   System.Dec(n);
   while (n >= 0) do
   begin
-    SquareInPlace(r, len, m, ks);
+    SquareInPlace(r, len);
     len := ReduceInPlace(r, 0, System.Length(r), m, ks);
     System.Dec(n);
   end;
@@ -2249,8 +2247,7 @@ begin
   Result := TLongArray.Create(r, 0, len);
 end;
 
-function TLongArray.Multiply(const other: TLongArray; m: Int32;
-  const ks: TCryptoLibInt32Array): TLongArray;
+function TLongArray.Multiply(const other: TLongArray): TLongArray;
 var
   aDeg, bDeg, tmp, aLen, bLen, cLen, bMax, tOff, I, MASK, aPos, cOff,
     u, v: Int32;
@@ -2501,8 +2498,7 @@ begin
   Result := prev;
 end;
 
-function TLongArray.Square(m: Int32; const ks: TCryptoLibInt32Array)
-  : TLongArray;
+function TLongArray.Square(): TLongArray;
 var
   len, _2len, pos: Int32;
   r: TCryptoLibInt64Array;
