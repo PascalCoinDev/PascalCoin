@@ -227,6 +227,7 @@ begin
 
   wki := TWalletKeys.Create(Self);
   try
+    wki.IsReadOnly := True;
     wki.WalletFileName := ifn;
     if wki.Count<=0 then raise Exception.Create('Wallet file has no valid data');
     pwd := '';

@@ -60,12 +60,14 @@ Type
     FWalletFileName: String;
     FIsReadingStream : Boolean;
     FOnChanged: TNotifyManyEvent;
+    FIsReadOnly: Boolean;
     function GetHasPassword : boolean;
     function GetKey(index: Integer): TWalletKey;
     procedure SetWalletPassword(const Value: String);
     Procedure GeneratePrivateKeysFromPassword;
     procedure SetWalletFileName(const Value: String);
     Function Find(Const AccountKey: TAccountKey; var Index: Integer): Boolean;
+    procedure SetIsReadOnly(const Value: Boolean);
   public
     Property Key[index : Integer] : TWalletKey read GetKey; default;
     Constructor Create(AOwner : TComponent); override;
@@ -85,6 +87,7 @@ Type
     Property OnChanged : TNotifyManyEvent read FOnChanged;
     Procedure SetName(index : Integer; Const newName : String);
     Function LockWallet : Boolean;
+    property IsReadOnly : Boolean read FIsReadOnly write SetIsReadOnly;
   End;
 
   TWalletKeysExt = Class(TWalletKeys)
@@ -250,6 +253,7 @@ end;
 constructor TWalletKeys.Create(AOwner : TComponent);
 begin
   inherited;
+  FIsReadOnly := False;
   FIsValidPassword := false;
   FWalletFileStream := Nil;
   FWalletPassword := '';
@@ -328,6 +332,7 @@ begin
               [TAccountComp.AccountPublicKeyExport(LtmpECPrivKey.PublicKey),
                TAccountComp.AccountPublicKeyExport(P^.AccountKey)]));
             LtmpECPrivKey.Free;
+            isOk := False;
           end else P^.PrivateKey := LtmpECPrivKey;
         except
           on E: Exception do begin
@@ -407,7 +412,7 @@ procedure TWalletKeys.SaveToStream(Stream: TStream);
 var i : Integer;
   P : PWalletKey;
 begin
-  if FIsReadingStream then exit;
+  if (FIsReadingStream) or ((FIsReadOnly) and (Stream = FWalletFileStream)) then exit;
   if Not Assigned(Stream) then exit;
   Stream.Size := 0;
   Stream.Position:=0;
@@ -423,6 +428,18 @@ begin
     TStreamOp.WriteAnsiString(Stream,P^.AccountKey.x);
     TStreamOp.WriteAnsiString(Stream,P^.AccountKey.y);
     TStreamOp.WriteAnsiString(Stream,P^.CryptedKey);
+  end;
+end;
+
+procedure TWalletKeys.SetIsReadOnly(const Value: Boolean);
+var LTmp : String;
+begin
+  if FIsReadOnly = Value then Exit;
+  FIsReadOnly := Value;
+  if (FFileName<>'') then begin
+    LTmp := FFileName;
+    FFileName := '';
+    SetWalletFileName( Ltmp );
   end;
 end;
 
@@ -442,9 +459,14 @@ begin
   if Assigned(FWalletFileStream) then FWalletFileStream.Free;
   FWalletFileStream := Nil;
   if Value<>'' then begin
-    if FileExists(Value) then fm := fmOpenReadWrite
-    else fm := fmCreate;
-    FWalletFileStream := TFileStream.Create(WalletfileName,fm+fmShareDenyWrite);
+    if FileExists(Value) then begin
+      if FIsReadOnly then fm := fmOpenRead
+      else fm := fmOpenReadWrite+fmShareDenyWrite;
+    end else begin
+      if FIsReadOnly then Exit
+      else fm := fmCreate+fmShareDenyWrite;
+    end;
+    FWalletFileStream := TFileStream.Create(WalletfileName,fm);
     FWalletFileStream.Position:=0;
     LoadFromStream(FWalletFileStream);
   end;
