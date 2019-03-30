@@ -40,26 +40,6 @@ type
     /// </value>
     property CipherKeySize: Int32 read GetCipherKeySize;
 
-    function GetNonce: TCryptoLibByteArray;
-
-    /// <summary>
-    /// Return the nonce (IV) value to be associated with message.
-    /// </summary>
-    /// <value>
-    /// block cipher IV for message.
-    /// </value>
-    property Nonce: TCryptoLibByteArray read GetNonce;
-
-    function GetPointCompression: Boolean;
-
-    /// <summary>
-    /// Return the 'point compression' flag.
-    /// </summary>
-    /// <value>
-    /// the point compression flag
-    /// </value>
-    property PointCompression: Boolean read GetPointCompression;
-
   end;
 
 implementation

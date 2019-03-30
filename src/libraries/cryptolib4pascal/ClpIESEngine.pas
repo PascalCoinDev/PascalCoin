@@ -72,6 +72,9 @@ type
 
     procedure ExtractParams(const params: ICipherParameters); inline;
 
+    function SimilarMacCompute(const ArgOne, ArgTwo: TCryptoLibByteArray)
+      : TCryptoLibByteArray; inline;
+
   strict protected
 
   var
@@ -91,6 +94,8 @@ type
     function EncryptBlock(const &in: TCryptoLibByteArray; inOff, inLen: Int32)
       : TCryptoLibByteArray; virtual;
 
+    procedure SetupBlockCipherAndMacKeyBytes(out K1,
+      K2: TCryptoLibByteArray); inline;
     function DecryptBlock(const in_enc: TCryptoLibByteArray;
       inOff, inLen: Int32): TCryptoLibByteArray; virtual;
 
@@ -208,6 +213,37 @@ begin
   end;
 end;
 
+function TIESEngine.SimilarMacCompute(const ArgOne, ArgTwo: TCryptoLibByteArray)
+  : TCryptoLibByteArray;
+begin
+  if (ArgOne <> Nil) then
+  begin
+    Fmac.BlockUpdate(ArgOne, 0, System.Length(ArgOne));
+  end;
+  if (System.Length(FV) <> 0) then
+  begin
+    Fmac.BlockUpdate(ArgTwo, 0, System.Length(ArgTwo));
+  end;
+  Result := Fmac.DoFinal;
+end;
+
+procedure TIESEngine.SetupBlockCipherAndMacKeyBytes(out K1,
+  K2: TCryptoLibByteArray);
+var
+  K: TCryptoLibByteArray;
+begin
+  System.SetLength(K1, (Fparam as IIESWithCipherParameters)
+    .CipherKeySize div 8);
+  System.SetLength(K2, Fparam.MacKeySize div 8);
+  System.SetLength(K, System.Length(K1) + System.Length(K2));
+
+  Fkdf.GenerateBytes(K, 0, System.Length(K));
+
+  System.Move(K[0], K1[0], System.Length(K1) * System.SizeOf(Byte));
+  System.Move(K[System.Length(K1)], K2[0], System.Length(K2) *
+    System.SizeOf(Byte));
+end;
+
 constructor TIESEngine.Create(const agree: IBasicAgreement;
   const kdf: IDerivationFunction; const mac: IMac);
 begin
@@ -291,16 +327,7 @@ begin
   begin
     // Block cipher mode.
 
-    System.SetLength(K1, (Fparam as IIESWithCipherParameters)
-      .CipherKeySize div 8);
-    System.SetLength(K2, Fparam.MacKeySize div 8);
-    System.SetLength(K, System.Length(K1) + System.Length(K2));
-
-    Fkdf.GenerateBytes(K, 0, System.Length(K));
-
-    System.Move(K[0], K1[0], System.Length(K1) * System.SizeOf(Byte));
-    System.Move(K[System.Length(K1)], K2[0], System.Length(K2) *
-      System.SizeOf(Byte));
+    SetupBlockCipherAndMacKeyBytes(K1, K2);
 
     cp := TKeyParameter.Create(K1);
 
@@ -338,15 +365,8 @@ begin
 
   Fmac.BlockUpdate(in_enc, inOff + System.Length(FV), inLen - System.Length(FV)
     - System.Length(T2));
-  if (p2 <> Nil) then
-  begin
-    Fmac.BlockUpdate(p2, 0, System.Length(p2));
-  end;
-  if (System.Length(FV) <> 0) then
-  begin
-    Fmac.BlockUpdate(L2, 0, System.Length(L2));
-  end;
-  T2 := Fmac.DoFinal();
+
+  T2 := SimilarMacCompute(p2, L2);
 
   if (not TArrayUtils.ConstantTimeAreEqual(T1, T2)) then
   begin
@@ -416,16 +436,7 @@ begin
   begin
     // Block cipher mode.
 
-    System.SetLength(K1, (Fparam as IIESWithCipherParameters)
-      .CipherKeySize div 8);
-    System.SetLength(K2, Fparam.MacKeySize div 8);
-    System.SetLength(K, System.Length(K1) + System.Length(K2));
-
-    Fkdf.GenerateBytes(K, 0, System.Length(K));
-
-    System.Move(K[0], K1[0], System.Length(K1) * System.SizeOf(Byte));
-    System.Move(K[System.Length(K1)], K2[0], System.Length(K2) *
-      System.SizeOf(Byte));
+    SetupBlockCipherAndMacKeyBytes(K1, K2);
 
     // If iv is provided use it to initialise the cipher
     if (FIV <> Nil) then
@@ -457,15 +468,8 @@ begin
 
   Fmac.Init((TKeyParameter.Create(K2) as IKeyParameter) as ICipherParameters);
   Fmac.BlockUpdate(C, 0, System.Length(C));
-  if (p2 <> Nil) then
-  begin
-    Fmac.BlockUpdate(p2, 0, System.Length(p2));
-  end;
-  if (System.Length(FV) <> 0) then
-  begin
-    Fmac.BlockUpdate(L2, 0, System.Length(L2));
-  end;
-  T := Fmac.DoFinal;
+
+  T := SimilarMacCompute(p2, L2);
 
   // Output the triple (V,C,T).
   // V := Ephermeral Public Key

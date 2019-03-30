@@ -30,8 +30,8 @@ type
   IECPublicKeyParameters = interface(IECKeyParameters)
     ['{4BABC163-847A-4FE2-AA16-5CD100F76124}']
 
+    function Equals(const other: IECPublicKeyParameters): Boolean; overload;
     function GetQ: IECPoint;
-
     property Q: IECPoint read GetQ;
   end;
 

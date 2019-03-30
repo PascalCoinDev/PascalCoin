@@ -49,7 +49,7 @@ Uses SysUtils, UBaseTypes, UPCDataTypes,
   ClpIX9ECParameters,
   ClpIIESEngine,
   ClpIBaseKdfBytesGenerator,
-  ClpIIESWithCipherParameters,
+  ClpIIESParameterSpec,
   ClpIPascalCoinECIESKdfBytesGenerator,
   ClpIPascalCoinIESEngine
   ;
@@ -73,7 +73,7 @@ Type
     class var FCurve_SECT283K1 : IX9ECParameters;
     class var FCurve_SECP521R1 : IX9ECParameters;
     class var FPascalCoinIESEngine : IPascalCoinIESEngine;
-    class var FPascalCoinIESWithCipherParameters : IIESWithCipherParameters;
+    class var FIESParameterSpec : IIESParameterSpec;
     class constructor TPCCryptoLib4Pascal();
     class function GetCurveAndDomainParameters(const AEC_OpenSSL_NID : Word; var OCurve : IX9ECParameters; var ODomain : IECDomainParameters; ARaiseIfNotForPascal : Boolean = True ) : Boolean;
     class function GetDomainParameters(const AEC_OpenSSL_NID : Word) : IECDomainParameters;
@@ -115,7 +115,7 @@ Uses
   ClpIAesEngine,
   ClpIBlockCipherModes,
   ClpIBasicAgreement,
-  ClpIESWithCipherParameters,
+  ClpIESParameterSpec,
   ClpIECDHBasicAgreement,
   ClpIMac,
   ClpECDHBasicAgreement,
@@ -349,7 +349,7 @@ begin
 
     // Decryption
     LCipherDecrypt := TIESCipher.Create(FPascalCoinIESEngine);
-    LCipherDecrypt.Init(False, LPrivKeyParams, FPascalCoinIESWithCipherParameters, FRandom);
+    LCipherDecrypt.Init(False, LPrivKeyParams, FIESParameterSpec, FRandom);
     ADecryptedMessage := System.Copy(LCipherDecrypt.DoFinal(AEncryptedMessage));
     Result := True;
   except
@@ -376,7 +376,7 @@ begin
   LPubKeyParams := TECPublicKeyParameters.Create('ECDSA', LPoint, LDomain);
   // Encryption
   LCipherEncrypt := TIESCipher.Create(FPascalCoinIESEngine);
-  LCipherEncrypt.Init(True, LPubKeyParams, FPascalCoinIESWithCipherParameters, FRandom);
+  LCipherEncrypt.Init(True, LPubKeyParams, FIESParameterSpec, FRandom);
   AEncryptedMessage := LCipherEncrypt.DoFinal(AMessage);
   Result := True;
 end;
@@ -485,7 +485,7 @@ begin
 end;
 
 class constructor TPCCryptoLib4Pascal.TPCCryptoLib4Pascal;
-    function GetIESCipherParameters: IIESWithCipherParameters;
+    function GetIESParameterSpec: IIESParameterSpec;
     var
       Derivation, Encoding, IVBytes: TBytes;
       MacKeySizeInBits, CipherKeySizeInBits: Int32;
@@ -512,7 +512,7 @@ class constructor TPCCryptoLib4Pascal.TPCCryptoLib4Pascal;
       // from a point or not in the EphemeralKeyPairGenerator
       UsePointCompression := True; // for compatibility
 
-      Result := TIESWithCipherParameters.Create(Derivation, Encoding,
+      Result := TIESParameterSpec.Create(Derivation, Encoding,
         MacKeySizeInBits, CipherKeySizeInBits, IVBytes, UsePointCompression);
     end;
     function GetECIESPascalCoinCompatibilityEngine(): IPascalCoinIESEngine;
@@ -564,7 +564,7 @@ begin
   FDomain_SECP521R1 := TECDomainParameters.Create(FCurve_SECP521R1.Curve, FCurve_SECP521R1.G, FCurve_SECP521R1.N, FCurve_SECP521R1.H, FCurve_SECP521R1.GetSeed);
   // Init ECIES
   FPascalCoinIESEngine := GetECIESPascalCoinCompatibilityEngine;
-  FPascalCoinIESWithCipherParameters := GetIESCipherParameters;
+  FIESParameterSpec := GetIESParameterSpec;
 
 end;
 
