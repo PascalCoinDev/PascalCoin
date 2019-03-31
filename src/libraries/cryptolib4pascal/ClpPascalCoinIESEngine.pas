@@ -208,7 +208,7 @@ begin
   // [1] := Convert Byte(Length(T)) to a ByteArray,
   // [2] and [3] := Convert UInt16(MessageToEncryptSize) to a ByteArray,
   // [4] and [5] := Convert UInt16(MessageToEncryptSize + MessageToEncryptPadSize) to a ByteArray,
-  // V := Ephermeral Public Key
+  // V := Ephemeral Public Key
   // T := Authentication Message (MAC)
   // C := Encrypted Payload
 

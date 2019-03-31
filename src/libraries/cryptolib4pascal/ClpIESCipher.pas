@@ -92,8 +92,7 @@ type
       inputOffset, inputLen: Int32; const output: TCryptoLibByteArray;
       outputOffset: Int32): Int32; overload;
 
-    constructor Create(const Engine: IIESEngine); overload;
-    constructor Create(const Engine: IIESEngine; ivLength: Int32); overload;
+    constructor Create(const Engine: IIESEngine; ivLength: Int32 = 0);
     destructor Destroy(); override;
 
   end;
@@ -107,11 +106,6 @@ begin
   FBuffer.Position := 0;
   System.SetLength(Result, FBuffer.Size);
   FBuffer.Read(Result[0], FBuffer.Size);
-end;
-
-constructor TIESCipher.Create(const Engine: IIESEngine);
-begin
-  Create(Engine, 0);
 end;
 
 constructor TIESCipher.Create(const Engine: IIESEngine; ivLength: Int32);

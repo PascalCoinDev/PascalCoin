@@ -65,6 +65,8 @@ type
   TIESEngine = class(TInterfacedObject, IIESEngine)
 
   strict private
+  var
+    Fparam: IIESParameters;
 
     // as described in Shroup's paper( ch 10, pg 20) and P1363a
     function GetLengthTag(const p2: TCryptoLibByteArray)
@@ -82,20 +84,20 @@ type
     Fkdf: IDerivationFunction;
     Fmac: IMac;
     Fcipher: IBufferedBlockCipher;
-    FmacBuf, FV, FIV: TCryptoLibByteArray;
+    FV, FIV: TCryptoLibByteArray;
     FforEncryption: Boolean;
     FprivParam, FpubParam: ICipherParameters;
-    Fparam: IIESParameters;
     FkeyPairGenerator: IEphemeralKeyPairGenerator;
     FkeyParser: IKeyParser;
 
     function GetCipher: IBufferedBlockCipher; inline;
     function GetMac: IMac; inline;
+    procedure SetupBlockCipherAndMacKeyBytes(out K1,
+      K2: TCryptoLibByteArray); inline;
+
     function EncryptBlock(const &in: TCryptoLibByteArray; inOff, inLen: Int32)
       : TCryptoLibByteArray; virtual;
 
-    procedure SetupBlockCipherAndMacKeyBytes(out K1,
-      K2: TCryptoLibByteArray); inline;
     function DecryptBlock(const in_enc: TCryptoLibByteArray;
       inOff, inLen: Int32): TCryptoLibByteArray; virtual;
 
@@ -251,7 +253,6 @@ begin
   Fagree := agree;
   Fkdf := kdf;
   Fmac := mac;
-  System.SetLength(FmacBuf, mac.GetMacSize);
   Fcipher := Nil;
 end;
 
@@ -263,7 +264,6 @@ begin
   Fagree := agree;
   Fkdf := kdf;
   Fmac := mac;
-  System.SetLength(FmacBuf, mac.GetMacSize);
   Fcipher := cipher;
 end;
 
