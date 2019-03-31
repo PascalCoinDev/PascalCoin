@@ -31,7 +31,7 @@ type
 
     function GetParameters: IDsaParameters;
 
-    function Equals(const other: IDsaKeyParameters): Boolean;
+    function Equals(const other: IDsaKeyParameters): Boolean; overload;
     property parameters: IDsaParameters read GetParameters;
 
   end;

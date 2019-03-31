@@ -217,6 +217,7 @@ begin
   parts := TStringUtils.SplitString(algorithm, '/');
 
   blockCipher := Nil;
+  streamCipher := Nil;
 
   algorithmName := parts[0];
 

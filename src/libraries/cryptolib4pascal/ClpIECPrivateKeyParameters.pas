@@ -30,6 +30,7 @@ type
   IECPrivateKeyParameters = interface(IECKeyParameters)
     ['{49066428-4021-4E3C-A9F5-AB2127289A67}']
 
+    function Equals(const other: IECPrivateKeyParameters): Boolean; overload;
     function GetD: TBigInteger;
     property D: TBigInteger read GetD;
   end;

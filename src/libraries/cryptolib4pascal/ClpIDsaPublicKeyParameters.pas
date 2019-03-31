@@ -28,7 +28,7 @@ type
 
     function GetY: TBigInteger;
 
-    function Equals(const other: IDsaPublicKeyParameters): Boolean;
+    function Equals(const other: IDsaPublicKeyParameters): Boolean; overload;
     property y: TBigInteger read GetY;
 
   end;

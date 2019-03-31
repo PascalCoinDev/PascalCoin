@@ -35,6 +35,8 @@ type
     function GetPublicKeyParamSet: IDerObjectIdentifier;
     function GetParameters: IECDomainParameters;
 
+    function Equals(const other: IECKeyParameters): Boolean; overload;
+
     property AlgorithmName: String read GetAlgorithmName;
     property PublicKeyParamSet: IDerObjectIdentifier read GetPublicKeyParamSet;
     property Parameters: IECDomainParameters read GetParameters;

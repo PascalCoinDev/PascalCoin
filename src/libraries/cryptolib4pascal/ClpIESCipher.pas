@@ -28,7 +28,8 @@ uses
   ClpIECIESPublicKeyParser,
   ClpECIESPublicKeyParser,
   ClpIAsymmetricKeyParameter,
-  ClpIIESWithCipherParameters,
+  ClpIAlgorithmParameterSpec,
+  ClpIIESParameterSpec,
   ClpICipherParameters,
   ClpIParametersWithRandom,
   ClpIECKeyParameters,
@@ -53,10 +54,10 @@ resourcestring
     'Must be Passed Recipient''s Public EC Key for Encryption';
   SInvalidPrivateKey =
     'Must be Passed Recipient''s Private EC Key for Decryption';
-  SIESCipherParameterNil = 'IES Cipher Parameters Cannot Be Nil';
+  SIAlgorithmParameterSpecNil = 'Parameter Spec Cannot Be Nil';
   SUnableToProcessBlock = 'Unable to Process Block. "%s"';
-  SIESCipherParameterError = 'IES Cipher Parameter Error';
-  SNonceInvalidLength = 'NONCE in IES Parameters Needs to be "%s" Bytes Long';
+  SIESParameterSpecError = 'Must be Passed IES Parameter Spec';
+  SNonceInvalidLength = 'Nonce in IES Parameters Needs to be "%s" Bytes Long';
 
 type
   TIESCipher = class sealed(TInterfacedObject, IIESCipher)
@@ -67,7 +68,7 @@ type
     FEngine: IIESEngine;
     FForEncryption: Boolean;
     FBuffer: TMemoryStream;
-    FIESCipherParameters: IIESWithCipherParameters;
+    FEngineSpec: IIESParameterSpec;
     Fkey: IAsymmetricKeyParameter;
     FRandom: ISecureRandom;
 
@@ -75,8 +76,7 @@ type
 
   public
     procedure Init(ForEncryption: Boolean; const Key: ICipherParameters;
-      const IESCipherParameters: IIESWithCipherParameters;
-      const Random: ISecureRandom);
+      const EngineSpec: IAlgorithmParameterSpec; const Random: ISecureRandom);
 
     procedure ProcessBytes(const input: TCryptoLibByteArray); overload;
     procedure ProcessBytes(const input: TCryptoLibByteArray;
@@ -142,13 +142,13 @@ begin
   FBuffer.SetSize(Int64(0));
 
   // Convert parameters for use in IESEngine
-  params := TIESWithCipherParameters.Create(FIESCipherParameters.GetDerivationV,
-    FIESCipherParameters.GetEncodingV, FIESCipherParameters.MacKeySize,
-    FIESCipherParameters.CipherKeySize);
+  params := TIESWithCipherParameters.Create(FEngineSpec.GetDerivationV,
+    FEngineSpec.GetEncodingV, FEngineSpec.MacKeySize,
+    FEngineSpec.CipherKeySize);
 
-  if (FIESCipherParameters.Nonce <> Nil) then
+  if (FEngineSpec.Nonce <> Nil) then
   begin
-    params := TParametersWithIV.Create(params, FIESCipherParameters.Nonce);
+    params := TParametersWithIV.Create(params, FEngineSpec.Nonce);
   end;
   ecParams := (Fkey as IECKeyParameters).Parameters;
 
@@ -159,7 +159,7 @@ begin
     gen.Init(TECKeyGenerationParameters.Create(ecParams, FRandom)
       as IECKeyGenerationParameters);
 
-    UsePointCompression := FIESCipherParameters.PointCompression;
+    UsePointCompression := FEngineSpec.PointCompression;
 
     kGen := TEphemeralKeyPairGenerator.Create(gen,
       TKeyEncoder.Create(UsePointCompression) as IKeyEncoder);
@@ -225,8 +225,7 @@ begin
 end;
 
 procedure TIESCipher.Init(ForEncryption: Boolean; const Key: ICipherParameters;
-  const IESCipherParameters: IIESWithCipherParameters;
-  const Random: ISecureRandom);
+  const EngineSpec: IAlgorithmParameterSpec; const Random: ISecureRandom);
 var
   LKey: ICipherParameters;
   Nonce: TCryptoLibByteArray;
@@ -234,21 +233,22 @@ begin
 
   FForEncryption := ForEncryption;
 
-  if (IESCipherParameters = Nil) then
+  if (EngineSpec = Nil) then
   begin
-    raise EArgumentNilCryptoLibException.CreateRes(@SIESCipherParameterNil);
+    raise EArgumentNilCryptoLibException.CreateRes
+      (@SIAlgorithmParameterSpecNil);
   end
-  else if (Supports(IESCipherParameters, IIESWithCipherParameters)) then
+  else if (Supports(EngineSpec, IIESParameterSpec)) then
   begin
-    FIESCipherParameters := IESCipherParameters as IIESWithCipherParameters;
+    FEngineSpec := EngineSpec as IIESParameterSpec;
   end
   else
   begin
     raise EInvalidParameterCryptoLibException.CreateRes
-      (@SIESCipherParameterError);
+      (@SIESParameterSpecError);
   end;
 
-  Nonce := FIESCipherParameters.Nonce;
+  Nonce := FEngineSpec.Nonce;
 
   if ((FivLength <> 0) and ((Nonce = Nil) or (System.length(Nonce) <>
     FivLength))) then

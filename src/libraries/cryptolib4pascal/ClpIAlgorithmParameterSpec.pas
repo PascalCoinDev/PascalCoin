@@ -15,25 +15,15 @@
 
 (* &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& *)
 
-unit ClpIDsaPrivateKeyParameters;
+unit ClpIAlgorithmParameterSpec;
 
 {$I CryptoLib.inc}
 
 interface
 
-uses
-  ClpIDsaKeyParameters,
-  ClpBigInteger;
-
 type
-  IDsaPrivateKeyParameters = interface(IDsaKeyParameters)
-    ['{A956E21D-0A60-4073-8F17-5EA8B4615B68}']
-
-    function GetX: TBigInteger;
-
-    function Equals(const other: IDsaPrivateKeyParameters): Boolean; overload;
-    property X: TBigInteger read GetX;
-
+  IAlgorithmParameterSpec = interface(IInterface)
+    ['{FBA69725-AEFF-4B99-92C0-1819E5DE2DA1}']
   end;
 
 implementation

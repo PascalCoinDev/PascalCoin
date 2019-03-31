@@ -34,7 +34,6 @@ uses
   ClpIEphemeralKeyPair,
   ClpKdfParameters,
   ClpIKdfParameters,
-  ClpIIESWithCipherParameters,
   ClpIESEngine,
   ClpArrayUtils,
   ClpBigInteger,
@@ -98,7 +97,7 @@ implementation
 function TPascalCoinIESEngine.DecryptBlock(const in_enc: TCryptoLibByteArray;
   inOff, inLen: Int32): TCryptoLibByteArray;
 var
-  K, K1, K2, T1, T2: TCryptoLibByteArray;
+  K1, K2, T1, T2: TCryptoLibByteArray;
   cp: ICipherParameters;
 begin
   // Ensure that the length of the input is greater than the MAC in bytes
@@ -117,16 +116,7 @@ begin
   begin
     // Block cipher mode.
 
-    System.SetLength(K1, (Fparam as IIESWithCipherParameters)
-      .CipherKeySize div 8);
-    System.SetLength(K2, Fparam.MacKeySize div 8);
-    System.SetLength(K, System.Length(K1) + System.Length(K2));
-
-    Fkdf.GenerateBytes(K, 0, System.Length(K));
-
-    System.Move(K[0], K1[0], System.Length(K1) * System.SizeOf(Byte));
-    System.Move(K[System.Length(K1)], K2[0], System.Length(K2) *
-      System.SizeOf(Byte));
+    SetupBlockCipherAndMacKeyBytes(K1, K2);
 
     cp := TKeyParameter.Create(K1);
 
@@ -164,7 +154,7 @@ end;
 function TPascalCoinIESEngine.EncryptBlock(const &in: TCryptoLibByteArray;
   inOff, inLen: Int32): TCryptoLibByteArray;
 var
-  C, K, K1, K2, T: TCryptoLibByteArray;
+  C, K1, K2, T: TCryptoLibByteArray;
   MessageToEncryptPadSize, CipherBlockSize, MessageToEncryptSize: Int32;
 begin
   if (Fcipher = Nil) then
@@ -176,16 +166,7 @@ begin
   begin
     // Block cipher mode.
 
-    System.SetLength(K1, (Fparam as IIESWithCipherParameters)
-      .CipherKeySize div 8);
-    System.SetLength(K2, Fparam.MacKeySize div 8);
-    System.SetLength(K, System.Length(K1) + System.Length(K2));
-
-    Fkdf.GenerateBytes(K, 0, System.Length(K));
-
-    System.Move(K[0], K1[0], System.Length(K1) * System.SizeOf(Byte));
-    System.Move(K[System.Length(K1)], K2[0], System.Length(K2) *
-      System.SizeOf(Byte));
+    SetupBlockCipherAndMacKeyBytes(K1, K2);
 
     // If iv is provided use it to initialise the cipher
     if (FIV <> Nil) then
