@@ -62,21 +62,6 @@ type
     /// <param name="macKeySize">
     /// the key size (in bits) for the MAC.
     /// </param>
-    constructor Create(const derivation, encoding: TCryptoLibByteArray;
-      MacKeySize: Int32); overload;
-
-    /// <summary>
-    /// Set the IES engine parameters.
-    /// </summary>
-    /// <param name="derivation">
-    /// the optional derivation vector for the KDF.
-    /// </param>
-    /// <param name="encoding">
-    /// the optional encoding vector for the KDF.
-    /// </param>
-    /// <param name="macKeySize">
-    /// the key size (in bits) for the MAC.
-    /// </param>
     /// <param name="CipherKeySize">
     /// the key size (in bits) for the block cipher.
     /// </param>
@@ -85,7 +70,7 @@ type
     /// </param>
     constructor Create(const derivation, encoding: TCryptoLibByteArray;
       MacKeySize, CipherKeySize: Int32;
-      const Nonce: TCryptoLibByteArray = Nil); overload;
+      const Nonce: TCryptoLibByteArray); overload;
 
     /// <summary>
     /// Set the IES engine parameters.
@@ -109,8 +94,9 @@ type
     /// whether to use EC point compression or not (false by default)
     /// </param>
     constructor Create(const derivation, encoding: TCryptoLibByteArray;
-      MacKeySize, CipherKeySize: Int32; const Nonce: TCryptoLibByteArray;
-      UsePointCompression: Boolean); overload;
+      MacKeySize: Int32; CipherKeySize: Int32 = -1;
+      const Nonce: TCryptoLibByteArray = Nil;
+      UsePointCompression: Boolean = False); overload;
 
     /// <summary>
     /// Returns the derivation vector.
@@ -167,20 +153,14 @@ implementation
 { TIESParameterSpec }
 
 constructor TIESParameterSpec.Create(const derivation,
-  encoding: TCryptoLibByteArray; MacKeySize: Int32);
-begin
-  Create(derivation, encoding, MacKeySize, -1, Nil, false);
-end;
-
-constructor TIESParameterSpec.Create(const derivation,
   encoding: TCryptoLibByteArray; MacKeySize, CipherKeySize: Int32;
   const Nonce: TCryptoLibByteArray);
 begin
-  Create(derivation, encoding, MacKeySize, CipherKeySize, Nonce, false);
+  Create(derivation, encoding, MacKeySize, CipherKeySize, Nonce, False);
 end;
 
 constructor TIESParameterSpec.Create(const derivation,
-  encoding: TCryptoLibByteArray; MacKeySize, CipherKeySize: Int32;
+  encoding: TCryptoLibByteArray; MacKeySize: Int32; CipherKeySize: Int32;
   const Nonce: TCryptoLibByteArray; UsePointCompression: Boolean);
 begin
   Inherited Create();
