@@ -100,7 +100,7 @@ type
   PBN_ULONG = ^BN_ULONG;
   DES_LONG= TC_ULONG;
   PDES_LONG = ^DES_LONG;
-  point_conversion_form_t = byte;
+  point_conversion_form_t = TC_UINT;
   TC_OSSL_SSIZE_T = TC_LONG;
   IDEA_INT = TC_UINT;
   MD4_LONG = TC_ULONG;
@@ -418,7 +418,7 @@ begin
       Result := LoadLibrary(PWideChar(_LibraryName));
       {$ENDIF}
       if Result <> 0 then begin
-        Break;
+        Exit;
       end else _LibraryName := '';
     end;
   end;
