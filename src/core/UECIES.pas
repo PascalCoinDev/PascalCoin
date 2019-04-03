@@ -205,7 +205,7 @@ begin
   // Make sure we are generating enough key material for the symmetric ciphers.
   key_length := (EVP_CIPHER_key_length(EVP_aes_256_cbc));
   if (key_length*2)>SHA512_DIGEST_LENGTH then begin
-    TLog.NewLog(lterror,'ECIES',Format('The key derivation method will not produce enough envelope key material for the chosen ciphers. {envelope = %i / required = %zu}',
+    TLog.NewLog(lterror,'ECIES',Format('The key derivation method will not produce enough envelope key material for the chosen ciphers. {envelope = %i / required = %d}',
       [SHA512_DIGEST_LENGTH DIV 8,(key_length * 2) DIV 8]));
     exit;
   end;
@@ -230,12 +230,12 @@ begin
     // Determine the envelope and block lengths so we can allocate a buffer for the result.
     block_length := EVP_CIPHER_block_size(EVP_aes_256_cbc);
     if (block_length=0) or (block_length>EVP_MAX_BLOCK_LENGTH) then begin
-      TLog.NewLog(lterror,'ECIES',Format('Invalid block length {block = %zu}',[block_length]));
+      TLog.NewLog(lterror,'ECIES',Format('Invalid block length {block = %d}',[block_length]));
       exit;
     end;
     envelope_length := EC_POINT_point2oct(EC_KEY_get0_group(PEphemeral),EC_KEY_get0_public_key(PEphemeral),POINT_CONVERSION_COMPRESSED,nil,0,nil);
     if (envelope_length=0) then begin
-      TLog.NewLog(lterror,'ECIES',Format('Invalid envelope length {envelope = %zu}',[envelope_length]));
+      TLog.NewLog(lterror,'ECIES',Format('Invalid envelope length {envelope = %d}',[envelope_length]));
       exit;
     end;
     // We use a conditional to pad the length if the input buffer is not evenly divisible by the block size.
@@ -402,6 +402,8 @@ var
 Begin
   Result := false;
   Decrypted := Nil;
+  if Length(MessageToDecrypt)=0 then Exit;
+
   cryptex := Psecure_t(@MessageToDecrypt[Low(MessageToDecrypt)]);
   // Make sure we are generating enough key material for the symmetric ciphers.
   key_length := EVP_CIPHER_key_length(EVP_aes_256_cbc);
