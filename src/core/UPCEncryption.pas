@@ -85,7 +85,7 @@ end;
 class function TPCEncryption.DoPascalCoinECIESDecrypt(const APrivateKeyInfo : TECPrivateKeyInfo; const AEncryptedMessage: TBytes; var ADecryptedMessage: TBytes): Boolean;
 begin
   {$IFDEF Use_OpenSSL}
-  Result := ECIESDecrypt(APrivateKeyInfo.EC_OpenSSL_NID,APrivateKeyInfo.RAW_PrivKey,False,AEncryptedMessage,ADecryptedMessage);
+  Result := ECIESDecrypt(APrivateKeyInfo.EC_OpenSSL_NID,APrivateKeyInfo.EC_KEY_Ptr,False,AEncryptedMessage,ADecryptedMessage);
   {$ELSE}
   Result := TPCCryptoLib4Pascal.DoPascalCoinECIESDecrypt(APrivateKeyInfo.EC_OpenSSL_NID,APrivateKeyInfo.RAW_PrivKey,AEncryptedMessage,ADecryptedMessage);
   {$ENDIF}
