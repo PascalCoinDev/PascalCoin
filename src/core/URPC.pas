@@ -1428,7 +1428,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         if TPCEncryption.DoPascalCoinECIESDecrypt(pkey.PrivateKey,RawEncryptedPayload,decrypted_payload) then begin
           GetResultObject.GetAsVariant('result').Value:= true;
           GetResultObject.GetAsVariant('enc_payload').Value:= TCrypto.ToHexaString(RawEncryptedPayload);
-          GetResultObject.GetAsVariant('unenc_payload').Value:= decrypted_payload;
+          GetResultObject.GetAsVariant('unenc_payload').Value:= decrypted_payload.ToPrintable;
           GetResultObject.GetAsVariant('unenc_hexpayload').Value:= TCrypto.ToHexaString(decrypted_payload);
           GetResultObject.GetAsVariant('payload_method').Value:= 'key';
           GetResultObject.GetAsVariant('enc_pubkey').Value:= TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(pkey.PublicKey));
@@ -1441,7 +1441,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       if TPCEncryption.DoPascalCoinAESDecrypt(RawEncryptedPayload,TEncoding.ANSI.GetBytes(jsonArrayPwds.GetAsVariant(i).AsString('')),decrypted_payload) then begin
         GetResultObject.GetAsVariant('result').Value:= true;
         GetResultObject.GetAsVariant('enc_payload').Value:= TCrypto.ToHexaString(RawEncryptedPayload);
-        GetResultObject.GetAsVariant('unenc_payload').Value:= decrypted_payload;
+        GetResultObject.GetAsVariant('unenc_payload').Value:= decrypted_payload.ToPrintable;
         GetResultObject.GetAsVariant('unenc_hexpayload').Value:= TCrypto.ToHexaString(decrypted_payload);
         GetResultObject.GetAsVariant('payload_method').Value:= 'pwd';
         GetResultObject.GetAsVariant('pwd').Value:= jsonArrayPwds.GetAsVariant(i).AsString('');
