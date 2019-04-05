@@ -34,7 +34,10 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
-### CURRENT DEVELOPMENT (4.0.3b)
+### CURRENT DEVELOPMENT (4.0.3d)
+- Improvements:
+  - Up to +1600 operations per second using a domestic computer (4 CPU)
+  - Donwload and check new Safebox in less than 5 minutes
 - TESTNET:
   - Added functions to automatically receive new accounts for new installed fresh nodes
 - Major refactoring: 
