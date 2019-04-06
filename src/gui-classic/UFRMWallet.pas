@@ -727,8 +727,6 @@ begin
     if (bmax<bmin) or (bmax=0) then bmax := CT_MaxWalletAmount;
     if bmin>bmax then bmin := 0;
     doupd := (bmin<>FMinAccountBalance) Or (bmax<>FMaxAccountBalance);
-    FMinAccountBalance := bmin;
-    FMaxAccountBalance := bmax;
     if bmin>0 then
       ebFilterAccountByBalanceMin.Text:=TAccountComp.FormatMoney(bmin)
     else ebFilterAccountByBalanceMin.Text := '';
@@ -736,9 +734,13 @@ begin
       ebFilterAccountByBalanceMax.Text := TAccountComp.FormatMoney(bmax)
     else ebFilterAccountByBalanceMax.Text := '';
     if cbFilterAccounts.Checked then begin
+      FMinAccountBalance := bmin;
+      FMaxAccountBalance := bmax;
       ebFilterAccountByBalanceMin.ParentFont := true;
       ebFilterAccountByBalanceMax.ParentFont := true;
     end else begin
+      FMinAccountBalance := 0;
+      FMaxAccountBalance := CT_MaxWalletAmount;
       ebFilterAccountByBalanceMin.font.Color := clDkGray;
       ebFilterAccountByBalanceMax.font.Color := clDkGray;
     end;
