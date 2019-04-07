@@ -35,4 +35,4 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [27](PIP-0027.md)     | E-PASA: Infinite Address-Space (via Layer-2)  | Herman Schoenfeld            | Protocol, Front-End    | Proposed |
 | [28](PIP-0028.md)     | E-OP: Layer-2 operation encoding standard for smart-contracts | Herman Schoenfeld            | Front-End       | Draft |
 | [29](PIP-0029.md)     | Account Seals: Cryptographically Secure Account Histories  | Herman Schoenfeld            | Protocol   | Draft |
-
+| [30](PIP-0030.md)     | SafeBoxRoot: Deletable SafeBox and Light-Nodes  | Herman Schoenfeld            | Protocol   | Proposed |
