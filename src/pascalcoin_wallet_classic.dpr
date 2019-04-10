@@ -56,7 +56,9 @@ uses
   UGridUtils in 'gui-classic\UGridUtils.pas',
   UGUIUtils in 'gui-classic\UGUIUtils.pas',
   UPCDataTypes in 'core\UPCDataTypes.pas',
-  UPCOrderedLists in 'core\UPCOrderedLists.pas';
+  UPCOrderedLists in 'core\UPCOrderedLists.pas',
+  UPCOperationsSignatureValidator in 'core\UPCOperationsSignatureValidator.pas',
+  UPCTNetDataExtraMessages in 'core\UPCTNetDataExtraMessages.pas';
 
 {$R *.res}
 

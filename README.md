@@ -34,10 +34,10 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
-### CURRENT DEVELOPMENT (4.0.3d)
+### Build 4.0.3 - 2019-04-10
 - Improvements:
   - Up to +1600 operations per second using a domestic computer (4 CPU)
-  - Donwload and check new Safebox in less than 5 minutes
+  - Download and check new Safebox in less than 5 minutes
 - TESTNET:
   - Added functions to automatically receive new accounts for new installed fresh nodes
 - Major refactoring: 
@@ -55,8 +55,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
   - Miner bug after loading blocks on start-up if last saved block was a checkpoint block
 - Gui-Classic
   - Multithread on User Accounts to avoid freeze when updating data
-  - Fixed Minor bugs
-  
+  - Fixed Minor bugs (See GitHub commits since 2019-01-08)  
 
 ### Build 4.0.2 - 2019-01-08
 - Improvement speed (high performance): checking valid signature only once if operation is on mempool and was verified previously
