@@ -173,15 +173,15 @@ Const
   CT_OpSubtype_Data_Signer                = 103;
   CT_OpSubtype_Data_Receiver              = 104;
 
-  CT_ClientAppVersion : String = {$IFDEF PRODUCTION}'4.0.3'{$ELSE}{$IFDEF TESTNET}'TESTNET 4.0.3'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : String = {$IFDEF PRODUCTION}'4.0.3d'{$ELSE}{$IFDEF TESTNET}'TESTNET 4.0.3d'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs = {$IFDEF PRODUCTION}'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us'
                     {$ELSE}'pascaltestnet1.dynamic-dns.net;pascaltestnet2.dynamic-dns.net;pascaltestnet1.dns1.us;pascaltestnet2.dns1.us'{$ENDIF};
 
   CT_TRUE_FALSE : Array[Boolean] Of String = ('FALSE','TRUE');
 
-  CT_MAX_0_fee_operations_per_block_by_miner = {$IFDEF PRODUCTION}30000{$ELSE}{$IFDEF TESTNET}3000{$ELSE}{$ENDIF}{$ENDIF};
-  CT_MAX_Operations_per_block_by_miner =  {$IFDEF PRODUCTION}500000{$ELSE}{$IFDEF TESTNET}50000{$ELSE}{$ENDIF}{$ENDIF};
+  CT_MAX_0_fee_operations_per_block_by_miner = {$IFDEF PRODUCTION}2000{$ELSE}{$IFDEF TESTNET}2000{$ELSE}{$ENDIF}{$ENDIF};
+  CT_MAX_Operations_per_block_by_miner =  {$IFDEF PRODUCTION}20000{$ELSE}{$IFDEF TESTNET}50000{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_MAX_MultiOperation_Senders = 100;
   CT_MAX_MultiOperation_Receivers = 1000;
