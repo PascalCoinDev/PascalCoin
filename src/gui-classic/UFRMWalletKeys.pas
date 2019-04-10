@@ -535,7 +535,7 @@ begin
 end;
 
 procedure TFRMWalletKeys.UpdateWalletKeys;
-Var lasti,i : Integer;
+Var lasti,i,j : Integer;
   selected_wk,wk : TWalletKey;
   s : AnsiString;
 begin
@@ -563,9 +563,15 @@ begin
       end else begin
         s := wk.Name;
       end;
+      if (WalletKeys is TWalletKeysExt) then begin
+        j := TWalletKeysExt(WalletKeys).AccountsKeyList.IndexOfAccountKey(wk.AccountKey);
+        if (j>=0) then begin
+          s := s+' ('+IntToStr(TWalletKeysExt(WalletKeys).AccountsKeyList.AccountKeyList[j].Count)+' Accounts)';
+        end;
+      end;
       if Not Assigned(wk.PrivateKey) then begin
-        if Length(wk.CryptedKey)>0 then s:=s+' (Encrypted, need password)';
-        s:=s+' (* without key)';
+        if Length(wk.CryptedKey)>0 then s:=s+' (**NEED PASSWORD**)'
+        else s:=s+' (**PUBLIC KEY ONLY**)';
       end;
       lbWalletKeys.Items.AddObject(s,TObject(i));
     end;

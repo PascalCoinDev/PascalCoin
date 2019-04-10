@@ -2321,8 +2321,8 @@ begin
         s := wk.Name;
       end;
       if Not Assigned(wk.PrivateKey) then begin
-        if Length(wk.CryptedKey)>0 then s:=s+' (Encrypted, need password)';
-        s:=s+' (* without key)';
+        if Length(wk.CryptedKey)>0 then s:=s+' (**NEED PASSWORD**)'
+        else s:=s+' (**PUBLIC KEY ONLY**)';
       end;
       cbMyPrivateKeys.Items.AddObject(s,TObject(i));
     end;
