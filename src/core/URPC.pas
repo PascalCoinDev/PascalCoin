@@ -943,6 +943,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
 
   Function CheckAndGetEncodedRAWPayload(Const RawPayload : TRawBytes; Const Payload_method, EncodePwdForAES : String; const senderAccounKey, targetAccountKey : TAccountKey; var EncodedRAWPayload : TRawBytes) : Boolean;
   begin
+    Result := False;
     if (length(RawPayload)>0) then begin
       if (Payload_method='none') then EncodedRAWPayload:=RawPayload
       else if (Payload_method='dest') then begin
@@ -957,6 +958,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         exit;
       end;
     end else EncodedRAWPayload := Nil;
+    Result := True;
   end;
 
   // This function creates a TOpTransaction without looking for balance/private key of sender account
