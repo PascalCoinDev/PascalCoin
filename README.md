@@ -34,6 +34,9 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ## History:  
 
+### Build 4.0.3.1 - 2019-04-12
+- Fixed core bug #182 in RPC calls
+
 ### Build 4.0.3 - 2019-04-10
 - Improvements:
   - Up to +1600 operations per second using a domestic computer (4 CPU)
