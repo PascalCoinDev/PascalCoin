@@ -49,13 +49,14 @@ https://github.com/PascalCoinPool/pascal-gui-wallet
 
 **Overall Score:**  8/10
 
-**Notes:** Good option, satisfies mostly everying. P2P is contigent on someone else providing a mobile-compliant daemon in the future (which is likely). For additional $5, developer can provide demo Layer-2 app, which would be great after wallet is delivered! Developer is trusted, quality dev and likely to maintain out of good will.
+**Notes:** Good option, satisfies mostly everying. P2P is contigent on someone else providing a mobile-compliant daemon in the future (which is likely). For additional $5k, the developer has offered to provide a demo Layer-2 Chat app, which would be great after wallet is delivered! This would be like a decentralised Telegram PoC app. However, this is **NOT** part of this deliverable. Developer is trusted, quality dev and likely to maintain out of good will.
 
 ### PIP-0031C
 
 **Links**
 
 https://github.com/bbedward/PascalCoin/blob/pip-0031c/PIP/PIP-0031C.md
+https://github.com/bbedward/PascalCoin/blob/pip-overview/PIP/PIP-0031C_overview.md
 
 **TOTAL** $25k
 
@@ -67,13 +68,13 @@ https://github.com/bbedward/PascalCoin/blob/pip-0031c/PIP/PIP-0031C.md
 4. Desktop-Wallet: 5/10
 5. P2P: 0/10
 6. Layer2: 0/10
-7. Internationalizable: 5/10
+7. Internationalizable: 10/10
 8. Bang-For-Buck: 4/10
 9. Maintainability: 4/10
 
-**Overall Score:**  4/10
+**Overall Score:**  5/10
 
-**Notes:** Well-written pitch but when you dril-down, it's lacking somewhat. There is no web-wallet, no layer-2, no P2P and risky desktop support. It's mainly just "bling" mobile apps. The desktop app is contingent on technology release from 3rd party vendor that hasn't been released yet. As a benefit, PascalCoin would get Python libraries for interacting with daemon, which would benefit eco-system a little bit. Developers are very professional but not really community members, and realistically unlikely to stick around after payment. 
+**Notes:** Well-written pitch but when you drill-down, it's lacking in several areas that were fundamental to PIP-0031 initiative. For example, there is no web-wallet, no layer-2, no P2P and desktop support is contingent on technolog which may be released by Flutter in the future. In the opinion of the reviewer, it's mainly just "bling" mobile app. The desktop app is contingent on technology release from 3rd party vendor that hasn't been released yet. As a benefit, PascalCoin would get Python libraries for interacting with daemon, which would benefit eco-system a little bit. Developers are very professional but not really community members, and realistically unlikely to stick around after payment. 
 
 ### PIP-0031D:
 
