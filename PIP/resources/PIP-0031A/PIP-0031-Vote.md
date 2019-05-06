@@ -74,7 +74,7 @@ https://github.com/bbedward/PascalCoin/blob/pip-overview/PIP/PIP-0031C_overview.
 
 **Overall Score:**  5/10
 
-**Notes:** Well-written pitch but when you drill-down, it's lacking in several areas that were fundamental to PIP-0031 initiative. For example, there is no web-wallet, no layer-2, no P2P and desktop support is contingent on technolog which may be released by Flutter in the future. In the opinion of the reviewer, it's mainly just "bling" mobile app. The desktop app is contingent on technology release from 3rd party vendor that hasn't been released yet. As a benefit, PascalCoin would get Python libraries for interacting with daemon, which would benefit eco-system a little bit. Developers are very professional but not really community members, and realistically unlikely to stick around after payment. 
+**Notes:** Well-written pitch but when you drill-down, it's lacking in several areas that were fundamental to PIP-0031 initiative. For example, there is no web-wallet, no layer-2, no P2P and desktop support is contingent on technology which does not currently exist (and is a risk). In the opinion of reviewer, it's mostly a "bling" mobile app, which is still good in cryptocurrency industry. As a benefit, PascalCoin would get Python libraries for interacting with daemon, which is a net benefit to eco-system. Developers are a professional company, but not necessarily a "customer is always right" type of focus, in my experience based on this review. Also, they are not really community members, and realistically it's unlikely they will stick around after payment to continue to upgrade app with PascalCoin V5/V6, etc (unless offered more compensation). 
 
 ### PIP-0031D:
 
