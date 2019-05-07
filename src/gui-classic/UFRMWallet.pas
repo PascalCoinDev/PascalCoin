@@ -243,6 +243,7 @@ type
     Procedure FillOperationInformation(Const Strings : TStrings; Const OperationResume : TOperationResume);
     {$IFDEF TESTNET}
     Procedure InitMenuForTesting;
+    Procedure InitMacOSMenu;
     Procedure Test_RandomOperations(Sender: TObject);
     Procedure Test_AskForFreeAccount(Sender: TObject);
     {$IFDEF TESTING_NO_POW_CHECK}
@@ -963,6 +964,52 @@ begin
   end;
 end;
 
+Procedure TFRMWallet.InitMacOSMenu;
+{$ifdef fpc}
+var
+  mi : TMenuItem;
+  app : TMenuItem;
+{$endif}
+begin
+  {$ifdef fpc}
+  {$ifndef darwin}
+  Exit;
+  {$endif}
+  app := TMenuItem.Create(MainMenu);
+  app := TMenuItem.Create(MainMenu);
+  app.Caption:=#$EF#$A3#$BF;
+
+  miAboutPascalCoin.Parent.Remove(miAboutPascalCoin);
+  app.Add(miAboutPascalCoin);
+  {$IFDEF TESTNET}
+  // Things for testing purposes only
+  miAbout.caption := 'Testing';
+  {$ELSE}
+  miAbout.Visible:=false;
+  {$ENDIF}
+
+  // Move "Options" to "Prefernces"
+  mi := TMenuItem.Create(MainMenu);
+  mi.Caption:='-';
+  app.Add(mi);
+  miOptions.Parent.Remove(miOptions);
+  miOptions.Caption:='Preferences...';
+  miOptions.ShortCut:=Menus.ShortCut(VK_OEM_COMMA, [ssMeta]);
+  app.Add(miOptions);
+
+  MiFindaccount.ShortCut:=Menus.ShortCut(VK_F, [ssMeta]);
+  MiOperationsExplorer.ShortCut:=Menus.ShortCut(VK_E, [ssMeta]);
+  MiFindpreviousaccountwithhighbalance.ShortCut:=Menus.Shortcut(VK_F3, [ssMeta]);
+  miOptions.ShortCut:=Menus.ShortCut(VK_OEM_COMMA, [ssMeta]); // match preferences
+  miPrivatekeys.ShortCut:=Menus.Shortcut(VK_P, [ssMeta]);
+
+  N1.Visible:=false;
+  MiClose.Visible:=false;
+
+  MainMenu.Items.Insert(0, app);
+  {$endif}
+end;
+
 {$IFDEF TESTNET}
 procedure TFRMWallet.InitMenuForTesting;
 var mi : TMenuItem;
@@ -1227,6 +1274,10 @@ begin
   // Things for testing purposes only
   InitMenuForTesting;
   {$ENDIF}
+  {$ifdef DARWIN}
+  // this is macOS specific menu layout
+  InitMacOSMenu;
+  {$endif}
 end;
 
 procedure TFRMWallet.ebHashRateBackBlocksKeyPress(Sender: TObject; var Key: char);
