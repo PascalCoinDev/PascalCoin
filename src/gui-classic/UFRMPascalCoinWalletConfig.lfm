@@ -120,6 +120,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Kind = bkOK
     ModalResult = 1
     OnClick = bbOkClick
+    Caption = 'OK'
     TabOrder = 18
   end
   object bbCancel: TBitBtn
@@ -130,6 +131,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Cancel = True
     Kind = bkCancel
     ModalResult = 2
+    Caption = 'Cancel'
     TabOrder = 19
   end
   object udInternetServerPort: TUpDown
