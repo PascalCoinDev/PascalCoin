@@ -81,7 +81,12 @@ ERROR: You must select ONLY ONE option: PRODUCTION or TESTNET
 ERROR: You must select ONE option!
 {$ENDIF}{$ENDIF}{$ENDIF}{$ENDIF}
 {$IFDEF OPTIONS_BY_DEFAULT}
+  {$ifdef darwin}
+  {$DEFINE Use_CryptoLib4Pascal}
+  {$else}
   {$DEFINE Use_OpenSSL}
+  {$endif}
+
   // By default are: Synapse + OpenSSLv11
   {$IFDEF ANDROID} 
     // Android usage (on Delphi) does not use Synapse
