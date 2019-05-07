@@ -7,7 +7,7 @@ program PascalCoin_Wallet_Classic;
 uses
   {$IFnDEF FPC}
   {$ELSE}
-  {$IFDEF LINUX}
+  {$IFDEF UNIX}
   cthreads,
   {$ENDIF }
   Interfaces,
