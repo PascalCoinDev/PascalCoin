@@ -651,7 +651,7 @@ begin
     C.ColumnType := act_account_number;
     C.width := -1;
   end;
-  DrawGrid.Canvas.Font.Color:=clBlack;
+  DrawGrid.Canvas.Font.Color:=clWindowText;
   if (ARow=0) then begin
     // Header
     s := CT_ColumnHeader[C.ColumnType];
@@ -1078,7 +1078,7 @@ procedure TOperationsGrid.OnGridDrawCell(Sender: TObject; ACol, ARow: Integer; R
 Var s : String;
   opr : TOperationResume;
 begin
-  DrawGrid.Canvas.Font.Color:=clBlack;
+  DrawGrid.Canvas.Font.Color:=clWindowText;
   opr := CT_TOperationResume_NUL;
   Try
   if (ARow=0) then begin
@@ -1508,7 +1508,7 @@ Var s : String;
   deviation : Real;
   hr_base : Int64;
 begin
-  DrawGrid.Canvas.Font.Color:=clBlack;
+  DrawGrid.Canvas.Font.Color:=clWindowText;
   if (ARow=0) then begin
     // Header
     case ACol of
