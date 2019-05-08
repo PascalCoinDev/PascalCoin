@@ -201,6 +201,9 @@ begin
   bbUpdatePassword.Enabled := false;
   UpdateWalletConfig;
   lblDefaultJSONRPCMinerServerPort.Caption := Format('(Default %d)',[CT_JSONRPCMinerServer_Port]);
+  {$ifdef fpc}{$ifdef darwin}
+  Caption:='Preferences';
+  {$endif}{$endif}
 end;
 
 procedure TFRMPascalCoinWalletConfig.cbDownloadNewCheckpointClick(
