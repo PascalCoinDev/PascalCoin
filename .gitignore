@@ -33,6 +33,9 @@ Run*.bat
 ## Bin folders (Unit test projects, etc)
 bin/
 
+## Lazarus macOS files
+src/ppas.sh
+
 ## Delphi files
 __history/
 dunit.ini

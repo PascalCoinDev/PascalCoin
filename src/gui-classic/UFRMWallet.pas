@@ -241,9 +241,9 @@ type
     Procedure FinishedLoadingApp;
     Procedure FillAccountInformation(Const Strings : TStrings; Const AccountNumber : Cardinal);
     Procedure FillOperationInformation(Const Strings : TStrings; Const OperationResume : TOperationResume);
+    Procedure InitMacOSMenu;
     {$IFDEF TESTNET}
     Procedure InitMenuForTesting;
-    Procedure InitMacOSMenu;
     Procedure Test_RandomOperations(Sender: TObject);
     Procedure Test_AskForFreeAccount(Sender: TObject);
     {$IFDEF TESTING_NO_POW_CHECK}
@@ -965,16 +965,16 @@ begin
 end;
 
 Procedure TFRMWallet.InitMacOSMenu;
-{$ifdef fpc}
+{$IFDEF FPC}
 var
   mi : TMenuItem;
   app : TMenuItem;
-{$endif}
+{$ENDIF}
 begin
-  {$ifdef fpc}
-  {$ifndef darwin}
+  {$IFDEF FPC}
+  {$IFNDEF DARWIN}
   Exit;
-  {$endif}
+  {$ENDIF}
   app := TMenuItem.Create(MainMenu);
   app := TMenuItem.Create(MainMenu);
   app.Caption:=#$EF#$A3#$BF;
@@ -1009,6 +1009,7 @@ begin
   MainMenu.Items.Insert(0, app);
   {$endif}
 end;
+
 
 {$IFDEF TESTNET}
 procedure TFRMWallet.InitMenuForTesting;

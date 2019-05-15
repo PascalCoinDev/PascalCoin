@@ -40,8 +40,8 @@
 
 }
 
-  {.$DEFINE PRODUCTION}
-  {$DEFINE TESTNET}
+  {$DEFINE PRODUCTION}
+  {.$DEFINE TESTNET}
 
   {$DEFINE OPTIONS_BY_DEFAULT}
   {.$DEFINE DelphiSockets_OpenSSLv10}
@@ -81,11 +81,11 @@ ERROR: You must select ONLY ONE option: PRODUCTION or TESTNET
 ERROR: You must select ONE option!
 {$ENDIF}{$ENDIF}{$ENDIF}{$ENDIF}
 {$IFDEF OPTIONS_BY_DEFAULT}
-  {$ifdef darwin}
+  {$IFDEF DARWIN}
   {$DEFINE Use_CryptoLib4Pascal}
-  {$else}
+  {$ELSE}
   {$DEFINE Use_OpenSSL}
-  {$endif}
+  {$ENDIF}
 
   // By default are: Synapse + OpenSSLv11
   {$IFDEF ANDROID} 
@@ -125,7 +125,7 @@ ERROR: You must select ONE option!
   {$ENDIF}
 {$ENDIF}
 
-{$ifNdef FPC}
+{$IFNDEF FPC}
   // We are on Delphi compiler
   {$IF Defined(ANDROID) or Defined(MACOS) or Defined(IOS) }
     // On Delphi and Android/IOS/MAC environment, AnsiString is not available and use DelphiSockets instead of Synapse
