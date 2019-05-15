@@ -15,7 +15,7 @@ object FRMAccountSelect: TFRMAccountSelect
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  Visible = False
+  LCLVersion = '2.0.2.0'
   object pnlAccountsTop: TPanel
     Left = 395
     Height = 282

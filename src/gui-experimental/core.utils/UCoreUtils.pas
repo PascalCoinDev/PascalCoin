@@ -234,11 +234,13 @@ var
   LAccs: TList<TAccount>;
   LAcc: TAccount;
   LList: TOrderedCardinalList;
+  LMemPool: TPCOperationsComp;
   Disposables: TDisposables;
 begin
   Balance := CT_BalanceSummary_Nil;
   LAccs := Disposables.AddObject(TList<TAccount>.Create) as TList<TAccount>;
-  TNode.Node.Bank.SafeBox.StartThreadSafe;
+//  TNode.Node.Bank.SafeBox.StartThreadSafe;
+  LMemPool := TNode.Node.LockMempoolRead;
   try
     for i := 0 to TWallet.Keys.Count - 1 do
     begin
@@ -246,7 +248,7 @@ begin
       for j := 0 to LList.Count - 1 do
       begin
         if IncludePending then
-          LAcc := TNode.Node.Operations.SafeBoxTransaction.Account(LList.Get(j))
+          LAcc := LMemPool.SafeBoxTransaction.Account(LList.Get(j))
         else
           LAcc := TNode.Node.Bank.SafeBox.Account(LList.Get(j));
         LAccs.Add(LAcc);
@@ -255,7 +257,8 @@ begin
       end;
     end;
   finally
-    TNode.Node.Bank.SafeBox.EndThreadSave;
+    TNode.Node.UnlockMempoolRead;
+//    TNode.Node.Bank.SafeBox.EndThreadSave;
   end;
   LAccs.Sort(TAccountComparer.Create);
   Result := LAccs.ToArray;
@@ -328,11 +331,18 @@ end;
 function TNodeHelper.GetAccounts(const AAccountNumbers: array of cardinal; AIncludePending: boolean = True): TArray<TAccount>;
 var
   i: integer;
+  LMemPool : TPCOperationsComp;
 begin
   SetLength(Result, Length(AAccountNumbers));
-  if AIncludePending then
-    for i := Low(AAccountNumbers) to High(AAccountNumbers) do
-      Result[i] := Self.Operations.SafeBoxTransaction.Account(AAccountNumbers[i])
+  if AIncludePending then begin
+    LMemPool := Self.LockMempoolRead;
+    try
+      for i := Low(AAccountNumbers) to High(AAccountNumbers) do
+        Result[i] := LMemPool.SafeBoxTransaction.Account(AAccountNumbers[i])
+    finally
+      Self.UnlockMempoolRead;
+    end;
+  end
   else
     for i := Low(AAccountNumbers) to High(AAccountNumbers) do
       Result[i] := Self.Bank.SafeBox.Account(AAccountNumbers[i]);
@@ -340,37 +350,43 @@ end;
 
 function TNodeHelper.GetPendingOperationsAffectingAccounts(const AAccountNumbers: array of cardinal; ASkipCount, ATakeCount: integer): TArray<TOperationResume>;
 var
-  LList: Classes.TList;
+  LList: TList<Cardinal>;
   LOps: TList<TOperationResume>;
   LOp: TPCOperation;
   LOpResume: TOperationResume;
+  LMemPool : TPCOperationsComp;
   LAccNo: cardinal;
   LNumOps, i: integer;
   GC: TDisposables;
 begin
   LNumOps := 0;
-  LList := GC.AddObject(Classes.TList.Create) as Classes.TList;
+  LList := GC.AddObject(TList<Cardinal>.Create) as TList<Cardinal>;
   LOps := GC.AddObject(TList<TOperationResume>.Create) as TList<TOperationResume>;
   for LAccNo in AAccountNumbers do
   begin
+    LMemPool := Self.LockMempoolRead;
+    try
     LList.Clear;
-    Self.Operations.OperationsHashTree.GetOperationsAffectingAccount(LAccNo, LList);
+    LMemPool.OperationsHashTree.GetOperationsAffectingAccount(LAccNo, LList);
     if LList.Count > 0 then
       for i := LList.Count - 1 downto 0 do
       begin
         Inc(LNumOps);
         if (LNumOps > ASkipCount) and (LNumOps <= ASkipCount + ATakeCount) then
         begin
-          LOp := Self.Operations.OperationsHashTree.GetOperation(PtrInt(LList[i]));
+          LOp := LMemPool.OperationsHashTree.GetOperation(LList[i]);
           if TPCOperation.OperationToOperationResume(0, LOp, False, LAccNo, LOpResume) then
           begin
             LOpResume.NOpInsideBlock := i;
-            LOpResume.Block := Node.Operations.OperationBlock.block;
-            LOpResume.Balance := Node.Operations.SafeBoxTransaction.Account(LAccNo {Op.SignerAccount}).balance;
+            LOpResume.Block := LMemPool.OperationBlock.block;
+            LOpResume.Balance := LMemPool.SafeBoxTransaction.Account(LAccNo {Op.SignerAccount}).balance;
             LOps.Add(LOpResume);
           end;
         end;
       end;
+    finally
+      Self.UnlockMempoolRead;
+    end;
   end;
   Result := LOps.ToArray;
 end;
@@ -381,7 +397,7 @@ type
 var
   i: integer;
   LBlock: cardinal;
-  LRelevantBlockOps: Classes.TList;
+  LRelevantBlockOps: TList<Cardinal>;
   LOp: TPCOperation;
   LOpResume: TOperationResume;
   LFoundOps: TList<TOperationResume>;
@@ -409,7 +425,7 @@ var
     LDisposables: TDisposables;
   begin
     LOpsComp := LDisposables.AddObject(TPCOperationsComp.Create(nil)) as TPCOperationsComp;
-    LRelevantBlockOps := LDisposables.AddObject(Classes.TList.Create) as Classes.TList;
+    LRelevantBlockOps := LDisposables.AddObject(TList<Cardinal>.Create) as TList<Cardinal>;
 
     // load block
     if not Bank.Storage.LoadBlockChainBlock(LOpsComp, ABlockNum) then
@@ -425,10 +441,10 @@ var
       LOpsComp.OperationsHashTree.GetOperationsAffectingAccount(LAccNo, LRelevantBlockOps);
       for i := LRelevantBlockOps.Count - 1 downto 0 do
       begin
-        LOp := LOpsComp.Operation[PtrInt(LRelevantBlockOps.Items[i])];
+        LOp := LOpsComp.Operation[LRelevantBlockOps.Items[i]];
         if TPCOperation.OperationToOperationResume(i, LOp, False, LAccNo, LOpResume) then
         begin
-          LOpResume.NOpInsideBlock := PtrInt(LRelevantBlockOps.Items[i]);
+          LOpResume.NOpInsideBlock := LRelevantBlockOps.Items[i];
           LOpResume.time := LOpsComp.OperationBlock.timestamp;
           LOpResume.Block := ABlockNum;
           if LAccountBalances[LAccNo] >= 0 then

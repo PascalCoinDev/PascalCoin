@@ -234,27 +234,28 @@ end;
 procedure TAccountsDataSource.FetchAll(const AContainer: TList<TAccount>);
 var
   i: integer;
-  acc: TAccount;
-  safeBox: TPCSafeBox;
+  LAcc: TAccount;
+  LSafeBox: TPCSafeBox;
+  LMemPool : TPCOperationsComp;
 begin
-  safeBox := TNode.Node.Bank.SafeBox;
-  safeBox.StartThreadSafe;
+  LSafeBox := TNode.Node.Bank.SafeBox;
+  LMemPool := TNode.Node.LockMempoolRead;
   try
     if FKeys.Count = 0 then
-      for i := 0 to safeBox.AccountsCount - 1 do
-        AContainer.Add(safeBox.Account(i)) // Load all accounts
+      for i := 0 to LSafeBox.AccountsCount - 1 do
+        AContainer.Add(LSafeBox.Account(i)) // Load all accounts
     else
-      for i := 0 to safeBox.AccountsCount - 1 do begin
+      for i := 0 to LSafeBox.AccountsCount - 1 do begin
         // Load key-matching accounts
         if FIncludePending then
-          acc := TNode.Node.Operations.SafeBoxTransaction.Account(i)
+          LAcc := LMemPool.SafeBoxTransaction.Account(i)
         else
-          acc := safeBox.Account(i);
-        if FKeys.Contains(acc.accountInfo.accountKey) then
-          AContainer.Add(acc);
+          LAcc := LSafeBox.Account(i);
+        if FKeys.Contains(LAcc.accountInfo.accountKey) then
+          AContainer.Add(LAcc);
       end;
   finally
-    safeBox.EndThreadSave;
+    TNode.Node.UnlockMempoolRead;
   end;
 end;
 
@@ -393,23 +394,29 @@ end;
 procedure TPendingOperationsDataSource.FetchAll(const AContainer: TList<TOperationResume>);
 var
   i: integer;
-  node: TNode;
-  Op: TPCOperation;
-  OPR: TOperationResume;
+  LNode: TNode;
+  LOp: TPCOperation;
+  LOPR: TOperationResume;
+  LMemPool : TPCOperationsComp;
 begin
-  node := TNode.Node;
-  if not Assigned(Node) then
+  LNode := TNode.Node;
+  if not Assigned(LNode) then
     exit;
-  for i := Node.Operations.Count - 1 downto 0 do
-  begin
-    Op := Node.Operations.OperationsHashTree.GetOperation(i);
-    if TPCOperation.OperationToOperationResume(0, Op, False, Op.SignerAccount, OPR) then
+  LMemPool := LNode.LockMempoolRead;
+  try
+    for i := LMemPool.Count - 1 downto 0 do
     begin
-      OPR.NOpInsideBlock := i;
-      OPR.Block := Node.Bank.BlocksCount;
-      OPR.Balance := Node.Operations.SafeBoxTransaction.Account(Op.SignerAccount).balance;
-      AContainer.Add(OPR);
+      LOp := LMemPool.OperationsHashTree.GetOperation(i);
+      if TPCOperation.OperationToOperationResume(0, LOp, False, LOp.SignerAccount, LOPR) then
+      begin
+        LOPR.NOpInsideBlock := i;
+        LOPR.Block := LNode.Bank.BlocksCount;
+        LOPR.Balance := LMemPool.SafeBoxTransaction.Account(LOp.SignerAccount).balance;
+        AContainer.Add(LOPR);
+      end;
     end;
+  finally
+    LNode.UnlockMempoolRead;
   end;
 end;
 

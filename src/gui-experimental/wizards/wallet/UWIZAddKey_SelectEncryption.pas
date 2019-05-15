@@ -38,9 +38,7 @@ implementation
 {$R *.lfm}
 
 uses
-  UAccounts,
-  UConst,
-  UMemory;
+  UAccounts, UConst, UMemory, Generics.Collections;
 
 { TWIZAddKey_SelectEncryption }
 
@@ -48,13 +46,13 @@ procedure TWIZAddKey_SelectEncryption.FormCreate(Sender: TObject);
 var
   i : Integer;
   GC : TDisposables;
-  availableEncryptionTypes : TList;
+  availableEncryptionTypes : TList<Word>;
 begin
   rgKeyType.Items.Clear;
-  availableEncryptionTypes := GC.AddObject( TList.Create ) as TList;
+  availableEncryptionTypes := GC.AddObject( TList<Word>.Create ) as TList<Word>;
   TAccountComp.ValidsEC_OpenSSL_NID(availableEncryptionTypes);
   for i := 0 to availableEncryptionTypes.Count - 1 do begin
-    rgKeyType.Items.AddObject(GetOptionText(PtrInt(availableEncryptionTypes[i])),availableEncryptionTypes[i]);
+    rgKeyType.Items.AddObject(GetOptionText(availableEncryptionTypes[i]),TObject(availableEncryptionTypes[i]));
   end;
 end;
 

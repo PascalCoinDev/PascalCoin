@@ -485,12 +485,18 @@ begin
 end;
 
 class procedure TUserInterface.OnLoaded(Sender: TObject);
+var LLockedMempool : TPCOperationsComp;
 begin
   FPoolMiningServer := TPoolMiningServer.Create;
   FPoolMiningServer.Port := TSettings.MinerServerRpcPort;
   FPoolMiningServer.MinerAccountKey := TWallet.MiningKey;
   FPoolMiningServer.MinerPayload := TEncoding.ANSI.GetBytes(TSettings.MinerName);
-  FNode.Operations.AccountKey := TWallet.MiningKey;
+  LLockedMempool := FNode.LockMempoolWrite;
+  try
+    LLockedMempool.AccountKey := TWallet.MiningKey;
+  finally
+    FNode.UnlockMempoolWrite;
+  end;
   FPoolMiningServer.Active := TSettings.MinerServerRpcActive;
   FPoolMiningServer.OnMiningServerNewBlockFound := NotifyMiningServerNewBlockFoundEvent;
   State := uisLoaded;
@@ -531,8 +537,10 @@ begin
 end;
 
 class procedure TUserInterface.OnSettingsChanged(Sender: TObject);
-Var wa : Boolean;
+var
+  wa : Boolean;
   i : Integer;
+  LLockedMempool : TPCOperationsComp;
 begin
   if TSettings.SaveLogFiles then begin
     if TSettings.SaveDebugLogs then
@@ -548,7 +556,12 @@ begin
     wa := FNode.NetServer.Active;
     FNode.NetServer.Port := TSettings.InternetServerPort;
     FNode.NetServer.Active := wa;
-    FNode.Operations.BlockPayload := TEncoding.ANSI.GetBytes(TSettings.MinerName);
+    LLockedMempool := FNode.LockMempoolWrite;
+    try
+      LLockedMempool.BlockPayload := TEncoding.ANSI.GetBytes(TSettings.MinerName);
+    finally
+      FNode.UnlockMempoolWrite;
+    end;
     FNode.NodeLogFilename := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'blocks.log';
   end;
   if Assigned(FPoolMiningServer) then begin
@@ -723,7 +736,7 @@ class procedure TUserInterface.ShowAccountInfoDialog(parentForm: TForm; const ac
 begin
   if account >= TUserInterface.Node.Bank.AccountsCount then
     raise EUserInterface.Create('Account not found');
-  ShowAccountInfoDialog(parentForm, TUserInterface.Node.Operations.SafeBoxTransaction.Account(account));
+  ShowAccountInfoDialog(parentForm, TUserInterface.Node.GetAccount(account));
 end;
 
 class procedure TUserInterface.ShowAccountInfoDialog(parentForm: TForm; const account : TAccount); overload;

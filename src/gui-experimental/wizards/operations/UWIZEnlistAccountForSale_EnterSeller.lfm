@@ -7,7 +7,7 @@ object WIZEnlistAccountForSale_EnterSeller: TWIZEnlistAccountForSale_EnterSeller
   Caption = 'WIZEnlistAccountForSale_EnterSeller'
   ClientHeight = 286
   ClientWidth = 450
-  Visible = False
+  LCLVersion = '2.0.2.0'
   object gbBeneficiary: TGroupBox
     Left = 8
     Height = 124

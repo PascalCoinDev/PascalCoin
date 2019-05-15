@@ -92,7 +92,7 @@ begin
     operation_to_string := '';
     for iAcc := 0 to FSenderAccounts.Count - 1 do begin
       op := Nil;
-      account := FNode.Operations.SafeBoxTransaction.Account(FSenderAccounts.Get(iAcc));
+      account := FNode.GetAccount(FSenderAccounts.Get(iAcc));
       If Not UpdatePayload(account, errors) then
         raise Exception.Create('Error encoding payload of sender account '+TAccountComp.AccountNumberToAccountTxtNumber(account.account)+': '+errors);
       i := WalletKeys.IndexOfAccountKey(account.accountInfo.accountKey);
@@ -236,7 +236,7 @@ begin
       ebSenderAccount.Text := TAccountComp.AccountNumberToAccountTxtNumber(SenderAccounts.Get(0));
       memoAccounts.Visible := false;
       ebSenderAccount.Visible := true;
-      balance := TNode.Node.Operations.SafeBoxTransaction.Account(SenderAccounts.Get(0)).balance;
+      balance := TNode.Node.GetAccount(SenderAccounts.Get(0)).balance;
     end else begin
       // Multiple sender accounts
       lblAccountCaption.Caption := 'Accounts';
@@ -244,7 +244,7 @@ begin
       ebSenderAccount.Visible := false;
       accountstext := '';
       for i := 0 to SenderAccounts.Count - 1 do begin
-         acc := TNode.Node.Operations.SafeBoxTransaction.Account(SenderAccounts.Get(i));
+         acc := TNode.Node.GetAccount(SenderAccounts.Get(i));
          balance := balance + acc.balance;
          if (accountstext<>'') then accountstext:=accountstext+'; ';
          accountstext := accountstext+TAccountComp.AccountNumberToAccountTxtNumber(acc.account)+' ('+TAccountComp.FormatMoney(acc.balance)+')';

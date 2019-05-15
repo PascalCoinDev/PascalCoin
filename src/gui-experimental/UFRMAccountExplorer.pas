@@ -24,8 +24,8 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ComCtrls,
-  ExtCtrls, StdCtrls, Buttons, Grids, Menus, UCommon.UI,
-  UGridUtils, UNode, UAccounts, UBlockChain;
+  ExtCtrls, StdCtrls, Buttons, Grids, Menus,
+  UCommon.UI, UBaseTypes, UGridUtils, UNode, UAccounts, UBlockChain;
 
 type
 
@@ -194,6 +194,7 @@ type
     FOrderedAccountsKeyList : TOrderedAccountKeysList;
     FMinAccountBalance : Int64;
     FMaxAccountBalance : Int64;
+    FLastAccountsGridInvalidateTC : TTickCount;
     procedure RefreshMyKeysCombo;
     procedure RefreshAccountsGrid(RefreshData : Boolean);
     procedure OnLoaded(Sender: TObject);
@@ -211,8 +212,9 @@ implementation
 
 {$R *.lfm}
 
-uses UFRMAccountSelect, UConst, USettings,
-     UWallet, UCrypto, UFRMMemoText, UUserInterface, UCommon, UPCOrderedLists;
+uses
+  UConst, USettings, UWallet, UCrypto, UCoreUtils,
+  UFRMAccountSelect, UFRMMemoText, UUserInterface, UCommon, UPCOrderedLists;
 
 { TFRMAccountExplorer }
 
@@ -220,6 +222,7 @@ uses UFRMAccountSelect, UConst, USettings,
 
 procedure TFRMAccountExplorer.FormCreate(Sender: TObject);
 begin
+  FLastAccountsGridInvalidateTC := TPlatform.GetTickCount;
   FMinAccountBalance := 0;
   FMaxAccountBalance := CT_MaxWalletAmount;
   FOrderedAccountsKeyList := Nil;
@@ -284,70 +287,49 @@ Var accl : TOrderedCardinalList;
   l : TOrderedCardinalList;
   i,j,k : Integer;
   c  : Cardinal;
-  applyfilter : Boolean;
+  LApplyfilter : Boolean;
   acc : TAccount;
+  LFilters : TAccountsGridFilter;
 begin
   If Not Assigned(FOrderedAccountsKeyList) Then exit;
+
   if Not RefreshData then begin
-    dgAccounts.Invalidate;
+    if TPlatform.GetElapsedMilliseconds(FLastAccountsGridInvalidateTC)>1000 then begin
+      FLastAccountsGridInvalidateTC := TPlatform.GetTickCount;
+      dgAccounts.Invalidate;
+    end;
     exit;
   end;
-  applyfilter := (cbFilterAccounts.Checked) and ((FMinAccountBalance>0) Or (FMaxAccountBalance<CT_MaxWalletAmount));
-  FAccountsGrid.ShowAllAccounts := (Not cbExploreMyAccounts.Checked) And (not applyfilter);
-  if Not FAccountsGrid.ShowAllAccounts then begin
-    accl := FAccountsGrid.LockAccountsList;
-    Try
-      accl.Clear;
-      if cbExploreMyAccounts.Checked then begin
-        if cbMyPrivateKeys.ItemIndex<0 then exit;
-        if cbMyPrivateKeys.ItemIndex=0 then begin
-          // All keys in the wallet
-          for i := 0 to TWallet.Keys.Count - 1 do begin
-            j := FOrderedAccountsKeyList.IndexOfAccountKey(TWallet.Keys[i].AccountKey);
-            if (j>=0) then begin
-              l := FOrderedAccountsKeyList.AccountKeyList[j];
-              for k := 0 to l.Count - 1 do begin
-                if applyfilter then begin
-                  acc := TUserInterface.Node.Bank.SafeBox.Account(l.Get(k));
-                  if (acc.balance>=FMinAccountBalance) And (acc.balance<=FMaxAccountBalance) then accl.Add(acc.account);
-                end else accl.Add(l.Get(k));
-              end;
-            end;
-          end;
-        end else begin
+  LApplyfilter := (cbFilterAccounts.Checked) and ((FMinAccountBalance>0) Or ((FMaxAccountBalance<CT_MaxWalletAmount) and (FMaxAccountBalance>=0)));
+  if (Not cbExploreMyAccounts.Checked) And (not LApplyfilter) then begin
+    FAccountsGrid.AccountsGridDatasource := acds_Node;
+    FAccountsGrid.UpdateData;
+  end else begin
+    LFilters := FAccountsGrid.AccountsGridFilter;
+    LFilters.MinBalance := FMinAccountBalance;
+    LFilters.MaxBalance := FMaxAccountBalance;
+    if cbExploreMyAccounts.Checked then begin
+      TNode.Node.Bank.SafeBox.StartThreadSafe;
+      try
+        LFilters.OrderedAccountsKeyList := TWallet.Keys.AccountsKeyList;
+        if cbMyPrivateKeys.ItemIndex>0 then begin
           i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]);
           if (i>=0) And (i<TWallet.Keys.Count) then begin
-            j := FOrderedAccountsKeyList.IndexOfAccountKey(TWallet.Keys[i].AccountKey);
-            if (j>=0) then begin
-              l := FOrderedAccountsKeyList.AccountKeyList[j];
-              for k := 0 to l.Count - 1 do begin
-                if applyfilter then begin
-                  acc := TUserInterface.Node.Bank.SafeBox.Account(l.Get(k));
-                  if (acc.balance>=FMinAccountBalance) And (acc.balance<=FMaxAccountBalance) then accl.Add(acc.account);
-                end else accl.Add(l.Get(k));
-              end;
-            end;
-          end;
-        end;
-      end else begin
-        // There is a filter... check every account...
-        c := 0;
-        while (c<TUserInterface.Node.Bank.SafeBox.AccountsCount) do begin
-          acc := TUserInterface.Node.Bank.SafeBox.Account(c);
-          if (acc.balance>=FMinAccountBalance) And (acc.balance<=FMaxAccountBalance) then accl.Add(acc.account);
-          inc(c);
-        end;
+            LFilters.indexAccountsKeyList := TWallet.Keys.AccountsKeyList.IndexOfAccountKey(TWallet.Keys[i].AccountKey);
+          end
+        end else LFilters.indexAccountsKeyList := -1;
+      finally
+        TNode.Node.Bank.SafeBox.EndThreadSave;
       end;
-    Finally
-      FAccountsGrid.UnlockAccountsList;
-    End;
-    lblAccountsCount.Caption := inttostr(accl.Count);
-  end else begin
-    lblAccountsCount.Caption := inttostr(TUserInterface.Node.Bank.AccountsCount);
+    end else begin
+      LFilters.OrderedAccountsKeyList := Nil;
+      LFilters.indexAccountsKeyList := -1;
+    end;
+    FAccountsGrid.AccountsGridFilter := LFilters;
+    FAccountsGrid.AccountsGridDatasource := acds_NodeFiltered;
   end;
+
   bbChangeKeyName.Enabled := cbExploreMyAccounts.Checked;
-  // Show Totals:
-  lblAccountsBalance.Caption := TAccountComp.FormatMoney(FAccountsGrid.AccountsBalance);
   OnSelectedAccountChanged;
 end;
 
@@ -717,7 +699,7 @@ begin
   if accn >= TUserInterface.Node.Bank.AccountsCount then
     raise Exception.Create('Account not found');
 
-  acc := TUserInterface.Node.Operations.SafeBoxTransaction.Account(accn);
+  acc := TUserInterface.Node.GetAccount(accn);
 
   i := FAccountOperationsGrid.DrawGrid.Row;
   if (i>0) and (i<=FAccountOperationsGrid.OperationsResume.Count) then begin

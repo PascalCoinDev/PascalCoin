@@ -10,7 +10,7 @@ object FRMNodes: TFRMNodes
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  Visible = False
+  LCLVersion = '2.0.2.0'
   object Label3: TLabel
     Left = 15
     Height = 15

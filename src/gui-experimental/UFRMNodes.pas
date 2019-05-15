@@ -60,7 +60,7 @@ type
 
 implementation
 
-uses UCommon, UUserInterface, UTime;
+uses UCommon, UUserInterface, UTime, Generics.Collections;
 
 {$R *.lfm}
 
@@ -87,7 +87,7 @@ procedure TFRMNodes.CM_NetConnectionUpdated(var Msg: TMessage);
 Const CT_BooleanToString : Array[Boolean] of String = ('False','True');
 Var i : integer;
  NC : TNetConnection;
- l : TList;
+ l : TList<TNetConnection>;
  sClientApp, sLastConnTime : String;
  strings, sNSC, sRS, sDisc : TStrings;
  hh,nn,ss,ms : Word;
@@ -170,7 +170,7 @@ end;
 procedure TFRMNodes.CM_NetNodeServersUpdated(var Msg: TMessage);
 Var i : integer;
  P : PNodeServerAddress;
- l : TList;
+ l : TList<Pointer>;
  strings : TStrings;
  s : String;
 begin
@@ -185,6 +185,10 @@ begin
         P := l[i];
         if Not (P^.is_blacklisted) then begin
           s := Format('Server IP:%s:%d',[P^.ip,P^.port]);
+          if (P^.last_connection_by_me>0) then begin
+            s := s + ' [Server] ';
+          end;
+
           if Assigned(P.netConnection) then begin
             If P.last_connection>0 then  s := s+ ' ** ACTIVE **'
             else s := s+' ** TRYING TO CONNECT **';
@@ -226,7 +230,7 @@ procedure TFRMNodes.CM_BlackListUpdated(var Msg: TMessage);
 Const CT_TRUE_FALSE : Array[Boolean] Of AnsiString = ('FALSE','TRUE');
 Var i,j,n : integer;
  P : PNodeServerAddress;
- l : TList;
+ l : TList<Pointer>;
  strings : TStrings;
 begin
   l := TNetData.NetData.NodeServersAddresses.LockList;
@@ -235,8 +239,7 @@ begin
     strings.BeginUpdate;
     Try
       strings.Clear;
-//      strings.Add('BlackList Updated: %s by TID: %p', [DateTimeToStr(now), TThread.CurrentThread.ThreadID]);  XXXXXXXXXXXXXXXX Windows %p is invalid (not a pointer)
-      strings.Add('BlackList Updated: %s by TID: %s', [DateTimeToStr(now), IntToHex(PtrInt(TThread.CurrentThread.ThreadID),8)]);
+      strings.Add('BlackList Updated: '+DateTimeToStr(now)+' by TID:'+IntToHex(PtrInt(TThread.CurrentThread.ThreadID),8));
       j := 0; n:=0;
       for i := 0 to l.Count - 1 do begin
         P := l[i];

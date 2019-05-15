@@ -56,7 +56,7 @@ type
 
 implementation
 
-uses UUserInterface, USettings;
+uses UUserInterface, USettings, Generics.Collections;
 
 {$R *.lfm}
 
@@ -105,7 +105,7 @@ end;
 procedure TFRMMessages.UpdateAvailableConnections;
 Var i : integer;
  NC : TNetConnection;
- l : TList;
+ l : TList<TNetConnection>;
 begin
   if Not TNetData.NetData.NetConnections.TryLockList(100,l) then exit;
   try
