@@ -1108,7 +1108,7 @@ begin
   Finally
     if lblGlobalErrors.Caption<>'' then begin
       tsGlobalError.visible := true;
-      tsGlobalError.tabvisible := {$IFDEF LINUX}true{$ELSE}false{$ENDIF};
+      tsGlobalError.tabvisible := {$IFDEF unix}true{$ELSE}false{$ENDIF};
       tsOperation.TabVisible := false;
       PageControlLocked.ActivePage := tsGlobalError;
       if bbPassword.CanFocus then begin
@@ -1116,7 +1116,7 @@ begin
       end;
     end else begin
       tsOperation.visible := true;
-      tsOperation.tabvisible := {$IFDEF LINUX}true{$ELSE}false{$ENDIF};
+      tsOperation.tabvisible := {$IFDEF unix}true{$ELSE}false{$ENDIF};
       tsGlobalError.TabVisible := false;
       PageControlLocked.ActivePage := tsOperation;
     end;
