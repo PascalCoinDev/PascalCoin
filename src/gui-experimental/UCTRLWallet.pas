@@ -628,7 +628,7 @@ begin
   if ASelection.RowCount = 1 then begin
     if not TAccountComp.AccountTxtNumberToAccountNumber(FAccountsGrid.Rows[ASelection.Row].Account, accNo) then
       raise Exception.Create('Error Parsing Account Number From Grid');
-    account := TNode.Node.Operations.SafeBoxTransaction.Account(accNo);
+    account := TNode.Node.GetAccount(accNo);
     miEnlistAccountsForSale.Visible := IIF(TAccountComp.IsAccountForSale(account.accountInfo), False, True);
     miDelistAccountsFromSale.Visible := not miEnlistAccountsForSale.Visible;
   end;

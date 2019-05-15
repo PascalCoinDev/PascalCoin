@@ -122,7 +122,7 @@ begin
       lblAccountToBuyDetails.Caption := ''
     else
     begin
-      LTempAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
+      LTempAccount := TNode.Node.GetAccount(LAccountNumber);
       lblAccountToBuyDetails.Caption := LTempAccount.Name.ToPrintable;
     end;
 end;
@@ -163,7 +163,7 @@ begin
 
   // Account To Buy section
   TAccountComp.AccountTxtNumberToAccountNumber(txtAccountToBuy.Text, LAccountNumber);
-  Model.BuyAccount.AccountToBuy := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
+  Model.BuyAccount.AccountToBuy := TNode.Node.GetAccount(LAccountNumber);
 
   // Fee Section
   Model.Fee.SingleOperationFee := TSettings.DefaultFee;
@@ -204,7 +204,7 @@ begin
     Exit(False);
   end;
 
-  LAccountToBuy := TNode.Node.Operations.SafeBoxTransaction.Account(LAccountNumber);
+  LAccountToBuy := TNode.Node.GetAccount(LAccountNumber);
 
   if not TAccountComp.IsAccountForSale(LAccountToBuy.accountInfo) then
   begin

@@ -73,7 +73,7 @@ begin
     end
     else
     begin
-      LAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
+      LAccount := TNode.Node.GetAccount(LAccountNumber);
       lblBeneficiaryDetails.Caption := LAccount.Name.ToPrintable;
       lblBeneficiaryDetails.Visible := True;
     end;
@@ -118,7 +118,7 @@ var
   LAccount: TAccount;
 begin
   TAccountComp.AccountTxtNumberToAccountNumber(edtBeneficiaryAcc.Text, LAccountNumber);
-  Model.SendPASC.DestinationAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
+  Model.SendPASC.DestinationAccount := TNode.Node.GetAccount(LAccountNumber);
 end;
 
 function TWIZEnlistAccountForSale_EnterSeller.Validate(out message: ansistring): boolean;
@@ -147,7 +147,7 @@ begin
       Exit(False);
     end;
 
-  Model.EnlistAccountForSale.SellerAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
+  Model.EnlistAccountForSale.SellerAccount := TNode.Node.GetAccount(LAccountNumber);
 
 end;
 

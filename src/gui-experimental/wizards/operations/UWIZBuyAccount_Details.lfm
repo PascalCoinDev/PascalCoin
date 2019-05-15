@@ -8,7 +8,7 @@ object WIZBuyAccount_Details: TWIZBuyAccount_Details
   Caption = 'WIZBuyAccount_Details'
   ClientHeight = 561
   ClientWidth = 450
-  Visible = False
+  LCLVersion = '2.0.2.0'
   object gbAccountToBuy: TGroupBox
     Left = 8
     Height = 124

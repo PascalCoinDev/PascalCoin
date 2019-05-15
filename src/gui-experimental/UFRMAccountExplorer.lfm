@@ -5,13 +5,13 @@ object FRMAccountExplorer: TFRMAccountExplorer
   Width = 868
   ActiveControl = cbMyPrivateKeys
   Caption = 'Accounts Explorer'
-  ClientHeight = 451
+  ClientHeight = 431
   ClientWidth = 868
   Menu = meAccountExplorerMenu
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  Visible = False
+  LCLVersion = '2.0.2.0'
   object Splitter1: TSplitter
     Left = 380
     Height = 385

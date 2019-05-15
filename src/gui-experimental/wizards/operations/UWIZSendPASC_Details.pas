@@ -69,6 +69,7 @@ uses
   UCoreUtils,
   UBaseTypes,
   UCoreObjects,
+  UBlockChain,
   UFRMAccountSelect,
   UCommon.Collections,
   Generics.Collections,
@@ -102,13 +103,13 @@ var
   LTempAccount: TAccount;
   LAccountNumber: cardinal;
 begin
+
   // Recipient section
   if TAccountComp.AccountTxtNumberToAccountNumber(txtRecipient.Text, LAccountNumber) then
     if ((LAccountNumber < 0) or (LAccountNumber >= TNode.Node.Bank.AccountsCount)) then
       lblRecipientDetails.Caption := ''
-    else
-    begin
-      LTempAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
+    else begin
+      LTempAccount := TNode.Node.GetAccount(LAccountNumber);
       lblRecipientDetails.Caption := LTempAccount.Name.ToPrintable;
     end;
 
@@ -138,7 +139,7 @@ begin
 
   // Recipient section
   TAccountComp.AccountTxtNumberToAccountNumber(txtRecipient.Text, LAccountNumber);
-  Model.SendPASC.DestinationAccount := TNode.Node.Operations.SafeBoxTransaction.account(LAccountNumber);
+  Model.SendPASC.DestinationAccount := TNode.Node.GetAccount(LAccountNumber);
 
   // Quantity section
   if chkSendAll.Checked then
