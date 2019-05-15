@@ -1,7 +1,7 @@
 object FRMOperation: TFRMOperation
-  Left = 772
+  Left = 363
   Height = 493
-  Top = 245
+  Top = 105
   Width = 608
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
@@ -15,8 +15,7 @@ object FRMOperation: TFRMOperation
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.8.4.0'
-  Visible = False
+  LCLVersion = '2.1.0.0'
   object lblAccountCaption: TLabel
     Left = 25
     Height = 13
@@ -29,7 +28,7 @@ object FRMOperation: TFRMOperation
     Left = 432
     Height = 19
     Top = 15
-    Width = 149
+    Width = 148
     Caption = 'lblAccountBalance'
     Font.Color = clGreen
     Font.Height = -16
@@ -50,7 +49,7 @@ object FRMOperation: TFRMOperation
     Left = 387
     Height = 13
     Top = 58
-    Width = 18
+    Width = 19
     Caption = 'XXX'
     ParentColor = False
   end
@@ -103,14 +102,14 @@ object FRMOperation: TFRMOperation
     TabOrder = 1
     object tsOperation: TTabSheet
       Caption = 'Operation'
-      ClientHeight = 341
-      ClientWidth = 548
+      ClientHeight = 337
+      ClientWidth = 550
       TabVisible = False
       object lblFee: TLabel
         Left = 15
         Height = 13
         Top = 188
-        Width = 69
+        Width = 68
         Caption = 'Operation Fee'
         ParentColor = False
       end
@@ -120,14 +119,14 @@ object FRMOperation: TFRMOperation
         Top = 207
         Width = 521
         Caption = ' Payload: '
-        ClientHeight = 111
-        ClientWidth = 517
+        ClientHeight = 110
+        ClientWidth = 511
         TabOrder = 2
         object lblEncryptPassword: TLabel
           Left = 38
           Height = 13
           Top = 67
-          Width = 50
+          Width = 49
           Caption = 'Password:'
           ParentColor = False
         end
@@ -135,7 +134,7 @@ object FRMOperation: TFRMOperation
           Left = 256
           Height = 13
           Top = 6
-          Width = 67
+          Width = 66
           Caption = 'Payload data:'
           ParentColor = False
         end
@@ -164,9 +163,9 @@ object FRMOperation: TFRMOperation
         end
         object rbEncryptedWithEC: TRadioButton
           Left = 15
-          Height = 19
+          Height = 18
           Top = 26
-          Width = 207
+          Width = 212
           Caption = 'Encrypted with dest account public key'
           Checked = True
           OnClick = memoPayloadClick
@@ -175,25 +174,25 @@ object FRMOperation: TFRMOperation
         end
         object rbEncrptedWithPassword: TRadioButton
           Left = 15
-          Height = 19
+          Height = 18
           Top = 44
-          Width = 141
+          Width = 144
           Caption = 'Encrypted with password'
           OnClick = memoPayloadClick
           TabOrder = 2
         end
         object rbNotEncrypted: TRadioButton
           Left = 15
-          Height = 19
+          Height = 18
           Top = 84
-          Width = 162
+          Width = 167
           Caption = 'Dont encrypt (Public payload)'
           OnClick = memoPayloadClick
           TabOrder = 4
         end
         object ebEncryptPassword: TEdit
           Left = 94
-          Height = 21
+          Height = 22
           Top = 64
           Width = 122
           OnChange = ebEncryptPasswordChange
@@ -208,6 +207,7 @@ object FRMOperation: TFRMOperation
           Font.Color = clBlack
           Font.Height = -16
           Font.Name = 'Tahoma'
+          Lines.Strings = (          )
           OnChange = memoPayloadClick
           OnClick = memoPayloadClick
           ParentFont = False
@@ -216,9 +216,9 @@ object FRMOperation: TFRMOperation
         end
         object rbEncryptedWithOldEC: TRadioButton
           Left = 15
-          Height = 19
+          Height = 18
           Top = 7
-          Width = 159
+          Width = 165
           Caption = 'Encrypted with old public key'
           OnClick = memoPayloadClick
           TabOrder = 0
@@ -226,7 +226,7 @@ object FRMOperation: TFRMOperation
       end
       object ebFee: TEdit
         Left = 90
-        Height = 21
+        Height = 22
         Top = 184
         Width = 70
         TabOrder = 1
@@ -242,8 +242,8 @@ object FRMOperation: TFRMOperation
         OnChange = PageControlOpTypeChange
         object tsTransaction: TTabSheet
           Caption = 'Transaction'
-          ClientHeight = 141
-          ClientWidth = 513
+          ClientHeight = 137
+          ClientWidth = 515
           object lblDestAccount: TLabel
             Left = 13
             Height = 13
@@ -334,8 +334,8 @@ object FRMOperation: TFRMOperation
             Top = 6
             Width = 488
             Caption = ' Change type: '
-            ClientHeight = 112
-            ClientWidth = 484
+            ClientHeight = 111
+            ClientWidth = 478
             TabOrder = 0
             object lblNewPrivateKey: TLabel
               Left = 57
@@ -394,10 +394,11 @@ object FRMOperation: TFRMOperation
               Height = 21
               Top = 30
               Width = 294
-              ItemHeight = 13
+              ItemHeight = 26
               Sorted = True
               Style = csDropDownList
               TabOrder = 1
+              Text = '0'
             end
             object ebNewPublicKey: TEdit
               Left = 144
@@ -470,8 +471,8 @@ object FRMOperation: TFRMOperation
         end
         object tsListForSale: TTabSheet
           Caption = 'List account for sale'
-          ClientHeight = 141
-          ClientWidth = 513
+          ClientHeight = 137
+          ClientWidth = 515
           ImageIndex = 3
           object gbSaleType: TGroupBox
             Left = 8
@@ -479,8 +480,8 @@ object FRMOperation: TFRMOperation
             Top = 5
             Width = 499
             Caption = ' Sale type: '
-            ClientHeight = 117
-            ClientWidth = 495
+            ClientHeight = 116
+            ClientWidth = 489
             TabOrder = 0
             object Label1: TLabel
               Left = 81
@@ -611,8 +612,8 @@ object FRMOperation: TFRMOperation
         end
         object tsDelist: TTabSheet
           Caption = 'Delist account'
-          ClientHeight = 141
-          ClientWidth = 513
+          ClientHeight = 137
+          ClientWidth = 515
           ImageIndex = 3
           object lblDelistErrors: TLabel
             Left = 13
@@ -630,8 +631,8 @@ object FRMOperation: TFRMOperation
         end
         object tsBuyAccount: TTabSheet
           Caption = 'Buy account'
-          ClientHeight = 141
-          ClientWidth = 513
+          ClientHeight = 137
+          ClientWidth = 515
           ImageIndex = 4
           object lblAccountToBuy: TLabel
             Left = 13
@@ -707,10 +708,11 @@ object FRMOperation: TFRMOperation
             Height = 21
             Top = 85
             Width = 294
-            ItemHeight = 13
+            ItemHeight = 26
             Sorted = True
             Style = csDropDownList
             TabOrder = 2
+            Text = '0'
           end
           object bbBuyNewKey: TBitBtn
             Left = 418
@@ -802,8 +804,8 @@ object FRMOperation: TFRMOperation
         end
         object tsChangeInfo: TTabSheet
           Caption = 'Change Info'
-          ClientHeight = 141
-          ClientWidth = 513
+          ClientHeight = 137
+          ClientWidth = 515
           object lblChangeInfoErrors: TLabel
             Left = 13
             Height = 13
@@ -829,7 +831,7 @@ object FRMOperation: TFRMOperation
           end
           object ebChangeName: TEdit
             Left = 118
-            Height = 21
+            Height = 22
             Top = 29
             Width = 258
             TabOrder = 0
@@ -846,7 +848,7 @@ object FRMOperation: TFRMOperation
           end
           object ebChangeType: TEdit
             Left = 118
-            Height = 21
+            Height = 22
             Top = 56
             Width = 76
             TabOrder = 1
@@ -863,7 +865,7 @@ object FRMOperation: TFRMOperation
       end
       object ebSignerAccount: TEdit
         Left = 325
-        Height = 21
+        Height = 22
         Top = 184
         Width = 82
         TabOrder = 3
@@ -1016,7 +1018,7 @@ object FRMOperation: TFRMOperation
   end
   object ebSenderAccount: TEdit
     Left = 74
-    Height = 27
+    Height = 29
     Top = 12
     Width = 97
     Font.Color = clBlack
