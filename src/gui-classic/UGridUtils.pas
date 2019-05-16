@@ -218,9 +218,6 @@ Type
     procedure DoUpdateBlockChainGrid(ANode : TNode; var AList : TList<TBlockChainData>; ABlockStart, ABlockEnd : Int64);
   protected
     procedure BCExecute; override;
-  protected
-    FGridUpdateCount: Integer;
-    procedure UpdateDrawGrid;
   public
     constructor Create(ABlockChainGrid : TBlockChainGrid);
   End;
@@ -354,6 +351,7 @@ begin
   FisProcessing := True;
   FProcessedList := TOrderedCardinalList.Create;
   Suspended := False;
+  ExecuteUIThread := True;
 end;
 
 destructor TAccountsGridUpdateThread.Destroy;
@@ -904,6 +902,7 @@ begin
   inherited Create(True);
   FreeOnTerminate := False;
   Suspended := False;
+  ExecuteUIThread := True;
 end;
 
 procedure TOperationsGridUpdateThread.DoUpdateOperationsGrid(ANode: TNode; var AList: TList<TOperationResume>);
@@ -1346,22 +1345,14 @@ begin
         FBlockChainGrid.FBlockChainDataList.Add(Llist[i]);
       end;
       if Assigned(FBlockChainGrid.DrawGrid) then begin
-        if Llist.Count>0 then FGridUpdateCount := Llist.Count+1
-        else FGridUpdateCount := 2;
-        Synchronize(UpdateDrawGrid);
+        if Llist.Count>0 then FBlockChainGrid.DrawGrid.RowCount := Llist.Count+1
+         else FBlockChainGrid.DrawGrid.RowCount := 2;
+         FBlockChainGrid.FDrawGrid.Invalidate;
       end;
     end;
   finally
     Llist.Free;
   end;
-end;
-
-procedure TBlockChainGridUpdateThread.UpdateDrawGrid;
-begin
-  if not Assigned(FBlockChainGrid) or not Assigned(FBlockChainGrid.DrawGrid)
-    then Exit;
-  FBlockChainGrid.DrawGrid.RowCount := FGridUpdateCount;
-  FBlockChainGrid.FDrawGrid.Invalidate;
 end;
 
 constructor TBlockChainGridUpdateThread.Create(ABlockChainGrid : TBlockChainGrid);
@@ -1370,6 +1361,7 @@ begin
   inherited Create(True);
   FreeOnTerminate := False;
   Suspended := False;
+  ExecuteUIThread := True;
 end;
 
 procedure TBlockChainGridUpdateThread.DoUpdateBlockChainGrid(ANode: TNode; var AList: TList<TBlockChainData>; ABlockStart, ABlockEnd : Int64);
