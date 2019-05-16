@@ -3,6 +3,11 @@
 *.exe
 *.identcache
 *.stat
+/src/*.app
+src/PascalCoinWallet
+src/PascalCoinWalletLazarus
+src/PascalCoinWalletExperimental
+
 
 ## OpenSSL 
 libeay32.dll
