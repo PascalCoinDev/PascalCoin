@@ -7,9 +7,11 @@
   <key>CFBundleExecutable</key>
   <string>PascalCoinWallet</string>
   <key>CFBundleName</key>
-  <string>PascalCoin Wallet</string>
+  <string>PascalCoin Wallet</string>  
   <key>CFBundleIdentifier</key>
-  <string>com.company.PascalCoinWallet</string>
+  <string>org.pascalcoin.PascalCoinWallet</string>
+  <key>CFBundleIconFile</key>
+  <string>PascalCoin.icns</string>  
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundlePackageType</key>
@@ -17,7 +19,7 @@
   <key>CFBundleSignature</key>
   <string>Pasc</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.1</string>
+  <string>1.0.0.0</string>
   <key>CFBundleVersion</key>
   <string>1</string>
   <key>CSResourcesFileMapped</key>
