@@ -657,7 +657,7 @@ object FRMWallet: TFRMWallet
         Align = alClient
         TabOrder = 2
         object tsAccountOperations: TTabSheet
-          Caption = 'Operations of selected Account'
+          Caption = 'Account Operations'
           object dgAccountOperations: TDrawGrid
             Left = 0
             Top = 0
@@ -669,12 +669,8 @@ object FRMWallet: TFRMWallet
           end
         end
         object tsMultiSelectAccounts: TTabSheet
-          Caption = 'Selected accounts for massive operations'
+          Caption = 'Selected Accounts For Batch Operation'
           ImageIndex = 1
-          ExplicitLeft = 0
-          ExplicitTop = 0
-          ExplicitWidth = 0
-          ExplicitHeight = 0
           object dgSelectedAccounts: TDrawGrid
             Left = 41
             Top = 31
@@ -866,10 +862,6 @@ object FRMWallet: TFRMWallet
     object tsPendingOperations: TTabSheet
       Caption = 'Pending Operations'
       ImageIndex = 5
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object dgPendingOperations: TDrawGrid
         Left = 0
         Top = 86
@@ -1008,10 +1000,6 @@ object FRMWallet: TFRMWallet
     object tsOperations: TTabSheet
       Caption = 'Operations Explorer'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Panel1: TPanel
         Left = 0
         Top = 0
@@ -1060,10 +1048,6 @@ object FRMWallet: TFRMWallet
     object tsLogs: TTabSheet
       Caption = 'Logs'
       ImageIndex = 2
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object pnlTopLogs: TPanel
         Left = 0
         Top = 0
