@@ -5,13 +5,13 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>English</string>
   <key>CFBundleExecutable</key>
-  <string>PascalCoinWallet</string>
+  <string>PascalCoinWalletLazarus</string>
   <key>CFBundleName</key>
   <string>PascalCoin Wallet</string>  
   <key>CFBundleIdentifier</key>
   <string>org.pascalcoin.PascalCoinWallet</string>
   <key>CFBundleIconFile</key>
-  <string>PascalCoin.icns</string>  
+  <string>Logo.icns</string>  
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundlePackageType</key>
