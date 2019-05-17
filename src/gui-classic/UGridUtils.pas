@@ -891,7 +891,6 @@ begin
         FOperationsGrid.FOperationsResume.Add(list[i]);
       end;
       Synchronize(FOperationsGrid.InitGrid);
-      FOperationsGrid.InitGrid;
     end;
   finally
     list.Free;
