@@ -97,7 +97,7 @@ implementation
 {$R *.lfm}
 
 Uses
-  UNode, UTime, UECIES, UAES, UAccounts, UCommon, USettings, UBaseTypes,
+  UNode, UTime, UAccounts, UCommon, USettings, UBaseTypes,
   UPCEncryption, UFRMMemoText;
 
 { TFRMPayloadDecoder }

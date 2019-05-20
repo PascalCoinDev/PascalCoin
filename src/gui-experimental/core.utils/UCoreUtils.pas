@@ -131,9 +131,8 @@ implementation
 
 uses
   ULog,
-  UAES,
+  UPCEncryption,
   UConst,
-  UECIES,
   UCrypto,
   UMemory,
   UNetProtocol,
@@ -806,14 +805,14 @@ begin
       pemEncryptWithSender:
       begin
         // Use sender public key
-        AEncodedPayloadBytes := ECIESEncrypt(ASenderPublicKey, TEncoding.ANSI.GetBytes(APayloadContent));
+        TPCEncryption.DoPascalCoinECIESEncrypt(ASenderPublicKey, TEncoding.ANSI.GetBytes(APayloadContent), AEncodedPayloadBytes);
         LValid := AEncodedPayloadBytes <> nil;
       end;
 
       pemEncryptWithRecipient:
       begin
         // With destination public key
-        AEncodedPayloadBytes := ECIESEncrypt(ADestinationPublicKey, TEncoding.ANSI.GetBytes(APayloadContent));
+        TPCEncryption.DoPascalCoinECIESEncrypt(ADestinationPublicKey, TEncoding.ANSI.GetBytes(APayloadContent), AEncodedPayloadBytes);
         LValid := AEncodedPayloadBytes <> nil;
       end;
 
@@ -825,8 +824,10 @@ begin
           AErrorMessage := 'Payload Encryption Password Cannot Be Empty With The Chosen Option : "Encrypt With Password."';
           Exit(False);
         end;
-        AEncodedPayloadBytes := TAESComp.EVP_Encrypt_AES256(
-          TEncoding.ANSI.GetBytes(APayloadContent), TEncoding.ANSI.GetBytes(APayloadEncryptionPassword));
+        AEncodedPayloadBytes := TPCEncryption.DoPascalCoinAESEncrypt(
+          TEncoding.ANSI.GetBytes(APayloadContent),
+          TEncoding.ANSI.GetBytes(APayloadEncryptionPassword)
+        );
         LValid := AEncodedPayloadBytes <> nil;
       end;
 
