@@ -24,7 +24,7 @@ interface
 
 uses
   Classes, SysUtils, UConst, UCrypto, SyncObjs, UThread, UBaseTypes,
-  UPCOrderedLists, UPCDataTypes,
+  UPCOrderedLists, UPCDataTypes, UPCSafeBoxRootHash,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 {$I config.inc}
@@ -76,6 +76,7 @@ Type
     Class Procedure CalcProofOfWork(const operationBlock : TOperationBlock; out PoW : TRawBytes);
     Class Function IsValidMinerBlockPayload(const newBlockPayload : TRawBytes) : Boolean;
     class procedure GetRewardDistributionForNewBlock(const OperationBlock : TOperationBlock; out acc_0_miner_reward, acc_4_dev_reward : Int64; out acc_4_for_dev : Boolean);
+    class Function CalcSafeBoxHash(ABlocksHashBuffer : TBytesBuffer; protocol_version : Integer) : TRawBytes;
   end;
 
   TAccount = Record
@@ -333,6 +334,7 @@ Type
     Function GetMinimumAvailableSnapshotBlock : Integer;
     Function HasSnapshotForBlock(block_number : Cardinal) : Boolean;
     Property OrderedAccountKeysList : TOrderedAccountKeysList read FOrderedAccountKeysList;
+    property BufferBlocksHash: TBytesBuffer read FBufferBlocksHash; // Warning: For testing purposes, do not use this property! TODO delete or put in protected mode
   End;
 
 
@@ -677,6 +679,26 @@ begin
     ms.ReadBuffer(Part3[Low(Part3)],ms.Size);
   finally
     ms.Free;
+  end;
+end;
+
+class function TPascalCoinProtocol.CalcSafeBoxHash(ABlocksHashBuffer: TBytesBuffer; protocol_version: Integer): TRawBytes;
+begin
+  // If No buffer to hash is because it's fist block... so use Genesis: CT_Genesis_Magic_String_For_Old_Block_Hash
+  if (ABlocksHashBuffer.Length=0) then Result := TPCSafebox.InitialSafeboxHash
+  else begin
+
+    // Protection
+    Assert((ABlocksHashBuffer.Length MOD 32)=0,'ABlocksHashBuffer invalid length not modulo 32 = 0');
+    Assert((ABlocksHashBuffer.Length>0),'ABlocksHashBuffer length = 0');
+
+    if protocol_version<=CT_PROTOCOL_4 then begin
+      // A single SHA256 over the full size is made
+      Result := TCrypto.DoSha256(ABlocksHashBuffer.Memory,ABlocksHashBuffer.Length);
+    end else begin
+      // Implementation of PIP-0030, SafeboxHash will be calculated based on a MerkleTree obtaining a SafeboxRootHash
+      Result := TPCSafeboxRootHash.CalcSafeBoxRootHash(ABlocksHashBuffer);
+    end;
   end;
 end;
 
@@ -2067,9 +2089,7 @@ function TPCSafeBox.CalcSafeBoxHash: TRawBytes;
 begin
   StartThreadSafe;
   try
-    // If No buffer to hash is because it's firts block... so use Genesis: CT_Genesis_Magic_String_For_Old_Block_Hash
-    if (FBufferBlocksHash.Length=0) then Result := InitialSafeboxHash
-    else Result := TCrypto.DoSha256(FBufferBlocksHash.Memory,FBufferBlocksHash.Length);
+    Result := TPascalCoinProtocol.CalcSafeBoxHash(FBufferBlocksHash,CurrentProtocol);
   finally
     EndThreadSave;
   end;
