@@ -9,7 +9,9 @@ uses
   {$ENDIF}{$ENDIF}
   Interfaces,
   sysutils,
+  {$ifdef Use_OpenSSL}
   UOpenSSL,
+  {$endif}
   UCrypto,
   Forms,
   UUserInterface,
@@ -20,10 +22,6 @@ uses
 var
    mainForm : TFRMMainForm;
 begin
-  // Start OpenSSL dll
-  if Not LoadSSLCrypt then
-    raise Exception.Create('Cannot load '+SSL_C_LIB+#10+'To use this software make sure this file is available on you system or reinstall the application');
-  TCrypto.InitCrypto;
   // Load application
   Application.Initialize;
   {$IFDEF WINDOWS}{$Warnings OFF}

@@ -218,7 +218,7 @@ implementation
 
 uses
   UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
-  UOpenSSL, UFileStorage, UTime, USettings, UCoreUtils, UMemory,
+  UFileStorage, UTime, USettings, UCoreUtils, UMemory,
   UWIZOperation, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale, UWIZDelistAccountFromSale, UWIZChangeAccountInfo, UWIZBuyAccount, UCoreObjects;
 
 {%region UI Lifecyle}
@@ -231,6 +231,9 @@ begin
   if FIsActivated then exit;
   FIsActivated := true;
   try
+    // Initialize crypto module
+    TCrypto.InitCrypto;
+
     // Create UI lock
     FUILock := TPCCriticalSection.Create('TUserInterface.UILock');
 

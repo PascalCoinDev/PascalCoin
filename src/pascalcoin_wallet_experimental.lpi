@@ -28,24 +28,14 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir);libraries\generics.collections\inc"/>
-            <OtherUnitFiles Value="core;gui-experimental;libraries\synapse;libraries\sphere10;libraries\hashlib4pascal;libraries\generics.collections;libraries\pascalcoin;gui-experimental\core.utils;gui-experimental\wizards\wallet;gui-experimental\wizards\operations;gui-classic;libraries\paszlib"/>
+            <OtherUnitFiles Value="core;gui-experimental;libraries\synapse;libraries\sphere10;libraries\simplebaselib4pascal;libraries\cryptolib4pascal;libraries\hashlib4pascal;libraries\generics.collections;libraries\pascalcoin;gui-experimental\core.utils;gui-experimental\wizards\wallet;gui-experimental\wizards\operations;gui-classic;libraries\paszlib"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
             <SyntaxOptions>
               <SyntaxMode Value="Delphi"/>
-              <IncludeAssertionCode Value="True"/>
             </SyntaxOptions>
           </Parsing>
-          <CodeGeneration>
-            <Checks>
-              <IOChecks Value="True"/>
-              <RangeChecks Value="True"/>
-              <OverflowChecks Value="True"/>
-              <StackChecks Value="True"/>
-            </Checks>
-            <VerifyObjMethodCallValidity Value="True"/>
-          </CodeGeneration>
           <Linking>
             <Debugging>
               <DebugInfoType Value="dsDwarf2Set"/>

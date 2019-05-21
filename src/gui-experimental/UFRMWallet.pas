@@ -293,8 +293,8 @@ implementation
   {$R *.lfm}
 {$ENDIF}
 
-Uses UFolderHelper, UOpenSSL, UOpenSSLdef, UConst, UTime, UFileStorage,
-  UThread, UOpTransaction, UECIES, UFRMPascalCoinWalletConfig,
+Uses UFolderHelper, UConst, UTime, UFileStorage,
+  UThread, UOpTransaction, UFRMPascalCoinWalletConfig,
   UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText;
 
 Type
