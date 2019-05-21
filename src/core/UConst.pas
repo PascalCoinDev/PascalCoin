@@ -109,6 +109,7 @@ Const
   CT_PROTOCOL_2 = 2;
   CT_PROTOCOL_3 = 3;
   CT_PROTOCOL_4 = 4;
+  CT_PROTOCOL_5 = 5;
   CT_BUILD_PROTOCOL = CT_PROTOCOL_4;
 
   CT_BlockChain_Protocol_Available: Word = 4; // Protocol 4 flag

@@ -238,7 +238,6 @@ begin
   LLevelItemIndex := ABlockIndex;
   SetLength(LRawToHash,32 * 2);
   LPreviousHashedValue := AProofLevels.Levels[0];
-  //LHashedLevel := LPreviousHashedValue;
   while (iLevel<Length(AProofLevels.Levels)) do begin
     // Left or right?
     if (LLevelItemIndex MOD 2)=0 then begin
