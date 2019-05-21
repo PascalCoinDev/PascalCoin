@@ -56,7 +56,9 @@
         <DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;DUnitX;$(DCC_Namespace)</DCC_Namespace>
         <VerInfo_Locale>3081</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=;CFBundleName=</VerInfo_Keys>
-        <DCC_UnitSearchPath>..\core;..\libraries\sphere10;..\libraries\pascalcoin;..\libraries\generics.collections;..\libraries\hashlib4pascal;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\.;..\core;..\libraries\sphere10;..\libraries\pascalcoin;..\libraries\generics.collections;..\libraries\hashlib4pascal;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_DcuOutput>.\lib</DCC_DcuOutput>
+        <DCC_Define>UNITTESTS;$(DCC_Define)</DCC_Define>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
@@ -101,6 +103,7 @@
         </DelphiCompile>
         <DCCReference Include="..\core\URandomHash.pas"/>
         <DCCReference Include="URandomHashTests.Delphi.pas"/>
+        <DCCReference Include="UPCSafeBoxRootHashTests.pas"/>
         <None Include="PascalCoinUnitTests.dpr"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>
