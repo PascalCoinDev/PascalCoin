@@ -77,9 +77,9 @@ Type
     destructor Destroy; override;
     function Length : Integer;
     function Add(const buffer : TBytes) : Integer; overload;
-    function Add(var buffer; bufferSize : Integer) : Integer; overload;
+    function Add(const buffer; bufferSize : Integer) : Integer; overload;
     function Replace(startPos : Integer; const buffer : TBytes) : Integer; overload;
-    function Replace(startPos : Integer; var buffer; bufferSize : Integer) : Integer; overload;
+    function Replace(startPos : Integer; const buffer; bufferSize : Integer) : Integer; overload;
     property DefaultIncrement : Integer read FDefaultIncrement write SetDefaultIncrement;
     function Compare(ABytesBuffer : TBytesBuffer) : Integer;
     procedure SetLength(ANewLength : Integer);
@@ -469,7 +469,7 @@ end;
 
 procedure TBytesBuffer.SetDefaultIncrement(AValue: Integer);
 begin
-  if AValue<0 then FDefaultIncrement:=1024
+  if AValue<=0 then FDefaultIncrement:=1024
   else if AValue>(1024*1024) then FDefaultIncrement := 1024*1024
   else FDefaultIncrement:=AValue;
 end;
@@ -481,7 +481,7 @@ begin
   FUsedBytes := ANewLength;
 end;
 
-function TBytesBuffer.Add(var buffer; bufferSize: Integer): Integer;
+function TBytesBuffer.Add(const buffer; bufferSize: Integer): Integer;
 begin
   Result := Replace(Length,buffer,bufferSize);
 end;
@@ -551,7 +551,7 @@ begin
   Result := addr(FBytes[0]);
 end;
 
-function TBytesBuffer.Replace(startPos: Integer; var buffer; bufferSize : Integer): Integer;
+function TBytesBuffer.Replace(startPos: Integer; const buffer; bufferSize : Integer): Integer;
 begin
   IncreaseSize(startPos+1+bufferSize);
   Move(buffer,FBytes[startPos],bufferSize);

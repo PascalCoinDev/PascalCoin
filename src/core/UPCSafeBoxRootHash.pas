@@ -170,7 +170,6 @@ class function TPCSafeboxRootHash.CalcSafeBoxRootHash(ABlocksHashBuffer: TBytesB
     try
 
       for i := 0 to ((LTotalBlocks-1) DIV 2) do begin
-      //for i := 0 to ((APreviousLevelBuffer.Length DIV 64)-1) do begin
         LLeft := i*64;
         LRight := (i+1)*64;
         LPByte := APreviousLevelBuffer.Memory;
