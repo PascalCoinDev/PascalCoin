@@ -890,7 +890,7 @@ begin
       for i := 0 to list.Count-1 do begin
         FOperationsGrid.FOperationsResume.Add(list[i]);
       end;
-      Synchronize(FOperationsGrid.InitGrid);
+      Queue(FOperationsGrid.InitGrid);
     end;
   finally
     list.Free;
@@ -1347,7 +1347,7 @@ begin
       if Assigned(FBlockChainGrid.DrawGrid) then begin
         if Llist.Count>0 then FGridUpdateCount := Llist.Count+1
         else FGridUpdateCount := 2;
-        Synchronize(RefreshGrid);
+        Queue(RefreshGrid);
       end;
     end;
   finally
