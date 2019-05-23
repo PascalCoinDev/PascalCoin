@@ -125,7 +125,7 @@ var
   LTC : TTickCount;
 begin
   if _Cpus<=0 then begin
-    _Cpus := TLogicalCPUCount.GetLogicalCPUCount;
+    _Cpus := TCPUTool.GetLogicalCPUCount;
   end;
   if _Cpus<=1 then Exit;
 
@@ -154,7 +154,7 @@ var LList : TList<TPCOperation>;
   LTC : TTickCount;
 begin
   if _Cpus<=0 then begin
-    _Cpus := TLogicalCPUCount.GetLogicalCPUCount;
+    _Cpus := TCPUTool.GetLogicalCPUCount;
   end;
   if _Cpus<=1 then Exit;
 
@@ -192,7 +192,7 @@ var LMultiThreadValidator : TPCOperationsSignatureValidator;
   LList : TList<TPCOperation>;
 begin
   if _Cpus<=0 then begin
-    _Cpus := TLogicalCPUCount.GetLogicalCPUCount;
+    _Cpus := TCPUTool.GetLogicalCPUCount;
   end;
   if _Cpus<=1 then Exit;
   if AOperationsHashTree.OperationsCount<_Cpus then Exit;   // If less than cpus, no need for multithreading...
@@ -264,7 +264,7 @@ begin
   FLastIndexOperations := -1;
 
   if _Cpus<=0 then begin
-    _Cpus := TLogicalCPUCount.GetLogicalCPUCount;
+    _Cpus := TCPUTool.GetLogicalCPUCount;
   end;
   if (_Cpus>2) then LMaxThreads := _Cpus-1
   else LMaxThreads := _Cpus;

@@ -381,9 +381,6 @@ initialization
 finalization
   if Assigned(TSettings.FAppParams) then
     FreeAndNil(TSettings.FAppParams);
-  if Assigned(TSettings.FOnChanged) then
-    FreeAndNil(TSettings.FOnChanged);
-
 end.
 
 

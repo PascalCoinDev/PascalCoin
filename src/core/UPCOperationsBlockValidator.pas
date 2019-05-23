@@ -211,7 +211,7 @@ var LMultiThreadValidator : TPCOperationsBlockValidator;
   LTC : TTickCount;
 begin
   if _Cpus<=0 then begin
-    _Cpus := TLogicalCPUCount.GetLogicalCPUCount;
+    _Cpus := TCPUTool.GetLogicalCPUCount;
   end;
   if _Cpus<=1 then Exit;
   if APCOperationsCompList.Count<_Cpus then Exit;   // If less than cpus, no need for multithreading...
@@ -261,7 +261,7 @@ begin
   FErrorsList.Clear;
 
   if _Cpus<=0 then begin
-    _Cpus := TLogicalCPUCount.GetLogicalCPUCount;
+    _Cpus := TCPUTool.GetLogicalCPUCount;
   end;
   if (_Cpus>2) then LMaxThreads := _Cpus-1
   else LMaxThreads := _Cpus;

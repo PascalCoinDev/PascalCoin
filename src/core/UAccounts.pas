@@ -2715,7 +2715,7 @@ Var
 begin
   LPCOperationsBlockValidator := Nil;
   if checkAll then begin
-    LUseMultiThreadOperationsBlockValidator := TLogicalCPUCount.GetLogicalCPUCount>1;
+    LUseMultiThreadOperationsBlockValidator := TCPUTool.GetLogicalCPUCount>1;
   end else LUseMultiThreadOperationsBlockValidator := False;
   If Assigned(FPreviousSafeBox) then Raise Exception.Create('Cannot loadSafeBoxFromStream on a Safebox in a Separate chain');
   if (previousCheckedSafebox = Self) then previousCheckedSafebox := Nil; // Protection
@@ -2896,7 +2896,7 @@ begin
                 tc := TPlatform.GetTickCount;
                 progressNotify(Self,Format('Validating OperationBlock info %d/%d',[LValidatedOPOk,LValidatedOPOk+LValidatedOPPending]),LValidatedOPOk,LValidatedOPOk+LValidatedOPPending);
               end else Sleep(100)
-            end;
+            end;
           until LValidatedOPPending<=0 ;
         end;
       finally

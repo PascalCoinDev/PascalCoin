@@ -710,7 +710,7 @@ end;
 
 function TCPUDeviceThread.MinerDeviceName: String;
 begin
-  Result := 'CPU miner with '+inttostr(FCPUs)+' ('+inttostr(TLogicalCPUCount.GetLogicalCPUCount())+' CPU''s available)';
+  Result := 'CPU miner with '+inttostr(FCPUs)+' ('+inttostr(TCPUTool.GetLogicalCPUCount())+' CPU''s available)';
 end;
 
 procedure TCPUDeviceThread.SetCPUs(AValue: Integer);
@@ -718,7 +718,7 @@ begin
   if FCPUs=AValue then Exit;
   FCPUs:=AValue;
   if FCPUs<0 then FCPUs := 0;
-  if (FCPUs>TLogicalCPUCount.GetLogicalCPUCount()) And (TLogicalCPUCount.GetLogicalCPUCount()>0) then FCPUs := TLogicalCPUCount.GetLogicalCPUCount();
+  if (FCPUs>TCPUTool.GetLogicalCPUCount()) And (TCPUTool.GetLogicalCPUCount()>0) then FCPUs := TCPUTool.GetLogicalCPUCount();
   CheckCPUs;
 end;
 
