@@ -79,7 +79,7 @@ type
       property LastActualNotify : TDateTime read FLastActualNotify;
       property SuppressedInvocations : Integer read FSuppressedInvocations;
       constructor Create(Owner:TComponent); override;
-      procedure Add(AListener : TNotifyEvent);
+      procedure Add(AListener : TNotifyEvent; ExecuteMainThread : Boolean = False);
       procedure Remove(AListener : TNotifyEvent);
       procedure Notify;
   end;
@@ -182,9 +182,9 @@ begin
   FMode:=temNone;
 end;
 
-procedure TThrottledEvent.Add(AListener : TNotifyEvent);
+procedure TThrottledEvent.Add(AListener : TNotifyEvent; ExecuteMainThread : Boolean = False);
 begin
-  FHandler.Add(AListener);
+  FHandler.Add(AListener, ExecuteMainThread);
 end;
 
 procedure TThrottledEvent.Remove(AListener : TNotifyEvent);

@@ -26,7 +26,7 @@ uses
   {$ELSE}{$IFDEF LINUX} {$linklib c} ctypes, {$ENDIF LINUX}
   {$IFDEF WINDOWS} Windows, {$ENDIF WINDOWS}
   {$IF DEFINED(DARWIN) OR DEFINED(FREEBSD)} ctypes, sysctl, {$ENDIF}
-  {$ENDIF} Variants, math, typinfo, UMemory;
+  {$ENDIF} Variants, math, typinfo, UMemory, syncobjs;
 
 { CONSTANTS }
 
@@ -302,18 +302,37 @@ type
 
   { Event Support}
 
-  TNotifyEventEx = procedure (sender : TObject; const args: array of Pointer) of object;
-  TNotifyManyEvent = TArray<TNotifyEvent>;
-  TNotifyManyEventEx = TArray<TNotifyEventEx>;
+  TNotifyManyEvent = record
+    Handlers: TArray<TNotifyEvent>;
+    MainThreadHandlers : TArray<TNotifyEvent>;
+  end;
+
   TNotifyManyEventHelper = record helper for TNotifyManyEvent
-    procedure Add(listener : TNotifyEvent);
-    procedure Remove(listener : TNotifyEvent);
+    procedure Add(AHandler : TNotifyEvent; ExecuteMainThread : Boolean = False);
+    procedure Remove(AHandler : TNotifyEvent);
     procedure Invoke(sender : TObject);
   end;
-  TNotifyManyEventExHelper = record helper for TNotifyManyEventEx
-    procedure Add(listener : TNotifyEventEx);
-    procedure Remove(listener : TNotifyEventEx);
-    procedure Invoke(sender : TObject; const args: array of Pointer);
+
+  { TThreadNotify }
+
+  TThreadNotify = class
+  type
+    TPendingNotifyManyEvent = record
+      Sender : TObject;
+      Handlers : TArray<TNotifyEvent>;
+    end;
+  private
+    FTargetThread : TThread;
+    FLock : TCriticalSection;
+    FPendingNotifications : TList<TPendingNotifyManyEvent>;
+    procedure InvokePendingOnTargetThread;
+  public
+    constructor Create(ATargetThread : TThread);
+    destructor Destroy; override;
+    procedure Invoke(Sender: TObject; Handler : TNotifyEvent); overload;
+    procedure Invoke(Sender: TObject; const Handlers: TArray<TNotifyEvent>); overload;
+    class procedure InvokeMainThread(Sender: TObject; Handler : TNotifyEvent); overload;
+    class procedure InvokeMainThread(Sender: TObject; const Handlers: TArray<TNotifyEvent>); overload;
   end;
 
   { TArrayTool }
@@ -384,14 +403,11 @@ type
     class procedure AppendText(const AFileName: string; const AText: string);
   end;
 
-  { TLogicalCPUCount }
+  { TCPUTool }
 
-  TLogicalCPUCount = class sealed(TObject)
-
-  public
+  TCPUTool = class
     //returns number of cores: a computer with two hyperthreaded cores will report 4
     class function GetLogicalCPUCount(): Int32; static;
-
   end;
 
 resourcestring
@@ -428,11 +444,12 @@ const
   {$ENDIF LINUX}
   {$ENDIF}
 
+
 var
   MinTimeStampDateTime : TDateTime = 0;
   VarTrue : Variant;
   VarFalse : Variant;
-
+  GMainThreadNotify : TThreadNotify;
 
 { Global helper functions }
 
@@ -1396,44 +1413,105 @@ end;
 
 { TNotifyManyEventHelper }
 
-procedure TNotifyManyEventHelper.Add(listener : TNotifyEvent);
+procedure TNotifyManyEventHelper.Add(AHandler : TNotifyEvent; ExecuteMainThread : Boolean = False);
 begin
-  if TArrayTool<TNotifyEvent>.IndexOf(self, listener) = -1 then begin
-    TArrayTool<TNotifyEvent>.Add(self, listener);
+  if NOT ExecuteMainThread then begin
+    if TArrayTool<TNotifyEvent>.IndexOf(self.Handlers, AHandler) = -1 then
+      TArrayTool<TNotifyEvent>.Add(self.Handlers, AHandler)
+  end else begin
+    if TArrayTool<TNotifyEvent>.IndexOf(self.MainThreadHandlers, AHandler) = -1 then
+      TArrayTool<TNotifyEvent>.Add(self.MainThreadHandlers, AHandler);
   end;
 end;
 
-procedure TNotifyManyEventHelper.Remove(listener : TNotifyEvent);
+procedure TNotifyManyEventHelper.Remove(AHandler : TNotifyEvent);
 begin
-  TArrayTool<TNotifyEvent>.Remove(self, listener);
+  TArrayTool<TNotifyEvent>.Remove(self.Handlers, AHandler);
+  TArrayTool<TNotifyEvent>.Remove(self.MainThreadHandlers, AHandler);
 end;
 
 procedure TNotifyManyEventHelper.Invoke(sender : TObject);
 var i : Integer;
 begin
-  for i := low(self) to high(self) do
-    self[i](sender);
+  for i := low(self.Handlers) to high(self.Handlers) do
+    self.Handlers[i](sender);
+
+  if Length(self.MainThreadHandlers) > 0 then
+    TThreadNotify.InvokeMainThread(sender, self.MainThreadHandlers);
 end;
 
-{ TNotifyManyEventHelperEx }
+{ TThreadNotify }
 
-procedure TNotifyManyEventExHelper.Add(listener : TNotifyEventEx);
+constructor TThreadNotify.Create(ATargetThread : TThread);
 begin
-  if TArrayTool<TNotifyEventEx>.IndexOf(self, listener) = -1 then begin
-    TArrayTool<TNotifyEventEx>.Add(self, listener);
+  FTargetThread := ATargetThread;
+  FLock := TCriticalSection.Create;
+  FPendingNotifications := TList<TPendingNotifyManyEvent>.Create;
+end;
+
+destructor TThreadNotify.Destroy;
+begin
+  FTargetThread := nil;
+  FLock.Acquire;
+  try
+    FPendingNotifications.Destroy;
+  finally
+    FLock.Release;
+    FLock.Destroy;
   end;
 end;
 
-procedure TNotifyManyEventExHelper.Remove(listener : TNotifyEventEx);
+procedure TThreadNotify.InvokePendingOnTargetThread;
+var
+  LPendings : TArray<TPendingNotifyManyEvent>;
+  LPending : TPendingNotifyManyEvent;
+  LNotify : TNotifyEvent;
 begin
-  TArrayTool<TNotifyEventEx>.Remove(self, listener);
+  if (NOT Assigned(FTargetThread)) OR (NOT Assigned(FLock)) OR (NOT Assigned(FPendingNotifications)) then
+    exit;
+
+  if TThread.CurrentThread.ThreadID = FTargetThread.ThreadID then begin
+    FLock.Acquire;
+    try
+      LPendings := FPendingNotifications.ToArray;
+      FPendingNotifications.Clear;
+    finally
+      FLock.Release;
+    end;
+    for LPending in LPendings do
+      for LNotify in LPending.Handlers do
+        LNotify(LPending.Sender);
+  end else TThread.Queue(FTargetThread, InvokePendingOnTargetThread);
 end;
 
-procedure TNotifyManyEventExHelper.Invoke(sender : TObject; const args: array of Pointer);
-var i : Integer;
+procedure TThreadNotify.Invoke(Sender: TObject; Handler : TNotifyEvent);
 begin
-  for i := Low(Self) to high(Self) do
-    self[i](sender, args);
+  Invoke(Sender, TArrayTool<TNotifyEvent>.Create(Handler));
+end;
+
+procedure TThreadNotify.Invoke(Sender: TObject; const Handlers: TArray<TNotifyEvent>);
+var
+  LPending : TPendingNotifyManyEvent;
+begin
+  FLock.Acquire;
+  try
+    LPending.Sender := Sender;
+    LPending.Handlers := Handlers;
+    FPendingNotifications.Add(LPending);
+  finally
+    FLock.Release;
+  end;
+  InvokePendingOnTargetThread;
+end;
+
+class procedure TThreadNotify.InvokeMainThread(Sender: TObject; Handler : TNotifyEvent);
+begin
+  InvokeMainThread(Sender, TArrayTool<TNotifyEvent>.Create(Handler));
+end;
+
+class procedure TThreadNotify.InvokeMainThread(Sender: TObject; const Handlers: TArray<TNotifyEvent>);
+begin
+  GMainThreadNotify.Invoke(Sender, Handlers);
 end;
 
 { TArrayTool }
@@ -1861,9 +1939,9 @@ begin
   end;
 end;
 
-{ TLogicalCPUCount }
+{ TCPUTool }
 
-class function TLogicalCPUCount.GetLogicalCPUCount(): Int32;
+class function TCPUTool.GetLogicalCPUCount(): Int32;
 {$IFDEF FPC}
 {$IFDEF WINDOWS}
 var
@@ -1930,7 +2008,9 @@ initialization
   MinTimeStampDateTime:= StrToDateTime('1980-01-01 00:00:000', IntlDateTimeFormat);
   VarTrue := True;
   VarFalse := False;
+  GMainThreadNotify := TThreadNotify.Create ( TThread.CurrentThread ); // unit initialization runs in main thread
 
 finalization
+  FreeAndNil(GMainThreadNotify);
 
 end.
