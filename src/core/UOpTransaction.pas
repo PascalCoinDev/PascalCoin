@@ -2462,7 +2462,7 @@ begin
 end;
 
 function TOpData.GetDigestToSign(current_protocol: Word): TRawBytes;
-var Stream : TStream;
+var Stream : TMemoryStream;
   b : Byte;
 begin
   Stream := TMemoryStream.Create;
@@ -2478,7 +2478,11 @@ begin
     TStreamOp.WriteAnsiString(Stream,FData.payload);
     b := OpType;
     Stream.Write(b,1);
-    Result := TStreamOp.SaveStreamToRaw(Stream);
+    if (current_protocol<=CT_PROTOCOL_4) then begin
+      Result := TStreamOp.SaveStreamToRaw(Stream);
+    end else begin
+      Result := TCrypto.DoSha256(Stream.Memory,Stream.Size);
+    end;
   finally
     Stream.Free;
   end;
