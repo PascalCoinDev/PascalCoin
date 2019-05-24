@@ -189,7 +189,7 @@ Var i : Integer;
   var LDataObj : TPCJSONObject;
   begin
     LDataObj := AParentObj.GetAsObject('data');
-    LDataObj.GetAsVariant('id').Value := AData.ID.ToString(True);
+    LDataObj.GetAsVariant('id').Value := AData.ID.ToString; // Note: Delphi always return with brackets
     LDataObj.GetAsVariant('sequence').Value := AData.Sequence;
     LDataObj.GetAsVariant('type').Value := AData.&Type;
   end;
