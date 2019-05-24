@@ -238,7 +238,8 @@ var
 begin
   Balance := CT_BalanceSummary_Nil;
   LAccs := Disposables.AddObject(TList<TAccount>.Create) as TList<TAccount>;
-//  TNode.Node.Bank.SafeBox.StartThreadSafe;
+
+  TNode.Node.Bank.SafeBox.StartThreadSafe;
   LMemPool := TNode.Node.LockMempoolRead;
   try
     for i := 0 to TWallet.Keys.Count - 1 do
@@ -257,7 +258,7 @@ begin
     end;
   finally
     TNode.Node.UnlockMempoolRead;
-//    TNode.Node.Bank.SafeBox.EndThreadSave;
+    TNode.Node.Bank.SafeBox.EndThreadSave;
   end;
   LAccs.Sort(TAccountComparer.Create);
   Result := LAccs.ToArray;

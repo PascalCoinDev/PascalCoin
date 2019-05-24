@@ -121,6 +121,7 @@ type
     procedure Test_CreateABlock(Sender: TObject);
     {$ENDIF}
     {$ENDIF}
+    Procedure InitMacOSMenu;
   protected
     procedure RefreshConnectionStatusDisplay;
     procedure RefreshWalletLockIcon;
@@ -137,7 +138,7 @@ implementation
 
 {$R *.lfm}
 
-uses LCLIntf, UUserInterface, UThread, UOpTransaction, UWizard, UTime;
+uses LCLIntf, LCLType, UUserInterface, UThread, UOpTransaction, UWizard, UTime;
 
 const
   CT_FOOTER_TOOLBAR_LEFT_PADDING = 8;
@@ -174,6 +175,7 @@ begin
   // Things for testing purposes only
   InitMenuForTesting;
   {$ENDIF}
+  InitMacOSMenu;
 end;
 
 procedure TFRMMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
@@ -521,6 +523,52 @@ begin
 end;
 
 {%endregion}
+
+Procedure TFRMMainForm.InitMacOSMenu;
+{$ifdef fpc}
+var
+  mi : TMenuItem;
+  app : TMenuItem;
+{$endif}
+begin
+  {$ifdef fpc}
+  {$ifndef darwin}
+  Exit;
+  {$endif}
+  app := TMenuItem.Create(meMainMenu);
+  app := TMenuItem.Create(meMainMenu);
+  app.Caption:=#$EF#$A3#$BF;
+
+  miAbout.Parent.Remove(miAbout);
+  app.Add(miAbout);
+  {$IFDEF TESTNET}
+  // Things for testing purposes only
+  miAboutMenu.caption := 'Testing';
+  {$ELSE}
+  miAboutMenu.Visible:=false;
+  {$ENDIF}
+
+  // Move "Options" to "Prefernces"
+  mi := TMenuItem.Create(meMainMenu);
+  mi.Caption:='-';
+  app.Add(mi);
+  miOptions.Parent.Remove(miOptions);
+  miOptions.Caption:='Preferences...';
+  miOptions.ShortCut:=Menus.ShortCut(VK_OEM_COMMA, [ssMeta]);
+  app.Add(miOptions);
+
+  MiOperationsExplorer.ShortCut:=Menus.ShortCut(VK_E, [ssMeta]);
+  miOptions.ShortCut:=Menus.ShortCut(VK_OEM_COMMA, [ssMeta]); // match preferences
+  miPrivatekeys.ShortCut:=Menus.Shortcut(VK_P, [ssMeta]);
+
+  N1.Visible:=false;
+  MiClose.Visible:=false;
+
+  meMainMenu.Items.Insert(0, app);
+
+  paWalletPanel.Caption:='';
+  {$endif}
+end;
 
 end.
 
