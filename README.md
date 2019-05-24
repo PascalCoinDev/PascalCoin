@@ -37,8 +37,14 @@ Also, consider a donation at PascalCoin development account: "0-10"
 ### Current Build (Pending release date)
 - Upgrade to Protocol 5 (Hard fork)
 - Implementation of PIP-0030 -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0030.md
+- Implementation of PIP-0029 -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0029.md
 - New digest hash value for OP_DATA ( PIP-0016 ) on Protocol 5
-
+TODO  
+- TODO: RPC calls for PIP-0029
+- TODO Implement Seal calculation
+- TODO: RPC calls for PIP-0030
+- TODO: RPC calls for PIP-0016
+- TODO: Save data for GUID on OPDATA operation and use GUID for calcs
 
 ### Build 4.0.3.1 - 2019-04-12
 - Fixed core bug #182 in RPC calls

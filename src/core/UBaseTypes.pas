@@ -48,6 +48,9 @@ Type
   // Fixed 32 bytes length (or empty)
   T32Bytes = Array[0..31] of byte;
 
+  // Fixed 20 bytes length
+  T20Bytes = Array[0..19] of byte;
+
   TRawBytes = TBytes;
 
   { TRawBytesHelper }
@@ -95,6 +98,8 @@ Type
   public
     class procedure T32BytesToRawBytes(const source : T32Bytes; var dest : TDynRawBytes); overload;
     class function T32BytesToRawBytes(const source : T32Bytes) : TDynRawBytes; overload;
+    class procedure T20BytesToRawBytes(const source : T20Bytes; var dest : TDynRawBytes); overload;
+    class function T20BytesToRawBytes(const source : T20Bytes) : TDynRawBytes; overload;
     class function TRawBytesTo32Left0Padded(const source : TDynRawBytes) : T32Bytes;
     class function To256RawBytes(const source : TRawBytes) : T256RawBytes; overload;
     class procedure To256RawBytes(const source : TRawBytes; var dest : T256RawBytes); overload;
@@ -104,6 +109,8 @@ Type
     class procedure ToRawBytes(const source : T32Bytes; var dest: TRawBytes); overload;
     class function To32Bytes(const source : TRawBytes) : T32Bytes; overload;
     class procedure To32Bytes(const source : TRawBytes; var dest: T32Bytes); overload;
+    class function To20Bytes(const source : TRawBytes) : T20Bytes; overload;
+    class procedure To20Bytes(const source : TRawBytes; var dest: T20Bytes); overload;
     class procedure Fill0(var dest : T32Bytes);
     class function IsEmpty(const value : T32Bytes) : Boolean;
     class procedure Concat(const addBytes : T32Bytes; var target : TDynRawBytes); overload;
@@ -236,6 +243,17 @@ begin
   Move(source[0],dest[0],32);
 end;
 
+class function TBaseType.T20BytesToRawBytes(const source: T20Bytes): TDynRawBytes;
+begin
+  T20BytesToRawBytes(source,Result);
+end;
+
+class procedure TBaseType.T20BytesToRawBytes(const source: T20Bytes; var dest: TDynRawBytes);
+begin
+  SetLength(dest,20);
+  Move(source[0],dest[0],20);
+end;
+
 class function TBaseType.T32BytesToRawBytes(const source: T32Bytes): TDynRawBytes;
 begin
   T32BytesToRawBytes(source,Result);
@@ -256,6 +274,20 @@ class function TBaseType.To256RawBytes(const source: TRawBytes): T256RawBytes;
 begin
   SetLength(Result,Length(source));
   move(source[Low(source)],Result[0],Length(source));
+end;
+
+class procedure TBaseType.To20Bytes(const source: TRawBytes; var dest: T20Bytes);
+var i : Integer;
+begin
+  FillByte(dest[0],20,0);
+  i := Length(source);
+  if (i>20) then i:=20;
+  move(source[Low(source)],dest[0],i);
+end;
+
+class function TBaseType.To20Bytes(const source: TRawBytes): T20Bytes;
+begin
+  To20Bytes(source,Result);
 end;
 
 class procedure TBaseType.To256RawBytes(const source: TRawBytes; var dest: T256RawBytes);

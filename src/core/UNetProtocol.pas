@@ -3341,7 +3341,10 @@ begin
         ocl := sbakl.AccountKeyList[iPubKey];
         while (start<ocl.Count) And (max>0) do begin
           acc := TNode.Node.GetMempoolAccount(ocl.Get(start));
-          TAccountComp.SaveAccountToAStream(accountsStream,acc);
+          if (HeaderData.protocol.protocol_available>9) then
+            TAccountComp.SaveAccountToAStream(accountsStream,acc,CT_PROTOCOL_5)
+          else
+            TAccountComp.SaveAccountToAStream(accountsStream,acc,CT_PROTOCOL_4);
           inc(nAccounts);
           inc(start);
           dec(max);
@@ -3439,7 +3442,10 @@ begin
         responseStream.Write(c,SizeOf(c));
         for i:=start to (start + max -1) do begin
           acc := TNode.Node.GetMempoolAccount(i);
-          TAccountComp.SaveAccountToAStream(responseStream,acc);
+          if (HeaderData.protocol.protocol_available>9) then
+            TAccountComp.SaveAccountToAStream(responseStream,acc,CT_PROTOCOL_5)
+          else
+            TAccountComp.SaveAccountToAStream(responseStream,acc,CT_PROTOCOL_4);
         end;
       end;
     end else if (b=3) then begin
@@ -3451,7 +3457,10 @@ begin
         DataBuffer.Read(c,SizeOf(c));
         if (c>=0) And (c<TNode.Node.Bank.AccountsCount) then begin
           acc := TNode.Node.GetMempoolAccount(c);
-          TAccountComp.SaveAccountToAStream(responseStream,acc);
+          if (HeaderData.protocol.protocol_available>9) then
+            TAccountComp.SaveAccountToAStream(responseStream,acc,CT_PROTOCOL_5)
+          else
+            TAccountComp.SaveAccountToAStream(responseStream,acc,CT_PROTOCOL_4);
         end else begin
           errors := 'Invalid account number '+Inttostr(c);
           Exit;
