@@ -2230,6 +2230,9 @@ begin
     OperationResume.Senders[0].N_Operation:=FData.n_operation;
     OperationResume.Senders[0].Signature:=FData.sign;
     OperationResume.Senders[0].Amount:=Int64(FData.amount + FData.fee)*(-1);
+    OperationResume.Senders[0].Data.ID := StringToGUID('{00000000-0000-0000-0000-000000000000}'); // NOTE: ID missing in V4, added to V5
+    OperationResume.Senders[0].Data.Sequence := FData.dataSequence;
+    OperationResume.Senders[0].Data.&Type := FData.dataType;
   end else begin
     OperationResume.Senders[0].Amount:=Int64(FData.amount)*(-1);
     SetLength(OperationResume.Changers,1);
@@ -2238,6 +2241,9 @@ begin
     OperationResume.Changers[0].Fee:=FData.fee;
     OperationResume.Changers[0].N_Operation:=FData.n_operation;
     OperationResume.Changers[0].Signature:=FData.sign;
+    OperationResume.Senders[0].Data.ID := StringToGUID('{00000000-0000-0000-0000-000000000000}'); // NOTE: ID missing in V4, added to V5
+    OperationResume.Changers[0].Data.Sequence := FData.dataSequence;
+    OperationResume.Changers[0].Data.&Type := FData.dataType;
   end;
   //
   SetLength(OperationResume.Receivers,1);
@@ -2245,6 +2251,10 @@ begin
   OperationResume.Receivers[0].Account:=FData.account_target;
   OperationResume.Receivers[0].Amount:=FData.amount;
   OperationResume.Receivers[0].Payload:=FData.payload;
+  OperationResume.Senders[0].Data.ID := StringToGUID('{00000000-0000-0000-0000-000000000000}'); // NOTE: ID missing in V4, added to V5
+  OperationResume.Receivers[0].Data.Sequence := FData.dataSequence;
+  OperationResume.Receivers[0].Data.&Type := FData.dataType;
+
   //
   OperationResume.n_operation:=FData.n_operation;
   if (Affected_account_number = FData.account_signer) or (getInfoForAllAccounts) then begin

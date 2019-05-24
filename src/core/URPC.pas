@@ -184,6 +184,16 @@ class procedure TPascalCoinJSONComp.FillOperationObject(const OPR: TOperationRes
 Var i : Integer;
   jsonArr : TPCJSONArray;
   auxObj : TPCJSONObject;
+
+  procedure FillDataObject(AParentObj : TPCJSONObject; const AData : TMultiOpData);
+  var LDataObj : TPCJSONObject;
+  begin
+    LDataObj := AParentObj.GetAsObject('data');
+    LDataObj.GetAsVariant('id').Value := AData.ID.ToString(True);
+    LDataObj.GetAsVariant('sequence').Value := AData.Sequence;
+    LDataObj.GetAsVariant('type').Value := AData.&Type;
+  end;
+
 Begin
   if Not OPR.valid then begin
     jsonObject.GetAsVariant('valid').Value := OPR.valid;
@@ -214,6 +224,9 @@ Begin
       if (OPR.Senders[i].N_Operation>0) then auxObj.GetAsVariant('n_operation').Value := OPR.Senders[i].N_Operation;
       auxObj.GetAsVariant('amount').Value := ToJSONCurrency(OPR.Senders[i].Amount * (-1));
       auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Senders[i].Payload);
+      if (OPR.OpType = CT_Op_Data) then begin
+        FillDataObject(auxObj, OPR.Receivers[i].Data);
+      end;
     end;
     //
     jsonArr := jsonObject.GetAsArray('receivers');
@@ -222,6 +235,9 @@ Begin
       auxObj.GetAsVariant('account').Value := OPR.Receivers[i].Account;
       auxObj.GetAsVariant('amount').Value := ToJSONCurrency(OPR.Receivers[i].Amount);
       auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Receivers[i].Payload);
+      if (OPR.OpType = CT_Op_Data) then begin
+        FillDataObject(auxObj, OPR.Receivers[i].Data);
+      end;
     end;
     jsonArr := jsonObject.GetAsArray('changers');
     for i:=Low(OPR.Changers) to High(OPR.Changers) do begin
@@ -248,6 +264,9 @@ Begin
       end;
       if (OPR.Changers[i].Fee<>0) then begin
         auxObj.GetAsVariant('fee').Value := ToJSONCurrency(OPR.Changers[i].Fee * (-1));
+      end;
+      if (OPR.OpType = CT_Op_Data) then begin
+        FillDataObject(auxObj, OPR.Changers[i].Data);
       end;
     end;
   jsonObject.GetAsVariant('optxt').Value:=OPR.OperationTxt;

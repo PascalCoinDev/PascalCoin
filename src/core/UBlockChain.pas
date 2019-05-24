@@ -116,10 +116,17 @@ Type
   TOpChangeAccountInfoTypes = Set of TOpChangeAccountInfoType;
 
   // MultiOp... will allow a MultiOperation
+  TMultiOpData = record
+    ID : TGUID;
+    Sequence : UInt16;
+    &Type : UInt16;
+  end;
+
   TMultiOpSender = Record
     Account : Cardinal;
     Amount : Int64;
     N_Operation : Cardinal;
+    Data : TMultiOpData;
     Payload : TRawBytes;
     Signature : TECDSA_SIG;
   end;
@@ -127,6 +134,7 @@ Type
   TMultiOpReceiver = Record
     Account : Cardinal;
     Amount : Int64;
+    Data : TMultiOpData;
     Payload : TRawBytes;
   end;
   TMultiOpReceivers = Array of TMultiOpReceiver;
@@ -140,6 +148,7 @@ Type
     Seller_Account : Int64;
     Account_Price : Int64;
     Locked_Until_Block : Cardinal;
+    Data : TMultiOpData;
     Fee: Int64;
     Signature: TECDSA_SIG;
   end;
