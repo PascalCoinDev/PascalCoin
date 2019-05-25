@@ -409,10 +409,6 @@ begin
   if FIsActivated then exit;
   FIsActivated := true;
   try
-    // Check OpenSSL dll
-{$IFDEF Use_OpenSSL}
-    if Not LoadSSLCrypt then raise Exception.Create('Cannot load '+SSL_C_LIB+#10+'To use this software make sure this file is available on you system or reinstall the application');
-{$ENDIF}
     TCrypto.InitCrypto;
     // Read Wallet
     Try

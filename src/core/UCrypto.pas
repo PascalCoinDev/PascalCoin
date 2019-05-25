@@ -675,6 +675,8 @@ end;
 class procedure TCrypto.InitCrypto;
 begin
 {$IFDEF Use_OpenSSL}
+   // Load OpenSSL
+   if Not LoadSSLCrypt then raise Exception.Create('Cannot load '+SSL_C_LIB+#10+'To use this software make sure this file is available on you system or reinstall the application');
   _DoInit;
 {$ENDIF}
 end;
