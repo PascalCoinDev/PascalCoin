@@ -65,7 +65,7 @@ type
     FMinedBlocksCount: Integer;
     FShowSplash : boolean;
     FMessagesUnreadCount : Integer;
-    procedure OnLoading(Sender: TObject; const message : AnsiString; curPos, totalCount : Int64);
+    procedure OnLoading(Sender: TObject; const message : String; curPos, totalCount : Int64);
     procedure OnLoaded(Sender: TObject);
     procedure SetMinedBlocksCount(const Value: Integer);
     procedure SetShowSplash(ABool : boolean);
@@ -102,6 +102,7 @@ begin
   TUserInterface.BlocksChanged.Add(OnBlocksChanged);
   TUserInterface.UIRefreshTimer.Add(OnUIRefreshTimer);
   TUserInterface.NodeMessageEvent.Add(OnNodeMessageEvent);
+
   FMessagesUnreadCount := 0;
 end;
 
@@ -124,15 +125,15 @@ begin
   UpdateBlockChainState;
 end;
 
-procedure TCTRLSyncronization.OnLoading(Sender : TObject; const message : AnsiString; curPos, totalCount : Int64);
-var LPercent : String;
+procedure TCTRLSyncronization.OnLoading(Sender: TObject; const message : String; curPos, totalCount : Int64);
+var pct : String;
 begin
-    if (totalCount>0) then
-      LPercent := Format('%.1f',[curPos*100/totalCount])+'%'
-    else
-      LPercent := '';
-
-    SetStatusText(clGreen, message+' '+LPercent);
+  if (totalCount>0) then
+    pct := Format('%.2f',[curPos*100/totalCount])+'%'
+  else
+    pct := '';
+  pct := message + ' ' + pct;
+  SetStatusText(clGreen, pct);
 end;
 
 procedure TCTRLSyncronization.OnLoaded(Sender: TObject);
@@ -148,8 +149,8 @@ end;
 
 procedure TCTRLSyncronization.OnUIRefreshTimer(Sender: TObject);
 begin
-  UpdateBlockChainState;
-  UpdateNodeStatus;
+    UpdateBlockChainState;
+    UpdateNodeStatus;
 end;
 
 procedure TCTRLSyncronization.OnNodeMessageEvent(NetConnection: TNetConnection; MessageData: String);

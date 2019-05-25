@@ -10,7 +10,6 @@ object CTRLSyncronization: TCTRLSyncronization
   ClientWidth = 728
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  LCLVersion = '2.0.2.0'
   object paSplash: TPanel
     Left = 0
     Height = 428
@@ -44375,24 +44374,24 @@ object CTRLSyncronization: TCTRLSyncronization
       Left = 152
       Height = 32
       Top = 32
-      Width = 145
+      Width = 105
       Alignment = taRightJustify
       AutoSize = False
       Caption = 'Node Status:'
-      Font.Height = -24
+      Font.Height = -16
       Font.Style = [fsBold]
       ParentColor = False
       ParentFont = False
     end
     object lblNodeStatus: TLabel
-      Left = 304
+      Left = 264
       Height = 32
       Top = 32
-      Width = 411
+      Width = 451
       Anchors = [akTop, akLeft, akRight]
       AutoSize = False
       Caption = 'Initialising'
-      Font.Height = -24
+      Font.Height = -16
       Font.Style = [fsBold]
       ParentColor = False
       ParentFont = False

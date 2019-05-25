@@ -108,6 +108,7 @@ type
     procedure CM_ModeChanged(var Msg: TMessage); message CM_PC_ModeChanged;
 
     procedure OnAppStarted(Sender: TObject);
+    procedure OnLoading(Sender: TObject; const message : String; curPos, totalCount : Int64);
     procedure OnLoaded(Sender: TObject);
     procedure OnConnectivityChanged(Sender: TObject);
     procedure OnNetStatisticsChanged(Sender: TObject);
@@ -203,6 +204,7 @@ procedure TFRMMainForm.ActivateFirstTime;
 begin
   // Event subscriptions on activate, not create, due to load-time sequence
   TUserInterface.AppStarted.Add(OnAppStarted);
+  TUserInterface.Loading.Add(OnLoading);
   TWallet.Keys.OnChanged.Add(OnWalletChanged);
   TNetData.NetData.OnConnectivityChanged.Add(OnConnectivityChanged);
   TUserInterface.NetStatisticsChanged.Add(OnNetStatisticsChanged);
@@ -214,6 +216,7 @@ end;
 procedure TFRMMainForm.FormDestroy(Sender: TObject);
 begin
   TUserInterface.AppStarted.Remove(OnAppStarted);
+  TUserInterface.Loading.Remove(OnLoading);
   TWallet.Keys.OnChanged.Remove(OnWalletChanged);
   TNetData.NetData.OnConnectivityChanged.Remove(OnConnectivityChanged);
   TUserInterface.NetStatisticsChanged.Remove(OnNetStatisticsChanged);
@@ -352,6 +355,11 @@ end;
 procedure TFRMMainForm.OnAppStarted(Sender: TObject);
 begin
   RefreshConnectionStatusDisplay;
+end;
+
+procedure TFRMMainForm.OnLoading(Sender: TObject; const message : String; curPos, totalCount : Int64);
+begin
+  // TODO: show progress bar
 end;
 
 procedure TFRMMainForm.OnConnectivityChanged(Sender: TObject);

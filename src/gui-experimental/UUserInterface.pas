@@ -32,16 +32,31 @@ uses
   UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys, UPCOrderedLists {$IFDEF TESTNET},UFRMRandomOperations, UAccountKeyStorage{$ENDIF};
 
 type
-  { Forward Declarations }
-
-  TLoadDatabaseThread = class;
 
   { TUserInterfaceState }
+
   TUserInterfaceState = (uisLoading, uisLoaded, uisDiscoveringPeers, uisSyncronizingBlockchain, uisActive, uisIsolated, uisDisconnected, uisError);
 
   { TUserInterface }
 
   TUserInterface = class
+    private type
+
+      { TLoadingThread }
+
+      TLoadingThread = Class(TPCThread)
+      private
+        FLastTC : TTickCount;
+        FMessage : String;
+        FCurPos : Int64;
+        FTotalCount : Int64;
+        procedure OnProgressNotify(sender : TObject; const message : String; curPos, totalCount : Int64);
+        procedure ThreadSafeNotify;
+        procedure ThreadSafeNotifyLoaded;
+      protected
+        procedure BCExecute; override;
+      End;
+
     private
       // Root-form
       FUILock : TPCCriticalSection; static;
@@ -90,6 +105,7 @@ type
       FUIRefreshTimer : TNotifyManyEvent; static;
       FState : TUserInterfaceState; static;
       FStateText : String; static;
+      FLoadingThread : TThread; static;
 
       // Getters/Setters
       class function GetEnabled : boolean; static;
@@ -107,7 +123,7 @@ type
 
       // Aux
       class procedure NotifyLoadedEvent(Sender: TObject);
-      class procedure NotifyLoadingEvent(Sender: TObject; const message: AnsiString; curPos, totalCount: Int64);
+      class procedure NotifyLoadingEvent(Sender: TObject; const message : String; curPos, totalCount : Int64);
       class procedure NotifyStateChanged(Sender: TObject);
       class procedure NotifyAccountsChangedEvent(Sender: TObject);
       class procedure NotifyBlocksChangedEvent(Sender: TObject);
@@ -201,14 +217,6 @@ type
       class procedure ShowSyncDialog;
   end;
 
-  { TLoadSafeBoxThread }
-
-  TLoadDatabaseThread = Class(TPCThread)
-  protected
-    procedure OnProgressNotify(sender : TObject; const message : AnsiString; curPos, totalCount : Int64);
-    procedure OnLoaded;
-    procedure BCExecute; override;
-  End;
 
   { Exceptions }
 
@@ -217,9 +225,60 @@ type
 implementation
 
 uses
-  UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
+  Generics.Collections, UFRMAbout, UFRMNodesIp, UFRMPascalCoinWalletConfig, UFRMPayloadDecoder, UFRMMemoText,
   UFileStorage, UTime, USettings, UCoreUtils, UMemory,
   UWIZOperation, UWIZSendPASC, UWIZChangeKey, UWIZEnlistAccountForSale, UWIZDelistAccountFromSale, UWIZChangeAccountInfo, UWIZBuyAccount, UCoreObjects;
+
+{ TUserInterface.TLoadingThread }
+
+procedure TUserInterface.TLoadingThread.OnProgressNotify(sender: TObject; const message: String; curPos, totalCount: Int64);
+var pct : String;
+begin
+  If TPlatform.GetElapsedMilliseconds(FLastTC)>250 then begin
+    FLastTC := TPlatform.GetTickCount;
+    FMessage := Message;
+    FCurPos := curPos;
+    FTotalCount := totalCount;
+    Queue(ThreadSafeNotify);
+  end;
+end;
+
+procedure TUserInterface.TLoadingThread.ThreadSafeNotify;
+begin
+  TUserInterface.NotifyLoadingEvent(Self, FMessage, FCurPos, FTotalCount);
+end;
+
+procedure TUserInterface.TLoadingThread.ThreadSafeNotifyLoaded;
+begin
+  TUserInterface.State := uisLoaded;
+end;
+
+procedure TUserInterface.TLoadingThread.BCExecute;
+Var currentProcess : String;
+begin
+  FLastTC := 0;
+  FMessage := '';
+  FCurPos := 0;
+  FTotalCount:=0;
+  // Read Operations saved from disk
+  TNode.Node.InitSafeboxAndOperations($FFFFFFFF,OnProgressNotify); // New Build 2.1.4 to load pending operations buffer
+  TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
+  TNode.Node.NetServer.Active := true;
+  FLastTC := 0;
+  FMessage := '';
+  FCurPos := 0;
+  FTotalCount:=0;
+  if (TNode.Node.Bank.BlocksCount<=1) then begin
+    while (Not Terminated) And (Not TNode.Node.IsReady(currentProcess) Or (TNode.Node.Bank.BlocksCount<=1)) do begin
+      Queue( ThreadSafeNotify );
+      Sleep(200);
+    end;
+  end;
+  if Not Terminated then begin
+    Queue(ThreadSafeNotifyLoaded);
+  end;
+  TUserInterface.FLoadingThread := nil;
+end;
 
 {%region UI Lifecyle}
 
@@ -268,12 +327,18 @@ begin
     {$IFNDEF LCLCarbon}
     FTrayIcon.Show;
     {$ENDIF}
+
+    FDisplayedStartupSyncDialog:=false;
+
+    // Create the UI refresh timer
     FTimerUpdateStatus := TTimer.Create(FMainForm);
     FTimerUpdateStatus.Enabled := false;
-    FDisplayedStartupSyncDialog:=false;
+    FTimerUpdateStatus.OnTimer := NotifyUIRefreshTimerEvent;
+    FUIRefreshTimer.Add(OnUITimerRefresh);
 
     // Create log
     FLog := TLog.Create(nil); // independent component
+//    FLog.OnNewLog:= OnNewLog;
     FLog.SaveTypes := [];
 
     // Create data directories
@@ -319,7 +384,9 @@ begin
     // Reading database
     State := uisLoading;
     FLoaded.Add(OnLoaded);
-    TLoadDatabaseThread.Create(false).FreeOnTerminate := true;
+    FLoadingThread := TLoadingThread.Create(true);
+    FLoadingThread.FreeOnTerminate := true;
+    FLoadingThread.Suspended := False;
 
     // Init
     TNetData.NetData.OnReceivedHelloMessage := NotifyReceivedHelloMessageEvent;
@@ -327,12 +394,6 @@ begin
     TNetData.NetData.OnNetConnectionsUpdated := NotifyNetConnectionsUpdatedEvent;
     TNetData.NetData.OnNodeServersUpdated := NotifyNetNodeServersUpdatedEvent;
     TNetData.NetData.OnBlackListUpdated := NotifyNetBlackListUpdatedEvent;
-
-    // Start refresh timer
-    FTimerUpdateStatus.OnTimer := NotifyUIRefreshTimerEvent;
-    FTimerUpdateStatus.Interval := 1000;
-    FTimerUpdateStatus.Enabled := true;
-    FUIRefreshTimer.Add(OnUITimerRefresh); //TODO: move to initialisation?
 
     // open the sync dialog
     FStarted := true;
@@ -490,6 +551,11 @@ end;
 class procedure TUserInterface.OnLoaded(Sender: TObject);
 var LLockedMempool : TPCOperationsComp;
 begin
+  // Start timer
+  FTimerUpdateStatus.Interval := 1000;
+  FTimerUpdateStatus.Enabled := true;
+
+
   FPoolMiningServer := TPoolMiningServer.Create;
   FPoolMiningServer.Port := TSettings.MinerServerRpcPort;
   FPoolMiningServer.MinerAccountKey := TWallet.MiningKey;
@@ -865,7 +931,7 @@ var
   sl : TStrings;
   ak : TAccountKey;
   i, nmin,nmax : Integer;
-  l : TList;
+  l : TList<Pointer>;
   Pacsd : PAccountKeyStorageData;
   acc : TAccount;
 begin
@@ -1157,6 +1223,8 @@ begin
   if AState = FState then
     exit;
   FState := AState;
+  if (FState = uisLoaded) then
+    NotifyLoadedEvent(nil);
   NotifyStateChanged(nil);
 end;
 
@@ -1165,7 +1233,7 @@ begin
   TUserInterface.FLoaded.Invoke(Sender);
 end;
 
-class procedure TUserInterface.NotifyLoadingEvent(Sender: TObject; const message: AnsiString; curPos, totalCount: Int64);
+class procedure TUserInterface.NotifyLoadingEvent(Sender: TObject; const message : String; curPos, totalCount : Int64);
 begin
   TUserInterface.FLoading.Invoke(Sender, message, curPos, totalCount);
 end;
@@ -1226,27 +1294,6 @@ begin
 end;
 
 {%endregion}
-
-{ TLoadDatabaseThread }
-
-procedure TLoadDatabaseThread.OnProgressNotify(sender: TObject; const message: AnsiString; curPos, totalCount: Int64);
-begin
-  TUserInterface.NotifyLoadingEvent(sender, message, curPos, totalCount);
-end;
-
-procedure TLoadDatabaseThread.OnLoaded;
-begin
-  TUserInterface.NotifyLoadedEvent(Self);
-end;
-
-procedure TLoadDatabaseThread.BCExecute;
-begin
-  // Read Operations saved from disk
-  TNode.Node.InitSafeboxAndOperations($FFFFFFFF, OnProgressNotify);
-  TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
-  TNode.Node.NetServer.Active := true;
-  Synchronize( OnLoaded );
-end;
 
 initialization
 // TODO - any startup code needed here?
