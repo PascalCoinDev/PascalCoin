@@ -64,7 +64,6 @@ Type
   TPCThreadClass = Class of TPCThread;
   TPCThread = Class(TThread)
   private
-    FExecuteUIThread : Boolean;
     FDebugStep: String;
     FStartTickCount : TTickCount;
   protected
@@ -82,7 +81,6 @@ Type
     constructor Create(CreateSuspended: Boolean);
     destructor Destroy; override;
     Property DebugStep : String read FDebugStep write FDebugStep;
-    property ExecuteUIThread : Boolean read FExecuteUIThread write FExecuteUIThread;
     property Terminated;
   End;
 
@@ -184,7 +182,6 @@ Var _threads : TPCThreadList<TPCThread>;
 constructor TPCThread.Create(CreateSuspended: Boolean);
 begin
   inherited Create(CreateSuspended);
-  FExecuteUIThread := false;
   {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Created Thread '+IntToHex(PtrInt(Self),8));{$ENDIF}
 end;
 
@@ -209,7 +206,7 @@ begin
     {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Starting Thread '+IntToHex(PtrInt(Self),8)+' in pos '+inttostr(i+1));{$ENDIF}
     Try
       Try
-        if FExecuteUIThread then Synchronize(BCExecute) else BCExecute;
+        BCExecute;
         FDebugStep := 'Finalized BCExecute';
       Finally
         Terminate;
