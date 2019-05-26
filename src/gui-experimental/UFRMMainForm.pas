@@ -161,6 +161,7 @@ procedure TFRMMainForm.FormCreate(Sender: TObject);
 
     tbStatusToolBar.AnchorSideTop.Side := asrTop;
     tbStatusToolBar.Anchors := [akRight, akBottom];
+
   end;
 
 begin
@@ -171,6 +172,12 @@ begin
   FSyncControl := TCTRLSyncronization.Create(self);
   paLogoPanel.AddControlDockCenter(TCTRLBanner.Create(Self));
   paSyncPanel.AddControlDockCenter(FSyncControl);
+  // Remove design-time colors (avoid issue on macOS)
+  paSyncPanel.Color:=clDefault;
+  paSyncPanel.Caption:='';
+  paWalletPanel.Color := clDefault;
+  paWalletPanel.Caption:='';
+
   // note: wallet control is lazily constructed
   {$IFDEF TESTNET}
   // Things for testing purposes only
