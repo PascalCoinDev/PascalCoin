@@ -32,10 +32,10 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [23](PIP-0023.md)     | JSON RPC PASCURRENCY format                 | Benjamin Ansbach     | Backend, Documentation | Draft |
 | [24](PIP-0024.md)     | Account Data                                | Herman Schoenfeld            | Protocol       | Draft |
 | [26](PIP-0026.md)     | URI Scheme Proposal                                | Ugochukwu Mmaduekwe            | Front-End       | Draft |
-| [27](PIP-0027.md)     | E-PASA: Infinite Address-Space (via Layer-2)  | Herman Schoenfeld            | Protocol, Front-End    | Proposed |
-| [28](PIP-0028.md)     | E-OP: Layer-2 operation encoding standard for smart-contracts | Herman Schoenfeld            | Front-End       | Draft |
-| [29](PIP-0029.md)     | Account Seals: Cryptographically Secure Account Histories  | Herman Schoenfeld            | Protocol   | Draft |
-| [30](PIP-0030.md)     | SafeBoxRoot: Deletable SafeBox and Light-Nodes  | Herman Schoenfeld            | Protocol   | Proposed |
-| [31A](PIP-0031A.md)     | New Wallet: Multi-Platform & Multi-Paradigm   | Herman Schoenfeld            | Protocol   | Proposed |
+| [27](PIP-0027.md)     | E-PASA: Infinite Address-Space (via Layer-2)  | Herman Schoenfeld            | Protocol, Front-End    | Accepted |
+| [28](PIP-0028.md)     | E-OP: Layer-2 operation encoding standard for smart-contracts | Herman Schoenfeld            | Front-End       | Withdrawn |
+| [29](PIP-0029.md)     | Account Seals: Cryptographically Secure Account Histories  | Herman Schoenfeld            | Protocol   | Accepted |
+| [30](PIP-0030.md)     | SafeBoxRoot: Deletable SafeBox and Light-Nodes  | Herman Schoenfeld            | Protocol   | Accepted |
+| [31A](PIP-0031A.md)   | New Wallet: Multi-Platform & Multi-Paradigm   | Herman Schoenfeld            | Protocol   | Withdrawn |
 
 
