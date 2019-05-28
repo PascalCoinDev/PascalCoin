@@ -292,6 +292,8 @@ begin
   FHasValidSignature:=False;
   SetLength(FtxSendersPubkeysUsedForSign,0);
   SetLength(FchangesInfoPubkeysUsedForSign,0);
+  FBufferedSha256 := Nil;
+  FBufferedRipeMD160 := Nil;
 end;
 
 procedure TOpMultiOperation.InitializeData;

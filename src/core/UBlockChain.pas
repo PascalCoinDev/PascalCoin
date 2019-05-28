@@ -216,6 +216,7 @@ Type
     FHasValidSignature : Boolean;
     FUsedPubkeyForSignature : TECDSA_Public;
     FBufferedSha256 : TRawBytes;
+    FBufferedRipeMD160 : TRawBytes; // OPID is a RipeMD160 of the GetBufferForOpHash(True) value, 20 bytes length
     procedure InitializeData; virtual;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; virtual; abstract;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; virtual; abstract;
@@ -262,6 +263,7 @@ Type
     class function GetOpReferenceAccount(const opReference : TOpReference) : Cardinal;
     class function GetOpReferenceN_Operation(const opReference : TOpReference) : Cardinal;
     function Sha256 : TRawBytes;
+    function RipeMD160 : TRawBytes;
     function GetOpReference : TOpReference;
     //
     function GetOperationStreamData : TBytes;
@@ -2861,6 +2863,7 @@ constructor TPCOperation.Create;
 begin
   FHasValidSignature := False;
   FBufferedSha256:=Nil;
+  FBufferedRipeMD160:=Nil;
   FUsedPubkeyForSignature := CT_TECDSA_Public_Nul;
   InitializeData;
 end;
@@ -3042,6 +3045,7 @@ begin
   FHasValidSignature := false;
   FUsedPubkeyForSignature:=CT_TECDSA_Public_Nul;
   FBufferedSha256 := Nil;
+  FBufferedRipeMD160 := Nil;
 end;
 
 procedure TPCOperation.FillOperationResume(Block: Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume);
@@ -3146,7 +3150,6 @@ class function TPCOperation.OperationHashValid(op: TPCOperation; Block : Cardina
     This format is easy to undecode because include account and n_operation
    }
 var ms : TMemoryStream;
-  r : TRawBytes;
   _a,_o : Cardinal;
 begin
   ms := TMemoryStream.Create;
@@ -3156,7 +3159,7 @@ begin
     _o := op.N_Operation;
     ms.Write(_a,4);    // Save Account (4 bytes)
     ms.Write(_o,4);    // Save N_Operation (4 bytes)
-    ms.WriteBuffer(TCrypto.DoRipeMD160AsRaw(op.GetBufferForOpHash(True))[Low(TRawBytes)],20); // Calling GetBufferForOpHash(TRUE) is the same than data used for Sha256
+    ms.WriteBuffer(op.RipeMD160[Low(TRawBytes)],20); // Calling GetBufferForOpHash(TRUE) is the same than data used for Sha256
     SetLength(Result,ms.size);
     ms.Position:=0;
     ms.Read(Result[Low(Result)],ms.size);
@@ -3321,6 +3324,14 @@ begin
   end;
   OperationResume.valid := true;
   Operation.FillOperationResume(Block,getInfoForAllAccounts,Affected_account_number,OperationResume);
+end;
+
+function TPCOperation.RipeMD160: TRawBytes;
+begin
+  If Length(FBufferedRipeMD160)=0 then begin
+    FBufferedRipeMD160 := TCrypto.DoRipeMD160AsRaw(GetBufferForOpHash(true));
+  end;
+  Result := FBufferedRipeMD160;
 end;
 
 function TPCOperation.IsSignerAccount(account: Cardinal): Boolean;
