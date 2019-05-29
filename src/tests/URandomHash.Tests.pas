@@ -1,4 +1,4 @@
-unit URandomHashTests;
+unit URandomHash.Tests;
 
 {$IFDEF FPC}
   {$MODE DELPHI}

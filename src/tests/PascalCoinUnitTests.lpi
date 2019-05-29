@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
-    <Version Value="10"/>
+    <Version Value="12"/>
     <PathDelim Value="\"/>
     <General>
+      <Flags>
+        <CompatibilityMode Value="True"/>
+      </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <MainUnit Value="0"/>
       <Title Value="PascalCoinUnitTests"/>
       <ResourceType Value="res"/>
       <UseXPManifest Value="True"/>
@@ -17,9 +19,10 @@
       <Version Value="2"/>
     </PublishOptions>
     <RunParams>
-      <local>
-        <FormatVersion Value="1"/>
-      </local>
+      <FormatVersion Value="2"/>
+      <Modes Count="1">
+        <Mode0 Name="default"/>
+      </Modes>
     </RunParams>
     <RequiredPackages Count="3">
       <Item1>
@@ -81,28 +84,29 @@
         <IsPartOfProject Value="True"/>
       </Unit10>
       <Unit11>
-        <Filename Value="URandomHashTests.pas"/>
+        <Filename Value="..\libraries\sphere10\UCommon.Collections.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit11>
       <Unit12>
-        <Filename Value="..\libraries\sphere10\UCommon.Collections.pas"/>
+        <Filename Value="UCommon.Collections.Tests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit12>
       <Unit13>
-        <Filename Value="UCommon.Collections.Tests.pas"/>
+        <Filename Value="UCommon.Tests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit13>
       <Unit14>
-        <Filename Value="UCommon.Tests.pas"/>
+        <Filename Value="UMemory.Tests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit14>
       <Unit15>
-        <Filename Value="UMemory.Tests.pas"/>
+        <Filename Value="UThread.Tests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit15>
       <Unit16>
-        <Filename Value="UThread.Tests.pas"/>
+        <Filename Value="URandomHash.Tests.pas"/>
         <IsPartOfProject Value="True"/>
+        <UnitName Value="URandomHashTests"/>
       </Unit16>
     </Units>
   </ProjectOptions>

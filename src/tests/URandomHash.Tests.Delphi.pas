@@ -1,4 +1,4 @@
-unit URandomHashTests.Delphi;
+unit URandomHash.Tests.Delphi;
 
 interface
 

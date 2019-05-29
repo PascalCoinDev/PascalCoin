@@ -11,8 +11,8 @@ uses
   GUITestRunner,
   TextTestRunner,
   URandomHash in '..\core\URandomHash.pas',
-  URandomHashTests.Delphi in 'URandomHashTests.Delphi.pas',
-  UPCSafeBoxRootHashTests in 'UPCSafeBoxRootHashTests.pas';
+  UPCSafeBoxRootHashTests in 'UPCSafeBoxRootHashTests.pas',
+  URandomHash.Tests.Delphi in 'URandomHash.Tests.Delphi.pas';
 
 begin
   Application.Initialize;

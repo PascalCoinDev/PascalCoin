@@ -3,8 +3,8 @@ program UPascalCoinUnitTests;
 {$mode objfpc}{$H+}
 
 uses
-  Interfaces, Forms, GuiTestRunner, UCommon.Collections, URandomHashTests,
-  UCommon.Tests, UCommon.Collections.Tests, UMemory.Tests, UThread.Tests;
+  Interfaces, Forms, GuiTestRunner, UCommon.Collections,
+  UCommon.Tests, UCommon.Collections.Tests, UMemory.Tests, UThread.Tests, URandomHash.Tests;
 
 {$R *.res}
 
