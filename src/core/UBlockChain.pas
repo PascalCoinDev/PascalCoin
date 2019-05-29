@@ -265,6 +265,7 @@ Type
     function Sha256 : TRawBytes;
     function RipeMD160 : TRawBytes;
     function GetOpReference : TOpReference;
+    function GetOpID : TRawBytes; // OPID is RipeMD160 hash of the operation
     //
     function GetOperationStreamData : TBytes;
     class function GetOperationFromStreamData(StreamData : TBytes) : TPCOperation;
@@ -2943,6 +2944,11 @@ begin
   Finally
     stream.Free;
   End;
+end;
+
+function TPCOperation.GetOpID: TRawBytes;
+begin
+  Result := RipeMD160;
 end;
 
 function TPCOperation.GetOpReference: TOpReference;

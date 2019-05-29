@@ -93,6 +93,10 @@ Type
   End;
   PAccount = ^TAccount;
 
+  TAccount_Helper = record helper for TAccount
+     procedure SerializeAccount(AStream : TStream; current_protocol : Word);
+  end;
+
   {
     Protocol 2:
     Introducing OperationBlock info on the safebox, this will allow checkpointing a safebox because
@@ -407,7 +411,30 @@ Type
 
   TPCSafeBoxTransaction = Class
   private
-    FOrderedList : TOrderedAccountList;
+  type
+    TSealedAccount = Record
+      LatestOpIDUsedForSeal : TRawBytes;
+      AccountSealed : PAccount;
+      SealChangesCounter : Integer;
+    End;
+    PSealedAccount = ^TSealedAccount;
+    {TSealedAccountList}
+    TSealedAccountList = Class
+    private
+      FSafeBoxTransaction : TPCSafeBoxTransaction;
+      FList : TList<Pointer>;
+      Function Find(const account_number: Cardinal; var Index: Integer): Boolean;
+    public
+      Constructor Create(ASafeBoxTransaction : TPCSafeBoxTransaction);
+      Destructor Destroy; Override;
+      Procedure Clear;
+      function Count : Integer;
+      function GetAccount_Whitout_Sealing(account_number: Cardinal) : PSealedAccount;
+      procedure DoUpdateSealIfNeeded(APtrSealedAccount : PSealedAccount; const AOpID : TRawBytes);
+      procedure CopyFrom(ASource : TSealedAccountList);
+    End;
+  private
+    FOrderedList : TSealedAccountList;
     FFreezedAccounts : TPCSafeBox;
     FTotalBalance: Int64;
     FTotalFee: Int64;
@@ -420,14 +447,15 @@ Type
     Function Origin_TotalFee : Int64;
     Function Origin_FindAccountByName(const account_name : TRawBytes) : Integer;
   protected
-    Function GetInternalAccount(account_number : Cardinal) : PAccount;
+    Function GetInternalAccount(account_number : Cardinal; var APtrSealedAccount : PSealedAccount) : PAccount;
+    procedure UpdateSeal(APtrSealedAccount : PSealedAccount; AOpID : TRawBytes);
   public
     Constructor Create(SafeBox : TPCSafeBox);
     Destructor Destroy; override;
-    Function TransferAmount(previous : TAccountPreviousBlockInfo; sender,signer,target : Cardinal; n_operation : Cardinal; amount, fee : UInt64; var errors : String) : Boolean;
-    Function TransferAmounts(previous : TAccountPreviousBlockInfo; const senders, n_operations : Array of Cardinal; const sender_amounts : Array of UInt64; const receivers : Array of Cardinal; const receivers_amounts : Array of UInt64; var errors : String) : Boolean;
-    Function UpdateAccountInfo(previous : TAccountPreviousBlockInfo; signer_account, signer_n_operation, target_account: Cardinal; accountInfo: TAccountInfo; newName : TRawBytes; newType : Word; fee: UInt64; var errors : String) : Boolean;
-    Function BuyAccount(previous : TAccountPreviousBlockInfo; buyer,account_to_buy,seller: Cardinal; n_operation : Cardinal; amount, account_price, fee : UInt64; const new_account_key : TAccountKey; var errors : String) : Boolean;
+    Function TransferAmount(previous : TAccountPreviousBlockInfo; const AOpID : TRawBytes; sender,signer,target : Cardinal; n_operation : Cardinal; amount, fee : UInt64; var errors : String) : Boolean;
+    Function TransferAmounts(previous : TAccountPreviousBlockInfo; const AOpID : TRawBytes; const senders, n_operations : Array of Cardinal; const sender_amounts : Array of UInt64; const receivers : Array of Cardinal; const receivers_amounts : Array of UInt64; var errors : String) : Boolean;
+    Function UpdateAccountInfo(previous : TAccountPreviousBlockInfo; const AOpID : TRawBytes; signer_account, signer_n_operation, target_account: Cardinal; accountInfo: TAccountInfo; newName : TRawBytes; newType : Word; fee: UInt64; var errors : String) : Boolean;
+    Function BuyAccount(previous : TAccountPreviousBlockInfo; const AOpID : TRawBytes; buyer,account_to_buy,seller: Cardinal; n_operation : Cardinal; amount, account_price, fee : UInt64; const new_account_key : TAccountKey; var errors : String) : Boolean;
     Function Commit(Const operationBlock : TOperationBlock; var errors : String) : Boolean;
     Function Account(account_number : Cardinal) : TAccount;
     Procedure Rollback;
@@ -437,8 +465,6 @@ Type
     Property TotalBalance : Int64 read FTotalBalance;
     Procedure CopyFrom(transaction : TPCSafeBoxTransaction);
     Procedure CleanTransaction;
-    Function ModifiedCount : Integer;
-    Function Modified(index : Integer) : TAccount;
     Function FindAccountByNameInTransaction(const findName : TRawBytes; out isAddedInThisTransaction, isDeletedInThisTransaction : Boolean) : Integer;
   End;
 
@@ -2021,38 +2047,14 @@ begin
       // PROTOCOL 1 BlockHash calculation
       ms.Write(block.blockchainInfo.block,4); // Little endian
       for i := Low(block.accounts) to High(block.accounts) do begin
-        ms.Write(block.accounts[i].account,4);  // Little endian
-        raw := TAccountComp.AccountInfo2RawString(block.accounts[i].accountInfo);
-        ms.WriteBuffer(raw[Low(raw)],Length(raw)); // Raw bytes
-        ms.Write(block.accounts[i].balance,SizeOf(Uint64));  // Little endian
-        ms.Write(block.accounts[i].updated_block,4);  // Little endian
-        ms.Write(block.accounts[i].n_operation,4); // Little endian
+        block.accounts[i].SerializeAccount(ms,current_protocol);
       end;
       ms.Write(block.blockchainInfo.timestamp,4); // Little endian
     end else begin
       // PROTOCOL 2 BlockHash calculation
       TAccountComp.SaveTOperationBlockToStream(ms,block.blockchainInfo);
       for i := Low(block.accounts) to High(block.accounts) do begin
-        ms.Write(block.accounts[i].account,4);  // Little endian
-        raw := TAccountComp.AccountInfo2RawString(block.accounts[i].accountInfo);
-        ms.WriteBuffer(raw[Low(raw)],Length(raw)); // Raw bytes
-        ms.Write(block.accounts[i].balance,SizeOf(Uint64));  // Little endian
-        ms.Write(block.accounts[i].updated_block,4);  // Little endian
-        ms.Write(block.accounts[i].n_operation,4); // Little endian
-        // Use new Protocol 2 fields
-        If Length(block.accounts[i].name)>0 then begin
-          ms.WriteBuffer(block.accounts[i].name[Low(block.accounts[i].name)],Length(block.accounts[i].name));
-        end;
-        ms.Write(block.accounts[i].account_type,2);
-        if current_protocol>=CT_PROTOCOL_5 then begin
-          // Adding PROTOCOL 5 new fields
-          If Length(block.accounts[i].account_data)>0 then begin
-            ms.WriteBuffer(block.accounts[i].account_data[0],Length(block.accounts[i].account_data));
-          end;
-          If Length(block.accounts[i].account_seal)>0 then begin
-            ms.WriteBuffer(block.accounts[i].account_seal[0],Length(block.accounts[i].account_seal));
-          end;
-        end;
+        block.accounts[i].SerializeAccount(ms,current_protocol);
       end;
       ms.Write(block.AccumulatedWork,SizeOf(block.AccumulatedWork));
     end;
@@ -3860,16 +3862,18 @@ end;
 function TPCSafeBoxTransaction.Account(account_number: Cardinal): TAccount;
 Var i :Integer;
 begin
-  if FOrderedList.Find(account_number,i) then Result := PAccount(FOrderedList.FList[i])^
+  if FOrderedList.Find(account_number,i) then Result := PSealedAccount(FOrderedList.FList[i])^.AccountSealed^
   else begin
     Result := FreezedSafeBox.Account(account_number);
   end;
 end;
 
-function TPCSafeBoxTransaction.BuyAccount(previous : TAccountPreviousBlockInfo; buyer, account_to_buy,
+function TPCSafeBoxTransaction.BuyAccount(previous : TAccountPreviousBlockInfo; const AOpID : TRawBytes;
+  buyer, account_to_buy,
   seller: Cardinal; n_operation: Cardinal; amount, account_price, fee: UInt64;
   const new_account_key: TAccountKey; var errors: String): Boolean;
 Var PaccBuyer, PaccAccountToBuy, PaccSeller : PAccount;
+    PaccBuyer_Sealed, PaccAccountToBuy_Sealed, PaccSeller_Sealed : PSealedAccount;
 begin
   Result := false;
   errors := '';
@@ -3895,9 +3899,9 @@ begin
     errors := 'Seller account is blocked for protocol';
     Exit;
   end;
-  PaccBuyer := GetInternalAccount(buyer);
-  PaccAccountToBuy := GetInternalAccount(account_to_buy);
-  PaccSeller := GetInternalAccount(seller);
+  PaccBuyer := GetInternalAccount(buyer,PaccBuyer_Sealed);
+  PaccAccountToBuy := GetInternalAccount(account_to_buy,PaccAccountToBuy_Sealed);
+  PaccSeller := GetInternalAccount(seller,PaccSeller_Sealed);
   if (PaccBuyer^.n_operation+1<>n_operation) then begin
     errors := 'Incorrect n_operation';
     Exit;
@@ -3931,6 +3935,10 @@ begin
       TAccountComp.FormatMoney(PaccAccountToBuy^.balance)+' + amount '+TAccountComp.FormatMoney(amount);
     Exit;
   end;
+
+  UpdateSeal(PaccBuyer_Sealed,AOpID);
+  UpdateSeal(PaccAccountToBuy_Sealed,AOpID);
+  UpdateSeal(PaccSeller_Sealed,AOpID);
 
   previous.UpdateIfLower(PaccBuyer^.account,PaccBuyer^.updated_block);
   previous.UpdateIfLower(PaccAccountToBuy^.account,PaccAccountToBuy^.updated_block);
@@ -3997,7 +4005,7 @@ begin
       exit;
     end;
     for i := 0 to FOrderedList.FList.Count - 1 do begin
-      Pa := PAccount(FOrderedList.FList[i]);
+      Pa := PSealedAccount (FOrderedList.FList[i])^.AccountSealed;
       FFreezedAccounts.UpdateAccount(Pa^.account,
             Pa^.accountInfo,
             Pa^.name,
@@ -4053,16 +4061,11 @@ begin
 end;
 
 procedure TPCSafeBoxTransaction.CopyFrom(transaction : TPCSafeBoxTransaction);
-Var i : Integer;
-  P : PAccount;
 begin
   if transaction=Self then exit;
   if transaction.FFreezedAccounts<>FFreezedAccounts then raise Exception.Create('Invalid Freezed accounts to copy');
   CleanTransaction;
-  for i := 0 to transaction.FOrderedList.FList.Count - 1 do begin
-    P := PAccount(transaction.FOrderedList.FList[i]);
-    FOrderedList.Add(P^);
-  end;
+  FOrderedList.CopyFrom(transaction.FOrderedList);
   FOldSafeBoxHash := transaction.FOldSafeBoxHash;
   FTotalBalance := transaction.FTotalBalance;
   FTotalFee := transaction.FTotalFee;
@@ -4070,7 +4073,7 @@ end;
 
 constructor TPCSafeBoxTransaction.Create(SafeBox : TPCSafeBox);
 begin
-  FOrderedList := TOrderedAccountList.Create;
+  FOrderedList := TSealedAccountList.Create(Self);
   FFreezedAccounts := SafeBox;
   FOldSafeBoxHash := SafeBox.FSafeBoxHash;
   FTotalBalance := FFreezedAccounts.FTotalBalance;
@@ -4113,19 +4116,12 @@ begin
   Result := FFreezedAccounts.FindAccountByName(account_name);
 end;
 
-function TPCSafeBoxTransaction.GetInternalAccount(account_number: Cardinal): PAccount;
-Var i :Integer;
+function TPCSafeBoxTransaction.GetInternalAccount(account_number : Cardinal; var APtrSealedAccount : PSealedAccount) : PAccount;
 begin
-  if FOrderedList.Find(account_number,i) then Result := PAccount(FOrderedList.FList[i])
-  else begin
-    i := FOrderedList.Add( FreezedSafeBox.Account(account_number) );
-    Result := PAccount(FOrderedList.FList[i]);
-  end;
-end;
-
-function TPCSafeBoxTransaction.Modified(index: Integer): TAccount;
-begin
-  Result := FOrderedList.Get(index);
+  // This process will return both pointers to Account and to TSealedAccount without
+  // executing the seal process
+  APtrSealedAccount := FOrderedList.GetAccount_Whitout_Sealing(account_number);
+  Result := APtrSealedAccount^.AccountSealed;
 end;
 
 function TPCSafeBoxTransaction.FindAccountByNameInTransaction(const findName: TRawBytes; out isAddedInThisTransaction, isDeletedInThisTransaction : Boolean) : Integer;
@@ -4156,20 +4152,16 @@ begin
   end;
 end;
 
-function TPCSafeBoxTransaction.ModifiedCount: Integer;
-begin
-  Result := FOrderedList.Count;
-end;
-
 procedure TPCSafeBoxTransaction.Rollback;
 begin
   CleanTransaction;
 end;
 
-function TPCSafeBoxTransaction.TransferAmount(previous : TAccountPreviousBlockInfo; sender,signer,target: Cardinal;
+function TPCSafeBoxTransaction.TransferAmount(previous : TAccountPreviousBlockInfo; const AOpID : TRawBytes; sender,signer,target: Cardinal;
   n_operation: Cardinal; amount, fee: UInt64; var errors: String): Boolean;
 Var
   PaccSender, PaccTarget,PaccSigner : PAccount;
+  PaccSender_Sealed, PaccTarget_Sealed , PaccSigner_Sealed : PSealedAccount;
 begin
   Result := false;
   errors := '';
@@ -4191,8 +4183,8 @@ begin
     errors := 'Target account is blocked for protocol';
     Exit;
   end;
-  PaccSender := GetInternalAccount(sender);
-  PaccTarget := GetInternalAccount(target);
+  PaccSender := GetInternalAccount(sender,PaccSender_Sealed);
+  PaccTarget := GetInternalAccount(target,PaccTarget_Sealed);
 
   if (sender=signer) then begin
     if (PaccSender^.n_operation+1<>n_operation) then begin
@@ -4204,8 +4196,9 @@ begin
       Exit;
     end;
     PaccSigner := Nil;
+    PaccSigner_Sealed := Nil;
   end else begin
-    PaccSigner := GetInternalAccount(signer);
+    PaccSigner := GetInternalAccount(signer,PaccSigner_Sealed);
     if (PaccSigner^.n_operation+1<>n_operation) then begin
       errors := 'Incorrect signer n_operation';
       Exit;
@@ -4236,6 +4229,9 @@ begin
     Exit;
   end;
 
+  UpdateSeal(PaccSender_Sealed,AOpID);
+  UpdateSeal(PaccTarget_Sealed,AOpID);
+
   previous.UpdateIfLower(PaccSender^.account,PaccSender^.updated_block);
   previous.UpdateIfLower(PaccTarget^.account,PaccTarget^.updated_block);
 
@@ -4250,6 +4246,7 @@ begin
   end;
 
   if (sender<>signer) then begin
+    UpdateSeal(PaccSigner_Sealed,AOpID);
     previous.UpdateIfLower(PaccSigner^.account,PaccSigner^.updated_block);
     if (PaccSigner^.updated_block<>Origin_BlocksCount) then begin
       PaccSigner^.previous_updated_block := PaccSigner^.updated_block;
@@ -4269,12 +4266,13 @@ begin
   Result := true;
 end;
 
-function TPCSafeBoxTransaction.TransferAmounts(previous : TAccountPreviousBlockInfo; const senders,
-  n_operations: array of Cardinal; const sender_amounts: array of UInt64;
+function TPCSafeBoxTransaction.TransferAmounts(previous : TAccountPreviousBlockInfo; const AOpID : TRawBytes;
+  const senders, n_operations: array of Cardinal; const sender_amounts: array of UInt64;
   const receivers: array of Cardinal; const receivers_amounts: array of UInt64;
   var errors: String): Boolean;
 Var i,j : Integer;
   PaccSender, PaccTarget : PAccount;
+  PaccSender_Sealed, PaccTarget_Sealed : PSealedAccount;
   nTotalAmountSent, nTotalAmountReceived, nTotalFee : Int64;
 begin
   Result := false;
@@ -4317,7 +4315,7 @@ begin
       errors := 'Invalid amount for multiple sender';
       Exit;
     end;
-    PaccSender := GetInternalAccount(senders[i]);
+    PaccSender := GetInternalAccount(senders[i],PaccSender_Sealed);
     if (PaccSender^.n_operation+1<>n_operations[i]) then begin
       errors := 'Incorrect multisender n_operation';
       Exit;
@@ -4347,7 +4345,7 @@ begin
       Exit;
     end;
     inc(nTotalAmountReceived,Int64(receivers_amounts[i]));
-    PaccTarget := GetInternalAccount(receivers[i]);
+    PaccTarget := GetInternalAccount(receivers[i],PaccTarget_Sealed);
     if ((PaccTarget^.balance + receivers_amounts[i])>CT_MaxWalletAmount) then begin
       errors := 'Max receiver balance';
       Exit;
@@ -4365,22 +4363,24 @@ begin
   end;
   // Ok, execute!
   for i:=Low(senders) to High(senders) do begin
-    PaccSender := GetInternalAccount(senders[i]);
+    PaccSender := GetInternalAccount(senders[i],PaccSender_Sealed);
     previous.UpdateIfLower(PaccSender^.account,PaccSender^.updated_block);
     If PaccSender^.updated_block<>Origin_BlocksCount then begin
       PaccSender^.previous_updated_block := PaccSender^.updated_block;
       PaccSender^.updated_block := Origin_BlocksCount;
     end;
+    UpdateSeal(PaccSender_Sealed,AOpID);
     Inc(PaccSender^.n_operation);
     PaccSender^.balance := PaccSender^.balance - (sender_amounts[i]);
   end;
   for i:=Low(receivers) to High(receivers) do begin
-    PaccTarget := GetInternalAccount(receivers[i]);
+    PaccTarget := GetInternalAccount(receivers[i],PaccTarget_Sealed);
     previous.UpdateIfLower(PaccTarget^.account,PaccTarget^.updated_block);
     If PaccTarget^.updated_block<>Origin_BlocksCount then begin
       PaccTarget^.previous_updated_block := PaccTarget.updated_block;
       PaccTarget^.updated_block := Origin_BlocksCount;
     end;
+    UpdateSeal(PaccTarget_Sealed,AOpID);
     PaccTarget^.balance := PaccTarget^.balance + receivers_amounts[i];
   end;
   Dec(FTotalBalance,nTotalFee);
@@ -4389,10 +4389,12 @@ begin
 end;
 
 function TPCSafeBoxTransaction.UpdateAccountInfo(previous : TAccountPreviousBlockInfo;
+  const AOpID : TRawBytes;
   signer_account, signer_n_operation, target_account: Cardinal;
   accountInfo: TAccountInfo; newName: TRawBytes; newType: Word; fee: UInt64; var errors: String): Boolean;
 Var i : Integer;
   P_signer, P_target : PAccount;
+  P_signer_Sealed, P_target_Sealed : PSealedAccount;
 begin
   Result := false;
   errors := '';
@@ -4410,8 +4412,8 @@ begin
     errors := 'account is blocked for protocol';
     Exit;
   end;
-  P_signer := GetInternalAccount(signer_account);
-  P_target := GetInternalAccount(target_account);
+  P_signer := GetInternalAccount(signer_account,P_signer_Sealed);
+  P_target := GetInternalAccount(target_account,P_target_Sealed);
   if (P_signer^.n_operation+1<>signer_n_operation) then begin
     errors := 'Incorrect n_operation';
     Exit;
@@ -4478,6 +4480,9 @@ begin
     end;
   end;
 
+  UpdateSeal(P_signer_Sealed,AOpID);
+  UpdateSeal(P_target_Sealed,AOpID);
+
   P_signer^.n_operation := signer_n_operation;
   P_target^.accountInfo := accountInfo;
   P_target^.name := newName;
@@ -4486,6 +4491,126 @@ begin
   Dec(FTotalBalance,Int64(fee));
   Inc(FTotalFee,Int64(fee));
   Result := true;
+end;
+
+procedure TPCSafeBoxTransaction.UpdateSeal(APtrSealedAccount: PSealedAccount; AOpID: TRawBytes);
+begin
+  FOrderedList.DoUpdateSealIfNeeded(APtrSealedAccount,AOpID);
+end;
+
+{ TPCSafeBoxTransaction.TSealedAccountList }
+
+procedure TPCSafeBoxTransaction.TSealedAccountList.Clear;
+var i : Integer;
+  p : PSealedAccount;
+begin
+  for i := FList.Count-1 downto 0 do begin
+    p := FList[i];
+    Dispose( p^.AccountSealed );
+    p^.LatestOpIDUsedForSeal := Nil;
+    p^.AccountSealed := Nil;
+    Dispose(p);
+    FList[i] := Nil;
+  end;
+  FList.Clear;
+end;
+
+procedure TPCSafeBoxTransaction.TSealedAccountList.CopyFrom(ASource: TSealedAccountList);
+var i : Integer;
+  p : PSealedAccount;
+begin
+  if (ASource = Self) then Exit;
+  Clear;
+  for i := 0 to ASource.FList.Count-1 do begin
+    New(p);
+    p^.LatestOpIDUsedForSeal := PSealedAccount(ASource.FList[i])^.LatestOpIDUsedForSeal;
+    New(p^.AccountSealed);
+    p^.AccountSealed^ := PSealedAccount(ASource.FList[i])^.AccountSealed^;
+    p^.SealChangesCounter := PSealedAccount(ASource.FList[i])^.SealChangesCounter;
+    FList.Add(p);
+  end;
+end;
+
+function TPCSafeBoxTransaction.TSealedAccountList.Count: Integer;
+begin
+  Result := FList.Count;
+end;
+
+constructor TPCSafeBoxTransaction.TSealedAccountList.Create(ASafeBoxTransaction : TPCSafeBoxTransaction);
+begin
+  FSafeBoxTransaction := ASafeBoxTransaction;
+  FList := TList<Pointer>.Create;
+end;
+
+destructor TPCSafeBoxTransaction.TSealedAccountList.Destroy;
+begin
+  Clear;
+  FreeAndNil(FList);
+  inherited;
+end;
+
+procedure TPCSafeBoxTransaction.TSealedAccountList.DoUpdateSealIfNeeded(APtrSealedAccount: PSealedAccount; const AOpID: TRawBytes);
+var LStream : TMemoryStream;
+begin
+  // Do Seal process
+  if (FSafeBoxTransaction.FreezedSafeBox.CurrentProtocol>=CT_PROTOCOL_5) then begin
+    if Not TBaseType.Equals(APtrSealedAccount^.LatestOpIDUsedForSeal,AOpID) then begin
+      // If protocol>=5 and latest Seal was made with an other OPID, then update Seal
+      APtrSealedAccount^.LatestOpIDUsedForSeal := AOpID;
+      Inc(APtrSealedAccount^.SealChangesCounter);
+      LStream := TMemoryStream.Create;
+      Try
+        APtrSealedAccount^.AccountSealed.SerializeAccount(LStream,FSafeBoxTransaction.FreezedSafeBox.CurrentProtocol); // Serialize with LATEST seal value
+        // New Seal = RIPEMD160(  SHA2_256(    SerializedAccount ++ OpID ++ LatestSafeboxHash  ) )
+        LStream.WriteBuffer( AOpID[0], Length(AOpID));
+        LStream.WriteBuffer( FSafeBoxTransaction.FOldSafeBoxHash[0], Length(FSafeBoxTransaction.FOldSafeBoxHash) );
+        APtrSealedAccount^.AccountSealed^.account_seal := TCrypto.DoRipeMD160AsRaw( TCrypto.DoSha256(LStream.Memory,LStream.Size) );
+      finally
+        LStream.Free;
+      end;
+    end;
+  end;
+end;
+
+function TPCSafeBoxTransaction.TSealedAccountList.Find(
+  const account_number: Cardinal; var Index: Integer): Boolean;
+var L, H, I: Integer;
+  C : Int64;
+begin
+  Result := False;
+  L := 0;
+  H := FList.Count - 1;
+  while L <= H do
+  begin
+    I := (L + H) shr 1;
+    C := Int64((PSealedAccount(FList.Items[i])^.AccountSealed^.account) - Int64(account_number));
+    if C < 0 then L := I + 1 else
+    begin
+      H := I - 1;
+      if C = 0 then
+      begin
+        Result := True;
+        L := I;
+      end;
+    end;
+  end;
+  Index := L;
+end;
+
+function TPCSafeBoxTransaction.TSealedAccountList.GetAccount_Whitout_Sealing(account_number: Cardinal) : PSealedAccount;
+var i : Integer;
+begin
+  If Not Find(account_number,i) then begin
+    // Save for first time
+    New(Result);
+    Result^.LatestOpIDUsedForSeal := Nil;
+    New( Result^.AccountSealed );
+    Result^.AccountSealed^ := FSafeBoxTransaction.FreezedSafeBox.Account(account_number);
+    Result^.SealChangesCounter := 0;
+    FList.Insert(i,Result);
+  end else begin
+    Result := FList.Items[i];
+  end;
 end;
 
 { TOrderedBlockAccountList }
@@ -5249,5 +5374,33 @@ begin
   end;
 end;
 
+{ TAccount_Helper }
+
+procedure TAccount_Helper.SerializeAccount(AStream: TStream; current_protocol : Word);
+var LRaw : TRawBytes;
+begin
+  AStream.Write(Self.account,4);
+  LRaw := TAccountComp.AccountInfo2RawString(Self.accountInfo);
+  AStream.WriteBuffer(LRaw[Low(LRaw)],Length(LRaw));
+  AStream.Write(Self.balance,8);
+  AStream.Write(Self.updated_block,4);
+  AStream.Write(Self.n_operation,4);
+  if (current_protocol>=2) then begin
+      // Use new Protocol 2 fields
+    If Length(Self.name)>0 then begin
+      AStream.WriteBuffer(Self.name[Low(Self.name)],Length(Self.name));
+    end;
+    AStream.Write(Self.account_type,2);
+    if current_protocol>=5 then begin
+      // Adding PROTOCOL 5 new fields
+      If Length(Self.account_data)>0 then begin
+        AStream.WriteBuffer(Self.account_data[0],Length(Self.account_data));
+      end;
+      If Length(Self.account_seal)>0 then begin
+        AStream.WriteBuffer(Self.account_seal[0],Length(Self.account_seal));
+      end;
+    end;
+  end;
+end;
 
 end.

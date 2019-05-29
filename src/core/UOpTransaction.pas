@@ -577,6 +577,7 @@ begin
     account_target.account_type := FData.new_type;
   end;
   Result := AccountTransaction.UpdateAccountInfo(AccountPreviousUpdatedBlock,
+         GetOpID,
          FData.account_signer,FData.n_operation,FData.account_target,
          account_target.accountInfo,
          account_target.name,
@@ -895,9 +896,13 @@ begin
       errors := 'NOT ALLOWED ON PROTOCOL 1';
       exit;
     end;
-    Result := AccountTransaction.BuyAccount(AccountPreviousUpdatedBlock,sender.account,target.account,seller.account,FData.n_operation,FData.amount,target.accountInfo.price,FData.fee,FData.new_accountkey,errors);
+    Result := AccountTransaction.BuyAccount(AccountPreviousUpdatedBlock,
+      GetOpID,
+      sender.account,target.account,seller.account,FData.n_operation,FData.amount,target.accountInfo.price,FData.fee,FData.new_accountkey,errors);
   end else begin
-    Result := AccountTransaction.TransferAmount(AccountPreviousUpdatedBlock,FData.sender,FData.sender,FData.target,FData.n_operation,FData.amount,FData.fee,errors);
+    Result := AccountTransaction.TransferAmount(AccountPreviousUpdatedBlock,
+      GetOpID,
+      FData.sender,FData.sender,FData.target,FData.n_operation,FData.amount,FData.fee,errors);
   end;
 end;
 
@@ -1314,6 +1319,7 @@ begin
   account_target.accountInfo.account_to_pay := 0;
   account_target.accountInfo.new_publicKey := CT_TECDSA_Public_Nul;
   Result := AccountTransaction.UpdateAccountInfo(AccountPreviousUpdatedBlock,
+         GetOpID,
          FData.account_signer,FData.n_operation,FData.account_target,
          account_target.accountInfo,
          account_target.name,
@@ -1566,7 +1572,9 @@ begin
     exit;
   end;
   FPrevious_Signer_updated_block := acc.updated_block;
-  Result := AccountTransaction.TransferAmount(AccountPreviousUpdatedBlock,FData.account,FData.account,FData.account,FData.n_operation,0,FData.fee,errors);
+  Result := AccountTransaction.TransferAmount(AccountPreviousUpdatedBlock,
+    GetOpID,
+    FData.account,FData.account,FData.account,FData.n_operation,0,FData.fee,errors);
 end;
 
 function TOpRecoverFounds.GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes;
@@ -1815,7 +1823,9 @@ begin
     account_target.accountInfo.account_to_pay := FData.account_to_pay;
     account_target.accountInfo.new_publicKey := FData.new_public_key;
   end;
-  Result := AccountTransaction.UpdateAccountInfo(AccountPreviousUpdatedBlock,FData.account_signer,FData.n_operation,FData.account_target,
+  Result := AccountTransaction.UpdateAccountInfo(AccountPreviousUpdatedBlock,
+         GetOpID,
+         FData.account_signer,FData.n_operation,FData.account_target,
          account_target.accountInfo,
          account_target.name,
          account_target.account_type,
@@ -2371,6 +2381,7 @@ begin
   end;
 
   Result := AccountTransaction.TransferAmount(AccountPreviousUpdatedBlock,
+    GetOpID,
     FData.account_sender,FData.account_signer,FData.account_target,
     FData.n_operation,FData.amount,FData.fee,errors);
 end;
