@@ -424,6 +424,7 @@ type
     function SetBit(n: Int32): TBigInteger;
     function ClearBit(n: Int32): TBigInteger;
     function FlipBit(n: Int32): TBigInteger;
+    function IsEven(): Boolean; inline;
 
     function GetLowestSetBit(): Int32;
 
@@ -1958,6 +1959,11 @@ begin
   end;
 
   Result := &Xor(One.ShiftLeft(n));
+end;
+
+function TBigInteger.IsEven(): Boolean;
+begin
+  Result := not(TestBit(0));
 end;
 
 function TBigInteger.Gcd(const value: TBigInteger): TBigInteger;
