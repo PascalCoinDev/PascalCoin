@@ -77,6 +77,7 @@ type
 {$ENDIF USE_UNROLLED_VARIANT}
     F_bufferFilled, FHashSize, FBlockSize: Int32;
     F_counter0, F_counter1, F_finalizationFlag0, F_finalizationFlag1: UInt64;
+    FtreeConfig: IBlake2BTreeConfig;
 
     class constructor Blake2BConfig();
 
@@ -1634,6 +1635,7 @@ var
 begin
 
   Lconfig := config;
+  FtreeConfig := treeConfig;
   FBlockSize := BlockSizeInBytes;
 
   if (Lconfig = Nil) then
@@ -1641,7 +1643,7 @@ begin
     Lconfig := FDefaultConfig;
   end;
 
-  FrawConfig := TBlake2BIvBuilder.ConfigB(Lconfig, treeConfig);
+  FrawConfig := TBlake2BIvBuilder.ConfigB(Lconfig, FtreeConfig);
   if ((Lconfig.Key <> Nil) and (System.Length(Lconfig.Key) <> 0)) then
   begin
 
@@ -1669,6 +1671,11 @@ begin
   F_counter0 := F_counter0 + UInt64(F_bufferFilled);
 
   F_finalizationFlag0 := System.High(UInt64);
+
+  if (FtreeConfig.IsLastNode) then
+  begin
+    F_finalizationFlag1 := System.High(UInt64);
+  end;
 
   count := System.Length(F_buf) - F_bufferFilled;
 
@@ -1725,9 +1732,7 @@ begin
 
   if (FKey <> Nil) then
   begin
-
     TransformBytes(FKey, 0, System.Length(FKey));
-
   end;
 
 end;
@@ -1773,11 +1778,8 @@ begin
 
   if (a_data_length > 0) then
   begin
-
     System.Move(a_data[offset], F_buf[F_bufferFilled], a_data_length);
-
     F_bufferFilled := F_bufferFilled + a_data_length;
-
   end;
 end;
 
@@ -1785,18 +1787,12 @@ function TBlake2B.TransformFinal: IHashResult;
 var
   tempRes: THashLibByteArray;
 begin
-
   Finish();
-
   System.SetLength(tempRes, FHashSize);
-
   TConverters.le64_copy(PUInt64(Fm_state), 0, PByte(tempRes), 0,
     System.Length(tempRes));
-
   Result := THashResult.Create(tempRes);
-
   Initialize();
-
 end;
 
 function TBlake2B.GetName: String;

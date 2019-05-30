@@ -84,9 +84,11 @@ uses
   HlpBlake2B,
   HlpIBlake2BConfig,
   HlpBlake2BConfig,
+  HlpIBlake2BTreeConfig,
   HlpBlake2S,
   HlpBlake2SConfig,
   HlpIBlake2SConfig,
+  HlpIBlake2STreeConfig,
   // HMAC Unit
   HlpHMACNotBuildInAdapter,
   // PBKDF2_HMAC Unit
@@ -179,7 +181,7 @@ type
       class function CreateFNV(): IHash; static;
       class function CreateFNV1a(): IHash; static;
 
-      class function CreateJenkins3(): IHash; static;
+      class function CreateJenkins3(AInitialValue: Int32 = 0): IHash; static;
 
       class function CreateJS(): IHash; static;
 
@@ -370,27 +372,37 @@ type
 
       class function CreateKeccak_224(): IHash; static;
       class function CreateKeccak_256(): IHash; static;
+      class function CreateKeccak_288(): IHash; static;
       class function CreateKeccak_384(): IHash; static;
       class function CreateKeccak_512(): IHash; static;
 
-      class function CreateShake_128(a_xof_size_in_bits: Int32): IHash; static;
-      class function CreateShake_256(a_xof_size_in_bits: Int32): IHash; static;
-
-      class function CreateBlake2B(const config: IBlake2BConfig = Nil)
-        : IHash; static;
+      class function CreateBlake2B(const config: IBlake2BConfig = Nil;
+        const treeConfig: IBlake2BTreeConfig = Nil): IHash; static;
 
       class function CreateBlake2B_160(): IHash; static;
       class function CreateBlake2B_256(): IHash; static;
       class function CreateBlake2B_384(): IHash; static;
       class function CreateBlake2B_512(): IHash; static;
 
-      class function CreateBlake2S(const config: IBlake2SConfig = Nil)
-        : IHash; static;
+      class function CreateBlake2S(const config: IBlake2SConfig = Nil;
+        const treeConfig: IBlake2STreeConfig = Nil): IHash; static;
 
       class function CreateBlake2S_128(): IHash; static;
       class function CreateBlake2S_160(): IHash; static;
       class function CreateBlake2S_224(): IHash; static;
       class function CreateBlake2S_256(): IHash; static;
+
+    end;
+
+    // ====================== TXOF ====================== //
+
+  type
+    TXOF = class sealed(TObject)
+
+    public
+
+      class function CreateShake_128(a_xof_size_in_bits: UInt32): IHash; static;
+      class function CreateShake_256(a_xof_size_in_bits: UInt32): IHash; static;
 
     end;
 
@@ -604,9 +616,9 @@ begin
   Result := TFNV1a.Create();
 end;
 
-class function THashFactory.THash32.CreateJenkins3: IHash;
+class function THashFactory.THash32.CreateJenkins3(AInitialValue: Int32): IHash;
 begin
-  Result := TJenkins3.Create();
+  Result := TJenkins3.Create(AInitialValue);
 end;
 
 class function THashFactory.THash32.CreateJS: IHash;
@@ -982,18 +994,6 @@ begin
   Result := TSHA3_512.Create();
 end;
 
-class function THashFactory.TCrypto.CreateShake_128(a_xof_size_in_bits
-  : Int32): IHash;
-begin
-  Result := (TShake_128.Create() as IXOF).SetXOFOutputSize(a_xof_size_in_bits);
-end;
-
-class function THashFactory.TCrypto.CreateShake_256(a_xof_size_in_bits
-  : Int32): IHash;
-begin
-  Result := (TShake_256.Create() as IXOF).SetXOFOutputSize(a_xof_size_in_bits);
-end;
-
 class function THashFactory.TCrypto.CreateKeccak_224: IHash;
 begin
   Result := TKeccak_224.Create();
@@ -1002,6 +1002,11 @@ end;
 class function THashFactory.TCrypto.CreateKeccak_256: IHash;
 begin
   Result := TKeccak_256.Create();
+end;
+
+class function THashFactory.TCrypto.CreateKeccak_288: IHash;
+begin
+  Result := TKeccak_288.Create();
 end;
 
 class function THashFactory.TCrypto.CreateKeccak_384: IHash;
@@ -1014,17 +1019,17 @@ begin
   Result := TKeccak_512.Create();
 end;
 
-class function THashFactory.TCrypto.CreateBlake2B(const config
-  : IBlake2BConfig): IHash;
+class function THashFactory.TCrypto.CreateBlake2B(const config: IBlake2BConfig;
+  const treeConfig: IBlake2BTreeConfig): IHash;
+var
+  LConfig: IBlake2BConfig;
 begin
-  if config = Nil then
+  LConfig := config;
+  if (LConfig = Nil) then
   begin
-    Result := TBlake2B.Create()
-  end
-  else
-  begin
-    Result := TBlake2B.Create(config);
+    LConfig := TBlake2BConfig.Create();
   end;
+  Result := TBlake2B.Create(LConfig, treeConfig);
 end;
 
 class function THashFactory.TCrypto.CreateBlake2B_160: IHash;
@@ -1051,17 +1056,17 @@ begin
     (TBlake2BConfig.Create(THashSize.hsHashSize512));
 end;
 
-class function THashFactory.TCrypto.CreateBlake2S(const config
-  : IBlake2SConfig): IHash;
+class function THashFactory.TCrypto.CreateBlake2S(const config: IBlake2SConfig;
+  const treeConfig: IBlake2STreeConfig): IHash;
+var
+  LConfig: IBlake2SConfig;
 begin
-  if config = Nil then
+  LConfig := config;
+  if (LConfig = Nil) then
   begin
-    Result := TBlake2S.Create()
-  end
-  else
-  begin
-    Result := TBlake2S.Create(config);
+    LConfig := TBlake2SConfig.Create();
   end;
+  Result := TBlake2S.Create(LConfig, treeConfig);
 end;
 
 class function THashFactory.TCrypto.CreateBlake2S_128: IHash;
@@ -1227,6 +1232,28 @@ end;
 class function THashFactory.TCrypto.CreateTiger2_5_192: IHash;
 begin
   Result := TTiger2_192.CreateRound5();
+end;
+
+{ THashFactory.TXOF }
+
+class function THashFactory.TXOF.CreateShake_128(a_xof_size_in_bits
+  : UInt32): IHash;
+var
+  LXof: IXOF;
+begin
+  LXof := (TShake_128.Create() as IXOF);
+  LXof.XOFSizeInBits := a_xof_size_in_bits;
+  Result := LXof as IHash;
+end;
+
+class function THashFactory.TXOF.CreateShake_256(a_xof_size_in_bits
+  : UInt32): IHash;
+var
+  LXof: IXOF;
+begin
+  LXof := (TShake_256.Create() as IXOF);
+  LXof.XOFSizeInBits := a_xof_size_in_bits;
+  Result := LXof as IHash;
 end;
 
 { THashFactory.THMAC }
