@@ -17,7 +17,7 @@
 
 unit ClpSignerUtilities;
 
-{$I ..\Include\CryptoLib.inc}
+{$I CryptoLib.inc}
 
 interface
 
@@ -36,12 +36,25 @@ uses
   ClpOiwObjectIdentifiers,
   ClpNistObjectIdentifiers,
   ClpCryptoProObjectIdentifiers,
+  ClpEdECObjectIdentifiers,
   ClpParameterUtilities,
   ClpIAsymmetricKeyParameter,
   ClpDsaSigner,
   ClpIDsaSigner,
   ClpECDsaSigner,
   ClpIECDsaSigner,
+  ClpEd25519Signer,
+  ClpIEd25519Signer,
+  ClpEd25519CtxSigner,
+  ClpIEd25519CtxSigner,
+  ClpEd25519PhSigner,
+  ClpIEd25519PhSigner,
+  ClpEd25519Blake2BSigner,
+  ClpIEd25519Blake2BSigner,
+  ClpEd25519CtxBlake2BSigner,
+  ClpIEd25519CtxBlake2BSigner,
+  ClpEd25519PhBlake2BSigner,
+  ClpIEd25519PhBlake2BSigner,
   ClpISigner,
   ClpISecureRandom,
   ClpIAsn1Objects,
@@ -126,6 +139,7 @@ begin
   TCryptoProObjectIdentifiers.Boot;
   TEacObjectIdentifiers.Boot;
   TBsiObjectIdentifiers.Boot;
+  TEdECObjectIdentifiers.Boot;
 
   Falgorithms.Add('NONEWITHDSA', 'NONEwithDSA');
   Falgorithms.Add('DSAWITHNONE', 'NONEwithDSA');
@@ -340,6 +354,17 @@ begin
   // Falgorithms.Add(TCryptoProObjectIdentifiers.GostR3411x94WithGostR3410x2001.id,
   // 'ECGOST3410');
 
+  // ED25519
+  Falgorithms.Add('ED25519', 'Ed25519');
+  Falgorithms.Add(TEdECObjectIdentifiers.id_Ed25519.id, 'Ed25519');
+  Falgorithms.Add('ED25519CTX', 'Ed25519ctx');
+  Falgorithms.Add('ED25519PH', 'Ed25519ph');
+
+  // ED25519Blake2B
+  Falgorithms.Add('ED25519BLAKE2B', 'Ed25519Blake2B');
+  Falgorithms.Add('ED25519BLAKE2BCTX', 'Ed25519Blake2Bctx');
+  Falgorithms.Add('ED25519BLAKE2BPH', 'Ed25519Blake2Bph');
+
   // ECSCHNORR SIPA
 
   Falgorithms.Add('SHA1/ECSCHNORR/SIPA', 'SHA-1withECSCHNORRSIPA');
@@ -409,6 +434,8 @@ begin
   //
   // Foids.Add('ECGOST3410',
   // TCryptoProObjectIdentifiers.GostR3411x94WithGostR3410x2001);
+
+  Foids.Add('Ed25519', TEdECObjectIdentifiers.id_Ed25519);
 end;
 
 class constructor TSignerUtilities.CreateSignerUtilities;
@@ -473,6 +500,48 @@ begin
   if (not Falgorithms.TryGetValue(algorithm, mechanism)) then
   begin
     mechanism := algorithm;
+  end;
+
+  if (TStringUtils.BeginsWith(mechanism, 'Ed25519', True)) then
+  begin
+    if TStringUtils.EndsWith(mechanism, 'Blake2B', True) then
+    begin
+      if (mechanism = 'Ed25519Blake2B') then
+      begin
+        Result := TEd25519Blake2BSigner.Create() as IEd25519Blake2BSigner;
+        Exit;
+      end;
+      if (mechanism = 'Ed25519ctxBlake2B') then
+      begin
+        Result := TEd25519ctxBlake2BSigner.Create(Nil)
+          as IEd25519ctxBlake2BSigner;
+        Exit;
+      end;
+      if (mechanism = 'Ed25519phBlake2B') then
+      begin
+        Result := TEd25519phBlake2BSigner.Create(Nil)
+          as IEd25519phBlake2BSigner;
+        Exit;
+      end;
+    end
+    else
+    begin
+      if (mechanism = 'Ed25519') then
+      begin
+        Result := TEd25519Signer.Create() as IEd25519Signer;
+        Exit;
+      end;
+      if (mechanism = 'Ed25519ctx') then
+      begin
+        Result := TEd25519ctxSigner.Create(Nil) as IEd25519ctxSigner;
+        Exit;
+      end;
+      if (mechanism = 'Ed25519ph') then
+      begin
+        Result := TEd25519phSigner.Create(Nil) as IEd25519phSigner;
+        Exit;
+      end;
+    end;
   end;
 
   if TStringUtils.EndsWith(mechanism, 'withDSA', True) then

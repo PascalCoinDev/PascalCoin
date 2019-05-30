@@ -40,7 +40,7 @@ uses
 
 resourcestring
   SMechanismNil = 'Mechanism Cannot be Nil';
-  SUnRecognizedDigest = '"Digest " %s not recognised.';
+  SUnRecognizedDigest = 'Digest "%s" not recognised.';
 
 type
   TDigestUtilities = class sealed(TObject)
@@ -55,10 +55,11 @@ type
 {$SCOPEDENUMS ON}
     TDigestAlgorithm = (BLAKE2B_160, BLAKE2B_256, BLAKE2B_384, BLAKE2B_512,
       BLAKE2S_128, BLAKE2S_160, BLAKE2S_224, BLAKE2S_256, GOST3411,
-      GOST3411_2012_256, GOST3411_2012_512, MD2, MD4, MD5, NONE, RIPEMD128,
-      RIPEMD160, RIPEMD256, RIPEMD320, SHA_1, SHA_224, SHA_256, SHA_384,
-      SHA_512, SHA_512_224, SHA_512_256, SHA3_224, SHA3_256, SHA3_384, SHA3_512,
-      TIGER, WHIRLPOOL);
+      GOST3411_2012_256, GOST3411_2012_512, KECCAK_224, KECCAK_256, KECCAK_288,
+      KECCAK_384, KECCAK_512, MD2, MD4, MD5, NONE, RIPEMD128, RIPEMD160,
+      RIPEMD256, RIPEMD320, SHA_1, SHA_224, SHA_256, SHA_384, SHA_512,
+      SHA_512_224, SHA_512_256, SHA3_224, SHA3_256, SHA3_384, SHA3_512,
+      SHAKE128, SHAKE256, TIGER, WHIRLPOOL);
 {$SCOPEDENUMS OFF}
   class procedure Boot(); static;
   class constructor CreateDigestUtilities();
@@ -132,63 +133,54 @@ begin
     TDigestAlgorithm.BLAKE2B_160:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateBlake2B_160);
-
         Exit;
       end;
 
     TDigestAlgorithm.BLAKE2B_256:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateBlake2B_256);
-
         Exit;
       end;
 
     TDigestAlgorithm.BLAKE2B_384:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateBlake2B_384);
-
         Exit;
       end;
 
     TDigestAlgorithm.BLAKE2B_512:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateBlake2B_512);
-
         Exit;
       end;
 
     TDigestAlgorithm.BLAKE2S_128:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateBlake2S_128);
-
         Exit;
       end;
 
     TDigestAlgorithm.BLAKE2S_160:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateBlake2S_160);
-
         Exit;
       end;
 
     TDigestAlgorithm.BLAKE2S_224:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateBlake2S_224);
-
         Exit;
       end;
 
     TDigestAlgorithm.BLAKE2S_256:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateBlake2S_256);
-
         Exit;
       end;
 
     TDigestAlgorithm.GOST3411:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateGost());
-
         Exit;
       end;
 
@@ -196,7 +188,6 @@ begin
       begin
         result := TDigest.Create
           (THashFactory.TCrypto.CreateGOST3411_2012_256());
-
         Exit;
       end;
 
@@ -204,28 +195,54 @@ begin
       begin
         result := TDigest.Create
           (THashFactory.TCrypto.CreateGOST3411_2012_512());
+        Exit;
+      end;
 
+    TDigestAlgorithm.KECCAK_224:
+      begin
+        result := TDigest.Create(THashFactory.TCrypto.CreateKeccak_224());
+        Exit;
+      end;
+
+    TDigestAlgorithm.KECCAK_256:
+      begin
+        result := TDigest.Create(THashFactory.TCrypto.CreateKeccak_256());
+        Exit;
+      end;
+
+    TDigestAlgorithm.KECCAK_288:
+      begin
+        result := TDigest.Create(THashFactory.TCrypto.CreateKeccak_288());
+        Exit;
+      end;
+
+    TDigestAlgorithm.KECCAK_384:
+      begin
+        result := TDigest.Create(THashFactory.TCrypto.CreateKeccak_384());
+        Exit;
+      end;
+
+    TDigestAlgorithm.KECCAK_512:
+      begin
+        result := TDigest.Create(THashFactory.TCrypto.CreateKeccak_512());
         Exit;
       end;
 
     TDigestAlgorithm.MD2:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateMD2());
-
         Exit;
       end;
 
     TDigestAlgorithm.MD4:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateMD4());
-
         Exit;
       end;
 
     TDigestAlgorithm.MD5:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateMD5());
-
         Exit;
       end;
 
@@ -233,127 +250,120 @@ begin
       begin
         result := TDigest.Create
           (THashFactory.TNullDigestFactory.CreateNullDigest());
-
         Exit;
       end;
 
     TDigestAlgorithm.RIPEMD128:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateRIPEMD128());
-
         Exit;
       end;
 
     TDigestAlgorithm.RIPEMD160:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateRIPEMD160());
-
         Exit;
       end;
 
     TDigestAlgorithm.RIPEMD256:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateRIPEMD256());
-
         Exit;
       end;
 
     TDigestAlgorithm.RIPEMD320:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateRIPEMD320());
-
         Exit;
       end;
 
     TDigestAlgorithm.SHA_1:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateSHA1());
-
         Exit;
       end;
 
     TDigestAlgorithm.SHA_224:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateSHA2_224());
-
         Exit;
       end;
 
     TDigestAlgorithm.SHA_256:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateSHA2_256());
-
         Exit;
       end;
 
     TDigestAlgorithm.SHA_384:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateSHA2_384());
-
         Exit;
       end;
 
     TDigestAlgorithm.SHA_512:
       begin
-
         result := TDigest.Create(THashFactory.TCrypto.CreateSHA2_512());
-
         Exit;
       end;
 
     TDigestAlgorithm.SHA_512_224:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateSHA2_512_224());
-
         Exit;
       end;
 
     TDigestAlgorithm.SHA_512_256:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateSHA2_512_256());
-
         Exit;
       end;
 
     TDigestAlgorithm.SHA3_224:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateSHA3_224());
-
         Exit;
       end;
 
     TDigestAlgorithm.SHA3_256:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateSHA3_256());
-
         Exit;
       end;
 
     TDigestAlgorithm.SHA3_384:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateSHA3_384());
-
         Exit;
       end;
 
     TDigestAlgorithm.SHA3_512:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateSHA3_512());
+        Exit;
+      end;
 
+    TDigestAlgorithm.SHAKE128:
+      begin
+        result := TDigest.Create(THashFactory.TXOF.CreateShake_128(128));
+        Exit;
+      end;
+
+    TDigestAlgorithm.SHAKE256:
+      begin
+        result := TDigest.Create(THashFactory.TXOF.CreateShake_256(256));
         Exit;
       end;
 
     TDigestAlgorithm.TIGER:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateTiger_3_192);
-
         Exit;
       end;
 
     TDigestAlgorithm.WHIRLPOOL:
       begin
         result := TDigest.Create(THashFactory.TCrypto.CreateWhirlPool);
-
         Exit;
       end
   else
@@ -416,10 +426,18 @@ begin
 
     Falgorithms.Add(TCryptoProObjectIdentifiers.GostR3411.id, 'GOST3411');
 
+    Falgorithms.Add('KECCAK224', 'KECCAK-224');
+    Falgorithms.Add('KECCAK256', 'KECCAK-256');
+    Falgorithms.Add('KECCAK288', 'KECCAK-288');
+    Falgorithms.Add('KECCAK384', 'KECCAK-384');
+    Falgorithms.Add('KECCAK512', 'KECCAK-512');
+
     Falgorithms.Add(TNistObjectIdentifiers.IdSha3_224.id, 'SHA3-224');
     Falgorithms.Add(TNistObjectIdentifiers.IdSha3_256.id, 'SHA3-256');
     Falgorithms.Add(TNistObjectIdentifiers.IdSha3_384.id, 'SHA3-384');
     Falgorithms.Add(TNistObjectIdentifiers.IdSha3_512.id, 'SHA3-512');
+    Falgorithms.Add(TNistObjectIdentifiers.IdShake128.id, 'SHAKE128');
+    Falgorithms.Add(TNistObjectIdentifiers.IdShake256.id, 'SHAKE256');
 
     TMiscObjectIdentifiers.Boot;
 
@@ -453,6 +471,8 @@ begin
     Foids.Add('SHA3-256', TNistObjectIdentifiers.IdSha3_256);
     Foids.Add('SHA3-384', TNistObjectIdentifiers.IdSha3_384);
     Foids.Add('SHA3-512', TNistObjectIdentifiers.IdSha3_512);
+    Foids.Add('SHAKE128', TNistObjectIdentifiers.IdShake128);
+    Foids.Add('SHAKE256', TNistObjectIdentifiers.IdShake256);
     Foids.Add('RIPEMD128', TTeleTrusTObjectIdentifiers.RIPEMD128);
     Foids.Add('RIPEMD160', TTeleTrusTObjectIdentifiers.RIPEMD160);
     Foids.Add('RIPEMD256', TTeleTrusTObjectIdentifiers.RIPEMD256);

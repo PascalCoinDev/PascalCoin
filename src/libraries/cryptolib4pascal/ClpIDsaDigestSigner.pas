@@ -17,7 +17,7 @@
 
 unit ClpIDsaDigestSigner;
 
-{$I ..\Include\CryptoLib.inc}
+{$I CryptoLib.inc}
 
 interface
 

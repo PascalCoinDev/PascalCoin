@@ -532,23 +532,6 @@ var
   count, i: Int32;
   failed: Boolean;
 begin
-  // countAsByte := input[System.Length(input) - 1];
-  // count := countAsByte;
-  //
-  // if ((count < 1) or (count > System.Length(input))) then
-  // begin
-  // raise EInvalidCipherTextCryptoLibException.CreateRes(@SCorruptedPadBlock);
-  // end;
-  //
-  // for i := 2 to count do
-  // begin
-  // if (input[System.Length(input) - i] <> countAsByte) then
-  // begin
-  // raise EInvalidCipherTextCryptoLibException.CreateRes(@SCorruptedPadBlock);
-  // end;
-  // end;
-  //
-  // result := count;
 
   count := input[System.Length(input) - 1] and $FF;
   countAsByte := Byte(count);

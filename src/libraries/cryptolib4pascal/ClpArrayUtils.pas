@@ -74,6 +74,9 @@ type
     class function Prepend(const A: TCryptoLibByteArray; B: Byte)
       : TCryptoLibByteArray; static;
 
+    class function Append(const A: TCryptoLibByteArray; B: Byte)
+      : TCryptoLibByteArray; static;
+
     class function CopyOf(const data: TCryptoLibByteArray; newLength: Int32)
       : TCryptoLibByteArray; static;
 
@@ -418,6 +421,23 @@ begin
   System.SetLength(Result, Length + 1);
   System.Move(A[0], Result[1], Length * System.SizeOf(Byte));
   Result[0] := B;
+end;
+
+class function TArrayUtils.Append(const A: TCryptoLibByteArray; B: Byte)
+  : TCryptoLibByteArray;
+var
+  &length: Int32;
+begin
+  if (A = Nil) then
+  begin
+    Result := TCryptoLibByteArray.Create(B);
+    Exit;
+  end;
+
+  Length := System.Length(A);
+  System.SetLength(Result, Length + 1);
+  System.Move(A[0], Result[0], Length * System.SizeOf(Byte));
+  Result[Length] := B;
 end;
 
 end.

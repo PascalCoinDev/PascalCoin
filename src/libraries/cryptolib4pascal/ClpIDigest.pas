@@ -81,14 +81,17 @@ type
     /// <param name="outOff">
     /// the offset into the out array the digest is to start at.
     /// </param>
-    function DoFinal(const output: TCryptoLibByteArray; outOff: Int32)
-      : Int32; overload;
-    function DoFinal: TCryptoLibByteArray; overload;
+    function DoFinal(const output: TCryptoLibByteArray; outOff: Int32): Int32;
 
     /// <summary>
     /// Resets the digest back to it's initial state.
     /// </summary>
     procedure Reset();
+
+    /// <summary>
+    /// Clone the digest instance
+    /// </summary>
+    function Clone(): IDigest;
 
   end;
 

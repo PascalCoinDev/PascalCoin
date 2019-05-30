@@ -37,7 +37,7 @@ uses
   ClpCryptoLibTypes;
 
 resourcestring
-  SUnRecognizedMac = '"Mac " %s not recognised.';
+  SUnRecognizedMac = 'Mac "%s" not recognised.';
 
 type
   TMacUtilities = class sealed(TObject)

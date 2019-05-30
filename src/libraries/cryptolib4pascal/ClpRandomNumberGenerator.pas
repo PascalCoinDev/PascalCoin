@@ -29,10 +29,16 @@ uses
 
 resourcestring
   SUnknownAlgorithm = 'Unknown Random Generation Algorithm Requested';
+  SRandomNumberGeneratorOutputBufferNil =
+    'Random Number Generator Output Buffer Cannot Be Nil';
 
 type
   TRandomNumberGenerator = class abstract(TInterfacedObject,
     IRandomNumberGenerator)
+
+  strict protected
+    class procedure ValidateOutputBufferNotNull(const ABuffer
+      : TCryptoLibByteArray); static; inline;
 
   public
 
@@ -81,6 +87,16 @@ implementation
 
 { TRandomNumberGenerator }
 
+class procedure TRandomNumberGenerator.ValidateOutputBufferNotNull
+  (const ABuffer: TCryptoLibByteArray);
+begin
+  if ABuffer = Nil then
+  begin
+    raise EArgumentNilCryptoLibException.CreateRes
+      (@SRandomNumberGeneratorOutputBufferNil);
+  end;
+end;
+
 class function TRandomNumberGenerator.CreateRNG: IRandomNumberGenerator;
 begin
   result := TRandomNumberGenerator.CreateRNG(TRandomNumberGeneratorMode.rngmOS);
@@ -121,12 +137,14 @@ end;
 
 procedure TOSRandomNumberGenerator.GetBytes(const data: TCryptoLibByteArray);
 begin
+  ValidateOutputBufferNotNull(data);
   TOSRandom.GetBytes(data);
 end;
 
 procedure TOSRandomNumberGenerator.GetNonZeroBytes
   (const data: TCryptoLibByteArray);
 begin
+  ValidateOutputBufferNotNull(data);
   TOSRandom.GetNonZeroBytes(data);
 end;
 
@@ -141,6 +159,7 @@ procedure TPCGRandomNumberGenerator.GetBytes(const data: TCryptoLibByteArray);
 var
   i: Int64;
 begin
+  ValidateOutputBufferNotNull(data);
   i := System.Length(data);
   while i > 0 do
   begin
@@ -156,6 +175,7 @@ var
   i: Int64;
   val: Byte;
 begin
+  ValidateOutputBufferNotNull(data);
   i := System.Length(data);
   while i > 0 do
   begin

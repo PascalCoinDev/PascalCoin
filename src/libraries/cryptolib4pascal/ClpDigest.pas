@@ -21,7 +21,9 @@ unit ClpDigest;
 interface
 
 uses
+  SysUtils,
   HlpIHash,
+  HlpIHashInfo,
   ClpIDigest,
   ClpCryptoLibTypes;
 
@@ -44,7 +46,7 @@ type
     function DoFinal: TCryptoLibByteArray; overload;
 
   public
-    constructor Create(const hash: IHash);
+    constructor Create(const hash: IHash; doInitialize: Boolean = True);
 
     /// <summary>
     /// Gets the Underlying <b>IHash</b> Instance
@@ -99,6 +101,11 @@ type
     procedure Reset();
 
     /// <summary>
+    /// Clone the digest instance
+    /// </summary>
+    function Clone(): IDigest;
+
+    /// <summary>
     /// the algorithm name
     /// </summary>
     property AlgorithmName: String read GetAlgorithmName;
@@ -110,8 +117,19 @@ implementation
 { TDigest }
 
 function TDigest.GetAlgorithmName: string;
+var
+  LName: String;
+  LowPoint, HighPoint: Int32;
 begin
-  result := FHash.Name;
+  LName := FHash.Name;
+{$IFDEF DELPHIXE3_UP}
+  LowPoint := System.Low(LName);
+  HighPoint := System.High(LName);
+{$ELSE}
+  LowPoint := 1;
+  HighPoint := System.Length(LName);
+{$ENDIF DELPHIXE3_UP}
+  result := Copy(LName, LowPoint + 1, HighPoint - 1);
 end;
 
 function TDigest.GetByteLength: Int32;
@@ -140,20 +158,35 @@ begin
   FHash.TransformBytes(input, inOff, len);
 end;
 
-constructor TDigest.Create(const hash: IHash);
+constructor TDigest.Create(const hash: IHash; doInitialize: Boolean);
 begin
   Inherited Create();
   FHash := hash;
-  FHash.Initialize;
+  if doInitialize then
+  begin
+    FHash.Initialize;
+  end;
 end;
 
 function TDigest.DoFinal(const output: TCryptoLibByteArray;
   outOff: Int32): Int32;
 var
   buf: TCryptoLibByteArray;
+  Limit, LXOFSizeInBits: Int32;
 begin
 
-  if (System.Length(output) - outOff) < GetDigestSize then
+  if Supports(FHash, IXOF) then
+  begin
+    LXOFSizeInBits := (System.Length(output) - outOff) * 8;
+    (FHash as IXOF).XOFSizeInBits := LXOFSizeInBits;
+    Limit := LXOFSizeInBits shr 3;
+  end
+  else
+  begin
+    Limit := GetDigestSize;
+  end;
+
+  if (System.Length(output) - outOff) < Limit then
   begin
     raise EDataLengthCryptoLibException.CreateRes(@SOutputBufferTooShort);
   end
@@ -163,6 +196,7 @@ begin
     System.Move(buf[0], output[outOff], System.Length(buf) *
       System.SizeOf(Byte));
   end;
+
   result := System.Length(buf);
 end;
 
@@ -174,6 +208,11 @@ end;
 procedure TDigest.Update(input: Byte);
 begin
   FHash.TransformUntyped(input, System.SizeOf(Byte));
+end;
+
+function TDigest.Clone(): IDigest;
+begin
+  result := TDigest.Create(FHash.Clone(), False);
 end;
 
 end.

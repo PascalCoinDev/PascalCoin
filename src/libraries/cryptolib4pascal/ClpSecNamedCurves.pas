@@ -802,7 +802,6 @@ begin
   begin
     result := GetByOid(oid);
   end;
-
 end;
 
 class function TSecNamedCurves.GetName(const oid: IDerObjectIdentifier): String;

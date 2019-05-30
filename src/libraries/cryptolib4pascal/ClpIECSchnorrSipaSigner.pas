@@ -17,7 +17,7 @@
 
 unit ClpIECSchnorrSipaSigner;
 
-{$I ..\Include\CryptoLib.inc}
+{$I CryptoLib.inc}
 
 interface
 

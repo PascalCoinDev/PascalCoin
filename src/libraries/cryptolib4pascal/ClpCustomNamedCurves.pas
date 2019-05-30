@@ -41,6 +41,8 @@ uses
   ClpISecP521R1Custom,
   ClpSecT283Custom,
   ClpISecT283Custom,
+  ClpCurve25519Custom,
+  ClpICurve25519Custom,
   ClpIECC,
   ClpX9ECC,
   ClpIX9ECC,
@@ -67,8 +69,8 @@ type
 
     class function GetNames: TCryptoLibStringArray; static; inline;
 
-    // class procedure DefineCurve(const name: String;
-    // const holder: IX9ECParametersHolder); static; inline;
+    class procedure DefineCurve(const name: String;
+      const holder: IX9ECParametersHolder); static; inline;
 
     class procedure DefineCurveWithOid(const name: String;
       const oid: IDerObjectIdentifier; const holder: IX9ECParametersHolder);
@@ -115,6 +117,22 @@ type
     // * contained in this structure.
     // */
     class property Names: TCryptoLibStringArray read GetNames;
+
+  type
+
+    /// <summary>
+    /// curve25519
+    /// </summary>
+    TCurve25519Holder = class sealed(TX9ECParametersHolder,
+      IX9ECParametersHolder)
+
+    strict protected
+      function CreateParameters(): IX9ECParameters; override;
+
+    public
+      class function Instance(): IX9ECParametersHolder; static;
+
+    end;
 
   type
 
@@ -202,16 +220,16 @@ implementation
 
 { TCustomNamedCurves }
 
-// class procedure TCustomNamedCurves.DefineCurve(const name: String;
-// const holder: IX9ECParametersHolder);
-// var
-// LName: string;
-// begin
-// LName := name;
-// Fnames.Add(LName);
-// LName := UpperCase(LName);
-// FnameToCurve.Add(LName, holder);
-// end;
+class procedure TCustomNamedCurves.DefineCurve(const name: String;
+  const holder: IX9ECParametersHolder);
+var
+  LName: string;
+begin
+  LName := name;
+  Fnames.Add(LName);
+  LName := UpperCase(LName);
+  FnameToCurve.Add(LName, holder);
+end;
 
 class procedure TCustomNamedCurves.DefineCurveWithOid(const name: String;
   const oid: IDerObjectIdentifier; const holder: IX9ECParametersHolder);
@@ -335,6 +353,8 @@ begin
 
   Fnames := TList<String>.Create();
 
+  DefineCurve('curve25519', TCurve25519Holder.Instance);
+
   DefineCurveWithOid('secp256k1', TSecObjectIdentifiers.SecP256k1,
     TSecP256K1Holder.Instance);
 
@@ -355,6 +375,40 @@ begin
   DefineCurveAlias('P-256', TSecObjectIdentifiers.SecP256r1);
   DefineCurveAlias('P-384', TSecObjectIdentifiers.SecP384r1);
   DefineCurveAlias('P-521', TSecObjectIdentifiers.SecP521r1);
+end;
+
+{ TCustomNamedCurves.TCurve25519Holder }
+
+function TCustomNamedCurves.TCurve25519Holder.CreateParameters: IX9ECParameters;
+var
+  curve: IECCurve;
+  G: IX9ECPoint;
+  S: TCryptoLibByteArray;
+begin
+  S := Nil;
+  curve := ConfigureCurve(TCurve25519.Create() as ICurve25519);
+
+  { *
+    * NOTE: Curve25519 was specified in Montgomery form. Rewriting in Weierstrass form
+    * involves substitution of variables, so the base-point x coordinate is 9 + (486662 / 3).
+    *
+    * The Curve25519 paper doesn't say which of the two possible y values the base
+    * point has. The choice here is guided by language in the Ed25519 paper.
+    *
+    * (The other possible y value is 5F51E65E475F794B1FE122D388B72EB36DC2B28192839E4DD6163A5D81312C14)
+    * }
+  G := TX9ECPoint.Create(curve,
+    THex.Decode('04' +
+    '2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD245A' +
+    '20AE19A1B8A086B4E01EDD2C7748D14C923D4D7E6D7C61B229E9C5A27ECED3D9'));
+
+  result := TX9ECParameters.Create(curve, G, curve.Order, curve.Cofactor, S);
+end;
+
+class function TCustomNamedCurves.TCurve25519Holder.Instance
+  : IX9ECParametersHolder;
+begin
+  result := TCurve25519Holder.Create();
 end;
 
 { TCustomNamedCurves.TSecP256K1Holder }

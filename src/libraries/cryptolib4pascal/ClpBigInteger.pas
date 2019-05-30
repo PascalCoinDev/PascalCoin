@@ -434,6 +434,8 @@ type
     function GetHashCode(): {$IFDEF DELPHI}Int32; {$ELSE}PtrInt;
     inline;
 {$ENDIF DELPHI}
+    function Clone(): TBigInteger; inline;
+
     class function BitCnt(i: Int32): Int32; static;
 
     /// <summary>
@@ -2038,6 +2040,17 @@ begin
     Result := hc;
   end;
 
+end;
+
+function TBigInteger.Clone(): TBigInteger;
+begin
+  Result := Default (TBigInteger);
+  Result.Fmagnitude := System.Copy(Fmagnitude);
+  Result.Fsign := Fsign;
+  Result.FnBits := FnBits;
+  Result.FnBitLength := FnBitLength;
+  Result.FmQuote := FmQuote;
+  Result.FIsInitialized := FIsInitialized;
 end;
 
 function TBigInteger.GetLowestSetBit: Int32;

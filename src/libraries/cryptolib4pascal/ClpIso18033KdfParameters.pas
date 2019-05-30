@@ -17,7 +17,7 @@
 
 unit ClpIso18033KdfParameters;
 
-{$I ..\..\Include\CryptoLib.inc}
+{$I CryptoLib.inc}
 
 interface
 

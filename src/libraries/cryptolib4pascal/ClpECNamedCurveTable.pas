@@ -24,12 +24,9 @@ interface
 uses
   Generics.Collections,
   ClpCryptoLibTypes,
-  // ClpX962NamedCurves,
-  // ClpECGost3410NamedCurves,
-  // ClpX9ECParameters,
   ClpSecNamedCurves,
   ClpNistNamedCurves,
-  // ClpIECDomainParameters,
+  ClpTeleTrusTNamedCurves,
   ClpIAsn1Objects,
   ClpIX9ECParameters;
 
@@ -42,8 +39,6 @@ type
   strict private
 
     class function GetNames: TCryptoLibStringArray; static;
-    // class function FromDomainParameters(const dp: IECDomainParameters)
-    // : IX9ECParameters; static; inline;
 
   public
     // /**
@@ -55,7 +50,6 @@ type
     // */
     class function GetByName(const name: String): IX9ECParameters; static;
 
-    class function GetName(const oid: IDerObjectIdentifier): String; static;
     // /**
     // * return the object identifier signified by the passed in name. Null
     // * if there is no object identifier associated with name.
@@ -88,34 +82,21 @@ implementation
 
 { TECNamedCurveTable }
 
-// class function TECNamedCurveTable.FromDomainParameters
-// (const dp: IECDomainParameters): IX9ECParameters;
-// begin
-// if dp = Nil then
-// begin
-// result := Nil;
-// end
-// else
-// begin
-// result := TX9ECParameters.Create(dp.Curve, dp.G, dp.N, dp.H, dp.GetSeed())
-// end;
-//
-// end;
-
 class function TECNamedCurveTable.GetByName(const name: String)
   : IX9ECParameters;
 var
   ecP: IX9ECParameters;
 begin
-  // ecP := TX962NamedCurves.GetByName(name);
-  // if (ecP = Nil) then
-  // begin
   ecP := TSecNamedCurves.GetByName(name);
-  // end;
 
   if (ecP = Nil) then
   begin
     ecP := TNistNamedCurves.GetByName(name);
+  end;
+
+  if (ecP = Nil) then
+  begin
+    ecP := TTeleTrusTNamedCurves.GetByName(name);
   end;
 
   result := ecP;
@@ -126,31 +107,15 @@ class function TECNamedCurveTable.GetByOid(const oid: IDerObjectIdentifier)
 var
   ecP: IX9ECParameters;
 begin
-  // ecP := TX962NamedCurves.GetByOid(oid);
-  // if (ecP = Nil) then
-  // begin
   ecP := TSecNamedCurves.GetByOid(oid);
-  // end;
   // NOTE: All the NIST curves are currently from SEC, so no point in redundant OID lookup
-  result := ecP;
-end;
 
-class function TECNamedCurveTable.GetName
-  (const oid: IDerObjectIdentifier): String;
-var
-  name: String;
-begin
-  // name := TX962NamedCurves.GetName(oid);
-  // if (name = '') then
-  // begin
-  name := TSecNamedCurves.GetName(oid);
-  // end;
-
-  if (name = '') then
+  if (ecP = Nil) then
   begin
-    name := TNistNamedCurves.GetName(oid);
+    ecP := TTeleTrusTNamedCurves.GetByOid(oid);
   end;
-  result := name;
+
+  result := ecP;
 end;
 
 class function TECNamedCurveTable.GetOid(const name: String)
@@ -158,15 +123,17 @@ class function TECNamedCurveTable.GetOid(const name: String)
 var
   oid: IDerObjectIdentifier;
 begin
-  // oid := TX962NamedCurves.GetOid(name);
-  // if (oid = Nil) then
-  // begin
+
   oid := TSecNamedCurves.GetOid(name);
-  // end;
 
   if (oid = Nil) then
   begin
     oid := TNistNamedCurves.GetOid(name);
+  end;
+
+  if (oid = Nil) then
+  begin
+    oid := TTeleTrusTNamedCurves.GetOid(name);
   end;
 
   result := oid;
@@ -180,6 +147,7 @@ begin
   try
     temp.AddRange(TSecNamedCurves.Names);
     temp.AddRange(TNistNamedCurves.Names);
+    temp.AddRange(TTeleTrusTNamedCurves.Names);
     result := temp.ToArray;
   finally
     temp.Free;

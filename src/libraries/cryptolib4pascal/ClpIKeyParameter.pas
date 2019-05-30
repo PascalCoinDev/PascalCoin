@@ -31,6 +31,7 @@ type
     ['{92E7D4F7-40E5-4DC1-8058-23BE60848CC3}']
 
     function GetKey(): TCryptoLibByteArray;
+    procedure Clear();
 
   end;
 
