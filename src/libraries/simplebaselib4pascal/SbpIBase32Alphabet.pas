@@ -1,6 +1,6 @@
 unit SbpIBase32Alphabet;
 
-{$I ..\Include\SimpleBaseLib.inc}
+{$I SimpleBaseLib.inc}
 
 interface
 

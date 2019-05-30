@@ -1,6 +1,6 @@
 unit SbpBase85;
 
-{$I ..\Include\SimpleBaseLib.inc}
+{$I SimpleBaseLib.inc}
 
 interface
 
