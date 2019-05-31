@@ -1332,6 +1332,8 @@ begin
         {$IFDEF ACTIVATE_RANDOMHASH_V4}
         resetNewTarget := True; // RandomHash algo will reset new target on V4
         {$ENDIF}
+      end else if (FOperationBlock.protocol_version=CT_PROTOCOL_4) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_5)) then begin
+        FOperationBlock.protocol_version := CT_PROTOCOL_5; // If minting... upgrade to Protocol 5
       end;
       if (FOperationBlock.protocol_version>=CT_PROTOCOL_4) then begin
         FOperationsHashTree.Max0feeOperationsBySigner := 1; // Limit to 1 0-fee operation by signer
@@ -1701,6 +1703,8 @@ begin
         {$IFDEF ACTIVATE_RANDOMHASH_V4}
         resetNewTarget := True; // RandomHash algo will reset new target on V4
         {$ENDIF}
+      end else if (FOperationBlock.protocol_version=CT_PROTOCOL_4) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_5)) then begin
+        FOperationBlock.protocol_version := CT_PROTOCOL_5; // If minting... upgrade to Protocol 5
       end;
       FOperationBlock.block := FBank.BlocksCount;
 

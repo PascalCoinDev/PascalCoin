@@ -294,6 +294,7 @@ Type
     function DoUpgradeToProtocol2 : Boolean;
     function DoUpgradeToProtocol3 : Boolean;
     function DoUpgradeToProtocol4 : Boolean;
+    function DoUpgradeToProtocol5 : Boolean;
   public
     Constructor Create;
     Destructor Destroy; override;
@@ -2137,6 +2138,8 @@ begin
     Result := (FCurrentProtocol=CT_PROTOCOL_2) And (BlocksCount >= CT_Protocol_Upgrade_v3_MinBlock);
   end else if (newProtocolVersion=CT_PROTOCOL_4) then begin
     Result := (FCurrentProtocol=CT_PROTOCOL_3) And (BlocksCount >= CT_Protocol_Upgrade_v4_MinBlock);
+  end else if (newProtocolVersion=CT_PROTOCOL_5) then begin
+    Result := (FCurrentProtocol=CT_PROTOCOL_4) And (BlocksCount >= CT_Protocol_Upgrade_v5_MinBlock);
   end else Result := False;
 end;
 
@@ -2727,6 +2730,15 @@ begin
   TLog.NewLog(ltInfo,ClassName,'End Upgraded to protocol 4 - New safeboxhash:'+TCrypto.ToHexaString(FSafeBoxHash));
 end;
 
+function TPCSafeBox.DoUpgradeToProtocol5: Boolean;
+begin
+  FCurrentProtocol := CT_PROTOCOL_5;
+  Result := True;
+  // V5 adds a new "CalcSafeBoxHash" method, so need to recalc
+  FSafeBoxHash := CalcSafeBoxHash;
+  TLog.NewLog(ltInfo,ClassName,'End Upgraded to protocol 5 - New safeboxhash:'+TCrypto.ToHexaString(FSafeBoxHash));
+end;
+
 procedure TPCSafeBox.EndThreadSave;
 begin
   FLock.Release;
@@ -2774,6 +2786,7 @@ begin
         CT_PROTOCOL_2 : FCurrentProtocol := 2;
         CT_PROTOCOL_3 : FCurrentProtocol := 3;
         CT_PROTOCOL_4 : FCurrentProtocol := 3; // In order to allow Upgrade to V4
+        CT_PROTOCOL_5 : FCurrentProtocol := 3; // In order to upgrade to V4..V5
       else exit;
       end;
       if (sbHeader.blocksCount=0) Or (sbHeader.startBlock<>0) Or (sbHeader.endBlock<>(sbHeader.blocksCount-1)) then begin
@@ -2921,9 +2934,13 @@ begin
         FBufferBlocksHash.Replace( j, P^.block_hash[0], 32 );
         LastReadBlock := block;
         Inc(FWorkSum,block.blockchainInfo.compact_target);
-        // Upgrade to Protocol 4 step:
-        if (block.blockchainInfo.protocol_version>FCurrentProtocol) And (block.blockchainInfo.protocol_version = CT_PROTOCOL_4) then begin
-          FCurrentProtocol := CT_PROTOCOL_4;
+        // Upgrade to Protocol 4,5... step:
+        if (block.blockchainInfo.protocol_version>FCurrentProtocol) then begin
+          if (block.blockchainInfo.protocol_version = CT_PROTOCOL_4) then begin
+            FCurrentProtocol := CT_PROTOCOL_4;
+          end else if (block.blockchainInfo.protocol_version = CT_PROTOCOL_5) then begin
+            FCurrentProtocol := CT_PROTOCOL_5;
+          end;
         end;
       end;
         if Assigned(LPCOperationsBlockValidator) then begin
@@ -3013,7 +3030,7 @@ begin
     if (raw.ToPrintable<>CT_MagicIdentificator) then exit;
     if Stream.Size<8 then exit;
     Stream.Read(w,SizeOf(w));
-    if not (w in [CT_PROTOCOL_1,CT_PROTOCOL_2,CT_PROTOCOL_3,CT_PROTOCOL_4]) then exit;
+    if not (w in [CT_PROTOCOL_1,CT_PROTOCOL_2,CT_PROTOCOL_3,CT_PROTOCOL_4,CT_PROTOCOL_5]) then exit;
     sbHeader.protocol := w;
     Stream.Read(safeBoxBankVersion,2);
     if safeBoxBankVersion<>CT_SafeBoxBankVersion then exit;
@@ -3423,7 +3440,12 @@ begin
         errors := 'Invalid PascalCoin protocol version: '+IntToStr( newOperationBlock.protocol_version )+' Current: '+IntToStr(CurrentProtocol)+' Previous:'+IntToStr(lastBlock.protocol_version);
         exit;
       end;
-      If (newOperationBlock.protocol_version=CT_PROTOCOL_4) then begin
+      If (newOperationBlock.protocol_version=CT_PROTOCOL_5) then begin
+        If (newOperationBlock.block<CT_Protocol_Upgrade_v5_MinBlock) then begin
+          errors := 'Upgrade to protocol version 5 available at block: '+IntToStr(CT_Protocol_Upgrade_v5_MinBlock);
+          exit;
+        end;
+      end else If (newOperationBlock.protocol_version=CT_PROTOCOL_4) then begin
         If (newOperationBlock.block<CT_Protocol_Upgrade_v4_MinBlock) then begin
           errors := 'Upgrade to protocol version 4 available at block: '+IntToStr(CT_Protocol_Upgrade_v4_MinBlock);
           exit;
@@ -3512,7 +3534,7 @@ begin
     exit;
   end;
   // Valid protocol version
-  if (Not (newOperationBlock.protocol_version in [CT_PROTOCOL_1,CT_PROTOCOL_2,CT_PROTOCOL_3,CT_PROTOCOL_4])) then begin
+  if (Not (newOperationBlock.protocol_version in [CT_PROTOCOL_1,CT_PROTOCOL_2,CT_PROTOCOL_3,CT_PROTOCOL_4,CT_PROTOCOL_5])) then begin
     errors := 'Invalid protocol version '+IntToStr(newOperationBlock.protocol_version);
     exit;
   end;
@@ -3573,7 +3595,7 @@ begin
     tsReal := (ts1 - ts2);
     If (protocolVersion=CT_PROTOCOL_1) then begin
       Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,protocolVersion,False,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target,lastBlock.protocol_version));
-    end else if (protocolVersion<=CT_PROTOCOL_4) then begin
+    end else if (protocolVersion<=CT_PROTOCOL_5) then begin
       CalcBack := CalcBack DIV CT_CalcNewTargetLimitChange_SPLIT;
       If CalcBack=0 then CalcBack := 1;
       ts2 := Block(BlocksCount-CalcBack-1).blockchainInfo.timestamp;
@@ -4051,6 +4073,15 @@ begin
         TLog.NewLog(ltInfo,ClassName,'Protocol upgrade to v4');
         If not FFreezedAccounts.DoUpgradeToProtocol4 then begin
           raise Exception.Create('Cannot upgrade to protocol v4 !');
+        end;
+      end;
+    end;
+    if (FFreezedAccounts.FCurrentProtocol<CT_PROTOCOL_5) And (operationBlock.protocol_version=CT_PROTOCOL_5) then begin
+      // First block with V5 protocol
+      if FFreezedAccounts.CanUpgradeToProtocol(CT_PROTOCOL_5) then begin
+        TLog.NewLog(ltInfo,ClassName,'Protocol upgrade to v5');
+        If not FFreezedAccounts.DoUpgradeToProtocol5 then begin
+          raise Exception.Create('Cannot upgrade to protocol v5 !');
         end;
       end;
     end;
