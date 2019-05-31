@@ -576,9 +576,6 @@ begin
       Dispose(PToDelete);
       TLog.NewLog(ltDebug,ClassName,'Deleted Job 1 from buffer, now count:'+inttostr(l.Count));
     end;
-  Finally
-    FPoolJobs.UnlockList;
-  End;
   if (doAdd) And (Assigned(P)) then begin
     params := TPCJSONObject.Create;
     Try
@@ -596,6 +593,9 @@ begin
       params.Free;
     End;
   end;
+  Finally
+    FPoolJobs.UnlockList;
+  End;
 end;
 
 procedure TPoolMiningServer.ClearPoolJobs;
