@@ -34,8 +34,12 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [26](PIP-0026.md)     | URI Scheme Proposal                                | Ugochukwu Mmaduekwe            | Front-End       | Draft |
 | [27](PIP-0027.md)     | E-PASA: Infinite Address-Space (via Layer-2)  | Herman Schoenfeld            | Protocol, Front-End    | Accepted |
 | [28](PIP-0028.md)     | E-OP: Layer-2 operation encoding standard for smart-contracts | Herman Schoenfeld            | Front-End       | Withdrawn |
-| [29](PIP-0029.md)     | Account Seals: Cryptographically Secure Account Histories  | Herman Schoenfeld            | Protocol   | Accepted |
-| [30](PIP-0030.md)     | SafeBoxRoot: Deletable SafeBox and Light-Nodes  | Herman Schoenfeld            | Protocol   | Accepted |
-| [31A](PIP-0031A.md)   | New Wallet: Multi-Platform & Multi-Paradigm   | Herman Schoenfeld            | Protocol   | Withdrawn |
+| [29](PIP-0029.md)     | Account Seals: Cryptographically Secure Account Histories  | Herman Schoenfeld            | Protocol   | Active |
+| [30](PIP-0030.md)     | SafeBoxRoot: Deletable SafeBox and Light-Nodes  | Herman Schoenfeld          | Protocol   | Active |
+| [31A](PIP-0031A.md)   | New Wallet: Multi-Platform & Multi-Paradigm   | Herman Schoenfeld            | User Interface   | Withdrawn |
+| [31B](PIP-0031B.md)   | New GUI Wallet                                | mosu_forge                   | User Interface  | Accepted |
+| [31C](PIP-0031C.md)   | New Wallet: Multi-Platform                    | Herman Schoenfeld            | User Interface   | Accepted |
+| [31D](https://github.com/davidbolet/PascWallet)   | New Wallet: Multi-Platform & Multi-Paradigm   | David Bolet       | User Interface   | Rejected |
+| [32A](PIP-0032A.md)   | Atomic Swaps via Hash-Locked Accounts         | Herman Schoenfeld            | Protocol   | Proposed |
 
 
