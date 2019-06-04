@@ -22,8 +22,8 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [13](PIP-0013.md)     | Allow nodes to pull pending operations   | Herman Schoenfeld              | Protocol       | Active   |
 | [14](PIP-0014.md)     | New operation to certify accounts for extended recovery period   | Dr. Muhammad Amer       | Protocol       | Proposed |
 | [15](PIP-0015.md)     | Fast Block Propagation                   | Herman Schoenfeld              | Protocol       | Active |
-| [16](PIP-0016.md)     | Layer-2 protocol support                 | Herman Schoenfeld              | Protocol       | Active |
-| [17](PIP-0017.md)     | Anonymity via Transaction Mixing (phase-1)   | Herman Schoenfeld          | Protocol       | Active   |
+| [16](PIP-0016.md)     | DATA-OP: In-Protocol Data Exchange (Layer-2 support)   | Herman Schoenfeld              | Protocol       | Active |
+| [17](PIP-0017.md)     | MULTI-OP: atomic batch operations   | Herman Schoenfeld          | Protocol       | Active   |
 | [18](PIP-0018.md)     | 10% funding allocation for Lazarus/FPC   | Herman Schoenfeld              | Process        | Proposed |
 | [19](PIP-0019.md)     | Balance recovered from lost accounts to be sent to developers fund   | Dr. Muhammad Amer   | Protocol        | Draft |
 | [20](PIP-0020.md)     | 6-month PascalCoin Foundation Budget Appropriations   | Herman Schoenfeld   | Process        | Withdrawn |
