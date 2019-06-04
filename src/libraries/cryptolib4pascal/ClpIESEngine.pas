@@ -442,7 +442,7 @@ begin
     if (FIV <> Nil) then
     begin
       Fcipher.Init(true, TParametersWithIV.Create(TKeyParameter.Create(K1)
-        as IKeyParameter, FIV));
+        as IKeyParameter, FIV) as IParametersWithIV);
     end
     else
     begin

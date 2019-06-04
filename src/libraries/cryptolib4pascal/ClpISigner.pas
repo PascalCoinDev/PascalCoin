@@ -17,7 +17,7 @@
 
 unit ClpISigner;
 
-{$I ..\Include\CryptoLib.inc}
+{$I CryptoLib.inc}
 
 interface
 

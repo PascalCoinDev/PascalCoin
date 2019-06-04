@@ -49,6 +49,7 @@ type
     destructor Destroy; override;
     function GetIV(): TCryptoLibByteArray; inline;
     property parameters: ICipherParameters read GetParameters;
+    procedure Clear(); inline;
 
   end;
 
@@ -61,6 +62,11 @@ constructor TParametersWithIV.Create(const parameters: ICipherParameters;
 begin
   Inherited Create();
   Create(parameters, iv, 0, System.Length(iv))
+end;
+
+procedure TParametersWithIV.Clear;
+begin
+  TArrayUtils.Fill(Fiv, 0, System.Length(Fiv), Byte(0));
 end;
 
 constructor TParametersWithIV.Create(const parameters: ICipherParameters;
@@ -79,7 +85,7 @@ end;
 
 destructor TParametersWithIV.Destroy;
 begin
-  TArrayUtils.Fill(Fiv, 0, System.Length(Fiv), Byte(0));
+  Clear();
   inherited Destroy;
 end;
 

@@ -17,7 +17,7 @@
 
 unit ClpKdf2BytesGenerator;
 
-{$I ..\..\Include\CryptoLib.inc}
+{$I CryptoLib.inc}
 
 interface
 

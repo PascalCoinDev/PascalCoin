@@ -35,15 +35,15 @@ type
     FIsBooted: Boolean;
     FNistAlgorithm, FHashAlgs, FSigAlgs, FIdSha256, FIdSha384, FIdSha512,
       FIdSha224, FIdSha512_224, FIdSha512_256, FIdSha3_224, FIdSha3_256,
-      FIdSha3_384, FIdSha3_512, FIdHMacWithSha3_224, FIdHMacWithSha3_256,
-      FIdHMacWithSha3_384, FIdHMacWithSha3_512, FAES, FIdAES128Ecb,
-      FIdAes128Cbc, FIdAes128Ofb, FIdAes128Cfb, FidAes192Ecb, FIdAes192Cbc,
-      FIdAes192Ofb, FIdAes192Cfb, FIdAes256Ecb, FIdAes256Cbc, FIdAes256Ofb,
-      FIdAes256Cfb, FIdDsaWithSha2, FDsaWithSha224, FDsaWithSha256,
-      FDsaWithSha384, FDsaWithSha512, FIdDsaWithSha3_224, FIdDsaWithSha3_256,
-      FIdDsaWithSha3_384, FIdDsaWithSha3_512, FIdECDsaWithSha3_224,
-      FIdECDsaWithSha3_256, FIdECDsaWithSha3_384, FIdECDsaWithSha3_512
-      : IDerObjectIdentifier;
+      FIdSha3_384, FIdSha3_512, FIdShake128, FIdShake256, FIdHMacWithSha3_224,
+      FIdHMacWithSha3_256, FIdHMacWithSha3_384, FIdHMacWithSha3_512, FAES,
+      FIdAES128Ecb, FIdAes128Cbc, FIdAes128Ofb, FIdAes128Cfb, FidAes192Ecb,
+      FIdAes192Cbc, FIdAes192Ofb, FIdAes192Cfb, FIdAes256Ecb, FIdAes256Cbc,
+      FIdAes256Ofb, FIdAes256Cfb, FIdDsaWithSha2, FDsaWithSha224,
+      FDsaWithSha256, FDsaWithSha384, FDsaWithSha512, FIdDsaWithSha3_224,
+      FIdDsaWithSha3_256, FIdDsaWithSha3_384, FIdDsaWithSha3_512,
+      FIdECDsaWithSha3_224, FIdECDsaWithSha3_256, FIdECDsaWithSha3_384,
+      FIdECDsaWithSha3_512: IDerObjectIdentifier;
 
     class function GetNistAlgorithm: IDerObjectIdentifier; static; inline;
     class function GetHashAlgs: IDerObjectIdentifier; static; inline;
@@ -55,6 +55,8 @@ type
     class function GetIdSha3_256: IDerObjectIdentifier; static; inline;
     class function GetIdSha3_384: IDerObjectIdentifier; static; inline;
     class function GetIdSha3_512: IDerObjectIdentifier; static; inline;
+    class function GetIdShake128: IDerObjectIdentifier; static; inline;
+    class function GetIdShake256: IDerObjectIdentifier; static; inline;
     class function GetIdSha384: IDerObjectIdentifier; static; inline;
     class function GetIdSha512: IDerObjectIdentifier; static; inline;
     class function GetIdSha512_224: IDerObjectIdentifier; static; inline;
@@ -121,6 +123,8 @@ type
     class property IdSha3_256: IDerObjectIdentifier read GetIdSha3_256;
     class property IdSha3_384: IDerObjectIdentifier read GetIdSha3_384;
     class property IdSha3_512: IDerObjectIdentifier read GetIdSha3_512;
+    class property IdShake128: IDerObjectIdentifier read GetIdShake128;
+    class property IdShake256: IDerObjectIdentifier read GetIdShake256;
 
     class property IdHMacWithSha3_224: IDerObjectIdentifier
       read GetIdHMacWithSha3_224;
@@ -332,6 +336,16 @@ begin
   result := FIdSha3_512;
 end;
 
+class function TNistObjectIdentifiers.GetIdShake128: IDerObjectIdentifier;
+begin
+  result := FIdShake128;
+end;
+
+class function TNistObjectIdentifiers.GetIdShake256: IDerObjectIdentifier;
+begin
+  result := FIdShake256;
+end;
+
 class function TNistObjectIdentifiers.GetIdSha512: IDerObjectIdentifier;
 begin
   result := FIdSha512;
@@ -427,7 +441,8 @@ begin
     FIdSha3_256 := HashAlgs.Branch('8');
     FIdSha3_384 := HashAlgs.Branch('9');
     FIdSha3_512 := HashAlgs.Branch('10');
-
+    FIdShake128 := HashAlgs.Branch('11');
+    FIdShake256 := HashAlgs.Branch('12');
     FIdHMacWithSha3_224 := HashAlgs.Branch('13');
     FIdHMacWithSha3_256 := HashAlgs.Branch('14');
     FIdHMacWithSha3_384 := HashAlgs.Branch('15');

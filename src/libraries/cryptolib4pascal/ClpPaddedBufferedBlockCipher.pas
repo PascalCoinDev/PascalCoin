@@ -322,7 +322,6 @@ begin
 
   if (leftOver = 0) then
   begin
-    // result := total - System.length(Fbuf);
     result := Max(0, total - System.length(Fbuf));
     Exit;
   end;

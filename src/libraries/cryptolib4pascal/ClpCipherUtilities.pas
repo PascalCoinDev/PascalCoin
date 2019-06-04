@@ -55,7 +55,7 @@ uses
 resourcestring
   SMechanismNil = 'Mechanism Cannot be Nil';
   SAlgorithmNil = 'Algorithm Cannot be Nil';
-  SUnRecognizedCipher = '"Cipher " %s Not Recognised.';
+  SUnRecognizedCipher = 'Cipher "%s" Not Recognised.';
   SSICModeWarning =
     'Warning: SIC-Mode Can Become a TwoTime-Pad if the Blocksize of the Cipher is Too Small. Use a Cipher With a Block Size of at Least 128 bits (e.g. AES)';
   SModeAndPaddingNotNeededStreamCipher =

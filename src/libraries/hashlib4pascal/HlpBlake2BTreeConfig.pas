@@ -5,7 +5,18 @@ unit HlpBlake2BTreeConfig;
 interface
 
 uses
-  HlpIBlake2BTreeConfig;
+  HlpIBlake2BTreeConfig,
+  HlpHashLibTypes;
+
+resourcestring
+  SInvalidFanOutParameter =
+    'FanOut Value Should be Between [0 .. 255] for Blake2B';
+  SInvalidMaxDepthParameter =
+    'FanOut Value Should be Between [1 .. 255] for Blake2B';
+  SInvalidNodeDepthParameter =
+    'NodeDepth Value Should be Between [0 .. 255] for Blake2B';
+  SInvalidInnerHashSizeParameter =
+    'InnerHashSize Value Should be Between [0 .. 64] for Blake2B';
 
 type
 
@@ -13,29 +24,53 @@ type
 
   strict private
 
-    FIntermediateHashSize, FMaxHeight, FFanOut: Int32;
-    FLeafSize: Int64;
+    FFanOut, FMaxDepth, FNodeDepth, FInnerHashSize: Byte;
+    FLeafSize: UInt32;
+    FNodeOffset: UInt64;
+    FIsLastNode: Boolean;
 
-    function GetIntermediateHashSize: Int32; inline;
-    procedure SetIntermediateHashSize(value: Int32); inline;
-    function GetMaxHeight: Int32; inline;
-    procedure SetMaxHeight(value: Int32); inline;
-    function GetLeafSize: Int64; inline;
-    procedure SetLeafSize(value: Int64); inline;
-    function GetFanOut: Int32; inline;
-    procedure SetFanOut(value: Int32); inline;
+    procedure ValidateFanOut(AFanOut: Byte); inline;
+    procedure ValidateInnerHashSize(AInnerHashSize: Byte); inline;
+    procedure ValidateMaxDepth(AMaxDepth: Byte); inline;
+    procedure ValidateNodeDepth(ANodeDepth: Byte); inline;
+
+    function GetFanOut: Byte; inline;
+    procedure SetFanOut(value: Byte); inline;
+
+    function GetMaxDepth: Byte; inline;
+    procedure SetMaxDepth(value: Byte); inline;
+
+    function GetNodeDepth: Byte; inline;
+    procedure SetNodeDepth(value: Byte); inline;
+
+    function GetInnerHashSize: Byte; inline;
+    procedure SetInnerHashSize(value: Byte); inline;
+
+    function GetLeafSize: UInt32; inline;
+    procedure SetLeafSize(value: UInt32); inline;
+
+    function GetNodeOffset: UInt64; inline;
+    procedure SetNodeOffset(value: UInt64); inline;
+
+    function GetIsLastNode: Boolean; inline;
+    procedure SetIsLastNode(value: Boolean); inline;
 
   public
     constructor Create();
-    property IntermediateHashSize: Int32 read GetIntermediateHashSize
-      write SetIntermediateHashSize;
-    property MaxHeight: Int32 read GetMaxHeight write SetMaxHeight;
 
-    property LeafSize: Int64 read GetLeafSize write SetLeafSize;
-    property FanOut: Int32 read GetFanOut write SetFanOut;
+    property FanOut: Byte read GetFanOut write SetFanOut;
 
-    class function CreateInterleaved(parallelism: Int32)
-      : IBlake2BTreeConfig; static;
+    property MaxDepth: Byte read GetMaxDepth write SetMaxDepth;
+
+    property NodeDepth: Byte read GetNodeDepth write SetNodeDepth;
+
+    property InnerHashSize: Byte read GetInnerHashSize write SetInnerHashSize;
+
+    property LeafSize: UInt32 read GetLeafSize write SetLeafSize;
+
+    property NodeOffset: UInt64 read GetNodeOffset write SetNodeOffset;
+
+    property IsLastNode: Boolean read GetIsLastNode write SetIsLastNode;
 
   end;
 
@@ -43,59 +78,120 @@ implementation
 
 { TBlake2BTreeConfig }
 
-class function TBlake2BTreeConfig.CreateInterleaved(parallelism: Int32)
-  : IBlake2BTreeConfig;
+procedure TBlake2BTreeConfig.ValidateFanOut(AFanOut: Byte);
 begin
-  result := TBlake2BTreeConfig.Create();
-  result.FanOut := parallelism;
-  result.MaxHeight := 2;
-  result.IntermediateHashSize := 64;
+  if not(AFanOut in [0 .. 255]) then
+  begin
+    raise EArgumentInvalidHashLibException.CreateRes(@SInvalidFanOutParameter);
+  end;
 end;
 
-function TBlake2BTreeConfig.GetFanOut: Int32;
+procedure TBlake2BTreeConfig.ValidateInnerHashSize(AInnerHashSize: Byte);
+begin
+  if not(AInnerHashSize in [0 .. 64]) then
+  begin
+    raise EArgumentInvalidHashLibException.CreateRes
+      (@SInvalidInnerHashSizeParameter);
+  end;
+end;
+
+procedure TBlake2BTreeConfig.ValidateMaxDepth(AMaxDepth: Byte);
+begin
+  if not(AMaxDepth in [1 .. 255]) then
+  begin
+    raise EArgumentInvalidHashLibException.CreateRes
+      (@SInvalidMaxDepthParameter);
+  end;
+end;
+
+procedure TBlake2BTreeConfig.ValidateNodeDepth(ANodeDepth: Byte);
+begin
+  if not(ANodeDepth in [0 .. 255]) then
+  begin
+    raise EArgumentInvalidHashLibException.CreateRes
+      (@SInvalidNodeDepthParameter);
+  end;
+end;
+
+function TBlake2BTreeConfig.GetFanOut: Byte;
 begin
   result := FFanOut;
 end;
 
-function TBlake2BTreeConfig.GetIntermediateHashSize: Int32;
+function TBlake2BTreeConfig.GetInnerHashSize: Byte;
 begin
-  result := FIntermediateHashSize;
+  result := FInnerHashSize;
 end;
 
-function TBlake2BTreeConfig.GetLeafSize: Int64;
+function TBlake2BTreeConfig.GetIsLastNode: Boolean;
+begin
+  result := FIsLastNode;
+end;
+
+function TBlake2BTreeConfig.GetLeafSize: UInt32;
 begin
   result := FLeafSize;
 end;
 
-function TBlake2BTreeConfig.GetMaxHeight: Int32;
+function TBlake2BTreeConfig.GetMaxDepth: Byte;
 begin
-  result := FMaxHeight;
+  result := FMaxDepth;
 end;
 
-procedure TBlake2BTreeConfig.SetFanOut(value: Int32);
+function TBlake2BTreeConfig.GetNodeDepth: Byte;
 begin
+  result := FNodeDepth;
+end;
+
+function TBlake2BTreeConfig.GetNodeOffset: UInt64;
+begin
+  result := FNodeOffset;
+end;
+
+procedure TBlake2BTreeConfig.SetFanOut(value: Byte);
+begin
+  ValidateFanOut(value);
   FFanOut := value;
 end;
 
-procedure TBlake2BTreeConfig.SetIntermediateHashSize(value: Int32);
+procedure TBlake2BTreeConfig.SetInnerHashSize(value: Byte);
 begin
-  FIntermediateHashSize := value;
+  ValidateInnerHashSize(value);
+  FInnerHashSize := value;
 end;
 
-procedure TBlake2BTreeConfig.SetLeafSize(value: Int64);
+procedure TBlake2BTreeConfig.SetIsLastNode(value: Boolean);
+begin
+  FIsLastNode := value;
+end;
+
+procedure TBlake2BTreeConfig.SetLeafSize(value: UInt32);
 begin
   FLeafSize := value;
 end;
 
-procedure TBlake2BTreeConfig.SetMaxHeight(value: Int32);
+procedure TBlake2BTreeConfig.SetMaxDepth(value: Byte);
 begin
-  FMaxHeight := value;
+  ValidateMaxDepth(value);
+  FMaxDepth := value;
+end;
+
+procedure TBlake2BTreeConfig.SetNodeDepth(value: Byte);
+begin
+  ValidateNodeDepth(value);
+  FNodeDepth := value;
+end;
+
+procedure TBlake2BTreeConfig.SetNodeOffset(value: UInt64);
+begin
+  FNodeOffset := value;
 end;
 
 constructor TBlake2BTreeConfig.Create;
 begin
   Inherited Create();
-  FIntermediateHashSize := 64;
+  ValidateInnerHashSize(64);
+  FInnerHashSize := 64;
 end;
 
 end.

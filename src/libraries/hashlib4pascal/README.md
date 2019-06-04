@@ -20,7 +20,7 @@ It also supports Incremental Hashing.
     cryptographic algorithms: GOST, Grindahl, HAS160, Haval, MD2, MD4, MD5, Panama, 
     RadioGatun, RIPEMD, RIPEMD128, RIPEMD160, RIPEMD256, RIPEMD320, SHA0, SHA1, SHA2-224,
     SHA2-256, SHA2-384, SHA2-512, SHA2-512-224, SHA2-512-256, SHA3-224, SHA3-256, SHA3-384, 
-    SHA3-512, Keccak-224, Keccak-256, Keccak-384, Keccak-512, Snefru128, Snefru256, Tiger, Tiger2, 
+    SHA3-512, Keccak-224, Keccak-256, Keccak-288, Keccak-384, Keccak-512, Snefru128, Snefru256, Tiger, Tiger2, 
     WhirlPool, Blake2B, Blake2S, Streebog (GOST3411_2012_256, GOST3411_2012_512), Shake_128, Shake_256.
 
     HMAC for any of the above.

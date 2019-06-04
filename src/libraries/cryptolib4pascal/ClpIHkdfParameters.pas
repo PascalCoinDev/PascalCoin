@@ -17,7 +17,7 @@
 
 unit ClpIHkdfParameters;
 
-{$I ..\Include\CryptoLib.inc}
+{$I CryptoLib.inc}
 
 interface
 

@@ -17,7 +17,7 @@
 
 unit ClpPkcs5S2ParametersGenerator;
 
-{$I ..\..\Include\CryptoLib.inc}
+{$I CryptoLib.inc}
 
 interface
 

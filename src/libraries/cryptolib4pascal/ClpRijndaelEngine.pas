@@ -905,7 +905,7 @@ end;
 
 procedure TRijndaelEngine.Reset;
 begin
-
+  // nothing to do.
 end;
 
 end.

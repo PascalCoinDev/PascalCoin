@@ -116,9 +116,10 @@ Const
   CT_Protocol_Upgrade_v2_MinBlock = {$IFDEF PRODUCTION}115000{$ELSE}50{$ENDIF};
   CT_Protocol_Upgrade_v3_MinBlock = {$IFDEF PRODUCTION}210000{$ELSE}250{$ENDIF};
   CT_Protocol_Upgrade_v4_MinBlock = {$IFDEF PRODUCTION}260000{$ELSE}400{$ENDIF};
+  CT_Protocol_Upgrade_v5_MinBlock = {$IFDEF PRODUCTION}999999999{$ELSE}500{$ENDIF}; // TODO Need define v5 for production!
 
 
-  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$04000000{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
+  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$05000001{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
 
   CT_NetProtocol_Version: Word = $0009; // Version 4.0.2 Will allow only net protocol 9
   // IMPORTANT NOTE!!!
@@ -129,7 +130,7 @@ Const
 
   CT_SafeBoxBankVersion : Word = 3; // Protocol 2 upgraded safebox version from 2 to 3
 
-  CT_MagicIdentificator: String = {$IFDEF PRODUCTION}'PascalCoin'{$ELSE}'PascalCoinTESTNET'{$ENDIF}; //
+  CT_MagicIdentificator: String = {$IFDEF PRODUCTION}'PascalCoin'{$ELSE}'PascalCoinTESTNET_5.Beta.1'{$ENDIF}; //
 
   CT_PseudoOp_Reward = $0;
   // Value of Operations type in Protocol 1
@@ -174,7 +175,7 @@ Const
   CT_OpSubtype_Data_Signer                = 103;
   CT_OpSubtype_Data_Receiver              = 104;
 
-  CT_ClientAppVersion : String = {$IFDEF PRODUCTION}'4.0.3.2'{$ELSE}{$IFDEF TESTNET}'TESTNET 4.0.3.2'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : String = {$IFDEF PRODUCTION}'4.0.3.2'{$ELSE}{$IFDEF TESTNET}'TESTNET 5.Beta.1'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs = {$IFDEF PRODUCTION}'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us'
                     {$ELSE}'pascaltestnet1.dynamic-dns.net;pascaltestnet2.dynamic-dns.net;pascaltestnet1.dns1.us;pascaltestnet2.dns1.us'{$ENDIF};

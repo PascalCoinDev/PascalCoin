@@ -46,6 +46,7 @@ type
       keyOff, keyLen: Int32); overload;
     destructor Destroy; override;
     function GetKey(): TCryptoLibByteArray; inline;
+    procedure Clear(); inline;
 
   end;
 
@@ -62,6 +63,11 @@ begin
     raise EArgumentNilCryptoLibException.CreateRes(@SKeyNil);
   end;
   Fkey := System.Copy(key);
+end;
+
+procedure TKeyParameter.Clear;
+begin
+  TArrayUtils.Fill(Fkey, 0, System.Length(Fkey), Byte(0));
 end;
 
 constructor TKeyParameter.Create(const key: TCryptoLibByteArray;
@@ -91,7 +97,7 @@ end;
 
 destructor TKeyParameter.Destroy;
 begin
-  TArrayUtils.Fill(Fkey, 0, System.Length(Fkey), Byte(0));
+  Clear();
   inherited Destroy;
 end;
 

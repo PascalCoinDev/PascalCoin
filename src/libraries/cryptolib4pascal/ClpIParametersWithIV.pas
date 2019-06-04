@@ -32,6 +32,7 @@ type
     function GetIV(): TCryptoLibByteArray;
     function GetParameters: ICipherParameters;
     property Parameters: ICipherParameters read GetParameters;
+    procedure Clear();
 
   end;
 

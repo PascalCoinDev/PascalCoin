@@ -292,6 +292,8 @@ begin
   FHasValidSignature:=False;
   SetLength(FtxSendersPubkeysUsedForSign,0);
   SetLength(FchangesInfoPubkeysUsedForSign,0);
+  FBufferedSha256 := Nil;
+  FBufferedRipeMD160 := Nil;
 end;
 
 procedure TOpMultiOperation.InitializeData;
@@ -684,7 +686,7 @@ begin
   If Not CheckSignatures(AccountTransaction,errors) then Exit;
   // Execute!
   If (length(senders)>0) then begin
-    If Not AccountTransaction.TransferAmounts(AccountPreviousUpdatedBlock,
+    If Not AccountTransaction.TransferAmounts(AccountPreviousUpdatedBlock, RipeMD160,
       senders,senders_n_operation,senders_amount,
       receivers,receivers_amount,errors) then Begin
       TLog.NewLog(ltError,ClassName,'FATAL ERROR DEV 20180312-1 '+errors); // This must never happen!
@@ -712,6 +714,7 @@ begin
     end;
     If Not AccountTransaction.UpdateAccountInfo(
            AccountPreviousUpdatedBlock,
+           GetOpID,
            chi.Account,chi.N_Operation,chi.Account,
            changer.accountInfo,
            changer.name,

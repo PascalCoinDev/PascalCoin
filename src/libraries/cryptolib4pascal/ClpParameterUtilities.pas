@@ -131,8 +131,11 @@ begin
     TNistObjectIdentifiers.IdAes256Cfb.ID,
     TNistObjectIdentifiers.IdAes256Ecb.ID,
     TNistObjectIdentifiers.IdAes256Ofb.ID]);
+  AddAlgorithm('BLOWFISH', ['1.3.6.1.4.1.3029.1.2']);
+  AddAlgorithm('RIJNDAEL', []);
   AddAlgorithm('SALSA20', []);
 
+  AddBasicIVSizeEntries(8, ['BLOWFISH']);
   AddBasicIVSizeEntries(16, ['AES', 'AES128', 'AES192', 'AES256']);
 
 end;

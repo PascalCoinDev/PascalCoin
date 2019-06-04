@@ -1,6 +1,6 @@
 unit SbpBase32;
 
-{$I ..\Include\SimpleBaseLib.inc}
+{$I SimpleBaseLib.inc}
 
 interface
 

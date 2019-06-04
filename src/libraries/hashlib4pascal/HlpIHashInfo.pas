@@ -94,10 +94,9 @@ type
 
   IXOF = Interface(IHash)
     ['{944ED7F0-D033-4489-A5DD-9C83353F23F0}']
-    function GetXOFSize: Int32;
-    procedure SetXOFSize(a_xof_size_in_bits: Int32);
-    property XOFSize: Int32 read GetXOFSize write SetXOFSize;
-    function SetXOFOutputSize(a_xof_size_in_bits: Int32): IXOF;
+    function GetXOFSizeInBits: UInt32;
+    procedure SetXOFSizeInBits(a_xof_size_in_bits: UInt32);
+    property XOFSizeInBits: UInt32 read GetXOFSizeInBits write SetXOFSizeInBits;
   end;
 
 type

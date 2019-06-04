@@ -17,7 +17,7 @@
 
 unit ClpHkdfParameters;
 
-{$I ..\..\Include\CryptoLib.inc}
+{$I CryptoLib.inc}
 
 interface
 
@@ -153,11 +153,7 @@ begin
     Fsalt := System.Copy(salt);
   end;
 
-  if (info = Nil) then
-  begin
-    System.SetLength(Finfo, 0);
-  end
-  else
+  if info <> Nil then
   begin
     Finfo := System.Copy(info);
   end;

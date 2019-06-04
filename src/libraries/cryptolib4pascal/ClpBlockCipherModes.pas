@@ -627,6 +627,7 @@ type
   TCtsBlockCipher = class sealed(TBufferedBlockCipher, ICtsBlockCipher)
 
   strict private
+  var
     FblockSize: Int32;
 
   public

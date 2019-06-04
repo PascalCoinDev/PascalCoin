@@ -19,12 +19,15 @@ uses
 type
 
   TJenkins3 = class sealed(TMultipleTransformNonBlock, IHash32, ITransformBlock)
+  strict private
+  var
+    FInitialValue: Int32;
 
   strict protected
     function ComputeAggregatedBytes(const a_data: THashLibByteArray)
       : IHashResult; override;
   public
-    constructor Create();
+    constructor Create(AInitialValue: Int32 = 0);
     function Clone(): IHash; override;
 
   end;
@@ -33,9 +36,10 @@ implementation
 
 { TJenkins3 }
 
-constructor TJenkins3.Create;
+constructor TJenkins3.Create(AInitialValue: Int32);
 begin
   Inherited Create(4, 12);
+  FInitialValue := AInitialValue;
 end;
 
 function TJenkins3.Clone(): IHash;
@@ -44,6 +48,7 @@ var
 begin
   HashInstance := TJenkins3.Create();
   FBuffer.Position := 0;
+  HashInstance.FInitialValue := FInitialValue;
   HashInstance.FBuffer.CopyFrom(FBuffer, FBuffer.Size);
   result := HashInstance as IHash;
   result.BufferSize := BufferSize;
@@ -56,14 +61,15 @@ var
   a, b, c: UInt32;
 begin
   length := System.length(a_data);
-  if (length = 0) then
-  begin
-    result := THashResult.Create(UInt32(0));
-    Exit;
-  end;
-  a := $DEADBEEF + UInt32(length);
+  a := UInt32($DEADBEEF) + UInt32(length) + UInt32(FInitialValue);
   b := a;
   c := b;
+  if (length = 0) then
+  begin
+    result := THashResult.Create(c);
+    Exit;
+  end;
+
   currentIndex := 0;
   while (length > 12) do
   begin

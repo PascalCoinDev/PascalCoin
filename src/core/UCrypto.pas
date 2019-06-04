@@ -828,7 +828,7 @@ begin
   {$IFDEF Use_OpenSSL}
   BN_copy(Result.FBN,FBN);
   {$ELSE}
-  Result.FBigInteger := FBigInteger; // Make a copy
+  Result.FBigInteger := FBigInteger.Clone();
   {$ENDIF}
 end;
 

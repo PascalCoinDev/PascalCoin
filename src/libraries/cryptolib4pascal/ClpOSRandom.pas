@@ -24,6 +24,7 @@ interface
 uses
 {$IF DEFINED(MSWINDOWS)}
   Windows,
+  SysUtils,
 {$ELSEIF DEFINED(IOSDELPHI)}
   // iOS stuffs for Delphi
   Macapi.Dispatch,
@@ -39,8 +40,8 @@ uses
 
 resourcestring
 {$IF DEFINED(MSWINDOWS)}
-  SMSWIndowsCryptoAPIGenerationError =
-    'An Error Occured while generating random data using MS WIndows Crypto API.';
+  SMSWIndowsCryptographyAPIGenerationError =
+    'An Error Occured while generating random data using MS WIndows Cryptography API.';
 {$ELSEIF (DEFINED(IOSDELPHI) OR DEFINED(IOSFPC))}
   SIOSSecRandomCopyBytesGenerationError =
     'An Error Occured while generating random data using SecRandomCopyBytes API.';
@@ -75,15 +76,47 @@ type
       static; inline;
 
 {$IF DEFINED(MSWINDOWS)}
-    class function GenRandomBytesWindows(len: Int32; const data: PByte): Int32;
+
+  type
+    BCRYPT_ALG_HANDLE = THandle;
+    NTStatus = HRESULT;
+
+    TBCryptGenRandom = function(hAlgorithm: BCRYPT_ALG_HANDLE; pbBuffer: PUCHAR;
+      cbBuffer, dwFlags: ULONG): NTStatus; stdcall;
+
+    TBCryptOpenAlgorithmProvider = function(phAlgorithm: PVOID;
+      pszAlgId, pszImplementation: LPCWSTR; dwFlags: ULONG): NTStatus; stdcall;
+
+    TBCryptCloseAlgorithmProvider = function(hAlgorithm: BCRYPT_ALG_HANDLE;
+      dwFlags: ULONG): NTStatus; stdcall;
+
+  class var
+
+    FIsCngBCryptGenRandomSupportedOnOS: Boolean;
+    FBCryptGenRandom: TBCryptGenRandom;
+    FBCryptOpenAlgorithmProvider: TBCryptOpenAlgorithmProvider;
+    FBCryptCloseAlgorithmProvider: TBCryptCloseAlgorithmProvider;
+
+    class function GetIsCngBCryptGenRandomSupportedOnOS(): Boolean;
+      static; inline;
+
+    class function IsCngBCryptGenRandomAvailable(): Boolean; static;
+    class function GenRandomBytesWindows(len: Int32; const data: PByte)
+      : Int32; static;
+    class property IsCngBCryptGenRandomSupportedOnOS: Boolean
+      read GetIsCngBCryptGenRandomSupportedOnOS;
 {$ELSEIF DEFINED(IOSDELPHI)}
-    class function GenRandomBytesIOSDelphi(len: Int32;
-      const data: PByte): Int32;
+    class function GenRandomBytesIOSDelphi(len: Int32; const data: PByte)
+      : Int32; static;
 {$ELSEIF DEFINED(IOSFPC)}
-    class function GenRandomBytesIOSFPC(len: Int32; const data: PByte): Int32;
+    class function GenRandomBytesIOSFPC(len: Int32; const data: PByte)
+      : Int32; static;
 {$ELSE}
-    class function GenRandomBytesUnix(len: Int32; const data: PByte): Int32;
+    class function GenRandomBytesUnix(len: Int32; const data: PByte)
+      : Int32; static;
 {$IFEND $MSWINDOWS}
+    class procedure Boot(); static;
+    class constructor OSRandom();
   public
 
     class procedure GetBytes(const data: TCryptoLibByteArray); static;
@@ -123,8 +156,10 @@ function SecRandomCopyBytes(rnd: SecRandomRef; count: LongWord; bytes: PByte)
 
 type
   // similar to a TOpaqueData already defined in newer FPC but not available in 3.0.4
-  __SecRandom = record end;
- // similar to an OpaquePointer already defined in newer FPC but not available in 3.0.4
+  __SecRandom = record
+  end;
+
+  // similar to an OpaquePointer already defined in newer FPC but not available in 3.0.4
   SecRandomRef = ^__SecRandom;
 
 const
@@ -138,6 +173,18 @@ function SecRandomCopyBytes(rnd: SecRandomRef; count: LongWord; bytes: PByte)
 {$ENDIF IOSFPC}
 
 implementation
+
+class procedure TOSRandom.Boot;
+begin
+{$IFDEF MSWINDOWS}
+  FIsCngBCryptGenRandomSupportedOnOS := IsCngBCryptGenRandomAvailable();
+{$ENDIF MSWINDOWS}
+end;
+
+class constructor TOSRandom.OSRandom;
+begin
+  TOSRandom.Boot();
+end;
 
 {$IFDEF IOSDELPHI}
 
@@ -165,32 +212,100 @@ end;
 
 {$IF DEFINED(MSWINDOWS)}
 
+class function TOSRandom.GetIsCngBCryptGenRandomSupportedOnOS(): Boolean;
+begin
+  result := FIsCngBCryptGenRandomSupportedOnOS;
+end;
+
+class function TOSRandom.IsCngBCryptGenRandomAvailable(): Boolean;
+const
+  BCRYPT = 'bcrypt.dll';
+var
+  ModuleHandle: THandle;
+
+  function GetProcedureAddress(const AProcedureName: String;
+    var AFunctionFound: Boolean): Pointer;
+  begin
+    result := GetProcAddress(ModuleHandle, PChar(AProcedureName));
+    if result = Nil then
+    begin
+      AFunctionFound := False;
+    end;
+  end;
+
+begin
+  result := False;
+  ModuleHandle := SafeLoadLibrary(PChar(BCRYPT), SEM_FAILCRITICALERRORS);
+  if ModuleHandle <> 0 then
+  begin
+    result := True;
+    FBCryptOpenAlgorithmProvider :=
+      GetProcedureAddress('BCryptOpenAlgorithmProvider', result);
+    FBCryptCloseAlgorithmProvider :=
+      GetProcedureAddress('BCryptCloseAlgorithmProvider', result);
+    FBCryptGenRandom := GetProcedureAddress('BCryptGenRandom', result);
+  end;
+end;
+
 class function TOSRandom.GenRandomBytesWindows(len: Int32;
   const data: PByte): Int32;
+
+  function BCRYPT_SUCCESS(AStatus: NTStatus): Boolean; inline;
+  begin
+    result := AStatus >= 0;
+  end;
+
 var
   hProv: THandle;
 const
   PROV_RSA_FULL = 1;
   CRYPT_VERIFYCONTEXT = DWORD($F0000000);
   CRYPT_SILENT = $00000040;
-begin
-  if not CryptAcquireContextW(@hProv, nil, nil, PROV_RSA_FULL,
-    CRYPT_VERIFYCONTEXT or CRYPT_SILENT) then
-  begin
-    result := HResultFromWin32(GetLastError);
-    Exit;
-  end;
+  // BCryptOpenAlgorithmProvider.AlgorithmID
+  BCRYPT_RNG_ALGORITHM: WideString = 'RNG';
 
-  try
-    if not CryptGenRandom(hProv, len, data) then
+begin
+  if IsCngBCryptGenRandomSupportedOnOS then
+  begin
+    // Windows Vista and Above
+    if (not BCRYPT_SUCCESS(FBCryptOpenAlgorithmProvider(@hProv,
+      PWideChar(BCRYPT_RNG_ALGORITHM), nil, 0))) then
     begin
       result := HResultFromWin32(GetLastError);
       Exit;
     end;
-  finally
-    CryptReleaseContext(hProv, 0);
-  end;
 
+    try
+      if (not BCRYPT_SUCCESS(FBCryptGenRandom(hProv, PUCHAR(data),
+        LongWord(len), 0))) then
+      begin
+        result := HResultFromWin32(GetLastError);
+        Exit;
+      end;
+    finally
+      FBCryptCloseAlgorithmProvider(hProv, 0);
+    end;
+  end
+  else
+  begin
+    // Below Windows Vista
+    if not CryptAcquireContextW(@hProv, nil, nil, PROV_RSA_FULL,
+      CRYPT_VERIFYCONTEXT or CRYPT_SILENT) then
+    begin
+      result := HResultFromWin32(GetLastError);
+      Exit;
+    end;
+
+    try
+      if not CryptGenRandom(hProv, len, data) then
+      begin
+        result := HResultFromWin32(GetLastError);
+        Exit;
+      end;
+    finally
+      CryptReleaseContext(hProv, 0);
+    end;
+  end;
   result := S_OK;
 end;
 
@@ -254,7 +369,7 @@ begin
   if GenRandomBytesWindows(count, PByte(data)) <> 0 then
   begin
     raise EAccessCryptoLibException.CreateRes
-      (@SMSWIndowsCryptoAPIGenerationError);
+      (@SMSWIndowsCryptographyAPIGenerationError);
   end;
 
 {$ELSEIF DEFINED(IOSDELPHI)}
