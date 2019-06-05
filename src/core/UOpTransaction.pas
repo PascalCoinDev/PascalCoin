@@ -581,6 +581,7 @@ begin
          FData.account_signer,FData.n_operation,FData.account_target,
          account_target.accountInfo,
          account_target.name,
+         account_target.account_data,
          account_target.account_type,
          FData.fee,errors);
 end;
@@ -1323,6 +1324,7 @@ begin
          FData.account_signer,FData.n_operation,FData.account_target,
          account_target.accountInfo,
          account_target.name,
+         account_target.account_data,
          account_target.account_type,
          FData.fee,errors);
 end;
@@ -1828,6 +1830,7 @@ begin
          FData.account_signer,FData.n_operation,FData.account_target,
          account_target.accountInfo,
          account_target.name,
+         account_target.account_data,
          account_target.account_type,
          FData.fee,errors);
 end;
