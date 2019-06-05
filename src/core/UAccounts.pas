@@ -455,7 +455,7 @@ Type
     Destructor Destroy; override;
     Function TransferAmount(previous : TAccountPreviousBlockInfo; const AOpID : TRawBytes; sender,signer,target : Cardinal; n_operation : Cardinal; amount, fee : UInt64; var errors : String) : Boolean;
     Function TransferAmounts(previous : TAccountPreviousBlockInfo; const AOpID : TRawBytes; const senders, n_operations : Array of Cardinal; const sender_amounts : Array of UInt64; const receivers : Array of Cardinal; const receivers_amounts : Array of UInt64; var errors : String) : Boolean;
-    Function UpdateAccountInfo(previous : TAccountPreviousBlockInfo; const AOpID : TRawBytes; signer_account, signer_n_operation, target_account: Cardinal; accountInfo: TAccountInfo; newName : TRawBytes; newType : Word; fee: UInt64; var errors : String) : Boolean;
+    Function UpdateAccountInfo(previous : TAccountPreviousBlockInfo; const AOpID : TRawBytes; signer_account, signer_n_operation, target_account: Cardinal; const accountInfo: TAccountInfo; const newName, newData : TRawBytes; newType : Word; fee: UInt64; var errors : String) : Boolean;
     Function BuyAccount(previous : TAccountPreviousBlockInfo; const AOpID : TRawBytes; buyer,account_to_buy,seller: Cardinal; n_operation : Cardinal; amount, account_price, fee : UInt64; const new_account_key : TAccountKey; var errors : String) : Boolean;
     Function Commit(Const operationBlock : TOperationBlock; var errors : String) : Boolean;
     Function Account(account_number : Cardinal) : TAccount;
@@ -2848,6 +2848,7 @@ begin
           end;
           if FCurrentProtocol>=CT_PROTOCOL_5 then begin
             if TStreamOp.ReadAnsiString(Stream,block.accounts[iacc].account_data)<0 then Exit;
+            if (Length(block.accounts[iacc].account_data)>CT_MaxAccountDataSize) then Exit;
             if TStreamOp.ReadAnsiString(Stream,block.accounts[iacc].account_seal)<0 then Exit;
           end;
           //
@@ -4422,7 +4423,7 @@ end;
 function TPCSafeBoxTransaction.UpdateAccountInfo(previous : TAccountPreviousBlockInfo;
   const AOpID : TRawBytes;
   signer_account, signer_n_operation, target_account: Cardinal;
-  accountInfo: TAccountInfo; newName: TRawBytes; newType: Word; fee: UInt64; var errors: String): Boolean;
+  const accountInfo: TAccountInfo; const newName, newData: TRawBytes; newType: Word; fee: UInt64; var errors: String): Boolean;
 Var i : Integer;
   P_signer, P_target : PAccount;
   P_signer_Sealed, P_target_Sealed : PSealedAccount;
@@ -4497,6 +4498,10 @@ begin
       FAccountNames_Added.Add(newName,target_account);
     end;
   end;
+  if (Length(newData)>CT_MaxAccountDataSize) then begin
+    errors := 'Account Data size '+IntToStr(Length(newData))+'>'+IntToStr(CT_MaxAccountDataSize);
+    Exit;
+  end;
   // All Ok, can do changes
   previous.UpdateIfLower(P_signer^.account,P_signer^.updated_block);
   if P_signer^.updated_block <> Origin_BlocksCount then begin
@@ -4517,6 +4522,7 @@ begin
   P_signer^.n_operation := signer_n_operation;
   P_target^.accountInfo := accountInfo;
   P_target^.name := newName;
+  P_target^.account_data := newData;
   P_target^.account_type := newType;
   Dec(P_signer^.balance,Int64(fee)); // Signer is who pays the fee
   Dec(FTotalBalance,Int64(fee));

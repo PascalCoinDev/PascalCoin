@@ -84,6 +84,7 @@ Const
   CT_MaxBlock : Cardinal = $FFFFFFFF;
 
   CT_MaxPayloadSize = 255; // Max payload size in bytes
+  CT_MaxAccountDataSize = 32;
   CT_MaxFutureBlockTimestampOffset = 15;
   CT_MinNodesToCalcNAT = 4;
 

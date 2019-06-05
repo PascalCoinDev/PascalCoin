@@ -718,6 +718,7 @@ begin
            chi.Account,chi.N_Operation,chi.Account,
            changer.accountInfo,
            changer.name,
+           changer.account_data,
            changer.account_type,
            0,errors) then begin
       TLog.NewLog(ltError,ClassName,'FATAL ERROR DEV 20180312-2 '+errors); // This must never happen!
