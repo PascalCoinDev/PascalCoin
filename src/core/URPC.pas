@@ -61,7 +61,6 @@ Type
   private
     class function OperationsHashTreeToHexaString(Const OperationsHashTree : TOperationsHashTree) : String;
   public
-    class function ToJSONCurrency(pascalCoins : Int64) : Currency;
     class procedure FillAccountObject(Const account : TAccount; jsonObj : TPCJSONObject);
     class procedure FillBlockObject(nBlock : Cardinal; ANode : TNode; jsonObject: TPCJSONObject);
     class procedure FillOperationObject(Const OPR : TOperationResume; currentNodeBlocksCount : Cardinal; jsonObject : TPCJSONObject);
@@ -141,11 +140,6 @@ var _RPCServer : TRPCServer = Nil;
 
 { TPascalCoinJSONComp }
 
-class function TPascalCoinJSONComp.ToJSONCurrency(pascalCoins: Int64): Currency;
-Begin
-  Result := RoundTo( pascalCoins / 10000 , -4);
-end;
-
 class procedure TPascalCoinJSONComp.FillBlockObject(nBlock : Cardinal; ANode : TNode; jsonObject: TPCJSONObject);
 var pcops : TPCOperationsComp;
   ob : TOperationBlock;
@@ -159,8 +153,10 @@ begin
 
     jsonObject.GetAsVariant('block').Value:=ob.block;
     jsonObject.GetAsVariant('enc_pubkey').Value := TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(ob.account_key));
-    jsonObject.GetAsVariant('reward').Value:=ToJSONCurrency(ob.reward);
-    jsonObject.GetAsVariant('fee').Value:=ToJSONCurrency(ob.fee);
+    jsonObject.GetAsVariant('reward').Value:=TAccountComp.FormatMoneyDecimal(ob.reward);
+    jsonObject.GetAsVariant('reward_s').Value:=TAccountComp.FormatMoney(ob.reward);
+    jsonObject.GetAsVariant('fee').Value:=TAccountComp.FormatMoneyDecimal(ob.fee);
+    jsonObject.GetAsVariant('fee_s').Value:=TAccountComp.FormatMoney(ob.fee);
     jsonObject.GetAsVariant('ver').Value:=ob.protocol_version;
     jsonObject.GetAsVariant('ver_a').Value:=ob.protocol_available;
     jsonObject.GetAsVariant('timestamp').Value:=Int64(ob.timestamp);
@@ -222,7 +218,8 @@ Begin
       auxObj := jsonArr.GetAsObject(jsonArr.Count);
       auxObj.GetAsVariant('account').Value := OPR.Senders[i].Account;
       if (OPR.Senders[i].N_Operation>0) then auxObj.GetAsVariant('n_operation').Value := OPR.Senders[i].N_Operation;
-      auxObj.GetAsVariant('amount').Value := ToJSONCurrency(OPR.Senders[i].Amount * (-1));
+      auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(OPR.Senders[i].Amount * (-1));
+      auxObj.GetAsVariant('amount_s').Value := TAccountComp.FormatMoney (OPR.Senders[i].Amount * (-1));
       auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Senders[i].Payload);
       if (OPR.OpType = CT_Op_Data) then begin
         FillDataObject(auxObj, OPR.Receivers[i].Data);
@@ -233,7 +230,8 @@ Begin
     for i:=Low(OPR.Receivers) to High(OPR.Receivers) do begin
       auxObj := jsonArr.GetAsObject(jsonArr.Count);
       auxObj.GetAsVariant('account').Value := OPR.Receivers[i].Account;
-      auxObj.GetAsVariant('amount').Value := ToJSONCurrency(OPR.Receivers[i].Amount);
+      auxObj.GetAsVariant('amount').Value :=  TAccountComp.FormatMoneyDecimal(OPR.Receivers[i].Amount);
+      auxObj.GetAsVariant('amount_s').Value :=  TAccountComp.FormatMoney(OPR.Receivers[i].Amount);
       auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Receivers[i].Payload);
       if (OPR.OpType = CT_Op_Data) then begin
         FillDataObject(auxObj, OPR.Receivers[i].Data);
@@ -256,26 +254,30 @@ Begin
       if (list_for_public_sale in OPR.Changers[i].Changes_type)
         Or (list_for_private_sale in OPR.Changers[i].Changes_type) then begin
         auxObj.GetAsVariant('seller_account').Value := OPR.Changers[i].Seller_Account;
-        auxObj.GetAsVariant('account_price').Value := ToJSONCurrency(OPR.Changers[i].Account_Price);
+        auxObj.GetAsVariant('account_price').Value := TAccountComp.FormatMoneyDecimal(OPR.Changers[i].Account_Price);
+        auxObj.GetAsVariant('account_price_s').Value := TAccountComp.FormatMoney(OPR.Changers[i].Account_Price);
       end;
       if (list_for_private_sale in OPR.Changers[i].Changes_type) then begin
         auxObj.GetAsVariant('locked_until_block').Value := OPR.Changers[i].Locked_Until_Block;
         auxObj.GetAsVariant('new_enc_pubkey').Value := TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(OPR.Changers[i].New_Accountkey));
       end;
       if (OPR.Changers[i].Fee<>0) then begin
-        auxObj.GetAsVariant('fee').Value := ToJSONCurrency(OPR.Changers[i].Fee * (-1));
+        auxObj.GetAsVariant('fee').Value := TAccountComp.FormatMoneyDecimal(OPR.Changers[i].Fee * (-1));
+        auxObj.GetAsVariant('fee_s').Value := TAccountComp.FormatMoney(OPR.Changers[i].Fee * (-1));
       end;
       if (OPR.OpType = CT_Op_Data) then begin
         FillDataObject(auxObj, OPR.Changers[i].Data);
       end;
     end;
   jsonObject.GetAsVariant('optxt').Value:=OPR.OperationTxt;
-  jsonObject.GetAsVariant('fee').Value:=ToJSONCurrency(OPR.Fee);
-  jsonObject.GetAsVariant('amount').Value:=ToJSONCurrency(OPR.Amount);
+  jsonObject.GetAsVariant('fee').Value:=TAccountComp.FormatMoneyDecimal(OPR.Fee);
+  jsonObject.GetAsVariant('fee_s').Value:=TAccountComp.FormatMoney(OPR.Fee);
+  jsonObject.GetAsVariant('amount').Value:=TAccountComp.FormatMoneyDecimal(OPR.Amount);
+  jsonObject.GetAsVariant('amount_s').Value:=TAccountComp.FormatMoney(OPR.Amount);
   if (Not OPR.isMultiOperation) then begin
     jsonObject.GetAsVariant('payload').Value:=TCrypto.ToHexaString(OPR.OriginalPayload);
   end;
-  if (OPR.Balance>=0) And (OPR.valid) then jsonObject.GetAsVariant('balance').Value:=ToJSONCurrency(OPR.Balance);
+  if (OPR.Balance>=0) And (OPR.valid) then jsonObject.GetAsVariant('balance').Value:=TAccountComp.FormatMoneyDecimal(OPR.Balance);
   If (OPR.OpType = CT_Op_Transaction) then begin
     If OPR.SignerAccount>=0 then begin
       jsonObject.GetAsVariant('sender_account').Value:=OPR.SignerAccount;
@@ -299,7 +301,8 @@ class procedure TPascalCoinJSONComp.FillAccountObject(const account: TAccount; j
 Begin
   jsonObj.GetAsVariant('account').Value:=account.account;
   jsonObj.GetAsVariant('enc_pubkey').Value := TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(account.accountInfo.accountKey));
-  jsonObj.GetAsVariant('balance').Value:=ToJSONCurrency(account.balance);
+  jsonObj.GetAsVariant('balance').Value:=TAccountComp.FormatMoneyDecimal(account.balance);
+  jsonObj.GetAsVariant('balance_s').Value:=TAccountComp.FormatMoney(account.balance);
   jsonObj.GetAsVariant('n_operation').Value:=account.n_operation;
   jsonObj.GetAsVariant('updated_b').Value:=account.updated_block;
   case account.accountInfo.state of
@@ -307,7 +310,8 @@ Begin
     as_ForSale : begin
       jsonObj.GetAsVariant('state').Value:='listed';
       jsonObj.GetAsVariant('locked_until_block').Value:=account.accountInfo.locked_until_block;
-      jsonObj.GetAsVariant('price').Value:=ToJSONCurrency(account.accountInfo.price);
+      jsonObj.GetAsVariant('price').Value:=TAccountComp.FormatMoneyDecimal(account.accountInfo.price);
+      jsonObj.GetAsVariant('price_s').Value:=TAccountComp.FormatMoney(account.accountInfo.price);
       jsonObj.GetAsVariant('seller_account').Value:=account.accountInfo.account_to_pay;
       jsonObj.GetAsVariant('private_sale').Value:= (account.accountInfo.new_publicKey.EC_OpenSSL_NID<>0);
       if not (account.accountInfo.new_publicKey.EC_OpenSSL_NID<>0) then begin
@@ -323,8 +327,10 @@ end;
 class procedure TPascalCoinJSONComp.FillOperationsHashTreeObject(const OperationsHashTree: TOperationsHashTree; jsonObject: TPCJSONObject);
 begin
   jsonObject.GetAsVariant('operations').Value:=OperationsHashTree.OperationsCount;
-  jsonObject.GetAsVariant('amount').Value:=ToJSONCurrency(OperationsHashTree.TotalAmount);
-  jsonObject.GetAsVariant('fee').Value:=ToJSONCurrency(OperationsHashTree.TotalFee);
+  jsonObject.GetAsVariant('amount').Value:=TAccountComp.FormatMoneyDecimal(OperationsHashTree.TotalAmount);
+  jsonObject.GetAsVariant('amount_s').Value:=TAccountComp.FormatMoney(OperationsHashTree.TotalAmount);
+  jsonObject.GetAsVariant('fee').Value:=TAccountComp.FormatMoneyDecimal(OperationsHashTree.TotalFee);
+  jsonObject.GetAsVariant('fee_s').Value:=TAccountComp.FormatMoney(OperationsHashTree.TotalFee);
   jsonObject.GetAsVariant('rawoperations').Value:=OperationsHashTreeToHexaString(OperationsHashTree);
 end;
 
@@ -356,7 +362,7 @@ begin
     auxObj := jsonArr.GetAsObject(jsonArr.Count);
     auxObj.GetAsVariant('account').Value := multiOperation.Data.txSenders[i].Account;
     auxObj.GetAsVariant('n_operation').Value := multiOperation.Data.txSenders[i].N_Operation;
-    auxObj.GetAsVariant('amount').Value := ToJSONCurrency(multiOperation.Data.txSenders[i].Amount * (-1));
+    auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(multiOperation.Data.txSenders[i].Amount * (-1));
     auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(multiOperation.Data.txSenders[i].Payload);
   end;
   //
@@ -364,7 +370,7 @@ begin
   for i:=Low(multiOperation.Data.txReceivers) to High(multiOperation.Data.txReceivers) do begin
     auxObj := jsonArr.GetAsObject(jsonArr.Count);
     auxObj.GetAsVariant('account').Value := multiOperation.Data.txReceivers[i].Account;
-    auxObj.GetAsVariant('amount').Value := ToJSONCurrency(multiOperation.Data.txReceivers[i].Amount);
+    auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(multiOperation.Data.txReceivers[i].Amount);
     auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(multiOperation.Data.txReceivers[i].Payload);
   end;
   jsonArr := jsonObject.GetAsArray('changers');
@@ -382,8 +388,8 @@ begin
       auxObj.GetAsVariant('new_type').Value := multiOperation.Data.changesInfo[i].New_Type;
     end;
   end;
-  jsonObject.GetAsVariant('amount').Value:=ToJSONCurrency( multiOperation.OperationAmount );
-  jsonObject.GetAsVariant('fee').Value:=ToJSONCurrency( multiOperation.OperationFee );
+  jsonObject.GetAsVariant('amount').Value:=TAccountComp.FormatMoneyDecimal( multiOperation.OperationAmount );
+  jsonObject.GetAsVariant('fee').Value:=TAccountComp.FormatMoneyDecimal( multiOperation.OperationFee );
   // New params for third party signing: (3.0.2)
   if (current_protocol>CT_PROTOCOL_3) then begin
     jsonObject.GetAsVariant('digest').Value:=TCrypto.ToHexaString(multiOperation.GetDigestToSign(current_protocol));

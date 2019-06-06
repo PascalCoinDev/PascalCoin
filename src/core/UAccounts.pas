@@ -148,7 +148,7 @@ Type
     Class Function AccountNumberToAccountTxtNumber(account_number : Cardinal) : String;
     Class function AccountTxtNumberToAccountNumber(Const account_txt_number : String; var account_number : Cardinal) : Boolean;
     Class function FormatMoney(Money : Int64) : String;
-    Class function FormatMoneyDecimal(Money : Int64) : Single;
+    Class function FormatMoneyDecimal(Money : Int64) : Currency;
     Class Function TxtToMoney(Const moneytxt : String; var money : Int64) : Boolean;
     Class Function AccountKeyFromImport(Const HumanReadable : String; var account : TAccountKey; var errors : String) : Boolean;
     Class Function AccountPublicKeyExport(Const account : TAccountKey) : String;
@@ -1321,7 +1321,7 @@ begin
   Result := FormatFloat('#,###0.0000',(Money/10000));
 end;
 
-class function TAccountComp.FormatMoneyDecimal(Money : Int64) : Single;
+class function TAccountComp.FormatMoneyDecimal(Money : Int64) : Currency;
 begin
   Result := RoundTo( Money / 10000.0, -4);
 end;
