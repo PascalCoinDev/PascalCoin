@@ -67,7 +67,7 @@ unit UPCSafeBoxRootHash;
 
   Calling "TPCSafeboxRootHash.CheckProof" will validate a previous "GetProof"
     - If the array is length = 1 then there was only 1 "Account Segment"
-    - The array must be: length=1 or length>2 (length=3 not allowed)
+    - The array must be: length=1 or length>2 (length=2 not allowed)
       - Length 1=single account segment, so, equal to SafeBoxRoot
       - 2 accounts segments: Need 3 hashes: The base, sibling and SafeBoxRoot
 
@@ -91,6 +91,33 @@ uses
 type
   TProofLevels = Record
     Levels : Array of TRawBytes;
+  End;
+
+  TSafeboxHashCalcType = (sbh_Single_Sha256, sbh_Merkle_Root_Hash);
+
+  { TBytesBuffer32Safebox is an extension of a TBytesBuffer that will
+    automatically update and calc the SafeboxRootHash when
+    SafeBoxHashCalcType = sbh_Merkle_Root_Hash
+
+    This will increace speed because will only calculate modified
+    blocks when used properly, mantaining integrity of the SafeBoxHash value
+
+    When SafeBoxHashCalcType = sbh_Single_Sha256 (Default) then there is
+    no change versus superclass type TBytesBuffer}
+
+  TBytesBuffer32Safebox = Class(TBytesBuffer)
+  private
+    FNextLevelBytesBuffer : TBytesBuffer32Safebox;
+    FSafeBoxHashCalcType: TSafeboxHashCalcType;
+    procedure SetSafeBoxHashCalcType(const Value: TSafeboxHashCalcType);
+  protected
+    procedure NotifyUpdated(AStartPos, ACountBytes : Integer); override;
+    procedure RedoNextLevelsForMerkleRootHash;
+  public
+    constructor Create(ADefaultIncrement : Integer); override;
+    destructor Destroy; override;
+    function GetSafeBoxHash : TRawBytes;
+    property SafeBoxHashCalcType : TSafeboxHashCalcType read FSafeBoxHashCalcType write SetSafeBoxHashCalcType;
   End;
 
   TPCSafeboxRootHash = Class
@@ -342,6 +369,104 @@ begin
   if LTotalBlocks>1 then begin
     GetLevelProof(ABlocksHashBuffer,ABlockIndex,AProofLevels);
   end;
+end;
+
+{ TBytesBuffer32Safebox }
+
+constructor TBytesBuffer32Safebox.Create(ADefaultIncrement: Integer);
+begin
+  FNextLevelBytesBuffer := Nil;
+  FSafeBoxHashCalcType := sbh_Single_Sha256;
+  inherited;
+end;
+
+destructor TBytesBuffer32Safebox.Destroy;
+begin
+  FreeAndNil(FNextLevelBytesBuffer);
+  inherited;
+end;
+
+function TBytesBuffer32Safebox.GetSafeBoxHash: TRawBytes;
+begin
+  if (FSafeBoxHashCalcType = sbh_Single_Sha256) then begin
+    if ((Self.Length MOD 32)=0) and (Self.Length>0) then begin
+      Result := TCrypto.DoSha256(Self.Memory,Self.Length);
+    end else begin
+      Result := Nil;
+    end;
+  end else if (Self.Length=32) then begin
+    System.SetLength(Result,32);
+    Move(Self.Memory^,Result[0],32);
+  end else if (Self.Length>32) and ((Self.Length MOD 32)=0) then begin
+    if Not Assigned(FNextLevelBytesBuffer) then begin
+      RedoNextLevelsForMerkleRootHash;
+    end;
+    Result := FNextLevelBytesBuffer.GetSafeBoxHash;
+  end else begin
+    Result := Nil;
+  end;
+end;
+
+procedure TBytesBuffer32Safebox.NotifyUpdated(AStartPos, ACountBytes: Integer);
+var LLevelItemIndex, LLevelItemsCount : Integer;
+  LPByte : PByte;
+  LSHA256 : TRawBytes;
+begin
+  inherited;
+  if (FSafeBoxHashCalcType = sbh_Single_Sha256) or
+    ((ACountBytes<>32) or ((AStartPos MOD 32)<>0)) or (Self.Length<64) or ((Self.Length MOD 32)<>0) then begin
+    FreeAndNil(FNextLevelBytesBuffer);
+  end else if Not Assigned(FNextLevelBytesBuffer) then begin
+    // First time must "Redo"
+    RedoNextLevelsForMerkleRootHash;
+  end else begin
+    LLevelItemIndex := AStartPos DIV 32;
+    LLevelItemsCount := Self.Length DIV 32;
+    LPByte := Self.Memory;
+    inc(LPByte,AStartPos);
+
+    // Left or right?
+    if (LLevelItemIndex MOD 2)=0 then begin
+      // Even, we are Left
+      if (LLevelItemIndex+1<LLevelItemsCount) then begin
+        LSHA256 := TCrypto.DoSha256(PAnsiChar(LPByte),64);
+        FNextLevelBytesBuffer.Replace((AStartPos DIV 2),LSHA256);
+      end
+      else begin
+        // No sheet on right, same value on next level
+        FNextLevelBytesBuffer.Replace(AStartPos DIV 2,LPByte^,32);
+      end;
+    end else begin
+      // Odd, is on right side
+      Dec(LPByte,32);
+      LSHA256 := TCrypto.DoSha256(PAnsiChar(LPByte),64);
+      FNextLevelBytesBuffer.Replace(((AStartPos-32) DIV 2),LSHA256);
+    end;
+  end;
+end;
+
+procedure TBytesBuffer32Safebox.RedoNextLevelsForMerkleRootHash;
+var i, j : Integer;
+begin
+  if (Self.Length<64) or ((Self.Length MOD 32)<>0) then begin
+    FreeAndNil(FNextLevelBytesBuffer);
+    Exit;
+  end;
+  if Not Assigned(FNextLevelBytesBuffer) then begin
+    FNextLevelBytesBuffer := TBytesBuffer32Safebox.Create(32*1000);
+    FNextLevelBytesBuffer.SafeBoxHashCalcType := Self.SafeBoxHashCalcType;
+  end;
+  j := Self.Length DIV 64;
+  for i := 0 to ((Self.Length DIV 64)-1) do begin
+    NotifyUpdated( (i*64), 32);
+  end;
+end;
+
+procedure TBytesBuffer32Safebox.SetSafeBoxHashCalcType(const Value: TSafeboxHashCalcType);
+begin
+  if FSafeBoxHashCalcType=Value then Exit;
+  FSafeBoxHashCalcType := Value;
+  FreeAndNil(FNextLevelBytesBuffer);
 end;
 
 end.
