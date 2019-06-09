@@ -170,7 +170,7 @@ begin
     if (op is TOpMultiOperation) then mop := TOpMultiOperation(op);
   end;
   If Not Assigned(mop) then begin
-    mop := TOpMultiOperation.Create;
+    mop := TOpMultiOperation.Create(FSourceNode.Bank.SafeBox.CurrentProtocol);
     FOperationsHashTree.AddOperationToHashTree(mop);
     mop.Free;
     mop := FOperationsHashTree.GetOperation(FOperationsHashTree.OperationsCount-1) as TOpMultiOperation;
@@ -279,7 +279,7 @@ begin
   If Not InputQuery(Caption,Format('Multioperation: Remove account sender/receiver/changer. Which account?',[]),aux) then Exit;
   nAccount := StrToIntDef(aux,-1);
   If nAccount<0 then Exit;
-  newMop := TOpMultiOperation.Create;
+  newMop := TOpMultiOperation.Create(FSourceNode.Bank.SafeBox.CurrentProtocol);
   Try
     SetLength(txs,0);
     SetLength(txr,0);
@@ -369,7 +369,7 @@ begin
     if (op is TOpMultiOperation) then mop := TOpMultiOperation(op);
   end;
   If Not Assigned(mop) then begin
-    mop := TOpMultiOperation.Create;
+    mop := TOpMultiOperation.Create(FSourceNode.Bank.SafeBox.CurrentProtocol);
     FOperationsHashTree.AddOperationToHashTree(mop);
     mop.Free;
     mop := FOperationsHashTree.GetOperation(FOperationsHashTree.OperationsCount-1) as TOpMultiOperation;

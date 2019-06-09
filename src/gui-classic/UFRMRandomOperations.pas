@@ -353,7 +353,7 @@ Var opMulti : TOpMultiOperation;
   errors : String;
 begin
   Result := False;
-  opMulti := TOpMultiOperation.Create;
+  opMulti := TOpMultiOperation.Create(current_protocol);
   Try
     if (Random(100)<5) then begin
       Repeat

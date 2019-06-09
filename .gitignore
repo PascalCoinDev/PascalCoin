@@ -45,5 +45,6 @@ src/ppas.sh
 
 ## Delphi files
 __history/
+__recovery/
 dunit.ini
 *.res

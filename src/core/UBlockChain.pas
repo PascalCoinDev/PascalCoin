@@ -112,7 +112,7 @@ uses
 
 Type
   // Moved from UOpTransaction to here
-  TOpChangeAccountInfoType = (public_key,account_name,account_type,list_for_public_sale,list_for_private_sale,delist);
+  TOpChangeAccountInfoType = (public_key, account_name, account_type, list_for_public_sale, list_for_private_sale, delist, account_data );
   TOpChangeAccountInfoTypes = Set of TOpChangeAccountInfoType;
 
   // MultiOp... will allow a MultiOperation
@@ -145,6 +145,7 @@ Type
     New_Accountkey: TAccountKey;  // If (changes_mask and $0001)=$0001 then change account key
     New_Name: TRawBytes;          // If (changes_mask and $0002)=$0002 then change name
     New_Type: Word;               // If (changes_mask and $0004)=$0004 then change type
+    New_Data: TRawBytes;
     Seller_Account : Int64;
     Account_Price : Int64;
     Locked_Until_Block : Cardinal;
@@ -210,6 +211,7 @@ Type
   TPCOperation = Class
   Private
   Protected
+    FCurrentProtocol : Word;
     FPrevious_Signer_updated_block: Cardinal;
     FPrevious_Destination_updated_block : Cardinal;
     FPrevious_Seller_updated_block : Cardinal;
@@ -227,7 +229,7 @@ Type
     function IsValidECDSASignature(const PubKey: TECDSA_Public; current_protocol : Word; const Signature: TECDSA_SIG): Boolean;
     procedure CopyUsedPubkeySignatureFrom(SourceOperation : TPCOperation); virtual;
   public
-    constructor Create; virtual;
+    constructor Create(ACurrentProtocol : Word); virtual;
     destructor Destroy; override;
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; virtual;
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors: String): Boolean; virtual; abstract;
@@ -268,7 +270,7 @@ Type
     function GetOpID : TRawBytes; // OPID is RipeMD160 hash of the operation
     //
     function GetOperationStreamData : TBytes;
-    class function GetOperationFromStreamData(StreamData : TBytes) : TPCOperation;
+    class function GetOperationFromStreamData(ACurrentProtocol: word; StreamData : TBytes) : TPCOperation;
     //
     function IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction : TPCSafeBoxTransaction) : Boolean; virtual; abstract;
   End;
@@ -559,7 +561,7 @@ Const
   CT_TMultiOpSender_NUL : TMultiOpSender =  (Account:0;Amount:0;N_Operation:0;Payload:Nil;Signature:(r:Nil;s:Nil));
   CT_TMultiOpReceiver_NUL : TMultiOpReceiver = (Account:0;Amount:0;Payload:Nil);
   CT_TMultiOpChangeInfo_NUL : TMultiOpChangeInfo = (Account:0;N_Operation:0;Changes_type:[];New_Accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);New_Name:Nil;New_Type:0;Seller_Account:-1;Account_Price:-1;Locked_Until_Block:0;Fee:0;Signature:(r:Nil;s:Nil));
-  CT_TOpChangeAccountInfoType_Txt : Array[Low(TOpChangeAccountInfoType)..High(TOpChangeAccountInfoType)] of String = ('public_key','account_name','account_type','list_for_public_sale','list_for_private_sale','delist');
+  CT_TOpChangeAccountInfoType_Txt : Array[Low(TOpChangeAccountInfoType)..High(TOpChangeAccountInfoType)] of String = ('public_key','account_name','account_type','list_for_public_sale','list_for_private_sale', 'delist', 'account_data');
 
 implementation
 
@@ -2619,7 +2621,7 @@ begin
         errors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c) + ' optype not valid:' + InttoHex(OpType, 4);
         exit;
       end;
-      bcop := OpClass.Create;
+      bcop := OpClass.Create(LoadProtocolVersion);
       Try
         if LoadingFromStorage then begin
           If not bcop.LoadFromStorage(Stream,LoadProtocolVersion,PreviousUpdatedBlocks) then begin
@@ -2864,8 +2866,9 @@ end;
 
 { TPCOperation }
 
-constructor TPCOperation.Create;
+constructor TPCOperation.Create(ACurrentProtocol: word);
 begin
+  FCurrentProtocol := ACurrentProtocol;
   FHasValidSignature := False;
   FBufferedSha256:=Nil;
   FBufferedRipeMD160:=Nil;
@@ -2902,7 +2905,7 @@ begin
   end else Raise Exception.Create('ERROR DEV 20170426-1'); // This should never happen, if good coded
 end;
 
-class function TPCOperation.GetOperationFromStreamData(StreamData : TBytes): TPCOperation;
+class function TPCOperation.GetOperationFromStreamData(ACurrentProtocol: word; StreamData : TBytes): TPCOperation;
   // Loads an TPCOperation saved using "GetOperationStreamData"
   // 1 byte for OpType
   // N bytes for Operation specific data (saved at SaveOpToStream)
@@ -2922,7 +2925,7 @@ begin
     if j >= 0 then
       OpClass := _OperationsClass[j]
     else Exit;
-    auxOp := OpClass.Create;
+    auxOp := OpClass.Create(ACurrentProtocol);
     if auxOp.LoadOpFromStream(stream,False) then Result := auxOp
     else auxOp.Free;
   Finally
@@ -3253,15 +3256,36 @@ begin
       OperationResume.OperationTxt := 'Recover founds';
       Result := true;
     End;
-    CT_Op_ListAccountForSale : Begin
-      If TOpListAccount(Operation).IsPrivateSale then begin
-        OperationResume.OpSubtype := CT_OpSubtype_ListAccountForPrivateSale;
-        OperationResume.OperationTxt := 'List account '+TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccount(Operation).Data.account_target)+' for private sale price '+
+    CT_Op_ListAccountForSale : begin
+      case TOpListAccountForSale(Operation).SubType of
+        CT_OpSubtype_ListAccountForPrivateSale:  begin
+          OperationResume.OpSubtype := CT_OpSubtype_ListAccountForPrivateSale;
+          OperationResume.OperationTxt := 'List account '+TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccount(Operation).Data.account_target)+' for private sale price '+
           TAccountComp.FormatMoney(TOpListAccount(Operation).Data.account_price)+' PASC pay to '+TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccount(Operation).Data.account_to_pay);
-      end else begin
-        OperationResume.OpSubtype := CT_OpSubtype_ListAccountForPublicSale;
-        OperationResume.OperationTxt := 'List account '+TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccount(Operation).Data.account_target)+' for sale price '+
-          TAccountComp.FormatMoney(TOpListAccount(Operation).Data.account_price)+' PASC pay to '+TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccount(Operation).Data.account_to_pay);
+        end;
+        CT_OpSubtype_ListAccountForPublicSale:  begin
+          OperationResume.OpSubtype := CT_OpSubtype_ListAccountForPublicSale;
+          OperationResume.OperationTxt := 'List account '+TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccount(Operation).Data.account_target)+' for sale price '+
+            TAccountComp.FormatMoney(TOpListAccount(Operation).Data.account_price)+' PASC pay to '+TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccount(Operation).Data.account_to_pay);
+        end;
+        CT_OpSubtype_ListAccountForAccountSwap:  begin
+            OperationResume.OpSubtype := CT_OpSubtype_ListAccountForAccountSwap;
+            OperationResume.OperationTxt :=
+            'List atomic account swap '+
+            ' for account ' + TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccountForSale(Operation).Data.account_target) +
+            ' hash-locked by ' + TCrypto.ToHexaString( TBaseType.ToRawBytes( TOpListAccountForSale(Operation).Data.hash_lock) ) +
+            ' time-locked until block ' + inttostr(TOpListAccountForSale(Operation).Data.locked_until_block) +
+            ' to counterparty key ' + TAccountComp.AccountPublicKeyExport( TOpListAccountForSale(Operation).Data.new_public_key);
+        end;
+        CT_OpSubtype_ListAccountForCoinSwap:  begin
+            OperationResume.OpSubtype := CT_OpSubtype_ListAccountForCoinSwap;
+            OperationResume.OperationTxt :=
+            'List atomic coin swap '+TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccountForSale(Operation).Data.account_target)+
+            ' for ' + TAccountComp.FormatMoney(TOpListAccountForSale(Operation).Data.account_price) + ' PASC' +
+            ' hash-locked by ' + TCrypto.ToHexaString( TBaseType.ToRawBytes( TOpListAccountForSale(Operation).Data.hash_lock) ) +
+            ' time-locked until block ' + inttostr(TOpListAccountForSale(Operation).Data.locked_until_block) +
+            ' to counterparty account ' + TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccountForSale(Operation).Data.account_to_pay);
+        end;
       end;
       OperationResume.newKey := TOpListAccount(Operation).Data.new_public_key;
       OperationResume.SellerAccount := Operation.SellerAccount;

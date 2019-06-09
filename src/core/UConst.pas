@@ -105,6 +105,8 @@ Const
   CT_Default_EC_OpenSSL_NID = CT_NID_secp256k1;
 
   CT_AccountInfo_ForSale = 1000;
+  CT_AccountInfo_ForAccountSwap = 1001;
+  CT_AccountInfo_ForCoinSwap = 1002;
 
   CT_PROTOCOL_1 = 1;
   CT_PROTOCOL_2 = 2;
@@ -163,6 +165,8 @@ Const
   CT_OpSubtype_Recover                    = 31;
   CT_OpSubtype_ListAccountForPublicSale   = 41;
   CT_OpSubtype_ListAccountForPrivateSale  = 42;
+  CT_OpSubtype_ListAccountForAccountSwap  = 43;
+  CT_OpSubtype_ListAccountForCoinSwap     = 44;
   CT_OpSubtype_DelistAccount              = 51;
   CT_OpSubtype_BuyAccountBuyer            = 61;
   CT_OpSubtype_BuyAccountTarget           = 62;

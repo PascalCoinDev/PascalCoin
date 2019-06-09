@@ -2672,7 +2672,7 @@ begin
       if not DataBuffer.Read(optype,1)=1 then exit;
       opclass := TPCOperationsComp.GetOperationClassByOpType(optype);
       if Not Assigned(opclass) then exit;
-      op := opclass.Create;
+      op := opclass.Create(Self.NetProtocolVersion.protocol_version);
       Try
         op.LoadFromNettransfer(DataBuffer);
         operations.AddOperationToHashTree(op);
@@ -3770,7 +3770,7 @@ var operationsComp : TPCOperationsComp;
     end;
     // Now we have nfpboarr with full data
     for i := 0 to High(nfpboarr) do begin
-      auxOp := TPCOperation.GetOperationFromStreamData( nfpboarr[i].opStreamData );
+      auxOp := TPCOperation.GetOperationFromStreamData(Self.FNetProtocolVersion.protocol_version,  nfpboarr[i].opStreamData );
       if not Assigned(auxOp) then begin
         errors := Format('Op index not available (%d/%d) OpReference:%d size:%d',[i,High(nfpboarr),nfpboarr[i].opReference,Length(nfpboarr[i].opStreamData)]);
         Exit;

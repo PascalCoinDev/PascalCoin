@@ -892,7 +892,7 @@ constructor TOpMultiOperation.CreateMultiOperation(current_protocol : Word;
   changes_keys: array of TECPrivateKey);
 Var i : Integer;
 begin
-  inherited Create;
+  inherited Create(current_protocol);
   AddTx(senders,receivers,True);
   AddChangeInfos(changes,True);
   // Protection for "Exit"

@@ -769,7 +769,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     End;
   End;
 
-  Function HexaStringToOperationsHashTreeAndGetMultioperation(Const HexaStringOperationsHashTree : String; canCreateNewOne : Boolean; out OperationsHashTree : TOperationsHashTree; out multiOperation : TOpMultiOperation; var errors : String) : Boolean;
+  Function HexaStringToOperationsHashTreeAndGetMultioperation(AProtocolVersion : Word; Const HexaStringOperationsHashTree : String; canCreateNewOne : Boolean; out OperationsHashTree : TOperationsHashTree; out multiOperation : TOpMultiOperation; var errors : String) : Boolean;
     { This function will return true only if HexaString contains only 1 operation and is a multioperation.
       Also, if "canCreateNewOne" is true and has no operations, then will create new one and return True
       }
@@ -780,7 +780,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     If (Result) then begin
       Try
         If (OperationsHashTree.OperationsCount=0) And (canCreateNewOne) then begin
-          multiOperation := TOpMultiOperation.Create;
+          multiOperation := TOpMultiOperation.Create(AProtocolVersion);
           OperationsHashTree.AddOperationToHashTree(multiOperation);
           multiOperation.Free;
           multiOperation := OperationsHashTree.GetOperation(0) as TOpMultiOperation;
@@ -1145,9 +1145,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
 
   // This function creates a TOpListAccountForSale without looking for actual state (cold wallet)
   // It assumes that account_number,account_last_n_operation and account_pubkey are correct
-  Function CreateOperationListAccountForSale(current_protocol : Word; account_signer, account_last_n_operation, account_listed : Cardinal; const account_signer_pubkey: TAccountKey;
+  Function CreateOperationListAccountForSale(current_protocol : Word; AListType : Word; account_signer, account_last_n_operation, account_listed : Cardinal; const account_signer_pubkey: TAccountKey;
     account_price : UInt64; locked_until_block : Cardinal; account_to_pay : Cardinal; Const new_account_pubkey : TAccountKey;
-    fee : UInt64; RawPayload : TRawBytes; Const Payload_method, EncodePwd : String) : TOpListAccountForSale;
+    fee : UInt64; const AHashLock: T32Bytes; const RawPayload : TRawBytes; Const Payload_method, EncodePwd : String) : TOpListAccountForSale;
   // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
   var privateKey : TECPrivateKey;
     errors : String;
@@ -1161,8 +1161,21 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
        aux_target_pubkey := new_account_pubkey;
     end else aux_target_pubkey := account_signer_pubkey;
     if Not CheckAndGetEncodedRAWPayload(RawPayload,Payload_method,EncodePwd,account_signer_pubkey,aux_target_pubkey,f_raw) then Exit(Nil);
-    Result := TOpListAccountForSale.CreateListAccountForSale(current_protocol, account_signer,account_last_n_operation+1,account_listed,account_price,fee,account_to_pay,new_account_pubkey,locked_until_block,
-      privateKey,f_raw);
+    Result := TOpListAccountForSale.CreateListAccountForSale(
+      current_protocol,
+      AListType,
+      account_signer,
+      account_last_n_operation+1,
+      account_listed,
+      account_price,
+      fee,
+      account_to_pay,
+      new_account_pubkey,
+      locked_until_block,
+      privateKey,
+      AHashLock,
+      f_raw
+    );
     if Not Result.HasValidSignature then begin
       FreeAndNil(Result);
       ErrorNum:=CT_RPC_ErrNum_InternalError;
@@ -1523,18 +1536,24 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
 
   function SignListAccountForSaleEx(params : TPCJSONObject; OperationsHashTree : TOperationsHashTree; current_protocol : Word; const actualAccounKey : TAccountKey; last_n_operation : Cardinal) : boolean;
     // params:
+    // "type" (optional) is the type of listing to perform public_sale, private_sale, atomic_account_swap, atomic_coin_swap
     // "account_signer" is the account that signs operations and pays the fee
     // "account_target" is the account being listed
     // "locked_until_block" is until which block will be locked this account (Note: A locked account cannot change it's state until sold or finished lock)
     // "price" is the price
     // "seller_account" is the account to pay (seller account)
     // "new_b58_pubkey" or "new_enc_pubkey" is the future public key for this sale (private sale), otherwise is open and everybody can buy
+    // "enc_hash_lock" (optional) hex-encoded hash-lock for an atomic swap
   var
     opSale: TOpListAccountForSale;
+    listType : Integer;
     account_signer, account_target, seller_account : Cardinal;
     locked_until_block : Cardinal;
     price,fee : Int64;
     new_pubkey : TAccountKey;
+    LHasHashLock : Boolean;
+    LHashLock : T32Bytes;
+    LStrVal : String;
   begin
     Result := false;
     account_signer := params.AsInteger('account_signer',MaxInt);
@@ -1579,8 +1598,50 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         Exit;
       end;
     end else new_pubkey := CT_TECDSA_Public_Nul;
-    opSale := CreateOperationListAccountForSale(current_protocol, account_signer,last_n_operation,account_target,actualAccounKey,price,locked_until_block,
-      seller_account, new_pubkey,fee,
+
+    LHasHashLock := False;
+    LHashLock := CT_HashLock_NUL;
+    if (params.IndexOfName('enc_hash_lock') >= 0) then begin
+      LStrVal := params.AsString('enc_hash_lock', '');
+      if (NOT TCrypto.IsHexString( LStrVal )) OR (Length(LStrVal) <> 32*2) then begin
+         ErrorNum := CT_RPC_ErrNum_InvalidData;
+         ErrorDesc := 'Invalid "enc_hash_lock" value. Must be 32 byte hexadecimal string.';
+         Exit;
+      end;
+      LHasHashLock := True;
+      LHashLock := TBaseType.To32Bytes( TCrypto.HexaToRaw( LStrVal ) );
+    end;
+
+    if params.IndexOfName('type') >= 0 then begin
+      LStrVal := params.AsString('type', '');
+      if (LStrVal = 'public_sale') then
+        listType := CT_OpSubtype_ListAccountForPublicSale
+      else if (LStrVal = 'private_sale') then
+        listType := CT_OpSubtype_ListAccountForPrivateSale
+      else if (LStrVal = 'atomic_coin_swap') then
+        listType := CT_OpSubtype_ListAccountForAccountSwap
+      else if (LStrVal = 'public_sale') then
+        listType := CT_OpSubtype_ListAccountForCoinSwap
+      else begin
+        ErrorNum := CT_RPC_ErrNum_InvalidData;
+        ErrorDesc := 'Invalid "type" value';
+        Exit;
+      end;
+      if (listType in [CT_OpSubtype_ListAccountForAccountSwap, CT_OpSubtype_ListAccountForCoinSwap]) and (NOT LHasHashLock) then begin
+        ErrorNum := CT_RPC_ErrNum_InvalidData;
+        ErrorDesc := 'Missing "enc_hash_lock" field. Required for atomic swaps';
+        Exit;
+      end;
+    end else begin
+      // type not specified, implied private or public sale, figure out based on key
+      if new_pubkey.EC_OpenSSL_NID = CT_TECDSA_Public_Nul.EC_OpenSSL_NID then
+        listType := CT_OpSubtype_ListAccountForPublicSale
+      else
+        listType := CT_OpSubtype_ListAccountForPrivateSale;
+    end;
+
+    opSale := CreateOperationListAccountForSale(current_protocol, listType, account_signer,last_n_operation,account_target,actualAccounKey,price,locked_until_block,
+      seller_account, new_pubkey,fee, LHashLock,
       TCrypto.HexaToRaw(params.AsString('payload','')),
       params.AsString('payload_method','dest'),params.AsString('pwd',''));
     if opSale=nil then exit;
@@ -2372,7 +2433,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         - "new_type" : (optional) The new account type
         }
     Result := false;
-    if Not HexaStringToOperationsHashTreeAndGetMultioperation(HexaStringOperationsHashTree,True,OperationsHashTree,mop,errors) then begin
+    if Not HexaStringToOperationsHashTreeAndGetMultioperation(
+      Self.FNode.Bank.SafeBox.CurrentProtocol, // HS: 2019-07-09: use current protocol since this API used to build new unpublished operations, not historical ones
+      HexaStringOperationsHashTree,True,OperationsHashTree,mop,errors) then begin
       ErrorNum:=CT_RPC_ErrNum_InvalidData;
       ErrorDesc:= 'Error decoding param previous operations hash tree raw value: '+errors;
       Exit;
@@ -2592,7 +2655,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       Exit;
     end;
     protocol := params.GetAsVariant('protocol').AsCardinal(CT_BUILD_PROTOCOL);
-    if Not HexaStringToOperationsHashTreeAndGetMultioperation(HexaStringOperationsHashTree,False,senderOperationsHashTree,mop,errors) then begin
+    if Not HexaStringToOperationsHashTreeAndGetMultioperation(FNode.Bank.SafeBox.CurrentProtocol, HexaStringOperationsHashTree,False,senderOperationsHashTree,mop,errors) then begin
       ErrorNum:=CT_RPC_ErrNum_InvalidData;
       ErrorDesc:= 'Error decoding param previous operations hash tree raw value: '+errors;
       Exit;
@@ -2622,7 +2685,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       ErrorNum := CT_RPC_ErrNum_WalletPasswordProtected;
       Exit;
     end;
-    if Not HexaStringToOperationsHashTreeAndGetMultioperation(HexaStringOperationsHashTree,False,senderOperationsHashTree,mop,errors) then begin
+    if Not HexaStringToOperationsHashTreeAndGetMultioperation(FNode.Bank.SafeBox.CurrentProtocol, HexaStringOperationsHashTree,False,senderOperationsHashTree,mop,errors) then begin
       ErrorNum:=CT_RPC_ErrNum_InvalidData;
       ErrorDesc:= 'Error decoding param previous operations hash tree raw value: '+errors;
       Exit;
