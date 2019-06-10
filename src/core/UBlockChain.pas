@@ -1555,7 +1555,6 @@ Var i : Integer;
   lastfee : UInt64;
   soob : Byte;
   raw: TRawBytes;
-  load_protocol_version : Word;
 begin
   Lock;
   Try
@@ -1580,15 +1579,12 @@ begin
     // - Value 2 and 3 means that contains protocol info prior to block number
     // - Value 4 means that is loading from storage using protocol v2 (so, includes always operations)
     // - Value 5 means that is loading from storage using TAccountPreviousBlockInfo
-    load_protocol_version := CT_PROTOCOL_1;
     if (soob in [0,2]) then FIsOnlyOperationBlock:=false
     else if (soob in [1,3]) then FIsOnlyOperationBlock:=true
     else if (soob in [4]) then begin
       FIsOnlyOperationBlock:=false;
-      load_protocol_version := CT_PROTOCOL_2;
     end else if (soob in [5]) then begin
       FIsOnlyOperationBlock:=False;
-      load_protocol_version := CT_PROTOCOL_3;
     end else begin
       errors := 'Invalid value in protocol header! Found:'+inttostr(soob)+' - Check if your application version is Ok';
       exit;
@@ -1626,11 +1622,11 @@ begin
     if FOperationBlock.protocol_version>=CT_PROTOCOL_4 then begin
       FOperationsHashTree.Max0feeOperationsBySigner := 1;
     end else FOperationsHashTree.Max0feeOperationsBySigner := -1;
-    Result := FOperationsHashTree.LoadOperationsHashTreeFromStream(Stream,LoadingFromStorage,load_protocol_version,FPreviousUpdatedBlocks,errors);
+    Result := FOperationsHashTree.LoadOperationsHashTreeFromStream(Stream,LoadingFromStorage,FOperationBlock.protocol_version,FPreviousUpdatedBlocks,errors);
     if not Result then begin
       exit;
     end;
-    If load_protocol_version>=CT_PROTOCOL_3 then begin
+    If FOperationBlock.protocol_version>=CT_PROTOCOL_3 then begin
       Result := FPreviousUpdatedBlocks.LoadFromStream(Stream);
       If Not Result then begin
         errors := 'Invalid PreviousUpdatedBlock stream';
