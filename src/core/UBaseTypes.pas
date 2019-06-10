@@ -74,8 +74,10 @@ Type
     FUsedBytes : Integer;
     procedure IncreaseSize(newSize : Integer);
     procedure SetDefaultIncrement(AValue: Integer);
+  protected
+    procedure NotifyUpdated(AStartPos, ACountBytes : Integer); virtual;
   public
-    constructor Create(ADefaultIncrement : Integer);
+    constructor Create(ADefaultIncrement : Integer); virtual;
     constructor CreateCopy(ABytesBuffer : TBytesBuffer);
     destructor Destroy; override;
     function Length : Integer;
@@ -507,10 +509,17 @@ begin
 end;
 
 procedure TBytesBuffer.SetLength(ANewLength: Integer);
+var LLastUsed : Integer;
 begin
   if ANewLength<0 then raise Exception.Create(Format('Invalid new Length value %d at %s',[ANewLength,ClassName]));
   IncreaseSize(ANewLength);
+  LLastUsed := FUsedBytes;
   FUsedBytes := ANewLength;
+  if FUsedBytes>=LLastUsed then begin
+    NotifyUpdated(LLastUsed,FUsedBytes-LLastUsed);
+  end else begin
+    NotifyUpdated(0,FUsedBytes);
+  end;
 end;
 
 function TBytesBuffer.Add(const buffer; bufferSize: Integer): Integer;
@@ -527,6 +536,7 @@ procedure TBytesBuffer.Clear;
 begin
   System.SetLength(FBytes,0);
   FUsedBytes := 0;
+  NotifyUpdated(0,FUsedBytes);
 end;
 
 function TBytesBuffer.Compare(ABytesBuffer: TBytesBuffer): Integer;
@@ -551,6 +561,7 @@ begin
   Move(ABytesBuffer.FBytes[0],FBytes[0],System.Length(FBytes));
   FUsedBytes := ABytesBuffer.FUsedBytes;
   FDefaultIncrement := ABytesBuffer.FDefaultIncrement;
+  NotifyUpdated(0,FUsedBytes);
 end;
 
 constructor TBytesBuffer.Create(ADefaultIncrement: Integer);
@@ -558,6 +569,7 @@ begin
   System.SetLength(FBytes,0);
   FUsedBytes:=0;
   SetDefaultIncrement(ADefaultIncrement);
+  NotifyUpdated(0,FUsedBytes);
 end;
 
 constructor TBytesBuffer.CreateCopy(ABytesBuffer: TBytesBuffer);
@@ -583,11 +595,19 @@ begin
   Result := addr(FBytes[0]);
 end;
 
+procedure TBytesBuffer.NotifyUpdated(AStartPos, ACountBytes: Integer);
+begin
+  //
+end;
+
 function TBytesBuffer.Replace(startPos: Integer; const buffer; bufferSize : Integer): Integer;
 begin
-  IncreaseSize(startPos+1+bufferSize);
-  Move(buffer,FBytes[startPos],bufferSize);
-  if (startPos + bufferSize)>FUsedBytes then FUsedBytes := (startPos + bufferSize);
+  if bufferSize>0 then begin
+    IncreaseSize(startPos+1+bufferSize);
+    Move(buffer,FBytes[startPos],bufferSize);
+    if (startPos + bufferSize)>FUsedBytes then FUsedBytes := (startPos + bufferSize);
+    NotifyUpdated(startPos,bufferSize);
+  end;
   Result := FUsedBytes;
 end;
 
