@@ -1985,8 +1985,15 @@ begin
     // VERSION 5: read the new account state and hash-lock
     if FCurrentProtocol >= CT_PROTOCOL_5 then begin
       if Stream.Read(w, 2) < 0 then exit;  // the new account state to set
+      if Not (w in [Integer(as_ForSale),Integer(as_ForAtomicAccountSwap),Integer(as_ForAtomicCoinSwap)]) then begin
+        // Invalid value readed
+        Exit;
+      end;
       FData.account_state := TAccountState(w);
       if TStreamOp.ReadAnsiString(Stream, FData.hash_lock) < 0 then exit;  // the hash-lock if any
+    end else begin
+      // On V4 and below only as_ForSale is possible
+      FData.account_state := as_ForSale;
     end;
   end;
   Stream.Read(FData.fee,Sizeof(FData.fee));
