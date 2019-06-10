@@ -1767,7 +1767,7 @@ begin
   Result := false;
   // Determine which flow this function will execute
   LIsDelist := OpType = CT_Op_DelistAccount;
-  LIsSale := OpType = CT_Op_ListAccountForSale;
+  LIsSale := (OpType = CT_Op_ListAccountForSale) AND (FData.account_state = as_ForSale);
   if LIsSale then begin
     if (FData.account_state = as_ForSale) and (FData.new_public_key.EC_OpenSSL_NID <> CT_TECDSA_Public_Nul.EC_OpenSSL_NID) then begin
       LIsPublicSale := false;
@@ -1780,7 +1780,7 @@ begin
     LIsPublicSale := false;
     LIsPrivateSale := false;
   end;
-  LIsCoinSwap := FData.account_state in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap];
+  LIsCoinSwap := (OpType = CT_Op_ListAccountForSale) AND (FData.account_state in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap]);
   if LIsCoinSwap then begin
     if FData.account_state =  as_ForAtomicCoinSwap then begin
       LIsAccountSwap := false;
@@ -1839,7 +1839,7 @@ begin
       errors := 'Invalid locked block: Current block '+Inttostr(AccountTransaction.FreezedSafeBox.BlocksCount)+' cannot lock to block '+IntToStr(FData.locked_until_block);
       exit;
     end;
-    if LIsPrivateSale OR LIsAccountSwap then begin
+    if LIsPrivateSale OR LIsAccountSwap OR LIsCoinSwap then begin
       If Not TAccountComp.IsValidAccountKey( FData.new_public_key, errors ) then begin
         errors := 'Invalid new public key: '+errors;
         exit;
@@ -1882,6 +1882,8 @@ begin
     exit;
   end;
   if LIsPrivateSale OR LIsAccountSwap then begin
+    // NOTE: Atomic coin swap avoids this validation since it is a transfer
+    // of account to same owner, paying counter-party in seller field
     if TAccountComp.EqualAccountKeys(account_target.accountInfo.accountKey,FData.new_public_key) then begin
       errors := 'New public key for private sale is the same public key';
       Exit;
