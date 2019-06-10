@@ -2672,7 +2672,7 @@ begin
       if not DataBuffer.Read(optype,1)=1 then exit;
       opclass := TPCOperationsComp.GetOperationClassByOpType(optype);
       if Not Assigned(opclass) then exit;
-      op := opclass.Create(Self.NetProtocolVersion.protocol_version);
+      op := opclass.Create(TNode.Node.Bank.SafeBox.CurrentProtocol);
       Try
         op.LoadFromNettransfer(DataBuffer);
         operations.AddOperationToHashTree(op);
