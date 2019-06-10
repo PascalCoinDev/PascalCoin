@@ -2855,7 +2855,7 @@ begin
         CT_PROTOCOL_2 : FCurrentProtocol := 2;
         CT_PROTOCOL_3 : FCurrentProtocol := 3;
         CT_PROTOCOL_4 : FCurrentProtocol := 3; // In order to allow Upgrade to V4
-        CT_PROTOCOL_5 : FCurrentProtocol := 3; // In order to upgrade to V4..V5
+        CT_PROTOCOL_5 : FCurrentProtocol := 5; // In order to upgrade to V4..V5
       else exit;
       end;
       if (sbHeader.blocksCount=0) Or (sbHeader.startBlock<>0) Or (sbHeader.endBlock<>(sbHeader.blocksCount-1)) then begin
