@@ -2113,7 +2113,7 @@ Var raw: TRawBytes;
 begin
   ms := TMemoryStream.Create;
   try
-    If (Not current_protocol<CT_PROTOCOL_2) then begin
+    If (current_protocol<CT_PROTOCOL_2) then begin
       // PROTOCOL 1 BlockHash calculation
       ms.Write(block.blockchainInfo.block,4); // Little endian
       for i := Low(block.accounts) to High(block.accounts) do begin
