@@ -111,7 +111,7 @@ Type
     Function IndexOfAccountChangeNameTo(const newName : TRawBytes) : Integer;
     procedure ClearSignatures;
   protected
-    procedure InitializeData; override;
+    procedure InitializeData(AProtocolVersion : Word); override;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
     procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
@@ -296,9 +296,9 @@ begin
   FBufferedRipeMD160 := Nil;
 end;
 
-procedure TOpMultiOperation.InitializeData;
+procedure TOpMultiOperation.InitializeData(AProtocolVersion : Word);
 begin
-  inherited InitializeData;
+  inherited InitializeData(AProtocolVersion);
   SetLength(FData.txSenders,0);
   SetLength(FData.txReceivers,0);
   SetLength(FData.changesInfo,0);
