@@ -376,19 +376,31 @@ end;
 
 procedure TThreadActivate.BCExecute;
 Var currentProcess : String;
+  LTC : TTickCount;
+  LRaw : TRawBytes;
 begin
   FLastTC := 0;
   FLastMsg := '';
+  //
+  OnProgressNotify(Self,'Reading Hardcoded RandomHash file',0,0);
+  LRaw := TCrypto.HexaToRaw(CT_Hardcoded_RandomHash_Table_HASH);
+  TPascalCoinProtocol.AllowUseHardcodedRandomHashTable(
+    TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data'+PathDelim+CT_Hardcoded_RandomHash_Table_Filename,
+    LRaw );
   // Read Operations saved from disk
   TNode.Node.InitSafeboxAndOperations($FFFFFFFF,OnProgressNotify); // New Build 2.1.4 to load pending operations buffer
   TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
   TNode.Node.NetServer.Active := true;
   FLastTC := 0;
   FLastMsg := '';
+  LTC := TPlatform.GetTickCount;
   if (TNode.Node.Bank.BlocksCount<=1) then begin
     while (Not Terminated) And (Not TNode.Node.IsReady(currentProcess) Or (TNode.Node.Bank.BlocksCount<=1)) do begin
       Synchronize(ThreadSafeNotify);
       Sleep(200);
+      {$IFDEF TESTNET}
+      if (TPlatform.GetElapsedMilliseconds(LTC)>5000) then Break;
+      {$ENDIF}
     end;
   end;
   if Not Terminated then begin
