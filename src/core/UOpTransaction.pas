@@ -901,7 +901,13 @@ begin
     if (TAccountComp.IsAccountForSwap( LTarget.accountInfo ) AND (ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol<CT_PROTOCOL_5)) then begin
       AErrors := 'Tx-Buy atomic swaps are not allowed until Protocol 5';
       exit;
-    end else If Not (TAccountComp.IsValidAccountKey(FData.new_accountkey,AErrors)) then exit; // BUG 20171511
+    end else If (ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol<CT_PROTOCOL_5) then begin
+      // the below line was a bug fix that introduced a new bug, and is retained here for
+      // V2-V4 consistency
+      //------
+      if Not (TAccountComp.IsValidAccountKey(FData.new_accountkey,AErrors)) then exit; // BUG 20171511
+      //------
+    end else if Not (TAccountComp.IsValidAccountKey(LTarget.accountInfo.new_publicKey,AErrors)) then exit;
 
     // Fill the purchase data
     FData.opTransactionStyle := transaction_with_auto_buy_account; // Set this data!
@@ -929,9 +935,7 @@ begin
       AErrors := 'Target key cannot be changed during atomic coin swap';
       exit;
     end;
-
   end;
-
 
   if (FData.opTransactionStyle in [buy_account, transaction_with_auto_buy_account]) then begin
     // account purchase
@@ -1434,7 +1438,7 @@ end;
 
 procedure TOpChangeKey.InitializeData(AProtocolVersion : Word);
 begin
-  inherited(AProtocolVersion);
+  inherited InitializeData(AProtocolVersion);
   FData := CT_TOpChangeKeyData_NUL;
 end;
 
