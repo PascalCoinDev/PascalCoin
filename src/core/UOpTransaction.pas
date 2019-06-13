@@ -871,6 +871,16 @@ begin
       exit;
     end;
 
+    if (ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol>=CT_PROTOCOL_5) then begin
+      if (TAccountComp.IsAccountForSaleAcceptingTransactions(LTarget.accountInfo)) and
+        (Not TAccountComp.EqualAccountKeys(FData.new_accountkey,LTarget.accountInfo.new_publicKey))  then begin
+          AErrors := Format('Provided new public key for %d is not the same than stored in a private sale: %s <> %s',[LTarget.account,
+            TAccountComp.AccountKey2RawString(LTarget.accountInfo.new_publicKey).ToHexaString,
+            TAccountComp.AccountKey2RawString(FData.new_accountkey).ToHexaString]);
+          exit;
+        end;
+    end;
+
     If Not (TAccountComp.IsValidAccountKey(FData.new_accountkey,AErrors)) then exit; // BUG 20171511
     {$endregion}
     FPrevious_Seller_updated_block := LSeller.updated_block;
