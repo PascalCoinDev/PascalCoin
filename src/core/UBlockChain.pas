@@ -209,9 +209,8 @@ Type
   { TPCOperation }
 
   TPCOperation = Class
-  Private
   Protected
-    FCurrentProtocol : Word;
+    FProtocolVersion : Word;
     FPrevious_Signer_updated_block: Cardinal;
     FPrevious_Destination_updated_block : Cardinal;
     FPrevious_Seller_updated_block : Cardinal;
@@ -219,7 +218,7 @@ Type
     FUsedPubkeyForSignature : TECDSA_Public;
     FBufferedSha256 : TRawBytes;
     FBufferedRipeMD160 : TRawBytes; // OPID is a RipeMD160 of the GetBufferForOpHash(True) value, 20 bytes length
-    procedure InitializeData; virtual;
+    procedure InitializeData(AProtocolVersion : Word); virtual;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; virtual; abstract;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; virtual; abstract;
     procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); virtual;
@@ -229,8 +228,9 @@ Type
     function IsValidECDSASignature(const PubKey: TECDSA_Public; current_protocol : Word; const Signature: TECDSA_SIG): Boolean;
     procedure CopyUsedPubkeySignatureFrom(SourceOperation : TPCOperation); virtual;
   public
-    constructor Create(ACurrentProtocol : Word); virtual;
+    constructor Create(AProtocolVersion : Word); virtual;
     destructor Destroy; override;
+    property ProtocolVersion : Word read FProtocolVersion;
     function GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes; virtual;
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors: String): Boolean; virtual; abstract;
     procedure AffectedAccounts(list : TList<Cardinal>); virtual; abstract;
@@ -2426,7 +2426,7 @@ begin
       msCopy := TMemoryStream.Create;
       try
         P^.Op := TPCOperation( op.NewInstance );
-        P^.Op.InitializeData;
+        P^.Op.InitializeData(op.ProtocolVersion);
         op.SaveOpToStream(msCopy,true);
         msCopy.Position := 0;
         P^.Op.LoadOpFromStream(msCopy, true);
@@ -2871,14 +2871,13 @@ end;
 
 { TPCOperation }
 
-constructor TPCOperation.Create(ACurrentProtocol: word);
+constructor TPCOperation.Create(AProtocolVersion : Word);
 begin
-  FCurrentProtocol := ACurrentProtocol;
   FHasValidSignature := False;
   FBufferedSha256:=Nil;
   FBufferedRipeMD160:=Nil;
   FUsedPubkeyForSignature := CT_TECDSA_Public_Nul;
-  InitializeData;
+  InitializeData(AProtocolVersion);
 end;
 
 destructor TPCOperation.Destroy;
@@ -3055,8 +3054,9 @@ begin
   Result := TCrypto.ToHexaString(operationHash);
 end;
 
-procedure TPCOperation.InitializeData;
+procedure TPCOperation.InitializeData(AProtocolVersion : Word);
 begin
+  FProtocolVersion := AProtocolVersion;
   FPrevious_Signer_updated_block := 0;
   FPrevious_Destination_updated_block := 0;
   FPrevious_Seller_updated_block := 0;

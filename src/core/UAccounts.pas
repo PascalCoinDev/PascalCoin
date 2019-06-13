@@ -1417,16 +1417,19 @@ end;
 class function TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(const account: TAccount; const APayload : TRawBytes): Boolean;
 var errors : String;
 begin
+  Result := false;
   if Not IsAccountForSaleOrSwap(account.accountInfo) then
-    exit(false);
+    exit;
 
   if (account.accountInfo.state in [as_ForSale, as_ForAtomicAccountSwap]) then
     if NOT IsValidAccountKey(account.accountInfo.new_publicKey,errors) then
-      exit(false);
+      exit;
 
    if (account.accountInfo.state in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap]) then
      if NOT IsValidHashLockKey(account, APayload) then
-       exit(false);
+       exit;
+
+  Result := true;
 end;
 
 class function TAccountComp.IsAccountLocked(const AccountInfo: TAccountInfo; blocks_count: Cardinal): Boolean;

@@ -79,7 +79,7 @@ Type
   private
     FData : TOpTransactionData;
   protected
-    procedure InitializeData; override;
+    procedure InitializeData(AProtocolVersion : Word); override;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
     procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
@@ -112,7 +112,7 @@ Type
   private
     FData : TOpChangeKeyData;
   protected
-    procedure InitializeData; override;
+    procedure InitializeData(AProtocolVersion : Word); override;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
     procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
@@ -151,7 +151,7 @@ Type
   private
     FData : TOpRecoverFoundsData;
   protected
-    procedure InitializeData; override;
+    procedure InitializeData(AProtocolVersion : Word); override;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
     procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
@@ -222,7 +222,7 @@ Type
   private
     FData : TOpListAccountData;
   protected
-    procedure InitializeData; override;
+    procedure InitializeData(AProtocolVersion : Word); override;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
     procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
@@ -263,7 +263,7 @@ Type
 
   TOpBuyAccount = Class(TOpTransaction)
   protected
-    procedure InitializeData; override;
+    procedure InitializeData(AProtocolVersion : Word); override;
   public
     class function OpType : Byte; override;
     Constructor CreateBuy(ACurrentProtocol : Word; account_number, n_operation, account_to_buy, account_to_pay: Cardinal; price, amount, fee : UInt64; new_public_key:TAccountKey; key:TECPrivateKey; payload: TRawBytes);
@@ -275,7 +275,7 @@ Type
   private
     FData : TOpChangeAccountInfoData;
   protected
-    procedure InitializeData; override;
+    procedure InitializeData(AProtocolVersion : Word); override;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
     procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
@@ -325,7 +325,7 @@ Type
   private
     FData : TOpDataData;
   protected
-    procedure InitializeData; override;
+    procedure InitializeData(AProtocolVersion : Word); override;
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; override;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; override;
     procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); override;
@@ -375,9 +375,9 @@ End;
 
 { TOpChangeAccountInfo }
 
-procedure TOpChangeAccountInfo.InitializeData;
+procedure TOpChangeAccountInfo.InitializeData(AProtocolVersion : Word);
 begin
-  inherited InitializeData;
+  inherited InitializeData(AProtocolVersion);
   FData := CT_TOpChangeAccountInfoData_NUL;
 end;
 
@@ -1432,9 +1432,9 @@ begin
   end;
 end;
 
-procedure TOpChangeKey.InitializeData;
+procedure TOpChangeKey.InitializeData(AProtocolVersion : Word);
 begin
-  inherited;
+  inherited(AProtocolVersion);
   FData := CT_TOpChangeKeyData_NUL;
 end;
 
@@ -1993,7 +1993,7 @@ begin
     FData.new_public_key := TAccountComp.RawString2Accountkey(raw);
     Stream.Read(FData.locked_until_block,Sizeof(FData.locked_until_block));
     // VERSION 5: read the new account state and hash-lock
-    if FCurrentProtocol >= CT_PROTOCOL_5 then begin
+    if FProtocolVersion >= CT_PROTOCOL_5 then begin
       if Stream.Read(w, 2) < 0 then exit;  // the new account state to set
       if Not (w in [Integer(as_ForSale),Integer(as_ForAtomicAccountSwap),Integer(as_ForAtomicCoinSwap)]) then begin
         // Invalid value readed
@@ -2094,7 +2094,7 @@ begin
     TStreamOp.WriteAnsiString(Stream,TAccountComp.AccountKey2RawString(FData.new_public_key));
     Stream.Write(FData.locked_until_block,Sizeof(FData.locked_until_block));
     // VERSION 5: write the new account state and hash-lock
-    if FCurrentProtocol >= CT_PROTOCOL_5 then begin
+    if FProtocolVersion >= CT_PROTOCOL_5 then begin
       w := Word(FData.account_state);
       Stream.Write(w, 2);  // the new account state to set
       TStreamOp.WriteAnsiString(Stream, FData.hash_lock); // the hash-lock if any
@@ -2342,9 +2342,9 @@ end;
 
 { TOpData }
 
-procedure TOpData.InitializeData;
+procedure TOpData.InitializeData(AProtocolVersion : Word);
 begin
-  inherited InitializeData;
+  inherited InitializeData(AProtocolVersion);
   FData := CT_TOpDataData_NUL;
 end;
 
