@@ -1289,7 +1289,10 @@ begin
       lblNewKey.Visible := true;
       ebNewKey.Visible := true;
       lblTimeLock.Visible := true;
+      lblTimeLock.Enabled := true;
       ebTimeLock.Visible := true;
+      ebTimeLock.Enabled := true;
+      sbTimeLock.Visible := true;
       sbTimeLock.Enabled := true;
       lblHashLock.Visible := true;
       ebHashLock.Visible := true;
@@ -1305,9 +1308,10 @@ begin
         lblNewKey.Enabled := true;
         ebNewKey.Visible := true;
         ebNewKey.Enabled := true;
+        lblPrice.Visible := false;
         lblPrice.Enabled := false;
         ebPrice.Enabled := false;
-        ebPrice.Text := 'ALL BALANCE';
+        ebPrice.Visible := false;
       end else if rbListAccountForCoinSwap.Checked then begin
         lblSeller.Visible := true;
         lblSeller.Caption := 'Counterparty Account';
@@ -1315,8 +1319,10 @@ begin
         sbSearchListerSellerAccount.Visible := true;
         lblNewKey.Visible := false;
         ebNewKey.Visible := false;
+        lblPrice.Visible := true;
         lblPrice.Caption := 'Swap Amount';
         lblPrice.Enabled := true;
+        ebPrice.Visible := true;
         ebPrice.Enabled := true;
       end;
 
