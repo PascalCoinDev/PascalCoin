@@ -25,6 +25,7 @@ interface
 uses
   Classes, SysUtils, UConst, UCrypto, SyncObjs, UThread, UBaseTypes,
   UPCOrderedLists, UPCDataTypes, UPCSafeBoxRootHash,
+  UPCHardcodedRandomHashTable,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 {$I config.inc}
@@ -65,6 +66,10 @@ Type
 
   TPascalCoinProtocol = Class
   public
+    FPCHardcodedRandomHashTable : TPCHardcodedRandomHashTable;
+  public
+    constructor Create;
+    destructor Destroy; override;
     Class Function MinimumTarget(protocol_version : Integer): Cardinal;
     Class Function ResetTarget(current_target : Cardinal; protocol_version : Integer): Cardinal;
     Class Function GetRewardForNewLine(line_index: Cardinal): UInt64;
@@ -77,6 +82,7 @@ Type
     Class Function IsValidMinerBlockPayload(const newBlockPayload : TRawBytes) : Boolean;
     class procedure GetRewardDistributionForNewBlock(const OperationBlock : TOperationBlock; out acc_0_miner_reward, acc_4_dev_reward : Int64; out acc_4_for_dev : Boolean);
     class Function CalcSafeBoxHash(ABlocksHashBuffer : TBytesBuffer; protocol_version : Integer) : TRawBytes;
+    class Function AllowUseHardcodedRandomHashTable(const AHardcodedFileName : String; const AHardcodedSha256Value : TRawBytes) : Boolean;
   end;
 
   TAccount = Record
@@ -603,6 +609,8 @@ end;
 
 { TPascalCoinProtocol }
 
+var _INTERNAL_PascalCoinProtocol : TPascalCoinProtocol = Nil;
+
 class function TPascalCoinProtocol.GetNewTarget(vteorical, vreal: Cardinal; protocol_version : Integer; isSlowMovement : Boolean; const actualTarget: TRawBytes): TRawBytes;
 Var
   bnact, bnaux: TBigNum;
@@ -742,9 +750,64 @@ begin
   end;
 end;
 
+class function TPascalCoinProtocol.AllowUseHardcodedRandomHashTable(
+  const AHardcodedFileName: String;
+  const AHardcodedSha256Value: TRawBytes): Boolean;
+var LTmp : TPCHardcodedRandomHashTable;
+  LFileStream : TFileStream;
+  LInternalHardcodedSha256 : TRawBytes;
+begin
+  Result := False;
+  If Not FileExists(AHardcodedFileName) then begin
+    TLog.NewLog(ltdebug,ClassName,Format('Hardcoded RandomHash from file not found:%s',
+      [AHardcodedFileName] ));
+    Exit;
+  end;
+  LTmp := TPCHardcodedRandomHashTable.Create;
+  try
+    LFileStream := TFileStream.Create(AHardcodedFileName,fmOpenRead+fmShareDenyNone);
+    try
+      if LTmp.LoadFromStream(LFileStream,LInternalHardcodedSha256) then begin
+        if TBaseType.Equals(LInternalHardcodedSha256, AHardcodedSha256Value) then begin
+          if Not Assigned(_INTERNAL_PascalCoinProtocol) then begin
+            _INTERNAL_PascalCoinProtocol := TPascalCoinProtocol.Create;
+          end;
+          _INTERNAL_PascalCoinProtocol.FPCHardcodedRandomHashTable.CopyFrom(LTmp);
+          TLog.NewLog(ltinfo,ClassName,Format('Added %d (%d) Hardcoded RandomHash from file:%s (%s)',
+            [LTmp.Count,_INTERNAL_PascalCoinProtocol.FPCHardcodedRandomHashTable.Count,
+            AHardcodedFileName,AHardcodedSha256Value.ToHexaString] ));
+          Result := True;
+        end;
+      end;
+      if not Result then begin
+         TLog.NewLog(lterror,ClassName,Format('Hardcoded RandomHash file invalid:%s (%s %s) %d',
+           [AHardcodedFileName,AHardcodedSha256Value.ToHexaString,
+            LInternalHardcodedSha256.ToHexaString,
+            LTmp.Count] ));
+      end;
+    finally
+      LFileStream.Free;
+    end;
+  finally
+    LTmp.Free;
+  end;
+end;
+
+constructor TPascalCoinProtocol.Create;
+begin
+  FPCHardcodedRandomHashTable := TPCHardcodedRandomHashTable.Create;
+end;
+
+destructor TPascalCoinProtocol.Destroy;
+begin
+  FreeAndNil(FPCHardcodedRandomHashTable);
+  inherited;
+end;
+
 class procedure TPascalCoinProtocol.CalcProofOfWork(const operationBlock: TOperationBlock; out PoW: TRawBytes);
 var ms : TMemoryStream;
   accKeyRaw : TRawBytes;
+  LDigest : TRawBytes;
 begin
   ms := TMemoryStream.Create;
   try
@@ -765,9 +828,14 @@ begin
     ms.Write(operationBlock.fee,4);
     ms.Write(operationBlock.timestamp,4);
     ms.Write(operationBlock.nonce,4);
-    if CT_ACTIVATE_RANDOMHASH_V4 AND (operationBlock.protocol_version >= CT_PROTOCOL_4) then
-      TCrypto.DoRandomHash(ms.Memory,ms.Size,PoW)
-    else
+    if CT_ACTIVATE_RANDOMHASH_V4 AND (operationBlock.protocol_version >= CT_PROTOCOL_4) then begin
+      if Assigned(_INTERNAL_PascalCoinProtocol) then begin
+        SetLength(LDigest,ms.Size);
+        Move(ms.Memory^,LDigest[0],ms.Size);
+        if _INTERNAL_PascalCoinProtocol.FPCHardcodedRandomHashTable.FindRandomHashByDigest(LDigest,PoW) then Exit;
+      end;
+      TCrypto.DoRandomHash(ms.Memory,ms.Size,PoW);
+    end else
       TCrypto.DoDoubleSha256(ms.Memory,ms.Size,PoW);
   finally
     ms.Free;
@@ -1427,7 +1495,7 @@ end;
 class function TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(const account: TAccount; const APayload : TRawBytes): Boolean;
 var errors : String;
 begin
-  Result := false;
+  Result := False;
   if Not IsAccountForSaleOrSwap(account.accountInfo) then
     exit;
 
@@ -1438,8 +1506,7 @@ begin
    if (account.accountInfo.state in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap]) then
      if NOT IsValidAccountHashLockKey(account, APayload) then
        exit;
-
-  Result := true;
+  Result := True;
 end;
 
 class function TAccountComp.IsAccountLocked(const AccountInfo: TAccountInfo; blocks_count: Cardinal): Boolean;
@@ -5524,4 +5591,8 @@ begin
   end;
 end;
 
+initialization
+  _INTERNAL_PascalCoinProtocol := Nil;
+finalization
+  FreeAndNil(_INTERNAL_PascalCoinProtocol);
 end.
