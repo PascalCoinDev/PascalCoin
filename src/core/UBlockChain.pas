@@ -112,7 +112,7 @@ uses
 
 Type
   // Moved from UOpTransaction to here
-  TOpChangeAccountInfoType = (public_key, account_name, account_type, list_for_public_sale, list_for_private_sale, delist, account_data );
+  TOpChangeAccountInfoType = (public_key, account_name, account_type, list_for_public_sale, list_for_private_sale, delist, account_data, list_for_account_swap, list_for_coin_swap );
   TOpChangeAccountInfoTypes = Set of TOpChangeAccountInfoType;
 
   // MultiOp... will allow a MultiOperation
@@ -561,7 +561,7 @@ Const
   CT_TMultiOpSender_NUL : TMultiOpSender =  (Account:0;Amount:0;N_Operation:0;Payload:Nil;Signature:(r:Nil;s:Nil));
   CT_TMultiOpReceiver_NUL : TMultiOpReceiver = (Account:0;Amount:0;Payload:Nil);
   CT_TMultiOpChangeInfo_NUL : TMultiOpChangeInfo = (Account:0;N_Operation:0;Changes_type:[];New_Accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);New_Name:Nil;New_Type:0;Seller_Account:-1;Account_Price:-1;Locked_Until_Block:0;Fee:0;Signature:(r:Nil;s:Nil));
-  CT_TOpChangeAccountInfoType_Txt : Array[Low(TOpChangeAccountInfoType)..High(TOpChangeAccountInfoType)] of String = ('public_key','account_name','account_type','list_for_public_sale','list_for_private_sale', 'delist', 'account_data');
+  CT_TOpChangeAccountInfoType_Txt : Array[Low(TOpChangeAccountInfoType)..High(TOpChangeAccountInfoType)] of String = ('public_key','account_name','account_type','list_for_public_sale','list_for_private_sale', 'delist', 'account_data','list_for_account_swap','list_for_coin_swap');
 
 implementation
 
@@ -3262,7 +3262,7 @@ begin
       Result := true;
     End;
     CT_Op_ListAccountForSale : begin
-      case TOpListAccountForSale(Operation).SubType of
+      case TOpListAccountForSaleOrSwap(Operation).OpSubType of
         CT_OpSubtype_ListAccountForPrivateSale:  begin
           OperationResume.OpSubtype := CT_OpSubtype_ListAccountForPrivateSale;
           OperationResume.OperationTxt := 'List account '+TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccount(Operation).Data.account_target)+' for private sale price '+
@@ -3276,20 +3276,19 @@ begin
         CT_OpSubtype_ListAccountForAccountSwap:  begin
             OperationResume.OpSubtype := CT_OpSubtype_ListAccountForAccountSwap;
             OperationResume.OperationTxt :=
-            'List atomic account swap '+
-            ' for account ' + TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccountForSale(Operation).Data.account_target) +
-            ' hash-locked by ' + TCrypto.ToHexaString( TBaseType.ToRawBytes( TOpListAccountForSale(Operation).Data.hash_lock) ) +
-            ' time-locked until block ' + inttostr(TOpListAccountForSale(Operation).Data.locked_until_block) +
-            ' to counterparty key ' + TAccountComp.AccountPublicKeyExport( TOpListAccountForSale(Operation).Data.new_public_key);
+            'List account ' + TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccountForSaleOrSwap(Operation).Data.account_target) +
+            ' for atomic account swap with hash-lock "' + TCrypto.ToHexaString( TBaseType.ToRawBytes( TOpListAccountForSaleOrSwap(Operation).Data.hash_lock) ) + '"' +
+            ' time-locked till ' + inttostr(TOpListAccountForSaleOrSwap(Operation).Data.locked_until_block) +
+            ' to counterparty key ' + TAccountComp.AccountPublicKeyExport( TOpListAccountForSaleOrSwap(Operation).Data.new_public_key);
         end;
         CT_OpSubtype_ListAccountForCoinSwap:  begin
             OperationResume.OpSubtype := CT_OpSubtype_ListAccountForCoinSwap;
             OperationResume.OperationTxt :=
-            'List atomic coin swap '+TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccountForSale(Operation).Data.account_target)+
-            ' for ' + TAccountComp.FormatMoney(TOpListAccountForSale(Operation).Data.account_price) + ' PASC' +
-            ' hash-locked by ' + TCrypto.ToHexaString( TBaseType.ToRawBytes( TOpListAccountForSale(Operation).Data.hash_lock) ) +
-            ' time-locked until block ' + inttostr(TOpListAccountForSale(Operation).Data.locked_until_block) +
-            ' to counterparty account ' + TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccountForSale(Operation).Data.account_to_pay);
+            'List account '+TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccountForSaleOrSwap(Operation).Data.account_target)+
+            ' for atomic coin swap of ' + TAccountComp.FormatMoney(TOpListAccountForSaleOrSwap(Operation).Data.account_price) + ' PASC' +
+            ' with hash-lock "' + TCrypto.ToHexaString( TBaseType.ToRawBytes( TOpListAccountForSaleOrSwap(Operation).Data.hash_lock) ) + '"' +
+            ' time-locked till ' + inttostr(TOpListAccountForSaleOrSwap(Operation).Data.locked_until_block) +
+            ' to counterparty account ' + TAccountComp.AccountNumberToAccountTxtNumber(TOpListAccountForSaleOrSwap(Operation).Data.account_to_pay);
         end;
       end;
       OperationResume.newKey := TOpListAccount(Operation).Data.new_public_key;
@@ -3305,20 +3304,20 @@ begin
       OperationResume.DestAccount:=TOpBuyAccount(Operation).Data.target;
       if TOpBuyAccount(Operation).Data.sender=Affected_account_number then begin
         OperationResume.OpSubtype := CT_OpSubtype_BuyAccountBuyer;
-        OperationResume.OperationTxt := 'Buy account '+TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.target)+' for '+TAccountComp.FormatMoney(TOpBuyAccount(Operation).Data.AccountPrice)+' PASC';
+        OperationResume.OperationTxt := 'Buy account '+TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.target)+' for '+TAccountComp.FormatMoney(TOpBuyAccount(Operation).Data.AccountPrice)+' PASC' + ' with payload hex "' + TCrypto.ToHexaString(TOpBuyAccount(Operation).Data.Payload) +'"';
         OperationResume.Amount := Int64(TOpBuyAccount(Operation).Data.amount) * (-1);
         Result := true;
       end else if TOpBuyAccount(Operation).Data.target=Affected_account_number then begin
         OperationResume.OpSubtype := CT_OpSubtype_BuyAccountTarget;
         OperationResume.OperationTxt := 'Purchased account '+TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.target)+' by '+
-          TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.sender)+' for '+TAccountComp.FormatMoney(TOpBuyAccount(Operation).Data.AccountPrice)+' PASC';
+          TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.sender)+' for '+TAccountComp.FormatMoney(TOpBuyAccount(Operation).Data.AccountPrice)+' PASC' + ' with payload hex "' + TCrypto.ToHexaString(TOpBuyAccount(Operation).Data.Payload) +'"';;
         OperationResume.Amount := Int64(TOpBuyAccount(Operation).Data.amount) - Int64(TOpBuyAccount(Operation).Data.AccountPrice);
         OperationResume.Fee := 0;
         Result := true;
       end else if TOpBuyAccount(Operation).Data.SellerAccount=Affected_account_number then begin
         OperationResume.OpSubtype := CT_OpSubtype_BuyAccountSeller;
         OperationResume.OperationTxt := 'Sold account '+TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.target)+' by '+
-          TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.sender)+' for '+TAccountComp.FormatMoney(TOpBuyAccount(Operation).Data.AccountPrice)+' PASC';
+          TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.sender)+' for '+TAccountComp.FormatMoney(TOpBuyAccount(Operation).Data.AccountPrice)+' PASC' + ' with payload hex "' + TCrypto.ToHexaString(TOpBuyAccount(Operation).Data.Payload) +'"';;
         OperationResume.Amount := TOpBuyAccount(Operation).Data.AccountPrice;
         OperationResume.Fee := 0;
         Result := true;

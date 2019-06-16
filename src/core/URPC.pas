@@ -1147,7 +1147,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   // It assumes that account_number,account_last_n_operation and account_pubkey are correct
   Function CreateOperationListAccountForSale(current_protocol : Word; AListType : Word; account_signer, account_last_n_operation, account_listed : Cardinal; const account_signer_pubkey: TAccountKey;
     account_price : UInt64; locked_until_block : Cardinal; account_to_pay : Cardinal; Const new_account_pubkey : TAccountKey;
-    fee : UInt64; const AHashLock: T32Bytes; const RawPayload : TRawBytes; Const Payload_method, EncodePwd : String) : TOpListAccountForSale;
+    fee : UInt64; const AHashLock: T32Bytes; const RawPayload : TRawBytes; Const Payload_method, EncodePwd : String) : TOpListAccountForSaleOrSwap;
   // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
   var privateKey : TECPrivateKey;
     errors : String;
@@ -1161,7 +1161,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
        aux_target_pubkey := new_account_pubkey;
     end else aux_target_pubkey := account_signer_pubkey;
     if Not CheckAndGetEncodedRAWPayload(RawPayload,Payload_method,EncodePwd,account_signer_pubkey,aux_target_pubkey,f_raw) then Exit(Nil);
-    Result := TOpListAccountForSale.CreateListAccountForSale(
+    Result := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(
       current_protocol,
       AListType,
       account_signer,
@@ -1545,7 +1545,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     // "new_b58_pubkey" or "new_enc_pubkey" is the future public key for this sale (private sale), otherwise is open and everybody can buy
     // "enc_hash_lock" (optional) hex-encoded hash-lock for an atomic swap
   var
-    opSale: TOpListAccountForSale;
+    opSale: TOpListAccountForSaleOrSwap;
     listType : Integer;
     account_signer, account_target, seller_account : Cardinal;
     locked_until_block : Cardinal;

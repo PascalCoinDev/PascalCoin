@@ -11,7 +11,6 @@ uses
 
 function InputQueryPassword(ACaption, APrompt : String; var defValue : String) : Boolean;
 
-
 implementation
 
 function InputQueryPassword(ACaption, APrompt : String; var defValue : String) : Boolean;

@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
-    <Version Value="10"/>
+    <Version Value="12"/>
     <PathDelim Value="\"/>
     <General>
       <Flags>
         <MainUnitHasCreateFormStatements Value="False"/>
         <MainUnitHasTitleStatement Value="False"/>
+        <CompatibilityMode Value="True"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <MainUnit Value="0"/>
       <Title Value="PascalCoinMiner"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
@@ -25,9 +25,16 @@
     </PublishOptions>
     <RunParams>
       <local>
-        <FormatVersion Value="1"/>
         <CommandLineParams Value="-c 1 -s -n TEST"/>
       </local>
+      <FormatVersion Value="2"/>
+      <Modes Count="1">
+        <Mode0 Name="default">
+          <local>
+            <CommandLineParams Value="-c 1 -s -n TEST"/>
+          </local>
+        </Mode0>
+      </Modes>
     </RunParams>
     <RequiredPackages Count="1">
       <Item1>

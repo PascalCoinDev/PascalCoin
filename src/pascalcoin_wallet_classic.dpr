@@ -17,9 +17,7 @@ uses
   UAccounts in 'core\UAccounts.pas',
   {$IFDEF Use_OpenSSL}
   UAES in 'core\UAES.pas',
-  UECIES in 'core\UECIES.pas',
-  UOpenSSL in 'core\UOpenSSL.pas',
-  {$ENDIF}
+  {$ENDIF }
   UBaseTypes in 'core\UBaseTypes.pas',
   UBlockChain in 'core\UBlockChain.pas',
   UChunk in 'core\UChunk.pas',
@@ -60,7 +58,8 @@ uses
   UPCDataTypes in 'core\UPCDataTypes.pas',
   UPCOrderedLists in 'core\UPCOrderedLists.pas',
   UPCOperationsSignatureValidator in 'core\UPCOperationsSignatureValidator.pas',
-  UPCTNetDataExtraMessages in 'core\UPCTNetDataExtraMessages.pas';
+  UPCTNetDataExtraMessages in 'core\UPCTNetDataExtraMessages.pas',
+  UFRMHashLock in 'gui-classic\UFRMHashLock.pas' {FRMHashLock};
 
 {$R *.res}
 

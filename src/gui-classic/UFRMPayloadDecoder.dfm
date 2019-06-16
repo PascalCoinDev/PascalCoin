@@ -3,9 +3,9 @@ object FRMPayloadDecoder: TFRMPayloadDecoder
   Top = 0
   ActiveControl = ebOphash
   BorderIcons = [biSystemMenu]
-  BorderStyle = bsSingle
+  BorderStyle = bsToolWindow
   Caption = 'Operation Information/Decoder'
-  ClientHeight = 406
+  ClientHeight = 458
   ClientWidth = 691
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -68,13 +68,13 @@ object FRMPayloadDecoder: TFRMPayloadDecoder
   object lblOperationTxt: TLabel
     Left = 90
     Top = 101
-    Width = 561
-    Height = 22
+    Width = 579
+    Height = 68
     AutoSize = False
     Caption = '000'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clBlack
-    Font.Height = -16
+    Font.Height = -13
     Font.Name = 'Tahoma'
     Font.Style = [fsBold]
     ParentFont = False
@@ -182,15 +182,16 @@ object FRMPayloadDecoder: TFRMPayloadDecoder
   end
   object PageControl: TPageControl
     Left = 20
-    Top = 140
+    Top = 191
     Width = 653
-    Height = 206
-    ActivePage = tsDecoded
+    Height = 202
+    ActivePage = tsDecodeMethods
     TabOrder = 2
     OnChanging = PageControlChanging
     object tsDecoded: TTabSheet
       Caption = 'Payload'
-      ExplicitWidth = 623
+      ExplicitLeft = 0
+      ExplicitHeight = 178
       object Label7: TLabel
         Left = 15
         Top = 94
@@ -269,10 +270,10 @@ object FRMPayloadDecoder: TFRMPayloadDecoder
     object tsDecodeMethods: TTabSheet
       Caption = 'Decode methods'
       ImageIndex = 1
-      ExplicitWidth = 623
+      ExplicitHeight = 161
       object lblPasswordsInfo: TLabel
         Left = 235
-        Top = 162
+        Top = 143
         Width = 81
         Height = 13
         Caption = 'lblPasswordsInfo'
@@ -308,7 +309,7 @@ object FRMPayloadDecoder: TFRMPayloadDecoder
         Left = 235
         Top = 10
         Width = 390
-        Height = 146
+        Height = 127
         ScrollBars = ssBoth
         TabOrder = 3
         OnChange = cbMethodPublicPayloadClick
@@ -343,8 +344,8 @@ object FRMPayloadDecoder: TFRMPayloadDecoder
     end
   end
   object bbClose: TBitBtn
-    Left = 572
-    Top = 362
+    Left = 560
+    Top = 413
     Width = 97
     Height = 25
     Cancel = True

@@ -385,12 +385,12 @@ begin
   TNode.Node.NetServer.Active := true;
   FLastTC := 0;
   FLastMsg := '';
-  if (TNode.Node.Bank.BlocksCount<=1) then begin
+{  if (TNode.Node.Bank.BlocksCount<=1) then begin
     while (Not Terminated) And (Not TNode.Node.IsReady(currentProcess) Or (TNode.Node.Bank.BlocksCount<=1)) do begin
       Synchronize(ThreadSafeNotify);
       Sleep(200);
     end;
-  end;
+  end;}
   if Not Terminated then begin
     Synchronize( FRMWallet.DoUpdateAccounts );
     Synchronize( FRMWallet.FinishedLoadingApp );

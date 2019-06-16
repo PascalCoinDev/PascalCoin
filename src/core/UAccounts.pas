@@ -130,7 +130,8 @@ Type
   public
     Class Function IsValidAccountKey(const account: TAccountKey; var errors : String): Boolean;
     Class Function IsValidAccountInfo(const accountInfo: TAccountInfo; var errors : String): Boolean;
-    Class Function IsValidHashLockKey(const AAccount : TAccount; const AKey : TRawBytes) : Boolean;
+    Class Function IsValidAccountHashLockKey(const AAccount : TAccount; const AKey : TRawBytes) : Boolean;
+    Class Function IsValidHashLockKey(const AKey : TRawBytes; out AError : String) : Boolean;
     Class Function CalculateHashLock(const AKey : TRawBytes) : T32Bytes;
     Class Function IsAccountForSale(const accountInfo: TAccountInfo) : Boolean;
     Class Function IsAccountForSwap(const accountInfo: TAccountInfo) : Boolean;
@@ -1383,9 +1384,18 @@ begin
   end;
 end;
 
-Class Function TAccountComp.IsValidHashLockKey(const AAccount : TAccount; const AKey : TRawBytes) : Boolean;
+Class Function TAccountComp.IsValidAccountHashLockKey(const AAccount : TAccount; const AKey : TRawBytes) : Boolean;
 begin
   Result := BytesEqual( TBaseType.ToRawBytes( CalculateHashLock( AKey ) ), AAccount.account_data);
+end;
+
+Class Function TAccountComp.IsValidHashLockKey(const AKey : TRawBytes; out AError : String) : Boolean;
+begin
+  if (Length(AKey) < CT_HashLockKey_MinBytes) OR (Length(AKey) > CT_HashLockKey_MaxBytes) then begin
+    AError := Format('Hash-lock key must be %d to %d bytes in length',[CT_HashLockKey_MinBytes,CT_HashLockKey_MaxBytes]);
+    Exit(False);
+  end;
+  Result := true;
 end;
 
 Class Function TAccountComp.CalculateHashLock(const AKey : TRawBytes) : T32Bytes;
@@ -1426,7 +1436,7 @@ begin
       exit;
 
    if (account.accountInfo.state in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap]) then
-     if NOT IsValidHashLockKey(account, APayload) then
+     if NOT IsValidAccountHashLockKey(account, APayload) then
        exit;
 
   Result := true;
@@ -4000,7 +4010,7 @@ begin
     Exit;
   end;
   if (LPBuyerAccount^.balance < (AAmount+AFee)) then begin
-    AErrors := 'Insuficient founds';
+    AErrors := 'Insufficient Funds';
     Exit;
   end;
   if (AFee>CT_MaxTransactionFee) then begin
@@ -4028,7 +4038,7 @@ begin
       TAccountComp.FormatMoney(LPAccountToBuy^.balance)+' + amount '+TAccountComp.FormatMoney(AAmount);
     Exit;
   end;
-  if TAccountComp.IsAccountForSwap(LPAccountToBuy^.accountInfo) AND (NOT TAccountComp.IsValidHashLockKey(LPAccountToBuy^, AHashLockKey)) then begin
+  if TAccountComp.IsAccountForSwap(LPAccountToBuy^.accountInfo) AND (NOT TAccountComp.IsValidAccountHashLockKey(LPAccountToBuy^, AHashLockKey)) then begin
     AErrors := 'Account is not unlocked by supplied hash lock key';
     Exit;
   end;
@@ -4525,7 +4535,7 @@ begin
     Exit;
   end;
   if (P_signer^.balance < fee) then begin
-    errors := 'Insuficient founds';
+    errors := 'Insufficient Funds';
     Exit;
   end;
   if (TAccountComp.IsAccountLocked(P_signer^.accountInfo,Origin_BlocksCount)) then begin
