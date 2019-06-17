@@ -3304,20 +3304,20 @@ begin
       OperationResume.DestAccount:=TOpBuyAccount(Operation).Data.target;
       if TOpBuyAccount(Operation).Data.sender=Affected_account_number then begin
         OperationResume.OpSubtype := CT_OpSubtype_BuyAccountBuyer;
-        OperationResume.OperationTxt := 'Buy account '+TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.target)+' for '+TAccountComp.FormatMoney(TOpBuyAccount(Operation).Data.AccountPrice)+' PASC' + ' with payload hex "' + TCrypto.ToHexaString(TOpBuyAccount(Operation).Data.Payload) +'"';
+        OperationResume.OperationTxt := 'Buy account '+TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.target)+' for '+TAccountComp.FormatMoney(TOpBuyAccount(Operation).Data.AccountPrice)+' PASC';
         OperationResume.Amount := Int64(TOpBuyAccount(Operation).Data.amount) * (-1);
         Result := true;
       end else if TOpBuyAccount(Operation).Data.target=Affected_account_number then begin
         OperationResume.OpSubtype := CT_OpSubtype_BuyAccountTarget;
         OperationResume.OperationTxt := 'Purchased account '+TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.target)+' by '+
-          TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.sender)+' for '+TAccountComp.FormatMoney(TOpBuyAccount(Operation).Data.AccountPrice)+' PASC' + ' with payload hex "' + TCrypto.ToHexaString(TOpBuyAccount(Operation).Data.Payload) +'"';;
+          TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.sender)+' for '+TAccountComp.FormatMoney(TOpBuyAccount(Operation).Data.AccountPrice)+' PASC';
         OperationResume.Amount := Int64(TOpBuyAccount(Operation).Data.amount) - Int64(TOpBuyAccount(Operation).Data.AccountPrice);
         OperationResume.Fee := 0;
         Result := true;
       end else if TOpBuyAccount(Operation).Data.SellerAccount=Affected_account_number then begin
         OperationResume.OpSubtype := CT_OpSubtype_BuyAccountSeller;
         OperationResume.OperationTxt := 'Sold account '+TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.target)+' by '+
-          TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.sender)+' for '+TAccountComp.FormatMoney(TOpBuyAccount(Operation).Data.AccountPrice)+' PASC' + ' with payload hex "' + TCrypto.ToHexaString(TOpBuyAccount(Operation).Data.Payload) +'"';;
+          TAccountComp.AccountNumberToAccountTxtNumber(TOpBuyAccount(Operation).Data.sender)+' for '+TAccountComp.FormatMoney(TOpBuyAccount(Operation).Data.AccountPrice)+' PASC';
         OperationResume.Amount := TOpBuyAccount(Operation).Data.AccountPrice;
         OperationResume.Fee := 0;
         Result := true;

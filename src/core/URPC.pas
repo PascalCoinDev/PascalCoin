@@ -2147,7 +2147,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           Exit;
         end;
         account_to_purchase := FNode.GetMempoolAccount(c_account);
-        if Not TAccountComp.IsAccountForSale(account_to_purchase.accountInfo) then begin
+        if Not TAccountComp.IsAccountForSale(account_to_purchase.accountInfo, FNode.Bank.BlocksCount) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
           ErrorDesc := 'Account is not for sale: '+params.AsString('account_to_purchase','');
           Exit;

@@ -899,12 +899,12 @@ begin
   Strings.Add(Format('Updated on block: %d  (%d blocks ago)',[account.updated_block,FNode.Bank.BlocksCount-account.updated_block]));
   Strings.Add(Format('Public key type: %s',[TAccountComp.GetECInfoTxt(account.accountInfo.accountKey.EC_OpenSSL_NID)]));
   Strings.Add(Format('Base58 Public key: %s',[TAccountComp.AccountPublicKeyExport(account.accountInfo.accountKey)]));
-  if TAccountComp.IsAccountForSale(account.accountInfo) then begin
+  if TAccountComp.IsAccountForSale(account.accountInfo, FNode.Bank.BlocksCount) then begin
     Strings.Add('');
     Strings.Add('** Account is for sale: **');
     Strings.Add(Format('Price: %s',[TAccountComp.FormatMoney(account.accountInfo.price)]));
     Strings.Add(Format('Seller account (where to pay): %s',[TAccountComp.AccountNumberToAccountTxtNumber(account.accountInfo.account_to_pay)]));
-    if TAccountComp.IsAccountForSaleAcceptingTransactions(account.accountInfo) then begin
+    if TAccountComp.IsAccountForPrivateSale(account.accountInfo, FNode.Bank.BlocksCount) then begin
       Strings.Add('');
       Strings.Add('** Private sale **');
       Strings.Add(Format('New Base58 Public key: %s',[TAccountComp.AccountPublicKeyExport(account.accountInfo.new_publicKey)]));

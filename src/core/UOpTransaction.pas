@@ -758,9 +758,13 @@ function TOpTransaction.DoOperation(APrevious : TAccountPreviousBlockInfo; ASafe
 Var s_new, t_new : Int64;
   LTotalAmount : Cardinal;
   LSender,LTarget,LSeller : TAccount;
+  LRecipientSignable, LIsSwap : Boolean;
+  LCurrentBlock, LCurrentProtocol : Integer;
 begin
   Result := false;
   AErrors := '';
+  LCurrentBlock := ASafeBoxTransaction.FreezedSafeBox.BlocksCount;
+  LCurrentProtocol := ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol;
 
   {$region 'Common Validation'}
 
@@ -768,25 +772,12 @@ begin
     AErrors := Format('Invalid sender %d',[FData.sender]);
     Exit;
   end;
-
-  if (FData.target>=ASafeBoxTransaction.FreezedSafeBox.AccountsCount) then begin
-    AErrors := Format('Invalid target %d',[FData.target]);
-    Exit;
-  end;
-  if (FData.sender=FData.target) then begin
-    AErrors := Format('Sender=Target %d',[FData.sender]);
-    Exit;
-  end;
-  if TAccountComp.IsAccountBlockedByProtocol(FData.sender,ASafeBoxTransaction.FreezedSafeBox.BlocksCount) then begin
+  if TAccountComp.IsAccountBlockedByProtocol(FData.sender,LCurrentBlock) then begin
     AErrors := Format('sender (%d) is blocked for protocol',[FData.sender]);
     Exit;
   end;
-  if TAccountComp.IsAccountBlockedByProtocol(FData.target,ASafeBoxTransaction.FreezedSafeBox.BlocksCount) then begin
+  if TAccountComp.IsAccountBlockedByProtocol(FData.target,LCurrentBlock) then begin
     AErrors := Format('target (%d) is blocked for protocol',[FData.target]);
-    Exit;
-  end;
-  if (FData.amount<=0) Or (FData.amount>CT_MaxTransactionAmount) then begin
-    AErrors := Format('Invalid amount %d (0 or max: %d)',[FData.amount,CT_MaxTransactionAmount]);
     Exit;
   end;
   if (FData.fee<0) Or (FData.fee>CT_MaxTransactionFee) then begin
@@ -802,6 +793,30 @@ begin
 
   LSender := ASafeBoxTransaction.Account(FData.sender);
   LTarget := ASafeBoxTransaction.Account(FData.target);
+
+  if (FData.target>=ASafeBoxTransaction.FreezedSafeBox.AccountsCount) then begin
+    AErrors := Format('Invalid target %d',[FData.target]);
+    Exit;
+  end;
+
+  // V5 - Allow recipient-signed transactions. This is defined as
+  //  - Sender Account = Target Account
+  LRecipientSignable := TAccountComp.IsOperationRecipientSignable(LSender, LTarget, FData.Amount, LCurrentBlock);
+  LIsSwap := TAccountComp.IsAccountForCoinSwap(LTarget.accountInfo, LCurrentBlock);
+
+  if (FData.sender=FData.target) AND (NOT LRecipientSignable) then begin
+    AErrors := Format('Sender=Target and Target is not recipient-signable. Account: %d',[FData.sender]);
+    Exit;
+  end;
+  if (LRecipientSignable Or LIsSwap) then begin
+    IF ((FData.amount < 0) or (FData.amount>CT_MaxTransactionAmount)) then begin
+      AErrors := Format('Recipient-signed transaction had invalid amount %d. Must be within 0 or %d.)',[FData.amount,CT_MaxTransactionAmount]);
+      Exit;
+    end
+  end else if((FData.amount<=0) Or (FData.amount>CT_MaxTransactionAmount)) then begin
+    AErrors := Format('Invalid amount %d (1 or max: %d)',[FData.amount,CT_MaxTransactionAmount]);
+    Exit;
+  end;
   if ((LSender.n_operation+1)<>FData.n_operation) then begin
     AErrors := Format('Invalid n_operation %d (expected %d)',[FData.n_operation,LSender.n_operation+1]);
     Exit;
@@ -816,12 +831,12 @@ begin
     Exit;
   end;
   // Is locked? Protocol 2 check
-  if (TAccountComp.IsAccountLocked(LSender.accountInfo,ASafeBoxTransaction.FreezedSafeBox.BlocksCount)) then begin
+  if (NOT LRecipientSignable) AND (TAccountComp.IsAccountLocked(LSender.accountInfo,LCurrentBlock)) then begin
     AErrors := 'Sender Account is currently locked';
     exit;
   end;
   // Build 1.4
-  If (FData.public_key.EC_OpenSSL_NID<>CT_TECDSA_Public_Nul.EC_OpenSSL_NID) And (Not TAccountComp.EqualAccountKeys(FData.public_key,LSender.accountInfo.accountkey)) then begin
+  If (NOT TAccountComp.IsNullAccountKey(FData.public_key)) And (NOT TAccountComp.EqualAccountKeys(FData.public_key,LSender.accountInfo.accountkey)) then begin
     AErrors := Format('Invalid sender public key for account %d. Distinct from SafeBox public key! %s <> %s',[
       FData.sender,
       TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(FData.public_key)),
@@ -829,7 +844,10 @@ begin
     exit;
   end;
   // Check signature
-  If Not IsValidECDSASignature(LSender.accountInfo.accountkey, ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol, FData.sign) then begin
+  if LRecipientSignable AND (NOT IsValidECDSASignature(LSender.accountInfo.new_publicKey, LCurrentProtocol, FData.sign)) then begin
+    AErrors := 'Invalid recipient-signed ECDSA signature';
+    Exit;
+  end else If (NOT LRecipientSignable) AND (NOT IsValidECDSASignature(LSender.accountInfo.accountkey, ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol, FData.sign)) then begin
     AErrors := 'Invalid ECDSA signature';
     Exit;
   end;
@@ -847,13 +865,13 @@ begin
       exit;
     end;
 
-    if (TAccountComp.IsAccountForSwap(LTarget.accountInfo) AND (ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol<CT_PROTOCOL_5)) then begin
+    if (TAccountComp.IsAccountForSwap(LTarget.accountInfo, LCurrentBlock) AND (LCurrentProtocol<CT_PROTOCOL_5)) then begin
       AErrors := 'Atomic swaps are not allowed until Protocol 5';
       exit;
     end;
 
     LSeller := ASafeBoxTransaction.Account(FData.SellerAccount);
-    if Not TAccountComp.IsAccountForSaleOrSwap(LTarget.accountInfo) then begin
+    if Not TAccountComp.IsAccountForSaleOrSwap(LTarget.accountInfo, LCurrentBlock) then begin
       AErrors := Format('%d is not for sale or swap',[LTarget.account]);
       exit;
     end;
@@ -862,23 +880,24 @@ begin
       AErrors := Format('Seller account %d is not expected account %d',[FData.SellerAccount,LTarget.accountInfo.account_to_pay]);
       exit;
     end;
-    if (LTarget.balance + FData.amount < LTarget.accountInfo.price) then begin
-      AErrors := Format('Account %d balance (%d) + amount (%d) < price (%d)',[LTarget.account,LTarget.balance,FData.amount,LTarget.accountInfo.price]);
+    LTotalAmount := LTarget.accountInfo.price;
+    if LRecipientSignable then
+      LTotalAmount := LTotalAmount + FData.fee;
+    
+    if (LTarget.balance + FData.amount) < LTotalAmount then begin
+      AErrors := Format('Account %d balance (%d) + amount (%d) < price (%d)',[LTarget.account,LTarget.balance,FData.amount,LTotalAmount]);
       exit;
     end;
     if (FData.AccountPrice<>LTarget.accountInfo.price) then begin
       AErrors := Format('Signed price (%d) is not the same of account price (%d)',[FData.AccountPrice,LTarget.accountInfo.price]);
       exit;
     end;
-
-    if (ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol>=CT_PROTOCOL_5) then begin
-      if (TAccountComp.IsAccountForSaleAcceptingTransactions(LTarget.accountInfo)) and
-        (Not TAccountComp.EqualAccountKeys(FData.new_accountkey,LTarget.accountInfo.new_publicKey))  then begin
-          AErrors := Format('Provided new public key for %d is not the same than stored in a private sale: %s <> %s',[LTarget.account,
-            TAccountComp.AccountKey2RawString(LTarget.accountInfo.new_publicKey).ToHexaString,
-            TAccountComp.AccountKey2RawString(FData.new_accountkey).ToHexaString]);
-          exit;
-        end;
+    if NOT TAccountComp.IsValidNewAccountKey(LTarget.accountInfo, FData.new_accountkey, LCurrentProtocol, LCurrentBlock) then begin
+      AErrors := Format('Specified new public key for %d does not equal (or is not valid) the new public key stored in account: %s <> %s',
+      [LTarget.account,
+       TAccountComp.AccountKey2RawString(LTarget.accountInfo.new_publicKey).ToHexaString,
+        TAccountComp.AccountKey2RawString(FData.new_accountkey).ToHexaString]);
+      exit;
     end;
 
     If Not (TAccountComp.IsValidAccountKey(FData.new_accountkey,AErrors)) then exit; // BUG 20171511
@@ -888,20 +907,20 @@ begin
               (FData.opTransactionStyle = transaction_with_auto_buy_account) OR
               (
                 (FData.opTransactionStyle = transaction) AND
-                (ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol >= CT_PROTOCOL_2) AND
-                (TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(LTarget, FData.payload)) AND
+                (LCurrentProtocol >= CT_PROTOCOL_2) AND
+                (TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(LTarget, LCurrentBlock, FData.payload)) AND
                 ((LTarget.balance + FData.amount >= LTarget.accountInfo.price))
               )  then begin
     {$region 'Transaction Auto Buy Validation'}
-    if (ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol<CT_PROTOCOL_2) then begin
+    if (LCurrentProtocol<CT_PROTOCOL_2) then begin
       AErrors := 'Tx-Buy account is not allowed on Protocol 1';
       exit;
     end;
 
-    if (TAccountComp.IsAccountForSwap( LTarget.accountInfo ) AND (ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol<CT_PROTOCOL_5)) then begin
+    if (TAccountComp.IsAccountForSwap( LTarget.accountInfo, LCurrentBlock ) AND (ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol<CT_PROTOCOL_5)) then begin
       AErrors := 'Tx-Buy atomic swaps are not allowed until Protocol 5';
       exit;
-    end else If (ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol<CT_PROTOCOL_5) then begin
+    end else If (LCurrentProtocol<CT_PROTOCOL_5) then begin
       // the below line was a bug fix that introduced a new bug, and is retained here for
       // V2-V4 consistency
       //------
@@ -924,12 +943,6 @@ begin
 
   // final atomic coin swap checks for buy account flow
   if (FData.opTransactionStyle in [buy_account, transaction_with_auto_buy_account]) AND (LTarget.accountInfo.state = as_ForAtomicCoinSwap) then begin
-    // Ensure that the sender's key matches the counterparty account key
-    if NOT TAccountComp.EqualAccountKeys(LSender.accountInfo.accountKey, LSeller.accountInfo.accountKey) then begin
-      AErrors := 'Senders key did not match counterparty account''s key for this atomic swap ';
-      exit;
-    end;
-
     // Ensure the key for target doesn't change
     if NOT TAccountComp.EqualAccountKeys(LTarget.accountInfo.accountKey, FData.new_accountkey) then begin
       AErrors := 'Target key cannot be changed during atomic coin swap';
@@ -962,6 +975,7 @@ begin
       FData.fee,
       FData.new_accountkey,
       FData.payload,
+      LRecipientSignable,
       AErrors
     );
 
@@ -1776,8 +1790,7 @@ begin
   else Result := 0;
 end;
 
-function TOpListAccount.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean;
-Var
+function TOpListAccount.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean;Var
   account_signer, account_target : TAccount;
   LIsDelist, LIsSale, LIsPrivateSale, LIsPublicSale, LIsSwap, LIsAccountSwap, LIsCoinSwap : boolean;
 begin
@@ -1905,6 +1918,11 @@ begin
     if TAccountComp.EqualAccountKeys(account_target.accountInfo.accountKey,FData.new_public_key) then begin
       errors := 'New public key for private sale is the same public key';
       Exit;
+    end;
+  end else if LIsCoinSwap then begin
+    if (account_target.balance < (FData.account_price + FData.fee)) then begin
+      errors := 'Not enough funds for coin swap amount and fee';
+      exit;
     end;
   end;
 
@@ -2286,9 +2304,9 @@ begin
   Result := CT_Op_ListAccountForSale;
 end;
 
-function GetOpSubType : Integer;
+function TOpListAccountForSaleOrSwap.GetOpSubType : Integer;
 begin
-  case FData.accountState of
+  case FData.account_state of
     as_ForSale:
       if (FData.new_public_key.EC_OpenSSL_NID<>0) then Exit(CT_OpSubtype_ListAccountForPrivateSale) else Exit(CT_OpSubtype_ListAccountForPublicSale);
     as_ForAtomicAccountSwap: Exit(CT_OpSubtype_ListAccountForAccountSwap);

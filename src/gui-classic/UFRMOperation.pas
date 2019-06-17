@@ -168,7 +168,7 @@ type
     Function UpdateOpChangeKey(Const TargetAccount : TAccount; var SignerAccount : TAccount; var NewPublicKey : TAccountKey; var errors : String) : Boolean;
     Function UpdateOpListAccount(Const TargetAccount : TAccount; var SalePrice : Int64; var SellerAccount,SignerAccount : TAccount; var NewOwnerPublicKey : TAccountKey; var LockedUntilBlock : Cardinal; var HashLock : T32Bytes; var errors : String) : Boolean;
     Function UpdateOpDelist(Const TargetAccount : TAccount; var SignerAccount : TAccount; var errors : String) : Boolean;
-    Function UpdateOpBuyAccount(Const SenderAccount : TAccount; var AccountToBuy : TAccount; var amount : Int64; var NewPublicKey : TAccountKey; var errors : String) : Boolean;
+    Function UpdateOpBuyAccount(Const SenderAccount : TAccount; var AccountToBuy : TAccount; var amount : Int64; var NewPublicKey : TAccountKey; var ARecipientSigned : Boolean; var errors : String) : Boolean;
     Function UpdateOpChangeInfo(Const TargetAccount : TAccount; var SignerAccount : TAccount; var changeName : Boolean; var newName : TRawBytes; var changeType : Boolean; var newType : Word; var errors : String) : Boolean;
     procedure SetDefaultFee(const Value: Int64);
     Procedure OnSenderAccountsChanged(Sender : TObject);
@@ -203,7 +203,7 @@ procedure TFRMOperation.actExecuteExecute(Sender: TObject);
 Var errors : String;
   P : PAccount;
   i,iAcc : Integer;
-  wk : TWalletKey;
+  LKey : TWalletKey;
   ops : TOperationsHashTree;
   op : TPCOperation;
   account,signerAccount,destAccount,accountToBuy : TAccount;
@@ -215,7 +215,7 @@ Var errors : String;
   LHashLock : T32Bytes;
   _newName : TRawBytes;
   _newType : Word;
-  _changeName, _changeType, _V2, _executeSigner  : Boolean;
+  _changeName, _changeType, _V2, _executeSigner, LRecipientSigned : Boolean;
   _senderAccounts : TCardinalsArray;
 label loop_start;
 begin
@@ -241,12 +241,8 @@ loop_start:
       account := FNode.GetMempoolAccount(_senderAccounts[iAcc]);
       If Not UpdatePayload(account, errors) then
         raise Exception.Create('Error encoding payload of sender account '+TAccountComp.AccountNumberToAccountTxtNumber(account.account)+': '+errors);
-      i := WalletKeys.IndexOfAccountKey(account.accountInfo.accountKey);
-      if i<0 then begin
+      if NOT WalletKeys.TryGetKey(account.accountInfo.accountKey, LKey) then
         Raise Exception.Create('Sender account private key not found in Wallet');
-      end;
-
-      wk := WalletKeys.Key[i];
       dooperation := true;
       // Default fee
       if account.balance > uint64(DefaultFee) then _fee := DefaultFee else _fee := account.balance;
@@ -267,7 +263,7 @@ loop_start:
         end else begin
         end;
         if dooperation then begin
-          op := TOpTransaction.CreateTransaction(FNode.Bank.Safebox.CurrentProtocol,account.account,account.n_operation+1,destAccount.account,wk.PrivateKey,_amount,_fee,FEncodedPayload);
+          op := TOpTransaction.CreateTransaction(FNode.Bank.Safebox.CurrentProtocol,account.account,account.n_operation+1,destAccount.account,LKey.PrivateKey,_amount,_fee,FEncodedPayload);
           inc(_totalamount,_amount);
           inc(_totalfee,_fee);
         end;
@@ -287,11 +283,11 @@ loop_start:
           if uint64(_totalSignerFee) >= signerAccount.balance then _fee := 0
           else if signerAccount.balance - uint64(_totalSignerFee) > uint64(DefaultFee) then _fee := DefaultFee
           else _fee := signerAccount.balance - uint64(_totalSignerFee);
-          op := TOpChangeKeySigned.Create(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+_signer_n_ops+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
+          op := TOpChangeKeySigned.Create(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+_signer_n_ops+1,account.account,LKey.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
           inc(_signer_n_ops);
           inc(_totalSignerFee, _fee);
         end else begin
-          op := TOpChangeKey.Create(FNode.Bank.SafeBox.CurrentProtocol,account.account,account.n_operation+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
+          op := TOpChangeKey.Create(FNode.Bank.SafeBox.CurrentProtocol,account.account,account.n_operation+1,account.account,LKey.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
         end;
         inc(_totalfee,_fee);
         operationstxt := 'Change private key to '+TAccountComp.GetECInfoTxt(_newOwnerPublicKey.EC_OpenSSL_NID);
@@ -303,13 +299,13 @@ loop_start:
         if signerAccount.balance>DefaultFee then _fee := DefaultFee
         else _fee := signerAccount.balance;
         if (rbListAccountForPublicSale.Checked) then begin
-          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, CT_OpSubtype_ListAccountForPublicSale, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,CT_TECDSA_Public_Nul,0,wk.PrivateKey, CT_HashLock_NUL, FEncodedPayload);
+          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, CT_OpSubtype_ListAccountForPublicSale, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,CT_TECDSA_Public_Nul,0,LKey.PrivateKey, CT_HashLock_NUL, FEncodedPayload);
         end else if (rbListAccountForPrivateSale.Checked) then begin
-          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, CT_OpSubtype_ListAccountForPrivateSale, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,_newOwnerPublicKey,_lockedUntil,wk.PrivateKey, CT_HashLock_NUL, FEncodedPayload);
+          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, CT_OpSubtype_ListAccountForPrivateSale, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,_newOwnerPublicKey,_lockedUntil,LKey.PrivateKey, CT_HashLock_NUL, FEncodedPayload);
         end  else if (rbListAccountForAccountSwap.Checked) then begin
-          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, CT_OpSubtype_ListAccountForAccountSwap, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,_newOwnerPublicKey,_lockedUntil,wk.PrivateKey, LHashLock, FEncodedPayload);
+          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, CT_OpSubtype_ListAccountForAccountSwap, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,_newOwnerPublicKey,_lockedUntil,LKey.PrivateKey, LHashLock, FEncodedPayload);
         end  else if (rbListAccountForCoinSwap.Checked) then begin
-          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, CT_OpSubtype_ListAccountForCoinSwap, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,_newOwnerPublicKey,_lockedUntil,wk.PrivateKey, LHashLock, FEncodedPayload);
+          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, CT_OpSubtype_ListAccountForCoinSwap, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,_newOwnerPublicKey,_lockedUntil,LKey.PrivateKey, LHashLock, FEncodedPayload);
         end else raise Exception.Create('Select Sale type');
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsDelistAccount) then begin
@@ -318,13 +314,15 @@ loop_start:
         // Special fee account:
         if signerAccount.balance>DefaultFee then _fee := DefaultFee
         else _fee := signerAccount.balance;
-        op := TOpDelistAccountForSale.CreateDelistAccountForSale(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1+iAcc,account.account,_fee,wk.PrivateKey,FEncodedPayload);
+        op := TOpDelistAccountForSale.CreateDelistAccountForSale(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1+iAcc,account.account,_fee,LKey.PrivateKey,FEncodedPayload);
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsBuyAccount) then begin
         {%region Operation: Buy Account}
-        if Not UpdateOpBuyAccount(account,accountToBuy,_amount,_newOwnerPublicKey,errors) then raise Exception.Create(errors);
+        if Not UpdateOpBuyAccount(account,accountToBuy,_amount,_newOwnerPublicKey, LRecipientSigned, errors) then raise Exception.Create(errors);
+        if LRecipientSigned AND (NOT WalletKeys.TryGetKey(account.accountInfo.new_publicKey, LKey)) then
+          raise Exception.Create('Recipient-signed key not found in Wallet');
         op := TOpBuyAccount.CreateBuy(FNode.Bank.Safebox.CurrentProtocol,account.account,account.n_operation+1,accountToBuy.account,accountToBuy.accountInfo.account_to_pay,
-          accountToBuy.accountInfo.price,_amount,_fee,_newOwnerPublicKey,wk.PrivateKey,FEncodedPayload);
+          accountToBuy.accountInfo.price,_amount,_fee,_newOwnerPublicKey,LKey.PrivateKey,FEncodedPayload);
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsChangeInfo) then begin
         {%region Operation: Change Info}
@@ -333,7 +331,7 @@ loop_start:
         end else begin
           if signerAccount.balance>DefaultFee then _fee := DefaultFee
           else _fee := signerAccount.balance;
-          op := TOpChangeAccountInfo.CreateChangeAccountInfo(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1,account.account,wk.PrivateKey,false,CT_TECDSA_Public_Nul,
+          op := TOpChangeAccountInfo.CreateChangeAccountInfo(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1,account.account,LKey.PrivateKey,false,CT_TECDSA_Public_Nul,
              _changeName,_newName,_changeType,_newType,_fee,FEncodedPayload);
         end;
         {%endregion}
@@ -815,11 +813,11 @@ begin
   end;
 end;
 
-function TFRMOperation.UpdateOpBuyAccount(const SenderAccount: TAccount; var AccountToBuy: TAccount; var amount: Int64; var NewPublicKey: TAccountKey; var errors: String): Boolean;
+function TFRMOperation.UpdateOpBuyAccount(const SenderAccount: TAccount; var AccountToBuy: TAccount; var amount: Int64; var NewPublicKey: TAccountKey; var ARecipientSigned : Boolean; var errors: String): Boolean;
 var c : Cardinal;
   i : Integer;
 begin
-  //
+  ARecipientSigned := false;
   lblBuyAccountErrors.Caption := ''; c:=0;
   errors := '';
   Try
@@ -831,12 +829,18 @@ begin
       errors := 'Invalid account to buy '+ebAccountToBuy.Text;
       exit;
     end;
-    If (c<0) Or (c>=FNode.Bank.AccountsCount) Or (c=SenderAccount.account) then begin
+    If (c<0) Or (c>=FNode.Bank.AccountsCount) then begin
       errors := 'Invalid account number';
       exit;
     end;
     AccountToBuy := FNode.GetMempoolAccount(c);
-    If not TAccountComp.IsAccountForSaleOrSwap(AccountToBuy.accountInfo) then begin
+    ARecipientSigned := TAccountComp.IsOperationRecipientSignable(SenderAccount, AccountToBuy, Amount, FNode.Bank.BlocksCount);
+    if (SenderAccount.account = AccountToBuy.Account) AND (NOT ARecipientSigned) then begin
+      errors := 'Not recipient signable';
+      exit;
+    end;
+
+    If not TAccountComp.IsAccountForSaleOrSwap(AccountToBuy.accountInfo, FNode.Bank.BlocksCount) then begin
       errors := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(c)+' is not for sale or swap';
       exit;
     end;
@@ -844,11 +848,11 @@ begin
       errors := 'Invalid amount value';
       exit;
     end;
-    if (AccountToBuy.accountInfo.price>amount) then begin
+     if (AccountToBuy.accountInfo.price>amount) AND (NOT TAccountComp.IsAccountForCoinSwap(AccountToBuy.accountInfo, FNode.Bank.BlocksCount)) then begin
       errors := 'Account price '+TAccountComp.FormatMoney(AccountToBuy.accountInfo.price);
       exit;
     end;
-    if TAccountComp.IsAccountForSale(AccountToBuy.accountInfo) AND (amount+DefaultFee > SenderAccount.balance) then begin
+    if TAccountComp.IsAccountForSale(AccountToBuy.accountInfo, FNode.Bank.BlocksCount) AND (amount+DefaultFee > SenderAccount.balance) then begin
       errors := 'Insufficient funds';
       exit;
     end;
@@ -1025,7 +1029,7 @@ begin
   Result := false;
   if not (PageControlOpType.ActivePage=tsDelistAccount) then exit;
   try
-    if Not TAccountComp.IsAccountForSaleOrSwap(TargetAccount.accountInfo) then begin
+    if Not TAccountComp.IsAccountForSaleOrSwap(TargetAccount.accountInfo, FNode.Bank.BlocksCount) then begin
       errors := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(TargetAccount.account)+' is not for sale or swap';
       exit;
     end;
@@ -1077,7 +1081,7 @@ Var
   LHashLock : T32Bytes;
   salePrice, amount : Int64;
   auxC : Cardinal;
-  changeName,changeType : Boolean;
+  changeName,changeType, LRecipientSigned : Boolean;
   newName : TRawBytes;
   newType : Word;
 begin
@@ -1146,7 +1150,7 @@ begin
   end else if (PageControlOpType.ActivePage = tsDelistAccount) then begin
     Result := UpdateOpDelist(GetDefaultSenderAccount,signer_account,errors);
   end else if (PageControlOpType.ActivePage = tsBuyAccount) then begin
-    Result := UpdateOpBuyAccount(GetDefaultSenderAccount,account_to_buy,amount,publicKey,errors);
+    Result := UpdateOpBuyAccount(GetDefaultSenderAccount,account_to_buy,amount,publicKey,LRecipientSigned, errors);
   end else if (PageControlOpType.ActivePage = tsChangeInfo) then begin
     Result := UpdateOpChangeInfo(GetDefaultSenderAccount,signer_account,changeName,newName,changeType,newType,errors);
   end else begin

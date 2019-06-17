@@ -134,16 +134,22 @@ Type
   TAccountComp = Class
   private
   public
-    Class Function IsValidAccountKey(const account: TAccountKey; var errors : String): Boolean;
-    Class Function IsValidAccountInfo(const accountInfo: TAccountInfo; var errors : String): Boolean;
+    Class Function IsValidAccountKey(const AAccountInfo: TAccountKey; var errors : String): Boolean;
+    Class function IsNullAccountKey(const AAccountInfo : TAccountKey) : Boolean;
+    Class function IsValidNewAccountKey(const AAccountInfo : TAccountInfo; const ANewKey : TAccountKey; AProtocolVersion : Integer; ACurrentBlock : Integer) : Boolean;
+    Class Function IsValidAccountInfo(const AAccountInfo: TAccountInfo; var errors : String): Boolean;
     Class Function IsValidAccountHashLockKey(const AAccount : TAccount; const AKey : TRawBytes) : Boolean;
     Class Function IsValidHashLockKey(const AKey : TRawBytes; out AError : String) : Boolean;
     Class Function CalculateHashLock(const AKey : TRawBytes) : T32Bytes;
-    Class Function IsAccountForSale(const accountInfo: TAccountInfo) : Boolean;
-    Class Function IsAccountForSwap(const accountInfo: TAccountInfo) : Boolean;
-    Class Function IsAccountForSaleOrSwap(const accountInfo: TAccountInfo) : Boolean;
-    class function IsAccountForSaleAcceptingTransactions(const AAccountInfo: TAccountInfo): Boolean;
-    Class Function IsAccountForSaleOrSwapAcceptingTransactions(const account: TAccount; const APayload : TRawBytes) : Boolean;
+    Class Function IsAccountForSale(const AAccountInfo: TAccountInfo; ACurrentBlock : Integer) : Boolean;
+    Class function IsAccountForPrivateSale(const AAccountInfo: TAccountInfo; ACurrentBlock : Integer): Boolean;
+    Class function IsAccountForPublicSale(const AAccountInfo: TAccountInfo): Boolean;
+    Class Function IsAccountForSwap(const AAccountInfo: TAccountInfo; ACurrentBlock : Integer) : Boolean;
+    Class function IsAccountForCoinSwap(const AAccountInfo: TAccountInfo; ACurrentBlock : Integer) : Boolean;
+    Class function IsAccountForAccountSwap(const AAccountInfo: TAccountInfo; ACurrentBlock : Integer) : Boolean;
+    Class Function IsAccountForSaleOrSwap(const AAccountInfo: TAccountInfo; ACurrentBlock : Integer) : Boolean;
+    Class Function IsAccountForSaleOrSwapAcceptingTransactions(const AAccount: TAccount; ACurrentBlock : Integer; const APayload : TRawBytes) : Boolean;
+    Class Function IsOperationRecipientSignable(const ASender, ATarget : TAccount; AIncomingFunds : UInt64; ACurrentBlock : Integer ) : Boolean;
     Class Function GetECInfoTxt(Const EC_OpenSSL_NID: Word) : String;
     Class Procedure ValidsEC_OpenSSL_NID(list : TList<Word>);
     Class Function AccountKey2RawString(const account: TAccountKey): TRawBytes; overload;
@@ -468,7 +474,7 @@ Type
     Function TransferAmount(previous : TAccountPreviousBlockInfo; const AOpID : TRawBytes; sender,signer,target : Cardinal; n_operation : Cardinal; amount, fee : UInt64; var errors : String) : Boolean;
     Function TransferAmounts(previous : TAccountPreviousBlockInfo; const AOpID : TRawBytes; const senders, n_operations : Array of Cardinal; const sender_amounts : Array of UInt64; const receivers : Array of Cardinal; const receivers_amounts : Array of UInt64; var errors : String) : Boolean;
     Function UpdateAccountInfo(previous : TAccountPreviousBlockInfo; const AOpID : TRawBytes; signer_account, signer_n_operation, target_account: Cardinal; const accountInfo: TAccountInfo; const newName, newData : TRawBytes; newType : Word; fee: UInt64; var errors : String) : Boolean;
-    Function BuyAccount(APrevious : TAccountPreviousBlockInfo; const AOpID : TRawBytes; ABuyer,AAccountToBuy,ASeller: Cardinal; ANOperation : Cardinal; AAmount, AAccountPrice, AFee : UInt64; const ANewAccountKey : TAccountKey; const AHashLockKey : TRawBytes; var AErrors : String) : Boolean;
+    Function BuyAccount(APrevious : TAccountPreviousBlockInfo; const AOpID : TRawBytes; ABuyer,AAccountToBuy,ASeller: Cardinal; ANOperation : Cardinal; AAmount, AAccountPrice, AFee : UInt64; const ANewAccountKey : TAccountKey; const AHashLockKey : TRawBytes; ARecipientSigned : Boolean; var AErrors : String) : Boolean;
     Function Commit(Const operationBlock : TOperationBlock; var errors : String) : Boolean;
     Function Account(account_number : Cardinal) : TAccount;
     Procedure Rollback;
@@ -1414,7 +1420,6 @@ begin
   end;
 end;
 
-
 class function TAccountComp.FormatMoney(Money: Int64): String;
 begin
   Result := FormatFloat('#,###0.0000',(Money/10000));
@@ -1471,47 +1476,80 @@ begin
   Result := TBaseType.To32Bytes( TCrypto.DoSha256(AKey) );
 end;
 
-class function TAccountComp.IsAccountForSale(const accountInfo: TAccountInfo): Boolean;
+class function TAccountComp.IsAccountForSale(const AAccountInfo: TAccountInfo; ACurrentBlock : Integer): Boolean;
 begin
-  Result := AccountInfo.state in [as_ForSale];
+  Result := IsAccountForPrivateSale(AAccountInfo, ACurrentBlock) OR IsAccountForPublicSale(AAccountInfo);
 end;
 
-class function TAccountComp.IsAccountForSwap(const accountInfo: TAccountInfo): Boolean;
+class function TAccountComp.IsAccountForPrivateSale(const AAccountInfo: TAccountInfo; ACurrentBlock : Integer): Boolean;
 begin
-  Result := AccountInfo.state in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap];
+  Result := (AAccountInfo.state in [as_ForSale]) AND (NOT IsNullAccountKey(AAccountInfo.accountKey)) AND (AAccountInfo.locked_until_block >= ACurrentBlock);
 end;
 
-class function TAccountComp.IsAccountForSaleOrSwap(const accountInfo: TAccountInfo): Boolean;
+class function TAccountComp.IsAccountForPublicSale(const AAccountInfo: TAccountInfo): Boolean;
 begin
-  Result := IsAccountForSale(accountInfo) OR IsAccountForSwap(accountInfo);
+  Result := (AAccountInfo.state in [as_ForSale]) AND IsNullAccountKey(AAccountInfo.accountKey);
 end;
 
-class function TAccountComp.IsAccountForSaleAcceptingTransactions(const AAccountInfo: TAccountInfo): Boolean;
-var LErrors : String;
+class function TAccountComp.IsAccountForSwap(const AAccountInfo: TAccountInfo; ACurrentBlock : Integer): Boolean;
 begin
-  Result := IsAccountForSale(AAccountInfo) AND IsValidAccountKey(AAccountInfo.new_publicKey, LErrors);
+  Result := IsAccountForAccountSwap(AAccountInfo, ACurrentBlock) OR IsAccountForCoinSwap(AAccountInfo, ACurrentBlock);
 end;
 
-class function TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(const account: TAccount; const APayload : TRawBytes): Boolean;
+class function TAccountComp.IsAccountForAccountSwap(const AAccountInfo: TAccountInfo; ACurrentBlock : Integer) : Boolean;
+begin
+  Result := (AAccountInfo.state in [as_ForAtomicAccountSwap]) AND (AAccountInfo.locked_until_block >= ACurrentBlock);
+end;
+
+class function TAccountComp.IsAccountForCoinSwap(const AAccountInfo: TAccountInfo; ACurrentBlock : Integer) : Boolean;
+begin
+  Result := (AAccountInfo.state in [ as_ForAtomicCoinSwap]) AND (AAccountInfo.locked_until_block >= ACurrentBlock);
+end;
+
+class function TAccountComp.IsAccountForSaleOrSwap(const AAccountInfo: TAccountInfo; ACurrentBlock : Integer): Boolean;
+begin
+  Result := IsAccountForSale(AAccountInfo, ACurrentBlock) OR IsAccountForSwap(AAccountInfo, ACurrentBlock);
+end;
+
+class function TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(const AAccount: TAccount; ACurrentBlock : Integer; const APayload : TRawBytes): Boolean;
 var errors : String;
 begin
   Result := False;
-  if Not IsAccountForSaleOrSwap(account.accountInfo) then
+  if Not IsAccountForSaleOrSwap(AAccount.accountInfo, ACurrentBlock) then
     exit;
 
-  if (account.accountInfo.state in [as_ForSale, as_ForAtomicAccountSwap]) then
-    if NOT IsValidAccountKey(account.accountInfo.new_publicKey,errors) then
+  if (AAccount.accountInfo.state in [as_ForSale, as_ForAtomicAccountSwap]) then
+    if NOT IsValidAccountKey(AAccount.accountInfo.new_publicKey,errors) then
       exit;
 
-   if (account.accountInfo.state in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap]) then
-     if NOT IsValidAccountHashLockKey(account, APayload) then
+   if (AAccount.accountInfo.state in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap]) then
+     if NOT IsValidAccountHashLockKey(AAccount, APayload) then
        exit;
   Result := True;
 end;
 
+Class Function TAccountComp.IsOperationRecipientSignable(const ASender, ATarget : TAccount; AIncomingFunds : UInt64; ACurrentBlock : Integer ) : Boolean;
+begin
+  // V5 - Allow recipient-signed operations under following conditions:
+  //  - Sender Account = Target Account
+  //  - Target Account is time-locked to new-owner-key R and time-lock is active
+  //  - (Target.Balance + Operation.Quantity) >= Target.SalePrice
+  //  - Signed by new-owner-key R
+  //
+  //  This allows following use-cases:
+  //  - Private account sale where buyer does not have existing account to initiate transaction
+  //  - Atomic account swap where counterparty does not have existing account to initiate transaction
+  Result := (ASender.account = ATarget.account) AND
+            TAccountComp.IsAccountLocked(ATarget.accountInfo, ACurrentBlock) AND
+           ((ATarget.balance + AIncomingFunds) >= (ATarget.accountInfo.price));
+
+ // Note: this does not validate recipient signature, only determines if
+ // it is recipient signable
+end;
+
 class function TAccountComp.IsAccountLocked(const AccountInfo: TAccountInfo; blocks_count: Cardinal): Boolean;
 begin
-  Result := IsAccountForSaleOrSwap(accountInfo) And ((AccountInfo.locked_until_block)>=blocks_count);
+  Result := IsAccountForSaleOrSwap(accountInfo, blocks_count) And ((AccountInfo.locked_until_block)>=blocks_count);
 end;
 
 class procedure TAccountComp.SaveTOperationBlockToStream(const stream: TStream; const operationBlock: TOperationBlock);
@@ -1559,20 +1597,20 @@ begin
       Account.account_data.ToHexaString,Account.account_seal.ToHexaString ]);
 end;
 
-class function TAccountComp.IsValidAccountInfo(const accountInfo: TAccountInfo; var errors: String): Boolean;
+class function TAccountComp.IsValidAccountInfo(const AAccountInfo: TAccountInfo; var errors: String): Boolean;
 Var s : String;
 begin
   errors := '';
-  case accountInfo.state of
+  case AAccountInfo.state of
     as_Unknown: begin
         errors := 'Account state is unknown';
         Result := false;
       end;
     as_Normal: begin
-        Result := IsValidAccountKey(accountInfo.accountKey,errors);
+        Result := IsValidAccountKey(AAccountInfo.accountKey,errors);
       end;
     as_ForSale: begin
-        If Not IsValidAccountKey(accountInfo.accountKey,s) then errors := errors +' '+s;
+        If Not IsValidAccountKey(AAccountInfo.accountKey,s) then errors := errors +' '+s;
         Result := errors='';
       end;
   else
@@ -1580,16 +1618,54 @@ begin
   end;
 end;
 
-class function TAccountComp.IsValidAccountKey(const account: TAccountKey; var errors : String): Boolean;
+class function TAccountComp.IsValidAccountKey(const AAccountInfo: TAccountKey; var errors : String): Boolean;
 begin
   errors := '';
-  case account.EC_OpenSSL_NID of
+  case AAccountInfo.EC_OpenSSL_NID of
     CT_NID_secp256k1,CT_NID_secp384r1,CT_NID_sect283k1,CT_NID_secp521r1 : begin
-      Result := TECPrivateKey.IsValidPublicKey(account,errors);
+      Result := TECPrivateKey.IsValidPublicKey(AAccountInfo,errors);
     end;
   else
-    errors := Format('Invalid AccountKey type:%d (Unknown type) - Length x:%d y:%d',[account.EC_OpenSSL_NID,length(account.x),length(account.y)]);
+    errors := Format('Invalid AccountKey type:%d (Unknown type) - Length x:%d y:%d',[AAccountInfo.EC_OpenSSL_NID,length(AAccountInfo.x),length(AAccountInfo.y)]);
     Result := False;
+  end;
+end;
+
+class function TAccountComp.IsNullAccountKey(const AAccountInfo : TAccountKey) : Boolean;
+begin
+  Result := AAccountInfo.EC_OpenSSL_NID = CT_TECDSA_Public_Nul.EC_OpenSSL_NID;
+end;
+
+class function TAccountComp.IsValidNewAccountKey(const AAccountInfo : TAccountInfo; const ANewKey : TAccountKey; AProtocolVersion : Integer; ACurrentBlock : Integer) : Boolean;
+begin
+  Result :=False;
+  if AProtocolVersion <= CT_PROTOCOL_5 then begin
+    // V2 - V4 Rules
+    // - Private Sale: non-null and must match stored new-key in account_info
+    // - Public Sale: non-null
+    // - Else: non-null  (used for change key)
+    if IsAccountForPrivateSale(AAccountInfo, ACurrentBlock) then
+       Result := (NOT IsNullAccountKey(ANewKey)) AND TAccountComp.EqualAccountKeys(ANewKey, AAccountInfo.new_publicKey)
+    else if IsAccountForPublicSale(AAccountInfo) then
+       Result := NOT IsNullAccountKey(ANewKey)
+    else
+       Result := NOT IsNullAccountKey(ANewKey);
+  end else begin
+    // V5 New Key Rules:
+    // - Private Sale, Atomic Account Swap: new key must match specified new-key in account_info
+    // - Public Sale: non null
+    // - Atomic Coin Swap: new key must equal existing account key, ignoring stored new-key if any
+    // - else: non-null
+    if TAccountComp.IsAccountForPrivateSale(AAccountInfo, ACurrentBlock) then
+      Result := TAccountComp.EqualAccountKeys(ANewKey, AAccountInfo.new_publicKey)
+    else if TAccountComp.IsAccountForPublicSale(AAccountInfo) then
+      Result := NOT IsNullAccountKey(ANewKey)
+    else if TAccountComp.IsAccountForAccountSwap(AAccountInfo, ACurrentBlock) then
+      Result := TAccountComp.EqualAccountKeys(ANewKey, AAccountInfo.new_publicKey)
+    else if TAccountComp.IsAccountForCoinSwap(AAccountInfo, ACurrentBlock) then
+      Result := TAccountComp.EqualAccountKeys(ANewKey, AAccountInfo.accountKey)
+    else
+      Result := NOT IsNullAccountKey(ANewKey);
   end;
 end;
 
@@ -4040,7 +4116,7 @@ begin
   end;
 end;
 
-function TPCSafeBoxTransaction.BuyAccount(APrevious : TAccountPreviousBlockInfo; const AOpID : TRawBytes;  ABuyer, AAccountToBuy, ASeller: Cardinal; ANOperation: Cardinal; AAmount, AAccountPrice, AFee: UInt64;  const ANewAccountKey: TAccountKey; const AHashLockKey : TRawBytes; var AErrors: String): Boolean;
+function TPCSafeBoxTransaction.BuyAccount(APrevious : TAccountPreviousBlockInfo; const AOpID : TRawBytes;  ABuyer, AAccountToBuy, ASeller: Cardinal; ANOperation: Cardinal; AAmount, AAccountPrice, AFee: UInt64;  const ANewAccountKey: TAccountKey; const AHashLockKey : TRawBytes; ARecipientSigned : Boolean; var AErrors: String): Boolean;
 var
   LPBuyerAccount, LPAccountToBuy, LPSellerAccount : PAccount;
   LPBuyerAccount_Sealed, LPAccountToBuy_Sealed, LPSellerAccount_Sealed : PSealedAccount;
@@ -4084,11 +4160,11 @@ begin
     AErrors := 'Max fee';
     Exit;
   end;
-  if (TAccountComp.IsAccountLocked(LPBuyerAccount^.accountInfo,Origin_BlocksCount)) then begin
+  if (TAccountComp.IsAccountLocked(LPBuyerAccount^.accountInfo,Origin_BlocksCount) AND (NOT ARecipientSigned)) then begin
     AErrors := 'Buyer account is locked until block '+Inttostr(LPBuyerAccount^.accountInfo.locked_until_block);
     Exit;
   end;
-  If not (TAccountComp.IsAccountForSaleOrSwap(LPAccountToBuy^.accountInfo)) then begin
+  If not (TAccountComp.IsAccountForSaleOrSwap(LPAccountToBuy^.accountInfo, Origin_BlocksCount)) then begin
     AErrors := 'Account is not for sale or swap';
     Exit;
   end;
@@ -4105,7 +4181,7 @@ begin
       TAccountComp.FormatMoney(LPAccountToBuy^.balance)+' + amount '+TAccountComp.FormatMoney(AAmount);
     Exit;
   end;
-  if TAccountComp.IsAccountForSwap(LPAccountToBuy^.accountInfo) AND (NOT TAccountComp.IsValidAccountHashLockKey(LPAccountToBuy^, AHashLockKey)) then begin
+  if TAccountComp.IsAccountForSwap(LPAccountToBuy^.accountInfo, Origin_BlocksCount) AND (NOT TAccountComp.IsValidAccountHashLockKey(LPAccountToBuy^, AHashLockKey)) then begin
     AErrors := 'Account is not unlocked by supplied hash lock key';
     Exit;
   end;
@@ -4135,10 +4211,32 @@ begin
 
   // Inc buyer n_operation
   LPBuyerAccount^.n_operation := ANOperation;
-  // Set new balance values
+  // Set new balance values (with overflow checks)
+  if AAmount > (AAmount + AFee) then begin
+    AErrors := 'Critical overflow error detected, aborting SafeBox update. Ref: 37E7343143614D4C8489FA9963CE8C3C';
+    exit;
+  end;
+  if LPBuyerAccount^.balance < (AAmount + AFee) then begin
+    AErrors := 'Critical overflow error detected, aborting SafeBox update. Ref: F06169D9A209410AACB1AAD324B7A191';
+    exit;
+  end;
   LPBuyerAccount^.balance := LPBuyerAccount^.balance - (AAmount + AFee);
+
+  if LPAccountToBuy^.balance > (LPAccountToBuy^.balance + AAmount) then begin
+    AErrors := 'Critical overflow error detected, aborting SafeBox update. Ref: 390BB1E7241B4A0BA5A2D934E67F39D3';
+    exit;
+  end;
+  if (LPAccountToBuy^.balance + AAmount) < (LPAccountToBuy^.accountInfo.price) then begin
+    AErrors := 'Critical overflow error detected, aborting SafeBox update. Ref: 19D80241DA584D0B93ED30F27110B9A9';
+    exit;
+  end;
   LPAccountToBuy^.balance := LPAccountToBuy^.balance + AAmount - LPAccountToBuy^.accountInfo.price;
-  LPSellerAccount^.balance := LPSellerAccount^.balance + LPAccountToBuy^.accountInfo.price;
+
+  if LPSellerAccount^.balance > (LPSellerAccount^.balance + LPAccountToBuy^.accountInfo.price) then begin
+    AErrors := 'Critical overflow error detected, aborting SafeBox update. Ref: 972CA85C6E4E4081ABB767F6D8019421';
+    exit;
+  end;
+    LPSellerAccount^.balance := LPSellerAccount^.balance + LPAccountToBuy^.accountInfo.price;
 
   // After buy, account will be unlocked and set to normal state and new account public key changed
   LPAccountToBuy^.accountInfo := CT_AccountInfo_NUL;

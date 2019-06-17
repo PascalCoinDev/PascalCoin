@@ -916,6 +916,10 @@ object FRMWallet: TFRMWallet
     object tsBlockChain: TTabSheet
       Caption = 'Block Explorer'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Panel2: TPanel
         Left = 0
         Top = 0
@@ -1095,6 +1099,10 @@ object FRMWallet: TFRMWallet
     object tsNodeStats: TTabSheet
       Caption = 'Node Stats'
       ImageIndex = 3
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         857
         438)
@@ -1164,6 +1172,10 @@ object FRMWallet: TFRMWallet
     object tsMessages: TTabSheet
       Caption = 'Messages'
       ImageIndex = 6
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         857
         438)

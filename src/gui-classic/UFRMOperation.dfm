@@ -105,7 +105,6 @@ object FRMOperation: TFRMOperation
     TabOrder = 1
     object tsOperation: TTabSheet
       TabVisible = False
-      ExplicitHeight = 373
       object lblFee: TLabel
         Left = 15
         Top = 220
@@ -301,6 +300,10 @@ object FRMOperation: TFRMOperation
         OnChange = PageControlOpTypeChange
         object tsTransaction: TTabSheet
           Caption = 'Transaction'
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object lblDestAccount: TLabel
             Left = 13
             Top = 32
@@ -387,6 +390,10 @@ object FRMOperation: TFRMOperation
         object tsChangePrivateKey: TTabSheet
           Caption = 'Change Key'
           ImageIndex = 1
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object lblNewPrivateKey: TLabel
             Left = 57
             Top = 40
@@ -770,6 +777,10 @@ object FRMOperation: TFRMOperation
         object tsDelistAccount: TTabSheet
           Caption = 'Delist Account'
           ImageIndex = 3
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object lblDelistErrors: TLabel
             Left = 13
             Top = 10
@@ -790,6 +801,10 @@ object FRMOperation: TFRMOperation
         object tsBuyAccount: TTabSheet
           Caption = 'Buy Account'
           ImageIndex = 4
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object lblAccountToBuy: TLabel
             Left = 13
             Top = 32
@@ -965,6 +980,10 @@ object FRMOperation: TFRMOperation
         end
         object tsChangeInfo: TTabSheet
           Caption = 'Change Info'
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object lblChangeInfoErrors: TLabel
             Left = 13
             Top = 10
@@ -1030,6 +1049,9 @@ object FRMOperation: TFRMOperation
     object tsGlobalError: TTabSheet
       ImageIndex = 1
       TabVisible = False
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
       ExplicitHeight = 373
       object lblGlobalErrors: TLabel
         Left = 40

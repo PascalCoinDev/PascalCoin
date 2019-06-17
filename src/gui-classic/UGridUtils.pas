@@ -722,10 +722,10 @@ begin
           Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
         end;
         act_saleprice : Begin
-          if TAccountComp.IsAccountForSale(account.accountInfo) then begin
+          if TAccountComp.IsAccountForSale(account.accountInfo, LNodeBlocksCount) then begin
             // Show price for sale
             s := TAccountComp.FormatMoney(account.accountInfo.price);
-            if TAccountComp.IsAccountForSaleAcceptingTransactions(account.accountInfo) then begin
+            if TAccountComp.IsAccountForPrivateSale(account.accountInfo, LNodeBlocksCount) then begin
               if TAccountComp.IsAccountLocked(account.accountInfo,LNodeBlocksCount) then begin
                 DrawGrid.Canvas.Font.Color := clNavy;
               end else begin

@@ -79,7 +79,8 @@ Type
     Property WalletPassword : String read FWalletPassword write SetWalletPassword;
     Function AddPrivateKey(Const Name : String; ECPrivateKey : TECPrivateKey) : Integer; virtual;
     Function AddPublicKey(Const Name : String; ECDSA_Public : TECDSA_Public) : Integer; virtual;
-    Function IndexOfAccountKey(AccountKey : TAccountKey) : Integer;
+    Function IndexOfAccountKey(const AccountKey : TAccountKey) : Integer;
+    function TryGetKey(const AAccountKey : TAccountKey; out AKey : TWalletKey) : Boolean;
     Procedure Delete(index : Integer); virtual;
     Procedure Clear; virtual;
     Function Count : Integer;
@@ -352,9 +353,19 @@ begin
   Result := PWalletKey(FSearchableKeys[index])^;
 end;
 
-function TWalletKeys.IndexOfAccountKey(AccountKey: TAccountKey): Integer;
+function TWalletKeys.IndexOfAccountKey(const AccountKey: TAccountKey): Integer;
 begin
   if Not find(AccountKey,Result) then Result := -1;
+end;
+
+function TWalletKeys.TryGetKey(const AAccountKey : TAccountKey; out AKey : TWalletKey) : Boolean;
+var
+  LIndex : Integer;
+begin
+  if NOT find(AAccountKey,LIndex)
+    then Exit(False);
+  AKey := GetKey(LIndex);
+  Result := True;
 end;
 
 procedure TWalletKeys.LoadFromStream(Stream: TStream);

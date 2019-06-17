@@ -160,11 +160,13 @@ procedure TSearchThread.BCExecute;
     validAccKey : Boolean;
     errors : String;
     i : Integer;
+    LBlocksCount : Integer;
   begin
     SetLength(FAccounts,0);
     c := 0;
     maxC := FSearchValues.SafeBox.AccountsCount-1;
     validAccKey := TAccountComp.IsValidAccountKey(FSearchValues.inAccountKey,errors);
+    LBlocksCount := FSearchValues.SafeBox.BlocksCount;
     while (c<=maxC) And (Not Terminated) And (Not FDoStopSearch) do begin
       account := FSearchValues.SafeBox.Account(c);
       isValid := True;
@@ -174,14 +176,16 @@ procedure TSearchThread.BCExecute;
         isValid := FSearchValues.inWalletKeys.IndexOfAccountKey(account.accountInfo.accountKey)>=0;
       end;
       If isValid And (FSearchValues.onlyForSale) then begin
-        isValid := TAccountComp.IsAccountForSale(account.accountInfo);
+        isValid := TAccountComp.IsAccountForSale(account.accountInfo, LBlocksCount);
       end;
       If IsValid and (FSearchValues.onlyForPublicSale) then begin
-        isValid := (TAccountComp.IsAccountForSale(account.accountInfo)) And (Not TAccountComp.IsAccountForSaleAcceptingTransactions(account.accountInfo));
+        isValid := TAccountComp.IsAccountForPublicSale(account.accountInfo);
       end;
       If IsValid and (FSearchValues.onlyForPrivateSaleToMe) then begin
-        isValid := (TAccountComp.IsAccountForSaleAcceptingTransactions(account.accountInfo)) And
-          (Assigned(FSearchValues.inWalletKeys)) And (FSearchValues.inWalletKeys.IndexOfAccountKey(account.accountInfo.new_publicKey)>=0);
+        isValid := ((TAccountComp.IsAccountForPrivateSale(account.accountInfo, LBlocksCount) OR
+                    TAccountComp.IsAccountForAccountSwap(account.accountInfo, LBlocksCount)) AND
+                    (Assigned(FSearchValues.inWalletKeys)) And (FSearchValues.inWalletKeys.IndexOfAccountKey(account.accountInfo.new_publicKey)>=0)) OR
+                    (True {TODO: TAccountComp.IsAccountForCoinSwap(account.accountInfo, LBlocksCount) AND account.accountInfo.account_to_pay in [MyListOfAccounts]});
       end;
       If IsValid then begin
         IsValid := (account.balance>=FSearchValues.minBal) And ((FSearchValues.maxBal<0) Or (account.balance<=FSearchValues.maxBal));
