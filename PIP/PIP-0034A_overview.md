@@ -4,7 +4,7 @@
 ## Overview
 The websites of a cryptocurrency often serves a gateway to bring potential new users by introducing them to the project. They also act as a news source and a wiki for existing users to learn more about the cryptocurrency. The content of these websites often seen by the new users as an initial way of judging the potential of given project. Because of these reasons, the websites need to be intriguing, understandable and beautiful while clearly communicating the core values and the products that the cryptocurrency offers.
 
-We are proposing to redesign the user interface and the user experience of pascalcoin.org, explore.pascalcoin.org, and freepasa.org by applying these principles while adhering to existing code-structure/frameworks.
+We are proposing to redesign the user interface and the user experience of [pascalcoin.org][pascal-website], [explore.pascalcoin.org][pascal-explorer], and [freepasa.org][free-pasa] by applying these principles while adhering to existing code-structure/frameworks.
 
 ## Deliverables
 1) The design of the website including all the source files, animations, illustrations, and the implementation guide.
@@ -60,3 +60,6 @@ We encourage you to check out some other websites and application that have been
 [ae-app]: https://www.adobe.com/products/aftereffects.html
 [illustrator-app]: https://www.adobe.com/products/illustrator.html
 [lottie]: https://airbnb.design/lottie/
+[pascal-website]: https://pascalcoin.org
+[pascal-explorer]: https://explore.pascalcoin.org
+[free-pasa]: https://freepasa.org
