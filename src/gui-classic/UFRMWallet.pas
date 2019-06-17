@@ -393,12 +393,8 @@ begin
   TNode.Node.NetServer.Active := true;
   FLastTC := 0;
   FLastMsg := '';
-<<<<<<< HEAD
-{  if (TNode.Node.Bank.BlocksCount<=1) then begin
-=======
   LTC := TPlatform.GetTickCount;
   if (TNode.Node.Bank.BlocksCount<=1) then begin
->>>>>>> 36d5a9309ab68f7fe539768448b958cb052d55e2
     while (Not Terminated) And (Not TNode.Node.IsReady(currentProcess) Or (TNode.Node.Bank.BlocksCount<=1)) do begin
       Synchronize(ThreadSafeNotify);
       Sleep(200);
@@ -406,7 +402,7 @@ begin
       if (TPlatform.GetElapsedMilliseconds(LTC)>5000) then Break;
       {$ENDIF}
     end;
-  end;}
+  end;
   if Not Terminated then begin
     Synchronize( FRMWallet.DoUpdateAccounts );
     Synchronize( FRMWallet.FinishedLoadingApp );
