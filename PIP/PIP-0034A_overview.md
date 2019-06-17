@@ -1,4 +1,4 @@
-# PIP-0034A Website UI/UX Redesigns
+# PIP-0034A Overview: Website UI/UX Redesigns
 ## Full PIP: https://github.com/yekta/PascalCoin/blob/master/PIP/PIP-0034A.md
 
 ## Overview
