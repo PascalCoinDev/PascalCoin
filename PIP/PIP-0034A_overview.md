@@ -1,4 +1,5 @@
 # PIP-0034A Website UI/UX Redesigns
+## Full PIP: https://github.com/yekta/PascalCoin/blob/master/PIP/PIP-0034A.md
 
 ## Overview
 The websites of a cryptocurrency often serves a gateway to bring potential new users by introducing them to the project. They also act as a news source and a wiki for existing users to learn more about the cryptocurrency. The content of these websites often seen by the new users as an initial way of judging the potential of given project. Because of these reasons, the websites need to be intriguing, understandable and beautiful while clearly communicating the core values and the products that the cryptocurrency offers.
