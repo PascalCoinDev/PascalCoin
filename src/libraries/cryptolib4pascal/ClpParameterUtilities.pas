@@ -111,7 +111,7 @@ end;
 class procedure TParameterUtilities.Boot;
 begin
   Falgorithms := TDictionary<String, String>.Create();
-  FbasicIVSizes := TDictionary<string, Integer>.Create();
+  FbasicIVSizes := TDictionary<string, Int32>.Create();
 
   TNistObjectIdentifiers.Boot;
 

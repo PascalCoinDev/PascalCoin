@@ -57,6 +57,10 @@ type
   public
     constructor Create(const digest: IDigest);
 
+    destructor Destroy(); override;
+
+    procedure Clear();
+
     function GetUnderlyingDigest: IDigest; inline;
     function GetMacSize: Int32; inline;
 
@@ -91,11 +95,22 @@ begin
   FHMAC.TransformBytes(input, inOff, len);
 end;
 
+procedure THMac.Clear();
+begin
+  FHMAC.Clear();
+end;
+
 constructor THMac.Create(const digest: IDigest);
 begin
   Inherited Create();
   FDigest := digest;
   FHMAC := THashFactory.THMac.CreateHMAC(FDigest.GetUnderlyingIHash);
+end;
+
+destructor THMac.Destroy;
+begin
+  Clear();
+  inherited Destroy;
 end;
 
 function THMac.DoFinal(const output: TCryptoLibByteArray; outOff: Int32): Int32;

@@ -27,7 +27,8 @@ uses
   HlpBits,
   HlpHashLibTypes,
   HlpIHashResult,
-  HlpConverters;
+  HlpConverters,
+  HlpArrayUtils;
 
 resourcestring
   SImpossibleRepresentationInt32 =
@@ -47,9 +48,6 @@ type
   strict private
 
     Fm_hash: THashLibByteArray;
-
-    class function SlowEquals(const a_ar1, a_ar2: THashLibByteArray)
-      : Boolean; static;
 
   public
 
@@ -119,7 +117,7 @@ end;
 
 function THashResult.Equals(const a_hashResult: IHashResult): Boolean;
 begin
-  result := THashResult.SlowEquals(a_hashResult.GetBytes(), Fm_hash);
+  result := TArrayUtils.ConstantTimeAreEqual(a_hashResult.GetBytes(), Fm_hash);
 end;
 
 function THashResult.GetBytes: THashLibByteArray;
@@ -247,30 +245,6 @@ begin
     (UInt64(Fm_hash[6]) shl 8) or (UInt64(Fm_hash[7]));
 
 end;
-
-{$B+}
-
-class function THashResult.SlowEquals(const a_ar1,
-  a_ar2: THashLibByteArray): Boolean;
-var
-  I: Int32;
-  diff: UInt32;
-
-begin
-  diff := UInt32(System.Length(a_ar1)) xor UInt32(System.Length(a_ar2));
-
-  I := 0;
-
-  while (I <= System.High(a_ar1)) and (I <= System.High(a_ar2)) do
-  begin
-    diff := diff or (UInt32(a_ar1[I] xor a_ar2[I]));
-    System.Inc(I);
-  end;
-
-  result := diff = 0;
-end;
-
-{$B-}
 
 function THashResult.ToString(a_group: Boolean): String;
 begin

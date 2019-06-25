@@ -27,6 +27,7 @@ uses
   ClpIChaChaEngine,
   ClpSalsa20Engine,
   ClpConverters,
+  ClpArrayUtils,
   ClpCryptoLibTypes;
 
 type
@@ -242,6 +243,8 @@ begin
   begin
     if not(Byte(System.Length(keyBytes)) in [16, 32]) then
     begin
+      TArrayUtils.ZeroFill(keyBytes);
+      TArrayUtils.ZeroFill(ivBytes);
       raise EArgumentCryptoLibException.CreateResFmt(@SInvalidKeySize,
         [AlgorithmName]);
     end;
@@ -259,6 +262,9 @@ begin
   // IV
   TConverters.le32_copy(PByte(ivBytes), 0, PCardinal(FEngineState),
     14 * System.SizeOf(UInt32), 2 * System.SizeOf(UInt32));
+
+  TArrayUtils.ZeroFill(keyBytes);
+  TArrayUtils.ZeroFill(ivBytes);
 end;
 
 end.

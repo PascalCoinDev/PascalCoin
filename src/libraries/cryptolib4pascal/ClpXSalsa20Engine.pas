@@ -26,6 +26,7 @@ uses
   ClpSalsa20Engine,
   ClpIXSalsa20Engine,
   ClpConverters,
+  ClpArrayUtils,
   ClpCryptoLibTypes;
 
 resourcestring
@@ -79,6 +80,8 @@ begin
 
   if (System.Length(keyBytes) <> 32) then
   begin
+    TArrayUtils.ZeroFill(keyBytes);
+    TArrayUtils.ZeroFill(ivBytes);
     raise EArgumentCryptoLibException.CreateResFmt(@SInvalidKeySize,
       [AlgorithmName]);
   end;
@@ -110,6 +113,9 @@ begin
   TConverters.le32_copy(PByte(ivBytes), 16 * System.SizeOf(Byte),
     PCardinal(FEngineState), 6 * System.SizeOf(UInt32),
     2 * System.SizeOf(UInt32));
+
+  TArrayUtils.ZeroFill(keyBytes);
+  TArrayUtils.ZeroFill(ivBytes);
 end;
 
 end.

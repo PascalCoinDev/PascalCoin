@@ -21,7 +21,8 @@ uses
   HlpConverters,
   HlpIHash,
   HlpIHashInfo,
-  HlpHashCryptoNotBuildIn;
+  HlpHashCryptoNotBuildIn,
+  HlpArrayUtils;
 
 resourcestring
   SInvalidSnefruLevel =
@@ -93,7 +94,8 @@ function TSnefru.Clone(): IHash;
 var
   HashInstance: TSnefru;
 begin
-  HashInstance := TSnefru.Create(Fm_security_level, GetSnefruHashSize(FHashSize));
+  HashInstance := TSnefru.Create(Fm_security_level,
+    GetSnefruHashSize(FHashSize));
   HashInstance.Fm_state := System.Copy(Fm_state);
   HashInstance.Fm_buffer := Fm_buffer.Clone();
   HashInstance.Fm_processed_bytes := Fm_processed_bytes;
@@ -151,9 +153,7 @@ end;
 
 procedure TSnefru.Initialize;
 begin
-
-  System.FillChar(Fm_state[0], System.Length(Fm_state) * System.SizeOf(UInt32),
-    UInt32(0));
+  TArrayUtils.ZeroFill(Fm_state);
   Inherited Initialize();
 end;
 
@@ -855,4 +855,3 @@ begin
 end;
 
 end.
-

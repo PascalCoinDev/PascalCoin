@@ -11,6 +11,7 @@ uses
   HlpHashResult,
   HlpIHashResult,
   HlpBits,
+  HlpArrayUtils,
   HlpHashLibTypes;
 
 type
@@ -1529,13 +1530,12 @@ end;
 procedure TGOST3411_2012.Initialize;
 begin
   FbOff := 64;
-  System.FillChar(FN[0], System.Length(FN) * System.SizeOf(Byte), Byte(0));
-  System.FillChar(FSigma[0], System.Length(FSigma) *
-    System.SizeOf(Byte), Byte(0));
-  System.Move(FIV[0], Fh[0], 64 * System.SizeOf(Byte));
-  System.FillChar(Fblock[0], System.Length(Fblock) *
-    System.SizeOf(Byte), Byte(0));
+  TArrayUtils.ZeroFill(FN);
+  TArrayUtils.ZeroFill(FSigma);
 
+  System.Move(FIV[0], Fh[0], 64 * System.SizeOf(Byte));
+
+  TArrayUtils.ZeroFill(Fblock);
 end;
 
 procedure TGOST3411_2012.InternalUpdate(input: Byte);

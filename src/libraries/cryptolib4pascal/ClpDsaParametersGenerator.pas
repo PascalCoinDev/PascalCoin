@@ -160,7 +160,7 @@ type
     /// <returns>
     /// a generated DSA parameters object.
     /// </returns>
-    function GenerateParameters(): IDsaParameters; inline;
+    function GenerateParameters(): IDsaParameters; virtual;
 
   end;
 

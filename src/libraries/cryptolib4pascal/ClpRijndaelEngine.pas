@@ -28,6 +28,7 @@ uses
   ClpIRijndaelEngine,
   ClpIKeyParameter,
   ClpICipherParameters,
+  ClpArrayUtils,
   ClpCryptoLibTypes;
 
 resourcestring
@@ -546,6 +547,7 @@ begin
       KC := 8
   else
     begin
+      TArrayUtils.ZeroFill(key);
       raise EArgumentCryptoLibException.CreateRes(@SInvalidKeyLength);
     end;
   end;
@@ -654,6 +656,8 @@ begin
     end;
   end;
   result := W;
+
+  TArrayUtils.ZeroFill(key);
 end;
 
 procedure TRijndaelEngine.PackBlock(const bytes: TCryptoLibByteArray;

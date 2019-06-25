@@ -29,6 +29,7 @@ uses
   ClpIBlowfishEngine,
   ClpCheck,
   ClpConverters,
+  ClpArrayUtils,
   ClpCryptoLibTypes;
 
 resourcestring
@@ -326,6 +327,7 @@ begin
   if ((keyLength < 4) or (keyLength > 56) or (((keyLength * 8) and 7) <> 0))
   then
   begin
+    TArrayUtils.ZeroFill(key);
     raise EArgumentCryptoLibException.CreateRes(@SInvalidKeyLength);
   end;
 
@@ -410,6 +412,8 @@ begin
   ProcessTable(FS0[SBOX_SK - 2], FS0[SBOX_SK - 1], FS1);
   ProcessTable(FS1[SBOX_SK - 2], FS1[SBOX_SK - 1], FS2);
   ProcessTable(FS2[SBOX_SK - 2], FS2[SBOX_SK - 1], FS3);
+
+  TArrayUtils.ZeroFill(key);
 end;
 
 procedure TBlowfishEngine.EncryptBlock(const src: TCryptoLibByteArray;

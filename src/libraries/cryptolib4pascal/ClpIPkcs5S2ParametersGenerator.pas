@@ -23,12 +23,16 @@ interface
 
 uses
   ClpIPbeParametersGenerator,
-  ClpIDigest;
+  ClpIDigest,
+  ClpCryptoLibTypes;
 
 type
   IPkcs5S2ParametersGenerator = interface(IPbeParametersGenerator)
 
     ['{AD345DB8-2341-4C56-B401-23444C2A81BA}']
+
+    procedure Init(const password, salt: TCryptoLibByteArray;
+      iterationCount: Int32);
 
     function GetDigest: IDigest;
 

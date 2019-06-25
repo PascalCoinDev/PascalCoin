@@ -22,6 +22,7 @@ uses
   HlpHashCryptoNotBuildIn,
   HlpConverters,
   HlpHashSize,
+  HlpArrayUtils,
   HlpHashLibTypes;
 
 resourcestring
@@ -259,9 +260,7 @@ end;
 
 procedure TSHA3.Initialize;
 begin
-
-  System.FillChar(Fm_state[0], System.Length(Fm_state) * System.SizeOf(UInt64),
-    UInt64(0));
+  TArrayUtils.ZeroFill(Fm_state);
 
   Inherited Initialize();
 end;

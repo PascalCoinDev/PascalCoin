@@ -37,7 +37,7 @@ type
       Fcryptlib_algorithm_blowfish_CBC, Fcryptlib_algorithm_blowfish_CFB,
       Fcryptlib_algorithm_blowfish_OFB, Fblake2, Fid_blake2b160, Fid_blake2b256,
       Fid_blake2b384, Fid_blake2b512, Fid_blake2s128, Fid_blake2s160,
-      Fid_blake2s224, Fid_blake2s256: IDerObjectIdentifier;
+      Fid_blake2s224, Fid_blake2s256, Fid_scrypt: IDerObjectIdentifier;
 
     class function Getcryptlib: IDerObjectIdentifier; static; inline;
 
@@ -62,6 +62,8 @@ type
     class function Getid_blake2s160: IDerObjectIdentifier; static; inline;
     class function Getid_blake2s224: IDerObjectIdentifier; static; inline;
     class function Getid_blake2s256: IDerObjectIdentifier; static; inline;
+
+    class function Getid_scrypt: IDerObjectIdentifier; static; inline;
 
     class constructor MiscObjectIdentifiers();
 
@@ -91,6 +93,8 @@ type
     class property id_blake2s160: IDerObjectIdentifier read Getid_blake2s160;
     class property id_blake2s224: IDerObjectIdentifier read Getid_blake2s224;
     class property id_blake2s256: IDerObjectIdentifier read Getid_blake2s256;
+
+    class property id_scrypt: IDerObjectIdentifier read Getid_scrypt;
 
     class procedure Boot(); static;
 
@@ -180,6 +184,11 @@ begin
   result := Fid_blake2s256;
 end;
 
+class function TMiscObjectIdentifiers.Getid_scrypt: IDerObjectIdentifier;
+begin
+  result := Fid_scrypt;
+end;
+
 class procedure TMiscObjectIdentifiers.Boot;
 begin
 
@@ -212,6 +221,8 @@ begin
     Fid_blake2s160 := blake2.Branch('2.5');
     Fid_blake2s224 := blake2.Branch('2.7');
     Fid_blake2s256 := blake2.Branch('2.8');
+
+    Fid_scrypt := TDerObjectIdentifier.Create('1.3.6.1.4.1.11591.4.11');
 
     FIsBooted := True;
   end;

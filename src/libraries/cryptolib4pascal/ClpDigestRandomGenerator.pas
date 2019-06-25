@@ -186,7 +186,7 @@ procedure TDigestRandomGenerator.NextBytes(const bytes: TCryptoLibByteArray;
   start, len: Int32);
 var
   stateOff, endPoint: Int32;
-  I: Integer;
+  I: Int32;
 begin
 
   FLock.Acquire;

@@ -2151,7 +2151,7 @@ end;
 
 function TBigInteger.IsEqualMagnitude(const x: TBigInteger): Boolean;
 var
-  i: Integer;
+  i: Int32;
   xMag: TCryptoLibInt32Array;
 begin
   xMag := x.Fmagnitude;

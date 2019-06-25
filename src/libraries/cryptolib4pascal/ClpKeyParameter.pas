@@ -67,7 +67,7 @@ end;
 
 procedure TKeyParameter.Clear;
 begin
-  TArrayUtils.Fill(Fkey, 0, System.Length(Fkey), Byte(0));
+  TArrayUtils.ZeroFill(Fkey);
 end;
 
 constructor TKeyParameter.Create(const key: TCryptoLibByteArray;

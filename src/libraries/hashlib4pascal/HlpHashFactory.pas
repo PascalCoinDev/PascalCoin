@@ -12,8 +12,9 @@ uses
   HlpHashLibTypes,
   // NullDigest Unit //
   HlpNullDigest,
-  // Checksum Units //
+  // Checksum Unit //
   HlpAdler32,
+  // CRC Units //
   HlpCRC,
   HlpCRC16,
   HlpCRC32,
@@ -94,7 +95,9 @@ uses
   // PBKDF2_HMAC Unit
   HlpPBKDF2_HMACNotBuildInAdapter,
   // PBKDF_Argon2 Unit
-  HlpPBKDF_Argon2NotBuildInAdapter;
+  HlpPBKDF_Argon2NotBuildInAdapter,
+  // PBKDF_Scrypt Unit
+  HlpPBKDF_ScryptNotBuildInAdapter;
 
 type
   THashFactory = class sealed(TObject)
@@ -109,10 +112,10 @@ type
 
     end;
 
-    // ====================== TChecksum ====================== //
+    // ====================== TCRC ====================== //
 
   type
-    TChecksum = class sealed(TObject)
+    TCRC = class sealed(TObject)
 
     public
 
@@ -155,6 +158,15 @@ type
       /// </summary>
       /// <returns></returns>
       class function CreateCRC64_ECMA_182(): IHash; static;
+
+    end;
+
+    // ====================== TChecksum ====================== //
+
+  type
+    TChecksum = class sealed(TObject)
+
+    public
 
       class function CreateAdler32: IHash; static;
     end;
@@ -413,8 +425,8 @@ type
 
     public
 
-      class function CreateHMAC(const a_hash: IHash;
-        const a_hmacKey: THashLibByteArray = Nil): IHMAC; static;
+      class function CreateHMAC(const AHash: IHash;
+        const AHmacKey: THashLibByteArray = Nil): IHMAC; static;
 
     end;
 
@@ -436,17 +448,17 @@ type
       /// an "IHash" to be used as an "IHMAC" hashing implementation to
       /// derive the key.
       /// </summary>
-      /// <param name="a_hash">
+      /// <param name="AHash">
       /// The name of the "IHash" implementation to be transformed to an
       /// "IHMAC" Instance so it can be used to derive the key.
       /// </param>
-      /// <param name="a_password">
+      /// <param name="APassword">
       /// The password to derive the key for.
       /// </param>
-      /// <param name="a_salt">
+      /// <param name="ASalt">
       /// The salt to use to derive the key.
       /// </param>
-      /// <param name="a_iterations">
+      /// <param name="AIterations">
       /// The number of iterations to use to derive the key.
       /// </param>
       /// <returns>
@@ -458,8 +470,8 @@ type
       /// <exception cref="EArgumentHashLibException">
       /// The iteration is less than 1.
       /// </exception>
-      class function CreatePBKDF2_HMAC(const a_hash: IHash;
-        const a_password, a_salt: THashLibByteArray; a_iterations: UInt32)
+      class function CreatePBKDF2_HMAC(const AHash: IHash;
+        const APassword, ASalt: THashLibByteArray; AIterations: UInt32)
         : IPBKDF2_HMAC; static;
 
     end;
@@ -494,6 +506,40 @@ type
 
     end;
 
+    // ====================== TPBKDF_Scrypt ====================== //
+
+  type
+    TPBKDF_Scrypt = class sealed(TObject)
+
+    public
+
+      /// <summary>
+      /// Initializes a new interface instance of the TPBKDF_Scrypt class
+      /// using a password, a salt, a cost, blocksize and parallelism parameters to
+      /// derive the key.
+      /// </summary>
+      /// <param name="APasswordBytes">the bytes of the pass phrase.</param>
+      /// <param name="ASaltBytes">the salt to use for this invocation.</param>
+      /// <param name="ACost">CPU/Memory cost parameter. Must be larger than 1, a power of 2 and less than
+      /// <code>2^(128 * ABlockSize / 8)</code>.</param>
+      /// <param name="ABlockSize">the block size, must be >= 1.</param>
+      /// <param name="AParallelism">Parallelization parameter. Must be a positive integer less than or equal to
+      /// <code>(System.High(Int32) div (128 * ABlockSize * 8))</code>.</param>
+      /// <returns>
+      /// The PBKDF_Scrypt KDF Interface Instance <br />
+      /// </returns>
+      /// <exception cref="EArgumentNilHashLibException">
+      /// The password, salt is Nil.
+      /// </exception>
+      /// <exception cref="EArgumentHashLibException">
+      /// The cost, blocksize or parallelism is Invalid.
+      /// </exception>
+      class function CreatePBKDF_Scrypt(const APasswordBytes,
+        ASaltBytes: THashLibByteArray; ACost, ABlockSize, AParallelism: Int32)
+        : IPBKDF_Scrypt; static;
+
+    end;
+
   end;
 
 implementation
@@ -505,22 +551,22 @@ begin
   Result := TNullDigest.Create();
 end;
 
-{ THashFactory.TChecksum }
+{ THashFactory.TCRC }
 
-class function THashFactory.TChecksum.CreateCRC(_Width: Int32;
-  _poly, _Init: UInt64; _refIn, _refOut: Boolean; _XorOut, _check: UInt64;
+class function THashFactory.TCRC.CreateCRC(_Width: Int32; _poly, _Init: UInt64;
+  _refIn, _refOut: Boolean; _XorOut, _check: UInt64;
   const _Names: THashLibStringArray): IHash;
 begin
-  Result := TCRC.Create(_Width, _poly, _Init, _refIn, _refOut, _XorOut,
+  Result := HlpCRC.TCRC.Create(_Width, _poly, _Init, _refIn, _refOut, _XorOut,
     _check, _Names);
 end;
 
-class function THashFactory.TChecksum.CreateCRC(_value: TCRCStandard): IHash;
+class function THashFactory.TCRC.CreateCRC(_value: TCRCStandard): IHash;
 begin
-  Result := TCRC.CreateCRCObject(_value);
+  Result := HlpCRC.TCRC.CreateCRCObject(_value);
 end;
 
-class function THashFactory.TChecksum.CreateCRC16(_poly, _Init: UInt64;
+class function THashFactory.TCRC.CreateCRC16(_poly, _Init: UInt64;
   _refIn, _refOut: Boolean; _XorOut, _check: UInt64;
   const _Names: THashLibStringArray): IHash;
 begin
@@ -528,12 +574,12 @@ begin
     _check, _Names);
 end;
 
-class function THashFactory.TChecksum.CreateCRC16_BUYPASS: IHash;
+class function THashFactory.TCRC.CreateCRC16_BUYPASS: IHash;
 begin
   Result := TCRC16_BUYPASS.Create();
 end;
 
-class function THashFactory.TChecksum.CreateCRC32(_poly, _Init: UInt64;
+class function THashFactory.TCRC.CreateCRC32(_poly, _Init: UInt64;
   _refIn, _refOut: Boolean; _XorOut, _check: UInt64;
   const _Names: THashLibStringArray): IHash;
 begin
@@ -541,17 +587,17 @@ begin
     _check, _Names);
 end;
 
-class function THashFactory.TChecksum.CreateCRC32_CASTAGNOLI: IHash;
+class function THashFactory.TCRC.CreateCRC32_CASTAGNOLI: IHash;
 begin
   Result := HlpCRC32Fast.TCRC32_CASTAGNOLI.Create();
 end;
 
-class function THashFactory.TChecksum.CreateCRC32_PKZIP: IHash;
+class function THashFactory.TCRC.CreateCRC32_PKZIP: IHash;
 begin
   Result := HlpCRC32Fast.TCRC32_PKZIP.Create();
 end;
 
-class function THashFactory.TChecksum.CreateCRC64(_poly, _Init: UInt64;
+class function THashFactory.TCRC.CreateCRC64(_poly, _Init: UInt64;
   _refIn, _refOut: Boolean; _XorOut, _check: UInt64;
   const _Names: THashLibStringArray): IHash;
 begin
@@ -559,10 +605,12 @@ begin
     _check, _Names);
 end;
 
-class function THashFactory.TChecksum.CreateCRC64_ECMA_182: IHash;
+class function THashFactory.TCRC.CreateCRC64_ECMA_182: IHash;
 begin
   Result := TCRC64_ECMA_182.Create();
 end;
+
+{ THashFactory.TChecksum }
 
 class function THashFactory.TChecksum.CreateAdler32: IHash;
 begin
@@ -1099,15 +1147,12 @@ begin
   if a_security_level < Int32(1) then
     raise EArgumentHashLibException.CreateRes(@SInvalidSnefruLevel);
 
-  if ((a_hash_size = THashSize.hsHashSize128) or
-    (a_hash_size = THashSize.hsHashSize256)) then
-  begin
-    Result := TSnefru.Create(a_security_level, a_hash_size);
-  end
+  case a_hash_size of
+    THashSize.hsHashSize128, THashSize.hsHashSize256:
+      Result := TSnefru.Create(a_security_level, a_hash_size);
   else
-  begin
     raise EArgumentHashLibException.CreateRes(@SInvalidSnefruHashSize);
-  end
+  end;
 
 end;
 
@@ -1174,19 +1219,23 @@ end;
 class function THashFactory.TCrypto.CreateTiger(a_hash_size: Int32;
   a_rounds: THashRounds): IHash;
 begin
-  if ((a_hash_size <> 16) and (a_hash_size <> 20) and (a_hash_size <> 24)) then
+  case a_hash_size of
+    16, 20, 24:
+      Result := TTiger_Base.Create(a_hash_size, a_rounds);
+  else
     raise EArgumentHashLibException.CreateRes(@SInvalidTigerHashSize);
-
-  Result := TTiger_Base.Create(a_hash_size, a_rounds);
+  end;
 end;
 
 class function THashFactory.TCrypto.CreateTiger2(a_hash_size: Int32;
   a_rounds: THashRounds): IHash;
 begin
-  if ((a_hash_size <> 16) and (a_hash_size <> 20) and (a_hash_size <> 24)) then
+  case a_hash_size of
+    16, 20, 24:
+      Result := TTiger2_Base.Create(a_hash_size, a_rounds);
+  else
     raise EArgumentHashLibException.CreateRes(@SInvalidTiger2HashSize);
-
-  Result := TTiger2_Base.Create(a_hash_size, a_rounds);
+  end;
 end;
 
 class function THashFactory.TCrypto.CreateTiger2_3_128: IHash;
@@ -1258,33 +1307,19 @@ end;
 
 { THashFactory.THMAC }
 
-class function THashFactory.THMAC.CreateHMAC(const a_hash: IHash;
-  const a_hmacKey: THashLibByteArray): IHMAC;
+class function THashFactory.THMAC.CreateHMAC(const AHash: IHash;
+  const AHmacKey: THashLibByteArray): IHMAC;
 begin
-  Result := THMACNotBuildInAdapter.CreateHMAC(a_hash, a_hmacKey);
+  Result := THMACNotBuildInAdapter.CreateHMAC(AHash, AHmacKey);
 end;
 
 { TKDF.TPBKDF2_HMAC }
 
-class function TKDF.TPBKDF2_HMAC.CreatePBKDF2_HMAC(const a_hash: IHash;
-  const a_password, a_salt: THashLibByteArray; a_iterations: UInt32)
-  : IPBKDF2_HMAC;
+class function TKDF.TPBKDF2_HMAC.CreatePBKDF2_HMAC(const AHash: IHash;
+  const APassword, ASalt: THashLibByteArray; AIterations: UInt32): IPBKDF2_HMAC;
 begin
-
-  if not(System.Assigned(a_hash)) then
-    raise EArgumentNilHashLibException.CreateRes(@SNotInitializedIHashInstance);
-
-  if (a_password = Nil) then
-    raise EArgumentNilHashLibException.CreateRes(@SEmptyPassword);
-
-  if (a_salt = Nil) then
-    raise EArgumentNilHashLibException.CreateRes(@SEmptySalt);
-
-  if (a_iterations < 1) then
-    raise EArgumentHashLibException.CreateRes(@SIterationtooSmall);
-
-  Result := TPBKDF2_HMACNotBuildInAdapter.Create(a_hash, a_password, a_salt,
-    a_iterations);
+  Result := TPBKDF2_HMACNotBuildInAdapter.Create(AHash, APassword, ASalt,
+    AIterations);
 end;
 
 { TKDF.TPBKDF_Argon2 }
@@ -1293,14 +1328,17 @@ class function TKDF.TPBKDF_Argon2.CreatePBKDF_Argon2(const APassword
   : THashLibByteArray; const AArgon2Parameters: IArgon2Parameters)
   : IPBKDF_Argon2;
 begin
-  if not(System.Assigned(AArgon2Parameters)) then
-    raise EArgumentNilHashLibException.CreateRes
-      (@SArgon2ParameterBuilderNotInitialized);
-
-  if (APassword = Nil) then
-    raise EArgumentNilHashLibException.CreateRes(@SEmptyPassword);
-
   Result := TPBKDF_Argon2NotBuildInAdapter.Create(APassword, AArgon2Parameters)
+end;
+
+{ TKDF.TPBKDF_Scrypt }
+
+class function TKDF.TPBKDF_Scrypt.CreatePBKDF_Scrypt(const APasswordBytes,
+  ASaltBytes: THashLibByteArray; ACost, ABlockSize, AParallelism: Int32)
+  : IPBKDF_Scrypt;
+begin
+  Result := TPBKDF_ScryptNotBuildInAdapter.Create(APasswordBytes, ASaltBytes,
+    ACost, ABlockSize, AParallelism);
 end;
 
 end.

@@ -15,6 +15,7 @@ uses
   HlpConverters,
   HlpIHash,
   HlpIHashInfo,
+  HlpArrayUtils,
   HlpHashCryptoNotBuildIn;
 
 type
@@ -127,16 +128,12 @@ procedure TRadioGatun64.Initialize;
 var
   i: Int32;
 begin
-
-  System.FillChar(Fm_mill[0], System.Length(Fm_mill) * System.SizeOf(UInt64),
-    UInt64(0));
+  TArrayUtils.ZeroFill(Fm_mill);
 
   i := 0;
   while i < 13 do
   begin
-
-    System.FillChar(Fm_belt[i][0], System.Length(Fm_belt[i]) *
-      System.SizeOf(UInt64), UInt64(0));
+    TArrayUtils.ZeroFill(Fm_belt[i]);
     System.Inc(i);
   end;
 

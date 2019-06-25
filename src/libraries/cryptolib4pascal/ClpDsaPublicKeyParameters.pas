@@ -48,7 +48,8 @@ type
   public
     constructor Create(const y: TBigInteger; const parameters: IDsaParameters);
 
-    function Equals(const other: IDsaPublicKeyParameters): Boolean; reintroduce; overload;
+    function Equals(const other: IDsaPublicKeyParameters): Boolean;
+      reintroduce; overload;
     function GetHashCode(): {$IFDEF DELPHI}Int32; {$ELSE}PtrInt;
 {$ENDIF DELPHI}override;
 
@@ -67,6 +68,10 @@ end;
 class function TDsaPublicKeyParameters.Validate(const y: TBigInteger;
   const parameters: IDsaParameters): TBigInteger;
 begin
+  if (not(y.IsInitialized)) then
+  begin
+    raise EArgumentNilCryptoLibException.CreateRes(@SYUnInitialized);
+  end;
   // we can't validate without params, fortunately we can't use the key either...
   if (parameters <> Nil) then
   begin
@@ -85,11 +90,6 @@ constructor TDsaPublicKeyParameters.Create(const y: TBigInteger;
   const parameters: IDsaParameters);
 begin
   Inherited Create(false, parameters);
-  if (not(y.IsInitialized)) then
-  begin
-    raise EArgumentNilCryptoLibException.CreateRes(@SYUnInitialized);
-  end;
-
   Fy := Validate(y, parameters);
 end;
 

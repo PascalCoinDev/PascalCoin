@@ -31,6 +31,7 @@ uses
   ClpICipherParameters,
   ClpIParametersWithIV,
   ClpConverters,
+  ClpArrayUtils,
   ClpCryptoLibTypes;
 
 resourcestring
@@ -215,6 +216,7 @@ begin
   iv := ivParams.GetIV();
   if ((iv = Nil) or (System.Length(iv) <> NonceSize)) then
   begin
+    TArrayUtils.ZeroFill(iv);
     raise EArgumentCryptoLibException.CreateResFmt(@SInvalidIV,
       [AlgorithmName, NonceSize]);
   end;
@@ -476,6 +478,8 @@ begin
   begin
     if not(Byte(System.Length(keyBytes)) in [16, 32]) then
     begin
+      TArrayUtils.ZeroFill(keyBytes);
+      TArrayUtils.ZeroFill(ivBytes);
       raise EArgumentCryptoLibException.CreateResFmt(@SInvalidKeySize,
         [AlgorithmName]);
     end;
@@ -497,6 +501,13 @@ begin
   // IV
   TConverters.le32_copy(PByte(ivBytes), 0, PCardinal(FEngineState),
     6 * System.SizeOf(UInt32), 2 * System.SizeOf(UInt32));
+
+  if (Self.ClassType = TSalsa20Engine) then
+  begin
+    TArrayUtils.ZeroFill(keyBytes);
+    TArrayUtils.ZeroFill(ivBytes);
+  end;
+
 end;
 
 end.

@@ -21,6 +21,11 @@ type
   public
 
     /// <summary>
+    /// Clear sensitive materials from memory
+    /// </summary>
+    procedure Clear(); virtual; abstract;
+
+    /// <summary>
     /// Returns the pseudo-random bytes for this object.
     /// </summary>
     /// <param name="bc">The number of pseudo-random key bytes to generate.</param>

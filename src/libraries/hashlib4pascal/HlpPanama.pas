@@ -15,6 +15,7 @@ uses
   HlpConverters,
   HlpIHash,
   HlpIHashInfo,
+  HlpArrayUtils,
   HlpHashCryptoNotBuildIn;
 
 type
@@ -237,25 +238,17 @@ procedure TPanama.Initialize;
 var
   i: Int32;
 begin
-  System.FillChar(Fm_state[0], System.Length(Fm_state) * System.SizeOf(UInt32),
-    UInt32(0));
 
-  System.FillChar(Ftheta[0], System.Length(Ftheta) * System.SizeOf(UInt32),
-    UInt32(0));
-
-  System.FillChar(Fgamma[0], System.Length(Fgamma) * System.SizeOf(UInt32),
-    UInt32(0));
-
-  System.FillChar(Fpi[0], System.Length(Fpi) * System.SizeOf(UInt32),
-    UInt32(0));
+  TArrayUtils.ZeroFill(Fm_state);
+  TArrayUtils.ZeroFill(Ftheta);
+  TArrayUtils.ZeroFill(Fgamma);
+  TArrayUtils.ZeroFill(Fpi);
 
   Fm_tap := 0;
 
   for i := System.Low(Fm_stages) to System.High(Fm_stages) do
   begin
-    System.FillChar(Fm_stages[i, 0], System.Length(Fm_stages[i]) *
-      System.SizeOf(UInt32), UInt32(0));
-
+    TArrayUtils.ZeroFill(Fm_stages[i]);
   end;
 
   Inherited Initialize();

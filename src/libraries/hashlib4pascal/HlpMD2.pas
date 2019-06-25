@@ -12,6 +12,7 @@ uses
 {$ENDIF DELPHI}
   HlpIHash,
   HlpIHashInfo,
+  HlpArrayUtils,
   HlpHashCryptoNotBuildIn;
 
 type
@@ -126,11 +127,8 @@ end;
 procedure TMD2.Initialize;
 begin
 
-  System.FillChar(Fm_state[0], System.Length(Fm_state) *
-    System.SizeOf(Byte), Byte(0));
-
-  System.FillChar(Fm_checksum[0], System.Length(Fm_checksum) *
-    System.SizeOf(Byte), Byte(0));
+  TArrayUtils.ZeroFill(Fm_state);
+  TArrayUtils.ZeroFill(Fm_checksum);
 
   Inherited Initialize();
 

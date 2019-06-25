@@ -25,6 +25,8 @@ uses
   SysUtils,
   Generics.Collections,
   ClpIBasicAgreement,
+  ClpDHBasicAgreement,
+  ClpIDHBasicAgreement,
   ClpECDHBasicAgreement,
   ClpIECDHBasicAgreement,
   ClpECDHCBasicAgreement,
@@ -128,6 +130,12 @@ var
   mechanism: String;
 begin
   mechanism := GetMechanism(algorithm);
+
+  if ((mechanism = 'DH') or (mechanism = 'DIFFIEHELLMAN')) then
+  begin
+    result := TDHBasicAgreement.Create() as IDHBasicAgreement;
+    Exit;
+  end;
 
   if (mechanism = 'ECDH') then
   begin

@@ -1,112 +1,148 @@
-# HashLib4Pascal [![License](http://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Xor-el/HashLib4Pascal/blob/master/LICENSE)
-HashLib4Pascal is a Delphi/FreePascal compatible library that provides an easy to use interface for computing hashes and checksums of strings (with a specified encoding), files, streams, byte arrays and untyped data to mention but a few.
-It also supports Incremental Hashing.
+HashLib4Pascal: Hashing for Modern Object Pascal [![License](http://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Xor-el/HashLib4Pascal/blob/master/LICENSE)
+========================================
+
+``HashLib4Pascal`` is an Object Pascal hashing library released under the permissive [MIT License](https://github.com/Xor-el/HashLib4Pascal/blob/master/LICENSE) which provides an easy to use interface for computing hashes and checksums of data. It also supports state based (incremental) hashing.
+
+``HashLib4Pascal's`` goal is to be the best option for hashing in Object Pascal by offering various hashing primitives via an easy to use API to Object Pascal developers.
+
+Development is coordinated on [GitHub](https://github.com/Xor-el/HashLib4Pascal) and contributions are welcome. If you need help, please open an issue [here](https://github.com/Xor-el/HashLib4Pascal/issues).
+
 
 **Build Status**
 [![Build Status](https://travis-ci.org/Xor-el/HashLib4Pascal.svg?branch=master)](https://travis-ci.org/Xor-el/HashLib4Pascal)
 
-**Supported Algorithms:**
+Available Algorithms
+----------------------------------------
 
-    non-cryptographic 32-bits hash algorithms: AP, BKDR, Bernstein, Bernstein1, DEK, DJB, 
-    ELF, FNV, FNV1a, JS, Jenkins3, Murmur2, MurmurHash3_x86_32, OneAtTime, PJW, RS, 
-    Rotating, SDBM, ShiftAndXor, SuperFast, XXHash32.
+ ### Hashes
+----------------------------------------
+##### Cyclic Redundancy Checks
 
-    non-cryptographic 64-bits algorithms: FNV, FNV1a, Murmur2_64, SipHash2_4, XXHash64.
+* `All CRC Variants from CRC3 to CRC64` 
 
-    non-cryptographic 128-bits algorithms: MurmurHash3_x86_128, MurmurHash3_x64_128. 
+##### Checksums
 
-    checksum algorithms: Adler32, All CRC Variants from CRC3 to CRC64. 
+* `Adler32`
 
-    cryptographic algorithms: GOST, Grindahl, HAS160, Haval, MD2, MD4, MD5, Panama, 
-    RadioGatun, RIPEMD, RIPEMD128, RIPEMD160, RIPEMD256, RIPEMD320, SHA0, SHA1, SHA2-224,
-    SHA2-256, SHA2-384, SHA2-512, SHA2-512-224, SHA2-512-256, SHA3-224, SHA3-256, SHA3-384, 
-    SHA3-512, Keccak-224, Keccak-256, Keccak-288, Keccak-384, Keccak-512, Snefru128, Snefru256, Tiger, Tiger2, 
-    WhirlPool, Blake2B, Blake2S, Streebog (GOST3411_2012_256, GOST3411_2012_512), Shake_128, Shake_256.
+##### Non-Cryptographic Hash Functions 
+----------------------------------------
 
-    HMAC for any of the above.
-    
-    PBKDF2_HMAC for any of the above.
-    
-    PBKDF_Argon2 (2i, 2d and 2id variants).
+###### 32 bit hashes
 
-**Supported Compilers**
+* `AP` `BKDR` `Bernstein` `Bernstein1` `DEK` `DJB` `ELF` `FNV` 
+
+* `FNV1a` `JS` `Jenkins3` `Murmur2` `MurmurHash3_x86_32` `OneAtTime`
+
+*  `PJW` `RS` `Rotating` `SDBM` `ShiftAndXor` `SuperFast` `XXHash32`
+
+###### 64 bit hashes
+
+* `FNV64` `FNV1a64` `Murmur2_64` `SipHash2_4` `XXHash64`
+
+###### 128 bit hashes
+
+* `MurmurHash3_x86_128` `MurmurHash3_x64_128` 
+
+##### Cryptographic Hash Functions 
+----------------------------------------
+
+ * `MD2`
+
+ * `MD4`
+
+ * `MD5`
+
+ * `SHA-0`
+
+ * `SHA-1`
+
+ * `SHA-2 (224, 256, 384, 512, 512-224, 512-256)`
+
+ * `GOST 34.11-94`
+
+ * `GOST R 34.11-2012 (AKA Streebog) (256, 512)`
  
-    FreePascal 3.0.0 and Above.
-    
-    Delphi 2010 and Above.
+ * `Grindahl (256, 512)`
+ 
+ * `Has160`
 
-## Installing the Library. ##
+ * `RIPEMD (128, 256, 256, 320)`
 
-**Method One:**
+ * `Tiger (128, 160, 192 (Rounds 3, 4, 5))` 
 
- - Use the Provided Packages in the "Packages" Folder.
+ * `Tiger2 (128, 160, 192 (Rounds 3, 4, 5))` 
+ 
+ * `Snefru (128, 256)`
+ 
+ * `Haval (128, 160, 192, 224, 256 (Rounds 3, 4, 5))`
+ 
+ * `Panama`
+ 
+ * `RadioGatun (RadioGatun32, RadioGatun64)`
 
-**Method Two:**
+ * `WhirlPool`
 
-- Add the Library Path and Sub Path to your Project Search Path.
+ * `Blake2B (160, 256, 384, 512)`
+ 
+ * `Blake2S (128, 160, 224, 256)`
 
-**Usage Examples.**
+ * `SHA-3 (224, 256, 384, 512)`
+ 
+ * `Keccak (224, 256, 288, 384, 512)`
 
-- Coming Soon.
-- But in the mean time, you can poke around the sources and Unit Tests.
+### Key Derivation Functions
+----------------------------------------
 
- ## Unit Tests. ##
+###### Password Hashing Schemes (Password Based Key Derivation Functions)
 
-To Run Unit Tests,
+----------------------------------------
 
-**For FPC 3.0.0 and above**
+* `PBKDF2`
+ 
+* `Argon2 (2i, 2d and 2id variants)`
 
+* `Scrypt`
 
-    Simply compile and run "HashLib.Tests" project in "FreePascal.Tests" Folder.
+### MAC
+----------------------------------------
 
-**For Delphi 2010 and above**
+* `HMAC (all supported hashes)`
 
-   **Method One (Using DUnit Test Runner)**
+### XOF (Extendable Output Function)
+----------------------------------------
 
-     To Build and Run the Unit Tests For Delphi 10 Seattle (should be similar for 
-     other versions)
-    
-    1. Open Project Options of Unit Test (HashLib.Tests) in "Delphi.Tests" Folder.
-    
-    2. Change Target to All Configurations (Or "Base" In Older Delphi Versions.)
-    
-    3. In Output directory add ".\$(Platform)\$(Config)" without the quotes.
-    
-    4. In Search path add "$(BDS)\Source\DUnit\src" without the quotes.
-    
-    5. In Unit output directory add "." without the quotes.
-    
-    6. In Unit scope names (If Available), Delete "DUnitX" from the List.
-    
-    Press Ok and save, then build and run.
-    
- **Method Two (Using TestInsight) (Preferred).**
+* `Shake (Shake-128, Shake-256)`
 
-    1. Download and Install TestInsight.
-    
-    2. Open Project Options of Unit Test (HashLib.Tests.TestInsight) in "Delphi.Tests" 
-        Folder. 
+### Supported Compilers
+----------------------------------------
 
-    3. Change Target to All Configurations (Or "Base" In Older Delphi Versions.)
+* `FreePascal 3.0.0+`
 
-    4. In Unit scope names (If Available), Delete "DUnitX" from the List.
+* `Delphi 2010+`
 
-    5. To Use TestInsight, right-click on the project, then select 
-    
-  ###### "Enable for TestInsight" or "TestInsight Project". ######
-        Save Project then Build and Run Test Project through TestInsight. 
-        
-  **Other Implementations**
+### Supported OSes
+----------------------------------------
+
+* `Windows`
+
+* `Linux (Including Android and Raspberry PI)`
+
+* `macOS`
+
+* `iOS`
+
+* `FreeBSD, NetBSD, OpenBSD and DragonBSD`
+
+### Other Implementations
+----------------------------------------
 
 If you want implementations in other languages, you can check out these
 
-[HashLib4CPP By Mbadiwe Nnaemeka Ronald](https://github.com/ron4fun/HashLib4CPP)
+* [HashLib4CPP](https://github.com/ron4fun/HashLib4CPP) by Mbadiwe Nnaemeka Ronald
 
-**License**
+### Tip Jar
+----------------------------------------
 
-This "Software" is Licensed Under  **`MIT License (MIT)`** .
-
-#### Tip Jar
 * :dollar: **Bitcoin**: `1MhFfW7tDuEHQSgie65uJcAfJgCNchGeKf`
 * :euro: **Ethereum**: `0x6c1DC21aeC49A822A4f1E3bf07c623C2C1978a98`
 * :pound: **Pascalcoin**: `345367-40`

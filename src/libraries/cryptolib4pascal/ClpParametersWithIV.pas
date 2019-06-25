@@ -66,7 +66,7 @@ end;
 
 procedure TParametersWithIV.Clear;
 begin
-  TArrayUtils.Fill(Fiv, 0, System.Length(Fiv), Byte(0));
+  TArrayUtils.ZeroFill(Fiv);
 end;
 
 constructor TParametersWithIV.Create(const parameters: ICipherParameters;

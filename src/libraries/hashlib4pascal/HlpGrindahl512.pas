@@ -18,6 +18,7 @@ uses
   HlpConverters,
   HlpIHash,
   HlpIHashInfo,
+  HlpArrayUtils,
   HlpHashCryptoNotBuildIn;
 
 type
@@ -293,11 +294,8 @@ end;
 
 procedure TGrindahl512.Initialize;
 begin
-
-  System.FillChar(Fm_state[0], System.Length(Fm_state) * System.SizeOf(UInt64),
-    UInt64(0));
-  System.FillChar(Fm_temp[0], System.Length(Fm_temp) * System.SizeOf(UInt64),
-    UInt64(0));
+  TArrayUtils.ZeroFill(Fm_state);
+  TArrayUtils.ZeroFill(Fm_temp);
 
   Inherited Initialize();
 

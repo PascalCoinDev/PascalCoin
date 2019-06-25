@@ -540,7 +540,7 @@ end;
 
 procedure TBufferedBlockCipher.Reset;
 begin
-  TArrayUtils.Fill(Fbuf, 0, System.length(Fbuf), Byte(0));
+  TArrayUtils.ZeroFill(Fbuf);
   FbufOff := 0;
 
   Fcipher.Reset();

@@ -145,7 +145,7 @@ type
     /// <param name="minimum">The minimum inclusive value.</param>
     /// <param name="exclusiveBound">The maximum exclusive bound.</param>
 
-    class function NextUInt32(minimum: UInt32; exclusiveBound: UInt32): UInt32;
+    class function NextUInt32(minimum, exclusiveBound: UInt32): UInt32;
       overload; inline;
 
     /// <summary>
@@ -155,8 +155,7 @@ type
     /// <param name="minimum">The minimum inclusive value.</param>
     /// <param name="exclusiveBound">The maximum exclusive bound.</param>
 
-    class function NextInt(minimum: Integer; exclusiveBound: Integer)
-      : Integer; inline;
+    class function NextInt(minimum, exclusiveBound: Int32): Int32; inline;
 
   end;
 
@@ -275,18 +274,18 @@ begin
   Seed(LinitState, LinitSeq);
 end;
 
-constructor TPcg.Create(initState: UInt64; initSeq: UInt64);
+constructor TPcg.Create(initState, initSeq: UInt64);
 begin
   Seed(initState, initSeq);
 end;
 
-class function TPcg.NextInt(minimum: Integer; exclusiveBound: Integer): Integer;
+class function TPcg.NextInt(minimum, exclusiveBound: Int32): Int32;
 var
   boundRange, rangeResult: UInt32;
 begin
   boundRange := UInt32(exclusiveBound - minimum);
   rangeResult := Range32(boundRange);
-  result := Integer(rangeResult) + Integer(minimum);
+  result := Int32(rangeResult) + Int32(minimum);
 end;
 
 end.

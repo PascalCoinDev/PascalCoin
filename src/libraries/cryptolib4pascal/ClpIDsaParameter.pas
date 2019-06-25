@@ -26,7 +26,7 @@ uses
   ClpBigInteger;
 
 type
-  IDsaParameter = interface(IAsn1Convertible)
+  IDsaParameter = interface(IAsn1Encodable)
     ['{037E0113-0BD6-4A61-8BDC-DBEBE6136A6C}']
 
     function GetP: TBigInteger;

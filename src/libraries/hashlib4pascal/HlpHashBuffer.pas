@@ -10,6 +10,7 @@ uses
 {$ELSE}
   SysUtils,
 {$ENDIF HAS_UNITSCOPE}
+  HlpArrayUtils,
   HlpHashLibTypes;
 
 resourcestring
@@ -53,7 +54,7 @@ implementation
 
 function THashBuffer.Clone(): THashBuffer;
 begin
-  result := Default(THashBuffer);
+  result := Default (THashBuffer);
   result.Fm_data := System.Copy(Fm_data);
   result.Fm_pos := Fm_pos;
 end;
@@ -158,8 +159,8 @@ end;
 
 function THashBuffer.GetBytesZeroPadded: THashLibByteArray;
 begin
-  System.FillChar(Fm_data[Fm_pos], (System.Length(Fm_data) - Fm_pos) *
-    System.SizeOf(Byte), Byte(0));
+  TArrayUtils.Fill(Fm_data, Fm_pos, (System.Length(Fm_data) - Fm_pos) +
+    Fm_pos, Byte(0));
   Fm_pos := 0;
   result := Fm_data;
 end;
@@ -182,8 +183,7 @@ end;
 procedure THashBuffer.Initialize;
 begin
   Fm_pos := 0;
-  System.FillChar(Fm_data[0], System.Length(Fm_data) *
-    System.SizeOf(Byte), Byte(0));
+  TArrayUtils.ZeroFill(Fm_data);
 end;
 
 function THashBuffer.ToString: String;

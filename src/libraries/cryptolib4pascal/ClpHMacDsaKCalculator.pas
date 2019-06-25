@@ -128,7 +128,7 @@ var
 begin
   Fn := n;
   TArrayUtils.Fill(FV, 0, System.Length(FV), Byte($01));
-  TArrayUtils.Fill(FK, 0, System.Length(FK), Byte(0));
+  TArrayUtils.ZeroFill(FK);
 
   size := TBigIntegers.GetUnsignedByteLength(n);
   System.SetLength(x, size);

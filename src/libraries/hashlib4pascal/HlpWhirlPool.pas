@@ -17,7 +17,8 @@ uses
   HlpConverters,
   HlpIHash,
   HlpIHashInfo,
-  HlpHashCryptoNotBuildIn;
+  HlpHashCryptoNotBuildIn,
+  HlpArrayUtils;
 
 type
   TWhirlPool = class sealed(TBlockHash, ICryptoNotBuildIn, ITransformBlock)
@@ -138,9 +139,7 @@ end;
 
 procedure TWhirlPool.Initialize;
 begin
-
-  System.FillChar(Fm_hash[0], System.Length(Fm_hash) * System.SizeOf(UInt64),
-    UInt64(0));
+  TArrayUtils.ZeroFill(Fm_hash);
   Inherited Initialize();
 end;
 

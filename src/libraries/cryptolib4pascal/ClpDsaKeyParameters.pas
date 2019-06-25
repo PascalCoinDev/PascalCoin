@@ -33,11 +33,12 @@ type
   var
     Fparameters: IDsaParameters;
   strict protected
-  function GetParameters: IDsaParameters;
-    constructor Create(isPrivate: Boolean; parameters: IDsaParameters);
+    function GetParameters: IDsaParameters;
+    constructor Create(isPrivate: Boolean; const parameters: IDsaParameters);
 
   public
-    function Equals(const other: IDsaKeyParameters): Boolean; reintroduce; overload;
+    function Equals(const other: IDsaKeyParameters): Boolean;
+      reintroduce; overload;
     function GetHashCode(): {$IFDEF DELPHI}Int32; {$ELSE}PtrInt;
 {$ENDIF DELPHI}override;
 
@@ -50,7 +51,7 @@ implementation
 { TDsaKeyParameters }
 
 constructor TDsaKeyParameters.Create(isPrivate: Boolean;
-  parameters: IDsaParameters);
+  const parameters: IDsaParameters);
 begin
   Inherited Create(isPrivate);
   // Note: parameters may be Nil
@@ -69,8 +70,8 @@ begin
     result := True;
     Exit;
   end;
-  result := (parameters as TObject).Equals(other.parameters as TObject) and
-    (Inherited Equals(other));
+
+  result := parameters.Equals(other.parameters) and (Inherited Equals(other));
 end;
 
 function TDsaKeyParameters.GetHashCode(): {$IFDEF DELPHI}Int32; {$ELSE}PtrInt;

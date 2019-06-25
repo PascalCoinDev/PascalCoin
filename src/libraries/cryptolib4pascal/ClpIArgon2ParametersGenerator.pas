@@ -22,94 +22,25 @@ unit ClpIArgon2ParametersGenerator;
 interface
 
 uses
-  HlpIHashInfo,
-  HlpArgon2TypeAndVersion,
-  ClpICipherParameters,
+  ClpIPbeParametersGenerator,
   ClpCryptoLibTypes;
 
 type
 {$SCOPEDENUMS ON}
-  TArgon2Type = HlpArgon2TypeAndVersion.TArgon2Type;
-  TArgon2Version = HlpArgon2TypeAndVersion.TArgon2Version;
-  TArgon2MemoryCostType = (a2mctMemoryAsKB, a2mctMemoryPowOfTwo);
+  TCryptoLibArgon2Type = (Argon2D = $00, Argon2I = $01, Argon2ID = $02);
+  TCryptoLibArgon2Version = (Argon2Version10 = $10, Argon2Version13 = $13);
+  TCryptoLibArgon2MemoryCostType = (MemoryAsKB, MemoryPowOfTwo);
 {$SCOPEDENUMS OFF}
 
 type
-  IArgon2ParametersGenerator = interface(IInterface)
+  IArgon2ParametersGenerator = interface(IPbeParametersGenerator)
 
     ['{0AC3D3A8-9422-405F-B0EE-6B7AE0F64F74}']
 
-    procedure Init(argon2Type: TArgon2Type; argon2Version: TArgon2Version;
-      const password, salt, secret, additional: TCryptoLibByteArray;
-      iterations, memory, parallelism: Int32;
-      memoryCostType: TArgon2MemoryCostType);
-
-    /// <returns>
-    /// the password byte array.
-    /// </returns>
-    function GetPassword: TCryptoLibByteArray;
-
-    /// <value>
-    /// the password byte array.
-    /// </value>
-    property password: TCryptoLibByteArray read GetPassword;
-
-    /// <returns>
-    /// the Argon2 Parameter Builder Instance
-    /// </returns>
-    function GetArgon2ParametersBuilder: HlpIHashInfo.IArgon2ParametersBuilder;
-
-    /// <returns>
-    /// the Argon2 Parameter Builder Instance
-    /// </returns>
-    property Argon2ParametersBuilder: HlpIHashInfo.IArgon2ParametersBuilder
-      read GetArgon2ParametersBuilder;
-
-    /// <summary>
-    /// Generate derived parameters for a key of length keySize.
-    /// </summary>
-    /// <param name="algorithm">
-    /// a parameters object representing a key.
-    /// </param>
-    /// <param name="keySize">
-    /// the length, in bits, of the key required.
-    /// </param>
-    /// <returns>
-    /// a parameters object representing a key.
-    /// </returns>
-    function GenerateDerivedParameters(const algorithm: String; keySize: Int32)
-      : ICipherParameters; overload;
-
-    /// <summary>
-    /// Generate derived parameters for a key of length keySize and iv
-    /// of length ivSize.
-    /// </summary>
-    /// <param name="algorithm">
-    /// a parameters object representing a key.
-    /// </param>
-    /// <param name="keySize">
-    /// the length, in bits, of the key required.
-    /// </param>
-    /// <param name="ivSize">
-    /// the length, in bits, of the iv required.
-    /// </param>
-    /// <returns>
-    /// a parameters object representing a key and an iv.
-    /// </returns>
-    function GenerateDerivedParameters(const algorithm: String;
-      keySize, ivSize: Int32): ICipherParameters; overload;
-
-    /// <summary>
-    /// Generate derived parameters for a key of length keySize,
-    /// specifically <br />for use with a MAC.
-    /// </summary>
-    /// <param name="keySize">
-    /// the length, in bits, of the key required.
-    /// </param>
-    /// <returns>
-    /// a parameters object representing a key.
-    /// </returns>
-    function GenerateDerivedMacParameters(keySize: Int32): ICipherParameters;
+    procedure Init(argon2Type: TCryptoLibArgon2Type;
+      argon2Version: TCryptoLibArgon2Version; const password, salt, secret,
+      additional: TCryptoLibByteArray; iterations, memory, parallelism: Int32;
+      memoryCostType: TCryptoLibArgon2MemoryCostType);
 
   end;
 

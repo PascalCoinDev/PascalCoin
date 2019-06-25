@@ -1,5 +1,6 @@
 unit HlpBlake2B;
 
+
 {$I HashLib.inc}
 
 interface
@@ -25,6 +26,7 @@ uses
   HlpIHash,
   HlpIHashInfo,
   HlpConverters,
+  HlpArrayUtils,
   HlpHashLibTypes;
 
 resourcestring
@@ -1681,7 +1683,7 @@ begin
 
   if count > 0 then
   begin
-    System.FillChar(F_buf[F_bufferFilled], count, Byte(0));
+    TArrayUtils.Fill(F_buf, F_bufferFilled, count + F_bufferFilled, Byte(0));
   end;
 
   Compress(PByte(F_buf), 0);
@@ -1717,8 +1719,7 @@ begin
 
   System.SetLength(F_buf, BlockSizeInBytes);
 
-  System.FillChar(F_buf[0], (System.Length(F_buf) * System.SizeOf(Byte)
-    ), Byte(0));
+  TArrayUtils.ZeroFill(F_buf);
 
   System.FillChar(F_m, System.SizeOf(F_m), UInt64(0));
 
@@ -1801,3 +1802,4 @@ begin
 end;
 
 end.
+

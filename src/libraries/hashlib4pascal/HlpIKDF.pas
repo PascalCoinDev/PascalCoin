@@ -10,6 +10,8 @@ uses
 type
   IKDF = interface(IInterface)
     ['{4697798C-9DC2-476C-A6C2-2D633B74D3FC}']
+
+    procedure Clear();
     /// <summary>
     /// Returns the pseudo-random bytes for this object.
     /// </summary>

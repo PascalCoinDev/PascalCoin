@@ -15,6 +15,7 @@ uses
   HlpConverters,
   HlpIHash,
   HlpIHashInfo,
+  HlpArrayUtils,
   HlpHashCryptoNotBuildIn;
 
 type
@@ -429,14 +430,10 @@ end;
 
 procedure TGost.Initialize;
 begin
-
-  System.FillChar(Fm_state[0], System.Length(Fm_state) * System.SizeOf(UInt32),
-    UInt32(0));
-  System.FillChar(Fm_hash[0], System.Length(Fm_hash) * System.SizeOf(UInt32),
-    UInt32(0));
+  TArrayUtils.ZeroFill(Fm_state);
+  TArrayUtils.ZeroFill(Fm_hash);
 
   Inherited Initialize();
-
 end;
 
 procedure TGost.TransformBlock(a_data: PByte; a_data_length: Int32;

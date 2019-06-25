@@ -23,13 +23,7 @@ interface
 
 uses
   ClpICipherParameters,
-  ClpIPbeParametersGenerator,
-  ClpCryptoLibTypes;
-
-resourcestring
-  SEmptyPassword = 'Password can''t be empty';
-  SEmptySalt = 'Salt can''t be empty';
-  SIterationtooSmall = 'Iteration must be greater than zero.';
+  ClpIPbeParametersGenerator;
 
 type
 
@@ -40,45 +34,9 @@ type
   TPbeParametersGenerator = class abstract(TInterfacedObject,
     IPbeParametersGenerator)
 
-  strict protected
-  var
-    FmPassword, FmSalt: TCryptoLibByteArray;
-    FmIterationCount: Int32;
-
-    /// <returns>
-    /// the password byte array.
-    /// </returns>
-    function GetPassword: TCryptoLibByteArray; virtual;
-
-    /// <returns>
-    /// the salt byte array.
-    /// </returns>
-    function GetSalt: TCryptoLibByteArray; virtual;
-
-    /// <returns>
-    /// the iteration count.
-    /// </returns>
-    function GetIterationCount: Int32; virtual;
-
   public
 
-    procedure Init(const password, salt: TCryptoLibByteArray;
-      iterationCount: Int32); virtual;
-
-    /// <value>
-    /// the password byte array.
-    /// </value>
-    property password: TCryptoLibByteArray read GetPassword;
-
-    /// <value>
-    /// the salt byte array.
-    /// </value>
-    property salt: TCryptoLibByteArray read GetSalt;
-
-    /// <value>
-    /// the iteration count.
-    /// </value>
-    property iterationCount: Int32 read GetIterationCount;
+    procedure Clear(); virtual; abstract;
 
     /// <summary>
     /// Generate derived parameters for a key of length keySize.
@@ -130,44 +88,5 @@ type
   end;
 
 implementation
-
-{ TPbeParametersGenerator }
-
-function TPbeParametersGenerator.GetIterationCount: Int32;
-begin
-  result := FmIterationCount;
-end;
-
-function TPbeParametersGenerator.GetPassword: TCryptoLibByteArray;
-begin
-  result := System.Copy(FmPassword);
-end;
-
-function TPbeParametersGenerator.GetSalt: TCryptoLibByteArray;
-begin
-  result := System.Copy(FmSalt);
-end;
-
-procedure TPbeParametersGenerator.Init(const password,
-  salt: TCryptoLibByteArray; iterationCount: Int32);
-begin
-
-  if (password = Nil) then
-  begin
-    raise EArgumentNilCryptoLibException.CreateRes(@SEmptyPassword);
-  end;
-
-  if (salt = Nil) then
-  begin
-    raise EArgumentNilCryptoLibException.CreateRes(@SEmptySalt);
-  end;
-
-  if (iterationCount < 1) then
-    raise EArgumentCryptoLibException.CreateRes(@SIterationtooSmall);
-
-  FmPassword := System.Copy(password);
-  FmSalt := System.Copy(salt);
-  FmIterationCount := iterationCount;
-end;
 
 end.

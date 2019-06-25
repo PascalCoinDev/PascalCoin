@@ -313,7 +313,7 @@ begin
     end;
 
   finally
-    TArrayUtils.Fill(BigZ, 0, System.Length(BigZ), Byte(0));
+    TArrayUtils.ZeroFill(BigZ);
   end;
 end;
 

@@ -25,17 +25,21 @@ uses
 
   HlpIHashInfo,
   HlpHashFactory,
+  HlpArgon2TypeAndVersion,
   HlpPBKDF_Argon2NotBuildInAdapter,
+  ClpPbeParametersGenerator,
   ClpICipherParameters,
   ClpIArgon2ParametersGenerator,
   ClpKeyParameter,
   ClpIKeyParameter,
   ClpParametersWithIV,
   ClpParameterUtilities,
+  ClpArrayUtils,
   ClpCryptoLibTypes;
 
 resourcestring
   SArgon2TypeInvalid = 'Selected Argon2Type is Invalid';
+  SArgon2VersionInvalid = 'Selected Argon2Version is Invalid';
   SArgon2MemoryCostTypeInvalid = 'Selected Argon2MemoryCostType is Invalid';
 
 type
@@ -45,29 +49,20 @@ type
   /// Argon2 Specification</see>, <see href="https://tools.ietf.org/html/draft-irtf-cfrg-argon2-04">
   /// ietf specs</see>
   /// </summary>
-  TArgon2ParametersGenerator = class sealed(TInterfacedObject,
+  TArgon2ParametersGenerator = class sealed(TPbeParametersGenerator,
     IArgon2ParametersGenerator)
 
   strict private
   var
     FPassword: TCryptoLibByteArray;
     FPBKDF_Argon2: IPBKDF_Argon2;
-    FArgon2ParametersBuilder: HlpIHashInfo.IArgon2ParametersBuilder;
-
-    /// <returns>
-    /// the password byte array.
-    /// </returns>
-    function GetPassword: TCryptoLibByteArray; inline;
-
-    /// <returns>
-    /// the Argon2 Parameter Builder Instance
-    /// </returns>
-    function GetArgon2ParametersBuilder
-      : HlpIHashInfo.IArgon2ParametersBuilder; inline;
+    FArgon2Parameters: IArgon2Parameters;
 
     function GenerateDerivedKey(dkLen: Int32): TCryptoLibByteArray; inline;
 
   public
+
+    procedure Clear(); override;
 
     /// <summary>
     /// construct an Argon2 Parameters generator.
@@ -77,10 +72,12 @@ type
     /// </param>
     constructor Create();
 
-    procedure Init(argon2Type: TArgon2Type; argon2Version: TArgon2Version;
-      const password, salt, secret, additional: TCryptoLibByteArray;
-      iterations, memory, parallelism: Int32;
-      memoryCostType: TArgon2MemoryCostType);
+    destructor Destroy; override;
+
+    procedure Init(argon2Type: TCryptoLibArgon2Type;
+      argon2Version: TCryptoLibArgon2Version; const password, salt, secret,
+      additional: TCryptoLibByteArray; iterations, memory, parallelism: Int32;
+      memoryCostType: TCryptoLibArgon2MemoryCostType);
 
     /// <summary>
     /// Generate a key parameter derived from the password, salt, and
@@ -96,7 +93,7 @@ type
     /// a parameters object representing a key.
     /// </returns>
     function GenerateDerivedParameters(const algorithm: String; keySize: Int32)
-      : ICipherParameters; overload;
+      : ICipherParameters; overload; override;
 
     /// <summary>
     /// Generate a key with initialisation vector parameter derived from <br />
@@ -116,7 +113,7 @@ type
     /// a parameters object representing a key and an iv.
     /// </returns>
     function GenerateDerivedParameters(const algorithm: String;
-      keySize, ivSize: Int32): ICipherParameters; overload;
+      keySize, ivSize: Int32): ICipherParameters; overload; override;
 
     /// <summary>
     /// Generate a key parameter for use with a MAC derived from the
@@ -130,18 +127,7 @@ type
     /// a parameters object representing a key.
     /// </returns>
     function GenerateDerivedMacParameters(keySize: Int32)
-      : ICipherParameters; overload;
-
-    /// <value>
-    /// the password byte array.
-    /// </value>
-    property password: TCryptoLibByteArray read GetPassword;
-
-    /// <returns>
-    /// the Argon2 Parameter Builder Instance
-    /// </returns>
-    property Argon2ParametersBuilder: HlpIHashInfo.IArgon2ParametersBuilder
-      read GetArgon2ParametersBuilder;
+      : ICipherParameters; override;
 
   end;
 
@@ -149,20 +135,30 @@ implementation
 
 { TArgon2ParametersGenerator }
 
-function TArgon2ParametersGenerator.GetPassword: TCryptoLibByteArray;
+procedure TArgon2ParametersGenerator.Clear();
 begin
-  result := System.Copy(FPassword);
-end;
+  TArrayUtils.ZeroFill(FPassword);
 
-function TArgon2ParametersGenerator.GetArgon2ParametersBuilder
-  : HlpIHashInfo.IArgon2ParametersBuilder;
-begin
-  result := FArgon2ParametersBuilder;
+  if FArgon2Parameters <> Nil then
+  begin
+    FArgon2Parameters.Clear();
+  end;
+
+  if FPBKDF_Argon2 <> Nil then
+  begin
+    FPBKDF_Argon2.Clear();
+  end;
 end;
 
 constructor TArgon2ParametersGenerator.Create();
 begin
   Inherited Create();
+end;
+
+destructor TArgon2ParametersGenerator.Destroy();
+begin
+  Clear();
+  inherited Destroy;
 end;
 
 function TArgon2ParametersGenerator.GenerateDerivedKey(dkLen: Int32)
@@ -210,26 +206,27 @@ begin
   result := TParametersWithIV.Create(key, dKey, keySize, ivSize);
 end;
 
-procedure TArgon2ParametersGenerator.Init(argon2Type: TArgon2Type;
-  argon2Version: TArgon2Version; const password, salt, secret,
+procedure TArgon2ParametersGenerator.Init(argon2Type: TCryptoLibArgon2Type;
+  argon2Version: TCryptoLibArgon2Version; const password, salt, secret,
   additional: TCryptoLibByteArray; iterations, memory, parallelism: Int32;
-  memoryCostType: TArgon2MemoryCostType);
+  memoryCostType: TCryptoLibArgon2MemoryCostType);
 var
   LArgon2ParametersBuilder: IArgon2ParametersBuilder;
+  LArgon2Version: TArgon2Version;
 begin
-  FPassword := password;
+  FPassword := System.Copy(password);
 
   case argon2Type of
-    TArgon2Type.a2tARGON2_d:
+    TCryptoLibArgon2Type.Argon2D:
       begin
         LArgon2ParametersBuilder := TArgon2dParametersBuilder.Builder();
       end;
 
-    TArgon2Type.a2tARGON2_i:
+    TCryptoLibArgon2Type.Argon2I:
       begin
         LArgon2ParametersBuilder := TArgon2iParametersBuilder.Builder();
       end;
-    TArgon2Type.a2tARGON2_id:
+    TCryptoLibArgon2Type.Argon2ID:
       begin
         LArgon2ParametersBuilder := TArgon2idParametersBuilder.Builder();
       end
@@ -239,18 +236,34 @@ begin
     end;
   end;
 
-  case memoryCostType of
-    TArgon2MemoryCostType.a2mctMemoryAsKB:
+  case argon2Version of
+    TCryptoLibArgon2Version.Argon2Version10:
       begin
-        LArgon2ParametersBuilder.WithVersion(argon2Version).WithSalt(salt)
+        LArgon2Version := TArgon2Version.a2vARGON2_VERSION_10;
+      end;
+
+    TCryptoLibArgon2Version.Argon2Version13:
+      begin
+        LArgon2Version := TArgon2Version.a2vARGON2_VERSION_13;
+      end
+  else
+    begin
+      raise EArgumentCryptoLibException.CreateRes(@SArgon2VersionInvalid);
+    end;
+  end;
+
+  case memoryCostType of
+    TCryptoLibArgon2MemoryCostType.MemoryAsKB:
+      begin
+        LArgon2ParametersBuilder.WithVersion(LArgon2Version).WithSalt(salt)
           .WithSecret(secret).WithAdditional(additional)
           .WithIterations(iterations).WithMemoryAsKB(memory)
           .WithParallelism(parallelism);
       end;
 
-    TArgon2MemoryCostType.a2mctMemoryPowOfTwo:
+    TCryptoLibArgon2MemoryCostType.MemoryPowOfTwo:
       begin
-        LArgon2ParametersBuilder.WithVersion(argon2Version).WithSalt(salt)
+        LArgon2ParametersBuilder.WithVersion(LArgon2Version).WithSalt(salt)
           .WithSecret(secret).WithAdditional(additional)
           .WithIterations(iterations).WithMemoryPowOfTwo(memory)
           .WithParallelism(parallelism);
@@ -262,8 +275,10 @@ begin
     end;
   end;
 
+  FArgon2Parameters := LArgon2ParametersBuilder.Build();
+  LArgon2ParametersBuilder.Clear();
   FPBKDF_Argon2 := TKDF.TPBKDF_Argon2.CreatePBKDF_Argon2(FPassword,
-    LArgon2ParametersBuilder.Build());
+    FArgon2Parameters);
 end;
 
 end.

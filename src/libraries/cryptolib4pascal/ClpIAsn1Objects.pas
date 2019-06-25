@@ -207,7 +207,7 @@ type
 
     function GetCount: Int32;
     function GetParser: IAsn1SequenceParser;
-    function GetSelf(Index: Integer): IAsn1Encodable;
+    function GetSelf(Index: Int32): IAsn1Encodable;
     function GetCurrent(const e: IAsn1Encodable): IAsn1Encodable;
 
     procedure AddObject(const obj: IAsn1Encodable);
@@ -294,7 +294,7 @@ type
 
     function GetCount: Int32;
     function GetParser: IAsn1SetParser;
-    function GetSelf(Index: Integer): IAsn1Encodable;
+    function GetSelf(Index: Int32): IAsn1Encodable;
     function GetCurrent(const e: IAsn1Encodable): IAsn1Encodable;
 
     function ToString(): String;

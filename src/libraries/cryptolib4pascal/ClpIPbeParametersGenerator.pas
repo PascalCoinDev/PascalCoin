@@ -30,38 +30,7 @@ type
 
     ['{8C530FB2-6B8F-4E22-8EA0-D538665471EF}']
 
-    procedure Init(const password, salt: TCryptoLibByteArray;
-      iterationCount: Int32);
-
-    /// <returns>
-    /// the password byte array.
-    /// </returns>
-    function GetPassword: TCryptoLibByteArray;
-
-    /// <value>
-    /// the password byte array.
-    /// </value>
-    property password: TCryptoLibByteArray read GetPassword;
-
-    /// <returns>
-    /// the salt byte array.
-    /// </returns>
-    function GetSalt: TCryptoLibByteArray;
-
-    /// <value>
-    /// the salt byte array.
-    /// </value>
-    property salt: TCryptoLibByteArray read GetSalt;
-
-    /// <returns>
-    /// the iteration count.
-    /// </returns>
-    function GetIterationCount: Int32;
-
-    /// <value>
-    /// the iteration count.
-    /// </value>
-    property iterationCount: Int32 read GetIterationCount;
+    procedure Clear();
 
     /// <summary>
     /// Generate derived parameters for a key of length keySize.

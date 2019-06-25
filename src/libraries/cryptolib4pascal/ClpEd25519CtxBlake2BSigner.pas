@@ -79,15 +79,22 @@ implementation
 
 function TEd25519CtxBlake2BSigner.Aggregate: TCryptoLibByteArray;
 begin
-  FBuffer.Position := 0;
-  System.SetLength(Result, FBuffer.Size);
-  FBuffer.Read(Result[0], FBuffer.Size);
+  Result := Nil;
+  if FBuffer.Size > 0 then
+  begin
+    FBuffer.Position := 0;
+    System.SetLength(Result, FBuffer.Size);
+    FBuffer.Read(Result[0], FBuffer.Size);
+  end;
 end;
 
 procedure TEd25519CtxBlake2BSigner.BlockUpdate(const buf: TCryptoLibByteArray;
   off, len: Int32);
 begin
-  FBuffer.Write(buf[off], len);
+  if buf <> Nil then
+  begin
+    FBuffer.Write(buf[off], len);
+  end;
 end;
 
 constructor TEd25519CtxBlake2BSigner.Create(const context: TCryptoLibByteArray);

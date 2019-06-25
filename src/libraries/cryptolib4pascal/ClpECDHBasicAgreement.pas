@@ -53,10 +53,10 @@ type
   /// used with the schemes ECKAS-DH1 and <br />DL/ECKAS-DH2. It assumes that
   /// the input keys are valid (see also <br />Section 7.2.2). <br />
   /// </summary>
-  TECDHBasicAgreement = class(TInterfacedObject, IECDHBasicAgreement,
+  TECDHBasicAgreement = class sealed(TInterfacedObject, IECDHBasicAgreement,
     IBasicAgreement)
 
-  strict protected
+  strict private
   var
     FprivKey: IECPrivateKeyParameters;
 
@@ -64,19 +64,18 @@ type
     /// <summary>
     /// initialise the agreement engine.
     /// </summary>
-    procedure Init(const parameters: ICipherParameters); virtual;
+    procedure Init(const parameters: ICipherParameters);
 
     /// <summary>
     /// return the field size for the agreement algorithm in bytes.
     /// </summary>
-    function GetFieldSize(): Int32; virtual;
+    function GetFieldSize(): Int32;
 
     /// <summary>
     /// given a public key from a given party calculate the next message
     /// in the agreement sequence.
     /// </summary>
-    function CalculateAgreement(const pubKey: ICipherParameters)
-      : TBigInteger; virtual;
+    function CalculateAgreement(const pubKey: ICipherParameters): TBigInteger;
 
   end;
 

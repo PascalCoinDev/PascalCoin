@@ -31,6 +31,8 @@ uses
   ClpIAsn1Objects,
   ClpDsaKeyPairGenerator,
   ClpIDsaKeyPairGenerator,
+  ClpDHKeyPairGenerator,
+  ClpIDHKeyPairGenerator,
   ClpEd25519KeyPairGenerator,
   ClpIEd25519KeyPairGenerator,
   ClpEd25519Blake2BKeyPairGenerator,
@@ -254,6 +256,7 @@ begin
   // key pair generators.
   //
 
+  AddKpgAlgorithm('DH', ['DIFFIEHELLMAN']);
   AddKpgAlgorithm('DSA', []);
   AddKpgAlgorithm('ECDH', ['ECIES']);
   AddKpgAlgorithm('ECDHC', []);
@@ -383,6 +386,12 @@ begin
   begin
     raise ESecurityUtilityCryptoLibException.CreateResFmt
       (@SKeyPairGeneratorAlgorithmNotRecognised, [algorithm]);
+  end;
+
+  if (canonicalName = 'DH') then
+  begin
+    result := TDHKeyPairGenerator.Create() as IDHKeyPairGenerator;
+    Exit;
   end;
 
   if (canonicalName = 'DSA') then

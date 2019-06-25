@@ -35,6 +35,8 @@ type
   IMac = interface(IInterface)
     ['{3273EF2F-AE51-4878-B55C-5F801DB85A74}']
 
+    procedure Clear();
+
     /// <summary>
     /// returns the name of the algorithm the MAC implements.
     /// </summary>

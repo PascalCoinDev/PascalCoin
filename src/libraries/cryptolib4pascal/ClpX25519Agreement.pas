@@ -36,17 +36,18 @@ resourcestring
     'The Init Parameter does not Contain the Private Key';
 
 type
-  TX25519Agreement = class(TInterfacedObject, IX25519Agreement, IRawAgreement)
+  TX25519Agreement = class sealed(TInterfacedObject, IX25519Agreement,
+    IRawAgreement)
 
-  strict protected
+  strict private
   var
     FPrivateKey: IX25519PrivateKeyParameters;
 
-    function GetAgreementSize(): Int32; virtual;
+    function GetAgreementSize(): Int32;
 
   public
 
-    procedure Init(const parameters: ICipherParameters); virtual;
+    procedure Init(const parameters: ICipherParameters);
 
     procedure CalculateAgreement(const publicKey: ICipherParameters;
       const buf: TCryptoLibByteArray; off: Int32);

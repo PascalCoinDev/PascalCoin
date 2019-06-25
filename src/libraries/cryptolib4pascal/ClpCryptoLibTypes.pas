@@ -53,7 +53,7 @@ type
   EInvalidCipherTextCryptoLibException = class(ECryptoLibException);
   EStreamCryptoLibException = class(ECryptoLibException);
   ESecurityUtilityCryptoLibException = class(ECryptoLibException);
-  EAccessCryptoLibException = class(ECryptoLibException);
+  EOSRandomCryptoLibException = class(ECryptoLibException);
   EDataLengthCryptoLibException = class(ECryptoLibException);
   EMaxBytesExceededCryptoLibException = class(ECryptoLibException);
   EOutputLengthCryptoLibException = class(ECryptoLibException);

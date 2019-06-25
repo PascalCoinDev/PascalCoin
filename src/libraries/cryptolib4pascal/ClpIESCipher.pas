@@ -103,9 +103,13 @@ implementation
 
 function TIESCipher.Aggregate: TCryptoLibByteArray;
 begin
-  FBuffer.Position := 0;
-  System.SetLength(Result, FBuffer.Size);
-  FBuffer.Read(Result[0], FBuffer.Size);
+  Result := Nil;
+  if FBuffer.Size > 0 then
+  begin
+    FBuffer.Position := 0;
+    System.SetLength(Result, FBuffer.Size);
+    FBuffer.Read(Result[0], FBuffer.Size);
+  end;
 end;
 
 constructor TIESCipher.Create(const Engine: IIESEngine; ivLength: Int32);

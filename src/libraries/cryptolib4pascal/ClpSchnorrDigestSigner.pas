@@ -112,15 +112,22 @@ implementation
 
 function TSchnorrDigestSigner.Aggregate: TCryptoLibByteArray;
 begin
-  FBuffer.Position := 0;
-  System.SetLength(Result, FBuffer.Size);
-  FBuffer.Read(Result[0], FBuffer.Size);
+  Result := Nil;
+  if FBuffer.Size > 0 then
+  begin
+    FBuffer.Position := 0;
+    System.SetLength(Result, FBuffer.Size);
+    FBuffer.Read(Result[0], FBuffer.Size);
+  end;
 end;
 
 procedure TSchnorrDigestSigner.BlockUpdate(const input: TCryptoLibByteArray;
   inOff, length: Int32);
 begin
-  FBuffer.Write(input[inOff], length);
+  if input <> Nil then
+  begin
+    FBuffer.Write(input[inOff], length);
+  end;
 end;
 
 // constructor TSchnorrDigestSigner.Create(const Schnorr: ISchnorr;

@@ -41,6 +41,8 @@ type
 
     function GetX: TBigInteger; inline;
 
+    class function Validate(const x: TBigInteger): TBigInteger; static; inline;
+
   public
     constructor Create(const x: TBigInteger; const parameters: IDsaParameters);
 
@@ -61,16 +63,21 @@ begin
   result := Fx;
 end;
 
-constructor TDsaPrivateKeyParameters.Create(const x: TBigInteger;
-  const parameters: IDsaParameters);
+class function TDsaPrivateKeyParameters.Validate(const x: TBigInteger)
+  : TBigInteger;
 begin
-  Inherited Create(true, parameters);
   if (not(x.IsInitialized)) then
   begin
     raise EArgumentNilCryptoLibException.CreateRes(@SXUnInitialized);
   end;
+  result := x;
+end;
 
-  Fx := x;
+constructor TDsaPrivateKeyParameters.Create(const x: TBigInteger;
+  const parameters: IDsaParameters);
+begin
+  Inherited Create(true, parameters);
+  Fx := Validate(x);
 end;
 
 function TDsaPrivateKeyParameters.Equals(const other

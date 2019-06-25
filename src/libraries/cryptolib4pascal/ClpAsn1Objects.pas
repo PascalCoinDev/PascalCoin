@@ -784,7 +784,7 @@ type
   strict protected
     function GetCount: Int32; virtual;
     function GetParser: IAsn1SequenceParser; virtual;
-    function GetSelf(Index: Integer): IAsn1Encodable; virtual;
+    function GetSelf(Index: Int32): IAsn1Encodable; virtual;
     function GetCurrent(const e: IAsn1Encodable): IAsn1Encodable;
     function Asn1GetHashCode(): Int32; override;
     function Asn1Equals(const asn1Object: IAsn1Object): Boolean; override;
@@ -1179,7 +1179,7 @@ type
   strict protected
     function GetCount: Int32; virtual;
     function GetParser: IAsn1SetParser; inline;
-    function GetSelf(Index: Integer): IAsn1Encodable; virtual;
+    function GetSelf(Index: Int32): IAsn1Encodable; virtual;
     function GetCurrent(const e: IAsn1Encodable): IAsn1Encodable;
     function Asn1GetHashCode(): Int32; override;
     function Asn1Equals(const asn1Object: IAsn1Object): Boolean; override;
@@ -5470,7 +5470,7 @@ begin
   result := TAsn1SequenceParserImpl.Create(Self as IAsn1Sequence);
 end;
 
-function TAsn1Sequence.GetSelf(Index: Integer): IAsn1Encodable;
+function TAsn1Sequence.GetSelf(Index: Int32): IAsn1Encodable;
 begin
   result := FSeq[index];
 end;
@@ -6301,7 +6301,7 @@ begin
   result := TAsn1SetParserImpl.Create(Self as IAsn1Set);
 end;
 
-function TAsn1Set.GetSelf(Index: Integer): IAsn1Encodable;
+function TAsn1Set.GetSelf(Index: Int32): IAsn1Encodable;
 begin
   result := F_set[index];
 end;

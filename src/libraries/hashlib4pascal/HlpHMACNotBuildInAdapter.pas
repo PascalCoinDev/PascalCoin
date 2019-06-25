@@ -15,6 +15,7 @@ uses
   HlpIHash,
   HlpIHashInfo,
   HlpIHashResult,
+  HlpArrayUtils,
   HlpNullable;
 
 type
@@ -41,6 +42,11 @@ type
 
     constructor Create(const a_underlyingHash: IHash;
       const a_hmacKey: THashLibByteArray = Nil);
+
+    destructor Destroy; override;
+
+    procedure Clear();
+
     procedure Initialize(); override;
     function TransformFinal(): IHashResult; override;
     procedure TransformBytes(const a_data: THashLibByteArray;
@@ -58,6 +64,11 @@ type
 implementation
 
 { THMACNotBuildInAdapter }
+
+procedure THMACNotBuildInAdapter.Clear();
+begin
+  TArrayUtils.ZeroFill(Fm_key);
+end;
 
 function THMACNotBuildInAdapter.Clone(): IHash;
 var
@@ -82,6 +93,12 @@ begin
   System.SetLength(Fm_opad, Fm_blocksize);
 end;
 
+destructor THMACNotBuildInAdapter.Destroy;
+begin
+  Clear();
+  inherited Destroy;
+end;
+
 function THMACNotBuildInAdapter.GetKey: THashLibByteArray;
 begin
   result := System.Copy(Fm_key);
@@ -96,7 +113,6 @@ procedure THMACNotBuildInAdapter.SetKey(const value: THashLibByteArray);
 begin
   if (value = Nil) then
   begin
-
     System.SetLength(Fm_key, 0);
   end
   else
@@ -120,8 +136,8 @@ begin
     LKey := Key;
   end;
 
-  System.FillChar(Fm_ipad[0], LBlockSize * System.SizeOf(Byte), Byte($36));
-  System.FillChar(Fm_opad[0], LBlockSize * System.SizeOf(Byte), Byte($5C));
+  TArrayUtils.Fill(Fm_ipad, 0, LBlockSize, Byte($36));
+  TArrayUtils.Fill(Fm_opad, 0, LBlockSize, Byte($5C));
 
   Idx := 0;
   while (Idx < System.Length(LKey)) and (Idx < LBlockSize) do
