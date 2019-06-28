@@ -177,6 +177,7 @@ type
     MiFindOperationbyOpHash: TMenuItem;
     MiAccountInformation: TMenuItem;
     MiOperationsExplorer: TMenuItem;
+    miDiagnosticTool: TMenuItem;
     procedure cbHashRateUnitsClick(Sender: TObject);
     procedure ebHashRateBackBlocksExit(Sender: TObject);
     procedure ebHashRateBackBlocksKeyPress(Sender: TObject; var Key: char);
@@ -228,6 +229,7 @@ type
     procedure MiFindOperationbyOpHashClick(Sender: TObject);
     procedure MiAccountInformationClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure miDiagnosticToolClick(Sender: TObject);
   private
     FLastNodesCacheUpdatedTS : TDateTime;
     FBackgroundPanel : TPanel;
@@ -329,7 +331,7 @@ Uses UFolderHelper,
 {$ENDIF}
   UTime, UFileStorage,
   UThread, UOpTransaction, UFRMPascalCoinWalletConfig,
-  UFRMOperationsExplorer,
+  UFRMOperationsExplorer, UFRMRandomHashUtil,
   {$IFDEF TESTNET}
   UFRMRandomOperations,
   UPCTNetDataExtraMessages,
@@ -1610,6 +1612,18 @@ begin
     FPendingOperationsGrid.ShowModalDecoder(FWalletKeys,FAppParams);
   end else if PageControl.ActivePage=tsMyAccounts then begin
     FOperationsAccountGrid.ShowModalDecoder(FWalletKeys,FAppParams);
+  end;
+end;
+
+procedure TFRMWallet.miDiagnosticToolClick(Sender: TObject);
+var
+ LDialog : TFRMDiagnosicTool;
+begin
+  LDialog := TFRMDiagnosicTool.Create(Nil);
+  try
+    LDialog.ShowModal;
+  finally
+    LDialog.Free;
   end;
 end;
 

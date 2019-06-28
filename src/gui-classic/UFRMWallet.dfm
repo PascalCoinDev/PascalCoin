@@ -671,10 +671,6 @@ object FRMWallet: TFRMWallet
         object tsMultiSelectAccounts: TTabSheet
           Caption = 'Selected Accounts For Batch Operation'
           ImageIndex = 1
-          ExplicitLeft = 0
-          ExplicitTop = 0
-          ExplicitWidth = 0
-          ExplicitHeight = 0
           object dgSelectedAccounts: TDrawGrid
             Left = 41
             Top = 31
@@ -866,10 +862,6 @@ object FRMWallet: TFRMWallet
     object tsPendingOperations: TTabSheet
       Caption = 'Pending Operations'
       ImageIndex = 5
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object dgPendingOperations: TDrawGrid
         Left = 0
         Top = 86
@@ -916,10 +908,6 @@ object FRMWallet: TFRMWallet
     object tsBlockChain: TTabSheet
       Caption = 'Block Explorer'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Panel2: TPanel
         Left = 0
         Top = 0
@@ -1012,10 +1000,6 @@ object FRMWallet: TFRMWallet
     object tsOperations: TTabSheet
       Caption = 'Operations Explorer'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Panel1: TPanel
         Left = 0
         Top = 0
@@ -1064,10 +1048,6 @@ object FRMWallet: TFRMWallet
     object tsLogs: TTabSheet
       Caption = 'Logs'
       ImageIndex = 2
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object pnlTopLogs: TPanel
         Left = 0
         Top = 0
@@ -1099,10 +1079,6 @@ object FRMWallet: TFRMWallet
     object tsNodeStats: TTabSheet
       Caption = 'Node Stats'
       ImageIndex = 3
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         857
         438)
@@ -1172,10 +1148,6 @@ object FRMWallet: TFRMWallet
     object tsMessages: TTabSheet
       Caption = 'Messages'
       ImageIndex = 6
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         857
         438)
@@ -1380,6 +1352,10 @@ object FRMWallet: TFRMWallet
       object miAboutPascalCoin: TMenuItem
         Caption = 'About Pascal Coin...'
         OnClick = miAboutPascalCoinClick
+      end
+      object miDiagnosticTool: TMenuItem
+        Caption = 'Diagnostic Tool'
+        OnClick = miDiagnosticToolClick
       end
     end
   end
