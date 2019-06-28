@@ -39,6 +39,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
 - Implementation of PIP-0030 -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0030.md
 - Implementation of PIP-0029 -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0029.md
 - New digest hash value for OP_DATA ( PIP-0016 ) on Protocol 5
+- Hardcoded RandomHash digest/hash values for quick speed safebox check on fresh installation
 TODO  
 - TODO: RPC calls for PIP-0029
 - TODO Implement Seal calculation
