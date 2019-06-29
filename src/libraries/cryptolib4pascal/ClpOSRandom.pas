@@ -75,7 +75,7 @@ resourcestring
 {$ENDIF}
 {$IFDEF CRYPTOLIB_GENERIC_BSD}
   SArc4RandomBufGenerationError =
-    'An Error Occured while generating random data using getRandom API.';
+    'An Error Occured while generating random data using arc4random_buf API.';
 {$ENDIF}
 {$IFDEF CRYPTOLIB_UNIX}
   SRandomDeviceReadError =
@@ -278,7 +278,7 @@ function SecRandomCopyBytes(rnd: SecRandomRef; count: LongWord; bytes: PByte)
 // ************************************************************************//
 {$IFDEF CRYPTOLIB_GENERIC_BSD}
 procedure arc4random_buf(bytes: PByte; count: LongWord); cdecl; external;
-// 'c' name 'arc4random_buf';
+'c' name 'arc4random_buf';
 {$ENDIF}
 
 implementation
