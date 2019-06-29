@@ -63,7 +63,7 @@ uses
 resourcestring
 {$IFDEF CRYPTOLIB_MSWINDOWS}
   SMSWIndowsCryptographyAPIGenerationError =
-    'An Error Occured while generating random data using MS WIndows Cryptography API.';
+    'An Error Occured while generating random data using MS Windows Cryptography API.';
 {$ENDIF}
 {$IFDEF CRYPTOLIB_APPLE}
   SAppleSecRandomCopyBytesGenerationError =
