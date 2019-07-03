@@ -59,9 +59,7 @@ uses
   UPCOrderedLists in 'core\UPCOrderedLists.pas',
   UPCOperationsSignatureValidator in 'core\UPCOperationsSignatureValidator.pas',
   UPCTNetDataExtraMessages in 'core\UPCTNetDataExtraMessages.pas',
-  UFRMHashLock in 'gui-classic\UFRMHashLock.pas' {FRMHashLock},
-  URandomHash2 in 'core\URandomHash2.pas',
-  UFRMRandomHashUtil in 'gui-classic\UFRMRandomHashUtil.pas' {FRMDiagnosicTool};
+  UFRMHashLock in 'gui-classic\UFRMHashLock.pas' {FRMHashLock};
 
 {$R *.res}
 

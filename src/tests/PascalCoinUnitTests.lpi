@@ -13,7 +13,7 @@
       <UseXPManifest Value="True"/>
     </General>
     <BuildModes Count="1">
-      <Item1 Name="Debug" Default="True"/>
+      <Item1 Name="Default" Default="True"/>
     </BuildModes>
     <PublishOptions>
       <Version Value="2"/>
@@ -35,7 +35,7 @@
         <PackageName Value="FCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="19">
+    <Units Count="17">
       <Unit0>
         <Filename Value="PascalCoinUnitTests.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -106,15 +106,8 @@
       <Unit16>
         <Filename Value="URandomHash.Tests.pas"/>
         <IsPartOfProject Value="True"/>
+        <UnitName Value="URandomHashTests"/>
       </Unit16>
-      <Unit17>
-        <Filename Value="URandomHash2.Tests.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit17>
-      <Unit18>
-        <Filename Value="..\core\URandomHash2.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit18>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -128,27 +121,7 @@
       <OtherUnitFiles Value="..\..\src;..\core;..\libraries\generics.collections;..\libraries\hashlib4pascal;..\libraries\sphere10;..\libraries\pascalcoin"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
-    <Parsing>
-      <SyntaxOptions>
-        <IncludeAssertionCode Value="True"/>
-      </SyntaxOptions>
-    </Parsing>
-    <CodeGeneration>
-      <Checks>
-        <IOChecks Value="True"/>
-        <RangeChecks Value="True"/>
-        <OverflowChecks Value="True"/>
-        <StackChecks Value="True"/>
-      </Checks>
-      <VerifyObjMethodCallValidity Value="True"/>
-    </CodeGeneration>
     <Linking>
-      <Debugging>
-        <DebugInfoType Value="dsDwarf2Set"/>
-        <UseHeaptrc Value="True"/>
-        <TrashVariables Value="True"/>
-        <UseExternalDbgSyms Value="True"/>
-      </Debugging>
       <Options>
         <PassLinkerOptions Value="True"/>
         <LinkerOptions Value=" -dUseCThreads"/>
