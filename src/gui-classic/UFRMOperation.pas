@@ -840,7 +840,7 @@ begin
       exit;
     end;
 
-    If not TAccountComp.IsAccountForSaleOrSwap(AccountToBuy.accountInfo, FNode.Bank.BlocksCount) then begin
+    If not TAccountComp.IsAccountForSaleOrSwap(AccountToBuy.accountInfo) then begin
       errors := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(c)+' is not for sale or swap';
       exit;
     end;
@@ -848,11 +848,11 @@ begin
       errors := 'Invalid amount value';
       exit;
     end;
-     if (AccountToBuy.accountInfo.price>amount) AND (NOT TAccountComp.IsAccountForCoinSwap(AccountToBuy.accountInfo, FNode.Bank.BlocksCount)) then begin
+     if (AccountToBuy.accountInfo.price>amount) AND (NOT TAccountComp.IsAccountForCoinSwap(AccountToBuy.accountInfo)) then begin
       errors := 'Account price '+TAccountComp.FormatMoney(AccountToBuy.accountInfo.price);
       exit;
     end;
-    if TAccountComp.IsAccountForSale(AccountToBuy.accountInfo, FNode.Bank.BlocksCount) AND (amount+DefaultFee > SenderAccount.balance) then begin
+    if TAccountComp.IsAccountForSale(AccountToBuy.accountInfo) AND (amount+DefaultFee > SenderAccount.balance) then begin
       errors := 'Insufficient funds';
       exit;
     end;
@@ -1029,7 +1029,7 @@ begin
   Result := false;
   if not (PageControlOpType.ActivePage=tsDelistAccount) then exit;
   try
-    if Not TAccountComp.IsAccountForSaleOrSwap(TargetAccount.accountInfo, FNode.Bank.BlocksCount) then begin
+    if Not TAccountComp.IsAccountForSaleOrSwap(TargetAccount.accountInfo) then begin
       errors := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(TargetAccount.account)+' is not for sale or swap';
       exit;
     end;
