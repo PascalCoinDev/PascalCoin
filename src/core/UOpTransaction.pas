@@ -802,7 +802,7 @@ begin
   // V5 - Allow recipient-signed transactions. This is defined as
   //  - Sender Account = Target Account
   LRecipientSignable := TAccountComp.IsOperationRecipientSignable(LSender, LTarget, FData.Amount, LCurrentBlock);
-  LIsSwap := TAccountComp.IsAccountForCoinSwap(LTarget.accountInfo, LCurrentBlock);
+  LIsSwap := TAccountComp.IsAccountForCoinSwap(LTarget.accountInfo);
 
   if (FData.sender=FData.target) AND (NOT LRecipientSignable) then begin
     AErrors := Format('Sender=Target and Target is not recipient-signable. Account: %d',[FData.sender]);
@@ -865,13 +865,13 @@ begin
       exit;
     end;
 
-    if (TAccountComp.IsAccountForSwap(LTarget.accountInfo, LCurrentBlock) AND (LCurrentProtocol<CT_PROTOCOL_5)) then begin
+    if (TAccountComp.IsAccountForSwap(LTarget.accountInfo) AND (LCurrentProtocol<CT_PROTOCOL_5)) then begin
       AErrors := 'Atomic swaps are not allowed until Protocol 5';
       exit;
     end;
 
     LSeller := ASafeBoxTransaction.Account(FData.SellerAccount);
-    if Not TAccountComp.IsAccountForSaleOrSwap(LTarget.accountInfo, LCurrentBlock) then begin
+    if Not TAccountComp.IsAccountForSaleOrSwap(LTarget.accountInfo) then begin
       AErrors := Format('%d is not for sale or swap',[LTarget.account]);
       exit;
     end;
@@ -892,7 +892,7 @@ begin
       AErrors := Format('Signed price (%d) is not the same of account price (%d)',[FData.AccountPrice,LTarget.accountInfo.price]);
       exit;
     end;
-    if NOT TAccountComp.IsValidNewAccountKey(LTarget.accountInfo, FData.new_accountkey, LCurrentProtocol, LCurrentBlock) then begin
+    if NOT TAccountComp.IsValidNewAccountKey(LTarget.accountInfo, FData.new_accountkey, LCurrentProtocol) then begin
       AErrors := Format('Specified new public key for %d does not equal (or is not valid) the new public key stored in account: %s <> %s',
       [LTarget.account,
        TAccountComp.AccountKey2RawString(LTarget.accountInfo.new_publicKey).ToHexaString,
@@ -917,7 +917,7 @@ begin
       exit;
     end;
 
-    if (TAccountComp.IsAccountForSwap( LTarget.accountInfo, LCurrentBlock ) AND (ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol<CT_PROTOCOL_5)) then begin
+    if (TAccountComp.IsAccountForSwap( LTarget.accountInfo ) AND (ASafeBoxTransaction.FreezedSafeBox.CurrentProtocol<CT_PROTOCOL_5)) then begin
       AErrors := 'Tx-Buy atomic swaps are not allowed until Protocol 5';
       exit;
     end else If (LCurrentProtocol<CT_PROTOCOL_5) then begin

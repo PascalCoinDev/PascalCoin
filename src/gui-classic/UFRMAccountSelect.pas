@@ -176,16 +176,16 @@ procedure TSearchThread.BCExecute;
         isValid := FSearchValues.inWalletKeys.IndexOfAccountKey(account.accountInfo.accountKey)>=0;
       end;
       If isValid And (FSearchValues.onlyForSale) then begin
-        isValid := TAccountComp.IsAccountForSale(account.accountInfo, LBlocksCount);
+        isValid := TAccountComp.IsAccountForSale(account.accountInfo);
       end;
       If IsValid and (FSearchValues.onlyForPublicSale) then begin
         isValid := TAccountComp.IsAccountForPublicSale(account.accountInfo);
       end;
       If IsValid and (FSearchValues.onlyForPrivateSaleToMe) then begin
-        isValid := ((TAccountComp.IsAccountForPrivateSale(account.accountInfo, LBlocksCount) OR
-                    TAccountComp.IsAccountForAccountSwap(account.accountInfo, LBlocksCount)) AND
+        isValid := ((TAccountComp.IsAccountForPrivateSale(account.accountInfo) OR
+                    TAccountComp.IsAccountForAccountSwap(account.accountInfo)) AND
                     (Assigned(FSearchValues.inWalletKeys)) And (FSearchValues.inWalletKeys.IndexOfAccountKey(account.accountInfo.new_publicKey)>=0)) OR
-                    (True {TODO: TAccountComp.IsAccountForCoinSwap(account.accountInfo, LBlocksCount) AND account.accountInfo.account_to_pay in [MyListOfAccounts]});
+                    (True {TODO: TAccountComp.IsAccountForCoinSwap(account.accountInfo) AND account.accountInfo.account_to_pay in [MyListOfAccounts]});
       end;
       If IsValid then begin
         IsValid := (account.balance>=FSearchValues.minBal) And ((FSearchValues.maxBal<0) Or (account.balance<=FSearchValues.maxBal));
