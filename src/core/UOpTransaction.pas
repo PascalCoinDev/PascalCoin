@@ -210,7 +210,8 @@ Type
 
 
 Const
-  CT_TOpListAccountData_NUL : TOpListAccountData = (account_signer:0;account_target:0;operation_type:lat_Unknown;n_operation:0;account_price:0;account_to_pay:0;fee:0;payload:Nil;public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);new_public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;sign:(r:Nil;s:Nil));
+  CT_TOpListAccountData_NUL : TOpListAccountData = (account_signer:0;account_target:0;operation_type:lat_Unknown;n_operation:0;account_state:as_Unknown;account_price:0;account_to_pay:0;fee:0;
+    hash_lock:(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);payload:Nil;public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);new_public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;sign:(r:Nil;s:Nil));
   CT_TOpChangeAccountInfoData_NUL : TOpChangeAccountInfoData = (account_signer:0;account_target:0;n_operation:0;fee:0;payload:Nil;public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);changes_type:[];
     new_accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);new_name:Nil;new_type:0;sign:(r:Nil;s:Nil));
 
@@ -249,7 +250,7 @@ Type
     function GetOpSubType : Integer;
   public
     class function OpType : Byte; override;
-    Constructor CreateListAccountForSaleOrSwap(ACurrentProtocol : Word; AListOpSubType : Integer; AAccountSigner, ANOperation, AAccountTarget: Cardinal; AAccountPrice, AFee: UInt64; AAccountToPay: Cardinal;  ANewPublicKey: TAccountKey; ALockedUntilBlock: Cardinal; AKey: TECPrivateKey; const AHashLock : T32Bytes; const APayload: TRawBytes);
+    Constructor CreateListAccountForSaleOrSwap(ACurrentProtocol : Word; ANewAccountState : TAccountState; AAccountSigner, ANOperation, AAccountTarget: Cardinal; AAccountPrice, AFee: UInt64; AAccountToPay: Cardinal;  ANewPublicKey: TAccountKey; ALockedUntilBlock: Cardinal; AKey: TECPrivateKey; const AHashLock : T32Bytes; const APayload: TRawBytes);
     property OpSubType : Integer read GetOpSubType;
   End;
 
@@ -2258,26 +2259,29 @@ end;
 
 { TOpListAccountForSaleOrSwap }
 
-constructor TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(ACurrentProtocol : Word; AListOpSubType : Integer; AAccountSigner, ANOperation, AAccountTarget: Cardinal; AAccountPrice, AFee: UInt64; AAccountToPay: Cardinal;  ANewPublicKey: TAccountKey; ALockedUntilBlock: Cardinal; AKey: TECPrivateKey;  const AHashLock : T32Bytes; const APayload: TRawBytes);
+constructor TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(ACurrentProtocol : Word; ANewAccountState : TAccountState; AAccountSigner, ANOperation, AAccountTarget: Cardinal; AAccountPrice, AFee: UInt64; AAccountToPay: Cardinal;  ANewPublicKey: TAccountKey; ALockedUntilBlock: Cardinal; AKey: TECPrivateKey;  const AHashLock : T32Bytes; const APayload: TRawBytes);
 begin
   inherited Create(ACurrentProtocol);
-  if NOT (AListOpSubType IN [CT_OpSubtype_ListAccountForPublicSale, CT_OpSubtype_ListAccountForPrivateSale, CT_OpSubtype_ListAccountForAccountSwap, CT_OpSubtype_ListAccountForCoinSwap]) then
-    raise EArgumentOutOfRangeException.Create('Invalid list operation sub type');
-
-  case AListOpSubType of
-     CT_OpSubtype_ListAccountForPublicSale: begin
-       if (FData.new_public_key.EC_OpenSSL_NID<>0) then
-         raise EArgumentOutOfRangeException.Create('Public sale must be to a null key');
-       FData.account_state := as_ForSale;
-     end;
-     CT_OpSubtype_ListAccountForPrivateSale: FData.account_state := as_ForSale;
-     CT_OpSubtype_ListAccountForAccountSwap: FData.account_state := as_ForAtomicAccountSwap;
-     CT_OpSubtype_ListAccountForCoinSwap: FData.account_state := as_ForAtomicCoinSwap;
+  case ANewAccountState of
+    as_Normal: raise EArgumentOutOfRangeException.Create('Listing to normal state is not a listing');
+    as_ForSale: ;
+    as_ForAtomicAccountSwap: ;
+    as_ForAtomicCoinSwap: ;
+  else
+    raise EArgumentOutOfRangeException.Create('Invalid new list account state');
   end;
+
   FData.account_signer := AAccountSigner;
   FData.account_target := AAccountTarget;
   FData.operation_type := lat_ListAccount;
   FData.n_operation := ANOperation;
+
+  FData.account_state := ANewAccountState;
+  if ANewAccountState in [as_ForAtomicAccountSwap,as_ForAtomicCoinSwap] then begin
+    // Hash lock is stored only if AtomicSwap
+    FData.hash_lock := AHashLock;
+  end;
+  FData.locked_until_block := ALockedUntilBlock;
   FData.account_price := AAccountPrice;
   FData.account_to_pay := AAccountToPay;
   FData.fee := AFee;
@@ -2285,9 +2289,6 @@ begin
   // V2: No need to store public key because it's at safebox. Saving at least 64 bytes!
   // FData.public_key := key.PublicKey;
   FData.new_public_key := ANewPublicKey;
-  FData.locked_until_block := ALockedUntilBlock;
-  if AListOpSubType in [CT_OpSubtype_ListAccountForAccountSwap, CT_OpSubtype_ListAccountForCoinSwap] then
-    FData.hash_lock := AHashLock;
 
   if Assigned(AKey) then begin
     FData.sign := TCrypto.ECDSASign(AKey.PrivateKey, GetDigestToSign(ACurrentProtocol));

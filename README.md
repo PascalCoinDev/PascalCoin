@@ -36,10 +36,20 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ### Current Build (Pending release date)
 - Upgrade to Protocol 5 (Hard fork)
-- Implementation of PIP-0030 -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0030.md
-- Implementation of PIP-0029 -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0029.md
+- Implementation of PIP-0032 (Atomic Swaps) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0032.md
+- Implementation of PIP-0030 (Safebox root) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0030.md
+- Implementation of PIP-0029 (Account Seals) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0029.md
 - New digest hash value for OP_DATA ( PIP-0016 ) on Protocol 5
 - Hardcoded RandomHash digest/hash values for quick speed safebox check on fresh installation
+- JSON-RPC changes:
+  - Updated "listaccountforsale" call to allow ATOMIC SWAPS (PIP-0032)
+    - Added "type" to discrimine between kind of listing. Available values are:
+      - "public_sale"
+      - "private_sale": Need to provide a valid "new_enc_pubkey" or "new_b58_pubkey"
+      - "atomic_account_swap": Need to provide a valid "new_enc_pubkey" or "new_b58_pubkey" and the unlocking param "enc_hash_lock"
+      - "atomic_coin_swap": Need to provide a valid "enc_hash_lock"
+      - If no "type" is defined, will automatically select between "public_sale" or "private_sale"
+    - Added "enc_hash_lock" (HEXASTRING) that must be exactly a 32 bytes value (stored as 64 bytes because is HexaString)
 TODO  
 - TODO: RPC calls for PIP-0029
 - TODO Implement Seal calculation

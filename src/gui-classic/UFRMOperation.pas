@@ -299,13 +299,17 @@ loop_start:
         if signerAccount.balance>DefaultFee then _fee := DefaultFee
         else _fee := signerAccount.balance;
         if (rbListAccountForPublicSale.Checked) then begin
-          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, CT_OpSubtype_ListAccountForPublicSale, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,CT_TECDSA_Public_Nul,0,LKey.PrivateKey, CT_HashLock_NUL, FEncodedPayload);
+          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, as_ForSale, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,
+            destAccount.account,CT_TECDSA_Public_Nul,0,LKey.PrivateKey, CT_HashLock_NUL, FEncodedPayload);
         end else if (rbListAccountForPrivateSale.Checked) then begin
-          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, CT_OpSubtype_ListAccountForPrivateSale, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,_newOwnerPublicKey,_lockedUntil,LKey.PrivateKey, CT_HashLock_NUL, FEncodedPayload);
+          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, as_ForSale, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,
+            destAccount.account,_newOwnerPublicKey,_lockedUntil,LKey.PrivateKey, CT_HashLock_NUL, FEncodedPayload);
         end  else if (rbListAccountForAccountSwap.Checked) then begin
-          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, CT_OpSubtype_ListAccountForAccountSwap, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,_newOwnerPublicKey,_lockedUntil,LKey.PrivateKey, LHashLock, FEncodedPayload);
+          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, as_ForAtomicAccountSwap, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,
+            destAccount.account,_newOwnerPublicKey,_lockedUntil,LKey.PrivateKey, LHashLock, FEncodedPayload);
         end  else if (rbListAccountForCoinSwap.Checked) then begin
-          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, CT_OpSubtype_ListAccountForCoinSwap, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,_newOwnerPublicKey,_lockedUntil,LKey.PrivateKey, LHashLock, FEncodedPayload);
+          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, as_ForAtomicCoinSwap, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,
+            destAccount.account,_newOwnerPublicKey,_lockedUntil,LKey.PrivateKey, LHashLock, FEncodedPayload);
         end else raise Exception.Create('Select Sale type');
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsDelistAccount) then begin

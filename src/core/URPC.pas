@@ -1145,7 +1145,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
 
   // This function creates a TOpListAccountForSale without looking for actual state (cold wallet)
   // It assumes that account_number,account_last_n_operation and account_pubkey are correct
-  Function CreateOperationListAccountForSale(current_protocol : Word; AListType : Word; account_signer, account_last_n_operation, account_listed : Cardinal; const account_signer_pubkey: TAccountKey;
+  Function CreateOperationListAccountForSale(current_protocol : Word; ANewAccountState : TAccountState; account_signer, account_last_n_operation, account_listed : Cardinal; const account_signer_pubkey: TAccountKey;
     account_price : UInt64; locked_until_block : Cardinal; account_to_pay : Cardinal; Const new_account_pubkey : TAccountKey;
     fee : UInt64; const AHashLock: T32Bytes; const RawPayload : TRawBytes; Const Payload_method, EncodePwd : String) : TOpListAccountForSaleOrSwap;
   // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
@@ -1163,7 +1163,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     if Not CheckAndGetEncodedRAWPayload(RawPayload,Payload_method,EncodePwd,account_signer_pubkey,aux_target_pubkey,f_raw) then Exit(Nil);
     Result := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(
       current_protocol,
-      AListType,
+      ANewAccountState,
       account_signer,
       account_last_n_operation+1,
       account_listed,
@@ -1536,7 +1536,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
 
   function SignListAccountForSaleEx(params : TPCJSONObject; OperationsHashTree : TOperationsHashTree; current_protocol : Word; const actualAccounKey : TAccountKey; last_n_operation : Cardinal) : boolean;
     // params:
-    // "type" (optional) is the type of listing to perform public_sale, private_sale, atomic_account_swap, atomic_coin_swap
+    // "type" (optional) is the type of listing to perform "public_sale", "private_sale", "atomic_account_swap", "atomic_coin_swap"
     // "account_signer" is the account that signs operations and pays the fee
     // "account_target" is the account being listed
     // "locked_until_block" is until which block will be locked this account (Note: A locked account cannot change it's state until sold or finished lock)
@@ -1546,13 +1546,14 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     // "enc_hash_lock" (optional) hex-encoded hash-lock for an atomic swap
   var
     opSale: TOpListAccountForSaleOrSwap;
-    listType : Integer;
+    LListType : TAccountState;
     account_signer, account_target, seller_account : Cardinal;
     locked_until_block : Cardinal;
     price,fee : Int64;
-    new_pubkey : TAccountKey;
-    LHasHashLock : Boolean;
-    LHashLock : T32Bytes;
+    LNew_pubkey : TAccountKey;
+    LHasHashLock, LHasNewPubkey : Boolean;
+    LHashLock32 : T32Bytes;
+    LHashLockRaw : TRawBytes;
     LStrVal : String;
   begin
     Result := false;
@@ -1593,55 +1594,70 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       Exit;
     end;
     if (params.IndexOfName('new_b58_pubkey')>=0) or (params.IndexOfName('new_enc_pubkey')>=0) then begin
-      If Not CapturePubKey('new_',new_pubkey,ErrorDesc) then begin
+      If Not CapturePubKey('new_',LNew_pubkey,ErrorDesc) then begin
         ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
         Exit;
       end;
-    end else new_pubkey := CT_TECDSA_Public_Nul;
+      LHasNewPubkey := True;
+    end else begin
+      LHasNewPubkey := False;
+      LNew_pubkey := CT_TECDSA_Public_Nul;
+    end;
 
     LHasHashLock := False;
-    LHashLock := CT_HashLock_NUL;
+    LHashLock32 := CT_HashLock_NUL;
     if (params.IndexOfName('enc_hash_lock') >= 0) then begin
       LStrVal := params.AsString('enc_hash_lock', '');
-      if (NOT TCrypto.IsHexString( LStrVal )) OR (Length(LStrVal) <> 32*2) then begin
-         ErrorNum := CT_RPC_ErrNum_InvalidData;
-         ErrorDesc := 'Invalid "enc_hash_lock" value. Must be 32 byte hexadecimal string.';
-         Exit;
+      if TCrypto.HexaToRaw(LStrVal,LHashLockRaw) then begin
+        if Length(LHashLockRaw)=32 then begin
+          LHasHashLock := True;
+          LHashLock32 := TBaseType.To32Bytes( LHashLockRaw );
+        end;
       end;
-      LHasHashLock := True;
-      LHashLock := TBaseType.To32Bytes( TCrypto.HexaToRaw( LStrVal ) );
+      if Not LHasHashLock then begin
+        ErrorNum := CT_RPC_ErrNum_InvalidData;
+        ErrorDesc := 'Invalid "enc_hash_lock" value. Must be 32 byte hexadecimal string.';
+        Exit;
+      end;
     end;
 
     if params.IndexOfName('type') >= 0 then begin
       LStrVal := params.AsString('type', '');
-      if (LStrVal = 'public_sale') then
-        listType := CT_OpSubtype_ListAccountForPublicSale
-      else if (LStrVal = 'private_sale') then
-        listType := CT_OpSubtype_ListAccountForPrivateSale
+      if (LStrVal = 'public_sale') then begin
+        LListType := as_ForSale;
+        if LHasNewPubkey then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidData;
+          ErrorDesc := 'public_sale type must not contain new public key param';
+          Exit;
+        end;
+      end else if (LStrVal = 'private_sale') then begin
+        LListType := as_ForSale;
+        if Not LHasNewPubkey then begin
+          ErrorNum := CT_RPC_ErrNum_InvalidData;
+          ErrorDesc := 'private_sale type must contain new public key param';
+          Exit;
+        end;
+      end else if (LStrVal = 'atomic_account_swap') then
+        LListType := as_ForAtomicAccountSwap
       else if (LStrVal = 'atomic_coin_swap') then
-        listType := CT_OpSubtype_ListAccountForAccountSwap
-      else if (LStrVal = 'public_sale') then
-        listType := CT_OpSubtype_ListAccountForCoinSwap
+        LListType := as_ForAtomicCoinSwap
       else begin
         ErrorNum := CT_RPC_ErrNum_InvalidData;
-        ErrorDesc := 'Invalid "type" value';
+        ErrorDesc := 'Invalid "type" value provided: "'+LStrVal+'"';
         Exit;
       end;
-      if (listType in [CT_OpSubtype_ListAccountForAccountSwap, CT_OpSubtype_ListAccountForCoinSwap]) and (NOT LHasHashLock) then begin
+      if (LListType in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap]) and (NOT LHasHashLock) then begin
         ErrorNum := CT_RPC_ErrNum_InvalidData;
-        ErrorDesc := 'Missing "enc_hash_lock" field. Required for atomic swaps';
+        ErrorDesc := 'Missing "enc_hash_lock" param. Required for atomic swaps';
         Exit;
       end;
     end else begin
-      // type not specified, implied private or public sale, figure out based on key
-      if new_pubkey.EC_OpenSSL_NID = CT_TECDSA_Public_Nul.EC_OpenSSL_NID then
-        listType := CT_OpSubtype_ListAccountForPublicSale
-      else
-        listType := CT_OpSubtype_ListAccountForPrivateSale;
+      // type not specified, implied private or public sale, based on provided new publick key or not
+      LListType := as_ForSale;
     end;
 
-    opSale := CreateOperationListAccountForSale(current_protocol, listType, account_signer,last_n_operation,account_target,actualAccounKey,price,locked_until_block,
-      seller_account, new_pubkey,fee, LHashLock,
+    opSale := CreateOperationListAccountForSale(current_protocol, LListType, account_signer,last_n_operation,account_target,actualAccounKey,price,locked_until_block,
+      seller_account, LNew_pubkey,fee, LHashLock32,
       TCrypto.HexaToRaw(params.AsString('payload','')),
       params.AsString('payload_method','dest'),params.AsString('pwd',''));
     if opSale=nil then exit;
