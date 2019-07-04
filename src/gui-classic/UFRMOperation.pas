@@ -838,7 +838,7 @@ begin
       exit;
     end;
     AccountToBuy := FNode.GetMempoolAccount(c);
-    ARecipientSigned := TAccountComp.IsOperationRecipientSignable(SenderAccount, AccountToBuy, Amount, FNode.Bank.BlocksCount);
+    ARecipientSigned := TAccountComp.IsOperationRecipientSignable(SenderAccount, AccountToBuy, Amount, FNode.Bank.BlocksCount, FNode.Bank.SafeBox.CurrentProtocol);
     if (SenderAccount.account = AccountToBuy.Account) AND (NOT ARecipientSigned) then begin
       errors := 'Not recipient signable';
       exit;

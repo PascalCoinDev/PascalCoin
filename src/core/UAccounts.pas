@@ -149,7 +149,7 @@ Type
     Class function IsAccountForAccountSwap(const AAccountInfo: TAccountInfo) : Boolean;
     Class Function IsAccountForSaleOrSwap(const AAccountInfo: TAccountInfo) : Boolean;
     Class Function IsAccountForSaleOrSwapAcceptingTransactions(const AAccount: TAccount; ACurrentBlock : Integer; const APayload : TRawBytes) : Boolean;
-    Class Function IsOperationRecipientSignable(const ASender, ATarget : TAccount; AIncomingFunds : UInt64; ACurrentBlock : Integer ) : Boolean;
+    Class Function IsOperationRecipientSignable(const ASender, ATarget : TAccount; AIncomingFunds : UInt64; ACurrentBlock : Integer; ACurrentProtocol : Word) : Boolean;
     Class Function GetECInfoTxt(Const EC_OpenSSL_NID: Word) : String;
     Class Procedure ValidsEC_OpenSSL_NID(list : TList<Word>);
     Class Function AccountKey2RawString(const account: TAccountKey): TRawBytes; overload;
@@ -1528,10 +1528,11 @@ begin
   Result := True;
 end;
 
-Class Function TAccountComp.IsOperationRecipientSignable(const ASender, ATarget : TAccount; AIncomingFunds : UInt64; ACurrentBlock : Integer ) : Boolean;
+Class Function TAccountComp.IsOperationRecipientSignable(const ASender, ATarget : TAccount; AIncomingFunds : UInt64; ACurrentBlock : Integer; ACurrentProtocol : Word) : Boolean;
 begin
   // V5 - Allow recipient-signed operations under following conditions:
   //  - Sender Account = Target Account
+  //  - Target Account is listed for SWAP (Atomic Swap)
   //  - Target Account is time-locked to new-owner-key R and time-lock is active
   //  - (Target.Balance + Operation.Quantity) >= Target.SalePrice
   //  - Signed by new-owner-key R
@@ -1539,8 +1540,10 @@ begin
   //  This allows following use-cases:
   //  - Private account sale where buyer does not have existing account to initiate transaction
   //  - Atomic account swap where counterparty does not have existing account to initiate transaction
-  Result := (ASender.account = ATarget.account) AND
+  Result := (ACurrentProtocol >= CT_PROTOCOL_5) AND
+            (ASender.account = ATarget.account) AND
             TAccountComp.IsAccountLocked(ATarget.accountInfo, ACurrentBlock) AND
+            TAccountComp.IsAccountForSwap(ATarget.accountInfo) AND
            ((ATarget.balance + AIncomingFunds) >= (ATarget.accountInfo.price));
 
  // Note: this does not validate recipient signature, only determines if

@@ -773,6 +773,10 @@ begin
     AErrors := Format('Invalid sender %d',[FData.sender]);
     Exit;
   end;
+  if (FData.target>=ASafeBoxTransaction.FreezedSafeBox.AccountsCount) then begin
+    AErrors := Format('Invalid target %d',[FData.target]);
+    Exit;
+  end;
   if TAccountComp.IsAccountBlockedByProtocol(FData.sender,LCurrentBlock) then begin
     AErrors := Format('sender (%d) is blocked for protocol',[FData.sender]);
     Exit;
@@ -795,14 +799,9 @@ begin
   LSender := ASafeBoxTransaction.Account(FData.sender);
   LTarget := ASafeBoxTransaction.Account(FData.target);
 
-  if (FData.target>=ASafeBoxTransaction.FreezedSafeBox.AccountsCount) then begin
-    AErrors := Format('Invalid target %d',[FData.target]);
-    Exit;
-  end;
-
   // V5 - Allow recipient-signed transactions. This is defined as
   //  - Sender Account = Target Account
-  LRecipientSignable := TAccountComp.IsOperationRecipientSignable(LSender, LTarget, FData.Amount, LCurrentBlock);
+  LRecipientSignable := TAccountComp.IsOperationRecipientSignable(LSender, LTarget, FData.Amount, LCurrentBlock, LCurrentProtocol);
   LIsSwap := TAccountComp.IsAccountForCoinSwap(LTarget.accountInfo);
 
   if (FData.sender=FData.target) AND (NOT LRecipientSignable) then begin
@@ -1849,6 +1848,7 @@ begin
     errors := 'Target account is blocked for protocol';
     Exit;
   end;
+
   if NOT LIsDelist then begin
     if (FData.account_to_pay>=AccountTransaction.FreezedSafeBox.AccountsCount) then begin
       errors := 'Invalid account to pay number';
