@@ -178,6 +178,8 @@ end;
 
 class procedure TPascalCoinJSONComp.FillOperationObject(const OPR: TOperationResume; currentNodeBlocksCount : Cardinal; jsonObject: TPCJSONObject);
 Var i : Integer;
+  LOpChangeAccountInfoType : TOpChangeAccountInfoType;
+  LString : String;
   jsonArr : TPCJSONArray;
   auxObj : TPCJSONObject;
 
@@ -251,6 +253,9 @@ Begin
       If account_type in OPR.Changers[i].Changes_type then begin
         auxObj.GetAsVariant('new_type').Value := OPR.Changers[i].New_Type;
       end;
+      If account_data in OPR.Changers[i].Changes_type then begin
+        auxObj.GetAsVariant('new_data').Value := OPR.Changers[i].New_Data.ToHexaString;
+      end;
       if (list_for_public_sale in OPR.Changers[i].Changes_type)
         Or (list_for_private_sale in OPR.Changers[i].Changes_type) then begin
         auxObj.GetAsVariant('seller_account').Value := OPR.Changers[i].Seller_Account;
@@ -267,6 +272,16 @@ Begin
       end;
       if (OPR.OpType = CT_Op_Data) then begin
         FillDataObject(auxObj, OPR.Changers[i].Data);
+      end;
+      LString := '';
+      for LOpChangeAccountInfoType := Low(LOpChangeAccountInfoType) to High(LOpChangeAccountInfoType) do begin
+        if (LOpChangeAccountInfoType in OPR.Changers[i].Changes_type) then begin
+          if LString<>'' then LString := LString + ',';
+          LString := LString + CT_TOpChangeAccountInfoType_Txt[LOpChangeAccountInfoType];
+        end;
+      end;
+      if LString<>'' then begin
+        auxObj.GetAsVariant('changes').Value := LString;
       end;
     end;
   jsonObject.GetAsVariant('optxt').Value:=OPR.OperationTxt;
@@ -317,7 +332,21 @@ Begin
       if not (account.accountInfo.new_publicKey.EC_OpenSSL_NID<>0) then begin
         jsonObj.GetAsVariant('new_enc_pubkey').Value := TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(account.accountInfo.new_publicKey));
       end;
-    end
+    end;
+    as_ForAtomicAccountSwap : begin
+      jsonObj.GetAsVariant('state').Value:='account_swap';
+      jsonObj.GetAsVariant('locked_until_block').Value:=account.accountInfo.locked_until_block;
+      jsonObj.GetAsVariant('new_enc_pubkey').Value := TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(account.accountInfo.new_publicKey));
+      jsonObj.GetAsVariant('hashed_secret').Value := account.account_data.ToHexaString;
+    end;
+    as_ForAtomicCoinSwap : begin
+      jsonObj.GetAsVariant('state').Value:='coin_swap';
+      jsonObj.GetAsVariant('locked_until_block').Value:=account.accountInfo.locked_until_block;
+      jsonObj.GetAsVariant('amount_to_swap').Value:=TAccountComp.FormatMoneyDecimal(account.accountInfo.price);
+      jsonObj.GetAsVariant('amount_to_swap_s').Value:=TAccountComp.FormatMoney(account.accountInfo.price);
+      jsonObj.GetAsVariant('receiver_swap_account').Value:=account.accountInfo.account_to_pay;
+      jsonObj.GetAsVariant('hashed_secret').Value := account.account_data.ToHexaString;
+    end;
   else raise Exception.Create('ERROR DEV 20170425-1');
   end;
   jsonObj.GetAsVariant('name').Value := account.name.ToPrintable;
