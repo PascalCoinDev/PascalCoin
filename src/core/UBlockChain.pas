@@ -3188,6 +3188,7 @@ end;
 
 class function TPCOperation.OperationToOperationResume(Block : Cardinal; Operation: TPCOperation; getInfoForAllAccounts : Boolean; Affected_account_number: Cardinal; var OperationResume: TOperationResume): Boolean;
 Var s : String;
+  LOpToText : String;
 begin
   OperationResume := CT_TOperationResume_NUL;
   OperationResume.Block:=Block;
@@ -3223,6 +3224,53 @@ begin
         end else if TOpTransaction(Operation).Data.SellerAccount=Affected_account_number then begin
           OperationResume.OpSubtype := CT_OpSubtype_BuyTransactionSeller;
           OperationResume.OperationTxt := 'Tx-In Sold account '+TAccountComp.AccountNumberToAccountTxtNumber(TOpTransaction(Operation).Data.target)+' price '+TAccountComp.FormatMoney(TOpTransaction(Operation).Data.AccountPrice)+' PASC';
+          OperationResume.Amount := TOpTransaction(Operation).Data.AccountPrice;
+          OperationResume.Fee := 0;
+          Result := true;
+        end else exit;
+      end else if (TOpTransaction(Operation).Data.opTransactionStyle = transaction_with_auto_atomic_swap) then begin
+        if TOpTransaction(Operation).Data.new_accountkey.EC_OpenSSL_NID=0 then begin
+          // COIN SWAP
+          LOpToText := Format('COIN SWAP %s PASC from %s to %s',[
+            TAccountComp.FormatMoney(TOpTransaction(Operation).Data.AccountPrice),
+            TAccountComp.AccountNumberToAccountTxtNumber(TOpTransaction(Operation).Data.target),
+            TAccountComp.AccountNumberToAccountTxtNumber(TOpTransaction(Operation).Data.SellerAccount)]);
+        end else begin
+          // ACCOUNT SWAP
+          LOpToText := Format('ACCOUNT SWAP %s to new PublicKey %s',[
+            TAccountComp.AccountNumberToAccountTxtNumber(TOpTransaction(Operation).Data.target),
+            TAccountComp.AccountPublicKeyExport(TOpTransaction(Operation).Data.new_accountkey)]);
+        end;
+        if TOpTransaction(Operation).Data.sender=Affected_account_number then begin
+          // The sender of the transaction
+          OperationResume.OpSubtype := CT_OpSubtype_SwapTransactionSender;
+          OperationResume.OperationTxt := Format('Tx-Out %s PASC from %s to %s with %s',
+             [TAccountComp.FormatMoney(TOpTransaction(Operation).Data.amount),
+             TAccountComp.AccountNumberToAccountTxtNumber(TOpTransaction(Operation).Data.sender),
+             TAccountComp.AccountNumberToAccountTxtNumber(TOpTransaction(Operation).Data.target),
+             LOpToText]);
+          If (TOpTransaction(Operation).Data.sender=TOpTransaction(Operation).Data.SellerAccount) then begin
+            // Valid calc when sender is the same than seller
+            OperationResume.Amount := (Int64(TOpTransaction(Operation).Data.amount) - (TOpTransaction(Operation).Data.AccountPrice)) * (-1);
+          end else OperationResume.Amount := Int64(TOpTransaction(Operation).Data.amount) * (-1);
+          Result := true;
+        end else if TOpTransaction(Operation).Data.target=Affected_account_number then begin
+          OperationResume.OpSubtype := CT_OpSubtype_SwapTransactionTarget;
+          OperationResume.OperationTxt := Format('Tx-In %s PASC from %s to %s with %s',
+             [TAccountComp.FormatMoney(TOpTransaction(Operation).Data.amount),
+             TAccountComp.AccountNumberToAccountTxtNumber(TOpTransaction(Operation).Data.sender),
+             TAccountComp.AccountNumberToAccountTxtNumber(TOpTransaction(Operation).Data.target),
+             LOpToText]);
+          OperationResume.Amount := Int64(TOpTransaction(Operation).Data.amount) - Int64(TOpTransaction(Operation).Data.AccountPrice);
+          OperationResume.Fee := 0;
+          Result := true;
+        end else if TOpTransaction(Operation).Data.SellerAccount=Affected_account_number then begin
+          OperationResume.OpSubtype := CT_OpSubtype_BuyTransactionSeller;
+          OperationResume.OperationTxt := Format('Tx-In seller receiving %s PASC from Tx between %s to %s with %s',
+             [TAccountComp.FormatMoney(TOpTransaction(Operation).Data.AccountPrice),
+             TAccountComp.AccountNumberToAccountTxtNumber(TOpTransaction(Operation).Data.sender),
+             TAccountComp.AccountNumberToAccountTxtNumber(TOpTransaction(Operation).Data.target),
+             LOpToText]);
           OperationResume.Amount := TOpTransaction(Operation).Data.AccountPrice;
           OperationResume.Fee := 0;
           Result := true;

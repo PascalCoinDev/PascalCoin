@@ -25,7 +25,7 @@ interface
 uses
   Classes, SysUtils, UConst, UCrypto, SyncObjs, UThread, UBaseTypes,
   UPCOrderedLists, UPCDataTypes, UPCSafeBoxRootHash,
-  UPCHardcodedRandomHashTable,
+  UPCHardcodedRandomHashTable, UJSONFunctions,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 {$I config.inc}
@@ -148,7 +148,7 @@ Type
     Class function IsAccountForCoinSwap(const AAccountInfo: TAccountInfo) : Boolean;
     Class function IsAccountForAccountSwap(const AAccountInfo: TAccountInfo) : Boolean;
     Class Function IsAccountForSaleOrSwap(const AAccountInfo: TAccountInfo) : Boolean;
-    Class Function IsAccountForSaleOrSwapAcceptingTransactions(const AAccount: TAccount; ACurrentBlock : Integer; const APayload : TRawBytes) : Boolean;
+    Class Function IsAccountForSaleOrSwapAcceptingTransactions(const AAccount: TAccount; ACurrentBlock : Integer; ACurrentProtocol : Word; const APayload : TRawBytes) : Boolean;
     Class Function IsOperationRecipientSignable(const ASender, ATarget : TAccount; AIncomingFunds : UInt64; ACurrentBlock : Integer; ACurrentProtocol : Word) : Boolean;
     Class Function GetECInfoTxt(Const EC_OpenSSL_NID: Word) : String;
     Class Procedure ValidsEC_OpenSSL_NID(list : TList<Word>);
@@ -1422,7 +1422,7 @@ end;
 
 class function TAccountComp.FormatMoney(Money: Int64): String;
 begin
-  Result := FormatFloat('#,###0.0000',(Money/10000));
+  Result := FormatFloat('#,###0.0000',(Money/10000), TPCJSONData.JSONFormatSettings);
 end;
 
 class function TAccountComp.FormatMoneyDecimal(Money : Int64) : Currency;
@@ -1511,12 +1511,17 @@ begin
   Result := IsAccountForSale(AAccountInfo) OR IsAccountForSwap(AAccountInfo);
 end;
 
-class function TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(const AAccount: TAccount; ACurrentBlock : Integer; const APayload : TRawBytes): Boolean;
+class function TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(const AAccount: TAccount; ACurrentBlock : Integer; ACurrentProtocol : Word; const APayload : TRawBytes): Boolean;
 var errors : String;
 begin
   Result := False;
   if Not IsAccountForSaleOrSwap(AAccount.accountInfo) then
     exit;
+
+  if (ACurrentProtocol<CT_PROTOCOL_5) then begin
+    // V4 and below only allows Private sales (No Swaps)
+    if Not (IsAccountForPrivateSale(AAccount.accountInfo)) then Exit;
+  end;
 
   if (AAccount.accountInfo.state in [as_ForSale, as_ForAtomicAccountSwap]) then
     if NOT IsValidAccountKey(AAccount.accountInfo.new_publicKey,errors) then
@@ -4189,6 +4194,35 @@ begin
     Exit;
   end;
 
+
+  // Overflow checks:
+  if AAmount > (AAmount + AFee) then begin
+    AErrors := 'Critical overflow error detected, aborting SafeBox update. Ref: 37E7343143614D4C8489FA9963CE8C3C';
+    exit;
+  end;
+  if LPBuyerAccount^.balance < (AAmount + AFee) then begin
+    AErrors := 'Critical overflow error detected, aborting SafeBox update. Ref: F06169D9A209410AACB1AAD324B7A191';
+    exit;
+  end;
+
+  if LPAccountToBuy^.balance > (LPAccountToBuy^.balance + AAmount) then begin
+    AErrors := 'Critical overflow error detected, aborting SafeBox update. Ref: 390BB1E7241B4A0BA5A2D934E67F39D3';
+    exit;
+  end;
+  if (LPAccountToBuy^.balance + AAmount) < (LPAccountToBuy^.accountInfo.price) then begin
+    AErrors := 'Critical overflow error detected, aborting SafeBox update. Ref: 19D80241DA584D0B93ED30F27110B9A9';
+    exit;
+  end;
+
+  if LPSellerAccount^.balance > (LPSellerAccount^.balance + LPAccountToBuy^.accountInfo.price) then begin
+    AErrors := 'Critical overflow error detected, aborting SafeBox update. Ref: 972CA85C6E4E4081ABB767F6D8019421';
+    exit;
+  end;
+
+
+  // NOTE:
+  // At this point, we have checked integrity, cannot check later!
+
   UpdateSeal(LPBuyerAccount_Sealed,AOpID);
   UpdateSeal(LPAccountToBuy_Sealed,AOpID);
   UpdateSeal(LPSellerAccount_Sealed,AOpID);
@@ -4214,32 +4248,10 @@ begin
 
   // Inc buyer n_operation
   LPBuyerAccount^.n_operation := ANOperation;
-  // Set new balance values (with overflow checks)
-  if AAmount > (AAmount + AFee) then begin
-    AErrors := 'Critical overflow error detected, aborting SafeBox update. Ref: 37E7343143614D4C8489FA9963CE8C3C';
-    exit;
-  end;
-  if LPBuyerAccount^.balance < (AAmount + AFee) then begin
-    AErrors := 'Critical overflow error detected, aborting SafeBox update. Ref: F06169D9A209410AACB1AAD324B7A191';
-    exit;
-  end;
+  // Set new balance values
   LPBuyerAccount^.balance := LPBuyerAccount^.balance - (AAmount + AFee);
-
-  if LPAccountToBuy^.balance > (LPAccountToBuy^.balance + AAmount) then begin
-    AErrors := 'Critical overflow error detected, aborting SafeBox update. Ref: 390BB1E7241B4A0BA5A2D934E67F39D3';
-    exit;
-  end;
-  if (LPAccountToBuy^.balance + AAmount) < (LPAccountToBuy^.accountInfo.price) then begin
-    AErrors := 'Critical overflow error detected, aborting SafeBox update. Ref: 19D80241DA584D0B93ED30F27110B9A9';
-    exit;
-  end;
   LPAccountToBuy^.balance := LPAccountToBuy^.balance + AAmount - LPAccountToBuy^.accountInfo.price;
-
-  if LPSellerAccount^.balance > (LPSellerAccount^.balance + LPAccountToBuy^.accountInfo.price) then begin
-    AErrors := 'Critical overflow error detected, aborting SafeBox update. Ref: 972CA85C6E4E4081ABB767F6D8019421';
-    exit;
-  end;
-    LPSellerAccount^.balance := LPSellerAccount^.balance + LPAccountToBuy^.accountInfo.price;
+  LPSellerAccount^.balance := LPSellerAccount^.balance + LPAccountToBuy^.accountInfo.price;
 
   // After buy, account will be unlocked and set to normal state and new account public key changed
   LPAccountToBuy^.accountInfo := CT_AccountInfo_NUL;
