@@ -931,7 +931,7 @@ begin
       Strings.Add(Format('Amount to swap: %s',[TAccountComp.FormatMoney(account.accountInfo.price)]));
       Strings.Add(Format('Counterparty account: %s',[TAccountComp.AccountNumberToAccountTxtNumber(account.accountInfo.account_to_pay)]));
     end;
-    Strings.Add(Format('Public secret to find: %s',[account.account_data.ToHexaString]));
+    Strings.Add(Format('Public secret to find: %s',[account.accountInfo.hashed_secret.ToHexaString]));
     Strings.Add('');
     if TAccountComp.IsAccountLocked(account.accountInfo,FNode.Bank.BlocksCount) then begin
       Strings.Add(Format('SWAP IS SECURE UNTIL BLOCK %d (current %d, remains %d)',

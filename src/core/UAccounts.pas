@@ -44,6 +44,7 @@ Type
     price : UInt64;                // 0 = invalid price
     account_to_pay : Cardinal;     // <> itself
     new_publicKey : TAccountKey;
+    hashed_secret : TRawBytes;     // Hashed Secret for AtomicSwaps
   end;
 
   TOperationBlock = Record
@@ -138,7 +139,7 @@ Type
     Class function IsNullAccountKey(const AAccountInfo : TAccountKey) : Boolean;
     Class function IsValidNewAccountKey(const AAccountInfo : TAccountInfo; const ANewKey : TAccountKey; AProtocolVersion : Integer) : Boolean;
     Class Function IsValidAccountInfo(const AAccountInfo: TAccountInfo; var errors : String): Boolean;
-    Class Function IsValidAccountHashLockKey(const AAccount : TAccount; const AKey : TRawBytes) : Boolean;
+    Class Function IsValidAccountInfoHashLockKey(const AAccountInfo : TAccountInfo; const AKey : TRawBytes) : Boolean;
     Class Function IsValidHashLockKey(const AKey : TRawBytes; out AError : String) : Boolean;
     Class Function CalculateHashLock(const AKey : TRawBytes) : T32Bytes;
     Class Function IsAccountForSale(const AAccountInfo: TAccountInfo) : Boolean;
@@ -507,7 +508,7 @@ Type
 Const
   CT_OperationBlock_NUL : TOperationBlock = (block:0;account_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);reward:0;fee:0;protocol_version:0;
     protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:Nil;initial_safe_box_hash:Nil;operations_hash:Nil;proof_of_work:Nil);
-  CT_AccountInfo_NUL : TAccountInfo = (state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));
+  CT_AccountInfo_NUL : TAccountInfo = (state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);hashed_secret:Nil);
   CT_Account_NUL : TAccount = (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_block:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0);
   CT_BlockAccount_NUL : TBlockAccount = (
     blockchainInfo:(block:0;account_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);reward:0;fee:0;protocol_version:0;
@@ -1156,6 +1157,10 @@ begin
         ms.Write(AccountInfo.price,SizeOf(AccountInfo.price));
         ms.Write(AccountInfo.account_to_pay,SizeOf(AccountInfo.account_to_pay));
         TStreamOp.WriteAccountKey(ms,AccountInfo.new_publicKey);
+        // Adding Hashed_secret if Atomic Swap
+        if AccountInfo.state in [as_ForAtomicAccountSwap,as_ForAtomicCoinSwap] then begin
+          TStreamOp.WriteAnsiString(ms,AccountInfo.hashed_secret);
+        end;
         SetLength(dest,ms.Size);
         ms.Position := 0;
         ms.Read(dest[Low(dest)],ms.Size);
@@ -1457,9 +1462,9 @@ begin
   end;
 end;
 
-Class Function TAccountComp.IsValidAccountHashLockKey(const AAccount : TAccount; const AKey : TRawBytes) : Boolean;
+Class Function TAccountComp.IsValidAccountInfoHashLockKey(const AAccountInfo : TAccountInfo; const AKey : TRawBytes) : Boolean;
 begin
-  Result := BytesEqual( TBaseType.ToRawBytes( CalculateHashLock( AKey ) ), AAccount.account_data);
+  Result := BytesEqual( TBaseType.ToRawBytes( CalculateHashLock( AKey ) ), AAccountInfo.hashed_secret);
 end;
 
 Class Function TAccountComp.IsValidHashLockKey(const AKey : TRawBytes; out AError : String) : Boolean;
@@ -1528,7 +1533,7 @@ begin
       exit;
 
    if (AAccount.accountInfo.state in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap]) then
-     if NOT IsValidAccountHashLockKey(AAccount, APayload) then
+     if NOT IsValidAccountInfoHashLockKey(AAccount.accountInfo, APayload) then
        exit;
   Result := True;
 end;
@@ -1708,6 +1713,7 @@ begin
         dest.price:=CT_AccountInfo_NUL.price;
         dest.account_to_pay:=CT_AccountInfo_NUL.account_to_pay;
         dest.new_publicKey:=CT_AccountInfo_NUL.new_publicKey;
+        dest.hashed_secret:=CT_AccountInfo_NUL.hashed_secret;
       End;
       CT_AccountInfo_ForSale, CT_AccountInfo_ForAccountSwap, CT_AccountInfo_ForCoinSwap : Begin
         TStreamOp.ReadAccountKey(ms,dest.accountKey);
@@ -1719,6 +1725,11 @@ begin
           CT_AccountInfo_ForSale: dest.state := as_ForSale;
           CT_AccountInfo_ForAccountSwap: dest.state := as_ForAtomicAccountSwap;
           CT_AccountInfo_ForCoinSwap: dest.state := as_ForAtomicCoinSwap;
+        end;
+        if dest.state in [as_ForAtomicAccountSwap,as_ForAtomicCoinSwap] then begin
+          TStreamOp.ReadAnsiString(ms,dest.hashed_secret);
+        end else begin
+          dest.hashed_secret:=CT_AccountInfo_NUL.hashed_secret;
         end;
       End;
     else
@@ -4189,7 +4200,7 @@ begin
       TAccountComp.FormatMoney(LPAccountToBuy^.balance)+' + amount '+TAccountComp.FormatMoney(AAmount);
     Exit;
   end;
-  if TAccountComp.IsAccountForSwap(LPAccountToBuy^.accountInfo) AND (NOT TAccountComp.IsValidAccountHashLockKey(LPAccountToBuy^, AHashLockKey)) then begin
+  if TAccountComp.IsAccountForSwap(LPAccountToBuy^.accountInfo) AND (NOT TAccountComp.IsValidAccountInfoHashLockKey(LPAccountToBuy^.accountInfo, AHashLockKey)) then begin
     AErrors := 'Account is not unlocked by supplied hash lock key';
     Exit;
   end;

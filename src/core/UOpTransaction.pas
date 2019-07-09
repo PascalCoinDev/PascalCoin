@@ -2007,14 +2007,19 @@ begin
     account_target.accountInfo.price := CT_AccountInfo_NUL.price;
     account_target.accountInfo.account_to_pay := CT_AccountInfo_NUL.account_to_pay;
     account_target.accountInfo.new_publicKey := CT_AccountInfo_NUL.new_publicKey;
+    account_target.accountInfo.hashed_secret := CT_AccountInfo_NUL.hashed_secret;
   end else begin
     account_target.accountInfo.state := FData.account_state;
     account_target.accountInfo.locked_until_block := FData.locked_until_block;
     account_target.accountInfo.price := FData.account_price;
     account_target.accountInfo.account_to_pay := FData.account_to_pay;
     account_target.accountInfo.new_publicKey := FData.new_public_key;
-    if LIsSwap then
-      account_target.account_data := TBaseType.ToRawBytes( FData.hash_lock );
+    if LIsSwap then begin
+      account_target.accountInfo.hashed_secret := TBaseType.ToRawBytes( FData.hash_lock );
+    end else begin
+      // FData.hash_lock has no utility when no AtomicSwap
+      account_target.accountInfo.hashed_secret := CT_AccountInfo_NUL.hashed_secret;
+    end;
   end;
 
   Result := AccountTransaction.UpdateAccountInfo(
@@ -2105,13 +2110,13 @@ begin
   OperationResume.Changers[0].Account:=FData.account_target;
   case FData.operation_type of
     lat_ListAccount : begin
-        if (FData.new_public_key.EC_OpenSSL_NID=CT_TECDSA_Public_Nul.EC_OpenSSL_NID) then begin
+        if (FData.account_state = as_ForSale) And (FData.new_public_key.EC_OpenSSL_NID=CT_TECDSA_Public_Nul.EC_OpenSSL_NID) then begin
           OperationResume.Changers[0].Changes_type:=[list_for_public_sale];
         end else begin
           if FData.account_state = as_ForAtomicAccountSwap then
-            OperationResume.Changers[0].Changes_type:=[list_for_account_swap, account_data]
+            OperationResume.Changers[0].Changes_type:=[list_for_account_swap]
           else if FData.account_state = as_ForAtomicCoinSwap then
-            OperationResume.Changers[0].Changes_type:=[list_for_coin_swap, account_data]
+            OperationResume.Changers[0].Changes_type:=[list_for_coin_swap]
           else
             OperationResume.Changers[0].Changes_type:=[list_for_private_sale];
           OperationResume.Changers[0].New_Accountkey := FData.new_public_key;
@@ -2120,7 +2125,7 @@ begin
         OperationResume.Changers[0].Seller_Account:=FData.account_to_pay;
         OperationResume.Changers[0].Account_Price:=FData.account_price;
         if (FData.account_state in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap]) then begin
-          OperationResume.Changers[0].New_Data := TBaseType.ToRawBytes( FData.hash_lock );
+          OperationResume.Changers[0].Hashed_secret := TBaseType.ToRawBytes( FData.hash_lock );
         end;
     end;
     lat_DelistAccount : begin

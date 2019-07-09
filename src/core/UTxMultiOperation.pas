@@ -705,6 +705,7 @@ begin
       changer.accountInfo.price := 0;
       changer.accountInfo.account_to_pay := 0;
       changer.accountInfo.new_publicKey := CT_TECDSA_Public_Nul;
+      changer.accountInfo.hashed_secret := Nil;
     end;
     If (account_name in chi.Changes_type) then begin
       changer.name := chi.New_Name;

@@ -257,14 +257,21 @@ Begin
         auxObj.GetAsVariant('new_data').Value := OPR.Changers[i].New_Data.ToHexaString;
       end;
       if (list_for_public_sale in OPR.Changers[i].Changes_type)
-        Or (list_for_private_sale in OPR.Changers[i].Changes_type) then begin
+         or (list_for_private_sale in OPR.Changers[i].Changes_type)
+         or (list_for_account_swap in OPR.Changers[i].Changes_type)
+         or (list_for_coin_swap in OPR.Changers[i].Changes_type) then begin
         auxObj.GetAsVariant('seller_account').Value := OPR.Changers[i].Seller_Account;
         auxObj.GetAsVariant('account_price').Value := TAccountComp.FormatMoneyDecimal(OPR.Changers[i].Account_Price);
         auxObj.GetAsVariant('account_price_s').Value := TAccountComp.FormatMoney(OPR.Changers[i].Account_Price);
-      end;
-      if (list_for_private_sale in OPR.Changers[i].Changes_type) then begin
         auxObj.GetAsVariant('locked_until_block').Value := OPR.Changers[i].Locked_Until_Block;
-        auxObj.GetAsVariant('new_enc_pubkey').Value := TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(OPR.Changers[i].New_Accountkey));
+        if (list_for_private_sale in OPR.Changers[i].Changes_type)
+          or (list_for_account_swap in OPR.Changers[i].Changes_type) then begin
+          auxObj.GetAsVariant('new_enc_pubkey').Value := TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(OPR.Changers[i].New_Accountkey));
+        end;
+        if (list_for_account_swap in OPR.Changers[i].Changes_type)
+          or (list_for_coin_swap in OPR.Changers[i].Changes_type) then begin
+          auxObj.GetAsVariant('hashed_secret').Value := OPR.Changers[i].Hashed_secret.ToHexaString;
+        end;
       end;
       if (OPR.Changers[i].Fee<>0) then begin
         auxObj.GetAsVariant('fee').Value := TAccountComp.FormatMoneyDecimal(OPR.Changers[i].Fee * (-1));
@@ -337,7 +344,7 @@ Begin
       jsonObj.GetAsVariant('state').Value:='account_swap';
       jsonObj.GetAsVariant('locked_until_block').Value:=account.accountInfo.locked_until_block;
       jsonObj.GetAsVariant('new_enc_pubkey').Value := TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(account.accountInfo.new_publicKey));
-      jsonObj.GetAsVariant('hashed_secret').Value := account.account_data.ToHexaString;
+      jsonObj.GetAsVariant('hashed_secret').Value := account.accountInfo.hashed_secret.ToHexaString;
     end;
     as_ForAtomicCoinSwap : begin
       jsonObj.GetAsVariant('state').Value:='coin_swap';
@@ -345,7 +352,7 @@ Begin
       jsonObj.GetAsVariant('amount_to_swap').Value:=TAccountComp.FormatMoneyDecimal(account.accountInfo.price);
       jsonObj.GetAsVariant('amount_to_swap_s').Value:=TAccountComp.FormatMoney(account.accountInfo.price);
       jsonObj.GetAsVariant('receiver_swap_account').Value:=account.accountInfo.account_to_pay;
-      jsonObj.GetAsVariant('hashed_secret').Value := account.account_data.ToHexaString;
+      jsonObj.GetAsVariant('hashed_secret').Value := account.accountInfo.hashed_secret.ToHexaString;
     end;
   else raise Exception.Create('ERROR DEV 20170425-1');
   end;
