@@ -126,7 +126,7 @@ Type
     Account : Cardinal;
     Amount : Int64;
     N_Operation : Cardinal;
-    Data : TMultiOpData;
+    OpData : TMultiOpData; // Filled only when Operation is TOpData type
     Payload : TRawBytes;
     Signature : TECDSA_SIG;
   end;
@@ -134,7 +134,6 @@ Type
   TMultiOpReceiver = Record
     Account : Cardinal;
     Amount : Int64;
-    Data : TMultiOpData;
     Payload : TRawBytes;
   end;
   TMultiOpReceivers = Array of TMultiOpReceiver;
@@ -150,7 +149,6 @@ Type
     Account_Price : Int64;
     Locked_Until_Block : Cardinal;
     Hashed_secret : TRawBytes;
-    Data : TMultiOpData;
     Fee: Int64;
     Signature: TECDSA_SIG;
   end;

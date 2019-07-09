@@ -501,6 +501,8 @@ Type
     class Function ReadAccountKey(Stream: TStream; var value : TAccountKey): Integer;
     class Function SaveStreamToRaw(Stream: TStream) : TRawBytes;
     class procedure LoadStreamFromRaw(Stream: TStream; const raw : TRawBytes);
+    class Function WriteGUID(AStream : TStream; const AGUID : TGUID) : Integer;
+    class Function ReadGUID(AStream : TStream; var AGUID : TGUID) : Integer;
   End;
 
 
@@ -1086,6 +1088,22 @@ begin
 end;
 
 
+class function TStreamOp.ReadGUID(AStream: TStream; var AGUID: TGUID): Integer;
+var i : Integer;
+begin
+  if AStream.Size - AStream.Position < 16 then begin
+    Result := 0; // Not enough space!
+    Exit;
+  end;
+  AStream.Read(AGUID.D1,4);
+  AStream.Read(AGUID.D2,2);
+  AStream.Read(AGUID.D3,2);
+  for i := 0 to 7 do begin
+    AStream.Read(AGUID.D4[i],1);
+  end;
+  Result := 16; // GUID is 16 bytes
+end;
+
 class function TStreamOp.ReadString(Stream: TStream; var value: String): Integer;
 var raw : TRawBytes;
 begin
@@ -1121,6 +1139,18 @@ begin
   Result := WriteAnsiString(Stream, TBaseType.ToRawBytes(value));
 end;
 
+
+class function TStreamOp.WriteGUID(AStream: TStream; const AGUID: TGUID): Integer;
+var i : Integer;
+begin
+  AStream.Write(AGUID.D1,4);
+  AStream.Write(AGUID.D2,2);
+  AStream.Write(AGUID.D3,2);
+  for i := 0 to 7 do begin
+    AStream.Write(AGUID.D4[i],1);
+  end;
+  Result := 16; // GUID is 16 bytes
+end;
 
 { TAccountComp }
 Const CT_Base58 : String = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';

@@ -183,13 +183,13 @@ Var i : Integer;
   jsonArr : TPCJSONArray;
   auxObj : TPCJSONObject;
 
-  procedure FillDataObject(AParentObj : TPCJSONObject; const AData : TMultiOpData);
+  procedure FillOpDataObject(AParentObj : TPCJSONObject; const AOpData : TMultiOpData);
   var LDataObj : TPCJSONObject;
   begin
     LDataObj := AParentObj.GetAsObject('data');
-    LDataObj.GetAsVariant('id').Value := AData.ID.ToString; // Note: Delphi always return with brackets
-    LDataObj.GetAsVariant('sequence').Value := AData.Sequence;
-    LDataObj.GetAsVariant('type').Value := AData.&Type;
+    LDataObj.GetAsVariant('id').Value := AOpData.ID.ToString; // Note: Delphi always return with brackets
+    LDataObj.GetAsVariant('sequence').Value := AOpData.Sequence;
+    LDataObj.GetAsVariant('type').Value := AOpData.&Type;
   end;
 
 Begin
@@ -224,7 +224,7 @@ Begin
       auxObj.GetAsVariant('amount_s').Value := TAccountComp.FormatMoney (OPR.Senders[i].Amount * (-1));
       auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Senders[i].Payload);
       if (OPR.OpType = CT_Op_Data) then begin
-        FillDataObject(auxObj, OPR.Receivers[i].Data);
+        FillOpDataObject(auxObj, OPR.senders[i].OpData);
       end;
     end;
     //
@@ -235,9 +235,6 @@ Begin
       auxObj.GetAsVariant('amount').Value :=  TAccountComp.FormatMoneyDecimal(OPR.Receivers[i].Amount);
       auxObj.GetAsVariant('amount_s').Value :=  TAccountComp.FormatMoney(OPR.Receivers[i].Amount);
       auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Receivers[i].Payload);
-      if (OPR.OpType = CT_Op_Data) then begin
-        FillDataObject(auxObj, OPR.Receivers[i].Data);
-      end;
     end;
     jsonArr := jsonObject.GetAsArray('changers');
     for i:=Low(OPR.Changers) to High(OPR.Changers) do begin
@@ -277,9 +274,10 @@ Begin
         auxObj.GetAsVariant('fee').Value := TAccountComp.FormatMoneyDecimal(OPR.Changers[i].Fee * (-1));
         auxObj.GetAsVariant('fee_s').Value := TAccountComp.FormatMoney(OPR.Changers[i].Fee * (-1));
       end;
+      { XXXXXXXXXX
       if (OPR.OpType = CT_Op_Data) then begin
-        FillDataObject(auxObj, OPR.Changers[i].Data);
-      end;
+        FillDataObject(auxObj, OPR.Changers[i].OpData);
+      end;        }
       LString := '';
       for LOpChangeAccountInfoType := Low(LOpChangeAccountInfoType) to High(LOpChangeAccountInfoType) do begin
         if (LOpChangeAccountInfoType in OPR.Changers[i].Changes_type) then begin

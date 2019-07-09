@@ -316,6 +316,7 @@ Type
     account_sender,              // The account sender. Public key must be EQUAL to account_signer public key
     account_target: Cardinal;    // The destination account. Will recive DATA and amount (if any)
     n_operation : Cardinal;      // Signer n_operation
+    guid: TGUID;                 // GUID value, added on Protocol V5
     dataType : Word;             // 2 byte data type
     dataSequence : Word;         // 2 byte data sequence
     amount: UInt64;              // Allow amount=0
@@ -355,7 +356,7 @@ Type
   End;
 
 Const
-  CT_TOpDataData_NUL : TOpDataData = (account_signer:0;account_sender:0;account_target:0;n_operation:0;dataType:0;dataSequence:0;amount:0;fee:0;payload:Nil;sign:(r:Nil;s:Nil));
+  CT_TOpDataData_NUL : TOpDataData = (account_signer:0;account_sender:0;account_target:0;n_operation:0;guid:(D1:0;D2:0;D3:0;D4:(0,0,0,0,0,0,0,0));dataType:0;dataSequence:0;amount:0;fee:0;payload:Nil;sign:(r:Nil;s:Nil));
 
 Procedure RegisterOperationsClass;
 
@@ -2470,6 +2471,10 @@ begin
   Stream.Write(FData.account_sender,Sizeof(FData.account_sender));
   Stream.Write(FData.account_target,Sizeof(FData.account_target));
   Stream.Write(FData.n_operation,Sizeof(FData.n_operation));
+  // VERSION 5: write the GUID
+  if FProtocolVersion >= CT_PROTOCOL_5 then begin
+    TStreamOp.writeGuid(Stream,FData.guid);
+  end;
   Stream.Write(FData.dataType,Sizeof(FData.dataType));
   Stream.Write(FData.dataSequence,Sizeof(FData.dataSequence));
   Stream.Write(FData.amount,Sizeof(FData.amount));
@@ -2483,11 +2488,16 @@ end;
 function TOpData.LoadOpFromStream(Stream: TStream; LoadExtendedData: Boolean): Boolean;
 begin
   Result := false;
-  if Stream.Size-Stream.Position < 36  then exit; // Invalid stream
+  if Stream.Size-Stream.Position < 16  then exit; // Invalid stream
   Stream.Read(FData.account_signer,Sizeof(FData.account_signer));
   Stream.Read(FData.account_sender,Sizeof(FData.account_sender));
   Stream.Read(FData.account_target,Sizeof(FData.account_target));
   Stream.Read(FData.n_operation,Sizeof(FData.n_operation));
+  // VERSION 5: write the GUID
+  if FProtocolVersion >= CT_PROTOCOL_5 then begin
+    if TStreamOp.ReadGUID(Stream,FData.guid)<16 then Exit;
+  end;
+  if Stream.Size-Stream.Position < 20  then exit; // Invalid stream
   Stream.Read(FData.dataType,Sizeof(FData.dataType));
   Stream.Read(FData.dataSequence,Sizeof(FData.dataSequence));
   Stream.Read(FData.amount,Sizeof(FData.amount));
@@ -2521,9 +2531,6 @@ begin
     OperationResume.Senders[0].N_Operation:=FData.n_operation;
     OperationResume.Senders[0].Signature:=FData.sign;
     OperationResume.Senders[0].Amount:=Int64(FData.amount + FData.fee)*(-1);
-    OperationResume.Senders[0].Data.ID := StringToGUID('{00000000-0000-0000-0000-000000000000}'); // NOTE: ID missing in V4, added to V5
-    OperationResume.Senders[0].Data.Sequence := FData.dataSequence;
-    OperationResume.Senders[0].Data.&Type := FData.dataType;
   end else begin
     OperationResume.Senders[0].Amount:=Int64(FData.amount)*(-1);
     SetLength(OperationResume.Changers,1);
@@ -2532,9 +2539,6 @@ begin
     OperationResume.Changers[0].Fee:=FData.fee;
     OperationResume.Changers[0].N_Operation:=FData.n_operation;
     OperationResume.Changers[0].Signature:=FData.sign;
-    OperationResume.Senders[0].Data.ID := StringToGUID('{00000000-0000-0000-0000-000000000000}'); // NOTE: ID missing in V4, added to V5
-    OperationResume.Changers[0].Data.Sequence := FData.dataSequence;
-    OperationResume.Changers[0].Data.&Type := FData.dataType;
   end;
   //
   SetLength(OperationResume.Receivers,1);
@@ -2542,9 +2546,10 @@ begin
   OperationResume.Receivers[0].Account:=FData.account_target;
   OperationResume.Receivers[0].Amount:=FData.amount;
   OperationResume.Receivers[0].Payload:=FData.payload;
-  OperationResume.Senders[0].Data.ID := StringToGUID('{00000000-0000-0000-0000-000000000000}'); // NOTE: ID missing in V4, added to V5
-  OperationResume.Receivers[0].Data.Sequence := FData.dataSequence;
-  OperationResume.Receivers[0].Data.&Type := FData.dataType;
+  // Add OpData missing in V4, added to V5
+  OperationResume.Senders[0].OpData.ID := FData.guid;
+  OperationResume.Senders[0].OpData.Sequence := FData.dataSequence;
+  OperationResume.Senders[0].OpData.&Type := FData.dataType;
 
   //
   OperationResume.n_operation:=FData.n_operation;
@@ -2763,6 +2768,10 @@ begin
     Stream.Write(FData.account_sender,Sizeof(FData.account_sender));
     Stream.Write(FData.account_target,Sizeof(FData.account_target));
     Stream.Write(FData.n_operation,Sizeof(FData.n_operation));
+    // VERSION 5: write the GUID to the digest
+    if current_protocol >= CT_PROTOCOL_5 then begin
+      TStreamOp.WriteGUID(Stream,FData.guid);
+    end;
     Stream.Write(FData.dataType,Sizeof(FData.dataType));
     Stream.Write(FData.dataSequence,Sizeof(FData.dataSequence));
     Stream.Write(FData.amount,Sizeof(FData.amount));
