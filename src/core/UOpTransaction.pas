@@ -205,10 +205,11 @@ Type
     fee: UInt64;
     payload: TRawBytes;
     public_key: TECDSA_Public;
-    changes_type : TOpChangeAccountInfoTypes; // bits mask. $0001 = New account key , $0002 = New name , $0004 = New type
+    changes_type : TOpChangeAccountInfoTypes; // bits mask. $0001 = New account key , $0002 = New name , $0004 = New type , $0008 = New Data
     new_accountkey: TAccountKey;  // If (changes_mask and $0001)=$0001 then change account key
     new_name: TRawBytes;          // If (changes_mask and $0002)=$0002 then change name
     new_type: Word;               // If (changes_mask and $0004)=$0004 then change type
+    new_data: TRawBytes;          // If (changes_mask and $0008)=$0008 then change type
     sign: TECDSA_SIG;
   End;
 
@@ -217,7 +218,7 @@ Const
   CT_TOpListAccountData_NUL : TOpListAccountData = (account_signer:0;account_target:0;operation_type:lat_Unknown;n_operation:0;account_state:as_Unknown;account_price:0;account_to_pay:0;fee:0;
     hash_lock:(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);payload:Nil;public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);new_public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;sign:(r:Nil;s:Nil));
   CT_TOpChangeAccountInfoData_NUL : TOpChangeAccountInfoData = (account_signer:0;account_target:0;n_operation:0;fee:0;payload:Nil;public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);changes_type:[];
-    new_accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);new_name:Nil;new_type:0;sign:(r:Nil;s:Nil));
+    new_accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);new_name:Nil;new_type:0;new_data:Nil;sign:(r:Nil;s:Nil));
 
 Type
 
@@ -302,6 +303,7 @@ Type
       change_key : Boolean; const new_account_key : TAccountKey;
       change_name: Boolean; const new_name : TRawBytes;
       change_type: Boolean; const new_type : Word;
+      change_data: Boolean; const new_data : TRawBytes;
       fee: UInt64; payload: TRawBytes);
     Property Data : TOpChangeAccountInfoData read FData;
     Function toString : String; Override;
@@ -407,10 +409,14 @@ begin
   if (public_key in FData.changes_type) then b:=b OR $01;
   if (account_name in FData.changes_type) then b:=b OR $02;
   if (account_type in FData.changes_type) then b:=b OR $04;
+  if (account_data in FData.changes_type) then b:=b OR $08;
   Stream.Write(b,Sizeof(b));
   TStreamOp.WriteAccountKey(Stream,FData.new_accountkey);
   TStreamOp.WriteAnsiString(Stream,FData.new_name);
   Stream.Write(FData.new_type,Sizeof(FData.new_type));
+  if FProtocolVersion>=CT_PROTOCOL_5 then begin
+    TStreamOp.WriteAnsiString(Stream,FData.new_data);
+  end;
   TStreamOp.WriteAnsiString(Stream,FData.sign.r);
   TStreamOp.WriteAnsiString(Stream,FData.sign.s);
   Result := true;
@@ -432,11 +438,15 @@ begin
   if (b AND $01)=$01 then FData.changes_type:=FData.changes_type + [public_key];
   if (b AND $02)=$02 then FData.changes_type:=FData.changes_type + [account_name];
   if (b AND $04)=$04 then FData.changes_type:=FData.changes_type + [account_type];
+  if (b AND $08)=$08 then FData.changes_type:=FData.changes_type + [account_data];
   // Check
-  if (b AND $F8)<>0 then Exit;
+  if (b AND $F0)<>0 then Exit;
   if TStreamOp.ReadAccountKey(Stream,FData.new_accountkey)<0 then Exit;
   if TStreamOp.ReadAnsiString(Stream,FData.new_name)<0 then Exit;
   Stream.Read(FData.new_type,Sizeof(FData.new_type));
+  if FProtocolVersion>=CT_PROTOCOL_5 then begin
+    if TStreamOp.ReadAnsiString(Stream,FData.new_data)<0 then Exit;
+  end else FData.new_data := Nil;
   if TStreamOp.ReadAnsiString(Stream,FData.sign.r)<0 then Exit;
   if TStreamOp.ReadAnsiString(Stream,FData.sign.s)<0 then Exit;
   Result := true;
@@ -452,6 +462,7 @@ begin
   OperationResume.Changers[0].New_Accountkey := FData.new_accountkey;
   OperationResume.Changers[0].New_Name := FData.new_name;
   OperationResume.Changers[0].New_Type := FData.new_type;
+  OperationResume.Changers[0].New_Data := FData.new_data;
   If (FData.account_signer=FData.account_target) then begin
     OperationResume.Changers[0].N_Operation := FData.n_operation;
     OperationResume.Changers[0].Signature := FData.sign;
@@ -509,7 +520,7 @@ begin
     Exit;
   end;
   if (account_signer.balance<FData.fee) then begin
-    errors := 'Insuficient founds';
+    errors := 'Insuficient funds';
     exit;
   end;
   if (length(FData.payload)>CT_MaxPayloadSize) then begin
@@ -539,6 +550,18 @@ begin
   end else begin
     If (Length(FData.new_name)>0) then begin
       errors := 'Invalid data in new_name field';
+      Exit;
+    end;
+  end;
+  if (account_data in FData.changes_type) then begin
+    // TAccount.Data is a 0..32 bytes length
+    if (Length(FData.new_data)>CT_MaxAccountDataSize) then begin
+      errors := 'New data length ('+IntToStr(Length(FData.new_data))+') > '+IntToStr(CT_MaxAccountDataSize);
+      Exit;
+    end;
+  end else begin
+    if Length(FData.new_data)<>0 then begin
+      errors := 'New data must be null when no data change';
       Exit;
     end;
   end;
@@ -581,6 +604,9 @@ begin
   end;
   If (account_type in FData.changes_type) then begin
     account_target.account_type := FData.new_type;
+  end;
+  If (account_data in FData.changes_type) then begin
+    account_target.account_data := FData.new_data;
   end;
   Result := AccountTransaction.UpdateAccountInfo(AccountPreviousUpdatedBlock,
          GetOpID,
@@ -639,6 +665,7 @@ constructor TOpChangeAccountInfo.CreateChangeAccountInfo(ACurrentProtocol : word
   account_target: Cardinal; key: TECPrivateKey; change_key: Boolean;
   const new_account_key: TAccountKey; change_name: Boolean;
   const new_name: TRawBytes; change_type: Boolean; const new_type: Word;
+  change_data: Boolean; const new_data : TRawBytes;
   fee: UInt64; payload: TRawBytes);
 begin
   inherited Create(ACurrentProtocol);
@@ -661,6 +688,10 @@ begin
   If change_type then begin
     FData.changes_type:=FData.changes_type + [account_type];
     FData.new_type:=new_type;
+  end;
+  If change_data then begin
+    FData.changes_type:=FData.changes_type + [account_data];
+    FData.new_data:=new_data;
   end;
 
   if Assigned(key) then begin
@@ -686,6 +717,10 @@ begin
     if s<>'' then s:=s+', ';
     s := s + 'new type to '+IntToStr(FData.new_type);
   end;
+  If (account_data IN FData.changes_type)  then begin
+    if s<>'' then s:=s+', ';
+    s := s + 'new data to '+FData.new_data.ToHexaString;
+  end;
   Result := Format('Change account %s info: %s fee:%s (n_op:%d) payload size:%d',[
      TAccountComp.AccountNumberToAccountTxtNumber(FData.account_target),
      s,
@@ -708,10 +743,14 @@ begin
     if (public_key in FData.changes_type) then b:=b OR $01;
     if (account_name in FData.changes_type) then b:=b OR $02;
     if (account_type in FData.changes_type) then b:=b OR $04;
+    if (account_data in FData.changes_type) then b:=b OR $08;
     Stream.Write(b,Sizeof(b));
     TStreamOp.WriteAccountKey(Stream,FData.new_accountkey);
     TStreamOp.WriteAnsiString(Stream,FData.new_name);
     Stream.Write(FData.new_type,Sizeof(FData.new_type));
+    if (current_protocol>=CT_PROTOCOL_5) then begin
+      TStreamOp.WriteAnsiString(Stream,FData.new_data);
+    end;
     if (current_protocol<=CT_PROTOCOL_3) then begin
       Stream.Position := 0;
       setlength(Result,Stream.Size);

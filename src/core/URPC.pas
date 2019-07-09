@@ -274,10 +274,6 @@ Begin
         auxObj.GetAsVariant('fee').Value := TAccountComp.FormatMoneyDecimal(OPR.Changers[i].Fee * (-1));
         auxObj.GetAsVariant('fee_s').Value := TAccountComp.FormatMoney(OPR.Changers[i].Fee * (-1));
       end;
-      { XXXXXXXXXX
-      if (OPR.OpType = CT_Op_Data) then begin
-        FillDataObject(auxObj, OPR.Changers[i].OpData);
-      end;        }
       LString := '';
       for LOpChangeAccountInfoType := Low(LOpChangeAccountInfoType) to High(LOpChangeAccountInfoType) do begin
         if (LOpChangeAccountInfoType in OPR.Changers[i].Changes_type) then begin
@@ -420,6 +416,9 @@ begin
     end;
     If account_type in multiOperation.Data.changesInfo[i].Changes_type then begin
       auxObj.GetAsVariant('new_type').Value := multiOperation.Data.changesInfo[i].New_Type;
+    end;
+    If account_data in multiOperation.Data.changesInfo[i].Changes_type then begin
+      auxObj.GetAsVariant('new_data').Value := multiOperation.Data.changesInfo[i].New_Data.ToHexaString;
     end;
   end;
   jsonObject.GetAsVariant('amount').Value:=TAccountComp.FormatMoneyDecimal( multiOperation.OperationAmount );
@@ -1781,6 +1780,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     changePubKey : Boolean; Const new_account_pubkey : TAccountKey;
     changeName: Boolean; Const new_name : TRawBytes;
     changeType: Boolean; new_type : Word;
+    AChangeAccountData : Boolean; ANew_AccountData : TRawBytes;
     fee : UInt64; RawPayload : TRawBytes; Const Payload_method, EncodePwd : String) : TOpChangeAccountInfo;
   // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
   var privateKey : TECPrivateKey;
@@ -1799,6 +1799,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       account_signer,account_last_n_operation+1,account_target,
       privateKey,
       changePubKey,new_account_pubkey,changeName,new_name,changeType,new_type,
+      AChangeAccountData,ANew_AccountData,
       fee,f_raw);
     if Not Result.HasValidSignature then begin
       FreeAndNil(Result);
@@ -1819,11 +1820,12 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     opChangeInfo: TOpChangeAccountInfo;
     account_signer, account_target : Cardinal;
     fee : Int64;
-    changeKey,changeName,changeType : Boolean;
+    changeKey,changeName,changeType,changeAccountData : Boolean;
     new_name : TRawBytes;
     new_type : Word;
     new_typeI : Integer;
     new_pubkey : TAccountKey;
+    new_AccountData : TRawBytes;
   begin
     Result := false;
     account_signer := params.AsInteger('account_signer',MaxInt);
@@ -1875,10 +1877,28 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       changeType:=False;
     end;
 
+    if (params.IndexOfName('new_data')>=0) then begin
+      changeAccountData:=True;
+      if not TCrypto.HexaToRaw(params.AsString('new_data',''),new_AccountData) then begin
+        ErrorNum := CT_RPC_ErrNum_InvalidData;
+        ErrorDesc := 'new_data is not an HEXASTRING';
+        Exit;
+      end;
+      if Length(new_AccountData)>CT_MaxAccountDataSize then begin
+        ErrorNum := CT_RPC_ErrNum_InvalidData;
+        ErrorDesc := 'new_data limited to 0..'+IntToStr(CT_MaxAccountDataSize)+' bytes';
+        Exit;
+      end;
+    end else begin
+      new_AccountData := Nil;
+      changeAccountData:=False;
+    end;
+
     opChangeInfo := CreateOperationChangeAccountInfo(current_protocol,account_signer,last_n_operation,account_target,actualAccountKey,
       changeKey,new_pubkey,
       changeName,new_name,
       changeType,new_type,
+      changeAccountData,new_AccountData,
       fee,TCrypto.HexaToRaw(params.AsString('payload','')),
       params.AsString('payload_method','dest'),params.AsString('pwd',''));
     if opChangeInfo=nil then exit;
@@ -2481,6 +2501,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         - "new_b58_pubkey" or "new_enc_pubkey" : (optional) The new public key for this account
         - "new_name" : (optional) The new account name
         - "new_type" : (optional) The new account type
+        - "new_data" : HEXASTRING (optional) The new account data
         }
     Result := false;
     if Not HexaStringToOperationsHashTreeAndGetMultioperation(
@@ -2562,6 +2583,14 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         if (jsonArr.GetAsObject(i).IndexOfName('new_type')>=0) then begin
           changeinfo.Changes_type:=changeinfo.Changes_type + [account_type];
           changeinfo.New_Type:=jsonArr.GetAsObject(i).AsInteger('new_type',0);
+        end;
+        if (jsonArr.GetAsObject(i).IndexOfName('new_data')>=0) then begin
+          changeinfo.Changes_type:=changeinfo.Changes_type + [account_data];
+          if Not TCrypto.HexaToRaw(jsonArr.GetAsObject(i).AsString('new_data',''),changeinfo.New_Data) then begin
+            ErrorNum:=CT_RPC_ErrNum_InvalidData;
+            ErrorDesc:='Invalid HEXASTRING value at new_data param';
+            Exit;
+          end;
         end;
         if (changeinfo.Changes_type = []) then begin
           ErrorNum:=CT_RPC_ErrNum_InvalidData;
