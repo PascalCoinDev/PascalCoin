@@ -887,6 +887,7 @@ procedure TFRMWallet.FillAccountInformation(const Strings: TStrings;
   const AccountNumber: Cardinal);
 Var account : TAccount;
   s : String;
+  LjsonObj : TPCJSONObject;
 begin
   if AccountNumber<0 then exit;
   account := FNode.GetMempoolAccount(AccountNumber);
@@ -941,6 +942,14 @@ begin
           [account.accountInfo.locked_until_block,FNode.Bank.BlocksCount]));
     end;
   end;
+  LjsonObj := TPCJSONObject.Create;
+  Try
+    TPascalCoinJSONComp.FillAccountObject(account,LjsonObj);
+    Strings.Add('ACCOUNT JSON:');
+    Strings.Add(LjsonObj.ToJSON(False));
+  Finally
+    LjsonObj.Free;
+  end;
 
 end;
 
@@ -989,7 +998,7 @@ begin
   jsonObj := TPCJSONObject.Create;
   Try
     TPascalCoinJSONComp.FillOperationObject(OperationResume,FNode.Bank.BlocksCount,jsonObj);
-    Strings.Add('JSON:');
+    Strings.Add('OPERATION JSON:');
     Strings.Add(jsonObj.ToJSON(False));
   Finally
     jsonObj.Free;
