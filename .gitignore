@@ -48,3 +48,8 @@ __history/
 __recovery/
 dunit.ini
 *.res
+/*.DS_Store
+/PIP/*.DS_Store
+/PIP/resources/*.DS_Store
+/PIP/resources/PIP-0034A/*.DS_Store
+/src/*.tvsconfig

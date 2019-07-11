@@ -218,8 +218,8 @@ var
     end;
     if HasOption('c','cpu') then begin
       c := StrToIntDef(GetOptionValue('c','cpu'),-1);
-      if (c<=0) or (c>TLogicalCPUCount.GetLogicalCPUCount()) then begin
-        WriteLn('Invalid cpu value ',c,'. Valid values: 1..',TLogicalCPUCount.GetLogicalCPUCount());
+      if (c<=0) or (c>TCPUTool.GetLogicalCPUCount()) then begin
+        WriteLn('Invalid cpu value ',c,'. Valid values: 1..',TCPUTool.GetLogicalCPUCount());
         Terminate;
         exit;
       end;
