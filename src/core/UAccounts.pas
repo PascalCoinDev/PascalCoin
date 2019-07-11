@@ -1518,12 +1518,12 @@ end;
 
 class function TAccountComp.IsAccountForPrivateSale(const AAccountInfo: TAccountInfo): Boolean;
 begin
-  Result := (AAccountInfo.state in [as_ForSale]) AND (NOT IsNullAccountKey(AAccountInfo.accountKey));
+  Result := (AAccountInfo.state in [as_ForSale]) AND (NOT IsNullAccountKey(AAccountInfo.new_publicKey));
 end;
 
 class function TAccountComp.IsAccountForPublicSale(const AAccountInfo: TAccountInfo): Boolean;
 begin
-  Result := (AAccountInfo.state in [as_ForSale]) AND IsNullAccountKey(AAccountInfo.accountKey);
+  Result := (AAccountInfo.state in [as_ForSale]) AND IsNullAccountKey(AAccountInfo.new_publicKey);
 end;
 
 class function TAccountComp.IsAccountForSwap(const AAccountInfo: TAccountInfo): Boolean;
