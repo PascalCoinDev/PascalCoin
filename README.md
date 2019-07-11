@@ -61,8 +61,10 @@ Also, consider a donation at PascalCoin development account: "0-10"
   - Updated "Account Object" return values:
     - "state": Can return "normal", "listed", "account_swap", "coin_swap"
     - "hashed_secret" : (HEXASTRING) will contain the SHA256( SECRET ) value that must match Payload received data for Atomic Swaps (only when "state" in "account_swap" or "coin_swap")
-	- "amount_to_swap" : (PASCURRENCY) amount that will be transferred to counterparty account on ATOMIC COIN SWAP ("receiver_swap_account")
-	- "receiver_swap_account": (Integer) Counterpaty account that will receive "amount_to_swap" on ATOMIC COIN SWAP
+    - "amount_to_swap" : (PASCURRENCY) amount that will be transferred to counterparty account on ATOMIC COIN SWAP ("receiver_swap_account")
+    - "receiver_swap_account": (Integer) Counterpaty account that will receive "amount_to_swap" on ATOMIC COIN SWAP
+    - "data" : (HEXASTRING) will return the Account Data stored with PIP-0024
+    - "seal" : (HEXASTRING) will return the Account Seal stored with PIP-0029
   - Updated "Operation Object" return values:
     - "senders" : ARRAY
       - "data" : OBJECT will store OP_DATA information when operation is OP_DATA type as described on PIP-0016
@@ -75,10 +77,9 @@ Also, consider a donation at PascalCoin development account: "0-10"
   - Updated "Multi Operation Object" values:
     - "changers" : ARRAY
       - "new_data" : (HEXASTRING) : If "data" is changed on "account"
-    
+
 TODO  
 - TODO: RPC calls for PIP-0029
-- TODO Implement Seal calculation
 - TODO: RPC calls for PIP-0030
 - TODO: RPC calls for PIP-0016
 

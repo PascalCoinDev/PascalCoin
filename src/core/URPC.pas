@@ -352,6 +352,8 @@ Begin
   end;
   jsonObj.GetAsVariant('name').Value := account.name.ToPrintable;
   jsonObj.GetAsVariant('type').Value := account.account_type;
+  jsonObj.GetAsVariant('data').Value := account.account_data.ToHexaString;
+  jsonObj.GetAsVariant('seal').Value := account.account_seal.ToHexaString;
 end;
 
 class procedure TPascalCoinJSONComp.FillOperationsHashTreeObject(const OperationsHashTree: TOperationsHashTree; jsonObject: TPCJSONObject);
