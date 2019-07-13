@@ -1,4 +1,4 @@
-unit UFRMDiagnosticTool;
+unit UFRMRandomHashUtil;
 
 interface
 

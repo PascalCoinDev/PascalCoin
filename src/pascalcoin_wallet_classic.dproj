@@ -220,8 +220,8 @@
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="core\URandomHash2.pas"/>
-        <DCCReference Include="gui-classic\UFRMRandomHashUtil.pas">
-            <Form>FRMDiagnosicTool</Form>
+        <DCCReference Include="gui-classic\UFRMDiagnosticTool.pas">
+            <Form>FRMDiagnosticTool</Form>
             <FormType>dfm</FormType>
         </DCCReference>
         <BuildConfiguration Include="Debug">

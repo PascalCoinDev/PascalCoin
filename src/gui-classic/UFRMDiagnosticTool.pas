@@ -82,7 +82,6 @@ constructor TAlgorithmThread.Create;
 begin
   Inherited Create(True);
   SetLength(FLastHash, 32);
-  FillChar(FLastHash, 32, 0);
 end;
 
 procedure TAlgorithmThread.BCExecute;
@@ -97,7 +96,7 @@ begin
   while True do begin
    FLastHash := NextRound;
    inc(LTotalHashes);
-   if TPlatform.GetElapsedMilliseconds(LTC)>1000 then begin
+   if TPlatform.GetElapsedMilliseconds(LTC)>2500 then begin
      FNotifyDuration := TTimeSpan.Subtract(Now, LStartTime);
      FNotifyHashCount := LTotalHashes;
      Queue( ThreadSafeNotify );
@@ -139,15 +138,15 @@ end;
 
 function TRandomHash2Thread.NextRound : TBytes;
 begin
-   Result := FHasher.Hash(FLastHash);
+  Result := FHasher.Hash(FLastHash);
 end;
 
 { TFRMDiagnosicTool }
 
 procedure TFRMDiagnosticTool.FormCreate(Sender: TObject);
 begin
-  FRHThread := TRandomHashThread.Create;
   FRH2Thread := TRandomHash2Thread.Create;
+  FRHThread := TRandomHashThread.Create;
   FDisposables.AddObject(FRHThread);
   FDisposables.AddObject(FRH2Thread);
 

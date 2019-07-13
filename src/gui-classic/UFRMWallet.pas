@@ -331,7 +331,7 @@ Uses UFolderHelper,
 {$ENDIF}
   UTime, UFileStorage,
   UThread, UOpTransaction, UFRMPascalCoinWalletConfig,
-  UFRMOperationsExplorer, UFRMRandomHashUtil,
+  UFRMOperationsExplorer, UFRMDiagnosticTool,
   {$IFDEF TESTNET}
   UFRMRandomOperations,
   UPCTNetDataExtraMessages,
@@ -1617,9 +1617,9 @@ end;
 
 procedure TFRMWallet.miDiagnosticToolClick(Sender: TObject);
 var
- LDialog : TFRMDiagnosicTool;
+ LDialog : TFRMDiagnosticTool;
 begin
-  LDialog := TFRMDiagnosicTool.Create(Nil);
+  LDialog := TFRMDiagnosticTool.Create(Nil);
   try
     LDialog.ShowModal;
   finally

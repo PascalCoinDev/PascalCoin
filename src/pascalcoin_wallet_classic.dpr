@@ -61,7 +61,7 @@ uses
   UPCTNetDataExtraMessages in 'core\UPCTNetDataExtraMessages.pas',
   UFRMHashLock in 'gui-classic\UFRMHashLock.pas' {FRMHashLock},
   URandomHash2 in 'core\URandomHash2.pas',
-  UFRMRandomHashUtil in 'gui-classic\UFRMRandomHashUtil.pas' {FRMDiagnosicTool};
+  UFRMDiagnosticTool in 'gui-classic\UFRMDiagnosticTool.pas' {FRMDiagnosticTool};
 
 {$R *.res}
 
