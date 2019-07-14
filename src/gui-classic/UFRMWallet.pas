@@ -177,7 +177,6 @@ type
     MiFindOperationbyOpHash: TMenuItem;
     MiAccountInformation: TMenuItem;
     MiOperationsExplorer: TMenuItem;
-    miDiagnosticTool: TMenuItem;
     procedure cbHashRateUnitsClick(Sender: TObject);
     procedure ebHashRateBackBlocksExit(Sender: TObject);
     procedure ebHashRateBackBlocksKeyPress(Sender: TObject; var Key: char);
@@ -229,7 +228,7 @@ type
     procedure MiFindOperationbyOpHashClick(Sender: TObject);
     procedure MiAccountInformationClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
-    procedure miDiagnosticToolClick(Sender: TObject);
+    procedure Test_ShowDiagnosticTool(Sender: TObject);
   private
     FLastNodesCacheUpdatedTS : TDateTime;
     FBackgroundPanel : TPanel;
@@ -1046,6 +1045,11 @@ begin
   mi.Caption:='Ask for Free Account';
   mi.OnClick:=Test_AskForFreeAccount;
   miAbout.Add(mi);
+  mi := TMenuItem.Create(MainMenu);
+  mi.Caption:='Diagnostic Tool';
+  mi.OnClick:=Test_ShowDiagnosticTool;
+  miAbout.Add(mi);
+
 end;
 
 {$IFDEF TESTING_NO_POW_CHECK}
@@ -1615,7 +1619,7 @@ begin
   end;
 end;
 
-procedure TFRMWallet.miDiagnosticToolClick(Sender: TObject);
+procedure TFRMWallet.Test_ShowDiagnosticTool(Sender: TObject);
 var
  LDialog : TFRMDiagnosticTool;
 begin

@@ -51,7 +51,8 @@ function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : String;
 {$ENDIF}
 function BinStrComp(const Str1, Str2 : String): Integer; // Binary-safe StrComp replacement. StrComp will return 0 for when str1 and str2 both start with NUL character.
 function BytesCompare(const ABytes1, ABytes2: TBytes): integer;
-function BytesEqual(const ABytes1, ABytes2 : TBytes) : boolean; inline;
+function BytesEqual(const ABytes1, ABytes2 : TBytes) : boolean; overload; inline;
+function BytesEqual(const ABytes1, ABytes2 : TBytes; AFrom, ALength : UInt32) : boolean; overload; inline;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Cardinal): Cardinal; overload;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Integer): Integer; overload;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Int64): Int64; overload;
@@ -582,12 +583,25 @@ end;
 function BytesEqual(const ABytes1, ABytes2 : TBytes) : boolean;
 var ABytes1Len, ABytes2Len : Integer;
 begin
+  Result := BytesEqual(ABytes1, ABytes2, 0, Length(ABytes1));
   ABytes1Len := Length(ABytes1);
   ABytes2Len := Length(ABytes2);
   if (ABytes1Len <> ABytes2Len) OR (ABytes1Len = 0) then
     Result := False
   else
     Result := CompareMem(@ABytes1[0], @ABytes2[0], ABytes1Len);
+end;
+
+function BytesEqual(const ABytes1, ABytes2 : TBytes; AFrom, ALength : UInt32) : boolean;
+var ABytes1Len, ABytes2Len : Integer;
+begin
+  if ALength = 0 then
+    Exit(False);
+  ABytes1Len := Length(ABytes1);
+  ABytes2Len := Length(ABytes2);
+  if (ABytes1Len < ALength) OR (ABytes2Len < ALength) then
+    Exit(False);
+  Result := CompareMem(@ABytes1[AFrom], @ABytes2[AFrom], ALength);
 end;
 
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Cardinal): Cardinal;

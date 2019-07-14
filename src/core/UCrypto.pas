@@ -39,7 +39,7 @@ uses
   ClpBigInteger,
   ClpCryptoLibTypes,
   {$ENDIF}
-  URandomHash, UBaseTypes, UPCDataTypes;
+  URandomHash, URandomHash2, UBaseTypes, UPCDataTypes;
 
 Type
   ECryptoException = Class(Exception);
@@ -87,8 +87,12 @@ Type
     class function DoDoubleSha256(const TheMessage : TRawBytes) : TRawBytes; overload;
     class procedure DoDoubleSha256(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
     class function DoRandomHash(const TheMessage : TRawBytes) : TRawBytes; overload;
+    class function DoRandomHash2(const TheMessage : TRawBytes) : TRawBytes; overload;
     class procedure DoRandomHash(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
+    class procedure DoRandomHash2(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
     class procedure DoRandomHash(AFastHasher : TRandomHashFast; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
+    class procedure DoRandomHash2(AHasher : TRandomHash2; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
+   // class procedure DoRandomHash2(AHasher : TRandomHash2; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
     class function DoRipeMD160_HEXASTRING(const TheMessage : TRawBytes) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(const TheMessage : TRawBytes) : TRawBytes; overload;
@@ -152,7 +156,7 @@ Const
 implementation
 
 uses
-  ULog, UConst, UAccounts;
+  ULog, UConst, UAccounts, UCommon;
 
 Var _initialized : Boolean = false;
 
@@ -769,6 +773,11 @@ begin
   Result := TRandomHashFast.Compute(TheMessage);
 end;
 
+class function TCrypto.DoRandomHash2(const TheMessage: TRawBytes): TRawBytes;
+begin
+  Result := TRandomHash2.Compute(TheMessage);
+end;
+
 class procedure TCrypto.DoRandomHash(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
 var
   LInput : TBytes;
@@ -781,6 +790,18 @@ begin
   Move(LResult[0], ResultSha256[Low(ResultSha256)], 32);
 end;
 
+class procedure TCrypto.DoRandomHash2(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
+var
+  LInput : TBytes;
+  LResult : TBytes;
+begin
+  if Length(ResultSha256) <> 32 then SetLength(ResultSha256, 32);
+  SetLength(LInput, plength);
+  Move(p^, LInput[0], plength);
+  LResult := TRandomHash2.Compute(LInput);
+  Move(LResult[0], ResultSha256[Low(ResultSha256)], 32);
+end;
+
 class procedure TCrypto.DoRandomHash(AFastHasher : TRandomHashFast; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
 var
   LInput : TBytes;
@@ -790,6 +811,23 @@ begin
   SetLength(LInput, plength);
   Move(p^, LInput[0], plength);
   LResult := AFastHasher.Hash(LInput);
+  Move(LResult[0], ResultSha256[Low(ResultSha256)], 32);
+end;
+
+class procedure TCrypto.DoRandomHash2(AHasher : TRandomHash2; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
+var
+  LInput : TBytes;
+  LResult : TBytes;
+begin
+  if Length(ResultSha256) <> 32 then SetLength(ResultSha256, 32);
+  SetLength(LInput, plength);
+  Move(p^, LInput[0], plength);
+
+  if AHasher.HasCachedHash AND BytesEqual(AHasher.PeekCachedHash.Header, LInput) then
+    LResult := AHasher.PopCachedHash.Hash
+  else
+    LResult := AHasher.Hash(LInput);
+
   Move(LResult[0], ResultSha256[Low(ResultSha256)], 32);
 end;
 

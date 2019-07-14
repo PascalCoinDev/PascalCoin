@@ -1,0 +1,67 @@
+object FRMDiagnosticTool: TFRMDiagnosticTool
+  Left = 0
+  Height = 486
+  Top = 0
+  Width = 855
+  Caption = 'FRMDiagnosticTool'
+  ClientHeight = 522
+  ClientWidth = 765
+  Color = clBtnFace
+  DesignTimePPI = 144
+  Font.Color = clWindowText
+  Font.Height = -17
+  Font.Name = 'Tahoma'
+  OnCreate = FormCreate
+  LCLVersion = '2.1.0.0'
+  object btnRH: TButton
+    Left = 12
+    Height = 38
+    Top = 12
+    Width = 195
+    Caption = 'Start Random Hash'
+    Font.Color = clWindowText
+    Font.Height = -17
+    Font.Name = 'Tahoma'
+    OnClick = btnRHClick
+    ParentFont = False
+    TabOrder = 0
+  end
+  object btnRH2: TButton
+    Left = 216
+    Height = 38
+    Top = 12
+    Width = 195
+    Caption = 'Start Random Hash 2'
+    Font.Color = clWindowText
+    Font.Height = -17
+    Font.Name = 'Tahoma'
+    OnClick = btnRH2Click
+    ParentFont = False
+    TabOrder = 1
+  end
+  object txtLog: TMemo
+    Left = 12
+    Height = 236
+    Top = 58
+    Width = 591
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    Font.Color = clWindowText
+    Font.Height = -17
+    Font.Name = 'Tahoma'
+    ParentFont = False
+    TabOrder = 2
+  end
+  object btnRHC: TButton
+    Left = 420
+    Height = 38
+    Top = 12
+    Width = 279
+    Caption = 'Start Random Hash 2 (Cached)'
+    Font.Color = clWindowText
+    Font.Height = -17
+    Font.Name = 'Tahoma'
+    OnClick = btnRHCClick
+    ParentFont = False
+    TabOrder = 3
+  end
+end

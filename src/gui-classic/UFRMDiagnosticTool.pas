@@ -3,25 +3,32 @@ unit UFRMDiagnosticTool;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
-  System.TimeSpan, UThread, UMemory, URandomHash, URandomHash2,
-  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls;
+  Graphics, Controls, Forms, Dialogs, ExtCtrls, StdCtrls,
+  SysUtils, Variants, Classes, UThread, UMemory, URandomHash, URandomHash2,
+  {$IFNDEF FPC}
+  System.TimeSpan,
+  {$ENDIF}
+  UCommon;
 
 type
   TFRMDiagnosticTool = class(TForm)
     btnRH: TButton;
     btnRH2: TButton;
     txtLog: TMemo;
+    btnRHC: TButton;
     procedure btnRH2Click(Sender: TObject);
     procedure btnRHClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure btnRHCClick(Sender: TObject);
   private
     { Private declarations }
     FDisposables : TDisposables;
     FRHThread : TPCThread;
     FRH2Thread : TPCThread;
+    FRH2CachedThread : TPCThread;
     procedure OnRandomHashReport(ATotalHashes : UInt32; const ATimeSpan : TTimeSpan);
     procedure OnRandomHash2Report(ATotalHashes : UInt32; const ATimeSpan : TTimeSpan);
+    procedure OnRandomHash2CachedReport(ATotalHashes : UInt32; const ATimeSpan : TTimeSpan);
   public
     { Public declarations }
   end;
@@ -52,7 +59,7 @@ type
 
   TRandomHashThread = class(TAlgorithmThread)
     private
-      FHasher : TRandomHash;
+      FHasher : TRandomHashFast;
     protected
       function NextRound : TBytes; override;
     public
@@ -62,6 +69,17 @@ type
   { TRandomHash2Thread }
 
   TRandomHash2Thread = class(TAlgorithmThread)
+    private
+      FHasher : TRandomHash2;
+    protected
+      function NextRound : TBytes; override;
+    public
+      constructor Create; override;
+  end;
+
+  { TRandomHash2CachedThread }
+
+  TRandomHash2CachedThread = class(TAlgorithmThread)
     private
       FHasher : TRandomHash2;
     protected
@@ -118,7 +136,7 @@ end;
 constructor TRandomHashThread.Create;
 begin
   Inherited Create;
-  FHasher := TRandomHash.Create;
+  FHasher := TRandomHashFast.Create;
   FDisposables.AddObject(FHasher);
 end;
 
@@ -141,17 +159,39 @@ begin
   Result := FHasher.Hash(FLastHash);
 end;
 
+{ TRandomHash2CachedThread }
+
+constructor TRandomHash2CachedThread.Create;
+begin
+  Inherited Create;
+  FHasher := TRandomHash2.Create;
+  FDisposables.AddObject(FHasher);
+end;
+
+function TRandomHash2CachedThread.NextRound : TBytes;
+begin
+  if FHasher.HasCachedHash then
+    Result := FHasher.PopCachedHash.Hash
+  else
+    Result := FHasher.Hash(FLastHash);
+end;
+
+
+
 { TFRMDiagnosicTool }
 
 procedure TFRMDiagnosticTool.FormCreate(Sender: TObject);
 begin
+  FRH2CachedThread := TRandomHash2CachedThread.Create;
   FRH2Thread := TRandomHash2Thread.Create;
   FRHThread := TRandomHashThread.Create;
   FDisposables.AddObject(FRHThread);
   FDisposables.AddObject(FRH2Thread);
+  FDisposables.AddObject(FRH2CachedThread);
 
   TRandomHashThread(FRHThread).Notify := OnRandomHashReport;
   TRandomHash2Thread(FRH2Thread).Notify := OnRandomHash2Report;
+  TRandomHash2CachedThread(FRH2CachedThread).Notify := OnRandomHash2CachedReport;
 end;
 
 procedure TFRMDiagnosticTool.btnRHClick(Sender: TObject);
@@ -176,11 +216,22 @@ begin
   end;
 end;
 
+procedure TFRMDiagnosticTool.btnRHCClick(Sender: TObject);
+begin
+  if FRH2CachedThread.Suspended then begin
+    FRH2CachedThread.Suspended := False;
+    btnRHC.Caption := 'Stop Random Hash 2 (Cached)';
+  end else begin
+    FRH2CachedThread.Suspended := True;
+    btnRHC.Caption := 'Start Random Hash 2 (Cached)';
+  end;
+end;
+
 procedure TFRMDiagnosticTool.OnRandomHashReport(ATotalHashes : UInt32; const ATimeSpan : TTimeSpan);
 var
  LHPS : Double;
 begin
-  LHPS := Double(ATotalHashes) / Double(ATimeSpan.TotalSeconds);
+  LHPS := Trunc(ATotalHashes) / ATimeSpan.TotalSeconds;
   txtLog.Text := txtLog.Text + Format('Random Hash: %n H/S%s', [LHPS, sLineBreak]);
 end;
 
@@ -188,8 +239,16 @@ procedure TFRMDiagnosticTool.OnRandomHash2Report(ATotalHashes : UInt32; const AT
 var
  LHPS : Double;
 begin
-  LHPS := Double(ATotalHashes) / Double(ATimeSpan.TotalSeconds);
+  LHPS := Trunc(ATotalHashes) / ATimeSpan.TotalSeconds;
   txtLog.Text := txtLog.Text + Format('Random Hash 2: %n H/S%s', [LHPS, sLineBreak]);
+end;
+
+procedure TFRMDiagnosticTool.OnRandomHash2CachedReport(ATotalHashes : UInt32; const ATimeSpan : TTimeSpan);
+var
+ LHPS : Double;
+begin
+  LHPS := Trunc(ATotalHashes) / ATimeSpan.TotalSeconds;
+  txtLog.Text := txtLog.Text + Format('Random Hash 2 (Cached): %n H/S%s', [LHPS, sLineBreak]);
 end;
 
 end.

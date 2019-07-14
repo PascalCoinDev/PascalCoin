@@ -25,7 +25,7 @@ interface
 {$I config.inc}
 
 uses
-  Classes, SysUtils, syncobjs, UThread, UPoolMining, UAccounts, UCrypto, ULog, UBlockChain, USha256, URandomHash, UBaseTypes, UCommon,
+  Classes, SysUtils, syncobjs, UThread, UPoolMining, UAccounts, UCrypto, ULog, UBlockChain, USha256, URandomHash, URandomHash2, UBaseTypes, UCommon,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 type
@@ -498,7 +498,10 @@ begin
   FLastDigest := digest;
   LUseRandomHash := TPoolMinerThread.UseRandomHash(usedMinerValuesForWork.version);
   if LUseRandomHash then
-    LHash := TCrypto.DoRandomHash(digest)
+    if (usedMinerValuesForWork.version >= CT_PROTOCOL_5) then
+      LHash := TCrypto.DoRandomHash2(digest)
+    else
+      LHash := TCrypto.DoRandomHash(digest)
   else
     LHash := TCrypto.DoSha256(TCrypto.DoSha256(digest));
   if (TBaseType.BinStrComp(LHash,usedMinerValuesForWork.target_pow)<=0) then begin
@@ -792,6 +795,7 @@ Var
   dstep : Integer;
   LUseRandomHash : boolean;
   LRandomHasher : TRandomHashFast;
+  LRandomHasher2 : TRandomHash2;
   LDisposables : TDisposables;
 begin
   DebugStep := '----------';
@@ -799,6 +803,7 @@ begin
   nonce := 0;
   dstep := 0;
   LRandomHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
+  LRandomHasher2 := LDisposables.AddObject( TRandomHash2.Create ) as TRandomHash2;
   Try
     while (Not Terminated) And (Not FCPUDeviceThread.Terminated) do begin
       Try
@@ -812,7 +817,10 @@ begin
         try
           LUseRandomHash := TPoolMinerThread.UseRandomHash(FCurrentMinerValuesForWork.version);
           if (LUseRandomHash) then begin
-            roundsToDo := 20;
+            if FCurrentMinerValuesForWork.version < CT_PROTOCOL_5 then
+              roundsToDo := 20
+            else
+              roundsToDo := 100;
           end else begin
             roundsToDo := 10000;
           end;
@@ -837,10 +845,16 @@ begin
                 FDigestStreamMsg.Position := FDigestStreamMsg.Size - 4;
                 FDigestStreamMsg.Write(nonce,4);
                 if LUseRandomHash then begin
-                  // Note if i > 1 then FDigestStreamMsg.Memory == LHasher.NextHeader (needs to be for CPU optimization to work)
-                  TCrypto.DoRandomHash(LRandomHasher,FDigestStreamMsg.Memory,FDigestStreamMsg.Size,resultPoW);
-                end else
+                  if (FCurrentMinerValuesForWork.version < CT_PROTOCOL_5) then begin
+                    // Note if i > 1 then FDigestStreamMsg.Memory == LHasher.NextHeader (needs to be for CPU optimization to work)
+                    TCrypto.DoRandomHash(LRandomHasher,FDigestStreamMsg.Memory,FDigestStreamMsg.Size,resultPoW);
+                  end else begin
+                    // Note if > 1 then FDigestStreamMsg.Memory == LRandomHash2.CachedHashes[0].Header (needs to be for CPU optimization to work)
+                    TCrypto.DoRandomHash2(LRandomHasher2, FDigestStreamMsg.Memory, FDigestStreamMsg.Size, resultPoW)
+                  end
+                end else begin
                   TCrypto.DoDoubleSha256(FDigestStreamMsg.Memory,FDigestStreamMsg.Size,resultPoW);
+                end;
                 if (TBaseType.BinStrComp(resultPoW,FCurrentMinerValuesForWork.target_pow)<0) then begin
                   if (Terminated) Or (FCPUDeviceThread.Terminated) then exit;
                   dstep := 5;
@@ -854,9 +868,15 @@ begin
                   end;
                   dstep := 8;
                 end;
-                if LUseRandomHash then
-                  nonce := LRandomHasher.NextNonce
-                else if (nonce)<FMaxNOnce then inc(nonce) else nonce := FMinNOnce;
+                if LUseRandomHash then begin
+                  if (FCurrentMinerValuesForWork.version < CT_PROTOCOL_5) then begin
+                    nonce := LRandomHasher.NextNonce;
+                  end else begin
+                    if LRandomHasher2.HasCachedHash then
+                      nonce := LRandomHasher2.PeekCachedHash.Nonce
+                    else inc(nonce);
+                  end;
+                end else if (nonce)<FMaxNOnce then inc(nonce) else nonce := FMinNOnce;
               end;
               finalHashingTC:=TPlatform.GetTickCount;
             end else begin

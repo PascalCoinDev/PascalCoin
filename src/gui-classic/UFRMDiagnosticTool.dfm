@@ -27,7 +27,7 @@ object FRMDiagnosticTool: TFRMDiagnosticTool
     OnClick = btnRHClick
   end
   object btnRH2: TButton
-    Left = 151
+    Left = 144
     Top = 8
     Width = 130
     Height = 25
@@ -42,5 +42,14 @@ object FRMDiagnosticTool: TFRMDiagnosticTool
     Height = 277
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 2
+  end
+  object btnRHC: TButton
+    Left = 280
+    Top = 8
+    Width = 186
+    Height = 25
+    Caption = 'Start Random Hash 2 (Cached)'
+    TabOrder = 3
+    OnClick = btnRHCClick
   end
 end

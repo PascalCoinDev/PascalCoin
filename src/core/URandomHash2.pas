@@ -112,13 +112,25 @@ type
   TRandomHash2 = class sealed(TObject)
     const
       N = 5;      // Max-number of hashing rounds required to compute a nonce, total rounds = 2^N
-      J = 3;       // Max-number of dependent neighbouring nonces required to evaluate a nonce round
+      J = 5;       // Max-number of dependent neighbouring nonces required to evaluate a nonce round
       M = 1024;    // The memory expansion unit (in bytes), total bytes per nonce = M * (2^N (N-2) + 2)
       NUM_HASH_ALGO = 18;
 
-    {$IFNDEF UNITTESTS}private{$ELSE}public{$ENDIF}
+      public type
+
+        TCachedHash = record
+          Nonce : UInt32;
+          Header : TBytes;
+          Hash : TBytes;
+        end;
+
+      {$IFNDEF UNITTESTS}private{$ELSE}public{$ENDIF}
       FMurmurHash3_x86_32 : IHash;
       FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
+      FCachedHeaderTemplate : TBytes;
+      FCachedHashes : TList<TCachedHash>;
+
+      function GetCachedHashes : TArray<TCachedHash>; inline;
       function ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes; inline;
       function MemTransform1(const AChunk: TBytes): TBytes; inline;
       function MemTransform2(const AChunk: TBytes): TBytes; inline;
@@ -130,13 +142,19 @@ type
       function MemTransform8(const AChunk: TBytes): TBytes; inline;
       function Expand(const AInput: TBytes; AExpansionFactor: Int32) : TBytes;
       function Compress(const AInputs: TArray<TBytes>): TBytes; inline;
-      function ChangeNonce(const ABlockHeader: TBytes; ANonce: UInt32): TBytes; inline;
+      function SetLastDWordLE(const ABytes: TBytes; AValue: UInt32): TBytes; inline;
+      function GetLastDWordLE(const ABytes: TBytes) : UInt32; inline;
       function Checksum(const AInput: TBytes): UInt32; overload; inline;
       function Checksum(const AInput: TArray<TBytes>): UInt32; overload; inline;
+      function ComputeVeneerRound(const ARoundOutputs : TArray<TBytes>) : TBytes; inline;
       function Hash(const ABlockHeader: TBytes; ARound: Int32; out AFoundLastRound : Int32) : TArray<TBytes>; overload;
     public
       constructor Create;
       destructor Destroy; override;
+      property CachedHashes : TArray<TCachedHash> read GetCachedHashes;
+      function HasCachedHash : Boolean; inline;
+      function PopCachedHash : TCachedHash; inline;
+      function PeekCachedHash : TCachedHash; inline;
       function Hash(const ABlockHeader: TBytes): TBytes; overload; inline;
       class function Compute(const ABlockHeader: TBytes): TBytes; overload; static; inline;
   end;
@@ -156,12 +174,13 @@ implementation
 
 uses UCommon, UMemory, URandomHash;
 
-
 { TRandomHash2 }
 
 constructor TRandomHash2.Create;
 begin
   FMurmurHash3_x86_32 := THashFactory.THash32.CreateMurmurHash3_x86_32();
+  SetLength(Self.FCachedHeaderTemplate, 0);
+  FCachedHashes := TList<TCachedHash>.Create;
   FHashAlg[0] := THashFactory.TCrypto.CreateSHA2_256();
   FHashAlg[1] := THashFactory.TCrypto.CreateSHA2_384();
   FHashAlg[2] := THashFactory.TCrypto.CreateSHA2_512();
@@ -185,6 +204,8 @@ end;
 destructor TRandomHash2.Destroy;
 var i : integer;
 begin
+ FCachedHashes.Clear;
+ FreeAndNil(FCachedHashes);
  FMurmurHash3_x86_32 := nil;
  for i := Low(FHashAlg) to High(FHashAlg) do
    FHashAlg[i] := nil;
@@ -210,7 +231,13 @@ begin
   LAllOutputs := Hash(ABlockHeader, N, LLastRound);
   if LLastRound <= 0 then
     raise ERandomHash2.Create('Internal Error: 984F52997131417E8D63C43BD686F5B2'); // Should have found final round!
-  Result := FHashAlg[0].ComputeBytes(Compress(LAllOutputs)).GetBytes;
+  Result := ComputeVeneerRound(LAllOutputs);
+end;
+
+function TRandomHash2.ComputeVeneerRound(const ARoundOutputs : TArray<TBytes>) : TBytes;
+begin
+  // Final "veneer" round of RandomHash is a SHA2-256 of compresion of prior round outputs
+  Result := FHashAlg[0].ComputeBytes(Compress(ARoundOutputs)).GetBytes;
 end;
 
 function TRandomHash2.Hash(const ABlockHeader: TBytes; ARound: Int32; out AFoundLastRound : Int32) : TArray<TBytes>;
@@ -219,7 +246,8 @@ var
   LNeighbourLastRound : Int32;
   LSeed, LNumNeighbours: UInt32;
   LGen: TMersenne32;
-  LRoundInput, LNeighbourNonceHeader, LOutput, LBytes: TBytes;
+  LRoundInput, LNeighbourNonceHeader, LOutput : TBytes;
+  LCachedHash : TCachedHash;
   LParentOutputs, LNeighborOutputs, LToArray: TArray<TBytes>;
   LHashFunc: IHash;
   i: Int32;
@@ -246,11 +274,25 @@ begin
     LRoundOutputs.AddRange( LParentOutputs );
 
     // Add neighbouring nonce outputs to this round outputs
-    LNumNeighbours := (LGen.NextUInt32 MOD J)+1;
+    LNumNeighbours := LGen.NextUInt32 MOD J;
     for i := 0 to LNumNeighbours do begin
-      LNeighbourNonceHeader := ChangeNonce(ABlockHeader, LGen.NextUInt32);
+      LNeighbourNonceHeader := SetLastDWordLE(ABlockHeader, LGen.NextUInt32); // change nonce
       LNeighborOutputs := Hash(LNeighbourNonceHeader, ARound - 1, LNeighbourLastRound);
       LRoundOutputs.AddRange(LNeighborOutputs);
+
+      // If neighbour was a fully evaluated nonce, cache it for re-use
+      if LNeighbourLastRound > 0 then begin
+        LCachedHash.Nonce := GetLastDWordLE(LNeighbourNonceHeader);
+        LCachedHash.Header := LNeighbourNonceHeader;
+        LCachedHash.Hash := ComputeVeneerRound(LNeighborOutputs);
+        // if header is different (other than nonce), clear cache
+        if NOT BytesEqual(FCachedHeaderTemplate, LCachedHash.Header, 0, 32 - 4) then begin
+          FCachedHashes.Clear;
+          FCachedHeaderTemplate := TArrayTool<Byte>.Copy(LCachedHash.Header);
+          SetLastDWordLE(FCachedHeaderTemplate, 0);
+        end;
+        FCachedHashes.Add(LCachedHash);
+      end;
     end;
 
     // Compress the parent/neighbouring outputs to form this rounds input
@@ -262,77 +304,60 @@ begin
   LHashFunc := FHashAlg[LGen.NextUInt32 mod NUM_HASH_ALGO];
   LOutput := LHashFunc.ComputeBytes(LRoundInput).GetBytes;
 
-  // Determine if final round (last byte of hash mod N = 0)
-  if (ARound = N) OR (LOutput[High(LOutput)] MOD N = 0) then
-    AFoundLastRound := ARound;
-
   // Memory-expand the hash, add to output list and return
   LOutput := Expand(LOutput, N - ARound);
   LRoundOutputs.Add(LOutput);
   Result := LRoundOutputs.ToArray;
+
+  // Determine if final round
+  if (ARound = N) OR (GetLastDWordLE(LOutput) MOD N = 0) then
+    AFoundLastRound := ARound;
 end;
 
-function TRandomHash2.ChangeNonce(const ABlockHeader: TBytes;  ANonce: UInt32): TBytes;
+function TRandomHash2.SetLastDWordLE(const ABytes: TBytes;  AValue: UInt32): TBytes;
 var
   LHeaderLength : Integer;
 begin
   // NOTE: NONCE is last 4 bytes of header!
 
   // Clone the original header
-  Result := Copy(ABlockHeader);
+  Result := Copy(ABytes);
 
   // If digest not big enough to contain a nonce, just return the clone
-  LHeaderLength := Length(ABlockHeader);
+  LHeaderLength := Length(ABytes);
   if LHeaderLength < 4 then
     exit;
 
   // Overwrite the nonce in little-endian
-  Result[LHeaderLength - 4] := Byte(ANonce);
-  Result[LHeaderLength - 3] := (ANonce SHR 8) AND 255;
-  Result[LHeaderLength - 2] := (ANonce SHR 16) AND 255;
-  Result[LHeaderLength - 1] := (ANonce SHR 24) AND 255;
+  Result[LHeaderLength - 4] := Byte(AValue);
+  Result[LHeaderLength - 3] := (AValue SHR 8) AND 255;
+  Result[LHeaderLength - 2] := (AValue SHR 16) AND 255;
+  Result[LHeaderLength - 1] := (AValue SHR 24) AND 255;
+end;
+
+function TRandomHash2.GetLastDWordLE(const ABytes: TBytes) : UInt32;
+var LLen : Integer;
+begin
+  LLen := Length(ABytes);
+  if LLen < 4 then
+   raise EArgumentOutOfRangeException.CreateRes(@SBlockHeaderTooSmallForNonce);
+
+  // Last 4 bytes are nonce (LE)
+  Result := ABytes[LLen - 4] OR
+           (ABytes[LLen - 3] SHL 8) OR
+           (ABytes[LLen - 2] SHL 16) OR
+           (ABytes[LLen - 1] SHL 24);
 end;
 
 function TRandomHash2.Checksum(const AInput: TBytes): UInt32;
-var
-  LSeed : UInt32;
-  LLen, i, j : UInt32;
 begin
-  if Length(AInput) < 4 then
-    raise ERandomHash2.Create('Can''t checksum arrays smaller than 4 bytes');
-
-  // Seed the XorShift32 RNG with last little-endian DWORD of input
-  LLen := Length(AInput);
-  LSeed := AInput[LLen - 4] OR
-          (AInput[LLen - 3] SHL 8) OR
-          (AInput[LLen - 2] SHL 16) OR
-          (AInput[LLen - 1] SHL 24);
-  if LSeed = 0 then LSeed := 1;
-
-  // The "checksum" is determined by picking random values from the input and
-  // re-seeding using those values (and bit-rotating with other entropy sources).
-  for i := 0 to 24 do begin
-    // Build a new 32bit seed by selecting 4 random bytes selected using
-    // the existing 32bit seed. The bytes are aggregated in LE sequence.
-    // Note: XorShift alters LSeed each call
-    LSeed := AInput[TXorShift32.Next(LSeed) MOD LLen] OR
-            (AInput[TXorShift32.Next(LSeed) MOD LLen] SHL 8) OR
-            (AInput[TXorShift32.Next(LSeed) MOD LLen] SHL 16) OR
-            (AInput[TXorShift32.Next(LSeed) MOD LLen] SHL 24);
-    if LSeed = 0 then LSeed := 1;
-
-    // Bit-Rotate the new 32-byte seed using i and input length
-    LSeed := TBits.RotateLeft32(LSeed, (LLen + i) MOD 32);
-  end;
-  Result := LSeed;
+  Result := Checksum( TArray<TBytes>.Create( AInput ) );
 end;
 
 function TRandomHash2.Checksum(const AInput : TArray<TBytes>): UInt32;
-var
-  i: Int32;
 begin
-  // shortcut just checksum last item
-  Result := Checksum(AInput[High(AInput)]);
+  // Checksum is the MurMur3 of the compression
+  Result := FMurmurHash3_x86_32.ComputeBytes(Compress(AInput)).GetUInt32;
 end;
 
 function TRandomHash2.Compress(const AInputs : TArray<TBytes>): TBytes;
@@ -344,13 +369,34 @@ var
   LDisposables : TDisposables;
 begin
   SetLength(Result, 100);
-  LSeed := Checksum(AInputs);
+  LSeed :=  GetLastDWordLE(AInputs [High(AInputs)]);  // Seed using last 4 bytes
   LGen := LDisposables.AddObject( TMersenne32.Create( LSeed ) ) as TMersenne32;
   for i := 0 to 99 do
   begin
     LSource := AInputs[LGen.NextUInt32 mod Length(AInputs)];
     Result[i] := LSource[LGen.NextUInt32 mod Length(LSource)];
   end;
+end;
+
+function TRandomHash2.GetCachedHashes : TArray<TCachedHash>;
+begin
+  Result := FCachedHashes.ToArray;
+end;
+
+function TRandomHash2.HasCachedHash : Boolean;
+begin
+  Result := FCachedHashes.Count > 0;
+end;
+
+function TRandomHash2.PopCachedHash : TCachedHash;
+begin
+  Result := FCachedHashes.Last;
+  FCachedHashes.Delete(FCachedHashes.Count - 1);
+end;
+
+function TRandomHash2.PeekCachedHash : TCachedHash;
+begin
+  Result := FCachedHashes.Last;
 end;
 
 function TRandomHash2.ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes;
@@ -365,8 +411,8 @@ var
   i, LChunkLength : UInt32;
   LState : UInt32;
 begin
-  // Seed XorShift32 with non-zero seed (checksum of input or 1)
-  LState := Checksum(AChunk);
+  // Seed XorShift32 with last byte
+  LState := GetLastDWordLE(AChunk);
   if LState = 0 then
     LState := 1;
 

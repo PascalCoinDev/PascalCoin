@@ -835,12 +835,14 @@ begin
     ms.Write(operationBlock.timestamp,4);
     ms.Write(operationBlock.nonce,4);
     if CT_ACTIVATE_RANDOMHASH_V4 AND (operationBlock.protocol_version >= CT_PROTOCOL_4) then begin
-      if Assigned(_INTERNAL_PascalCoinProtocol) then begin
-        SetLength(LDigest,ms.Size);
-        Move(ms.Memory^,LDigest[0],ms.Size);
-        if _INTERNAL_PascalCoinProtocol.FPCHardcodedRandomHashTable.FindRandomHashByDigest(LDigest,PoW) then Exit;
-      end;
-      TCrypto.DoRandomHash(ms.Memory,ms.Size,PoW);
+      if (operationBlock.protocol_version < CT_PROTOCOL_5) then begin
+        if Assigned(_INTERNAL_PascalCoinProtocol) then begin
+          SetLength(LDigest,ms.Size);
+          Move(ms.Memory^,LDigest[0],ms.Size);
+          if _INTERNAL_PascalCoinProtocol.FPCHardcodedRandomHashTable.FindRandomHashByDigest(LDigest,PoW) then Exit;
+        end;
+        TCrypto.DoRandomHash(ms.Memory,ms.Size,PoW);
+      end else TCrypto.DoRandomHash2(ms.Memory,ms.Size,PoW);
     end else
       TCrypto.DoDoubleSha256(ms.Memory,ms.Size,PoW);
   finally
