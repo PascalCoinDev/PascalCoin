@@ -350,7 +350,7 @@ Type
     function N_Operation : Cardinal; override;
     procedure AffectedAccounts(list : TList<Cardinal>); override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
-    Constructor CreateOpData( ACurrentProtocol : word; account_signer, account_sender, account_target : Cardinal; signer_key:TECPrivateKey; n_operation : Cardinal; dataType, dataSequence : Word; amount, fee : UInt64; payload: TRawBytes);
+    Constructor CreateOpData( ACurrentProtocol : word; account_signer, account_sender, account_target : Cardinal; signer_key:TECPrivateKey; n_operation : Cardinal; dataType, dataSequence : Word; AGUID : TGUID; amount, fee : UInt64; payload: TRawBytes);
     Property Data : TOpDataData read FData;
     Function toString : String; Override;
     Function GetDigestToSign(current_protocol : Word) : TRawBytes; override;
@@ -2768,7 +2768,7 @@ end;
 
 constructor TOpData.CreateOpData(ACurrentProtocol : word; account_signer, account_sender,
   account_target: Cardinal; signer_key: TECPrivateKey; n_operation: Cardinal;
-  dataType, dataSequence: Word; amount, fee: UInt64; payload: TRawBytes);
+  dataType, dataSequence: Word; AGUID : TGUID; amount, fee: UInt64; payload: TRawBytes);
 begin
   Inherited Create(ACurrentProtocol);
   FData.account_sender:=account_sender;
@@ -2780,8 +2780,9 @@ begin
   FData.payload:=payload;
   FData.dataSequence:=dataSequence;
   FData.dataType:=dataType;
+  FData.guid := AGUID;
   if Assigned(signer_key) then begin
-    FData.sign := TCrypto.ECDSASign(signer_key.PrivateKey, GetDigestToSign(CT_PROTOCOL_4));
+    FData.sign := TCrypto.ECDSASign(signer_key.PrivateKey, GetDigestToSign(ACurrentProtocol));
     FHasValidSignature := true;
     FUsedPubkeyForSignature := signer_key.PublicKey;
   end else begin

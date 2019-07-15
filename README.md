@@ -40,6 +40,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
 - Implementation of PIP-0030 (Safebox root) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0030.md
 - Implementation of PIP-0029 (Account Seals) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0029.md
 - Implementation of PIP-0024 (Account Data) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0024.md
+- Implementation of PIP-0033 (OpData JOSN-RPC calls) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0033.md
 - Updated "OP_DATA" operation: (PIP-0016)
   - New digest hash value for OP_DATA ( PIP-0016 ) on Protocol 5
   - Added "id" field (GUID/UUID type as described on PIP-0016), was missing on V4, added on V5
@@ -48,7 +49,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
   - Updated digest hash value adding "new_data" field  
 - Hardcoded RandomHash digest/hash values for quick speed safebox check on fresh installation
 - JSON-RPC changes:  
-  - Updated "listaccountforsale" call to allow ATOMIC SWAPS (PIP-0032)
+  - Updated "listaccountforsale" method to allow ATOMIC SWAPS (PIP-0032)
     - Added "type" to discrimine between kind of listing. Available values are:
       - "public_sale"
       - "private_sale": Need to provide a valid "new_enc_pubkey" or "new_b58_pubkey"
@@ -58,6 +59,8 @@ Also, consider a donation at PascalCoin development account: "0-10"
     - Added "enc_hash_lock" (HEXASTRING) that must be exactly a 32 bytes value (stored as 64 bytes because is HexaString)
   - Updated "changeaccountinfo" and "signchangeaccountinfo" calls to allow add "new_data" field for change Account.Data value (PIP-0024)
     - New param "new_data" (HEXASTRING) if provided will change Account Data info. Limited from 0 to 32 bytes.
+  - New method "senddata" as described on PIP-0033 returning an "Operation Object"
+  - New method "signdata" as described on PIP-0033 returning a "Raw Operations Object"
   - Updated "Account Object" return values:
     - "state": Can return "normal", "listed", "account_swap", "coin_swap"
     - "hashed_secret" : (HEXASTRING) will contain the SHA256( SECRET ) value that must match Payload received data for Atomic Swaps (only when "state" in "account_swap" or "coin_swap")
@@ -82,6 +85,7 @@ TODO
 - TODO: RPC calls for PIP-0029
 - TODO: RPC calls for PIP-0030
 - TODO: RPC calls for PIP-0016
+- TODO: RPC "finddataoperations" call for PIP-0033
 
 ### Build 4.0.3.1 - 2019-04-12
 - Fixed core bug #182 in RPC calls
