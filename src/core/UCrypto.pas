@@ -790,7 +790,7 @@ begin
   Move(LResult[0], ResultSha256[Low(ResultSha256)], 32);
 end;
 
-class procedure TCrypto.DoRandomHash2(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
+class procedure TCrypto.DoRandomHash2(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
 var
   LInput : TBytes;
   LResult : TBytes;
@@ -814,7 +814,7 @@ begin
   Move(LResult[0], ResultSha256[Low(ResultSha256)], 32);
 end;
 
-class procedure TCrypto.DoRandomHash2(AHasher : TRandomHash2; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
+class procedure TCrypto.DoRandomHash2(AHasher : TRandomHash2; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
 var
   LInput : TBytes;
   LResult : TBytes;

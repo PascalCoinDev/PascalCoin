@@ -581,15 +581,8 @@ begin
 end;
 
 function BytesEqual(const ABytes1, ABytes2 : TBytes) : boolean;
-var ABytes1Len, ABytes2Len : Integer;
 begin
   Result := BytesEqual(ABytes1, ABytes2, 0, Length(ABytes1));
-  ABytes1Len := Length(ABytes1);
-  ABytes2Len := Length(ABytes2);
-  if (ABytes1Len <> ABytes2Len) OR (ABytes1Len = 0) then
-    Result := False
-  else
-    Result := CompareMem(@ABytes1[0], @ABytes2[0], ABytes1Len);
 end;
 
 function BytesEqual(const ABytes1, ABytes2 : TBytes; AFrom, ALength : UInt32) : boolean;
@@ -599,7 +592,7 @@ begin
     Exit(False);
   ABytes1Len := Length(ABytes1);
   ABytes2Len := Length(ABytes2);
-  if (ABytes1Len < ALength) OR (ABytes2Len < ALength) then
+  if ((ABytes1Len - AFrom) < ALength) OR ((ABytes2Len - AFrom) < ALength ) then
     Exit(False);
   Result := CompareMem(@ABytes1[AFrom], @ABytes2[AFrom], ALength);
 end;

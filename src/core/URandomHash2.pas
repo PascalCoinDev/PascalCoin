@@ -111,9 +111,11 @@ type
 
   TRandomHash2 = class sealed(TObject)
     const
-      N = 5;      // Max-number of hashing rounds required to compute a nonce, total rounds = 2^N
-      J = 5;       // Max-number of dependent neighbouring nonces required to evaluate a nonce round
-      M = 1024;    // The memory expansion unit (in bytes), total bytes per nonce = M * (2^N (N-2) + 2)
+      MIN_N = 2; // Min-number of hashing rounds required to compute a nonce, min total rounds = J^MIN_N
+      MAX_N = 4; // Max-number of hashing rounds required to compute a nonce, max total rounds = J^MAX_N
+      MIN_J = 0; // Min-number of dependent neighbouring nonces required to evaluate a nonce round
+      MAX_J = 8; // Max-number of dependent neighbouring nonces required to evaluate a nonce round
+      M = 256;    // The memory expansion unit (in bytes), max total bytes per nonce = M * ((MAX_J+1)^MAX_N (MAX_N-2) + 2)
       NUM_HASH_ALGO = 18;
 
       public type
@@ -128,7 +130,7 @@ type
       FMurmurHash3_x86_32 : IHash;
       FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
       FCachedHeaderTemplate : TBytes;
-      FCachedHashes : TList<TCachedHash>;
+      FCachedHashes : TDictionary<UInt32, TCachedHash>;
 
       function GetCachedHashes : TArray<TCachedHash>; inline;
       function ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes; inline;
@@ -180,7 +182,7 @@ constructor TRandomHash2.Create;
 begin
   FMurmurHash3_x86_32 := THashFactory.THash32.CreateMurmurHash3_x86_32();
   SetLength(Self.FCachedHeaderTemplate, 0);
-  FCachedHashes := TList<TCachedHash>.Create;
+  FCachedHashes := TDictionary<UInt32, TCachedHash>.Create;
   FHashAlg[0] := THashFactory.TCrypto.CreateSHA2_256();
   FHashAlg[1] := THashFactory.TCrypto.CreateSHA2_384();
   FHashAlg[2] := THashFactory.TCrypto.CreateSHA2_512();
@@ -228,7 +230,7 @@ var
   LLastRound : Int32;
 begin
   LLastRound := 0;
-  LAllOutputs := Hash(ABlockHeader, N, LLastRound);
+  LAllOutputs := Hash(ABlockHeader, MAX_N, LLastRound);
   if LLastRound <= 0 then
     raise ERandomHash2.Create('Internal Error: 984F52997131417E8D63C43BD686F5B2'); // Should have found final round!
   Result := ComputeVeneerRound(LAllOutputs);
@@ -248,12 +250,13 @@ var
   LGen: TMersenne32;
   LRoundInput, LNeighbourNonceHeader, LOutput : TBytes;
   LCachedHash : TCachedHash;
-  LParentOutputs, LNeighborOutputs, LToArray: TArray<TBytes>;
+  LParentOutputs, LNeighborOutputs, LToArray, LBuffs2: TArray<TBytes>;
   LHashFunc: IHash;
   i: Int32;
   LDisposables : TDisposables;
+  LBuff : TBytes;
 begin
-  if (ARound < 1) or (ARound > N) then
+  if (ARound < 1) or (ARound > MAX_N) then
     raise EArgumentOutOfRangeException.CreateRes(@SInvalidRound);
 
   LRoundOutputs := LDisposables.AddObject( TList<TBytes>.Create() ) as TList<TBytes>;
@@ -274,8 +277,8 @@ begin
     LRoundOutputs.AddRange( LParentOutputs );
 
     // Add neighbouring nonce outputs to this round outputs
-    LNumNeighbours := LGen.NextUInt32 MOD J;
-    for i := 0 to LNumNeighbours do begin
+    LNumNeighbours := (LGen.NextUInt32 MOD (MAX_J - MIN_J)) + MIN_J;
+    for i := 1 to LNumNeighbours do begin
       LNeighbourNonceHeader := SetLastDWordLE(ABlockHeader, LGen.NextUInt32); // change nonce
       LNeighborOutputs := Hash(LNeighbourNonceHeader, ARound - 1, LNeighbourLastRound);
       LRoundOutputs.AddRange(LNeighborOutputs);
@@ -286,15 +289,13 @@ begin
         LCachedHash.Header := LNeighbourNonceHeader;
         LCachedHash.Hash := ComputeVeneerRound(LNeighborOutputs);
         // if header is different (other than nonce), clear cache
-        if NOT BytesEqual(FCachedHeaderTemplate, LCachedHash.Header, 0, 32 - 4) then begin
+        if NOT BytesEqual(FCachedHeaderTemplate, LCachedHash.Header, 0, 32 - 4) then
           FCachedHashes.Clear;
-          FCachedHeaderTemplate := TArrayTool<Byte>.Copy(LCachedHash.Header);
-          SetLastDWordLE(FCachedHeaderTemplate, 0);
-        end;
-        FCachedHashes.Add(LCachedHash);
+        FCachedHeaderTemplate := SetLastDWordLE(LCachedHash.Header, 0);
+        if NOT FCachedHashes.ContainsKey(LCachedHash.Nonce) then
+          FCachedHashes.Add(LCachedHash.Nonce, LCachedHash);
       end;
     end;
-
     // Compress the parent/neighbouring outputs to form this rounds input
     LRoundInput := Compress( LRoundOutputs.ToArray );
   end;
@@ -305,13 +306,14 @@ begin
   LOutput := LHashFunc.ComputeBytes(LRoundInput).GetBytes;
 
   // Memory-expand the hash, add to output list and return
-  LOutput := Expand(LOutput, N - ARound);
+  LOutput := Expand(LOutput, MAX_N - ARound);
   LRoundOutputs.Add(LOutput);
   Result := LRoundOutputs.ToArray;
 
   // Determine if final round
-  if (ARound = N) OR (GetLastDWordLE(LOutput) MOD N = 0) then
-    AFoundLastRound := ARound;
+  if (ARound = MAX_N) OR ((ARound >= MIN_N) AND (GetLastDWordLE(LOutput) MOD MAX_N = 0)) then
+    AFoundLastRound := ARound
+  else AFoundLastRound := 0;
 end;
 
 function TRandomHash2.SetLastDWordLE(const ABytes: TBytes;  AValue: UInt32): TBytes;
@@ -380,7 +382,7 @@ end;
 
 function TRandomHash2.GetCachedHashes : TArray<TCachedHash>;
 begin
-  Result := FCachedHashes.ToArray;
+  Result := FCachedHashes.Values.ToArray;
 end;
 
 function TRandomHash2.HasCachedHash : Boolean;
@@ -389,14 +391,24 @@ begin
 end;
 
 function TRandomHash2.PopCachedHash : TCachedHash;
+var
+ LItem : TRandomHash2.TCachedHash;
 begin
-  Result := FCachedHashes.Last;
-  FCachedHashes.Delete(FCachedHashes.Count - 1);
+  for LItem in FCachedHashes.Values do begin
+    Result := LItem;
+    break;
+  end;
+  FCachedHashes.Remove(Result.Nonce);
 end;
 
 function TRandomHash2.PeekCachedHash : TCachedHash;
+var
+ LItem : TRandomHash2.TCachedHash;
 begin
-  Result := FCachedHashes.Last;
+  for LItem in FCachedHashes.Values do begin
+    Result := LItem;
+    break;
+  end;
 end;
 
 function TRandomHash2.ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes;

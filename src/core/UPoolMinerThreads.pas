@@ -820,7 +820,7 @@ begin
             if FCurrentMinerValuesForWork.version < CT_PROTOCOL_5 then
               roundsToDo := 20
             else
-              roundsToDo := 100;
+              roundsToDo := 20;
           end else begin
             roundsToDo := 10000;
           end;
@@ -873,8 +873,8 @@ begin
                     nonce := LRandomHasher.NextNonce;
                   end else begin
                     if LRandomHasher2.HasCachedHash then
-                      nonce := LRandomHasher2.PeekCachedHash.Nonce
-                    else inc(nonce);
+                      nonce := LRandomHasher2.PeekCachedHash.Nonce   // use this to test verification speed: Random(FMaxNOnce - FMinNOnce) + FMinNOnce
+                    else nonce := Random(FMaxNOnce - FMinNOnce) + FMinNOnce;
                   end;
                 end else if (nonce)<FMaxNOnce then inc(nonce) else nonce := FMinNOnce;
               end;
