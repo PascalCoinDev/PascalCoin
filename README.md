@@ -61,6 +61,10 @@ Also, consider a donation at PascalCoin development account: "0-10"
     - New param "new_data" (HEXASTRING) if provided will change Account Data info. Limited from 0 to 32 bytes.
   - New method "senddata" as described on PIP-0033 returning an "Operation Object"
   - New method "signdata" as described on PIP-0033 returning a "Raw Operations Object"
+  - New method "finddataoperations" as described on PIP-0033 returning an ARRAY of "Raw Operations Object"
+    - News params added to original PIP
+      - "depth" (Integer, 1000 by default) : Will search backward in blocks a maximum of "depth" blocks
+      - "startblock" (Integer, optional) : If defined, will start at a specified block, otherwise will start at last "sender" or "target" updated block
   - Updated "Account Object" return values:
     - "state": Can return "normal", "listed", "account_swap", "coin_swap"
     - "hashed_secret" : (HEXASTRING) will contain the SHA256( SECRET ) value that must match Payload received data for Atomic Swaps (only when "state" in "account_swap" or "coin_swap")
@@ -85,7 +89,6 @@ TODO
 - TODO: RPC calls for PIP-0029
 - TODO: RPC calls for PIP-0030
 - TODO: RPC calls for PIP-0016
-- TODO: RPC "finddataoperations" call for PIP-0033
 
 ### Build 4.0.3.1 - 2019-04-12
 - Fixed core bug #182 in RPC calls

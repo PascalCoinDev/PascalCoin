@@ -27,7 +27,7 @@ interface
 Uses classes, SysUtils,
   UJSONFunctions, UAccounts, UBaseTypes, UOpTransaction, UConst,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
-  URPC, UCrypto, UWallet, UBlockChain;
+  URPC, UCrypto, UWallet, UBlockChain, ULog;
 
 
 Type
@@ -106,15 +106,203 @@ class function TRPCOpData.OpData_FindOpDataOperations(
   const ASender: TRPCProcess; const AMethodName: String; AInputParams,
   AJSONResponse: TPCJSONObject; var AErrorNum: Integer;
   var AErrorDesc: String): Boolean;
+
+    Procedure DoFindFromBlock(ABlock_number : Integer;
+      ASearchedAccount_number: Cardinal;
+      AStartOperation, AEndOperation: Integer;
+      AAct_depth : Integer; AFirst_Block_Is_Unknown : Boolean;
+      ASearchBySender : Boolean; ASearchSender : Cardinal;
+      ASearchByTarget : Boolean; ASearchTarget : Cardinal;
+      ASearchByGUID : Boolean; ASearchGUID : TGUID;
+      ASearchByDataSequence : Boolean; ASearchDataSequence : Word;
+      ASearchByDataType : Boolean; ASearchDataType : Word;
+      AOperationsResumeList : TOperationsResumeList
+      );
+
+      Function EqualGUIDs(const AGuid_A, AGuid_B : TGUID) : Boolean;
+      var i : Integer;
+      begin
+        Result := (AGuid_A.D1 = AGuid_B.D1)
+          and (AGuid_A.D2 = AGuid_B.D2)
+          and (AGuid_A.D3 = AGuid_B.D3);
+        i := Low(AGuid_A.D4);
+        while (Result) and (i<=High(AGuid_A.D4)) do begin
+          Result := (AGuid_A.D4[i] = AGuid_B.D4[i]);
+          inc(i);
+        end;
+      end;
+
+    var LOpComp : TPCOperationsComp;
+      LOperation : TPCOperation;
+      LOpData : TOpData;
+      LOperationResume : TOperationResume;
+      LList : TList<Cardinal>;
+      i : Integer;
+      LLast_block_number : Integer;
+      LFound_in_block : Boolean;
+      LFoundCounter : Integer;
+    begin
+      if (AAct_depth<=0) then exit;
+      LFoundCounter := 0;
+      LOpComp := TPCOperationsComp.Create(Nil);
+      Try
+        LList := TList<Cardinal>.Create;
+        try
+          LLast_block_number := ABlock_number+1;
+          while (LLast_block_number>ABlock_number) And (AAct_depth>0)
+            And (ABlock_number >= (ASearchedAccount_number DIV CT_AccountsPerBlock))
+            And (LFoundCounter <= AEndOperation) do begin
+
+            if Assigned(ASender) then begin
+              // Threading protection
+              if ASender.Terminated then Exit;
+            end;
+            LFound_in_block := False;
+            LLast_block_number := ABlock_number;
+            LList.Clear;
+            If not ASender.Node.Bank.Storage.LoadBlockChainBlock(LOpComp,ABlock_number) then begin
+              TLog.NewLog(ltdebug,ClassName,'Block '+inttostr(ABlock_number)+' not found. Cannot read operations');
+              Exit;
+            end;
+            LFound_in_block := LOpComp.OperationsHashTree.GetOperationsAffectingAccount(ASearchedAccount_number,LList) > 0;
+              // Reverse order:
+            for i := LList.Count - 1 downto 0 do begin
+              LOperation := LOpComp.Operation[LList.Items[i]];
+              if LOperation is TOpData then begin
+                //
+                LOpData := TOpData( LOperation );
+                // Search by filter:
+                if ((Not ASearchBySender) Or (ASearchSender = LOpData.Data.account_sender))
+                   and ((Not ASearchByTarget) Or (ASearchTarget = LOpData.Data.account_target))
+                   and ((Not ASearchByGUID) Or (EqualGUIDs(ASearchGUID,LOpData.Data.guid)))
+                   and ((Not ASearchByDataSequence) Or (ASearchDataSequence = LOpData.Data.dataSequence))
+                   and ((Not ASearchByDataType) Or (ASearchDataType = LOpData.Data.dataType))
+                then begin
+                  if (LFoundCounter>=AStartOperation) And (LFoundCounter<=AEndOperation) then begin
+                    If TPCOperation.OperationToOperationResume(ABlock_number,LOpData,False,LOpData.SignerAccount,LOperationResume) then begin
+                      LOperationResume.Balance:=-1;
+                      LOperationResume.NOpInsideBlock:=LList.Items[i];
+                      LOperationResume.Block:=ABlock_number;
+                      AOperationsResumeList.Add(LOperationResume);
+                    end;
+                  end;
+                  inc(LFoundCounter);
+                end;
+              end;
+            end; // For LList...
+            //
+            dec(AAct_depth);
+            If (Not LFound_in_block) And (AFirst_Block_Is_Unknown) then begin
+              Dec(ABlock_number);
+            end else begin
+              ABlock_number := LOpComp.PreviousUpdatedBlocks.GetPreviousUpdatedBlock(ASearchedAccount_number,ABlock_number);
+            end;
+            LOpComp.Clear(true);
+          end;
+        finally
+          LList.Free;
+        end;
+      Finally
+        LOpComp.Free;
+      End;
+    end;
+
+Var LAccount : TAccount;
+  LStartBlock : Cardinal;
+  LMaxDepth : Integer;
+  LSearchedAccount_number: Cardinal;
+  LStartOperation, LMaxOperations: Integer;
+  LFirst_Block_Is_Unknown : Boolean;
+  LSearchBySender : Boolean;
+  LSearchByTarget : Boolean;
+  LSearchByGUID : Boolean; LSearchGUID : TGUID;
+  LSearchByDataSequence : Boolean; LSearchDataSequence : Word;
+  LSearchByDataType : Boolean; LSearchDataType : Word;
+  LOperationsResumeList : TOperationsResumeList;
+  LSender, LTarget : Cardinal;
+  LResultArray : TPCJSONArray;
+  i : Integer;
 begin
-  // TODO TODO TODO TODO
-  // TODO TODO TODO TODO
-  // TODO TODO TODO TODO
-  // TODO TODO TODO TODO
-  // TODO TODO TODO TODO
-  AErrorNum := CT_RPC_ErrNum_NotImplemented;
-  AErrorDesc := 'This method is not implemented. PENDING TODO';
   Result := False;
+
+  LSender := AInputParams.AsCardinal('sender',CT_MaxAccount);
+  LTarget := AInputParams.AsCardinal('target',CT_MaxAccount);
+  LSearchedAccount_number := CT_MaxAccount;
+  LSearchBySender := (LSender>=0) And (LSender<ASender.Node.Bank.AccountsCount);
+  LSearchByTarget := (LTarget>=0) And (LTarget<ASender.Node.Bank.AccountsCount);
+  if (LSearchBySender) then begin
+    LSearchedAccount_number := LSender;
+  end else if (LSearchByTarget) then begin
+    LSearchedAccount_number := LTarget;
+  end else begin
+    AErrorNum := CT_RPC_ErrNum_InvalidData;
+    AErrorDesc := 'Must provide "sender" or "target" valid values';
+    Exit;
+  end;
+
+  if AInputParams.IndexOfName('guid')>=0 then begin
+    try
+      LSearchGUID := StringToGUID( AInputParams.AsString('guid','') );
+      LSearchByGUID := True;
+    except
+      on E:Exception do begin
+        AErrorNum := CT_RPC_ErrNum_InvalidData;
+        AErrorDesc := 'Invalid "guid" param '+E.Message;
+        Exit;
+      end;
+    end;
+  end else LSearchByGUID := False;
+
+  if AInputParams.IndexOfName('data_sequence')>=0 then begin
+    LSearchByDataSequence := True;
+    LSearchDataSequence := AInputParams.AsInteger('data_sequence',0);
+  end else LSearchByDataSequence := False;
+
+  if AInputParams.IndexOfName('data_type')>=0 then begin
+    LSearchByDataType := True;
+    LSearchDataType := AInputParams.AsInteger('data_type',0);
+  end else LSearchByDataType := False;
+
+  LMaxDepth := AInputParams.AsInteger('depth',1000);
+  LStartOperation := AInputParams.AsInteger('start',0);
+  LMaxOperations := AInputParams.AsInteger('max',100);
+  if AInputParams.IndexOfName('startblock')>=0 then begin
+    LStartBlock := AInputParams.AsInteger('startblock',100);
+    LFirst_Block_Is_Unknown := True;
+  end else begin
+    if not ASender.RPCServer.GetMempoolAccount(LSearchedAccount_number,LAccount) then begin
+      AErrorNum := CT_RPC_ErrNum_InvalidData;
+      AErrorDesc := 'Invalid account';
+      Exit;
+    end;
+    LFirst_Block_Is_Unknown := False;
+    LStartBlock := LAccount.updated_block;
+    if LStartBlock>=ASender.Node.Bank.BlocksCount then Dec(LStartBlock); // If its updated on mempool, don't look the mempool
+  end;
+
+  LOperationsResumeList := TOperationsResumeList.Create;
+  try
+    DoFindFromBlock(LStartBlock,
+      LSearchedAccount_number,
+      LStartOperation, LStartOperation + LMaxOperations,
+      LMaxDepth, LFirst_Block_Is_Unknown,
+      LSearchBySender, LSender,
+      LSearchByTarget, LTarget,
+      LSearchByGUID, LSearchGUID,
+      LSearchByDataSequence, LSearchDataSequence,
+      LSearchByDataType, LSearchDataType,
+      LOperationsResumeList
+      );
+    //
+    LResultArray := AJSONResponse.GetAsArray('result');
+
+    for i := 0 to LOperationsResumeList.Count-1 do begin
+      TPascalCoinJSONComp.FillOperationObject(LOperationsResumeList.OperationResume[i],ASender.Node.Bank.BlocksCount,LResultArray.GetAsObject( LResultArray.Count ));
+    end;
+    Result := True;
+  finally
+    LOperationsResumeList.Free;
+  end;
 end;
 
 class function TRPCOpData.OpData_SendOpData(const ASender: TRPCProcess;
