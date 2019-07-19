@@ -16,10 +16,12 @@ type
     btnRH2: TButton;
     txtLog: TMemo;
     btnRHC: TButton;
+    btnEntropy: TButton;
     procedure btnRH2Click(Sender: TObject);
     procedure btnRHClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure btnRHCClick(Sender: TObject);
+    procedure btnEntropyClick(Sender: TObject);
   private
     { Private declarations }
     FDisposables : TDisposables;
@@ -90,7 +92,7 @@ type
 
 implementation
 
-uses UBaseTypes;
+uses UBaseTypes, UCrypto;
 
 {$R *.dfm}
 
@@ -203,6 +205,43 @@ begin
     FRHThread.Suspended := True;
     btnRH.Caption := 'Start Random Hash';
   end;
+end;
+
+procedure TFRMDiagnosticTool.btnEntropyClick(Sender: TObject);
+
+  procedure SetLastDWordLE(var ABytes: TBytes;  AValue: UInt32);
+  var
+    LHeaderLength : Integer;
+  begin
+    // NOTE: NONCE is last 4 bytes of header!
+
+    // If digest not big enough to contain a nonce, just return the clone
+    LHeaderLength := Length(ABytes);
+    if LHeaderLength < 4 then
+      exit;
+
+    // Overwrite the nonce in little-endian
+    ABytes[LHeaderLength - 4] := Byte(AValue);
+    ABytes[LHeaderLength - 3] := (AValue SHR 8) AND 255;
+    ABytes[LHeaderLength - 2] := (AValue SHR 16) AND 255;
+    ABytes[LHeaderLength - 1] := (AValue SHR 24) AND 255;
+  end;
+
+
+var LIn, LOut : TBytes; i : Integer; TXT : String;
+begin
+  SetLength(LIn, 200);
+  FillChar(LIn, 200, 1);
+
+  TXT := '';
+  for I := 1 to 10 do begin
+    LOut := TRandomHash2.Compute(LIn);
+    TXT := TXT + Format('RH2( %s ) = %s %s', [ TCrypto.ToHexaString(LIn), TCrypto.ToHexaString(LOut), sLineBreak]);
+    SetLastDWordLE(LIn, I);
+  end;
+
+  txtLog.Text := TXT;
+
 end;
 
 procedure TFRMDiagnosticTool.btnRH2Click(Sender: TObject);

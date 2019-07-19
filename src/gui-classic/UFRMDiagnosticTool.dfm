@@ -3,7 +3,7 @@ object FRMDiagnosticTool: TFRMDiagnosticTool
   Top = 0
   Caption = 'FRMDiagnosticTool'
   ClientHeight = 324
-  ClientWidth = 570
+  ClientWidth = 735
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -13,7 +13,7 @@ object FRMDiagnosticTool: TFRMDiagnosticTool
   OldCreateOrder = False
   OnCreate = FormCreate
   DesignSize = (
-    570
+    735
     324)
   PixelsPerInch = 96
   TextHeight = 13
@@ -38,10 +38,11 @@ object FRMDiagnosticTool: TFRMDiagnosticTool
   object txtLog: TMemo
     Left = 8
     Top = 39
-    Width = 554
+    Width = 719
     Height = 277
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 2
+    ExplicitWidth = 554
   end
   object btnRHC: TButton
     Left = 280
@@ -51,5 +52,14 @@ object FRMDiagnosticTool: TFRMDiagnosticTool
     Caption = 'Start Random Hash 2 (Cached)'
     TabOrder = 3
     OnClick = btnRHCClick
+  end
+  object btnEntropy: TButton
+    Left = 472
+    Top = 8
+    Width = 186
+    Height = 25
+    Caption = 'Entropy Tests'
+    TabOrder = 4
+    OnClick = btnEntropyClick
   end
 end

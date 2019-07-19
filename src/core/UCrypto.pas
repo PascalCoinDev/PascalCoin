@@ -826,7 +826,7 @@ begin
   if AHasher.HasCachedHash AND BytesEqual(AHasher.PeekCachedHash.Header, LInput) then
     LResult := AHasher.PopCachedHash.Hash
   else
-    LResult := AHasher.Hash(LInput);
+    LResult := AHasher.Compute(LInput); //AHasher.Hash(LInput);
 
   Move(LResult[0], ResultSha256[Low(ResultSha256)], 32);
 end;

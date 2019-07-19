@@ -837,7 +837,9 @@ begin
             TLog.NewLog(ltInfo,ClassName,sJobInfo+' - Found a solution for block '+IntToStr(nbOperations.OperationBlock.block));
           end else TLog.NewLog(lterror,ClassName,sJobInfo+Format(' Calculated Pow > Min PoW ->  %s > %s',
             [TCrypto.ToHexaString(P^.OperationsComp.OperationBlock.proof_of_work),TCrypto.ToHexaString(_targetPoW)]));
-        end else TLog.NewLog(lterror,ClassName,sJobInfo+Format(' Timestamp %d < MinTimestamp %d',[_timestamp,P^.SentMinTimestamp]));
+        end else begin
+          TLog.NewLog(lterror,ClassName,sJobInfo+Format(' Timestamp %d < MinTimestamp %d',[_timestamp,P^.SentMinTimestamp]));
+        end;
         dec(i);
       end;
     Finally

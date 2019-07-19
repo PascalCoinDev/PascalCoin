@@ -157,6 +157,7 @@ Type
   private
     FCPUDeviceThread : TCPUDeviceThread;
     FLock : TCriticalSection;
+    FJobNum : Integer;
   protected
     FCurrentMinerValuesForWork : TMinerValuesForWork;
     FInternalSha256 : TSHA256HASH;
@@ -748,6 +749,7 @@ begin
       cpu := TCPUOpenSSLMinerThread(l[i]);
       cpu.FLock.Acquire;
       try
+        Inc(cpu.FJobNum);
         cpu.FCurrentMinerValuesForWork := FMinerValuesForWork;
         cpu.FInternalSha256 := sflc;
         cpu.FInternalChunk := lc;
@@ -786,11 +788,11 @@ end;
 procedure TCPUOpenSSLMinerThread.BCExecute;
 Var
   ts : Cardinal;
-  i,roundsToDo : Integer;
+  i,roundsToDo, LRoundsPerformed : Integer;
   nonce : Cardinal;
   baseRealTC,baseHashingTC,finalHashingTC : TTickCount;
   resultPoW : TRawBytes;
-  //
+  LRoundJobNum : Integer;
   AuxStats : TMinerStats;
   dstep : Integer;
   LUseRandomHash : boolean;
@@ -820,7 +822,7 @@ begin
             if FCurrentMinerValuesForWork.version < CT_PROTOCOL_5 then
               roundsToDo := 20
             else
-              roundsToDo := 20;
+              roundsToDo := 200;
           end else begin
             roundsToDo := 10000;
           end;
@@ -841,7 +843,11 @@ begin
               FDigestStreamMsg.Write(ts,4);
               baseHashingTC:=TPlatform.GetTickCount;
               dstep := 4;
+              LRoundJobNum := FJobNum;
+              LRoundsPerformed := 0;
               for i := 1 to roundsToDo do begin
+                if LRoundJobNum <> FJobNum then
+                  break;
                 FDigestStreamMsg.Position := FDigestStreamMsg.Size - 4;
                 FDigestStreamMsg.Write(nonce,4);
                 if LUseRandomHash then begin
@@ -855,6 +861,7 @@ begin
                 end else begin
                   TCrypto.DoDoubleSha256(FDigestStreamMsg.Memory,FDigestStreamMsg.Size,resultPoW);
                 end;
+                Inc(LRoundsPerformed);
                 if (TBaseType.BinStrComp(resultPoW,FCurrentMinerValuesForWork.target_pow)<0) then begin
                   if (Terminated) Or (FCPUDeviceThread.Terminated) then exit;
                   dstep := 5;
@@ -897,7 +904,7 @@ begin
               finalHashingTC:=TPlatform.GetTickCount;
             end;
             AuxStats.Miners:=FCPUDeviceThread.FCPUs;
-            AuxStats.RoundsCount:=roundsToDo;
+            AuxStats.RoundsCount:=LRoundsPerformed;
             AuxStats.WorkingMillisecondsTotal:=TPlatform.GetTickCount - baseRealTC;
             AuxStats.WorkingMillisecondsHashing:= finalHashingTC - baseHashingTC;
             dstep := 9;
@@ -925,6 +932,7 @@ begin
   FDigestStreamMsg := TMemoryStream.Create;
   FMinNOnce := 0; FMaxNOnce:=$FFFFFFFF;
   FResetNOnce:=True;
+  FJobNum := 0;
   inherited Create(false);
 end;
 

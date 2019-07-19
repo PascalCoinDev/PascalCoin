@@ -130,7 +130,7 @@ type
       FMurmurHash3_x86_32 : IHash;
       FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
       FCachedHeaderTemplate : TBytes;
-      FCachedHashes : TDictionary<UInt32, TCachedHash>;
+      FCachedHashes : TList<TCachedHash>;
 
       function GetCachedHashes : TArray<TCachedHash>; inline;
       function ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes; inline;
@@ -146,8 +146,6 @@ type
       function Compress(const AInputs: TArray<TBytes>): TBytes; inline;
       function SetLastDWordLE(const ABytes: TBytes; AValue: UInt32): TBytes; inline;
       function GetLastDWordLE(const ABytes: TBytes) : UInt32; inline;
-      function Checksum(const AInput: TBytes): UInt32; overload; inline;
-      function Checksum(const AInput: TArray<TBytes>): UInt32; overload; inline;
       function ComputeVeneerRound(const ARoundOutputs : TArray<TBytes>) : TBytes; inline;
       function Hash(const ABlockHeader: TBytes; ARound: Int32; out AFoundLastRound : Int32) : TArray<TBytes>; overload;
     public
@@ -182,7 +180,7 @@ constructor TRandomHash2.Create;
 begin
   FMurmurHash3_x86_32 := THashFactory.THash32.CreateMurmurHash3_x86_32();
   SetLength(Self.FCachedHeaderTemplate, 0);
-  FCachedHashes := TDictionary<UInt32, TCachedHash>.Create;
+  FCachedHashes := TList<TCachedHash>.Create;
   FHashAlg[0] := THashFactory.TCrypto.CreateSHA2_256();
   FHashAlg[1] := THashFactory.TCrypto.CreateSHA2_384();
   FHashAlg[2] := THashFactory.TCrypto.CreateSHA2_512();
@@ -262,9 +260,9 @@ begin
   LRoundOutputs := LDisposables.AddObject( TList<TBytes>.Create() ) as TList<TBytes>;
   LGen := LDisposables.AddObject( TMersenne32.Create(0) ) as TMersenne32;
   if ARound = 1 then begin
-    LSeed := Checksum(ABlockHeader);
+    LRoundInput := FHashAlg[0].ComputeBytes(ABlockHeader).GetBytes;
+    LSeed := GetLastDWordLE( LRoundInput );
     LGen.Initialize(LSeed);
-    LRoundInput := ABlockHeader;
   end else begin
     LParentOutputs := Hash(ABlockHeader, ARound - 1, AFoundLastRound);
     if AFoundLastRound > 0 then
@@ -272,7 +270,7 @@ begin
       Exit(LParentOutputs);
 
     // Add parent round outputs to this round outputs
-    LSeed := Checksum(LParentOutputs);
+    LSeed := GetLastDWordLE( LParentOutputs[High(LParentOutputs)] );
     LGen.Initialize(LSeed);
     LRoundOutputs.AddRange( LParentOutputs );
 
@@ -289,11 +287,11 @@ begin
         LCachedHash.Header := LNeighbourNonceHeader;
         LCachedHash.Hash := ComputeVeneerRound(LNeighborOutputs);
         // if header is different (other than nonce), clear cache
-        if NOT BytesEqual(FCachedHeaderTemplate, LCachedHash.Header, 0, 32 - 4) then
+        if NOT BytesEqual(FCachedHeaderTemplate, LCachedHash.Header, 0, 32 - 4) then begin
           FCachedHashes.Clear;
-        FCachedHeaderTemplate := SetLastDWordLE(LCachedHash.Header, 0);
-        if NOT FCachedHashes.ContainsKey(LCachedHash.Nonce) then
-          FCachedHashes.Add(LCachedHash.Nonce, LCachedHash);
+          FCachedHeaderTemplate := SetLastDWordLE(LCachedHash.Header, 0);
+        end;
+        FCachedHashes.Add(LCachedHash);
       end;
     end;
     // Compress the parent/neighbouring outputs to form this rounds input
@@ -351,7 +349,7 @@ begin
            (ABytes[LLen - 1] SHL 24);
 end;
 
-function TRandomHash2.Checksum(const AInput: TBytes): UInt32;
+(*function TRandomHash2.Checksum(const AInput: TBytes): UInt32;
 begin
   Result := Checksum( TArray<TBytes>.Create( AInput ) );
 end;
@@ -360,7 +358,7 @@ function TRandomHash2.Checksum(const AInput : TArray<TBytes>): UInt32;
 begin
   // Checksum is the MurMur3 of the compression
   Result := FMurmurHash3_x86_32.ComputeBytes(Compress(AInput)).GetUInt32;
-end;
+end;*)
 
 function TRandomHash2.Compress(const AInputs : TArray<TBytes>): TBytes;
 var
@@ -382,7 +380,7 @@ end;
 
 function TRandomHash2.GetCachedHashes : TArray<TCachedHash>;
 begin
-  Result := FCachedHashes.Values.ToArray;
+  Result := FCachedHashes.ToArray;
 end;
 
 function TRandomHash2.HasCachedHash : Boolean;
@@ -391,24 +389,14 @@ begin
 end;
 
 function TRandomHash2.PopCachedHash : TCachedHash;
-var
- LItem : TRandomHash2.TCachedHash;
 begin
-  for LItem in FCachedHashes.Values do begin
-    Result := LItem;
-    break;
-  end;
-  FCachedHashes.Remove(Result.Nonce);
+  Result := FCachedHashes.Last;
+  FCachedHashes.Delete(FCachedHashes.Count - 1);
 end;
 
 function TRandomHash2.PeekCachedHash : TCachedHash;
-var
- LItem : TRandomHash2.TCachedHash;
 begin
-  for LItem in FCachedHashes.Values do begin
-    Result := LItem;
-    break;
-  end;
+  Result := FCachedHashes.Last;
 end;
 
 function TRandomHash2.ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes;
@@ -542,7 +530,7 @@ var
   LGen: TMersenne32;
   LDisposables : TDisposables;
 begin
-  LSeed := Checksum(AInput);
+  LSeed := GetLastDWordLE(AInput);
   LGen := LDisposables.AddObject( TMersenne32.Create (LSeed) ) as TMersenne32;
   LSize := Length(AInput) + (AExpansionFactor * M);
   LOutput := Copy(AInput);

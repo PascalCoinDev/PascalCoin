@@ -641,7 +641,6 @@
       <Unit103>
         <Filename Value="core\URandomHash2.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="URandomHash"/>
       </Unit103>
     </Units>
   </ProjectOptions>
