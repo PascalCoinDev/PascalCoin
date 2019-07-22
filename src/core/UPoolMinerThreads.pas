@@ -787,284 +787,6 @@ end;
 
 procedure TCPUOpenSSLMinerThread.BCExecute;
 
-Var
-
-  ts : Cardinal;
-
-  i,roundsToDo, LRoundsPerformed : Integer;
-
-  nonce : Cardinal;
-
-  baseRealTC,baseHashingTC,finalHashingTC : TTickCount;
-
-  resultPoW : TRawBytes;
-
-  LRoundJobNum : Integer;
-
-  AuxStats : TMinerStats;
-
-  dstep : Integer;
-
-  LUseRandomHash : boolean;
-
-  LRandomHasher : TRandomHashFast;
-
-  LRandomHasher2 : TRandomHash2;
-
-  LDisposables : TDisposables;
-
-begin
-
-  DebugStep := '----------';
-
-  AuxStats := CT_TMinerStats_NULL;
-
-  nonce := 0;
-
-  dstep := 0;
-
-  LRandomHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
-
-  LRandomHasher2 := LDisposables.AddObject( TRandomHash2.Create ) as TRandomHash2;
-
-  Try
-
-    while (Not Terminated) And (Not FCPUDeviceThread.Terminated) do begin
-
-      Try
-
-      sleep(1);
-
-      dstep := 1;
-
-      AuxStats := CT_TMinerStats_NULL;
-
-      If (FCPUDeviceThread.Paused) then sleep(1)
-
-      else begin
-
-        dstep := 2;
-
-        FLock.Acquire;
-
-        try
-
-          LUseRandomHash := TPoolMinerThread.UseRandomHash(FCurrentMinerValuesForWork.version);
-
-          if (LUseRandomHash) then begin
-
-            if FCurrentMinerValuesForWork.version < CT_PROTOCOL_5 then
-
-              roundsToDo := 20
-
-            else
-
-              roundsToDo := 200;
-
-          end else begin
-
-            roundsToDo := 10000;
-
-          end;
-
-          baseRealTC := TPlatform.GetTickCount;
-
-          If (FResetNOnce) then begin
-
-            FResetNOnce := False;
-
-            If (nonce<FMinNOnce) Or (nonce>FMaxNOnce) then begin
-
-              nonce:=FMinNOnce;
-
-            end;
-
-          end;
-
-          // Timestamp
-
-          ts := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
-
-          if ts<=FCurrentMinerValuesForWork.timestamp then ts := FCurrentMinerValuesForWork.timestamp+1;
-
-
-
-          If FDigestStreamMsg.Size>8 then begin
-
-            if FCPUDeviceThread.FUseOpenSSLFunctions OR LUseRandomHash then begin
-
-              FDigestStreamMsg.Position:=FDigestStreamMsg.Size - 8;
-
-              FDigestStreamMsg.Write(ts,4);
-
-              baseHashingTC:=TPlatform.GetTickCount;
-
-              dstep := 4;
-
-              LRoundJobNum := FJobNum;
-
-              LRoundsPerformed := 0;
-
-              for i := 1 to roundsToDo do begin
-
-                if LRoundJobNum <> FJobNum then
-
-                  break;
-
-                FDigestStreamMsg.Position := FDigestStreamMsg.Size - 4;
-
-                FDigestStreamMsg.Write(nonce,4);
-
-                if LUseRandomHash then begin
-
-                  if (FCurrentMinerValuesForWork.version < CT_PROTOCOL_5) then begin
-
-                    // Note if i > 1 then FDigestStreamMsg.Memory == LHasher.NextHeader (needs to be for CPU optimization to work)
-
-                    TCrypto.DoRandomHash(LRandomHasher,FDigestStreamMsg.Memory,FDigestStreamMsg.Size,resultPoW);
-
-                  end else begin
-
-                    // Note if > 1 then FDigestStreamMsg.Memory == LRandomHash2.CachedHashes[0].Header (needs to be for CPU optimization to work)
-
-                    TCrypto.DoRandomHash2(LRandomHasher2, FDigestStreamMsg.Memory, FDigestStreamMsg.Size, resultPoW)
-
-                  end
-
-                end else begin
-
-                  TCrypto.DoDoubleSha256(FDigestStreamMsg.Memory,FDigestStreamMsg.Size,resultPoW);
-
-                end;
-
-                Inc(LRoundsPerformed);
-
-                if (TBaseType.BinStrComp(resultPoW,FCurrentMinerValuesForWork.target_pow)<0) then begin
-
-                  if (Terminated) Or (FCPUDeviceThread.Terminated) then exit;
-
-                  dstep := 5;
-
-                  FLock.Release;
-
-                  try
-
-                    dstep := 6;
-
-                    FCPUDeviceThread.FoundNOnce(FCurrentMinerValuesForWork, ts, nonce);
-
-                    dstep := 7;
-
-                  finally
-
-                    FLock.Acquire;
-
-                  end;
-
-                  dstep := 8;
-
-                end;
-
-                if LUseRandomHash then begin
-
-                  if (FCurrentMinerValuesForWork.version < CT_PROTOCOL_5) then begin
-
-                    nonce := LRandomHasher.NextNonce;
-
-                  end else begin
-
-                    if LRandomHasher2.HasCachedHash then
-
-                      nonce := LRandomHasher2.PeekCachedHash.Nonce   // use this to test verification speed: Random(FMaxNOnce - FMinNOnce) + FMinNOnce
-
-                    else nonce := Random(FMaxNOnce - FMinNOnce) + FMinNOnce;
-
-                  end;
-
-                end else if (nonce)<FMaxNOnce then inc(nonce) else nonce := FMinNOnce;
-
-              end;
-
-              finalHashingTC:=TPlatform.GetTickCount;
-
-            end else begin
-
-              baseHashingTC:=TPlatform.GetTickCount;
-
-              for i := 1 to roundsToDo do begin
-
-                PascalCoinExecuteLastChunkAndDoSha256(FInternalSha256,FInternalChunk,FChangeTimestampAndNOnceBytePos,nonce,ts,resultPoW); // Note: RandomHash is handled above
-
-                if (TBaseType.BinStrComp(resultPoW,FCurrentMinerValuesForWork.target_pow)<0) then begin
-
-                  if Terminated then exit;
-
-                  FLock.Release;
-
-                  try
-
-                    FCPUDeviceThread.FoundNOnce(FCurrentMinerValuesForWork, ts,nonce);
-
-                  finally
-
-                    FLock.Acquire;
-
-                  end;
-
-                end;
-
-                if (nonce)<FMaxNOnce then inc(nonce) else nonce := FMinNOnce;
-
-              end;
-
-              finalHashingTC:=TPlatform.GetTickCount;
-
-            end;
-
-            AuxStats.Miners:=FCPUDeviceThread.FCPUs;
-
-            AuxStats.RoundsCount:=LRoundsPerformed;
-
-            AuxStats.WorkingMillisecondsTotal:=TPlatform.GetTickCount - baseRealTC;
-
-            AuxStats.WorkingMillisecondsHashing:= finalHashingTC - baseHashingTC;
-
-            dstep := 9;
-
-            FCPUDeviceThread.UpdateDeviceStats(AuxStats);
-
-          end; // FDigestStreamMsg.size>8
-
-        finally
-
-          FLock.Release;
-
-        end;
-
-      end; // Not paused
-
-      Except
-
-        On E:Exception do begin
-
-          TLog.NewLog(ltError,ClassName,'EXCEPTION step:'+IntToStr(dstep)+' ' +E.ClassName+':'+E.Message);
-
-        end;
-
-      end;
-
-    end; // while
-
-  Finally
-
-    DebugStep := IntToStr(dstep);
-
-  End;
-
-end;
-
-(*procedure TCPUOpenSSLMinerThread.BCExecute;
-
 type
   TNonceResult = record
     Nonce : UInt32;
@@ -1163,13 +885,13 @@ begin
                     //TFileTool.AppendText('d:/temp/nonceresult.txt', Format('Added Nonce: %d PoW: %s', [LNonceResult.Nonce, TCrypto.ToHexaString( LNonceResult.PoW )]));
                     LResultsToCheck.Add(LNonceResult);
                     Inc(LRoundsPerformed);
-                   // while LRandomHasher2.HasCachedHash do begin
-                   //   LCachedItem := LRandomHasher2.PopCachedHash;
-                   //   LNonceResult.Nonce := LCachedItem.Nonce;
-                   //   LNonceResult.PoW := LCachedItem.Hash;
-                   //   LResultsToCheck.Add(LNonceResult);
-                   //   Inc(LRoundsPerformed);
-                   // end;
+                    while LRandomHasher2.HasCachedHash do begin
+                      LCachedItem := LRandomHasher2.PopCachedHash;
+                      LNonceResult.Nonce := LCachedItem.Nonce;
+                      LNonceResult.PoW := LCachedItem.Hash;
+                      LResultsToCheck.Add(LNonceResult);
+                      Inc(LRoundsPerformed);
+                    end;
                   end
                 end else begin
                   TCrypto.DoDoubleSha256(FDigestStreamMsg.Memory,FDigestStreamMsg.Size,resultPoW);
@@ -1182,7 +904,7 @@ begin
 
                 // check results
                 for j:= 0 to LResultsToCheck.Count - 1 do begin
-                  TFileTool.AppendText('d:/temp/nonceresult.txt', Format('Checking Nonce: %d PoW: %s', [LResultsToCheck[j].Nonce, TCrypto.ToHexaString( LResultsToCheck[j].PoW )]));
+                 // TFileTool.AppendText('d:/temp/nonceresult.txt', Format('Checking Nonce: %d PoW: %s', [LResultsToCheck[j].Nonce, TCrypto.ToHexaString( LResultsToCheck[j].PoW )]));
                   if (TBaseType.BinStrComp(LResultsToCheck[j].PoW,FCurrentMinerValuesForWork.target_pow)<0) then begin
                     if (Terminated) Or (FCPUDeviceThread.Terminated) then exit;
                     dstep := 5;
@@ -1200,13 +922,10 @@ begin
 
                 // select next nonce
                 if LUseRandomHash then begin
-
                   if (FCurrentMinerValuesForWork.version < CT_PROTOCOL_5) then begin
                     nonce := LRandomHasher.NextNonce;
                   end else begin
-                    if LRandomHasher2.HasCachedHash then
-                      nonce := Random(FMaxNOnce - FMinNOnce) + FMinNOnce
-                    else nonce := Random(FMaxNOnce - FMinNOnce) + FMinNOnce;
+                    nonce := Random(FMaxNOnce - FMinNOnce) + FMinNOnce;
                   end;
                 end else if (nonce)<FMaxNOnce then inc(nonce) else nonce := FMinNOnce;
               end;
@@ -1247,7 +966,7 @@ begin
   Finally
     DebugStep := IntToStr(dstep);
   End;
-end;        *)
+end;
 
 constructor TCPUOpenSSLMinerThread.Create(CPUDeviceThread : TCPUDeviceThread);
 begin
