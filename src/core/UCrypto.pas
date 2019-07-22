@@ -822,12 +822,7 @@ begin
   if Length(ResultSha256) <> 32 then SetLength(ResultSha256, 32);
   SetLength(LInput, plength);
   Move(p^, LInput[0], plength);
-
-  if AHasher.HasCachedHash AND BytesEqual(AHasher.PeekCachedHash.Header, LInput) then
-    LResult := AHasher.PopCachedHash.Hash
-  else
-    LResult := AHasher.Compute(LInput); //AHasher.Hash(LInput);
-
+  LResult := AHasher.Hash(LInput);
   Move(LResult[0], ResultSha256[Low(ResultSha256)], 32);
 end;
 

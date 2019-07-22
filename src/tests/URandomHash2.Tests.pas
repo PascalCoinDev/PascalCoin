@@ -55,11 +55,13 @@ begin
   LBuff := ParseBytes(DATA_BYTES);
   LHasher := LDisposables.AddObject( TRandomHash2.Create ) as TRandomHash2;
 
-  for i := 1 to 100 do begin
+  for i := 1 to 1000 do begin
     LBuff := LHasher.Hash(LBuff);
+    //TFileTool.AppendText('d:/temp/log.txt', Bytes2Hex(LBuff));
     while LHasher.HasCachedHash do begin
       LCachedHash := LHasher.PopCachedHash;
       AssertEquals(TRandomHash2.Compute(LCachedHash.Header), LCachedHash.Hash);
+      //TFileTool.AppendText('d:/temp/log.txt', '     ' +Bytes2Hex(LCachedHash.Hash));
     end;
   end;
 end;

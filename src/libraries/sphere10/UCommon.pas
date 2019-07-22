@@ -1919,6 +1919,7 @@ begin
 end;
 
 { TFileStreamHelper }
+
 {$IFNDEF FPC}
 procedure TFileStreamHelper.WriteString(const AString : String);
 begin
