@@ -1547,6 +1547,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     i : Integer;
     OperationsResumeList : TOperationsResumeList;
   Begin
+    Result := False;
     if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,OperationsHashTree,errors) then begin
       ErrorNum:=CT_RPC_ErrNum_InvalidData;
       ErrorDesc:= 'Error decoding param "rawoperations": '+errors;

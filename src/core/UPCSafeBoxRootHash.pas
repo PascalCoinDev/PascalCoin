@@ -80,6 +80,10 @@ unit UPCSafeBoxRootHash;
 
 }
 
+{$IFDEF FPC}
+  {$MODE Delphi}
+{$ENDIF}
+
 interface
 
 {$I config.inc}
