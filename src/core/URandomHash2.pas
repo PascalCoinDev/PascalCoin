@@ -2,13 +2,7 @@
 
 { Copyright (c) 2018 by Herman Schoenfeld
 
-  PIP-0009: RandomHash2 Reference Implementation
-
-  Notes:
-  1. TRandomHash2 - standard use hasher
-  2. TRandomHashFast - optimized, mining hasher
-  3. TMersenne32 - mersenne twister random number generator
-  4. TXorShift32 - lightning fast random number generator (used in memtransform0)
+  RandomHash2 Reference Implementation
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
@@ -159,7 +153,7 @@ type
       class function Compute(const ABlockHeader: TBytes): TBytes; overload; static; inline;
   end;
 
- { ERandomHash }
+ { ERandomHash2 }
 
   ERandomHash2 = class(Exception);
 
@@ -316,7 +310,7 @@ begin
   else AFoundLastRound := 0;
 end;
 
-function TRandomHash2.SetLastDWordLE(const ABytes: TBytes;  AValue: UInt32): TBytes;
+function TRandomHash2.SetLastDWordLE(const ABytes: TBytes; AValue: UInt32): TBytes;
 var
   ABytesLength : Integer;
 begin
@@ -353,7 +347,6 @@ end;
 function TRandomHash2.Compress(const AInputs : TArray<TBytes>; ASeed : UInt32): TBytes;
 var
   i: Int32;
-  LSeed: UInt32;
   LSource: TBytes;
   LGen: TMersenne32;
   LDisposables : TDisposables;

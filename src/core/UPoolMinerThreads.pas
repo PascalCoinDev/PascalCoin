@@ -882,7 +882,6 @@ begin
                     TCrypto.DoRandomHash2(LRandomHasher2, FDigestStreamMsg.Memory, FDigestStreamMsg.Size, resultPoW);
                     LNonceResult.Nonce := nonce;
                     LNonceResult.PoW := resultPoW;
-                    //TFileTool.AppendText('d:/temp/nonceresult.txt', Format('Added Nonce: %d PoW: %s', [LNonceResult.Nonce, TCrypto.ToHexaString( LNonceResult.PoW )]));
                     LResultsToCheck.Add(LNonceResult);
                     Inc(LRoundsPerformed);
                     while LRandomHasher2.HasCachedHash do begin
@@ -899,12 +898,10 @@ begin
                   LNonceResult.PoW := resultPoW;
                   LResultsToCheck.Add(LNonceResult);
                   Inc(LRoundsPerformed);
-                  TFileTool.AppendText('d:/temp/nonceresult.txt', Format('Added Nonce: %d PoW: %s', [LNonceResult.Nonce, TCrypto.ToHexaString( LNonceResult.PoW )]));
                 end;
 
                 // check results
                 for j:= 0 to LResultsToCheck.Count - 1 do begin
-                 // TFileTool.AppendText('d:/temp/nonceresult.txt', Format('Checking Nonce: %d PoW: %s', [LResultsToCheck[j].Nonce, TCrypto.ToHexaString( LResultsToCheck[j].PoW )]));
                   if (TBaseType.BinStrComp(LResultsToCheck[j].PoW,FCurrentMinerValuesForWork.target_pow)<0) then begin
                     if (Terminated) Or (FCPUDeviceThread.Terminated) then exit;
                     dstep := 5;
@@ -929,6 +926,7 @@ begin
                   end;
                 end else if (nonce)<FMaxNOnce then inc(nonce) else nonce := FMinNOnce;
               end;
+              finalHashingTC:=TPlatform.GetTickCount;
             end else begin
               baseHashingTC:=TPlatform.GetTickCount;
               for i := 1 to roundsToDo do begin

@@ -44,11 +44,9 @@ const
 
 
 function String2Hex(const Buffer: String): String;
-{$IFDEF UNITTESTS}
 function Hex2Bytes(const AHexString: String): TBytes; overload;
 function TryHex2Bytes(const AHexString: String; out ABytes : TBytes): boolean; overload;
 function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : String;
-{$ENDIF}
 function BinStrComp(const Str1, Str2 : String): Integer; // Binary-safe StrComp replacement. StrComp will return 0 for when str1 and str2 both start with NUL character.
 function BytesCompare(const ABytes1, ABytes2: TBytes): integer;
 function BytesEqual(const ABytes1, ABytes2 : TBytes) : boolean; overload; inline;
@@ -463,7 +461,6 @@ begin
     Result := AnsiLowerCase(Result + IntToHex(Ord(Buffer[n]), 2));
 end;
 
-{$IFDEF UNITTESTS}
 function Hex2Bytes(const AHexString: String): TBytes;
 begin
   if NOT TryHex2Bytes(AHexString, Result) then
@@ -497,10 +494,14 @@ begin
   SetLength(ABytes, LHexLength DIV 2);
   P := @ABytes[Low(ABytes)];
   LHexString := LowerCase(AHexString);
+  {$IFDEF FPC}
   LHexIndex := HexToBin(PAnsiChar(@LHexString[LHexStart]), P, System.Length(ABytes));
+  {$ELSE}
+  LHexIndex := HexToBin(@LHexString[LHexStart],0,ABytes,0,Length(ABytes));
+  {$ENDIF}
   Result := (LHexIndex = (LHexLength DIV 2));
 end;
-{$ENDIF}
+
 
 function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : String;
 var
