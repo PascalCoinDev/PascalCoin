@@ -58,7 +58,7 @@ type
   end;
 
 Const
-  CT_MINER_VERSION = {$IFDEF PRODUCTION}'4.0'{$ELSE}{$IFDEF TESTNET}'4.0 TESTNET'{$ELSE}ERROR{$ENDIF}{$ENDIF};
+  CT_MINER_VERSION = {$IFDEF PRODUCTION}'5.0'{$ELSE}{$IFDEF TESTNET}'5.0 TESTNET'{$ELSE}ERROR{$ENDIF}{$ENDIF};
   CT_Line_DeviceStatus = 3;
   CT_Line_ConnectionStatus = 4;
   CT_Line_MinerValues = 7;
@@ -218,8 +218,8 @@ var
     end;
     if HasOption('c','cpu') then begin
       c := StrToIntDef(GetOptionValue('c','cpu'),-1);
-      if (c<=0) or (c>TLogicalCPUCount.GetLogicalCPUCount()) then begin
-        WriteLn('Invalid cpu value ',c,'. Valid values: 1..',TLogicalCPUCount.GetLogicalCPUCount());
+      if (c<=0) or (c>TCPUTool.GetLogicalCPUCount()) then begin
+        WriteLn('Invalid cpu value ',c,'. Valid values: 1..',TCPUTool.GetLogicalCPUCount());
         Terminate;
         exit;
       end;

@@ -44,14 +44,13 @@ const
 
 
 function String2Hex(const Buffer: String): String;
-{$IFDEF UNITTESTS}
 function Hex2Bytes(const AHexString: String): TBytes; overload;
 function TryHex2Bytes(const AHexString: String; out ABytes : TBytes): boolean; overload;
 function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : String;
-{$ENDIF}
 function BinStrComp(const Str1, Str2 : String): Integer; // Binary-safe StrComp replacement. StrComp will return 0 for when str1 and str2 both start with NUL character.
 function BytesCompare(const ABytes1, ABytes2: TBytes): integer;
-function BytesEqual(const ABytes1, ABytes2 : TBytes) : boolean; inline;
+function BytesEqual(const ABytes1, ABytes2 : TBytes) : boolean; overload; inline;
+function BytesEqual(const ABytes1, ABytes2 : TBytes; AFrom, ALength : UInt32) : boolean; overload; inline;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Cardinal): Cardinal; overload;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Integer): Integer; overload;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Int64): Int64; overload;
@@ -462,7 +461,6 @@ begin
     Result := AnsiLowerCase(Result + IntToHex(Ord(Buffer[n]), 2));
 end;
 
-{$IFDEF UNITTESTS}
 function Hex2Bytes(const AHexString: String): TBytes;
 begin
   if NOT TryHex2Bytes(AHexString, Result) then
@@ -496,10 +494,14 @@ begin
   SetLength(ABytes, LHexLength DIV 2);
   P := @ABytes[Low(ABytes)];
   LHexString := LowerCase(AHexString);
+  {$IFDEF FPC}
   LHexIndex := HexToBin(PAnsiChar(@LHexString[LHexStart]), P, System.Length(ABytes));
+  {$ELSE}
+  LHexIndex := HexToBin(@LHexString[LHexStart],0,ABytes,0,Length(ABytes));
+  {$ENDIF}
   Result := (LHexIndex = (LHexLength DIV 2));
 end;
-{$ENDIF}
+
 
 function Bytes2Hex(const ABytes: TBytes; AUsePrefix : boolean = false) : String;
 var
@@ -580,14 +582,20 @@ begin
 end;
 
 function BytesEqual(const ABytes1, ABytes2 : TBytes) : boolean;
+begin
+  Result := BytesEqual(ABytes1, ABytes2, 0, Length(ABytes1));
+end;
+
+function BytesEqual(const ABytes1, ABytes2 : TBytes; AFrom, ALength : UInt32) : boolean;
 var ABytes1Len, ABytes2Len : Integer;
 begin
+  if ALength = 0 then
+    Exit(False);
   ABytes1Len := Length(ABytes1);
   ABytes2Len := Length(ABytes2);
-  if (ABytes1Len <> ABytes2Len) OR (ABytes1Len = 0) then
-    Result := False
-  else
-    Result := CompareMem(@ABytes1[0], @ABytes2[0], ABytes1Len);
+  if ((ABytes1Len - AFrom) < ALength) OR ((ABytes2Len - AFrom) < ALength ) then
+    Exit(False);
+  Result := CompareMem(@ABytes1[AFrom], @ABytes2[AFrom], ALength);
 end;
 
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Cardinal): Cardinal;
@@ -1912,6 +1920,7 @@ begin
 end;
 
 { TFileStreamHelper }
+
 {$IFNDEF FPC}
 procedure TFileStreamHelper.WriteString(const AString : String);
 begin

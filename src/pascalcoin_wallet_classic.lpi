@@ -42,7 +42,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="34">
+    <Units Count="37">
       <Unit0>
         <Filename Value="pascalcoin_wallet_classic.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -207,6 +207,21 @@
         <Filename Value="gui-classic\UGUIUtils.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit33>
+      <Unit34>
+        <Filename Value="core\URandomHash2.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit34>
+      <Unit35>
+        <Filename Value="core\URandomHash.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit35>
+      <Unit36>
+        <Filename Value="gui-classic\UFRMDiagnosticTool.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="FRMDiagnosticTool"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+      </Unit36>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

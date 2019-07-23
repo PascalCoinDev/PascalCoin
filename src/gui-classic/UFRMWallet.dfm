@@ -421,6 +421,10 @@ object FRMWallet: TFRMWallet
     OnChange = PageControlChange
     object tsMyAccounts: TTabSheet
       Caption = 'Account Explorer'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Splitter1: TSplitter
         Left = 400
         Top = 66
@@ -658,6 +662,10 @@ object FRMWallet: TFRMWallet
         TabOrder = 2
         object tsAccountOperations: TTabSheet
           Caption = 'Account Operations'
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object dgAccountOperations: TDrawGrid
             Left = 0
             Top = 0

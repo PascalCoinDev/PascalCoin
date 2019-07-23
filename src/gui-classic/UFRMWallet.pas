@@ -228,6 +228,7 @@ type
     procedure MiFindOperationbyOpHashClick(Sender: TObject);
     procedure MiAccountInformationClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure Test_ShowDiagnosticTool(Sender: TObject);
   private
     FLastNodesCacheUpdatedTS : TDateTime;
     FBackgroundPanel : TPanel;
@@ -329,7 +330,7 @@ Uses UFolderHelper,
 {$ENDIF}
   UTime, UFileStorage,
   UThread, UOpTransaction, UFRMPascalCoinWalletConfig,
-  UFRMOperationsExplorer,
+  UFRMOperationsExplorer, UFRMDiagnosticTool,
   {$IFDEF TESTNET}
   UFRMRandomOperations,
   UPCTNetDataExtraMessages,
@@ -1077,6 +1078,11 @@ begin
   mi.Caption:='Ask for Free Account';
   mi.OnClick:=Test_AskForFreeAccount;
   miAbout.Add(mi);
+  mi := TMenuItem.Create(MainMenu);
+  mi.Caption:='Diagnostic Tool';
+  mi.OnClick:=Test_ShowDiagnosticTool;
+  miAbout.Add(mi);
+
 end;
 
 {$IFDEF TESTING_NO_POW_CHECK}
@@ -1643,6 +1649,18 @@ begin
     FPendingOperationsGrid.ShowModalDecoder(FWalletKeys,FAppParams);
   end else if PageControl.ActivePage=tsMyAccounts then begin
     FOperationsAccountGrid.ShowModalDecoder(FWalletKeys,FAppParams);
+  end;
+end;
+
+procedure TFRMWallet.Test_ShowDiagnosticTool(Sender: TObject);
+var
+ LDialog : TFRMDiagnosticTool;
+begin
+  LDialog := TFRMDiagnosticTool.Create(Nil);
+  try
+    LDialog.ShowModal;
+  finally
+    LDialog.Free;
   end;
 end;
 
