@@ -42,7 +42,12 @@ implementation
 
 uses UCrypto, UAccounts;
 
-{$R *.dfm}
+{$IFnDEF FPC}
+  {$R *.dfm}
+{$ELSE}
+  {$R *.lfm}
+{$ENDIF}
+
 
 procedure TFRMHashLock.btnCancelClick(Sender: TObject);
 begin
@@ -54,6 +59,7 @@ var
   LData : TRawBytes;
   LErr : string;
 begin
+  Try
   Error := '';
   if (NOT rbHashLock.Checked) AND (NOT rbHashLockKey.Checked) then begin
     Error := 'Select the hash-lock mode';
@@ -80,11 +86,14 @@ begin
     end;
     FHashLock := TAccountComp.CalculateHashLock(LData);
   end else Error := 'INTERNAL ERROR: 8356DE573BA748618EDD6603B22D9EAD';
+  Finally
+    if Error='' then ModalResult := MrOk;
+  end;
 end;
 
 procedure TFRMHashLock.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-  CanClose := Error = '';
+  //
 end;
 
 procedure TFRMHashLock.FormCreate(Sender: TObject);

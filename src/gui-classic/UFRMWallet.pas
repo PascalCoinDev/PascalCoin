@@ -888,6 +888,7 @@ procedure TFRMWallet.FillAccountInformation(const Strings: TStrings;
   const AccountNumber: Cardinal);
 Var account : TAccount;
   s : String;
+  LjsonObj : TPCJSONObject;
 begin
   if AccountNumber<0 then exit;
   account := FNode.GetMempoolAccount(AccountNumber);
@@ -900,6 +901,10 @@ begin
   Strings.Add(Format('Updated on block: %d  (%d blocks ago)',[account.updated_block,FNode.Bank.BlocksCount-account.updated_block]));
   Strings.Add(Format('Public key type: %s',[TAccountComp.GetECInfoTxt(account.accountInfo.accountKey.EC_OpenSSL_NID)]));
   Strings.Add(Format('Base58 Public key: %s',[TAccountComp.AccountPublicKeyExport(account.accountInfo.accountKey)]));
+  if Length(account.account_data)>0 then
+    Strings.Add(Format('Account Data: %s',[account.account_data.ToHexaString]))
+  else Strings.Add(Format('Account Data: (No data)',[]));
+  Strings.Add(Format('Account Seal: %s',[account.account_seal.ToHexaString]));
   if TAccountComp.IsAccountForSale(account.accountInfo) then begin
     Strings.Add('');
     Strings.Add('** Account is for sale: **');
@@ -918,7 +923,35 @@ begin
           [account.accountInfo.locked_until_block,FNode.Bank.BlocksCount]));
       end;
     end;
+  end else if TAccountComp.IsAccountForSwap(account.accountInfo) then begin
+    Strings.Add('');
+    if TAccountComp.IsAccountForAccountSwap(account.accountInfo) then begin
+      Strings.Add('** Account is for Atomic Account Swap: **');
+      Strings.Add(Format('New Base58 Public key: %s',[TAccountComp.AccountPublicKeyExport(account.accountInfo.new_publicKey)]));
+    end else if TAccountComp.IsAccountForCoinSwap(account.accountInfo) then begin
+      Strings.Add('** Account is for Atomic Coin Swap: **');
+      Strings.Add(Format('Amount to swap: %s',[TAccountComp.FormatMoney(account.accountInfo.price)]));
+      Strings.Add(Format('Counterparty account: %s',[TAccountComp.AccountNumberToAccountTxtNumber(account.accountInfo.account_to_pay)]));
+    end;
+    Strings.Add(Format('Public secret to find: %s',[account.accountInfo.hashed_secret.ToHexaString]));
+    Strings.Add('');
+    if TAccountComp.IsAccountLocked(account.accountInfo,FNode.Bank.BlocksCount) then begin
+      Strings.Add(Format('SWAP IS SECURE UNTIL BLOCK %d (current %d, remains %d)',
+          [account.accountInfo.locked_until_block,FNode.Bank.BlocksCount,account.accountInfo.locked_until_block-FNode.Bank.BlocksCount]));
+    end else begin
+        Strings.Add(Format('SWAP IS NOT SECURE (Expired on block %d, current %d)',
+          [account.accountInfo.locked_until_block,FNode.Bank.BlocksCount]));
+    end;
   end;
+  LjsonObj := TPCJSONObject.Create;
+  Try
+    TPascalCoinJSONComp.FillAccountObject(account,LjsonObj);
+    Strings.Add('ACCOUNT JSON:');
+    Strings.Add(LjsonObj.ToJSON(False));
+  Finally
+    LjsonObj.Free;
+  end;
+
 end;
 
 procedure TFRMWallet.FillOperationInformation(const Strings: TStrings;
@@ -966,7 +999,7 @@ begin
   jsonObj := TPCJSONObject.Create;
   Try
     TPascalCoinJSONComp.FillOperationObject(OperationResume,FNode.Bank.BlocksCount,jsonObj);
-    Strings.Add('JSON:');
+    Strings.Add('OPERATION JSON:');
     Strings.Add(jsonObj.ToJSON(False));
   Finally
     jsonObj.Free;

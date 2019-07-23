@@ -1,0 +1,113 @@
+object FRMHashLock: TFRMHashLock
+  Left = 237
+  Height = 270
+  Top = 179
+  Width = 548
+  BorderStyle = bsDialog
+  Caption = 'Atomic Swap Hash-Lock '
+  ClientHeight = 270
+  ClientWidth = 548
+  Color = clBtnFace
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'Tahoma'
+  OnCloseQuery = FormCloseQuery
+  OnCreate = FormCreate
+  Position = poOwnerFormCenter
+  LCLVersion = '1.8.0.6'
+  object lblError: TLabel
+    Left = 19
+    Height = 13
+    Top = 239
+    Width = 282
+    AutoSize = False
+    Caption = 'Errors detected'
+    Color = clBtnFace
+    Font.Color = clRed
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    ParentColor = False
+    ParentFont = False
+    Transparent = False
+  end
+  object btnCancel: TBitBtn
+    Left = 424
+    Height = 31
+    Top = 231
+    Width = 116
+    Anchors = [akRight, akBottom]
+    Kind = bkCancel
+    ModalResult = 2
+    OnClick = btnCancelClick
+    TabOrder = 0
+  end
+  object btnSet: TBitBtn
+    Left = 307
+    Height = 31
+    Top = 231
+    Width = 111
+    Anchors = [akRight, akBottom]
+    Caption = 'Set Hash-Lock'
+    Kind = bkOK
+    ModalResult = 1
+    OnClick = btnSetClick
+    TabOrder = 1
+  end
+  object GroupBox1: TGroupBox
+    Left = 8
+    Height = 83
+    Top = 14
+    Width = 532
+    Caption = 'Mode'
+    ClientHeight = 65
+    ClientWidth = 528
+    TabOrder = 2
+    object rbHashLock: TRadioButton
+      Left = 11
+      Height = 19
+      Top = 8
+      Width = 362
+      Caption = 'Hash-Lock - the 32 byte hash-lock provided to you by the counterparty'
+      TabOrder = 0
+    end
+    object rbHashLockKey: TRadioButton
+      Left = 11
+      Height = 19
+      Top = 31
+      Width = 386
+      Caption = 'Hash-Lock Key - a secret that will be hashed to create the 32 byte hash-lock'
+      TabOrder = 1
+    end
+  end
+  object GroupBox2: TGroupBox
+    Left = 8
+    Height = 122
+    Top = 103
+    Width = 532
+    Caption = 'Data'
+    ClientHeight = 104
+    ClientWidth = 528
+    TabOrder = 3
+    object Label2: TLabel
+      Left = 11
+      Height = 13
+      Top = 21
+      Width = 266
+      Caption = 'Please enter the hash lock data as a hexadecimal string'
+      ParentColor = False
+    end
+    object meHashLockData: TMemo
+      Left = 11
+      Height = 49
+      Top = 40
+      Width = 501
+      Anchors = [akTop, akLeft, akRight, akBottom]
+      Font.Color = clBlack
+      Font.Height = -16
+      Font.Name = 'Tahoma'
+      ParentFont = False
+      TabOrder = 0
+      WantReturns = False
+    end
+  end
+end

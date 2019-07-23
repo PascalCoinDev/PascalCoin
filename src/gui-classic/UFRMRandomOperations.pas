@@ -44,6 +44,7 @@ type
     FOnUpdated: TNotifyEvent;
     FNeedSanitize : Boolean;
     FAllowExecute: Boolean;
+    FMaxOperationsPerSecond: Integer;
     procedure OnBankNewBlock(Sender : TObject);
   protected
     FBankNotify : TPCBankNotify;
@@ -56,7 +57,7 @@ type
     FnCallsToAddNodeFailed : Int64;
     procedure BCExecute; override;
   public
-    Constructor Create(ASourceNode: TNode; ASourceWalletKeys: TWalletKeysExt);
+    Constructor Create(ASourceNode: TNode; ASourceWalletKeys: TWalletKeysExt; AMaxOperationsPerSecond : Integer);
     Destructor Destroy; override;
     property LastCall_OperationsTotal : Integer read FLastCall_OperationsTotal;
     property LastCall_OperationsExecuted : Integer read FLastCall_OperationsExecuted;
@@ -64,6 +65,7 @@ type
     property LastCall_Error : String read FLastCall_Error;
     property OnUpdated : TNotifyEvent read FOnUpdated write FOnUpdated;
     property AllowExecute : Boolean read FAllowExecute write FAllowExecute;
+    property MaxOperationsPerSecond : Integer read FMaxOperationsPerSecond write FMaxOperationsPerSecond;
   end;
 
   { TFRMRandomOperations }
@@ -75,11 +77,13 @@ type
     pnlClient: TPanel;
     pnlTop: TPanel;
     pnlTop1: TPanel;
+    cbMaxSpeedMode : TCheckBox;
     procedure bbRandomOperationsClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure cbMaxSpeedModeClick(Sender: TObject);
   private
     FSourceNode: TNode;
     FSourceWalletKeys: TWalletKeysExt;
@@ -87,6 +91,7 @@ type
     FCurrOperationsComp : TPCOperationsComp;
     FRandomGeneratorThread : TRandomGeneratorThread;
     FInternalLog : TLog;
+    FMaxOperationsPerSecond : Integer;
     procedure SetSourceNode(AValue: TNode);
     procedure SetSourceWalletKeys(AValue: TWalletKeysExt);
     procedure NewLog(logTxt : String);
@@ -104,11 +109,17 @@ type
 
   TRandomGenerateOperation = Class
   private
+    class function GetRandomPayload(Const AStartsWith : String) : TRawBytes;
   public
     class function GetRandomOwnDestination(const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt; out nAccount : Cardinal) : Boolean;
     class function GetRandomSigner(const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt; out iKey : Integer; out nAccount : Cardinal) : Boolean;
     class function GenerateOpTransactions(current_protocol : Word; Maxtransaction : Integer; const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt) : Integer;
     class function GenerateOpMultiOperation(current_protocol : Word; const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt) : Boolean;
+    class function GenerateOpChangeKey(current_protocol : Word; const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt) : Integer;
+    class function GenerateOpListAccountForSale(current_protocol : Word; const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt) : Integer;
+    class function GenerateOpBuyAccount(current_protocol : Word; const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt) : Integer;
+    class function GetHashLock_Public : T32Bytes;
+    class function GetHashLock_Private : TRawBytes;
   end;
 
 implementation
@@ -131,14 +142,21 @@ Var nCounter, nTotalRound, iLastSend, i : Integer;
   operationsComp : TPCOperationsComp;
   ohtToAdd : TOperationsHashTree;
   errors : String;
-  nAddedOperations : Integer;
+  nAddedOperations, nMaxTransactionsValue, nExecutedSinceLastTC : Integer;
+  LLastTC : TTickCount;
 begin
   operationsComp := TPCOperationsComp.Create(Nil);
   try
     operationsComp.bank := FSourceNode.Bank;
     iLastSend := -1;
+    LLastTC := TPlatform.GetTickCount;
+    nExecutedSinceLastTC := 0;
     while (Not Terminated) do begin
-      nTotalRound := Random(100);
+      if FMaxOperationsPerSecond<=0 then begin
+        nTotalRound := Random(100);
+      end else begin
+        nTotalRound := Random(FMaxOperationsPerSecond)+1;
+      end;
       nCounter := 0;
       if FNeedSanitize then begin
         FNeedSanitize := False;
@@ -150,15 +168,25 @@ begin
         inc(nCounter);
         //
         Case Random(30) of
-          0..20 : begin
-            inc(FnOperationsCreated,TRandomGenerateOperation.GenerateOpTransactions(FSourceNode.Bank.SafeBox.CurrentProtocol,100,operationsComp,FSourceWalletKeys));
+          0..10 : begin
+            if FMaxOperationsPerSecond>0 then nMaxTransactionsValue := Random(FMaxOperationsPerSecond)+1
+            else nMaxTransactionsValue := Random(200)+1;
+
+            inc(FnOperationsCreated,TRandomGenerateOperation.GenerateOpTransactions(FSourceNode.Bank.SafeBox.CurrentProtocol,nMaxTransactionsValue,operationsComp,FSourceWalletKeys));
           end;
-          21..25 : begin
+          11..15 : begin
+            inc(FnOperationsCreated,TRandomGenerateOperation.GenerateOpChangeKey(FSourceNode.Bank.SafeBox.CurrentProtocol,operationsComp,FSourceWalletKeys));
+          end;
+          18..22 : begin
+            inc(FnOperationsCreated,TRandomGenerateOperation.GenerateOpListAccountForSale(FSourceNode.Bank.SafeBox.CurrentProtocol,operationsComp,FSourceWalletKeys));
+          end;
+          25..29 : begin
             If TRandomGenerateOperation.GenerateOpMultiOperation(FSourceNode.Bank.SafeBox.CurrentProtocol,operationsComp,FSourceWalletKeys) then inc(FnOperationsCreated)
             else inc(FnOperationsCreatedFailed);
           end;
         end;
       end;
+
       if (Not Terminated) And (Not FNeedSanitize) And (FAllowExecute) then begin
         //
         ohtToAdd := TOperationsHashTree.Create;
@@ -184,8 +212,18 @@ begin
           ohtToAdd.Free;
         End;
         //
-        if Assigned(FOnUpdated) then FOnUpdated(Self);
+        if FLastCall_OperationsTotal>0 then begin
+          if Assigned(FOnUpdated) then FOnUpdated(Self);
+        end;
+
+        inc(nExecutedSinceLastTC,nAddedOperations);
+
       end;
+      if (FMaxOperationsPerSecond>0) and (nExecutedSinceLastTC>=FMaxOperationsPerSecond) then begin
+        while (Not Terminated) and (FAllowExecute) and (TPlatform.GetElapsedMilliseconds(LLastTC)<1000) do sleep(5);
+      end;
+      LLastTC := TPlatform.GetTickCount;
+      nExecutedSinceLastTC := 0;
       Sleep(1);
     end;
   finally
@@ -193,7 +231,7 @@ begin
   end;
 end;
 
-constructor TRandomGeneratorThread.Create(ASourceNode: TNode; ASourceWalletKeys: TWalletKeysExt);
+constructor TRandomGeneratorThread.Create(ASourceNode: TNode; ASourceWalletKeys: TWalletKeysExt; AMaxOperationsPerSecond : Integer);
 begin
   FSourceNode := ASourceNode;
   FSourceWalletKeys := ASourceWalletKeys;
@@ -213,6 +251,9 @@ begin
   FBankNotify.OnNewBlock:=OnBankNewBlock;
   FNeedSanitize := True;
   FAllowExecute := False;
+  if AMaxOperationsPerSecond>=0 then
+    FMaxOperationsPerSecond := AMaxOperationsPerSecond
+  else FMaxOperationsPerSecond := 0;
   inherited Create(False);
 end;
 
@@ -225,6 +266,16 @@ begin
 end;
 
 { TRandomGenerateOperation }
+
+class function TRandomGenerateOperation.GetHashLock_Private: TRawBytes;
+begin
+  Result.FromString('PRIVATE');
+end;
+
+class function TRandomGenerateOperation.GetHashLock_Public: T32Bytes;
+begin
+  Result := TBaseType.To32Bytes( TCrypto.DoSha256( GetHashLock_Private ) );
+end;
 
 class function TRandomGenerateOperation.GetRandomOwnDestination(const operationsComp: TPCOperationsComp; const aWalletKeys: TWalletKeysExt; out nAccount: Cardinal): Boolean;
 var
@@ -246,6 +297,21 @@ begin
       inc(nRounds);
     end;
   until (Result) Or (nRounds>0);
+end;
+
+class function TRandomGenerateOperation.GetRandomPayload(
+  const AStartsWith: String): TRawBytes;
+var i,j : Integer;
+begin
+  Result.FromString(AStartsWith);
+  j := Random(255);
+  if j<Length(Result) then j := Length(Result);
+
+  SetLength(Result,j);
+  for i := Length(Result) to j-1 do begin
+    Result[j] := Random(127-32)+32;
+  end;
+
 end;
 
 class function TRandomGenerateOperation.GetRandomSigner(const operationsComp: TPCOperationsComp; const aWalletKeys: TWalletKeysExt; out iKey: Integer; out nAccount: Cardinal): Boolean;
@@ -290,9 +356,10 @@ class function TRandomGenerateOperation.GenerateOpTransactions(current_protocol 
 var nAccount, nAccountTarget : Cardinal;
   iKey, nRounds : Integer;
   opTx : TOpTransaction;
-  senderAcc : TAccount;
+  senderAcc, LDestAcc : TAccount;
   amount,fees : Int64;
   errors : String;
+  LPayload : TRawBytes;
 begin
   Result := 0;
   If Not GetRandomSigner(operationsComp,aWalletKeys,iKey,nAccount) then Exit;
@@ -301,11 +368,17 @@ begin
   nRounds := 0;
   while (nRounds<Maxtransaction) do begin
     senderAcc := operationsComp.SafeBoxTransaction.Account(nAccount);
+    LDestAcc := operationsComp.SafeBoxTransaction.Account(nAccountTarget);
+    if TAccountComp.IsAccountForSwap( LDestAcc.accountInfo ) then begin
+      // Special case, will swap? Will need to provide a HASHLOCK in payload
+      LPayload := GetHashLock_Private;
+    end else LPayload := Nil;
+
     amount := 1; // Minimal amount
     if (Random(500)<1) then fees := 0
     else fees := 1; // Minimal fee
     if (senderAcc.balance>2) then begin
-      opTx := TOpTransaction.CreateTransaction(current_protocol,senderAcc.account,senderAcc.n_operation+1,nAccountTarget,aWalletKeys.Key[iKey].PrivateKey,amount,fees,Nil);
+      opTx := TOpTransaction.CreateTransaction(current_protocol,senderAcc.account,senderAcc.n_operation+1,nAccountTarget,aWalletKeys.Key[iKey].PrivateKey,amount,fees,LPayload);
       Try
         if operationsComp.AddOperation(True,opTx,errors) then inc(Result);
       finally
@@ -314,6 +387,174 @@ begin
     end;
 
     inc(nRounds);
+  end;
+end;
+
+class function TRandomGenerateOperation.GenerateOpBuyAccount(
+  current_protocol: Word; const operationsComp: TPCOperationsComp;
+  const aWalletKeys: TWalletKeysExt): Integer;
+begin
+  raise Exception.Create('XXXXXX TODO TRandomGenerateOperation');
+end;
+
+class function TRandomGenerateOperation.GenerateOpChangeKey(
+  current_protocol: Word;
+  const operationsComp: TPCOperationsComp;
+  const aWalletKeys: TWalletKeysExt): Integer;
+var nAccount, nAccountTarget : Cardinal;
+  iKey, iNewPubKey : Integer;
+  opCk : TOpChangeKey;
+  senderAcc : TAccount;
+  fees : Int64;
+  errors : String;
+  opClass : TPCOperationClass;
+begin
+  Result := 0;
+  If Not GetRandomSigner(operationsComp,aWalletKeys,iKey,nAccount) then Exit;
+  if Random(1)=0 then begin
+    nAccountTarget := Random( aWalletKeys.AccountsKeyList.AccountKeyList[iKey].Count );
+    opClass := TOpChangeKeySigned;
+  end else begin
+    nAccountTarget := nAccount;
+    opClass := TOpChangeKey;
+  end;
+
+  if Not GetRandomOwnDestination(operationsComp,aWalletKeys,nAccountTarget) then Exit;
+  iNewPubKey := Random(aWalletKeys.Count);
+
+  if iKey=iNewPubKey then Exit;
+
+  senderAcc := operationsComp.SafeBoxTransaction.Account(nAccount);
+  if (Random(500)<1) then fees := 0
+  else fees := 1; // Minimal fee
+  if (senderAcc.balance>2) then begin
+    opCk := TOpChangeKey(opClass.NewInstance).Create(current_protocol,senderAcc.account,senderAcc.n_operation+1,nAccountTarget,
+      aWalletKeys.Key[iKey].PrivateKey,
+      aWalletKeys.Key[iNewPubKey].AccountKey,
+      fees,Nil);
+    Try
+      if operationsComp.AddOperation(True,opCk,errors) then inc(Result);
+    finally
+      opCk.Free;
+    end;
+  end;
+
+end;
+
+class function TRandomGenerateOperation.GenerateOpListAccountForSale(
+  current_protocol: Word; const operationsComp: TPCOperationsComp;
+  const aWalletKeys: TWalletKeysExt): Integer;
+var nSigner, nTarget : Cardinal;
+  iKey, iNewPubKey, i, j : Integer;
+  opList : TOpListAccountForSaleOrSwap;
+  opDelist : TOpDelistAccountForSale;
+  SignerAccount, AuxAccount : TAccount;
+  fees : Int64;
+  errors : String;
+  DoDelist : Boolean;
+begin
+  Result := 0;
+  If Not GetRandomSigner(operationsComp,aWalletKeys,iKey,nSigner) then Exit;
+  SignerAccount := operationsComp.SafeBoxTransaction.Account(nSigner);
+
+  if (Random(500)<1) then fees := 0
+  else fees := 1; // Minimal fee
+
+  if TAccountComp.IsAccountForSaleOrSwap(SignerAccount.accountInfo) then begin
+    // Delist:
+    i := Random( aWalletKeys.AccountsKeyList.AccountKeyList[ iKey ].Count );
+    j := i;
+    DoDelist := False;
+    Repeat
+      AuxAccount := operationsComp.SafeBoxTransaction.Account(j);
+      if TAccountComp.IsAccountForSale(AuxAccount.accountInfo) then begin
+        nTarget := j;
+        DoDelist := True;
+      end;
+
+      //
+      if j<aWalletKeys.AccountsKeyList.AccountKeyList[ iKey ].Count then inc(j)
+      else j:=0;
+    Until (j=i) or (DoDelist);
+    if (DoDelist) then begin
+      try
+        opDelist := TOpDelistAccountForSale.CreateDelistAccountForSale(current_protocol,
+          nSigner,SignerAccount.n_operation+1,nTarget,fees,
+          aWalletKeys.Key[iKey].PrivateKey,
+          GetRandomPayload(''));
+        if operationsComp.AddOperation(True,opDelist,errors) then inc(Result);
+      finally
+        opDelist.Free;
+      end;
+    end;
+
+  end else begin
+
+    if Random(1)=0 then begin
+      nTarget := Random( aWalletKeys.AccountsKeyList.AccountKeyList[iKey].Count );
+    end else begin
+      nTarget := nSigner;
+    end;
+
+
+    opList := Nil;
+    try
+      case Random(4) of
+        0 : // Private sale:
+          begin
+            // Private sale:
+            opList := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(current_protocol,
+              as_ForSale,
+              nSigner, SignerAccount.n_operation+1, nTarget, Random(50000)+1,fees,
+              Random( operationsComp.SafeBoxTransaction.FreezedSafeBox.AccountsCount ),
+              aWalletKeys.Key[ Random(aWalletKeys.Count) ].AccountKey,
+              operationsComp.OperationBlock.block + Random(1000),
+              aWalletKeys.Key[iKey].PrivateKey,
+              CT_HashLock_NUL,
+              GetRandomPayload(''));
+          end;
+        1 : // Publis sale:
+          begin
+            opList := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(current_protocol,
+              as_ForSale,
+              nSigner, SignerAccount.n_operation+1, nTarget, Random(50000)+1,fees,
+              Random( operationsComp.SafeBoxTransaction.FreezedSafeBox.AccountsCount ),
+              CT_TECDSA_Public_Nul,
+              0,
+              aWalletKeys.Key[iKey].PrivateKey,
+              CT_HashLock_NUL,
+              GetRandomPayload(''));
+          end;
+        2 : // Atomic Account Swap
+          begin
+            opList := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(current_protocol,
+              as_ForAtomicAccountSwap,
+              nSigner, SignerAccount.n_operation+1, nTarget, Random(50000)+1,fees,
+              Random( operationsComp.SafeBoxTransaction.FreezedSafeBox.AccountsCount ),
+              aWalletKeys.Key[ Random(aWalletKeys.Count) ].AccountKey,
+              operationsComp.OperationBlock.block + Random(1000),
+              aWalletKeys.Key[iKey].PrivateKey,
+              GetHashLock_Public,
+              GetRandomPayload(''));
+          end;
+        3 : // Atomic Coin Swap
+          begin
+            opList := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(current_protocol,
+              as_ForAtomicCoinSwap,
+              nSigner, SignerAccount.n_operation+1, nTarget, Random(50000)+1,fees,
+              Random( operationsComp.SafeBoxTransaction.FreezedSafeBox.AccountsCount ),
+              CT_TECDSA_Public_Nul,
+              operationsComp.OperationBlock.block + Random(1000),
+              aWalletKeys.Key[iKey].PrivateKey,
+              GetHashLock_Public,
+              GetRandomPayload(''));
+          end;
+      end;
+      if operationsComp.AddOperation(True,opList,errors) then inc(Result);
+    finally
+      opList.Free;
+    end;
+
   end;
 end;
 
@@ -432,6 +673,7 @@ begin
   FInternalLog := TLog.Create(Self);
   FInternalLog.ProcessGlobalLogs := False;
   FInternalLog.OnNewLog := OnInternalLog;
+  FMaxOperationsPerSecond := 0;
   mLogs.Clear;
 end;
 
@@ -443,6 +685,8 @@ begin
 end;
 
 procedure TFRMRandomOperations.bbRandomOperationsClick(Sender: TObject);
+var sValue : String;
+  n : Integer;
 begin
   {$IFDEF TESTNET}
   If IsProcessingRandomOperations then begin
@@ -450,6 +694,12 @@ begin
     bbRandomOperations.Caption:='GENERATE RANDOM';
   end else begin
     if Assigned(FRandomGeneratorThread) then begin
+      sValue := IntToStr(FMaxOperationsPerSecond);
+      if InputQuery('Max Operations per second','Max operations per second (0=Max)',sValue) then begin
+        n := StrToIntDef(sValue,-1);
+        if (n>=0) then FMaxOperationsPerSecond := n;
+      end;
+      FRandomGeneratorThread.MaxOperationsPerSecond := n;
       FRandomGeneratorThread.AllowExecute := True;
       bbRandomOperations.Caption:='STOP RANDOM';
     end else bbRandomOperations.Caption:='???';
@@ -457,6 +707,11 @@ begin
   {$ELSE}
   Raise Exception.Create('Random operations not valid in PRODUCTION MODE');
   {$ENDIF}
+end;
+
+procedure TFRMRandomOperations.cbMaxSpeedModeClick(Sender: TObject);
+begin
+//
 end;
 
 procedure TFRMRandomOperations.FormClose(Sender: TObject; var CloseAction: TCloseAction);
@@ -516,7 +771,7 @@ begin
     FreeAndNil(FRandomGeneratorThread);
   end;
   if (Not DestroyOnly) And Assigned(FSourceNode) And Assigned(FSourceWalletKeys) then begin
-    FRandomGeneratorThread := TRandomGeneratorThread.Create(FSourceNode,FSourceWalletKeys);
+    FRandomGeneratorThread := TRandomGeneratorThread.Create(FSourceNode,FSourceWalletKeys,FMaxOperationsPerSecond);
     FRandomGeneratorThread.OnUpdated:=OnRandomGeneratoThreadUpdated;
   end;
 end;

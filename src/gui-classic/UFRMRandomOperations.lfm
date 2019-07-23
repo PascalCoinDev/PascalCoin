@@ -1,11 +1,15 @@
 object FRMRandomOperations: TFRMRandomOperations
-  Left = 876
+  Left = 744
   Height = 229
-  Top = 391
+  Top = 390
   Width = 439
   Caption = 'Random Operations'
   ClientHeight = 229
   ClientWidth = 439
+  Color = clBtnFace
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'Tahoma'
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
@@ -31,12 +35,15 @@ object FRMRandomOperations: TFRMRandomOperations
       Align = alClient
       AutoSize = False
       Caption = 'WARNING! This form will generate RANDOM operations using your private keys!!!'
+      Color = clBtnFace
       Font.Color = clRed
       Font.Height = -13
+      Font.Name = 'Tahoma'
       Font.Style = [fsBold]
       Layout = tlCenter
       ParentColor = False
       ParentFont = False
+      Transparent = False
       WordWrap = True
     end
   end
@@ -68,6 +75,15 @@ object FRMRandomOperations: TFRMRandomOperations
         Caption = 'Random Operations'
         OnClick = bbRandomOperationsClick
         TabOrder = 0
+      end
+      object cbMaxSpeedMode: TCheckBox
+        Left = 232
+        Height = 19
+        Top = 6
+        Width = 101
+        Caption = 'Max speed mode'
+        OnClick = cbMaxSpeedModeClick
+        TabOrder = 1
       end
     end
     object mLogs: TMemo

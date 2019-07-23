@@ -316,15 +316,18 @@ procedure TFileStorage.DoLoadPendingBufferOperations(OperationsHashTree : TOpera
 Var fs : TFileStream;
   errors : String;
   n : Integer;
+  LCurrentProtocol : Word;
 begin
   LockBlockChainStream;
   Try
     fs := GetPendingBufferOperationsStream;
     fs.Position:=0;
     if fs.Size>0 then begin
-      If OperationsHashTree.LoadOperationsHashTreeFromStream(fs,true,CT_PROTOCOL_3,Nil,errors) then begin
+      if Assigned(Bank) then LCurrentProtocol := Bank.SafeBox.CurrentProtocol
+      else LCurrentProtocol := CT_BUILD_PROTOCOL;
+      If OperationsHashTree.LoadOperationsHashTreeFromStream(fs,true,LCurrentProtocol,Nil,errors) then begin
         TLog.NewLog(ltInfo,ClassName,Format('DoLoadPendingBufferOperations loaded operations:%d',[OperationsHashTree.OperationsCount]));
-      end else TLog.NewLog(ltError,ClassName,Format('DoLoadPendingBufferOperations ERROR: loaded operations:%d errors:%s',[OperationsHashTree.OperationsCount,errors]));
+      end else TLog.NewLog(ltError,ClassName,Format('DoLoadPendingBufferOperations ERROR (Protocol %d): loaded operations:%d errors:%s',[LCurrentProtocol,OperationsHashTree.OperationsCount,errors]));
     end;
   finally
     UnlockBlockChainStream;

@@ -167,6 +167,9 @@ Const
   CT_OpSubtype_BuyTransactionBuyer        = 13;
   CT_OpSubtype_BuyTransactionTarget       = 14;
   CT_OpSubtype_BuyTransactionSeller       = 15;
+  CT_OpSubtype_SwapTransactionSender      = 16;
+  CT_OpSubtype_SwapTransactionTarget      = 17;
+  CT_OpSubtype_SwapTransactionReceiver    = 18;
   CT_OpSubtype_ChangeKey                  = 21;
   CT_OpSubtype_Recover                    = 31;
   CT_OpSubtype_ListAccountForPublicSale   = 41;

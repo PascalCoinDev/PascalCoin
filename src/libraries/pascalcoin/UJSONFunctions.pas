@@ -43,6 +43,8 @@ Type
   TJSONValue = TJSONData;
   {$ENDIF}
 
+  { TPCJSONData }
+
   TPCJSONData = Class
   private
     FParent : TPCJSONData;
@@ -57,6 +59,7 @@ Type
     Function ToJSON(pretty : Boolean) : String;
     Procedure SaveToStream(Stream : TStream);
     Procedure Assign(PCJSONData : TPCJSONData);
+    class function JSONFormatSettings : TFormatSettings;
   End;
 
   TPCJSONDataClass = Class of TPCJSONData;
@@ -177,6 +180,8 @@ Type
   EPCParametresError = Class(Exception);
 
 implementation
+
+var _JSON_FormatSettings : TFormatSettings;
 
 Function UTF8JSONEncode(plainTxt : String; includeSeparator : Boolean) : String;
 Var ws : String;
@@ -998,7 +1003,14 @@ begin
   inherited;
 end;
 
-class function TPCJSONData.ParseJSONValue(Const JSONObject: TBytes): TPCJSONData;
+class function TPCJSONData.JSONFormatSettings: TFormatSettings;
+begin
+  Result := _JSON_FormatSettings;
+end;
+
+
+class function TPCJSONData.ParseJSONValue(const JSONObject: TBytes
+  ): TPCJSONData;
 Var JS : TJSONValue;
   {$IFDEF FPC}
   jss : TJSONStringType;
@@ -1047,7 +1059,8 @@ begin
   Stream.Write(s[Low(s)],Length(s));
 end;
 
-class function TPCJSONData.ParseJSONValue(Const JSONObject: String): TPCJSONData;
+class function TPCJSONData.ParseJSONValue(const JSONObject: String
+  ): TPCJSONData;
 begin
   Result := ParseJSONValue( TEncoding.ASCII.GetBytes(JSONObject) );
 end;
@@ -1064,4 +1077,7 @@ end;
 
 initialization
   _objectsCount := 0;
+  _JSON_FormatSettings := FormatSettings;
+  _JSON_FormatSettings.ThousandSeparator := ',';
+  _JSON_FormatSettings.DecimalSeparator := '.';
 end.

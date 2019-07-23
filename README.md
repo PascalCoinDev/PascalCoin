@@ -36,16 +36,59 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ### Current Build (Pending release date)
 - Upgrade to Protocol 5 (Hard fork)
-- Implementation of PIP-0030 -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0030.md
-- Implementation of PIP-0029 -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0029.md
-- New digest hash value for OP_DATA ( PIP-0016 ) on Protocol 5
+- Implementation of PIP-0032 (Atomic Swaps) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0032.md
+- Implementation of PIP-0030 (Safebox root) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0030.md
+- Implementation of PIP-0029 (Account Seals) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0029.md
+- Implementation of PIP-0024 (Account Data) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0024.md
+- Implementation of PIP-0033 (OpData JOSN-RPC calls) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0033.md
+- Updated "OP_DATA" operation: (PIP-0016)
+  - New digest hash value for OP_DATA ( PIP-0016 ) on Protocol 5
+  - Added "id" field (GUID/UUID type as described on PIP-0016), was missing on V4, added on V5
+- Updated "OP_CHANGE_ACCOUNT_INFO" and "OP_MULTIOPERATION" to allow Account.Data as described on PIP-0024
+  - Added "new_data" field allowing update Account.Data field (0..32 bytes)
+  - Updated digest hash value adding "new_data" field  
 - Hardcoded RandomHash digest/hash values for quick speed safebox check on fresh installation
+- JSON-RPC changes:  
+  - Updated "listaccountforsale" method to allow ATOMIC SWAPS (PIP-0032)
+    - Added "type" to discrimine between kind of listing. Available values are:
+      - "public_sale"
+      - "private_sale": Need to provide a valid "new_enc_pubkey" or "new_b58_pubkey"
+      - "atomic_account_swap": Need to provide a valid "new_enc_pubkey" or "new_b58_pubkey" and the unlocking param "enc_hash_lock"
+      - "atomic_coin_swap": Need to provide a valid "enc_hash_lock"
+      - If no "type" is defined, will automatically select between "public_sale" or "private_sale"
+    - Added "enc_hash_lock" (HEXASTRING) that must be exactly a 32 bytes value (stored as 64 bytes because is HexaString)
+  - Updated "changeaccountinfo" and "signchangeaccountinfo" calls to allow add "new_data" field for change Account.Data value (PIP-0024)
+    - New param "new_data" (HEXASTRING) if provided will change Account Data info. Limited from 0 to 32 bytes.
+  - New method "senddata" as described on PIP-0033 returning an "Operation Object"
+  - New method "signdata" as described on PIP-0033 returning a "Raw Operations Object"
+  - New method "finddataoperations" as described on PIP-0033 returning an ARRAY of "Raw Operations Object"
+    - News params added to original PIP
+      - "depth" (Integer, 1000 by default) : Will search backward in blocks a maximum of "depth" blocks
+      - "startblock" (Integer, optional) : If defined, will start at a specified block, otherwise will start at last "sender" or "target" updated block
+  - Updated "Account Object" return values:
+    - "state": Can return "normal", "listed", "account_swap", "coin_swap"
+    - "hashed_secret" : (HEXASTRING) will contain the SHA256( SECRET ) value that must match Payload received data for Atomic Swaps (only when "state" in "account_swap" or "coin_swap")
+    - "amount_to_swap" : (PASCURRENCY) amount that will be transferred to counterparty account on ATOMIC COIN SWAP ("receiver_swap_account")
+    - "receiver_swap_account": (Integer) Counterpaty account that will receive "amount_to_swap" on ATOMIC COIN SWAP
+    - "data" : (HEXASTRING) will return the Account Data stored with PIP-0024
+    - "seal" : (HEXASTRING) will return the Account Seal stored with PIP-0029
+  - Updated "Operation Object" return values:
+    - "senders" : ARRAY
+      - "data" : OBJECT will store OP_DATA information when operation is OP_DATA type as described on PIP-0016
+        - "id" : (String) String representation of GUID/UUID as "00000000-0000-0000-0000-000000000000" that stores 16 bytes
+        - "sequence" : (Integer)
+        - "type" : (Integer)
+    - "changers" : ARRAY
+      - "new_data" : (HEXASTRING) : If "data" is changed on "account"
+      - "changes" : (String) Description of changes type made
+  - Updated "Multi Operation Object" values:
+    - "changers" : ARRAY
+      - "new_data" : (HEXASTRING) : If "data" is changed on "account"
+
 TODO  
 - TODO: RPC calls for PIP-0029
-- TODO Implement Seal calculation
 - TODO: RPC calls for PIP-0030
 - TODO: RPC calls for PIP-0016
-- TODO: Save data for GUID on OPDATA operation and use GUID for calcs
 
 ### Build 4.0.3.1 - 2019-04-12
 - Fixed core bug #182 in RPC calls

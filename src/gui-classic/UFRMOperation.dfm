@@ -105,6 +105,10 @@ object FRMOperation: TFRMOperation
     TabOrder = 1
     object tsOperation: TTabSheet
       TabVisible = False
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object lblFee: TLabel
         Left = 15
         Top = 220
@@ -295,7 +299,7 @@ object FRMOperation: TFRMOperation
         Top = 7
         Width = 524
         Height = 204
-        ActivePage = tsListAccount
+        ActivePage = tsChangeInfo
         TabOrder = 0
         OnChange = PageControlOpTypeChange
         object tsTransaction: TTabSheet
@@ -533,6 +537,10 @@ object FRMOperation: TFRMOperation
         object tsListAccount: TTabSheet
           Caption = 'List Account'
           ImageIndex = 3
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object lblListAccountErrors: TLabel
             Left = 11
             Top = 7
@@ -1022,12 +1030,24 @@ object FRMOperation: TFRMOperation
             Color = clBtnFace
             ParentColor = False
           end
+          object lblChangeAccountData: TLabel
+            Left = 13
+            Top = 87
+            Width = 100
+            Height = 13
+            Alignment = taRightJustify
+            AutoSize = False
+            Caption = 'Change Data'
+            Color = clBtnFace
+            ParentColor = False
+          end
           object ebChangeName: TEdit
             Left = 118
             Top = 29
             Width = 258
             Height = 21
             TabOrder = 0
+            TextHint = 'Account name (null or 3..32 chars)'
           end
           object ebChangeType: TEdit
             Left = 118
@@ -1035,6 +1055,15 @@ object FRMOperation: TFRMOperation
             Width = 76
             Height = 21
             TabOrder = 1
+            TextHint = '0..65535'
+          end
+          object ebChangeAccountData: TEdit
+            Left = 118
+            Top = 84
+            Width = 386
+            Height = 21
+            TabOrder = 2
+            TextHint = 'Hexadecimal value (0..32 bytes)'
           end
         end
       end
@@ -1052,7 +1081,7 @@ object FRMOperation: TFRMOperation
       ExplicitLeft = 0
       ExplicitTop = 0
       ExplicitWidth = 0
-      ExplicitHeight = 373
+      ExplicitHeight = 0
       object lblGlobalErrors: TLabel
         Left = 40
         Top = 50

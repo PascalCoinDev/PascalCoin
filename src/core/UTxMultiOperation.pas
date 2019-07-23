@@ -318,7 +318,9 @@ var i : Integer;
   b : Byte;
 begin
   // Will save protocol info
-  w := CT_PROTOCOL_3;
+  if FProtocolVersion<CT_PROTOCOL_5 then
+    w := CT_PROTOCOL_3
+  else w := CT_PROTOCOL_5;
   stream.Write(w,SizeOf(w));
   // Save senders count
   w := Length(FData.txSenders);
@@ -352,12 +354,17 @@ begin
     Stream.Write(chi.N_Operation,Sizeof(chi.N_Operation));
     b := 0;
     if (public_key in chi.Changes_type) then b:=b OR $01;
-    if (account_name in chi.changes_type) then b:=b OR $02;
-    if (account_type in chi.changes_type) then b:=b OR $04;
+    if (account_name in chi.Changes_type) then b:=b OR $02;
+    if (account_type in chi.Changes_type) then b:=b OR $04;
+    if (account_data in chi.Changes_type) then b:=b OR $08;
+
     Stream.Write(b,Sizeof(b));
     TStreamOp.WriteAccountKey(Stream,chi.New_Accountkey);
     TStreamOp.WriteAnsiString(Stream,chi.New_Name);
     Stream.Write(chi.New_Type,Sizeof(chi.New_Type));
+    if FProtocolVersion>=CT_PROTOCOL_5 then begin
+      TStreamOp.WriteAnsiString(Stream,chi.New_Data);
+    end;
     If FSaveSignatureValue then begin
       TStreamOp.WriteAnsiString(Stream,chi.Signature.r);
       TStreamOp.WriteAnsiString(Stream,chi.Signature.s);
@@ -368,7 +375,7 @@ end;
 
 function TOpMultiOperation.LoadOpFromStream(Stream: TStream; LoadExtendedData: Boolean): Boolean;
 var i : Integer;
-  w : Word;
+  w, LSavedProtocol : Word;
   txs : TMultiOpSender;
   txr : TMultiOpReceiver;
   chi : TMultiOpChangeInfo;
@@ -394,8 +401,8 @@ begin
   Result := False;
   Try
     // Read protocol info
-    stream.Read(w,SizeOf(w));
-    If w<>CT_PROTOCOL_3 then Raise Exception.Create('Invalid protocol found');
+    stream.Read(LSavedProtocol,SizeOf(LSavedProtocol));
+    If (Not (LSavedProtocol in [CT_PROTOCOL_3,CT_PROTOCOL_5])) then Raise Exception.Create('Invalid protocol found '+IntToStr(LSavedProtocol));
     // Load senders
     stream.Read(w,SizeOf(w));
     If w>CT_MAX_MultiOperation_Senders then Raise Exception.Create('Max senders');
@@ -441,11 +448,17 @@ begin
         if (b AND $01)=$01 then chi.changes_type:=chi.changes_type + [public_key];
         if (b AND $02)=$02 then chi.changes_type:=chi.changes_type + [account_name];
         if (b AND $04)=$04 then chi.changes_type:=chi.changes_type + [account_type];
+        if (b AND $08)=$08 then chi.changes_type:=chi.changes_type + [account_data];
         // Check
-        if (b AND $F8)<>0 then Exit;
+        if (LSavedProtocol=CT_PROTOCOL_3) and ((b AND $F8)<>0) then Exit;
+        if (b AND $F0)<>0 then Exit;
         TStreamOp.ReadAccountKey(Stream,chi.New_Accountkey);
         TStreamOp.ReadAnsiString(Stream,chi.New_Name);
         Stream.Read(chi.New_Type,Sizeof(chi.New_Type));
+        if (LSavedProtocol<>CT_PROTOCOL_3) then begin
+          TStreamOp.ReadAnsiString(Stream,chi.New_Data);
+        end;
+
         TStreamOp.ReadAnsiString(Stream,chi.Signature.r);
         TStreamOp.ReadAnsiString(Stream,chi.Signature.s);
         //
@@ -677,6 +690,18 @@ begin
         Exit;
       end;
     end;
+    // Account Data protection: (PIP-0024)
+    if (account_data in chi.Changes_type) then begin
+      if Length(chi.New_Data)>CT_MaxAccountDataSize then begin
+        errors := 'New data length ('+IntToStr(Length(chi.New_data))+') > '+IntToStr(CT_MaxAccountDataSize);
+        Exit;
+      end;
+    end else begin
+      if Length(chi.New_Data)<>0 then begin
+        errors := 'New data must be null when no data change';
+        Exit;
+      end;
+    end;
     If (chi.changes_type=[]) then begin
       errors := 'No change';
       Exit;
@@ -705,12 +730,16 @@ begin
       changer.accountInfo.price := 0;
       changer.accountInfo.account_to_pay := 0;
       changer.accountInfo.new_publicKey := CT_TECDSA_Public_Nul;
+      changer.accountInfo.hashed_secret := Nil;
     end;
     If (account_name in chi.Changes_type) then begin
       changer.name := chi.New_Name;
     end;
     If (account_type in chi.Changes_type) then begin
       changer.account_type := chi.New_Type;
+    end;
+    If (account_data in chi.Changes_type) then begin
+      changer.account_data := chi.New_Data;
     end;
     If Not AccountTransaction.UpdateAccountInfo(
            AccountPreviousUpdatedBlock,
@@ -998,7 +1027,7 @@ begin
     // check valid Change type
     for ct:=Low(TOpChangeAccountInfoType) to High(TOpChangeAccountInfoType) do begin
       case ct of
-        public_key,account_name,account_type : ; // Allowed
+        public_key,account_name,account_type,account_data : ; // Allowed
       else
         if (ct in changes[i].Changes_type) then begin
           Exit; // Not allowed multioperation change type
