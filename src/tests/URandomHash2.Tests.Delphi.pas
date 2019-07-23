@@ -30,9 +30,9 @@ const
   );
 
   DATA_RANDOMHASH2_STANDARD_EXPECTED : array[1..3] of String = (
-    '0x2710e884255b3be9635a4e1fb2b5ea828eb74b8b8d610d09bc16453c0cf28f80',
-    '0x7846c582ea5283d23b7afedb4424605eb73318717de223c71d3548f18ac68c9a',
-    '0xd82578f3fdd6d9856cfb306f25ed52e4b75efb2a2d2e17362acc3fe522d73d81'
+    '0x78b7b1a58fd073a47b02279080ff5b0d1fb673f0477c18a652801ba8fd0cbac8',
+    '0xf6ad93cb45b8749a1d64cd74cf446975cf782990587f9ddd08dfeee2087e7487',
+    '0xa37a261ff74ccb03bbb64bd1c3da5928f580052adcf7ff48596f4297110f20c2'
   );
 
 { TRandomHash2Test }
@@ -43,10 +43,9 @@ var
   LStr, LStr2 : String;
   LB, LB2 : TBytes;
 begin
-  for i := Low(DATA_RANDOMHASH2_STANDARD_INPUT) to High(DATA_RANDOMHASH2_STANDARD_INPUT) do begin
+  for i := Low(DATA_RANDOMHASH2_STANDARD_INPUT) to High(DATA_RANDOMHASH2_STANDARD_INPUT) do
     AssertEquals(ParseBytes(DATA_RANDOMHASH2_STANDARD_EXPECTED[i]), TRandomHash2.Compute(ParseBytes(DATA_RANDOMHASH2_STANDARD_INPUT[i])));
-  end;
-    //WriteLn(Format('%s', [Bytes2Hex(TRandomHash.Compute(ParseBytes(LCase.Input)), True)]));
+   //WriteLn(Format('%s', [Bytes2Hex(TRandomHash.Compute(ParseBytes(LCase.Input)), True)]));
 end;
 
 

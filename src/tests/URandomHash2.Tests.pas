@@ -47,31 +47,31 @@ const
   { RandomHash Official Values }
 
   DATA_RANDOMHASH_STANDARD : array[1..3] of TTestItem<String, String> = (
-    (Input: '0x0';                                         Expected: '0x2710e884255b3be9635a4e1fb2b5ea828eb74b8b8d610d09bc16453c0cf28f80'),
-    (Input: 'The quick brown fox jumps over the lazy dog'; Expected: '0x7846c582ea5283d23b7afedb4424605eb73318717de223c71d3548f18ac68c9a'),
-    (Input: '0x000102030405060708090a0b0c0d0e0f';          Expected: '0xd82578f3fdd6d9856cfb306f25ed52e4b75efb2a2d2e17362acc3fe522d73d81')
+    (Input: '0x0';                                         Expected: '0x78b7b1a58fd073a47b02279080ff5b0d1fb673f0477c18a652801ba8fd0cbac8'),
+    (Input: 'The quick brown fox jumps over the lazy dog'; Expected: '0xf6ad93cb45b8749a1d64cd74cf446975cf782990587f9ddd08dfeee2087e7487'),
+    (Input: '0x000102030405060708090a0b0c0d0e0f';          Expected: '0xa37a261ff74ccb03bbb64bd1c3da5928f580052adcf7ff48596f4297110f20c2')
   );
 
   {  Hash Test Data }
 
   DATA_RANDOMHASH : array[1..16] of TTestItem<Integer, String> = (
     { NOTE: Input denotes the number of bytes to take from DATA_BYTES when executing test }
-    (Input: 17;  Expected: '0xc32ec411cbfad5b9b3c19a1cf0e8acdb2c4b0990879a7eac5ed8561d3ab93887'),
-    (Input: 31;  Expected: '0x51fffe6ecf05ae4302b06320ed13a183a4be09c7268dab8303b442fceb9a63cc'),
-    (Input: 32;  Expected: '0x8b9baf1aa33dc651dcedcded4e6ad2dfe592df050cba5aae7ba397e3502a7baf'),
-    (Input: 33;  Expected: '0xfbd0c2fc3f8207b9bb1adb587ea2ed4a6de3fc9d3454e375fe577277f0a4f179'),
-    (Input: 34;  Expected: '0x13b0016075a7bb970c7f71bf78b475f3f871dbe85b9d4835ffd48b446d4cbd14'),
-    (Input: 63;  Expected: '0x54f3f0c4cd6ee11ab1d682669f4c012ab8deb8275d5e6219e4aeae8be34ecc8a'),
-    (Input: 64;  Expected: '0x7f7e0095d3185364189a9534b2d9f6f0ef6cf0757027b6af125cbeb92fdcb69c'),
-    (Input: 65;  Expected: '0x102bc1c8860c09b9be241f879fa505290c7b5cc4f083257628c920899f05c305'),
-    (Input: 100; Expected: '0xc3a152da079b8053a41bc784684dae75f10e5d8b8a940f01766dd2d88783e964'),
-    (Input: 117; Expected: '0x59569881237f0cd269dcc8cc59ab3fd9e650ebe8ff737e368150415a9f40b2c4'),
-    (Input: 127; Expected: '0x2a7576d9c7982b12d0f01e66636f8d17600343df150a0c46ab1d1ed78bb7265f'),
-    (Input: 128; Expected: '0x7f7a3ac6924ea521928447e7b96dcc78fbe917c647523c2e77e6065088b23823'),
-    (Input: 129; Expected: '0x8f06802a97a3b0eb5a069c6bc66e2b7660a5b4dd439c64e9af08e32d58f1d771'),
-    (Input: 178; Expected: '0xef4b5a65fd27e6869d1d5d746a6705aa68b0f6e327208b837f9e849241103f00'),
-    (Input: 199; Expected: '0x867bb39399d57cfba6b3deb9988348dc924da41cdff26b40e81773cdb87d39f5'),
-    (Input: 200; Expected: '0x933e6497270d5b0101262d30a9e9bfb1bd47eeddf9eee4b87aba38933bdbb3b5')
+    (Input: 17;  Expected: '0x28e348e6a865e5333e4528e0743b4965248cac41904e11d9011a50cb19513fb6'),
+    (Input: 31;  Expected: '0x656a42062355319bd643a9eff87cc04d14ea442384e7dd0932113911f2823024'),
+    (Input: 32;  Expected: '0xd666b74b91c2ddfb54d663bafb369c53055a875ababbdf1f510db39dd73d86fa'),
+    (Input: 33;  Expected: '0x163b3758fb5dfb896f469f9914df1f43d966a8ff3d1e710ed51fdcfc7e425308'),
+    (Input: 34;  Expected: '0x97a3618f57f9477cd4ba91397cd7856ecd05f8d8206b077828cd52e8ecdcd4c5'),
+    (Input: 63;  Expected: '0x93f998f385413219f4ca9b764e3f69f90100fdf43d4434d0f8fe4bcf4ed98ae6'),
+    (Input: 64;  Expected: '0x709a93634fe1927f4b94570049ebf33ac4c1bd750392df070e44d59261d763e9'),
+    (Input: 65;  Expected: '0x2ef12aab3156b3e25551ed7c1dfbf51c6dfc84510cb6cc46b405bae02578f1b0'),
+    (Input: 100; Expected: '0x6cf7f41cb8ec80ae512e68322f67bf381821599d39a2007cb6d1857b3458947a'),
+    (Input: 117; Expected: '0xa3ce45f763b30dc74181b4ad4a02631318f93cdf3cc4f4054b01561df29c53fd'),
+    (Input: 127; Expected: '0x1c042113abb5c41265916be7092acf2000a148668b0bca9671e9cdbdf13dc99a'),
+    (Input: 128; Expected: '0xda552e27ca43bcfc8c636a4c58041027f9f0a06b0d40031c889fe3a673b89701'),
+    (Input: 129; Expected: '0x4b1b1d161ff80435ea4a6839530258d33d3105b5812def2b1b65bf543df06e62'),
+    (Input: 178; Expected: '0x66cbb61b4b927ca60c4ca04d999b0d8398b9fa9cf1db2866956b246f11cbc692'),
+    (Input: 199; Expected: '0x3705f63d6242acd77fbc262010b34101165c7cc6c0c9bbd607bbc118d1626a5f'),
+    (Input: 200; Expected: '0xcde9da66925e5b363aaca02dac5c473e81ab6a0f1b7a6b6dbac9d0ebec383e22')
   );
 
 { TRandomHash2Test }

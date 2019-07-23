@@ -508,11 +508,11 @@ function TRandomHash2.Expand(const AInput: TBytes; AExpansionFactor: Int32; ASee
 var
   LSize, LBytesToAdd: Int32;
   LOutput, LNextChunk: TBytes;
-  LRandom, LSeed: UInt32;
+  LRandom: UInt32;
   LGen: TMersenne32;
   LDisposables : TDisposables;
 begin
-  LGen := LDisposables.AddObject( TMersenne32.Create (LSeed) ) as TMersenne32;
+  LGen := LDisposables.AddObject( TMersenne32.Create (ASeed) ) as TMersenne32;
   LSize := Length(AInput) + (AExpansionFactor * M);
   LOutput := Copy(AInput);
   LBytesToAdd := LSize - Length(AInput);
