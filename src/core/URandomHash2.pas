@@ -141,7 +141,7 @@ type
       function SetLastDWordLE(const ABytes: TBytes; AValue: UInt32): TBytes; inline;
       function GetLastDWordLE(const ABytes: TBytes) : UInt32; inline;
       function ComputeVeneerRound(const ARoundOutputs : TArray<TBytes>) : TBytes; inline;
-      function Hash(const ABlockHeader: TBytes; ARound: Int32; out AFoundLastRound : Int32) : TArray<TBytes>; overload;
+      function CalculateRoundOutputs(const ABlockHeader: TBytes; ARound: Int32; out ARoundOutputs : TArray<TBytes>) : Boolean; overload;
     public
       constructor Create;
       destructor Destroy; override;
@@ -149,6 +149,7 @@ type
       function HasCachedHash : Boolean; inline;
       function PopCachedHash : TCachedHash; inline;
       function PeekCachedHash : TCachedHash; inline;
+      function TryHash(const ABlockHeader: TBytes; AMaxRound : UInt32; out AHash : TBytes) : Boolean;
       function Hash(const ABlockHeader: TBytes): TBytes; overload; inline;
       class function Compute(const ABlockHeader: TBytes): TBytes; overload; static; inline;
   end;
@@ -215,17 +216,21 @@ begin
  Result := LHasher.Hash(ABlockHeader);
 end;
 
-function TRandomHash2.Hash(const ABlockHeader: TBytes): TBytes;
+function TRandomHash2.TryHash(const ABlockHeader: TBytes; AMaxRound : UInt32; out AHash : TBytes) : Boolean;
 var
-  LAllOutputs: TArray<TBytes>;
+  LOutputs: TArray<TBytes>;
   LSeed: UInt32;
-  LLastRound : Int32;
 begin
-  LLastRound := 0;
-  LAllOutputs := Hash(ABlockHeader, MAX_N, LLastRound);
-  if LLastRound <= 0 then
+  if NOT CalculateRoundOutputs(ABlockHeader, AMaxRound, LOutputs) then
+    Exit(False);
+  AHash := ComputeVeneerRound(LOutputs);
+  Result := True;
+end;
+
+function TRandomHash2.Hash(const ABlockHeader: TBytes): TBytes;
+begin
+  if NOT TryHash(ABlockHeader, MAX_N, Result) then
     raise ERandomHash2.Create('Internal Error: 984F52997131417E8D63C43BD686F5B2'); // Should have found final round!
-  Result := ComputeVeneerRound(LAllOutputs);
 end;
 
 function TRandomHash2.ComputeVeneerRound(const ARoundOutputs : TArray<TBytes>) : TBytes;
@@ -237,10 +242,10 @@ begin
   Result := FHashAlg[0].ComputeBytes(Compress(ARoundOutputs, LSeed)).GetBytes;
 end;
 
-function TRandomHash2.Hash(const ABlockHeader: TBytes; ARound: Int32; out AFoundLastRound : Int32) : TArray<TBytes>;
+function TRandomHash2.CalculateRoundOutputs(const ABlockHeader: TBytes; ARound: Int32; out ARoundOutputs : TArray<TBytes>) : Boolean;
 var
   LRoundOutputs: TList<TBytes>;
-  LNeighbourLastRound : Int32;
+  LNeighbourWasLastRound : Boolean;
   LSeed, LNumNeighbours: UInt32;
   LGen: TMersenne32;
   LRoundInput, LNeighbourNonceHeader, LOutput : TBytes;
@@ -261,10 +266,11 @@ begin
     LSeed := GetLastDWordLE( LRoundInput );
     LGen.Initialize(LSeed);
   end else begin
-    LParentOutputs := Hash(ABlockHeader, ARound - 1, AFoundLastRound);
-    if AFoundLastRound > 0 then
+    if CalculateRoundOutputs(ABlockHeader, ARound - 1, LParentOutputs) = True then begin
       // Previous round was the final round, so just return it's value
-      Exit(LParentOutputs);
+      ARoundOutputs := LParentOutputs;
+      Exit(True);
+    end;
 
     // Add parent round outputs to this round outputs
     LSeed := GetLastDWordLE( LParentOutputs[High(LParentOutputs)] );
@@ -275,11 +281,11 @@ begin
     LNumNeighbours := (LGen.NextUInt32 MOD (MAX_J - MIN_J)) + MIN_J;
     for i := 1 to LNumNeighbours do begin
       LNeighbourNonceHeader := SetLastDWordLE(ABlockHeader, LGen.NextUInt32); // change nonce
-      LNeighborOutputs := Hash(LNeighbourNonceHeader, ARound - 1, LNeighbourLastRound);
+      LNeighbourWasLastRound := CalculateRoundOutputs(LNeighbourNonceHeader, ARound - 1, LNeighborOutputs);
       LRoundOutputs.AddRange(LNeighborOutputs);
 
       // If neighbour was a fully evaluated nonce, cache it for re-use
-      if LNeighbourLastRound > 0 then begin
+      if LNeighbourWasLastRound then begin
         LCachedHash.Nonce := GetLastDWordLE(LNeighbourNonceHeader);
         LCachedHash.Header := LNeighbourNonceHeader;
         LCachedHash.Hash := ComputeVeneerRound(LNeighborOutputs);
@@ -302,12 +308,10 @@ begin
   // Memory-expand the output, add to output list and return output list
   LOutput := Expand(LOutput, MAX_N - ARound, LGen.NextUInt32);
   LRoundOutputs.Add(LOutput);
-  Result := LRoundOutputs.ToArray;
+  ARoundOutputs := LRoundOutputs.ToArray;
 
   // Determine if final round
-  if (ARound = MAX_N) OR ((ARound >= MIN_N) AND (GetLastDWordLE(LOutput) MOD MAX_N = 0)) then
-    AFoundLastRound := ARound
-  else AFoundLastRound := 0;
+  Result := (ARound = MAX_N) OR ((ARound >= MIN_N) AND (GetLastDWordLE(LOutput) MOD MAX_N = 0));
 end;
 
 function TRandomHash2.SetLastDWordLE(const ABytes: TBytes; AValue: UInt32): TBytes;
