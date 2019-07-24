@@ -153,7 +153,10 @@ var
   LNonce : UInt32;
   LLen : Integer;
 begin
-  Result := Copy(AHeader);
+  if Length(AHeader) < 4 then
+    Result := TBytes.Create(0,0,0,0)
+  else
+    Result := Copy(AHeader);
   LNonce := Random(MaxInt);
   // If digest not big enough to contain a nonce, just return the clone
   LLen := Length(Result);
