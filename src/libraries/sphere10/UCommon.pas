@@ -31,6 +31,7 @@ uses
 { CONSTANTS }
 
 const
+  EPSILON : Double = 0.00001;
   MillisPerSecond = 1000;
   MillisPerMinute = 60 * MillisPerSecond;
   MillisPerHour = 60 * MillisPerMinute;
@@ -408,6 +409,44 @@ type
     //returns number of cores: a computer with two hyperthreaded cores will report 4
     class function GetLogicalCPUCount(): Int32; static;
   end;
+
+
+  { TStatistics }
+
+  TStatistics = class
+  private
+    FCount : UInt32; // Number of items in the analysis
+    FTotal : Double; // Total of data
+    FTotal2 : Double; // Sum of sqaures of data
+    FProduct : Double; // Product of data
+    FRecip : Double; // Sum of reciprocals of data
+    FMin : Double;  // Min datum
+    FMax : Double;  // Min datum
+  public
+    property SampleCount : UInt32 read FCount;
+    property Sum : Double read FTotal;
+    property SquaredSum : Double read FTotal2;
+    property Product : Double read FProduct;
+    property ReciprocalSum : Double read FRecip;
+    property Minimum : Double read FMin;
+    property Maximum : Double read FMax;
+    constructor Create; overload;
+    procedure Reset;
+    function Mean : Double; inline;
+    function PopulationVariance : Double; inline;
+    function PopulationStandardDeviation : Double; inline;
+    function PopulationVariationCoefficient : Double; inline;
+    function GeometricMean : Double; inline;
+    function HarmonicMean : Double; inline;
+    function MinimumError : Double; inline;
+    function MaximumError : Double; inline;
+    function SampleVariance : Double; inline;
+    function SampleStandardDeviation : Double; inline;
+    function SampleVariationCoefficient : Double; inline;
+    procedure AddDatum(ADatum : Double); overload; inline;
+    procedure AddDatum(ADatum : Double; ANumTimes : UInt32); overload;
+    procedure RemoveDatum(ADatum : Double);
+end;
 
 resourcestring
   sNotImplemented = 'Not implemented';
@@ -2011,6 +2050,164 @@ begin
   Result := 1;
 {$ENDIF WINDOWS}
 {$ENDIF FPC}
+end;
+
+{ TStatistics }
+
+constructor TStatistics.Create;
+begin
+  Reset;
+end;
+
+function TStatistics.Mean : Double;
+begin
+  Result := NaN;
+  if SampleCount > 0 then
+    Result := Sum / SampleCount;
+end;
+
+function TStatistics.PopulationStandardDeviation : Double;
+begin
+  Result := Sqrt(PopulationVariance);
+end;
+
+function TStatistics.PopulationVariance : Double;
+begin
+  if SampleCount > 0 then
+    Result :=  ((SampleCount * SquaredSum) - Sum * Sum) / (SampleCount * SampleCount)
+  else
+    Result := Nan;
+end;
+
+function TStatistics.PopulationVariationCoefficient : Double;
+begin
+  if SampleCount > 0 then
+    Result :=  (PopulationVariance / Mean) * 100
+  else
+    Result := Nan;
+end;
+
+function TStatistics.GeometricMean : Double;
+begin
+  if SampleCount > 0 then
+    Result :=  Power(Product, 1.0 / SampleCount)
+  else
+    Result := Nan;
+end;
+
+function TStatistics.HarmonicMean : Double;
+begin
+  if SampleCount > 0 then
+    Result := SampleCount / ReciprocalSum
+  else
+    Result := Nan;
+end;
+
+function TStatistics.MinimumError : Double;
+begin
+  if (Mean * Mean) > (EPSILON * EPSILON) then
+    Result := 100.0 * (Minimum - Mean) / Mean
+  else
+    Result := Nan;
+end;
+
+function TStatistics.MaximumError : Double;
+begin
+  if (Mean * Mean) > (EPSILON * EPSILON) then
+    Result := 100.0 * (Maximum - Mean) / Mean
+  else
+    Result := Nan;
+end;
+
+function TStatistics.SampleStandardDeviation : Double;
+begin
+  if SampleCount >= 2 then
+    Result := Sqrt(SampleVariance)
+  else
+    Result := Nan;
+end;
+
+function TStatistics.SampleVariance : Double;
+begin
+  if SampleCount > 0 then
+    Result := ((SampleCount * SquaredSum) - Sum * Sum) / ((SampleCount - 1) * (SampleCount - 1))
+  else
+    Result := Nan;
+end;
+
+function TStatistics.SampleVariationCoefficient : Double;
+begin
+  if SampleCount >= 2 then
+    Result := 100 * (SampleStandardDeviation / Mean)
+  else
+    Result := Nan;
+end;
+
+procedure TStatistics.Reset;
+begin
+  FCount := 0;
+  FMin := 0.0;
+  FMax := 0.0;
+  FTotal := 0.0;
+  FTotal2 := 0.0;
+  FRecip := 0.0;
+  FProduct := 1.0;
+end;
+
+procedure TStatistics.AddDatum(ADatum : Double);
+begin
+  Inc(FCount);
+  FTotal := FTotal + ADatum;
+  FTotal2 := FTotal + ADatum * ADatum;
+  if IsNaN(FRecip) OR ((ADatum * ADatum) < (EPSILON * EPSILON)) then
+    FRecip := double.NaN
+  else
+    FRecip := FRecip + (1.0 / ADatum);
+  FProduct := FProduct * ADatum;
+  if (FCount = 1) then begin
+    // first data so set _min/_max
+    FMin := ADatum;
+    FMax := ADatum;
+  end else begin
+    // adjust _min/_max boundaries if necessary
+    if (ADatum < FMin) then
+      FMin := ADatum;
+    if (ADatum > FMax) then
+      FMax := ADatum;
+  end;
+end;
+
+procedure TStatistics.AddDatum(ADatum : Double; ANumTimes : UInt32);
+begin
+  FCount := FCount + ANumTimes;
+  FTotal := FTotal + ADatum * ANumTimes;
+  FTotal2 := FTotal2 + ADatum * ADatum * ANumTimes;
+  if IsNaN(FRecip) OR ((ADatum * ADatum) < (EPSILON * EPSILON)) then
+    FRecip := NaN
+  else
+    FRecip := FRecip + (1.0 / ADatum) * ANumTimes;
+  FProduct := FProduct * Power(ADatum, ANumTimes);
+  if (FCount = 1) then begin
+    // first data so set _min/_max
+    FMin := ADatum;
+    FMax := ADatum;
+  end else begin
+    // adjust _min/_max boundaries if necessary
+    if ADatum < FMin then
+        FMin := ADatum;
+    if ADatum > FMax then
+        FMax := ADatum;
+  end;
+end;
+
+procedure TStatistics.RemoveDatum(ADatum : Double);
+begin
+    Dec(FCount);
+    FTotal := FTotal - ADatum;
+    FTotal2 := FTotal2 - ADatum * ADatum;
+    FRecip := FRecip - (1.0 / ADatum);
+    if ABS(ADatum) > EPSILON then
+     FProduct := FProduct / ADatum;
 end;
 
 initialization
