@@ -97,7 +97,7 @@
 
 interface
 
-uses {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF}, SysUtils, HlpIHash, HlpBits, HlpHashFactory;
+uses {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF}, UCommon, SysUtils, HlpIHash, HlpBits, HlpHashFactory;
 
 type
 
@@ -125,6 +125,7 @@ type
       FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
       FCachedHeaderTemplate : TBytes;
       FCachedHashes : TList<TCachedHash>;
+      FMemStats : TStatistics;
 
       function GetCachedHashes : TArray<TCachedHash>; inline;
       function ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes; inline;
@@ -167,7 +168,7 @@ resourcestring
 
 implementation
 
-uses UCommon, UMemory, URandomHash;
+uses UMemory, URandomHash;
 
 { TRandomHash2 }
 
@@ -194,6 +195,7 @@ begin
   FHashAlg[15] := THashFactory.TCrypto.CreateMD5();
   FHashAlg[16] := THashFactory.TCrypto.CreateRadioGatun32();
   FHashAlg[17] := THashFactory.TCrypto.CreateWhirlPool();
+  FMemStats := TStatistics.Create;
 end;
 
 destructor TRandomHash2.Destroy;
@@ -205,6 +207,7 @@ begin
  for i := Low(FHashAlg) to High(FHashAlg) do
    FHashAlg[i] := nil;
  inherited Destroy;
+ FreeAndNil(FMemStats);
 end;
 
 class function TRandomHash2.Compute(const ABlockHeader: TBytes): TBytes;
@@ -236,10 +239,14 @@ end;
 function TRandomHash2.ComputeVeneerRound(const ARoundOutputs : TArray<TBytes>) : TBytes;
 var
   LSeed : UInt32;
+  LSize, i : UInt32;
 begin
   LSeed := GetLastDWordLE(ARoundOutputs[High(ARoundOutputs)]);
   // Final "veneer" round of RandomHash is a SHA2-256 of compression of prior round outputs
   Result := FHashAlg[0].ComputeBytes(Compress(ARoundOutputs, LSeed)).GetBytes;
+  LSize := 0;
+  for i := Low(ARoundOutputs) to High(ARoundOutputs) do
+    Inc(LSize, Length(ARoundOutputs[i]));
 end;
 
 function TRandomHash2.CalculateRoundOutputs(const ABlockHeader: TBytes; ARound: Int32; out ARoundOutputs : TArray<TBytes>) : Boolean;
