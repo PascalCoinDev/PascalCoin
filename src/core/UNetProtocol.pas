@@ -1779,6 +1779,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     headerdata : TNetHeaderData;
     request_id : Cardinal;
     c : Cardinal;
+    LRandomMilis : Integer;
   Begin
     Result := False;
     sendData := TMemoryStream.Create;
@@ -1793,6 +1794,12 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       if (from_block>c) or (c>=safebox_blockscount) then begin
         errors := 'ERROR DEV 20170727-1';
         Exit;
+      end;
+      if Connection.NetProtocolVersion.protocol_version<9 then begin
+        // On old versions of nodes, must wait some seconds in order to do not reach max calls limits (limited to 30 calls in 30 seconds, so, at least wait 1 second per call)
+        LRandomMilis := 1000 + Random(500);
+        TLog.NewLog(ltDebug,CT_LogSender,Format('Sleep %d miliseconds prior to Call to GetSafeBox from blocks %d to %d of %d',[LRandomMilis,from_block,c,safebox_blockscount]));
+        Sleep(LRandomMilis);
       end;
       TLog.NewLog(ltDebug,CT_LogSender,Format('Call to GetSafeBox from blocks %d to %d of %d',[from_block,c,safebox_blockscount]));
       request_id := TNetData.NetData.NewRequestId;
@@ -3609,6 +3616,9 @@ Begin
       //
       If (isFirstHello) And (HeaderData.header_type = ntp_response) then begin
         DoProcess_GetPendingOperations;
+      end;
+      if (isFirstHello) then begin
+        TLog.NewLog(ltInfo,ClassName,Format('New connection from %s version %s protocol (%d,%d)',[ClientRemoteAddr,ClientAppVersion,NetProtocolVersion.protocol_version,NetProtocolVersion.protocol_available]));
       end;
     end else begin
       TLog.NewLog(lterror,Classname,'Error decoding operations of HELLO: '+errors);
