@@ -1095,14 +1095,27 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     json, newJson : TPCJSONObject;
     ipInfo : TIpInfo;
     aDisconnectedOnly : Boolean;
+    LShowDetailedStats : Boolean;
   begin
+    if params.AsBoolean('clean',False) then begin
+      GetResultObject.GetAsVariant('cleaned').Value := TNetData.NetData.IpInfos.CleanLastStats;
+      Exit;
+    end;
+    if params.AsBoolean('clear',False) then begin
+      GetResultObject.GetAsVariant('cleared').Value := TNetData.NetData.IpInfos.Count;
+      TNetData.NetData.IpInfos.Clear;
+      Exit;
+    end;
+    LShowDetailedStats := params.AsBoolean('detailed-stats',False);
     aip := Trim(params.AsString('ip',''));
     if aip<>'' then begin
       json := TNetData.NetData.IpInfos.Lock(aip,False);
       Try
         newJson := TPCJSONObject.Create;
         newJson.GetAsVariant('ip').Value := aip;
-        newJson.GetAsObject('values').Assign(json);
+        if LShowDetailedStats then begin
+          newJson.GetAsObject('values').Assign(json);
+        end;
         GetResultArray.Insert(GetResultArray.Count,newJson);
       Finally
         TNetData.NetData.IpInfos.Unlock;
@@ -1115,16 +1128,15 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           if (Not aDisconnectedOnly) Or (Assigned(ipInfo.json.FindName('disconnect'))) then begin
             newJson := TPCJSONObject.Create;
             newJson.GetAsVariant('ip').Value := ipInfo.ip;
-            newJson.GetAsObject('values').Assign(ipInfo.json);
+            if LShowDetailedStats then begin
+              newJson.GetAsObject('values').Assign(ipInfo.json);
+            end;
             GetResultArray.Insert(GetResultArray.Count,newJson);
           end;
         Finally
           TNetData.NetData.IpInfos.Unlock;
         End;
       end;
-    end;
-    if params.AsBoolean('clear',False) then begin
-      TNetData.NetData.IpInfos.Clear;
     end;
   end;
 

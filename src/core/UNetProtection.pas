@@ -33,7 +33,7 @@ unit UNetProtection;
 
 interface
 
-Uses SysUtils, Classes, UJSONFunctions, UThread, ULog, UTime,
+Uses SysUtils, Classes, UJSONFunctions, UThread, ULog, UTime, UBaseTypes,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 
@@ -57,6 +57,7 @@ Type
     FMaxStatsLifetime: Integer;
     FMaxStatsCount: Integer;
     FDeletedStatsCount: Int64;
+    FLastCleanedTC : TTickCount;
     function Find(lockedList : TList<Pointer>; const ip : String; var Index: Integer): Boolean;
     procedure SetMaxStatsLifetime(const Value: Integer);
     procedure CleanLastStatsByUpdatedTimestamp(minTimestamp : Integer);
@@ -75,6 +76,7 @@ Type
     function Count : Integer;
     property MaxStatsLifetime : Integer read FMaxStatsLifetime write SetMaxStatsLifetime;
     property MaxStatsCount : Integer read FMaxStatsCount write SetMaxStatsCount;
+    function CleanLastStats : Integer;
   End;
 
 implementation
@@ -82,6 +84,19 @@ implementation
 { TIpInfos }
 
 Type PIpInfo = ^TIpInfo;
+
+function TIpInfos.CleanLastStats : Integer;
+var LLastCleanedCount : Integer;
+  LCurrTimestamp : Integer;
+begin
+  LCurrTimestamp := UnivDateTimeToUnix( DateTime2UnivDateTime(now) );
+  LLastCleanedCount := FDeletedStatsCount;
+  CleanLastStatsByUpdatedTimestamp(LCurrTimestamp - FMaxStatsLifetime);
+  Result := FDeletedStatsCount-LLastCleanedCount;
+  if (LLastCleanedCount<>FDeletedStatsCount) then begin
+    TLog.NewLog(ltInfo,ClassName,Format('Cleaned %d old stats',[(FDeletedStatsCount-LLastCleanedCount)]));
+  end;
+end;
 
 procedure TIpInfos.CleanLastStatsByUpdatedTimestamp(minTimestamp: Integer);
 var jsonOpType, relJsonOpType, relJsonNetTransferType : TPCJSONObject;
@@ -118,6 +133,7 @@ begin
         end;
       end;
     end;
+    FLastCleanedTC := TPlatform.GetTickCount;
   Finally
     FThreadList.UnlockList;
   End;
@@ -137,6 +153,7 @@ begin
     end;
     FDeletedStatsCount := 0;
     list.Clear;
+    FLastCleanedTC := TPlatform.GetTickCount;
   Finally
     FThreadList.UnlockList;
   End;
@@ -154,6 +171,7 @@ begin
   FMaxStatsLifetime := 60*60*24; // Last values by 24 hours by default
   FMaxStatsCount := 1000; // Max 1000 last stats by default
   FDeletedStatsCount := 0;
+  FLastCleanedTC := TPlatform.GetTickCount;
 end;
 
 destructor TIpInfos.Destroy;
@@ -355,6 +373,9 @@ begin
           lasts.Delete(0);
         end;
       end;
+    end;
+    if TPlatform.GetElapsedMilliseconds( FLastCleanedTC ) > (FMaxStatsLifetime * 1000) then begin ///  Clean stats auto
+      CleanLastStats;
     end;
   Finally
     Unlock;
