@@ -386,7 +386,7 @@ begin
   OnProgressNotify(Self,'Reading Hardcoded RandomHash file',0,0);
   LRaw := TCrypto.HexaToRaw(CT_Hardcoded_RandomHash_Table_HASH);
   TPascalCoinProtocol.AllowUseHardcodedRandomHashTable(
-    TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data'+PathDelim+CT_Hardcoded_RandomHash_Table_Filename,
+    ExtractFileDir(Application.ExeName)+PathDelim+CT_Hardcoded_RandomHash_Table_Filename,
     LRaw );
   // Read Operations saved from disk
   TNode.Node.InitSafeboxAndOperations($FFFFFFFF,OnProgressNotify); // New Build 2.1.4 to load pending operations buffer
