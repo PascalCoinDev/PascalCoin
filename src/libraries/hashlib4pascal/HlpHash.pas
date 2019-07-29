@@ -1,6 +1,6 @@
 unit HlpHash;
 
-{$I ..\Include\HashLib.inc}
+{$I HashLib.inc}
 
 interface
 
