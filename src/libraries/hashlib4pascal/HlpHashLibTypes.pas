@@ -5,12 +5,7 @@ unit HlpHashLibTypes;
 interface
 
 uses
-
-{$IFDEF HAS_UNITSCOPE}
-  System.SysUtils
-{$ELSE}
-    SysUtils
-{$ENDIF HAS_UNITSCOPE};
+  SysUtils;
 
 type
 

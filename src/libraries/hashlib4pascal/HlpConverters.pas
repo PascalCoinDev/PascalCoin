@@ -5,15 +5,9 @@ unit HlpConverters;
 interface
 
 uses
-{$IFDEF HAS_UNITSCOPE}
-  System.Classes,
-  System.StrUtils,
-  System.SysUtils,
-{$ELSE}
   Classes,
   StrUtils,
   SysUtils,
-{$ENDIF HAS_UNITSCOPE}
   HlpHashLibTypes,
   HlpBits,
   HlpBitConverter;
@@ -25,76 +19,84 @@ type
   TConverters = class sealed(TObject)
 
   strict private
-    class function SplitString(const S: String; Delimiter: Char)
+    class function SplitString(const AInput: String; ADelimiter: Char)
       : THashLibStringArray; static;
 
 {$IFDEF DEBUG}
-    class procedure Check(const a_in: THashLibByteArray;
-      a_in_size, a_out_size: Int32); overload; static;
+    class procedure Check(const AInput: THashLibByteArray;
+      AInputSize, AOutputSize: Int32); overload; static;
 {$ENDIF DEBUG}
-    class procedure swap_copy_str_to_u32(src: Pointer; src_index: Int32;
-      dest: Pointer; dest_index: Int32; length: Int32); static;
+    class procedure swap_copy_str_to_u32(ASource: Pointer; ASourceIndex: Int32;
+      ADestination: Pointer; ADestinationIndex: Int32; ASize: Int32); static;
 
-    class procedure swap_copy_str_to_u64(src: Pointer; src_index: Int32;
-      dest: Pointer; dest_index: Int32; length: Int32); static;
+    class procedure swap_copy_str_to_u64(ASource: Pointer; ASourceIndex: Int32;
+      ADestination: Pointer; ADestinationIndex: Int32; ASize: Int32); static;
 
   public
 
-    class function be2me_32(x: UInt32): UInt32; static; inline;
+    class function be2me_32(AInput: UInt32): UInt32; static; inline;
 
-    class function be2me_64(x: UInt64): UInt64; static; inline;
+    class function be2me_64(AInput: UInt64): UInt64; static; inline;
 
-    class function le2me_32(x: UInt32): UInt32; static; inline;
+    class function le2me_32(AInput: UInt32): UInt32; static; inline;
 
-    class function le2me_64(x: UInt64): UInt64; static; inline;
+    class function le2me_64(AInput: UInt64): UInt64; static; inline;
 
-    class procedure be32_copy(src: Pointer; src_index: Int32; dest: Pointer;
-      dest_index: Int32; length: Int32); static; inline;
-
-    class procedure le32_copy(src: Pointer; src_index: Int32; dest: Pointer;
-      dest_index: Int32; length: Int32); static; inline;
-
-    class procedure be64_copy(src: Pointer; src_index: Int32; dest: Pointer;
-      dest_index: Int32; length: Int32); static; inline;
-
-    class procedure le64_copy(src: Pointer; src_index: Int32; dest: Pointer;
-      dest_index: Int32; length: Int32); static; inline;
-
-    class function ReadBytesAsUInt32LE(a_in: PByte; a_index: Int32): UInt32;
+    class procedure be32_copy(ASource: Pointer; ASourceIndex: Int32;
+      ADestination: Pointer; ADestinationIndex: Int32; ASize: Int32);
       static; inline;
 
-    class function ReadBytesAsUInt64LE(a_in: PByte; a_index: Int32): UInt64;
+    class procedure le32_copy(ASource: Pointer; ASourceIndex: Int32;
+      ADestination: Pointer; ADestinationIndex: Int32; ASize: Int32);
       static; inline;
 
-    class function ReadUInt32AsBytesLE(a_in: UInt32): THashLibByteArray;
+    class procedure be64_copy(ASource: Pointer; ASourceIndex: Int32;
+      ADestination: Pointer; ADestinationIndex: Int32; ASize: Int32);
+      static; inline;
+
+    class procedure le64_copy(ASource: Pointer; ASourceIndex: Int32;
+      ADestination: Pointer; ADestinationIndex: Int32; ASize: Int32);
+      static; inline;
+
+    class function ReadBytesAsUInt32LE(AInput: PByte; AIndex: Int32): UInt32;
+      static; inline;
+
+    class function ReadBytesAsUInt64LE(AInput: PByte; AIndex: Int32): UInt64;
+      static; inline;
+
+    class function ReadUInt32AsBytesLE(AInput: UInt32): THashLibByteArray;
       overload; static; inline;
 
-    class function ReadUInt64AsBytesLE(a_in: UInt64): THashLibByteArray;
+    class function ReadUInt64AsBytesLE(AInput: UInt64): THashLibByteArray;
       overload; static; inline;
 
-    class procedure ReadUInt32AsBytesLE(a_in: UInt32;
-      const a_out: THashLibByteArray; a_index: Int32); overload; static; inline;
+    class procedure ReadUInt32AsBytesLE(AInput: UInt32;
+      const AOutput: THashLibByteArray; AIndex: Int32); overload;
+      static; inline;
 
-    class procedure ReadUInt32AsBytesBE(a_in: UInt32;
-      const a_out: THashLibByteArray; a_index: Int32); overload; static; inline;
+    class procedure ReadUInt32AsBytesBE(AInput: UInt32;
+      const AOutput: THashLibByteArray; AIndex: Int32); overload;
+      static; inline;
 
-    class procedure ReadUInt64AsBytesLE(a_in: UInt64;
-      const a_out: THashLibByteArray; a_index: Int32); overload; static; inline;
+    class procedure ReadUInt64AsBytesLE(AInput: UInt64;
+      const AOutput: THashLibByteArray; AIndex: Int32); overload;
+      static; inline;
 
-    class procedure ReadUInt64AsBytesBE(a_in: UInt64;
-      const a_out: THashLibByteArray; a_index: Int32); overload; static; inline;
+    class procedure ReadUInt64AsBytesBE(AInput: UInt64;
+      const AOutput: THashLibByteArray; AIndex: Int32); overload;
+      static; inline;
 
-    class function ConvertStringToBytes(const a_in: String;
-      const a_encoding: TEncoding): THashLibByteArray; overload; static;
+    class function ConvertStringToBytes(const AInput: String;
+      const AEncoding: TEncoding): THashLibByteArray; overload; static;
 
-    class function ConvertBytesToString(const a_in: THashLibByteArray;
-      const a_encoding: TEncoding): String; overload; static;
+    class function ConvertBytesToString(const AInput: THashLibByteArray;
+      const AEncoding: TEncoding): String; overload; static;
 
-    class function ConvertHexStringToBytes(const a_in: String)
+    class function ConvertHexStringToBytes(const AInput: String)
       : THashLibByteArray; static; inline;
 
-    class function ConvertBytesToHexString(const a_in: THashLibByteArray;
-      a_group: Boolean): String; static;
+    class function ConvertBytesToHexString(const AInput: THashLibByteArray;
+      AGroup: Boolean): String; static;
 
   end;
 
@@ -104,400 +106,434 @@ implementation
 
 {$IFDEF DEBUG}
 
-class procedure TConverters.Check(const a_in: THashLibByteArray;
-  a_in_size, a_out_size: Int32);
+class procedure TConverters.Check(const AInput: THashLibByteArray;
+  AInputSize, AOutputSize: Int32);
 begin
-  System.Assert(((System.length(a_in) * a_in_size) mod a_out_size) = 0);
+  System.Assert(((System.length(AInput) * AInputSize) mod AOutputSize) = 0);
 end;
 
 {$ENDIF DEBUG}
 
-class procedure TConverters.swap_copy_str_to_u32(src: Pointer; src_index: Int32;
-  dest: Pointer; dest_index: Int32; length: Int32);
+class procedure TConverters.swap_copy_str_to_u32(ASource: Pointer;
+  ASourceIndex: Int32; ADestination: Pointer; ADestinationIndex: Int32;
+  ASize: Int32);
 var
-  lsrc, ldest, lend: PCardinal;
-  lbsrc: PByte;
-  lLength: Int32;
+  LPtrSourceStart, LPtrDestinationStart, LPtrSourceEnd: PCardinal;
+  LPtrByteSourceStart: PByte;
+  LLength: Int32;
 begin
   // if all pointers and length are 32-bits aligned
-  if ((Int32(PByte(dest) - PByte(0)) or (PByte(src) - PByte(0)) or src_index or
-    dest_index or length) and 3) = 0 then
+  if ((Int32(PByte(ADestination) - PByte(0)) or (PByte(ASource) - PByte(0)) or
+    ASourceIndex or ADestinationIndex or ASize) and 3) = 0 then
   begin
     // copy memory as 32-bit words
-    lsrc := PCardinal(PByte(src) + src_index);
-    lend := PCardinal((PByte(src) + src_index) + length);
-    ldest := PCardinal(PByte(dest) + dest_index);
-    while lsrc < lend do
+    LPtrSourceStart := PCardinal(PByte(ASource) + ASourceIndex);
+    LPtrSourceEnd := PCardinal((PByte(ASource) + ASourceIndex) + ASize);
+    LPtrDestinationStart := PCardinal(PByte(ADestination) + ADestinationIndex);
+    while LPtrSourceStart < LPtrSourceEnd do
     begin
-      ldest^ := TBits.ReverseBytesUInt32(lsrc^);
-      System.Inc(ldest);
-      System.Inc(lsrc);
+      LPtrDestinationStart^ := TBits.ReverseBytesUInt32(LPtrSourceStart^);
+      System.Inc(LPtrDestinationStart);
+      System.Inc(LPtrSourceStart);
     end;
   end
   else
   begin
-    lbsrc := (PByte(src) + src_index);
-
-    lLength := length + dest_index;
-    while dest_index < lLength do
+    LPtrByteSourceStart := (PByte(ASource) + ASourceIndex);
+    LLength := ASize + ADestinationIndex;
+    while ADestinationIndex < LLength do
     begin
-
-      PByte(dest)[dest_index xor 3] := lbsrc^;
-
-      System.Inc(lbsrc);
-      System.Inc(dest_index);
+      PByte(ADestination)[ADestinationIndex xor 3] := LPtrByteSourceStart^;
+      System.Inc(LPtrByteSourceStart);
+      System.Inc(ADestinationIndex);
     end;
-
   end;
 end;
 
-class procedure TConverters.swap_copy_str_to_u64(src: Pointer; src_index: Int32;
-  dest: Pointer; dest_index: Int32; length: Int32);
+class procedure TConverters.swap_copy_str_to_u64(ASource: Pointer;
+  ASourceIndex: Int32; ADestination: Pointer; ADestinationIndex: Int32;
+  ASize: Int32);
 var
-  lsrc, ldest, lend: PUInt64;
-  lbsrc: PByte;
-  lLength: Int32;
+  LPtrSourceStart, LPtrDestinationStart, LPtrSourceEnd: PUInt64;
+  LPtrByteSourceStart: PByte;
+  LLength: Int32;
 begin
   // if all pointers and length are 64-bits aligned
-  if ((Int32(PByte(dest) - PByte(0)) or (PByte(src) - PByte(0)) or src_index or
-    dest_index or length) and 7) = 0 then
+  if ((Int32(PByte(ADestination) - PByte(0)) or (PByte(ASource) - PByte(0)) or
+    ASourceIndex or ADestinationIndex or ASize) and 7) = 0 then
   begin
     // copy aligned memory block as 64-bit integers
-    lsrc := PUInt64(PByte(src) + src_index);
-    lend := PUInt64((PByte(src) + src_index) + length);
-    ldest := PUInt64(PByte(dest) + dest_index);
-    while lsrc < lend do
+    LPtrSourceStart := PUInt64(PByte(ASource) + ASourceIndex);
+    LPtrSourceEnd := PUInt64((PByte(ASource) + ASourceIndex) + ASize);
+    LPtrDestinationStart := PUInt64(PByte(ADestination) + ADestinationIndex);
+    while LPtrSourceStart < LPtrSourceEnd do
     begin
-      ldest^ := TBits.ReverseBytesUInt64(lsrc^);
-      System.Inc(ldest);
-      System.Inc(lsrc);
+      LPtrDestinationStart^ := TBits.ReverseBytesUInt64(LPtrSourceStart^);
+      System.Inc(LPtrDestinationStart);
+      System.Inc(LPtrSourceStart);
     end;
   end
   else
   begin
-    lbsrc := (PByte(src) + src_index);
-
-    lLength := length + dest_index;
-    while dest_index < lLength do
+    LPtrByteSourceStart := (PByte(ASource) + ASourceIndex);
+    LLength := ASize + ADestinationIndex;
+    while ADestinationIndex < LLength do
     begin
-
-      PByte(dest)[dest_index xor 7] := lbsrc^;
-
-      System.Inc(lbsrc);
-      System.Inc(dest_index);
+      PByte(ADestination)[ADestinationIndex xor 7] := LPtrByteSourceStart^;
+      System.Inc(LPtrByteSourceStart);
+      System.Inc(ADestinationIndex);
     end;
-
   end;
 end;
 
-class function TConverters.be2me_32(x: UInt32): UInt32;
+class function TConverters.be2me_32(AInput: UInt32): UInt32;
 begin
   if TBitConverter.IsLittleEndian then
-    result := TBits.ReverseBytesUInt32(x)
+  begin
+    result := TBits.ReverseBytesUInt32(AInput)
+  end
   else
-    result := x;
+  begin
+    result := AInput;
+  end;
 end;
 
-class function TConverters.be2me_64(x: UInt64): UInt64;
+class function TConverters.be2me_64(AInput: UInt64): UInt64;
 begin
   if TBitConverter.IsLittleEndian then
-    result := TBits.ReverseBytesUInt64(x)
+  begin
+    result := TBits.ReverseBytesUInt64(AInput)
+  end
   else
-    result := x;
+  begin
+    result := AInput;
+  end;
 end;
 
-class procedure TConverters.be32_copy(src: Pointer; src_index: Int32;
-  dest: Pointer; dest_index: Int32; length: Int32);
+class procedure TConverters.be32_copy(ASource: Pointer; ASourceIndex: Int32;
+  ADestination: Pointer; ADestinationIndex: Int32; ASize: Int32);
 begin
   if TBitConverter.IsLittleEndian then
-    swap_copy_str_to_u32(src, src_index, dest, dest_index, length)
+  begin
+    swap_copy_str_to_u32(ASource, ASourceIndex, ADestination,
+      ADestinationIndex, ASize)
+  end
   else
-    System.Move(Pointer(PByte(src) + src_index)^,
-      Pointer(PByte(dest) + dest_index)^, length);
+  begin
+    System.Move(Pointer(PByte(ASource) + ASourceIndex)^,
+      Pointer(PByte(ADestination) + ADestinationIndex)^, ASize);
+  end;
 end;
 
-class procedure TConverters.be64_copy(src: Pointer; src_index: Int32;
-  dest: Pointer; dest_index: Int32; length: Int32);
+class procedure TConverters.be64_copy(ASource: Pointer; ASourceIndex: Int32;
+  ADestination: Pointer; ADestinationIndex: Int32; ASize: Int32);
 begin
   if TBitConverter.IsLittleEndian then
-    swap_copy_str_to_u64(src, src_index, dest, dest_index, length)
+  begin
+    swap_copy_str_to_u64(ASource, ASourceIndex, ADestination,
+      ADestinationIndex, ASize)
+  end
   else
-    System.Move(Pointer(PByte(src) + src_index)^,
-      Pointer(PByte(dest) + dest_index)^, length);
+  begin
+    System.Move(Pointer(PByte(ASource) + ASourceIndex)^,
+      Pointer(PByte(ADestination) + ADestinationIndex)^, ASize);
+  end;
 end;
 
-class function TConverters.le2me_32(x: UInt32): UInt32;
+class function TConverters.le2me_32(AInput: UInt32): UInt32;
 begin
   if not TBitConverter.IsLittleEndian then
-    result := TBits.ReverseBytesUInt32(x)
+  begin
+    result := TBits.ReverseBytesUInt32(AInput)
+  end
   else
-    result := x;
+  begin
+    result := AInput;
+  end;
 end;
 
-class function TConverters.le2me_64(x: UInt64): UInt64;
+class function TConverters.le2me_64(AInput: UInt64): UInt64;
 begin
   if not TBitConverter.IsLittleEndian then
-    result := TBits.ReverseBytesUInt64(x)
+  begin
+    result := TBits.ReverseBytesUInt64(AInput)
+  end
   else
-    result := x;
+  begin
+    result := AInput;
+  end;
 end;
 
-class procedure TConverters.le32_copy(src: Pointer; src_index: Int32;
-  dest: Pointer; dest_index: Int32; length: Int32);
+class procedure TConverters.le32_copy(ASource: Pointer; ASourceIndex: Int32;
+  ADestination: Pointer; ADestinationIndex: Int32; ASize: Int32);
 begin
   if TBitConverter.IsLittleEndian then
-    System.Move(Pointer(PByte(src) + src_index)^,
-      Pointer(PByte(dest) + dest_index)^, length)
+  begin
+    System.Move(Pointer(PByte(ASource) + ASourceIndex)^,
+      Pointer(PByte(ADestination) + ADestinationIndex)^, ASize)
+  end
   else
-    swap_copy_str_to_u32(src, src_index, dest, dest_index, length);
+  begin
+    swap_copy_str_to_u32(ASource, ASourceIndex, ADestination,
+      ADestinationIndex, ASize);
+  end;
 end;
 
-class procedure TConverters.le64_copy(src: Pointer; src_index: Int32;
-  dest: Pointer; dest_index: Int32; length: Int32);
+class procedure TConverters.le64_copy(ASource: Pointer; ASourceIndex: Int32;
+  ADestination: Pointer; ADestinationIndex: Int32; ASize: Int32);
 begin
   if TBitConverter.IsLittleEndian then
-    System.Move(Pointer(PByte(src) + src_index)^,
-      Pointer(PByte(dest) + dest_index)^, length)
+  begin
+    System.Move(Pointer(PByte(ASource) + ASourceIndex)^,
+      Pointer(PByte(ADestination) + ADestinationIndex)^, ASize)
+  end
   else
-    swap_copy_str_to_u64(src, src_index, dest, dest_index, length);
+  begin
+    swap_copy_str_to_u64(ASource, ASourceIndex, ADestination,
+      ADestinationIndex, ASize);
+  end;
 end;
 
-class function TConverters.ReadBytesAsUInt32LE(a_in: PByte;
-  a_index: Int32): UInt32;
+class function TConverters.ReadBytesAsUInt32LE(AInput: PByte;
+  AIndex: Int32): UInt32;
 begin
 {$IFDEF FPC}
 {$IFDEF FPC_REQUIRES_PROPER_ALIGNMENT}
-  System.Move(a_in[a_index], result, System.SizeOf(UInt32));
+  System.Move(AInput[AIndex], result, System.SizeOf(UInt32));
 {$ELSE}
-  result := PCardinal(a_in + a_index)^;
+  result := PCardinal(AInput + AIndex)^;
 {$ENDIF FPC_REQUIRES_PROPER_ALIGNMENT}
 {$ELSE}
   // Delphi does not handle unaligned memory access on ARM Devices properly.
-  System.Move(a_in[a_index], result, System.SizeOf(UInt32));
+  System.Move(AInput[AIndex], result, System.SizeOf(UInt32));
 {$ENDIF FPC}
   result := le2me_32(result);
 end;
 
-class function TConverters.ReadBytesAsUInt64LE(a_in: PByte;
-  a_index: Int32): UInt64;
+class function TConverters.ReadBytesAsUInt64LE(AInput: PByte;
+  AIndex: Int32): UInt64;
 begin
 {$IFDEF FPC}
 {$IFDEF FPC_REQUIRES_PROPER_ALIGNMENT}
-  System.Move(a_in[a_index], result, System.SizeOf(UInt64));
+  System.Move(AInput[AIndex], result, System.SizeOf(UInt64));
 {$ELSE}
-  result := PUInt64(a_in + a_index)^;
+  result := PUInt64(AInput + AIndex)^;
 {$ENDIF FPC_REQUIRES_PROPER_ALIGNMENT}
 {$ELSE}
   // Delphi does not handle unaligned memory access on ARM Devices properly.
-  System.Move(a_in[a_index], result, System.SizeOf(UInt64));
+  System.Move(AInput[AIndex], result, System.SizeOf(UInt64));
 {$ENDIF FPC}
   result := le2me_64(result);
 end;
 
-class function TConverters.ReadUInt32AsBytesLE(a_in: UInt32): THashLibByteArray;
+class function TConverters.ReadUInt32AsBytesLE(AInput: UInt32)
+  : THashLibByteArray;
 begin
-  result := THashLibByteArray.Create(Byte(a_in), Byte(a_in shr 8),
-    Byte(a_in shr 16), Byte(a_in shr 24));
+  result := THashLibByteArray.Create(Byte(AInput), Byte(AInput shr 8),
+    Byte(AInput shr 16), Byte(AInput shr 24));
 end;
 
-class function TConverters.ReadUInt64AsBytesLE(a_in: UInt64): THashLibByteArray;
+class function TConverters.ReadUInt64AsBytesLE(AInput: UInt64)
+  : THashLibByteArray;
 begin
-  result := THashLibByteArray.Create(Byte(a_in), Byte(a_in shr 8),
-    Byte(a_in shr 16), Byte(a_in shr 24), Byte(a_in shr 32), Byte(a_in shr 40),
-    Byte(a_in shr 48), Byte(a_in shr 56));
+  result := THashLibByteArray.Create(Byte(AInput), Byte(AInput shr 8),
+    Byte(AInput shr 16), Byte(AInput shr 24), Byte(AInput shr 32),
+    Byte(AInput shr 40), Byte(AInput shr 48), Byte(AInput shr 56));
 end;
 
-class procedure TConverters.ReadUInt32AsBytesLE(a_in: UInt32;
-  const a_out: THashLibByteArray; a_index: Int32);
+class procedure TConverters.ReadUInt32AsBytesLE(AInput: UInt32;
+  const AOutput: THashLibByteArray; AIndex: Int32);
 begin
-  a_out[a_index] := Byte(a_in);
-  a_out[a_index + 1] := Byte(a_in shr 8);
-  a_out[a_index + 2] := Byte(a_in shr 16);
-  a_out[a_index + 3] := Byte(a_in shr 24);
+  AOutput[AIndex] := Byte(AInput);
+  AOutput[AIndex + 1] := Byte(AInput shr 8);
+  AOutput[AIndex + 2] := Byte(AInput shr 16);
+  AOutput[AIndex + 3] := Byte(AInput shr 24);
 end;
 
-class procedure TConverters.ReadUInt32AsBytesBE(a_in: UInt32;
-  const a_out: THashLibByteArray; a_index: Int32);
+class procedure TConverters.ReadUInt32AsBytesBE(AInput: UInt32;
+  const AOutput: THashLibByteArray; AIndex: Int32);
 begin
-  a_out[a_index] := Byte(a_in shr 24);
-  a_out[a_index + 1] := Byte(a_in shr 16);
-  a_out[a_index + 2] := Byte(a_in shr 8);
-  a_out[a_index + 3] := Byte(a_in);
+  AOutput[AIndex] := Byte(AInput shr 24);
+  AOutput[AIndex + 1] := Byte(AInput shr 16);
+  AOutput[AIndex + 2] := Byte(AInput shr 8);
+  AOutput[AIndex + 3] := Byte(AInput);
 end;
 
-class procedure TConverters.ReadUInt64AsBytesLE(a_in: UInt64;
-  const a_out: THashLibByteArray; a_index: Int32);
+class procedure TConverters.ReadUInt64AsBytesLE(AInput: UInt64;
+  const AOutput: THashLibByteArray; AIndex: Int32);
 begin
-  a_out[a_index] := Byte(a_in);
-  a_out[a_index + 1] := Byte(a_in shr 8);
-  a_out[a_index + 2] := Byte(a_in shr 16);
-  a_out[a_index + 3] := Byte(a_in shr 24);
-  a_out[a_index + 4] := Byte(a_in shr 32);
-  a_out[a_index + 5] := Byte(a_in shr 40);
-  a_out[a_index + 6] := Byte(a_in shr 48);
-  a_out[a_index + 7] := Byte(a_in shr 56);
+  AOutput[AIndex] := Byte(AInput);
+  AOutput[AIndex + 1] := Byte(AInput shr 8);
+  AOutput[AIndex + 2] := Byte(AInput shr 16);
+  AOutput[AIndex + 3] := Byte(AInput shr 24);
+  AOutput[AIndex + 4] := Byte(AInput shr 32);
+  AOutput[AIndex + 5] := Byte(AInput shr 40);
+  AOutput[AIndex + 6] := Byte(AInput shr 48);
+  AOutput[AIndex + 7] := Byte(AInput shr 56);
 end;
 
-class procedure TConverters.ReadUInt64AsBytesBE(a_in: UInt64;
-  const a_out: THashLibByteArray; a_index: Int32);
+class procedure TConverters.ReadUInt64AsBytesBE(AInput: UInt64;
+  const AOutput: THashLibByteArray; AIndex: Int32);
 begin
-  a_out[a_index] := Byte(a_in shr 56);
-  a_out[a_index + 1] := Byte(a_in shr 48);
-  a_out[a_index + 2] := Byte(a_in shr 40);
-  a_out[a_index + 3] := Byte(a_in shr 32);
-  a_out[a_index + 4] := Byte(a_in shr 24);
-  a_out[a_index + 5] := Byte(a_in shr 16);
-  a_out[a_index + 6] := Byte(a_in shr 8);
-  a_out[a_index + 7] := Byte(a_in);
+  AOutput[AIndex] := Byte(AInput shr 56);
+  AOutput[AIndex + 1] := Byte(AInput shr 48);
+  AOutput[AIndex + 2] := Byte(AInput shr 40);
+  AOutput[AIndex + 3] := Byte(AInput shr 32);
+  AOutput[AIndex + 4] := Byte(AInput shr 24);
+  AOutput[AIndex + 5] := Byte(AInput shr 16);
+  AOutput[AIndex + 6] := Byte(AInput shr 8);
+  AOutput[AIndex + 7] := Byte(AInput);
 end;
 
-class function TConverters.ConvertBytesToHexString
-  (const a_in: THashLibByteArray; a_group: Boolean): String;
+class function TConverters.ConvertBytesToHexString(const AInput
+  : THashLibByteArray; AGroup: Boolean): String;
 var
-  I: Int32;
-  hex, workstring: String;
-  ar: THashLibStringArray;
+  LIdx: Int32;
+  LHexString, LWorkString: String;
+  LTempArray: THashLibStringArray;
 begin
+  LHexString := UpperCase(TBitConverter.ToString(AInput));
 
-  hex := UpperCase(TBitConverter.ToString(a_in));
-
-  if System.length(a_in) = 1 then
+  if System.length(AInput) = 1 then
   begin
-    result := hex;
+    result := LHexString;
     Exit;
   end;
 
-  if System.length(a_in) = 2 then
+  if System.length(AInput) = 2 then
   begin
-    result := StringReplace(hex, '-', '', [rfIgnoreCase, rfReplaceAll]);
+    result := StringReplace(LHexString, '-', '', [rfIgnoreCase, rfReplaceAll]);
     Exit;
   end;
 
-  if (a_group) then
+  if (AGroup) then
   begin
 {$IFDEF DEBUG}
-    Check(a_in, 1, 4);
+    Check(AInput, 1, 4);
 {$ENDIF DEBUG}
-    workstring := UpperCase(TBitConverter.ToString(a_in));
+    LWorkString := UpperCase(TBitConverter.ToString(AInput));
 
-    ar := TConverters.SplitString(workstring, '-');
-    hex := '';
-    I := 0;
+    LTempArray := TConverters.SplitString(LWorkString, '-');
+    LHexString := '';
+    LIdx := 0;
 
-    while I < (System.length(ar) shr 2) do
+    while LIdx < (System.length(LTempArray) shr 2) do
     begin
-      if (I <> 0) then
-        hex := hex + '-';
-      hex := hex + ar[I * 4] + ar[I * 4 + 1] + ar[I * 4 + 2] + ar[I * 4 + 3];
-
-      System.Inc(I);
+      if (LIdx <> 0) then
+      begin
+        LHexString := LHexString + '-';
+      end;
+      LHexString := LHexString + LTempArray[LIdx * 4] + LTempArray[LIdx * 4 + 1]
+        + LTempArray[LIdx * 4 + 2] + LTempArray[LIdx * 4 + 3];
+      System.Inc(LIdx);
     end;
-
   end
   else
   begin
-    hex := StringReplace(hex, '-', '', [rfIgnoreCase, rfReplaceAll]);
+    LHexString := StringReplace(LHexString, '-', '',
+      [rfIgnoreCase, rfReplaceAll]);
   end;
-  result := hex;
+  result := LHexString;
 end;
 
-class function TConverters.ConvertHexStringToBytes(const a_in: String)
+class function TConverters.ConvertHexStringToBytes(const AInput: String)
   : THashLibByteArray;
 var
-  l_in: String;
+  LInput: String;
 begin
-  l_in := a_in;
-  l_in := StringReplace(l_in, '-', '', [rfIgnoreCase, rfReplaceAll]);
+  LInput := AInput;
+  LInput := StringReplace(LInput, '-', '', [rfIgnoreCase, rfReplaceAll]);
 
 {$IFDEF DEBUG}
-  System.Assert(System.length(l_in) and 1 = 0);
+  System.Assert(System.length(LInput) and 1 = 0);
 {$ENDIF DEBUG}
-  System.SetLength(result, System.length(l_in) shr 1);
+  System.SetLength(result, System.length(LInput) shr 1);
 
 {$IFNDEF NEXTGEN}
-  HexToBin(PChar(l_in), @result[0], System.length(result));
+  HexToBin(PChar(LInput), @result[0], System.length(result));
 {$ELSE}
-  HexToBin(PChar(l_in), 0, result, 0, System.length(l_in));
+  HexToBin(PChar(LInput), 0, result, 0, System.length(LInput));
 {$ENDIF !NEXTGEN}
 end;
 
-class function TConverters.ConvertStringToBytes(const a_in: String;
-  const a_encoding: TEncoding): THashLibByteArray;
+class function TConverters.ConvertStringToBytes(const AInput: String;
+  const AEncoding: TEncoding): THashLibByteArray;
 begin
-
-  if a_encoding = Nil then
+  if AEncoding = Nil then
   begin
     raise EArgumentNilHashLibException.CreateRes(@SEncodingInstanceNil);
   end;
 
 {$IFDEF FPC}
-  result := a_encoding.GetBytes(UnicodeString(a_in));
+  result := AEncoding.GetBytes(UnicodeString(AInput));
 {$ELSE}
-  result := a_encoding.GetBytes(a_in);
+  result := AEncoding.GetBytes(AInput);
 {$ENDIF FPC}
 end;
 
-class function TConverters.ConvertBytesToString(const a_in: THashLibByteArray;
-  const a_encoding: TEncoding): String;
+class function TConverters.ConvertBytesToString(const AInput: THashLibByteArray;
+  const AEncoding: TEncoding): String;
 begin
-
-  if a_encoding = Nil then
+  if AEncoding = Nil then
   begin
     raise EArgumentNilHashLibException.CreateRes(@SEncodingInstanceNil);
   end;
 
 {$IFDEF FPC}
-  result := String(a_encoding.GetString(a_in));
+  result := String(AEncoding.GetString(AInput));
 {$ELSE}
-  result := a_encoding.GetString(a_in);
+  result := AEncoding.GetString(AInput);
 {$ENDIF FPC}
 end;
 
-class function TConverters.SplitString(const S: String; Delimiter: Char)
+class function TConverters.SplitString(const AInput: String; ADelimiter: Char)
   : THashLibStringArray;
 var
-  PosStart, PosDel, SplitPoints, I, LowPoint, HighPoint, Len: Int32;
+  LPosStart, LPosSkip, LSplitPoints, LIdx, LLowIndex, LHighIndex,
+    LLength: Int32;
 begin
   result := Nil;
-  if S <> '' then
+  if AInput <> '' then
   begin
     { Determine the length of the resulting array }
-    SplitPoints := 0;
+    LSplitPoints := 0;
 {$IFDEF DELPHIXE3_UP}
-    LowPoint := System.Low(S);
-    HighPoint := System.High(S);
+    LLowIndex := System.Low(AInput);
+    LHighIndex := System.High(AInput);
 {$ELSE}
-    LowPoint := 1;
-    HighPoint := System.length(S);
+    LLowIndex := 1;
+    LHighIndex := System.length(AInput);
 {$ENDIF DELPHIXE3_UP}
-    for I := LowPoint to HighPoint do
+    for LIdx := LLowIndex to LHighIndex do
     begin
-      if (Delimiter = S[I]) then
-        System.Inc(SplitPoints);
+      if (ADelimiter = AInput[LIdx]) then
+      begin
+        System.Inc(LSplitPoints);
+      end;
     end;
 
-    System.SetLength(result, SplitPoints + 1);
+    System.SetLength(result, LSplitPoints + 1);
 
     { Split the string and fill the resulting array }
 
-    I := 0;
-    Len := System.length(Delimiter);
+    LIdx := 0;
+    LLength := System.length(ADelimiter);
 {$IFDEF DELPHIXE3_UP}
-    PosStart := System.Low(S);
-    HighPoint := System.High(S);
+    LPosStart := System.Low(AInput);
+    LHighIndex := System.High(AInput);
 {$ELSE}
-    PosStart := 1;
-    HighPoint := System.length(S);
+    LPosStart := 1;
+    LHighIndex := System.length(AInput);
 {$ENDIF DELPHIXE3_UP}
-    PosDel := System.Pos(Delimiter, S);
-    while PosDel > 0 do
+    LPosSkip := System.Pos(ADelimiter, AInput);
+    while LPosSkip > 0 do
     begin
-      result[I] := System.Copy(S, PosStart, PosDel - PosStart);
-      PosStart := PosDel + Len;
-      PosDel := PosEx(Delimiter, S, PosStart);
-      System.Inc(I);
+      result[LIdx] := System.Copy(AInput, LPosStart, LPosSkip - LPosStart);
+      LPosStart := LPosSkip + LLength;
+      LPosSkip := PosEx(ADelimiter, AInput, LPosStart);
+      System.Inc(LIdx);
     end;
-    result[I] := System.Copy(S, PosStart, HighPoint);
+    result[LIdx] := System.Copy(AInput, LPosStart, LHighIndex);
   end;
 end;
 

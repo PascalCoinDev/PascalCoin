@@ -50,8 +50,8 @@ type
 
   public
     constructor Create();
-    procedure TransformBytes(const a_data: THashLibByteArray;
-      a_index, a_length: Int32); override;
+    procedure TransformBytes(const AData: THashLibByteArray;
+      AIndex, ALength: Int32); override;
     function Clone(): IHash; override;
 
   end;
@@ -70,8 +70,8 @@ type
 
   public
     constructor Create();
-    procedure TransformBytes(const a_data: THashLibByteArray;
-      a_index, a_length: Int32); override;
+    procedure TransformBytes(const AData: THashLibByteArray;
+      AIndex, ALength: Int32); override;
     function Clone(): IHash; override;
 
   end;
@@ -187,11 +187,11 @@ end;
 
 function TCRC32_PKZIP.Clone(): IHash;
 var
-  HashInstance: TCRC32_PKZIP;
+  LHashInstance: TCRC32_PKZIP;
 begin
-  HashInstance := TCRC32_PKZIP.Create();
-  HashInstance.FCurrentCRC := FCurrentCRC;
-  Result := HashInstance as IHash;
+  LHashInstance := TCRC32_PKZIP.Create();
+  LHashInstance.FCurrentCRC := FCurrentCRC;
+  Result := LHashInstance as IHash;
   Result.BufferSize := BufferSize;
 end;
 
@@ -200,10 +200,10 @@ begin
   Inherited Create();
 end;
 
-procedure TCRC32_PKZIP.TransformBytes(const a_data: THashLibByteArray;
-  a_index, a_length: Int32);
+procedure TCRC32_PKZIP.TransformBytes(const AData: THashLibByteArray;
+  AIndex, ALength: Int32);
 begin
-  LocalCRCCompute(FCRC32_PKZIP_Table, a_data, a_index, a_length);
+  LocalCRCCompute(FCRC32_PKZIP_Table, AData, AIndex, ALength);
 end;
 
 class constructor TCRC32_PKZIP.CRC32_PKZIP();
@@ -215,11 +215,11 @@ end;
 
 function TCRC32_CASTAGNOLI.Clone(): IHash;
 var
-  HashInstance: TCRC32_CASTAGNOLI;
+  LHashInstance: TCRC32_CASTAGNOLI;
 begin
-  HashInstance := TCRC32_CASTAGNOLI.Create();
-  HashInstance.FCurrentCRC := FCurrentCRC;
-  Result := HashInstance as IHash;
+  LHashInstance := TCRC32_CASTAGNOLI.Create();
+  LHashInstance.FCurrentCRC := FCurrentCRC;
+  Result := LHashInstance as IHash;
   Result.BufferSize := BufferSize;
 end;
 
@@ -228,10 +228,10 @@ begin
   Inherited Create();
 end;
 
-procedure TCRC32_CASTAGNOLI.TransformBytes(const a_data: THashLibByteArray;
-  a_index, a_length: Int32);
+procedure TCRC32_CASTAGNOLI.TransformBytes(const AData: THashLibByteArray;
+  AIndex, ALength: Int32);
 begin
-  LocalCRCCompute(FCRC32_CASTAGNOLI_Table, a_data, a_index, a_length);
+  LocalCRCCompute(FCRC32_CASTAGNOLI_Table, AData, AIndex, ALength);
 end;
 
 class constructor TCRC32_CASTAGNOLI.CRC32_CASTAGNOLI();
@@ -240,4 +240,3 @@ begin
 end;
 
 end.
-

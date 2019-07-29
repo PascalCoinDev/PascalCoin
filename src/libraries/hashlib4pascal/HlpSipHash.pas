@@ -38,27 +38,27 @@ type
 
 {$ENDREGION}
     procedure Compress(); inline;
-    procedure CompressTimes(a_times: Int32); inline;
-    procedure ProcessBlock(a_m: UInt64); inline;
-    procedure ByteUpdate(a_b: Byte); inline;
+    procedure CompressTimes(ATimes: Int32); inline;
+    procedure ProcessBlock(ABlock: UInt64); inline;
+    procedure ByteUpdate(AByte: Byte); inline;
     procedure Finish();
 
     function GetKeyLength(): TNullableInteger;
     function GetKey: THashLibByteArray;
-    procedure SetKey(const value: THashLibByteArray);
+    procedure SetKey(const AValue: THashLibByteArray);
 
   strict protected
-
-    Fm_v0, Fm_v1, Fm_v2, Fm_v3, Fm_key0, Fm_key1, Fm_total_length: UInt64;
-    F_cr, F_fr, Fm_idx: Int32;
-    Fm_buf: THashLibByteArray;
+  var
+    FV0, FV1, FV2, FV3, FKey0, FKey1, FTotalLength: UInt64;
+    FCompressionRounds, FFinalizationRounds, FIdx: Int32;
+    FBuffer: THashLibByteArray;
 
   public
-    constructor Create(a_compression_rounds: Int32 = 2;
-      a_finalization_rounds: Int32 = 4);
+    constructor Create(ACompressionRounds: Int32 = 2;
+      AFinalizationRounds: Int32 = 4);
     procedure Initialize(); override;
-    procedure TransformBytes(const a_data: THashLibByteArray;
-      a_index, a_length: Int32); override;
+    procedure TransformBytes(const AData: THashLibByteArray;
+      AIndex, ALength: Int32); override;
     function TransformFinal: IHashResult; override;
     property KeyLength: TNullableInteger read GetKeyLength;
     property Key: THashLibByteArray read GetKey write SetKey;
@@ -84,21 +84,21 @@ implementation
 
 function TSipHash2_4.Clone(): IHash;
 var
-  HashInstance: TSipHash2_4;
+  LHashInstance: TSipHash2_4;
 begin
-  HashInstance := TSipHash2_4.Create();
-  HashInstance.Fm_v0 := Fm_v0;
-  HashInstance.Fm_v1 := Fm_v1;
-  HashInstance.Fm_v2 := Fm_v2;
-  HashInstance.Fm_v3 := Fm_v3;
-  HashInstance.Fm_key0 := Fm_key0;
-  HashInstance.Fm_key1 := Fm_key1;
-  HashInstance.Fm_total_length := Fm_total_length;
-  HashInstance.F_cr := F_cr;
-  HashInstance.F_fr := F_fr;
-  HashInstance.Fm_idx := Fm_idx;
-  HashInstance.Fm_buf := System.Copy(Fm_buf);
-  result := HashInstance as IHash;
+  LHashInstance := TSipHash2_4.Create();
+  LHashInstance.FV0 := FV0;
+  LHashInstance.FV1 := FV1;
+  LHashInstance.FV2 := FV2;
+  LHashInstance.FV3 := FV3;
+  LHashInstance.FKey0 := FKey0;
+  LHashInstance.FKey1 := FKey1;
+  LHashInstance.FTotalLength := FTotalLength;
+  LHashInstance.FCompressionRounds := FCompressionRounds;
+  LHashInstance.FFinalizationRounds := FFinalizationRounds;
+  LHashInstance.FIdx := FIdx;
+  LHashInstance.FBuffer := System.Copy(FBuffer);
+  result := LHashInstance as IHash;
   result.BufferSize := BufferSize;
 end;
 
@@ -112,143 +112,138 @@ end;
 
 procedure TSipHash.Compress;
 begin
-  Fm_v0 := Fm_v0 + Fm_v1;
-  Fm_v2 := Fm_v2 + Fm_v3;
-  Fm_v1 := TBits.RotateLeft64(Fm_v1, 13);
-  Fm_v3 := TBits.RotateLeft64(Fm_v3, 16);
-  Fm_v1 := Fm_v1 xor Fm_v0;
-  Fm_v3 := Fm_v3 xor Fm_v2;
-  Fm_v0 := TBits.RotateLeft64(Fm_v0, 32);
-  Fm_v2 := Fm_v2 + Fm_v1;
-  Fm_v0 := Fm_v0 + Fm_v3;
-  Fm_v1 := TBits.RotateLeft64(Fm_v1, 17);
-  Fm_v3 := TBits.RotateLeft64(Fm_v3, 21);
-  Fm_v1 := Fm_v1 xor Fm_v2;
-  Fm_v3 := Fm_v3 xor Fm_v0;
-  Fm_v2 := TBits.RotateLeft64(Fm_v2, 32);
+  FV0 := FV0 + FV1;
+  FV2 := FV2 + FV3;
+  FV1 := TBits.RotateLeft64(FV1, 13);
+  FV3 := TBits.RotateLeft64(FV3, 16);
+  FV1 := FV1 xor FV0;
+  FV3 := FV3 xor FV2;
+  FV0 := TBits.RotateLeft64(FV0, 32);
+  FV2 := FV2 + FV1;
+  FV0 := FV0 + FV3;
+  FV1 := TBits.RotateLeft64(FV1, 17);
+  FV3 := TBits.RotateLeft64(FV3, 21);
+  FV1 := FV1 xor FV2;
+  FV3 := FV3 xor FV0;
+  FV2 := TBits.RotateLeft64(FV2, 32);
 end;
 
-procedure TSipHash.CompressTimes(a_times: Int32);
+procedure TSipHash.CompressTimes(ATimes: Int32);
 var
-  i: Int32;
+  LIdx: Int32;
 begin
-  i := 0;
-  while i < a_times do
+  LIdx := 0;
+  while LIdx < ATimes do
   begin
     Compress();
-    System.Inc(i);
+    System.Inc(LIdx);
   end;
 end;
 
-procedure TSipHash.ProcessBlock(a_m: UInt64);
+procedure TSipHash.ProcessBlock(ABlock: UInt64);
 begin
-  Fm_v3 := Fm_v3 xor a_m;
-  CompressTimes(F_cr);
-  Fm_v0 := Fm_v0 xor a_m;
+  FV3 := FV3 xor ABlock;
+  CompressTimes(FCompressionRounds);
+  FV0 := FV0 xor ABlock;
 end;
 
-procedure TSipHash.ByteUpdate(a_b: Byte);
+procedure TSipHash.ByteUpdate(AByte: Byte);
 var
-  ptr_Fm_buf: PByte;
-  m: UInt64;
+  LPtrBuffer: PByte;
+  LBlock: UInt64;
 begin
-
-  Fm_buf[Fm_idx] := a_b;
-  System.Inc(Fm_idx);
-  if Fm_idx >= 8 then
+  FBuffer[FIdx] := AByte;
+  System.Inc(FIdx);
+  if FIdx >= 8 then
   begin
-    ptr_Fm_buf := PByte(Fm_buf);
-    m := TConverters.ReadBytesAsUInt64LE(ptr_Fm_buf, 0);
-    ProcessBlock(m);
-    Fm_idx := 0;
+    LPtrBuffer := PByte(FBuffer);
+    LBlock := TConverters.ReadBytesAsUInt64LE(LPtrBuffer, 0);
+    ProcessBlock(LBlock);
+    FIdx := 0;
   end;
-
 end;
 
-constructor TSipHash.Create(a_compression_rounds, a_finalization_rounds: Int32);
+constructor TSipHash.Create(ACompressionRounds, AFinalizationRounds: Int32);
 begin
   Inherited Create(8, 8);
-  Fm_key0 := KEY0;
-  Fm_key1 := KEY1;
-  F_cr := a_compression_rounds;
-  F_fr := a_finalization_rounds;
-  System.SetLength(Fm_buf, 8);
+  FKey0 := KEY0;
+  FKey1 := KEY1;
+  FCompressionRounds := ACompressionRounds;
+  FFinalizationRounds := AFinalizationRounds;
+  System.SetLength(FBuffer, 8);
 end;
 
 procedure TSipHash.Finish;
 var
-  b: UInt64;
+  LFinalBlock: UInt64;
 begin
+  LFinalBlock := UInt64(FTotalLength and $FF) shl 56;
 
-  b := UInt64(Fm_total_length and $FF) shl 56;
-
-  if (Fm_idx <> 0) then
+  if (FIdx <> 0) then
   begin
-
-    case (Fm_idx) of
+    case (FIdx) of
 
       7:
         begin
-          b := b or (UInt64(Fm_buf[6]) shl 48);
-          b := b or (UInt64(Fm_buf[5]) shl 40);
-          b := b or (UInt64(Fm_buf[4]) shl 32);
-          b := b or (UInt64(Fm_buf[3]) shl 24);
-          b := b or (UInt64(Fm_buf[2]) shl 16);
-          b := b or (UInt64(Fm_buf[1]) shl 8);
-          b := b or (UInt64(Fm_buf[0]));
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[6]) shl 48);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[5]) shl 40);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[4]) shl 32);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[3]) shl 24);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[2]) shl 16);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[1]) shl 8);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[0]));
         end;
       6:
         begin
-          b := b or (UInt64(Fm_buf[5]) shl 40);
-          b := b or (UInt64(Fm_buf[4]) shl 32);
-          b := b or (UInt64(Fm_buf[3]) shl 24);
-          b := b or (UInt64(Fm_buf[2]) shl 16);
-          b := b or (UInt64(Fm_buf[1]) shl 8);
-          b := b or (UInt64(Fm_buf[0]));
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[5]) shl 40);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[4]) shl 32);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[3]) shl 24);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[2]) shl 16);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[1]) shl 8);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[0]));
         end;
       5:
         begin
-          b := b or (UInt64(Fm_buf[4]) shl 32);
-          b := b or (UInt64(Fm_buf[3]) shl 24);
-          b := b or (UInt64(Fm_buf[2]) shl 16);
-          b := b or (UInt64(Fm_buf[1]) shl 8);
-          b := b or (UInt64(Fm_buf[0]));
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[4]) shl 32);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[3]) shl 24);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[2]) shl 16);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[1]) shl 8);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[0]));
         end;
 
       4:
         begin
-          b := b or (UInt64(Fm_buf[3]) shl 24);
-          b := b or (UInt64(Fm_buf[2]) shl 16);
-          b := b or (UInt64(Fm_buf[1]) shl 8);
-          b := b or (UInt64(Fm_buf[0]));
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[3]) shl 24);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[2]) shl 16);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[1]) shl 8);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[0]));
         end;
 
       3:
         begin
-          b := b or (UInt64(Fm_buf[2]) shl 16);
-          b := b or (UInt64(Fm_buf[1]) shl 8);
-          b := b or (UInt64(Fm_buf[0]));
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[2]) shl 16);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[1]) shl 8);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[0]));
         end;
 
       2:
         begin
-          b := b or (UInt64(Fm_buf[1]) shl 8);
-          b := b or (UInt64(Fm_buf[0]));
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[1]) shl 8);
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[0]));
         end;
 
       1:
         begin
-          b := b or (UInt64(Fm_buf[0]));
+          LFinalBlock := LFinalBlock or (UInt64(FBuffer[0]));
         end;
-
     end;
   end;
 
-  Fm_v3 := Fm_v3 xor b;
-  CompressTimes(F_cr);
-  Fm_v0 := Fm_v0 xor b;
-  Fm_v2 := Fm_v2 xor $FF;
-  CompressTimes(F_fr);
+  FV3 := FV3 xor LFinalBlock;
+  CompressTimes(FCompressionRounds);
+  FV0 := FV0 xor LFinalBlock;
+  FV2 := FV2 xor $FF;
+  CompressTimes(FFinalizationRounds);
 end;
 
 function TSipHash.GetKey: THashLibByteArray;
@@ -257,8 +252,8 @@ var
 begin
   System.SetLength(LKey, KeyLength.value);
 
-  TConverters.ReadUInt64AsBytesLE(Fm_key0, LKey, 0);
-  TConverters.ReadUInt64AsBytesLE(Fm_key1, LKey, 8);
+  TConverters.ReadUInt64AsBytesLE(FKey0, LKey, 0);
+  TConverters.ReadUInt64AsBytesLE(FKey1, LKey, 8);
 
   result := LKey;
 end;
@@ -270,113 +265,111 @@ end;
 
 procedure TSipHash.Initialize;
 begin
-  Fm_v0 := V0;
-  Fm_v1 := V1;
-  Fm_v2 := V2;
-  Fm_v3 := V3;
-  Fm_total_length := 0;
-  Fm_idx := 0;
+  FV0 := V0;
+  FV1 := V1;
+  FV2 := V2;
+  FV3 := V3;
+  FTotalLength := 0;
+  FIdx := 0;
 
-  Fm_v3 := Fm_v3 xor Fm_key1;
-  Fm_v2 := Fm_v2 xor Fm_key0;
-  Fm_v1 := Fm_v1 xor Fm_key1;
-  Fm_v0 := Fm_v0 xor Fm_key0;
+  FV3 := FV3 xor FKey1;
+  FV2 := FV2 xor FKey0;
+  FV1 := FV1 xor FKey1;
+  FV0 := FV0 xor FKey0;
 
 end;
 
-procedure TSipHash.SetKey(const value: THashLibByteArray);
+procedure TSipHash.SetKey(const AValue: THashLibByteArray);
 begin
-  if (value = Nil) then
+  if (AValue = Nil) then
   begin
-    Fm_key0 := KEY0;
-    Fm_key1 := KEY1;
+    FKey0 := KEY0;
+    FKey1 := KEY1;
   end
-
   else
   begin
-    if System.Length(value) <> KeyLength.value then
+    if System.Length(AValue) <> KeyLength.value then
+    begin
       raise EArgumentHashLibException.CreateResFmt(@SInvalidKeyLength,
         [KeyLength.value]);
+    end;
 
-    Fm_key0 := TConverters.ReadBytesAsUInt64LE(PByte(value), 0);
-    Fm_key1 := TConverters.ReadBytesAsUInt64LE(PByte(value), 8);
+    FKey0 := TConverters.ReadBytesAsUInt64LE(PByte(AValue), 0);
+    FKey1 := TConverters.ReadBytesAsUInt64LE(PByte(AValue), 8);
   end;
 end;
 
-procedure TSipHash.TransformBytes(const a_data: THashLibByteArray;
-  a_index, a_length: Int32);
+procedure TSipHash.TransformBytes(const AData: THashLibByteArray;
+  AIndex, ALength: Int32);
 var
-  i, &length, iter, offset: Int32;
-  ptr_a_data, ptr_Fm_buf: PByte;
-  m: UInt64;
+  LIdx, LLength, LBlockCount, LOffset: Int32;
+  LPtrData, LPtrBuffer: PByte;
+  LBlock: UInt64;
 begin
 {$IFDEF DEBUG}
-  System.Assert(a_index >= 0);
-  System.Assert(a_length >= 0);
-  System.Assert(a_index + a_length <= System.Length(a_data));
+  System.Assert(AIndex >= 0);
+  System.Assert(ALength >= 0);
+  System.Assert(AIndex + ALength <= System.Length(AData));
 {$ENDIF DEBUG}
-  Length := a_length;
-  i := a_index;
+  LLength := ALength;
+  LIdx := AIndex;
 
-  ptr_a_data := PByte(a_data);
-  System.Inc(Fm_total_length, Length);
+  LPtrData := PByte(AData);
+  System.Inc(FTotalLength, LLength);
 
   // consume last pending bytes
 
-  if ((Fm_idx <> 0) and (a_length <> 0)) then
+  if ((FIdx <> 0) and (ALength <> 0)) then
   begin
-
 {$IFDEF DEBUG}
-    System.Assert(a_index = 0); // nothing would work anyways if a_index is !=0
+    System.Assert(AIndex = 0); // nothing would work anyways if AIndex is !=0
 {$ENDIF DEBUG}
-    while ((Fm_idx < 8) and (Length <> 0)) do
+    while ((FIdx < 8) and (LLength <> 0)) do
     begin
-      Fm_buf[Fm_idx] := (ptr_a_data + a_index)^;
-      System.Inc(Fm_idx);
-      System.Inc(a_index);
-      System.Dec(Length);
+      FBuffer[FIdx] := (LPtrData + AIndex)^;
+      System.Inc(FIdx);
+      System.Inc(AIndex);
+      System.Dec(LLength);
     end;
-    if (Fm_idx = 8) then
+    if (FIdx = 8) then
     begin
-      ptr_Fm_buf := PByte(Fm_buf);
-      m := TConverters.ReadBytesAsUInt64LE(ptr_Fm_buf, 0);
-      ProcessBlock(m);
-      Fm_idx := 0;
+      LPtrBuffer := PByte(FBuffer);
+      LBlock := TConverters.ReadBytesAsUInt64LE(LPtrBuffer, 0);
+      ProcessBlock(LBlock);
+      FIdx := 0;
     end;
   end
   else
   begin
-    i := 0;
+    LIdx := 0;
   end;
 
-  iter := Length shr 3;
+  LBlockCount := LLength shr 3;
 
   // body
 
-  while i < iter do
+  while LIdx < LBlockCount do
   begin
-    m := TConverters.ReadBytesAsUInt64LE(ptr_a_data, a_index + (i * 8));
-    ProcessBlock(m);
-    System.Inc(i);
+    LBlock := TConverters.ReadBytesAsUInt64LE(LPtrData, AIndex + (LIdx * 8));
+    ProcessBlock(LBlock);
+    System.Inc(LIdx);
   end;
 
   // save pending end bytes
-  offset := a_index + (i * 8);
+  LOffset := AIndex + (LIdx * 8);
 
-  while offset < (Length + a_index) do
+  while LOffset < (LLength + AIndex) do
   begin
-    ByteUpdate(a_data[offset]);
-    System.Inc(offset);
+    ByteUpdate(AData[LOffset]);
+    System.Inc(LOffset);
   end;
-
 end;
 
 function TSipHash.TransformFinal: IHashResult;
 begin
   Finish();
-  result := THashResult.Create(Fm_v0 xor Fm_v1 xor Fm_v2 xor Fm_v3);
+  result := THashResult.Create(FV0 xor FV1 xor FV2 xor FV3);
   Initialize();
 end;
 
 end.
-

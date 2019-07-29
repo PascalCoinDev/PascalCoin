@@ -35,16 +35,16 @@ type
     procedure ValidateSaltLength(const ASalt: THashLibByteArray); inline;
 
     function GetPersonalisation: THashLibByteArray; inline;
-    procedure SetPersonalisation(const value: THashLibByteArray); inline;
+    procedure SetPersonalisation(const AValue: THashLibByteArray); inline;
 
     function GetSalt: THashLibByteArray; inline;
-    procedure SetSalt(const value: THashLibByteArray); inline;
+    procedure SetSalt(const AValue: THashLibByteArray); inline;
 
     function GetKey: THashLibByteArray; inline;
-    procedure SetKey(const value: THashLibByteArray); inline;
+    procedure SetKey(const AValue: THashLibByteArray); inline;
 
     function GetHashSize: Int32; inline;
-    procedure SetHashSize(value: Int32); inline;
+    procedure SetHashSize(AValue: Int32); inline;
 
   public
     constructor Create(AHashSize: THashSize = THashSize.hsHashSize256);
@@ -137,28 +137,28 @@ begin
   result := FSalt;
 end;
 
-procedure TBlake2SConfig.SetHashSize(value: Int32);
+procedure TBlake2SConfig.SetHashSize(AValue: Int32);
 begin
-  ValidateHashSize(value);
-  FHashSize := value;
+  ValidateHashSize(AValue);
+  FHashSize := AValue;
 end;
 
-procedure TBlake2SConfig.SetKey(const value: THashLibByteArray);
+procedure TBlake2SConfig.SetKey(const AValue: THashLibByteArray);
 begin
-  ValidateKeyLength(value);
-  FKey := value;
+  ValidateKeyLength(AValue);
+  FKey := AValue;
 end;
 
-procedure TBlake2SConfig.SetPersonalisation(const value: THashLibByteArray);
+procedure TBlake2SConfig.SetPersonalisation(const AValue: THashLibByteArray);
 begin
-  ValidatePersonalisationLength(value);
-  FPersonalisation := value;
+  ValidatePersonalisationLength(AValue);
+  FPersonalisation := AValue;
 end;
 
-procedure TBlake2SConfig.SetSalt(const value: THashLibByteArray);
+procedure TBlake2SConfig.SetSalt(const AValue: THashLibByteArray);
 begin
-  ValidateSaltLength(value);
-  FSalt := value;
+  ValidateSaltLength(AValue);
+  FSalt := AValue;
 end;
 
 constructor TBlake2SConfig.Create(AHashSize: THashSize);

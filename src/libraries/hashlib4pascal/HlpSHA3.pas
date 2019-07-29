@@ -5,15 +5,12 @@ unit HlpSHA3;
 interface
 
 uses
-{$IFDEF HAS_UNITSCOPE}
-  System.SysUtils,
-{$ELSE}
   SysUtils,
-{$ENDIF HAS_UNITSCOPE}
   HlpBits,
 {$IFDEF DELPHI}
-  HlpBitConverter,
   HlpHash,
+  HlpHashBuffer,
+  HlpBitConverter,
 {$ENDIF DELPHI}
   HlpIHashInfo,
   HlpIHash,
@@ -37,8 +34,8 @@ type
     THashMode = (hmKeccak = $1, hmSHA3 = $6, hmShake = $1F);
 {$SCOPEDENUMS OFF}
   strict protected
-
-    Fm_state: THashLibUInt64Array;
+  var
+    FState: THashLibUInt64Array;
     FHashSize, FBlockSize: Int32;
     FHashMode: THashMode;
 
@@ -64,12 +61,12 @@ type
     procedure KeccakF1600_StatePermute();
 
     function GetName: String; override;
-    constructor Create(a_hash_size: THashSize);
+    constructor Create(AHashSize: THashSize);
 
     procedure Finish(); override;
     function GetResult(): THashLibByteArray; override;
-    procedure TransformBlock(a_data: PByte; a_data_length: Int32;
-      a_index: Int32); override;
+    procedure TransformBlock(AData: PByte; ADataLength: Int32;
+      AIndex: Int32); override;
 
   public
     procedure Initialize; override;
@@ -172,10 +169,10 @@ type
   var
     FXOFSizeInBits: UInt32;
     function GetXOFSizeInBits: UInt32; inline;
-    procedure SetXOFSizeInBits(a_xof_size_in_bits: UInt32); inline;
-    function SetXOFSizeInBitsInternal(a_xof_size_in_bits: UInt32): IXOF;
+    procedure SetXOFSizeInBits(AXofSizeInBits: UInt32); inline;
+    function SetXOFSizeInBitsInternal(AXofSizeInBits: UInt32): IXOF;
   strict protected
-    constructor Create(a_hash_size: THashSize);
+    constructor Create(AHashSize: THashSize);
     property XOFSizeInBits: UInt32 read GetXOFSizeInBits write SetXOFSizeInBits;
 
   public
@@ -205,29 +202,26 @@ implementation
 
 { TSHA3 }
 
-constructor TSHA3.Create(a_hash_size: THashSize);
+constructor TSHA3.Create(AHashSize: THashSize);
 begin
-  Inherited Create(Int32(a_hash_size), 200 - (Int32(a_hash_size) * 2));
-
+  Inherited Create(Int32(AHashSize), 200 - (Int32(AHashSize) * 2));
   FHashSize := HashSize;
   FBlockSize := BlockSize;
-
-  System.SetLength(Fm_state, 25);
-
+  System.SetLength(FState, 25);
 end;
 
 procedure TSHA3.Finish;
 var
-  buffer_pos: Int32;
-  block: THashLibByteArray;
+  LBufferPosition: Int32;
+  LBlock: THashLibByteArray;
 begin
-  buffer_pos := Fm_buffer.Pos;
-  block := Fm_buffer.GetBytesZeroPadded();
+  LBufferPosition := FBuffer.Position;
+  LBlock := FBuffer.GetBytesZeroPadded();
 
-  block[buffer_pos] := Int32(FHashMode);
-  block[FBlockSize - 1] := block[FBlockSize - 1] xor $80;
+  LBlock[LBufferPosition] := Int32(FHashMode);
+  LBlock[FBlockSize - 1] := LBlock[FBlockSize - 1] xor $80;
 
-  TransformBlock(PByte(block), System.Length(block), 0);
+  TransformBlock(PByte(LBlock), System.Length(LBlock), 0);
 end;
 
 function TSHA3.GetName: String;
@@ -250,18 +244,15 @@ end;
 
 function TSHA3.GetResult: THashLibByteArray;
 begin
-
   System.SetLength(Result, FHashSize);
 
-  TConverters.le64_copy(PUInt64(Fm_state), 0, PByte(Result), 0,
+  TConverters.le64_copy(PUInt64(FState), 0, PByte(Result), 0,
     System.Length(Result));
-
 end;
 
 procedure TSHA3.Initialize;
 begin
-  TArrayUtils.ZeroFill(Fm_state);
-
+  TArrayUtils.ZeroFill(FState);
   Inherited Initialize();
 end;
 
@@ -273,43 +264,43 @@ var
     Ama, Ame, Ami, Amo, Amu, Asa, Ase, Asi, Aso, Asu, BCa, BCe, BCi, BCo, BCu,
     Eba, Ebe, Ebi, Ebo, Ebu, Ega, Ege, Egi, Ego, Egu, Eka, Eke, Eki, Eko, Eku,
     Ema, Eme, Emi, Emo, Emu, Esa, Ese, Esi, Eso, Esu: UInt64;
-  round: Int32;
+  LRound: Int32;
 {$ELSE}
   Ca, Ce, Ci, Co, Cu: UInt64;
-  temp: array [0 .. 24] of UInt64;
+  LTemp: array [0 .. 24] of UInt64;
   j: Int32;
 {$ENDIF USE_UNROLLED_VARIANT}
 begin
 {$IFDEF USE_UNROLLED_VARIANT}
   // copyFromState(A, state)
-  Aba := Fm_state[0];
-  Abe := Fm_state[1];
-  Abi := Fm_state[2];
-  Abo := Fm_state[3];
-  Abu := Fm_state[4];
-  Aga := Fm_state[5];
-  Age := Fm_state[6];
-  Agi := Fm_state[7];
-  Ago := Fm_state[8];
-  Agu := Fm_state[9];
-  Aka := Fm_state[10];
-  Ake := Fm_state[11];
-  Aki := Fm_state[12];
-  Ako := Fm_state[13];
-  Aku := Fm_state[14];
-  Ama := Fm_state[15];
-  Ame := Fm_state[16];
-  Ami := Fm_state[17];
-  Amo := Fm_state[18];
-  Amu := Fm_state[19];
-  Asa := Fm_state[20];
-  Ase := Fm_state[21];
-  Asi := Fm_state[22];
-  Aso := Fm_state[23];
-  Asu := Fm_state[24];
+  Aba := FState[0];
+  Abe := FState[1];
+  Abi := FState[2];
+  Abo := FState[3];
+  Abu := FState[4];
+  Aga := FState[5];
+  Age := FState[6];
+  Agi := FState[7];
+  Ago := FState[8];
+  Agu := FState[9];
+  Aka := FState[10];
+  Ake := FState[11];
+  Aki := FState[12];
+  Ako := FState[13];
+  Aku := FState[14];
+  Ama := FState[15];
+  Ame := FState[16];
+  Ami := FState[17];
+  Amo := FState[18];
+  Amu := FState[19];
+  Asa := FState[20];
+  Ase := FState[21];
+  Asi := FState[22];
+  Aso := FState[23];
+  Asu := FState[24];
 
-  round := 0;
-  while round < 24 do
+  LRound := 0;
+  while LRound < 24 do
   begin
     // prepareTheta
     BCa := Aba xor Aga xor Aka xor Ama xor Asa;
@@ -318,7 +309,7 @@ begin
     BCo := Abo xor Ago xor Ako xor Amo xor Aso;
     BCu := Abu xor Agu xor Aku xor Amu xor Asu;
 
-    // thetaRhoPiChiIotaPrepareTheta(round  , A, E)
+    // thetaRhoPiChiIotaPrepareTheta(LRound  , A, E)
     Da := BCu xor TBits.RotateLeft64(BCe, 1);
     De := BCa xor TBits.RotateLeft64(BCi, 1);
     Di := BCe xor TBits.RotateLeft64(BCo, 1);
@@ -336,7 +327,7 @@ begin
     Asu := Asu xor Du;
     BCu := TBits.RotateLeft64(Asu, 14);
     Eba := BCa xor ((not BCe) and BCi);
-    Eba := Eba xor UInt64(RC[round]);
+    Eba := Eba xor UInt64(RC[LRound]);
     Ebe := BCe xor ((not BCi) and BCo);
     Ebi := BCi xor ((not BCo) and BCu);
     Ebo := BCo xor ((not BCu) and BCa);
@@ -413,7 +404,7 @@ begin
     BCo := Ebo xor Ego xor Eko xor Emo xor Eso;
     BCu := Ebu xor Egu xor Eku xor Emu xor Esu;
 
-    // thetaRhoPiChiIotaPrepareTheta(round+1, E, A)
+    // thetaRhoPiChiIotaPrepareTheta(LRound+1, E, A)
     Da := BCu xor TBits.RotateLeft64(BCe, 1);
     De := BCa xor TBits.RotateLeft64(BCi, 1);
     Di := BCe xor TBits.RotateLeft64(BCo, 1);
@@ -431,7 +422,7 @@ begin
     Esu := Esu xor Du;
     BCu := TBits.RotateLeft64(Esu, 14);
     Aba := BCa xor ((not BCe) and BCi);
-    Aba := Aba xor UInt64(RC[round + 1]);
+    Aba := Aba xor UInt64(RC[LRound + 1]);
     Abe := BCe xor ((not BCi) and BCo);
     Abi := BCi xor ((not BCo) and BCu);
     Abo := BCo xor ((not BCu) and BCa);
@@ -501,142 +492,140 @@ begin
     Aso := BCo xor ((not BCu) and BCa);
     Asu := BCu xor ((not BCa) and BCe);
 
-    System.Inc(round, 2);
+    System.Inc(LRound, 2);
   end;
 
   // copyToState(state, A)
-  Fm_state[0] := Aba;
-  Fm_state[1] := Abe;
-  Fm_state[2] := Abi;
-  Fm_state[3] := Abo;
-  Fm_state[4] := Abu;
-  Fm_state[5] := Aga;
-  Fm_state[6] := Age;
-  Fm_state[7] := Agi;
-  Fm_state[8] := Ago;
-  Fm_state[9] := Agu;
-  Fm_state[10] := Aka;
-  Fm_state[11] := Ake;
-  Fm_state[12] := Aki;
-  Fm_state[13] := Ako;
-  Fm_state[14] := Aku;
-  Fm_state[15] := Ama;
-  Fm_state[16] := Ame;
-  Fm_state[17] := Ami;
-  Fm_state[18] := Amo;
-  Fm_state[19] := Amu;
-  Fm_state[20] := Asa;
-  Fm_state[21] := Ase;
-  Fm_state[22] := Asi;
-  Fm_state[23] := Aso;
-  Fm_state[24] := Asu;
+  FState[0] := Aba;
+  FState[1] := Abe;
+  FState[2] := Abi;
+  FState[3] := Abo;
+  FState[4] := Abu;
+  FState[5] := Aga;
+  FState[6] := Age;
+  FState[7] := Agi;
+  FState[8] := Ago;
+  FState[9] := Agu;
+  FState[10] := Aka;
+  FState[11] := Ake;
+  FState[12] := Aki;
+  FState[13] := Ako;
+  FState[14] := Aku;
+  FState[15] := Ama;
+  FState[16] := Ame;
+  FState[17] := Ami;
+  FState[18] := Amo;
+  FState[19] := Amu;
+  FState[20] := Asa;
+  FState[21] := Ase;
+  FState[22] := Asi;
+  FState[23] := Aso;
+  FState[24] := Asu;
 
 {$ELSE}
   for j := 0 to 23 do
   begin
-    Ca := Fm_state[00] xor Fm_state[05] xor Fm_state[10] xor Fm_state[15]
-      xor Fm_state[20];
-    Ce := Fm_state[01] xor Fm_state[06] xor Fm_state[11] xor Fm_state[16]
-      xor Fm_state[21];
-    Ci := Fm_state[02] xor Fm_state[07] xor Fm_state[12] xor Fm_state[17]
-      xor Fm_state[22];
-    Co := Fm_state[03] xor Fm_state[08] xor Fm_state[13] xor Fm_state[18]
-      xor Fm_state[23];
-    Cu := Fm_state[04] xor Fm_state[09] xor Fm_state[14] xor Fm_state[19]
-      xor Fm_state[24];
+    Ca := FState[00] xor FState[05] xor FState[10] xor FState[15]
+      xor FState[20];
+    Ce := FState[01] xor FState[06] xor FState[11] xor FState[16]
+      xor FState[21];
+    Ci := FState[02] xor FState[07] xor FState[12] xor FState[17]
+      xor FState[22];
+    Co := FState[03] xor FState[08] xor FState[13] xor FState[18]
+      xor FState[23];
+    Cu := FState[04] xor FState[09] xor FState[14] xor FState[19]
+      xor FState[24];
     Da := TBits.RotateLeft64(Ca, 1) xor Co;
     De := TBits.RotateLeft64(Ce, 1) xor Cu;
     Di := TBits.RotateLeft64(Ci, 1) xor Ca;
     &Do := TBits.RotateLeft64(Co, 1) xor Ce;
     Du := TBits.RotateLeft64(Cu, 1) xor Ci;
-    temp[00] := Fm_state[00] xor De;
-    temp[01] := TBits.RotateLeft64(Fm_state[06] xor Di, 44);
-    temp[02] := TBits.RotateLeft64(Fm_state[12] xor &Do, 43);
-    temp[03] := TBits.RotateLeft64(Fm_state[18] xor Du, 21);
-    temp[04] := TBits.RotateLeft64(Fm_state[24] xor Da, 14);
-    temp[05] := TBits.RotateLeft64(Fm_state[03] xor Du, 28);
-    temp[06] := TBits.RotateLeft64(Fm_state[09] xor Da, 20);
-    temp[07] := TBits.RotateLeft64(Fm_state[10] xor De, 3);
-    temp[08] := TBits.RotateLeft64(Fm_state[16] xor Di, 45);
-    temp[09] := TBits.RotateLeft64(Fm_state[22] xor &Do, 61);
-    temp[10] := TBits.RotateLeft64(Fm_state[01] xor Di, 1);
-    temp[11] := TBits.RotateLeft64(Fm_state[07] xor &Do, 6);
-    temp[12] := TBits.RotateLeft64(Fm_state[13] xor Du, 25);
-    temp[13] := TBits.RotateLeft64(Fm_state[19] xor Da, 8);
-    temp[14] := TBits.RotateLeft64(Fm_state[20] xor De, 18);
-    temp[15] := TBits.RotateLeft64(Fm_state[04] xor Da, 27);
-    temp[16] := TBits.RotateLeft64(Fm_state[05] xor De, 36);
-    temp[17] := TBits.RotateLeft64(Fm_state[11] xor Di, 10);
-    temp[18] := TBits.RotateLeft64(Fm_state[17] xor &Do, 15);
-    temp[19] := TBits.RotateLeft64(Fm_state[23] xor Du, 56);
-    temp[20] := TBits.RotateLeft64(Fm_state[02] xor &Do, 62);
-    temp[21] := TBits.RotateLeft64(Fm_state[08] xor Du, 55);
-    temp[22] := TBits.RotateLeft64(Fm_state[14] xor Da, 39);
-    temp[23] := TBits.RotateLeft64(Fm_state[15] xor De, 41);
-    temp[24] := TBits.RotateLeft64(Fm_state[21] xor Di, 2);
-    Fm_state[00] := temp[00] xor ((not temp[01]) and temp[02]);
-    Fm_state[01] := temp[01] xor ((not temp[02]) and temp[03]);
-    Fm_state[02] := temp[02] xor ((not temp[03]) and temp[04]);
-    Fm_state[03] := temp[03] xor ((not temp[04]) and temp[00]);
-    Fm_state[04] := temp[04] xor ((not temp[00]) and temp[01]);
-    Fm_state[05] := temp[05] xor ((not temp[06]) and temp[07]);
-    Fm_state[06] := temp[06] xor ((not temp[07]) and temp[08]);
-    Fm_state[07] := temp[07] xor ((not temp[08]) and temp[09]);
-    Fm_state[08] := temp[08] xor ((not temp[09]) and temp[05]);
-    Fm_state[09] := temp[09] xor ((not temp[05]) and temp[06]);
-    Fm_state[10] := temp[10] xor ((not temp[11]) and temp[12]);
-    Fm_state[11] := temp[11] xor ((not temp[12]) and temp[13]);
-    Fm_state[12] := temp[12] xor ((not temp[13]) and temp[14]);
-    Fm_state[13] := temp[13] xor ((not temp[14]) and temp[10]);
-    Fm_state[14] := temp[14] xor ((not temp[10]) and temp[11]);
-    Fm_state[15] := temp[15] xor ((not temp[16]) and temp[17]);
-    Fm_state[16] := temp[16] xor ((not temp[17]) and temp[18]);
-    Fm_state[17] := temp[17] xor ((not temp[18]) and temp[19]);
-    Fm_state[18] := temp[18] xor ((not temp[19]) and temp[15]);
-    Fm_state[19] := temp[19] xor ((not temp[15]) and temp[16]);
-    Fm_state[20] := temp[20] xor ((not temp[21]) and temp[22]);
-    Fm_state[21] := temp[21] xor ((not temp[22]) and temp[23]);
-    Fm_state[22] := temp[22] xor ((not temp[23]) and temp[24]);
-    Fm_state[23] := temp[23] xor ((not temp[24]) and temp[20]);
-    Fm_state[24] := temp[24] xor ((not temp[20]) and temp[21]);
-    Fm_state[00] := Fm_state[00] xor RC[j];
+    LTemp[00] := FState[00] xor De;
+    LTemp[01] := TBits.RotateLeft64(FState[06] xor Di, 44);
+    LTemp[02] := TBits.RotateLeft64(FState[12] xor &Do, 43);
+    LTemp[03] := TBits.RotateLeft64(FState[18] xor Du, 21);
+    LTemp[04] := TBits.RotateLeft64(FState[24] xor Da, 14);
+    LTemp[05] := TBits.RotateLeft64(FState[03] xor Du, 28);
+    LTemp[06] := TBits.RotateLeft64(FState[09] xor Da, 20);
+    LTemp[07] := TBits.RotateLeft64(FState[10] xor De, 3);
+    LTemp[08] := TBits.RotateLeft64(FState[16] xor Di, 45);
+    LTemp[09] := TBits.RotateLeft64(FState[22] xor &Do, 61);
+    LTemp[10] := TBits.RotateLeft64(FState[01] xor Di, 1);
+    LTemp[11] := TBits.RotateLeft64(FState[07] xor &Do, 6);
+    LTemp[12] := TBits.RotateLeft64(FState[13] xor Du, 25);
+    LTemp[13] := TBits.RotateLeft64(FState[19] xor Da, 8);
+    LTemp[14] := TBits.RotateLeft64(FState[20] xor De, 18);
+    LTemp[15] := TBits.RotateLeft64(FState[04] xor Da, 27);
+    LTemp[16] := TBits.RotateLeft64(FState[05] xor De, 36);
+    LTemp[17] := TBits.RotateLeft64(FState[11] xor Di, 10);
+    LTemp[18] := TBits.RotateLeft64(FState[17] xor &Do, 15);
+    LTemp[19] := TBits.RotateLeft64(FState[23] xor Du, 56);
+    LTemp[20] := TBits.RotateLeft64(FState[02] xor &Do, 62);
+    LTemp[21] := TBits.RotateLeft64(FState[08] xor Du, 55);
+    LTemp[22] := TBits.RotateLeft64(FState[14] xor Da, 39);
+    LTemp[23] := TBits.RotateLeft64(FState[15] xor De, 41);
+    LTemp[24] := TBits.RotateLeft64(FState[21] xor Di, 2);
+    FState[00] := LTemp[00] xor ((not LTemp[01]) and LTemp[02]);
+    FState[01] := LTemp[01] xor ((not LTemp[02]) and LTemp[03]);
+    FState[02] := LTemp[02] xor ((not LTemp[03]) and LTemp[04]);
+    FState[03] := LTemp[03] xor ((not LTemp[04]) and LTemp[00]);
+    FState[04] := LTemp[04] xor ((not LTemp[00]) and LTemp[01]);
+    FState[05] := LTemp[05] xor ((not LTemp[06]) and LTemp[07]);
+    FState[06] := LTemp[06] xor ((not LTemp[07]) and LTemp[08]);
+    FState[07] := LTemp[07] xor ((not LTemp[08]) and LTemp[09]);
+    FState[08] := LTemp[08] xor ((not LTemp[09]) and LTemp[05]);
+    FState[09] := LTemp[09] xor ((not LTemp[05]) and LTemp[06]);
+    FState[10] := LTemp[10] xor ((not LTemp[11]) and LTemp[12]);
+    FState[11] := LTemp[11] xor ((not LTemp[12]) and LTemp[13]);
+    FState[12] := LTemp[12] xor ((not LTemp[13]) and LTemp[14]);
+    FState[13] := LTemp[13] xor ((not LTemp[14]) and LTemp[10]);
+    FState[14] := LTemp[14] xor ((not LTemp[10]) and LTemp[11]);
+    FState[15] := LTemp[15] xor ((not LTemp[16]) and LTemp[17]);
+    FState[16] := LTemp[16] xor ((not LTemp[17]) and LTemp[18]);
+    FState[17] := LTemp[17] xor ((not LTemp[18]) and LTemp[19]);
+    FState[18] := LTemp[18] xor ((not LTemp[19]) and LTemp[15]);
+    FState[19] := LTemp[19] xor ((not LTemp[15]) and LTemp[16]);
+    FState[20] := LTemp[20] xor ((not LTemp[21]) and LTemp[22]);
+    FState[21] := LTemp[21] xor ((not LTemp[22]) and LTemp[23]);
+    FState[22] := LTemp[22] xor ((not LTemp[23]) and LTemp[24]);
+    FState[23] := LTemp[23] xor ((not LTemp[24]) and LTemp[20]);
+    FState[24] := LTemp[24] xor ((not LTemp[20]) and LTemp[21]);
+    FState[00] := FState[00] xor RC[j];
   end;
 
-  System.FillChar(temp, System.SizeOf(temp), UInt64(0));
+  System.FillChar(LTemp, System.SizeOf(LTemp), UInt64(0));
 {$ENDIF USE_UNROLLED_VARIANT}
 end;
 
-procedure TSHA3.TransformBlock(a_data: PByte; a_data_length: Int32;
-  a_index: Int32);
+procedure TSHA3.TransformBlock(AData: PByte; ADataLength: Int32; AIndex: Int32);
 var
-  data: array [0 .. 20] of UInt64;
-  j, upcount: Int32;
+  LData: array [0 .. 20] of UInt64;
+  LJdx, LBlockCount: Int32;
 begin
-  TConverters.le64_copy(a_data, a_index, @(data[0]), 0, a_data_length);
-
-  j := 0;
-  upcount := FBlockSize shr 3;
-  while j < upcount do
+  TConverters.le64_copy(AData, AIndex, @(LData[0]), 0, ADataLength);
+  LJdx := 0;
+  LBlockCount := FBlockSize shr 3;
+  while LJdx < LBlockCount do
   begin
-    Fm_state[j] := Fm_state[j] xor data[j];
-    System.Inc(j);
+    FState[LJdx] := FState[LJdx] xor LData[LJdx];
+    System.Inc(LJdx);
   end;
 
   KeccakF1600_StatePermute();
-  System.FillChar(data, System.SizeOf(data), UInt64(0));
+  System.FillChar(LData, System.SizeOf(LData), UInt64(0));
 end;
 
 { TSHA3_224 }
 
 function TSHA3_224.Clone(): IHash;
 var
-  HashInstance: TSHA3_224;
+  LHashInstance: TSHA3_224;
 begin
-  HashInstance := TSHA3_224.Create();
-  HashInstance.Fm_state := System.Copy(Fm_state);
-  HashInstance.Fm_buffer := Fm_buffer.Clone();
-  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
-  Result := HashInstance as IHash;
+  LHashInstance := TSHA3_224.Create();
+  LHashInstance.FState := System.Copy(FState);
+  LHashInstance.FBuffer := FBuffer.Clone();
+  LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
+  Result := LHashInstance as IHash;
   Result.BufferSize := BufferSize;
 end;
 
@@ -650,13 +639,13 @@ end;
 
 function TSHA3_256.Clone(): IHash;
 var
-  HashInstance: TSHA3_256;
+  LHashInstance: TSHA3_256;
 begin
-  HashInstance := TSHA3_256.Create();
-  HashInstance.Fm_state := System.Copy(Fm_state);
-  HashInstance.Fm_buffer := Fm_buffer.Clone();
-  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
-  Result := HashInstance as IHash;
+  LHashInstance := TSHA3_256.Create();
+  LHashInstance.FState := System.Copy(FState);
+  LHashInstance.FBuffer := FBuffer.Clone();
+  LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
+  Result := LHashInstance as IHash;
   Result.BufferSize := BufferSize;
 end;
 
@@ -670,13 +659,13 @@ end;
 
 function TSHA3_384.Clone(): IHash;
 var
-  HashInstance: TSHA3_384;
+  LHashInstance: TSHA3_384;
 begin
-  HashInstance := TSHA3_384.Create();
-  HashInstance.Fm_state := System.Copy(Fm_state);
-  HashInstance.Fm_buffer := Fm_buffer.Clone();
-  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
-  Result := HashInstance as IHash;
+  LHashInstance := TSHA3_384.Create();
+  LHashInstance.FState := System.Copy(FState);
+  LHashInstance.FBuffer := FBuffer.Clone();
+  LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
+  Result := LHashInstance as IHash;
   Result.BufferSize := BufferSize;
 end;
 
@@ -690,13 +679,13 @@ end;
 
 function TSHA3_512.Clone(): IHash;
 var
-  HashInstance: TSHA3_512;
+  LHashInstance: TSHA3_512;
 begin
-  HashInstance := TSHA3_512.Create();
-  HashInstance.Fm_state := System.Copy(Fm_state);
-  HashInstance.Fm_buffer := Fm_buffer.Clone();
-  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
-  Result := HashInstance as IHash;
+  LHashInstance := TSHA3_512.Create();
+  LHashInstance.FState := System.Copy(FState);
+  LHashInstance.FBuffer := FBuffer.Clone();
+  LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
+  Result := LHashInstance as IHash;
   Result.BufferSize := BufferSize;
 end;
 
@@ -710,13 +699,13 @@ end;
 
 function TKeccak_224.Clone(): IHash;
 var
-  HashInstance: TKeccak_224;
+  LHashInstance: TKeccak_224;
 begin
-  HashInstance := TKeccak_224.Create();
-  HashInstance.Fm_state := System.Copy(Fm_state);
-  HashInstance.Fm_buffer := Fm_buffer.Clone();
-  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
-  Result := HashInstance as IHash;
+  LHashInstance := TKeccak_224.Create();
+  LHashInstance.FState := System.Copy(FState);
+  LHashInstance.FBuffer := FBuffer.Clone();
+  LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
+  Result := LHashInstance as IHash;
   Result.BufferSize := BufferSize;
 end;
 
@@ -730,13 +719,13 @@ end;
 
 function TKeccak_256.Clone(): IHash;
 var
-  HashInstance: TKeccak_256;
+  LHashInstance: TKeccak_256;
 begin
-  HashInstance := TKeccak_256.Create();
-  HashInstance.Fm_state := System.Copy(Fm_state);
-  HashInstance.Fm_buffer := Fm_buffer.Clone();
-  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
-  Result := HashInstance as IHash;
+  LHashInstance := TKeccak_256.Create();
+  LHashInstance.FState := System.Copy(FState);
+  LHashInstance.FBuffer := FBuffer.Clone();
+  LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
+  Result := LHashInstance as IHash;
   Result.BufferSize := BufferSize;
 end;
 
@@ -750,13 +739,13 @@ end;
 
 function TKeccak_288.Clone(): IHash;
 var
-  HashInstance: TKeccak_288;
+  LHashInstance: TKeccak_288;
 begin
-  HashInstance := TKeccak_288.Create();
-  HashInstance.Fm_state := System.Copy(Fm_state);
-  HashInstance.Fm_buffer := Fm_buffer.Clone();
-  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
-  Result := HashInstance as IHash;
+  LHashInstance := TKeccak_288.Create();
+  LHashInstance.FState := System.Copy(FState);
+  LHashInstance.FBuffer := FBuffer.Clone();
+  LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
+  Result := LHashInstance as IHash;
   Result.BufferSize := BufferSize;
 end;
 
@@ -770,13 +759,13 @@ end;
 
 function TKeccak_384.Clone(): IHash;
 var
-  HashInstance: TKeccak_384;
+  LHashInstance: TKeccak_384;
 begin
-  HashInstance := TKeccak_384.Create();
-  HashInstance.Fm_state := System.Copy(Fm_state);
-  HashInstance.Fm_buffer := Fm_buffer.Clone();
-  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
-  Result := HashInstance as IHash;
+  LHashInstance := TKeccak_384.Create();
+  LHashInstance.FState := System.Copy(FState);
+  LHashInstance.FBuffer := FBuffer.Clone();
+  LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
+  Result := LHashInstance as IHash;
   Result.BufferSize := BufferSize;
 end;
 
@@ -790,13 +779,13 @@ end;
 
 function TKeccak_512.Clone(): IHash;
 var
-  HashInstance: TKeccak_512;
+  LHashInstance: TKeccak_512;
 begin
-  HashInstance := TKeccak_512.Create();
-  HashInstance.Fm_state := System.Copy(Fm_state);
-  HashInstance.Fm_buffer := Fm_buffer.Clone();
-  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
-  Result := HashInstance as IHash;
+  LHashInstance := TKeccak_512.Create();
+  LHashInstance.FState := System.Copy(FState);
+  LHashInstance.FBuffer := FBuffer.Clone();
+  LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
+  Result := LHashInstance as IHash;
   Result.BufferSize := BufferSize;
 end;
 
@@ -808,47 +797,46 @@ end;
 
 { TShake }
 
-function TShake.SetXOFSizeInBitsInternal(a_xof_size_in_bits: UInt32): IXOF;
+function TShake.SetXOFSizeInBitsInternal(AXofSizeInBits: UInt32): IXOF;
 begin
-  If ((a_xof_size_in_bits and $7) <> 0) then
+  If ((AXofSizeInBits and $7) <> 0) then
   begin
     raise EArgumentInvalidHashLibException.CreateRes(@SInvalidXOFSize);
   end;
-  FXOFSizeInBits := a_xof_size_in_bits;
+  FXOFSizeInBits := AXofSizeInBits;
   Result := Self;
 end;
 
-constructor TShake.Create(a_hash_size: THashSize);
+constructor TShake.Create(AHashSize: THashSize);
 begin
-  Inherited Create(a_hash_size);
+  Inherited Create(AHashSize);
   FHashMode := THashMode.hmShake;
 end;
 
 function TShake.GetResult: THashLibByteArray;
 var
-  buffer_pos: Int32;
-  Idx, LXofSizeInBytes: UInt32;
+  LBufferPosition: Int32;
+  LIdx, LXofSizeInBytes: UInt32;
 begin
-  buffer_pos := Fm_buffer.Pos;
+  LBufferPosition := FBuffer.Position;
 
   LXofSizeInBytes := FXOFSizeInBits shr 3;
-  Idx := 0;
+  LIdx := 0;
   System.SetLength(Result, LXofSizeInBytes);
 
-  while Idx < (LXofSizeInBytes shr 3) do
+  while LIdx < (LXofSizeInBytes shr 3) do
   begin
 
-    if (buffer_pos * 8) >= FBlockSize then
+    if (LBufferPosition * 8) >= FBlockSize then
     begin
       KeccakF1600_StatePermute();
-
-      buffer_pos := 0;
+      LBufferPosition := 0;
     end;
 
-    TConverters.ReadUInt64AsBytesLE(Fm_state[buffer_pos], Result, Idx * 8);
+    TConverters.ReadUInt64AsBytesLE(FState[LBufferPosition], Result, LIdx * 8);
 
-    System.Inc(buffer_pos);
-    System.Inc(Idx);
+    System.Inc(LBufferPosition);
+    System.Inc(LIdx);
   end;
 end;
 
@@ -859,39 +847,39 @@ end;
 
 function TShake.TransformFinal: IHashResult;
 var
-  tempresult: THashLibByteArray;
+  LBuffer: THashLibByteArray;
 begin
   Finish();
 {$IFDEF DEBUG}
-  System.Assert(Fm_buffer.IsEmpty);
+  System.Assert(FBuffer.IsEmpty);
 {$ENDIF DEBUG}
-  tempresult := GetResult();
+  LBuffer := GetResult();
 {$IFDEF DEBUG}
-  System.Assert(UInt32(System.Length(tempresult)) = (XOFSizeInBits shr 3));
+  System.Assert(UInt32(System.Length(LBuffer)) = (XOFSizeInBits shr 3));
 {$ENDIF DEBUG}
   Initialize();
-  Result := THashResult.Create(tempresult);
+  Result := THashResult.Create(LBuffer);
 end;
 
-procedure TShake.SetXOFSizeInBits(a_xof_size_in_bits: UInt32);
+procedure TShake.SetXOFSizeInBits(AXofSizeInBits: UInt32);
 begin
-  SetXOFSizeInBitsInternal(a_xof_size_in_bits);
+  SetXOFSizeInBitsInternal(AXofSizeInBits);
 end;
 
 { TShake_128 }
 
 function TShake_128.Clone(): IHash;
 var
-  HashInstance: TShake_128;
+  LHashInstance: TShake_128;
   LXof: IXOF;
 begin
   LXof := (TShake_128.Create() as IXOF);
   LXof.XOFSizeInBits := (Self as IXOF).XOFSizeInBits;
-  HashInstance := LXof as TShake_128;
-  HashInstance.Fm_state := System.Copy(Fm_state);
-  HashInstance.Fm_buffer := Fm_buffer.Clone();
-  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
-  Result := HashInstance as IHash;
+  LHashInstance := LXof as TShake_128;
+  LHashInstance.FState := System.Copy(FState);
+  LHashInstance.FBuffer := FBuffer.Clone();
+  LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
+  Result := LHashInstance as IHash;
   Result.BufferSize := BufferSize;
 end;
 
@@ -904,16 +892,16 @@ end;
 
 function TShake_256.Clone(): IHash;
 var
-  HashInstance: TShake_256;
+  LHashInstance: TShake_256;
   LXof: IXOF;
 begin
   LXof := (TShake_256.Create() as IXOF);
   LXof.XOFSizeInBits := (Self as IXOF).XOFSizeInBits;
-  HashInstance := LXof as TShake_256;
-  HashInstance.Fm_state := System.Copy(Fm_state);
-  HashInstance.Fm_buffer := Fm_buffer.Clone();
-  HashInstance.Fm_processed_bytes := Fm_processed_bytes;
-  Result := HashInstance as IHash;
+  LHashInstance := LXof as TShake_256;
+  LHashInstance.FState := System.Copy(FState);
+  LHashInstance.FBuffer := FBuffer.Clone();
+  LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
+  Result := LHashInstance as IHash;
   Result.BufferSize := BufferSize;
 end;
 

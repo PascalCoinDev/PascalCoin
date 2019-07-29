@@ -41,7 +41,7 @@ type
     ['{DD5E0FE4-3573-4051-B7CF-F23BABE982D8}']
 
     function GetKey(): THashLibByteArray;
-    procedure SetKey(const value: THashLibByteArray);
+    procedure SetKey(const AValue: THashLibByteArray);
     property Key: THashLibByteArray read GetKey write SetKey;
     function GetKeyLength(): TNullableInteger;
     property KeyLength: TNullableInteger read GetKeyLength;
@@ -104,7 +104,7 @@ type
   IXOF = Interface(IHash)
     ['{944ED7F0-D033-4489-A5DD-9C83353F23F0}']
     function GetXOFSizeInBits: UInt32;
-    procedure SetXOFSizeInBits(a_xof_size_in_bits: UInt32);
+    procedure SetXOFSizeInBits(AXofSizeInBits: UInt32);
     property XOFSizeInBits: UInt32 read GetXOFSizeInBits write SetXOFSizeInBits;
   end;
 

@@ -29,22 +29,22 @@ type
     ITransformBlock)
 
   strict private
-
-    Fm_key, Fm_working_key, Fm_h: UInt32;
+  var
+    FKey, FWorkingKey, FH: UInt32;
 
   const
     CKEY = UInt32($0);
     M = UInt32($5BD1E995);
     R = Int32(24);
 
-    function InternalComputeBytes(const a_data: THashLibByteArray): Int32;
-    procedure TransformUInt32Fast(a_data: UInt32); inline;
+    function InternalComputeBytes(const AData: THashLibByteArray): Int32;
+    procedure TransformUInt32Fast(ABlock: UInt32); inline;
     function GetKeyLength(): TNullableInteger;
     function GetKey: THashLibByteArray; inline;
-    procedure SetKey(const value: THashLibByteArray); inline;
+    procedure SetKey(const AValue: THashLibByteArray); inline;
 
   strict protected
-    function ComputeAggregatedBytes(const a_data: THashLibByteArray)
+    function ComputeAggregatedBytes(const AData: THashLibByteArray)
       : IHashResult; override;
 
   public
@@ -63,38 +63,39 @@ implementation
 constructor TMurmur2.Create;
 begin
   Inherited Create(4, 4);
-  Fm_key := CKEY;
-
+  FKey := CKEY;
 end;
 
 function TMurmur2.GetKey: THashLibByteArray;
 begin
-  result := TConverters.ReadUInt32AsBytesLE(Fm_key);
+  result := TConverters.ReadUInt32AsBytesLE(FKey);
 end;
 
-procedure TMurmur2.SetKey(const value: THashLibByteArray);
+procedure TMurmur2.SetKey(const AValue: THashLibByteArray);
 begin
-  if (value = Nil) then
+  if (AValue = Nil) then
   begin
-    Fm_key := CKEY;
+    FKey := CKEY;
   end
   else
   begin
-    if System.Length(value) <> KeyLength.value then
+    if System.Length(AValue) <> KeyLength.value then
+    begin
       raise EArgumentHashLibException.CreateResFmt(@SInvalidKeyLength,
         [KeyLength.value]);
-    Fm_key := TConverters.ReadBytesAsUInt32LE(PByte(value), 0);
+    end;
+    FKey := TConverters.ReadBytesAsUInt32LE(PByte(AValue), 0);
   end;
 end;
 
-procedure TMurmur2.TransformUInt32Fast(a_data: UInt32);
+procedure TMurmur2.TransformUInt32Fast(ABlock: UInt32);
 begin
-  a_data := a_data * M;
-  a_data := a_data xor (a_data shr R);
-  a_data := a_data * M;
+  ABlock := ABlock * M;
+  ABlock := ABlock xor (ABlock shr R);
+  ABlock := ABlock * M;
 
-  Fm_h := Fm_h * M;
-  Fm_h := Fm_h xor a_data;
+  FH := FH * M;
+  FH := FH xor ABlock;
 end;
 
 function TMurmur2.GetKeyLength: TNullableInteger;
@@ -104,98 +105,91 @@ end;
 
 procedure TMurmur2.Initialize;
 begin
-  Fm_working_key := Fm_key;
+  FWorkingKey := FKey;
   inherited Initialize();
 end;
 
-function TMurmur2.InternalComputeBytes(const a_data: THashLibByteArray): Int32;
+function TMurmur2.InternalComputeBytes(const AData: THashLibByteArray): Int32;
 var
-  &length, current_index: Int32;
-  k: UInt32;
-  ptr_a_data: PByte;
+  LLength, LCurrentIndex: Int32;
+  LBlock: UInt32;
+  LPtrData: PByte;
 begin
-  Length := System.Length(a_data);
-  ptr_a_data := PByte(a_data);
+  LLength := System.Length(AData);
+  LPtrData := PByte(AData);
 
-  if (Length = 0) then
+  if (LLength = 0) then
   begin
     result := 0;
     Exit;
   end;
 
-  Fm_h := Fm_working_key xor UInt32(Length);
-  current_index := 0;
+  FH := FWorkingKey xor UInt32(LLength);
+  LCurrentIndex := 0;
 
-  while (Length >= 4) do
+  while (LLength >= 4) do
   begin
-
-    k := TConverters.ReadBytesAsUInt32LE(ptr_a_data, current_index);
-
-    TransformUInt32Fast(k);
-    System.Inc(current_index, 4);
-    System.Dec(Length, 4);
+    LBlock := TConverters.ReadBytesAsUInt32LE(LPtrData, LCurrentIndex);
+    TransformUInt32Fast(LBlock);
+    System.Inc(LCurrentIndex, 4);
+    System.Dec(LLength, 4);
   end;
 
-  case Length of
+  case LLength of
     3:
       begin
+        FH := FH xor (AData[LCurrentIndex + 2] shl 16);
 
-        Fm_h := Fm_h xor (a_data[current_index + 2] shl 16);
+        FH := FH xor (AData[LCurrentIndex + 1] shl 8);
 
-        Fm_h := Fm_h xor (a_data[current_index + 1] shl 8);
+        FH := FH xor (AData[LCurrentIndex]);
 
-        Fm_h := Fm_h xor (a_data[current_index]);
-
-        Fm_h := Fm_h * M;
+        FH := FH * M;
       end;
 
     2:
       begin
+        FH := FH xor (AData[LCurrentIndex + 1] shl 8);
 
-        Fm_h := Fm_h xor (a_data[current_index + 1] shl 8);
+        FH := FH xor (AData[LCurrentIndex]);
 
-        Fm_h := Fm_h xor (a_data[current_index]);
-
-        Fm_h := Fm_h * M;
+        FH := FH * M;
       end;
 
     1:
       begin
+        FH := FH xor (AData[LCurrentIndex]);
 
-        Fm_h := Fm_h xor (a_data[current_index]);
-
-        Fm_h := Fm_h * M;
+        FH := FH * M;
       end;
-
   end;
 
-  Fm_h := Fm_h xor (Fm_h shr 13);
+  FH := FH xor (FH shr 13);
 
-  Fm_h := Fm_h * M;
-  Fm_h := Fm_h xor (Fm_h shr 15);
+  FH := FH * M;
+  FH := FH xor (FH shr 15);
 
-  result := Int32(Fm_h);
+  result := Int32(FH);
 end;
 
 function TMurmur2.Clone(): IHash;
 var
-  HashInstance: TMurmur2;
+  LHashInstance: TMurmur2;
 begin
-  HashInstance := TMurmur2.Create();
-  HashInstance.Fm_key := Fm_key;
-  HashInstance.Fm_working_key := Fm_working_key;
-  HashInstance.Fm_h := Fm_h;
+  LHashInstance := TMurmur2.Create();
+  LHashInstance.FKey := FKey;
+  LHashInstance.FWorkingKey := FWorkingKey;
+  LHashInstance.FH := FH;
   FBuffer.Position := 0;
-  HashInstance.FBuffer.CopyFrom(FBuffer, FBuffer.Size);
-  result := HashInstance as IHash;
+  LHashInstance.FBuffer.CopyFrom(FBuffer, FBuffer.Size);
+  result := LHashInstance as IHash;
   result.BufferSize := BufferSize;
 end;
 
-function TMurmur2.ComputeAggregatedBytes(const a_data: THashLibByteArray)
+function TMurmur2.ComputeAggregatedBytes(const AData: THashLibByteArray)
   : IHashResult;
-
 begin
-  result := THashResult.Create(InternalComputeBytes(a_data));
+  result := THashResult.Create(InternalComputeBytes(AData));
 end;
 
 end.

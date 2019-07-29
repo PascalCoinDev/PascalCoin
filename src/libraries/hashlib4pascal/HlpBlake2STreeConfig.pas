@@ -25,7 +25,7 @@ type
   TBlake2STreeConfig = class sealed(TInterfacedObject, IBlake2STreeConfig)
 
   strict private
-
+  var
     FFanOut, FMaxDepth, FNodeDepth, FInnerHashSize: Byte;
     FLeafSize: UInt32;
     FNodeOffset: UInt64;
@@ -38,25 +38,25 @@ type
     procedure ValidateNodeOffset(ANodeOffset: UInt64); inline;
 
     function GetFanOut: Byte; inline;
-    procedure SetFanOut(value: Byte); inline;
+    procedure SetFanOut(AValue: Byte); inline;
 
     function GetMaxDepth: Byte; inline;
-    procedure SetMaxDepth(value: Byte); inline;
+    procedure SetMaxDepth(AValue: Byte); inline;
 
     function GetNodeDepth: Byte; inline;
-    procedure SetNodeDepth(value: Byte); inline;
+    procedure SetNodeDepth(AValue: Byte); inline;
 
     function GetInnerHashSize: Byte; inline;
-    procedure SetInnerHashSize(value: Byte); inline;
+    procedure SetInnerHashSize(AValue: Byte); inline;
 
     function GetLeafSize: UInt32; inline;
-    procedure SetLeafSize(value: UInt32); inline;
+    procedure SetLeafSize(AValue: UInt32); inline;
 
     function GetNodeOffset: UInt64; inline;
-    procedure SetNodeOffset(value: UInt64); inline;
+    procedure SetNodeOffset(AValue: UInt64); inline;
 
     function GetIsLastNode: Boolean; inline;
-    procedure SetIsLastNode(value: Boolean); inline;
+    procedure SetIsLastNode(AValue: Boolean); inline;
 
   public
     constructor Create();
@@ -160,44 +160,44 @@ begin
   result := FNodeOffset;
 end;
 
-procedure TBlake2STreeConfig.SetFanOut(value: Byte);
+procedure TBlake2STreeConfig.SetFanOut(AValue: Byte);
 begin
-  ValidateFanOut(value);
-  FFanOut := value;
+  ValidateFanOut(AValue);
+  FFanOut := AValue;
 end;
 
-procedure TBlake2STreeConfig.SetInnerHashSize(value: Byte);
+procedure TBlake2STreeConfig.SetInnerHashSize(AValue: Byte);
 begin
-  ValidateInnerHashSize(value);
-  FInnerHashSize := value;
+  ValidateInnerHashSize(AValue);
+  FInnerHashSize := AValue;
 end;
 
-procedure TBlake2STreeConfig.SetIsLastNode(value: Boolean);
+procedure TBlake2STreeConfig.SetIsLastNode(AValue: Boolean);
 begin
-  FIsLastNode := value;
+  FIsLastNode := AValue;
 end;
 
-procedure TBlake2STreeConfig.SetLeafSize(value: UInt32);
+procedure TBlake2STreeConfig.SetLeafSize(AValue: UInt32);
 begin
-  FLeafSize := value;
+  FLeafSize := AValue;
 end;
 
-procedure TBlake2STreeConfig.SetMaxDepth(value: Byte);
+procedure TBlake2STreeConfig.SetMaxDepth(AValue: Byte);
 begin
-  ValidateMaxDepth(value);
-  FMaxDepth := value;
+  ValidateMaxDepth(AValue);
+  FMaxDepth := AValue;
 end;
 
-procedure TBlake2STreeConfig.SetNodeDepth(value: Byte);
+procedure TBlake2STreeConfig.SetNodeDepth(AValue: Byte);
 begin
-  ValidateNodeDepth(value);
-  FNodeDepth := value;
+  ValidateNodeDepth(AValue);
+  FNodeDepth := AValue;
 end;
 
-procedure TBlake2STreeConfig.SetNodeOffset(value: UInt64);
+procedure TBlake2STreeConfig.SetNodeOffset(AValue: UInt64);
 begin
-  ValidateNodeOffset(value);
-  FNodeOffset := value;
+  ValidateNodeOffset(AValue);
+  FNodeOffset := AValue;
 end;
 
 constructor TBlake2STreeConfig.Create;

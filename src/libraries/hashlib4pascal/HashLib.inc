@@ -56,26 +56,7 @@
 
 {$IFDEF DELPHI}
 
-{$DEFINE USE_UNROLLED_VARIANT}
-
-// This option is needed to enable code browsing (aka Ctrl+Click)
-// It does not affect the binary size or generated code
-{$DEFINITIONINFO ON}
-
-// Disable Overflow and RangeChecks.
-{$OVERFLOWCHECKS OFF}
-{$RANGECHECKS OFF}
-
- // Enable Pointer Math
-{$POINTERMATH ON}
-
-// Disable String Checks
-{$STRINGCHECKS OFF}
-
-// Disable Duplicate Constructor Warnings
-{$WARN DUPLICATE_CTOR_DTOR OFF}
-
- // XE3 and Above
+  // XE3 and Above
 {$IF CompilerVersion >= 24.0}
    {$DEFINE DELPHIXE3_UP}
    {$LEGACYIFEND ON}
@@ -100,7 +81,6 @@
   // XE2 and Above
 {$IF CompilerVersion >= 23.0}
    {$DEFINE DELPHIXE2_UP}
-   {$DEFINE HAS_UNITSCOPE}
 {$IFEND}
 
  // XE4 and Above
@@ -112,6 +92,8 @@
   // XE7 and Above
 {$IF CompilerVersion >= 28.0}
    {$DEFINE DELPHIXE7_UP}
+   {$DEFINE HAS_DELPHI_PPL} // Has Delphi Parallel Programming Library
+   {$DEFINE HAS_DELPHI_NET_ENCODING}
 {$IFEND}
 
   // 2010 and Above
@@ -119,8 +101,25 @@
    {$MESSAGE ERROR 'This Library requires Delphi 2010 or higher.'}
 {$ENDIF}
 
+{$DEFINE USE_UNROLLED_VARIANT}
+
+// This option is needed to enable code browsing (aka Ctrl+Click)
+// It does not affect the binary size or generated code
+{$DEFINITIONINFO ON}
+
+// Disable Overflow and RangeChecks.
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+
+ // Enable Pointer Math
+{$POINTERMATH ON}
+
+// Disable String Checks
+{$STRINGCHECKS OFF}
+
+// Disable Duplicate Constructor Warnings
+{$WARN DUPLICATE_CTOR_DTOR OFF}
 
 {$ENDIF DELPHI}
 
 (* &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& *)
-

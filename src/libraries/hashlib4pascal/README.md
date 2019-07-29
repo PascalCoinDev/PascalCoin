@@ -120,19 +120,6 @@ Available Algorithms
 
 * `Delphi 2010+`
 
-### Supported OSes
-----------------------------------------
-
-* `Windows`
-
-* `Linux (Including Android and Raspberry PI)`
-
-* `macOS`
-
-* `iOS`
-
-* `FreeBSD, NetBSD, OpenBSD and DragonBSD`
-
 ### Other Implementations
 ----------------------------------------
 

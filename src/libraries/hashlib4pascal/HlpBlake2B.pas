@@ -1,19 +1,13 @@
 unit HlpBlake2B;
 
-
 {$I HashLib.inc}
 
 interface
 
 uses
-{$IFDEF HAS_UNITSCOPE}
-  System.SysUtils,
-{$ELSE}
   SysUtils,
-{$ENDIF HAS_UNITSCOPE}
 {$IFDEF DELPHI}
   HlpBitConverter,
-  HlpHashBuffer,
 {$ENDIF DELPHI}
   HlpBits,
   HlpHash,
@@ -31,6 +25,7 @@ uses
 
 resourcestring
   SInvalidConfigLength = 'Config Length Must Be 8 Words';
+  SConfigNil = 'Config Cannot Be Nil';
 
 type
   TBlake2B = class sealed(THash, ICryptoNotBuildIn, ITransformBlock)
@@ -71,22 +66,22 @@ type
       FDefaultConfig: IBlake2BConfig;
 
   var
-    F_m: array [0 .. 15] of UInt64;
-    FrawConfig, Fm_state: THashLibUInt64Array;
-    FKey, F_buf: THashLibByteArray;
+    FM: array [0 .. 15] of UInt64;
+    FRawConfig, FState: THashLibUInt64Array;
+    FKey, FBuffer: THashLibByteArray;
 {$IFNDEF USE_UNROLLED_VARIANT}
-    F_v: array [0 .. 15] of UInt64;
+    FV: array [0 .. 15] of UInt64;
 {$ENDIF USE_UNROLLED_VARIANT}
-    F_bufferFilled, FHashSize, FBlockSize: Int32;
-    F_counter0, F_counter1, F_finalizationFlag0, F_finalizationFlag1: UInt64;
-    FtreeConfig: IBlake2BTreeConfig;
+    FFilledBufferCount, FHashSize, FBlockSize: Int32;
+    FCounter0, FCounter1, FFinalizationFlag0, FFinalizationFlag1: UInt64;
+    FTreeConfig: IBlake2BTreeConfig;
 
     class constructor Blake2BConfig();
 
 {$IFNDEF USE_UNROLLED_VARIANT}
     procedure G(a, b, c, d, r, i: Int32); inline;
 {$ENDIF USE_UNROLLED_VARIANT}
-    procedure Compress(block: PByte; start: Int32);
+    procedure Compress(ABlock: PByte; AStart: Int32);
 
     procedure Finish(); inline;
 
@@ -96,12 +91,12 @@ type
 
   public
     constructor Create(); overload;
-    constructor Create(const config: IBlake2BConfig); overload;
-    constructor Create(const config: IBlake2BConfig;
-      const treeConfig: IBlake2BTreeConfig); overload;
+    constructor Create(const AConfig: IBlake2BConfig); overload;
+    constructor Create(const AConfig: IBlake2BConfig;
+      const ATreeConfig: IBlake2BTreeConfig); overload;
     procedure Initialize; override;
-    procedure TransformBytes(const a_data: THashLibByteArray;
-      a_index, a_data_length: Int32); override;
+    procedure TransformBytes(const AData: THashLibByteArray;
+      AIndex, ADataLength: Int32); override;
     function TransformFinal: IHashResult; override;
     function Clone(): IHash; override;
 
@@ -131,42 +126,42 @@ begin
   p0 := Sigma[p];
   p1 := Sigma[p + 1];
 
-  F_v[a] := F_v[a] + (F_v[b] + F_m[p0]);
-  F_v[d] := TBits.RotateRight64(F_v[d] xor F_v[a], 32);
-  F_v[c] := F_v[c] + F_v[d];
-  F_v[b] := TBits.RotateRight64(F_v[b] xor F_v[c], 24);
-  F_v[a] := F_v[a] + (F_v[b] + F_m[p1]);
-  F_v[d] := TBits.RotateRight64(F_v[d] xor F_v[a], 16);
-  F_v[c] := F_v[c] + F_v[d];
-  F_v[b] := TBits.RotateRight64(F_v[b] xor F_v[c], 63);
+  FV[a] := FV[a] + (FV[b] + FM[p0]);
+  FV[d] := TBits.RotateRight64(FV[d] xor FV[a], 32);
+  FV[c] := FV[c] + FV[d];
+  FV[b] := TBits.RotateRight64(FV[b] xor FV[c], 24);
+  FV[a] := FV[a] + (FV[b] + FM[p1]);
+  FV[d] := TBits.RotateRight64(FV[d] xor FV[a], 16);
+  FV[c] := FV[c] + FV[d];
+  FV[b] := TBits.RotateRight64(FV[b] xor FV[c], 63);
 end;
 
 {$ENDIF USE_UNROLLED_VARIANT}
 
 function TBlake2B.Clone(): IHash;
 var
-  HashInstance: TBlake2B;
+  LHashInstance: TBlake2B;
 begin
-  HashInstance := TBlake2B.Create(TBlake2BConfig.Create(FHashSize)
+  LHashInstance := TBlake2B.Create(TBlake2BConfig.Create(FHashSize)
     as IBlake2BConfig);
-  System.Move(F_m, HashInstance.F_m, System.SizeOf(F_m));
-  HashInstance.FrawConfig := System.Copy(FrawConfig);
-  HashInstance.Fm_state := System.Copy(Fm_state);
-  HashInstance.FKey := System.Copy(FKey);
-  HashInstance.F_buf := System.Copy(F_buf);
+  System.Move(FM, LHashInstance.FM, System.SizeOf(FM));
+  LHashInstance.FRawConfig := System.Copy(FRawConfig);
+  LHashInstance.FState := System.Copy(FState);
+  LHashInstance.FKey := System.Copy(FKey);
+  LHashInstance.FBuffer := System.Copy(FBuffer);
 {$IFNDEF USE_UNROLLED_VARIANT}
-  System.Move(F_v, HashInstance.F_v, System.SizeOf(F_v));
+  System.Move(FV, LHashInstance.FV, System.SizeOf(FV));
 {$ENDIF USE_UNROLLED_VARIANT}
-  HashInstance.F_bufferFilled := F_bufferFilled;
-  HashInstance.F_counter0 := F_counter0;
-  HashInstance.F_counter1 := F_counter1;
-  HashInstance.F_finalizationFlag0 := F_finalizationFlag0;
-  HashInstance.F_finalizationFlag1 := F_finalizationFlag1;
-  Result := HashInstance as IHash;
+  LHashInstance.FFilledBufferCount := FFilledBufferCount;
+  LHashInstance.FCounter0 := FCounter0;
+  LHashInstance.FCounter1 := FCounter1;
+  LHashInstance.FFinalizationFlag0 := FFinalizationFlag0;
+  LHashInstance.FFinalizationFlag1 := FFinalizationFlag1;
+  Result := LHashInstance as IHash;
   Result.BufferSize := BufferSize;
 end;
 
-procedure TBlake2B.Compress(block: PByte; start: Int32);
+procedure TBlake2B.Compress(ABlock: PByte; AStart: Int32);
 var
 {$IFDEF USE_UNROLLED_VARIANT}
   m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15, v0, v1,
@@ -177,43 +172,43 @@ var
 
 {$ENDIF USE_UNROLLED_VARIANT}
 begin
-  TConverters.le64_copy(block, start, @(F_m[0]), 0, FBlockSize);
+  TConverters.le64_copy(ABlock, AStart, @(FM[0]), 0, FBlockSize);
 
 {$IFDEF USE_UNROLLED_VARIANT}
-  m0 := F_m[0];
-  m1 := F_m[1];
-  m2 := F_m[2];
-  m3 := F_m[3];
-  m4 := F_m[4];
-  m5 := F_m[5];
-  m6 := F_m[6];
-  m7 := F_m[7];
-  m8 := F_m[8];
-  m9 := F_m[9];
-  m10 := F_m[10];
-  m11 := F_m[11];
-  m12 := F_m[12];
-  m13 := F_m[13];
-  m14 := F_m[14];
-  m15 := F_m[15];
+  m0 := FM[0];
+  m1 := FM[1];
+  m2 := FM[2];
+  m3 := FM[3];
+  m4 := FM[4];
+  m5 := FM[5];
+  m6 := FM[6];
+  m7 := FM[7];
+  m8 := FM[8];
+  m9 := FM[9];
+  m10 := FM[10];
+  m11 := FM[11];
+  m12 := FM[12];
+  m13 := FM[13];
+  m14 := FM[14];
+  m15 := FM[15];
 
-  v0 := Fm_state[0];
-  v1 := Fm_state[1];
-  v2 := Fm_state[2];
-  v3 := Fm_state[3];
-  v4 := Fm_state[4];
-  v5 := Fm_state[5];
-  v6 := Fm_state[6];
-  v7 := Fm_state[7];
+  v0 := FState[0];
+  v1 := FState[1];
+  v2 := FState[2];
+  v3 := FState[3];
+  v4 := FState[4];
+  v5 := FState[5];
+  v6 := FState[6];
+  v7 := FState[7];
 
   v8 := IV0;
   v9 := IV1;
   v10 := IV2;
   v11 := IV3;
-  v12 := IV4 xor F_counter0;
-  v13 := IV5 xor F_counter1;
-  v14 := IV6 xor F_finalizationFlag0;
-  v15 := IV7 xor F_finalizationFlag1;
+  v12 := IV4 xor FCounter0;
+  v13 := IV5 xor FCounter1;
+  v14 := IV6 xor FFinalizationFlag0;
+  v15 := IV7 xor FFinalizationFlag1;
 
   // Rounds
 
@@ -1574,35 +1569,35 @@ begin
   v4 := TBits.RotateRight64(v4, 63);
 
   // Finalization
-  Fm_state[0] := Fm_state[0] xor (v0 xor v8);
-  Fm_state[1] := Fm_state[1] xor (v1 xor v9);
-  Fm_state[2] := Fm_state[2] xor (v2 xor v10);
-  Fm_state[3] := Fm_state[3] xor (v3 xor v11);
-  Fm_state[4] := Fm_state[4] xor (v4 xor v12);
-  Fm_state[5] := Fm_state[5] xor (v5 xor v13);
-  Fm_state[6] := Fm_state[6] xor (v6 xor v14);
-  Fm_state[7] := Fm_state[7] xor (v7 xor v15);
+  FState[0] := FState[0] xor (v0 xor v8);
+  FState[1] := FState[1] xor (v1 xor v9);
+  FState[2] := FState[2] xor (v2 xor v10);
+  FState[3] := FState[3] xor (v3 xor v11);
+  FState[4] := FState[4] xor (v4 xor v12);
+  FState[5] := FState[5] xor (v5 xor v13);
+  FState[6] := FState[6] xor (v6 xor v14);
+  FState[7] := FState[7] xor (v7 xor v15);
 
 {$ELSE}
-  F_v[0] := Fm_state[0];
-  F_v[1] := Fm_state[1];
-  F_v[2] := Fm_state[2];
-  F_v[3] := Fm_state[3];
-  F_v[4] := Fm_state[4];
-  F_v[5] := Fm_state[5];
-  F_v[6] := Fm_state[6];
-  F_v[7] := Fm_state[7];
+  FV[0] := FState[0];
+  FV[1] := FState[1];
+  FV[2] := FState[2];
+  FV[3] := FState[3];
+  FV[4] := FState[4];
+  FV[5] := FState[5];
+  FV[6] := FState[6];
+  FV[7] := FState[7];
 
-  F_v[8] := IV0;
-  F_v[9] := IV1;
-  F_v[10] := IV2;
-  F_v[11] := IV3;
-  F_v[12] := IV4 xor F_counter0;
-  F_v[13] := IV5 xor F_counter1;
+  FV[8] := IV0;
+  FV[9] := IV1;
+  FV[10] := IV2;
+  FV[11] := IV3;
+  FV[12] := IV4 xor FCounter0;
+  FV[13] := IV5 xor FCounter1;
 
-  F_v[14] := IV6 xor F_finalizationFlag0;
+  FV[14] := IV6 xor FFinalizationFlag0;
 
-  F_v[15] := IV7 xor F_finalizationFlag1;
+  FV[15] := IV7 xor FFinalizationFlag1;
 
   for r := 0 to System.Pred(NumberOfRounds) do
 
@@ -1619,180 +1614,174 @@ begin
 
   for i := 0 to 7 do
   begin
-    Fm_state[i] := Fm_state[i] xor (F_v[i] xor F_v[i + 8]);
+    FState[i] := FState[i] xor (FV[i] xor FV[i + 8]);
   end;
 
 {$ENDIF USE_UNROLLED_VARIANT}
 end;
 
-constructor TBlake2B.Create(const config: IBlake2BConfig);
+constructor TBlake2B.Create(const AConfig: IBlake2BConfig);
 begin
-  Create(config, Nil);
+  Create(AConfig, Nil);
 end;
 
-constructor TBlake2B.Create(const config: IBlake2BConfig;
-  const treeConfig: IBlake2BTreeConfig);
+constructor TBlake2B.Create(const AConfig: IBlake2BConfig;
+  const ATreeConfig: IBlake2BTreeConfig);
 var
-  Lconfig: IBlake2BConfig;
+  LConfig: IBlake2BConfig;
 begin
-
-  Lconfig := config;
-  FtreeConfig := treeConfig;
+  LConfig := AConfig;
+  FTreeConfig := ATreeConfig;
   FBlockSize := BlockSizeInBytes;
 
-  if (Lconfig = Nil) then
+  if (LConfig = Nil) then
   begin
-    Lconfig := FDefaultConfig;
+    LConfig := FDefaultConfig;
   end;
 
-  FrawConfig := TBlake2BIvBuilder.ConfigB(Lconfig, FtreeConfig);
-  if ((Lconfig.Key <> Nil) and (System.Length(Lconfig.Key) <> 0)) then
+  FRawConfig := TBlake2BIvBuilder.ConfigB(LConfig, FTreeConfig);
+  if ((LConfig.Key <> Nil) and (System.Length(LConfig.Key) <> 0)) then
   begin
-
-    FKey := System.Copy(Lconfig.Key, System.Low(Lconfig.Key),
-      System.Length(Lconfig.Key));
-
+    FKey := System.Copy(LConfig.Key, System.Low(LConfig.Key),
+      System.Length(LConfig.Key));
     System.SetLength(FKey, FBlockSize);
-
   end;
-  FHashSize := Lconfig.HashSize;
 
-  System.SetLength(Fm_state, 8);
+  FHashSize := LConfig.HashSize;
+
+  System.SetLength(FState, 8);
 
   Inherited Create(FHashSize, FBlockSize);
-
 end;
 
 procedure TBlake2B.Finish;
 var
-  count: Int32;
+  LCount: Int32;
 begin
-
   // Last compression
+  FCounter0 := FCounter0 + UInt64(FFilledBufferCount);
 
-  F_counter0 := F_counter0 + UInt64(F_bufferFilled);
+  FFinalizationFlag0 := System.High(UInt64);
 
-  F_finalizationFlag0 := System.High(UInt64);
-
-  if (FtreeConfig.IsLastNode) then
+  if (FTreeConfig.IsLastNode) then
   begin
-    F_finalizationFlag1 := System.High(UInt64);
+    FFinalizationFlag1 := System.High(UInt64);
   end;
 
-  count := System.Length(F_buf) - F_bufferFilled;
+  LCount := System.Length(FBuffer) - FFilledBufferCount;
 
-  if count > 0 then
+  if LCount > 0 then
   begin
-    TArrayUtils.Fill(F_buf, F_bufferFilled, count + F_bufferFilled, Byte(0));
+    TArrayUtils.Fill(FBuffer, FFilledBufferCount,
+      LCount + FFilledBufferCount, Byte(0));
   end;
 
-  Compress(PByte(F_buf), 0);
-
+  Compress(PByte(FBuffer), 0);
 end;
 
 procedure TBlake2B.Initialize;
 var
-  i: Int32;
+  LIdx: Int32;
 begin
-  if (FrawConfig = Nil) then
-    raise EArgumentNilHashLibException.Create('config');
-  if (System.Length(FrawConfig) <> 8) then
+  if (FRawConfig = Nil) then
+  begin
+    raise EArgumentNilHashLibException.CreateRes(@SConfigNil);
+  end;
+  if (System.Length(FRawConfig) <> 8) then
   begin
     raise EArgumentHashLibException.CreateRes(@SInvalidConfigLength);
   end;
 
-  Fm_state[0] := IV0;
-  Fm_state[1] := IV1;
-  Fm_state[2] := IV2;
-  Fm_state[3] := IV3;
-  Fm_state[4] := IV4;
-  Fm_state[5] := IV5;
-  Fm_state[6] := IV6;
-  Fm_state[7] := IV7;
+  FState[0] := IV0;
+  FState[1] := IV1;
+  FState[2] := IV2;
+  FState[3] := IV3;
+  FState[4] := IV4;
+  FState[5] := IV5;
+  FState[6] := IV6;
+  FState[7] := IV7;
 
-  F_counter0 := 0;
-  F_counter1 := 0;
-  F_finalizationFlag0 := 0;
-  F_finalizationFlag1 := 0;
+  FCounter0 := 0;
+  FCounter1 := 0;
+  FFinalizationFlag0 := 0;
+  FFinalizationFlag1 := 0;
 
-  F_bufferFilled := 0;
+  FFilledBufferCount := 0;
 
-  System.SetLength(F_buf, BlockSizeInBytes);
+  System.SetLength(FBuffer, BlockSizeInBytes);
 
-  TArrayUtils.ZeroFill(F_buf);
+  TArrayUtils.ZeroFill(FBuffer);
 
-  System.FillChar(F_m, System.SizeOf(F_m), UInt64(0));
+  System.FillChar(FM, System.SizeOf(FM), UInt64(0));
 
 {$IFNDEF USE_UNROLLED_VARIANT}
-  System.FillChar(F_v, System.SizeOf(F_v), UInt64(0));
+  System.FillChar(FV, System.SizeOf(FV), UInt64(0));
 {$ENDIF USE_UNROLLED_VARIANT}
-  for i := 0 to 7 do
+  for LIdx := 0 to 7 do
   begin
-    Fm_state[i] := Fm_state[i] xor FrawConfig[i];
+    FState[LIdx] := FState[LIdx] xor FRawConfig[LIdx];
   end;
 
   if (FKey <> Nil) then
   begin
     TransformBytes(FKey, 0, System.Length(FKey));
   end;
-
 end;
 
-procedure TBlake2B.TransformBytes(const a_data: THashLibByteArray;
-  a_index, a_data_length: Int32);
+procedure TBlake2B.TransformBytes(const AData: THashLibByteArray;
+  AIndex, ADataLength: Int32);
 var
-  offset, bufferRemaining: Int32;
-
+  LOffset, LBufferRemaining: Int32;
 begin
-  offset := a_index;
-  bufferRemaining := BlockSizeInBytes - F_bufferFilled;
+  LOffset := AIndex;
+  LBufferRemaining := BlockSizeInBytes - FFilledBufferCount;
 
-  if ((F_bufferFilled > 0) and (a_data_length > bufferRemaining)) then
+  if ((FFilledBufferCount > 0) and (ADataLength > LBufferRemaining)) then
   begin
-
-    if bufferRemaining > 0 then
+    if LBufferRemaining > 0 then
     begin
-      System.Move(a_data[offset], F_buf[F_bufferFilled], bufferRemaining);
+      System.Move(AData[LOffset], FBuffer[FFilledBufferCount],
+        LBufferRemaining);
     end;
-    F_counter0 := F_counter0 + UInt64(BlockSizeInBytes);
-    if (F_counter0 = 0) then
+    FCounter0 := FCounter0 + UInt64(BlockSizeInBytes);
+    if (FCounter0 = 0) then
     begin
-      System.Inc(F_counter1);
+      System.Inc(FCounter1);
     end;
-    Compress(PByte(F_buf), 0);
-    offset := offset + bufferRemaining;
-    a_data_length := a_data_length - bufferRemaining;
-    F_bufferFilled := 0;
+    Compress(PByte(FBuffer), 0);
+    LOffset := LOffset + LBufferRemaining;
+    ADataLength := ADataLength - LBufferRemaining;
+    FFilledBufferCount := 0;
   end;
 
-  while (a_data_length > BlockSizeInBytes) do
+  while (ADataLength > BlockSizeInBytes) do
   begin
-    F_counter0 := F_counter0 + UInt64(BlockSizeInBytes);
-    if (F_counter0 = 0) then
+    FCounter0 := FCounter0 + UInt64(BlockSizeInBytes);
+    if (FCounter0 = 0) then
     begin
-      System.Inc(F_counter1);
+      System.Inc(FCounter1);
     end;
-    Compress(PByte(a_data), offset);
-    offset := offset + BlockSizeInBytes;
-    a_data_length := a_data_length - BlockSizeInBytes;
+    Compress(PByte(AData), LOffset);
+    LOffset := LOffset + BlockSizeInBytes;
+    ADataLength := ADataLength - BlockSizeInBytes;
   end;
 
-  if (a_data_length > 0) then
+  if (ADataLength > 0) then
   begin
-    System.Move(a_data[offset], F_buf[F_bufferFilled], a_data_length);
-    F_bufferFilled := F_bufferFilled + a_data_length;
+    System.Move(AData[LOffset], FBuffer[FFilledBufferCount], ADataLength);
+    FFilledBufferCount := FFilledBufferCount + ADataLength;
   end;
 end;
 
 function TBlake2B.TransformFinal: IHashResult;
 var
-  tempRes: THashLibByteArray;
+  LBuffer: THashLibByteArray;
 begin
   Finish();
-  System.SetLength(tempRes, FHashSize);
-  TConverters.le64_copy(PUInt64(Fm_state), 0, PByte(tempRes), 0,
-    System.Length(tempRes));
-  Result := THashResult.Create(tempRes);
+  System.SetLength(LBuffer, FHashSize);
+  TConverters.le64_copy(PUInt64(FState), 0, PByte(LBuffer), 0,
+    System.Length(LBuffer));
+  Result := THashResult.Create(LBuffer);
   Initialize();
 end;
 
@@ -1802,4 +1791,3 @@ begin
 end;
 
 end.
-
