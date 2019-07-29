@@ -37,11 +37,29 @@ type
     function GetTwice: IECPoint;
     procedure SetTwice(const Value: IECPoint);
 
+    function GetConfWidth: Int32;
+    procedure SetConfWidth(Value: Int32);
+
+    function GetWidth: Int32;
+    procedure SetWidth(Value: Int32);
+
+    function GetPromotionCountdown: Int32;
+    procedure SetPromotionCountdown(Value: Int32);
+
+    function DecrementPromotionCountdown: Int32;
+
+    function IsPromoted: Boolean;
+
     property PreComp: TCryptoLibGenericArray<IECPoint> read GetPreComp
       write SetPreComp;
     property PreCompNeg: TCryptoLibGenericArray<IECPoint> read GetPreCompNeg
       write SetPreCompNeg;
     property Twice: IECPoint read GetTwice write SetTwice;
+
+    property ConfWidth: Int32 read GetConfWidth write SetConfWidth;
+    property Width: Int32 read GetWidth write SetWidth;
+    property PromotionCountdown: Int32 read GetPromotionCountdown
+      write SetPromotionCountdown;
 
   end;
 

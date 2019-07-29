@@ -22,12 +22,11 @@ unit ClpCryptoApiRandomGenerator;
 interface
 
 uses
-  SyncObjs,
-  ClpCryptoLibTypes,
   ClpIRandomNumberGenerator,
   ClpRandomNumberGenerator,
   ClpICryptoApiRandomGenerator,
-  ClpIRandomGenerator;
+  ClpIRandomGenerator,
+  ClpCryptoLibTypes;
 
 resourcestring
   SNegativeOffset = 'Start Offset Cannot be Negative, "Start"';
@@ -43,14 +42,6 @@ type
   strict private
   var
     FrndProv: IRandomNumberGenerator;
-
-    class var
-
-      FLock: TCriticalSection;
-
-    class procedure Boot(); static;
-    class constructor CreateCryptoApiRandomGenerator();
-    class destructor DestroyCryptoApiRandomGenerator();
 
   public
     /// <summary>
@@ -90,14 +81,6 @@ begin
   // We don't care about the seed
 end;
 
-class procedure TCryptoApiRandomGenerator.Boot;
-begin
-  if FLock = Nil then
-  begin
-    FLock := TCriticalSection.Create;
-  end;
-end;
-
 procedure TCryptoApiRandomGenerator.AddSeedMaterial
   (const seed: TCryptoLibByteArray);
 begin
@@ -110,16 +93,6 @@ begin
   FrndProv := rng;
 end;
 
-class constructor TCryptoApiRandomGenerator.CreateCryptoApiRandomGenerator;
-begin
-  TCryptoApiRandomGenerator.Boot;
-end;
-
-class destructor TCryptoApiRandomGenerator.DestroyCryptoApiRandomGenerator;
-begin
-  FLock.Free;
-end;
-
 constructor TCryptoApiRandomGenerator.Create;
 begin
   Create(TRandomNumberGenerator.CreateRNG());
@@ -127,13 +100,7 @@ end;
 
 procedure TCryptoApiRandomGenerator.NextBytes(const bytes: TCryptoLibByteArray);
 begin
-
-  FLock.Acquire;
-  try
-    FrndProv.GetBytes(bytes);
-  finally
-    FLock.Release;
-  end;
+  FrndProv.GetBytes(bytes);
 end;
 
 procedure TCryptoApiRandomGenerator.NextBytes(const bytes: TCryptoLibByteArray;

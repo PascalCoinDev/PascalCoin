@@ -45,6 +45,7 @@ type
     CYCLE_COUNT = Int64(10);
 
   var
+    FLock: TCriticalSection;
     FstateCounter, FseedCounter: Int64;
     Fdigest: IDigest;
     Fstate, Fseed: TCryptoLibByteArray;
@@ -55,17 +56,10 @@ type
     procedure DigestUpdate(const inSeed: TCryptoLibByteArray); inline;
     procedure DigestDoFinal(const result: TCryptoLibByteArray); inline;
 
-    class var
-
-      FLock: TCriticalSection;
-
-    class procedure Boot(); static;
-    class constructor CreateDigestRandomGenerator();
-    class destructor DestroyDigestRandomGenerator();
-
   public
 
     constructor Create(const digest: IDigest);
+    destructor Destroy; override;
     procedure AddSeedMaterial(const inSeed: TCryptoLibByteArray);
       overload; inline;
     procedure AddSeedMaterial(rSeed: Int64); overload; inline;
@@ -102,7 +96,6 @@ end;
 
 procedure TDigestRandomGenerator.AddSeedMaterial(rSeed: Int64);
 begin
-
   FLock.Acquire;
   try
     DigestAddCounter(rSeed);
@@ -113,18 +106,9 @@ begin
   end;
 end;
 
-class procedure TDigestRandomGenerator.Boot;
-begin
-  if FLock = Nil then
-  begin
-    FLock := TCriticalSection.Create;
-  end;
-end;
-
 procedure TDigestRandomGenerator.AddSeedMaterial(const inSeed
   : TCryptoLibByteArray);
 begin
-
   FLock.Acquire;
   try
     DigestUpdate(inSeed);
@@ -138,16 +122,12 @@ end;
 constructor TDigestRandomGenerator.Create(const digest: IDigest);
 begin
   Inherited Create();
+  FLock := TCriticalSection.Create;
   Fdigest := digest;
   System.SetLength(Fseed, digest.GetDigestSize);
   FseedCounter := 1;
   System.SetLength(Fstate, digest.GetDigestSize);
   FstateCounter := 1;
-end;
-
-class constructor TDigestRandomGenerator.CreateDigestRandomGenerator;
-begin
-  TDigestRandomGenerator.Boot;
 end;
 
 procedure TDigestRandomGenerator.CycleSeed;
@@ -158,9 +138,10 @@ begin
   DigestDoFinal(Fseed);
 end;
 
-class destructor TDigestRandomGenerator.DestroyDigestRandomGenerator;
+destructor TDigestRandomGenerator.Destroy;
 begin
   FLock.Free;
+  inherited Destroy;
 end;
 
 procedure TDigestRandomGenerator.GenerateState;
@@ -188,7 +169,6 @@ var
   stateOff, endPoint: Int32;
   I: Int32;
 begin
-
   FLock.Acquire;
   try
     stateOff := 0;

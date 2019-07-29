@@ -28,9 +28,11 @@ uses
   ClpGlvTypeBParameters,
   ClpIGlvTypeBEndomorphism,
   ClpSecObjectIdentifiers,
+  ClpCryptLibObjectIdentifiers,
   ClpCryptoLibTypes,
   ClpBigInteger,
   ClpECC,
+  ClpECCompUtilities,
   ClpSecP256K1Custom,
   ClpISecP256K1Custom,
   ClpSecP256R1Custom,
@@ -47,6 +49,8 @@ uses
   ClpX9ECC,
   ClpIX9ECC,
   ClpIAsn1Objects,
+  ClpScalarSplitParameters,
+  ClpIScalarSplitParameters,
   ClpGlvTypeBEndomorphism,
   ClpX9ECParameters,
   ClpIX9ECParameters,
@@ -69,8 +73,8 @@ type
 
     class function GetNames: TCryptoLibStringArray; static; inline;
 
-    class procedure DefineCurve(const name: String;
-      const holder: IX9ECParametersHolder); static; inline;
+    // class procedure DefineCurve(const name: String;
+    // const holder: IX9ECParametersHolder); static; inline;
 
     class procedure DefineCurveWithOid(const name: String;
       const oid: IDerObjectIdentifier; const holder: IX9ECParametersHolder);
@@ -83,6 +87,9 @@ type
       static; inline;
     class function ConfigureCurveGlv(const c: IECCurve;
       const p: IGlvTypeBParameters): IECCurve; static; inline;
+
+    class function ConfigureBasepoint(const curve: IECCurve;
+      const encoding: String): IX9ECPoint; static;
 
     class procedure Boot(); static;
     class constructor CreateCustomNamedCurves();
@@ -220,16 +227,23 @@ implementation
 
 { TCustomNamedCurves }
 
-class procedure TCustomNamedCurves.DefineCurve(const name: String;
-  const holder: IX9ECParametersHolder);
-var
-  LName: string;
+class function TCustomNamedCurves.ConfigureBasepoint(const curve: IECCurve;
+  const encoding: String): IX9ECPoint;
 begin
-  LName := name;
-  Fnames.Add(LName);
-  LName := UpperCase(LName);
-  FnameToCurve.Add(LName, holder);
+  result := TX9ECPoint.Create(curve, THex.Decode(encoding));
+  TWnafUtilities.ConfigureBasepoint(result.Point);
 end;
+
+// class procedure TCustomNamedCurves.DefineCurve(const name: String;
+// const holder: IX9ECParametersHolder);
+// var
+// LName: string;
+// begin
+// LName := name;
+// Fnames.Add(LName);
+// LName := UpperCase(LName);
+// FnameToCurve.Add(LName, holder);
+// end;
 
 class procedure TCustomNamedCurves.DefineCurveWithOid(const name: String;
   const oid: IDerObjectIdentifier; const holder: IX9ECParametersHolder);
@@ -353,7 +367,8 @@ begin
 
   Fnames := TList<String>.Create();
 
-  DefineCurve('curve25519', TCurve25519Holder.Instance);
+  DefineCurveWithOid('curve25519', TCryptlibObjectIdentifiers.Curvey25519,
+    TCurve25519Holder.Instance);
 
   DefineCurveWithOid('secp256k1', TSecObjectIdentifiers.SecP256k1,
     TSecP256K1Holder.Instance);
@@ -397,10 +412,8 @@ begin
     *
     * (The other possible y value is 5F51E65E475F794B1FE122D388B72EB36DC2B28192839E4DD6163A5D81312C14)
     * }
-  G := TX9ECPoint.Create(curve,
-    THex.Decode('04' +
-    '2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD245A' +
-    '20AE19A1B8A086B4E01EDD2C7748D14C923D4D7E6D7C61B229E9C5A27ECED3D9'));
+  G := ConfigureBasepoint(curve,
+    '042AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD245A20AE19A1B8A086B4E01EDD2C7748D14C923D4D7E6D7C61B229E9C5A27ECED3D9');
 
   result := TX9ECParameters.Create(curve, G, curve.Order, curve.Cofactor, S);
 end;
@@ -426,19 +439,19 @@ begin
     ('7ae96a2b657c07106e64479eac3434e99cf0497512f58995c1396c28719501ee', 16),
     TBigInteger.Create
     ('5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72', 16),
-    TCryptoLibGenericArray<TBigInteger>.Create
+
+    TScalarSplitParameters.Create(TCryptoLibGenericArray<TBigInteger>.Create
     (TBigInteger.Create('3086d221a7d46bcde86c90e49284eb15', 16),
     TBigInteger.Create('-e4437ed6010e88286f547fa90abfe4c3', 16)),
-    TCryptoLibGenericArray<TBigInteger>.Create
-    (TBigInteger.Create('114ca50f7a8e2f3f657c1108d9d44cfd8', 16),
+    TCryptoLibGenericArray<TBigInteger>.Create(TBigInteger.Create
+    ('114ca50f7a8e2f3f657c1108d9d44cfd8', 16),
     TBigInteger.Create('3086d221a7d46bcde86c90e49284eb15', 16)),
     TBigInteger.Create('3086d221a7d46bcde86c90e49284eb153dab', 16),
-    TBigInteger.Create('e4437ed6010e88286f547fa90abfe4c42212', 16), 272);
+    TBigInteger.Create('e4437ed6010e88286f547fa90abfe4c42212', 16), 272)
+    as IScalarSplitParameters);
   curve := ConfigureCurveGlv(TSecP256K1Curve.Create() as ISecP256K1Curve, glv);
-  G := TX9ECPoint.Create(curve,
-    THex.Decode('04' +
-    '79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798' +
-    '483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8'));
+  G := ConfigureBasepoint(curve,
+    '0479BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8');
   result := TX9ECParameters.Create(curve, G, curve.Order, curve.Cofactor, S);
 end;
 
@@ -458,11 +471,9 @@ var
 begin
   S := THex.Decode('A335926AA319A27A1D00896A6773A4827ACDAC73');
   curve := ConfigureCurve(TSecP384R1Curve.Create() as ISecP384R1Curve);
-  G := TX9ECPoint.Create(curve,
-    THex.Decode('04' +
-    'AA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7'
-    + '3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F')
-    );
+  G := ConfigureBasepoint(curve,
+    '04' + 'AA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7'
+    + '3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F');
   result := TX9ECParameters.Create(curve, G, curve.Order, curve.Cofactor, S);
 end;
 
@@ -482,11 +493,9 @@ var
 begin
   S := THex.Decode('D09E8800291CB85396CC6717393284AAA0DA64BA');
   curve := ConfigureCurve(TSecP521R1Curve.Create() as ISecP521R1Curve);
-  G := TX9ECPoint.Create(curve,
-    THex.Decode('04' +
-    '00C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C1856A429BF97E7E31C2E5BD66'
-    + '011839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769FD16650')
-    );
+  G := ConfigureBasepoint(curve,
+    '04' + '00C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C1856A429BF97E7E31C2E5BD66'
+    + '011839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769FD16650');
   result := TX9ECParameters.Create(curve, G, curve.Order, curve.Cofactor, S);
 end;
 
@@ -506,11 +515,9 @@ var
 begin
   S := Nil;
   curve := ConfigureCurve(TSecT283K1Curve.Create() as ISecT283K1Curve);
-  G := TX9ECPoint.Create(curve,
-    THex.Decode('04' +
-    '0503213F78CA44883F1A3B8162F188E553CD265F23C1567A16876913B0C2AC2458492836' +
-    '01CCDA380F1C9E318D90F95D07E5426FE87E45C0E8184698E45962364E34116177DD2259')
-    );
+  G := ConfigureBasepoint(curve,
+    '04' + '0503213F78CA44883F1A3B8162F188E553CD265F23C1567A16876913B0C2AC2458492836'
+    + '01CCDA380F1C9E318D90F95D07E5426FE87E45C0E8184698E45962364E34116177DD2259');
   result := TX9ECParameters.Create(curve, G, curve.Order, curve.Cofactor, S);
 end;
 
@@ -530,10 +537,9 @@ var
 begin
   S := THex.Decode('C49D360886E704936A6678E1139D26B7819F7E90');
   curve := ConfigureCurve(TSecP256R1Curve.Create() as ISecP256R1Curve);
-  G := TX9ECPoint.Create(curve,
-    THex.Decode('04' +
-    '6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296' +
-    '4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5'));
+  G := ConfigureBasepoint(curve,
+    '046B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C2964FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5');
+
   result := TX9ECParameters.Create(curve, G, curve.Order, curve.Cofactor, S);
 end;
 

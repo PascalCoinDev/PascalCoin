@@ -173,18 +173,39 @@ Available Algorithms
 
 * `Delphi Tokyo+`
 
-### Supported OSes
+### Supported / Tested OSes
 ----------------------------------------
 
-* `Windows XP+`
+###### Tested OS boxes are checked
+----------------------------------------
 
-* `Linux (Including Android and Raspberry PI)`
+* - [x] `Windows XP+`
 
-* `macOS 10.7+`
 
-* `iOS 2.0+`
+* - [x] `Linux (Including Android and Raspberry PI)`
 
-* `FreeBSD, NetBSD, OpenBSD and DragonBSD`
+
+* - [x] `Mac OS X`
+
+
+* - [x] `iOS 2.0+`
+
+
+* - [x] `(Oracle) Solaris`
+
+
+* - [x] `OpenBSD`
+
+
+* - [ ] `FreeBSD`
+
+
+* - [ ] `NetBSD`
+
+
+* - [ ] `DragonBSD`
+
+
 
 ### Acknowledgements
 ----------------------------------------

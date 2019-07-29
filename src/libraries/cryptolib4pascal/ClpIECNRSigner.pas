@@ -30,6 +30,8 @@ type
   IECNRSigner = interface(IDsaExt)
     ['{C136F005-404E-4022-886E-DE5EFCECFF9C}']
 
+    function GetRecoveredMessage(const r, s: TBigInteger): TCryptoLibByteArray;
+
   end;
 
 implementation

@@ -4838,51 +4838,48 @@ end;
 class function TDerObjectIdentifier.IsValidBranchID(const branchID: String;
   start: Int32): Boolean;
 var
-  periodAllowed: Boolean;
-  Pos: Int32;
+  digitCount, Pos: Int32;
   ch: Char;
 begin
-  periodAllowed := False;
+  digitCount := 0;
 
   Pos := System.length(branchID) + 1;
   System.Dec(Pos);
+
   while (Pos >= start) do
   begin
     ch := branchID[Pos];
 
-    // TODO Leading zeroes?
-    // if (('0' <= ch) and (ch <= '9')) then
-    // begin
-    // periodAllowed := true;
-    // continue;
-    // end;
-
-    // TODO Leading zeroes?
-    if (CharInSet(ch, ['0' .. '9'])) then
-    begin
-      periodAllowed := True;
-      System.Dec(Pos);
-      continue;
-    end;
-
     if (ch = '.') then
     begin
-      if (not(periodAllowed)) then
+      if ((digitCount = 0) or ((digitCount > 1) and (branchID[Pos + 1] = '0')))
+      then
       begin
         result := False;
         Exit;
       end;
 
-      periodAllowed := False;
-      System.Dec(Pos);
-      continue;
+      digitCount := 0;
+    end
+    else if (CharInSet(ch, ['0' .. '9'])) then
+    begin
+      System.Inc(digitCount);
+    end
+    else
+    begin
+      result := False;
+      Exit;
     end;
+    System.Dec(Pos);
+  end;
 
+  if ((digitCount = 0) or ((digitCount > 1) and (branchID[Pos + 1] = '0'))) then
+  begin
     result := False;
     Exit;
   end;
 
-  result := periodAllowed;
+  result := True;
 end;
 
 class function TDerObjectIdentifier.IsValidIdentifier(const identifier
@@ -4897,11 +4894,7 @@ begin
   end;
 
   first := identifier[1];
-  // if ((first < '0') or (first > '2')) then
-  // begin
-  // result := false;
-  // Exit;
-  // end;
+
   if (not CharInSet(first, ['0' .. '2'])) then
   begin
     result := False;
@@ -8134,22 +8127,11 @@ procedure TDerBmpString.Encode(const derOut: TStream);
 var
   c: TCryptoLibCharArray;
   b: TCryptoLibByteArray;
-  I, LowPoint, HighPoint: Int32;
+  I: Int32;
 begin
-  System.SetLength(c, System.length(Str));
 
-  // had to use this loop because somehow, StrPLCopy causes memory leak in FPC v3.0.5
-{$IFDEF DELPHIXE3_UP}
-  LowPoint := System.Low(Str);
-  HighPoint := System.High(Str);
-{$ELSE}
-  LowPoint := 1;
-  HighPoint := System.length(Str);
-{$ENDIF DELPHIXE3_UP}
-  for I := LowPoint to HighPoint do
-  begin
-    c[I - 1] := Str[I];
-  end;
+  c := TStringUtils.StringToCharArray(Str);
+
   System.SetLength(b, System.length(c) * 2);
 
   I := 0;

@@ -15,7 +15,7 @@
 
 (* &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& *)
 
-unit ClpIWTauNafMultiplier;
+unit ClpIGlvTypeAEndomorphism;
 
 {$I CryptoLib.inc}
 
@@ -23,26 +23,11 @@ interface
 
 uses
   ClpBigInteger,
-  ClpIECC,
-  ClpIZTauElement,
-  ClpIAbstractECMultiplier;
+  ClpIGlvEndomorphism;
 
 type
-  IWTauNafMultiplier = interface(IAbstractECMultiplier)
-    ['{B71E75E5-FB6D-4A54-BE8A-820FC9A1E509}']
-
-    // /**
-    // * Multiplies an AbstractF2mPoint
-    // * by an element <code>&#955;</code> of <code><b>Z</b>[&#964;]</code> using
-    // * the <code>&#964;</code>-adic NAF (TNAF) method.
-    // * @param p The AbstractF2mPoint to multiply.
-    // * @param lambda The element <code>&#955;</code> of
-    // * <code><b>Z</b>[&#964;]</code> of which to compute the
-    // * <code>[&#964;]</code>-adic NAF.
-    // * @return <code>p</code> multiplied by <code>&#955;</code>.
-    // */
-    function MultiplyWTnaf(const p: IAbstractF2mPoint;
-      const lambda: IZTauElement; a, mu: ShortInt): IAbstractF2mPoint;
+  IGlvTypeAEndomorphism = interface(IGlvEndomorphism)
+    ['{961A1588-7D37-46C5-BC67-F71063641B42}']
 
   end;
 

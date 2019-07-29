@@ -37,7 +37,7 @@ uses
   ClpBits,
   ClpBigInteger,
   ClpBigIntegers,
-  ClpECAlgorithms,
+  ClpECCompUtilities,
   ClpCryptoLibTypes;
 
 resourcestring

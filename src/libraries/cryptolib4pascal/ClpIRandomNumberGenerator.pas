@@ -46,6 +46,12 @@ type
 
   end;
 
+type
+  IAESPRNGRandomNumberGenerator = interface(IRandomNumberGenerator)
+    ['{9E0D8D8F-D9D4-42D6-9D55-36271293B59E}']
+
+  end;
+
 implementation
 
 end.

@@ -15,7 +15,7 @@
 
 (* &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& *)
 
-unit ClpGlvTypeBEndomorphism;
+unit ClpGlvTypeAEndomorphism;
 
 {$I CryptoLib.inc}
 
@@ -24,16 +24,16 @@ interface
 uses
   ClpCryptoLibTypes,
   ClpBigInteger,
-  ClpScaleXPointMap,
-  ClpIGlvTypeBEndomorphism,
+  ClpECCompUtilities,
+  ClpScaleYNegateXPointMap,
+  ClpIGlvTypeAEndomorphism,
   ClpIECC,
-  ClpIGlvTypeBParameters,
-  ClpIGlvEndomorphism,
-  ClpECCompUtilities;
+  ClpIGlvTypeAParameters,
+  ClpIGlvEndomorphism;
 
 type
-  TGlvTypeBEndomorphism = class(TInterfacedObject, IECEndomorphism,
-    IGlvEndomorphism, IGlvTypeBEndomorphism)
+  TGlvTypeAEndomorphism = class(TInterfacedObject, IECEndomorphism,
+    IGlvEndomorphism, IGlvTypeAEndomorphism)
 
   strict private
     function GetHasEfficientPointMap: Boolean; virtual;
@@ -41,12 +41,12 @@ type
 
   strict protected
   var
-    FParameters: IGlvTypeBParameters;
+    FParameters: IGlvTypeAParameters;
     FPointMap: IECPointMap;
 
   public
     constructor Create(const curve: IECCurve;
-      const parameters: IGlvTypeBParameters);
+      const parameters: IGlvTypeAParameters);
 
     function DecomposeScalar(const k: TBigInteger)
       : TCryptoLibGenericArray<TBigInteger>; virtual;
@@ -57,10 +57,10 @@ type
 
 implementation
 
-{ TGlvTypeBEndomorphism }
+{ TGlvTypeAEndomorphism }
 
-constructor TGlvTypeBEndomorphism.Create(const curve: IECCurve;
-  const parameters: IGlvTypeBParameters);
+constructor TGlvTypeAEndomorphism.Create(const curve: IECCurve;
+  const parameters: IGlvTypeAParameters);
 begin
   Inherited Create();
   (*
@@ -69,21 +69,22 @@ begin
     * endomorphism is being used with.
   *)
   FParameters := parameters;
-  FPointMap := TScaleXPointMap.Create(curve.FromBigInteger(parameters.Beta));
+  FPointMap := TScaleYNegateXPointMap.Create
+    (curve.FromBigInteger(parameters.I));
 end;
 
-function TGlvTypeBEndomorphism.DecomposeScalar(const k: TBigInteger)
+function TGlvTypeAEndomorphism.DecomposeScalar(const k: TBigInteger)
   : TCryptoLibGenericArray<TBigInteger>;
 begin
   Result := TEndoUtilities.DecomposeScalar(FParameters.SplitParams, k);
 end;
 
-function TGlvTypeBEndomorphism.GetHasEfficientPointMap: Boolean;
+function TGlvTypeAEndomorphism.GetHasEfficientPointMap: Boolean;
 begin
   Result := true;
 end;
 
-function TGlvTypeBEndomorphism.GetPointMap: IECPointMap;
+function TGlvTypeAEndomorphism.GetPointMap: IECPointMap;
 begin
   Result := FPointMap;
 end;

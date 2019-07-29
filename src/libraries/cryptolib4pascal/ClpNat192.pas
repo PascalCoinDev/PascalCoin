@@ -760,9 +760,9 @@ begin
     c := c + (x_i * y_5 + zz[i + 5]);
     zz[i + 5] := UInt32(c);
     c := c shr 32;
-    c := c + (zc + zz[i + 6]);
-    zz[i + 6] := UInt32(c);
-    zc := c shr 32;
+    zc := zc + (c + (zz[i + 6] and M));
+    zz[i + 6] := UInt32(zc);
+    zc := zc shr 32;
   end;
   result := UInt32(zc);
 end;
@@ -804,9 +804,9 @@ begin
     c := c + (x_i * y_5 + zz[zzOff + 5]);
     zz[zzOff + 5] := UInt32(c);
     c := c shr 32;
-    c := c + (zc + zz[zzOff + 6]);
-    zz[zzOff + 6] := UInt32(c);
-    zc := c shr 32;
+    zc := zc + (c + (zz[zzOff + 6] and M));
+    zz[zzOff + 6] := UInt32(zc);
+    zc := zc shr 32;
     System.Inc(zzOff);
   end;
   result := UInt32(zc);

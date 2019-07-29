@@ -74,7 +74,7 @@ type
   end;
 
 type
-  ISecT283K1LookupTable = Interface(IECLookupTable)
+  ISecT283K1LookupTable = Interface(IAbstractECLookupTable)
     ['{3AF41553-A108-46D6-9CCC-AB1814A0A247}']
   end;
 

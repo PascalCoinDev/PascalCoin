@@ -43,11 +43,8 @@ type
 
   strict private
 
-    class var
-
-      FLock: TCriticalSection;
-
   var
+    FLock: TCriticalSection;
     Fcurve: IECCurve;
     Fseed: TCryptoLibByteArray;
     Fg: IECPoint;
@@ -60,10 +57,6 @@ type
     function GetHInv: TBigInteger; inline;
     function GetSeed: TCryptoLibByteArray; inline;
 
-    class procedure Boot(); static;
-    class constructor CreateECDomainParameters();
-    class destructor DestroyECDomainParameters();
-
   public
 
     class function Validate(const c: IECCurve; const q: IECPoint)
@@ -75,6 +68,8 @@ type
       const n, h: TBigInteger); overload;
     constructor Create(const curve: IECCurve; const g: IECPoint;
       const n, h: TBigInteger; const seed: TCryptoLibByteArray); overload;
+
+    destructor Destroy; override;
 
     property curve: IECCurve read GetCurve;
     property g: IECPoint read GetG;
@@ -130,7 +125,6 @@ end;
 
 function TECDomainParameters.GetHInv: TBigInteger;
 begin
-
   FLock.Acquire;
   try
     if (not(FhInv.IsInitialized)) then
@@ -160,14 +154,6 @@ begin
   Create(curve, g, n, h, Nil);
 end;
 
-class procedure TECDomainParameters.Boot;
-begin
-  if FLock = Nil then
-  begin
-    FLock := TCriticalSection.Create;
-  end;
-end;
-
 constructor TECDomainParameters.Create(const curve: IECCurve; const g: IECPoint;
   const n, h: TBigInteger; const seed: TCryptoLibByteArray);
 begin
@@ -179,6 +165,8 @@ begin
   if (not n.IsInitialized) then
     raise EArgumentNilCryptoLibException.CreateResFmt
       (@SBigIntegerNotInitialized, ['n']);
+
+  FLock := TCriticalSection.Create;
 
   // we can't check for (not (h.IsInitialized)) here as h is optional in X9.62 as it is not required for ECDSA
 
@@ -192,14 +180,10 @@ begin
 
 end;
 
-class constructor TECDomainParameters.CreateECDomainParameters;
-begin
-  TECDomainParameters.Boot;
-end;
-
-class destructor TECDomainParameters.DestroyECDomainParameters;
+destructor TECDomainParameters.Destroy;
 begin
   FLock.Free;
+  inherited Destroy;
 end;
 
 function TECDomainParameters.Equals(const other: IECDomainParameters): Boolean;

@@ -908,9 +908,9 @@ begin
     c := c + (x_i * y_7 + zz[i + 7]);
     zz[i + 7] := UInt32(c);
     c := c shr 32;
-    c := c + (zc + zz[i + 8]);
-    zz[i + 8] := UInt32(c);
-    zc := c shr 32;
+    zc := zc + (c + (zz[i + 8] and M));
+    zz[i + 8] := UInt32(zc);
+    zc := zc shr 32;
   end;
   result := UInt32(zc);
 end;
@@ -960,9 +960,9 @@ begin
     c := c + (x_i * y_7 + zz[zzOff + 7]);
     zz[zzOff + 7] := UInt32(c);
     c := c shr 32;
-    c := c + (zc + zz[zzOff + 8]);
-    zz[zzOff + 8] := UInt32(c);
-    zc := c shr 32;
+    zc := zc + (c + (zz[zzOff + 8] and M));
+    zz[zzOff + 8] := UInt32(zc);
+    zc := zc shr 32;
     System.Inc(zzOff);
   end;
   result := UInt32(zc);

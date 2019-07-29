@@ -27,7 +27,7 @@ uses
   ClpBits,
   ClpBigInteger,
   ClpBigIntegers,
-  ClpECAlgorithms,
+  ClpECCompUtilities,
   ClpIDHParameters,
   ClpIDHKeyGeneratorHelper;
 

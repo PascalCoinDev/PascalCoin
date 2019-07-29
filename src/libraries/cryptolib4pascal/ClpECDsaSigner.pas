@@ -31,7 +31,7 @@ uses
   ClpIParametersWithRandom,
   ClpIECPublicKeyParameters,
   ClpIECPrivateKeyParameters,
-  ClpFixedPointCombMultiplier,
+  ClpMultipliers,
   ClpCryptoLibTypes,
   ClpICipherParameters,
   ClpIECDomainParameters,

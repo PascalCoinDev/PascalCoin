@@ -230,7 +230,6 @@ end;
 
 class function TSecureRandom.NextCounterValue: Int64;
 begin
-
   FLock.Acquire;
   try
     System.Inc(FCounter);
@@ -238,6 +237,12 @@ begin
   finally
     FLock.Release;
   end;
+  // TODO when we upgrade to FPC 3.2.0 enable and remove locks above
+  // {$IFDEF FPC}
+  // Result := InterLockedIncrement64(FCounter);
+  // {$ELSE}
+  // Result := TInterlocked.Increment(FCounter);
+  // {$ENDIF}
 end;
 
 function TSecureRandom.NextDouble: Double;

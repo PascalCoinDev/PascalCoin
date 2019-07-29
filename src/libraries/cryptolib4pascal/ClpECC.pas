@@ -37,9 +37,7 @@ uses
   ClpIGlvEndomorphism,
   ClpECAlgorithms,
   ClpLongArray,
-  ClpGlvMultiplier,
-  ClpWNafL2RMultiplier,
-  ClpWTauNafMultiplier,
+  ClpMultipliers,
   ClpFiniteFields,
   ClpSetWeakRef,
   ClpECCurveConstants,
@@ -95,6 +93,7 @@ resourcestring
   SNotProjectiveCoordSystem = 'Not a Projective Coordinate System';
   SCannotBeNegative = 'Cannot be Negative, "e"';
   SNilFieldElement = 'Exactly one of the Field Elements is Nil';
+  SUnsupportedOperation = 'Constant-time Lookup not Supported';
 
 type
   TECFieldElement = class abstract(TInterfacedObject, IECFieldElement)
@@ -260,6 +259,7 @@ type
   public
     function Trace(): Int32; virtual;
     function HalfTrace(): IECFieldElement; virtual;
+    function HasFastTrace(): Boolean; virtual;
 
   end;
 
@@ -474,19 +474,10 @@ type
   /// </summary>
   TECCurve = class abstract(TInterfacedObject, IECCurve)
 
-  strict private
-
-    class procedure Boot(); static;
-    class constructor CreateECCurve();
-    class destructor DestroyECCurve();
-
   strict protected
 
-    class var
-
-      FLock: TCriticalSection;
-
   var
+    FLock: TCriticalSection;
     Fm_field: IFiniteField;
     Fm_order, Fm_cofactor: TBigInteger;
 
@@ -700,20 +691,61 @@ type
   end;
 
 type
-  TDefaultLookupTable = class(TInterfacedObject, IDefaultLookupTable,
-    IECLookupTable)
+  TAbstractECLookupTable = class abstract(TInterfacedObject,
+    IAbstractECLookupTable, IECLookupTable)
+
+  strict protected
+    function GetSize: Int32; virtual; abstract;
+
+  public
+    function Lookup(index: Int32): IECPoint; virtual; abstract;
+    function LookupVar(index: Int32): IECPoint; virtual; abstract;
+    property Size: Int32 read GetSize;
+
+  end;
+
+type
+  TSimpleLookupTable = class abstract(TAbstractECLookupTable,
+    ISimpleLookupTable)
+
+  strict private
+  var
+    FPoints: TCryptoLibGenericArray<IECPoint>;
+
+    class function Copy(const points: TCryptoLibGenericArray<IECPoint>;
+      off, len: Int32): TCryptoLibGenericArray<IECPoint>; static;
+
+  strict protected
+    function GetSize: Int32; override;
+
+  public
+    constructor Create(const points: TCryptoLibGenericArray<IECPoint>;
+      off, len: Int32);
+
+    function Lookup(index: Int32): IECPoint; override;
+    function LookupVar(index: Int32): IECPoint; override;
+
+  end;
+
+type
+  TDefaultLookupTable = class(TAbstractECLookupTable, IDefaultLookupTable)
   strict private
   var
     Fm_outer: IECCurve;
     Fm_table: TCryptoLibByteArray;
     Fm_size: Int32;
 
+    function CreatePoint(const x, y: TCryptoLibByteArray): IECPoint;
+
+  strict protected
+    function GetSize: Int32; override;
+
   public
     constructor Create(const outer: IECCurve; const table: TCryptoLibByteArray;
-      size: Int32);
-    function GetSize: Int32; virtual;
-    function Lookup(index: Int32): IECPoint; virtual;
-    property size: Int32 read GetSize;
+      Size: Int32);
+
+    function Lookup(index: Int32): IECPoint; override;
+    function LookupVar(index: Int32): IECPoint; override;
 
   end;
 
@@ -733,20 +765,24 @@ type
   end;
 
 type
-  TDefaultF2mLookupTable = class(TInterfacedObject, IDefaultF2mLookupTable,
-    IECLookupTable)
+  TDefaultF2mLookupTable = class(TAbstractECLookupTable, IDefaultF2mLookupTable)
   strict private
   var
     Fm_outer: IF2mCurve;
     Fm_table: TCryptoLibInt64Array;
     Fm_size: Int32;
 
+    function CreatePoint(const x, y: TCryptoLibInt64Array): IECPoint;
+
+  strict protected
+    function GetSize: Int32; override;
+
   public
     constructor Create(const outer: IF2mCurve;
-      const table: TCryptoLibInt64Array; size: Int32);
-    function GetSize: Int32; virtual;
-    function Lookup(index: Int32): IECPoint; virtual;
-    property size: Int32 read GetSize;
+      const table: TCryptoLibInt64Array; Size: Int32);
+
+    function Lookup(index: Int32): IECPoint; override;
+    function LookupVar(index: Int32): IECPoint; override;
 
   end;
 
@@ -1167,6 +1203,9 @@ type
     function ScaleX(const scale: IECFieldElement): IECPoint; virtual;
     function ScaleY(const scale: IECFieldElement): IECPoint; virtual;
 
+    function ScaleXNegateY(const scale: IECFieldElement): IECPoint; virtual;
+    function ScaleYNegateX(const scale: IECFieldElement): IECPoint; virtual;
+
     function GetEncoded(): TCryptoLibByteArray; overload; virtual;
     function GetEncoded(compressed: Boolean): TCryptoLibByteArray; overload;
       virtual; abstract;
@@ -1408,6 +1447,9 @@ type
     destructor Destroy; override;
     function ScaleX(const scale: IECFieldElement): IECPoint; override;
     function ScaleY(const scale: IECFieldElement): IECPoint; override;
+
+    function ScaleXNegateY(const scale: IECFieldElement): IECPoint; override;
+    function ScaleYNegateX(const scale: IECFieldElement): IECPoint; override;
 
     function Subtract(const b: IECPoint): IECPoint; override;
 
@@ -2442,8 +2484,8 @@ end;
 
 function TAbstractF2mFieldElement.HalfTrace: IECFieldElement;
 var
-  m, i: Int32;
-  fe, ht: IECFieldElement;
+  m, n, K, nk: Int32;
+  ht: IECFieldElement;
 begin
   m := FieldSize;
   if ((m and 1) = 0) then
@@ -2451,34 +2493,53 @@ begin
     raise EArgumentCryptoLibException.CreateRes(@SHalfTraceUndefinedForM);
   end;
 
-  fe := Self as IECFieldElement;
-  ht := fe;
-  i := 2;
-  while i < m do
-  begin
-    fe := fe.SquarePow(2);
-    ht := ht.Add(fe);
-    System.Inc(i, 2);
-  end;
+  n := TBits.Asr32((m + 1), 1);
+  K := 31 - TBits.NumberOfLeadingZeros(n);
+  nk := 1;
 
+  ht := Self as IECFieldElement;
+  while (K > 0) do
+  begin
+    ht := ht.SquarePow(nk shl 1).Add(ht);
+    System.Dec(K);
+    nk := TBits.Asr32(n, K);
+
+    if ((nk and 1) <> 0) then
+    begin
+      ht := ht.SquarePow(2).Add(Self as IECFieldElement);
+    end;
+  end;
   result := ht;
+end;
+
+function TAbstractF2mFieldElement.HasFastTrace: Boolean;
+begin
+  result := false;
+
 end;
 
 function TAbstractF2mFieldElement.Trace: Int32;
 var
-  m, i: Int32;
-  fe, tr: IECFieldElement;
+  m, K, mk: Int32;
+  tr: IECFieldElement;
 begin
   m := FieldSize;
-  fe := Self as IECFieldElement;
-  tr := fe;
 
-  i := 1;
-  while i < m do
+  K := 31 - TBits.NumberOfLeadingZeros(m);
+  mk := 1;
+
+  tr := Self as IECFieldElement;
+  while (K > 0) do
   begin
-    fe := fe.Square();
-    tr := tr.Add(fe);
-    System.Inc(i);
+    tr := tr.SquarePow(mk).Add(tr);
+
+    System.Dec(K);
+    mk := TBits.Asr32(m, K);
+
+    if ((mk and 1) <> 0) then
+    begin
+      tr := tr.Square().Add(Self as IECFieldElement);
+    end;
   end;
 
   if (tr.IsZero) then
@@ -2495,14 +2556,6 @@ begin
 end;
 
 { TECCurve }
-
-class procedure TECCurve.Boot;
-begin
-  if FLock = Nil then
-  begin
-    FLock := TCriticalSection.Create;
-  end;
-end;
 
 procedure TECCurve.CheckPoint(const point: IECPoint);
 begin
@@ -2552,7 +2605,14 @@ end;
 constructor TECCurve.Create(const field: IFiniteField);
 begin
   inherited Create();
+  FLock := TCriticalSection.Create;
   Fm_field := field;
+end;
+
+destructor TECCurve.Destroy;
+begin
+  FLock.Free;
+  inherited Destroy;
 end;
 
 function TECCurve.CreateCacheSafeLookupTable(const points
@@ -2616,11 +2676,6 @@ begin
   end;
 
   result := TWNafL2RMultiplier.Create();
-end;
-
-class constructor TECCurve.CreateECCurve;
-begin
-  TECCurve.Boot;
 end;
 
 function TECCurve.CreatePoint(const x, y: TBigInteger): IECPoint;
@@ -2726,16 +2781,6 @@ begin
   end;
 
   result := P;
-end;
-
-destructor TECCurve.Destroy;
-begin
-  inherited Destroy;
-end;
-
-class destructor TECCurve.DestroyECCurve;
-begin
-  FLock.Free;
 end;
 
 function TECCurve.Equals(const other: IECCurve): Boolean;
@@ -3397,9 +3442,36 @@ end;
 function TAbstractF2mCurve.SolveQuadraticEquation(const beta: IECFieldElement)
   : IECFieldElement;
 var
-  gamma, z, zeroElement, t, w, w2: IECFieldElement;
+  gamma, z, zeroElement, t, w, w2, r: IECFieldElement;
+  betaF2m: IAbstractF2mFieldElement;
   m, i: Int32;
+  fastTrace: Boolean;
 begin
+
+  betaF2m := beta as IAbstractF2mFieldElement;
+
+  fastTrace := betaF2m.HasFastTrace();
+  if ((fastTrace) and (betaF2m.Trace() <> 0)) then
+  begin
+    result := Nil;
+    Exit;
+  end;
+
+  m := FieldSize;
+
+  // For odd m, use the half-trace
+  if ((m and 1) <> 0) then
+  begin
+    r := betaF2m.HalfTrace();
+    if ((fastTrace) or (r.Square().Add(r).Add(beta).IsZero)) then
+    begin
+      result := r;
+      Exit;
+    end;
+    result := Nil;
+    Exit;
+  end;
+
   if (beta.IsZero) then
   begin
     result := beta;
@@ -3628,12 +3700,22 @@ end;
 { TDefaultLookupTable }
 
 constructor TDefaultLookupTable.Create(const outer: IECCurve;
-  const table: TCryptoLibByteArray; size: Int32);
+  const table: TCryptoLibByteArray; Size: Int32);
 begin
   Inherited Create();
   Fm_outer := outer;
   Fm_table := table;
-  Fm_size := size;
+  Fm_size := Size;
+end;
+
+function TDefaultLookupTable.CreatePoint(const x, y: TCryptoLibByteArray)
+  : IECPoint;
+var
+  XFieldElement, YFieldElement: IECFieldElement;
+begin
+  XFieldElement := Fm_outer.FromBigInteger(TBigInteger.Create(1, x));
+  YFieldElement := Fm_outer.FromBigInteger(TBigInteger.Create(1, y));
+  result := Fm_outer.CreateRawPoint(XFieldElement, YFieldElement, false);
 end;
 
 function TDefaultLookupTable.GetSize: Int32;
@@ -3646,7 +3728,6 @@ var
   FE_BYTES, position, i, j: Int32;
   x, y: TCryptoLibByteArray;
   MASK: Byte;
-  XFieldElement, YFieldElement: IECFieldElement;
 begin
   FE_BYTES := (Fm_outer.FieldSize + 7) div 8;
   System.SetLength(x, FE_BYTES);
@@ -3661,41 +3742,52 @@ begin
 
     for j := 0 to System.Pred(FE_BYTES) do
     begin
-
       x[j] := x[j] xor Byte(Fm_table[position + j] and MASK);
       y[j] := y[j] xor Byte(Fm_table[position + FE_BYTES + j] and MASK);
     end;
     position := position + (FE_BYTES * 2);
   end;
 
-  XFieldElement := Fm_outer.FromBigInteger(TBigInteger.Create(1, x));
-  YFieldElement := Fm_outer.FromBigInteger(TBigInteger.Create(1, y));
-  result := Fm_outer.CreateRawPoint(XFieldElement, YFieldElement, false);
+  result := CreatePoint(x, y);
+end;
+
+function TDefaultLookupTable.LookupVar(index: Int32): IECPoint;
+var
+  FE_BYTES, position, j: Int32;
+  x, y: TCryptoLibByteArray;
+begin
+  FE_BYTES := (Fm_outer.FieldSize + 7) div 8;
+  System.SetLength(x, FE_BYTES);
+  System.SetLength(y, FE_BYTES);
+
+  position := index * FE_BYTES * 2;
+
+  for j := 0 to System.Pred(FE_BYTES) do
+  begin
+    x[j] := Fm_table[position + j];
+    y[j] := Fm_table[position + FE_BYTES + j];
+  end;
+
+  result := CreatePoint(x, y);
 end;
 
 { TDefaultF2mLookupTable }
 
 constructor TDefaultF2mLookupTable.Create(const outer: IF2mCurve;
-  const table: TCryptoLibInt64Array; size: Int32);
+  const table: TCryptoLibInt64Array; Size: Int32);
 begin
   Inherited Create();
   Fm_outer := outer;
   Fm_table := table;
-  Fm_size := size;
+  Fm_size := Size;
 end;
 
-function TDefaultF2mLookupTable.GetSize: Int32;
-begin
-  result := Fm_size;
-end;
-
-function TDefaultF2mLookupTable.Lookup(index: Int32): IECPoint;
+function TDefaultF2mLookupTable.CreatePoint(const x, y: TCryptoLibInt64Array)
+  : IECPoint;
 var
-  FE_LONGS, position, m, i, j: Int32;
-  ks: TCryptoLibInt32Array;
-  x, y: TCryptoLibInt64Array;
-  MASK: Int64;
   XFieldElement, YFieldElement: IECFieldElement;
+  m: Int32;
+  ks: TCryptoLibInt32Array;
 begin
   m := Fm_outer.m;
   if Fm_outer.IsTrinomial() then
@@ -3707,6 +3799,22 @@ begin
     ks := TCryptoLibInt32Array.Create(Fm_outer.k1, Fm_outer.k2, Fm_outer.k3);
   end;
 
+  XFieldElement := TF2mFieldElement.Create(m, ks, TLongArray.Create(x));
+  YFieldElement := TF2mFieldElement.Create(m, ks, TLongArray.Create(y));
+  result := Fm_outer.CreateRawPoint(XFieldElement, YFieldElement, false);
+end;
+
+function TDefaultF2mLookupTable.GetSize: Int32;
+begin
+  result := Fm_size;
+end;
+
+function TDefaultF2mLookupTable.Lookup(index: Int32): IECPoint;
+var
+  FE_LONGS, position, i, j: Int32;
+  x, y: TCryptoLibInt64Array;
+  MASK: Int64;
+begin
   FE_LONGS := (Fm_outer.m + 63) div 64;
   System.SetLength(x, FE_LONGS);
   System.SetLength(y, FE_LONGS);
@@ -3720,16 +3828,33 @@ begin
 
     for j := 0 to System.Pred(FE_LONGS) do
     begin
-
       x[j] := x[j] xor (Fm_table[position + j] and MASK);
       y[j] := y[j] xor (Fm_table[position + FE_LONGS + j] and MASK);
     end;
     position := position + (FE_LONGS * 2);
   end;
 
-  XFieldElement := TF2mFieldElement.Create(m, ks, TLongArray.Create(x));
-  YFieldElement := TF2mFieldElement.Create(m, ks, TLongArray.Create(y));
-  result := Fm_outer.CreateRawPoint(XFieldElement, YFieldElement, false);
+  result := CreatePoint(x, y);
+end;
+
+function TDefaultF2mLookupTable.LookupVar(index: Int32): IECPoint;
+var
+  FE_LONGS, position, j: Int32;
+  x, y: TCryptoLibInt64Array;
+begin
+  FE_LONGS := (Fm_outer.m + 63) div 64;
+  System.SetLength(x, FE_LONGS);
+  System.SetLength(y, FE_LONGS);
+
+  position := index * FE_LONGS * 2;
+
+  for j := 0 to System.Pred(FE_LONGS) do
+  begin
+    x[j] := Fm_table[position + j];
+    y[j] := Fm_table[position + FE_LONGS + j];
+  end;
+
+  result := CreatePoint(x, y);
 end;
 
 { TECPoint }
@@ -3823,6 +3948,19 @@ begin
   end;
 end;
 
+function TECPoint.ScaleXNegateY(const scale: IECFieldElement): IECPoint;
+begin
+  if IsInfinity then
+  begin
+    result := Self;
+  end
+  else
+  begin
+    result := curve.CreateRawPoint(RawXCoord.Multiply(scale), RawYCoord.Negate,
+      RawZCoords, IsCompressed);
+  end;
+end;
+
 function TECPoint.ScaleY(const scale: IECFieldElement): IECPoint;
 begin
   if IsInfinity then
@@ -3832,6 +3970,19 @@ begin
   else
   begin
     result := curve.CreateRawPoint(RawXCoord, RawYCoord.Multiply(scale),
+      RawZCoords, IsCompressed);
+  end;
+end;
+
+function TECPoint.ScaleYNegateX(const scale: IECFieldElement): IECPoint;
+begin
+  if IsInfinity then
+  begin
+    result := Self;
+  end
+  else
+  begin
+    result := curve.CreateRawPoint(RawXCoord.Negate, RawYCoord.Multiply(scale),
       RawZCoords, IsCompressed);
   end;
 end;
@@ -6226,21 +6377,23 @@ function TAbstractF2mPoint.SatisfiesOrder: Boolean;
 var
   Cofactor: TBigInteger;
   n: IECPoint;
-  x, rhs, lambda, w, t: IECFieldElement;
+  x, rhs, L, t, y: IECFieldElement;
   Lcurve: IECCurve;
 begin
   Lcurve := curve;
   Cofactor := Lcurve.GetCofactor();
   if (TBigInteger.Two.Equals(Cofactor)) then
   begin
-    // /*
-    // *  Check that the trace of (X + A) is 0, then there exists a solution to L^2 + L = X + A,
-    // *  and so a halving is possible, so this point is the double of another.
-    // */
+    (*
+      * Check that 0 == Tr(X + A); then there exists a solution to L^2 + L = X + A, and
+      * so a halving is possible, so this point is the double of another.
+      *
+      * Note: Tr(A) == 1 for cofactor 2 curves.
+    *)
     n := Normalize();
     x := n.AffineXCoord;
     rhs := x.Add(Lcurve.a);
-    result := (rhs as IAbstractF2mFieldElement).Trace() = 0;
+    result := (x as IAbstractF2mFieldElement).Trace() <> 0;
     Exit;
   end;
   if (TBigInteger.Four.Equals(Cofactor)) then
@@ -6251,21 +6404,33 @@ begin
     // * and check if Tr(w + A) == 0 for at least one; then a second halving is possible
     // * (see comments for cofactor 2 above), so this point is four times another.
     // *
-    // * Note: Tr(x^2) == Tr(x).
+    // * Note: Tr(A) == 0 for cofactor 4 curves.
     // */
     n := Normalize();
     x := n.AffineXCoord;
-    lambda := (Lcurve as IAbstractF2mCurve).SolveQuadraticEquation
-      (x.Add(curve.a));
-    if (lambda = Nil) then
+    L := (Lcurve as IAbstractF2mCurve).SolveQuadraticEquation(x.Add(curve.a));
+    if (L = Nil) then
     begin
       result := false;
       Exit;
     end;
-    w := x.Multiply(lambda).Add(n.AffineYCoord);
-    t := w.Add(Lcurve.a);
-    result := ((t as IAbstractF2mFieldElement).Trace() = 0) or
-      ((t.Add(x) as IAbstractF2mFieldElement).Trace() = 0);
+
+    (*
+      * A solution exists, therefore 0 == Tr(X + A) == Tr(X).
+    *)
+    y := n.AffineYCoord;
+    t := x.Multiply(L).Add(y);
+
+    (*
+      * Either T or (T + X) is the square of a half-point's x coordinate (hx). In either
+      * case, the half-point can be halved again when 0 == Tr(hx + A).
+      *
+      * Note: Tr(hx + A) == Tr(hx) == Tr(hx^2) == Tr(T) == Tr(T + X)
+      *
+      * Check that 0 == Tr(T); then there exists a solution to L^2 + L = hx + A, and so a
+      * second halving is possible and this point is four times some other.
+    *)
+    result := (t as IAbstractF2mFieldElement).Trace() = 0;
     Exit;
   end;
 
@@ -6321,6 +6486,12 @@ begin
 
 end;
 
+function TAbstractF2mPoint.ScaleXNegateY(const scale: IECFieldElement)
+  : IECPoint;
+begin
+  result := ScaleX(scale);
+end;
+
 function TAbstractF2mPoint.ScaleY(const scale: IECFieldElement): IECPoint;
 var
   Lx, L, L2: IECFieldElement;
@@ -6350,6 +6521,12 @@ begin
     end;
   end;
 
+end;
+
+function TAbstractF2mPoint.ScaleYNegateX(const scale: IECFieldElement)
+  : IECPoint;
+begin
+  result := ScaleY(scale);
 end;
 
 function TAbstractF2mPoint.Subtract(const b: IECPoint): IECPoint;
@@ -6503,6 +6680,43 @@ begin
     info.reportOrderPassed();
   end;
   result := info;
+end;
+
+{ TSimpleLookupTable }
+
+class function TSimpleLookupTable.Copy(const points
+  : TCryptoLibGenericArray<IECPoint>; off, len: Int32)
+  : TCryptoLibGenericArray<IECPoint>;
+var
+  i: Int32;
+begin
+  System.SetLength(result, len);
+  for i := 0 to System.Pred(len) do
+  begin
+    result[i] := points[off + i];
+  end;
+end;
+
+constructor TSimpleLookupTable.Create(const points
+  : TCryptoLibGenericArray<IECPoint>; off, len: Int32);
+begin
+  inherited Create();
+  FPoints := Copy(points, off, len);
+end;
+
+function TSimpleLookupTable.GetSize: Int32;
+begin
+  result := System.Length(FPoints);
+end;
+
+function TSimpleLookupTable.Lookup(index: Int32): IECPoint;
+begin
+  raise EInvalidOperationCryptoLibException.CreateRes(@SUnsupportedOperation);
+end;
+
+function TSimpleLookupTable.LookupVar(index: Int32): IECPoint;
+begin
+  result := FPoints[index];
 end;
 
 end.

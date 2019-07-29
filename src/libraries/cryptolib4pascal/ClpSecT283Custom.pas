@@ -31,7 +31,7 @@ uses
   ClpBigInteger,
   ClpArrayUtils,
   ClpIECC,
-  ClpWTauNafMultiplier,
+  ClpMultipliers,
   ClpCryptoLibTypes,
   ClpECCurveConstants,
   ClpISecT283Custom;
@@ -60,8 +60,9 @@ type
     class procedure ImplMulw(x, y: UInt64; const z: TCryptoLibUInt64Array;
       zOff: Int32); static;
 
-    class procedure ImplSquare(const x, zz: TCryptoLibUInt64Array);
-      static; inline;
+    class procedure ImplSquare(const x, zz: TCryptoLibUInt64Array); static;
+
+    class procedure AddTo(const x, z: TCryptoLibUInt64Array); static; inline;
 
     class procedure Boot(); static;
     class constructor SecT283Field();
@@ -71,6 +72,10 @@ type
     class procedure AddExt(const xx, yy, zz: TCryptoLibUInt64Array);
       static; inline;
     class procedure AddOne(const x, z: TCryptoLibUInt64Array); static; inline;
+
+    class procedure HalfTrace(const x, z: TCryptoLibUInt64Array);
+      static; inline;
+
     class function FromBigInteger(const x: TBigInteger): TCryptoLibUInt64Array;
       static; inline;
 
@@ -151,6 +156,10 @@ type
     function SquarePow(pow: Int32): IECFieldElement; override;
 
     function Trace(): Int32; override;
+
+    function HalfTrace(): IECFieldElement; override;
+
+    function HasFastTrace(): Boolean; override;
 
     function Invert(): IECFieldElement; override;
 
@@ -249,8 +258,8 @@ type
   strict private
 
   type
-    TSecT283K1LookupTable = class sealed(TInterfacedObject,
-      ISecT283K1LookupTable, IECLookupTable)
+    TSecT283K1LookupTable = class sealed(TAbstractECLookupTable,
+      ISecT283K1LookupTable)
 
     strict private
     var
@@ -258,16 +267,19 @@ type
       Fm_table: TCryptoLibUInt64Array;
       Fm_size: Int32;
 
-      function GetSize: Int32; virtual;
+      function CreatePoint(const x, y: TCryptoLibUInt64Array): IECPoint;
+
+    strict protected
+
+      function GetSize: Int32; override;
 
     public
 
       constructor Create(const outer: ISecT283K1Curve;
         const table: TCryptoLibUInt64Array; size: Int32);
 
-      function Lookup(index: Int32): IECPoint; virtual;
-
-      property size: Int32 read GetSize;
+      function Lookup(index: Int32): IECPoint; override;
+      function LookupVar(index: Int32): IECPoint; override;
 
     end;
 
@@ -373,6 +385,15 @@ begin
   z[4] := x[4];
 end;
 
+class procedure TSecT283Field.AddTo(const x, z: TCryptoLibUInt64Array);
+begin
+  z[0] := z[0] xor x[0];
+  z[1] := z[1] xor x[1];
+  z[2] := z[2] xor x[2];
+  z[3] := z[3] xor x[3];
+  z[4] := z[4] xor x[4];
+end;
+
 class procedure TSecT283Field.Boot;
 begin
   FROOT_Z := TCryptoLibUInt64Array.Create(UInt64($0C30C30C30C30808),
@@ -380,14 +401,31 @@ begin
     UInt64($0820820820820820), UInt64($2082082));
 end;
 
+class procedure TSecT283Field.HalfTrace(const x, z: TCryptoLibUInt64Array);
+var
+  tt: TCryptoLibUInt64Array;
+  i: Int32;
+begin
+  tt := TNat.Create64(9);
+
+  TNat320.Copy64(x, z);
+  i := 1;
+
+  while i < 283 do
+  begin
+    ImplSquare(z, tt);
+    Reduce(tt, z);
+    ImplSquare(z, tt);
+    Reduce(tt, z);
+    AddTo(x, z);
+    System.Inc(i, 2);
+  end;
+end;
+
 class function TSecT283Field.FromBigInteger(const x: TBigInteger)
   : TCryptoLibUInt64Array;
-var
-  z: TCryptoLibUInt64Array;
 begin
-  z := TNat320.FromBigInteger64(x);
-  Reduce37(z, 0);
-  result := z;
+  result := TNat.FromBigInteger64(283, x);
 end;
 
 class procedure TSecT283Field.Multiply(const x, y, z: TCryptoLibUInt64Array);
@@ -400,14 +438,11 @@ begin
 end;
 
 class procedure TSecT283Field.ImplSquare(const x, zz: TCryptoLibUInt64Array);
-var
-  i: Int32;
 begin
-  for i := 0 to System.Pred(4) do
-  begin
-    TInterleave.Expand64To128(x[i], zz, i shl 1);
-  end;
-
+  TInterleave.Expand64To128(x[0], zz, 0);
+  TInterleave.Expand64To128(x[1], zz, 2);
+  TInterleave.Expand64To128(x[2], zz, 4);
+  TInterleave.Expand64To128(x[3], zz, 6);
   zz[8] := TInterleave.Expand32to64(UInt32(x[4]));
 end;
 
@@ -907,6 +942,20 @@ end;
 function TSecT283FieldElement.GetX: TCryptoLibUInt64Array;
 begin
   result := Fx;
+end;
+
+function TSecT283FieldElement.HalfTrace: IECFieldElement;
+var
+  z: TCryptoLibUInt64Array;
+begin
+  z := TNat320.Create64();
+  TSecT283Field.HalfTrace(x, z);
+  result := TSecT283FieldElement.Create(z) as ISecT283FieldElement;
+end;
+
+function TSecT283FieldElement.HasFastTrace: Boolean;
+begin
+  result := true;
 end;
 
 function TSecT283FieldElement.Invert: IECFieldElement;
@@ -1545,6 +1594,21 @@ begin
   Fm_size := size;
 end;
 
+function TSecT283K1Curve.TSecT283K1LookupTable.CreatePoint(const x,
+  y: TCryptoLibUInt64Array): IECPoint;
+var
+  XFieldElement, YFieldElement: ISecT283FieldElement;
+  SECT283K1_AFFINE_ZS: TCryptoLibGenericArray<IECFieldElement>;
+begin
+  SECT283K1_AFFINE_ZS := TCryptoLibGenericArray<IECFieldElement>.Create
+    (TSecT283FieldElement.Create(TBigInteger.One) as ISecT283FieldElement);
+
+  XFieldElement := TSecT283FieldElement.Create(x);
+  YFieldElement := TSecT283FieldElement.Create(y);
+  result := Fm_outer.CreateRawPoint(XFieldElement, YFieldElement,
+    SECT283K1_AFFINE_ZS, false);
+end;
+
 function TSecT283K1Curve.TSecT283K1LookupTable.GetSize: Int32;
 begin
   result := Fm_size;
@@ -1573,9 +1637,26 @@ begin
     pos := pos + (SECT283K1_FE_LONGS * 2);
   end;
 
-  result := Fm_outer.CreateRawPoint(TSecT283FieldElement.Create(x)
-    as ISecT283FieldElement, TSecT283FieldElement.Create(y)
-    as ISecT283FieldElement, false);
+  result := CreatePoint(x, y);
+end;
+
+function TSecT283K1Curve.TSecT283K1LookupTable.LookupVar(index: Int32)
+  : IECPoint;
+var
+  x, y: TCryptoLibUInt64Array;
+  pos, j: Int32;
+begin
+  x := TNat320.Create64();
+  y := TNat320.Create64();
+  pos := index * SECT283K1_FE_LONGS * 2;
+
+  for j := 0 to System.Pred(SECT283K1_FE_LONGS) do
+  begin
+    x[j] := Fm_table[pos + j];
+    y[j] := Fm_table[pos + SECT283K1_FE_LONGS + j];
+  end;
+
+  result := CreatePoint(x, y);
 end;
 
 end.

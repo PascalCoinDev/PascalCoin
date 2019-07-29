@@ -28,36 +28,42 @@ uses
 {$IFDEF CRYPTOLIB_APPLE}
 {$IFDEF FPC}
 {$LINKFRAMEWORK Security}
+{$IFDEF CRYPTOLIB_MACOS}
+  CocoaAll,
+{$ENDIF} // ENDIF CRYPTOLIB_MACOS
 {$ELSE}
   // Macapi.Dispatch, or
   Macapi.ObjCRuntime,
-{$IF DEFINED(CRYPTOLIB_IOS)}
+{$IFDEF CRYPTOLIB_IOS}
   iOSapi.Foundation,
-{$ELSEIF DEFINED(CRYPTOLIB_MACOS)}
+{$ENDIF} // ENDIF CRYPTOLIB_IOS
+{$IFDEF CRYPTOLIB_MACOS}
+  Macapi.AppKit,
   Macapi.Foundation,
-{$ELSE}
-{$MESSAGE ERROR 'UNSUPPORTED TARGET.'}
-{$IFEND} // ENDIF CRYPTOLIB_MACOS
+{$ENDIF} // ENDIF CRYPTOLIB_MACOS
 {$ENDIF}  // ENDIF FPC
 {$ENDIF}   // ENDIF CRYPTOLIB_APPLE
-{$IFDEF CRYPTOLIB_LINUX}
+{$IFDEF CRYPTOLIB_UNIX}
+  Classes,
 {$IFDEF FPC}
   BaseUnix,
+{$IFDEF CRYPTOLIB_HAS_GETRANDOM}
   dl,
+{$ENDIF}
 {$ELSE}
   Posix.Errno,
+{$IFDEF CRYPTOLIB_HAS_GETRANDOM}
   Posix.Dlfcn,
 {$ENDIF}
-{$ENDIF}  // ENDIF CRYPTOLIB_LINUX
+{$ENDIF}
+{$ENDIF}  // ENDIF CRYPTOLIB_UNIX
 {$IFDEF CRYPTOLIB_PUREBSD}
   // PureBSD (NetBSD, FreeBSD, OpenBSD)
 {$ENDIF}  // ENDIF CRYPTOLIB_PUREBSD
-{$IFDEF CRYPTOLIB_UNIX}
-  Classes,
-{$ENDIF}  // ENDIF CRYPTOLIB_UNIX
 {$IF DEFINED(CRYPTOLIB_MSWINDOWS) OR DEFINED(CRYPTOLIB_UNIX)}
   SysUtils,
 {$IFEND}  // ENDIF CRYPTOLIB_MSWINDOWS OR CRYPTOLIB_UNIX
+  ClpArrayUtils,
   ClpCryptoLibTypes;
 
 resourcestring
@@ -73,14 +79,18 @@ resourcestring
   SLinuxGetRandomError =
     'An Error Occured while generating random data using getRandom API';
 {$ENDIF}
+{$IFDEF CRYPTOLIB_SOLARIS}
+  SSolarisGetRandomError =
+    'An Error Occured while generating random data using getRandom API';
+{$ENDIF}
 {$IFDEF CRYPTOLIB_GENERIC_BSD}
   SArc4RandomBufGenerationError =
     'An Error Occured while generating random data using arc4random_buf API.';
 {$ENDIF}
-{$IFDEF CRYPTOLIB_UNIX}
-  SRandomDeviceReadError =
-    'An Error Occured while reading random data from random device (file)';
-{$ENDIF}
+  // {$IFDEF CRYPTOLIB_UNIX}
+  // SRandomDeviceReadError =
+  // 'An Error Occured while reading random data from random device (file)';
+  // {$ENDIF}
 
 type
 
@@ -107,13 +117,27 @@ type
   /// available)</description>
   /// </item>
   /// <item>
-  /// <term>Windows</term>
-  /// <description><see href="https://docs.microsoft.com/en-us/windows/desktop/api/wincrypt/nf-wincrypt-cryptgenrandom">
-  /// CryptGenRandom</see> for <b>XP</b>, <see href="https://docs.microsoft.com/en-us/windows/desktop/api/bcrypt/nf-bcrypt-bcryptgenrandom">
-  /// BCryptGenRandom</see> for <b>Vista</b> Upwards</description>
+  /// <term>Solaris</term>
+  /// <description><see href="https://docs.oracle.com/cd/E88353_01/html/E37841/getrandom-2.html">
+  /// getrandom</see> system call if available, otherwise ( <see href="https://docs.oracle.com/cd/E86824_01/html/E54777/random-7d.html">
+  /// /dev/urandom or /dev/random</see>) (which ever is
+  /// available)</description>
   /// </item>
   /// <item>
-  /// <term>macOS, iOS</term>
+  /// <term>Windows</term>
+  /// <description>Checks availability in this order, <see href="https://docs.microsoft.com/en-us/windows/win32/api/ntsecapi/nf-ntsecapi-rtlgenrandom">
+  /// RtlGenRandom</see> =&gt; <see href="https://docs.microsoft.com/en-us/windows/desktop/api/wincrypt/nf-wincrypt-cryptgenrandom">
+  /// CryptGenRandom</see> =&gt; <see href="https://docs.microsoft.com/en-us/windows/desktop/api/bcrypt/nf-bcrypt-bcryptgenrandom">
+  /// BCryptGenRandom</see></description>
+  /// </item>
+  /// <item>
+  /// <term>Mac OS X</term>
+  /// <description><see href="https://developer.apple.com/documentation/security/1399291-secrandomcopybytes?language=objc">
+  /// SecRandomCopyBytes</see> for <b>10.7+,</b> ( /dev/urandom
+  /// or /dev/random) (which ever is available) for &lt; <b>10.7</b><br /></description>
+  /// </item>
+  /// <item>
+  /// <term>iOS</term>
   /// <description><see href="https://developer.apple.com/documentation/security/1399291-secrandomcopybytes?language=objc">
   /// SecRandomCopyBytes</see><br /></description>
   /// </item>
@@ -145,7 +169,28 @@ type
 
     // ================================================================//
 
+{$IFDEF CRYPTOLIB_UNIX}
+  const
+    EINTR = {$IFDEF FPC}ESysEINTR {$ELSE}Posix.Errno.EINTR{$ENDIF};
+
+    class function ErrorNo: Int32; static; inline;
+
+{$IFDEF CRYPTOLIB_HAS_GETRANDOM}
+
+  const
+    GRND_DEFAULT: Int32 = $0000;
+
 {$IFDEF CRYPTOLIB_LINUX}
+{$IFDEF CRYPTOLIB_ANDROID}
+    LIBC_SO = 'libc.so';
+{$ELSE}
+    LIBC_SO = 'libc.so.6';
+{$ENDIF}
+{$ENDIF}
+{$IFDEF CRYPTOLIB_SOLARIS}
+    LIBC_SO = 'libc.so.1';
+{$ENDIF}
+
   type
     TGetRandom = function(pbBuffer: PByte; buflen: LongWord; flags: UInt32)
       : Int32; cdecl;
@@ -155,8 +200,6 @@ type
     FIsGetRandomSupportedOnOS: Boolean;
     FGetRandom: TGetRandom;
 
-    class function ErrorNo: Int32; static; inline;
-
     class function GetIsGetRandomSupportedOnOS(): Boolean; static; inline;
 
     class function IsGetRandomAvailable(): Boolean; static;
@@ -165,9 +208,14 @@ type
       read GetIsGetRandomSupportedOnOS;
 
 {$ENDIF}
+{$ENDIF}
     // ================================================================//
 
 {$IFDEF CRYPTOLIB_MSWINDOWS}
+
+  const
+    BCRYPT = 'bcrypt.dll';
+    ADVAPI32 = 'advapi32.dll';
 
   type
     BCRYPT_ALG_HANDLE = THandle;
@@ -193,10 +241,56 @@ type
       static; inline;
 
     class function IsCngBCryptGenRandomAvailable(): Boolean; static;
-    class function GenRandomBytesWindows(len: Int32; data: PByte)
-      : Int32; static;
+
     class property IsCngBCryptGenRandomSupportedOnOS: Boolean
       read GetIsCngBCryptGenRandomSupportedOnOS;
+
+  type
+
+    TCryptGenRandom = function(hProv: THandle; dwLen: DWORD; pbBuffer: PByte)
+      : BOOL; stdcall;
+
+    TCryptAcquireContextW = function(phProv: Pointer; pszContainer: LPCWSTR;
+      pszProvider: LPCWSTR; dwProvType: DWORD; dwFlags: DWORD): BOOL; stdcall;
+
+    TCryptReleaseContext = function(hProv: THandle; dwFlags: DWORD)
+      : BOOL; stdcall;
+
+  class var
+
+    FIsCryptGenRandomSupportedOnOS: Boolean;
+    FCryptGenRandom: TCryptGenRandom;
+    FCryptAcquireContextW: TCryptAcquireContextW;
+    FCryptReleaseContext: TCryptReleaseContext;
+
+    class function GetIsCryptGenRandomSupportedOnOS(): Boolean; static; inline;
+
+    class function IsCryptGenRandomAvailable(): Boolean; static;
+
+    class property IsCryptGenRandomSupportedOnOS: Boolean
+      read GetIsCryptGenRandomSupportedOnOS;
+
+  type
+    TRtlGenRandom = function(RandomBuffer: PVOID; RandomBufferLength: ULONG)
+      : Boolean; stdcall;
+
+  class var
+    FIsRtlGenRandomSupportedOnOS: Boolean;
+    FRtlGenRandom: TRtlGenRandom;
+
+    class function GetIsRtlGenRandomSupportedOnOS(): Boolean; static; inline;
+
+    class function IsRtlGenRandomAvailable(): Boolean; static;
+
+    class property IsRtlGenRandomSupportedOnOS: Boolean
+      read GetIsRtlGenRandomSupportedOnOS;
+
+    class function GetProcedureAddress(ModuleHandle: THandle;
+      const AProcedureName: String; var AFunctionFound: Boolean)
+      : Pointer; static;
+
+    class function GenRandomBytesWindows(len: Int32; data: PByte)
+      : Int32; static;
 {$ENDIF}
 
     // ================================================================//
@@ -206,6 +300,11 @@ type
     // ================================================================//
 {$IFDEF CRYPTOLIB_LINUX}
     class function GenRandomBytesLinux(len: Int32; data: PByte): Int32; static;
+{$ENDIF}
+    // ================================================================//
+{$IFDEF CRYPTOLIB_SOLARIS}
+    class function GenRandomBytesSolaris(len: Int32; data: PByte)
+      : Int32; static;
 {$ENDIF}
     // ================================================================//
 {$IFDEF CRYPTOLIB_GENERIC_BSD}
@@ -219,8 +318,6 @@ type
 {$ENDIF}
     // ================================================================//
 
-    class function NoZeroes(const data: TCryptoLibByteArray): Boolean;
-      static; inline;
     class procedure Boot(); static;
     class constructor OSRandom();
 
@@ -231,32 +328,19 @@ type
   end;
 
   // ************************************************************************//
-
-{$IFDEF CRYPTOLIB_MSWINDOWS}
-
-const
-  ADVAPI32 = 'advapi32.dll';
-
-function CryptAcquireContextW(phProv: Pointer; pszContainer: LPCWSTR;
-  pszProvider: LPCWSTR; dwProvType: DWORD; dwFlags: DWORD): BOOL; stdcall;
-  external ADVAPI32 Name 'CryptAcquireContextW';
-
-function CryptGenRandom(hProv: THandle; dwLen: DWORD; pbBuffer: PByte): BOOL;
-  stdcall; external ADVAPI32 Name 'CryptGenRandom';
-
-function CryptReleaseContext(hProv: THandle; dwFlags: DWORD): BOOL; stdcall;
-  external ADVAPI32 Name 'CryptReleaseContext';
-{$ENDIF}
-// ************************************************************************//
 {$IFDEF CRYPTOLIB_APPLE}
 {$IFDEF FPC}
 
 type
   // similar to a TOpaqueData already defined in newer FPC but not available in 3.0.4
+  // TODO when we upgrade to FPC 3.2.0, remove " __SecRandom = record end;" declaration
   __SecRandom = record
   end;
 
   // similar to POpaqueData (or an OpaquePointer) already defined in newer FPC but not available in 3.0.4
+  // TODO when we upgrade to FPC 3.2.0, use inbuilt OpaquePointer instead
+  // replace "SecRandomRef = ^__SecRandom;" with "SecRandomRef = OpaquePointer;"
+
   SecRandomRef = ^__SecRandom;
 
 function SecRandomCopyBytes(rnd: SecRandomRef; count: LongWord; bytes: PByte)
@@ -277,33 +361,20 @@ function SecRandomCopyBytes(rnd: SecRandomRef; count: LongWord; bytes: PByte)
 {$ENDIF}
 // ************************************************************************//
 {$IFDEF CRYPTOLIB_GENERIC_BSD}
-procedure arc4random_buf(bytes: PByte; count: LongWord); cdecl; external;
-'c' name 'arc4random_buf';
+procedure arc4random_buf(bytes: PByte; count: LongWord); cdecl;
+  external 'c' name 'arc4random_buf';
 {$ENDIF}
 
 implementation
-
-class function TOSRandom.NoZeroes(const data: TCryptoLibByteArray): Boolean;
-var
-  i: Int32;
-begin
-  result := True;
-  for i := System.Low(data) to System.High(data) do
-  begin
-    if data[i] = 0 then
-    begin
-      result := False;
-      Exit;
-    end;
-  end;
-end;
 
 class procedure TOSRandom.Boot;
 begin
 {$IFDEF CRYPTOLIB_MSWINDOWS}
   FIsCngBCryptGenRandomSupportedOnOS := IsCngBCryptGenRandomAvailable();
+  FIsCryptGenRandomSupportedOnOS := IsCryptGenRandomAvailable();
+  FIsRtlGenRandomSupportedOnOS := IsRtlGenRandomAvailable();
 {$ENDIF}
-{$IFDEF CRYPTOLIB_LINUX}
+{$IFDEF CRYPTOLIB_HAS_GETRANDOM}
   FIsGetRandomSupportedOnOS := IsGetRandomAvailable();
 {$ENDIF}
 end;
@@ -315,38 +386,78 @@ end;
 
 {$IFDEF CRYPTOLIB_MSWINDOWS}
 
+class function TOSRandom.GetProcedureAddress(ModuleHandle: THandle;
+  const AProcedureName: String; var AFunctionFound: Boolean): Pointer;
+begin
+  result := GetProcAddress(ModuleHandle, PChar(AProcedureName));
+  if result = Nil then
+  begin
+    AFunctionFound := False;
+  end;
+end;
+
 class function TOSRandom.GetIsCngBCryptGenRandomSupportedOnOS(): Boolean;
 begin
   result := FIsCngBCryptGenRandomSupportedOnOS;
 end;
 
+class function TOSRandom.GetIsCryptGenRandomSupportedOnOS(): Boolean;
+begin
+  result := FIsCryptGenRandomSupportedOnOS;
+end;
+
+class function TOSRandom.GetIsRtlGenRandomSupportedOnOS(): Boolean;
+begin
+  result := FIsRtlGenRandomSupportedOnOS;
+end;
+
 class function TOSRandom.IsCngBCryptGenRandomAvailable(): Boolean;
-const
-  BCRYPT = 'bcrypt.dll';
 var
   ModuleHandle: THandle;
-
-  function GetProcedureAddress(const AProcedureName: String;
-    var AFunctionFound: Boolean): Pointer;
-  begin
-    result := GetProcAddress(ModuleHandle, PChar(AProcedureName));
-    if result = Nil then
-    begin
-      AFunctionFound := False;
-    end;
-  end;
-
 begin
   result := False;
-  ModuleHandle := SafeLoadLibrary(PChar(BCRYPT), SEM_FAILCRITICALERRORS);
+  ModuleHandle := SafeLoadLibrary(BCRYPT, SEM_FAILCRITICALERRORS);
   if ModuleHandle <> 0 then
   begin
     result := True;
-    FBCryptOpenAlgorithmProvider :=
-      GetProcedureAddress('BCryptOpenAlgorithmProvider', result);
-    FBCryptCloseAlgorithmProvider :=
-      GetProcedureAddress('BCryptCloseAlgorithmProvider', result);
-    FBCryptGenRandom := GetProcedureAddress('BCryptGenRandom', result);
+    FBCryptOpenAlgorithmProvider := GetProcedureAddress(ModuleHandle,
+      'BCryptOpenAlgorithmProvider', result);
+    FBCryptCloseAlgorithmProvider := GetProcedureAddress(ModuleHandle,
+      'BCryptCloseAlgorithmProvider', result);
+    FBCryptGenRandom := GetProcedureAddress(ModuleHandle,
+      'BCryptGenRandom', result);
+  end;
+end;
+
+class function TOSRandom.IsCryptGenRandomAvailable(): Boolean;
+var
+  ModuleHandle: THandle;
+begin
+  result := False;
+  ModuleHandle := SafeLoadLibrary(ADVAPI32, SEM_FAILCRITICALERRORS);
+  if ModuleHandle <> 0 then
+  begin
+    result := True;
+    FCryptAcquireContextW := GetProcedureAddress(ModuleHandle,
+      'CryptAcquireContextW', result);
+    FCryptReleaseContext := GetProcedureAddress(ModuleHandle,
+      'CryptReleaseContext', result);
+    FCryptGenRandom := GetProcedureAddress(ModuleHandle,
+      'CryptGenRandom', result);
+  end;
+end;
+
+class function TOSRandom.IsRtlGenRandomAvailable(): Boolean;
+var
+  ModuleHandle: THandle;
+begin
+  result := False;
+  ModuleHandle := SafeLoadLibrary(ADVAPI32, SEM_FAILCRITICALERRORS);
+  if ModuleHandle <> 0 then
+  begin
+    result := True;
+    FRtlGenRandom := GetProcedureAddress(ModuleHandle,
+      'SystemFunction036', result);
   end;
 end;
 
@@ -367,9 +478,40 @@ const
   BCRYPT_RNG_ALGORITHM: WideString = 'RNG';
 
 begin
-  if IsCngBCryptGenRandomSupportedOnOS then
+  // first check if RtlGenRandom is available to avoid the memory overhead
+  // of pulling in 'CryptoAPI'
+  if IsRtlGenRandomSupportedOnOS then
   begin
-    // Windows Vista and Above
+    // Availability: Windows XP / Server 2003 and Above
+    if not FRtlGenRandom(data, ULONG(len)) then
+    begin
+      result := HResultFromWin32(GetLastError);
+      Exit;
+    end;
+  end
+  else if IsCryptGenRandomSupportedOnOS then
+  begin
+    // Availability: Windows XP / Server 2003 and Above
+    if not FCryptAcquireContextW(@hProv, nil, nil, PROV_RSA_FULL,
+      CRYPT_VERIFYCONTEXT or CRYPT_SILENT) then
+    begin
+      result := HResultFromWin32(GetLastError);
+      Exit;
+    end;
+
+    try
+      if not FCryptGenRandom(hProv, DWORD(len), data) then
+      begin
+        result := HResultFromWin32(GetLastError);
+        Exit;
+      end;
+    finally
+      FCryptReleaseContext(hProv, 0);
+    end;
+  end
+  else if IsCngBCryptGenRandomSupportedOnOS then
+  begin
+    // Availability: Windows Vista / Server 2008 and Above
     if (not BCRYPT_SUCCESS(FBCryptOpenAlgorithmProvider(@hProv,
       PWideChar(BCRYPT_RNG_ALGORITHM), nil, 0))) then
     begin
@@ -390,23 +532,9 @@ begin
   end
   else
   begin
-    // Below Windows Vista
-    if not CryptAcquireContextW(@hProv, nil, nil, PROV_RSA_FULL,
-      CRYPT_VERIFYCONTEXT or CRYPT_SILENT) then
-    begin
-      result := HResultFromWin32(GetLastError);
-      Exit;
-    end;
-
-    try
-      if not CryptGenRandom(hProv, DWORD(len), data) then
-      begin
-        result := HResultFromWin32(GetLastError);
-        Exit;
-      end;
-    finally
-      CryptReleaseContext(hProv, 0);
-    end;
+    // should never happen but who knows :)
+    result := S_FALSE;
+    Exit;
   end;
   result := S_OK;
 end;
@@ -426,7 +554,20 @@ class function TOSRandom.GenRandomBytesApple(len: Int32; data: PByte): Int32;
   end;
 
 begin
+{$IF DEFINED(CRYPTOLIB_MACOS)}
+  // >= (Mac OS X 10.7+)
+  if NSAppKitVersionNumber >= 1138 then // NSAppKitVersionNumber10_7
+  begin
+    result := SecRandomCopyBytes(kSecRandomDefault, LongWord(len), data);
+  end
+  else
+  begin
+    // fallback for when SecRandomCopyBytes API is not available
+    result := dev_random_device_read(len, data);
+  end;
+{$ELSE}
   result := SecRandomCopyBytes(kSecRandomDefault, LongWord(len), data);
+{$IFEND}
 end;
 
 {$ENDIF}
@@ -436,11 +577,20 @@ class function TOSRandom.dev_random_device_read(len: Int32; data: PByte): Int32;
 var
   LStream: TFileStream;
   RandGen: String;
+  got, MaxChunkSize: Int32;
 begin
+  MaxChunkSize := len;
   RandGen := '/dev/urandom';
+{$IFDEF CRYPTOLIB_SOLARIS}
+  MaxChunkSize := 128 * 1040; // 128 * 1040 bytes
+{$ENDIF}
   if not FileExists(RandGen) then
   begin
+{$IFDEF CRYPTOLIB_SOLARIS}
+    MaxChunkSize := 1040; // 1040 bytes
+{$ENDIF}
     RandGen := '/dev/random';
+
     if not FileExists(RandGen) then
     begin
       result := -1;
@@ -451,23 +601,43 @@ begin
   LStream := TFileStream.Create(RandGen, fmOpenRead);
 
   try
-    try
-      LStream.ReadBuffer(data[0], len);
-      result := 0;
-    except
-      result := -1;
+    while (len > 0) do
+    begin
+      if len <= MaxChunkSize then
+      begin
+        MaxChunkSize := len;
+      end;
+
+      got := LStream.Read(data^, MaxChunkSize);
+
+      if (got = 0) then
+      begin
+        if ErrorNo = EINTR then
+        begin
+          continue;
+        end;
+
+        result := -1;
+        Exit;
+      end;
+
+      System.Inc(data, got);
+      System.Dec(len, got);
     end;
+    result := 0;
   finally
     LStream.Free;
   end;
 end;
 {$ENDIF}
-{$IFDEF CRYPTOLIB_LINUX}
+{$IFDEF CRYPTOLIB_UNIX}
 
 class function TOSRandom.ErrorNo: Int32;
 begin
   result := Errno;
 end;
+{$ENDIF}
+{$IFDEF CRYPTOLIB_HAS_GETRANDOM}
 
 class function TOSRandom.GetIsGetRandomSupportedOnOS(): Boolean;
 begin
@@ -475,13 +645,11 @@ begin
 end;
 
 class function TOSRandom.IsGetRandomAvailable(): Boolean;
-const
-  LIBC_SO_6 = 'libc.so.6';
 var
   Lib: {$IFDEF FPC} PtrInt {$ELSE} NativeUInt {$ENDIF};
 begin
   FGetRandom := Nil;
-  Lib := {$IFDEF FPC}PtrInt{$ENDIF}(dlopen(LIBC_SO_6, RTLD_NOW));
+  Lib := {$IFDEF FPC}PtrInt{$ENDIF}(dlopen(LIBC_SO, RTLD_NOW));
   if Lib <> 0 then
   begin
     FGetRandom := dlsym(Lib, 'getrandom');
@@ -490,29 +658,32 @@ begin
   result := System.Assigned(FGetRandom);
 end;
 
+{$ENDIF}
+{$IFDEF CRYPTOLIB_LINUX}
+
 class function TOSRandom.GenRandomBytesLinux(len: Int32; data: PByte): Int32;
-const
-  GRND_DEFAULT: Int32 = $0000;
-  EINTR = {$IFDEF FPC}ESysEINTR {$ELSE}Posix.Errno.EINTR{$ENDIF};
 var
-  n: Int64;
+  got: Int32;
 begin
+
   if IsGetRandomSupportedOnOS then
   begin
     while (len > 0) do
     begin
 
-      repeat
-        n := FGetRandom(data, LongWord(len), GRND_DEFAULT);
-      until ((n > 0) and (ErrorNo <> EINTR));
+      got := FGetRandom(data, LongWord(len), GRND_DEFAULT);
 
-      if (n <= 0) then
+      if (got < 0) then
       begin
+        if ErrorNo = EINTR then
+        begin
+          continue;
+        end;
         result := -1;
         Exit;
       end;
-      System.Inc(data, n);
-      System.Dec(len, n);
+      System.Inc(data, got);
+      System.Dec(len, got);
     end;
     result := 0;
   end
@@ -522,7 +693,46 @@ begin
     result := dev_random_device_read(len, data);
   end;
 end;
+{$ENDIF}
+{$IFDEF CRYPTOLIB_SOLARIS}
 
+class function TOSRandom.GenRandomBytesSolaris(len: Int32; data: PByte): Int32;
+var
+  got, MaxChunkSize: Int32;
+begin
+  MaxChunkSize := 256; // 256 bytes
+
+  if IsGetRandomSupportedOnOS then
+  begin
+    while (len > 0) do
+    begin
+      if len <= MaxChunkSize then
+      begin
+        MaxChunkSize := len;
+      end;
+
+      got := FGetRandom(data, LongWord(MaxChunkSize), GRND_DEFAULT);
+
+      if (got = 0) then
+      begin
+        if ErrorNo = EINTR then
+        begin
+          continue;
+        end;
+        result := -1;
+        Exit;
+      end;
+      System.Inc(data, got);
+      System.Dec(len, got);
+    end;
+    result := 0;
+  end
+  else
+  begin
+    // fallback for when getrandom API is not available
+    result := dev_random_device_read(len, data);
+  end;
+end;
 {$ENDIF}
 {$IFDEF CRYPTOLIB_GENERIC_BSD}
 
@@ -566,17 +776,23 @@ begin
     raise EOSRandomCryptoLibException.CreateRes(@SLinuxGetRandomError);
   end;
 
+{$ELSEIF DEFINED(CRYPTOLIB_SOLARIS)}
+  if GenRandomBytesSolaris(count, PByte(data)) <> 0 then
+  begin
+    raise EOSRandomCryptoLibException.CreateRes(@SSolarisGetRandomError);
+  end;
+
 {$ELSEIF DEFINED(CRYPTOLIB_GENERIC_BSD)}
   if GenRandomBytesGenericBSD(count, PByte(data)) <> 0 then
   begin
     raise EOSRandomCryptoLibException.CreateRes(@SArc4RandomBufGenerationError);
   end;
-{$ELSEIF DEFINED(CRYPTOLIB_UNDEFINED_UNIX_VARIANTS)}
-  // fallback option for other Undefined Unix OSes
-  if dev_random_device_read(count, PByte(data)) <> 0 then
-  begin
-    raise EOSRandomCryptoLibException.CreateRes(@SRandomDeviceReadError);
-  end;
+  // {$ELSEIF DEFINED(CRYPTOLIB_UNDEFINED_UNIX_VARIANTS)}
+  // // fallback option for other Undefined Unix OSes
+  // if dev_random_device_read(count, PByte(data)) <> 0 then
+  // begin
+  // raise EOSRandomCryptoLibException.CreateRes(@SRandomDeviceReadError);
+  // end;
 {$ELSE}
 {$MESSAGE ERROR 'UNSUPPORTED TARGET.'}
 {$IFEND}
@@ -586,7 +802,7 @@ class procedure TOSRandom.GetNonZeroBytes(const data: TCryptoLibByteArray);
 begin
   repeat
     TOSRandom.GetBytes(data);
-  until (NoZeroes(data));
+  until (TArrayUtils.NoZeroes(data));
 end;
 
 end.

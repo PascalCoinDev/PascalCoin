@@ -33,46 +33,71 @@ type
   /// Class holding precomputation data for the WNAF (Window Non-Adjacent
   /// Form) algorithm.
   /// </summary>
-  TWNafPreCompInfo = class(TInterfacedObject, IPreCompInfo, IWNafPreCompInfo)
+  TWNafPreCompInfo = class sealed(TInterfacedObject, IPreCompInfo,
+    IWNafPreCompInfo)
 
   strict private
-    function GetPreComp: TCryptoLibGenericArray<IECPoint>; virtual;
-    procedure SetPreComp(const Value
-      : TCryptoLibGenericArray<IECPoint>); virtual;
-    function GetPreCompNeg: TCryptoLibGenericArray<IECPoint>; virtual;
-    procedure SetPreCompNeg(const Value
-      : TCryptoLibGenericArray<IECPoint>); virtual;
-    function GetTwice: IECPoint; virtual;
-    procedure SetTwice(const Value: IECPoint); virtual;
-  strict protected
   var
     /// <summary>
     /// Array holding the precomputed <c>ECPoint</c>s used for a Window NAF
     /// multiplication.
     /// </summary>
-    Fm_preComp: TCryptoLibGenericArray<IECPoint>;
+    FPreComp: TCryptoLibGenericArray<IECPoint>;
 
     /// <summary>
     /// Array holding the negations of the precomputed <c>ECPoint</c>s used
     /// for a Window NAF multiplication.
     /// </summary>
-    Fm_preCompNeg: TCryptoLibGenericArray<IECPoint>;
+    FPreCompNeg: TCryptoLibGenericArray<IECPoint>;
 
     /// <summary>
     /// Holds an <c>ECPoint</c> representing Twice(this). Used for the Window
     /// NAF multiplication to create or extend the precomputed values.
     /// </summary>
-    Fm_twice: IECPoint;
+    FTwice: IECPoint;
+
+    FConfWidth, FWidth: Int32;
+
+{$IFNDEF FPC}
+{$IFDEF HAS_VOLATILE}[volatile]
+{$ENDIF}
+{$ENDIF}
+    FPromotionCountdown: Int32;
+
+    function GetPreComp: TCryptoLibGenericArray<IECPoint>; inline;
+    procedure SetPreComp(const Value: TCryptoLibGenericArray<IECPoint>); inline;
+    function GetPreCompNeg: TCryptoLibGenericArray<IECPoint>; inline;
+    procedure SetPreCompNeg(const Value
+      : TCryptoLibGenericArray<IECPoint>); inline;
+    function GetTwice: IECPoint; inline;
+    procedure SetTwice(const Value: IECPoint); inline;
+
+    function GetConfWidth: Int32; inline;
+    procedure SetConfWidth(Value: Int32); inline;
+
+    function GetWidth: Int32; inline;
+    procedure SetWidth(Value: Int32); inline;
+
+    function GetPromotionCountdown: Int32; inline;
+    procedure SetPromotionCountdown(Value: Int32); inline;
+
+    function DecrementPromotionCountdown: Int32; inline;
+    function IsPromoted: Boolean; inline;
 
   public
 
     constructor Create();
-    destructor Destroy; override;
     property PreComp: TCryptoLibGenericArray<IECPoint> read GetPreComp
       write SetPreComp;
     property PreCompNeg: TCryptoLibGenericArray<IECPoint> read GetPreCompNeg
       write SetPreCompNeg;
     property Twice: IECPoint read GetTwice write SetTwice;
+
+    property ConfWidth: Int32 read GetConfWidth write SetConfWidth;
+    property Width: Int32 read GetWidth write SetWidth;
+
+    property PromotionCountdown: Int32 read GetPromotionCountdown
+      write SetPromotionCountdown;
 
   end;
 
@@ -83,43 +108,97 @@ implementation
 constructor TWNafPreCompInfo.Create;
 begin
   inherited Create();
+  FConfWidth := -1;
+  FWidth := -1;
+  FPromotionCountdown := 4;
 end;
 
-destructor TWNafPreCompInfo.Destroy;
+function TWNafPreCompInfo.DecrementPromotionCountdown: Int32;
+var
+  t: Int32;
 begin
-  inherited Destroy;
+  t := PromotionCountdown;
+  if (t > 0) then
+  begin
+    System.Dec(t);
+    PromotionCountdown := t;
+  end;
+  result := t;
+end;
+
+function TWNafPreCompInfo.GetConfWidth: Int32;
+begin
+  result := FConfWidth;
 end;
 
 function TWNafPreCompInfo.GetPreComp: TCryptoLibGenericArray<IECPoint>;
 begin
-  Result := Fm_preComp;
+  result := FPreComp;
 end;
 
 function TWNafPreCompInfo.GetPreCompNeg: TCryptoLibGenericArray<IECPoint>;
 begin
-  Result := Fm_preCompNeg;
+  result := FPreCompNeg;
+end;
+
+function TWNafPreCompInfo.GetPromotionCountdown: Int32;
+begin
+{$IFDEF FPC}
+  result := {$IFDEF HAS_VOLATILE}volatile{$ENDIF}(FPromotionCountdown);
+{$ELSE}
+    result := FPromotionCountdown;
+{$ENDIF}
 end;
 
 function TWNafPreCompInfo.GetTwice: IECPoint;
 begin
-  Result := Fm_twice;
+  result := FTwice;
+end;
+
+function TWNafPreCompInfo.GetWidth: Int32;
+begin
+  result := FWidth;
+end;
+
+function TWNafPreCompInfo.IsPromoted: Boolean;
+begin
+  result := PromotionCountdown <= 0;
+end;
+
+procedure TWNafPreCompInfo.SetConfWidth(Value: Int32);
+begin
+  FConfWidth := Value;
 end;
 
 procedure TWNafPreCompInfo.SetPreComp(const Value
   : TCryptoLibGenericArray<IECPoint>);
 begin
-  Fm_preComp := Value;
+  FPreComp := Value;
 end;
 
 procedure TWNafPreCompInfo.SetPreCompNeg(const Value
   : TCryptoLibGenericArray<IECPoint>);
 begin
-  Fm_preCompNeg := Value;
+  FPreCompNeg := Value;
+end;
+
+procedure TWNafPreCompInfo.SetPromotionCountdown(Value: Int32);
+begin
+{$IFDEF FPC}
+  FPromotionCountdown := {$IFDEF HAS_VOLATILE}volatile{$ENDIF}(Value);
+{$ELSE}
+    FPromotionCountdown := Value;
+{$ENDIF}
 end;
 
 procedure TWNafPreCompInfo.SetTwice(const Value: IECPoint);
 begin
-  Fm_twice := Value;
+  FTwice := Value;
+end;
+
+procedure TWNafPreCompInfo.SetWidth(Value: Int32);
+begin
+  FWidth := Value;
 end;
 
 end.

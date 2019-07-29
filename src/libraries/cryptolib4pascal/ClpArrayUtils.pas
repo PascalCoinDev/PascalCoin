@@ -97,6 +97,8 @@ type
 
     class procedure ZeroFill(const buf: TCryptoLibByteArray); static;
 
+    class function NoZeroes(const data: TCryptoLibByteArray): Boolean; static;
+
   end;
 
 implementation
@@ -114,6 +116,21 @@ begin
       [from, &to]);
   end;
   Result := newLength;
+end;
+
+class function TArrayUtils.NoZeroes(const data: TCryptoLibByteArray): Boolean;
+var
+  i: Int32;
+begin
+  Result := True;
+  for i := System.Low(data) to System.High(data) do
+  begin
+    if data[i] = 0 then
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
 end;
 
 class function TArrayUtils.Concatenate(const A, B: TCryptoLibByteArray)
@@ -173,7 +190,7 @@ class function TArrayUtils.AreEqual(const A, B: TCryptoLibByteArray): Boolean;
 begin
   if System.Length(A) <> System.Length(B) then
   begin
-    Result := false;
+    Result := False;
     Exit;
   end;
 
@@ -198,7 +215,7 @@ class function TArrayUtils.AreEqual(const A, B: TCryptoLibInt32Array): Boolean;
 begin
   if System.Length(A) <> System.Length(B) then
   begin
-    Result := false;
+    Result := False;
     Exit;
   end;
 

@@ -24,6 +24,7 @@ interface
 uses
   ClpBits,
   ClpConverters,
+  ClpArrayUtils,
   ClpCryptoLibTypes;
 
 type
@@ -77,6 +78,9 @@ type
 
     class procedure Carry(const z: TCryptoLibInt32Array); static;
 
+    class procedure CMov(cond: Int32; const x: TCryptoLibInt32Array;
+      xOff: Int32; const z: TCryptoLibInt32Array; zOff: Int32); static;
+
     class procedure CNegate(ANegate: Int32; const z: TCryptoLibInt32Array);
       static; inline;
 
@@ -97,6 +101,8 @@ type
       const z: TCryptoLibByteArray; zOff: Int32); static; inline;
 
     class procedure Inv(const x, z: TCryptoLibInt32Array); static; inline;
+
+    class function IsZero(const x: TCryptoLibInt32Array): Int32; static;
 
     class function IsZeroVar(const x: TCryptoLibInt32Array): Boolean;
       static; inline;
@@ -226,6 +232,23 @@ begin
   z[7] := z7;
   z[8] := z8;
   z[9] := z9;
+end;
+
+class procedure TX25519Field.CMov(cond: Int32; const x: TCryptoLibInt32Array;
+  xOff: Int32; const z: TCryptoLibInt32Array; zOff: Int32);
+var
+  i, z_i, diff: Int32;
+begin
+{$IFDEF DEBUG}
+  System.Assert((cond = 0) or (cond = -1));
+{$ENDIF DEBUG}
+  for i := 0 to System.Pred(Size) do
+  begin
+    z_i := z[zOff + i];
+    diff := z_i xor x[xOff + i];
+    z_i := z_i xor (diff and cond);
+    z[zOff + i] := z_i;
+  end;
 end;
 
 class procedure TX25519Field.CNegate(ANegate: Int32;
@@ -379,7 +402,7 @@ begin
   Mul(t, x2, z);
 end;
 
-class function TX25519Field.IsZeroVar(const x: TCryptoLibInt32Array): Boolean;
+class function TX25519Field.IsZero(const x: TCryptoLibInt32Array): Int32;
 var
   d, i: Int32;
 begin
@@ -388,7 +411,13 @@ begin
   begin
     d := d or x[i];
   end;
-  Result := d = 0;
+  d := (TBits.Asr32(d, 1)) or (d and 1);
+  Result := (d - 1) shr 31;
+end;
+
+class function TX25519Field.IsZeroVar(const x: TCryptoLibInt32Array): Boolean;
+begin
+  Result := IsZero(x) <> 0;
 end;
 
 class procedure TX25519Field.Mul(const x: TCryptoLibInt32Array; y: Int32;
@@ -912,13 +941,8 @@ begin
 end;
 
 class procedure TX25519Field.Zero(const z: TCryptoLibInt32Array);
-var
-  i: Int32;
 begin
-  for i := 0 to System.Pred(Size) do
-  begin
-    z[i] := 0;
-  end;
+  TArrayUtils.Fill(z, 0, Size, Int32(0));
 end;
 
 end.

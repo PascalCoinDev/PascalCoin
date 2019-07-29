@@ -28,6 +28,7 @@ uses
   ClpTeleTrusTObjectIdentifiers,
   ClpCryptoLibTypes,
   ClpBigInteger,
+  ClpECCompUtilities,
   ClpECC,
   ClpIECC,
   ClpX9ECC,
@@ -60,6 +61,9 @@ type
 
     class function ConfigureCurve(const curve: IECCurve): IECCurve;
       static; inline;
+
+    class function ConfigureBasepoint(const curve: IECCurve;
+      const encoding: String): IX9ECPoint; static;
 
     class procedure Boot(); static;
     class constructor CreateTeleTrusTNamedCurves();
@@ -325,6 +329,13 @@ implementation
 
 { TeleTrusTNamedCurves }
 
+class function TTeleTrusTNamedCurves.ConfigureBasepoint(const curve: IECCurve;
+  const encoding: String): IX9ECPoint;
+begin
+  result := TX9ECPoint.Create(curve, THex.Decode(encoding));
+  TWnafUtilities.ConfigureBasepoint(result.Point);
+end;
+
 class function TTeleTrusTNamedCurves.ConfigureCurve(const curve: IECCurve)
   : IECCurve;
 begin
@@ -448,6 +459,7 @@ function TTeleTrusTNamedCurves.TBrainpoolP160r1Holder.CreateParameters
 var
   n, h: TBigInteger;
   curve: IECCurve;
+  G: IX9ECPoint;
 begin
   n := TBigInteger.Create('E95E4A5F737059DC60DF5991D45029409E60FC09', 16);
   h := TBigInteger.Create('01', 16);
@@ -459,11 +471,10 @@ begin
     TBigInteger.Create('1E589A8595423412134FAA2DBDEC95C8D8675E58', 16), // b
     n, h) as IFpCurve);
 
-  result := TX9ECParameters.Create(curve, TX9ECPoint.Create(curve,
-    THex.Decode
-    ('04BED5AF16EA3F6A4F62938C4631EB5AF7BDBCDBC31667CB477A1A8EC338F94741669C976316DA6321')
-    ) as IX9ECPoint, // G
-    n, h);
+  G := ConfigureBasepoint(curve,
+    '04BED5AF16EA3F6A4F62938C4631EB5AF7BDBCDBC31667CB477A1A8EC338F94741669C976316DA6321');
+
+  result := TX9ECParameters.Create(curve, G, n, h);
 end;
 
 class function TTeleTrusTNamedCurves.TBrainpoolP160r1Holder.Instance
@@ -479,6 +490,7 @@ function TTeleTrusTNamedCurves.TBrainpoolP160t1Holder.CreateParameters
 var
   n, h: TBigInteger;
   curve: IECCurve;
+  G: IX9ECPoint;
 begin
   n := TBigInteger.Create('E95E4A5F737059DC60DF5991D45029409E60FC09', 16);
   h := TBigInteger.Create('01', 16);
@@ -490,11 +502,10 @@ begin
     TBigInteger.Create('7A556B6DAE535B7B51ED2C4D7DAA7A0B5C55F380', 16), // b'
     n, h) as IFpCurve);
 
-  result := TX9ECParameters.Create(curve, TX9ECPoint.Create(curve,
-    THex.Decode
-    ('04B199B13B9B34EFC1397E64BAEB05ACC265FF2378ADD6718B7C7C1961F0991B842443772152C9E0AD')
-    ) as IX9ECPoint, // G'
-    n, h);
+  G := ConfigureBasepoint(curve,
+    '04B199B13B9B34EFC1397E64BAEB05ACC265FF2378ADD6718B7C7C1961F0991B842443772152C9E0AD');
+
+  result := TX9ECParameters.Create(curve, G, n, h);
 end;
 
 class function TTeleTrusTNamedCurves.TBrainpoolP160t1Holder.Instance
@@ -510,6 +521,7 @@ function TTeleTrusTNamedCurves.TBrainpoolP192r1Holder.CreateParameters
 var
   n, h: TBigInteger;
   curve: IECCurve;
+  G: IX9ECPoint;
 begin
   n := TBigInteger.Create
     ('C302F41D932A36CDA7A3462F9E9E916B5BE8F1029AC4ACC1', 16);
@@ -524,11 +536,10 @@ begin
     // b
     n, h) as IFpCurve);
 
-  result := TX9ECParameters.Create(curve, TX9ECPoint.Create(curve,
-    THex.Decode
-    ('04C0A0647EAAB6A48753B033C56CB0F0900A2F5C4853375FD614B690866ABD5BB88B5F4828C1490002E6773FA2FA299B8F')
-    ) as IX9ECPoint, // G
-    n, h);
+  G := ConfigureBasepoint(curve,
+    '04C0A0647EAAB6A48753B033C56CB0F0900A2F5C4853375FD614B690866ABD5BB88B5F4828C1490002E6773FA2FA299B8F');
+
+  result := TX9ECParameters.Create(curve, G, n, h);
 end;
 
 class function TTeleTrusTNamedCurves.TBrainpoolP192r1Holder.Instance
@@ -544,6 +555,7 @@ function TTeleTrusTNamedCurves.TBrainpoolP192t1Holder.CreateParameters
 var
   n, h: TBigInteger;
   curve: IECCurve;
+  G: IX9ECPoint;
 begin
   n := TBigInteger.Create
     ('C302F41D932A36CDA7A3462F9E9E916B5BE8F1029AC4ACC1', 16);
@@ -558,11 +570,10 @@ begin
     // b'
     n, h) as IFpCurve);
 
-  result := TX9ECParameters.Create(curve, TX9ECPoint.Create(curve,
-    THex.Decode
-    ('043AE9E58C82F63C30282E1FE7BBF43FA72C446AF6F4618129097E2C5667C2223A902AB5CA449D0084B7E5B3DE7CCC01C9')
-    ) as IX9ECPoint, // G'
-    n, h);
+  G := ConfigureBasepoint(curve,
+    '043AE9E58C82F63C30282E1FE7BBF43FA72C446AF6F4618129097E2C5667C2223A902AB5CA449D0084B7E5B3DE7CCC01C9');
+
+  result := TX9ECParameters.Create(curve, G, n, h);
 end;
 
 class function TTeleTrusTNamedCurves.TBrainpoolP192t1Holder.Instance
@@ -578,6 +589,7 @@ function TTeleTrusTNamedCurves.TBrainpoolP224r1Holder.CreateParameters
 var
   n, h: TBigInteger;
   curve: IECCurve;
+  G: IX9ECPoint;
 begin
   n := TBigInteger.Create
     ('D7C134AA264366862A18302575D0FB98D116BC4B6DDEBCA3A5A7939F', 16);
@@ -594,11 +606,10 @@ begin
     // b
     n, h) as IFpCurve);
 
-  result := TX9ECParameters.Create(curve, TX9ECPoint.Create(curve,
-    THex.Decode
-    ('040D9029AD2C7E5CF4340823B2A87DC68C9E4CE3174C1E6EFDEE12C07D58AA56F772C0726F24C6B89E4ECDAC24354B9E99CAA3F6D3761402CD')
-    ) as IX9ECPoint, // G
-    n, h);
+  G := ConfigureBasepoint(curve,
+    '040D9029AD2C7E5CF4340823B2A87DC68C9E4CE3174C1E6EFDEE12C07D58AA56F772C0726F24C6B89E4ECDAC24354B9E99CAA3F6D3761402CD');
+
+  result := TX9ECParameters.Create(curve, G, n, h);
 end;
 
 class function TTeleTrusTNamedCurves.TBrainpoolP224r1Holder.Instance
@@ -614,6 +625,7 @@ function TTeleTrusTNamedCurves.TBrainpoolP224t1Holder.CreateParameters
 var
   n, h: TBigInteger;
   curve: IECCurve;
+  G: IX9ECPoint;
 begin
   n := TBigInteger.Create
     ('D7C134AA264366862A18302575D0FB98D116BC4B6DDEBCA3A5A7939F', 16);
@@ -630,11 +642,10 @@ begin
     // b'
     n, h) as IFpCurve);
 
-  result := TX9ECParameters.Create(curve, TX9ECPoint.Create(curve,
-    THex.Decode
-    ('046AB1E344CE25FF3896424E7FFE14762ECB49F8928AC0C76029B4D5800374E9F5143E568CD23F3F4D7C0D4B1E41C8CC0D1C6ABD5F1A46DB4C')
-    ) as IX9ECPoint, // G'
-    n, h);
+  G := ConfigureBasepoint(curve,
+    '046AB1E344CE25FF3896424E7FFE14762ECB49F8928AC0C76029B4D5800374E9F5143E568CD23F3F4D7C0D4B1E41C8CC0D1C6ABD5F1A46DB4C');
+
+  result := TX9ECParameters.Create(curve, G, n, h);
 end;
 
 class function TTeleTrusTNamedCurves.TBrainpoolP224t1Holder.Instance
@@ -650,6 +661,7 @@ function TTeleTrusTNamedCurves.TBrainpoolP256r1Holder.CreateParameters
 var
   n, h: TBigInteger;
   curve: IECCurve;
+  G: IX9ECPoint;
 begin
   n := TBigInteger.Create
     ('A9FB57DBA1EEA9BC3E660A909D838D718C397AA3B561A6F7901E0E82974856A7', 16);
@@ -667,11 +679,10 @@ begin
     // b
     n, h) as IFpCurve);
 
-  result := TX9ECParameters.Create(curve, TX9ECPoint.Create(curve,
-    THex.Decode
-    ('048BD2AEB9CB7E57CB2C4B482FFC81B7AFB9DE27E1E3BD23C23A4453BD9ACE3262547EF835C3DAC4FD97F8461A14611DC9C27745132DED8E545C1D54C72F046997')
-    ) as IX9ECPoint, // G
-    n, h);
+  G := ConfigureBasepoint(curve,
+    '048BD2AEB9CB7E57CB2C4B482FFC81B7AFB9DE27E1E3BD23C23A4453BD9ACE3262547EF835C3DAC4FD97F8461A14611DC9C27745132DED8E545C1D54C72F046997');
+
+  result := TX9ECParameters.Create(curve, G, n, h);
 end;
 
 class function TTeleTrusTNamedCurves.TBrainpoolP256r1Holder.Instance
@@ -687,6 +698,7 @@ function TTeleTrusTNamedCurves.TBrainpoolP256t1Holder.CreateParameters
 var
   n, h: TBigInteger;
   curve: IECCurve;
+  G: IX9ECPoint;
 begin
   n := TBigInteger.Create
     ('A9FB57DBA1EEA9BC3E660A909D838D718C397AA3B561A6F7901E0E82974856A7', 16);
@@ -704,11 +716,10 @@ begin
     // b'
     n, h) as IFpCurve);
 
-  result := TX9ECParameters.Create(curve, TX9ECPoint.Create(curve,
-    THex.Decode
-    ('04A3E8EB3CC1CFE7B7732213B23A656149AFA142C47AAFBC2B79A191562E1305F42D996C823439C56D7F7B22E14644417E69BCB6DE39D027001DABE8F35B25C9BE')
-    ) as IX9ECPoint, // G'
-    n, h);
+  G := ConfigureBasepoint(curve,
+    '04A3E8EB3CC1CFE7B7732213B23A656149AFA142C47AAFBC2B79A191562E1305F42D996C823439C56D7F7B22E14644417E69BCB6DE39D027001DABE8F35B25C9BE');
+
+  result := TX9ECParameters.Create(curve, G, n, h);
 end;
 
 class function TTeleTrusTNamedCurves.TBrainpoolP256t1Holder.Instance
@@ -765,6 +776,7 @@ function TTeleTrusTNamedCurves.TBrainpoolP320t1Holder.CreateParameters
 var
   n, h: TBigInteger;
   curve: IECCurve;
+  G: IX9ECPoint;
 begin
   n := TBigInteger.Create
     ('D35E472036BC4FB7E13C785ED201E065F98FCFA5B68F12A32D482EC7EE8658E98691555B44C59311',
@@ -786,11 +798,10 @@ begin
     // b'
     n, h) as IFpCurve);
 
-  result := TX9ECParameters.Create(curve, TX9ECPoint.Create(curve,
-    THex.Decode
-    ('04925BE9FB01AFC6FB4D3E7D4990010F813408AB106C4F09CB7EE07868CC136FFF3357F624A21BED5263BA3A7A27483EBF6671DBEF7ABB30EBEE084E58A0B077AD42A5A0989D1EE71B1B9BC0455FB0D2C3')
-    ) as IX9ECPoint, // G'
-    n, h);
+  G := ConfigureBasepoint(curve,
+    '04925BE9FB01AFC6FB4D3E7D4990010F813408AB106C4F09CB7EE07868CC136FFF3357F624A21BED5263BA3A7A27483EBF6671DBEF7ABB30EBEE084E58A0B077AD42A5A0989D1EE71B1B9BC0455FB0D2C3');
+
+  result := TX9ECParameters.Create(curve, G, n, h);
 end;
 
 class function TTeleTrusTNamedCurves.TBrainpoolP320t1Holder.Instance
@@ -806,6 +817,7 @@ function TTeleTrusTNamedCurves.TBrainpoolP384r1Holder.CreateParameters
 var
   n, h: TBigInteger;
   curve: IECCurve;
+  G: IX9ECPoint;
 begin
   n := TBigInteger.Create
     ('8CB91E82A3386D280F5D6F7E50E641DF152F7109ED5456B31F166E6CAC0425A7CF3AB6AF6B7FC3103B883202E9046565',
@@ -827,11 +839,10 @@ begin
     // b
     n, h) as IFpCurve);
 
-  result := TX9ECParameters.Create(curve, TX9ECPoint.Create(curve,
-    THex.Decode
-    ('041D1C64F068CF45FFA2A63A81B7C13F6B8847A3E77EF14FE3DB7FCAFE0CBD10E8E826E03436D646AAEF87B2E247D4AF1E8ABE1D7520F9C2A45CB1EB8E95CFD55262B70B29FEEC5864E19C054FF99129280E4646217791811142820341263C5315')
-    ) as IX9ECPoint, // G
-    n, h);
+  G := ConfigureBasepoint(curve,
+    '041D1C64F068CF45FFA2A63A81B7C13F6B8847A3E77EF14FE3DB7FCAFE0CBD10E8E826E03436D646AAEF87B2E247D4AF1E8ABE1D7520F9C2A45CB1EB8E95CFD55262B70B29FEEC5864E19C054FF99129280E4646217791811142820341263C5315');
+
+  result := TX9ECParameters.Create(curve, G, n, h);
 end;
 
 class function TTeleTrusTNamedCurves.TBrainpoolP384r1Holder.Instance
@@ -847,6 +858,7 @@ function TTeleTrusTNamedCurves.TBrainpoolP384t1Holder.CreateParameters
 var
   n, h: TBigInteger;
   curve: IECCurve;
+  G: IX9ECPoint;
 begin
   n := TBigInteger.Create
     ('8CB91E82A3386D280F5D6F7E50E641DF152F7109ED5456B31F166E6CAC0425A7CF3AB6AF6B7FC3103B883202E9046565',
@@ -868,11 +880,10 @@ begin
     // b'
     n, h) as IFpCurve);
 
-  result := TX9ECParameters.Create(curve, TX9ECPoint.Create(curve,
-    THex.Decode
-    ('0418DE98B02DB9A306F2AFCD7235F72A819B80AB12EBD653172476FECD462AABFFC4FF191B946A5F54D8D0AA2F418808CC25AB056962D30651A114AFD2755AD336747F93475B7A1FCA3B88F2B6A208CCFE469408584DC2B2912675BF5B9E582928')
-    ) as IX9ECPoint, // G'
-    n, h);
+  G := ConfigureBasepoint(curve,
+    '0418DE98B02DB9A306F2AFCD7235F72A819B80AB12EBD653172476FECD462AABFFC4FF191B946A5F54D8D0AA2F418808CC25AB056962D30651A114AFD2755AD336747F93475B7A1FCA3B88F2B6A208CCFE469408584DC2B2912675BF5B9E582928');
+
+  result := TX9ECParameters.Create(curve, G, n, h);
 end;
 
 class function TTeleTrusTNamedCurves.TBrainpoolP384t1Holder.Instance
@@ -888,6 +899,7 @@ function TTeleTrusTNamedCurves.TBrainpoolP512r1Holder.CreateParameters
 var
   n, h: TBigInteger;
   curve: IECCurve;
+  G: IX9ECPoint;
 begin
   n := TBigInteger.Create
     ('AADD9DB8DBE9C48B3FD4E6AE33C9FC07CB308DB3B3C9D20ED6639CCA70330870553E5C414CA92619418661197FAC10471DB1D381085DDADDB58796829CA90069',
@@ -909,12 +921,11 @@ begin
     // b
     n, h) as IFpCurve);
 
-  result := TX9ECParameters.Create(curve, TX9ECPoint.Create(curve,
-    THex.Decode
-    ('0481AEE4BDD82ED9645A21322E9C4C6A9385ED9F70B5D916C1B43B62EEF4D0098EFF3B1F78E2D0D48D50D1687B93B97'
-    + 'D5F7C6D5047406A5E688B352209BCB9F8227DDE385D566332ECC0EABFA9CF7822FDF209F70024A57B1AA000C55B881F8111B2DCDE494A5F485E5BCA4BD88A2763AED1CA2B2FA8F0540678CD1E0F3AD80892')
-    ) as IX9ECPoint, // G
-    n, h);
+  G := ConfigureBasepoint(curve,
+    '0481AEE4BDD82ED9645A21322E9C4C6A9385ED9F70B5D916C1B43B62EEF4D0098EFF' +
+    '3B1F78E2D0D48D50D1687B93B97D5F7C6D5047406A5E688B352209BCB9F8227DDE385D566332ECC0EABFA9CF7822FDF209F70024A57B1AA000C55B881F8111B2DCDE494A5F485E5BCA4BD88A2763AED1CA2B2FA8F0540678CD1E0F3AD80892');
+
+  result := TX9ECParameters.Create(curve, G, n, h);
 end;
 
 class function TTeleTrusTNamedCurves.TBrainpoolP512r1Holder.Instance
@@ -930,6 +941,7 @@ function TTeleTrusTNamedCurves.TBrainpoolP512t1Holder.CreateParameters
 var
   n, h: TBigInteger;
   curve: IECCurve;
+  G: IX9ECPoint;
 begin
   n := TBigInteger.Create
     ('AADD9DB8DBE9C48B3FD4E6AE33C9FC07CB308DB3B3C9D20ED6639CCA70330870553E5C414CA92619418661197FAC10471DB1D381085DDADDB58796829CA90069',
@@ -951,12 +963,11 @@ begin
     // b'
     n, h) as IFpCurve);
 
-  result := TX9ECParameters.Create(curve, TX9ECPoint.Create(curve,
-    THex.Decode
-    ('04640ECE5C12788717B9C1BA06CBC2A6FEBA85842458C56DDE9DB1758D39C0313D82BA51735CDB3EA499AA77A7D'
-    + '6943A64F7A3F25FE26F06B51BAA2696FA9035DA5B534BD595F5AF0FA2C892376C84ACE1BB4E3019B71634C01131159CAE03CEE9D9932184BEEF216BD71DF2DADF86A627306ECFF96DBB8BACE198B61E00F8B332')
-    ) as IX9ECPoint, // G'
-    n, h);
+  G := ConfigureBasepoint(curve,
+    '04640ECE5C12788717B9C1BA06CBC2A6FEBA85842458C56DDE9DB1758D39C0313D82BA51735CDB3EA499AA77A7D6943A64F7A3F25FE26F06B51BAA2696FA9035DA5'
+    + 'B534BD595F5AF0FA2C892376C84ACE1BB4E3019B71634C01131159CAE03CEE9D9932184BEEF216BD71DF2DADF86A627306ECFF96DBB8BACE198B61E00F8B332');
+
+  result := TX9ECParameters.Create(curve, G, n, h);
 end;
 
 class function TTeleTrusTNamedCurves.TBrainpoolP512t1Holder.Instance

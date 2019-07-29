@@ -15,7 +15,7 @@
 
 (* &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& *)
 
-unit ClpIValidityPrecompInfo;
+unit ClpIValidityPreCompInfo;
 
 {$I CryptoLib.inc}
 
@@ -25,7 +25,7 @@ uses
   ClpIPreCompInfo;
 
 type
-  IValidityPrecompInfo = interface(IPreCompInfo)
+  IValidityPreCompInfo = interface(IPreCompInfo)
 
     ['{2339F5CA-A4B3-4E95-B358-4D4F4CA97EB3}']
 

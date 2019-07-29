@@ -15,45 +15,61 @@
 
 (* &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& *)
 
-unit ClpISecP384R1Custom;
+unit ClpEndoPreCompInfo;
 
 {$I CryptoLib.inc}
 
 interface
 
 uses
-  ClpBigInteger,
   ClpIECC,
-  ClpCryptoLibTypes;
+  ClpIPreCompInfo,
+  ClpIEndoPreCompInfo;
 
 type
-  ISecP384R1FieldElement = Interface(IAbstractFpFieldElement)
-    ['{EE28D1BA-2409-4915-99E9-EACD18C420DA}']
+  TEndoPreCompInfo = class sealed(TInterfacedObject, IPreCompInfo,
+    IEndoPreCompInfo)
 
-    function GetX: TCryptoLibUInt32Array;
-    property X: TCryptoLibUInt32Array read GetX;
-  end;
+  strict private
+  var
+    FEndomorphism: IECEndomorphism;
+    FMappedPoint: IECPoint;
 
-type
-  ISecP384R1Point = Interface(IAbstractFpPoint)
-    ['{2F1900E8-0B35-414A-B2EE-EDCA9763E2E8}']
+    function GetEndomorphism: IECEndomorphism; inline;
+    procedure SetEndomorphism(const value: IECEndomorphism); inline;
 
-  end;
+    function GetMappedPoint: IECPoint; inline;
+    procedure SetMappedPoint(const value: IECPoint); inline;
 
-type
-  ISecP384R1Curve = Interface(IAbstractFpCurve)
-    ['{50639F3D-E15C-4C3C-A7AA-7A8ACA243341}']
+  public
 
-    function GetQ: TBigInteger;
-    property Q: TBigInteger read GetQ;
-
-  end;
-
-type
-  ISecP384R1LookupTable = Interface(IAbstractECLookupTable)
-    ['{F1354F0B-577F-402C-A363-7761CF82DA43}']
+    property Endomorphism: IECEndomorphism read GetEndomorphism
+      write SetEndomorphism;
+    property MappedPoint: IECPoint read GetMappedPoint write SetMappedPoint;
   end;
 
 implementation
+
+{ TEndoPreCompInfo }
+
+function TEndoPreCompInfo.GetEndomorphism: IECEndomorphism;
+begin
+  result := FEndomorphism;
+end;
+
+function TEndoPreCompInfo.GetMappedPoint: IECPoint;
+begin
+  result := FMappedPoint;
+end;
+
+procedure TEndoPreCompInfo.SetEndomorphism(const value: IECEndomorphism);
+begin
+  FEndomorphism := value;
+end;
+
+procedure TEndoPreCompInfo.SetMappedPoint(const value: IECPoint);
+begin
+  FMappedPoint := value;
+end;
 
 end.

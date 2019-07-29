@@ -45,6 +45,9 @@ type
     class function LastIndexOf(const Input, SubString: string;
       StartIndex, Count: Int32; IgnoreCase: Boolean): Int32; overload; static;
 
+    class function StringToCharArray(const S: String)
+      : TCryptoLibCharArray; static;
+
   end;
 
 implementation
@@ -195,6 +198,18 @@ begin
       System.Inc(I);
     end;
     Result[I] := System.Copy(Input, PosStart, System.Length(Input));
+  end;
+end;
+
+class function TStringUtils.StringToCharArray(const S: String)
+  : TCryptoLibCharArray;
+begin
+  Result := Nil;
+  if System.Length(S) > 0 then
+  begin
+    System.SetLength(Result, System.Length(S) + 1);
+    StrPLCopy(PChar(Result), S, System.Length(Result));
+    System.SetLength(Result, System.Length(S)); // to remove the null terminator
   end;
 end;
 

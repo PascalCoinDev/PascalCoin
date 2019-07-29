@@ -50,7 +50,7 @@ type
   end;
 
 type
-  ISecP256K1LookupTable = Interface(IECLookupTable)
+  ISecP256K1LookupTable = Interface(IAbstractECLookupTable)
     ['{0E204483-F303-49FD-AF66-0F30CF855CA9}']
   end;
 

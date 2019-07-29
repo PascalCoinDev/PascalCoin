@@ -55,7 +55,7 @@ type
   end;
 
 type
-  ICurve25519LookupTable = Interface(IECLookupTable)
+  ICurve25519LookupTable = Interface(IAbstractECLookupTable)
     ['{79FE1276-3D22-4A20-A4F1-58F0C0532BAC}']
   end;
 

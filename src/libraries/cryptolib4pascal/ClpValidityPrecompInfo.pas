@@ -15,7 +15,7 @@
 
 (* &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& *)
 
-unit ClpValidityPrecompInfo;
+unit ClpValidityPreCompInfo;
 
 {$I CryptoLib.inc}
 
@@ -23,11 +23,11 @@ interface
 
 uses
   ClpIPreCompInfo,
-  ClpIValidityPrecompInfo;
+  ClpIValidityPreCompInfo;
 
 type
-  TValidityPrecompInfo = class(TInterfacedObject, IPreCompInfo,
-    IValidityPrecompInfo)
+  TValidityPreCompInfo = class(TInterfacedObject, IPreCompInfo,
+    IValidityPreCompInfo)
 
   strict private
 
@@ -52,9 +52,9 @@ type
 
 implementation
 
-{ TValidityPrecompInfo }
+{ TValidityPreCompInfo }
 
-constructor TValidityPrecompInfo.Create;
+constructor TValidityPreCompInfo.Create;
 begin
   Inherited Create();
   Ffailed := False;
@@ -62,32 +62,32 @@ begin
   ForderPassed := False;
 end;
 
-function TValidityPrecompInfo.HasCurveEquationPassed: Boolean;
+function TValidityPreCompInfo.HasCurveEquationPassed: Boolean;
 begin
   result := FcurveEquationPassed;
 end;
 
-function TValidityPrecompInfo.HasFailed: Boolean;
+function TValidityPreCompInfo.HasFailed: Boolean;
 begin
   result := Ffailed;
 end;
 
-function TValidityPrecompInfo.HasOrderPassed: Boolean;
+function TValidityPreCompInfo.HasOrderPassed: Boolean;
 begin
   result := ForderPassed;
 end;
 
-procedure TValidityPrecompInfo.ReportCurveEquationPassed;
+procedure TValidityPreCompInfo.ReportCurveEquationPassed;
 begin
   FcurveEquationPassed := True;
 end;
 
-procedure TValidityPrecompInfo.ReportFailed;
+procedure TValidityPreCompInfo.ReportFailed;
 begin
   Ffailed := True;
 end;
 
-procedure TValidityPrecompInfo.ReportOrderPassed;
+procedure TValidityPreCompInfo.ReportOrderPassed;
 begin
   ForderPassed := True;
 end;

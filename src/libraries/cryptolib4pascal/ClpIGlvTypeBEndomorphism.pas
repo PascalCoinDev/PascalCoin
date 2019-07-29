@@ -29,8 +29,6 @@ type
   IGlvTypeBEndomorphism = interface(IGlvEndomorphism)
     ['{4F285F6A-F627-4873-9F4C-FBC7A7B83A9C}']
 
-    function CalculateB(const k, g: TBigInteger; t: Int32): TBigInteger;
-
   end;
 
 implementation

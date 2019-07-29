@@ -149,6 +149,7 @@ type
     class function RotateRight64(a_value: UInt64; a_n: Int32): UInt64;
       static; inline;
 
+    class function NumberOfLeadingZeros(a_value: UInt32): Int32; static;
   end;
 
 implementation
@@ -369,6 +370,53 @@ begin
   a_n := a_n and 63;
 {$ENDIF SHIFT_OVERFLOW_BUG_FIXED}
   Result := (a_value shr a_n) or (a_value shl (64 - a_n));
+{$ENDIF FPC}
+end;
+
+class function TBits.NumberOfLeadingZeros(a_value: UInt32): Int32;
+{$IFNDEF FPC}
+var
+  n: UInt32;
+{$ENDIF FPC}
+begin
+
+  if (a_value = 0) then
+  begin
+    Result := ((not a_value) shr (31 - 5)) and (1 shl 5);
+    Exit;
+  end;
+
+{$IFDEF FPC}
+  Result := BsrDWord(a_value) xor ((System.SizeOf(UInt32) * 8) - 1);
+  // this also works
+  // Result := ((System.SizeOf(UInt32) * 8) - 1) - BsrDWord(a_value);
+{$ELSE}
+  n := 1;
+  if ((a_value shr 16) = 0) then
+  begin
+    n := n + 16;
+    a_value := a_value shl 16;
+  end;
+
+  if ((a_value shr 24) = 0) then
+  begin
+    n := n + 8;
+    a_value := a_value shl 8;
+  end;
+
+  if ((a_value shr 28) = 0) then
+  begin
+    n := n + 4;
+    a_value := a_value shl 4;
+  end;
+
+  if ((a_value shr 30) = 0) then
+  begin
+    n := n + 2;
+    a_value := a_value shl 2;
+  end;
+
+  Result := Int32(n) - Int32(a_value shr 31);
 {$ENDIF FPC}
 end;
 

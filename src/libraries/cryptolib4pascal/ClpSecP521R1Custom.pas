@@ -207,7 +207,7 @@ type
   strict private
 
   type
-    TSecP521R1LookupTable = class sealed(TInterfacedObject,
+    TSecP521R1LookupTable = class sealed(TAbstractECLookupTable,
       ISecP521R1LookupTable, IECLookupTable)
 
     strict private
@@ -216,16 +216,19 @@ type
       Fm_table: TCryptoLibUInt32Array;
       Fm_size: Int32;
 
-      function GetSize: Int32; virtual;
+      function CreatePoint(const x, y: TCryptoLibUInt32Array): IECPoint;
+
+    strict protected
+
+      function GetSize: Int32; override;
 
     public
 
       constructor Create(const outer: ISecP521R1Curve;
         const table: TCryptoLibUInt32Array; size: Int32);
 
-      function Lookup(index: Int32): IECPoint; virtual;
-
-      property size: Int32 read GetSize;
+      function Lookup(index: Int32): IECPoint; override;
+      function LookupVar(index: Int32): IECPoint; override;
 
     end;
 
@@ -235,8 +238,6 @@ type
 
   var
     Fq: TBigInteger;
-
-    class function GetSecP521R1Curve_Q: TBigInteger; static; inline;
 
   strict protected
   var
@@ -268,8 +269,6 @@ type
     property Q: TBigInteger read GetQ;
     property Infinity: IECPoint read GetInfinity;
     property FieldSize: Int32 read GetFieldSize;
-
-    class property SecP521R1Curve_Q: TBigInteger read GetSecP521R1Curve_Q;
 
   end;
 
@@ -472,7 +471,10 @@ end;
 
 class function TSecP521R1FieldElement.GetQ: TBigInteger;
 begin
-  result := TSecP521R1Curve.SecP521R1Curve_Q;
+  result := TBigInteger.Create(1,
+    THex.Decode
+    ('01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF')
+    );
 end;
 
 function TSecP521R1FieldElement.GetX: TCryptoLibUInt32Array;
@@ -966,17 +968,9 @@ end;
 
 { TSecP521R1Curve }
 
-class function TSecP521R1Curve.GetSecP521R1Curve_Q: TBigInteger;
-begin
-  result := TBigInteger.Create(1,
-    THex.Decode
-    ('01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF')
-    );
-end;
-
 constructor TSecP521R1Curve.Create;
 begin
-  Fq := SecP521R1Curve_Q;
+  Fq := TSecP521R1FieldElement.Q;
   Inherited Create(Fq);
   Fm_infinity := TSecP521R1Point.Create(Self as IECCurve, Nil, Nil);
   Fm_a := FromBigInteger(TBigInteger.Create(1,
@@ -1079,6 +1073,21 @@ begin
   Fm_size := size;
 end;
 
+function TSecP521R1Curve.TSecP521R1LookupTable.CreatePoint(const x,
+  y: TCryptoLibUInt32Array): IECPoint;
+var
+  XFieldElement, YFieldElement: ISecP521R1FieldElement;
+  SECP521R1_AFFINE_ZS: TCryptoLibGenericArray<IECFieldElement>;
+begin
+  SECP521R1_AFFINE_ZS := TCryptoLibGenericArray<IECFieldElement>.Create
+    (TSecP521R1FieldElement.Create(TBigInteger.One) as ISecP521R1FieldElement);
+
+  XFieldElement := TSecP521R1FieldElement.Create(x);
+  YFieldElement := TSecP521R1FieldElement.Create(y);
+  result := Fm_outer.CreateRawPoint(XFieldElement, YFieldElement,
+    SECP521R1_AFFINE_ZS, false);
+end;
+
 function TSecP521R1Curve.TSecP521R1LookupTable.GetSize: Int32;
 begin
   result := Fm_size;
@@ -1107,9 +1116,26 @@ begin
     pos := pos + (SECP521R1_FE_INTS * 2);
   end;
 
-  result := Fm_outer.CreateRawPoint(TSecP521R1FieldElement.Create(x)
-    as ISecP521R1FieldElement, TSecP521R1FieldElement.Create(y)
-    as ISecP521R1FieldElement, false);
+  result := CreatePoint(x, y);
+end;
+
+function TSecP521R1Curve.TSecP521R1LookupTable.LookupVar(index: Int32)
+  : IECPoint;
+var
+  x, y: TCryptoLibUInt32Array;
+  pos, J: Int32;
+begin
+  x := TNat.Create(SECP521R1_FE_INTS);
+  y := TNat.Create(SECP521R1_FE_INTS);
+  pos := index * SECP521R1_FE_INTS * 2;
+
+  for J := 0 to System.Pred(SECP521R1_FE_INTS) do
+  begin
+    x[J] := x[J] xor Fm_table[pos + J];
+    y[J] := y[J] xor Fm_table[pos + SECP521R1_FE_INTS + J];
+  end;
+
+  result := CreatePoint(x, y);
 end;
 
 end.

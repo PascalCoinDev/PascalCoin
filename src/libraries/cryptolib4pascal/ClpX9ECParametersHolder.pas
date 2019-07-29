@@ -31,21 +31,18 @@ type
     IX9ECParametersHolder)
 
   strict private
+  var
+    FLock: TCriticalSection;
     Fparameters: IX9ECParameters;
 
-    class var
-
-      FLock: TCriticalSection;
-
-    class procedure Boot(); static;
-    class constructor CreateX9ECParametersHolder();
-    class destructor DestroyX9ECParametersHolder();
-
   strict protected
+
     function GetParameters: IX9ECParameters; inline;
     function CreateParameters(): IX9ECParameters; virtual; abstract;
 
   public
+    constructor Create();
+    destructor Destroy; override;
     property Parameters: IX9ECParameters read GetParameters;
 
   end;
@@ -54,27 +51,20 @@ implementation
 
 { TX9ECParametersHolder }
 
-class procedure TX9ECParametersHolder.Boot;
+constructor TX9ECParametersHolder.Create;
 begin
-  if FLock = Nil then
-  begin
-    FLock := TCriticalSection.Create;
-  end;
+  Inherited Create();
+  FLock := TCriticalSection.Create;
 end;
 
-class constructor TX9ECParametersHolder.CreateX9ECParametersHolder;
-begin
-  TX9ECParametersHolder.Boot;
-end;
-
-class destructor TX9ECParametersHolder.DestroyX9ECParametersHolder;
+destructor TX9ECParametersHolder.Destroy;
 begin
   FLock.Free;
+  inherited Destroy;
 end;
 
 function TX9ECParametersHolder.GetParameters: IX9ECParameters;
 begin
-
   FLock.Acquire;
   try
     if (Fparameters = Nil) then

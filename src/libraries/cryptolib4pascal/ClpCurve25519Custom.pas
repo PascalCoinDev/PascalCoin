@@ -237,8 +237,8 @@ type
   strict private
 
   type
-    TCurve25519LookupTable = class sealed(TInterfacedObject,
-      ICurve25519LookupTable, IECLookupTable)
+    TCurve25519LookupTable = class sealed(TAbstractECLookupTable,
+      ICurve25519LookupTable)
 
     strict private
     var
@@ -246,16 +246,19 @@ type
       Fm_table: TCryptoLibUInt32Array;
       Fm_size: Int32;
 
-      function GetSize: Int32; virtual;
+      function CreatePoint(const x, y: TCryptoLibUInt32Array): IECPoint;
+
+    strict protected
+
+      function GetSize: Int32; override;
 
     public
 
       constructor Create(const outer: ICurve25519;
         const table: TCryptoLibUInt32Array; size: Int32);
 
-      function Lookup(index: Int32): IECPoint; virtual;
-
-      property size: Int32 read GetSize;
+      function Lookup(index: Int32): IECPoint; override;
+      function LookupVar(index: Int32): IECPoint; override;
 
     end;
 
@@ -266,8 +269,6 @@ type
 
   var
     Fq: TBigInteger;
-
-    class function GetCurve25519_Q: TBigInteger; static; inline;
 
   strict protected
   var
@@ -299,8 +300,6 @@ type
     property Q: TBigInteger read GetQ;
     property Infinity: IECPoint read GetInfinity;
     property FieldSize: Int32 read GetFieldSize;
-
-    class property Curve25519_Q: TBigInteger read GetCurve25519_Q;
 
   end;
 
@@ -601,7 +600,7 @@ end;
 
 class function TCurve25519FieldElement.GetQ: TBigInteger;
 begin
-  result := TCurve25519.Curve25519_Q;
+  result := TNat256.ToBigInteger(TCurve25519Field.P);
 end;
 
 class procedure TCurve25519FieldElement.Boot;
@@ -708,10 +707,10 @@ begin
     * Q == 8m + 5, so we use Pocklington's method for this case.
     *
     * First, raise this element to the exponent 2^252 - 2^1 (i.e. m + 1)
-    * 
+    *
     * Breaking up the exponent's binary representation into "repunits", we get:
     * { 251 1s } { 1 0s }
-    * 
+    *
     * Therefore we need an addition chain containing 251 (the lengths of the repunits)
     * We use: 1, 2, 3, 4, 7, 11, 15, 30, 60, 120, 131, [251]
   *)
@@ -1236,25 +1235,20 @@ end;
 
 { TCurve25519 }
 
-class function TCurve25519.GetCurve25519_Q: TBigInteger;
-begin
-  result := TNat256.ToBigInteger(TCurve25519Field.P);
-end;
-
 constructor TCurve25519.Create;
 begin
-  Fq := Curve25519_Q;
+  Fq := TCurve25519FieldElement.Q;
   Inherited Create(Fq);
   Fm_infinity := TCurve25519Point.Create(Self as IECCurve, Nil, Nil);
 
   Fm_a := FromBigInteger(TBigInteger.Create(1,
-    THex.Decode
+    THex.decode
     ('2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA984914A144')));
   Fm_b := FromBigInteger(TBigInteger.Create(1,
-    THex.Decode
+    THex.decode
     ('7B425ED097B425ED097B425ED097B425ED097B425ED097B4260B5E9C7710C864')));
   Fm_order := TBigInteger.Create(1,
-    THex.Decode
+    THex.decode
     ('1000000000000000000000000000000014DEF9DEA2F79CD65812631A5CF5D3ED'));
   Fm_cofactor := TBigInteger.ValueOf(8);
   Fm_coord := Curve25519_DEFAULT_COORDS;
@@ -1342,6 +1336,26 @@ begin
   Fm_size := size;
 end;
 
+function TCurve25519.TCurve25519LookupTable.CreatePoint(const x,
+  y: TCryptoLibUInt32Array): IECPoint;
+var
+  XFieldElement, YFieldElement: ICurve25519FieldElement;
+  CURVE25519_AFFINE_ZS: TCryptoLibGenericArray<IECFieldElement>;
+  C_a: TBigInteger;
+begin
+  C_a := TBigInteger.Create(1,
+    THex.decode
+    ('2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA984914A144'));
+  CURVE25519_AFFINE_ZS := TCryptoLibGenericArray<IECFieldElement>.Create
+    (TCurve25519FieldElement.Create(TBigInteger.One) as ICurve25519FieldElement,
+    TCurve25519FieldElement.Create(C_a) as ICurve25519FieldElement);
+
+  XFieldElement := TCurve25519FieldElement.Create(x);
+  YFieldElement := TCurve25519FieldElement.Create(y);
+  result := Fm_outer.CreateRawPoint(XFieldElement, YFieldElement,
+    CURVE25519_AFFINE_ZS, false);
+end;
+
 function TCurve25519.TCurve25519LookupTable.GetSize: Int32;
 begin
   result := Fm_size;
@@ -1370,9 +1384,25 @@ begin
     pos := pos + (CURVE25519_FE_INTS * 2);
   end;
 
-  result := Fm_outer.CreateRawPoint(TCurve25519FieldElement.Create(x)
-    as ICurve25519FieldElement, TCurve25519FieldElement.Create(y)
-    as ICurve25519FieldElement, false);
+  result := CreatePoint(x, y)
+end;
+
+function TCurve25519.TCurve25519LookupTable.LookupVar(index: Int32): IECPoint;
+var
+  x, y: TCryptoLibUInt32Array;
+  pos, J: Int32;
+begin
+  x := TNat256.Create();
+  y := TNat256.Create();
+  pos := index * CURVE25519_FE_INTS * 2;
+
+  for J := 0 to System.Pred(CURVE25519_FE_INTS) do
+  begin
+    x[J] := Fm_table[pos + J];
+    y[J] := Fm_table[pos + CURVE25519_FE_INTS + J];
+  end;
+
+  result := CreatePoint(x, y)
 end;
 
 end.

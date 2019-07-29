@@ -17,7 +17,7 @@
 
 unit ClpBsiObjectIdentifiers;
 
-{$I CryptoLib.inc}
+{$I ..\..\Include\CryptoLib.inc}
 
 interface
 

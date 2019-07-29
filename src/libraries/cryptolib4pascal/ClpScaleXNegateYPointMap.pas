@@ -15,45 +15,42 @@
 
 (* &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& *)
 
-unit ClpISecP384R1Custom;
+unit ClpScaleXNegateYPointMap;
 
 {$I CryptoLib.inc}
 
 interface
 
 uses
-  ClpBigInteger,
   ClpIECC,
-  ClpCryptoLibTypes;
+  ClpIScaleXNegateYPointMap;
 
 type
-  ISecP384R1FieldElement = Interface(IAbstractFpFieldElement)
-    ['{EE28D1BA-2409-4915-99E9-EACD18C420DA}']
+  TScaleXNegateYPointMap = class(TInterfacedObject, IECPointMap,
+    IScaleXNegateYPointMap)
 
-    function GetX: TCryptoLibUInt32Array;
-    property X: TCryptoLibUInt32Array read GetX;
-  end;
+  strict protected
+  var
+    Fscale: IECFieldElement;
 
-type
-  ISecP384R1Point = Interface(IAbstractFpPoint)
-    ['{2F1900E8-0B35-414A-B2EE-EDCA9763E2E8}']
-
-  end;
-
-type
-  ISecP384R1Curve = Interface(IAbstractFpCurve)
-    ['{50639F3D-E15C-4C3C-A7AA-7A8ACA243341}']
-
-    function GetQ: TBigInteger;
-    property Q: TBigInteger read GetQ;
-
-  end;
-
-type
-  ISecP384R1LookupTable = Interface(IAbstractECLookupTable)
-    ['{F1354F0B-577F-402C-A363-7761CF82DA43}']
+  public
+    constructor Create(const scale: IECFieldElement);
+    function Map(const p: IECPoint): IECPoint; virtual;
   end;
 
 implementation
+
+{ TScaleXNegateYPointMap }
+
+constructor TScaleXNegateYPointMap.Create(const scale: IECFieldElement);
+begin
+  Inherited Create();
+  Fscale := scale;
+end;
+
+function TScaleXNegateYPointMap.Map(const p: IECPoint): IECPoint;
+begin
+  Result := p.ScaleXNegateY(Fscale);
+end;
 
 end.

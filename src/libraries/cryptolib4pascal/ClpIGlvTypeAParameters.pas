@@ -15,7 +15,7 @@
 
 (* &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& *)
 
-unit ClpIAbstractECMultiplier;
+unit ClpIGlvTypeAParameters;
 
 {$I CryptoLib.inc}
 
@@ -23,15 +23,21 @@ interface
 
 uses
   ClpBigInteger,
-  ClpIECC;
+  ClpIScalarSplitParameters,
+  ClpCryptoLibTypes;
 
 type
 
-  IAbstractECMultiplier = interface(IECMultiplier)
-    ['{DD63984C-7D4D-46DE-9004-20FD909C2EFB}']
+  IGlvTypeAParameters = interface(IInterface)
+    ['{B5DDABB5-B51C-41F4-B2FD-6C8733300502}']
 
-    function MultiplyPositive(const p: IECPoint; const k: TBigInteger)
-      : IECPoint;
+    function GetI: TBigInteger;
+    function GetLambda: TBigInteger;
+    function GetSplitParams: IScalarSplitParameters;
+
+    property I: TBigInteger read GetI;
+    property lambda: TBigInteger read GetLambda;
+    property splitParams: IScalarSplitParameters read GetSplitParams;
 
   end;
 

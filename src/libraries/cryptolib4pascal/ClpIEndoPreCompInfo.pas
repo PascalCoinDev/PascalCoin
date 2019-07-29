@@ -15,19 +15,30 @@
 
 (* &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& *)
 
-unit ClpIGlvMultiplier;
+unit ClpIEndoPreCompInfo;
 
 {$I CryptoLib.inc}
 
 interface
 
 uses
-  ClpBigInteger,
-  ClpIAbstractECMultiplier;
+  ClpIECC,
+  ClpIPreCompInfo;
 
 type
-  IGlvMultiplier = interface(IAbstractECMultiplier)
-    ['{F54D54F5-F544-421B-89FC-1D8058FB8F33}']
+  IEndoPreCompInfo = interface(IPreCompInfo)
+    ['{84C79A80-8162-4079-8146-AA1D46A739ED}']
+
+    function GetEndomorphism: IECEndomorphism;
+    procedure SetEndomorphism(const value: IECEndomorphism);
+
+    property Endomorphism: IECEndomorphism read GetEndomorphism
+      write SetEndomorphism;
+
+    function GetMappedPoint: IECPoint;
+    procedure SetMappedPoint(const value: IECPoint);
+
+    property MappedPoint: IECPoint read GetMappedPoint write SetMappedPoint;
 
   end;
 
