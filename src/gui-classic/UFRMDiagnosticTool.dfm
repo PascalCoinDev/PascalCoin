@@ -53,8 +53,8 @@ object FRMDiagnosticTool: TFRMDiagnosticTool
     OnClick = btnRHCClick
   end
   object btnEntropy: TButton
-    Left = 8
-    Top = 39
+    Left = 472
+    Top = 8
     Width = 130
     Height = 25
     Caption = 'Entropy Tests'
@@ -62,12 +62,20 @@ object FRMDiagnosticTool: TFRMDiagnosticTool
     OnClick = btnEntropyClick
   end
   object btnRH2NonceScan: TButton
-    Left = 472
-    Top = 8
+    Left = 8
+    Top = 39
     Width = 186
     Height = 25
     Caption = 'Start Random Hash 2 (Nonce Scan)'
     TabOrder = 5
     OnClick = btnRH2NonceScanClick
+  end
+  object txtScanLevel: TEdit
+    Left = 200
+    Top = 39
+    Width = 121
+    Height = 21
+    TabOrder = 6
+    TextHint = 'Enter Scan Level (2-4)'
   end
 end

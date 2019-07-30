@@ -11,6 +11,8 @@ uses
   UCommon;
 
 type
+  TAlgorithmThread = class;
+
   TFRMDiagnosticTool = class(TForm)
     btnRH: TButton;
     btnRH2: TButton;
@@ -18,6 +20,7 @@ type
     btnRHC: TButton;
     btnEntropy: TButton;
     btnRH2NonceScan: TButton;
+    txtScanLevel: TEdit;
     procedure btnRH2Click(Sender: TObject);
     procedure btnRHClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -27,10 +30,10 @@ type
   private
     { Private declarations }
     FDisposables : TDisposables;
-    FRHThread : TPCThread;
-    FRH2Thread : TPCThread;
-    FRH2CachedThread : TPCThread;
-    FRH2NonceScanThread : TPCThread;
+    FRHThread : TAlgorithmThread;
+    FRH2Thread : TAlgorithmThread;
+    FRH2CachedThread : TAlgorithmThread;
+    FRH2NonceScanThread : TAlgorithmThread;
     procedure OnReport(const ATitle : String; ATotalHashes : UInt32; const ATimeSpan : TTimeSpan);
     procedure OnFinish(const ATitle : String; ATotalHashes : UInt32; const ATimeSpan : TTimeSpan; const AMemStats : TStatistics);
   public
@@ -54,6 +57,7 @@ type
       FNotifyDuration : TTimeSpan;
       FNotify : TAlgorithmNotify;
       FNotifyFinish : TAlgorithmFinishNotify;
+      FExitLoop : Boolean;
       procedure ThreadSafeNotify;
     protected
       FTitle : String;
@@ -66,6 +70,7 @@ type
       property Notify : TAlgorithmNotify read FNotify write FNotify;
       property NotifyFinish : TAlgorithmFinishNotify read FNotifyFinish write FNotifyFinish;
       constructor Create(const ATitle : String); virtual;
+      procedure Finish;
   end;
 
   { TRandomHashThread }
@@ -109,10 +114,12 @@ type
   TRandomHash2NonceScan = class(TAlgorithmThread)
     private
       FHasher : TRandomHash2;
+      FLevel : Integer;
     protected
       function TryNextRound(const AInput : TBytes; out AOutput : TBytes) : Boolean; override;
       function GetMemStats : TStatistics; override;
     public
+      property Level : Integer read FLevel write FLevel;
       constructor Create; overload;
   end;
 
@@ -128,36 +135,46 @@ constructor TAlgorithmThread.Create(const ATitle : String);
 begin
   Inherited Create(True);
   FTitle := ATitle;
+  FExitLoop := False;
   SetLength(FLastHash, 32);
+end;
+
+procedure TAlgorithmThread.Finish;
+begin
+  FExitLoop := True;
 end;
 
 procedure TAlgorithmThread.BCExecute;
 var
  LTC : TTickCount;
- LStartTime, LNotifyStartTime : TDateTime;
- LTotalHashes : UInt32;
+ LStartTime, LNotifyStartTime  : TDateTime;
+ LTotalHashes, LNotifyHashes : UInt32;
 begin
-  LTotalHashes := 0;
-  FNotifyHashes := 0;
-  LNotifyStartTime := Now;
-  LStartTime := LNotifyStartTime;
-  LNotifyStartTime := LStartTime;
-  LTC := TPlatform.GetTickCount;
   while True do begin
-   if TryNextRound (RandomizeNonce(FLastHash), FLastHash) then begin
-     inc(FNotifyHashes);
-     inc(LTotalHashes);
-   end;
-   if TPlatform.GetElapsedMilliseconds(LTC)>2500 then begin
-     FNotifyDuration := TTimeSpan.Subtract(Now, LNotifyStartTime);
-     Queue( ThreadSafeNotify );
-     FNotifyHashes := 0;
-     LNotifyStartTime := Now;
-     LTC := TPlatform.GetTickCount;
-   end;
+    LTotalHashes := 0;
+    LNotifyHashes := 0;
+    LStartTime := Now;
+    LNotifyStartTime := LStartTime;
+    LTC := TPlatform.GetTickCount;
+    while Not FExitLoop do begin
+     if TryNextRound (RandomizeNonce(FLastHash), FLastHash) then begin
+       inc(LTotalHashes);
+       inc(LNotifyHashes);
+     end;
+     if TPlatform.GetElapsedMilliseconds(LTC)>2500 then begin
+       FNotifyHashes := LNotifyHashes;
+       FNotifyDuration := TTimeSpan.Subtract(Now, LNotifyStartTime);
+       LNotifyHashes := 0;
+       LNotifyStartTime := Now;
+       Queue( ThreadSafeNotify );
+       LTC := TPlatform.GetTickCount;
+     end;
+    end;
+    if Assigned(FNotifyFinish) then
+      FNotifyFinish(FTitle, LTotalHashes, TTimeSpan.Subtract(Now, LStartTime), GetMemStats );
+    FExitLoop := False;
+    Suspended := True;
   end;
-  if Assigned(FNotifyFinish) then
-    FNotifyFinish(FTitle, LTotalHashes, TTimeSpan.Subtract(Now, LStartTime), GetMemStats );
 end;
 
 procedure TAlgorithmThread.ThreadSafeNotify;
@@ -205,7 +222,7 @@ end;
 
 function TRandomHashThread.GetMemStats : TStatistics;
 begin
-  Result := TStatistics.New;
+  Result.Reset;
 end;
 
 { TRandomHash2Thread }
@@ -265,7 +282,7 @@ begin
   if FHasher.HasCachedHash then begin
     AOutput := FHasher.PopCachedHash.Hash;
     Result := True;
-  end else if FHasher.TryHash(AInput, TRandomHash2.MIN_N, AOutput) then begin
+  end else if FHasher.TryHash(AInput, FLevel, AOutput) then begin
     Result := True;
   end else Result := False;
 end;
@@ -292,6 +309,11 @@ begin
   TAlgorithmThread(FRH2Thread).Notify := OnReport;
   TAlgorithmThread(FRH2CachedThread).Notify := OnReport;
   TAlgorithmThread(FRH2NonceScanThread).Notify := OnReport;
+
+  TAlgorithmThread(FRHThread).NotifyFinish := OnFinish;
+  TAlgorithmThread(FRH2Thread).NotifyFinish := OnFinish;
+  TAlgorithmThread(FRH2CachedThread).NotifyFinish := OnFinish;
+  TAlgorithmThread(FRH2NonceScanThread).NotifyFinish := OnFinish;
 end;
 
 procedure TFRMDiagnosticTool.btnRHClick(Sender: TObject);
@@ -300,7 +322,7 @@ begin
     FRHThread.Suspended := False;
     btnRH.Caption := 'Stop Random Hash';
   end else begin
-    FRHThread.Suspended := True;
+    FRHThread.Finish;
     btnRH.Caption := 'Start Random Hash';
   end;
 end;
@@ -344,7 +366,7 @@ begin
     FRH2Thread.Suspended := False;
     btnRH2.Caption := 'Stop Random Hash 2';
   end else begin
-    FRH2Thread.Suspended := True;
+    FRH2Thread.Finish;
     btnRH2.Caption := 'Start Random Hash 2';
   end;
 end;
@@ -355,19 +377,25 @@ begin
     FRH2CachedThread.Suspended := False;
     btnRHC.Caption := 'Stop Random Hash 2 (Cached)';
   end else begin
-    FRH2CachedThread.Suspended := True;
+    FRH2CachedThread.Finish;
     btnRHC.Caption := 'Start Random Hash 2 (Cached)';
   end;
 end;
 
 procedure TFRMDiagnosticTool.btnRH2NonceScanClick(Sender: TObject);
+var LLevel : Integer;
 begin
   if FRH2NonceScanThread.Suspended then begin
-    FRH2NonceScanThread.Suspended := False;
-    btnRH2NonceScan.Caption := 'Stop Random Hash 2 (NonceScan)';
+    if TryStrToInt(txtScanLevel.Text, LLevel) then
+      TRandomHash2NonceScan(FRH2NonceScanThread).NonceLevel := LLevel;
+      FRH2NonceScanThread.Suspended := False;
+      btnRH2NonceScan.Caption := 'Stop Random Hash 2 (NonceScan)';
+      txtScanLevel.Enabled := false;
+    end;
   end else begin
-    FRH2NonceScanThread.Suspended := True;
+    FRH2NonceScanThread.Finish;
     btnRH2NonceScan.Caption := 'Start Random Hash 2 (NonceScan)';
+    txtScanLevel.Enabled := true;
   end;
 end;
 
@@ -382,9 +410,11 @@ end;
 procedure TFRMDiagnosticTool.OnFinish(const ATitle : String; ATotalHashes : UInt32; const ATimeSpan : TTimeSpan; const AMemStats : TStatistics);
 var
  LHPS : Double;
+ LStatsString : String;
 begin
   LHPS := Trunc(ATotalHashes) / ATimeSpan.TotalSeconds;
-  txtLog.Text := txtLog.Text + Format('FINISH: %s: %n H/S%s, MemStats: N:%n Mean: %n  Std: %n  Min: %n   Max: %n ', [ATitle, LHPS, sLineBreak, AMemStats.SampleCount, AMemStats.Mean, AMemStats.PopulationStandardDeviation, AMemStats.Minimum, AMemStats.Maximum ]);
+  LStatsString := Format('Count: %d   Mean: %n  std: %n   Min: %n  Max: %n', [AMemStats.SampleCount, AMemStats.Mean, AMemStats.PopulationStandardDeviation, AMemStats.Minimum, AMemStats.Maximum]);
+  txtLog.Text := txtLog.Text + Format('FINISH: %s: %n H/S%s MemStats: %s', [ATitle, LHPS, sLineBreak, LStatsString]);
 end;
 
 end.

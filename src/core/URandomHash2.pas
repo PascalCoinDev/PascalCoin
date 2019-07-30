@@ -196,7 +196,7 @@ begin
   FHashAlg[15] := THashFactory.TCrypto.CreateMD5();
   FHashAlg[16] := THashFactory.TCrypto.CreateRadioGatun32();
   FHashAlg[17] := THashFactory.TCrypto.CreateWhirlPool();
-  FMemStats := TStatistics.New;
+  FMemStats.Reset;
 end;
 
 destructor TRandomHash2.Destroy;
@@ -208,7 +208,6 @@ begin
  for i := Low(FHashAlg) to High(FHashAlg) do
    FHashAlg[i] := nil;
  inherited Destroy;
- FreeAndNil(FMemStats);
 end;
 
 class function TRandomHash2.Compute(const ABlockHeader: TBytes): TBytes;
