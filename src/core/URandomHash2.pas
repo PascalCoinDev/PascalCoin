@@ -147,6 +147,7 @@ type
       constructor Create;
       destructor Destroy; override;
       property CachedHashes : TArray<TCachedHash> read GetCachedHashes;
+      property MemStats : TStatistics read FMemStats;
       function HasCachedHash : Boolean; inline;
       function PopCachedHash : TCachedHash; inline;
       function PeekCachedHash : TCachedHash; inline;
@@ -195,7 +196,7 @@ begin
   FHashAlg[15] := THashFactory.TCrypto.CreateMD5();
   FHashAlg[16] := THashFactory.TCrypto.CreateRadioGatun32();
   FHashAlg[17] := THashFactory.TCrypto.CreateWhirlPool();
-  FMemStats := TStatistics.Create;
+  FMemStats := TStatistics.New;
 end;
 
 destructor TRandomHash2.Destroy;
@@ -244,9 +245,11 @@ begin
   LSeed := GetLastDWordLE(ARoundOutputs[High(ARoundOutputs)]);
   // Final "veneer" round of RandomHash is a SHA2-256 of compression of prior round outputs
   Result := FHashAlg[0].ComputeBytes(Compress(ARoundOutputs, LSeed)).GetBytes;
+  // Tally memstats
   LSize := 0;
   for i := Low(ARoundOutputs) to High(ARoundOutputs) do
     Inc(LSize, Length(ARoundOutputs[i]));
+  FMemStats.AddDatum(LSize);
 end;
 
 function TRandomHash2.CalculateRoundOutputs(const ABlockHeader: TBytes; ARound: Int32; out ARoundOutputs : TArray<TBytes>) : Boolean;

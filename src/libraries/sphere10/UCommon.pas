@@ -413,12 +413,12 @@ type
 
   { TStatistics }
 
-  TStatistics = class
+  TStatistics = record
   private
     FCount : UInt32; // Number of items in the analysis
     FTotal : Double; // Total of data
     FTotal2 : Double; // Sum of sqaures of data
-    FProduct : Double; // Product of data
+//    FProduct : Double; // Product of data
     FRecip : Double; // Sum of reciprocals of data
     FMin : Double;  // Min datum
     FMax : Double;  // Min datum
@@ -426,17 +426,16 @@ type
     property SampleCount : UInt32 read FCount;
     property Sum : Double read FTotal;
     property SquaredSum : Double read FTotal2;
-    property Product : Double read FProduct;
+//    property Product : Double read FProduct;
     property ReciprocalSum : Double read FRecip;
     property Minimum : Double read FMin;
     property Maximum : Double read FMax;
-    constructor Create; overload;
     procedure Reset;
     function Mean : Double; inline;
     function PopulationVariance : Double; inline;
     function PopulationStandardDeviation : Double; inline;
     function PopulationVariationCoefficient : Double; inline;
-    function GeometricMean : Double; inline;
+ //   function GeometricMean : Double; inline;
     function HarmonicMean : Double; inline;
     function MinimumError : Double; inline;
     function MaximumError : Double; inline;
@@ -1959,7 +1958,6 @@ begin
 end;
 
 { TFileStreamHelper }
-
 {$IFNDEF FPC}
 procedure TFileStreamHelper.WriteString(const AString : String);
 begin
@@ -2054,11 +2052,6 @@ end;
 
 { TStatistics }
 
-constructor TStatistics.Create;
-begin
-  Reset;
-end;
-
 function TStatistics.Mean : Double;
 begin
   Result := NaN;
@@ -2087,13 +2080,13 @@ begin
     Result := Nan;
 end;
 
-function TStatistics.GeometricMean : Double;
+(*function TStatistics.GeometricMean : Double;
 begin
   if SampleCount > 0 then
     Result :=  Power(Product, 1.0 / SampleCount)
   else
     Result := Nan;
-end;
+end;*)
 
 function TStatistics.HarmonicMean : Double;
 begin
@@ -2151,19 +2144,21 @@ begin
   FTotal := 0.0;
   FTotal2 := 0.0;
   FRecip := 0.0;
-  FProduct := 1.0;
+  //FProduct := 1.0;
 end;
 
 procedure TStatistics.AddDatum(ADatum : Double);
 begin
+  if FCount = 0 then
+    Reset;
   Inc(FCount);
   FTotal := FTotal + ADatum;
-  FTotal2 := FTotal + ADatum * ADatum;
+  FTotal2 := FTotal2 + ADatum * ADatum;
   if IsNaN(FRecip) OR ((ADatum * ADatum) < (EPSILON * EPSILON)) then
     FRecip := double.NaN
   else
     FRecip := FRecip + (1.0 / ADatum);
-  FProduct := FProduct * ADatum;
+  //FProduct := FProduct * ADatum;
   if (FCount = 1) then begin
     // first data so set _min/_max
     FMin := ADatum;
@@ -2179,6 +2174,8 @@ end;
 
 procedure TStatistics.AddDatum(ADatum : Double; ANumTimes : UInt32);
 begin
+  if FCount = 0 then
+    Reset;
   FCount := FCount + ANumTimes;
   FTotal := FTotal + ADatum * ANumTimes;
   FTotal2 := FTotal2 + ADatum * ADatum * ANumTimes;
@@ -2186,7 +2183,7 @@ begin
     FRecip := NaN
   else
     FRecip := FRecip + (1.0 / ADatum) * ANumTimes;
-  FProduct := FProduct * Power(ADatum, ANumTimes);
+  //FProduct := FProduct * Power(ADatum, ANumTimes);
   if (FCount = 1) then begin
     // first data so set _min/_max
     FMin := ADatum;
@@ -2202,12 +2199,14 @@ end;
 
 procedure TStatistics.RemoveDatum(ADatum : Double);
 begin
-    Dec(FCount);
-    FTotal := FTotal - ADatum;
-    FTotal2 := FTotal2 - ADatum * ADatum;
-    FRecip := FRecip - (1.0 / ADatum);
-    if ABS(ADatum) > EPSILON then
-     FProduct := FProduct / ADatum;
+  if FCount = 0 then
+    Exit;
+  Dec(FCount);
+  FTotal := FTotal - ADatum;
+  FTotal2 := FTotal2 - ADatum * ADatum;
+  FRecip := FRecip - (1.0 / ADatum);
+  if ABS(ADatum) > EPSILON then
+   //FProduct := FProduct / ADatum;
 end;
 
 initialization
