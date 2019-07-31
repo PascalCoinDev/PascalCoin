@@ -63,6 +63,9 @@ function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: variant
 function ClipValue( AValue, MinValue, MaxValue: Integer) : Integer;
 function MinValue(const AArray : array of Cardinal) : Cardinal;
 function MaxValue(const AArray : array of Cardinal) : Cardinal;
+function RoundEx(const AInput: Single; APlaces: Integer): Single; overload;
+function RoundEx(const AInput: Double; APlaces: Integer): Double; overload;
+function RoundEx(const AInput: Currency; APlaces: integer): Currency; overload;
 {$IFDEF FPC}
 function GetSetName(const aSet:PTypeInfo; Value: Integer):string;
 function GetSetValue(const aSet:PTypeInfo; Name: String): Integer;
@@ -413,6 +416,8 @@ type
 
   { TStatistics }
 
+  { NOTE: this is a running stats keeper that does not keep item set, thus
+    uses estimations which can diverge from real values }
   TStatistics = record
   private
     FCount : UInt32; // Number of items in the analysis
@@ -731,6 +736,59 @@ begin
       Result := AArray[i];
   end;
 end;
+
+function RoundEx(const AInput: Single; APlaces: Integer): Single;
+var
+  k: Single;
+begin
+  if APlaces = 0 then begin
+    Result := Round(AInput);
+  end else begin
+    if APlaces > 0 then begin
+      k := Power(10, APlaces);
+      Result := Round(AInput * k) / k;
+    end else begin
+      k := Power(10, (APlaces*-1));
+      Result := Round(AInput / k) * k;
+    end;
+  end;
+end;
+
+function RoundEx(const AInput: Double; APlaces: Integer): Double;
+var
+  k: Double;
+begin
+  if APlaces = 0 then begin
+    Result := Round(AInput);
+  end else begin
+    if APlaces > 0 then begin
+      k := Power(10, APlaces);
+      Result := Round(AInput * k) / k;
+    end else begin
+      k := Power(10, (APlaces*-1));
+      Result := Round(AInput / k) * k;
+    end;
+  end;
+end;
+
+function RoundEx(const AInput: Currency; APlaces: integer): Currency;
+var
+  k: Currency;
+begin
+  if APlaces = 0 then begin
+    Result := Round(AInput);
+  end else begin
+    if APlaces > 0 then begin
+      k := Power(10, APlaces);
+      Result := Round(AInput * k) / k;
+    end else begin
+      k := Power(10, (APlaces*-1));
+      Result := Round(AInput / k) * k;
+    end;
+  end;
+end;
+
+
 
 {$IFDEF FPC}
 
@@ -2065,9 +2123,11 @@ begin
 end;
 
 function TStatistics.PopulationVariance : Double;
+var LSum : Double;
 begin
-  if SampleCount > 0 then
-    Result :=  ((SampleCount * SquaredSum) - Sum * Sum) / (SampleCount * SampleCount)
+  LSum := Sum;
+  if SampleCount > 2 then
+    Result := ((SampleCount * SquaredSum) - (LSum * LSum)) / (SampleCount * SampleCount)
   else
     Result := Nan;
 end;
@@ -2075,7 +2135,7 @@ end;
 function TStatistics.PopulationVariationCoefficient : Double;
 begin
   if SampleCount > 0 then
-    Result :=  (PopulationVariance / Mean) * 100
+    Result :=  (PopulationVariance / Mean) * 100.0
   else
     Result := Nan;
 end;
@@ -2121,9 +2181,11 @@ begin
 end;
 
 function TStatistics.SampleVariance : Double;
+var LSum : Double;
 begin
-  if SampleCount > 0 then
-    Result := ((SampleCount * SquaredSum) - Sum * Sum) / ((SampleCount - 1) * (SampleCount - 1))
+  LSum := Sum;
+  if SampleCount > 2 then
+    Result := ((SampleCount * SquaredSum) - (LSum * LSum)) / ((SampleCount - 1) * (SampleCount - 1))
   else
     Result := Nan;
 end;
