@@ -239,7 +239,9 @@ end;
 function TRandomHash2.ComputeVeneerRound(const ARoundOutputs : TArray<TBytes>) : TBytes;
 var
   LSeed : UInt32;
-  LSize, i : UInt32;
+  LSize : UInt32;
+  i : integer;
+  LCachedItem : TCachedHash;
 begin
   LSeed := GetLastDWordLE(ARoundOutputs[High(ARoundOutputs)]);
   // Final "veneer" round of RandomHash is a SHA2-256 of compression of prior round outputs
@@ -248,6 +250,10 @@ begin
   LSize := 0;
   for i := Low(ARoundOutputs) to High(ARoundOutputs) do
     Inc(LSize, Length(ARoundOutputs[i]));
+  for i := 0 to FCachedHashes.Count - 1 do begin
+    LCachedItem := FCachedHashes.Items[i];
+    Inc(LSize, Length(LCachedItem.Hash) + Length(LCachedItem.Header) + 4);
+  end;
   FMemStats.AddDatum(LSize);
 end;
 
@@ -355,7 +361,6 @@ begin
            (ABytes[LLen - 2] SHL 16) OR
            (ABytes[LLen - 1] SHL 24);
 end;
-
 
 function TRandomHash2.Compress(const AInputs : TArray<TBytes>; ASeed : UInt32): TBytes;
 var

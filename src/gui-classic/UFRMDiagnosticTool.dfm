@@ -27,7 +27,7 @@ object FRMDiagnosticTool: TFRMDiagnosticTool
     OnClick = btnRHClick
   end
   object btnRH2: TButton
-    Left = 144
+    Left = 336
     Top = 8
     Width = 130
     Height = 25
@@ -43,18 +43,18 @@ object FRMDiagnosticTool: TFRMDiagnosticTool
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 2
   end
-  object btnRHC: TButton
-    Left = 280
+  object btnRH2C: TButton
+    Left = 472
     Top = 8
     Width = 186
     Height = 25
     Caption = 'Start Random Hash 2 (Cached)'
     TabOrder = 3
-    OnClick = btnRHCClick
+    OnClick = btnRH2CClick
   end
   object btnEntropy: TButton
-    Left = 472
-    Top = 8
+    Left = 327
+    Top = 39
     Width = 130
     Height = 25
     Caption = 'Entropy Tests'
@@ -77,5 +77,14 @@ object FRMDiagnosticTool: TFRMDiagnosticTool
     Height = 21
     TabOrder = 6
     TextHint = 'Enter Scan Level (2-4)'
+  end
+  object btnRHC: TButton
+    Left = 144
+    Top = 8
+    Width = 177
+    Height = 25
+    Caption = 'Start Random Hash (Cached)'
+    TabOrder = 7
+    OnClick = btnRHCClick
   end
 end
