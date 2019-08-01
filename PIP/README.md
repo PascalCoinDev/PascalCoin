@@ -44,4 +44,6 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [33](PIP-0033.md)     | DATA operation RPC implementation             | Benjamin Ansbach               | Backend    | Proposed |
 | [34A](PIP-0034A.md)   | Website UI/UX Redesigns                       | Appditto                       | Website    | Proposed |
 | [35](PIP-0035.md)     | Block Policy: Layer-1 Governance (Velocity Cash) | Herman Schoenfeld           | Protocol   | Draft    |
+| [36](PIP-0036.md)     | RandomHash2: Enhanced GPU & ASIC Resistant Hash Algorithm | Herman Schoenfeld  | Protocol   | Accepted    |
+
 
