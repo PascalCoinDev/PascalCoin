@@ -57,6 +57,12 @@ type
       procedure TestStringListReleaseOnly;
   end;
 
+  TStatsTests = class(TTestCase)
+    published
+      procedure TestBasic;
+      procedure Test100kData;
+  end;
+
 implementation
 
 uses
@@ -501,10 +507,48 @@ begin
   strList.Free;
 end;
 
+{ TStatsTests }
+
+procedure TStatsTests.TestBasic;
+var
+  LStats : TStatistics;
+begin
+  LStats.Reset;
+  LStats.AddDatum(1);
+  LStats.AddDatum(2);
+  LStats.AddDatum(4);
+  LStats.AddDatum(5);
+  LStats.AddDatum(8);
+
+  AssertEquals(5, LStats.SampleCount);
+  AssertEquals(1, LStats.Minimum);
+  AssertEquals(8, LStats.Maximum);
+  AssertEquals(4, LStats.Mean);
+  AssertEquals(6, LStats.PopulationVariance);
+  AssertEquals(RoundEx(2.4495, 4), RoundEx(LStats.PopulationStandardDeviation, 4));
+  // note: inaccurate estimate, since using running algo
+  AssertEquals(RoundEx(9.3750, 4), LStats.SampleVariance);
+  AssertEquals(RoundEx(3.0619, 4), RoundEx(LStats.SampleStandardDeviation, 4));
+end;
+
+
+procedure TStatsTests.Test100kData;
+var
+  LStats : TStatistics;
+  i : integer;
+begin
+  LStats.Reset;
+  for i := 1 to 100000 do
+    LStats.AddDatum(i);
+  AssertEquals(1, LStats.Minimum);
+  AssertEquals(100000, LStats.Maximum);
+end;
+
 initialization
   RegisterTest(TSortedHashTests);
   RegisterTest(THexStringTests);
   RegisterTest(TResultTests);
   RegisterTest(TVariantToolTests);
+  RegisterTest(TStatsTests);
 end.
 

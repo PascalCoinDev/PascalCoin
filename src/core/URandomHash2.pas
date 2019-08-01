@@ -97,7 +97,7 @@
 
 interface
 
-uses {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF}, SysUtils, HlpIHash, HlpBits, HlpHashFactory;
+uses {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF}, UCommon, SysUtils, HlpIHash, HlpBits, HlpHashFactory;
 
 type
 
@@ -125,6 +125,7 @@ type
       FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
       FCachedHeaderTemplate : TBytes;
       FCachedHashes : TList<TCachedHash>;
+      FMemStats : TStatistics;
 
       function GetCachedHashes : TArray<TCachedHash>; inline;
       function ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes; inline;
@@ -146,6 +147,7 @@ type
       constructor Create;
       destructor Destroy; override;
       property CachedHashes : TArray<TCachedHash> read GetCachedHashes;
+      property MemStats : TStatistics read FMemStats;
       function HasCachedHash : Boolean; inline;
       function PopCachedHash : TCachedHash; inline;
       function PeekCachedHash : TCachedHash; inline;
@@ -167,7 +169,7 @@ resourcestring
 
 implementation
 
-uses UCommon, UMemory, URandomHash;
+uses UMemory, URandomHash;
 
 { TRandomHash2 }
 
@@ -194,6 +196,7 @@ begin
   FHashAlg[15] := THashFactory.TCrypto.CreateMD5();
   FHashAlg[16] := THashFactory.TCrypto.CreateRadioGatun32();
   FHashAlg[17] := THashFactory.TCrypto.CreateWhirlPool();
+  FMemStats.Reset;
 end;
 
 destructor TRandomHash2.Destroy;
@@ -236,10 +239,22 @@ end;
 function TRandomHash2.ComputeVeneerRound(const ARoundOutputs : TArray<TBytes>) : TBytes;
 var
   LSeed : UInt32;
+  LSize : UInt32;
+  i : integer;
+  LCachedItem : TCachedHash;
 begin
   LSeed := GetLastDWordLE(ARoundOutputs[High(ARoundOutputs)]);
   // Final "veneer" round of RandomHash is a SHA2-256 of compression of prior round outputs
   Result := FHashAlg[0].ComputeBytes(Compress(ARoundOutputs, LSeed)).GetBytes;
+  // Tally memstats
+  LSize := 0;
+  for i := Low(ARoundOutputs) to High(ARoundOutputs) do
+    Inc(LSize, Length(ARoundOutputs[i]));
+  for i := 0 to FCachedHashes.Count - 1 do begin
+    LCachedItem := FCachedHashes.Items[i];
+    Inc(LSize, Length(LCachedItem.Hash) + Length(LCachedItem.Header) + 4);
+  end;
+  FMemStats.AddDatum(LSize);
 end;
 
 function TRandomHash2.CalculateRoundOutputs(const ABlockHeader: TBytes; ARound: Int32; out ARoundOutputs : TArray<TBytes>) : Boolean;
@@ -346,7 +361,6 @@ begin
            (ABytes[LLen - 2] SHL 16) OR
            (ABytes[LLen - 1] SHL 24);
 end;
-
 
 function TRandomHash2.Compress(const AInputs : TArray<TBytes>; ASeed : UInt32): TBytes;
 var

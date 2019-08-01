@@ -103,7 +103,9 @@ unit URandomHash;
 
 interface
 
-uses {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF}, SysUtils, HlpIHash, HlpBits, HlpHashFactory;
+uses {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
+     SysUtils, HlpIHash, HlpBits, HlpHashFactory,
+     UCommon;
 
 type
 
@@ -159,6 +161,7 @@ type
         FComputedIndex : Integer;
         FChecksum : UInt32;
         FMurMur3 : IHash;
+
         function GetCount : Integer;
         function CalculateChecksum : UInt32;
       public
@@ -187,7 +190,9 @@ type
       FCachedHeader : TBytes;
       FCachedNonce : UInt32;
       FCachedOutput : TChecksummedByteCollection;
-
+      FMemStats : TStatistics;
+      FCaptureMemStats : Boolean;
+      FEnableCache : Boolean;
       procedure MemTransform1(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
       procedure MemTransform2(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
       procedure MemTransform3(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
@@ -206,6 +211,9 @@ type
     public
       property NextHeader : TBytes read GetCachedHeader;
       property NextNonce : UInt32 read FCachedNonce;
+      property MemStats : TStatistics read FMemStats;
+      property CaptureMemStats : Boolean read FCaptureMemStats write FCaptureMemStats;
+      property EnableCache : Boolean read FEnableCache write FEnableCache;
       constructor Create;
       destructor Destroy; override;
       function Hash(const ABlockHeader: TBytes): TBytes; overload; inline;
@@ -263,7 +271,7 @@ resourcestring
 
 implementation
 
-uses UCommon, UMemory;
+uses UMemory;
 
 { Global Functions }
 
@@ -604,6 +612,9 @@ begin
   FHashAlg[15] := THashFactory.TCrypto.CreateMD5();
   FHashAlg[16] := THashFactory.TCrypto.CreateRadioGatun32();
   FHashAlg[17] := THashFactory.TCrypto.CreateWhirlPool();
+  FEnableCache := True;
+  FCaptureMemStats := False;
+  FMemStats.Reset;
 end;
 
 destructor TRandomHashFast.Destroy;
@@ -629,11 +640,20 @@ end;
 function TRandomHashFast.Hash(const ABlockHeader: TBytes): TBytes;
 var
   LAllOutputs: TChecksummedByteCollection;
-  LSeed, LTemp: UInt32;
+  LSeed, LTemp, LSize: UInt32;
+  i : Integer;
   LDisposables : TDisposables;
 begin
   LAllOutputs := LDisposables.AddObject( Hash(ABlockHeader, N) ) as TChecksummedByteCollection;
   Result := FHashAlg[0].ComputeBytes(Compress(LAllOutputs)).GetBytes;
+  LSize := 0;
+  for i := 0 to LAllOutputs.Count - 1 do
+    Inc(LSize, Length(LAllOutputs.Get(i)));
+
+  if Assigned(FCachedOutput) then
+    for i := 0 to FCachedOutput.Count - 1 do
+      Inc(LSize, Length(FCachedOutput.Get(i)));
+  FMemStats.AddDatum(LSize);
 end;
 
 function TRandomHashFast.Hash(const ABlockHeader: TBytes; ARound: Int32) : TChecksummedByteCollection;
@@ -678,7 +698,7 @@ begin
     LDisposables.AddObject(LNeighbourOutputs);
 
     // Cache neighbour nonce n-1 calculation if on final round (neighbour will be next nonce)
-    if (ARound = N) then begin
+    if FEnableCache AND (ARound = N) then begin
       FCachedNonce := LNeighbourNonce;
       FCachedHeader := LNeighbourNonceHeader;
       if Assigned(FCachedOutput) then
