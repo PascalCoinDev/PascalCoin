@@ -26,7 +26,7 @@ uses
   ClpBigInteger,
   ClpBits,
   ClpNat,
-  ClpTNaf,
+  ClpTnaf,
   ClpIECC,
   ClpIGlvEndomorphism,
   ClpIFixedPointPreCompInfo,
