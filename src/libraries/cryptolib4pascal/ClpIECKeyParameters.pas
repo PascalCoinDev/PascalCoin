@@ -24,21 +24,18 @@ interface
 uses
 
   ClpIAsymmetricKeyParameter,
-  ClpIECDomainParameters,
-  ClpIAsn1Objects;
+  ClpIECDomainParameters;
 
 type
   IECKeyParameters = interface(IAsymmetricKeyParameter)
     ['{50966A0E-21A4-41C3-9246-87B4ED67CE4D}']
 
     function GetAlgorithmName: String;
-    function GetPublicKeyParamSet: IDerObjectIdentifier;
     function GetParameters: IECDomainParameters;
 
     function Equals(const other: IECKeyParameters): Boolean; overload;
 
     property AlgorithmName: String read GetAlgorithmName;
-    property PublicKeyParamSet: IDerObjectIdentifier read GetPublicKeyParamSet;
     property Parameters: IECDomainParameters read GetParameters;
 
   end;

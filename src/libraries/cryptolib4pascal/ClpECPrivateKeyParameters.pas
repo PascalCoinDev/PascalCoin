@@ -26,7 +26,6 @@ uses
   ClpCryptoLibTypes,
   ClpECKeyParameters,
   ClpIECPrivateKeyParameters,
-  ClpIAsn1Objects,
   ClpIECDomainParameters;
 
 resourcestring
@@ -49,12 +48,10 @@ type
     constructor Create(const algorithm: String; const d: TBigInteger;
       const parameters: IECDomainParameters); overload;
 
-    constructor Create(const algorithm: String; const d: TBigInteger;
-      const publicKeyParamSet: IDerObjectIdentifier); overload;
-
     property d: TBigInteger read GetD;
 
-    function Equals(const other: IECPrivateKeyParameters): Boolean; reintroduce; overload;
+    function Equals(const other: IECPrivateKeyParameters): Boolean;
+      reintroduce; overload;
     function GetHashCode(): {$IFDEF DELPHI}Int32; {$ELSE}PtrInt;
 {$ENDIF DELPHI}override;
 
@@ -82,17 +79,7 @@ begin
   if (not(d.IsInitialized)) then
     raise EArgumentNilCryptoLibException.CreateResFmt
       (@SBigIntegerNotInitialized, ['d']);
-  Fd := d;
-end;
-
-constructor TECPrivateKeyParameters.Create(const algorithm: String;
-  const d: TBigInteger; const publicKeyParamSet: IDerObjectIdentifier);
-begin
-  Inherited Create(algorithm, true, publicKeyParamSet);
-  if (not(d.IsInitialized)) then
-    raise EArgumentNilCryptoLibException.CreateResFmt
-      (@SBigIntegerNotInitialized, ['d']);
-  Fd := d;
+  Fd := parameters.ValidatePrivateScalar(d);
 end;
 
 function TECPrivateKeyParameters.Equals(const other

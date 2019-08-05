@@ -64,7 +64,6 @@ type
   var
     Falgorithm: String;
     Fparameters: IECDomainParameters;
-    FpublicKeyParamSet: IDerObjectIdentifier;
     Frandom: ISecureRandom;
 
   strict protected
@@ -141,7 +140,7 @@ begin
   begin
     d := TBigInteger.Create(n.BitLength, Frandom);
 
-    if ((d.CompareTo(TBigInteger.Two) < 0) or (d.CompareTo(n) >= 0)) then
+    if ((d.CompareTo(TBigInteger.One) < 0) or (d.CompareTo(n) >= 0)) then
       continue;
 
     if (TWNafUtilities.GetNafWeight(d) < minWeight) then
@@ -153,15 +152,6 @@ begin
   end;
 
   q := CreateBasePointMultiplier().Multiply(Fparameters.G, d);
-
-  if (FpublicKeyParamSet <> Nil) then
-  begin
-    result := TAsymmetricCipherKeyPair.Create
-      (TECPublicKeyParameters.Create(Falgorithm, q, FpublicKeyParamSet)
-      as IECPublicKeyParameters, TECPrivateKeyParameters.Create(Falgorithm, d,
-      FpublicKeyParamSet) as IECPrivateKeyParameters);
-    Exit;
-  end;
 
   result := TAsymmetricCipherKeyPair.Create
     (TECPublicKeyParameters.Create(Falgorithm, q, Fparameters)
@@ -179,13 +169,6 @@ begin
   q := (TFixedPointCombMultiplier.Create() as IFixedPointCombMultiplier)
     .Multiply(ec.G, privKey.d);
 
-  if (privKey.publicKeyParamSet <> Nil) then
-  begin
-    result := TECPublicKeyParameters.Create(privKey.AlgorithmName, q,
-      privKey.publicKeyParamSet);
-    Exit;
-  end;
-
   result := TECPublicKeyParameters.Create(privKey.AlgorithmName, q, ec);
 end;
 
@@ -197,7 +180,6 @@ var
 begin
   if (Supports(parameters, IECKeyGenerationParameters, ecP)) then
   begin
-    FpublicKeyParamSet := ecP.publicKeyParamSet;
     Fparameters := ecP.DomainParameters;
   end
   else
@@ -223,10 +205,8 @@ begin
 
     ecps := FindECCurveByOid(oid);
 
-    FpublicKeyParamSet := oid;
     Fparameters := TECDomainParameters.Create(ecps.Curve, ecps.G, ecps.n,
       ecps.H, ecps.GetSeed());
-
   end;
 
   Frandom := parameters.random;

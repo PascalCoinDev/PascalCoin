@@ -26,7 +26,6 @@ uses
   ClpISecureRandom,
   ClpIECKeyGenerationParameters,
   ClpIECDomainParameters,
-  ClpIAsn1Objects,
   ClpKeyGenerationParameters;
 
 type
@@ -36,25 +35,16 @@ type
   strict private
   var
     FdomainParams: IECDomainParameters;
-    FpublicKeyParamSet: IDerObjectIdentifier;
 
     function GetDomainParameters: IECDomainParameters;
-    function GetPublicKeyParamSet: IDerObjectIdentifier;
 
   public
     constructor Create(const domainParameters: IECDomainParameters;
-      const random: ISecureRandom); overload;
-    constructor Create(const publicKeyParamSet: IDerObjectIdentifier;
-      const random: ISecureRandom); overload;
+      const random: ISecureRandom);
     property domainParameters: IECDomainParameters read GetDomainParameters;
-    property publicKeyParamSet: IDerObjectIdentifier read GetPublicKeyParamSet;
-
   end;
 
 implementation
-
-uses
-  ClpECKeyParameters; // included here to avoid circular dependency :)
 
 { TECKeyGenerationParameters }
 
@@ -65,21 +55,9 @@ begin
   FdomainParams := domainParameters;
 end;
 
-constructor TECKeyGenerationParameters.Create(const publicKeyParamSet
-  : IDerObjectIdentifier; const random: ISecureRandom);
-begin
-  Create(TECKeyParameters.LookupParameters(publicKeyParamSet), random);
-  FpublicKeyParamSet := publicKeyParamSet;
-end;
-
 function TECKeyGenerationParameters.GetDomainParameters: IECDomainParameters;
 begin
   Result := FdomainParams;
-end;
-
-function TECKeyGenerationParameters.GetPublicKeyParamSet: IDerObjectIdentifier;
-begin
-  Result := FpublicKeyParamSet;
 end;
 
 end.

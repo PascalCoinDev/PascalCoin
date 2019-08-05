@@ -30,7 +30,6 @@ uses
   ClpIECKeyParameters,
   ClpIX9ECParameters,
   ClpIECDomainParameters,
-  ClpIAsn1Objects,
   ClpIECKeyGenerationParameters,
   ClpAsymmetricKeyParameter,
   ClpECKeyGenerationParameters,
@@ -39,9 +38,6 @@ uses
 resourcestring
   SAlgorithmNil = 'Algorithm Cannot be Empty';
   SParameterNil = 'Parameter Cannot be Nil';
-  SPublicKeyParamSetNil = 'PublicKeyParamSet Cannot be Nil';
-  SInvalidPublicKeyParamSetNil =
-    'OID Is Not a Valid Public Key Parameter Set  "PublicKeyParamSet"';
   SUnRecognizedAlgorithm = 'Unrecognised Algorithm: " %s, "Algorithm';
 
 type
@@ -57,32 +53,25 @@ type
   var
     Falgorithm: String;
     Fparameters: IECDomainParameters;
-    FpublicKeyParamSet: IDerObjectIdentifier;
 
   strict protected
 
     constructor Create(const algorithm: String; isPrivate: Boolean;
-      const parameters: IECDomainParameters); overload;
-
-    constructor Create(const algorithm: String; isPrivate: Boolean;
-      const publicKeyParamSet: IDerObjectIdentifier); overload;
+      const parameters: IECDomainParameters);
 
     function CreateKeyGenerationParameters(const random: ISecureRandom)
       : IECKeyGenerationParameters; inline;
 
     function GetAlgorithmName: String; inline;
-    function GetPublicKeyParamSet: IDerObjectIdentifier; inline;
     function GetParameters: IECDomainParameters; inline;
 
-    function Equals(const other: IECKeyParameters): Boolean; reintroduce; overload;
+    function Equals(const other: IECKeyParameters): Boolean;
+      reintroduce; overload;
 
   public
     class function VerifyAlgorithmName(const algorithm: String): String; static;
-    class function LookupParameters(const publicKeyParamSet
-      : IDerObjectIdentifier): IECDomainParameters; static;
     property AlgorithmName: String read GetAlgorithmName;
     property parameters: IECDomainParameters read GetParameters;
-    property publicKeyParamSet: IDerObjectIdentifier read GetPublicKeyParamSet;
     function GetHashCode(): {$IFDEF DELPHI}Int32; {$ELSE}PtrInt;
 {$ENDIF DELPHI}override;
 
@@ -90,51 +79,9 @@ type
 
 implementation
 
-uses
-  ClpECKeyPairGenerator; // included here to avoid circular dependency :)
-
-{ TECKeyParameters }
-
-function TECKeyParameters.GetPublicKeyParamSet: IDerObjectIdentifier;
-begin
-  result := FpublicKeyParamSet;
-end;
-
 function TECKeyParameters.GetParameters: IECDomainParameters;
 begin
   result := Fparameters;
-end;
-
-class function TECKeyParameters.LookupParameters(const publicKeyParamSet
-  : IDerObjectIdentifier): IECDomainParameters;
-var
-  p: IECDomainParameters;
-  x9: IX9ECParameters;
-
-begin
-  if publicKeyParamSet = Nil then
-  begin
-    raise EArgumentNilCryptoLibException.CreateRes(@SPublicKeyParamSetNil);
-  end;
-
-  p := TECGost3410NamedCurves.GetByOid(publicKeyParamSet);
-
-  if (p = Nil) then
-  begin
-    x9 := TECKeyPairGenerator.FindECCurveByOid(publicKeyParamSet);
-
-    if (x9 = Nil) then
-    begin
-      raise EArgumentCryptoLibException.CreateRes
-        (@SInvalidPublicKeyParamSetNil);
-
-    end;
-
-    p := TECDomainParameters.Create(x9.Curve, x9.G, x9.N, x9.H, x9.GetSeed());
-  end;
-
-  result := p;
-
 end;
 
 class function TECKeyParameters.VerifyAlgorithmName(const algorithm
@@ -177,30 +124,9 @@ begin
   Fparameters := parameters;
 end;
 
-constructor TECKeyParameters.Create(const algorithm: String; isPrivate: Boolean;
-  const publicKeyParamSet: IDerObjectIdentifier);
-begin
-  Inherited Create(isPrivate);
-
-  if (algorithm = '') then
-    raise EArgumentNilCryptoLibException.CreateRes(@SAlgorithmNil);
-
-  if (publicKeyParamSet = Nil) then
-    raise EArgumentNilCryptoLibException.CreateRes(@SPublicKeyParamSetNil);
-
-  Falgorithm := VerifyAlgorithmName(algorithm);
-  Fparameters := LookupParameters(publicKeyParamSet);
-  FpublicKeyParamSet := publicKeyParamSet;
-end;
-
 function TECKeyParameters.CreateKeyGenerationParameters
   (const random: ISecureRandom): IECKeyGenerationParameters;
 begin
-  if (publicKeyParamSet <> Nil) then
-  begin
-    result := TECKeyGenerationParameters.Create(publicKeyParamSet, random);
-  end;
-
   result := TECKeyGenerationParameters.Create(parameters, random);
 end;
 

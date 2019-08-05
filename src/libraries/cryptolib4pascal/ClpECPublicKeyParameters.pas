@@ -51,12 +51,10 @@ type
     constructor Create(const algorithm: String; const q: IECPoint;
       const parameters: IECDomainParameters); overload;
 
-    constructor Create(const algorithm: String; const q: IECPoint;
-      const publicKeyParamSet: IDerObjectIdentifier); overload;
-
     property q: IECPoint read GetQ;
 
-    function Equals(const other: IECPublicKeyParameters): Boolean; reintroduce; overload;
+    function Equals(const other: IECPublicKeyParameters): Boolean;
+      reintroduce; overload;
     function GetHashCode(): {$IFDEF DELPHI}Int32; {$ELSE}PtrInt;
 {$ENDIF DELPHI}override;
 
@@ -81,26 +79,13 @@ begin
     raise EArgumentNilCryptoLibException.CreateRes(@SQNil);
   end;
 
-  Fq := TECDomainParameters.Validate(parameters.Curve, q);
+  Fq := parameters.validatePublicPoint(q);
 end;
 
 constructor TECPublicKeyParameters.Create(const q: IECPoint;
   const parameters: IECDomainParameters);
 begin
   Create('EC', q, parameters);
-end;
-
-constructor TECPublicKeyParameters.Create(const algorithm: String;
-  const q: IECPoint; const publicKeyParamSet: IDerObjectIdentifier);
-begin
-  Inherited Create(algorithm, false, publicKeyParamSet);
-
-  if (q = Nil) then
-  begin
-    raise EArgumentNilCryptoLibException.CreateRes(@SQNil);
-  end;
-
-  Fq := TECDomainParameters.Validate(parameters.Curve, q);
 end;
 
 function TECPublicKeyParameters.Equals(const other

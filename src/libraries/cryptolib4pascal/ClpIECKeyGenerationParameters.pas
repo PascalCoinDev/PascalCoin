@@ -23,7 +23,6 @@ interface
 
 uses
   ClpIECDomainParameters,
-  ClpIAsn1Objects,
   ClpIKeyGenerationParameters;
 
 type
@@ -31,10 +30,7 @@ type
     ['{B9343CA3-9274-4812-9FFC-2CC27486261E}']
 
     function GetDomainParameters: IECDomainParameters;
-    function GetPublicKeyParamSet: IDerObjectIdentifier;
-
     property domainParameters: IECDomainParameters read GetDomainParameters;
-    property publicKeyParamSet: IDerObjectIdentifier read GetPublicKeyParamSet;
   end;
 
 implementation

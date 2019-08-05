@@ -814,7 +814,7 @@ begin
 
   if (glvEndomorphism.HasEfficientPointMap) then
   begin
-    result := TECAlgorithms.ImplSumOfMultiplies(glvEndomorphism, ps, Abs);
+    result := ImplSumOfMultiplies(glvEndomorphism, ps, Abs);
     Exit;
   end;
 
@@ -835,7 +835,7 @@ begin
     System.Inc(i);
   end;
 
-  result := TECAlgorithms.ImplSumOfMultiplies(pqs, Abs);
+  result := ImplSumOfMultiplies(pqs, Abs);
 end;
 
 class function TECAlgorithms.ImportPoint(const c: IECCurve; const p: IECPoint)

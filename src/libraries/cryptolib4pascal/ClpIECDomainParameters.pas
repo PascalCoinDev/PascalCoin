@@ -48,6 +48,8 @@ type
     function Equals(const other: IECDomainParameters): Boolean;
     function GetHashCode(): {$IFDEF DELPHI}Int32; {$ELSE}PtrInt;
 {$ENDIF DELPHI}
+    function ValidatePrivateScalar(const d: TBigInteger): TBigInteger;
+    function ValidatePublicPoint(const q: IECPoint): IECPoint;
   end;
 
 implementation
