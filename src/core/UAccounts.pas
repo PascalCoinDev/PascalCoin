@@ -3007,10 +3007,25 @@ begin
 end;
 
 function TPCSafeBox.DoUpgradeToProtocol5: Boolean;
+var LAux : TRawBytes;
+  LBlockNumber : Cardinal;
 begin
-  FCurrentProtocol := CT_PROTOCOL_5;
   Result := True;
   // V5 adds a new "CalcSafeBoxHash" method, so need to recalc
+  // Recalc all BlockAccounts block_hash value caused by new fields added on Account at Protocol 5
+  LAux := CalcSafeBoxHash;
+  TLog.NewLog(ltInfo,ClassName,'Start Upgrade to protocol 5 - Old Safeboxhash:'+TCrypto.ToHexaString(FSafeBoxHash)+' calculated: '+TCrypto.ToHexaString(LAux)+' Blocks: '+IntToStr(BlocksCount));
+  FCurrentProtocol := CT_PROTOCOL_5;
+  FBufferBlocksHash.Clear;
+  for LBlockNumber := 0 to BlocksCount - 1 do begin
+    {$IFDEF uselowmem}
+    TBaseType.To32Bytes(CalcBlockHash( Block(LBlockNumber), CT_PROTOCOL_5),PBlockAccount(FBlockAccountsList.Items[LBlockNumber])^.block_hash);
+    FBufferBlocksHash.Add( PBlockAccount(FBlockAccountsList.Items[LBlockNumber])^.block_hash[0], 32 );
+    {$ELSE}
+    PBlockAccount(FBlockAccountsList.Items[LBlockNumber])^.block_hash := CalcBlockHash( Block(LBlockNumber), CT_PROTOCOL_5);
+    FBufferBlocksHash := FBufferBlocksHash+PBlockAccount(FBlockAccountsList.Items[LBlockNumber])^.block_hash;
+    {$ENDIF}
+  end;
   FSafeBoxHash := CalcSafeBoxHash;
   TLog.NewLog(ltInfo,ClassName,'End Upgraded to protocol 5 - New safeboxhash:'+TCrypto.ToHexaString(FSafeBoxHash));
 end;
@@ -5722,6 +5737,7 @@ end;
 
 procedure TAccount_Helper.SerializeAccount(AStream: TStream; current_protocol : Word);
 var LRaw : TRawBytes;
+  LTmpSeal : T20Bytes;
 begin
   AStream.Write(Self.account,4);
   LRaw := TAccountComp.AccountInfo2RawString(Self.accountInfo);
@@ -5740,9 +5756,9 @@ begin
       If Length(Self.account_data)>0 then begin
         AStream.WriteBuffer(Self.account_data[0],Length(Self.account_data));
       end;
-      If Length(Self.account_seal)>0 then begin
-        AStream.WriteBuffer(Self.account_seal[0],Length(Self.account_seal));
-      end;
+      // Account Seal is allways a 20 bytes as described on PIP-0029
+      LTmpSeal := TBaseType.To20Bytes(Self.account_seal);
+      AStream.WriteBuffer(LTmpSeal[0],20);
     end;
   end;
 end;
