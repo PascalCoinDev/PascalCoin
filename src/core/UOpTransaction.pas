@@ -69,12 +69,13 @@ Type
     account: Cardinal;
     n_operation : Cardinal;
     fee: UInt64;
+    new_accountkey: TAccountKey;
   End;
 
 Const
   CT_TOpTransactionData_NUL : TOpTransactionData = (sender:0;n_operation:0;target:0;amount:0;fee:0;payload:Nil;public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);sign:(r:Nil;s:Nil);opTransactionStyle:transaction;AccountPrice:0;SellerAccount:0;new_accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));
   CT_TOpChangeKeyData_NUL : TOpChangeKeyData = (account_signer:0;account_target:0;n_operation:0;fee:0;payload:Nil;public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);new_accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);sign:(r:Nil;s:Nil));
-  CT_TOpRecoverFoundsData_NUL : TOpRecoverFoundsData = (account:0;n_operation:0;fee:0);
+  CT_TOpRecoverFoundsData_NUL : TOpRecoverFoundsData = (account:0;n_operation:0;fee:0;new_accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));
 
 Type
   { TOpTransaction }
@@ -171,7 +172,7 @@ Type
     function N_Operation : Cardinal; override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
     procedure AffectedAccounts(list : TList<Cardinal>); override;
-    Constructor Create(ACurrentProtocol : word; account_number, n_operation: Cardinal; fee: UInt64);
+    Constructor Create(ACurrentProtocol : word; account_number, n_operation: Cardinal; fee: UInt64; new_accountkey : TAccountKey);
     Property Data : TOpRecoverFoundsData read FData;
     Function toString : String; Override;
     Function GetDigestToSign(current_protocol : Word) : TRawBytes; override;
@@ -1705,12 +1706,13 @@ begin
   list.Add(FData.account);
 end;
 
-constructor TOpRecoverFounds.Create(ACurrentProtocol : word; account_number, n_operation : Cardinal; fee: UInt64);
+constructor TOpRecoverFounds.Create(ACurrentProtocol : word; account_number, n_operation : Cardinal; fee: UInt64; new_accountkey : TAccountKey);
 begin
   inherited Create(ACurrentProtocol);
   FData.account := account_number;
   FData.n_operation := n_operation;
   FData.fee := fee;
+  FData.new_accountkey := new_accountkey;
   FHasValidSignature := true; // Recover founds doesn't need a signature
 end;
 
@@ -1723,11 +1725,14 @@ begin
     Exit;
   end;
   acc := AccountTransaction.Account(FData.account);
+  if TAccountComp.IsAccountLocked(acc.accountInfo,AccountTransaction.FreezedSafeBox.BlocksCount) then begin
+    errors := 'account is locked';
+    Exit;
+  end;
   if (acc.updated_block + CT_RecoverFoundsWaitInactiveCount >= AccountTransaction.FreezedSafeBox.BlocksCount) then begin
     errors := Format('Account is active to recover founds! Account %d Updated %d + %d >= BlockCount : %d',[FData.account,acc.updated_block,CT_RecoverFoundsWaitInactiveCount,AccountTransaction.FreezedSafeBox.BlocksCount]);
     Exit;
   end;
-  // Build 1.0.8 ... there was a BUG. Need to prevent recent created accounts
   if (TAccountComp.AccountBlock(FData.account) + CT_RecoverFoundsWaitInactiveCount >= AccountTransaction.FreezedSafeBox.BlocksCount) then begin
     errors := Format('AccountBlock is active to recover founds! AccountBlock %d + %d >= BlockCount : %d',[TAccountComp.AccountBlock(FData.account),CT_RecoverFoundsWaitInactiveCount,AccountTransaction.FreezedSafeBox.BlocksCount]);
     Exit;
@@ -1736,18 +1741,23 @@ begin
     errors := 'Invalid n_operation';
     Exit;
   end;
-  if (FData.fee<=0) Or (FData.fee>CT_MaxTransactionFee) then begin
+  if (FData.fee<0) Or (FData.fee>CT_MaxTransactionFee) then begin
     errors := 'Invalid fee '+Inttostr(FData.fee);
     exit;
   end;
   if (acc.balance<FData.fee) then begin
-    errors := 'Insuficient founds';
+    errors := 'Insuficient funds';
     exit;
   end;
+  if Not TAccountComp.IsValidAccountKey(FData.new_accountkey,errors) then begin
+    Exit;
+  end;
   FPrevious_Signer_updated_block := acc.updated_block;
-  Result := AccountTransaction.TransferAmount(AccountPreviousUpdatedBlock,
+  Result := AccountTransaction.UpdateAccountInfo(AccountPreviousUpdatedBlock,
     GetOpID,
-    FData.account,FData.account,FData.account,FData.n_operation,0,FData.fee,errors);
+    FData.account,FData.n_operation, FData.account,
+    TAccountComp.RawString2AccountInfo( TAccountComp.AccountKey2RawString(FData.new_accountkey) ),
+    acc.name, acc.account_data, acc.account_type, FData.fee, errors);
 end;
 
 function TOpRecoverFounds.GetBufferForOpHash(UseProtocolV2 : Boolean): TRawBytes;
@@ -1760,6 +1770,7 @@ begin
       ms.Write(FData.account,Sizeof(FData.account));
       ms.Write(FData.n_operation,Sizeof(FData.n_operation));
       ms.Write(FData.fee,Sizeof(FData.fee));
+      TStreamOp.WriteAccountKey(ms,FData.new_accountkey);
       ms.Position := 0;
       SetLength(Result,ms.Size);
       ms.ReadBuffer(Result[Low(Result)],ms.Size);
@@ -1787,6 +1798,7 @@ begin
   Stream.Read(FData.account,Sizeof(FData.account));
   Stream.Read(FData.n_operation,Sizeof(FData.n_operation));
   Stream.Read(FData.fee,Sizeof(FData.fee));
+  if TStreamOp.ReadAccountKey(Stream,FData.new_accountkey)<0 then Exit;
   Result := true;
 end;
 
@@ -1798,6 +1810,8 @@ begin
   OperationResume.Changers[0].Account := FData.account;
   OperationResume.Changers[0].Fee := FData.fee;
   OperationResume.Changers[0].N_Operation := FData.n_operation;
+  OperationResume.Changers[0].Changes_type := [public_key];
+  OperationResume.Changers[0].New_Accountkey := FData.new_accountkey;
 end;
 
 function TOpRecoverFounds.OperationAmount: Int64;
@@ -1825,6 +1839,7 @@ begin
   Stream.Write(FData.account,Sizeof(FData.account));
   Stream.Write(FData.n_operation,Sizeof(FData.n_operation));
   Stream.Write(FData.fee,Sizeof(FData.fee));
+  TStreamOp.WriteAccountKey(Stream,FData.new_accountkey);
   Result := true;
 end;
 
@@ -1846,9 +1861,10 @@ end;
 
 function TOpRecoverFounds.toString: String;
 begin
-  Result := Format('Recover founds of account %s fee:%s (n_op:%d)',[
+  Result := Format('Recover account %s fee:%s (n_op:%d) set Public key to %s',[
     TAccountComp.AccountNumberToAccountTxtNumber(FData.account),
-    TAccountComp.FormatMoney(FData.fee),fData.n_operation]);
+    TAccountComp.FormatMoney(FData.fee),fData.n_operation,
+    TAccountComp.AccountKey2RawString(FData.new_accountkey).ToHexaString]);
 end;
 
 function TOpRecoverFounds.GetDigestToSign(current_protocol : Word): TRawBytes;

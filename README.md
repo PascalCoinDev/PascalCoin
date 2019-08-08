@@ -41,6 +41,7 @@ Also, consider a donation at PascalCoin development account: "0-10"
 - Implementation of PIP-0029 (Account Seals) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0029.md
 - Implementation of PIP-0024 (Account Data) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0024.md
 - Implementation of PIP-0033 (OpData JOSN-RPC calls) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0033.md
+- Partial implementation of PIP-0012 (Recover Accounts option after 4 years) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0012.md
 - Updated "OP_DATA" operation: (PIP-0016)
   - New digest hash value for OP_DATA ( PIP-0016 ) on Protocol 5
   - Added "id" field (GUID/UUID type as described on PIP-0016), was missing on V4, added on V5
