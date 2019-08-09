@@ -88,11 +88,10 @@ Type
     class procedure DoDoubleSha256(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
     class function DoRandomHash(const TheMessage : TRawBytes) : TRawBytes; overload;
     class function DoRandomHash2(const TheMessage : TRawBytes) : TRawBytes; overload;
-    class procedure DoRandomHash(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
-    class procedure DoRandomHash2(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
-    class procedure DoRandomHash(AFastHasher : TRandomHashFast; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
-    class procedure DoRandomHash2(AHasher : TRandomHash2; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
-   // class procedure DoRandomHash2(AHasher : TRandomHash2; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes); overload;
+    class procedure DoRandomHash(p : PAnsiChar; plength : Cardinal; out AResult : TRawBytes); overload;
+    class procedure DoRandomHash2(p : PAnsiChar; plength : Cardinal; out AResult : TRawBytes); overload;
+    class procedure DoRandomHash(AFastHasher : TRandomHashFast; p : PAnsiChar; plength : Cardinal; out AResult : TRawBytes); overload;
+    class procedure DoRandomHash2(AHasher : TRandomHash2Fast; p : PAnsiChar; plength : Cardinal; out AResult : TRawBytes); overload;
     class function DoRipeMD160_HEXASTRING(const TheMessage : TRawBytes) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(p : PAnsiChar; plength : Cardinal) : TRawBytes; overload;
     class function DoRipeMD160AsRaw(const TheMessage : TRawBytes) : TRawBytes; overload;
@@ -778,52 +777,52 @@ begin
   Result := TRandomHash2.Compute(TheMessage);
 end;
 
-class procedure TCrypto.DoRandomHash(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
+class procedure TCrypto.DoRandomHash(p : PAnsiChar; plength : Cardinal; out AResult : TRawBytes);
 var
   LInput : TBytes;
   LResult : TBytes;
 begin
-  if Length(ResultSha256) <> 32 then SetLength(ResultSha256, 32);
+  if Length(AResult) <> 32 then SetLength(AResult, 32);
   SetLength(LInput, plength);
   Move(p^, LInput[0], plength);
   LResult := TRandomHashFast.Compute(LInput);
-  Move(LResult[0], ResultSha256[Low(ResultSha256)], 32);
+  Move(LResult[0], AResult[Low(AResult)], 32);
 end;
 
-class procedure TCrypto.DoRandomHash2(p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
+class procedure TCrypto.DoRandomHash2(p : PAnsiChar; plength : Cardinal; out AResult : TRawBytes);
 var
   LInput : TBytes;
   LResult : TBytes;
 begin
-  if Length(ResultSha256) <> 32 then SetLength(ResultSha256, 32);
+  if Length(AResult) <> 32 then SetLength(AResult, 32);
   SetLength(LInput, plength);
   Move(p^, LInput[0], plength);
   LResult := TRandomHash2.Compute(LInput);
-  Move(LResult[0], ResultSha256[Low(ResultSha256)], 32);
+  Move(LResult[0], AResult[Low(AResult)], 32);
 end;
 
-class procedure TCrypto.DoRandomHash(AFastHasher : TRandomHashFast; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
+class procedure TCrypto.DoRandomHash(AFastHasher : TRandomHashFast; p : PAnsiChar; plength : Cardinal; out AResult : TRawBytes);
 var
   LInput : TBytes;
   LResult : TBytes;
 begin
-  if Length(ResultSha256) <> 32 then SetLength(ResultSha256, 32);
+  if Length(AResult) <> 32 then SetLength(AResult, 32);
   SetLength(LInput, plength);
   Move(p^, LInput[0], plength);
   LResult := AFastHasher.Hash(LInput);
-  Move(LResult[0], ResultSha256[Low(ResultSha256)], 32);
+  Move(LResult[0], AResult[Low(AResult)], 32);
 end;
 
-class procedure TCrypto.DoRandomHash2(AHasher : TRandomHash2; p : PAnsiChar; plength : Cardinal; out ResultSha256 : TRawBytes);
+class procedure TCrypto.DoRandomHash2(AHasher : TRandomHash2Fast; p : PAnsiChar; plength : Cardinal; out AResult : TRawBytes);
 var
   LInput : TBytes;
   LResult : TBytes;
 begin
-  if Length(ResultSha256) <> 32 then SetLength(ResultSha256, 32);
+  if Length(AResult) <> 32 then SetLength(AResult, 32);
   SetLength(LInput, plength);
   Move(p^, LInput[0], plength);
   LResult := AHasher.Hash(LInput);
-  Move(LResult[0], ResultSha256[Low(ResultSha256)], 32);
+  Move(LResult[0], AResult[Low(AResult)], 32);
 end;
 
 { TBigNum }

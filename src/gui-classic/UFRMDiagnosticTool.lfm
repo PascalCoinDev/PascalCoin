@@ -1,64 +1,63 @@
 object FRMDiagnosticTool: TFRMDiagnosticTool
   Left = 0
-  Height = 648
+  Height = 324
   Top = 0
-  Width = 1140
+  Width = 570
   Caption = 'FRMDiagnosticTool'
-  ClientHeight = 648
-  ClientWidth = 1140
+  ClientHeight = 324
+  ClientWidth = 570
   Color = clBtnFace
-  DesignTimePPI = 192
   Font.Color = clWindowText
-  Font.Height = -23
+  Font.Height = -12
   Font.Name = 'Tahoma'
   OnCreate = FormCreate
   LCLVersion = '2.1.0.0'
   object btnRH: TButton
-    Left = 16
-    Height = 51
-    Top = 16
-    Width = 260
+    Left = 8
+    Height = 26
+    Top = 8
+    Width = 130
     Caption = 'Start Random Hash'
     Font.Color = clWindowText
-    Font.Height = -23
+    Font.Height = -12
     Font.Name = 'Tahoma'
     OnClick = btnRHClick
     ParentFont = False
     TabOrder = 0
   end
   object btnRH2: TButton
-    Left = 288
-    Height = 51
-    Top = 16
-    Width = 260
+    Left = 144
+    Height = 26
+    Top = 8
+    Width = 130
     Caption = 'Start Random Hash 2'
     Font.Color = clWindowText
-    Font.Height = -23
+    Font.Height = -12
     Font.Name = 'Tahoma'
     OnClick = btnRH2Click
     ParentFont = False
     TabOrder = 1
   end
   object txtLog: TMemo
-    Left = 16
-    Height = 153
-    Top = 77
-    Width = 503
+    Left = 8
+    Height = 401
+    Top = 38
+    Width = 822
     Anchors = [akTop, akLeft, akRight, akBottom]
     Font.Color = clWindowText
-    Font.Height = -23
+    Font.Height = -12
     Font.Name = 'Tahoma'
     ParentFont = False
     TabOrder = 2
   end
   object btnRHC: TButton
-    Left = 560
-    Height = 51
-    Top = 16
-    Width = 372
+    Left = 280
+    Height = 26
+    Top = 8
+    Width = 186
     Caption = 'Start Random Hash 2 (Cached)'
     Font.Color = clWindowText
-    Font.Height = -23
+    Font.Height = -12
     Font.Name = 'Tahoma'
     OnClick = btnRHCClick
     ParentFont = False

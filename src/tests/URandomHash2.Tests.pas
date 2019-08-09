@@ -20,8 +20,15 @@ type
   published
     procedure TestRandomHash2_Standard;
     procedure TestRandomHash2;
-    procedure CacheConsistency;
     procedure GetSetLastDWordConsistency;
+  end;
+
+  { TRandomHash2FastTest }
+
+  TRandomHash2FastTest = class(TPascalCoinUnitTest)
+  published
+    procedure CacheConsistency;
+    procedure TestRandomHash2_Standard;
   end;
 
 
@@ -47,31 +54,31 @@ const
   { RandomHash Official Values }
 
   DATA_RANDOMHASH_STANDARD : array[1..3] of TTestItem<String, String> = (
-    (Input: '0x0';                                         Expected: '0x78b7b1a58fd073a47b02279080ff5b0d1fb673f0477c18a652801ba8fd0cbac8'),
-    (Input: 'The quick brown fox jumps over the lazy dog'; Expected: '0xf6ad93cb45b8749a1d64cd74cf446975cf782990587f9ddd08dfeee2087e7487'),
-    (Input: '0x000102030405060708090a0b0c0d0e0f';          Expected: '0xa37a261ff74ccb03bbb64bd1c3da5928f580052adcf7ff48596f4297110f20c2')
+    (Input: '0x0';                                         Expected: '0x1340164c73924ecdcff3866bd1a5c75c5c9f517c480336fa8189b2a4c2c745c3'),
+    (Input: 'The quick brown fox jumps over the lazy dog'; Expected: '0xe2ba36ce31ed3b01a5f254dfafb392f29b8eafef24c52fd0480c4db5b2d2e999'),
+    (Input: '0x000102030405060708090a0b0c0d0e0f';          Expected: '0x88624077976ac8327b38092fff01428125d914b98d76b5c9270177ec105a6976')
   );
 
   {  Hash Test Data }
 
   DATA_RANDOMHASH : array[1..16] of TTestItem<Integer, String> = (
     { NOTE: Input denotes the number of bytes to take from DATA_BYTES when executing test }
-    (Input: 17;  Expected: '0x28e348e6a865e5333e4528e0743b4965248cac41904e11d9011a50cb19513fb6'),
-    (Input: 31;  Expected: '0x656a42062355319bd643a9eff87cc04d14ea442384e7dd0932113911f2823024'),
-    (Input: 32;  Expected: '0xd666b74b91c2ddfb54d663bafb369c53055a875ababbdf1f510db39dd73d86fa'),
-    (Input: 33;  Expected: '0x163b3758fb5dfb896f469f9914df1f43d966a8ff3d1e710ed51fdcfc7e425308'),
-    (Input: 34;  Expected: '0x97a3618f57f9477cd4ba91397cd7856ecd05f8d8206b077828cd52e8ecdcd4c5'),
-    (Input: 63;  Expected: '0x93f998f385413219f4ca9b764e3f69f90100fdf43d4434d0f8fe4bcf4ed98ae6'),
-    (Input: 64;  Expected: '0x709a93634fe1927f4b94570049ebf33ac4c1bd750392df070e44d59261d763e9'),
-    (Input: 65;  Expected: '0x2ef12aab3156b3e25551ed7c1dfbf51c6dfc84510cb6cc46b405bae02578f1b0'),
-    (Input: 100; Expected: '0x6cf7f41cb8ec80ae512e68322f67bf381821599d39a2007cb6d1857b3458947a'),
-    (Input: 117; Expected: '0xa3ce45f763b30dc74181b4ad4a02631318f93cdf3cc4f4054b01561df29c53fd'),
-    (Input: 127; Expected: '0x1c042113abb5c41265916be7092acf2000a148668b0bca9671e9cdbdf13dc99a'),
-    (Input: 128; Expected: '0xda552e27ca43bcfc8c636a4c58041027f9f0a06b0d40031c889fe3a673b89701'),
-    (Input: 129; Expected: '0x4b1b1d161ff80435ea4a6839530258d33d3105b5812def2b1b65bf543df06e62'),
-    (Input: 178; Expected: '0x66cbb61b4b927ca60c4ca04d999b0d8398b9fa9cf1db2866956b246f11cbc692'),
-    (Input: 199; Expected: '0x3705f63d6242acd77fbc262010b34101165c7cc6c0c9bbd607bbc118d1626a5f'),
-    (Input: 200; Expected: '0xcde9da66925e5b363aaca02dac5c473e81ab6a0f1b7a6b6dbac9d0ebec383e22')
+    (Input: 17;  Expected: '0x4cc3fb94697855e5d124823331516e5a18623d87d735e67ca3f2f7b87fcdabee'),
+    (Input: 31;  Expected: '0xb4655c784cc21d0da5a19420c66ed275c8881952b9119d0b215882880069813c'),
+    (Input: 32;  Expected: '0x2e2de78bb4db374779108541ac1eeb36a1f1144b2767e7e1aa8dac19c5430958'),
+    (Input: 33;  Expected: '0xb096070aec5b4f6146cc5b70c85ab4e0b94efb5aa3ca41e7fd671fd3b98c8588'),
+    (Input: 34;  Expected: '0x015b89e6c6b2b4580702555adda7b445e1064f481442475061a4768e65879eb0'),
+    (Input: 63;  Expected: '0x868b30a0091d6562fa3dffe9c5ec5df2214383f2c6f48bbf2b314f8791e089e9'),
+    (Input: 64;  Expected: '0xfe90fe080b0dca79aec5e0b269e58d368d9a83ce73171d155f475c42642034d0'),
+    (Input: 65;  Expected: '0xec04a9b78b4f4ecf1e48d5c11b89f87f461ea5ae23eaff9d2baa0c703e14d01b'),
+    (Input: 100; Expected: '0x42e42defa9c03dd9ff74053a6bffbc966321aa14df446bb36a270844fdb8e838'),
+    (Input: 117; Expected: '0xaf4257f5d406ab3e3d0453129fefdf6633016676bb3aa45a40fdac2f5bca4951'),
+    (Input: 127; Expected: '0xa998117cd3f3505b4ed863601abc175a393653ce3eec3b375235ad530845045f'),
+    (Input: 128; Expected: '0xb4a76d37c5f390986ace3e35b7306c65a62d92f3f449a5f7b523982a5e5496a4'),
+    (Input: 129; Expected: '0x432d52101c90b268a7127d84c080f8d5c60d0223620e5c463883b15ed81db390'),
+    (Input: 178; Expected: '0x4ab88684c0ef33bc8dad4a4aa1a9badd025bc7afe98657d325e3bf1e4f3706a2'),
+    (Input: 199; Expected: '0x25aa461b64f96f7b62b46e79273554a7b5866f26278929ae3f78203a714cca2a'),
+    (Input: 200; Expected: '0x3bd8f64cc0eeb0c8dedba03a1f142763c3e6f9aed80dcd6534eac28eba2f7510')
   );
 
 { TRandomHash2Test }
@@ -97,31 +104,11 @@ begin
   end;
 end;
 
-procedure TRandomHash2Test.CacheConsistency;
-var
-  LBuff : TBytes;
-  LHasher : TRandomHash2;
-  LCachedHash : TRandomHash2.TCachedHash;
-  i, j : Integer;
-  LDisposables : TDisposables;
-begin
-  LBuff := ParseBytes(DATA_BYTES);
-  LHasher := LDisposables.AddObject( TRandomHash2.Create ) as TRandomHash2;
-
-  for i := 1 to 100 do begin
-    LBuff := LHasher.Hash(LBuff);
-    while LHasher.HasCachedHash do begin
-      LCachedHash := LHasher.PopCachedHash;
-      AssertEquals(TRandomHash2.Compute(LCachedHash.Header), LCachedHash.Hash);
-    end;
-  end;
-end;
-
 procedure TRandomHash2Test.GetSetLastDWordConsistency;
 var
   LBuff, LBuff2 : TBytes;
   LHasher : TRandomHash2;
-  LCachedHash : TRandomHash2.TCachedHash;
+  LCachedHash : TRandomHash2Fast.TCachedHash;
   i  : UInt32;
   LDisposables : TDisposables;
 begin
@@ -129,7 +116,39 @@ begin
   LHasher := LDisposables.AddObject( TRandomHash2.Create ) as TRandomHash2;
   for i := 1 to 100 do begin
     LBuff := LHasher.Hash(LBuff);
-    AssertEquals(32768 + i, LHasher.GetLastDWordLE(LHasher.SetLastDWordLE(LBuff, 32768 + i)));
+    AssertEquals(32768 + i, GetLastDWordLE(SetLastDWordLE(LBuff, 32768 + i)));
+  end;
+end;
+
+{ TRandomHash2FastTest }
+
+procedure TRandomHash2FastTest.TestRandomHash2_Standard;
+var
+  LCase : TTestItem<String, String>;
+begin
+  for LCase in DATA_RANDOMHASH_STANDARD do
+    AssertEquals(ParseBytes(LCase.Expected), TRandomHash2Fast.Compute(ParseBytes(LCase.Input)));
+    //WriteLn(Format('%s', [Bytes2Hex(TRandomHash2.Compute(ParseBytes(LCase.Input)), True)]));
+end;
+
+
+procedure TRandomHash2FastTest.CacheConsistency;
+var
+  LBuff : TBytes;
+  LHasher : TRandomHash2Fast;
+  LCachedHash : TRandomHash2Fast.TCachedHash;
+  i, j : Integer;
+  LDisposables : TDisposables;
+begin
+  LBuff := ParseBytes(DATA_BYTES);
+  LHasher := LDisposables.AddObject( TRandomHash2Fast.Create ) as TRandomHash2Fast;
+
+  for i := 1 to 100 do begin
+    LBuff := LHasher.Hash(LBuff);
+    while LHasher.HasCachedHash do begin
+      LCachedHash := LHasher.PopCachedHash;
+      AssertEquals(TRandomHash2Fast.Compute(LCachedHash.Header), LCachedHash.Hash);
+    end;
   end;
 end;
 
@@ -151,12 +170,11 @@ begin
   // no exceptions should occur
 end;
 
-
-
 initialization
 
 {$IFDEF FPC}
   RegisterTest(TRandomHash2Test);
+  RegisterTest(TRandomHash2FastTest);
   RegisterTest(TRandomHash2StressTest);
 {$ELSE}
   //TDUnitX.RegisterTextFixture(TRandomHashTest);

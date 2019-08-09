@@ -117,7 +117,7 @@ type
       M = (10 * 1024) * 5; // The memory expansion unit (in bytes), total bytes per nonce = M * (2^N (N-2) + 2)
 
     {$IFNDEF UNITTESTS}private{$ELSE}public{$ENDIF}
-      FMurmurHash3_x86_32 : IHash;
+      FMurmur3 : IHash;
       FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
       function ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes; inline;
       function MemTransform1(const AChunk: TBytes): TBytes; inline;
@@ -185,7 +185,7 @@ type
     private
       function GetCachedHeader : TBytes;
     {$IFNDEF UNITTESTS}private{$ELSE}public{$ENDIF}
-      FMurmurHash3_x86_32 : IHash;
+      FMurmur3 : IHash;
       FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
       FCachedHeader : TBytes;
       FCachedNonce : UInt32;
@@ -287,7 +287,7 @@ end;
 
 constructor TRandomHash.Create;
 begin
-  FMurmurHash3_x86_32 := THashFactory.THash32.CreateMurmurHash3_x86_32();
+  FMurmur3 := THashFactory.THash32.CreateMurmurHash3_x86_32();
   FHashAlg[0] := THashFactory.TCrypto.CreateSHA2_256();
   FHashAlg[1] := THashFactory.TCrypto.CreateSHA2_384();
   FHashAlg[2] := THashFactory.TCrypto.CreateSHA2_512();
@@ -311,7 +311,7 @@ end;
 destructor TRandomHash.Destroy;
 var i : integer;
 begin
- FMurmurHash3_x86_32 := nil;
+ FMurmur3 := nil;
  for i := Low(FHashAlg) to High(FHashAlg) do
    FHashAlg[i] := nil;
  inherited Destroy;
@@ -397,19 +397,19 @@ end;
 
 function TRandomHash.Checksum(const AInput: TBytes): UInt32;
 begin
-  Result := FMurmurHash3_x86_32.ComputeBytes(AInput).GetUInt32;
+  Result := FMurmur3.ComputeBytes(AInput).GetUInt32;
 end;
 
 function TRandomHash.Checksum(const AInput : TArray<TBytes>): UInt32;
 var
   i: Int32;
 begin
-  FMurmurHash3_x86_32.Initialize;
+  FMurmur3.Initialize;
   for i := Low(AInput) to High(AInput) do
   begin
-    FMurmurHash3_x86_32.TransformBytes(AInput[i]);
+    FMurmur3.TransformBytes(AInput[i]);
   end;
-  Result := FMurmurHash3_x86_32.TransformFinal.GetUInt32;
+  Result := FMurmur3.TransformFinal.GetUInt32;
 end;
 
 function TRandomHash.Compress(const AInputs : TArray<TBytes>): TBytes;
@@ -593,7 +593,7 @@ end;
 
 constructor TRandomHashFast.Create;
 begin
-  FMurmurHash3_x86_32 := THashFactory.THash32.CreateMurmurHash3_x86_32();
+  FMurmur3 := THashFactory.THash32.CreateMurmurHash3_x86_32();
   FHashAlg[0] := THashFactory.TCrypto.CreateSHA2_256();
   FHashAlg[1] := THashFactory.TCrypto.CreateSHA2_384();
   FHashAlg[2] := THashFactory.TCrypto.CreateSHA2_512();
@@ -620,7 +620,7 @@ end;
 destructor TRandomHashFast.Destroy;
 var i : integer;
 begin
- FMurmurHash3_x86_32 := nil;
+ FMurmur3 := nil;
  for i := Low(FHashAlg) to High(FHashAlg) do
    FHashAlg[i] := nil;
  if Assigned(FCachedOutput) then
@@ -760,9 +760,9 @@ end;
 
 function TRandomHashFast.Checksum(const AInput: TBytes; AOffset, ALength: Integer): UInt32;
 begin
-  FMurmurHash3_x86_32.Initialize;
-  FMurmurHash3_x86_32.TransformBytes(AInput, AOffset, ALength);
-  Result := FMurmurHash3_x86_32.TransformFinal.GetUInt32();
+  FMurmur3.Initialize;
+  FMurmur3.TransformBytes(AInput, AOffset, ALength);
+  Result := FMurmur3.TransformFinal.GetUInt32();
 end;
 
 function TRandomHashFast.Compress(const AInputs : TChecksummedByteCollection): TBytes;

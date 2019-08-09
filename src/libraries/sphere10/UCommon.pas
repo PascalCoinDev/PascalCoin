@@ -52,6 +52,9 @@ function BinStrComp(const Str1, Str2 : String): Integer; // Binary-safe StrComp 
 function BytesCompare(const ABytes1, ABytes2: TBytes): integer;
 function BytesEqual(const ABytes1, ABytes2 : TBytes) : boolean; overload; inline;
 function BytesEqual(const ABytes1, ABytes2 : TBytes; AFrom, ALength : UInt32) : boolean; overload; inline;
+function SetLastDWordLE(const ABytes: TBytes; AValue: UInt32): TBytes;
+function GetLastDWordLE(const ABytes: TBytes) : UInt32;
+function GetDWordLE(const ABytes: TBytes; AOffset : Integer) : UInt32;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Cardinal): Cardinal; overload;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Integer): Integer; overload;
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Int64): Int64; overload;
@@ -640,6 +643,54 @@ begin
     Exit(False);
   Result := CompareMem(@ABytes1[AFrom], @ABytes2[AFrom], ALength);
 end;
+
+function SetLastDWordLE(const ABytes: TBytes; AValue: UInt32): TBytes;
+var
+  ABytesLength : Integer;
+begin
+  // Clone the original header
+  Result := Copy(ABytes);
+
+  // If digest not big enough to contain a nonce, just return the clone
+  ABytesLength := Length(ABytes);
+  if ABytesLength < 4 then
+    exit;
+
+  // Overwrite the nonce in little-endian
+  Result[ABytesLength - 4] := Byte(AValue);
+  Result[ABytesLength - 3] := (AValue SHR 8) AND 255;
+  Result[ABytesLength - 2] := (AValue SHR 16) AND 255;
+  Result[ABytesLength - 1] := (AValue SHR 24) AND 255;
+end;
+
+function GetLastDWordLE(const ABytes: TBytes) : UInt32;
+var LLen : Integer;
+begin
+  LLen := Length(ABytes);
+  if LLen < 4 then
+   raise EArgumentException.Create('ABytes needs to be at least 4 bytes');
+
+  // Last 4 bytes are nonce (LE)
+  Result := ABytes[LLen - 4] OR
+           (ABytes[LLen - 3] SHL 8) OR
+           (ABytes[LLen - 2] SHL 16) OR
+           (ABytes[LLen - 1] SHL 24);
+end;
+
+function GetDWordLE(const ABytes: TBytes; AOffset : Integer) : UInt32;
+var LLen : Integer;
+begin
+  LLen := Length(ABytes);
+  if LLen < AOffset+3 then
+   raise EArgumentException.Create('ABytes[AOffset] needs at least 4 more bytes');
+
+  // Last 4 bytes are nonce (LE)
+  Result := ABytes[AOffset + 0] OR
+           (ABytes[AOffset + 1] SHL 8) OR
+           (ABytes[AOffset + 2] SHL 16) OR
+           (ABytes[AOffset + 3] SHL 24);
+end;
+
 
 function IIF(const ACondition: Boolean; const ATrueResult, AFalseResult: Cardinal): Cardinal;
 begin

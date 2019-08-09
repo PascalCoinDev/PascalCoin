@@ -104,7 +104,7 @@ type
 
   TRandomHash2Thread = class(TAlgorithmThread)
     private
-      FHasher : TRandomHash2;
+      FHasher : TRandomHash2Fast;
     protected
       function TryNextRound(const AInput : TBytes; out AOutput : TBytes) : Boolean; override;
       function GetMemStats : TStatistics; override;
@@ -116,7 +116,7 @@ type
 
   TRandomHash2CachedThread = class(TAlgorithmThread)
     private
-      FHasher : TRandomHash2;
+      FHasher : TRandomHash2Fast;
     protected
       function TryNextRound(const AInput : TBytes; out AOutput : TBytes) : Boolean; override;
       function GetMemStats : TStatistics; override;
@@ -128,7 +128,7 @@ type
 
   TRandomHash2NonceScan = class(TAlgorithmThread)
     private
-      FHasher : TRandomHash2;
+      FHasher : TRandomHash2Fast;
       FLevel : Integer;
     protected
       function TryNextRound(const AInput : TBytes; out AOutput : TBytes) : Boolean; override;
@@ -162,9 +162,11 @@ end;
 procedure TAlgorithmThread.BCExecute;
 var
  LTC : TTickCount;
+ LInput : TBytes;
  LStartTime, LNotifyStartTime  : TDateTime;
  LTotalHashes, LNotifyHashes : UInt32;
 begin
+  SetLength(LInput, 200);
   while True do begin
     LTotalHashes := 0;
     LNotifyHashes := 0;
@@ -172,9 +174,10 @@ begin
     LNotifyStartTime := LStartTime;
     LTC := TPlatform.GetTickCount;
     while Not FExitLoop do begin
-     if TryNextRound (RandomizeNonce(FLastHash), FLastHash) then begin
+     if TryNextRound (RandomizeNonce(LInput), FLastHash) then begin
        inc(LTotalHashes);
        inc(LNotifyHashes);
+       Move(FLastHash, LInput[High(LInput)-32], 32);  // randomize input
      end;
      if TPlatform.GetElapsedMilliseconds(LTC)>2500 then begin
        FNotifyHashes := LNotifyHashes;
@@ -269,7 +272,8 @@ end;
 constructor TRandomHash2Thread.Create;
 begin
   Inherited Create('Random Hash 2');
-  FHasher := TRandomHash2.Create;
+  FHasher := TRandomHash2Fast.Create;
+  FHasher.EnableCaching := False;
   FDisposables.AddObject(FHasher);
 end;
 
@@ -288,8 +292,9 @@ end;
 
 constructor TRandomHash2CachedThread.Create;
 begin
-  Inherited Create('Random Hash (Cached)');
-  FHasher := TRandomHash2.Create;
+  Inherited Create('Random Hash 2 (Cached)');
+  FHasher := TRandomHash2Fast.Create;
+  FHasher.EnableCaching := True;
   FDisposables.AddObject(FHasher);
 end;
 
@@ -311,8 +316,9 @@ end;
 
 constructor TRandomHash2NonceScan.Create;
 begin
-  Inherited Create('Random Hash (Nonce Scan)');
-  FHasher := TRandomHash2.Create;
+  Inherited Create('Random Hash 2 (Nonce Scan)');
+  FHasher := TRandomHash2Fast.Create;
+  FHasher.EnableCaching := True;
   FDisposables.AddObject(FHasher);
 end;
 

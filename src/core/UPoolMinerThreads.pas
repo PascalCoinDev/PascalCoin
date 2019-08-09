@@ -804,8 +804,8 @@ Var
   dstep : Integer;
   LUseRandomHash : boolean;
   LRandomHasher : TRandomHashFast;
-  LRandomHasher2 : TRandomHash2;
-  LCachedItem : TRandomHash2.TCachedHash;
+  LRandomHasher2 : TRandomHash2Fast;
+  LCachedItem : TRandomHash2Fast.TCachedHash;
   LNonceResult : TNonceResult;
   LResultsToCheck : TList<TNonceResult>;
   LDisposables : TDisposables;
@@ -815,8 +815,9 @@ begin
   nonce := 0;
   dstep := 0;
   LRandomHasher := LDisposables.AddObject( TRandomHashFast.Create ) as TRandomHashFast;
-  LRandomHasher2 := LDisposables.AddObject( TRandomHash2.Create ) as TRandomHash2;
+  LRandomHasher2 := LDisposables.AddObject( TRandomHash2Fast.Create ) as TRandomHash2Fast;
   LResultsToCheck := LDisposables.AddObject( TList<TNonceResult>.Create ) as TList<TNonceResult>;
+  LRandomHasher2.EnableCaching := True;
   Try
     while (Not Terminated) And (Not FCPUDeviceThread.Terminated) do begin
       Try
