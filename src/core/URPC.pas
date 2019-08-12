@@ -2484,7 +2484,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
            Continue;
         end;
 
-        if ((Length(accountName)>0) AND (TBaseType.StartsWith(accountName,account.name))) then
+        if ((Length(accountName)>0) AND (Not TBaseType.StartsWith(accountName,account.name))) then
         begin
           Continue
         end;
