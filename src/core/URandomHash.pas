@@ -646,14 +646,17 @@ var
 begin
   LAllOutputs := LDisposables.AddObject( Hash(ABlockHeader, N) ) as TChecksummedByteCollection;
   Result := FHashAlg[0].ComputeBytes(Compress(LAllOutputs)).GetBytes;
-  LSize := 0;
-  for i := 0 to LAllOutputs.Count - 1 do
-    Inc(LSize, Length(LAllOutputs.Get(i)));
 
-  if Assigned(FCachedOutput) then
-    for i := 0 to FCachedOutput.Count - 1 do
-      Inc(LSize, Length(FCachedOutput.Get(i)));
-  FMemStats.AddDatum(LSize);
+  if FCaptureMemStats then begin
+    LSize := 0;
+    for i := 0 to LAllOutputs.Count - 1 do
+      Inc(LSize, Length(LAllOutputs.Get(i)));
+
+    if Assigned(FCachedOutput) then
+      for i := 0 to FCachedOutput.Count - 1 do
+        Inc(LSize, Length(FCachedOutput.Get(i)));
+    FMemStats.AddDatum(LSize);
+  end;
 end;
 
 function TRandomHashFast.Hash(const ABlockHeader: TBytes; ARound: Int32) : TChecksummedByteCollection;

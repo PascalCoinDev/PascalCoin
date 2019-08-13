@@ -118,8 +118,8 @@ type
       FCaptureMemStats : Boolean;
 
       function ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes; inline;
-      function MemTransform1(const AChunk: TBytes): TBytes;
-      function MemTransform2(const AChunk: TBytes): TBytes;
+      function MemTransform1(const AChunk: TBytes): TBytes; inline;
+      function MemTransform2(const AChunk: TBytes): TBytes; inline;
       function MemTransform3(const AChunk: TBytes): TBytes; inline;
       function MemTransform4(const AChunk: TBytes): TBytes; inline;
       function MemTransform5(const AChunk: TBytes): TBytes; inline;
@@ -154,22 +154,43 @@ type
 
         TCachedHash = record
           Nonce : UInt32;
+          Level : Integer;
           Header : TBytes;
-          Hash : TBytes;
+          RoundOutputs : TArray<TBytes>;
+        end;
+        PCachedHash = ^TCachedHash;
+
+        TCache = class
+          private
+            FEnablePartiallyComputed : boolean;          
+            FHeaderTemplate : TBytes;
+            FComputed : TList<TCachedHash>;
+            FPartiallyComputed : TList<TCachedHash>;
+            procedure PreProcessNewHash(const AHeader : TBytes);            
+          public
+            constructor Create;
+            destructor Destroy;
+            property EnablePartiallyComputed : boolean read FEnablePartiallyComputed write FEnablePartiallyComputed;
+            procedure AddPartiallyComputed(const AHeader : TBytes; ALevel : Integer; const AOutputs : TArray<TBytes>); inline;
+            procedure AddFullyComputed(const AHeader : TBytes; ALevel : Integer; const AHash : TBytes); inline;
+            function HasComputedHash : Boolean; inline;
+            function PopComputedHash : TCachedHash; inline;
+            function HasNextPartiallyComputedHash : Boolean; inline; 
+            function PeekNextPartiallyComputedHash : TCachedHash; inline;
+            function PopNextPartiallyComputedHash : TCachedHash; inline;
+            function ComputeMemorySize : Integer;
         end;
 
     {$IFNDEF UNITTESTS}private{$ELSE}public{$ENDIF}
       FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
-      FCachedHeaderTemplate : TBytes;
-      FCachedHashes : TList<TCachedHash>;
+      FCache : TCache;
       FMemStats : TStatistics;
       FCaptureMemStats : Boolean;
       FEnableCaching : Boolean;
 
-      function GetCachedHashes : TArray<TCachedHash>; inline;
       function ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes; inline;
-      procedure MemTransform1(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
-      procedure MemTransform2(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer);
+      procedure MemTransform1(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
+      procedure MemTransform2(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
       procedure MemTransform3(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
       procedure MemTransform4(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
       procedure MemTransform5(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
@@ -177,22 +198,20 @@ type
       procedure MemTransform7(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
       procedure MemTransform8(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
       function Expand(const AInput: TBytes; AExpansionFactor: Int32; ASeed : UInt32) : TBytes;
-      function Compress(const AInputs: TArray<TBytes>; ASeed : UInt32): TBytes; inline;
+      function Compress(const AInputs: TArray<TBytes>; ASeed : UInt32): TBytes;
       function ComputeVeneerRound(const ARoundOutputs : TArray<TBytes>) : TBytes;
-      function CalculateRoundOutputs(const ABlockHeader: TBytes; ARound: Int32; out ARoundOutputs : TArray<TBytes>) : Boolean; overload;
+      function CalculateRoundOutputs(const ABlockHeader: TBytes; ARound: Int32; APCachedHash : PCachedHash; out ARoundOutputs : TArray<TBytes>) : Boolean; overload;
     public
       constructor Create;
       destructor Destroy; override;
+      property Cache : TCache read FCache;
       property EnableCaching : Boolean read FEnableCaching write FEnableCaching;
       property CaptureMemStats : Boolean read FCaptureMemStats write FCaptureMemStats;
-      property CachedHashes : TArray<TCachedHash> read GetCachedHashes;
       property MemStats : TStatistics read FMemStats;
-      function HasCachedHash : Boolean; inline;
-      function PopCachedHash : TCachedHash; inline;
-      function PeekCachedHash : TCachedHash; inline;
       function TryHash(const ABlockHeader: TBytes; AMaxRound : UInt32; out AHash : TBytes) : Boolean;
-      function Hash(const ABlockHeader: TBytes): TBytes; overload; inline;
-      class function Compute(const ABlockHeader: TBytes): TBytes; overload; static; inline;
+      function Hash(const ABlockHeader: TBytes): TBytes; overload;
+      function ResumeHash(const ACachedHash : TCachedHash): TBytes; overload;
+      class function Compute(const ABlockHeader: TBytes): TBytes; overload; static;
   end;
 
  { ERandomHash2 }
@@ -515,8 +534,7 @@ end;
 constructor TRandomHash2Fast.Create;
 begin
   FEnableCaching := False;
-  FCachedHashes := TList<TCachedHash>.Create;
-  SetLength(Self.FCachedHeaderTemplate, 0);
+  FCache := TCache.Create;
   FHashAlg[0] := THashFactory.TCrypto.CreateSHA2_256();
   FHashAlg[1] := THashFactory.TCrypto.CreateSHA2_384();
   FHashAlg[2] := THashFactory.TCrypto.CreateSHA2_512();
@@ -541,10 +559,7 @@ end;
 destructor TRandomHash2Fast.Destroy;
 var i : integer;
 begin
- FCachedHashes.Clear;
- FreeAndNil(FCachedHashes);
- for i := Low(FHashAlg) to High(FHashAlg) do
-   FHashAlg[i] := nil;
+ FCache.Destroy;
  inherited Destroy;
 end;
 
@@ -562,7 +577,7 @@ var
   LOutputs: TArray<TBytes>;
   LSeed: UInt32;
 begin
-  if NOT CalculateRoundOutputs(ABlockHeader, AMaxRound, LOutputs) then
+  if NOT CalculateRoundOutputs(ABlockHeader, AMaxRound, nil, LOutputs) then
     Exit(False);
   AHash := ComputeVeneerRound(LOutputs);
   Result := True;
@@ -574,28 +589,36 @@ begin
     raise ERandomHash2.Create('Internal Error: 974F52882131417E8D63A43BD686E5B2'); // Should have found final round!
 end;
 
+
+function TRandomHash2Fast.ResumeHash(const ACachedHash : TCachedHash): TBytes;
+var
+  LOutputs: TArray<TBytes>;
+  LSeed: UInt32;
+begin
+  if NOT CalculateRoundOutputs(ACachedHash.Header, MAX_N, @ACachedHash, LOutputs) then
+    raise ERandomHash2.Create('Internal Error: 274E52882131417E8C63A43BD686E5B4'); // Should have found final round!
+  Result := ComputeVeneerRound(LOutputs);
+end;
+
 function TRandomHash2Fast.ComputeVeneerRound(const ARoundOutputs : TArray<TBytes>) : TBytes;
 var
   LSeed : UInt32;
-  LSize : UInt32;
-  i : integer;
-  LCachedItem : TCachedHash;
+  LSize, i : Integer;
 begin
   LSeed := GetLastDWordLE(ARoundOutputs[High(ARoundOutputs)]);
   // Final "veneer" round of RandomHash is a SHA2-256 of compression of prior round outputs
   Result := FHashAlg[0].ComputeBytes(Compress(ARoundOutputs, LSeed)).GetBytes;
-  // Tally memstats
-  LSize := 0;
-  for i := Low(ARoundOutputs) to High(ARoundOutputs) do
-    Inc(LSize, Length(ARoundOutputs[i]));
-  for i := 0 to FCachedHashes.Count - 1 do begin
-    LCachedItem := FCachedHashes.Items[i];
-    Inc(LSize, Length(LCachedItem.Hash) + Length(LCachedItem.Header) + 4);
+  if FCaptureMemStats then begin
+    LSize := 0;
+    for i :=  Low(ARoundOutputs) to High(ARoundOutputs) do
+      Inc(LSize, Length(ARoundOutputs[i]));
+    if FEnableCaching then
+      Inc(LSize, FCache.ComputeMemorySize);
+    FMemStats.AddDatum(LSize);
   end;
-  FMemStats.AddDatum(LSize);
 end;
 
-function TRandomHash2Fast.CalculateRoundOutputs(const ABlockHeader: TBytes; ARound: Int32; out ARoundOutputs : TArray<TBytes>) : Boolean;
+function TRandomHash2Fast.CalculateRoundOutputs(const ABlockHeader: TBytes; ARound: Int32; APCachedHash : PCachedHash; out ARoundOutputs : TArray<TBytes>) : Boolean;
 var
   LRoundOutputs: TList<TBytes>;
   LNeighbourWasLastRound : Boolean;
@@ -610,7 +633,12 @@ var
   LBuff : TBytes;
 begin
   if (ARound < 1) or (ARound > MAX_N) then
-    raise EArgumentOutOfRangeException.CreateRes(@SInvalidRound);
+    raise EArgumentOutOfRangeException.CreateRes(@SInvalidRound);   
+
+  if Assigned(APCachedHash) AND (APCachedHash^.Level = ARound) AND (BytesEqual(APCachedHash^.Header, ABlockHeader))  then begin
+    ARoundOutputs := APCachedHash^.RoundOutputs;
+    Exit(False); // assume partially evaluated 
+  end;
 
   LRoundOutputs := LDisposables.AddObject( TList<TBytes>.Create() ) as TList<TBytes>;
   LGen := LDisposables.AddObject( TMersenne32.Create(0) ) as TMersenne32;
@@ -619,7 +647,7 @@ begin
     LSeed := GetLastDWordLE( LRoundInput );
     LGen.Initialize(LSeed);
   end else begin
-    if CalculateRoundOutputs(ABlockHeader, ARound - 1, LParentOutputs) = True then begin
+    if CalculateRoundOutputs(ABlockHeader, ARound - 1, APCachedHash, LParentOutputs) = True then begin
       // Previous round was the final round, so just return it's value
       ARoundOutputs := LParentOutputs;
       Exit(True);
@@ -634,22 +662,15 @@ begin
     LNumNeighbours := (LGen.NextUInt32 MOD (MAX_J - MIN_J)) + MIN_J;
     for i := 1 to LNumNeighbours do begin
       LNeighbourNonceHeader := SetLastDWordLE(ABlockHeader, LGen.NextUInt32); // change nonce
-      LNeighbourWasLastRound := CalculateRoundOutputs(LNeighbourNonceHeader, ARound - 1, LNeighborOutputs);
+      LNeighbourWasLastRound := CalculateRoundOutputs(LNeighbourNonceHeader, ARound - 1, nil, LNeighborOutputs);
       LRoundOutputs.AddRange(LNeighborOutputs);
 
       // If neighbour was a fully evaluated nonce, cache it for re-use
-      if FEnableCaching AND LNeighbourWasLastRound then begin
-        LCachedHash.Nonce := GetLastDWordLE(LNeighbourNonceHeader);
-        LCachedHash.Header := LNeighbourNonceHeader;
-        LCachedHash.Hash := ComputeVeneerRound(LNeighborOutputs);
-        // if header is different (other than nonce), clear cache
-        if NOT BytesEqual(FCachedHeaderTemplate, LCachedHash.Header, 0, 32 - 4) then begin
-          FCachedHashes.Clear;
-          FCachedHeaderTemplate := SetLastDWordLE(LCachedHash.Header, 0);
-        end;
-
-        FCachedHashes.Add(LCachedHash);
-      end;
+      if FEnableCaching then 
+        if LNeighbourWasLastRound then
+          FCache.AddFullyComputed(LNeighbourNonceHeader, ARound - 1, ComputeVeneerRound(LNeighborOutputs) )
+        else
+          FCache.AddPartiallyComputed(LNeighbourNonceHeader, ARound - 1, LNeighborOutputs );
     end;
     // Compress the parent/neighbouring outputs to form this rounds input
     LRoundInput := Compress( LRoundOutputs.ToArray, LGen.NextUInt32 );
@@ -880,32 +901,134 @@ begin
     ABuffer[AWriteStart + i] := TBits.RotateRight8(ABuffer[AReadStart + i], ALength - i);
 end;
 
-function TRandomHash2Fast.GetCachedHashes : TArray<TCachedHash>;
-begin
-  Result := FCachedHashes.ToArray;
-end;
-
-function TRandomHash2Fast.HasCachedHash : Boolean;
-begin
-  Result := FCachedHashes.Count > 0;
-end;
-
-function TRandomHash2Fast.PopCachedHash : TCachedHash;
-begin
-  Result := FCachedHashes.Last;
-  FCachedHashes.Delete(FCachedHashes.Count - 1);
-end;
-
-function TRandomHash2Fast.PeekCachedHash : TCachedHash;
-begin
-  Result := FCachedHashes.Last;
-end;
-
 function TRandomHash2Fast.ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes;
 begin
   SetLength(Result, Length(AChunk1) + Length(AChunk2));
   Move(AChunk1[0], Result[0], Length(AChunk1));
   Move(AChunk2[0], Result[Length(AChunk1)], Length(AChunk2));
 end;
+
+{ TRandomHash2Fast.TCache }
+
+constructor TRandomHash2Fast.TCache.Create;
+var i : Integer;
+begin
+  FEnablePartiallyComputed := false;
+  FComputed := TList<TCachedHash>.Create;
+  FComputed.Capacity := 100;
+  SetLength(Self.FHeaderTemplate, 0);
+  FPartiallyComputed := TList<TCachedHash>.Create;
+  FPartiallyComputed.Capacity := 1000;
+end;
+
+destructor TRandomHash2Fast.TCache.Destroy;
+var i : Integer;
+begin
+  FComputed.Clear;
+  FreeAndNil(FComputed);
+  FPartiallyComputed.Clear;
+  FreeAndNil(FPartiallyComputed);
+end;
+
+procedure TRandomHash2Fast.TCache.AddPartiallyComputed(const AHeader : TBytes; ALevel : Integer; const AOutputs : TArray<TBytes>);
+var
+  LItem : TCachedHash;
+begin
+  PreProcessNewHash(AHeader);
+  if NOT FEnablePartiallyComputed then
+    Exit;
+
+  // Only keep 10 level 3's partially calculated
+  if (ALevel < 3) OR (FPartiallyComputed.Count > 10) then Exit;
+    
+  LItem.Nonce := GetLastDWordLE(AHeader);
+  LItem.Header := AHeader;  
+  LItem.Level := ALevel;
+  LItem.RoundOutputs := AOutputs;
+  FPartiallyComputed.Add(LItem);
+end;
+
+procedure TRandomHash2Fast.TCache.AddFullyComputed(const AHeader : TBytes; ALevel : Integer; const AHash : TBytes);
+var
+  LItem : TCachedHash;
+begin
+  PreProcessNewHash(AHeader);
+  LItem.Nonce := GetLastDWordLE(AHeader);
+  LItem.Header := AHeader;
+  LItem.Level := ALevel;
+  LItem.RoundOutputs := TArray<TBytes>.Create( AHash );
+  FComputed.Add(LItem);
+end;
+
+procedure TRandomHash2Fast.TCache.PreProcessNewHash(const AHeader : TBytes);
+var i : integer;
+begin
+  // if header is a new template, flush cache
+  if NOT BytesEqual(FHeaderTemplate, AHeader, 0, 32 - 4) then begin
+    FComputed.Clear;
+    FComputed.Capacity := 100;    
+    FPartiallyComputed.Clear;
+    FPartiallyComputed.Capacity := 1000;
+    FHeaderTemplate := SetLastDWordLE(AHeader, 0);
+  end;  
+end;
+     
+function TRandomHash2Fast.TCache.HasComputedHash : Boolean;
+begin
+  Result := FComputed.Count > 0;
+end;
+
+function TRandomHash2Fast.TCache.PopComputedHash : TCachedHash;
+begin
+  Result := FComputed.Last;
+  FComputed.Delete(FComputed.Count - 1);
+end;
+
+function TRandomHash2Fast.TCache.HasNextPartiallyComputedHash : boolean;
+begin
+  Result := FPartiallyComputed.Count > 0;
+end;
+
+function TRandomHash2Fast.TCache.PeekNextPartiallyComputedHash : TCachedHash;
+var i : Integer;
+begin
+  if FPartiallyComputed.Count > 0 then begin
+    Result := FPartiallyComputed[0];
+    Exit;
+  end;
+  raise Exception.Create('Cache is empty');
+end;
+
+function TRandomHash2Fast.TCache.PopNextPartiallyComputedHash : TCachedHash;
+var 
+  i : Integer;
+  LList : TList<TCachedHash>;
+begin
+  if FPartiallyComputed.Count > 0 then begin
+    Result := FPartiallyComputed[0];
+    FPartiallyComputed.Delete(0);
+    Exit;
+  end;
+  raise Exception.Create('Cache is empty');
+end;
+
+function TRandomHash2Fast.TCache.ComputeMemorySize : Integer;
+var 
+  i,j,k : Integer;
+  LList : TList<TCachedHash>;
+  LItem : TCachedHash;
+begin
+  Result := Length(FHeaderTemplate);
+  Inc(Result, FComputed.Count * (4 + 4 + 32));
+  for j := 0 to FPartiallyComputed.Count - 1 do begin
+    LItem := FPartiallyComputed[j];
+    Inc(Result, 4);
+    Inc(Result, 4);
+    Inc(Result, 32);            
+    for k := Low(LItem.RoundOutputs) to High(LItem.RoundOutputs) do
+      Inc(Result, Length(LItem.RoundOutputs[k])); 
+  end;
+end;
+
 
 end.

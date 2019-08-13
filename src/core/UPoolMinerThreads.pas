@@ -885,10 +885,10 @@ begin
                     LNonceResult.PoW := resultPoW;
                     LResultsToCheck.Add(LNonceResult);
                     Inc(LRoundsPerformed);
-                    while LRandomHasher2.HasCachedHash do begin
-                      LCachedItem := LRandomHasher2.PopCachedHash;
+                    while LRandomHasher2.Cache.HasComputedHash do begin
+                      LCachedItem := LRandomHasher2.Cache.PopComputedHash;
                       LNonceResult.Nonce := LCachedItem.Nonce;
-                      LNonceResult.PoW := LCachedItem.Hash;
+                      LNonceResult.PoW := LCachedItem.RoundOutputs[0];
                       LResultsToCheck.Add(LNonceResult);
                       Inc(LRoundsPerformed);
                     end;
