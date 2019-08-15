@@ -53,9 +53,9 @@ const
   );
 
   DATA_RANDOMHASH2_STANDARD_EXPECTED : array[1..3] of String = (
-    '0x1340164c73924ecdcff3866bd1a5c75c5c9f517c480336fa8189b2a4c2c745c3',
-    '0xe2ba36ce31ed3b01a5f254dfafb392f29b8eafef24c52fd0480c4db5b2d2e999',
-    '0x88624077976ac8327b38092fff01428125d914b98d76b5c9270177ec105a6976'
+    '0x76821dd68e384bdc2a69fea66a70191c1d7df5799bddc70f2dfaaeda2393899b',
+    '0x65ec5370f913497abc57621e9b6703b51d541a320ac2422a51c16e48d0d1fc05',
+    '0xfabbfcd96c9ef4734bd82d59bfa4bc9c0ff389a53c7c247abb1c1c1794e6dea8'
   );
 
 { TRandomHash2Test }
@@ -117,9 +117,9 @@ begin
 
   for i := 1 to 100 do begin
     LBuff := LHasher.Hash(LBuff);
-    while LHasher.HasCachedHash do begin
-      LCachedHash := LHasher.PopCachedHash;
-      AssertEquals(TRandomHash2Fast.Compute(LCachedHash.Header), LCachedHash.Hash);
+    while LHasher.Cache.HasComputedHash do begin
+      LCachedHash := LHasher.Cache.PopComputedHash;
+      AssertEquals(TRandomHash2Fast.Compute(LCachedHash.Header), LCachedHash.RoundOutputs[0]);
     end;
   end;
 end;
@@ -174,9 +174,9 @@ begin
   LHasher2 := LDisposables.AddObject( TRandomHash2Fast.Create ) as TRandomHash2Fast;
 
 
-  for LStartPad := 0 to 5 do
-    for LEndPad := 0 to 5 do begin
-      for LTransformAmount := 4 to 10 do begin
+  for LStartPad := 0 to 3 do
+    for LEndPad := 0 to 3 do begin
+      for LTransformAmount := 4 to 7 do begin
         // Ref
         LInput := TRandomHash.Compute( LInput );
         SetLength(LInput, LTransformAmount);

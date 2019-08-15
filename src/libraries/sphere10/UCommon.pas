@@ -52,6 +52,7 @@ function BinStrComp(const Str1, Str2 : String): Integer; // Binary-safe StrComp 
 function BytesCompare(const ABytes1, ABytes2: TBytes): integer;
 function BytesEqual(const ABytes1, ABytes2 : TBytes) : boolean; overload; inline;
 function BytesEqual(const ABytes1, ABytes2 : TBytes; AFrom, ALength : UInt32) : boolean; overload; inline;
+function ContencateBytes(const AChunk1, AChunk2: TBytes): TBytes; inline;
 function SetLastDWordLE(const ABytes: TBytes; AValue: UInt32): TBytes;
 function GetLastDWordLE(const ABytes: TBytes) : UInt32;
 function GetDWordLE(const ABytes: TBytes; AOffset : Integer) : UInt32;
@@ -395,13 +396,21 @@ type
       class function NumericBetweenExclusive(const AValue, Lower, Upper : Variant) : boolean;
   end;
 
-  { TFileStreamHelper }
+  { TStreamHelper }
 
-  TFileStreamHelper = class helper for TFileStream
+  TStreamHelper = class helper for TStream
     {$IFNDEF FPC}
     procedure WriteString(const AString : String);
     {$ENDIF}
+    function ReadBytes(ACount : Int32) : TBytes; inline;
   end;
+
+  { TMemoryStreamHelper }
+
+   TMemoryStreamHelper = class helper for TMemoryStream
+     function ToBytes(ASize : Integer = -1) : TBytes; inline;
+   end;
+
 
   { TFileTool }
 
@@ -642,6 +651,13 @@ begin
   if ((ABytes1Len - AFrom) < ALength) OR ((ABytes2Len - AFrom) < ALength ) then
     Exit(False);
   Result := CompareMem(@ABytes1[AFrom], @ABytes2[AFrom], ALength);
+end;
+
+function ContencateBytes(const AChunk1, AChunk2: TBytes): TBytes;
+begin
+  SetLength(Result, Length(AChunk1) + Length(AChunk2));
+  Move(AChunk1[0], Result[0], Length(AChunk1));
+  Move(AChunk2[0], Result[Length(AChunk1)], Length(AChunk2));
 end;
 
 function SetLastDWordLE(const ABytes: TBytes; AValue: UInt32): TBytes;
@@ -2066,13 +2082,34 @@ begin
   Result := (lowercmp = 1) AND (uppercmp = -1);
 end;
 
-{ TFileStreamHelper }
+{ TStreamHelper }
+
 {$IFNDEF FPC}
-procedure TFileStreamHelper.WriteString(const AString : String);
+procedure TStreamHelper.WriteString(const AString : String);
 begin
    Self.WriteBuffer(Pointer(AString)^, Length(AString));
 end;
 {$ENDIF}
+
+function TStreamHelper.ReadBytes(ACount : Int32) : TBytes;
+begin
+  SetLength(Result, ACount);
+  Read(Result, ACount);
+end;
+
+{ TMemoryStreamHelper }
+
+function TMemoryStreamHelper.ToBytes(ASize : Integer = -1) : TBytes;
+var
+  LTakeAmount : Integer;
+begin
+  if ASize < 0 then
+    LTakeAmount := Self.Size
+  else
+    LTakeAmount := ASize;
+  SetLength(Result, LTakeAmount);
+  Move(Self.Memory^, Result[0], LTakeAmount);
+end;
 
 { TFileTool }
 

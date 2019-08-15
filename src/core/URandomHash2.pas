@@ -1,6 +1,6 @@
 ﻿unit URandomHash2;
 
-{ Copyright (c) 2018 by Herman Schoenfeld
+{ Copyright (c) 2019 by Herman Schoenfeld
 
   RandomHash2 Reference Implementation
 
@@ -110,14 +110,12 @@ type
       MIN_J = 1; // Min-number of dependent neighbouring nonces required to evaluate a nonce round
       MAX_J = 8; // Max-number of dependent neighbouring nonces required to evaluate a nonce round
       M = 64;    // The memory expansion unit (in bytes)
-      NUM_HASH_ALGO = 18;
+      NUM_HASH_ALGO = 77;
+      SHA2_256_IX = 47;
 
     {$IFNDEF UNITTESTS}private{$ELSE}public{$ENDIF}
-      FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
-      FMemStats : TStatistics;
-      FCaptureMemStats : Boolean;
+      FHashAlg : array[0..NUM_HASH_ALGO-1] of IHash;  // declared here to avoid race-condition during mining
 
-      function ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes; inline;
       function MemTransform1(const AChunk: TBytes): TBytes; inline;
       function MemTransform2(const AChunk: TBytes): TBytes; inline;
       function MemTransform3(const AChunk: TBytes): TBytes; inline;
@@ -133,7 +131,6 @@ type
     public
       constructor Create;
       destructor Destroy; override;
-      property CaptureMemStats : Boolean read FCaptureMemStats write FCaptureMemStats;
       function TryHash(const ABlockHeader: TBytes; AMaxRound : UInt32; out AHash : TBytes) : Boolean;
       function Hash(const ABlockHeader: TBytes): TBytes; overload; inline;
       class function Compute(const ABlockHeader: TBytes): TBytes; overload; static; inline;
@@ -148,8 +145,8 @@ type
       MIN_J = 1; // Min-number of dependent neighbouring nonces required to evaluate a nonce round
       MAX_J = 8; // Max-number of dependent neighbouring nonces required to evaluate a nonce round
       M = 64;    // The memory expansion unit (in bytes)
-      NUM_HASH_ALGO = 18;
-
+      NUM_HASH_ALGO = 77;
+      SHA2_256_IX = 47;
       public type
 
         TCachedHash = record
@@ -166,29 +163,29 @@ type
             FHeaderTemplate : TBytes;
             FComputed : TList<TCachedHash>;
             FPartiallyComputed : TList<TCachedHash>;
-            procedure PreProcessNewHash(const AHeader : TBytes);            
+            procedure PreProcessNewHash(const AHeader : TBytes);
           public
             constructor Create;
             destructor Destroy;
             property EnablePartiallyComputed : boolean read FEnablePartiallyComputed write FEnablePartiallyComputed;
             procedure AddPartiallyComputed(const AHeader : TBytes; ALevel : Integer; const AOutputs : TArray<TBytes>); inline;
             procedure AddFullyComputed(const AHeader : TBytes; ALevel : Integer; const AHash : TBytes); inline;
+            procedure Clear;
             function HasComputedHash : Boolean; inline;
             function PopComputedHash : TCachedHash; inline;
-            function HasNextPartiallyComputedHash : Boolean; inline; 
+            function HasNextPartiallyComputedHash : Boolean; inline;
             function PeekNextPartiallyComputedHash : TCachedHash; inline;
             function PopNextPartiallyComputedHash : TCachedHash; inline;
             function ComputeMemorySize : Integer;
         end;
 
     {$IFNDEF UNITTESTS}private{$ELSE}public{$ENDIF}
-      FHashAlg : array[0..17] of IHash;  // declared here to avoid race-condition during mining
+      FHashAlg : array[0..NUM_HASH_ALGO-1] of IHash;  // declared here to avoid race-condition during mining
       FCache : TCache;
       FMemStats : TStatistics;
       FCaptureMemStats : Boolean;
       FEnableCaching : Boolean;
 
-      function ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes; inline;
       procedure MemTransform1(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
       procedure MemTransform2(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
       procedure MemTransform3(var ABuffer: TBytes; AReadStart, AWriteStart, ALength : Integer); inline;
@@ -233,25 +230,83 @@ uses UMemory, URandomHash;
 
 constructor TRandomHash2.Create;
 begin
-  FHashAlg[0] := THashFactory.TCrypto.CreateSHA2_256();
-  FHashAlg[1] := THashFactory.TCrypto.CreateSHA2_384();
-  FHashAlg[2] := THashFactory.TCrypto.CreateSHA2_512();
-  FHashAlg[3] := THashFactory.TCrypto.CreateSHA3_256();
-  FHashAlg[4] := THashFactory.TCrypto.CreateSHA3_384();
-  FHashAlg[5] := THashFactory.TCrypto.CreateSHA3_512();
-  FHashAlg[6] := THashFactory.TCrypto.CreateRIPEMD160();
-  FHashAlg[7] := THashFactory.TCrypto.CreateRIPEMD256();
-  FHashAlg[8] := THashFactory.TCrypto.CreateRIPEMD320();
-  FHashAlg[9] := THashFactory.TCrypto.CreateBlake2B_512();
-  FHashAlg[10] := THashFactory.TCrypto.CreateBlake2S_256();
-  FHashAlg[11] := THashFactory.TCrypto.CreateTiger2_5_192();
-  FHashAlg[12] := THashFactory.TCrypto.CreateSnefru_8_256();
-  FHashAlg[13] := THashFactory.TCrypto.CreateGrindahl512();
-  FHashAlg[14] := THashFactory.TCrypto.CreateHaval_5_256();
-  FHashAlg[15] := THashFactory.TCrypto.CreateMD5();
-  FHashAlg[16] := THashFactory.TCrypto.CreateRadioGatun32();
-  FHashAlg[17] := THashFactory.TCrypto.CreateWhirlPool();
-  FMemStats.Reset;
+  FHashAlg[0] := THashFactory.TCrypto.CreateBlake2B_160();
+  FHashAlg[1] := THashFactory.TCrypto.CreateBlake2B_256();
+  FHashAlg[2] := THashFactory.TCrypto.CreateBlake2B_512();
+  FHashAlg[3] := THashFactory.TCrypto.CreateBlake2B_384();
+  FHashAlg[4] := THashFactory.TCrypto.CreateBlake2S_128();
+  FHashAlg[5] := THashFactory.TCrypto.CreateBlake2S_160();
+  FHashAlg[6] := THashFactory.TCrypto.CreateBlake2S_224();
+  FHashAlg[7] := THashFactory.TCrypto.CreateBlake2S_256();
+  FHashAlg[8] := THashFactory.TCrypto.CreateGost();
+  FHashAlg[9] := THashFactory.TCrypto.CreateGOST3411_2012_256();
+  FHashAlg[10] := THashFactory.TCrypto.CreateGOST3411_2012_512();
+  FHashAlg[11] := THashFactory.TCrypto.CreateGrindahl256();
+  FHashAlg[12] := THashFactory.TCrypto.CreateGrindahl512();
+  FHashAlg[13] := THashFactory.TCrypto.CreateHAS160();
+  FHashAlg[14] := THashFactory.TCrypto.CreateHaval_3_128();
+  FHashAlg[15] := THashFactory.TCrypto.CreateHaval_3_160();
+  FHashAlg[16] := THashFactory.TCrypto.CreateHaval_3_192();
+  FHashAlg[17] := THashFactory.TCrypto.CreateHaval_3_224();
+  FHashAlg[18] := THashFactory.TCrypto.CreateHaval_3_256();
+  FHashAlg[19] := THashFactory.TCrypto.CreateHaval_4_128();
+  FHashAlg[20] := THashFactory.TCrypto.CreateHaval_4_160();
+  FHashAlg[21] := THashFactory.TCrypto.CreateHaval_4_192();
+  FHashAlg[22] := THashFactory.TCrypto.CreateHaval_4_224();
+  FHashAlg[23] := THashFactory.TCrypto.CreateHaval_4_256();
+  FHashAlg[24] := THashFactory.TCrypto.CreateHaval_5_128();
+  FHashAlg[25] := THashFactory.TCrypto.CreateHaval_5_160();
+  FHashAlg[26] := THashFactory.TCrypto.CreateHaval_5_192();
+  FHashAlg[27] := THashFactory.TCrypto.CreateHaval_5_224();
+  FHashAlg[28] := THashFactory.TCrypto.CreateHaval_5_256();
+  FHashAlg[29] := THashFactory.TCrypto.CreateKeccak_224();
+  FHashAlg[30] := THashFactory.TCrypto.CreateKeccak_256();
+  FHashAlg[31] := THashFactory.TCrypto.CreateKeccak_288();
+  FHashAlg[32] := THashFactory.TCrypto.CreateKeccak_384();
+  FHashAlg[33] := THashFactory.TCrypto.CreateKeccak_512();
+  FHashAlg[34] := THashFactory.TCrypto.CreateMD2();
+  FHashAlg[35] := THashFactory.TCrypto.CreateMD5();
+  FHashAlg[36] := THashFactory.TCrypto.CreateMD4();
+  FHashAlg[37] := THashFactory.TCrypto.CreatePanama();
+  FHashAlg[38] := THashFactory.TCrypto.CreateRadioGatun32();
+  FHashAlg[39] := THashFactory.TCrypto.CreateRIPEMD();
+  FHashAlg[40] := THashFactory.TCrypto.CreateRIPEMD128();
+  FHashAlg[41] := THashFactory.TCrypto.CreateRIPEMD160();
+  FHashAlg[42] := THashFactory.TCrypto.CreateRIPEMD256();
+  FHashAlg[43] := THashFactory.TCrypto.CreateRIPEMD320();
+  FHashAlg[44] := THashFactory.TCrypto.CreateSHA0();
+  FHashAlg[45] := THashFactory.TCrypto.CreateSHA1();
+  FHashAlg[46] := THashFactory.TCrypto.CreateSHA2_224();
+  FHashAlg[47] := THashFactory.TCrypto.CreateSHA2_256();
+  FHashAlg[48] := THashFactory.TCrypto.CreateSHA2_384();
+  FHashAlg[49] := THashFactory.TCrypto.CreateSHA2_512();
+  FHashAlg[50] := THashFactory.TCrypto.CreateSHA2_512_224();
+  FHashAlg[51] := THashFactory.TCrypto.CreateSHA2_512_256();
+  FHashAlg[52] := THashFactory.TCrypto.CreateSHA3_224();
+  FHashAlg[53] := THashFactory.TCrypto.CreateSHA3_256();
+  FHashAlg[54] := THashFactory.TCrypto.CreateSHA3_384();
+  FHashAlg[55] := THashFactory.TCrypto.CreateSHA3_512();
+  FHashAlg[56] := THashFactory.TCrypto.CreateSnefru_8_128();
+  FHashAlg[57] := THashFactory.TCrypto.CreateSnefru_8_256();
+  FHashAlg[58] := THashFactory.TCrypto.CreateTiger_3_128();
+  FHashAlg[59] := THashFactory.TCrypto.CreateTiger_3_160();
+  FHashAlg[60] := THashFactory.TCrypto.CreateTiger_3_192();
+  FHashAlg[61] := THashFactory.TCrypto.CreateTiger_4_128();
+  FHashAlg[62] := THashFactory.TCrypto.CreateTiger_4_160();
+  FHashAlg[63] := THashFactory.TCrypto.CreateTiger_4_192();
+  FHashAlg[64] := THashFactory.TCrypto.CreateTiger_5_128();
+  FHashAlg[65] := THashFactory.TCrypto.CreateTiger_5_160();
+  FHashAlg[66] := THashFactory.TCrypto.CreateTiger_5_192();
+  FHashAlg[67] := THashFactory.TCrypto.CreateTiger2_3_128();
+  FHashAlg[68] := THashFactory.TCrypto.CreateTiger2_3_160();
+  FHashAlg[69] := THashFactory.TCrypto.CreateTiger2_3_192();
+  FHashAlg[70] := THashFactory.TCrypto.CreateTiger2_4_128();
+  FHashAlg[71] := THashFactory.TCrypto.CreateTiger2_4_160();
+  FHashAlg[72] := THashFactory.TCrypto.CreateTiger2_4_192();
+  FHashAlg[73] := THashFactory.TCrypto.CreateTiger2_5_128();
+  FHashAlg[74] := THashFactory.TCrypto.CreateTiger2_5_160();
+  FHashAlg[75] := THashFactory.TCrypto.CreateTiger2_5_192();
+  FHashAlg[76] := THashFactory.TCrypto.CreateWhirlPool();
 end;
 
 destructor TRandomHash2.Destroy;
@@ -294,7 +349,7 @@ var
 begin
   LSeed := GetLastDWordLE(ARoundOutputs[High(ARoundOutputs)]);
   // Final "veneer" round of RandomHash is a SHA2-256 of compression of prior round outputs
-  Result := FHashAlg[0].ComputeBytes(Compress(ARoundOutputs, LSeed)).GetBytes;
+  Result := FHashAlg[SHA2_256_IX].ComputeBytes(Compress(ARoundOutputs, LSeed)).GetBytes;
 end;
 
 function TRandomHash2.CalculateRoundOutputs(const ABlockHeader: TBytes; ARound: Int32; out ARoundOutputs : TArray<TBytes>) : Boolean;
@@ -316,7 +371,7 @@ begin
   LRoundOutputs := LDisposables.AddObject( TList<TBytes>.Create() ) as TList<TBytes>;
   LGen := LDisposables.AddObject( TMersenne32.Create(0) ) as TMersenne32;
   if ARound = 1 then begin
-    LRoundInput := FHashAlg[0].ComputeBytes(ABlockHeader).GetBytes;
+    LRoundInput := FHashAlg[SHA2_256_IX].ComputeBytes(ABlockHeader).GetBytes;
     LSeed := GetLastDWordLE( LRoundInput );
     LGen.Initialize(LSeed);
   end else begin
@@ -392,14 +447,14 @@ begin
 
     LRandom := LGen.NextUInt32;
     case LRandom mod 8 of
-      0: LOutput := ContencateByteArrays(LOutput, MemTransform1(LNextChunk));
-      1: LOutput := ContencateByteArrays(LOutput, MemTransform2(LNextChunk));
-      2: LOutput := ContencateByteArrays(LOutput, MemTransform3(LNextChunk));
-      3: LOutput := ContencateByteArrays(LOutput, MemTransform4(LNextChunk));
-      4: LOutput := ContencateByteArrays(LOutput, MemTransform5(LNextChunk));
-      5: LOutput := ContencateByteArrays(LOutput, MemTransform6(LNextChunk));
-      6: LOutput := ContencateByteArrays(LOutput, MemTransform7(LNextChunk));
-      7: LOutput := ContencateByteArrays(LOutput, MemTransform8(LNextChunk));
+      0: LOutput := ContencateBytes(LOutput, MemTransform1(LNextChunk));
+      1: LOutput := ContencateBytes(LOutput, MemTransform2(LNextChunk));
+      2: LOutput := ContencateBytes(LOutput, MemTransform3(LNextChunk));
+      3: LOutput := ContencateBytes(LOutput, MemTransform4(LNextChunk));
+      4: LOutput := ContencateBytes(LOutput, MemTransform5(LNextChunk));
+      5: LOutput := ContencateBytes(LOutput, MemTransform6(LNextChunk));
+      6: LOutput := ContencateBytes(LOutput, MemTransform7(LNextChunk));
+      7: LOutput := ContencateBytes(LOutput, MemTransform8(LNextChunk));
     end;
     LBytesToAdd := LBytesToAdd - Length(LNextChunk);
   end;
@@ -522,12 +577,6 @@ begin
     Result[i] := TBits.RotateRight8(AChunk[i], LChunkLength - i);
 end;
 
-function TRandomHash2.ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes;
-begin
-  SetLength(Result, Length(AChunk1) + Length(AChunk2));
-  Move(AChunk1[0], Result[0], Length(AChunk1));
-  Move(AChunk2[0], Result[Length(AChunk1)], Length(AChunk2));
-end;
 
 { TRandomHash2Fast }
 
@@ -535,30 +584,91 @@ constructor TRandomHash2Fast.Create;
 begin
   FEnableCaching := False;
   FCache := TCache.Create;
-  FHashAlg[0] := THashFactory.TCrypto.CreateSHA2_256();
-  FHashAlg[1] := THashFactory.TCrypto.CreateSHA2_384();
-  FHashAlg[2] := THashFactory.TCrypto.CreateSHA2_512();
-  FHashAlg[3] := THashFactory.TCrypto.CreateSHA3_256();
-  FHashAlg[4] := THashFactory.TCrypto.CreateSHA3_384();
-  FHashAlg[5] := THashFactory.TCrypto.CreateSHA3_512();
-  FHashAlg[6] := THashFactory.TCrypto.CreateRIPEMD160();
-  FHashAlg[7] := THashFactory.TCrypto.CreateRIPEMD256();
-  FHashAlg[8] := THashFactory.TCrypto.CreateRIPEMD320();
-  FHashAlg[9] := THashFactory.TCrypto.CreateBlake2B_512();
-  FHashAlg[10] := THashFactory.TCrypto.CreateBlake2S_256();
-  FHashAlg[11] := THashFactory.TCrypto.CreateTiger2_5_192();
-  FHashAlg[12] := THashFactory.TCrypto.CreateSnefru_8_256();
-  FHashAlg[13] := THashFactory.TCrypto.CreateGrindahl512();
-  FHashAlg[14] := THashFactory.TCrypto.CreateHaval_5_256();
-  FHashAlg[15] := THashFactory.TCrypto.CreateMD5();
-  FHashAlg[16] := THashFactory.TCrypto.CreateRadioGatun32();
-  FHashAlg[17] := THashFactory.TCrypto.CreateWhirlPool();
+  FHashAlg[0] := THashFactory.TCrypto.CreateBlake2B_160();
+  FHashAlg[1] := THashFactory.TCrypto.CreateBlake2B_256();
+  FHashAlg[2] := THashFactory.TCrypto.CreateBlake2B_512();
+  FHashAlg[3] := THashFactory.TCrypto.CreateBlake2B_384();
+  FHashAlg[4] := THashFactory.TCrypto.CreateBlake2S_128();
+  FHashAlg[5] := THashFactory.TCrypto.CreateBlake2S_160();
+  FHashAlg[6] := THashFactory.TCrypto.CreateBlake2S_224();
+  FHashAlg[7] := THashFactory.TCrypto.CreateBlake2S_256();
+  FHashAlg[8] := THashFactory.TCrypto.CreateGost();
+  FHashAlg[9] := THashFactory.TCrypto.CreateGOST3411_2012_256();
+  FHashAlg[10] := THashFactory.TCrypto.CreateGOST3411_2012_512();
+  FHashAlg[11] := THashFactory.TCrypto.CreateGrindahl256();
+  FHashAlg[12] := THashFactory.TCrypto.CreateGrindahl512();
+  FHashAlg[13] := THashFactory.TCrypto.CreateHAS160();
+  FHashAlg[14] := THashFactory.TCrypto.CreateHaval_3_128();
+  FHashAlg[15] := THashFactory.TCrypto.CreateHaval_3_160();
+  FHashAlg[16] := THashFactory.TCrypto.CreateHaval_3_192();
+  FHashAlg[17] := THashFactory.TCrypto.CreateHaval_3_224();
+  FHashAlg[18] := THashFactory.TCrypto.CreateHaval_3_256();
+  FHashAlg[19] := THashFactory.TCrypto.CreateHaval_4_128();
+  FHashAlg[20] := THashFactory.TCrypto.CreateHaval_4_160();
+  FHashAlg[21] := THashFactory.TCrypto.CreateHaval_4_192();
+  FHashAlg[22] := THashFactory.TCrypto.CreateHaval_4_224();
+  FHashAlg[23] := THashFactory.TCrypto.CreateHaval_4_256();
+  FHashAlg[24] := THashFactory.TCrypto.CreateHaval_5_128();
+  FHashAlg[25] := THashFactory.TCrypto.CreateHaval_5_160();
+  FHashAlg[26] := THashFactory.TCrypto.CreateHaval_5_192();
+  FHashAlg[27] := THashFactory.TCrypto.CreateHaval_5_224();
+  FHashAlg[28] := THashFactory.TCrypto.CreateHaval_5_256();
+  FHashAlg[29] := THashFactory.TCrypto.CreateKeccak_224();
+  FHashAlg[30] := THashFactory.TCrypto.CreateKeccak_256();
+  FHashAlg[31] := THashFactory.TCrypto.CreateKeccak_288();
+  FHashAlg[32] := THashFactory.TCrypto.CreateKeccak_384();
+  FHashAlg[33] := THashFactory.TCrypto.CreateKeccak_512();
+  FHashAlg[34] := THashFactory.TCrypto.CreateMD2();
+  FHashAlg[35] := THashFactory.TCrypto.CreateMD5();
+  FHashAlg[36] := THashFactory.TCrypto.CreateMD4();
+  FHashAlg[37] := THashFactory.TCrypto.CreatePanama();
+  FHashAlg[38] := THashFactory.TCrypto.CreateRadioGatun32();
+  FHashAlg[39] := THashFactory.TCrypto.CreateRIPEMD();
+  FHashAlg[40] := THashFactory.TCrypto.CreateRIPEMD128();
+  FHashAlg[41] := THashFactory.TCrypto.CreateRIPEMD160();
+  FHashAlg[42] := THashFactory.TCrypto.CreateRIPEMD256();
+  FHashAlg[43] := THashFactory.TCrypto.CreateRIPEMD320();
+  FHashAlg[44] := THashFactory.TCrypto.CreateSHA0();
+  FHashAlg[45] := THashFactory.TCrypto.CreateSHA1();
+  FHashAlg[46] := THashFactory.TCrypto.CreateSHA2_224();
+  FHashAlg[47] := THashFactory.TCrypto.CreateSHA2_256();
+  FHashAlg[48] := THashFactory.TCrypto.CreateSHA2_384();
+  FHashAlg[49] := THashFactory.TCrypto.CreateSHA2_512();
+  FHashAlg[50] := THashFactory.TCrypto.CreateSHA2_512_224();
+  FHashAlg[51] := THashFactory.TCrypto.CreateSHA2_512_256();
+  FHashAlg[52] := THashFactory.TCrypto.CreateSHA3_224();
+  FHashAlg[53] := THashFactory.TCrypto.CreateSHA3_256();
+  FHashAlg[54] := THashFactory.TCrypto.CreateSHA3_384();
+  FHashAlg[55] := THashFactory.TCrypto.CreateSHA3_512();
+  FHashAlg[56] := THashFactory.TCrypto.CreateSnefru_8_128();
+  FHashAlg[57] := THashFactory.TCrypto.CreateSnefru_8_256();
+  FHashAlg[58] := THashFactory.TCrypto.CreateTiger_3_128();
+  FHashAlg[59] := THashFactory.TCrypto.CreateTiger_3_160();
+  FHashAlg[60] := THashFactory.TCrypto.CreateTiger_3_192();
+  FHashAlg[61] := THashFactory.TCrypto.CreateTiger_4_128();
+  FHashAlg[62] := THashFactory.TCrypto.CreateTiger_4_160();
+  FHashAlg[63] := THashFactory.TCrypto.CreateTiger_4_192();
+  FHashAlg[64] := THashFactory.TCrypto.CreateTiger_5_128();
+  FHashAlg[65] := THashFactory.TCrypto.CreateTiger_5_160();
+  FHashAlg[66] := THashFactory.TCrypto.CreateTiger_5_192();
+  FHashAlg[67] := THashFactory.TCrypto.CreateTiger2_3_128();
+  FHashAlg[68] := THashFactory.TCrypto.CreateTiger2_3_160();
+  FHashAlg[69] := THashFactory.TCrypto.CreateTiger2_3_192();
+  FHashAlg[70] := THashFactory.TCrypto.CreateTiger2_4_128();
+  FHashAlg[71] := THashFactory.TCrypto.CreateTiger2_4_160();
+  FHashAlg[72] := THashFactory.TCrypto.CreateTiger2_4_192();
+  FHashAlg[73] := THashFactory.TCrypto.CreateTiger2_5_128();
+  FHashAlg[74] := THashFactory.TCrypto.CreateTiger2_5_160();
+  FHashAlg[75] := THashFactory.TCrypto.CreateTiger2_5_192();
+  FHashAlg[76] := THashFactory.TCrypto.CreateWhirlPool();
   FMemStats.Reset;
 end;
 
 destructor TRandomHash2Fast.Destroy;
 var i : integer;
 begin
+  for i := Low(FHashAlg) to High(FHashAlg) do
+    FHashAlg[i] := nil;
  FCache.Destroy;
  inherited Destroy;
 end;
@@ -607,7 +717,7 @@ var
 begin
   LSeed := GetLastDWordLE(ARoundOutputs[High(ARoundOutputs)]);
   // Final "veneer" round of RandomHash is a SHA2-256 of compression of prior round outputs
-  Result := FHashAlg[0].ComputeBytes(Compress(ARoundOutputs, LSeed)).GetBytes;
+  Result := FHashAlg[SHA2_256_IX].ComputeBytes(Compress(ARoundOutputs, LSeed)).GetBytes;
   if FCaptureMemStats then begin
     LSize := 0;
     for i :=  Low(ARoundOutputs) to High(ARoundOutputs) do
@@ -643,7 +753,7 @@ begin
   LRoundOutputs := LDisposables.AddObject( TList<TBytes>.Create() ) as TList<TBytes>;
   LGen := LDisposables.AddObject( TMersenne32.Create(0) ) as TMersenne32;
   if ARound = 1 then begin
-    LRoundInput := FHashAlg[0].ComputeBytes(ABlockHeader).GetBytes;
+    LRoundInput := FHashAlg[SHA2_256_IX].ComputeBytes(ABlockHeader).GetBytes;
     LSeed := GetLastDWordLE( LRoundInput );
     LGen.Initialize(LSeed);
   end else begin
@@ -901,12 +1011,6 @@ begin
     ABuffer[AWriteStart + i] := TBits.RotateRight8(ABuffer[AReadStart + i], ALength - i);
 end;
 
-function TRandomHash2Fast.ContencateByteArrays(const AChunk1, AChunk2: TBytes): TBytes;
-begin
-  SetLength(Result, Length(AChunk1) + Length(AChunk2));
-  Move(AChunk1[0], Result[0], Length(AChunk1));
-  Move(AChunk2[0], Result[Length(AChunk1)], Length(AChunk2));
-end;
 
 { TRandomHash2Fast.TCache }
 
@@ -965,14 +1069,20 @@ var i : integer;
 begin
   // if header is a new template, flush cache
   if NOT BytesEqual(FHeaderTemplate, AHeader, 0, 32 - 4) then begin
-    FComputed.Clear;
-    FComputed.Capacity := 100;    
-    FPartiallyComputed.Clear;
-    FPartiallyComputed.Capacity := 1000;
+    Clear;
     FHeaderTemplate := SetLastDWordLE(AHeader, 0);
   end;  
 end;
-     
+
+procedure TRandomHash2Fast.TCache.Clear;
+begin
+  FComputed.Clear;
+  FComputed.Capacity := 100;
+  FPartiallyComputed.Clear;
+  FPartiallyComputed.Capacity := 1000;
+  SetLength(FHeaderTemplate, 0);
+end;
+
 function TRandomHash2Fast.TCache.HasComputedHash : Boolean;
 begin
   Result := FComputed.Count > 0;

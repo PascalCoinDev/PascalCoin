@@ -802,7 +802,7 @@ Var
   LRoundJobNum : Integer;
   AuxStats : TMinerStats;
   dstep : Integer;
-  LUseRandomHash : boolean;
+  LUseRandomHash, LUseCachedHash : boolean;
   LRandomHasher : TRandomHashFast;
   LRandomHasher2 : TRandomHash2Fast;
   LCachedItem : TRandomHash2Fast.TCachedHash;
@@ -818,6 +818,8 @@ begin
   LRandomHasher2 := LDisposables.AddObject( TRandomHash2Fast.Create ) as TRandomHash2Fast;
   LResultsToCheck := LDisposables.AddObject( TList<TNonceResult>.Create ) as TList<TNonceResult>;
   LRandomHasher2.EnableCaching := True;
+  LRandomHasher2.Cache.EnablePartiallyComputed:=True;
+  LUseCachedHash := False;
   Try
     while (Not Terminated) And (Not FCPUDeviceThread.Terminated) do begin
       Try
@@ -848,14 +850,14 @@ begin
           // Timestamp
           ts := UnivDateTimeToUnix(DateTime2UnivDateTime(now));
           if ts<=FCurrentMinerValuesForWork.timestamp then ts := FCurrentMinerValuesForWork.timestamp+1;
-
           If FDigestStreamMsg.Size>8 then begin
             if FCPUDeviceThread.FUseOpenSSLFunctions OR LUseRandomHash then begin
 
               // update timestamp
               FDigestStreamMsg.Position:=FDigestStreamMsg.Size - 8;
               FDigestStreamMsg.Write(ts,4);
-
+              LRandomHasher2.Cache.Clear;
+              LUseCachedHash:=False;
               baseHashingTC:=TPlatform.GetTickCount;
               dstep := 4;
               LRoundJobNum := FJobNum;
@@ -879,8 +881,12 @@ begin
                     LResultsToCheck.Add(LNonceResult);
                     Inc(LRoundsPerformed);
                   end else begin
-                    // Note if > 1 then FDigestStreamMsg.Memory == LRandomHash2.CachedHashes[0].Header (needs to be for CPU optimization to work)
-                    TCrypto.DoRandomHash2(LRandomHasher2, FDigestStreamMsg.Memory, FDigestStreamMsg.Size, resultPoW);
+                    if LUseCachedHash then begin
+                      //if NOT BytesEqual(FDigestStreamMsg.ToBytes, LCachedItem.Header) then raise Exception.Create('Cache consistency bug');
+                      resultPow := LRandomHasher2.ResumeHash(LCachedItem);
+                      LUseCachedHash := False;
+                    end else
+                      resultPoW := LRandomHasher2.Hash(FDigestStreamMsg.ToBytes);
                     LNonceResult.Nonce := nonce;
                     LNonceResult.PoW := resultPoW;
                     LResultsToCheck.Add(LNonceResult);
@@ -920,11 +926,14 @@ begin
 
                 // select next nonce
                 if LUseRandomHash then begin
-                  if (FCurrentMinerValuesForWork.version < CT_PROTOCOL_5) then begin
-                    nonce := LRandomHasher.NextNonce;
-                  end else begin
+                  if (FCurrentMinerValuesForWork.version < CT_PROTOCOL_5) then
+                    nonce := LRandomHasher.NextNonce
+                  else if LRandomHasher2.Cache.HasNextPartiallyComputedHash then begin
+                    LCachedItem := LRandomHasher2.Cache.PopNextPartiallyComputedHash;
+                    LUseCachedHash := True;
+                    Nonce := LCachedItem.Nonce;
+                  end else
                     nonce := Random(FMaxNOnce - FMinNOnce) + FMinNOnce;
-                  end;
                 end else if (nonce)<FMaxNOnce then inc(nonce) else nonce := FMinNOnce;
               end;
               finalHashingTC:=TPlatform.GetTickCount;
