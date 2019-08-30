@@ -381,7 +381,7 @@ constructor TBytesBuffer32Safebox.Create(ADefaultIncrement: Integer);
 begin
   FNextLevelBytesBuffer := Nil;
   FSafeBoxHashCalcType := sbh_Single_Sha256;
-  inherited;
+  inherited Create(ADefaultIncrement);
 end;
 
 destructor TBytesBuffer32Safebox.Destroy;

@@ -75,6 +75,8 @@ Const
   CT_CompactTarget_Reset_v4: Cardinal = // First compact target of block if using Protocol 4 and RandomHash is Active
     {$IFDEF PRODUCTION}$16000000{$ELSE}$08000000{$ENDIF};
   {$ENDIF}
+  CT_MinCompactTarget_v5: Cardinal = // Minimum compact target of block if using Protocol 5 or higher
+    {$IFDEF PRODUCTION}$12000000{$ELSE}{$IFDEF TESTNET}$10000000{$ELSE}{$ENDIF}{$ENDIF};
 
 
   CT_CalcNewTargetBlocksAverage: Cardinal = 100;
@@ -116,7 +118,7 @@ Const
   CT_PROTOCOL_3 = 3;
   CT_PROTOCOL_4 = 4;
   CT_PROTOCOL_5 = 5;
-  CT_BUILD_PROTOCOL = CT_PROTOCOL_4;
+  CT_BUILD_PROTOCOL = CT_PROTOCOL_5;
 
   CT_BlockChain_Protocol_Available: Word = 4; // Protocol 4 flag
   CT_Protocol_Upgrade_v2_MinBlock = {$IFDEF PRODUCTION}115000{$ELSE}47{$ENDIF};

@@ -278,7 +278,7 @@ Type
     FOrderedAccountKeysList : TOrderedAccountKeysList;
     //
     FListOfOrderedAccountKeysList : TList<TOrderedAccountKeysList>;
-    FBufferBlocksHash: TBytesBuffer;
+    FBufferBlocksHash: TBytesBuffer32Safebox;
     FOrderedByName : TOrderedRawList;
     FTotalBalance: Int64;
     FSafeBoxHash : TRawBytes;
@@ -362,7 +362,7 @@ Type
     Function GetMinimumAvailableSnapshotBlock : Integer;
     Function HasSnapshotForBlock(block_number : Cardinal) : Boolean;
     Property OrderedAccountKeysList : TOrderedAccountKeysList read FOrderedAccountKeysList;
-    property BufferBlocksHash: TBytesBuffer read FBufferBlocksHash; // Warning: For testing purposes, do not use this property! TODO delete or put in protected mode
+    property BufferBlocksHash: TBytesBuffer32Safebox read FBufferBlocksHash; // Warning: For testing purposes, do not use this property! TODO delete or put in protected mode
   End;
 
 
@@ -754,7 +754,12 @@ begin
       Result := TCrypto.DoSha256(ABlocksHashBuffer.Memory,ABlocksHashBuffer.Length);
     end else begin
       // Implementation of PIP-0030, SafeboxHash will be calculated based on a MerkleTree obtaining a SafeboxRootHash
-      Result := TPCSafeboxRootHash.CalcSafeBoxRootHash(ABlocksHashBuffer);
+      if ABlocksHashBuffer is TBytesBuffer32Safebox then begin
+        TBytesBuffer32Safebox(ABlocksHashBuffer).SafeBoxHashCalcType := sbh_Merkle_Root_Hash;
+        Result := TBytesBuffer32Safebox(ABlocksHashBuffer).GetSafeBoxHash;
+      end else begin
+        Result := TPCSafeboxRootHash.CalcSafeBoxRootHash(ABlocksHashBuffer);
+      end;
     end;
   end;
 end;
@@ -899,10 +904,12 @@ end;
 
 class function TPascalCoinProtocol.MinimumTarget(protocol_version: Integer): Cardinal;
 begin
-  if protocol_version<CT_PROTOCOL_4 then begin
-    Result := CT_MinCompactTarget_v1;
-  end else begin
+  if protocol_version>=CT_PROTOCOL_5 then begin
+    Result := CT_MinCompactTarget_v5
+  end else if protocol_version>=CT_PROTOCOL_4 then begin
     Result := CT_MinCompactTarget_v4;
+  end else begin
+    Result := CT_MinCompactTarget_v1;
   end;
 end;
 
@@ -2619,7 +2626,8 @@ begin
   FDeletedNamesSincePreviousSafebox := TOrderedRawList.Create;
   FSubChains := TList<TPCSafeBox>.Create;
   FOrderedAccountKeysList := TOrderedAccountKeysList.Create(Nil,True);
-  FBufferBlocksHash := TBytesBuffer.Create(1000*32);
+  FBufferBlocksHash := TBytesBuffer32Safebox.Create(1000*32);
+  FBufferBlocksHash.SafeBoxHashCalcType := sbh_Single_Sha256;
   Clear;
 end;
 
@@ -3017,6 +3025,7 @@ begin
   TLog.NewLog(ltInfo,ClassName,'Start Upgrade to protocol 5 - Old Safeboxhash:'+TCrypto.ToHexaString(FSafeBoxHash)+' calculated: '+TCrypto.ToHexaString(LAux)+' Blocks: '+IntToStr(BlocksCount));
   FCurrentProtocol := CT_PROTOCOL_5;
   FBufferBlocksHash.Clear;
+  FBufferBlocksHash.SafeBoxHashCalcType := sbh_Merkle_Root_Hash;
   for LBlockNumber := 0 to BlocksCount - 1 do begin
     {$IFDEF uselowmem}
     TBaseType.To32Bytes(CalcBlockHash( Block(LBlockNumber), CT_PROTOCOL_5),PBlockAccount(FBlockAccountsList.Items[LBlockNumber])^.block_hash);
