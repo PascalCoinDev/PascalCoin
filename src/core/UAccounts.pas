@@ -3770,6 +3770,15 @@ begin
         errors := 'Invalid protocol version change to '+IntToStr(newOperationBlock.protocol_version);
         exit;
       end;
+    end else begin
+      // If we are here protocol didn't changed... make sure it's not a upgrade block!
+      if (newOperationBlock.block = CT_Protocol_Upgrade_v2_MinBlock)
+           or (newOperationBlock.block = CT_Protocol_Upgrade_v3_MinBlock)
+           or (newOperationBlock.block = CT_Protocol_Upgrade_v4_MinBlock)
+           or (newOperationBlock.block = CT_Protocol_Upgrade_v5_MinBlock) then begin
+         errors := Format('In block %d protocol must be upgraded! Current %d',[newOperationBlock.block,newOperationBlock.protocol_version]);
+         exit;
+      end;
     end;
     // timestamp
     if ((newOperationBlock.timestamp) < (lastBlock.timestamp)) then begin
@@ -3834,13 +3843,35 @@ begin
     errors := 'Invalid reward';
     exit;
   end;
-  // Valid protocol version
-  if (Not (newOperationBlock.protocol_version in [CT_PROTOCOL_1,CT_PROTOCOL_2,CT_PROTOCOL_3,CT_PROTOCOL_4,CT_PROTOCOL_5])) then begin
-    errors := 'Invalid protocol version '+IntToStr(newOperationBlock.protocol_version);
-    exit;
-  end;
   // fee: Cannot be checked only with the safebox
+  // Checking valid protocol version
   // protocol available is not checked
+  if (newOperationBlock.block >= CT_Protocol_Upgrade_v5_MinBlock) then begin
+    if Not newOperationBlock.protocol_version = CT_PROTOCOL_5 then begin
+      errors := Format('Invalid protocol version at block %d Found:%d Expected:%d',[newOperationBlock.block,newOperationBlock.protocol_version,CT_PROTOCOL_5]);
+      exit;
+    end;
+  end else if (newOperationBlock.block >= CT_Protocol_Upgrade_v4_MinBlock) then begin
+    if newOperationBlock.protocol_version <> CT_PROTOCOL_4 then begin
+      errors := Format('Invalid protocol version at block %d Found:%d Expected:%d',[newOperationBlock.block,newOperationBlock.protocol_version,CT_PROTOCOL_4]);
+      exit;
+    end;
+  end else if (newOperationBlock.block >= CT_Protocol_Upgrade_v3_MinBlock) then begin
+    if newOperationBlock.protocol_version <> CT_PROTOCOL_3 then begin
+      errors := Format('Invalid protocol version at block %d Found:%d Expected:%d',[newOperationBlock.block,newOperationBlock.protocol_version,CT_PROTOCOL_3]);
+      exit;
+    end;
+  end else if (newOperationBlock.block >= CT_Protocol_Upgrade_v2_MinBlock) then begin
+    if newOperationBlock.protocol_version <> CT_PROTOCOL_2 then begin
+      errors := Format('Invalid protocol version at block %d Found:%d Expected:%d',[newOperationBlock.block,newOperationBlock.protocol_version,CT_PROTOCOL_2]);
+      exit;
+    end;
+  end else begin
+    if newOperationBlock.protocol_version <> CT_PROTOCOL_1 then begin
+      errors := Format('Invalid protocol version at block %d Found:%d Expected:%d',[newOperationBlock.block,newOperationBlock.protocol_version,CT_PROTOCOL_1]);
+      exit;
+    end;
+  end;
   if (newOperationBlock.block > 0) then begin
   end else begin
     if (CT_Zero_Block_Proof_of_work_in_Hexa<>'') then begin
