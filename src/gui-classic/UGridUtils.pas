@@ -735,7 +735,7 @@ begin
               DrawGrid.Canvas.Font.Color := clGrayText
             end;
           end else s := '';
-          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
+          Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
         end;
       else
         s := '(???)';

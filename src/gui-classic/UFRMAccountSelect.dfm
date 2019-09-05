@@ -28,9 +28,9 @@ object FRMAccountSelect: TFRMAccountSelect
     object cbOnlyForSale: TCheckBox
       Left = 10
       Top = 65
-      Width = 81
+      Width = 175
       Height = 19
-      Caption = 'Only for sale'
+      Caption = 'Only for sale or swap'
       TabOrder = 2
     end
     object bbSearch: TBitBtn
@@ -102,7 +102,7 @@ object FRMAccountSelect: TFRMAccountSelect
     object cbOnlyForPrivateSaleToMe: TCheckBox
       Left = 10
       Top = 111
-      Width = 148
+      Width = 175
       Height = 19
       Caption = 'Only for private sale to me'
       TabOrder = 4
@@ -110,7 +110,7 @@ object FRMAccountSelect: TFRMAccountSelect
     object cbAccountsBalance: TCheckBox
       Left = 10
       Top = 134
-      Width = 104
+      Width = 167
       Height = 19
       Caption = 'Accounts Balance'
       TabOrder = 5
@@ -118,7 +118,7 @@ object FRMAccountSelect: TFRMAccountSelect
     object cbMyAccounts: TCheckBox
       Left = 10
       Top = 10
-      Width = 81
+      Width = 175
       Height = 19
       Caption = 'My Accounts'
       TabOrder = 0
@@ -136,7 +136,7 @@ object FRMAccountSelect: TFRMAccountSelect
     object cbOnlyForPublicSale: TCheckBox
       Left = 10
       Top = 88
-      Width = 111
+      Width = 175
       Height = 19
       Caption = 'Only for public sale'
       TabOrder = 3
@@ -160,7 +160,7 @@ object FRMAccountSelect: TFRMAccountSelect
     object cbAccountsName: TCheckBox
       Left = 10
       Top = 186
-      Width = 93
+      Width = 167
       Height = 19
       Caption = 'Accounts name'
       TabOrder = 8
@@ -257,6 +257,9 @@ object FRMAccountSelect: TFRMAccountSelect
     Width = 451
     Height = 282
     Align = alClient
+    ColCount = 6
+    FixedCols = 0
+    Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRowSelect]
     TabOrder = 2
   end
 end
