@@ -120,11 +120,11 @@ Const
   CT_PROTOCOL_5 = 5;
   CT_BUILD_PROTOCOL = CT_PROTOCOL_5;
 
-  CT_BlockChain_Protocol_Available: Word = 4; // Protocol 4 flag
-  CT_Protocol_Upgrade_v2_MinBlock = {$IFDEF PRODUCTION}115000{$ELSE}47{$ENDIF};
-  CT_Protocol_Upgrade_v3_MinBlock = {$IFDEF PRODUCTION}210000{$ELSE}48{$ENDIF};
-  CT_Protocol_Upgrade_v4_MinBlock = {$IFDEF PRODUCTION}260000{$ELSE}49{$ENDIF};
-  CT_Protocol_Upgrade_v5_MinBlock = {$IFDEF PRODUCTION}999999999{$ELSE}50{$ENDIF}; // TODO Need define v5 for production!
+  CT_BlockChain_Protocol_Available: Word = 5; // Protocol 5 flag
+  CT_Protocol_Upgrade_v2_MinBlock = {$IFDEF PRODUCTION}115000{$ELSE}50{$ENDIF};
+  CT_Protocol_Upgrade_v3_MinBlock = {$IFDEF PRODUCTION}210000{$ELSE}250{$ENDIF};
+  CT_Protocol_Upgrade_v4_MinBlock = {$IFDEF PRODUCTION}260000{$ELSE}400{$ENDIF};
+  CT_Protocol_Upgrade_v5_MinBlock = {$IFDEF PRODUCTION}999999999{$ELSE}500{$ENDIF}; // TODO Need define v5 for production!
 
 
   CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$05000001{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
