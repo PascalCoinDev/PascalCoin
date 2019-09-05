@@ -1662,9 +1662,24 @@ begin
         Result := IsValidAccountKey(AAccountInfo.accountKey,errors);
       end;
     as_ForSale: begin
-        If Not IsValidAccountKey(AAccountInfo.accountKey,s) then errors := errors +' '+s;
-        Result := errors='';
+        Result := IsValidAccountKey(AAccountInfo.accountKey,errors);
+        if (Result) And (IsAccountForPrivateSale(AAccountInfo)) then begin
+          if Not IsValidAccountKey(AAccountInfo.new_publicKey,s) then begin
+            Result := False;
+            errors := 'Invalid new_publicKey: '+s;
+          end;
+        end;
       end;
+    as_ForAtomicAccountSwap: begin
+        Result := IsValidAccountKey(AAccountInfo.accountKey,errors);
+        if (Result) And (Not IsValidAccountKey(AAccountInfo.new_publicKey,s)) then begin
+          Result := False;
+          errors := 'Invalid AccountSwap.new_publicKey: '+s;
+        end;
+      end;
+    as_ForAtomicCoinSwap: begin
+      Result := IsValidAccountKey(AAccountInfo.accountKey,errors);
+    end
   else
     raise Exception.Create('DEVELOP ERROR 20170214-3');
   end;
@@ -1874,6 +1889,7 @@ Type
     price : UInt64;
     account_to_pay : Cardinal;
     new_publicKeyKS : PAccountKey;
+    hashed_secret: TRawBytes;
   end;
   {$ENDIF}
 
@@ -1947,6 +1963,7 @@ begin
   dest.accountInfoKS.price:=source.accountInfo.price;
   dest.accountInfoKS.account_to_pay:=source.accountInfo.account_to_pay;
   dest.accountInfoKS.new_publicKeyKS:=TAccountKeyStorage.KS.AddAccountKey(source.accountInfo.new_publicKey);
+  dest.accountInfoKS.hashed_secret:=source.accountInfo.hashed_secret;
   {$ELSE}
   TAccountComp.AccountInfo2RawString(source.accountInfo,raw);
   TBaseType.To256RawBytes(raw,dest.accountInfo);
@@ -1978,6 +1995,7 @@ begin
   dest.accountInfo.price:=source.accountInfoKS.price;
   dest.accountInfo.account_to_pay:=source.accountInfoKS.account_to_pay;
   dest.accountInfo.new_publicKey:=source.accountInfoKS.new_publicKeyKS^;
+  dest.accountInfo.hashed_secret:=source.accountInfoKS.hashed_secret;
   {$ELSE}
   TBaseType.ToRawBytes(source.accountInfo,raw);
   TAccountComp.RawString2AccountInfo(raw,dest.accountInfo);
