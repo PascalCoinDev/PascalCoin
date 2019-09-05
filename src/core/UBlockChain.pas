@@ -1559,6 +1559,7 @@ Var i : Integer;
   soob : Byte;
   raw: TRawBytes;
   load_protocol_version : Word;
+  LLoadPreviousUpdatedBlocks : Boolean;
 begin
   Lock;
   Try
@@ -1584,6 +1585,7 @@ begin
     // - Value 4 means that is loading from storage using protocol v2 (so, includes always operations)
     // - Value 5 means that is loading from storage using TAccountPreviousBlockInfo
     load_protocol_version := CT_PROTOCOL_1;
+    LLoadPreviousUpdatedBlocks := False;
     if (soob in [0,2]) then FIsOnlyOperationBlock:=false
     else if (soob in [1,3]) then FIsOnlyOperationBlock:=true
     else if (soob in [4]) then begin
@@ -1592,6 +1594,7 @@ begin
     end else if (soob in [5]) then begin
       FIsOnlyOperationBlock:=False;
       load_protocol_version := CT_PROTOCOL_3;
+      LLoadPreviousUpdatedBlocks := True;
     end else begin
       errors := 'Invalid value in protocol header! Found:'+inttostr(soob)+' - Check if your application version is Ok';
       exit;
@@ -1638,7 +1641,7 @@ begin
     if not Result then begin
       exit;
     end;
-    If load_protocol_version>=CT_PROTOCOL_3 then begin
+    if LLoadPreviousUpdatedBlocks then begin
       Result := FPreviousUpdatedBlocks.LoadFromStream(Stream);
       If Not Result then begin
         errors := 'Invalid PreviousUpdatedBlock stream';
