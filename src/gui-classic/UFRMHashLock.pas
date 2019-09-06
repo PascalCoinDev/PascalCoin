@@ -31,6 +31,7 @@ type
     FHashLock : T32Bytes;
     function GetError : String;
     procedure SetError(const AMsg : String);
+    procedure UpdateInfo;
   public
     { Public declarations }
     property Error : String read GetError write SetError;
@@ -52,43 +53,13 @@ uses UCrypto, UAccounts;
 procedure TFRMHashLock.btnCancelClick(Sender: TObject);
 begin
   Error := '';
+  ModalResult := mrCancel;
 end;
 
 procedure TFRMHashLock.btnSetClick(Sender: TObject);
-var
-  LData : TRawBytes;
-  LErr : string;
 begin
-  Try
-  Error := '';
-  if (NOT rbHashLock.Checked) AND (NOT rbHashLockKey.Checked) then begin
-    Error := 'Select the hash-lock mode';
-    Exit;
-  end;
-
-  if NOT TCrypto.IsHexString(meHashLockData.Text) then begin
-    Error := 'Data is not hexadecimal format';
-    Exit;
-  end;
-
-  LData := TCrypto.HexaToRaw(meHashLockData.Text);
-
-  if (rbHashLock.Checked) then begin
-    if Length(LData) <> 32 then begin
-      Error := 'Hash-lock must be 32bytes';
-      Exit;
-    end;
-    FHashLock := TBaseType.To32Bytes(LData);
-  end else if (rbHashLockKey.Checked) then begin
-    if NOT TAccountComp.IsValidHashLockKey(LData, LErr) then begin
-      Error := LErr;
-      Exit;
-    end;
-    FHashLock := TAccountComp.CalculateHashLock(LData);
-  end else Error := 'INTERNAL ERROR: 8356DE573BA748618EDD6603B22D9EAD';
-  Finally
-    if Error='' then ModalResult := MrOk;
-  end;
+  UpdateInfo;
+  if Error='' then ModalResult := MrOk;
 end;
 
 procedure TFRMHashLock.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -99,6 +70,8 @@ end;
 procedure TFRMHashLock.FormCreate(Sender: TObject);
 begin
   Error := '';
+  btnSet.ModalResult := MrNone;
+  btnSet.OnClick := btnSetClick;
 end;
 
 function TFRMHashLock.GetError : String;
@@ -109,6 +82,45 @@ end;
 procedure TFRMHashLock.SetError(const AMsg : String);
 begin
   lblError.Caption := AMsg;
+end;
+
+procedure TFRMHashLock.UpdateInfo;
+var
+  LData : TRawBytes;
+  LErr : string;
+begin
+  LErr := '';
+  Try
+    if (NOT rbHashLock.Checked) AND (NOT rbHashLockKey.Checked) then begin
+      LErr := 'Select the hash-lock mode';
+      Exit;
+    end;
+
+    if Length(Trim(meHashLockData.Text))<1 then begin
+      LErr := 'No Data value';
+      Exit;
+    end;
+
+    if NOT TCrypto.IsHexString(meHashLockData.Text) then begin
+      LErr := 'Data is not hexadecimal format';
+      Exit;
+    end;
+
+    LData := TCrypto.HexaToRaw(meHashLockData.Text);
+
+    if (rbHashLock.Checked) then begin
+      if Length(LData) <> 32 then begin
+        Lerr := 'Hash-lock must be 32bytes';
+        Exit;
+      end;
+      FHashLock := TBaseType.To32Bytes(LData);
+    end else if (rbHashLockKey.Checked) then begin
+      if NOT TAccountComp.IsValidHashLockKey(LData, LErr) then Exit;
+      FHashLock := TAccountComp.CalculateHashLock(LData);
+    end else LErr := 'INTERNAL ERROR: 8356DE573BA748618EDD6603B22D9EAD';
+  Finally
+    Error := LErr;
+  end;
 end;
 
 end.

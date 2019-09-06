@@ -152,6 +152,7 @@ type
     procedure bbBuyNewKeyClick(Sender: TObject);
     procedure ebAccountNumberExit(Sender: TObject);
     procedure ebCurrencyExit(Sender: TObject);
+    procedure sbTimeLockClick(Sender: TObject);
   private
     FNode : TNode;
     FWalletKeys: TWalletKeys;
@@ -590,6 +591,7 @@ begin
   sbSearchListerSellerAccount.OnClick := sbSearchListerSellerAccountClick;
   btnHashLock.OnClick := sbHashLockClick;
   sbSearchBuyAccount.OnClick := sbSearchBuyAccountClick;
+  sbTimeLock.OnClick := sbTimeLockClick;
   //
   ebFee.Text := TAccountComp.FormatMoney(0);
   ebFee.OnExit:= ebCurrencyExit;
@@ -708,6 +710,23 @@ end;
 procedure TFRMOperation.sbSearchSignerAccountClick(Sender: TObject);
 begin
   searchAccount(ebSignerAccount);
+end;
+
+procedure TFRMOperation.sbTimeLockClick(Sender: TObject);
+begin
+  Application.MessageBox(PChar(Format('Current block is %d'
+    +#10
+    +#10+'Average seconds per block %d'
+    +#10
+    +#10+'Average Blocks per day %d (Next 24 hours = block %d)'
+    +#10+'Average Blocks per week %d (Next 24*7 hours = block %d)'
+    ,[TNode.Node.Bank.BlocksCount,
+      CT_NewLineSecondsAvg,
+     (86400 DIV CT_NewLineSecondsAvg),
+     ((86400 DIV CT_NewLineSecondsAvg) + TNode.Node.Bank.BlocksCount),
+     ((86400 DIV CT_NewLineSecondsAvg)*7),
+     (((86400 DIV CT_NewLineSecondsAvg)*7) + TNode.Node.Bank.BlocksCount)])),
+    PChar(Application.Title),MB_OK);
 end;
 
 procedure TFRMOperation.sbHashLockClick(Sender: TObject);

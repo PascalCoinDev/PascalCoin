@@ -22,6 +22,8 @@ unit UFRMAbout;
 
 interface
 
+{$I ../config.inc}
+
 uses
 {$IFnDEF FPC}
   pngimage, Windows,

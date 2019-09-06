@@ -42,6 +42,7 @@ Type
     ColumnType : TAccountColumnType;
     width : Integer;
   End;
+  TAccountColumnArray = Array of TAccountColumn;
 
   TAccountsGrid = Class;
 
@@ -73,7 +74,7 @@ Type
   private
     FAccountsBalance : Int64;
     FAccountsList : TOrderedCardinalList;
-    FColumns : Array of TAccountColumn;
+    FColumns : TAccountColumnArray;
     FDrawGrid : TDrawGrid;
     FNodeNotifyEvents : TNodeNotifyEvents;
     FOnUpdated: TNotifyEvent;
@@ -125,6 +126,8 @@ Type
     function IsUpdatingData : Boolean;
     property OnAccountsGridUpdatedData : TNotifyEvent read FOnAccountsGridUpdatedData write FOnAccountsGridUpdatedData;
     property AccountsGridDatasource : TAccountsGridDatasource read FAccountsGridDatasource write SetAccountsGridDatasource;
+    function GetColumns : TAccountColumnArray;
+    procedure SetColumns(const AColumns : TAccountColumnArray);
   End;
 
   TOperationsGrid = Class;
@@ -425,13 +428,13 @@ begin
   FColumns[2].ColumnType := act_balance;
   FColumns[2].width := 80;
   FColumns[3].ColumnType := act_n_operation;
-  FColumns[3].width := 40;
+  FColumns[3].width := 35;
   FColumns[4].ColumnType := act_type;
-  FColumns[4].width := 40;
+  FColumns[4].width := 35;
   FColumns[5].ColumnType := act_saleprice;
   FColumns[5].width := 45;
   FColumns[6].ColumnType := act_updated_state;
-  FColumns[6].width := 25;
+  FColumns[6].width := 20;
   FNodeNotifyEvents := TNodeNotifyEvents.Create(Self);
   FNodeNotifyEvents.OnOperationsChanged := OnNodeNewOperation;
   FAccountsGridUpdateThread := Nil;
@@ -458,6 +461,11 @@ begin
   else
     Result := FAccountsList.Count;
   end;
+end;
+
+function TAccountsGrid.GetColumns: TAccountColumnArray;
+begin
+  Result := FColumns;
 end;
 
 function TAccountsGrid.GetNode: TNode;
@@ -734,6 +742,17 @@ begin
             end else begin
               DrawGrid.Canvas.Font.Color := clGrayText
             end;
+          end else if TAccountComp.IsAccountForSwap(account.accountInfo) then begin
+            if TAccountComp.IsAccountForAccountSwap(account.accountInfo) then begin
+              s := 'Account SWAP';
+            end else if TAccountComp.IsAccountForCoinSwap(account.accountInfo) then begin
+              s := 'SWAP '+TAccountComp.FormatMoney(account.accountInfo.price);
+            end else s := 'SWAP';
+            if TAccountComp.IsAccountLocked(account.accountInfo,LNodeBlocksCount) then begin
+              DrawGrid.Canvas.Font.Color := clNavy;
+            end else begin
+              DrawGrid.Canvas.Font.Color := clRed;
+            end;
           end else s := '';
           Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
         end;
@@ -806,6 +825,12 @@ end;
 procedure TAccountsGrid.SetAllowMultiSelect(const Value: Boolean);
 begin
   FAllowMultiSelect := Value;
+  InitGrid;
+end;
+
+procedure TAccountsGrid.SetColumns(const AColumns: TAccountColumnArray);
+begin
+  FColumns := AColumns;
   InitGrid;
 end;
 
