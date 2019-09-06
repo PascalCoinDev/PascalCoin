@@ -921,7 +921,7 @@ begin
         // Updated netConnection
         if Assigned(P^.netConnection) then begin
           // Delete old value
-          if Not DeleteNetConnection(P^.netConnection) then TLog.NewLog(lterror,Classname,'DEV ERROR 20180205-1');
+          if Not DeleteNetConnection(P^.netConnection) then TLog.NewLog(lterror,Classname,Format('DEV ERROR 20180205-1 %s %d',[nodeServerAddress.ip,nodeServerAddress.port]));
         end;
       end;
       P^ := nodeServerAddress;
@@ -3951,7 +3951,7 @@ begin
                   CT_NetOp_GetBlocks : Begin
                     if HeaderData.header_type=ntp_request then begin
                       if TNetData.NetData.IpInfos.ReachesLimits(Client.RemoteHost,CT_NetTransferType[HeaderData.header_type],TNetData.OperationToText(HeaderData.operation),HeaderData.buffer_data_length,
-                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(300,100,0),TLimitLifetime.Create(10,5,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
+                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(200,100,0),TLimitLifetime.Create(5,5,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
                       else DoProcess_GetBlocks_Request(HeaderData,ReceiveDataBuffer)
                     end else if HeaderData.header_type=ntp_response then begin
                       DoProcess_GetBlocks_Response(HeaderData,ReceiveDataBuffer);
@@ -3960,7 +3960,7 @@ begin
                   CT_NetOp_GetBlockHeaders : Begin
                     if HeaderData.header_type=ntp_request then begin
                       if TNetData.NetData.IpInfos.ReachesLimits(Client.RemoteHost,CT_NetTransferType[HeaderData.header_type],TNetData.OperationToText(HeaderData.operation),HeaderData.buffer_data_length,
-                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(30,30,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
+                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(10,30,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
                       else DoProcess_GetOperationsBlock_Request(HeaderData,ReceiveDataBuffer)
                     end else TLog.NewLog(ltdebug,Classname,'Received old response of: '+TNetData.HeaderDataToText(HeaderData));
                   End;

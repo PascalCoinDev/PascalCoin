@@ -330,10 +330,11 @@ Uses UFolderHelper,
 {$ENDIF}
   UTime, UFileStorage,
   UThread, UOpTransaction, UFRMPascalCoinWalletConfig,
-  UFRMOperationsExplorer, UFRMDiagnosticTool,
+  UFRMOperationsExplorer,
   {$IFDEF TESTNET}
   UFRMRandomOperations,
   UPCTNetDataExtraMessages,
+  UFRMDiagnosticTool,
   {$ENDIF}
   UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText,
   USettings, UCommon, UPCOrderedLists;
@@ -383,11 +384,13 @@ begin
   FLastTC := 0;
   FLastMsg := '';
   //
+  {$IFDEF PRODUCTION}
   OnProgressNotify(Self,'Reading Hardcoded RandomHash file',0,0);
   LRaw := TCrypto.HexaToRaw(CT_Hardcoded_RandomHash_Table_HASH);
   TPascalCoinProtocol.AllowUseHardcodedRandomHashTable(
     ExtractFileDir(Application.ExeName)+PathDelim+CT_Hardcoded_RandomHash_Table_Filename,
     LRaw );
+  {$ENDIF}
   // Read Operations saved from disk
   TNode.Node.InitSafeboxAndOperations($FFFFFFFF,OnProgressNotify); // New Build 2.1.4 to load pending operations buffer
   TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
@@ -1653,15 +1656,19 @@ begin
 end;
 
 procedure TFRMWallet.Test_ShowDiagnosticTool(Sender: TObject);
+{$IFDEF TESTNET}
 var
  LDialog : TFRMDiagnosticTool;
+{$ENDIF}
 begin
+{$IFDEF TESTNET}
   LDialog := TFRMDiagnosticTool.Create(Nil);
   try
     LDialog.ShowModal;
   finally
     LDialog.Free;
   end;
+{$ENDIF}
 end;
 
 procedure TFRMWallet.MiFindaccountClick(Sender: TObject);
