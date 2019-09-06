@@ -1962,8 +1962,9 @@ begin
       errors := 'Account to pay is blocked for protocol';
       Exit;
     end;
-    if (NOT LIsSwap) AND (FData.account_price<=0) then begin
-      errors := 'Account for sale price must be greater than 0';
+    if (NOT LIsAccountSwap) AND (FData.account_price<=0) then begin
+      if (LIsSale) then errors := 'Account price must be greater than 0'
+      else errors := 'Account swap amount must be greater than 0';
       exit;
     end;
 
@@ -1974,7 +1975,7 @@ begin
 
 
     if (FData.locked_until_block > (AccountTransaction.FreezedSafeBox.BlocksCount + CT_MaxFutureBlocksLockedAccount)) then begin
-      errors := 'Invalid locked block: Current block '+Inttostr(AccountTransaction.FreezedSafeBox.BlocksCount)+' cannot lock to block '+IntToStr(FData.locked_until_block);
+      errors := 'Invalid locked block: Current block '+Inttostr(AccountTransaction.FreezedSafeBox.BlocksCount)+' cannot lock to block '+IntToStr(FData.locked_until_block)+' (Max is future '+IntToStr(CT_MaxFutureBlocksLockedAccount)+' blocks)';
       exit;
     end;
     if LIsPrivateSale OR LIsAccountSwap then begin
