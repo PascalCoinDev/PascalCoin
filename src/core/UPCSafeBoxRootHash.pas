@@ -461,7 +461,7 @@ begin
     FNextLevelBytesBuffer.SafeBoxHashCalcType := Self.SafeBoxHashCalcType;
   end;
   j := Self.Length DIV 64;
-  for i := 0 to ((Self.Length DIV 64)-1) do begin
+  for i := 0 to (((Self.Length+32) DIV 64)-1) do begin
     NotifyUpdated( (i*64), 32);
   end;
 end;
