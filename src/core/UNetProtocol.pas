@@ -1647,7 +1647,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       repeat
         BlocksList := TList<TPCOperationsComp>.Create;
         try
-          finished := NOT Do_GetOperationsBlock(Bank,start,start + 50,30000,false,BlocksList);
+          finished := NOT Do_GetOperationsBlock(Bank,start,start + 100,30000,false,BlocksList);
           i := 0;
           while (i<BlocksList.Count) And (Not finished) do begin
             OpComp := TPCOperationsComp(BlocksList[i]);
@@ -3951,7 +3951,7 @@ begin
                   CT_NetOp_GetBlocks : Begin
                     if HeaderData.header_type=ntp_request then begin
                       if TNetData.NetData.IpInfos.ReachesLimits(Client.RemoteHost,CT_NetTransferType[HeaderData.header_type],TNetData.OperationToText(HeaderData.operation),HeaderData.buffer_data_length,
-                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(200,100,0),TLimitLifetime.Create(5,5,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
+                        TArray<TLimitLifetime>.Create(TLimitLifetime.Create(5,10,0))) then DisconnectInvalidClient(False,Format('Reached limit %s',[TNetData.OperationToText(HeaderData.operation)]))
                       else DoProcess_GetBlocks_Request(HeaderData,ReceiveDataBuffer)
                     end else if HeaderData.header_type=ntp_response then begin
                       DoProcess_GetBlocks_Response(HeaderData,ReceiveDataBuffer);

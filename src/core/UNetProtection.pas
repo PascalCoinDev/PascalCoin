@@ -31,6 +31,8 @@ unit UNetProtection;
   {$MODE Delphi}
 {$ENDIF}
 
+{$I ./../config.inc}
+
 interface
 
 Uses SysUtils, Classes, UJSONFunctions, UThread, ULog, UTime, UBaseTypes,
@@ -379,6 +381,10 @@ begin
     end;
   Finally
     Unlock;
+    {$IFDEF TESTNET}
+    // For testing purposes, TESTNET will log when reaches limits but will not return a True value
+    Result := False;
+    {$ENDIF}
   End;
   setLength(countLimitsValues,0);
 end;
