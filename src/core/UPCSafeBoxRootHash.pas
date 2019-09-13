@@ -450,17 +450,19 @@ begin
 end;
 
 procedure TBytesBuffer32Safebox.RedoNextLevelsForMerkleRootHash;
-var i, j : Integer;
+var i : Integer;
+  LNextDefaultIncrement : Integer;
 begin
   if (Self.Length<64) or ((Self.Length MOD 32)<>0) then begin
     FreeAndNil(FNextLevelBytesBuffer);
     Exit;
   end;
   if Not Assigned(FNextLevelBytesBuffer) then begin
-    FNextLevelBytesBuffer := TBytesBuffer32Safebox.Create(32*1000);
+    if (DefaultIncrement >= 64) then LNextDefaultIncrement := DefaultIncrement DIV 2
+    else LNextDefaultIncrement := 32;
+    FNextLevelBytesBuffer := TBytesBuffer32Safebox.Create(LNextDefaultIncrement);
     FNextLevelBytesBuffer.SafeBoxHashCalcType := Self.SafeBoxHashCalcType;
   end;
-  j := Self.Length DIV 64;
   for i := 0 to (((Self.Length+32) DIV 64)-1) do begin
     NotifyUpdated( (i*64), 32);
   end;

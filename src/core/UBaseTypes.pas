@@ -500,7 +500,7 @@ begin
       auxSize := auxSize + FDefaultIncrement;
     until auxSize >= newSize;
     System.SetLength(FBytes,auxSize);
-    FillByte(FBytes[actSize],auxSize - actSize +1,0);
+    FillByte(FBytes[actSize],auxSize - actSize ,0);
   end;
 end;
 
