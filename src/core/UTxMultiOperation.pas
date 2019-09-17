@@ -128,7 +128,7 @@ Type
     class function OpType : Byte; override;
     function OperationAmount : Int64; override;
     function OperationFee : Int64; override;
-    function OperationPayload : TRawBytes; override;
+    function OperationPayload : TOperationPayload; override;
     function SignerAccount : Cardinal; override;
     procedure SignerAccounts(list : TList<Cardinal>); override;
     function IsSignerAccount(account : Cardinal) : Boolean; override;
@@ -330,7 +330,7 @@ begin
     stream.Write(txs.Account,SizeOf(txs.Account));
     stream.Write(txs.Amount,SizeOf(txs.Amount));
     stream.Write(txs.N_Operation,SizeOf(txs.N_Operation));
-    TStreamOp.WriteAnsiString(stream,txs.Payload);
+    SaveOperationPayloadToStream(stream,txs.Payload);
     If FSaveSignatureValue then begin
       TStreamOp.WriteAnsiString(stream,txs.Signature.r);
       TStreamOp.WriteAnsiString(stream,txs.Signature.s);
@@ -343,7 +343,7 @@ begin
     txr := FData.txReceivers[i];
     stream.Write(txr.Account,SizeOf(txr.Account));
     stream.Write(txr.Amount,SizeOf(txr.Amount));
-    TStreamOp.WriteAnsiString(stream,txr.Payload);
+    SaveOperationPayloadToStream(stream,txr.Payload);
   end;
   // Save changes info count
   w := Length(FData.changesInfo);
@@ -413,7 +413,7 @@ begin
         stream.Read(txs.Account,SizeOf(txs.Account));
         stream.Read(txs.Amount,SizeOf(txs.Amount));
         stream.Read(txs.N_Operation,SizeOf(txs.N_Operation));
-        TStreamOp.ReadAnsiString(stream,txs.Payload);
+        LoadOperationPayloadFromStream(stream,txs.Payload);
         TStreamOp.ReadAnsiString(stream,txs.Signature.r);
         TStreamOp.ReadAnsiString(stream,txs.Signature.s);
         //
@@ -429,7 +429,7 @@ begin
         txr := CT_TMultiOpReceiver_NUL;
         stream.Read(txr.Account,SizeOf(txr.Account));
         stream.Read(txr.Amount,SizeOf(txr.Amount));
-        TStreamOp.ReadAnsiString(stream,txr.Payload);
+        LoadOperationPayloadFromStream(stream,txr.Payload);
         //
         txreceivers[i] := txr;
       end;
@@ -599,8 +599,8 @@ begin
       errors := Format('Invalid amount %d (0 or max: %d)',[txs.Amount,CT_MaxTransactionAmount]);
       Exit;
     end;
-    if (length(txs.Payload)>CT_MaxPayloadSize) then begin
-      errors := 'Invalid Payload size:'+inttostr(length(txs.Payload))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
+    if (length(txs.Payload.payload_raw)>CT_MaxPayloadSize) then begin
+      errors := 'Invalid Payload size:'+inttostr(length(txs.Payload.payload_raw))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
       Exit;
     end;
     //
@@ -636,8 +636,8 @@ begin
       errors := Format('Invalid amount %d (0 or max: %d)',[txr.Amount,CT_MaxTransactionAmount]);
       Exit;
     end;
-    if (length(txr.Payload)>CT_MaxPayloadSize) then begin
-      errors := 'Invalid Payload size:'+inttostr(length(txr.Payload))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
+    if (length(txr.Payload.payload_raw)>CT_MaxPayloadSize) then begin
+      errors := 'Invalid Payload size:'+inttostr(length(txr.Payload.payload_raw))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
       Exit;
     end;
     //
@@ -825,9 +825,9 @@ begin
   Result := FTotalFee;
 end;
 
-function TOpMultiOperation.OperationPayload: TRawBytes;
+function TOpMultiOperation.OperationPayload: TOperationPayload;
 begin
-  SetLength(Result,0);
+  Result := CT_TOperationPayload_NUL;
 end;
 
 function TOpMultiOperation.SignerAccount: Cardinal;

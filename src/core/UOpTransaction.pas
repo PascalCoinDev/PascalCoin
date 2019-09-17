@@ -43,7 +43,7 @@ Type
     target: Cardinal;
     amount: UInt64;
     fee: UInt64;
-    payload: TRawBytes;
+    payload: TOperationPayload;
     public_key: TECDSA_Public;
     sign: TECDSA_SIG;
     // Protocol 2
@@ -59,7 +59,7 @@ Type
     account_target: Cardinal;
     n_operation : Cardinal;
     fee: UInt64;
-    payload: TRawBytes;
+    payload: TOperationPayload;
     public_key: TECDSA_Public;
     new_accountkey: TAccountKey;
     sign: TECDSA_SIG;
@@ -73,8 +73,8 @@ Type
   End;
 
 Const
-  CT_TOpTransactionData_NUL : TOpTransactionData = (sender:0;n_operation:0;target:0;amount:0;fee:0;payload:Nil;public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);sign:(r:Nil;s:Nil);opTransactionStyle:transaction;AccountPrice:0;SellerAccount:0;new_accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));
-  CT_TOpChangeKeyData_NUL : TOpChangeKeyData = (account_signer:0;account_target:0;n_operation:0;fee:0;payload:Nil;public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);new_accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);sign:(r:Nil;s:Nil));
+  CT_TOpTransactionData_NUL : TOpTransactionData = (sender:0;n_operation:0;target:0;amount:0;fee:0;payload:(payload_type:0;payload_raw:Nil);public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);sign:(r:Nil;s:Nil);opTransactionStyle:transaction;AccountPrice:0;SellerAccount:0;new_accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));
+  CT_TOpChangeKeyData_NUL : TOpChangeKeyData = (account_signer:0;account_target:0;n_operation:0;fee:0;payload:(payload_type:0;payload_raw:Nil);public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);new_accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);sign:(r:Nil;s:Nil));
   CT_TOpRecoverFoundsData_NUL : TOpRecoverFoundsData = (account:0;n_operation:0;fee:0;new_accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));
 
 Type
@@ -96,7 +96,7 @@ Type
     class function OpType : Byte; override;
     function OperationAmount : Int64; override;
     function OperationFee : Int64; override;
-    function OperationPayload : TRawBytes; override;
+    function OperationPayload : TOperationPayload; override;
     function SignerAccount : Cardinal; override;
     function DestinationAccount : Int64; override;
     function SellerAccount : Int64; override;
@@ -104,7 +104,7 @@ Type
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
     Property Data : TOpTransactionData read FData;
 
-    Constructor CreateTransaction(ACurrentProtocol : Word; sender, n_operation, target: Cardinal; key: TECPrivateKey; amount, fee: UInt64; payload: TRawBytes);
+    Constructor CreateTransaction(ACurrentProtocol : Word; sender, n_operation, target: Cardinal; key: TECPrivateKey; amount, fee: UInt64; const payload: TOperationPayload);
     Function toString : String; Override;
     Function GetDigestToSign(current_protocol : Word) : TRawBytes; override;
 
@@ -128,13 +128,13 @@ Type
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
     function OperationAmount : Int64; override;
     function OperationFee : Int64; override;
-    function OperationPayload : TRawBytes; override;
+    function OperationPayload : TOperationPayload; override;
     function SignerAccount : Cardinal; override;
     function DestinationAccount : Int64; override;
     function N_Operation : Cardinal; override;
     procedure AffectedAccounts(list : TList<Cardinal>); override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
-    Constructor Create(ACurrentProtocol : Word; account_signer, n_operation, account_target: Cardinal; key:TECPrivateKey; new_account_key : TAccountKey; fee: UInt64; payload: TRawBytes);
+    Constructor Create(ACurrentProtocol : Word; account_signer, n_operation, account_target: Cardinal; key:TECPrivateKey; new_account_key : TAccountKey; fee: UInt64; const payload: TOperationPayload);
     Property Data : TOpChangeKeyData read FData;
     Function toString : String; Override;
     Function GetDigestToSign(current_protocol : Word) : TRawBytes; override;
@@ -167,7 +167,7 @@ Type
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
     function OperationAmount : Int64; override;
     function OperationFee : Int64; override;
-    function OperationPayload : TRawBytes; override;
+    function OperationPayload : TOperationPayload; override;
     function SignerAccount : Cardinal; override;
     function N_Operation : Cardinal; override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
@@ -192,7 +192,7 @@ Type
     account_to_pay : Cardinal;
     fee: UInt64;
     hash_lock : T32Bytes;
-    payload: TRawBytes;
+    payload: TOperationPayload;
     public_key: TAccountKey;
     new_public_key: TAccountKey;   // If EC_OpenSSL_NID=0 then is OPEN, otherwise is for only 1 public key
     locked_until_block : Cardinal; //
@@ -204,7 +204,7 @@ Type
     account_target: Cardinal;
     n_operation : Cardinal;
     fee: UInt64;
-    payload: TRawBytes;
+    payload: TOperationPayload;
     public_key: TECDSA_Public;
     changes_type : TOpChangeAccountInfoTypes; // bits mask. $0001 = New account key , $0002 = New name , $0004 = New type , $0008 = New Data
     new_accountkey: TAccountKey;  // If (changes_mask and $0001)=$0001 then change account key
@@ -217,8 +217,8 @@ Type
 
 Const
   CT_TOpListAccountData_NUL : TOpListAccountData = (account_signer:0;account_target:0;operation_type:lat_Unknown;n_operation:0;account_state:as_Unknown;account_price:0;account_to_pay:0;fee:0;
-    hash_lock:(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);payload:Nil;public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);new_public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;sign:(r:Nil;s:Nil));
-  CT_TOpChangeAccountInfoData_NUL : TOpChangeAccountInfoData = (account_signer:0;account_target:0;n_operation:0;fee:0;payload:Nil;public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);changes_type:[];
+    hash_lock:(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);payload:(payload_type:0;payload_raw:Nil);public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);new_public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;sign:(r:Nil;s:Nil));
+  CT_TOpChangeAccountInfoData_NUL : TOpChangeAccountInfoData = (account_signer:0;account_target:0;n_operation:0;fee:0;payload:(payload_type:0;payload_raw:Nil);public_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);changes_type:[];
     new_accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);new_name:Nil;new_type:0;new_data:Nil;sign:(r:Nil;s:Nil));
 
 Type
@@ -238,7 +238,7 @@ Type
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
     function OperationAmount : Int64; override;
     function OperationFee : Int64; override;
-    function OperationPayload : TRawBytes; override;
+    function OperationPayload : TOperationPayload; override;
     function SignerAccount : Cardinal; override;
     function DestinationAccount : Int64; override;
     function SellerAccount : Int64; override;
@@ -256,14 +256,14 @@ Type
     function GetOpSubType : Integer;
   public
     class function OpType : Byte; override;
-    Constructor CreateListAccountForSaleOrSwap(ACurrentProtocol : Word; ANewAccountState : TAccountState; AAccountSigner, ANOperation, AAccountTarget: Cardinal; AAccountPrice, AFee: UInt64; AAccountToPay: Cardinal;  ANewPublicKey: TAccountKey; ALockedUntilBlock: Cardinal; AKey: TECPrivateKey; const AHashLock : T32Bytes; const APayload: TRawBytes);
+    Constructor CreateListAccountForSaleOrSwap(ACurrentProtocol : Word; ANewAccountState : TAccountState; AAccountSigner, ANOperation, AAccountTarget: Cardinal; AAccountPrice, AFee: UInt64; AAccountToPay: Cardinal;  ANewPublicKey: TAccountKey; ALockedUntilBlock: Cardinal; AKey: TECPrivateKey; const AHashLock : T32Bytes; const APayload: TOperationPayload);
     property OpSubType : Integer read GetOpSubType;
   End;
 
   TOpDelistAccountForSale = Class(TOpListAccount)
   public
     class function OpType : Byte; override;
-    Constructor CreateDelistAccountForSale(ACurrentProtocol : Word; account_signer, n_operation, account_target: Cardinal; fee: UInt64; key: TECPrivateKey; payload: TRawBytes);
+    Constructor CreateDelistAccountForSale(ACurrentProtocol : Word; account_signer, n_operation, account_target: Cardinal; fee: UInt64; key: TECPrivateKey; const payload: TOperationPayload);
   End;
 
   { TOpBuyAccount }
@@ -273,7 +273,7 @@ Type
     procedure InitializeData(AProtocolVersion : Word); override;
   public
     class function OpType : Byte; override;
-    Constructor CreateBuy(ACurrentProtocol : Word; account_number, n_operation, account_to_buy, account_to_pay: Cardinal; price, amount, fee : UInt64; new_public_key:TAccountKey; key:TECPrivateKey; payload: TRawBytes);
+    Constructor CreateBuy(ACurrentProtocol : Word; account_number, n_operation, account_to_buy, account_to_pay: Cardinal; price, amount, fee : UInt64; new_public_key:TAccountKey; key:TECPrivateKey; const payload: TOperationPayload);
   End;
 
   { TOpChangeAccountInfo }
@@ -293,7 +293,7 @@ Type
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
     function OperationAmount : Int64; override;
     function OperationFee : Int64; override;
-    function OperationPayload : TRawBytes; override;
+    function OperationPayload : TOperationPayload; override;
     function SignerAccount : Cardinal; override;
     function DestinationAccount : Int64; override;
     function N_Operation : Cardinal; override;
@@ -305,7 +305,7 @@ Type
       change_name: Boolean; const new_name : TRawBytes;
       change_type: Boolean; const new_type : Word;
       change_data: Boolean; const new_data : TRawBytes;
-      fee: UInt64; payload: TRawBytes);
+      fee: UInt64; const payload: TOperationPayload);
     Property Data : TOpChangeAccountInfoData read FData;
     Function toString : String; Override;
     Function GetDigestToSign(current_protocol : Word) : TRawBytes; override;
@@ -324,7 +324,7 @@ Type
     dataSequence : Word;         // 2 byte data sequence
     amount: UInt64;              // Allow amount=0
     fee: UInt64;                 // Allow fee=0
-    payload: TRawBytes;          // Standard arbitrary data with length<=256
+    payload: TOperationPayload;  // Standard arbitrary data with length<256
     sign: TECDSA_SIG;
   End;
 
@@ -345,13 +345,13 @@ Type
     function DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean; override;
     function OperationAmount : Int64; override;
     function OperationFee : Int64; override;
-    function OperationPayload : TRawBytes; override;
+    function OperationPayload : TOperationPayload; override;
     function SignerAccount : Cardinal; override;
     function DestinationAccount : Int64; override;
     function N_Operation : Cardinal; override;
     procedure AffectedAccounts(list : TList<Cardinal>); override;
     function OperationAmountByAccount(account : Cardinal) : Int64; override;
-    Constructor CreateOpData( ACurrentProtocol : word; account_signer, account_sender, account_target : Cardinal; signer_key:TECPrivateKey; n_operation : Cardinal; dataType, dataSequence : Word; AGUID : TGUID; amount, fee : UInt64; payload: TRawBytes);
+    Constructor CreateOpData( ACurrentProtocol : word; account_signer, account_sender, account_target : Cardinal; signer_key:TECPrivateKey; n_operation : Cardinal; dataType, dataSequence : Word; AGUID : TGUID; amount, fee : UInt64; const payload: TOperationPayload);
     Property Data : TOpDataData read FData;
     Function toString : String; Override;
     Function GetDigestToSign(current_protocol : Word) : TRawBytes; override;
@@ -359,7 +359,7 @@ Type
   End;
 
 Const
-  CT_TOpDataData_NUL : TOpDataData = (account_signer:0;account_sender:0;account_target:0;n_operation:0;guid:(D1:0;D2:0;D3:0;D4:(0,0,0,0,0,0,0,0));dataType:0;dataSequence:0;amount:0;fee:0;payload:Nil;sign:(r:Nil;s:Nil));
+  CT_TOpDataData_NUL : TOpDataData = (account_signer:0;account_sender:0;account_target:0;n_operation:0;guid:(D1:0;D2:0;D3:0;D4:(0,0,0,0,0,0,0,0));dataType:0;dataSequence:0;amount:0;fee:0;payload:(payload_type:0;payload_raw:Nil);sign:(r:Nil;s:Nil));
 
 Procedure RegisterOperationsClass;
 
@@ -404,7 +404,7 @@ begin
   Stream.Write(FData.account_target,Sizeof(FData.account_target));
   Stream.Write(FData.n_operation,Sizeof(FData.n_operation));
   Stream.Write(FData.fee,Sizeof(FData.fee));
-  TStreamOp.WriteAnsiString(Stream,FData.payload);
+  SaveOperationPayloadToStream(Stream,FData.payload);
   TStreamOp.WriteAccountKey(Stream,FData.public_key);
   b := 0;
   if (public_key in FData.changes_type) then b:=b OR $01;
@@ -432,7 +432,7 @@ begin
   Stream.Read(FData.account_target,Sizeof(FData.account_target));
   Stream.Read(FData.n_operation,Sizeof(FData.n_operation));
   Stream.Read(FData.fee,Sizeof(FData.fee));
-  if TStreamOp.ReadAnsiString(Stream,FData.payload)<0 then Exit;
+  if Not LoadOperationPayloadFromStream(Stream,FData.payload) then Exit;
   if TStreamOp.ReadAccountKey(Stream,FData.public_key)<0 then Exit;
   Stream.Read(b,SizeOf(b));
   FData.changes_type:=[];
@@ -524,8 +524,8 @@ begin
     errors := 'Insuficient funds';
     exit;
   end;
-  if (length(FData.payload)>CT_MaxPayloadSize) then begin
-    errors := 'Invalid Payload size:'+inttostr(length(FData.payload))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
+  if (length(FData.payload.payload_raw)>CT_MaxPayloadSize) then begin
+    errors := 'Invalid Payload size:'+inttostr(length(FData.payload.payload_raw))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
     If (AccountTransaction.FreezedSafeBox.CurrentProtocol>=CT_PROTOCOL_2) then begin
       Exit; // BUG from protocol 1
     end;
@@ -629,7 +629,7 @@ begin
   Result := FData.fee;
 end;
 
-function TOpChangeAccountInfo.OperationPayload: TRawBytes;
+function TOpChangeAccountInfo.OperationPayload: TOperationPayload;
 begin
   Result := FData.payload;
 end;
@@ -667,7 +667,7 @@ constructor TOpChangeAccountInfo.CreateChangeAccountInfo(ACurrentProtocol : word
   const new_account_key: TAccountKey; change_name: Boolean;
   const new_name: TRawBytes; change_type: Boolean; const new_type: Word;
   change_data: Boolean; const new_data : TRawBytes;
-  fee: UInt64; payload: TRawBytes);
+  fee: UInt64; const payload: TOperationPayload);
 begin
   inherited Create(ACurrentProtocol);
   FData.account_signer:=account_signer;
@@ -725,7 +725,7 @@ begin
   Result := Format('Change account %s info: %s fee:%s (n_op:%d) payload size:%d',[
      TAccountComp.AccountNumberToAccountTxtNumber(FData.account_target),
      s,
-     TAccountComp.FormatMoney(FData.fee),FData.n_operation,Length(FData.payload)]);
+     TAccountComp.FormatMoney(FData.fee),FData.n_operation,Length(FData.payload.payload_raw)]);
 end;
 
 function TOpChangeAccountInfo.GetDigestToSign(current_protocol : Word): TRawBytes;
@@ -738,7 +738,7 @@ begin
     Stream.Write(FData.account_target,Sizeof(FData.account_target));
     Stream.Write(FData.n_operation,Sizeof(FData.n_operation));
     Stream.Write(FData.fee,Sizeof(FData.fee));
-    TStreamOp.WriteAnsiString(Stream,FData.payload);
+    SaveOperationPayloadToStream(Stream,FData.payload);
     TStreamOp.WriteAccountKey(Stream,FData.public_key);
     b := 0;
     if (public_key in FData.changes_type) then b:=b OR $01;
@@ -779,7 +779,7 @@ end;
 
 constructor TOpTransaction.CreateTransaction(ACurrentProtocol : Word;
   sender, n_operation, target: Cardinal;
-  key: TECPrivateKey; amount, fee: UInt64; payload: TRawBytes);
+  key: TECPrivateKey; amount, fee: UInt64; const payload: TOperationPayload);
 begin
   inherited Create(ACurrentProtocol);
   FData.sender := sender;
@@ -835,8 +835,8 @@ begin
     AErrors := Format('Invalid fee %d (max %d)',[FData.fee,CT_MaxTransactionFee]);
     Exit;
   end;
-  if (length(FData.payload)>CT_MaxPayloadSize) then begin
-    AErrors := 'Invalid Payload size:'+inttostr(length(FData.payload))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
+  if (length(FData.payload.payload_raw)>CT_MaxPayloadSize) then begin
+    AErrors := 'Invalid Payload size:'+inttostr(length(FData.payload.payload_raw))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
     If (LCurrentProtocol>=CT_PROTOCOL_2) then begin
       Exit; // BUG from protocol 1
     end;
@@ -961,7 +961,7 @@ begin
               (
                 (FData.opTransactionStyle = transaction) AND
                 (LCurrentProtocol >= CT_PROTOCOL_2) AND
-                (TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(LTarget, LCurrentBlock, LCurrentProtocol, FData.payload)) AND
+                (TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(LTarget, LCurrentBlock, LCurrentProtocol, FData.payload.payload_raw)) AND
                 ((LTarget.balance + FData.amount >= LTarget.accountInfo.price))
               )  then begin
     {$region 'Transaction Auto Buy Validation'}
@@ -1047,7 +1047,7 @@ begin
       LTarget.accountInfo.price,
       FData.fee,
       LBuyAccountNewPubkey,
-      FData.payload,
+      FData.payload.payload_raw,
       LRecipientSignable,
       AErrors
     );
@@ -1079,8 +1079,8 @@ begin
       ms.Write(FData.target,Sizeof(FData.target));
       ms.Write(FData.amount,Sizeof(FData.amount));
       ms.Write(FData.fee,Sizeof(FData.fee));
-      if Length(FData.payload)>0 then
-        ms.WriteBuffer(FData.payload[Low(FData.payload)],Length(FData.payload));
+      if Length(FData.payload.payload_raw)>0 then
+        ms.WriteBuffer(FData.payload.payload_raw[Low(FData.payload.payload_raw)],Length(FData.payload.payload_raw));
       ms.Write(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID));
       if Length(FData.public_key.x)>0 then
         ms.WriteBuffer(FData.public_key.x[Low(FData.public_key.x)],Length(FData.public_key.x));
@@ -1122,7 +1122,7 @@ begin
   Stream.Read(FData.target,Sizeof(FData.target));
   Stream.Read(FData.amount,Sizeof(FData.amount));
   Stream.Read(FData.fee,Sizeof(FData.fee));
-  if TStreamOp.ReadAnsiString(Stream,FData.payload)<0 then exit;
+  if Not LoadOperationPayloadFromStream(Stream,FData.payload) then Exit;
   if Stream.Read(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID))<0 then exit;
   if TStreamOp.ReadAnsiString(Stream,FData.public_key.x)<0 then exit;
   if TStreamOp.ReadAnsiString(Stream,FData.public_key.y)<0 then exit;
@@ -1207,7 +1207,7 @@ begin
   Result := FData.fee;
 end;
 
-function TOpTransaction.OperationPayload: TRawBytes;
+function TOpTransaction.OperationPayload: TOperationPayload;
 begin
   Result := FData.payload;
 end;
@@ -1225,7 +1225,7 @@ begin
   Stream.Write(FData.target,Sizeof(FData.target));
   Stream.Write(FData.amount,Sizeof(FData.amount));
   Stream.Write(FData.fee,Sizeof(FData.fee));
-  TStreamOp.WriteAnsiString(Stream,FData.payload);
+  SaveOperationPayloadToStream(Stream,FData.payload);
   Stream.Write(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID));
   TStreamOp.WriteAnsiString(Stream,FData.public_key.x);
   TStreamOp.WriteAnsiString(Stream,FData.public_key.y);
@@ -1294,22 +1294,22 @@ begin
       Result := Format('Transaction from %s to %s amount:%s fee:%s (n_op:%d) payload size:%d payload:%s',[
          TAccountComp.AccountNumberToAccountTxtNumber(FData.sender),
          TAccountComp.AccountNumberToAccountTxtNumber(FData.target),
-         TAccountComp.FormatMoney(FData.amount),TAccountComp.FormatMoney(FData.fee),FData.n_operation,Length(FData.payload),
-         TCrypto.ToHexaString(FData.payload)]);
+         TAccountComp.FormatMoney(FData.amount),TAccountComp.FormatMoney(FData.fee),FData.n_operation,Length(FData.payload.payload_raw),
+         TCrypto.ToHexaString(FData.payload.payload_raw)]);
     transaction_with_auto_buy_account :
       Result := Format('Transaction/Buy account %s by %s paying %s to %s amount:%s fee:%s (n_op:%d) payload size:%d payload:%s',[
          TAccountComp.AccountNumberToAccountTxtNumber(FData.target),
          TAccountComp.AccountNumberToAccountTxtNumber(FData.sender),
          TAccountComp.FormatMoney(FData.AccountPrice), TAccountComp.AccountNumberToAccountTxtNumber(FData.SellerAccount),
-         TAccountComp.FormatMoney(FData.amount),TAccountComp.FormatMoney(FData.fee),FData.n_operation,Length(FData.payload),
-         TCrypto.ToHexaString(FData.payload)]);
+         TAccountComp.FormatMoney(FData.amount),TAccountComp.FormatMoney(FData.fee),FData.n_operation,Length(FData.payload.payload_raw),
+         TCrypto.ToHexaString(FData.payload.payload_raw)]);
     buy_account :
       Result := Format('Buy account %s by %s paying %s to %s amount:%s fee:%s (n_op:%d) payload size:%d payload:%s',[
          TAccountComp.AccountNumberToAccountTxtNumber(FData.target),
          TAccountComp.AccountNumberToAccountTxtNumber(FData.sender),
          TAccountComp.FormatMoney(FData.AccountPrice), TAccountComp.AccountNumberToAccountTxtNumber(FData.SellerAccount),
-         TAccountComp.FormatMoney(FData.amount),TAccountComp.FormatMoney(FData.fee),FData.n_operation,Length(FData.payload),
-         TCrypto.ToHexaString(FData.payload)]);
+         TAccountComp.FormatMoney(FData.amount),TAccountComp.FormatMoney(FData.fee),FData.n_operation,Length(FData.payload.payload_raw),
+         TCrypto.ToHexaString(FData.payload.payload_raw)]);
   else raise Exception.Create('ERROR DEV 20170424-2');
   end;
 end;
@@ -1325,8 +1325,11 @@ begin
     ms.Write(FData.target,Sizeof(FData.target));
     ms.Write(FData.amount,Sizeof(FData.amount));
     ms.Write(FData.fee,Sizeof(FData.fee));
-    if Length(FData.payload)>0 then
-      ms.WriteBuffer(FData.payload[Low(FData.payload)],Length(FData.payload));
+    if current_protocol>=CT_PROTOCOL_5 then begin
+      ms.Write(FData.payload.payload_type,SizeOf(FData.payload.payload_type));
+    end;
+    if Length(FData.payload.payload_raw)>0 then
+      ms.WriteBuffer(FData.payload.payload_raw[Low(FData.payload.payload_raw)],Length(FData.payload.payload_raw));
     ms.Write(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID));
     if Length(FData.public_key.x)>0 then
       ms.WriteBuffer(FData.public_key.x[Low(FData.public_key.x)],Length(FData.public_key.x));
@@ -1369,7 +1372,7 @@ begin
   else Result := 0;
 end;
 
-constructor TOpChangeKey.Create(ACurrentProtocol : Word; account_signer, n_operation, account_target: Cardinal; key:TECPrivateKey; new_account_key : TAccountKey; fee: UInt64; payload: TRawBytes);
+constructor TOpChangeKey.Create(ACurrentProtocol : Word; account_signer, n_operation, account_target: Cardinal; key:TECPrivateKey; new_account_key : TAccountKey; fee: UInt64; const payload: TOperationPayload);
 begin
   inherited Create(ACurrentProtocol);
   FData.account_signer := account_signer;
@@ -1431,8 +1434,8 @@ begin
     errors := 'Insuficient founds';
     exit;
   end;
-  if (length(FData.payload)>CT_MaxPayloadSize) then begin
-    errors := 'Invalid Payload size:'+inttostr(length(FData.payload))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
+  if (length(FData.payload.payload_raw)>CT_MaxPayloadSize) then begin
+    errors := 'Invalid Payload size:'+inttostr(length(FData.payload.payload_raw))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
     If (AccountTransaction.FreezedSafeBox.CurrentProtocol>=CT_PROTOCOL_2) then begin
       Exit; // BUG from protocol 1
     end;
@@ -1512,8 +1515,8 @@ begin
       ms.Write(FData.account_signer,Sizeof(FData.account_signer)); //Protocol 1 does not allow signer/target. signer=target always
       ms.Write(FData.n_operation,Sizeof(FData.n_operation));
       ms.Write(FData.fee,Sizeof(FData.fee));
-      if Length(FData.payload)>0 then
-        ms.WriteBuffer(FData.payload[Low(FData.payload)],Length(FData.payload));
+      if Length(FData.payload.payload_raw)>0 then
+        ms.WriteBuffer(FData.payload.payload_raw[Low(FData.payload.payload_raw)],Length(FData.payload.payload_raw));
       ms.Write(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID));
       if Length(FData.public_key.x)>0 then
         ms.WriteBuffer(FData.public_key.x[Low(FData.public_key.x)],Length(FData.public_key.x));
@@ -1561,7 +1564,7 @@ begin
   end else Raise Exception.Create('ERROR DEV 20170530-1');
   Stream.Read(FData.n_operation,Sizeof(FData.n_operation));
   Stream.Read(FData.fee,Sizeof(FData.fee));
-  if TStreamOp.ReadAnsiString(Stream,FData.payload)<0 then exit;
+  if Not LoadOperationPayloadFromStream(Stream,FData.payload) then Exit;
   if Stream.Read(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID))<0 then exit;
   if TStreamOp.ReadAnsiString(Stream,FData.public_key.x)<0 then exit;
   if TStreamOp.ReadAnsiString(Stream,FData.public_key.y)<0 then exit;
@@ -1604,7 +1607,7 @@ begin
   Result := FData.fee;
 end;
 
-function TOpChangeKey.OperationPayload: TRawBytes;
+function TOpChangeKey.OperationPayload: TOperationPayload;
 begin
   Result := FData.payload;
 end;
@@ -1624,7 +1627,7 @@ begin
   end else Raise Exception.Create('ERROR DEV 20170530-3');
   Stream.Write(FData.n_operation,Sizeof(FData.n_operation));
   Stream.Write(FData.fee,Sizeof(FData.fee));
-  TStreamOp.WriteAnsiString(Stream,FData.payload);
+  SaveOperationPayloadToStream(Stream,FData.payload);
   Stream.Write(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID));
   TStreamOp.WriteAnsiString(Stream,FData.public_key.x);
   TStreamOp.WriteAnsiString(Stream,FData.public_key.y);
@@ -1654,7 +1657,7 @@ begin
   Result := Format('Change key of %s to new key: %s fee:%s (n_op:%d) payload size:%d',[
     TAccountComp.AccountNumberToAccountTxtNumber(FData.account_target),
     TAccountComp.GetECInfoTxt(FData.new_accountkey.EC_OpenSSL_NID),
-    TAccountComp.FormatMoney(FData.fee),FData.n_operation,Length(FData.payload)]);
+    TAccountComp.FormatMoney(FData.fee),FData.n_operation,Length(FData.payload.payload_raw)]);
 end;
 
 function TOpChangeKey.GetDigestToSign(current_protocol : Word): TRawBytes;
@@ -1668,8 +1671,11 @@ begin
     if (FData.account_signer<>FData.account_target) then ms.Write(FData.account_target,Sizeof(FData.account_target));
     ms.Write(FData.n_operation,Sizeof(FData.n_operation));
     ms.Write(FData.fee,Sizeof(FData.fee));
-    if Length(FData.payload)>0 then
-      ms.WriteBuffer(FData.payload[Low(FData.payload)],Length(FData.payload));
+    if current_protocol>=CT_PROTOCOL_5 then begin
+      ms.Write(FData.payload.payload_type,SizeOf(FData.payload.payload_type));
+    end;
+    if Length(FData.payload.payload_raw)>0 then
+      ms.WriteBuffer(FData.payload.payload_raw[Low(FData.payload.payload_raw)],Length(FData.payload.payload_raw));
     ms.Write(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID));
     if Length(FData.public_key.x)>0 then
       ms.WriteBuffer(FData.public_key.x[Low(FData.public_key.x)],Length(FData.public_key.x));
@@ -1824,9 +1830,9 @@ begin
   Result := FData.fee;
 end;
 
-function TOpRecoverFounds.OperationPayload: TRawBytes;
+function TOpRecoverFounds.OperationPayload: TOperationPayload;
 begin
-  SetLength(Result,0);
+  Result := CT_TOperationPayload_NUL;
 end;
 
 class function TOpRecoverFounds.OpType: Byte;
@@ -2013,8 +2019,8 @@ begin
     errors := 'Insuficient founds';
     exit;
   end;
-  if (length(FData.payload)>CT_MaxPayloadSize) then begin
-    errors := 'Invalid Payload size:'+inttostr(length(FData.payload))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
+  if (length(FData.payload.payload_raw)>CT_MaxPayloadSize) then begin
+    errors := 'Invalid Payload size:'+inttostr(length(FData.payload.payload_raw))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
     Exit;
   end;
   // Is locked?
@@ -2153,7 +2159,7 @@ begin
     end;
   end;
   Stream.Read(FData.fee,Sizeof(FData.fee));
-  if TStreamOp.ReadAnsiString(Stream,FData.payload)<0 then exit;
+  if Not LoadOperationPayloadFromStream(Stream,FData.payload) then Exit;
   if TStreamOp.ReadAnsiString(Stream,FData.sign.r)<0 then exit;
   if TStreamOp.ReadAnsiString(Stream,FData.sign.s)<0 then exit;
   Result := true;
@@ -2218,7 +2224,7 @@ begin
   Result := FData.fee;
 end;
 
-function TOpListAccount.OperationPayload: TRawBytes;
+function TOpListAccount.OperationPayload: TOperationPayload;
 begin
   Result := FData.payload;
 end;
@@ -2251,7 +2257,7 @@ begin
     end;
   end;
   Stream.Write(FData.fee,Sizeof(FData.fee));
-  TStreamOp.WriteAnsiString(Stream,FData.payload);
+  SaveOperationPayloadToStream(Stream,FData.payload);
   TStreamOp.WriteAnsiString(Stream,FData.sign.r);
   TStreamOp.WriteAnsiString(Stream,FData.sign.s);
   Result := true;
@@ -2285,13 +2291,13 @@ begin
             Result := Format('List account %s for sale price %s locked until block:%d fee:%s (n_op:%d) payload size:%d',[
               TAccountComp.AccountNumberToAccountTxtNumber(FData.account_target), TAccountComp.FormatMoney(FData.account_price),
               FData.locked_until_block, TAccountComp.FormatMoney(FData.fee),
-              FData.n_operation, Length(FData.payload)])
+              FData.n_operation, Length(FData.payload.payload_raw)])
           end else begin
             Result := Format('List account %s for private sale price %s reserved for %s locked until block:%d fee:%s (n_op:%d) payload size:%d',[
               TAccountComp.AccountNumberToAccountTxtNumber(FData.account_target), TAccountComp.FormatMoney(FData.account_price),
               TAccountComp.GetECInfoTxt(FData.new_public_key.EC_OpenSSL_NID),
               FData.locked_until_block, TAccountComp.FormatMoney(FData.fee),
-              FData.n_operation, Length(FData.payload)])
+              FData.n_operation, Length(FData.payload.payload_raw)])
           end;
         end;
         as_ForAtomicAccountSwap: begin
@@ -2301,7 +2307,7 @@ begin
             FData.locked_until_block,
             TAccountComp.FormatMoney(FData.fee),
             FData.n_operation,
-            Length(FData.payload)]
+            Length(FData.payload.payload_raw)]
           );
         end;
         as_ForAtomicCoinSwap: begin
@@ -2312,7 +2318,7 @@ begin
             FData.locked_until_block,
             TAccountComp.FormatMoney(FData.fee),
             FData.n_operation,
-            Length(FData.payload)]
+            Length(FData.payload.payload_raw)]
           );
         end;
       end;
@@ -2320,7 +2326,7 @@ begin
     lat_DelistAccount : begin
       Result := Format('Delist account %s for sale fee:%s (n_op:%d) payload size:%d',[
         TAccountComp.AccountNumberToAccountTxtNumber(FData.account_target), TAccountComp.FormatMoney(FData.fee),
-          FData.n_operation, Length(FData.payload)])
+          FData.n_operation, Length(FData.payload.payload_raw)])
     end;
   else Result := 'ERROR DEV 20170414-2';
   end;
@@ -2342,8 +2348,11 @@ begin
     ms.Write(FData.account_price,Sizeof(FData.account_price));
     ms.Write(FData.account_to_pay,Sizeof(FData.account_to_pay));
     ms.Write(FData.fee,Sizeof(FData.fee));
-    if Length(FData.payload)>0 then
-      ms.WriteBuffer(FData.payload[Low(FData.payload)],Length(FData.payload));
+    if current_protocol>=CT_PROTOCOL_5 then begin
+      ms.Write(FData.payload.payload_type,SizeOf(FData.payload.payload_type));
+    end;
+    if Length(FData.payload.payload_raw)>0 then
+      ms.WriteBuffer(FData.payload.payload_raw[Low(FData.payload.payload_raw)],Length(FData.payload.payload_raw));
     ms.Write(FData.public_key.EC_OpenSSL_NID,Sizeof(FData.public_key.EC_OpenSSL_NID));
     if Length(FData.public_key.x)>0 then
       ms.WriteBuffer(FData.public_key.x[Low(FData.public_key.x)],Length(FData.public_key.x));
@@ -2375,7 +2384,7 @@ end;
 
 { TOpListAccountForSaleOrSwap }
 
-constructor TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(ACurrentProtocol : Word; ANewAccountState : TAccountState; AAccountSigner, ANOperation, AAccountTarget: Cardinal; AAccountPrice, AFee: UInt64; AAccountToPay: Cardinal;  ANewPublicKey: TAccountKey; ALockedUntilBlock: Cardinal; AKey: TECPrivateKey;  const AHashLock : T32Bytes; const APayload: TRawBytes);
+constructor TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(ACurrentProtocol : Word; ANewAccountState : TAccountState; AAccountSigner, ANOperation, AAccountTarget: Cardinal; AAccountPrice, AFee: UInt64; AAccountToPay: Cardinal;  ANewPublicKey: TAccountKey; ALockedUntilBlock: Cardinal; AKey: TECPrivateKey;  const AHashLock : T32Bytes; const APayload: TOperationPayload);
 begin
   inherited Create(ACurrentProtocol);
   case ANewAccountState of
@@ -2440,7 +2449,7 @@ end;
 
 { TOpDelistAccountForSale }
 
-constructor TOpDelistAccountForSale.CreateDelistAccountForSale(ACurrentProtocol : Word; account_signer, n_operation, account_target: Cardinal; fee: UInt64; key: TECPrivateKey; payload: TRawBytes);
+constructor TOpDelistAccountForSale.CreateDelistAccountForSale(ACurrentProtocol : Word; account_signer, n_operation, account_target: Cardinal; fee: UInt64; key: TECPrivateKey; const payload: TOperationPayload);
 begin
   inherited Create(ACurrentProtocol);
   FData.account_signer := account_signer;
@@ -2468,7 +2477,7 @@ end;
 
 constructor TOpBuyAccount.CreateBuy(ACurrentProtocol : Word; account_number, n_operation, account_to_buy,
   account_to_pay: Cardinal; price, amount, fee: UInt64;
-  new_public_key: TAccountKey; key: TECPrivateKey; payload: TRawBytes);
+  new_public_key: TAccountKey; key: TECPrivateKey; const payload: TOperationPayload);
 begin
   inherited Create(ACurrentProtocol);
   FData.sender := account_number;
@@ -2535,7 +2544,7 @@ begin
   Stream.Write(FData.dataSequence,Sizeof(FData.dataSequence));
   Stream.Write(FData.amount,Sizeof(FData.amount));
   Stream.Write(FData.fee,Sizeof(FData.fee));
-  TStreamOp.WriteAnsiString(Stream,FData.payload);
+  SaveOperationPayloadToStream(Stream,FData.payload);
   TStreamOp.WriteAnsiString(Stream,FData.sign.r);
   TStreamOp.WriteAnsiString(Stream,FData.sign.s);
   Result := true;
@@ -2558,7 +2567,7 @@ begin
   Stream.Read(FData.dataSequence,Sizeof(FData.dataSequence));
   Stream.Read(FData.amount,Sizeof(FData.amount));
   Stream.Read(FData.fee,Sizeof(FData.fee));
-  if TStreamOp.ReadAnsiString(Stream,FData.payload)<0 then exit;
+  if Not LoadOperationPayloadFromStream(Stream,FData.payload) then Exit;
   if TStreamOp.ReadAnsiString(Stream,FData.sign.r)<0 then exit;
   if TStreamOp.ReadAnsiString(Stream,FData.sign.s)<0 then exit;
   Result := true;
@@ -2711,8 +2720,8 @@ begin
     Exit;
   end;
 
-  if (length(FData.payload)>CT_MaxPayloadSize) then begin
-    errors := 'Invalid Payload size:'+inttostr(length(FData.payload))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
+  if (length(FData.payload.payload_raw)>CT_MaxPayloadSize) then begin
+    errors := 'Invalid Payload size:'+inttostr(length(FData.payload.payload_raw))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
     Exit;
   end;
 
@@ -2738,7 +2747,7 @@ begin
   Result := FData.fee;
 end;
 
-function TOpData.OperationPayload: TRawBytes;
+function TOpData.OperationPayload: TOperationPayload;
 begin
   Result := FData.payload;
 end;
@@ -2785,7 +2794,7 @@ end;
 
 constructor TOpData.CreateOpData(ACurrentProtocol : word; account_signer, account_sender,
   account_target: Cardinal; signer_key: TECPrivateKey; n_operation: Cardinal;
-  dataType, dataSequence: Word; AGUID : TGUID; amount, fee: UInt64; payload: TRawBytes);
+  dataType, dataSequence: Word; AGUID : TGUID; amount, fee: UInt64; const payload: TOperationPayload);
 begin
   Inherited Create(ACurrentProtocol);
   FData.account_sender:=account_sender;
@@ -2833,7 +2842,7 @@ begin
     Stream.Write(FData.dataSequence,Sizeof(FData.dataSequence));
     Stream.Write(FData.amount,Sizeof(FData.amount));
     Stream.Write(FData.fee,Sizeof(FData.fee));
-    TStreamOp.WriteAnsiString(Stream,FData.payload);
+    SaveOperationPayloadToStream(Stream,FData.payload);
     b := OpType;
     Stream.Write(b,1);
     if (current_protocol<=CT_PROTOCOL_4) then begin

@@ -71,7 +71,7 @@ Type
     //
     class Function HexaStringToOperationsHashTree(Const AHexaStringOperationsHashTree : String; out AOperationsHashTree : TOperationsHashTree; var AErrors : String) : Boolean;
     class Function CapturePubKey(const AInputParams : TPCJSONObject; const APrefix : String; var APubKey : TAccountKey; var AErrortxt : String) : Boolean;
-    class function CheckAndGetEncodedRAWPayload(Const ARawPayload : TRawBytes; Const APayload_method, AEncodePwdForAES : String; const ASenderAccounKey, ATargetAccountKey : TAccountKey; var AEncodedRAWPayload : TRawBytes; Var AErrorNum : Integer; Var AErrorDesc : String) : Boolean;
+    class function CheckAndGetEncodedRAWPayload(Const ARawPayload : TRawBytes; Const APayload_method, AEncodePwdForAES : String; const ASenderAccounKey, ATargetAccountKey : TAccountKey; out AOperationPayload : TOperationPayload; Var AErrorNum : Integer; Var AErrorDesc : String) : Boolean;
   end;
 
   TRPCServerThread = Class;
@@ -251,7 +251,8 @@ Begin
       if (OPR.Senders[i].N_Operation>0) then auxObj.GetAsVariant('n_operation').Value := OPR.Senders[i].N_Operation;
       auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(OPR.Senders[i].Amount * (-1));
       auxObj.GetAsVariant('amount_s').Value := TAccountComp.FormatMoney (OPR.Senders[i].Amount * (-1));
-      auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Senders[i].Payload);
+      auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Senders[i].Payload.payload_raw);
+      auxObj.GetAsVariant('payload_type').Value := OPR.Senders[i].Payload.payload_type;
       if (OPR.OpType = CT_Op_Data) then begin
         FillOpDataObject(auxObj, OPR.senders[i].OpData);
       end;
@@ -263,7 +264,8 @@ Begin
       auxObj.GetAsVariant('account').Value := OPR.Receivers[i].Account;
       auxObj.GetAsVariant('amount').Value :=  TAccountComp.FormatMoneyDecimal(OPR.Receivers[i].Amount);
       auxObj.GetAsVariant('amount_s').Value :=  TAccountComp.FormatMoney(OPR.Receivers[i].Amount);
-      auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Receivers[i].Payload);
+      auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Receivers[i].Payload.payload_raw);
+      auxObj.GetAsVariant('payload_type').Value := OPR.Receivers[i].Payload.payload_type;
     end;
     jsonArr := jsonObject.GetAsArray('changers');
     for i:=Low(OPR.Changers) to High(OPR.Changers) do begin
@@ -320,7 +322,8 @@ Begin
   jsonObject.GetAsVariant('amount').Value:=TAccountComp.FormatMoneyDecimal(OPR.Amount);
   jsonObject.GetAsVariant('amount_s').Value:=TAccountComp.FormatMoney(OPR.Amount);
   if (Not OPR.isMultiOperation) then begin
-    jsonObject.GetAsVariant('payload').Value:=TCrypto.ToHexaString(OPR.OriginalPayload);
+    jsonObject.GetAsVariant('payload').Value:=TCrypto.ToHexaString(OPR.OriginalPayload.payload_raw);
+    jsonObject.GetAsVariant('payload_type').Value := OPR.OriginalPayload.payload_type;
   end;
   if (OPR.Balance>=0) And (OPR.valid) then jsonObject.GetAsVariant('balance').Value:=TAccountComp.FormatMoneyDecimal(OPR.Balance);
   If (OPR.OpType = CT_Op_Transaction) then begin
@@ -380,19 +383,24 @@ end;
 class function TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(
   const ARawPayload: TRawBytes; const APayload_method, AEncodePwdForAES: String;
   const ASenderAccounKey, ATargetAccountKey: TAccountKey;
-  var AEncodedRAWPayload: TRawBytes; var AErrorNum: Integer;
+  out AOperationPayload : TOperationPayload; var AErrorNum: Integer;
   var AErrorDesc: String): Boolean;
 begin
+  AOperationPayload := CT_TOperationPayload_NUL;
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // TODO:
+  // Needs to assign AOperationPayload.payload_type based on PIP-0027
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   if (Length(ARawPayload)>0) then begin
     if (APayload_method='none') then begin
-      AEncodedRAWPayload:=ARawPayload;
+      AOperationPayload.payload_raw:=ARawPayload;
       Result := True;
     end else if (APayload_method='dest') then begin
-      Result := TPCEncryption.DoPascalCoinECIESEncrypt(ATargetAccountKey,ARawPayload,AEncodedRAWPayload);
+      Result := TPCEncryption.DoPascalCoinECIESEncrypt(ATargetAccountKey,ARawPayload,AOperationPayload.payload_raw);
     end else if (APayload_method='sender') then begin
-      Result := TPCEncryption.DoPascalCoinECIESEncrypt(ASenderAccounKey,ARawPayload,AEncodedRAWPayload);
+      Result := TPCEncryption.DoPascalCoinECIESEncrypt(ASenderAccounKey,ARawPayload,AOperationPayload.payload_raw);
     end else if (APayload_method='aes') then begin
-      AEncodedRAWPayload := TPCEncryption.DoPascalCoinAESEncrypt(ARawPayload,TEncoding.ANSI.GetBytes(AEncodePwdForAES));
+      AOperationPayload.payload_raw := TPCEncryption.DoPascalCoinAESEncrypt(ARawPayload,TEncoding.ANSI.GetBytes(AEncodePwdForAES));
       Result := True;
     end else begin
       Result := False;
@@ -401,7 +409,6 @@ begin
       Exit;
     end;
   end else begin
-    AEncodedRAWPayload := Nil;
     Result := True;
   end;
 end;
@@ -488,7 +495,8 @@ begin
     auxObj.GetAsVariant('account').Value := multiOperation.Data.txSenders[i].Account;
     auxObj.GetAsVariant('n_operation').Value := multiOperation.Data.txSenders[i].N_Operation;
     auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(multiOperation.Data.txSenders[i].Amount * (-1));
-    auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(multiOperation.Data.txSenders[i].Payload);
+    auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(multiOperation.Data.txSenders[i].Payload.payload_raw);
+    auxObj.GetAsVariant('payload_type').Value := multiOperation.Data.txSenders[i].Payload.payload_type;
   end;
   //
   jsonArr := jsonObject.GetAsArray('receivers');
@@ -496,7 +504,8 @@ begin
     auxObj := jsonArr.GetAsObject(jsonArr.Count);
     auxObj.GetAsVariant('account').Value := multiOperation.Data.txReceivers[i].Account;
     auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(multiOperation.Data.txReceivers[i].Amount);
-    auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(multiOperation.Data.txReceivers[i].Payload);
+    auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(multiOperation.Data.txReceivers[i].Payload.payload_raw);
+    auxObj.GetAsVariant('payload_type').Value := multiOperation.Data.txReceivers[i].Payload.payload_type;
   end;
   jsonArr := jsonObject.GetAsArray('changers');
   for i:=Low(multiOperation.Data.changesInfo) to High(multiOperation.Data.changesInfo) do begin
@@ -1146,13 +1155,13 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     Const senderAccounKey, targetAccountKey : TAccountKey; Const RawPayload : TRawBytes;
     Const Payload_method, EncodePwd : String) : TOpTransaction;
   // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
-  Var f_raw : TRawBytes;
+  Var LOpPayload : TOperationPayload;
     privateKey : TECPrivateKey;
   Begin
     Result := Nil;
     if Not RPCServer.CheckAndGetPrivateKeyInWallet(senderAccounKey,privateKey,ErrorNum,ErrorDesc) then Exit(Nil);
-    if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(RawPayload,Payload_method,EncodePwd,senderAccounKey,targetAccountKey,f_raw,ErrorNum,ErrorDesc) then Exit(Nil);
-    Result := TOpTransaction.CreateTransaction(current_protocol, sender,sender_last_n_operation+1,target,privateKey,amount,fee,f_raw);
+    if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(RawPayload,Payload_method,EncodePwd,senderAccounKey,targetAccountKey,LOpPayload,ErrorNum,ErrorDesc) then Exit(Nil);
+    Result := TOpTransaction.CreateTransaction(current_protocol, sender,sender_last_n_operation+1,target,privateKey,amount,fee,LOpPayload);
     if Not Result.HasValidSignature then begin
       FreeAndNil(Result);
       ErrorNum:=CT_RPC_ErrNum_InternalError;
@@ -1242,16 +1251,17 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
   var
     errors : String;
-    f_raw : TRawBytes;
+    LOpPayload : TOperationPayload;
     privateKey : TECPrivateKey;
   Begin
     Result := Nil;
+    LOpPayload := CT_TOperationPayload_NUL;
     if Not RPCServer.CheckAndGetPrivateKeyInWallet(account_pubkey,privateKey,ErrorNum,ErrorDesc) then Exit(Nil);
-    if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(RawPayload,Payload_method,EncodePwd,account_pubkey,new_pubkey,f_raw,ErrorNum,ErrorDesc) then Exit(Nil);
+    if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(RawPayload,Payload_method,EncodePwd,account_pubkey,new_pubkey,LOpPayload,ErrorNum,ErrorDesc) then Exit(Nil);
     If account_signer=account_target then begin
-      Result := TOpChangeKey.Create(current_protocol,account_signer,account_last_n_operation+1,account_target,privateKey,new_pubkey,fee,f_raw);
+      Result := TOpChangeKey.Create(current_protocol,account_signer,account_last_n_operation+1,account_target,privateKey,new_pubkey,fee,LOpPayload);
     end else begin
-      Result := TOpChangeKeySigned.Create(current_protocol,account_signer,account_last_n_operation+1,account_target,privateKey,new_pubkey,fee,f_raw);
+      Result := TOpChangeKeySigned.Create(current_protocol,account_signer,account_last_n_operation+1,account_target,privateKey,new_pubkey,fee,LOpPayload);
     end;
     if Not Result.HasValidSignature then begin
       FreeAndNil(Result);
@@ -1305,7 +1315,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
   var privateKey : TECPrivateKey;
     errors : String;
-    f_raw : TRawBytes;
+    LOpPayload : TOperationPayload;
     aux_target_pubkey : TAccountKey;
   Begin
     Result := Nil;
@@ -1314,7 +1324,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         // If using 'dest', only will apply if there is a fixed new public key, otherwise will use current public key of account
        aux_target_pubkey := new_account_pubkey;
     end else aux_target_pubkey := account_signer_pubkey;
-    if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(RawPayload,Payload_method,EncodePwd,account_signer_pubkey,aux_target_pubkey,f_raw,ErrorNum,ErrorDesc) then Exit(Nil);
+    if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(RawPayload,Payload_method,EncodePwd,account_signer_pubkey,aux_target_pubkey,LOpPayload,ErrorNum,ErrorDesc) then Exit(Nil);
     Result := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(
       current_protocol,
       ANewAccountState,
@@ -1328,7 +1338,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       locked_until_block,
       privateKey,
       AHashLock,
-      f_raw
+      LOpPayload
     );
     if Not Result.HasValidSignature then begin
       FreeAndNil(Result);
@@ -1344,12 +1354,13 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     fee : UInt64; RawPayload : TRawBytes; Const Payload_method, EncodePwd : String) : TOpDelistAccountForSale;
   // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
   var privateKey : TECPrivateKey;
-    f_raw : TRawBytes;
+    LOpPayload : TOperationPayload;
   Begin
     Result := Nil;
+    LOpPayload := CT_TOperationPayload_NUL;
     if Not RPCServer.CheckAndGetPrivateKeyInWallet(account_signer_pubkey,privateKey,ErrorNum,ErrorDesc) then Exit(Nil);
-    if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(RawPayload,Payload_method,EncodePwd,account_signer_pubkey,account_signer_pubkey,f_raw,ErrorNum,ErrorDesc) then Exit(Nil);
-    Result := TOpDelistAccountForSale.CreateDelistAccountForSale(current_protocol,account_signer,account_last_n_operation+1,account_delisted,fee,privateKey,f_raw);
+    if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(RawPayload,Payload_method,EncodePwd,account_signer_pubkey,account_signer_pubkey,LOpPayload,ErrorNum,ErrorDesc) then Exit(Nil);
+    Result := TOpDelistAccountForSale.CreateDelistAccountForSale(current_protocol,account_signer,account_last_n_operation+1,account_delisted,fee,privateKey,LOpPayload);
     if Not Result.HasValidSignature then begin
       FreeAndNil(Result);
       ErrorNum:=CT_RPC_ErrNum_InternalError;
@@ -1367,12 +1378,12 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
   var privateKey : TECPrivateKey;
     errors : String;
-    f_raw : TRawBytes;
+    LOpPayload : TOperationPayload;
   Begin
     Result := Nil;
     if Not RPCServer.CheckAndGetPrivateKeyInWallet(account_pubkey,privateKey,ErrorNum,ErrorDesc) then Exit(Nil);
-    if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(RawPayload,Payload_method,EncodePwd,account_pubkey,new_account_pubkey,f_raw,ErrorNum,ErrorDesc) then Exit(Nil);
-    Result := TOpBuyAccount.CreateBuy(current_protocol,account_number,account_last_n_operation+1,account_to_buy,account_to_pay,account_price,amount,fee,new_account_pubkey,privateKey,f_raw);
+    if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(RawPayload,Payload_method,EncodePwd,account_pubkey,new_account_pubkey,LOpPayload,ErrorNum,ErrorDesc) then Exit(Nil);
+    Result := TOpBuyAccount.CreateBuy(current_protocol,account_number,account_last_n_operation+1,account_to_buy,account_to_pay,account_price,amount,fee,new_account_pubkey,privateKey,LOpPayload);
     if Not Result.HasValidSignature then begin
       FreeAndNil(Result);
       ErrorNum:=CT_RPC_ErrNum_InternalError;
@@ -1877,7 +1888,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
   var privateKey : TECPrivateKey;
     errors : String;
-    f_raw : TRawBytes;
+    LOpPayload : TOperationPayload;
     aux_target_pubkey : TAccountKey;
   Begin
     Result := Nil;
@@ -1886,13 +1897,13 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         // If using 'dest', only will apply if there is a fixed new public key, otherwise will use current public key of account
        aux_target_pubkey := new_account_pubkey;
     end else aux_target_pubkey := account_signer_pubkey;
-    if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(RawPayload,Payload_method,EncodePwd,account_signer_pubkey,aux_target_pubkey,f_raw,ErrorNum,ErrorDesc) then Exit(Nil);
+    if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(RawPayload,Payload_method,EncodePwd,account_signer_pubkey,aux_target_pubkey,LOpPayload,ErrorNum,ErrorDesc) then Exit(Nil);
     Result := TOpChangeAccountInfo.CreateChangeAccountInfo(current_protocol,
       account_signer,account_last_n_operation+1,account_target,
       privateKey,
       changePubKey,new_account_pubkey,changeName,new_name,changeType,new_type,
       AChangeAccountData,ANew_AccountData,
-      fee,f_raw);
+      fee,LOpPayload);
     if Not Result.HasValidSignature then begin
       FreeAndNil(Result);
       ErrorNum:=CT_RPC_ErrNum_InternalError;
@@ -2583,10 +2594,12 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         - "n_operation" : New n_operation value for account (remember, current + 1)
         - "amount" : PASCURRENCY
         - "payload" : HEXASTRING (optional)
+        - "payload_type" : Integer (optional) based on PIP-0027
       - "receivers" : ARRAY of OBJECT
         - "account"
         - "amount" : PASCURRENCY
         - "payload" : HEXASTRING (optional)
+        - "payload_type" : Integer (optional) based on PIP-0027
       - "changesinfo" : ARRAY of OBJECT
         - "account"
         - "n_operation" : New n_operation value for account (remember, current + 1)
@@ -2620,7 +2633,8 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         // Update N_Operation with valid info
         if (sender.N_Operation<=0) then sender.N_Operation:=Capture_Current_Account(sender.Account).n_operation+1;
 
-        sender.Payload:=TCrypto.HexaToRaw(jsonArr.GetAsObject(i).AsString('payload',''));
+        sender.Payload.payload_raw:=TCrypto.HexaToRaw(jsonArr.GetAsObject(i).AsString('payload',''));
+        sender.Payload.payload_type := jsonArr.GetAsObject(i).AsInteger('payload_type',CT_TOperationPayload_NUL.payload_type );
         if Not mop.AddTxSender(sender) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidData;
           ErrorDesc := 'Cannot add sender '+inttostr(sender.Account)+' duplicated or invalid data';
@@ -2639,7 +2653,8 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         end;
         receiver.Account := j;
         receiver.Amount:= ToPascalCoins(jsonArr.GetAsObject(i).AsDouble('amount',0));
-        receiver.Payload:=TCrypto.HexaToRaw(jsonArr.GetAsObject(i).AsString('payload',''));
+        receiver.Payload.payload_raw:=TCrypto.HexaToRaw(jsonArr.GetAsObject(i).AsString('payload',''));
+        receiver.Payload.payload_type := jsonArr.GetAsObject(i).AsInteger('payload_type',CT_TOperationPayload_NUL.payload_type);
         if Not mop.AddTxReceiver(receiver) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidData;
           ErrorDesc := 'Cannot add receiver '+inttostr(receiver.Account)+' invalid data';

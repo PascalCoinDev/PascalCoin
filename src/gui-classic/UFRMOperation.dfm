@@ -105,6 +105,10 @@ object FRMOperation: TFRMOperation
     TabOrder = 1
     object tsOperation: TTabSheet
       TabVisible = False
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object lblFee: TLabel
         Left = 15
         Top = 220
@@ -390,6 +394,10 @@ object FRMOperation: TFRMOperation
         object tsChangePrivateKey: TTabSheet
           Caption = 'Change Key'
           ImageIndex = 1
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object lblNewPrivateKey: TLabel
             Left = 57
             Top = 40
@@ -529,6 +537,10 @@ object FRMOperation: TFRMOperation
         object tsListAccount: TTabSheet
           Caption = 'List Account'
           ImageIndex = 3
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object lblListAccountErrors: TLabel
             Left = 11
             Top = 7
@@ -797,6 +809,10 @@ object FRMOperation: TFRMOperation
         object tsBuyAccount: TTabSheet
           Caption = 'Buy Account'
           ImageIndex = 4
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object lblAccountToBuy: TLabel
             Left = 13
             Top = 32
@@ -972,6 +988,10 @@ object FRMOperation: TFRMOperation
         end
         object tsChangeInfo: TTabSheet
           Caption = 'Change Info'
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object lblChangeInfoErrors: TLabel
             Left = 13
             Top = 10
@@ -1058,6 +1078,10 @@ object FRMOperation: TFRMOperation
     object tsGlobalError: TTabSheet
       ImageIndex = 1
       TabVisible = False
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object lblGlobalErrors: TLabel
         Left = 40
         Top = 50

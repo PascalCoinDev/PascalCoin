@@ -115,6 +115,19 @@ Type
   TOpChangeAccountInfoType = (public_key, account_name, account_type, list_for_public_sale, list_for_private_sale, delist, account_data, list_for_account_swap, list_for_coin_swap );
   TOpChangeAccountInfoTypes = Set of TOpChangeAccountInfoType;
 
+  TOperationPayload = record
+    { As described on PIP-0027 (introduced on Protocol V5)
+      the payload of an operation will contain an initial byte that will
+      provide information about the payload content.
+      The "payload_type" byte value will help in payload decoding if good used
+      but there is no core checking that payload_type has been used properly.
+      It's job of any third party app (Layer 2) working with payloads to
+      check/ensure they can read/decode properly Payload value if the
+      content is not saved using E-PASA standard (PIP-0027) }
+    payload_type : Byte;
+    payload_raw : TRawBytes;
+  end;
+
   // MultiOp... will allow a MultiOperation
   TMultiOpData = record
     ID : TGUID;
@@ -127,14 +140,14 @@ Type
     Amount : Int64;
     N_Operation : Cardinal;
     OpData : TMultiOpData; // Filled only when Operation is TOpData type
-    Payload : TRawBytes;
+    Payload : TOperationPayload;
     Signature : TECDSA_SIG;
   end;
   TMultiOpSenders = Array of TMultiOpSender;
   TMultiOpReceiver = Record
     Account : Cardinal;
     Amount : Int64;
-    Payload : TRawBytes;
+    Payload : TOperationPayload;
   end;
   TMultiOpReceivers = Array of TMultiOpReceiver;
   TMultiOpChangeInfo = Record
@@ -171,7 +184,7 @@ Type
     Amount : Int64;
     Fee : Int64;
     Balance : Int64;
-    OriginalPayload : TRawBytes;
+    OriginalPayload : TOperationPayload;
     PrintablePayload : String;
     OperationHash : TRawBytes;
     OperationHash_OLD : TRawBytes; // Will include old oeration hash value
@@ -226,6 +239,8 @@ Type
     Property Previous_Seller_updated_block : Cardinal read FPrevious_Seller_updated_block; // deprecated
     function IsValidECDSASignature(const PubKey: TECDSA_Public; current_protocol : Word; const Signature: TECDSA_SIG): Boolean;
     procedure CopyUsedPubkeySignatureFrom(SourceOperation : TPCOperation); virtual;
+    function SaveOperationPayloadToStream(const AStream : TStream; const APayload : TOperationPayload) : Boolean;
+    function LoadOperationPayloadFromStream(const AStream : TStream; out APayload : TOperationPayload) : Boolean;
   public
     constructor Create(AProtocolVersion : Word); virtual;
     destructor Destroy; override;
@@ -239,7 +254,7 @@ Type
     function OperationAmount : Int64; virtual; abstract;
     function OperationAmountByAccount(account : Cardinal) : Int64; virtual;
     function OperationFee: Int64; virtual; abstract;
-    function OperationPayload : TRawBytes; virtual; abstract;
+    function OperationPayload : TOperationPayload; virtual; abstract;
     function SignerAccount : Cardinal; virtual; abstract;
     procedure SignerAccounts(list : TList<Cardinal>); virtual;
     function IsSignerAccount(account : Cardinal) : Boolean; virtual;
@@ -556,9 +571,10 @@ Type
   End;
 
 Const
-  CT_TOperationResume_NUL : TOperationResume = (valid:false;Block:0;NOpInsideBlock:-1;OpType:0;OpSubtype:0;time:0;AffectedAccount:0;SignerAccount:-1;n_operation:0;DestAccount:-1;SellerAccount:-1;newKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:Nil;PrintablePayload:'';OperationHash:Nil;OperationHash_OLD:Nil;errors:'';isMultiOperation:False;Senders:Nil;Receivers:Nil;changers:Nil);
-  CT_TMultiOpSender_NUL : TMultiOpSender =  (Account:0;Amount:0;N_Operation:0;Payload:Nil;Signature:(r:Nil;s:Nil));
-  CT_TMultiOpReceiver_NUL : TMultiOpReceiver = (Account:0;Amount:0;Payload:Nil);
+  CT_TOperationPayload_NUL : TOperationPayload = (payload_type:0;payload_raw:Nil);
+  CT_TOperationResume_NUL : TOperationResume = (valid:false;Block:0;NOpInsideBlock:-1;OpType:0;OpSubtype:0;time:0;AffectedAccount:0;SignerAccount:-1;n_operation:0;DestAccount:-1;SellerAccount:-1;newKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:(payload_type:0;payload_raw:nil);PrintablePayload:'';OperationHash:Nil;OperationHash_OLD:Nil;errors:'';isMultiOperation:False;Senders:Nil;Receivers:Nil;changers:Nil);
+  CT_TMultiOpSender_NUL : TMultiOpSender =  (Account:0;Amount:0;N_Operation:0;Payload:(payload_type:0;payload_raw:Nil);Signature:(r:Nil;s:Nil));
+  CT_TMultiOpReceiver_NUL : TMultiOpReceiver = (Account:0;Amount:0;Payload:(payload_type:0;payload_raw:Nil));
   CT_TMultiOpChangeInfo_NUL : TMultiOpChangeInfo = (Account:0;N_Operation:0;Changes_type:[];New_Accountkey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);New_Name:Nil;New_Type:0;New_Data:Nil;Seller_Account:-1;Account_Price:-1;Locked_Until_Block:0;
     Hashed_secret:Nil;
     Fee:0;Signature:(r:Nil;s:Nil));
@@ -3132,6 +3148,27 @@ begin
   end;
 end;
 
+function TPCOperation.LoadOperationPayloadFromStream(const AStream: TStream; out APayload: TOperationPayload): Boolean;
+begin
+  APayload := CT_TOperationPayload_NUL;
+  if FProtocolVersion>=CT_PROTOCOL_5 then begin
+    // payload_type will only be available on protocol 5
+    if AStream.Read(APayload.payload_type,SizeOf(APayload.payload_type))<>SizeOf(APayload.payload_type) then Exit(False);
+  end;
+  if TStreamOp.ReadAnsiString(AStream,APayload.payload_raw)<0 then Exit(False);
+  Result := True;
+end;
+
+function TPCOperation.SaveOperationPayloadToStream(const AStream: TStream; const APayload: TOperationPayload): Boolean;
+begin
+  if FProtocolVersion>=CT_PROTOCOL_5 then begin
+    // payload_type will only be available on protocol 5
+    AStream.Write(APayload.payload_type,SizeOf(APayload.payload_type));
+  end;
+  TStreamOp.WriteAnsiString(AStream,APayload.payload_raw);
+  Result := True;
+end;
+
 class function TPCOperation.OperationHash_OLD(op: TPCOperation; Block : Cardinal): TRawBytes;
   { OperationHash is a 32 bytes value.
     First 4 bytes (0..3) are Block in little endian
@@ -3412,8 +3449,8 @@ begin
   else Exit;
   end;
   OperationResume.OriginalPayload := Operation.OperationPayload;
-  If TCrypto.IsHumanReadable(OperationResume.OriginalPayload) then OperationResume.PrintablePayload := OperationResume.OriginalPayload.ToPrintable
-  else OperationResume.PrintablePayload := TCrypto.ToHexaString(OperationResume.OriginalPayload);
+  If TCrypto.IsHumanReadable(OperationResume.OriginalPayload.payload_raw) then OperationResume.PrintablePayload := OperationResume.OriginalPayload.payload_raw.ToPrintable
+  else OperationResume.PrintablePayload := TCrypto.ToHexaString(OperationResume.OriginalPayload.payload_raw);
   OperationResume.OperationHash:=TPCOperation.OperationHashValid(Operation,Block);
   if (Block>0) And (Block<CT_Protocol_Upgrade_v2_MinBlock) then begin
     OperationResume.OperationHash_OLD:=TPCOperation.OperationHash_OLD(Operation,Block);

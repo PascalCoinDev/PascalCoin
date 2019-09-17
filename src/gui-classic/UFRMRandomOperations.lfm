@@ -1,7 +1,7 @@
 object FRMRandomOperations: TFRMRandomOperations
-  Left = 744
+  Left = 783
   Height = 229
-  Top = 390
+  Top = 423
   Width = 439
   Caption = 'Random Operations'
   ClientHeight = 229
@@ -75,15 +75,6 @@ object FRMRandomOperations: TFRMRandomOperations
         Caption = 'Random Operations'
         OnClick = bbRandomOperationsClick
         TabOrder = 0
-      end
-      object cbMaxSpeedMode: TCheckBox
-        Left = 232
-        Height = 19
-        Top = 6
-        Width = 101
-        Caption = 'Max speed mode'
-        OnClick = cbMaxSpeedModeClick
-        TabOrder = 1
       end
     end
     object mLogs: TMemo

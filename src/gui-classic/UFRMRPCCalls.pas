@@ -153,7 +153,9 @@ end;
 
 procedure TFRMRPCCalls.ShowCallInfo(infoType: TInfoType; value: String);
 begin
+  mCalls.Lines.BeginUpdate;
   mCalls.Lines.Add(Format('%s [%s] %s',[FormatDateTime('hh:nn:ss.zzz',Now),CT_TIntoType_Str[infoType],value]));
+  mCalls.Lines.EndUpdate;
 end;
 
 procedure TFRMRPCCalls.DoSendJSON(json: TPCJSONObject);

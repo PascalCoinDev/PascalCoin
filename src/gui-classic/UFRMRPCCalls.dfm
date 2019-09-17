@@ -128,15 +128,11 @@ object FRMRPCCalls: TFRMRPCCalls
       end
       object tsJSONParams: TTabSheet
         Caption = 'Params as JSON'
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         object mJSONParams: TMemo
           Left = 0
           Top = 0
-          Width = 238
-          Height = 172
+          Width = 281
+          Height = 194
           Align = alClient
           ScrollBars = ssVertical
           TabOrder = 0
@@ -151,7 +147,6 @@ object FRMRPCCalls: TFRMRPCCalls
       Anchors = [akLeft, akBottom]
       Caption = '&Send'
       Default = True
-      DoubleBuffered = True
       Glyph.Data = {
         36040000424D3604000000000000360000002800000010000000100000000100
         2000000000000004000064000000640000000000000000000000FFFFFF00FFFF
@@ -187,7 +182,6 @@ object FRMRPCCalls: TFRMRPCCalls
         FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
         FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
         FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00}
-      ParentDoubleBuffered = False
       TabOrder = 3
       OnClick = bbSendCommandClick
     end

@@ -77,7 +77,6 @@ type
     pnlClient: TPanel;
     pnlTop: TPanel;
     pnlTop1: TPanel;
-    cbMaxSpeedMode : TCheckBox;
     procedure bbRandomOperationsClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
@@ -109,7 +108,7 @@ type
 
   TRandomGenerateOperation = Class
   private
-    class function GetRandomPayload(Const AStartsWith : String) : TRawBytes;
+    class function GetRandomPayload(Const AStartsWith : String) : TOperationPayload;
   public
     class function GetRandomOwnDestination(const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt; out nAccount : Cardinal) : Boolean;
     class function GetRandomSigner(const operationsComp : TPCOperationsComp; const aWalletKeys : TWalletKeysExt; out iKey : Integer; out nAccount : Cardinal) : Boolean;
@@ -300,16 +299,17 @@ begin
 end;
 
 class function TRandomGenerateOperation.GetRandomPayload(
-  const AStartsWith: String): TRawBytes;
+  const AStartsWith: String): TOperationPayload;
 var i,j : Integer;
 begin
-  Result.FromString(AStartsWith);
+  Result := CT_TOperationPayload_NUL;
+  Result.payload_raw.FromString(AStartsWith);
   j := Random(255);
-  if j<Length(Result) then j := Length(Result);
+  if j<Length(Result.payload_raw) then j := Length(Result.payload_raw);
 
-  SetLength(Result,j);
-  for i := Length(Result) to j-1 do begin
-    Result[j] := Random(127-32)+32;
+  SetLength(Result.payload_raw,j);
+  for i := Length(Result.payload_raw) to j-1 do begin
+    Result.payload_raw[j] := Random(127-32)+32;
   end;
 
 end;
@@ -359,7 +359,7 @@ var nAccount, nAccountTarget : Cardinal;
   senderAcc, LDestAcc : TAccount;
   amount,fees : Int64;
   errors : String;
-  LPayload : TRawBytes;
+  LPayload : TOperationPayload;
 begin
   Result := 0;
   If Not GetRandomSigner(operationsComp,aWalletKeys,iKey,nAccount) then Exit;
@@ -369,10 +369,11 @@ begin
   while (nRounds<Maxtransaction) do begin
     senderAcc := operationsComp.SafeBoxTransaction.Account(nAccount);
     LDestAcc := operationsComp.SafeBoxTransaction.Account(nAccountTarget);
+    LPayload := CT_TOperationPayload_NUL;
     if TAccountComp.IsAccountForSwap( LDestAcc.accountInfo ) then begin
       // Special case, will swap? Will need to provide a HASHLOCK in payload
-      LPayload := GetHashLock_Private;
-    end else LPayload := Nil;
+      LPayload.payload_raw := GetHashLock_Private;
+    end;
 
     amount := 1; // Minimal amount
     if (Random(500)<1) then fees := 0
@@ -431,7 +432,7 @@ begin
     opCk := TOpChangeKey(opClass.NewInstance).Create(current_protocol,senderAcc.account,senderAcc.n_operation+1,nAccountTarget,
       aWalletKeys.Key[iKey].PrivateKey,
       aWalletKeys.Key[iNewPubKey].AccountKey,
-      fees,Nil);
+      fees,CT_TOperationPayload_NUL);
     Try
       if operationsComp.AddOperation(True,opCk,errors) then inc(Result);
     finally

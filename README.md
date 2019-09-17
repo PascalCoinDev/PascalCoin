@@ -36,12 +36,17 @@ Also, consider a donation at PascalCoin development account: "0-10"
 
 ### Current Build (Pending release date)
 - Upgrade to Protocol 5 (Hard fork)
+- Implementation of PIP-0036 (RandomHash2 mining algo) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0036.md
+  - New PoW miner algo improving previous RandomHash (PIP-0009) added on Protocol 4
 - Implementation of PIP-0032 (Atomic Swaps) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0032.md
 - Implementation of PIP-0030 (Safebox root) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0030.md
 - Implementation of PIP-0029 (Account Seals) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0029.md
 - Implementation of PIP-0024 (Account Data) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0024.md
 - Implementation of PIP-0033 (OpData JOSN-RPC calls) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0033.md
-- Partial implementation of PIP-0012 (Recover Accounts option after 4 years) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0012.md
+- Implementation of PIP-0027 (E-PASA Inifine Address-Space) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0027.md
+  - Third party apps/implementations of hard coded operations need to pay attention of an extra byte added on each operation using Payload
+  - TODO: Explain "in core" changes
+- Implementation of PIP-0012 (Recover Accounts option after 10 years) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0012.md
 - Updated "OP_DATA" operation: (PIP-0016)
   - New digest hash value for OP_DATA ( PIP-0016 ) on Protocol 5
   - Added "id" field (GUID/UUID type as described on PIP-0016), was missing on V4, added on V5
@@ -60,6 +65,8 @@ Also, consider a donation at PascalCoin development account: "0-10"
     - Added "enc_hash_lock" (HEXASTRING) that must be exactly a 32 bytes value (stored as 64 bytes because is HexaString)
   - Updated "changeaccountinfo" and "signchangeaccountinfo" calls to allow add "new_data" field for change Account.Data value (PIP-0024)
     - New param "new_data" (HEXASTRING) if provided will change Account Data info. Limited from 0 to 32 bytes.
+  - Updated "multioperationaddoperation call to allow add "payload_type" value as described on PIP-0027
+    - New param "payload_type" on "senders" and "receivers" array as optional value (default 0)
   - New method "senddata" as described on PIP-0033 returning an "Operation Object"
   - New method "signdata" as described on PIP-0033 returning a "Raw Operations Object"
   - New method "finddataoperations" as described on PIP-0033 returning an ARRAY of "Raw Operations Object"
@@ -75,11 +82,14 @@ Also, consider a donation at PascalCoin development account: "0-10"
     - "seal" : (HEXASTRING) will return the Account Seal stored with PIP-0029
   - Updated "Operation Object" return values:
     - "senders" : ARRAY
+      - "payload_type" : (Byte) as described on PIP-0027
       - "data" : OBJECT will store OP_DATA information when operation is OP_DATA type as described on PIP-0016
         - "id" : (String) String representation of GUID/UUID as "00000000-0000-0000-0000-000000000000" that stores 16 bytes
         - "sequence" : (Integer)
         - "type" : (Integer)
-    - "changers" : ARRAY
+    - "receivers" : ARRAY
+      - "payload_type" : (Byte) as described on PIP-0027	
+    - "changers" : ARRAY	
       - "new_data" : (HEXASTRING) : If "data" is changed on "account"
       - "changes" : (String) Description of changes type made
   - Updated "Multi Operation Object" values:
@@ -90,6 +100,7 @@ TODO
 - TODO: RPC calls for PIP-0029
 - TODO: RPC calls for PIP-0030
 - TODO: RPC calls for PIP-0016
+- TODO: Store payload_type according to PIP-0027 when using standard RPC calls
 
 ### Build 4.1.0.0 - 2019-07-24
 - Hardcoded RandomHash digest/hash values for quick speed safebox check on fresh installation

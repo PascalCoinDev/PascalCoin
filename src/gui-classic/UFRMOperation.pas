@@ -157,7 +157,7 @@ type
     FNode : TNode;
     FWalletKeys: TWalletKeys;
     FDefaultFee: Int64;
-    FEncodedPayload : TRawBytes;
+    FEncodedPayload : TOperationPayload;
     FDisabled : Boolean;
     FSenderAccounts: TOrderedCardinalList; // TODO: TOrderedCardinalList should be replaced with a "TCardinalList" since signer account should be processed last
     procedure SetWalletKeys(const Value: TWalletKeys);
@@ -1535,7 +1535,11 @@ Var payload_u : AnsiString;
 begin
   valid := false;
   payload_encrypted := Nil;
-  FEncodedPayload := Nil;
+  FEncodedPayload := CT_TOperationPayload_NUL;
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  // TODO:
+  // Needs to assign FEncodedPayload.payload_type based on PIP-0027
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   errors := 'Unknown error';
   payload_u := memoPayload.Lines.Text;
   try
@@ -1646,7 +1650,7 @@ begin
       lblEncryptionErrors.Caption := errors;
       lblPayloadLength.Caption := Format('(%db -> ?)',[length(payload_u)]);
     end;
-    FEncodedPayload := payload_encrypted;
+    FEncodedPayload.payload_raw := payload_encrypted;
     Result := valid;
   end;
 end;

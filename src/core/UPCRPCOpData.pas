@@ -37,7 +37,7 @@ Type
        AInputParams : TPCJSONObject;
        const AAccountSignerPublicKey : TAccountKey;
        AAccountSigner, AAccountSender, AAccountTarget, ASender_last_n_operation : Cardinal;
-       Const ARawPayload : TRawBytes;
+       Const AOperationPayload : TOperationPayload;
        var AErrorNum: Integer; var AErrorDesc: String; var AOpData : TOpData): Boolean;
   public
     class function OpData_SendOpData(const ASender : TRPCProcess; const AMethodName : String; AInputParams, AJSONResponse : TPCJSONObject; var AErrorNum : Integer; var AErrorDesc : String) : Boolean;
@@ -54,7 +54,7 @@ class function TRPCOpData.CreateOpData(ARPCProcess: TRPCProcess;
   AInputParams : TPCJSONObject;
   const AAccountSignerPublicKey : TAccountKey;
   AAccountSigner, AAccountSender, AAccountTarget, ASender_last_n_operation: Cardinal;
-  const ARawPayload: TRawBytes;
+  const AOperationPayload: TOperationPayload;
   var AErrorNum: Integer; var AErrorDesc: String; var AOpData : TOpData): Boolean;
 var LSignerKey : TECPrivateKey;
   LGUID : TGUID;
@@ -98,7 +98,7 @@ begin
     LGUID,
     TPascalCoinJSONComp.ToPascalCoins(AInputParams.AsDouble('amount',0)),
     TPascalCoinJSONComp.ToPascalCoins(AInputParams.AsDouble('fee',0)),
-    ARawPayload);
+    AOperationPayload);
   Result := True;
 end;
 
@@ -310,7 +310,7 @@ class function TRPCOpData.OpData_SendOpData(const ASender: TRPCProcess;
   var AErrorNum: Integer; var AErrorDesc: String): Boolean;
 var LOpData : TOpData;
   LSigner, LSender, LTarget : TAccount;
-  LEncodedRawPayload : TRawBytes;
+  LOperationPayload : TOperationPayload;
   LErrors : String;
   LOPR : TOperationResume;
 begin
@@ -339,7 +339,7 @@ begin
     AInputParams.AsString('pwd',''),
     LSender.accountInfo.accountKey,
     LTarget.accountInfo.accountKey,
-    LEncodedRawPayload,AErrorNum,AErrorDesc) Then Exit;
+    LOperationPayload,AErrorNum,AErrorDesc) Then Exit;
 
 
   if Not CreateOpData(ASender,
@@ -350,7 +350,7 @@ begin
     LSender.account,
     LTarget.account,
     LSigner.n_operation,
-    LEncodedRawPayload,
+    LOperationPayload,
     AErrorNum, AErrorDesc, LOpData) then Exit;
 
   if LOpData=nil then Exit;
@@ -372,7 +372,7 @@ class function TRPCOpData.OpData_SignOpData(const ASender: TRPCProcess;
   const AMethodName: String; AInputParams, AJSONResponse: TPCJSONObject;
   var AErrorNum: Integer; var AErrorDesc: String): Boolean;
 var LOpData : TOpData;
-  LEncodedRawPayload : TRawBytes;
+  LOperationPayload : TOperationPayload;
   LErrors : String;
   LOPR : TOperationResume;
   LEncodePayloadType : String;
@@ -413,7 +413,7 @@ begin
       AInputParams.AsString('pwd',''),
       LPayloadPubkey,
       LPayloadPubkey,
-      LEncodedRawPayload,AErrorNum,AErrorDesc) then Exit;
+      LOperationPayload,AErrorNum,AErrorDesc) then Exit;
 
     if Not CreateOpData(ASender,
       AInputParams.AsInteger('protocol',CT_BUILD_PROTOCOL),
@@ -423,7 +423,7 @@ begin
       AInputParams.AsCardinal('sender',CT_MaxAccount),
       AInputParams.AsCardinal('target',CT_MaxAccount),
       AInputParams.AsCardinal('last_n_operation',0),
-      LEncodedRawPayload,
+      LOperationPayload,
       AErrorNum, AErrorDesc, LOpData) then Exit;
     if LOpData=nil then Exit;
     try

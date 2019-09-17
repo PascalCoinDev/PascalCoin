@@ -134,7 +134,7 @@ var LSenderPublicKey : TAccountKey;
   LIndexKey : Integer;
   LAccount : TAccount;
   LOpChangeKey : TOpChangeKey;
-  LPayload : TRawBytes;
+  LPayload : TOperationPayload;
   LErrors : String;
   LWord : Word;
 begin
@@ -146,7 +146,8 @@ begin
   if TStreamOp.ReadAccountKey(AReceivedData,LSenderPublicKey)<=0 then Exit;
   if Not RandomGetWalletKeysAccount(FNode.Bank.SafeBox,FWalletKeys,0,10000,LIndexKey,LAccount) then Exit;
   // Send
-  LPayload.FromString('Free Account to '+ASenderConnection.Client.RemoteHost);
+  LPayload := CT_TOperationPayload_NUL;
+  LPayload.payload_raw.FromString('Free Account to '+ASenderConnection.Client.RemoteHost);
   LOpChangeKey := TOpChangeKey.Create(FNode.Bank.SafeBox.CurrentProtocol,LAccount.account,LAccount.n_operation+1,
     LAccount.account,FWalletKeys.Key[LIndexKey].PrivateKey,LSenderPublicKey,0,LPayload);
   try
@@ -168,7 +169,7 @@ var LSenderAccount : Cardinal;
   LIndexKey : Integer;
   LAccount : TAccount;
   LOpTransaction : TOpTransaction;
-  LPayload : TRawBytes;
+  LPayload : TOperationPayload;
   LErrors : String;
   LSendAmount : Int64;
   LInt : Integer;
@@ -187,7 +188,8 @@ begin
   if LSendAmount<=0 then Exit;
 
   // Send
-  LPayload.FromString('Free Money to '+ASenderConnection.Client.RemoteHost);
+  LPayload := CT_TOperationPayload_NUL;
+  LPayload.payload_raw.FromString('Free Money to '+ASenderConnection.Client.RemoteHost);
   LOpTransaction := TOpTransaction.CreateTransaction(FNode.Bank.SafeBox.CurrentProtocol,LAccount.account,LAccount.n_operation+1,
     LSenderAccount,FWalletKeys.Key[LIndexKey].PrivateKey,LSendAmount,0,LPayload);
   try
