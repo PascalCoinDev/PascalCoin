@@ -105,10 +105,6 @@ object FRMOperation: TFRMOperation
     TabOrder = 1
     object tsOperation: TTabSheet
       TabVisible = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object lblFee: TLabel
         Left = 15
         Top = 220
@@ -299,15 +295,11 @@ object FRMOperation: TFRMOperation
         Top = 7
         Width = 524
         Height = 204
-        ActivePage = tsListAccount
+        ActivePage = tsChangeInfo
         TabOrder = 0
         OnChange = PageControlOpTypeChange
         object tsTransaction: TTabSheet
           Caption = 'Transaction'
-          ExplicitLeft = 0
-          ExplicitTop = 0
-          ExplicitWidth = 0
-          ExplicitHeight = 0
           object lblDestAccount: TLabel
             Left = 13
             Top = 32
@@ -394,10 +386,6 @@ object FRMOperation: TFRMOperation
         object tsChangePrivateKey: TTabSheet
           Caption = 'Change Key'
           ImageIndex = 1
-          ExplicitLeft = 0
-          ExplicitTop = 0
-          ExplicitWidth = 0
-          ExplicitHeight = 0
           object lblNewPrivateKey: TLabel
             Left = 57
             Top = 40
@@ -537,10 +525,6 @@ object FRMOperation: TFRMOperation
         object tsListAccount: TTabSheet
           Caption = 'List Account'
           ImageIndex = 3
-          ExplicitLeft = 0
-          ExplicitTop = 0
-          ExplicitWidth = 0
-          ExplicitHeight = 0
           object lblListAccountErrors: TLabel
             Left = 11
             Top = 7
@@ -785,10 +769,6 @@ object FRMOperation: TFRMOperation
         object tsDelistAccount: TTabSheet
           Caption = 'Delist Account'
           ImageIndex = 3
-          ExplicitLeft = 0
-          ExplicitTop = 0
-          ExplicitWidth = 0
-          ExplicitHeight = 0
           object lblDelistErrors: TLabel
             Left = 13
             Top = 10
@@ -809,10 +789,6 @@ object FRMOperation: TFRMOperation
         object tsBuyAccount: TTabSheet
           Caption = 'Buy Account'
           ImageIndex = 4
-          ExplicitLeft = 0
-          ExplicitTop = 0
-          ExplicitWidth = 0
-          ExplicitHeight = 0
           object lblAccountToBuy: TLabel
             Left = 13
             Top = 32
@@ -988,10 +964,6 @@ object FRMOperation: TFRMOperation
         end
         object tsChangeInfo: TTabSheet
           Caption = 'Change Info'
-          ExplicitLeft = 0
-          ExplicitTop = 0
-          ExplicitWidth = 0
-          ExplicitHeight = 0
           object lblChangeInfoErrors: TLabel
             Left = 13
             Top = 10
@@ -1047,7 +1019,7 @@ object FRMOperation: TFRMOperation
             Width = 258
             Height = 21
             TabOrder = 0
-            TextHint = 'Account name (null or 3..32 chars)'
+            TextHint = 'Account name (null or 3..64 chars)'
           end
           object ebChangeType: TEdit
             Left = 118
@@ -1078,10 +1050,6 @@ object FRMOperation: TFRMOperation
     object tsGlobalError: TTabSheet
       ImageIndex = 1
       TabVisible = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object lblGlobalErrors: TLabel
         Left = 40
         Top = 50

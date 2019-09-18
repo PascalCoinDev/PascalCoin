@@ -931,7 +931,7 @@ object FRMOperation: TFRMOperation
             Top = 29
             Width = 258
             TabOrder = 0
-            TextHint = 'Account name (null or 3..32 chars)'
+            TextHint = 'Account name (null or 3..64 chars)'
           end
           object lblChangeType: TLabel
             Left = 13

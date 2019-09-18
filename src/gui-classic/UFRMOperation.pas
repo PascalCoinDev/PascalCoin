@@ -970,10 +970,6 @@ begin
     end;
     changeType := TargetAccount.account_type<>newType;
     //
-    If (SenderAccounts.Count=1) And (newName=TargetAccount.name) And (newType=TargetAccount.account_type) then begin
-      errors := 'Account name and type are the same. Not changed';
-      Exit;
-    end;
     if FNode.Bank.SafeBox.CurrentProtocol>=CT_PROTOCOL_5 then begin
       // Allow Change Account.Data PIP-0024
       if Not TCrypto.HexaToRaw(ebChangeAccountData.Text,ANewData) then begin
@@ -985,6 +981,11 @@ begin
         errors := Format('Data size (%d) greater than %d',[Length(ANewData),CT_MaxAccountDataSize]);
         Exit;
       end;
+    end;
+    If (SenderAccounts.Count=1) And (TBaseType.Equals(newName,TargetAccount.name)) And (newType=TargetAccount.account_type)
+      And (TBaseType.Equals(ANewData,TargetAccount.account_data)) then begin
+      errors := 'No changes on fields. Not changed';
+      Exit;
     end;
   finally
     Result := errors = '';
