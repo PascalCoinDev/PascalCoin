@@ -1792,7 +1792,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       if (c>=safebox_blockscount) then c := safebox_blockscount-1;
       sendData.Write(c,SizeOf(c));
       if (from_block>c) or (c>=safebox_blockscount) then begin
-        errors := 'ERROR DEV 20170727-1';
+        errors := Format('ERROR DEV 20170727-1 fromblock:%d c:%d safebox_blockscount:%d',[from_block,c,safebox_blockscount]);
         Exit;
       end;
       if Connection.NetProtocolVersion.protocol_version<9 then begin
