@@ -382,7 +382,7 @@ var LOpData : TOpData;
 begin
   Result := False;
 
-  if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(AInputParams.AsString('rawoperations',''),LOperationsHashTree,LErrors) then begin
+  if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(AInputParams.AsString('rawoperations',''),CT_BUILD_PROTOCOL,LOperationsHashTree,LErrors) then begin
     AErrorNum:=CT_RPC_ErrNum_InvalidData;
     AErrorDesc:= 'Error decoding param "rawoperations": '+LErrors;
     Exit;

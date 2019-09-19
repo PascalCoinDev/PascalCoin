@@ -69,7 +69,7 @@ Type
     class procedure FillPublicKeyObject(const PubKey : TAccountKey; jsonObj : TPCJSONObject);
     class function ToPascalCoins(jsonCurr : Real) : Int64;
     //
-    class Function HexaStringToOperationsHashTree(Const AHexaStringOperationsHashTree : String; out AOperationsHashTree : TOperationsHashTree; var AErrors : String) : Boolean;
+    class Function HexaStringToOperationsHashTree(Const AHexaStringOperationsHashTree : String; ACurrentProtocol : Word; out AOperationsHashTree : TOperationsHashTree; var AErrors : String) : Boolean;
     class Function CapturePubKey(const AInputParams : TPCJSONObject; const APrefix : String; var APubKey : TAccountKey; var AErrortxt : String) : Boolean;
     class function CheckAndGetEncodedRAWPayload(Const ARawPayload : TRawBytes; Const APayload_method, AEncodePwdForAES : String; const ASenderAccounKey, ATargetAccountKey : TAccountKey; out AOperationPayload : TOperationPayload; Var AErrorNum : Integer; Var AErrorDesc : String) : Boolean;
   end;
@@ -551,7 +551,7 @@ begin
 end;
 
 class function TPascalCoinJSONComp.HexaStringToOperationsHashTree(
-  const AHexaStringOperationsHashTree: String;
+  const AHexaStringOperationsHashTree: String; ACurrentProtocol : Word;
   out AOperationsHashTree: TOperationsHashTree; var AErrors: String): Boolean;
 var Lraw : TRawBytes;
   ms : TMemoryStream;
@@ -568,7 +568,7 @@ Begin
     ms.Position := 0;
     AOperationsHashTree := TOperationsHashTree.Create;
     if (Length(Lraw)>0) then begin
-      If not AOperationsHashTree.LoadOperationsHashTreeFromStream(ms,False,CT_PROTOCOL_1,Nil,AErrors) then begin
+      If not AOperationsHashTree.LoadOperationsHashTreeFromStream(ms,False,ACurrentProtocol,Nil,AErrors) then begin
         FreeAndNil(AOperationsHashTree);
         Exit;
       end;
@@ -972,7 +972,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   var op : TPCOperation;
   Begin
     multiOperation := Nil;
-    Result := TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,OperationsHashTree,errors);
+    Result := TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,AProtocolVersion,OperationsHashTree,errors);
     If (Result) then begin
       Try
         If (OperationsHashTree.OperationsCount=0) And (canCreateNewOne) then begin
@@ -1225,7 +1225,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     opt : TOpTransaction;
   begin
     Result := false;
-    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,OperationsHashTree,errors) then begin
+    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,current_protocol,OperationsHashTree,errors) then begin
       ErrorNum:=CT_RPC_ErrNum_InvalidData;
       ErrorDesc:= 'Error decoding param "rawoperations": '+errors;
       Exit;
@@ -1514,7 +1514,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     opck : TOpChangeKey;
   begin
     Result := false;
-    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,OperationsHashTree,errors) then begin
+    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,current_protocol,OperationsHashTree,errors) then begin
       ErrorNum:=CT_RPC_ErrNum_InvalidData;
       ErrorDesc:= 'Error decoding param "rawoperations": '+errors;
       Exit;
@@ -1543,7 +1543,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     i : Integer;
   Begin
     Result := False;
-    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,OperationsHashTree,errors) then begin
+    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,CT_BUILD_PROTOCOL,OperationsHashTree,errors) then begin
       ErrorNum:=CT_RPC_ErrNum_InvalidData;
       ErrorDesc:= 'Error decoding param "rawoperations": '+errors;
       Exit;
@@ -1572,7 +1572,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     OperationsResumeList : TOperationsResumeList;
   Begin
     Result := False;
-    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,OperationsHashTree,errors) then begin
+    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,CT_BUILD_PROTOCOL,OperationsHashTree,errors) then begin
       ErrorNum:=CT_RPC_ErrNum_InvalidData;
       ErrorDesc:= 'Error decoding param "rawoperations": '+errors;
       Exit;
@@ -1812,8 +1812,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     last_n_operation : Cardinal;
     current_protocol : Word;
   begin
+    current_protocol := params.AsCardinal('protocol',CT_BUILD_PROTOCOL);
     Result := false;
-    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,OperationsHashTree,errors) then begin
+    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,current_protocol,OperationsHashTree,errors) then begin
       ErrorNum:=CT_RPC_ErrNum_InvalidData;
       ErrorDesc:= 'Error decoding param previous operations hash tree raw value: '+errors;
       Exit;
@@ -1825,7 +1826,6 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         exit;
       end;
       last_n_operation := params.AsCardinal('last_n_operation',0);
-      current_protocol := params.AsCardinal('protocol',CT_BUILD_PROTOCOL);
       If not SignListAccountForSaleEx(params,OperationsHashTree,current_protocol, accountpubkey,last_n_operation) then Exit
       else Result := True;
       TPascalCoinJSONComp.FillOperationsHashTreeObject(OperationsHashTree,GetResultObject);
@@ -2021,7 +2021,8 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     current_protocol : Word;
   begin
     Result := false;
-    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,OperationsHashTree,errors) then begin
+    current_protocol := params.AsCardinal('protocol',CT_BUILD_PROTOCOL);
+    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,current_protocol,OperationsHashTree,errors) then begin
       ErrorNum:=CT_RPC_ErrNum_InvalidData;
       ErrorDesc:= 'Error decoding param previous operations hash tree raw value: '+errors;
       Exit;
@@ -2033,7 +2034,6 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         exit;
       end;
       last_n_operation := params.AsCardinal('last_n_operation',0);
-      current_protocol := params.AsCardinal('protocol',CT_BUILD_PROTOCOL);
       If not SignChangeAccountInfoEx(params,OperationsHashTree,current_protocol,accountpubkey,last_n_operation) then Exit
       else Result := True;
       TPascalCoinJSONComp.FillOperationsHashTreeObject(OperationsHashTree,GetResultObject);
@@ -2049,8 +2049,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     last_n_operation : Cardinal;
     current_protocol : Word;
   begin
+    current_protocol := params.AsCardinal('protocol',CT_BUILD_PROTOCOL);
     Result := false;
-    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,OperationsHashTree,errors) then begin
+    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,current_protocol,OperationsHashTree,errors) then begin
       ErrorNum:=CT_RPC_ErrNum_InvalidData;
       ErrorDesc:= 'Error decoding param previous operations hash tree raw value: '+errors;
       Exit;
@@ -2062,7 +2063,6 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         exit;
       end;
       last_n_operation := params.AsCardinal('last_n_operation',0);
-      current_protocol := params.AsCardinal('protocol',CT_BUILD_PROTOCOL);
       If not SignDelistAccountForSaleEx(params,OperationsHashTree,current_protocol,accountpubkey,last_n_operation) then Exit
       else Result := True;
       TPascalCoinJSONComp.FillOperationsHashTreeObject(OperationsHashTree,GetResultObject);
@@ -2147,8 +2147,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     last_n_operation : Cardinal;
     current_protocol : Word;
   begin
+    current_protocol := params.AsCardinal('protocol',CT_BUILD_PROTOCOL);
     Result := false;
-    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,OperationsHashTree,errors) then begin
+    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,current_protocol,OperationsHashTree,errors) then begin
       ErrorNum:=CT_RPC_ErrNum_InvalidData;
       ErrorDesc:= 'Error decoding param previous operations hash tree raw value: '+errors;
       Exit;
@@ -2160,7 +2161,6 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         exit;
       end;
       last_n_operation := params.AsCardinal('last_n_operation',0);
-      current_protocol := params.AsCardinal('protocol',CT_BUILD_PROTOCOL);
       If not SignBuyAccountEx(params,OperationsHashTree,current_protocol,accountpubkey,last_n_operation) then Exit
       else Result := True;
       TPascalCoinJSONComp.FillOperationsHashTreeObject(OperationsHashTree,GetResultObject);
@@ -2912,7 +2912,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     errors : String;
   begin
     Result := False;
-    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,senderOperationsHashTree,errors) then begin
+    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,CT_BUILD_PROTOCOL,senderOperationsHashTree,errors) then begin
       ErrorNum:=CT_RPC_ErrNum_InvalidData;
       ErrorDesc:= 'Error decoding param previous operations hash tree raw value: '+errors;
       Exit;
