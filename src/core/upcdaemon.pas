@@ -147,7 +147,7 @@ var
     TLog.NewLog(ltInfo,ClassName,'RPC server is active on port '+IntToStr(port));
     If FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_RPC_SAVELOGS,true) then begin
       FIniFile.WriteBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_RPC_SAVELOGS,true);
-      FRPC.LogFileName:= TFolderHelper.GetPascalCoinDataFolder+PathDelim+'pascalcoin_rpc.log';
+      FRPC.LogFileName:= TNode.GetPascalCoinDataFolder+PathDelim+'pascalcoin_rpc.log';
       TLog.NewLog(ltInfo,ClassName,'Activating RPC logs on file '+FRPC.LogFileName);
     end else begin
       FIniFile.WriteBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_RPC_SAVELOGS,false);
@@ -231,7 +231,7 @@ begin
         raise Exception.Create('Cannot load '+SSL_C_LIB+#10+'To use this software make sure this file is available on you system or reinstall the application');
       end;
       TCrypto.InitCrypto;
-      FWalletKeys.WalletFileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
+      FWalletKeys.WalletFileName := TNode.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
       // Creating Node:
       FNode := TNode.Node;
       {$IFDEF TESTNET}
@@ -242,7 +242,7 @@ begin
       Try
         // Check Database
         FNode.Bank.StorageClass := TFileStorage;
-        TFileStorage(FNode.Bank.Storage).DatabaseFolder := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data';
+        TFileStorage(FNode.Bank.Storage).DatabaseFolder := TNode.GetPascalCoinDataFolder+PathDelim+'Data';
         TFileStorage(FNode.Bank.Storage).LowMemoryUsage := FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_LOWMEMORY,False);
         // By default daemon will not download checkpoint except if specified on INI file
         TNetData.NetData.MinFutureBlocksToDownloadNewSafebox := FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_MINPENDINGBLOCKSTODOWNLOADCHECKPOINT,0);
@@ -288,7 +288,7 @@ begin
   FIniFile := TIniFile.Create(ExtractFileDir(Application.ExeName)+PathDelim+'pascalcoin_daemon.ini');
   If FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_SAVELOGS,true) then begin
     _FLog.SaveTypes:=CT_TLogTypes_ALL;
-    _FLog.FileName:=TFolderHelper.GetPascalCoinDataFolder+PathDelim+'pascalcoin_'+FormatDateTime('yyyymmddhhnn',Now)+'.log';
+    _FLog.FileName:=TNode.GetPascalCoinDataFolder+PathDelim+'pascalcoin_'+FormatDateTime('yyyymmddhhnn',Now)+'.log';
     FIniFile.WriteBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_SAVELOGS,true);
   end else begin
     FIniFile.WriteBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_SAVELOGS,false);

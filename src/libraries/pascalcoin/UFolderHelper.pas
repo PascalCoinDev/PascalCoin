@@ -20,8 +20,6 @@ unit UFolderHelper;
   {$MODE Delphi}
 {$ENDIF}
 
-{$I config.inc}
-
 interface
 
 Type TFileVersionInfo = record
@@ -51,7 +49,7 @@ Type TFileVersionInfo = record
     {$ENDIF}
     class function GetAppDataFolder : string; static;
   public
-    class function GetPascalCoinDataFolder : string; static;
+    class Function GetDataFolder(const AFolderName : string): string; static;
     class Function GetTFileVersionInfo(Const FileName : String) : TFileVersionInfo; static;
   end;
 
@@ -108,13 +106,11 @@ begin
 end;
 {$ENDIF}
 
-class function TFolderHelper.GetPascalCoinDataFolder: string;
+class function TFolderHelper.GetDataFolder(const AFolderName : string): string;
 begin
-  {$IFDEF TESTNET}
-  Result := GetAppDataFolder+PathDelim+'PascalCoin_TESTNET';
-  {$ELSE}
-  Result := GetAppDataFolder+PathDelim+'PascalCoin';
-  {$ENDIF}
+  if (AFolderName<>'') then
+    Result := GetAppDataFolder+PathDelim+AFolderName
+  else Result := GetAppDataFolder;
 end;
 
 class function TFolderHelper.GetTFileVersionInfo(Const FileName: String): TFileVersionInfo;

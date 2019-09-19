@@ -281,7 +281,7 @@ begin
   // Check OpenSSL dll
   if Not LoadSSLCrypt then raise Exception.Create('Cannot load '+SSL_C_LIB+#10+'To use this software make sure this file is available on you system or reinstall the application');
   TCrypto.InitCrypto;
-  FWalletKeys.WalletFileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
+  FWalletKeys.WalletFileName := TNode.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
   // Creating Node:
   FNode := TNode.Node;
   // RPC Server
@@ -291,7 +291,7 @@ begin
   FRPC.Active:=true;
   // Check Database
   FNode.Bank.StorageClass := TFileStorage;
-  TFileStorage(FNode.Bank.Storage).DatabaseFolder := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data';
+  TFileStorage(FNode.Bank.Storage).DatabaseFolder := TNode.GetPascalCoinDataFolder+PathDelim+'Data';
   // Reading database
   Log(sltInfo,'Reading database and constructing PascalCoin accounts');
   FNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);

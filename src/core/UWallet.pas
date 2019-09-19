@@ -156,7 +156,7 @@ uses
   {$IFDEF INTERNAL_USE_FOLDERHELPER_UNIT}
   UFolderHelper,
   {$ENDIF}
-  UPCEncryption;
+  UPCEncryption, UNode;
 
 Const
   CT_PrivateKeyFile_Magic = 'TWalletKeys';
@@ -634,7 +634,7 @@ begin
   try
     if not Assigned(FKeys) then
       FKeys := TWalletKeysExt.Create(nil);
-    FKeys.WalletFileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
+    FKeys.WalletFileName := TNode.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
   except
     on E:Exception do begin
       E.Message := 'Cannot open your wallet... Perhaps another instance of Pascal Coin is active!'+#10+#10+E.Message;

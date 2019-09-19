@@ -428,7 +428,7 @@ begin
     TCrypto.InitCrypto;
     // Read Wallet
     Try
-      FWalletKeys.WalletFileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
+      FWalletKeys.WalletFileName := TNode.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
     Except
       On E:Exception do begin
         E.Message := 'Cannot open your wallet... Perhaps another instance of Pascal Coin is active!'+#10+#10+E.Message;
@@ -451,7 +451,7 @@ begin
     WalletKeys.SafeBox := FNode.Bank.SafeBox;
     // Check Database
     FNode.Bank.StorageClass := TFileStorage;
-    TFileStorage(FNode.Bank.Storage).DatabaseFolder := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data';
+    TFileStorage(FNode.Bank.Storage).DatabaseFolder := TNode.GetPascalCoinDataFolder+PathDelim+'Data';
     TFileStorage(FNode.Bank.Storage).Initialize;
     // Init Grid
     FSelectedAccountsGrid.Node := FNode;
@@ -901,7 +901,8 @@ begin
   Strings.Add('');
   Strings.Add(Format('Current balance: %s',[TAccountComp.FormatMoney(account.balance)]));
   Strings.Add('');
-  Strings.Add(Format('Updated on block: %d  (%d blocks ago)',[account.updated_block,FNode.Bank.BlocksCount-account.updated_block]));
+  Strings.Add(Format('Updated on block: %d  (%d blocks ago)',[account.updated_on_block,FNode.Bank.BlocksCount-account.updated_on_block]));
+  Strings.Add(Format('Updated on block as active mode: %d  (%d blocks ago)',[account.updated_on_block_active_mode,FNode.Bank.BlocksCount-account.updated_on_block_active_mode]));
   Strings.Add(Format('Public key type: %s',[TAccountComp.GetECInfoTxt(account.accountInfo.accountKey.EC_OpenSSL_NID)]));
   Strings.Add(Format('Base58 Public key: %s',[TAccountComp.AccountPublicKeyExport(account.accountInfo.accountKey)]));
   if Length(account.account_data)>0 then
@@ -1253,9 +1254,9 @@ begin
   FLog := TLog.Create(Self);
   FLog.OnNewLog := OnNewLog;
   FLog.SaveTypes := [];
-  If Not ForceDirectories(TFolderHelper.GetPascalCoinDataFolder) then raise Exception.Create('Cannot create dir: '+TFolderHelper.GetPascalCoinDataFolder);
+  If Not ForceDirectories(TNode.GetPascalCoinDataFolder) then raise Exception.Create('Cannot create dir: '+TNode.GetPascalCoinDataFolder);
   FAppParams := TAppParams.Create(self);
-  FAppParams.FileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'AppParams.prm';
+  FAppParams.FileName := TNode.GetPascalCoinDataFolder+PathDelim+'AppParams.prm';
   FNodeNotifyEvents := TNodeNotifyEvents.Create(Self);
   FNodeNotifyEvents.OnBlocksChanged := OnNewAccount;
   FNodeNotifyEvents.OnNodeMessageEvent := OnNodeMessageEvent;
@@ -2320,7 +2321,7 @@ begin
   if FAppParams.ParamByName[CT_PARAM_SaveLogFiles].GetAsBoolean(false) then begin
     if FAppParams.ParamByName[CT_PARAM_SaveDebugLogs].GetAsBoolean(false) then FLog.SaveTypes := CT_TLogTypes_ALL
     else FLog.SaveTypes := CT_TLogTypes_DEFAULT;
-    FLog.FileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'PascalCointWallet.log';
+    FLog.FileName := TNode.GetPascalCoinDataFolder+PathDelim+'PascalCointWallet.log';
   end else begin
     FLog.SaveTypes := [];
     FLog.FileName := '';
@@ -2335,7 +2336,7 @@ begin
     finally
       FNode.UnlockMempoolWrite;
     end;
-    FNode.NodeLogFilename := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'blocks.log';
+    FNode.NodeLogFilename := TNode.GetPascalCoinDataFolder+PathDelim+'blocks.log';
   end;
   if Assigned(FPoolMiningServer) then begin
     if FPoolMiningServer.Port<>FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port) then begin
