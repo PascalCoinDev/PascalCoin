@@ -143,6 +143,7 @@ Var nCounter, nTotalRound, iLastSend, i : Integer;
   errors : String;
   nAddedOperations, nMaxTransactionsValue, nExecutedSinceLastTC : Integer;
   LLastTC : TTickCount;
+  LProtocol : Word;
 begin
   operationsComp := TPCOperationsComp.Create(Nil);
   try
@@ -165,22 +166,23 @@ begin
       end;
       while (nCounter<nTotalRound) And (Not Terminated) And (FAllowExecute) do begin
         inc(nCounter);
+        LProtocol := operationsComp.OperationBlock.protocol_version;
         //
         Case Random(30) of
           0..10 : begin
             if FMaxOperationsPerSecond>0 then nMaxTransactionsValue := Random(FMaxOperationsPerSecond)+1
             else nMaxTransactionsValue := Random(200)+1;
 
-            inc(FnOperationsCreated,TRandomGenerateOperation.GenerateOpTransactions(FSourceNode.Bank.SafeBox.CurrentProtocol,nMaxTransactionsValue,operationsComp,FSourceWalletKeys));
+            inc(FnOperationsCreated,TRandomGenerateOperation.GenerateOpTransactions(LProtocol,nMaxTransactionsValue,operationsComp,FSourceWalletKeys));
           end;
           11..15 : begin
-            inc(FnOperationsCreated,TRandomGenerateOperation.GenerateOpChangeKey(FSourceNode.Bank.SafeBox.CurrentProtocol,operationsComp,FSourceWalletKeys));
+            inc(FnOperationsCreated,TRandomGenerateOperation.GenerateOpChangeKey(LProtocol,operationsComp,FSourceWalletKeys));
           end;
           18..22 : begin
-            inc(FnOperationsCreated,TRandomGenerateOperation.GenerateOpListAccountForSale(FSourceNode.Bank.SafeBox.CurrentProtocol,operationsComp,FSourceWalletKeys));
+            inc(FnOperationsCreated,TRandomGenerateOperation.GenerateOpListAccountForSale(LProtocol,operationsComp,FSourceWalletKeys));
           end;
           25..29 : begin
-            If TRandomGenerateOperation.GenerateOpMultiOperation(FSourceNode.Bank.SafeBox.CurrentProtocol,operationsComp,FSourceWalletKeys) then inc(FnOperationsCreated)
+            If TRandomGenerateOperation.GenerateOpMultiOperation(LProtocol,operationsComp,FSourceWalletKeys) then inc(FnOperationsCreated)
             else inc(FnOperationsCreatedFailed);
           end;
         end;
