@@ -530,7 +530,7 @@ begin
   jsonObject.GetAsVariant('fee').Value:=TAccountComp.FormatMoneyDecimal( multiOperation.OperationFee );
   // New params for third party signing: (3.0.2)
   if (current_protocol>CT_PROTOCOL_3) then begin
-    jsonObject.GetAsVariant('digest').Value:=TCrypto.ToHexaString(multiOperation.GetDigestToSign(current_protocol));
+    jsonObject.GetAsVariant('digest').Value:=TCrypto.ToHexaString(multiOperation.GetDigestToSign);
   end;
 
   jsonObject.GetAsVariant('senders_count').Value:=Length(multiOperation.Data.txSenders);
@@ -569,7 +569,7 @@ Begin
     ms.Position := 0;
     AOperationsHashTree := TOperationsHashTree.Create;
     if (Length(Lraw)>0) then begin
-      If not AOperationsHashTree.LoadOperationsHashTreeFromStream(ms,False,ACurrentProtocol,Nil,AErrors) then begin
+      If not AOperationsHashTree.LoadOperationsHashTreeFromStream(ms,False,ACurrentProtocol,ACurrentProtocol,Nil,AErrors) then begin
         FreeAndNil(AOperationsHashTree);
         Exit;
       end;

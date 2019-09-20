@@ -3266,7 +3266,7 @@ begin
       //
       opht := TOperationsHashTree.Create;
       try
-        If Not opht.LoadOperationsHashTreeFromStream(dataReceived,False,0,Nil,errors) then begin
+        If Not opht.LoadOperationsHashTreeFromStream(dataReceived,False,TNode.Node.Bank.SafeBox.CurrentProtocol,TNode.Node.Bank.SafeBox.CurrentProtocol,Nil,errors) then begin
           DisconnectInvalidClient(False,'Invalid operations hash tree stream: '+errors);
           Exit;
         end;

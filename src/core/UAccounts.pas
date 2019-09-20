@@ -3820,10 +3820,11 @@ begin
       end;
     end else begin
       // If we are here protocol didn't changed... make sure it's not a upgrade block!
-      if (newOperationBlock.block = CT_Protocol_Upgrade_v2_MinBlock)
-           or (newOperationBlock.block = CT_Protocol_Upgrade_v3_MinBlock)
-           or (newOperationBlock.block = CT_Protocol_Upgrade_v4_MinBlock)
-           or (newOperationBlock.block = CT_Protocol_Upgrade_v5_MinBlock) then begin
+      if ((newOperationBlock.block = CT_Protocol_Upgrade_v2_MinBlock) and (newOperationBlock.protocol_version<>CT_PROTOCOL_2))
+           or ((newOperationBlock.block = CT_Protocol_Upgrade_v3_MinBlock) and (newOperationBlock.protocol_version<>CT_PROTOCOL_3))
+           or ((newOperationBlock.block = CT_Protocol_Upgrade_v4_MinBlock) and (newOperationBlock.protocol_version<>CT_PROTOCOL_4))
+           or ((newOperationBlock.block = CT_Protocol_Upgrade_v5_MinBlock) and (newOperationBlock.protocol_version<>CT_PROTOCOL_5))
+           then begin
          errors := Format('In block %d protocol must be upgraded! Current %d',[newOperationBlock.block,newOperationBlock.protocol_version]);
          exit;
       end;
@@ -4446,7 +4447,7 @@ begin
     end;
     for i := 0 to FOrderedList.FList.Count - 1 do begin
       PSealed := PSealedAccount(FOrderedList.FList[i]);
-      Pa := PSealed^.AccountSealed; // PSealedAccount (FOrderedList.FList[i])^.AccountSealed; XXXXXXXXX
+      Pa := PSealed^.AccountSealed;
       FFreezedAccounts.UpdateAccount(Pa^.account,
             Pa^.accountInfo,
             Pa^.name,

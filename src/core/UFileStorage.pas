@@ -325,7 +325,7 @@ begin
     if fs.Size>0 then begin
       if Assigned(Bank) then LCurrentProtocol := Bank.SafeBox.CurrentProtocol
       else LCurrentProtocol := CT_BUILD_PROTOCOL;
-      If OperationsHashTree.LoadOperationsHashTreeFromStream(fs,true,LCurrentProtocol,Nil,errors) then begin
+      If OperationsHashTree.LoadOperationsHashTreeFromStream(fs,true,LCurrentProtocol,LCurrentProtocol, Nil,errors) then begin
         TLog.NewLog(ltInfo,ClassName,Format('DoLoadPendingBufferOperations loaded operations:%d',[OperationsHashTree.OperationsCount]));
       end else TLog.NewLog(ltError,ClassName,Format('DoLoadPendingBufferOperations ERROR (Protocol %d): loaded operations:%d errors:%s',[LCurrentProtocol,OperationsHashTree.OperationsCount,errors]));
     end;
