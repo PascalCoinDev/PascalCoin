@@ -90,7 +90,7 @@ Type
     account: Cardinal;        // FIXED value. Account number
     accountInfo : TAccountInfo;
     balance: UInt64;          // Balance, always >= 0
-    updated_on_block: Cardinal;   // Number of block where was updated (active of passive mode)
+    updated_on_block: Cardinal;   // Number of block where was updated (active or passive mode)
     updated_on_block_active_mode: Cardinal; // Number of block where was used (active mode only)
     n_operation: Cardinal;    // count number of owner operations (when receive, this is not updated)
     name : TRawBytes;         // Protocol 2. Unique name
@@ -1217,6 +1217,8 @@ end;
 
 class procedure TAccountComp.SaveAccountToAStream(Stream: TStream; const Account: TAccount; current_protocol : Word);
 var w : Word;
+  LTmpSeal : T20Bytes;
+  LTmpRaw : TRawBytes;
 begin
   if current_protocol<CT_PROTOCOL_5 then
     w := CT_PROTOCOL_4
@@ -1234,7 +1236,10 @@ begin
   Stream.Write(Account.account_type,SizeOf(Account.account_type));
   if current_protocol>=CT_PROTOCOL_5 then begin
     TStreamOp.WriteAnsiString(Stream,Account.account_data);
-    TStreamOp.WriteAnsiString(Stream,Account.account_seal);
+    // Account Seal is allways a 20 bytes as described on PIP-0029
+    LTmpSeal := TBaseType.To20Bytes(Account.account_seal);
+    LTmpRaw := TBaseType.T20BytesToRawBytes(LTmpSeal);
+    TStreamOp.WriteAnsiString(Stream,LTmpRaw);
   end;
 end;
 
@@ -1261,7 +1266,7 @@ begin
   if Stream.Read(Account.account_type,SizeOf(Account.account_type)) <> 2 then Exit;
   if LSaved_protocol>=CT_PROTOCOL_5 then begin
     if TStreamOp.ReadAnsiString(Stream,Account.account_data)<0 then Exit;
-    if TStreamOp.ReadAnsiString(Stream,Account.account_seal)<0 then Exit;
+    if TStreamOp.ReadAnsiString(Stream,Account.account_seal,20)<0 then Exit;
   end;
   Result := True;
 end;
@@ -4707,6 +4712,11 @@ begin
     PaccSigner^.n_operation := n_operation;
     PaccSigner^.balance := PaccSender^.balance - (fee);
     PaccSender^.balance := PaccSender^.balance - (amount);
+    if FreezedSafeBox.CurrentProtocol>=CT_PROTOCOL_5 then begin
+      // On Protocol 5, n_operation of the sender will be automatically updated
+      PaccSender^.n_operation := PaccSender^.n_operation + 1;
+    end;
+
   end else begin
     PaccSender^.n_operation := n_operation;
     PaccSender^.balance := PaccSender^.balance - (amount + fee);
@@ -4945,6 +4955,12 @@ begin
   end;
 
   P_signer^.n_operation := signer_n_operation;
+  if (signer_account<>target_account) and
+     (FreezedSafeBox.CurrentProtocol>=CT_PROTOCOL_5) then begin
+      // On Protocol 5, n_operation of the target will be automatically updated
+      P_target^.n_operation := P_target^.n_operation + 1;
+  end;
+
   P_target^.accountInfo := accountInfo;
   P_target^.name := newName;
   P_target^.account_data := newData;
@@ -5026,8 +5042,8 @@ begin
       Inc(APtrSealedAccount^.SealChangesCounter);
       LStream := TMemoryStream.Create;
       Try
-        APtrSealedAccount^.AccountSealed.SerializeAccount(LStream,FSafeBoxTransaction.FreezedSafeBox.CurrentProtocol); // Serialize with LATEST seal value
         // New Seal = RIPEMD160(  SHA2_256(    SerializedAccount ++ OpID ++ LatestSafeboxHash  ) )
+        APtrSealedAccount^.AccountSealed.SerializeAccount(LStream,FSafeBoxTransaction.FreezedSafeBox.CurrentProtocol); // Serialize with LATEST seal value
         LStream.WriteBuffer( AOpID[0], Length(AOpID));
         LStream.WriteBuffer( FSafeBoxTransaction.FOldSafeBoxHash[0], Length(FSafeBoxTransaction.FOldSafeBoxHash) );
         APtrSealedAccount^.AccountSealed^.account_seal := TCrypto.DoRipeMD160AsRaw( TCrypto.DoSha256(LStream.Memory,LStream.Size) );
@@ -5845,31 +5861,21 @@ end;
 
 procedure TAccount_Helper.SerializeAccount(AStream: TStream; current_protocol : Word);
 var LRaw : TRawBytes;
-  LTmpSeal : T20Bytes;
 begin
-  AStream.Write(Self.account,4);
-  LRaw := TAccountComp.AccountInfo2RawString(Self.accountInfo);
-  AStream.WriteBuffer(LRaw[Low(LRaw)],Length(LRaw));
-  AStream.Write(Self.balance,8);
-  AStream.Write(Self.updated_on_block,4);
-  if current_protocol>=5 then begin
-    AStream.Write(Self.updated_on_block_active_mode,4);
-  end;
-  AStream.Write(Self.n_operation,4);
-  if (current_protocol>=2) then begin
-      // Use new Protocol 2 fields
-    If Length(Self.name)>0 then begin
-      AStream.WriteBuffer(Self.name[Low(Self.name)],Length(Self.name));
-    end;
-    AStream.Write(Self.account_type,2);
-    if current_protocol>=5 then begin
-      // Adding PROTOCOL 5 new fields
-      If Length(Self.account_data)>0 then begin
-        AStream.WriteBuffer(Self.account_data[0],Length(Self.account_data));
+  if current_protocol>=CT_PROTOCOL_5 then TAccountComp.SaveAccountToAStream(AStream,Self,current_protocol)
+  else begin
+    AStream.Write(Self.account,4);
+    LRaw := TAccountComp.AccountInfo2RawString(Self.accountInfo);
+    AStream.WriteBuffer(LRaw[Low(LRaw)],Length(LRaw));
+    AStream.Write(Self.balance,8);
+    AStream.Write(Self.updated_on_block,4);
+    AStream.Write(Self.n_operation,4);
+    if (current_protocol>=2) then begin
+        // Use new Protocol 2 fields
+      If Length(Self.name)>0 then begin
+        AStream.WriteBuffer(Self.name[Low(Self.name)],Length(Self.name));
       end;
-      // Account Seal is allways a 20 bytes as described on PIP-0029
-      LTmpSeal := TBaseType.To20Bytes(Self.account_seal);
-      AStream.WriteBuffer(LTmpSeal[0],20);
+      AStream.Write(Self.account_type,2);
     end;
   end;
 end;
