@@ -1592,7 +1592,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
         BlocksList.Free;
       end;
     until (distinctmin=distinctmax);
-    Result := (OperationBlock.proof_of_work <> CT_OperationBlock_NUL.proof_of_work);
+    Result := (Not TBaseType.Equals(OperationBlock.proof_of_work,CT_OperationBlock_NUL.proof_of_work));
   End;
 
   procedure GetNewBank(start_block : Int64);
@@ -3780,7 +3780,7 @@ var operationsComp : TPCOperationsComp;
     end;
     // Now we have nfpboarr with full data
     for i := 0 to High(nfpboarr) do begin
-      auxOp := TPCOperation.GetOperationFromStreamData(Self.FNetProtocolVersion.protocol_version,  nfpboarr[i].opStreamData );
+      auxOp := TPCOperation.GetOperationFromStreamData(original_OperationBlock.protocol_version,  nfpboarr[i].opStreamData );
       if not Assigned(auxOp) then begin
         errors := Format('Op index not available (%d/%d) OpReference:%d size:%d',[i,High(nfpboarr),nfpboarr[i].opReference,Length(nfpboarr[i].opStreamData)]);
         Exit;
