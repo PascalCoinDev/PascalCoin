@@ -1372,6 +1372,7 @@ begin
         FOperationBlock.compact_target := FBank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
       end;
       FOperationBlock.initial_safe_box_hash := FBank.SafeBox.SafeBoxHash;
+      FOperationBlock.previous_proof_of_work := FBank.LastOperationBlock.proof_of_work;
       If FBank.LastOperationBlock.timestamp>FOperationBlock.timestamp then
         FOperationBlock.timestamp := FBank.LastOperationBlock.timestamp;
     end else begin
@@ -1381,6 +1382,7 @@ begin
       FOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash; // Nothing for first line
       FOperationBlock.protocol_version := CT_PROTOCOL_1;
       FOperationsHashTree.Max0feeOperationsBySigner := -1;
+      FOperationBlock.previous_proof_of_work := Nil;
     end;
     FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
     FOperationBlock.fee := 0;
@@ -1489,20 +1491,7 @@ end;
 class function TPCOperationsComp.EqualsOperationBlock(const OperationBlock1,
   OperationBlock2: TOperationBlock): Boolean;
 begin
-
-  Result := (OperationBlock1.block=OperationBlock2.block)
-           And (TAccountComp.EqualAccountKeys(OperationBlock1.account_key,OperationBlock2.account_key))
-           And (OperationBlock1.reward=OperationBlock2.reward)
-           And (OperationBlock1.fee=OperationBlock2.fee)
-           And (OperationBlock1.protocol_version=OperationBlock2.protocol_version)
-           And (OperationBlock1.protocol_available=OperationBlock2.protocol_available)
-           And (OperationBlock1.timestamp=OperationBlock2.timestamp)
-           And (OperationBlock1.compact_target=OperationBlock2.compact_target)
-           And (OperationBlock1.nonce=OperationBlock2.nonce)
-           And (TBaseType.Equals(OperationBlock1.block_payload,OperationBlock2.block_payload))
-           And (TBaseType.Equals(OperationBlock1.initial_safe_box_hash,OperationBlock2.initial_safe_box_hash))
-           And (TBaseType.Equals(OperationBlock1.operations_hash,OperationBlock2.operations_hash))
-           And (TBaseType.Equals(OperationBlock1.proof_of_work,OperationBlock2.proof_of_work));
+  Result := TAccountComp.EqualOperationBlocks(OperationBlock1,OperationBlock2);
 end;
 
 function TPCOperationsComp.GetAccountKey: TAccountKey;
@@ -1643,15 +1632,15 @@ begin
     if TStreamOp.ReadAnsiString(Stream, FOperationBlock.initial_safe_box_hash) < 0 then exit;
     if TStreamOp.ReadAnsiString(Stream, FOperationBlock.operations_hash) < 0 then exit;
     if TStreamOp.ReadAnsiString(Stream, FOperationBlock.proof_of_work) < 0 then exit;
+    if FOperationBlock.protocol_version>=CT_PROTOCOL_5 then begin
+      if TStreamOp.ReadAnsiString(Stream, FOperationBlock.previous_proof_of_work) < 0 then exit;
+      load_protocol_version := FOperationBlock.protocol_version;
+    end;
     If FIsOnlyOperationBlock then begin
       Result := true;
       exit;
     end;
     //
-    if FOperationBlock.protocol_version>=CT_PROTOCOL_5 then begin
-      load_protocol_version := FOperationBlock.protocol_version;
-    end;
-
     // Fee will be calculated for each operation. Set it to 0 and check later for integrity
     lastfee := OperationBlock.fee;
     FOperationBlock.fee := 0;
@@ -1749,14 +1738,17 @@ begin
         FOperationBlock.compact_target := FBank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
       end;
       FOperationBlock.initial_safe_box_hash := FBank.SafeBox.SafeBoxHash;
-      If FBank.LastOperationBlock.timestamp>FOperationBlock.timestamp then
+      If FBank.LastOperationBlock.timestamp>FOperationBlock.timestamp then begin
         FOperationBlock.timestamp := FBank.LastOperationBlock.timestamp;
+      end;
+      FOperationBlock.previous_proof_of_work := FBank.LastOperationBlock.proof_of_work;
     end else begin
       FOperationBlock.block := 0;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(0);
       FOperationBlock.compact_target := CT_MinCompactTarget_v1;
       FOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash;
       FOperationBlock.protocol_version := CT_PROTOCOL_1;
+      FOperationBlock.previous_proof_of_work := Nil;
     end;
     FOperationBlock.proof_of_work:=Nil;
     FOperationBlock.protocol_available := CT_BlockChain_Protocol_Available;
@@ -1859,6 +1851,9 @@ begin
     TStreamOp.WriteAnsiString(Stream, FOperationBlock.initial_safe_box_hash);
     TStreamOp.WriteAnsiString(Stream, FOperationBlock.operations_hash);
     TStreamOp.WriteAnsiString(Stream, FOperationBlock.proof_of_work);
+    if FOperationBlock.protocol_version>=CT_PROTOCOL_5 then begin
+      TStreamOp.WriteAnsiString(Stream, FOperationBlock.previous_proof_of_work);
+    end;
     { Basic size calculation:
     protocols : 2 words = 4 bytes
     block : 4 bytes
@@ -1899,6 +1894,9 @@ begin
   TStreamOp.WriteAnsiString(Stream, OperationBlock.initial_safe_box_hash);
   TStreamOp.WriteAnsiString(Stream, OperationBlock.operations_hash);
   TStreamOp.WriteAnsiString(Stream, OperationBlock.proof_of_work);
+  if OperationBlock.protocol_version>=CT_PROTOCOL_5 then begin
+    TStreamOp.WriteAnsiString(Stream, OperationBlock.previous_proof_of_work);
+  end;
   Result := true;
 end;
 

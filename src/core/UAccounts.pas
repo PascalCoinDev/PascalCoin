@@ -60,7 +60,8 @@ Type
     block_payload : TRawBytes;  // RAW Payload that a miner can include to a blockchain
     initial_safe_box_hash: TRawBytes; // RAW Safe Box Hash value (32 bytes, it's a Sha256)
     operations_hash: TRawBytes; // RAW sha256 (32 bytes) of Operations
-    proof_of_work: TRawBytes;   // RAW Double Sha256
+    proof_of_work: TRawBytes;   // RAW 32 bytes
+    previous_proof_of_work: TRawBytes; // RAW 32 bytes
   end;
 
   { TPascalCoinProtocol }
@@ -512,12 +513,12 @@ Type
 
 Const
   CT_OperationBlock_NUL : TOperationBlock = (block:0;account_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);reward:0;fee:0;protocol_version:0;
-    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:Nil;initial_safe_box_hash:Nil;operations_hash:Nil;proof_of_work:Nil);
+    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:Nil;initial_safe_box_hash:Nil;operations_hash:Nil;proof_of_work:Nil;previous_proof_of_work:Nil);
   CT_AccountInfo_NUL : TAccountInfo = (state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);hashed_secret:Nil);
   CT_Account_NUL : TAccount = (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_on_block:0;updated_on_block_active_mode:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0);
   CT_BlockAccount_NUL : TBlockAccount = (
     blockchainInfo:(block:0;account_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);reward:0;fee:0;protocol_version:0;
-    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:Nil;initial_safe_box_hash:Nil;operations_hash:Nil;proof_of_work:Nil);
+    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:Nil;initial_safe_box_hash:Nil;operations_hash:Nil;proof_of_work:Nil;previous_proof_of_work:Nil);
     accounts:(
     (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_on_block:0;updated_on_block_active_mode:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0),
     (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_on_block:0;updated_on_block_active_mode:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0),
@@ -732,8 +733,41 @@ begin
   try
     ms.WriteBuffer(operationBlock.initial_safe_box_hash[Low(operationBlock.initial_safe_box_hash)],length(operationBlock.initial_safe_box_hash));
     ms.WriteBuffer(operationBlock.operations_hash[Low(operationBlock.operations_hash)],length(operationBlock.operations_hash));
-    // Note about fee: Fee is stored in 8 bytes, but only digest first 4 low bytes
-    ms.Write(operationBlock.fee,4);
+    if operationBlock.protocol_version<CT_PROTOCOL_5 then begin
+      // Note about fee: Fee is stored in 8 bytes, but only digest first 4 low bytes
+      ms.Write(operationBlock.fee,4);
+    end else begin
+      // UPDATE PROTOCOL 5 - September 2019
+      ms.Write(operationBlock.fee,SizeOf(operationBlock.fee)); // Changed from 4 to 8 bytes in Little endian
+
+      // UPDATE PROTOCOL 5 - September 2019
+      //
+      // IMPORTANT SECURITY FIX:
+      //
+      // Since protocol 2 the Safebox can be checkpointed, this means that the
+      // Safebox can be self-checked mantaining Proof-of-Work consistency.
+      // (Introduced on PIP-0003 created by Herman Schoenfeld)
+      //
+      // The problem is that in order to protect "parallelization" of the PoW
+      // process must ensure that cannot create a header for block N until N-1
+      // has been created. On V4 version this protection is made using the
+      // "initial_safe_box_hash" that is correct and protects parallelization
+      // when adding a block on a previous safebox. The issue is that when
+      // only computing PoW of the Safebox (without blockchain) then this N-1
+      // value obtained on "initial_safe_box_hash" cannot be checked.
+      //
+      // In order to eliminate parallelization possibility for a hacked
+      // new Safebox the best way is to include in N block info obtained
+      // after N-1 block has been calculated (like blockchain does).
+      //
+      // The solution is to include the "previous PoW" obtained on N-1 on the
+      // digest for next N block, like a traditional blockchain does
+      //
+      // This important issue and security fix was discovered by Herman:
+      // Herman Schoenfeld <herman@sphere10.com>
+
+      ms.WriteBuffer(operationBlock.previous_proof_of_work[Low(operationBlock.previous_proof_of_work)],Length(operationBlock.previous_proof_of_work));
+    end;
     SetLength(Part3,ms.Size);
     ms.Position := 0;
     ms.ReadBuffer(Part3[Low(Part3)],ms.Size);
@@ -841,8 +875,14 @@ begin
     // Part 3
     ms.WriteBuffer(operationBlock.initial_safe_box_hash[Low(operationBlock.initial_safe_box_hash)],length(operationBlock.initial_safe_box_hash));
     ms.WriteBuffer(operationBlock.operations_hash[Low(operationBlock.operations_hash)],length(operationBlock.operations_hash));
-    // Note about fee: Fee is stored in 8 bytes (Int64), but only digest first 4 low bytes
-    ms.Write(operationBlock.fee,4);
+    if operationBlock.protocol_version<CT_PROTOCOL_5 then begin
+      // Note about fee: Fee is stored in 8 bytes (Int64), but only digest first 4 low bytes
+      ms.Write(operationBlock.fee,4);
+    end else begin
+      // UPDATE PROTOCOL 5 - September 2019
+      ms.Write(operationBlock.fee,SizeOf(operationBlock.fee)); // Changed from 4 to 8 bytes in Little endian
+      ms.WriteBuffer(operationBlock.previous_proof_of_work[Low(operationBlock.previous_proof_of_work)],Length(operationBlock.previous_proof_of_work));
+    end;
     ms.Write(operationBlock.timestamp,4);
     ms.Write(operationBlock.nonce,4);
     if CT_ACTIVATE_RANDOMHASH_V4 AND (operationBlock.protocol_version >= CT_PROTOCOL_4) then begin
@@ -1459,10 +1499,14 @@ begin
           And (opBlock1.timestamp = opBlock2.timestamp)
           And (opBlock1.compact_target = opBlock2.compact_target)
           And (opBlock1.nonce = opBlock2.nonce)
-          And (TBaseType.BinStrComp(opBlock1.block_payload,opBlock2.block_payload)=0)
-          And (TBaseType.BinStrComp(opBlock1.initial_safe_box_hash,opBlock2.initial_safe_box_hash)=0)
-          And (TBaseType.BinStrComp(opBlock1.operations_hash,opBlock2.operations_hash)=0)
-          And (TBaseType.BinStrComp(opBlock1.proof_of_work,opBlock2.proof_of_work)=0);
+          And (TBaseType.Equals(opBlock1.block_payload,opBlock2.block_payload))
+          And (TBaseType.Equals(opBlock1.initial_safe_box_hash,opBlock2.initial_safe_box_hash))
+          And (TBaseType.Equals(opBlock1.operations_hash,opBlock2.operations_hash))
+          And (TBaseType.Equals(opBlock1.proof_of_work,opBlock2.proof_of_work))
+          And ( (opBlock1.protocol_version < CT_PROTOCOL_5)
+                OR
+                (TBaseType.Equals(opBlock1.previous_proof_of_work,opBlock2.previous_proof_of_work))
+              );
 end;
 
 class function TAccountComp.EqualBlockAccounts(const blockAccount1, blockAccount2: TBlockAccount): Boolean;
@@ -1634,6 +1678,9 @@ begin
   TStreamOp.WriteAnsiString(stream, operationBlock.initial_safe_box_hash);
   TStreamOp.WriteAnsiString(stream, operationBlock.operations_hash);
   TStreamOp.WriteAnsiString(stream, operationBlock.proof_of_work);
+  if (operationBlock.protocol_version>=CT_PROTOCOL_5) then begin
+    TStreamOp.WriteAnsiString(stream, operationBlock.previous_proof_of_work);
+  end;
 end;
 
 class function TAccountComp.LoadTOperationBlockFromStream(const stream: TStream; var operationBlock: TOperationBlock): Boolean;
@@ -1653,6 +1700,9 @@ begin
   if TStreamOp.ReadAnsiString(stream, operationBlock.initial_safe_box_hash) < 0 then Exit;
   if TStreamOp.ReadAnsiString(stream, operationBlock.operations_hash) < 0 then Exit;
   if TStreamOp.ReadAnsiString(stream, operationBlock.proof_of_work) < 0 then Exit;
+  if operationBlock.protocol_version>=CT_PROTOCOL_5 then begin
+    if TStreamOp.ReadAnsiString(stream, operationBlock.previous_proof_of_work) < 0 then Exit;
+  end;
   Result := True;
 end;
 
@@ -1949,6 +1999,7 @@ Type
     initial_safe_box_hash: T32Bytes; // 32 direct bytes instead of use an AnsiString (-8 bytes)
     operations_hash: T32Bytes;       // 32 direct bytes instead of use an AnsiString (-8 bytes)
     proof_of_work: T32Bytes;         // 32 direct bytes instead of use an AnsiString (-8 bytes)
+    previous_proof_of_work: T32Bytes;
   end;
 
   TMemBlockAccount = Record // TBlockAccount with less memory usage
@@ -2055,6 +2106,7 @@ Begin
   TBaseType.To32Bytes(source.blockchainInfo.initial_safe_box_hash,dest.blockchainInfo.initial_safe_box_hash);
   TBaseType.To32Bytes(source.blockchainInfo.operations_hash,dest.blockchainInfo.operations_hash);
   TBaseType.To32Bytes(source.blockchainInfo.proof_of_work,dest.blockchainInfo.proof_of_work);
+  TBaseType.To32Bytes(source.blockchainInfo.previous_proof_of_work,dest.blockchainInfo.previous_proof_of_work);
 
   for i := Low(source.accounts) to High(source.accounts) do begin
     ToTMemAccount(source.accounts[i],dest.accounts[i]);
@@ -2091,6 +2143,11 @@ begin
   TBaseType.ToRawBytes(source.blockchainInfo.initial_safe_box_hash,dest.blockchainInfo.initial_safe_box_hash);
   TBaseType.ToRawBytes(source.blockchainInfo.operations_hash,dest.blockchainInfo.operations_hash);
   TBaseType.ToRawBytes(source.blockchainInfo.proof_of_work,dest.blockchainInfo.proof_of_work);
+  if (source.blockchainInfo.protocol_version>=CT_PROTOCOL_5) then begin
+    TBaseType.ToRawBytes(source.blockchainInfo.previous_proof_of_work,dest.blockchainInfo.previous_proof_of_work);
+  end else begin
+    dest.blockchainInfo.previous_proof_of_work := Nil;
+  end;
 
   for i := Low(source.accounts) to High(source.accounts) do begin
     ToTAccount(source.accounts[i],(block_number*CT_AccountsPerBlock)+i,dest.accounts[i]);
@@ -3094,7 +3151,7 @@ end;
 function TPCSafeBox.LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var LastReadBlock : TBlockAccount; var errors : String) : Boolean;
 Var
   iblock,iacc : Cardinal;
-  raw : TRawBytes;
+  raw, LPreviousProofOfWork : TRawBytes;
   block : TBlockAccount;
   P : PBlockAccount;
   i,j : Integer;
@@ -3165,6 +3222,7 @@ begin
       try
         if Assigned(LPCOperationsBlockValidator) then
           LPCOperationsBlockValidator.StartThreads;
+        LPreviousProofOfWork := Nil;
       for iblock := 0 to sbHeader.blockscount-1 do begin
         if (Assigned(progressNotify)) and ((TPlatform.GetElapsedMilliseconds(tc)>=500)) then begin
           tc := TPlatform.GetTickCount;
@@ -3273,6 +3331,20 @@ begin
             end;
           end;
         end;
+        // Checking previous_proof_of_work
+        if block.blockchainInfo.protocol_version>=CT_PROTOCOL_5 then begin
+          if (Not TBaseType.Equals(block.blockchainInfo.previous_proof_of_work,LPreviousProofOfWork)) then begin
+            errors := errors + ' > previous_proof_of_work does not match!';
+            Exit;
+          end;
+        end else begin
+          // Ensure no value on "previous_proof_of_work" field
+          if (Length(block.blockchainInfo.previous_proof_of_work)>0)
+            and (Not TBaseType.Equals(block.blockchainInfo.previous_proof_of_work,LPreviousProofOfWork)) then begin
+            errors := errors + ' > contains previous_proof_of_work on protocol<5 different than needed!';
+            Exit;
+          end;
+        end;
         // Add
         New(P);
         ToTMemBlockAccount(block,P^);
@@ -3293,6 +3365,8 @@ begin
             FCurrentProtocol := CT_PROTOCOL_5;
           end;
         end;
+        // Assign to previous
+        LPreviousProofOfWork := block.blockchainInfo.proof_of_work;
       end;
         if Assigned(LPCOperationsBlockValidator) then begin
           repeat
@@ -3305,7 +3379,7 @@ begin
               if (Assigned(progressNotify)) and ((TPlatform.GetElapsedMilliseconds(tc)>=500)) then begin
                 tc := TPlatform.GetTickCount;
                 progressNotify(Self,Format('Validating OperationBlock info %d/%d',[LValidatedOPOk,LValidatedOPOk+LValidatedOPPending]),LValidatedOPOk,LValidatedOPOk+LValidatedOPPending);
-              end else Sleep(100)
+              end else Sleep(10)
             end;
           until LValidatedOPPending<=0 ;
         end;
@@ -3863,6 +3937,11 @@ begin
         ' Calculated:'+TCrypto.ToHexaString(CalcSafeBoxHash);
       exit;
     end;
+  end;
+  if (newOperationBlock.protocol_version >= CT_PROTOCOL_5)
+     And (Not TBaseType.Equals(lastBlock.proof_of_work, newOperationBlock.previous_proof_of_work)) then begin
+    errors := 'Proof of work N-1 is different than newOperationBlock.previous_proof_of_work '+lastBlock.proof_of_work.ToHexaString+'<>'+newOperationBlock.previous_proof_of_work.ToHexaString;
+    Exit;
   end;
   {$IFnDEF TESTING_NO_POW_CHECK}
   if (TBaseType.BinStrComp(newOperationBlock.proof_of_work,target_hash)>0) then begin
