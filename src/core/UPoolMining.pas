@@ -690,6 +690,7 @@ begin
       response_result.GetAsVariant('initial_sbh').Value := TCrypto.ToHexaString( FNodeNotifyEvents.Node.Bank.LastOperationBlock.initial_safe_box_hash );
       response_result.GetAsVariant('operations_hash').Value := TCrypto.ToHexaString( FNodeNotifyEvents.Node.Bank.LastOperationBlock.operations_hash );
       response_result.GetAsVariant('pow').Value := TCrypto.ToHexaString( FNodeNotifyEvents.Node.Bank.LastOperationBlock.proof_of_work );
+      response_result.GetAsVariant('previous_pow').Value := TCrypto.ToHexaString( FNodeNotifyEvents.Node.Bank.LastOperationBlock.previous_proof_of_work );
       Client.SendJSONRPCResponse(response_result,id_value);
     Finally
       response_result.Free;

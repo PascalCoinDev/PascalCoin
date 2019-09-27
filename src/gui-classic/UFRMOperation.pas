@@ -244,8 +244,18 @@ loop_start:
       account := FNode.GetMempoolAccount(_senderAccounts[iAcc]);
       If Not UpdatePayload(account, errors) then
         raise Exception.Create('Error encoding payload of sender account '+TAccountComp.AccountNumberToAccountTxtNumber(account.account)+': '+errors);
-      if NOT WalletKeys.TryGetKey(account.accountInfo.accountKey, LKey) then
-        Raise Exception.Create('Sender account private key not found in Wallet');
+      if NOT WalletKeys.TryGetKey(account.accountInfo.accountKey, LKey) then begin
+
+        if  (
+             (TAccountComp.IsAccountForPrivateSale(account.accountInfo)) or
+             (TAccountComp.IsAccountForAccountSwap(account.accountInfo))
+             )
+            and (Not TAccountComp.IsNullAccountKey(account.accountInfo.new_publicKey)) then begin
+
+          if NOT WalletKeys.TryGetKey(account.accountInfo.new_publicKey, LKey) then
+            Raise Exception.Create('New sender account private key not found in Wallet');
+        end else Raise Exception.Create('Sender account private key not found in Wallet');
+      end;
       dooperation := true;
       // Default fee
       if account.balance > uint64(DefaultFee) then _fee := DefaultFee else _fee := account.balance;
@@ -864,7 +874,7 @@ begin
       exit;
     end;
     AccountToBuy := FNode.GetMempoolAccount(c);
-    ARecipientSigned := TAccountComp.IsOperationRecipientSignable(SenderAccount, AccountToBuy, Amount, FNode.Bank.BlocksCount, FNode.Bank.SafeBox.CurrentProtocol);
+    ARecipientSigned := TAccountComp.IsOperationRecipientSignable(SenderAccount, AccountToBuy, FNode.Bank.BlocksCount, FNode.Bank.SafeBox.CurrentProtocol);
     if (SenderAccount.account = AccountToBuy.Account) AND (NOT ARecipientSigned) then begin
       errors := 'Not recipient signable';
       exit;
@@ -873,13 +883,21 @@ begin
     If not TAccountComp.IsAccountForSaleOrSwap(AccountToBuy.accountInfo) then begin
       errors := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(c)+' is not for sale or swap';
       exit;
+    end else if (TAccountComp.IsAccountForCoinSwap(AccountToBuy.accountInfo)) then begin
+      errors := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(c)+' is for '+TAccountComp.FormatMoney(AccountToBuy.accountInfo.price)+' COIN swap, cannot buy';
+      exit;
     end;
+
     If Not TAccountComp.TxtToMoney(ebBuyAmount.Text,amount) then begin
       errors := 'Invalid amount value';
       exit;
     end;
-     if (AccountToBuy.accountInfo.price>amount) AND (NOT TAccountComp.IsAccountForCoinSwap(AccountToBuy.accountInfo)) then begin
-      errors := 'Account price '+TAccountComp.FormatMoney(AccountToBuy.accountInfo.price);
+    if (AccountToBuy.accountInfo.price>amount) AND (NOT ARecipientSigned) then begin
+      errors := Format('Account price %s < (amount:%s + balance:%s = %s)',[TAccountComp.FormatMoney(AccountToBuy.accountInfo.price),
+        TAccountComp.FormatMoney(amount),
+        TAccountComp.FormatMoney(AccountToBuy.balance),
+        TAccountComp.FormatMoney(amount + AccountToBuy.balance)
+        ]);
       exit;
     end;
     if TAccountComp.IsAccountForSale(AccountToBuy.accountInfo) AND (amount+DefaultFee > SenderAccount.balance) then begin
@@ -1149,6 +1167,13 @@ begin
       for iAcc := 0 to SenderAccounts.Count - 1 do begin
         sender_account := TNode.Node.Bank.SafeBox.Account(SenderAccounts.Get(iAcc));
         iWallet := WalletKeys.IndexOfAccountKey(sender_account.accountInfo.accountKey);
+        if (iWallet<0) and (
+             (TAccountComp.IsAccountForPrivateSale(sender_account.accountInfo)) or
+             (TAccountComp.IsAccountForAccountSwap(sender_account.accountInfo))
+             )
+            and (Not TAccountComp.IsNullAccountKey(sender_account.accountInfo.new_publicKey)) then begin
+          iWallet := WalletKeys.IndexOfAccountKey(sender_account.accountInfo.new_publicKey);
+        end;
         if (iWallet<0) then begin
           errors := 'Private key of account '+TAccountComp.AccountNumberToAccountTxtNumber(sender_account.account)+' not found in wallet';
           lblGlobalErrors.Caption := errors;

@@ -243,8 +243,8 @@ type
     Procedure FillAccountInformation(Const Strings : TStrings; Const AccountNumber : Cardinal);
     Procedure FillOperationInformation(Const Strings : TStrings; Const OperationResume : TOperationResume);
     Procedure InitMacOSMenu;
-    {$IFDEF TESTNET}
     Procedure InitMenuForTesting;
+    {$IFDEF TESTNET}
     Procedure Test_RandomOperations(Sender: TObject);
     Procedure Test_AskForFreeAccount(Sender: TObject);
     {$IFDEF TESTING_NO_POW_CHECK}
@@ -252,6 +252,7 @@ type
     {$ENDIF}
     {$ENDIF}
     Procedure Test_ShowPublicKeys(Sender: TObject);
+    Procedure Test_ShowOperationsInMemory(Sender: TObject);
     procedure OnAccountsGridUpdatedData(Sender : TObject);
   protected
     { Private declarations }
@@ -428,7 +429,7 @@ begin
     TCrypto.InitCrypto;
     // Read Wallet
     Try
-      FWalletKeys.WalletFileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
+      FWalletKeys.WalletFileName := TNode.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
     Except
       On E:Exception do begin
         E.Message := 'Cannot open your wallet... Perhaps another instance of Pascal Coin is active!'+#10+#10+E.Message;
@@ -451,7 +452,7 @@ begin
     WalletKeys.SafeBox := FNode.Bank.SafeBox;
     // Check Database
     FNode.Bank.StorageClass := TFileStorage;
-    TFileStorage(FNode.Bank.Storage).DatabaseFolder := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data';
+    TFileStorage(FNode.Bank.Storage).DatabaseFolder := TNode.GetPascalCoinDataFolder+PathDelim+'Data';
     TFileStorage(FNode.Bank.Storage).Initialize;
     // Init Grid
     FSelectedAccountsGrid.Node := FNode;
@@ -901,7 +902,8 @@ begin
   Strings.Add('');
   Strings.Add(Format('Current balance: %s',[TAccountComp.FormatMoney(account.balance)]));
   Strings.Add('');
-  Strings.Add(Format('Updated on block: %d  (%d blocks ago)',[account.updated_block,FNode.Bank.BlocksCount-account.updated_block]));
+  Strings.Add(Format('Updated on block: %d  (%d blocks ago)',[account.updated_on_block,FNode.Bank.BlocksCount-account.updated_on_block]));
+  Strings.Add(Format('Updated on block as active mode: %d  (%d blocks ago)',[account.updated_on_block_active_mode,FNode.Bank.BlocksCount-account.updated_on_block_active_mode]));
   Strings.Add(Format('Public key type: %s',[TAccountComp.GetECInfoTxt(account.accountInfo.accountKey.EC_OpenSSL_NID)]));
   Strings.Add(Format('Base58 Public key: %s',[TAccountComp.AccountPublicKeyExport(account.accountInfo.accountKey)]));
   if Length(account.account_data)>0 then
@@ -1056,23 +1058,19 @@ begin
 end;
 
 
-{$IFDEF TESTNET}
 procedure TFRMWallet.InitMenuForTesting;
 var mi : TMenuItem;
 begin
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='-';
   miAbout.Add(mi);
+{$IFDEF TESTNET}
   {$IFDEF TESTING_NO_POW_CHECK}
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Create a block';
   mi.OnClick:=Test_CreateABlock;
   miAbout.Add(mi);
   {$ENDIF}
-  mi := TMenuItem.Create(MainMenu);
-  mi.Caption:='Show public keys state';
-  mi.OnClick:=Test_ShowPublicKeys;
-  miAbout.Add(mi);
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Create Random operations';
   mi.OnClick:=Test_RandomOperations;
@@ -1084,6 +1082,15 @@ begin
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Diagnostic Tool';
   mi.OnClick:=Test_ShowDiagnosticTool;
+  miAbout.Add(mi);
+{$ENDIF}
+  mi := TMenuItem.Create(MainMenu);
+  mi.Caption:='Show public keys state';
+  mi.OnClick:=Test_ShowPublicKeys;
+  miAbout.Add(mi);
+  mi := TMenuItem.Create(MainMenu);
+  mi.Caption:='Show operations in memory';
+  mi.OnClick:=Test_ShowOperationsInMemory;
   miAbout.Add(mi);
 
 end;
@@ -1112,6 +1119,7 @@ begin
 end;
 {$ENDIF}
 
+{$IFDEF TESTNET}
 procedure TFRMWallet.Test_RandomOperations(Sender: TObject);
 Var FRM : TFRMRandomOperations;
 begin
@@ -1134,6 +1142,27 @@ begin
 end;
 
 {$ENDIF}
+
+procedure TFRMWallet.Test_ShowOperationsInMemory(Sender: TObject);
+var LFRM : TFRMMemoText;
+  i, nOps : Integer;
+  Lslist : TStrings;
+begin
+  Lslist := TStringList.Create;
+  try
+    TPCOperationsStorage.PCOperationsStorage.GetStats(Lslist);
+    nOps := TPCOperationsStorage.PCOperationsStorage.Count;
+    LFRM := TFRMMemoText.Create(Self);
+    try
+      LFRM.InitData('Operations in Memory '+IntToStr(nOps),Lslist.Text);
+      LFRM.ShowModal;
+    finally
+      LFRM.Free;
+    end;
+  finally
+    Lslist.Free;
+  end;
+end;
 
 procedure TFRMWallet.Test_ShowPublicKeys(Sender: TObject);
 var F : TFRMMemoText;
@@ -1253,9 +1282,9 @@ begin
   FLog := TLog.Create(Self);
   FLog.OnNewLog := OnNewLog;
   FLog.SaveTypes := [];
-  If Not ForceDirectories(TFolderHelper.GetPascalCoinDataFolder) then raise Exception.Create('Cannot create dir: '+TFolderHelper.GetPascalCoinDataFolder);
+  If Not ForceDirectories(TNode.GetPascalCoinDataFolder) then raise Exception.Create('Cannot create dir: '+TNode.GetPascalCoinDataFolder);
   FAppParams := TAppParams.Create(self);
-  FAppParams.FileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'AppParams.prm';
+  FAppParams.FileName := TNode.GetPascalCoinDataFolder+PathDelim+'AppParams.prm';
   FNodeNotifyEvents := TNodeNotifyEvents.Create(Self);
   FNodeNotifyEvents.OnBlocksChanged := OnNewAccount;
   FNodeNotifyEvents.OnNodeMessageEvent := OnNodeMessageEvent;
@@ -1321,10 +1350,8 @@ begin
   cbHashRateUnits.Items.Add('Th/s');
   cbHashRateUnits.Items.Add('Ph/s');
   cbHashRateUnits.Items.Add('Eh/s');
-  {$IFDEF TESTNET}
   // Things for testing purposes only
   InitMenuForTesting;
-  {$ENDIF}
   {$ifdef DARWIN}
   // this is macOS specific menu layout
   InitMacOSMenu;
@@ -2320,7 +2347,7 @@ begin
   if FAppParams.ParamByName[CT_PARAM_SaveLogFiles].GetAsBoolean(false) then begin
     if FAppParams.ParamByName[CT_PARAM_SaveDebugLogs].GetAsBoolean(false) then FLog.SaveTypes := CT_TLogTypes_ALL
     else FLog.SaveTypes := CT_TLogTypes_DEFAULT;
-    FLog.FileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'PascalCointWallet.log';
+    FLog.FileName := TNode.GetPascalCoinDataFolder+PathDelim+'PascalCointWallet.log';
   end else begin
     FLog.SaveTypes := [];
     FLog.FileName := '';
@@ -2335,7 +2362,7 @@ begin
     finally
       FNode.UnlockMempoolWrite;
     end;
-    FNode.NodeLogFilename := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'blocks.log';
+    FNode.NodeLogFilename := TNode.GetPascalCoinDataFolder+PathDelim+'blocks.log';
   end;
   if Assigned(FPoolMiningServer) then begin
     if FPoolMiningServer.Port<>FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerPort].GetAsInteger(CT_JSONRPCMinerServer_Port) then begin

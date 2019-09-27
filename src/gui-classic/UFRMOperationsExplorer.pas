@@ -547,7 +547,7 @@ begin
   Try
     ms.Write(raw[1],Length(raw));
     ms.Position:=0;
-    If Not opht.LoadOperationsHashTreeFromStream(ms,false,0,Nil,errors) then Raise Exception.Create(errors);
+    If Not opht.LoadOperationsHashTreeFromStream(ms,false,TNode.Node.Bank.SafeBox.CurrentProtocol,TNode.Node.Bank.SafeBox.CurrentProtocol,Nil,errors) then Raise Exception.Create(errors);
     For i:=0 to opht.OperationsCount-1 do begin
       FOperationsHashTree.AddOperationToHashTree(opht.GetOperation(i));
     end;

@@ -94,7 +94,7 @@ type
 
 implementation
 
-uses UConst, UAccounts, ULog, UCrypto, UFolderHelper, USettings, UGUIUtils, UNetProtocol;
+uses UConst, UAccounts, ULog, UCrypto, UNode, USettings, UGUIUtils, UNetProtocol;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -148,9 +148,9 @@ end;
 procedure TFRMPascalCoinWalletConfig.bbOpenDataFolderClick(Sender: TObject);
 begin
   {$IFDEF FPC}
-  OpenDocument(pchar(TFolderHelper.GetPascalCoinDataFolder))
+  OpenDocument(pchar(TNode.GetPascalCoinDataFolder))
   {$ELSE}
-  shellexecute(0, 'open', pchar(TFolderHelper.GetPascalCoinDataFolder), nil, nil, SW_SHOW)
+  shellexecute(0, 'open', pchar(TNode.GetPascalCoinDataFolder), nil, nil, SW_SHOW)
   {$ENDIF}
 end;
 

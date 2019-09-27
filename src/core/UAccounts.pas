@@ -60,7 +60,8 @@ Type
     block_payload : TRawBytes;  // RAW Payload that a miner can include to a blockchain
     initial_safe_box_hash: TRawBytes; // RAW Safe Box Hash value (32 bytes, it's a Sha256)
     operations_hash: TRawBytes; // RAW sha256 (32 bytes) of Operations
-    proof_of_work: TRawBytes;   // RAW Double Sha256
+    proof_of_work: TRawBytes;   // RAW 32 bytes
+    previous_proof_of_work: TRawBytes; // RAW 32 bytes
   end;
 
   { TPascalCoinProtocol }
@@ -90,7 +91,8 @@ Type
     account: Cardinal;        // FIXED value. Account number
     accountInfo : TAccountInfo;
     balance: UInt64;          // Balance, always >= 0
-    updated_block: Cardinal;  // Number of block where was updated
+    updated_on_block: Cardinal;   // Number of block where was updated (active or passive mode)
+    updated_on_block_active_mode: Cardinal; // Number of block where was used (active mode only)
     n_operation: Cardinal;    // count number of owner operations (when receive, this is not updated)
     name : TRawBytes;         // Protocol 2. Unique name
     account_type : Word;      // Protocol 2. Layer 2 use case
@@ -150,7 +152,7 @@ Type
     Class function IsAccountForAccountSwap(const AAccountInfo: TAccountInfo) : Boolean;
     Class Function IsAccountForSaleOrSwap(const AAccountInfo: TAccountInfo) : Boolean;
     Class Function IsAccountForSaleOrSwapAcceptingTransactions(const AAccount: TAccount; ACurrentBlock : Integer; ACurrentProtocol : Word; const APayload : TRawBytes) : Boolean;
-    Class Function IsOperationRecipientSignable(const ASender, ATarget : TAccount; AIncomingFunds : UInt64; ACurrentBlock : Integer; ACurrentProtocol : Word) : Boolean;
+    Class Function IsOperationRecipientSignable(const ASender, ATarget : TAccount; ACurrentBlock : Integer; ACurrentProtocol : Word) : Boolean;
     Class Function GetECInfoTxt(Const EC_OpenSSL_NID: Word) : String;
     Class Procedure ValidsEC_OpenSSL_NID(list : TList<Word>);
     Class Function AccountKey2RawString(const account: TAccountKey): TRawBytes; overload;
@@ -308,7 +310,8 @@ Type
     Procedure UpdateAccount(account_number : Cardinal; const newAccountInfo: TAccountInfo; const newName : TRawBytes; newType : Word;
          newBalance: UInt64; newN_operation: Cardinal;
          const newAccountData, newAccountSeal : TRawBytes;
-         accountUpdateStyle : TAccountUpdateStyle; newUpdated_block, newPrevious_Updated_block : Cardinal);
+         accountUpdateStyle : TAccountUpdateStyle; newUpdated_block, newUpdated_block_active_mode, newPrevious_Updated_block : Cardinal;
+         AHasBenUpdatedOnActiveMode : Boolean);
     Function AddNew(Const blockChain : TOperationBlock) : TBlockAccount;
     function DoUpgradeToProtocol2 : Boolean;
     function DoUpgradeToProtocol3 : Boolean;
@@ -436,6 +439,7 @@ Type
       LatestOpIDUsedForSeal : TRawBytes;
       AccountSealed : PAccount;
       SealChangesCounter : Integer;
+      UsedAsActiveMode : Boolean;
     End;
     PSealedAccount = ^TSealedAccount;
     {TSealedAccountList}
@@ -468,7 +472,7 @@ Type
     Function Origin_FindAccountByName(const account_name : TRawBytes) : Integer;
   protected
     Function GetInternalAccount(account_number : Cardinal; var APtrSealedAccount : PSealedAccount) : PAccount;
-    procedure UpdateSeal(APtrSealedAccount : PSealedAccount; AOpID : TRawBytes);
+    procedure UpdateSealAndActiveModeFlag(APtrSealedAccount : PSealedAccount; AOpID : TRawBytes; ASetUsedAsActiveMode : Boolean);
   public
     Constructor Create(SafeBox : TPCSafeBox);
     Destructor Destroy; override;
@@ -509,18 +513,18 @@ Type
 
 Const
   CT_OperationBlock_NUL : TOperationBlock = (block:0;account_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);reward:0;fee:0;protocol_version:0;
-    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:Nil;initial_safe_box_hash:Nil;operations_hash:Nil;proof_of_work:Nil);
+    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:Nil;initial_safe_box_hash:Nil;operations_hash:Nil;proof_of_work:Nil;previous_proof_of_work:Nil);
   CT_AccountInfo_NUL : TAccountInfo = (state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);hashed_secret:Nil);
-  CT_Account_NUL : TAccount = (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_block:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0);
+  CT_Account_NUL : TAccount = (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_on_block:0;updated_on_block_active_mode:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0);
   CT_BlockAccount_NUL : TBlockAccount = (
     blockchainInfo:(block:0;account_key:(EC_OpenSSL_NID:0;x:Nil;y:Nil);reward:0;fee:0;protocol_version:0;
-    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:Nil;initial_safe_box_hash:Nil;operations_hash:Nil;proof_of_work:Nil);
+    protocol_available:0;timestamp:0;compact_target:0;nonce:0;block_payload:Nil;initial_safe_box_hash:Nil;operations_hash:Nil;proof_of_work:Nil;previous_proof_of_work:Nil);
     accounts:(
-    (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_block:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0),
-    (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_block:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0),
-    (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_block:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0),
-    (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_block:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0),
-    (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_block:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0)
+    (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_on_block:0;updated_on_block_active_mode:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0),
+    (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_on_block:0;updated_on_block_active_mode:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0),
+    (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_on_block:0;updated_on_block_active_mode:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0),
+    (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_on_block:0;updated_on_block_active_mode:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0),
+    (account:0;accountInfo:(state:as_Unknown;accountKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);locked_until_block:0;price:0;account_to_pay:0;new_publicKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil));balance:0;updated_on_block:0;updated_on_block_active_mode:0;n_operation:0;name:Nil;account_type:0;account_data:Nil;account_seal:Nil;previous_updated_block:0)
     );
     block_hash:Nil;
     accumulatedWork:0);
@@ -601,8 +605,8 @@ Begin
     for i:=0 to sb.BlocksCount-1 do begin
       bl_my := sb.Block(i);
       for j:=Low(bl_my.accounts) to High(bl_my.accounts) do begin
-        If maxBlock < (bl_my.accounts[j].updated_block) then begin
-          Raise Exception.Create(Format('%s Integrity on (i)=%d for block account:%d updated on %d > maxBlock %d',[title, i,bl_my.accounts[j].account,bl_my.accounts[j].updated_block,maxBlock]));
+        If (maxBlock < (bl_my.accounts[j].updated_on_block)) or (maxBlock < (bl_my.accounts[j].updated_on_block_active_mode)) or (bl_my.accounts[j].updated_on_block<bl_my.accounts[j].updated_on_block_active_mode) then begin
+          Raise Exception.Create(Format('%s Integrity on (i)=%d for block account:%d updated on %d , active updated on %d ,maxBlock %d',[title, i,bl_my.accounts[j].account,bl_my.accounts[j].updated_on_block,bl_my.accounts[j].updated_on_block_active_mode,maxBlock]));
         end;
       end;
       auxH.Replace(i*32,bl_my.block_hash[Low(bl_my.block_hash)],Length(bl_my.block_hash));
@@ -729,8 +733,41 @@ begin
   try
     ms.WriteBuffer(operationBlock.initial_safe_box_hash[Low(operationBlock.initial_safe_box_hash)],length(operationBlock.initial_safe_box_hash));
     ms.WriteBuffer(operationBlock.operations_hash[Low(operationBlock.operations_hash)],length(operationBlock.operations_hash));
-    // Note about fee: Fee is stored in 8 bytes, but only digest first 4 low bytes
-    ms.Write(operationBlock.fee,4);
+    if operationBlock.protocol_version<CT_PROTOCOL_5 then begin
+      // Note about fee: Fee is stored in 8 bytes, but only digest first 4 low bytes
+      ms.Write(operationBlock.fee,4);
+    end else begin
+      // UPDATE PROTOCOL 5 - September 2019
+      ms.Write(operationBlock.fee,SizeOf(operationBlock.fee)); // Changed from 4 to 8 bytes in Little endian
+
+      // UPDATE PROTOCOL 5 - September 2019
+      //
+      // IMPORTANT SECURITY FIX:
+      //
+      // Since protocol 2 the Safebox can be checkpointed, this means that the
+      // Safebox can be self-checked mantaining Proof-of-Work consistency.
+      // (Introduced on PIP-0003 created by Herman Schoenfeld)
+      //
+      // The problem is that in order to protect "parallelization" of the PoW
+      // process must ensure that cannot create a header for block N until N-1
+      // has been created. On V4 version this protection is made using the
+      // "initial_safe_box_hash" that is correct and protects parallelization
+      // when adding a block on a previous safebox. The issue is that when
+      // only computing PoW of the Safebox (without blockchain) then this N-1
+      // value obtained on "initial_safe_box_hash" cannot be checked.
+      //
+      // In order to eliminate parallelization possibility for a hacked
+      // new Safebox the best way is to include in N block info obtained
+      // after N-1 block has been calculated (like blockchain does).
+      //
+      // The solution is to include the "previous PoW" obtained on N-1 on the
+      // digest for next N block, like a traditional blockchain does
+      //
+      // This important issue and security fix was discovered by Herman:
+      // Herman Schoenfeld <herman@sphere10.com>
+
+      ms.WriteBuffer(operationBlock.previous_proof_of_work[Low(operationBlock.previous_proof_of_work)],Length(operationBlock.previous_proof_of_work));
+    end;
     SetLength(Part3,ms.Size);
     ms.Position := 0;
     ms.ReadBuffer(Part3[Low(Part3)],ms.Size);
@@ -838,8 +875,14 @@ begin
     // Part 3
     ms.WriteBuffer(operationBlock.initial_safe_box_hash[Low(operationBlock.initial_safe_box_hash)],length(operationBlock.initial_safe_box_hash));
     ms.WriteBuffer(operationBlock.operations_hash[Low(operationBlock.operations_hash)],length(operationBlock.operations_hash));
-    // Note about fee: Fee is stored in 8 bytes (Int64), but only digest first 4 low bytes
-    ms.Write(operationBlock.fee,4);
+    if operationBlock.protocol_version<CT_PROTOCOL_5 then begin
+      // Note about fee: Fee is stored in 8 bytes (Int64), but only digest first 4 low bytes
+      ms.Write(operationBlock.fee,4);
+    end else begin
+      // UPDATE PROTOCOL 5 - September 2019
+      ms.Write(operationBlock.fee,SizeOf(operationBlock.fee)); // Changed from 4 to 8 bytes in Little endian
+      ms.WriteBuffer(operationBlock.previous_proof_of_work[Low(operationBlock.previous_proof_of_work)],Length(operationBlock.previous_proof_of_work));
+    end;
     ms.Write(operationBlock.timestamp,4);
     ms.Write(operationBlock.nonce,4);
     if CT_ACTIVATE_RANDOMHASH_V4 AND (operationBlock.protocol_version >= CT_PROTOCOL_4) then begin
@@ -1214,6 +1257,8 @@ end;
 
 class procedure TAccountComp.SaveAccountToAStream(Stream: TStream; const Account: TAccount; current_protocol : Word);
 var w : Word;
+  LTmpSeal : T20Bytes;
+  LTmpRaw : TRawBytes;
 begin
   if current_protocol<CT_PROTOCOL_5 then
     w := CT_PROTOCOL_4
@@ -1222,13 +1267,19 @@ begin
   Stream.Write(Account.account,Sizeof(Account.account));
   TStreamOp.WriteAnsiString(Stream,AccountInfo2RawString(Account.accountInfo));
   Stream.Write(Account.balance,Sizeof(Account.balance));
-  Stream.Write(Account.updated_block,Sizeof(Account.updated_block));
+  Stream.Write(Account.updated_on_block,Sizeof(Account.updated_on_block));
+  if current_protocol>=CT_PROTOCOL_5 then begin
+    Stream.Write(Account.updated_on_block_active_mode,Sizeof(Account.updated_on_block_active_mode));
+  end;
   Stream.Write(Account.n_operation,Sizeof(Account.n_operation));
   TStreamOp.WriteAnsiString(Stream,Account.name);
   Stream.Write(Account.account_type,SizeOf(Account.account_type));
   if current_protocol>=CT_PROTOCOL_5 then begin
     TStreamOp.WriteAnsiString(Stream,Account.account_data);
-    TStreamOp.WriteAnsiString(Stream,Account.account_seal);
+    // Account Seal is allways a 20 bytes as described on PIP-0029
+    LTmpSeal := TBaseType.To20Bytes(Account.account_seal);
+    LTmpRaw := TBaseType.T20BytesToRawBytes(LTmpSeal);
+    TStreamOp.WriteAnsiString(Stream,LTmpRaw);
   end;
 end;
 
@@ -1246,13 +1297,16 @@ begin
   TAccountComp.RawString2AccountInfo(raw,Account.accountInfo);
   if (Stream.Size - Stream.Position<20) then Exit;
   Stream.Read(Account.balance,Sizeof(Account.balance));
-  Stream.Read(Account.updated_block,Sizeof(Account.updated_block));
+  Stream.Read(Account.updated_on_block,Sizeof(Account.updated_on_block));
+  if LSaved_protocol>=CT_PROTOCOL_5 then begin
+    Stream.Read(Account.updated_on_block_active_mode,Sizeof(Account.updated_on_block_active_mode));
+  end;
   Stream.Read(Account.n_operation,Sizeof(Account.n_operation));
   if TStreamOp.ReadAnsiString(Stream,Account.name)<0 then Exit;
   if Stream.Read(Account.account_type,SizeOf(Account.account_type)) <> 2 then Exit;
   if LSaved_protocol>=CT_PROTOCOL_5 then begin
     if TStreamOp.ReadAnsiString(Stream,Account.account_data)<0 then Exit;
-    if TStreamOp.ReadAnsiString(Stream,Account.account_seal)<0 then Exit;
+    if TStreamOp.ReadAnsiString(Stream,Account.account_seal,20)<0 then Exit;
   end;
   Result := True;
 end;
@@ -1424,7 +1478,8 @@ begin
   Result := (account1.account = account2.account)
           And (EqualAccountInfos(account1.accountInfo,account2.accountInfo))
           And (account1.balance = account2.balance)
-          And (account1.updated_block = account2.updated_block)
+          And (account1.updated_on_block = account2.updated_on_block)
+          And (account1.updated_on_block_active_mode = account2.updated_on_block_active_mode)
           And (account1.n_operation = account2.n_operation)
           And (TBaseType.Equals(account1.name,account2.name))
           And (account1.account_type = account2.account_type)
@@ -1444,10 +1499,14 @@ begin
           And (opBlock1.timestamp = opBlock2.timestamp)
           And (opBlock1.compact_target = opBlock2.compact_target)
           And (opBlock1.nonce = opBlock2.nonce)
-          And (TBaseType.BinStrComp(opBlock1.block_payload,opBlock2.block_payload)=0)
-          And (TBaseType.BinStrComp(opBlock1.initial_safe_box_hash,opBlock2.initial_safe_box_hash)=0)
-          And (TBaseType.BinStrComp(opBlock1.operations_hash,opBlock2.operations_hash)=0)
-          And (TBaseType.BinStrComp(opBlock1.proof_of_work,opBlock2.proof_of_work)=0);
+          And (TBaseType.Equals(opBlock1.block_payload,opBlock2.block_payload))
+          And (TBaseType.Equals(opBlock1.initial_safe_box_hash,opBlock2.initial_safe_box_hash))
+          And (TBaseType.Equals(opBlock1.operations_hash,opBlock2.operations_hash))
+          And (TBaseType.Equals(opBlock1.proof_of_work,opBlock2.proof_of_work))
+          And ( (opBlock1.protocol_version < CT_PROTOCOL_5)
+                OR
+                (TBaseType.Equals(opBlock1.previous_proof_of_work,opBlock2.previous_proof_of_work))
+              );
 end;
 
 class function TAccountComp.EqualBlockAccounts(const blockAccount1, blockAccount2: TBlockAccount): Boolean;
@@ -1565,38 +1624,49 @@ begin
   if (ACurrentProtocol<CT_PROTOCOL_5) then begin
     // V4 and below only allows Private sales (No Swaps)
     if Not (IsAccountForPrivateSale(AAccount.accountInfo)) then Exit;
+  end else begin
+    // V5 only will allow PRIVATE SALES or SWAPS while locked
+    if (IsAccountForPublicSale(AAccount.accountInfo)) Then Exit; // Public sales not allowed
+    if (Not (IsAccountLocked(AAccount.accountInfo,ACurrentBlock))) then Exit; // Time lock expired
   end;
 
-  if (AAccount.accountInfo.state in [as_ForSale, as_ForAtomicAccountSwap]) then
+  if (AAccount.accountInfo.state in [as_ForSale, as_ForAtomicAccountSwap]) then begin
     if NOT IsValidAccountKey(AAccount.accountInfo.new_publicKey,errors) then
       exit;
+  end;
 
-   if (AAccount.accountInfo.state in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap]) then
-     if NOT IsValidAccountInfoHashLockKey(AAccount.accountInfo, APayload) then
-       exit;
+  if (AAccount.accountInfo.state in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap]) then begin
+    if NOT IsValidAccountInfoHashLockKey(AAccount.accountInfo, APayload) then
+      exit;
+  end;
   Result := True;
 end;
 
-Class Function TAccountComp.IsOperationRecipientSignable(const ASender, ATarget : TAccount; AIncomingFunds : UInt64; ACurrentBlock : Integer; ACurrentProtocol : Word) : Boolean;
+Class Function TAccountComp.IsOperationRecipientSignable(const ASender, ATarget : TAccount; ACurrentBlock : Integer; ACurrentProtocol : Word) : Boolean;
 begin
   // V5 - Allow recipient-signed operations under following conditions:
   //  - Sender Account = Target Account
-  //  - Target Account is listed for SWAP (Atomic Swap)
-  //  - Target Account is time-locked to new-owner-key R and time-lock is active
-  //  - (Target.Balance + Operation.Quantity) >= Target.SalePrice
-  //  - Signed by new-owner-key R
+  //  - Target Account is listed:
+  //      - Listed for ACCOUNT SWAP
+  //      or
+  //      - Listed for PRIVATE SALE
+  //  - Target Account is time-locked and time-lock is active
   //
   //  This allows following use-cases:
   //  - Private account sale where buyer does not have existing account to initiate transaction
   //  - Atomic account swap where counterparty does not have existing account to initiate transaction
+  //
+  // Note: this does not validate recipient signature, only determines if
+  // it is recipient signable
+  //
   Result := (ACurrentProtocol >= CT_PROTOCOL_5) AND
             (ASender.account = ATarget.account) AND
             TAccountComp.IsAccountLocked(ATarget.accountInfo, ACurrentBlock) AND
-            TAccountComp.IsAccountForSwap(ATarget.accountInfo) AND
-           ((ATarget.balance + AIncomingFunds) >= (ATarget.accountInfo.price));
-
- // Note: this does not validate recipient signature, only determines if
- // it is recipient signable
+            (
+              (TAccountComp.IsAccountForAccountSwap(ATarget.accountInfo))
+              OR
+              (TAccountComp.IsAccountForPrivateSale(ATarget.accountInfo))
+            );
 end;
 
 class function TAccountComp.IsAccountLocked(const AccountInfo: TAccountInfo; blocks_count: Cardinal): Boolean;
@@ -1619,6 +1689,9 @@ begin
   TStreamOp.WriteAnsiString(stream, operationBlock.initial_safe_box_hash);
   TStreamOp.WriteAnsiString(stream, operationBlock.operations_hash);
   TStreamOp.WriteAnsiString(stream, operationBlock.proof_of_work);
+  if (operationBlock.protocol_version>=CT_PROTOCOL_5) then begin
+    TStreamOp.WriteAnsiString(stream, operationBlock.previous_proof_of_work);
+  end;
 end;
 
 class function TAccountComp.LoadTOperationBlockFromStream(const stream: TStream; var operationBlock: TOperationBlock): Boolean;
@@ -1638,13 +1711,16 @@ begin
   if TStreamOp.ReadAnsiString(stream, operationBlock.initial_safe_box_hash) < 0 then Exit;
   if TStreamOp.ReadAnsiString(stream, operationBlock.operations_hash) < 0 then Exit;
   if TStreamOp.ReadAnsiString(stream, operationBlock.proof_of_work) < 0 then Exit;
+  if operationBlock.protocol_version>=CT_PROTOCOL_5 then begin
+    if TStreamOp.ReadAnsiString(stream, operationBlock.previous_proof_of_work) < 0 then Exit;
+  end;
   Result := True;
 end;
 
 class function TAccountComp.AccountToTxt(const Account: TAccount): String;
 begin
-  Result := Format('%s Balance:%s N_Op:%d UpdB:%d Type:%d Name:%s PK:%s Data:%s Seal:%s',[AccountNumberToAccountTxtNumber(Account.account),
-    FormatMoney(Account.balance),Account.n_operation,Account.updated_block,Account.account_type,
+  Result := Format('%s Balance:%s N_Op:%d UpdB:%d UpdBA:%d Type:%d Name:%s PK:%s Data:%s Seal:%s',[AccountNumberToAccountTxtNumber(Account.account),
+    FormatMoney(Account.balance),Account.n_operation,Account.updated_on_block,Account.updated_on_block_active_mode,Account.account_type,
       Account.name.ToPrintable,TCrypto.ToHexaString(TAccountComp.AccountInfo2RawString(Account.accountInfo)),
       Account.account_data.ToHexaString,Account.account_seal.ToHexaString ]);
 end;
@@ -1706,7 +1782,7 @@ end;
 class function TAccountComp.IsValidNewAccountKey(const AAccountInfo : TAccountInfo; const ANewKey : TAccountKey; AProtocolVersion : Integer) : Boolean;
 begin
   Result :=False;
-  if AProtocolVersion <= CT_PROTOCOL_5 then begin
+  if AProtocolVersion < CT_PROTOCOL_5 then begin
     // V2 - V4 Rules
     // - Private Sale: non-null and must match stored new-key in account_info
     // - Public Sale: non-null
@@ -1906,7 +1982,8 @@ Type
     accountInfo : TDynRawBytes;
     {$ENDIF}
     balance: UInt64;
-    updated_block: Cardinal;
+    updated_on_block: Cardinal;
+    updated_on_block_active_mode: Cardinal;
     n_operation: Cardinal;
     name : TRawBytes;
     account_type : Word;
@@ -1933,6 +2010,7 @@ Type
     initial_safe_box_hash: T32Bytes; // 32 direct bytes instead of use an AnsiString (-8 bytes)
     operations_hash: T32Bytes;       // 32 direct bytes instead of use an AnsiString (-8 bytes)
     proof_of_work: T32Bytes;         // 32 direct bytes instead of use an AnsiString (-8 bytes)
+    previous_proof_of_work: T32Bytes;
   end;
 
   TMemBlockAccount = Record // TBlockAccount with less memory usage
@@ -1969,7 +2047,8 @@ begin
   TBaseType.To256RawBytes(raw,dest.accountInfo);
   {$ENDIF}
   dest.balance := source.balance;
-  dest.updated_block:=source.updated_block;
+  dest.updated_on_block:=source.updated_on_block;
+  dest.updated_on_block_active_mode:=source.updated_on_block_active_mode;
   dest.n_operation:=source.n_operation;
   dest.name:=source.name;
   dest.account_type:=source.account_type;
@@ -2001,7 +2080,8 @@ begin
   TAccountComp.RawString2AccountInfo(raw,dest.accountInfo);
   {$ENDIF}
   dest.balance := source.balance;
-  dest.updated_block:=source.updated_block;
+  dest.updated_on_block:=source.updated_on_block;
+  dest.updated_on_block_active_mode:=source.updated_on_block_active_mode;
   dest.n_operation:=source.n_operation;
   dest.name:=source.name;
   dest.account_type:=source.account_type;
@@ -2037,6 +2117,7 @@ Begin
   TBaseType.To32Bytes(source.blockchainInfo.initial_safe_box_hash,dest.blockchainInfo.initial_safe_box_hash);
   TBaseType.To32Bytes(source.blockchainInfo.operations_hash,dest.blockchainInfo.operations_hash);
   TBaseType.To32Bytes(source.blockchainInfo.proof_of_work,dest.blockchainInfo.proof_of_work);
+  TBaseType.To32Bytes(source.blockchainInfo.previous_proof_of_work,dest.blockchainInfo.previous_proof_of_work);
 
   for i := Low(source.accounts) to High(source.accounts) do begin
     ToTMemAccount(source.accounts[i],dest.accounts[i]);
@@ -2073,6 +2154,11 @@ begin
   TBaseType.ToRawBytes(source.blockchainInfo.initial_safe_box_hash,dest.blockchainInfo.initial_safe_box_hash);
   TBaseType.ToRawBytes(source.blockchainInfo.operations_hash,dest.blockchainInfo.operations_hash);
   TBaseType.ToRawBytes(source.blockchainInfo.proof_of_work,dest.blockchainInfo.proof_of_work);
+  if (source.blockchainInfo.protocol_version>=CT_PROTOCOL_5) then begin
+    TBaseType.ToRawBytes(source.blockchainInfo.previous_proof_of_work,dest.blockchainInfo.previous_proof_of_work);
+  end else begin
+    dest.blockchainInfo.previous_proof_of_work := Nil;
+  end;
 
   for i := Low(source.accounts) to High(source.accounts) do begin
     ToTAccount(source.accounts[i],(block_number*CT_AccountsPerBlock)+i,dest.accounts[i]);
@@ -2178,7 +2264,8 @@ begin
     Result.accounts[i] := CT_Account_NUL;
     Result.accounts[i].account := base_addr + i;
     Result.accounts[i].accountInfo.state := as_Normal;
-    Result.accounts[i].updated_block := BlocksCount;
+    Result.accounts[i].updated_on_block := BlocksCount;
+    Result.accounts[i].updated_on_block_active_mode := BlocksCount;
     Result.accounts[i].n_operation := 0;
     if (acc_4_for_dev) And (i=CT_AccountsPerBlock-1) then begin
       Result.accounts[i].accountInfo.accountKey := account_dev.accountInfo.accountKey;
@@ -2741,8 +2828,10 @@ procedure TPCSafeBox.CommitToPrevious;
           blockAccount.accounts[j].account_data,
           blockAccount.accounts[j].account_seal,
           aus_commiting_from_otherchain,
-          blockAccount.accounts[j].updated_block,
-          blockAccount.accounts[j].previous_updated_block
+          blockAccount.accounts[j].updated_on_block,
+          blockAccount.accounts[j].updated_on_block_active_mode,
+          blockAccount.accounts[j].previous_updated_block,
+          False // Not used when aus_commiting_from_otherchain
           );
       end;
     end;
@@ -2875,9 +2964,10 @@ procedure TPCSafeBox.RollBackToSnapshot(snapshotBlock: Cardinal);
            blockAccount.accounts[j].account_data,
            blockAccount.accounts[j].account_seal,
            aus_rollback,
-           blockAccount.accounts[j].updated_block,
-           blockAccount.accounts[j].previous_updated_block
-           );
+           blockAccount.accounts[j].updated_on_block,
+           blockAccount.accounts[j].updated_on_block_active_mode,
+           blockAccount.accounts[j].previous_updated_block,
+           False); // Not used when aus_rollback
        end;
      end;
    end;
@@ -3035,6 +3125,8 @@ end;
 function TPCSafeBox.DoUpgradeToProtocol5: Boolean;
 var LAux : TRawBytes;
   LBlockNumber : Cardinal;
+  i : Integer;
+  LPtrBlockAccount : PBlockAccount;
 begin
   Result := True;
   // V5 adds a new "CalcSafeBoxHash" method, so need to recalc
@@ -3045,6 +3137,11 @@ begin
   FBufferBlocksHash.Clear;
   FBufferBlocksHash.SafeBoxHashCalcType := sbh_Merkle_Root_Hash;
   for LBlockNumber := 0 to BlocksCount - 1 do begin
+    LPtrBlockAccount := PBlockAccount(FBlockAccountsList.Items[LBlockNumber]);
+    for i := Low(LPtrBlockAccount^.accounts) to High(LPtrBlockAccount^.accounts) do begin
+      // Set the initial "updated_on_block_active_mode" value at least like "updated_on_block"
+      LPtrBlockAccount^.accounts[i].updated_on_block_active_mode := LPtrBlockAccount^.accounts[i].updated_on_block;
+    end;
     {$IFDEF uselowmem}
     TBaseType.To32Bytes(CalcBlockHash( Block(LBlockNumber), CT_PROTOCOL_5),PBlockAccount(FBlockAccountsList.Items[LBlockNumber])^.block_hash);
     FBufferBlocksHash.Add( PBlockAccount(FBlockAccountsList.Items[LBlockNumber])^.block_hash[0], 32 );
@@ -3065,7 +3162,7 @@ end;
 function TPCSafeBox.LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var LastReadBlock : TBlockAccount; var errors : String) : Boolean;
 Var
   iblock,iacc : Cardinal;
-  raw : TRawBytes;
+  raw, LPreviousProofOfWork : TRawBytes;
   block : TBlockAccount;
   P : PBlockAccount;
   i,j : Integer;
@@ -3136,6 +3233,7 @@ begin
       try
         if Assigned(LPCOperationsBlockValidator) then
           LPCOperationsBlockValidator.StartThreads;
+        LPreviousProofOfWork := Nil;
       for iblock := 0 to sbHeader.blockscount-1 do begin
         if (Assigned(progressNotify)) and ((TPlatform.GetElapsedMilliseconds(tc)>=500)) then begin
           tc := TPlatform.GetTickCount;
@@ -3158,7 +3256,10 @@ begin
           if TStreamOp.ReadAnsiString(Stream,raw)<0 then exit;
           block.accounts[iacc].accountInfo := TAccountComp.RawString2AccountInfo(raw);
           if Stream.Read(block.accounts[iacc].balance,SizeOf(UInt64))<SizeOf(UInt64) then exit;
-          if Stream.Read(block.accounts[iacc].updated_block,4)<4 then exit;
+          if Stream.Read(block.accounts[iacc].updated_on_block,4)<4 then exit;
+          if FCurrentProtocol>=CT_PROTOCOL_5 then begin
+            if Stream.Read(block.accounts[iacc].updated_on_block_active_mode,4)<4 then exit;
+          end;
           if Stream.Read(block.accounts[iacc].n_operation,4)<4 then exit;
           If FCurrentProtocol>=CT_PROTOCOL_2 then begin
             if TStreamOp.ReadAnsiString(Stream,block.accounts[iacc].name)<0 then exit;
@@ -3241,6 +3342,20 @@ begin
             end;
           end;
         end;
+        // Checking previous_proof_of_work
+        if block.blockchainInfo.protocol_version>=CT_PROTOCOL_5 then begin
+          if (Not TBaseType.Equals(block.blockchainInfo.previous_proof_of_work,LPreviousProofOfWork)) then begin
+            errors := errors + ' > previous_proof_of_work does not match!';
+            Exit;
+          end;
+        end else begin
+          // Ensure no value on "previous_proof_of_work" field
+          if (Length(block.blockchainInfo.previous_proof_of_work)>0)
+            and (Not TBaseType.Equals(block.blockchainInfo.previous_proof_of_work,LPreviousProofOfWork)) then begin
+            errors := errors + ' > contains previous_proof_of_work on protocol<5 different than needed!';
+            Exit;
+          end;
+        end;
         // Add
         New(P);
         ToTMemBlockAccount(block,P^);
@@ -3261,6 +3376,8 @@ begin
             FCurrentProtocol := CT_PROTOCOL_5;
           end;
         end;
+        // Assign to previous
+        LPreviousProofOfWork := block.blockchainInfo.proof_of_work;
       end;
         if Assigned(LPCOperationsBlockValidator) then begin
           repeat
@@ -3273,7 +3390,7 @@ begin
               if (Assigned(progressNotify)) and ((TPlatform.GetElapsedMilliseconds(tc)>=500)) then begin
                 tc := TPlatform.GetTickCount;
                 progressNotify(Self,Format('Validating OperationBlock info %d/%d',[LValidatedOPOk,LValidatedOPOk+LValidatedOPPending]),LValidatedOPOk,LValidatedOPOk+LValidatedOPPending);
-              end else Sleep(100)
+              end else Sleep(10)
             end;
           until LValidatedOPPending<=0 ;
         end;
@@ -3414,7 +3531,10 @@ begin
       Stream.Write(b.accounts[iacc].account,Sizeof(b.accounts[iacc].account));
       TStreamOp.WriteAnsiString(Stream,TAccountComp.AccountInfo2RawString(b.accounts[iacc].accountInfo));
       Stream.Write(b.accounts[iacc].balance,Sizeof(b.accounts[iacc].balance));
-      Stream.Write(b.accounts[iacc].updated_block,Sizeof(b.accounts[iacc].updated_block));
+      Stream.Write(b.accounts[iacc].updated_on_block,Sizeof(b.accounts[iacc].updated_on_block));
+      if FCurrentProtocol>=CT_PROTOCOL_5 then begin
+        Stream.Write(b.accounts[iacc].updated_on_block_active_mode,Sizeof(b.accounts[iacc].updated_on_block_active_mode));
+      end;
       Stream.Write(b.accounts[iacc].n_operation,Sizeof(b.accounts[iacc].n_operation));
       If FCurrentProtocol>=CT_PROTOCOL_2 then begin
         TStreamOp.WriteAnsiString(Stream,b.accounts[iacc].name);
@@ -3790,10 +3910,11 @@ begin
       end;
     end else begin
       // If we are here protocol didn't changed... make sure it's not a upgrade block!
-      if (newOperationBlock.block = CT_Protocol_Upgrade_v2_MinBlock)
-           or (newOperationBlock.block = CT_Protocol_Upgrade_v3_MinBlock)
-           or (newOperationBlock.block = CT_Protocol_Upgrade_v4_MinBlock)
-           or (newOperationBlock.block = CT_Protocol_Upgrade_v5_MinBlock) then begin
+      if ((newOperationBlock.block = CT_Protocol_Upgrade_v2_MinBlock) and (newOperationBlock.protocol_version<>CT_PROTOCOL_2))
+           or ((newOperationBlock.block = CT_Protocol_Upgrade_v3_MinBlock) and (newOperationBlock.protocol_version<>CT_PROTOCOL_3))
+           or ((newOperationBlock.block = CT_Protocol_Upgrade_v4_MinBlock) and (newOperationBlock.protocol_version<>CT_PROTOCOL_4))
+           or ((newOperationBlock.block = CT_Protocol_Upgrade_v5_MinBlock) and (newOperationBlock.protocol_version<>CT_PROTOCOL_5))
+           then begin
          errors := Format('In block %d protocol must be upgraded! Current %d',[newOperationBlock.block,newOperationBlock.protocol_version]);
          exit;
       end;
@@ -3827,6 +3948,11 @@ begin
         ' Calculated:'+TCrypto.ToHexaString(CalcSafeBoxHash);
       exit;
     end;
+  end;
+  if (newOperationBlock.protocol_version >= CT_PROTOCOL_5)
+     And (Not TBaseType.Equals(lastBlock.proof_of_work, newOperationBlock.previous_proof_of_work)) then begin
+    errors := 'Proof of work N-1 is different than newOperationBlock.previous_proof_of_work '+lastBlock.proof_of_work.ToHexaString+'<>'+newOperationBlock.previous_proof_of_work.ToHexaString;
+    Exit;
   end;
   {$IFnDEF TESTING_NO_POW_CHECK}
   if (TBaseType.BinStrComp(newOperationBlock.proof_of_work,target_hash)>0) then begin
@@ -4046,7 +4172,7 @@ procedure TPCSafeBox.SearchBlockWhenOnSeparatedChain(blockNumber: Cardinal; out 
     // Is valid?
     maxUB := 0;
     for j:=Low(blockAccount.accounts) to High(blockAccount.accounts) do begin
-      If blockAccount.accounts[j].updated_block>maxUB then maxUB := blockAccount.accounts[j].updated_block;
+      If blockAccount.accounts[j].updated_on_block>maxUB then maxUB := blockAccount.accounts[j].updated_on_block;
     end;
     Result := (maxUB <= FPreviousSafeboxOriginBlock);
   end;
@@ -4087,7 +4213,8 @@ end;
 procedure TPCSafeBox.UpdateAccount(account_number : Cardinal; const newAccountInfo: TAccountInfo;
   const newName : TRawBytes; newType : Word; newBalance: UInt64; newN_operation: Cardinal;
   const newAccountData, newAccountSeal : TRawBytes;
-  accountUpdateStyle : TAccountUpdateStyle; newUpdated_block, newPrevious_Updated_block : Cardinal);
+  accountUpdateStyle : TAccountUpdateStyle; newUpdated_block, newUpdated_block_active_mode, newPrevious_Updated_block : Cardinal;
+  AHasBenUpdatedOnActiveMode : Boolean);
 Var iBlock : Cardinal;
   i,j,iAccount, iDeleted, iAdded : Integer;
   lastbalance : UInt64;
@@ -4125,7 +4252,8 @@ begin
   If (accountUpdateStyle In [aus_rollback,aus_commiting_from_otherchain]) then begin
     // Directly update name and updated values
     blockAccount.accounts[iAccount].name:=newName;
-    blockAccount.accounts[iAccount].updated_block:=newUpdated_block;
+    blockAccount.accounts[iAccount].updated_on_block:=newUpdated_block;
+    blockAccount.accounts[iAccount].updated_on_block_active_mode:=newUpdated_block_active_mode;
     blockAccount.accounts[iAccount].previous_updated_block:=newPrevious_Updated_block;
   end else begin
     // Name:
@@ -4192,9 +4320,13 @@ begin
       end;
     end;
     // Will update previous_updated_block only on first time/block
-    If blockAccount.accounts[iAccount].updated_block<>BlocksCount then begin
-      blockAccount.accounts[iAccount].previous_updated_block := blockAccount.accounts[iAccount].updated_block;
-      blockAccount.accounts[iAccount].updated_block := BlocksCount;
+    If blockAccount.accounts[iAccount].updated_on_block<>BlocksCount then begin
+      blockAccount.accounts[iAccount].previous_updated_block := blockAccount.accounts[iAccount].updated_on_block;
+      blockAccount.accounts[iAccount].updated_on_block := BlocksCount;
+    end;
+    if (AHasBenUpdatedOnActiveMode) then begin
+      // This flag will indicate that this account has been used as ACTIVE MODE so needs to update on which block was updated
+      blockAccount.accounts[iAccount].updated_on_block_active_mode := BlocksCount;
     end;
   end;
 
@@ -4339,27 +4471,27 @@ begin
   // NOTE:
   // At this point, we have checked integrity, cannot check later!
 
-  UpdateSeal(LPBuyerAccount_Sealed,AOpID);
-  UpdateSeal(LPAccountToBuy_Sealed,AOpID);
-  UpdateSeal(LPSellerAccount_Sealed,AOpID);
+  UpdateSealAndActiveModeFlag(LPBuyerAccount_Sealed,AOpID,True);  // Only the buyer account is the Active account
+  UpdateSealAndActiveModeFlag(LPAccountToBuy_Sealed,AOpID,False);
+  UpdateSealAndActiveModeFlag(LPSellerAccount_Sealed,AOpID,False);
 
-  APrevious.UpdateIfLower(LPBuyerAccount^.account,LPBuyerAccount^.updated_block);
-  APrevious.UpdateIfLower(LPAccountToBuy^.account,LPAccountToBuy^.updated_block);
-  APrevious.UpdateIfLower(LPSellerAccount^.account,LPSellerAccount^.updated_block);
+  APrevious.UpdateIfLower(LPBuyerAccount^.account,LPBuyerAccount^.updated_on_block);
+  APrevious.UpdateIfLower(LPAccountToBuy^.account,LPAccountToBuy^.updated_on_block);
+  APrevious.UpdateIfLower(LPSellerAccount^.account,LPSellerAccount^.updated_on_block);
 
-  If LPBuyerAccount^.updated_block<>Origin_BlocksCount then begin
-    LPBuyerAccount^.previous_updated_block := LPBuyerAccount^.updated_block;
-    LPBuyerAccount^.updated_block := Origin_BlocksCount;
+  If LPBuyerAccount^.updated_on_block<>Origin_BlocksCount then begin
+    LPBuyerAccount^.previous_updated_block := LPBuyerAccount^.updated_on_block;
+    LPBuyerAccount^.updated_on_block := Origin_BlocksCount;
   end;
 
-  If LPAccountToBuy^.updated_block<>Origin_BlocksCount then begin
-    LPAccountToBuy^.previous_updated_block := LPAccountToBuy^.updated_block;
-    LPAccountToBuy^.updated_block := Origin_BlocksCount;
+  If LPAccountToBuy^.updated_on_block<>Origin_BlocksCount then begin
+    LPAccountToBuy^.previous_updated_block := LPAccountToBuy^.updated_on_block;
+    LPAccountToBuy^.updated_on_block := Origin_BlocksCount;
   end;
 
-  If LPSellerAccount^.updated_block<>Origin_BlocksCount then begin
-    LPSellerAccount^.previous_updated_block := LPSellerAccount^.updated_block;
-    LPSellerAccount^.updated_block := Origin_BlocksCount;
+  If LPSellerAccount^.updated_on_block<>Origin_BlocksCount then begin
+    LPSellerAccount^.previous_updated_block := LPSellerAccount^.updated_on_block;
+    LPSellerAccount^.updated_on_block := Origin_BlocksCount;
   end;
 
   // Inc buyer n_operation
@@ -4398,6 +4530,7 @@ function TPCSafeBoxTransaction.Commit(const operationBlock: TOperationBlock;
   var errors: String): Boolean;
 Var i : Integer;
   Pa : PAccount;
+  PSealed : PSealedAccount;
 begin
   Result := false;
   errors := '';
@@ -4408,7 +4541,8 @@ begin
       exit;
     end;
     for i := 0 to FOrderedList.FList.Count - 1 do begin
-      Pa := PSealedAccount (FOrderedList.FList[i])^.AccountSealed;
+      PSealed := PSealedAccount(FOrderedList.FList[i]);
+      Pa := PSealed^.AccountSealed;
       FFreezedAccounts.UpdateAccount(Pa^.account,
             Pa^.accountInfo,
             Pa^.name,
@@ -4418,7 +4552,8 @@ begin
             Pa^.account_data,
             Pa^.account_seal,
             aus_transaction_commit,
-            0,0);
+            0,0,0,
+            PSealed^.UsedAsActiveMode);
     end;
     //
     if (Origin_TotalBalance<>FTotalBalance) then begin
@@ -4641,32 +4776,37 @@ begin
     Exit;
   end;
 
-  UpdateSeal(PaccSender_Sealed,AOpID);
-  UpdateSeal(PaccTarget_Sealed,AOpID);
+  UpdateSealAndActiveModeFlag(PaccSender_Sealed,AOpID,True);
+  UpdateSealAndActiveModeFlag(PaccTarget_Sealed,AOpID,False);
 
-  previous.UpdateIfLower(PaccSender^.account,PaccSender^.updated_block);
-  previous.UpdateIfLower(PaccTarget^.account,PaccTarget^.updated_block);
+  previous.UpdateIfLower(PaccSender^.account,PaccSender^.updated_on_block);
+  previous.UpdateIfLower(PaccTarget^.account,PaccTarget^.updated_on_block);
 
-  If PaccSender^.updated_block<>Origin_BlocksCount then begin
-    PaccSender^.previous_updated_block := PaccSender^.updated_block;
-    PaccSender^.updated_block := Origin_BlocksCount;
+  If PaccSender^.updated_on_block<>Origin_BlocksCount then begin
+    PaccSender^.previous_updated_block := PaccSender^.updated_on_block;
+    PaccSender^.updated_on_block := Origin_BlocksCount;
   end;
 
-  If PaccTarget^.updated_block<>Origin_BlocksCount then begin
-    PaccTarget^.previous_updated_block := PaccTarget.updated_block;
-    PaccTarget^.updated_block := Origin_BlocksCount;
+  If PaccTarget^.updated_on_block<>Origin_BlocksCount then begin
+    PaccTarget^.previous_updated_block := PaccTarget.updated_on_block;
+    PaccTarget^.updated_on_block := Origin_BlocksCount;
   end;
 
   if (sender<>signer) then begin
-    UpdateSeal(PaccSigner_Sealed,AOpID);
-    previous.UpdateIfLower(PaccSigner^.account,PaccSigner^.updated_block);
-    if (PaccSigner^.updated_block<>Origin_BlocksCount) then begin
-      PaccSigner^.previous_updated_block := PaccSigner^.updated_block;
-      PaccSigner^.updated_block := Origin_BlocksCount;
+    UpdateSealAndActiveModeFlag(PaccSigner_Sealed,AOpID,True);
+    previous.UpdateIfLower(PaccSigner^.account,PaccSigner^.updated_on_block);
+    if (PaccSigner^.updated_on_block<>Origin_BlocksCount) then begin
+      PaccSigner^.previous_updated_block := PaccSigner^.updated_on_block;
+      PaccSigner^.updated_on_block := Origin_BlocksCount;
     end;
     PaccSigner^.n_operation := n_operation;
     PaccSigner^.balance := PaccSender^.balance - (fee);
     PaccSender^.balance := PaccSender^.balance - (amount);
+    if FreezedSafeBox.CurrentProtocol>=CT_PROTOCOL_5 then begin
+      // On Protocol 5, n_operation of the sender will be automatically updated
+      PaccSender^.n_operation := PaccSender^.n_operation + 1;
+    end;
+
   end else begin
     PaccSender^.n_operation := n_operation;
     PaccSender^.balance := PaccSender^.balance - (amount + fee);
@@ -4776,23 +4916,27 @@ begin
   // Ok, execute!
   for i:=Low(senders) to High(senders) do begin
     PaccSender := GetInternalAccount(senders[i],PaccSender_Sealed);
-    previous.UpdateIfLower(PaccSender^.account,PaccSender^.updated_block);
-    If PaccSender^.updated_block<>Origin_BlocksCount then begin
-      PaccSender^.previous_updated_block := PaccSender^.updated_block;
-      PaccSender^.updated_block := Origin_BlocksCount;
+
+    UpdateSealAndActiveModeFlag(PaccSender_Sealed,AOpID,True);
+
+    previous.UpdateIfLower(PaccSender^.account,PaccSender^.updated_on_block);
+    If PaccSender^.updated_on_block<>Origin_BlocksCount then begin
+      PaccSender^.previous_updated_block := PaccSender^.updated_on_block;
+      PaccSender^.updated_on_block := Origin_BlocksCount;
     end;
-    UpdateSeal(PaccSender_Sealed,AOpID);
     Inc(PaccSender^.n_operation);
     PaccSender^.balance := PaccSender^.balance - (sender_amounts[i]);
   end;
   for i:=Low(receivers) to High(receivers) do begin
     PaccTarget := GetInternalAccount(receivers[i],PaccTarget_Sealed);
-    previous.UpdateIfLower(PaccTarget^.account,PaccTarget^.updated_block);
-    If PaccTarget^.updated_block<>Origin_BlocksCount then begin
-      PaccTarget^.previous_updated_block := PaccTarget.updated_block;
-      PaccTarget^.updated_block := Origin_BlocksCount;
+
+    UpdateSealAndActiveModeFlag(PaccTarget_Sealed,AOpID,False);
+
+    previous.UpdateIfLower(PaccTarget^.account,PaccTarget^.updated_on_block);
+    If PaccTarget^.updated_on_block<>Origin_BlocksCount then begin
+      PaccTarget^.previous_updated_block := PaccTarget.updated_on_block;
+      PaccTarget^.updated_on_block := Origin_BlocksCount;
     end;
-    UpdateSeal(PaccTarget_Sealed,AOpID);
     PaccTarget^.balance := PaccTarget^.balance + receivers_amounts[i];
   end;
   Dec(FTotalBalance,nTotalFee);
@@ -4883,23 +5027,30 @@ begin
     Exit;
   end;
   // All Ok, can do changes
-  previous.UpdateIfLower(P_signer^.account,P_signer^.updated_block);
-  if P_signer^.updated_block <> Origin_BlocksCount then begin
-    P_signer^.previous_updated_block := P_signer^.updated_block;
-    P_signer^.updated_block := Origin_BlocksCount;
+
+  UpdateSealAndActiveModeFlag(P_signer_Sealed,AOpID,True);
+  UpdateSealAndActiveModeFlag(P_target_Sealed,AOpID,True); // BOTH signer and target are ACTIVE
+
+  previous.UpdateIfLower(P_signer^.account,P_signer^.updated_on_block);
+  if P_signer^.updated_on_block <> Origin_BlocksCount then begin
+    P_signer^.previous_updated_block := P_signer^.updated_on_block;
+    P_signer^.updated_on_block := Origin_BlocksCount;
   end;
   if (signer_account<>target_account) then begin
-    previous.UpdateIfLower(P_target^.account,P_target^.updated_block);
-    if P_target^.updated_block <> Origin_BlocksCount then begin
-      P_target^.previous_updated_block := P_target^.updated_block;
-      P_target^.updated_block := Origin_BlocksCount;
+    previous.UpdateIfLower(P_target^.account,P_target^.updated_on_block);
+    if P_target^.updated_on_block <> Origin_BlocksCount then begin
+      P_target^.previous_updated_block := P_target^.updated_on_block;
+      P_target^.updated_on_block := Origin_BlocksCount;
     end;
   end;
 
-  UpdateSeal(P_signer_Sealed,AOpID);
-  UpdateSeal(P_target_Sealed,AOpID);
-
   P_signer^.n_operation := signer_n_operation;
+  if (signer_account<>target_account) and
+     (FreezedSafeBox.CurrentProtocol>=CT_PROTOCOL_5) then begin
+      // On Protocol 5, n_operation of the target will be automatically updated
+      P_target^.n_operation := P_target^.n_operation + 1;
+  end;
+
   P_target^.accountInfo := accountInfo;
   P_target^.name := newName;
   P_target^.account_data := newData;
@@ -4910,9 +5061,12 @@ begin
   Result := true;
 end;
 
-procedure TPCSafeBoxTransaction.UpdateSeal(APtrSealedAccount: PSealedAccount; AOpID: TRawBytes);
+procedure TPCSafeBoxTransaction.UpdateSealAndActiveModeFlag(APtrSealedAccount : PSealedAccount; AOpID : TRawBytes; ASetUsedAsActiveMode : Boolean);
 begin
   FOrderedList.DoUpdateSealIfNeeded(APtrSealedAccount,AOpID);
+  if ASetUsedAsActiveMode then begin
+    APtrSealedAccount^.UsedAsActiveMode := True;
+  end;
 end;
 
 { TPCSafeBoxTransaction.TSealedAccountList }
@@ -4944,6 +5098,7 @@ begin
     New(p^.AccountSealed);
     p^.AccountSealed^ := PSealedAccount(ASource.FList[i])^.AccountSealed^;
     p^.SealChangesCounter := PSealedAccount(ASource.FList[i])^.SealChangesCounter;
+    p^.UsedAsActiveMode := PSealedAccount(ASource.FList[i])^.UsedAsActiveMode;
     FList.Add(p);
   end;
 end;
@@ -4977,8 +5132,8 @@ begin
       Inc(APtrSealedAccount^.SealChangesCounter);
       LStream := TMemoryStream.Create;
       Try
-        APtrSealedAccount^.AccountSealed.SerializeAccount(LStream,FSafeBoxTransaction.FreezedSafeBox.CurrentProtocol); // Serialize with LATEST seal value
         // New Seal = RIPEMD160(  SHA2_256(    SerializedAccount ++ OpID ++ LatestSafeboxHash  ) )
+        APtrSealedAccount^.AccountSealed.SerializeAccount(LStream,FSafeBoxTransaction.FreezedSafeBox.CurrentProtocol); // Serialize with LATEST seal value
         LStream.WriteBuffer( AOpID[0], Length(AOpID));
         LStream.WriteBuffer( FSafeBoxTransaction.FOldSafeBoxHash[0], Length(FSafeBoxTransaction.FOldSafeBoxHash) );
         APtrSealedAccount^.AccountSealed^.account_seal := TCrypto.DoRipeMD160AsRaw( TCrypto.DoSha256(LStream.Memory,LStream.Size) );
@@ -5024,6 +5179,7 @@ begin
     New( Result^.AccountSealed );
     Result^.AccountSealed^ := FSafeBoxTransaction.FreezedSafeBox.Account(account_number);
     Result^.SealChangesCounter := 0;
+    Result^.UsedAsActiveMode := False;
     FList.Insert(i,Result);
   end else begin
     Result := FList.Items[i];
@@ -5795,28 +5951,21 @@ end;
 
 procedure TAccount_Helper.SerializeAccount(AStream: TStream; current_protocol : Word);
 var LRaw : TRawBytes;
-  LTmpSeal : T20Bytes;
 begin
-  AStream.Write(Self.account,4);
-  LRaw := TAccountComp.AccountInfo2RawString(Self.accountInfo);
-  AStream.WriteBuffer(LRaw[Low(LRaw)],Length(LRaw));
-  AStream.Write(Self.balance,8);
-  AStream.Write(Self.updated_block,4);
-  AStream.Write(Self.n_operation,4);
-  if (current_protocol>=2) then begin
-      // Use new Protocol 2 fields
-    If Length(Self.name)>0 then begin
-      AStream.WriteBuffer(Self.name[Low(Self.name)],Length(Self.name));
-    end;
-    AStream.Write(Self.account_type,2);
-    if current_protocol>=5 then begin
-      // Adding PROTOCOL 5 new fields
-      If Length(Self.account_data)>0 then begin
-        AStream.WriteBuffer(Self.account_data[0],Length(Self.account_data));
+  if current_protocol>=CT_PROTOCOL_5 then TAccountComp.SaveAccountToAStream(AStream,Self,current_protocol)
+  else begin
+    AStream.Write(Self.account,4);
+    LRaw := TAccountComp.AccountInfo2RawString(Self.accountInfo);
+    AStream.WriteBuffer(LRaw[Low(LRaw)],Length(LRaw));
+    AStream.Write(Self.balance,8);
+    AStream.Write(Self.updated_on_block,4);
+    AStream.Write(Self.n_operation,4);
+    if (current_protocol>=2) then begin
+        // Use new Protocol 2 fields
+      If Length(Self.name)>0 then begin
+        AStream.WriteBuffer(Self.name[Low(Self.name)],Length(Self.name));
       end;
-      // Account Seal is allways a 20 bytes as described on PIP-0029
-      LTmpSeal := TBaseType.To20Bytes(Self.account_seal);
-      AStream.WriteBuffer(LTmpSeal[0],20);
+      AStream.Write(Self.account_type,2);
     end;
   end;
 end;

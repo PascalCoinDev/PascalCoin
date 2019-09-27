@@ -150,7 +150,7 @@ class procedure TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures
 var LList : TList<TPCOperation>;
   i : Integer;
   LMultiThreadValidator : TPCOperationsSignatureValidator;
-  LValidatedOk, LValidatedError, LValidatedTotal : Integer;
+  LValidatedOk, LValidatedError, LValidatedTotal, LGlobalOperationsCount : Integer;
   LTC : TTickCount;
 begin
   if _Cpus<=0 then begin
@@ -158,9 +158,11 @@ begin
   end;
   if _Cpus<=1 then Exit;
 
+  LGlobalOperationsCount := 0;
   LList := TList<TPCOperation>.Create;
   Try
     for i := 0 to APCOperationsCompList.Count-1 do begin
+      Inc(LGlobalOperationsCount, APCOperationsCompList[i].Count );
       APCOperationsCompList[i].OperationsHashTree.GetOperationsList(LList,True);
     end;
     LTC := TPlatform.GetTickCount;
@@ -171,7 +173,7 @@ begin
       LValidatedError := LMultiThreadValidator.FValidatedErrorCount;
       LTC := TPlatform.GetElapsedMilliseconds(LTC);
       if (LValidatedTotal>0) and (LTC>0) and ((LValidatedOk>0) or (LValidatedError>0))  then begin
-        TLog.NewLog(ltdebug,ClassName,Format('Validated %d operations from %d Blocks with %d signatures Ok and %d signatures Error in %d miliseconds avg %.2f op/sec',[LValidatedTotal,APCOperationsCompList.Count,LValidatedOk,LValidatedError,LTC,LValidatedTotal*1000/LTC]));
+        TLog.NewLog(ltdebug,ClassName,Format('Validated %d/%d operations from %d Blocks with %d signatures Ok and %d signatures Error in %d miliseconds avg %.2f op/sec',[LValidatedTotal,LGlobalOperationsCount,APCOperationsCompList.Count,LValidatedOk,LValidatedError,LTC,LValidatedTotal*1000/LTC]));
       end;
     finally
       LMultiThreadValidator.Free;
@@ -187,7 +189,7 @@ end;
 class procedure TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(
   ASafeBoxTransaction: TPCSafeBoxTransaction; AOperationsHashTree: TOperationsHashTree; AProgressNotify : TProgressNotify);
 var LMultiThreadValidator : TPCOperationsSignatureValidator;
-  LValidatedOk, LValidatedError, LValidatedTotal : Integer;
+  LValidatedOk, LValidatedError, LValidatedTotal, LGlobalOperationsCount : Integer;
   LTC : TTickCount;
   LList : TList<TPCOperation>;
 begin
@@ -197,6 +199,7 @@ begin
   if _Cpus<=1 then Exit;
   if AOperationsHashTree.OperationsCount<_Cpus then Exit;   // If less than cpus, no need for multithreading...
 
+  LGlobalOperationsCount := AOperationsHashTree.OperationsCount;
   LTC := TPlatform.GetTickCount;
   LMultiThreadValidator := TPCOperationsSignatureValidator.Create(ASafeBoxTransaction,AProgressNotify);
   try
@@ -210,7 +213,7 @@ begin
       LValidatedError := LMultiThreadValidator.FValidatedErrorCount;
       LTC := TPlatform.GetElapsedMilliseconds(LTC);
       if (LValidatedTotal>0) and (LTC>0) and ((LValidatedOk>0) or (LValidatedError>0))  then begin
-        TLog.NewLog(ltdebug,ClassName,Format('Validated %d operations with %d signatures Ok and %d signatures Error in %d miliseconds avg %.2f op/sec',[LValidatedTotal,LValidatedOk,LValidatedError,LTC,LValidatedTotal*1000/LTC]));
+        TLog.NewLog(ltdebug,ClassName,Format('Validated %d/%d operations with %d signatures Ok and %d signatures Error in %d miliseconds avg %.2f op/sec',[LValidatedTotal,LGlobalOperationsCount,LValidatedOk,LValidatedError,LTC,LValidatedTotal*1000/LTC]));
       end;
     Finally
       LList.Free;

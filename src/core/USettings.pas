@@ -132,7 +132,7 @@ type
 implementation
 
 uses
-  Classes, SysUtils, UConst, UFolderHelper;
+  Classes, SysUtils, UConst, UNode;
 
 
 { TSettings }
@@ -140,7 +140,7 @@ uses
 class procedure TSettings.Load;
 begin
   FAppParams := TAppParams.Create(nil);
-  FAppParams.FileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'AppParams.prm';
+  FAppParams.FileName := TNode.GetPascalCoinDataFolder+PathDelim+'AppParams.prm';
 end;
 
 class procedure TSettings.Save;

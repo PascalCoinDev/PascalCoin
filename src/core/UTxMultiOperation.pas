@@ -155,7 +155,7 @@ Type
     //
     Function toString : String; Override;
     Property Data : TOpMultiOperationData read FData;
-    Function GetDigestToSign(current_protocol : Word) : TRawBytes; override;
+    Function GetDigestToSign : TRawBytes; override;
 
     function IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction : TPCSafeBoxTransaction) : Boolean; override;
   End;
@@ -501,7 +501,7 @@ begin
   Result := False;
   // Do check it!
   Try
-    ophtosign := GetDigestToSign(AccountTransaction.FreezedSafeBox.CurrentProtocol);
+    ophtosign := GetDigestToSign;
     // Tx verification
     For i:=Low(FData.txSenders) to High(FData.txSenders) do begin
       acc := AccountTransaction.Account(FData.txSenders[i].Account);
@@ -784,7 +784,7 @@ begin
   If Not key.HasPrivateKey then begin
     exit;
   end;
-  raw := GetDigestToSign(current_protocol);
+  raw := GetDigestToSign;
   Try
     _sign := TCrypto.ECDSASign(key.PrivateKey,raw);
   Except
@@ -1107,7 +1107,7 @@ begin
      TAccountComp.FormatMoney(FTotalFee)]);
 end;
 
-function TOpMultiOperation.GetDigestToSign(current_protocol : Word): TRawBytes;
+function TOpMultiOperation.GetDigestToSign: TRawBytes;
 Var ms : TMemoryStream;
   rb : TRawBytes;
   old : Boolean;
@@ -1122,7 +1122,7 @@ begin
     finally
       FSaveSignatureValue:=old;
     end;
-    if (current_protocol<=CT_PROTOCOL_3) then begin
+    if (ProtocolVersion<=CT_PROTOCOL_3) then begin
       ms.Position := 0;
       SetLength(Result,ms.Size);
       ms.ReadBuffer(Result[Low(Result)],ms.Size);

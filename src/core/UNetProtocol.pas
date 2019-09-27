@@ -1592,7 +1592,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
         BlocksList.Free;
       end;
     until (distinctmin=distinctmax);
-    Result := (OperationBlock.proof_of_work <> CT_OperationBlock_NUL.proof_of_work);
+    Result := (Not TBaseType.Equals(OperationBlock.proof_of_work,CT_OperationBlock_NUL.proof_of_work));
   End;
 
   procedure GetNewBank(start_block : Int64);
@@ -1792,7 +1792,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       if (c>=safebox_blockscount) then c := safebox_blockscount-1;
       sendData.Write(c,SizeOf(c));
       if (from_block>c) or (c>=safebox_blockscount) then begin
-        errors := 'ERROR DEV 20170727-1';
+        errors := Format('ERROR DEV 20170727-1 fromblock:%d c:%d safebox_blockscount:%d',[from_block,c,safebox_blockscount]);
         Exit;
       end;
       if Connection.NetProtocolVersion.protocol_version<9 then begin
@@ -3266,7 +3266,7 @@ begin
       //
       opht := TOperationsHashTree.Create;
       try
-        If Not opht.LoadOperationsHashTreeFromStream(dataReceived,False,0,Nil,errors) then begin
+        If Not opht.LoadOperationsHashTreeFromStream(dataReceived,False,TNode.Node.Bank.SafeBox.CurrentProtocol,TNode.Node.Bank.SafeBox.CurrentProtocol,Nil,errors) then begin
           DisconnectInvalidClient(False,'Invalid operations hash tree stream: '+errors);
           Exit;
         end;
@@ -3780,7 +3780,7 @@ var operationsComp : TPCOperationsComp;
     end;
     // Now we have nfpboarr with full data
     for i := 0 to High(nfpboarr) do begin
-      auxOp := TPCOperation.GetOperationFromStreamData(Self.FNetProtocolVersion.protocol_version,  nfpboarr[i].opStreamData );
+      auxOp := TPCOperation.GetOperationFromStreamData(original_OperationBlock.protocol_version,  nfpboarr[i].opStreamData );
       if not Assigned(auxOp) then begin
         errors := Format('Op index not available (%d/%d) OpReference:%d size:%d',[i,High(nfpboarr),nfpboarr[i].opReference,Length(nfpboarr[i].opStreamData)]);
         Exit;

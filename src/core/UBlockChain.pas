@@ -237,7 +237,7 @@ Type
     Property Previous_Signer_updated_block : Cardinal read FPrevious_Signer_updated_block; // deprecated
     Property Previous_Destination_updated_block : Cardinal read FPrevious_Destination_updated_block; // deprecated
     Property Previous_Seller_updated_block : Cardinal read FPrevious_Seller_updated_block; // deprecated
-    function IsValidECDSASignature(const PubKey: TECDSA_Public; current_protocol : Word; const Signature: TECDSA_SIG): Boolean;
+    function IsValidECDSASignature(const PubKey: TECDSA_Public; const Signature: TECDSA_SIG): Boolean;
     procedure CopyUsedPubkeySignatureFrom(SourceOperation : TPCOperation); virtual;
     function SaveOperationPayloadToStream(const AStream : TStream; const APayload : TOperationPayload) : Boolean;
     function LoadOperationPayloadFromStream(const AStream : TStream; out APayload : TOperationPayload) : Boolean;
@@ -250,7 +250,7 @@ Type
     procedure AffectedAccounts(list : TList<Cardinal>); virtual; abstract;
     class function OpType: Byte; virtual; abstract;
     Class Function OperationToOperationResume(Block : Cardinal; Operation : TPCOperation; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume) : Boolean; virtual;
-    Function GetDigestToSign(current_protocol : Word) : TRawBytes; virtual; abstract;
+    Function GetDigestToSign : TRawBytes; virtual; abstract;
     function OperationAmount : Int64; virtual; abstract;
     function OperationAmountByAccount(account : Cardinal) : Int64; virtual;
     function OperationFee: Int64; virtual; abstract;
@@ -360,7 +360,7 @@ Type
     Property TotalAmount : Int64 read FTotalAmount;
     Property TotalFee : Int64 read FTotalFee;
     function SaveOperationsHashTreeToStream(Stream: TStream; SaveToStorage : Boolean): Boolean;
-    function LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage : Boolean; LoadProtocolVersion : Word; PreviousUpdatedBlocks : TAccountPreviousBlockInfo; var errors : String): Boolean;
+    function LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadVersion : Word; PreviousUpdatedBlocks : TAccountPreviousBlockInfo; var errors : String): Boolean;
     function IndexOfOperation(op : TPCOperation) : Integer;
     function CountOperationsBySameSignerWithoutFee(account_number : Cardinal) : Integer;
     Procedure Delete(index : Integer);
@@ -1229,6 +1229,11 @@ Begin
         errors := 'Bank blockcount<>OperationBlock.Block';
         exit;
       end;
+      if OperationBlock.protocol_version <> op.ProtocolVersion then begin
+        errors := Format('Operation protocol:%d <> current protocol:%d on %s',[op.ProtocolVersion,OperationBlock.protocol_version, op.ToString]);
+        Tlog.NewLog(lterror,ClassName,errors);
+        Exit;
+      end;
       // Only process when in current address, prevent do it when reading operations from file
       if FOperationsHashTree.CanAddOperationToHashTree(op) then begin
         Result := op.DoOperation(FPreviousUpdatedBlocks, FSafeBoxTransaction, errors);
@@ -1367,6 +1372,7 @@ begin
         FOperationBlock.compact_target := FBank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
       end;
       FOperationBlock.initial_safe_box_hash := FBank.SafeBox.SafeBoxHash;
+      FOperationBlock.previous_proof_of_work := FBank.LastOperationBlock.proof_of_work;
       If FBank.LastOperationBlock.timestamp>FOperationBlock.timestamp then
         FOperationBlock.timestamp := FBank.LastOperationBlock.timestamp;
     end else begin
@@ -1376,6 +1382,7 @@ begin
       FOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash; // Nothing for first line
       FOperationBlock.protocol_version := CT_PROTOCOL_1;
       FOperationsHashTree.Max0feeOperationsBySigner := -1;
+      FOperationBlock.previous_proof_of_work := Nil;
     end;
     FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
     FOperationBlock.fee := 0;
@@ -1484,20 +1491,7 @@ end;
 class function TPCOperationsComp.EqualsOperationBlock(const OperationBlock1,
   OperationBlock2: TOperationBlock): Boolean;
 begin
-
-  Result := (OperationBlock1.block=OperationBlock2.block)
-           And (TAccountComp.EqualAccountKeys(OperationBlock1.account_key,OperationBlock2.account_key))
-           And (OperationBlock1.reward=OperationBlock2.reward)
-           And (OperationBlock1.fee=OperationBlock2.fee)
-           And (OperationBlock1.protocol_version=OperationBlock2.protocol_version)
-           And (OperationBlock1.protocol_available=OperationBlock2.protocol_available)
-           And (OperationBlock1.timestamp=OperationBlock2.timestamp)
-           And (OperationBlock1.compact_target=OperationBlock2.compact_target)
-           And (OperationBlock1.nonce=OperationBlock2.nonce)
-           And (TBaseType.Equals(OperationBlock1.block_payload,OperationBlock2.block_payload))
-           And (TBaseType.Equals(OperationBlock1.initial_safe_box_hash,OperationBlock2.initial_safe_box_hash))
-           And (TBaseType.Equals(OperationBlock1.operations_hash,OperationBlock2.operations_hash))
-           And (TBaseType.Equals(OperationBlock1.proof_of_work,OperationBlock2.proof_of_work));
+  Result := TAccountComp.EqualOperationBlocks(OperationBlock1,OperationBlock2);
 end;
 
 function TPCOperationsComp.GetAccountKey: TAccountKey;
@@ -1638,22 +1632,22 @@ begin
     if TStreamOp.ReadAnsiString(Stream, FOperationBlock.initial_safe_box_hash) < 0 then exit;
     if TStreamOp.ReadAnsiString(Stream, FOperationBlock.operations_hash) < 0 then exit;
     if TStreamOp.ReadAnsiString(Stream, FOperationBlock.proof_of_work) < 0 then exit;
+    if FOperationBlock.protocol_version>=CT_PROTOCOL_5 then begin
+      if TStreamOp.ReadAnsiString(Stream, FOperationBlock.previous_proof_of_work) < 0 then exit;
+      load_protocol_version := FOperationBlock.protocol_version;
+    end;
     If FIsOnlyOperationBlock then begin
       Result := true;
       exit;
     end;
     //
-    if FOperationBlock.protocol_version>=CT_PROTOCOL_5 then begin
-      load_protocol_version := FOperationBlock.protocol_version;
-    end;
-
     // Fee will be calculated for each operation. Set it to 0 and check later for integrity
     lastfee := OperationBlock.fee;
     FOperationBlock.fee := 0;
     if FOperationBlock.protocol_version>=CT_PROTOCOL_4 then begin
       FOperationsHashTree.Max0feeOperationsBySigner := 1;
     end else FOperationsHashTree.Max0feeOperationsBySigner := -1;
-    Result := FOperationsHashTree.LoadOperationsHashTreeFromStream(Stream,LoadingFromStorage,load_protocol_version,FPreviousUpdatedBlocks,errors);
+    Result := FOperationsHashTree.LoadOperationsHashTreeFromStream(Stream,LoadingFromStorage,FOperationBlock.protocol_version,load_protocol_version,FPreviousUpdatedBlocks,errors);
     if not Result then begin
       exit;
     end;
@@ -1744,14 +1738,17 @@ begin
         FOperationBlock.compact_target := FBank.Safebox.GetActualCompactTargetHash(FOperationBlock.protocol_version);
       end;
       FOperationBlock.initial_safe_box_hash := FBank.SafeBox.SafeBoxHash;
-      If FBank.LastOperationBlock.timestamp>FOperationBlock.timestamp then
+      If FBank.LastOperationBlock.timestamp>FOperationBlock.timestamp then begin
         FOperationBlock.timestamp := FBank.LastOperationBlock.timestamp;
+      end;
+      FOperationBlock.previous_proof_of_work := FBank.LastOperationBlock.proof_of_work;
     end else begin
       FOperationBlock.block := 0;
       FOperationBlock.reward := TPascalCoinProtocol.GetRewardForNewLine(0);
       FOperationBlock.compact_target := CT_MinCompactTarget_v1;
       FOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash;
       FOperationBlock.protocol_version := CT_PROTOCOL_1;
+      FOperationBlock.previous_proof_of_work := Nil;
     end;
     FOperationBlock.proof_of_work:=Nil;
     FOperationBlock.protocol_available := CT_BlockChain_Protocol_Available;
@@ -1768,17 +1765,22 @@ begin
       lastn := FOperationsHashTree.OperationsCount;
       for i:=0 to lastn-1 do begin
         op := FOperationsHashTree.GetOperation(i);
-        if (aux.CanAddOperationToHashTree(op)) then begin
-          if (op.DoOperation(FPreviousUpdatedBlocks, SafeBoxTransaction,errors)) then begin
-            if aux.AddOperationToHashTree(op) then begin
-              inc(n);
-              inc(FOperationBlock.fee,op.OperationFee);
-              {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Sanitizing (pos:'+inttostr(i+1)+'/'+inttostr(lastn)+'): '+op.ToString){$ENDIF};
-            end else begin
-              TLog.NewLog(lterror,ClassName,Format('Undo operation.DoExecute at Sanitize due limits reached. Executing %d operations',[aux.OperationsCount]));
-              FPreviousUpdatedBlocks.Clear;
-              FSafeBoxTransaction.Rollback;
-              for iUndo := 0 to aux.OperationsCount-1 do aux.GetOperation(iUndo).DoOperation(FPreviousUpdatedBlocks, FSafeBoxTransaction, auxs);
+        if OperationBlock.protocol_version <> op.ProtocolVersion then begin
+          errors := Format('Sanitize Operation protocol:%d <> current protocol:%d on %s',[op.ProtocolVersion,OperationBlock.protocol_version, op.ToString]);
+          Tlog.NewLog(lterror,ClassName,errors);
+        end else begin
+          if (aux.CanAddOperationToHashTree(op)) then begin
+            if (op.DoOperation(FPreviousUpdatedBlocks, SafeBoxTransaction,errors)) then begin
+              if aux.AddOperationToHashTree(op) then begin
+                inc(n);
+                inc(FOperationBlock.fee,op.OperationFee);
+                {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,Classname,'Sanitizing (pos:'+inttostr(i+1)+'/'+inttostr(lastn)+'): '+op.ToString){$ENDIF};
+              end else begin
+                TLog.NewLog(lterror,ClassName,Format('Undo operation.DoExecute at Sanitize due limits reached. Executing %d operations',[aux.OperationsCount]));
+                FPreviousUpdatedBlocks.Clear;
+                FSafeBoxTransaction.Rollback;
+                for iUndo := 0 to aux.OperationsCount-1 do aux.GetOperation(iUndo).DoOperation(FPreviousUpdatedBlocks, FSafeBoxTransaction, auxs);
+              end;
             end;
           end;
         end;
@@ -1793,7 +1795,7 @@ begin
     Calc_Digest_Parts; // Does not need to recalc PoW
     Unlock;
   End;
-  if (n>0) then begin
+  if (n>0) or (lastn<>n) then begin
     TLog.NewLog(ltdebug,Classname,Format('Sanitize operations (before %d - after %d)',[lastn,n]));
   end;
 end;
@@ -1849,6 +1851,9 @@ begin
     TStreamOp.WriteAnsiString(Stream, FOperationBlock.initial_safe_box_hash);
     TStreamOp.WriteAnsiString(Stream, FOperationBlock.operations_hash);
     TStreamOp.WriteAnsiString(Stream, FOperationBlock.proof_of_work);
+    if FOperationBlock.protocol_version>=CT_PROTOCOL_5 then begin
+      TStreamOp.WriteAnsiString(Stream, FOperationBlock.previous_proof_of_work);
+    end;
     { Basic size calculation:
     protocols : 2 words = 4 bytes
     block : 4 bytes
@@ -1889,6 +1894,9 @@ begin
   TStreamOp.WriteAnsiString(Stream, OperationBlock.initial_safe_box_hash);
   TStreamOp.WriteAnsiString(Stream, OperationBlock.operations_hash);
   TStreamOp.WriteAnsiString(Stream, OperationBlock.proof_of_work);
+  if OperationBlock.protocol_version>=CT_PROTOCOL_5 then begin
+    TStreamOp.WriteAnsiString(Stream, OperationBlock.previous_proof_of_work);
+  end;
   Result := true;
 end;
 
@@ -2011,8 +2019,12 @@ begin
     TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(SafeBoxTransaction,OperationsHashTree,Nil);
     //
     for i := 0 to Count - 1 do begin
+      if (Operation[i].ProtocolVersion<>OperationBlock.protocol_version) then begin
+        errors := 'Error executing operation invalid protocol at '+inttostr(i+1)+'/'+inttostr(Count)+': '+errors+' Op:'+Operation[i].ToString;
+        exit;
+      end;
       If Not Operation[i].DoOperation(FPreviousUpdatedBlocks, SafeBoxTransaction,errors) then begin
-        errors := 'Error executing operation '+inttostr(i+1)+'/'+inttostr(Count)+': '+errors;
+        errors := 'Error executing operation '+inttostr(i+1)+'/'+inttostr(Count)+': '+errors+' Op:'+Operation[i].ToString;
         exit;
       end;
     end;
@@ -2615,7 +2627,7 @@ begin
   Index := L;
 end;
 
-function TOperationsHashTree.LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage : Boolean; LoadProtocolVersion : Word; PreviousUpdatedBlocks : TAccountPreviousBlockInfo; var errors: String): Boolean;
+function TOperationsHashTree.LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadVersion : Word; PreviousUpdatedBlocks : TAccountPreviousBlockInfo; var errors: String): Boolean;
 Var c, i: Cardinal;
   OpType: Cardinal;
   bcop: TPCOperation;
@@ -2648,10 +2660,10 @@ begin
         errors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c) + ' optype not valid:' + InttoHex(OpType, 4);
         exit;
       end;
-      bcop := OpClass.Create(LoadProtocolVersion);
+      bcop := OpClass.Create(ASetOperationsToProtocolVersion);
       Try
         if LoadingFromStorage then begin
-          If not bcop.LoadFromStorage(Stream,LoadProtocolVersion,PreviousUpdatedBlocks) then begin
+          If not bcop.LoadFromStorage(Stream,ALoadVersion,PreviousUpdatedBlocks) then begin
             errors := 'Invalid operation load from storage ' + inttostr(i) + '/' + inttostr(c)+' Class:'+OpClass.ClassName;
             exit;
           end;
@@ -3093,7 +3105,7 @@ begin
   //
 end;
 
-function TPCOperation.IsValidECDSASignature(const PubKey: TECDSA_Public; current_protocol: Word; const Signature: TECDSA_SIG): Boolean;
+function TPCOperation.IsValidECDSASignature(const PubKey: TECDSA_Public; const Signature: TECDSA_SIG): Boolean;
 begin
   // Will reuse FHasValidSignature if checked previously and was True
   // Introduced on Build 4.0.2 to increase speed using MEMPOOL verified operations instead of verify again everytime
@@ -3105,7 +3117,7 @@ begin
     end;
   end;
   if (Not FHasValidSignature) then begin
-    FHasValidSignature := TCrypto.ECDSAVerify(PubKey,GetDigestToSign(current_protocol),Signature);
+    FHasValidSignature := TCrypto.ECDSAVerify(PubKey,GetDigestToSign,Signature);
     If FHasValidSignature then begin;
       FUsedPubkeyForSignature := PubKey;
     end;
@@ -3413,6 +3425,9 @@ begin
         OperationResume.Fee := 0;
         Result := true;
       end else exit;
+      if (TOpBuyAccount(Operation).Data.sender = TOpBuyAccount(Operation).Data.target) then begin
+        OperationResume.Amount := TOpBuyAccount(Operation).Data.AccountPrice;
+      end;
     End;
     CT_Op_ChangeAccountInfo : Begin
       OperationResume.DestAccount := Operation.DestinationAccount;

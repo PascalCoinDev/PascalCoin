@@ -123,6 +123,7 @@ Type
     Property UpdateBlockchain : Boolean read FUpdateBlockchain write FUpdateBlockchain;
     procedure MarkVerifiedECDSASignaturesFromMemPool(newOperationsToValidate : TPCOperationsComp);
     class function NodeVersion : String;
+    class function GetPascalCoinDataFolder : String;
   End;
 
   TThreadSafeNodeNotifyEvent = Class(TPCThread)
@@ -203,7 +204,7 @@ Type
 
 implementation
 
-Uses UOpTransaction, UConst, UTime, UCommon, UPCOperationsSignatureValidator;
+Uses UOpTransaction, UConst, UTime, UCommon, UPCOperationsSignatureValidator, UFolderHelper;
 
 var _Node : TNode;
 
@@ -1005,15 +1006,15 @@ begin
   if account_number>=Bank.SafeBox.AccountsCount then Exit;
   if StartOperation>EndOperation then Exit;
   acc := Bank.SafeBox.Account(account_number);
-  if (acc.updated_block>0) Or (acc.account=0) then Begin
-    if (SearchBackwardsStartingAtBlock=0) Or (SearchBackwardsStartingAtBlock>=acc.updated_block) then begin
-      startBlock := acc.updated_block;
+  if (acc.updated_on_block>0) Or (acc.account=0) then Begin
+    if (SearchBackwardsStartingAtBlock=0) Or (SearchBackwardsStartingAtBlock>=acc.updated_on_block) then begin
+      startBlock := acc.updated_on_block;
       lastBalance := acc.balance;
     end else begin
       startBlock := SearchBackwardsStartingAtBlock;
       lastBalance := -1;
     end;
-    DoGetFromBlock(startBlock,lastBalance,MaxDepth,0,startBlock<>acc.updated_block);
+    DoGetFromBlock(startBlock,lastBalance,MaxDepth,0,startBlock<>acc.updated_on_block);
   end;
 end;
 
@@ -1092,7 +1093,7 @@ begin
           end;
         end;
       end;
-      block := Bank.SafeBox.Account(account).updated_block;
+      block := Bank.SafeBox.Account(account).updated_on_block;
     finally
       UnlockMempoolRead;
     end;
@@ -1207,7 +1208,7 @@ begin
       UnlockMempoolRead;
     End;
     // block=0 and not found... start searching at block updated by account updated_block
-    block := Bank.SafeBox.Account(account).updated_block;
+    block := Bank.SafeBox.Account(account).updated_on_block;
     if Bank.SafeBox.Account(account).n_operation<n_operation then exit; // n_operation is greater than found in safebox
   end;
   if (block=0) or (block>=Bank.BlocksCount) then exit;
@@ -1287,6 +1288,11 @@ begin
   finally
     UnlockMempoolRead;
   end;
+end;
+
+class function TNode.GetPascalCoinDataFolder: String;
+begin
+  Result := TFolderHelper.GetDataFolder(CT_PascalCoin_Data_Folder);
 end;
 
 function TNode.LockMempoolRead: TPCOperationsComp;

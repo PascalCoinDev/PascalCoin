@@ -420,7 +420,8 @@ Begin
   jsonObj.GetAsVariant('balance').Value:=TAccountComp.FormatMoneyDecimal(account.balance);
   jsonObj.GetAsVariant('balance_s').Value:=TAccountComp.FormatMoney(account.balance);
   jsonObj.GetAsVariant('n_operation').Value:=account.n_operation;
-  jsonObj.GetAsVariant('updated_b').Value:=account.updated_block;
+  jsonObj.GetAsVariant('updated_b').Value:=account.updated_on_block;
+  jsonObj.GetAsVariant('n_operation_updated_block').Value:=account.updated_on_block_active_mode;
   case account.accountInfo.state of
     as_Normal : jsonObj.GetAsVariant('state').Value:='normal';
     as_ForSale : begin
@@ -529,7 +530,7 @@ begin
   jsonObject.GetAsVariant('fee').Value:=TAccountComp.FormatMoneyDecimal( multiOperation.OperationFee );
   // New params for third party signing: (3.0.2)
   if (current_protocol>CT_PROTOCOL_3) then begin
-    jsonObject.GetAsVariant('digest').Value:=TCrypto.ToHexaString(multiOperation.GetDigestToSign(current_protocol));
+    jsonObject.GetAsVariant('digest').Value:=TCrypto.ToHexaString(multiOperation.GetDigestToSign);
   end;
 
   jsonObject.GetAsVariant('senders_count').Value:=Length(multiOperation.Data.txSenders);
@@ -568,7 +569,7 @@ Begin
     ms.Position := 0;
     AOperationsHashTree := TOperationsHashTree.Create;
     if (Length(Lraw)>0) then begin
-      If not AOperationsHashTree.LoadOperationsHashTreeFromStream(ms,False,ACurrentProtocol,Nil,AErrors) then begin
+      If not AOperationsHashTree.LoadOperationsHashTreeFromStream(ms,False,ACurrentProtocol,ACurrentProtocol,Nil,AErrors) then begin
         FreeAndNil(AOperationsHashTree);
         Exit;
       end;
