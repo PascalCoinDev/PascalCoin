@@ -295,7 +295,7 @@ object FRMOperation: TFRMOperation
         Top = 7
         Width = 524
         Height = 204
-        ActivePage = tsChangeInfo
+        ActivePage = tsBuyAccount
         TabOrder = 0
         OnChange = PageControlOpTypeChange
         object tsTransaction: TTabSheet
@@ -814,7 +814,7 @@ object FRMOperation: TFRMOperation
           object lblBuyAccountErrors: TLabel
             Left = 13
             Top = 10
-            Width = 331
+            Width = 484
             Height = 13
             AutoSize = False
             Caption = 'Errors detected'

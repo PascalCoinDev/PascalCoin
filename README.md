@@ -46,7 +46,9 @@ Also, consider a donation at PascalCoin development account: "0-10"
 - Implementation of PIP-0027 (E-PASA Inifine Address-Space) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0027.md
   - Third party apps/implementations of hard coded operations need to pay attention of an extra byte added on each operation using Payload
   - TODO: Explain "in core" changes
-- Implementation of PIP-0012 (Recover Accounts option after 10 years) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0012.md
+- Partial implementation of PIP-0012 (Recover Accounts option after 4 years) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0012.md
+  - Accounts updated counter will only update when executing operations in active mode (sender or signer)
+  - If account is a receiver (passive mode) then n_operation_update_block will not update value and can be recovered after 4 years (as defined on original PascalCoin v1 WhitePaper)
 - Fixed important security issue related to PIP-0003 caused by possible "parallelization" of the Proof-of-work
   - Discovered by Herman Schoenfeld <herman@sphere10.com>
   - Modified length of the digest to be mined, adding previous proof-of-work to avoid parallelization

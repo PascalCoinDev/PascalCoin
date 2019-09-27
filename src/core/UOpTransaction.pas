@@ -845,10 +845,16 @@ begin
   LSender := ASafeBoxTransaction.Account(FData.sender);
   LTarget := ASafeBoxTransaction.Account(FData.target);
 
-  // V5 - Allow recipient-signed transactions. This is defined as
+  // V5 - Allow recipient-signed OP_BUY operations. This is defined as
   //  - Sender Account = Target Account
-  LRecipientSignable := TAccountComp.IsOperationRecipientSignable(LSender, LTarget, FData.Amount, LCurrentBlock, LCurrentProtocol);
-  LIsCoinSwap := TAccountComp.IsAccountForCoinSwap(LTarget.accountInfo);
+  //  - Account (sender = target) is for PRIVATE SALE or ACCOUNT SWAP
+  //  - TIME LOCK not expired
+  LRecipientSignable :=
+    ( FData.opTransactionStyle = buy_Account )
+    And (TAccountComp.IsOperationRecipientSignable(LSender, LTarget, LCurrentBlock, LCurrentProtocol));
+
+  LIsCoinSwap := TAccountComp.IsAccountForCoinSwap(LTarget.accountInfo)
+    And (TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(LTarget, LCurrentBlock, LCurrentProtocol, FData.payload.payload_raw));
 
   if (FData.sender=FData.target) AND (NOT LRecipientSignable) then begin
     AErrors := Format('Sender=Target and Target is not recipient-signable. Account: %d',[FData.sender]);
@@ -869,7 +875,7 @@ begin
   end;
   LTotalAmount := FData.amount + FData.fee;
   if (LSender.balance<LTotalAmount) then begin
-    AErrors := Format('Insufficient funds %d < (%d + %d = %d)',[LSender.balance,FData.amount,FData.fee,LTotalAmount]);
+    AErrors := Format('Insufficient sender funds %d < (%d + %d = %d)',[LSender.balance,FData.amount,FData.fee,LTotalAmount]);
     Exit;
   end;
   if (LTarget.balance+FData.amount>CT_MaxWalletAmount) then begin
@@ -916,9 +922,22 @@ begin
       Exit;
     end;
 
-    if (TAccountComp.IsAccountForSwap(LTarget.accountInfo) AND (LCurrentProtocol<CT_PROTOCOL_5)) then begin
-      AErrors := 'Atomic swaps are not allowed until Protocol 5';
-      exit;
+    if (LCurrentProtocol < CT_PROTOCOL_5) then begin
+      if (TAccountComp.IsAccountForSwap(LTarget.accountInfo)) then begin
+        AErrors := 'Atomic swaps are not allowed until Protocol 5';
+        exit;
+      end;
+    end else begin
+      if (Not TAccountComp.IsAccountForPublicSale(LTarget.accountInfo)) then begin
+        // On V5 cannot BUY accounts with time-lock EXPIRED  (private sale or Swaps)
+        if (Not TAccountComp.IsAccountLocked(LTarget.accountInfo,LCurrentBlock)) then begin
+          AErrors := Format('Target %s time lock expired on block %d (Current %d)',
+            [TAccountComp.AccountNumberToAccountTxtNumber(LTarget.account),
+            LTarget.accountInfo.locked_until_block,
+            LCurrentBlock]);
+          Exit;
+        end;
+      end;
     end;
 
     LSeller := ASafeBoxTransaction.Account(FData.SellerAccount);
@@ -931,14 +950,20 @@ begin
       AErrors := Format('Seller account %d is not expected account %d',[FData.SellerAccount,LTarget.accountInfo.account_to_pay]);
       exit;
     end;
-    LTotalAmount := LTarget.accountInfo.price;
-    if LRecipientSignable then
-      LTotalAmount := LTotalAmount + FData.fee;
-    
-    if (LTarget.balance + FData.amount) < LTotalAmount then begin
-      AErrors := Format('Account %d balance (%d) + amount (%d) < price (%d)',[LTarget.account,LTarget.balance,FData.amount,LTotalAmount]);
-      exit;
+
+    if (LSender.account = LTarget.account) then begin
+      // Self signed operation, amount is not used because has no effect
+      if (LSender.balance + FData.fee) < LTarget.accountInfo.price then begin
+        AErrors := Format('Self signed Account %d balance (%d) + fee (%d) < target price (%d)',[LTarget.account,LTarget.balance,FData.fee,LTarget.accountInfo.price]);
+        exit;
+      end;
+    end else begin
+      if (LTarget.balance + FData.amount) < LTarget.accountInfo.price then begin
+        AErrors := Format('Target Account %d balance (%d) + amount (%d) < target price (%d)',[LTarget.account,LTarget.balance,FData.amount,LTarget.accountInfo.price]);
+        exit;
+      end;
     end;
+
     if (FData.AccountPrice<>LTarget.accountInfo.price) then begin
       AErrors := Format('Signed price (%d) is not the same of account price (%d)',[FData.AccountPrice,LTarget.accountInfo.price]);
       exit;

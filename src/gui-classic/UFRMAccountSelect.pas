@@ -173,7 +173,7 @@ procedure TSearchThread.BCExecute;
       If validAccKey then begin
         isValid := TAccountComp.EqualAccountKeys(account.accountInfo.accountKey,FSearchValues.inAccountKey);
       end else if (Assigned(FSearchValues.inWalletKeys)) then begin
-        isValid := FSearchValues.inWalletKeys.IndexOfAccountKey(account.accountInfo.accountKey)>=0;
+        isValid := (FSearchValues.inWalletKeys.IndexOfAccountKey(account.accountInfo.accountKey)>=0) or (FSearchValues.onlyForPrivateSaleToMe);
       end;
       If isValid And (FSearchValues.onlyForSaleOrSwap) then begin
         isValid := TAccountComp.IsAccountForSaleOrSwap(account.accountInfo);

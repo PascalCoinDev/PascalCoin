@@ -152,7 +152,7 @@ Type
     Class function IsAccountForAccountSwap(const AAccountInfo: TAccountInfo) : Boolean;
     Class Function IsAccountForSaleOrSwap(const AAccountInfo: TAccountInfo) : Boolean;
     Class Function IsAccountForSaleOrSwapAcceptingTransactions(const AAccount: TAccount; ACurrentBlock : Integer; ACurrentProtocol : Word; const APayload : TRawBytes) : Boolean;
-    Class Function IsOperationRecipientSignable(const ASender, ATarget : TAccount; AIncomingFunds : UInt64; ACurrentBlock : Integer; ACurrentProtocol : Word) : Boolean;
+    Class Function IsOperationRecipientSignable(const ASender, ATarget : TAccount; ACurrentBlock : Integer; ACurrentProtocol : Word) : Boolean;
     Class Function GetECInfoTxt(Const EC_OpenSSL_NID: Word) : String;
     Class Procedure ValidsEC_OpenSSL_NID(list : TList<Word>);
     Class Function AccountKey2RawString(const account: TAccountKey): TRawBytes; overload;
@@ -1624,38 +1624,49 @@ begin
   if (ACurrentProtocol<CT_PROTOCOL_5) then begin
     // V4 and below only allows Private sales (No Swaps)
     if Not (IsAccountForPrivateSale(AAccount.accountInfo)) then Exit;
+  end else begin
+    // V5 only will allow PRIVATE SALES or SWAPS while locked
+    if (IsAccountForPublicSale(AAccount.accountInfo)) Then Exit; // Public sales not allowed
+    if (Not (IsAccountLocked(AAccount.accountInfo,ACurrentBlock))) then Exit; // Time lock expired
   end;
 
-  if (AAccount.accountInfo.state in [as_ForSale, as_ForAtomicAccountSwap]) then
+  if (AAccount.accountInfo.state in [as_ForSale, as_ForAtomicAccountSwap]) then begin
     if NOT IsValidAccountKey(AAccount.accountInfo.new_publicKey,errors) then
       exit;
+  end;
 
-   if (AAccount.accountInfo.state in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap]) then
-     if NOT IsValidAccountInfoHashLockKey(AAccount.accountInfo, APayload) then
-       exit;
+  if (AAccount.accountInfo.state in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap]) then begin
+    if NOT IsValidAccountInfoHashLockKey(AAccount.accountInfo, APayload) then
+      exit;
+  end;
   Result := True;
 end;
 
-Class Function TAccountComp.IsOperationRecipientSignable(const ASender, ATarget : TAccount; AIncomingFunds : UInt64; ACurrentBlock : Integer; ACurrentProtocol : Word) : Boolean;
+Class Function TAccountComp.IsOperationRecipientSignable(const ASender, ATarget : TAccount; ACurrentBlock : Integer; ACurrentProtocol : Word) : Boolean;
 begin
   // V5 - Allow recipient-signed operations under following conditions:
   //  - Sender Account = Target Account
-  //  - Target Account is listed for SWAP (Atomic Swap)
-  //  - Target Account is time-locked to new-owner-key R and time-lock is active
-  //  - (Target.Balance + Operation.Quantity) >= Target.SalePrice
-  //  - Signed by new-owner-key R
+  //  - Target Account is listed:
+  //      - Listed for ACCOUNT SWAP
+  //      or
+  //      - Listed for PRIVATE SALE
+  //  - Target Account is time-locked and time-lock is active
   //
   //  This allows following use-cases:
   //  - Private account sale where buyer does not have existing account to initiate transaction
   //  - Atomic account swap where counterparty does not have existing account to initiate transaction
+  //
+  // Note: this does not validate recipient signature, only determines if
+  // it is recipient signable
+  //
   Result := (ACurrentProtocol >= CT_PROTOCOL_5) AND
             (ASender.account = ATarget.account) AND
             TAccountComp.IsAccountLocked(ATarget.accountInfo, ACurrentBlock) AND
-            TAccountComp.IsAccountForSwap(ATarget.accountInfo) AND
-           ((ATarget.balance + AIncomingFunds) >= (ATarget.accountInfo.price));
-
- // Note: this does not validate recipient signature, only determines if
- // it is recipient signable
+            (
+              (TAccountComp.IsAccountForAccountSwap(ATarget.accountInfo))
+              OR
+              (TAccountComp.IsAccountForPrivateSale(ATarget.accountInfo))
+            );
 end;
 
 class function TAccountComp.IsAccountLocked(const AccountInfo: TAccountInfo; blocks_count: Cardinal): Boolean;
@@ -1771,7 +1782,7 @@ end;
 class function TAccountComp.IsValidNewAccountKey(const AAccountInfo : TAccountInfo; const ANewKey : TAccountKey; AProtocolVersion : Integer) : Boolean;
 begin
   Result :=False;
-  if AProtocolVersion <= CT_PROTOCOL_5 then begin
+  if AProtocolVersion < CT_PROTOCOL_5 then begin
     // V2 - V4 Rules
     // - Private Sale: non-null and must match stored new-key in account_info
     // - Public Sale: non-null

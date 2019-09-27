@@ -3425,6 +3425,9 @@ begin
         OperationResume.Fee := 0;
         Result := true;
       end else exit;
+      if (TOpBuyAccount(Operation).Data.sender = TOpBuyAccount(Operation).Data.target) then begin
+        OperationResume.Amount := TOpBuyAccount(Operation).Data.AccountPrice;
+      end;
     End;
     CT_Op_ChangeAccountInfo : Begin
       OperationResume.DestAccount := Operation.DestinationAccount;

@@ -243,8 +243,8 @@ type
     Procedure FillAccountInformation(Const Strings : TStrings; Const AccountNumber : Cardinal);
     Procedure FillOperationInformation(Const Strings : TStrings; Const OperationResume : TOperationResume);
     Procedure InitMacOSMenu;
-    {$IFDEF TESTNET}
     Procedure InitMenuForTesting;
+    {$IFDEF TESTNET}
     Procedure Test_RandomOperations(Sender: TObject);
     Procedure Test_AskForFreeAccount(Sender: TObject);
     {$IFDEF TESTING_NO_POW_CHECK}
@@ -252,6 +252,7 @@ type
     {$ENDIF}
     {$ENDIF}
     Procedure Test_ShowPublicKeys(Sender: TObject);
+    Procedure Test_ShowOperationsInMemory(Sender: TObject);
     procedure OnAccountsGridUpdatedData(Sender : TObject);
   protected
     { Private declarations }
@@ -1057,23 +1058,19 @@ begin
 end;
 
 
-{$IFDEF TESTNET}
 procedure TFRMWallet.InitMenuForTesting;
 var mi : TMenuItem;
 begin
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='-';
   miAbout.Add(mi);
+{$IFDEF TESTNET}
   {$IFDEF TESTING_NO_POW_CHECK}
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Create a block';
   mi.OnClick:=Test_CreateABlock;
   miAbout.Add(mi);
   {$ENDIF}
-  mi := TMenuItem.Create(MainMenu);
-  mi.Caption:='Show public keys state';
-  mi.OnClick:=Test_ShowPublicKeys;
-  miAbout.Add(mi);
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Create Random operations';
   mi.OnClick:=Test_RandomOperations;
@@ -1085,6 +1082,15 @@ begin
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Diagnostic Tool';
   mi.OnClick:=Test_ShowDiagnosticTool;
+  miAbout.Add(mi);
+{$ENDIF}
+  mi := TMenuItem.Create(MainMenu);
+  mi.Caption:='Show public keys state';
+  mi.OnClick:=Test_ShowPublicKeys;
+  miAbout.Add(mi);
+  mi := TMenuItem.Create(MainMenu);
+  mi.Caption:='Show operations in memory';
+  mi.OnClick:=Test_ShowOperationsInMemory;
   miAbout.Add(mi);
 
 end;
@@ -1113,6 +1119,7 @@ begin
 end;
 {$ENDIF}
 
+{$IFDEF TESTNET}
 procedure TFRMWallet.Test_RandomOperations(Sender: TObject);
 Var FRM : TFRMRandomOperations;
 begin
@@ -1135,6 +1142,27 @@ begin
 end;
 
 {$ENDIF}
+
+procedure TFRMWallet.Test_ShowOperationsInMemory(Sender: TObject);
+var LFRM : TFRMMemoText;
+  i, nOps : Integer;
+  Lslist : TStrings;
+begin
+  Lslist := TStringList.Create;
+  try
+    TPCOperationsStorage.PCOperationsStorage.GetStats(Lslist);
+    nOps := TPCOperationsStorage.PCOperationsStorage.Count;
+    LFRM := TFRMMemoText.Create(Self);
+    try
+      LFRM.InitData('Operations in Memory '+IntToStr(nOps),Lslist.Text);
+      LFRM.ShowModal;
+    finally
+      LFRM.Free;
+    end;
+  finally
+    Lslist.Free;
+  end;
+end;
 
 procedure TFRMWallet.Test_ShowPublicKeys(Sender: TObject);
 var F : TFRMMemoText;
@@ -1322,10 +1350,8 @@ begin
   cbHashRateUnits.Items.Add('Th/s');
   cbHashRateUnits.Items.Add('Ph/s');
   cbHashRateUnits.Items.Add('Eh/s');
-  {$IFDEF TESTNET}
   // Things for testing purposes only
   InitMenuForTesting;
-  {$ENDIF}
   {$ifdef DARWIN}
   // this is macOS specific menu layout
   InitMacOSMenu;

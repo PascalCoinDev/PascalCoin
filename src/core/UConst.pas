@@ -58,7 +58,7 @@ Const
 
   CT_WaitNewBlocksBeforeTransaction = {$IFDEF PRODUCTION}100{$ELSE}{$IFDEF TESTNET}10{$ENDIF}{$ENDIF};
 
-  CT_RecoverFoundsWaitInactiveCount = {$IFDEF PRODUCTION}1051200{$ELSE}{$IFDEF TESTNET}1000{$ENDIF}{$ENDIF};  // After 10 years... if an account has no operations, money will be a reward for a miner!
+  CT_RecoverFoundsWaitInactiveCount = {$IFDEF PRODUCTION}420480{$ELSE}{$IFDEF TESTNET}1000{$ENDIF}{$ENDIF};  // After 4 years... if an account has no operations, money will be a reward for a miner!
   CT_MaxFutureBlocksLockedAccount = {$IFDEF PRODUCTION}105120{$ELSE}{$IFDEF TESTNET}CT_RecoverFoundsWaitInactiveCount{$ENDIF}{$ENDIF}; // Maximum future blocks an account can be locked
 
   CT_MaxTransactionAmount = 1000000000000; // ... can be deleted
