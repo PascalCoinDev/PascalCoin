@@ -235,6 +235,7 @@ begin
     iPubKey := ASender.Node.Bank.SafeBox.OrderedAccountKeysList.IndexOfAccountKey(LAccPubKey);
     if (iPubKey<0) then begin
       // No account available with this pubkey, exit
+      Result := True;
       Exit;
     end;
   end else LSearchByPubkey := False;
