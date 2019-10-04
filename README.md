@@ -102,6 +102,9 @@ Also, consider a donation at PascalCoin development account: "0-10"
   - Updated "Multi Operation Object" values:
     - "changers" : ARRAY
       - "new_data" : (HEXASTRING) : If "data" is changed on "account"
+  - Allowed to use all input params related to an account number as a String and including checksum
+    - Example: Call "sendto" using param "sender"="1234-44" or "target"="12345-54"
+    - If value is not a valid format, call will return error
 
 TODO  
 - TODO: RPC calls for PIP-0029
