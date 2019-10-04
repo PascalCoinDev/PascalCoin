@@ -981,10 +981,8 @@ begin
     {$endregion}
     FPrevious_Seller_updated_block := LSeller.updated_on_block;
   end else if // (is auto buy) OR (is transaction that can buy)
-              (FData.opTransactionStyle = transaction_with_auto_buy_account) OR
-              (FData.opTransactionStyle = transaction_with_auto_atomic_swap) OR
               (
-                (FData.opTransactionStyle = transaction) AND
+                (FData.opTransactionStyle in [transaction,transaction_with_auto_buy_account,transaction_with_auto_atomic_swap]) AND
                 (LCurrentProtocol >= CT_PROTOCOL_2) AND
                 (TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(LTarget, LCurrentBlock, LCurrentProtocol, FData.payload.payload_raw)) AND
                 ((LTarget.balance + FData.amount >= LTarget.accountInfo.price))
