@@ -1627,7 +1627,13 @@ begin
   end else begin
     // V5 only will allow PRIVATE SALES or SWAPS while locked
     if (IsAccountForPublicSale(AAccount.accountInfo)) Then Exit; // Public sales not allowed
+    {$IFDEF TESTNET}
+    // TESTNET ONLY to allow a previous created blockchain
+    if (ACurrentBlock > 7000) and
+      (Not (IsAccountLocked(AAccount.accountInfo,ACurrentBlock))) then Exit; // Time lock expired
+    {$ELSE}
     if (Not (IsAccountLocked(AAccount.accountInfo,ACurrentBlock))) then Exit; // Time lock expired
+    {$ENDIF}
   end;
 
   if (AAccount.accountInfo.state in [as_ForSale, as_ForAtomicAccountSwap]) then begin

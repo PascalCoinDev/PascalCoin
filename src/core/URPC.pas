@@ -1171,6 +1171,26 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
   End;
 
+  Function CaptureAccountNumber(const AParamName : String; const ACheckAccountNumberExistsInSafebox : Boolean; var AAccountNumber : Cardinal; var AErrorParam : String) : Boolean;
+  var LParamValue : String;
+  Begin
+    LParamValue := params.AsString(AParamName,'');
+    if Length(LParamValue)>0 then begin
+      Result := TAccountComp.AccountTxtNumberToAccountNumber(LParamValue,AAccountNumber);
+      if Not Result then begin
+        AErrorParam := Format('"%s" is no valid Account number for Param "%s"',[LParamValue,AParamName]);
+      end else if (ACheckAccountNumberExistsInSafebox) then begin
+        if (AAccountNumber<0) or (AAccountNumber>=FNode.Bank.AccountsCount) then begin
+          Result := False;
+          AErrorParam := Format('Account %d does not exist in safebox (param "%s")',[AAccountNumber,AParamName]);
+        end;
+      end;
+    end else begin
+      Result := False;
+      AErrorParam := Format('Param "%s" not provided or null',[AParamName]);
+    end;
+  End;
+
   Function OpSendTo(sender, target : Cardinal; amount, fee : UInt64; Const RawPayload : TRawBytes; Const Payload_method, EncodePwd : String) : Boolean;
   // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
   Var opt : TOpTransaction;
@@ -1694,22 +1714,16 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     LStrVal : String;
   begin
     Result := false;
-    account_signer := params.AsInteger('account_signer',MaxInt);
-    if (account_signer>=MaxInt) then begin
+    if not CaptureAccountNumber('account_signer',False,account_signer,ErrorDesc) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      ErrorDesc := 'Invalid "account_signer" account';
       Exit;
     end;
-    account_target := params.AsInteger('account_target',MaxInt);
-    if (account_target>=MaxInt) then begin
+    if not CaptureAccountNumber('account_target',False,account_target,ErrorDesc) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      ErrorDesc := 'Invalid "account_target" account';
       Exit;
     end;
-    seller_account := params.AsInteger('seller_account',MaxInt);
-    if (seller_account>=MaxInt) then begin
+    if not CaptureAccountNumber('seller_account',False,seller_account,ErrorDesc) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      ErrorDesc := 'Invalid "seller_account" to pay';
       Exit;
     end;
     locked_until_block := params.AsInteger('locked_until_block',MaxInt);
@@ -1806,7 +1820,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
   end;
 
-  function SignListAccountForSaleColdWallet(Const HexaStringOperationsHashTree : String; params : TPCJSONObject) : boolean;
+  function SignListAccountForSaleColdWallet(Const HexaStringOperationsHashTree : String) : boolean;
   var errors : String;
     OperationsHashTree : TOperationsHashTree;
     accountpubkey : TAccountKey;
@@ -1849,16 +1863,12 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     fee : Int64;
   begin
     Result := false;
-    account_signer := params.AsInteger('account_signer',MaxInt);
-    if (account_signer>=MaxInt) then begin
+    if not CaptureAccountNumber('account_signer',False,account_signer,ErrorDesc) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      ErrorDesc := 'Invalid "account_signer" account';
       Exit;
     end;
-    account_target := params.AsInteger('account_target',MaxInt);
-    if (account_target>=MaxInt) then begin
+    if not CaptureAccountNumber('account_target',False,account_target,ErrorDesc) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      ErrorDesc := 'Invalid "account_target" account';
       Exit;
     end;
     fee := ToPascalCoins(params.AsDouble('fee',0));
@@ -1932,16 +1942,12 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     new_AccountData : TRawBytes;
   begin
     Result := false;
-    account_signer := params.AsInteger('account_signer',MaxInt);
-    if (account_signer>=MaxInt) then begin
+    if not CaptureAccountNumber('account_signer',False,account_signer,ErrorDesc) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      ErrorDesc := 'Invalid "account_signer" account';
       Exit;
     end;
-    account_target := params.AsInteger('account_target',MaxInt);
-    if (account_target>=MaxInt) then begin
+    if not CaptureAccountNumber('account_target',False,account_target,ErrorDesc) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      ErrorDesc := 'Invalid "account_target" account';
       Exit;
     end;
     fee := ToPascalCoins(params.AsDouble('fee',0));
@@ -2014,7 +2020,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
   end;
 
-  function SignChangeAccountInfoColdWallet(Const HexaStringOperationsHashTree : String; params : TPCJSONObject) : boolean;
+  function SignChangeAccountInfoColdWallet(Const HexaStringOperationsHashTree : String) : boolean;
   var errors : String;
     OperationsHashTree : TOperationsHashTree;
     accountpubkey : TAccountKey;
@@ -2043,7 +2049,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
   end;
 
-  function SignDelistAccountForSaleColdWallet(Const HexaStringOperationsHashTree : String; params : TPCJSONObject) : boolean;
+  function SignDelistAccountForSaleColdWallet(Const HexaStringOperationsHashTree : String) : boolean;
   var errors : String;
     OperationsHashTree : TOperationsHashTree;
     accountpubkey : TAccountKey;
@@ -2087,22 +2093,16 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     new_pubkey : TAccountKey;
   begin
     Result := false;
-    buyer_account := params.AsInteger('buyer_account',MaxInt);
-    if (buyer_account>=MaxInt) then begin
+    if not CaptureAccountNumber('buyer_account',False,buyer_account,ErrorDesc) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      ErrorDesc := 'Invalid buyer account';
       Exit;
     end;
-    account_to_purchase := params.AsInteger('account_to_purchase',MaxInt);
-    if (account_to_purchase>=MaxInt) then begin
+    if not CaptureAccountNumber('account_to_purchase',False,account_to_purchase,ErrorDesc) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      ErrorDesc := 'Invalid account to purchase';
       Exit;
     end;
-    seller_account := params.AsInteger('seller_account',MaxInt);
-    if (seller_account>=MaxInt) then begin
+    if not CaptureAccountNumber('seller_account',False,seller_account,ErrorDesc) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      ErrorDesc := 'Invalid seller account';
       Exit;
     end;
     price := ToPascalCoins(params.AsDouble('price',0));
@@ -2141,7 +2141,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
   end;
 
-  function SignBuyAccountColdWallet(Const HexaStringOperationsHashTree : String; params : TPCJSONObject) : boolean;
+  function SignBuyAccountColdWallet(Const HexaStringOperationsHashTree : String) : boolean;
   var errors : String;
     OperationsHashTree : TOperationsHashTree;
     accountpubkey : TAccountKey;
@@ -2170,7 +2170,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
   end;
 
-  function ListAccountForSale(params : TPCJSONObject) : boolean;
+  function ListAccountForSale : boolean;
   Var OperationsHashTree : TOperationsHashTree;
     account_signer, account_target : TAccount;
     opt : TPCOperation;
@@ -2183,27 +2183,13 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       Result := False;
       OperationsHashTree := TOperationsHashTree.Create;
       try
-        if (params.IndexOfName('account_signer')<0) then begin
+        if not CaptureAccountNumber('account_signer',True,c_account,ErrorDesc) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-          ErrorDesc := 'Need account_signer param';
-          Exit;
-        end;
-        c_account := params.AsCardinal('account_signer',0);
-        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
-          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-          ErrorDesc := 'Invalid account_signer '+params.AsString('account_signer','');
           Exit;
         end;
         account_signer := FNode.GetMempoolAccount(c_account);
-        if (params.IndexOfName('account_target')<0) then begin
+        if not CaptureAccountNumber('account_target',True,c_account,ErrorDesc) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-          ErrorDesc := 'Need account_target param';
-          Exit;
-        end;
-        c_account := params.AsCardinal('account_target',0);
-        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
-          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-          ErrorDesc := 'Invalid account_target '+params.AsString('account_target','');
           Exit;
         end;
         account_target := FNode.GetMempoolAccount(c_account);
@@ -2242,27 +2228,13 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       Result := False;
       OperationsHashTree := TOperationsHashTree.Create;
       try
-        if (params.IndexOfName('account_signer')<0) then begin
+        if not CaptureAccountNumber('account_signer',True,c_account,ErrorDesc) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-          ErrorDesc := 'Need account_signer param';
-          Exit;
-        end;
-        c_account := params.AsCardinal('account_signer',0);
-        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
-          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-          ErrorDesc := 'Invalid account_signer '+params.AsString('account_signer','');
           Exit;
         end;
         account_signer := FNode.GetMempoolAccount(c_account);
-        if (params.IndexOfName('account_target')<0) then begin
+        if not CaptureAccountNumber('account_target',True,c_account,ErrorDesc) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-          ErrorDesc := 'Need account_target param';
-          Exit;
-        end;
-        c_account := params.AsCardinal('account_target',0);
-        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
-          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-          ErrorDesc := 'Invalid account_target '+params.AsString('account_target','');
           Exit;
         end;
         account_target := FNode.GetMempoolAccount(c_account);
@@ -2288,7 +2260,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
   End;
 
-  function BuyAccount(params : TPCJSONObject) : boolean;
+  function BuyAccount : boolean;
   Var OperationsHashTree : TOperationsHashTree;
     buyer_account, account_to_purchase : TAccount;
     opt : TPCOperation;
@@ -2301,23 +2273,14 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       Result := False;
       OperationsHashTree := TOperationsHashTree.Create;
       try
-        if (params.IndexOfName('buyer_account')<0) then begin
+        if not CaptureAccountNumber('buyer_account',True,c_account,ErrorDesc) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-          ErrorDesc := 'Need buyer_account param';
-          Exit;
-        end;
-        c_account := params.AsCardinal('buyer_account',0);
-        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
-          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-          ErrorDesc := 'Invalid account '+params.AsString('buyer_account','');
           Exit;
         end;
         buyer_account := FNode.GetMempoolAccount(c_account);
         // Check params
-        c_account := params.AsInteger('account_to_purchase',MaxInt);
-        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
+        if not CaptureAccountNumber('account_to_purchase',True,c_account,ErrorDesc) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-          ErrorDesc := 'Invalid account to purchase '+params.AsString('account_to_purchase','');
           Exit;
         end;
         account_to_purchase := FNode.GetMempoolAccount(c_account);
@@ -2348,7 +2311,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
   End;
 
-  function ChangeAccountInfo(params : TPCJSONObject) : boolean;
+  function ChangeAccountInfo : boolean;
   Var OperationsHashTree : TOperationsHashTree;
     account_signer, account_target : TAccount;
     opt : TPCOperation;
@@ -2361,27 +2324,13 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       Result := False;
       OperationsHashTree := TOperationsHashTree.Create;
       try
-        if (params.IndexOfName('account_signer')<0) then begin
+        if not CaptureAccountNumber('account_signer',True,c_account,ErrorDesc) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-          ErrorDesc := 'Need account_signer param';
-          Exit;
-        end;
-        c_account := params.AsCardinal('account_signer',0);
-        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
-          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-          ErrorDesc := 'Invalid account_signer '+params.AsString('account_signer','');
           Exit;
         end;
         account_signer := FNode.GetMempoolAccount(c_account);
-        if (params.IndexOfName('account_target')<0) then begin
+        if not CaptureAccountNumber('account_target',True,c_account,ErrorDesc) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-          ErrorDesc := 'Need account_target param';
-          Exit;
-        end;
-        c_account := params.AsCardinal('account_target',0);
-        if (c_account<0) or (c_account>=FNode.Bank.AccountsCount) then begin
-          ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-          ErrorDesc := 'Invalid account_target '+params.AsString('account_target','');
           Exit;
         end;
         account_target := FNode.GetMempoolAccount(c_account);
@@ -2417,7 +2366,10 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     Result := False;
     oprl := TOperationsResumeList.Create;
     try
-      account := params.AsCardinal('account',MaxInt);
+      if not CaptureAccountNumber('account',True,account,ErrorDesc) then begin
+        ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
+        exit;
+      end;
       If (params.IndexOfName('n_operation_min')<0) Or (params.IndexOfName('n_operation_max')<0) then begin
         ErrorNum:=CT_RPC_ErrNum_NotFound;
         ErrorDesc:='Need n_operation_min and n_operation_max params';
@@ -2452,7 +2404,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
   end;
 
-  function MultiOperationAddOperation(Const HexaStringOperationsHashTree : String; params : TPCJSONObject) : boolean;
+  function MultiOperationAddOperation(Const HexaStringOperationsHashTree : String) : boolean;
     Function Capture_Current_Account(const nAccount : Int64) : TAccount;
     Begin
       Result := CT_Account_NUL;
@@ -2463,7 +2415,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   var errors : String;
     OperationsHashTree : TOperationsHashTree;
     jsonArr : TPCJSONArray;
-    i,j : Integer;
+    i : Integer;
     sender : TMultiOpSender;
     receiver : TMultiOpReceiver;
     changeinfo : TMultiOpChangeInfo;
@@ -2506,13 +2458,11 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       jsonArr := params.GetAsArray('senders');
       for i:=0 to jsonArr.Count-1 do begin
         sender := CT_TMultiOpSender_NUL;
-        j := jsonArr.GetAsObject(i).AsInteger('account',-1);
-        if j<0 then begin
+        if not TAccountComp.AccountTxtNumberToAccountNumber(jsonArr.GetAsObject(i).AsString('account',''),sender.Account) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidData;
-          ErrorDesc := 'Field "account" for "senders" array not found';
+          ErrorDesc := 'Field "account" for "senders" array not found at senders['+IntToStr(i)+']';
           Exit;
         end;
-        sender.Account := j;
         sender.Amount:= ToPascalCoins(jsonArr.GetAsObject(i).AsDouble('amount',0));
         sender.N_Operation:=jsonArr.GetAsObject(i).AsInteger('n_operation',0);
         // Update N_Operation with valid info
@@ -2530,13 +2480,11 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       jsonArr := params.GetAsArray('receivers');
       for i:=0 to jsonArr.Count-1 do begin
         receiver := CT_TMultiOpReceiver_NUL;
-        j := jsonArr.GetAsObject(i).AsInteger('account',-1);
-        if j<0 then begin
+        if not TAccountComp.AccountTxtNumberToAccountNumber(jsonArr.GetAsObject(i).AsString('account',''),receiver.Account) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidData;
-          ErrorDesc := 'Field "account" for "receivers" array not found';
+          ErrorDesc := 'Field "account" for "receivers" array not found at receivers['+IntToStr(i)+']';
           Exit;
         end;
-        receiver.Account := j;
         receiver.Amount:= ToPascalCoins(jsonArr.GetAsObject(i).AsDouble('amount',0));
         receiver.Payload.payload_raw:=TCrypto.HexaToRaw(jsonArr.GetAsObject(i).AsString('payload',''));
         receiver.Payload.payload_type := jsonArr.GetAsObject(i).AsInteger('payload_type',CT_TOperationPayload_NUL.payload_type);
@@ -2550,13 +2498,11 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       jsonArr := params.GetAsArray('changesinfo');
       for i:=0 to jsonArr.Count-1 do begin
         changeinfo := CT_TMultiOpChangeInfo_NUL;
-        j := jsonArr.GetAsObject(i).AsInteger('account',-1);
-        if j<0 then begin
+        if not TAccountComp.AccountTxtNumberToAccountNumber(jsonArr.GetAsObject(i).AsString('account',''),changeinfo.Account) then begin
           ErrorNum := CT_RPC_ErrNum_InvalidData;
-          ErrorDesc := 'Field "account" for "changesinfo" array not found';
+          ErrorDesc := 'Field "account" for "changesinfo" array not found at changesinfo['+IntToStr(i)+']';
           Exit;
         end;
-        changeinfo.Account := j;
         changeinfo.N_Operation:=jsonArr.GetAsObject(i).AsInteger('n_operation',0);
         // Update N_Operation with valid info
         if (changeinfo.N_Operation<=0) then changeinfo.N_Operation:=Capture_Current_Account(changeinfo.Account).n_operation+1;
@@ -2681,7 +2627,6 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       accounts_and_keys is a JSON ARRAY with Objects:
       - "account"
       - "b58_pubkey" or "enc_pubkey" : The public key of the "account"
-      - "protocol"
     }
   var i,iKey : Integer;
     pubKey : TAccountKey;
@@ -2691,8 +2636,8 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     signedAccounts := 0;
     if (Not (_RPCServer.FWalletKeys.IsValidPassword)) then Exit;
     for i := 0 to accounts_and_keys.Count-1 do begin
-      nAccount := accounts_and_keys.GetAsObject(i).AsCardinal('account',CT_MaxAccount);
-      If TPascalCoinJSONComp.CapturePubKey(accounts_and_keys.GetAsObject(i),'',pubKey,_error_desc) then begin
+      if TAccountComp.AccountTxtNumberToAccountNumber(accounts_and_keys.GetAsObject(i).AsString('account',''),nAccount) and
+        TPascalCoinJSONComp.CapturePubKey(accounts_and_keys.GetAsObject(i),'',pubKey,_error_desc) then begin
         iKey := _RPCServer.FWalletKeys.IndexOfAccountKey(pubKey);
         if (iKey>=0) then begin
           if (Assigned(_RPCServer.FWalletKeys.Key[iKey].PrivateKey)) then begin
@@ -2703,7 +2648,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
   end;
 
-  function MultiOperationSignCold(Const HexaStringOperationsHashTree : String; params : TPCJSONObject) : boolean;
+  function MultiOperationSignCold(Const HexaStringOperationsHashTree : String) : boolean;
   var errors : String;
     senderOperationsHashTree : TOperationsHashTree;
     mop : TOpMultiOperation;
@@ -2857,15 +2802,12 @@ begin
   end else if (method='getaccount') then begin
     // Param "account" contains account number
     // Returns JSON Object with account information based on BlockChain + Pending operations
-    c := params.GetAsVariant('account').AsCardinal(CT_MaxAccount);
-    if (c>=0) And (c<FNode.Bank.AccountsCount) then begin
+    if Not CaptureAccountNumber('account',True,c,ErrorDesc) then begin
+      ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+    end else begin
       account := FNode.GetMempoolAccount(c);
       TPascalCoinJSONComp.FillAccountObject(account,GetResultObject);
       Result := True;
-    end else begin
-      ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      if (c=CT_MaxAccount) then ErrorDesc := 'Need "account" param'
-      else ErrorDesc := 'Account not found: '+IntToStr(c);
     end;
   end else if (method='getwalletaccounts') then begin
     if (Not _RPCServer.AllowUsePrivateKeys) then begin
@@ -3162,16 +3104,13 @@ begin
     // Param "depht" (optional or "deep") contains max blocks deep to search (Default: 100)
     // Param "start" and "max" contains starting index and max operations respectively
     // Param "startblock" forces to start searching backwards on a fixed block, will not give balance for each operation due it's unknown
-    c := params.GetAsVariant('account').AsCardinal(CT_MaxAccount);
-    if ((c>=0) And (c<FNode.Bank.AccountsCount)) then begin
+    if CaptureAccountNumber('account',True,c,ErrorDesc) then begin
       if (params.IndexOfName('depth')>=0) then i := params.AsInteger('depth',100) else i:=params.AsInteger('deep',100);
       If params.IndexOfName('startblock')>=0 then c2 := params.AsCardinal('startblock',0)
       else c2 := 0;
       Result := GetAccountOperations(c,GetResultArray,i,params.AsInteger('start',0),params.AsInteger('max',100),c2);
     end else begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      If (c=CT_MaxAccount) then ErrorDesc := 'Need account param'
-      else ErrorDesc := 'Account not found: '+IntToStr(c);
     end;
   end else if (method='getpendings') then begin
     // Returns all the operations pending to be included in a block in "Operation resume format" as an array
@@ -3262,7 +3201,11 @@ begin
   end else if (method='findnoperation') then begin
     // Search for an operation signed by "account" and with "n_operation", start searching "block" (0=all)
     // "block" = 0 search in all blocks, pending operations included
-    Case FNode.FindNOperation(params.AsCardinal('block',0),params.AsCardinal('account',MaxInt),params.AsCardinal('n_operation',0),opr) of
+    if Not CaptureAccountNumber('account',True,c,ErrorDesc) then begin
+      ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+      Exit;
+    end;
+    Case FNode.FindNOperation(params.AsCardinal('block',0),c,params.AsCardinal('n_operation',0),opr) of
       found : ;
       invalid_params : begin
           ErrorNum:=CT_RPC_ErrNum_NotFound;
@@ -3298,7 +3241,15 @@ begin
       ErrorDesc := 'Wallet is password protected. Unlock first';
       exit;
     end;
-    Result := OpSendTo(params.AsCardinal('sender',CT_MaxAccount),params.AsCardinal('target',CT_MaxAccount),
+    if Not CaptureAccountNumber('sender',True,c2,ErrorDesc) then begin
+      ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+      Exit;
+    end;
+    if Not CaptureAccountNumber('target',True,c3,ErrorDesc) then begin
+      ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+      Exit;
+    end;
+    Result := OpSendTo(c2,c3,
        ToPascalCoins(params.AsDouble('amount',0)),
        ToPascalCoins(params.AsDouble('fee',0)),
        TCrypto.HexaToRaw(params.AsString('payload','')),
@@ -3323,6 +3274,14 @@ begin
       ErrorDesc := 'Wallet is password protected. Unlock first';
       exit;
     end;
+    if Not CaptureAccountNumber('sender',False,c2,ErrorDesc) then begin
+      ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+      Exit;
+    end;
+    if Not CaptureAccountNumber('target',False,c3,ErrorDesc) then begin
+      ErrorNum := CT_RPC_ErrNum_InvalidAccount;
+      Exit;
+    end;
     If Not CapturePubKey('sender_',senderpubkey,ErrorDesc) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
       exit;
@@ -3334,7 +3293,7 @@ begin
     Result := SignOpSendTo(
        params.AsString('rawoperations',''),
        params.AsCardinal('protocol',CT_BUILD_PROTOCOL),
-       params.AsCardinal('sender',CT_MaxAccount),params.AsCardinal('target',CT_MaxAccount),
+       c2,c3,
        senderpubkey,destpubkey,
        params.AsCardinal('last_n_operation',0),
        ToPascalCoins(params.AsDouble('amount',0)),
@@ -3357,15 +3316,14 @@ begin
       ErrorDesc := 'Wallet is password protected. Unlock first';
       exit;
     end;
-    if params.IndexOfName('account')<0 then begin
+    if Not CaptureAccountNumber('account',True,c,ErrorDesc) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      ErrorDesc := 'Need "account" param';
-      exit;
+      Exit;
     end;
-    c := params.AsCardinal('account',CT_MaxAccount);
-    if params.IndexOfName('account_signer')>=0 then begin
-      c2 := params.AsCardinal('account_signer',CT_MaxAccount);
-    end else c2 := c;
+    if Not CaptureAccountNumber('account_signer',True,c2,ansistr) then begin
+      c2 := c;
+    end;
+
     If Not CapturePubKey('new_',account.accountInfo.accountKey,ErrorDesc) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
       exit;
@@ -3426,15 +3384,13 @@ begin
       ErrorDesc := 'Wallet is password protected. Unlock first';
       exit;
     end;
-    if params.IndexOfName('account')<0 then begin
+    if Not CaptureAccountNumber('account',True,c,ErrorDesc) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      ErrorDesc := 'Need "account" param';
-      exit;
+      Exit;
     end;
-    c := params.AsCardinal('account',CT_MaxAccount);
-    if params.IndexOfName('account_signer')>=0 then begin
-      c2 := params.AsCardinal('account_signer',CT_MaxAccount);
-    end else c2 := c;
+    if Not CaptureAccountNumber('account_signer',True,c2,ansistr) then begin
+      c2 := c;
+    end;
     If Not CapturePubKey('old_',senderpubkey,ErrorDesc) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
       exit;
@@ -3458,14 +3414,14 @@ begin
       ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
       Exit;
     end;
-    Result := ListAccountForSale(params);
+    Result := ListAccountForSale;
   end else if (method='signlistaccountforsale') then begin
     if (Not _RPCServer.AllowUsePrivateKeys) then begin
       // Protection when server is locked to avoid private keys call
       ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
       Exit;
     end;
-    Result := SignListAccountForSaleColdWallet(params.AsString('rawoperations',''),params);
+    Result := SignListAccountForSaleColdWallet(params.AsString('rawoperations',''));
   end else if (method='delistaccountforsale') then begin
     if (Not _RPCServer.AllowUsePrivateKeys) then begin
       // Protection when server is locked to avoid private keys call
@@ -3479,35 +3435,35 @@ begin
       ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
       Exit;
     end;
-    Result := SignDelistAccountForSaleColdWallet(params.AsString('rawoperations',''),params);
+    Result := SignDelistAccountForSaleColdWallet(params.AsString('rawoperations',''));
   end else if (method='buyaccount') then begin
     if (Not _RPCServer.AllowUsePrivateKeys) then begin
       // Protection when server is locked to avoid private keys call
       ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
       Exit;
     end;
-    Result := BuyAccount(params);
+    Result := BuyAccount;
   end else if (method='signbuyaccount') then begin
     if (Not _RPCServer.AllowUsePrivateKeys) then begin
       // Protection when server is locked to avoid private keys call
       ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
       Exit;
     end;
-    Result := SignBuyAccountColdWallet(params.AsString('rawoperations',''),params);
+    Result := SignBuyAccountColdWallet(params.AsString('rawoperations',''));
   end else if (method='changeaccountinfo') then begin
     if (Not _RPCServer.AllowUsePrivateKeys) then begin
       // Protection when server is locked to avoid private keys call
       ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
       Exit;
     end;
-    Result := ChangeAccountInfo(params);
+    Result := ChangeAccountInfo;
   end else if (method='signchangeaccountinfo') then begin
     if (Not _RPCServer.AllowUsePrivateKeys) then begin
       // Protection when server is locked to avoid private keys call
       ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
       Exit;
     end;
-    Result := SignChangeAccountInfoColdWallet(params.AsString('rawoperations',''),params);
+    Result := SignChangeAccountInfoColdWallet(params.AsString('rawoperations',''));
   // V3 new calls
   end else if (method='signmessage') then begin
     if (Not _RPCServer.AllowUsePrivateKeys) then begin
@@ -3524,14 +3480,14 @@ begin
     Result := RawOperations_Delete(params.AsString('rawoperations',''),params.AsInteger('index',-1));
   // V3 Multioperation
   end else if (method='multioperationaddoperation') then begin
-    Result := MultiOperationAddOperation(params.AsString('rawoperations',''),params);
+    Result := MultiOperationAddOperation(params.AsString('rawoperations',''));
   end else if (method='multioperationsignoffline') then begin
     if (Not _RPCServer.AllowUsePrivateKeys) then begin
       // Protection when server is locked to avoid private keys call
       ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
       Exit;
     end;
-    Result := MultiOperationSignCold(params.AsString('rawoperations',''),params);
+    Result := MultiOperationSignCold(params.AsString('rawoperations',''));
   end else if (method='multioperationsignonline') then begin
     if (Not _RPCServer.AllowUsePrivateKeys) then begin
       // Protection when server is locked to avoid private keys call
