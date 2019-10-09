@@ -46,7 +46,6 @@ type
   protected
     FWindow32X1,FWindow32Y1,FWindow32X2,FWindow32Y2: DWord;
     FLock : TCriticalSection;
-    FPrivateKey : TECPrivateKey;
     FPoolMinerThread : TPoolMinerThread;
     FDeviceThreads : TList;
     FAppStartTime : TDateTime;
@@ -58,7 +57,7 @@ type
   end;
 
 Const
-  CT_MINER_VERSION = {$IFDEF PRODUCTION}'5.0'{$ELSE}{$IFDEF TESTNET}'5.0 TESTNET'{$ELSE}ERROR{$ENDIF}{$ENDIF};
+  CT_MINER_VERSION = {$IFDEF PRODUCTION}'5.1'{$ELSE}{$IFDEF TESTNET}'5.1 TESTNET'{$ELSE}ERROR{$ENDIF}{$ENDIF};
   CT_Line_DeviceStatus = 3;
   CT_Line_ConnectionStatus = 4;
   CT_Line_MinerValues = 7;
@@ -105,7 +104,7 @@ Const CT_state : Array[boolean] of String = ('Disconnected','Connected');
 var i : Integer;
   s : String;
 begin
-  If FPoolMinerThread.PoolMinerClient.PoolType=ptNone then s:='MINING'
+  If FPoolMinerThread.PoolMinerClient.PoolType=ptSolomine then s:='MINING'
   else s:='POOL MINING USER "'+FPoolMinerThread.PoolMinerClient.UserName+'"';
   If FPoolMinerThread.PoolMinerClient.Connected then begin
     WriteLine(CT_Line_ConnectionStatus,s + ' server: '+FPoolMinerThread.PoolMinerClient.ClientRemoteAddr);
@@ -203,6 +202,7 @@ var
   ErrorMsg: String;
   s : String;
   nsarr : TNodeServerAddressArray;
+  LLog : TLog;
 
   Function AddMiners : Boolean;
   var p,d,c,i : Integer;
@@ -345,17 +345,11 @@ var
 
   Procedure DoVisualprocess(minerName, UserName, Password : String);
   Var sc : tcrtcoord;
-    Flog : TLog;
     devt : TCustomMinerDeviceThread;
     i : Integer;
   Begin
-    FPoolMinerThread := TPoolMinerThread.Create(nsarr[0].ip,nsarr[0].port,FPrivateKey.PublicKey);
+    FPoolMinerThread := TPoolMinerThread.Create(nsarr[0].ip,nsarr[0].port,UserName,Password);
     try
-      If (UserName<>'') then begin
-        FPoolMinerThread.PoolMinerClient.PoolType:=ptIdentify;
-        FPoolMinerThread.PoolMinerClient.UserName:=UserName;
-        FPoolMinerThread.PoolMinerClient.Password:=Password;
-      end;
       If Not AddMiners then exit;
       if HasOption('t','testmode') then begin
         i := StrToIntDef(GetOptionValue('t','testmode'),-1);
@@ -393,12 +387,11 @@ var
         end else begin
           WriteLine(2,'Mining using '+IntToStr(FDeviceThreads.Count)+' devices');
         end;
-        Flog := TLog.Create(Nil);
+        LLog.OnInThreadNewLog:=OnInThreadNewLog;
         try
-          Flog.OnInThreadNewLog:=OnInThreadNewLog;
           DoWaitAndLog;
         finally
-          FLog.free;
+          LLog.OnInThreadNewLog:=Nil;
         end;
       finally
         cursoron;
@@ -411,11 +404,21 @@ var
 
 Var username,password : String;
 begin
+  LLog := TLog.Create(Self);
+  Try
+    If HasOption('l','logfile') then begin
+      s := Trim(GetOptionValue('l','logile'));
+      if s='' then s := 'PascalCoinMiner_'+FormatDateTime('yyyy-mm-dd_hh_nn_ss',Now)+'.log';
+      if HasOption('logall') then LLog.SaveTypes:=CT_TLogTypes_ALL
+      else LLog.SaveTypes:=CT_TLogTypes_DEFAULT;
+      LLog.FileName:=ExtractFileDir(ExeName)+PathDelim+s;
+    end;
+
   FLastLogs := TStringList.Create;
   FLock := TCriticalSection.Create;
   Try
     // quick check parameters
-    ErrorMsg:=CheckOptions('hp:d:s::c:n::t:u::x::', 'help platform device server cpu minername testmode user pwd');
+    ErrorMsg:=CheckOptions('hp:d:s::c:n::t:u::x::l::', 'help platform device server cpu minername testmode user pwd logfile logall');
     if ErrorMsg<>'' then begin
       //ShowException(Exception.Create(ErrorMsg));
       WriteLn(ErrorMsg);
@@ -486,37 +489,27 @@ begin
         WriteLn('Input Pool username (or empty for non pool connection):');
         Readln(username);
       end;
-      if (password='') And (username<>'') then begin
-        WriteLn('Input Pool password for user ',username,':');
-        Readln(password);
-      end;
     end;
 
-    FPrivateKey := TECPrivateKey.Create;
-    Try
-      FPrivateKey.GenerateRandomPrivateKey(CT_Default_EC_OpenSSL_NID);
-      DoVisualprocess(s,username,password);
-    finally
-      FreeAndNil(FPrivateKey);
-    end;
+    DoVisualprocess(s,username,password);
   finally
     FreeAndNil(FLock);
     FreeAndNil(FLastLogs);
     if not terminated then
       Terminate;
   end;
+
+  finally
+    FreeAndNil(LLog);
+  end;
 end;
 
 constructor TPascalMinerApp.Create(TheOwner: TComponent);
-Var FLog : TLog;
 begin
   inherited Create(TheOwner);
   FDeviceThreads := TList.Create;
   StopOnException:=True;
   FAppStartTime := Now;
-  FLog := TLog.Create(self);
-  FLog.SaveTypes:=CT_TLogTypes_DEFAULT;
-  FLog.FileName:=ExtractFileDir(ExeName)+PathDelim+'PascalCoinMiner.log';
 end;
 
 destructor TPascalMinerApp.Destroy;
@@ -537,6 +530,8 @@ begin
   writeln('    Y can be multiple devices. Example -d 0,2,3  Will use devices 0, 2 and 3');
   writeln('  -c N  (For CPU mining, where N is CPU''s to use. Activating this disable GPU mining)');
   writeln('  -n MYNAME  (Will add MYNAME value to miner name assigned by server)');
+  writeln('  -l LOG_FILENAME  (Will log to specified filename or will generate a new filename)');
+  writeln('    --logall log filename will include extra information (like full JSON commands)');
   writeln('  ** POOL IDENTIFICATION PROTOCOL **');
   writeln('  (Not needed for PascalCoin core, only some third party pools)');
   writeln('  -u USERNAME');

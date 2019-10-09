@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
-    <Version Value="12"/>
+    <Version Value="10"/>
     <PathDelim Value="\"/>
     <General>
       <Flags>
         <MainUnitHasCreateFormStatements Value="False"/>
         <MainUnitHasTitleStatement Value="False"/>
-        <CompatibilityMode Value="True"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <Title Value="PascalCoinMiner"/>
+      <MainUnit Value="0"/>      
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
@@ -25,16 +24,9 @@
     </PublishOptions>
     <RunParams>
       <local>
+        <FormatVersion Value="1"/>
         <CommandLineParams Value="-c 1 -s -n TEST"/>
       </local>
-      <FormatVersion Value="2"/>
-      <Modes Count="1">
-        <Mode0 Name="default">
-          <local>
-            <CommandLineParams Value="-c 1 -s -n TEST"/>
-          </local>
-        </Mode0>
-      </Modes>
     </RunParams>
     <RequiredPackages Count="1">
       <Item1>
@@ -44,8 +36,7 @@
     <Units Count="1">
       <Unit0>
         <Filename Value="pascalcoin_miner.pp"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="PascalCoinMiner"/>
+        <IsPartOfProject Value="True"/>        
       </Unit0>
     </Units>
   </ProjectOptions>
@@ -62,7 +53,7 @@
     </SearchPaths>
     <CodeGeneration>
       <Optimizations>
-        <OptimizationLevel Value="4"/>
+        <OptimizationLevel Value="3"/>
       </Optimizations>
     </CodeGeneration>
     <Linking>

@@ -63,14 +63,14 @@ Type
     FTestingMode: Boolean;
     Procedure OnPoolMinerClientConnectionChanged(Sender : TObject);
     Procedure OnPoolMinerMustChangeValues(Sender : TObject);
-    Procedure OnMinerNewBlockFound(sender : TCustomMinerDeviceThread; const usedMinerValuesForWork : TMinerValuesForWork; Timestamp : Cardinal; NOnce : Cardinal);
+    Procedure OnMinerNewBlockFound(sender : TCustomMinerDeviceThread; const usedMinerValuesForWork : TMinerValuesForWork; Timestamp : Cardinal; NOnce : Cardinal; const AObtainedPoW : TRawBytes);
     Procedure NotifyPoolMinerConnectionChanged;
     procedure SetMinerAddName(AValue: String);
     procedure SetTestingPoWLeftBits(AValue: Byte);
   protected
     procedure BCExecute; override;
   public
-    Constructor Create(RemoteHost : String; RemotePort : Integer; InitialAccountKey : TAccountKey);
+    Constructor Create(RemoteHost : String; RemotePort : Integer; const AUserName, APassword : String);
     Destructor Destroy; override;
     Property PoolMinerClient : TPoolMinerClient read FPoolMinerClient;
     Property OnConnectionStateChanged : TNotifyEvent read FOnConnectionStateChanged write FOnConnectionStateChanged;
@@ -185,12 +185,15 @@ Var nID : Cardinal;
   i : Integer;
   ResponseMethod : String;
   l : TList<TCustomMinerDeviceThread>;
+  LParams : TPCJSONArray;
+  LPoolResult : TPCJSONObject;
 begin
   DebugStep:='Starting';
   Try
     while not Terminated do begin
       if FTestingMode then begin
       end else if not FPoolMinerClient.Connected then begin
+        FPoolMinerClient.Stratum_Authorized := False;
         DebugStep:='Not connected';
         If Not FPoolMinerClient.Connect then begin
         end else begin
@@ -198,9 +201,12 @@ begin
         end;
       end else begin
           DebugStep:='Starting process';
-          // Start Process
-          nId:=FPoolMinerClient.GetNewId;
-          FPoolMinerClient.SendJSONRPCMethod(CT_PoolMining_Method_MINER_NOTIFY,nil,nId);
+          if FPoolMinerClient.PoolType = ptPoolSubscription then begin
+          end else begin
+            // Start Process Solo mining (direct to PascalCoin node)
+            nId:=FPoolMinerClient.GetNewId;
+            FPoolMinerClient.SendJSONRPCMethod(CT_PoolMining_Method_MINER_NOTIFY,nil,nId);
+          end;
           json := TPCJSONObject.create;
           try
             DebugStep:='Starting repeat';
@@ -232,7 +238,7 @@ begin
   End;
 end;
 
-constructor TPoolMinerThread.Create(RemoteHost: String; RemotePort: Integer; InitialAccountKey : TAccountKey);
+constructor TPoolMinerThread.Create(RemoteHost: String; RemotePort: Integer; const AUserName, APassword : String);
 begin
   FGlobalMinerValuesForWork := CT_TMinerValuesForWork_NULL;
   FPoolMinerClient := TPoolMinerClient.Create(Nil);
@@ -241,6 +247,13 @@ begin
   FPoolMinerClient.OnMinerMustChangeValues := OnPoolMinerMustChangeValues;
   FPoolMinerClient.OnConnect := OnPoolMinerClientConnectionChanged;
   FPoolMinerClient.OnDisconnect := OnPoolMinerClientConnectionChanged;
+  if Length(AUserName)>0 then begin
+    FPoolMinerClient.PoolType := ptPoolSubscription;
+    FPoolMinerClient.UserName := AUserName;
+    FPoolMinerClient.Password := APassword;
+  end else begin
+    FPoolMinerClient.PoolType := ptSolomine;
+  end;
   FOnConnectionStateChanged := Nil;
   FDevicesList := TPCThreadList<TCustomMinerDeviceThread>.Create('TPoolMinerThread_DevicesList');
   FMinerThreads := 0;
@@ -351,12 +364,11 @@ begin
   else FTestingPoWLeftBits:=0;
 end;
 
-procedure TPoolMinerThread.OnMinerNewBlockFound(sender : TCustomMinerDeviceThread; const usedMinerValuesForWork : TMinerValuesForWork; Timestamp : Cardinal; NOnce : Cardinal);
+procedure TPoolMinerThread.OnMinerNewBlockFound(sender : TCustomMinerDeviceThread; const usedMinerValuesForWork : TMinerValuesForWork; Timestamp : Cardinal; NOnce : Cardinal; const AObtainedPoW : TRawBytes);
 begin
   FDevicesList.LockList;
   try
-    TLog.NewLog(ltinfo,ClassName,'FOUND VALID NONCE!!! Block:'+IntToStr(usedMinerValuesForWork.block)+' Timestamp:'+Inttostr(Timestamp)+ ' Nonce:'+Inttostr(NOnce)+' Payload:'+usedMinerValuesForWork.payload_start.ToString);
-    FPoolMinerClient.SubmitBlockFound(usedMinerValuesForWork,usedMinerValuesForWork.payload_start,Timestamp,NOnce);
+    FPoolMinerClient.SubmitBlockFound(usedMinerValuesForWork,usedMinerValuesForWork.FinalPayload,Timestamp,NOnce,AObtainedPoW);
   finally
     FDevicesList.UnlockList;
   end;
@@ -386,14 +398,19 @@ Var l : TList<TCustomMinerDeviceThread>;
   minervfw : TMinerValuesForWork;
   auxminervfw : TMinerValuesForWork;
   auxRaw : TRawBytes;
+  s : String;
 begin
   FGlobalMinerValuesForWork := FPoolMinerClient.MinerValuesForWork;
-  TLog.NewLog(ltupdate,ClassName,Format('New miner values. Block %d Target %s Payload %s',[FPoolMinerClient.MinerValuesForWork.block,
-    IntToHex(FPoolMinerClient.MinerValuesForWork.target,8), FPoolMinerClient.MinerValuesForWork.payload_start.ToPrintable]));
   l := FDevicesList.LockList;
   Try
     for i := 0 to l.Count - 1 do begin
       minervfw := FGlobalMinerValuesForWork;
+      if (FGlobalMinerValuesForWork.IsStratum) And (FGlobalMinerValuesForWork.extraNOnce2_Size>0) then begin
+        s := IntToStr(i+1);
+        while Length(s)<FGlobalMinerValuesForWork.extraNOnce2_Size do s := '0' + s;
+        minervfw.extraNOnce2_Used.FromString( s );
+      end else begin
+
       auxRaw.FromString(FMinerAddName);
       TBaseType.Concat(minervfw.payload_start,auxRaw,minervfw.payload_start);
       if (l.count>1) then begin
@@ -410,6 +427,8 @@ begin
           end;
         until (Ok);
       end;
+
+      end;
       If FTestingPoWLeftBits>0 then begin
         auxminervfw := minervfw;
         auxminervfw.target:= ((((auxminervfw.target AND $FF000000) SHR 24)-FTestingPoWLeftBits) SHL 24) + (minervfw.target AND $00FFFFFF);
@@ -420,6 +439,10 @@ begin
         TCustomMinerDeviceThread(l[i]).SetMinerValuesForWork(minervfw);
       end;
     end;
+    TLog.NewLog(ltupdate,ClassName,Format('Block %d Target %s Payload %s Devices %d PoW:%s',[FPoolMinerClient.MinerValuesForWork.block,
+      IntToHex(FPoolMinerClient.MinerValuesForWork.target,8), FPoolMinerClient.MinerValuesForWork.payload_start.ToPrintable,
+      l.Count,
+      FGlobalMinerValuesForWork.target_pow.ToHexaString ]));
   Finally
     FDevicesList.UnlockList;
   End;
@@ -507,7 +530,7 @@ begin
     LHash := TCrypto.DoSha256(TCrypto.DoSha256(digest));
   if (TBaseType.BinStrComp(LHash,usedMinerValuesForWork.target_pow)<=0) then begin
     inc(FGlobaDeviceStats.WinsCount);
-    FPoolMinerThread.OnMinerNewBlockFound(self,usedMinerValuesForWork,Timestamp,nOnce);
+    FPoolMinerThread.OnMinerNewBlockFound(self,usedMinerValuesForWork,Timestamp,nOnce,LHash);
     If Assigned(FOnFoundNOnce) then FOnFoundNOnce(Self,Timestamp,nOnce);
   end else begin
     inc(FGlobaDeviceStats.Invalids);
@@ -523,15 +546,18 @@ end;
 procedure TCustomMinerDeviceThread.CreateDigest(const AMinerValuesForWork: TMinerValuesForWork; Timestamp, nOnce: Cardinal; var ODigest: TRawBytes);
 begin
   // Validation
-  SetLength(ODigest,Length(AMinerValuesForWork.part1) + Length(AMinerValuesForWork.payload_start) + Length(AMinerValuesForWork.part3) + 8);
+  SetLength(ODigest,Length(AMinerValuesForWork.part1) + Length(AMinerValuesForWork.payload_start) + Length(AMinerValuesForWork.extraNOnce2_Used) + Length(AMinerValuesForWork.part3) + 8);
   move(AMinerValuesForWork.part1[0],
     ODigest[0],
     Length(AMinerValuesForWork.part1));
   move(AMinerValuesForWork.payload_start[0],
     ODigest[Length(AMinerValuesForWork.part1)],
     Length(AMinerValuesForWork.payload_start));
+  move(AMinerValuesForWork.extraNOnce2_Used[0],
+    ODigest[Length(AMinerValuesForWork.part1) + Length(AMinerValuesForWork.payload_start) ],
+    Length(AMinerValuesForWork.extraNOnce2_Used));
   move(AMinerValuesForWork.part3[0],
-    ODigest[ Length(AMinerValuesForWork.part1) + Length(AMinerValuesForWork.payload_start) ],
+    ODigest[ Length(AMinerValuesForWork.part1) + Length(AMinerValuesForWork.payload_start) + Length(AMinerValuesForWork.extraNOnce2_Used) ],
     Length(AMinerValuesForWork.part3));
   // Add timestamp and nonce
   move(Timestamp,ODigest[length(ODigest)-8],4);
@@ -582,7 +608,8 @@ var aux : Integer;
 begin
   FMinerValuesForWork := Value;
   UpdateMinerValuesForWorkLength(FMinerValuesForWork,aux);
-  TLog.NewLog(ltinfo,classname,Format('Updated MinerValuesForWork: Target:%s Payload:%s Target_PoW:%s',[IntToHex(FMinerValuesForWork.target,8),FMinerValuesForWork.payload_start.ToString,TCrypto.ToHexaString(FMinerValuesForWork.target_pow)]));
+  TLog.NewLog(ltdebug,classname,
+    Format('Updated MinerValuesForWork: Target:%s Payload:%s Target_PoW:%s',[IntToHex(FMinerValuesForWork.target,8),FMinerValuesForWork.payload_start.ToString,TCrypto.ToHexaString(FMinerValuesForWork.target_pow)]));
   If Assigned(FOnMinerValuesChanged) then FOnMinerValuesChanged(Self);
 end;
 
