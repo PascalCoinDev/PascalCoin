@@ -434,10 +434,10 @@ procedure TFRMDiagnosticTool.btnRH2CClick(Sender: TObject);
 begin
   if FRH2CachedThread.Suspended then begin
     FRH2CachedThread.Suspended := False;
-    btnRHC.Caption := 'Stop Random Hash 2 (Cached)';
+    btnRH2C.Caption := 'Stop Random Hash 2 (Cached)';
   end else begin
     FRH2CachedThread.Finish;
-    btnRHC.Caption := 'Start Random Hash 2 (Cached)';
+    btnRH2C.Caption := 'Start Random Hash 2 (Cached)';
   end;
 end;
 
