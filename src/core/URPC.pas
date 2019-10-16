@@ -420,8 +420,9 @@ Begin
   jsonObj.GetAsVariant('balance').Value:=TAccountComp.FormatMoneyDecimal(account.balance);
   jsonObj.GetAsVariant('balance_s').Value:=TAccountComp.FormatMoney(account.balance);
   jsonObj.GetAsVariant('n_operation').Value:=account.n_operation;
-  jsonObj.GetAsVariant('updated_b').Value:=account.updated_on_block;
-  jsonObj.GetAsVariant('n_operation_updated_block').Value:=account.updated_on_block_active_mode;
+  jsonObj.GetAsVariant('updated_b').Value:=account.GetLastUpdatedBlock;
+  jsonObj.GetAsVariant('updated_b_active_mode').Value:=account.updated_on_block_active_mode;
+  jsonObj.GetAsVariant('updated_b_passive_mode').Value:=account.updated_on_block_passive_mode;
   case account.accountInfo.state of
     as_Normal : jsonObj.GetAsVariant('state').Value:='normal';
     as_ForSale : begin

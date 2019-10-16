@@ -595,8 +595,6 @@ begin
     Exit;
   end;
 
-  FPrevious_Signer_updated_block := account_signer.updated_on_block;
-  FPrevious_Destination_updated_block := account_target.updated_on_block;
   If (public_key in FData.changes_type) then begin
     account_target.accountInfo.accountKey := FData.new_accountkey;
   end;
@@ -906,8 +904,6 @@ begin
 
   {$endregion}
 
-  FPrevious_Signer_updated_block := LSender.updated_on_block;
-  FPrevious_Destination_updated_block := LTarget.updated_on_block;
 
   // Is buy account ?
   if (FData.opTransactionStyle = buy_Account ) then begin
@@ -979,7 +975,6 @@ begin
     If Not (TAccountComp.IsValidAccountKey(FData.new_accountkey,AErrors)) then exit; // BUG 20171511
     LBuyAccountNewPubkey := FData.new_accountkey;
     {$endregion}
-    FPrevious_Seller_updated_block := LSeller.updated_on_block;
   end else if // (is auto buy) OR (is transaction that can buy)
               (
                 (FData.opTransactionStyle in [transaction,transaction_with_auto_buy_account,transaction_with_auto_atomic_swap]) AND
@@ -1030,7 +1025,6 @@ begin
     FData.AccountPrice := LTarget.accountInfo.price;
     FData.SellerAccount := LTarget.accountInfo.account_to_pay;
     LSeller := ASafeBoxTransaction.Account(LTarget.accountInfo.account_to_pay);
-    FPrevious_Seller_updated_block := LSeller.updated_on_block;
     if TAccountComp.IsAccountForCoinSwap( LTarget.accountInfo ) then begin
       // We will save extra info that account key has not changed
       FData.new_accountkey := CT_TECDSA_Public_Nul;
@@ -1508,8 +1502,6 @@ begin
     Exit;
   end;
 
-  FPrevious_Signer_updated_block := account_signer.updated_on_block;
-  FPrevious_Destination_updated_block := account_target.updated_on_block;
   account_target.accountInfo.accountKey := FData.new_accountkey;
   // Set to normal:
   account_target.accountInfo.state := as_Normal;
@@ -1781,7 +1773,6 @@ begin
   if Not TAccountComp.IsValidAccountKey(FData.new_accountkey,errors) then begin
     Exit;
   end;
-  FPrevious_Signer_updated_block := acc.updated_on_block;
   Result := AccountTransaction.UpdateAccountInfo(AccountPreviousUpdatedBlock,
     GetOpID,
     FData.account,FData.n_operation, FData.account,
@@ -2084,9 +2075,6 @@ begin
     errors := 'Invalid ECDSA signature';
     Exit;
   end;
-
-  FPrevious_Signer_updated_block := account_signer.updated_on_block;
-  FPrevious_Destination_updated_block := account_target.updated_on_block;
 
   if LIsDelist then begin
     account_target.accountInfo.state := as_Normal;
