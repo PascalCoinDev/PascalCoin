@@ -1270,6 +1270,7 @@ class procedure TAccountComp.SaveAccountToAStream(Stream: TStream; const Account
 var w : Word;
   LTmpSeal : T20Bytes;
   LTmpRaw : TRawBytes;
+  LCardinal : Cardinal;
 begin
   if current_protocol<CT_PROTOCOL_5 then
     w := CT_PROTOCOL_4
@@ -1278,9 +1279,12 @@ begin
   Stream.Write(Account.account,Sizeof(Account.account));
   TStreamOp.WriteAnsiString(Stream,AccountInfo2RawString(Account.accountInfo));
   Stream.Write(Account.balance,Sizeof(Account.balance));
-  Stream.Write(Account.updated_on_block_passive_mode,Sizeof(Account.updated_on_block_passive_mode));
   if current_protocol>=CT_PROTOCOL_5 then begin
+    Stream.Write(Account.updated_on_block_passive_mode,Sizeof(Account.updated_on_block_passive_mode));
     Stream.Write(Account.updated_on_block_active_mode,Sizeof(Account.updated_on_block_active_mode));
+  end else begin
+    LCardinal := Account.GetLastUpdatedBlock;
+    Stream.Write(LCardinal,Sizeof(LCardinal));
   end;
   Stream.Write(Account.n_operation,Sizeof(Account.n_operation));
   TStreamOp.WriteAnsiString(Stream,Account.name);
@@ -2252,6 +2256,7 @@ var i, base_addr : Integer;
   //
   account_dev,
   account_0 : TAccount;
+  LAccountKey: TAccountKey;
   //
   acc_0_miner_reward,acc_4_dev_reward : Int64;
   acc_4_for_dev : Boolean;
@@ -2268,6 +2273,11 @@ begin
     If (AccountsCount>account_0.account_type) then begin
       account_dev := Account(account_0.account_type);
     end else account_dev := account_0;
+    if (account_dev.account=0) then begin
+      LAccountKey := blockChain.account_key;
+    end else begin
+      LAccountKey := account_dev.accountInfo.accountKey;
+    end;
   end;
 
   base_addr := BlocksCount * CT_AccountsPerBlock;
@@ -2281,7 +2291,7 @@ begin
     Result.accounts[i].updated_on_block_active_mode := BlocksCount;
     Result.accounts[i].n_operation := 0;
     if (acc_4_for_dev) And (i=CT_AccountsPerBlock-1) then begin
-      Result.accounts[i].accountInfo.accountKey := account_dev.accountInfo.accountKey;
+      Result.accounts[i].accountInfo.accountKey := LAccountKey;
       SetLength(accs_dev,length(accs_dev)+1);
       accs_dev[High(accs_dev)] := base_addr + i;
       Result.accounts[i].balance := acc_4_dev_reward;
@@ -2314,7 +2324,7 @@ begin
     AccountKeyListAddAccounts(blockChain.account_key,accs_miner);
   end;
   If (length(accs_dev)>0) then begin
-    AccountKeyListAddAccounts(account_dev.accountInfo.accountKey,accs_dev);
+    AccountKeyListAddAccounts(LAccountKey,accs_dev);
   end;
   // Calculating new value of safebox
   FSafeBoxHash := CalcSafeBoxHash;
@@ -3546,9 +3556,12 @@ begin
       Stream.Write(b.accounts[iacc].account,Sizeof(b.accounts[iacc].account));
       TStreamOp.WriteAnsiString(Stream,TAccountComp.AccountInfo2RawString(b.accounts[iacc].accountInfo));
       Stream.Write(b.accounts[iacc].balance,Sizeof(b.accounts[iacc].balance));
-      Stream.Write(b.accounts[iacc].updated_on_block_passive_mode,Sizeof(b.accounts[iacc].updated_on_block_passive_mode));
       if FCurrentProtocol>=CT_PROTOCOL_5 then begin
+        Stream.Write(b.accounts[iacc].updated_on_block_passive_mode,Sizeof(b.accounts[iacc].updated_on_block_passive_mode));
         Stream.Write(b.accounts[iacc].updated_on_block_active_mode,Sizeof(b.accounts[iacc].updated_on_block_active_mode));
+      end else begin
+        LCardinal := b.accounts[iacc].GetLastUpdatedBlock;
+        Stream.Write(LCardinal,SizeOf(LCardinal));
       end;
       Stream.Write(b.accounts[iacc].n_operation,Sizeof(b.accounts[iacc].n_operation));
       If FCurrentProtocol>=CT_PROTOCOL_2 then begin
@@ -5929,6 +5942,7 @@ end;
 
 procedure TAccount_Helper.SerializeAccount(AStream: TStream; current_protocol : Word);
 var LRaw : TRawBytes;
+  LCardinal : Cardinal;
 begin
   if current_protocol>=CT_PROTOCOL_5 then TAccountComp.SaveAccountToAStream(AStream,Self,current_protocol)
   else begin
@@ -5936,7 +5950,8 @@ begin
     LRaw := TAccountComp.AccountInfo2RawString(Self.accountInfo);
     AStream.WriteBuffer(LRaw[Low(LRaw)],Length(LRaw));
     AStream.Write(Self.balance,8);
-    AStream.Write(Self.updated_on_block_passive_mode,4);
+    LCardinal := Self.GetLastUpdatedBlock;
+    AStream.Write(LCardinal,4);
     AStream.Write(Self.n_operation,4);
     if (current_protocol>=2) then begin
         // Use new Protocol 2 fields
