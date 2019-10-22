@@ -1326,7 +1326,7 @@ begin
   MinersBlocksFound := 0;
   lblBuild.Caption := 'Build: '+CT_ClientAppVersion;
   {$IFDEF TESTNET}
-  Image1.visible := false;
+  lblBuild.Font.Color := clRed;
   {$ENDIF}
   PageControl.Enabled := False;
   PageControl.Visible := False;
