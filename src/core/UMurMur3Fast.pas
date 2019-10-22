@@ -18,6 +18,10 @@ unit UMurMur3Fast;
 
 {$IFDEF FPC}
   {$MODE delphi}
+  {$OVERFLOWCHECKS OFF}
+  {$RANGECHECKS OFF}
+  {$POINTERMATH ON}
+  {$DEFINE no_assembler} // FPC will not use assembler (error on Linux)
 {$ENDIF}
 
 interface
@@ -285,7 +289,6 @@ const
   n = $E6546B64;
   f1 = $85EBCA6B;
   f2 = $C2B2AE35;
-{.$DEFINE no_assembler} // Active only for non assembler
 {$IFDEF no_assembler}
 var
   i, Len2: integer;

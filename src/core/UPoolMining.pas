@@ -1299,6 +1299,8 @@ begin
       end;
       MinerValuesForWork := mvfw;
     end else TLog.NewLog(ltError,ClassName,'method '+method+' without JSON object '+params.ToJSON(false));
+  end else if (method=CT_PoolMining_Method_MINER_SUBMIT) then begin
+    //
   end else if (method=CT_PoolMining_Method_STRATUM_MINING_AUTHORIZE) And
     (PoolType=ptPoolSubscription) And (Assigned(params_as_array)) then begin
     //
