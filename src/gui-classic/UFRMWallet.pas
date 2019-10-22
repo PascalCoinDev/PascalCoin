@@ -902,7 +902,7 @@ begin
   Strings.Add('');
   Strings.Add(Format('Current balance: %s',[TAccountComp.FormatMoney(account.balance)]));
   Strings.Add('');
-  Strings.Add(Format('Updated on block: %d  (%d blocks ago)',[account.updated_on_block,FNode.Bank.BlocksCount-account.updated_on_block]));
+  Strings.Add(Format('Updated on block: %d  (%d blocks ago)',[account.GetLastUpdatedBlock,FNode.Bank.BlocksCount-account.GetLastUpdatedBlock]));
   Strings.Add(Format('Updated on block as active mode: %d  (%d blocks ago)',[account.updated_on_block_active_mode,FNode.Bank.BlocksCount-account.updated_on_block_active_mode]));
   Strings.Add(Format('Public key type: %s',[TAccountComp.GetECInfoTxt(account.accountInfo.accountKey.EC_OpenSSL_NID)]));
   Strings.Add(Format('Base58 Public key: %s',[TAccountComp.AccountPublicKeyExport(account.accountInfo.accountKey)]));
@@ -1326,7 +1326,7 @@ begin
   MinersBlocksFound := 0;
   lblBuild.Caption := 'Build: '+CT_ClientAppVersion;
   {$IFDEF TESTNET}
-  Image1.visible := false;
+  lblBuild.Font.Color := clRed;
   {$ENDIF}
   PageControl.Enabled := False;
   PageControl.Visible := False;

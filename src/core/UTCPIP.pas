@@ -264,7 +264,6 @@ begin
       if (FConnected) then begin
         FRemoteHost := FTcpBlockSocket.GetRemoteSinIP;
         FRemotePort := FTcpBlockSocket.GetRemoteSinPort;
-        DoOnConnect;
       end{$IFDEF HIGHLOG} else TLog.NewLog(ltdebug,Classname,'Cannot connect to a server at: '+ClientRemoteAddr+' Reason: '+FTcpBlockSocket.GetErrorDescEx){$ENDIF};
     Except
       On E:Exception do begin
@@ -278,6 +277,9 @@ begin
     FLock.Release;
   end;
   Result := FConnected;
+  if FConnected then begin
+    DoOnConnect;
+  end;
 end;
 
 constructor TNetTcpIpClient.Create(AOwner : TComponent);

@@ -1006,15 +1006,15 @@ begin
   if account_number>=Bank.SafeBox.AccountsCount then Exit;
   if StartOperation>EndOperation then Exit;
   acc := Bank.SafeBox.Account(account_number);
-  if (acc.updated_on_block>0) Or (acc.account=0) then Begin
-    if (SearchBackwardsStartingAtBlock=0) Or (SearchBackwardsStartingAtBlock>=acc.updated_on_block) then begin
-      startBlock := acc.updated_on_block;
+  if (acc.GetLastUpdatedBlock>0) Or (acc.account=0) then Begin
+    if (SearchBackwardsStartingAtBlock=0) Or (SearchBackwardsStartingAtBlock>=acc.GetLastUpdatedBlock) then begin
+      startBlock := acc.GetLastUpdatedBlock;
       lastBalance := acc.balance;
     end else begin
       startBlock := SearchBackwardsStartingAtBlock;
       lastBalance := -1;
     end;
-    DoGetFromBlock(startBlock,lastBalance,MaxDepth,0,startBlock<>acc.updated_on_block);
+    DoGetFromBlock(startBlock,lastBalance,MaxDepth,0,startBlock<>acc.GetLastUpdatedBlock);
   end;
 end;
 
@@ -1093,7 +1093,7 @@ begin
           end;
         end;
       end;
-      block := Bank.SafeBox.Account(account).updated_on_block;
+      block := Bank.SafeBox.Account(account).GetLastUpdatedBlock;
     finally
       UnlockMempoolRead;
     end;
@@ -1208,7 +1208,7 @@ begin
       UnlockMempoolRead;
     End;
     // block=0 and not found... start searching at block updated by account updated_block
-    block := Bank.SafeBox.Account(account).updated_on_block;
+    block := Bank.SafeBox.Account(account).GetLastUpdatedBlock;
     if Bank.SafeBox.Account(account).n_operation<n_operation then exit; // n_operation is greater than found in safebox
   end;
   if (block=0) or (block>=Bank.BlocksCount) then exit;

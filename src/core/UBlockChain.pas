@@ -223,9 +223,6 @@ Type
   TPCOperation = Class
   Protected
     FProtocolVersion : Word;
-    FPrevious_Signer_updated_block: Cardinal;
-    FPrevious_Destination_updated_block : Cardinal;
-    FPrevious_Seller_updated_block : Cardinal;
     FHasValidSignature : Boolean;
     FUsedPubkeyForSignature : TECDSA_Public;
     FBufferedSha256 : TRawBytes;
@@ -234,9 +231,6 @@ Type
     function SaveOpToStream(Stream: TStream; SaveExtendedData : Boolean): Boolean; virtual; abstract;
     function LoadOpFromStream(Stream: TStream; LoadExtendedData : Boolean): Boolean; virtual; abstract;
     procedure FillOperationResume(Block : Cardinal; getInfoForAllAccounts : Boolean; Affected_account_number : Cardinal; var OperationResume : TOperationResume); virtual;
-    Property Previous_Signer_updated_block : Cardinal read FPrevious_Signer_updated_block; // deprecated
-    Property Previous_Destination_updated_block : Cardinal read FPrevious_Destination_updated_block; // deprecated
-    Property Previous_Seller_updated_block : Cardinal read FPrevious_Seller_updated_block; // deprecated
     function IsValidECDSASignature(const PubKey: TECDSA_Public; const Signature: TECDSA_SIG): Boolean;
     procedure CopyUsedPubkeySignatureFrom(SourceOperation : TPCOperation); virtual;
     function SaveOperationPayloadToStream(const AStream : TStream; const APayload : TOperationPayload) : Boolean;
@@ -2464,9 +2458,6 @@ begin
         op.SaveOpToStream(msCopy,true);
         msCopy.Position := 0;
         P^.Op.LoadOpFromStream(msCopy, true);
-        P^.Op.FPrevious_Signer_updated_block := op.Previous_Signer_updated_block;
-        P^.Op.FPrevious_Destination_updated_block := op.FPrevious_Destination_updated_block;
-        P^.Op.FPrevious_Seller_updated_block := op.FPrevious_Seller_updated_block;
         P^.Op.FHasValidSignature := op.FHasValidSignature; // Improvement speed v4.0.2 reusing previously signed value
         P^.Op.FUsedPubkeyForSignature := op.FUsedPubkeyForSignature;
         P^.Op.FBufferedSha256:=op.FBufferedSha256;
@@ -3091,9 +3082,6 @@ end;
 procedure TPCOperation.InitializeData(AProtocolVersion : Word);
 begin
   FProtocolVersion := AProtocolVersion;
-  FPrevious_Signer_updated_block := 0;
-  FPrevious_Destination_updated_block := 0;
-  FPrevious_Seller_updated_block := 0;
   FHasValidSignature := false;
   FUsedPubkeyForSignature:=CT_TECDSA_Public_Nul;
   FBufferedSha256 := Nil;
@@ -3136,24 +3124,25 @@ begin
 end;
 
 function TPCOperation.LoadFromStorage(Stream: TStream; LoadProtocolVersion:Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo): Boolean;
+var LPrevious_Signer, LPrevious_Destination, LPrevious_Seller : Cardinal;
 begin
   Result := false;
   If LoadOpFromStream(Stream, LoadProtocolVersion>=CT_PROTOCOL_2) then begin
     If LoadProtocolVersion<CT_PROTOCOL_3 then begin
       if Stream.Size - Stream.Position<8 then exit;
-      Stream.Read(FPrevious_Signer_updated_block,Sizeof(FPrevious_Signer_updated_block));
-      Stream.Read(FPrevious_Destination_updated_block,Sizeof(FPrevious_Destination_updated_block));
+      Stream.Read(LPrevious_Signer,Sizeof(LPrevious_Signer));
+      Stream.Read(LPrevious_Destination,Sizeof(LPrevious_Destination));
       if (LoadProtocolVersion=CT_PROTOCOL_2) then begin
-        Stream.Read(FPrevious_Seller_updated_block,Sizeof(FPrevious_Seller_updated_block));
+        Stream.Read(LPrevious_Seller,Sizeof(LPrevious_Seller));
       end;
       if Assigned(APreviousUpdatedBlocks) then begin
         // Add to previous list!
         if SignerAccount>=0 then
-          APreviousUpdatedBlocks.UpdateIfLower(SignerAccount,FPrevious_Signer_updated_block);
+          APreviousUpdatedBlocks.UpdateIfLower(SignerAccount,LPrevious_Signer);
         if DestinationAccount>=0 then
-          APreviousUpdatedBlocks.UpdateIfLower(DestinationAccount,FPrevious_Destination_updated_block);
+          APreviousUpdatedBlocks.UpdateIfLower(DestinationAccount,LPrevious_Destination);
         if SellerAccount>=0 then
-          APreviousUpdatedBlocks.UpdateIfLower(SellerAccount,FPrevious_Seller_updated_block);
+          APreviousUpdatedBlocks.UpdateIfLower(SellerAccount,LPrevious_Seller);
       end;
     end;
     Result := true;

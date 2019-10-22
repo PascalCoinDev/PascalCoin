@@ -276,7 +276,7 @@ begin
       Exit;
     end;
     LFirst_Block_Is_Unknown := False;
-    LStartBlock := LAccount.updated_on_block;
+    LStartBlock := LAccount.GetLastUpdatedBlock;
     if LStartBlock>=ASender.Node.Bank.BlocksCount then Dec(LStartBlock); // If its updated on mempool, don't look the mempool
   end;
 

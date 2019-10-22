@@ -12,8 +12,12 @@
 - Implementation of PIP-0027 (E-PASA Inifine Address-Space) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0027.md
   - Third party apps/implementations of hard coded operations need to pay attention of an extra byte added on each operation using Payload
   - TODO: Explain "in core" changes
+- Implementation of PIP-0037 (Distinguish account updates between active/passive mode)
+  - Added fields "updated_b_active_mode" and "updated_b_passive_mode" at each account to indicate in which block this account has been updated
+  - "active" means that private key has been used, so, is the initiator of the operation (can be as a sender or as a signer)
+  - "passive" means that this account is a receiver or a passive target (receiver or seller, for example)
 - Partial implementation of PIP-0012 (Recover Accounts option after 4 years) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0012.md
-  - Accounts updated counter will only update when executing operations in active mode (sender or signer)
+  - Accounts updated counter will only update when executing operations in active mode (See PIP-0037)
   - If account is a receiver (passive mode) then n_operation_update_block will not update value and can be recovered after 4 years (as defined on original PascalCoin v1 WhitePaper)
 - Fixed important security issue related to PIP-0003 caused by possible "parallelization" of the Proof-of-work
   - Discovered by Herman Schoenfeld <herman@sphere10.com>
@@ -53,6 +57,8 @@
     - "receiver_swap_account": (Integer) Counterpaty account that will receive "amount_to_swap" on ATOMIC COIN SWAP
     - "data" : (HEXASTRING) will return the Account Data stored with PIP-0024
     - "seal" : (HEXASTRING) will return the Account Seal stored with PIP-0029
+    - "updated_b_active_mode" : (Integer) Block number of last account change on active mode (private key usage for signature)
+    - "updated_b_passive_mode" : (Integer) Block number of last account change on passive mode (as a receiver of a transaction or similar)
   - Updated "Operation Object" return values:
     - "senders" : ARRAY
       - "payload_type" : (Byte) as described on PIP-0027
@@ -68,7 +74,9 @@
   - Updated "Multi Operation Object" values:
     - "changers" : ARRAY
       - "new_data" : (HEXASTRING) : If "data" is changed on "account"
-
+  - Allowed to use all input params related to an account number as a String and including checksum
+    - Example: Call "sendto" using param "sender"="1234-44" or "target"="12345-54"
+    - If value is not a valid format, call will return error
 TODO  
 - TODO: RPC calls for PIP-0029
 - TODO: RPC calls for PIP-0030

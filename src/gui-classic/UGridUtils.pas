@@ -672,7 +672,7 @@ begin
     n_acc := AccountNumber(ARow);
     if (n_acc>=0) then begin
       BufferGetAccount(n_acc,account,LNodeBlocksCount,LNodeAccountsCount);
-      ndiff := LNodeBlocksCount - account.updated_on_block;
+      ndiff := LNodeBlocksCount - account.GetLastUpdatedBlock;
       if (gdSelected in State) then
         If (gdFocused in State) then DrawGrid.Canvas.Brush.Color := clGradientActiveCaption
         else DrawGrid.Canvas.Brush.Color := clGradientInactiveCaption
@@ -702,7 +702,7 @@ begin
           Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
         End;
         act_updated : Begin
-          s := Inttostr(account.updated_on_block);
+          s := Inttostr(account.GetLastUpdatedBlock);
           Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
         End;
         act_n_operation : Begin

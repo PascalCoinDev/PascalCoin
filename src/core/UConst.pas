@@ -41,9 +41,9 @@ Const
     {$IFDEF PRODUCTION}'00000003A29C32E84A539ADE24397D41D30116A6FAFEC17B7D9CED68A4238C92'{$ELSE}{$IFDEF TESTNET}''{$ELSE}{$ENDIF}{$ENDIF};
 
 
-  CT_NetServer_Port = {$IFDEF PRODUCTION}4004{$ELSE}{$IFDEF TESTNET}4104{$ELSE}{$ENDIF}{$ENDIF};
-  CT_JSONRPCMinerServer_Port = {$IFDEF PRODUCTION}4009{$ELSE}{$IFDEF TESTNET}4109{$ELSE}{$ENDIF}{$ENDIF};
-  CT_JSONRPC_Port = {$IFDEF PRODUCTION}4003{$ELSE}{$IFDEF TESTNET}4103{$ELSE}{$ENDIF}{$ENDIF};
+  CT_NetServer_Port = {$IFDEF PRODUCTION}4004{$ELSE}{$IFDEF TESTNET}4204{$ELSE}{$ENDIF}{$ENDIF};
+  CT_JSONRPCMinerServer_Port = {$IFDEF PRODUCTION}4009{$ELSE}{$IFDEF TESTNET}4209{$ELSE}{$ENDIF}{$ENDIF};
+  CT_JSONRPC_Port = {$IFDEF PRODUCTION}4003{$ELSE}{$IFDEF TESTNET}4203{$ELSE}{$ENDIF}{$ENDIF};
   CT_AccountsPerBlock = 5;
 
   CT_NewLineSecondsAvg: Cardinal = {$IFDEF PRODUCTION}300{$ELSE}{$IFDEF TESTNET}30{$ELSE}{$ENDIF}{$ENDIF};
@@ -127,7 +127,7 @@ Const
   CT_Protocol_Upgrade_v5_MinBlock = {$IFDEF PRODUCTION}999999999{$ELSE}500{$ENDIF}; // TODO Need define v5 for production!
 
 
-  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$05000003{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
+  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$05000004{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
 
   CT_NetProtocol_Version: Word = $0009; // Version 4.0.2 Will allow only net protocol 9
   // IMPORTANT NOTE!!!
@@ -138,9 +138,9 @@ Const
 
   CT_SafeBoxBankVersion : Word = 3; // Protocol 2 upgraded safebox version from 2 to 3
 
-  CT_MagicIdentificator: String = {$IFDEF PRODUCTION}'PascalCoin'{$ELSE}'PascalCoinTESTNET_5.Beta.3'{$ENDIF}; //
+  CT_MagicIdentificator: String = {$IFDEF PRODUCTION}'PascalCoin'{$ELSE}'PascalCoinTESTNET_5.Beta.4'{$ENDIF}; //
 
-  CT_PascalCoin_Data_Folder : String = {$IFDEF PRODUCTION}'PascalCoin'{$ELSE}'PascalCoin_TESTNET_5.Beta.3'{$ENDIF}; //
+  CT_PascalCoin_Data_Folder : String = {$IFDEF PRODUCTION}'PascalCoin'{$ELSE}'PascalCoin_TESTNET_5.Beta.4'{$ENDIF}; //
 
   CT_PseudoOp_Reward = $0;
   // Value of Operations type in Protocol 1
@@ -195,7 +195,7 @@ Const
   CT_OpSubtype_Data_Signer                = 103;
   CT_OpSubtype_Data_Receiver              = 104;
 
-  CT_ClientAppVersion : String = {$IFDEF PRODUCTION}'4.1'{$ELSE}{$IFDEF TESTNET}'TESTNET 5.Beta.3'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : String = {$IFDEF PRODUCTION}'4.1'{$ELSE}{$IFDEF TESTNET}'TESTNET 5.Beta.4'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs = {$IFDEF PRODUCTION}'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us'
                     {$ELSE}'pascaltestnet1.dynamic-dns.net;pascaltestnet2.dynamic-dns.net;pascaltestnet1.dns1.us;pascaltestnet2.dns1.us'{$ENDIF};
