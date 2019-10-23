@@ -774,7 +774,7 @@ end;
 
 class function TCrypto.DoRandomHash2(const TheMessage: TRawBytes): TRawBytes;
 begin
-  Result := TRandomHash2.Compute(TheMessage);
+  Result := TRandomHash2Fast.Compute(TheMessage);
 end;
 
 class procedure TCrypto.DoRandomHash(p : PAnsiChar; plength : Cardinal; out AResult : TRawBytes);
@@ -797,7 +797,7 @@ begin
   if Length(AResult) <> 32 then SetLength(AResult, 32);
   SetLength(LInput, plength);
   Move(p^, LInput[0], plength);
-  LResult := TRandomHash2.Compute(LInput);
+  LResult := TRandomHash2Fast.Compute(LInput);
   Move(LResult[0], AResult[Low(AResult)], 32);
 end;
 
