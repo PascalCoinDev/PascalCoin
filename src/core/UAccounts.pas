@@ -3903,7 +3903,7 @@ begin
   isChangeTargetBlock := False;
   if (newOperationBlock.block > 0) then begin
     // protocol
-    if (newOperationBlock.protocol_version<>CurrentProtocol) then begin
+    if (newOperationBlock.protocol_version<>lastBlock.protocol_version) then begin
       // Protocol must be 1 or 2. If 1 then all prior blocksmust be 1 and never 2 (invalide blockchain version scenario v1...v2...v1)
       If (lastBlock.protocol_version>newOperationBlock.protocol_version) then begin
         errors := 'Invalid PascalCoin protocol version: '+IntToStr( newOperationBlock.protocol_version )+' Current: '+IntToStr(CurrentProtocol)+' Previous:'+IntToStr(lastBlock.protocol_version);
