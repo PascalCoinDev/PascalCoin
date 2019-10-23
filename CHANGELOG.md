@@ -31,6 +31,17 @@
   - Added "new_data" field allowing update Account.Data field (0..32 bytes)
   - Updated digest hash value adding "new_data" field  
 - Hardcoded RandomHash digest/hash values for quick speed safebox check on fresh installation
+- Pools or external miners: Added new JSON-RPC methods for Server mining support (TCP/IP, no HTTP protocol)
+  - New methods "rh" and "rh2" that will return a hash calculated using the RandomHash or RandomHash2 algo
+  - params must include a 1-length array with the digest in hexastring format
+  - Example:
+    - Call {"id":123,"method":"rh2","params":["a02f3a4b5c62102e1a9a983f"]}
+    - Response {"id":123,"error":null,
+      "result":
+        {"digest":"A02F3A4B5C62102E1A9A983F",
+         "hash":"5D825627E1E9865C17050E55B05D7D3A0C36C11D855261A511880C3CBF015AA9",
+         "algo":"rh2"}
+        }
 - JSON-RPC changes:  
   - Updated "listaccountforsale" method to allow ATOMIC SWAPS (PIP-0032)
     - Added "type" to discrimine between kind of listing. Available values are:

@@ -175,13 +175,13 @@ var
  LTotalHashes, LNotifyHashes : UInt32;
 begin
   SetLength(LInput, 200);
-  while True do begin
+  while Not Terminated do begin
     LTotalHashes := 0;
     LNotifyHashes := 0;
     LStartTime := Now;
     LNotifyStartTime := LStartTime;
     LTC := TPlatform.GetTickCount;
-    while Not FExitLoop do begin
+    while (Not FExitLoop) And (Not Terminated) do begin
      if TryNextRound (RandomizeNonce(LInput), FLastHash) then begin
        inc(LTotalHashes);
        inc(LNotifyHashes);

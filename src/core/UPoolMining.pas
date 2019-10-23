@@ -38,6 +38,8 @@ Const
   CT_PoolMining_Method_STATUS = 'status';
   CT_PoolMining_Method_MINER_NOTIFY = 'miner-notify'; // Server message to clients to update miners PoW data
   CT_PoolMining_Method_MINER_SUBMIT = 'miner-submit'; // Client message to server to notify a PoW found
+  CT_PoolMining_Method_MINER_RANDOMHASH = 'rh'; // Client message to server to calculate a hash based on RandomHash algo
+  CT_PoolMining_Method_MINER_RANDOMHASH2 = 'rh2'; // Client message to server to calculate a hash based on RandomHash2 algo
 
   CT_PoolMining_Method_STRATUM_MINING_AUTHORIZE = 'mining.authorize';
   CT_PoolMining_Method_STRATUM_MINING_SUBSCRIBE = 'mining.subscribe';
@@ -415,8 +417,6 @@ begin
       stream.Write(b,1);
       b := 10;
       stream.Write(b,1);
-      b := 0;
-      stream.Write(b,1);
       stream.Position := 0;
       WriteBufferToSend(stream);
     finally
@@ -699,6 +699,7 @@ Var method : String;
     id_value : Variant;
     i : Integer;
   response_result : TPCJSONObject;
+  LDigest : TRawBytes;
 begin
   If ResponseMethod<>'' then begin
     method := ResponseMethod;
@@ -739,7 +740,37 @@ begin
   end else if method=CT_PoolMining_Method_MINER_SUBMIT then begin
     // Try to submit a PoW
     if params.Count=1 then MinerSubmit(Client,params.GetAsObject(0),id_value)
-    else TLog.NewLog(lterror,ClassName,'Invalid params array of method '+method);
+    else begin
+      Client.SendJSONRPCErrorResponse(id_value,'params must be 1-count JSON array');
+      TLog.NewLog(lterror,ClassName,'Invalid params array of method '+method);
+    end;
+  end else if (method=CT_PoolMining_Method_MINER_RANDOMHASH) or (method=CT_PoolMining_Method_MINER_RANDOMHASH2) then begin
+    //
+    if params.Count<>1 then begin
+      Client.SendJSONRPCErrorResponse(id_value,'params must be 1-count JSON array');
+    end else if (params.Items[0] is TPCJSONVariantValue) then begin
+      // Check the digest:
+      if Not TCrypto.HexaToRaw( params.GetAsVariant(0).AsString(''), LDigest ) then begin
+        Client.SendJSONRPCErrorResponse(id_value,'array does not contain an hexastring');
+      end else begin
+        response_result := TPCJSONObject.Create;
+        Try
+          response_result.GetAsVariant('digest').Value := LDigest.ToHexaString;
+          if (method=CT_PoolMining_Method_MINER_RANDOMHASH) then begin
+            // RandomHash 1 algo
+            response_result.GetAsVariant('hash').Value := TCrypto.DoRandomHash(LDigest).ToHexaString;
+            response_result.GetAsVariant('algo').Value := 'rh';
+          end else begin
+            // RandomHash 2 algo
+            response_result.GetAsVariant('hash').Value := TCrypto.DoRandomHash2(LDigest).ToHexaString;
+            response_result.GetAsVariant('algo').Value := 'rh2';
+          end;
+          Client.SendJSONRPCResponse(response_result,id_value);
+        Finally
+          response_result.Free;
+        End;
+      end;
+    end;
   end else begin
     // Invalid command
     if (not VarIsNull(id_value)) then begin
