@@ -925,7 +925,7 @@ Var
   errors: String;
   newBlock: TBlockAccount;
   n : Int64;
-  tc : TTickCount;
+  tc, LStartProcessTC : TTickCount;
   LBlocks : TList<TPCOperationsComp>;
   LTmpPCOperationsComp : TPCOperationsComp;
   i,j, LProgressBlock, LProgressEndBlock, LOpsInBlocks : Integer;
@@ -936,6 +936,7 @@ begin
     raise Exception.Create('Is restoring!');
   end;
   tc := TPlatform.GetTickCount;
+  LStartProcessTC := tc;
   TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
   try
     FUpgradingToV2 := NOT Storage.HasUpgradedToVersion2;
@@ -1026,7 +1027,7 @@ begin
       finally
         LBlocks.Free;
         if FUpgradingToV2 then Storage.CleanupVersion1Data;
-        NewLog(Nil, ltinfo,'End restoring from disk operations (Max '+inttostr(max_block)+') Orphan: ' + Storage.Orphan+' Restored '+Inttostr(BlocksCount)+' blocks');
+        NewLog(Nil, ltinfo,'End restoring from disk operations (Max '+inttostr(max_block)+') Orphan: ' + Storage.Orphan+' Restored '+Inttostr(BlocksCount)+' blocks in '+IntToStr(TPlatform.GetElapsedMilliseconds(LStartProcessTC))+' milliseconds');
       end;
 
     finally
