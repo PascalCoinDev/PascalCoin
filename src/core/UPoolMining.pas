@@ -852,7 +852,6 @@ function TPoolMiningServer.MinerSubmit(Client: TJSONRPCTcpIpClient; params: TPCJ
 Var s : String;
   nbOperations : TPCOperationsComp;
   errors, sJobInfo : String;
-  nba : TBlockAccount;
   json : TPCJSONObject;
   p1,p2,p3 : TRawBytes;
   P : PPoolJob;
@@ -917,7 +916,7 @@ begin
       FPoolJobs.UnlockList;
     End;
     if Assigned(nbOperations) then begin
-      If FNodeNotifyEvents.Node.AddNewBlockChain(nil,nbOperations,nba,errors) then begin
+      If FNodeNotifyEvents.Node.AddNewBlockChain(nil,nbOperations,errors) then begin
         // CONGRATS !!!
         json := TPCJSONObject.Create;
         try

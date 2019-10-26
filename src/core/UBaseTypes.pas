@@ -62,6 +62,8 @@ Type
     procedure FromString(const AValue : String); // Will store a RAW bytes assuming each char of the string is a byte -> ALERT: Do not use when the String contains chars encoded with multibyte character set!
     function Add(const ARawValue : TRawBytes) : TRawBytes; // Will concat a new RawBytes value to current value
     function IsEmpty : Boolean; // Will return TRUE when Length = 0
+    procedure FromStream(AStream : TStream); overload;
+    procedure FromStream(AStream : TStream; AStartPos, ALength : Integer); overload;
   end;
 
 
@@ -191,6 +193,18 @@ begin
   if Length(Self)>0 then begin
     Result := TEncoding.ANSI.GetString(Self);
   end else Result := '';
+end;
+
+procedure TRawBytesHelper.FromStream(AStream: TStream; AStartPos, ALength: Integer);
+begin
+  System.SetLength(Self,ALength);
+  AStream.Position := AStartPos;
+  AStream.Read(Self,ALength);
+end;
+
+procedure TRawBytesHelper.FromStream(AStream: TStream);
+begin
+  Self.FromStream(AStream,0,AStream.Size);
 end;
 
 procedure TRawBytesHelper.FromString(const AValue: String);

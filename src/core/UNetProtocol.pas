@@ -1574,7 +1574,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
 
           ant_nblock := auxBlock.block;
           //
-          sbBlock := TNode.Node.Bank.SafeBox.Block(auxBlock.block).blockchainInfo;
+          sbBlock := TNode.Node.Bank.SafeBox.GetBlockInfo(auxBlock.block);
           if TPCOperationsComp.EqualsOperationBlock(sbBlock,auxBlock) then begin
             distinctmin := auxBlock.block;
             OperationBlock := auxBlock;
@@ -1601,7 +1601,6 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     OpComp,OpExecute : TPCOperationsComp;
     oldBlockchainOperations : TOperationsHashTree;
     opsResume : TOperationsResumeList;
-    newBlock : TBlockAccount;
     errors : String;
     start,start_c : Cardinal;
     finished : Boolean;
@@ -1663,7 +1662,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
                 break;
               end;
               TNode.Node.MarkVerifiedECDSASignaturesFromMemPool(OpExecute); // Improvement speed v4.0.2
-              if Bank.AddNewBlockChainBlock(OpExecute,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,newBlock,errors) then begin
+              if Bank.AddNewBlockChainBlock(OpExecute,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,errors) then begin
                 inc(i);
               end else begin
                 TLog.NewLog(lterror,CT_LogSender,'Error creating new bank with client Operations. Block:'+TPCOperationsComp.OperationBlockToText(OpExecute.OperationBlock)+' Error:'+errors);
@@ -1940,7 +1939,6 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
   var safeboxStream : TMemoryStream;
     newTmpBank : TPCBank;
     safebox_last_operation_block : TOperationBlock;
-    newBlock : TBlockAccount;
     opComp : TPCOperationsComp;
     errors : String;
     blocksList : TList<TPCOperationsComp>;
@@ -1982,7 +1980,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
                 end;
                 for i:=0 to blocksList.Count-1 do begin
                   opComp := TPCOperationsComp( blocksList[i] );
-                  if Not newTmpBank.AddNewBlockChainBlock(opComp,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,newBlock,errors) then begin
+                  if Not newTmpBank.AddNewBlockChainBlock(opComp,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,errors) then begin
                     TLog.NewLog(lterror,CT_LogSender,'Error adding new block with client Operations. Block:'+TPCOperationsComp.OperationBlockToText(opComp.OperationBlock)+' Error:'+errors);
                     // Add to blacklist !
                     Connection.DisconnectInvalidClient(false,'Invalid BlockChain on Block '+TPCOperationsComp.OperationBlockToText(opComp.OperationBlock)+' with errors:'+errors);
@@ -2907,7 +2905,6 @@ procedure TNetConnection.DoProcess_GetBlocks_Response(HeaderData: TNetHeaderData
     LOpCountCardinal,c : Cardinal;
     LOpCount : Integer;
     i : Integer;
-    newBlockAccount : TBlockAccount;
   errors : String;
   DoDisconnect : Boolean;
   LBlocks : TList<TPCOperationsComp>;
@@ -2964,13 +2961,13 @@ begin
 
       for i := 0 to LBlocks.Count-1 do begin
         if (LBlocks[i].OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
-          if (TNode.Node.Bank.AddNewBlockChainBlock(LBlocks[i],TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock, newBlockAccount,errors)) then begin
+          if (TNode.Node.Bank.AddNewBlockChainBlock(LBlocks[i],TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock, errors)) then begin
             // Ok, one more!
           end else begin
             // Is not a valid entry????
             // Perhaps an orphan blockchain: Me or Client!
             TLog.NewLog(ltinfo,Classname,'Distinct operation block found! My:'+
-                TPCOperationsComp.OperationBlockToText(TNode.Node.Bank.SafeBox.Block(TNode.Node.Bank.BlocksCount-1).blockchainInfo)+
+                TPCOperationsComp.OperationBlockToText(TNode.Node.Bank.SafeBox.GetBlockInfo(TNode.Node.Bank.BlocksCount-1))+
                 ' remote:'+TPCOperationsComp.OperationBlockToText(LBlocks[i].OperationBlock)+' Errors: '+errors);
           end;
         end else begin
@@ -3042,7 +3039,7 @@ begin
       b := b_start;
       total_b := 0;
       repeat
-        ob := TNode.Node.Bank.SafeBox.Block(b).blockchainInfo;
+        ob := TNode.Node.Bank.SafeBox.GetBlockInfo(b);
         If TPCOperationsComp.SaveOperationBlockToStream(ob,msops) then begin
           blocksstr := blocksstr + inttostr(b)+',';
           b := b + inc_b;
@@ -3815,8 +3812,7 @@ var operationsComp : TPCOperationsComp;
     DoDisconnect := False;
     Result := True;
   end;
-var bacc : TBlockAccount;
-  c : Cardinal;
+var c : Cardinal;
 begin
   errors := '';
   DoDisconnect := true;
@@ -3854,7 +3850,7 @@ begin
                 end;
               end;
             end;
-            If Not TNode.Node.AddNewBlockChain(Self,operationsComp,bacc,errors) then begin
+            If Not TNode.Node.AddNewBlockChain(Self,operationsComp,errors) then begin
               // Check valid header, if not, scammer... Disconnect
               if Not TPCSafeBox.IsValidOperationBlock(operationsComp.OperationBlock,errors) then begin
                 DoDisconnect := True;

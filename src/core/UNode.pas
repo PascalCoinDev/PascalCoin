@@ -93,7 +93,7 @@ Type
     function LockMempoolWrite : TPCOperationsComp;
     procedure UnlockMempoolWrite;
     //
-    Function AddNewBlockChain(SenderConnection : TNetConnection; NewBlockOperations: TPCOperationsComp; var newBlockAccount: TBlockAccount; var errors: String): Boolean;
+    Function AddNewBlockChain(SenderConnection : TNetConnection; NewBlockOperations: TPCOperationsComp; var errors: String): Boolean;
     Function AddOperations(SenderConnection : TNetConnection; AOperationsHashTreeToAdd : TOperationsHashTree; OperationsResult : TOperationsResumeList; var errors: String): Integer;
     Function AddOperation(SenderConnection : TNetConnection; Operation : TPCOperation; var errors: String): Boolean;
     Function SendNodeMessage(Target : TNetConnection; const TheMessage : String; var errors : String) : Boolean;
@@ -210,8 +210,7 @@ var _Node : TNode;
 
 { TNode }
 
-function TNode.AddNewBlockChain(SenderConnection: TNetConnection; NewBlockOperations: TPCOperationsComp;
-  var newBlockAccount: TBlockAccount; var errors: String): Boolean;
+function TNode.AddNewBlockChain(SenderConnection: TNetConnection; NewBlockOperations: TPCOperationsComp; var errors: String): Boolean;
 Var i,j,maxResend : Integer;
   nc : TNetConnection;
   s,sClientRemoteAddr : String;
@@ -255,7 +254,7 @@ begin
       MarkVerifiedECDSASignaturesFromMemPool(NewBlockOperations); // Improvement speed v4.0.2
       // Improvement TNode speed 2.1.6
       // Does not need to save a FOperations backup because is Sanitized by "TNode.OnBankNewBlock"
-      Result := Bank.AddNewBlockChainBlock(NewBlockOperations,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,newBlockAccount,errors);
+      Result := Bank.AddNewBlockChainBlock(NewBlockOperations,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,errors);
       if Result then begin
         if Assigned(SenderConnection) then begin
           FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,sClientRemoteAddr,OpBlock.block_payload.ToPrintable,
@@ -877,7 +876,7 @@ end;
 
 class function TNode.NodeVersion: String;
 begin
-  Result := CT_ClientAppVersion{$IFDEF LINUX}+'L'{$ELSE}+'W'{$ENDIF}{$IFDEF FPC}{$IFDEF LCL}+'l'{$ELSE}+'f'{$ENDIF}{$ENDIF}{$IFDEF FPC}{$IFDEF CPU32}+'32b'{$ELSE}+'64b'{$ENDIF}{$ELSE}{$IFDEF CPU32BITS}+'32b'{$ELSE}+'64b'{$ENDIF}{$ENDIF};
+  Result := CT_ClientAppVersion{$IFDEF LINUX}+'L'{$ELSE}+'W'{$ENDIF}{$IFDEF FPC}{$IFDEF LCL}+'l'{$ELSE}+'f'{$ENDIF}{$ENDIF}{$IFDEF FPC}{$IFDEF CPU32}+'32b'{$ELSE}+'64b'{$ENDIF}{$ELSE}{$IFDEF CPU32BITS}+'32b'{$ELSE}+'64b'{$ENDIF}{$ENDIF}+'of';
 end;
 
 procedure TNode.Notification(AComponent: TComponent; Operation: TOperation);
@@ -1114,7 +1113,7 @@ begin
             Or
             (n_operation_high>n_operation_low) and (op.GetAccountN_Operation(account)<=n_operation) and (op.GetAccountN_Operation(account)>=n_operation_low) and (op.GetAccountN_Operation(account)<=n_operation_high) then begin
             TPCOperation.OperationToOperationResume(block,op,True,account,opr);
-            opr.time:=Bank.SafeBox.Block(block).blockchainInfo.timestamp;
+            opr.time:=Bank.SafeBox.GetBlockInfo(block).timestamp;
             opr.NOpInsideBlock:=i;
             opr.Balance:=-1;
             OpResumeList.Add(opr);

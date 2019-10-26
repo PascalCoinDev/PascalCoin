@@ -201,7 +201,6 @@ Type
     MinerPayload : TRawBytes;
     PoW : TRawBytes;
     SafeBoxHash : TRawBytes;
-    AccumulatedWork : UInt64;
     TimeAverage200 : Real;
     TimeAverage150 : Real;
     TimeAverage100 : Real;
@@ -275,7 +274,7 @@ Type
   End;
 
 Const
-  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:-1;Volume:-1;Reward:0;Fee:0;Target:0;HashRateTargetHs:0;HashRateHs:0;HashRateTargetKhs:0;HashRateKhs:0;MinerPayload:Nil;PoW:Nil;SafeBoxHash:Nil;AccumulatedWork:0;TimeAverage200:0;TimeAverage150:0;TimeAverage100:0;TimeAverage75:0;TimeAverage50:0;TimeAverage25:0;TimeAverage10:0);
+  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:-1;Volume:-1;Reward:0;Fee:0;Target:0;HashRateTargetHs:0;HashRateHs:0;HashRateTargetKhs:0;HashRateKhs:0;MinerPayload:Nil;PoW:Nil;SafeBoxHash:Nil;TimeAverage200:0;TimeAverage150:0;TimeAverage100:0;TimeAverage75:0;TimeAverage50:0;TimeAverage25:0;TimeAverage10:0);
   CT_TAccountsGridFilter_NUL : TAccountsGridFilter = (MinBalance:-1;MaxBalance:-1;OrderedAccountsKeyList:Nil;indexAccountsKeyList:-1);
 
 implementation
@@ -1407,7 +1406,7 @@ begin
     opc.bank := ANode.Bank;
     while (ABlockStart<=ABlockEnd) and (Not Terminated) do begin
       bcd := CT_TBlockChainData_NUL;
-      opb := ANode.Bank.SafeBox.Block(ABlockEnd).blockchainInfo;
+      opb := ANode.Bank.SafeBox.GetBlockInfo(ABlockEnd);
       bcd.Block:=opb.block;
       bcd.Timestamp := opb.timestamp;
       bcd.BlockProtocolVersion := opb.protocol_version;
@@ -1432,7 +1431,6 @@ begin
       bcd.MinerPayload := opb.block_payload;
       bcd.PoW := opb.proof_of_work;
       bcd.SafeBoxHash := opb.initial_safe_box_hash;
-      bcd.AccumulatedWork := ANode.Bank.SafeBox.Block(bcd.Block).AccumulatedWork;
       if (Not Terminated) then begin
         If (ANode.Bank.LoadOperations(opc,ABlockEnd)) then begin
           bcd.OperationsCount := opc.Count;

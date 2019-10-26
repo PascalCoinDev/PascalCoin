@@ -178,7 +178,7 @@ begin
     If ANode.Bank.BlocksCount<=nBlock then begin
       Exit;
     end;
-    ob := ANode.Bank.SafeBox.Block(nBlock).blockchainInfo;
+    ob := ANode.Bank.SafeBox.GetBlockInfo(nBlock);
 
     jsonObject.GetAsVariant('block').Value:=ob.block;
     jsonObject.GetAsVariant('enc_pubkey').Value := TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(ob.account_key));

@@ -331,7 +331,7 @@ Type
     Class Function CalcBlockHash(const block : TBlockAccount; current_protocol : Word):TRawBytes;
     Class Function BlockAccountToText(Const block : TBlockAccount):String;
     Function LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; var LastReadBlock : TBlockAccount; var errors : String) : Boolean; overload;
-    Function LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var LastReadBlock : TBlockAccount; var errors : String) : Boolean; overload;
+    Function LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var ALastReadBlock : TBlockAccount; var errors : String) : Boolean; overload;
     Class Function LoadSafeBoxStreamHeader(Stream : TStream; var sbHeader : TPCSafeBoxHeader) : Boolean;
     Class Function SaveSafeBoxStreamHeader(Stream : TStream; protocol : Word; OffsetStartBlock, OffsetEndBlock, CurrentSafeBoxBlocksCount : Cardinal) : Boolean;
     Class Function MustSafeBoxBeSaved(BlocksCount : Cardinal) : Boolean;
@@ -351,7 +351,9 @@ Type
 
     Procedure Clear;
     Function Account(account_number : Cardinal) : TAccount;
-    Function Block(block_number : Cardinal) : TBlockAccount;
+    Function GetBlock(block_number : Cardinal) : TBlockAccount;
+    Function GetBlockInfo(ABlockNumber : Cardinal) : TOperationBlock;
+
     Function CalcSafeBoxHash : TRawBytes;
     Function CalcBlockHashRateInKhs(block_number : Cardinal; Previous_blocks_average : Cardinal) : Int64;
     Function CalcBlockHashRateInHs(block_number : Cardinal; Previous_blocks_average : Cardinal) : TBigNum;
@@ -593,7 +595,7 @@ var i,j,maxBlock : Integer;
 Begin
   For i:=0 to sb.FModifiedBlocksFinalState.Count-1 do begin
     bl_modified := sb.FModifiedBlocksFinalState.Get(i);
-    bl_my := sb.Block(bl_modified.blockchainInfo.block);
+    bl_my := sb.GetBlock(bl_modified.blockchainInfo.block);
     If Not TAccountComp.EqualBlockAccounts(bl_my,bl_modified) then begin
       Raise Exception.Create(Format('%s Integrity on modified (i)=%d for block number:%d',[title, i,bl_my.blockchainInfo.block]));
     end;
@@ -606,7 +608,7 @@ Begin
     maxBlock := sb.BlocksCount;
     auxH.SetLength(sb.BlocksCount*32);
     for i:=0 to sb.BlocksCount-1 do begin
-      bl_my := sb.Block(i);
+      bl_my := sb.GetBlock(i);
       for j:=Low(bl_my.accounts) to High(bl_my.accounts) do begin
         If (maxBlock < (bl_my.accounts[j].updated_on_block_passive_mode)) or (maxBlock < (bl_my.accounts[j].updated_on_block_active_mode)) then begin
           Raise Exception.Create(Format('%s Integrity on (i)=%d for block account:%d pasive updated on %d , active updated on %d ,maxBlock %d',[title, i,bl_my.accounts[j].account,bl_my.accounts[j].updated_on_block_passive_mode,bl_my.accounts[j].updated_on_block_active_mode,maxBlock]));
@@ -1641,13 +1643,7 @@ begin
   end else begin
     // V5 only will allow PRIVATE SALES or SWAPS while locked
     if (IsAccountForPublicSale(AAccount.accountInfo)) Then Exit; // Public sales not allowed
-    {$IFDEF TESTNET}
-    // TESTNET ONLY to allow a previous created blockchain
-    if (ACurrentBlock > 7000) and
-      (Not (IsAccountLocked(AAccount.accountInfo,ACurrentBlock))) then Exit; // Time lock expired
-    {$ELSE}
     if (Not (IsAccountLocked(AAccount.accountInfo,ACurrentBlock))) then Exit; // Time lock expired
-    {$ENDIF}
   end;
 
   if (AAccount.accountInfo.state in [as_ForSale, as_ForAtomicAccountSwap]) then begin
@@ -2405,7 +2401,7 @@ begin
   end;
 end;
 
-function TPCSafeBox.Block(block_number: Cardinal): TBlockAccount;
+function TPCSafeBox.GetBlock(block_number: Cardinal): TBlockAccount;
 begin
   StartThreadSafe;
   try
@@ -2708,7 +2704,7 @@ begin
         end else lastOAKL := Nil;
         FBlockAccountsList.Capacity:=accounts.BlocksCount;
         for i := 0 to accounts.BlocksCount - 1 do begin
-          BA := accounts.Block(i);
+          BA := accounts.GetBlock(i);
           New(P);
           ToTMemBlockAccount(BA,P^);
           FBlockAccountsList.Add(P);
@@ -2879,7 +2875,7 @@ procedure TPCSafeBox.CommitToPrevious;
     //
     RedoAddedDeletedNames(Psnapshot^.namesAdded,Psnapshot^.namesDeleted);
     //
-    FPreviousSafeBox.AddNew(Block(Psnapshot^.nBlockNumber).blockchainInfo);
+    FPreviousSafeBox.AddNew(GetBlockInfo(Psnapshot^.nBlockNumber));
   end;
 
 Var errors : String;
@@ -3118,7 +3114,7 @@ begin
   FBufferBlocksHash.Clear;
   for block_number := 0 to BlocksCount - 1 do begin
     {$IFDEF uselowmem}
-    TBaseType.To32Bytes(CalcBlockHash( Block(block_number), CT_PROTOCOL_2),PBlockAccount(FBlockAccountsList.Items[block_number])^.block_hash);
+    TBaseType.To32Bytes(CalcBlockHash( GetBlock(block_number), CT_PROTOCOL_2),PBlockAccount(FBlockAccountsList.Items[block_number])^.block_hash);
     FBufferBlocksHash.Add( PBlockAccount(FBlockAccountsList.Items[block_number])^.block_hash[0], 32 );
     {$ELSE}
     PBlockAccount(FBlockAccountsList.Items[block_number])^.block_hash := CalcBlockHash( Block(block_number), CT_PROTOCOL_2);
@@ -3166,7 +3162,7 @@ begin
       LPtrBlockAccount^.accounts[i].updated_on_block_active_mode := LPtrBlockAccount^.accounts[i].updated_on_block_passive_mode;
     end;
     {$IFDEF uselowmem}
-    TBaseType.To32Bytes(CalcBlockHash( Block(LBlockNumber), CT_PROTOCOL_5),PBlockAccount(FBlockAccountsList.Items[LBlockNumber])^.block_hash);
+    TBaseType.To32Bytes(CalcBlockHash( GetBlock(LBlockNumber), CT_PROTOCOL_5),PBlockAccount(FBlockAccountsList.Items[LBlockNumber])^.block_hash);
     FBufferBlocksHash.Add( PBlockAccount(FBlockAccountsList.Items[LBlockNumber])^.block_hash[0], 32 );
     {$ELSE}
     PBlockAccount(FBlockAccountsList.Items[LBlockNumber])^.block_hash := CalcBlockHash( Block(LBlockNumber), CT_PROTOCOL_5);
@@ -3182,11 +3178,11 @@ begin
   FLock.Release;
 end;
 
-function TPCSafeBox.LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var LastReadBlock : TBlockAccount; var errors : String) : Boolean;
+function TPCSafeBox.LoadSafeBoxFromStream(Stream : TStream; checkAll : Boolean; checkSafeboxHash : TRawBytes; progressNotify : TProgressNotify; previousCheckedSafebox : TPCSafebox; var ALastReadBlock : TBlockAccount; var errors : String) : Boolean;
 Var
   iblock,iacc, LTempCardinal : Cardinal;
   raw, LPreviousProofOfWork : TRawBytes;
-  block : TBlockAccount;
+  LBlock : TBlockAccount;
   P : PBlockAccount;
   i,j : Integer;
   savedSBH : TRawBytes;
@@ -3194,7 +3190,7 @@ Var
   offsets : Array of Cardinal;
   sbHeader : TPCSafeBoxHeader;
   tc, LStartTickCount : TTickCount;
-  previous_Block : TBlockAccount;
+  LPrevious_Block_info : TOperationBlock;
   do_check_blockchain_info : Boolean;
   aux_errors : String;
   LUseMultiThreadOperationsBlockValidator, LAddToMultiThreadOperationsBlockValidator : Boolean;
@@ -3207,6 +3203,7 @@ begin
   end else LUseMultiThreadOperationsBlockValidator := False;
   If Assigned(FPreviousSafeBox) then Raise Exception.Create('Cannot loadSafeBoxFromStream on a Safebox in a Separate chain');
   if (previousCheckedSafebox = Self) then previousCheckedSafebox := Nil; // Protection
+  ALastReadBlock := CT_BlockAccount_NUL;
   tc := TPlatform.GetTickCount;
   StartThreadSafe;
   try
@@ -3270,62 +3267,62 @@ begin
           end;
         end;
 
-        block := CT_BlockAccount_NUL;
-        If Not TAccountComp.LoadTOperationBlockFromStream(Stream,block.blockchainInfo) then exit;
-        if block.blockchainInfo.block<>iBlock then exit;
-        for iacc := Low(block.accounts) to High(block.accounts) do begin
-          errors := 'Corrupted stream reading account '+inttostr(iacc+1)+'/'+inttostr(length(block.accounts))+' of block '+inttostr(iblock+1)+'/'+inttostr(sbHeader.blockscount);
-          if Stream.Read(block.accounts[iacc].account,4)<4 then exit;
+        LBlock := CT_BlockAccount_NUL;
+        If Not TAccountComp.LoadTOperationBlockFromStream(Stream,LBlock.blockchainInfo) then exit;
+        if LBlock.blockchainInfo.block<>iBlock then exit;
+        for iacc := Low(LBlock.accounts) to High(LBlock.accounts) do begin
+          errors := 'Corrupted stream reading account '+inttostr(iacc+1)+'/'+inttostr(length(LBlock.accounts))+' of block '+inttostr(iblock+1)+'/'+inttostr(sbHeader.blockscount);
+          if Stream.Read(LBlock.accounts[iacc].account,4)<4 then exit;
           if TStreamOp.ReadAnsiString(Stream,raw)<0 then exit;
-          block.accounts[iacc].accountInfo := TAccountComp.RawString2AccountInfo(raw);
-          if Stream.Read(block.accounts[iacc].balance,SizeOf(UInt64))<SizeOf(UInt64) then exit;
-          if Stream.Read(block.accounts[iacc].updated_on_block_passive_mode,4)<4 then exit;
+          LBlock.accounts[iacc].accountInfo := TAccountComp.RawString2AccountInfo(raw);
+          if Stream.Read(LBlock.accounts[iacc].balance,SizeOf(UInt64))<SizeOf(UInt64) then exit;
+          if Stream.Read(LBlock.accounts[iacc].updated_on_block_passive_mode,4)<4 then exit;
           if FCurrentProtocol>=CT_PROTOCOL_5 then begin
-            if Stream.Read(block.accounts[iacc].updated_on_block_active_mode,4)<4 then exit;
-          end else block.accounts[iacc].updated_on_block_active_mode := block.accounts[iacc].updated_on_block_passive_mode;
-          if Stream.Read(block.accounts[iacc].n_operation,4)<4 then exit;
+            if Stream.Read(LBlock.accounts[iacc].updated_on_block_active_mode,4)<4 then exit;
+          end else LBlock.accounts[iacc].updated_on_block_active_mode := LBlock.accounts[iacc].updated_on_block_passive_mode;
+          if Stream.Read(LBlock.accounts[iacc].n_operation,4)<4 then exit;
           If FCurrentProtocol>=CT_PROTOCOL_2 then begin
-            if TStreamOp.ReadAnsiString(Stream,block.accounts[iacc].name)<0 then exit;
-            if Stream.Read(block.accounts[iacc].account_type,2)<2 then exit;
+            if TStreamOp.ReadAnsiString(Stream,LBlock.accounts[iacc].name)<0 then exit;
+            if Stream.Read(LBlock.accounts[iacc].account_type,2)<2 then exit;
           end;
           if FCurrentProtocol>=CT_PROTOCOL_5 then begin
-            if TStreamOp.ReadAnsiString(Stream,block.accounts[iacc].account_data)<0 then Exit;
-            if (Length(block.accounts[iacc].account_data)>CT_MaxAccountDataSize) then Exit;
-            if TStreamOp.ReadAnsiString(Stream,block.accounts[iacc].account_seal)<0 then Exit;
+            if TStreamOp.ReadAnsiString(Stream,LBlock.accounts[iacc].account_data)<0 then Exit;
+            if (Length(LBlock.accounts[iacc].account_data)>CT_MaxAccountDataSize) then Exit;
+            if TStreamOp.ReadAnsiString(Stream,LBlock.accounts[iacc].account_seal)<0 then Exit;
           end else begin
             if Stream.Read(LTempCardinal,4)<4 then exit;
           end;
           //
           // check valid
-          If (Length(block.accounts[iacc].name)>0) then begin
-            if FOrderedByName.IndexOf(block.accounts[iacc].name)>=0 then begin
-              errors := errors + ' Duplicate name "'+block.accounts[iacc].name.ToPrintable+'"';
+          If (Length(LBlock.accounts[iacc].name)>0) then begin
+            if FOrderedByName.IndexOf(LBlock.accounts[iacc].name)>=0 then begin
+              errors := errors + ' Duplicate name "'+LBlock.accounts[iacc].name.ToPrintable+'"';
               Exit;
             end;
-            if Not TPCSafeBox.ValidAccountName(block.accounts[iacc].name,aux_errors) then begin
-              errors := errors + ' > Invalid name "'+block.accounts[iacc].name.ToPrintable+'": '+aux_errors;
+            if Not TPCSafeBox.ValidAccountName(LBlock.accounts[iacc].name,aux_errors) then begin
+              errors := errors + ' > Invalid name "'+LBlock.accounts[iacc].name.ToPrintable+'": '+aux_errors;
               Exit;
             end;
-            FOrderedByName.Add(block.accounts[iacc].name,block.accounts[iacc].account);
+            FOrderedByName.Add(LBlock.accounts[iacc].name,LBlock.accounts[iacc].account);
           end;
           If checkAll then begin
-            if not TAccountComp.IsValidAccountInfo(block.accounts[iacc].accountInfo,aux_errors) then begin
+            if not TAccountComp.IsValidAccountInfo(LBlock.accounts[iacc].accountInfo,aux_errors) then begin
               errors := errors + ' > '+aux_errors;
               Exit;
             end;
           end;
-          inc(FTotalBalance,Int64(block.accounts[iacc].balance));
+          inc(FTotalBalance,Int64(LBlock.accounts[iacc].balance));
         end;
         errors := 'Corrupted stream reading block '+inttostr(iblock+1)+'/'+inttostr(sbHeader.blockscount);
-        If TStreamOp.ReadAnsiString(Stream,block.block_hash)<0 then exit;
-        If Stream.Read(block.accumulatedWork,SizeOf(block.accumulatedWork)) < SizeOf(block.accumulatedWork) then exit;
+        If TStreamOp.ReadAnsiString(Stream,LBlock.block_hash)<0 then exit;
+        If Stream.Read(LBlock.accumulatedWork,SizeOf(LBlock.accumulatedWork)) < SizeOf(LBlock.accumulatedWork) then exit;
 
         if checkAll then begin
           if (Not do_check_blockchain_info) then begin
             // Only check if block not found on previous or different block
-            if previousCheckedSafebox.BlocksCount>block.blockchainInfo.block then begin
-              previous_Block := previousCheckedSafebox.Block( block.blockchainInfo.block );
-              do_check_blockchain_info := Not TAccountComp.EqualOperationBlocks(block.blockchainInfo,previous_Block.blockchainInfo);
+            if previousCheckedSafebox.BlocksCount>LBlock.blockchainInfo.block then begin
+              LPrevious_Block_info := previousCheckedSafebox.GetBlockInfo( LBlock.blockchainInfo.block );
+              do_check_blockchain_info := Not TAccountComp.EqualOperationBlocks(LBlock.blockchainInfo,LPrevious_Block_info);
             end else do_check_blockchain_info := True;
           end else do_check_blockchain_info := True;
           // Check is valid:
@@ -3335,13 +3332,13 @@ begin
               // For TESTNET increase speed purposes, will only check latests blocks
             if ((iblock + (CT_BankToDiskEveryNBlocks * 10)) >= sbHeader.blockscount) then begin
             {$ENDIF}
-              LAddToMultiThreadOperationsBlockValidator := (LUseMultiThreadOperationsBlockValidator) and (block.blockchainInfo.protocol_version>=CT_PROTOCOL_4) and (Assigned(LPCOperationsBlockValidator));
-              If not IsValidNewOperationsBlock(block.blockchainInfo,False,Not LAddToMultiThreadOperationsBlockValidator,aux_errors) then begin
+              LAddToMultiThreadOperationsBlockValidator := (LUseMultiThreadOperationsBlockValidator) and (LBlock.blockchainInfo.protocol_version>=CT_PROTOCOL_4) and (Assigned(LPCOperationsBlockValidator));
+              If not IsValidNewOperationsBlock(LBlock.blockchainInfo,False,Not LAddToMultiThreadOperationsBlockValidator,aux_errors) then begin
                 errors := errors + ' > ' + aux_errors;
                 exit;
               end;
               if (LAddToMultiThreadOperationsBlockValidator) then begin
-                LPCOperationsBlockValidator.AddToValidate(block.blockchainInfo);
+                LPCOperationsBlockValidator.AddToValidate(LBlock.blockchainInfo);
                 LPCOperationsBlockValidator.GetStatus(LValidatedOPOk, LValidatedOPError, LValidatedOPPending);
                 if LValidatedOPError>0 then begin
                   LPCOperationsBlockValidator.FillErrors(errors);
@@ -3354,54 +3351,54 @@ begin
           end;
 
           // STEP 2: Check if valid block hash
-          if (Not TBaseType.Equals(CalcBlockHash(block,FCurrentProtocol),block.block_hash)) then begin
+          if (Not TBaseType.Equals(CalcBlockHash(LBlock,FCurrentProtocol),LBlock.block_hash)) then begin
             errors := errors + ' > Invalid block hash '+inttostr(iblock+1)+'/'+inttostr(sbHeader.blockscount);
             exit;
           end;
           // STEP 3: Check accumulatedWork
           if (iblock>0) then begin
-            If (self.Block(iblock-1).accumulatedWork)+block.blockchainInfo.compact_target <> block.accumulatedWork then begin
+            If (ALastReadBlock.accumulatedWork)+LBlock.blockchainInfo.compact_target <> LBlock.accumulatedWork then begin
               errors := errors + ' > Invalid accumulatedWork';
               exit;
             end;
           end;
         end;
         // Checking previous_proof_of_work
-        if block.blockchainInfo.protocol_version>=CT_PROTOCOL_5 then begin
-          if (Not TBaseType.Equals(block.blockchainInfo.previous_proof_of_work,LPreviousProofOfWork)) then begin
+        if LBlock.blockchainInfo.protocol_version>=CT_PROTOCOL_5 then begin
+          if (Not TBaseType.Equals(LBlock.blockchainInfo.previous_proof_of_work,LPreviousProofOfWork)) then begin
             errors := errors + ' > previous_proof_of_work does not match!';
             Exit;
           end;
         end else begin
           // Ensure no value on "previous_proof_of_work" field
-          if (Length(block.blockchainInfo.previous_proof_of_work)>0)
-            and (Not TBaseType.Equals(block.blockchainInfo.previous_proof_of_work,LPreviousProofOfWork)) then begin
+          if (Length(LBlock.blockchainInfo.previous_proof_of_work)>0)
+            and (Not TBaseType.Equals(LBlock.blockchainInfo.previous_proof_of_work,LPreviousProofOfWork)) then begin
             errors := errors + ' > contains previous_proof_of_work on protocol<5 different than needed!';
             Exit;
           end;
         end;
         // Add
         New(P);
-        ToTMemBlockAccount(block,P^);
+        ToTMemBlockAccount(LBlock,P^);
         FBlockAccountsList.Add(P);
-        for j := low(block.accounts) to High(block.accounts) do begin
-          AccountKeyListAddAccounts(block.accounts[j].accountInfo.accountKey,[block.accounts[j].account]);
+        for j := low(LBlock.accounts) to High(LBlock.accounts) do begin
+          AccountKeyListAddAccounts(LBlock.accounts[j].accountInfo.accountKey,[LBlock.accounts[j].account]);
         end;
         // BufferBlocksHash fill with data
         j := (length(P^.block_hash)*(iBlock));
         FBufferBlocksHash.Replace( j, P^.block_hash[0], 32 );
-        LastReadBlock := block;
-        Inc(FWorkSum,block.blockchainInfo.compact_target);
+        ALastReadBlock := LBlock;
+        Inc(FWorkSum,LBlock.blockchainInfo.compact_target);
         // Upgrade to Protocol 4,5... step:
-        if (block.blockchainInfo.protocol_version>FCurrentProtocol) then begin
-          if (block.blockchainInfo.protocol_version = CT_PROTOCOL_4) then begin
+        if (LBlock.blockchainInfo.protocol_version>FCurrentProtocol) then begin
+          if (LBlock.blockchainInfo.protocol_version = CT_PROTOCOL_4) then begin
             FCurrentProtocol := CT_PROTOCOL_4;
-          end else if (block.blockchainInfo.protocol_version = CT_PROTOCOL_5) then begin
+          end else if (LBlock.blockchainInfo.protocol_version = CT_PROTOCOL_5) then begin
             FCurrentProtocol := CT_PROTOCOL_5;
           end;
         end;
         // Assign to previous
-        LPreviousProofOfWork := block.blockchainInfo.proof_of_work;
+        LPreviousProofOfWork := LBlock.blockchainInfo.proof_of_work;
       end;
         if Assigned(LPCOperationsBlockValidator) then begin
           repeat
@@ -3437,7 +3434,7 @@ begin
       end;
       // Check worksum value
       If sbHeader.blockscount>0 then begin
-        If (FWorkSum<>Self.Block(sbHeader.blockscount-1).accumulatedWork) then begin
+        If (FWorkSum<>ALastReadBlock.accumulatedWork) then begin
           errors := 'Invalid WorkSum value';
           exit;
         end;
@@ -3446,13 +3443,13 @@ begin
       FSafeBoxHash := CalcSafeBoxHash;
       // Checking saved SafeBoxHash
       If (Not TBaseType.Equals(FSafeBoxHash,savedSBH)) then begin
-        errors := 'Invalid SafeBoxHash value in stream '+TCrypto.ToHexaString(FSafeBoxHash)+'<>'+TCrypto.ToHexaString(savedSBH)+' Last block:'+IntToStr(LastReadBlock.blockchainInfo.block);
+        errors := 'Invalid SafeBoxHash value in stream '+TCrypto.ToHexaString(FSafeBoxHash)+'<>'+TCrypto.ToHexaString(savedSBH)+' Last block:'+IntToStr(ALastReadBlock.blockchainInfo.block);
         exit;
       end;
       // Check that checkSafeboxHash is as expected
       if (Length(checkSafeboxHash)>0) then begin
         if (Not TBaseType.Equals(checkSafeboxHash,FSafeBoxHash)) then begin
-          errors := 'Invalid SafeboxHash, does not match '+TCrypto.ToHexaString(FSafeBoxHash)+'<>'+TCrypto.ToHexaString(checkSafeboxHash)+' Last block:'+IntToStr(LastReadBlock.blockchainInfo.block);
+          errors := 'Invalid SafeboxHash, does not match '+TCrypto.ToHexaString(FSafeBoxHash)+'<>'+TCrypto.ToHexaString(checkSafeboxHash)+' Last block:'+IntToStr(ALastReadBlock.blockchainInfo.block);
           Exit;
         end;
       end;
@@ -3545,7 +3542,7 @@ var b : TBlockAccount;
   Stream : TStream;
   LCardinal : Cardinal;
 begin
-  b := Block(nblock);
+  b := GetBlock(nblock);
   if DestStream is TMemoryStream then Stream := DestStream
   else begin
     Stream := TMemoryStream.Create;
@@ -3621,7 +3618,7 @@ begin
     Stream.Position := posFinal;
     // Final zone: Save safeboxhash for next block
     If (ToBlock+1<BlocksCount) then begin
-      b := Block(ToBlock);
+      b := GetBlock(ToBlock);
       TStreamOp.WriteAnsiString(Stream,b.blockchainInfo.initial_safe_box_hash);
     end else begin
       TStreamOp.WriteAnsiString(Stream,FSafeBoxHash);
@@ -3890,7 +3887,7 @@ var target_hash, pow : TRawBytes;
 begin
   Result := False;
   errors := '';
-  If BlocksCount>0 then lastBlock := Block(BlocksCount-1).blockchainInfo
+  If BlocksCount>0 then lastBlock := GetBlockInfo(BlocksCount-1)
   else lastBlock := CT_OperationBlock_NUL;
   // Check block
   if (BlocksCount <> newOperationBlock.block) then begin
@@ -4093,10 +4090,10 @@ begin
   end else begin
     if BlocksCount > CT_CalcNewTargetBlocksAverage then CalcBack := CT_CalcNewTargetBlocksAverage
     else CalcBack := BlocksCount-1;
-    lastBlock := Block(BlocksCount-1).blockchainInfo;
+    lastBlock := GetBlockInfo(BlocksCount-1);
     // Calc new target!
     ts1 := lastBlock.timestamp;
-    ts2 := Block(BlocksCount-CalcBack-1).blockchainInfo.timestamp;
+    ts2 := GetBlockInfo(BlocksCount-CalcBack-1).timestamp;
     tsTeorical := (CalcBack * CT_NewLineSecondsAvg);
     tsReal := (ts1 - ts2);
     If (protocolVersion=CT_PROTOCOL_1) then begin
@@ -4104,7 +4101,7 @@ begin
     end else if (protocolVersion<=CT_PROTOCOL_5) then begin
       CalcBack := CalcBack DIV CT_CalcNewTargetLimitChange_SPLIT;
       If CalcBack=0 then CalcBack := 1;
-      ts2 := Block(BlocksCount-CalcBack-1).blockchainInfo.timestamp;
+      ts2 := GetBlockInfo(BlocksCount-CalcBack-1).timestamp;
       tsTeoricalStop := (CalcBack * CT_NewLineSecondsAvg);
       tsRealStop := (ts1 - ts2);
       { Protocol 2 change:
@@ -4129,6 +4126,11 @@ begin
       Raise Exception.Create('ERROR DEV 20180306-1 Protocol not valid');
     end;
   end;
+end;
+
+function TPCSafeBox.GetBlockInfo(ABlockNumber: Cardinal): TOperationBlock;
+begin
+  Result := GetBlock(ABlockNumber).blockchainInfo;
 end;
 
 function TPCSafeBox.GetActualCompactTargetHash(protocolVersion : Word): Cardinal;
@@ -4217,7 +4219,7 @@ begin
     Exit;
   end else begin
     // Has not changed on my chain, must search on PreviousSafebox chain AT OriginStartPos
-    blockAccount := FPreviousSafeBox.Block(blockNumber);
+    blockAccount := FPreviousSafeBox.GetBlock(blockNumber);
     // Is valid?
     If WasUpdatedBeforeOrigin then Exit;
     //
@@ -4254,7 +4256,7 @@ begin
   iBlock := account_number DIV CT_AccountsPerBlock;
   iAccount := account_number MOD CT_AccountsPerBlock;
 
-  blockAccount := Block(iBlock);
+  blockAccount := GetBlock(iBlock);
   FModifiedBlocksPreviousState.AddIfNotExists(blockAccount);
   If Assigned(FPreviousSafeBox) then begin
     Pblock := Nil;
