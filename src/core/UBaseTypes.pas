@@ -457,20 +457,24 @@ begin
    Str2Len := Length(Str2);
    if ((Str1Len=0) and (Str2Len=0)) or (@Str1[Low(Str1)] = @Str2[Low(Str2)]) then
      Result := 0
-   else if (Str1Len < Str2Len) then
-     Result := -1
-   else if (Str1Len > Str2Len) then
-     Result := 1
    else begin
      Result := 0;
-     for i:= Low(Str1) to High(Str1) do begin
+     i := 0;
+     while (i<Length(Str1)) and (i<Length(Str2)) do begin
        if Str1[i] < Str2[i] then begin
          Result := -1;
          Break;
        end else if Str1[i] > Str2[i] then begin
          Result := 1;
          Break;
-       end
+       end;
+       inc(i);
+     end;
+     if (Result=0) then begin
+       if (Str1Len < Str2Len) then
+         Result := -1
+       else if (Str1Len > Str2Len) then
+         Result := 1;
      end;
    end;
 End;

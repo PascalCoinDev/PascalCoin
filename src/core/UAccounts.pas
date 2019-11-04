@@ -348,6 +348,7 @@ Type
     Function GetActualCompactTargetHash(protocolVersion : Word): Cardinal;
     Function FindAccountByName(const aName : String) : Integer; overload;
     Function FindAccountByName(const aName : TRawBytes) : Integer; overload;
+    Function FindAccountsStartingByName(const AStartName : TRawBytes; const ARawList : TOrderedRawList; const AMax : Integer = 0) : Integer;
 
     Procedure Clear;
     Function Account(account_number : Cardinal) : TAccount;
@@ -4194,6 +4195,31 @@ begin
         dec(j); // Next previous snapshot
       end;
     end;
+  end;
+end;
+
+function TPCSafeBox.FindAccountsStartingByName(const AStartName: TRawBytes;
+  const ARawList: TOrderedRawList; const AMax: Integer = 0): Integer;
+var LIndex : Integer;
+begin
+  ARawList.Clear;
+  StartThreadSafe;
+  try
+
+    if FOrderedByName.Find(AStartName,LIndex) then begin
+      ARawList.Add( FOrderedByName.Get(LIndex), FOrderedByName.GetTag(LIndex) );
+      inc(LIndex);
+    end;
+    while (LIndex<FOrderedByName.Count) and (TBaseType.StartsWith(AStartName,FOrderedByName.Get(LIndex)))
+      and ((AMax<=0) or (AMax>ARawList.Count)) // AMax <=0 inifinte results
+      do begin
+      ARawList.Add( FOrderedByName.Get(LIndex), FOrderedByName.GetTag(LIndex) );
+      inc(LIndex);
+    end;
+
+    Result := ARawList.Count;
+  finally
+    EndThreadSave;
   end;
 end;
 
