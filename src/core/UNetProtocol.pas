@@ -3263,7 +3263,7 @@ begin
       //
       opht := TOperationsHashTree.Create;
       try
-        If Not opht.LoadOperationsHashTreeFromStream(dataReceived,False,TNode.Node.Bank.SafeBox.CurrentProtocol,TNode.Node.Bank.SafeBox.CurrentProtocol,Nil,errors) then begin
+        If Not opht.LoadOperationsHashTreeFromStream(dataReceived,False,FRemoteOperationBlock.protocol_version,FRemoteOperationBlock.protocol_version,Nil,errors) then begin
           DisconnectInvalidClient(False,'Invalid operations hash tree stream: '+errors);
           Exit;
         end;
