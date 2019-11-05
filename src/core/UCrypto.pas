@@ -332,6 +332,7 @@ begin
     ms.WriteBuffer(raw[Low(raw)],Length(raw));
     ms.Position := 0;
     if ms.Read(LNewPrivateKeyInfo.EC_OpenSSL_NID,sizeof(LNewPrivateKeyInfo.EC_OpenSSL_NID))<>sizeof(LNewPrivateKeyInfo.EC_OpenSSL_NID) then exit;
+    if Not TAccountComp.IsValidEC_OpenSSL_NID(LNewPrivateKeyInfo.EC_OpenSSL_NID) then Exit;
     If TStreamOp.ReadAnsiString(ms,aux)<0 then exit;
     {$IFDEF Use_OpenSSL}
     BNx := BN_bin2bn(PAnsiChar(aux),Length(aux),nil);
@@ -384,8 +385,12 @@ Var BNx,BNy : PBIGNUM;
   pub_key : PEC_POINT;
 {$ENDIF}
 begin
-{$IFDEF Use_OpenSSL}
   Result := False;
+  if Not TAccountComp.IsValidEC_OpenSSL_NID(PubKey.EC_OpenSSL_NID) then begin
+    errors := 'Invalid NID '+IntToStr(PubKey.EC_OpenSSL_NID);
+    Exit(False);
+  end;
+{$IFDEF Use_OpenSSL}
   BNx := BN_bin2bn(PAnsiChar(PubKey.x),length(PubKey.x),nil);
   if Not Assigned(BNx) then Exit;
   try

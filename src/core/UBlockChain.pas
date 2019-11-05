@@ -551,7 +551,7 @@ Type
     Procedure Clear;
     Function LoadOperations(Operations : TPCOperationsComp; Block : Cardinal) : Boolean;
     Property SafeBox : TPCSafeBox read FSafeBox;
-    Function AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var newBlock: TBlockAccount; var errors: String): Boolean;
+    Function AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var errors: String): Boolean;
     Procedure DiskRestoreFromOperations(max_block : Int64; restoreProgressNotify : TProgressNotify = Nil);
     Procedure UpdateValuesFromSafebox;
     Procedure NewLog(Operations: TPCOperationsComp; Logtype: TLogType; const Logtxt: String);
@@ -784,7 +784,7 @@ begin
   Result := FSafeBox.AccountsCount;
 end;
 
-function TPCBank.AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var newBlock: TBlockAccount; var errors: String): Boolean;
+function TPCBank.AddNewBlockChainBlock(Operations: TPCOperationsComp; MaxAllowedTimestamp : Cardinal; var errors: String): Boolean;
 Var i : Integer;
 begin
   TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
@@ -809,8 +809,6 @@ begin
       if Not Operations.SafeBoxTransaction.Commit(Operations.OperationBlock,errors) then begin
         exit;
       end;
-
-      newBlock := SafeBox.Block(SafeBox.BlocksCount-1);
 
       // Initialize values
       FLastOperationBlock := Operations.OperationBlock;
@@ -923,7 +921,6 @@ end;
 procedure TPCBank.DiskRestoreFromOperations(max_block : Int64; restoreProgressNotify : TProgressNotify = Nil);
 Var
   errors: String;
-  newBlock: TBlockAccount;
   n : Int64;
   tc, LStartProcessTC : TTickCount;
   LBlocks : TList<TPCOperationsComp>;
@@ -998,7 +995,7 @@ begin
             for i := 0 to LBlocks.Count-1 do begin
               inc(LProgressBlock);
               SetLength(errors,0);
-              if Not AddNewBlockChainBlock(LBlocks[i],0,newBlock,errors) then begin
+              if Not AddNewBlockChainBlock(LBlocks[i],0,errors) then begin
                 NewLog(LBlocks[i], lterror,'Error restoring block: ' + Inttostr(BlocksCount)+ ' Errors: ' + errors);
                 Storage.DeleteBlockChainBlocks(BlocksCount);
                 Exit;
@@ -1076,11 +1073,11 @@ function TPCBank.GetActualTargetSecondsAverage(BackBlocks: Cardinal): Real;
 Var ts1, ts2: Int64;
 begin
   if BlocksCount>BackBlocks then begin
-    ts1 := SafeBox.Block(BlocksCount-1).blockchainInfo.timestamp;
-    ts2 := SafeBox.Block(BlocksCount-BackBlocks-1).blockchainInfo.timestamp;
+    ts1 := SafeBox.GetBlockInfo(BlocksCount-1).timestamp;
+    ts2 := SafeBox.GetBlockInfo(BlocksCount-BackBlocks-1).timestamp;
   end else if (BlocksCount>1) then begin
-    ts1 := SafeBox.Block(BlocksCount-1).blockchainInfo.timestamp;
-    ts2 := SafeBox.Block(0).blockchainInfo.timestamp;
+    ts1 := SafeBox.GetBlockInfo(BlocksCount-1).timestamp;
+    ts2 := SafeBox.GetBlockInfo(0).timestamp;
     BackBlocks := BlocksCount-1;
   end else begin
     Result := 0;
@@ -1097,11 +1094,11 @@ begin
     exit;
   end;
   if FromBlock>BackBlocks then begin
-    ts1 := SafeBox.Block(FromBlock-1).blockchainInfo.timestamp;
-    ts2 := SafeBox.Block(FromBlock-BackBlocks-1).blockchainInfo.timestamp;
+    ts1 := SafeBox.GetBlockInfo(FromBlock-1).timestamp;
+    ts2 := SafeBox.GetBlockInfo(FromBlock-BackBlocks-1).timestamp;
   end else if (FromBlock>1) then begin
-    ts1 := SafeBox.Block(FromBlock-1).blockchainInfo.timestamp;
-    ts2 := SafeBox.Block(0).blockchainInfo.timestamp;
+    ts1 := SafeBox.GetBlockInfo(FromBlock-1).timestamp;
+    ts2 := SafeBox.GetBlockInfo(0).timestamp;
     BackBlocks := FromBlock-1;
   end else begin
     Result := 0;
@@ -1153,7 +1150,7 @@ begin
         Result := SafeBox.LoadSafeBoxFromStream(Stream,False,checkSafeboxHash,progressNotify,previousCheckedSafebox,LastReadBlock,errors);
       end;
       If Not Result then exit;
-      If SafeBox.BlocksCount>0 then FLastOperationBlock := SafeBox.Block(SafeBox.BlocksCount-1).blockchainInfo
+      If SafeBox.BlocksCount>0 then FLastOperationBlock := SafeBox.GetBlockInfo(SafeBox.BlocksCount-1)
       else begin
         FLastOperationBlock := TPCOperationsComp.GetFirstBlock;
         FLastOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash; // Genesis hash

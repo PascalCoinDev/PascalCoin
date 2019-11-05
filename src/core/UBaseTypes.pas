@@ -62,6 +62,8 @@ Type
     procedure FromString(const AValue : String); // Will store a RAW bytes assuming each char of the string is a byte -> ALERT: Do not use when the String contains chars encoded with multibyte character set!
     function Add(const ARawValue : TRawBytes) : TRawBytes; // Will concat a new RawBytes value to current value
     function IsEmpty : Boolean; // Will return TRUE when Length = 0
+    procedure FromStream(AStream : TStream); overload;
+    procedure FromStream(AStream : TStream; AStartPos, ALength : Integer); overload;
   end;
 
 
@@ -191,6 +193,18 @@ begin
   if Length(Self)>0 then begin
     Result := TEncoding.ANSI.GetString(Self);
   end else Result := '';
+end;
+
+procedure TRawBytesHelper.FromStream(AStream: TStream; AStartPos, ALength: Integer);
+begin
+  System.SetLength(Self,ALength);
+  AStream.Position := AStartPos;
+  AStream.Read(Self,ALength);
+end;
+
+procedure TRawBytesHelper.FromStream(AStream: TStream);
+begin
+  Self.FromStream(AStream,0,AStream.Size);
 end;
 
 procedure TRawBytesHelper.FromString(const AValue: String);
@@ -443,20 +457,24 @@ begin
    Str2Len := Length(Str2);
    if ((Str1Len=0) and (Str2Len=0)) or (@Str1[Low(Str1)] = @Str2[Low(Str2)]) then
      Result := 0
-   else if (Str1Len < Str2Len) then
-     Result := -1
-   else if (Str1Len > Str2Len) then
-     Result := 1
    else begin
      Result := 0;
-     for i:= Low(Str1) to High(Str1) do begin
+     i := 0;
+     while (i<Length(Str1)) and (i<Length(Str2)) do begin
        if Str1[i] < Str2[i] then begin
          Result := -1;
          Break;
        end else if Str1[i] > Str2[i] then begin
          Result := 1;
          Break;
-       end
+       end;
+       inc(i);
+     end;
+     if (Result=0) then begin
+       if (Str1Len < Str2Len) then
+         Result := -1
+       else if (Str1Len > Str2Len) then
+         Result := 1;
      end;
    end;
 End;

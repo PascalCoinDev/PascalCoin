@@ -27,7 +27,7 @@ interface
 Uses classes, SysUtils,
   UJSONFunctions, UAccounts, UBaseTypes, UOpTransaction, UConst,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
-  URPC, UCrypto, UWallet, UBlockChain, ULog;
+  URPC, UCrypto, UWallet, UBlockChain, ULog, UPCOrderedLists;
 
 
 Type
@@ -149,7 +149,7 @@ var
   LErrors : String;
   LAccPubKey : TAccountKey;
   LOutput : TPCJSONArray;
-
+  LStartsWith : TOrderedRawList;
 begin
   // Get Parameters
   Result := False;
@@ -240,13 +240,32 @@ begin
     end;
   end else LSearchByPubkey := False;
   // Search by name
-  if ((Length(LAccountName)>0) AND (LSearchByNameType in [st_exact] )) then begin
-    LAccountNumber := ASender.Node.Bank.SafeBox.FindAccountByName(LAccountName);
-    if LAccountNumber >= 0 then begin
-      LAccount := ASender.Node.GetMempoolAccount(LAccountNumber);
-      if (_IsValidAccount(LAccount)) and
-        ((Not LSearchByPubkey) OR (TAccountComp.EqualAccountKeys(LAccPubKey,LAccount.accountInfo.accountKey))) then begin
-         TPascalCoinJSONComp.FillAccountObject(LAccount,LOutput.GetAsObject(LOutput.Count));
+  if ((Length(LAccountName)>0) AND (LSearchByNameType in [st_exact,st_startswith] )) then begin
+    if (LSearchByNameType in [st_exact]) then begin
+      LAccountNumber := ASender.Node.Bank.SafeBox.FindAccountByName(LAccountName);
+      if LAccountNumber >= 0 then begin
+        LAccount := ASender.Node.GetMempoolAccount(LAccountNumber);
+        if (_IsValidAccount(LAccount)) and
+          ((Not LSearchByPubkey) OR (TAccountComp.EqualAccountKeys(LAccPubKey,LAccount.accountInfo.accountKey))) then begin
+           TPascalCoinJSONComp.FillAccountObject(LAccount,LOutput.GetAsObject(LOutput.Count));
+        end;
+      end;
+    end else begin
+      // Starts-with indexed
+      LStartsWith := TOrderedRawList.Create;
+      try
+        LRaw.FromString(LAccountName);
+        ASender.Node.Bank.SafeBox.FindAccountsStartingByName(LRaw,LStartsWith,LMax);
+        for i := 0 to LStartsWith.Count-1 do begin
+          LAccountNumber := LStartsWith.GetTag(i);
+          LAccount := ASender.Node.GetMempoolAccount(LAccountNumber);
+          if (_IsValidAccount(LAccount)) and
+            ((Not LSearchByPubkey) OR (TAccountComp.EqualAccountKeys(LAccPubKey,LAccount.accountInfo.accountKey))) then begin
+             TPascalCoinJSONComp.FillAccountObject(LAccount,LOutput.GetAsObject(LOutput.Count));
+          end;
+        end;
+      finally
+        LStartsWith.Free;
       end;
     end;
   end else begin
