@@ -156,6 +156,7 @@ Type
     Class Function IsAccountForSaleOrSwapAcceptingTransactions(const AAccount: TAccount; ACurrentBlock : Integer; ACurrentProtocol : Word; const APayload : TRawBytes) : Boolean;
     Class Function IsOperationRecipientSignable(const ASender, ATarget : TAccount; ACurrentBlock : Integer; ACurrentProtocol : Word) : Boolean;
     Class Function GetECInfoTxt(Const EC_OpenSSL_NID: Word) : String;
+    Class Function IsValidEC_OpenSSL_NID(ANID : Word) : Boolean;
     Class Procedure ValidsEC_OpenSSL_NID(list : TList<Word>);
     Class Function AccountKey2RawString(const account: TAccountKey): TRawBytes; overload;
     Class procedure AccountKey2RawString(const account: TAccountKey; var dest: TRawBytes); overload;
@@ -1789,6 +1790,12 @@ begin
     errors := Format('Invalid AccountKey type:%d (Unknown type) - Length x:%d y:%d',[AAccountInfo.EC_OpenSSL_NID,length(AAccountInfo.x),length(AAccountInfo.y)]);
     Result := False;
   end;
+end;
+
+class function TAccountComp.IsValidEC_OpenSSL_NID(ANID: Word): Boolean;
+begin
+  Result := (ANID = CT_NID_secp256k1) or (ANID = CT_NID_secp384r1)
+    or (ANID = CT_NID_sect283k1) or (ANID = CT_NID_secp521r1);
 end;
 
 class function TAccountComp.IsNullAccountKey(const AAccountInfo : TAccountKey) : Boolean;

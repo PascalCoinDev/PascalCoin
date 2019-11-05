@@ -168,12 +168,24 @@ begin
   CheckIsWalletKeyValidPassword;
   if Not GetSelectedWalletKey(wk) then exit;
   if Assigned(wk.PrivateKey) then begin
-    if InputQueryPassword('Export private key','Insert a password to export',pwd1) then begin
-      if InputQueryPassword('Export private key','Repeat the password to export',pwd2) then begin
+    if InputQueryPassword('Export private key','Insert a password to export (empty for non encrypted)',pwd1) then begin
+      if InputQueryPassword('Export private key','Repeat the password to export (empty for non encrypted)',pwd2) then begin
         if pwd1<>pwd2 then raise Exception.Create('Passwords does not match!');
-        enc := TPCEncryption.DoPascalCoinAESEncrypt(wk.PrivateKey.ExportToRaw,TEncoding.ANSI.GetBytes(pwd1)).ToHexaString;
-        Clipboard.AsText := enc;
-        Application.MessageBox(PChar('The password has been encrypted with your password and copied to the clipboard.'+
+        if Length(pwd1)=0 then begin
+          enc := wk.PrivateKey.ExportToRaw.ToHexaString;
+          Clipboard.AsText := enc;
+          Application.MessageBox(PChar('Exported PRIVATE KEY without encryption'+
+          #10+#10+
+          'Key name: "'+wk.Name+'"'+#10+
+          #10+
+          'Exported value without encryption (Copied to the clipboard):'+#10+
+          enc+
+          #10+#10+'Length='+Inttostr(length(enc))+' bytes'),
+          PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
+        end else begin
+          enc := TPCEncryption.DoPascalCoinAESEncrypt(wk.PrivateKey.ExportToRaw,TEncoding.ANSI.GetBytes(pwd1)).ToHexaString;
+          Clipboard.AsText := enc;
+          Application.MessageBox(PChar('The PRIVATE KEY has been encrypted with your password and copied to the clipboard.'+
           #10+#10+
           'Password: "'+pwd1+'"'+#10+
           #10+
@@ -181,6 +193,7 @@ begin
           enc+
           #10+#10+'Length='+Inttostr(length(enc))+' bytes'),
           PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
+        end;
       end else raise Exception.Create('Cancelled operation');
     end;
   end;
@@ -283,6 +296,9 @@ var s : String;
   function ParseRawKey(EC_OpenSSL_NID : Word; const rawPrivateKey : TRawBytes) : boolean;
   begin
     FreeAndNil(EC); ParseRawKey := False;
+    // Check valid NID
+    if Not TAccountComp.IsValidEC_OpenSSL_NID(EC_OpenSSL_NID) then Exit(False);
+    //
     EC := TECPrivateKey.Create;
     Try
       EC.SetPrivateKeyFromHexa(EC_OpenSSL_NID, TCrypto.ToHexaString(rawPrivateKey));
@@ -292,6 +308,27 @@ var s : String;
         FreeAndNil(EC);
         Raise;
       end;
+    end;
+  end;
+
+  function ParseUnencryptedKey(ARawUnencryptedPrivateKey : TRawBytes) : Boolean;
+  var LStream : TStream;
+    LNID : Word;
+    LRawPrivateKey : TRawBytes;
+  begin
+    Result := False;
+    LStream := TMemoryStream.Create;
+    try
+      LStream.WriteBuffer(ARawUnencryptedPrivateKey[Low(ARawUnencryptedPrivateKey)],Length(ARawUnencryptedPrivateKey));
+      LStream.Position := 0;
+      if LStream.Read(LNID,2)<>2 then Exit;
+      // Check valid NID
+      if Not TAccountComp.IsValidEC_OpenSSL_NID(LNID) then Exit;
+      // Try to parse
+      if TStreamOp.ReadAnsiString(LStream,LRawPrivateKey,LStream.Size - 4)<=0 then Exit;
+      Result := ParseRawKey(LNID,LRawPrivateKey);
+    finally
+      LStream.Free;
     end;
   end;
 
@@ -328,6 +365,8 @@ var s : String;
       Until Length(desenc)>0;
   end;
 
+
+
 begin
   EC := Nil;
   CheckIsWalletKeyValidPassword;
@@ -337,16 +376,19 @@ begin
     if (s='') then raise Exception.Create('No valid key');
     enc := TCrypto.HexaToRaw(s);
     if Length(enc)=0 then raise Exception.Create('Invalid text... You must enter an hexadecimal value ("0".."9" or "A".."F")');
-    case Length(enc) of
+    // Allow unencrypted private keys
+    if Not ParseUnencryptedKey(enc) then begin
+      case Length(enc) of
          32: parseResult := ParseRawKey(CT_NID_secp256k1,enc);
          35,36: parseResult := ParseRawKey(CT_NID_sect283k1,enc);
          48: parseResult := ParseRawKey(CT_NID_secp384r1,enc);
          65,66: parseResult := ParseRawKey(CT_NID_secp521r1,enc);
          64, 80, 96: parseResult := ParseEncryptedKey;
          else Exception.Create('Invalidly formatted private key string. Ensure it is an encrypted private key export or raw private key hexstring.');
+      end;
+      if (parseResult = False) then
+        exit;
     end;
-    if (parseResult = False) then
-       exit;
     Try
       // EC is assigned by ParseRawKey/ImportEncryptedKey
       if Not Assigned(EC) then begin
