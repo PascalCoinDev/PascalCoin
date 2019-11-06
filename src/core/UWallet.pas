@@ -719,7 +719,7 @@ begin
       raise Exception.Create('Invalid public key value (Not hexa or not an imported format)'+#10+errors);
     accountKey := TAccountComp.RawString2Accountkey(raw);
   end;
-  If not TAccountComp.IsValidAccountKey(accountKey,errors) then
+  If not TAccountComp.IsValidAccountKey(accountKey,CT_BUILD_PROTOCOL,errors) then
     raise Exception.Create('This data is not a valid public key'+#10+errors);
   if FKeys.IndexOfAccountKey(accountKey)>=0 then
     raise exception.Create('This key exists on your wallet');

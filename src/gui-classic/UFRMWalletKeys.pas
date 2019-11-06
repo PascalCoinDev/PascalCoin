@@ -426,7 +426,7 @@ begin
     if Length(raw)=0 then raise Exception.Create('Invalid public key value (Not hexa or not an imported format)'+#10+errors);
     account := TAccountComp.RawString2Accountkey(raw);
   end;
-  If not TAccountComp.IsValidAccountKey(account,errors) then raise Exception.Create('This data is not a valid public key'+#10+errors);
+  If not TAccountComp.IsValidAccountKey(account,CT_BUILD_PROTOCOL,errors) then raise Exception.Create('This data is not a valid public key'+#10+errors);
   if WalletKeys.IndexOfAccountKey(account)>=0 then raise exception.Create('This key exists on your wallet');
   s := 'Imported public key '+DateTimeToStr(now);
   if InputQuery('Set a name','Name for this private key:',s) then begin

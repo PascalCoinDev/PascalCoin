@@ -61,8 +61,8 @@ Type
     Property PublicKey : TECDSA_Public read GetPublicKey;
     Function SetPrivateKeyFromHexa(AEC_OpenSSL_NID : Word; const hexa : String) : Boolean;
     Property EC_OpenSSL_NID : Word Read GetEC_OpenSSL_NID;
-    class function IsValidPublicKey(PubKey : TECDSA_Public; var errors : String) : Boolean; overload;
-    class function IsValidPublicKey(PubKey : TECDSA_Public) : Boolean; overload;
+    class function IsValidPublicKey(PubKey : TECDSA_Public; ACurrentProtocol : Word; var errors : String) : Boolean; overload;
+    class function IsValidPublicKey(PubKey : TECDSA_Public; ACurrentProtocol : Word) : Boolean; overload;
     // Exports a Private key in a RAW saving 2 bytes for EC_OpenSSL_NID, 2 bytes for private key length and private key as a RAW
     Function ExportToRaw : TRawBytes;
     // Imports a Private key saved with "ExportToRaw" format
@@ -377,7 +377,7 @@ begin
   End;
 end;
 
-class function TECPrivateKey.IsValidPublicKey(PubKey: TECDSA_Public; var errors : String): Boolean;
+class function TECPrivateKey.IsValidPublicKey(PubKey: TECDSA_Public; ACurrentProtocol : Word; var errors : String): Boolean;
 {$IFDEF Use_OpenSSL}
 Var BNx,BNy : PBIGNUM;
   ECG : PEC_GROUP;
@@ -390,6 +390,7 @@ begin
     errors := 'Invalid NID '+IntToStr(PubKey.EC_OpenSSL_NID);
     Exit(False);
   end;
+  Result := (Length(PubKey.x)<100) And (Length(PubKey.y)<100);
 {$IFDEF Use_OpenSSL}
   BNx := BN_bin2bn(PAnsiChar(PubKey.x),length(PubKey.x),nil);
   if Not Assigned(BNx) then Exit;
@@ -397,6 +398,9 @@ begin
     BNy := BN_bin2bn(PAnsiChar(PubKey.y),length(PubKey.y),nil);
     if Not Assigned(BNy) then Exit;
     try
+      if ACurrentProtocol>=CT_PROTOCOL_5 then begin
+        Exit;
+      end;
       ECG := EC_GROUP_new_by_curve_name(PubKey.EC_OpenSSL_NID);
       if Not Assigned(ECG) then Exit;
       try
@@ -430,10 +434,10 @@ begin
 {$ENDIF}
 end;
 
-class function TECPrivateKey.IsValidPublicKey(PubKey: TECDSA_Public): Boolean;
+class function TECPrivateKey.IsValidPublicKey(PubKey: TECDSA_Public; ACurrentProtocol : Word): Boolean;
 var Ltmp : String;
 begin
-  Result := IsValidPublicKey(PubKey,Ltmp);
+  Result := IsValidPublicKey(PubKey,ACurrentProtocol,Ltmp);
 end;
 
 procedure TECPrivateKey.SetPrivateKeyInfo(const Value: TECPrivateKeyInfo);

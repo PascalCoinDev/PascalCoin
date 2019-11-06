@@ -3511,7 +3511,7 @@ Begin
       exit;
     end;
     FClientPublicKey := TAccountComp.RawString2Accountkey(RawAccountKey);
-    If Not TAccountComp.IsValidAccountKey(FClientPublicKey,errors) then begin
+    If Not TAccountComp.IsValidAccountKey(FClientPublicKey,CT_BUILD_PROTOCOL,errors) then begin
       DisconnectInvalidClient(false,'Invalid Public key: '+TNetData.HeaderDataToText(HeaderData)+' errors: '+errors);
       exit;
     end;

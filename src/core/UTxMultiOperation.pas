@@ -670,7 +670,7 @@ begin
       exit;
     end;
     If (public_key in chi.Changes_type) then begin
-      If Not TAccountComp.IsValidAccountKey( chi.New_Accountkey, errors ) then begin
+      If Not TAccountComp.IsValidAccountKey( chi.New_Accountkey, ProtocolVersion, errors) then begin
         Exit;
       end;
     end;

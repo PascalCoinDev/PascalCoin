@@ -540,7 +540,7 @@ begin
     exit;
   end;
   If (public_key in FData.changes_type) then begin
-    If Not TAccountComp.IsValidAccountKey( FData.new_accountkey, errors ) then begin
+    If Not TAccountComp.IsValidAccountKey( FData.new_accountkey, ProtocolVersion, errors) then begin
       exit;
     end;
   end;
@@ -972,7 +972,7 @@ begin
       exit;
     end;
 
-    If Not (TAccountComp.IsValidAccountKey(FData.new_accountkey,AErrors)) then exit; // BUG 20171511
+    If Not (TAccountComp.IsValidAccountKey(FData.new_accountkey,ProtocolVersion,AErrors)) then exit;
     LBuyAccountNewPubkey := FData.new_accountkey;
     {$endregion}
   end else if // (is auto buy) OR (is transaction that can buy)
@@ -996,14 +996,14 @@ begin
         // the below line was a bug fix that introduced a new bug, and is retained here for
         // V2-V4 consistency
         //------
-        if Not (TAccountComp.IsValidAccountKey(FData.new_accountkey,AErrors)) then exit; // BUG 20171511
+        if Not (TAccountComp.IsValidAccountKey(FData.new_accountkey,ProtocolVersion,AErrors)) then exit;
         //------
       end;
     end;
 
     // Check that stored "new_publicKey" is valid (when not in coin swap)
     if (Not TAccountComp.IsAccountForCoinSwap(LTarget.accountInfo)) and
-       (Not (TAccountComp.IsValidAccountKey(LTarget.accountInfo.new_publicKey,AErrors))) then exit;
+       (Not (TAccountComp.IsValidAccountKey(LTarget.accountInfo.new_publicKey,ProtocolVersion,AErrors))) then exit;
 
     // NOTE: This is a Transaction opereation (not a buy account operation) that
     // has some "added" effects (private sale, swap...)
@@ -1462,7 +1462,7 @@ begin
     errors := 'Account signer is currently locked';
     exit;
   end;
-  If Not TAccountComp.IsValidAccountKey( FData.new_accountkey, errors ) then begin
+  If Not TAccountComp.IsValidAccountKey( FData.new_accountkey,ProtocolVersion,errors) then begin
     exit;
   end;
   // NEW v2 protocol protection: Does not allow to change key for same key
@@ -1770,7 +1770,7 @@ begin
     errors := 'Insuficient funds';
     exit;
   end;
-  if Not TAccountComp.IsValidAccountKey(FData.new_accountkey,errors) then begin
+  if Not TAccountComp.IsValidAccountKey(FData.new_accountkey,ProtocolVersion,errors) then begin
     Exit;
   end;
   Result := AccountTransaction.UpdateAccountInfo(AccountPreviousUpdatedBlock,
@@ -2000,7 +2000,7 @@ begin
       exit;
     end;
     if LIsPrivateSale OR LIsAccountSwap then begin
-      If Not TAccountComp.IsValidAccountKey( FData.new_public_key, errors ) then begin
+      If Not TAccountComp.IsValidAccountKey( FData.new_public_key,ProtocolVersion,errors) then begin
         errors := 'Invalid new public key: '+errors;
         exit;
       end;
