@@ -168,6 +168,8 @@ begin
         inc(nCounter);
         LProtocol := operationsComp.OperationBlock.protocol_version;
         //
+        if Random(10)<5 then LProtocol := 4; // XXXXXXXXXXXXXXXXX TEST OLD
+
         Case Random(30) of
           0..10 : begin
             if FMaxOperationsPerSecond>0 then nMaxTransactionsValue := Random(FMaxOperationsPerSecond)+1
@@ -186,6 +188,7 @@ begin
             else inc(FnOperationsCreatedFailed);
           end;
         end;
+        inc(FnOperationsCreated,TRandomGenerateOperation.GenerateOpListAccountForSale(LProtocol,operationsComp,FSourceWalletKeys));
       end;
 
       if (Not Terminated) And (Not FNeedSanitize) And (FAllowExecute) then begin
@@ -332,7 +335,7 @@ begin
       iInt := Random(aWalletKeys.AccountsKeyList.AccountKeyList[iKey].Count);
       Repeat
         nAccount := aWalletKeys.AccountsKeyList.AccountKeyList[iKey].Get( iInt );
-        If Not TAccountComp.IsAccountBlockedByProtocol(nAccount,operationsComp.SafeBoxTransaction.FreezedSafeBox.BlocksCount) then begin
+        If (nAccount>0) And (Not TAccountComp.IsAccountBlockedByProtocol(nAccount,operationsComp.SafeBoxTransaction.FreezedSafeBox.BlocksCount)) then begin
           if (operationsComp.OperationsHashTree.CountOperationsBySameSignerWithoutFee(nAccount)<=0) then begin
             Result := True;
             Exit;
@@ -493,7 +496,7 @@ begin
 
   end else begin
 
-    if Random(1)=0 then begin
+    if Random(2)=0 then begin
       nTarget := Random( aWalletKeys.AccountsKeyList.AccountKeyList[iKey].Count );
     end else begin
       nTarget := nSigner;
@@ -516,7 +519,7 @@ begin
               CT_HashLock_NUL,
               GetRandomPayload(''));
           end;
-        1 : // Publis sale:
+        1 : // Public sale:
           begin
             opList := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(current_protocol,
               as_ForSale,
@@ -532,7 +535,7 @@ begin
           begin
             opList := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(current_protocol,
               as_ForAtomicAccountSwap,
-              nSigner, SignerAccount.n_operation+1, nTarget, Random(50000)+1,fees,
+              nSigner, SignerAccount.n_operation+1, nTarget,0,fees,
               Random( operationsComp.SafeBoxTransaction.FreezedSafeBox.AccountsCount ),
               aWalletKeys.Key[ Random(aWalletKeys.Count) ].AccountKey,
               operationsComp.OperationBlock.block + Random(1000),

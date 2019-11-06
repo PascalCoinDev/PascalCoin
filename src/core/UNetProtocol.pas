@@ -2667,23 +2667,29 @@ begin
       errors := 'Not autosend';
       exit;
     end;
-    if DataBuffer.Size<4 then begin
-      errors := 'Invalid databuffer size';
-      exit;
-    end;
-    DataBuffer.Read(c,4);
-    for i := 1 to c do begin
-      errors := 'Invalid operation '+inttostr(i)+'/'+inttostr(c);
-      if not DataBuffer.Read(optype,1)=1 then exit;
-      opclass := TPCOperationsComp.GetOperationClassByOpType(optype);
-      if Not Assigned(opclass) then exit;
-      op := opclass.Create(TNode.Node.Bank.SafeBox.CurrentProtocol);
-      Try
-        op.LoadFromNettransfer(DataBuffer);
-        operations.AddOperationToHashTree(op);
-      Finally
-        op.Free;
-      End;
+    if (NetProtocolVersion.protocol_available>=CT_NetProtocol_Available) then begin
+      if Not operations.LoadOperationsHashTreeFromStream(DataBuffer,False,TNode.Node.Bank.SafeBox.CurrentProtocol,TNode.Node.Bank.SafeBox.CurrentProtocol,Nil,errors) then Exit;
+    end else begin
+      // TODO:
+      // After V5 Activation all this code can be deleted, not used anymore
+      if DataBuffer.Size<4 then begin
+        errors := 'Invalid databuffer size';
+        exit;
+      end;
+      DataBuffer.Read(c,4);
+      for i := 1 to c do begin
+        errors := 'Invalid operation '+inttostr(i)+'/'+inttostr(c);
+        if not DataBuffer.Read(optype,1)=1 then exit;
+        opclass := TPCOperationsComp.GetOperationClassByOpType(optype);
+        if Not Assigned(opclass) then exit;
+        op := opclass.Create(TNode.Node.Bank.SafeBox.CurrentProtocol);
+        Try
+          op.LoadFromNettransfer(DataBuffer);
+          operations.AddOperationToHashTree(op);
+        Finally
+          op.Free;
+        End;
+      end;
     end;
     DoDisconnect := false;
   finally
@@ -4279,7 +4285,7 @@ begin
 end;
 
 function TNetConnection.Send_AddOperations(Operations : TOperationsHashTree) : Boolean;
-Var data : TMemoryStream;
+Var LStream : TStream;
   c1, request_id : Cardinal;
   i, nOpsToSend : Integer;
   optype : Byte;
@@ -4304,20 +4310,26 @@ begin
       end;
       if FBufferToSendOperations.OperationsCount>0 then begin
         TLog.NewLog(ltdebug,ClassName,Format('Sending %d Operations to %s (inProc:%d, Received:%d)',[FBufferToSendOperations.OperationsCount,ClientRemoteAddr,nOpsToSend,FBufferReceivedOperationsHash.Count]));
-        data := TMemoryStream.Create;
+        LStream := TMemoryStream.Create;
         try
           request_id := TNetData.NetData.NewRequestId;
-          c1 := FBufferToSendOperations.OperationsCount;
-          data.Write(c1,4);
-          for i := 0 to FBufferToSendOperations.OperationsCount-1 do begin
-            optype := FBufferToSendOperations.GetOperation(i).OpType;
-            data.Write(optype,1);
-            FBufferToSendOperations.GetOperation(i).SaveToNettransfer(data);
+          if (NetProtocolVersion.protocol_available>=CT_NetProtocol_Available) then begin
+            FBufferToSendOperations.SaveOperationsHashTreeToStream(LStream,False)
+          end else begin
+            // TODO:
+            // After V5 Activation all this code can be deleted, not used anymore
+            c1 := FBufferToSendOperations.OperationsCount;
+            LStream.Write(c1,4);
+            for i := 0 to FBufferToSendOperations.OperationsCount-1 do begin
+              optype := FBufferToSendOperations.GetOperation(i).OpType;
+              LStream.Write(optype,1);
+              FBufferToSendOperations.GetOperation(i).SaveToNettransfer(LStream);
+            end;
           end;
-          Send(ntp_autosend,CT_NetOp_AddOperations,0,request_id,data);
+          Send(ntp_autosend,CT_NetOp_AddOperations,0,request_id,LStream);
           FBufferToSendOperations.ClearHastThree;
         finally
-          data.Free;
+          LStream.Free;
         end;
       end{$IFDEF HIGHLOG} else TLog.NewLog(ltdebug,ClassName,Format('Not sending any operations to %s (inProc:%d, Received:%d, Sent:%d)',[ClientRemoteAddr,nOpsToSend,FBufferReceivedOperationsHash.Count,FBufferToSendOperations.OperationsCount])){$ENDIF};
     finally

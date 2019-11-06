@@ -876,7 +876,7 @@ end;
 
 class function TNode.NodeVersion: String;
 begin
-  Result := CT_ClientAppVersion{$IFDEF LINUX}+'L'{$ELSE}+'W'{$ENDIF}{$IFDEF FPC}{$IFDEF LCL}+'l'{$ELSE}+'f'{$ENDIF}{$ENDIF}{$IFDEF FPC}{$IFDEF CPU32}+'32b'{$ELSE}+'64b'{$ENDIF}{$ELSE}{$IFDEF CPU32BITS}+'32b'{$ELSE}+'64b'{$ENDIF}{$ENDIF}+'of';
+  Result := CT_ClientAppVersion{$IFDEF LINUX}+'L'{$ELSE}+'W'{$ENDIF}{$IFDEF FPC}{$IFDEF LCL}+'l'{$ELSE}+'f'{$ENDIF}{$ENDIF}{$IFDEF FPC}{$IFDEF CPU32}+'32b'{$ELSE}+'64b'{$ENDIF}{$ELSE}{$IFDEF CPU32BITS}+'32b'{$ELSE}+'64b'{$ENDIF}{$ENDIF};
 end;
 
 procedure TNode.Notification(AComponent: TComponent; Operation: TOperation);
