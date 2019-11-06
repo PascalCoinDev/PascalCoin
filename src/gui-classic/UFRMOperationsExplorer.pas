@@ -684,7 +684,7 @@ begin
   If Assigned(op) then begin
     mOperationInfo.Lines.Add(Format('%s',[op.ToString]));
     mOperationInfo.Lines.Add('');
-    mOperationInfo.Lines.Add(Format('OpType:%d ClassName:%s',[op.OpType,op.ClassName]));
+    mOperationInfo.Lines.Add(Format('OpType:%d ClassName:%s Protocol:%d',[op.OpType,op.ClassName,op.ProtocolVersion]));
     l := TList<Cardinal>.Create;
     Try
       op.AffectedAccounts(l); aux := '';
@@ -707,7 +707,7 @@ begin
       mOperationInfo.Lines.Add(Format('Size: %.2f Kb (%d bytes)',[ms.Size/1024,ms.Size]));
       ms.Position:=0;
       SetLength(raw,ms.Size);
-      ms.ReadBuffer(raw[1],ms.Size);
+      ms.ReadBuffer(raw[0],ms.Size);
       mOperationExport.Lines.Text := TCrypto.ToHexaString(raw);
     finally
       ms.Free;
@@ -739,7 +739,7 @@ begin
       if (opht.OperationsCount>0) then begin
         ms.Position:=0;
         SetLength(raw,ms.Size);
-        ms.ReadBuffer(raw[1],ms.Size);
+        ms.ReadBuffer(raw[0],ms.Size);
         mOperationExport.Lines.Text := TCrypto.ToHexaString(raw);
         jsonObj := TPCJSONObject.Create;
         Try

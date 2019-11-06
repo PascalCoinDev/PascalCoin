@@ -490,8 +490,10 @@ end;
 
 function TOpChangeAccountInfo.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean;
 Var account_signer, account_target : TAccount;
+  LSafeboxCurrentProtocol : Integer;
 begin
   Result := false;
+  LSafeboxCurrentProtocol := AccountTransaction.FreezedSafeBox.CurrentProtocol;
   if (FData.account_signer>=AccountTransaction.FreezedSafeBox.AccountsCount) then begin
     errors := 'Invalid account number';
     Exit;
@@ -526,7 +528,7 @@ begin
   end;
   if (length(FData.payload.payload_raw)>CT_MaxPayloadSize) then begin
     errors := 'Invalid Payload size:'+inttostr(length(FData.payload.payload_raw))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
-    If (ProtocolVersion>=CT_PROTOCOL_2) then begin
+    If (LSafeboxCurrentProtocol>=CT_PROTOCOL_2) then begin
       Exit; // BUG from protocol 1
     end;
   end;
@@ -535,12 +537,12 @@ begin
     errors := 'Account signer is currently locked';
     exit;
   end;
-  if (ProtocolVersion<CT_PROTOCOL_2) then begin
+  if (LSafeboxCurrentProtocol<CT_PROTOCOL_2) then begin
     errors := 'NOT ALLOWED ON PROTOCOL 1';
     exit;
   end;
   If (public_key in FData.changes_type) then begin
-    If Not TAccountComp.IsValidAccountKey( FData.new_accountkey, ProtocolVersion, errors) then begin
+    If Not TAccountComp.IsValidAccountKey( FData.new_accountkey, LSafeboxCurrentProtocol, errors) then begin
       exit;
     end;
   end;
@@ -803,13 +805,13 @@ Var s_new, t_new : Int64;
   LTotalAmount : Cardinal;
   LSender,LTarget,LSeller : TAccount;
   LRecipientSignable, LIsCoinSwap : Boolean;
-  LCurrentBlock, LCurrentProtocol : Integer;
+  LCurrentBlock, LSafeboxCurrentProtocol : Integer;
   LBuyAccountNewPubkey : TAccountKey;
 begin
   Result := false;
   AErrors := '';
   LCurrentBlock := ASafeBoxTransaction.FreezedSafeBox.BlocksCount;
-  LCurrentProtocol := ProtocolVersion;
+  LSafeboxCurrentProtocol := ASafeboxTransaction.FreezedSafeBox.CurrentProtocol;
 
   {$region 'Common Validation'}
 
@@ -835,7 +837,7 @@ begin
   end;
   if (length(FData.payload.payload_raw)>CT_MaxPayloadSize) then begin
     AErrors := 'Invalid Payload size:'+inttostr(length(FData.payload.payload_raw))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
-    If (LCurrentProtocol>=CT_PROTOCOL_2) then begin
+    If (LSafeboxCurrentProtocol>=CT_PROTOCOL_2) then begin
       Exit; // BUG from protocol 1
     end;
   end;
@@ -849,10 +851,10 @@ begin
   //  - TIME LOCK not expired
   LRecipientSignable :=
     ( FData.opTransactionStyle = buy_Account )
-    And (TAccountComp.IsOperationRecipientSignable(LSender, LTarget, LCurrentBlock, LCurrentProtocol));
+    And (TAccountComp.IsOperationRecipientSignable(LSender, LTarget, LCurrentBlock, LSafeboxCurrentProtocol));
 
   LIsCoinSwap := TAccountComp.IsAccountForCoinSwap(LTarget.accountInfo)
-    And (TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(LTarget, LCurrentBlock, LCurrentProtocol, FData.payload.payload_raw));
+    And (TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(LTarget, LCurrentBlock, LSafeboxCurrentProtocol, FData.payload.payload_raw));
 
   if (FData.sender=FData.target) AND (NOT LRecipientSignable) then begin
     AErrors := Format('Sender=Target and Target is not recipient-signable. Account: %d',[FData.sender]);
@@ -908,7 +910,7 @@ begin
   // Is buy account ?
   if (FData.opTransactionStyle = buy_Account ) then begin
     {$region 'Buy Account Validation'}
-    if (LCurrentProtocol<CT_PROTOCOL_2) then begin
+    if (LSafeboxCurrentProtocol<CT_PROTOCOL_2) then begin
       AErrors := 'Buy account is not allowed on Protocol 1';
       exit;
     end;
@@ -918,7 +920,7 @@ begin
       Exit;
     end;
 
-    if (LCurrentProtocol < CT_PROTOCOL_5) then begin
+    if (LSafeboxCurrentProtocol < CT_PROTOCOL_5) then begin
       if (TAccountComp.IsAccountForSwap(LTarget.accountInfo)) then begin
         AErrors := 'Atomic swaps are not allowed until Protocol 5';
         exit;
@@ -964,7 +966,7 @@ begin
       AErrors := Format('Signed price (%d) is not the same of account price (%d)',[FData.AccountPrice,LTarget.accountInfo.price]);
       exit;
     end;
-    if NOT TAccountComp.IsValidNewAccountKey(LTarget.accountInfo, FData.new_accountkey, LCurrentProtocol) then begin
+    if NOT TAccountComp.IsValidNewAccountKey(LTarget.accountInfo, FData.new_accountkey, LSafeboxCurrentProtocol) then begin
       AErrors := Format('Specified new public key for %d does not equal (or is not valid) the new public key stored in account: %s <> %s',
       [LTarget.account,
        TAccountComp.AccountKey2RawString(LTarget.accountInfo.new_publicKey).ToHexaString,
@@ -972,23 +974,23 @@ begin
       exit;
     end;
 
-    If Not (TAccountComp.IsValidAccountKey(FData.new_accountkey,ProtocolVersion,AErrors)) then exit;
+    If Not (TAccountComp.IsValidAccountKey(FData.new_accountkey,LSafeboxCurrentProtocol,AErrors)) then exit;
     LBuyAccountNewPubkey := FData.new_accountkey;
     {$endregion}
   end else if // (is auto buy) OR (is transaction that can buy)
               (
                 (FData.opTransactionStyle in [transaction,transaction_with_auto_buy_account,transaction_with_auto_atomic_swap]) AND
-                (LCurrentProtocol >= CT_PROTOCOL_2) AND
-                (TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(LTarget, LCurrentBlock, LCurrentProtocol, FData.payload.payload_raw)) AND
+                (LSafeboxCurrentProtocol >= CT_PROTOCOL_2) AND
+                (TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(LTarget, LCurrentBlock, LSafeboxCurrentProtocol, FData.payload.payload_raw)) AND
                 ((LTarget.balance + FData.amount >= LTarget.accountInfo.price))
               )  then begin
     {$region 'Transaction Auto Buy Validation'}
-    if (LCurrentProtocol<CT_PROTOCOL_2) then begin
+    if (LSafeboxCurrentProtocol<CT_PROTOCOL_2) then begin
       AErrors := 'Tx-Buy account is not allowed on Protocol 1';
       exit;
     end;
 
-    If (LCurrentProtocol<CT_PROTOCOL_5) then begin
+    If (LSafeboxCurrentProtocol<CT_PROTOCOL_5) then begin
       if (TAccountComp.IsAccountForSwap( LTarget.accountInfo )) then begin
         AErrors := 'Tx-Buy atomic swaps are not allowed until Protocol 5';
         exit;
@@ -996,14 +998,14 @@ begin
         // the below line was a bug fix that introduced a new bug, and is retained here for
         // V2-V4 consistency
         //------
-        if Not (TAccountComp.IsValidAccountKey(FData.new_accountkey,ProtocolVersion,AErrors)) then exit;
+        if Not (TAccountComp.IsValidAccountKey(FData.new_accountkey,LSafeboxCurrentProtocol,AErrors)) then exit;
         //------
       end;
     end;
 
     // Check that stored "new_publicKey" is valid (when not in coin swap)
     if (Not TAccountComp.IsAccountForCoinSwap(LTarget.accountInfo)) and
-       (Not (TAccountComp.IsValidAccountKey(LTarget.accountInfo.new_publicKey,ProtocolVersion,AErrors))) then exit;
+       (Not (TAccountComp.IsValidAccountKey(LTarget.accountInfo.new_publicKey,LSafeboxCurrentProtocol,AErrors))) then exit;
 
     // NOTE: This is a Transaction opereation (not a buy account operation) that
     // has some "added" effects (private sale, swap...)
@@ -1042,13 +1044,13 @@ begin
 
   if (FData.opTransactionStyle in [buy_account, transaction_with_auto_buy_account, transaction_with_auto_atomic_swap]) then begin
     // account purchase
-    if (LCurrentProtocol<CT_PROTOCOL_2) then begin
+    if (LSafeboxCurrentProtocol<CT_PROTOCOL_2) then begin
       AErrors := 'NOT ALLOWED ON PROTOCOL 1';
       exit;
     end;
 
     if (LTarget.accountInfo.state in [as_ForAtomicAccountSwap, as_ForAtomicCoinSwap]) AND
-       (LCurrentProtocol<CT_PROTOCOL_5) then begin
+       (LSafeboxCurrentProtocol<CT_PROTOCOL_5) then begin
       AErrors := 'NOT ALLOWED UNTIL PROTOCOL 5';
       exit;
     end;
@@ -1417,8 +1419,10 @@ end;
 
 function TOpChangeKey.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean;
 Var account_signer, account_target : TAccount;
+  LSafeboxCurrentProtocol : Integer;
 begin
   Result := false;
+  LSafeboxCurrentProtocol := AccountTransaction.FreezedSafeBox.CurrentProtocol;
   if (FData.account_signer>=AccountTransaction.FreezedSafeBox.AccountsCount) then begin
     errors := 'Invalid account number';
     Exit;
@@ -1453,7 +1457,7 @@ begin
   end;
   if (length(FData.payload.payload_raw)>CT_MaxPayloadSize) then begin
     errors := 'Invalid Payload size:'+inttostr(length(FData.payload.payload_raw))+' (Max: '+inttostr(CT_MaxPayloadSize)+')';
-    If (ProtocolVersion>=CT_PROTOCOL_2) then begin
+    If (LSafeboxCurrentProtocol>=CT_PROTOCOL_2) then begin
       Exit; // BUG from protocol 1
     end;
   end;
@@ -1462,11 +1466,11 @@ begin
     errors := 'Account signer is currently locked';
     exit;
   end;
-  If Not TAccountComp.IsValidAccountKey( FData.new_accountkey,ProtocolVersion,errors) then begin
+  If Not TAccountComp.IsValidAccountKey( FData.new_accountkey,LSafeboxCurrentProtocol,errors) then begin
     exit;
   end;
   // NEW v2 protocol protection: Does not allow to change key for same key
-  if (ProtocolVersion>=CT_PROTOCOL_2) then begin
+  if (LSafeboxCurrentProtocol>=CT_PROTOCOL_2) then begin
     if (TAccountComp.EqualAccountKeys(account_target.accountInfo.accountKey,FData.new_accountkey)) then begin
       errors := 'New public key is the same public key';
       exit;
@@ -1490,7 +1494,7 @@ begin
       errors := 'Signer and target accounts have different public key';
       exit;
     end;
-    if (ProtocolVersion<CT_PROTOCOL_2) then begin
+    if (LSafeboxCurrentProtocol<CT_PROTOCOL_2) then begin
       errors := 'NOT ALLOWED ON PROTOCOL 1';
       exit;
     end;
@@ -1739,8 +1743,10 @@ end;
 
 function TOpRecoverFounds.DoOperation(AccountPreviousUpdatedBlock : TAccountPreviousBlockInfo; AccountTransaction : TPCSafeBoxTransaction; var errors : String) : Boolean;
 Var acc : TAccount;
+  LSafeboxCurrentProtocol : Integer;
 begin
   Result := false;
+  LSafeboxCurrentProtocol := AccountTransaction.FreezedSafeBox.CurrentProtocol;
   if TAccountComp.IsAccountBlockedByProtocol(FData.account,AccountTransaction.FreezedSafeBox.BlocksCount) then begin
     errors := 'account is blocked for protocol';
     Exit;
@@ -1770,7 +1776,7 @@ begin
     errors := 'Insuficient funds';
     exit;
   end;
-  if Not TAccountComp.IsValidAccountKey(FData.new_accountkey,ProtocolVersion,errors) then begin
+  if Not TAccountComp.IsValidAccountKey(FData.new_accountkey,LSafeboxCurrentProtocol,errors) then begin
     Exit;
   end;
   Result := AccountTransaction.UpdateAccountInfo(AccountPreviousUpdatedBlock,
@@ -1911,7 +1917,7 @@ function TOpListAccount.DoOperation(AccountPreviousUpdatedBlock : TAccountPrevio
 Var
   account_signer, account_target : TAccount;
   LIsDelist, LIsSale, LIsPrivateSale, LIsPublicSale, LIsSwap, LIsAccountSwap, LIsCoinSwap : boolean;
-  LCurrentProtocol : Integer;
+  LSafeboxCurrentProtocol : Integer;
 begin
   Result := false;
   // Determine which flow this function will execute
@@ -1943,12 +1949,12 @@ begin
     LIsCoinSwap := false;
   end;
 
-  LCurrentProtocol := ProtocolVersion;
-  if (LCurrentProtocol<CT_PROTOCOL_2) then begin
+  LSafeboxCurrentProtocol := AccountTransaction.FreezedSafeBox.CurrentProtocol;
+  if (LSafeboxCurrentProtocol<CT_PROTOCOL_2) then begin
     errors := 'List/Delist Account is not allowed on Protocol 1';
     exit;
   end;
-  if LIsSwap AND (LCurrentProtocol<CT_PROTOCOL_5) then begin
+  if LIsSwap AND (LSafeboxCurrentProtocol<CT_PROTOCOL_5) then begin
     errors := 'Atomic Swaps are not allowed before Protocol 5';
     exit;
   end;
@@ -2000,11 +2006,11 @@ begin
       exit;
     end;
     if LIsPrivateSale OR LIsAccountSwap then begin
-      If Not TAccountComp.IsValidAccountKey( FData.new_public_key,ProtocolVersion,errors) then begin
+      If Not TAccountComp.IsValidAccountKey( FData.new_public_key,LSafeboxCurrentProtocol,errors) then begin
         errors := 'Invalid new public key: '+errors;
         exit;
       end;
-    end else if (LCurrentProtocol>=CT_PROTOCOL_5) then begin
+    end else if (LSafeboxCurrentProtocol>=CT_PROTOCOL_5) then begin
       // COIN SWAP or PUBLIC SALE must set FData.new_public_key to NULL
       if Not TAccountComp.IsNullAccountKey(FData.new_public_key) then begin
         errors := 'Coin swap/Public sale needs a NULL new public key';
@@ -2360,7 +2366,7 @@ begin
     ms.Write(FData.account_price,Sizeof(FData.account_price));
     ms.Write(FData.account_to_pay,Sizeof(FData.account_to_pay));
     ms.Write(FData.fee,Sizeof(FData.fee));
-    if ProtocolVersion>=CT_PROTOCOL_5 then begin
+    if FProtocolVersion>=CT_PROTOCOL_5 then begin
       ms.Write(FData.payload.payload_type,SizeOf(FData.payload.payload_type));
     end;
     if Length(FData.payload.payload_raw)>0 then
@@ -2375,12 +2381,12 @@ begin
       ms.WriteBuffer(s[Low(s)],Length(s));
     ms.Write(FData.locked_until_block,Sizeof(FData.locked_until_block));
     // VERSION 5: write the new account state and hash-lock
-    if (ProtocolVersion >= CT_PROTOCOL_5) then begin
+    if (FProtocolVersion >= CT_PROTOCOL_5) then begin
       w := Word(FData.account_state);
       ms.Write(w, 2);
       TStreamOp.WriteAnsiString(ms, FData.hash_lock); // the hash-lock if any
     end;
-    if (ProtocolVersion<=CT_PROTOCOL_3) then begin
+    if (FProtocolVersion<=CT_PROTOCOL_3) then begin
       ms.Position := 0;
       SetLength(Result,ms.Size);
       ms.ReadBuffer(Result[Low(Result)],ms.Size);
@@ -2652,9 +2658,11 @@ function TOpData.DoOperation(
   AccountPreviousUpdatedBlock: TAccountPreviousBlockInfo;
   AccountTransaction: TPCSafeBoxTransaction; var errors: String): Boolean;
 Var account_signer, account_sender, account_target : TAccount;
+  LSafeboxCurrentProtocol : Integer;
 begin
   Result := false;
-  if (ProtocolVersion<CT_PROTOCOL_4) then begin
+  LSafeboxCurrentProtocol := AccountTransaction.FreezedSafeBox.CurrentProtocol;
+  if (LSafeboxCurrentProtocol<CT_PROTOCOL_4) then begin
     errors := 'OpData is not allowed on Protocol < 4';
     exit;
   end;

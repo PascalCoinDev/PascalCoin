@@ -132,7 +132,7 @@ Const
   CT_NetProtocol_Version: Word = $0009; // Version 4.0.2 Will allow only net protocol 9
   // IMPORTANT NOTE!!!
   // NetProtocol_Available MUST BE always >= NetProtocol_version
-  CT_NetProtocol_Available: Word = {$IFDEF PRODUCTION}$0009{$ELSE}$0009{$ENDIF};  // Version 4.0.0 will start accepting protocol 8 but 4.0.1 will accept 9 due to 4.0.0 bug
+  CT_NetProtocol_Available: Word = {$IFDEF PRODUCTION}$0009{$ELSE}$000A{$ENDIF};  //
 
   CT_MaxAccountOperationsPerBlockWithoutFee = 1;
 
