@@ -253,6 +253,7 @@ type
     {$ENDIF}
     Procedure Test_ShowPublicKeys(Sender: TObject);
     Procedure Test_ShowOperationsInMemory(Sender: TObject);
+    Procedure Test_FindAccountsForPrivateBuyOrSwapToMe(Sender : TObject);
     procedure OnAccountsGridUpdatedData(Sender : TObject);
   protected
     { Private declarations }
@@ -828,6 +829,9 @@ end;
 
 procedure TFRMWallet.ebFindAccountNumberChange(Sender: TObject);
 Var an : Cardinal;
+  LAccountNameRawValue : TRawBytes;
+  LErrors : String;
+  LAccNames : TOrderedRawList;
 begin
   if Trim(ebFindAccountNumber.Text)='' then begin
     ebFindAccountNumber.Color := clWindow;
@@ -840,9 +844,25 @@ begin
       ebFindAccountNumber.Font.Color := clRed;
     end;
   end else begin
-    // Invalid value
-    ebFindAccountNumber.Color := clRed;
-    ebFindAccountNumber.Font.Color := clWindowText;
+    LAccountNameRawValue.FromString(ebFindAccountNumber.Text);
+    LAccNames := TOrderedRawList.Create;
+    Try
+      if FNode.Bank.SafeBox.FindAccountsStartingByName(LAccountNameRawValue,LAccNames,1)>0 then begin
+        an := LAccNames.GetTag(0);
+        ebFindAccountNumber.Color := clWindow;
+        if FAccountsGrid.MoveRowToAccount(an) then begin
+          ebFindAccountNumber.Font.Color := clWindowText;
+        end else begin
+          ebFindAccountNumber.Font.Color := clRed;
+        end;
+      end else begin
+        // Invalid value
+        ebFindAccountNumber.Color := clRed;
+        ebFindAccountNumber.Font.Color := clWindowText;
+      end;
+    Finally
+      LAccNames.Free;
+    End;
   end;
 end;
 
@@ -1061,10 +1081,10 @@ end;
 procedure TFRMWallet.InitMenuForTesting;
 var mi : TMenuItem;
 begin
+{$IFDEF TESTNET}
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='-';
   miAbout.Add(mi);
-{$IFDEF TESTNET}
   {$IFDEF TESTING_NO_POW_CHECK}
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Create a block';
@@ -1083,7 +1103,6 @@ begin
   mi.Caption:='Diagnostic Tool';
   mi.OnClick:=Test_ShowDiagnosticTool;
   miAbout.Add(mi);
-{$ENDIF}
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Show public keys state';
   mi.OnClick:=Test_ShowPublicKeys;
@@ -1092,7 +1111,11 @@ begin
   mi.Caption:='Show operations in memory';
   mi.OnClick:=Test_ShowOperationsInMemory;
   miAbout.Add(mi);
-
+  mi := TMenuItem.Create(MainMenu);
+  mi.Caption:='Search accounts for private or swap to me';
+  mi.OnClick:=Test_FindAccountsForPrivateBuyOrSwapToMe;
+  miAbout.Add(mi);
+{$ENDIF}
 end;
 
 {$IFDEF TESTING_NO_POW_CHECK}
@@ -1679,6 +1702,195 @@ begin
     FPendingOperationsGrid.ShowModalDecoder(FWalletKeys,FAppParams);
   end else if PageControl.ActivePage=tsMyAccounts then begin
     FOperationsAccountGrid.ShowModalDecoder(FWalletKeys,FAppParams);
+  end;
+end;
+
+procedure TFRMWallet.Test_FindAccountsForPrivateBuyOrSwapToMe(Sender: TObject);
+{ This procedure will search in Safebox all accounts in "for_private_sale" state
+  or in "for_account_swap" that can be self-signed using one of my private keys
+  }
+
+  function CaptureSender0Coins(var AAccountSender0Coins : TAccount; var ANeededWalletKey : TWalletKey) : Boolean;
+  var ii : Integer;
+  begin
+    //
+    Result := False;
+    for ii := 0 to WalletKeys.AccountsKeyList.Count-1 do begin
+      if WalletKeys.AccountsKeyList.AccountKeyList[ii].Count>0 then begin
+        if WalletKeys.TryGetKey(WalletKeys.AccountsKeyList.AccountKey[ii],ANeededWalletKey) then begin
+          AAccountSender0Coins := FNode.Bank.SafeBox.Account( WalletKeys.AccountsKeyList.AccountKeyList[ii].Get(0) );
+          Result := True;
+        end;
+      end;
+    end;
+
+  end;
+
+
+var i : Integer;
+  LLines : TStrings;
+  LAccount, LAccountSender0Coins : TAccount;
+  LAccountOpDesc : String;
+  LCountAccountsFound_total, LCountAccountsFound_Operation : Integer;
+  LNeededWalletKey : TWalletKey;
+  s : String;
+  LOpTransaction : TOpTransaction;
+  LOperationsHashTree, LGlobalOperationsHashTree : TOperationsHashTree;
+  LStream : TStream;
+  LRaw : TRawBytes;
+  LFRM : TFRMMemoText;
+  LOpPayload : TOperationPayload;
+begin
+  if Not WalletKeys.IsValidPassword then raise Exception.Create('Your wallet keys are locked');
+  LOpPayload := CT_TOperationPayload_NUL;
+  if InputQuery('Search ATOMIC SWAP by SECRET','Insert SECRET value (use 0x... for Hexadecimal, otherwise will be a String)',s) then begin
+    if s.StartsWith('0x') then begin
+      if not UCommon.TryHex2Bytes(s,LOpPayload.payload_raw) then raise Exception.Create('SECRET value is not an Hexadecimal'+#10+s);
+    end else begin
+      LOpPayload.payload_raw.FromString(s);
+    end;
+  end;
+  LCountAccountsFound_total := 0;
+  LCountAccountsFound_Operation := 0;
+  LLines := TStringList.Create;
+  LGlobalOperationsHashTree := TOperationsHashTree.Create;
+  try
+    for i:=0 to FNode.Bank.SafeBox.AccountsCount-1 do begin
+      LAccountOpDesc := '';
+      LAccount := FNode.Bank.SafeBox.Account(i);
+
+      LOpTransaction := Nil;
+      Try
+        Case LAccount.accountInfo.state of
+          as_ForSale : begin
+            if Not TAccountComp.IsNullAccountKey( LAccount.accountInfo.new_publicKey ) then begin
+              if Not WalletKeys.TryGetKey(LAccount.accountInfo.new_publicKey,LNeededWalletKey) then Continue;
+              if Not Assigned(LNeededWalletKey.PrivateKey) then Continue; // Key not available!
+            end else Continue;
+            // Private sale to me
+            // Is in time?
+            if TAccountComp.IsAccountLocked(LAccount.accountInfo,FNode.Bank.BlocksCount) then begin
+              //
+              if LAccount.balance>=LAccount.accountInfo.price then begin
+                LAccountOpDesc := Format('Account %s is for private sale to me and with enough balance to pay %s (balance %s)',[
+                  TAccountComp.AccountNumberToAccountTxtNumber(LAccount.account),
+                  TAccountComp.FormatMoney(LAccount.accountInfo.price),
+                  TAccountComp.FormatMoney(LAccount.balance)]);
+                // No key needed... just a transaction SELF SIGNED
+                LOpTransaction := TOpBuyAccount.CreateBuy(FNode.Bank.SafeBox.CurrentProtocol,
+                    LAccount.account, LAccount.n_operation+1,
+                    LAccount.account, LAccount.accountInfo.account_to_pay, LAccount.accountInfo.price,
+                    0,0,
+                    LAccount.accountInfo.new_publicKey,
+                    LNeededWalletKey.PrivateKey,
+                    LOpPayload);
+              end else begin
+                LAccountOpDesc := Format('Account %s is for private sale to me but needs a Buy operation paying %s PASC (%s pending)',[
+                   TAccountComp.AccountNumberToAccountTxtNumber(LAccount.account),
+                   TAccountComp.FormatMoney(LAccount.accountInfo.price),
+                   TAccountComp.FormatMoney(LAccount.accountInfo.price - LAccount.balance)]);
+              end;
+            end else begin
+              LAccountOpDesc := Format('Account %s is for private sale to me but is out-of-lock period',[TAccountComp.AccountNumberToAccountTxtNumber(LAccount.account)]);
+            end;
+          end;
+          as_ForAtomicAccountSwap : begin
+            if Not WalletKeys.TryGetKey(LAccount.accountInfo.new_publicKey,LNeededWalletKey) then Continue;
+            if TAccountComp.IsAccountLocked(LAccount.accountInfo,FNode.Bank.BlocksCount) then begin
+              if TAccountComp.IsValidAccountInfoHashLockKey(LAccount.accountInfo,LOpPayload.payload_raw) then begin
+                // Atomic Account swap using provided SECRET
+                LAccountOpDesc := Format('Account %s is for Atomic Account Swap to me using SECRET %s',[TAccountComp.AccountNumberToAccountTxtNumber(LAccount.account),UCommon.Bytes2Hex(LOpPayload.payload_raw,True)]);
+                //
+                // No key needed... just a Buy Operation SELF SIGNED
+                LOpTransaction := TOpBuyAccount.CreateBuy(FNode.Bank.SafeBox.CurrentProtocol,
+                    LAccount.account, LAccount.n_operation+1,
+                    LAccount.account, LAccount.accountInfo.account_to_pay, LAccount.accountInfo.price,
+                    0,0,
+                    LAccount.accountInfo.new_publicKey,
+                    LNeededWalletKey.PrivateKey,
+                    LOpPayload);
+              end else begin
+                LAccountOpDesc := Format('Account %s is for Atomic Account Swap to me but SECRET %s is not valid',[TAccountComp.AccountNumberToAccountTxtNumber(LAccount.account),UCommon.Bytes2Hex(LOpPayload.payload_raw,True)]);
+              end;
+            end else begin
+              LAccountOpDesc := Format('Account %s is for Atomic Account Swap to me but is out-of-lock period',[TAccountComp.AccountNumberToAccountTxtNumber(LAccount.account)]);
+            end;
+
+          end;
+          as_ForAtomicCoinSwap : begin
+            if Not TAccountComp.IsValidAccountInfoHashLockKey(LAccount.accountInfo,LOpPayload.payload_raw) then Continue;
+            // Atomic Coin swap using provided SECRET
+            if TAccountComp.IsAccountLocked(LAccount.accountInfo,FNode.Bank.BlocksCount) then begin
+              // Single transaction using amount 0 from ANY sender
+              if CaptureSender0Coins(LAccountSender0Coins,LNeededWalletKey) then begin
+                // Atomic Account swap using provided SECRET
+                LAccountOpDesc := Format('Account %s is for Atomic Coin Swap to me using SECRET %s',[TAccountComp.AccountNumberToAccountTxtNumber(LAccount.account),UCommon.Bytes2Hex(LOpPayload.payload_raw,True)]);
+                //
+                // No key needed... just a transaction SELF SIGNED
+                LOpTransaction := TOpTransaction.CreateTransaction(FNode.Bank.SafeBox.CurrentProtocol,
+                    LAccountSender0Coins.account, LAccountSender0Coins.n_operation+1,
+                    LAccount.account,
+                    LNeededWalletKey.PrivateKey,
+                    0,0, // No Amount no Fee
+                    LOpPayload);
+              end else begin
+                LAccountOpDesc := Format('Account %s is for Atomic Coin Swap using SECRET %s but I have no key to sign',[TAccountComp.AccountNumberToAccountTxtNumber(LAccount.account),UCommon.Bytes2Hex(LOpPayload.payload_raw,True)]);
+              end;
+            end else begin
+              LAccountOpDesc := Format('Account %s is for Atomic Coin Swap using SECRET %s but is out-of-lock period',[TAccountComp.AccountNumberToAccountTxtNumber(LAccount.account),UCommon.Bytes2Hex(LOpPayload.payload_raw,True)]);
+            end;
+          end;
+        else Continue;
+        End;
+
+        // Do
+        Inc(LCountAccountsFound_total);
+        LLines.Add(Format('%s',[LAccountOpDesc]));
+        if Assigned(LOpTransaction) then begin
+          Inc(LCountAccountsFound_Operation);
+          LOperationsHashTree := TOperationsHashTree.Create;
+          LStream := TMemoryStream.Create;
+          try
+            LOperationsHashTree.AddOperationToHashTree(LOpTransaction);
+            LGlobalOperationsHashTree.AddOperationToHashTree(LOpTransaction);
+            LLines.Add(Format('Operation: %s',[LOpTransaction.ToString]));
+            LOperationsHashTree.SaveOperationsHashTreeToStream(LStream,False);
+            LRaw.FromStream(LStream);
+            LLines.Add(Format('rawoperations (for JSON-RPC call): %s',[LRaw.ToHexaString]));
+          finally
+            LOperationsHashTree.Free;
+            LStream.Free;
+          end;
+        end;
+
+      Finally
+        FreeAndNil(LOpTransaction);
+      End;
+    end; // For
+    LLines.Add('');
+    LLines.Add(Format('Found %d of %d available account from a Safebox with %d accounts',[
+      LCountAccountsFound_Operation,
+      LCountAccountsFound_total,
+      FNode.Bank.SafeBox.AccountsCount]));
+    LStream := TMemoryStream.Create;
+    try
+      LGlobalOperationsHashTree.SaveOperationsHashTreeToStream(LStream,False);
+      LRaw.FromStream(LStream);
+      LLines.Add(Format('rawoperations (for JSON-RPC call) of %d operations: %s',[LGlobalOperationsHashTree.OperationsCount, LRaw.ToHexaString]));
+    finally
+      LStream.Free;
+    end;
+    //
+    LFRM := TFRMMemoText.Create(Self);
+    try
+      LFRM.InitData('',LLines.Text);
+      LFRM.ShowModal;
+    finally
+      LFRM.Free;
+    end;
+  finally
+    LLines.Free;
+    LGlobalOperationsHashTree.Free;
   end;
 end;
 

@@ -557,11 +557,13 @@ var i,j : Integer;
   senders,senders_n_operation,receivers : Array of Cardinal;
   senders_amount : Array of UInt64;
   receivers_amount : Array of UInt64;
+  LSafeboxCurrentProtocol : Integer;
 begin
   // Check valid info:
   Result := False;
   errors := '';
-  if (AccountTransaction.FreezedSafeBox.CurrentProtocol<CT_PROTOCOL_3) then begin
+  LSafeboxCurrentProtocol := AccountTransaction.FreezedSafeBox.CurrentProtocol;
+  if (LSafeboxCurrentProtocol<CT_PROTOCOL_3) then begin
     errors := 'NEED PROTOCOL 3';
     exit;
   end;
@@ -670,7 +672,7 @@ begin
       exit;
     end;
     If (public_key in chi.Changes_type) then begin
-      If Not TAccountComp.IsValidAccountKey( chi.New_Accountkey, errors ) then begin
+      If Not TAccountComp.IsValidAccountKey( chi.New_Accountkey, LSafeboxCurrentProtocol, errors) then begin
         Exit;
       end;
     end;

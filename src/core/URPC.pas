@@ -375,7 +375,7 @@ begin
     APubKey := TAccountComp.RawString2Accountkey(TCrypto.HexaToRaw(AInputParams.AsString(APrefix+'enc_pubkey','')));
   end;
   // Final confirmation
-  If Not TAccountComp.IsValidAccountKey(APubKey,LErrors_aux) then begin
+  If Not TAccountComp.IsValidAccountKey(APubKey,CT_BUILD_PROTOCOL,LErrors_aux) then begin
     AErrortxt := 'Invalid public key: '+LErrors_aux;
   end else Result := True;
 end;
@@ -3571,7 +3571,7 @@ begin
       ErrorNum:= CT_RPC_ErrNum_InvalidPubKey;
       exit;
     end;
-    if TAccountComp.IsValidAccountKey(account.accountInfo.accountKey,ansistr) then begin
+    if TAccountComp.IsValidAccountKey(account.accountInfo.accountKey,CT_BUILD_PROTOCOL,ansistr) then begin
       jsonresponse.GetAsVariant('result').Value:=TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(account.accountInfo.accountKey));
       Result := True;
     end else begin
@@ -3588,7 +3588,7 @@ begin
       ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
       exit;
     end;
-    if (TAccountComp.IsValidAccountKey(account.accountInfo.accountKey,ansistr)) then begin
+    if (TAccountComp.IsValidAccountKey(account.accountInfo.accountKey,CT_BUILD_PROTOCOL,ansistr)) then begin
       TPascalCoinJSONComp.FillPublicKeyObject(account.accountInfo.accountKey,GetResultObject);
       Result := True;
     end else begin

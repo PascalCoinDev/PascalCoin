@@ -139,10 +139,10 @@ Type
   TAccountComp = Class
   private
   public
-    Class Function IsValidAccountKey(const AAccountInfo: TAccountKey; var errors : String): Boolean;
+    Class Function IsValidAccountKey(const AAccountInfo: TAccountKey; ACurrentProtocol : Word; var errors : String): Boolean;
     Class function IsNullAccountKey(const AAccountInfo : TAccountKey) : Boolean;
     Class function IsValidNewAccountKey(const AAccountInfo : TAccountInfo; const ANewKey : TAccountKey; AProtocolVersion : Integer) : Boolean;
-    Class Function IsValidAccountInfo(const AAccountInfo: TAccountInfo; var errors : String): Boolean;
+    Class Function IsValidAccountInfo(const AAccountInfo: TAccountInfo; ACurrentProtocol : Word; var errors : String): Boolean;
     Class Function IsValidAccountInfoHashLockKey(const AAccountInfo : TAccountInfo; const AKey : TRawBytes) : Boolean;
     Class Function IsValidHashLockKey(const AKey : TRawBytes; out AError : String) : Boolean;
     Class Function CalculateHashLock(const AKey : TRawBytes) : T32Bytes;
@@ -1649,7 +1649,7 @@ begin
   end;
 
   if (AAccount.accountInfo.state in [as_ForSale, as_ForAtomicAccountSwap]) then begin
-    if NOT IsValidAccountKey(AAccount.accountInfo.new_publicKey,errors) then
+    if NOT IsValidAccountKey(AAccount.accountInfo.new_publicKey,ACurrentProtocol,errors) then
       exit;
   end;
 
@@ -1743,7 +1743,7 @@ begin
       Account.account_data.ToHexaString,Account.account_seal.ToHexaString ]);
 end;
 
-class function TAccountComp.IsValidAccountInfo(const AAccountInfo: TAccountInfo; var errors: String): Boolean;
+class function TAccountComp.IsValidAccountInfo(const AAccountInfo: TAccountInfo; ACurrentProtocol : Word; var errors: String): Boolean;
 Var s : String;
 begin
   errors := '';
@@ -1753,38 +1753,38 @@ begin
         Result := false;
       end;
     as_Normal: begin
-        Result := IsValidAccountKey(AAccountInfo.accountKey,errors);
+        Result := IsValidAccountKey(AAccountInfo.accountKey,ACurrentProtocol,errors);
       end;
     as_ForSale: begin
-        Result := IsValidAccountKey(AAccountInfo.accountKey,errors);
+        Result := IsValidAccountKey(AAccountInfo.accountKey,ACurrentProtocol,errors);
         if (Result) And (IsAccountForPrivateSale(AAccountInfo)) then begin
-          if Not IsValidAccountKey(AAccountInfo.new_publicKey,s) then begin
+          if Not IsValidAccountKey(AAccountInfo.new_publicKey,ACurrentProtocol,s) then begin
             Result := False;
             errors := 'Invalid new_publicKey: '+s;
           end;
         end;
       end;
     as_ForAtomicAccountSwap: begin
-        Result := IsValidAccountKey(AAccountInfo.accountKey,errors);
-        if (Result) And (Not IsValidAccountKey(AAccountInfo.new_publicKey,s)) then begin
+        Result := IsValidAccountKey(AAccountInfo.accountKey,ACurrentProtocol,errors);
+        if (Result) And (Not IsValidAccountKey(AAccountInfo.new_publicKey,ACurrentProtocol,s)) then begin
           Result := False;
           errors := 'Invalid AccountSwap.new_publicKey: '+s;
         end;
       end;
     as_ForAtomicCoinSwap: begin
-      Result := IsValidAccountKey(AAccountInfo.accountKey,errors);
+      Result := IsValidAccountKey(AAccountInfo.accountKey,ACurrentProtocol,errors);
     end
   else
     raise Exception.Create('DEVELOP ERROR 20170214-3');
   end;
 end;
 
-class function TAccountComp.IsValidAccountKey(const AAccountInfo: TAccountKey; var errors : String): Boolean;
+class function TAccountComp.IsValidAccountKey(const AAccountInfo: TAccountKey;  ACurrentProtocol : Word; var errors : String): Boolean;
 begin
   errors := '';
   case AAccountInfo.EC_OpenSSL_NID of
     CT_NID_secp256k1,CT_NID_secp384r1,CT_NID_sect283k1,CT_NID_secp521r1 : begin
-      Result := TECPrivateKey.IsValidPublicKey(AAccountInfo,errors);
+      Result := TECPrivateKey.IsValidPublicKey(AAccountInfo,ACurrentProtocol,errors);
     end;
   else
     errors := Format('Invalid AccountKey type:%d (Unknown type) - Length x:%d y:%d',[AAccountInfo.EC_OpenSSL_NID,length(AAccountInfo.x),length(AAccountInfo.y)]);
@@ -3314,7 +3314,7 @@ begin
             FOrderedByName.Add(LBlock.accounts[iacc].name,LBlock.accounts[iacc].account);
           end;
           If checkAll then begin
-            if not TAccountComp.IsValidAccountInfo(LBlock.accounts[iacc].accountInfo,aux_errors) then begin
+            if not TAccountComp.IsValidAccountInfo(LBlock.accounts[iacc].accountInfo,FCurrentProtocol,aux_errors) then begin
               errors := errors + ' > '+aux_errors;
               Exit;
             end;
@@ -4014,7 +4014,7 @@ begin
   Result := False;
   errors := '';
   // Check Account key
-  if Not TAccountComp.IsValidAccountKey(newOperationBlock.account_key,errors) then begin
+  if Not TAccountComp.IsValidAccountKey(newOperationBlock.account_key,newOperationBlock.protocol_version,errors) then begin
     exit;
   end;
   // reward

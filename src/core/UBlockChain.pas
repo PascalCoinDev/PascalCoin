@@ -353,8 +353,8 @@ Type
     Procedure CopyFromHashTree(Sender : TOperationsHashTree);
     Property TotalAmount : Int64 read FTotalAmount;
     Property TotalFee : Int64 read FTotalFee;
-    function SaveOperationsHashTreeToStream(Stream: TStream; SaveToStorage : Boolean): Boolean;
-    function LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadVersion : Word; PreviousUpdatedBlocks : TAccountPreviousBlockInfo; var errors : String): Boolean;
+    function SaveOperationsHashTreeToStream(AStream: TStream; ASaveToStorage : Boolean): Boolean;
+    function LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; var AErrors : String): Boolean;
     function IndexOfOperation(op : TPCOperation) : Integer;
     function CountOperationsBySameSignerWithoutFee(account_number : Cardinal) : Integer;
     Procedure Delete(index : Integer);
@@ -1221,8 +1221,8 @@ Begin
         errors := 'Bank blockcount<>OperationBlock.Block';
         exit;
       end;
-      if OperationBlock.protocol_version <> op.ProtocolVersion then begin
-        errors := Format('Operation protocol:%d <> current protocol:%d on %s',[op.ProtocolVersion,OperationBlock.protocol_version, op.ToString]);
+      if OperationBlock.protocol_version < op.ProtocolVersion then begin
+        errors := Format('Operation protocol:%d > current protocol:%d on %s',[op.ProtocolVersion,OperationBlock.protocol_version, op.ToString]);
         Tlog.NewLog(lterror,ClassName,errors);
         Exit;
       end;
@@ -2616,60 +2616,85 @@ begin
   Index := L;
 end;
 
-function TOperationsHashTree.LoadOperationsHashTreeFromStream(Stream: TStream; LoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadVersion : Word; PreviousUpdatedBlocks : TAccountPreviousBlockInfo; var errors: String): Boolean;
+function TOperationsHashTree.LoadOperationsHashTreeFromStream(AStream: TStream; ALoadingFromStorage : Boolean; ASetOperationsToProtocolVersion : Word; ALoadFromStorageVersion : Word; APreviousUpdatedBlocks : TAccountPreviousBlockInfo; var AErrors : String): Boolean;
 Var c, i: Cardinal;
-  OpType: Cardinal;
-  bcop: TPCOperation;
+  LOpTypeWord : Word;
+  LOpProtocolVersion : Word;
+  LOperation: TPCOperation;
   j: Integer;
-  OpClass: TPCOperationClass;
-  lastNE : TNotifyEvent;
+  LOpClass: TPCOperationClass;
+  LLastNE : TNotifyEvent;
 begin
   Result := false;
   //
-  If Stream.Read(c, 4)<4 then begin
-    errors := 'Cannot read operations count';
-    exit;
+  If AStream.Read(c, 4)<4 then begin
+    AErrors := 'Cannot read operations count';
+    Exit;
   end;
-  lastNE := FOnChanged;
+  LLastNE := FOnChanged;
   FOnChanged:=Nil;
   try
     // c = operations count
     for i := 1 to c do begin
-      if Stream.Size - Stream.Position < 4 then begin
-        errors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c);
-        exit;
+      if AStream.Size - AStream.Position < 4 then begin
+        AErrors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c);
+        Exit;
       end;
-      Stream.Read(OpType, 4);
-      j := TPCOperationsComp.IndexOfOperationClassByOpType(OpType);
+      // New proposal for V5:
+      // Previously (V4 and below) didn't saved which protocol was used for an
+      // operation. That didn't allowed to save info based on protocol version
+      // On V4 the "OpType" was saved using a 4 bytes (uInt32) little endian
+      // but OpType is always a value <=255 so only 1 byte is needed.
+      // On V5 the first 2 bytes will be the "OpType" and the other 2 bytes
+      // will be used to store Protocol (5) or (0 = Protocol 4) that will
+      // allow fully compatiblity with third party clients that save operations
+      // On V4:
+      // AStream.Read(LOpTypeCardinal, 4);
+      // On V5:
+      AStream.Read(LOpTypeWord, 2);
+      AStream.Read(LOpProtocolVersion, 2);
+      if LOpProtocolVersion=0 then begin
+        // For backward compatibility (not saved protocol version)
+        // will assume that is a version from V1..V4
+        if (ASetOperationsToProtocolVersion <= CT_PROTOCOL_4) {$IFDEF TESTNET}or (ALoadingFromStorage){$ENDIF} then
+          LOpProtocolVersion := ASetOperationsToProtocolVersion
+        else LOpProtocolVersion := CT_PROTOCOL_4;
+      end;
+      if (LOpProtocolVersion<1) or (LOpProtocolVersion>ASetOperationsToProtocolVersion) then begin
+        AErrors := 'Invalid protocol version '+IntToStr(LOpProtocolVersion)+' ('+IntToStr(ASetOperationsToProtocolVersion)+') found at ' + inttostr(i) + '/' + inttostr(c) + ' with optype:' + InttoHex(LOpTypeWord, 2);
+        Exit;
+      end;
+
+      j := TPCOperationsComp.IndexOfOperationClassByOpType(LOpTypeWord);
       if j >= 0 then
-        OpClass := _OperationsClass[j]
+        LOpClass := _OperationsClass[j]
       else
-        OpClass := Nil;
-      if Not Assigned(OpClass) then begin
-        errors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c) + ' optype not valid:' + InttoHex(OpType, 4);
-        exit;
+        LOpClass := Nil;
+      if Not Assigned(LOpClass) then begin
+        AErrors := 'Invalid operation structure ' + inttostr(i) + '/' + inttostr(c) + ' optype not valid:' + InttoHex(LOpTypeWord, 2);
+        Exit;
       end;
-      bcop := OpClass.Create(ASetOperationsToProtocolVersion);
+      LOperation := LOpClass.Create(LOpProtocolVersion);
       Try
-        if LoadingFromStorage then begin
-          If not bcop.LoadFromStorage(Stream,ALoadVersion,PreviousUpdatedBlocks) then begin
-            errors := 'Invalid operation load from storage ' + inttostr(i) + '/' + inttostr(c)+' Class:'+OpClass.ClassName;
-            exit;
+        if ALoadingFromStorage then begin
+          If not LOperation.LoadFromStorage(AStream,ALoadFromStorageVersion,APreviousUpdatedBlocks) then begin
+            AErrors := 'Invalid operation load from storage ' + inttostr(i) + '/' + inttostr(c)+' Class:'+LOpClass.ClassName;
+            Exit;
           end;
-        end else if not bcop.LoadFromNettransfer(Stream) then begin
-          errors := 'Invalid operation load from stream ' + inttostr(i) + '/' + inttostr(c)+' Class:'+OpClass.ClassName;
-          exit;
+        end else if not LOperation.LoadFromNettransfer(AStream) then begin
+          AErrors := 'Invalid operation load from stream ' + inttostr(i) + '/' + inttostr(c)+' Class:'+LOpClass.ClassName;
+          Exit;
         end;
-        AddOperationToHashTree(bcop);
+        AddOperationToHashTree(LOperation);
       Finally
-        FreeAndNil(bcop);
+        FreeAndNil(LOperation);
       end;
     end;
   finally
-    FOnChanged := lastNE;
+    FOnChanged := LLastNE;
   end;
   If Assigned(FOnChanged) then FOnChanged(Self);
-  errors := '';
+  AErrors := '';
   Result := true;
 end;
 
@@ -2744,22 +2769,31 @@ begin
   End;
 end;
 
-function TOperationsHashTree.SaveOperationsHashTreeToStream(Stream: TStream; SaveToStorage: Boolean): Boolean;
-Var c, i, OpType: Cardinal;
-  bcop: TPCOperation;
-  l : TList<Pointer>;
+function TOperationsHashTree.SaveOperationsHashTreeToStream(AStream: TStream; ASaveToStorage: Boolean): Boolean;
+Var c, i : Cardinal;
+  LOpTypeWord : Word;
+  LOpProtocol : Word;
+  LOperation: TPCOperation;
+  Llist : TList<Pointer>;
 begin
-  l := FHashTreeOperations.LockList;
+  LList := FHashTreeOperations.LockList;
   Try
-    c := l.Count;
-    Stream.Write(c, 4);
+    c := Llist.Count;
+    AStream.Write(c, 4);
     // c = operations count
     for i := 1 to c do begin
-      bcop := GetOperation(i - 1);
-      OpType := bcop.OpType;
-      Stream.write(OpType, 4);
-      if SaveToStorage then bcop.SaveToStorage(Stream)
-      else bcop.SaveToNettransfer(Stream);
+      LOperation := GetOperation(i - 1);
+      LOpTypeWord := LOperation.OpType;
+      if LOperation.ProtocolVersion >= CT_PROTOCOL_5 then
+        LOpProtocol := LOperation.ProtocolVersion
+      else LOpProtocol := 0;
+      // On V5 will save LOpProtocol when LOperation.ProtocolVersion >= V5
+      // On V4 LOpProtocol was not saved (always 0): AStream.write(OpType, 4);
+      AStream.Write(LOpTypeWord,2);
+      AStream.Write(LOpProtocol,2);
+
+      if ASaveToStorage then LOperation.SaveToStorage(AStream)
+      else LOperation.SaveToNettransfer(AStream);
     end;
     Result := true;
   Finally

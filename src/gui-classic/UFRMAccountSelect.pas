@@ -161,12 +161,14 @@ procedure TSearchThread.BCExecute;
     errors : String;
     i : Integer;
     LBlocksCount : Integer;
+    LCurrentProtocol : Word;
   begin
     SetLength(FAccounts,0);
     c := 0;
     maxC := FSearchValues.SafeBox.AccountsCount-1;
-    validAccKey := TAccountComp.IsValidAccountKey(FSearchValues.inAccountKey,errors);
+    validAccKey := TAccountComp.IsValidAccountKey(FSearchValues.inAccountKey,CT_BUILD_PROTOCOL,errors);
     LBlocksCount := FSearchValues.SafeBox.BlocksCount;
+    LCurrentProtocol := FSearchValues.SafeBox.CurrentProtocol;
     while (c<=maxC) And (Not Terminated) And (Not FDoStopSearch) do begin
       account := FSearchValues.SafeBox.Account(c);
       isValid := True;
@@ -195,7 +197,7 @@ procedure TSearchThread.BCExecute;
       end;
       If IsValid And (Length(FSearchValues.searchName)>0) then begin
         i := TBaseType.FindIn(FSearchValues.searchName,account.name);
-        IsValid := i>0;
+        IsValid := i>=0;
       end;
       //
       if IsValid then begin
