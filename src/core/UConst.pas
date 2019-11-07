@@ -124,15 +124,15 @@ Const
   CT_Protocol_Upgrade_v2_MinBlock = {$IFDEF PRODUCTION}115000{$ELSE}50{$ENDIF};
   CT_Protocol_Upgrade_v3_MinBlock = {$IFDEF PRODUCTION}210000{$ELSE}250{$ENDIF};
   CT_Protocol_Upgrade_v4_MinBlock = {$IFDEF PRODUCTION}260000{$ELSE}400{$ENDIF};
-  CT_Protocol_Upgrade_v5_MinBlock = {$IFDEF PRODUCTION}999999999{$ELSE}500{$ENDIF}; // TODO Need define v5 for production!
+  CT_Protocol_Upgrade_v5_MinBlock = {$IFDEF PRODUCTION}378000{$ELSE}500{$ENDIF};
 
 
-  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$05000004{$ENDIF}; // Unix timestamp 168048000 ... It's Albert birthdate!
+  CT_MagicNetIdentification = {$IFDEF PRODUCTION}$0A043580{$ELSE}$05000004{$ENDIF};
 
-  CT_NetProtocol_Version: Word = $0009; // Version 4.0.2 Will allow only net protocol 9
+  CT_NetProtocol_Version: Word = 9; // TODO Need to upgrade to 10 after V5 Hardfork
   // IMPORTANT NOTE!!!
   // NetProtocol_Available MUST BE always >= NetProtocol_version
-  CT_NetProtocol_Available: Word = {$IFDEF PRODUCTION}$0009{$ELSE}$000A{$ENDIF};  //
+  CT_NetProtocol_Available: Word = {$IFDEF PRODUCTION}10{$ELSE}10{$ENDIF};
 
   CT_MaxAccountOperationsPerBlockWithoutFee = 1;
 
@@ -161,8 +161,8 @@ Const
   CT_Protocol_v3_PIP11_Percent = 20; // PIP-0011 20% Percent proposed and voted by PIP-0011
 
   {$IFDEF PRODUCTION}
-  CT_Hardcoded_RandomHash_Table_Filename = 'HardcodedRH_75800.randomhash';
-  CT_Hardcoded_RandomHash_Table_HASH = '0A56291E8368AC855227B67A2F6CBEEFD2DB4CAE3CB8A473A7F6663C63368D0E';
+  CT_Hardcoded_RandomHash_Table_Filename = 'HardcodedRH_367300.randomhash';
+  CT_Hardcoded_RandomHash_Table_HASH = '5AAE9DA7F0F8251119F01923367B1AEF5958455FAE40FF89D3AD4B7FCBAF3B2A';
   {$ENDIF}
 
   CT_PseudoOpSubtype_Miner                = 1;
@@ -195,7 +195,7 @@ Const
   CT_OpSubtype_Data_Signer                = 103;
   CT_OpSubtype_Data_Receiver              = 104;
 
-  CT_ClientAppVersion : String = {$IFDEF PRODUCTION}'4.1'{$ELSE}{$IFDEF TESTNET}'TESTNET 5.Beta.4.1'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : String = {$IFDEF PRODUCTION}'5.0'{$ELSE}{$IFDEF TESTNET}'TESTNET 5.Beta.4.1'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs = {$IFDEF PRODUCTION}'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us'
                     {$ELSE}'pascaltestnet1.dynamic-dns.net;pascaltestnet2.dynamic-dns.net;pascaltestnet1.dns1.us;pascaltestnet2.dns1.us'{$ENDIF};

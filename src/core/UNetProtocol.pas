@@ -2667,7 +2667,7 @@ begin
       errors := 'Not autosend';
       exit;
     end;
-    if (NetProtocolVersion.protocol_available>=CT_NetProtocol_Available) then begin
+    if (NetProtocolVersion.protocol_available>=10) then begin
       if Not operations.LoadOperationsHashTreeFromStream(DataBuffer,False,TNode.Node.Bank.SafeBox.CurrentProtocol,TNode.Node.Bank.SafeBox.CurrentProtocol,Nil,errors) then Exit;
     end else begin
       // TODO:
@@ -4313,7 +4313,7 @@ begin
         LStream := TMemoryStream.Create;
         try
           request_id := TNetData.NetData.NewRequestId;
-          if (NetProtocolVersion.protocol_available>=CT_NetProtocol_Available) then begin
+          if (NetProtocolVersion.protocol_available>=10) then begin
             FBufferToSendOperations.SaveOperationsHashTreeToStream(LStream,False)
           end else begin
             // TODO:
