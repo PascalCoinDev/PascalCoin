@@ -2011,7 +2011,7 @@ begin
     TPCOperationsSignatureValidator.MultiThreadPreValidateSignatures(SafeBoxTransaction,OperationsHashTree,Nil);
     //
     for i := 0 to Count - 1 do begin
-      if (Operation[i].ProtocolVersion<>OperationBlock.protocol_version) then begin
+      if (Operation[i].ProtocolVersion>OperationBlock.protocol_version) then begin
         errors := 'Error executing operation invalid protocol at '+inttostr(i+1)+'/'+inttostr(Count)+': '+errors+' Op:'+Operation[i].ToString;
         exit;
       end;
@@ -2786,7 +2786,13 @@ begin
       LOpTypeWord := LOperation.OpType;
       if LOperation.ProtocolVersion >= CT_PROTOCOL_5 then
         LOpProtocol := LOperation.ProtocolVersion
-      else LOpProtocol := 0;
+      else begin
+        {$IFDEF TESTNET}
+        LOpProtocol := LOperation.ProtocolVersion
+        {$ELSE}
+        LOpProtocol := 0;
+        {$ENDIF}
+      end;
       // On V5 will save LOpProtocol when LOperation.ProtocolVersion >= V5
       // On V4 LOpProtocol was not saved (always 0): AStream.write(OpType, 4);
       AStream.Write(LOpTypeWord,2);
