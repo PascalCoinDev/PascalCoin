@@ -1392,7 +1392,7 @@ Var raw,rawPubKey,rawChecksum_Calculated,rawChecksum_Stored : TRawBytes;
 begin
   Result := false;
   account := CT_TECDSA_Public_Nul;
-  if Length(HumanReadable)<20 then begin
+  if Length(HumanReadable)<10 then begin
     errors := 'Invalid length';
     Exit(False);
   end;

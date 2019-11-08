@@ -161,8 +161,8 @@ Const
   CT_Protocol_v3_PIP11_Percent = 20; // PIP-0011 20% Percent proposed and voted by PIP-0011
 
   {$IFDEF PRODUCTION}
-  CT_Hardcoded_RandomHash_Table_Filename = 'HardcodedRH_367300.randomhash';
-  CT_Hardcoded_RandomHash_Table_HASH = '5AAE9DA7F0F8251119F01923367B1AEF5958455FAE40FF89D3AD4B7FCBAF3B2A';
+  CT_Hardcoded_RandomHash_Table_Filename = 'HardcodedRH_367700.randomhash';
+  CT_Hardcoded_RandomHash_Table_HASH = '72F40C806694988151DC30672B2667362AC42A08B84F62D31AE8F4B7623A6D7B';
   {$ENDIF}
 
   CT_PseudoOpSubtype_Miner                = 1;
