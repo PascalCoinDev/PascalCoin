@@ -3976,8 +3976,7 @@ begin
   end;
   // initial_safe_box_hash: Only can be checked when adding new blocks, not when restoring a safebox
   If checkSafeBoxHash then begin
-    // TODO: Can use FSafeBoxHash instead of CalcSafeBoxHash ???? Quick speed if possible
-    if (Not TBaseType.Equals(newOperationBlock.initial_safe_box_hash,CalcSafeBoxHash)) then begin
+    if (Not TBaseType.Equals(newOperationBlock.initial_safe_box_hash,FSafeBoxHash)) then begin
       errors := 'BlockChain Safe box hash invalid: '+TCrypto.ToHexaString(newOperationBlock.initial_safe_box_hash)+' var: '+
         TCrypto.ToHexaString(FSafeBoxHash)+
         ' Calculated:'+TCrypto.ToHexaString(CalcSafeBoxHash);
