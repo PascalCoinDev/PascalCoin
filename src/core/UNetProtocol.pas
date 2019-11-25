@@ -399,9 +399,9 @@ Type
     Procedure DoProcess_Message(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetBlocks_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetBlocks_Response(HeaderData : TNetHeaderData; DataBuffer: TStream);
-    Procedure DoProcess_GetBlockchainOperations_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
+    Procedure DoProcess_GetBlockchainOperations_Request(AHeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetOperationsBlock_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
-    Procedure DoProcess_NewBlock(HeaderData : TNetHeaderData; DataBuffer: TStream);
+    Procedure DoProcess_NewBlock(AHeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_AddOperations(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetSafeBox_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
     Procedure DoProcess_GetPendingOperations_Request(HeaderData : TNetHeaderData; DataBuffer: TStream);
@@ -2719,7 +2719,7 @@ begin
   end;
 end;
 
-procedure TNetConnection.DoProcess_GetBlockchainOperations_Request(HeaderData: TNetHeaderData; DataBuffer: TStream);
+procedure TNetConnection.DoProcess_GetBlockchainOperations_Request(AHeaderData: TNetHeaderData; DataBuffer: TStream);
   {
   As described on PIP-0015 this will return Operations stored in a specified Block of the Blockchain
   Input:
@@ -2761,7 +2761,7 @@ begin
   DoDisconnect := true;
   outputBuffer := TMemoryStream.Create;
   try
-    if HeaderData.header_type<>ntp_request then begin
+    if AHeaderData.header_type<>ntp_request then begin
       errors := 'Not request';
       Exit;
     end;
@@ -2784,7 +2784,11 @@ begin
         opc := GetBlock(bufferOperationsBlock, cBlock);
         if Assigned(opc) then begin
           if (cBlockOpIndex<opc.Count) then begin
-            opsdata := opc.Operation[cBlockOpIndex].GetOperationStreamData;
+            if AHeaderData.protocol.protocol_available >= 11 then begin
+              opsdata := opc.Operation[cBlockOpIndex].GetOperationStreamData;
+            end else begin
+              opsdata := opc.Operation[cBlockOpIndex].GetOperationStreamData_OLD_V4_Version;
+            end;
             c := Length(opsdata);
             outputBuffer.Write(c,SizeOf(c));
             outputBuffer.WriteBuffer(opsdata[0],Length(opsdata)); // Fixed bug 4.0.0
@@ -2803,7 +2807,7 @@ begin
       DoDisconnect := False;
       // Send back
       outputBuffer.Position := 0;
-      Send(ntp_response,HeaderData.operation,0,HeaderData.request_id,outputBuffer);
+      Send(ntp_response,AHeaderData.operation,0,AHeaderData.request_id,outputBuffer);
     Finally
       opindexdata.Free;
       for i := 0 to bufferOperationsBlock.Count-1 do begin
@@ -2814,7 +2818,7 @@ begin
   finally
     outputBuffer.Free;
     if DoDisconnect then begin
-      DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(HeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
+      DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(AHeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
     end;
   end;
 end;
@@ -3672,11 +3676,12 @@ begin
   end;
 end;
 
-procedure TNetConnection.DoProcess_NewBlock(HeaderData: TNetHeaderData; DataBuffer: TStream);
+procedure TNetConnection.DoProcess_NewBlock(AHeaderData: TNetHeaderData; DataBuffer: TStream);
 Type
   TNewFastPropagationBlockOperation = Record
     opReference : TOpReference;
     opStreamData : TBytes;
+    opStreamDataUsingV5EncodeStyle : Boolean;
   end;
   TNewFastPropagationBlockOperationsArray = Array of TNewFastPropagationBlockOperation;
 
@@ -3690,7 +3695,7 @@ var operationsComp : TPCOperationsComp;
     i,iNodeOpReference : Integer;
     sendStream, receiveStream : TStream;
     block_op_ref : UInt64;
-    headerData : TNetHeaderData;
+    LHeaderData : TNetHeaderData;
     auxOp : TPCOperation;
     tc : TTickCount;
     original_OperationBlock : TOperationBlock;
@@ -3710,6 +3715,7 @@ var operationsComp : TPCOperationsComp;
       for i := 0 to Integer(Integer(oprefcount)-1) do begin
         if DataBuffer.Read(nfpboarr[i].opReference,SizeOf(TOpReference))<>SizeOf(TOpReference) then Exit;
         SetLength(nfpboarr[i].opStreamData,0);
+        nfpboarr[i].opStreamDataUsingV5EncodeStyle:=False;
       end;
     end;
     DoDisconnect := False;
@@ -3726,6 +3732,7 @@ var operationsComp : TPCOperationsComp;
             iNodeOpReference := LLockedMempool.OperationsHashTree.IndexOfOpReference(nfpboarr[i].opReference);
             if iNodeOpReference>=0 then begin
               nfpboarr[i].opStreamData := LLockedMempool.OperationsHashTree.GetOperation(iNodeOpReference).GetOperationStreamData;
+              nfpboarr[i].opStreamDataUsingV5EncodeStyle:=True; // Flag to indicate that opStreamData is saved in V5 format
             end else begin
               inc(notFoundOpReferencesCount);
             end;
@@ -3756,12 +3763,12 @@ var operationsComp : TPCOperationsComp;
           end;
         end;
         // Send & wait
-        if Not DoSendAndWaitForResponse(CT_NetOp_GetBlockchainOperations,TNetData.NetData.NewRequestId,sendStream,receiveStream,5000,headerData) then begin
+        if Not DoSendAndWaitForResponse(CT_NetOp_GetBlockchainOperations,TNetData.NetData.NewRequestId,sendStream,receiveStream,5000,LHeaderData) then begin
           TLog.NewLog(ltdebug,ClassName,Format('Not received Pending operations (%d of %d) in Fast propagation block %d',[notFoundOpReferencesCount,oprefcount,operationsComp.OperationBlock.block]));
           Exit;
         end;
         DoDisconnect := True; // If bad received data... then DoDisconnect
-        if (headerData.is_error) then Exit;
+        if (LHeaderData.is_error) then Exit;
         receiveStream.Position := 0;
         receiveStream.Read(c,SizeOf(c));
         if (c<>notFoundOpReferencesCount) then Exit; // Error!
@@ -3773,6 +3780,7 @@ var operationsComp : TPCOperationsComp;
             if receiveStream.Size - receiveStream.Position < c then Exit; // Not enough received data
             SetLength(nfpboarr[i].opStreamData,c);
             receiveStream.ReadBuffer(nfpboarr[i].opStreamData[0],c); // Fixed bug 4.0.0
+            nfpboarr[i].opStreamDataUsingV5EncodeStyle := (LHeaderData.protocol.protocol_available>=11)
           end;
         end;
         DoDisconnect := False;
@@ -3783,7 +3791,7 @@ var operationsComp : TPCOperationsComp;
     end;
     // Now we have nfpboarr with full data
     for i := 0 to High(nfpboarr) do begin
-      auxOp := TPCOperation.GetOperationFromStreamData(original_OperationBlock.protocol_version,  nfpboarr[i].opStreamData );
+      auxOp := TPCOperation.GetOperationFromStreamData( (nfpboarr[i].opStreamDataUsingV5EncodeStyle), original_OperationBlock.protocol_version , nfpboarr[i].opStreamData );
       if not Assigned(auxOp) then begin
         errors := Format('Op index not available (%d/%d) OpReference:%d size:%d',[i,High(nfpboarr),nfpboarr[i].opReference,Length(nfpboarr[i].opStreamData)]);
         Exit;
@@ -3823,7 +3831,7 @@ begin
   errors := '';
   DoDisconnect := true;
   try
-    if HeaderData.header_type<>ntp_autosend then begin
+    if AHeaderData.header_type<>ntp_autosend then begin
       errors := 'Not autosend';
       exit;
     end;
@@ -3879,7 +3887,7 @@ begin
     end;
   finally
     if DoDisconnect then begin
-      DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(HeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
+      DisconnectInvalidClient(false,errors+' > '+TNetData.HeaderDataToText(AHeaderData)+' BuffSize: '+inttostr(DataBuffer.Size));
     end;
   end;
 end;
