@@ -441,6 +441,7 @@ begin
   if (b AND $04)=$04 then FData.changes_type:=FData.changes_type + [account_type];
   if (b AND $08)=$08 then FData.changes_type:=FData.changes_type + [account_data];
   // Check
+  if (FProtocolVersion<CT_PROTOCOL_5) and ((b AND $F8)<>0) then Exit;
   if (b AND $F0)<>0 then Exit;
   if TStreamOp.ReadAccountKey(Stream,FData.new_accountkey)<0 then Exit;
   if TStreamOp.ReadAnsiString(Stream,FData.new_name)<0 then Exit;
@@ -607,7 +608,12 @@ begin
     account_target.account_type := FData.new_type;
   end;
   If (account_data in FData.changes_type) then begin
-    account_target.account_data := FData.new_data;
+    if LSafeboxCurrentProtocol>=CT_PROTOCOL_5 then begin
+      account_target.account_data := FData.new_data
+    end else begin
+      errors := 'Account Data not available until protocol 5';
+      Exit;
+    end;
   end;
   Result := AccountTransaction.UpdateAccountInfo(AccountPreviousUpdatedBlock,
          GetOpID,

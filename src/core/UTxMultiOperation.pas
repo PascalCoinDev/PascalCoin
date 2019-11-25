@@ -694,6 +694,10 @@ begin
     end;
     // Account Data protection: (PIP-0024)
     if (account_data in chi.Changes_type) then begin
+      if (LSafeboxCurrentProtocol<CT_PROTOCOL_5) then begin
+        errors := 'Account Data not available until protocol 5';
+        Exit;
+      end;
       if Length(chi.New_Data)>CT_MaxAccountDataSize then begin
         errors := 'New data length ('+IntToStr(Length(chi.New_data))+') > '+IntToStr(CT_MaxAccountDataSize);
         Exit;

@@ -545,7 +545,7 @@ begin
   ms := TMemoryStream.Create;
   opht := TOperationsHashTree.Create;
   Try
-    ms.Write(raw[1],Length(raw));
+    ms.Write(raw[0],Length(raw));
     ms.Position:=0;
     If Not opht.LoadOperationsHashTreeFromStream(ms,false,TNode.Node.Bank.SafeBox.CurrentProtocol,TNode.Node.Bank.SafeBox.CurrentProtocol,Nil,errors) then Raise Exception.Create(errors);
     For i:=0 to opht.OperationsCount-1 do begin
