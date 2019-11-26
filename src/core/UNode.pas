@@ -319,10 +319,7 @@ begin
               inc(j);
             end;
           end;
-          if j>0 then begin
-            TLog.NewLog(ltInfo,ClassName,'Buffer Sent operations: Deleted '+IntToStr(j)+' old operations');
-          end;
-          TLog.NewLog(ltdebug,ClassName,'Buffer Sent operations: '+IntToStr(FSentOperations.Count));
+          TLog.NewLog(ltdebug,ClassName,'Buffer Sent operations: '+IntToStr(FSentOperations.Count)+' Deleted old operations: '+IntToStr(j));
           // Notify to clients
           {$IFnDEF TESTING_NO_POW_CHECK}
           if FBroadcastData then begin
