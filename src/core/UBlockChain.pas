@@ -1758,10 +1758,6 @@ begin
       lastn := FOperationsHashTree.OperationsCount;
       for i:=0 to lastn-1 do begin
         op := FOperationsHashTree.GetOperation(i);
-        if OperationBlock.protocol_version <> op.ProtocolVersion then begin
-          errors := Format('Sanitize Operation protocol:%d <> current protocol:%d on %s',[op.ProtocolVersion,OperationBlock.protocol_version, op.ToString]);
-          Tlog.NewLog(lterror,ClassName,errors);
-        end else begin
           if (aux.CanAddOperationToHashTree(op)) then begin
             if (op.DoOperation(FPreviousUpdatedBlocks, SafeBoxTransaction,errors)) then begin
               if aux.AddOperationToHashTree(op) then begin
@@ -1776,7 +1772,6 @@ begin
               end;
             end;
           end;
-        end;
       end;
     Finally
       aux2 := FOperationsHashTree;
