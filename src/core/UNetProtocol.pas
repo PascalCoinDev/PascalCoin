@@ -3793,10 +3793,14 @@ var operationsComp : TPCOperationsComp;
     for i := 0 to High(nfpboarr) do begin
       auxOp := TPCOperation.GetOperationFromStreamData( (nfpboarr[i].opStreamDataUsingV5EncodeStyle), original_OperationBlock.protocol_version , nfpboarr[i].opStreamData );
       if not Assigned(auxOp) then begin
-        errors := Format('Op index not available (%d/%d) OpReference:%d size:%d',[i,High(nfpboarr),nfpboarr[i].opReference,Length(nfpboarr[i].opStreamData)]);
+        errors := Format('ERR 20191126-1 Op index not available (%d/%d) OpReference:%s size:%d',[i,High(nfpboarr),IntToHex(nfpboarr[i].opReference,8),Length(nfpboarr[i].opStreamData)]);
+        TLog.NewLog(lterror,ClassName,errors);
         Exit;
       end else begin
-        if Not operationsComp.AddOperation(False,auxOp,errors) then Exit;
+        if Not operationsComp.AddOperation(False,auxOp,errors) then begin
+          TLog.NewLog(lterror,ClassName,Format('ERR 20191126-2 Invalid operation %d/%d Err:%s Operation:%s',[i,High(nfpboarr),errors,auxOp.ToString]));
+          Exit;
+        end;
         auxOp.Free;
       end;
     end;
