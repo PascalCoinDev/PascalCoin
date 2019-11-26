@@ -132,7 +132,7 @@ Uses
 {$IFDEF TESTNET}
    UFRMRandomOperations,
 {$ENDIF}
-   UFRMRPCCalls;
+   UFRMRPCCalls, UFRMMemoText;
 
 
 { TFRMOperationsExplorer }
@@ -530,22 +530,21 @@ end;
 procedure TFRMOperationsExplorer.MiImportOperationsFromTxtClick(Sender: TObject);
 Var i : Integer;
   raw : TRawBytes;
-  aux : AnsiString;
   auxS : String;
   errors : String;
   opht : TOperationsHashTree;
   ms : TMemoryStream;
 begin
-  aux := '';
-  If Not InputQuery(Caption,'Paste a RAW hexadecimal operations:',auxS) then exit;
-  aux := auxS;
-  If Not TCrypto.IsHexString(aux) then Raise Exception.Create('Invalid hexadecimal RAW');
-  raw := TCrypto.HexaToRaw(aux);
+  auxS := '';
+  if Not InputMemoQuery('Paste a RAW hexadecimal operations:',False,auxS) then Exit;
+
+  if Not TCrypto.HexaToRaw(auxS, raw) then Raise Exception.Create('Invalid hexadecimal RAW');
+
   If Length(raw)=0 then Exit;
   ms := TMemoryStream.Create;
   opht := TOperationsHashTree.Create;
   Try
-    ms.Write(raw[1],Length(raw));
+    ms.Write(raw[0],Length(raw));
     ms.Position:=0;
     If Not opht.LoadOperationsHashTreeFromStream(ms,false,TNode.Node.Bank.SafeBox.CurrentProtocol,TNode.Node.Bank.SafeBox.CurrentProtocol,Nil,errors) then Raise Exception.Create(errors);
     For i:=0 to opht.OperationsCount-1 do begin

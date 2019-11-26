@@ -24,8 +24,6 @@ object FRMMemoText: TFRMMemoText
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitTop = 245
-    ExplicitWidth = 619
     DesignSize = (
       745
       55)
@@ -35,11 +33,9 @@ object FRMMemoText: TFRMMemoText
       Width = 116
       Height = 31
       Anchors = [akTop, akRight]
-      DoubleBuffered = True
       Kind = bkCancel
-      ParentDoubleBuffered = False
+      NumGlyphs = 2
       TabOrder = 0
-      ExplicitLeft = 494
     end
   end
   object Memo: TMemo
@@ -60,7 +56,5 @@ object FRMMemoText: TFRMMemoText
     ScrollBars = ssBoth
     TabOrder = 1
     WordWrap = False
-    ExplicitWidth = 619
-    ExplicitHeight = 245
   end
 end

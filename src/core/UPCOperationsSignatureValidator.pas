@@ -101,16 +101,19 @@ begin
 end;
 
 function TPCOperationsSignatureValidator.GetNextOperation(AValidatorThread : TPCOperationsSignatureValidatorThread) : TPCOperation;
-var LIndex : Integer;
+var LOp : TPCOperation;
 begin
   FLock.Acquire;
   try
-    // Search new
-    LIndex := FLastIndexOperations + 1; // Move to next
-    if (LIndex<FOperationsList.Count) then begin
-      Result := FOperationsList[LIndex];
-      FLastIndexOperations := Lindex;
-    end else Result := Nil;
+    Result := Nil;
+    // Search next Operation without valid signature
+    While (Result=Nil) do begin
+      Inc(FLastIndexOperations);
+      if (FLastIndexOperations<FOperationsList.Count) then begin
+        LOp := FOperationsList[FLastIndexOperations];
+        if Not LOp.HasValidSignature then Result := LOp;
+      end else Break;
+    end;
   finally
     FLock.Release;
   end;
@@ -127,7 +130,7 @@ begin
   if _Cpus<=0 then begin
     _Cpus := TCPUTool.GetLogicalCPUCount;
   end;
-  if _Cpus<=1 then Exit;
+  if (_Cpus<=1) or (APCOperationsList.Count < (_Cpus*10)) then Exit; // Minimum 2 CPU's and more than 10 ops per CPU
 
     LTC := TPlatform.GetTickCount;
     LMultiThreadValidator := TPCOperationsSignatureValidator.Create(ASafeBoxTransaction,AProgressNotify);
@@ -165,6 +168,9 @@ begin
       Inc(LGlobalOperationsCount, APCOperationsCompList[i].Count );
       APCOperationsCompList[i].OperationsHashTree.GetOperationsList(LList,True);
     end;
+
+    if (LList.Count < (_Cpus*10)) then Exit; // Minimum 10 operations per CPU
+
     LTC := TPlatform.GetTickCount;
     LMultiThreadValidator := TPCOperationsSignatureValidator.Create(ASafeBoxTransaction,AProgressNotify);
     try
@@ -197,7 +203,7 @@ begin
     _Cpus := TCPUTool.GetLogicalCPUCount;
   end;
   if _Cpus<=1 then Exit;
-  if AOperationsHashTree.OperationsCount<_Cpus then Exit;   // If less than cpus, no need for multithreading...
+  if AOperationsHashTree.OperationsCount<(_Cpus*10) then Exit;   // Minimum 10 operations per CPU
 
   LGlobalOperationsCount := AOperationsHashTree.OperationsCount;
   LTC := TPlatform.GetTickCount;
@@ -206,7 +212,7 @@ begin
     LList := TList<TPCOperation>.Create;
     Try
       AOperationsHashTree.GetOperationsList(Llist,True);
-      if LList.Count<_Cpus then Exit; // No need for multithreading...
+      if LList.Count<(_Cpus*10) then Exit; // No need for multithreading...
 
       LValidatedTotal := LMultiThreadValidator.Validate(LList);
       LValidatedOk := LMultiThreadValidator.FValidatedOkCount;

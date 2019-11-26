@@ -999,7 +999,7 @@ begin
         errors := Format('Data size (%d) greater than %d',[Length(ANewData),CT_MaxAccountDataSize]);
         Exit;
       end;
-    end;
+    end else AChangeData:=False;
     If (SenderAccounts.Count=1) And (TBaseType.Equals(newName,TargetAccount.name)) And (newType=TargetAccount.account_type)
       And (TBaseType.Equals(ANewData,TargetAccount.account_data)) then begin
       errors := 'No changes on fields. Not changed';

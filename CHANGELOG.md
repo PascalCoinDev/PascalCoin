@@ -1,5 +1,11 @@
 # Changelog
 
+## Build 5.1.0 - 2019-11-25
+- Fixed FastPropagation bug when Operations are not on Mempool and needs to obtain from a node with different version (V4 vs V5)
+- Fixed TOpChangeAccountInfo bug when changing Account.Data (not available on V4, V5 must not propagate while on V4 protocol)
+- Fixed GUI bug when using coma as decimal separator
+- Upgraded Net Protocol to 11 (needed to detect/fix errors of FastPropagation )
+
 ## Build 5.0.0 - 2019-11-07
 - MANDATORY UPGRADE - HARD FORK ACTIVATION WILL OCCUR ON BLOCK 378000
 - Upgrade to Protocol 5 (Hard fork)
@@ -19,7 +25,7 @@
 - Partial implementation of PIP-0012 (Recover Accounts option after 4 years) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0012.md
   - Accounts updated counter will only update when executing operations in active mode (See PIP-0037)
   - If account is a receiver (passive mode) then n_operation_update_block will not update value and can be recovered after 4 years (as defined on original PascalCoin v1 WhitePaper)
-- Fixed important security issue related to PIP-0003 caused by possible "parallelization" of the Proof-of-work
+- Fixed important security issue related to PIP-0003 caused by possible "parallelization" of the Proof-of-work (found by Herman Schoenfeld <herman@sphere10.com>)
   - Modified length of the digest to be mined, adding previous proof-of-work to avoid parallelization
   - Added extra 4 missed bytes of fee (missing since V1)
   - The total length of the digest to be mined has increased in 36 bytes (32 for PoW and 4 for missing fee bytes). Those bytes are added on "Part 3" of the digest

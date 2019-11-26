@@ -278,7 +278,8 @@ Type
     function GetOpID : TRawBytes; // OPID is RipeMD160 hash of the operation
     //
     function GetOperationStreamData : TBytes;
-    class function GetOperationFromStreamData(ACurrentProtocol: word; StreamData : TBytes) : TPCOperation;
+    function GetOperationStreamData_OLD_V4_Version : TBytes; // deprecated
+    class function GetOperationFromStreamData(AUseV5EncodeStyle : Boolean; ACurrentProtocol: word; StreamData : TBytes) : TPCOperation;
     //
     function IsValidSignatureBasedOnCurrentSafeboxState(ASafeBoxTransaction : TPCSafeBoxTransaction) : Boolean; virtual; abstract;
   End;
@@ -1757,10 +1758,6 @@ begin
       lastn := FOperationsHashTree.OperationsCount;
       for i:=0 to lastn-1 do begin
         op := FOperationsHashTree.GetOperation(i);
-        if OperationBlock.protocol_version <> op.ProtocolVersion then begin
-          errors := Format('Sanitize Operation protocol:%d <> current protocol:%d on %s',[op.ProtocolVersion,OperationBlock.protocol_version, op.ToString]);
-          Tlog.NewLog(lterror,ClassName,errors);
-        end else begin
           if (aux.CanAddOperationToHashTree(op)) then begin
             if (op.DoOperation(FPreviousUpdatedBlocks, SafeBoxTransaction,errors)) then begin
               if aux.AddOperationToHashTree(op) then begin
@@ -1775,7 +1772,6 @@ begin
               end;
             end;
           end;
-        end;
       end;
     Finally
       aux2 := FOperationsHashTree;
@@ -2972,27 +2968,47 @@ begin
   end else Raise Exception.Create('ERROR DEV 20170426-1'); // This should never happen, if good coded
 end;
 
-class function TPCOperation.GetOperationFromStreamData(ACurrentProtocol: word; StreamData : TBytes): TPCOperation;
+class function TPCOperation.GetOperationFromStreamData(AUseV5EncodeStyle : Boolean; ACurrentProtocol: word; StreamData : TBytes): TPCOperation;
   // Loads an TPCOperation saved using "GetOperationStreamData"
-  // 1 byte for OpType
+  // For compatiblity will allow V4..V5 encode stype
+  // Old V4: 1 byte for OpType
+  // New V5: 2 bytes for OpType and 2 bytes for ProtocolVersion
   // N bytes for Operation specific data (saved at SaveOpToStream)
+  //
+  // NOTE:
+  // AFTER V5 activation, all nodes must use new AUseV5EcnodeStyle = TRUE
 Var stream : TStream;
   b : Byte;
   j: Integer;
   OpClass: TPCOperationClass;
   auxOp: TPCOperation;
+  LOpType, LOperationProtocolVersion : Word;
 begin
   Result := Nil;
   stream := TMemoryStream.Create;
   Try
     stream.WriteBuffer(StreamData[0],Length(StreamData)); // Fixed bug 4.0.0
     stream.Position := 0;
-    stream.Read(b,1);
-    j := TPCOperationsComp.IndexOfOperationClassByOpType(b);
+
+    if (AUseV5EncodeStyle) then begin
+      // 2 bytes (UInt16) for OpType
+      // 2 bytes (UInt16) for ProtocolVersion
+      Stream.Read(LOpType,2);
+      Stream.Read(LOperationProtocolVersion,2);
+      if (LOperationProtocolVersion<=0) or (LOperationProtocolVersion>CT_BUILD_PROTOCOL) then Exit;
+    end else begin
+      // 1 bytes (UInt8) for OpType
+      // Fixed ProtocolVersion = 4
+      stream.Read(b,1);
+      LOpType := b;
+      LOperationProtocolVersion:=ACurrentProtocol;
+    end;
+
+    j := TPCOperationsComp.IndexOfOperationClassByOpType(LOpType);
     if j >= 0 then
       OpClass := _OperationsClass[j]
     else Exit;
-    auxOp := OpClass.Create(ACurrentProtocol);
+    auxOp := OpClass.Create(LOperationProtocolVersion);
     if auxOp.LoadOpFromStream(stream,False) then Result := auxOp
     else auxOp.Free;
   Finally
@@ -3000,10 +3016,14 @@ begin
   End;
 end;
 
-function TPCOperation.GetOperationStreamData: TBytes;
+function TPCOperation.GetOperationStreamData_OLD_V4_Version: TBytes;
   // OperationStreamData fills an array of bytes with info needed to store an operation
   // 1 byte for OpType
   // N bytes for Operation specific data (saved at SaveOpToStream)
+
+  //
+  // THIS FUNCTION IS DEPRECATED, Usable only for V4 to V5 upgrade process
+  //
 var stream : TStream;
   b : Byte;
 begin
@@ -3011,6 +3031,31 @@ begin
   Try
     b := OpType;
     stream.Write(b,1);
+    SaveOpToStream(stream,False);
+    SetLength(Result,stream.Size);
+    stream.Position := 0;
+    stream.ReadBuffer(Result[0],stream.Size); // Fixed bug 4.0.0
+  Finally
+    stream.Free;
+  End;
+end;
+
+function TPCOperation.GetOperationStreamData: TBytes;
+  // OperationStreamData fills an array of bytes with info needed to store an operation
+  // 2 bytes for OpType
+  // 2 bytes for ProtocolVersion
+  // N bytes for Operation specific data (saved at SaveOpToStream)
+var stream : TStream;
+  LOpType, LOperationProtocolVersion : Word;
+begin
+  stream := TMemoryStream.Create;
+  Try
+    LOpType := Self.OpType;
+    LOperationProtocolVersion := Self.ProtocolVersion;
+
+    Stream.Write(LOpType,2);
+    Stream.Write(LOperationProtocolVersion,2);
+
     SaveOpToStream(stream,False);
     SetLength(Result,stream.Size);
     stream.Position := 0;

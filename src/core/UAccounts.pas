@@ -1923,24 +1923,37 @@ end;
 class function TAccountComp.TxtToMoney(const moneytxt: String;
   var money: Int64): Boolean;
 Var s : String;
+  LPosThousand, LPosDecimal : Integer;
+  LMoneyString : String;
 begin
   money := 0;
-  if Trim(moneytxt)='' then begin
+  LMoneyString := Trim(moneytxt);
+  if LMoneyString.Length=0 then begin
     Result := true;
     exit;
   end;
   try
-    If pos({$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DecimalSeparator,moneytxt)<=0 then begin
-      // No decimal separator, consider ThousandSeparator as a decimal separator
-      s := StringReplace(moneytxt,{$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ThousandSeparator,{$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DecimalSeparator,[rfReplaceAll]);
-    end else begin
-      s := StringReplace(moneytxt,{$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ThousandSeparator,'',[rfReplaceAll]);
+    LPosThousand := LMoneyString.IndexOf( TPCJSONData.JSONFormatSettings.ThousandSeparator );
+    LPosDecimal  := LMoneyString.IndexOf( TPCJSONData.JSONFormatSettings.DecimalSeparator );
+
+    if (LPosThousand>0) then begin
+      if (LPosThousand < LPosDecimal ) then begin
+        // Remove thousand values
+        LMoneyString := LMoneyString.Replace(String(TPCJSONData.JSONFormatSettings.ThousandSeparator),'',[rfReplaceAll]);
+      end else begin
+        // Possible 15.123.456,7890 format ( coma (,) = decimal separator )
+        // Remove decimal "." and convert thousand to decimal
+        LMoneyString := LMoneyString.Replace(String(TPCJSONData.JSONFormatSettings.DecimalSeparator),'',[rfReplaceAll]);
+        LMoneyString := LMoneyString.Replace(TPCJSONData.JSONFormatSettings.ThousandSeparator,TPCJSONData.JSONFormatSettings.DecimalSeparator,[rfReplaceAll]);
+      end;
     end;
-    money := Round( StrToFloat(s)*10000 );
+
+    money := Round( StrToFloat(LMoneyString,TPCJSONData.JSONFormatSettings)*10000 );
     Result := true;
   Except
     result := false;
   end;
+
 end;
 
 class procedure TAccountComp.ValidsEC_OpenSSL_NID(list: TList<Word>);
@@ -3976,8 +3989,7 @@ begin
   end;
   // initial_safe_box_hash: Only can be checked when adding new blocks, not when restoring a safebox
   If checkSafeBoxHash then begin
-    // TODO: Can use FSafeBoxHash instead of CalcSafeBoxHash ???? Quick speed if possible
-    if (Not TBaseType.Equals(newOperationBlock.initial_safe_box_hash,CalcSafeBoxHash)) then begin
+    if (Not TBaseType.Equals(newOperationBlock.initial_safe_box_hash,FSafeBoxHash)) then begin
       errors := 'BlockChain Safe box hash invalid: '+TCrypto.ToHexaString(newOperationBlock.initial_safe_box_hash)+' var: '+
         TCrypto.ToHexaString(FSafeBoxHash)+
         ' Calculated:'+TCrypto.ToHexaString(CalcSafeBoxHash);
