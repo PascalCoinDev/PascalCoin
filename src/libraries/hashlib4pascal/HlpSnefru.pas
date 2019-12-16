@@ -10,7 +10,6 @@ uses
 {$IFDEF DELPHI}
   HlpHash,
   HlpHashBuffer,
-  HlpBitConverter,
 {$ENDIF DELPHI}
   HlpBits,
   HlpHashSize,
@@ -34,7 +33,7 @@ type
   strict private
   var
     FState: THashLibUInt32Array;
-    FSecurityLevel, FHashSize, FBlockSize: Int32;
+    FSecurityLevel: Int32;
 
   const
     SShifts: array [0 .. 3] of Int32 = (16, 8, 16, 24);
@@ -90,7 +89,7 @@ function TSnefru.Clone(): IHash;
 var
   LHashInstance: TSnefru;
 begin
-  LHashInstance := TSnefru.Create(FSecurityLevel, GetSnefruHashSize(FHashSize));
+  LHashInstance := TSnefru.Create(FSecurityLevel, GetSnefruHashSize(HashSize));
   LHashInstance.FState := System.Copy(FState);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
@@ -102,9 +101,7 @@ constructor TSnefru.Create(ASecurityLevel: Int32; AHashSize: THashSize);
 begin
   Inherited Create(Int32(AHashSize), 64 - (Int32(AHashSize)));
   FSecurityLevel := Int32(ASecurityLevel);
-  FHashSize := HashSize;
-  FBlockSize := BlockSize;
-  System.SetLength(FState, FHashSize shr 2);
+  System.SetLength(FState, HashSize shr 2);
 end;
 
 procedure TSnefru.Finish;
@@ -116,11 +113,11 @@ begin
   LBits := FProcessedBytesCount * 8;
   if FBuffer.Position > 0 then
   begin
-    LPadIndex := 2 * FBlockSize - FBuffer.Position - 8
+    LPadIndex := 2 * BlockSize - FBuffer.Position - 8
   end
   else
   begin
-    LPadIndex := FBlockSize - FBuffer.Position - 8;
+    LPadIndex := BlockSize - FBuffer.Position - 8;
   end;
 
   System.SetLength(LPad, LPadIndex + 8);
@@ -232,7 +229,7 @@ begin
   FState[2] := FState[2] xor LWork[13];
   FState[3] := FState[3] xor LWork[12];
 
-  if (FHashSize = 32) then
+  if (HashSize = 32) then
   begin
     FState[4] := FState[4] xor LWork[11];
     FState[5] := FState[5] xor LWork[10];

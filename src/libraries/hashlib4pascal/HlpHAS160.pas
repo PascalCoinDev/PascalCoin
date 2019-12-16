@@ -12,7 +12,6 @@ uses
 {$IFDEF DELPHI}
   HlpHash,
   HlpHashBuffer,
-  HlpBitConverter,
 {$ENDIF DELPHI}
   HlpConverters,
   HlpIHash,

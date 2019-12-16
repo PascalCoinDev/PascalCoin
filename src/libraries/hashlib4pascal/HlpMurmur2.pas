@@ -24,21 +24,19 @@ resourcestring
   SInvalidKeyLength = 'KeyLength Must Be Equal to %d';
 
 type
-
+  // The original MurmurHash2 32-bit algorithm by Austin Appleby.
   TMurmur2 = class sealed(TMultipleTransformNonBlock, IHash32, IHashWithKey,
     ITransformBlock)
 
   strict private
   var
-    FKey, FWorkingKey, FH: UInt32;
+    FKey, FWorkingKey: UInt32;
 
   const
     CKEY = UInt32($0);
     M = UInt32($5BD1E995);
     R = Int32(24);
 
-    function InternalComputeBytes(const AData: THashLibByteArray): Int32;
-    procedure TransformUInt32Fast(ABlock: UInt32); inline;
     function GetKeyLength(): TNullableInteger;
     function GetKey: THashLibByteArray; inline;
     procedure SetKey(const AValue: THashLibByteArray); inline;
@@ -88,16 +86,6 @@ begin
   end;
 end;
 
-procedure TMurmur2.TransformUInt32Fast(ABlock: UInt32);
-begin
-  ABlock := ABlock * M;
-  ABlock := ABlock xor (ABlock shr R);
-  ABlock := ABlock * M;
-
-  FH := FH * M;
-  FH := FH xor ABlock;
-end;
-
 function TMurmur2.GetKeyLength: TNullableInteger;
 begin
   result := 4;
@@ -109,69 +97,6 @@ begin
   inherited Initialize();
 end;
 
-function TMurmur2.InternalComputeBytes(const AData: THashLibByteArray): Int32;
-var
-  LLength, LCurrentIndex: Int32;
-  LBlock: UInt32;
-  LPtrData: PByte;
-begin
-  LLength := System.Length(AData);
-  LPtrData := PByte(AData);
-
-  if (LLength = 0) then
-  begin
-    result := 0;
-    Exit;
-  end;
-
-  FH := FWorkingKey xor UInt32(LLength);
-  LCurrentIndex := 0;
-
-  while (LLength >= 4) do
-  begin
-    LBlock := TConverters.ReadBytesAsUInt32LE(LPtrData, LCurrentIndex);
-    TransformUInt32Fast(LBlock);
-    System.Inc(LCurrentIndex, 4);
-    System.Dec(LLength, 4);
-  end;
-
-  case LLength of
-    3:
-      begin
-        FH := FH xor (AData[LCurrentIndex + 2] shl 16);
-
-        FH := FH xor (AData[LCurrentIndex + 1] shl 8);
-
-        FH := FH xor (AData[LCurrentIndex]);
-
-        FH := FH * M;
-      end;
-
-    2:
-      begin
-        FH := FH xor (AData[LCurrentIndex + 1] shl 8);
-
-        FH := FH xor (AData[LCurrentIndex]);
-
-        FH := FH * M;
-      end;
-
-    1:
-      begin
-        FH := FH xor (AData[LCurrentIndex]);
-
-        FH := FH * M;
-      end;
-  end;
-
-  FH := FH xor (FH shr 13);
-
-  FH := FH * M;
-  FH := FH xor (FH shr 15);
-
-  result := Int32(FH);
-end;
-
 function TMurmur2.Clone(): IHash;
 var
   LHashInstance: TMurmur2;
@@ -179,7 +104,6 @@ begin
   LHashInstance := TMurmur2.Create();
   LHashInstance.FKey := FKey;
   LHashInstance.FWorkingKey := FWorkingKey;
-  LHashInstance.FH := FH;
   FBuffer.Position := 0;
   LHashInstance.FBuffer.CopyFrom(FBuffer, FBuffer.Size);
   result := LHashInstance as IHash;
@@ -188,8 +112,79 @@ end;
 
 function TMurmur2.ComputeAggregatedBytes(const AData: THashLibByteArray)
   : IHashResult;
+var
+  LLength, LCurrentIndex, LNBlocks, LIdx: Int32;
+  LBlock, LH: UInt32;
+  LPtrData: PByte;
+  LPtrDataCardinal: PCardinal;
 begin
-  result := THashResult.Create(InternalComputeBytes(AData));
+  LLength := System.Length(AData);
+  LPtrData := PByte(AData);
+
+  if (LLength = 0) then
+  begin
+    result := THashResult.Create(Int32(0));
+    Exit;
+  end;
+
+  LH := FWorkingKey xor UInt32(LLength);
+
+  LCurrentIndex := 0;
+  LIdx := 0;
+  LPtrDataCardinal := PCardinal(LPtrData);
+  LNBlocks := LLength shr 2;
+
+  while LIdx < LNBlocks do
+  begin
+    LBlock := TConverters.ReadPCardinalAsUInt32LE(LPtrDataCardinal + LIdx);
+
+    LBlock := LBlock * M;
+    LBlock := LBlock xor (LBlock shr R);
+    LBlock := LBlock * M;
+
+    LH := LH * M;
+    LH := LH xor LBlock;
+
+    System.Inc(LIdx);
+    System.Inc(LCurrentIndex, 4);
+    System.Dec(LLength, 4);
+  end;
+
+  case LLength of
+    3:
+      begin
+        LH := LH xor (AData[LCurrentIndex + 2] shl 16);
+
+        LH := LH xor (AData[LCurrentIndex + 1] shl 8);
+
+        LH := LH xor (AData[LCurrentIndex]);
+
+        LH := LH * M;
+      end;
+
+    2:
+      begin
+        LH := LH xor (AData[LCurrentIndex + 1] shl 8);
+
+        LH := LH xor (AData[LCurrentIndex]);
+
+        LH := LH * M;
+      end;
+
+    1:
+      begin
+        LH := LH xor (AData[LCurrentIndex]);
+
+        LH := LH * M;
+      end;
+  end;
+
+  LH := LH xor (LH shr 13);
+
+  LH := LH * M;
+  LH := LH xor (LH shr 15);
+
+  result := THashResult.Create(Int32(LH));
 end;
 
 end.

@@ -30,7 +30,7 @@ type
   TCRC32 = class(THash, IChecksum, IHash32, ITransformBlock)
 
   strict private
-
+  var
     FCRCAlgorithm: ICRC;
 
   public
@@ -100,7 +100,8 @@ end;
 constructor TCRC32_PKZIP.Create;
 begin
   Inherited Create(TCRC32Polynomials.PKZIP, $FFFFFFFF, true, true, $FFFFFFFF,
-    $CBF43926, THashLibStringArray.Create('CRC-32', 'CRC-32/ADCCP', 'PKZIP'));
+    $CBF43926, THashLibStringArray.Create('CRC-32', 'CRC-32/ADCCP',
+    'CRC-32/V-42', 'CRC-32/XZ', 'PKZIP', 'CRC-32/ISO-HDLC'));
 
 end;
 
@@ -109,8 +110,9 @@ end;
 constructor TCRC32_CASTAGNOLI.Create;
 begin
   Inherited Create(TCRC32Polynomials.Castagnoli, $FFFFFFFF, true, true,
-    $FFFFFFFF, $E3069283, THashLibStringArray.Create('CRC-32C', 'CRC-32/ISCSI',
-    'CRC-32/CASTAGNOLI'));
+    $FFFFFFFF, $E3069283, THashLibStringArray.Create('CRC-32C',
+    'CRC-32/BASE91-C', 'CRC-32/CASTAGNOLI', 'CRC-32/INTERLAKEN',
+    'CRC-32/ISCSI'));
 
 end;
 

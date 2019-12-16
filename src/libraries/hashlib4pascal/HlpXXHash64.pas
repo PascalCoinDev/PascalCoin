@@ -155,8 +155,9 @@ end;
 procedure TXXHash64.TransformBytes(const AData: THashLibByteArray;
   AIndex, ALength: Int32);
 var
-  V1, V2, V3, V4: UInt64;
+  LV1, LV2, LV3, LV4: UInt64;
   LPtrLimit, LPtrEnd, LPtrADataStart, LPtrMemoryStart, LPtrMemory: PByte;
+  LPtrADataStartUInt64: PUInt64;
 begin
 {$IFDEF DEBUG}
   System.Assert(AIndex >= 0);
@@ -200,33 +201,37 @@ begin
 
   if LPtrADataStart <= (LPtrEnd - 32) then
   begin
-    V1 := FState.FV1;
-    V2 := FState.FV2;
-    V3 := FState.FV3;
-    V4 := FState.FV4;
+    LV1 := FState.FV1;
+    LV2 := FState.FV2;
+    LV3 := FState.FV3;
+    LV4 := FState.FV4;
 
     LPtrLimit := LPtrEnd - 32;
     repeat
-      V1 := PRIME64_1 * TBits.RotateLeft64
-        (V1 + PRIME64_2 * TConverters.ReadBytesAsUInt64LE
-        (LPtrADataStart, 0), 31);
-      V2 := PRIME64_1 * TBits.RotateLeft64
-        (V2 + PRIME64_2 * TConverters.ReadBytesAsUInt64LE
-        (LPtrADataStart, 8), 31);
-      V3 := PRIME64_1 * TBits.RotateLeft64
-        (V3 + PRIME64_2 * TConverters.ReadBytesAsUInt64LE
-        (LPtrADataStart, 16), 31);
-      V4 := PRIME64_1 * TBits.RotateLeft64
-        (V4 + PRIME64_2 * TConverters.ReadBytesAsUInt64LE
-        (LPtrADataStart, 24), 31);
+
+      LPtrADataStartUInt64 := PUInt64(LPtrADataStart);
+
+      LV1 := PRIME64_1 * TBits.RotateLeft64
+        (LV1 + PRIME64_2 * TConverters.ReadPUInt64AsUInt64LE
+        (LPtrADataStartUInt64), 31);
+      LV2 := PRIME64_1 * TBits.RotateLeft64
+        (LV2 + PRIME64_2 * TConverters.ReadPUInt64AsUInt64LE
+        (LPtrADataStartUInt64 + 1), 31);
+      LV3 := PRIME64_1 * TBits.RotateLeft64
+        (LV3 + PRIME64_2 * TConverters.ReadPUInt64AsUInt64LE
+        (LPtrADataStartUInt64 + 2), 31);
+      LV4 := PRIME64_1 * TBits.RotateLeft64
+        (LV4 + PRIME64_2 * TConverters.ReadPUInt64AsUInt64LE
+        (LPtrADataStartUInt64 + 3), 31);
 
       System.Inc(LPtrADataStart, 32);
+
     until not(LPtrADataStart <= LPtrLimit);
 
-    FState.FV1 := V1;
-    FState.FV2 := V2;
-    FState.FV3 := V3;
-    FState.FV4 := V4;
+    FState.FV1 := LV1;
+    FState.FV2 := LV2;
+    FState.FV3 := LV3;
+    FState.FV4 := LV4;
   end;
 
   if LPtrADataStart < LPtrEnd then
@@ -239,34 +244,36 @@ end;
 
 function TXXHash64.TransformFinal: IHashResult;
 var
-  V1, V2, V3, V4: UInt64;
+  LV1, LV2, LV3, LV4: UInt64;
   LPtrEnd, LPtrBuffer: PByte;
 begin
 
   if FState.FTotalLength >= UInt64(32) then
   begin
-    V1 := FState.FV1;
-    V2 := FState.FV2;
-    V3 := FState.FV3;
-    V4 := FState.FV4;
+    LV1 := FState.FV1;
+    LV2 := FState.FV2;
+    LV3 := FState.FV3;
+    LV4 := FState.FV4;
 
-    FHash := TBits.RotateLeft64(V1, 1) + TBits.RotateLeft64(V2, 7) +
-      TBits.RotateLeft64(V3, 12) + TBits.RotateLeft64(V4, 18);
+    FHash := TBits.RotateLeft64(LV1, 1) + TBits.RotateLeft64(LV2, 7) +
+      TBits.RotateLeft64(LV3, 12) + TBits.RotateLeft64(LV4, 18);
 
-    V1 := TBits.RotateLeft64(V1 * PRIME64_2, 31) * PRIME64_1;
-    FHash := (FHash xor V1) * PRIME64_1 + PRIME64_4;
+    LV1 := TBits.RotateLeft64(LV1 * PRIME64_2, 31) * PRIME64_1;
+    FHash := (FHash xor LV1) * PRIME64_1 + PRIME64_4;
 
-    V2 := TBits.RotateLeft64(V2 * PRIME64_2, 31) * PRIME64_1;
-    FHash := (FHash xor V2) * PRIME64_1 + PRIME64_4;
+    LV2 := TBits.RotateLeft64(LV2 * PRIME64_2, 31) * PRIME64_1;
+    FHash := (FHash xor LV2) * PRIME64_1 + PRIME64_4;
 
-    V3 := TBits.RotateLeft64(V3 * PRIME64_2, 31) * PRIME64_1;
-    FHash := (FHash xor V3) * PRIME64_1 + PRIME64_4;
+    LV3 := TBits.RotateLeft64(LV3 * PRIME64_2, 31) * PRIME64_1;
+    FHash := (FHash xor LV3) * PRIME64_1 + PRIME64_4;
 
-    V4 := TBits.RotateLeft64(V4 * PRIME64_2, 31) * PRIME64_1;
-    FHash := (FHash xor V4) * PRIME64_1 + PRIME64_4;
+    LV4 := TBits.RotateLeft64(LV4 * PRIME64_2, 31) * PRIME64_1;
+    FHash := (FHash xor LV4) * PRIME64_1 + PRIME64_4;
   end
   else
+  begin
     FHash := FKey + PRIME64_5;
+  end;
 
   System.Inc(FHash, FState.FTotalLength);
 

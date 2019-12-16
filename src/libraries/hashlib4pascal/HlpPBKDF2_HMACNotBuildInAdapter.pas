@@ -9,7 +9,7 @@ uses
   HlpKDF,
   HlpIHashInfo,
   HlpHMACNotBuildInAdapter,
-  HlpBitConverter,
+  HlpConverters,
   HlpArrayUtils,
   HlpHashLibTypes;
 
@@ -109,20 +109,9 @@ end;
 
 class function TPBKDF2_HMACNotBuildInAdapter.GetBigEndianBytes(AInput: UInt32)
   : THashLibByteArray;
-var
-  LBytes, LInvertedBytes: THashLibByteArray;
 begin
-  LBytes := TBitConverter.GetBytes(AInput);
-  LInvertedBytes := THashLibByteArray.Create(LBytes[3], LBytes[2], LBytes[1],
-    LBytes[0]);
-  if TBitConverter.IsLittleEndian then
-  begin
-    result := LInvertedBytes
-  end
-  else
-  begin
-    result := LBytes;
-  end;
+  System.SetLength(Result, System.SizeOf(UInt32));
+  TConverters.ReadUInt32AsBytesBE(AInput, Result, 0);
 end;
 
 function TPBKDF2_HMACNotBuildInAdapter.Func: THashLibByteArray;
@@ -155,7 +144,7 @@ begin
     System.Inc(LIdx);
   end;
   System.Inc(FBlock);
-  result := LRet;
+  Result := LRet;
 end;
 
 function TPBKDF2_HMACNotBuildInAdapter.GetBytes(AByteCount: Int32)
@@ -187,7 +176,7 @@ begin
     begin
       System.Move(FBuffer[FStartIndex], LKey[0], AByteCount);
       FStartIndex := FStartIndex + AByteCount;
-      result := LKey;
+      Result := LKey;
       Exit;
     end;
   end;
@@ -218,11 +207,11 @@ begin
         System.Move(LT_Block[LRemainder], FBuffer[FStartIndex], LRemCount);
       end;
       FEndIndex := FEndIndex + LRemCount;
-      result := LKey;
+      Result := LKey;
       Exit;
     end;
   end;
-  result := LKey;
+  Result := LKey;
 end;
 
 procedure TPBKDF2_HMACNotBuildInAdapter.Initialize;

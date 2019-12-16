@@ -129,9 +129,10 @@ begin
 {$IFDEF FPC}
   Result := SwapEndian(AValue);
 {$ELSE}
-  Result := (AValue and UInt32($000000FF)) shl 24 or
-    (AValue and UInt32($0000FF00)) shl 8 or (AValue and UInt32($00FF0000))
-    shr 8 or (AValue and UInt32($FF000000)) shr 24;
+  Result := ((AValue shl 24) and UInt32($FF000000)) or
+    ((AValue shl 8) and UInt32($00FF0000)) or
+    ((AValue shr 8) and UInt32($0000FF00)) or
+    ((AValue shr 24) and UInt32($000000FF));
 {$ENDIF FPC}
 end;
 
@@ -140,14 +141,14 @@ begin
 {$IFDEF FPC}
   Result := SwapEndian(AValue);
 {$ELSE}
-  Result := (AValue and UInt64($00000000000000FF)) shl 56 or
-    (AValue and UInt64($000000000000FF00)) shl 40 or
-    (AValue and UInt64($0000000000FF0000)) shl 24 or
-    (AValue and UInt64($00000000FF000000)) shl 8 or
-    (AValue and UInt64($000000FF00000000)) shr 8 or
-    (AValue and UInt64($0000FF0000000000)) shr 24 or
-    (AValue and UInt64($00FF000000000000)) shr 40 or
-    (AValue and UInt64($FF00000000000000)) shr 56;
+  Result := ((AValue shl 56) and UInt64($FF00000000000000)) or
+    ((AValue shl 40) and UInt64($00FF000000000000)) or
+    ((AValue shl 24) and UInt64($0000FF0000000000)) or
+    ((AValue shl 8) and UInt64($000000FF00000000)) or
+    ((AValue shr 8) and UInt64($00000000FF000000)) or
+    ((AValue shr 24) and UInt64($0000000000FF0000)) or
+    ((AValue shr 40) and UInt64($000000000000FF00)) or
+    ((AValue shr 56) and UInt64($00000000000000FF));
 {$ENDIF FPC}
 end;
 

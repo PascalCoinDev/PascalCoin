@@ -11,32 +11,30 @@ uses
   HlpIHash,
   HlpIHashInfo,
   HlpIHashResult,
-  HlpArrayUtils,
-  HlpNullable;
+  HlpArrayUtils;
 
 type
 
-  THMACNotBuildInAdapter = class sealed(THash, IHMAC, IHMACNotBuildIn, IWithKey,
-    ICrypto, ICryptoNotBuildIn)
+  THMACNotBuildInAdapter = class sealed(THash, IHMAC, IHMACNotBuildIn, ICrypto,
+    ICryptoNotBuildIn)
 
   strict private
   var
     FHash: IHash;
     FOpad, FIpad, FKey: THashLibByteArray;
 
+    constructor Create(const AUnderlyingHash: IHash;
+      const AHMACKey: THashLibByteArray);
+
   strict protected
 
     function GetName: String; override;
 
     function GetKey(): THashLibByteArray;
-    function GetKeyLength(): TNullableInteger;
     procedure SetKey(const AValue: THashLibByteArray);
     procedure UpdatePads();
 
   public
-
-    constructor Create(const AUnderlyingHash: IHash;
-      const AHMACKey: THashLibByteArray = Nil);
 
     destructor Destroy; override;
 
@@ -49,7 +47,6 @@ type
     function Clone(): IHash; override;
     property Key: THashLibByteArray read GetKey write SetKey;
     property Name: String read GetName;
-    property KeyLength: TNullableInteger read GetKeyLength;
 
     class function CreateHMAC(const AHash: IHash;
       const AHMACKey: THashLibByteArray): IHMAC; static;
@@ -95,11 +92,6 @@ end;
 function THMACNotBuildInAdapter.GetKey: THashLibByteArray;
 begin
   result := System.Copy(FKey);
-end;
-
-function THMACNotBuildInAdapter.GetKeyLength: TNullableInteger;
-begin
-  result := Nil;
 end;
 
 procedure THMACNotBuildInAdapter.SetKey(const AValue: THashLibByteArray);

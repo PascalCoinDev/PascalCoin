@@ -8,9 +8,6 @@ uses
 {$IFDEF DELPHI2010}
   SysUtils, // to get rid of compiler hint "not inlined" on Delphi 2010.
 {$ENDIF DELPHI2010}
-{$IFDEF DELPHI}
-  HlpBitConverter,
-{$ENDIF DELPHI}
   HlpHashLibTypes,
   HlpConverters,
   HlpIHashInfo,
@@ -416,8 +413,9 @@ procedure TMurmurHash3_x64_128.TransformBytes(const AData: THashLibByteArray;
   AIndex, ALength: Int32);
 var
   LLength, LNBlocks, LIndex, LOffset, LIdx: Int32;
-  LK1, LK2: UInt64;
+  LK1, LK2, LH1, LH2: UInt64;
   LPtrData: PByte;
+  LPtrDataUInt64: PUInt64;
 begin
 {$IFDEF DEBUG}
   System.Assert(AIndex >= 0);
@@ -458,37 +456,40 @@ begin
 
   // body
 
+  LH1 := FH1;
+  LH2 := FH2;
+  LPtrDataUInt64 := PUInt64(LPtrData + AIndex);
   while LIndex < LNBlocks do
   begin
 
-    LK1 := TConverters.ReadBytesAsUInt64LE(LPtrData, AIndex + LIdx);
-
-    System.Inc(LIdx, 8);
-
-    LK2 := TConverters.ReadBytesAsUInt64LE(LPtrData, AIndex + LIdx);
-
-    System.Inc(LIdx, 8);
+    LK1 := TConverters.ReadPUInt64AsUInt64LE(LPtrDataUInt64 + LIdx);
+    System.Inc(LIdx);
+    LK2 := TConverters.ReadPUInt64AsUInt64LE(LPtrDataUInt64 + LIdx);
+    System.Inc(LIdx);
 
     LK1 := LK1 * C1;
     LK1 := TBits.RotateLeft64(LK1, 31);
     LK1 := LK1 * C2;
-    FH1 := FH1 xor LK1;
+    LH1 := LH1 xor LK1;
 
-    FH1 := TBits.RotateLeft64(FH1, 27);
-    FH1 := FH1 + FH2;
-    FH1 := FH1 * 5 + C3;
+    LH1 := TBits.RotateLeft64(LH1, 27);
+    LH1 := LH1 + LH2;
+    LH1 := LH1 * 5 + C3;
 
     LK2 := LK2 * C2;
     LK2 := TBits.RotateLeft64(LK2, 33);
     LK2 := LK2 * C1;
-    FH2 := FH2 xor LK2;
+    LH2 := LH2 xor LK2;
 
-    FH2 := TBits.RotateLeft64(FH2, 31);
-    FH2 := FH2 + FH1;
-    FH2 := FH2 * 5 + C4;
+    LH2 := TBits.RotateLeft64(LH2, 31);
+    LH2 := LH2 + LH1;
+    LH2 := LH2 * 5 + C4;
 
     System.Inc(LIndex);
   end;
+
+  FH1 := LH1;
+  FH2 := LH2;
 
   LOffset := AIndex + (LIndex * 16);
 
@@ -501,18 +502,15 @@ end;
 
 function TMurmurHash3_x64_128.TransformFinal: IHashResult;
 var
-  LBufferByte: THashLibByteArray;
-  LBufferUInt64: THashLibUInt64Array;
+  LBufferBytes: THashLibByteArray;
 begin
   Finish();
-  LBufferUInt64 := THashLibUInt64Array.Create(FH1, FH2);
-  System.SetLength(LBufferByte, System.length(LBufferUInt64) *
-    System.SizeOf(UInt64));
-  TConverters.be64_copy(PUInt64(LBufferUInt64), 0, PByte(LBufferByte), 0,
-    System.length(LBufferByte));
 
-  result := THashResult.Create(LBufferByte);
+  System.SetLength(LBufferBytes, HashSize);
+  TConverters.ReadUInt64AsBytesBE(FH1, LBufferBytes, 0);
+  TConverters.ReadUInt64AsBytesBE(FH2, LBufferBytes, 8);
 
+  result := THashResult.Create(LBufferBytes);
   Initialize();
 end;
 

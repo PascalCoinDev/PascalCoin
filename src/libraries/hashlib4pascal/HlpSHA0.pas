@@ -11,7 +11,6 @@ uses
   HlpBits,
 {$IFDEF DELPHI}
   HlpHashBuffer,
-  HlpBitConverter,
   HlpHash,
 {$ENDIF DELPHI}
   HlpHashLibTypes,

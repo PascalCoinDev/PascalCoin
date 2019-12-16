@@ -20,3 +20,7 @@
 {$IF FPC_FULLVERSION < 30000}
    {$MESSAGE ERROR 'This Library requires FreePascal 3.0.0 or higher.'}
 {$IFEND}
+
+{$IF FPC_FULLVERSION > 30004}
+   {$DEFINE FPC_GREATER_THAN_3.0.4}
+{$IFEND}

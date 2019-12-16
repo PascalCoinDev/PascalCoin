@@ -147,8 +147,9 @@ end;
 procedure TXXHash32.TransformBytes(const AData: THashLibByteArray;
   AIndex, ALength: Int32);
 var
-  V1, V2, V3, V4: UInt32;
+  LV1, LV2, LV3, LV4: UInt32;
   LPtrLimit, LPtrEnd, LPtrADataStart, LPtrMemoryStart, LPtrMemory: PByte;
+  LPtrADataStartCardinal: PCardinal;
 begin
 {$IFDEF DEBUG}
   System.Assert(AIndex >= 0);
@@ -193,33 +194,37 @@ begin
 
   if LPtrADataStart <= (LPtrEnd - 16) then
   begin
-    V1 := FState.FV1;
-    V2 := FState.FV2;
-    V3 := FState.FV3;
-    V4 := FState.FV4;
+    LV1 := FState.FV1;
+    LV2 := FState.FV2;
+    LV3 := FState.FV3;
+    LV4 := FState.FV4;
 
     LPtrLimit := LPtrEnd - 16;
     repeat
 
-      V1 := PRIME32_1 * TBits.RotateLeft32
-        (V1 + PRIME32_2 * TConverters.ReadBytesAsUInt32LE
-        (LPtrADataStart, 0), 13);
-      V2 := PRIME32_1 * TBits.RotateLeft32
-        (V2 + PRIME32_2 * TConverters.ReadBytesAsUInt32LE
-        (LPtrADataStart, 4), 13);
-      V3 := PRIME32_1 * TBits.RotateLeft32
-        (V3 + PRIME32_2 * TConverters.ReadBytesAsUInt32LE
-        (LPtrADataStart, 8), 13);
-      V4 := PRIME32_1 * TBits.RotateLeft32
-        (V4 + PRIME32_2 * TConverters.ReadBytesAsUInt32LE
-        (LPtrADataStart, 12), 13);
+      LPtrADataStartCardinal := PCardinal(LPtrADataStart);
+
+      LV1 := PRIME32_1 * TBits.RotateLeft32
+        (LV1 + PRIME32_2 * TConverters.ReadPCardinalAsUInt32LE
+        (LPtrADataStartCardinal), 13);
+      LV2 := PRIME32_1 * TBits.RotateLeft32
+        (LV2 + PRIME32_2 * TConverters.ReadPCardinalAsUInt32LE
+        (LPtrADataStartCardinal + 1), 13);
+      LV3 := PRIME32_1 * TBits.RotateLeft32
+        (LV3 + PRIME32_2 * TConverters.ReadPCardinalAsUInt32LE
+        (LPtrADataStartCardinal + 2), 13);
+      LV4 := PRIME32_1 * TBits.RotateLeft32
+        (LV4 + PRIME32_2 * TConverters.ReadPCardinalAsUInt32LE
+        (LPtrADataStartCardinal + 3), 13);
+
       System.Inc(LPtrADataStart, 16);
+
     until not(LPtrADataStart <= LPtrLimit);
 
-    FState.FV1 := V1;
-    FState.FV2 := V2;
-    FState.FV3 := V3;
-    FState.FV4 := V4;
+    FState.FV1 := LV1;
+    FState.FV2 := LV2;
+    FState.FV3 := LV3;
+    FState.FV4 := LV4;
   end;
 
   if LPtrADataStart < LPtrEnd then
