@@ -8,7 +8,6 @@ uses
   HlpHashLibTypes,
   HlpBits,
 {$IFDEF DELPHI}
-  HlpBitConverter,
   HlpHashBuffer,
   HlpHash,
 {$ENDIF DELPHI}

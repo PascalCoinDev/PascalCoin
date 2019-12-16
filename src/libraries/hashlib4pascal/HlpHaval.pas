@@ -12,7 +12,6 @@ uses
 {$IFDEF DELPHI}
   HlpHash,
   HlpHashBuffer,
-  HlpBitConverter,
 {$ENDIF DELPHI}
   HlpBits,
   HlpHashSize,
@@ -34,11 +33,13 @@ type
   const
     HAVAL_VERSION = Int32(1);
 
+  var
+    FRounds: Int32;
+
     procedure TailorDigestBits();
 
   strict protected
   var
-    FRounds, FHashSize: Int32;
     FHash: THashLibUInt32Array;
 
     constructor Create(ARounds: THashRounds; AHashSize: THashSize);
@@ -246,7 +247,6 @@ implementation
 constructor THaval.Create(ARounds: THashRounds; AHashSize: THashSize);
 begin
   inherited Create(Int32(AHashSize), 128);
-  FHashSize := HashSize;
   System.SetLength(FHash, 8);
   FRounds := Int32(ARounds);
 end;
@@ -272,7 +272,7 @@ begin
 
   LPad[LPadIndex] := Byte((FRounds shl 3) or (HAVAL_VERSION and $07));
   System.Inc(LPadIndex);
-  LPad[LPadIndex] := Byte(FHashSize shl 1);
+  LPad[LPadIndex] := Byte(HashSize shl 1);
   System.Inc(LPadIndex);
 
   LBits := TConverters.le2me_64(LBits);
@@ -287,7 +287,7 @@ end;
 function THaval.GetResult: THashLibByteArray;
 begin
   TailorDigestBits();
-  System.SetLength(result, (FHashSize shr 2) * System.SizeOf(UInt32));
+  System.SetLength(result, (HashSize shr 2) * System.SizeOf(UInt32));
   TConverters.le32_copy(PCardinal(FHash), 0, PByte(result), 0,
     System.Length(result));
 end;
@@ -311,7 +311,7 @@ var
   LT: UInt32;
 begin
 
-  case FHashSize of
+  case HashSize of
     16:
       begin
         LT := (FHash[7] and $000000FF) or (FHash[6] and $FF000000) or
@@ -2093,8 +2093,6 @@ var
   LHashInstance: THaval_3_128;
 begin
   LHashInstance := THaval_3_128.Create();
-  LHashInstance.FRounds := FRounds;
-  LHashInstance.FHashSize := FHashSize;
   LHashInstance.FHash := System.Copy(FHash);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
@@ -2114,8 +2112,6 @@ var
   LHashInstance: THaval_4_128;
 begin
   LHashInstance := THaval_4_128.Create();
-  LHashInstance.FRounds := FRounds;
-  LHashInstance.FHashSize := FHashSize;
   LHashInstance.FHash := System.Copy(FHash);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
@@ -2135,8 +2131,6 @@ var
   LHashInstance: THaval_5_128;
 begin
   LHashInstance := THaval_5_128.Create();
-  LHashInstance.FRounds := FRounds;
-  LHashInstance.FHashSize := FHashSize;
   LHashInstance.FHash := System.Copy(FHash);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
@@ -2156,8 +2150,6 @@ var
   LHashInstance: THaval_3_160;
 begin
   LHashInstance := THaval_3_160.Create();
-  LHashInstance.FRounds := FRounds;
-  LHashInstance.FHashSize := FHashSize;
   LHashInstance.FHash := System.Copy(FHash);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
@@ -2177,8 +2169,6 @@ var
   LHashInstance: THaval_4_160;
 begin
   LHashInstance := THaval_4_160.Create();
-  LHashInstance.FRounds := FRounds;
-  LHashInstance.FHashSize := FHashSize;
   LHashInstance.FHash := System.Copy(FHash);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
@@ -2198,8 +2188,6 @@ var
   LHashInstance: THaval_5_160;
 begin
   LHashInstance := THaval_5_160.Create();
-  LHashInstance.FRounds := FRounds;
-  LHashInstance.FHashSize := FHashSize;
   LHashInstance.FHash := System.Copy(FHash);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
@@ -2219,8 +2207,6 @@ var
   LHashInstance: THaval_3_192;
 begin
   LHashInstance := THaval_3_192.Create();
-  LHashInstance.FRounds := FRounds;
-  LHashInstance.FHashSize := FHashSize;
   LHashInstance.FHash := System.Copy(FHash);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
@@ -2240,8 +2226,6 @@ var
   LHashInstance: THaval_4_192;
 begin
   LHashInstance := THaval_4_192.Create();
-  LHashInstance.FRounds := FRounds;
-  LHashInstance.FHashSize := FHashSize;
   LHashInstance.FHash := System.Copy(FHash);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
@@ -2261,8 +2245,6 @@ var
   LHashInstance: THaval_5_192;
 begin
   LHashInstance := THaval_5_192.Create();
-  LHashInstance.FRounds := FRounds;
-  LHashInstance.FHashSize := FHashSize;
   LHashInstance.FHash := System.Copy(FHash);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
@@ -2282,8 +2264,6 @@ var
   LHashInstance: THaval_3_224;
 begin
   LHashInstance := THaval_3_224.Create();
-  LHashInstance.FRounds := FRounds;
-  LHashInstance.FHashSize := FHashSize;
   LHashInstance.FHash := System.Copy(FHash);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
@@ -2303,8 +2283,6 @@ var
   LHashInstance: THaval_4_224;
 begin
   LHashInstance := THaval_4_224.Create();
-  LHashInstance.FRounds := FRounds;
-  LHashInstance.FHashSize := FHashSize;
   LHashInstance.FHash := System.Copy(FHash);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
@@ -2324,8 +2302,6 @@ var
   LHashInstance: THaval_5_224;
 begin
   LHashInstance := THaval_5_224.Create();
-  LHashInstance.FRounds := FRounds;
-  LHashInstance.FHashSize := FHashSize;
   LHashInstance.FHash := System.Copy(FHash);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
@@ -2345,8 +2321,6 @@ var
   LHashInstance: THaval_3_256;
 begin
   LHashInstance := THaval_3_256.Create();
-  LHashInstance.FRounds := FRounds;
-  LHashInstance.FHashSize := FHashSize;
   LHashInstance.FHash := System.Copy(FHash);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
@@ -2366,8 +2340,6 @@ var
   LHashInstance: THaval_4_256;
 begin
   LHashInstance := THaval_4_256.Create();
-  LHashInstance.FRounds := FRounds;
-  LHashInstance.FHashSize := FHashSize;
   LHashInstance.FHash := System.Copy(FHash);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;
@@ -2387,8 +2359,6 @@ var
   LHashInstance: THaval_5_256;
 begin
   LHashInstance := THaval_5_256.Create();
-  LHashInstance.FRounds := FRounds;
-  LHashInstance.FHashSize := FHashSize;
   LHashInstance.FHash := System.Copy(FHash);
   LHashInstance.FBuffer := FBuffer.Clone();
   LHashInstance.FProcessedBytesCount := FProcessedBytesCount;

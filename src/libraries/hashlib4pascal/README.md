@@ -90,6 +90,10 @@ Available Algorithms
  
  * `Keccak (224, 256, 288, 384, 512)`
 
+ * `Blake2BP`
+
+ * `Blake2SP`
+
 ### Key Derivation Functions
 ----------------------------------------
 
@@ -108,10 +112,20 @@ Available Algorithms
 
 * `HMAC (all supported hashes)`
 
+* `KMAC (KMAC128, KMAC256)`
+
+* `Blake2MAC (Blake2BMAC, Blake2SMAC)`
+
 ### XOF (Extendable Output Function)
 ----------------------------------------
 
 * `Shake (Shake-128, Shake-256)`
+
+* `CShake (CShake-128, CShake-256)`
+
+* `Blake2X (Blake2XS, Blake2XB)`
+
+* `KMACXOF (KMAC128XOF, KMAC256XOF)`
 
 ### Supported Compilers
 ----------------------------------------

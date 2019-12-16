@@ -10,7 +10,6 @@ uses
 {$ENDIF DELPHI2010}
   HlpMDBase,
 {$IFDEF DELPHI}
-  HlpBitConverter,
   HlpHashBuffer,
   HlpHash,
 {$ENDIF DELPHI}

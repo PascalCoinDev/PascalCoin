@@ -9,9 +9,6 @@ uses
   SysUtils, // to get rid of compiler hint "not inlined" on Delphi 2010.
 {$ENDIF DELPHI2010}
   HlpHashLibTypes,
-{$IFDEF DELPHI}
-  HlpBitConverter,
-{$ENDIF DELPHI}
   HlpConverters,
   HlpIHashInfo,
   HlpNullable,
@@ -35,7 +32,6 @@ type
     FIdx: Int32;
     FBuffer: THashLibByteArray;
 
-    procedure TransformUInt32Fast(ABlock: UInt32); inline;
     procedure ByteUpdate(AByte: Byte); inline;
     procedure Finish();
 
@@ -148,33 +144,24 @@ begin
   FH := FH xor (FH shr 16);
 end;
 
-procedure TMurmurHash3_x86_32.TransformUInt32Fast(ABlock: UInt32);
-var
-  LBlock: UInt32;
-begin
-  LBlock := ABlock;
-
-  LBlock := LBlock * C1;
-  LBlock := TBits.RotateLeft32(LBlock, 15);
-  LBlock := LBlock * C2;
-
-  FH := FH xor LBlock;
-  FH := TBits.RotateLeft32(FH, 13);
-  FH := (FH * 5) + C3;
-end;
-
 procedure TMurmurHash3_x86_32.ByteUpdate(AByte: Byte);
 var
   LBlock: UInt32;
-  LPtrBuffer: PByte;
 begin
   FBuffer[FIdx] := AByte;
   System.Inc(FIdx);
   if FIdx >= 4 then
   begin
-    LPtrBuffer := PByte(FBuffer);
-    LBlock := TConverters.ReadBytesAsUInt32LE(LPtrBuffer, 0);
-    TransformUInt32Fast(LBlock);
+    LBlock := TConverters.ReadBytesAsUInt32LE(PByte(FBuffer), 0);
+
+    LBlock := LBlock * C1;
+    LBlock := TBits.RotateLeft32(LBlock, 15);
+    LBlock := LBlock * C2;
+
+    FH := FH xor LBlock;
+    FH := TBits.RotateLeft32(FH, 13);
+    FH := (FH * 5) + C3;
+
     FIdx := 0;
   end;
 end;
@@ -217,8 +204,9 @@ procedure TMurmurHash3_x86_32.TransformBytes(const AData: THashLibByteArray;
   AIndex, ALength: Int32);
 var
   LLength, LNBlocks, LIdx, LOffset: Int32;
-  LBlock: UInt32;
-  LPtrData, LPtrBuffer: PByte;
+  LBlock, LH: UInt32;
+  LPtrData: PByte;
+  LPtrDataCardinal: PCardinal;
 begin
 {$IFDEF DEBUG}
   System.Assert(AIndex >= 0);
@@ -257,9 +245,16 @@ begin
     end;
     if (FIdx = 4) then
     begin
-      LPtrBuffer := PByte(FBuffer);
-      LBlock := TConverters.ReadBytesAsUInt32LE(LPtrBuffer, 0);
-      TransformUInt32Fast(LBlock);
+      LBlock := TConverters.ReadBytesAsUInt32LE(PByte(FBuffer), 0);
+
+      LBlock := LBlock * C1;
+      LBlock := TBits.RotateLeft32(LBlock, 15);
+      LBlock := LBlock * C2;
+
+      FH := FH xor LBlock;
+      FH := TBits.RotateLeft32(FH, 13);
+      FH := (FH * 5) + C3;
+
       FIdx := 0;
     end;
   end
@@ -272,13 +267,24 @@ begin
 
   // body
 
+  LH := FH;
+  LPtrDataCardinal := PCardinal(LPtrData + AIndex);
   while LIdx < LNBlocks do
   begin
-    LBlock := TConverters.ReadBytesAsUInt32LE(LPtrData, AIndex + (LIdx * 4));
-    TransformUInt32Fast(LBlock);
+    LBlock := TConverters.ReadPCardinalAsUInt32LE(LPtrDataCardinal + LIdx);
+
+    LBlock := LBlock * C1;
+    LBlock := TBits.RotateLeft32(LBlock, 15);
+    LBlock := LBlock * C2;
+
+    LH := LH xor LBlock;
+    LH := TBits.RotateLeft32(LH, 13);
+    LH := (LH * 5) + C3;
 
     System.Inc(LIdx);
   end;
+
+  FH := LH;
 
   // save pending end bytes
   LOffset := AIndex + (LIdx * 4);
@@ -286,24 +292,19 @@ begin
   begin
     ByteUpdate(AData[LOffset]);
     System.Inc(LOffset);
-
   end;
 end;
 
 function TMurmurHash3_x86_32.TransformFinal: IHashResult;
 var
-  LBufferByte: THashLibByteArray;
-  LBufferUInt32: THashLibUInt32Array;
+  LBufferBytes: THashLibByteArray;
 begin
   Finish();
-  LBufferUInt32 := THashLibUInt32Array.Create(FH);
-  System.SetLength(LBufferByte, System.Length(LBufferUInt32) *
-    System.SizeOf(UInt32));
-  TConverters.be32_copy(PCardinal(LBufferUInt32), 0, PByte(LBufferByte), 0,
-    System.Length(LBufferByte));
 
-  result := THashResult.Create(LBufferByte);
+  System.SetLength(LBufferBytes, HashSize);
+  TConverters.ReadUInt32AsBytesBE(FH, LBufferBytes, 0);
 
+  result := THashResult.Create(LBufferBytes);
   Initialize();
 end;
 

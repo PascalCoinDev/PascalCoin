@@ -28,7 +28,7 @@ type
   TCRC64 = class(THash, IChecksum, IHash64, ITransformBlock)
 
   strict private
-
+  var
     FCRCAlgorithm: ICRC;
 
   public
@@ -90,8 +90,8 @@ end;
 constructor TCRC64_ECMA_182.Create;
 begin
   Inherited Create(TCRC64Polynomials.ECMA_182, $0000000000000000, false, false,
-    $0000000000000000, $6C40DF5F0B497347,
-    THashLibStringArray.Create('CRC-64/ECMA'));
+    $0000000000000000, $6C40DF5F0B497347, THashLibStringArray.Create('CRC-64',
+    'CRC-64/ECMA-182'));
 end;
 
 end.

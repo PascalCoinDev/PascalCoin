@@ -70,9 +70,8 @@ implementation
 constructor THashResult.Create(AHash: UInt64);
 begin
   Inherited Create();
-  FHash := THashLibByteArray.Create(Byte(AHash shr 56), Byte(AHash shr 48),
-    Byte(AHash shr 40), Byte(AHash shr 32), Byte(AHash shr 24),
-    Byte(AHash shr 16), Byte(AHash shr 8), Byte(AHash));
+  System.SetLength(FHash, System.SizeOf(UInt64));
+  TConverters.ReadUInt64AsBytesBE(AHash, FHash, 0);
 end;
 
 constructor THashResult.Create(const AHash: THashLibByteArray);
@@ -84,8 +83,8 @@ end;
 constructor THashResult.Create(AHash: UInt32);
 begin
   Inherited Create();
-  FHash := THashLibByteArray.Create(Byte(AHash shr 24), Byte(AHash shr 16),
-    Byte(AHash shr 8), Byte(AHash));
+  System.SetLength(FHash, System.SizeOf(UInt32));
+  TConverters.ReadUInt32AsBytesBE(AHash, FHash, 0);
 end;
 
 constructor THashResult.Create(AHash: UInt8);
@@ -221,8 +220,7 @@ begin
     raise EInvalidOperationHashLibException.CreateRes
       (@SImpossibleRepresentationUInt32);
   end;
-  result := (UInt32(FHash[0]) shl 24) or (UInt32(FHash[1]) shl 16) or
-    (UInt32(FHash[2]) shl 8) or (UInt32(FHash[3]));
+  result := TConverters.ReadBytesAsUInt32BE(PByte(FHash), 0);
 end;
 
 function THashResult.GetUInt64: UInt64;
@@ -232,10 +230,7 @@ begin
     raise EInvalidOperationHashLibException.CreateRes
       (@SImpossibleRepresentationUInt64);
   end;
-  result := (UInt64(FHash[0]) shl 56) or (UInt64(FHash[1]) shl 48) or
-    (UInt64(FHash[2]) shl 40) or (UInt64(FHash[3]) shl 32) or
-    (UInt64(FHash[4]) shl 24) or (UInt64(FHash[5]) shl 16) or
-    (UInt64(FHash[6]) shl 8) or (UInt64(FHash[7]));
+  result := TConverters.ReadBytesAsUInt64BE(PByte(FHash), 0);
 end;
 
 function THashResult.ToString(AGroup: Boolean): String;

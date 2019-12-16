@@ -23,17 +23,10 @@ type
   ENotImplementedHashLibException = class(EHashLibException);
   EUnsupportedTypeHashLibException = class(EHashLibException);
 
-{$IFDEF HAS_UNITSCOPE}
   /// <summary>
   /// Represents a dynamic array of Byte.
   /// </summary>
-  THashLibByteArray = System.SysUtils.TBytes
-{$ELSE}
-  /// <summary>
-  /// Represents a dynamic array of Byte.
-  /// </summary>
-    THashLibByteArray = TBytes
-{$ENDIF HAS_UNITSCOPE};
+  THashLibByteArray = TBytes;
 
   /// <summary>
   /// Represents a dynamic generic array of Type T.

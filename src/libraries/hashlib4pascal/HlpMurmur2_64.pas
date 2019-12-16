@@ -21,16 +21,16 @@ resourcestring
   SInvalidKeyLength = 'KeyLength Must Be Equal to %d';
 
 type
-
+  // MurmurHash64A (64-bit) algorithm by Austin Appleby.
   TMurmur2_64 = class sealed(TMultipleTransformNonBlock, IHash64, IHashWithKey,
     ITransformBlock)
 
   strict private
   var
-    FKey, FWorkingKey: UInt32;
+    FKey, FWorkingKey: UInt64;
 
   const
-    CKEY = UInt32($0);
+    CKEY = UInt64($0);
 {$IFDEF FPC}
     // to bypass Internal error (200706094) on FPC, We use "Typed Constant".
 
@@ -78,9 +78,10 @@ end;
 function TMurmur2_64.ComputeAggregatedBytes(const AData: THashLibByteArray)
   : IHashResult;
 var
-  LLength, LCurrentIndex: Int32;
+  LLength, LCurrentIndex, LNBlocks, LIdx: Int32;
   LH, LK: UInt64;
   LPtrData: PByte;
+  LPtrDataUInt64: PUInt64;
 begin
   LLength := System.length(AData);
   LPtrData := PByte(AData);
@@ -91,13 +92,15 @@ begin
     Exit;
   end;
 
-  LH := FWorkingKey xor UInt64(LLength);
+  LH := FWorkingKey xor (UInt64(LLength) * M);
   LCurrentIndex := 0;
+  LIdx := 0;
+  LPtrDataUInt64 := PUInt64(LPtrData);
+  LNBlocks := LLength shr 3;
 
-  while (LLength >= 8) do
+  while LIdx < LNBlocks do
   begin
-
-    LK := TConverters.ReadBytesAsUInt64LE(LPtrData, LCurrentIndex);
+    LK := TConverters.ReadPUInt64AsUInt64LE(LPtrDataUInt64 + LIdx);
 
     LK := LK * M;
     LK := LK xor (LK shr R);
@@ -106,31 +109,25 @@ begin
     LH := LH xor LK;
     LH := LH * M;
 
+    System.Inc(LIdx);
     System.Inc(LCurrentIndex, 8);
     System.Dec(LLength, 8);
-
   end;
 
   case LLength of
     7:
       begin
-        LH := LH xor ((UInt64(AData[LCurrentIndex]) shl 48));
-        System.Inc(LCurrentIndex);
+        LH := LH xor ((UInt64(AData[LCurrentIndex + 6]) shl 48));
 
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 40);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 5]) shl 40);
 
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 32);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 4]) shl 32);
 
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 24);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 3]) shl 24);
 
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 16);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 2]) shl 16);
 
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 8);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 1]) shl 8);
 
         LH := LH xor UInt64(AData[LCurrentIndex]);
 
@@ -139,20 +136,15 @@ begin
 
     6:
       begin
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 40);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 5]) shl 40);
 
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 32);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 4]) shl 32);
 
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 24);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 3]) shl 24);
 
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 16);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 2]) shl 16);
 
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 8);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 1]) shl 8);
 
         LH := LH xor UInt64(AData[LCurrentIndex]);
 
@@ -161,17 +153,13 @@ begin
 
     5:
       begin
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 32);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 4]) shl 32);
 
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 24);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 3]) shl 24);
 
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 16);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 2]) shl 16);
 
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 8);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 1]) shl 8);
 
         LH := LH xor UInt64(AData[LCurrentIndex]);
         LH := LH * M;
@@ -179,14 +167,11 @@ begin
 
     4:
       begin
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 24);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 3]) shl 24);
 
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 16);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 2]) shl 16);
 
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 8);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 1]) shl 8);
 
         LH := LH xor UInt64(AData[LCurrentIndex]);
         LH := LH * M;
@@ -194,11 +179,9 @@ begin
 
     3:
       begin
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 16);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 2]) shl 16);
 
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 8);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 1]) shl 8);
 
         LH := LH xor UInt64(AData[LCurrentIndex]);
         LH := LH * M;
@@ -206,8 +189,7 @@ begin
 
     2:
       begin
-        LH := LH xor (UInt64(AData[LCurrentIndex]) shl 8);
-        System.Inc(LCurrentIndex);
+        LH := LH xor (UInt64(AData[LCurrentIndex + 1]) shl 8);
 
         LH := LH xor UInt64(AData[LCurrentIndex]);
 
@@ -238,12 +220,12 @@ end;
 
 function TMurmur2_64.GetKey: THashLibByteArray;
 begin
-  result := TConverters.ReadUInt32AsBytesLE(FKey);
+  result := TConverters.ReadUInt64AsBytesLE(FKey);
 end;
 
 function TMurmur2_64.GetKeyLength: TNullableInteger;
 begin
-  result := 4;
+  result := 8;
 end;
 
 procedure TMurmur2_64.Initialize;
@@ -265,7 +247,7 @@ begin
       raise EArgumentHashLibException.CreateResFmt(@SInvalidKeyLength,
         [KeyLength.value]);
     end;
-    FKey := TConverters.ReadBytesAsUInt32LE(PByte(AValue), 0);
+    FKey := TConverters.ReadBytesAsUInt64LE(PByte(AValue), 0);
   end;
 end;
 

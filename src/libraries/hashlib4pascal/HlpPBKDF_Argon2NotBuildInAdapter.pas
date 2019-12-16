@@ -5,18 +5,24 @@
 interface
 
 uses
-{$IFDEF HAS_DELPHI_PPL}
+{$IFDEF USE_DELPHI_PPL}
   System.Classes,
   System.SysUtils,
   System.Threading,
-{$ENDIF HAS_DELPHI_PPL}
+{$ENDIF USE_DELPHI_PPL}
+{$IFDEF USE_PASMP}
+  PasMP,
+{$ENDIF USE_PASMP}
+{$IFDEF USE_MTPROCS}
+  MTProcs,
+{$ENDIF USE_MTPROCS}
   HlpKDF,
   HlpBits,
   HlpIHash,
   HlpIHashInfo,
   HlpBlake2B,
-  HlpBlake2BConfig,
-  HlpIBlake2BConfig,
+  HlpIBlake2BParams,
+  HlpBlake2BParams,
   HlpConverters,
   HlpArgon2TypeAndVersion,
   HlpArrayUtils,
@@ -211,7 +217,7 @@ type
     public
       class function CreateBlock(): TBlock; static;
 
-      function Clear(): TBlock; inline;
+      function Clear(): TBlock;
       procedure &Xor(const AB1, AB2, AB3: TBlock); overload;
       procedure FromBytes(const AInput: THashLibByteArray);
 
@@ -260,6 +266,13 @@ type
       property InputBlock: TBlock read GetInputBlock;
 
       class function CreateFillBlock(): TFillBlock; static;
+    end;
+
+  type
+    PDataContainer = ^TDataContainer;
+
+    TDataContainer = record
+      Position: TPosition;
     end;
 
   var
@@ -323,9 +336,19 @@ type
     function GetPrevOffset(ACurrentOffset: Int32): Int32; inline;
     function RotatePrevOffset(ACurrentOffset, APrevOffset: Int32)
       : Int32; inline;
-    procedure FillSegment(const AFiller: TFillBlock; var APosition: TPosition);
-    procedure DoParallelFillMemoryBlocks();
-
+    procedure FillSegment(AIdx: Int32; var APosition: TPosition);
+    procedure FillMemoryBlocks(AIdx: Int32;
+      ADataContainer: PDataContainer); inline;
+    procedure DoParallelFillMemoryBlocks(ADataContainer: PDataContainer);
+{$IFDEF USE_PASMP}
+    procedure PasMPFillMemoryBlocksWrapper(const AJob: PPasMPJob;
+      const AThreadIndex: LongInt; const ADataContainer: Pointer;
+      const AFromIndex, AToIndex: TPasMPNativeInt); inline;
+{$ENDIF USE_PASMP}
+{$IFDEF USE_MTPROCS}
+    procedure MTProcsFillMemoryBlocksWrapper(AIdx: PtrInt;
+      ADataContainer: Pointer; AItem: TMultiThreadProcItem); inline;
+{$ENDIF USE_MTPROCS}
     (* *
 
       * H0 = H64(p, τ, m, t, v, y, |P|, P, |S|, S, |L|, K, |X|, X)
@@ -1047,7 +1070,16 @@ begin
   result := APrevOffset;
 end;
 
-procedure TPBKDF_Argon2NotBuildInAdapter.FillSegment(const AFiller: TFillBlock;
+procedure TPBKDF_Argon2NotBuildInAdapter.Initialize(const APassword
+  : THashLibByteArray; AOutputLength: Int32);
+var
+  LInitialHash: THashLibByteArray;
+begin
+  LInitialHash := InitialHash(FParameters, AOutputLength, APassword);
+  FillFirstBlocks(LInitialHash);
+end;
+
+procedure TPBKDF_Argon2NotBuildInAdapter.FillSegment(AIdx: Int32;
   var APosition: TPosition);
 var
   LAddressBlock, LInputBlock, LZeroBlock, LPrevBlock, LRefBlock,
@@ -1055,8 +1087,11 @@ var
   LDataIndependentAddressing, LWithXor: Boolean;
   LStartingIndex, LCurrentOffset, LPrevOffset, LRefLane, LRefColumn: Int32;
   LPseudoRandom: UInt64;
+  LFiller: TFillBlock;
 begin
-
+  // line below not really needed, just added to fix compiler hint
+  APosition.FLane := AIdx;
+  LFiller := TFillBlock.CreateFillBlock();
   LDataIndependentAddressing := IsDataIndependentAddressing(APosition);
   LStartingIndex := GetStartingIndex(APosition);
   LCurrentOffset := (APosition.FLane * FLaneLength) +
@@ -1065,11 +1100,11 @@ begin
 
   if (LDataIndependentAddressing) then
   begin
-    LAddressBlock := AFiller.AddressBlock.Clear();
-    LZeroBlock := AFiller.ZeroBlock.Clear();
-    LInputBlock := AFiller.InputBlock.Clear();
+    LAddressBlock := LFiller.AddressBlock.Clear();
+    LZeroBlock := LFiller.ZeroBlock.Clear();
+    LInputBlock := LFiller.InputBlock.Clear();
 
-    InitAddressBlocks(AFiller, APosition, LZeroBlock, LInputBlock,
+    InitAddressBlocks(LFiller, APosition, LZeroBlock, LInputBlock,
       LAddressBlock);
   end;
 
@@ -1079,7 +1114,7 @@ begin
   begin
     LPrevOffset := RotatePrevOffset(LCurrentOffset, LPrevOffset);
 
-    LPseudoRandom := GetPseudoRandom(AFiller, APosition, LAddressBlock,
+    LPseudoRandom := GetPseudoRandom(LFiller, APosition, LAddressBlock,
       LInputBlock, LZeroBlock, LPrevOffset, LDataIndependentAddressing);
     LRefLane := GetRefLane(APosition, LPseudoRandom);
     LRefColumn := GetRefColumn(APosition, LPseudoRandom,
@@ -1091,7 +1126,7 @@ begin
     LCurrentBlock := FMemory[LCurrentOffset];
 
     LWithXor := IsWithXor(APosition);
-    AFiller.FillBlock(LPrevBlock, LRefBlock, LCurrentBlock, LWithXor);
+    LFiller.FillBlock(LPrevBlock, LRefBlock, LCurrentBlock, LWithXor);
 
     System.Inc(APosition.FIndex);
     System.Inc(LCurrentOffset);
@@ -1099,41 +1134,65 @@ begin
   end;
 end;
 
-{$IFDEF HAS_DELPHI_PPL}
+procedure TPBKDF_Argon2NotBuildInAdapter.FillMemoryBlocks(AIdx: Int32;
+  ADataContainer: PDataContainer);
+var
+  LPosition: TPosition;
+begin
+  LPosition := ADataContainer^.Position;
+  FillSegment(AIdx, LPosition);
+end;
 
-procedure TPBKDF_Argon2NotBuildInAdapter.DoParallelFillMemoryBlocks;
+{$IFDEF USE_PASMP}
 
-  function CreateTask(AFiller: TFillBlock; APosition: TPosition): ITask;
+procedure TPBKDF_Argon2NotBuildInAdapter.PasMPFillMemoryBlocksWrapper
+  (const AJob: PPasMPJob; const AThreadIndex: LongInt;
+  const ADataContainer: Pointer; const AFromIndex, AToIndex: TPasMPNativeInt);
+begin
+  PDataContainer(ADataContainer)^.Position.FLane := AFromIndex;
+  FillMemoryBlocks(AFromIndex, ADataContainer);
+end;
+{$ENDIF}
+{$IFDEF USE_MTPROCS}
+
+procedure TPBKDF_Argon2NotBuildInAdapter.MTProcsFillMemoryBlocksWrapper
+  (AIdx: PtrInt; ADataContainer: Pointer; AItem: TMultiThreadProcItem);
+begin
+  PDataContainer(ADataContainer)^.Position.FLane := AIdx;
+  FillMemoryBlocks(AIdx, ADataContainer);
+end;
+{$ENDIF}
+{$IF DEFINED(USE_DELPHI_PPL)}
+
+procedure TPBKDF_Argon2NotBuildInAdapter.DoParallelFillMemoryBlocks
+  (ADataContainer: PDataContainer);
+
+  function CreateTask(AIdx: Int32; ADataContainer: PDataContainer): ITask;
   begin
     result := TTask.Create(
       procedure()
       begin
-        FillSegment(AFiller, APosition);
+        FillMemoryBlocks(AIdx, ADataContainer);
       end);
   end;
 
 var
-  LIdx, LJdx, LKdx, LTaskIdx: Int32;
-  LFiller: TFillBlock;
-  LPosition: TPosition;
+  LIdx, LJdx, LKdx, LIterations, LLanes: Int32;
   LArrayTasks: array of ITask;
 begin
-  System.SetLength(LArrayTasks, FParameters.Lanes);
+  LIterations := FParameters.Iterations;
+  LLanes := FParameters.Lanes;
+  System.SetLength(LArrayTasks, LLanes);
 
-  for LIdx := 0 to System.Pred(FParameters.Iterations) do
+  for LIdx := 0 to System.Pred(LIterations) do
   begin
     for LJdx := 0 to System.Pred(ARGON2_SYNC_POINTS) do
     begin
-      for LKdx := 0 to System.Pred(FParameters.Lanes) do
+      for LKdx := 0 to System.Pred(LLanes) do
       begin
-        LFiller := TFillBlock.CreateFillBlock();
-        LPosition := TPosition.CreatePosition();
-        LPosition.Update(LIdx, LKdx, LJdx, 0);
-        LArrayTasks[LKdx] := CreateTask(LFiller, LPosition);
-      end;
-      for LTaskIdx := System.Low(LArrayTasks) to System.High(LArrayTasks) do
-      begin
-        LArrayTasks[LTaskIdx].Start;
+        ADataContainer^.Position.Update(LIdx, LKdx, LJdx, 0);
+        LArrayTasks[LKdx] := CreateTask(LKdx, ADataContainer);
+        LArrayTasks[LKdx].Start;
       end;
       TTask.WaitForAll(LArrayTasks);
     end;
@@ -1141,38 +1200,85 @@ begin
 
 end;
 
-{$ELSE}
+{$ELSEIF DEFINED(USE_PASMP) OR DEFINED(USE_MTPROCS)}
 
-procedure TPBKDF_Argon2NotBuildInAdapter.DoParallelFillMemoryBlocks;
+procedure TPBKDF_Argon2NotBuildInAdapter.DoParallelFillMemoryBlocks
+  (ADataContainer: PDataContainer);
 var
-  LIdx, LJdx, LKdx: Int32;
-  LFiller: TFillBlock;
-  LPosition: TPosition;
+  LIdx, LJdx, LIterations, LLanes: Int32;
 begin
-  LFiller := TFillBlock.CreateFillBlock();
-  LPosition := TPosition.CreatePosition();
-  for LIdx := 0 to System.Pred(FParameters.Iterations) do
+  LIterations := FParameters.Iterations;
+  LLanes := FParameters.Lanes;
+  for LIdx := 0 to System.Pred(LIterations) do
   begin
     for LJdx := 0 to System.Pred(ARGON2_SYNC_POINTS) do
     begin
-      for LKdx := 0 to System.Pred(FParameters.Lanes) do
+      ADataContainer^.Position.Update(LIdx, 0, LJdx, 0);
+{$IF DEFINED(USE_PASMP)}
+      TPasMP.CreateGlobalInstance;
+      GlobalPasMP.Invoke(GlobalPasMP.ParallelFor(ADataContainer, 0, LLanes - 1,
+        PasMPFillMemoryBlocksWrapper));
+{$ELSEIF DEFINED(USE_MTPROCS)}
+      ProcThreadPool.DoParallel(MTProcsFillMemoryBlocksWrapper, 0, LLanes - 1,
+        ADataContainer);
+{$ELSE}
+{$MESSAGE ERROR 'Unsupported Threading Library.'}
+{$IFEND USE_PASMP}
+    end;
+  end;
+
+end;
+
+{$ELSE}
+
+procedure TPBKDF_Argon2NotBuildInAdapter.DoParallelFillMemoryBlocks
+  (ADataContainer: PDataContainer);
+var
+  LIdx, LJdx, LKdx, LIterations, LLanes: Int32;
+begin
+  LIterations := FParameters.Iterations;
+  LLanes := FParameters.Lanes;
+  for LIdx := 0 to System.Pred(LIterations) do
+  begin
+    for LJdx := 0 to System.Pred(ARGON2_SYNC_POINTS) do
+    begin
+      for LKdx := 0 to System.Pred(LLanes) do
       begin
-        LPosition.Update(LIdx, LKdx, LJdx, 0);
-        FillSegment(LFiller, LPosition);
+        ADataContainer^.Position.Update(LIdx, LKdx, LJdx, 0);
+        FillMemoryBlocks(LKdx, ADataContainer);
       end;
     end;
   end;
 end;
 
-{$ENDIF HAS_DELPHI_PPL}
+{$IFEND USE_DELPHI_PPL}
 
-procedure TPBKDF_Argon2NotBuildInAdapter.Initialize(const APassword
-  : THashLibByteArray; AOutputLength: Int32);
+function TPBKDF_Argon2NotBuildInAdapter.GetBytes(AByteCount: Int32)
+  : THashLibByteArray;
 var
-  LInitialHash: THashLibByteArray;
+  LPtrDataContainer: PDataContainer;
+  LPosition: TPosition;
 begin
-  LInitialHash := InitialHash(FParameters, AOutputLength, APassword);
-  FillFirstBlocks(LInitialHash);
+  if (AByteCount <= MIN_OUTLEN) then
+  begin
+    raise EArgumentHashLibException.CreateResFmt(@SInvalidOutputByteCount,
+      [MIN_OUTLEN]);
+  end;
+
+  Initialize(FPassword, AByteCount);
+  LPosition := TPosition.CreatePosition();
+  LPtrDataContainer := New(PDataContainer);
+  try
+    LPtrDataContainer^.Position := LPosition;
+    DoParallelFillMemoryBlocks(LPtrDataContainer);
+  finally
+    Dispose(LPtrDataContainer);
+  end;
+  Digest(AByteCount);
+  System.SetLength(result, AByteCount);
+  System.Move(FResult[0], result[0], AByteCount * System.SizeOf(Byte));
+
+  Reset();
 end;
 
 procedure TPBKDF_Argon2NotBuildInAdapter.Clear();
@@ -1218,24 +1324,6 @@ begin
   inherited Destroy;
 end;
 
-function TPBKDF_Argon2NotBuildInAdapter.GetBytes(AByteCount: Int32)
-  : THashLibByteArray;
-begin
-  if (AByteCount <= MIN_OUTLEN) then
-  begin
-    raise EArgumentHashLibException.CreateResFmt(@SInvalidOutputByteCount,
-      [MIN_OUTLEN]);
-  end;
-
-  Initialize(FPassword, AByteCount);
-  DoParallelFillMemoryBlocks();
-  Digest(AByteCount);
-  System.SetLength(result, AByteCount);
-  System.Move(FResult[0], result[0], AByteCount * System.SizeOf(Byte));
-
-  Reset();
-end;
-
 { TPBKDF_Argon2NotBuildInAdapter.TBlock }
 
 class function TPBKDF_Argon2NotBuildInAdapter.TBlock.CreateBlock: TBlock;
@@ -1254,7 +1342,8 @@ begin
   begin
     if not(LBlock.FInitialized) then
     begin
-      raise EArgumentNilHashLibException.Create(SBlockInstanceNotInitialized);
+      raise EArgumentNilHashLibException.CreateRes
+        (@SBlockInstanceNotInitialized);
     end;
   end;
 end;
