@@ -79,6 +79,12 @@ type
     class function ReadPUInt64AsUInt64LE(AInput: PUInt64): UInt64;
       static; inline;
 
+    class function ReadPCardinalAsUInt32BE(AInput: PCardinal): UInt32;
+      static; inline;
+
+    class function ReadPUInt64AsUInt64BE(AInput: PUInt64): UInt64;
+      static; inline;
+
     class function ReadBytesAsUInt32LE(AInput: PByte; AIndex: Int32): UInt32;
       static; inline;
 
@@ -274,24 +280,47 @@ end;
 class procedure TConverters.ReadUInt32AsBytesLE(AInput: UInt32;
   const AOutput: THashLibByteArray; AIndex: Int32);
 begin
+{$IFDEF HASHLIB_LITTLE_ENDIAN}
+{$IFDEF HASHLIB_REQUIRES_PROPER_ALIGNMENT}
+  System.Move(AInput, AOutput[AIndex], System.SizeOf(UInt32));
+{$ELSE}
+  PCardinal(PByte(AOutput) + AIndex)^ := AInput;
+{$ENDIF HASHLIB_REQUIRES_PROPER_ALIGNMENT}
+{$ELSE}
   AOutput[AIndex] := Byte(AInput);
   AOutput[AIndex + 1] := Byte(AInput shr 8);
   AOutput[AIndex + 2] := Byte(AInput shr 16);
   AOutput[AIndex + 3] := Byte(AInput shr 24);
+{$ENDIF HASHLIB_LITTLE_ENDIAN}
 end;
 
 class procedure TConverters.ReadUInt32AsBytesBE(AInput: UInt32;
   const AOutput: THashLibByteArray; AIndex: Int32);
 begin
+{$IFDEF HASHLIB_LITTLE_ENDIAN}
   AOutput[AIndex] := Byte(AInput shr 24);
   AOutput[AIndex + 1] := Byte(AInput shr 16);
   AOutput[AIndex + 2] := Byte(AInput shr 8);
   AOutput[AIndex + 3] := Byte(AInput);
+{$ELSE}
+{$IFDEF HASHLIB_REQUIRES_PROPER_ALIGNMENT}
+  System.Move(AInput, AOutput[AIndex], System.SizeOf(UInt32));
+{$ELSE}
+  PCardinal(PByte(AOutput) + AIndex)^ := AInput;
+{$ENDIF HASHLIB_REQUIRES_PROPER_ALIGNMENT}
+{$ENDIF HASHLIB_LITTLE_ENDIAN}
 end;
 
 class procedure TConverters.ReadUInt64AsBytesLE(AInput: UInt64;
   const AOutput: THashLibByteArray; AIndex: Int32);
 begin
+{$IFDEF HASHLIB_LITTLE_ENDIAN}
+{$IFDEF HASHLIB_REQUIRES_PROPER_ALIGNMENT}
+  System.Move(AInput, AOutput[AIndex], System.SizeOf(UInt64));
+{$ELSE}
+  PUInt64(PByte(AOutput) + AIndex)^ := AInput;
+{$ENDIF HASHLIB_REQUIRES_PROPER_ALIGNMENT}
+{$ELSE}
   AOutput[AIndex] := Byte(AInput);
   AOutput[AIndex + 1] := Byte(AInput shr 8);
   AOutput[AIndex + 2] := Byte(AInput shr 16);
@@ -300,11 +329,13 @@ begin
   AOutput[AIndex + 5] := Byte(AInput shr 40);
   AOutput[AIndex + 6] := Byte(AInput shr 48);
   AOutput[AIndex + 7] := Byte(AInput shr 56);
+{$ENDIF HASHLIB_LITTLE_ENDIAN}
 end;
 
 class procedure TConverters.ReadUInt64AsBytesBE(AInput: UInt64;
   const AOutput: THashLibByteArray; AIndex: Int32);
 begin
+{$IFDEF HASHLIB_LITTLE_ENDIAN}
   AOutput[AIndex] := Byte(AInput shr 56);
   AOutput[AIndex + 1] := Byte(AInput shr 48);
   AOutput[AIndex + 2] := Byte(AInput shr 40);
@@ -313,24 +344,13 @@ begin
   AOutput[AIndex + 5] := Byte(AInput shr 16);
   AOutput[AIndex + 6] := Byte(AInput shr 8);
   AOutput[AIndex + 7] := Byte(AInput);
-end;
-
-class function TConverters.ReadBytesAsUInt32BE(AInput: PByte;
-  AIndex: Int32): UInt32;
-begin
-  result := (UInt32(AInput[AIndex]) shl 24) or
-    (UInt32(AInput[AIndex + 1]) shl 16) or (UInt32(AInput[AIndex + 2]) shl 8) or
-    (UInt32(AInput[AIndex + 3]));
-end;
-
-class function TConverters.ReadBytesAsUInt64BE(AInput: PByte;
-  AIndex: Int32): UInt64;
-begin
-  result := (UInt64(AInput[AIndex]) shl 56) or
-    (UInt64(AInput[AIndex + 1]) shl 48) or (UInt64(AInput[AIndex + 2]) shl 40)
-    or (UInt64(AInput[AIndex + 3]) shl 32) or
-    (UInt64(AInput[AIndex + 4]) shl 24) or (UInt64(AInput[AIndex + 5]) shl 16)
-    or (UInt64(AInput[AIndex + 6]) shl 8) or (UInt64(AInput[AIndex + 7]));
+{$ELSE}
+{$IFDEF HASHLIB_REQUIRES_PROPER_ALIGNMENT}
+  System.Move(AInput, AOutput[AIndex], System.SizeOf(UInt64));
+{$ELSE}
+  PUInt64(PByte(AOutput) + AIndex)^ := AInput;
+{$ENDIF HASHLIB_REQUIRES_PROPER_ALIGNMENT}
+{$ENDIF HASHLIB_LITTLE_ENDIAN}
 end;
 
 class function TConverters.ReadPCardinalAsUInt32(AInput: PCardinal): UInt32;
@@ -354,14 +374,36 @@ end;
 class function TConverters.ReadPCardinalAsUInt32LE(AInput: PCardinal): UInt32;
 begin
   result := le2me_32(ReadPCardinalAsUInt32(AInput));
-  // while this below is slower, it's portable
-  // result := (UInt32(AInput[AIndex])) or (UInt32(AInput[AIndex + 1]) shl 8) or
-  // (UInt32(AInput[AIndex + 2]) shl 16) or (UInt32(AInput[AIndex + 3]) shl 24);
 end;
 
 class function TConverters.ReadPUInt64AsUInt64LE(AInput: PUInt64): UInt64;
 begin
   result := le2me_64(ReadPUInt64AsUInt64(AInput));
+end;
+
+class function TConverters.ReadPCardinalAsUInt32BE(AInput: PCardinal): UInt32;
+begin
+  result := be2me_32(ReadPCardinalAsUInt32(AInput));
+end;
+
+class function TConverters.ReadPUInt64AsUInt64BE(AInput: PUInt64): UInt64;
+begin
+  result := be2me_64(ReadPUInt64AsUInt64(AInput));
+end;
+
+class function TConverters.ReadBytesAsUInt32LE(AInput: PByte;
+  AIndex: Int32): UInt32;
+begin
+  result := ReadPCardinalAsUInt32LE(PCardinal(AInput + AIndex));
+  // while this below is slower, it's portable
+  // result := (UInt32(AInput[AIndex])) or (UInt32(AInput[AIndex + 1]) shl 8) or
+  // (UInt32(AInput[AIndex + 2]) shl 16) or (UInt32(AInput[AIndex + 3]) shl 24);
+end;
+
+class function TConverters.ReadBytesAsUInt64LE(AInput: PByte;
+  AIndex: Int32): UInt64;
+begin
+  result := ReadPUInt64AsUInt64LE(PUInt64(AInput + AIndex));
   // while this below is slower, it's portable
   // result := (UInt64(AInput[AIndex])) or (UInt64(AInput[AIndex + 1]) shl 8) or
   // (UInt64(AInput[AIndex + 2]) shl 16) or (UInt64(AInput[AIndex + 3]) shl 24)
@@ -370,16 +412,26 @@ begin
   // or (UInt64(AInput[AIndex + 7]) shl 56);
 end;
 
-class function TConverters.ReadBytesAsUInt32LE(AInput: PByte;
+class function TConverters.ReadBytesAsUInt32BE(AInput: PByte;
   AIndex: Int32): UInt32;
 begin
-  result := ReadPCardinalAsUInt32LE(PCardinal(AInput + AIndex));
+  result := ReadPCardinalAsUInt32BE(PCardinal(AInput + AIndex));
+  // while this below is slower, it's portable
+  // result := (UInt32(AInput[AIndex]) shl 24) or
+  // (UInt32(AInput[AIndex + 1]) shl 16) or (UInt32(AInput[AIndex + 2]) shl 8) or
+  // (UInt32(AInput[AIndex + 3]));
 end;
 
-class function TConverters.ReadBytesAsUInt64LE(AInput: PByte;
+class function TConverters.ReadBytesAsUInt64BE(AInput: PByte;
   AIndex: Int32): UInt64;
 begin
-  result := ReadPUInt64AsUInt64LE(PUInt64(AInput + AIndex));
+  result := ReadPUInt64AsUInt64BE(PUInt64(AInput + AIndex));
+  // while this below is slower, it's portable
+  // result := (UInt64(AInput[AIndex]) shl 56) or
+  // (UInt64(AInput[AIndex + 1]) shl 48) or (UInt64(AInput[AIndex + 2]) shl 40)
+  // or (UInt64(AInput[AIndex + 3]) shl 32) or
+  // (UInt64(AInput[AIndex + 4]) shl 24) or (UInt64(AInput[AIndex + 5]) shl 16)
+  // or (UInt64(AInput[AIndex + 6]) shl 8) or (UInt64(AInput[AIndex + 7]));
 end;
 
 class function TConverters.ReadUInt32AsBytesLE(AInput: UInt32)
