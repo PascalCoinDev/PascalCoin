@@ -47,7 +47,7 @@ Type
 
   TCustomMinerDeviceThreadClass = Class of TCustomMinerDeviceThread;
 
-  TOnFoundNonce = Procedure(Sender : TCustomMinerDeviceThread; Timestamp, nOnce : Cardinal) of object;
+  TOnFoundNonce = Procedure(Sender : TCustomMinerDeviceThread; const AUsedMinerValuesForWork : TMinerValuesForWork; ATimestamp, AnOnce : Cardinal; const APoW : TRawBytes) of object;
 
   { TPoolMinerThread }
 
@@ -531,7 +531,7 @@ begin
   if (TBaseType.BinStrComp(LHash,usedMinerValuesForWork.target_pow)<=0) then begin
     inc(FGlobaDeviceStats.WinsCount);
     FPoolMinerThread.OnMinerNewBlockFound(self,usedMinerValuesForWork,Timestamp,nOnce,LHash);
-    If Assigned(FOnFoundNOnce) then FOnFoundNOnce(Self,Timestamp,nOnce);
+    If Assigned(FOnFoundNOnce) then FOnFoundNOnce(Self,usedMinerValuesForWork,Timestamp,nOnce,LHash);
   end else begin
     inc(FGlobaDeviceStats.Invalids);
     if LUseRandomHash then
@@ -681,7 +681,7 @@ end;
 procedure TCPUDeviceThread.BCExecute;
 begin
   while not terminated do begin
-    sleep(1);
+    sleep(10);
   end;
   FCPUs:=0;
   CheckCPUs;
@@ -863,7 +863,7 @@ begin
             if FCurrentMinerValuesForWork.version < CT_PROTOCOL_5 then
               roundsToDo := 20
             else
-              roundsToDo := 200;
+              roundsToDo := 200+Random(200);
           end else begin
             roundsToDo := 10000;
           end;
@@ -1012,6 +1012,7 @@ begin
   FResetNOnce:=True;
   FJobNum := 0;
   inherited Create(false);
+  Priority := tpHigher;
 end;
 
 destructor TCPUOpenSSLMinerThread.Destroy;

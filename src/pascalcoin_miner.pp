@@ -40,7 +40,7 @@ type
     procedure OnConnectionStateChanged(Sender : TObject);
     procedure OnDeviceStateChanged(Sender : TObject);
     procedure OnMinerValuesChanged(Sender : TObject);
-    procedure OnFoundNOnce(Sender : TCustomMinerDeviceThread; Timestamp, nOnce : Cardinal);
+    procedure OnFoundNOnce(Sender : TCustomMinerDeviceThread; const AUsedMinerValuesForWork : TMinerValuesForWork; ATimestamp, AnOnce : Cardinal; const APoW : TRawBytes);
     procedure WriteLine(nline : Integer; txt : String);
     procedure OnInThreadNewLog(logtype : TLogType; Time : TDateTime; ThreadID : TThreadID; Const sender, logtext : AnsiString);
   protected
@@ -142,10 +142,10 @@ begin
   end;
 end;
 
-procedure TPascalMinerApp.OnFoundNOnce(Sender: TCustomMinerDeviceThread; Timestamp, nOnce: Cardinal);
+procedure TPascalMinerApp.OnFoundNOnce(Sender : TCustomMinerDeviceThread; const AUsedMinerValuesForWork : TMinerValuesForWork; ATimestamp, AnOnce : Cardinal; const APoW : TRawBytes);
 begin
-  WriteLine(CT_Line_LastFound + FDeviceThreads.Count,FormatDateTime('hh:nn:ss',now)+' Block:'+IntToStr(Sender.MinerValuesForWork.block)+' NOnce:'+Inttostr(nOnce)+
-    ' Timestamp:'+inttostr(Timestamp)+' Miner:'+Sender.MinerValuesForWork.payload_start.ToPrintable);
+  WriteLine(CT_Line_LastFound + FDeviceThreads.Count,FormatDateTime('hh:nn:ss',now)+' Block:'+IntToStr(Sender.MinerValuesForWork.block)+' NOnce:'+Inttostr(AnOnce)+
+    ' Timestamp:'+inttostr(ATimestamp)+' Miner:'+Sender.MinerValuesForWork.payload_start.ToPrintable);
 end;
 
 procedure TPascalMinerApp.WriteLine(nline: Integer; txt: String);
@@ -238,6 +238,15 @@ var
         Terminate;
         exit;
       end;
+
+      If Not FileExists(ExtractFileDir(ExeName)+PathDelim+CT_OpenCL_FileName) then begin
+        Writeln('**********************');
+        Writeln('OpenCL file not found!');
+        Writeln('File: ',CT_OpenCL_FileName);
+        Terminate;
+        Exit;
+      end;
+
       strl := TStringList.Create;
       try
         if (d<0) then begin
@@ -437,14 +446,6 @@ begin
       ShowGPUDrivers;
       Exit;
     end;
-
-    If Not FileExists(ExtractFileDir(ExeName)+PathDelim+CT_OpenCL_FileName) then begin
-      Writeln('**********************');
-      Writeln('OpenCL file not found!');
-      Writeln('File: ',CT_OpenCL_FileName);
-      Exit;
-    end;
-
 
     If HasOption('s','server') then begin
       s := Trim(GetOptionValue('s','server'));
