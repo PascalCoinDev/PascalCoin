@@ -1547,8 +1547,11 @@ begin
 end;
 
 class function TAccountComp.FormatMoneyDecimal(Money : Int64) : Currency;
+var Ltmp : Double;
 begin
-  Result := RoundTo( Money / 10000.0, -4);
+  Ltmp := Money;
+  Ltmp := Ltmp / 10000.0;
+  Result := RoundTo( Ltmp , -4);
 end;
 
 class function TAccountComp.GetECInfoTxt(const EC_OpenSSL_NID: Word): String;
