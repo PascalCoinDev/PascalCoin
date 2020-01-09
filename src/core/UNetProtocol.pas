@@ -236,8 +236,11 @@ Type
     Constructor Create(NetData : TNetData);
   End;
 
+  { TNetworkAdjustedTime }
+
   TNetworkAdjustedTime = Class
   private
+    FOffsetLimit: Integer;
     FTimesList : TPCThreadList<Pointer>;
     FTimeOffset : Integer;
     FTotalCounter : Integer;
@@ -252,6 +255,7 @@ Type
     function GetAdjustedTime : Cardinal;
     property TimeOffset : Integer read FTimeOffset;
     function GetMaxAllowedTimestampForNewBlock : Cardinal;
+    property OffsetLimit : Integer read FOffsetLimit write FOffsetLimit;
   end;
 
   TProcessReservedAreaMessage = procedure (netData : TNetData; senderConnection : TNetConnection; const HeaderData : TNetHeaderData; receivedData : TStream; responseData : TStream) of object;
@@ -5067,6 +5071,7 @@ begin
   FTimesList := TPCThreadList<Pointer>.Create('TNetworkAdjustedTime_TimesList');
   FTimeOffset := 0;
   FTotalCounter := 0;
+  FOffsetLimit:= CT_MaxFutureBlockTimestampOffset DIV 2; // <0 equals to NO LIMIT, otherwise limited to value
 end;
 
 destructor TNetworkAdjustedTime.Destroy;
@@ -5211,6 +5216,10 @@ begin
     FTimeOffset := (PNetworkAdjustedTimeReg(list[(list.Count DIV 2)-1])^.timeOffset + PNetworkAdjustedTimeReg(list[(list.Count DIV 2)])^.timeOffset) DIV 2;
   end else begin
     FTimeOffset := PNetworkAdjustedTimeReg(list[list.Count DIV 2])^.timeOffset;
+  end;
+  if (FOffsetLimit>=0) and (Abs(FTimeOffset)>Abs(FOffsetLimit)) then begin
+    if FTimeOffset>=0 then FTimeOffset := Abs(FOffsetLimit)
+    else FTimeOffset := Abs(FOffsetLimit)*(-1);
   end;
   if (last<>FTimeOffset) then begin
     s := '';
