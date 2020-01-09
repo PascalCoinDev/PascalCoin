@@ -1,5 +1,15 @@
 # Changelog
 
+## Build 5.2.0 (PENDING)
+- Fixed important bug caused by bad calculated "more work" blockchain
+  - Previous "more work" (introduced on build 1.5.0.0 2017-02-15) was calculated by SUM(compact_target), but compact_target is a linear value (not exponential)
+  - Current "more work" will be equals to "aggregated hashrate" that is SUM(CompactTargetToHashRate(compact_target)) where "hashrate" is exponential
+  - This important bug was found by Herman Schoenfeld (herman@sphere10.com)
+- NAT limited to 7 seconds by default as proposed by Herman Schoenfeld (herman@sphere10.com) in order to minimize a warp timestamp attack. This value can be configured.
+- Fix invalid "balance" rounded decimals value caused by FPC (daemon or Linux versions)
+- Improvements on hashlib4pascal library by Ugochukwu Mmaduekwe <https://github.com/Xor-el>
+- Minor improvements and fixed bugs
+
 ## Build 5.1.0 - 2019-11-25
 - Fixed FastPropagation bug when Operations are not on Mempool and needs to obtain from a node with different version (V4 vs V5)
 - Fixed TOpChangeAccountInfo bug when changing Account.Data (not available on V4, V5 must not propagate while on V4 protocol)

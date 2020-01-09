@@ -289,6 +289,7 @@ Type
     FSafeBoxHash : TRawBytes;
     FLock: TPCCriticalSection; // Thread safe
     FWorkSum : UInt64;
+    FAggregatedHashrate : TBigNum;
     FCurrentProtocol: Integer;
     // Snapshots utility new on V3
     FSnapshots : TList<Pointer>; // Will save a Snapshots lists in order to rollback Safebox to a previous block state
@@ -372,6 +373,9 @@ Type
     Function HasSnapshotForBlock(block_number : Cardinal) : Boolean;
     Property OrderedAccountKeysList : TOrderedAccountKeysList read FOrderedAccountKeysList;
     property BufferBlocksHash: TBytesBuffer32Safebox read FBufferBlocksHash; // Warning: For testing purposes, do not use this property! TODO delete or put in protected mode
+
+    Property AggregatedHashrate : TBigNum read FAggregatedHashrate;
+    procedure GetAggregatedHashrateOnBlock(ABlockNumber : Cardinal; const AAggregatedHashrate : TBigNum);
   End;
 
 
@@ -1547,8 +1551,11 @@ begin
 end;
 
 class function TAccountComp.FormatMoneyDecimal(Money : Int64) : Currency;
+var Ltmp : Double;
 begin
-  Result := RoundTo( Money / 10000.0, -4);
+  Ltmp := Money;
+  Ltmp := Ltmp / 10000.0;
+  Result := RoundTo( Ltmp , -4);
 end;
 
 class function TAccountComp.GetECInfoTxt(const EC_OpenSSL_NID: Word): String;
@@ -2216,12 +2223,13 @@ Type
     oldTotalFee: Int64;
     oldSafeBoxHash : TRawBytes;
     oldWorkSum : UInt64;
+    oldAggregatedHashrate : TBigNum;
     oldCurrentProtocol: Integer;
   end;
   PSafeboxSnapshot = ^TSafeboxSnapshot;
 
 Const
-  CT_TSafeboxSnapshot_NUL : TSafeboxSnapshot = (nBlockNumber : 0; oldBlocks : Nil; newBlocks : Nil; namesDeleted : Nil; namesAdded : Nil;oldBufferBlocksHash:Nil;oldTotalBalance:0;oldTotalFee:0;oldSafeBoxHash:Nil;oldWorkSum:0;oldCurrentProtocol:0);
+  CT_TSafeboxSnapshot_NUL : TSafeboxSnapshot = (nBlockNumber : 0; oldBlocks : Nil; newBlocks : Nil; namesDeleted : Nil; namesAdded : Nil;oldBufferBlocksHash:Nil;oldTotalBalance:0;oldTotalFee:0;oldSafeBoxHash:Nil;oldWorkSum:0;oldAggregatedHashrate:Nil;oldCurrentProtocol:0);
 
 function TPCSafeBox.Account(account_number: Cardinal): TAccount;
 var
@@ -2277,6 +2285,7 @@ var i, base_addr : Integer;
   //
   acc_0_miner_reward,acc_4_dev_reward : Int64;
   acc_4_for_dev : Boolean;
+  LBlockHashRate : TBigNum;
 begin
   Result := CT_BlockAccount_NUL;
   Result.blockchainInfo := blockChain;
@@ -2325,6 +2334,13 @@ begin
   end;
   Inc(FWorkSum,Result.blockchainInfo.compact_target);
   Result.AccumulatedWork := FWorkSum;
+  // Add Aggregated Work based on HashRate
+  LBlockHashRate := TBigNum.TargetToHashRate( blockChain.compact_target );
+  Try
+    FAggregatedHashrate.Add( LBlockHashRate );
+  finally
+    LBlockHashRate.Free;
+  end;
   // Calc block hash
   Result.block_hash := CalcBlockHash(Result,FCurrentProtocol);
   If Assigned(FPreviousSafeBox) then begin
@@ -2360,6 +2376,7 @@ begin
     Psnapshot^.oldTotalFee:=FTotalFee;
     Psnapshot^.oldSafeBoxHash := FSafeBoxHash;
     Psnapshot^.oldWorkSum := FWorkSum;
+    Psnapshot^.oldAggregatedHashrate := FAggregatedHashrate.Copy;
     Psnapshot^.oldCurrentProtocol:= FCurrentProtocol;
     FSnapshots.Add(Psnapshot);
     FModifiedBlocksPreviousState := TOrderedBlockAccountList.Create;
@@ -2378,6 +2395,7 @@ begin
         FreeAndNil( Psnapshot^.namesAdded );
         FreeAndNil( Psnapshot^.namesDeleted );
         FreeAndNil( Psnapshot^.oldBufferBlocksHash );
+        FreeAndNil( Psnapshot^.oldAggregatedHashrate );
         Psnapshot^.oldSafeBoxHash := Nil;
         Dispose(Psnapshot);
       end;
@@ -2675,6 +2693,7 @@ begin
       FreeAndNil(Psnapshot^.namesAdded);
       FreeAndNil(Psnapshot^.namesDeleted);
       FreeAndNil(Psnapshot^.oldBufferBlocksHash);
+      FreeAndNil(Psnapshot^.oldAggregatedHashrate);
       Psnapshot^.oldSafeBoxHash := Nil;
       Dispose(Psnapshot);
     end;
@@ -2689,6 +2708,7 @@ begin
     FTotalFee := 0;
     FSafeBoxHash := CalcSafeBoxHash;
     FWorkSum := 0;
+    FAggregatedHashrate.Value := 0;
     FCurrentProtocol := CT_PROTOCOL_1;
     FModifiedBlocksSeparatedChain.Clear;
     FModifiedBlocksFinalState.Clear;
@@ -2744,6 +2764,7 @@ begin
       FBufferBlocksHash.CopyFrom(accounts.FBufferBlocksHash);
       FSafeBoxHash := Copy(accounts.FSafeBoxHash);
       FWorkSum := accounts.FWorkSum;
+      FAggregatedHashrate.RawValue := accounts.FAggregatedHashrate.RawValue;
       FCurrentProtocol := accounts.FCurrentProtocol;
     finally
       accounts.EndThreadSave;
@@ -2755,6 +2776,7 @@ end;
 
 constructor TPCSafeBox.Create;
 begin
+  FAggregatedHashrate := TBigNum.Create(0);
   FMaxSafeboxSnapshots:=CT_DEFAULT_MaxSafeboxSnapshots;
   FLock := TPCCriticalSection.Create('TPCSafeBox_Lock');
   FBlockAccountsList := TList<Pointer>.Create;
@@ -2801,6 +2823,7 @@ begin
     FPreviousSafeboxOriginBlock:=-1;
   end;
   FreeAndNil(FBufferBlocksHash);
+  FreeAndNil(FAggregatedHashrate);
   inherited;
 end;
 
@@ -2837,6 +2860,7 @@ begin
         FTotalFee := Psnapshot^.oldTotalFee;
         FSafeBoxHash := Psnapshot^.oldSafeBoxHash;
         FWorkSum := Psnapshot^.oldWorkSum;
+        FAggregatedHashrate.RawValue := Psnapshot^.oldAggregatedHashrate.RawValue;
         FCurrentProtocol := Psnapshot^.oldCurrentProtocol;
       finally
         APreviousSafeBox.EndThreadSave;
@@ -2960,6 +2984,9 @@ begin
       end;
       If (FPreviousSafeBox.WorkSum<>FWorkSum) then begin
         errors := errors+'> Invalid WorkSum!';
+      end;
+      If (FPreviousSafeBox.FAggregatedHashrate.CompareTo(FAggregatedHashrate)<>0) then begin
+        errors := errors+'> Invalid Aggregated Hashrate!';
       end;
       If (FPreviousSafeBox.FCurrentProtocol<>FCurrentProtocol) then begin
         errors := errors+'> Invalid Protocol!';
@@ -3092,6 +3119,7 @@ begin
       Psnapshot^.namesAdded.Free;
       Psnapshot^.namesDeleted.Free;
       Psnapshot^.oldBufferBlocksHash.Free;
+      Psnapshot^.oldAggregatedHashrate.Free;
       Psnapshot^.oldSafeBoxHash := Nil;
       Dispose(Psnapshot);
     end;
@@ -3106,6 +3134,7 @@ begin
     FTotalFee := Psnapshot^.oldTotalFee;
     FSafeBoxHash := Psnapshot^.oldSafeBoxHash;
     FWorkSum := Psnapshot^.oldWorkSum;
+    FAggregatedHashrate.RawValue := Psnapshot^.oldAggregatedHashrate.RawValue;
     FCurrentProtocol := Psnapshot^.oldCurrentProtocol;
     // Clear data
     FAddedNamesSincePreviousSafebox.Clear;
@@ -3217,6 +3246,7 @@ Var
   LUseMultiThreadOperationsBlockValidator, LAddToMultiThreadOperationsBlockValidator : Boolean;
   LPCOperationsBlockValidator : TPCOperationsBlockValidator;
   LValidatedOPOk, LValidatedOPError, LValidatedOPPending : Integer;
+  LBlockHashRate : TBigNum;
 begin
   LPCOperationsBlockValidator := Nil;
   if checkAll then begin
@@ -3410,6 +3440,12 @@ begin
         FBufferBlocksHash.Replace( j, P^.block_hash[0], 32 );
         ALastReadBlock := LBlock;
         Inc(FWorkSum,LBlock.blockchainInfo.compact_target);
+        LBlockHashRate := TBigNum.TargetToHashRate( LBlock.blockchainInfo.compact_target );
+        Try
+          FAggregatedHashrate.Add( LBlockHashRate );
+        finally
+          LBlockHashRate.Free;
+        end;
         // Upgrade to Protocol 4,5... step:
         if (LBlock.blockchainInfo.protocol_version>FCurrentProtocol) then begin
           if (LBlock.blockchainInfo.protocol_version = CT_PROTOCOL_4) then begin
@@ -4146,6 +4182,38 @@ begin
       Raise Exception.Create('ERROR DEV 20180306-1 Protocol not valid');
     end;
   end;
+end;
+
+procedure TPCSafeBox.GetAggregatedHashrateOnBlock(ABlockNumber: Cardinal; const AAggregatedHashrate: TBigNum);
+var i : Integer;
+  LHashRate : TBigNum;
+begin
+  AAggregatedHashrate.Value := 0; // Set to zero
+  if ABlockNumber>=BlocksCount then raise Exception.Create(Format('BlockNumber %d out of range (%d / %d)',[ABlockNumber,0,BlocksCount]));
+
+  if (BlocksCount DIV 2) < ABlockNumber then begin
+    // decrease mode
+    AAggregatedHashrate.RawValue := FAggregatedHashrate.RawValue;
+    for i := Integer(BlocksCount)-1 downto (ABlockNumber+1) do begin
+      LHashRate := TBigNum.TargetToHashRate( GetBlockInfo(i).compact_target );
+      try
+        AAggregatedHashrate.Sub( LHashRate );
+      finally
+        LHashRate.Free;
+      end;
+    end;
+  end else begin
+    // Increase mode
+    for i := 0 to ABlockNumber do begin
+      LHashRate := TBigNum.TargetToHashRate( GetBlockInfo(i).compact_target );
+      try
+        AAggregatedHashrate.Add( LHashRate );
+      finally
+        LHashRate.Free;
+      end;
+    end;
+  end;
+
 end;
 
 function TPCSafeBox.GetBlockInfo(ABlockNumber: Cardinal): TOperationBlock;

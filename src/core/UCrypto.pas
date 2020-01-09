@@ -134,7 +134,8 @@ Type
     Function Multiply(int : Int64) : TBigNum; overload;
     Function LShift(nbits : Integer) : TBigNum;
     Function RShift(nbits : Integer) : TBigNum;
-    Function CompareTo(BN : TBigNum) : Integer;
+    Function CompareTo(BN : TBigNum) : Integer; overload;
+    Function CompareTo(int : Int64) : Integer; overload;
     Function Divide(BN : TBigNum) : TBigNum; overload;
     Function Divide(int : Int64) : TBigNum; overload;
     Procedure Divide(dividend, remainder : TBigNum); overload;
@@ -861,6 +862,17 @@ begin
   {$ELSE}
   Result := FBigInteger.CompareTo(BN.FBigInteger);
   {$ENDIF}
+end;
+
+function TBigNum.CompareTo(int: Int64): Integer;
+var LBigNum : TBigNum;
+begin
+  LBigNum := TBigNum.Create(int);
+  try
+    Result := CompareTo( LBigNum );
+  finally
+    LBigNum.Free;
+  end;
 end;
 
 function TBigNum.Copy: TBigNum;

@@ -80,6 +80,8 @@ Const
   CT_MAX_OPS_PER_BLOCKCHAINOPERATIONS = 10000;
   CT_MAX_SAFEBOXCHUNK_BLOCKS = 30000;
 
+  CT_MIN_NetProtocol_Use_Aggregated_Hashrate = 12;
+
 Type
   {
   Net Protocol:
@@ -234,8 +236,11 @@ Type
     Constructor Create(NetData : TNetData);
   End;
 
+  { TNetworkAdjustedTime }
+
   TNetworkAdjustedTime = Class
   private
+    FOffsetLimit: Integer;
     FTimesList : TPCThreadList<Pointer>;
     FTimeOffset : Integer;
     FTotalCounter : Integer;
@@ -250,6 +255,7 @@ Type
     function GetAdjustedTime : Cardinal;
     property TimeOffset : Integer read FTimeOffset;
     function GetMaxAllowedTimestampForNewBlock : Cardinal;
+    property OffsetLimit : Integer read FOffsetLimit write FOffsetLimit;
   end;
 
   TProcessReservedAreaMessage = procedure (netData : TNetData; senderConnection : TNetConnection; const HeaderData : TNetHeaderData; receivedData : TStream; responseData : TStream) of object;
@@ -369,6 +375,7 @@ Type
     FTcpIpClient : TNetTcpIpClient;
     FRemoteOperationBlock : TOperationBlock;
     FRemoteAccumulatedWork : UInt64;
+    FRemoteAggregatedHashrate : TBigNum;
     FLastHelloTS : TTickCount;
     FLastDataReceivedTS : TTickCount;
     FLastDataSendedTS : TTickCount;
@@ -1647,6 +1654,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
         BlocksList := TList<TPCOperationsComp>.Create;
         try
           finished := NOT Do_GetOperationsBlock(Bank,start,start + 100,30000,false,BlocksList);
+          finished := (finished) or (BlocksList.Count<=0);
           i := 0;
           while (i<BlocksList.Count) And (Not finished) do begin
             OpComp := TPCOperationsComp(BlocksList[i]);
@@ -1682,15 +1690,10 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
           BlocksList.Free;
         end;
         start := Bank.BlocksCount;
-      until (Bank.BlocksCount=Connection.FRemoteOperationBlock.block+1) Or (finished)
-        // Allow to do not download ALL new blockchain in a separate folder, only needed blocks!
-        Or (Bank.SafeBox.WorkSum > (TNode.Node.Bank.SafeBox.WorkSum + $FFFFFFFF) );
-      // New Build 1.5 more work vs more high
-      // work = SUM(target) of all previous blocks (Int64)
-      // -----------------------------
-      // Before of version 1.5 was: "if Bank.BlocksCount>TNode.Node.Bank.BlocksCount then ..."
-      // Starting on version 1.5 is: "if Bank.WORK > MyBank.WORK then ..."
-      if Bank.SafeBox.WorkSum > TNode.Node.Bank.SafeBox.WorkSum then begin
+      until (Bank.BlocksCount>=Connection.FRemoteOperationBlock.block+1) Or (finished);
+      // New Build 5.2 more aggregated hashrate
+      // More work equals to SUM( Hashrate ) of all previous blocks > my SUM( Hashsrate )
+      if Bank.SafeBox.AggregatedHashrate.CompareTo( TNode.Node.Bank.SafeBox.AggregatedHashrate ) > 0 then begin
         oldBlockchainOperations := TOperationsHashTree.Create;
         try
           TNode.Node.DisableNewBlocks;
@@ -1759,12 +1762,26 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
         finally
           oldBlockchainOperations.Free;
         end;
-      end else begin
-        if (Not IsAScam) And (Connection.FRemoteAccumulatedWork > TNode.Node.Bank.SafeBox.WorkSum) then begin
-          // Possible scammer!
+      end else if (Not IsAScam) then begin // If it was as Scam, then was disconnected previously
+        if (Connection.FRemoteAccumulatedWork > Bank.SafeBox.WorkSum) then begin
+          // Possible scammer because obtained is lower than claimed!
           Connection.DisconnectInvalidClient(false,Format('Possible scammer! Says blocks:%d Work:%d - Obtained blocks:%d work:%d',
             [Connection.FRemoteOperationBlock.block+1,Connection.FRemoteAccumulatedWork,
              Bank.BlocksCount,Bank.SafeBox.WorkSum]));
+        end else if (Connection.FRemoteAggregatedHashrate.CompareTo( Bank.SafeBox.AggregatedHashrate )>0) then begin
+          // Possible scammer because obtained Hashrate is lower than claimed!
+          Connection.DisconnectInvalidClient(false,Format('Possible scammer! Says blocks:%d Aggregated HashRate:%s - Obtained blocks:%d HashRate:%s',
+            [Connection.FRemoteOperationBlock.block+1,Connection.FRemoteAggregatedHashrate.ToDecimal,
+             Bank.BlocksCount,Bank.SafeBox.AggregatedHashrate.ToDecimal]));
+        end else begin
+          TLog.NewLog(ltinfo,CT_LogSender, Format('Nothing made! Says blocks:%d Aggregated HashRate:%s - Obtained blocks:%d HashRate:%s Current blocks:%d HashRate:%s',
+            [Connection.FRemoteOperationBlock.block+1,
+             Connection.FRemoteAggregatedHashrate.ToDecimal,
+             Bank.BlocksCount,Bank.SafeBox.AggregatedHashrate.ToDecimal,
+             TNode.Node.Bank.SafeBox.BlocksCount,
+             TNode.Node.Bank.SafeBox.AggregatedHashrate.ToDecimal
+             ]));
+
         end;
       end;
     finally
@@ -2521,6 +2538,7 @@ end;
 constructor TNetConnection.Create(AOwner: TComponent);
 begin
   inherited;
+  FRemoteAggregatedHashrate := TBigNum.Create;
   FIsConnecting:=False;
   FIsDownloadingBlocks := false;
   FHasReceivedData := false;
@@ -2571,6 +2589,7 @@ begin
     FreeAndNil(FBufferLock);
     FreeAndNil(FBufferReceivedOperationsHash);
     FreeAndNil(FBufferToSendOperations);
+    FreeAndNil(FRemoteAggregatedHashrate);
     inherited;
   End;
 end;
@@ -3504,6 +3523,7 @@ var op, myLastOp : TPCOperationsComp;
     connection_ts : Cardinal;
    Duplicate : TNetConnection;
    RawAccountKey : TRawBytes;
+   LRawAggregatedHashrate : TRawBytes;
    other_version : String;
    isFirstHello : Boolean;
    lastTimestampDiff : Integer;
@@ -3578,12 +3598,21 @@ Begin
           ClientAppVersion := other_version;
           if (DataBuffer.Size-DataBuffer.Position>=SizeOf(FRemoteAccumulatedWork)) then begin
             DataBuffer.Read(FRemoteAccumulatedWork,SizeOf(FRemoteAccumulatedWork));
-            TLog.NewLog(ltdebug,ClassName,'Received HELLO with height: '+inttostr(op.OperationBlock.block)+' Accumulated work '+IntToStr(FRemoteAccumulatedWork)+ ' Remote block: '+TPCOperationsComp.OperationBlockToText(FRemoteOperationBlock));
           end;
         end;
-        //
+        if HeaderData.protocol.protocol_available>=CT_MIN_NetProtocol_Use_Aggregated_Hashrate then begin
+          // Read Aggregated Hashrate value
+          if TStreamOp.ReadAnsiString(DataBuffer,LRawAggregatedHashrate)>=0 then begin
+            FRemoteAggregatedHashrate.RawValue := LRawAggregatedHashrate;
+            FRemoteAccumulatedWork := 0;
+          end;
+        end;
+        TLog.NewLog(ltdebug,ClassName,'Received HELLO with height: '+inttostr(op.OperationBlock.block)+' Accumulated work|hashrate '+IntToStr(FRemoteAccumulatedWork)+'|'+FRemoteAggregatedHashrate.ToDecimal+' Remote block: '+TPCOperationsComp.OperationBlockToText(FRemoteOperationBlock));
+        // Detect if is a higher work blockchain
         if (FRemoteAccumulatedWork>TNode.Node.Bank.SafeBox.WorkSum) Or
-          ((FRemoteAccumulatedWork=0) And (TNetData.NetData.FMaxRemoteOperationBlock.block<FRemoteOperationBlock.block)) then begin
+          ((FRemoteAccumulatedWork=0) And (TNetData.NetData.FMaxRemoteOperationBlock.block<FRemoteOperationBlock.block)) Or
+          ((FRemoteAggregatedHashrate.CompareTo(TNode.Node.Bank.SafeBox.AggregatedHashrate)>0))
+          then begin
           TNetData.NetData.FMaxRemoteOperationBlock := FRemoteOperationBlock;
           if TPCThread.ThreadClassFound(TThreadGetNewBlockChainFromClient,nil)<0 then begin
             TThreadGetNewBlockChainFromClient.Create;
@@ -3831,6 +3860,7 @@ var operationsComp : TPCOperationsComp;
     Result := True;
   end;
 var c : Cardinal;
+  LRawAggregatedHashrate : TRawBytes;
 begin
   errors := '';
   DoDisconnect := true;
@@ -3847,14 +3877,24 @@ begin
         exit;
       end else begin
         DoDisconnect := false;
-        DataBuffer.Read(FRemoteAccumulatedWork,SizeOf(FRemoteAccumulatedWork));
-        if operationsComp.IsOnlyOperationBlock then begin
-          TLog.NewLog(ltdebug,ClassName,'Received NEW FAST PROPAGATION BLOCK with height: '+inttostr(operationsComp.OperationBlock.block)+' Accumulated work '+IntToStr(FRemoteAccumulatedWork)+' from '+ClientRemoteAddr);
+        if AHeaderData.protocol.protocol_available>=CT_MIN_NetProtocol_Use_Aggregated_Hashrate then begin
+          TStreamOp.ReadAnsiString(DataBuffer,LRawAggregatedHashrate);
+          FRemoteAggregatedHashrate.RawValue := LRawAggregatedHashrate;
+          FRemoteAccumulatedWork := 0; // No needed
         end else begin
-          TLog.NewLog(ltdebug,ClassName,'Received NEW BLOCK with height: '+inttostr(operationsComp.OperationBlock.block)+' Accumulated work '+IntToStr(FRemoteAccumulatedWork)+' from '+ClientRemoteAddr);
+          DataBuffer.Read(FRemoteAccumulatedWork,SizeOf(FRemoteAccumulatedWork));
+          FRemoteAggregatedHashrate.Value:=0;
+        end;
+        if operationsComp.IsOnlyOperationBlock then begin
+          TLog.NewLog(ltdebug,ClassName,'Received NEW FAST PROPAGATION BLOCK with height: '+inttostr(operationsComp.OperationBlock.block)+' Accumulated values '+IntToStr(FRemoteAccumulatedWork)+' '+FRemoteAggregatedHashrate.ToDecimal+' from '+ClientRemoteAddr);
+        end else begin
+          TLog.NewLog(ltdebug,ClassName,'Received NEW BLOCK with height: '+inttostr(operationsComp.OperationBlock.block)+' Accumulated values '+IntToStr(FRemoteAccumulatedWork)+' '+FRemoteAggregatedHashrate.ToDecimal+' from '+ClientRemoteAddr);
         end;
         FRemoteOperationBlock := operationsComp.OperationBlock;
-        if (FRemoteAccumulatedWork>TNode.Node.Bank.SafeBox.WorkSum) then begin
+        if (FRemoteAccumulatedWork>TNode.Node.Bank.SafeBox.WorkSum)
+           or
+           (FRemoteAggregatedHashrate.CompareTo( TNode.Node.Bank.SafeBox.AggregatedHashrate ) > 0)
+          then begin
           if (operationsComp.OperationBlock.block=TNode.Node.Bank.BlocksCount) then begin
             // New block candidate:
             if (operationsComp.IsOnlyOperationBlock) then begin
@@ -4409,6 +4449,8 @@ var data : TStream;
   nsarr : TNodeServerAddressArray;
   w : Word;
   currunixtimestamp : Cardinal;
+  LRawAggregatedHashrate : TRawBytes;
+  LUInt64 : UInt64;
 begin
   Result := false;
   if Not Connected then exit;
@@ -4441,9 +4483,17 @@ begin
     end;
     // Send client version
     TStreamOp.WriteAnsiString(data,TEncoding.ASCII.GetBytes(TNode.NodeVersion));
-    // Build 1.5 send accumulated work
-    data.Write(TNode.Node.Bank.SafeBox.WorkSum,SizeOf(TNode.Node.Bank.SafeBox.WorkSum));
-    //
+    // Send Aggregated Hashsrate based on network protocol available version
+    if FNetProtocolVersion.protocol_available>=CT_MIN_NetProtocol_Use_Aggregated_Hashrate then begin
+      LUInt64:=0;
+      data.Write(LUInt64,SizeOf(LUInt64));
+      LRawAggregatedHashrate := TNode.Node.Bank.SafeBox.AggregatedHashrate.RawValue;
+      TStreamOp.WriteAnsiString(data,LRawAggregatedHashrate);
+    end else begin
+      // If version older than 5.2 then send previous WorkSum value instead of AggregatedHashate
+      data.Write(TNode.Node.Bank.SafeBox.WorkSum,SizeOf(TNode.Node.Bank.SafeBox.WorkSum));
+    end;
+
     Send(NetTranferType,CT_NetOp_Hello,0,request_id,data);
     Result := Client.Connected;
     FLastHelloTS := TPlatform.GetTickCount;
@@ -4477,6 +4527,7 @@ var data : TStream;
   c : Cardinal;
   i : Integer;
   opRef : TOpReference;
+  LRawAggregatedHashrate : TRawBytes;
 begin
   Result := false;
   if Not Connected then exit;
@@ -4505,7 +4556,14 @@ begin
       // Will send a FAST PROPAGATION BLOCK as described at PIP-0015
       netOp := CT_NetOp_NewBlock_Fast_Propagation;
       NewBlock.SaveBlockToStream(netOp = CT_NetOp_NewBlock_Fast_Propagation,data); // Will save all only if not FAST PROPAGATION
-      data.Write(TNode.Node.Bank.SafeBox.WorkSum,SizeOf(TNode.Node.Bank.SafeBox.WorkSum));
+      // Send Aggregated Hashsrate based on network protocol available version
+      if FNetProtocolVersion.protocol_available>=CT_MIN_NetProtocol_Use_Aggregated_Hashrate then begin
+        LRawAggregatedHashrate := TNode.Node.Bank.SafeBox.AggregatedHashrate.RawValue;
+        TStreamOp.WriteAnsiString(data,LRawAggregatedHashrate);
+      end else begin
+        // If version older than 5.2 then send previous WorkSum value instead of AggregatedHashate
+        data.Write(TNode.Node.Bank.SafeBox.WorkSum,SizeOf(TNode.Node.Bank.SafeBox.WorkSum));
+      end;
       if (netOp = CT_NetOp_NewBlock_Fast_Propagation) then begin
         // Fill with OpReference data:
         c := NewBlock.OperationsHashTree.OperationsCount;
@@ -4773,57 +4831,54 @@ end;
 
 procedure TThreadGetNewBlockChainFromClient.BCExecute;
 Var i,j : Integer;
-  maxWork : UInt64;
+  LMaxAggregatedTarget : UInt64;
   candidates : TList<TNetConnection>;
   lop : TOperationBlock;
   nc : TNetConnection;
+  LMaxAggregatedHashrate : TBigNum;
 begin
   if Not TNode.Node.UpdateBlockchain then Exit;
 
   // Search better candidates:
   candidates := TList<TNetConnection>.Create;
+  LMaxAggregatedHashrate := TBigNum.Create(0);
   try
     lop := CT_OperationBlock_NUL;
     TNetData.NetData.FMaxRemoteOperationBlock := CT_OperationBlock_NUL;
     // First round: Find by most work
-    maxWork := 0;
+    LMaxAggregatedTarget := 0;
     j := TNetData.NetData.ConnectionsCountAll;
     nc := Nil;
     for i := 0 to j - 1 do begin
       if TNetData.NetData.GetConnection(i,nc) then begin
-        if (nc.FRemoteAccumulatedWork>maxWork) And (nc.FRemoteAccumulatedWork>TNode.Node.Bank.SafeBox.WorkSum) then begin
-          maxWork := nc.FRemoteAccumulatedWork;
-        end;
         // Preventing downloading
         if nc.FIsDownloadingBlocks then exit;
+        //
+        if (nc.FRemoteAggregatedHashrate.CompareTo( LMaxAggregatedHashrate )>0) and (nc.FRemoteAggregatedHashrate.CompareTo( TNode.Node.Bank.SafeBox.AggregatedHashrate )>0) then begin
+          LMaxAggregatedHashrate.RawValue := nc.FRemoteAggregatedHashrate.RawValue;
+        end;
+        if (nc.FRemoteAccumulatedWork>LMaxAggregatedTarget) And (nc.FRemoteAccumulatedWork>TNode.Node.Bank.SafeBox.WorkSum) then begin
+          LMaxAggregatedTarget := nc.FRemoteAccumulatedWork;
+        end;
       end;
     end;
-    if (maxWork>0) then begin
+    if (LMaxAggregatedHashrate.CompareTo( 1 ) > 0) then begin
+      // Search by Aggregated Hashrate
       for i := 0 to j - 1 do begin
         If TNetData.NetData.GetConnection(i,nc) then begin
-          if (nc.FRemoteAccumulatedWork>=maxWork) then begin
+          if (nc.FRemoteAggregatedHashrate.CompareTo(LMaxAggregatedHashrate)>=0) then begin
             candidates.Add(nc);
             lop := nc.FRemoteOperationBlock;
           end;
         end;
       end;
-    end;
-    // Second round: Find by most height
-    if candidates.Count=0 then begin
+    end else if (LMaxAggregatedTarget>0) then begin
+      // Not found searching by Aggregated Hashrate, searching by Aggregated Target
       for i := 0 to j - 1 do begin
-        if (TNetData.NetData.GetConnection(i,nc)) then begin
-          if (nc.FRemoteOperationBlock.block>=TNode.Node.Bank.BlocksCount) And
-             (nc.FRemoteOperationBlock.block>=lop.block) then begin
-             lop := nc.FRemoteOperationBlock;
-          end;
-        end;
-      end;
-      if (lop.block>0) then begin
-        for i := 0 to j - 1 do begin
-          If (TNetData.NetData.GetConnection(i,nc)) then begin
-            if (nc.FRemoteOperationBlock.block>=lop.block) then begin
-               candidates.Add(nc);
-            end;
+        If TNetData.NetData.GetConnection(i,nc) then begin
+          if (nc.FRemoteAccumulatedWork>=LMaxAggregatedTarget) then begin
+            candidates.Add(nc);
+            lop := nc.FRemoteOperationBlock;
           end;
         end;
       end;
@@ -4834,9 +4889,10 @@ begin
       i := 0;
       if (candidates.Count>1) then i := Random(candidates.Count); // i = 0..count-1
       nc := TNetConnection(candidates[i]);
-      TNetData.NetData.GetNewBlockChainFromClient(nc,Format('Candidate block: %d sum: %d',[nc.FRemoteOperationBlock.block,nc.FRemoteAccumulatedWork]));
+      TNetData.NetData.GetNewBlockChainFromClient(nc,Format('Candidate block: %d Aggregated: %d %s',[nc.FRemoteOperationBlock.block,nc.FRemoteAccumulatedWork,nc.FRemoteAggregatedHashrate.ToDecimal]));
     end;
   finally
+    LMaxAggregatedHashrate.Free;
     candidates.Free;
   end;
 end;
@@ -5015,6 +5071,7 @@ begin
   FTimesList := TPCThreadList<Pointer>.Create('TNetworkAdjustedTime_TimesList');
   FTimeOffset := 0;
   FTotalCounter := 0;
+  FOffsetLimit:= CT_MaxFutureBlockTimestampOffset DIV 2; // <0 equals to NO LIMIT, otherwise limited to value
 end;
 
 destructor TNetworkAdjustedTime.Destroy;
@@ -5159,6 +5216,10 @@ begin
     FTimeOffset := (PNetworkAdjustedTimeReg(list[(list.Count DIV 2)-1])^.timeOffset + PNetworkAdjustedTimeReg(list[(list.Count DIV 2)])^.timeOffset) DIV 2;
   end else begin
     FTimeOffset := PNetworkAdjustedTimeReg(list[list.Count DIV 2])^.timeOffset;
+  end;
+  if (FOffsetLimit>=0) and (Abs(FTimeOffset)>Abs(FOffsetLimit)) then begin
+    if FTimeOffset>=0 then FTimeOffset := Abs(FOffsetLimit)
+    else FTimeOffset := Abs(FOffsetLimit)*(-1);
   end;
   if (last<>FTimeOffset) then begin
     s := '';

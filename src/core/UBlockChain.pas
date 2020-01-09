@@ -548,6 +548,7 @@ Type
     procedure AssignTo(Dest: TPersistent); Override;
     function GetActualTargetSecondsAverage(BackBlocks : Cardinal): Real;
     function GetTargetSecondsAverage(FromBlock,BackBlocks : Cardinal): Real;
+    function GetTargetSecondsMedian(AFromBlock: Cardinal; ABackBlocks : Integer): Real;
     function LoadBankFromStream(Stream : TStream; useSecureLoad : Boolean; checkSafeboxHash : TRawBytes; previousCheckedSafebox : TPCSafebox; progressNotify : TProgressNotify; var errors : String) : Boolean;
     Procedure Clear;
     Function LoadOperations(Operations : TPCOperationsComp; Block : Cardinal) : Boolean;
@@ -1090,22 +1091,71 @@ end;
 function TPCBank.GetTargetSecondsAverage(FromBlock, BackBlocks: Cardinal): Real;
 Var ts1, ts2: Int64;
 begin
-  If FromBlock>=BlocksCount then begin
+  If (FromBlock>=BlocksCount) or (BackBlocks<1) then begin
     Result := 0;
     exit;
   end;
   if FromBlock>BackBlocks then begin
-    ts1 := SafeBox.GetBlockInfo(FromBlock-1).timestamp;
-    ts2 := SafeBox.GetBlockInfo(FromBlock-BackBlocks-1).timestamp;
+    ts1 := SafeBox.GetBlockInfo(FromBlock).timestamp;
+    ts2 := SafeBox.GetBlockInfo(FromBlock-BackBlocks).timestamp;
   end else if (FromBlock>1) then begin
-    ts1 := SafeBox.GetBlockInfo(FromBlock-1).timestamp;
+    ts1 := SafeBox.GetBlockInfo(FromBlock).timestamp;
     ts2 := SafeBox.GetBlockInfo(0).timestamp;
-    BackBlocks := FromBlock-1;
+    BackBlocks := FromBlock;
   end else begin
     Result := 0;
     exit;
   end;
   Result := (ts1 - ts2) / BackBlocks;
+end;
+
+function TPCBank.GetTargetSecondsMedian(AFromBlock: Cardinal; ABackBlocks : Integer): Real;
+Var LOrd : TOrderedCardinalList;
+  i, LStart, LEnd : Integer;
+  LPreviousTimestamp, LCurrentTimestamp, c1, c2 : Cardinal;
+begin
+  { Will return median time based on each block time
+    AFromBlock = 50
+    ABackBlocks = 5
+
+    Will take 6 blocks (ABackBlocks + 1)  from 45 to 50
+
+    time_diff_46 = 46 - 45
+    time_diff_47 = 47 - 46
+    time_diff_48 = 48 - 47
+    time_diff_49 = 49 - 48
+    time_diff_50 = 50 - 49
+  }
+  Result := 0;
+  If (AFromBlock>=BlocksCount) or (ABackBlocks<=0) then begin
+    exit;
+  end;
+  LOrd := TOrderedCardinalList.Create;
+  try
+    LStart := Integer(AFromBlock) - Integer(ABackBlocks);
+    LEnd := Integer(AFromBlock);
+    if LStart<1 then LStart := 1; // Ensure we will get access to 0 as a previous Timestamp
+    LPreviousTimestamp := SafeBox.GetBlockInfo(LStart - 1).timestamp; // Get first previous timestamp
+    for i := LStart to LEnd do begin
+      LCurrentTimestamp := SafeBox.GetBlockInfo(i).timestamp;
+      LOrd.Add( LCurrentTimestamp - LPreviousTimestamp ); // Add to ordered list
+      LPreviousTimestamp := LCurrentTimestamp;
+    end;
+    // Capture median in an ordered list
+    if LOrd.Count>0 then begin
+      if (LOrd.Count MOD 2)=0 then begin
+        // even list, take 2 values
+        c1 := LOrd.Get( (LOrd.Count DIV 2)-1 );
+        c2 := LOrd.Get( (LOrd.Count DIV 2) );
+        Result := (c1 + c2) / 2.0;
+      end else begin
+        // odd list, take middle
+        Result := LOrd.Get( LOrd.Count DIV 2) / 1.0;
+      end
+    end;
+  finally
+    LOrd.Free;
+  end;
 end;
 
 function TPCBank.GetStorage: TStorage;
