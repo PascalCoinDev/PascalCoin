@@ -26,7 +26,7 @@ unit UPCTNetDataExtraMessages;
 
 interface
 
-{$I config.inc}
+{$I ./../config.inc}
 
 {$IFDEF FPC}
   {$MODE Delphi}

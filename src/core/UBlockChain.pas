@@ -26,7 +26,7 @@ uses
   Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs, UBaseTypes, SysUtils,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
   UPCDataTypes;
-{$I config.inc}
+{$I ./../config.inc}
 
 {
 

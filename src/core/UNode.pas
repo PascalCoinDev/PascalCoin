@@ -38,7 +38,7 @@ uses
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
   UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, SyncObjs, ULog, UBaseTypes, UPCOrderedLists;
 
-{$I config.inc}
+{$I ./../config.inc}
 
 Type
 

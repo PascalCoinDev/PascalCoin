@@ -86,7 +86,7 @@ unit UPCSafeBoxRootHash;
 
 interface
 
-{$I config.inc}
+{$I ./../config.inc}
 uses
   Classes, SysUtils, UConst, UCrypto, SyncObjs, UThread, UBaseTypes,
   UPCOrderedLists, UPCDataTypes,

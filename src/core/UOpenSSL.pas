@@ -26,7 +26,7 @@ interface
   {$MODE Delphi}
 {$ENDIF}
 
-{$I config.inc}
+{$I ./../config.inc}
 
 {$IFDEF ANDROID}
 Uses UBaseTypes;

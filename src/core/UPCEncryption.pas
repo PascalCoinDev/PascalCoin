@@ -34,7 +34,7 @@ interface
   {$MODE Delphi}
 {$ENDIF}
 
-{$I config.inc}
+{$I ./../config.inc}
 
 {$IF (not Defined(Use_OpenSSL)) and (not Defined(Use_CryptoLib4Pascal))}
   {$Message Fatal 'ERROR: Use_OpenSSL or Use_CryptoLib4Pascal are not defined, you need to at least define one!'}

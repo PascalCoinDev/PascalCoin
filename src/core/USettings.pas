@@ -20,7 +20,7 @@ unit USettings;
   {$mode delphi}
 {$ENDIF}
 
-{$I config.inc}
+{$I ./../config.inc}
 
 interface
 

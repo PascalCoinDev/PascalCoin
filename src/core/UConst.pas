@@ -22,7 +22,7 @@ unit UConst;
 
 interface
 
-{$I config.inc}
+{$I ./../config.inc}
 
 {$IFNDEF FPC}
   // See http://wiki.freepascal.org/Code_Conversion_Guide

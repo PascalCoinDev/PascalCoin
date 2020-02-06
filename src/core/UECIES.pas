@@ -39,7 +39,7 @@ unit UECIES;
   {$MODE Delphi}
 {$ENDIF}
 
-{$I config.inc}
+{$I ./../config.inc}
 
 {$IF not Defined(Use_OpenSSL)}
   {$Message Warn 'ERROR: Use_OpenSSL is not defined, you should not use this UNIT!'}

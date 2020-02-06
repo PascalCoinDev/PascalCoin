@@ -20,7 +20,7 @@ unit UPCHardcodedRandomHashTable;
   {$MODE Delphi}
 {$ENDIF}
 
-{$I config.inc}
+{$I ./../config.inc}
 
 interface
 

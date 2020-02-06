@@ -22,7 +22,7 @@ unit UPoolMinerThreads;
 
 interface
 
-{$I config.inc}
+{$I ./../config.inc}
 
 uses
   Classes, SysUtils, syncobjs, UThread, UPoolMining, UAccounts, UCrypto, ULog, UBlockChain, USha256, URandomHash, URandomHash2, UBaseTypes, UCommon,
