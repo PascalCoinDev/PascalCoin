@@ -10,7 +10,7 @@
 
 
 ```
-Copyright (c) 2016-2019 Pascal developers based on original Albert Molina source code
+Copyright (c) 2016-2020 Pascal developers based on original Albert Molina source code
 ```
 
 Please use at your own risk.
