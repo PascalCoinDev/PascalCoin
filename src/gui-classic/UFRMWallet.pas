@@ -1671,6 +1671,8 @@ begin
     F := TFRMMemoText.Create(Self);
     Try
       F.Caption := title;
+      strings.add(Format('Agg Hashrate: %s',[FNode.Bank.SafeBox.AggregatedHashrate.ToDecimal]));
+      strings.add(Format('Agg Hashrate: %s',[FNode.Bank.SafeBox.AggregatedHashrate.HexaValue]));
       F.Memo.Lines.Assign(strings);
       F.ShowModal;
     Finally
@@ -2427,7 +2429,7 @@ begin
     LFilters.MinBalance := FMinAccountBalance;
     LFilters.MaxBalance := FMaxAccountBalance;
     if cbExploreMyAccounts.Checked then begin
-      FNode.Bank.SafeBox.StartThreadSafe;
+      //FNode.Bank.SafeBox.StartThreadSafe;
       try
         LFilters.OrderedAccountsKeyList := FWalletKeys.AccountsKeyList;
         if cbMyPrivateKeys.ItemIndex>0 then begin
@@ -2437,7 +2439,7 @@ begin
           end;
         end else LFilters.indexAccountsKeyList := -1;
       finally
-        FNode.Bank.SafeBox.EndThreadSave;
+        //FNode.Bank.SafeBox.EndThreadSave;
       end;
     end else begin
       LFilters.OrderedAccountsKeyList := Nil;

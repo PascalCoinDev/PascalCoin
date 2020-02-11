@@ -208,6 +208,7 @@ Type
     TimeAverage50 : Real;
     TimeAverage25 : Real;
     TimeAverage10 : Real;
+    TimeAverage5 : Real;
   End;
 
   TBlockChainGrid = Class;
@@ -274,7 +275,8 @@ Type
   End;
 
 Const
-  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:-1;Volume:-1;Reward:0;Fee:0;Target:0;HashRateTargetHs:0;HashRateHs:0;HashRateTargetKhs:0;HashRateKhs:0;MinerPayload:Nil;PoW:Nil;SafeBoxHash:Nil;TimeAverage200:0;TimeAverage150:0;TimeAverage100:0;TimeAverage75:0;TimeAverage50:0;TimeAverage25:0;TimeAverage10:0);
+  CT_TBlockChainData_NUL : TBlockChainData = (Block:0;Timestamp:0;BlockProtocolVersion:0;BlockProtocolAvailable:0;OperationsCount:-1;Volume:-1;Reward:0;Fee:0;Target:0;HashRateTargetHs:0;HashRateHs:0;HashRateTargetKhs:0;HashRateKhs:0;MinerPayload:Nil;PoW:Nil;SafeBoxHash:Nil;
+    TimeAverage200:0;TimeAverage150:0;TimeAverage100:0;TimeAverage75:0;TimeAverage50:0;TimeAverage25:0;TimeAverage10:0;TimeAverage5:0);
   CT_TAccountsGridFilter_NUL : TAccountsGridFilter = (MinBalance:-1;MaxBalance:-1;OrderedAccountsKeyList:Nil;indexAccountsKeyList:-1);
 
 implementation
@@ -1443,6 +1445,7 @@ begin
         bcd.TimeAverage50:=ANode.Bank.GetTargetSecondsAverage(bcd.Block,50);
         bcd.TimeAverage25:=ANode.Bank.GetTargetSecondsAverage(bcd.Block,25);
         bcd.TimeAverage10:=ANode.Bank.GetTargetSecondsAverage(bcd.Block,10);
+        bcd.TimeAverage5:=ANode.Bank.GetTargetSecondsAverage(bcd.Block,5);
         AList.Add(bcd);
         if (ABlockEnd>0) then dec(ABlockEnd) else Break;
       end;
@@ -1660,8 +1663,13 @@ begin
         s := Format('%.2f',[deviation])+' %';
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
       end else if ACol=13 then begin
-        s := Format('200:%.1f 150:%.1f 100:%.1f 75:%.1f 50:%.1f 25:%.1f 10:%.1f',[bcd.TimeAverage200,
-           bcd.TimeAverage150,bcd.TimeAverage100,bcd.TimeAverage75,bcd.TimeAverage50,bcd.TimeAverage25,bcd.TimeAverage10]);
+        s := Format('200:%.1f 150:%.1f 100:%.1f 50:%.1f 25:%.1f 10:%.1f 5:%.1f',[bcd.TimeAverage200,
+           bcd.TimeAverage150,
+           bcd.TimeAverage100,
+           bcd.TimeAverage50,
+           bcd.TimeAverage25,
+           bcd.TimeAverage10,
+           bcd.TimeAverage5]);
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
       end;
     end;
