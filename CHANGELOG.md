@@ -1,6 +1,8 @@
 # Changelog
 
-## Build 5.2.0 (PENDING)
+## Build 5.2.0 - 2020-02-11
+- Mandatory upgrade due fixes some important security bugs
+- Fixed CryptoLib4Pascal multithreading bug
 - Fixed important bug caused by bad calculated "more work" blockchain
   - Previous "more work" (introduced on build 1.5.0.0 2017-02-15) was calculated by SUM(compact_target), but compact_target is a linear value (not exponential)
   - Current "more work" will be equals to "aggregated hashrate" that is SUM(CompactTargetToHashRate(compact_target)) where "hashrate" is exponential
@@ -8,6 +10,7 @@
 - NAT limited to 7 seconds by default as proposed by Herman Schoenfeld (herman@sphere10.com) in order to minimize a warp timestamp attack. This value can be configured.
 - Fix invalid "balance" rounded decimals value caused by FPC (daemon or Linux versions)
 - Improvements on hashlib4pascal library by Ugochukwu Mmaduekwe <https://github.com/Xor-el>
+- Introducing CryptoLib4Pascal usage
 - Minor improvements and fixed bugs
 
 ## Build 5.1.0 - 2019-11-25
