@@ -393,12 +393,6 @@ begin
 
   result := ImplShamirsTrickWNaf(preCompP, preCompNegP, wnafP, preCompQ,
     preCompNegQ, wnafQ);
-
-  infoP.PreComp := Nil; // Review
-  infoP.PreCompNeg := Nil; // Review
-  infoQ.PreComp := Nil; // Review
-  infoQ.PreCompNeg := Nil; // Review
-
 end;
 
 class function TECAlgorithms.ImplShamirsTrickWNaf(const p: IECPoint;
@@ -435,10 +429,6 @@ begin
   then
   begin
     result := ImplShamirsTrickFixedPoint(p, k, q, l);
-    infoP.PreComp := Nil; // Review
-    infoP.PreCompNeg := Nil; // Review
-    infoQ.PreComp := Nil; // Review
-    infoQ.PreCompNeg := Nil; // Review
     Exit;
   end;
 
@@ -486,10 +476,6 @@ begin
 
   result := ImplShamirsTrickWNaf(preCompP, preCompNegP, wnafP, preCompQ,
     preCompNegQ, wnafQ);
-  infoP.PreComp := Nil; // Review
-  infoP.PreCompNeg := Nil; // Review
-  infoQ.PreComp := Nil; // Review
-  infoQ.PreCompNeg := Nil; // Review
 end;
 
 class function TECAlgorithms.ImplShamirsTrickWNaf(const preCompP,
@@ -642,13 +628,6 @@ begin
   end;
 
   result := ImplSumOfMultiplies(negs, infos, wnafs);
-
-  for i := System.Low(infos) to System.High(infos) do
-  begin
-    infos[i].PreComp := Nil; // Review
-    infos[i].PreCompNeg := Nil; // Review
-  end;
-
 end;
 
 class function TECAlgorithms.ImplSumOfMultiplies
@@ -684,13 +663,6 @@ begin
   end;
 
   result := ImplSumOfMultiplies(negs, infos, wnafs);
-
-  for i := System.Low(infos) to System.High(infos) do
-  begin
-    infos[i].PreComp := Nil; // Review
-    infos[i].PreCompNeg := Nil; // Review
-  end;
-
 end;
 
 class function TECAlgorithms.ImplSumOfMultiplies
@@ -1067,3 +1039,4 @@ begin
 end;
 
 end.
+
