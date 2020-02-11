@@ -22,7 +22,7 @@ unit URPC;
 
 interface
 
-{$I config.inc}
+{$I ./../config.inc}
 
 Uses UThread, ULog, UConst, UNode, UAccounts, UCrypto, UBlockChain,
   UNetProtocol, UOpTransaction, UWallet, UTime, UPCEncryption, UTxMultiOperation,

@@ -22,7 +22,7 @@ unit UWallet;
 
 interface
 
-{$I config.inc}
+{$I ./../config.inc}
 
 {$IFDEF ANDROID}
   {$UNDEF INTERNAL_USE_SETTINGS_UNIT}

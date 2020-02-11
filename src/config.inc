@@ -24,29 +24,18 @@
   
   - Use_CryptoLib4Pascal    : Will not use OpenSSL library, will use pascal native CryptoLib4Pascal
   - Use_OpenSSL             : Will use OpenSSL library (Need version 1.1)
-  - OpenSSL10               : When "Use_OpenSSL" enabled, will use version 1.0 instead of 1.1 -> DO NOT USE!
   
   - Synapse                 : Will use Synapse sockets (Preferred)
   - DelphiSockets           : Will use Delphi Indy sockets (Use only for special purposes... for example for mobile apps)
   
-  - OPTIONS_BY_DEFAULT      : (Preferred)
-      Will define "Synapse" and will undefine "OpenSSL10"
-  - DelphiSockets_OpenSSLv10 :
-      Will define "DelphiSockets" and will define "OpenSSL10"
-  - Synapse_OpenSSLv10      :
-      Will define "Synapse" and will define "OpenSSL10"
-  - Synapse_OpenSSLv11      :
-      Will define "Synapse" and will undefine "OpenSSL10" 
-
 }
 
-  {.$DEFINE PRODUCTION}
-  {$DEFINE TESTNET}
+  {$DEFINE PRODUCTION}
+  {.$DEFINE TESTNET}
 
-  {$DEFINE OPTIONS_BY_DEFAULT}
-  {.$DEFINE DelphiSockets_OpenSSLv10}
-  {.$DEFINE Synapse_OpenSSLv10}
-  {.$DEFINE Synapse_OpenSSLv11}
+  // Activate to define CryptoLib4Pascal by default on all compilations
+  {.$DEFINE Use_CryptoLib4Pascal}
+
 
   // Used to activate RandomHash in V4 hard-fork
   {$DEFINE ACTIVATE_RANDOMHASH_V4}
@@ -77,60 +66,36 @@
 ERROR: You must select ONLY ONE option: PRODUCTION or TESTNET
 {$ENDIF}{$ELSE}{$DEFINE PRODUCTION}{$ENDIF}
 
-{$IFNDEF OPTIONS_BY_DEFAULT}{$IFNDEF DelphiSockets_OpenSSLv10}{$IFNDEF Synapse_OpenSSLv10}{$IFNDEF Synapse_OpenSSLv11}
-ERROR: You must select ONE option!
-{$ENDIF}{$ENDIF}{$ENDIF}{$ENDIF}
-{$IFDEF OPTIONS_BY_DEFAULT}
-  {$IFDEF DARWIN}
-  {$DEFINE Use_CryptoLib4Pascal}
-  {$ELSE}
+{$IF (not Defined(Use_OpenSSL)) or (not Defined(Use_CryptoLib4Pascal))}
   {$DEFINE Use_OpenSSL}
-  {$ENDIF}
+  {$UNDEF Use_CryptoLib4Pascal}
+{$ENDIF}
 
-  // By default are: Synapse + OpenSSLv11
+{$IF (Defined(Use_OpenSSL)) and (Defined(Use_CryptoLib4Pascal))}
+ERROR: You must select ONLY ONE option: Use_OpenSSL or Use_CryptoLib4Pascal
+{$ENDIF}
+  
+{$IFDEF DARWIN}
+  {$UNDEF Use_OpenSSL}
+  {$DEFINE Use_CryptoLib4Pascal}
+{$ENDIF}
+  
+
   {$IFDEF ANDROID} 
     // Android usage (on Delphi) does not use Synapse
     {$UNDEF Synapse}
     {$DEFINE DelphiSockets}
   {$ELSE}
     {$DEFINE Synapse}
+    {$UNDEF DelphiSockets}
   {$ENDIF}
   {$UNDEF OpenSSL10}
-  {$IFDEF DelphiSockets_OpenSSLv10}ERROR: You selected more than 1 option{$ENDIF}
-  {$IFDEF Synapse_OpenSSLv10}ERROR: You selected more than 1 option{$ENDIF}
-  {$IFDEF Synapse_OpenSSLv11}ERROR: You selected more than 1 option{$ENDIF}
-{$ELSE}
-  {$IFDEF DelphiSockets_OpenSSLv10}
-    {$IFDEF FPC}
-      ERROR: With Free Pascal you cannot choose compiler directive DelphiSockets_OpenSSLv10
-    {$ELSE}
-      {$UNDEF Synapse}
-      {$DEFINE OpenSSL10}
-    {$ENDIF}
-    {$IFDEF Synapse_OpenSSLv10}ERROR: You selected more than 1 option{$ENDIF}
-    {$IFDEF Synapse_OpenSSLv11}ERROR: You selected more than 1 option{$ENDIF}
-  {$ELSE}
-    {$IFDEF Synapse_OpenSSLv10}
-      {$DEFINE Synapse}
-      {$DEFINE OpenSSL10}
-      {$IFDEF Synapse_OpenSSLv11}ERROR: You selected more than 1 option{$ENDIF}
-    {$ELSE}
-      {$IFDEF FPC}
-        {$DEFINE Synapse}
-        {$UNDEF OpenSSL10}
-      {$ELSE}
-        ERROR: With Delphi you cannot choose compiler directive Synapse_OpenSSLv11
-      {$ENDIF}
-    {$ENDIF}
-  {$ENDIF}
-{$ENDIF}
 
 {$IFNDEF FPC}
   // We are on Delphi compiler
   {$IF Defined(ANDROID) or Defined(MACOS) or Defined(IOS) }
     // On Delphi and Android/IOS/MAC environment, AnsiString is not available and use DelphiSockets instead of Synapse
     {$DEFINE NO_ANSISTRING}
-    {$UNDEF OpenSSL10}
     {$UNDEF Use_OpenSSL}
     {$DEFINE Use_CryptoLib4Pascal}
     {$UNDEF Synapse}

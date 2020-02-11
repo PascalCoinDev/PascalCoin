@@ -24,7 +24,7 @@ interface
 
 uses
   Classes, {$IFnDEF FPC}Windows,{$ENDIF} UBlockChain, SyncObjs, UThread, UAccounts, UCrypto;
-{$I config.inc}
+{$I ./../config.inc}
 
 Type
   TBlockHeader = Record

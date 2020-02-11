@@ -22,7 +22,7 @@ interface
   {$mode delphi}
 {$ENDIF}
 
-{$I config.inc}
+{$I ./../config.inc}
 
 {
   Change log: 2019-01-31

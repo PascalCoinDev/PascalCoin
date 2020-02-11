@@ -36,7 +36,7 @@ uses
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
   Classes, SyncObjs, SysUtils, UBaseTypes;
 
-{$I config.inc}
+{$I ./../config.inc}
 
 Type
   TPCCriticalSection = Class(TCriticalSection)

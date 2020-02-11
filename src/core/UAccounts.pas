@@ -28,7 +28,7 @@ uses
   UPCHardcodedRandomHashTable, UJSONFunctions,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
-{$I config.inc}
+{$I ./../config.inc}
 
 Type
   TAccountKey = TECDSA_Public;

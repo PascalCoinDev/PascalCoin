@@ -31,7 +31,7 @@ interface
 {$ENDIF}
 
 
-{$I config.inc}
+{$I ./../config.inc}
 
 {$IF (not Defined(Use_OpenSSL))}
   {$Message Fatal 'ERROR: Use_OpenSSL is not defined!'}

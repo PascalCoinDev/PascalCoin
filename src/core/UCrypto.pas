@@ -20,7 +20,7 @@ unit UCrypto;
   {$MODE Delphi}
 {$ENDIF}
 
-{$I config.inc}
+{$I ./../config.inc}
 
 {$IF (not Defined(Use_CryptoLib4Pascal)) and (not Defined(Use_OpenSSL))}
   ERROR: At least Use_CryptoLib4Pascal or Use_OpenSSL must be defined!

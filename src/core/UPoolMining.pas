@@ -22,7 +22,7 @@ unit UPoolMining;
 
 interface
 
-{$I config.inc}
+{$I ./../config.inc}
 
 Uses
 {$IFnDEF FPC}

@@ -30,7 +30,7 @@ interface
 uses
   Classes, SysUtils;
 
-{$I config.inc}
+{$I ./../config.inc}
 
 Type
   {$IFDEF NO_ANSISTRING}
