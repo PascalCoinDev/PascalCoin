@@ -1132,7 +1132,7 @@ begin
   end;
   LOrd := TOrderedCardinalList.Create;
   try
-    LStart := Integer(AFromBlock) - Integer(ABackBlocks);
+    LStart := Integer(AFromBlock) - Integer(ABackBlocks) + 1;
     LEnd := Integer(AFromBlock);
     if LStart<1 then LStart := 1; // Ensure we will get access to 0 as a previous Timestamp
     LPreviousTimestamp := SafeBox.GetBlockInfo(LStart - 1).timestamp; // Get first previous timestamp

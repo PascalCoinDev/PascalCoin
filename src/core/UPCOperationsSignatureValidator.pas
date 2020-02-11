@@ -329,7 +329,10 @@ begin
         try
           LIsValid := LOperation.IsValidSignatureBasedOnCurrentSafeboxState(FValidator.FSafeBoxTransaction);
         except
-          LIsValid := False;
+          On E:Exception do begin
+            LIsValid := False;
+            TLog.NewLog(lterror,ClassName,LOperation.ToString+' ERROR: ('+E.ClassName+') '+E.Message);
+          end;
         end;
         FValidator.SetOperationCheckResult(Self,LOperation, LIsValid);
       end;
