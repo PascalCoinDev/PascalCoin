@@ -97,7 +97,7 @@ Type
     procedure SetNode(const Value: TNode);
     function GetNode: TNode;
     procedure SetAllowMultiSelect(const Value: Boolean);
-    procedure TerminateAccountGridUpdateThread;
+    procedure TerminateAccountGridUpdateThread(AWaitUntilTerminated : Boolean);
     procedure SetAccountsGridFilter(const Value: TAccountsGridFilter);
     function GetAccountsCount: Integer;
     procedure SetAccountsGridDatasource(const Value: TAccountsGridDatasource);
@@ -343,8 +343,9 @@ begin
       end;
   Finally
     FisProcessing := False;
-    if Not Terminated then
+    if Not Terminated then begin
       Synchronize(SynchronizedOnTerminated);
+    end;
   End;
 end;
 
@@ -447,7 +448,7 @@ end;
 
 destructor TAccountsGrid.Destroy;
 begin
-  TerminateAccountGridUpdateThread;
+  TerminateAccountGridUpdateThread(True);
   FNodeNotifyEvents.Free;
   FAccountsList.Free;
   inherited;
@@ -853,12 +854,18 @@ begin
   UpdateData;
 end;
 
-procedure TAccountsGrid.TerminateAccountGridUpdateThread;
+procedure TAccountsGrid.TerminateAccountGridUpdateThread(AWaitUntilTerminated : Boolean);
+var LTmp : TAccountsGridUpdateThread;
 begin
-  if Assigned(FAccountsGridUpdateThread) then begin
-    FAccountsGridUpdateThread.Terminate;
-    FAccountsGridUpdateThread.WaitFor;
-    FreeAndNil(FAccountsGridUpdateThread);
+  LTmp := FAccountsGridUpdateThread;
+  FAccountsGridUpdateThread := Nil;
+  if Assigned(Ltmp) then begin
+    if Not AWaitUntilTerminated then LTmp.FreeOnTerminate := True;
+    LTmp.Terminate;
+    if AWaitUntilTerminated then begin
+      LTmp.WaitFor;
+      FreeAndNil(LTmp);
+    end;
   end;
 end;
 
@@ -892,7 +899,7 @@ begin
   if Assigned(Node) then begin
     case FAccountsGridDatasource of
       acds_NodeFiltered: begin
-        TerminateAccountGridUpdateThread;
+        TerminateAccountGridUpdateThread(False);
         FAccountsBalance := 0;
         FAccountsGridUpdateThread := TAccountsGridUpdateThread.Create(Self,AccountsGridFilter);
       end;
