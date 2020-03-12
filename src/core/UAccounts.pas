@@ -828,6 +828,10 @@ var LTmp : TPCHardcodedRandomHashTable;
   LInternalHardcodedSha256 : TRawBytes;
 begin
   Result := False;
+  {$IFDEF ASSUME_VALID_POW_OLD_PROTOCOLS}
+  // In this case will not use Hardcoded RandomHash Table
+  Exit;
+  {$ENDIF}
   If Not FileExists(AHardcodedFileName) then begin
     TLog.NewLog(ltdebug,ClassName,Format('Hardcoded RandomHash from file not found:%s',
       [AHardcodedFileName] ));
@@ -3383,7 +3387,11 @@ begin
               // For TESTNET increase speed purposes, will only check latests blocks
             if ((iblock + (CT_BankToDiskEveryNBlocks * 10)) >= sbHeader.blockscount) then begin
             {$ENDIF}
+              {$IFDEF ASSUME_VALID_POW_OLD_PROTOCOLS}
+              LAddToMultiThreadOperationsBlockValidator := (LUseMultiThreadOperationsBlockValidator) and (LBlock.blockchainInfo.protocol_version>=CT_PROTOCOL_5) and (Assigned(LPCOperationsBlockValidator));
+              {$ELSE}
               LAddToMultiThreadOperationsBlockValidator := (LUseMultiThreadOperationsBlockValidator) and (LBlock.blockchainInfo.protocol_version>=CT_PROTOCOL_4) and (Assigned(LPCOperationsBlockValidator));
+              {$ENDIF}
               If not IsValidNewOperationsBlock(LBlock.blockchainInfo,False,Not LAddToMultiThreadOperationsBlockValidator,aux_errors) then begin
                 errors := errors + ' > ' + aux_errors;
                 exit;
@@ -4121,11 +4129,18 @@ begin
   end;
   // proof_of_work:
   {$IFnDEF TESTING_NO_POW_CHECK}
+  {$IFDEF ASSUME_VALID_POW_OLD_PROTOCOLS}
+  if (newOperationBlock.protocol_version>=CT_PROTOCOL_5) then begin
+  {$ENDIF}
   TPascalCoinProtocol.CalcProofOfWork(newOperationBlock,pow);
   if (Not TBaseType.Equals(pow,newOperationBlock.proof_of_work)) then begin
     errors := 'Proof of work is bad calculated '+TCrypto.ToHexaString(newOperationBlock.proof_of_work)+' <> Good: '+TCrypto.ToHexaString(pow);
     exit;
   end;
+  {$IFDEF ASSUME_VALID_POW_OLD_PROTOCOLS}
+  end;
+  {$ENDIF}
+
   {$ENDIF}
   Result := true;
 end;
