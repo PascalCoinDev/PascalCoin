@@ -1904,6 +1904,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
             [i,High(chunks),Connection.ClientRemoteAddr]);
           TLog.NewLog(ltDebug,CT_LogSender,Format('Concatening chunk %d/%d',[i,High(chunks)]));
           safeboxStream.Size:=0;
+          safeboxStream.Position := 0; // Added caused by FPC 3.0.4 bug that does not update position auto when setting size=0 at a TFileStream
           chunk1.Position:=0;
           chunks[i].chunkStream.Position:=0;
           If Not TPCSafeBox.ConcatSafeBoxStream(chunk1,chunks[i].chunkStream,safeboxStream,errors) then begin
