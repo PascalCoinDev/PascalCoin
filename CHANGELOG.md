@@ -1,5 +1,10 @@
 # Changelog
 
+## Build 5.3.0 - 2020-03-12
+- Fixed "out of memory" error when downloading Safebox
+- Fixed freeze bug on GUI when updating accounts grid
+- Minor improvements for testing
+
 ## Build 5.2.0 - 2020-02-11
 - Mandatory upgrade due fixes some important security bugs
 - Fixed CryptoLib4Pascal multithreading bug

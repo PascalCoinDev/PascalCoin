@@ -57,6 +57,11 @@
 
   // This will allow check safebox names list. Warning: This will slow app
   {.$DEFINE Check_Safebox_Names_Consistency}
+  
+  // This will assume that PoW on old protocols are true and will not check, usefull after enough time to increase validation speed. 
+  // Warning: Use only on versions after enough time since last protocol upgrade and non main-node versions
+  {.$DEFINE ASSUME_VALID_POW_OLD_PROTOCOLS}
+  
 
 { ********************************************************************
   Don't touch more code, it will addapt based on your preferences
@@ -66,7 +71,7 @@
 ERROR: You must select ONLY ONE option: PRODUCTION or TESTNET
 {$ENDIF}{$ELSE}{$DEFINE PRODUCTION}{$ENDIF}
 
-{$IF (not Defined(Use_OpenSSL)) or (not Defined(Use_CryptoLib4Pascal))}
+{$IF (not Defined(Use_OpenSSL)) and (not Defined(Use_CryptoLib4Pascal))}
   {$DEFINE Use_OpenSSL}
   {$UNDEF Use_CryptoLib4Pascal}
 {$ENDIF}
