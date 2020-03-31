@@ -57,7 +57,7 @@ type
 implementation
 
 uses
-  UAccounts, UConst ;
+  UAccounts, UConst,gnugettext ;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -82,6 +82,8 @@ procedure TFRMNewPrivateKeyType.FormCreate(Sender: TObject);
 Var l : TList<Word>;
   i : Integer;
 begin
+  TranslateComponent(self);
+  //
   FGeneratedPrivateKey := Nil;
   FWalletKeys := Nil;
   ebName.Text := DateTimeToStr(now);

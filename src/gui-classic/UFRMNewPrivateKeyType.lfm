@@ -15,8 +15,7 @@ object FRMNewPrivateKeyType: TFRMNewPrivateKeyType
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '1.8.4.0'
-  Visible = False
+  LCLVersion = '2.0.2.0'
   object Label1: TLabel
     Left = 30
     Height = 13

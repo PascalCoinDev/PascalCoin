@@ -106,7 +106,7 @@ implementation
   {$R *.lfm}
 {$ENDIF}
 
-Uses UNode, UTime, UPCEncryption, UAccounts, UFRMMemoText, UBaseTypes;
+Uses UNode, UTime, UPCEncryption, UAccounts, UFRMMemoText, UBaseTypes,gnugettext;
 
 { TFRMPayloadDecoder }
 
@@ -220,6 +220,8 @@ end;
 
 procedure TFRMPayloadDecoder.FormCreate(Sender: TObject);
 begin
+  TranslateComponent(self);
+  //
   FSemaphor := true;
   try
     FWalletKeys := Nil;

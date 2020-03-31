@@ -39,6 +39,7 @@ type
   { TFRMPascalCoinWalletConfig }
 
   TFRMPascalCoinWalletConfig = class(TForm)
+     bbChangeLanguage: TBitBtn;
     cbJSONRPCMinerServerActive: TCheckBox;
     cbDownloadNewCheckpoint: TCheckBox;
     ebDefaultFee: TEdit;
@@ -72,6 +73,7 @@ type
     ebJSONRPCAllowedIPs: TEdit;
     Label6: TLabel;
     Label7: TLabel;
+    procedure bbChangeLanguageClick(Sender: TObject);
     procedure cbDownloadNewCheckpointClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure bbOkClick(Sender: TObject);
@@ -82,6 +84,7 @@ type
   private
     FAppParams: TAppParams;
     FWalletKeys: TWalletKeys;
+    FNewUILanguage:String;
     procedure SetAppParams(const Value: TAppParams);
     procedure SetWalletKeys(const Value: TWalletKeys);
     Procedure UpdateWalletConfig;
@@ -94,7 +97,7 @@ type
 
 implementation
 
-uses UConst, UAccounts, ULog, UCrypto, UNode, USettings, UGUIUtils, UNetProtocol;
+uses UConst, UAccounts, ULog, UCrypto, UNode, USettings, UGUIUtils, UNetProtocol, UFRMSelectLanguage,gnugettext;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -141,6 +144,7 @@ begin
     AppParams.ParamByName[CT_PARAM_MinFutureBlocksToDownloadNewSafebox].SetAsInteger(i);
     AppParams.ParamByName[CT_PARAM_AllowDownloadNewCheckpointIfOlderThan].SetAsBoolean(i>200);
   end else AppParams.ParamByName[CT_PARAM_AllowDownloadNewCheckpointIfOlderThan].SetAsBoolean(False);
+  AppParams.ParamByName[CT_PARAM_UILanguage].SetAsString(FNewUILanguage);
 
   ModalResult := MrOk;
 end;
@@ -194,6 +198,8 @@ end;
 
 procedure TFRMPascalCoinWalletConfig.FormCreate(Sender: TObject);
 begin
+  TranslateComponent(self);
+  //
   lblDefaultInternetServerPort.Caption := Format('(Default %d)',[CT_NetServer_Port]);
   udInternetServerPort.Position := CT_NetServer_Port;
   ebDefaultFee.Text := TAccountComp.FormatMoney(0);
@@ -210,6 +216,17 @@ procedure TFRMPascalCoinWalletConfig.cbDownloadNewCheckpointClick(
   Sender: TObject);
 begin
   UpdateWalletConfig;
+end;
+
+procedure TFRMPascalCoinWalletConfig.bbChangeLanguageClick(Sender: TObject);
+begin
+   fNewUILanguage := AppParams.ParamByName[CT_PARAM_UILanguage].GetAsString(GetCurrentLanguage);
+   fNewUILanguage := SelectUILanguage(fNewUILanguage);
+   if fNewUILanguage<>AppParams.ParamByName[CT_PARAM_UILanguage].GetAsString(GetCurrentLanguage) then // new language selected
+   begin
+     UseLanguage(fNewUILanguage);
+     RetranslateComponent(Self);
+   end;
 end;
 
 procedure TFRMPascalCoinWalletConfig.SetAppParams(const Value: TAppParams);

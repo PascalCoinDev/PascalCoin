@@ -53,6 +53,7 @@ const
   CT_PARAM_ShowHashRateAs = 'ShowHashRateAs';
   CT_PARAM_AllowDownloadNewCheckpointIfOlderThan = 'AllowDownloadNewCheckpointIfOlderThan';
   CT_PARAM_MinFutureBlocksToDownloadNewSafebox = 'MinFutureBlocksToDownloadNewSafebox';
+  CT_PARAM_UILanguage = 'UILanguage';
 
 type
 

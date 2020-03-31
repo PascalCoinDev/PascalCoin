@@ -1,12 +1,12 @@
 object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   Left = 462
-  Height = 551
+  Height = 581
   Top = 234
   Width = 374
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
   Caption = 'Options'
-  ClientHeight = 551
+  ClientHeight = 581
   ClientWidth = 374
   Color = clBtnFace
   Font.Color = clWindowText
@@ -14,7 +14,6 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   Font.Name = 'Tahoma'
   OnCreate = FormCreate
   Position = poOwnerFormCenter
-  LCLVersion = '1.8.0.6'
   object Label1: TLabel
     Left = 30
     Height = 13
@@ -115,23 +114,22 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   object bbOk: TBitBtn
     Left = 184
     Height = 30
-    Top = 500
+    Top = 530
     Width = 75
+    Caption = 'OK'
     Kind = bkOK
     ModalResult = 1
     OnClick = bbOkClick
-    Caption = 'OK'
     TabOrder = 18
   end
   object bbCancel: TBitBtn
     Left = 274
     Height = 30
-    Top = 500
+    Top = 530
     Width = 75
-    Cancel = True
+    Caption = 'Cancel'
     Kind = bkCancel
     ModalResult = 2
-    Caption = 'Cancel'
     TabOrder = 19
   end
   object udInternetServerPort: TUpDown
@@ -145,7 +143,6 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Position = 4004
     TabOrder = 3
     Thousands = False
-    Wrap = False
   end
   object ebInternetServerPort: TEdit
     Left = 170
@@ -251,7 +248,6 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Position = 4009
     TabOrder = 8
     Thousands = False
-    Wrap = False
   end
   object ebJSONRPCMinerServerPort: TEdit
     Left = 170
@@ -316,7 +312,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   object bbOpenDataFolder: TBitBtn
     Left = 16
     Height = 30
-    Top = 500
+    Top = 530
     Width = 131
     Caption = 'Open Data Folder'
     Glyph.Data = {
@@ -415,5 +411,14 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Alignment = taRightJustify
     TabOrder = 11
     Text = '0'
+  end
+  object bbChangeLanguage: TBitBtn
+    Left = 15
+    Height = 30
+    Top = 488
+    Width = 131
+    Caption = 'Change UI language'
+    OnClick = bbChangeLanguageClick
+    TabOrder = 20
   end
 end

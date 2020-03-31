@@ -14,8 +14,7 @@ object FRMWalletKeys: TFRMWalletKeys
   Font.Name = 'Tahoma'
   OnCreate = FormCreate
   Position = poOwnerFormCenter
-  LCLVersion = '1.8.4.0'
-  Visible = False
+  LCLVersion = '2.0.2.0'
   object lblEncryptionTypeCaption: TLabel
     Left = 30
     Height = 13
