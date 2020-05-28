@@ -26,7 +26,7 @@ uses
   Classes, SysUtils, daemonapp,
   SyncObjs, UOpenSSL, UCrypto, UNode, UFileStorage, UFolderHelper, UWallet, UConst, ULog, UNetProtocol,
   IniFiles, UBaseTypes,
-  UThread, URPC, UPoolMining, UAccounts;
+  UThread, URPC, UPoolMining, UAccounts, UPCDataTypes;
 
 Const
   CT_INI_SECTION_GLOBAL = 'GLOBAL';
@@ -56,6 +56,7 @@ Type
     FMaxBlockToRead: Int64;
     FLastNodesCacheUpdatedTS : TTickCount;
     procedure OnNetDataReceivedHelloMessage(Sender : TObject);
+    procedure OnInitSafeboxProgressNotify(sender : TObject; const message : String; curPos, totalCount : Int64);
   protected
     Procedure BCExecute; override;
   public
@@ -120,6 +121,12 @@ begin
   end;
   FIniFile.WriteString(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_PEERCACHE,s);
   TNode.Node.PeerCache := s;
+end;
+
+procedure TPCDaemonThread.OnInitSafeboxProgressNotify(sender: TObject;
+  const message: String; curPos, totalCount: Int64);
+begin
+  TLog.NewLog(ltdebug,ClassName,Format('Progress (%d/%d): %s',[curPos,totalCount,message]));
 end;
 
 procedure TPCDaemonThread.BCExecute;
@@ -249,7 +256,7 @@ begin
         TNetData.NetData.OnReceivedHelloMessage:=@OnNetDataReceivedHelloMessage;
         FNode.PeerCache:=  FIniFile.ReadString(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_PEERCACHE,'');
         // Reading database
-        FNode.InitSafeboxAndOperations(MaxBlockToRead);
+        FNode.InitSafeboxAndOperations(MaxBlockToRead,@OnInitSafeboxProgressNotify);
         FWalletKeys.SafeBox := FNode.Node.Bank.SafeBox;
         FNode.Node.NetServer.Port:=FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_NODE_PORT,CT_NetServer_Port);
         FNode.Node.NetServer.MaxConnections:=FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_NODE_MAX_CONNECTIONS,CT_MaxClientsConnected);

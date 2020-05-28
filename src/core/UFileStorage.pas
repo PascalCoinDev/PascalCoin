@@ -22,9 +22,11 @@ unit UFileStorage;
 
 interface
 
-uses
-  Classes, {$IFnDEF FPC}Windows,{$ENDIF} UBlockChain, SyncObjs, UThread, UAccounts, UCrypto;
 {$I ./../config.inc}
+
+uses
+  Classes, {$IFnDEF FPC}Windows,{$ENDIF} UBlockChain, SyncObjs, UThread, UAccounts, UCrypto, UPCDataTypes;
+
 
 Type
   TBlockHeader = Record
@@ -74,7 +76,7 @@ Type
     function GetFirstBlockNumber: Int64; override;
     function GetLastBlockNumber: Int64; override;
     function DoInitialize : Boolean; override;
-    Function DoCreateSafeBoxStream(blockCount : Cardinal) : TStream; override;
+    Function DoOpenSafeBoxCheckpoint(blockCount : Cardinal) : TCheckPointStruct; override;
     Procedure DoEraseStorage; override;
     Procedure DoSavePendingBufferOperations(OperationsHashTree : TOperationsHashTree); override;
     Procedure DoLoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree); override;
@@ -92,11 +94,17 @@ Type
 
 implementation
 
-Uses ULog, SysUtils, UConst;
-
+Uses ULog, SysUtils, UBaseTypes,
+  {$IFDEF USE_ABSTRACTMEM}
+  UPCAbstractMem,
+  {$ENDIF}
+  UConst;
 { TFileStorage }
 
 Const CT_TBlockHeader_NUL : TBlockHeader = (BlockNumber:0;StreamBlockRelStartPos:0;BlockSize:0);
+
+
+  CT_Safebox_Extension = {$IFDEF USE_ABSTRACTMEM}'.am_safebox'{$ELSE}'.safebox'{$ENDIF};
 
   CT_GroupBlockSize = 1000;
   CT_SizeOfBlockHeader = 16;
@@ -270,14 +278,18 @@ begin
   End;
 end;
 
-function TFileStorage.DoCreateSafeBoxStream(blockCount: Cardinal): TStream;
+function TFileStorage.DoOpenSafeBoxCheckpoint(blockCount: Cardinal): TCheckPointStruct;
 var fn : TFilename;
   err : AnsiString;
 begin
   Result := Nil;
   fn := GetSafeboxCheckpointingFileName(GetFolder(Orphan),blockCount);
   If (fn<>'') and (FileExists(fn)) then begin
+    {$IFDEF USE_ABSTRACTMEM}
+    Result := TPCAbstractMem.Create(fn,True);
+    {$ELSE}
     Result := TFileStream.Create(fn,fmOpenRead+fmShareDenyWrite);
+    {$ENDIF}
   end;
   If Not Assigned(Result) then begin
     err := 'Cannot load SafeBoxStream (block:'+IntToStr(blockCount)+') file:'+fn;
@@ -378,7 +390,7 @@ function TFileStorage.DoMoveBlockChain(Start_Block: Cardinal; const DestOrphan: 
   begin
     FileAttrs := faArchive;
     folder := GetFolder(Orphan);
-    if SysUtils.FindFirst(GetFolder(Orphan)+PathDelim+'*.safebox', FileAttrs, sr) = 0 then begin
+    if SysUtils.FindFirst(GetFolder(Orphan)+PathDelim+'*'+CT_Safebox_Extension, FileAttrs, sr) = 0 then begin
       repeat
         if (sr.Attr and FileAttrs) = FileAttrs then begin
           sourcefn := GetFolder(Orphan)+PathDelim+sr.Name;
@@ -452,28 +464,66 @@ var
     sr: TSearchRec;
     FileAttrs: Integer;
     folder : AnsiString;
-    filename,auxfn : AnsiString;
+    Lfilename,auxfn : AnsiString;
     fs : TFileStream;
     ms : TMemoryStream;
     errors : String;
-    blockscount : Cardinal;
+    LBlockscount : Cardinal;
     sbHeader, goodSbHeader : TPCSafeBoxHeader;
+    {$IFDEF USE_ABSTRACTMEM}
+    LTempBlocksCount : Integer;
+    LSafeboxFileName : String;
+    {$ELSE}
+    {$ENDIF}
 begin
   LockBlockChainStream;
   Try
+    {$IFDEF USE_ABSTRACTMEM}
+    Lfilename := '';
+    LSafeboxFileName := GetFolder(Orphan)+PathDelim+'safebox'+CT_Safebox_Extension;
+    if TPCAbstractMem.AnalyzeFile(LSafeboxFileName,LTempBlocksCount) then begin
+      LBlockscount := LTempBlocksCount;
+    end else begin
+      LBlockscount := 0;
+    end;
+    //
     FileAttrs := faArchive;
     folder := GetFolder(Orphan);
-    filename := '';
-    blockscount := 0;
+    if SysUtils.FindFirst(folder+PathDelim+'*'+CT_Safebox_Extension, FileAttrs, sr) = 0 then begin
+      repeat
+        if (sr.Attr and FileAttrs) = FileAttrs then begin
+          auxfn := folder+PathDelim+sr.Name;
+          if TPCAbstractMem.AnalyzeFile(auxfn,LTempBlocksCount) then begin
+            if (((max_block<0) Or (LTempBlocksCount<=max_block)) AND (LTempBlocksCount>LBlockscount)) then begin
+              Lfilename := auxfn;
+              LBlockscount := LTempBlocksCount;
+            end;
+          end;
+        end;
+      until FindNext(sr) <> 0;
+      FindClose(sr);
+    end;
+    if (Lfilename='') then begin
+      Bank.SafeBox.SetSafeboxFileName(LSafeboxFileName);
+    end else begin
+      Bank.SafeBox.SetSafeboxFileName(Lfilename);
+      Bank.SafeBox.UpdateSafeboxFileName(LSafeboxFileName);
+    end;
+    {$ELSE}
+    LBlockscount := 0;
+    {$ENDIF}
+    FileAttrs := faArchive;
+    folder := GetFolder(Orphan);
+    Lfilename := '';
     if SysUtils.FindFirst(folder+PathDelim+'*.safebox', FileAttrs, sr) = 0 then begin
       repeat
         if (sr.Attr and FileAttrs) = FileAttrs then begin
           auxfn := folder+PathDelim+sr.Name;
           If LoadBankFileInfo(auxfn,sbHeader) then begin
-            if (((max_block<0) Or (sbHeader.endBlock<=max_block)) AND (sbHeader.blocksCount>blockscount)) And
+            if (((max_block<0) Or (sbHeader.endBlock<=max_block)) AND (sbHeader.blocksCount>LBlockscount)) And
               (sbHeader.startBlock=0) And (sbHeader.endBlock=sbHeader.startBlock+sbHeader.blocksCount-1) then begin
-              filename := auxfn;
-              blockscount := sbHeader.blocksCount;
+              Lfilename := auxfn;
+              LBlockscount := sbHeader.blocksCount;
               goodSbHeader := sbHeader;
             end;
           end;
@@ -481,14 +531,14 @@ begin
       until FindNext(sr) <> 0;
       FindClose(sr);
     end;
-    if (filename<>'') then begin
-      TLog.NewLog(ltinfo,Self.ClassName,'Loading SafeBox protocol:'+IntToStr(goodSbHeader.protocol)+' with '+inttostr(blockscount)+' blocks from file '+filename);
-      fs := TFileStream.Create(filename,fmOpenRead);
+    if (Lfilename<>'') then begin
+      TLog.NewLog(ltinfo,Self.ClassName,'Loading SafeBox protocol:'+IntToStr(goodSbHeader.protocol)+' with '+inttostr(LBlockscount)+' blocks from file '+Lfilename+' LowMemoryUsage:'+LowMemoryUsage.ToString(True));
+      fs := TFileStream.Create(Lfilename,fmOpenRead);
       try
         fs.Position := 0;
         if LowMemoryUsage then begin
           if not Bank.LoadBankFromStream(fs,False,Nil,Nil,restoreProgressNotify,errors) then begin
-            TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+filename+ ' Error: '+errors);
+            TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+Lfilename+ ' Error: '+errors);
           end;
         end else begin
           ms := TMemoryStream.Create;
@@ -496,7 +546,7 @@ begin
             ms.CopyFrom(fs,0);
             ms.Position := 0;
             if not Bank.LoadBankFromStream(ms,False,Nil,Nil,restoreProgressNotify,errors) then begin
-              TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+filename+ ' Error: '+errors);
+              TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+Lfilename+ ' Error: '+errors);
             end;
           Finally
             ms.Free;
@@ -515,11 +565,15 @@ function TFileStorage.DoSaveBank: Boolean;
 var fs: TFileStream;
     bankfilename,aux_newfilename: AnsiString;
     ms : TMemoryStream;
+  LTC : TTickCount;
 begin
   Result := true;
   bankfilename := GetSafeboxCheckpointingFileName(GetFolder(Orphan),Bank.BlocksCount);
   if (bankfilename<>'') then begin
-    TLog.NewLog(ltInfo,ClassName,'Saving Safebox blocks:'+IntToStr(Bank.BlocksCount)+' file:'+bankfilename);
+    LTC := TPlatform.GetTickCount;
+    {$IFDEF USE_ABSTRACTMEM}
+    Bank.SafeBox.SaveCheckpointing(bankfilename);
+    {$ELSE}
     fs := TFileStream.Create(bankfilename,fmCreate);
     try
       fs.Size := 0;
@@ -539,9 +593,11 @@ begin
     finally
       fs.Free;
     end;
+    {$ENDIF}
+    TLog.NewLog(ltInfo,ClassName,Format('Saving Safebox blocks:%d file:%s in %.2n seconds',[Bank.BlocksCount,bankfilename,TPlatform.GetElapsedMilliseconds(LTC)/1000]));
     // Save a copy each 10000 blocks (aprox 1 month) only when not an orphan
     if (Orphan='') And ((Bank.BlocksCount MOD (CT_BankToDiskEveryNBlocks*100))=0) then begin
-      aux_newfilename := GetFolder('') + PathDelim+'checkpoint_'+ inttostr(Bank.BlocksCount)+'.safebox';
+      aux_newfilename := GetFolder('') + PathDelim+'checkpoint_'+ inttostr(Bank.BlocksCount)+CT_Safebox_Extension;
       try
         {$IFDEF FPC}
         DoCopyFile(bankfilename,aux_newfilename);
@@ -589,9 +645,9 @@ begin
   If not ForceDirectories(BaseDataFolder) then exit;
   if TPCSafeBox.MustSafeBoxBeSaved(block) then begin
     // We will store checkpointing
-    Result := BaseDataFolder + PathDelim+'checkpoint'+ inttostr((block DIV CT_BankToDiskEveryNBlocks) MOD CT_SafeboxsToStore)+'.safebox';
+    Result := BaseDataFolder + PathDelim+'checkpoint'+ inttostr((block DIV CT_BankToDiskEveryNBlocks) MOD CT_SafeboxsToStore)+CT_Safebox_Extension;
   end else begin
-    Result := BaseDataFolder + PathDelim+'checkpoint_'+inttostr(block)+'.safebox';
+    Result := BaseDataFolder + PathDelim+'checkpoint_'+inttostr(block)+CT_Safebox_Extension;
   end;
 end;
 
@@ -1082,7 +1138,7 @@ end;
 function TFileStorage.HasUpgradedToVersion2: Boolean;
 var searchRec: TSearchRec;
 begin
-  HasUpgradedToVersion2 := SysUtils.FindFirst( GetFolder(Orphan)+PathDelim+'*.safebox', faArchive, searchRec) = 0;
+  HasUpgradedToVersion2 := SysUtils.FindFirst( GetFolder(Orphan)+PathDelim+'*'+CT_Safebox_Extension, faArchive, searchRec) = 0;
   FindClose(searchRec);
 end;
 

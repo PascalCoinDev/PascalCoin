@@ -39,6 +39,7 @@ Type
 
 implementation
 
+uses UPCDataTypes;
 
 { TRPCFindAccounts }
 
@@ -142,8 +143,8 @@ var
   LAccountNumber : Integer;
   LRaw : TRawBytes;
   LSearchByPubkey : Boolean;
-  LStart, LMax,
-  iPubKey : Integer;
+  LStart, LMax : Integer;
+  LAccountsNumbersList : TAccountsNumbersList;
   LAccount : TAccount;
   i : Integer;
   LErrors : String;
@@ -232,8 +233,8 @@ begin
       Exit;
     end;
     LSearchByPubkey := True;
-    iPubKey := ASender.Node.Bank.SafeBox.OrderedAccountKeysList.IndexOfAccountKey(LAccPubKey);
-    if (iPubKey<0) then begin
+    LAccountsNumbersList := ASender.Node.Bank.SafeBox.OrderedAccountKeysList.GetAccountsUsingThisKey(LAccPubKey);
+    if (Not Assigned(LAccountsNumbersList)) then begin
       // No account available with this pubkey, exit
       Result := True;
       Exit;
@@ -272,8 +273,8 @@ begin
     // Search by type-forSale-balance
     for i := LStart to ASender.Node.Bank.AccountsCount - 1 do begin
       if (LSearchByPubkey) then begin
-        if (i>=ASender.Node.Bank.SafeBox.OrderedAccountKeysList.AccountKeyList[iPubKey].Count) then Break;
-        LAccount := ASender.Node.GetMempoolAccount( ASender.Node.Bank.SafeBox.OrderedAccountKeysList.AccountKeyList[iPubKey].Get(i) );
+        if (i>=LAccountsNumbersList.Count) then Break;
+        LAccount := ASender.Node.GetMempoolAccount( LAccountsNumbersList.Get(i) );
       end else begin
         LAccount := ASender.Node.GetMempoolAccount(i);
       end;

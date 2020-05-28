@@ -33,7 +33,7 @@ interface
 {$ENDIF}
 
 Uses Classes, UThread, UAccounts, UBlockChain, UNetProtocol, SysUtils, UNode,
-  UWallet, UNetProtection,
+  UWallet, UNetProtection, UPCDataTypes,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 type
