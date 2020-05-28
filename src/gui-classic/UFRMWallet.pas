@@ -34,7 +34,7 @@ uses
   ExtCtrls, ComCtrls, UWallet, StdCtrls, ULog, Grids, UAppParams, UBlockChain,
   UNode, UGridUtils, UJSONFunctions, UAccounts, Menus, ImgList, UNetProtocol,
   UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect, UConst,
-  UAccountKeyStorage, UBaseTypes, UPCDataTypes,
+  UAccountKeyStorage, UBaseTypes, UPCDataTypes, UOrderedList,
   UFRMRPCCalls, UTxMultiOperation,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
@@ -338,6 +338,7 @@ Uses UFolderHelper,
   UPCTNetDataExtraMessages,
   UFRMDiagnosticTool,
   {$ENDIF}
+  UAbstractBTree,
   UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText,
   USettings, UCommon, UPCOrderedLists;
 
@@ -393,6 +394,8 @@ begin
     ExtractFileDir(Application.ExeName)+PathDelim+CT_Hardcoded_RandomHash_Table_Filename,
     LRaw );
   {$ENDIF}
+  FLastTC := 0;
+  OnProgressNotify(Self,'Initializing databases',0,0);
   // Read Operations saved from disk
   TNode.Node.InitSafeboxAndOperations($FFFFFFFF,OnProgressNotify); // New Build 2.1.4 to load pending operations buffer
   TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
@@ -1207,6 +1210,7 @@ begin
           TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(acc.accountInfo.new_publicKey))]));
       end;
     end;
+    {$IFnDEF USE_ABSTRACTMEM}
     l := TAccountKeyStorage.KS.LockList;
     try
       sl.Add(Format('%d public keys in TAccountKeyStorage data',[l.count]));
@@ -1240,6 +1244,7 @@ begin
         ak.EC_OpenSSL_NID,
         TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(ak)) ]));
     end;
+    {$ENDIF}
     F := TFRMMemoText.Create(Self);
     try
       F.InitData('Keys in safebox',sl.Text);
@@ -2558,7 +2563,7 @@ begin
     FLog.OnNewLog := Nil;
     if PageControl.ActivePage = tsLogs then PageControl.ActivePage := tsMyAccounts;
   end else FLog.OnNewLog := OnNewLog;
-  if FAppParams.ParamByName[CT_PARAM_SaveLogFiles].GetAsBoolean(false) then begin
+  if (FAppParams.ParamByName[CT_PARAM_SaveLogFiles].GetAsBoolean(false)) then begin
     if FAppParams.ParamByName[CT_PARAM_SaveDebugLogs].GetAsBoolean(false) then FLog.SaveTypes := CT_TLogTypes_ALL
     else FLog.SaveTypes := CT_TLogTypes_DEFAULT;
     FLog.FileName := TNode.GetPascalCoinDataFolder+PathDelim+'PascalCointWallet.log';

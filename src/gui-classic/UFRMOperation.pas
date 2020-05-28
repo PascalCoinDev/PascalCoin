@@ -32,7 +32,7 @@ uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UNode, UWallet, UCrypto, Buttons, UBlockChain,
   UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UFRMMemoText,
-  UPCEncryption, UBaseTypes, UPCOrderedLists;
+  UPCEncryption, UBaseTypes, UPCDataTypes, UPCOrderedLists;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -192,7 +192,7 @@ implementation
 
 uses
   UConst, UOpTransaction, UFRMNewPrivateKeyType, UFRMWalletKeys, UFRMHashLock,
-  UCommon, UPCDataTypes, ULog, UGUIUtils;
+  UCommon, ULog, UGUIUtils;
 
 {$IFnDEF FPC}
   {$R *.dfm}
