@@ -2288,6 +2288,7 @@ begin
   Result.block_hash := CalcBlockHash(Result,FCurrentProtocol);
   If Assigned(FPreviousSafeBox) then begin
     FModifiedBlocksSeparatedChain.Add(Result);
+    BufferBlocksHash.Add(Result.block_hash[Low(Result.block_hash)],Length(Result.block_hash));
   end else begin
     {$IFDEF USE_ABSTRACTMEM}
     FPCAbstractMem.AddBlockAccount(Result);
@@ -3592,7 +3593,7 @@ begin
       finally
         LPCOperationsBlockValidator.Free;
       end;
-      if (Assigned(progressNotify)) or (sbHeader.ContainsLastBlock) then begin
+      if (Assigned(progressNotify)) And (sbHeader.ContainsLastBlock) then begin
         progressNotify(Self,'Checking Safebox integrity',(sbHeader.endBlock-sbHeader.startBlock+1),(sbHeader.endBlock-sbHeader.startBlock+1));
       end;
       If checkAll then begin
