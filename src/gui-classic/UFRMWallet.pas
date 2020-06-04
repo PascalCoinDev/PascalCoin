@@ -250,6 +250,7 @@ type
     {$IFDEF TESTING_NO_POW_CHECK}
     Procedure Test_CreateABlock(Sender: TObject);
     {$ENDIF}
+    Procedure Test_ConnectDisconnect(Sender: TObject);
     {$ENDIF}
     Procedure Test_ShowPublicKeys(Sender: TObject);
     Procedure Test_ShowOperationsInMemory(Sender: TObject);
@@ -1092,8 +1093,15 @@ begin
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Create a block';
   mi.OnClick:=Test_CreateABlock;
+  mi.ShortCut := TextToShortCut('CTRL+B');
   miAbout.Add(mi);
   {$ENDIF}
+  mi := TMenuItem.Create(MainMenu);
+  mi.Caption:='Connect/Disconnect';
+  mi.OnClick:=Test_ConnectDisconnect;
+  mi.ShortCut := TextToShortCut('CTRL+D');
+  miAbout.Add(mi);
+
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Create Random operations';
   mi.OnClick:=Test_RandomOperations;
@@ -1123,19 +1131,25 @@ end;
 
 {$IFDEF TESTING_NO_POW_CHECK}
 procedure TFRMWallet.Test_CreateABlock(Sender: TObject);
-var ops : TPCOperationsComp;
+var ops, mempoolOps : TPCOperationsComp;
   nba : TBlockAccount;
-  errors : AnsiString;
+  errors : String;
+
 begin
   {$IFDEF TESTNET}
   ops := TPCOperationsComp.Create(Nil);
   Try
     ops.bank := FNode.Bank;
-    ops.CopyFrom(FNode.Operations);
-    ops.BlockPayload:=IntToStr(FNode.Bank.BlocksCount);
+    mempoolOps := FNode.LockMempoolRead;
+    try
+      ops.CopyFrom(mempoolOps);
+    finally
+      FNode.UnlockMempoolRead;
+    end;
+    ops.BlockPayload.FromString(IntToStr(FNode.Bank.BlocksCount));
     ops.nonce := FNode.Bank.BlocksCount;
     ops.UpdateTimestamp;
-    FNode.AddNewBlockChain(Nil,ops,nba,errors);
+    FNode.AddNewBlockChain(Nil,ops,errors);
   finally
     ops.Free;
   end;
@@ -1146,6 +1160,18 @@ end;
 {$ENDIF}
 
 {$IFDEF TESTNET}
+
+procedure TFRMWallet.Test_ConnectDisconnect(Sender: TObject);
+begin
+  TNetData.NetData.NetConnectionsActive := Not TNetData.NetData.NetConnectionsActive;
+  Exit;
+  if FNode.NetServer.Active then begin
+    FNode.NetServer.Active := False;
+  end else begin
+    FNode.NetServer.Active := True;
+  end;
+end;
+
 procedure TFRMWallet.Test_RandomOperations(Sender: TObject);
 Var FRM : TFRMRandomOperations;
 begin
