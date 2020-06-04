@@ -27,6 +27,8 @@ uses
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Type
+  EOrderedList = Class(Exception);
+
   TCardinalsArray = Array of Cardinal;
 
   // Maintans a Cardinal ordered (without duplicates) list with TRawData each
@@ -298,6 +300,7 @@ end;
 procedure TOrderedRawList.Delete(index: Integer);
 Var P : PRawListData;
 begin
+  if (index<0) or (index>=FList.Count) then raise EOrderedList.Create(Format('Index %d out of range 0..%d',[index,FList.Count-1]));
   P := PRawListData(FList[index]);
   FList.Delete(index);
   Dispose(P);
@@ -337,11 +340,13 @@ end;
 
 function TOrderedRawList.Get(index: Integer): TRawBytes;
 begin
-  Result := PRawListData(FList[index])^.RawData;
+  if (index<0) or (index>=FList.Count) then raise EOrderedList.Create(Format('Index %d out of range 0..%d',[index,FList.Count-1]));
+  Result := Copy(PRawListData(FList[index])^.RawData);
 end;
 
 function TOrderedRawList.GetTag(index: Integer): Integer;
 begin
+  if (index<0) or (index>=FList.Count) then raise EOrderedList.Create(Format('Index %d out of range 0..%d',[index,FList.Count-1]));
   Result := PRawListData(FList[index])^.tag;
 end;
 

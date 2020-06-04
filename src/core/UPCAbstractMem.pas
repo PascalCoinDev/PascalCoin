@@ -47,7 +47,6 @@ type
   private
     FPCAbstractMem: TPCAbstractMem;
   protected
-    FAccounts: TPCAbstractMemListAccounts;
     function ToString(const AItem: TAccountNameInfo): string; override;
 
     procedure LoadFrom(const ABytes: TBytes; var AItem: TAccountNameInfo); override;
@@ -93,6 +92,7 @@ type
     Constructor Create(APCAbstractMem : TPCAbstractMem);
     Destructor Destroy;
     procedure Restart;
+    property Errors : TStrings read FErrors;
   End;
 
   TAccountCache = Class(TAVLCache<TAccount>)
@@ -121,7 +121,8 @@ type
     procedure AddBlockInfo(const ABlock : TOperationBlockExt);
     procedure SetBlockInfo(const ABlock : TOperationBlockExt);
     function DoInit(out AIsNewStructure : Boolean) : Boolean;
-
+  protected
+    procedure UpgradeAbstractMemVersion(const ACurrentHeaderVersion : Integer);
   public
     constructor Create(const ASafeboxFileName: string; AReadOnly: boolean);
     class function AnalyzeFile(const ASafeboxFileName: string; var ABlocksCount : Integer) : Boolean;
@@ -153,13 +154,17 @@ type
     procedure SaveToFile(const ASaveToFileName : String);
     procedure UpdateSafeboxFileName(const ANewSafeboxFileName : String);
     property AccountCache : TAccountCache read FAccountCache;
+    property FileName : String read FFileName;
+    procedure EraseData;
   end;
 
 implementation
 
+uses UAccounts;
 
 const
   CT_PCAbstractMem_FileVersion = CT_PROTOCOL_5;
+  CT_PCAbstractMem_HeaderVersion = 1;
 
 function _AccountCache_Comparision(const Left, Right: TAccountCache.PAVLCacheMemData): Integer;
 begin
@@ -284,6 +289,10 @@ begin
     LStream.Read( AItem.account_type ,2);
     AItem.account_data.FromSerialized( LStream );
     if AItem.account_seal.FromSerialized( LStream )<0 then raise EPCAbstractMem.Create('INCONSISTENT 20200318-4');
+    // Force account_seal to 20 bytes
+    if Length(AItem.account_seal)<>20 then begin
+      AItem.account_seal := TBaseType.T20BytesToRawBytes( TBaseType.To20Bytes(AItem.account_seal) );
+    end;
   Finally
     LStream.Free;
   End;
@@ -294,7 +303,6 @@ var LStream : TStream;
   LPointer : TAbstractMemPosition;
   w : Word;
   LPrevious : TAccount;
-  LAddNewNameToAccountNamesList : Boolean;
 begin
   if (Length(ABytes)>0) and (Not AIsAddingItem) then begin
     // Capture previous values
@@ -305,12 +313,7 @@ begin
       // Remove previous account link
       FPCAbstractMem.FAccountKeys.GetPositionOfKeyAndRemoveAccount( LPrevious.accountInfo.accountKey, LPrevious.account );
     end;
-    if (Length(LPrevious.name)>0) and (Not LPrevious.name.IsEqualTo(AItem.name)) then begin
-      // Remove previous name
-      FPCAbstractMem.FAccountsNames.Remove(LPrevious.name.ToString);
-      LAddNewNameToAccountNamesList := True;
-    end else LAddNewNameToAccountNamesList := False;
-  end else LAddNewNameToAccountNamesList := True;
+  end;
 
   LStream := TMemoryStream.Create;
   try
@@ -355,9 +358,6 @@ begin
     LStream.Write( AItem.n_operation , 4);
 
     AItem.name.ToSerialized( LStream );
-    if (Length(AItem.name)>0) and (LAddNewNameToAccountNamesList) then begin
-      FPCAbstractMem.FAccountsNames.Add(AItem.name.ToString,AItem.account);
-    end;
 
     LStream.Write( AItem.account_type ,2);
     AItem.account_data.ToSerialized( LStream );
@@ -374,6 +374,28 @@ end;
 
 function TPCAbstractMem.CheckConsistency(AReport: TStrings) : Boolean;
 begin
+  AReport.Clear;
+  FLockAbstractMem.Acquire;
+  Try
+    if Assigned(FCheckingThread) then begin
+      FCheckingThread.Terminate;
+      FCheckingThread.WaitFor;
+      FreeAndNil(FCheckingThread);
+    end;
+
+    if Not Assigned(FCheckingThread) then begin
+      FCheckingThread := TPCAbstractMemCheckThread.Create(Self);
+    end;
+    while Not FCheckingThread.Terminated do Sleep(1);
+    AReport.Assign( FCheckingThread.Errors );
+
+    FCheckingThread.Terminate;
+    FCheckingThread.WaitFor;
+    FreeAndNil(FCheckingThread);
+  Finally
+    FLockAbstractMem.Release;
+  End;
+  Result := AReport.Count=0;
 end;
 
 procedure TPCAbstractMem.CopyFrom(ASource: TPCAbstractMem);
@@ -386,9 +408,10 @@ end;
 
 function TPCAbstractMem.DoInit(out AIsNewStructure : Boolean) : Boolean;
 const
+  CT_HEADER_MIN_SIZE = 100;
   CT_HEADER_STRING = 'TPCAbstractMem'; // Do not localize/modify. Fixed 14 bytes!
   {
-  Header:
+  Header: 0..99 = 100 Bytes (CT_HEADER_MIN_SIZE)
   [ 0..13] 14 bytes: Literal "TPCAbstractMem"
   [14..15] 2 bytes: Protocol version
   [16..19] 4 bytes: LZoneBlocks.position
@@ -397,8 +420,8 @@ const
   [28..31] 4 bytes: LZoneAccountKeys.position
   [32..35] 4 bytes: FZoneAggregatedHashrate.position
   [36..39] 4 bytes: LZoneBuffersBlockHash
-
-
+  ...
+  [96..99] 4 bytes: Header version
   }
 var LZone,
   LZoneBlocks,
@@ -410,6 +433,7 @@ var LZone,
   LIsGood : Boolean;
   w : Word;
   i : Integer;
+  LHeaderVersion : UInt32;
 begin
   // Free
   FreeAndNil(FBlocks);
@@ -430,7 +454,7 @@ begin
 
   if (FAbstractMem.ReadFirstData(LZone,LHeader)) then begin
     // Check if header is valid:
-    if Length(LHeader)>=100 then begin
+    if Length(LHeader)>=CT_HEADER_MIN_SIZE then begin
       LIsGood := True;
       i := 0;
       while (LIsGood) and (i<CT_HEADER_STRING.Length) do begin
@@ -449,14 +473,19 @@ begin
         Move(LHeader[28], LZoneAccountKeys.position, 4);
         Move(LHeader[32], FZoneAggregatedHashrate.position, 4);
         LZoneBuffersBlockHash := LZone.position + 36;
-        AIsNewStructure := False;
+        Move(LHeader[96], LHeaderVersion, 4);
+        if (LHeaderVersion>CT_PCAbstractMem_HeaderVersion) then begin
+          TLog.NewLog(lterror,ClassName,Format('Header version readed %d is greater than expected %d',[LHeaderVersion,CT_PCAbstractMem_HeaderVersion]));
+        end else begin
+          AIsNewStructure := False;
+        end;
       end;
     end;
   end;
   if (Not FAbstractMem.ReadOnly) and (AIsNewStructure) then begin
     // Initialize struct
     FAbstractMem.ClearContent;
-    LZone := FAbstractMem.New( 100 );  // Header zone
+    LZone := FAbstractMem.New( CT_HEADER_MIN_SIZE );  // Header zone
     SetLength(LHeader,100);
     FillChar(LHeader[0],Length(LHeader),0);
     //
@@ -476,8 +505,11 @@ begin
     Move(LZoneAccountsNames.position,LHeader[24],4);
     Move(LZoneAccountKeys.position,  LHeader[28],4);
     Move(FZoneAggregatedHashrate.position,LHeader[32],4);
+    LHeaderVersion := CT_PCAbstractMem_HeaderVersion;
+    Move(LHeaderVersion,             LHeader[96],4);
 
     FAbstractMem.Write(LZone.position,LHeader[0],Length(LHeader));
+
   end;
   // Free
   FreeAndNil(FBlocks);
@@ -498,6 +530,24 @@ begin
   FBufferBlocksHash := TPCAbstractMemBytesBuffer32Safebox.Create(FAbstractMem,LZoneBuffersBlockHash,FBlocks.Count);
 
   FAccountCache.Clear;
+
+  if (Not AIsNewStructure) And (Not FAbstractMem.ReadOnly) And (LHeaderVersion<CT_PCAbstractMem_HeaderVersion) then begin
+    UpgradeAbstractMemVersion( LHeaderVersion );
+    // Set for future
+    LHeaderVersion := CT_PCAbstractMem_HeaderVersion;
+    Move(LHeaderVersion,             LHeader[96],4);
+    FAbstractMem.Write(LZone.position,LHeader[0],Length(LHeader));
+  end;
+
+end;
+
+procedure TPCAbstractMem.EraseData;
+var
+  LIsNewStructure : Boolean;
+begin
+  FlushCache;
+  FAbstractMem.ClearContent;
+  DoInit(LIsNewStructure);
 end;
 
 constructor TPCAbstractMem.Create(const ASafeboxFileName: string; AReadOnly: boolean);
@@ -511,7 +561,7 @@ begin
   FAggregatedHashrate := TBigNum.Create(0);
   FFileName := ASafeboxFileName;
   if (FFileName<>'') {and (FileExists(ASafeboxFileName))} then begin
-    FAbstractMem := TFileMem.Create( ASafeboxFileName , AReadOnly)
+    FAbstractMem := TFileMem.Create( ASafeboxFileName , AReadOnly);
   end else begin
     FAbstractMem := TMem.Create(0,AReadOnly);
   end;
@@ -522,7 +572,7 @@ begin
 
   DoInit(LIsNewStructure);
   //
-  if ((BlocksCount>0) And (ASafeboxFileName<>'')) Or (Not LIsNewStructure) then begin
+  if (Not AReadOnly) and (((BlocksCount>0) And (ASafeboxFileName<>'')) Or (Not LIsNewStructure)) then begin
     TLog.NewLog(ltdebug,ClassName,Format('Opened PascalCoin AbstractMem File with %d blocks %d accounts %s aggregated hashrate and buffer %d size (%d blocks) at file: %s',
       [BlocksCount,AccountsCount,FAggregatedHashrate.ToDecimal,FBufferBlocksHash.Length,FBufferBlocksHash.Length DIV 32,ASafeboxFileName]));
   end;
@@ -559,6 +609,7 @@ begin
     end;
   end;
   FreeAndNil(FAbstractMem);
+
 
   FreeAndNil(FLockAbstractMem);
 
@@ -666,15 +717,28 @@ end;
 
 procedure TPCAbstractMem.SetBlockAccount(const ABlockAccount: TBlockAccount);
 var i : Integer;
-  LOpBlockExt :  TOperationBlockExt;
+  LOpBlockExt, LSavedOpBlockExt :  TOperationBlockExt;
+  LSavedAccount : TAccount;
 begin
-  LOpBlockExt.operationBlock := ABlockAccount.blockchainInfo;
-  LOpBlockExt.accumulatedWork := ABlockAccount.accumulatedWork;
-  SetBlockInfo(LOpBlockExt);
-  for i := Low(ABlockAccount.accounts) to High(ABlockAccount.accounts) do begin
-    SetAccount( ABlockAccount.accounts[i] );
-  end;
-  FBufferBlocksHash.Replace(ABlockAccount.blockchainInfo.block * 32, ABlockAccount.block_hash);
+  if ABlockAccount.blockchainInfo.block=BlocksCount then AddBlockAccount(ABlockAccount)
+  else if ABlockAccount.blockchainInfo.block<BlocksCount then begin
+    LOpBlockExt.operationBlock := ABlockAccount.blockchainInfo;
+    LOpBlockExt.accumulatedWork := ABlockAccount.accumulatedWork;
+    LSavedOpBlockExt := GetBlockInfo( ABlockAccount.blockchainInfo.block );
+    if (Not TAccountComp.EqualOperationBlocks( LOpBlockExt.operationBlock, LSavedOpBlockExt.operationBlock ))
+       or (LOpBlockExt.accumulatedWork <> LSavedOpBlockExt.accumulatedWork) then begin
+      SetBlockInfo(LOpBlockExt);
+    end;
+    for i := Low(ABlockAccount.accounts) to High(ABlockAccount.accounts) do begin
+      if TAccountComp.AccountBlock(ABlockAccount.accounts[i].account)<>ABlockAccount.blockchainInfo.block then
+        raise EPCAbstractMem.Create(Format('Account %d is not valid for block %d',[ABlockAccount.accounts[i].account,ABlockAccount.blockchainInfo.block]));
+      LSavedAccount := GetAccount(ABlockAccount.accounts[i].account);
+      if Not TAccountComp.EqualAccounts(LSavedAccount, ABlockAccount.accounts[i]) then begin
+        SetAccount( ABlockAccount.accounts[i] );
+      end;
+    end;
+    FBufferBlocksHash.Replace(ABlockAccount.blockchainInfo.block * 32, ABlockAccount.block_hash);
+  end else raise EPCAbstractMem.Create(Format('Cannot add Block %d on %d count list',[ABlockAccount.blockchainInfo.block,BlocksCount]));
 end;
 
 procedure TPCAbstractMem.AddBlockInfo(const ABlock : TOperationBlockExt);
@@ -733,6 +797,32 @@ begin
   DoInit(Ltmp);
 end;
 
+procedure TPCAbstractMem.UpgradeAbstractMemVersion(const ACurrentHeaderVersion: Integer);
+var LFirstTC, LTC : TTickCount;
+  i : integer;
+  LAccount : TAccount;
+begin
+  LFirstTC := TPlatform.GetTickCount;
+  LTC := LFirstTC;
+  if (ACurrentHeaderVersion=0) then begin
+    // Redo AccountNames
+    TLog.NewLog(ltinfo,ClassName,Format('Upgrade AbstractMem file from %d to %d with %d Accounts and %d AccNames',[ACurrentHeaderVersion,CT_PCAbstractMem_HeaderVersion, AccountsCount, AccountsNames.Count]));
+    AccountsNames.Clear;
+    for i := 0 to AccountsCount-1 do begin
+      LAccount := GetAccount(i);
+      if Length(LAccount.name)>0 then begin
+        AccountsNames.Add( LAccount.name.ToString, LAccount.account );
+      end;
+      if TPlatform.GetElapsedMilliseconds(LTC)>5000 then begin
+        LTC := TPlatform.GetTickCount;
+        TLog.NewLog(ltdebug,ClassName,Format('Upgrading %d/%d found %d',[i,AccountsCount,AccountsNames.Count]));
+      end;
+    end;
+    TLog.NewLog(ltdebug,ClassName,Format('End upgrade found %d',[AccountsNames.Count]));
+  end;
+  TLog.NewLog(ltinfo,ClassName,Format('Finalized upgrade AbstractMem file from %d to %d in %.2f seconds',[ACurrentHeaderVersion,CT_PCAbstractMem_HeaderVersion, TPlatform.GetElapsedMilliseconds(LFirstTC)/1000]));
+end;
+
 function TPCAbstractMem.BlocksCount: integer;
 begin
   Result := FBlocks.Count;
@@ -761,7 +851,7 @@ var i : Integer;
 begin
   LBlAcc := GetBlockAccount(ABlockNumber);
   FBlocks.Delete(ABlockNumber);
-  for i := Low(LBlAcc.accounts) to High(LBlAcc.accounts) do begin
+  for i := High(LBlAcc.accounts) downto Low(LBlAcc.accounts) do begin
     FAccounts.Delete(LBlAcc.accounts[i].account );
   end;
   LExtract := FBufferBlocksHash.Capture((ABlockNumber+1)*32,32);
@@ -1047,8 +1137,7 @@ begin
     LAggregatedHashrate.Free;
   end;
 
-  TLog.NewLog(ltDebug,ClassName,Format('Finalized checking consistency at %d blocks in %.2f milis',[iBlock+1,FPCAbstractMem.BlocksCount,TPlatform.GetElapsedMilliseconds(LTCInitial)]));
-  FPCAbstractMem.CheckConsistency(FErrors);
+  TLog.NewLog(ltDebug,ClassName,Format('Finalized checking consistency at %d %d blocks in %.2f sec',[iBlock+1,FPCAbstractMem.BlocksCount,TPlatform.GetElapsedMilliseconds(LTCInitial)/1000]));
 end;
 
 constructor TPCAbstractMemCheckThread.Create(APCAbstractMem: TPCAbstractMem);
@@ -1065,9 +1154,8 @@ begin
   FErrorsCount := 0;
   FErrors := TStringList.Create;
   FMustRestart := False;
-  FreeOnTerminate := True;
   inherited Create(True);
-  FreeOnTerminate := True;
+  FreeOnTerminate := False;
   Suspended := False;
 end;
 

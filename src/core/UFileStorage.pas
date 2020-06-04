@@ -390,7 +390,7 @@ function TFileStorage.DoMoveBlockChain(Start_Block: Cardinal; const DestOrphan: 
   begin
     FileAttrs := faArchive;
     folder := GetFolder(Orphan);
-    if SysUtils.FindFirst(GetFolder(Orphan)+PathDelim+'*'+CT_Safebox_Extension, FileAttrs, sr) = 0 then begin
+    if SysUtils.FindFirst(GetFolder(Orphan)+PathDelim+'checkpoint*'+CT_Safebox_Extension, FileAttrs, sr) = 0 then begin
       repeat
         if (sr.Attr and FileAttrs) = FileAttrs then begin
           sourcefn := GetFolder(Orphan)+PathDelim+sr.Name;
@@ -488,8 +488,8 @@ begin
     end;
     //
     FileAttrs := faArchive;
-    folder := GetFolder(Orphan);
-    if SysUtils.FindFirst(folder+PathDelim+'*'+CT_Safebox_Extension, FileAttrs, sr) = 0 then begin
+    folder := GetFolder(''); /// Without Orphan folder
+    if SysUtils.FindFirst(folder+PathDelim+'checkpoint*'+CT_Safebox_Extension, FileAttrs, sr) = 0 then begin
       repeat
         if (sr.Attr and FileAttrs) = FileAttrs then begin
           auxfn := folder+PathDelim+sr.Name;

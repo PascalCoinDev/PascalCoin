@@ -950,7 +950,7 @@ begin
     try
       Clear;
       Storage.Initialize;
-      If (max_block<Storage.LastBlock) then n := max_block
+      If (max_block<Storage.LastBlock) or (Storage.LastBlock<0) then n := max_block
       else n := Storage.LastBlock;
 
       Storage.RestoreBank(n,restoreProgressNotify);

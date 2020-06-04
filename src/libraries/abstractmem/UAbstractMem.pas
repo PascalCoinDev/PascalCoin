@@ -243,11 +243,17 @@ begin
   // Will erase ALL content creating a new null header
   if FReadOnly then raise EAbstractMem.Create('Cannot ClearContent on a ReadOnly AbstractMem');
   CheckInitialized(True);
-  //
+
+  FNextAvailablePos := CT_HeaderSize; // By Default
+
+  FMaxAvailablePos := 0;
+  IncreaseSize(0);
+
+  FHeaderInitialized := False;
+  CheckInitialized(True);
+
   LNewRoot.Clear;
   FMemLeaks.SetRoot( LNewRoot );
-  FNextAvailablePos := CT_HeaderSize;
-  SaveHeader;
 end;
 
 procedure TAbstractMem.CopyFrom(ASource: TAbstractMem);
@@ -426,7 +432,7 @@ begin
   //
   FNextAvailablePos := LTmpNextAvailablePos;
   FMaxAvailablePos := LTmpMaxAvailablePos;
-  SaveHeader;
+  if ANeedSize>0 then SaveHeader;
 end;
 
 function TAbstractMem.IsAbstractMemInfoStable: Boolean;
@@ -812,7 +818,12 @@ end;
 
 procedure TMem.DoIncreaseSize(var ANextAvailablePos, AMaxAvailablePos: Integer; ANeedSize: Integer);
 begin
+  if (ANeedSize<=0) And (AMaxAvailablePos<=0) then begin
+    SetLength(FMem,0); // Reset
+    Exit;
+  end;
   AMaxAvailablePos := Length(FMem);
+  if (AMaxAvailablePos-ANextAvailablePos+1 >= ANeedSize) then Exit;
 
   ANeedSize := (((ANeedSize-1) DIV 256)+1)*256;
 

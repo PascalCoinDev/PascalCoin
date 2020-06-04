@@ -163,6 +163,7 @@ Type
     procedure CleanNodeServersList;
     Function LockList : TList<Pointer>;
     Procedure UnlockList;
+    procedure ResetConnectAttempts;
     function IsBlackListed(const ip: String): Boolean;
     function GetNodeServerAddress(const ip : String; port:Word; CanAdd : Boolean; var nodeServerAddress : TNodeServerAddress) : Boolean;
     procedure SetNodeServerAddress(const nodeServerAddress : TNodeServerAddress);
@@ -846,6 +847,25 @@ function TOrderedServerAddressListTS.LockList: TList<Pointer>;
 begin
   FCritical.Acquire;
   Result := FListByIp;
+end;
+
+procedure TOrderedServerAddressListTS.ResetConnectAttempts;
+Var P : PNodeServerAddress;
+  i : Integer;
+begin
+  CleanNodeServersList;
+  FCritical.Acquire;
+  Try
+    for i := FListByIp.Count - 1 downto 0 do begin
+      P := FListByIp[i];
+      P^.last_connection := 0;
+      P^.last_connection_by_server := 0;
+      P^.last_connection_by_me := 0;
+      P^.last_attempt_to_connect := 0;
+    end;
+  Finally
+    FCritical.Release;
+  End;
 end;
 
 procedure TOrderedServerAddressListTS.SecuredDeleteFromListByIp(index: Integer);
@@ -1627,13 +1647,24 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       Bank.Storage.Orphan := TNode.Node.Bank.Storage.Orphan;
       Bank.Storage.ReadOnly := true;
       Bank.Storage.CopyConfiguration(TNode.Node.Bank.Storage);
+
+
       if start_block>=0 then begin
         If (TNode.Node.Bank.SafeBox.HasSnapshotForBlock(start_block-1)) then begin
           // Restore from a Snapshot (New on V3) instead of restore reading from File
           Bank.SafeBox.SetToPrevious(TNode.Node.Bank.SafeBox,start_block-1);
           Bank.UpdateValuesFromSafebox;
           IsUsingSnapshot := True;
+
+          Bank.Storage.Orphan := FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now));
+          Bank.Storage.ReadOnly := false;
+
         end else begin
+          {$IFDEF USE_ABSTRACTMEM}
+          Bank.Storage.Orphan := FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now));
+          Bank.Storage.ReadOnly := false;
+          {$ENDIF}
+
           // Restore a part from disk
           Bank.DiskRestoreFromOperations(start_block-1);
           Bank.Storage.SaveBank(True);
@@ -1649,8 +1680,10 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
         start_block := 0;
       end;
       start_c := start;
-      Bank.Storage.Orphan := FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now));
-      Bank.Storage.ReadOnly := false;
+      if Bank.Storage.ReadOnly then begin
+        Bank.Storage.Orphan := FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now));
+        Bank.Storage.ReadOnly := false;
+      end;
       // Receive new blocks:
       finished := false;
       repeat
@@ -1740,6 +1773,11 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
               {$ENDIF}
             end else begin
               TLog.NewLog(ltInfo,CT_LogSender,'Restoring modified Safebox from Disk');
+
+              {$IFDEF USE_ABSTRACTMEM}
+              TNode.Node.Bank.SafeBox.ClearSafeboxfile;
+              {$ELSE}
+              {$ENDIF}
               TNode.Node.Bank.DiskRestoreFromOperations(CT_MaxBlock);
             end;
           Finally
@@ -2327,6 +2365,8 @@ begin
   NotifyConnectivityChanged;
   if FNetConnectionsActive then DiscoverServers
   else DisconnectClients;
+  TNode.Node.NetServer.Active := Value;
+  NotifyConnectivityChanged;
 end;
 
 function TNetData.UnRegisterRequest(Sender: TNetConnection; operation: Word; request_id: Cardinal): Boolean;
@@ -2436,6 +2476,7 @@ begin
   inherited;
   if Active then begin
     // TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
+    TNetData.NetData.NodeServersAddresses.ResetConnectAttempts;
   end else if TNetData.NetDataExists then begin
     TNetData.NetData.DisconnectClients;
   end;
@@ -3156,7 +3197,7 @@ begin
       FreeAndNil(Labstracmem);
     end;
     {$ELSE}
-    sbStream := TNode.Node.Bank.Storage.CreateSafeBoxStream(_blockcount);
+    sbStream := TNode.Node.Bank.Storage.OpenSafeBoxCheckpoint(_blockcount);
     try
       If Not Assigned(sbStream) then begin
         SendError(ntp_response,HeaderData.operation,CT_NetError_SafeboxNotFound,HeaderData.request_id,Format('Safebox stream file for block %d not found',[_blockcount]));

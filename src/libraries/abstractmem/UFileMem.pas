@@ -141,6 +141,13 @@ end;
 procedure TFileMem.DoIncreaseSize(var ANextAvailablePos, AMaxAvailablePos: Integer; ANeedSize: Integer);
 var LBuff : TBytes;
 begin
+  if (ANeedSize<=0) And (AMaxAvailablePos<=0) then begin
+    FCache.Clear;
+    FFileStream.Seek(0,soFromEnd);
+    FFileStream.Size := 0;
+    Exit;
+  end;
+
   FFileStream.Seek(0,soFromEnd);
   // GoTo ANextAvailablePos
   if (FFileStream.Position<ANextAvailablePos) then begin

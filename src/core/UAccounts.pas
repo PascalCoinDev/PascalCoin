@@ -316,6 +316,7 @@ Type
     procedure SetSafeboxFileName(ASafeboxFileName : String);
     procedure SaveCheckpointing(ACheckpointingSafeboxFileName : String);
     procedure UpdateSafeboxFileName(const ANewSafeboxFileName : String);
+    procedure ClearSafeboxfile;
     class Function CopyAbstractMemToSafeBoxStream(ASource : TPCAbstractMem; ADestStream : TStream; AFromBlock, AToBlock : Cardinal; var AErrors : String) : Boolean;
     {$ENDIF}
   End;
@@ -486,6 +487,7 @@ Var i,j : Integer;
   acc : TAccount;
   auxs : TRawBytes;
   tc : TTickCount;
+  LErrsString : TStrings;
 Begin
   tc := TPlatform.GetTickCount;
   Try
@@ -501,6 +503,15 @@ Begin
       end;
     end;
     {$IFDEF USE_ABSTRACTMEM}
+    LErrsString := TStringList.Create;
+    try
+      sb.FPCAbstractMem.CheckConsistency(LErrsString);
+      if LErrsString.Count>0 then begin
+        errors := errors + #10+ LErrsString.Text;
+      end;
+    finally
+      LErrsString.Free;
+    end;
     {$ELSE}
     // Reverse
     for i:=0 to sb.FOrderedByName.Count-1 do begin
@@ -2783,6 +2794,15 @@ begin
   FPCAbstractMem.UpdateSafeboxFileName(ANewSafeboxFileName);
 end;
 
+procedure TPCSafeBox.ClearSafeboxfile;
+var LFileName : String;
+begin
+  LFileName := FPCAbstractMem.FileName;
+  SetSafeboxFileName('');
+  DeleteFile(LFileName);
+  SetSafeboxFileName(LFileName);
+end;
+
 {$ENDIF}
 
 constructor TPCSafeBox.Create;
@@ -2859,6 +2879,9 @@ begin
   StartThreadSafe;
   Try
     Clear;
+    {$IFDEF USE_ABSTRACTMEM}
+    FPCAbstractMem.EraseData;
+    {$ENDIF}
     If Assigned(FPreviousSafeBox) then begin
       FPreviousSafeBox.FSubChains.Remove(Self); // Remove from current snapshot
       FPreviousSafeBox := Nil;
@@ -3085,7 +3108,9 @@ procedure TPCSafeBox.RollBackToSnapshot(snapshotBlock: Cardinal);
          end else begin
            TLog.NewLog(lterror,ClassName,Format('ERROR DEV 20180319-1 Name %s not found at account:%d',[AddedNamesList.Get(i).ToPrintable,AddedNamesList.GetTag(i)]));
          end;
-       end else FPCAbstractMem.AccountsNames.Delete(j);
+       end else begin
+         FPCAbstractMem.AccountsNames.Delete(j);
+       end;
        {$ELSE}
        If Not FOrderedByName.Find(AddedNamesList.Get(i),j) then begin
          // ERROR: It has been added, why we not found???
@@ -3159,12 +3184,14 @@ begin
 
       // Must UNDO changes:
       UndoModifiedBlocks(Psnapshot^.oldBlocks);
+      if Psnapshot=Nil then Exit;
+
       UndoAddedDeletedNames(Psnapshot^.namesAdded,Psnapshot^.namesDeleted);
 
       // Undo Created BlockAccount
       // Undo ONLY of if not target
       {$IFDEF USE_ABSTRACTMEM}
-      FPCAbstractMem.DeleteBlockAccount(i);
+      FPCAbstractMem.DeleteBlockAccount( FPCAbstractMem.BlocksCount - 1);
       {$ELSE}
       PBlock:=FBlockAccountsList.Items[FBlockAccountsList.Count-1];
       FBlockAccountsList.Delete(FBlockAccountsList.Count-1);
@@ -3358,6 +3385,11 @@ begin
       ALastReadBlock := CT_BlockAccount_NUL;
       Clear; // Clear only when reading an entire safebox or starting at 0 block
       {$IFDEF USE_ABSTRACTMEM}
+      if sbHeader.blocksCount<FPCAbstractMem.BlocksCount then begin
+        FPCAbstractMem.EraseData;
+      end else begin
+        FPCAbstractMem.AccountsNames.Clear;
+      end;
       AggregatedHashrate.Value := 0;
       {$ELSE}
       FBlockAccountsList.Capacity := sbHeader.blockscount;
@@ -3451,17 +3483,21 @@ begin
           //
           // check valid
           If (Length(LBlock.accounts[iacc].name)>0) then begin
-            {$IFnDEF USE_ABSTRACTMEM}
-            if FOrderedByName.IndexOf(LBlock.accounts[iacc].name)>=0 then begin
-              errors := errors + ' Duplicate name "'+LBlock.accounts[iacc].name.ToPrintable+'"';
-              Exit;
-            end;
-            {$ENDIF}
             if Not TPCSafeBox.ValidAccountName(LBlock.accounts[iacc].name,aux_errors) then begin
               errors := errors + ' > Invalid name "'+LBlock.accounts[iacc].name.ToPrintable+'": '+aux_errors;
               Exit;
             end;
-            {$IFnDEF USE_ABSTRACTMEM}
+            {$IFDEF USE_ABSTRACTMEM}
+            if FPCAbstractMem.AccountsNames.IndexOf( LBlock.accounts[iacc].name.ToString )>=0 then begin
+              errors := errors + ' Duplicate name "'+LBlock.accounts[iacc].name.ToPrintable+'"';
+              Exit;
+            end;
+            FPCAbstractMem.AccountsNames.Add(LBlock.accounts[iacc].name.ToString,LBlock.accounts[iacc].account);
+            {$ELSE}
+            if FOrderedByName.IndexOf(LBlock.accounts[iacc].name)>=0 then begin
+              errors := errors + ' Duplicate name "'+LBlock.accounts[iacc].name.ToPrintable+'"';
+              Exit;
+            end;
             FOrderedByName.Add(LBlock.accounts[iacc].name,LBlock.accounts[iacc].account);
             {$ENDIF}
           end;
@@ -3543,7 +3579,7 @@ begin
         end;
         // Add
         {$IFDEF USE_ABSTRACTMEM}
-        FPCAbstractMem.AddBlockAccount(LBlock);
+        FPCAbstractMem.SetBlockAccount(LBlock);
         {$ELSE}
         New(P);
         ToTMemBlockAccount(LBlock,P^);
@@ -4677,7 +4713,7 @@ begin
           end;
         end else begin
           If (FPCAbstractMem.AccountsNames.Item[i].accountNumber<>account_number) then begin
-            TLog.NewLog(ltError,ClassName,'ERROR DEV 20170606-3 Name "'+blockAccount.accounts[iAccount].name.ToPrintable+'" not found for delete at suposed account '+IntToStr(account_number)+' found at '+IntToStr(FPCAbstractMem.AccountsNames.Item[i].accountNumber));
+            TLog.NewLog(ltError,ClassName,'ERROR DEV 20170606-3 Name "'+blockAccount.accounts[iAccount].name.ToPrintable+'" not found for delete at suposed account '+IntToStr(account_number)+' found at '+IntToStr(FPCAbstractMem.AccountsNames.Item[i].accountNumber)+' '+FPCAbstractMem.AccountsNames.Item[i].accountName);
           end;
           FPCAbstractMem.AccountsNames.Delete(i);
         end;
@@ -4735,7 +4771,7 @@ begin
             // Is restoring to initial position, delete from deleted
             {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Adding equal to PREVIOUS (DELETING FROM DELETED) snapshot name:%s at account:%d',[blockAccount.accounts[iAccount].name,account_number]));{$ENDIF}
             FDeletedNamesSincePreviousSafebox.Delete(iDeleted);
-            FAddedNamesSincePreviousSafebox.Remove(blockAccount.accounts[iAccount].name);
+            if iAdded>=0 then FAddedNamesSincePreviousSafebox.Remove(blockAccount.accounts[iAccount].name);
           end else begin
             // Was deleted, but now adding to a new account
             {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Adding again name:%s to new account account:%d',[blockAccount.accounts[iAccount].name,account_number]));{$ENDIF}
@@ -4774,7 +4810,9 @@ begin
     FModifiedBlocksSeparatedChain.Add(blockAccount);
   end;
   {$IFDEF USE_ABSTRACTMEM}
-  FPCAbstractMem.SetAccount( blockAccount.accounts[iAccount] );
+  If Not Assigned(FPreviousSafeBox) then begin
+    FPCAbstractMem.SetAccount( blockAccount.accounts[iAccount] );
+  end;
   {$ELSE}
   If (Assigned(Pblock)) then begin
     ToTMemAccount(blockAccount.accounts[iAccount],Pblock^.accounts[iAccount]);
