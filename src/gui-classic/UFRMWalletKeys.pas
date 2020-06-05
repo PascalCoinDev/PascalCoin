@@ -96,7 +96,7 @@ uses
   LCLIntf, LCLType,
 {$ENDIF}
   UCrypto, UAccounts, UFRMNewPrivateKeyType, UBaseTypes, UPCEncryption,
-  UCommon, UGUIUtils;
+  UPCDataTypes, UCommon, UGUIUtils;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -580,6 +580,7 @@ procedure TFRMWalletKeys.UpdateWalletKeys;
 Var lasti,i,j : Integer;
   selected_wk,wk : TWalletKey;
   s : AnsiString;
+  Lanl : TAccountsNumbersList;
 begin
   GetSelectedWalletKeyAndIndex(wk,lasti);
   lbWalletKeys.Items.BeginUpdate;
@@ -608,7 +609,10 @@ begin
       if (WalletKeys is TWalletKeysExt) then begin
         j := TWalletKeysExt(WalletKeys).AccountsKeyList.IndexOfAccountKey(wk.AccountKey);
         if (j>=0) then begin
-          s := s+' ('+IntToStr(TWalletKeysExt(WalletKeys).AccountsKeyList.AccountKeyList[j].Count)+' Accounts)';
+          Lanl := TWalletKeysExt(WalletKeys).AccountsKeyList.AccountKeyList[j];
+          if Assigned(Lanl) then begin
+            s := s+' ('+IntToStr(Lanl.Count)+' Accounts)';
+          end else s := s+' (No Accounts)';
         end;
       end;
       if Not Assigned(wk.PrivateKey) then begin

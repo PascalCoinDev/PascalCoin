@@ -1,5 +1,11 @@
 # Changelog
 
+## Build 5.4 - (PENDING RELEASE)
+- Added usage of AbstractMem library to allow build a PascalCoin version using virtual memory and efficient caching mechanism
+  - Must activate {$DEFINE USE_ABSTRACTMEM} at config.inc file
+- Improved performance when downloading Safebox (Fresh installation)
+- Fixed minor bugs
+
 ## Build 5.3.0 - 2020-03-12
 - Fixed "out of memory" error when downloading Safebox
 - Fixed freeze bug on GUI when updating accounts grid

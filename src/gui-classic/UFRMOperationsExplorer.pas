@@ -132,7 +132,7 @@ Uses
 {$IFDEF TESTNET}
    UFRMRandomOperations,
 {$ENDIF}
-   UFRMRPCCalls, UFRMMemoText;
+   UPCDataTypes, UFRMRPCCalls, UFRMMemoText;
 
 
 { TFRMOperationsExplorer }

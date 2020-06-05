@@ -115,6 +115,7 @@ type
     FSafeBoxHashCalcType: TSafeboxHashCalcType;
     procedure SetSafeBoxHashCalcType(const Value: TSafeboxHashCalcType);
   protected
+    FCachedSafeboxHash : TRawBytes;
     procedure NotifyUpdated(AStartPos, ACountBytes : Integer); override;
     procedure RedoNextLevelsForMerkleRootHash;
   public
@@ -379,6 +380,7 @@ end;
 
 constructor TBytesBuffer32Safebox.Create(ADefaultIncrement: Integer);
 begin
+  FCachedSafeboxHash := Nil;
   FNextLevelBytesBuffer := Nil;
   FSafeBoxHashCalcType := sbh_Single_Sha256;
   inherited Create(ADefaultIncrement);
@@ -392,6 +394,8 @@ end;
 
 function TBytesBuffer32Safebox.GetSafeBoxHash: TRawBytes;
 begin
+  if System.Length(FCachedSafeboxHash)=32 then Exit(FCachedSafeboxHash);
+
   if (FSafeBoxHashCalcType = sbh_Single_Sha256) then begin
     if ((Self.Length MOD 32)=0) and (Self.Length>0) then begin
       Result := TCrypto.DoSha256(Self.Memory,Self.Length);
@@ -409,6 +413,7 @@ begin
   end else begin
     Result := Nil;
   end;
+  FCachedSafeboxHash := Result; // Save to a Cache
 end;
 
 procedure TBytesBuffer32Safebox.NotifyUpdated(AStartPos, ACountBytes: Integer);
@@ -417,6 +422,7 @@ var LLevelItemIndex, LLevelItemsCount : Integer;
   LSHA256 : TRawBytes;
 begin
   inherited;
+  FCachedSafeboxHash := Nil; // Set my cahce to Nil
   if (FSafeBoxHashCalcType = sbh_Single_Sha256) or
     ((ACountBytes<>32) or ((AStartPos MOD 32)<>0)) or (Self.Length<64) or ((Self.Length MOD 32)<>0) then begin
     FreeAndNil(FNextLevelBytesBuffer);
@@ -471,6 +477,7 @@ end;
 procedure TBytesBuffer32Safebox.SetSafeBoxHashCalcType(const Value: TSafeboxHashCalcType);
 begin
   if FSafeBoxHashCalcType=Value then Exit;
+  FCachedSafeboxHash := Nil;
   FSafeBoxHashCalcType := Value;
   FreeAndNil(FNextLevelBytesBuffer);
 end;

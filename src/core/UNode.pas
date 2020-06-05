@@ -35,7 +35,7 @@ interface
 
 uses
   Classes, SysUtils,
-  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF}, UPCDataTypes,
   UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, SyncObjs, ULog, UBaseTypes, UPCOrderedLists;
 
 {$I ./../config.inc}
@@ -874,6 +874,7 @@ end;
 class function TNode.NodeVersion: String;
 begin
   Result := CT_ClientAppVersion
+    {$IFDEF USE_ABSTRACTMEM}+'am'{$ENDIF}
     {$IFDEF LINUX}+'L'{$ELSE}+'W'{$ENDIF}
     {$IFDEF FPC}{$IFDEF LCL}+'l'{$ELSE}+'f'{$ENDIF}{$ENDIF}
     {$IFDEF FPC}{$IFDEF CPU32}+'32b'{$ELSE}+'64b'{$ENDIF}{$ELSE}{$IFDEF CPU32BITS}+'32b'{$ELSE}+'64b'{$ENDIF}{$ENDIF}

@@ -36,9 +36,11 @@ uses
   {$ELSE}
   zlib,
   {$ENDIF}
-  UAccounts, ULog, UConst, UCrypto, UBaseTypes;
+  UAccounts, ULog, UConst, UCrypto, UBaseTypes, UPCDataTypes;
 
 type
+
+  EPCChunk = Class(Exception);
 
   { TPCChunk }
 
@@ -49,7 +51,107 @@ type
     class function LoadSafeBoxFromChunk(Chunk, DestStream : TStream; var safeBoxHeader : TPCSafeBoxHeader; var errors : String) : Boolean;
   end;
 
+  { TPCSafeboxChunks }
+
+  TPCSafeboxChunks = Class
+  private
+    FChunks : Array of TStream;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Clear;
+    function Count : Integer;
+    procedure AddChunk(ASafeboxStreamChunk : TStream);
+    function GetSafeboxChunk(index : Integer) : TStream;
+    function GetSafeboxChunkHeader(index : Integer) : TPCSafeBoxHeader;
+    function IsComplete : Boolean;
+    function GetSafeboxHeader : TPCSafeBoxHeader;
+  end;
+
 implementation
+
+{ TPCSafeboxChunks }
+
+constructor TPCSafeboxChunks.Create;
+begin
+  SetLength(FChunks,0);
+end;
+
+destructor TPCSafeboxChunks.Destroy;
+begin
+  Clear;
+  inherited Destroy;
+end;
+
+procedure TPCSafeboxChunks.Clear;
+var i : Integer;
+begin
+  For i:=0 to Count-1 do begin
+    FChunks[i].Free;
+  end;
+  SetLength(FChunks,0);
+end;
+
+function TPCSafeboxChunks.Count: Integer;
+begin
+  Result := Length(FChunks);
+end;
+
+procedure TPCSafeboxChunks.AddChunk(ASafeboxStreamChunk: TStream);
+var LLastHeader, LsbHeader : TPCSafeBoxHeader;
+begin
+  If Not TPCSafeBox.LoadSafeBoxStreamHeader(ASafeboxStreamChunk,LsbHeader) then begin
+    Raise EPCChunk.Create('SafeBoxStream is not a valid SafeBox to add!');
+  end;
+  if (Count>0) then begin
+    LLastHeader := GetSafeboxChunkHeader(Count-1);
+    if (LsbHeader.ContainsFirstBlock)
+      or (LsbHeader.startBlock<>LLastHeader.endBlock+1)
+      or (LLastHeader.ContainsLastBlock)
+      or (LsbHeader.protocol<>LLastHeader.protocol)
+      or (LsbHeader.blocksCount<>LLastHeader.blocksCount)
+      or (Not LsbHeader.safeBoxHash.IsEqualTo( LLastHeader.safeBoxHash ))
+      then begin
+      raise EPCChunk.Create(Format('Cannot add %s at (%d) %s',[LsbHeader.ToString,Length(FChunks),LLastHeader.ToString]));
+    end;
+  end else if (Not LsbHeader.ContainsFirstBlock) then begin
+    raise EPCChunk.Create(Format('Cannot add %s',[LsbHeader.ToString]));
+  end;
+  //
+  SetLength(FChunks,Length(FChunks)+1);
+  FChunks[High(FChunks)] := ASafeboxStreamChunk;
+end;
+
+function TPCSafeboxChunks.GetSafeboxChunk(index: Integer): TStream;
+begin
+  if (index<0) or (index>=Count) then raise EPCChunk.Create(Format('Invalid index %d of %d',[index,Length(FChunks)]));
+  Result := FChunks[index];
+  Result.Position := 0;
+end;
+
+function TPCSafeboxChunks.GetSafeboxChunkHeader(index: Integer): TPCSafeBoxHeader;
+begin
+  If Not TPCSafeBox.LoadSafeBoxStreamHeader(GetSafeboxChunk(index),Result) then begin
+    Raise EPCChunk.Create(Format('Cannot capture header index %d of %d',[index,Length(FChunks)]));
+  end;
+end;
+
+function TPCSafeboxChunks.IsComplete: Boolean;
+var LsbHeader : TPCSafeBoxHeader;
+begin
+  if Count=0 then Result := False
+  else begin
+    LsbHeader := GetSafeboxChunkHeader(Count-1);
+    Result := LsbHeader.ContainsLastBlock;
+  end;
+end;
+
+function TPCSafeboxChunks.GetSafeboxHeader: TPCSafeBoxHeader;
+begin
+  if Not IsComplete then Raise EPCChunk.Create(Format('Chunks are not complete %d',[Length(FChunks)]));
+  Result := GetSafeboxChunkHeader(Count-1);
+  Result.startBlock := 0;
+end;
 
 { TPCChunk }
 
