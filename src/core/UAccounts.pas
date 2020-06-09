@@ -45,6 +45,7 @@ Type
     Class Function MinimumTarget(protocol_version : Integer): Cardinal;
     Class Function ResetTarget(current_target : Cardinal; protocol_version : Integer): Cardinal;
     Class Function GetRewardForNewLine(line_index: Cardinal): UInt64;
+    Class Function CalcTotalBalance(ABlockCount : Cardinal): Int64;
     Class Function TargetToCompact(target: TRawBytes; protocol_version : Integer): Cardinal;
     Class Function TargetFromCompact(encoded: Cardinal; protocol_version : Integer): TRawBytes;
     Class Function GetNewTarget(vteorical, vreal: Cardinal; protocol_version : Integer; isSlowMovement : Boolean; Const actualTarget: TRawBytes): TRawBytes;
@@ -751,6 +752,21 @@ begin
       end;
     end;
   end;
+end;
+
+class function TPascalCoinProtocol.CalcTotalBalance(ABlockCount: Cardinal): Int64;
+var LCurrReward : Int64;
+  LNextBlock : Integer;
+begin
+  LCurrReward := CT_FirstReward;
+  LNextBlock := CT_NewLineRewardDecrease;
+  Result := 0;
+  while (LNextBlock < ABlockCount) do begin
+    inc(Result, Int64(CT_NewLineRewardDecrease * LCurrReward));
+    LCurrReward := LCurrReward DIV 2;
+    inc(LNextBlock,CT_NewLineRewardDecrease);
+  end;
+  inc(Result, Int64(Int64(ABlockCount MOD CT_NewLineRewardDecrease) * LCurrReward));
 end;
 
 class function TPascalCoinProtocol.AllowUseHardcodedRandomHashTable(
@@ -2782,6 +2798,7 @@ begin
     FWorkSum := LOpBl.accumulatedWork;
   end else FCurrentProtocol := CT_PROTOCOL_1;
   FSafeBoxHash := CalcSafeBoxHash;
+  FTotalBalance := TPascalCoinProtocol.CalcTotalBalance(FPCAbstractMem.BlocksCount);
 end;
 
 procedure TPCSafeBox.SaveCheckpointing(ACheckpointingSafeboxFileName : String);
