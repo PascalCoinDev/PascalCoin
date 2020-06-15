@@ -350,8 +350,7 @@ begin
       DebugStep := 'Relasing flock';
       FConnected := false;
       DebugStep := 'Calling OnDisconnect';
-      if Assigned(FOnDisconnect) then FOnDisconnect(Self)
-      else TLog.NewLog(ltError,ClassName,'OnDisconnect is nil');
+      if Assigned(FOnDisconnect) then FOnDisconnect(Self);
       {$ENDIF}
     Finally
       FLock.Release;
