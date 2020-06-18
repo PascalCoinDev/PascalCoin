@@ -123,7 +123,9 @@ type
     FCritical : TPCCriticalSection;
     FLastReadTC : TTickCount;
     FBufferedNetTcpIpClientThread : TBufferedNetTcpIpClientThread;
+    FOnReceivedData: TNotifyEvent;
   protected
+    Procedure DoReceivedData; virtual;
     Function DoWaitForDataInherited(WaitMilliseconds : Integer) : Boolean;
     Procedure DoWaitForData(WaitMilliseconds : Integer; var HasData : Boolean); override;
   public
@@ -133,6 +135,7 @@ type
     Function ReadBufferLock : TMemoryStream;
     Procedure ReadBufferUnlock;
     Property LastReadTC : TTickCount read FLastReadTC;
+    Property OnReceivedData : TNotifyEvent read FOnReceivedData write FOnReceivedData;
   End;
 
   {$IFDEF Synapse}
@@ -630,6 +633,9 @@ var SendBuffStream : TStream;
         end;
       until (last_bytes_read<sizeof(ReceiveBuffer)) Or (Terminated) Or (Not FBufferedNetTcpIpClient.Connected);
       {$IFDEF HIGHLOG}If total_read>0 then TLog.NewLog(ltdebug,ClassName,Format('Received %d bytes. Buffer length: %d bytes',[total_read,total_size]));{$ENDIF}
+      if (total_read>0) and (Not Terminated) and (FBufferedNetTcpIpClient.Connected) and (Assigned(FBufferedNetTcpIpClient.FOnReceivedData)) then begin
+        FBufferedNetTcpIpClient.DoReceivedData;
+      end;
     end else begin
       if FBufferedNetTcpIpClient.SocketError<>0 then FBufferedNetTcpIpClient.Disconnect;
     end;
@@ -647,7 +653,7 @@ var SendBuffStream : TStream;
       FBufferedNetTcpIpClient.FCritical.Release;
     End;
     if (SendBuffStream.Size>0) then begin
-      SendBuffStream.Position := 0;
+       SendBuffStream.Position := 0;
       FBufferedNetTcpIpClient.SendStream(SendBuffStream);
       {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Sent %d bytes',[SendBuffStream.Size]));{$ENDIF}
       SendBuffStream.Size := 0;
@@ -683,6 +689,7 @@ end;
 constructor TBufferedNetTcpIpClient.Create(AOwner: TComponent);
 begin
   inherited;
+  FOnReceivedData := Nil;
   FLastReadTC := TPlatform.GetTickCount;
   FCritical := TPCCriticalSection.Create('TBufferedNetTcpIpClient_Critical');
   FSendBuffer := TMemoryStream.Create;
@@ -699,6 +706,11 @@ begin
   FreeAndNil(FReadBuffer);
   FreeAndNil(FSendBuffer);
   inherited;
+end;
+
+procedure TBufferedNetTcpIpClient.DoReceivedData;
+begin
+  if Assigned(FOnReceivedData) then FOnReceivedData(Self);
 end;
 
 procedure TBufferedNetTcpIpClient.DoWaitForData(WaitMilliseconds: Integer; var HasData: Boolean);
