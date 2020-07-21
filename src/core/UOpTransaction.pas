@@ -1785,6 +1785,23 @@ begin
   if Not TAccountComp.IsValidAccountKey(FData.new_accountkey,LSafeboxCurrentProtocol,errors) then begin
     Exit;
   end;
+
+  // Poll on Discord
+  // https://discordapp.com/channels/383064643482025984/391780165669093377/719437469329915945
+  // RESULTS ON 2020-07-21
+  // 1 (22 votes) - Remove PASC/PASA Recovery rule
+  // 2 (27 votes) - Recover only EMPTY non used, not named PASA's
+  // 3 (3 votes) - Change Recovery to 10 year rule
+  // 4 (2 votes) - Leave As Is.
+  // ----------
+  // Winner option 2: Will apply on next Hard Fork (Protocol 6)
+  if (LSafeboxCurrentProtocol>CT_PROTOCOL_5) then begin
+    if (acc.balance>0) or (Length(acc.name)>0) then begin
+      errors := 'Recover account is only valid for Balance 0 and unnamed accounts';
+      exit;
+    end;
+  end;
+
   Result := AccountTransaction.UpdateAccountInfo(AccountPreviousUpdatedBlock,
     GetOpID,
     FData.account,FData.n_operation, FData.account,
