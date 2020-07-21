@@ -62,8 +62,18 @@ Type
     procedure FromString(const AValue : String); // Will store a RAW bytes assuming each char of the string is a byte -> ALERT: Do not use when the String contains chars encoded with multibyte character set!
     function Add(const ARawValue : TRawBytes) : TRawBytes; // Will concat a new RawBytes value to current value
     function IsEmpty : Boolean; // Will return TRUE when Length = 0
+    function IsEqualTo(const ACompareTo : TRawBytes) : Boolean;
+    //
     procedure FromStream(AStream : TStream); overload;
     procedure FromStream(AStream : TStream; AStartPos, ALength : Integer); overload;
+    //
+    procedure SaveInsideTBytes(var ADestToWrite: TBytes; var AStartPosition: integer);    // AStartPosition will update to next position
+    function LoadFromTBytes(const ASource: TBytes; var AStartPosition: integer): boolean; // AStartPosition will update to next position
+    function ToSerialized : TBytes; overload;
+    procedure ToSerialized(const AStream : TStream); overload;
+    function FromSerialized(const ASerialized : TBytes; ACheckLength : Integer = 0) : Boolean; overload;
+    function FromSerialized(const AStream : TStream; ACheckLength : Integer = 0) : Integer; overload;
+    function GetSerializedLength: integer; // 2 + Length
   end;
 
 
@@ -91,8 +101,10 @@ Type
     function Compare(ABytesBuffer : TBytesBuffer) : Integer;
     procedure SetLength(ANewLength : Integer);
     function Memory : Pointer;
+    function MemoryLength : Integer;
     procedure Clear;
     procedure CopyFrom(ABytesBuffer : TBytesBuffer);
+    function Capture(AStartPos, ALength : Integer) : TBytes;
   end;
 
 
@@ -195,11 +207,94 @@ begin
   end else Result := '';
 end;
 
+function TRawBytesHelper.FromSerialized(const ASerialized: TBytes; ACheckLength : Integer = 0): Boolean;
+var Lsize: integer;
+begin
+  if (Length(ASerialized)<2) then Exit(False);
+  Lsize := 0;
+  Move(ASerialized[0],Lsize,2);
+  if (2 + Lsize > Length(ASerialized)) then Exit(False);
+  SetLength(Self,Lsize);
+  Move(ASerialized[2],Self[0],Lsize);
+  Result := True;
+end;
+
+function TRawBytesHelper.FromSerialized(const AStream: TStream; ACheckLength : Integer = 0): Integer;
+Var w: Word;
+begin
+  if AStream.Size - AStream.Position < 2 then begin
+    SetLength(Self,0);
+    Result := -1;
+    Exit;
+  end;
+  AStream.Read(w, 2);
+  if (AStream.Size - AStream.Position < w) OR ((ACheckLength > 0) AND (w <> ACheckLength)) then begin
+    AStream.Position := AStream.Position - 2; // Go back!
+    SetLength(Self,0);
+    Result := -1;
+    Exit;
+  end;
+  SetLength(Self, w);
+  if (w>0) then begin
+    AStream.ReadBuffer(Self[0], w);
+  end;
+  Result := w+2;
+end;
+
 procedure TRawBytesHelper.FromStream(AStream: TStream; AStartPos, ALength: Integer);
 begin
   System.SetLength(Self,ALength);
   AStream.Position := AStartPos;
-  AStream.Read(Self,ALength);
+  AStream.Read(Self[0],ALength);
+end;
+
+procedure TRawBytesHelper.SaveInsideTBytes(var ADestToWrite: TBytes; var AStartPosition: integer);
+var Lsize: integer;
+begin
+  if (AStartPosition + Length(Self) + 2) > Length(ADestToWrite) then begin
+    SetLength(ADestToWrite,AStartPosition + Length(Self) + 2);
+  end;
+  Lsize := Length(Self);
+  Move(Lsize, ADestToWrite[AStartPosition], 2);
+  Move(Self[0], ADestToWrite[AStartPosition + 2], Lsize);
+  Inc(AStartPosition, 2 + Lsize);
+end;
+
+function TRawBytesHelper.LoadFromTBytes(const ASource: TBytes; var AStartPosition: integer): boolean;
+var Lsize: integer;
+begin
+  Lsize := 0;
+  if (AStartPosition + 2 > Length(ASource)) then Exit(False);
+  Move(ASource[AStartPosition],Lsize,2);
+  if (AStartPosition + 2 + Lsize > Length(ASource)) then Exit(False);
+  SetLength(Self,Lsize);
+  Move(ASource[AStartPosition + 2],Self[0],Lsize);
+  inc(AStartPosition, 2 + Lsize);
+  Result := True;
+end;
+
+function TRawBytesHelper.ToSerialized: TBytes;
+var Lsize: integer;
+begin
+  LSize := Length(Self);
+  if LSize>65536 then raise Exception.Create('Cannot serialize TBytes due high length '+IntToStr(Length(Self)));
+  SetLength(Result, LSize + 2);
+  Move(Lsize, Result[0], 2);
+  Move(Self[0], Result[2], Lsize);
+end;
+
+procedure TRawBytesHelper.ToSerialized(const AStream: TStream);
+var LSize : Integer;
+begin
+  LSize := Length(Self);
+  if LSize>65536 then raise Exception.Create('Cannot serialize TBytes due high length '+IntToStr(Length(Self)));
+  AStream.Write(LSize,2);
+  AStream.Write(Self[0],LSize);
+end;
+
+function TRawBytesHelper.GetSerializedLength: integer;
+begin
+  Result := 2 + Length(Self);
 end;
 
 procedure TRawBytesHelper.FromStream(AStream: TStream);
@@ -228,6 +323,13 @@ end;
 function TRawBytesHelper.IsEmpty: Boolean;
 begin
   Result := Length(Self)=0;
+end;
+
+function TRawBytesHelper.IsEqualTo(const ACompareTo: TRawBytes): Boolean;
+begin
+  if (Length(Self)=Length(ACompareTo)) and (Length(Self)>0) then
+    Result := (CompareMem(@Self[0],@ACompareTo[0],Length(Self)))
+  else Result := False;
 end;
 
 function TRawBytesHelper.ToHexaString: String;
@@ -553,6 +655,18 @@ begin
   Result := Replace(Length,buffer);
 end;
 
+function TBytesBuffer.Capture(AStartPos, ALength: Integer): TBytes;
+var LLength : Integer;
+begin
+  if AStartPos+ALength <= Self.Length then LLength := ALength
+  else LLength := Self.Length - AStartPos;
+  if (LLength<0) or (LLength>Self.Length) or (AStartPos<0) or (ALength<0) then raise Exception.Create(Format('Invalid Capture start %d length %d for a %d buffer',
+    [AStartPos,ALength,Self.Length]));
+  System.SetLength(Result,LLength);
+  if LLength>0 then
+    Move(FBytes[AStartPos],Result[0],LLength);
+end;
+
 procedure TBytesBuffer.Clear;
 begin
   System.SetLength(FBytes,0);
@@ -614,6 +728,11 @@ end;
 function TBytesBuffer.Memory: Pointer;
 begin
   Result := addr(FBytes[0]);
+end;
+
+function TBytesBuffer.MemoryLength: Integer;
+begin
+  Result := System.Length(FBytes);
 end;
 
 procedure TBytesBuffer.NotifyUpdated(AStartPos, ACountBytes: Integer);

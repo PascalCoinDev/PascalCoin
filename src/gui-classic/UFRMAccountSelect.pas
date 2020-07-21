@@ -28,6 +28,7 @@ uses
 {$ELSE}
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
+  UPCDataTypes,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, UAccounts, Grids, StdCtrls, Buttons, ExtCtrls, UWallet, UNode,
   UGridUtils, UConst, UThread, UPCOrderedLists, UBaseTypes;

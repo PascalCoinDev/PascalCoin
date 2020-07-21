@@ -34,7 +34,7 @@ uses
   ExtCtrls, ComCtrls, UWallet, StdCtrls, ULog, Grids, UAppParams, UBlockChain,
   UNode, UGridUtils, UJSONFunctions, UAccounts, Menus, ImgList, UNetProtocol,
   UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect, UConst,
-  UAccountKeyStorage, UBaseTypes, UPCDataTypes,
+  UAccountKeyStorage, UBaseTypes, UPCDataTypes, UOrderedList,
   UFRMRPCCalls, UTxMultiOperation,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
@@ -250,6 +250,7 @@ type
     {$IFDEF TESTING_NO_POW_CHECK}
     Procedure Test_CreateABlock(Sender: TObject);
     {$ENDIF}
+    Procedure Test_ConnectDisconnect(Sender: TObject);
     {$ENDIF}
     Procedure Test_ShowPublicKeys(Sender: TObject);
     Procedure Test_ShowOperationsInMemory(Sender: TObject);
@@ -338,6 +339,7 @@ Uses UFolderHelper,
   UPCTNetDataExtraMessages,
   UFRMDiagnosticTool,
   {$ENDIF}
+  UAbstractBTree,
   UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText,
   USettings, UCommon, UPCOrderedLists;
 
@@ -393,6 +395,8 @@ begin
     ExtractFileDir(Application.ExeName)+PathDelim+CT_Hardcoded_RandomHash_Table_Filename,
     LRaw );
   {$ENDIF}
+  FLastTC := 0;
+  OnProgressNotify(Self,'Initializing databases',0,0);
   // Read Operations saved from disk
   TNode.Node.InitSafeboxAndOperations($FFFFFFFF,OnProgressNotify); // New Build 2.1.4 to load pending operations buffer
   TNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
@@ -1089,8 +1093,15 @@ begin
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Create a block';
   mi.OnClick:=Test_CreateABlock;
+  mi.ShortCut := TextToShortCut('CTRL+B');
   miAbout.Add(mi);
   {$ENDIF}
+  mi := TMenuItem.Create(MainMenu);
+  mi.Caption:='Connect/Disconnect';
+  mi.OnClick:=Test_ConnectDisconnect;
+  mi.ShortCut := TextToShortCut('CTRL+D');
+  miAbout.Add(mi);
+
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Create Random operations';
   mi.OnClick:=Test_RandomOperations;
@@ -1120,19 +1131,25 @@ end;
 
 {$IFDEF TESTING_NO_POW_CHECK}
 procedure TFRMWallet.Test_CreateABlock(Sender: TObject);
-var ops : TPCOperationsComp;
+var ops, mempoolOps : TPCOperationsComp;
   nba : TBlockAccount;
-  errors : AnsiString;
+  errors : String;
+
 begin
   {$IFDEF TESTNET}
   ops := TPCOperationsComp.Create(Nil);
   Try
     ops.bank := FNode.Bank;
-    ops.CopyFrom(FNode.Operations);
-    ops.BlockPayload:=IntToStr(FNode.Bank.BlocksCount);
+    mempoolOps := FNode.LockMempoolRead;
+    try
+      ops.CopyFrom(mempoolOps);
+    finally
+      FNode.UnlockMempoolRead;
+    end;
+    ops.BlockPayload.FromString(IntToStr(FNode.Bank.BlocksCount));
     ops.nonce := FNode.Bank.BlocksCount;
     ops.UpdateTimestamp;
-    FNode.AddNewBlockChain(Nil,ops,nba,errors);
+    FNode.AddNewBlockChain(Nil,ops,errors);
   finally
     ops.Free;
   end;
@@ -1143,6 +1160,18 @@ end;
 {$ENDIF}
 
 {$IFDEF TESTNET}
+
+procedure TFRMWallet.Test_ConnectDisconnect(Sender: TObject);
+begin
+  TNetData.NetData.NetConnectionsActive := Not TNetData.NetData.NetConnectionsActive;
+  Exit;
+  if FNode.NetServer.Active then begin
+    FNode.NetServer.Active := False;
+  end else begin
+    FNode.NetServer.Active := True;
+  end;
+end;
+
 procedure TFRMWallet.Test_RandomOperations(Sender: TObject);
 Var FRM : TFRMRandomOperations;
 begin
@@ -1207,6 +1236,7 @@ begin
           TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(acc.accountInfo.new_publicKey))]));
       end;
     end;
+    {$IFnDEF USE_ABSTRACTMEM}
     l := TAccountKeyStorage.KS.LockList;
     try
       sl.Add(Format('%d public keys in TAccountKeyStorage data',[l.count]));
@@ -1240,6 +1270,7 @@ begin
         ak.EC_OpenSSL_NID,
         TCrypto.ToHexaString(TAccountComp.AccountKey2RawString(ak)) ]));
     end;
+    {$ENDIF}
     F := TFRMMemoText.Create(Self);
     try
       F.InitData('Keys in safebox',sl.Text);
@@ -2558,7 +2589,7 @@ begin
     FLog.OnNewLog := Nil;
     if PageControl.ActivePage = tsLogs then PageControl.ActivePage := tsMyAccounts;
   end else FLog.OnNewLog := OnNewLog;
-  if FAppParams.ParamByName[CT_PARAM_SaveLogFiles].GetAsBoolean(false) then begin
+  if (FAppParams.ParamByName[CT_PARAM_SaveLogFiles].GetAsBoolean(false)) then begin
     if FAppParams.ParamByName[CT_PARAM_SaveDebugLogs].GetAsBoolean(false) then FLog.SaveTypes := CT_TLogTypes_ALL
     else FLog.SaveTypes := CT_TLogTypes_DEFAULT;
     FLog.FileName := TNode.GetPascalCoinDataFolder+PathDelim+'PascalCointWallet.log';

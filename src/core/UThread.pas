@@ -92,6 +92,7 @@ Type
     constructor Create(const AName : String);
     destructor Destroy; override;
     function Add(Item: T) : Integer;
+    function Count : Integer;
     procedure Clear;
     procedure Remove(Item: T); inline;
     function LockList: TList<T>;
@@ -382,6 +383,11 @@ constructor TPCThreadList<T>.Create(const AName : String);
 begin
   FLock := TPCCriticalSection.Create(AName);
   FList := TList<T>.Create;
+end;
+
+function TPCThreadList<T>.Count : Integer;
+begin
+  Result := FList.Count;
 end;
 
 destructor TPCThreadList<T>.Destroy;

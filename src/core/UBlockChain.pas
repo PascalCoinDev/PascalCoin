@@ -16,6 +16,8 @@ unit UBlockChain;
   THIS LICENSE HEADER MUST NOT BE REMOVED.
 }
 
+{$I ./../config.inc}
+
 {$IFDEF FPC}
   {$MODE Delphi}
 {$ENDIF}
@@ -25,8 +27,8 @@ interface
 uses
   Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs, UBaseTypes, SysUtils,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
-  UPCDataTypes;
-{$I ./../config.inc}
+  {$IFDEF USE_ABSTRACTMEM}UPCAbstractMem,{$ENDIF}
+  UPCDataTypes, UChunk;
 
 {
 
@@ -472,6 +474,9 @@ Type
 
   TOrphan = RawByteString;
 
+
+  TCheckPointStruct = {$IFDEF USE_ABSTRACTMEM}TPCAbstractMem{$ELSE}TStream{$ENDIF};
+
   { TStorage }
 
   TStorage = Class(TComponent)
@@ -494,7 +499,7 @@ Type
     function GetFirstBlockNumber: Int64; virtual; abstract;
     function GetLastBlockNumber: Int64; virtual; abstract;
     function DoInitialize:Boolean; virtual; abstract;
-    Function DoCreateSafeBoxStream(blockCount : Cardinal) : TStream; virtual; abstract;
+    Function DoOpenSafeBoxCheckpoint(blockCount : Cardinal) : TCheckPointStruct; virtual; abstract;
     Procedure DoEraseStorage; virtual; abstract;
     Procedure DoSavePendingBufferOperations(OperationsHashTree : TOperationsHashTree); virtual; abstract;
     Procedure DoLoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree); virtual; abstract;
@@ -513,10 +518,10 @@ Type
     Property FirstBlock : Int64 read GetFirstBlockNumber;
     Property LastBlock : Int64 read GetLastBlockNumber;
     Function Initialize : Boolean;
-    Function CreateSafeBoxStream(blockCount : Cardinal) : TStream;
+    Function OpenSafeBoxCheckpoint(blockCount : Cardinal) : TCheckPointStruct;
     Function HasUpgradedToVersion2 : Boolean; virtual; abstract;
     Procedure CleanupVersion1Data; virtual; abstract;
-    Procedure EraseStorage;
+    Procedure EraseStorage; // Erase Blockchain storage
     Procedure SavePendingBufferOperations(OperationsHashTree : TOperationsHashTree);
     Procedure LoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree);
     Function BlockExists(Block : Cardinal) : Boolean;
@@ -549,6 +554,7 @@ Type
     function GetActualTargetSecondsAverage(BackBlocks : Cardinal): Real;
     function GetTargetSecondsAverage(FromBlock,BackBlocks : Cardinal): Real;
     function GetTargetSecondsMedian(AFromBlock: Cardinal; ABackBlocks : Integer): Real;
+    function LoadBankFromChunks(AChunks : TPCSafeboxChunks; checkSafeboxHash : TRawBytes; previousCheckedSafebox : TPCSafebox; progressNotify : TProgressNotify; var errors : String) : Boolean;
     function LoadBankFromStream(Stream : TStream; useSecureLoad : Boolean; checkSafeboxHash : TRawBytes; previousCheckedSafebox : TPCSafebox; progressNotify : TProgressNotify; var errors : String) : Boolean;
     Procedure Clear;
     Function LoadOperations(Operations : TPCOperationsComp; Block : Cardinal) : Boolean;
@@ -929,6 +935,7 @@ Var
   LTmpPCOperationsComp : TPCOperationsComp;
   i,j, LProgressBlock, LProgressEndBlock, LOpsInBlocks : Integer;
   LSafeboxTransaction : TPCSafeBoxTransaction;
+  LTempSafebox : TPCSafeBox;
 begin
   if FIsRestoringFromFile then begin
     TLog.NewLog(lterror,Classname,'Is Restoring!!!');
@@ -943,8 +950,9 @@ begin
     try
       Clear;
       Storage.Initialize;
-      If (max_block<Storage.LastBlock) then n := max_block
+      If (max_block<Storage.LastBlock) or (Storage.LastBlock<0) then n := max_block
       else n := Storage.LastBlock;
+
       Storage.RestoreBank(n,restoreProgressNotify);
       // Restore last blockchain
       if (BlocksCount>0) And (SafeBox.CurrentProtocol=CT_PROTOCOL_1) then begin
@@ -955,6 +963,12 @@ begin
           FLastOperationBlock := FLastBlockCache.OperationBlock;
         end;
       end;
+      If SafeBox.BlocksCount>0 then FLastOperationBlock := SafeBox.GetBlockInfo(SafeBox.BlocksCount-1)
+      else begin
+        FLastOperationBlock := TPCOperationsComp.GetFirstBlock;
+        FLastOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash; // Genesis hash
+      end;
+
       NewLog(Nil, ltinfo,'Start restoring from disk operations (Max '+inttostr(max_block)+') BlockCount: '+inttostr(BlocksCount)+' Orphan: ' +Storage.Orphan);
       LBlocks := TList<TPCOperationsComp>.Create;
       try
@@ -1032,7 +1046,12 @@ begin
     finally
       FIsRestoringFromFile := False;
       FUpgradingToV2 := false;
+      for i := 0 to FNotifyList.Count - 1 do begin
+        TPCBankNotify(FNotifyList.Items[i]).NotifyNewBlock;
+      end;
     end;
+
+
   finally
     FBankLock.Release;
   end;
@@ -1168,7 +1187,7 @@ begin
   Result := FStorage;
 end;
 
-function TPCBank.IsReady(Var CurrentProcess: String): Boolean;
+function TPCBank.IsReady(var CurrentProcess: String): Boolean;
 begin
   Result := false;
   CurrentProcess := '';
@@ -1178,6 +1197,52 @@ begin
     else
       CurrentProcess := 'Restoring from file'
   end else Result := true;
+end;
+
+function TPCBank.LoadBankFromChunks(AChunks : TPCSafeboxChunks;
+  checkSafeboxHash: TRawBytes; previousCheckedSafebox: TPCSafebox;
+  progressNotify: TProgressNotify; var errors: String): Boolean;
+Var LastReadBlock : TBlockAccount;
+  i : Integer;
+  LMemStream : TStream;
+begin
+  Result := False;
+  Try
+    if Not AChunks.IsComplete then begin
+      errors := 'AChunks is not complete';
+      Exit;
+    end;
+    LMemStream := TMemoryStream.Create;
+    try
+      for i := 0 to AChunks.Count-1 do begin
+        LMemStream.Size:=0;
+        LMemStream.Position := 0;
+        LMemStream.CopyFrom( AChunks.GetSafeboxChunk(i), 0 );
+        LMemStream.Position := 0;
+          if Not Safebox.LoadSafeBoxChunkFromStream(LMemStream,True,checkSafeboxHash,progressNotify,previousCheckedSafebox,LastReadBlock,errors) then begin
+          errors := Format('Error at chunk %d/%d ',[i+1,AChunks.Count])+errors;
+          Exit;
+        end;
+      end;
+    finally
+      LMemStream.Free;
+    end;
+    Result := True;
+    TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
+    try
+      If SafeBox.BlocksCount>0 then FLastOperationBlock := SafeBox.GetBlockInfo(SafeBox.BlocksCount-1)
+      else begin
+        FLastOperationBlock := TPCOperationsComp.GetFirstBlock;
+        FLastOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash; // Genesis hash
+      end;
+    finally
+      FBankLock.Release;
+    end;
+    for i := 0 to FNotifyList.Count - 1 do begin
+      TPCBankNotify(FNotifyList.Items[i]).NotifyNewBlock;
+    end;
+  finally
+  end;
 end;
 
 function TPCBank.LoadBankFromStream(Stream: TStream; useSecureLoad : Boolean; checkSafeboxHash : TRawBytes; previousCheckedSafebox : TPCSafebox; progressNotify : TProgressNotify; var errors: String): Boolean;
@@ -2894,9 +2959,9 @@ begin
   Result := DoInitialize;
 end;
 
-function TStorage.CreateSafeBoxStream(blockCount: Cardinal): TStream;
+function TStorage.OpenSafeBoxCheckpoint(blockCount: Cardinal): TCheckPointStruct;
 begin
-  Result := DoCreateSafeBoxStream(blockCount);
+  Result := DoOpenSafeBoxCheckpoint(blockCount);
 end;
 
 procedure TStorage.EraseStorage;

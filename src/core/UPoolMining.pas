@@ -31,7 +31,7 @@ Uses
   {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
   UTCPIP, SysUtils, UThread, SyncObjs, Classes, UJSONFunctions, UPCEncryption, UNode,
-  UCrypto, UAccounts, UConst, UBlockChain, UBaseTypes,
+  UCrypto, UAccounts, UConst, UBlockChain, UBaseTypes, UPCDataTypes,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Const
