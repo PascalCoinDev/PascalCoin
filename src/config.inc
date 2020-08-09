@@ -60,7 +60,10 @@
   
   // This will assume that PoW on old protocols are true and will not check, usefull after enough time to increase validation speed. 
   // Warning: Use only on versions after enough time since last protocol upgrade and non main-node versions
-  {.$DEFINE ASSUME_VALID_POW_OLD_PROTOCOLS}
+  {$DEFINE ASSUME_VALID_POW_OLD_PROTOCOLS}
+  
+  // Activate ABSTRACTMEM library. Will use a virtual memory caching mechanism for efficient usage without high RAM requirements
+  {$DEFINE USE_ABSTRACTMEM}
   
 
 { ********************************************************************

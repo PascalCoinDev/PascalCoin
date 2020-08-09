@@ -35,7 +35,7 @@ interface
 {$ENDIF}
 
 
-Uses UThread, UAccounts, UPCOrderedLists, UBlockChain, Classes,
+Uses UThread, UAccounts, UPCOrderedLists, UBlockChain, Classes, UPCDataTypes,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 type

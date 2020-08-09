@@ -129,6 +129,8 @@ implementation
   {$R *.lfm}
 {$ENDIF}
 
+uses UPCDataTypes;
+
 { TRandomGeneratorThread }
 
 procedure TRandomGeneratorThread.OnBankNewBlock(Sender: TObject);

@@ -7,7 +7,7 @@ unit UAccountKeyStorage;
 interface
 
 uses
-  Classes, SysUtils, UAccounts, UThread, UBaseTypes,
+  Classes, SysUtils, UAccounts, UThread, UBaseTypes, UPCDataTypes,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 type

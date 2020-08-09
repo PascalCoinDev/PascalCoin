@@ -30,7 +30,7 @@ uses
 {$ELSE}
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
-  Classes, Grids, UNode, UAccounts, UBlockChain, UAppParams, UThread,
+  Classes, Grids, UNode, UAccounts, UBlockChain, UAppParams, UThread, UPCDataTypes,
   UWallet, UCrypto, UPoolMining, URPC, UBaseTypes, UPCOrderedLists,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
@@ -289,8 +289,8 @@ uses
 
 procedure TAccountsGridUpdateThread.BCExecute;
 Var
-  l : TOrderedCardinalList;
-  i,j : Integer;
+  l : TAccountsNumbersList;
+  i,j, j_min, j_max : Integer;
   c  : Cardinal;
   LApplyfilter : Boolean;
   LAccount : TAccount;
@@ -307,26 +307,44 @@ begin
         while (Not Terminated) and (i<FAccountsGridFilter.OrderedAccountsKeyList.Count)
           and ((FAccountsGridFilter.indexAccountsKeyList<0) or (FAccountsGridFilter.indexAccountsKeyList=i)) do begin
 
+          j_min := 0;
+
+          while (j_min>=0) do begin
+
           LNode.bank.SafeBox.StartThreadSafe;
           FAccountsGridFilter.OrderedAccountsKeyList.Lock; // Protection v4
           Try
             l := FAccountsGridFilter.OrderedAccountsKeyList.AccountKeyList[i];
-            for j := 0 to l.Count - 1 do begin
-              LAccount := LNode.Bank.SafeBox.Account(l.Get(j));
-              if LApplyfilter then begin
-                if (LAccount.balance>=FAccountsGridFilter.MinBalance) And ((FAccountsGridFilter.MaxBalance<0) Or (LAccount.balance<=FAccountsGridFilter.MaxBalance)) then begin
+            if Assigned(l) then begin
+
+              j_max := (j_min + 500);
+              if j_max>=l.Count then j_max := l.Count-1;
+
+              for j := j_min to j_max do begin
+                LAccount := LNode.Bank.SafeBox.Account(l.Get(j));
+                if LApplyfilter then begin
+                  if (LAccount.balance>=FAccountsGridFilter.MinBalance) And ((FAccountsGridFilter.MaxBalance<0) Or (LAccount.balance<=FAccountsGridFilter.MaxBalance)) then begin
+                    FProcessedList.Add(LAccount.account);
+                    FBalance := FBalance + LAccount.balance;
+                  end;
+                end else begin
                   FProcessedList.Add(LAccount.account);
                   FBalance := FBalance + LAccount.balance;
                 end;
-              end else begin
-                FProcessedList.Add(LAccount.account);
-                FBalance := FBalance + LAccount.balance;
+                if Terminated then Exit;
               end;
-              if Terminated then Exit;
+              j_min := j_max+1;
+              if (j_max>=(l.Count-1)) then begin
+                j_min := -1;
+                break;
+              end;
             end;
           finally
             FAccountsGridFilter.OrderedAccountsKeyList.Unlock;
             LNode.Bank.SafeBox.EndThreadSave;
+          end;
+            if j_max>=0 then Sleep(0);
+
           end;
           inc(i);
         end;
@@ -342,10 +360,10 @@ begin
         end;
       end;
   Finally
-    FisProcessing := False;
     if Not Terminated then begin
       Synchronize(SynchronizedOnTerminated);
     end;
+    FisProcessing := False;
   End;
 end;
 
@@ -377,6 +395,7 @@ begin
     finally
       FAccountsGrid.UnlockAccountsList;
     end;
+    FisProcessing := False;
     if Assigned(FAccountsGrid.FOnAccountsGridUpdatedData) then  FAccountsGrid.FOnAccountsGridUpdatedData(FAccountsGrid);
   end;
 end;
@@ -860,7 +879,10 @@ begin
   LTmp := FAccountsGridUpdateThread;
   FAccountsGridUpdateThread := Nil;
   if Assigned(Ltmp) then begin
-    if Not AWaitUntilTerminated then LTmp.FreeOnTerminate := True;
+    if Not LTmp.IsProcessing then AWaitUntilTerminated := True;
+    if Not AWaitUntilTerminated then begin
+      LTmp.FreeOnTerminate := True;
+    end;
     LTmp.Terminate;
     if AWaitUntilTerminated then begin
       LTmp.WaitFor;
@@ -896,10 +918,10 @@ end;
 procedure TAccountsGrid.UpdateData;
 begin
   UpdateAccountsBalance;
+  TerminateAccountGridUpdateThread(False);
   if Assigned(Node) then begin
     case FAccountsGridDatasource of
       acds_NodeFiltered: begin
-        TerminateAccountGridUpdateThread(False);
         FAccountsBalance := 0;
         FAccountsGridUpdateThread := TAccountsGridUpdateThread.Create(Self,AccountsGridFilter);
       end;

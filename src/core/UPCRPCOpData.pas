@@ -25,7 +25,7 @@ interface
 {$I ./../config.inc}
 
 Uses classes, SysUtils,
-  UJSONFunctions, UAccounts, UBaseTypes, UOpTransaction, UConst,
+  UJSONFunctions, UAccounts, UBaseTypes, UOpTransaction, UConst, UPCDataTypes,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
   URPC, UCrypto, UWallet, UBlockChain, ULog;
 

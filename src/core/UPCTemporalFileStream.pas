@@ -36,6 +36,7 @@ Type
   public
     Constructor Create(const AInitialName : String); reintroduce;
     Destructor Destroy; override;
+    class function GetTemporalFileName(const AInitialName : String) : String;
   End;
 
 implementation
@@ -76,6 +77,28 @@ begin
     TLog.NewLog(ltdebug,ClassName,Format('Deleting a Temporal file Stream (%d bytes): %s',[LSize, FTemporalFileName]));
     DeleteFile(FTemporalFileName);
   end;
+end;
+
+class function TPCTemporalFileStream.GetTemporalFileName(
+  const AInitialName: String): String;
+var LFolder, LTime, LFileName : String;
+  i : Integer;
+begin
+  Result:= '';
+  LFolder := TNode.GetPascalCoinDataFolder+PathDelim+'Temp';
+  ForceDirectories(LFolder);
+  i := 0;
+  repeat
+    LTime := FormatDateTime('yyyymmddhhnnsszzz',Now);
+    if i>0 then begin
+      Sleep(1);
+      LFileName := LFolder + PathDelim + AInitialName + LTime +'_'+ IntToStr(i) + '.tmp';
+    end else begin
+      LFileName := LFolder + PathDelim + AInitialName + LTime + '.tmp';
+    end;
+    inc(i);
+  until (Not (FileExists(LFileName)) or (i>5000));
+  Result := LFileName;
 end;
 
 end.

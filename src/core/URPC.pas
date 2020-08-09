@@ -2776,6 +2776,7 @@ Var c,c2,c3 : Cardinal;
   opr : TOperationResume;
   r1,r2 : TRawBytes;
   ocl : TOrderedCardinalList;
+  Lanl : TAccountsNumbersList;
   jsonarr : TPCJSONArray;
   jso : TPCJSONObject;
   LRPCProcessMethod : TRPCProcessMethod;
@@ -2830,12 +2831,12 @@ begin
         ErrorDesc := 'Public key not found in wallet';
         exit;
       end;
-      ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
+      Lanl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
       k := params.AsInteger('max',100);
       l := params.AsInteger('start',0);
-      for j := 0 to ocl.Count - 1 do begin
+      for j := 0 to Lanl.Count - 1 do begin
         if (j>=l) then begin
-          account := FNode.GetMempoolAccount(ocl.Get(j));
+          account := FNode.GetMempoolAccount(Lanl.Get(j));
           TPascalCoinJSONComp.FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
         end;
         if (k>0) And ((j+1)>=(k+l)) then break;
@@ -2846,10 +2847,10 @@ begin
       l := params.AsInteger('start',0);
       c := 0;
       for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
-        ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
-        for j := 0 to ocl.Count - 1 do begin
+        Lanl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
+        for j := 0 to Lanl.Count - 1 do begin
           if (c>=l) then begin
-            account := FNode.GetMempoolAccount(ocl.Get(j));
+            account := FNode.GetMempoolAccount(Lanl.Get(j));
             TPascalCoinJSONComp.FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
           end;
           inc(c);
@@ -2878,15 +2879,15 @@ begin
         ErrorDesc := 'Public key not found in wallet';
         exit;
       end;
-      ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
-      jsonresponse.GetAsVariant('result').value := ocl.count;
+      Lanl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
+      jsonresponse.GetAsVariant('result').value := Lanl.count;
       Result := true;
     end else begin
       ErrorDesc := '';
       c :=0;
       for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
-        ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
-        inc(c,ocl.count);
+        Lanl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
+        inc(c,Lanl.count);
       end;
       jsonresponse.GetAsVariant('result').value := c;
       Result := true;
@@ -2908,10 +2909,10 @@ begin
         ErrorDesc := 'Public key not found in wallet';
         exit;
       end;
-      ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
+      Lanl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
       account.balance := 0;
-      for j := 0 to ocl.Count - 1 do begin
-        inc(account.balance, FNode.GetMempoolAccount(ocl.Get(j)).balance );
+      for j := 0 to Lanl.Count - 1 do begin
+        inc(account.balance, FNode.GetMempoolAccount(Lanl.Get(j)).balance );
       end;
       jsonresponse.GetAsVariant('result').value := ToJSONCurrency(account.balance);
       Result := true;
@@ -2920,9 +2921,9 @@ begin
       c :=0;
       account.balance := 0;
       for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
-        ocl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
-        for j := 0 to ocl.Count - 1 do begin
-          inc(account.balance, FNode.GetMempoolAccount(ocl.Get(j)).balance );
+        Lanl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
+        for j := 0 to Lanl.Count - 1 do begin
+          inc(account.balance, FNode.GetMempoolAccount(Lanl.Get(j)).balance );
         end;
       end;
       jsonresponse.GetAsVariant('result').value := ToJSONCurrency(account.balance);
