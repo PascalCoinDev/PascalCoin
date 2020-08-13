@@ -530,7 +530,7 @@ end;
 
 procedure TFRMOperation.FormCreate(Sender: TObject);
 begin
-  Transaltecomponent(self);
+  Translatecomponent(self);
   FDisabled := false;
   FWalletKeys := Nil;
   FSenderAccounts := TOrderedCardinalList.Create;

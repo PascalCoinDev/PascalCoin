@@ -239,7 +239,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="core;gui-classic;libraries\synapse;libraries\sphere10;libraries\cryptolib4pascal;libraries\simplebaselib4pascal;libraries\hashlib4pascal;libraries\generics.collections;libraries\pascalcoin;libraries\paszlib;libraries\gnugettext"/>
+      <OtherUnitFiles Value="core;gui-classic;libraries\synapse;libraries\sphere10;libraries\cryptolib4pascal;libraries\simplebaselib4pascal;libraries\hashlib4pascal;libraries\generics.collections;libraries\pascalcoin;libraries\paszlib;libraries\gnugettext;libraries\abstractmem"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
