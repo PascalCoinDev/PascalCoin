@@ -47,9 +47,9 @@ In case you have questions or just want to get in touch with like-minded Pascal 
 
 | Language      | Project Name | Type    | Version support | Link |
 | ------------- | ------------ | ------- | --------------- | ---- |
-| JavaScript    | SBX          | Library | 5               | [https://github.com/techworker/sbx](SBX) |
-| Dart          | PascalDart   | Library | 4               | [https://github.com/appditto/pascaldart](PascalDart) |
-| Java          | JPascalCoin  | Library | 4               | [https://github.com/davidbolet/JPascalCoin](JPascalCoin) |
+| JavaScript    | SBX          | Library | 5               | [SBX](https://github.com/techworker/sbx) |
+| Dart          | PascalDart   | Library | 4               | [PascalDart](https://github.com/appditto/pascaldart) |
+| Java          | JPascalCoin  | Library | 4               | [JPascalCoin](https://github.com/davidbolet/JPascalCoin) |
 
 ## Changelog
 
