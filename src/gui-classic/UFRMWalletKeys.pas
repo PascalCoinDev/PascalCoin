@@ -96,7 +96,7 @@ uses
   LCLIntf, LCLType,
 {$ENDIF}
   UCrypto, UAccounts, UFRMNewPrivateKeyType, UBaseTypes, UPCEncryption,
-  UPCDataTypes, UCommon, UGUIUtils;
+  UPCDataTypes, UCommon, UGUIUtils,gnugettext;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -493,6 +493,7 @@ end;
 
 procedure TFRMWalletKeys.FormCreate(Sender: TObject);
 begin
+  Translatecomponent(self);
   lbWalletKeys.Sorted := true;
   FWalletKeys := Nil;
   UpdateWalletKeys;

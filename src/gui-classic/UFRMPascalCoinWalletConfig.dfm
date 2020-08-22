@@ -1,10 +1,10 @@
 object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
-  Left = 0
-  Top = 0
+  Left = 462
+  Top = 234
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
   Caption = 'Options'
-  ClientHeight = 540
+  ClientHeight = 581
   ClientWidth = 374
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -12,17 +12,19 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
-  OldCreateOrder = False
+  OldCreateOrder = True
   Position = poOwnerFormCenter
   OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 13
   object Label1: TLabel
     Left = 30
-    Top = 405
+    Top = 403
     Width = 120
     Height = 13
     Caption = 'Default fee for operation'
+    Color = clBtnFace
+    ParentColor = False
   end
   object Label2: TLabel
     Left = 30
@@ -30,6 +32,8 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Width = 98
     Height = 13
     Caption = 'Internet Server Port'
+    Color = clBtnFace
+    ParentColor = False
   end
   object lblDefaultInternetServerPort: TLabel
     Left = 248
@@ -37,6 +41,8 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Width = 70
     Height = 13
     Caption = '(Default XXXX)'
+    Color = clBtnFace
+    ParentColor = False
   end
   object Label3: TLabel
     Left = 15
@@ -44,33 +50,43 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Width = 60
     Height = 13
     Caption = 'Miner Name:'
+    Color = clBtnFace
+    ParentColor = False
   end
   object Label4: TLabel
     Left = 90
-    Top = 91
+    Top = 90
     Width = 259
     Height = 13
     Caption = 'This name will be included in each new block you mine!'
-    Font.Charset = DEFAULT_CHARSET
+    Color = clBtnFace
+    Font.Charset = ANSI_CHARSET
     Font.Color = clGray
     Font.Height = -11
     Font.Name = 'Tahoma'
+    Font.Pitch = fpVariable
     Font.Style = []
+    Font.Quality = fqDraft
+    ParentColor = False
     ParentFont = False
   end
   object Label5: TLabel
     Left = 30
-    Top = 231
+    Top = 226
     Width = 73
     Height = 13
     Caption = 'JSON-RPC Port'
+    Color = clBtnFace
+    ParentColor = False
   end
   object lblDefaultJSONRPCMinerServerPort: TLabel
     Left = 248
-    Top = 231
+    Top = 226
     Width = 70
     Height = 13
     Caption = '(Default XXXX)'
+    Color = clBtnFace
+    ParentColor = False
   end
   object Label6: TLabel
     Left = 24
@@ -78,31 +94,37 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Width = 57
     Height = 13
     Caption = 'Allowed IP'#39's'
+    Color = clBtnFace
+    ParentColor = False
   end
   object Label7: TLabel
-    Left = 92
-    Top = 182
+    Left = 90
+    Top = 183
     Width = 209
     Height = 13
     Caption = 'Ip'#39's separated by semicolon or empty for all'
-    Font.Charset = DEFAULT_CHARSET
+    Color = clBtnFace
+    Font.Charset = ANSI_CHARSET
     Font.Color = clGray
     Font.Height = -11
     Font.Name = 'Tahoma'
+    Font.Pitch = fpVariable
     Font.Style = []
+    Font.Quality = fqDraft
+    ParentColor = False
     ParentFont = False
   end
   object cbJSONRPCMinerServerActive: TCheckBox
     Left = 15
-    Top = 205
-    Width = 261
-    Height = 17
+    Top = 200
+    Width = 225
+    Height = 19
     Caption = 'JSON-RPC Server Miner (TCP/IP, no HTTP)'
     TabOrder = 6
   end
   object ebDefaultFee: TEdit
     Left = 170
-    Top = 402
+    Top = 400
     Width = 56
     Height = 21
     Alignment = taRightJustify
@@ -111,36 +133,36 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   end
   object cbSaveLogFiles: TCheckBox
     Left = 15
-    Top = 429
-    Width = 97
-    Height = 17
+    Top = 427
+    Width = 78
+    Height = 19
     Caption = 'Save log file'
     TabOrder = 13
     OnClick = cbSaveLogFilesClick
   end
   object cbShowLogs: TCheckBox
     Left = 15
-    Top = 467
-    Width = 97
-    Height = 17
+    Top = 465
+    Width = 68
+    Height = 19
     Caption = 'Show logs'
     TabOrder = 15
   end
   object bbOk: TBitBtn
-    Left = 176
-    Top = 490
+    Left = 184
+    Top = 530
     Width = 75
-    Height = 25
+    Height = 30
     Kind = bkOK
     NumGlyphs = 2
     TabOrder = 18
     OnClick = bbOkClick
   end
   object bbCancel: TBitBtn
-    Left = 266
-    Top = 490
+    Left = 274
+    Top = 530
     Width = 75
-    Height = 25
+    Height = 30
     Kind = bkCancel
     NumGlyphs = 2
     TabOrder = 19
@@ -152,7 +174,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     Height = 21
     Associate = ebInternetServerPort
     Min = 1
-    Max = 40000
+    Max = 25000
     Position = 4004
     TabOrder = 3
     Thousands = False
@@ -169,7 +191,7 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   object bbUpdatePassword: TBitBtn
     Left = 15
     Top = 14
-    Width = 336
+    Width = 337
     Height = 38
     Caption = 'Wallet Password'
     Font.Charset = DEFAULT_CHARSET
@@ -244,67 +266,67 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   end
   object cbShowModalMessages: TCheckBox
     Left = 170
-    Top = 429
-    Width = 171
-    Height = 17
+    Top = 427
+    Width = 127
+    Height = 19
     Caption = 'Show modal messages'
     TabOrder = 16
   end
   object udJSONRPCMinerServerPort: TUpDown
     Left = 226
-    Top = 228
+    Top = 223
     Width = 16
     Height = 21
     Associate = ebJSONRPCMinerServerPort
     Min = 1
-    Max = 40000
-    Position = 1
+    Max = 25000
+    Position = 4009
     TabOrder = 8
     Thousands = False
   end
   object ebJSONRPCMinerServerPort: TEdit
     Left = 170
-    Top = 228
+    Top = 223
     Width = 56
     Height = 21
     Alignment = taRightJustify
     TabOrder = 7
-    Text = '1'
+    Text = '4009'
   end
   object gbMinerPrivateKey: TGroupBox
-    Left = 15
-    Top = 255
+    Left = 8
+    Top = 250
     Width = 334
     Height = 121
     Caption = ' Miner Server Private Key: '
     TabOrder = 9
     object rbGenerateANewPrivateKeyEachBlock: TRadioButton
-      Left = 20
-      Top = 20
-      Width = 301
-      Height = 17
+      Left = 18
+      Top = 6
+      Width = 277
+      Height = 19
       Caption = 'Generate a new private key for each generated block'
       TabOrder = 0
     end
     object rbUseARandomKey: TRadioButton
-      Left = 20
-      Top = 40
-      Width = 216
-      Height = 17
+      Left = 18
+      Top = 26
+      Width = 146
+      Height = 19
       Caption = 'Use a random existing key'
       TabOrder = 1
     end
     object rbMineAllwaysWithThisKey: TRadioButton
-      Left = 20
-      Top = 61
-      Width = 216
-      Height = 17
+      Left = 18
+      Top = 47
+      Width = 146
+      Height = 19
       Caption = 'Always mine with this key:'
       TabOrder = 2
     end
     object cbPrivateKeyToMine: TComboBox
-      Left = 45
-      Top = 85
+      Left = 43
+      Top = 71
       Width = 266
       Height = 21
       Style = csDropDownList
@@ -313,64 +335,81 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
   end
   object cbSaveDebugLogs: TCheckBox
     Left = 31
-    Top = 447
-    Width = 97
-    Height = 17
+    Top = 445
+    Width = 118
+    Height = 19
     Caption = 'Save debug logs too'
     TabOrder = 14
   end
   object bbOpenDataFolder: TBitBtn
-    Left = 15
-    Top = 490
-    Width = 120
-    Height = 25
-    Caption = 'Open Data folder'
+    Left = 16
+    Top = 530
+    Width = 131
+    Height = 30
+    Caption = 'Open Data Folder'
     Glyph.Data = {
-      36030000424D3603000000000000360000002800000010000000100000000100
-      18000000000000030000120B0000120B00000000000000000000FF00FF078DBE
-      078DBE078DBE078DBE078DBE078DBE078DBE078DBE078DBE078DBE078DBE078D
-      BEFF00FFFF00FFFF00FF078DBE25A1D171C6E884D7FA66CDF965CDF965CDF965
-      CDF965CDF865CDF965CDF866CEF93AADD81999C9FF00FFFF00FF078DBE4CBCE7
-      39A8D1A0E2FB6FD4FA6FD4F96ED4FA6FD4F96FD4FA6FD4FA6FD4FA6ED4F93EB1
-      D9C9F0F3078DBEFF00FF078DBE72D6FA078DBEAEE9FC79DCFB79DCFB79DCFB79
-      DCFB79DCFB7ADCFB79DCFA79DCFA44B5D9C9F0F3078DBEFF00FF078DBE79DDFB
-      1899C79ADFF392E7FC84E4FB83E4FC83E4FC84E4FC83E4FC83E4FB84E5FC48B9
-      DAC9F0F31496C4FF00FF078DBE82E3FC43B7DC65C2E0ABF0FC8DEBFC8DEBFC8D
-      EBFD8DEBFD8DEBFC8DEBFD8DEBFC4CBBDAC9F0F3C9F0F3078DBE078DBE8AEAFC
-      77DCF3219CC7FEFFFFC8F7FDC9F7FDC9F7FDC9F7FEC8F7FEC9F7FDC8F7FE9BD5
-      E6EAFEFED2F3F8078DBE078DBE93F0FE93F0FD1697C5078DBE078DBE078DBE07
-      8DBE078DBE078DBE078DBE078DBE078DBE078DBE078DBE078DBE078DBE9BF5FE
-      9AF6FE9AF6FE9BF5FD9BF6FE9AF6FE9BF5FE9AF6FD9BF5FE9AF6FE9AF6FE0989
-      BAFF00FFFF00FFFF00FF078DBEFEFEFEA0FBFFA0FBFEA0FBFEA1FAFEA1FBFEA0
-      FAFEA1FBFEA1FBFFA0FBFFA1FBFF0989BAFF00FFFF00FFFF00FFFF00FF078DBE
-      FEFEFEA5FEFFA5FEFFA5FEFF078DBE078DBE078DBE078DBE078DBE078DBEFF00
-      FFFF00FFFF00FFFF00FFFF00FFFF00FF078DBE078DBE078DBE078DBEFF00FFFF
-      00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
-      FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
-      FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
-      00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF
-      FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00
-      FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
-      00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF}
+      36040000424D3604000000000000360000002800000010000000100000000100
+      2000000000000004000064000000640000000000000000000000078DBE4D078D
+      BEFF078DBEFF078DBEFF078DBEFF078DBEFF078DBEFF078DBEFF078DBEFF078D
+      BEFF078DBEFF078DBEFF078DBEFF078DBEFFFFFFFF00FFFFFF00078DBEFF25A1
+      D1FF70C6E7FF6BCFF9FF66CDF9FF65CDF9FF65CDF9FF65CDF9FF65CDF8FF65CD
+      F9FF65CDF8FF66CEF9FF39ADD8FF078DBEFF078DBE4DFFFFFF00078DBEFF4CBC
+      E7FF5EB8DAFF94DFFBFF6FD4FAFF6FD4F9FF6ED4FAFF6FD4F9FF6FD4FAFF6FD4
+      FAFF6FD4FAFF6ED4F9FF3EB1D9FF84D7EBFF078DBEFFFFFFFF00078DBEFF72D6
+      FAFF1593C2FFB6ECFDFF7DDDFBFF79DCFBFF79DCFBFF79DCFBFF79DCFBFF7ADC
+      FBFF79DCFAFF79DCFAFF44B5D9FFAEF1F9FF078DBEFFFFFFFF00078DBEFF79DD
+      FBFF1899C7FF94DDF3FFA2EBFCFF84E4FBFF83E4FCFF83E4FCFF84E4FCFF83E4
+      FCFF83E4FBFF84E5FCFF48B9DAFFB3F4F9FF078DBEFF078DBE4D078DBEFF82E3
+      FCFF43B7DCFF4BB9DBFFBFF4FDFF8EEBFCFF8DEBFCFF8DEBFDFF8DEBFDFF8DEB
+      FCFF8DEBFDFF8DEBFCFF4CBBDAFFB6F7F9FF6DCAE0FF078DBEFF078DBEFF8AEA
+      FCFF77DCF3FF1496C3FFFFFFFFFFC9F8FEFFC9F8FEFFC9F8FEFFC9F8FFFFC9F7
+      FFFFC9F8FEFFC9F8FFFF9CD6E7FFDFFAFBFFDBF7FAFF078DBEFF078DBEFF93F0
+      FEFF93F0FDFF1697C5FF078DBEFF078DBEFF078DBEFF078DBEFF078DBEFF078D
+      BEFF078DBEFF078DBEFF078DBEFF078DBEFF078DBEFF078DBEFF078DBEFF9BF5
+      FEFF9AF6FEFF9AF6FEFF9BF5FDFF9BF6FEFF9AF6FEFF9BF5FEFF9AF6FDFF9BF5
+      FEFF9AF6FEFF9AF6FEFF0989BAFFFFFFFF00FFFFFF00FFFFFF00078DBEFFFEFE
+      FEFFA0FBFFFFA0FBFEFFA0FBFEFFA1FAFEFFA1FBFEFFA0FAFEFFA1FBFEFFA1FB
+      FFFFA0FBFFFFA1FBFFFF0989BAFFFFFFFF00FFFFFF00FFFFFF00078DBE4D078D
+      BEFFFEFEFEFFA5FEFFFFA5FEFFFFA5FEFFFF078DBEFF078DBEFF078DBEFF078D
+      BEFF078DBEFF078DBEFFFFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00078D
+      BE4D078DBEFF078DBEFF078DBEFF078DBEFF078DBE4DFFFFFF00FFFFFF00FFFF
+      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
+      FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00}
     TabOrder = 17
     OnClick = bbOpenDataFolderClick
   end
   object cbJSONRPCPortEnabled: TCheckBox
     Left = 15
-    Top = 139
-    Width = 261
-    Height = 17
+    Top = 136
+    Width = 205
+    Height = 19
     Caption = 'JSON-RPC Server port enabled (HTTP)'
     TabOrder = 4
     OnClick = cbJSONRPCPortEnabledClick
   end
   object ebJSONRPCAllowedIPs: TEdit
     Left = 90
-    Top = 158
+    Top = 159
     Width = 261
     Height = 21
     TabOrder = 5
     Text = 'ebJSONRPCAllowedIPs'
+  end
+  object cbDownloadNewCheckpoint: TCheckBox
+    Left = 16
+    Top = 373
+    Width = 271
+    Height = 19
+    Caption = 'Download new Checkpoint if blockchain older than...'
+    TabOrder = 10
+    OnClick = cbDownloadNewCheckpointClick
   end
   object ebMinFutureBlocksToDownloadNewSafebox: TEdit
     Left = 296
@@ -381,13 +420,13 @@ object FRMPascalCoinWalletConfig: TFRMPascalCoinWalletConfig
     TabOrder = 11
     Text = '0'
   end
-  object cbDownloadNewCheckpoint: TCheckBox
-    Left = 16
-    Top = 373
-    Width = 271
-    Height = 19
-    Caption = 'Download new Checkpoint if blockchain older than...'
-    TabOrder = 10
-    OnClick = cbDownloadNewCheckpointClick
+  object bbChangeLanguage: TBitBtn
+    Left = 15
+    Top = 488
+    Width = 131
+    Height = 30
+    Caption = 'Change UI language'
+    TabOrder = 20
+    OnClick = bbChangeLanguageClick
   end
 end

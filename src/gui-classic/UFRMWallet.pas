@@ -327,7 +327,7 @@ implementation
   {$R *.lfm}
 {$ENDIF}
 
-Uses UFolderHelper,
+Uses UFolderHelper,gnugettext,
 {$IFDEF Use_OpenSSL}
   UOpenSSL,
 {$ENDIF}
@@ -1299,6 +1299,8 @@ end;
 procedure TFRMWallet.FormCreate(Sender: TObject);
 Var i : Integer;
 begin
+  TranslateComponent(Self);
+  //
   {$IFNDEF FPC}
   {$IFDEF TESTNET}
   System.ReportMemoryLeaksOnShutdown := True; // Delphi memory leaks testing
@@ -1367,6 +1369,11 @@ begin
   FBlockChainGrid.DrawGrid := dgBlockChainExplorer;
   // FWalletKeys.OnChanged.Add( OnWalletChanged );
   LoadAppParams;
+  // use language from the params and retranslate if needed
+  // might be better to move this a bit earlier in the formcreate routine
+  UseLanguage(FAppParams.ParamByName[CT_PARAM_UILanguage].GetAsString(GetCurrentLanguage));
+  RetranslateComponent(Self);
+  //
   UpdatePrivateKeys;
   UpdateBlockChainState;
   UpdateConnectionStatus;
@@ -2046,6 +2053,7 @@ begin
     if ShowModal=MrOk then begin
       SaveAppParams;
       UpdateConfigChanged;
+      RetranslateComponent(self);
     end;
   finally
     free;

@@ -4,7 +4,7 @@ object FRMWallet: TFRMWallet
   Top = 201
   Width = 865
   Caption = 'Pascal full node Wallet (Classic GUI)'
-  ClientHeight = 580
+  ClientHeight = 600
   ClientWidth = 865
   Color = clBtnFace
   Constraints.MinHeight = 600
@@ -16,7 +16,6 @@ object FRMWallet: TFRMWallet
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poScreenCenter
-  LCLVersion = '1.8.0.6'
   object pnlTop: TPanel
     Left = 0
     Height = 91
@@ -312,7 +311,7 @@ object FRMWallet: TFRMWallet
   object StatusBar: TStatusBar
     Left = 0
     Height = 23
-    Top = 557
+    Top = 577
     Width = 865
     Panels = <    
       item
@@ -332,7 +331,7 @@ object FRMWallet: TFRMWallet
   end
   object PageControl: TPageControl
     Left = 0
-    Height = 466
+    Height = 486
     Top = 91
     Width = 865
     ActivePage = tsMyAccounts
@@ -342,11 +341,11 @@ object FRMWallet: TFRMWallet
     OnChange = PageControlChange
     object tsMyAccounts: TTabSheet
       Caption = 'Account Explorer'
-      ClientHeight = 440
+      ClientHeight = 460
       ClientWidth = 857
       object Splitter1: TSplitter
         Left = 400
-        Height = 374
+        Height = 394
         Top = 66
         Width = 5
       end
@@ -472,17 +471,17 @@ object FRMWallet: TFRMWallet
       end
       object pnlAccounts: TPanel
         Left = 0
-        Height = 374
+        Height = 394
         Top = 66
         Width = 400
         Align = alLeft
         BevelOuter = bvNone
-        ClientHeight = 374
+        ClientHeight = 394
         ClientWidth = 400
         TabOrder = 1
         object dgAccounts: TDrawGrid
           Left = 0
-          Height = 340
+          Height = 360
           Top = 0
           Width = 400
           Align = alClient
@@ -496,7 +495,7 @@ object FRMWallet: TFRMWallet
         object pnlAccountsInfo: TPanel
           Left = 0
           Height = 34
-          Top = 340
+          Top = 360
           Width = 400
           Align = alBottom
           BevelOuter = bvNone
@@ -577,7 +576,7 @@ object FRMWallet: TFRMWallet
       end
       object pcAccountsOptions: TPageControl
         Left = 405
-        Height = 374
+        Height = 394
         Top = 66
         Width = 452
         ActivePage = tsMultiSelectAccounts
@@ -604,12 +603,12 @@ object FRMWallet: TFRMWallet
         end
         object tsMultiSelectAccounts: TTabSheet
           Caption = 'Selected Accounts For Batch Operation'
-          ClientHeight = 348
+          ClientHeight = 368
           ClientWidth = 444
           ImageIndex = 1
           object dgSelectedAccounts: TDrawGrid
             Left = 41
-            Height = 291
+            Height = 311
             Top = 31
             Width = 320
             Align = alLeft
@@ -646,7 +645,7 @@ object FRMWallet: TFRMWallet
           object pnlSelectedAccountsBottom: TPanel
             Left = 0
             Height = 26
-            Top = 322
+            Top = 342
             Width = 444
             Align = alBottom
             BevelOuter = bvNone
@@ -688,12 +687,12 @@ object FRMWallet: TFRMWallet
           end
           object pnlSelectedAccountsLeft: TPanel
             Left = 0
-            Height = 291
+            Height = 311
             Top = 31
             Width = 41
             Align = alLeft
             BevelOuter = bvNone
-            ClientHeight = 291
+            ClientHeight = 311
             ClientWidth = 41
             TabOrder = 3
             object sbSelectedAccountsAdd: TSpeedButton

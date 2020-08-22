@@ -54,7 +54,7 @@ type
 implementation
 
 uses
-  UNetProtocol, UNode, UConst, USettings;
+  UNetProtocol, UNode, UConst, USettings,gnugettext;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -112,6 +112,8 @@ end;
 
 procedure TFRMNodesIp.FormCreate(Sender: TObject);
 begin
+  TranslateComponent(self);
+  //
   FAppParams := Nil;
   PrepareData;
 end;

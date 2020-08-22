@@ -1,0 +1,4642 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"POT-Creation-Date: 2020-03-28 20:30\n"
+"PO-Revision-Date: 2020-03-30 21:22+0200\n"
+"Last-Translator: Somebody <your.email@address.com>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 2.3\n"
+"Language-Team: <>\n"
+"Language: nl\n"
+
+#. FRMAbout..Caption
+#: gui-classic/UFRMAbout.dfm:7
+msgid "About..."
+msgstr "Over..."
+
+#. FRMAbout..Font.Name
+#. FRMAbout..Label1..Font.Name
+#. FRMAbout..lblBuild..Font.Name
+#. FRMAbout..lblProtocolVersion..Font.Name
+#. FRMAbout..Label3..Font.Name
+#. FRMAbout..Label4..Font.Name
+#. FRMAbout..Label5..Font.Name
+#. FRMAccountSelect..Font.Name
+#. FRMDiagnosticTool..Font.Name
+#. FRMHashLock..Font.Name
+#. FRMHashLock..lblError..Font.Name
+#. FRMHashLock..GroupBox2..meHashLockData..Font.Name
+#. FRMMemoText..Font.Name
+#. FRMMemoText..Memo..Font.Name
+#. FRMNewPrivateKeyType..Font.Name
+#. FRMNodesIp..Font.Name
+#. FRMOperation..Font.Name
+#. FRMOperation..lblAccountBalance..Font.Name
+#. FRMOperation..PageControlLocked..tsOperation..gbPayload..lblEncryptionErrors..Font.Name
+#. FRMOperation..PageControlLocked..tsOperation..gbPayload..memoPayload..Font.Name
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsTransaction..lblTransactionErrors..Font.Name
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangePrivateKey..lblChangeKeyErrors..Font.Name
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangePrivateKey..lblNewOwnerErrors..Font.Name
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..lblListAccountErrors..Font.Name
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsDelistAccount..lblDelistErrors..Font.Name
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsBuyAccount..lblBuyAccountErrors..Font.Name
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsBuyAccount..Label2..Font.Name
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangeInfo..lblChangeInfoErrors..Font.Name
+#. FRMOperation..PageControlLocked..tsGlobalError..lblGlobalErrors..Font.Name
+#. FRMOperation..PageControlLocked..tsGlobalError..bbPassword..Font.Name
+#. FRMOperation..memoAccounts..Font.Name
+#. FRMOperation..ebSenderAccount..Font.Name
+#. FRMOperationsExplorer..Font.Name
+#. FRMPascalCoinWalletConfig..Font.Name
+#. FRMPascalCoinWalletConfig..Label4..Font.Name
+#. FRMPascalCoinWalletConfig..Label7..Font.Name
+#. FRMPascalCoinWalletConfig..bbUpdatePassword..Font.Name
+#. FRMPayloadDecoder..Font.Name
+#. FRMPayloadDecoder..lblBlock..Font.Name
+#. FRMPayloadDecoder..lblDateTime..Font.Name
+#. FRMPayloadDecoder..lblOperationTxt..Font.Name
+#. FRMPayloadDecoder..lblAmount..Font.Name
+#. FRMPayloadDecoder..lblFee..Font.Name
+#. FRMPayloadDecoder..lblSender..Font.Name
+#. FRMPayloadDecoder..lblReceiver..Font.Name
+#. FRMPayloadDecoder..lblReceiverInfo..Font.Name
+#. FRMPayloadDecoder..PageControl..tsDecoded..lblDecodedMethod..Font.Name
+#. FRMPayloadDecoder..PageControl..tsDecoded..memoDecoded..Font.Name
+#. FRMPayloadDecoder..PageControl..tsDecoded..memoOriginalPayloadInHexa..Font.Name
+#. FRMPayloadDecoder..ebOphash..Font.Name
+#. FRMDiagnosticTool..Font.Name
+#. FRMRandomOperations..Font.Name
+#. FRMRandomOperations..pnlTop..lblTopCaption..Font.Name
+#. FRMRPCCalls..Font.Name
+#. FRMRPCCalls..pnlTop..lblTopCaption..Font.Name
+#. FRMSaleAccounts..Font.Name
+#. FRMSaleAccounts..lblAccountBalance..Font.Name
+#. FRMSaleAccounts..memoAccounts..Font.Name
+#. FRMSaleAccounts..ebSenderAccount..Font.Name
+#. FRMWallet..Font.Name
+#. FRMWallet..pnlTop..lblTimeAverageAux..Font.Name
+#. FRMWallet..pnlTop..Label16..Font.Name
+#. FRMWallet..pnlTop..lblBlocksFound..Font.Name
+#. FRMWallet..pnlTop..lblReceivedMessages..Font.Name
+#. FRMWallet..pnlTop..lblBuild..Font.Name
+#. FRMWallet..PageControl..tsMyAccounts..pcAccountsOptions..tsMultiSelectAccounts..pnlSelectedAccountsTop..Font.Name
+#. FRMWallet..PageControl..tsPendingOperations..pnlPendingOperations..Label10..Font.Name
+#. FRMWallet..PageControl..tsMessages..Label14..Font.Name
+#. FRMWallet..PageControl..tsMessages..memoMessages..Font.Name
+#. FRMWalletKeys..Font.Name
+#. FRMWalletKeys..lblKeysEncrypted..Font.Name
+#. FRMWalletKeys..memoPrivateKey..Font.Name
+#. FRMWalletKeys..bbUpdatePassword..Font.Name
+#. FRMDiagnosticTool..Font.Name
+#: gui-classic/UFRMAbout.dfm:14 gui-classic/UFRMAbout.dfm:130
+#: gui-classic/UFRMAbout.dfm:143 gui-classic/UFRMAbout.dfm:156
+#: gui-classic/UFRMAbout.dfm:176 gui-classic/UFRMAbout.dfm:190
+#: gui-classic/UFRMAbout.dfm:205 gui-classic/UFRMAccountSelect.dfm:12
+#: gui-classic/UFRMDiagnosticTool.dfm:11 gui-classic/UFRMHashLock.dfm:12
+#: gui-classic/UFRMHashLock.dfm:34 gui-classic/UFRMHashLock.dfm:117
+#: gui-classic/UFRMMemoText.dfm:12 gui-classic/UFRMMemoText.dfm:50
+#: gui-classic/UFRMNewPrivateKeyType.dfm:13 gui-classic/UFRMNodesIp.dfm:13
+#: gui-classic/UFRMOperation.dfm:13 gui-classic/UFRMOperation.dfm:40
+#: gui-classic/UFRMOperation.dfm:196 gui-classic/UFRMOperation.dfm:259
+#: gui-classic/UFRMOperation.dfm:332 gui-classic/UFRMOperation.dfm:410
+#: gui-classic/UFRMOperation.dfm:427 gui-classic/UFRMOperation.dfm:539
+#: gui-classic/UFRMOperation.dfm:783 gui-classic/UFRMOperation.dfm:825
+#: gui-classic/UFRMOperation.dfm:851 gui-classic/UFRMOperation.dfm:978
+#: gui-classic/UFRMOperation.dfm:1065 gui-classic/UFRMOperation.dfm:1080
+#: gui-classic/UFRMOperation.dfm:1149 gui-classic/UFRMOperation.dfm:1167
+#: gui-classic/UFRMOperationsExplorer.dfm:12
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:13
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:57
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:91
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:178
+#: gui-classic/UFRMPayloadDecoder.dfm:14 gui-classic/UFRMPayloadDecoder.dfm:37
+#: gui-classic/UFRMPayloadDecoder.dfm:50 gui-classic/UFRMPayloadDecoder.dfm:78
+#: gui-classic/UFRMPayloadDecoder.dfm:99
+#: gui-classic/UFRMPayloadDecoder.dfm:119
+#: gui-classic/UFRMPayloadDecoder.dfm:146
+#: gui-classic/UFRMPayloadDecoder.dfm:166
+#: gui-classic/UFRMPayloadDecoder.dfm:179
+#: gui-classic/UFRMPayloadDecoder.dfm:214
+#: gui-classic/UFRMPayloadDecoder.dfm:234
+#: gui-classic/UFRMPayloadDecoder.dfm:253
+#: gui-classic/UFRMPayloadDecoder.dfm:416
+#: gui-classic/UFRMRandomHashUtil.dfm:11
+#: gui-classic/UFRMRandomOperations.dfm:11
+#: gui-classic/UFRMRandomOperations.dfm:44 gui-classic/UFRMRPCCalls.dfm:12
+#: gui-classic/UFRMRPCCalls.dfm:50 gui-classic/UFRMSaleAccounts.dfm:12
+#: gui-classic/UFRMSaleAccounts.dfm:57 gui-classic/UFRMSaleAccounts.dfm:84
+#: gui-classic/UFRMSaleAccounts.dfm:103 gui-classic/UFRMWallet.dfm:13
+#: gui-classic/UFRMWallet.dfm:284 gui-classic/UFRMWallet.dfm:299
+#: gui-classic/UFRMWallet.dfm:315 gui-classic/UFRMWallet.dfm:333
+#: gui-classic/UFRMWallet.dfm:349 gui-classic/UFRMWallet.dfm:658
+#: gui-classic/UFRMWallet.dfm:870 gui-classic/UFRMWallet.dfm:1183
+#: gui-classic/UFRMWallet.dfm:1216 gui-classic/UFRMWalletKeys.dfm:13
+#: gui-classic/UFRMWalletKeys.dfm:66 gui-classic/UFRMWalletKeys.dfm:155
+#: gui-classic/UFRMWalletKeys.dfm:504 lib/i386-win32/UFRMDiagnosticTool.dfm:11
+msgid "Tahoma"
+msgstr ""
+
+#. FRMAbout..Label1..Caption
+#. FRMWallet..Caption
+#: gui-classic/UFRMAbout.dfm:126 gui-classic/UFRMWallet.dfm:4
+msgid "Pascal full node Wallet (Classic GUI)"
+msgstr "Pascal volledige Node Portemonnee (Klassieke Gebruikersomgeving)"
+
+#. FRMAbout..lblBuild..Caption
+#: gui-classic/UFRMAbout.dfm:139
+msgid "Build:"
+msgstr "Bouw:"
+
+#. FRMAbout..lblProtocolVersion..Caption
+#: gui-classic/UFRMAbout.dfm:152
+msgid "Protocol:"
+msgstr ""
+
+#. FRMAbout..Label2..Caption
+#: gui-classic/UFRMAbout.dfm:165
+msgid "Source Code:"
+msgstr ""
+
+#. FRMAbout..Label3..Caption
+#: gui-classic/UFRMAbout.dfm:172
+msgid "Check For New Versions:"
+msgstr "Controleer op nieuwe versies:"
+
+#. FRMAbout..Label4..Caption
+#. FRMAbout..Memo1....Lines.Strings
+#: gui-classic/UFRMAbout.dfm:186 gui-classic/UFRMAbout.dfm:252
+msgid "https://github.com/PascalCoin/PascalCoin"
+msgstr ""
+
+#. FRMAbout..Label5..Caption
+#: gui-classic/UFRMAbout.dfm:201
+msgid "https://sourceforge.net/projects/pascalcoin"
+msgstr ""
+
+#. FRMAbout..Memo1....Lines.Strings
+#: gui-classic/UFRMAbout.dfm:220
+msgid "Copyright (c) 2016 - 2019 PascalCoin developers"
+msgstr ""
+
+#. FRMAbout..Memo1....Lines.Strings
+#: gui-classic/UFRMAbout.dfm:221
+msgid "Based on Albert Molina original source code"
+msgstr ""
+
+#. FRMAbout..Memo1......Lines.Strings
+#: gui-classic/UFRMAbout.dfm:225
+msgid ""
+"Pascal (aka Pascal Coin) is P2P cryptocurrency without the need for "
+"historical "
+msgstr ""
+
+#. FRMAbout..Memo1......Lines.Strings
+#: gui-classic/UFRMAbout.dfm:228
+msgid "operations. This software comprises a node within the Pascal network."
+msgstr ""
+
+#. FRMAbout..Memo1......Lines.Strings
+#: gui-classic/UFRMAbout.dfm:232
+msgid ""
+"Distributed under the MIT software license, see the accompanying file "
+"LICENSE  or "
+msgstr ""
+
+#. FRMAbout..Memo1....Lines.Strings
+#: gui-classic/UFRMAbout.dfm:233
+msgid "visit http://www.opensource.org/licenses/mit-license.php."
+msgstr ""
+
+#. FRMAbout..Memo1......Lines.Strings
+#: gui-classic/UFRMAbout.dfm:237
+msgid "THIS IS EXPERIMENTAL SOFTWARE. Use it for educational purposes only."
+msgstr ""
+
+#. FRMAbout..Memo1......Lines.Strings
+#: gui-classic/UFRMAbout.dfm:241
+msgid ""
+"This product includes software developed by the OpenSSL Project and Denis "
+msgstr ""
+
+#. FRMAbout..Memo1......Lines.Strings
+#: gui-classic/UFRMAbout.dfm:244
+msgid "Grinyuk (https://github.com/Arvur/OpenSSL-Delphi), some cryptographic "
+msgstr ""
+
+#. FRMAbout..Memo1......Lines.Strings
+#: gui-classic/UFRMAbout.dfm:247
+msgid ""
+"functions inspirated in code written by Ladar Levison and Marco Ferrante, "
+"and "
+msgstr ""
+
+#. FRMAbout..Memo1....Lines.Strings
+#: gui-classic/UFRMAbout.dfm:248
+msgid "Synapse Socket code copyright of Lukas Gebauer."
+msgstr ""
+
+#. FRMAbout..Memo1......Lines.Strings
+#: gui-classic/UFRMAbout.dfm:251
+msgid ""
+"Original source code is written in Pascal Language and is available at "
+msgstr ""
+
+#. FRMAbout..Memo1....Lines.Strings
+#: gui-classic/UFRMAbout.dfm:254
+msgid "If you like it, consider a donation using BitCoin:"
+msgstr ""
+
+#. FRMAbout..Memo1....Lines.Strings
+#: gui-classic/UFRMAbout.dfm:255
+msgid "16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk"
+msgstr ""
+
+#. FRMAbout..bbClose..Caption
+#. FRMPayloadDecoder..bbClose..Caption
+#. FRMWallet..MainMenu..miProject..MiClose..Caption
+#: gui-classic/UFRMAbout.dfm:266 gui-classic/UFRMPayloadDecoder.dfm:353
+#: gui-classic/UFRMWallet.dfm:1273
+msgid "Close"
+msgstr "Sluiten"
+
+#. FRMAccountSelect..Caption
+#: gui-classic/UFRMAccountSelect.dfm:5
+msgid "Accounts"
+msgstr "Rekeningen"
+
+#. FRMAccountSelect..pnlAccountsTop..cbOnlyForSale..Caption
+#: gui-classic/UFRMAccountSelect.dfm:33
+msgid "Only for sale or swap"
+msgstr "Alleen voor verkoop of ruilen"
+
+#. FRMAccountSelect..pnlAccountsTop..bbSearch..Caption
+#: gui-classic/UFRMAccountSelect.dfm:41
+msgid "Search"
+msgstr "Zoek"
+
+#. FRMAccountSelect..pnlAccountsTop..cbOnlyForPrivateSaleToMe..Caption
+#: gui-classic/UFRMAccountSelect.dfm:107
+msgid "Only for private sale to me"
+msgstr "Alleen voor prive verkoop aan mij"
+
+#. FRMAccountSelect..pnlAccountsTop..cbAccountsBalance..Caption
+#: gui-classic/UFRMAccountSelect.dfm:115
+msgid "Accounts Balance"
+msgstr "Rekeningsaldo"
+
+#. FRMAccountSelect..pnlAccountsTop..cbMyAccounts..Caption
+#: gui-classic/UFRMAccountSelect.dfm:123
+msgid "My Accounts"
+msgstr "Mijn Rekeningen"
+
+#. FRMAccountSelect..pnlAccountsTop..cbOnlyForPublicSale..Caption
+#: gui-classic/UFRMAccountSelect.dfm:141
+msgid "Only for public sale"
+msgstr "Alleen voor publieke verkoop"
+
+#. FRMAccountSelect..pnlAccountsTop..cbAccountsName..Caption
+#: gui-classic/UFRMAccountSelect.dfm:165
+msgid "Accounts name"
+msgstr "Rekening naam"
+
+#. FRMAccountSelect..pnlBottom..Label17..Caption
+#. FRMWallet..pnlTop..Label5..Caption
+#. FRMWallet..PageControl..tsMyAccounts..pnlAccounts..pnlAccountsInfo..Label17..Caption
+#. FRMWallet..PageControl..tsMyAccounts..pcAccountsOptions..tsMultiSelectAccounts..pnlSelectedAccountsBottom..Label20..Caption
+#: gui-classic/UFRMAccountSelect.dfm:192 gui-classic/UFRMWallet.dfm:261
+#: gui-classic/UFRMWallet.dfm:543 gui-classic/UFRMWallet.dfm:685
+msgid "Accounts:"
+msgstr "Rekeningen:"
+
+#. FRMAccountSelect..pnlBottom..lblAccountsCount..Caption
+#. FRMAccountSelect..pnlBottom..lblAccountsBalance..Caption
+#. FRMOperation..PageControlLocked..tsOperation..gbPayload..lblPayloadLength..Caption
+#. FRMPayloadDecoder..lblDateTime..Caption
+#. FRMPayloadDecoder..lblOperationTxt..Caption
+#. FRMPayloadDecoder..lblAmount..Caption
+#. FRMPayloadDecoder..lblFee..Caption
+#. FRMPayloadDecoder..lblReceiver..Caption
+#. FRMWallet..pnlTop..lblCurrentBlock..Caption
+#. FRMWallet..pnlTop..lblOperationsPending..Caption
+#. FRMWallet..pnlTop..lblMinersClients..Caption
+#. FRMWallet..pnlTop..lblCurrentDifficulty..Caption
+#. FRMWallet..pnlTop..lblTimeAverage..Caption
+#. FRMWallet..pnlTop..lblCurrentAccounts..Caption
+#. FRMWallet..pnlTop..lblTimeAverageAux..Caption
+#. FRMWallet..pnlTop..lblBlocksFound..Caption
+#. FRMWallet..PageControl..tsMyAccounts..pnlAccounts..pnlAccountsInfo..lblAccountsCount..Caption
+#. FRMWallet..PageControl..tsMyAccounts..pnlAccounts..pnlAccountsInfo..lblAccountsBalance..Caption
+#. FRMWallet..PageControl..tsMyAccounts..pcAccountsOptions..tsMultiSelectAccounts..pnlSelectedAccountsBottom..lblSelectedAccountsCount..Caption
+#. FRMWallet..PageControl..tsMyAccounts..pcAccountsOptions..tsMultiSelectAccounts..pnlSelectedAccountsBottom..lblSelectedAccountsBalance..Caption
+#: gui-classic/UFRMAccountSelect.dfm:201 gui-classic/UFRMAccountSelect.dfm:219
+#: gui-classic/UFRMOperation.dfm:207 gui-classic/UFRMPayloadDecoder.dfm:46
+#: gui-classic/UFRMPayloadDecoder.dfm:74 gui-classic/UFRMPayloadDecoder.dfm:95
+#: gui-classic/UFRMPayloadDecoder.dfm:115
+#: gui-classic/UFRMPayloadDecoder.dfm:162 gui-classic/UFRMWallet.dfm:144
+#: gui-classic/UFRMWallet.dfm:180 gui-classic/UFRMWallet.dfm:198
+#: gui-classic/UFRMWallet.dfm:216 gui-classic/UFRMWallet.dfm:225
+#: gui-classic/UFRMWallet.dfm:270 gui-classic/UFRMWallet.dfm:279
+#: gui-classic/UFRMWallet.dfm:310 gui-classic/UFRMWallet.dfm:561
+#: gui-classic/UFRMWallet.dfm:570 gui-classic/UFRMWallet.dfm:694
+#: gui-classic/UFRMWallet.dfm:712
+msgid "000"
+msgstr ""
+
+#. FRMAccountSelect..pnlBottom..Label19..Caption
+#. FRMOperation..lblBalanceCaption..Caption
+#. FRMSaleAccounts..lblBalanceCaption..Caption
+#. FRMWallet..PageControl..tsMyAccounts..pnlAccounts..pnlAccountsInfo..Label19..Caption
+#: gui-classic/UFRMAccountSelect.dfm:210 gui-classic/UFRMOperation.dfm:50
+#: gui-classic/UFRMSaleAccounts.dfm:73 gui-classic/UFRMWallet.dfm:552
+msgid "Balance:"
+msgstr "Saldo:"
+
+#. FRMAccountSelect..pnlBottom..bbSelect..Caption
+#: gui-classic/UFRMAccountSelect.dfm:229
+msgid "Select"
+msgstr "Selecteer"
+
+#. FRMAccountSelect..pnlBottom..bbTypeStats..Caption
+#: gui-classic/UFRMAccountSelect.dfm:249
+msgid "Type stats"
+msgstr ""
+
+#. FRMDiagnosticTool..Caption
+#. FRMDiagnosticTool..Caption
+#. FRMDiagnosticTool..Caption
+#: gui-classic/UFRMDiagnosticTool.dfm:4 gui-classic/UFRMRandomHashUtil.dfm:4
+#: lib/i386-win32/UFRMDiagnosticTool.dfm:4
+msgid "FRMDiagnosticTool"
+msgstr ""
+
+#. FRMDiagnosticTool..btnRH..Caption
+#. FRMDiagnosticTool..btnRH..Caption
+#: gui-classic/UFRMDiagnosticTool.dfm:25
+#: lib/i386-win32/UFRMDiagnosticTool.dfm:25
+msgid "Start Random Hash"
+msgstr ""
+
+#. FRMDiagnosticTool..btnRH2..Caption
+#. FRMDiagnosticTool..btnRH2..Caption
+#: gui-classic/UFRMDiagnosticTool.dfm:34
+#: lib/i386-win32/UFRMDiagnosticTool.dfm:34
+msgid "Start Random Hash 2"
+msgstr ""
+
+#. FRMDiagnosticTool..btnRH2C..Caption
+#. FRMDiagnosticTool..btnRH2C..Caption
+#: gui-classic/UFRMDiagnosticTool.dfm:51
+#: lib/i386-win32/UFRMDiagnosticTool.dfm:51
+msgid "Start Random Hash 2 (Cached)"
+msgstr ""
+
+#. FRMDiagnosticTool..btnEntropy..Caption
+#. FRMDiagnosticTool..btnEntropy..Caption
+#: gui-classic/UFRMDiagnosticTool.dfm:60
+#: lib/i386-win32/UFRMDiagnosticTool.dfm:60
+msgid "Entropy Tests"
+msgstr ""
+
+#. FRMDiagnosticTool..btnRH2NonceScan..Caption
+#. FRMDiagnosticTool..btnRH2NonceScan..Caption
+#: gui-classic/UFRMDiagnosticTool.dfm:69
+#: lib/i386-win32/UFRMDiagnosticTool.dfm:69
+msgid "Start Random Hash 2 (Nonce Scan)"
+msgstr ""
+
+#. FRMDiagnosticTool..txtScanLevel..TextHint
+#. FRMDiagnosticTool..txtScanLevel..TextHint
+#: gui-classic/UFRMDiagnosticTool.dfm:79
+#: lib/i386-win32/UFRMDiagnosticTool.dfm:79
+msgid "Enter Scan Level (2-4)"
+msgstr ""
+
+#. FRMDiagnosticTool..btnRHC..Caption
+#. FRMDiagnosticTool..btnRHC..Caption
+#: gui-classic/UFRMDiagnosticTool.dfm:86
+#: lib/i386-win32/UFRMDiagnosticTool.dfm:86
+msgid "Start Random Hash (Cached)"
+msgstr ""
+
+#. FRMHashLock..Caption
+#: gui-classic/UFRMHashLock.dfm:5
+msgid "Atomic Swap Hash-Lock "
+msgstr ""
+
+#. FRMHashLock..lblError..Caption
+#. FRMOperation..PageControlLocked..tsOperation..gbPayload..lblEncryptionErrors..Caption
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsTransaction..lblTransactionErrors..Caption
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangePrivateKey..lblChangeKeyErrors..Caption
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangePrivateKey..lblNewOwnerErrors..Caption
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..lblListAccountErrors..Caption
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsDelistAccount..lblDelistErrors..Caption
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsBuyAccount..lblBuyAccountErrors..Caption
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangeInfo..lblChangeInfoErrors..Caption
+#: gui-classic/UFRMHashLock.dfm:29 gui-classic/UFRMOperation.dfm:191
+#: gui-classic/UFRMOperation.dfm:327 gui-classic/UFRMOperation.dfm:405
+#: gui-classic/UFRMOperation.dfm:422 gui-classic/UFRMOperation.dfm:534
+#: gui-classic/UFRMOperation.dfm:778 gui-classic/UFRMOperation.dfm:820
+#: gui-classic/UFRMOperation.dfm:973
+msgid "Errors detected"
+msgstr ""
+
+#. FRMHashLock..btnSet..Caption
+#: gui-classic/UFRMHashLock.dfm:56
+msgid "Set Hash-Lock"
+msgstr ""
+
+#. FRMHashLock..GroupBox1..Caption
+#: gui-classic/UFRMHashLock.dfm:67
+msgid "Mode"
+msgstr ""
+
+#. FRMHashLock..GroupBox1..rbHashLock....Caption
+#: gui-classic/UFRMHashLock.dfm:76
+msgid "Hash-Lock - the 32 byte hash-lock provided to you by the counterparty"
+msgstr ""
+
+#. FRMHashLock..GroupBox1..rbHashLockKey....Caption
+#: gui-classic/UFRMHashLock.dfm:86
+msgid ""
+"Hash-Lock Key - a secret that will be hashed to create the 32 byte hash-lock"
+msgstr ""
+
+#. FRMHashLock..GroupBox2..Caption
+#: gui-classic/UFRMHashLock.dfm:96
+msgid "Data"
+msgstr ""
+
+#. FRMHashLock..GroupBox2..Label2..Caption
+#: gui-classic/UFRMHashLock.dfm:106
+msgid "Please enter the hash lock data as a hexadecimal string"
+msgstr ""
+
+#. FRMMemoText..Caption
+#: gui-classic/UFRMMemoText.dfm:5
+msgid "Information"
+msgstr "Informatie"
+
+#. FRMMemoText..Memo....Lines.Strings
+#: gui-classic/UFRMMemoText.dfm:53
+msgid "Memo"
+msgstr ""
+
+#. FRMNewPrivateKeyType..Caption
+#: gui-classic/UFRMNewPrivateKeyType.dfm:6
+msgid "New Private Key"
+msgstr "Nieuwe Prive Sleutel"
+
+#. FRMNewPrivateKeyType..Label1..Caption
+#: gui-classic/UFRMNewPrivateKeyType.dfm:26
+msgid "Name"
+msgstr "Naam"
+
+#. FRMNewPrivateKeyType..ebName..Text
+#: gui-classic/UFRMNewPrivateKeyType.dfm:34
+msgid "ebName"
+msgstr "ebName"
+
+#. FRMNewPrivateKeyType..rgKeyType..Caption
+#: gui-classic/UFRMNewPrivateKeyType.dfm:41
+msgid " Key Type: "
+msgstr " Sleutel Type: "
+
+#. FRMNewPrivateKeyType..rgKeyType....Items.Strings
+#: gui-classic/UFRMNewPrivateKeyType.dfm:43
+msgid "asdf"
+msgstr ""
+
+#. FRMNewPrivateKeyType..bbOk..Caption
+#. FRMNodesIp..bbOk..Caption
+#. FRMChangeLanguage..bbOk..Caption
+#. FRMChangeLanguage..bbOk..Caption
+#: gui-classic/UFRMNewPrivateKeyType.dfm:51 gui-classic/UFRMNodesIp.dfm:42
+#: gui-classic/UFRMSelectLanguage.dfm:18
+#: lib/i386-win32/ufrmselectlanguage.dfm:18
+msgid "OK"
+msgstr "Akkoord"
+
+#. FRMNodesIp..Caption
+#: gui-classic/UFRMNodesIp.dfm:6
+msgid "Nodes IP"
+msgstr "Nodes IP adres"
+
+#. FRMNodesIp..Label1..Caption
+#: gui-classic/UFRMNodesIp.dfm:25
+msgid "Available Nodes Ip to connect"
+msgstr "Beschikbare Nodes IP adressen om mee te verbinden"
+
+#. FRMNodesIp..memoNodesIp....Lines.Strings
+#: gui-classic/UFRMNodesIp.dfm:33
+msgid "memoNodesIp"
+msgstr ""
+
+#. FRMNodesIp..cbTryOnlyWithThisServers..Caption
+#: gui-classic/UFRMNodesIp.dfm:82
+msgid "Try to connect ONLY with this servers"
+msgstr "Probeer ALLEEN met deze servers te verbinden"
+
+#. FRMOperation..Caption
+#: gui-classic/UFRMOperation.dfm:6
+msgid "New Operation"
+msgstr "Nieuwe Handeling"
+
+#. FRMOperation..lblAccountCaption..Caption
+#. FRMSaleAccounts..lblAccountCaption..Caption
+#: gui-classic/UFRMOperation.dfm:26 gui-classic/UFRMSaleAccounts.dfm:25
+msgid "Account:"
+msgstr "Rekening:"
+
+#. FRMOperation..lblAccountBalance..Caption
+#. FRMSaleAccounts..lblAccountBalance..Caption
+#: gui-classic/UFRMOperation.dfm:35 gui-classic/UFRMSaleAccounts.dfm:53
+msgid "lblAccountBalance"
+msgstr ""
+
+#. FRMOperation..lblAccountsCount..Caption
+#. FRMSaleAccounts..lblAccountsCount..Caption
+#: gui-classic/UFRMOperation.dfm:59 gui-classic/UFRMSaleAccounts.dfm:66
+msgid "XXX"
+msgstr ""
+
+#. FRMOperation..bbExecute..Caption
+#. FRMOperation..ActionList..actExecute..Caption
+#. FRMSaleAccounts..bbExecute..Caption
+#. FRMSaleAccounts..ActionList..actExecute..Caption
+#: gui-classic/UFRMOperation.dfm:68 gui-classic/UFRMOperation.dfm:1179
+#: gui-classic/UFRMSaleAccounts.dfm:178 gui-classic/UFRMSaleAccounts.dfm:215
+msgid "Execute (F12)"
+msgstr ""
+
+#. FRMOperation..PageControlLocked..tsOperation..lblFee..Caption
+#: gui-classic/UFRMOperation.dfm:113
+msgid "Operation Fee"
+msgstr "Handeling Vergoeding"
+
+#. FRMOperation..PageControlLocked..tsOperation..lblSignerAccount..Caption
+#: gui-classic/UFRMOperation.dfm:122
+msgid "Signer account (Fee payer)"
+msgstr "Ondertekenaar rekening (Vergoeding betaler)"
+
+#. FRMOperation..PageControlLocked..tsOperation..gbPayload..Caption
+#: gui-classic/UFRMOperation.dfm:165
+msgid " Payload: "
+msgstr " Lading: "
+
+#. FRMOperation..PageControlLocked..tsOperation..gbPayload..lblEncryptPassword..Caption
+#: gui-classic/UFRMOperation.dfm:172
+msgid "Password:"
+msgstr "Wachtwoord:"
+
+#. FRMOperation..PageControlLocked..tsOperation..gbPayload..Label4..Caption
+#: gui-classic/UFRMOperation.dfm:181
+msgid "Payload Data"
+msgstr "Lading inhoud"
+
+#. FRMOperation..PageControlLocked..tsOperation..gbPayload..rbEncryptedWithEC..Caption
+#: gui-classic/UFRMOperation.dfm:216
+msgid "Encrypted with dest account public key"
+msgstr "Versleutel met ontv rekening publieke sleutel"
+
+#. FRMOperation..PageControlLocked..tsOperation..gbPayload..rbEncrptedWithPassword..Caption
+#: gui-classic/UFRMOperation.dfm:227
+msgid "Encrypted with password"
+msgstr "Versleutel met wachtwoord"
+
+#. FRMOperation..PageControlLocked..tsOperation..gbPayload..rbNotEncrypted..Caption
+#: gui-classic/UFRMOperation.dfm:237
+msgid "Dont encrypt (Public payload)"
+msgstr "Versleutel niet (Publieke lading)"
+
+#. FRMOperation..PageControlLocked..tsOperation..gbPayload..rbEncryptedWithOldEC..Caption
+#: gui-classic/UFRMOperation.dfm:272
+msgid "Encrypted with old public key"
+msgstr "Versleutel met oude publieke sleutel"
+
+#. FRMOperation..PageControlLocked..tsOperation..gbPayload..cbPayloadAsHex..Caption
+#: gui-classic/UFRMOperation.dfm:282
+msgid "As Hex"
+msgstr ""
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsTransaction..Caption
+#: gui-classic/UFRMOperation.dfm:302
+msgid "Transaction"
+msgstr "Transactie"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsTransaction..lblDestAccount..Caption
+#: gui-classic/UFRMOperation.dfm:308
+msgid "Destination account"
+msgstr "Bestemming rekening"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsTransaction..lblAmount..Caption
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsBuyAccount..lblBuyAmount..Caption
+#: gui-classic/UFRMOperation.dfm:317 gui-classic/UFRMOperation.dfm:810
+msgid "Amount"
+msgstr "Bedrag"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangePrivateKey..Caption
+#: gui-classic/UFRMOperation.dfm:387
+msgid "Change Key"
+msgstr "Wijzig Sleutel"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangePrivateKey..lblNewPrivateKey..Caption
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsBuyAccount..lblBuyNewKey..Caption
+#: gui-classic/UFRMOperation.dfm:394 gui-classic/UFRMOperation.dfm:837
+msgid "New private key"
+msgstr "Nieuwe Prive Sleutel"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangePrivateKey..lblNewOwnerPublicKey..Caption
+#: gui-classic/UFRMOperation.dfm:437
+msgid "New owners public key"
+msgstr "Nieuwe eigenaars publieke sleutel"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangePrivateKey..rbChangeKeyWithAnother..Caption
+#: gui-classic/UFRMOperation.dfm:446
+msgid "Change private key"
+msgstr "Wijzig prive sleutel"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangePrivateKey..rbChangeKeyTransferAccountToNewOwner..Caption
+#: gui-classic/UFRMOperation.dfm:514
+msgid "Transfer account to a new owner"
+msgstr "Draag rekening over aan nieuwe eigenaar"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..Caption
+#: gui-classic/UFRMOperation.dfm:526
+msgid "List Account"
+msgstr ""
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..lblPrice..Caption
+#: gui-classic/UFRMOperation.dfm:550
+msgid "Sale Price"
+msgstr ""
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..lblSeller..Caption
+#: gui-classic/UFRMOperation.dfm:560
+msgid "Seller Account"
+msgstr ""
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..lblNewKey..Caption
+#: gui-classic/UFRMOperation.dfm:604
+msgid "Buyer Key"
+msgstr "Koper sleutel"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..lblTimeLock..Caption
+#: gui-classic/UFRMOperation.dfm:614
+msgid "Time-Lock"
+msgstr "Tijd-slot"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..lblHashLock..Caption
+#: gui-classic/UFRMOperation.dfm:623
+msgid "Hash-Lock"
+msgstr ""
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..rbListAccountForPublicSale..Caption
+#: gui-classic/UFRMOperation.dfm:699
+msgid "List for Public Sale"
+msgstr ""
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..rbListAccountForPrivateSale..Caption
+#: gui-classic/UFRMOperation.dfm:707
+msgid "List for Private Sale"
+msgstr ""
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..rbListAccountForAccountSwap..Caption
+#: gui-classic/UFRMOperation.dfm:715
+msgid "List for Atomic Account Swap"
+msgstr ""
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..rbListAccountForCoinSwap..Caption
+#: gui-classic/UFRMOperation.dfm:723
+msgid "List for Atomic Coin Swap"
+msgstr ""
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..ebPrice..TextHint
+#: gui-classic/UFRMOperation.dfm:732
+msgid "PASC Quantity"
+msgstr "PASC Hoeveelheid"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..ebSellerAccount..TextHint
+#: gui-classic/UFRMOperation.dfm:740
+msgid "Account Number"
+msgstr "Rekeningnummer"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..ebNewKey..TextHint
+#: gui-classic/UFRMOperation.dfm:748
+msgid "BASE58 Encoded Public Key Of New Owner"
+msgstr ""
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..ebTimeLock..Hint
+#: gui-classic/UFRMOperation.dfm:755
+msgid "Block Number "
+msgstr "Blok Nummer "
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsListAccount..ebTimeLock..TextHint
+#: gui-classic/UFRMOperation.dfm:759
+msgid "Block number"
+msgstr "Blok numer"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsDelistAccount..Caption
+#: gui-classic/UFRMOperation.dfm:770
+msgid "Delist Account"
+msgstr "Verwijder Rekening"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsBuyAccount..Caption
+#: gui-classic/UFRMOperation.dfm:790
+msgid "Buy Account"
+msgstr "Koop Rekening"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsBuyAccount..lblAccountToBuy..Caption
+#: gui-classic/UFRMOperation.dfm:799
+msgid "Account to Buy"
+msgstr "Rekening voor Kopen"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsBuyAccount..Label2..Caption
+#: gui-classic/UFRMOperation.dfm:846
+msgid "any over-payment will remain on bought account"
+msgstr ""
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangeInfo..Caption
+#: gui-classic/UFRMOperation.dfm:966
+msgid "Change Info"
+msgstr "Wijzig Info"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangeInfo..lblChangeName..Caption
+#: gui-classic/UFRMOperation.dfm:990
+msgid "Change name"
+msgstr "Wijzig naam"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangeInfo..lblChangeType..Caption
+#: gui-classic/UFRMOperation.dfm:1001
+msgid "Change type"
+msgstr "Wijzig type"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangeInfo..lblChangeAccountData..Caption
+#: gui-classic/UFRMOperation.dfm:1012
+msgid "Change Data"
+msgstr "Wijzig Data"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangeInfo..ebChangeName..TextHint
+#: gui-classic/UFRMOperation.dfm:1022
+msgid "Account name (null or 3..64 chars)"
+msgstr "Rekening naam (leeg of 3..64 letters)"
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangeInfo..ebChangeType..TextHint
+#: gui-classic/UFRMOperation.dfm:1030
+msgid "0..65535"
+msgstr ""
+
+#. FRMOperation..PageControlLocked..tsOperation..PageControlOpType..tsChangeInfo..ebChangeAccountData..TextHint
+#: gui-classic/UFRMOperation.dfm:1038
+msgid "Hexadecimal value (0..32 bytes)"
+msgstr ""
+
+#. FRMOperation..PageControlLocked..tsGlobalError..lblGlobalErrors..Caption
+#: gui-classic/UFRMOperation.dfm:1060
+msgid "????"
+msgstr ""
+
+#. FRMOperation..PageControlLocked..tsGlobalError..bbPassword..Caption
+#. FRMWalletKeys..bbUpdatePassword..Caption
+#: gui-classic/UFRMOperation.dfm:1076 gui-classic/UFRMWalletKeys.dfm:500
+msgid "Password"
+msgstr "Wachtwoord"
+
+#. FRMOperation..memoAccounts....Lines.Strings
+#. FRMOperation..memoAccounts....Lines.Strings
+#. FRMSaleAccounts..memoAccounts....Lines.Strings
+#. FRMSaleAccounts..memoAccounts....Lines.Strings
+#: gui-classic/UFRMOperation.dfm:1152 gui-classic/UFRMOperation.dfm:1153
+#: gui-classic/UFRMSaleAccounts.dfm:87 gui-classic/UFRMSaleAccounts.dfm:88
+msgid "123456-11 (0.0000); 123456-11 (0.0000); "
+msgstr ""
+
+#. FRMOperation..ebSenderAccount..Text
+#. FRMSaleAccounts..ebSenderAccount..Text
+#: gui-classic/UFRMOperation.dfm:1171 gui-classic/UFRMSaleAccounts.dfm:107
+msgid "ebSenderAccount"
+msgstr "ebAfzenderRekening"
+
+#. FRMOperationsExplorer..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:5
+msgid "Operations Explorer Tool"
+msgstr "Handelingen Verkenner gereedschap"
+
+#. FRMOperationsExplorer..pnlTop..lblTopCaption....Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:58
+msgid ""
+"You can use this tool to explore operations, also you can copy/paste "
+"operations as a RAW (Use Ctrl+I to Import). This tool allows to generate a "
+"Multioperation, send to third party the RAW, add more txs... and then sign. "
+"Once Everybody has signed, you will be able to EXECUTE OPERATION to be "
+"added to network nodes. "
+msgstr ""
+
+#. FRMOperationsExplorer..pnlOpInfo..pnlExport..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:85
+msgid "pnlExport"
+msgstr ""
+
+#. FRMOperationsExplorer..pnlOpInfo..pnlExport..Label1..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:94
+msgid "Operation as RAW:"
+msgstr ""
+
+#. FRMOperationsExplorer..pnlOpInfo..pnlInfo..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:115
+msgid "pnlInfo"
+msgstr ""
+
+#. FRMOperationsExplorer..pnlOpInfo..pnlInfo..pnlInfoOptions..Label2..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:139
+msgid "Multioperation actions:"
+msgstr "Meerdere handelingen aktie:"
+
+#. FRMOperationsExplorer..pnlOpInfo..pnlInfo..pnlInfoOptions..bbRandom..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:188
+msgid "RANDOM OPERATIONS"
+msgstr ""
+
+#. FRMOperationsExplorer..mMenu..MiTools..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:199
+msgid "Tools"
+msgstr "Gereedschappen"
+
+#. FRMOperationsExplorer..mMenu..MiTools..MiImportOperationsFromTxt..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:201
+msgid "Import Operations from RAW"
+msgstr ""
+
+#. FRMOperationsExplorer..mMenu..MiTools..MiDivider1..Caption
+#. FRMOperationsExplorer..mMenu..MiActions..MenuItem6..Caption
+#. FRMWallet..MainMenu..miProject..miN1..Caption
+#. FRMWallet..MainMenu..miProject..N1..Caption
+#. FRMWallet..MainMenu..MiOperations..N2..Caption
+#. FRMWallet..MainMenu..MiOperations..N3..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:206
+#: gui-classic/UFRMOperationsExplorer.dfm:224 gui-classic/UFRMWallet.dfm:1254
+#: gui-classic/UFRMWallet.dfm:1270 gui-classic/UFRMWallet.dfm:1310
+#: gui-classic/UFRMWallet.dfm:1327
+msgid "-"
+msgstr ""
+
+#. FRMOperationsExplorer..mMenu..MiTools..miLoadFromBlockchain..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:209
+msgid "Load Operations from Blockchain"
+msgstr ""
+
+#. FRMOperationsExplorer..mMenu..MiTools..MiLoadOperationsFromBlockchainFile..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:214
+msgid "Load Operations from Blockchain file"
+msgstr ""
+
+#. FRMOperationsExplorer..mMenu..MiActions..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:219
+msgid "Actions"
+msgstr "Akties"
+
+#. FRMOperationsExplorer..ActionList..ActExecuteOperation..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:244
+msgid "Execute Operation"
+msgstr ""
+
+#. FRMOperationsExplorer..ActionList..ActAddTxToMultioperation..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:249
+msgid "Add Tx to Multioperation"
+msgstr ""
+
+#. FRMOperationsExplorer..ActionList..AddOpChangeToMultioperation..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:254
+msgid "Add OpChange to Multioperation"
+msgstr ""
+
+#. FRMOperationsExplorer..ActionList..ActRemoveAccountFromMultioperation..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:259
+msgid "Remove Account from Multioperation"
+msgstr "Verwijder Rekening van MultiHandeling"
+
+#. FRMOperationsExplorer..ActionList..ActSignMultioperation..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:264
+msgid "Sign Multioperation"
+msgstr "Teken Multi-handeling"
+
+#. FRMOperationsExplorer..ActionList..ActAddTx..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:269
+msgid "Add Tx"
+msgstr ""
+
+#. FRMOperationsExplorer..ActionList..ActAddOpChange..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:274
+msgid "Add OpChange"
+msgstr ""
+
+#. FRMOperationsExplorer..ActionList..ActRemove..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:279
+msgid "Remove"
+msgstr "Verwijder"
+
+#. FRMOperationsExplorer..ActionList..ActSign..Caption
+#: gui-classic/UFRMOperationsExplorer.dfm:284
+msgid "Sign"
+msgstr "Teken"
+
+#. FRMPascalCoinWalletConfig..Caption
+#. FRMWallet..MainMenu..miProject..miOptions..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:6
+#: gui-classic/UFRMWallet.dfm:1257
+msgid "Options"
+msgstr "Opties"
+
+#. FRMPascalCoinWalletConfig..Label1..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:25
+msgid "Default fee for operation"
+msgstr "Standaard vergoeding voor handeling"
+
+#. FRMPascalCoinWalletConfig..Label2..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:32
+msgid "Internet Server Port"
+msgstr "Internet Server Poort"
+
+#. FRMPascalCoinWalletConfig..lblDefaultInternetServerPort..Caption
+#. FRMPascalCoinWalletConfig..lblDefaultJSONRPCMinerServerPort..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:39
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:73
+msgid "(Default XXXX)"
+msgstr "(Standaard XXXX)"
+
+#. FRMPascalCoinWalletConfig..Label3..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:46
+msgid "Miner Name:"
+msgstr "Miner Naam:"
+
+#. FRMPascalCoinWalletConfig..Label4..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:53
+msgid "This name will be included in each new block you mine!"
+msgstr "Deze naam wordt opgenomen in elk nieuw blok dat je vindt!"
+
+#. FRMPascalCoinWalletConfig..Label5..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:66
+msgid "JSON-RPC Port"
+msgstr "JSON-RPC Poort"
+
+#. FRMPascalCoinWalletConfig..Label6..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:80
+msgid "Allowed IP's"
+msgstr "Toegestane IP adressen"
+
+#. FRMPascalCoinWalletConfig..Label7..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:87
+msgid "Ip's separated by semicolon or empty for all"
+msgstr "IP adressen gescheiden door een puntkomma of leeg voor alle adressen"
+
+#. FRMPascalCoinWalletConfig..cbJSONRPCMinerServerActive..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:100
+msgid "JSON-RPC Server Miner (TCP/IP, no HTTP)"
+msgstr ""
+
+#. FRMPascalCoinWalletConfig..cbSaveLogFiles..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:117
+msgid "Save log file"
+msgstr "Bewaar logboek"
+
+#. FRMPascalCoinWalletConfig..cbShowLogs..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:126
+msgid "Show logs"
+msgstr "Toon logboek"
+
+#. FRMPascalCoinWalletConfig..bbUpdatePassword..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:174
+msgid "Wallet Password"
+msgstr "Portemonnee Wachtwoord"
+
+#. FRMPascalCoinWalletConfig..ebMinerName..Text
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:243
+msgid "ebMinerName"
+msgstr "ebMinderNaam"
+
+#. FRMPascalCoinWalletConfig..cbShowModalMessages..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:250
+msgid "Show modal messages"
+msgstr "Toon modale berichten"
+
+#. FRMPascalCoinWalletConfig..gbMinerPrivateKey..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:279
+msgid " Miner Server Private Key: "
+msgstr " Miner Server Prive Sleutel: "
+
+#. FRMPascalCoinWalletConfig..gbMinerPrivateKey..rbGenerateANewPrivateKeyEachBlock..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:286
+msgid "Generate a new private key for each generated block"
+msgstr "Genereer een nieuwe prive sleutel voor elk gegenereerde blok"
+
+#. FRMPascalCoinWalletConfig..gbMinerPrivateKey..rbUseARandomKey..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:294
+msgid "Use a random existing key"
+msgstr "Gebruik een willekeurig bestaande sleutel"
+
+#. FRMPascalCoinWalletConfig..gbMinerPrivateKey..rbMineAllwaysWithThisKey..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:302
+msgid "Always mine with this key:"
+msgstr "Altijd minen met deze sleutel:"
+
+#. FRMPascalCoinWalletConfig..cbSaveDebugLogs..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:319
+msgid "Save debug logs too"
+msgstr "Bewaar debug logboek ook"
+
+#. FRMPascalCoinWalletConfig..bbOpenDataFolder..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:349
+msgid "Open Data Folder"
+msgstr ""
+
+#. FRMPascalCoinWalletConfig..cbJSONRPCPortEnabled..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:363
+msgid "JSON-RPC Server port enabled (HTTP)"
+msgstr "JSON-RPC Server poort geactiveerd (HTTP)"
+
+#. FRMPascalCoinWalletConfig..ebJSONRPCAllowedIPs..Text
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:373
+msgid "ebJSONRPCAllowedIPs"
+msgstr ""
+
+#. FRMPascalCoinWalletConfig..cbDownloadNewCheckpoint..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:389
+msgid "Download new Checkpoint if blockchain older than..."
+msgstr "Download een nieuw Checkpoint als blockchain ouder is dan ..."
+
+#. FRMPayloadDecoder..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:7
+msgid "Operation Information/Decoder"
+msgstr ""
+
+#. FRMPascalCoinWalletConfig..bbChangeLanguage..Caption
+#: gui-classic/UFRMPascalCoinWalletConfig.dfm:428
+msgid "Change UI language"
+msgstr "Verander UI taal"
+
+#. FRMPayloadDecoder..Label1..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:26
+msgid "Block/Op:"
+msgstr "Blok/Op:"
+
+#. FRMPayloadDecoder..lblBlock..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:33
+msgid "000000/0000"
+msgstr ""
+
+#. FRMPayloadDecoder..Label6..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:59
+msgid "Date Time:"
+msgstr "Datum Tijd:"
+
+#. FRMPayloadDecoder..Label2..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:66
+msgid "Operation:"
+msgstr "Handeling:"
+
+#. FRMPayloadDecoder..lblAmountCaption..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:88
+msgid "Amount:"
+msgstr "Bedrag:"
+
+#. FRMPayloadDecoder..lblFeeCaption..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:108
+msgid "Fee:"
+msgstr "Vergoeding:"
+
+#. FRMPayloadDecoder..Label4..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:128
+msgid "OpHash"
+msgstr ""
+
+#. FRMPayloadDecoder..lblSenderCaption..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:135
+msgid "Sender:"
+msgstr "Afzender:"
+
+#. FRMPayloadDecoder..lblSender..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:142
+msgid "9999999-99"
+msgstr ""
+
+#. FRMPayloadDecoder..lblReceiverCaption..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:155
+msgid "Receiver:"
+msgstr "Ontvanger:"
+
+#. FRMPayloadDecoder..lblReceiverInfo..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:175
+msgid "(Receiver info)"
+msgstr "(Ontvanger info)"
+
+#. FRMPayloadDecoder..PageControl..tsDecoded..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:192
+msgid "Payload"
+msgstr "Lading"
+
+#. FRMPayloadDecoder..PageControl..tsDecoded..Label7..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:202
+msgid "Decoded Payload:"
+msgstr "Gedecodeerde Lading:"
+
+#. FRMPayloadDecoder..PageControl..tsDecoded..lblDecodedMethod..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:210
+msgid "(Method)"
+msgstr "(Methode)"
+
+#. FRMPayloadDecoder..PageControl..tsDecoded..Label3..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:223
+msgid "Original Payload in Hexadecimal:"
+msgstr "Originele Lading in Hexadecimaal:"
+
+#. FRMPayloadDecoder..PageControl..tsDecoded..memoDecoded....Lines.Strings
+#. FRMPayloadDecoder..PageControl..tsDecoded..memoOriginalPayloadInHexa....Lines.Strings
+#: gui-classic/UFRMPayloadDecoder.dfm:237
+#: gui-classic/UFRMPayloadDecoder.dfm:256
+msgid "memoDecoded"
+msgstr ""
+
+#. FRMPayloadDecoder..PageControl..tsDecoded..cbShowAsHexadecimal..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:267
+msgid "Show as hexadecimal"
+msgstr ""
+
+#. FRMPayloadDecoder..PageControl..tsDecodeMethods..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:273
+msgid "Decode methods"
+msgstr ""
+
+#. FRMPayloadDecoder..PageControl..tsDecodeMethods..lblPasswordsInfo..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:280
+msgid "lblPasswordsInfo"
+msgstr ""
+
+#. FRMPayloadDecoder..PageControl..tsDecodeMethods..cbMethodPublicPayload..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:287
+msgid "Not encrypted (Public payload)"
+msgstr "Niet versleuteld (Publieke lading)"
+
+#. FRMPayloadDecoder..PageControl..tsDecodeMethods..cbUsingPrivateKeys..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:296
+msgid "Using Private keys of my Wallet"
+msgstr "Gebruikt Prive sleutels uit mijn Portemonnee"
+
+#. FRMPayloadDecoder..PageControl..tsDecodeMethods..cbUsingPasswords..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:305
+msgid "Using Passwords of the list"
+msgstr "Gebruikt Wachtwoorden uit de lijst"
+
+#. FRMPayloadDecoder..PageControl..tsDecodeMethods..bbSaveMethods..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:323
+msgid "Save"
+msgstr "Bewaar"
+
+#. FRMPayloadDecoder..bbFind..Caption
+#: gui-classic/UFRMPayloadDecoder.dfm:376
+msgid "&Find"
+msgstr "&Zoek"
+
+#. FRMPayloadDecoder..ebOphash..Text
+#: gui-classic/UFRMPayloadDecoder.dfm:420
+msgid "12345678901234567890123456789012345678901234567890123456789012"
+msgstr ""
+
+#. FRMDiagnosticTool..txtLog..Text
+#: gui-classic/UFRMRandomHashUtil.dfm:26
+msgid "txtLog"
+msgstr ""
+
+#. FRMDiagnosticTool..btnRH..Caption
+#: gui-classic/UFRMRandomHashUtil.dfm:33
+msgid "Random Hash"
+msgstr ""
+
+#. FRMDiagnosticTool..btnRH2..Caption
+#: gui-classic/UFRMRandomHashUtil.dfm:41
+msgid "Random Hash 2"
+msgstr ""
+
+#. FRMRandomOperations..Caption
+#. FRMRandomOperations..pnlClient..pnlTop1..bbRandomOperations..Caption
+#: gui-classic/UFRMRandomOperations.dfm:4
+#: gui-classic/UFRMRandomOperations.dfm:73
+msgid "Random Operations"
+msgstr "Willekeurige Handelingen"
+
+#. FRMRandomOperations..pnlTop..lblTopCaption....Caption
+#: gui-classic/UFRMRandomOperations.dfm:39
+msgid ""
+"WARNING! This form will generate RANDOM operations using your private "
+"keys!!!"
+msgstr ""
+
+#. FRMRandomOperations..pnlClient..mLogs....Lines.Strings
+#: gui-classic/UFRMRandomOperations.dfm:85
+msgid "mLogs"
+msgstr ""
+
+#. FRMRPCCalls..Caption
+#. FRMWallet..MainMenu..miProject..MiRPCCalls..Caption
+#: gui-classic/UFRMRPCCalls.dfm:5 gui-classic/UFRMWallet.dfm:1266
+msgid "RPC Calls"
+msgstr "RPC Oproepen"
+
+#. FRMRPCCalls..pnlTop..lblTopCaption....Caption
+#: gui-classic/UFRMRPCCalls.dfm:45
+msgid ""
+"WARNING! Execute only calls you understand. Execute unknown calls provided "
+"by third person can cause that you lost your keys/balance!"
+msgstr ""
+
+#. FRMRPCCalls..pnlRight..Label1..Caption
+#: gui-classic/UFRMRPCCalls.dfm:83
+msgid "Method"
+msgstr "Methode"
+
+#. FRMRPCCalls..pnlRight..Label2..Caption
+#: gui-classic/UFRMRPCCalls.dfm:92
+msgid "Server"
+msgstr ""
+
+#. FRMRPCCalls..pnlRight..ebMethod..Text
+#: gui-classic/UFRMRPCCalls.dfm:102
+msgid "ebMethod"
+msgstr ""
+
+#. FRMRPCCalls..pnlRight..pageControl..tsKeyNames..Caption
+#: gui-classic/UFRMRPCCalls.dfm:113
+msgid "Key/Value Params"
+msgstr ""
+
+#. FRMRPCCalls..pnlRight..pageControl..tsJSONParams..Caption
+#: gui-classic/UFRMRPCCalls.dfm:130
+msgid "Params as JSON"
+msgstr ""
+
+#. FRMRPCCalls..pnlRight..bbSendCommand..Caption
+#: gui-classic/UFRMRPCCalls.dfm:148
+msgid "&Send"
+msgstr "&Verstuur"
+
+#. FRMRPCCalls..pnlRight..ebServerURL..Text
+#: gui-classic/UFRMRPCCalls.dfm:195
+msgid "ebServerURL"
+msgstr ""
+
+#. FRMRPCCalls..pnlInfo..pnlInfoBottom..pnlLastCall..Label3..Caption
+#: gui-classic/UFRMRPCCalls.dfm:244
+msgid "Last call result:"
+msgstr ""
+
+#. FRMRPCCalls..pnlInfo..pnlInfoBottom..pnlLastCall..lblLastCallResultState..Caption
+#: gui-classic/UFRMRPCCalls.dfm:253
+msgid "STATE"
+msgstr "TOESTAND"
+
+#. FRMSaleAccounts..Caption
+#: gui-classic/UFRMSaleAccounts.dfm:5
+msgid "Sale accounts"
+msgstr ""
+
+#. FRMSaleAccounts..Label1..Caption
+#: gui-classic/UFRMSaleAccounts.dfm:32
+msgid "Sale price:"
+msgstr ""
+
+#. FRMSaleAccounts..Label2..Caption
+#: gui-classic/UFRMSaleAccounts.dfm:39
+msgid "Locked until block:"
+msgstr "Sluit tot blok:"
+
+#. FRMSaleAccounts..Label3..Caption
+#: gui-classic/UFRMSaleAccounts.dfm:46
+msgid "Seller account (where to pay)"
+msgstr ""
+
+#. FRMSaleAccounts..ebSalePrice..Text
+#. FRMSaleAccounts..ebSellerAccount..Text
+#: gui-classic/UFRMSaleAccounts.dfm:115 gui-classic/UFRMSaleAccounts.dfm:170
+msgid "Edit1"
+msgstr ""
+
+#. FRMSaleAccounts..ebLockedUntilBlock..Text
+#: gui-classic/UFRMSaleAccounts.dfm:123
+msgid "ebLockedUntilBlock"
+msgstr ""
+
+#. FRMSaleAccounts..gbSellOptions..Caption
+#: gui-classic/UFRMSaleAccounts.dfm:130
+msgid " Sell options: "
+msgstr " Verkoop opties: "
+
+#. FRMSaleAccounts..gbSellOptions..lblNewOwnerPublicKey..Caption
+#: gui-classic/UFRMSaleAccounts.dfm:137
+msgid "New owner's public key"
+msgstr "Nieuwe eigenaar zijn publieke sleutel"
+
+#. FRMSaleAccounts..gbSellOptions..rbEveryoneCanBuy..Caption
+#: gui-classic/UFRMSaleAccounts.dfm:144
+msgid "Everyone can buy"
+msgstr ""
+
+#. FRMSaleAccounts..gbSellOptions..rbReservedForAPublickKey..Caption
+#: gui-classic/UFRMSaleAccounts.dfm:152
+msgid "Reserved for only one public key (private)"
+msgstr ""
+
+#. FRMSaleAccounts..gbSellOptions..ebNewOwnerPublicKey..Text
+#: gui-classic/UFRMSaleAccounts.dfm:161
+msgid "ebDestAccount"
+msgstr "ebBestRekening"
+
+#. FRMChangeLanguage..Caption
+#. FRMChangeLanguage..Caption
+#: gui-classic/UFRMSelectLanguage.dfm:8
+#: lib/i386-win32/ufrmselectlanguage.dfm:8
+msgid "Language Selection"
+msgstr "Taal Selectie"
+
+#. FRMChangeLanguage..bbCancel..Caption
+#. FRMChangeLanguage..bbCancel..Caption
+#: gui-classic/UFRMSelectLanguage.dfm:28
+#: lib/i386-win32/ufrmselectlanguage.dfm:28
+msgid "Cancel"
+msgstr "Annuleren"
+
+#. FRMChangeLanguage..Label1..Caption
+#. FRMChangeLanguage..Label1..Caption
+#: gui-classic/UFRMSelectLanguage.dfm:46
+#: lib/i386-win32/ufrmselectlanguage.dfm:46
+msgid "Select your preferred language"
+msgstr "Selecteer uw voorkeurstaal"
+
+#. FRMWallet..pnlTop..lblCurrentBlockCaption..Caption
+#: gui-classic/UFRMWallet.dfm:135
+msgid "Total Blocks:"
+msgstr "Totaal Blokken:"
+
+#. FRMWallet..pnlTop..lblCurrentBlockTimeCaption..Caption
+#: gui-classic/UFRMWallet.dfm:153
+msgid "Current Block Age:"
+msgstr "Huidige Blok leeftijd:"
+
+#. FRMWallet..pnlTop..lblCurrentBlockTime..Caption
+#: gui-classic/UFRMWallet.dfm:162
+msgid "000 seconds ago"
+msgstr ""
+
+#. FRMWallet..pnlTop..lblOperationsPendingCaption..Caption
+#: gui-classic/UFRMWallet.dfm:171
+msgid "Pending Operations:"
+msgstr "Lopende Handelingen:"
+
+#. FRMWallet..pnlTop..lblMiningStatusCaption..Caption
+#: gui-classic/UFRMWallet.dfm:189
+msgid "Miner Clients:"
+msgstr ""
+
+#. FRMWallet..pnlTop..lblCurrentDifficultyCaption..Caption
+#: gui-classic/UFRMWallet.dfm:207
+msgid "Current Target:"
+msgstr "Huidige Doel:"
+
+#. FRMWallet..pnlTop..Label4..Caption
+#: gui-classic/UFRMWallet.dfm:234
+msgid "Time average:"
+msgstr "Tijd gemiddeld:"
+
+#. FRMWallet..pnlTop..Label8..Caption
+#: gui-classic/UFRMWallet.dfm:243
+msgid "Node Status:"
+msgstr ""
+
+#. FRMWallet..pnlTop..lblNodeStatus..Caption
+#: gui-classic/UFRMWallet.dfm:252
+msgid "???"
+msgstr ""
+
+#. FRMWallet..pnlTop..Label16..Caption
+#: gui-classic/UFRMWallet.dfm:294
+msgid "Blocks Found:"
+msgstr "Blokken Gevonden:"
+
+#. FRMWallet..pnlTop..lblBlocksFound..Hint
+#: gui-classic/UFRMWallet.dfm:309
+msgid "Blocks found while Miner is running..."
+msgstr "Blokken gevonden terwijl de Miner actief is..."
+
+#. FRMWallet..pnlTop..lblReceivedMessages..Caption
+#: gui-classic/UFRMWallet.dfm:328
+msgid "Received Messages"
+msgstr "Ontvangen Berichten"
+
+#. FRMWallet..pnlTop..lblBuild..Caption
+#: gui-classic/UFRMWallet.dfm:344
+msgid "Build"
+msgstr "Bouw"
+
+#. FRMWallet..StatusBar......Text
+#: gui-classic/UFRMWallet.dfm:363
+msgid "Server Active"
+msgstr "Server actief"
+
+#. FRMWallet..StatusBar......Text
+#: gui-classic/UFRMWallet.dfm:367
+msgid "Connection status"
+msgstr "Verbinding status"
+
+#. FRMWallet..StatusBar......Text
+#: gui-classic/UFRMWallet.dfm:371
+msgid "Blocks"
+msgstr "Blokken"
+
+#. FRMWallet..PageControl..tsMyAccounts..Caption
+#: gui-classic/UFRMWallet.dfm:385
+msgid "Account Explorer"
+msgstr "Rekening Verkenner"
+
+#. FRMWallet..PageControl..tsMyAccounts..pnlMyAccountsTop..Label18..Caption
+#. FRMWallet..MainMenu..MiOperations..MiFindaccount..Caption
+#: gui-classic/UFRMWallet.dfm:406 gui-classic/UFRMWallet.dfm:1295
+msgid "Find account"
+msgstr "Zoek rekening"
+
+#. FRMWallet..PageControl..tsMyAccounts..pnlMyAccountsTop..cbExploreMyAccounts..Caption
+#: gui-classic/UFRMWallet.dfm:458
+msgid "Explore accounts with one of my Wallet Keys"
+msgstr ""
+
+#. FRMWallet..PageControl..tsMyAccounts..pnlMyAccountsTop..bbChangeKeyName..Caption
+#: gui-classic/UFRMWallet.dfm:476
+msgid "Change Key name"
+msgstr "Wijzig Sleutel naam"
+
+#. FRMWallet..PageControl..tsMyAccounts..pnlMyAccountsTop..cbFilterAccounts..Caption
+#: gui-classic/UFRMWallet.dfm:485
+msgid "Filter accounts by balance"
+msgstr ""
+
+#. FRMWallet..PageControl..tsMyAccounts..pnlMyAccountsTop..ebFilterAccountByBalanceMin..Hint
+#: gui-classic/UFRMWallet.dfm:494
+msgid "Min balance"
+msgstr "Min Saldo"
+
+#. FRMWallet..PageControl..tsMyAccounts..pnlMyAccountsTop..ebFilterAccountByBalanceMax..Hint
+#: gui-classic/UFRMWallet.dfm:504
+msgid "Max balance"
+msgstr "Max saldo"
+
+#. FRMWallet..PageControl..tsMyAccounts..pnlAccounts..pnlAccountsInfo..bbAccountsRefresh..Caption
+#: gui-classic/UFRMWallet.dfm:580
+msgid "Refresh"
+msgstr "Vernieuwen"
+
+#. FRMWallet..PageControl..tsMyAccounts..pcAccountsOptions..tsAccountOperations..Caption
+#: gui-classic/UFRMWallet.dfm:622
+msgid "Account Operations"
+msgstr "Rekening Handelingen"
+
+#. FRMWallet..PageControl..tsMyAccounts..pcAccountsOptions..tsMultiSelectAccounts..Caption
+#: gui-classic/UFRMWallet.dfm:634
+msgid "Selected Accounts For Batch Operation"
+msgstr ""
+
+#. FRMWallet..PageControl..tsMyAccounts..pcAccountsOptions..tsMultiSelectAccounts..pnlSelectedAccountsTop..Label15..Caption
+#: gui-classic/UFRMWallet.dfm:667
+msgid "Select multiple accounts to execute massive operations"
+msgstr ""
+
+#. FRMWallet..PageControl..tsMyAccounts..pcAccountsOptions..tsMultiSelectAccounts..pnlSelectedAccountsBottom..Label22..Caption
+#: gui-classic/UFRMWallet.dfm:703
+msgid "Accounts Balance:"
+msgstr "Rekeningsaldo:"
+
+#. FRMWallet..PageControl..tsMyAccounts..pcAccountsOptions..tsMultiSelectAccounts..pnlSelectedAccountsLeft..sbSelectedAccountsAdd..Caption
+#: gui-classic/UFRMWallet.dfm:730
+msgid ">"
+msgstr ""
+
+#. FRMWallet..PageControl..tsMyAccounts..pcAccountsOptions..tsMultiSelectAccounts..pnlSelectedAccountsLeft..sbSelectedAccountsAddAll..Caption
+#: gui-classic/UFRMWallet.dfm:738
+msgid ">>"
+msgstr ""
+
+#. FRMWallet..PageControl..tsMyAccounts..pcAccountsOptions..tsMultiSelectAccounts..pnlSelectedAccountsLeft..sbSelectedAccountsDel..Caption
+#: gui-classic/UFRMWallet.dfm:746
+msgid "<"
+msgstr ""
+
+#. FRMWallet..PageControl..tsMyAccounts..pcAccountsOptions..tsMultiSelectAccounts..pnlSelectedAccountsLeft..sbSelectedAccountsDelAll..Caption
+#: gui-classic/UFRMWallet.dfm:754
+msgid "<<"
+msgstr ""
+
+#. FRMWallet..PageControl..tsMyAccounts..pcAccountsOptions..tsMultiSelectAccounts..bbSelectedAccountsOperation..Caption
+#. FRMWallet..MainMenu..MiOperations..Caption
+#: gui-classic/UFRMWallet.dfm:763 gui-classic/UFRMWallet.dfm:1278
+msgid "Operations"
+msgstr "Handelingen"
+
+#. FRMWallet..PageControl..tsPendingOperations..Caption
+#: gui-classic/UFRMWallet.dfm:829
+msgid "Pending Operations"
+msgstr "Lopende Handelingen"
+
+#. FRMWallet..PageControl..tsPendingOperations..pnlPendingOperations..Label10....Caption
+#: gui-classic/UFRMWallet.dfm:865
+msgid ""
+"Here you can see Operations transmited/received from other nodes that will "
+"be included in next block. There is no guarantee that other nodes will "
+"include them when mining, so it's important that you mine too to help "
+"include Operations to the main BlockChain"
+msgstr ""
+
+#. FRMWallet..PageControl..tsBlockChain..Caption
+#: gui-classic/UFRMWallet.dfm:879
+msgid "Block Explorer"
+msgstr "Blok verkenner"
+
+#. FRMWallet..PageControl..tsBlockChain..Panel2..Label9..Caption
+#. FRMWallet..PageControl..tsOperations..Panel1..Label2..Caption
+#: gui-classic/UFRMWallet.dfm:898 gui-classic/UFRMWallet.dfm:994
+msgid "Filter by blocks range"
+msgstr ""
+
+#. FRMWallet..PageControl..tsBlockChain..Panel2..lblHashRateBackBlocks..Caption
+#: gui-classic/UFRMWallet.dfm:907
+msgid "HashRate back blocks"
+msgstr ""
+
+#. FRMWallet..PageControl..tsBlockChain..Panel2..lblHashRateBackBlocks1..Caption
+#: gui-classic/UFRMWallet.dfm:916
+msgid "Units"
+msgstr "Eenheden"
+
+#. FRMWallet..PageControl..tsBlockChain..Panel2..cbHashRateUnits..Text
+#. FRMWallet..PageControl..tsBlockChain..Panel2..cbHashRateUnits....Items.Strings
+#: gui-classic/UFRMWallet.dfm:955 gui-classic/UFRMWallet.dfm:960
+msgid "Mh/s"
+msgstr ""
+
+#. FRMWallet..PageControl..tsBlockChain..Panel2..cbHashRateUnits....Items.Strings
+#: gui-classic/UFRMWallet.dfm:959
+msgid "Kh/s"
+msgstr ""
+
+#. FRMWallet..PageControl..tsBlockChain..Panel2..cbHashRateUnits....Items.Strings
+#: gui-classic/UFRMWallet.dfm:961
+msgid "Gh/s"
+msgstr ""
+
+#. FRMWallet..PageControl..tsBlockChain..Panel2..cbHashRateUnits....Items.Strings
+#: gui-classic/UFRMWallet.dfm:962
+msgid "Th/s"
+msgstr ""
+
+#. FRMWallet..PageControl..tsOperations..Caption
+#. FRMWallet..MainMenu..MiOperations..MiOperationsExplorer..Caption
+#: gui-classic/UFRMWallet.dfm:975 gui-classic/UFRMWallet.dfm:1305
+msgid "Operations Explorer"
+msgstr "Handelingen Verkenner"
+
+#. FRMWallet..PageControl..tsLogs..Caption
+#: gui-classic/UFRMWallet.dfm:1027
+msgid "Logs"
+msgstr "Logboeken"
+
+#. FRMWallet..PageControl..tsLogs..pnlTopLogs..cbShowDebugLogs..Caption
+#: gui-classic/UFRMWallet.dfm:1046
+msgid "Show Debug Logs"
+msgstr ""
+
+#. FRMWallet..PageControl..tsNodeStats..Caption
+#: gui-classic/UFRMWallet.dfm:1062
+msgid "Node Stats"
+msgstr ""
+
+#. FRMWallet..PageControl..tsNodeStats..Label3..Caption
+#: gui-classic/UFRMWallet.dfm:1076
+msgid "Active Connections:"
+msgstr "Active verbindingen:"
+
+#. FRMWallet..PageControl..tsNodeStats..Label6..Caption
+#: gui-classic/UFRMWallet.dfm:1086
+msgid "Known Node Servers:"
+msgstr "Bekende Node Servers:"
+
+#. FRMWallet..PageControl..tsNodeStats..Label7..Caption
+#: gui-classic/UFRMWallet.dfm:1096
+msgid "Blacklisted Nodes"
+msgstr ""
+
+#. FRMWallet..PageControl..tsMessages..Caption
+#: gui-classic/UFRMWallet.dfm:1135
+msgid "Messages"
+msgstr "Berichten"
+
+#. FRMWallet..PageControl..tsMessages..Label11..Caption
+#: gui-classic/UFRMWallet.dfm:1149
+msgid "Messages:"
+msgstr "Berichten:"
+
+#. FRMWallet..PageControl..tsMessages..Label12..Caption
+#: gui-classic/UFRMWallet.dfm:1158
+msgid "Message to send:"
+msgstr "Bericht om te versturen:"
+
+#. FRMWallet..PageControl..tsMessages..Label13..Caption
+#: gui-classic/UFRMWallet.dfm:1167
+msgid "Available Connections:"
+msgstr "Beschikbare verbindening:"
+
+#. FRMWallet..PageControl..tsMessages..Label14....Caption
+#: gui-classic/UFRMWallet.dfm:1178
+msgid ""
+"(Messages will be encrypted, so only dest connection will be able to read "
+"it)"
+msgstr ""
+"(Berichten zullen versleuteld zijn, alleen ontv connectie zal het kunnen "
+"lezen)"
+
+#. FRMWallet..PageControl..tsMessages..bbSendAMessage..Caption
+#: gui-classic/UFRMWallet.dfm:1203
+msgid "Send a Message"
+msgstr "Stuur een Bericht"
+
+#. FRMWallet..PageControl..tsMessages..memoMessageToSend....Lines.Strings
+#: gui-classic/UFRMWallet.dfm:1232
+msgid "memoMessageToSend"
+msgstr ""
+
+#. FRMWallet..MainMenu..miProject..Caption
+#: gui-classic/UFRMWallet.dfm:1247
+msgid "Project"
+msgstr ""
+
+#. FRMWallet..MainMenu..miProject..miPrivatekeys..Caption
+#: gui-classic/UFRMWallet.dfm:1249
+msgid "Private Keys"
+msgstr "Prive Sleutels"
+
+#. FRMWallet..MainMenu..miProject..IPnodes1..Caption
+#: gui-classic/UFRMWallet.dfm:1262
+msgid "Available Node List"
+msgstr "Beschikbare Node lijst"
+
+#. FRMWallet..MainMenu..MiOperations..miNewOperation..Caption
+#: gui-classic/UFRMWallet.dfm:1280
+msgid "New single Operation"
+msgstr "Nieuwe enkele handeling"
+
+#. FRMWallet..MainMenu..MiOperations..MiFindOperationbyOpHash..Caption
+#: gui-classic/UFRMWallet.dfm:1285
+msgid "Find Operation by OpHash"
+msgstr "Zoek Handelingen op OpHash"
+
+#. FRMWallet..MainMenu..MiOperations..MiDecodePayload..Caption
+#: gui-classic/UFRMWallet.dfm:1290
+msgid "Decode Payload"
+msgstr "Decodeer Lading"
+
+#. FRMWallet..MainMenu..MiOperations..MiAccountInformation..Caption
+#: gui-classic/UFRMWallet.dfm:1300
+msgid "Account Information"
+msgstr "Rekening Informatie"
+
+#. FRMWallet..MainMenu..MiOperations..MiAddaccounttoSelected..Caption
+#: gui-classic/UFRMWallet.dfm:1313
+msgid "Add account to selected"
+msgstr "Voeg rekening toe aan selectie"
+
+#. FRMWallet..MainMenu..MiOperations..MiRemoveaccountfromselected..Caption
+#: gui-classic/UFRMWallet.dfm:1318
+msgid "Remove account from selected"
+msgstr "Verwijder rekening van selectie"
+
+#. FRMWallet..MainMenu..MiOperations..MiMultiaccountoperation..Caption
+#: gui-classic/UFRMWallet.dfm:1323
+msgid "Multi account operation"
+msgstr "Meerdere rekening handeling"
+
+#. FRMWallet..MainMenu..MiOperations..MiFindpreviousaccountwithhighbalance..Caption
+#: gui-classic/UFRMWallet.dfm:1330
+msgid "Find previous account with high balance"
+msgstr "Zoek vorige rekening met hoog saldo"
+
+#. FRMWallet..MainMenu..MiOperations..MiFindnextaccountwithhighbalance..Caption
+#: gui-classic/UFRMWallet.dfm:1335
+msgid "Find next account with high balance"
+msgstr "Zoek volgende rekening met hoog saldo"
+
+#. FRMWallet..MainMenu..miAbout..Caption
+#: gui-classic/UFRMWallet.dfm:1341
+msgid "About"
+msgstr "Over"
+
+#. FRMWallet..MainMenu..miAbout..miAboutPascalCoin..Caption
+#: gui-classic/UFRMWallet.dfm:1343
+msgid "About Pascal Coin..."
+msgstr "Over Pascal Munt..."
+
+#. FRMWalletKeys..Caption
+#: gui-classic/UFRMWalletKeys.dfm:6
+msgid "Wallet keys"
+msgstr "Portemonne sleutels"
+
+#. FRMWalletKeys..lblEncryptionTypeCaption..Caption
+#: gui-classic/UFRMWalletKeys.dfm:25
+msgid "Encryption type:"
+msgstr "Versleutel type:"
+
+#. FRMWalletKeys..lblEncryptionType..Caption
+#. FRMWalletKeys..lblKeyName..Caption
+#: gui-classic/UFRMWalletKeys.dfm:32 gui-classic/UFRMWalletKeys.dfm:47
+msgid "000000000"
+msgstr ""
+
+#. FRMWalletKeys..lblKeyNameCaption..Caption
+#: gui-classic/UFRMWalletKeys.dfm:39
+msgid "Key name:"
+msgstr "Sleutel naam:"
+
+#. FRMWalletKeys..lblPrivateKeyCaption..Caption
+#: gui-classic/UFRMWalletKeys.dfm:54
+msgid "Public Key:"
+msgstr "Publieke Sleutel:"
+
+#. FRMWalletKeys..lblKeysEncrypted..Caption
+#: gui-classic/UFRMWalletKeys.dfm:62
+msgid "lblKeysEncrypted"
+msgstr ""
+
+#. FRMWalletKeys..bbExportPrivateKey..Caption
+#: gui-classic/UFRMWalletKeys.dfm:85
+msgid "Export Private key"
+msgstr "Export Prive sleutel"
+
+#. FRMWalletKeys..memoPrivateKey....Lines.Strings
+#: gui-classic/UFRMWalletKeys.dfm:158
+msgid "memoPrivateKey"
+msgstr ""
+
+#. FRMWalletKeys..bbChangeName..Caption
+#: gui-classic/UFRMWalletKeys.dfm:169
+msgid "Change Name"
+msgstr "Wijzig Naam"
+
+#. FRMWalletKeys..bbImportPrivateKey..Caption
+#: gui-classic/UFRMWalletKeys.dfm:178
+msgid "Import Private key"
+msgstr "Importeer Prive sleutel"
+
+#. FRMWalletKeys..bbExportPublicKey..Caption
+#: gui-classic/UFRMWalletKeys.dfm:240
+msgid "Export Public key"
+msgstr "Export Publieke sluetel"
+
+#. FRMWalletKeys..bbImportPublicKey..Caption
+#: gui-classic/UFRMWalletKeys.dfm:306
+msgid "Import Public key"
+msgstr "Importeer Publieke sleutel"
+
+#. FRMWalletKeys..bbGenerateNewKey..Caption
+#: gui-classic/UFRMWalletKeys.dfm:372
+msgid "Generate a new Key"
+msgstr "Genereer een nieuwe Sleutel"
+
+#. FRMWalletKeys..bbDelete..Caption
+#: gui-classic/UFRMWalletKeys.dfm:434
+msgid "Delete"
+msgstr "Verwijder"
+
+#. FRMWalletKeys..bbExportAllWalletKeys..Caption
+#: gui-classic/UFRMWalletKeys.dfm:568
+msgid "Export all Wallet Keys to a file"
+msgstr ""
+
+#. FRMWalletKeys..bbImportKeysFile..Caption
+#: gui-classic/UFRMWalletKeys.dfm:634
+msgid "Import a Wallet Keys File"
+msgstr "Importeer een Portemonnee Sleutel Bestand"
+
+#. FRMWalletKeys..bbLock..Caption
+#: gui-classic/UFRMWalletKeys.dfm:700
+msgid "Lock"
+msgstr "Sluit"
+
+#. FRMWalletKeys..SaveDialog..DefaultExt
+#. FRMWalletKeys..OpenDialog..DefaultExt
+#: gui-classic/UFRMWalletKeys.dfm:758 gui-classic/UFRMWalletKeys.dfm:765
+msgid "dat"
+msgstr ""
+
+#. FRMWalletKeys..SaveDialog..Filter
+#: gui-classic/UFRMWalletKeys.dfm:759
+msgid "Wallet keys file|*.dat|All files|*.*"
+msgstr ""
+
+#. FRMWalletKeys..OpenDialog..Filter
+#: gui-classic/UFRMWalletKeys.dfm:766
+msgid "Wallet keys file (*.dat)|*.dat|All files (*.*)|*.*"
+msgstr ""
+
+#. Programmer's name for it: SUnSupportedHash
+#. Programmer's name for it: SUnSupportedHash
+#: core/URandomHash.pas:267 core/URandomHash2.pas:219
+msgid "Unsupported Hash Selected"
+msgstr ""
+
+#. Programmer's name for it: SInvalidRound
+#. Programmer's name for it: SInvalidRound
+#: core/URandomHash.pas:268 core/URandomHash2.pas:220
+msgid "Round must be between 0 and N inclusive"
+msgstr ""
+
+#. Programmer's name for it: SOverlappingArgs
+#. Programmer's name for it: SOverlappingArgs
+#: core/URandomHash.pas:269 core/URandomHash2.pas:221
+msgid "Overlapping read/write regions"
+msgstr ""
+
+#. Programmer's name for it: SBufferTooSmall
+#. Programmer's name for it: SBufferTooSmall
+#: core/URandomHash.pas:270 core/URandomHash2.pas:222
+msgid "Buffer too small to apply memory transform"
+msgstr ""
+
+#. Programmer's name for it: SBlockHeaderTooSmallForNonce
+#. Programmer's name for it: SBlockHeaderTooSmallForNonce
+#: core/URandomHash.pas:271 core/URandomHash2.pas:223
+msgid "Buffer too small to contain nonce"
+msgstr ""
+
+#. Programmer's name for it: SAESEngineNotInitialised
+#. Programmer's name for it: SAESEngineNotInitialised
+#: libraries/cryptolib4pascal/ClpAesEngine.pas:37
+#: libraries/cryptolib4pascal/ClpAesLightEngine.pas:37
+msgid "AES Engine not Initialised"
+msgstr ""
+
+#. Programmer's name for it: SInputBuffertooShort
+#. Programmer's name for it: SInputBuffertooShort
+#. Programmer's name for it: SInputBufferTooShort
+#. Programmer's name for it: SInputBuffertooShort
+#. Programmer's name for it: SInputBuffertooShort
+#. Programmer's name for it: SInputBuffertooShort
+#. Programmer's name for it: SInputBuffertooShort
+#. Programmer's name for it: SInputBuffertooShort
+#: libraries/cryptolib4pascal/ClpAesEngine.pas:38
+#: libraries/cryptolib4pascal/ClpAesLightEngine.pas:38
+#: libraries/cryptolib4pascal/ClpBlockCipherModes.pas:39
+#: libraries/cryptolib4pascal/ClpBlowfishEngine.pas:39
+#: libraries/cryptolib4pascal/ClpRijndaelEngine.pas:35
+#: libraries/cryptolib4pascal/ClpSalsa20Engine.pas:43
+#: libraries/cryptolib4pascal/ClpSpeckEngine.pas:36
+#: libraries/cryptolib4pascal/ClpSpeckLegacyEngine.pas:36
+msgid "Input Buffer too Short"
+msgstr ""
+
+#. Programmer's name for it: SOutputBuffertooShort
+#. Programmer's name for it: SOutputBuffertooShort
+#. Programmer's name for it: SOutputBufferTooShort
+#. Programmer's name for it: SOutputBuffertooShort
+#. Programmer's name for it: SOutputBufferTooSmall
+#. Programmer's name for it: SOutputBufferTooSmall
+#. Programmer's name for it: SOutputBufferTooSmall
+#. Programmer's name for it: SOutputBuffertooShort
+#. Programmer's name for it: SOutputBuffertooShort
+#. Programmer's name for it: SOutputBuffertooShort
+#. Programmer's name for it: SOutputBuffertooShort
+#: libraries/cryptolib4pascal/ClpAesEngine.pas:39
+#: libraries/cryptolib4pascal/ClpAesLightEngine.pas:39
+#: libraries/cryptolib4pascal/ClpBlockCipherModes.pas:40
+#: libraries/cryptolib4pascal/ClpBlowfishEngine.pas:40
+#: libraries/cryptolib4pascal/ClpBufferedBlockCipher.pas:39
+#: libraries/cryptolib4pascal/ClpBufferedCipherBase.pas:32
+#: libraries/cryptolib4pascal/ClpPaddedBufferedBlockCipher.pas:40
+#: libraries/cryptolib4pascal/ClpRijndaelEngine.pas:36
+#: libraries/cryptolib4pascal/ClpSalsa20Engine.pas:44
+#: libraries/cryptolib4pascal/ClpSpeckEngine.pas:37
+#: libraries/cryptolib4pascal/ClpSpeckLegacyEngine.pas:37
+msgid "Output Buffer too Short"
+msgstr ""
+
+#. Programmer's name for it: SInvalidParameterAESInit
+#. Programmer's name for it: SInvalidParameterAESInit
+#: libraries/cryptolib4pascal/ClpAesEngine.pas:40
+#: libraries/cryptolib4pascal/ClpAesLightEngine.pas:40
+msgid "Invalid Parameter Passed to AES Init - \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidKeyLength
+#. Programmer's name for it: SInvalidKeyLength
+#: libraries/cryptolib4pascal/ClpAesEngine.pas:41
+#: libraries/cryptolib4pascal/ClpAesLightEngine.pas:41
+msgid "Key Length not 128/192/256 bits."
+msgstr "Sleutel Lengte niet 128/192/256 bits."
+
+#. Programmer's name for it: SInvalidOperation
+#. Programmer's name for it: SInvalidOperation
+#: libraries/cryptolib4pascal/ClpAesEngine.pas:42
+#: libraries/cryptolib4pascal/ClpAesLightEngine.pas:42
+msgid "Should Never Get Here"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpAESPRNGRandom.pas:40
+msgid "AES RNG Seed Length must be either one of these \"128/192/256 bits\"."
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpAgreementUtilities.pas:43
+msgid "Raw Agreement Algorithm \"%s\" Not Recognised."
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpAgreementUtilities.pas:45
+msgid "Basic Agreement Algorithm \"%s\" Not Recognised."
+msgstr ""
+
+#. Programmer's name for it: SArgon2TypeInvalid
+#: libraries/cryptolib4pascal/ClpArgon2ParametersGenerator.pas:41
+msgid "Selected Argon2Type is Invalid"
+msgstr ""
+
+#. Programmer's name for it: SArgon2VersionInvalid
+#: libraries/cryptolib4pascal/ClpArgon2ParametersGenerator.pas:42
+msgid "Selected Argon2Version is Invalid"
+msgstr ""
+
+#. Programmer's name for it: SArgon2MemoryCostTypeInvalid
+#: libraries/cryptolib4pascal/ClpArgon2ParametersGenerator.pas:43
+msgid "Selected Argon2MemoryCostType is Invalid"
+msgstr ""
+
+#. Programmer's name for it: SInvalidLength
+#: libraries/cryptolib4pascal/ClpArrayUtils.pas:30
+msgid "%d \" > \" %d"
+msgstr ""
+
+#. Programmer's name for it: SDataOverflow
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:43
+msgid "Data Overflow"
+msgstr ""
+
+#. Programmer's name for it: SDataOverflow
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:45
+msgid "Corrupted Stream - Invalid High Tag Number Found"
+msgstr ""
+
+#. Programmer's name for it: SEOFFound
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:46
+msgid "EOF Found Inside Tag Value"
+msgstr ""
+
+#. Programmer's name for it: SInvalidEnd
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:47
+msgid "EOF Found When Length Expected"
+msgstr ""
+
+#. Programmer's name for it: SInvalidDerLength
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:48
+msgid "DER Length More Than 4 Bytes: %d"
+msgstr ""
+
+#. Programmer's name for it: SEndOfStream
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:49
+msgid "EOF Found Reading Length"
+msgstr ""
+
+#. Programmer's name for it: SNegativeLength
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:50
+msgid "Corrupted Stream - Negative Length Found"
+msgstr ""
+
+#. Programmer's name for it: SOutOfBoundsLength
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:51
+msgid "Corrupted stream - Out of Bounds Length Found"
+msgstr ""
+
+#. Programmer's name for it: SUnknownTag
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:52
+msgid "Unknown Tag \" %d \" Encountered"
+msgstr ""
+
+#. Programmer's name for it: SEndOfContent
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:53
+msgid "Unexpected End-of-Contents Marker"
+msgstr ""
+
+#. Programmer's name for it: SIndefiniteLength
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:54
+msgid "Indefinite Length Primitive Encoding Encountered"
+msgstr ""
+
+#. Programmer's name for it: SUnknownBerObject
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:55
+msgid "Unknown BER Object Encountered"
+msgstr ""
+
+#. Programmer's name for it: SCorruptedStream
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:56
+msgid "Corrupted Stream Detected: %s"
+msgstr ""
+
+#. Programmer's name for it: SInvalidLength
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:57
+msgid "Negative Lengths not Allowed\", \"Length\""
+msgstr ""
+
+#. Programmer's name for it: SEndOfStreamTwo
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:58
+msgid "DEF Length  %d \" TObject truncated by \" %d"
+msgstr ""
+
+#. Programmer's name for it: SInvalidBufferLength
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:59
+msgid "Buffer Length Not Right For Data"
+msgstr ""
+
+#. Programmer's name for it: SMalformedContent
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:60
+msgid "Malformed End-of-Contents Marker"
+msgstr ""
+
+#. Programmer's name for it: SExtraData
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:62
+msgid "Extra Data Found After Object"
+msgstr ""
+
+#. Programmer's name for it: SUnRecognizedObjectStream
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:63
+msgid "Cannot Recognise Object in Stream"
+msgstr ""
+
+#. Programmer's name for it: SUnRecognizedObjectByteArray
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:64
+msgid "Cannot Recognise Object in ByteArray"
+msgstr ""
+
+#. Programmer's name for it: SIllegalObject
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:65
+msgid "Illegal Object in GetInstance:  %s, \"obj\""
+msgstr ""
+
+#. Programmer's name for it: SStrNil
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:66
+msgid "\"Str\" Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SProcessingError
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:67
+msgid "Error Processing Object : \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidObject
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:68
+msgid "Object Implicit - Explicit Expected."
+msgstr ""
+
+#. Programmer's name for it: SUnknownObject
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:69
+msgid "Unknown object in GetInstance:  %s, \"obj\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidSequence
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:70
+msgid "\"Failed to Construct Sequence from byte array: \" %s"
+msgstr ""
+
+#. Programmer's name for it: SImplicitObject
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:71
+msgid "Implicitly Tagged Object"
+msgstr ""
+
+#. Programmer's name for it: SImplicitTag
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:72
+msgid "Implicit Tagging for Tag:  %d"
+msgstr ""
+
+#. Programmer's name for it: SUnknownObjectBER
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:73
+msgid "Unknown BER Object Encountered: $%x"
+msgstr ""
+
+#. Programmer's name for it: SImplicitTagging
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:74
+msgid "Implicit Tagging not Implemented"
+msgstr ""
+
+#. Programmer's name for it: SImplicitTagging
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:76
+msgid "Sequences Must Use Constructed Encoding (see X.690 8.9.1/8.10.1)"
+msgstr ""
+
+#. Programmer's name for it: SImplicitTagging
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:78
+msgid "Sets Must Use Constructed Encoding (see X.690 8.11.1/8.12.1)"
+msgstr ""
+
+#. Programmer's name for it: SMalformedObject
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:79
+msgid "Malformed Object %s"
+msgstr ""
+
+#. Programmer's name for it: SUnSupportedTag
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:80
+msgid "Unsupported Tag Number"
+msgstr ""
+
+#. Programmer's name for it: SConvertError
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:81
+msgid "EIOCryptoLibException Converting Stream to Byte Array: %s"
+msgstr ""
+
+#. Programmer's name for it: SEncodingError
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:82
+msgid "Encoding Error in GetInstance:  %s  \"obj\""
+msgstr ""
+
+#. Programmer's name for it: SDataNil
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:83
+msgid "\"data\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidRange
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:84
+msgid "Must be in the Range 0 to 7\", \"padBits\""
+msgstr ""
+
+#. Programmer's name for it: SPadBitError
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:85
+msgid "If \"data\" is Empty, \"padBits\" Must be 0"
+msgstr ""
+
+#. Programmer's name for it: SUnalignedData
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:86
+msgid "Attempt to Get non-octet Aligned Data from BIT STRING\""
+msgstr ""
+
+#. Programmer's name for it: STruncatedBitString
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:87
+msgid "Truncated BIT STRING Detected\", \"octets\""
+msgstr ""
+
+#. Programmer's name for it: SNotImplemented
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:88
+msgid "Not Implemented %s"
+msgstr ""
+
+#. Programmer's name for it: SUnConstructedTag
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:89
+msgid "Explicit Tags Must be Constructed (see X.690 8.14.2)"
+msgstr ""
+
+#. Programmer's name for it: SParsingError
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:90
+msgid "%s"
+msgstr ""
+
+#. Programmer's name for it: SEmptyInput
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:91
+msgid "Input Cannot be Empty \"astr\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidValue
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:92
+msgid "Byte Value Should Have 1 Byte in it', \"val\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidBooleanValue
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:93
+msgid "BOOLEAN Value Should Have 1 Byte in it\", \"Value\""
+msgstr ""
+
+#. Programmer's name for it: SMalformedEnumerated
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:94
+msgid "Malformed Enumerated"
+msgstr ""
+
+#. Programmer's name for it: SZeroLength
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:95
+msgid "Enumerated has Zero Length, \"enc\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidEncoding
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:96
+msgid "Invalid Encoding Value: %d"
+msgstr ""
+
+#. Programmer's name for it: SFewObject
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:97
+msgid "Too Few Objects in Input Vector, \"v\""
+msgstr ""
+
+#. Programmer's name for it: SVectorTooLarge
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:98
+msgid "Input Vector too Large\", \"vector\""
+msgstr ""
+
+#. Programmer's name for it: SVectorTooLarge
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:100
+msgid ""
+"No Tagged Object Found in Vector. Structure Doesn 't Seem to be of Type "
+"External, \"Vector\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidEncodingValue
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:101
+msgid "Invalid Encoding Value"
+msgstr ""
+
+#. Programmer's name for it: SObjectNil
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:102
+msgid " \"obj\" Can't be Nil"
+msgstr ""
+
+#. Programmer's name for it: SValueNil
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:103
+msgid " \"value\" Can't be Nil"
+msgstr ""
+
+#. Programmer's name for it: SMalformedInteger
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:104
+msgid "Malformed Integer"
+msgstr ""
+
+#. Programmer's name for it: SIdentifierNil
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:105
+msgid "Identifier Cannot be Empty"
+msgstr ""
+
+#. Programmer's name for it: SInvalidOID
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:106
+msgid "\"String \" %s is \" not an OID\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidBranchId
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:107
+msgid "\"String \" %s \" not a valid OID branch\", \"branchID\""
+msgstr ""
+
+#. Programmer's name for it: SIllegalCharacters
+#: libraries/cryptolib4pascal/ClpAsn1Objects.pas:108
+msgid "String Contains Illegal Characters \"str\""
+msgstr ""
+
+#. Programmer's name for it: SExpectedPublicKey
+#: libraries/cryptolib4pascal/ClpAsymmetricCipherKeyPair.pas:30
+msgid "Expected a Public Key \"publicParameter\""
+msgstr ""
+
+#. Programmer's name for it: SExpectedPrivateKey
+#: libraries/cryptolib4pascal/ClpAsymmetricCipherKeyPair.pas:31
+msgid "Expected a Private Key \"privateParameter\""
+msgstr ""
+
+#. Programmer's name for it: SOutputBufferTooSmall
+#. Programmer's name for it: SOutputBufferTooSmall
+#: libraries/cryptolib4pascal/ClpBaseKdfBytesGenerator.pas:36
+#: libraries/cryptolib4pascal/ClpPascalCoinECIESKdfBytesGenerator.pas:34
+msgid "Output Buffer too Small"
+msgstr ""
+
+#. Programmer's name for it: SOutputLengthTooLarge
+#: libraries/cryptolib4pascal/ClpBaseKdfBytesGenerator.pas:37
+msgid "Output Length too Large"
+msgstr ""
+
+#. Programmer's name for it: SKDFParameterNotFound
+#. Programmer's name for it: SKDFParameterNotFound
+#: libraries/cryptolib4pascal/ClpBaseKdfBytesGenerator.pas:38
+#: libraries/cryptolib4pascal/ClpPascalCoinECIESKdfBytesGenerator.pas:35
+msgid "KDF Parameters Required For KDF Generator"
+msgstr ""
+
+#. Programmer's name for it: SDivisionByZero
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:36
+msgid "Division by Zero Error"
+msgstr ""
+
+#. Programmer's name for it: SModulusPositive
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:37
+msgid "Modulus must be Positive"
+msgstr ""
+
+#. Programmer's name for it: SNotRelativelyPrime
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:38
+msgid "Numbers not Relatively Prime."
+msgstr ""
+
+#. Programmer's name for it: SNegativeValue
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:39
+msgid "Cannot be Called on Value < 0"
+msgstr ""
+
+#. Programmer's name for it: SNegativeExponent
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:40
+msgid "Negative Exponent"
+msgstr ""
+
+#. Programmer's name for it: SResultTooLarge
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:41
+msgid "Result too Large"
+msgstr ""
+
+#. Programmer's name for it: SNegativeBitPosition
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:42
+msgid "Bit Position must not be Negative"
+msgstr ""
+
+#. Programmer's name for it: SInvalidBitAddress
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:43
+msgid "Bit Address less than Zero"
+msgstr ""
+
+#. Programmer's name for it: SZeroLengthBigInteger
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:44
+msgid "Zero length BigInteger"
+msgstr ""
+
+#. Programmer's name for it: SInvalidSign
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:45
+msgid "Invalid Sign Value"
+msgstr ""
+
+#. Programmer's name for it: SNegativeSizeInBits
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:46
+msgid "sizeInBits must be non-negative"
+msgstr ""
+
+#. Programmer's name for it: SInvalidBitLength
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:47
+msgid "bitLength < 2"
+msgstr ""
+
+#. Programmer's name for it: SInvalidBase
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:48
+msgid "Only bases 2, 8, 10, or 16 allowed"
+msgstr ""
+
+#. Programmer's name for it: SBadCharacterRadix8
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:49
+msgid "Bad Character in radix 8 string: %s"
+msgstr ""
+
+#. Programmer's name for it: SBadCharacterRadix2
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:50
+msgid "Bad Character in radix 2 string: %s"
+msgstr ""
+
+#. Programmer's name for it: SUnSupportedBase
+#: libraries/cryptolib4pascal/ClpBigInteger.pas:51
+msgid "Only bases 2, 8, 10, 16 are allowed"
+msgstr ""
+
+#. Programmer's name for it: SInvalidLength
+#: libraries/cryptolib4pascal/ClpBigIntegers.pas:31
+msgid "Standard Length Exceeded, \"n\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidMinValue
+#: libraries/cryptolib4pascal/ClpBigIntegers.pas:32
+msgid "\"min\" may not be greater than \"max\"\""
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpBlockCipherModes.pas:37
+msgid "Initialisation Vector Must be the Same Length as Block Size"
+msgstr ""
+
+#. Programmer's name for it: SInvalidChangeState
+#: libraries/cryptolib4pascal/ClpBlockCipherModes.pas:38
+msgid "Cannot Change Encrypting State Without Providing Key."
+msgstr ""
+"Kan Versleutelde Status niet Veranderen Zonder Voorgeschreven Sleutel."
+
+#. Programmer's name for it: SInvalidParameterArgument
+#: libraries/cryptolib4pascal/ClpBlockCipherModes.pas:42
+msgid "CTR/SIC Mode Requires ParametersWithIV"
+msgstr ""
+
+#. Programmer's name for it: SInvalidParameterArgument
+#: libraries/cryptolib4pascal/ClpBlockCipherModes.pas:44
+msgid "CTR/SIC mode requires IV no greater than: %u bytes"
+msgstr ""
+
+#. Programmer's name for it: SInvalidTooSmallIVLength
+#: libraries/cryptolib4pascal/ClpBlockCipherModes.pas:45
+msgid "CTR/SIC mode requires IV of at least: %u bytes"
+msgstr ""
+
+#. Programmer's name for it: SUnsupportedCipher
+#: libraries/cryptolib4pascal/ClpBlockCipherModes.pas:47
+msgid "CtsBlockCipher Can Only Accept ECB or CBC Ciphers"
+msgstr ""
+
+#. Programmer's name for it: SNegativeInputLength
+#. Programmer's name for it: SInvalidLength
+#. Programmer's name for it: SNegativeInputLength
+#: libraries/cryptolib4pascal/ClpBlockCipherModes.pas:48
+#: libraries/cryptolib4pascal/ClpBufferedBlockCipher.pas:36
+#: libraries/cryptolib4pascal/ClpPaddedBufferedBlockCipher.pas:42
+msgid "Can't Have a Negative Input Length!"
+msgstr ""
+
+#. Programmer's name for it: SCTSDoFinalError
+#: libraries/cryptolib4pascal/ClpBlockCipherModes.pas:49
+msgid "Need at Least One Block of Input For CTS"
+msgstr ""
+
+#. Programmer's name for it: SBlowfishEngineNotInitialised
+#: libraries/cryptolib4pascal/ClpBlowfishEngine.pas:36
+msgid "Blowfish Engine not Initialised"
+msgstr ""
+
+#. Programmer's name for it: SBlowfishEngineNotInitialised
+#: libraries/cryptolib4pascal/ClpBlowfishEngine.pas:38
+msgid "Invalid Parameter Passed to Blowfish Init - \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SOutputBuffertooShort
+#: libraries/cryptolib4pascal/ClpBlowfishEngine.pas:42
+msgid "Key Length must be between 32 - 448 bits and divisible by 8."
+msgstr "Sleutel lengte moet tussen de 32 - 448 bits zijn en deelbaar door 8."
+
+#. Programmer's name for it: SInputNil
+#: libraries/cryptolib4pascal/ClpBufferedBlockCipher.pas:37
+msgid "Input Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SCipherNil
+#: libraries/cryptolib4pascal/ClpBufferedBlockCipher.pas:38
+msgid "Cipher Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SDataNotBlockSizeAligned
+#: libraries/cryptolib4pascal/ClpBufferedBlockCipher.pas:40
+msgid "Data not Block Size Aligned"
+msgstr ""
+
+#. Programmer's name for it: SOutputBufferTooSmallForDoFinal
+#: libraries/cryptolib4pascal/ClpBufferedBlockCipher.pas:41
+msgid "Output Buffer too Short for DoFinal()"
+msgstr ""
+
+#. Programmer's name for it: SInvalidBufferSize
+#. Programmer's name for it: SInvalidBufferSize
+#: libraries/cryptolib4pascal/ClpBufferedCipherBase.pas:33
+#: libraries/hashlib4pascal/HlpHash.pas:17
+msgid "\"BufferSize\" Must Be Greater Than Zero"
+msgstr ""
+
+#. Programmer's name for it: SInvalidBufferSize
+#: libraries/cryptolib4pascal/ClpBufferedCipherBase.pas:35
+msgid "Input and Output Streams Must not Point to the Same Stream Instance"
+msgstr ""
+
+#. Programmer's name for it: SUnAssignedInputStream
+#. Programmer's name for it: SUnAssignedStream
+#: libraries/cryptolib4pascal/ClpBufferedCipherBase.pas:36
+#: libraries/hashlib4pascal/HlpHash.pas:18
+msgid "Input Stream Is Unassigned"
+msgstr ""
+
+#. Programmer's name for it: SUnAssignedOutputStream
+#: libraries/cryptolib4pascal/ClpBufferedCipherBase.pas:37
+msgid "Output Stream Is Unassigned"
+msgstr ""
+
+#. Programmer's name for it: SPositionOutOfRange
+#: libraries/cryptolib4pascal/ClpBufferedCipherBase.pas:38
+msgid "Current Position Is Out Of Range"
+msgstr ""
+
+#. Programmer's name for it: SPositionOutOfRange
+#: libraries/cryptolib4pascal/ClpBufferedCipherBase.pas:40
+msgid "Stream Position (or Stream Length to Process) Is Out Of Range"
+msgstr ""
+
+#. Programmer's name for it: SCipherNil
+#: libraries/cryptolib4pascal/ClpBufferedStreamCipher.pas:34
+msgid "Cipher Instance Cannot be Nil"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpCipherKeyGenerator.pas:34
+msgid "Strength must be a Positive Value, \"defaultStrength\""
+msgstr ""
+
+#. Programmer's name for it: SParametersNil
+#: libraries/cryptolib4pascal/ClpCipherKeyGenerator.pas:35
+msgid "Parameters Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SGeneratorNotInitialized
+#: libraries/cryptolib4pascal/ClpCipherKeyGenerator.pas:36
+msgid "Generator has not been Initialised"
+msgstr ""
+
+#. Programmer's name for it: SMechanismNil
+#. Programmer's name for it: SMechanismNil
+#. Programmer's name for it: SMechanismNil
+#: libraries/cryptolib4pascal/ClpCipherUtilities.pas:56
+#: libraries/cryptolib4pascal/ClpDigestUtilities.pas:42
+#: libraries/cryptolib4pascal/ClpSignerUtilities.pas:69
+msgid "Mechanism Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SAlgorithmNil
+#. Programmer's name for it: SAlgorithmNil
+#. Programmer's name for it: SAlgorithmNil
+#: libraries/cryptolib4pascal/ClpCipherUtilities.pas:57
+#: libraries/cryptolib4pascal/ClpParameterUtilities.pas:37
+#: libraries/cryptolib4pascal/ClpSignerUtilities.pas:70
+msgid "Algorithm Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SUnRecognizedCipher
+#: libraries/cryptolib4pascal/ClpCipherUtilities.pas:58
+msgid "Cipher \"%s\" Not Recognised."
+msgstr ""
+
+#. Programmer's name for it: SUnRecognizedCipher
+#: libraries/cryptolib4pascal/ClpCipherUtilities.pas:60
+msgid ""
+"Warning: SIC-Mode Can Become a TwoTime-Pad if the Blocksize of the Cipher "
+"is Too Small. Use a Cipher With a Block Size of at Least 128 bits (e.g. AES)"
+msgstr ""
+
+#. Programmer's name for it: SUnRecognizedCipher
+#: libraries/cryptolib4pascal/ClpCipherUtilities.pas:62
+msgid "Modes and Paddings Not Used for Stream Ciphers"
+msgstr ""
+
+#. Programmer's name for it: SEncodingInstanceNil
+#. Programmer's name for it: SEncodingInstanceNil
+#: libraries/cryptolib4pascal/ClpConverters.pas:33
+#: libraries/hashlib4pascal/HlpConverters.pas:16
+msgid "Encoding Instance Cannot Be Nil"
+msgstr ""
+
+#. Programmer's name for it: SNegativeOffset
+#: libraries/cryptolib4pascal/ClpCryptoApiRandomGenerator.pas:32
+msgid "Start Offset Cannot be Negative, \"Start\""
+msgstr ""
+
+#. Programmer's name for it: SArrayTooSmall
+#: libraries/cryptolib4pascal/ClpCryptoApiRandomGenerator.pas:33
+msgid "Byte Array Too Small For Requested Offset and Length"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpCurve25519Custom.pas:40
+msgid "Value Invalid for Curve25519FieldElement \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SOneOfECFieldElementIsNil
+#. Programmer's name for it: SOneOfECFieldElementIsNil
+#. Programmer's name for it: SOneOfECFieldElementIsNil
+#. Programmer's name for it: SOneOfECFieldElementIsNil
+#. Programmer's name for it: SOneOfECFieldElementIsNil
+#. Programmer's name for it: SOneOfECFieldElementIsNil
+#: libraries/cryptolib4pascal/ClpCurve25519Custom.pas:41
+#: libraries/cryptolib4pascal/ClpSecP256K1Custom.pas:41
+#: libraries/cryptolib4pascal/ClpSecP256R1Custom.pas:41
+#: libraries/cryptolib4pascal/ClpSecP384R1Custom.pas:41
+#: libraries/cryptolib4pascal/ClpSecP521R1Custom.pas:41
+#: libraries/cryptolib4pascal/ClpSecT283Custom.pas:42
+msgid "Exactly One of the Field Elements is Nil"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpDHAgreement.pas:45
+#: libraries/cryptolib4pascal/ClpDHBasicAgreement.pas:38
+msgid "Diffie-Hellman Public Key has Wrong Parameters."
+msgstr ""
+
+#. Programmer's name for it: SNotDHPrivateKeyParameters
+#. Programmer's name for it: SNotDHPrivateKeyParameters
+#: libraries/cryptolib4pascal/ClpDHAgreement.pas:46
+#: libraries/cryptolib4pascal/ClpDHBasicAgreement.pas:39
+msgid "DHEngine Expects DHPrivateKeyParameters"
+msgstr ""
+
+#. Programmer's name for it: SMessageNotInitialized
+#: libraries/cryptolib4pascal/ClpDHAgreement.pas:47
+msgid "Message not Initialised"
+msgstr "Bericht niet geinitialiseerd"
+
+#. Programmer's name for it: SSharedKeyInvalid
+#. Programmer's name for it: SSharedKeyInvalid
+#: libraries/cryptolib4pascal/ClpDHAgreement.pas:48
+#: libraries/cryptolib4pascal/ClpDHBasicAgreement.pas:41
+msgid "Shared Key Can't be 1"
+msgstr ""
+
+#. Programmer's name for it: SDHPublicKeyWeak
+#. Programmer's name for it: SDHPublicKeyWeak
+#: libraries/cryptolib4pascal/ClpDHAgreement.pas:49
+#: libraries/cryptolib4pascal/ClpDHBasicAgreement.pas:42
+msgid "Diffie-Hellman Public Key is Weak"
+msgstr ""
+
+#. Programmer's name for it: SDHPublicKeyNil
+#: libraries/cryptolib4pascal/ClpDHAgreement.pas:50
+msgid "DH Public Key Parameter Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SAlgorithmNotInitialized
+#: libraries/cryptolib4pascal/ClpDHBasicAgreement.pas:40
+msgid "Agreement Algorithm not Initialised"
+msgstr ""
+
+#. Programmer's name for it: SParametersCannotBeNil
+#. Programmer's name for it: SParametersCannotBeNil
+#. Programmer's name for it: SParametersCannotBeNil
+#: libraries/cryptolib4pascal/ClpDHBasicKeyPairGenerator.pas:42
+#: libraries/cryptolib4pascal/ClpDHKeyPairGenerator.pas:42
+#: libraries/cryptolib4pascal/ClpDsaKeyPairGenerator.pas:44
+msgid "\"parameters\" Cannot Be Nil"
+msgstr ""
+
+#. Programmer's name for it: SPNil
+#: libraries/cryptolib4pascal/ClpDHDomainParameters.pas:33
+msgid "P Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SGNil
+#. Programmer's name for it: SGNil
+#: libraries/cryptolib4pascal/ClpDHDomainParameters.pas:34
+#: libraries/cryptolib4pascal/ClpECDomainParameters.pas:35
+msgid "G Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SQNil
+#. Programmer's name for it: SQNil
+#. Programmer's name for it: SQNil
+#: libraries/cryptolib4pascal/ClpDHDomainParameters.pas:35
+#: libraries/cryptolib4pascal/ClpECDomainParameters.pas:37
+#: libraries/cryptolib4pascal/ClpECPublicKeyParameters.pas:35
+msgid "Q Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SJNil
+#: libraries/cryptolib4pascal/ClpDHDomainParameters.pas:36
+msgid "J Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SBadSequenceSize
+#. Programmer's name for it: SBadSequenceSize
+#. Programmer's name for it: SBadSequenceSize
+#: libraries/cryptolib4pascal/ClpDHDomainParameters.pas:37
+#: libraries/cryptolib4pascal/ClpDHValidationParams.pas:34
+#: libraries/cryptolib4pascal/ClpDsaParameter.pas:32
+msgid "Bad Sequence Size \"seq\": %d"
+msgstr ""
+
+#. Programmer's name for it: SInvalidDHDomainParameters
+#: libraries/cryptolib4pascal/ClpDHDomainParameters.pas:38
+msgid "Invalid DHDomainParameters: %s"
+msgstr ""
+
+#. Programmer's name for it: SPUnInitialized
+#. Programmer's name for it: SPUnInitialized
+#: libraries/cryptolib4pascal/ClpDHParameters.pas:33
+#: libraries/cryptolib4pascal/ClpDsaParameters.pas:32
+msgid "\"P\" Cannot Be Uninitialized"
+msgstr ""
+
+#. Programmer's name for it: SGUnInitialized
+#. Programmer's name for it: SGUnInitialized
+#: libraries/cryptolib4pascal/ClpDHParameters.pas:34
+#: libraries/cryptolib4pascal/ClpDsaParameters.pas:34
+msgid "\"G\" Cannot Be Uninitialized"
+msgstr ""
+
+#. Programmer's name for it: SMustBeOddPrime
+#: libraries/cryptolib4pascal/ClpDHParameters.pas:35
+msgid "Field must be an Odd Prime, \"P\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidGeneratorRange
+#: libraries/cryptolib4pascal/ClpDHParameters.pas:36
+msgid "Generator must in the Range [2, p - 2], \"G\""
+msgstr ""
+
+#. Programmer's name for it: SQTooBigToBeAFactor
+#: libraries/cryptolib4pascal/ClpDHParameters.pas:37
+msgid "Q too Big to be a Factor of (P - 1), \"Q\""
+msgstr ""
+
+#. Programmer's name for it: SMTooBig
+#: libraries/cryptolib4pascal/ClpDHParameters.pas:38
+msgid "M value must be < BitLength of P, \"M\""
+msgstr ""
+
+#. Programmer's name for it: SLErrorOne
+#: libraries/cryptolib4pascal/ClpDHParameters.pas:39
+msgid "when L value specified, it must be less than bitlength(P), \"L\""
+msgstr ""
+
+#. Programmer's name for it: SLErrorTwo
+#: libraries/cryptolib4pascal/ClpDHParameters.pas:40
+msgid "when L value specified, it may not be less than m value, \"L\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidSubGroupFactor
+#: libraries/cryptolib4pascal/ClpDHParameters.pas:41
+msgid "Subgroup factor must be >= 2, \"j\""
+msgstr ""
+
+#. Programmer's name for it: SXUnInitialized
+#. Programmer's name for it: SXUnInitialized
+#: libraries/cryptolib4pascal/ClpDHPrivateKeyParameters.pas:33
+#: libraries/cryptolib4pascal/ClpDsaPrivateKeyParameters.pas:32
+msgid "\"X\" Cannot Be Uninitialized"
+msgstr ""
+
+#. Programmer's name for it: SYUnInitialized
+#. Programmer's name for it: SYUnInitialized
+#: libraries/cryptolib4pascal/ClpDHPublicKeyParameters.pas:33
+#: libraries/cryptolib4pascal/ClpDsaPublicKeyParameters.pas:32
+msgid "\"Y\" Cannot Be Uninitialized"
+msgstr ""
+
+#. Programmer's name for it: SInvalidDHPublicKey
+#: libraries/cryptolib4pascal/ClpDHPublicKeyParameters.pas:34
+msgid "Invalid DH public key \"Y\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidYInCorrectGroup
+#. Programmer's name for it: SInvalidYInCorrectGroup
+#: libraries/cryptolib4pascal/ClpDHPublicKeyParameters.pas:35
+#: libraries/cryptolib4pascal/ClpDsaPublicKeyParameters.pas:33
+msgid "\"Y\" Value Does Not Appear To Be In Correct Group"
+msgstr ""
+
+#. Programmer's name for it: SSeedNil
+#. Programmer's name for it: SSeedNil
+#: libraries/cryptolib4pascal/ClpDHValidationParameters.pas:30
+#: libraries/cryptolib4pascal/ClpDsaValidationParameters.pas:30
+msgid "\"Seed\" Cannot Be Nil"
+msgstr ""
+
+#. Programmer's name for it: SSeedNil
+#: libraries/cryptolib4pascal/ClpDHValidationParams.pas:32
+msgid "Seed Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SPGenCounterNil
+#: libraries/cryptolib4pascal/ClpDHValidationParams.pas:33
+msgid "PGenCounter Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SInvalidDHValidationParams
+#: libraries/cryptolib4pascal/ClpDHValidationParams.pas:35
+msgid "Invalid DHValidationParams: %s"
+msgstr ""
+
+#. Programmer's name for it: SOutputBufferTooShort
+#. Programmer's name for it: SOutputBufferTooShort
+#. Programmer's name for it: SOutputBufferTooShort
+#. Programmer's name for it: SOutputBufferTooShort
+#. Programmer's name for it: SOutputBufferTooShort
+#: libraries/cryptolib4pascal/ClpDigest.pas:31
+#: libraries/cryptolib4pascal/ClpHMac.pas:34
+#: libraries/hashlib4pascal/HlpBlake2B.pas:27
+#: libraries/hashlib4pascal/HlpBlake2S.pas:27
+#: libraries/hashlib4pascal/HlpSHA3.pas:29
+msgid "Output Buffer Too Short"
+msgstr ""
+
+#. Programmer's name for it: SUnRecognizedDigest
+#: libraries/cryptolib4pascal/ClpDigestUtilities.pas:43
+msgid "Digest \"%s\" not recognised."
+msgstr ""
+
+#. Programmer's name for it: SPrivateKey
+#. Programmer's name for it: SPrivateKey
+#: libraries/cryptolib4pascal/ClpDsaDigestSigner.pas:41
+#: libraries/cryptolib4pascal/ClpSchnorrDigestSigner.pas:40
+msgid "Signing Requires Private Key."
+msgstr "Tekenen vereist Prive Sleutel."
+
+#. Programmer's name for it: SPublicKey
+#. Programmer's name for it: SPublicKey
+#: libraries/cryptolib4pascal/ClpDsaDigestSigner.pas:42
+#: libraries/cryptolib4pascal/ClpSchnorrDigestSigner.pas:41
+msgid "Verification Requires Public Key."
+msgstr "Verificatie Vereist Publieke Sleutel."
+
+#. Programmer's name for it: SPublicKey
+#: libraries/cryptolib4pascal/ClpDsaDigestSigner.pas:44
+msgid "DSADigestSigner not Initialized for Signature Generation."
+msgstr ""
+
+#. Programmer's name for it: SPublicKey
+#: libraries/cryptolib4pascal/ClpDsaDigestSigner.pas:46
+msgid "DSADigestSigner not Initialized for Verification"
+msgstr ""
+
+#. Programmer's name for it: SEncodingError
+#. Programmer's name for it: SEncodingError
+#: libraries/cryptolib4pascal/ClpDsaDigestSigner.pas:47
+#: libraries/cryptolib4pascal/ClpSchnorrDigestSigner.pas:46
+msgid "Unable to Encode Signature"
+msgstr ""
+
+#. Programmer's name for it: SInvalidDsaParameter
+#: libraries/cryptolib4pascal/ClpDsaParameter.pas:33
+msgid "Invalid DsaParameter: %s"
+msgstr ""
+
+#. Programmer's name for it: SQUnInitialized
+#: libraries/cryptolib4pascal/ClpDsaParameters.pas:33
+msgid "\"Q\" Cannot Be Uninitialized"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpDsaParametersGenerator.pas:44
+msgid "L Values Must be Between 1024 and 3072 and a Multiple of 1024"
+msgstr ""
+
+#. Programmer's name for it: SInvalidNValueForSpecifiedL
+#: libraries/cryptolib4pascal/ClpDsaParametersGenerator.pas:45
+msgid "N Must be \" %d \" for L = \" %d \""
+msgstr ""
+
+#. Programmer's name for it: SInvalidNValueForSpecifiedL_Two
+#: libraries/cryptolib4pascal/ClpDsaParametersGenerator.pas:46
+msgid "N Must be \" %d \" or \" %d \" for L = \" %d \""
+msgstr ""
+
+#. Programmer's name for it: SInvalidNValueForSpecifiedL_Two
+#: libraries/cryptolib4pascal/ClpDsaParametersGenerator.pas:48
+msgid "Digest Output Size Too Small for Value of N Which is \" %d \""
+msgstr ""
+
+#. Programmer's name for it: SInvalidNValueForSpecifiedL_Two
+#: libraries/cryptolib4pascal/ClpDsaParametersGenerator.pas:50
+msgid "Can Only Use SHA-1 For Generating FIPS 186-2 Parameters"
+msgstr ""
+
+#. Programmer's name for it: SInvalidNValueForSpecifiedL_Two
+#: libraries/cryptolib4pascal/ClpDsaParametersGenerator.pas:52
+msgid "Size Must Be From %d - %d and a multiple of %d, \"%d\""
+msgstr ""
+
+#. Programmer's name for it: SDSAPrivateKeyNotFound
+#: libraries/cryptolib4pascal/ClpDsaSigner.pas:44
+msgid "DSA Private Key Required For Signing"
+msgstr ""
+
+#. Programmer's name for it: SDSAPublicKeyNotFound
+#: libraries/cryptolib4pascal/ClpDsaSigner.pas:45
+msgid "DSA Public Key Required For Verification"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpECAlgorithms.pas:43
+msgid ""
+"Point and Scalar Arrays Should be Non-Null, and of Equal, Non-Zero, Length"
+msgstr ""
+
+#. Programmer's name for it: SInvalidPointLocation
+#: libraries/cryptolib4pascal/ClpECAlgorithms.pas:44
+msgid "Point Must be on the Same Curve"
+msgstr ""
+
+#. Programmer's name for it: SInvalidPoint
+#: libraries/cryptolib4pascal/ClpECAlgorithms.pas:45
+msgid "Invalid Point, \"P\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidResult
+#: libraries/cryptolib4pascal/ClpECAlgorithms.pas:46
+msgid "Invalid Result"
+msgstr ""
+
+#. Programmer's name for it: SInvalidResult
+#: libraries/cryptolib4pascal/ClpECAlgorithms.pas:48
+#: libraries/cryptolib4pascal/ClpMultipliers.pas:46
+msgid "Fixed-Point Comb Doesn't Support Scalars Larger Than The Curve Order"
+msgstr ""
+
+#. Programmer's name for it: SInvalidValue
+#: libraries/cryptolib4pascal/ClpECC.pas:52
+msgid "Value Invalid in Fp Field Element, \" x \""
+msgstr ""
+
+#. Programmer's name for it: SInvalidValue2
+#: libraries/cryptolib4pascal/ClpECC.pas:53
+msgid "Value Invalid in F2m Field Element, \"x\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidK2Value
+#: libraries/cryptolib4pascal/ClpECC.pas:54
+msgid "k2 must be smaller than k3"
+msgstr ""
+
+#. Programmer's name for it: SInvalidK2Value2
+#: libraries/cryptolib4pascal/ClpECC.pas:55
+msgid "k2 must be larger than 0"
+msgstr ""
+
+#. Programmer's name for it: SInvalidK2Value2
+#: libraries/cryptolib4pascal/ClpECC.pas:57
+msgid "Field elements are not both instances of F2mFieldElement"
+msgstr ""
+
+#. Programmer's name for it: SInvalidK2Value2
+#: libraries/cryptolib4pascal/ClpECC.pas:59
+msgid "Field elements are not elements of the same field F2m"
+msgstr ""
+
+#. Programmer's name for it: SInvalidK2Value2
+#: libraries/cryptolib4pascal/ClpECC.pas:61
+msgid "One of the F2m field elements has incorrect representation"
+msgstr ""
+
+#. Programmer's name for it: SEvenValue
+#: libraries/cryptolib4pascal/ClpECC.pas:62
+msgid "Even Value of Q"
+msgstr ""
+
+#. Programmer's name for it: STraceInternalErrorCalculation
+#: libraries/cryptolib4pascal/ClpECC.pas:63
+msgid "Internal Error in Trace Calculation"
+msgstr ""
+
+#. Programmer's name for it: SHalfTraceUndefinedForM
+#: libraries/cryptolib4pascal/ClpECC.pas:64
+msgid "Half-Trace Only Defined For Odd M"
+msgstr ""
+
+#. Programmer's name for it: SUnSupportedCoordinateSystem
+#: libraries/cryptolib4pascal/ClpECC.pas:65
+msgid "UnSupported Coordinate System"
+msgstr ""
+
+#. Programmer's name for it: SCurrentCurve
+#: libraries/cryptolib4pascal/ClpECC.pas:66
+msgid "Implementation returned Current Curve"
+msgstr ""
+
+#. Programmer's name for it: SInvalidPointCoordinates
+#: libraries/cryptolib4pascal/ClpECC.pas:67
+msgid "Invalid Point Coordinates"
+msgstr ""
+
+#. Programmer's name for it: SInvalidAffineCoordinates
+#: libraries/cryptolib4pascal/ClpECC.pas:68
+msgid "not valid for affine coordinates, \"iso\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidPointOnCurve
+#: libraries/cryptolib4pascal/ClpECC.pas:69
+msgid "must be non-null and on this curve, \"point\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidPointOnCurve2
+#: libraries/cryptolib4pascal/ClpECC.pas:70
+msgid "Entries must be null or on this curve, \"points\""
+msgstr ""
+
+#. Programmer's name for it: SPointsNil
+#: libraries/cryptolib4pascal/ClpECC.pas:71
+msgid "points"
+msgstr ""
+
+#. Programmer's name for it: SInvalidRangeSpecified
+#: libraries/cryptolib4pascal/ClpECC.pas:72
+msgid "Invalid Range Specified\", \"points\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidPointCompression
+#: libraries/cryptolib4pascal/ClpECC.pas:73
+msgid "Invalid Point Compression"
+msgstr ""
+
+#. Programmer's name for it: SInvalidK1
+#: libraries/cryptolib4pascal/ClpECC.pas:74
+msgid "k1 must be > 0"
+msgstr ""
+
+#. Programmer's name for it: SInvalidK3
+#: libraries/cryptolib4pascal/ClpECC.pas:75
+msgid "k3 must be 0 if k2 == 0"
+msgstr ""
+
+#. Programmer's name for it: SK2K1MisMatch
+#: libraries/cryptolib4pascal/ClpECC.pas:76
+msgid "k2 must be > k1"
+msgstr ""
+
+#. Programmer's name for it: SK3K2Mismatch
+#: libraries/cryptolib4pascal/ClpECC.pas:77
+msgid "k3 must be > k2"
+msgstr ""
+
+#. Programmer's name for it: SInvalidInfinityEncoding
+#: libraries/cryptolib4pascal/ClpECC.pas:78
+msgid "Invalid Infinity Encoding, \"encoded\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidPointEncoding
+#: libraries/cryptolib4pascal/ClpECC.pas:79
+msgid "Invalid Point Encoding %u"
+msgstr ""
+
+#. Programmer's name for it: SInvalidPointEncoding
+#: libraries/cryptolib4pascal/ClpECC.pas:81
+msgid "Incorrect Length for infinity encoding\", \"encoded\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidPointEncoding
+#: libraries/cryptolib4pascal/ClpECC.pas:83
+msgid "Incorrect Length for Compressed Encoding\", \"encoded\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidPoint
+#: libraries/cryptolib4pascal/ClpECC.pas:84
+msgid "Invalid Point"
+msgstr ""
+
+#. Programmer's name for it: SInvalidPoint
+#: libraries/cryptolib4pascal/ClpECC.pas:86
+msgid "Incorrect Length for UnCompressed Encoding\", \"encoded\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidPoint
+#: libraries/cryptolib4pascal/ClpECC.pas:88
+msgid "Incorrect Length for Hybrid Encoding\", \"encoded\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidPoint
+#: libraries/cryptolib4pascal/ClpECC.pas:90
+msgid "Inconsistent Y Coordinate in Hybrid Encoding\", \"encoded\""
+msgstr ""
+
+#. Programmer's name for it: SUnknownCoordSystem
+#: libraries/cryptolib4pascal/ClpECC.pas:91
+msgid "Unknown Coordinate System"
+msgstr ""
+
+#. Programmer's name for it: SPointNotInNormalForm
+#: libraries/cryptolib4pascal/ClpECC.pas:92
+msgid "Point not in Normal Form"
+msgstr ""
+
+#. Programmer's name for it: SNotProjectiveCoordSystem
+#: libraries/cryptolib4pascal/ClpECC.pas:93
+msgid "Not a Projective Coordinate System"
+msgstr ""
+
+#. Programmer's name for it: SCannotBeNegative
+#: libraries/cryptolib4pascal/ClpECC.pas:94
+msgid "Cannot be Negative, \"e\""
+msgstr ""
+
+#. Programmer's name for it: SNilFieldElement
+#: libraries/cryptolib4pascal/ClpECC.pas:95
+msgid "Exactly one of the Field Elements is Nil"
+msgstr ""
+
+#. Programmer's name for it: SUnsupportedOperation
+#: libraries/cryptolib4pascal/ClpECC.pas:96
+msgid "Constant-time Lookup not Supported"
+msgstr ""
+
+#. Programmer's name for it: SInvalidRange
+#: libraries/cryptolib4pascal/ClpECCompUtilities.pas:43
+msgid "Must be in the Range [2, 16], \"width\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidRange2
+#: libraries/cryptolib4pascal/ClpECCompUtilities.pas:44
+msgid "Must be in the Range [2, 8], \"width\""
+msgstr ""
+
+#. Programmer's name for it: SWrongDomainParameter
+#: libraries/cryptolib4pascal/ClpECDHBasicAgreement.pas:39
+msgid "ECDH Public Key has Wrong Domain Parameters"
+msgstr ""
+
+#. Programmer's name for it: SInvalidAgreementValue
+#: libraries/cryptolib4pascal/ClpECDHBasicAgreement.pas:40
+msgid "Infinity is not a Valid Agreement Value for ECDH"
+msgstr ""
+
+#. Programmer's name for it: SInfinityInvalidPublicKey
+#: libraries/cryptolib4pascal/ClpECDHBasicAgreement.pas:41
+msgid "Infinity is not a Valid Public Key for ECDH"
+msgstr ""
+
+#. Programmer's name for it: SWrongDomainParameter
+#: libraries/cryptolib4pascal/ClpECDHCBasicAgreement.pas:39
+msgid "ECDHC Public Key has Wrong Domain Parameters"
+msgstr ""
+
+#. Programmer's name for it: SInvalidAgreementValue
+#: libraries/cryptolib4pascal/ClpECDHCBasicAgreement.pas:40
+msgid "Infinity is not a Valid Agreement Value for ECDHC"
+msgstr ""
+
+#. Programmer's name for it: SInfinityInvalidPublicKey
+#: libraries/cryptolib4pascal/ClpECDHCBasicAgreement.pas:41
+msgid "Infinity is not a Valid Public Key for ECDHC"
+msgstr ""
+
+#. Programmer's name for it: SCurveNil
+#: libraries/cryptolib4pascal/ClpECDomainParameters.pas:33
+msgid "Curve Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SScalarNil
+#: libraries/cryptolib4pascal/ClpECDomainParameters.pas:34
+msgid "Scalar Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SBigIntegerNotInitialized
+#. Programmer's name for it: SBigIntegerNotInitialized
+#: libraries/cryptolib4pascal/ClpECDomainParameters.pas:36
+#: libraries/cryptolib4pascal/ClpECPrivateKeyParameters.pas:32
+msgid "BigInteger Not Initialized \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SQInfinity
+#: libraries/cryptolib4pascal/ClpECDomainParameters.pas:38
+msgid "Point at Infinity \"Q\""
+msgstr ""
+
+#. Programmer's name for it: SQPointNotOnCurve
+#: libraries/cryptolib4pascal/ClpECDomainParameters.pas:39
+msgid "Point Not on Curve \"Q\""
+msgstr ""
+
+#. Programmer's name for it: SScalarInvalidRange
+#: libraries/cryptolib4pascal/ClpECDomainParameters.pas:40
+msgid "Scalar is not in the Interval [1, n - 1]"
+msgstr ""
+
+#. Programmer's name for it: SECPublicKeyNotFound
+#. Programmer's name for it: SECPublicKeyNotFound
+#. Programmer's name for it: SECPublicKeyNotFound
+#: libraries/cryptolib4pascal/ClpECDsaSigner.pas:47
+#: libraries/cryptolib4pascal/ClpECNRSigner.pas:47
+#: libraries/cryptolib4pascal/ClpECSchnorrSipaSigner.pas:45
+msgid "EC Public Key Required for Verification"
+msgstr ""
+
+#. Programmer's name for it: SECPrivateKeyNotFound
+#. Programmer's name for it: SECPrivateKeyNotFound
+#. Programmer's name for it: SECPrivateKeyNotFound
+#: libraries/cryptolib4pascal/ClpECDsaSigner.pas:48
+#: libraries/cryptolib4pascal/ClpECNRSigner.pas:48
+#: libraries/cryptolib4pascal/ClpECSchnorrSipaSigner.pas:46
+msgid "EC Private Key Required for Signing"
+msgstr ""
+
+#. Programmer's name for it: SSenderPublicKeyInvalid
+#: libraries/cryptolib4pascal/ClpECIESPublicKeyParser.pas:35
+msgid "Sender's Public Key Invalid."
+msgstr "Afzender zijn Publieke Sleutel ongeldig."
+
+#. Programmer's name for it: SSenderPublicKeyInvalid
+#: libraries/cryptolib4pascal/ClpECIESPublicKeyParser.pas:37
+msgid "Sender's Public Key has Invalid Point Encoding \"%x\""
+msgstr ""
+"Afzender zijn Publieke Sleutel heeft een ongeldige Punt Decodering \"%x\""
+
+#. Programmer's name for it: SAlgorithmNil
+#. Programmer's name for it: SAlgorithmNil
+#: libraries/cryptolib4pascal/ClpECKeyPairGenerator.pas:56
+#: libraries/cryptolib4pascal/ClpECKeyParameters.pas:39
+msgid "Algorithm Cannot be Empty"
+msgstr ""
+
+#. Programmer's name for it: SInvalidKeySize
+#: libraries/cryptolib4pascal/ClpECKeyPairGenerator.pas:57
+msgid "Unknown Key Size \"%d\""
+msgstr ""
+
+#. Programmer's name for it: SParameterNil
+#: libraries/cryptolib4pascal/ClpECKeyParameters.pas:40
+msgid "Parameter Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SUnRecognizedAlgorithm
+#: libraries/cryptolib4pascal/ClpECKeyParameters.pas:41
+msgid "Unrecognised Algorithm: \" %s, \"Algorithm"
+msgstr ""
+
+#. Programmer's name for it: SNotInitializedForSigning
+#. Programmer's name for it: SNotInitializedForSigning
+#: libraries/cryptolib4pascal/ClpECNRSigner.pas:49
+#: libraries/cryptolib4pascal/ClpECSchnorrSipaSigner.pas:47
+msgid "Not Initialised For Signing"
+msgstr ""
+
+#. Programmer's name for it: SNotInitializedForVerifying
+#. Programmer's name for it: SNotInitializedForVerifying
+#: libraries/cryptolib4pascal/ClpECNRSigner.pas:50
+#: libraries/cryptolib4pascal/ClpECSchnorrSipaSigner.pas:48
+msgid "Not Initialised For Verifying"
+msgstr ""
+
+#. Programmer's name for it: SNotInitializedForVerifying
+#: libraries/cryptolib4pascal/ClpECNRSigner.pas:52
+msgid "Not Initialised For Verifying/Recovery"
+msgstr ""
+
+#. Programmer's name for it: SInputTooLargeForECNRKey
+#: libraries/cryptolib4pascal/ClpECNRSigner.pas:53
+msgid "Input Too Large For ECNR Key."
+msgstr ""
+
+#. Programmer's name for it: SSignatureGenerationError
+#: libraries/cryptolib4pascal/ClpECSchnorrSipaSigner.pas:49
+msgid "An Error Occurred During Signature Generation"
+msgstr ""
+
+#. Programmer's name for it: SSignatureGenerationError
+#: libraries/cryptolib4pascal/ClpECSchnorrSipaSigner.pas:51
+msgid ""
+"Only FP (Prime Field) Curves are Allowed for This Schnorr Implementation"
+msgstr ""
+
+#. Programmer's name for it: SInvalidCtx
+#: libraries/cryptolib4pascal/ClpEd25519.pas:40
+msgid "ctx"
+msgstr ""
+
+#. Programmer's name for it: SDigestError
+#: libraries/cryptolib4pascal/ClpEd25519.pas:41
+msgid "Digest Produced Insufficient Data"
+msgstr ""
+
+#. Programmer's name for it: SEOFInPrivateKey
+#: libraries/cryptolib4pascal/ClpEd25519Blake2BPrivateKeyParameters.pas:38
+msgid "EOF encountered in middle of Ed25519Blake2B private key"
+msgstr ""
+
+#. Programmer's name for it: SUnsupportedAlgorithm
+#. Programmer's name for it: SUnsupportedAlgorithm
+#: libraries/cryptolib4pascal/ClpEd25519Blake2BPrivateKeyParameters.pas:39
+#: libraries/cryptolib4pascal/ClpEd25519PrivateKeyParameters.pas:39
+msgid "Unsupported Algorithm"
+msgstr ""
+
+#. Programmer's name for it: SCtxNotNil
+#. Programmer's name for it: SCtxNotNil
+#: libraries/cryptolib4pascal/ClpEd25519Blake2BPrivateKeyParameters.pas:40
+#: libraries/cryptolib4pascal/ClpEd25519PrivateKeyParameters.pas:40
+msgid "Ctx must be Nil for Ed25519 Algorithm"
+msgstr ""
+
+#. Programmer's name for it: SMsgLen
+#. Programmer's name for it: SMsgLen
+#: libraries/cryptolib4pascal/ClpEd25519Blake2BPrivateKeyParameters.pas:41
+#: libraries/cryptolib4pascal/ClpEd25519PrivateKeyParameters.pas:41
+msgid "MsgLen must be Equal to \"PreHashSize\" for Ed25519ph Algorithm"
+msgstr ""
+
+#. Programmer's name for it: SEOFInPublicKey
+#: libraries/cryptolib4pascal/ClpEd25519Blake2BPublicKeyParameters.pas:34
+msgid "EOF encountered in middle of Ed25519Blake2B public key"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpEd25519Blake2BSigner.pas:37
+msgid "Ed25519Blake2BSigner not Initialised for Signature Generation."
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpEd25519Blake2BSigner.pas:39
+msgid "Ed25519Blake2BSigner not Initialised for Verification"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpEd25519CtxBlake2BSigner.pas:37
+msgid "Ed25519CtxBlake2BSigner not Initialised for Signature Generation."
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpEd25519CtxBlake2BSigner.pas:39
+msgid "Ed25519CtxBlake2BSigner not Initialised for Verification"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpEd25519CtxSigner.pas:37
+msgid "Ed25519CtxSigner not Initialised for Signature Generation."
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpEd25519CtxSigner.pas:39
+msgid "Ed25519CtxSigner not Initialised for Verification"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpEd25519PhBlake2BSigner.pas:37
+msgid "Ed25519PhBlake2BSigner not Initialised for Signature Generation."
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpEd25519PhBlake2BSigner.pas:39
+msgid "Ed25519PhBlake2BSigner not Initialised for Verification"
+msgstr ""
+
+#. Programmer's name for it: SPreHashDigestFailed
+#. Programmer's name for it: SPreHashDigestFailed
+#: libraries/cryptolib4pascal/ClpEd25519PhBlake2BSigner.pas:40
+#: libraries/cryptolib4pascal/ClpEd25519PhSigner.pas:40
+msgid "PreHash Digest Failed"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpEd25519PhSigner.pas:37
+msgid "Ed25519PhSigner not Initialised for Signature Generation."
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpEd25519PhSigner.pas:39
+msgid "Ed25519PhSigner not Initialised for Verification"
+msgstr ""
+
+#. Programmer's name for it: SEOFInPrivateKey
+#: libraries/cryptolib4pascal/ClpEd25519PrivateKeyParameters.pas:38
+msgid "EOF encountered in middle of Ed25519 private key"
+msgstr ""
+
+#. Programmer's name for it: SEOFInPublicKey
+#: libraries/cryptolib4pascal/ClpEd25519PublicKeyParameters.pas:34
+msgid "EOF encountered in middle of Ed25519 public key"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpEd25519Signer.pas:37
+msgid "Ed25519Signer not Initialised for Signature Generation."
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpEd25519Signer.pas:39
+msgid "Ed25519Signer not Initialised for Verification"
+msgstr ""
+
+#. Programmer's name for it: SInvalidCharacteristic
+#: libraries/cryptolib4pascal/ClpFiniteFields.pas:35
+msgid "Must be >= 2 , \" characteristic \""
+msgstr ""
+
+#. Programmer's name for it: SInvalidCharacteristic
+#: libraries/cryptolib4pascal/ClpFiniteFields.pas:37
+msgid ""
+"Irreducible polynomials in GF(2) must have constant term, \"exponents\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidCharacteristic
+#: libraries/cryptolib4pascal/ClpFiniteFields.pas:39
+msgid "Polynomial Exponents must be montonically increasing\", \"exponents\""
+msgstr ""
+
+#. Programmer's name for it: SKeyGeneratorAlgorithmNotRecognised
+#: libraries/cryptolib4pascal/ClpGeneratorUtilities.pas:52
+msgid "KeyGenerator \"%s\" not Recognised."
+msgstr ""
+
+#. Programmer's name for it: SKeyGeneratorAlgorithmNotRecognised
+#: libraries/cryptolib4pascal/ClpGeneratorUtilities.pas:54
+msgid "KeyGenerator \"%s\" ( \"%s\" ) not Supported."
+msgstr ""
+
+#. Programmer's name for it: SKeyGeneratorAlgorithmNotRecognised
+#: libraries/cryptolib4pascal/ClpGeneratorUtilities.pas:56
+msgid "KeyPairGenerator \"%s\" not Recognised."
+msgstr ""
+
+#. Programmer's name for it: SKeyGeneratorAlgorithmNotRecognised
+#: libraries/cryptolib4pascal/ClpGeneratorUtilities.pas:58
+msgid "KeyPairGenerator \"%s\" ( \"%s\" ) not Supported."
+msgstr ""
+
+#. Programmer's name for it: SSizeTooBigHKDF
+#: libraries/cryptolib4pascal/ClpHkdfBytesGenerator.pas:39
+msgid "HKDF Cannot Generate More Than 255 Blocks of HashLen Size"
+msgstr ""
+
+#. Programmer's name for it: SSizeTooBigHKDF2
+#: libraries/cryptolib4pascal/ClpHkdfBytesGenerator.pas:40
+msgid "HKDF May Only Be Used For 255 * HashLen Bytes of Output"
+msgstr ""
+
+#. Programmer's name for it: SSizeTooBigHKDF2
+#: libraries/cryptolib4pascal/ClpHkdfBytesGenerator.pas:42
+msgid "HKDF Parameters Required For \"HkdfBytesGenerator\", \"parameters\""
+msgstr ""
+
+#. Programmer's name for it: SIKMNil
+#: libraries/cryptolib4pascal/ClpHkdfParameters.pas:30
+msgid "\"ikm\" is Nil"
+msgstr ""
+
+#. Programmer's name for it: SUnSupportedOperation
+#. Programmer's name for it: SUnSupportedOperation
+#: libraries/cryptolib4pascal/ClpHMacDsaKCalculator.pas:42
+#: libraries/cryptolib4pascal/ClpRandomDsaKCalculator.pas:34
+msgid "Operation not Supported"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpIESCipher.pas:54
+msgid "Must be Passed Recipient's Public EC Key for Encryption"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpIESCipher.pas:56
+msgid "Must be Passed Recipient's Private EC Key for Decryption"
+msgstr ""
+
+#. Programmer's name for it: SIAlgorithmParameterSpecNil
+#: libraries/cryptolib4pascal/ClpIESCipher.pas:57
+msgid "Parameter Spec Cannot Be Nil"
+msgstr ""
+
+#. Programmer's name for it: SUnableToProcessBlock
+#: libraries/cryptolib4pascal/ClpIESCipher.pas:58
+msgid "Unable to Process Block. \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SIESParameterSpecError
+#: libraries/cryptolib4pascal/ClpIESCipher.pas:59
+msgid "Must be Passed IES Parameter Spec"
+msgstr ""
+
+#. Programmer's name for it: SNonceInvalidLength
+#: libraries/cryptolib4pascal/ClpIESCipher.pas:60
+msgid "Nonce in IES Parameters Needs to be \"%s\" Bytes Long"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpIESEngine.pas:53
+#: libraries/cryptolib4pascal/ClpPascalCoinIESEngine.pas:45
+msgid "Unable to Recover Ephemeral Public Key: \"%s\""
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpIESEngine.pas:55
+#: libraries/cryptolib4pascal/ClpPascalCoinIESEngine.pas:47
+msgid "Length of Input Must be Greater than the MAC and V Combined"
+msgstr ""
+
+#. Programmer's name for it: SInvalidMAC
+#. Programmer's name for it: SInvalidMAC
+#: libraries/cryptolib4pascal/ClpIESEngine.pas:56
+#: libraries/cryptolib4pascal/ClpPascalCoinIESEngine.pas:48
+msgid "Invalid MAC"
+msgstr ""
+
+#. Programmer's name for it: SRandomNil
+#: libraries/cryptolib4pascal/ClpKeyGenerationParameters.pas:30
+msgid "Random Class Instance Can't Be Nil"
+msgstr ""
+
+#. Programmer's name for it: SInvalidStrength
+#: libraries/cryptolib4pascal/ClpKeyGenerationParameters.pas:31
+msgid "Strength Must Be Greater Than Zero But Was Given %d"
+msgstr ""
+
+#. Programmer's name for it: SKeyNil
+#: libraries/cryptolib4pascal/ClpKeyParameter.pas:31
+msgid "Key Cannot be Nil"
+msgstr "Sleutel mag niet leeg zijn"
+
+#. Programmer's name for it: SInvalidKeyOffSet
+#: libraries/cryptolib4pascal/ClpKeyParameter.pas:32
+msgid "Invalid Key OffSet"
+msgstr ""
+
+#. Programmer's name for it: SInvalidKeyLength
+#: libraries/cryptolib4pascal/ClpKeyParameter.pas:33
+msgid "Invalid Key Length"
+msgstr ""
+
+#. Programmer's name for it: SInvalidF2MFieldValue
+#: libraries/cryptolib4pascal/ClpLongArray.pas:34
+msgid "Invalid F2M Field value, \"bigInt\""
+msgstr ""
+
+#. Programmer's name for it: SUnRecognizedMac
+#: libraries/cryptolib4pascal/ClpMacUtilities.pas:40
+msgid "Mac \"%s\" not recognised."
+msgstr ""
+
+#. Programmer's name for it: SCannotBeZero
+#: libraries/cryptolib4pascal/ClpMod.pas:35
+msgid "cannot be 0, \"x\""
+msgstr ""
+
+#. Programmer's name for it: SCurveUnknownGroupOrder
+#: libraries/cryptolib4pascal/ClpMultipliers.pas:47
+msgid "Need Curve With Known Group Order, \"curve\""
+msgstr ""
+
+#. Programmer's name for it: SInCompatiblePoint
+#: libraries/cryptolib4pascal/ClpMultipliers.pas:48
+msgid "Only AbstractF2mPoint can be used in WTauNafMultiplier"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpOSRandom.pas:72
+msgid ""
+"An Error Occured while generating random data using MS Windows Cryptography "
+"API."
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpOSRandom.pas:76
+msgid ""
+"An Error Occured while generating random data using SecRandomCopyBytes API."
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpOSRandom.pas:80
+#: libraries/cryptolib4pascal/ClpOSRandom.pas:84
+msgid "An Error Occured while generating random data using getRandom API"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpOSRandom.pas:88
+msgid ""
+"An Error Occured while generating random data using arc4random_buf API."
+msgstr ""
+
+#. Programmer's name for it: SIncompleteLastBlockInDecryption
+#: libraries/cryptolib4pascal/ClpPaddedBufferedBlockCipher.pas:41
+msgid "Last Block Incomplete in Decryption"
+msgstr ""
+
+#. Programmer's name for it: SCorruptedPadBlock
+#: libraries/cryptolib4pascal/ClpPaddingModes.pas:32
+msgid "Pad Block Corrupted"
+msgstr ""
+
+#. Programmer's name for it: SIVNil
+#: libraries/cryptolib4pascal/ClpParametersWithIV.pas:31
+msgid "IV Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SParameters
+#: libraries/cryptolib4pascal/ClpParametersWithRandom.pas:32
+msgid "Parameters"
+msgstr ""
+
+#. Programmer's name for it: SRandom
+#: libraries/cryptolib4pascal/ClpParametersWithRandom.pas:33
+msgid "Random"
+msgstr ""
+
+#. Programmer's name for it: SAlgorithmNotRecognised
+#: libraries/cryptolib4pascal/ClpParameterUtilities.pas:38
+msgid "Algorithm \"%s\" not Recognised."
+msgstr ""
+
+#. Programmer's name for it: SKDFParameterNotFound
+#: libraries/cryptolib4pascal/ClpPascalCoinECIESKdfBytesGenerator.pas:37
+msgid ""
+"Specified Hash Cannot Produce Sufficient Data for the Specified Operation."
+msgstr ""
+
+#. Programmer's name for it: SCipherCannotbeNilInThisMode
+#: libraries/cryptolib4pascal/ClpPascalCoinIESEngine.pas:49
+msgid "Cipher Cannot be Nil in This Mode."
+msgstr ""
+
+#. Programmer's name for it: SBufferNil
+#: libraries/cryptolib4pascal/ClpRandom.pas:30
+msgid "Buffer Cannot be Nil"
+msgstr ""
+
+#. Programmer's name for it: SMaxValueNegative
+#: libraries/cryptolib4pascal/ClpRandom.pas:31
+msgid "maxValue Must be Positive"
+msgstr "max Waarde Moet positief zijn"
+
+#. Programmer's name for it: SInvalidMinValue
+#: libraries/cryptolib4pascal/ClpRandom.pas:32
+msgid "minValue Cannot be Greater Than maxValue"
+msgstr ""
+
+#. Programmer's name for it: SUnknownAlgorithm
+#: libraries/cryptolib4pascal/ClpRandomNumberGenerator.pas:31
+msgid "Unknown Random Generation Algorithm Requested"
+msgstr ""
+
+#. Programmer's name for it: SUnknownAlgorithm
+#: libraries/cryptolib4pascal/ClpRandomNumberGenerator.pas:33
+msgid "Random Number Generator Output Buffer Cannot Be Nil"
+msgstr ""
+
+#. Programmer's name for it: SUnsupportedBlock
+#: libraries/cryptolib4pascal/ClpRijndaelEngine.pas:37
+msgid "Unknown Blocksize to Rijndael"
+msgstr ""
+
+#. Programmer's name for it: SInvalidKeyLength
+#: libraries/cryptolib4pascal/ClpRijndaelEngine.pas:38
+msgid "Key Length not 128/160/192/224/256 bits."
+msgstr "Sleutel Lengte niet 128/192/224/256 bits."
+
+#. Programmer's name for it: SRijndaelEngineNotInitialised
+#: libraries/cryptolib4pascal/ClpRijndaelEngine.pas:39
+msgid "Rijndael Engine not Initialised"
+msgstr ""
+
+#. Programmer's name for it: SRijndaelEngineNotInitialised
+#: libraries/cryptolib4pascal/ClpRijndaelEngine.pas:41
+msgid "Invalid Parameter Passed to Rijndael Init - \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidRound
+#: libraries/cryptolib4pascal/ClpSalsa20Engine.pas:38
+msgid "\"rounds\" Must be a Positive, Even Number"
+msgstr ""
+
+#. Programmer's name for it: SInvalidKeySize
+#: libraries/cryptolib4pascal/ClpSalsa20Engine.pas:39
+msgid "%s Requires 128 bit or 256 bit key"
+msgstr ""
+
+#. Programmer's name for it: SMaxByteExceeded
+#: libraries/cryptolib4pascal/ClpSalsa20Engine.pas:40
+msgid "2^70 Byte Limit per IV; Change IV"
+msgstr ""
+
+#. Programmer's name for it: SMaxByteExceededTwo
+#: libraries/cryptolib4pascal/ClpSalsa20Engine.pas:41
+msgid "2^70 byte limit per IV would be exceeded; Change IV"
+msgstr ""
+
+#. Programmer's name for it: SEngineNotInitialized
+#: libraries/cryptolib4pascal/ClpSalsa20Engine.pas:42
+msgid "%s not Initialized"
+msgstr ""
+
+#. Programmer's name for it: SRoundsMustbeEven
+#. Programmer's name for it: SRoundsMustBeEven
+#: libraries/cryptolib4pascal/ClpSalsa20Engine.pas:45
+#: libraries/hashlib4pascal/HlpPBKDF_ScryptNotBuildInAdapter.pas:37
+msgid "Number of Rounds Must be Even"
+msgstr ""
+
+#. Programmer's name for it: SIVRequired
+#: libraries/cryptolib4pascal/ClpSalsa20Engine.pas:47
+msgid "%s Init Requires an IV, \"parameters\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidIV
+#: libraries/cryptolib4pascal/ClpSalsa20Engine.pas:48
+msgid "%s Requires exactly %d bytes of IV"
+msgstr ""
+
+#. Programmer's name for it: SInvalidIV
+#: libraries/cryptolib4pascal/ClpSalsa20Engine.pas:50
+msgid "%s Init Parameters must Contain a KeyParameter (or null for Re-Init)"
+msgstr ""
+
+#. Programmer's name for it: SInvalidIV
+#: libraries/cryptolib4pascal/ClpSalsa20Engine.pas:52
+msgid "KeyParameter can not be null for First Initialisation"
+msgstr ""
+
+#. Programmer's name for it: SInvalidParameters
+#: libraries/cryptolib4pascal/ClpScalarSplitParameters.pas:30
+msgid "\"%s\" must consist of exactly 2 (initialized) values"
+msgstr ""
+
+#. Programmer's name for it: SPublicKey
+#: libraries/cryptolib4pascal/ClpSchnorrDigestSigner.pas:43
+msgid "SchnorrDigestSigner not Initialized for Signature Generation."
+msgstr ""
+
+#. Programmer's name for it: SPublicKey
+#: libraries/cryptolib4pascal/ClpSchnorrDigestSigner.pas:45
+msgid "SchnorrDigestSigner not Initialized for Verification"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpSecP256K1Custom.pas:40
+msgid "Value Invalid for SecP256K1FieldElement \"%s\""
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpSecP256R1Custom.pas:40
+msgid "Value Invalid for SecP256R1FieldElement \"%s\""
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpSecP384R1Custom.pas:40
+msgid "Value Invalid for SecP384R1FieldElement \"%s\""
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpSecP521R1Custom.pas:40
+msgid "Value Invalid for SecP521R1FieldElement \"%s\""
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpSecT283Custom.pas:41
+msgid "Value Invalid for SecT283FieldElement \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SUnRecognisedPRNGAlgorithm
+#: libraries/cryptolib4pascal/ClpSecureRandom.pas:43
+msgid "Unrecognised PRNG Algorithm: %s \"algorithm\""
+msgstr ""
+
+#. Programmer's name for it: SCannotBeNegative
+#: libraries/cryptolib4pascal/ClpSecureRandom.pas:44
+msgid "Cannot be Negative  \"maxValue\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidMaxValue
+#: libraries/cryptolib4pascal/ClpSecureRandom.pas:45
+msgid "maxValue Cannot be Less Than minValue"
+msgstr ""
+
+#. Programmer's name for it: SMalformedSignature
+#: libraries/cryptolib4pascal/ClpSignersEncodings.pas:35
+msgid "Malformed signature, \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SValueOutOfRange
+#: libraries/cryptolib4pascal/ClpSignersEncodings.pas:36
+msgid "Value out of range, \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidEncodingLength
+#: libraries/cryptolib4pascal/ClpSignersEncodings.pas:37
+msgid "Encoding has incorrect length, \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SUnRecognizedAlgorithm
+#: libraries/cryptolib4pascal/ClpSignerUtilities.pas:71
+msgid "Signer \" %s \" not recognised."
+msgstr "Ondertekenaar \" %s \" niet bekend."
+
+#. Programmer's name for it: SInvalidScale
+#. Programmer's name for it: SNegativeScale
+#: libraries/cryptolib4pascal/ClpSimpleBigDecimal.pas:29
+#: libraries/cryptolib4pascal/ClpSimpleBigDecimal.pas:32
+msgid "Scale may not be Negative"
+msgstr ""
+
+#. Programmer's name for it: SInvalidScale
+#: libraries/cryptolib4pascal/ClpSimpleBigDecimal.pas:31
+msgid "Only SimpleBigDecimal of Same Scale Allowed in Arithmetic Operations"
+msgstr ""
+
+#. Programmer's name for it: SSpeckEngineNotInitialised
+#. Programmer's name for it: SSpeckLegacyEngineNotInitialised
+#: libraries/cryptolib4pascal/ClpSpeckEngine.pas:35
+#: libraries/cryptolib4pascal/ClpSpeckLegacyEngine.pas:35
+msgid "%s Engine not Initialised"
+msgstr ""
+
+#. Programmer's name for it: SInvalidArgumentEncountered
+#. Programmer's name for it: SInvalidArgumentEncountered
+#: libraries/cryptolib4pascal/ClpSpeckEngine.pas:38
+#: libraries/cryptolib4pascal/ClpSpeckLegacyEngine.pas:38
+msgid "Invalid Argument Encountered."
+msgstr ""
+
+#. Programmer's name for it: SInvalidParameterSpeckInit
+#: libraries/cryptolib4pascal/ClpSpeckEngine.pas:39
+msgid "Invalid Parameter Passed to Speck Init - \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidParameterSpeckInit
+#: libraries/cryptolib4pascal/ClpSpeckEngine.pas:41
+msgid "Speck32 requires a key of 64 bits but input was \"%d\" bits."
+msgstr ""
+
+#. Programmer's name for it: SInvalidParameterSpeckInit
+#: libraries/cryptolib4pascal/ClpSpeckEngine.pas:43
+msgid "Speck48 requires a key of 72 or 96 bits but input was \"%d\" bits."
+msgstr ""
+
+#. Programmer's name for it: SInvalidParameterSpeckInit
+#: libraries/cryptolib4pascal/ClpSpeckEngine.pas:45
+msgid "Speck64 requires a key of 96 or 128 bits but input was \"%d\" bits."
+msgstr ""
+
+#. Programmer's name for it: SInvalidParameterSpeckInit
+#: libraries/cryptolib4pascal/ClpSpeckEngine.pas:47
+msgid "Speck96 requires a key of 96 or 144 bits but input was \"%d\" bits."
+msgstr ""
+
+#. Programmer's name for it: SInvalidParameterSpeckInit
+#: libraries/cryptolib4pascal/ClpSpeckEngine.pas:49
+msgid ""
+"Speck128 requires a key of 128, 192 or 256 bits but input was \"%d\" bits."
+msgstr ""
+
+#. Programmer's name for it: SInvalidArgumentEncountered
+#: libraries/cryptolib4pascal/ClpSpeckLegacyEngine.pas:40
+msgid "Invalid Parameter Passed to SpeckLegacy Init - \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidArgumentEncountered
+#: libraries/cryptolib4pascal/ClpSpeckLegacyEngine.pas:42
+msgid "Speck32Legacy requires a key of 64 bits but input was \"%d\" bits."
+msgstr ""
+
+#. Programmer's name for it: SInvalidArgumentEncountered
+#: libraries/cryptolib4pascal/ClpSpeckLegacyEngine.pas:44
+msgid ""
+"Speck48Legacy requires a key of 72 or 96 bits but input was \"%d\" bits."
+msgstr ""
+
+#. Programmer's name for it: SInvalidArgumentEncountered
+#: libraries/cryptolib4pascal/ClpSpeckLegacyEngine.pas:46
+msgid ""
+"Speck64Legacy requires a key of 96 or 128 bits but input was \"%d\" bits."
+msgstr ""
+
+#. Programmer's name for it: SInvalidArgumentEncountered
+#: libraries/cryptolib4pascal/ClpSpeckLegacyEngine.pas:48
+msgid ""
+"Speck96Legacy requires a key of 96 or 144 bits but input was \"%d\" bits."
+msgstr ""
+
+#. Programmer's name for it: SInvalidArgumentEncountered
+#: libraries/cryptolib4pascal/ClpSpeckLegacyEngine.pas:50
+msgid ""
+"Speck128Legacy requires a key of 128, 192 or 256 bits but input was \"%d\" "
+"bits."
+msgstr ""
+
+#. Programmer's name for it: SInvalidMU
+#: libraries/cryptolib4pascal/ClpTnaf.pas:34
+msgid "mu must be 1 or -1"
+msgstr ""
+
+#. Programmer's name for it: SDifferentScales
+#: libraries/cryptolib4pascal/ClpTnaf.pas:35
+msgid "lambda0 and lambda1 do not have same scale"
+msgstr ""
+
+#. Programmer's name for it: SNoKoblitzCurve
+#: libraries/cryptolib4pascal/ClpTnaf.pas:36
+msgid "No Koblitz curve (ABC), TNAF multiplication not possible"
+msgstr ""
+
+#. Programmer's name for it: SNotKoblitzCurve
+#: libraries/cryptolib4pascal/ClpTnaf.pas:37
+msgid "si is defined for Koblitz curves only"
+msgstr ""
+
+#. Programmer's name for it: SInvalidCoFactor
+#: libraries/cryptolib4pascal/ClpTnaf.pas:38
+msgid "h (Cofactor) must be 2 or 4"
+msgstr ""
+
+#: libraries/cryptolib4pascal/ClpX25519Agreement.pas:36
+msgid "The Init Parameter does not Contain the Private Key"
+msgstr "De Begin Parameter Bevat niet de Prive Sleutel"
+
+#. Programmer's name for it: SEOFInPrivateKey
+#: libraries/cryptolib4pascal/ClpX25519PrivateKeyParameters.pas:37
+msgid "EOF encountered in middle of X25519 private key"
+msgstr ""
+
+#. Programmer's name for it: SAgreementCalculationFailed
+#: libraries/cryptolib4pascal/ClpX25519PrivateKeyParameters.pas:38
+msgid "X25519 Agreement Failed"
+msgstr ""
+
+#. Programmer's name for it: SEOFInPublicKey
+#: libraries/cryptolib4pascal/ClpX25519PublicKeyParameters.pas:34
+msgid "EOF encountered in middle of X25519 public key"
+msgstr ""
+
+#. Programmer's name for it: SInconsistentKValues
+#: libraries/cryptolib4pascal/ClpX9ECC.pas:36
+msgid "Inconsistent K Values"
+msgstr ""
+
+#. Programmer's name for it: SCurveNil
+#: libraries/cryptolib4pascal/ClpX9ECC.pas:37
+msgid "Curve"
+msgstr ""
+
+#. Programmer's name for it: SNotImplementedECCurve
+#: libraries/cryptolib4pascal/ClpX9ECC.pas:38
+msgid "This Type of ECCurve is not Implemented"
+msgstr ""
+
+#. Programmer's name for it: SFieldIDNil
+#: libraries/cryptolib4pascal/ClpX9ECC.pas:39
+msgid "FieldID"
+msgstr ""
+
+#. Programmer's name for it: SSeqNil
+#: libraries/cryptolib4pascal/ClpX9ECC.pas:40
+msgid "Seq"
+msgstr ""
+
+#. Programmer's name for it: SUnSupportedCurveOne
+#: libraries/cryptolib4pascal/ClpX9ECParameters.pas:38
+msgid "Only trinomial and pentomial curves are supported"
+msgstr ""
+
+#. Programmer's name for it: SUnSupportedCurveTwo
+#: libraries/cryptolib4pascal/ClpX9ECParameters.pas:39
+msgid "\"curve\" is of an unsupported type"
+msgstr ""
+
+#. Programmer's name for it: SBadVersion
+#: libraries/cryptolib4pascal/ClpX9ECParameters.pas:40
+msgid "Bad Version in X9ECParameters"
+msgstr ""
+
+#. Programmer's name for it: SNullKeyReInit
+#: libraries/cryptolib4pascal/ClpXSalsa20Engine.pas:33
+msgid "%s Doesn't Support Re-Init with Null Key"
+msgstr ""
+
+#. Programmer's name for it: SInvalidKeySize
+#: libraries/cryptolib4pascal/ClpXSalsa20Engine.pas:34
+msgid "%s Requires a 256 bit Key"
+msgstr ""
+
+#. Programmer's name for it: SArgumentOutOfRange
+#: libraries/generics.collections/generics.strings.pas:26
+msgid "Argument out of range"
+msgstr ""
+
+#. Programmer's name for it: SArgumentNilNode
+#: libraries/generics.collections/generics.strings.pas:27
+msgid "Node is nil"
+msgstr ""
+
+#. Programmer's name for it: SDuplicatesNotAllowed
+#: libraries/generics.collections/generics.strings.pas:28
+msgid "Duplicates not allowed in dictionary"
+msgstr ""
+
+#. Programmer's name for it: SCollectionInconsistency
+#: libraries/generics.collections/generics.strings.pas:29
+msgid "Collection inconsistency"
+msgstr ""
+
+#. Programmer's name for it: SCollectionDuplicate
+#: libraries/generics.collections/generics.strings.pas:30
+msgid "Collection does not allow duplicates"
+msgstr ""
+
+#. Programmer's name for it: SDictionaryKeyDoesNotExist
+#: libraries/generics.collections/generics.strings.pas:31
+msgid "Dictionary key does not exist"
+msgstr ""
+
+#. Programmer's name for it: SItemNotFound
+#: libraries/generics.collections/generics.strings.pas:32
+msgid "Item not found"
+msgstr ""
+
+#. Programmer's name for it: SInvalidConfigLength
+#. Programmer's name for it: SInvalidConfigLength
+#: libraries/hashlib4pascal/HlpBlake2B.pas:22
+#: libraries/hashlib4pascal/HlpBlake2S.pas:22
+msgid "Config Length Must Be 8 Words"
+msgstr ""
+
+#. Programmer's name for it: SConfigNil
+#. Programmer's name for it: SConfigNil
+#: libraries/hashlib4pascal/HlpBlake2B.pas:23
+#: libraries/hashlib4pascal/HlpBlake2S.pas:23
+msgid "Config Cannot Be Nil"
+msgstr ""
+
+#. Programmer's name for it: SConfigNil
+#. Programmer's name for it: SConfigNil
+#: libraries/hashlib4pascal/HlpBlake2B.pas:25
+#: libraries/hashlib4pascal/HlpBlake2S.pas:25
+msgid "XOFSize in Bits must be Multiples of 8 and be Between %u and %u Bytes."
+msgstr ""
+
+#. Programmer's name for it: SOutputLengthInvalid
+#. Programmer's name for it: SOutputLengthInvalid
+#. Programmer's name for it: SOutputLengthInvalid
+#: libraries/hashlib4pascal/HlpBlake2B.pas:26
+#: libraries/hashlib4pascal/HlpBlake2S.pas:26
+#: libraries/hashlib4pascal/HlpSHA3.pas:28
+msgid "Output Length is above the Digest Length"
+msgstr ""
+
+#. Programmer's name for it: SMaximumOutputLengthExceeded
+#: libraries/hashlib4pascal/HlpBlake2B.pas:28
+msgid "\"Maximum Length is 2^32 blocks of 64 bytes"
+msgstr ""
+
+#. Programmer's name for it: SWritetoXofAfterReadError
+#. Programmer's name for it: SWritetoXofAfterReadError
+#. Programmer's name for it: SWritetoXofAfterReadError
+#: libraries/hashlib4pascal/HlpBlake2B.pas:29
+#: libraries/hashlib4pascal/HlpBlake2S.pas:29
+#: libraries/hashlib4pascal/HlpSHA3.pas:30
+msgid "\"%s\" Write to Xof after Read not Allowed"
+msgstr ""
+
+#: libraries/hashlib4pascal/HlpBlake2BParams.pas:16
+msgid ""
+"BLAKE2B HashSize must be restricted to one of the following [1 .. 64], \"%d"
+"\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidKeyLength
+#: libraries/hashlib4pascal/HlpBlake2BParams.pas:17
+msgid "\"Key\" Length Must Not Be Greater Than 64, \"%d\""
+msgstr "\"Key\" Lengte Mag Niet Groter Zijn Dan 64, \"%d\""
+
+#. Programmer's name for it: SInvalidKeyLength
+#: libraries/hashlib4pascal/HlpBlake2BParams.pas:19
+msgid "\"Personalisation\" Length Must Be Equal To 16, \"%d\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidSaltLength
+#: libraries/hashlib4pascal/HlpBlake2BParams.pas:20
+msgid "\"Salt\" Length Must Be Equal To 16, \"%d\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidSaltLength
+#: libraries/hashlib4pascal/HlpBlake2BParams.pas:23
+msgid "FanOut Value Should be Between [0 .. 255] for Blake2B"
+msgstr ""
+
+#. Programmer's name for it: SInvalidSaltLength
+#: libraries/hashlib4pascal/HlpBlake2BParams.pas:25
+msgid "MaxDepth Value Should be Between [1 .. 255] for Blake2B"
+msgstr ""
+
+#. Programmer's name for it: SInvalidSaltLength
+#: libraries/hashlib4pascal/HlpBlake2BParams.pas:27
+msgid "NodeDepth Value Should be Between [0 .. 255] for Blake2B"
+msgstr ""
+
+#. Programmer's name for it: SInvalidSaltLength
+#: libraries/hashlib4pascal/HlpBlake2BParams.pas:29
+msgid "InnerHashSize Value Should be Between [0 .. 64] for Blake2B"
+msgstr ""
+
+#. Programmer's name for it: SInvalidSaltLength
+#: libraries/hashlib4pascal/HlpBlake2BParams.pas:31
+msgid "NodeOffset Value Should be Between [0 .. (2^64-1)] for Blake2B"
+msgstr ""
+
+#. Programmer's name for it: SInvalidSaltLength
+#: libraries/hashlib4pascal/HlpBlake2BParams.pas:34
+msgid "Tree Inner Hash Size Must Not Be Greater Than 64, \"%d\""
+msgstr ""
+
+#. Programmer's name for it: SMaximumOutputLengthExceeded
+#: libraries/hashlib4pascal/HlpBlake2S.pas:28
+msgid "\"Maximum Length is 2^32 blocks of 32 bytes"
+msgstr ""
+
+#: libraries/hashlib4pascal/HlpBlake2SParams.pas:16
+msgid ""
+"BLAKE2S HashSize must be restricted to one of the following [1 .. 32], \"%d"
+"\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidKeyLength
+#: libraries/hashlib4pascal/HlpBlake2SParams.pas:17
+msgid "\"Key\" Length Must Not Be Greater Than 32, \"%d\""
+msgstr "\"Key\" Lengte Mag Niet Groter Zijn Dan 32, \"%d\""
+
+#. Programmer's name for it: SInvalidKeyLength
+#: libraries/hashlib4pascal/HlpBlake2SParams.pas:19
+msgid "\"Personalisation\" Length Must Be Equal To 8, \"%d\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidSaltLength
+#: libraries/hashlib4pascal/HlpBlake2SParams.pas:20
+msgid "\"Salt\" Length Must Be Equal To 8, \"%d\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidSaltLength
+#: libraries/hashlib4pascal/HlpBlake2SParams.pas:23
+msgid "FanOut Value Should be Between [0 .. 255] for Blake2S"
+msgstr ""
+
+#. Programmer's name for it: SInvalidSaltLength
+#: libraries/hashlib4pascal/HlpBlake2SParams.pas:25
+msgid "MaxDepth Value Should be Between [1 .. 255] for Blake2S"
+msgstr ""
+
+#. Programmer's name for it: SInvalidSaltLength
+#: libraries/hashlib4pascal/HlpBlake2SParams.pas:27
+msgid "NodeDepth Value Should be Between [0 .. 255] for Blake2S"
+msgstr ""
+
+#. Programmer's name for it: SInvalidSaltLength
+#: libraries/hashlib4pascal/HlpBlake2SParams.pas:29
+msgid "InnerHashSize Value Should be Between [0 .. 32] for Blake2S"
+msgstr ""
+
+#. Programmer's name for it: SInvalidSaltLength
+#: libraries/hashlib4pascal/HlpBlake2SParams.pas:31
+msgid "NodeOffset Value Should be Between [0 .. (2^48-1)] for Blake2S"
+msgstr ""
+
+#. Programmer's name for it: SInvalidSaltLength
+#: libraries/hashlib4pascal/HlpBlake2SParams.pas:34
+msgid "Tree Inner Hash Size Must Not Be Greater Than 32, \"%d\""
+msgstr ""
+
+#. Programmer's name for it: SUnSupportedCRCType
+#: libraries/hashlib4pascal/HlpCRC.pas:22
+msgid "UnSupported CRC Type: \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SWidthOutOfRange
+#: libraries/hashlib4pascal/HlpCRC.pas:23
+msgid "Width Must be Between 3 and 64. \"%d\""
+msgstr ""
+
+#. Programmer's name for it: SIndexOutOfRange
+#: libraries/hashlib4pascal/HlpHash.pas:16
+msgid "Current Index Is Out Of Range"
+msgstr ""
+
+#. Programmer's name for it: SFileNotExist
+#: libraries/hashlib4pascal/HlpHash.pas:19
+msgid "Specified File Not Found"
+msgstr "Opgegeven Bestand Niet Gevonden"
+
+#. Programmer's name for it: SCloneNotYetImplemented
+#: libraries/hashlib4pascal/HlpHash.pas:20
+msgid "Clone Not Yet Implemented For \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SHashBufferMessage
+#: libraries/hashlib4pascal/HlpHashBuffer.pas:13
+msgid "HashBuffer, Length: %d, Position: %d, IsEmpty: %s"
+msgstr ""
+
+#: libraries/hashlib4pascal/HlpHashResult.pas:27
+msgid "Current Data Structure cannot be Represented as an \"Int32\" Type."
+msgstr ""
+
+#: libraries/hashlib4pascal/HlpHashResult.pas:29
+msgid "Current Data Structure cannot be Represented as an \"UInt8\" Type."
+msgstr ""
+
+#: libraries/hashlib4pascal/HlpHashResult.pas:31
+msgid "Current Data Structure cannot be Represented as an \"UInt16\" Type."
+msgstr ""
+
+#: libraries/hashlib4pascal/HlpHashResult.pas:33
+msgid "Current Data Structure cannot be Represented as an \"UInt32\" Type."
+msgstr ""
+
+#: libraries/hashlib4pascal/HlpHashResult.pas:35
+msgid "Current Data Structure cannot be Represented as an \"UInt64\" Type."
+msgstr ""
+
+#. Programmer's name for it: SInvalidHavalRound
+#: libraries/hashlib4pascal/HlpHaval.pas:25
+msgid "Haval Round Must be 3, 4 or 5"
+msgstr ""
+
+#. Programmer's name for it: SInvalidHavalRound
+#: libraries/hashlib4pascal/HlpHaval.pas:27
+msgid ""
+"Haval HashSize Must be Either 128 bit(16 byte), 160 bit(20 byte), 192 "
+"bit(24 byte), 224 bit(28 byte) or 256 bit(32 byte)"
+msgstr ""
+
+#. Programmer's name for it: SInvalidKeyLength
+#. Programmer's name for it: SInvalidKeyLength
+#. Programmer's name for it: SInvalidKeyLength
+#. Programmer's name for it: SInvalidKeyLength
+#. Programmer's name for it: SInvalidKeyLength
+#. Programmer's name for it: SInvalidKeyLength
+#. Programmer's name for it: SInvalidKeyLength
+#. Programmer's name for it: SInvalidKeyLength
+#: libraries/hashlib4pascal/HlpMurmur2.pas:24
+#: libraries/hashlib4pascal/HlpMurmur2_64.pas:21
+#: libraries/hashlib4pascal/HlpMurmurHash3_x64_128.pas:22
+#: libraries/hashlib4pascal/HlpMurmurHash3_x86_128.pas:22
+#: libraries/hashlib4pascal/HlpMurmurHash3_x86_32.pas:22
+#: libraries/hashlib4pascal/HlpSipHash.pas:23
+#: libraries/hashlib4pascal/HlpXXHash32.pas:19
+#: libraries/hashlib4pascal/HlpXXHash64.pas:19
+msgid "KeyLength Must Be Equal to %d"
+msgstr ""
+
+#: libraries/hashlib4pascal/HlpNullable.pas:16
+msgid "Cannot assign non-null pointer to nullable type."
+msgstr ""
+
+#: libraries/hashlib4pascal/HlpNullable.pas:18
+msgid "Unsupported Type: Only supports Integers, Int64, Floats and Strings."
+msgstr ""
+
+#. Programmer's name for it: SGetNullValue
+#: libraries/hashlib4pascal/HlpNullable.pas:19
+msgid "Attempted to get a null value."
+msgstr ""
+
+#. Programmer's name for it: SHashSizeNotImplemented
+#: libraries/hashlib4pascal/HlpNullDigest.pas:18
+msgid "HashSize Not Implemented For \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SBlockSizeNotImplemented
+#: libraries/hashlib4pascal/HlpNullDigest.pas:19
+msgid "BlockSize Not Implemented For \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidOutputByteCount
+#: libraries/hashlib4pascal/HlpPBKDF_Argon2NotBuildInAdapter.pas:32
+msgid "\"(AByteCount)\" Argument Less Than \"%d\"."
+msgstr ""
+
+#. Programmer's name for it: SBlockInstanceNotInitialized
+#: libraries/hashlib4pascal/HlpPBKDF_Argon2NotBuildInAdapter.pas:33
+msgid "Block Instance not Initialized"
+msgstr ""
+
+#. Programmer's name for it: SInputLengthInvalid
+#: libraries/hashlib4pascal/HlpPBKDF_Argon2NotBuildInAdapter.pas:34
+msgid "Input Length \"%d\" is not Equal to BlockSize \"%d\""
+msgstr ""
+
+#. Programmer's name for it: SLanesTooSmall
+#: libraries/hashlib4pascal/HlpPBKDF_Argon2NotBuildInAdapter.pas:35
+msgid "Lanes Must be Greater Than \"%d\""
+msgstr ""
+
+#. Programmer's name for it: SLanesTooBig
+#: libraries/hashlib4pascal/HlpPBKDF_Argon2NotBuildInAdapter.pas:36
+msgid "Lanes Must be Less Than \"%d\""
+msgstr ""
+
+#. Programmer's name for it: SMemoryTooSmall
+#: libraries/hashlib4pascal/HlpPBKDF_Argon2NotBuildInAdapter.pas:37
+msgid "Memory is Less Than: \"%d\", Expected \"%d\""
+msgstr ""
+
+#. Programmer's name for it: SIterationsTooSmall
+#: libraries/hashlib4pascal/HlpPBKDF_Argon2NotBuildInAdapter.pas:38
+msgid "Iterations is Less Than: \"%d\""
+msgstr ""
+
+#. Programmer's name for it: SIterationsTooSmall
+#: libraries/hashlib4pascal/HlpPBKDF_Argon2NotBuildInAdapter.pas:40
+msgid "Argon2 Parameter Builder Not Initialized"
+msgstr ""
+
+#: libraries/hashlib4pascal/HlpPBKDF_ScryptNotBuildInAdapter.pas:31
+#: libraries/hashlib4pascal/HlpPBKDF2_HMACNotBuildInAdapter.pas:18
+msgid "\"(AByteCount)\" Argument must be a value greater than zero."
+msgstr ""
+
+#. Programmer's name for it: SInvalidCost
+#: libraries/hashlib4pascal/HlpPBKDF_ScryptNotBuildInAdapter.pas:32
+msgid "Cost parameter must be > 1 and a power of 2."
+msgstr ""
+
+#. Programmer's name for it: SBlockSizeAndCostIncompatible
+#: libraries/hashlib4pascal/HlpPBKDF_ScryptNotBuildInAdapter.pas:33
+msgid "Cost parameter must be > 1 and < 65536."
+msgstr ""
+
+#. Programmer's name for it: SBlockSizeTooSmall
+#: libraries/hashlib4pascal/HlpPBKDF_ScryptNotBuildInAdapter.pas:34
+msgid "Block size must be >= 1."
+msgstr "Blok grote moet >= 1 zijn."
+
+#. Programmer's name for it: SBlockSizeTooSmall
+#: libraries/hashlib4pascal/HlpPBKDF_ScryptNotBuildInAdapter.pas:36
+msgid ""
+"Parallelism parameter must be >= 1 and <= %d (based on block size of %d)"
+msgstr ""
+
+#. Programmer's name for it: SInvalidIndex
+#: libraries/hashlib4pascal/HlpPBKDF2_HMACNotBuildInAdapter.pas:19
+msgid "Invalid start or end index in the internal buffer"
+msgstr ""
+
+#. Programmer's name for it: SNotInitializedIHashInstance
+#: libraries/hashlib4pascal/HlpPBKDF2_HMACNotBuildInAdapter.pas:20
+msgid "\"IHash\" instance is uninitialized"
+msgstr ""
+
+#. Programmer's name for it: SIterationtooSmall
+#: libraries/hashlib4pascal/HlpPBKDF2_HMACNotBuildInAdapter.pas:21
+msgid "Iteration must be greater than zero."
+msgstr ""
+
+#. Programmer's name for it: SInvalidHashMode
+#: libraries/hashlib4pascal/HlpSHA3.pas:25
+msgid "Only \"[%s]\" HashModes are Supported"
+msgstr ""
+
+#. Programmer's name for it: SInvalidHashMode
+#: libraries/hashlib4pascal/HlpSHA3.pas:27
+msgid "XOFSize in Bits must be Multiples of 8 and be Greater than Zero Bytes"
+msgstr ""
+
+#: libraries/hashlib4pascal/HlpSnefru.pas:24
+msgid "Snefru Security Level Cannot be Less than 1. Standard Level is 8"
+msgstr ""
+
+#: libraries/hashlib4pascal/HlpSnefru.pas:26
+msgid "Snefru HashSize Must be Either 128 bit(16 byte) or 256 bit(32 byte)"
+msgstr ""
+
+#. Programmer's name for it: SInvalidHashSize
+#: libraries/hashlib4pascal/HlpSnefru.pas:27
+msgid "Specified HashSize Is Invalid or UnSupported \"%d\""
+msgstr ""
+
+#: libraries/hashlib4pascal/HlpTiger.pas:22
+msgid ""
+"Tiger HashSize Must be Either 128 bit(16 byte), 160 bit(20 byte) or 192 "
+"bit(24 byte)"
+msgstr ""
+
+#. Programmer's name for it: SInvalidHashRound
+#. Programmer's name for it: SInvalidHashRound
+#: libraries/hashlib4pascal/HlpTiger.pas:23
+#: libraries/hashlib4pascal/HlpTiger2.pas:23
+msgid "Specified HashRound Is Invalid or UnSupported \"%d\""
+msgstr ""
+
+#: libraries/hashlib4pascal/HlpTiger2.pas:22
+msgid ""
+"Tiger2 HashSize Must be Either 128 bit(16 byte), 160 bit(20 byte) or 192 "
+"bit(24 byte)"
+msgstr ""
+
+#. Programmer's name for it: sInvalidIPAddress
+#: libraries/mormot-min/SynCommons.pas:18356
+msgid "\"%s\" is an invalid IP v4 address"
+msgstr ""
+
+#. Programmer's name for it: sInvalidEmailAddress
+#: libraries/mormot-min/SynCommons.pas:18357
+msgid "\"%s\" is an invalid email address"
+msgstr ""
+
+#. Programmer's name for it: sInvalidPattern
+#: libraries/mormot-min/SynCommons.pas:18358
+msgid "\"%s\" does not match the expected pattern"
+msgstr ""
+
+#. Programmer's name for it: sCharacter01n
+#: libraries/mormot-min/SynCommons.pas:18359
+msgid "character,character,characters"
+msgstr ""
+
+#. Programmer's name for it: sInvalidTextLengthMin
+#: libraries/mormot-min/SynCommons.pas:18360
+msgid "Expect at least %d %s"
+msgstr ""
+
+#. Programmer's name for it: sInvalidTextLengthMax
+#: libraries/mormot-min/SynCommons.pas:18361
+msgid "Expect up to %d %s"
+msgstr ""
+
+#. Programmer's name for it: sInvalidTextChar
+#: libraries/mormot-min/SynCommons.pas:18364
+msgid ""
+"Expect at least %d %s %s,Expect up to %d %s %s,alphabetical,digital,"
+"punctuation,lowercase,uppercase,space,Too much spaces on the left,Too much "
+"spaces on the right"
+msgstr ""
+
+#. Programmer's name for it: sValidationFailed
+#: libraries/mormot-min/SynCommons.pas:18365
+msgid "\"%s\" rule failed"
+msgstr ""
+
+#. Programmer's name for it: sValidationFieldVoid
+#: libraries/mormot-min/SynCommons.pas:18366
+msgid "An unique key field must not be void"
+msgstr ""
+
+#. Programmer's name for it: sValidationFieldDuplicate
+#: libraries/mormot-min/SynCommons.pas:18367
+msgid "Value already used for this unique key field"
+msgstr ""
+
+#. Programmer's name for it: Sneed_dict
+#: libraries/paszlib/paszlib_zbase.pas:409
+msgid "need dictionary"
+msgstr ""
+
+#. Programmer's name for it: Sstream_end
+#: libraries/paszlib/paszlib_zbase.pas:410
+msgid "stream end"
+msgstr ""
+
+#. Programmer's name for it: Sfile_error
+#: libraries/paszlib/paszlib_zbase.pas:411
+msgid "file error"
+msgstr ""
+
+#. Programmer's name for it: Sstream_error
+#: libraries/paszlib/paszlib_zbase.pas:412
+msgid "stream error"
+msgstr ""
+
+#. Programmer's name for it: Sdata_error
+#: libraries/paszlib/paszlib_zbase.pas:413
+msgid "data error"
+msgstr "data fout"
+
+#. Programmer's name for it: Smem_error
+#: libraries/paszlib/paszlib_zbase.pas:414
+msgid "insufficient memory"
+msgstr "niet genoeg geheugen"
+
+#. Programmer's name for it: Sbuf_error
+#: libraries/paszlib/paszlib_zbase.pas:415
+msgid "buffer error"
+msgstr ""
+
+#. Programmer's name for it: Sversion_error
+#: libraries/paszlib/paszlib_zbase.pas:416
+msgid "incompatible version"
+msgstr ""
+
+#. Programmer's name for it: SInvalidHexCharacter
+#: libraries/simplebaselib4pascal/SbpBase16.pas:12
+msgid "Invalid hex character: \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidTextLength
+#: libraries/simplebaselib4pascal/SbpBase16.pas:13
+msgid "Text cannot be odd length \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SAlphabetNil
+#. Programmer's name for it: SAlphabetNil
+#. Programmer's name for it: SAlphabetNil
+#. Programmer's name for it: SAlphabetNil
+#: libraries/simplebaselib4pascal/SbpBase32.pas:16
+#: libraries/simplebaselib4pascal/SbpBase58.pas:16
+#: libraries/simplebaselib4pascal/SbpBase64.pas:16
+#: libraries/simplebaselib4pascal/SbpBase85.pas:16
+msgid "Alphabet Instance cannot be Nil \"%s\""
+msgstr ""
+
+#. Programmer's name for it: SAlphabetNil
+#: libraries/simplebaselib4pascal/SbpBase85.pas:18
+msgid "Unexpected Shortcut Character In The Middle Of a Regular Block"
+msgstr ""
+
+#. Programmer's name for it: SAlphabetNil
+#: libraries/simplebaselib4pascal/SbpEncodingAlphabet.pas:12
+msgid "\"%s\" Cannot Be Nil."
+msgstr ""
+
+#. Programmer's name for it: SAlphabetNil
+#: libraries/simplebaselib4pascal/SbpEncodingAlphabet.pas:14
+msgid ""
+"Required Alphabet Length is \"%d\" but Provided Alphabet is \"%d\" "
+"Characters Long."
+msgstr ""
+
+#. Programmer's name for it: SInvalidCharacter
+#: libraries/simplebaselib4pascal/SbpEncodingAlphabet.pas:15
+msgid "Alphabet Contains Character \"%s (%d)\" Above \"%d\""
+msgstr ""
+
+#. Programmer's name for it: SInvalidInput
+#: libraries/simplebaselib4pascal/SbpEncodingAlphabet.pas:16
+msgid "Invalid character value in input \"%s\""
+msgstr ""
+
+#. Programmer's name for it: sAColumnsCantBeNil
+#: libraries/sphere10/UCommon.Data.pas:246
+msgid "AColumns can't be nil!"
+msgstr ""
+
+#. Programmer's name for it: sTooManyValues
+#: libraries/sphere10/UCommon.Data.pas:247
+msgid "Too many values"
+msgstr "Te veel waardes"
+
+#. Programmer's name for it: sInvalidUTF8String
+#: libraries/sphere10/UCommon.Data.pas:248
+msgid "Invalid UTF8 string"
+msgstr ""
+
+#. Programmer's name for it: sBadNumericExpression
+#: libraries/sphere10/UCommon.Data.pas:249
+msgid "Bad numeric expression"
+msgstr ""
+
+#. Programmer's name for it: sUnexpectedNumberFormat
+#: libraries/sphere10/UCommon.Data.pas:250
+msgid "Unexpected number format"
+msgstr ""
+
+#. Programmer's name for it: sBadSyntaxForEscapeCharacter
+#: libraries/sphere10/UCommon.Data.pas:251
+msgid "Bad syntax for escape character \"\\\""
+msgstr ""
+
+#. Programmer's name for it: sUnexpectedCharInExpression
+#: libraries/sphere10/UCommon.Data.pas:252
+msgid "Unexpected char in expression"
+msgstr ""
+
+#. Programmer's name for it: sInvaildExpression_CharDetectedAfterClosingBracket
+#: libraries/sphere10/UCommon.Data.pas:253
+msgid "Invaild expression (char detected after closing bracket)"
+msgstr ""
+
+#. Programmer's name for it: sUnexpectedTokenFound
+#: libraries/sphere10/UCommon.Data.pas:254
+msgid "Unexpected token found : \"%s\""
+msgstr ""
+
+#. Programmer's name for it: sUnexpectedStringLiteralInExpression
+#: libraries/sphere10/UCommon.Data.pas:255
+msgid "Unexpected string literal in expression"
+msgstr ""
+
+#. Programmer's name for it: sBadlyClosedBetweenExpression
+#: libraries/sphere10/UCommon.Data.pas:256
+msgid "Badly closed \"between\" expression"
+msgstr ""
+
+#. Programmer's name for it: sMissingNumberInExpression
+#: libraries/sphere10/UCommon.Data.pas:257
+msgid "Missing number in expression"
+msgstr ""
+
+#. Programmer's name for it: sUnexpectedOccurrenceOf_Found
+#: libraries/sphere10/UCommon.Data.pas:258
+msgid "Unexpected occurrence of \"%s\" found"
+msgstr ""
+
+#. Programmer's name for it: sBadBetweenExpression_UnexpectedToken
+#: libraries/sphere10/UCommon.Data.pas:259
+msgid "Bad \"between\" expression. Unexpected \"%s\""
+msgstr ""
+
+#. Programmer's name for it: sExpressionError_NoValue
+#: libraries/sphere10/UCommon.Data.pas:260
+msgid "Expression error (no value)"
+msgstr ""
+
+#. Programmer's name for it: sNotImplemented
+#: libraries/sphere10/UCommon.pas:468
+msgid "Not implemented"
+msgstr ""
+
+#. Programmer's name for it: sInvalidParameter_OutOfBounds
+#: libraries/sphere10/UCommon.pas:469
+msgid "Invalid Parameter: %s out of bounds"
+msgstr ""
+
+#. Programmer's name for it: sLogDebug
+#: libraries/sphere10/UCommon.pas:470
+msgid "DEBUG"
+msgstr ""
+
+#. Programmer's name for it: sLogInfo
+#: libraries/sphere10/UCommon.pas:471
+msgid "INFO"
+msgstr ""
+
+#. Programmer's name for it: sLogWarn
+#: libraries/sphere10/UCommon.pas:472
+msgid "WARNING"
+msgstr "WAARSCHUWING"
+
+#. Programmer's name for it: sLogError
+#: libraries/sphere10/UCommon.pas:473
+msgid "ERROR"
+msgstr ""
+
+#. Programmer's name for it: sTotal
+#: libraries/sphere10/UVisualGrid.pas:475
+msgid "Total: %d"
+msgstr "Totaal: %d"
+
+#. Programmer's name for it: sStandardSearch
+#: libraries/sphere10/UVisualGrid.pas:476
+msgid "Standard Search"
+msgstr "Standaard Zoekopdracht"
+
+#. Programmer's name for it: sMultiColumnSearch
+#: libraries/sphere10/UVisualGrid.pas:477
+msgid "Multi-Column Search"
+msgstr ""
+
+#. Programmer's name for it: sPageSize
+#: libraries/sphere10/UVisualGrid.pas:478
+msgid "Page size:"
+msgstr ""
+
+#. Programmer's name for it: sSearchExpression
+#: libraries/sphere10/UVisualGrid.pas:479
+msgid "Search expression"
+msgstr ""
+
+#. Programmer's name for it: sDataLoading
+#: libraries/sphere10/UVisualGrid.pas:480
+msgid "DATA LOADING"
+msgstr "DATA LADEN"
+
+#. Programmer's name for it: sExpression
+#: libraries/sphere10/UVisualGrid.pas:481
+msgid "Expression"
+msgstr ""
+
+#. Programmer's name for it: sImproperColumnIndex
+#: libraries/sphere10/UVisualGrid.pas:482
+msgid "Improper column index. Max expected is %d but %d found."
+msgstr ""
