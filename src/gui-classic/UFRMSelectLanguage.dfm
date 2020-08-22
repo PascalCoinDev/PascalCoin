@@ -10,8 +10,7 @@ object FRMChangeLanguage: TFRMChangeLanguage
   ClientWidth = 374
   OnCreate = FormCreate
   Position = poOwnerFormCenter
-  LCLVersion = '2.0.2.0'
-  object bbOk: TBitBtn
+    object bbOk: TBitBtn
     Left = 184
     Height = 30
     Top = 400
