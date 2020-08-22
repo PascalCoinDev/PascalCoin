@@ -217,7 +217,7 @@ object FRMAbout: TFRMAbout
     BorderStyle = bsNone
     Ctl3D = False
     Lines.Strings = (
-      'Copyright (c) 2016 - 2019 PascalCoin developers'
+      'Copyright (c) 2016 - 2020 PascalCoin developers'
       'Based on Albert Molina original source code'
       ''
       
