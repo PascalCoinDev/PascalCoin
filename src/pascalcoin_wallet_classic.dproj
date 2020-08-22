@@ -179,7 +179,7 @@
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="gui-classic\UFRMSelectLanguage.pas">
-            <Form>FRMOperationsExplorer</Form>
+            <Form>FRMChangeLanguage</Form>
         </DCCReference>
         <DCCReference Include="gui-classic\UFRMPascalCoinWalletConfig.pas">
             <Form>FRMPascalCoinWalletConfig</Form>
