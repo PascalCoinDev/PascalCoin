@@ -320,7 +320,7 @@ begin
   // Will save protocol info
   if FProtocolVersion<CT_PROTOCOL_5 then
     w := CT_PROTOCOL_3
-  else w := CT_PROTOCOL_5;
+  else w := FProtocolVersion;
   stream.Write(w,SizeOf(w));
   // Save senders count
   w := Length(FData.txSenders);
@@ -402,7 +402,7 @@ begin
   Try
     // Read protocol info
     stream.Read(LSavedProtocol,SizeOf(LSavedProtocol));
-    If (Not (LSavedProtocol in [CT_PROTOCOL_3,CT_PROTOCOL_5])) then Raise Exception.Create('Invalid protocol found '+IntToStr(LSavedProtocol));
+    If (Not (LSavedProtocol in [CT_PROTOCOL_3..CT_PROTOCOL_MAX])) then Raise Exception.Create('Invalid protocol found '+IntToStr(LSavedProtocol));
     // Load senders
     stream.Read(w,SizeOf(w));
     If w>CT_MAX_MultiOperation_Senders then Raise Exception.Create('Max senders');
