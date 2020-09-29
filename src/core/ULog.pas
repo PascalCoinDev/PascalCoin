@@ -123,7 +123,9 @@ begin
   FThreadSafeLogEvent.Terminate;
   FThreadSafeLogEvent.WaitFor;
   FreeAndNil(FThreadSafeLogEvent);
-  _logs.Remove(Self);
+  if Assigned(_logs) then begin
+    _logs.Remove(Self);
+  end;
   FreeAndNil(FFileStream);
   l := FLogDataList.LockList;
   try
