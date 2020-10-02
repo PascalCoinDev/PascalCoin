@@ -3010,7 +3010,9 @@ begin
   if (Not forceSave) AND (Not TPCSafeBox.MustSafeBoxBeSaved(Bank.BlocksCount)) then exit; // No save
   Try
     Result := DoSaveBank;
+    {$IFnDEF USE_ABSTRACTMEM}
     FBank.SafeBox.CheckMemory;
+    {$ENDIF}
   Except
     On E:Exception do begin
       TLog.NewLog(lterror,Classname,'Error saving Bank: '+E.Message);
