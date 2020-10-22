@@ -35,7 +35,9 @@
 
   // Activate to define CryptoLib4Pascal by default on all compilations
   {.$DEFINE Use_CryptoLib4Pascal}
-
+  // Add the following paths to the project Search Path is this option is used
+  // .\libraries\cryptolib4pascal
+  // .\libraries\simplebaselib4pascal  
 
   // Used to activate RandomHash in V4 hard-fork
   {$DEFINE ACTIVATE_RANDOMHASH_V4}
