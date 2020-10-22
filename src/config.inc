@@ -111,6 +111,10 @@ ERROR: You must select ONLY ONE option: Use_OpenSSL or Use_CryptoLib4Pascal
   {$ELSE}
     {$UNDEF NO_ANSISTRING}
   {$ENDIF}
+  
+  {$IF COMPILERVERSION > 33}
+    {$DEFINE DELPHI_SYDNEY_PLUS}  
+  {$ENDIF}
 {$ENDIF}
 
 
