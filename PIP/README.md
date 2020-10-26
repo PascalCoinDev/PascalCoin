@@ -49,5 +49,5 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [38](PIP-0038.md)     | P2P Chat and Communication | Preben Björn Biermann Madsen | Protocol | Draft |
 | [39](PIP-0039.md)     | Temporary Voting Procedure | Gynther and the Interrim Dao-Team | Process | Cancelled |
 | [40](PIP-0040.md)     | Pascal Governance | Gynther and the Interrim Dao-Team | Process | Cancelled |
-| [41](PIP-0041.md) | Pay To Key | Herman Schoenfeld | Protocol | Draft |
+| [41](PIP-0041.md) | Pay To Key: in-protocol PASA distribution | Herman Schoenfeld | Protocol | Draft |
 
