@@ -257,6 +257,7 @@ Type
     function DoUpgradeToProtocol3 : Boolean;
     function DoUpgradeToProtocol4 : Boolean;
     function DoUpgradeToProtocol5 : Boolean;
+    function DoUpgradeToProtocol6 : Boolean;
     function BufferBlocksHash : TBytesBuffer32Safebox;
   public
     Constructor Create;
@@ -479,7 +480,7 @@ Procedure Check_Safebox_Integrity(sb : TPCSafebox; title: String);
 implementation
 
 uses
-  ULog, UAccountKeyStorage, math, UCommon, UPCOperationsBlockValidator;
+  ULog, {$IFnDEF USE_ABSTRACTMEM} UAccountKeyStorage,{$ENDIF} math, UCommon, UPCOperationsBlockValidator;
 
 { This function is for testing purpose only.
   Will check if Account Names are well assigned and stored }
@@ -1267,7 +1268,7 @@ begin
   Result := False;
   if (Stream.Size - Stream.Position<8) then Exit;
   Stream.Read(LSaved_protocol,SizeOf(LSaved_protocol));
-  if Not (LSaved_protocol in [CT_PROTOCOL_4,CT_PROTOCOL_5]) then Exit;
+  if Not (LSaved_protocol in [CT_PROTOCOL_4..CT_PROTOCOL_MAX]) then Exit;
   Stream.Read(Account.account,Sizeof(Account.account));
   if TStreamOp.ReadAnsiString(Stream,raw) < 0 then Exit;
   TAccountComp.RawString2AccountInfo(raw,Account.accountInfo);
@@ -2577,6 +2578,8 @@ begin
     Result := (FCurrentProtocol=CT_PROTOCOL_3) And (BlocksCount >= CT_Protocol_Upgrade_v4_MinBlock);
   end else if (newProtocolVersion=CT_PROTOCOL_5) then begin
     Result := (FCurrentProtocol=CT_PROTOCOL_4) And (BlocksCount >= CT_Protocol_Upgrade_v5_MinBlock);
+  end else if (newProtocolVersion=CT_PROTOCOL_6) then begin
+    Result := (FCurrentProtocol=CT_PROTOCOL_5) And (BlocksCount >= CT_Protocol_Upgrade_v6_MinBlock);
   end else Result := False;
 end;
 
@@ -3345,6 +3348,13 @@ begin
   TLog.NewLog(ltInfo,ClassName,'End Upgraded to protocol 5 - New safeboxhash:'+TCrypto.ToHexaString(FSafeBoxHash));
 end;
 
+function TPCSafeBox.DoUpgradeToProtocol6: Boolean;
+begin
+  FCurrentProtocol := CT_PROTOCOL_6;
+  Result := True;
+  TLog.NewLog(ltInfo,ClassName,'End Upgraded to protocol 6 - New safeboxhash:'+TCrypto.ToHexaString(FSafeBoxHash));
+end;
+
 function TPCSafeBox.BufferBlocksHash: TBytesBuffer32Safebox;
 begin
   {$IFnDEF USE_ABSTRACTMEM}
@@ -3421,8 +3431,10 @@ begin
         CT_PROTOCOL_4 : FCurrentProtocol := 3; // In order to allow Upgrade to V4
         CT_PROTOCOL_5 : FCurrentProtocol := 5; // In order to upgrade to V4..V5
       else
-        errors := 'Invalid protocol version or corrupted stream ('+IntToStr(sbHeader.protocol)+')';
-        exit;
+        if sbHeader.protocol>CT_PROTOCOL_MAX then begin
+          errors := 'Invalid protocol version or corrupted stream ('+IntToStr(sbHeader.protocol)+')';
+          exit;
+        end else FCurrentProtocol := sbHeader.protocol;
       end;
       if sbHeader.IsAChunk then begin
         if (sbHeader.startBlock<>BlocksCount) then begin
@@ -3616,7 +3628,7 @@ begin
         finally
           LBlockHashRate.Free;
         end;
-        // Upgrade to Protocol 4,5... step:
+        // Upgrade to Protocol 4,5... step:CT_PROTOCOL_5
         if (LBlock.blockchainInfo.protocol_version>FCurrentProtocol) then begin
           if (LBlock.blockchainInfo.protocol_version = CT_PROTOCOL_4) then begin
             FCurrentProtocol := CT_PROTOCOL_4;
@@ -3724,7 +3736,7 @@ begin
     if (raw.ToPrintable<>CT_MagicIdentificator) then exit;
     if Stream.Size<8 then exit;
     Stream.Read(w,SizeOf(w));
-    if not (w in [CT_PROTOCOL_1,CT_PROTOCOL_2,CT_PROTOCOL_3,CT_PROTOCOL_4,CT_PROTOCOL_5]) then exit;
+    if not (w in [CT_PROTOCOL_1..CT_PROTOCOL_MAX]) then exit;
     sbHeader.protocol := w;
     Stream.Read(safeBoxBankVersion,2);
     if safeBoxBankVersion<>CT_SafeBoxBankVersion then exit;
@@ -4220,7 +4232,12 @@ begin
         errors := 'Invalid PascalCoin protocol version: '+IntToStr( newOperationBlock.protocol_version )+' Current: '+IntToStr(CurrentProtocol)+' Previous:'+IntToStr(lastBlock.protocol_version);
         exit;
       end;
-      If (newOperationBlock.protocol_version=CT_PROTOCOL_5) then begin
+      If (newOperationBlock.protocol_version=CT_PROTOCOL_6) then begin
+        If (newOperationBlock.block<CT_Protocol_Upgrade_v6_MinBlock) then begin
+          errors := 'Upgrade to protocol version 6 available at block: '+IntToStr(CT_Protocol_Upgrade_v6_MinBlock);
+          exit;
+        end;
+      end else If (newOperationBlock.protocol_version=CT_PROTOCOL_5) then begin
         If (newOperationBlock.block<CT_Protocol_Upgrade_v5_MinBlock) then begin
           errors := 'Upgrade to protocol version 5 available at block: '+IntToStr(CT_Protocol_Upgrade_v5_MinBlock);
           exit;
@@ -4255,6 +4272,7 @@ begin
            or ((newOperationBlock.block = CT_Protocol_Upgrade_v3_MinBlock) and (newOperationBlock.protocol_version<>CT_PROTOCOL_3))
            or ((newOperationBlock.block = CT_Protocol_Upgrade_v4_MinBlock) and (newOperationBlock.protocol_version<>CT_PROTOCOL_4))
            or ((newOperationBlock.block = CT_Protocol_Upgrade_v5_MinBlock) and (newOperationBlock.protocol_version<>CT_PROTOCOL_5))
+           or ((newOperationBlock.block = CT_Protocol_Upgrade_v6_MinBlock) and (newOperationBlock.protocol_version<>CT_PROTOCOL_6))
            then begin
          errors := Format('In block %d protocol must be upgraded! Current %d',[newOperationBlock.block,newOperationBlock.protocol_version]);
          exit;
@@ -4330,7 +4348,12 @@ begin
   // fee: Cannot be checked only with the safebox
   // Checking valid protocol version
   // protocol available is not checked
-  if (newOperationBlock.block >= CT_Protocol_Upgrade_v5_MinBlock) then begin
+  if (newOperationBlock.block >= CT_Protocol_Upgrade_v6_MinBlock) then begin
+    if Not newOperationBlock.protocol_version = CT_PROTOCOL_6 then begin
+      errors := Format('Invalid protocol version at block %d Found:%d Expected:%d',[newOperationBlock.block,newOperationBlock.protocol_version,CT_PROTOCOL_6]);
+      exit;
+    end;
+  end else if (newOperationBlock.block >= CT_Protocol_Upgrade_v5_MinBlock) then begin
     if Not newOperationBlock.protocol_version = CT_PROTOCOL_5 then begin
       errors := Format('Invalid protocol version at block %d Found:%d Expected:%d',[newOperationBlock.block,newOperationBlock.protocol_version,CT_PROTOCOL_5]);
       exit;
@@ -4418,9 +4441,9 @@ begin
     tsReal := (ts1 - ts2);
     If (protocolVersion=CT_PROTOCOL_1) then begin
       Result := TPascalCoinProtocol.GetNewTarget(tsTeorical, tsReal,protocolVersion,False,TPascalCoinProtocol.TargetFromCompact(lastBlock.compact_target,lastBlock.protocol_version));
-    end else if (protocolVersion<=CT_PROTOCOL_5) then begin
+    end else if (protocolVersion<=CT_PROTOCOL_MAX) then begin
       CalcBack := CalcBack DIV CT_CalcNewTargetLimitChange_SPLIT;
-      If CalcBack=0 then CalcBack := 1;
+      If CalcBack<=0 then CalcBack := 1;
       ts2 := GetBlockInfo(BlocksCount-CalcBack-1).timestamp;
       tsTeoricalStop := (CalcBack * CT_NewLineSecondsAvg);
       tsRealStop := (ts1 - ts2);
@@ -4443,7 +4466,7 @@ begin
         end;
       end;
     end else begin
-      Raise Exception.Create('ERROR DEV 20180306-1 Protocol not valid');
+      Raise Exception.Create('ERROR DEV 20180306-1 Protocol not valid: '+IntToStr(protocolVersion));
     end;
   end;
 end;
@@ -5076,6 +5099,15 @@ begin
         TLog.NewLog(ltInfo,ClassName,'Protocol upgrade to v5');
         If not FFreezedAccounts.DoUpgradeToProtocol5 then begin
           raise Exception.Create('Cannot upgrade to protocol v5 !');
+        end;
+      end;
+    end;
+    if (FFreezedAccounts.FCurrentProtocol<CT_PROTOCOL_6) And (operationBlock.protocol_version=CT_PROTOCOL_6) then begin
+      // First block with V6 protocol
+      if FFreezedAccounts.CanUpgradeToProtocol(CT_PROTOCOL_6) then begin
+        TLog.NewLog(ltInfo,ClassName,'Protocol upgrade to v6');
+        If not FFreezedAccounts.DoUpgradeToProtocol6 then begin
+          raise Exception.Create('Cannot upgrade to protocol v6 !');
         end;
       end;
     end;
