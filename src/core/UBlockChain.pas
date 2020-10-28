@@ -1468,6 +1468,8 @@ begin
         {$ENDIF}
       end else if (FOperationBlock.protocol_version=CT_PROTOCOL_4) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_5)) then begin
         FOperationBlock.protocol_version := CT_PROTOCOL_5; // If minting... upgrade to Protocol 5
+      end else if (FOperationBlock.protocol_version=CT_PROTOCOL_5) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_6)) then begin
+        FOperationBlock.protocol_version := CT_PROTOCOL_6; // If minting... upgrade to Protocol 6
       end;
       if (FOperationBlock.protocol_version>=CT_PROTOCOL_4) then begin
         FOperationsHashTree.Max0feeOperationsBySigner := 1; // Limit to 1 0-fee operation by signer
@@ -1836,6 +1838,8 @@ begin
         {$ENDIF}
       end else if (FOperationBlock.protocol_version=CT_PROTOCOL_4) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_5)) then begin
         FOperationBlock.protocol_version := CT_PROTOCOL_5; // If minting... upgrade to Protocol 5
+      end else if (FOperationBlock.protocol_version=CT_PROTOCOL_5) And (FBank.SafeBox.CanUpgradeToProtocol(CT_PROTOCOL_6)) then begin
+        FOperationBlock.protocol_version := CT_PROTOCOL_6; // If minting... upgrade to Protocol 6
       end;
       FOperationBlock.block := FBank.BlocksCount;
 
@@ -3006,7 +3010,9 @@ begin
   if (Not forceSave) AND (Not TPCSafeBox.MustSafeBoxBeSaved(Bank.BlocksCount)) then exit; // No save
   Try
     Result := DoSaveBank;
+    {$IFnDEF USE_ABSTRACTMEM}
     FBank.SafeBox.CheckMemory;
+    {$ENDIF}
   Except
     On E:Exception do begin
       TLog.NewLog(lterror,Classname,'Error saving Bank: '+E.Message);
