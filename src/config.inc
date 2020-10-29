@@ -35,7 +35,9 @@
 
   // Activate to define CryptoLib4Pascal by default on all compilations
   {.$DEFINE Use_CryptoLib4Pascal}
-
+  // Add the following paths to the project Search Path is this option is used
+  // .\libraries\cryptolib4pascal
+  // .\libraries\simplebaselib4pascal  
 
   // Used to activate RandomHash in V4 hard-fork
   {$DEFINE ACTIVATE_RANDOMHASH_V4}
@@ -64,7 +66,10 @@
   
   // Activate ABSTRACTMEM library. Will use a virtual memory caching mechanism for efficient usage without high RAM requirements
   {$DEFINE USE_ABSTRACTMEM}
-  
+
+  // Activate GNUGETTEXT library
+  {$DEFINE USE_GNUGETTEXT}
+
 
 { ********************************************************************
   Don't touch more code, it will addapt based on your preferences
@@ -111,6 +116,12 @@ ERROR: You must select ONLY ONE option: Use_OpenSSL or Use_CryptoLib4Pascal
   {$ELSE}
     {$UNDEF NO_ANSISTRING}
   {$ENDIF}
+  
+  {$IF COMPILERVERSION > 33}
+    {$DEFINE DELPHI_SYDNEY_PLUS}  
+  {$ENDIF}
+{$ELSE}
+  {$UNDEF USE_GNUGETTEXT}
 {$ENDIF}
 
 
