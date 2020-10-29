@@ -57,4 +57,6 @@ View the changelog [here](CHANGELOG.md)
 
 ## Donations  
   
-Consider a donation using BitCoin to `16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk`
+Consider a donation using Pascal coin to development account: `0-10`
+
+Also, consider a donation using BitCoin to `16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk`
