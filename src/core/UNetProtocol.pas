@@ -1243,7 +1243,12 @@ Var l : TList<TNetConnection>;
   tdc : TThreadDiscoverConnection;
 begin
   TLog.NewLog(ltInfo,ClassName,'TNetData.Destroy START');
+  {$IFDEF DELPHI_SYDNEY_PLUS }
+  SetLength(FOnConnectivityChanged.Handlers, 0);
+  SetLength(FOnConnectivityChanged.MainThreadHandlers, 0);
+  {$ELSE}
   FreeAndNil(FOnConnectivityChanged);
+  {$ENDIF}
   FOnGetNewBlockchainFromClientDownloadNewSafebox := Nil;
   FOnStatisticsChanged := Nil;
   FOnNetConnectionsUpdated := Nil;

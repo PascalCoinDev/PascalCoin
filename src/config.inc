@@ -35,7 +35,9 @@
 
   // Activate to define CryptoLib4Pascal by default on all compilations
   {.$DEFINE Use_CryptoLib4Pascal}
-
+  // Add the following paths to the project Search Path is this option is used
+  // .\libraries\cryptolib4pascal
+  // .\libraries\simplebaselib4pascal  
 
   // Used to activate RandomHash in V4 hard-fork
   {$DEFINE ACTIVATE_RANDOMHASH_V4}
@@ -110,6 +112,10 @@ ERROR: You must select ONLY ONE option: Use_OpenSSL or Use_CryptoLib4Pascal
     {$DEFINE DelphiSockets}
   {$ELSE}
     {$UNDEF NO_ANSISTRING}
+  {$ENDIF}
+  
+  {$IF COMPILERVERSION > 33}
+    {$DEFINE DELPHI_SYDNEY_PLUS}  
   {$ENDIF}
 {$ENDIF}
 
