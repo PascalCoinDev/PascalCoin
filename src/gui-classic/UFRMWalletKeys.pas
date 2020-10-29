@@ -95,8 +95,9 @@ uses
 {$ELSE}
   LCLIntf, LCLType,
 {$ENDIF}
+  {$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}
   UCrypto, UAccounts, UFRMNewPrivateKeyType, UBaseTypes, UPCEncryption,
-  UPCDataTypes, UCommon, UGUIUtils,gnugettext;
+  UPCDataTypes, UCommon, UGUIUtils;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -493,7 +494,7 @@ end;
 
 procedure TFRMWalletKeys.FormCreate(Sender: TObject);
 begin
-  Translatecomponent(self);
+  {$IFDEF USE_GNUGETTEXT}TranslateComponent(self);{$ENDIF}
   lbWalletKeys.Sorted := true;
   FWalletKeys := Nil;
   UpdateWalletKeys;

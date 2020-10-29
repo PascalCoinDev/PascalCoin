@@ -7,7 +7,7 @@ unit UFRMSelectLanguage;
 interface
 
 uses
-   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, Buttons, StdCtrls,gnugettext;
+  gnugettext,Classes, SysUtils, Forms, Controls, Graphics, Dialogs, Buttons, StdCtrls;
 
 type
 

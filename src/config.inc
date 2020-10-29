@@ -66,7 +66,10 @@
   
   // Activate ABSTRACTMEM library. Will use a virtual memory caching mechanism for efficient usage without high RAM requirements
   {$DEFINE USE_ABSTRACTMEM}
-  
+
+  // Activate GNUGETTEXT library
+  {$DEFINE USE_GNUGETTEXT}
+
 
 { ********************************************************************
   Don't touch more code, it will addapt based on your preferences
@@ -117,6 +120,8 @@ ERROR: You must select ONLY ONE option: Use_OpenSSL or Use_CryptoLib4Pascal
   {$IF COMPILERVERSION > 33}
     {$DEFINE DELPHI_SYDNEY_PLUS}  
   {$ENDIF}
+{$ELSE}
+  {$UNDEF USE_GNUGETTEXT}
 {$ENDIF}
 
 
