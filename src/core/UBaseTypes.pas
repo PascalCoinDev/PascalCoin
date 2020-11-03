@@ -98,13 +98,16 @@ Type
     function Replace(startPos : Integer; const buffer : TBytes) : Integer; overload;
     function Replace(startPos : Integer; const buffer; bufferSize : Integer) : Integer; overload;
     property DefaultIncrement : Integer read FDefaultIncrement write SetDefaultIncrement;
-    function Compare(ABytesBuffer : TBytesBuffer) : Integer;
+    function Compare(ABytesBuffer : TBytesBuffer) : Integer; overload;
+    function Compare(AStream : TStream) : Integer; overload;
     procedure SetLength(ANewLength : Integer);
     function Memory : Pointer;
     function MemoryLength : Integer;
     procedure Clear;
     procedure CopyFrom(ABytesBuffer : TBytesBuffer);
     function Capture(AStartPos, ALength : Integer) : TBytes;
+    procedure SaveToStream(AStream : TStream);
+    procedure LoadFromStream(AStream : TStream);
   end;
 
 
@@ -624,6 +627,11 @@ begin
   end;
 end;
 
+procedure TBytesBuffer.SaveToStream(AStream: TStream);
+begin
+  AStream.Write(FBytes[0],Self.Length);
+end;
+
 procedure TBytesBuffer.SetDefaultIncrement(AValue: Integer);
 begin
   if AValue<=0 then FDefaultIncrement:=1024
@@ -690,6 +698,18 @@ begin
   end;
 end;
 
+function TBytesBuffer.Compare(AStream: TStream): Integer;
+var Lbb : TBytesBuffer;
+begin
+  Lbb := TBytesBuffer.Create(DefaultIncrement);
+  try
+    Lbb.LoadFromStream(AStream);
+    Result := Compare(Lbb);
+  finally
+    Lbb.Free;
+  end;
+end;
+
 procedure TBytesBuffer.CopyFrom(ABytesBuffer: TBytesBuffer);
 begin
   System.SetLength(FBytes,System.Length(ABytesBuffer.FBytes));
@@ -723,6 +743,14 @@ end;
 function TBytesBuffer.Length: Integer;
 begin
   Result := FUsedBytes;
+end;
+
+procedure TBytesBuffer.LoadFromStream(AStream: TStream);
+begin
+  AStream.Position := 0;
+  IncreaseSize(Self.Length + AStream.Size);
+  AStream.Read(FBytes[FUsedBytes],AStream.Size);
+  SetLength(Self.Length + AStream.Size);
 end;
 
 function TBytesBuffer.Memory: Pointer;
