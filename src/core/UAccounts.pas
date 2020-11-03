@@ -480,7 +480,19 @@ Procedure Check_Safebox_Integrity(sb : TPCSafebox; title: String);
 implementation
 
 uses
-  ULog, {$IFnDEF USE_ABSTRACTMEM} UAccountKeyStorage,{$ENDIF} math, UCommon, UPCOperationsBlockValidator;
+  ULog, {$IFnDEF USE_ABSTRACTMEM} UAccountKeyStorage,{$ENDIF} math, UCommon, UPCOperationsBlockValidator, UPCTemporalFileStream;
+
+
+{$IFDEF FPC}
+  {$DEFINE USE_BIGBLOCKS_MEM_ON_DISK}
+  // USE_BIGBLOCKS_MEM_ON_DISK directive is used in order to prevent a FreePascal issue with Heap allocation strategy that
+  // reuses big blocks of disposed memory and fragments it, this causes that when a new big block of same size that previously
+  // freeded mem is needed it will not reuse because has been fragmented...
+  // Tested on FPC version 3.2.0 (2020-11-03) and order versions
+  // Defragmention documented here: https://www.freepascal.org/docs-html/current/prog/progsu172.html
+  // This issue is not detected on current Delphi memory manager (Tested on Delphi 10.3.2)
+{$ENDIF}
+
 
 { This function is for testing purpose only.
   Will check if Account Names are well assigned and stored }
@@ -2181,7 +2193,7 @@ Type
     newBlocks : TOrderedBlockAccountList; // Saves final blocks values on modified blocks
     namesDeleted : TOrderedRawList;
     namesAdded : TOrderedRawList;
-    oldBufferBlocksHash: TBytesBuffer;
+    oldBufferBlocksHash: {$IFDEF USE_BIGBLOCKS_MEM_ON_DISK}TPCTemporalFileStream{$ELSE}TBytesBuffer{$ENDIF};
     oldTotalBalance: Int64;
     oldTotalFee: Int64;
     oldSafeBoxHash : TRawBytes;
@@ -2347,7 +2359,12 @@ begin
     Psnapshot^.newBlocks := FModifiedBlocksFinalState;
     Psnapshot^.namesDeleted := FDeletedNamesSincePreviousSafebox;
     Psnapshot^.namesAdded := FAddedNamesSincePreviousSafebox;
+    {$IFDEF USE_BIGBLOCKS_MEM_ON_DISK}
+    Psnapshot^.oldBufferBlocksHash := TPCTemporalFileStream.Create('oldbufferblockhash');
+    BufferBlocksHash.SaveToStream( Psnapshot^.oldBufferBlocksHash );
+    {$ELSE}
     Psnapshot^.oldBufferBlocksHash := TBytesBuffer.CreateCopy(BufferBlocksHash);
+    {$ENDIF}
     Psnapshot^.oldTotalBalance:=FTotalBalance;
     Psnapshot^.oldTotalFee:=FTotalFee;
     Psnapshot^.oldSafeBoxHash := FSafeBoxHash;
@@ -2923,7 +2940,13 @@ begin
         //
         FPreviousSafeBox.FSubChains.Add(Self);
         //
+        {$IFDEF USE_BIGBLOCKS_MEM_ON_DISK}
+        BufferBlocksHash.Clear;
+        BufferBlocksHash.LoadFromStream( Psnapshot^.oldBufferBlocksHash );
+        {$ELSE}
         BufferBlocksHash.CopyFrom( Psnapshot^.oldBufferBlocksHash );
+        {$ENDIF}
+
         FTotalBalance := Psnapshot^.oldTotalBalance;
         FTotalFee := Psnapshot^.oldTotalFee;
         FSafeBoxHash := Psnapshot^.oldSafeBoxHash;
