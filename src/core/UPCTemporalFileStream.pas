@@ -41,7 +41,7 @@ Type
 
 implementation
 
-Uses ULog, UNode;
+Uses {$IFDEF HIGHLOG}ULog, {$ENDIF} UNode;
 
 { TPCTemporalFileStream }
 
@@ -63,18 +63,18 @@ begin
     end;
     inc(i);
   until (Not (FileExists(LFileName)) or (i>5000));
-  TLog.NewLog(ltdebug,ClassName,Format('Creating a new Temporal file Stream: %s',[LFileName]));
+  {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Creating a new Temporal file Stream: %s',[LFileName]));{$ENDIF}
   inherited Create(LFileName,fmCreate+fmShareDenyWrite);
   FTemporalFileName:=LFileName;
 end;
 
 destructor TPCTemporalFileStream.Destroy;
-var LSize : Integer;
+{$IFDEF HIGHLOG}var LSize : Integer;{$ENDIF}
 begin
-  LSize := Size;
+  {$IFDEF HIGHLOG}LSize := Size;{$ENDIF}
   inherited Destroy;
   if FTemporalFileName<>'' then begin
-    TLog.NewLog(ltdebug,ClassName,Format('Deleting a Temporal file Stream (%d bytes): %s',[LSize, FTemporalFileName]));
+    {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,Format('Deleting a Temporal file Stream (%d bytes): %s',[LSize, FTemporalFileName]));{$ENDIF}
     DeleteFile(FTemporalFileName);
   end;
 end;
