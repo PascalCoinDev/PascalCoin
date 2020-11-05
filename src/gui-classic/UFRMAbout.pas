@@ -69,7 +69,10 @@ uses
 {$IFDEF Use_OpenSSL}
   UOpenSSL,
 {$ENDIF}
-  UNode,gnugettext;
+{$IFDEF USE_GNUGETTEXT}
+  gnugettext,
+{$ENDIF}
+  UNode;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -79,7 +82,7 @@ uses
 
 procedure TFRMAbout.FormCreate(Sender: TObject);
 begin
-  TranslateComponent(self);
+  {$IFDEF USE_GNUGETTEXT}TranslateComponent(self);{$ENDIF}
   //
   lblBuild.Caption :=  'Build: '+CT_ClientAppVersion+' OpenSSL: '+{$IFDEF Use_OpenSSL}IntToHex(OpenSSLVersion,8){$ELSE}'NONE'{$ENDIF}+' Compiler: '{$IFDEF FPC}+'FPC'{$IFDEF CPU32}+' 32b'{$ELSE}+' 64b'{$ENDIF}{$ELSE}+'Delphi'{$IFDEF CPU32BITS}+' 32b'{$ELSE}+' 64b'{$ENDIF}{$ENDIF};
   lblProtocolVersion.Caption := Format('BlockChain Protocol: %d (%d)  -  Net Protocol: %d (%d)',[TNode.Node.Bank.SafeBox.CurrentProtocol,CT_BlockChain_Protocol_Available,

@@ -4,6 +4,8 @@ program PascalCoin_Wallet_Classic;
   {$MODE Delphi}
 {$ENDIF}
 
+{$I ./config.inc}
+
 uses
   {$IFnDEF FPC}
   {$ELSE}
@@ -47,7 +49,9 @@ uses
   UFRMNodesIp in 'gui-classic\UFRMNodesIp.pas' {FRMNodesIp},
   UFRMOperation in 'gui-classic\UFRMOperation.pas' {FRMOperation},
   UFRMOperationsExplorer in 'gui-classic\UFRMOperationsExplorer.pas' {FRMOperationsExplorer},
-  UFRMSelectLanguage in 'gui-classic\UFRMSelectLanguage.pas',
+  {$IFDEF USE_GNUGETTEXT}
+  UFRMSelectLanguage in 'gui-classic\UFRMSelectLanguage.pas' {FRMChangeLanguage},
+  {$ENDIF}
   UFRMPascalCoinWalletConfig in 'gui-classic\UFRMPascalCoinWalletConfig.pas' {FRMPascalCoinWalletConfig},
   UFRMPayloadDecoder in 'gui-classic\UFRMPayloadDecoder.pas' {FRMPayloadDecoder},
   UFRMRandomOperations in 'gui-classic\UFRMRandomOperations.pas' {FRMRandomOperations},

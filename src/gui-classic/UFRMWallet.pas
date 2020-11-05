@@ -327,7 +327,7 @@ implementation
   {$R *.lfm}
 {$ENDIF}
 
-Uses UFolderHelper,gnugettext,
+Uses UFolderHelper,{$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}
 {$IFDEF Use_OpenSSL}
   UOpenSSL,
 {$ENDIF}
@@ -1299,7 +1299,7 @@ end;
 procedure TFRMWallet.FormCreate(Sender: TObject);
 Var i : Integer;
 begin
-  TranslateComponent(Self);
+  {$IFDEF USE_GNUGETTEXT}TranslateComponent(self);{$ENDIF}
   //
   {$IFNDEF FPC}
   {$IFDEF TESTNET}
@@ -1369,10 +1369,12 @@ begin
   FBlockChainGrid.DrawGrid := dgBlockChainExplorer;
   // FWalletKeys.OnChanged.Add( OnWalletChanged );
   LoadAppParams;
+  {$IFDEF USE_GNUGETTEXT}
   // use language from the params and retranslate if needed
   // might be better to move this a bit earlier in the formcreate routine
   UseLanguage(FAppParams.ParamByName[CT_PARAM_UILanguage].GetAsString(GetCurrentLanguage));
-  RetranslateComponent(Self);
+  RetranslateComponent(self);
+  {$ENDIF}
   //
   UpdatePrivateKeys;
   UpdateBlockChainState;
@@ -2053,7 +2055,7 @@ begin
     if ShowModal=MrOk then begin
       SaveAppParams;
       UpdateConfigChanged;
-      RetranslateComponent(self);
+      {$IFDEF USE_GNUGETTEXT}RetranslateComponent(self);{$ENDIF}
     end;
   finally
     free;

@@ -191,8 +191,8 @@ type
 implementation
 
 uses
-  UConst, UOpTransaction, UFRMNewPrivateKeyType, UFRMWalletKeys, UFRMHashLock,
-  UCommon, ULog, UGUIUtils,gnugettext;
+  {$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}UConst, UOpTransaction, UFRMNewPrivateKeyType, UFRMWalletKeys, UFRMHashLock,
+  UCommon, ULog, UGUIUtils;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -530,7 +530,7 @@ end;
 
 procedure TFRMOperation.FormCreate(Sender: TObject);
 begin
-  Translatecomponent(self);
+  {$IFDEF USE_GNUGETTEXT}TranslateComponent(self);{$ENDIF}
   FDisabled := false;
   FWalletKeys := Nil;
   FSenderAccounts := TOrderedCardinalList.Create;

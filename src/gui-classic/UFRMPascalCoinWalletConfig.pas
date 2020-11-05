@@ -97,7 +97,8 @@ type
 
 implementation
 
-uses UConst, UAccounts, ULog, UCrypto, UNode, USettings, UGUIUtils, UNetProtocol, UFRMSelectLanguage,gnugettext;
+uses
+  {$IFDEF USE_GNUGETTEXT}gnugettext, UFRMSelectLanguage, {$ENDIF}UConst, UAccounts, ULog, UCrypto, UNode, USettings, UGUIUtils, UNetProtocol;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -198,7 +199,7 @@ end;
 
 procedure TFRMPascalCoinWalletConfig.FormCreate(Sender: TObject);
 begin
-  TranslateComponent(self);
+  {$IFDEF USE_GNUGETTEXT}TranslateComponent(self);{$ENDIF}
   //
   lblDefaultInternetServerPort.Caption := Format('(Default %d)',[CT_NetServer_Port]);
   udInternetServerPort.Position := CT_NetServer_Port;
@@ -220,6 +221,7 @@ end;
 
 procedure TFRMPascalCoinWalletConfig.bbChangeLanguageClick(Sender: TObject);
 begin
+  {$IFDEF USE_GNUGETTEXT}
    fNewUILanguage := AppParams.ParamByName[CT_PARAM_UILanguage].GetAsString(GetCurrentLanguage);
    fNewUILanguage := SelectUILanguage(fNewUILanguage);
    if fNewUILanguage<>AppParams.ParamByName[CT_PARAM_UILanguage].GetAsString(GetCurrentLanguage) then // new language selected
@@ -227,6 +229,7 @@ begin
      UseLanguage(fNewUILanguage);
      RetranslateComponent(Self);
    end;
+  {$ENDIF}
 end;
 
 procedure TFRMPascalCoinWalletConfig.SetAppParams(const Value: TAppParams);

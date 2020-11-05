@@ -5,7 +5,7 @@ program UPascalCoinUnitTests;
 uses
   Interfaces, Forms, GuiTestRunner, UCommon.Collections, UCommon.Tests,
   UCommon.Collections.Tests, UMemory.Tests, UThread.Tests, URandomHash.Tests,
-  URandomHash2.Tests, URandomHash;
+  URandomHash2.Tests, URandomHash, ubasetypes.tests;
 
 {$R *.res}
 
