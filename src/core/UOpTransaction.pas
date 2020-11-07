@@ -1458,7 +1458,7 @@ begin
     Exit;
   end;
   if (account_signer.balance<FData.fee) then begin
-    errors := 'Insuficient founds';
+    errors := 'Insuficient funds';
     exit;
   end;
   if (length(FData.payload.payload_raw)>CT_MaxPayloadSize) then begin
@@ -2060,7 +2060,7 @@ begin
     Exit;
   end;
   if (account_signer.balance<FData.fee) then begin
-    errors := 'Insuficient founds';
+    errors := 'Insuficient funds';
     exit;
   end;
   if (length(FData.payload.payload_raw)>CT_MaxPayloadSize) then begin
