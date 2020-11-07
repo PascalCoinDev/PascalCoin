@@ -72,7 +72,6 @@ Type
   TPCDaemon = Class(TCustomDaemon)
   Private
     FThread : TPCDaemonThread;
-    Procedure ThreadStopped (Sender : TObject);
   public
     Function Start : Boolean; override;
     Function Stop : Boolean; override;
@@ -325,30 +324,26 @@ end;
 
 { TPCDaemon }
 
-procedure TPCDaemon.ThreadStopped(Sender: TObject);
-begin
-  FreeAndNil(FThread);
-end;
-
 function TPCDaemon.Start: Boolean;
 begin
   Result:=inherited Start;
   TLog.NewLog(ltinfo,ClassName,'Daemon Start '+BoolToStr(Result));
   FThread:=TPCDaemonThread.Create;
-  FThread.OnTerminate:=@ThreadStopped;
-  FThread.FreeOnTerminate:=False;
+  FThread.FreeOnTerminate:=True;
   if (Application.HasOption('b','block')) then begin
     FThread.MaxBlockToRead:=StrToInt64Def(Application.GetOptionValue('b','block'),$FFFFFFFF);
     TLog.NewLog(ltinfo,ClassName,'Max block to read: '+IntToStr(FThread.MaxBlockToRead));
   end;
-  FThread.Resume;
+  FThread.Start;
 end;
 
 function TPCDaemon.Stop: Boolean;
 begin
   Result:=inherited Stop;
-  TLog.NewLog(ltinfo,ClassName,'Daemon Stop: '+BoolToStr(Result));
+  TLog.NewLog(ltinfo,ClassName,'Daemon Stop Start');
   FThread.Terminate;
+  FThread.WaitFor;
+  TLog.NewLog(ltinfo,ClassName,'Daemon Stop Finished');
 end;
 
 function TPCDaemon.Pause: Boolean;
@@ -374,8 +369,10 @@ end;
 function TPCDaemon.ShutDown: Boolean;
 begin
   Result:=inherited ShutDown;
-  TLog.NewLog(ltinfo,ClassName,'Daemon Shutdown: '+BoolToStr(Result));
+  TLog.NewLog(ltinfo,ClassName,'Daemon Shutdown Start');
   FThread.Terminate;
+  FThread.WaitFor;
+  TLog.NewLog(ltinfo,ClassName,'Daemon Shutdown Finished');
 end;
 
 function TPCDaemon.Install: Boolean;
@@ -408,11 +405,11 @@ end;
 
 procedure TPCDaemonMapper.DoOnDestroy;
 begin
+  inherited DoOnDestroy;
   If Assigned(FLog) then begin
     FLog.OnInThreadNewLog:=Nil;
     FreeAndNil(FLog);
   end;
-  inherited DoOnDestroy;
 end;
 
 end.
