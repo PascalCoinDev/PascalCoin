@@ -1,10 +1,13 @@
 # Changelog
 
 ## Build 5.4 - (PENDING RELEASE)
+- Added "DATAFOLDER" configuration option at pascalcoin_daemon.ini file (daemon/service) in order to allow customize data folder
 - Added usage of AbstractMem library to allow build a PascalCoin version using virtual memory and efficient caching mechanism
   - Must activate {$DEFINE USE_ABSTRACTMEM} at config.inc file
 - Improved performance when downloading Safebox (Fresh installation)
-- Fixed minor bugs
+- Fixed bugs:
+  - Fixed bugs on "pascalcoin_daemon" (daemon on Linux / Service on Windows) that produced crash on windows and some invalid finalization on Linux
+  - Fixed minor bugs
 
 ## Build 5.3.0 - 2020-03-12
 - Fixed "out of memory" error when downloading Safebox

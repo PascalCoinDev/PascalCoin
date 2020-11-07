@@ -124,6 +124,7 @@ Type
     procedure MarkVerifiedECDSASignaturesFromMemPool(newOperationsToValidate : TPCOperationsComp);
     class function NodeVersion : String;
     class function GetPascalCoinDataFolder : String;
+    class procedure SetPascalCoinDataFolder(const ANewDataFolder : String);
   End;
 
   TThreadSafeNodeNotifyEvent = Class(TPCThread)
@@ -207,6 +208,7 @@ implementation
 Uses UOpTransaction, UConst, UTime, UCommon, UPCOperationsSignatureValidator, UFolderHelper;
 
 var _Node : TNode;
+  _PascalCoinDataFolder : String;
 
 { TNode }
 
@@ -652,8 +654,8 @@ begin
   if Not Assigned(_Node) then _Node := Self;
 end;
 
-class procedure TNode.DecodeIpStringToNodeServerAddressArray(
-  const Ips: String; Var NodeServerAddressArray: TNodeServerAddressArray);
+class procedure TNode.DecodeIpStringToNodeServerAddressArray(const Ips: String;
+  var NodeServerAddressArray: TNodeServerAddressArray);
   Function GetIp(var ips_string : String; var nsa : TNodeServerAddress) : Boolean;
   Const CT_IP_CHARS = ['a'..'z','A'..'Z','0'..'9','.','-','_'];
   var i : Integer;
@@ -829,7 +831,7 @@ begin
   Result := true;
 end;
 
-function TNode.IsReady(Var CurrentProcess: String): Boolean;
+function TNode.IsReady(var CurrentProcess: String): Boolean;
 var LLockedMempool : TPCOperationsComp;
 begin
   Result := false;
@@ -1293,7 +1295,16 @@ end;
 
 class function TNode.GetPascalCoinDataFolder: String;
 begin
-  Result := TFolderHelper.GetDataFolder(CT_PascalCoin_Data_Folder);
+  if (_PascalCoinDataFolder.Trim.Length>0) then begin
+    Result := _PascalCoinDataFolder;
+  end else begin
+    Result := TFolderHelper.GetDataFolder(CT_PascalCoin_Data_Folder);
+  end;
+end;
+
+class procedure TNode.SetPascalCoinDataFolder(const ANewDataFolder: String);
+begin
+  _PascalCoinDataFolder := ANewDataFolder;
 end;
 
 function TNode.LockMempoolRead: TPCOperationsComp;
@@ -1600,6 +1611,7 @@ end;
 
 initialization
   _Node := Nil;
+  _PascalCoinDataFolder := '';
 finalization
   FreeAndNil(_Node);
 end.
