@@ -3558,6 +3558,7 @@ begin
       jso.GetAsVariant('lastcon').Value := nsaarr[i].last_connection;
       jso.GetAsVariant('attempts').Value := nsaarr[i].total_failed_attemps_to_connect;
     end;
+    GetResultObject.GetAsVariant('datafolder').Value:=FNode.GetPascalCoinDataFolder;
     Result := True;
   end else if (method='encodepubkey') then begin
     // Creates a encoded public key based on params

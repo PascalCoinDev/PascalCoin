@@ -57,7 +57,7 @@ type
 implementation
 
 uses
-  UAccounts, UConst,gnugettext ;
+  {$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}UAccounts, UConst;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -82,7 +82,7 @@ procedure TFRMNewPrivateKeyType.FormCreate(Sender: TObject);
 Var l : TList<Word>;
   i : Integer;
 begin
-  TranslateComponent(self);
+  {$IFDEF USE_GNUGETTEXT}TranslateComponent(self);{$ENDIF}
   //
   FGeneratedPrivateKey := Nil;
   FWalletKeys := Nil;

@@ -46,6 +46,7 @@ Const
   CT_INI_IDENT_LOWMEMORY = 'LOWMEMORY';
   CT_INI_IDENT_MINPENDINGBLOCKSTODOWNLOADCHECKPOINT = 'MINPENDINGBLOCKSTODOWNLOADCHECKPOINT';
   CT_INI_IDENT_PEERCACHE = 'PEERCACHE';
+  CT_INI_IDENT_DATA_FOLDER = 'DATAFOLDER';
 
 Type
   { TPCDaemonThread }
@@ -55,6 +56,7 @@ Type
     FIniFile : TIniFile;
     FMaxBlockToRead: Int64;
     FLastNodesCacheUpdatedTS : TTickCount;
+    function GetDataFolder : String;
     procedure OnNetDataReceivedHelloMessage(Sender : TObject);
     procedure OnInitSafeboxProgressNotify(sender : TObject; const message : String; curPos, totalCount : Int64);
   protected
@@ -70,7 +72,6 @@ Type
   TPCDaemon = Class(TCustomDaemon)
   Private
     FThread : TPCDaemonThread;
-    Procedure ThreadStopped (Sender : TObject);
   public
     Function Start : Boolean; override;
     Function Stop : Boolean; override;
@@ -87,7 +88,6 @@ Type
   TPCDaemonMapper = Class(TCustomDaemonMapper)
   private
     FLog : TLog;
-    procedure OnPascalCoinInThreadLog(logtype : TLogType; Time : TDateTime; AThreadID : TThreadID; Const sender, logtext : String);
   protected
     Procedure DoOnCreate; override;
     Procedure DoOnDestroy; override;
@@ -104,6 +104,19 @@ uses UPCTNetDataExtraMessages;
 Var _FLog : TLog;
 
 { TPCDaemonThread }
+
+function TPCDaemonThread.GetDataFolder: String;
+Var LIniDataFolder : String;
+begin
+  LIniDataFolder := FIniFile.ReadString(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_DATA_FOLDER,'').Trim;
+  if (LIniDataFolder.Length=0) then begin
+    LIniDataFolder:=TNode.GetPascalCoinDataFolder;
+  end else begin
+    TNode.SetPascalCoinDataFolder(LIniDataFolder);
+  end;
+  ForceDirectories(LIniDataFolder);
+  Result := LIniDataFolder;
+end;
 
 procedure TPCDaemonThread.OnNetDataReceivedHelloMessage(Sender: TObject);
 Var LNsarr : TNodeServerAddressArray;
@@ -154,7 +167,7 @@ var
     TLog.NewLog(ltInfo,ClassName,'RPC server is active on port '+IntToStr(port));
     If FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_RPC_SAVELOGS,true) then begin
       FIniFile.WriteBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_RPC_SAVELOGS,true);
-      FRPC.LogFileName:= TNode.GetPascalCoinDataFolder+PathDelim+'pascalcoin_rpc.log';
+      FRPC.LogFileName:= GetDataFolder+PathDelim+'pascalcoin_rpc.log';
       TLog.NewLog(ltInfo,ClassName,'Activating RPC logs on file '+FRPC.LogFileName);
     end else begin
       FIniFile.WriteBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_RPC_SAVELOGS,false);
@@ -233,12 +246,10 @@ begin
       // Load Node
       // Check OpenSSL dll
       if Not LoadSSLCrypt then begin
-        WriteLn('Cannot load '+SSL_C_LIB);
-        WriteLn('To use this software make sure this file is available on you system or reinstall the application');
         raise Exception.Create('Cannot load '+SSL_C_LIB+#10+'To use this software make sure this file is available on you system or reinstall the application');
       end;
       TCrypto.InitCrypto;
-      FWalletKeys.WalletFileName := TNode.GetPascalCoinDataFolder+PathDelim+'WalletKeys.dat';
+      FWalletKeys.WalletFileName := GetDataFolder+PathDelim+'WalletKeys.dat';
       // Creating Node:
       FNode := TNode.Node;
       {$IFDEF TESTNET}
@@ -249,7 +260,7 @@ begin
       Try
         // Check Database
         FNode.Bank.StorageClass := TFileStorage;
-        TFileStorage(FNode.Bank.Storage).DatabaseFolder := TNode.GetPascalCoinDataFolder+PathDelim+'Data';
+        TFileStorage(FNode.Bank.Storage).DatabaseFolder := GetDataFolder+PathDelim+'Data';
         TFileStorage(FNode.Bank.Storage).LowMemoryUsage := FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_LOWMEMORY,False);
         // By default daemon will not download checkpoint except if specified on INI file
         TNetData.NetData.MinFutureBlocksToDownloadNewSafebox := FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_MINPENDINGBLOCKSTODOWNLOADCHECKPOINT,0);
@@ -268,7 +279,7 @@ begin
         Try
           Repeat
             Sleep(100);
-          Until Terminated;
+          Until (Terminated) or (Application.Terminated);
         finally
           FreeAndNil(FMinerServer);
         end;
@@ -313,30 +324,26 @@ end;
 
 { TPCDaemon }
 
-procedure TPCDaemon.ThreadStopped(Sender: TObject);
-begin
-  FreeAndNil(FThread);
-end;
-
 function TPCDaemon.Start: Boolean;
 begin
   Result:=inherited Start;
   TLog.NewLog(ltinfo,ClassName,'Daemon Start '+BoolToStr(Result));
   FThread:=TPCDaemonThread.Create;
-  FThread.OnTerminate:=@ThreadStopped;
-  FThread.FreeOnTerminate:=False;
+  FThread.FreeOnTerminate:=True;
   if (Application.HasOption('b','block')) then begin
     FThread.MaxBlockToRead:=StrToInt64Def(Application.GetOptionValue('b','block'),$FFFFFFFF);
     TLog.NewLog(ltinfo,ClassName,'Max block to read: '+IntToStr(FThread.MaxBlockToRead));
   end;
-  FThread.Resume;
+  FThread.Start;
 end;
 
 function TPCDaemon.Stop: Boolean;
 begin
   Result:=inherited Stop;
-  TLog.NewLog(ltinfo,ClassName,'Daemon Stop: '+BoolToStr(Result));
+  TLog.NewLog(ltinfo,ClassName,'Daemon Stop Start');
   FThread.Terminate;
+  FThread.WaitFor;
+  TLog.NewLog(ltinfo,ClassName,'Daemon Stop Finished');
 end;
 
 function TPCDaemon.Pause: Boolean;
@@ -362,8 +369,10 @@ end;
 function TPCDaemon.ShutDown: Boolean;
 begin
   Result:=inherited ShutDown;
-  TLog.NewLog(ltinfo,ClassName,'Daemon Shutdown: '+BoolToStr(Result));
+  TLog.NewLog(ltinfo,ClassName,'Daemon Shutdown Start');
   FThread.Terminate;
+  FThread.WaitFor;
+  TLog.NewLog(ltinfo,ClassName,'Daemon Shutdown Finished');
 end;
 
 function TPCDaemon.Install: Boolean;
@@ -380,40 +389,27 @@ end;
 
 { TPCDaemonMapper }
 
-procedure TPCDaemonMapper.OnPascalCoinInThreadLog(logtype: TLogType;
-  Time: TDateTime; AThreadID: TThreadID; const sender, logtext: String);
-Var s : AnsiString;
-begin
-//  If Not SameText(sender,TPCDaemonThread.ClassName) then exit;
-  If logtype in [lterror,ltinfo] then begin
-    if AThreadID=MainThreadID then s := ' MAIN:' else s:=' TID:';
-    WriteLn(formatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time)+s+IntToHex(PtrInt(AThreadID),8)+' ['+CT_LogType[Logtype]+'] <'+sender+'> '+logtext);
-  end;
-end;
-
 procedure TPCDaemonMapper.DoOnCreate;
 Var D : TDaemonDef;
 begin
   inherited DoOnCreate;
-  WriteLn('');
-  WriteLn(formatDateTime('dd/mm/yyyy hh:nn:ss.zzz',now)+' Starting PascalCoin server');
   FLog := TLog.Create(Nil);
-  FLog.OnInThreadNewLog:=@OnPascalCoinInThreadLog;
   _FLog := FLog;
   D:=DaemonDefs.Add as TDaemonDef;
-  D.DisplayName:='Pascal Coin Daemon';
+  D.DisplayName:='PascalCoin Daemon';
   D.Name:='PascalCoinDaemon';
   D.DaemonClassName:='TPCDaemon';
+  D.Options:=[doAllowStop];
   D.WinBindings.ServiceType:=stWin32;
 end;
 
 procedure TPCDaemonMapper.DoOnDestroy;
 begin
+  inherited DoOnDestroy;
   If Assigned(FLog) then begin
     FLog.OnInThreadNewLog:=Nil;
     FreeAndNil(FLog);
   end;
-  inherited DoOnDestroy;
 end;
 
 end.

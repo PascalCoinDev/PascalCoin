@@ -106,7 +106,7 @@ implementation
   {$R *.lfm}
 {$ENDIF}
 
-Uses UNode, UTime, UPCEncryption, UAccounts, UFRMMemoText, UBaseTypes,gnugettext;
+Uses {$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}UNode, UTime, UPCEncryption, UAccounts, UFRMMemoText, UBaseTypes;
 
 { TFRMPayloadDecoder }
 
@@ -220,7 +220,7 @@ end;
 
 procedure TFRMPayloadDecoder.FormCreate(Sender: TObject);
 begin
-  TranslateComponent(self);
+  {$IFDEF USE_GNUGETTEXT}TranslateComponent(self);{$ENDIF}
   //
   FSemaphor := true;
   try
