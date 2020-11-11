@@ -225,7 +225,6 @@ end;
 
 procedure TCacheMem.Clear;
 var P, PCurr : PCacheMemData;
-  i : Integer;
 begin
   PCurr := FCacheData.FindLowest;
   while (Assigned(PCurr)) do begin
@@ -637,7 +636,7 @@ begin
 end;
 
 function TCacheMem.ToString: String;
-var i : Integer;
+var
   LLines : TStrings;
   LPct : Double;
   PCurrent : PCacheMemData;
@@ -676,9 +675,6 @@ begin
         inc(FPendingToSaveBytes,PCurrent^.GetSize);
       end;
       PCurrent^.MarkAsUsed(Self,PCurrent);
-      {$IFDEF ABSTRACTMEM_ENABLE_STATS}
-//      inc(FCacheMemStats.reusedCacheMemDataCount); XXXXXXXXXXXXXX
-      {$ENDIF}
       Exit;
     end;
   end;
