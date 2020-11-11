@@ -106,6 +106,8 @@ type
     freememSize : Integer;
     freememElaspedMillis : Int64;
     maxUsedCacheSize : Integer;
+    reusedCacheMemDataCount : Integer;
+    reusedCacheMemDataBytes : Int64;
     procedure Clear;
     function ToString : String;
   end;
@@ -164,6 +166,7 @@ type
     procedure ClearStats;
     property CacheMemStats : TCacheMemStats read FCacheMemStats;
     {$ENDIF}
+    function GetStatsReport(AClearStats : Boolean) : String;
   End;
 
 implementation
@@ -495,6 +498,16 @@ begin
   {$ENDIF}
 end;
 
+function TCacheMem.GetStatsReport(AClearStats: Boolean): String;
+begin
+  {$IFDEF ABSTRACTMEM_ENABLE_STATS}
+  Result := FCacheMemStats.ToString;
+  if AClearStats then ClearStats;
+  {$ELSE}
+  Result := '';
+  {$ENDIF}
+end;
+
 function TCacheMem.LoadData(var ABuffer; const AStartPos, ASize: Integer): Boolean;
   // Will return a Pointer to AStartPos
 
@@ -531,6 +544,10 @@ begin
       Move(PCurrent^.buffer[ AStartPos-PCurrent^.startPos ],ABuffer,ASize);
       PCurrent^.MarkAsUsed(Self,PCurrent);
       Result := True;
+      {$IFDEF ABSTRACTMEM_ENABLE_STATS}
+      inc(FCacheMemStats.reusedCacheMemDataCount);
+      inc(FCacheMemStats.reusedCacheMemDataBytes,ASize);
+      {$ENDIF}
       Exit;
     end;
   end;
@@ -659,6 +676,9 @@ begin
         inc(FPendingToSaveBytes,PCurrent^.GetSize);
       end;
       PCurrent^.MarkAsUsed(Self,PCurrent);
+      {$IFDEF ABSTRACTMEM_ENABLE_STATS}
+//      inc(FCacheMemStats.reusedCacheMemDataCount); XXXXXXXXXXXXXX
+      {$ENDIF}
       Exit;
     end;
   end;
@@ -861,11 +881,17 @@ begin
   freememCount := 0;
   freememSize := 0;
   freememElaspedMillis := 0;
+  reusedCacheMemDataCount := 0;
+  reusedCacheMemDataBytes := 0;
 end;
 
 function TCacheMemStats.ToString: String;
 begin
-  Result := Format('CacheMemStats Flush:%d %d bytes %d millis - FreeMem:%d %d bytes %d millis',[Self.flushCount,Self.flushSize,Self.flushElapsedMillis,Self.freememCount,Self.freememSize,Self.freememElaspedMillis]);
+  Result := Format('CacheMemStats Reused:%d (%d bytes) - Flush:%d (%d bytes) %d millis - FreeMem:%d (%d bytes) %d millis',
+     [Self.reusedCacheMemDataCount,Self.reusedCacheMemDataBytes,
+      Self.flushCount,Self.flushSize,Self.flushElapsedMillis,
+      Self.freememCount,Self.freememSize,
+      Self.freememElaspedMillis]);
 end;
 {$ENDIF}
 

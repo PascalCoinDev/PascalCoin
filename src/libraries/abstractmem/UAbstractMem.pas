@@ -141,6 +141,7 @@ Type
     property ReadOnly : Boolean read FReadOnly;
     procedure SaveToStream(AStream : TStream);
     procedure CopyFrom(ASource : TAbstractMem);
+    function GetStatsReport(AClearStats : Boolean) : String; virtual;
   End;
 
   TMem = Class(TAbstractMem)
@@ -377,6 +378,11 @@ end;
 class function TAbstractMem.GetAbstractMemVersion: String;
 begin
   Result := ClassName+' v'+FloatToStr(CT_ABSTRACTMEM_VERSION);
+end;
+
+function TAbstractMem.GetStatsReport(AClearStats: Boolean): String;
+begin
+  Result := '';
 end;
 
 function TAbstractMem.GetUsedZoneInfo(const APosition: TAbstractMemPosition; ACheckForUsedZone: Boolean; out AAMZone: TAMZone): Boolean;
