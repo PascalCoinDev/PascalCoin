@@ -549,6 +549,8 @@ begin
       {$ENDIF}
       Exit;
     end;
+  end else if Not Assigned(PCurrent) then begin
+    PCurrent := FCacheData.FindLowest;
   end;
 
   // Will need to create a new "linar struct" because not found a linear struct previously
@@ -677,6 +679,8 @@ begin
       PCurrent^.MarkAsUsed(Self,PCurrent);
       Exit;
     end;
+  end else if Not Assigned(PCurrent) then begin
+    PCurrent := FCacheData.FindLowest;
   end;
 
   // Will need to create a new "linar struct" because not found a linear struct previously
