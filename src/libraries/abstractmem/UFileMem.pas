@@ -64,8 +64,8 @@ type
     {$IFDEF ABSTRACTMEM_ENABLE_STATS}
     FStats : TFileMemStats;
     {$ENDIF}
-    function OnCacheNeedDataProc(var ABuffer; AStartPos : Integer; ASize : Integer) : Boolean;
-    function OnCacheSaveDataProc(const ABuffer; AStartPos : Integer; ASize : Integer) : Boolean;
+    function OnCacheNeedDataProc(var ABuffer; AStartPos : Integer; ASize : Integer) : Integer;
+    function OnCacheSaveDataProc(const ABuffer; AStartPos : Integer; ASize : Integer) : Integer;
     procedure SetMaxCacheSize(const Value: Integer);
     function GetMaxCacheSize: Integer;
     function GetMaxCacheDataBlocks: Integer;
@@ -80,7 +80,7 @@ type
     Constructor Create(const AFileName : String; AReadOnly : Boolean); reintroduce;
     Destructor Destroy; override;
     function New(AMemSize : Integer) : TAMZone; override;
-    procedure Write(const APosition : Integer; const ABuffer; ASize : Integer); overload; override;
+    function Write(const APosition : Integer; const ABuffer; ASize : Integer) : Integer; overload; override;
     function Read(const APosition : Integer; var ABuffer; ASize : Integer) : Integer; overload; override;
     {$IFDEF ABSTRACTMEM_TESTING_MODE}
     // Warning: Accessing Cache is not Safe Thread protected, use LockCache/UnlockCache instead
@@ -299,15 +299,14 @@ begin
   end;
 end;
 
-function TFileMem.OnCacheNeedDataProc(var ABuffer; AStartPos, ASize: Integer): Boolean;
+function TFileMem.OnCacheNeedDataProc(var ABuffer; AStartPos, ASize: Integer): Integer;
 begin
-  Result := inherited Read(AStartPos,ABuffer,ASize) = ASize;
+  Result := inherited Read(AStartPos,ABuffer,ASize);
 end;
 
-function TFileMem.OnCacheSaveDataProc(const ABuffer; AStartPos, ASize: Integer): Boolean;
+function TFileMem.OnCacheSaveDataProc(const ABuffer; AStartPos, ASize: Integer): Integer;
 begin
-  inherited Write(AStartPos,ABuffer,ASize);
-  Result := True;
+  Result := inherited Write(AStartPos,ABuffer,ASize);
 end;
 
 function TFileMem.Read(const APosition: Integer; var ABuffer; ASize: Integer): Integer;
@@ -353,7 +352,7 @@ begin
   FLock.Release;
 end;
 
-procedure TFileMem.Write(const APosition: Integer; const ABuffer; ASize: Integer);
+function TFileMem.Write(const APosition: Integer; const ABuffer; ASize: Integer) : Integer;
 begin
   if (Not Assigned(FCache)) Or (FIsFlushingCache) then begin
     inherited;

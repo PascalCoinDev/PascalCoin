@@ -113,8 +113,9 @@ type
   end;
   {$ENDIF}
 
-  TOnNeedDataProc = function(var ABuffer; AStartPos : Integer; ASize : Integer) : Boolean of object;
-  TOnSaveDataProc = function(const ABuffer; AStartPos : Integer; ASize : Integer) : Boolean of object;
+  TOnNeedDataProc = function(var ABuffer; AStartPos : Integer; ASize : Integer) : Integer of object;
+  TOnSaveDataProc = function(const ABuffer; AStartPos : Integer; ASize : Integer) : Integer of object;
+  TOnNeedsTotalSizeProc = function(const ABuffer; AStartPos : Integer; ASize : Integer) : Integer of object;
 
   ECacheMem = Class(Exception);
 
@@ -133,6 +134,7 @@ type
     FOnSaveDataProc : TOnSaveDataProc;
     FMaxCacheSize: Integer;
     FMaxCacheDataBlocks: Integer;
+    FDefaultCacheDataBlocksSize : Integer;
     function FindCacheMemDataByPosition(APosition : Integer; out APCacheMemData : PCacheMemData) : Boolean;
     procedure Delete(var APCacheMemData : PCacheMemData); overload;
     function FlushCache(const AFlushCacheList : TOrderedList<PCacheMemData>) : Boolean; overload;
@@ -162,6 +164,7 @@ type
 
     property MaxCacheSize : Integer read FMaxCacheSize write FMaxCacheSize;
     property MaxCacheDataBlocks : Integer read FMaxCacheDataBlocks write FMaxCacheDataBlocks;
+    property DefaultCacheDataBlocksSize : Integer read FDefaultCacheDataBlocksSize write FDefaultCacheDataBlocksSize;
     {$IFDEF ABSTRACTMEM_ENABLE_STATS}
     procedure ClearStats;
     property CacheMemStats : TCacheMemStats read FCacheMemStats;
@@ -318,6 +321,7 @@ begin
   FCacheDataBlocks := 0;
   FPendingToSaveBytes := 0;
   FCacheDataSize := 0;
+  FDefaultCacheDataBlocksSize := 4000;
   FOnNeedDataProc := AOnNeedDataProc;
   FOnSaveDataProc := AOnSaveDataProc;
   FOldestUsed := Nil;
@@ -347,8 +351,8 @@ begin
 end;
 
 function TCacheMem.FindCacheMemDataByPosition(APosition: Integer; out APCacheMemData: PCacheMemData): Boolean;
-  // Will return FCacheData index at AiCacheDataPos that contains APosition
-  // When returning FALSE, AiCacheDataPos will be index of previous FCacheData position to use
+  // Will return APCacheMemData that contains APosition
+  // When returning FALSE, APCacheMemData.startPos will be < APosition (or NIL)
 var PSearch : PCacheMemData;
 begin
   APCacheMemData := Nil;
@@ -407,7 +411,7 @@ begin
       if (PToCurrent^.pendingToSave) then begin
 
         if Not Assigned(FOnSaveDataProc) then Exit(False);
-        if Not FOnSaveDataProc(PToCurrent^.buffer[0],PToCurrent^.startPos,PToCurrent^.GetSize) then begin
+        if FOnSaveDataProc(PToCurrent^.buffer[0],PToCurrent^.startPos,PToCurrent^.GetSize)<>PToCurrent^.GetSize then begin
           Result := False;
           inc(LTotalBytesError,PToCurrent^.GetSize);
         end else begin
@@ -510,11 +514,12 @@ end;
 function TCacheMem.LoadData(var ABuffer; const AStartPos, ASize: Integer): Boolean;
   // Will return a Pointer to AStartPos
 
-  function _CaptureDataFromOnNeedDataProc(ACapturePosStart, ACaptureSize : Integer; var ACapturedData : TBytes) : Boolean;
+  function _CaptureDataFromOnNeedDataProc(ACapturePosStart, ACaptureSize : Integer; var ACapturedData : TBytes; out ACapturedSize : Integer) : Boolean;
   {$IFDEF ABSTRACTMEM_TESTING_MODE}var i : integer;{$ENDIF}
   begin
     SetLength(ACapturedData,ACaptureSize);
     if Not Assigned(FOnNeedDataProc) then begin
+      ACapturedSize := ACaptureSize;
       FillChar(ACapturedData[0],Length(ACapturedData),0);
       {$IFDEF ABSTRACTMEM_TESTING_MODE}
       // TESTING PURPOSE TESTING ONLY
@@ -525,7 +530,8 @@ function TCacheMem.LoadData(var ABuffer; const AStartPos, ASize: Integer): Boole
       {$ENDIF}
       Exit(False);
     end;
-    Result := FOnNeedDataProc(ACapturedData[0],ACapturePosStart,ACaptureSize);
+    ACapturedSize := FOnNeedDataProc(ACapturedData[0],ACapturePosStart,ACaptureSize);
+    Result :=  ACapturedSize = ACaptureSize;
   end;
 
 
@@ -533,6 +539,7 @@ var
   LNewP, PCurrent, PToDelete : PCacheMemData;
   LLastAddedPosition, LBytesCount, LSizeToStore : Integer;
   LTempData : TBytes;
+  LTempCapturedSize : Integer;
   LTmpResult : Boolean;
 begin
   if ASize<0 then raise ECacheMem.Create(Format('Invalid load size %d',[ASize]));
@@ -558,15 +565,23 @@ begin
   try
     LNewP.Clear;
 
-    LSizeToStore := ASize;
-    SetLength(LNewP^.buffer, LSizeToStore);
+    if (FDefaultCacheDataBlocksSize>0) then begin
+      LNewP.startPos := (((AStartPos-1) DIV FDefaultCacheDataBlocksSize) + 0 ) * FDefaultCacheDataBlocksSize;
+      LSizeToStore := (((ASize-1) DIV FDefaultCacheDataBlocksSize) + 1 ) * FDefaultCacheDataBlocksSize;
+      if (LNewP.startPos + LSizeToStore) < (AStartPos + ASize) then begin
+        inc(LSizeToStore, FDefaultCacheDataBlocksSize);
+      end;
+    end else begin
+      LSizeToStore := ASize;
+      LNewP.startPos := AStartPos;
+    end;
 
-    LNewP.startPos := AStartPos;
+    SetLength(LNewP^.buffer, LSizeToStore);
 
     Result := True;
 
-    LLastAddedPosition := AStartPos - 1;
-    while (Assigned(PCurrent)) and ( (LLastAddedPosition) < (LNewP^.GetEndPos) ) do begin
+    LLastAddedPosition := LNewP.startPos - 1;
+    while (Result) and (Assigned(PCurrent)) and ( (LLastAddedPosition) < (LNewP^.GetEndPos) ) do begin
       if (PCurrent^.GetEndPos <= LLastAddedPosition) then PCurrent := FCacheData.FindSuccessor(PCurrent)
       else if (PCurrent^.startPos > LNewP^.GetEndPos) then break
       else begin
@@ -580,9 +595,9 @@ begin
         end else if (PCurrent^.startPos > LLastAddedPosition+1) then begin
           // Need data "between"
           LBytesCount := PCurrent^.startPos - (LLastAddedPosition+1);
-          LTmpResult := _CaptureDataFromOnNeedDataProc(LLastAddedPosition+1,LBytesCount,LTempData);
+          LTmpResult := _CaptureDataFromOnNeedDataProc(LLastAddedPosition+1,LBytesCount,LTempData,LTempCapturedSize);
           Result := Result and LTmpResult;
-          Move(LTempData[0],LNewP^.buffer[ (LLastAddedPosition+1) - LNewP^.startPos ], LBytesCount);
+          Move(LTempData[0],LNewP^.buffer[ (LLastAddedPosition+1) - LNewP^.startPos ], LTempCapturedSize);
           inc(LLastAddedPosition,LBytesCount);
         end;
         // At this point (LLastAddedPosition+1 = PCurrent^.startPos)
@@ -602,12 +617,19 @@ begin
         Delete( PToDelete );
       end;
     end;
-    if (LLastAddedPosition) < (LNewP^.GetEndPos) then begin
+    if (Result) and ((LLastAddedPosition) < (LNewP^.GetEndPos)) then begin
       // That means there is no data available at cache
       LBytesCount := LNewP^.GetSize - (LLastAddedPosition - LNewP^.startPos +1);
-      LTmpResult := _CaptureDataFromOnNeedDataProc(LLastAddedPosition+1,LBytesCount,LTempData);
-      Result := Result and LTmpResult;
-      Move(LTempData[0],LNewP^.buffer[ (LLastAddedPosition+1) - LNewP^.startPos ], LBytesCount);
+      LTmpResult := _CaptureDataFromOnNeedDataProc(LLastAddedPosition+1,LBytesCount,LTempData,LTempCapturedSize);
+      if (Not LTmpResult) then begin
+        if (LLastAddedPosition+1 + LTempCapturedSize) < (AStartPos + ASize) then begin
+          // Not enough data
+          Result := Result and LTmpResult;
+        end else begin
+          SetLength(LNewP^.buffer, (LLastAddedPosition+1) - LNewP^.startPos + LTempCapturedSize );
+        end;
+      end;
+      Move(LTempData[0],LNewP^.buffer[ (LLastAddedPosition+1) - LNewP^.startPos ], LTempCapturedSize);
     end;
   Except
     on E:Exception do begin

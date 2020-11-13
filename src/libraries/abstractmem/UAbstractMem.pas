@@ -122,7 +122,7 @@ Type
     function IsAbstractMemInfoStable : Boolean; virtual;
     procedure SaveHeader;
   public
-    procedure Write(const APosition : Integer; const ABuffer; ASize : Integer); overload; virtual;
+    function Write(const APosition : Integer; const ABuffer; ASize : Integer) : Integer; overload; virtual;
     function Read(const APosition : Integer; var ABuffer; ASize : Integer) : Integer; overload; virtual;
 
     Constructor Create(AInitialPosition : Integer; AReadOnly : Boolean); virtual;
@@ -588,12 +588,13 @@ begin
   end;
 end;
 
-procedure TAbstractMem.Write(const APosition: Integer; const ABuffer; ASize: Integer);
+function TAbstractMem.Write(const APosition: Integer; const ABuffer; ASize: Integer) : Integer;
 begin
   FLock.Acquire;
   Try
     CheckInitialized(True);
     if AbsoluteWrite(PositionToAbsolute(APosition),ABuffer,ASize)<>ASize then raise EAbstractMem.Create('Cannot write expected size');
+    Result := ASize;
   Finally
     FLock.Release;
   End;
