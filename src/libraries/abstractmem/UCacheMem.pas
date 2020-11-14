@@ -537,16 +537,28 @@ function TCacheMem.LoadData(var ABuffer; const AStartPos, ASize: Integer): Boole
 
 var
   LNewP, PCurrent, PToDelete : PCacheMemData;
-  LLastAddedPosition, LBytesCount, LSizeToStore : Integer;
+  LLastAddedPosition, LBytesCount, LSizeToStore, LNewStartPos : Integer;
   LTempData : TBytes;
   LTempCapturedSize : Integer;
   LTmpResult : Boolean;
 begin
   if ASize<0 then raise ECacheMem.Create(Format('Invalid load size %d',[ASize]));
   if ASize=0 then Exit(True);
-  if (FindCacheMemDataByPosition(AStartPos,PCurrent)) then begin
-    if (PCurrent^.GetSize - (AStartPos - PCurrent^.startPos)) >= ASize then begin
-      // PStart has all needed info
+
+  if (FDefaultCacheDataBlocksSize>0) then begin
+    LNewStartPos := (((AStartPos-1) DIV FDefaultCacheDataBlocksSize) + 0 ) * FDefaultCacheDataBlocksSize;
+    LSizeToStore := (((ASize-1) DIV FDefaultCacheDataBlocksSize) + 1 ) * FDefaultCacheDataBlocksSize;
+    if (LNewStartPos + LSizeToStore) < (AStartPos + ASize) then begin
+      inc(LSizeToStore, FDefaultCacheDataBlocksSize);
+    end;
+  end else begin
+    LSizeToStore := ASize;
+    LNewStartPos := AStartPos;
+  end;
+
+  if (FindCacheMemDataByPosition(LNewStartPos,PCurrent)) then begin
+    if (PCurrent^.GetEndPos >= (AStartPos + ASize)) then begin
+      // PCurrent has all needed info
       Move(PCurrent^.buffer[ AStartPos-PCurrent^.startPos ],ABuffer,ASize);
       PCurrent^.MarkAsUsed(Self,PCurrent);
       Result := True;
@@ -564,18 +576,7 @@ begin
   New( LNewP );
   try
     LNewP.Clear;
-
-    if (FDefaultCacheDataBlocksSize>0) then begin
-      LNewP.startPos := (((AStartPos-1) DIV FDefaultCacheDataBlocksSize) + 0 ) * FDefaultCacheDataBlocksSize;
-      LSizeToStore := (((ASize-1) DIV FDefaultCacheDataBlocksSize) + 1 ) * FDefaultCacheDataBlocksSize;
-      if (LNewP.startPos + LSizeToStore) < (AStartPos + ASize) then begin
-        inc(LSizeToStore, FDefaultCacheDataBlocksSize);
-      end;
-    end else begin
-      LSizeToStore := ASize;
-      LNewP.startPos := AStartPos;
-    end;
-
+    LNewP.startPos := LNewStartPos;
     SetLength(LNewP^.buffer, LSizeToStore);
 
     Result := True;
