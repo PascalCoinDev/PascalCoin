@@ -31,7 +31,11 @@ end;
 
 begin
   Application.Title:='PascalCoin Daemon application';
+  {$IF Defined(FPC) and Defined(WINDOWS)}
+  IsConsole := Not Application.HasOption('r','run');
+  {$ELSE}
   IsConsole:=False;
+  {$ENDIF}
   RegisterDaemonClass(TPCDaemon);
   RegisterDaemonMapper(TPCDaemonMapper);
   Application.GUIMainLoop:=@TDaemonMainLoop.DaemonMainLoop;

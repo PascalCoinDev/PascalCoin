@@ -122,7 +122,7 @@ Type
     function IsAbstractMemInfoStable : Boolean; virtual;
     procedure SaveHeader;
   public
-    procedure Write(const APosition : Integer; const ABuffer; ASize : Integer); overload; virtual;
+    function Write(const APosition : Integer; const ABuffer; ASize : Integer) : Integer; overload; virtual;
     function Read(const APosition : Integer; var ABuffer; ASize : Integer) : Integer; overload; virtual;
 
     Constructor Create(AInitialPosition : Integer; AReadOnly : Boolean); virtual;
@@ -141,6 +141,7 @@ Type
     property ReadOnly : Boolean read FReadOnly;
     procedure SaveToStream(AStream : TStream);
     procedure CopyFrom(ASource : TAbstractMem);
+    function GetStatsReport(AClearStats : Boolean) : String; virtual;
   End;
 
   TMem = Class(TAbstractMem)
@@ -379,6 +380,11 @@ begin
   Result := ClassName+' v'+FloatToStr(CT_ABSTRACTMEM_VERSION);
 end;
 
+function TAbstractMem.GetStatsReport(AClearStats: Boolean): String;
+begin
+  Result := '';
+end;
+
 function TAbstractMem.GetUsedZoneInfo(const APosition: TAbstractMemPosition; ACheckForUsedZone: Boolean; out AAMZone: TAMZone): Boolean;
 begin
   if (ACheckForUsedZone) then begin
@@ -582,12 +588,13 @@ begin
   end;
 end;
 
-procedure TAbstractMem.Write(const APosition: Integer; const ABuffer; ASize: Integer);
+function TAbstractMem.Write(const APosition: Integer; const ABuffer; ASize: Integer) : Integer;
 begin
   FLock.Acquire;
   Try
     CheckInitialized(True);
     if AbsoluteWrite(PositionToAbsolute(APosition),ABuffer,ASize)<>ASize then raise EAbstractMem.Create('Cannot write expected size');
+    Result := ASize;
   Finally
     FLock.Release;
   End;
