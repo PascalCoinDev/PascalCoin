@@ -5,6 +5,13 @@
 - Added usage of AbstractMem library to allow build a PascalCoin version using virtual memory and efficient caching mechanism
   - Must activate {$DEFINE USE_ABSTRACTMEM} at config.inc file
 - Improved performance when downloading Safebox (Fresh installation)
+- JSON-RPC changes:  
+  - Updated "findaccounts": 
+    -New param "end" (integer, -1 for default): Will search from "start" to "end" (if "end"=-1 will search to the end)
+  - New method "findblocks": Will search and return an array of "Block objects"
+    - "start","end","max" : Based on block number and max returns values (max by default=100)
+    - "enc_pubkey" or "b58_pubkey" : If provided will return blocks where pubkey equal to provided
+    - "payload", "payloadsearchtype" : Same workaround than "name" and "namesearchtype" on "findaccounts" method  
 - Fixed bugs:
   - Fixed bugs on "pascalcoin_daemon" (daemon on Linux / Service on Windows) that produced crash on windows and some invalid finalization on Linux
   - Fixed minor bugs

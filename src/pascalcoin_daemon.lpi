@@ -25,14 +25,14 @@
     </PublishOptions>
     <RunParams>
       <local>
-        <CommandLineParams Value="-r"/>
+        <CommandLineParams Value="-r -d"/>
         <Display Use="True" Value=""/>
       </local>
       <FormatVersion Value="2"/>
       <Modes Count="1">
         <Mode0 Name="default">
           <local>
-            <CommandLineParams Value="-r"/>
+            <CommandLineParams Value="-r -d"/>
             <Display Use="True" Value=""/>
           </local>
         </Mode0>

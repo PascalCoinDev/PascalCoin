@@ -39,9 +39,13 @@
 
   Version 1.0 - May 2020
   - Integration with PascalCoin project and final tests
-  
+
+  Version 1.1 - Nov 2020
+  - Improve CacheMem performance using predefined size blocks by default on Cache, this increases speed (on PascalCoin tested) up to 4x vs previous version
+  - Added tests
+  - Fixed bug on CacheMem when replacing initial position of buffer
 
 }
 
 const
-  CT_ABSTRACTMEM_VERSION = 1.0; // Each revision should increase this version...
+  CT_ABSTRACTMEM_VERSION = 1.1; // Each revision should increase this version...

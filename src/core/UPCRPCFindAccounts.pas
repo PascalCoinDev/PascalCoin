@@ -78,6 +78,7 @@ Find accounts by name/type and returns them as an array of "Account Object"
   - `not-for-sale-swap`
 - `listed` : Boolean (DEPRECATED, use `statustype` instead, False by default) - If True returns only for sale accounts
 - `start` : Integer - Start account (by default, 0) - **NOTE:** Is the "start account number", when executing multiple calls you must set `start` value to the latest returned account number + 1 (Except if searching by public key, see below)
+- `end` : Integer - End account (by default -1, equals to "no limit")
 - `max` : Integer - Max of accounts returned in array (by default, 100)
 
 }
@@ -143,7 +144,7 @@ var
   LAccountNumber : Integer;
   LRaw : TRawBytes;
   LSearchByPubkey : Boolean;
-  LStart, LMax : Integer;
+  LStart, LMax, LEnd : Integer;
   LAccountsNumbersList : TAccountsNumbersList;
   LAccount : TAccount;
   i : Integer;
@@ -175,6 +176,7 @@ begin
   end;
   LAccountType := AInputParams.AsInteger('type', -1);
   LStart := AInputParams.AsInteger('start', 0);
+  LEnd := AInputParams.AsInteger('end', -1);
   LMax := AInputParams.AsInteger('max', 100);
   if AInputParams.IndexOfName('statustype')>=0 then begin
     LString := AInputParams.AsString('statustype','all');
@@ -219,6 +221,10 @@ begin
     AErrorNum := CT_RPC_ErrNum_InvalidData;
     AErrorDesc := '"max" param must be greater than zero';
     exit;
+  end;
+
+  if (LEnd<0) or (LEnd>=ASender.Node.Bank.AccountsCount) then begin
+    LEnd := ASender.Node.Bank.AccountsCount - 1;
   end;
 
   // Declare return result (empty by default)
@@ -271,7 +277,8 @@ begin
     end;
   end else begin
     // Search by type-forSale-balance
-    for i := LStart to ASender.Node.Bank.AccountsCount - 1 do begin
+    i := LStart;
+    while (Not ASender.Terminated) And (i < LEnd) do begin
       if (LSearchByPubkey) then begin
         if (i>=LAccountsNumbersList.Count) then Break;
         LAccount := ASender.Node.GetMempoolAccount( LAccountsNumbersList.Get(i) );
@@ -283,6 +290,8 @@ begin
         TPascalCoinJSONComp.FillAccountObject(LAccount,LOutput.GetAsObject(LOutput.Count));
         if LOutput.Count>=LMax then break;
       end;
+      inc(i);
+
     end;
   end;
   Result := True;

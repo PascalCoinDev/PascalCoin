@@ -26,6 +26,7 @@ uses
   Classes, SysUtils, daemonapp,
   SyncObjs, UOpenSSL, UCrypto, UNode, UFileStorage, UFolderHelper, UWallet, UConst, ULog, UNetProtocol,
   IniFiles, UBaseTypes,
+  {$IF Defined(FPC) and Defined(WINDOWS)}windows,jwawinsvc,crt,{$ENDIF}
   UThread, URPC, UPoolMining, UAccounts, UPCDataTypes;
 
 Const
@@ -91,6 +92,7 @@ Type
   protected
     Procedure DoOnCreate; override;
     Procedure DoOnDestroy; override;
+    Procedure DoOnRun; override;
   public
   end;
 
@@ -410,6 +412,40 @@ begin
     FLog.OnInThreadNewLog:=Nil;
     FreeAndNil(FLog);
   end;
+end;
+
+procedure TPCDaemonMapper.DoOnRun;
+{$IF Defined(FPC) and Defined(WINDOWS)}
+var LDT : TPCDaemonThread;
+{$ENDIF}
+begin
+  inherited DoOnRun;
+  {$IF Defined(FPC) and Defined(WINDOWS)}
+  // We are running -r command on windows
+  if Application.HasOption('d','debug') then begin
+    LDT:=TPCDaemonThread.Create;
+    LDT.FreeOnTerminate:=True;
+    if (Application.HasOption('b','block')) then begin
+      LDT.MaxBlockToRead:=StrToInt64Def(Application.GetOptionValue('b','block'),$FFFFFFFF);
+      TLog.NewLog(ltinfo,ClassName,'Max block to read: '+IntToStr(LDT.MaxBlockToRead));
+    end;
+    LDT.Start;
+    repeat
+      CheckSynchronize(10);
+      Sleep(1);
+
+      if Keypressed then begin
+        if (ReadKey in ['q','Q']) then begin
+          LDT.Terminate;
+        end;
+      end;
+
+    until LDT.Terminated;
+    LDT.Terminate;
+    LDT.WaitFor;
+    Application.Terminate;
+  end;
+  {$ENDIF}
 end;
 
 end.

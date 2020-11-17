@@ -51,6 +51,10 @@ uses
 
 {$I ./ConfigAbstractMem.inc }
 
+{$IFDEF ABSTRACTMEM_TESTING_MODE}
+  {$DEFINE ABSTRACTMEM_CHECK}
+{$ENDIF}
+
 type
   TAVLTreePosition = (poParent, poLeft, poRight);
 
@@ -533,13 +537,19 @@ end;
 
 function TAVLAbstractTree<T>.Find(const AData: T): T;
 var Comp: integer;
+  {$IFDEF ABSTRACTMEM_CHECK}
   LPreviousSearch : TOrderedList<T>;
+  {$ENDIF}
 begin
+  {$IFDEF ABSTRACTMEM_CHECK}
   LPreviousSearch := TOrderedList<T>.Create(False,FOnCompare); // Protection against circular "malformed" structure
   try
+  {$ENDIF}
     Result:=Root;
     while (Not IsNil(Result)) do begin
+      {$IFDEF ABSTRACTMEM_CHECK}
       if LPreviousSearch.Add(Result)<0 then raise EAVLAbstractTree.Create('Circular T structure at Find for T='+ToString(Result)+ ' searching for '+ToString(AData));
+      {$ENDIF}
       Comp:=fOnCompare(AData,Result);
       if Comp=0 then exit;
       if Comp<0 then begin
@@ -548,20 +558,28 @@ begin
         Result:=GetPosition(Result,poRight);
       end;
     end;
+  {$IFDEF ABSTRACTMEM_CHECK}
   finally
     LPreviousSearch.Free;
   end;
+  {$ENDIF}
 end;
 
 function TAVLAbstractTree<T>.FindInsertPos(const AData: T): T;
 var Comp: integer;
+  {$IFDEF ABSTRACTMEM_CHECK}
   LPreviousSearch : TOrderedList<T>;
+  {$ENDIF}
 begin
+  {$IFDEF ABSTRACTMEM_CHECK}
   LPreviousSearch := TOrderedList<T>.Create(False,FOnCompare); // Protection against circular "malformed" structure
   try
+  {$ENDIF}
     Result:=Root;
     while (Not IsNil(Result)) do begin
+      {$IFDEF ABSTRACTMEM_CHECK}
       if LPreviousSearch.Add(Result)<0 then raise EAVLAbstractTree.Create('Circular T structure at FindInsertPos for T='+ToString(Result)+ ' searching for '+ToString(AData));
+      {$ENDIF}
       Comp:=fOnCompare(AData,Result);
       if Comp<0 then begin
         if (HasPosition(Result,poLeft)) then begin
@@ -577,9 +595,11 @@ begin
         end;
       end;
     end;
+  {$IFDEF ABSTRACTMEM_CHECK}
   finally
     LPreviousSearch.Free;
   end;
+  {$ENDIF}
 end;
 
 function TAVLAbstractTree<T>.FindSuccessor(const ANode: T): T;

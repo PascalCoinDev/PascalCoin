@@ -155,7 +155,7 @@ implementation
 
 Uses  {$IFNDEF FPC}windows,{$ENDIF}
   SysUtils, Synautil,
-  UPCRPCOpData, UPCRPCFindAccounts;
+  UPCRPCOpData, UPCRPCFindAccounts, UPCRPCFindBlocks;
 
 Type
   TRegisteredRPCProcessMethod = Record
