@@ -1,9 +1,12 @@
 # Changelog
 
 ## Build 5.4 - (PENDING RELEASE)
-- Added "DATAFOLDER" configuration option at pascalcoin_daemon.ini file (daemon/service) in order to allow customize data folder
 - Added usage of AbstractMem library to allow build a PascalCoin version using virtual memory and efficient caching mechanism
   - Must activate {$DEFINE USE_ABSTRACTMEM} at config.inc file
+- Changes to `pascalcoin_daemon.ini` file:
+  - Added "DATAFOLDER" configuration option at pascalcoin_daemon.ini file (daemon/service) in order to allow customize data folder
+  - Added "ABSTRACTMEM_MAX_CACHE_MB" to customize Maximum megabytes in memory as a cache
+  - Added "ABSTRACTMEM_USE_CACHE_ON_LISTS","ABSTRACTMEM_CACHE_MAX_ACCOUNTS","ABSTRACTMEM_CACHE_MAX_PUBKEYS" in order to customize cache values
 - Improved performance when downloading Safebox (Fresh installation)
 - JSON-RPC changes:  
   - Updated "findaccounts": 

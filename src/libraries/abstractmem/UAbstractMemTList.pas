@@ -59,33 +59,34 @@ type
     FUseCache : Boolean;
     FCacheData : TBytes;
     FCacheUpdated : Boolean;
+    FCacheDataLoaded : Boolean;
 
     function GetPosition(AIndex: Integer): TAbstractMemPosition;
     procedure SetPosition(AIndex: Integer; const Value: TAbstractMemPosition);
 
+    function UseCacheData : Boolean;
     Procedure CheckInitialized;
     procedure GetPointerTo(AIndex : Integer; AAllowIncrease : Boolean; out APreviousBlockPointer, ABlockPointer : TAbstractMemPosition; out AIndexInBlock : Integer);
     procedure AddRange(AIndexStart, AInsertCount : Integer);
     procedure RemoveRange(AIndexStart, ARemoveCount : Integer);
     procedure LoadElements(AIndexStart : Integer; var AElements : TBytes);
     procedure SetUseCache(const Value: Boolean);
+    procedure Initialize(const AInitialZone : TAMZone; ADefaultElementsPerBlock : Integer);
   protected
     FAbstractMemTListLock : TCriticalSection;
   public
-    Constructor Create(AAbstractMem : TAbstractMem; const AInitialZone : TAMZone; ADefaultElementsPerBlock : Integer); virtual;
+    Constructor Create(AAbstractMem : TAbstractMem; const AInitialZone : TAMZone; ADefaultElementsPerBlock : Integer; AUseCache : Boolean); virtual;
     destructor Destroy; override;
 
     procedure FlushCache;
 
-    procedure Initialize(const AInitialZone : TAMZone; ADefaultElementsPerBlock : Integer);
+    Function Add(const APosition : TAbstractMemPosition) : Integer;
 
-    Function Add(const APosition : TAbstractMemPosition) : Integer; //virtual;
-
-    Procedure Clear; //virtual;
+    Procedure Clear;
     Procedure Dispose;
 
-    Procedure Delete(index : Integer); //virtual;
-    Procedure Insert(AIndex : Integer; const APosition : TAbstractMemPosition); //virtual;
+    Procedure Delete(index : Integer);
+    Procedure Insert(AIndex : Integer; const APosition : TAbstractMemPosition);
 
     property Position[AIndex : Integer] : TAbstractMemPosition read GetPosition write SetPosition;
 
@@ -101,6 +102,8 @@ type
   private
     FAbstractMem: TAbstractMem;
     function GetInitialZone: TAMZone;
+    function GetUseCache : Boolean;
+    procedure SetUseCache(const Value: Boolean);
   protected
     FList : TAbstractMemTList;
     // POSSIBLE OVERRIDE METHODS
@@ -111,7 +114,7 @@ type
     procedure LoadFrom(const ABytes : TBytes; var AItem : T); virtual; abstract;
     procedure SaveTo(const AItem : T; AIsAddingItem : Boolean; var ABytes : TBytes); virtual; abstract;
   public
-    Constructor Create(AAbstractMem : TAbstractMem; const AInitialZone : TAMZone; ADefaultElementsPerBlock : Integer); virtual;
+    Constructor Create(AAbstractMem : TAbstractMem; const AInitialZone : TAMZone; ADefaultElementsPerBlock : Integer; AUseCache : Boolean); virtual;
     Destructor Destroy; override;
 
     Function Add(const AItem : T) : Integer; virtual;
@@ -124,6 +127,7 @@ type
     Procedure Dispose;
     property AbstractMem : TAbstractMem read FAbstractMem;
     property InitialiZone : TAMZone read GetInitialZone;
+    property UseCache : Boolean read GetUseCache write SetUseCache;
   End;
 
 
@@ -141,7 +145,7 @@ type
     // ABSTRACT METHODS NEED TO OVERRIDE
     function Compare(const ALeft, ARight : T) : Integer; virtual; abstract;
   public
-    Constructor Create(AAbstractMem : TAbstractMem; const AInitialZone : TAMZone; ADefaultElementsPerBlock : Integer; AAllowDuplicates : Boolean); reintroduce;
+    Constructor Create(AAbstractMem : TAbstractMem; const AInitialZone : TAMZone; ADefaultElementsPerBlock : Integer; AAllowDuplicates, AUseCache : Boolean); reintroduce;
     function Find(const AItemToFind : T; out AIndex : Integer) : Boolean;
     Function Add(const AItem : T) : Integer; reintroduce;
     property Item[index : Integer] : T read GetItem;
@@ -182,7 +186,7 @@ var LElements : TBytes;
 begin
   CheckInitialized;
   if (AIndexStart<0) or (AInsertCount<=0) or (AIndexStart>FNextElementPosition) then raise EAbstractMemTList.Create(Format('%s AddRange %d..%d out of range 0..%d',[ClassName,AIndexStart,AIndexStart+AInsertCount,FNextElementPosition-1]));
-  if (FUseCache) then begin
+  if (UseCacheData) then begin
     FCacheUpdated := True;
     SetLength(FCacheData,Length(FCacheData)+(AInsertCount*4));
     Move(FCacheData[AIndexStart*4],FCacheData[(AIndexStart+AInsertCount)*4],Length(FCacheData)-((AIndexStart+AInsertCount)*4));
@@ -243,11 +247,12 @@ begin
   Result := FNextElementPosition;
 end;
 
-constructor TAbstractMemTList.Create(AAbstractMem: TAbstractMem; const AInitialZone: TAMZone; ADefaultElementsPerBlock : Integer);
+constructor TAbstractMemTList.Create(AAbstractMem: TAbstractMem; const AInitialZone: TAMZone; ADefaultElementsPerBlock : Integer; AUseCache : Boolean);
 begin
   SetLength(FCacheData,0);
-  FUseCache := True;
+  FUseCache := AUseCache;
   FCacheUpdated := False;
+  FCacheDataLoaded := False;
 
   FAbstractMem := AAbstractMem;
   FInitialZone.Clear;
@@ -393,7 +398,7 @@ begin
   Result := 0;
   FAbstractMemTListLock.Acquire;
   try
-  if FUseCache then begin
+  if (UseCacheData) then begin
     if (AIndex<0) or (AIndex>=FNextElementPosition) then raise EAbstractMemTList.Create(Format('%s index %d out of range 0..%d',[ClassName,AIndex,FNextElementPosition-1]));
     Move( FCacheData[AIndex*4], Result, 4);
   end else begin
@@ -450,12 +455,6 @@ begin
       FAbstractMem.Write( FInitialZone.position, LBytes[0], Length(LBytes) );
     end;
   end;
-  if (FUseCache) then begin
-    if (FElementsOfEachBlock>0) then begin
-      LoadElements(0,FCacheData);
-    end;
-    FCacheUpdated := False;
-  end;
 end;
 
 procedure TAbstractMemTList.Insert(AIndex: Integer; const APosition: TAbstractMemPosition);
@@ -465,7 +464,7 @@ begin
   FAbstractMemTListLock.Acquire;
   try
   AddRange(AIndex,1);
-  if FUseCache then begin
+  if (UseCacheData) then begin
     Move(APosition, FCacheData[AIndex*4], 4);
     FCacheUpdated := True;
   end else begin
@@ -519,7 +518,7 @@ begin
     else raise EAbstractMemTList.Create(Format('%s remove %d..%d out of range (NO ELEMENTS)',[ClassName,AIndexStart,AIndexStart + ARemoveCount -1]))
   end;
 
-  if FUseCache then begin
+  if (UseCacheData) then begin
     if (AIndexStart+ARemoveCount < FNextElementPosition) then begin
       Move(FCacheData[(AIndexStart + ARemoveCount) *4],
            FCacheData[(AIndexStart) *4],
@@ -584,7 +583,7 @@ var LBlockPointer, LPreviousBlockPointer : TAbstractMemPosition;
 begin
   FAbstractMemTListLock.Acquire;
   try
-  if FUseCache then begin
+  if (UseCacheData) then begin
     Move( Value, FCacheData[AIndex*4], 4);
     FCacheUpdated := True;
   end else begin
@@ -603,7 +602,8 @@ begin
     FlushCache;
     SetLength(FCacheData,0);
   end else begin
-    LoadElements(0,FCacheData);
+    SetLength(FCacheData,0);
+    FCacheDataLoaded := False;
     FCacheUpdated := False;
   end;
   FUseCache := Value;
@@ -612,6 +612,17 @@ end;
 procedure TAbstractMemTList.UnlockList;
 begin
   FAbstractMemTListLock.Release;
+end;
+
+function TAbstractMemTList.UseCacheData: Boolean;
+begin
+  if FUseCache then begin
+    Result := True;
+    if Not FCacheDataLoaded then begin
+      FCacheDataLoaded := True;
+      LoadElements(0,FCacheData);
+    end;
+  end else Result := False;
 end;
 
 { TAbstractMemTListBaseAbstract<T> }
@@ -657,10 +668,10 @@ begin
 end;
 
 constructor TAbstractMemTListBaseAbstract<T>.Create(AAbstractMem: TAbstractMem;
-  const AInitialZone: TAMZone; ADefaultElementsPerBlock: Integer);
+  const AInitialZone: TAMZone; ADefaultElementsPerBlock: Integer; AUseCache : Boolean);
 begin
   FAbstractMem := AAbstractMem;
-  FList := TAbstractMemTList.Create(AAbstractMem,AInitialZone,ADefaultElementsPerBlock);
+  FList := TAbstractMemTList.Create(AAbstractMem,AInitialZone,ADefaultElementsPerBlock,AUseCache);
 end;
 
 procedure TAbstractMemTListBaseAbstract<T>.Delete(index: Integer);
@@ -720,6 +731,16 @@ begin
   end;
 end;
 
+function TAbstractMemTListBaseAbstract<T>.GetUseCache: Boolean;
+begin
+  FList.LockList;
+  try
+    Result := FList.UseCache;
+  finally
+    FList.UnlockList;
+  end;
+end;
+
 procedure TAbstractMemTListBaseAbstract<T>.SetItem(index: Integer;
   const AItem: T);
 var
@@ -765,6 +786,16 @@ begin
   end;
 end;
 
+procedure TAbstractMemTListBaseAbstract<T>.SetUseCache(const Value: Boolean);
+begin
+  FList.LockList;
+  try
+    FList.UseCache := Value;
+  finally
+    FList.UnlockList;
+  end;
+end;
+
 function TAbstractMemTListBaseAbstract<T>.ToString(const AItem: T): String;
 begin
   Result := Self.ClassName+'.T '+IntToStr(SizeOf(AItem));
@@ -797,9 +828,9 @@ end;
 
 constructor TAbstractMemOrderedTList<T>.Create(AAbstractMem: TAbstractMem;
   const AInitialZone: TAMZone; ADefaultElementsPerBlock: Integer;
-  AAllowDuplicates: Boolean);
+  AAllowDuplicates, AUseCache: Boolean);
 begin
-  inherited Create(AAbstractMem, AInitialZone, ADefaultElementsPerBlock);
+  inherited Create(AAbstractMem, AInitialZone, ADefaultElementsPerBlock, AUseCache);
   FAllowDuplicates := AAllowDuplicates;
 end;
 

@@ -320,6 +320,7 @@ Type
     procedure UpdateSafeboxFileName(const ANewSafeboxFileName : String);
     procedure ClearSafeboxfile;
     class Function CopyAbstractMemToSafeBoxStream(ASource : TPCAbstractMem; ADestStream : TStream; AFromBlock, AToBlock : Cardinal; var AErrors : String) : Boolean;
+    property PCAbstractMem : TPCAbstractMem read FPCAbstractMem;
     {$ENDIF}
   End;
 

@@ -77,7 +77,7 @@ type
     FSaveBufferPosition : TAbstractMemPosition;
   protected
   public
-    Constructor Create(AAbstractMem : TAbstractMem; APosition : TAbstractMemPosition; ACurrBlocksCount : Integer);
+    Constructor Create(AAbstractMem : TAbstractMem; APosition : TAbstractMemPosition; ACurrBlocksCount : Integer); reintroduce;
     procedure Flush;
   end;
 
@@ -90,7 +90,7 @@ type
     procedure BCExecute; override;
   public
     Constructor Create(APCAbstractMem : TPCAbstractMem);
-    Destructor Destroy;
+    Destructor Destroy; override;
     procedure Restart;
     property Errors : TStrings read FErrors;
   End;
@@ -98,12 +98,21 @@ type
   TAccountCache = Class(TAVLCache<TAccount>)
   End;
 
+  TPCAbstractMemStats = Record
+    FlushesCount : Integer;
+    FlushesMillis : TTickCount;
+    function ToString : String;
+    procedure Clear;
+  end;
+
   TPCAbstractMem = class
   private
     FFileName : String;
     FAbstractMem: TAbstractMem;
     FCheckingThread : TPCAbstractMemCheckThread;
     FLockAbstractMem : TPCCriticalSection;
+
+    FStats : TPCAbstractMemStats;
 
     FBlocks: TPCAbstractMemListBlocks;
     FAccounts: TPCAbstractMemListAccounts;
@@ -113,6 +122,8 @@ type
     FBufferBlocksHash: TPCAbstractMemBytesBuffer32Safebox;
     FAggregatedHashrate : TBigNum;
     FZoneAggregatedHashrate : TAMZone;
+    FUseCacheOnAbstractMemLists: Boolean;
+    FMaxMemUsage: Integer;
 
     function IsChecking : Boolean;
     procedure DoCheck;
@@ -121,6 +132,12 @@ type
     procedure AddBlockInfo(const ABlock : TOperationBlockExt);
     procedure SetBlockInfo(const ABlock : TOperationBlockExt);
     function DoInit(out AIsNewStructure : Boolean) : Boolean;
+    procedure SetMaxMemUsage(const Value: Integer);
+    procedure SetUseCacheOnAbstractMemLists(const Value: Boolean);
+    procedure SetMaxAccountsCache(const Value: Integer);
+    function GetMaxAccountsCache: Integer;
+    function GetMaxAccountKeysCache: Integer;
+    procedure SetMaxAccountKeysCache(const Value: Integer);
   protected
     procedure UpgradeAbstractMemVersion(const ACurrentHeaderVersion : Integer);
   public
@@ -156,6 +173,12 @@ type
     property AccountCache : TAccountCache read FAccountCache;
     property FileName : String read FFileName;
     procedure EraseData;
+    function GetStatsReport(AClearStats : Boolean) : String;
+    //
+    Property UseCacheOnAbstractMemLists : Boolean read FUseCacheOnAbstractMemLists write SetUseCacheOnAbstractMemLists;
+    Property MaxMemUsage : Integer read FMaxMemUsage write SetMaxMemUsage;
+    Property MaxAccountsCache : Integer read GetMaxAccountsCache write SetMaxAccountsCache;
+    Property MaxAccountKeysCache : Integer read GetMaxAccountKeysCache write SetMaxAccountKeysCache;
   end;
 
 implementation
@@ -403,6 +426,8 @@ var LIsNew : Boolean;
 begin
   ASource.FlushCache;
   FAbstractMem.CopyFrom(ASource.FAbstractMem);
+  FUseCacheOnAbstractMemLists := ASource.FUseCacheOnAbstractMemLists;
+  FMaxMemUsage := ASource.FMaxMemUsage;
   DoInit(LIsNew);
 end;
 
@@ -514,13 +539,17 @@ begin
   // Free
   FreeAndNil(FBlocks);
   //
-  FBlocks := TPCAbstractMemListBlocks.Create( FAbstractMem, LZoneBlocks, 10000 );
+  FBlocks := TPCAbstractMemListBlocks.Create( FAbstractMem, LZoneBlocks, 10000, Self.UseCacheOnAbstractMemLists);
   FBlocks.FPCAbstractMem := Self;
-  FAccounts := TPCAbstractMemListAccounts.Create( FAbstractMem, LZoneAccounts, 50000);
+
+  FAccounts := TPCAbstractMemListAccounts.Create( FAbstractMem, LZoneAccounts, 50000, Self.UseCacheOnAbstractMemLists);
   FAccounts.FPCAbstractMem := Self;
-  FAccountsNames := TPCAbstractMemListAccountNames.Create( FAbstractMem, LZoneAccountsNames, 5000 , False);
+
+  FAccountsNames := TPCAbstractMemListAccountNames.Create( FAbstractMem, LZoneAccountsNames, 5000 , False, Self.UseCacheOnAbstractMemLists);
   FAccountsNames.FPCAbstractMem := Self;
-  FAccountKeys := TPCAbstractMemAccountKeys.Create( FAbstractMem, LZoneAccountKeys.position );
+
+  FAccountKeys := TPCAbstractMemAccountKeys.Create( FAbstractMem, LZoneAccountKeys.position, Self.UseCacheOnAbstractMemLists);
+
   // Read AggregatedHashrate
   SetLength(LBuffer,100);
   FAbstractMem.Read(FZoneAggregatedHashrate.position,LBuffer[0],Length(LBuffer));
@@ -554,6 +583,17 @@ constructor TPCAbstractMem.Create(const ASafeboxFileName: string; AReadOnly: boo
 var
   LIsNewStructure : Boolean;
 begin
+  FStats.Clear;
+
+  FUseCacheOnAbstractMemLists := True;
+  FMaxMemUsage := 100 * 1024 * 1024;
+
+  FBlocks := Nil;
+  FAccounts:= Nil;
+  FAccountsNames:= Nil;
+  FAccountKeys:= Nil;
+  FBufferBlocksHash:= Nil;
+
   FCheckingThread := Nil;
   FLockAbstractMem := TPCCriticalSection.Create(Self.ClassName);
   FAccountCache := TAccountCache.Create(10000,_AccountCache_Comparision);
@@ -566,7 +606,7 @@ begin
     FAbstractMem := TMem.Create(0,AReadOnly);
   end;
   if FAbstractMem is TFileMem then begin
-    TFileMem(FAbstractMem).MaxCacheSize := 40 * 1024 * 1024; // 40Mb
+    TFileMem(FAbstractMem).MaxCacheSize := FMaxMemUsage;
     TFileMem(FAbstractMem).MaxCacheDataBlocks := 200000;
   end;
 
@@ -631,8 +671,10 @@ end;
 
 procedure TPCAbstractMem.FlushCache;
 var LBigNum : TBytes;
+  Ltc : TTickCount;
 begin
   if FAbstractMem.ReadOnly then Exit;
+  Ltc := TPlatform.GetTickCount;
   FBlocks.FlushCache;
   FAccounts.FlushCache;
   FAccountsNames.FlushCache;
@@ -643,6 +685,8 @@ begin
   if FAbstractMem is TFileMem then begin
     TFileMem(FAbstractMem).FlushCache;
   end;
+  Inc(FStats.FlushesCount);
+  Inc(Fstats.FlushesMillis, TPlatform.GetElapsedMilliseconds(Ltc) );
 end;
 
 Procedure DoCopyFile(const ASource, ADest : String);
@@ -773,6 +817,33 @@ begin
   end else raise EPCAbstractMem.Create(Format('Cannot set block info %d (current %d blocks)',[ABlock.operationBlock.block,LCount]));
 end;
 
+procedure TPCAbstractMem.SetMaxAccountKeysCache(const Value: Integer);
+begin
+  FAccountKeys.AccountKeyByPositionCache.MaxRegisters := Value;
+end;
+
+procedure TPCAbstractMem.SetMaxAccountsCache(const Value: Integer);
+begin
+  FAccountCache.MaxRegisters := Value;
+end;
+
+procedure TPCAbstractMem.SetMaxMemUsage(const Value: Integer);
+begin
+  FMaxMemUsage := Value;
+  if FAbstractMem is TFileMem then begin
+    TFileMem(FAbstractMem).MaxCacheSize := FMaxMemUsage;
+    TFileMem(FAbstractMem).MaxCacheDataBlocks := 200000;
+  end;
+end;
+
+procedure TPCAbstractMem.SetUseCacheOnAbstractMemLists(const Value: Boolean);
+var Lins : Boolean;
+begin
+  if Value=FUseCacheOnAbstractMemLists then Exit;
+  FUseCacheOnAbstractMemLists := Value;
+  DoInit(Lins);
+end;
+
 procedure TPCAbstractMem.UpdateSafeboxFileName(const ANewSafeboxFileName: String);
 var LReadOnly, Ltmp : Boolean;
 begin
@@ -791,7 +862,7 @@ begin
     FAbstractMem := TMem.Create(0,LReadOnly);
   end;
   if FAbstractMem is TFileMem then begin
-    TFileMem(FAbstractMem).MaxCacheSize := 40 * 1024 * 1024; // 40Mb
+    TFileMem(FAbstractMem).MaxCacheSize := FMaxMemUsage;
     TFileMem(FAbstractMem).MaxCacheDataBlocks := 200000;
   end;
   DoInit(Ltmp);
@@ -862,6 +933,22 @@ end;
 function TPCAbstractMem.GetBlockInfo(ABlockNumber: cardinal): TOperationBlockExt;
 begin
   Result := FBlocks.GetItem( ABlockNumber );
+end;
+
+function TPCAbstractMem.GetMaxAccountKeysCache: Integer;
+begin
+  Result := FAccountKeys.AccountKeyByPositionCache.MaxRegisters;
+end;
+
+function TPCAbstractMem.GetMaxAccountsCache: Integer;
+begin
+  Result := FAccountCache.MaxRegisters;
+end;
+
+function TPCAbstractMem.GetStatsReport(AClearStats: Boolean): String;
+begin
+  Result := AbstractMem.GetStatsReport(AClearStats) + #10 + FStats.ToString;
+  if AClearStats then FStats.Clear;
 end;
 
 function TPCAbstractMem.IsChecking: Boolean;
@@ -1168,6 +1255,7 @@ begin
     FPCAbstractMem.FLockAbstractMem.Release;
   end;
   FErrors.Free;
+  inherited Destroy;
 end;
 
 procedure TPCAbstractMemCheckThread.Restart;
@@ -1176,5 +1264,18 @@ begin
   TLog.NewLog(ltdebug,ClassName,Format('Callirg Restart at %d',[FPCAbstractMem.BlocksCount]) );
 end;
 
+
+{ TPCAbstractMemStats }
+
+procedure TPCAbstractMemStats.Clear;
+begin
+  Self.FlushesCount := 0;
+  Self.FlushesMillis := 0;
+end;
+
+function TPCAbstractMemStats.ToString: String;
+begin
+  Result := Format('PCAbstractMem flushes:%d in %d millis',[Self.FlushesCount,Self.FlushesMillis]);
+end;
 
 end.
