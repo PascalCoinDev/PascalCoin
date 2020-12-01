@@ -7,7 +7,7 @@ interface
 {$ENDIF}
 
 uses Classes, SysUtils, SyncObjs,
-  UAbstractMem, UFileMem, UAbstractMemTList,
+  UAbstractMem, UFileMem, UAbstractMemTList, UCacheMem,
   UAbstractBTree, UThread,
   UAVLCache, ULog, UCrypto,
   UPCAbstractMemAccountKeys,
@@ -124,6 +124,10 @@ type
     FZoneAggregatedHashrate : TAMZone;
     FUseCacheOnAbstractMemLists: Boolean;
     FMaxMemUsage: Integer;
+    FSavingNewSafeboxMode: Boolean;
+
+    FSavingOldGridCache : Boolean;
+    FSavingOldDefaultCacheDataBlocksSize : Integer;
 
     function IsChecking : Boolean;
     procedure DoCheck;
@@ -138,6 +142,7 @@ type
     function GetMaxAccountsCache: Integer;
     function GetMaxAccountKeysCache: Integer;
     procedure SetMaxAccountKeysCache(const Value: Integer);
+    procedure SetSavingNewSafeboxMode(const Value: Boolean);
   protected
     procedure UpgradeAbstractMemVersion(const ACurrentHeaderVersion : Integer);
   public
@@ -179,6 +184,7 @@ type
     Property MaxMemUsage : Integer read FMaxMemUsage write SetMaxMemUsage;
     Property MaxAccountsCache : Integer read GetMaxAccountsCache write SetMaxAccountsCache;
     Property MaxAccountKeysCache : Integer read GetMaxAccountKeysCache write SetMaxAccountKeysCache;
+    Property SavingNewSafeboxMode : Boolean read FSavingNewSafeboxMode write SetSavingNewSafeboxMode;
   end;
 
 implementation
@@ -203,7 +209,7 @@ var LZone : TAMZone;
   LCachedSafeboxHash : TBytes;
 begin
   FCachedSafeboxHash := Nil;
-  inherited Create(1000*32);
+  inherited Create(100000*32);
   FAbstractMem := AAbstractMem;
   FSaveBufferPosition:=APosition;
   if (APosition>0) then begin
@@ -539,10 +545,10 @@ begin
   // Free
   FreeAndNil(FBlocks);
   //
-  FBlocks := TPCAbstractMemListBlocks.Create( FAbstractMem, LZoneBlocks, 10000, Self.UseCacheOnAbstractMemLists);
+  FBlocks := TPCAbstractMemListBlocks.Create( FAbstractMem, LZoneBlocks, 20000, Self.UseCacheOnAbstractMemLists);
   FBlocks.FPCAbstractMem := Self;
 
-  FAccounts := TPCAbstractMemListAccounts.Create( FAbstractMem, LZoneAccounts, 50000, Self.UseCacheOnAbstractMemLists);
+  FAccounts := TPCAbstractMemListAccounts.Create( FAbstractMem, LZoneAccounts, 100000, Self.UseCacheOnAbstractMemLists);
   FAccounts.FPCAbstractMem := Self;
 
   FAccountsNames := TPCAbstractMemListAccountNames.Create( FAbstractMem, LZoneAccountsNames, 5000 , False, Self.UseCacheOnAbstractMemLists);
@@ -597,10 +603,11 @@ begin
   FCheckingThread := Nil;
   FLockAbstractMem := TPCCriticalSection.Create(Self.ClassName);
   FAccountCache := TAccountCache.Create(10000,_AccountCache_Comparision);
+  FSavingNewSafeboxMode := False;
 
   FAggregatedHashrate := TBigNum.Create(0);
   FFileName := ASafeboxFileName;
-  if (FFileName<>'') {and (FileExists(ASafeboxFileName))} then begin
+  if (FFileName<>'') then begin
     FAbstractMem := TFileMem.Create( ASafeboxFileName , AReadOnly);
   end else begin
     FAbstractMem := TMem.Create(0,AReadOnly);
@@ -833,6 +840,30 @@ begin
   if FAbstractMem is TFileMem then begin
     TFileMem(FAbstractMem).MaxCacheSize := FMaxMemUsage;
     TFileMem(FAbstractMem).MaxCacheDataBlocks := 200000;
+  end;
+end;
+
+procedure TPCAbstractMem.SetSavingNewSafeboxMode(const Value: Boolean);
+var Lcm : TCacheMem;
+begin
+  FSavingNewSafeboxMode := Value;
+  // Will set in optimized state (cache and others) for maximum performance and minimum impact
+  TLog.NewLog(ltinfo,ClassName,Format('Seting AbstractMem is Saving mode:%s',[Value.ToString]));
+  if FAbstractMem is TFileMem then begin
+    Lcm := TFileMem(FAbstractMem).LockCache;
+    try
+      if Value then begin
+        FSavingOldGridCache := Lcm.GridCache;
+        FSavingOldDefaultCacheDataBlocksSize := Lcm.DefaultCacheDataBlocksSize;
+        Lcm.GridCache := False;
+        Lcm.DefaultCacheDataBlocksSize := -1;
+      end else begin
+        Lcm.GridCache := FSavingOldGridCache;
+        Lcm.DefaultCacheDataBlocksSize := FSavingOldDefaultCacheDataBlocksSize;
+      end;
+    finally
+      TFileMem(FAbstractMem).UnlockCache;
+    end;
   end;
 end;
 
