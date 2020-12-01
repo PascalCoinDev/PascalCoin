@@ -40,7 +40,7 @@ begin
 
   for i := 0 to ASize-1 do begin
     if (ABytes[i] <> ((ALoadedStartPos+i+1) MOD 89)) then begin
-      raise ETestFailure.Create(Format('Value at pos %d (item %d) should be %d instead of %d',[ALoadedStartPos+i,i,((ALoadedStartPos+i) MOD 89),ABytes[i]]));
+      raise {$IFDEF FPC}Exception{$ELSE}ETestFailure{$ENDIF}.Create(Format('Value at pos %d (item %d) should be %d instead of %d',[ALoadedStartPos+i,i,((ALoadedStartPos+i) MOD 89),ABytes[i]]));
     end;
 
   end;
@@ -58,11 +58,11 @@ end;
 
 function TestTCacheMem.OnNeedDataProc(var ABuffer; AStartPos, ASize: Integer): Integer;
 begin
-  if (High(FCurrentMem) >= AStartPos + ASize) then begin
+  if (Length(FCurrentMem) >= AStartPos + ASize) then begin
     Result := ASize;
     Move(FCurrentMem[AStartPos],ABuffer,ASize);
   end else begin
-    Result := High(FCurrentMem) - AStartPos;
+    Result := Length(FCurrentMem) - AStartPos;
     if Result>0 then begin
       Move(FCurrentMem[AStartPos],ABuffer,Result);
     end;
@@ -71,11 +71,11 @@ end;
 
 function TestTCacheMem.OnSaveDataProc(const ABuffer; AStartPos, ASize: Integer): Integer;
 begin
-  if (High(FCurrentMem) >= AStartPos + ASize) then begin
+  if (Length(FCurrentMem) >= AStartPos + ASize) then begin
     Result := ASize;
     Move(ABuffer,FCurrentMem[AStartPos],ASize);
   end else begin
-    Result := High(FCurrentMem) - AStartPos;
+    Result := Length(FCurrentMem) - AStartPos;
     if Result>0 then begin
       Move(ABuffer,FCurrentMem[AStartPos],Result);
     end;
@@ -99,36 +99,84 @@ Var LCMem : TCacheMem;
 begin
   LCMem := TCacheMem.Create(OnNeedDataProc,OnSaveDataProc);
   Try
-    InitCurrentMem(11);
+    InitCurrentMem(22);
     SetLength(LBuff,Length(FCurrentMem));
 
-    LCMem.DefaultCacheDataBlocksSize :=10;
+    LCMem.DefaultCacheDataBlocksSize :=5;
+    LCMem.GridCache := True;
     // Check replacing initial position of buffer on Load
     LCMem.Clear;
-    LCMem.LoadData(LBuff[0],3,3);
+
+    FillChar(LBuff[0],Length(LBuff),0);
+    CheckTrue( LCMem.LoadData(LBuff[0],3,3) );
     CheckBytes(LBuff,3,3);
-    LCMem.LoadData(LBuff[0],1,9);
+
+    FillChar(LBuff[0],Length(LBuff),0);
+    CheckTrue( LCMem.LoadData(LBuff[0],1,9) );
     CheckBytes(LBuff,1,9);
+
+    FillChar(LBuff[0],Length(LBuff),0);
+    CheckTrue( LCMem.LoadData(LBuff[0],9,2) );
+    CheckBytes(LBuff,9,2);
+
+    FillChar(LBuff[0],Length(LBuff),0);
+    CheckTrue( LCMem.LoadData(LBuff[0],8,3) );
+    CheckBytes(LBuff,8,3);
+
+    // Check false and load final data
+    FillChar(LBuff[0],Length(LBuff),0);
+    CheckFalse( LCMem.LoadData(LBuff[0],Length(FCurrentMem)-3,4) );
+    CheckBytes(LBuff,Length(FCurrentMem)-3,3);
     LCMem.ConsistencyCheck;
 
+    // Load all to LBuff
+    CheckTrue( LCMem.LoadData(LBuff[0],0,Length(LBuff)) );
     // Check replacing initial position of buffer on Save
     LCMem.Clear;
     LCMem.SaveToCache(LBuff[0],3,3,True);
     LCMem.SaveToCache(LBuff[0],7,0,True);
+
+    // Check saving chunks
+    LCMem.Clear;
+    LCMem.DefaultCacheDataBlocksSize := 5;
+    LCMem.GridCache := False;
+    LCMem.SaveToCache(LBuff[2],5,2,True);
+    LCMem.SaveToCache(LBuff[1],15,1,True);
+    CheckTrue( LCMem.CacheDataBlocks=3, Format('3 Cache blocks: %d',[LCMem.CacheDataBlocks]));
+    LCMem.Clear;
+    LCMem.GridCache := True;
+    LCMem.SaveToCache(LBuff[2],5,2,True);
+    LCMem.SaveToCache(LBuff[1],15,1,True);
+    CheckTrue( LCMem.CacheDataBlocks=4, Format('4 Cache blocks: %d',[LCMem.CacheDataBlocks]));
+    LCMem.Clear;
+
+    // Clear FCurrentMem
+    LCMem.Clear;
+    FillChar(FCurrentMem[0],Length(FCurrentMem),0);
+    // Save from LBuff
+    LCMem.SaveToCache(LBuff,0,True);
+    LCMem.FlushCache;
     LCMem.ConsistencyCheck;
 
     LCMem.Clear;
-    InitCurrentMem(100000);
+    InitCurrentMem(100);
     SetLength(LBuff,Length(FCurrentMem));
 
-    CheckTrue( LCMem.LoadData(LBuff[0],0,100) );
+    // Save 3 blocks
+    LCMem.LoadData(LBuff[0],2,2*LCMem.DefaultCacheDataBlocksSize);
+    LCMem.Clear;
+    LCMem.SaveToCache(LBuff[0], 2*LCMem.DefaultCacheDataBlocksSize , 2,True);
+    CheckTrue( LCMem.CacheDataBlocks=3, '3 Cache blocks');
+
+    CheckTrue( LCMem.LoadData(LBuff[0],1,98) );
     // Incremental round
     i := 1;
     while (i+i < High(FCurrentMem)) do begin
-      CheckTrue( LCMem.LoadData(LBuff[0],i,i) );
+      CheckTrue( LCMem.LoadData(LBuff[0],i-1,i) );
+      CheckBytes(LBuff,i-1,i);
       inc(i);
     end;
-    CheckFalse( LCMem.LoadData( LBuff[0],i,i) );
+    CheckFalse( LCMem.LoadData( LBuff[0],i+1,i) );
 
     LCMem.ConsistencyCheck;
   Finally

@@ -60,6 +60,7 @@ type
     FCacheData : TBytes;
     FCacheUpdated : Boolean;
     FCacheDataLoaded : Boolean;
+    FCacheDataUsedBytes : Integer;
 
     function GetPosition(AIndex: Integer): TAbstractMemPosition;
     procedure SetPosition(AIndex: Integer; const Value: TAbstractMemPosition);
@@ -187,9 +188,15 @@ begin
   CheckInitialized;
   if (AIndexStart<0) or (AInsertCount<=0) or (AIndexStart>FNextElementPosition) then raise EAbstractMemTList.Create(Format('%s AddRange %d..%d out of range 0..%d',[ClassName,AIndexStart,AIndexStart+AInsertCount,FNextElementPosition-1]));
   if (UseCacheData) then begin
+    if (Length(FCacheData)-FCacheDataUsedBytes)< (AInsertCount*4) then begin
+      // Increase
+      if (FElementsOfEachBlock>AInsertCount) then i := FElementsOfEachBlock
+      else i := AInsertCount;
+      SetLength(FCacheData,Length(FCacheData) + (i * 4));
+    end;
     FCacheUpdated := True;
-    SetLength(FCacheData,Length(FCacheData)+(AInsertCount*4));
-    Move(FCacheData[AIndexStart*4],FCacheData[(AIndexStart+AInsertCount)*4],Length(FCacheData)-((AIndexStart+AInsertCount)*4));
+    Inc(FCacheDataUsedBytes,(AInsertCount*4));
+    Move(FCacheData[AIndexStart*4],FCacheData[(AIndexStart+AInsertCount)*4],FCacheDataUsedBytes-((AIndexStart+AInsertCount)*4));
     Inc(FNextElementPosition,AInsertCount);
     Exit;
   end;
@@ -237,6 +244,7 @@ begin
 
   SetLength(FCacheData,0);
   FCacheUpdated := False;
+  FCacheDataUsedBytes := 0;
   Finally
     FAbstractMemTListLock.Release;
   End;
@@ -253,6 +261,7 @@ begin
   FUseCache := AUseCache;
   FCacheUpdated := False;
   FCacheDataLoaded := False;
+  FCacheDataUsedBytes := 0;
 
   FAbstractMem := AAbstractMem;
   FInitialZone.Clear;
@@ -310,7 +319,7 @@ begin
   LNext := 0;
   // Save full:
   i := 0;
-  while ((i*4) < (Length(FCacheData))) do begin
+  while ((i*4) < (FCacheDataUsedBytes)) do begin
     GetPointerTo(i,True,LPreviousBlockPointer,LBlockPointer,LIndexInBlock);
     if (i+FElementsOfEachBlock-1 >= FNextElementPosition) then begin
       LElements := FNextElementPosition - i;
@@ -522,10 +531,9 @@ begin
     if (AIndexStart+ARemoveCount < FNextElementPosition) then begin
       Move(FCacheData[(AIndexStart + ARemoveCount) *4],
            FCacheData[(AIndexStart) *4],
-           Length(FCacheData)-((AIndexStart + ARemoveCount)*4));
-
+           FCacheDataUsedBytes-((AIndexStart + ARemoveCount)*4));
     end;
-    SetLength(FCacheData,Length(FCacheData) - (ARemoveCount*4));
+    Dec(FCacheDataUsedBytes,(ARemoveCount*4));
     FCacheUpdated := True;
     Dec(FNextElementPosition,ARemoveCount);
     Exit;
@@ -601,10 +609,12 @@ begin
   if (FUseCache) then begin
     FlushCache;
     SetLength(FCacheData,0);
+    FCacheDataUsedBytes := 0;
   end else begin
     SetLength(FCacheData,0);
     FCacheDataLoaded := False;
     FCacheUpdated := False;
+    FCacheDataUsedBytes := 0;
   end;
   FUseCache := Value;
 end;
@@ -621,6 +631,7 @@ begin
     if Not FCacheDataLoaded then begin
       FCacheDataLoaded := True;
       LoadElements(0,FCacheData);
+      FCacheDataUsedBytes := Length(FCacheData);
     end;
   end else Result := False;
 end;
