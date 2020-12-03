@@ -675,6 +675,8 @@ begin
     end;
   end;
 
+  (*
+  // Skybuck: Free Pascal Compiler Bug/Internal Error 2015052501 (disabled for now).
   case filters.Count of
     0: Result := nil;
     1: Result := filters[0];
@@ -683,6 +685,7 @@ begin
       foOr: Result := __TPredicateTool_T.OrMany(filters.ToArray);
     end;
   end;
+  *)
 end;
 
 { TPageFetchParams }

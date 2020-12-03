@@ -195,7 +195,7 @@ var
   i: Int32;
 begin
   Result := #0;
-  i := FRegex.MatchIndexFromName(AGroupName);
+//  i := FRegex.MatchIndexFromName(AGroupName);  // Skybuck *disabled, missing*
   if i >= 0 then begin
     Result := FRegex.Match[i];
   end;

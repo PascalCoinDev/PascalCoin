@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
-    <Version Value="12"/>
+    <Version Value="11"/>
     <PathDelim Value="\"/>
     <General>
       <Flags>
         <MainUnitHasUsesSectionForAllUnits Value="False"/>
         <MainUnitHasCreateFormStatements Value="False"/>
         <MainUnitHasTitleStatement Value="False"/>
-        <CompatibilityMode Value="True"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
+      <MainUnit Value="0"/>
       <Title Value="PascalCoin Wallet"/>
       <ResourceType Value="res"/>
     </General>
@@ -77,7 +77,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="104">
+    <Units Count="105">
       <Unit0>
         <Filename Value="pascalcoin_wallet_experimental.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -642,6 +642,10 @@
         <Filename Value="core\URandomHash2.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit103>
+      <Unit104>
+        <Filename Value="libraries\abstractmem\UAbstractMem.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit104>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -652,7 +656,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);libraries\generics.collections\inc"/>
-      <OtherUnitFiles Value="core;gui-experimental;libraries\simplebaselib4pascal;libraries\hashlib4pascal;libraries\cryptolib4pascal;libraries\synapse;libraries\sphere10;libraries\generics.collections;libraries\pascalcoin;gui-experimental\core.utils;gui-experimental\wizards\wallet;gui-experimental\wizards\operations;libraries\paszlib;gui-classic"/>
+      <OtherUnitFiles Value="core;gui-experimental;libraries\simplebaselib4pascal;libraries\hashlib4pascal;libraries\cryptolib4pascal;libraries\synapse;libraries\sphere10;libraries\generics.collections;libraries\pascalcoin;gui-experimental\core.utils;gui-experimental\wizards\wallet;gui-experimental\wizards\operations;libraries\paszlib;gui-classic;libraries\abstractmem"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
