@@ -28,7 +28,7 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir);libraries\generics.collections\inc"/>
-            <OtherUnitFiles Value="core;gui-experimental;libraries\synapse;libraries\abstractmem;\libraries\regex;libraries\sphere10;libraries\simplebaselib4pascal;libraries\cryptolib4pascal;libraries\hashlib4pascal;libraries\generics.collections;libraries\pascalcoin;gui-experimental\core.utils;gui-experimental\wizards\wallet;gui-experimental\wizards\operations;gui-classic;libraries\paszlib"/>
+            <OtherUnitFiles Value="core;gui-experimental;libraries\synapse;libraries\abstractmem;\libraries\regex;libraries\sphere10;libraries\simplebaselib4pascal;libraries\cryptolib4pascal;libraries\hashlib4pascal;libraries\generics.collections;libraries\pascalcoin;gui-experimental\core.utils;gui-experimental\wizards\wallet;gui-experimental\wizards\operations;gui-classic;libraries\paszlib;libraries\regex"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -77,7 +77,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="105">
+    <Units Count="107">
       <Unit0>
         <Filename Value="pascalcoin_wallet_experimental.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -646,6 +646,14 @@
         <Filename Value="libraries\abstractmem\UAbstractMem.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit104>
+      <Unit105>
+        <Filename Value="core\UEncoding.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit105>
+      <Unit106>
+        <Filename Value="libraries\regex\uregexpr.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit106>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -656,7 +664,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);libraries\generics.collections\inc"/>
-      <OtherUnitFiles Value="core;gui-experimental;libraries\simplebaselib4pascal;libraries\hashlib4pascal;libraries\cryptolib4pascal;libraries\synapse;libraries\sphere10;libraries\generics.collections;libraries\pascalcoin;gui-experimental\core.utils;gui-experimental\wizards\wallet;gui-experimental\wizards\operations;libraries\paszlib;gui-classic;libraries\abstractmem"/>
+      <OtherUnitFiles Value="core;gui-experimental;libraries\simplebaselib4pascal;libraries\hashlib4pascal;libraries\cryptolib4pascal;libraries\synapse;libraries\sphere10;libraries\generics.collections;libraries\pascalcoin;gui-experimental\core.utils;gui-experimental\wizards\wallet;gui-experimental\wizards\operations;libraries\paszlib;gui-classic;libraries\abstractmem;libraries\regex"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
