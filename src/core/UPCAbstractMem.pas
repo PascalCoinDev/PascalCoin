@@ -591,7 +591,7 @@ var
 begin
   FStats.Clear;
 
-  FUseCacheOnAbstractMemLists := True;
+  FUseCacheOnAbstractMemLists := False;
   FMaxMemUsage := 100 * 1024 * 1024;
 
   FBlocks := Nil;

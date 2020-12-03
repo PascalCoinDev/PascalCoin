@@ -57,6 +57,7 @@ type
     FNextElementPosition : Integer;
 
     FUseCache : Boolean;
+    FUseCacheAuto : Boolean;
     FCacheData : TBytes;
     FCacheUpdated : Boolean;
     FCacheDataLoaded : Boolean;
@@ -65,7 +66,7 @@ type
     function GetPosition(AIndex: Integer): TAbstractMemPosition;
     procedure SetPosition(AIndex: Integer; const Value: TAbstractMemPosition);
 
-    function UseCacheData : Boolean;
+    function UseCacheData(AWillUpdateData : Boolean) : Boolean;
     Procedure CheckInitialized;
     procedure GetPointerTo(AIndex : Integer; AAllowIncrease : Boolean; out APreviousBlockPointer, ABlockPointer : TAbstractMemPosition; out AIndexInBlock : Integer);
     procedure AddRange(AIndexStart, AInsertCount : Integer);
@@ -95,6 +96,7 @@ type
     property AbstractMem : TAbstractMem read FAbstractMem;
     property InitialiZone : TAMZone read FInitialZone;
     property UseCache : Boolean read FUseCache write SetUseCache;
+    property UseCacheAuto : Boolean read FUseCacheAuto write FUseCacheAuto;
     procedure LockList;
     procedure UnlockList;
   End;
@@ -187,7 +189,7 @@ var LElements : TBytes;
 begin
   CheckInitialized;
   if (AIndexStart<0) or (AInsertCount<=0) or (AIndexStart>FNextElementPosition) then raise EAbstractMemTList.Create(Format('%s AddRange %d..%d out of range 0..%d',[ClassName,AIndexStart,AIndexStart+AInsertCount,FNextElementPosition-1]));
-  if (UseCacheData) then begin
+  if (UseCacheData(True)) then begin
     if (Length(FCacheData)-FCacheDataUsedBytes)< (AInsertCount*4) then begin
       // Increase
       if (FElementsOfEachBlock>AInsertCount) then i := FElementsOfEachBlock
@@ -262,6 +264,7 @@ begin
   FCacheUpdated := False;
   FCacheDataLoaded := False;
   FCacheDataUsedBytes := 0;
+  FUseCacheAuto := True;
 
   FAbstractMem := AAbstractMem;
   FInitialZone.Clear;
@@ -407,7 +410,7 @@ begin
   Result := 0;
   FAbstractMemTListLock.Acquire;
   try
-  if (UseCacheData) then begin
+  if (UseCacheData(False)) then begin
     if (AIndex<0) or (AIndex>=FNextElementPosition) then raise EAbstractMemTList.Create(Format('%s index %d out of range 0..%d',[ClassName,AIndex,FNextElementPosition-1]));
     Move( FCacheData[AIndex*4], Result, 4);
   end else begin
@@ -473,7 +476,7 @@ begin
   FAbstractMemTListLock.Acquire;
   try
   AddRange(AIndex,1);
-  if (UseCacheData) then begin
+  if (UseCacheData(True)) then begin
     Move(APosition, FCacheData[AIndex*4], 4);
     FCacheUpdated := True;
   end else begin
@@ -527,7 +530,7 @@ begin
     else raise EAbstractMemTList.Create(Format('%s remove %d..%d out of range (NO ELEMENTS)',[ClassName,AIndexStart,AIndexStart + ARemoveCount -1]))
   end;
 
-  if (UseCacheData) then begin
+  if (UseCacheData(True)) then begin
     if (AIndexStart+ARemoveCount < FNextElementPosition) then begin
       Move(FCacheData[(AIndexStart + ARemoveCount) *4],
            FCacheData[(AIndexStart) *4],
@@ -591,7 +594,7 @@ var LBlockPointer, LPreviousBlockPointer : TAbstractMemPosition;
 begin
   FAbstractMemTListLock.Acquire;
   try
-  if (UseCacheData) then begin
+  if (UseCacheData(True)) then begin
     Move( Value, FCacheData[AIndex*4], 4);
     FCacheUpdated := True;
   end else begin
@@ -624,9 +627,10 @@ begin
   FAbstractMemTListLock.Release;
 end;
 
-function TAbstractMemTList.UseCacheData: Boolean;
+function TAbstractMemTList.UseCacheData(AWillUpdateData : Boolean): Boolean;
 begin
-  if FUseCache then begin
+  if (FUseCache) or ((AWillUpdateData) and (FUseCacheAuto)) then begin
+    FUseCache := True;
     Result := True;
     if Not FCacheDataLoaded then begin
       FCacheDataLoaded := True;
