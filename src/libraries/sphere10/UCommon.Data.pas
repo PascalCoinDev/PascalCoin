@@ -637,14 +637,18 @@ end;
 { TDataSourceTool }
 
 class function TDataSourceTool<T>.ConstructRowComparer(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplySortDelegate<T>) : IComparer<T>;
+(*
 type
-  __IComparer_T = IComparer<T>;
+  __IComparer_T = IComparer<T>; // Skybuck: Disabled for now
+*)
 var
   i : integer;
-  comparers : TList<__IComparer_T>;
+//  comparers : TList<__IComparer_T>; // Skybuck: Disabled for now
   filter : TColumnFilter;
   GC : TDisposables;
 begin
+// Skybuck: Disabled for now
+(*
   comparers := GC.AddObject(  TList<__IComparer_T>.Create ) as TList<__IComparer_T>;
   for i := Low(AFilters) to High(AFilters) do begin
     filter := AFilters[i];
@@ -657,23 +661,30 @@ begin
     1: Result := comparers[0];
     else Result := TComparerTool<T>.Many(comparers);
   end;
+*)
 end;
 
 class function TDataSourceTool<T>.ConstructRowPredicate(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplyFilterDelegate<T>; const AOperand : TFilterOperand) : IPredicate<T>;
+// Skybuck: Disabled for now
+(*
 type
   __TColumnFilterPredicate_T = TColumnFilterPredicate<T>;
   __TPredicateTool_T = TPredicateTool<T>;
+*)
 var
   i : integer;
   filters : __TList_IPredicate_T;
   GC : TDisposables;
 begin
+  // Skybuck: Disabled for now
+  (*
   filters := GC.AddObject( __TList_IPredicate_T.Create ) as __TList_IPredicate_T;
   for i := Low(AFilters) to High(AFilters) do begin
     if AFilters[i].Filter <> vgfSortable then begin
       filters.Add( __TColumnFilterPredicate_T.Create(AFilters[i], ADelegate));
     end;
   end;
+  *)
 
   (*
   // Skybuck: Free Pascal Compiler Bug/Internal Error 2015052501 (disabled for now).
