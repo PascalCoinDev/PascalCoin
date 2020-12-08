@@ -26,7 +26,7 @@ uses
   LCLIntf, LCLType, LMessages,
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, UAccounts, Grids, StdCtrls, Buttons, ExtCtrls, UCommon.UI,
-  UWallet, UNode, UGridUtils, UFRMMemoText, UConst, UThread, UPCOrderedLists, UBaseTypes;
+  UWallet, UNode, UGridUtils, UFRMMemoText, UConst, UThread, UPCOrderedLists, UBaseTypes, UPCDataTypes;
 
 const
   CT_AS_MyAccounts = $0001;
@@ -156,7 +156,7 @@ procedure TSearchThread.BCExecute;
     SetLength(FAccounts,0);
     c := 0;
     maxC := FSearchValues.SafeBox.AccountsCount-1;
-    validAccKey := TAccountComp.IsValidAccountKey(FSearchValues.inAccountKey,errors);
+    validAccKey := TAccountComp.IsValidAccountKey(FSearchValues.inAccountKey, FSearchValues.SafeBox.CurrentProtocol, errors);
     while (c<=maxC) And (Not Terminated) And (Not FDoStopSearch) do begin
       account := FSearchValues.SafeBox.Account(c);
       isValid := True;
@@ -169,10 +169,10 @@ procedure TSearchThread.BCExecute;
         isValid := TAccountComp.IsAccountForSale(account.accountInfo);
       end;
       If IsValid and (FSearchValues.onlyForPublicSale) then begin
-        isValid := (TAccountComp.IsAccountForSale(account.accountInfo)) And (Not TAccountComp.IsAccountForSaleAcceptingTransactions(account.accountInfo));
+        isValid := (TAccountComp.IsAccountForSale(account.accountInfo)) And (Not TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(account, FSearchValues.SafeBox.BlocksCount, FSearchValues.SafeBox.CurrentProtocol, nil));  // Skybuck: todo check/debug if this is safe
       end;
       If IsValid and (FSearchValues.onlyForPrivateSaleToMe) then begin
-        isValid := (TAccountComp.IsAccountForSaleAcceptingTransactions(account.accountInfo)) And
+        isValid := ( TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(account,FSearchValues.SafeBox.BlocksCount, FSearchValues.SafeBox.CurrentProtocol, nil)) And // Skybuck: todo check/debug if this is safe
           (Assigned(FSearchValues.inWalletKeys)) And (FSearchValues.inWalletKeys.IndexOfAccountKey(account.accountInfo.new_publicKey)>=0);
       end;
       If IsValid then begin

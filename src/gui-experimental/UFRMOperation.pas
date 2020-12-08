@@ -27,7 +27,7 @@ uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UCommon.UI,
   UNode, UWallet, UCrypto, Buttons, UBlockChain, UBaseTypes,
-  UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UCommon, UPCOrderedLists;
+  UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UCommon, UPCOrderedLists, UPCDataTypes;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -178,7 +178,7 @@ implementation
 
 uses
   UPCEncryption,
-  UCoreUtils, UConst, UOpTransaction, UFRMWalletKeys, UUserInterface, UPCDataTypes;
+  UCoreUtils, UConst, UOpTransaction, UFRMWalletKeys, UUserInterface;
 
 {$R *.lfm}
 

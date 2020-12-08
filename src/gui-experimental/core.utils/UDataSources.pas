@@ -21,7 +21,7 @@ interface
 uses
   Classes, SysUtils, UAccounts, UNode, UBlockchain, UCrypto, UCoreObjects,
   UCommon, UMemory, UConst, UCommon.Data, UCoreUtils, UBaseTypes,
-  UCommon.Collections, Generics.Collections, Generics.Defaults, syncobjs;
+  UCommon.Collections, Generics.Collections, Generics.Defaults, syncobjs, UPCDataTypes;
 
 type
 
@@ -189,7 +189,7 @@ begin
   else if ABindingName = 'NOperation' then
     Result := AItem.n_operation
   else if ABindingName = 'LastUpdatedBlock' then
-    Result := AItem.updated_block
+    Result := AItem.GetLastUpdatedBlock
   else
     raise Exception.Create(Format('Field not found "%s"', [ABindingName]));
 end;
@@ -605,7 +605,7 @@ begin
 
     for LIdx := LEnd downto LStart do begin
       LBlockChainData := CT_BlockSummary_NUL;
-      LOperationBlock := LNode.Bank.SafeBox.Block(LIdx).blockchainInfo;
+      LOperationBlock := LNode.Bank.SafeBox.GetBlock(LIdx).blockchainInfo;
       LBlockChainData.Block := LOperationBlock.block;
       LBlockChainData.Timestamp := LOperationBlock.timestamp;
       LBlockChainData.BlockProtocolVersion := LOperationBlock.protocol_version;
@@ -623,7 +623,7 @@ begin
       LBlockChainData.MinerPayload := LOperationBlock.block_payload;
       LBlockChainData.PoW := LOperationBlock.proof_of_work;
       LBlockChainData.SafeBoxHash := LOperationBlock.initial_safe_box_hash;
-      LBlockChainData.AccumulatedWork := LNode.Bank.SafeBox.Block(LBlockChainData.Block).AccumulatedWork;
+      LBlockChainData.AccumulatedWork := LNode.Bank.SafeBox.GetBlock(LBlockChainData.Block).AccumulatedWork;
       if (LNode.Bank.LoadOperations(LOperationComp, LIdx)) then begin
         LBlockChainData.OperationsCount := LOperationComp.Count;
         LBlockChainData.Volume := LOperationComp.OperationsHashTree.TotalAmount + LOperationComp.OperationsHashTree.TotalFee;
