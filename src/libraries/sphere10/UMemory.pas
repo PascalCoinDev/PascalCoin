@@ -20,6 +20,7 @@ unit UMemory;
   {$MODESWITCH ADVANCEDRECORDS}
 {$ENDIF}
 
+{$I ./../../config.inc}
 interface
 
 type
@@ -50,8 +51,10 @@ type
       FGuardian: IInterface;
       FPointers: array of TDisposablePointer;
       FLastIndex: Integer;
+      {$IFNDEF DELPHI_SYDNEY_PLUS}
       class procedure Initialize(var ADisposables: TDisposables); static;
       class procedure Finalize(var ADisposables: TDisposables); static;
+      {$ENDIF}
       procedure RegisterPointer(Ptr: Pointer; ADisposePolicy: TDisposePolicy);
       procedure UnregisterPointer(Ptr: Pointer);
     public
@@ -62,6 +65,10 @@ type
       procedure AddMem(const P: Pointer);
       procedure ReallocMem(var P: Pointer; Size: Integer);
       procedure RemoveMem(const P: Pointer);
+      {$IFDEF DELPHI_SYDNEY_PLUS}
+      class operator Initialize (out Dest: TDisposables);
+      class operator Finalize (var Dest: TDisposables);
+      {$ENDIF}
       /// <summary>A syntax sugar for the AddObject method.</summary>
       property Objects[const AnObject: TObject]: TObject read AddObject; default;
   end;
@@ -76,20 +83,64 @@ uses sysutils;
 constructor TDisposables.TGuard.Create(ADisposablesRec: PDisposables);
 begin
   FDispoablesRec := ADisposablesRec;
+  {$IFNDEF DELPHI_SYDNEY_PLUS}
   TDisposables.Initialize(FDispoablesRec^);
+  {$ENDIF}
 end;
 
 destructor TDisposables.TGuard.Destroy;
 begin
   inherited;
   try
+    {$IFNDEF DELPHI_SYDNEY_PLUS}
     TDisposables.Finalize(FDispoablesRec^);
+    {$ENDIF}
   except
     FreeInstance;
     raise;
   end;
 end;
 
+{$IFDEF DELPHI_SYDNEY_PLUS}
+class operator TDisposables.Initialize (out Dest: TDisposables);
+begin
+  Dest.FLastIndex := -1;
+  SetLength(Dest.FPointers, 16);
+end;
+
+class operator TDisposables.Finalize (var Dest: TDisposables);
+var
+  FirstException: Pointer;
+  i, x: Integer;
+begin
+  FirstException := nil;
+  for i := Dest.FLastIndex downto 0 do
+  try
+    case Dest.FPointers[i].DisposePolicy of
+      idpNone: ;
+      idpNil: Dest.FPointers[i].Ptr := nil;
+      idpFree, idpFreeAndNil: if Assigned(Dest.FPointers[i].Ptr) then begin
+        FreeAndNil(Dest.FPointers[i].Ptr);
+        Dest.FPointers[i].Ptr := nil;
+      end;
+      idpRelease: begin
+        raise ENotSupportedException.Create('Dispose policy idoRelease not supported');
+      end;
+      idpFreeMem: if Assigned(Dest.FPointers[i].Ptr) then System.FreeMem(Dest.FPointers[i].Ptr);
+      else raise ENotSupportedException.Create('Dispose policy not supported');
+    end;
+  except
+    if not Assigned(FirstException) then
+      FirstException := AcquireExceptionObject;
+  end;
+
+  if Assigned(FirstException) then
+  begin
+    SetLength(Dest.FPointers, 0);
+    raise TObject(FirstException);
+  end;
+end;
+{$ELSE}
 class procedure TDisposables.Initialize(var ADisposables: TDisposables);
 begin
   ADisposables.FLastIndex := -1;
@@ -99,10 +150,9 @@ end;
 class procedure TDisposables.Finalize(var ADisposables: TDisposables);
 var
   FirstException: Pointer;
-  i: Integer;
+  i, x: Integer;
 begin
   FirstException := nil;
-
   for i := ADisposables.FLastIndex downto 0 do
   try
     case ADisposables.FPointers[i].DisposePolicy of
@@ -116,7 +166,7 @@ begin
         raise ENotSupportedException.Create('Dispose policy idoRelease not supported');
       end;
       idpFreeMem: if Assigned(ADisposables.FPointers[i].Ptr) then System.FreeMem(ADisposables.FPointers[i].Ptr);
-      else raise ENotSupportedException.Create('Dispose policy not supported');;
+      else raise ENotSupportedException.Create('Dispose policy not supported');
     end;
   except
     if not Assigned(FirstException) then
@@ -129,6 +179,7 @@ begin
     raise TObject(FirstException);
   end;
 end;
+{$ENDIF}
 
 procedure TDisposables.RegisterPointer(Ptr: Pointer; ADisposePolicy: TDisposePolicy);
 begin
