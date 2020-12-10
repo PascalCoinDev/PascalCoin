@@ -15,7 +15,7 @@ unit UWIZChangeKey;
 interface
 
 uses
-  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon, UWizard, UAccounts, UCoreObjects, UWIZOperation, LCLType;
+  Classes, SysUtils, Forms, Dialogs, UCrypto, UCommon, UWizard, UAccounts, UPCDataTypes, UCoreObjects, UWIZOperation, LCLType;
 
 type
 

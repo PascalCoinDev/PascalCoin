@@ -10,7 +10,7 @@ object CTRLWallet: TCTRLWallet
   ClientWidth = 1151
   OnCreate = FormCreate
   OnResize = FormResize
-  LCLVersion = '2.0.2.0'
+  LCLVersion = '2.0.10.0'
   object PairSplitter1: TPairSplitter
     Cursor = crDefault
     Left = 0
@@ -34,14 +34,14 @@ object CTRLWallet: TCTRLWallet
         Width = 344
         Anchors = [akTop, akLeft, akRight]
         Caption = 'Overview'
-        ClientHeight = 85
+        ClientHeight = 86
         ClientWidth = 340
         TabOrder = 0
         object Label1: TLabel
           Left = 16
-          Height = 15
+          Height = 14
           Top = 16
-          Width = 58
+          Width = 68
           Caption = 'Total PASC'
           Font.Style = [fsBold]
           ParentColor = False
@@ -49,9 +49,9 @@ object CTRLWallet: TCTRLWallet
         end
         object Label2: TLabel
           Left = 16
-          Height = 15
+          Height = 14
           Top = 48
-          Width = 59
+          Width = 69
           Caption = 'Total PASA'
           Font.Style = [fsBold]
           ParentColor = False
@@ -91,16 +91,16 @@ object CTRLWallet: TCTRLWallet
         Width = 344
         Anchors = [akTop, akLeft, akRight, akBottom]
         Caption = 'My Accounts'
-        ClientHeight = 420
+        ClientHeight = 421
         ClientWidth = 340
         TabOrder = 1
         object cbAccounts: TComboBox
           Left = 8
-          Height = 23
+          Height = 22
           Top = 8
           Width = 320
           Anchors = [akTop, akLeft, akRight]
-          ItemHeight = 15
+          ItemHeight = 14
           ItemIndex = 0
           Items.Strings = (
             'Show All'
@@ -114,7 +114,7 @@ object CTRLWallet: TCTRLWallet
         end
         object paAccounts: TPanel
           Left = 8
-          Height = 376
+          Height = 377
           Top = 40
           Width = 320
           Anchors = [akTop, akLeft, akRight, akBottom]
@@ -141,12 +141,12 @@ object CTRLWallet: TCTRLWallet
         Width = 776
         Anchors = [akTop, akLeft, akRight, akBottom]
         Caption = 'Recent Operations'
-        ClientHeight = 532
+        ClientHeight = 533
         ClientWidth = 772
         TabOrder = 0
         object paOperations: TPanel
           Left = 8
-          Height = 512
+          Height = 513
           Top = 16
           Width = 760
           Anchors = [akTop, akLeft, akRight, akBottom]
@@ -160,8 +160,8 @@ object CTRLWallet: TCTRLWallet
     end
   end
   object mnuAccountsPopup: TPopupMenu
-    left = 768
-    top = 64
+    Left = 768
+    Top = 64
     object miSendPASC: TMenuItem
       Caption = 'Send PASC'
       OnClick = miSendPASCClick
@@ -198,8 +198,8 @@ object CTRLWallet: TCTRLWallet
     end
   end
   object mnuOperationsPopup: TPopupMenu
-    left = 896
-    top = 64
+    Left = 896
+    Top = 64
     object miCopyOphash: TMenuItem
       Caption = 'Copy OPHASH'
       OnClick = miCopyOphashClick
@@ -213,7 +213,7 @@ object CTRLWallet: TCTRLWallet
     end
   end
   object mnuFirstAccountPopup: TPopupMenu
-    left = 1024
-    top = 64
+    Left = 1024
+    Top = 64
   end
 end

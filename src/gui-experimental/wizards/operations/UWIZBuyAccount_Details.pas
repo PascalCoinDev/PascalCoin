@@ -70,6 +70,7 @@ uses
   UCrypto,
   UMemory,
   UAccounts,
+  UPCDataTypes,
   USettings,
   UCoreUtils,
   UBaseTypes,

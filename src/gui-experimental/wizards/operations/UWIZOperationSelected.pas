@@ -56,6 +56,7 @@ uses
   UCoreObjects,
   UCommon.Data,
   UDataSources,
+  UPCDataTypes,
   Generics.Collections;
 
 type

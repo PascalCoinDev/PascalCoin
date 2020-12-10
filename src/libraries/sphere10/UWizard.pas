@@ -31,7 +31,7 @@ const
 
 type
   { Forward Declarations }
-  TWizardForm<T> = class;
+//  TWizardForm<T> = class; // Skybuck: disabled, not needed anymore.
 
   { Enums }
 
@@ -101,7 +101,7 @@ type
         FHost : TWizardHostForm;
         FStarted : Boolean;
         FFinished : Boolean;
-        FCurrentScreen : TWizardForm<T>;
+        FCurrentScreen : __TScreenType; // Skybuck: Using __TScreenType instead of TWizard<T> solved the FPC Compiler bug !
         FModel : T;
         FScreenPath : TList<TComponentClass>;
         FScreenPathBackup : TDictionary<SizeInt, __TList_TComponentClass>;
@@ -117,16 +117,16 @@ type
         procedure NextHandler(sender : TObject);
         procedure PreviousHandler(sender : TObject);
     protected
-        function CreateScreen(AType: TComponentClass) : TWizardForm<T>;
+        function CreateScreen(AType: TComponentClass) : __TScreenType;
         function DetermineHasNext : boolean; virtual;
         function DetermineHasPrevious : boolean; virtual;
-        procedure PresentScreen(screen : TWizardForm<T>); virtual;
+        procedure PresentScreen(screen : __TScreenType); virtual;
         function FinishRequested(out message : AnsiString) : boolean; virtual; abstract;
         function CancelRequested(out message : AnsiString) : boolean; virtual; abstract;
     public
-        constructor Create(AOwner:TComponent; const screens: array of TComponentClass); overload;
+       constructor Create(AOwner:TComponent; const screens: array of TComponentClass); overload;
         destructor Destroy; override;
-        property CurrentScreen : TWizardForm<T> read FCurrentScreen;
+        property CurrentScreen : __TScreenType read FCurrentScreen;
         property Model : T read FModel;
         property HasNext : boolean read DetermineHasNext;
         property HasPrevious : boolean read DetermineHasPrevious;
@@ -153,7 +153,7 @@ type
       function CancelRequested(out message : AnsiString) : boolean; override;
       function FinishRequested(out message : AnsiString) : boolean; override;
     public
-      constructor Create(AOwner:TComponent; title, finish: AnsiString; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
+      constructor Create(AOwner:TComponent; title, finish: AnsiString; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc); // Skybuck: disabled for now because of fpc compiler internal error: 200602034
       class procedure Show(AParent: TForm; title, finish: AnsiString; constref bag : T; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
       property FinishText : AnsiString read FTitleText;
       property TitleText : AnsiString read FFinishText;
@@ -304,7 +304,7 @@ end;
 constructor TWizard<T>.Create(AOwner:TComponent; const screens: array of TComponentClass);
 var
    i : integer;
-   screen : TWizardForm<T>;
+   screen : __TScreenType;
 begin
   inherited Create(AOwner);
   if Length(screens) = 0 then
@@ -328,7 +328,7 @@ end;
 destructor TWizard<T>.Destroy;
 var
   i : integer;
-  screen : TWizardForm<T>;
+  screen : __TScreenType;
   key : TComponentClass;
   backup : TList<TComponentClass>;
 begin
@@ -346,10 +346,10 @@ begin
   // note: Property bag not destroyed, left for user to destroy
 end;
 
-function TWizard<T>.CreateScreen(AType: TComponentClass) : TWizardForm<T>;
+function TWizard<T>.CreateScreen(AType: TComponentClass) : __TScreenType;
 begin
   if NOT FScreenInstances.ContainsKey(AType) then begin
-    Result := TWizardForm<T>(AType.Create(self));
+    Result := __TScreenType(AType.Create(self));
     if Result = nil then
       raise Exception.Create('Supplied type was not correct TWizardForm<T> type');
     Result.UpdatePath := UpdatePath;
@@ -361,7 +361,7 @@ end;
 function TWizard<T>.CalculateFitSize : TPoint;
 var
   maxWidth, maxHeight, i : Integer;
-  screen : TWizardForm<T>;
+  screen : __TScreenType;
 begin
   maxWidth := 0;
   maxHeight := 0;
@@ -489,7 +489,7 @@ begin
   end;
 end;
 
-procedure TWizard<T>.PresentScreen(screen : TWizardForm<T>);
+procedure TWizard<T>.PresentScreen(screen : __TScreenType);
 begin
   FCurrentScreen := screen;
   FCurrentScreen.Model := Model;
@@ -532,6 +532,7 @@ begin
   self.FFinishHandler := finishFunc;
 end;
 
+
 class procedure TActionWizard<T>.Show(AParent: TForm; title, finish: AnsiString; constref bag : T; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
 type
   MyWizard = TActionWizard<T>;
@@ -562,5 +563,6 @@ begin
 end;
 
 {%endregion}
+
 
 end.

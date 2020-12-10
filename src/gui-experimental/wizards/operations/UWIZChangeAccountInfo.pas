@@ -43,6 +43,7 @@ uses
   UWallet,
   UCommon,
   UAccounts,
+  UPCDataTypes,
   UCoreUtils,
   UWIZOperationSelected,
   UWIZChangeAccountInfo_Details,

@@ -22,7 +22,7 @@ unit UWIZOperation;
 interface
 
 uses
-  Classes, SysUtils, UAccounts, UWallet, UBaseTypes, UCoreObjects;
+  Classes, SysUtils, UAccounts, UWallet, UBaseTypes, UCoreObjects, UPCDataTypes;
 
 type
 

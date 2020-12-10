@@ -44,6 +44,7 @@ uses
   UCrypto,
   UWallet,
   UAccounts,
+  UPCDataTypes,
   UCoreUtils,
   UCoreObjects,
   UWIZOperationSelected,
