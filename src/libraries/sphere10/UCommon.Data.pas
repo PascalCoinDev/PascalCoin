@@ -23,7 +23,7 @@ interface
 
 uses
   Classes, SysUtils, Generics.Collections, UMemory, UCommon, UCommon.Collections, Generics.Defaults,
-  Variants, LazUTF8, math, typinfo, syncobjs;
+  Variants, LazUTF8, math, typinfo, syncobjs, fgl;
 
 type
   TSortDirection = (sdNone, sdAscending, sdDescending);
@@ -234,8 +234,10 @@ const
   TDataSourceTool<T> = class
     protected type
       __IPredicate_T = IPredicate<T>;
-      __TList_IPredicate_T = TList<__IPredicate_T>;
+//      __TList_IPredicate_T = TList<__IPredicate_T>; // Skybuck: TList is buggy, disabled and replaced with TFPGList
+      __TList_IPredicate_T = TFPGlist<IPredicate<T>>;
     public
+     class function ArrayFromList( ParaList : __TList_IPredicate_T ) : TArray<IPredicate<T>>;
      class function ConstructRowComparer(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplySortDelegate<T>) : IComparer<T>;
      class function ConstructRowPredicate(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplyFilterDelegate<T>; const AOperand : TFilterOperand) : IPredicate<T>;
   end;
@@ -637,18 +639,15 @@ end;
 { TDataSourceTool }
 
 class function TDataSourceTool<T>.ConstructRowComparer(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplySortDelegate<T>) : IComparer<T>;
-(*
 type
-  __IComparer_T = IComparer<T>; // Skybuck: Disabled for now
-*)
+  __IComparer_T = IComparer<T>; // Skybuck: Re-enabled
 var
   i : integer;
-//  comparers : TList<__IComparer_T>; // Skybuck: Disabled for now
+  comparers : TList<__IComparer_T>; // Skybuck: Re-enabled
   filter : TColumnFilter;
   GC : TDisposables;
 begin
-// Skybuck: Disabled for now
-(*
+// Skybuck: Re-enabled
   comparers := GC.AddObject(  TList<__IComparer_T>.Create ) as TList<__IComparer_T>;
   for i := Low(AFilters) to High(AFilters) do begin
     filter := AFilters[i];
@@ -661,42 +660,52 @@ begin
     1: Result := comparers[0];
     else Result := TComparerTool<T>.Many(comparers);
   end;
-*)
+end;
+
+// Skybuck: New temporarely ArrayFromList function until buggy TList is fixed by FPC compiler team (or generics team ?!?)
+class function TDataSourceTool<T>.ArrayFromList( ParaList : __TList_IPredicate_T ) : TArray<IPredicate<T>>;
+var
+  LIndex : integer;
+begin
+  // Skybuck: untested code, check and/or debug it !
+  SetLength( result, ParaList.Count );
+
+  for LIndex := 0 to length(result)-1 do
+  begin
+    result[LIndex] := ParaList.Items[LIndex];
+  end;
 end;
 
 class function TDataSourceTool<T>.ConstructRowPredicate(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplyFilterDelegate<T>; const AOperand : TFilterOperand) : IPredicate<T>;
-// Skybuck: Disabled for now
-(*
+// Skybuck: Re-enabled
 type
   __TColumnFilterPredicate_T = TColumnFilterPredicate<T>;
   __TPredicateTool_T = TPredicateTool<T>;
-*)
 var
   i : integer;
   filters : __TList_IPredicate_T;
   GC : TDisposables;
 begin
-  // Skybuck: Disabled for now
-  (*
+  // Skybuck: Re-enabled
   filters := GC.AddObject( __TList_IPredicate_T.Create ) as __TList_IPredicate_T;
   for i := Low(AFilters) to High(AFilters) do begin
     if AFilters[i].Filter <> vgfSortable then begin
       filters.Add( __TColumnFilterPredicate_T.Create(AFilters[i], ADelegate));
     end;
   end;
-  *)
 
-  (*
-  // Skybuck: Free Pascal Compiler Bug/Internal Error 2015052501 (disabled for now).
+  // Skybuck: Free Pascal Compiler Bug/Internal Error 2015052501 caused by buggy TList, replaced with TFPGList.
   case filters.Count of
     0: Result := nil;
     1: Result := filters[0];
     else case AOperand of
-      foAnd: Result := __TPredicateTool_T.AndMany(filters.ToArray);
-      foOr: Result := __TPredicateTool_T.OrMany(filters.ToArray);
+//      foAnd: Result := __TPredicateTool_T.AndMany(filters.ToArray); // Skybuck: old TList bug
+//      foOr: Result := __TPredicateTool_T.OrMany(filters.ToArray); // Skybuck: old TList bug
+
+      foAnd: Result := __TPredicateTool_T.AndMany(ArrayFromList(filters)); // skybuck: new TFPGList fix
+      foOr: Result := __TPredicateTool_T.OrMany(ArrayFromList(filters));  // Skybuck: new TFPGList fix
     end;
   end;
-  *)
 end;
 
 { TPageFetchParams }
