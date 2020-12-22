@@ -54,6 +54,7 @@ uses
   UNode,
   UWallet,
   UAccounts,
+  UPCDataTypes,
   UCoreUtils,
   UBaseTypes,
   UFRMAccountSelect;

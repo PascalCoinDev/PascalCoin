@@ -1182,6 +1182,7 @@ var
   LCurrentAccount, LSignerAccount: TAccount;
   LOperationPayload : TOperationPayload;
   LANewAccountState : TAccountState;
+  LHashLock : T32Bytes;
 begin
 
   LWalletKeys := TWallet.Keys;
@@ -1252,15 +1253,16 @@ begin
         Exit(False);
       end;
 
+      LHashLock := CT_HashLock_NUL; // Skybuck: check or debug if this needs to be a parameter, calculated or if it can be a nil record. Passed below into function
+
       case AAccountSaleMode of
         akaPublicSale:
-
           LPCOperation := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(
             LNode.Bank.Safebox.CurrentProtocol,
-            LANewAccountState, // Skybuck not sure if this must be a parameter or acquired locally or left empty, for now adding to code.
+            LANewAccountState, // Skybuck: check or debug LANewAccountState, perhaps this needs to be a parameter in the above function header ?!?
             LSignerAccount.account, LSignerAccount.n_operation + 1 + LAccountIdx,
             LCurrentAccount.account, ASalePrice, LFee, ASellerAccount.account,
-            APublicKey, 0, LWalletKey.PrivateKey, CT_HashLock_NUL, LOperationPayload); // Skybuck: somebody check if hashlock can be a nil record
+            APublicKey, 0, LWalletKey.PrivateKey, LHashLock, LOperationPayload); // Skybuck: check or debug LHashLock ! Perhaps needs to be a parameter to above function header ?!?
 
         akaPrivateSale:
 

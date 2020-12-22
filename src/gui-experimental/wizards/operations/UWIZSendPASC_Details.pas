@@ -68,6 +68,7 @@ uses
   USettings,
   UCoreUtils,
   UBaseTypes,
+  UPCDataTypes,
   UCoreObjects,
   UBlockChain,
   UFRMAccountSelect,

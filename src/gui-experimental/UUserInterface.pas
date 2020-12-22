@@ -342,8 +342,9 @@ begin
     FLog.SaveTypes := [];
 
     // Create data directories
-    If Not ForceDirectories(TFolderHelper.GetPascalCoinDataFolder) then
-      raise Exception.Create('Cannot create dir: '+TFolderHelper.GetPascalCoinDataFolder);
+    // Skybuck: using solution 1 for now: TNode.GetPascalCoinDataFolder
+    If Not ForceDirectories(TNode.GetPascalCoinDataFolder) then
+      raise Exception.Create('Cannot create dir: '+TNode.GetPascalCoinDataFolder);
 
     // Load settings
     TSettings.Load;
@@ -378,7 +379,8 @@ begin
 
     // Initialise Database
     FNode.Bank.StorageClass := TFileStorage;
-    TFileStorage(FNode.Bank.Storage).DatabaseFolder := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data';
+    // skybuck: using solution 1 for now: TNode.GetPascalCoinDataFolder
+    TFileStorage(FNode.Bank.Storage).DatabaseFolder := TNode.GetPascalCoinDataFolder+PathDelim+'Data';
     TFileStorage(FNode.Bank.Storage).Initialize;
 
     // Reading database
@@ -616,7 +618,8 @@ begin
       FLog.SaveTypes := CT_TLogTypes_ALL
     else
       FLog.SaveTypes := CT_TLogTypes_DEFAULT;
-    FLog.FileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'PascalCointWallet.log';
+    // Skybuck: Using solution 1 for now: TNode.GetPascalCoinDataFolder
+    FLog.FileName := TNode.GetPascalCoinDataFolder+PathDelim+'PascalCointWallet.log';
   end else begin
     FLog.SaveTypes := [];
     FLog.FileName := '';
@@ -631,7 +634,8 @@ begin
     finally
       FNode.UnlockMempoolWrite;
     end;
-    FNode.NodeLogFilename := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'blocks.log';
+    // Skybuck: Using solution 1 for now: TNode.GetPascalCoinDataFolder
+    FNode.NodeLogFilename := TNode.GetPascalCoinDataFolder+PathDelim+'blocks.log';
   end;
   if Assigned(FPoolMiningServer) then begin
     if FPoolMiningServer.Port <> TSettings.MinerServerRpcPort then begin
