@@ -153,7 +153,7 @@ type
       function CancelRequested(out message : AnsiString) : boolean; override;
       function FinishRequested(out message : AnsiString) : boolean; override;
     public
-      constructor Create(AOwner:TComponent; title, finish: AnsiString; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc); // Skybuck: disabled for now because of fpc compiler internal error: 200602034
+      constructor Create(AOwner:TComponent; title, finish: AnsiString; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
       class procedure Show(AParent: TForm; title, finish: AnsiString; constref bag : T; const screens : array of TComponentClass; cancelFunc: TActionWizardCancelFunc; finishFunc : TActionWizardFinishFunc);
       property FinishText : AnsiString read FTitleText;
       property TitleText : AnsiString read FFinishText;
