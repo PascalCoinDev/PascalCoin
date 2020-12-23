@@ -294,8 +294,8 @@ loop_start:
         if signerAccount.balance>DefaultFee then _fee := DefaultFee
         else _fee := signerAccount.balance;
         if (rbListAccountForPublicSale.Checked) then begin
-          LHashLock := CT_HashLock_NUL; // Skybuck: check or debug ! passed in function below !
-          // Skybuck: LNewAccountState parameter added, check or debug this later ! passed in function below !
+          LHashLock := CT_HashLock_NUL; // Skybuck: check or debug ! LHashLock zero value array passed in function below perhaps replace with correctly filled hash array !
+          // Skybuck: LNewAccountState parameter added, check or debug this later ! passed in function below ! LNewAccountState is not set yet !
           op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, LNewAccountState, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee, destAccount.account,CT_TECDSA_Public_Nul,0,wk.PrivateKey,LHashLock, FOperationPayload);
         end else if (rbListAccountForPrivateSale.Checked) then begin
           op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, LNewAccountState, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee, destAccount.account,_newOwnerPublicKey,_lockedUntil,wk.PrivateKey,LHashLock, FOperationPayload);
@@ -320,7 +320,7 @@ loop_start:
         if not UpdateOpChangeInfo(account,signerAccount,_changeName,_newName,_changeType,_newType,errors) then raise Exception.Create(errors);
         if signerAccount.balance>DefaultFee then _fee := DefaultFee
         else _fee := signerAccount.balance;
-        // Skybuck: check or debug LChangeData and LNewData !!
+        // Skybuck: check or debug LChangeData and LNewData !! (newly added, no correct values yet set in these two variables !?!)
         op := TOpChangeAccountInfo.CreateChangeAccountInfo(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1,account.account,wk.PrivateKey,false,CT_TECDSA_Public_Nul,
            _changeName,_newName,_changeType,_newType,LChangeData,LNewData,_fee,FOperationPayload);
         {%endregion}
@@ -1255,7 +1255,6 @@ Var payload_u : AnsiString;
 begin
   valid := false;
   payload_encrypted := Nil;
-//  FEncodedPayload := Nil;  // Skybuck: old/deprecated
   FOperationPayload.payload_raw := nil;
   errors := 'Unknown error';
   payload_u := memoPayload.Lines.Text;
@@ -1359,7 +1358,6 @@ begin
       lblEncryptionErrors.Caption := errors;
       lblPayloadLength.Caption := Format('(%db -> ?)',[length(payload_u)]);
     end;
-//    FEncodedPayload := payload_encrypted; // Skybuck: old/deprecated
     FOperationPayload.payload_raw := payload_encrypted;
 
     Result := valid;

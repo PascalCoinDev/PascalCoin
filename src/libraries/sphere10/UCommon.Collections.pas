@@ -347,7 +347,7 @@ type
   __TArrayTool_IComparer_T = TArrayTool<__IComparer_T>;
 
 begin
-  Result := TManyComparer<T>.Create( __TArrayTool_IComparer_T.Copy(comparers) ); // Skybuck: re-enabled
+  Result := TManyComparer<T>.Create( __TArrayTool_IComparer_T.Copy(comparers) );
 end;
 
 class function TComparerTool<T>.Many(const comparers: TEnumerable<__IComparer_T>) : IComparer<T>;
@@ -365,7 +365,7 @@ end;
 
 class function TComparerTool<T>.AlwaysEqual : IComparer<T>;
 type
-  __TGlobalComparerFunc_T = TGlobalComparerFunc<T>;  // Skybuck: Re-enabled
+  __TGlobalComparerFunc_T = TGlobalComparerFunc<T>;
 begin
   Result :=  TComparerTool<T>.FromFunc( AlwaysEqualHandler );
 end;
@@ -514,9 +514,9 @@ end;
 
 class function TPredicateTool<T>.OrMany(const APredicates : array of IPredicate<T>) : IPredicate<T>;
 type
-  __TArrayTool_IPredicate_T = TArrayTool<__IPredicate_T>; // Skybuck: Re-enabled
+  __TArrayTool_IPredicate_T = TArrayTool<__IPredicate_T>;
 begin
-  Result := TOrManyPredicate<T>.Create( __TArrayTool_IPredicate_T.Copy( APredicates) ); // Skybuck: Re-enabled
+  Result := TOrManyPredicate<T>.Create( __TArrayTool_IPredicate_T.Copy( APredicates) );
 end;
 
 class function TPredicateTool<T>.OrMany(const APredicates : array of TNestedPredicateFunc<T>) : IPredicate<T>;

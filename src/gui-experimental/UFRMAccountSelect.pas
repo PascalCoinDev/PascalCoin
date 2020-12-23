@@ -169,10 +169,10 @@ procedure TSearchThread.BCExecute;
         isValid := TAccountComp.IsAccountForSale(account.accountInfo);
       end;
       If IsValid and (FSearchValues.onlyForPublicSale) then begin
-        isValid := (TAccountComp.IsAccountForSale(account.accountInfo)) And (Not TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(account, FSearchValues.SafeBox.BlocksCount, FSearchValues.SafeBox.CurrentProtocol, nil));  // Skybuck: todo check/debug if this is safe
+        isValid := (TAccountComp.IsAccountForSale(account.accountInfo)) And (Not TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(account, FSearchValues.SafeBox.BlocksCount, FSearchValues.SafeBox.CurrentProtocol, nil));  // Skybuck: todo check/debug !
       end;
       If IsValid and (FSearchValues.onlyForPrivateSaleToMe) then begin
-        isValid := ( TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(account,FSearchValues.SafeBox.BlocksCount, FSearchValues.SafeBox.CurrentProtocol, nil)) And // Skybuck: todo check/debug if this is safe
+        isValid := ( TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(account,FSearchValues.SafeBox.BlocksCount, FSearchValues.SafeBox.CurrentProtocol, nil)) And // Skybuck: todo check/debug !
           (Assigned(FSearchValues.inWalletKeys)) And (FSearchValues.inWalletKeys.IndexOfAccountKey(account.accountInfo.new_publicKey)>=0);
       end;
       If IsValid then begin

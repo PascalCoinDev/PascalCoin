@@ -23,7 +23,7 @@ interface
 
 uses
   Classes, SysUtils, Generics.Collections, UMemory, UCommon, UCommon.Collections, Generics.Defaults,
-  Variants, LazUTF8, math, typinfo, syncobjs, fgl;
+  Variants, LazUTF8, math, typinfo, syncobjs;
 
 type
   TSortDirection = (sdNone, sdAscending, sdDescending);
@@ -234,10 +234,9 @@ const
   TDataSourceTool<T> = class
     protected type
       __IPredicate_T = IPredicate<T>;
-//      __TList_IPredicate_T = TList<__IPredicate_T>; // Skybuck: TList is buggy, disabled and replaced with TFPGList
-      __TList_IPredicate_T = TFPGlist<IPredicate<T>>;
+      __TList_IPredicate_T = TList<__IPredicate_T>;
     public
-     class function ArrayFromList( ParaList : __TList_IPredicate_T ) : TArray<IPredicate<T>>;
+     class function ToArrayWorkAround( ParaList : __TList_IPredicate_T ) : TArray<IPredicate<T>>; // Skybuck: work around for buggy TList.ToArray
      class function ConstructRowComparer(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplySortDelegate<T>) : IComparer<T>;
      class function ConstructRowPredicate(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplyFilterDelegate<T>; const AOperand : TFilterOperand) : IPredicate<T>;
   end;
@@ -640,14 +639,13 @@ end;
 
 class function TDataSourceTool<T>.ConstructRowComparer(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplySortDelegate<T>) : IComparer<T>;
 type
-  __IComparer_T = IComparer<T>; // Skybuck: Re-enabled
+  __IComparer_T = IComparer<T>;
 var
   i : integer;
-  comparers : TList<__IComparer_T>; // Skybuck: Re-enabled
+  comparers : TList<__IComparer_T>;
   filter : TColumnFilter;
   GC : TDisposables;
 begin
-// Skybuck: Re-enabled
   comparers := GC.AddObject(  TList<__IComparer_T>.Create ) as TList<__IComparer_T>;
   for i := Low(AFilters) to High(AFilters) do begin
     filter := AFilters[i];
@@ -662,22 +660,13 @@ begin
   end;
 end;
 
-// Skybuck: New temporarely ArrayFromList function until buggy TList is fixed by FPC compiler team (or generics team ?!?)
-class function TDataSourceTool<T>.ArrayFromList( ParaList : __TList_IPredicate_T ) : TArray<IPredicate<T>>;
-var
-  LIndex : integer;
+// Skybuck: ToArrayWorkAround implementation until TList.ToArray is fixed by FPC compiler and/or generics team ?
+class function TDataSourceTool<T>.ToArrayWorkAround( ParaList : __TList_IPredicate_T ) : TArray<IPredicate<T>>;
 begin
-  // Skybuck: untested code, check and/or debug it !
-  SetLength( result, ParaList.Count );
-
-  for LIndex := 0 to length(result)-1 do
-  begin
-    result[LIndex] := ParaList.Items[LIndex];
-  end;
+  result := ParaList.ToArray;
 end;
 
 class function TDataSourceTool<T>.ConstructRowPredicate(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplyFilterDelegate<T>; const AOperand : TFilterOperand) : IPredicate<T>;
-// Skybuck: Re-enabled
 type
   __TColumnFilterPredicate_T = TColumnFilterPredicate<T>;
   __TPredicateTool_T = TPredicateTool<T>;
@@ -686,7 +675,6 @@ var
   filters : __TList_IPredicate_T;
   GC : TDisposables;
 begin
-  // Skybuck: Re-enabled
   filters := GC.AddObject( __TList_IPredicate_T.Create ) as __TList_IPredicate_T;
   for i := Low(AFilters) to High(AFilters) do begin
     if AFilters[i].Filter <> vgfSortable then begin
@@ -694,16 +682,16 @@ begin
     end;
   end;
 
-  // Skybuck: Free Pascal Compiler Bug/Internal Error 2015052501 caused by buggy TList, replaced with TFPGList.
+  // Skybuck: Free Pascal Compiler Bug/Internal Error 2015052501 caused by buggy TList.ToArray
   case filters.Count of
     0: Result := nil;
     1: Result := filters[0];
     else case AOperand of
-//      foAnd: Result := __TPredicateTool_T.AndMany(filters.ToArray); // Skybuck: old TList bug
-//      foOr: Result := __TPredicateTool_T.OrMany(filters.ToArray); // Skybuck: old TList bug
+//      foAnd: Result := __TPredicateTool_T.AndMany(filters.ToArray); // Skybuck: TList.ToArray causes FPC compiler to crash here.
+//      foOr: Result := __TPredicateTool_T.OrMany(filters.ToArray);
 
-      foAnd: Result := __TPredicateTool_T.AndMany(ArrayFromList(filters)); // skybuck: new TFPGList fix
-      foOr: Result := __TPredicateTool_T.OrMany(ArrayFromList(filters));  // Skybuck: new TFPGList fix
+      foAnd: Result := __TPredicateTool_T.AndMany(ToArrayWorkAround(filters));
+      foOr: Result := __TPredicateTool_T.OrMany(ToArrayWorkAround(filters));
     end;
   end;
 end;
