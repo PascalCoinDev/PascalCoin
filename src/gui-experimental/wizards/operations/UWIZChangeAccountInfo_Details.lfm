@@ -8,7 +8,7 @@ object WIZChangeAccountInfo_Details: TWIZChangeAccountInfo_Details
   Caption = 'WIZChangeAccountInfo_Details'
   ClientHeight = 379
   ClientWidth = 450
-  Visible = False
+  LCLVersion = '2.0.10.0'
   object gbName: TGroupBox
     Left = 8
     Height = 124
@@ -16,7 +16,7 @@ object WIZChangeAccountInfo_Details: TWIZChangeAccountInfo_Details
     Width = 431
     Anchors = [akTop, akLeft, akRight]
     Caption = 'Name'
-    ClientHeight = 104
+    ClientHeight = 105
     ClientWidth = 427
     TabOrder = 0
     object txtName: TEdit
@@ -35,18 +35,18 @@ object WIZChangeAccountInfo_Details: TWIZChangeAccountInfo_Details
     end
     object lblNameNotice: TLabel
       Left = 16
-      Height = 15
+      Height = 14
       Top = 8
-      Width = 121
+      Width = 130
       Caption = 'Please enter new name'
       ParentColor = False
       ParentFont = False
     end
     object lblNameDetails: TLabel
-      Left = 333
-      Height = 15
+      Left = 329
+      Height = 14
       Top = 8
-      Width = 74
+      Width = 78
       Anchors = [akTop, akRight]
       Caption = 'Name Details'
       Font.Style = [fsBold]
@@ -61,7 +61,7 @@ object WIZChangeAccountInfo_Details: TWIZChangeAccountInfo_Details
     Width = 431
     Anchors = [akTop, akLeft, akRight]
     Caption = 'Type'
-    ClientHeight = 102
+    ClientHeight = 103
     ClientWidth = 427
     ParentFont = False
     TabOrder = 1
@@ -82,17 +82,17 @@ object WIZChangeAccountInfo_Details: TWIZChangeAccountInfo_Details
     end
     object lblTypeNotice: TLabel
       Left = 16
-      Height = 15
+      Height = 14
       Top = 11
-      Width = 114
+      Width = 125
       Caption = 'Please enter new type'
       ParentColor = False
     end
     object lblTypeDetails: TLabel
-      Left = 340
-      Height = 15
+      Left = 333
+      Height = 14
       Top = 8
-      Width = 67
+      Width = 74
       Anchors = [akTop, akRight]
       Caption = 'Type Details'
       Font.Style = [fsBold]
@@ -107,22 +107,22 @@ object WIZChangeAccountInfo_Details: TWIZChangeAccountInfo_Details
     Width = 431
     Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'Options'
-    ClientHeight = 69
+    ClientHeight = 70
     ClientWidth = 427
     TabOrder = 2
     object chkCustomFee: TCheckBox
       Left = 16
-      Height = 19
+      Height = 18
       Top = 8
-      Width = 164
+      Width = 174
       Caption = 'Allow me to choose the fee'
       TabOrder = 0
     end
     object chkPayload: TCheckBox
       Left = 16
-      Height = 19
+      Height = 18
       Top = 40
-      Width = 158
+      Width = 163
       Caption = 'Attach a message payload'
       TabOrder = 1
     end

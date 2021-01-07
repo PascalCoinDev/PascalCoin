@@ -5,16 +5,16 @@ object FRMAccountExplorer: TFRMAccountExplorer
   Width = 868
   ActiveControl = cbMyPrivateKeys
   Caption = 'Accounts Explorer'
-  ClientHeight = 431
+  ClientHeight = 432
   ClientWidth = 868
   Menu = meAccountExplorerMenu
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poOwnerFormCenter
-  LCLVersion = '2.0.2.0'
+  LCLVersion = '2.0.10.0'
   object Splitter1: TSplitter
     Left = 380
-    Height = 385
+    Height = 366
     Top = 66
     Width = 5
   end
@@ -30,34 +30,34 @@ object FRMAccountExplorer: TFRMAccountExplorer
     TabOrder = 0
     object Label18: TLabel
       Left = 11
-      Height = 15
+      Height = 14
       Top = 40
-      Width = 69
+      Width = 70
       Caption = 'Find account'
       ParentColor = False
     end
     object cbMyPrivateKeys: TComboBox
       Left = 308
-      Height = 23
+      Height = 22
       Top = 5
       Width = 411
-      ItemHeight = 15
+      ItemHeight = 14
       OnChange = cbMyPrivateKeysChange
       Style = csDropDownList
       TabOrder = 0
     end
     object cbExploreMyAccounts: TCheckBox
       Left = 11
-      Height = 19
+      Height = 18
       Top = 9
-      Width = 255
+      Width = 268
       Caption = 'Explore accounts with one of my Wallet Keys'
       OnChange = cbExploreMyAccountsChange
       TabOrder = 1
     end
     object ebFindAccountNumber: TEdit
       Left = 95
-      Height = 23
+      Height = 22
       Top = 33
       Width = 83
       OnChange = ebFindAccountNumberChange
@@ -75,16 +75,16 @@ object FRMAccountExplorer: TFRMAccountExplorer
     end
     object cbFilterAccounts: TCheckBox
       Left = 308
-      Height = 19
+      Height = 18
       Top = 35
-      Width = 157
+      Width = 161
       Caption = 'Filter accounts by balance'
       OnChange = cbFilterAccountsChange
       TabOrder = 4
     end
     object ebFilterAccountByBalanceMin: TEdit
       Left = 472
-      Height = 23
+      Height = 22
       Hint = 'Min balance'
       Top = 33
       Width = 83
@@ -94,7 +94,7 @@ object FRMAccountExplorer: TFRMAccountExplorer
     end
     object ebFilterAccountByBalanceMax: TEdit
       Left = 568
-      Height = 23
+      Height = 22
       Hint = 'Max balance'
       Top = 33
       Width = 83
@@ -140,17 +140,17 @@ object FRMAccountExplorer: TFRMAccountExplorer
   end
   object pnlAccounts: TPanel
     Left = 0
-    Height = 385
+    Height = 366
     Top = 66
     Width = 380
     Align = alLeft
     BevelOuter = bvNone
-    ClientHeight = 385
+    ClientHeight = 366
     ClientWidth = 380
     TabOrder = 1
     object dgAccounts: TDrawGrid
       Left = 0
-      Height = 351
+      Height = 332
       Top = 0
       Width = 380
       Align = alClient
@@ -164,7 +164,7 @@ object FRMAccountExplorer: TFRMAccountExplorer
     object pnlAccountsInfo: TPanel
       Left = 0
       Height = 34
-      Top = 351
+      Top = 332
       Width = 380
       Align = alBottom
       BevelOuter = bvNone
@@ -173,33 +173,33 @@ object FRMAccountExplorer: TFRMAccountExplorer
       TabOrder = 1
       object Label17: TLabel
         Left = 5
-        Height = 15
+        Height = 14
         Top = 10
-        Width = 53
+        Width = 55
         Caption = 'Accounts:'
         ParentColor = False
       end
       object Label19: TLabel
         Left = 136
-        Height = 15
+        Height = 14
         Top = 10
-        Width = 44
+        Width = 45
         Caption = 'Balance:'
         ParentColor = False
       end
       object lblAccountsCount: TLabel
         Left = 60
-        Height = 15
+        Height = 14
         Top = 10
-        Width = 18
+        Width = 21
         Caption = '000'
         ParentColor = False
       end
       object lblAccountsBalance: TLabel
         Left = 200
-        Height = 15
+        Height = 14
         Top = 10
-        Width = 18
+        Width = 21
         Caption = '000'
         ParentColor = False
       end
@@ -245,7 +245,7 @@ object FRMAccountExplorer: TFRMAccountExplorer
   end
   object pcAccountsOptions: TPageControl
     Left = 385
-    Height = 385
+    Height = 366
     Top = 66
     Width = 483
     ActivePage = tsAccountOperations
@@ -254,11 +254,11 @@ object FRMAccountExplorer: TFRMAccountExplorer
     TabOrder = 2
     object tsAccountOperations: TTabSheet
       Caption = 'Operations of selected Account'
-      ClientHeight = 357
+      ClientHeight = 339
       ClientWidth = 475
       object dgAccountOperations: TDrawGrid
         Left = 0
-        Height = 357
+        Height = 339
         Top = 0
         Width = 475
         Align = alClient
@@ -471,8 +471,8 @@ object FRMAccountExplorer: TFRMAccountExplorer
     end
   end
   object meAccountExplorerMenu: TMainMenu
-    left = 240
-    top = 16
+    Left = 240
+    Top = 16
     object miTools: TMenuItem
       Caption = 'Tools'
       object miNewOperation: TMenuItem

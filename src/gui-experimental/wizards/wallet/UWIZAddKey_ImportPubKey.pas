@@ -39,7 +39,8 @@ implementation
 {$R *.lfm}
 
 uses
-  UAccounts;
+  UAccounts,
+  UPCDataTypes;
 
 { TWIZAddKey_ImportPubKey }
 

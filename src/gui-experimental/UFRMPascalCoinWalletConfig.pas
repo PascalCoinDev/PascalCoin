@@ -84,7 +84,7 @@ type
 
 implementation
 
-uses UConst, USettings, UAccounts, ULog, UCrypto, UFolderHelper, UWallet, UUserInterface, UCommon;
+uses UConst, USettings, UAccounts, ULog, UCrypto, UFolderHelper, UWallet, UUserInterface, UCommon, UNode;
 
 {$R *.lfm}
 
@@ -135,7 +135,13 @@ end;
 
 procedure TFRMPascalCoinWalletConfig.bbOpenDataFolderClick(Sender: TObject);
 begin
-  OpenDocument(PChar(TFolderHelper.GetPascalCoinDataFolder))
+  // Skybuck:TFolderHelper.GetPascalCoinDataFolder don't exist no more replaced with TNode.GetPascalCoinDataFolder
+  // OpenDocument(PChar(TFolderHelper.GetPascalCoinDataFolder))
+  // Two solutions possible:
+  // 1: TNode.GetPascalCoinDataFolder
+  // 2. TFolderHelper.GetDataFolder(CT_PascalCoin_Data_Folder
+  // I will try TNode first if this does not work use solution 2.
+  OpenDocument(PChar(TNode.GetPascalCoinDataFolder));
 end;
 
 procedure TFRMPascalCoinWalletConfig.bbUpdatePasswordClick(Sender: TObject);

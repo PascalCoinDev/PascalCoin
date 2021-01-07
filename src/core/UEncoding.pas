@@ -195,6 +195,9 @@ var
   i: Int32;
 begin
   Result := #0;
+  // carefull: E:\SourceCode\PascalCoin-master\src\libraries\regex must be added to project file
+  // otherwise wrong unit will be used from:
+  // Drive:\Tools\Lazarus\fpc\3.2.0\source\packages\regexpr\src
   i := FRegex.MatchIndexFromName(AGroupName);
   if i >= 0 then begin
     Result := FRegex.Match[i];

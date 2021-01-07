@@ -27,7 +27,7 @@ uses
   Dialogs, LCLType,
   UCommon, UCommon.UI,
   UBlockChain, UAccounts, UNode, UWallet, UConst, UFolderHelper, UGridUtils, URPC, UPoolMining,
-  ULog, UThread, UNetProtocol, UCrypto, UBaseTypes,
+  ULog, UThread, UNetProtocol, UCrypto, UBaseTypes, UPCDataTypes,
   UFRMMainForm, UCTRLSyncronization, UFRMAccountExplorer, UFRMOperationExplorer, UFRMPendingOperations, UFRMOperation,
   UFRMLogs, UFRMMessages, UFRMNodes, UFRMBlockExplorer, UFRMWalletKeys, UPCOrderedLists {$IFDEF TESTNET},UFRMRandomOperations, UAccountKeyStorage{$ENDIF};
 
@@ -342,8 +342,8 @@ begin
     FLog.SaveTypes := [];
 
     // Create data directories
-    If Not ForceDirectories(TFolderHelper.GetPascalCoinDataFolder) then
-      raise Exception.Create('Cannot create dir: '+TFolderHelper.GetPascalCoinDataFolder);
+    If Not ForceDirectories(TNode.GetPascalCoinDataFolder) then
+      raise Exception.Create('Cannot create dir: '+TNode.GetPascalCoinDataFolder);
 
     // Load settings
     TSettings.Load;
@@ -378,7 +378,7 @@ begin
 
     // Initialise Database
     FNode.Bank.StorageClass := TFileStorage;
-    TFileStorage(FNode.Bank.Storage).DatabaseFolder := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'Data';
+    TFileStorage(FNode.Bank.Storage).DatabaseFolder := TNode.GetPascalCoinDataFolder+PathDelim+'Data';
     TFileStorage(FNode.Bank.Storage).Initialize;
 
     // Reading database
@@ -616,7 +616,7 @@ begin
       FLog.SaveTypes := CT_TLogTypes_ALL
     else
       FLog.SaveTypes := CT_TLogTypes_DEFAULT;
-    FLog.FileName := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'PascalCointWallet.log';
+    FLog.FileName := TNode.GetPascalCoinDataFolder+PathDelim+'PascalCointWallet.log';
   end else begin
     FLog.SaveTypes := [];
     FLog.FileName := '';
@@ -631,7 +631,7 @@ begin
     finally
       FNode.UnlockMempoolWrite;
     end;
-    FNode.NodeLogFilename := TFolderHelper.GetPascalCoinDataFolder+PathDelim+'blocks.log';
+    FNode.NodeLogFilename := TNode.GetPascalCoinDataFolder+PathDelim+'blocks.log';
   end;
   if Assigned(FPoolMiningServer) then begin
     if FPoolMiningServer.Port <> TSettings.MinerServerRpcPort then begin
