@@ -1,7 +1,7 @@
 {
   This file is part of AbstractMem framework
 
-  Copyright (C) 2020 Albert Molina - bpascalblockchain@gmail.com
+  Copyright (C) 2020-2021 Albert Molina - bpascalblockchain@gmail.com
   
   https://github.com/PascalCoinDev/  
 
@@ -27,6 +27,9 @@
 {.$define ABSTRACTMEM_ENABLE_STATS}
 // define this to activate some stats on objects usefull for testing
 
+{.$define ABSTRACTMEM_CIRCULAR_SEARCH_PROTECTION}
+// define this to prevent circular search on tree nodes
+
 {$if (defined(ABSTRACTMEM_TESTING_MODE)) or (defined(ABSTRACTMEM_USE_TLOG))}{$define ABSTRACTMEM_ENABLE_STATS}{$endif}
 
 { 
@@ -45,7 +48,11 @@
   - Added tests
   - Fixed bug on CacheMem when replacing initial position of buffer
 
+  Version 1.2 - Jan 2021
+  - Added TAbstractBTree - Standard B-Tree implementation for use on AbstractMem Library
+  - Added ABSTRACTMEM_CIRCULAR_SEARCH_PROTECTION compiler directive to prevent circular structures on Tree nodes
+
 }
 
 const
-  CT_ABSTRACTMEM_VERSION = 1.1; // Each revision should increase this version...
+  CT_ABSTRACTMEM_VERSION = 1.2; // Each revision should increase this version...

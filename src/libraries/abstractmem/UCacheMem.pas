@@ -3,7 +3,7 @@
 {
   This file is part of AbstractMem framework
 
-  Copyright (C) 2020 Albert Molina - bpascalblockchain@gmail.com
+  Copyright (C) 2020-2021 Albert Molina - bpascalblockchain@gmail.com
 
   https://github.com/PascalCoinDev/
 
@@ -34,7 +34,7 @@ interface
 uses
   Classes, SysUtils,
   {$IFNDEF FPC}{$IFDEF MSWINDOWS}windows,{$ENDIF}{$ENDIF}
-  UAbstractBTree, UOrderedList;
+  UAbstractAVLTree, UOrderedList;
 
 {$I ./ConfigAbstractMem.inc }
 

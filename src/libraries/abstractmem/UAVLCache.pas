@@ -3,7 +3,7 @@ unit UAVLCache;
 {
   This file is part of AbstractMem framework
 
-  Copyright (C) 2020 Albert Molina - bpascalblockchain@gmail.com
+  Copyright (C) 2020-2021 Albert Molina - bpascalblockchain@gmail.com
 
   https://github.com/PascalCoinDev/
 
@@ -33,7 +33,7 @@ interface
 
 uses Classes, SysUtils,
   SyncObjs,
-  UAbstractBTree, UOrderedList,
+  UAbstractAVLTree, UOrderedList,
   {$IFNDEF FPC}System.Generics.Collections,System.Generics.Defaults{$ELSE}Generics.Collections,Generics.Defaults{$ENDIF};
 
 type

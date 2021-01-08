@@ -3,7 +3,7 @@ unit UAbstractMem;
 {
   This file is part of AbstractMem framework
 
-  Copyright (C) 2020 Albert Molina - bpascalblockchain@gmail.com
+  Copyright (C) 2020-2021 Albert Molina - bpascalblockchain@gmail.com
 
   https://github.com/PascalCoinDev/
 
@@ -34,7 +34,7 @@ interface
 uses
   Classes, SysUtils,
   SyncObjs,
-  UAbstractBTree;
+  UAbstractAVLTree;
 
 {$I ./ConfigAbstractMem.inc }
 
@@ -142,6 +142,7 @@ Type
     procedure SaveToStream(AStream : TStream);
     procedure CopyFrom(ASource : TAbstractMem);
     function GetStatsReport(AClearStats : Boolean) : String; virtual;
+    class function SizeOfPosition : Integer;
   End;
 
   TMem = Class(TAbstractMem)
@@ -540,6 +541,11 @@ begin
   Finally
     FLock.Release;
   End;
+end;
+
+class function TAbstractMem.SizeOfPosition: Integer;
+begin
+  Result := 4; // 4 Bytes
 end;
 
 function TAbstractMem.ToString: String;

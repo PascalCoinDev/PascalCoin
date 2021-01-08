@@ -9,7 +9,7 @@ interface
 uses Classes, SysUtils,
   SyncObjs,
   UAbstractMem, UFileMem, UAbstractMemTList,
-  UAbstractBTree,
+  UAbstractBTree, UAbstractAVLTree,
   UPCDataTypes, UBaseTypes, UAVLCache,
   {$IFNDEF FPC}System.Generics.Collections,System.Generics.Defaults{$ELSE}Generics.Collections,Generics.Defaults{$ENDIF};
 
