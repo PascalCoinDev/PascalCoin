@@ -51,6 +51,7 @@ implementation
 
 uses
   UAccounts,
+  UPCDataTypes,
   UCoreObjects;
 
 { TWIZOperationSigner_Select }

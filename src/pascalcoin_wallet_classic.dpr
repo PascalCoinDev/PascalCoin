@@ -51,7 +51,7 @@ uses
   UFRMOperationsExplorer in 'gui-classic\UFRMOperationsExplorer.pas' {FRMOperationsExplorer},
   {$IFDEF USE_GNUGETTEXT}
   UFRMSelectLanguage in 'gui-classic\UFRMSelectLanguage.pas' {FRMChangeLanguage},
-  {$ENDIF}
+  {$ENDIF }
   UFRMPascalCoinWalletConfig in 'gui-classic\UFRMPascalCoinWalletConfig.pas' {FRMPascalCoinWalletConfig},
   UFRMPayloadDecoder in 'gui-classic\UFRMPayloadDecoder.pas' {FRMPayloadDecoder},
   UFRMRandomOperations in 'gui-classic\UFRMRandomOperations.pas' {FRMRandomOperations},
@@ -68,7 +68,9 @@ uses
   URandomHash2 in 'core\URandomHash2.pas',
   UFRMDiagnosticTool in 'gui-classic\UFRMDiagnosticTool.pas' {FRMDiagnosticTool},
   UCommon in 'libraries\sphere10\UCommon.pas',
-  UMemory in 'libraries\sphere10\UMemory.pas';
+  UMemory in 'libraries\sphere10\UMemory.pas',
+  UEPasa in 'core\UEPasa.pas',
+  UEncoding in 'core\UEncoding.pas';
 
 {$R *.res}
 

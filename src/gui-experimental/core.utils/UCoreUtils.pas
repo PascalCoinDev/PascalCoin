@@ -23,14 +23,14 @@ interface
 
 uses
   Classes, SysUtils, Forms, Dialogs, LCLType, UAccounts, UBlockChain, UNode, UWallet,
-  UBaseTypes, UCommon, UCoreObjects, UCommon.Collections, Generics.Defaults;
+  UBaseTypes, UCommon, UCoreObjects, UCommon.Collections, Generics.Defaults, UPCDataTypes;
 
 type
 
   { TAccountComparer }
 
   TAccountComparer = class(TComparer<TAccount>)
-    function Compare(constref ALeft, ARight: T): integer; override;
+    function Compare(constref ALeft, ARight: TAccount): integer; override;
     class function DoCompare(constref ALeft, ARight: TAccount): integer; inline;
   end;
 
@@ -47,7 +47,7 @@ type
   { TAccountKeyComparer }
 
   TAccountKeyComparer = class(TComparer<TAccountKey>)
-    function Compare(constref ALeft, ARight: T): integer; override;
+    function Compare(constref ALeft, ARight: TAccountKey): integer; override;
     class function DoCompare(constref ALeft, ARight: TAccountKey): integer; inline;
   end;
 
@@ -114,7 +114,8 @@ type
   private
     class function IsOwnerOfWallet(AAccount: TAccount; AWalletKeys: TWalletKeys; out AWalletKey: TWalletKey; var AErrorMessage: string): boolean; static;
     class function ValidateOperationsInput(const ASelectedAccounts: TArray<TAccount>; AWalletKeys: TWalletKeys; ANode: TNode; var AErrorMessage: string): boolean; static;
-    class function UpdatePayload(const ASenderPublicKey, ADestinationPublicKey: TAccountKey; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static;
+    class function UpdatePayload(const ASenderPublicKey, ADestinationPublicKey: TAccountKey; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent: string; var AEncodedPayloadBytes: TRawBytes; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static; overload;
+    class function UpdatePayload(const ASenderPublicKey, ADestinationPublicKey: TAccountKey; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent: string; var AOperationPayload: TOperationPayload; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean; static; overload;
     class function SendPASCFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalAmount, ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
     class function OthersFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean; static;
   public
@@ -232,7 +233,7 @@ var
   i, j: integer;
   LAccs: TList<TAccount>;
   LAcc: TAccount;
-  LList: TOrderedCardinalList;
+  LList: TAccountsNumbersList;
   LMemPool: TPCOperationsComp;
   Disposables: TDisposables;
 begin
@@ -268,7 +269,7 @@ class function TCoreTool.GetUserAccountNumbers: TArray<cardinal>;
 var
   i, j: integer;
   LAccs: TSortedList<cardinal>;
-  LList: TOrderedCardinalList;
+  LList: TAccountsNumbersList;
   Disposables: TDisposables;
 begin
   LAccs := Disposables.AddObject(TSortedList<cardinal>.Create) as TSortedList<cardinal>;
@@ -478,7 +479,7 @@ var
 
   function GetAccountLastUpdateBlock(constref AAccount: TAccount): cardinal;
   begin
-    Result := AAccount.updated_block;
+    Result := AAccount.GetLastUpdatedBlock;
   end;
 
 begin
@@ -496,8 +497,8 @@ begin
     // if account is modified in block-tip
     LAcc := LAccounts[i];
     LAccountBalances.AddOrSetValue(LAcc.account, LAcc.Balance);  // track account balances
-    LBlockTraversal.Add(LAcc.updated_block);
-    MarkAccountAsScannableAtBlock(LAcc.account, LAcc.updated_block);
+    LBlockTraversal.Add(LAcc.GetLastUpdatedBlock);
+    MarkAccountAsScannableAtBlock(LAcc.account, LAcc.GetLastUpdatedBlock);
   end;
 
   // Traverse the set of "last updated" blocks in DESCENDING order
@@ -544,7 +545,7 @@ begin
   Result :=
     (ALeft.account = ARight.account) and
     (ALeft.balance = ARight.balance) and
-    (ALeft.updated_block = ARight.updated_block) and
+    (ALeft.GetLastUpdatedBlock = ARight.GetLastUpdatedBlock) and
     (ALeft.n_operation = ARight.n_operation) and
     TAccountKeyEqualityComparer.AreEqual(ALeft.accountInfo.accountKey, ARight.accountInfo.accountKey);
 end;
@@ -556,7 +557,7 @@ end;
 
 { TAccountKeyComparer }
 
-function TAccountKeyComparer.Compare(constref ALeft, ARight: T): integer;
+function TAccountKeyComparer.Compare(constref ALeft, ARight: TAccountKey): integer;
 begin
   Result := TAccountKeyComparer.DoCompare(ALeft, ARight);
 end;
@@ -614,7 +615,8 @@ begin
   builder.Append('');
   builder.Append(Format('Current balance: %s', [TAccountComp.FormatMoney(Self.balance)]));
   builder.Append('');
-  builder.Append(Format('Updated on block: %d  (%d blocks ago)', [Self.updated_block, ABank.BlocksCount - Self.updated_block]));
+  builder.Append(Format('Passively updated on block: %d  (%d blocks ago)', [Self.updated_on_block_passive_mode, ABank.BlocksCount - Self.updated_on_block_passive_mode]));
+  builder.Append(Format('Actively updated on block: %d  (%d blocks ago)', [Self.updated_on_block_active_mode, ABank.BlocksCount - Self.updated_on_block_active_mode]));
   builder.Append(Format('Public key type: %s', [TAccountComp.GetECInfoTxt(Self.accountInfo.accountKey.EC_OpenSSL_NID)]));
   builder.Append(Format('Base58 Public key: %s', [TAccountComp.AccountPublicKeyExport(Self.accountInfo.accountKey)]));
   if TAccountComp.IsAccountForSale(Self.accountInfo) then
@@ -623,7 +625,9 @@ begin
     builder.Append('** Account is for sale: **');
     builder.Append(Format('Price: %s', [TAccountComp.FormatMoney(Self.accountInfo.price)]));
     builder.Append(Format('Seller account (where to pay): %s', [TAccountComp.AccountNumberToAccountTxtNumber(Self.accountInfo.account_to_pay)]));
-    if TAccountComp.IsAccountForSaleAcceptingTransactions(Self.accountInfo) then
+//    if TAccountComp.IsAccountForSaleAcceptingTransactions(Self.accountInfo) then // Skybuck *old*
+    // Skybuck: funtionality partially restored, unsure of last parameter, unsure of parameter 2 and 3, needs testing and debugging
+    if TAccountComp.IsAccountForSaleOrSwapAcceptingTransactions(Self, ABank.SafeBox.BlocksCount, ABank.SafeBox.CurrentProtocol, nil ) then // Skybuck *new*
     begin
       builder.Append('');
       builder.Append('** Private sale **');
@@ -669,12 +673,12 @@ begin
   builder.Add(Format('Operation Hash (ophash): %s', [TCrypto.ToHexaString(Self.OperationHash)]));
   if (Self.OperationHash_OLD <> nil) then
     builder.Add(Format('Old Operation Hash (old_ophash): %s', [TCrypto.ToHexaString(Self.OperationHash_OLD)]));
-  if (Self.OriginalPayload <> nil) then
+  if (Self.OriginalPayload.payload_raw <> nil) then
   begin
-    builder.Add(Format('Payload length:%d', [length(Self.OriginalPayload)]));
+    builder.Add(Format('Payload length:%d', [length(Self.OriginalPayload.payload_raw)]));
     if Self.PrintablePayload <> '' then
       builder.Add(Format('Payload (human): %s', [Self.PrintablePayload]));
-    builder.Add(Format('Payload (Hexadecimal): %s', [TCrypto.ToHexaString(Self.OriginalPayload)]));
+    builder.Add(Format('Payload (Hexadecimal): %s', [TCrypto.ToHexaString(Self.OriginalPayload.payload_raw)]));
   end;
   if Self.Balance >= 0 then
     builder.Add(Format('Final balance: %s', [TAccountComp.FormatMoney(Self.Balance)]));
@@ -857,6 +861,11 @@ begin
   end;
 end;
 
+class function TWIZOperationsHelper.UpdatePayload(const ASenderPublicKey, ADestinationPublicKey: TAccountKey; const APayloadEncryptionMode: TPayloadEncryptionMode; const APayloadContent: string; var AOperationPayload: TOperationPayload; const APayloadEncryptionPassword: string; var AErrorMessage: string): boolean;
+begin
+  result := UpdatePayload( ASenderPublicKey, ADestinationPublicKey, APayloadEncryptionMode, APayloadContent, AOperationPayload.payload_raw, APayloadEncryptionPassword, AErrorMessage );
+end;
+
 class function TWIZOperationsHelper.OthersFinalizeAndDisplayMessage(const AOperationsTxt, AOperationToString: string; ANoOfOperations: integer; ATotalFee: int64; AOperationsHashTree: TOperationsHashTree; var AErrorMessage: string): boolean;
 var
   LAuxs, LOperationsTxt: string;
@@ -921,7 +930,7 @@ var
   LOperationsTxt, LOperationToString, LTemp: string;
   LAccountIdx, LNoOfOperations: integer;
   LCurrentAccount: TAccount;
-  LPayloadEncodedBytes: TRawBytes;
+  LOperationPayload : TOperationPayload;
 begin
 
   LWalletKeys := TWallet.Keys;
@@ -951,7 +960,7 @@ begin
         Exit(False);
       end;
 
-      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, ADestinationAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
+      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, ADestinationAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LOperationPayload, APayloadEncryptionPassword, AErrorMessage) then
       begin
         AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
         Exit(False);
@@ -987,7 +996,7 @@ begin
       if LDoOperation then
       begin
         LPCOperation := TOpTransaction.CreateTransaction(
-          TNode.Node.Bank.Safebox.CurrentProtocol, LCurrentAccount.account, LCurrentAccount.n_operation + 1, ADestinationAccount.account, LWalletKey.PrivateKey, LAmount, LFee, LPayloadEncodedBytes);
+          TNode.Node.Bank.Safebox.CurrentProtocol, LCurrentAccount.account, LCurrentAccount.n_operation + 1, ADestinationAccount.account, LWalletKey.PrivateKey, LAmount, LFee, LOperationPayload);
         try
           LTemp := Format('%d. Transfer of %s PASC from %s to %s %s', [LNoOfOperations + 1, TAccountComp.FormatMoney(LAmount), LCurrentAccount.AccountString, ADestinationAccount.AccountString, sLineBreak]);
           if LOperationsTxt <> '' then
@@ -1036,7 +1045,7 @@ var
   LOperationsTxt, LOperationToString, LTemp: string;
   LAccountIdx, LNoOfOperations: integer;
   LCurrentAccount, LSignerAccount: TAccount;
-  LPayloadEncodedBytes: TRawBytes;
+  LOperationPayload : TOperationPayload;
 label
   loop_start;
 begin
@@ -1091,7 +1100,7 @@ begin
       else
         LSignerAccount := LCurrentAccount;
 
-      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, APublicKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
+      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, APublicKey, APayloadEncryptionMode, APayloadContent, LOperationPayload, APayloadEncryptionPassword, AErrorMessage) then
       begin
         AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
         Exit(False);
@@ -1119,11 +1128,11 @@ begin
 
         LPCOperation := TOpChangeKeySigned.Create(LNode.Bank.Safebox.CurrentProtocol, LSignerAccount.account,
           LSignerAccount.n_operation + LNoOfOperations + 1, LCurrentAccount.account,
-          LWalletKey.PrivateKey, APublicKey, LFee, LPayloadEncodedBytes);
+          LWalletKey.PrivateKey, APublicKey, LFee, LOperationPayload );
       end
       else
         LPCOperation := TOpChangeKey.Create(LNode.Bank.Safebox.CurrentProtocol, LCurrentAccount.account, LCurrentAccount.n_operation +
-          1, LCurrentAccount.account, LWalletKey.PrivateKey, APublicKey, LFee, LPayloadEncodedBytes);
+          1, LCurrentAccount.account, LWalletKey.PrivateKey, APublicKey, LFee, LOperationPayload);
 
       try
         LTemp := Format('%d. Change Key To %s', [LNoOfOperations + 1, TAccountComp.GetECInfoTxt(APublicKey.EC_OpenSSL_NID), sLineBreak]);
@@ -1171,7 +1180,9 @@ var
   LOperationsTxt, LOperationToString, LTemp: string;
   LAccountIdx, LNoOfOperations: integer;
   LCurrentAccount, LSignerAccount: TAccount;
-  LPayloadEncodedBytes: TRawBytes;
+  LOperationPayload : TOperationPayload;
+  LANewAccountState : TAccountState;
+  LHashLock : T32Bytes;
 begin
 
   LWalletKeys := TWallet.Keys;
@@ -1236,26 +1247,31 @@ begin
       else
         LFee := LSignerAccount.balance;
 
-      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, LSignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
+      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, LSignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LOperationPayload, APayloadEncryptionPassword, AErrorMessage) then
       begin
         AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
         Exit(False);
       end;
 
+      LHashLock := CT_HashLock_NUL; // Skybuck: check or debug if this needs to be a parameter, calculated or if it can be a nil record. Passed below into function
+
       case AAccountSaleMode of
         akaPublicSale:
-
-          LPCOperation := TOpListAccountForSale.CreateListAccountForSale(
-            LNode.Bank.Safebox.CurrentProtocol, LSignerAccount.account, LSignerAccount.n_operation + 1 + LAccountIdx,
+          LPCOperation := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(
+            LNode.Bank.Safebox.CurrentProtocol,
+            LANewAccountState, // Skybuck: check or debug LANewAccountState, perhaps this needs to be a parameter in the above function header ?!?
+            LSignerAccount.account, LSignerAccount.n_operation + 1 + LAccountIdx,
             LCurrentAccount.account, ASalePrice, LFee, ASellerAccount.account,
-            APublicKey, 0, LWalletKey.PrivateKey, LPayloadEncodedBytes);
+            APublicKey, 0, LWalletKey.PrivateKey, LHashLock, LOperationPayload); // Skybuck: check or debug LHashLock ! Perhaps needs to be a parameter to above function header ?!?
 
         akaPrivateSale:
 
-          LPCOperation := TOpListAccountForSale.CreateListAccountForSale(
-            LNode.Bank.Safebox.CurrentProtocol, LSignerAccount.account, LSignerAccount.n_operation + 1 + LAccountIdx,
+          LPCOperation := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(
+            LNode.Bank.Safebox.CurrentProtocol,
+            LANewAccountState, // Skybuck not sure if this must be a parameter or acquired locally or left empty, for now adding to code.
+            LSignerAccount.account, LSignerAccount.n_operation + 1 + LAccountIdx,
             LCurrentAccount.account, ASalePrice, LFee, ASellerAccount.account,
-            APublicKey, ALockedUntilBlock, LWalletKey.PrivateKey, LPayloadEncodedBytes)
+            APublicKey, ALockedUntilBlock, LWalletKey.PrivateKey, CT_HashLock_NUL, LOperationPayload); // Skybuck: somebody check if hashlock can be a nil record
         else
           raise Exception.Create('Invalid Account Sale Type')
       end;
@@ -1306,7 +1322,7 @@ var
   LOperationsTxt, LOperationToString, LTemp: string;
   LAccountIdx, LNoOfOperations: integer;
   LCurrentAccount, LSignerAccount: TAccount;
-  LPayloadEncodedBytes: TRawBytes;
+  LOperationPayload : TOperationPayload;
 begin
 
   LWalletKeys := TWallet.Keys;
@@ -1366,7 +1382,7 @@ begin
       else
         LFee := LSignerAccount.balance;
 
-      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, LSignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LPayloadEncodedBytes, APayloadEncryptionPassword, AErrorMessage) then
+      if not UpdatePayload(LCurrentAccount.accountInfo.accountKey, LSignerAccount.accountInfo.accountKey, APayloadEncryptionMode, APayloadContent, LOperationPayload, APayloadEncryptionPassword, AErrorMessage) then
       begin
         AErrorMessage := Format('Error Encoding Payload Of Selected Account "%s. ", Specific Error Is "%s"', [LCurrentAccount.AccountString, AErrorMessage]);
         Exit(False);
@@ -1374,7 +1390,7 @@ begin
 
       LPCOperation := TOpDelistAccountForSale.CreateDelistAccountForSale(LNode.Bank.Safebox.CurrentProtocol,
         LSignerAccount.account, LSignerAccount.n_operation + 1 + LAccountIdx, LCurrentAccount.account, LFee, LWalletKey.PrivateKey,
-        LPayloadEncodedBytes);
+        LOperationPayload);
 
       try
         LTemp := Format('%d. Delist Account %s From Sale %s', [LNoOfOperations + 1, LCurrentAccount.DisplayString, sLineBreak]);
@@ -1424,6 +1440,9 @@ var
   LCurrentAccount, LSignerAccount: TAccount;
   LPayloadEncodedBytes, LNewName: TRawBytes;
   LChangeType, LChangeName: boolean;
+  LChangeData : boolean;
+  LNewData : TRawBytes;
+  LOperationPayload : TOperationPayload;
 begin
 
   LWalletKeys := TWallet.Keys;
@@ -1523,10 +1542,9 @@ begin
         Exit(False);
       end;
 
-
-      LPCOperation := TOpChangeAccountInfo.CreateChangeAccountInfo(LNode.Bank.Safebox.CurrentProtocol,
+      LPCOperation := TOpChangeAccountInfo.CreateChangeAccountInfo( LNode.Bank.Safebox.CurrentProtocol,
         LSignerAccount.account, LSignerAccount.n_operation + 1, LCurrentAccount.account, LWalletKey.PrivateKey, False, CT_TECDSA_Public_Nul,
-        LChangeName, LNewName, LChangeType, ANewType, LFee, LPayloadEncodedBytes);
+        LChangeName, LNewName, LChangeType, ANewType, LChangeData, LNewData, LFee, LOperationPayload);
 
       try
         if (LChangeName) and (LChangeType) then
@@ -1587,6 +1605,7 @@ var
   LAccountIdx, LNoOfOperations, LAccNumberIndex: integer;
   LCurrentAccount, LSignerAccount: TAccount;
   LPayloadEncodedBytes, LNewName: TRawBytes;
+  LOperationPayload : TOperationPayload;
 begin
 
   LWalletKeys := TWallet.Keys;
@@ -1644,8 +1663,9 @@ begin
         Exit(False);
       end;
 
+      LOperationPayload.payload_raw := LPayloadEncodedBytes;
       LPCOperation := TOpBuyAccount.CreateBuy(LNode.Bank.Safebox.CurrentProtocol, LCurrentAccount.account, LCurrentAccount.n_operation + 1, AAccountToBuy.account, AAccountToBuy.accountInfo.account_to_pay,
-        AAccountToBuy.accountInfo.price, AAmount, LFee, ANewOwnerPublicKey, LWalletKey.PrivateKey, LPayloadEncodedBytes);
+        AAccountToBuy.accountInfo.price, AAmount, LFee, ANewOwnerPublicKey, LWalletKey.PrivateKey, LOperationPayload);
 
       try
       LTemp := Format('%d. Buy Account %s for %s PASC %s', [LNoOfOperations + 1, AAccountToBuy.AccountString, TAccountComp.FormatMoney(AAmount), sLineBreak]);

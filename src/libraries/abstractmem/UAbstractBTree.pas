@@ -3,7 +3,7 @@ unit UAbstractBTree;
 {
   This file is part of AbstractMem framework
 
-  Copyright (C) 2020 Albert Molina - bpascalblockchain@gmail.com
+  Copyright (C) 2020-2021 Albert Molina - bpascalblockchain@gmail.com
 
   https://github.com/PascalCoinDev/
 
@@ -21,14 +21,6 @@ unit UAbstractBTree;
   The Initial Developer of the Original Code is Albert Molina.
 
   See ConfigAbstractMem.inc file for more info
-
-  SPECIAL CONTRIBUTOR:
-  This unit contains TAVLAbstractTree component that
-  is created based on work previously made
-  by Mattias Gaertner at unit AVL_Tree for Free Component Library (FCL)
-  and Lazarus: lazarus\components\lazutils\laz_avl_tree.pp
-  Code object has been fully redo but algo is based on it... and on
-  initial algo of AVL Tree created by Adelson-Velsky and Landis
 
   ***** END LICENSE BLOCK *****
 }
@@ -52,951 +44,1182 @@ uses
 {$I ./ConfigAbstractMem.inc }
 
 {$IFDEF ABSTRACTMEM_TESTING_MODE}
-  {$DEFINE ABSTRACTMEM_CHECK}
+  {$DEFINE ABSTRACTMEM_CIRCULAR_SEARCH_PROTECTION}
 {$ENDIF}
 
 type
-  TAVLTreePosition = (poParent, poLeft, poRight);
+  EAbstractBTree = Class(Exception);
 
-  EAVLAbstractTree = Class(Exception);
-
-  { TAVLAbstractTree }
-
-  TAVLAbstractTree<T> = class
+  TAbstractBTree<TIdentify, TData> = Class
+  public
+    type
+      TIdentifyArray = Array of TIdentify;
+      TDataArray = Array of TData;
+      TAbstractBTreeNode = record
+        identify : TIdentify;
+        parent : TIdentify;
+        data : TDataArray;
+        childs : TIdentifyArray;
+        function IsLeaf : Boolean;
+        procedure InsertData(const AData : TData; AIndex : Integer);
+        procedure InsertChild(const AChild : TIdentify; AIndex : Integer);
+        procedure RemoveInNode(AIndex : Integer);
+        procedure DeleteData(AIndex : Integer);
+        procedure DeleteChild(AChildIndex : Integer);
+        function Count : Integer;
+      end;
   private
-    FOnCompare: TComparison<T>;
-    FDisabledsCount : Integer;
+    FOnCompareIdentify: TComparison<TIdentify>;
+    FOnCompareData: TComparison<TData>;
     FAllowDuplicates: Boolean;
-    procedure BalanceAfterInsert(ANode: T);
-    procedure BalanceAfterDelete(ANode: T);
-    procedure CheckNode(const ANode: T); overload;
-    function CheckNode(const ANode: T; ACheckedList:TOrderedList<T>; var ALeftDepth, ARightDepth : Integer; const AErrors : TStrings): integer; overload;
-    procedure RotateLeft(var ANode: T);
-    procedure RotateRight(var ANode: T);
-    procedure BeginUpdate;
-    procedure EndUpdate;
-    procedure SwitchPositionWithSuccessor(aNode, aSuccessor: T);
+    FOrder: Integer;
+    FCircularProtection : Boolean;
+    procedure SplitAfterInsert(var ANode : TAbstractBTreeNode);
+    procedure MoveRange(var ASourceNode, ADestNode : TAbstractBTreeNode; AFromSource, ACount, AToDest : Integer);
+    procedure MoveRangeBetweenSiblings(var ASourceNode, ADestNode : TAbstractBTreeNode);
+    procedure BTreeNodeToString(const ANode : TAbstractBTreeNode; ALevel, ALevelIndex : Integer; const AStrings : TStrings);
+    procedure CheckConsistencyEx(const ANode: TAbstractBTreeNode; AIsGoingDown : Boolean; AParentDataIndexLeft,AParentDataIndexRight : Integer; ADatas: TOrderedList<TData>; AIdents: TOrderedList<TIdentify>; ACurrentLevel : Integer; var ALevels, ANodesCount, AItemsCount : Integer);
+    function FindPrecessorExt(var ANode : TAbstractBTreeNode; var iPos : Integer) : Boolean;
+    function FindSuccessorExt(var ANode : TAbstractBTreeNode; var iPos : Integer) : Boolean;
+    procedure EraseTreeExt(var ANode : TAbstractBTreeNode);
   protected
     FCount: integer;
-    function GetRoot: T; virtual; abstract;
-    procedure SetRoot(const Value: T); virtual; abstract;
-    function HasPosition(const ANode : T; APosition : TAVLTreePosition) : Boolean; virtual; abstract;
-    function GetPosition(const ANode : T; APosition : TAVLTreePosition) : T; virtual; abstract;
-    procedure SetPosition(var ANode : T; APosition : TAVLTreePosition; const ANewValue : T); virtual; abstract;
-    procedure ClearPosition(var ANode : T; APosition : TAVLTreePosition); virtual; abstract;
-    function GetBalance(const ANode : T) : Integer; virtual; abstract;
-    procedure SetBalance(var ANode : T; ANewBalance : Integer); virtual; abstract;
-    function AreEquals(const ANode1, ANode2 : T) : Boolean; virtual; abstract;
-    procedure ClearNode(var ANode : T); virtual; abstract;
-    procedure DisposeNode(var ANode : T); virtual; abstract;
-    //
-    procedure UpdateFinished; virtual;
+    function GetRoot: TAbstractBTreeNode; virtual; abstract;
+    procedure SetRoot(var Value: TAbstractBTreeNode); virtual; abstract;
+
+    procedure ClearNode(var ANode : TAbstractBTreeNode); virtual;
+    function NewNode : TAbstractBTreeNode; virtual; abstract;
+    procedure DisposeNode(var ANode : TAbstractBTreeNode); virtual; abstract;
+    procedure SetNil(var AIdentify : TIdentify); virtual; abstract;
+    function BinarySearch(const AData : TData; const ADataArray : TDataArray; out AIndex : Integer) : Boolean;
+    function AreEquals(const AIdentify1, AIdentify2 : TIdentify) : Boolean;
+    procedure SaveNode(var ANode : TAbstractBTreeNode); virtual; abstract;
+    function GetCount : Integer; virtual;
+    procedure SetCount(const ANewCount : Integer); virtual;
+    function GetHeight: Integer; virtual;
+    property Count : Integer read GetCount;
+    procedure CheckConsistencyFinalized(ADatas : TOrderedList<TData>; AIdents : TOrderedList<TIdentify>; Alevels, ANodesCount, AItemsCount : Integer); virtual;
+    function FindChildPos(const AIdent : TIdentify; const AParent : TAbstractBTreeNode) : Integer;
   public
     property AllowDuplicates : Boolean read FAllowDuplicates write FAllowDuplicates;
-    property DisabledsCount:Integer read FDisabledsCount;
-    function IsNil(const ANode : T) : Boolean; virtual; abstract;
+    function IsNil(const AIdentify : TIdentify) : Boolean; virtual; abstract;
+    function ToString(const ANode : TAbstractBTreeNode) : String; overload;
+    procedure EraseTree;
     //
-    property Root: T read GetRoot;
-    function FindInsertPos(const AData: T): T;
-    function Find(const AData: T): T;
-    function FindSuccessor(const ANode: T): T;
-    function FindPrecessor(const ANode: T): T;
-    function FindLowest: T;
-    function FindHighest: T;
-    function Add(var ANode: T) : Boolean;
-    procedure Delete(var ANode: T);
-    constructor Create(const OnCompareMethod: TComparison<T>; AAllowDuplicates : Boolean); virtual;
-    function ConsistencyCheck(const AErrors : TStrings): integer; virtual;
-    function ToString(const ANode:T) : String; reintroduce; overload; virtual;
-    function ToString : String; reintroduce; overload;
-    property OnCompareMethod: TComparison<T> read FOnCompare;
-  end;
-
-  //
-
-  PAVLPointerTreeNode = ^TAVLPointerTreeNode;
-  TAVLPointerTreeNode = Record
-    parent : PAVLPointerTreeNode;
-    left : PAVLPointerTreeNode;
-    right : PAVLPointerTreeNode;
-    balance : Integer;
-    data : Pointer;
+    property Root: TAbstractBTreeNode read GetRoot;
+    function Find(const AData: TData; out ANode : TAbstractBTreeNode; out iPos : Integer): Boolean;
+    function GetNode(AIdentify : TIdentify) : TAbstractBTreeNode; virtual; abstract;
+    function FindPrecessor(const AData : TData; out APrecessor : TData) : Boolean;
+    function FindSuccessor(const AData : TData; out ASuccessor : TData) : Boolean;
+    function FindLowestNode: TAbstractBTreeNode;
+    function FindLowest(out ALowest : TData) : Boolean;
+    function FindHighestNode: TAbstractBTreeNode;
+    function FindHighest(out AHighest : TData) : Boolean;
+    function Add(const AData: TData) : Boolean;
+    function Delete(const AData: TData) : Boolean;
+    function NodeDataToString(const AData : TData) : String; virtual;
+    constructor Create(const AOnCompareIdentifyMethod: TComparison<TIdentify>; const AOnCompareDataMethod: TComparison<TData>; AAllowDuplicates : Boolean; AOrder: Integer);
+    property OnCompareIdentifyMethod: TComparison<TIdentify> read FOnCompareIdentify;
+    property OnCompareDataMethod: TComparison<TData> read FOnCompareData;
+    function BTreeToString : String;
+    property Order : Integer  read FOrder;
+    function MaxItemsPerNode : Integer;
+    function MinItemsPerNode : Integer;
+    function MinChildrenPerNode : Integer;
+    function MaxChildrenPerNode : Integer;
+    procedure CheckConsistency; virtual;
+    property Height : Integer read GetHeight;
+    property CircularProtection : Boolean read FCircularProtection write FCircularProtection;
   End;
 
-  TPAVLPointerTree = Class( TAVLAbstractTree<PAVLPointerTreeNode> )
+  TMemoryBTree<TData> = Class( TAbstractBTree<Integer,TData> )
   private
-    FRoot : PAVLPointerTreeNode;
+    FBuffer : TList<TAbstractBTree<Integer,TData>.TAbstractBTreeNode> ;
+    Froot : Integer;
+    FDisposed : Integer;
+    FDisposedMinPos : Integer;
   protected
-    function GetRoot: PAVLPointerTreeNode; override;
-    procedure SetRoot(const Value: PAVLPointerTreeNode); override;
-    function HasPosition(const ANode : PAVLPointerTreeNode; APosition : TAVLTreePosition) : Boolean; override;
-    procedure SetPosition(var ANode : PAVLPointerTreeNode; APosition : TAVLTreePosition; const ANewValue : PAVLPointerTreeNode); override;
-    procedure ClearPosition(var ANode : PAVLPointerTreeNode; APosition : TAVLTreePosition); override;
-    function GetBalance(const ANode : PAVLPointerTreeNode) : Integer; override;
-    procedure SetBalance(var ANode : PAVLPointerTreeNode; ANewBalance : Integer); override;
-    function AreEquals(const ANode1, ANode2 : PAVLPointerTreeNode) : Boolean; override;
-    procedure ClearNode(var ANode : PAVLPointerTreeNode); override;
-    procedure DisposeNode(var ANode : PAVLPointerTreeNode); override;
+    function GetRoot: TAbstractBTree<Integer,TData>.TAbstractBTreeNode; override;
+    procedure SetRoot(var Value: TAbstractBTree<Integer,TData>.TAbstractBTreeNode); override;
+    function NewNode : TAbstractBTree<Integer,TData>.TAbstractBTreeNode; override;
+    procedure DisposeNode(var ANode : TAbstractBTree<Integer,TData>.TAbstractBTreeNode); override;
+    procedure SetNil(var AIdentify : Integer); override;
+    procedure SaveNode(var ANode : TAbstractBTree<Integer,TData>.TAbstractBTreeNode); override;
+    procedure CheckConsistencyFinalized(ADatas : TOrderedList<TData>; AIdents : TOrderedList<Integer>; Alevels, ANodesCount, AItemsCount : Integer); override;
   public
-    function IsNil(const ANode : PAVLPointerTreeNode) : Boolean; override;
-    function ToString(const ANode: PAVLPointerTreeNode) : String; override;
-    constructor Create(const OnCompareMethod: TComparison<PAVLPointerTreeNode>; AAllowDuplicates : Boolean); override;
-    //
-    function GetPosition(const ANode : PAVLPointerTreeNode; APosition : TAVLTreePosition) : PAVLPointerTreeNode; override;
+    function IsNil(const AIdentify : Integer) : Boolean; override;
+    constructor Create(const AOnCompareDataMethod: TComparison<TData>; AAllowDuplicates : Boolean; AOrder : Integer);
+    destructor Destroy; override;
+    function GetNode(AIdentify : Integer) : TAbstractBTree<Integer,TData>.TAbstractBTreeNode; override;
+    property Count;
   End;
 
+  TNoDuplicateData<TData> = Class
+  private
+    FBTree : TMemoryBTree<TData>;
+  public
+    function Add(const AData : TData) : Boolean;
+    constructor Create(const AOnCompareDataMethod: TComparison<TData>);
+    destructor Destroy; override;
+  End;
 
-const
-  CT_TAVLPointerTreeNode_NULL : TAVLPointerTreeNode = (parent:Nil;left:Nil;right:Nil;balance:0;data:Nil);
+  TIntegerBTree = Class( TMemoryBTree<Integer> )
+  private
+  protected
+  public
+    constructor Create(AAllowDuplicates : Boolean; AOrder : Integer);
+    function NodeDataToString(const AData : Integer) : String; override;
+  End;
 
 implementation
 
-{ TAVLAbstractTree }
+{ TAbstractBTree<TIdentify, TData> }
 
-function TAVLAbstractTree<T>.Add(var ANode : T) : Boolean;
-var LInsertPos: T;
-  LInsertComp: integer;
+function TAbstractBTree<TIdentify, TData>.Add(const AData: TData): Boolean;
+var Lnode  : TAbstractBTreeNode;
+  iDataPos : Integer;
 begin
-  BeginUpdate;
-  Try
-    // Init T
-    ClearPosition(ANode,poLeft);
-    ClearPosition(ANode,poRight);
-    SetBalance(ANode,0); // Init Balance to 0
-    if Not IsNil(Root) then begin
-      LInsertPos:=FindInsertPos(ANode);
-      LInsertComp:=fOnCompare(ANode,LInsertPos);
-      SetPosition(ANode,poParent,LInsertPos);
-      if LInsertComp<0 then begin
-        // insert to the left
-        SetPosition(LInsertPos,poLeft,ANode);
-      end else if (AllowDuplicates) Or (LInsertComp>0) then begin
-        // insert to the right
-        SetPosition(LInsertPos,poRight,ANode);
-      end else begin
-        Exit(False);
+  if (Find(AData,Lnode,iDataPos)) then begin
+    if (Not FAllowDuplicates) then Exit(False);
+    // Follow childs until leaf node
+    while (Not Lnode.IsLeaf) do begin
+      Lnode := GetNode(Lnode.childs[iDataPos]); // Insert at right position
+      if (BinarySearch(AData,Lnode.data,iDataPos)) then begin
+        //
       end;
-      BalanceAfterInsert(ANode);
+    end;
+  end else if (IsNil(Lnode.identify)) then begin
+    Lnode := NewNode;
+    SetRoot(Lnode);
+  end;
+  Assert(Lnode.IsLeaf,'Node must be a leaf');
+  // Lnode is a leaf and iDataPos is position to insert
+  Lnode.InsertData(Adata,iDataPos);
+  SaveNode(Lnode);
+  if Lnode.Count>MaxItemsPerNode then begin
+    // Split and up
+    SplitAfterInsert(Lnode);
+  end;
+  Result := True;
+  if (FCount>=0) then begin
+    SetCount(FCount+1);
+  end;
+end;
+
+function TAbstractBTree<TIdentify, TData>.AreEquals(const AIdentify1, AIdentify2: TIdentify): Boolean;
+begin
+  Result := FOnCompareIdentify(AIdentify1,AIdentify2)=0;
+end;
+
+function TAbstractBTree<TIdentify, TData>.BinarySearch(const AData : TData; const ADataArray: TDataArray; out AIndex: Integer): Boolean;
+  // AIndex will be a value between 0..Count and will be the position to do a Insert if needed
+var i, j, mid, cmp : integer;
+begin
+  Result := False;
+  i := 0;
+  j := Length(ADataArray)-1;
+  while (i <= j) do begin
+    mid := (i + j) shr 1;
+    cmp := FOnCompareData(AData,ADataArray[mid]);
+    if (cmp<0) then begin
+      j := mid - 1;
+    end else if (cmp>0) then begin
+      i := mid + 1;
     end else begin
-      SetRoot( ANode );
-      ClearPosition(ANode,poParent);
-    end;
-    inc(FCount);
-    Result := True;
-  Finally
-    EndUpdate;
-  End;
-end;
-
-function TAVLAbstractTree<T>.FindLowest: T;
-begin
-  Result:=Root;
-  if Not IsNil(Result) then
-    while HasPosition(Result,poLeft) do Result := GetPosition(Result,poLeft);
-end;
-
-function TAVLAbstractTree<T>.FindHighest: T;
-begin
-  Result:=Root;
-  if Not IsNil(Result) then
-    while HasPosition(Result,poRight) do Result := GetPosition(Result,poRight);
-end;
-
-procedure TAVLAbstractTree<T>.BalanceAfterDelete(ANode: T);
-var
-  OldParent, OldRight, OldRightLeft, OldLeft, OldLeftRight: T;
-begin
-  while Not IsNil(ANode) do begin
-    if ((GetBalance(ANode)=+1) or (GetBalance(ANode)=-1)) then exit;
-    OldParent:=GetPosition(ANode,poParent);
-    if (GetBalance(ANode)=0) then begin
-      // Treeheight has decreased by one
-      if IsNil(OldParent) then
-        exit;
-      if (AreEquals(GetPosition(OldParent,poLeft),ANode)) then
-        SetBalance(OldParent,GetBalance(OldParent)+1)
-      else
-      SetBalance(OldParent,GetBalance(OldParent)-1);
-      ANode:=OldParent;
-    end else if (GetBalance(ANode)=+2) then begin
-      // Node is overweighted to the right
-      OldRight:=GetPosition(ANode,poRight);
-      if (GetBalance(OldRight)>=0) then begin
-        // OldRight.Balance is 0 or +1
-        // rotate ANode,OldRight left
-        RotateLeft(ANode);
-        SetBalance(ANode,(1-GetBalance(OldRight))); // toggle 0 and 1
-        SetBalance(OldRight,GetBalance(OldRight)-1);
-        ANode:=OldRight;
-      end else begin
-        // OldRight.Balance=-1
-        { double rotate
-          = rotate OldRightLeft,OldRight right
-            and then rotate ANode,OldRightLeft left
-                  OldParent                           OldParent
-                      |                                  |
-                    ANode                           OldRightLeft
-                       \                               /      \
-                    OldRight             =>          ANode    OldRight
-                      /                                \         /
-               OldRightLeft                OldRightLeftLeft OldRightLeftRight
-                   /     \
-        OldRightLeftLeft OldRightLeftRight
-        }
-        OldRightLeft:=GetPosition(OldRight,poLeft);
-        RotateRight(OldRight);
-        RotateLeft(ANode);
-        if (GetBalance(OldRightLeft)<=0) then
-          SetBalance(ANode,0)
-        else
-          SetBalance(ANode,-1);
-        if (GetBalance(OldRightLeft)>=0) then
-          SetBalance(OldRight,0)
-        else
-          SetBalance(OldRight,+1);
-        SetBalance(OldRightLeft,0);
-        ANode:=OldRightLeft;
-      end;
-    end else begin
-      // Node.Balance=-2
-      // Node is overweighted to the left
-      OldLeft:=GetPosition(ANode,poLeft);
-      if (GetBalance(OldLeft)<=0) then begin
-        // rotate OldLeft,ANode right
-        RotateRight(ANode);
-        SetBalance(ANode,(-1-GetBalance(OldLeft))); // toggle 0 and -1
-        SetBalance(OldLeft,GetBalance(OldLeft)+1);
-        ANode:=OldLeft;
-      end else begin
-        // OldLeft.Balance = 1
-        { double rotate left right
-          = rotate OldLeft,OldLeftRight left
-            and then rotate OldLeft,ANode right
-                    OldParent                           OldParent
-                        |                                  |
-                      ANode                            OldLeftRight
-                       /                               /         \
-                    OldLeft             =>          OldLeft    ANode
-                       \                                \         /
-                   OldLeftRight               OldLeftRightLeft OldLeftRightRight
-                     /     \
-          OldLeftRightLeft OldLeftRightRight
-        }
-        OldLeftRight:=GetPosition(OldLeft,poRight);
-        RotateLeft(OldLeft);
-        RotateRight(ANode);
-        if (GetBalance(OldLeftRight)>=0) then
-          SetBalance(ANode,0)
-        else
-          SetBalance(ANode,+1);
-        if (GetBalance(OldLeftRight)<=0) then
-          SetBalance(OldLeft,0)
-        else
-          SetBalance(OldLeft,-1);
-        SetBalance(OldLeftRight,0);
-        ANode:=OldLeftRight;
-      end;
+      AIndex := mid;
+      Exit(True);
     end;
   end;
+  AIndex := i;
 end;
 
-procedure TAVLAbstractTree<T>.BalanceAfterInsert(ANode : T);
-var
-  OldParent, OldRight, OldLeft: T;
-begin
-  OldParent:=GetPosition(ANode,poParent);
-  while Not IsNil(OldParent) do begin
-    if (AreEquals(GetPosition(OldParent,poLeft),ANode)) then begin
-      // Node is left child
-      SetBalance(OldParent,GetBalance(OldParent)-1);
-      if (GetBalance(OldParent)=0) then exit;
-      if (GetBalance(OldParent)=-1) then begin
-        ANode:=OldParent;
-        OldParent:=GetPosition(ANode,poParent);
-        continue;
-      end;
-      // OldParent.Balance=-2
-      if (GetBalance(ANode)=-1) then begin
-        { rotate ANode,ANode.Parent right
-             OldParentParent        OldParentParent
-                   |                     |
-               OldParent        =>     ANode
-                 /                        \
-              ANode                     OldParent
-                \                        /
-              OldRight               OldRight      }
-        RotateRight(OldParent);
-        SetBalance(ANode,0);
-        SetBalance(OldParent,0);
-      end else begin
-        // Node.Balance = +1
-        { double rotate
-          = rotate ANode,OldRight left and then rotate OldRight,OldParent right
-             OldParentParent             OldParentParent
-                    |                           |
-                OldParent                    OldRight
-                   /            =>          /        \
-                 ANode                   ANode      OldParent
-                    \                       \          /
-                   OldRight          OldRightLeft  OldRightRight
-                     / \
-          OldRightLeft OldRightRight
-        }
-        OldRight:=GetPosition(ANode,poRight);
-        RotateLeft(ANode);
-        RotateRight(OldParent);
-        if (GetBalance(OldRight)<=0) then
-          SetBalance(ANode,0)
-        else
-          SetBalance(ANode,-1);
-        if (GetBalance(OldRight)=-1) then
-          SetBalance(OldParent,1)
-        else
-          SetBalance(OldParent,0);
-        SetBalance(OldRight,0);
-      end;
-      exit;
-    end else begin
-      // Node is right child
-      SetBalance(OldParent, GetBalance(OldParent)+1);
-      if (GetBalance(OldParent)=0) then exit;
-      if (GetBalance(OldParent)=+1) then begin
-        ANode:=OldParent;
-        OldParent:=GetPosition(ANode,poParent);
-        continue;
-      end;
-      // OldParent.Balance = +2
-      if (GetBalance(ANode)=+1) then begin
-        { rotate OldParent,ANode left
-             OldParentParent        OldParentParent
-                   |                     |
-               OldParent        =>     ANode
-                    \                   /
-                  ANode               OldParent
-                   /                      \
-                OldLeft                 OldLeft      }
-        RotateLeft(OldParent);
-        SetBalance(ANode,0);
-        SetBalance(OldParent,0);
-      end else begin
-        // Node.Balance = -1
-        { double rotate
-          = rotate OldLeft,ANode right and then rotate OldParent,OldLeft right
-             OldParentParent             OldParentParent
-                    |                           |
-                OldParent                    OldLeft
-                     \            =>        /       \
-                    ANode               OldParent   ANode
-                     /                     \          /
-                  OldLeft          OldLeftLeft  OldLeftRight
-                    / \
-         OldLeftLeft OldLeftRight
-        }
-        OldLeft:=GetPosition(ANode,poLeft);
-        RotateRight(ANode);
-        RotateLeft(OldParent);
-        if (GetBalance(OldLeft)>=0) then
-          SetBalance(ANode,0)
-        else
-          SetBalance(ANode,+1);
-        if (GetBalance(OldLeft)=+1) then
-          SetBalance(OldParent,-1)
-        else
-          SetBalance(OldParent,0);
-        SetBalance(OldLeft,0);
-      end;
-      exit;
-    end;
-  end;
-end;
-
-procedure TAVLAbstractTree<T>.BeginUpdate;
-begin
-  inc(FDisabledsCount);
-end;
-
-constructor TAVLAbstractTree<T>.Create(const OnCompareMethod: TComparison<T>; AAllowDuplicates : Boolean);
-begin
-  inherited Create;
-  FOnCompare:=OnCompareMethod;
-  FCount:=0;
-  FDisabledsCount := 0;
-  FAllowDuplicates := AAllowDuplicates;
-end;
-
-procedure TAVLAbstractTree<T>.Delete(var ANode: T);
-var OldParent, Child, LSuccessor: T;
-begin
-  BeginUpdate;
-  try
-    if (Not IsNil(GetPosition(ANode,poLeft))) and (Not IsNil(GetPosition(ANode,poRight))) then begin
-      // ANode has both: Left and Right
-      // Switch ANode position with Successor
-      // Because ANode.Right<>nil the Successor is a child of ANode
-      LSuccessor := FindSuccessor(ANode);
-      SwitchPositionWithSuccessor(ANode,LSuccessor);
-    end;
-    // left or right is nil
-    OldParent:=GetPosition(ANode,poParent);
-    ClearPosition(ANode,poParent);
-    if Not IsNil(GetPosition(ANode,poLeft)) then
-      Child:=GetPosition(ANode,poLeft)
-    else
-      Child:=GetPosition(ANode,poRight);
-    if Not IsNil(Child) then
-      SetPosition(Child,poParent,OldParent);
-    if Not IsNil(OldParent) then begin
-      // Node has parent
-      if (AreEquals(GetPosition(OldParent,poLeft),ANode)) then begin
-        // Node is left child of OldParent
-        SetPosition(OldParent,poLeft,Child);
-        SetBalance(OldParent, GetBalance(OldParent)+1);
-      end else begin
-        // Node is right child of OldParent
-        SetPosition(OldParent,poRight,Child);
-        SetBalance(OldParent, GetBalance(OldParent)-1);
-      end;
-      BalanceAfterDelete(OldParent);
-    end else begin
-      // Node was Root
-      SetRoot( Child );
-    end;
-    dec(FCount);
-
-    DisposeNode(ANode);
-
-  finally
-    EndUpdate;
-  end;
-end;
-
-
-procedure TAVLAbstractTree<T>.EndUpdate;
-begin
-  if FDisabledsCount<=0 then Raise EAVLAbstractTree.Create('EndUpdate invalid');
-  Dec(FDisabledsCount);
-  if FDisabledsCount=0 then UpdateFinished;
-end;
-
-procedure TAVLAbstractTree<T>.SwitchPositionWithSuccessor(aNode, aSuccessor: T);
-{ called by delete, when aNode.Left<>nil and aNode.Right<>nil
-  Switch ANode position with Successor
-  Because ANode.Right<>nil the Successor is a child of ANode }
-var
-  OldBalance: Integer;
-  OldParent, OldLeft, OldRight,
-  OldSuccParent, OldSuccLeft, OldSuccRight: T;
-begin
-  OldBalance:=GetBalance(aNode);
-  SetBalance(aNode, GetBalance(aSuccessor));
-  SetBalance(aSuccessor, OldBalance);
-
-  OldParent:=GetPosition(aNode,poParent);
-  OldLeft:=GetPosition(aNode,poLeft);
-  OldRight:=GetPosition(aNode,poRight);
-  OldSuccParent:=GetPosition(aSuccessor,poParent);
-  OldSuccLeft:=GetPosition(aSuccessor,poLeft);
-  OldSuccRight:=GetPosition(aSuccessor,poRight);
-
-  if Not IsNil(OldParent) then begin
-    if AreEquals(GetPosition(OldParent,poLeft),aNode) then
-      SetPosition(OldParent,poLeft,aSuccessor)
-    else
-      SetPosition(OldParent,poRight,aSuccessor);
-  end else
-    SetRoot(aSuccessor);
-  SetPosition(aSuccessor,poParent,OldParent);
-
-  if Not AreEquals(OldSuccParent,aNode) then begin
-    if AreEquals(GetPosition(OldSuccParent,poLeft),aSuccessor) then
-      SetPosition(OldSuccParent,poLeft,aNode)
-    else
-      SetPosition(OldSuccParent,poRight,aNode);
-    SetPosition(aSuccessor,poRight,OldRight);
-    SetPosition(aNode,poParent,OldSuccParent);
-    if Not IsNil(OldRight) then
-      SetPosition(OldRight,poParent,aSuccessor);
-  end else begin
-    {  aNode            aSuccessor
-         \          =>    \
-         aSuccessor       aNode  }
-    SetPosition(aSuccessor,poRight,aNode);
-    SetPosition(aNode,poParent,aSuccessor);
-  end;
-
-  SetPosition(aNode,poLeft,OldSuccLeft);
-  if Not IsNil(OldSuccLeft) then
-    SetPosition(OldSuccLeft,poParent,aNode);
-  SetPosition(aNode,poRight,OldSuccRight);
-  if Not IsNil(OldSuccRight) then
-    SetPosition(OldSuccRight,poParent,aNode);
-  SetPosition(aSuccessor,poLeft,OldLeft);
-  if Not IsNil(OldLeft) then
-    SetPosition(OldLeft,poParent,aSuccessor);
-end;
-
-function TAVLAbstractTree<T>.Find(const AData: T): T;
-var Comp: integer;
-  {$IFDEF ABSTRACTMEM_CHECK}
-  LPreviousSearch : TOrderedList<T>;
-  {$ENDIF}
-begin
-  {$IFDEF ABSTRACTMEM_CHECK}
-  LPreviousSearch := TOrderedList<T>.Create(False,FOnCompare); // Protection against circular "malformed" structure
-  try
-  {$ENDIF}
-    Result:=Root;
-    while (Not IsNil(Result)) do begin
-      {$IFDEF ABSTRACTMEM_CHECK}
-      if LPreviousSearch.Add(Result)<0 then raise EAVLAbstractTree.Create('Circular T structure at Find for T='+ToString(Result)+ ' searching for '+ToString(AData));
-      {$ENDIF}
-      Comp:=fOnCompare(AData,Result);
-      if Comp=0 then exit;
-      if Comp<0 then begin
-        Result:=GetPosition(Result,poLeft);
-      end else begin
-        Result:=GetPosition(Result,poRight);
-      end;
-    end;
-  {$IFDEF ABSTRACTMEM_CHECK}
-  finally
-    LPreviousSearch.Free;
-  end;
-  {$ENDIF}
-end;
-
-function TAVLAbstractTree<T>.FindInsertPos(const AData: T): T;
-var Comp: integer;
-  {$IFDEF ABSTRACTMEM_CHECK}
-  LPreviousSearch : TOrderedList<T>;
-  {$ENDIF}
-begin
-  {$IFDEF ABSTRACTMEM_CHECK}
-  LPreviousSearch := TOrderedList<T>.Create(False,FOnCompare); // Protection against circular "malformed" structure
-  try
-  {$ENDIF}
-    Result:=Root;
-    while (Not IsNil(Result)) do begin
-      {$IFDEF ABSTRACTMEM_CHECK}
-      if LPreviousSearch.Add(Result)<0 then raise EAVLAbstractTree.Create('Circular T structure at FindInsertPos for T='+ToString(Result)+ ' searching for '+ToString(AData));
-      {$ENDIF}
-      Comp:=fOnCompare(AData,Result);
-      if Comp<0 then begin
-        if (HasPosition(Result,poLeft)) then begin
-          Result:=GetPosition(Result,poLeft);
-        end else begin
-          Exit;
-        end;
-      end else begin
-        if (HasPosition(Result,poRight)) then begin
-          Result:=GetPosition(Result,poRight);
-        end else begin
-          Exit;
-        end;
-      end;
-    end;
-  {$IFDEF ABSTRACTMEM_CHECK}
-  finally
-    LPreviousSearch.Free;
-  end;
-  {$ENDIF}
-end;
-
-function TAVLAbstractTree<T>.FindSuccessor(const ANode: T): T;
-begin
-  if HasPosition(ANode,poRight) then begin
-    Result := GetPosition(ANode,poRight);
-    while (HasPosition(Result,poLeft)) do Result:=GetPosition(Result,poLeft);
-  end else begin
-    Result := ANode;
-    while (HasPosition(Result,poParent)) and (AreEquals(GetPosition(GetPosition(Result,poParent),poRight),Result)) do
-      Result:=GetPosition(Result,poParent);
-    Result := GetPosition(Result,poParent);
-  end;
-end;
-
-function TAVLAbstractTree<T>.ToString: String;
+procedure TAbstractBTree<TIdentify, TData>.BTreeNodeToString(const ANode: TAbstractBTreeNode; ALevel, ALevelIndex : Integer; const AStrings: TStrings);
 var i : Integer;
-  LStrings : TStringList;
-  LNode : T;
+  s : String;
 begin
-  LStrings := TStringList.Create;
+  while (AStrings.Count<=ALevel) do AStrings.Add('');
+  s := '';
+  for i := 0 to ANode.Count-1 do begin
+    if (s<>'') then s := s + ',';
+    s := s + NodeDataToString(ANode.data[i]);
+  end;
+  if (AStrings.Strings[ALevel]<>'') then AStrings.Strings[ALevel] := AStrings.Strings[ALevel]+' ';
+  AStrings.Strings[ALevel] := AStrings.Strings[ALevel] + '['+s+']';
+  for i := 0 to High(ANode.childs) do begin
+    BTreeNodeToString( GetNode(ANode.childs[i]), ALevel+1, ALevelIndex+i, AStrings);
+  end;
+end;
+
+function TAbstractBTree<TIdentify, TData>.BTreeToString: String;
+var Lsl : TStrings;
+  Lnode : TAbstractBTreeNode;
+begin
+  Lsl := TStringList.Create;
   try
-    i := 0;
-    LNode := FindLowest;
-    while (Not IsNil(LNode)) do begin
-      inc(i);
-      LStrings.Add(Format('Pos:%d - %s',[i,ToString(LNode)]));
-      LNode := FindSuccessor(LNode);
-    end;
-    LStrings.Add(Format('Total:%d',[i]));
-    Result := LStrings.Text;
+    Lnode := GetRoot;
+    if Not IsNil(Lnode.identify) then BTreeNodeToString(Lnode,0,0,Lsl);
+    Result := Lsl.Text;
   finally
-    LStrings.Free;
+    Lsl.Free;
   end;
 end;
 
-procedure TAVLAbstractTree<T>.UpdateFinished;
-{$IFDEF ABSTRACTMEM_TESTING_MODE}
-var LErrors : TStrings;
-{$ENDIF}
+procedure TAbstractBTree<TIdentify, TData>.CheckConsistency;
+var
+  FDatas : TOrderedList<TData>;
+  FIdents : TOrderedList<TIdentify>;
+  Lnode : TAbstractBTreeNode;
+  Llevels, LnodesCount, LItemsCount : Integer;
 begin
-  // Nothing to do here. Used in inheritance classes
-  {$IFDEF ABSTRACTMEM_TESTING_MODE}
-  LErrors := TStringList.Create;
-  Try
-    if ConsistencyCheck(LErrors)<>0 then begin
-      raise EAVLAbstractTree.Create('CONSISTENCY ERRORS'+#10+LErrors.Text);
+  FIdents := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
+  FDatas := TOrderedList<TData>.Create(FAllowDuplicates,FOnCompareData);
+  try
+    Llevels := 0;
+    LnodesCount := 0;
+    LItemsCount := 0;
+    Lnode := GetRoot;
+    if Not IsNil(Lnode.identify) then begin
+      CheckConsistencyEx(Lnode,True,-1,-1,FDatas,FIdents,1,Llevels,LnodesCount,LItemsCount);
     end;
-  Finally
-    LErrors.Free;
-  End;
-  {$ENDIF}
-end;
-
-function TAVLAbstractTree<T>.ToString(const ANode: T): String;
-begin
-  Result := Format('Abstract T %d bytes',[SizeOf(T)]);
-end;
-
-function TAVLAbstractTree<T>.FindPrecessor(const ANode: T): T;
-begin
-  if HasPosition(ANode,poLeft) then begin
-    Result := GetPosition(ANode,poLeft);
-    while (HasPosition(Result,poRight)) do Result:=GetPosition(Result,poRight);
-  end else begin
-    Result := ANode;
-    while (HasPosition(Result,poParent)) and (AreEquals(GetPosition(GetPosition(Result,poParent),poLeft),Result)) do
-      Result:=GetPosition(Result,poParent);
-    Result := GetPosition(Result,poParent);
+    if (FCount>=0) then begin
+      if LItemsCount<>FCount then raise EAbstractBTree.Create(Format('Inconsistent items count %d vs register %d',[LItemsCount,FCount]));
+    end;
+    CheckConsistencyFinalized(FDatas,FIdents,Llevels,LnodesCount,LItemsCount);
+  finally
+    FDatas.Free;
+    FIdents.Free;
   end;
 end;
 
-function TAVLAbstractTree<T>.CheckNode(const ANode: T; ACheckedList : TOrderedList<T>; var ALeftDepth, ARightDepth : Integer; const AErrors : TStrings): integer;
-var i : Integer;
-  LLeftDepth, LRightDepth : Integer;
-  LParent, LLeft, LRight : T;
+procedure TAbstractBTree<TIdentify, TData>.CheckConsistencyEx(const ANode: TAbstractBTreeNode; AIsGoingDown : Boolean; AParentDataIndexLeft, AParentDataIndexRight : Integer; ADatas: TOrderedList<TData>; AIdents: TOrderedList<TIdentify>; ACurrentLevel : Integer; var ALevels, ANodesCount, AItemsCount : Integer);
+var Lchild : TAbstractBTreeNode;
+  i, Lcmp, iLeft, iRight : Integer;
 begin
-  Result := 0;
-
-  LLeftDepth := 0;
-  LRightDepth := 0;
-
-  ALeftDepth := 0;
-  ARightDepth := 0;
-
-  if IsNil(ANode) then begin
-    exit(0);
+  if (assigned(AIdents)) then begin
+    if (AIdents.Add(ANode.identify)<0) then raise EAbstractBTree.Create(Format('Inconsistent Identify',[]));
   end;
-  if Assigned(ACheckedList) then begin
-    if ACheckedList.Find(ANode,i) then begin
-      // Found in previous searchs...
-      Result := -1;
-      if Assigned(AErrors) then begin
-        AErrors.Add(Format('Error Consistency circular found at %d of %d -> %s',[i,ACheckedList.Count,ToString(ANode)]));
-      end;
-      Exit;
-    end;
-    ACheckedList.Add(ANode);
+  Inc(ANodesCount);
+  Inc(AItemsCount,ANode.Count);
+  if AIsGoingDown then begin
+    inc(ALevels);
   end;
-
-  // test left son
-  if HasPosition(ANode,poLeft) then begin
-    LLeft := GetPosition(ANode,poLeft);
-    if Not AreEquals(GetPosition(GetPosition(ANode,poLeft),poParent),ANode) then begin
-      Result:=-2;
-      if Assigned(AErrors) then begin
-        AErrors.Add(Format('Error Consistency not equals in left for %s',[ToString(ANode)]));
-      end;
-      Exit;
+  if (ALevels < ACurrentLevel) then raise EAbstractBTree.Create(Format('Inconsistent level %d < %d',[ALevels,ACurrentLevel]));
+  if (ACurrentLevel>1) then begin
+    if (ANode.Count=0) then raise EAbstractBTree.Create(Format('Inconsistent NIL node at level %d',[ACurrentLevel]));
+    if (AParentDataIndexLeft>=0) then begin
+      // Right must be < than parent
+      Lcmp := FOnCompareData(ADatas.Get(AParentDataIndexLeft), ANode.data[0]);
+      if Lcmp>0 then raise EAbstractBTree.Create(Format('Inconsistent %d data [%s] vs parent left [%s] at level %d',
+        [Lcmp,NodeDataToString(ANode.data[0]),NodeDataToString(ADatas.Get(AParentDataIndexLeft)), ACurrentLevel]));
     end;
-    if fOnCompare(GetPosition(ANode,poLeft),ANode)>0 then begin
-      Result:=-3;
-      if Assigned(AErrors) then begin
-        AErrors.Add(Format('Error Consistency compare>0 in left for %s',[ToString(ANode)]));
-      end;
-      Exit;
-    end;
-    Result:=CheckNode(GetPosition(ANode,poLeft),ACheckedList,LLeftDepth,LRightDepth,AErrors);
-    if LLeftDepth>LRightDepth then inc(ALeftDepth,LLeftDepth+1)
-    else inc(ALeftDepth,LRightDepth+1);
-    if Result<>0 then Exit;
-  end else ClearNode(LLeft);
-  // test right son
-  if HasPosition(ANode,poRight) then begin
-    LRight := GetPosition(ANode,poRight);
-    if Not AreEquals(GetPosition(GetPosition(ANode,poRight),poParent),ANode) then begin
-      Result:=-4;
-      if Assigned(AErrors) then begin
-        AErrors.Add(Format('Error Consistency not equals in right for %s found %s at right.parent',[ToString(ANode),ToString(GetPosition(GetPosition(ANode,poRight),poParent))]));
-      end;
-      Exit;
-    end;
-    if fOnCompare(GetPosition(ANode,poRight),ANode)<0 then begin
-      Result:=-5;
-      if Assigned(AErrors) then begin
-        AErrors.Add(Format('Error Consistency compare>0 in right for %s',[ToString(ANode)]));
-      end;
-      Exit;
-    end;
-    Result:=CheckNode(GetPosition(ANode,poRight),ACheckedList,LLeftDepth,LRightDepth,AErrors);
-    if LLeftDepth>LRightDepth then inc(ARightDepth,LLeftDepth+1)
-    else inc(ARightDepth,LRightDepth+1);
-    if Result<>0 then Exit;
-  end else ClearNode(LRight);
-
-  if (HasPosition(ANode,poParent)) then begin
-    LParent := GetPosition(ANode,poParent);
-  end else ClearNode(LParent);
-
-  if Not IsNil(LParent) then begin
-    if AreEquals(ANode,LParent) then begin
-      if Assigned(AErrors) then begin
-        AErrors.Add(Format('Error Consistency Self=Parent for %s (Parent %s)',[ToString(ANode),ToString(LParent)]));
-      end;
-      Result := -7;
+    if (AParentDataIndexRight>=0) then begin
+      // Right must be < than parent
+      Lcmp := FOnCompareData(ANode.data[ANode.Count-1],ADatas.Get(AParentDataIndexRight));
+      if Lcmp>0 then raise EAbstractBTree.Create(Format('Inconsistent %d data [%s] vs parent right [%s] at level %d',
+        [Lcmp,NodeDataToString(ANode.data[ANode.Count-1]),NodeDataToString(ADatas.Get(AParentDataIndexRight)), ACurrentLevel]));
     end;
   end;
-  if Not IsNil(LLeft) then begin
-    if AreEquals(ANode,LLeft) then begin
-      if Assigned(AErrors) then begin
-        AErrors.Add(Format('Error Consistency Self=Left for %s (Left %s)',[ToString(ANode),ToString(LLeft)]));
-      end;
-      Result := -8;
-    end;
-  end;
-  if Not IsNil(LRight) then begin
-    if AreEquals(ANode,LRight) then begin
-      if Assigned(AErrors) then begin
-        AErrors.Add(Format('Error Consistency Self=Right for %s (Right %s)',[ToString(ANode),ToString(LRight)]));
-      end;
-      Result := -9;
-    end;
-  end;
-  if (Not IsNil(LParent)) and (Not IsNil(LLeft)) then begin
-    if AreEquals(LParent,LLeft) then begin
-      if Assigned(AErrors) then begin
-        AErrors.Add(Format('Error Consistency Parent=Left for %s (Parent %s)',[ToString(ANode),ToString(LParent)]));
-      end;
-      Result := -10;
-    end;
-  end;
-  if (Not IsNil(LParent)) and (Not IsNil(LRight)) then begin
-    if AreEquals(LParent,LRight) then begin
-      if Assigned(AErrors) then begin
-        AErrors.Add(Format('Error Consistency Parent=Right for %s (Parent %s)',[ToString(ANode),ToString(LParent)]));
-      end;
-      Result := -11;
-    end;
-  end;
-  if (Not IsNil(LLeft)) and (Not IsNil(LRight)) then begin
-    if AreEquals(LLeft,LRight) then begin
-      if Assigned(AErrors) then begin
-        AErrors.Add(Format('Error Consistency Left=Right for %s (Left %s)',[ToString(ANode),ToString(LLeft)]));
-      end;
-      Result := -12;
+  if (MinItemsPerNode>ANode.Count) or (MaxItemsPerNode<ANode.Count) then begin
+    if Not (IsNil(ANode.parent)) then begin
+      raise EAbstractBTree.Create(Format('Inconsistent Items in Node (%d..%d) %s at level %d for order %d',[MinItemsPerNode,MaxItemsPerNode,ToString(ANode),ACurrentLevel,FOrder]));
     end;
   end;
 
-  // Check balance
-  if GetBalance(ANode)<>(ARightDepth - ALeftDepth) then begin
-    if Assigned(AErrors) then begin
-      AErrors.Add(Format('Error Consistency balance (%d <> Right(%d) - Left(%d)) at %s',[GetBalance(ANode),ARightDepth,ALeftDepth,ToString(ANode)]));
-    end;
-    Result := -15;
+  for i := 1 to ANode.Count-1 do begin
+    if FOnCompareData(ANode.data[i-1],ANode.data[i])>0 then raise EAbstractBTree.Create(Format('Inconsistent data (%d..%d)/%d [%s] > [%s] at level %d',
+      [i-1,i,ANode.Count,NodeDataToString(ANode.data[i-1]),NodeDataToString(ANode.data[i]), ACurrentLevel]));
+  end;
+
+  if ANode.IsLeaf then begin
+    if (ALevels<>ACurrentLevel) then raise EAbstractBTree.Create('Inconsistency error not balanced');
     Exit;
   end;
+  if (Length(ANode.childs)<>(ANode.Count+1)) then raise EAbstractBTree.Create(Format('Inconsistency error %d childs vs %d items',[Length(ANode.childs),ANode.Count]));
+  if (ACurrentLevel>1) and ((MinChildrenPerNode>Length(ANode.childs)) or (MaxChildrenPerNode<Length(ANode.childs))) then begin
+    raise EAbstractBTree.Create(Format('Inconsistent %d Childs in Node (%d..%d) %s at level %d',[Length(ANode.childs),MinChildrenPerNode,MaxChildrenPerNode,ToString(ANode),ACurrentLevel]));
+  end;
+
+  iLeft := -1;
+  iRight := -1;
+  for i := 0 to High(ANode.childs) do begin
+    if (i<High(ANode.childs)) then begin
+      iLeft := iRight;
+      iRight := ADatas.Add(ANode.data[i]);
+    end else begin
+      iLeft := iRight;
+      iRight := -1;
+    end;
+    Lchild := GetNode(ANode.childs[i]);
+    if Not AreEquals(Lchild.parent,ANode.identify) then raise EAbstractBTree.Create(Format('Inconsistent Identify child %d/%d %s invalid pointer to parent at %s',[i+1,Length(ANode.childs),ToString(Lchild),ToString(ANode)]));
+    CheckConsistencyEx(Lchild,
+      ((AIsGoingDown) and (i=0)),iLeft,iRight,
+      ADatas,AIdents,
+      ACurrentLevel+1,
+      ALevels,ANodesCount,AItemsCount);
+  end;
+
 end;
 
-procedure TAVLAbstractTree<T>.RotateLeft(var ANode: T);
-{    Parent                Parent
-       |                     |
-      Node        =>       OldRight
-      /  \                  /
-   Left OldRight          Node
-          /               /  \
-     OldRightLeft      Left OldRightLeft  }
-var
-  AParent, OldRight, OldRightLeft: T;
+procedure TAbstractBTree<TIdentify, TData>.CheckConsistencyFinalized(ADatas: TOrderedList<TData>; AIdents: TOrderedList<TIdentify>; Alevels, ANodesCount, AItemsCount: Integer);
 begin
-  OldRight:=GetPosition(aNode,poRight);
-  OldRightLeft:=GetPosition(OldRight,poLeft);
-  AParent:=GetPosition(aNode,poParent);
-  if Not IsNil(AParent) then begin
-    if AreEquals(GetPosition(AParent,poLeft),aNode) then
-      SetPosition(AParent,poLeft,OldRight)
-    else
-      SetPosition(AParent,poRight,OldRight);
-  end else
-    SetRoot( OldRight );
-  SetPosition(OldRight,poParent,AParent);
-  SetPosition(aNode,poParent,OldRight);
-  SetPosition(aNode,poRight,OldRightLeft);
-  if Not IsNil(OldRightLeft) then
-    SetPosition(OldRightLeft,poParent,aNode);
-  SetPosition(OldRight,poLeft,aNode);
+  //
 end;
 
-procedure TAVLAbstractTree<T>.RotateRight(var ANode: T);
-{       Parent              Parent
-          |                   |
-         Node        =>     OldLeft
-         /   \                 \
-    OldLeft  Right            Node
-        \                     /  \
-   OldLeftRight      OldLeftRight Right  }
-var
-  AParent, OldLeft, OldLeftRight: T;
+procedure TAbstractBTree<TIdentify, TData>.ClearNode(var ANode: TAbstractBTreeNode);
 begin
-  OldLeft:=GetPosition(ANode,poLeft);
-  OldLeftRight:=GetPosition(OldLeft,poRight);
-  AParent:=GetPosition(ANode,poParent);
-  if Not IsNil(AParent) then begin
-    if AreEquals(GetPosition(AParent,poLeft),aNode) then
-      SetPosition(AParent,poLeft,OldLeft)
-    else
-      SetPosition(AParent,poRight,OldLeft);
-  end else
-    SetRoot( OldLeft );
-  SetPosition(OldLeft,poParent,AParent);
-  SetPosition(aNode,poParent,OldLeft);
-  SetPosition(aNode,poLeft,OldLeftRight);
-  if Not IsNil(OldLeftRight) then
-    SetPosition(OldLeftRight,poParent,aNode);
-  SetPosition(OldLeft,poRight,aNode);
+  SetLength(ANode.data,0);
+  SetLength(ANode.childs,0);
+  SetNil(ANode.identify);
+  SetNil(ANode.parent);
 end;
 
-procedure TAVLAbstractTree<T>.CheckNode(const ANode: T);
-var LLeft,LRight : Integer;
-  LErrors : TStrings;
+constructor TAbstractBTree<TIdentify, TData>.Create(const AOnCompareIdentifyMethod: TComparison<TIdentify>; const AOnCompareDataMethod: TComparison<TData>; AAllowDuplicates : Boolean; AOrder: Integer);
 begin
-  LErrors := TStringList.Create;
+  FOnCompareIdentify := AOnCompareIdentifyMethod;
+  FOnCompareData := AOnCompareDataMethod;
+  FAllowDuplicates := AAllowDuplicates;
+  FOrder := AOrder;
+  if FOrder<3 then FOrder := 3 // Minimum order for a BTree is 3. Order = Max childs
+  else if FOrder>32 then FOrder := 32; // Maximum order will be established to 32
+  FCount := -1;                 // -1 Means there is no control
+  {$IFDEF ABSTRACTMEM_CIRCULAR_SEARCH_PROTECTION}
+  FCircularProtection := True;
+  {$ELSE}
+  FCircularProtection := False;
+  {$ENDIF}
+end;
+
+function TAbstractBTree<TIdentify, TData>.Delete(const AData: TData) : Boolean;
+var Lnode, Lparent, Lparentparent : TAbstractBTreeNode;
+  iPos, iPosParent, iPosParentParent, j : Integer;
+  LmovingUp : Boolean;
+  Lleft, Lright : TAbstractBTreeNode;
+begin
+  if Not Find(AData,Lnode,iPos) then Exit(False);
+
+  Assert(FCount<>0,'Cannot Delete when FCount = 0');
+
+  if (FCount>0) then begin
+    SetCount(FCount-1);
+  end;
+
+  LmovingUp := False;
+
+  if (Lnode.IsLeaf) then begin
+    Lnode.DeleteData(iPos);
+  end;
+
+  repeat
+    if (Lnode.IsLeaf) or (LmovingUp) then begin
+      if (IsNil(Lnode.parent)) and (Length(Lnode.childs)=1) then begin
+        // child will be root
+        Lleft := GetNode(Lnode.childs[0]);
+        DisposeNode(Lnode);
+        SetNil(Lleft.parent);
+        SaveNode(Lleft);
+        SetRoot(Lleft);
+        Exit(True);
+      end;
+
+      if (IsNil(Lnode.parent)) or (Lnode.Count>=MinItemsPerNode) then begin
+        // Deleting from root where root is single node
+        // or Node has more than minimum datas
+        SaveNode(Lnode);
+        Exit(True);
+      end;
+      // Can borrow from left or right?
+      Lparent := GetNode( Lnode.parent );
+      if (Not LmovingUp) then begin
+        BinarySearch(AData,Lparent.data,iPosParent);
+      end;
+      if (iPosParent>0) //and (iPosParent<=Lparent.Count)
+        then begin
+        Lleft := GetNode(Lparent.childs[iPosParent-1]);
+        // Use Left?
+        if Lleft.Count>MinItemsPerNode then begin
+
+          // Move Tri From Left To Right=Lnode
+          if (Not Lleft.IsLeaf) then begin
+            Lright := GetNode(Lleft.childs[High(Lleft.childs)]); // Right = left sibling last child (right child)
+            Lright.parent := Lnode.identify;
+            SaveNode(Lright);
+            //
+            Lnode.InsertChild(Lright.identify,0);
+            Lleft.DeleteChild(High(Lleft.childs));
+          end else Assert(Lnode.IsLeaf,'node must be a leaf because left sibling is a leaf');
+          Lnode.InsertData(Lparent.data[iPosParent-1],0);
+          Lparent.DeleteData(iPosParent-1);
+          Lparent.InsertData(Lleft.data[Lleft.Count-1],iPosParent-1);
+          Lleft.DeleteData(Lleft.Count-1);
+
+          SaveNode(Lnode);
+          SaveNode(Lparent);
+          SaveNode(Lleft);
+          Exit(True);
+        end;
+      end else ClearNode(Lleft);
+      if (iPosParent<Lparent.Count) then begin
+        Lright := GetNode(Lparent.childs[iPosParent+1]);
+        // Use right?
+        if (Lright.Count>MinItemsPerNode) then begin
+          // Move Tri From Right To left=Lnode
+          if (Not Lright.IsLeaf) then begin
+            Lleft := GetNode(Lright.childs[0]); // Left = right sibling first child (left child)
+            Lleft.parent := Lnode.identify;
+            SaveNode(Lleft);
+            //
+            Lnode.InsertChild(Lleft.identify,Length(Lnode.childs));
+            Lright.DeleteChild(0);
+          end else Assert(Lnode.IsLeaf,'node must be a leaf because right sibling is a leaf');
+          Lnode.InsertData(Lparent.data[iPosParent],Lnode.Count);
+          Lparent.DeleteData(iPosParent);
+          Lparent.InsertData(Lright.data[0],iPosParent);
+          Lright.DeleteData(0);
+
+          SaveNode(Lnode);
+          SaveNode(Lparent);
+          SaveNode(Lright);
+          Exit(True);
+        end;
+      end;
+      // Leaf but neither left or right > MinItemsPerNode
+      // Parent can remove 1 item and move others to childs?
+      if (Lnode.IsLeaf)
+        and
+        (Lparent.Count>MinItemsPerNode)
+         then begin
+        // Yes. Use parent
+        if (iPosParent>0) then begin
+          // Use Left Sibling as destination and remove Lnode
+          Lleft := GetNode(Lparent.childs[iPosParent-1]);
+          Lleft.InsertData(Lparent.data[iPosParent-1],Lleft.Count);
+          Lparent.DeleteData(iPosParent-1);
+          Lparent.DeleteChild(iPosParent);
+          MoveRangeBetweenSiblings(Lnode,Lleft);
+          DisposeNode(Lnode);
+          SaveNode(Lparent);
+          SaveNode(Lleft);
+          Exit(True);
+        end else begin
+          // Use right sibling (loaded before)
+          Lnode.InsertData(Lparent.data[iPosParent],Lnode.Count);
+          Lparent.DeleteData(0);
+          Lparent.DeleteChild(1); // 1 = Lright
+          SaveNode(Lparent);
+          for j := 0 to Lright.Count-1 do begin
+            Lnode.InsertData(Lright.data[j],Lnode.Count);
+          end;
+          DisposeNode(Lright);
+          SaveNode(Lnode);
+          Exit(True);
+        end;
+      end;
+      // Neither siblings neither parent are > MinItemsPernode
+      // in this case, go up in the tree using Parent as node
+      {
+                [a,c]  MinItemsPerNode=2 Order=3,4
+        [a1] [b1] [c1]
+
+      }
+
+      if (Not IsNil(Lparent.parent)) then begin
+        Lparentparent := GetNode(Lparent.parent);
+        iPosParentParent := FindChildPos(Lparent.identify,Lparentparent);
+      end;
+
+      // Lnode is empty
+      if (iPosParent>0) then begin
+        // Deleting  [b1] or [c1]
+        // Move to Left sibling and dispose Lnode
+
+        Lleft := GetNode(Lparent.childs[iPosParent-1]);
+        Lleft.InsertData(Lparent.data[iPosParent-1],Lleft.Count);
+
+        if (not AreEquals(Lnode.identify,Lleft.identify)) then begin
+          MoveRangeBetweenSiblings(Lnode,Lleft);
+        end;
+        if (iPosParent<=Lparent.Count) and (not AreEquals(Lnode.identify,Lparent.childs[iPosParent])) then begin
+          Lright := GetNode(Lparent.childs[iPosParent]);
+          MoveRangeBetweenSiblings(Lright,Lleft);
+          DisposeNode(Lright);
+        end;
+
+        Lparent.DeleteData(iPosParent-1);
+        Lparent.DeleteChild(iPosParent);
+
+        if (not AreEquals(Lnode.identify,Lleft.identify)) then begin
+          DisposeNode(Lnode);
+        end;
+        SaveNode(Lparent);
+        SaveNode(Lleft);
+        Lnode := Lparent;
+      end else begin
+        // Move from right and dispose Lright
+        // Lright was loaded before
+        Lnode.InsertData(Lparent.data[iPosParent],Lnode.Count);
+
+        Lparent.DeleteData(iPosParent);
+        Lparent.DeleteChild(iPosParent+1);
+
+        MoveRangeBetweenSiblings(Lright,Lnode);
+
+        DisposeNode(Lright);
+        SaveNode(Lparent);
+        SaveNode(Lnode);
+        Lnode := Lparent;
+      end;
+
+      iPosParent := iPosParentParent;
+
+    end else begin
+      // Internal node
+      // Lnode[iPos] has not been deleted neither updated
+      //
+      // Search Indorder predecessor:
+      Lleft := GetNode(Lnode.childs[iPos]);
+      while (Not Lleft.IsLeaf) do Lleft := GetNode(Lleft.childs[Lleft.Count]);
+      if (Lleft.Count>MinItemsPerNode) then begin
+        // Inorder predecessor
+        Lnode.data[iPos] := Lleft.data[Lleft.Count-1];
+        SaveNode(Lnode);
+        Lleft.RemoveInNode(Lleft.Count-1);
+        SaveNode(Lleft);
+        Exit(True);
+      end;
+      // Search Indorder successor:
+      Lright := GetNode(Lnode.childs[iPos+1]);
+      while (Not Lright.IsLeaf) do Lright := GetNode(Lright.childs[0]);
+      if (Lright.Count>MinItemsPerNode) then begin
+        // Inorder successor
+        Lnode.data[iPos] := Lright.data[0];
+        SaveNode(Lnode);
+        Lright.RemoveInNode(0);
+        SaveNode(Lright);
+        Exit(True);
+      end;
+      // Neither predecessor neither successor
+      Assert((Lleft.IsLeaf),'Left must be leaf');
+      Assert((Lright.IsLeaf),'Right must be leaf');
+      if (Lnode.Count>MinItemsPerNode) and (AreEquals(Lnode.identify,Lleft.parent)) then begin
+        // Both childs are = MinItemsPerNode and Lnode > MinItemsPerNode . Remove from Lnode
+        {
+                [a,b,c]  <-  Remove "b"
+        [a1,a2] [b1,b2] [c1,c2]  <- MinItemsPerNode=2
+
+                 [a,c]
+        [a1,a2,b1,b2] [c1,c2]
+        }
+
+        Lnode.DeleteData(iPos);
+        Lnode.DeleteChild(iPos+1); //iPos+1 = Right sibling
+        MoveRangeBetweenSiblings(Lright,Lleft);
+        SaveNode(Lnode);
+        SaveNode(Lleft);
+        DisposeNode(Lright);
+        Exit(True);
+      end else begin
+        {
+                [a,e]  <-  Remove "a" or "e" - MinItemsPerNode=2 Order=3
+        [a1,a2] [b1,b2] [f1,f2]
+
+                [a2,e]
+        [a1] [b1,b2] [f1,f2]  <- Can remove "a2" or "b2", never "f1" or "f2"
+        }
+        // Set predecessor
+        Lnode.data[iPos] := Lleft.data[Lleft.Count-1];
+        SaveNode(Lnode);
+
+        if (Not IsNil(Lleft.parent)) then begin
+          Lparent := GetNode(Lleft.parent);
+          iPosParent := FindChildPos(Lleft.identify,Lparent);
+        end;
+
+        Lleft.DeleteData(Lleft.Count-1);
+        SaveNode(Lleft);
+        Lnode := Lleft;
+      end;
+
+    end;
+
+    LmovingUp := True;
+  until (False);
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.EraseTree;
+var Lnode : TAbstractBTreeNode;
+begin
+  Lnode := GetRoot;
+  if Not IsNil(Lnode.identify) then EraseTreeExt(Lnode);
+  ClearNode(Lnode);
+  if Fcount>0 then SetCount(0);
+  SetRoot(Lnode);
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.EraseTreeExt(var ANode: TAbstractBTreeNode);
+var i : Integer;
+  Lchild : TAbstractBTreeNode;
+begin
+  if Not (ANode.IsLeaf) then begin
+    for i:=0 to Length(ANode.childs)-1 do begin
+      Lchild := GetNode(ANode.childs[i]);
+      EraseTreeExt(Lchild);
+    end;
+  end;
+  SetLength(ANode.childs,0);
+  DisposeNode(ANode);
+  ClearNode(ANode);
+end;
+
+function TAbstractBTree<TIdentify, TData>.Find(const AData: TData; out ANode: TAbstractBTreeNode; out iPos: Integer): Boolean;
+var LCircularPreviousSearchProtection : TNoDuplicateData<TIdentify>;
+begin
+  if FCircularProtection then begin
+    LCircularPreviousSearchProtection := TNoDuplicateData<TIdentify>.Create(FOnCompareIdentify);
+  end else LCircularPreviousSearchProtection := Nil;
   try
-    if CheckNode(ANode,Nil,LLeft,LRight,LErrors)<>0 then
-      raise EAVLAbstractTree.Create('CHECK CONSISTENCY ERROR'+#10+LErrors.Text);
+    ANode := GetRoot;
+    iPos := 0;
+    repeat
+      if FCircularProtection then begin
+        if Not LCircularPreviousSearchProtection.Add(ANode.identify) then raise EAbstractBTree.Create('Circular T structure at Find for T='+ToString(ANode)+ ' searching for '+NodeDataToString(AData));
+      end;
+      if (BinarySearch(AData,ANode.data,iPos)) then Exit(True)
+      else if (Not ANode.IsLeaf) then ANode := GetNode( ANode.childs[ iPos ] )
+      else Exit(False);
+    until False;
   finally
-    LErrors.Free;
+    if FCircularProtection then begin
+      LCircularPreviousSearchProtection.Free;
+    end;
   end;
 end;
 
-function TAVLAbstractTree<T>.ConsistencyCheck(const AErrors : TStrings): integer;
-var LCheckedList : TOrderedList<T>;
-var LLeftDepth, LRightDepth : Integer;
+function TAbstractBTree<TIdentify, TData>.FindChildPos(const AIdent: TIdentify; const AParent: TAbstractBTreeNode): Integer;
 begin
-  LCheckedList := TOrderedList<T>.Create(False,FOnCompare);
-  try
-    LLeftDepth := 0;
-    LRightDepth := 0;
-    Result:=CheckNode(Root,LCheckedList,LLeftDepth,LRightDepth,AErrors);
-  finally
-    LCheckedList.Free;
+  for Result := 0 to High(AParent.childs) do begin
+    if AreEquals(AIdent,AParent.childs[Result]) then Exit;
+  end;
+  raise EAbstractBTree.Create(Format('Child not found at %s',[ToString(AParent)]));
+end;
+
+function TAbstractBTree<TIdentify, TData>.FindHighest(out AHighest : TData) : Boolean;
+var Lnode : TAbstractBTreeNode;
+begin
+  Lnode := FindHighestNode;
+  if Lnode.Count>0 then begin
+     AHighest := Lnode.data[Lnode.Count-1];
+     Result := True;
+  end else Result := False;
+end;
+
+function TAbstractBTree<TIdentify, TData>.FindHighestNode: TAbstractBTreeNode;
+begin
+  Result := GetRoot;
+  while (Not Result.IsLeaf) do Result := GetNode(Result.childs[Result.Count]);
+end;
+
+function TAbstractBTree<TIdentify, TData>.FindLowest(out ALowest : TData) : Boolean;
+var Lnode : TAbstractBTreeNode;
+begin
+  Lnode := FindLowestNode;
+  if Lnode.Count>0 then begin
+    ALowest := Lnode.data[0];
+    Result := True;
+  end else Result := False;
+end;
+
+function TAbstractBTree<TIdentify, TData>.FindLowestNode: TAbstractBTreeNode;
+begin
+  Result := GetRoot;
+  while (Not Result.IsLeaf) do Result := GetNode(Result.childs[0]);
+end;
+
+function TAbstractBTree<TIdentify, TData>.FindPrecessor(const AData : TData; out APrecessor : TData) : Boolean;
+var Lnode : TAbstractBTreeNode;
+  iPos : Integer;
+begin
+  Result := False;
+  if Not Find(AData,Lnode,iPos) then Exit(False);
+  repeat
+    Result := FindPrecessorExt(Lnode,iPos);
+    if Result then begin
+      APrecessor := Lnode.data[iPos];
+    end;
+  until (Not Result) or (Not FAllowDuplicates) or (FOnCompareData(AData,APrecessor)>0);
+end;
+
+function TAbstractBTree<TIdentify, TData>.FindPrecessorExt(var ANode: TAbstractBTreeNode; var iPos: Integer): Boolean;
+var Lparent : TAbstractBTreeNode;
+begin
+  Result := False;
+  if (Not ANode.IsLeaf) then begin
+    ANode := GetNode(ANode.childs[iPos]);
+    while (Not ANode.IsLeaf) do ANode := GetNode(ANode.childs[ANode.Count]);
+    iPos := ANode.Count-1;
+    Exit(True);
+  end else begin
+    if iPos>0 then begin
+      Dec(iPos);
+      Exit(True);
+    end else if (Not IsNil(ANode.parent)) then begin
+      // Left sibling
+      Lparent := GetNode(ANode.parent);
+      iPos := FindChildPos(ANode.identify,Lparent);
+      if iPos>0 then begin
+        Dec(iPos);
+        ANode := Lparent;
+        Exit(True);
+      end else begin
+        // Search parents until parent iPos>0
+        while (iPos=0) and (Not IsNil(Lparent.parent)) do begin
+          ANode := Lparent;
+          Lparent := GetNode(ANode.parent);
+          iPos := FindChildPos(ANode.identify,Lparent);
+        end;
+        if iPos>0 then begin
+          Dec(iPos);
+          ANode := Lparent;
+          Exit(True);
+        end;
+      end;
+    end;
   end;
 end;
 
-{ TPAVLPointerTree }
-
-function TPAVLPointerTree.AreEquals(const ANode1, ANode2: PAVLPointerTreeNode): Boolean;
+function TAbstractBTree<TIdentify, TData>.FindSuccessor(const AData : TData; out ASuccessor : TData) : Boolean;
+var Lnode : TAbstractBTreeNode;
+  iPos : Integer;
 begin
-  Result := ANode1 = ANode2;
+  Result := False;
+  if Not Find(AData,Lnode,iPos) then Exit(False);
+  repeat
+    Result := FindSuccessorExt(Lnode,iPos);
+    if Result then begin
+      ASuccessor := Lnode.data[iPos];
+    end;
+  until (Not Result) or (Not FAllowDuplicates) or (FOnCompareData(AData,ASuccessor)<0);
 end;
 
-procedure TPAVLPointerTree.ClearNode(var ANode: PAVLPointerTreeNode);
+function TAbstractBTree<TIdentify, TData>.FindSuccessorExt(var ANode: TAbstractBTreeNode; var iPos: Integer): Boolean;
+var Lparent : TAbstractBTreeNode;
 begin
-  ANode := Nil;
-end;
-
-procedure TPAVLPointerTree.ClearPosition(var ANode: PAVLPointerTreeNode; APosition: TAVLTreePosition);
-begin
-  case APosition of
-    poParent: ANode.parent := Nil;
-    poLeft: ANode.left := Nil;
-    poRight: ANode.right := Nil;
+  Result := False;
+  if (Not ANode.IsLeaf) then begin
+    ANode := GetNode(ANode.childs[iPos+1]);
+    iPos := 0;
+    while (Not ANode.IsLeaf) do ANode := GetNode(ANode.childs[0]);
+    Exit(True);
+  end else begin
+    if iPos+1<ANode.Count then begin
+      inc(iPos);
+      Exit(True);
+    end else if (Not IsNil(ANode.parent)) then begin
+      // right sibling
+      Lparent := GetNode(ANode.parent);
+      iPos := FindChildPos(ANode.identify,Lparent);
+      if iPos<Lparent.Count then begin
+        ANode := Lparent;
+        Exit(True);
+      end else begin
+        // Search parents until parent iPos>0
+        while (iPos=Lparent.Count) and (Not IsNil(Lparent.parent)) do begin
+          ANode := Lparent;
+          Lparent := GetNode(ANode.parent);
+          iPos := FindChildPos(ANode.identify,Lparent);
+        end;
+        if iPos<Lparent.Count then begin
+          ANode := Lparent;
+          Exit(True);
+        end;
+      end;
+    end;
   end;
 end;
 
-constructor TPAVLPointerTree.Create(const OnCompareMethod: TComparison<PAVLPointerTreeNode>; AAllowDuplicates : Boolean);
+function TAbstractBTree<TIdentify, TData>.GetCount: Integer;
 begin
-  FRoot := Nil;
+  Result := FCount;
+end;
+
+function TAbstractBTree<TIdentify, TData>.GetHeight: Integer;
+var Lnode : TAbstractBTreeNode;
+begin
+  Lnode := GetRoot;
+  if (Lnode.Count=0) or (IsNil(Lnode.identify)) then Exit(0);
+  Result := 1;
+  while (Not Lnode.IsLeaf) do begin
+    Lnode := GetNode(Lnode.childs[0]);
+    inc(Result);
+  end;
+end;
+
+function TAbstractBTree<TIdentify, TData>.MaxChildrenPerNode: Integer;
+begin
+  Result := FOrder;
+end;
+
+function TAbstractBTree<TIdentify, TData>.MaxItemsPerNode: Integer;
+begin
+  Result := FOrder-1;
+end;
+
+function TAbstractBTree<TIdentify, TData>.MinChildrenPerNode: Integer;
+begin
+  // Order 3 -> 1-2 items 2-3 childrens
+  // Order 4 -> 1-3 items 2-4 childrens
+  // Order 5 -> 2-4 items 3-5 childrens
+  // Order 6 -> 2-5 items 3-6 childrens
+  // Order 7 -> 3-6 items 4-7 childrens
+  // ...
+  Result := ((FOrder+1) DIV 2);
+end;
+
+function TAbstractBTree<TIdentify, TData>.MinItemsPerNode: Integer;
+begin
+  Result := ((FOrder+1) DIV 2)-1;
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.MoveRange(var ASourceNode, ADestNode: TAbstractBTreeNode; AFromSource, ACount, AToDest: Integer);
+var i : Integer;
+  Lchild : TAbstractBTreeNode;
+begin
+  // Will NOT save nodes because are passed as a variable, BUT will save child nodes!
+  if (ACount<=0) then Exit; // Nothing to move...
+
+  Assert(ACount>0,'Invalid move range count');
+  Assert((AFromSource>=0) and (AFromSource<Length(ASourceNode.data)),'Invalid move range from source');
+  Assert((AToDest>=0) and (AToDest<=Length(ADestNode.data)),'Invalid move range to dest');
+  // MoveRange is only available to move LEFT or RIGHT of ASourceNode, never MIDDLE positions
+  Assert((AFromSource=0) or ((AFromSource+ACount)=ASourceNode.Count),'Invalid MIDDLE positions of node');
+  Assert(((AFromSource=0) and (AToDest=ADestNode.Count)) or
+         ((AtoDest=0) and (AFromSource+ACount=ASourceNode.Count))
+           ,Format('Invalid middle MoveRange from %d count %d to %d  source.count=%d dest.count=%d',[AFromSource,ACount,AToDest,ASourceNode.Count,ADestNode.Count]));
+
+  for i := 0 to ACount-1 do begin
+    ADestNode.InsertData(ASourceNode.data[AFromSource + i],AToDest+i);
+    if Not ASourceNode.IsLeaf then begin
+      Lchild := GetNode( ASourceNode.childs[AFromSource + i] );
+      Lchild.parent := ADestNode.identify;
+      SaveNode(Lchild);
+      ADestNode.InsertChild( ASourceNode.childs[AFromSource + i], AToDest + i);
+    end;
+  end;
+  if Not ASourceNode.IsLeaf then begin
+    Lchild := GetNode( ASourceNode.childs[(AFromSource + ACount)] );
+    Lchild.parent := ADestNode.identify;
+    SaveNode(Lchild);
+    ADestNode.InsertChild( ASourceNode.childs[AFromSource + ACount], AToDest + ACount );
+  end;
+
+  for i := 0 to ACount-1 do begin
+    ASourceNode.DeleteData(AFromSource + i);
+    if Not ASourceNode.IsLeaf then begin
+      ASourceNode.DeleteChild(AFromSource + i);
+    end;
+  end;
+  if Not ASourceNode.IsLeaf then begin
+    ASourceNode.DeleteChild(AFromSource + ACount);
+  end;
+
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.MoveRangeBetweenSiblings(var ASourceNode, ADestNode: TAbstractBTreeNode);
+var i, LdestStart : Integer;
+  Lchild : TAbstractBTreeNode;
+begin
+  LdestStart := Length(ADestNode.data);
+  SetLength(ADestNode.data,Length(ADestNode.data)+Length(ASourceNode.data));
+  for i := 0 to Length(ASourceNode.data)-1 do begin
+    ADestNode.data[LdestStart + i] := ASourceNode.data[i];
+  end;
+
+  LdestStart := Length(ADestNode.childs);
+  SetLength(ADestNode.childs,Length(ADestNode.childs)+Length(ASourceNode.childs));
+  for i := 0 to Length(ASourceNode.childs)-1 do begin
+    ADestNode.childs[LdestStart + i] := ASourceNode.childs[i];
+    Lchild := GetNode( ASourceNode.childs[i] );
+    Lchild.parent := ADestNode.identify;
+    SaveNode(Lchild);
+  end;
+end;
+
+function TAbstractBTree<TIdentify, TData>.NodeDataToString(const AData: TData): String;
+begin
+  Result := IntToStr(SizeOf(AData));
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.SetCount(const ANewCount: Integer);
+begin
+  FCount := ANewCount;
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.SplitAfterInsert(var ANode: TAbstractBTreeNode);
+var iDataInsertPos : Integer;
+  LnewNode, Lup : TAbstractBTreeNode;
+begin
+  Assert(ANode.Count>MaxItemsPerNode);
+  LnewNode := NewNode;
+  MoveRange(ANode,LnewNode,MinItemsPerNode+1,ANode.Count - (MinItemsPerNode+1),0);
+  // Put ANode[MinItemsPerNode+1] up
+  if IsNil(ANode.parent) then begin
+    // Lup will be a new root
+    Lup := NewNode;
+  end else begin
+    Lup := GetNode(ANode.parent);
+  end;
+  if Lup.Count=0 then begin
+    Lup.InsertData(ANode.data[MinItemsPerNode], 0 );
+    // Insert both childs because is a new root
+    Lup.InsertChild(ANode.identify,0);
+    SaveNode(LnewNode); // We need a valid identify value
+    Lup.InsertChild(LnewNode.identify,1);
+    SaveNode(Lup);
+    SetRoot(Lup);
+  end else begin
+    iDataInsertPos := FindChildPos(ANode.identify,Lup);
+    Lup.InsertData(ANode.data[MinItemsPerNode], iDataInsertPos );
+    SaveNode(LnewNode); // We need a valid identify value
+    Lup.InsertChild(LnewNode.identify, iDataInsertPos +1 );
+    SaveNode(Lup);
+  end;
+  LnewNode.parent := Lup.identify;
+  SaveNode(LnewNode);
+  ANode.parent := Lup.identify;
+  // Remove data&child
+  ANode.DeleteData(MinItemsPerNode);
+  SaveNode(ANode);
+  if Lup.Count>MaxItemsPerNode then SplitAfterInsert(Lup);
+end;
+
+function TAbstractBTree<TIdentify, TData>.ToString(const ANode: TAbstractBTreeNode): String;
+var i : Integer;
+begin
+  Result := '';
+  for i := 0 to ANode.Count-1 do begin
+    if Result<>'' then Result := Result + ',';
+    Result := Result + NodeDataToString(ANode.data[i]);
+  end;
+  Result := '['+Result+']';
+end;
+
+{ TAbstractBTree<TIdentify, TData>.TAbstractBTreeNode }
+
+function TAbstractBTree<TIdentify, TData>.TAbstractBTreeNode.Count: Integer;
+begin
+  Result := Length(Self.data);
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.TAbstractBTreeNode.DeleteChild(AChildIndex: Integer);
+var i : Integer;
+begin
+  for i := AChildIndex to (High(Self.childs)-1) do begin
+    Self.childs[i] := Self.childs[i+1];
+  end;
+  SetLength(Self.childs,Length(Self.childs)-1);
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.TAbstractBTreeNode.DeleteData(AIndex: Integer);
+var i : Integer;
+begin
+  for i := AIndex to (High(Self.data)-1) do begin
+    Self.data[i] := Self.data[i+1];
+  end;
+  SetLength(Self.data,Length(Self.data)-1);
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.TAbstractBTreeNode.InsertChild(const AChild: TIdentify; AIndex: Integer);
+var i : Integer;
+begin
+  if (AIndex<0) or (AIndex>Length(Self.childs)) then raise EAbstractBTree.Create('Error 20201215-3');
+  SetLength(Self.childs,Length(Self.childs)+1);
+  for i := Length(Self.childs)-1 downto AIndex+1 do begin
+    Self.childs[i] := Self.childs[i-1];
+  end;
+  Self.childs[AIndex] := AChild;
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.TAbstractBTreeNode.InsertData(const AData: TData; AIndex: Integer);
+var i : Integer;
+begin
+  if (AIndex<0) or (AIndex>Length(Self.data)) then raise EAbstractBTree.Create('Error 20201215-4');
+  SetLength(Self.data,Length(Self.data)+1);
+  for i := Length(Self.data)-1 downto AIndex+1 do begin
+    Self.data[i] := Self.data[i-1];
+  end;
+  Self.data[AIndex] := AData;
+end;
+
+function TAbstractBTree<TIdentify, TData>.TAbstractBTreeNode.IsLeaf: Boolean;
+begin
+  Result := Length(Self.childs)=0;
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.TAbstractBTreeNode.RemoveInNode(AIndex: Integer);
+var i : Integer;
+begin
+  {
+  Can only remove LEFT or RIGHT. Not Middle positions
+  }
+  if (AIndex<0) or (AIndex>=Length(Self.data)) then raise EAbstractBTree.Create('Error 20201215-5');
+  Assert((AIndex=0) or (AIndex=High(Self.data)),'Must remove first or last position');
+  for i := AIndex to (High(Self.data)-1) do begin
+    Self.data[i] := Self.data[i+1];
+  end;
+  SetLength(Self.data,Length(Self.data)-1);
+  if (Not Self.IsLeaf) then begin
+    if (AIndex>=Length(Self.childs)) then raise EAbstractBTree.Create('Error 20201215-6');
+    if (Aindex=0) and (Length(Self.childs)>2)  then begin
+      for i := AIndex+1 to (High(Self.childs)) do begin
+        Self.childs[i-1] := Self.childs[i];
+      end;
+    end;
+    SetLength(Self.childs,Length(Self.childs)-1);
+  end;
+end;
+
+{ TMemoryBTree<TData> }
+
+procedure TMemoryBTree<TData>.CheckConsistencyFinalized(ADatas: TOrderedList<TData>; AIdents: TOrderedList<Integer>; Alevels, ANodesCount, AItemsCount: Integer);
+var i,iPos,nDisposed, LDisposedMinPos : Integer;
+begin
+  inherited;
+  nDisposed := 0;
+  LDisposedMinPos := -1;
+  for i := 0 to FBuffer.Count-1 do begin
+    if (FBuffer.Items[i].identify=i) then begin
+      if Assigned(AIdents) then begin
+        if not AIdents.Find(i,iPos) then begin
+          raise EAbstractBTree.Create(Format('CheckConsistency ident %d not found (%d idents)',[i,FBuffer.Count]));
+        end;
+      end;
+    end else begin
+      inc(nDisposed);
+      if (LDisposedMinPos<0) then LDisposedMinPos := i;
+    end;
+  end;
+  if FDisposed<>nDisposed then raise EAbstractBTree.Create(Format('CheckConsistency Disposed %d <> %d',[FDisposed,nDisposed]));
+  if FDisposedMinPos>LDisposedMinPos then raise EAbstractBTree.Create(Format('CheckConsistency DisposedMinPos %d > %d',[FDisposedMinPos,LDisposedMinPos]));
+end;
+
+constructor TMemoryBTree<TData>.Create(const AOnCompareDataMethod: TComparison<TData>; AAllowDuplicates : Boolean; AOrder : Integer);
+begin
+  FBuffer := TList<TAbstractBTreeNode>.Create;
+  Froot := -1;
+  inherited Create(TComparison_Integer,AOnCompareDataMethod,AAllowDuplicates,AOrder);
+  FCount := 0;
+  FDisposed := 0;
+  FDisposedMinPos := -1;
+end;
+
+destructor TMemoryBTree<TData>.Destroy;
+begin
+  EraseTree;
+  FreeAndNil(FBuffer);
   inherited;
 end;
 
-procedure TPAVLPointerTree.DisposeNode(var ANode: PAVLPointerTreeNode);
+procedure TMemoryBTree<TData>.DisposeNode(var ANode: TAbstractBTree<Integer, TData>.TAbstractBTreeNode);
+var Lpos : Integer;
 begin
-  if Not Assigned(ANode) then Exit;
-  Dispose( ANode );
-  ANode := Nil;
+  Lpos := ANode.identify;
+  Assert((Lpos>=0) and (Lpos<FBuffer.Count),Format('Dispose %d out of range [0..%d]',[Lpos,FBuffer.Count-1]));
+  ClearNode(ANode);
+  FBuffer[Lpos] := ANode;
+  inc(FDisposed);
+  if (FDisposedMinPos<0) or (FDisposedMinPos>Lpos) then FDisposedMinPos := Lpos;
 end;
 
-function TPAVLPointerTree.GetBalance(const ANode: PAVLPointerTreeNode): Integer;
+function TMemoryBTree<TData>.GetNode(AIdentify: Integer): TAbstractBTree<Integer, TData>.TAbstractBTreeNode;
 begin
-  Result := ANode^.balance;
+  Result := FBuffer[AIdentify];
+  if (Result.identify<>AIdentify) then raise EAbstractBTree.Create(Format('Found %d Identify instead of %d',[Result.identify,AIdentify]));
 end;
 
-function TPAVLPointerTree.GetPosition(const ANode: PAVLPointerTreeNode;
-  APosition: TAVLTreePosition): PAVLPointerTreeNode;
+function TMemoryBTree<TData>.GetRoot: TAbstractBTree<Integer, TData>.TAbstractBTreeNode;
 begin
-  case APosition of
-    poParent: Result := ANode.parent;
-    poLeft: Result := ANode.left;
-    poRight: Result := ANode.right;
-  else raise EAVLAbstractTree.Create('Undefined 20200310-1');
+  if (Froot<0) then begin
+    ClearNode(Result);
+    Exit;
   end;
+  Result := GetNode(Froot);
 end;
 
-function TPAVLPointerTree.GetRoot: PAVLPointerTreeNode;
+function TMemoryBTree<TData>.IsNil(const AIdentify: Integer): Boolean;
 begin
-  Result := FRoot;
+  Result := AIdentify<0;
 end;
 
-function TPAVLPointerTree.HasPosition(const ANode: PAVLPointerTreeNode;
-  APosition: TAVLTreePosition): Boolean;
+function TMemoryBTree<TData>.NewNode: TAbstractBTree<Integer, TData>.TAbstractBTreeNode;
 begin
-  case APosition of
-    poParent: Result := Assigned( ANode.parent );
-    poLeft: Result := Assigned( ANode.left );
-    poRight: Result := Assigned( ANode.right );
-  else raise EAVLAbstractTree.Create('Undefined 20200310-2');
+  ClearNode(Result);
+  if (FDisposed > 0) And (FDisposed > (Count DIV 5)) then begin // 20% max disposed nodes
+    // Reuse disposed node:
+    if (FDisposedMinPos<0) then FDisposedMinPos := 0;
+    while (FDisposedMinPos<FBuffer.Count) and (FBuffer.Items[FDisposedMinPos].identify = FDisposedMinPos) do inc(FDisposedMinPos);
+    if (FDisposedMinPos>=0) and (FDisposedMinPos<FBuffer.Count) then begin
+      Assert(FBuffer.Items[FDisposedMinPos].identify<0);
+      Result.identify := FDisposedMinPos;
+      inc(FDisposedMinPos);
+      Dec(FDisposed);
+      FBuffer.Items[Result.identify] := Result;
+      Exit;
+    end else raise EAbstractBTree.Create('Cannot reuse NewNode');
   end;
+  Result.identify := FBuffer.Count;
+  FBuffer.Insert(Result.identify,Result);
 end;
 
-function TPAVLPointerTree.IsNil(const ANode: PAVLPointerTreeNode): Boolean;
+procedure TMemoryBTree<TData>.SaveNode(var ANode: TAbstractBTree<Integer, TData>.TAbstractBTreeNode);
 begin
-  Result := ANode = Nil;
-end;
-
-procedure TPAVLPointerTree.SetBalance(var ANode: PAVLPointerTreeNode;
-  ANewBalance: Integer);
-begin
-  ANode^.balance := ANewBalance;
-end;
-
-procedure TPAVLPointerTree.SetPosition(var ANode: PAVLPointerTreeNode;
-  APosition: TAVLTreePosition; const ANewValue: PAVLPointerTreeNode);
-begin
-  case APosition of
-    poParent: ANode.parent := ANewValue;
-    poLeft: ANode.left := ANewValue;
-    poRight: ANode.right := ANewValue;
-  end;
-end;
-
-procedure TPAVLPointerTree.SetRoot(const Value: PAVLPointerTreeNode);
-begin
-  FRoot := Value;
-end;
-
-function TPAVLPointerTree.ToString(const ANode: PAVLPointerTreeNode): String;
-var LParent, LLeft, LRight : String;
-begin
-  if Assigned(ANode) then begin
-    if Assigned(ANode.parent) then LParent := IntToStr(Integer(ANode.parent.data)) else LParent := 'NIL';
-    if Assigned(ANode.left) then LLeft := IntToStr(Integer(ANode.left.data)) else LLeft := 'NIL';
-    if Assigned(ANode.right) then LRight := IntToStr(Integer(ANode.right.data)) else LRight := 'NIL';
-
-    Result := Format('%d (Parent:%s Left:%s Right:%s Balance:%d)',[Integer(ANode.data),LParent,LLeft,LRight,ANode.balance]);
+  if (ANode.identify<0) then begin
+    raise EAbstractBTree.Create('Save undefined node '+ToString(ANode));
+    // New
+    ANode.identify := FBuffer.Count;
+    FBuffer.Insert(ANode.identify,ANode);
   end else begin
-    Result := 'NIL';
+    FBuffer[ANode.identify] := ANode;
   end;
+end;
+
+procedure TMemoryBTree<TData>.SetNil(var AIdentify: Integer);
+begin
+  AIdentify := -1;
+end;
+
+procedure TMemoryBTree<TData>.SetRoot(var Value: TAbstractBTree<Integer, TData>.TAbstractBTreeNode);
+begin
+  Froot := Value.identify;
+end;
+
+{ TIntegerBTree }
+
+constructor TIntegerBTree.Create(AAllowDuplicates: Boolean; AOrder: Integer);
+begin
+  inherited Create(TComparison_Integer,AAllowDuplicates,AOrder);
+end;
+
+function TIntegerBTree.NodeDataToString(const AData: Integer): String;
+begin
+  Result := AData.ToString;
+end;
+
+{ TNoDuplicateData<TData> }
+
+function TNoDuplicateData<TData>.Add(const AData: TData): Boolean;
+begin
+  Result := FBTree.Add(AData);
+end;
+
+constructor TNoDuplicateData<TData>.Create(const AOnCompareDataMethod: TComparison<TData>);
+begin
+  FBTree := TMemoryBTree<TData>.Create(AOnCompareDataMethod,False,7);
+  FBTree.FCircularProtection := False;
+end;
+
+destructor TNoDuplicateData<TData>.Destroy;
+begin
+  FreeAndNil(FBTree);
+  inherited;
 end;
 
 initialization

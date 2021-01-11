@@ -32,7 +32,7 @@ Uses UCrypto, UBlockChain, Classes, UAccounts, UBaseTypes,
 Type
   // Operations Type
   TOpTransactionStyle = (transaction, transaction_with_auto_buy_account, buy_account, transaction_with_auto_atomic_swap);
-    // transaction = Sinlge standard transaction
+    // transaction = Single standard transaction
     // transaction_with_auto_buy_account = Single transaction made over an account listed for private sale. For STORING purposes only
     // buy_account = A Buy account operation
     // transaction_with_auto_atomic_swap = Single transaction made over an account listed for atomic swap (coin swap or account swap)

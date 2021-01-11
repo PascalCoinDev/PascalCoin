@@ -258,6 +258,9 @@ begin
       // Does not need to save a FOperations backup because is Sanitized by "TNode.OnBankNewBlock"
       Result := Bank.AddNewBlockChainBlock(NewBlockOperations,TNetData.NetData.NetworkAdjustedTime.GetMaxAllowedTimestampForNewBlock,errors);
       if Result then begin
+        {$IFDEF USE_ABSTRACTMEM}
+        Bank.SafeBox.PCAbstractMem.FlushCache;
+        {$ENDIF}
         if Assigned(SenderConnection) then begin
           FNodeLog.NotifyNewLog(ltupdate,SenderConnection.ClassName,Format(';%d;%s;%s;;%d;%d;%d;%s',[OpBlock.block,sClientRemoteAddr,OpBlock.block_payload.ToPrintable,
             OpBlock.timestamp,UnivDateTimeToUnix(DateTime2UnivDateTime(Now)),UnivDateTimeToUnix(DateTime2UnivDateTime(Now)) - OpBlock.timestamp,IntToHex(OpBlock.compact_target,8)]));
@@ -932,7 +935,7 @@ procedure TNode.GetStoredOperationsFromAccount(AOwnerThread : TPCThread; const O
           last_block_number := block_number;
           l.Clear;
           If not Bank.Storage.LoadBlockChainBlock(opc,block_number) then begin
-            TLog.NewLog(ltdebug,ClassName,'Block '+inttostr(block_number)+' not found. Cannot read operations');
+            {$IFDEF HIGHLOG}TLog.NewLog(ltdebug,ClassName,'Block '+inttostr(block_number)+' not found. Cannot read operations');{$ENDIF}
             exit;
           end;
           opc.OperationsHashTree.GetOperationsAffectingAccount(account_number,l);

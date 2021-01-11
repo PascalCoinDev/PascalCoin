@@ -236,6 +236,7 @@ const
       __IPredicate_T = IPredicate<T>;
       __TList_IPredicate_T = TList<__IPredicate_T>;
     public
+     class function ToArrayWorkAround( ParaList : __TList_IPredicate_T ) : TArray<IPredicate<T>>; // Skybuck: work around for buggy TList.ToArray
      class function ConstructRowComparer(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplySortDelegate<T>) : IComparer<T>;
      class function ConstructRowPredicate(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplyFilterDelegate<T>; const AOperand : TFilterOperand) : IPredicate<T>;
   end;
@@ -659,6 +660,12 @@ begin
   end;
 end;
 
+// Skybuck: ToArrayWorkAround implementation until TList.ToArray is fixed by FPC compiler and/or generics team ?
+class function TDataSourceTool<T>.ToArrayWorkAround( ParaList : __TList_IPredicate_T ) : TArray<IPredicate<T>>;
+begin
+  result := ParaList.ToArray;
+end;
+
 class function TDataSourceTool<T>.ConstructRowPredicate(const AFilters : TArray<TColumnFilter>; const ADelegate : TApplyFilterDelegate<T>; const AOperand : TFilterOperand) : IPredicate<T>;
 type
   __TColumnFilterPredicate_T = TColumnFilterPredicate<T>;
@@ -675,12 +682,16 @@ begin
     end;
   end;
 
+  // Skybuck: Free Pascal Compiler Bug/Internal Error 2015052501 caused by buggy TList.ToArray
   case filters.Count of
     0: Result := nil;
     1: Result := filters[0];
     else case AOperand of
-      foAnd: Result := __TPredicateTool_T.AndMany(filters.ToArray);
-      foOr: Result := __TPredicateTool_T.OrMany(filters.ToArray);
+//      foAnd: Result := __TPredicateTool_T.AndMany(filters.ToArray); // Skybuck: TList.ToArray causes FPC compiler to crash here.
+//      foOr: Result := __TPredicateTool_T.OrMany(filters.ToArray);
+
+      foAnd: Result := __TPredicateTool_T.AndMany(ToArrayWorkAround(filters));
+      foOr: Result := __TPredicateTool_T.OrMany(ToArrayWorkAround(filters));
     end;
   end;
 end;

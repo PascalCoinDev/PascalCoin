@@ -64,6 +64,7 @@ uses
   UCommon,
   UMemory,
   UAccounts,
+  UPCDataTypes,
   USettings,
   UCoreUtils,
   UBaseTypes,

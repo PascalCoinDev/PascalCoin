@@ -330,7 +330,7 @@ begin
     else if Value.Fee=0 then lblFee.Font.Color := clGray
     else lblFee.Font.Color := clRed;
     ebOpHash.text := TCrypto.ToHexaString(Value.OperationHash);
-    memoOriginalPayloadInHexa.Lines.Text := TCrypto.ToHexaString(Value.OriginalPayload);
+    memoOriginalPayloadInHexa.Lines.Text := TCrypto.ToHexaString(Value.OriginalPayload.payload_raw);
     cbMethodPublicPayload.Checked := TSettings.AppParams.ParamByName['PayloadDecoder.notencrypted'].GetAsBoolean(true);
     cbUsingPrivateKeys.Checked := TSettings.AppParams.ParamByName['PayloadDecoder.usingprivatekeys'].GetAsBoolean(true);
     cbUsingPasswords.Checked := TSettings.AppParams.ParamByName['PayloadDecoder.usingpasswords'].GetAsBoolean(true);
@@ -387,7 +387,7 @@ Var raw : TRawBytes;
 begin
   ok := true;
   if Assigned(TWallet.Keys) then begin
-    raw := FOpResume.OriginalPayload;
+    raw := FOpResume.OriginalPayload.payload_raw;
     if Length(raw)>0 then begin
       // First try to a human readable...
       if (cbMethodPublicPayload.Checked) and (TCrypto.IsHumanReadable(raw)) then begin

@@ -25,7 +25,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ComCtrls,
   ExtCtrls, StdCtrls, Buttons, Grids, Menus,
-  UCommon.UI, UBaseTypes, UGridUtils, UNode, UAccounts, UBlockChain;
+  UCommon.UI, UBaseTypes, UPCDataTypes, UGridUtils, UNode, UAccounts, UBlockChain;
 
 type
 

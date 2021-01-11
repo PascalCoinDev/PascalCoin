@@ -81,6 +81,7 @@ Type
     constructor Create(CreateSuspended: Boolean);
     destructor Destroy; override;
     Property DebugStep : String read FDebugStep write FDebugStep;
+    Property StartTickCount : TTickCount read FStartTickCount;
     property Terminated;
   End;
 

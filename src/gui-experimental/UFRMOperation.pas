@@ -27,7 +27,7 @@ uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UCommon.UI,
   UNode, UWallet, UCrypto, Buttons, UBlockChain, UBaseTypes,
-  UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UCommon, UPCOrderedLists;
+  UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UCommon, UPCOrderedLists, UPCDataTypes;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -143,7 +143,8 @@ type
     FNode : TNode;
     FWalletKeys: TWalletKeys;
     FDefaultFee: Int64;
-    FEncodedPayload : TRawBytes;
+//    FEncodedPayload : TRawBytes;
+    FOperationPayload : TOperationPayload;
     FDisabled : Boolean;
     FSenderAccounts: TOrderedCardinalList; // TODO: TOrderedCardinalList should be replaced with a "TCardinalList" since signer account should be processed last
     procedure SetWalletKeys(const Value: TWalletKeys);
@@ -178,7 +179,7 @@ implementation
 
 uses
   UPCEncryption,
-  UCoreUtils, UConst, UOpTransaction, UFRMWalletKeys, UUserInterface, UPCDataTypes;
+  UCoreUtils, UConst, UOpTransaction, UFRMWalletKeys, UUserInterface;
 
 {$R *.lfm}
 
@@ -201,6 +202,11 @@ Var errors : AnsiString;
   _newType : Word;
   _changeName, _changeType, _V2, _executeSigner  : Boolean;
   _senderAccounts : TCardinalsArray;
+  LNewAccountState : TAccountState;
+  LAccountTarget : cardinal;
+  LHashLock : T32Bytes;
+  lChangeData : boolean;
+  LNewData : TRawBytes;
 label loop_start;
 begin
   if Not Assigned(WalletKeys) then raise Exception.Create('No wallet keys');
@@ -252,7 +258,7 @@ loop_start:
         end;
         if dooperation then begin
           op := TOpTransaction.CreateTransaction(FNode.Bank.SafeBox.CurrentProtocol,
-          account.account,account.n_operation+1,destAccount.account,wk.PrivateKey,_amount,_fee,FEncodedPayload);
+          account.account,account.n_operation+1,destAccount.account,wk.PrivateKey,_amount,_fee,FOperationPayload);
           inc(_totalamount,_amount);
           inc(_totalfee,_fee);
         end;
@@ -272,11 +278,11 @@ loop_start:
           if uint64(_totalSignerFee) >= signerAccount.balance then _fee := 0
           else if signerAccount.balance - uint64(_totalSignerFee) > uint64(DefaultFee) then _fee := DefaultFee
           else _fee := signerAccount.balance - uint64(_totalSignerFee);
-          op := TOpChangeKeySigned.Create(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+_signer_n_ops+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
+          op := TOpChangeKeySigned.Create(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+_signer_n_ops+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FOperationPayload);
           inc(_signer_n_ops);
           inc(_totalSignerFee, _fee);
         end else begin
-          op := TOpChangeKey.Create(FNode.Bank.SafeBox.CurrentProtocol,account.account,account.n_operation+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
+          op := TOpChangeKey.Create(FNode.Bank.SafeBox.CurrentProtocol,account.account,account.n_operation+1,account.account,wk.PrivateKey,_newOwnerPublicKey,_fee,FOperationPayload);
         end;
         inc(_totalfee,_fee);
         operationstxt := 'Change private key to '+TAccountComp.GetECInfoTxt(_newOwnerPublicKey.EC_OpenSSL_NID);
@@ -288,9 +294,11 @@ loop_start:
         if signerAccount.balance>DefaultFee then _fee := DefaultFee
         else _fee := signerAccount.balance;
         if (rbListAccountForPublicSale.Checked) then begin
-          op := TOpListAccountForSale.CreateListAccountForSale(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,CT_TECDSA_Public_Nul,0,wk.PrivateKey,FEncodedPayload);
+          LHashLock := CT_HashLock_NUL; // Skybuck: check or debug ! LHashLock zero value array passed in function below perhaps replace with correctly filled hash array !
+          // Skybuck: LNewAccountState parameter added, check or debug this later ! passed in function below ! LNewAccountState is not set yet !
+          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, LNewAccountState, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee, destAccount.account,CT_TECDSA_Public_Nul,0,wk.PrivateKey,LHashLock, FOperationPayload);
         end else if (rbListAccountForPrivateSale.Checked) then begin
-          op := TOpListAccountForSale.CreateListAccountForSale(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,destAccount.account,_newOwnerPublicKey,_lockedUntil,wk.PrivateKey,FEncodedPayload);
+          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, LNewAccountState, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee, destAccount.account,_newOwnerPublicKey,_lockedUntil,wk.PrivateKey,LHashLock, FOperationPayload);
         end else raise Exception.Create('Select Sale type');
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsDelist) then begin
@@ -299,21 +307,22 @@ loop_start:
         // Special fee account:
         if signerAccount.balance>DefaultFee then _fee := DefaultFee
         else _fee := signerAccount.balance;
-        op := TOpDelistAccountForSale.CreateDelistAccountForSale(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1+iAcc,account.account,_fee,wk.PrivateKey,FEncodedPayload);
+        op := TOpDelistAccountForSale.CreateDelistAccountForSale(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1+iAcc,account.account,_fee,wk.PrivateKey,FOperationPayload);
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsBuyAccount) then begin
         {%region Operation: Buy Account}
         if Not UpdateOpBuyAccount(account,accountToBuy,_amount,_newOwnerPublicKey,errors) then raise Exception.Create(errors);
         op := TOpBuyAccount.CreateBuy(FNode.Bank.SafeBox.CurrentProtocol,account.account,account.n_operation+1,accountToBuy.account,accountToBuy.accountInfo.account_to_pay,
-          accountToBuy.accountInfo.price,_amount,_fee,_newOwnerPublicKey,wk.PrivateKey,FEncodedPayload);
+          accountToBuy.accountInfo.price,_amount,_fee,_newOwnerPublicKey,wk.PrivateKey,FOperationPayload);
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsChangeInfo) then begin
         {%region Operation: Change Info}
         if not UpdateOpChangeInfo(account,signerAccount,_changeName,_newName,_changeType,_newType,errors) then raise Exception.Create(errors);
         if signerAccount.balance>DefaultFee then _fee := DefaultFee
         else _fee := signerAccount.balance;
+        // Skybuck: check or debug LChangeData and LNewData !! (newly added, no correct values yet set in these two variables !?!)
         op := TOpChangeAccountInfo.CreateChangeAccountInfo(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1,account.account,wk.PrivateKey,false,CT_TECDSA_Public_Nul,
-           _changeName,_newName,_changeType,_newType,_fee,FEncodedPayload);
+           _changeName,_newName,_changeType,_newType,LChangeData,LNewData,_fee,FOperationPayload);
         {%endregion}
       end else begin
         raise Exception.Create('No operation selected');
@@ -1246,7 +1255,7 @@ Var payload_u : AnsiString;
 begin
   valid := false;
   payload_encrypted := Nil;
-  FEncodedPayload := Nil;
+  FOperationPayload.payload_raw := nil;
   errors := 'Unknown error';
   payload_u := memoPayload.Lines.Text;
   try
@@ -1349,7 +1358,8 @@ begin
       lblEncryptionErrors.Caption := errors;
       lblPayloadLength.Caption := Format('(%db -> ?)',[length(payload_u)]);
     end;
-    FEncodedPayload := payload_encrypted;
+    FOperationPayload.payload_raw := payload_encrypted;
+
     Result := valid;
   end;
 end;

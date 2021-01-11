@@ -320,6 +320,7 @@ Type
     procedure UpdateSafeboxFileName(const ANewSafeboxFileName : String);
     procedure ClearSafeboxfile;
     class Function CopyAbstractMemToSafeBoxStream(ASource : TPCAbstractMem; ADestStream : TStream; AFromBlock, AToBlock : Cardinal; var AErrors : String) : Boolean;
+    property PCAbstractMem : TPCAbstractMem read FPCAbstractMem;
     {$ENDIF}
   End;
 
@@ -480,7 +481,7 @@ Procedure Check_Safebox_Integrity(sb : TPCSafebox; title: String);
 implementation
 
 uses
-  ULog, {$IFnDEF USE_ABSTRACTMEM} UAccountKeyStorage,{$ENDIF} math, UCommon, UPCOperationsBlockValidator, UPCTemporalFileStream;
+  ULog, {$IFnDEF USE_ABSTRACTMEM} UAccountKeyStorage,{$ENDIF} math, UCommon, UPCOperationsBlockValidator, UPCTemporalFileStream, UEncoding;
 
 
 {$IFDEF FPC}
@@ -1511,9 +1512,10 @@ begin
   end;
 end;
 
+// Deprecated
 class function TAccountComp.FormatMoney(Money: Int64): String;
 begin
-  Result := FormatFloat('#,###0.0000',(Money/10000), TPCJSONData.JSONFormatSettings);
+  Result := TPASCEncoding.Encode(Money);
 end;
 
 class function TAccountComp.FormatMoneyDecimal(Money : Int64) : Currency;
@@ -1892,41 +1894,10 @@ end;
 {$IFNDEF VER210}
 {$DEFINE DELPHIXE}
 {$ENDIF}
-
-class function TAccountComp.TxtToMoney(const moneytxt: String;
-  var money: Int64): Boolean;
-Var s : String;
-  LPosThousand, LPosDecimal : Integer;
-  LMoneyString : String;
+// Deprecated
+class function TAccountComp.TxtToMoney(const moneytxt: String;  var money: Int64): Boolean;
 begin
-  money := 0;
-  LMoneyString := Trim(moneytxt);
-  if LMoneyString.Length=0 then begin
-    Result := true;
-    exit;
-  end;
-  try
-    LPosThousand := LMoneyString.IndexOf( TPCJSONData.JSONFormatSettings.ThousandSeparator );
-    LPosDecimal  := LMoneyString.IndexOf( TPCJSONData.JSONFormatSettings.DecimalSeparator );
-
-    if (LPosThousand>0) then begin
-      if (LPosThousand < LPosDecimal ) then begin
-        // Remove thousand values
-        LMoneyString := LMoneyString.Replace(String(TPCJSONData.JSONFormatSettings.ThousandSeparator),'',[rfReplaceAll]);
-      end else begin
-        // Possible 15.123.456,7890 format ( coma (,) = decimal separator )
-        // Remove decimal "." and convert thousand to decimal
-        LMoneyString := LMoneyString.Replace(String(TPCJSONData.JSONFormatSettings.DecimalSeparator),'',[rfReplaceAll]);
-        LMoneyString := LMoneyString.Replace(TPCJSONData.JSONFormatSettings.ThousandSeparator,TPCJSONData.JSONFormatSettings.DecimalSeparator,[rfReplaceAll]);
-      end;
-    end;
-
-    money := Round( StrToFloat(LMoneyString,TPCJSONData.JSONFormatSettings)*10000 );
-    Result := true;
-  Except
-    result := false;
-  end;
-
+  Result := TPASCEncoding.TryDecode(moneytxt, money);
 end;
 
 class procedure TAccountComp.ValidsEC_OpenSSL_NID(list: TList<Word>);
@@ -3424,6 +3395,9 @@ begin
   tc := TPlatform.GetTickCount;
   StartThreadSafe;
   try
+    {$IFDEF USE_ABSTRACTMEM}
+    FPCAbstractMem.SavingNewSafeboxMode := True;
+    {$ENDIF}
     LStartTickCount := tc;
     // Read Header info
     If not LoadSafeBoxStreamHeader(Stream,sbHeader) then begin
@@ -3724,6 +3698,9 @@ begin
       if Not Result then Clear else errors := '';
     End;
   Finally
+    {$IFDEF USE_ABSTRACTMEM}
+    FPCAbstractMem.SavingNewSafeboxMode := False;
+    {$ENDIF}
     EndThreadSave;
   end;
   TLog.NewLog(ltdebug,ClassName,Format('Finalized read Safebox from blocks %d to %d (total %d blocks) in %.2f seconds',
