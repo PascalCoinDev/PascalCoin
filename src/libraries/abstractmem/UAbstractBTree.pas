@@ -78,7 +78,7 @@ type
     procedure MoveRange(var ASourceNode, ADestNode : TAbstractBTreeNode; AFromSource, ACount, AToDest : Integer);
     procedure MoveRangeBetweenSiblings(var ASourceNode, ADestNode : TAbstractBTreeNode);
     procedure BTreeNodeToString(const ANode : TAbstractBTreeNode; ALevel, ALevelIndex : Integer; const AStrings : TStrings);
-    procedure CheckConsistencyEx(const ANode: TAbstractBTreeNode; AIsGoingDown : Boolean; AParentDataIndexLeft,AParentDataIndexRight : Integer; ADatas: TOrderedList<TData>; AIdents: TOrderedList<TIdentify>; ACurrentLevel : Integer; var ALevels, ANodesCount, AItemsCount : Integer);
+    procedure CheckConsistencyEx(const ANode: TAbstractBTreeNode; AIsGoingDown : Boolean; AParentDataIndexLeft,AParentDataIndexRight : Integer; ADatas: TList<TData>; AIdents: TOrderedList<TIdentify>; ACurrentLevel : Integer; var ALevels, ANodesCount, AItemsCount : Integer);
     function FindPrecessorExt(var ANode : TAbstractBTreeNode; var iPos : Integer) : Boolean;
     function FindSuccessorExt(var ANode : TAbstractBTreeNode; var iPos : Integer) : Boolean;
     procedure EraseTreeExt(var ANode : TAbstractBTreeNode);
@@ -91,15 +91,17 @@ type
     function NewNode : TAbstractBTreeNode; virtual; abstract;
     procedure DisposeNode(var ANode : TAbstractBTreeNode); virtual; abstract;
     procedure SetNil(var AIdentify : TIdentify); virtual; abstract;
-    function BinarySearch(const AData : TData; const ADataArray : TDataArray; out AIndex : Integer) : Boolean;
+    function BinarySearch(const AData : TData; const ADataArray : TDataArray; out AIndex : Integer) : Boolean; virtual;
     function AreEquals(const AIdentify1, AIdentify2 : TIdentify) : Boolean;
     procedure SaveNode(var ANode : TAbstractBTreeNode); virtual; abstract;
     function GetCount : Integer; virtual;
     procedure SetCount(const ANewCount : Integer); virtual;
     function GetHeight: Integer; virtual;
     property Count : Integer read GetCount;
-    procedure CheckConsistencyFinalized(ADatas : TOrderedList<TData>; AIdents : TOrderedList<TIdentify>; Alevels, ANodesCount, AItemsCount : Integer); virtual;
+    procedure CheckConsistencyFinalized(ADatas : TList<TData>; AIdents : TOrderedList<TIdentify>; Alevels, ANodesCount, AItemsCount : Integer); virtual;
     function FindChildPos(const AIdent : TIdentify; const AParent : TAbstractBTreeNode) : Integer;
+    procedure DisposeData(var AData : TData); virtual;
+    function DoCompareData(const ALeftData, ARightData: TData): Integer; virtual;
   public
     property AllowDuplicates : Boolean read FAllowDuplicates write FAllowDuplicates;
     function IsNil(const AIdentify : TIdentify) : Boolean; virtual; abstract;
@@ -145,7 +147,7 @@ type
     procedure DisposeNode(var ANode : TAbstractBTree<Integer,TData>.TAbstractBTreeNode); override;
     procedure SetNil(var AIdentify : Integer); override;
     procedure SaveNode(var ANode : TAbstractBTree<Integer,TData>.TAbstractBTreeNode); override;
-    procedure CheckConsistencyFinalized(ADatas : TOrderedList<TData>; AIdents : TOrderedList<Integer>; Alevels, ANodesCount, AItemsCount : Integer); override;
+    procedure CheckConsistencyFinalized(ADatas : TList<TData>; AIdents : TOrderedList<Integer>; Alevels, ANodesCount, AItemsCount : Integer); override;
   public
     function IsNil(const AIdentify : Integer) : Boolean; override;
     constructor Create(const AOnCompareDataMethod: TComparison<TData>; AAllowDuplicates : Boolean; AOrder : Integer);
@@ -220,7 +222,7 @@ begin
   j := Length(ADataArray)-1;
   while (i <= j) do begin
     mid := (i + j) shr 1;
-    cmp := FOnCompareData(AData,ADataArray[mid]);
+    cmp := DoCompareData(AData,ADataArray[mid]);
     if (cmp<0) then begin
       j := mid - 1;
     end else if (cmp>0) then begin
@@ -266,13 +268,13 @@ end;
 
 procedure TAbstractBTree<TIdentify, TData>.CheckConsistency;
 var
-  FDatas : TOrderedList<TData>;
+  FDatas : TList<TData>;
   FIdents : TOrderedList<TIdentify>;
   Lnode : TAbstractBTreeNode;
   Llevels, LnodesCount, LItemsCount : Integer;
 begin
   FIdents := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
-  FDatas := TOrderedList<TData>.Create(FAllowDuplicates,FOnCompareData);
+  FDatas := TList<TData>.Create;
   try
     Llevels := 0;
     LnodesCount := 0;
@@ -291,7 +293,7 @@ begin
   end;
 end;
 
-procedure TAbstractBTree<TIdentify, TData>.CheckConsistencyEx(const ANode: TAbstractBTreeNode; AIsGoingDown : Boolean; AParentDataIndexLeft, AParentDataIndexRight : Integer; ADatas: TOrderedList<TData>; AIdents: TOrderedList<TIdentify>; ACurrentLevel : Integer; var ALevels, ANodesCount, AItemsCount : Integer);
+procedure TAbstractBTree<TIdentify, TData>.CheckConsistencyEx(const ANode: TAbstractBTreeNode; AIsGoingDown : Boolean; AParentDataIndexLeft, AParentDataIndexRight : Integer; ADatas: TList<TData>; AIdents: TOrderedList<TIdentify>; ACurrentLevel : Integer; var ALevels, ANodesCount, AItemsCount : Integer);
 var Lchild : TAbstractBTreeNode;
   i, Lcmp, iLeft, iRight : Integer;
 begin
@@ -308,15 +310,15 @@ begin
     if (ANode.Count=0) then raise EAbstractBTree.Create(Format('Inconsistent NIL node at level %d',[ACurrentLevel]));
     if (AParentDataIndexLeft>=0) then begin
       // Right must be < than parent
-      Lcmp := FOnCompareData(ADatas.Get(AParentDataIndexLeft), ANode.data[0]);
+      Lcmp := DoCompareData(ADatas.Items[AParentDataIndexLeft], ANode.data[0]);
       if Lcmp>0 then raise EAbstractBTree.Create(Format('Inconsistent %d data [%s] vs parent left [%s] at level %d',
-        [Lcmp,NodeDataToString(ANode.data[0]),NodeDataToString(ADatas.Get(AParentDataIndexLeft)), ACurrentLevel]));
+        [Lcmp,NodeDataToString(ANode.data[0]),NodeDataToString(ADatas.Items[AParentDataIndexLeft]), ACurrentLevel]));
     end;
     if (AParentDataIndexRight>=0) then begin
       // Right must be < than parent
-      Lcmp := FOnCompareData(ANode.data[ANode.Count-1],ADatas.Get(AParentDataIndexRight));
+      Lcmp := DoCompareData(ANode.data[ANode.Count-1],ADatas.Items[AParentDataIndexRight]);
       if Lcmp>0 then raise EAbstractBTree.Create(Format('Inconsistent %d data [%s] vs parent right [%s] at level %d',
-        [Lcmp,NodeDataToString(ANode.data[ANode.Count-1]),NodeDataToString(ADatas.Get(AParentDataIndexRight)), ACurrentLevel]));
+        [Lcmp,NodeDataToString(ANode.data[ANode.Count-1]),NodeDataToString(ADatas.Items[AParentDataIndexRight]), ACurrentLevel]));
     end;
   end;
   if (MinItemsPerNode>ANode.Count) or (MaxItemsPerNode<ANode.Count) then begin
@@ -326,7 +328,7 @@ begin
   end;
 
   for i := 1 to ANode.Count-1 do begin
-    if FOnCompareData(ANode.data[i-1],ANode.data[i])>0 then raise EAbstractBTree.Create(Format('Inconsistent data (%d..%d)/%d [%s] > [%s] at level %d',
+    if DoCompareData(ANode.data[i-1],ANode.data[i])>0 then raise EAbstractBTree.Create(Format('Inconsistent data (%d..%d)/%d [%s] > [%s] at level %d',
       [i-1,i,ANode.Count,NodeDataToString(ANode.data[i-1]),NodeDataToString(ANode.data[i]), ACurrentLevel]));
   end;
 
@@ -360,7 +362,7 @@ begin
 
 end;
 
-procedure TAbstractBTree<TIdentify, TData>.CheckConsistencyFinalized(ADatas: TOrderedList<TData>; AIdents: TOrderedList<TIdentify>; Alevels, ANodesCount, AItemsCount: Integer);
+procedure TAbstractBTree<TIdentify, TData>.CheckConsistencyFinalized(ADatas: TList<TData>; AIdents: TOrderedList<TIdentify>; Alevels, ANodesCount, AItemsCount: Integer);
 begin
   //
 end;
@@ -432,8 +434,7 @@ begin
       if (Not LmovingUp) then begin
         BinarySearch(AData,Lparent.data,iPosParent);
       end;
-      if (iPosParent>0) //and (iPosParent<=Lparent.Count)
-        then begin
+      if (iPosParent>0) then begin
         Lleft := GetNode(Lparent.childs[iPosParent-1]);
         // Use Left?
         if Lleft.Count>MinItemsPerNode then begin
@@ -645,6 +646,16 @@ begin
   until (False);
 end;
 
+procedure TAbstractBTree<TIdentify, TData>.DisposeData(var AData: TData);
+begin
+  // Nothing to do
+end;
+
+function TAbstractBTree<TIdentify, TData>.DoCompareData(const ALeftData, ARightData: TData): Integer;
+begin
+  Result := FOnCompareData(ALeftData,ARightData);
+end;
+
 procedure TAbstractBTree<TIdentify, TData>.EraseTree;
 var Lnode : TAbstractBTreeNode;
 begin
@@ -665,7 +676,9 @@ begin
       EraseTreeExt(Lchild);
     end;
   end;
-  SetLength(ANode.childs,0);
+  for i:=0 to Length(ANode.data)-1 do begin
+    DisposeData(ANode.data[i]);
+  end;
   DisposeNode(ANode);
   ClearNode(ANode);
 end;
@@ -745,7 +758,7 @@ begin
     if Result then begin
       APrecessor := Lnode.data[iPos];
     end;
-  until (Not Result) or (Not FAllowDuplicates) or (FOnCompareData(AData,APrecessor)>0);
+  until (Not Result) or (Not FAllowDuplicates) or (DoCompareData(AData,APrecessor)>0);
 end;
 
 function TAbstractBTree<TIdentify, TData>.FindPrecessorExt(var ANode: TAbstractBTreeNode; var iPos: Integer): Boolean;
@@ -797,7 +810,7 @@ begin
     if Result then begin
       ASuccessor := Lnode.data[iPos];
     end;
-  until (Not Result) or (Not FAllowDuplicates) or (FOnCompareData(AData,ASuccessor)<0);
+  until (Not Result) or (Not FAllowDuplicates) or (DoCompareData(AData,ASuccessor)<0);
 end;
 
 function TAbstractBTree<TIdentify, TData>.FindSuccessorExt(var ANode: TAbstractBTreeNode; var iPos: Integer): Boolean;
@@ -1079,7 +1092,7 @@ end;
 
 { TMemoryBTree<TData> }
 
-procedure TMemoryBTree<TData>.CheckConsistencyFinalized(ADatas: TOrderedList<TData>; AIdents: TOrderedList<Integer>; Alevels, ANodesCount, AItemsCount: Integer);
+procedure TMemoryBTree<TData>.CheckConsistencyFinalized(ADatas: TList<TData>; AIdents: TOrderedList<Integer>; Alevels, ANodesCount, AItemsCount: Integer);
 var i,iPos,nDisposed, LDisposedMinPos : Integer;
 begin
   inherited;

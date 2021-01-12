@@ -71,17 +71,14 @@ begin
       if Random(2)=0 then begin
         if (Lbt.Add(intValue)) then begin
           inc(nAdds);
-          if Random(100)=0 then begin
-            Lbt.CheckConsistency;
-          end;
         end;
       end else begin
         if Lbt.Delete(intValue) then begin
           inc(nDeletes);
-          if Random(100)=0 then begin
-            Lbt.CheckConsistency;
-          end;
         end;
+      end;
+      if Random(100)=0 then begin
+        Lbt.CheckConsistency;
       end;
     until (nRounds>=AOrder * 10000);
     Lbt.CheckConsistency;
@@ -248,15 +245,12 @@ begin
         inc(i);
       end;
       Assert(intValue=valMax,Format('Successor %d<>%d',[intValue,valMax]));
-//      Assert(i=Lregs,Format('Succcessor count %d %d',[i,Lregs]));
       Lbt.FindHighest(intValue);
       i := 1;
       while (Lbt.FindPrecessor(intValue,intValue)) do begin
         inc(i);
       end;
       Assert(intValue=valMin,Format('Precessor %d<>%d',[intValue,valMin]));
-//      Assert(i=Lregs,Format('Precessor count %d %d',[i,Lregs]));
-
     finally
       Lbt.Free;
     end;
@@ -303,7 +297,7 @@ begin
       i :=1;
       while Lbt.Height<Lorder+1 do begin
         intValue := Random(100);
-        DoInsert(intValue); // Lbt.Add(intValue);
+        DoInsert(intValue);
         inc(i);
       end;
 
