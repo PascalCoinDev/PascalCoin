@@ -320,6 +320,7 @@ Type
     procedure UpdateSafeboxFileName(const ANewSafeboxFileName : String);
     procedure ClearSafeboxfile;
     class Function CopyAbstractMemToSafeBoxStream(ASource : TPCAbstractMem; ADestStream : TStream; AFromBlock, AToBlock : Cardinal; var AErrors : String) : Boolean;
+    property PCAbstractMem : TPCAbstractMem read FPCAbstractMem;
     {$ENDIF}
   End;
 
@@ -3394,6 +3395,9 @@ begin
   tc := TPlatform.GetTickCount;
   StartThreadSafe;
   try
+    {$IFDEF USE_ABSTRACTMEM}
+    FPCAbstractMem.SavingNewSafeboxMode := True;
+    {$ENDIF}
     LStartTickCount := tc;
     // Read Header info
     If not LoadSafeBoxStreamHeader(Stream,sbHeader) then begin
@@ -3694,6 +3698,9 @@ begin
       if Not Result then Clear else errors := '';
     End;
   Finally
+    {$IFDEF USE_ABSTRACTMEM}
+    FPCAbstractMem.SavingNewSafeboxMode := False;
+    {$ENDIF}
     EndThreadSave;
   end;
   TLog.NewLog(ltdebug,ClassName,Format('Finalized read Safebox from blocks %d to %d (total %d blocks) in %.2f seconds',

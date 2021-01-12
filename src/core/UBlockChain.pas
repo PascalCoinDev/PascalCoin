@@ -1050,8 +1050,9 @@ begin
         TPCBankNotify(FNotifyList.Items[i]).NotifyNewBlock;
       end;
     end;
-
-
+    {$IFDEF USE_ABSTRACTMEM}
+    SafeBox.PCAbstractMem.FlushCache;
+    {$ENDIF}
   finally
     FBankLock.Release;
   end;
@@ -1249,12 +1250,20 @@ function TPCBank.LoadBankFromStream(Stream: TStream; useSecureLoad : Boolean; ch
 Var LastReadBlock : TBlockAccount;
   i : Integer;
   auxSB : TPCSafeBox;
+  Lucoaml : boolean;
+  Lmmu : Integer;
 begin
   auxSB := Nil;
   Try
     If useSecureLoad then begin
       // When on secure load will load Stream in a separate SafeBox, changing only real SafeBox if successfully
       auxSB := TPCSafeBox.Create;
+      {$IFDEF USE_ABSTRACTMEM}
+      Lucoaml := Self.SafeBox.PCAbstractMem.UseCacheOnAbstractMemLists;
+      Lmmu := Self.SafeBox.PCAbstractMem.MaxMemUsage;
+      auxSB.PCAbstractMem.UseCacheOnAbstractMemLists := False;
+      auxSB.PCAbstractMem.MaxMemUsage := 100 * 1024 * 1024; // 100 Mb
+      {$ENDIF}
       Result := auxSB.LoadSafeBoxFromStream(Stream,true,checkSafeboxHash,progressNotify,previousCheckedSafebox,LastReadBlock,errors);
       If Not Result then Exit;
     end;
@@ -1262,6 +1271,10 @@ begin
     try
       If Assigned(auxSB) then begin
         SafeBox.CopyFrom(auxSB);
+        {$IFDEF USE_ABSTRACTMEM}
+        Self.SafeBox.PCAbstractMem.UseCacheOnAbstractMemLists := Lucoaml;
+        Self.SafeBox.PCAbstractMem.MaxMemUsage := Lmmu;
+        {$ENDIF}
       end else begin
         Result := SafeBox.LoadSafeBoxFromStream(Stream,False,checkSafeboxHash,progressNotify,previousCheckedSafebox,LastReadBlock,errors);
       end;

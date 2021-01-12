@@ -9,7 +9,7 @@ interface
 uses Classes, SysUtils,
   SyncObjs,
   UAbstractMem, UFileMem, UAbstractMemTList,
-  UAbstractBTree,
+  UAbstractBTree, UAbstractAVLTree,
   UPCDataTypes, UBaseTypes, UAVLCache,
   {$IFNDEF FPC}System.Generics.Collections,System.Generics.Defaults{$ELSE}Generics.Collections,Generics.Defaults{$ENDIF};
 
@@ -38,7 +38,7 @@ type
     procedure SaveTo(const AItem : Cardinal; AIsAddingItem : Boolean; var ABytes : TBytes); override;
     function Compare(const ALeft, ARight : Cardinal) : Integer; override;
   public
-    Constructor Create(AAbstractMem : TAbstractMem; const AInitialZone : TAMZone); reintroduce;
+    Constructor Create(AAbstractMem : TAbstractMem; const AInitialZone : TAMZone; AUseCache : Boolean); reintroduce;
     Function Add(const AItem : Cardinal) : Integer; reintroduce;
     procedure Delete(index : Integer); reintroduce;
   End;
@@ -64,6 +64,7 @@ type
     FPointerToRootPosition : TAbstractMemPosition;
     FRootPosition : TAbstractMemPosition;
     FAccountKeyByPositionCache : TPCAccountKeyByPositionCache;
+    FUseCacheOnAbstractMemLists: Boolean;
   protected
     function GetRoot: TAbstractMemAccountKeyNode; override;
     procedure SetRoot(const Value: TAbstractMemAccountKeyNode); override;
@@ -79,7 +80,7 @@ type
   public
     function IsNil(const ANode : TAbstractMemAccountKeyNode) : Boolean; override;
     function ToString(const ANode: TAbstractMemAccountKeyNode) : String; override;
-    constructor Create(AAbstractMem : TAbstractMem; APointerToRootPosition : TAbstractMemPosition); reintroduce;
+    constructor Create(AAbstractMem : TAbstractMem; APointerToRootPosition : TAbstractMemPosition; AUseCacheOnAbstractMemLists : Boolean); reintroduce;
     destructor Destroy; override;
     //
     function GetKeyAtPosition(APosition : TAbstractMemPosition) : TAccountKey;
@@ -89,6 +90,8 @@ type
     procedure GetAccountsUsingKey(const AAccountKey : TAccountKey; const AList : TList<Cardinal>);
     function GetAccountsUsingThisKey(const AAccountKey : TAccountKey) : TAccountsUsingThisKey;
     procedure FlushCache;
+    property UseCacheOnAbstractMemLists : Boolean read FUseCacheOnAbstractMemLists write FUseCacheOnAbstractMemLists;
+    property AccountKeyByPositionCache : TPCAccountKeyByPositionCache read FAccountKeyByPositionCache;
   end;
 
 
@@ -113,7 +116,7 @@ begin
       _BlackHoleAbstractMem := TMem.Create(0,True);
     end;
     LZone.Clear;
-    _TAccountsUsingThisKey_BlackHole := TAccountsUsingThisKey_BlackHole.Create(_BlackHoleAbstractMem,LZone);
+    _TAccountsUsingThisKey_BlackHole := TAccountsUsingThisKey_BlackHole.Create(_BlackHoleAbstractMem,LZone,True);
   end;
   Result :=  _TAccountsUsingThisKey_BlackHole;
 end;
@@ -225,12 +228,13 @@ begin
   Result := Left.data.position - Right.data.position;
 end;
 
-constructor TPCAbstractMemAccountKeys.Create(AAbstractMem: TAbstractMem; APointerToRootPosition : TAbstractMemPosition);
+constructor TPCAbstractMemAccountKeys.Create(AAbstractMem: TAbstractMem; APointerToRootPosition : TAbstractMemPosition; AUseCacheOnAbstractMemLists : Boolean);
 begin
   FAccountKeysLock := TCriticalSection.Create;
   FAbstractMem := AAbstractMem;
   FPointerToRootPosition := APointerToRootPosition;
   FRootPosition := 0;
+  FUseCacheOnAbstractMemLists := AUseCacheOnAbstractMemLists;
   // Read Root position
   FAbstractMem.Read(FPointerToRootPosition,FRootPosition,4);
   FAccountKeyByPositionCache := TPCAccountKeyByPositionCache.Create(5000,_AccountKeyByPositionCache_Comparision);
@@ -239,8 +243,8 @@ end;
 
 destructor TPCAbstractMemAccountKeys.Destroy;
 begin
-  FAccountKeyByPositionCache.Free;
-  FAccountKeysLock.Free;
+  FreeAndNil(FAccountKeyByPositionCache);
+  FreeAndNil(FAccountKeysLock);
   inherited;
 end;
 
@@ -297,7 +301,7 @@ begin
     LP.Clear;
     LP.position := LNode.myPosition;
     LP.accountKey := AAccountKey;
-    LP.accountsUsingThisKey := TAccountsUsingThisKey.Create(FAbstractMem,LZone);
+    LP.accountsUsingThisKey := TAccountsUsingThisKey.Create(FAbstractMem,LZone,Self.UseCacheOnAbstractMemLists);
     FAccountKeyByPositionCache.Add(LP); // Add to cache!
   end;
   Result := LP.accountsUsingThisKey;
@@ -330,7 +334,7 @@ begin
     if LNode.accounts_using_this_key_position>0 then begin
       LAccZone.Clear;
       LAccZone.position := LNode.accounts_using_this_key_position;
-      LP.accountsUsingThisKey := TAccountsUsingThisKey.Create(FAbstractMem,LAccZone);
+      LP.accountsUsingThisKey := TAccountsUsingThisKey.Create(FAbstractMem,LAccZone,Self.UseCacheOnAbstractMemLists);
     end else LP.accountsUsingThisKey := Nil;
     FAccountKeyByPositionCache.Add(LP); // Add to cache!
   end;
@@ -392,7 +396,7 @@ begin
       LNode.accounts_using_this_key_position := LZone.position;
       LNode.WriteToMem( FAbstractMem ); // Save update:
     end else LZone.position := LNode.accounts_using_this_key_position;
-    LAccKeyByPos.accountsUsingThisKey := TAccountsUsingThisKey.Create(FAbstractMem,LZone);
+    LAccKeyByPos.accountsUsingThisKey := TAccountsUsingThisKey.Create(FAbstractMem,LZone,Self.UseCacheOnAbstractMemLists);
     // Add to cache
     FAccountKeyByPositionCache.Add( LAccKeyByPos );
   end;
@@ -435,7 +439,7 @@ begin
     LAccKeyByPos.accountKey := AAccountKey;
     LZone.Clear;
     LZone.position := LNode.accounts_using_this_key_position;
-    LAccKeyByPos.accountsUsingThisKey := TAccountsUsingThisKey.Create(FAbstractMem,LZone);
+    LAccKeyByPos.accountsUsingThisKey := TAccountsUsingThisKey.Create(FAbstractMem,LZone,Self.UseCacheOnAbstractMemLists);
     // Add to cache
     FAccountKeyByPositionCache.Add( LAccKeyByPos );
   end;
@@ -554,9 +558,9 @@ begin
   Result := ALeft - ARight;
 end;
 
-constructor TAccountsUsingThisKey.Create(AAbstractMem: TAbstractMem; const AInitialZone: TAMZone);
+constructor TAccountsUsingThisKey.Create(AAbstractMem: TAbstractMem; const AInitialZone: TAMZone; AUseCache : Boolean);
 begin
-  inherited Create(AAbstractMem,AInitialZone,1000,False);
+  inherited Create(AAbstractMem,AInitialZone,1000,False, AUseCache);
 end;
 
 procedure TAccountsUsingThisKey.Delete(index: Integer);

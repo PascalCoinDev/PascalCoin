@@ -104,7 +104,7 @@ type
       function IsPayToKey: Boolean; inline;
       function GetRawPayloadBytes(): TArray<Byte>; inline;
       function ToString(): String; overload;
-      function ToString(AOmitExtendedChecksum: Boolean): String; reintroduce; overload;
+      function ToString(AOmitExtendedChecksum: Boolean): String; overload;
 
       property Account: TNullable<UInt32> read GetAccount write SetAccount;
       property AccountChecksum: TNullable<UInt32> read GetAccountChecksum write SetAccountChecksum;

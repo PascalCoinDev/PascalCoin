@@ -3038,6 +3038,10 @@ begin
         end;
         sleep(1);
       end;
+      {$IFDEF USE_ABSTRACTMEM}
+      TNode.Node.Bank.SafeBox.PCAbstractMem.FlushCache;
+      {$ENDIF}
+
       FIsDownloadingBlocks := false;
       if ((LOpCount>0) And (FRemoteOperationBlock.block>=TNode.Node.Bank.BlocksCount)) then begin
         Send_GetBlocks(TNode.Node.Bank.BlocksCount,100,c);

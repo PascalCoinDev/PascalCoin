@@ -428,7 +428,7 @@ begin
     FreeAndNil(FNextLevelBytesBuffer);
   end else if Not Assigned(FNextLevelBytesBuffer) then begin
     // First time must "Redo"
-    RedoNextLevelsForMerkleRootHash;
+    // "RedoNextLevelsForMerkleRootHash" will be called when need to access next level value
   end else begin
     LLevelItemIndex := AStartPos DIV 32;
     LLevelItemsCount := Self.Length DIV 32;

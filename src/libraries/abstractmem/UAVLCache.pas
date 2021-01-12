@@ -3,7 +3,7 @@ unit UAVLCache;
 {
   This file is part of AbstractMem framework
 
-  Copyright (C) 2020 Albert Molina - bpascalblockchain@gmail.com
+  Copyright (C) 2020-2021 Albert Molina - bpascalblockchain@gmail.com
 
   https://github.com/PascalCoinDev/
 
@@ -33,7 +33,7 @@ interface
 
 uses Classes, SysUtils,
   SyncObjs,
-  UAbstractBTree, UOrderedList,
+  UAbstractAVLTree, UOrderedList,
   {$IFNDEF FPC}System.Generics.Collections,System.Generics.Defaults{$ELSE}Generics.Collections,Generics.Defaults{$ENDIF};
 
 type
@@ -87,13 +87,13 @@ type
       function ConsistencyCheck(const AErrors : TStrings): integer; override;
     end;
     var FAVLCacheMem : TAVLCacheMem;
-    FDefaultMax : Integer;
+    FMaxRegisters : Integer;
     FAVLCacheLock : TCriticalSection;
   protected
     procedure BeforeDelete(var AData : T); virtual;
     procedure ConsistencyCheck;
   public
-    Constructor Create(ADefaultMax : Integer; const AOnCompareMethod: TComparison<PAVLCacheMemData>);
+    Constructor Create(ADefaultMaxRegisters : Integer; const AOnCompareMethod: TComparison<PAVLCacheMemData>);
     Destructor Destroy; override;
     //
     function Find(const AData : T; out AFound : T) : Boolean;
@@ -103,6 +103,7 @@ type
     procedure Clear;
     function TreeToString: String;
     function ToString(const AData : T) : String; overload; virtual;
+    property MaxRegisters : Integer read FMaxRegisters write FMaxRegisters;
   End;
 
 implementation
@@ -339,7 +340,7 @@ begin
   P^.data := AData;
   FAVLCacheMem.Add(P);
   FAVLCacheMem.DoMark(P,True);
-  if (FDefaultMax > 0) And (FAVLCacheMem.FCount>FDefaultMax) then begin
+  if (FMaxRegisters > 0) And (FAVLCacheMem.FCount>FMaxRegisters) then begin
     // Dispose cache
     LnToRemove := FAVLCacheMem.FCount SHR 1;
     i := 1;
@@ -395,10 +396,10 @@ begin
   End;
 end;
 
-constructor TAVLCache<T>.Create(ADefaultMax: Integer;  const AOnCompareMethod: TComparison<PAVLCacheMemData>);
+constructor TAVLCache<T>.Create(ADefaultMaxRegisters: Integer;  const AOnCompareMethod: TComparison<PAVLCacheMemData>);
 begin
   FAVLCacheMem := TAVLCacheMem.Create(AOnCompareMethod,False);
-  FDefaultMax := ADefaultMax;
+  FMaxRegisters := ADefaultMaxRegisters;
   FAVLCacheLock := TCriticalSection.Create;
 end;
 

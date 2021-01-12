@@ -1,6 +1,6 @@
 unit upcdaemon;
 
-{ Copyright (c) 2016 by Albert Molina
+{ Copyright (c) 2016-2020 by Albert Molina
 
   Distributed under the MIT software license, see the accompanying file LICENSE
   or visit http://www.opensource.org/licenses/mit-license.php.
@@ -48,6 +48,12 @@ Const
   CT_INI_IDENT_MINPENDINGBLOCKSTODOWNLOADCHECKPOINT = 'MINPENDINGBLOCKSTODOWNLOADCHECKPOINT';
   CT_INI_IDENT_PEERCACHE = 'PEERCACHE';
   CT_INI_IDENT_DATA_FOLDER = 'DATAFOLDER';
+  {$IFDEF USE_ABSTRACTMEM}
+  CT_INI_IDENT_ABSTRACTMEM_MAX_CACHE_MB = 'ABSTRACTMEM_MAX_CACHE_MB';
+  CT_INI_IDENT_ABSTRACTMEM_USE_CACHE_ON_LISTS = 'ABSTRACTMEM_USE_CACHE_ON_LISTS';
+  CT_INI_IDENT_ABSTRACTMEM_CACHE_MAX_ACCOUNTS = 'ABSTRACTMEM_CACHE_MAX_ACCOUNTS';
+  CT_INI_IDENT_ABSTRACTMEM_CACHE_MAX_PUBKEYS = 'ABSTRACTMEM_CACHE_MAX_PUBKEYS';
+  {$ENDIF}
 
 Type
   { TPCDaemonThread }
@@ -238,7 +244,11 @@ var
       TLog.NewLog(ltinfo,ClassName,'RPC Miner Server NOT ACTIVE (Ini file is '+CT_INI_IDENT_RPC_SERVERMINER_PORT+'=0)');
     end;
   end;
-
+  {$IFDEF USE_ABSTRACTMEM}
+  var LMaxMemMb : Integer;
+    LUseCacheOnMemLists : Boolean;
+    LCacheMaxAccounts, LCacheMaxPubKeys : Integer;
+  {$ENDIF}
 begin
   FMInerServer := Nil;
   TLog.NewLog(ltinfo,Classname,'START PascalCoin Server');
@@ -254,6 +264,18 @@ begin
       FWalletKeys.WalletFileName := GetDataFolder+PathDelim+'WalletKeys.dat';
       // Creating Node:
       FNode := TNode.Node;
+      {$IFDEF USE_ABSTRACTMEM}
+      LMaxMemMb := FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_ABSTRACTMEM_MAX_CACHE_MB,100);
+      LUseCacheOnMemLists:= FIniFile.ReadBool(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_ABSTRACTMEM_USE_CACHE_ON_LISTS,True);
+      LCacheMaxAccounts := FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_ABSTRACTMEM_CACHE_MAX_ACCOUNTS,10000);
+      LCacheMaxPubKeys := FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_ABSTRACTMEM_CACHE_MAX_PUBKEYS,5000);
+
+      TLog.NewLog(ltinfo,ClassName,Format('Init abstract mem library to %d mb %d accounts and %d Pubkeys and use cache lists: %s',[LMaxMemMb,LCacheMaxAccounts,LCacheMaxPubKeys,LUseCacheOnMemLists.ToString]));
+      FNode.Bank.SafeBox.PCAbstractMem.MaxMemUsage := LMaxMemMb * 1024 * 1024;
+      FNode.Bank.SafeBox.PCAbstractMem.UseCacheOnAbstractMemLists := LUseCacheOnMemLists;
+      FNode.Bank.SafeBox.PCAbstractMem.MaxAccountsCache := LCacheMaxAccounts;
+      FNode.Bank.SafeBox.PCAbstractMem.MaxAccountKeysCache := LCacheMaxPubKeys;
+      {$ENDIF}
       {$IFDEF TESTNET}
       TPCTNetDataExtraMessages.InitNetDataExtraMessages(FNode,TNetData.NetData,FWalletKeys);
       {$ENDIF}

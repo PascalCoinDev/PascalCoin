@@ -635,7 +635,7 @@ end;
 procedure TBytesBuffer.SetDefaultIncrement(AValue: Integer);
 begin
   if AValue<=0 then FDefaultIncrement:=1024
-  else if AValue>(1024*1024) then FDefaultIncrement := 1024*1024
+  else if AValue>(100*1024*1024) then FDefaultIncrement := (100*1024*1024)
   else FDefaultIncrement:=AValue;
 end;
 

@@ -1,9 +1,9 @@
-unit UCacheMem;
+﻿unit UCacheMem;
 
 {
   This file is part of AbstractMem framework
 
-  Copyright (C) 2020 Albert Molina - bpascalblockchain@gmail.com
+  Copyright (C) 2020-2021 Albert Molina - bpascalblockchain@gmail.com
 
   https://github.com/PascalCoinDev/
 
@@ -34,7 +34,7 @@ interface
 uses
   Classes, SysUtils,
   {$IFNDEF FPC}{$IFDEF MSWINDOWS}windows,{$ENDIF}{$ENDIF}
-  UAbstractBTree, UOrderedList;
+  UAbstractAVLTree, UOrderedList;
 
 {$I ./ConfigAbstractMem.inc }
 
@@ -108,6 +108,9 @@ type
     maxUsedCacheSize : Integer;
     reusedCacheMemDataCount : Integer;
     reusedCacheMemDataBytes : Int64;
+    deletedBlocksReused : Integer;
+    deletedBlocksSaved : Integer;
+    deletedBlocksCount : Integer;
     procedure Clear;
     function ToString : String;
   end;
@@ -135,10 +138,13 @@ type
     FMaxCacheSize: Integer;
     FMaxCacheDataBlocks: Integer;
     FDefaultCacheDataBlocksSize : Integer;
+    FGridCache : Boolean;
     function FindCacheMemDataByPosition(APosition : Integer; out APCacheMemData : PCacheMemData) : Boolean;
     procedure Delete(var APCacheMemData : PCacheMemData); overload;
     function FlushCache(const AFlushCacheList : TOrderedList<PCacheMemData>) : Boolean; overload;
     procedure CheckMaxMemUsage;
+    function LoadDataExt(var ABuffer; const AStartPos, ASize : Integer) : Boolean;
+    procedure SaveToCacheExt(const ABuffer; ASize, AStartPos : Integer; AMarkAsPendingToSave : Boolean);
   public
     Constructor Create(AOnNeedDataProc : TOnNeedDataProc; AOnSaveDataProc : TOnSaveDataProc);
     Destructor Destroy; override;
@@ -165,6 +171,7 @@ type
     property MaxCacheSize : Integer read FMaxCacheSize write FMaxCacheSize;
     property MaxCacheDataBlocks : Integer read FMaxCacheDataBlocks write FMaxCacheDataBlocks;
     property DefaultCacheDataBlocksSize : Integer read FDefaultCacheDataBlocksSize write FDefaultCacheDataBlocksSize;
+    property GridCache : Boolean read FGridCache write FGridCache;
     {$IFDEF ABSTRACTMEM_ENABLE_STATS}
     procedure ClearStats;
     property CacheMemStats : TCacheMemStats read FCacheMemStats;
@@ -321,7 +328,8 @@ begin
   FCacheDataBlocks := 0;
   FPendingToSaveBytes := 0;
   FCacheDataSize := 0;
-  FDefaultCacheDataBlocksSize := 4000;
+  FDefaultCacheDataBlocksSize := 9000;
+  FGridCache := False;
   FOnNeedDataProc := AOnNeedDataProc;
   FOnSaveDataProc := AOnSaveDataProc;
   FOldestUsed := Nil;
@@ -340,6 +348,9 @@ begin
   APCacheMemData^.UnMark(Self,APCacheMemData);
   FCacheData.Delete(APCacheMemData);
   Dec(FCacheDataBlocks);
+  {$IFDEF ABSTRACTMEM_ENABLE_STATS}
+  inc(FCacheMemStats.deletedBlocksCount);
+  {$ENDIF}
 end;
 
 destructor TCacheMem.Destroy;
@@ -512,6 +523,36 @@ begin
 end;
 
 function TCacheMem.LoadData(var ABuffer; const AStartPos, ASize: Integer): Boolean;
+Var
+  LNewStartPos, LIndex, LLoadSize, LMoveSize : Integer;
+  Lpc : PByte;
+  LData : TBytes;
+begin
+  if (FGridCache) And (FDefaultCacheDataBlocksSize>0) then begin
+    Result := True;
+    SetLength(LData,FDefaultCacheDataBlocksSize);
+    Lpc := @(ABuffer);
+    LNewStartPos := (((AStartPos-1) DIV FDefaultCacheDataBlocksSize) + 0 ) * FDefaultCacheDataBlocksSize;
+    LIndex := AStartPos - LNewStartPos;
+    while (LNewStartPos < (AStartPos + ASize)) and (Result) do begin
+      if (LNewStartPos + FDefaultCacheDataBlocksSize) > (AStartPos + ASize) then begin
+        LLoadSize := (AStartPos + ASize) - LNewStartPos;
+      end else begin
+        LLoadSize := FDefaultCacheDataBlocksSize;
+      end;
+      LMoveSize := LLoadSize-LIndex;
+      Result := LoadDataExt(LData[0],LNewStartPos,LLoadSize);
+      Move(LData[LIndex],Lpc^,LMoveSize);
+      LIndex := 0;
+      inc(LNewStartPos,FDefaultCacheDataBlocksSize);
+      inc(Lpc,LMoveSize);
+    end;
+  end else begin
+    Result := LoadDataExt(ABuffer,AStartPos,ASize);
+  end;
+end;
+
+function TCacheMem.LoadDataExt(var ABuffer; const AStartPos, ASize: Integer): Boolean;
   // Will return a Pointer to AStartPos
 
   function _CaptureDataFromOnNeedDataProc(ACapturePosStart, ACaptureSize : Integer; var ACapturedData : TBytes; out ACapturedSize : Integer) : Boolean;
@@ -546,7 +587,7 @@ begin
   if ASize=0 then Exit(True);
 
   if (FDefaultCacheDataBlocksSize>0) then begin
-    LNewStartPos := (((AStartPos-1) DIV FDefaultCacheDataBlocksSize) + 0 ) * FDefaultCacheDataBlocksSize;
+    LNewStartPos := (((AStartPos) DIV FDefaultCacheDataBlocksSize)) * FDefaultCacheDataBlocksSize;
     LSizeToStore := (((ASize-1) DIV FDefaultCacheDataBlocksSize) + 1 ) * FDefaultCacheDataBlocksSize;
     if (LNewStartPos + LSizeToStore) < (AStartPos + ASize) then begin
       inc(LSizeToStore, FDefaultCacheDataBlocksSize);
@@ -557,7 +598,7 @@ begin
   end;
 
   if (FindCacheMemDataByPosition(LNewStartPos,PCurrent)) then begin
-    if (PCurrent^.GetEndPos >= (AStartPos + ASize)) then begin
+    if (PCurrent^.GetEndPos >= (AStartPos + ASize -1)) then begin
       // PCurrent has all needed info
       Move(PCurrent^.buffer[ AStartPos-PCurrent^.startPos ],ABuffer,ASize);
       PCurrent^.MarkAsUsed(Self,PCurrent);
@@ -616,6 +657,9 @@ begin
         PToDelete := PCurrent;
         PCurrent := FCacheData.FindSuccessor(PCurrent);
         Delete( PToDelete );
+        {$IFDEF ABSTRACTMEM_ENABLE_STATS}
+        inc(FCacheMemStats.deletedBlocksReused);
+        {$ENDIF}
       end;
     end;
     if (Result) and ((LLastAddedPosition) < (LNewP^.GetEndPos)) then begin
@@ -655,35 +699,7 @@ begin
   CheckMaxMemUsage;
 end;
 
-procedure TCacheMem.SaveToCache(const ABuffer: TBytes; AStartPos: Integer; AMarkAsPendingToSave : Boolean);
-begin
-  SaveToCache(ABuffer[0],Length(ABuffer),AStartPos,AMarkAsPendingToSave);
-end;
-
-function TCacheMem.ToString: String;
-var
-  LLines : TStrings;
-  LPct : Double;
-  PCurrent : PCacheMemData;
-begin
-  LLines := TStringList.Create;
-  try
-    LLines.Add(Format('%s.ToString',[ClassName]));
-    PCurrent := FCacheData.FindLowest;
-    while (Assigned(PCurrent)) do begin
-      LLines.Add( PCurrent^.ToString );
-      PCurrent := FCacheData.FindSuccessor(PCurrent);
-    end;
-    if FCacheDataSize>0 then LPct := (FPendingToSaveBytes / FCacheDataSize)*100
-    else LPct := 0.0;
-    LLines.Add(Format('Total size %d bytes in %d blocks - Pending to Save %d bytes (%.2n%%)',[FCacheDataSize,FCacheDataBlocks,FPendingToSaveBytes,LPct]));
-    Result := LLines.Text;
-  finally
-    LLines.Free;
-  end;
-end;
-
-procedure TCacheMem.SaveToCache(const ABuffer; ASize, AStartPos: Integer; AMarkAsPendingToSave : Boolean);
+procedure TCacheMem.SaveToCacheExt(const ABuffer; ASize, AStartPos: Integer; AMarkAsPendingToSave : Boolean);
 var
   LNewP, PCurrent, PToDelete : PCacheMemData;
   LLastAddedPosition, LBytesCount : Integer;
@@ -710,11 +726,11 @@ begin
   New( LNewP );
   try
     LNewP.Clear;
-    SetLength(LNewP^.buffer, ASize);
     LNewP.startPos := AStartPos;
+    SetLength(LNewP^.buffer, ASize);
     LNewP^.pendingToSave := AMarkAsPendingToSave;
 
-    LLastAddedPosition := AStartPos - 1;
+    LLastAddedPosition := LNewP.startPos - 1;
     while (Assigned(PCurrent)) and ( (LLastAddedPosition+1) < (LNewP^.GetEndPos) ) do begin
       if (PCurrent^.GetEndPos <= LLastAddedPosition) then PCurrent := FCacheData.FindSuccessor( PCurrent )
       else if (PCurrent^.startPos > LNewP^.GetEndPos) then break
@@ -740,6 +756,9 @@ begin
         PToDelete := PCurrent;
         PCurrent := FCacheData.FindSuccessor(PCurrent);
         Delete( PToDelete );
+        {$IFDEF ABSTRACTMEM_ENABLE_STATS}
+        inc(FCacheMemStats.deletedBlocksSaved);
+        {$ENDIF}
       end;
     end;
     // At this point LNewP^.buffer startPos <= AStartPos and LNewP^.buffer Size >= ASize
@@ -763,6 +782,75 @@ begin
   end;
 
   CheckMaxMemUsage;
+end;
+
+procedure TCacheMem.SaveToCache(const ABuffer: TBytes; AStartPos: Integer; AMarkAsPendingToSave : Boolean);
+begin
+  SaveToCache(ABuffer[0],Length(ABuffer),AStartPos,AMarkAsPendingToSave);
+end;
+
+procedure TCacheMem.SaveToCache(const ABuffer; ASize, AStartPos: Integer; AMarkAsPendingToSave: Boolean);
+Var
+  LNewStartPos, LSizeToStore : Integer;
+  Lpc : PByte;
+  LLeftBuff : TBytes;
+begin
+  if (FDefaultCacheDataBlocksSize>0) then begin
+    Lpc := @(ABuffer);
+
+    LNewStartPos := (((AStartPos) DIV FDefaultCacheDataBlocksSize)) * FDefaultCacheDataBlocksSize;
+    // Left chunk:
+    if (LNewStartPos < AStartPos) then begin
+      if LNewStartPos + FDefaultCacheDataBlocksSize <= AStartPos+ASize then LSizeToStore := FDefaultCacheDataBlocksSize
+      else LSizeToStore := (AStartPos+ASize) - (LNewStartPos);
+      SetLength(LLeftBuff,LSizeToStore);
+      LoadDataExt(LLeftBuff[0],LNewStartPos,AStartPos - LNewStartPos);
+      Move(Lpc^,LLeftBuff[ AStartPos - LNewStartPos ],LSizeToStore - (AStartPos - LNewStartPos));
+      SaveToCacheExt(LLeftBuff[0],LSizeToStore,LNewStartPos,AMarkAsPendingToSave);
+      inc(Lpc,LSizeToStore - (AStartPos - LNewStartPos));  // LSizeToStore);
+      inc(LNewStartPos,LSizeToStore);
+    end;
+
+    while (LNewStartPos < (AStartPos + ASize)) do begin
+      LSizeToStore := FDefaultCacheDataBlocksSize;
+      if (FGridCache) then begin
+      end else begin
+        while (LNewStartPos+LSizeToStore+FDefaultCacheDataBlocksSize) <= (AStartPos + ASize) do inc(LSizeToStore,FDefaultCacheDataBlocksSize);
+      end;
+      if (LNewStartPos + LSizeToStore) > (AStartPos + ASize) then begin
+        // Right chunk does not fit on block size
+        LSizeToStore := (AStartPos + ASize) - (LNewStartPos);
+      end;
+      SaveToCacheExt(Lpc^,LSizeToStore,LNewStartPos,AMarkAsPendingToSave);
+      inc(Lpc,LSizeToStore);
+      inc(LNewStartPos,LSizeToStore);
+    end;
+  end else begin
+    SaveToCacheExt(ABuffer,ASize,AStartPos,AMarkAsPendingToSave);
+  end;
+end;
+
+function TCacheMem.ToString: String;
+var
+  LLines : TStrings;
+  LPct : Double;
+  PCurrent : PCacheMemData;
+begin
+  LLines := TStringList.Create;
+  try
+    LLines.Add(Format('%s.ToString',[ClassName]));
+    PCurrent := FCacheData.FindLowest;
+    while (Assigned(PCurrent)) do begin
+      LLines.Add( PCurrent^.ToString );
+      PCurrent := FCacheData.FindSuccessor(PCurrent);
+    end;
+    if FCacheDataSize>0 then LPct := (FPendingToSaveBytes / FCacheDataSize)*100
+    else LPct := 0.0;
+    LLines.Add(Format('Total size %d bytes in %d blocks - Pending to Save %d bytes (%.2n%%)',[FCacheDataSize,FCacheDataBlocks,FPendingToSaveBytes,LPct]));
+    Result := LLines.Text;
+  finally
+    LLines.Free;
+  end;
 end;
 
 { TCacheMemData }
@@ -906,12 +994,16 @@ begin
   freememElaspedMillis := 0;
   reusedCacheMemDataCount := 0;
   reusedCacheMemDataBytes := 0;
+  deletedBlocksReused := 0;
+  deletedBlocksSaved := 0;
+  deletedBlocksCount := 0;
 end;
 
 function TCacheMemStats.ToString: String;
 begin
-  Result := Format('CacheMemStats Reused:%d (%d bytes) - Flush:%d (%d bytes) %d millis - FreeMem:%d (%d bytes) %d millis',
+  Result := Format('CacheMemStats Reused:%d (%d bytes) - Deleteds:%d (Saved:%d - reused:%d) - Flush:%d (%d bytes) %d millis - FreeMem:%d (%d bytes) %d millis',
      [Self.reusedCacheMemDataCount,Self.reusedCacheMemDataBytes,
+      Self.deletedBlocksCount,Self.deletedBlocksSaved,Self.deletedBlocksReused,
       Self.flushCount,Self.flushSize,Self.flushElapsedMillis,
       Self.freememCount,Self.freememSize,
       Self.freememElaspedMillis]);
