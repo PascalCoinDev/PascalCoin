@@ -16,6 +16,16 @@ uses
    UAbstractBTree, UOrderedList;
 
 type
+
+  TIntegerBTree = Class( TMemoryBTree<Integer> )
+  private
+  protected
+  public
+    constructor Create(AAllowDuplicates : Boolean; AOrder : Integer);
+    function NodeDataToString(const AData : Integer) : String; override;
+  End;
+
+
    TestTAbstractBTree = class(TTestCase)
    strict private
    public
@@ -37,10 +47,19 @@ type
 
 implementation
 
-function TComparison_XX_Integer(const ALeft, ARight: Integer): Integer;
+{ TIntegerBTree }
+
+constructor TIntegerBTree.Create(AAllowDuplicates: Boolean; AOrder: Integer);
 begin
-  Result := ALeft - ARight;
+  inherited Create(TComparison_Integer,AAllowDuplicates,AOrder);
 end;
+
+function TIntegerBTree.NodeDataToString(const AData: Integer): String;
+begin
+  Result := AData.ToString;
+end;
+
+{ TestTAbstractBTree }
 
 procedure TestTAbstractBTree.SetUp;
 begin
@@ -65,6 +84,7 @@ begin
   nDeletes := 0;
   Lbt := TIntegerBTree.Create(True,AOrder);
   try
+    Lbt.CircularProtection := (AOrder MOD 2)=0;
     repeat
       inc(nRounds);
       intValue := Random(AOrder * 100);
@@ -184,6 +204,7 @@ begin
   for Lorder := 3 to 7 do begin
     Lbt := TIntegerBTree.Create(False,Lorder);
     try
+      Lbt.CircularProtection := (Lorder MOD 2)=0;
       valMin := 1;
       intValue :=valMin;
       Lregs := 0;
@@ -226,6 +247,7 @@ begin
   for Lorder := 3 to 7 do begin
     Lbt := TIntegerBTree.Create(True,Lorder);
     try
+      Lbt.CircularProtection := (Lorder MOD 2)=0;
       valMin := 1;
       intValue :=valMin;
       Lregs := 0;
@@ -314,7 +336,6 @@ begin
       end;
       LCurrentTree := Lbt.BTreeToString;
       Lbt.CheckConsistency;
-      if LLastTree = '' then Beep;
     finally
       Lbt.Free;
     end;
@@ -369,7 +390,6 @@ begin
         intValue := Random(intValue)+1;
         DoDelete(intValue);
       end;
-      if LLastTree = '' then Beep;
     finally
       Lbt.Free;
     end;
