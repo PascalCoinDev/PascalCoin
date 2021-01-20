@@ -10,7 +10,7 @@ uses Classes, SysUtils,
   SyncObjs,
   UAbstractMem, UFileMem, UAbstractMemTList,
   UAbstractBTree, UAbstractAVLTree,
-  UPCDataTypes, UBaseTypes, UAVLCache,
+  UPCDataTypes, UBaseTypes, UAVLCache, UAbstractMemBTree,
   {$IFNDEF FPC}System.Generics.Collections,System.Generics.Defaults{$ELSE}Generics.Collections,Generics.Defaults{$ENDIF};
 
 type
@@ -31,16 +31,16 @@ type
 
   { TAccountsUsingThisKey }
 
-  TAccountsUsingThisKey = Class(TAbstractMemOrderedTList<Cardinal>)
+  TAccountsUsingThisKey = Class(TAbstractMemBTree)
+    // AbstractMem position will be considered a Account Number
   protected
-    function GetItem(index : Integer) : Cardinal; override;
-    procedure LoadFrom(const ABytes : TBytes; var AItem : Cardinal); override;
-    procedure SaveTo(const AItem : Cardinal; AIsAddingItem : Boolean; var ABytes : TBytes); override;
-    function Compare(const ALeft, ARight : Cardinal) : Integer; override;
+    procedure DisposeData(var AData : TAbstractMemPosition); override;
+    function DoCompareData(const ALeftData, ARightData: TAbstractMemPosition): Integer; override;
+  public
+    function NodeDataToString(const AData : TAbstractMemPosition) : String; override;
   public
     Constructor Create(AAbstractMem : TAbstractMem; const AInitialZone : TAMZone; AUseCache : Boolean); reintroduce;
-    Function Add(const AItem : Cardinal) : Integer; reintroduce;
-    procedure Delete(index : Integer); reintroduce;
+    function Get(Index : Integer) : Cardinal;
   End;
 
   TAccountKeyByPosition = record
@@ -269,8 +269,10 @@ begin
   try
   Lautk := GetAccountsUsingThisKey(AAccountKey);
   if Assigned(Lautk) then begin
-    for i:=0 to Lautk.Count-1 do begin
-      AList.Add( Lautk.GetItem(i) );
+    if Lautk.FindLowest(i) then begin
+      repeat
+        AList.Add(i);
+      until Not Lautk.FindSuccessor(i,i);
     end;
   end;
   finally
@@ -414,7 +416,6 @@ function TPCAbstractMemAccountKeys.GetPositionOfKeyAndRemoveAccount(
   const AAccountNumber: Cardinal): TAbstractMemPosition;
 var LNode : TAbstractMemAccountKeyNode;
   LZone : TAMZone;
-  i : Integer;
   Lacckutk : TAccountsUsingThisKey;
   LAccKeyByPos : TAccountKeyByPosition;
 begin
@@ -445,10 +446,7 @@ begin
   end;
 
   if Assigned(LAccKeyByPos.accountsUsingThisKey) then begin
-    i := LAccKeyByPos.accountsUsingThisKey.IndexOf( AAccountNumber );
-    if i>=0 then begin
-      LAccKeyByPos.accountsUsingThisKey.Delete( i );
-    end;
+    LAccKeyByPos.accountsUsingThisKey.Delete( AAccountNumber );
   end;
   finally
     FAccountKeysLock.Release;
@@ -524,53 +522,32 @@ end;
 
 { TAccountsUsingThisKey }
 
-procedure TAccountsUsingThisKey.LoadFrom(const ABytes: TBytes; var AItem: Cardinal);
-begin
-  Move(ABytes[0],AItem,4);
-end;
-
-procedure TAccountsUsingThisKey.SaveTo(const AItem: Cardinal; AIsAddingItem : Boolean; var ABytes: TBytes);
-begin
-  SetLength(ABytes,4);
-  Move(AItem,ABytes[0],4);
-  raise Exception.Create('INCONSISTENT 20200324-1 NEVER CALL HERE');
-end;
-
-function TAccountsUsingThisKey.Add(const AItem: Cardinal): Integer;
-var
-  LFound : Boolean;
-  LBytes : TBytes;
-  LZone : TAMZone;
-begin
-  FList.LockList;
-  try
-    LFound := Find(AItem,Result);
-    if (LFound and AllowDuplicates) or (Not LFound) then begin
-      FList.Insert( Result , AItem );
-    end else Result := -1;
-  finally
-    FList.UnlockList;
-  end;
-end;
-
-function TAccountsUsingThisKey.Compare(const ALeft, ARight: Cardinal): Integer;
-begin
-  Result := ALeft - ARight;
-end;
-
 constructor TAccountsUsingThisKey.Create(AAbstractMem: TAbstractMem; const AInitialZone: TAMZone; AUseCache : Boolean);
 begin
-  inherited Create(AAbstractMem,AInitialZone,1000,False, AUseCache);
+  inherited Create(AAbstractMem,AInitialZone,False, 7);
 end;
 
-procedure TAccountsUsingThisKey.Delete(index: Integer);
+
+procedure TAccountsUsingThisKey.DisposeData(var AData: TAbstractMemPosition);
 begin
-  FList.Delete( index );
+  // NOTE: Nothing to do NEITHER to inherit from ancestor
 end;
 
-function TAccountsUsingThisKey.GetItem(index: Integer): Cardinal;
+function TAccountsUsingThisKey.DoCompareData(const ALeftData, ARightData: TAbstractMemPosition): Integer;
 begin
-  Result := FList.Position[index];
+  Result := ALeftData - ARightData;
+end;
+
+function TAccountsUsingThisKey.Get(Index: Integer): Cardinal;
+var i : Integer;
+begin
+  if Not FindIndex(Index,i) then raise Exception.Create(Format('Accounts using this key index %d not found',[Index]));
+  Result := i;
+end;
+
+function TAccountsUsingThisKey.NodeDataToString(const AData: TAbstractMemPosition): String;
+begin
+  Result := IntToStr(AData);
 end;
 
 { TPCAccountKeyByPositionCache }
