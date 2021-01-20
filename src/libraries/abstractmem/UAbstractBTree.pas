@@ -141,6 +141,8 @@ type
     procedure CheckConsistency; virtual;
     property Height : Integer read GetHeight;
     property CircularProtection : Boolean read FCircularProtection write FCircularProtection;
+    procedure Lock;
+    procedure Unlock;
   End;
 
   TMemoryBTree<TData> = Class( TAbstractBTree<Integer,TData> )
@@ -404,7 +406,7 @@ begin
   FAllowDuplicates := AAllowDuplicates;
   FOrder := AOrder;
   if FOrder<3 then FOrder := 3 // Minimum order for a BTree is 3. Order = Max childs
-  else if FOrder>32 then FOrder := 32; // Maximum order will be established to 32
+  else if FOrder>255 then FOrder := 255; // Maximum order will be established to 255
   FCount := -1;                 // -1 Means there is no control
   {$IFDEF ABSTRACTMEM_CIRCULAR_SEARCH_PROTECTION}
   FCircularProtection := True;
@@ -1136,6 +1138,11 @@ begin
   end;
 end;
 
+procedure TAbstractBTree<TIdentify, TData>.Lock;
+begin
+  FAbstractBTreeLock.Acquire;
+end;
+
 function TAbstractBTree<TIdentify, TData>.MaxChildrenPerNode: Integer;
 begin
   Result := FOrder;
@@ -1286,6 +1293,11 @@ begin
     Result := Result + NodeDataToString(ANode.data[i]);
   end;
   Result := '['+Result+']';
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.Unlock;
+begin
+  FAbstractBTreeLock.Release;
 end;
 
 { TAbstractBTree<TIdentify, TData>.TAbstractBTreeNode }
