@@ -232,7 +232,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="core;gui-classic;libraries\synapse;libraries\sphere10;libraries\cryptolib4pascal;libraries\simplebaselib4pascal;libraries\hashlib4pascal;libraries\generics.collections;libraries\pascalcoin;libraries\paszlib;libraries\gnugettext;libraries\abstractmem"/>
+      <OtherUnitFiles Value="core;gui-classic;libraries\synapse;libraries\sphere10;libraries\cryptolib4pascal;libraries\simplebaselib4pascal;libraries\hashlib4pascal;libraries\pascalcoin;libraries\paszlib;libraries\gnugettext;libraries\abstractmem;libraries\regex"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
@@ -240,8 +240,14 @@
         <SyntaxMode Value="Delphi"/>
       </SyntaxOptions>
     </Parsing>
+    <CodeGeneration>
+      <Optimizations>
+        <OptimizationLevel Value="2"/>
+      </Optimizations>
+    </CodeGeneration>
     <Linking>
       <Debugging>
+        <GenerateDebugInfo Value="False"/>
         <DebugInfoType Value="dsDwarf2Set"/>
       </Debugging>
       <Options>
