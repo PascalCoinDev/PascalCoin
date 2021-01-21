@@ -159,19 +159,6 @@ begin
     if LOrder<>Order then raise EAbstractMemBTree.Create(Format('Invalid Order %d expected %d',[LOrder,Order]));
     if (((FrootPosition=0) and (FCount>0))) then raise EAbstractMemBTree.Create(Format('Invalid initial root %d vs count %d',[FrootPosition,FCount]));
   finally
-    if FrootPosition<=0 then begin
-      FrootPosition := 0;
-      FCount := 0;
-      for i := 0 to CT_AbstractMemBTree_Magic.Length-1 do begin
-        LBuff[i] := Byte(Ord(CT_AbstractMemBTree_Magic.Chars[i]));
-      end;
-      Move(FrootPosition,LBuff[4],4);
-      Move(FCount,LBuff[8],4);
-      LOrder := Order;
-      Move(LOrder,LBuff[12],4);
-      FAbstractMem.Write(FInitialZone.position,LBuff[0],16);
-      SaveHeader;
-    end;
   end;
 end;
 
