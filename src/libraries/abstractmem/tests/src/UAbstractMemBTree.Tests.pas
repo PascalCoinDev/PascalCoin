@@ -14,7 +14,7 @@ uses
    TestFramework,
    {$ENDIF}
    {$IFNDEF FPC}System.Generics.Collections,System.Generics.Defaults,{$ELSE}Generics.Collections,Generics.Defaults,{$ENDIF}
-   UAbstractMem,
+   UAbstractMem, UAbstractBTree.Tests,
    UAbstractBTree, UOrderedList, UAbstractMemBTree;
 
 type
@@ -33,7 +33,6 @@ type
    public
      function NodeDataToString(const AData : TAbstractMemPosition) : String; override;
    End;
-
 
    TestTAbstractMemBTree = class(TTestCase)
    strict private
@@ -137,7 +136,7 @@ procedure TestTAbstractMemBTree.TestInfinite_Integer(AOrder : Integer; AAllowDup
 var Lbt : TAbstractMemBTreeExampleInteger;
   Lbts : TAbstractMemBTreeExampleString;
   Lzone : TAMZone;
-  intValue, nRounds, nAdds, nDeletes, i : Integer;
+  intValue, nRounds, nAdds, nDeletes, i, j : Integer;
   Lnode : TIntegerBTree.TAbstractBTreeNode;
   Lmem : TAbstractMem;
   LCurr : String;
@@ -153,6 +152,7 @@ begin
     nAdds := 0;
     nDeletes := 0;
     Lzone := Lmem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize);
+    try
     Lbt := TAbstractMemBTreeExampleInteger.Create(Lmem,Lzone,AAllowDuplicates,AOrder);
     try
       repeat
@@ -189,12 +189,23 @@ begin
         intValue := Random(AOrder * 100);
         Assert(Lbt.Add(intValue),Format('Cannot re-use %d/%d and add %d',[i,AOrder,intValue]));
         Lbt.CheckConsistency;
+        Assert(Lbt.FindIndex(i-1,j),Format('Cannot find %d on index %d on order %d',[intValue,i-1,AOrder]));
+        Assert(Not Lbt.FindIndex(i,j),Format('Found %d on index %d on order %d',[j,i-1,AOrder]));
       end;
-      Lbt.EraseTree;
     finally
       Lbt.Free;
     end;
-    Lmem.Dispose(Lzone);
+    Lbt := TAbstractMemBTreeExampleInteger.Create(Lmem,Lzone,AAllowDuplicates,AOrder);
+    try
+      Lbt.CheckConsistency;
+      Lbt.EraseTree;
+      Lbt.CheckConsistency;
+    finally
+      Lbt.Free;
+    end;
+    finally
+      Lmem.Dispose(Lzone);
+    end;
     DoCheckAbstractMem(Lmem,0);
   Finally
     Lmem.Free;
@@ -221,6 +232,7 @@ begin
     nAdds := 0;
     nDeletes := 0;
     Lzone := Lmem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize);
+    try
     Lbt := TAbstractMemBTreeExampleString.Create(Lmem,Lzone,AAllowDuplicates,AOrder,TComparison_String);
     try
       repeat
@@ -255,15 +267,49 @@ begin
       Lbt.CheckConsistency;
       // Try to re-use
       for i := 1 to AOrder do begin
-        intValue := Random(AOrder * 100);
+        intValue := i;
         Assert(Lbt.AddData(intValue.ToString),Format('Cannot re-use %d/%d and add %d',[i,AOrder,intValue]));
         Lbt.CheckConsistency;
       end;
+    finally
+      Lbt.Free;
+    end;
+    Lbt := TAbstractMemBTreeExampleString.Create(Lmem,Lzone,AAllowDuplicates,AOrder,TComparison_String);
+    try
+      Lbt.CheckConsistency;
+      LCurr := Lbt.BTreeToString;
+      // SUCCESSOR
+      Assert(Lbt.FindDataLowest(LCurrData),'Not found Lowest');
+      Assert(LcurrData='1','Not valid lowest');
+      for i := 1 to AOrder do begin
+        Assert(i.ToString=LcurrData,Format('Not valid successor %d %s',[i,LcurrData]));
+        if i<AOrder then begin
+          Assert(Lbt.FindDataSuccessor(LcurrData,LCurrData),Format('Not found successor %d %s',[i,LcurrData]));
+        end else begin
+          Assert(Not Lbt.FindDataSuccessor(LCurrData,LCurrData),Format('Not valid last successor %s',[LCurrData]));
+        end;
+      end;
+      // PRECESSOR
+      Assert(Lbt.FindDataHighest(LCurrData),'Not found Highest');
+      Assert(LcurrData=IntToStr(AOrder),'Not valid highest');
+      for i := AOrder downto 1 do begin
+        Assert(i.ToString=LcurrData,Format('Not valid precessor %d %s',[i,LcurrData]));
+        if i>1 then begin
+          Assert(Lbt.FindDataPrecessor(LcurrData,LCurrData),Format('Not found precessor %d %s',[i,LcurrData]));
+        end else begin
+          Assert(Not Lbt.FindDataPrecessor(LCurrData,LCurrData),Format('Not valid last precessor %s',[LCurrData]));
+        end;
+      end;
+      Lbt.EraseTree;
+      Assert(Lbt.Count=0,'Not erased tree count 0');
+      Lbt.CheckConsistency;
       Lbt.EraseTree;
     finally
       Lbt.Free;
     end;
-    Lmem.Dispose(Lzone);
+    finally
+      Lmem.Dispose(Lzone);
+    end;
     DoCheckAbstractMem(Lmem,0);
   Finally
     Lmem.Free;

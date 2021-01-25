@@ -34,6 +34,7 @@ interface
 
 uses
   Classes, SysUtils,
+  SyncObjs,
   // NOTE ABOUT FREEPASCAL (2020-03-10)
   // Current version 3.0.4 does not contain valid support for Generics, using Generics from this:
   // https://github.com/PascalCoinDev/PascalCoin/tree/master/src/libraries/generics.collections
@@ -74,16 +75,21 @@ type
     FAllowDuplicates: Boolean;
     FOrder: Integer;
     FCircularProtection : Boolean;
-    procedure SplitAfterInsert(var ANode : TAbstractBTreeNode);
+    procedure SplitAfterInsert(var ANode : TAbstractBTreeNode; const ACircularProtectionList : TOrderedList<TIdentify>);
     procedure MoveRange(var ASourceNode, ADestNode : TAbstractBTreeNode; AFromSource, ACount, AToDest : Integer);
     procedure MoveRangeBetweenSiblings(var ASourceNode, ADestNode : TAbstractBTreeNode);
     procedure BTreeNodeToString(const ANode : TAbstractBTreeNode; ALevel, ALevelIndex : Integer; const AStrings : TStrings);
     procedure CheckConsistencyEx(const ANode: TAbstractBTreeNode; AIsGoingDown : Boolean; AParentDataIndexLeft,AParentDataIndexRight : Integer; ADatas: TList<TData>; AIdents: TOrderedList<TIdentify>; ACurrentLevel : Integer; var ALevels, ANodesCount, AItemsCount : Integer);
-    function FindPrecessorExt(var ANode : TAbstractBTreeNode; var iPos : Integer) : Boolean;
-    function FindSuccessorExt(var ANode : TAbstractBTreeNode; var iPos : Integer) : Boolean;
+    function FindPrecessorExt(const ACircularProtectionList : TOrderedList<TIdentify>; var ANode : TAbstractBTreeNode; var iPos : Integer) : Boolean;
+    function FindSuccessorExt(const ACircularProtectionList : TOrderedList<TIdentify>; var ANode : TAbstractBTreeNode; var iPos : Integer) : Boolean;
     procedure EraseTreeExt(var ANode : TAbstractBTreeNode);
+    function FindExt(const AData: TData; const ACircularProtectionList : TOrderedList<TIdentify>; out ANode : TAbstractBTreeNode; out iPos : Integer): Boolean;
+    function FindLowestNodeExt(const ACircularProtectionList : TOrderedList<TIdentify>): TAbstractBTreeNode;
+    function FindHighestNodeExt(const ACircularProtectionList : TOrderedList<TIdentify>): TAbstractBTreeNode;
   protected
     FCount: integer;
+    FAbstractBTreeLock : TCriticalSection;
+    FIsFindingProcess : Boolean;
     function GetRoot: TAbstractBTreeNode; virtual; abstract;
     procedure SetRoot(var Value: TAbstractBTreeNode); virtual; abstract;
 
@@ -117,10 +123,13 @@ type
     function FindLowest(out ALowest : TData) : Boolean;
     function FindHighestNode: TAbstractBTreeNode;
     function FindHighest(out AHighest : TData) : Boolean;
+    function FindIndex(AIndex : Integer; out AData : TData) : Boolean;
+    function FillList(AStartIndex, ACount : Integer; const AList : TList<TData>) : Integer;
     function Add(const AData: TData) : Boolean;
     function Delete(const AData: TData) : Boolean;
     function NodeDataToString(const AData : TData) : String; virtual;
     constructor Create(const AOnCompareIdentifyMethod: TComparison<TIdentify>; const AOnCompareDataMethod: TComparison<TData>; AAllowDuplicates : Boolean; AOrder: Integer);
+    destructor Destroy; override;
     property OnCompareIdentifyMethod: TComparison<TIdentify> read FOnCompareIdentify;
     property OnCompareDataMethod: TComparison<TData> read FOnCompareData;
     function BTreeToString : String;
@@ -132,6 +141,8 @@ type
     procedure CheckConsistency; virtual;
     property Height : Integer read GetHeight;
     property CircularProtection : Boolean read FCircularProtection write FCircularProtection;
+    procedure Lock;
+    procedure Unlock;
   End;
 
   TMemoryBTree<TData> = Class( TAbstractBTree<Integer,TData> )
@@ -165,14 +176,6 @@ type
     destructor Destroy; override;
   End;
 
-  TIntegerBTree = Class( TMemoryBTree<Integer> )
-  private
-  protected
-  public
-    constructor Create(AAllowDuplicates : Boolean; AOrder : Integer);
-    function NodeDataToString(const AData : Integer) : String; override;
-  End;
-
 implementation
 
 { TAbstractBTree<TIdentify, TData> }
@@ -180,32 +183,47 @@ implementation
 function TAbstractBTree<TIdentify, TData>.Add(const AData: TData): Boolean;
 var Lnode  : TAbstractBTreeNode;
   iDataPos : Integer;
+  LCircularProtectionList : TOrderedList<TIdentify>;
 begin
-  if (Find(AData,Lnode,iDataPos)) then begin
-    if (Not FAllowDuplicates) then Exit(False);
-    // Follow childs until leaf node
-    while (Not Lnode.IsLeaf) do begin
-      Lnode := GetNode(Lnode.childs[iDataPos]); // Insert at right position
-      if (BinarySearch(AData,Lnode.data,iDataPos)) then begin
-        //
+  FAbstractBTreeLock.Acquire;
+  Try
+    if FCircularProtection then begin
+      LCircularProtectionList := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
+    end else LCircularProtectionList := Nil;
+    Try
+      if (FindExt(AData,LCircularProtectionList,Lnode,iDataPos)) then begin
+        if (Not FAllowDuplicates) then Exit(False);
+        // Follow childs until leaf node
+        while (Not Lnode.IsLeaf) do begin
+          Lnode := GetNode(Lnode.childs[iDataPos]); // Insert at right position
+          if (BinarySearch(AData,Lnode.data,iDataPos)) then begin
+            //
+          end;
+        end;
+      end else if (IsNil(Lnode.identify)) then begin
+        Lnode := NewNode;
+        SetRoot(Lnode);
       end;
-    end;
-  end else if (IsNil(Lnode.identify)) then begin
-    Lnode := NewNode;
-    SetRoot(Lnode);
-  end;
-  Assert(Lnode.IsLeaf,'Node must be a leaf');
-  // Lnode is a leaf and iDataPos is position to insert
-  Lnode.InsertData(Adata,iDataPos);
-  SaveNode(Lnode);
-  if Lnode.Count>MaxItemsPerNode then begin
-    // Split and up
-    SplitAfterInsert(Lnode);
-  end;
-  Result := True;
-  if (FCount>=0) then begin
-    SetCount(FCount+1);
-  end;
+      Assert(Lnode.IsLeaf,'Node must be a leaf');
+      // Lnode is a leaf and iDataPos is position to insert
+      Lnode.InsertData(Adata,iDataPos);
+      SaveNode(Lnode);
+      if Lnode.Count>MaxItemsPerNode then begin
+        // Split and up
+        if Assigned(LCircularProtectionList) then LCircularProtectionList.Clear;
+        SplitAfterInsert(Lnode,LCircularProtectionList);
+      end;
+      Result := True;
+      if (FCount>=0) then begin
+        SetCount(FCount+1);
+      end;
+    Finally
+      if Assigned(LCircularProtectionList) then
+        LCircularProtectionList.Free;
+    End;
+  Finally
+    FAbstractBTreeLock.Release;
+  End;
 end;
 
 function TAbstractBTree<TIdentify, TData>.AreEquals(const AIdentify1, AIdentify2: TIdentify): Boolean;
@@ -257,11 +275,13 @@ var Lsl : TStrings;
   Lnode : TAbstractBTreeNode;
 begin
   Lsl := TStringList.Create;
+  FAbstractBTreeLock.Acquire;
   try
     Lnode := GetRoot;
     if Not IsNil(Lnode.identify) then BTreeNodeToString(Lnode,0,0,Lsl);
     Result := Lsl.Text;
   finally
+    FAbstractBTreeLock.Release;
     Lsl.Free;
   end;
 end;
@@ -275,6 +295,7 @@ var
 begin
   FIdents := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
   FDatas := TList<TData>.Create;
+  FAbstractBTreeLock.Acquire;
   try
     Llevels := 0;
     LnodesCount := 0;
@@ -288,6 +309,7 @@ begin
     end;
     CheckConsistencyFinalized(FDatas,FIdents,Llevels,LnodesCount,LItemsCount);
   finally
+    FAbstractBTreeLock.Release;
     FDatas.Free;
     FIdents.Free;
   end;
@@ -377,12 +399,14 @@ end;
 
 constructor TAbstractBTree<TIdentify, TData>.Create(const AOnCompareIdentifyMethod: TComparison<TIdentify>; const AOnCompareDataMethod: TComparison<TData>; AAllowDuplicates : Boolean; AOrder: Integer);
 begin
+  FIsFindingProcess := False;
+  FAbstractBTreeLock := TCriticalSection.Create;
   FOnCompareIdentify := AOnCompareIdentifyMethod;
   FOnCompareData := AOnCompareDataMethod;
   FAllowDuplicates := AAllowDuplicates;
   FOrder := AOrder;
   if FOrder<3 then FOrder := 3 // Minimum order for a BTree is 3. Order = Max childs
-  else if FOrder>32 then FOrder := 32; // Maximum order will be established to 32
+  else if FOrder>255 then FOrder := 255; // Maximum order will be established to 255
   FCount := -1;                 // -1 Means there is no control
   {$IFDEF ABSTRACTMEM_CIRCULAR_SEARCH_PROTECTION}
   FCircularProtection := True;
@@ -396,22 +420,35 @@ var Lnode, Lparent, Lparentparent : TAbstractBTreeNode;
   iPos, iPosParent, iPosParentParent, j : Integer;
   LmovingUp : Boolean;
   Lleft, Lright : TAbstractBTreeNode;
+  LCircularProtectionList: TOrderedList<TIdentify>;
 begin
-  if Not Find(AData,Lnode,iPos) then Exit(False);
+  FAbstractBTreeLock.Acquire;
+  try
+    if FCircularProtection then begin
+      LCircularProtectionList := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
+    end else LCircularProtectionList := Nil;
+    try
 
-  Assert(FCount<>0,'Cannot Delete when FCount = 0');
+    if Not FindExt(AData,LCircularProtectionList,Lnode,iPos) then Exit(False);
 
-  if (FCount>0) then begin
-    SetCount(FCount-1);
-  end;
+    Assert(FCount<>0,'Cannot Delete when FCount = 0');
 
-  LmovingUp := False;
+    if (FCount>0) then begin
+      SetCount(FCount-1);
+    end;
 
-  if (Lnode.IsLeaf) then begin
-    Lnode.DeleteData(iPos);
-  end;
+    LmovingUp := False;
+
+    if (Lnode.IsLeaf) then begin
+      Lnode.DeleteData(iPos);
+    end;
+
+    if Assigned(LCircularProtectionList) then LCircularProtectionList.Clear;
 
   repeat
+    if Assigned(LCircularProtectionList) then begin
+      if LCircularProtectionList.Add(Lnode.identify)<0 then raise EAbstractBTree.Create(ClassName+'.Delete Circular T structure at Find for T='+ToString(LNode)+ ' deleting '+NodeDataToString(AData));
+    end;
     if (Lnode.IsLeaf) or (LmovingUp) then begin
       if (IsNil(Lnode.parent)) and (Length(Lnode.childs)=1) then begin
         // child will be root
@@ -578,7 +615,13 @@ begin
       //
       // Search Indorder predecessor:
       Lleft := GetNode(Lnode.childs[iPos]);
-      while (Not Lleft.IsLeaf) do Lleft := GetNode(Lleft.childs[Lleft.Count]);
+      while (Not Lleft.IsLeaf) do begin
+        if Assigned(LCircularProtectionList) then begin
+          if LCircularProtectionList.Add(Lleft.childs[Lleft.Count])<0 then
+            raise EAbstractBTree.Create(ClassName+'.Delete Circular T structure searching for inorder precessor at '+ToString(Lleft)+' deleting '+NodeDataToString(AData));
+        end;
+        Lleft := GetNode(Lleft.childs[Lleft.Count]);
+      end;
       if (Lleft.Count>MinItemsPerNode) then begin
         // Inorder predecessor
         Lnode.data[iPos] := Lleft.data[Lleft.Count-1];
@@ -589,7 +632,13 @@ begin
       end;
       // Search Indorder successor:
       Lright := GetNode(Lnode.childs[iPos+1]);
-      while (Not Lright.IsLeaf) do Lright := GetNode(Lright.childs[0]);
+      while (Not Lright.IsLeaf) do begin
+        if Assigned(LCircularProtectionList) then begin
+          if LCircularProtectionList.Add(Lright.childs[0])<0 then
+            raise EAbstractBTree.Create(ClassName+'.Delete Circular T structure searching for inorder successor at '+ToString(Lright)+' deleting '+NodeDataToString(AData));
+        end;
+        Lright := GetNode(Lright.childs[0]);
+      end;
       if (Lright.Count>MinItemsPerNode) then begin
         // Inorder successor
         Lnode.data[iPos] := Lright.data[0];
@@ -642,8 +691,24 @@ begin
 
     end;
 
-    LmovingUp := True;
+    if (Not LmovingUp) then begin
+      if Assigned(LCircularProtectionList) then LCircularProtectionList.Clear;
+      LmovingUp := True;
+    end;
   until (False);
+    finally
+      if Assigned(LCircularProtectionList) then
+        LCircularProtectionList.Free;
+    end;
+  finally
+    FAbstractBTreeLock.Release;
+  end;
+end;
+
+destructor TAbstractBTree<TIdentify, TData>.Destroy;
+begin
+  FAbstractBTreeLock.Free;
+  inherited;
 end;
 
 procedure TAbstractBTree<TIdentify, TData>.DisposeData(var AData: TData);
@@ -659,11 +724,16 @@ end;
 procedure TAbstractBTree<TIdentify, TData>.EraseTree;
 var Lnode : TAbstractBTreeNode;
 begin
-  Lnode := GetRoot;
-  if Not IsNil(Lnode.identify) then EraseTreeExt(Lnode);
-  ClearNode(Lnode);
-  if Fcount>0 then SetCount(0);
-  SetRoot(Lnode);
+  FAbstractBTreeLock.Acquire;
+  try
+    Lnode := GetRoot;
+    if Not IsNil(Lnode.identify) then EraseTreeExt(Lnode);
+    ClearNode(Lnode);
+    if Fcount>0 then SetCount(0);
+    SetRoot(Lnode);
+  finally
+    FAbstractBTreeLock.Release;
+  end;
 end;
 
 procedure TAbstractBTree<TIdentify, TData>.EraseTreeExt(var ANode: TAbstractBTreeNode);
@@ -683,27 +753,62 @@ begin
   ClearNode(ANode);
 end;
 
-function TAbstractBTree<TIdentify, TData>.Find(const AData: TData; out ANode: TAbstractBTreeNode; out iPos: Integer): Boolean;
-var LCircularPreviousSearchProtection : TNoDuplicateData<TIdentify>;
+function TAbstractBTree<TIdentify, TData>.FillList(AStartIndex, ACount: Integer; const AList: TList<TData>): Integer;
+var Lnode : TAbstractBTreeNode;
+  iPos : Integer;
+  LCircularProtectionList: TOrderedList<TIdentify>;
 begin
-  if FCircularProtection then begin
-    LCircularPreviousSearchProtection := TNoDuplicateData<TIdentify>.Create(FOnCompareIdentify);
-  end else LCircularPreviousSearchProtection := Nil;
+  Assert((AStartIndex>=0) and (ACount>=0),Format('Invalid start %d or count %d',[AStartIndex,ACount]));
+  Result := 0;
+  FAbstractBTreeLock.Acquire;
   try
-    ANode := GetRoot;
-    iPos := 0;
-    repeat
-      if FCircularProtection then begin
-        if Not LCircularPreviousSearchProtection.Add(ANode.identify) then raise EAbstractBTree.Create('Circular T structure at Find for T='+ToString(ANode)+ ' searching for '+NodeDataToString(AData));
-      end;
-      if (BinarySearch(AData,ANode.data,iPos)) then Exit(True)
-      else if (Not ANode.IsLeaf) then ANode := GetNode( ANode.childs[ iPos ] )
-      else Exit(False);
-    until False;
-  finally
     if FCircularProtection then begin
-      LCircularPreviousSearchProtection.Free;
+      LCircularProtectionList := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
+    end else LCircularProtectionList := Nil;
+    try
+      if (ACount<=0) or (AStartIndex<0) then Exit;
+      if (FCount>=0) And (FCount-1 < AStartIndex) then Exit;
+
+      Lnode := FindLowestNodeExt(LCircularProtectionList);
+      if Assigned(LCircularProtectionList) then LCircularProtectionList.Clear;
+      if Lnode.Count<=0 then Exit;
+      //
+      Dec(AStartIndex);
+      iPos := 0;
+      while (AStartIndex>=0) do begin
+        if Not FindSuccessorExt(LCircularProtectionList,Lnode,iPos) then Exit;
+        Dec(AStartIndex);
+      end;
+      if Not ( (AStartIndex=-1) and (iPos < Lnode.Count) and (iPos>=0) ) then Exit;
+      // Lnode.data[iPos] = Start position
+      repeat
+        AList.Add(Lnode.data[iPos]);
+        Dec(ACount);
+        inc(Result);
+      until (ACount<0) or (Not FindSuccessorExt(LCircularProtectionList,Lnode,iPos));
+    finally
+      if Assigned(LCircularProtectionList) then LCircularProtectionList.Free;
     end;
+  finally
+    FAbstractBTreeLock.Release;
+  end;
+end;
+
+function TAbstractBTree<TIdentify, TData>.Find(const AData: TData; out ANode: TAbstractBTreeNode; out iPos: Integer): Boolean;
+var LCircularProtectionList: TOrderedList<TIdentify>;
+begin
+  FAbstractBTreeLock.Acquire;
+  try
+    if FCircularProtection then begin
+      LCircularProtectionList := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
+    end else LCircularProtectionList := Nil;
+    Try
+      Result := FindExt(AData,LCircularProtectionList,ANode,iPos);
+    Finally
+      if Assigned(LCircularProtectionList) then LCircularProtectionList.Free;
+    End;
+  finally
+    FAbstractBTreeLock.Release;
   end;
 end;
 
@@ -715,59 +820,178 @@ begin
   raise EAbstractBTree.Create(Format('Child not found at %s',[ToString(AParent)]));
 end;
 
+function TAbstractBTree<TIdentify, TData>.FindExt(const AData: TData; const ACircularProtectionList: TOrderedList<TIdentify>;
+  out ANode: TAbstractBTreeNode; out iPos: Integer): Boolean;
+begin
+  Assert(Not FIsFindingProcess,'Is finding process');
+  FIsFindingProcess := True;
+  Try
+    ANode := GetRoot;
+    iPos := 0;
+    repeat
+      if Assigned(ACircularProtectionList) then begin
+        if ACircularProtectionList.Add(ANode.identify)<0 then raise EAbstractBTree.Create(ClassName+'.Find Circular T structure at Find for T='+ToString(ANode)+ ' searching for '+NodeDataToString(AData));
+      end;
+      if (BinarySearch(AData,ANode.data,iPos)) then Exit(True)
+      else if (Not ANode.IsLeaf) then ANode := GetNode( ANode.childs[ iPos ] )
+      else Exit(False);
+    until False;
+  Finally
+    FIsFindingProcess := False;
+  End;
+end;
+
 function TAbstractBTree<TIdentify, TData>.FindHighest(out AHighest : TData) : Boolean;
 var Lnode : TAbstractBTreeNode;
 begin
-  Lnode := FindHighestNode;
-  if Lnode.Count>0 then begin
-     AHighest := Lnode.data[Lnode.Count-1];
-     Result := True;
-  end else Result := False;
+  FAbstractBTreeLock.Acquire;
+  try
+    Lnode := FindHighestNode;
+    if Lnode.Count>0 then begin
+       AHighest := Lnode.data[Lnode.Count-1];
+       Result := True;
+    end else Result := False;
+  finally
+    FAbstractBTreeLock.Release;
+  end;
 end;
 
 function TAbstractBTree<TIdentify, TData>.FindHighestNode: TAbstractBTreeNode;
 begin
-  Result := GetRoot;
-  while (Not Result.IsLeaf) do Result := GetNode(Result.childs[Result.Count]);
+  Result := FindHighestNodeExt(Nil);
+end;
+
+function TAbstractBTree<TIdentify, TData>.FindHighestNodeExt(
+  const ACircularProtectionList: TOrderedList<TIdentify>): TAbstractBTreeNode;
+begin
+  FAbstractBTreeLock.Acquire;
+  try
+    Result := GetRoot;
+    while (Not Result.IsLeaf) do begin
+      if Assigned(ACircularProtectionList) then begin
+        if ACircularProtectionList.Add(Result.childs[Result.Count])<0 then
+          raise EAbstractBTree.Create(ClassName+'.FindHighestNode Circular T structure for T='+ToString(Result));
+      end;
+      Result := GetNode(Result.childs[Result.Count]);
+    end;
+  finally
+    FAbstractBTreeLock.Release;
+  end;
+end;
+
+function TAbstractBTree<TIdentify, TData>.FindIndex(AIndex: Integer; out AData: TData): Boolean;
+var Lnode : TAbstractBTreeNode;
+  iPos : Integer;
+  LCircularProtectionList: TOrderedList<TIdentify>;
+begin
+  FAbstractBTreeLock.Acquire;
+  try
+    if FCircularProtection then begin
+      LCircularProtectionList := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
+    end else LCircularProtectionList := Nil;
+    try
+      Lnode := FindLowestNodeExt(LCircularProtectionList);
+      if Assigned(LCircularProtectionList) then LCircularProtectionList.Clear;
+      if Lnode.Count<=0 then Exit(False);
+      //
+      Dec(AIndex);
+      iPos := 0;
+      while (AIndex>=0) do begin
+        if Not FindSuccessorExt(LCircularProtectionList,Lnode,iPos) then Exit(False);
+        Dec(AIndex);
+      end;
+      if (AIndex=-1) and (iPos < Lnode.Count) and (iPos>=0) then begin
+        Result := True;
+        AData := Lnode.data[iPos];
+      end else Result := False;
+    finally
+      if Assigned(LCircularProtectionList) then LCircularProtectionList.Free;
+    end;
+  finally
+    FAbstractBTreeLock.Release;
+  end;
 end;
 
 function TAbstractBTree<TIdentify, TData>.FindLowest(out ALowest : TData) : Boolean;
 var Lnode : TAbstractBTreeNode;
 begin
-  Lnode := FindLowestNode;
-  if Lnode.Count>0 then begin
-    ALowest := Lnode.data[0];
-    Result := True;
-  end else Result := False;
+  FAbstractBTreeLock.Acquire;
+  try
+    Lnode := FindLowestNode;
+    if Lnode.Count>0 then begin
+      ALowest := Lnode.data[0];
+      Result := True;
+    end else Result := False;
+  finally
+    FAbstractBTreeLock.Release;
+  end;
 end;
 
 function TAbstractBTree<TIdentify, TData>.FindLowestNode: TAbstractBTreeNode;
 begin
-  Result := GetRoot;
-  while (Not Result.IsLeaf) do Result := GetNode(Result.childs[0]);
+  Result := FindLowestNodeExt(Nil);
+end;
+
+function TAbstractBTree<TIdentify, TData>.FindLowestNodeExt(
+  const ACircularProtectionList: TOrderedList<TIdentify>): TAbstractBTreeNode;
+begin
+  FAbstractBTreeLock.Acquire;
+  try
+    Result := GetRoot;
+    while (Not Result.IsLeaf) do begin
+      if Assigned(ACircularProtectionList) then begin
+        if ACircularProtectionList.Add(Result.childs[0])<0 then
+          raise EAbstractBTree.Create(ClassName+'.FindLowestNode Circular T structure for T='+ToString(Result));
+      end;
+      Result := GetNode(Result.childs[0]);
+    end;
+  finally
+    FAbstractBTreeLock.Release;
+  end;
 end;
 
 function TAbstractBTree<TIdentify, TData>.FindPrecessor(const AData : TData; out APrecessor : TData) : Boolean;
 var Lnode : TAbstractBTreeNode;
   iPos : Integer;
+  LCircularProtectionList: TOrderedList<TIdentify>;
 begin
-  Result := False;
-  if Not Find(AData,Lnode,iPos) then Exit(False);
-  repeat
-    Result := FindPrecessorExt(Lnode,iPos);
-    if Result then begin
-      APrecessor := Lnode.data[iPos];
-    end;
-  until (Not Result) or (Not FAllowDuplicates) or (DoCompareData(AData,APrecessor)>0);
+  FAbstractBTreeLock.Acquire;
+  try
+    if FCircularProtection then begin
+      LCircularProtectionList := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
+    end else LCircularProtectionList := Nil;
+    Try
+      Result := False;
+      if Not FindExt(AData,LCircularProtectionList,Lnode,iPos) then Exit(False);
+      if Assigned(LCircularProtectionList) then LCircularProtectionList.Clear;
+      repeat
+        Result := FindPrecessorExt(LCircularProtectionList,Lnode,iPos);
+        if Result then begin
+          APrecessor := Lnode.data[iPos];
+        end;
+      until (Not Result) or (Not FAllowDuplicates) or (DoCompareData(AData,APrecessor)>0);
+    Finally
+      if Assigned(LCircularProtectionList) then LCircularProtectionList.Free;
+    End;
+  finally
+    FAbstractBTreeLock.Release;
+  end;
 end;
 
-function TAbstractBTree<TIdentify, TData>.FindPrecessorExt(var ANode: TAbstractBTreeNode; var iPos: Integer): Boolean;
+function TAbstractBTree<TIdentify, TData>.FindPrecessorExt(const ACircularProtectionList : TOrderedList<TIdentify>; var ANode: TAbstractBTreeNode; var iPos: Integer): Boolean;
 var Lparent : TAbstractBTreeNode;
+  Lsecondary : TOrderedList<TIdentify>;
 begin
   Result := False;
   if (Not ANode.IsLeaf) then begin
     ANode := GetNode(ANode.childs[iPos]);
-    while (Not ANode.IsLeaf) do ANode := GetNode(ANode.childs[ANode.Count]);
+    while (Not ANode.IsLeaf) do begin
+      if Assigned(ACircularProtectionList) then begin
+        if ACircularProtectionList.Add(ANode.childs[ANode.Count])<0 then
+          raise EAbstractBTree.Create(ClassName+'.FindPrecessor Circular T structure at Find for T='+ToString(ANode));
+      end;
+      ANode := GetNode(ANode.childs[ANode.Count]);
+    end;
     iPos := ANode.Count-1;
     Exit(True);
   end else begin
@@ -784,10 +1008,21 @@ begin
         Exit(True);
       end else begin
         // Search parents until parent iPos>0
-        while (iPos=0) and (Not IsNil(Lparent.parent)) do begin
-          ANode := Lparent;
-          Lparent := GetNode(ANode.parent);
-          iPos := FindChildPos(ANode.identify,Lparent);
+        if Assigned(ACircularProtectionList) then begin
+          Lsecondary := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
+        end else Lsecondary := Nil;
+        try
+          while (iPos=0) and (Not IsNil(Lparent.parent)) do begin
+            ANode := Lparent;
+            if Assigned(Lsecondary) then begin
+              if Lsecondary.Add(ANode.parent)<0 then
+                raise EAbstractBTree.Create(ClassName+'.FindPrecessor Circular T structure at Find for parent of T='+ToString(ANode));
+            end;
+            Lparent := GetNode(ANode.parent);
+            iPos := FindChildPos(ANode.identify,Lparent);
+          end;
+        finally
+          if Assigned(Lsecondary) then Lsecondary.Free;
         end;
         if iPos>0 then begin
           Dec(iPos);
@@ -802,25 +1037,46 @@ end;
 function TAbstractBTree<TIdentify, TData>.FindSuccessor(const AData : TData; out ASuccessor : TData) : Boolean;
 var Lnode : TAbstractBTreeNode;
   iPos : Integer;
+  LCircularProtectionList: TOrderedList<TIdentify>;
 begin
-  Result := False;
-  if Not Find(AData,Lnode,iPos) then Exit(False);
-  repeat
-    Result := FindSuccessorExt(Lnode,iPos);
-    if Result then begin
-      ASuccessor := Lnode.data[iPos];
-    end;
-  until (Not Result) or (Not FAllowDuplicates) or (DoCompareData(AData,ASuccessor)<0);
+  FAbstractBTreeLock.Acquire;
+  try
+    if FCircularProtection then begin
+      LCircularProtectionList := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
+    end else LCircularProtectionList := Nil;
+    Try
+      Result := False;
+      if Not FindExt(AData,LCircularProtectionList,Lnode,iPos) then Exit(False);
+      if Assigned(LCircularProtectionList) then LCircularProtectionList.Clear;
+      repeat
+        Result := FindSuccessorExt(LCircularProtectionList,Lnode,iPos);
+        if Result then begin
+          ASuccessor := Lnode.data[iPos];
+        end;
+      until (Not Result) or (Not FAllowDuplicates) or (DoCompareData(AData,ASuccessor)<0);
+    Finally
+      if Assigned(LCircularProtectionList) then LCircularProtectionList.Free;
+    End;
+  finally
+    FAbstractBTreeLock.Release;
+  end;
 end;
 
-function TAbstractBTree<TIdentify, TData>.FindSuccessorExt(var ANode: TAbstractBTreeNode; var iPos: Integer): Boolean;
+function TAbstractBTree<TIdentify, TData>.FindSuccessorExt(const ACircularProtectionList : TOrderedList<TIdentify>; var ANode: TAbstractBTreeNode; var iPos: Integer): Boolean;
 var Lparent : TAbstractBTreeNode;
+  Lsecondary : TOrderedList<TIdentify>;
 begin
   Result := False;
   if (Not ANode.IsLeaf) then begin
     ANode := GetNode(ANode.childs[iPos+1]);
     iPos := 0;
-    while (Not ANode.IsLeaf) do ANode := GetNode(ANode.childs[0]);
+    while (Not ANode.IsLeaf) do begin
+      if Assigned(ACircularProtectionList) then begin
+        if ACircularProtectionList.Add(ANode.childs[0])<0 then
+          raise EAbstractBTree.Create(ClassName+'.FindSuccessor Circular T structure at Find for T='+ToString(ANode));
+      end;
+      ANode := GetNode(ANode.childs[0]);
+    end;
     Exit(True);
   end else begin
     if iPos+1<ANode.Count then begin
@@ -835,10 +1091,21 @@ begin
         Exit(True);
       end else begin
         // Search parents until parent iPos>0
-        while (iPos=Lparent.Count) and (Not IsNil(Lparent.parent)) do begin
-          ANode := Lparent;
-          Lparent := GetNode(ANode.parent);
-          iPos := FindChildPos(ANode.identify,Lparent);
+        if Assigned(ACircularProtectionList) then begin
+          Lsecondary := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
+        end else Lsecondary := Nil;
+        try
+          while (iPos=Lparent.Count) and (Not IsNil(Lparent.parent)) do begin
+            ANode := Lparent;
+            if Assigned(Lsecondary) then begin
+              if Lsecondary.Add(ANode.parent)<0 then
+                raise EAbstractBTree.Create(ClassName+'.FindSuccessor Circular T structure at Find for parent of T='+ToString(ANode));
+            end;
+            Lparent := GetNode(ANode.parent);
+            iPos := FindChildPos(ANode.identify,Lparent);
+          end;
+        finally
+          if Assigned(Lsecondary) then Lsecondary.Free;
         end;
         if iPos<Lparent.Count then begin
           ANode := Lparent;
@@ -857,6 +1124,8 @@ end;
 function TAbstractBTree<TIdentify, TData>.GetHeight: Integer;
 var Lnode : TAbstractBTreeNode;
 begin
+  FAbstractBTreeLock.Acquire;
+  try
   Lnode := GetRoot;
   if (Lnode.Count=0) or (IsNil(Lnode.identify)) then Exit(0);
   Result := 1;
@@ -864,6 +1133,14 @@ begin
     Lnode := GetNode(Lnode.childs[0]);
     inc(Result);
   end;
+  finally
+    FAbstractBTreeLock.Release;
+  end;
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.Lock;
+begin
+  FAbstractBTreeLock.Acquire;
 end;
 
 function TAbstractBTree<TIdentify, TData>.MaxChildrenPerNode: Integer;
@@ -966,7 +1243,7 @@ begin
   FCount := ANewCount;
 end;
 
-procedure TAbstractBTree<TIdentify, TData>.SplitAfterInsert(var ANode: TAbstractBTreeNode);
+procedure TAbstractBTree<TIdentify, TData>.SplitAfterInsert(var ANode: TAbstractBTreeNode; const ACircularProtectionList : TOrderedList<TIdentify>);
 var iDataInsertPos : Integer;
   LnewNode, Lup : TAbstractBTreeNode;
 begin
@@ -978,6 +1255,9 @@ begin
     // Lup will be a new root
     Lup := NewNode;
   end else begin
+    if Assigned(ACircularProtectionList) then begin
+      if ACircularProtectionList.Add(ANode.parent)<0 then raise EAbstractBTree.Create(ClassName+'.SplitAfterInsert Circular T structure at Find for parent of T='+ToString(ANode));
+    end;
     Lup := GetNode(ANode.parent);
   end;
   if Lup.Count=0 then begin
@@ -1001,7 +1281,7 @@ begin
   // Remove data&child
   ANode.DeleteData(MinItemsPerNode);
   SaveNode(ANode);
-  if Lup.Count>MaxItemsPerNode then SplitAfterInsert(Lup);
+  if Lup.Count>MaxItemsPerNode then SplitAfterInsert(Lup,ACircularProtectionList);
 end;
 
 function TAbstractBTree<TIdentify, TData>.ToString(const ANode: TAbstractBTreeNode): String;
@@ -1013,6 +1293,11 @@ begin
     Result := Result + NodeDataToString(ANode.data[i]);
   end;
   Result := '['+Result+']';
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.Unlock;
+begin
+  FAbstractBTreeLock.Release;
 end;
 
 { TAbstractBTree<TIdentify, TData>.TAbstractBTreeNode }
@@ -1202,18 +1487,6 @@ end;
 procedure TMemoryBTree<TData>.SetRoot(var Value: TAbstractBTree<Integer, TData>.TAbstractBTreeNode);
 begin
   Froot := Value.identify;
-end;
-
-{ TIntegerBTree }
-
-constructor TIntegerBTree.Create(AAllowDuplicates: Boolean; AOrder: Integer);
-begin
-  inherited Create(TComparison_Integer,AAllowDuplicates,AOrder);
-end;
-
-function TIntegerBTree.NodeDataToString(const AData: Integer): String;
-begin
-  Result := AData.ToString;
 end;
 
 { TNoDuplicateData<TData> }

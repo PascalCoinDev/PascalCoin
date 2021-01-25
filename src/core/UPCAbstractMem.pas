@@ -8,10 +8,12 @@ interface
 
 uses Classes, SysUtils, SyncObjs,
   UAbstractMem, UFileMem, UAbstractMemTList, UCacheMem,
-  UAbstractBTree, UThread,
+  UAbstractBTree, UThread, UAbstractMemBTree,
   UAVLCache, ULog, UCrypto,
   UPCAbstractMemAccountKeys,
   UPCDataTypes, UBaseTypes, UConst, UPCSafeBoxRootHash, UOrderedList,
+  UPCAccountsOrdenations,
+  UPCAbstractMemAccounts,
 {$IFNDEF FPC}System.Generics.Collections,System.Generics.Defaults{$ELSE}Generics.Collections,Generics.Defaults{$ENDIF};
 
 type
@@ -34,8 +36,6 @@ type
     procedure SaveTo(const AItem: TOperationBlockExt; AIsAddingItem : Boolean; var ABytes: TBytes); override;
   end;
 
-  TPCAbstractMemListAccounts = class;
-
   TAccountNameInfo = record
     accountName: string;
     accountNumber: cardinal;
@@ -43,30 +43,22 @@ type
 
   { TPCAbstractMemListAccountNames }
 
-  TPCAbstractMemListAccountNames = class(TAbstractMemOrderedTList<TAccountNameInfo>)
+  TPCAbstractMemListAccountNames = Class(TAbstractMemBTreeData<TAccountNameInfo>)
   private
     FPCAbstractMem: TPCAbstractMem;
+    procedure LoadFrom(const ABytes: TBytes; var AItem: TAccountNameInfo);
+    procedure SaveTo(const AItem: TAccountNameInfo; var ABytes: TBytes);
+    function FindByName(const AName : String; out AAbstractMemPosition : TAbstractMemPosition) : Boolean; overload;
   protected
-    function ToString(const AItem: TAccountNameInfo): string; override;
-
-    procedure LoadFrom(const ABytes: TBytes; var AItem: TAccountNameInfo); override;
-    procedure SaveTo(const AItem: TAccountNameInfo; AIsAddingItem : Boolean; var ABytes: TBytes); override;
-    function Compare(const ALeft, ARight: TAccountNameInfo): integer; override;
+    function LoadData(const APosition : TAbstractMemPosition) : TAccountNameInfo; override;
+    function SaveData(const AData : TAccountNameInfo) : TAMZone; override;
   public
-    function IndexOf(const AName : String) : Integer;
-    procedure Remove(const AName : String);
-    procedure Add(const AName : String; AAccountNumber : Cardinal);
-    function FindByName(const AName : String; out AIndex : Integer) : Boolean;
-  end;
-
-  { TPCAbstractMemListAccounts }
-
-  TPCAbstractMemListAccounts = class(TAbstractMemTList<TAccount>)
-  private
-    FPCAbstractMem: TPCAbstractMem;
-  protected
-    procedure LoadFrom(const ABytes: TBytes; var AItem: TAccount); override;
-    procedure SaveTo(const AItem: TAccount; AIsAddingItem : Boolean; var ABytes: TBytes); override;
+    function NodeDataToString(const AData : TAbstractMemPosition) : String; override;
+    // Special
+    procedure AddNameAndNumber(const AName : String; AAccountNumber : Cardinal);
+    function FindByName(const AName : String) : Boolean; overload;
+    function FindByName(const AName : String; out ANameInfo : TAccountNameInfo) : Boolean; overload;
+    function DeleteAccountName(const AName : String) : Boolean;
   end;
 
   { TPCAbstractMemBytesBuffer32Safebox }
@@ -128,6 +120,7 @@ type
 
     FSavingOldGridCache : Boolean;
     FSavingOldDefaultCacheDataBlocksSize : Integer;
+    FAccountsOrderedByUpdatedBlock : TAccountsOrderedByUpdatedBlock;
 
     function IsChecking : Boolean;
     procedure DoCheck;
@@ -145,6 +138,7 @@ type
     procedure SetSavingNewSafeboxMode(const Value: Boolean);
   protected
     procedure UpgradeAbstractMemVersion(const ACurrentHeaderVersion : Integer);
+    function DoGetAccount(AAccountNumber : Integer; var AAccount : TAccount) : Boolean;
   public
     constructor Create(const ASafeboxFileName: string; AReadOnly: boolean);
     class function AnalyzeFile(const ASafeboxFileName: string; var ABlocksCount : Integer) : Boolean;
@@ -185,6 +179,7 @@ type
     Property MaxAccountsCache : Integer read GetMaxAccountsCache write SetMaxAccountsCache;
     Property MaxAccountKeysCache : Integer read GetMaxAccountKeysCache write SetMaxAccountKeysCache;
     Property SavingNewSafeboxMode : Boolean read FSavingNewSafeboxMode write SetSavingNewSafeboxMode;
+    Property AccountsOrderedByUpdatedBlock : TAccountsOrderedByUpdatedBlock read FAccountsOrderedByUpdatedBlock;
   end;
 
 implementation
@@ -192,8 +187,8 @@ implementation
 uses UAccounts;
 
 const
-  CT_PCAbstractMem_FileVersion = CT_PROTOCOL_5;
-  CT_PCAbstractMem_HeaderVersion = 1;
+  CT_PCAbstractMem_FileVersion = 100;
+  CT_PCAbstractMem_HeaderVersion = 2;
 
 function _AccountCache_Comparision(const Left, Right: TAccountCache.PAVLCacheMemData): Integer;
 begin
@@ -260,145 +255,6 @@ begin
   end;
 end;
 
-{ TPCAbstractMemListAccounts }
-
-procedure TPCAbstractMemListAccounts.LoadFrom(const ABytes: TBytes; var AItem: TAccount);
-var
-  LPointer: TAbstractMemPosition;
-  LStream : TStream;
-  w : Word;
-begin
-  AItem.Clear;
-  LStream := TMemoryStream.Create;
-  Try
-    LPointer := 0;
-    LStream.Write(ABytes[0],Length(ABytes));
-    LStream.Position := 0;
-
-    LStream.Read( AItem.account , 4 );
-
-    LStream.Read( w,2 );
-    if (w<>CT_PROTOCOL_5) then raise EPCAbstractMem.Create(Format('Invalid Account %d protocol %d',[AItem.account,w]));
-
-    LStream.Read( w, 2 );
-    case w of
-      CT_NID_secp256k1,CT_NID_secp384r1,CT_NID_sect283k1,CT_NID_secp521r1 : Begin
-        AItem.accountInfo.state := as_Normal;
-        LStream.Read(LPointer,4);
-        AItem.accountInfo.accountKey := FPCAbstractMem.FAccountKeys.GetKeyAtPosition( LPointer );
-        if w<>AItem.accountInfo.accountKey.EC_OpenSSL_NID then raise EPCAbstractMem.Create('INCONSISTENT 20200318-2');
-      End;
-      CT_AccountInfo_ForSale, CT_AccountInfo_ForAccountSwap, CT_AccountInfo_ForCoinSwap : Begin
-        case w of
-          CT_AccountInfo_ForSale : AItem.accountInfo.state := as_ForSale;
-          CT_AccountInfo_ForAccountSwap : AItem.accountInfo.state := as_ForAtomicAccountSwap;
-          CT_AccountInfo_ForCoinSwap : AItem.accountInfo.state := as_ForAtomicCoinSwap;
-        end;
-        LStream.Read(LPointer,4);
-        AItem.accountInfo.accountKey := FPCAbstractMem.FAccountKeys.GetKeyAtPosition( LPointer );
-
-        LStream.Read(AItem.accountInfo.locked_until_block,4);
-        LStream.Read(AItem.accountInfo.price,8);
-        LStream.Read(AItem.accountInfo.account_to_pay,4);
-        LStream.Read(LPointer,4);
-        AItem.accountInfo.new_publicKey := FPCAbstractMem.FAccountKeys.GetKeyAtPosition( LPointer );
-        if (w<>CT_AccountInfo_ForSale) then begin
-          AItem.accountInfo.hashed_secret.FromSerialized(LStream);
-        end;
-
-      End;
-      else raise EPCAbstractMem.Create(Format('Unknow accountInfo type %d for account %d',[w,Aitem.account]));
-    end;
-    //
-    LStream.Read( AItem.balance , 8);
-    LStream.Read( AItem.updated_on_block_passive_mode , 4);
-    LStream.Read( AItem.updated_on_block_active_mode , 4);
-    LStream.Read( AItem.n_operation , 4);
-    AItem.name.FromSerialized( LStream );
-    LStream.Read( AItem.account_type ,2);
-    AItem.account_data.FromSerialized( LStream );
-    if AItem.account_seal.FromSerialized( LStream )<0 then raise EPCAbstractMem.Create('INCONSISTENT 20200318-4');
-    // Force account_seal to 20 bytes
-    if Length(AItem.account_seal)<>20 then begin
-      AItem.account_seal := TBaseType.T20BytesToRawBytes( TBaseType.To20Bytes(AItem.account_seal) );
-    end;
-  Finally
-    LStream.Free;
-  End;
-end;
-
-procedure TPCAbstractMemListAccounts.SaveTo(const AItem: TAccount; AIsAddingItem : Boolean; var ABytes: TBytes);
-var LStream : TStream;
-  LPointer : TAbstractMemPosition;
-  w : Word;
-  LPrevious : TAccount;
-begin
-  if (Length(ABytes)>0) and (Not AIsAddingItem) then begin
-    // Capture previous values
-    LoadFrom(ABytes,LPrevious);
-    if (LPrevious.account<>AItem.account) then raise EPCAbstractMem.Create(Format('INCONSISTENT account number %d<>%d',[AItem.account,LPrevious.account]));
-
-    if Not LPrevious.accountInfo.accountKey.IsEqualTo( AItem.accountInfo.accountKey ) then begin
-      // Remove previous account link
-      FPCAbstractMem.FAccountKeys.GetPositionOfKeyAndRemoveAccount( LPrevious.accountInfo.accountKey, LPrevious.account );
-    end;
-  end;
-
-  LStream := TMemoryStream.Create;
-  try
-    LStream.Position := 0;
-
-
-    LStream.Write( AItem.account , 4 );
-
-    w := CT_PROTOCOL_5;
-    LStream.Write( w, 2 );
-
-    w := 0;
-    case AItem.accountInfo.state of
-      as_Normal : begin
-        LPointer := FPCAbstractMem.FAccountKeys.GetPositionOfKeyAndAddAccount(AItem.accountInfo.accountKey,AItem.account);
-        LStream.Write( AItem.accountInfo.accountKey.EC_OpenSSL_NID , 2 );
-        LStream.Write( LPointer, 4);
-      end;
-      as_ForSale : w := CT_AccountInfo_ForSale;
-      as_ForAtomicAccountSwap : w := CT_AccountInfo_ForAccountSwap;
-      as_ForAtomicCoinSwap :  w := CT_AccountInfo_ForCoinSwap;
-    end;
-    if (w>0) then begin
-      LStream.Write(w,2);
-
-      LPointer := FPCAbstractMem.FAccountKeys.GetPositionOfKeyAndAddAccount(AItem.accountInfo.accountKey,AItem.account);
-      LStream.Write( LPointer, 4);
-
-      LStream.Write(AItem.accountInfo.locked_until_block,4);
-      LStream.Write(AItem.accountInfo.price,8);
-      LStream.Write(AItem.accountInfo.account_to_pay,4);
-      LPointer := FPCAbstractMem.FAccountKeys.GetPositionOfKey(AItem.accountInfo.new_publicKey,True);
-      LStream.Write(LPointer,4);
-      if (w<>CT_AccountInfo_ForSale) then begin
-        AItem.accountInfo.hashed_secret.ToSerialized(LStream);
-      end;
-    end;
-    //
-    LStream.Write( AItem.balance , 8);
-    LStream.Write( AItem.updated_on_block_passive_mode , 4);
-    LStream.Write( AItem.updated_on_block_active_mode , 4);
-    LStream.Write( AItem.n_operation , 4);
-
-    AItem.name.ToSerialized( LStream );
-
-    LStream.Write( AItem.account_type ,2);
-    AItem.account_data.ToSerialized( LStream );
-    AItem.account_seal.ToSerialized( LStream );
-    //
-    ABytes.FromStream( LStream );
-
-  finally
-    LStream.Free;
-  end;
-end;
-
 { TPCAbstractMem }
 
 function TPCAbstractMem.CheckConsistency(AReport: TStrings) : Boolean;
@@ -437,6 +293,11 @@ begin
   DoInit(LIsNew);
 end;
 
+function _TComparison_TAccountNameInfo(const ALeft, ARight : TAccountNameInfo) : Integer;
+begin
+  Result := CompareText(ALeft.accountName,ARight.accountName);
+end;
+
 function TPCAbstractMem.DoInit(out AIsNewStructure : Boolean) : Boolean;
 const
   CT_HEADER_MIN_SIZE = 100;
@@ -451,6 +312,7 @@ const
   [28..31] 4 bytes: LZoneAccountKeys.position
   [32..35] 4 bytes: FZoneAggregatedHashrate.position
   [36..39] 4 bytes: LZoneBuffersBlockHash
+  [40..43] 4 bytes: LZoneAccountsOrderedByUpdatedBlock.position
   ...
   [96..99] 4 bytes: Header version
   }
@@ -458,7 +320,8 @@ var LZone,
   LZoneBlocks,
   LZoneAccounts,
   LZoneAccountsNames,
-  LZoneAccountKeys : TAMZone;
+  LZoneAccountKeys,
+  LZoneAccountsOrderedByUpdatedBlock : TAMZone;
   LZoneBuffersBlockHash : TAbstractMemPosition;
   LHeader, LBuffer, LBigNum : TBytes;
   LIsGood : Boolean;
@@ -472,6 +335,7 @@ begin
   FreeAndNil(FAccountsNames);
   FreeAndNil(FAccountKeys);
   FreeAndNil(FBufferBlocksHash);
+  FreeAndNil(FAccountsOrderedByUpdatedBlock);
   //
   Result := False;
   AIsNewStructure := True;
@@ -482,6 +346,7 @@ begin
   LZoneAccountKeys.Clear;
   FZoneAggregatedHashrate.Clear;
   LZoneBuffersBlockHash := 0;
+  LZoneAccountsOrderedByUpdatedBlock.Clear;
 
   if (FAbstractMem.ReadFirstData(LZone,LHeader)) then begin
     // Check if header is valid:
@@ -504,11 +369,21 @@ begin
         Move(LHeader[28], LZoneAccountKeys.position, 4);
         Move(LHeader[32], FZoneAggregatedHashrate.position, 4);
         LZoneBuffersBlockHash := LZone.position + 36;
+        Move(LHeader[40], LZoneAccountsOrderedByUpdatedBlock.position, 4);
+        //
         Move(LHeader[96], LHeaderVersion, 4);
         if (LHeaderVersion>CT_PCAbstractMem_HeaderVersion) then begin
           TLog.NewLog(lterror,ClassName,Format('Header version readed %d is greater than expected %d',[LHeaderVersion,CT_PCAbstractMem_HeaderVersion]));
         end else begin
           AIsNewStructure := False;
+          //
+          if (LZoneAccountsOrderedByUpdatedBlock.position=0) then begin
+            if (Not FAbstractMem.ReadOnly) then begin
+              LZoneAccountsOrderedByUpdatedBlock := FAbstractMem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize);
+              Move(LZoneAccountsOrderedByUpdatedBlock.position,LHeader[40],4);
+              FAbstractMem.Write(LZone.position,LHeader[0],Length(LHeader));
+            end;
+          end;
         end;
       end;
     end;
@@ -530,6 +405,8 @@ begin
     LZoneAccountKeys := FAbstractMem.New( 100 );
     FZoneAggregatedHashrate := FAbstractMem.New(100); // Note: Enough big to store a BigNum
     LZoneBuffersBlockHash := LZone.position+36;
+    LZoneAccountsOrderedByUpdatedBlock := FAbstractMem.New(
+      TAbstractMemBTree.MinAbstractMemInitialPositionSize);
 
     Move(LZoneBlocks.position,       LHeader[16],4);
     Move(LZoneAccounts.position,     LHeader[20],4);
@@ -537,6 +414,7 @@ begin
     Move(LZoneAccountKeys.position,  LHeader[28],4);
     Move(FZoneAggregatedHashrate.position,LHeader[32],4);
     LHeaderVersion := CT_PCAbstractMem_HeaderVersion;
+    Move(LZoneAccountsOrderedByUpdatedBlock, LHeader[40],4);
     Move(LHeaderVersion,             LHeader[96],4);
 
     FAbstractMem.Write(LZone.position,LHeader[0],Length(LHeader));
@@ -549,12 +427,12 @@ begin
   FBlocks.FPCAbstractMem := Self;
 
   FAccounts := TPCAbstractMemListAccounts.Create( FAbstractMem, LZoneAccounts, 100000, Self.UseCacheOnAbstractMemLists);
-  FAccounts.FPCAbstractMem := Self;
 
-  FAccountsNames := TPCAbstractMemListAccountNames.Create( FAbstractMem, LZoneAccountsNames, 5000 , False, Self.UseCacheOnAbstractMemLists);
+  FAccountsNames := TPCAbstractMemListAccountNames.Create( FAbstractMem, LZoneAccountsNames, False, 31, _TComparison_TAccountNameInfo);
   FAccountsNames.FPCAbstractMem := Self;
 
   FAccountKeys := TPCAbstractMemAccountKeys.Create( FAbstractMem, LZoneAccountKeys.position, Self.UseCacheOnAbstractMemLists);
+  FAccounts.AccountKeys := FAccountKeys;
 
   // Read AggregatedHashrate
   SetLength(LBuffer,100);
@@ -563,6 +441,11 @@ begin
     FAggregatedHashrate.RawValue := LBigNum;
   end;
   FBufferBlocksHash := TPCAbstractMemBytesBuffer32Safebox.Create(FAbstractMem,LZoneBuffersBlockHash,FBlocks.Count);
+
+  if (LZoneAccountsOrderedByUpdatedBlock.position<>0) then begin
+    FAccountsOrderedByUpdatedBlock := TAccountsOrderedByUpdatedBlock.Create(FAbstractMem,LZoneAccountsOrderedByUpdatedBlock,DoGetAccount);
+  end;
+  FAccounts.AccountsOrderedByUpdatedBlock := FAccountsOrderedByUpdatedBlock;
 
   FAccountCache.Clear;
 
@@ -645,6 +528,7 @@ begin
   FreeAndNil(FAccountKeys);
   FreeAndNil(FBufferBlocksHash);
   FreeAndNil(FAggregatedHashrate);
+  FreeAndNil(FAccountsOrderedByUpdatedBlock);
   if (FFileName<>'') And (FAbstractMem is TMem) And (Not FAbstractMem.ReadOnly) then begin
     LFile := TFileStream.Create(FFileName,fmCreate);
     try
@@ -676,6 +560,12 @@ begin
   End;
 end;
 
+function TPCAbstractMem.DoGetAccount(AAccountNumber: Integer; var AAccount: TAccount): Boolean;
+begin
+  AAccount := GetAccount(AAccountNumber);
+  Result := True;
+end;
+
 procedure TPCAbstractMem.FlushCache;
 var LBigNum : TBytes;
   Ltc : TTickCount;
@@ -684,7 +574,6 @@ begin
   Ltc := TPlatform.GetTickCount;
   FBlocks.FlushCache;
   FAccounts.FlushCache;
-  FAccountsNames.FlushCache;
   FAccountKeys.FlushCache;
   FBufferBlocksHash.Flush;
   LBigNum := FAggregatedHashrate.RawValue.ToSerialized;
@@ -743,13 +632,13 @@ begin
   if (AAccount.account<0) or (AAccount.account>FAccounts.Count) then begin
     raise EPCAbstractMem.Create(Format('Account %d not in range %d..%d',[AAccount.account,0,FAccounts.Count]));
   end;
-  FAccountCache.Remove(AAccount);
   if (AAccount.account = FAccounts.Count) then begin
     FAccounts.Add(AAccount);
   end else begin
-    FAccounts.SetItem( AAccount.account , AAccount);
+    FAccounts.Item[ AAccount.account ] := AAccount;
   end;
   // Update cache
+  FAccountCache.Remove(AAccount);
   FAccountCache.Add(AAccount);
 end;
 
@@ -906,22 +795,6 @@ var LFirstTC, LTC : TTickCount;
 begin
   LFirstTC := TPlatform.GetTickCount;
   LTC := LFirstTC;
-  if (ACurrentHeaderVersion=0) then begin
-    // Redo AccountNames
-    TLog.NewLog(ltinfo,ClassName,Format('Upgrade AbstractMem file from %d to %d with %d Accounts and %d AccNames',[ACurrentHeaderVersion,CT_PCAbstractMem_HeaderVersion, AccountsCount, AccountsNames.Count]));
-    AccountsNames.Clear;
-    for i := 0 to AccountsCount-1 do begin
-      LAccount := GetAccount(i);
-      if Length(LAccount.name)>0 then begin
-        AccountsNames.Add( LAccount.name.ToString, LAccount.account );
-      end;
-      if TPlatform.GetElapsedMilliseconds(LTC)>5000 then begin
-        LTC := TPlatform.GetTickCount;
-        TLog.NewLog(ltdebug,ClassName,Format('Upgrading %d/%d found %d',[i,AccountsCount,AccountsNames.Count]));
-      end;
-    end;
-    TLog.NewLog(ltdebug,ClassName,Format('End upgrade found %d',[AccountsNames.Count]));
-  end;
   TLog.NewLog(ltinfo,ClassName,Format('Finalized upgrade AbstractMem file from %d to %d in %.2f seconds',[ACurrentHeaderVersion,CT_PCAbstractMem_HeaderVersion, TPlatform.GetElapsedMilliseconds(LFirstTC)/1000]));
 end;
 
@@ -1003,25 +876,25 @@ begin
   Result.Clear;
   Result.account := AAccountNumber;
   if Not FAccountCache.Find(Result,Result) then begin
-    Result := FAccounts.GetItem( AAccountNumber );
+    Result := FAccounts.Item[ AAccountNumber ];
     // Save for future usage:
     FAccountCache.Add(Result);
   end;
 end;
 
+
 { TPCAbstractMemListAccountNames }
 
-function TPCAbstractMemListAccountNames.ToString(const AItem: TAccountNameInfo): string;
+function TPCAbstractMemListAccountNames.LoadData(const APosition: TAbstractMemPosition): TAccountNameInfo;
+var LZone : TAMZone;
+  LBytes : TBytes;
 begin
-  Result:= Format('AccountNameInfo: Account:%d Name(%d):%d',[AItem.accountNumber, Length(AItem.accountName), AItem.accountName]);
-end;
-
-function TPCAbstractMemListAccountNames.IndexOf(const AName: String): Integer;
-var LFind : TAccountNameInfo;
-begin
-  LFind.accountName := AName;
-  LFind.accountNumber := 0;
-  if Not Find(LFind,Result) then Result := -1;
+  if Not FPCAbstractMem.AbstractMem.GetUsedZoneInfo( APosition, False, LZone) then
+    raise EAbstractMemTList.Create(Format('%s.LoadData Inconsistency error used zone info not found at pos %d',[Self.ClassName,APosition]));
+  SetLength(LBytes,LZone.size);
+  if FPCAbstractMem.AbstractMem.Read(LZone.position, LBytes[0], Length(LBytes) )<>Length(LBytes) then
+    raise EAbstractMemTList.Create(Format('%s.LoadData Inconsistency error cannot read %d bytes at pos %d',[Self.ClassName,LZone.size,APosition]));
+  LoadFrom(LBytes,Result);
 end;
 
 procedure TPCAbstractMemListAccountNames.LoadFrom(const ABytes: TBytes; var AItem: TAccountNameInfo);
@@ -1032,14 +905,31 @@ begin
   Move(ABytes[LTmp.GetSerializedLength],AItem.accountNumber,4);
 end;
 
-procedure TPCAbstractMemListAccountNames.Remove(const AName: String);
-var i : Integer;
+function TPCAbstractMemListAccountNames.NodeDataToString(const AData: TAbstractMemPosition): String;
+var Lani : TAccountNameInfo;
 begin
-  i := IndexOf(AName);
-  if i>=0 then Delete(i);
+  Lani := LoadData(AData);
+  Result:= Format('AccountNameInfo: Account:%d Name(%d):%d',[Lani.accountNumber, Length(Lani.accountName), Lani.accountName]);
 end;
 
-procedure TPCAbstractMemListAccountNames.SaveTo(const AItem: TAccountNameInfo; AIsAddingItem : Boolean; var ABytes: TBytes);
+function TPCAbstractMemListAccountNames.DeleteAccountName(const AName: String) : Boolean;
+var  Lani : TAccountNameInfo;
+begin
+  Lani.accountName := AName;
+  Lani.accountNumber := 0;
+  Result := DeleteData(Lani);
+end;
+
+function TPCAbstractMemListAccountNames.SaveData(const AData: TAccountNameInfo): TAMZone;
+var LBytes : TBytes;
+begin
+  SetLength(LBytes,0);
+  SaveTo(AData,LBytes);
+  Result := FPCAbstractMem.AbstractMem.New(Length(LBytes));
+  FPCAbstractMem.AbstractMem.Write(Result.position,LBytes[0],Length(LBytes));
+end;
+
+procedure TPCAbstractMemListAccountNames.SaveTo(const AItem: TAccountNameInfo; var ABytes: TBytes);
 var LStream : TStream;
   LTmp : TBytes;
 begin
@@ -1055,36 +945,46 @@ begin
   End;
 end;
 
-procedure TPCAbstractMemListAccountNames.Add(const AName: String; AAccountNumber: Cardinal);
-var LItem : TAccountNameInfo;
-  i : Integer;
+procedure TPCAbstractMemListAccountNames.AddNameAndNumber(const AName: String; AAccountNumber: Cardinal);
+var Lani : TAccountNameInfo;
+  Lposition : TAbstractMemPosition;
 begin
-  LItem.accountName := AName;
-  LItem.accountNumber := AAccountNumber;
-  i := inherited Add(LItem);
-  if (i<0) then begin
-    i := IndexOf(AName);
-    if (i<0) then
+  Lani.accountName := AName;
+  Lani.accountNumber := AAccountNumber;
+  if Not AddData(Lani) then begin
+    if Not FindData(Lani,Lposition) then
       raise EPCAbstractMem.Create(Format('Fatal error Cannot add account(%d) name %s',[AAccountNumber,AName]))
     else raise EPCAbstractMem.Create(Format('Cannot add account(%d) name %s because used by %d with %s',[AAccountNumber,AName,
-      GetItem(i).accountNumber,GetItem(i).accountName]));
+      Lani.accountNumber,Lani.accountName]));
   end;
 end;
 
-function TPCAbstractMemListAccountNames.Compare(const ALeft, ARight: TAccountNameInfo): integer;
-Var LBytesLeft,LBytesRight : TBytes;
+function TPCAbstractMemListAccountNames.FindByName(const AName: String): Boolean;
+var Lpos : TAbstractMemPosition;
 begin
-  LBytesLeft.FromString(ALeft.accountName);
-  LBytesRight.FromString(ARight.accountName);
-  Result := TBaseType.BinStrComp(LBytesLeft,LBytesRight);
+  Result := FindByName(AName,Lpos);
 end;
 
-function TPCAbstractMemListAccountNames.FindByName(const AName: String; out AIndex: Integer): Boolean;
-var LFind : TAccountNameInfo;
+function TPCAbstractMemListAccountNames.FindByName(const AName: String; out ANameInfo: TAccountNameInfo): Boolean;
+var Lpos : TAbstractMemPosition;
 begin
-  LFind.accountName := AName;
-  LFind.accountNumber := 0;
-  Result := Find(LFind,AIndex);
+  if FindByName(AName,Lpos) then begin
+    ANameInfo := LoadData(Lpos);
+    Result := True;
+  end else begin
+    if Lpos<>0 then begin
+      ANameInfo := LoadData(Lpos);
+    end;
+    Result := False;
+  end;
+end;
+
+function TPCAbstractMemListAccountNames.FindByName(const AName: String; out AAbstractMemPosition: TAbstractMemPosition): Boolean;
+var Lani : TAccountNameInfo;
+begin
+  Lani.accountName := AName;
+  Lani.accountNumber := 0;
+  Result := FindData(Lani,AAbstractMemPosition);
 end;
 
 { TPCAbstractMemListBlocks }
@@ -1166,15 +1066,18 @@ procedure TPCAbstractMemCheckThread.BCExecute;
     inc(FErrorsCount);
     TLog.NewLog(ltError,ClassName,'CheckConsistency: '+AError);
   end;
-var iBlock, i, iAccName : Integer;
+var iBlock, i : Integer;
   LAccount : TAccount;
   LBlockAccount : TBlockAccount;
+  LHighestOperationBlock : TOperationBlockExt;
   LOrdered : TOrderedList<Integer>;
   LOrderedNames : TOrderedList<String>;
-  LAccountNameInfo : TAccountNameInfo;
   LTC, LTCInitial : TTickCount;
   LAggregatedHashrate, LBlockHashRate : TBigNum;
+  LBuff1,LBuff2 : TRawBytes;
+  Laninfo : TAccountNameInfo;
 begin
+  LBlockAccount := CT_BlockAccount_NUL;
   iBlock :=0;
   LOrdered := TOrderedList<Integer>.Create(False,TComparison_Integer);
   LOrderedNames := TOrderedList<String>.Create(False,TComparison_String);
@@ -1182,6 +1085,7 @@ begin
   Try
     LTC := TPlatform.GetTickCount;
     LTCInitial := LTC;
+    LHighestOperationBlock := FPCAbstractMem.GetBlockInfo(FPCAbstractMem.BlocksCount-1);
     while (iBlock < FPCAbstractMem.BlocksCount) and (Not Terminated) do begin
       if FMustRestart then begin
         TLog.NewLog(ltdebug,ClassName,Format('Restarting check thread after %d/%d blocks',[iBlock+1,FPCAbstractMem.BlocksCount]) );
@@ -1192,6 +1096,7 @@ begin
         LOrdered.Clear;
         LOrderedNames.Clear;
         LAggregatedHashrate.Value := 0;
+        LHighestOperationBlock := FPCAbstractMem.GetBlockInfo(FPCAbstractMem.BlocksCount-1);
       end;
 
       LBlockAccount := FPCAbstractMem.GetBlockAccount(iBlock);
@@ -1202,19 +1107,30 @@ begin
           if LOrderedNames.Add(LAccount.name.ToString)<0 then begin
             _error(Format('Account %d name %s allready added',[LAccount.account,LAccount.name.ToString]));
           end;
-          iAccName := FPCAbstractMem.AccountsNames.IndexOf(LAccount.name.ToString);
-          if iAccName<0 then begin
+          if Not FPCAbstractMem.AccountsNames.FindByName(LAccount.name.ToString,Laninfo) then begin
             // ERROR
             _error(Format('Account %d name %s not found at list',[LAccount.account,LAccount.name.ToString]));
           end else begin
-            if FPCAbstractMem.AccountsNames.Item[iAccName].accountNumber<>LAccount.account then begin
-              _error(Format('Account %d name %s found at list at pos %d but links to %d',[LAccount.account,LAccount.name.ToString,iAccName,FPCAbstractMem.AccountsNames.Item[iAccName].accountNumber]));
+            if Laninfo.accountNumber<>LAccount.account then begin
+              _error(Format('Account %d name %s found at list but links to %d',[LAccount.account,LAccount.name.ToString,Laninfo.accountNumber]));
             end;
             if (LOrdered.Add(LAccount.account)<0) then begin
               _error(Format('Account %d (with name %s) allready added',[LAccount.account,LAccount.name.ToString]));
             end;
           end;
         end;
+        if LAccount.GetLastUpdatedBlock>=FPCAbstractMem.BlocksCount then begin
+          _error(Format('Account Updated %d > %d - %s',[LAccount.GetLastUpdatedBlock,FPCAbstractMem.BlocksCount,TAccountComp.AccountToTxt(LAccount)]));
+        end;
+
+      end;
+      LBuff1 := TPCSafeBox.CalcBlockHash(LBlockAccount,LHighestOperationBlock.operationBlock.protocol_version);
+      If Not (LBuff1.IsEqualTo(LBlockAccount.block_hash)) then begin
+        _error(Format('Blockaccount hash for %d are not equals: calculated %s <> saved %s',[LBlockAccount.blockchainInfo.block,LBuff1.ToHexaString,LBlockAccount.block_hash.ToHexaString]));
+      end;
+      LBuff2 := FPCAbstractMem.FBufferBlocksHash.Capture((iBlock*32),32);
+      if Not LBuff1.IsEqualTo(LBuff2) then begin
+        _error(Format('Blockaccount hash for %d are not equals: %s <> %s',[LBlockAccount.blockchainInfo.block,LBuff1.ToHexaString,LBuff2.ToHexaString]));
       end;
 
       LBlockHashRate := TBigNum.TargetToHashRate( LBlockAccount.blockchainInfo.compact_target );
@@ -1231,12 +1147,21 @@ begin
       inc(iBlock);
     end;
     //
-    for i := 0 to FPCAbstractMem.AccountsNames.Count-1 do begin
-      LAccountNameInfo := FPCAbstractMem.AccountsNames.Item[i];
-      if LOrdered.IndexOf( LAccountNameInfo.accountNumber ) < 0 then begin
-        _error(Format('Account name %s at index %d/%d not found in search',[LAccountNameInfo.accountName, i+1,FPCAbstractMem.AccountsNames.Count]));
-      end;
+    FPCAbstractMem.FBufferBlocksHash.SafeBoxHashCalcType := sbh_Single_Sha256;
+    FPCAbstractMem.FBufferBlocksHash.SafeBoxHashCalcType := sbh_Merkle_Root_Hash;
+    LBuff1 := FPCAbstractMem.FBufferBlocksHash.GetSafeBoxHash;
+    FErrors.Add(Format('Last Block %d - SBH %s - Next SBH: %s',[LBlockAccount.blockchainInfo.block,LBlockAccount.blockchainInfo.initial_safe_box_hash.ToHexaString,LBuff1.ToHexaString]));
+    //
+    i := 0;
+    if FPCAbstractMem.AccountsNames.FindDataLowest(Laninfo) then begin
+      repeat
+        inc(i);
+        if LOrdered.IndexOf(Laninfo.accountNumber ) < 0 then begin
+          _error(Format('Account name %s at index %d/%d not found in search',[Laninfo.accountName, i,FPCAbstractMem.AccountsNames.Count]));
+        end;
+      until Not FPCAbstractMem.AccountsNames.FindDataSuccessor(Laninfo,Laninfo);
     end;
+
     if (LOrdered.Count)<>FPCAbstractMem.AccountsNames.Count then begin
       _error(Format('Found %d accounts with names but %d on list',[LOrdered.Count,FPCAbstractMem.AccountsNames.Count]));
     end;

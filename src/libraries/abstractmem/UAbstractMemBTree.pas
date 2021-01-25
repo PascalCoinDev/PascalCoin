@@ -57,7 +57,9 @@ type
     FInitialZone : TAMZone;
     FrootPosition : TAbstractMemPosition;
     procedure SaveHeader;
-    function GetNodeSize : Integer;
+    Procedure CheckInitialized;
+    procedure LoadNodeHeader(const APosition : TAbstractMemPosition; var ANode : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode; var AChildsCount : Integer; var AChildsPosition : TAbstractMemPosition);
+    procedure SaveNodeHeader(const ANode : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode; const AChildsPosition : TAbstractMemPosition);
   protected
     FAbstractMem : TAbstractMem;
     function GetRoot: TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode; override;
@@ -82,6 +84,7 @@ type
     function GetNode(AIdentify : TAbstractMemPosition) : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode; override;
     class function MinAbstractMemInitialPositionSize : Integer;
     property AbstractMem : TAbstractMem read FAbstractMem;
+    property Count;
   End;
 
   TAbstractMemBTreeData<TData> = Class(TAbstractMemBTree)
@@ -101,6 +104,10 @@ type
     function AddData(const AData: TData) : Boolean;
     function FindData(const AData: TData; var APosition : TAbstractMemPosition) : Boolean;
     function DeleteData(const AData: TData) : Boolean;
+    function FindDataPrecessor(const AData : TData; var APrecessor : TData) : Boolean;
+    function FindDataSuccessor(const AData : TData; var ASuccessor : TData) : Boolean;
+    function FindDataLowest(out ALowest : TData) : Boolean;
+    function FindDataHighest(out AHighest : TData) : Boolean;
   End;
 
 
@@ -109,19 +116,35 @@ implementation
 
 { TAbstractMemBTree<TData> }
 
-constructor TAbstractMemBTree.Create(AAbstractMem : TAbstractMem; const AInitialZone: TAMZone; AAllowDuplicates: Boolean;  AOrder: Integer);
+procedure TAbstractMemBTree.CheckInitialized;
+begin
+  if (FInitialZone.position=0) then raise EAbstractMemBTree.Create(Format('%s initial position not initialized',[ClassName]));
+end;
+
+constructor TAbstractMemBTree.Create(AAbstractMem : TAbstractMem; const AInitialZone: TAMZone; AAllowDuplicates: Boolean; AOrder: Integer);
 var LBuff : TBytes;
  i : Integer;
  LOrder : Integer;
-
 begin
   FAbstractMem := AAbstractMem;
   FrootPosition := 0;
+
   inherited Create(TComparison_Integer,TComparison_Integer,AAllowDuplicates,AOrder);
   FCount := 0;
   //
-  if Not FAbstractMem.GetUsedZoneInfo(AInitialZone.position,False,FInitialZone) then raise EAbstractMemBTree.Create('Cannot capture zone info for initialize');
-  if (FInitialZone.size<MinAbstractMemInitialPositionSize) then raise EAbstractMemBTree.Create(Format('Invalid size %d for initialize',[FInitialZone.size]));
+  if Not FAbstractMem.GetUsedZoneInfo(AInitialZone.position,False,FInitialZone) then begin
+    if FAbstractMem.ReadOnly then begin
+      // Is not initialized and is Read Only
+      FInitialZone.Clear;
+      Exit;
+    end;
+    raise EAbstractMemBTree.Create('Cannot capture zone info for initialize');
+  end else begin
+    if FInitialZone.position=0 then Exit;
+  end;
+  if (FInitialZone.size<MinAbstractMemInitialPositionSize) then begin
+    raise EAbstractMemBTree.Create(Format('Invalid size %d for initialize',[FInitialZone.size]));
+  end;
   SetLength(LBuff,CT_MIN_INITIAL_POSITION_SIZE);
   FAbstractMem.Read(FInitialZone.position,LBuff[0],Length(LBuff));
   try
@@ -134,21 +157,8 @@ begin
     LOrder := 0;
     Move(LBuff[12],LOrder,4);
     if LOrder<>Order then raise EAbstractMemBTree.Create(Format('Invalid Order %d expected %d',[LOrder,Order]));
-    if ( Not ((FrootPosition=0) and (FCount=0))) then raise EAbstractMemBTree.Create(Format('Invalid initial root %d vs count %d',[FrootPosition,FCount]));
+    if (((FrootPosition=0) and (FCount>0))) then raise EAbstractMemBTree.Create(Format('Invalid initial root %d vs count %d',[FrootPosition,FCount]));
   finally
-    if FrootPosition<=0 then begin
-      FrootPosition := 0;
-      FCount := 0;
-      for i := 0 to CT_AbstractMemBTree_Magic.Length-1 do begin
-        LBuff[i] := Byte(Ord(CT_AbstractMemBTree_Magic.Chars[i]));
-      end;
-      Move(FrootPosition,LBuff[4],4);
-      Move(FCount,LBuff[8],4);
-      LOrder := Order;
-      Move(LOrder,LBuff[12],4);
-      FAbstractMem.Write(FInitialZone.position,LBuff[0],16);
-      SaveHeader;
-    end;
   end;
 end;
 
@@ -166,76 +176,47 @@ begin
 end;
 
 procedure TAbstractMemBTree.DisposeNode(var ANode: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode);
+var LOld : TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode;
+  LChildsCount : Integer;
+  LChildsPosition : TAbstractMemPosition;
 begin
+  LoadNodeHeader(ANode.identify,LOld,LChildsCount,LChildsPosition);
   FAbstractMem.Dispose( ANode.identify );
   ClearNode(ANode);
+  Assert(((LChildsCount=0) and (LChildsPosition=0))
+     or ((LChildsCount<>0) and (LChildsPosition<>0)),Format('Invalid Childs count %d and position %d',[LChildsCount,LChildsPosition]));
+  if LChildsCount>0 then begin
+    FAbstractMem.Dispose( LChildsPosition );
+  end;
 end;
 
 function TAbstractMemBTree.GetNode(AIdentify: TAbstractMemPosition): TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode;
 var LBuff : TBytes;
-  LStream : TStream;
-  LByte : Byte;
-  i, LItemsCount, LChildsCount : Integer;
+  i, LChildsCount : Integer;
+  LChildsPosition : TAbstractMemPosition;
 begin
-  // For each node:
-  // Size = (4+2+2)+(4*MaxItemsPerNode)+(4*MaxChildrenPerNode) = GetNodeSize
-  // 4 Bytes [0..3] : Parent
-  // 1 Byte  [4] : Used items (0..32)
-  // 1 Byte  [5] : Used childs (0 (leaf) or Used Items+1)
-  // 2 Bytes [6..7] : 0 (unusued)
-  // For each item:
-  //   4 Bytes : data (AbstractMemPosition or Data using 4 bytes)
-  // For each children:
-  //   4 Bytes : Children AbstractMem position
-  ClearNode(Result);
-  Result.identify := AIdentify;
-  SetLength(LBuff, GetNodeSize );
-  FAbstractMem.Read(AIdentify,LBuff[0],Length(LBuff));
-  LStream := TMemoryStream.Create;
-  try
-    LStream.Write(LBuff[0],Length(LBuff));
-    LStream.Position := 0;
-    //
-    LStream.Read(Result.parent,4); // Read parent position
-    LStream.Read(LByte,1);
-    LItemsCount := LByte;
-    LStream.Read(LByte,1);
-    LChildsCount := LByte;
-    LStream.Read(LByte,1);
-    Assert(LByte=0);
-    LStream.Read(LByte,1);
-    Assert(LByte=0);
-    if ((LItemsCount=0) and (Result.parent=0) and (LChildsCount=0)) then begin
-      // root without data
-    end else begin
-      if (Result.parent=0) then begin
-        if ((LItemsCount<1) or (LItemsCount>MaxItemsPerNode)) then
-          raise EAbstractMemBTree.Create(Format('Root Node items %d not in range [%d..%d]',[LItemsCount,MinItemsPerNode,MaxItemsPerNode]));
-      end else begin
-        if ((LItemsCount<MinItemsPerNode) or (LItemsCount>MaxItemsPerNode)) then
-          raise EAbstractMemBTree.Create(Format('Node items %d not in range [%d..%d]',[LItemsCount,MinItemsPerNode,MaxItemsPerNode]));
-      end;
-      if ((LChildsCount<>0) and (LChildsCount<>(LItemsCount+1))) then
-        raise EAbstractMemBTree.Create(Format('Node childrens %d not %d+1 in range [%d..%d]',[LChildsCount,LItemsCount,MinChildrenPerNode,MaxChildrenPerNode]));
-    end;
-    // Read items
-    SetLength(Result.data,LItemsCount);
+  LoadNodeHeader(AIdentify,Result,LChildsCount,LChildsPosition);
+  if LChildsCount>0 then begin
     SetLength(Result.childs,LChildsCount);
-    for i := 0 to LItemsCount-1 do begin
-      LStream.Read(Result.data[i],4);
-    end;
-    // Read childrens
+    SetLength(LBuff,(LChildsCount*4));
+    FAbstractMem.Read(LChildsPosition,LBuff[0],Length(LBuff));
     for i := 0 to LChildsCount-1 do begin
-      LStream.Read(Result.childs[i],4);
+      Move(LBuff[i*4],Result.childs[i],4);
     end;
-  finally
-    LStream.Free;
   end;
-end;
-
-function TAbstractMemBTree.GetNodeSize: Integer;
-begin
-  Result := 8 + (4 * MaxItemsPerNode) + (4 * MaxChildrenPerNode);
+  if ((Result.Count=0) and (Result.parent=0) and (LChildsCount=0)) then begin
+    // root without data
+  end else begin
+    if (Result.parent=0) then begin
+      if ((Result.Count<1) or (Result.Count>MaxItemsPerNode)) then
+        raise EAbstractMemBTree.Create(Format('Root Node items %d not in range [%d..%d]',[Result.Count,MinItemsPerNode,MaxItemsPerNode]));
+    end else begin
+      if ((Result.Count<MinItemsPerNode) or (Result.Count>MaxItemsPerNode)) then
+        raise EAbstractMemBTree.Create(Format('Node items %d not in range [%d..%d]',[Result.Count,MinItemsPerNode,MaxItemsPerNode]));
+    end;
+    if ((LChildsCount<>0) and (LChildsCount<>(Result.Count+1))) then
+      raise EAbstractMemBTree.Create(Format('Node childrens %d not %d+1 in range [%d..%d]',[LChildsCount,Result.Count,MinChildrenPerNode,MaxChildrenPerNode]));
+  end;
 end;
 
 function TAbstractMemBTree.GetRoot: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode;
@@ -250,6 +231,43 @@ begin
   Result := AIdentify=0;
 end;
 
+procedure TAbstractMemBTree.LoadNodeHeader(
+  const APosition : TAbstractMemPosition; var ANode : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode; var AChildsCount : Integer; var AChildsPosition : TAbstractMemPosition);
+var LBuff : TBytes;
+  i, LItemsCount : Integer;
+begin
+  // Node is stored in zone 2 positions:
+  //
+  // Zone 1: Header
+  //   Size = (4+2+2+4) + (4*MaxItemsPerNode)
+  // 4 Bytes [0..3] : Parent
+  // 1 Byte  [4]    : Used items (0..255)
+  // 1 Byte  [5]    : Used childs (0 (leaf) or Used Items+1)
+  // 2 Bytes [6..7] : 0 (unusued)
+  // 4 Bytes [8..11]: Zone 2 position ( If is a leaf must be 0 )
+  // For each item:
+  //   4 Bytes : data (AbstractMemPosition or Data using 4 bytes)
+  //
+  // Zone 2: OPTIONAL Only if NOT a leaf
+  // For each children:
+  //   4 Bytes : Children AbstractMem position
+  //
+  SetLength(LBuff, 8 + (4 * MaxItemsPerNode) + 4 );
+  FAbstractMem.Read(APosition,LBuff[0],Length(LBuff));
+  ClearNode(ANode);
+  LItemsCount := 0;
+  AChildsCount := 0;
+  ANode.identify := APosition;
+  Move(LBuff[0],ANode.parent,4);
+  Move(LBuff[4],LItemsCount,1);
+  Move(LBuff[5],AChildsCount,1);
+  Move(LBuff[8],AChildsPosition,4);
+  SetLength(ANode.data,LItemsCount);
+  for i := 0 to LItemsCount-1 do begin
+    Move(LBuff[12 + (i*4)], ANode.data[i], 4);
+  end;
+end;
+
 class function TAbstractMemBTree.MinAbstractMemInitialPositionSize: Integer;
 begin
   Result := CT_MIN_INITIAL_POSITION_SIZE;
@@ -257,8 +275,10 @@ end;
 
 function TAbstractMemBTree.NewNode: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode;
 begin
+  CheckInitialized;
   ClearNode(Result);
-  Result.identify := FAbstractMem.New(GetNodeSize).position;
+  Result.identify := FAbstractMem.New( 8 + (4 * MaxItemsPerNode) + 4 ).position;
+  SaveNodeHeader(Result,0);
 end;
 
 procedure TAbstractMemBTree.SaveHeader;
@@ -266,6 +286,7 @@ var LBuff : TBytes;
  i : Integer;
  LOrder : Integer;
 begin
+  CheckInitialized;
   SetLength(LBuff,16);
   for i := 0 to CT_AbstractMemBTree_Magic.Length-1 do begin
     LBuff[i] := Byte(Ord(CT_AbstractMemBTree_Magic.Chars[i]));
@@ -279,40 +300,56 @@ end;
 
 procedure TAbstractMemBTree.SaveNode(var ANode: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode);
 var LBuff : TBytes;
-  LStream : TStream;
-  LByte : Byte;
-  i, LItemsCount, LChildsCount : Integer;
+  i, LChildsCount : Integer;
+  LOld : TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode;
+  LChildsPosition : TAbstractMemPosition;
+  LZone : TAMZone;
 begin
+  CheckInitialized;
   if ((ANode.Count)>MaxItemsPerNode) or (Length(ANode.childs)>MaxChildrenPerNode) then begin
-    // Protection agains saving temporal Node info with extra datas or childs
+    // Protection against saving temporal Node info with extra datas or childs
     Exit;
   end;
-
-  // See GetNode info
-  LStream := TMemoryStream.Create;
-  try
-    LStream.Write(ANode.parent,4);
-    LItemsCount := Length(ANode.data);
-    LStream.Write(LItemsCount,1);
-    LChildsCount := Length(ANode.childs);
-    LStream.Write(LChildsCount,1);
-    LByte := 0;
-    LStream.Write(LByte,1);
-    LStream.Write(LByte,1);
-    for i := 0 to LItemsCount-1 do begin
-      LStream.Write(ANode.data[i],4)
-    end;
-    // Read childrens
-    for i := 0 to LChildsCount-1 do begin
-      LStream.Write(ANode.childs[i],4);
-    end;
-    SetLength(LBuff,LStream.Size);
-    LStream.Position := 0;
-    LStream.Read(LBuff[0],LStream.Size);
-    FAbstractMem.Write(ANode.identify,LBuff[0],Length(LBuff));
-  finally
-    LStream.Free;
+  LoadNodeHeader(ANode.identify,LOld,LChildsCount,LChildsPosition);
+  //
+  if (LChildsCount>0) And (ANode.IsLeaf) then begin
+    // Node wasn't a leaf previously
+    Assert(LChildsPosition<>0,'Old childs position<>0');
+    FAbstractMem.Dispose(LChildsPosition);
+  end else if (LChildsCount=0) And (Not ANode.IsLeaf) then begin
+    // Node was a leaf previously, now not
+    LZone := FAbstractMem.New( MaxChildrenPerNode * 4 );
+    LChildsPosition := LZone.position;
   end;
+  LChildsCount := Length(ANode.childs);
+  //
+  SaveNodeHeader(ANode,LChildsPosition);
+  //
+  SetLength(LBuff, MaxChildrenPerNode * 4 );
+  FillChar(LBuff[0],Length(LBuff),0);
+  for i := 0 to LChildsCount-1 do begin
+    Move(ANode.childs[i],LBuff[i*4],4);
+  end;
+  FAbstractMem.Write(LChildsPosition,LBuff[0],LChildsCount*4);
+end;
+
+procedure TAbstractMemBTree.SaveNodeHeader(
+  const ANode: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode; const AChildsPosition : TAbstractMemPosition);
+var LBuff : TBytes;
+  i, LItemsCount, LChildsCount : Integer;
+begin
+  SetLength(LBuff, 8 + (4 * MaxItemsPerNode) + 4 );
+  FillChar(LBuff[0],Length(LBuff),0);
+  Move(ANode.parent,LBuff[0],4);
+  LItemsCount := ANode.Count;
+  Move(LItemsCount,LBuff[4],1);
+  LChildsCount := Length(ANode.childs);
+  Move(LChildsCount,LBuff[5],1);
+  Move(AChildsPosition,LBuff[8],4);
+  for i := 0 to LItemsCount-1 do begin
+    Move(ANode.data[i], LBuff[12 + (i*4)], 4);
+  end;
+  FAbstractMem.Write(ANode.identify,LBuff[0],Length(LBuff));
 end;
 
 procedure TAbstractMemBTree.SetCount(const ANewCount: Integer);
@@ -329,6 +366,7 @@ end;
 
 procedure TAbstractMemBTree.SetRoot(var Value: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode);
 begin
+  CheckInitialized;
   inherited;
   FrootPosition := Value.identify;
   SaveHeader;
@@ -416,14 +454,78 @@ function TAbstractMemBTreeData<TData>.FindData(const AData: TData;
 var Lnode : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode;
   LiPosNode : Integer;
 begin
-  // NOTE: This is not multithread protected
+  FAbstractBTreeLock.Acquire;
+  try
   FSearchTarget := AData;
+  ClearNode(Lnode);
   if Find(1,Lnode,LiPosNode) then begin
     APosition := Lnode.data[LiPosNode];
     Result := True;
   end else begin
-    APosition := 0;
+    // if Node exists will set APosition of previous value, otherwise will set 0
+    if Lnode.Count>LiPosNode then APosition := Lnode.data[LiPosNode]
+    else if Lnode.Count>0 then APosition := Lnode.data[Lnode.Count-1]
+    else APosition := 0;
     Result := False;
+  end;
+  finally
+    FAbstractBTreeLock.Release;
+  end;
+end;
+
+function TAbstractMemBTreeData<TData>.FindDataHighest(out AHighest: TData): Boolean;
+var Lpos : TAbstractMemPosition;
+begin
+  if FindHighest(Lpos) then begin
+    Result := True;
+    AHighest := LoadData(Lpos);
+  end else Result := False;
+end;
+
+function TAbstractMemBTreeData<TData>.FindDataLowest(out ALowest: TData): Boolean;
+var Lpos : TAbstractMemPosition;
+begin
+  if FindLowest(Lpos) then begin
+    Result := True;
+    ALowest := LoadData(Lpos);
+  end else Result := False;
+end;
+
+function TAbstractMemBTreeData<TData>.FindDataPrecessor(const AData: TData; var APrecessor: TData): Boolean;
+var Lnode : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode;
+  LiPosNode : Integer;
+  Lpos : TAbstractMemPosition;
+begin
+  FAbstractBTreeLock.Acquire;
+  try
+  FSearchTarget := AData;
+  if Find(1,Lnode,LiPosNode) then begin
+    if FindPrecessor(Lnode.data[LiPosNode],Lpos) then begin
+      Result := True;
+      APrecessor := LoadData(Lpos);
+    end else Result := False;
+  end else Result := False;
+  finally
+    FAbstractBTreeLock.Release;
+  end;
+end;
+
+function TAbstractMemBTreeData<TData>.FindDataSuccessor(const AData: TData; var ASuccessor: TData): Boolean;
+var Lnode : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode;
+  LiPosNode : Integer;
+  Lpos : TAbstractMemPosition;
+begin
+  FAbstractBTreeLock.Acquire;
+  try
+  FSearchTarget := AData;
+  if Find(1,Lnode,LiPosNode) then begin
+    if FindSuccessor(Lnode.data[LiPosNode],Lpos) then begin
+      Result := True;
+      ASuccessor := LoadData(Lpos);
+    end else Result := False;
+  end else Result := False;
+  finally
+    FAbstractBTreeLock.Release;
   end;
 end;
 

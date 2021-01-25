@@ -30,7 +30,9 @@ uses
   UPCHardcodedRandomHashTable, UJSONFunctions,
   {$IFDEF USE_ABSTRACTMEM}
   UPCAbstractMem, UPCAbstractMemAccountKeys,
+  {$ELSE}
   {$ENDIF}
+  UPCAccountsOrdenations,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Type
@@ -216,6 +218,7 @@ Type
     FOrderedByName : TOrderedRawList;
     // OrderedAccountKeysList (Added after Build 3.0.1) allows an indexed search of public keys in the safebox with mem optimization
     FOrderedAccountKeysList : TSafeboxPubKeysAndAccounts;
+    FAccountsOrderedByUpdatedBlock : TAccountsOrderedByUpdatedBlock;
     {$ENDIF}
     FModifiedBlocksSeparatedChain : TOrderedBlockAccountList; // Used when has PreviousSafebox (Used if we are on a Separated chain)
     //
@@ -245,6 +248,7 @@ Type
     procedure SearchBlockWhenOnSeparatedChain(blockNumber : Cardinal; out blockAccount : TBlockAccount);
     function GetAggregatedHashrate: TBigNum;
     function GetOrderedAccountKeysList: TSafeboxPubKeysAndAccounts;
+    function GetAccount(AAccountNumber : Integer; var AAccount : TAccount) : Boolean;
   protected
     FTotalFee: Int64;
     Procedure UpdateAccount(account_number : Cardinal; const newAccountInfo: TAccountInfo; const newName : TRawBytes; newType : Word;
@@ -322,6 +326,7 @@ Type
     class Function CopyAbstractMemToSafeBoxStream(ASource : TPCAbstractMem; ADestStream : TStream; AFromBlock, AToBlock : Cardinal; var AErrors : String) : Boolean;
     property PCAbstractMem : TPCAbstractMem read FPCAbstractMem;
     {$ENDIF}
+    Function AccountsOrderedByUpdatedBlock : TAccountsOrderedByUpdatedBlock;
   End;
 
 
@@ -2408,6 +2413,15 @@ begin
   end;
 end;
 
+function TPCSafeBox.AccountsOrderedByUpdatedBlock: TAccountsOrderedByUpdatedBlock;
+begin
+  {$IFDEF USE_ABSTRACTMEM}
+  Result := FPCAbstractMem.AccountsOrderedByUpdatedBlock;
+  {$ELSE}
+  Result := FAccountsOrderedByUpdatedBlock;
+  {$ENDIF}
+end;
+
 function TPCSafeBox.GetBlock(block_number: Cardinal): TBlockAccount;
 begin
   StartThreadSafe;
@@ -2823,6 +2837,7 @@ begin
   FBlockAccountsList := TList<Pointer>.Create;
   FAggregatedHashrate := TBigNum.Create(0);
   FOrderedByName := TOrderedRawList.Create;
+  FAccountsOrderedByUpdatedBlock := TAccountsOrderedByUpdatedBlock.Create(GetAccount);
   {$ENDIF}
   FListOfOrderedAccountKeysList := TList<TOrderedAccountKeysList>.Create;
   FCurrentProtocol := CT_PROTOCOL_1;
@@ -2866,6 +2881,10 @@ begin
   FreeAndNil(FAddedNamesSincePreviousSafebox);
   FreeAndNil(FDeletedNamesSincePreviousSafebox);
   FreeAndNil(FSubChains);
+  {$IFnDEF USE_ABSTRACTMEM}
+  FreeAndNil(FAccountsOrderedByUpdatedBlock);
+  {$ENDIF}
+
   If Assigned(FPreviousSafeBox) then begin
     FPreviousSafeBox.FSubChains.Remove(Self); // Remove from current snapshot
     FPreviousSafeBox := Nil;
@@ -2968,7 +2987,7 @@ procedure TPCSafeBox.CommitToPrevious;
     // Start deleting:
     For i:=0 to DeletedNamesList.Count-1 do begin
       {$IFDEF USE_ABSTRACTMEM}
-      FPreviousSafebox.FPCAbstractMem.AccountsNames.Remove(DeletedNamesList.Get(i).ToString);
+      FPreviousSafebox.FPCAbstractMem.AccountsNames.DeleteAccountName(DeletedNamesList.Get(i).ToString);
       {$ELSE}
       FPreviousSafebox.FOrderedByName.Remove(DeletedNamesList.Get(i));
       {$ENDIF}
@@ -2976,7 +2995,7 @@ procedure TPCSafeBox.CommitToPrevious;
     // Finally adding
     For i:=0 to AddedNamesList.Count-1 do begin
       {$IFDEF USE_ABSTRACTMEM}
-      FPreviousSafebox.FPCAbstractMem.AccountsNames.Add(AddedNamesList.Get(i).ToString,AddedNamesList.GetTag(i));
+      FPreviousSafebox.FPCAbstractMem.AccountsNames.AddNameAndNumber(AddedNamesList.Get(i).ToString,AddedNamesList.GetTag(i));
       {$ELSE}
       FPreviousSafebox.FOrderedByName.Add(AddedNamesList.Get(i),AddedNamesList.GetTag(i));
       {$ENDIF}
@@ -3111,19 +3130,23 @@ procedure TPCSafeBox.RollBackToSnapshot(snapshotBlock: Cardinal);
 
    Procedure UndoAddedDeletedNames(AddedNamesList,DeletedNamesList : TOrderedRawList);
    Var i,j : Integer;
+     {$IFDEF USE_ABSTRACTMEM}
+     Laninfo : TAccountNameInfo;
+     {$ELSE}
+     {$ENDIF}
    Begin
      // Start adding
      For i:=0 to AddedNamesList.Count-1 do begin
        // It was added, so we MUST FIND on current names list
        {$IFDEF USE_ABSTRACTMEM}
-       If Not FPCAbstractMem.AccountsNames.FindByName(AddedNamesList.Get(i).ToString,j) then begin
+       If Not FPCAbstractMem.AccountsNames.FindByName(AddedNamesList.Get(i).ToString,Laninfo) then begin
          // ERROR: It has been added, why we not found???
          If DeletedNamesList.Find(AddedNamesList.Get(i),j) then begin
          end else begin
            TLog.NewLog(lterror,ClassName,Format('ERROR DEV 20180319-1 Name %s not found at account:%d',[AddedNamesList.Get(i).ToPrintable,AddedNamesList.GetTag(i)]));
          end;
        end else begin
-         FPCAbstractMem.AccountsNames.Delete(j);
+         FPCAbstractMem.AccountsNames.DeleteData(Laninfo);
        end;
        {$ELSE}
        If Not FOrderedByName.Find(AddedNamesList.Get(i),j) then begin
@@ -3139,15 +3162,14 @@ procedure TPCSafeBox.RollBackToSnapshot(snapshotBlock: Cardinal);
      For i:=0 to DeletedNamesList.Count-1 do begin
        {$IFDEF USE_ABSTRACTMEM}
        // It has been deleted, we MUST NOT FIND on current names list
-       If FPCAbstractMem.AccountsNames.FindByName(DeletedNamesList.Get(i).ToString,j) then begin
-         // It has been deleted... now is found
-         If (FPCAbstractMem.AccountsNames.Item[j].accountNumber<>DeletedNamesList.GetTag(i)) then begin
+       If FPCAbstractMem.AccountsNames.FindByName(DeletedNamesList.Get(i).ToString,Laninfo) then begin
+         if Laninfo.accountNumber<>DeletedNamesList.GetTag(i) then begin
            // ERROR: It has been deleted, why is found with another account???
-           TLog.NewLog(lterror,ClassName,Format('ERROR DEV 20180319-2 Name %s found at account:%d <> saved account:%d',[DeletedNamesList.Get(i).ToPrintable,DeletedNamesList.GetTag(i),FPCAbstractMem.AccountsNames.Item[j].accountNumber]));
+           TLog.NewLog(lterror,ClassName,Format('ERROR DEV 20180319-2 Name %s found at account:%d <> saved account:%d',[DeletedNamesList.Get(i).ToPrintable,DeletedNamesList.GetTag(i),Laninfo.accountNumber]));
          end;
        end;
        // Add with Info of previous account with name (saved at Tag value)
-       FPCAbstractMem.AccountsNames.Add(DeletedNamesList.Get(i).ToString,DeletedNamesList.GetTag(i));
+       FPCAbstractMem.AccountsNames.AddNameAndNumber(DeletedNamesList.Get(i).ToString,DeletedNamesList.GetTag(i));
        {$ELSE}
        // It has been deleted, we MUST NOT FIND on current names list
        If FOrderedByName.Find(DeletedNamesList.Get(i),j) then begin
@@ -3412,7 +3434,7 @@ begin
       if sbHeader.blocksCount<FPCAbstractMem.BlocksCount then begin
         FPCAbstractMem.EraseData;
       end else begin
-        FPCAbstractMem.AccountsNames.Clear;
+        FPCAbstractMem.AccountsNames.EraseTree;
       end;
       AggregatedHashrate.Value := 0;
       {$ELSE}
@@ -3514,11 +3536,11 @@ begin
               Exit;
             end;
             {$IFDEF USE_ABSTRACTMEM}
-            if FPCAbstractMem.AccountsNames.IndexOf( LBlock.accounts[iacc].name.ToString )>=0 then begin
+            if FPCAbstractMem.AccountsNames.FindByName(LBlock.accounts[iacc].name.ToString ) then begin
               errors := errors + ' Duplicate name "'+LBlock.accounts[iacc].name.ToPrintable+'"';
               Exit;
             end;
-            FPCAbstractMem.AccountsNames.Add(LBlock.accounts[iacc].name.ToString,LBlock.accounts[iacc].account);
+            FPCAbstractMem.AccountsNames.AddNameAndNumber(LBlock.accounts[iacc].name.ToString,LBlock.accounts[iacc].account);
             {$ELSE}
             if FOrderedByName.IndexOf(LBlock.accounts[iacc].name)>=0 then begin
               errors := errors + ' Duplicate name "'+LBlock.accounts[iacc].name.ToPrintable+'"';
@@ -3613,6 +3635,12 @@ begin
         // BufferBlocksHash fill with data
         j := (length(LBlock.block_hash)*(iBlock));
         BufferBlocksHash.Replace( j, LBlock.block_hash[0], 32 );
+        for j := low(LBlock.accounts) to High(LBlock.accounts) do begin
+          FAccountsOrderedByUpdatedBlock.Update(
+            LBlock.accounts[j].account,
+            LBlock.accounts[j].updated_on_block_active_mode,
+            LBlock.accounts[j].updated_on_block_active_mode);
+        end;
         {$ENDIF}
         for j := low(LBlock.accounts) to High(LBlock.accounts) do begin
           AccountKeyListAddAccounts(LBlock.accounts[j].accountInfo.accountKey,[LBlock.accounts[j].account]);
@@ -4536,6 +4564,12 @@ begin
   end;
 end;
 
+function TPCSafeBox.GetAccount(AAccountNumber: Integer; var AAccount: TAccount): Boolean;
+begin
+  AAccount := Account(AAccountNumber);
+  Result := True;
+end;
+
 function TPCSafeBox.GetActualCompactTargetHash(protocolVersion : Word): Cardinal;
 begin
   Result := TPascalCoinProtocol.TargetToCompact(GetActualTargetHash(protocolVersion),protocolVersion);
@@ -4549,10 +4583,13 @@ end;
 function TPCSafeBox.FindAccountByName(const aName: TRawBytes): Integer;
 Var i,j,k : Integer;
   Psnapshot : PSafeboxSnapshot;
+  {$IFDEF USE_ABSTRACTMEM}
+  Laninfo : TAccountNameInfo;
+  {$ENDIF}
 begin
   {$IFDEF USE_ABSTRACTMEM}
-  i := FPCAbstractMem.AccountsNames.IndexOf(aName.ToString);
-  if i>=0 then Result := FPCAbstractMem.AccountsNames.Item[i].accountNumber
+  if FPCAbstractMem.AccountsNames.FindByName(aName.ToString,Laninfo) then
+    Result := Laninfo.accountNumber
   {$ELSE}
   i := FOrderedByName.IndexOf(aName);
   if i>=0 then Result := FOrderedByName.GetTag(i)
@@ -4607,26 +4644,24 @@ end;
 
 function TPCSafeBox.FindAccountsStartingByName(const AStartName: TRawBytes;
   const ARawList: TOrderedRawList; const AMax: Integer = 0): Integer;
-var LIndex : Integer;
+var
   LRaw : TRawBytes;
-  LStartNameString : String;
+  {$IFDEF USE_ABSTRACTMEM}
+  Laninfo : TAccountNameInfo;
+  {$ELSE}
+  LIndex : Integer;
+  {$ENDIF}
 begin
   ARawList.Clear;
   StartThreadSafe;
   try
     {$IFDEF USE_ABSTRACTMEM}
-    if FPCAbstractMem.AccountsNames.FindByName(AStartName.ToString,LIndex) then begin
-      LRaw.FromString(FPCAbstractMem.AccountsNames.Item[LIndex].accountName);
-      ARawList.Add( LRaw, FPCAbstractMem.AccountsNames.Item[LIndex].accountNumber );
-      inc(LIndex);
-    end;
-    LStartNameString := AStartName.ToString;
-    while (LIndex<FPCAbstractMem.AccountsNames.Count) and (FPCAbstractMem.AccountsNames.Item[LIndex].accountName.StartsWith( LStartNameString ) )
-      and ((AMax<=0) or (AMax>ARawList.Count)) // AMax <=0 inifinte results
-      do begin
-      LRaw.FromString( FPCAbstractMem.AccountsNames.Item[LIndex].accountName );
-      ARawList.Add( LRaw, FPCAbstractMem.AccountsNames.Item[LIndex].accountNumber );
-      inc(LIndex);
+    FPCAbstractMem.AccountsNames.FindByName(AStartName.ToString,Laninfo);
+    while (Laninfo.accountName.StartsWith(AStartName.ToString))
+      and ((AMax<=0) or (AMax>ARawList.Count)) do begin
+      LRaw.FromString(Laninfo.accountName);
+      ARawList.Add( LRaw, Laninfo.accountNumber );
+      if not FPCAbstractMem.AccountsNames.FindDataSuccessor(Laninfo,Laninfo) then Break;
     end;
     {$ELSE}
     if FOrderedByName.Find(AStartName,LIndex) then begin
@@ -4703,6 +4738,8 @@ Var iBlock : Cardinal;
   blockAccount : TBlockAccount;
   {$IFnDEF USE_ABSTRACTMEM}
   Pblock : PBlockAccount;
+  {$ELSE}
+  Laninfo : TAccountNameInfo;
   {$ENDIF}
 begin
   iBlock := account_number DIV CT_AccountsPerBlock;
@@ -4716,6 +4753,11 @@ begin
   end else begin
     Pblock := FBlockAccountsList.Items[iBlock];
   end;
+  FAccountsOrderedByUpdatedBlock.Update(
+    account_number,
+    blockAccount.accounts[iAccount].updated_on_block_active_mode,
+    newUpdated_block_active_mode
+   );
   {$ENDIF}
 
   if (NOT TAccountComp.EqualAccountKeys(blockAccount.accounts[iAccount].accountInfo.accountKey,newAccountInfo.accountKey)) then begin
@@ -4746,16 +4788,15 @@ begin
       If Length(blockAccount.accounts[iAccount].name)>0 then begin
 
         {$IFDEF USE_ABSTRACTMEM}
-        i := FPCAbstractMem.AccountsNames.IndexOf(blockAccount.accounts[iAccount].name.ToString);
-        if i<0 then begin
+        if Not FPCAbstractMem.AccountsNames.FindByName(blockAccount.accounts[iAccount].name.ToString,Laninfo) then begin
           If (Not Assigned(FPreviousSafeBox)) then begin
             TLog.NewLog(ltError,ClassName,'ERROR DEV 20170606-1 Name "'+blockAccount.accounts[iAccount].name.ToPrintable+'" not found for delete on account '+IntToStr(account_number));
           end;
         end else begin
-          If (FPCAbstractMem.AccountsNames.Item[i].accountNumber<>account_number) then begin
-            TLog.NewLog(ltError,ClassName,'ERROR DEV 20170606-3 Name "'+blockAccount.accounts[iAccount].name.ToPrintable+'" not found for delete at suposed account '+IntToStr(account_number)+' found at '+IntToStr(FPCAbstractMem.AccountsNames.Item[i].accountNumber)+' '+FPCAbstractMem.AccountsNames.Item[i].accountName);
+          If (Laninfo.accountNumber<>account_number) then begin
+            TLog.NewLog(ltError,ClassName,'ERROR DEV 20170606-3 Name "'+blockAccount.accounts[iAccount].name.ToPrintable+'" not found for delete at suposed account '+IntToStr(account_number)+' found at '+IntToStr(Laninfo.accountNumber)+' '+Laninfo.accountName);
           end;
-          FPCAbstractMem.AccountsNames.Delete(i);
+          FPCAbstractMem.AccountsNames.DeleteData(Laninfo);
         end;
         {$ELSE}
         i := FOrderedByName.IndexOf(blockAccount.accounts[iAccount].name);
@@ -4793,9 +4834,11 @@ begin
       blockAccount.accounts[iAccount].name:=newName;
       If Length(blockAccount.accounts[iAccount].name)>0 then begin
         {$IFDEF USE_ABSTRACTMEM}
-        i := FPCAbstractMem.AccountsNames.IndexOf(blockAccount.accounts[iAccount].name.ToString);
-        if i>=0 then TLog.NewLog(ltError,ClassName,'ERROR DEV 20170606-2 New Name "'+blockAccount.accounts[iAccount].name.ToPrintable+'" for account '+IntToStr(account_number)+' found at account '+IntToStr(FPCAbstractMem.AccountsNames.Item[i].accountNumber));
-        FPCAbstractMem.AccountsNames.Add(blockAccount.accounts[iAccount].name.ToString,account_number);
+        if FPCAbstractMem.AccountsNames.FindByName(blockAccount.accounts[iAccount].name.ToString,Laninfo) then begin
+          TLog.NewLog(ltError,ClassName,'ERROR DEV 20170606-2 New Name "'+blockAccount.accounts[iAccount].name.ToPrintable+'" for account '+IntToStr(account_number)+' found at account '+IntToStr(Laninfo.accountNumber));
+          FPCAbstractMem.AccountsNames.DeleteData(Laninfo);
+        end;
+        FPCAbstractMem.AccountsNames.AddNameAndNumber(blockAccount.accounts[iAccount].name.ToString,account_number);
         {$ELSE}
         i := FOrderedByName.IndexOf(blockAccount.accounts[iAccount].name);
         if i>=0 then TLog.NewLog(ltError,ClassName,'ERROR DEV 20170606-2 New Name "'+blockAccount.accounts[iAccount].name.ToPrintable+'" for account '+IntToStr(account_number)+' found at account '+IntToStr(FOrderedByName.GetTag(i)));

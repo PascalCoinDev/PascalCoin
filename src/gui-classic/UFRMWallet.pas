@@ -1099,7 +1099,9 @@ begin
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Connect/Disconnect';
   mi.OnClick:=Test_ConnectDisconnect;
+  {$IFnDEF FPC}
   mi.ShortCut := TextToShortCut('CTRL+D');
+  {$ENDIF}
   miAbout.Add(mi);
 
   mi := TMenuItem.Create(MainMenu);

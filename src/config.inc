@@ -68,11 +68,11 @@
   {$DEFINE USE_ABSTRACTMEM}
 
   // Activate GNUGETTEXT library
-  {$DEFINE USE_GNUGETTEXT}
+  {.$DEFINE USE_GNUGETTEXT}
   
   // Activate usage of TPCTemporalFileStream instead of TBytes in order to minimize mem usage
   // This also fixes issue #207 High memory usage on FreePascal compiler
-  {$DEFINE USE_BIGBLOCKS_MEM_ON_DISK}
+  {.$DEFINE USE_BIGBLOCKS_MEM_ON_DISK}
 
 { ********************************************************************
   Don't touch more code, it will addapt based on your preferences

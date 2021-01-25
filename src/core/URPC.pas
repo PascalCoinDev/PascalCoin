@@ -155,7 +155,7 @@ implementation
 
 Uses  {$IFNDEF FPC}windows,{$ENDIF}
   SysUtils, Synautil,
-  UPCRPCOpData, UPCRPCFindAccounts, UPCRPCFindBlocks;
+  UPCRPCOpData, UPCRPCFindAccounts, UPCRPCFindBlocks, UPCRPCFileUtils;
 
 Type
   TRegisteredRPCProcessMethod = Record
@@ -3547,6 +3547,7 @@ begin
     GetResultObject.GetAsObject('netstats').GetAsVariant('tservers').Value:=TNetData.NetData.NetStatistics.TotalServersConnections;
     GetResultObject.GetAsObject('netstats').GetAsVariant('breceived').Value:=TNetData.NetData.NetStatistics.BytesReceived;
     GetResultObject.GetAsObject('netstats').GetAsVariant('bsend').Value:=TNetData.NetData.NetStatistics.BytesSend;
+    GetResultObject.GetAsObject('netstats').GetAsVariant('ips').Value:=TNetData.NetData.IpInfos.Count;
     {$IFDEF Use_OpenSSL}
     GetResultObject.GetAsVariant('openssl').Value := IntToHex(OpenSSLVersion,8);
     {$ENDIF}

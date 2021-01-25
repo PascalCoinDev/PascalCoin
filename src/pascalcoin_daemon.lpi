@@ -53,7 +53,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="core;libraries\synapse;libraries\pascalcoin;libraries\generics.collections;libraries\sphere10;libraries\hashlib4pascal;libraries\paszlib;libraries\cryptolib4pascal;libraries\simplebaselib4pascal;libraries\abstractmem;libraries\regex"/>
+      <OtherUnitFiles Value="core;libraries\synapse;libraries\pascalcoin;libraries\sphere10;libraries\hashlib4pascal;libraries\paszlib;libraries\cryptolib4pascal;libraries\simplebaselib4pascal;libraries\abstractmem;libraries\regex"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <CodeGeneration>

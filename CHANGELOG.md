@@ -1,8 +1,10 @@
 # Changelog
 
 ## Build 5.4 - (PENDING RELEASE)
+- CURRENT 5.4.Beta2
 - Added usage of AbstractMem library to allow build a PascalCoin version using virtual memory and efficient caching mechanism
-  - Must activate {$DEFINE USE_ABSTRACTMEM} at config.inc file
+  - Use AbstractMem library v1.2
+  - Must activate {$DEFINE USE_ABSTRACTMEM} at config.inc file (Enabled by default)
 - Changes to `pascalcoin_daemon.ini` file:
   - Added "DATAFOLDER" configuration option at pascalcoin_daemon.ini file (daemon/service) in order to allow customize data folder
   - Added "ABSTRACTMEM_MAX_CACHE_MB" to customize Maximum megabytes in memory as a cache
@@ -15,6 +17,11 @@
     - "start","end","max" : Based on block number and max returns values (max by default=100)
     - "enc_pubkey" or "b58_pubkey" : If provided will return blocks where pubkey equal to provided
     - "payload", "payloadsearchtype" : Same workaround than "name" and "namesearchtype" on "findaccounts" method  
+  - New method "save-safebox-stream" : Will save a Safebox file in Stream format
+    - "filename" : String (optional)
+  - New method "save-safebox-abstractmem" : Will save a Safebox AbstractMem file of actual state
+    - "filename" : String (optional)
+  - New method "abstractmem-stats" : Testing purposes only
 - Fixed bugs:
   - Fixed bugs on "pascalcoin_daemon" (daemon on Linux / Service on Windows) that produced crash on windows and some invalid finalization on Linux
   - Fixed minor bugs
