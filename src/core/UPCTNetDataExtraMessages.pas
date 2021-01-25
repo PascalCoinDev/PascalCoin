@@ -42,7 +42,7 @@ type
     FNode : TNode;
     FNetData : TNetData;
     FWalletKeys : TWalletKeysExt;
-    function DoAskForFreeAccount(ANewPubliKey : TAccountKey) : Integer;
+    function DoAskForFreeAccount(const ANewPubliKey : TAccountKey; const AMessage : String) : Integer;
     {$IFDEF TESTNET}
     procedure DoGiveMeAnAccount(ANetData : TNetData; ASenderConnection : TNetConnection; const AHeaderData : TNetHeaderData; AReceivedData : TStream; AResponseData : TStream);
     procedure DoGiveMeMoney(ANetData : TNetData; ASenderConnection : TNetConnection; const AHeaderData : TNetHeaderData; AReceivedData : TStream; AResponseData : TStream);
@@ -54,7 +54,7 @@ type
     class function InitNetDataExtraMessages(ANode : TNode; ANetData : TNetData; AWalletKeys : TWalletKeysExt) : TPCTNetDataExtraMessages;
     constructor Create(ANode : TNode; ANetData : TNetData; AWalletKeys : TWalletKeysExt);
     destructor Destroy; override;
-    class function AskForFreeAccount(ANewPubliKey : TAccountKey) : Integer;
+    class function AskForFreeAccount(const ANewPubliKey : TAccountKey; const AMessage : String): Integer;
   End;
 
 const
@@ -69,10 +69,10 @@ var _PCTNetDataExtraMessages : TPCTNetDataExtraMessages = Nil;
 
 { TPCTNetDataExtraMessages }
 
-class function TPCTNetDataExtraMessages.AskForFreeAccount(ANewPubliKey : TAccountKey): Integer;
+class function TPCTNetDataExtraMessages.AskForFreeAccount(const ANewPubliKey : TAccountKey; const AMessage : String): Integer;
 begin
   if Assigned(_PCTNetDataExtraMessages) then begin
-    Result := _PCTNetDataExtraMessages.DoAskForFreeAccount(ANewPubliKey);
+    Result := _PCTNetDataExtraMessages.DoAskForFreeAccount(ANewPubliKey,AMessage);
   end else Result := 0;
 end;
 
@@ -98,15 +98,18 @@ begin
   inherited;
 end;
 
-function TPCTNetDataExtraMessages.DoAskForFreeAccount(ANewPubliKey : TAccountKey): Integer;
+function TPCTNetDataExtraMessages.DoAskForFreeAccount(const ANewPubliKey : TAccountKey; const AMessage : String): Integer;
 var i : Integer;
   LNetConnection : TNetConnection;
   LRequestStream : TMemoryStream;
+  Lraw : TRawBytes;
 begin
   Result := 0;
   LRequestStream := TMemoryStream.Create;
   try
     TStreamOp.WriteAccountKey(LRequestStream,ANewPubliKey);
+    Lraw.FromString(AMessage);
+    TStreamOp.WriteAnsiString(LRequestStream,Lraw);
     LRequestStream.position := 0;
     for i := 0 to FNetData.ConnectionsCountAll-1 do begin
       LNetConnection := FNetData.Connection(i);
@@ -135,7 +138,7 @@ var LSenderPublicKey : TAccountKey;
   LAccount : TAccount;
   LOpChangeKey : TOpChangeKey;
   LPayload : TOperationPayload;
-  LErrors : String;
+  LErrors, LSenderMessage : String;
   LWord : Word;
 begin
   if Not (AHeaderData.header_type in [ntp_request,ntp_autosend]) then Exit; // Nothing to do
@@ -144,6 +147,8 @@ begin
     TArray<TLimitLifetime>.Create(TLimitLifetime.Create(300,2,20000))) then Exit;
   // Read info
   if TStreamOp.ReadAccountKey(AReceivedData,LSenderPublicKey)<=0 then Exit;
+  if TStreamOp.ReadString(AReceivedData,LSenderMessage)<0 then Exit;
+
   if Not RandomGetWalletKeysAccount(FNode.Bank.SafeBox,FWalletKeys,0,10000,LIndexKey,LAccount) then Exit;
   // Send
   LPayload := CT_TOperationPayload_NUL;

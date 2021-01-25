@@ -420,7 +420,6 @@ Type
     Procedure DoProcess_GetPendingOperations;
     Procedure SetClient(Const Value : TNetTcpIpClient);
     Function ReadTcpClientBuffer(MaxWaitMiliseconds : Cardinal; var HeaderData : TNetHeaderData; BufferData : TStream) : Boolean;
-    Procedure DisconnectInvalidClient(ItsMyself : Boolean; Const why : String);
     function GetClient: TNetTcpIpClient;
   protected
     Procedure Send(NetTranferType : TNetTransferType; operation, errorcode : Word; request_id : Integer; DataBuffer : TStream);
@@ -434,6 +433,7 @@ Type
     Function ConnectTo(ServerIP: String; ServerPort:Word) : Boolean;
     Property Connected : Boolean read GetConnected write SetConnected;
     Property IsConnecting : Boolean read FIsConnecting;
+    Procedure DisconnectInvalidClient(ItsMyself : Boolean; Const why : String);
     Function Send_Hello(NetTranferType : TNetTransferType; request_id : Integer) : Boolean;
     Function Send_NewBlockFound(Const NewBlock : TPCOperationsComp) : Boolean;
     Function Send_GetBlocks(StartAddress, quantity : Cardinal; var request_id : Cardinal) : Boolean;

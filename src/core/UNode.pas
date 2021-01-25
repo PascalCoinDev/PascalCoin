@@ -119,6 +119,9 @@ Type
     function TryLockNode(MaxWaitMilliseconds : Cardinal) : Boolean;
     procedure UnlockNode;
     //
+    function GetAccountsAvailableByPublicKey(const APubKeys : TList<TAccountKey>; out AOnSafebox, AOnMempool : Integer) : Integer; overload;
+    function GetAccountsAvailableByPublicKey(const APubKey : TAccountKey; out AOnSafebox, AOnMempool : Integer) : Integer; overload;
+    //
     Property BroadcastData : Boolean read FBroadcastData write FBroadcastData;
     Property UpdateBlockchain : Boolean read FUpdateBlockchain write FUpdateBlockchain;
     procedure MarkVerifiedECDSASignaturesFromMemPool(newOperationsToValidate : TPCOperationsComp);
@@ -205,7 +208,8 @@ Type
 
 implementation
 
-Uses UOpTransaction, UConst, UTime, UCommon, UPCOperationsSignatureValidator, UFolderHelper;
+Uses UOpTransaction, UConst, UTime, UCommon, UPCOperationsSignatureValidator,
+  UFolderHelper;
 
 var _Node : TNode;
   _PascalCoinDataFolder : String;
@@ -1283,6 +1287,63 @@ begin
   finally
     UnlockMempoolRead;
   end;
+end;
+
+function TNode.GetAccountsAvailableByPublicKey(const APubKey: TAccountKey;
+  out AOnSafebox, AOnMempool: Integer): Integer;
+var LPubKeys: TList<TAccountKey>;
+begin
+  LPubKeys := TList<TAccountKey>.Create;
+  Try
+    LPubKeys.Add(APubKey);
+    Result := GetAccountsAvailableByPublicKey(LPubKeys,AOnSafebox,AOnMempool);
+  Finally
+    LPubKeys.Free;
+  End;
+end;
+
+function TNode.GetAccountsAvailableByPublicKey(
+  const APubKeys: TList<TAccountKey>; out AOnSafebox,
+  AOnMempool: Integer): Integer;
+var Lmempool : TPCOperationsComp;
+  i,j,k : Integer;
+  Lop : TPCOperation;
+  LopResume : TOperationResume;
+  Lpubkeys : TSafeboxPubKeysAndAccounts;
+  Laccounts : TAccountsNumbersList;
+begin
+  AOnMempool := 0;
+  AOnSafebox := 0;
+  // Check safebox
+  Lpubkeys := Bank.SafeBox.OrderedAccountKeysList;
+  if Assigned(Lpubkeys) then begin
+    for i := 0 to APubKeys.Count-1 do begin
+      Laccounts := Lpubkeys.GetAccountsUsingThisKey(APubKeys[i]);
+      if Assigned(Laccounts) then begin
+        Inc(AOnSafebox,Laccounts.Count);
+      end;
+    end;
+  end else AOnSafebox := -1;
+  for i := 0 to APubKeys.Count-1 do begin
+    // Check mempool
+    Lmempool := LockMempoolRead;
+    try
+      for j := 0 to Lmempool.Count-1 do begin
+        Lop := Lmempool.Operation[j];
+        Lop.OperationToOperationResume(Bank.BlocksCount,Lop,True,Lop.SignerAccount,LopResume);
+        for k:=0 to Length(LopResume.Changers)-1 do begin
+          if (public_key in LopResume.Changers[k].Changes_type) and (LopResume.Changers[k].New_Accountkey.IsEqualTo(APubKeys[i])) then begin
+            // New account is on the mempool!
+            inc(AOnMempool);
+          end;
+        end;
+      end;
+    finally
+      UnlockMempoolRead;
+    end;
+  end;
+  if AOnSafebox>=0 then Result := (AOnMempool + AOnsafebox)
+  else Result := AOnMempool;
 end;
 
 function TNode.GetMempoolAccount(AAccountNumber : Cardinal): TAccount;
