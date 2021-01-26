@@ -72,6 +72,7 @@ Type
     class Function HexaStringToOperationsHashTree(Const AHexaStringOperationsHashTree : String; ACurrentProtocol : Word; out AOperationsHashTree : TOperationsHashTree; var AErrors : String) : Boolean;
     class Function CapturePubKey(const AInputParams : TPCJSONObject; const APrefix : String; var APubKey : TAccountKey; var AErrortxt : String) : Boolean;
     class function CheckAndGetEncodedRAWPayload(Const ARawPayload : TRawBytes; Const APayload_method, AEncodePwdForAES : String; const ASenderAccounKey, ATargetAccountKey : TAccountKey; out AOperationPayload : TOperationPayload; Var AErrorNum : Integer; Var AErrorDesc : String) : Boolean;
+    class Function CaptureAccountNumber(const AInputParams : TPCJSONObject; const AParamName : String; const ABank : TPCBank; var AAccountNumber : Cardinal; var AErrorParam : String) : Boolean;
   end;
 
   TRPCServerThread = Class;
@@ -155,6 +156,7 @@ implementation
 
 Uses  {$IFNDEF FPC}windows,{$ENDIF}
   SysUtils, Synautil,
+  UPCRPCSend,
   UPCRPCOpData, UPCRPCFindAccounts, UPCRPCFindBlocks, UPCRPCFileUtils;
 
 Type
@@ -342,6 +344,28 @@ Begin
     if (OPR.Block<CT_Protocol_Upgrade_v2_MinBlock) then begin
       jsonObject.GetAsVariant('old_ophash').Value := TCrypto.ToHexaString(OPR.OperationHash_OLD);
     end;
+  end;
+end;
+
+class function TPascalCoinJSONComp.CaptureAccountNumber(const AInputParams : TPCJSONObject;
+  const AParamName: String; const ABank : TPCBank; var AAccountNumber: Cardinal;
+  var AErrorParam: String): Boolean;
+var LParamValue : String;
+Begin
+  LParamValue := AInputParams.AsString(AParamName,'');
+  if Length(LParamValue)>0 then begin
+    Result := TAccountComp.AccountTxtNumberToAccountNumber(LParamValue,AAccountNumber);
+    if Not Result then begin
+      AErrorParam := Format('"%s" is no valid Account number for Param "%s"',[LParamValue,AParamName]);
+    end else if Assigned(ABank) then begin
+      if (AAccountNumber<0) or (AAccountNumber>=ABank.AccountsCount) then begin
+        Result := False;
+        AErrorParam := Format('Account %d does not exist in safebox (param "%s")',[AAccountNumber,AParamName]);
+      end;
+    end;
+  end else begin
+    Result := False;
+    AErrorParam := Format('Param "%s" not provided or null',[AParamName]);
   end;
 end;
 
@@ -1175,97 +1199,8 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
   Function CaptureAccountNumber(const AParamName : String; const ACheckAccountNumberExistsInSafebox : Boolean; var AAccountNumber : Cardinal; var AErrorParam : String) : Boolean;
   var LParamValue : String;
   Begin
-    LParamValue := params.AsString(AParamName,'');
-    if Length(LParamValue)>0 then begin
-      Result := TAccountComp.AccountTxtNumberToAccountNumber(LParamValue,AAccountNumber);
-      if Not Result then begin
-        AErrorParam := Format('"%s" is no valid Account number for Param "%s"',[LParamValue,AParamName]);
-      end else if (ACheckAccountNumberExistsInSafebox) then begin
-        if (AAccountNumber<0) or (AAccountNumber>=FNode.Bank.AccountsCount) then begin
-          Result := False;
-          AErrorParam := Format('Account %d does not exist in safebox (param "%s")',[AAccountNumber,AParamName]);
-        end;
-      end;
-    end else begin
-      Result := False;
-      AErrorParam := Format('Param "%s" not provided or null',[AParamName]);
-    end;
+    Result := TPascalCoinJSONComp.CaptureAccountNumber(params,AParamName,FNode.Bank,AAccountNumber,AErrorParam);
   End;
-
-  Function OpSendTo(sender, target : Cardinal; amount, fee : UInt64; Const RawPayload : TRawBytes; Const Payload_method, EncodePwd : String) : Boolean;
-  // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
-  Var opt : TOpTransaction;
-    sacc,tacc : TAccount;
-    errors : String;
-    opr : TOperationResume;
-  begin
-    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent sends
-    try
-      Result := false;
-      if (sender<0) or (sender>=FNode.Bank.AccountsCount) then begin
-        If (sender=CT_MaxAccount) then ErrorDesc := 'Need sender'
-        else ErrorDesc:='Invalid sender account '+Inttostr(sender);
-        ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
-        Exit;
-      end;
-      if (target<0) or (target>=FNode.Bank.AccountsCount) then begin
-        If (target=CT_MaxAccount) then ErrorDesc := 'Need target'
-        else ErrorDesc:='Invalid target account '+Inttostr(target);
-        ErrorNum:=CT_RPC_ErrNum_InvalidAccount;
-        Exit;
-      end;
-      sacc := FNode.GetMempoolAccount(sender);
-      tacc := FNode.GetMempoolAccount(target);
-
-      opt := CreateOperationTransaction(FNode.Bank.SafeBox.CurrentProtocol,sender,target,sacc.n_operation,amount,fee,sacc.accountInfo.accountKey,tacc.accountInfo.accountKey,RawPayload,Payload_method,EncodePwd);
-      if opt=nil then exit;
-      try
-        If not FNode.AddOperation(Nil,opt,errors) then begin
-          ErrorDesc := 'Error adding operation: '+errors;
-          ErrorNum := CT_RPC_ErrNum_InvalidOperation;
-          Exit;
-        end;
-        TPCOperation.OperationToOperationResume(0,opt,False,sender,opr);
-        FillOperationResumeToJSONObject(opr,GetResultObject);
-        Result := true;
-      finally
-        opt.free;
-      end;
-    finally
-      FNode.OperationSequenceLock.Release;
-    end;
-  end;
-
-  Function SignOpSendTo(Const HexaStringOperationsHashTree : String; current_protocol : Word;
-    sender, target : Cardinal;
-    Const senderAccounKey, targetAccountKey : TAccountKey;
-    last_sender_n_operation : Cardinal;
-    amount, fee : UInt64; Const RawPayload : TRawBytes; Const Payload_method, EncodePwd : String) : Boolean;
-  // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
-  var OperationsHashTree : TOperationsHashTree;
-    errors : String;
-    opt : TOpTransaction;
-  begin
-    Result := false;
-    if Not TPascalCoinJSONComp.HexaStringToOperationsHashTree(HexaStringOperationsHashTree,current_protocol,OperationsHashTree,errors) then begin
-      ErrorNum:=CT_RPC_ErrNum_InvalidData;
-      ErrorDesc:= 'Error decoding param "rawoperations": '+errors;
-      Exit;
-    end;
-    Try
-      opt := CreateOperationTransaction(current_protocol, sender,target,last_sender_n_operation,amount,fee,senderAccounKey,targetAccountKey,RawPayload,Payload_method,EncodePwd);
-      if opt=nil then exit;
-      try
-        OperationsHashTree.AddOperationToHashTree(opt);
-        TPascalCoinJSONComp.FillOperationsHashTreeObject(OperationsHashTree,GetResultObject);
-        Result := true;
-      finally
-        opt.Free;
-      end;
-    Finally
-      OperationsHashTree.Free;
-    End;
-  end;
 
   // This function creates a TOpChangeKey without looking for private key of account
   // It assumes that account_signer,account_last_n_operation, account_target and account_pubkey are correct
@@ -3227,81 +3162,6 @@ begin
     // Search for all operations signed by "account" and n_operation value between "n_operation_min" and "n_operation_max", start searching at "block" (0=all)
     // "block" = 0 search in all blocks, pending operations included
     Result := findNOperations;
-  end else if (method='sendto') then begin
-    // Sends "amount" coins from "sender" to "target" with "fee"
-    // If "payload" is present, it will be encoded using "payload_method"
-    // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
-    // Returns a JSON "Operation Resume format" object when successfull
-    // Note: "ophash" will contain block "0" = "pending block"
-    if (Not _RPCServer.AllowUsePrivateKeys) then begin
-      // Protection when server is locked to avoid private keys call
-      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
-      Exit;
-    end;
-    If Not _RPCServer.WalletKeys.IsValidPassword then begin
-      ErrorNum := CT_RPC_ErrNum_WalletPasswordProtected;
-      ErrorDesc := 'Wallet is password protected. Unlock first';
-      exit;
-    end;
-    if Not CaptureAccountNumber('sender',True,c2,ErrorDesc) then begin
-      ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      Exit;
-    end;
-    if Not CaptureAccountNumber('target',True,c3,ErrorDesc) then begin
-      ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      Exit;
-    end;
-    Result := OpSendTo(c2,c3,
-       ToPascalCoins(params.AsDouble('amount',0)),
-       ToPascalCoins(params.AsDouble('fee',0)),
-       TCrypto.HexaToRaw(params.AsString('payload','')),
-       params.AsString('payload_method','dest'),params.AsString('pwd',''));
-  end else if (method='signsendto') then begin
-    // Create a Transaction operation and adds it into a "rawoperations" (that can include
-    // previous operations). This RPC method is usefull ffor cold storage, because doesn't
-    // need to check or verify accounts status/public key, assuming that passed values
-    // are ok.
-    // Signs a transaction of "amount" coins from "sender" to "target" with "fee", using "sender_enc_pubkey" or "sender_b58_pubkey"
-    // and "last_n_operation" of sender. Also, needs "target_enc_pubkey" or "target_b58_pubkey"
-    // If "payload" is present, it will be encoded using "payload_method"
-    // "payload_method" types: "none","dest"(default),"sender","aes"(must provide "pwd" param)
-    // Returns a JSON "Operations info" containing old "rawoperations" plus new Transaction
-    if (Not _RPCServer.AllowUsePrivateKeys) then begin
-      // Protection when server is locked to avoid private keys call
-      ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
-      Exit;
-    end;
-    If Not _RPCServer.WalletKeys.IsValidPassword then begin
-      ErrorNum := CT_RPC_ErrNum_WalletPasswordProtected;
-      ErrorDesc := 'Wallet is password protected. Unlock first';
-      exit;
-    end;
-    if Not CaptureAccountNumber('sender',False,c2,ErrorDesc) then begin
-      ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      Exit;
-    end;
-    if Not CaptureAccountNumber('target',False,c3,ErrorDesc) then begin
-      ErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      Exit;
-    end;
-    If Not CapturePubKey('sender_',senderpubkey,ErrorDesc) then begin
-      ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
-      exit;
-    end;
-    If Not CapturePubKey('target_',destpubkey,ErrorDesc) then begin
-      ErrorNum := CT_RPC_ErrNum_InvalidPubKey;
-      exit;
-    end;
-    Result := SignOpSendTo(
-       params.AsString('rawoperations',''),
-       params.AsCardinal('protocol',CT_BUILD_PROTOCOL),
-       c2,c3,
-       senderpubkey,destpubkey,
-       params.AsCardinal('last_n_operation',0),
-       ToPascalCoins(params.AsDouble('amount',0)),
-       ToPascalCoins(params.AsDouble('fee',0)),
-       TCrypto.HexaToRaw(params.AsString('payload','')),
-       params.AsString('payload_method','dest'),params.AsString('pwd',''));
   end else if (method='changekey') then begin
     // Change key of "account" to "new_enc_pubkey" or "new_b58_pubkey" (encoded public key format) with "fee"
     // If "payload" is present, it will be encoded using "payload_method"
