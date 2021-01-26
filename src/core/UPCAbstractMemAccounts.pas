@@ -22,13 +22,16 @@ type
   private
     FAccountKeys: TPCAbstractMemAccountKeys;
     FAccountsOrderedByUpdatedBlock : TAccountsOrderedByUpdatedBlock;
+    FAccountsOrderedBySalePrice : TAccountsOrderedBySalePrice;
   protected
     procedure LoadFrom(const ABytes: TBytes; var AItem: TAccount); override;
     procedure SaveTo(const AItem: TAccount; AIsAddingItem : Boolean; var ABytes: TBytes); override;
   public
+    Constructor Create(AAbstractMem : TAbstractMem; const AInitialZone : TAMZone; ADefaultElementsPerBlock : Integer; AUseCache : Boolean); override;
     class procedure LoadAccountFromTBytes(const ABytes: TBytes; const AAccountKeys : TPCAbstractMemAccountKeys; var AItem: TAccount);
     property AccountKeys: TPCAbstractMemAccountKeys read FAccountKeys write FAccountKeys;
     property AccountsOrderedByUpdatedBlock: TAccountsOrderedByUpdatedBlock read FAccountsOrderedByUpdatedBlock write FAccountsOrderedByUpdatedBlock;
+    property AccountsOrderedBySalePrice: TAccountsOrderedBySalePrice read FAccountsOrderedBySalePrice write FAccountsOrderedBySalePrice;
   end;
 
   EAbsctractMemAccounts = Class(Exception);
@@ -38,6 +41,16 @@ implementation
 uses UAccounts;
 
 { TPCAbstractMemListAccounts }
+
+constructor TPCAbstractMemListAccounts.Create(AAbstractMem: TAbstractMem;
+  const AInitialZone: TAMZone; ADefaultElementsPerBlock: Integer;
+  AUseCache: Boolean);
+begin
+  inherited;
+  FAccountKeys := Nil;
+  FAccountsOrderedByUpdatedBlock := Nil;
+  FAccountsOrderedBySalePrice := Nil;
+end;
 
 class procedure TPCAbstractMemListAccounts.LoadAccountFromTBytes(
   const ABytes: TBytes; const AAccountKeys: TPCAbstractMemAccountKeys;
@@ -136,9 +149,10 @@ begin
     if LPrevious.updated_on_block_active_mode<>AItem.updated_on_block_active_mode then begin
       FAccountsOrderedByUpdatedBlock.Update(AItem.account,LPrevious.updated_on_block_active_mode,AItem.updated_on_block_active_mode);
     end;
-
+    FAccountsOrderedBySalePrice.UpdateAccountBySalePrice(AItem.account,LPrevious.accountInfo,AItem.accountInfo);
   end else begin
-    FAccountsOrderedByUpdatedBlock.Update(AItem.account,LPrevious.updated_on_block_active_mode,AItem.updated_on_block_active_mode);
+    FAccountsOrderedByUpdatedBlock.Update(AItem.account,0,AItem.updated_on_block_active_mode);
+    FAccountsOrderedBySalePrice.UpdateAccountBySalePrice(AItem.account,CT_AccountInfo_NUL,AItem.accountInfo);
   end;
 
   LStream := TMemoryStream.Create;

@@ -121,6 +121,7 @@ type
     FSavingOldGridCache : Boolean;
     FSavingOldDefaultCacheDataBlocksSize : Integer;
     FAccountsOrderedByUpdatedBlock : TAccountsOrderedByUpdatedBlock;
+    FAccountsOrderedBySalePrice : TAccountsOrderedBySalePrice;
 
     function IsChecking : Boolean;
     procedure DoCheck;
@@ -180,6 +181,7 @@ type
     Property MaxAccountKeysCache : Integer read GetMaxAccountKeysCache write SetMaxAccountKeysCache;
     Property SavingNewSafeboxMode : Boolean read FSavingNewSafeboxMode write SetSavingNewSafeboxMode;
     Property AccountsOrderedByUpdatedBlock : TAccountsOrderedByUpdatedBlock read FAccountsOrderedByUpdatedBlock;
+    Property AccountsOrderedBySalePrice : TAccountsOrderedBySalePrice read FAccountsOrderedBySalePrice;
   end;
 
 implementation
@@ -188,7 +190,7 @@ uses UAccounts;
 
 const
   CT_PCAbstractMem_FileVersion = 100;
-  CT_PCAbstractMem_HeaderVersion = 2;
+  CT_PCAbstractMem_HeaderVersion = 3;
 
 function _AccountCache_Comparision(const Left, Right: TAccountCache.PAVLCacheMemData): Integer;
 begin
@@ -313,6 +315,7 @@ const
   [32..35] 4 bytes: FZoneAggregatedHashrate.position
   [36..39] 4 bytes: LZoneBuffersBlockHash
   [40..43] 4 bytes: LZoneAccountsOrderedByUpdatedBlock.position
+  [44..47] 4 bytes: LZoneAccountsOrderedBySalePrice.position
   ...
   [96..99] 4 bytes: Header version
   }
@@ -321,7 +324,8 @@ var LZone,
   LZoneAccounts,
   LZoneAccountsNames,
   LZoneAccountKeys,
-  LZoneAccountsOrderedByUpdatedBlock : TAMZone;
+  LZoneAccountsOrderedByUpdatedBlock,
+  LZoneAccountsOrderedBySalePrice : TAMZone;
   LZoneBuffersBlockHash : TAbstractMemPosition;
   LHeader, LBuffer, LBigNum : TBytes;
   LIsGood : Boolean;
@@ -336,6 +340,7 @@ begin
   FreeAndNil(FAccountKeys);
   FreeAndNil(FBufferBlocksHash);
   FreeAndNil(FAccountsOrderedByUpdatedBlock);
+  FreeAndNil(FAccountsOrderedBySalePrice);
   //
   Result := False;
   AIsNewStructure := True;
@@ -347,6 +352,7 @@ begin
   FZoneAggregatedHashrate.Clear;
   LZoneBuffersBlockHash := 0;
   LZoneAccountsOrderedByUpdatedBlock.Clear;
+  LZoneAccountsOrderedBySalePrice.Clear;
 
   if (FAbstractMem.ReadFirstData(LZone,LHeader)) then begin
     // Check if header is valid:
@@ -370,6 +376,7 @@ begin
         Move(LHeader[32], FZoneAggregatedHashrate.position, 4);
         LZoneBuffersBlockHash := LZone.position + 36;
         Move(LHeader[40], LZoneAccountsOrderedByUpdatedBlock.position, 4);
+        Move(LHeader[44], LZoneAccountsOrderedBySalePrice.position, 4);
         //
         Move(LHeader[96], LHeaderVersion, 4);
         if (LHeaderVersion>CT_PCAbstractMem_HeaderVersion) then begin
@@ -377,10 +384,15 @@ begin
         end else begin
           AIsNewStructure := False;
           //
-          if (LZoneAccountsOrderedByUpdatedBlock.position=0) then begin
-            if (Not FAbstractMem.ReadOnly) then begin
+          if (Not FAbstractMem.ReadOnly) then begin
+            if (LZoneAccountsOrderedByUpdatedBlock.position=0) then begin
               LZoneAccountsOrderedByUpdatedBlock := FAbstractMem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize);
               Move(LZoneAccountsOrderedByUpdatedBlock.position,LHeader[40],4);
+              FAbstractMem.Write(LZone.position,LHeader[0],Length(LHeader));
+            end;
+            if (LZoneAccountsOrderedBySalePrice.position=0) then begin
+              LZoneAccountsOrderedBySalePrice := FAbstractMem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize);
+              Move(LZoneAccountsOrderedBySalePrice.position,LHeader[44],4);
               FAbstractMem.Write(LZone.position,LHeader[0],Length(LHeader));
             end;
           end;
@@ -407,6 +419,8 @@ begin
     LZoneBuffersBlockHash := LZone.position+36;
     LZoneAccountsOrderedByUpdatedBlock := FAbstractMem.New(
       TAbstractMemBTree.MinAbstractMemInitialPositionSize);
+    LZoneAccountsOrderedBySalePrice := FAbstractMem.New(
+      TAbstractMemBTree.MinAbstractMemInitialPositionSize);
 
     Move(LZoneBlocks.position,       LHeader[16],4);
     Move(LZoneAccounts.position,     LHeader[20],4);
@@ -415,6 +429,7 @@ begin
     Move(FZoneAggregatedHashrate.position,LHeader[32],4);
     LHeaderVersion := CT_PCAbstractMem_HeaderVersion;
     Move(LZoneAccountsOrderedByUpdatedBlock, LHeader[40],4);
+    Move(LZoneAccountsOrderedBySalePrice, LHeader[44],4);
     Move(LHeaderVersion,             LHeader[96],4);
 
     FAbstractMem.Write(LZone.position,LHeader[0],Length(LHeader));
@@ -442,10 +457,11 @@ begin
   end;
   FBufferBlocksHash := TPCAbstractMemBytesBuffer32Safebox.Create(FAbstractMem,LZoneBuffersBlockHash,FBlocks.Count);
 
-  if (LZoneAccountsOrderedByUpdatedBlock.position<>0) then begin
-    FAccountsOrderedByUpdatedBlock := TAccountsOrderedByUpdatedBlock.Create(FAbstractMem,LZoneAccountsOrderedByUpdatedBlock,DoGetAccount);
-  end;
+  FAccountsOrderedByUpdatedBlock := TAccountsOrderedByUpdatedBlock.Create(FAbstractMem,LZoneAccountsOrderedByUpdatedBlock,DoGetAccount);
   FAccounts.AccountsOrderedByUpdatedBlock := FAccountsOrderedByUpdatedBlock;
+
+  FAccountsOrderedBySalePrice := TAccountsOrderedBySalePrice.Create(FAbstractMem,LZoneAccountsOrderedBySalePrice,DoGetAccount);
+  FAccounts.AccountsOrderedBySalePrice := FAccountsOrderedBySalePrice;
 
   FAccountCache.Clear;
 
@@ -792,9 +808,18 @@ procedure TPCAbstractMem.UpgradeAbstractMemVersion(const ACurrentHeaderVersion: 
 var LFirstTC, LTC : TTickCount;
   i : integer;
   LAccount : TAccount;
+  LaccInfoNul : TAccountInfo;
 begin
   LFirstTC := TPlatform.GetTickCount;
   LTC := LFirstTC;
+  if (ACurrentHeaderVersion=2) then begin
+    // Set accounts price
+    LaccInfoNul.Clear;
+    for i := 0 to AccountsCount-1 do begin
+      LAccount := GetAccount(i);
+      AccountsOrderedBySalePrice.UpdateAccountBySalePrice(LAccount.account,LaccInfoNul,LAccount.accountInfo);
+    end;
+  end;
   TLog.NewLog(ltinfo,ClassName,Format('Finalized upgrade AbstractMem file from %d to %d in %.2f seconds',[ACurrentHeaderVersion,CT_PCAbstractMem_HeaderVersion, TPlatform.GetElapsedMilliseconds(LFirstTC)/1000]));
 end;
 
