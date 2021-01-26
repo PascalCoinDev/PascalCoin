@@ -62,9 +62,21 @@ type
     function Update(const AAccountNumber, AOldUpdatedBlock, ANewUpdatedBlock : Integer) : Boolean;
   End;
 
+  TAccountsOrderedBySalePrice = Class({$IFDEF USE_ABSTRACTMEM}TAbstractMemBTree{$ELSE}TMemoryBTree<Integer>{$ENDIF})
+  protected
+    FCallReturnAccount : TCallReturnAccount;
+    FSearching_AccountNumber : Integer;
+    FSearching_AccountInfo : TAccountInfo;
+    function DoCompareData(const ALeftData, ARightData: TAbstractMemPosition): Integer; override;
+  public
+    function NodeDataToString(const AData : TAbstractMemPosition) : String; override;
+    function UpdateAccountBySalePrice(const AAccountNumber : Integer; const AOldAccountInfo, ANewAccountInfo : TAccountInfo) : Boolean;
+    constructor Create({$IFDEF USE_ABSTRACTMEM}AAbstractMem : TAbstractMem; const AInitialZone: TAMZone; {$ENDIF}ACallReturnAccount : TCallReturnAccount);
+  End;
+
 implementation
 
-Uses UPCAbstractMemAccounts;
+Uses UPCAbstractMemAccounts, UAccounts;
 
 { TAccountsOrderedByUpdatedBlock }
 
@@ -160,6 +172,74 @@ begin
   if FCallReturnAccount(AData,LAccount) then begin
     Result := Format('(Acc:%d Upd:%d)',[LAccount.account,LAccount.updated_on_block_active_mode]);
   end else Result := Format('(Pos:%d not found)',[AData]);
+end;
+
+{ TAccounstBySalePrice }
+
+constructor TAccountsOrderedBySalePrice.Create({$IFDEF USE_ABSTRACTMEM}AAbstractMem: TAbstractMem;
+  const AInitialZone: TAMZone; {$ENDIF}ACallReturnAccount: TCallReturnAccount);
+begin
+  {$IFDEF USE_ABSTRACTMEM}
+  inherited Create(AAbstractMem,AInitialZone,False,15);
+  {$ELSE}
+  inherited Create(Nil,False,15);
+  {$ENDIF}
+  FCallReturnAccount := ACallReturnAccount;
+  FSearching_AccountNumber := -1;
+  FSearching_AccountInfo.Clear;
+end;
+
+function TAccountsOrderedBySalePrice.DoCompareData(const ALeftData,
+  ARightData: TAbstractMemPosition): Integer;
+var LLeftAccount, LRightAccount : TAccount;
+  LopResult : Int64;
+begin
+  if (ALeftData = ARightData) then Exit(0);
+
+  FCallReturnAccount(ARightData,LRightAccount);
+  if ((FSearching_AccountNumber>=0) And (ALeftData=FSearching_AccountNumber)) then begin
+    LopResult := FSearching_AccountInfo.price - LRightAccount.accountInfo.price;
+  end else begin
+    FCallReturnAccount(ALeftData,LLeftAccount);
+    LopResult := LLeftAccount.accountInfo.price - LRightAccount.accountInfo.price;
+  end;
+  if LopResult<0 then Result := -1
+  else if LopResult>0 then Result := 1
+  else Result := ALeftData - ARightData;
+end;
+
+function TAccountsOrderedBySalePrice.NodeDataToString(
+  const AData: TAbstractMemPosition): String;
+var LAccount : TAccount;
+begin
+  if FCallReturnAccount(AData,LAccount) then begin
+    Result := Format('(Acc:%d price:%s)',[LAccount.account,TAccountComp.FormatMoney(LAccount.accountInfo.price)]);
+  end else Result := Format('(Pos:%d not found)',[AData]);
+end;
+
+function TAccountsOrderedBySalePrice.UpdateAccountBySalePrice(const AAccountNumber: Integer;
+  const AOldAccountInfo, ANewAccountInfo: TAccountInfo): Boolean;
+var Ldone : Boolean;
+begin
+  if (TAccountComp.IsAccountForSale(AOldAccountInfo)=TAccountComp.IsAccountForSale(ANewAccountInfo)) and
+    (AOldAccountInfo.price = ANewAccountInfo.price) then Exit(True); // No updates, no need to change
+  Lock;
+  Try
+    FSearching_AccountNumber := AAccountNumber;
+    FSearching_AccountInfo := AOldAccountInfo;
+    Ldone := Delete(AAccountNumber);
+    if (Ldone) and (Not TAccountComp.IsAccountForSale(AOldAccountInfo)) then raise EAbsctractMemAccounts.Create('ERROR DEV 20210126-1');
+    if (Not Ldone) and (TAccountComp.IsAccountForSale(AOldAccountInfo)) then raise EAbsctractMemAccounts.Create('ERROR DEV 20210126-2');
+    FSearching_AccountInfo := ANewAccountInfo;
+    if (TAccountComp.IsAccountForSale(ANewAccountInfo)) then begin
+      if Not Add(AAccountNumber) then raise EAbsctractMemAccounts.Create('ERROR DEV 20210126-3');
+    end;
+    FSearching_AccountNumber := -1;
+    FSearching_AccountInfo.Clear;
+  Finally
+    Unlock;
+  End;
+  Result := True;
 end;
 
 end.

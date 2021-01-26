@@ -219,6 +219,7 @@ Type
     // OrderedAccountKeysList (Added after Build 3.0.1) allows an indexed search of public keys in the safebox with mem optimization
     FOrderedAccountKeysList : TSafeboxPubKeysAndAccounts;
     FAccountsOrderedByUpdatedBlock : TAccountsOrderedByUpdatedBlock;
+    FAccountsOrderedBySalePrice : TAccountsOrderedBySalePrice;
     {$ENDIF}
     FModifiedBlocksSeparatedChain : TOrderedBlockAccountList; // Used when has PreviousSafebox (Used if we are on a Separated chain)
     //
@@ -327,6 +328,7 @@ Type
     property PCAbstractMem : TPCAbstractMem read FPCAbstractMem;
     {$ENDIF}
     Function AccountsOrderedByUpdatedBlock : TAccountsOrderedByUpdatedBlock;
+    Function AccountsOrderedBySalePrice : TAccountsOrderedBySalePrice;
   End;
 
 
@@ -2413,6 +2415,15 @@ begin
   end;
 end;
 
+function TPCSafeBox.AccountsOrderedBySalePrice: TAccountsOrderedBySalePrice;
+begin
+  {$IFDEF USE_ABSTRACTMEM}
+  Result := FPCAbstractMem.AccountsOrderedBySalePrice;
+  {$ELSE}
+  Result := FAccountsOrderedBySalePrice;
+  {$ENDIF}
+end;
+
 function TPCSafeBox.AccountsOrderedByUpdatedBlock: TAccountsOrderedByUpdatedBlock;
 begin
   {$IFDEF USE_ABSTRACTMEM}
@@ -2838,6 +2849,7 @@ begin
   FAggregatedHashrate := TBigNum.Create(0);
   FOrderedByName := TOrderedRawList.Create;
   FAccountsOrderedByUpdatedBlock := TAccountsOrderedByUpdatedBlock.Create(GetAccount);
+  FAccountsOrderedBySalePrice := TAccountsOrderedBySalePrice.Create(GetAccount);
   {$ENDIF}
   FListOfOrderedAccountKeysList := TList<TOrderedAccountKeysList>.Create;
   FCurrentProtocol := CT_PROTOCOL_1;
@@ -2883,6 +2895,7 @@ begin
   FreeAndNil(FSubChains);
   {$IFnDEF USE_ABSTRACTMEM}
   FreeAndNil(FAccountsOrderedByUpdatedBlock);
+  FreeAndNil(FAccountsOrderedBySalePrice);
   {$ENDIF}
 
   If Assigned(FPreviousSafeBox) then begin
@@ -3638,8 +3651,13 @@ begin
         for j := low(LBlock.accounts) to High(LBlock.accounts) do begin
           FAccountsOrderedByUpdatedBlock.Update(
             LBlock.accounts[j].account,
-            LBlock.accounts[j].updated_on_block_active_mode,
+            0,
             LBlock.accounts[j].updated_on_block_active_mode);
+          FAccountsOrderedBySalePrice.UpdateAccountBySalePrice(
+            LBlock.accounts[j].account,
+            CT_AccountInfo_NUL,
+            LBlock.accounts[j].accountInfo
+            );
         end;
         {$ENDIF}
         for j := low(LBlock.accounts) to High(LBlock.accounts) do begin
@@ -4757,6 +4775,11 @@ begin
     account_number,
     blockAccount.accounts[iAccount].updated_on_block_active_mode,
     newUpdated_block_active_mode
+   );
+  FAccountsOrderedBySalePrice.UpdateAccountBySalePrice(
+    account_number,
+    blockAccount.accounts[iAccount].accountInfo,
+    newAccountInfo
    );
   {$ENDIF}
 
