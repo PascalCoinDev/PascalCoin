@@ -152,6 +152,7 @@ var
   LAccPubKey : TAccountKey;
   LOutput : TPCJSONArray;
   LStartsWith : TOrderedRawList;
+  LAccountsList : TList<Integer>;
 begin
   // Get Parameters
   Result := False;
@@ -277,21 +278,32 @@ begin
     end;
   end else begin
     // Search by type-forSale-balance
-    i := LStart;
-    while (Not ASender.Terminated) And (i < LEnd) do begin
-      if (LSearchByPubkey) then begin
-        if (i>=LAccountsNumbersList.Count) then Break;
-        LAccount := ASender.Node.GetMempoolAccount( LAccountsNumbersList.Get(i) );
-      end else begin
+    if (LSearchByPubkey) then begin
+      LAccountsList := TList<Integer>.Create;
+      try
+        LAccountsNumbersList.FillList(LStart,LEnd-LStart+1,LAccountsList);
+        for i := 0 to LAccountsList.Count-1 do begin
+          LAccount := ASender.Node.GetMempoolAccount( LAccountsList[i] );
+          if (_IsValidAccount(LAccount)) then begin
+            TPascalCoinJSONComp.FillAccountObject(LAccount,LOutput.GetAsObject(LOutput.Count));
+            if LOutput.Count>=LMax then break;
+          end;
+        end;
+      finally
+        LAccountsList.Free;
+      end;
+    end else begin
+      i := LStart;
+      while (Not ASender.Terminated) And (i < LEnd) do begin
         LAccount := ASender.Node.GetMempoolAccount(i);
-      end;
 
-      if (_IsValidAccount(LAccount)) then begin
-        TPascalCoinJSONComp.FillAccountObject(LAccount,LOutput.GetAsObject(LOutput.Count));
-        if LOutput.Count>=LMax then break;
-      end;
-      inc(i);
+        if (_IsValidAccount(LAccount)) then begin
+          TPascalCoinJSONComp.FillAccountObject(LAccount,LOutput.GetAsObject(LOutput.Count));
+          if LOutput.Count>=LMax then break;
+        end;
+        inc(i);
 
+      end;
     end;
   end;
   Result := True;
