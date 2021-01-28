@@ -289,66 +289,69 @@ uses
 
 procedure TAccountsGridUpdateThread.BCExecute;
 Var
-  l : TAccountsNumbersList;
-  i,j, j_min, j_max : Integer;
+  LAccountsNumbersList : TAccountsNumbersList;
+  i,j, j_min : Integer;
   c  : Cardinal;
   LApplyfilter : Boolean;
   LAccount : TAccount;
   LNode : TNode;
+  LAccountsList : TList<Integer>;
 begin
   LApplyfilter := ((FAccountsGridFilter.MinBalance>0) Or ((FAccountsGridFilter.MaxBalance>=0) And (FAccountsGridFilter.MaxBalance<CT_MaxWalletAmount)));
   FBalance := 0;
   LNode := FAccountsGrid.Node;
   try
-      if (Assigned(FAccountsGridFilter.OrderedAccountsKeyList)) then begin
-        if (FAccountsGridFilter.indexAccountsKeyList<0) then i := 0
-        else i := FAccountsGridFilter.indexAccountsKeyList;
+    if (Assigned(FAccountsGridFilter.OrderedAccountsKeyList)) then begin
+      if (FAccountsGridFilter.indexAccountsKeyList<0) then i := 0
+      else i := FAccountsGridFilter.indexAccountsKeyList;
 
-        while (Not Terminated) and (i<FAccountsGridFilter.OrderedAccountsKeyList.Count)
-          and ((FAccountsGridFilter.indexAccountsKeyList<0) or (FAccountsGridFilter.indexAccountsKeyList=i)) do begin
+      while (Not Terminated) and (i<FAccountsGridFilter.OrderedAccountsKeyList.Count)
+        and ((FAccountsGridFilter.indexAccountsKeyList<0) or (FAccountsGridFilter.indexAccountsKeyList=i)) do begin
 
-          j_min := 0;
+        j_min := 0;
 
           while (j_min>=0) do begin
 
           LNode.bank.SafeBox.StartThreadSafe;
           FAccountsGridFilter.OrderedAccountsKeyList.Lock; // Protection v4
           Try
-            l := FAccountsGridFilter.OrderedAccountsKeyList.AccountKeyList[i];
-            if Assigned(l) then begin
+            LAccountsNumbersList := FAccountsGridFilter.OrderedAccountsKeyList.AccountKeyList[i];
+            if Assigned(LAccountsNumbersList) then begin
 
-              j_max := (j_min + 500);
-              if j_max>=l.Count then j_max := l.Count-1;
+              LAccountsList := TList<Integer>.Create;
+              Try
+                LAccountsNumbersList.FillList(j_min,500,LAccountsList);
+                for j := 0 to LAccountsList.Count - 1 do begin
+                  LAccount := LNode.Bank.SafeBox.Account(LAccountsList[j]);
 
-              for j := j_min to j_max do begin
-                LAccount := LNode.Bank.SafeBox.Account(l.Get(j));
-                if LApplyfilter then begin
-                  if (LAccount.balance>=FAccountsGridFilter.MinBalance) And ((FAccountsGridFilter.MaxBalance<0) Or (LAccount.balance<=FAccountsGridFilter.MaxBalance)) then begin
+                  if LApplyfilter then begin
+                    if (LAccount.balance>=FAccountsGridFilter.MinBalance) And ((FAccountsGridFilter.MaxBalance<0) Or (LAccount.balance<=FAccountsGridFilter.MaxBalance)) then begin
+                      FProcessedList.Add(LAccount.account);
+                      FBalance := FBalance + LAccount.balance;
+                    end;
+                  end else begin
                     FProcessedList.Add(LAccount.account);
                     FBalance := FBalance + LAccount.balance;
                   end;
-                end else begin
-                  FProcessedList.Add(LAccount.account);
-                  FBalance := FBalance + LAccount.balance;
+                  if Terminated then Exit;
                 end;
-                if Terminated then Exit;
-              end;
-              j_min := j_max+1;
-              if (j_max>=(l.Count-1)) then begin
-                j_min := -1;
-                break;
-              end;
+                if LAccountsList.Count>0 then inc(j_min,LAccountsList.Count)
+                else break;
+
+              Finally
+                LAccountsList.Free;
+              End;
+
             end;
           finally
             FAccountsGridFilter.OrderedAccountsKeyList.Unlock;
             LNode.Bank.SafeBox.EndThreadSave;
           end;
-            if j_max>=0 then Sleep(0);
 
-          end;
-          inc(i);
         end;
-      end else begin
+        inc(i);
+      end;
+    end else begin
         c := 0;
         while (c<LNode.Bank.SafeBox.AccountsCount) and (Not Terminated) do begin
           LAccount := LNode.Bank.SafeBox.Account(c);

@@ -545,6 +545,7 @@ begin
   FreeAndNil(FBufferBlocksHash);
   FreeAndNil(FAggregatedHashrate);
   FreeAndNil(FAccountsOrderedByUpdatedBlock);
+  FreeAndNil(FAccountsOrderedBySalePrice);
   if (FFileName<>'') And (FAbstractMem is TMem) And (Not FAbstractMem.ReadOnly) then begin
     LFile := TFileStream.Create(FFileName,fmCreate);
     try

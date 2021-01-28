@@ -2737,6 +2737,7 @@ Var c,c2,c3 : Cardinal;
   jsonarr : TPCJSONArray;
   jso : TPCJSONObject;
   LRPCProcessMethod : TRPCProcessMethod;
+  LAccountsList : TList<Integer>;
 begin
   _ro := Nil;
   _ra := Nil;
@@ -2791,13 +2792,15 @@ begin
       Lanl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
       k := params.AsInteger('max',100);
       l := params.AsInteger('start',0);
-      for j := 0 to Lanl.Count - 1 do begin
-        if (j>=l) then begin
-          account := FNode.GetMempoolAccount(Lanl.Get(j));
-          TPascalCoinJSONComp.FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
+      LAccountsList := TList<Integer>.Create;
+      Try
+        Lanl.FillList(l,k,LAccountsList);
+        for j := 0 to LAccountsList.Count - 1 do begin
+          account := FNode.GetMempoolAccount(LAccountsList[j]);
         end;
-        if (k>0) And ((j+1)>=(k+l)) then break;
-      end;
+      Finally
+        LAccountsList.Free;
+      End;
       Result := true;
     end else begin
       k := params.AsInteger('max',100);
@@ -2805,14 +2808,20 @@ begin
       c := 0;
       for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
         Lanl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
-        for j := 0 to Lanl.Count - 1 do begin
-          if (c>=l) then begin
-            account := FNode.GetMempoolAccount(Lanl.Get(j));
-            TPascalCoinJSONComp.FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
+        LAccountsList := TList<Integer>.Create;
+        Try
+          Lanl.FillList(0,Lanl.Count,LAccountsList);
+          for j := 0 to LAccountsList.Count - 1 do begin
+            if (c>=l) then begin
+              account := FNode.GetMempoolAccount(LAccountsList[j]);
+              TPascalCoinJSONComp.FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
+            end;
+            inc(c);
+            if (k>0) And (c>=(k+l)) then break;
           end;
-          inc(c);
-          if (k>0) And (c>=(k+l)) then break;
-        end;
+        Finally
+          LAccountsList.Free;
+        End;
         if (k>0) And (c>=(k+l)) then break;
       end;
       Result := true;
@@ -2868,9 +2877,17 @@ begin
       end;
       Lanl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
       account.balance := 0;
-      for j := 0 to Lanl.Count - 1 do begin
-        inc(account.balance, FNode.GetMempoolAccount(Lanl.Get(j)).balance );
-      end;
+
+      LAccountsList := TList<Integer>.Create;
+      Try
+        Lanl.FillList(0,Lanl.Count,LAccountsList);
+        for j := 0 to LAccountsList.Count - 1 do begin
+          inc(account.balance, FNode.GetMempoolAccount(LAccountsList[j]).balance );
+        end;
+      Finally
+        LAccountsList.Free;
+      End;
+
       jsonresponse.GetAsVariant('result').value := ToJSONCurrency(account.balance);
       Result := true;
     end else begin
@@ -2879,9 +2896,17 @@ begin
       account.balance := 0;
       for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
         Lanl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
-        for j := 0 to Lanl.Count - 1 do begin
-          inc(account.balance, FNode.GetMempoolAccount(Lanl.Get(j)).balance );
-        end;
+
+        LAccountsList := TList<Integer>.Create;
+        Try
+          Lanl.FillList(0,Lanl.Count,LAccountsList);
+          for j := 0 to LAccountsList.Count - 1 do begin
+            inc(account.balance, FNode.GetMempoolAccount(LAccountsList[j]).balance );
+          end;
+        Finally
+          LAccountsList.Free;
+        End;
+
       end;
       jsonresponse.GetAsVariant('result').value := ToJSONCurrency(account.balance);
       Result := true;

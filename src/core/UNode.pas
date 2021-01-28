@@ -128,6 +128,9 @@ Type
     class function NodeVersion : String;
     class function GetPascalCoinDataFolder : String;
     class procedure SetPascalCoinDataFolder(const ANewDataFolder : String);
+    //
+    function TryFindAccountByKey(const APubKey : TAccountKey; out AAccountNumber : Cardinal) : Boolean;
+    function TryFindPublicSaleAccount(AMaximumPrice : Int64; APreventRaceCondition : Boolean; out AAccountNumber : Cardinal) : Boolean;
   End;
 
   TThreadSafeNodeNotifyEvent = Class(TPCThread)
@@ -764,6 +767,77 @@ procedure TNode.EnableNewBlocks;
 begin
   if FDisabledsNewBlocksCount=0 then raise Exception.Create('Dev error 20160924-1');
   dec(FDisabledsNewBlocksCount);
+end;
+
+function TNode.TryFindAccountByKey(const APubKey: TAccountKey;
+  out AAccountNumber: Cardinal): Boolean;
+  // Finds the smallest numbered account with selected key (or returns false)
+var Lpka : TSafeboxPubKeysAndAccounts;
+  LAccountsNumberList : TAccountsNumbersList;
+begin
+  Result := False;
+  Lpka := Bank.SafeBox.OrderedAccountKeysList;
+  if Assigned(Lpka) then begin
+    LAccountsNumberList := Lpka.GetAccountsUsingThisKey(APubKey);
+    if Assigned(LAccountsNumberList) then begin
+      if LAccountsNumberList.Count>0 then begin
+        AAccountNumber := LAccountsNumberList.Get(0);
+        Result := True;
+      end;
+    end;
+  end;
+end;
+
+function TNode.TryFindPublicSaleAccount(AMaximumPrice: Int64; APreventRaceCondition : Boolean;
+  out AAccountNumber: Cardinal): Boolean;
+  // Finds an account at or below argument purchase price (or returns false)
+  // APreventRaceCondition: When True will return a random account in valid range price
+  // Limitations: Account must be >0
+var LtempAccNumber : Integer;
+  LLastValidAccount, LCurrAccount : TAccount;
+  LContinueSearching : Boolean;
+begin
+  Result := False;
+
+  // Sorted list: Bank.SafeBox.AccountsOrderedBySalePrice
+  // Note: List is sorted by Sale price (ASCENDING), but NOT by public/private sale, must check
+
+  if Not Bank.SafeBox.AccountsOrderedBySalePrice.FindLowest(LtempAccNumber) then Exit(False);
+  LCurrAccount := GetMempoolAccount(LtempAccNumber);
+
+  if (LCurrAccount.accountInfo.price<=AMaximumPrice)
+    and (TAccountComp.IsAccountForPublicSale(LCurrAccount.accountInfo)) then begin
+    LLastValidAccount := LCurrAccount;
+    LContinueSearching := (APreventRaceCondition) And (Random(50)=0);
+  end else begin
+    LLastValidAccount := CT_Account_NUL;
+    LContinueSearching := True;
+  end;
+
+  while (LCurrAccount.accountInfo.price<=AMaximumPrice) and (LContinueSearching) do begin
+
+    if TAccountComp.IsAccountForPublicSale(LCurrAccount.accountInfo) then LLastValidAccount := LCurrAccount;
+
+    if Not (Bank.SafeBox.AccountsOrderedBySalePrice.FindSuccessor(LtempAccNumber,LtempAccNumber)) then Break;
+    LCurrAccount := GetMempoolAccount(LtempAccNumber);
+
+    // If price increased, then do not continue and use LastValidAccount
+    if (LLastValidAccount.account>0)
+      and (LLastValidAccount.accountInfo.price <> LCurrAccount.accountInfo.price) then Break;
+
+    // Continue?
+    LContinueSearching :=
+      (LLastValidAccount.account=0) // This means that no valid account has been found yet...
+      or
+      (LContinueSearching And (Random(50)=0)); // Random prevention
+  end;
+  if (LLastValidAccount.account>0) then begin
+    AAccountNumber := LLastValidAccount.account;
+    Result := True;
+  end else begin
+    AAccountNumber := 0;
+    Result := False;
+  end;
 end;
 
 function TNode.TryLockNode(MaxWaitMilliseconds: Cardinal): Boolean;

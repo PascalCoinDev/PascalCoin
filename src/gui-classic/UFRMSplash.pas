@@ -25,7 +25,12 @@ interface
 {$I ../config.inc}
 
 uses
-  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+{$IFnDEF FPC}
+  pngimage, Windows, Messages,
+{$ELSE}
+  LCLIntf, LCLType, LMessages,
+{$ENDIF}
+  SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UAccounts, Buttons, ActnList,
   ExtCtrls, ComCtrls,
   UNode, UWallet, UNetProtocol, UPCDataTypes, UThread,
