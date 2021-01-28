@@ -27,7 +27,6 @@ uses
   SysUtils,
   TypInfo,
   uregexpr,
-  UAccounts,
   UCommon,
   UCrypto,
   UEncoding;
@@ -78,6 +77,7 @@ type
 
   { TEPasa }
 
+
   TEPasa = record
     strict private
       var
@@ -99,13 +99,13 @@ type
       procedure SetPassword(const AValue: String); inline;
       function GetPayload: String; inline;
       procedure SetPayload(const AValue: String); inline;
-
+      function GetHasPayload: Boolean; inline;
+      function GetIsStandard: Boolean; inline;
+      function GetIsPayToKey: Boolean; inline;
+      function GetIsAddressedByName : Boolean; inline;
+      function GetIsAddressedByNumber : Boolean; inline;
+      class function GetEmptyValue : TEPasa; static;
     public
-      function IsPayToKey: Boolean; inline;
-      function GetRawPayloadBytes(): TArray<Byte>; inline;
-      function ToString(): String; overload;
-      function ToString(AOmitExtendedChecksum: Boolean): String; overload;
-
       property Account: TNullable<UInt32> read GetAccount write SetAccount;
       property AccountChecksum: TNullable<UInt32> read GetAccountChecksum write SetAccountChecksum;
       property AccountName: String read GetAccountName write SetAccountName;
@@ -113,6 +113,16 @@ type
       property Payload: String read GetPayload write SetPayload;
       property Password: String read GetPassword write SetPassword;
       property ExtendedChecksum: String read GetExtendedChecksum write SetExtendedChecksum;
+      property IsAddressedByNumber: boolean read GetIsAddressedByNumber;
+      property IsAddressedByName: boolean read GetIsAddressedByName;
+      property IsPayToKey: boolean read GetIsPayToKey;
+      property IsStandard: boolean read GetIsStandard;
+      property HasPayload: boolean read GetHasPayload;
+      class property Empty : TEPasa read GetEmptyValue;
+
+      function GetRawPayloadBytes(): TArray<Byte>; inline;
+      function ToString(): String; overload;
+      function ToString(AOmitExtendedChecksum: Boolean): String; overload;
 
       class function TryParse(const AEPasaText: String; out AEPasa: TEPasa) : Boolean; static;
       class function Parse(const AEPasaText: String): TEPasa; static;
@@ -120,6 +130,8 @@ type
       class function CalculateAccountChecksum(AAccNo: UInt32): Byte; static; inline;
 
   end;
+
+
 
   { TEPasaParser }
 
@@ -201,6 +213,9 @@ uses
   HlpIHashInfo,
   HlpConverters,
   UMemory;
+
+var
+  EmptyEPasa : TEPasa;
 
 { TPayloadTraitHelper }
 
@@ -305,7 +320,17 @@ begin
   FPayloadType := AValue;
 end;
 
-function TEPasa.IsPayToKey: Boolean;
+function TEPasa.GetIsAddressedByNumber : Boolean;
+begin
+  Result := NOT PayloadType.HasTrait(ptAddressedByName);
+end;
+
+function TEPasa.GetIsAddressedByName : Boolean;
+begin
+  Result := (NOT IsPayToKey) AND PayloadType.HasTrait(ptAddressedByName);
+end;
+
+function TEPasa.GetIsPayToKey: Boolean;
 begin
   Result :=
     (AccountName = '@') and
@@ -313,6 +338,17 @@ begin
     PayloadType.HasTrait(ptPublic) and
     PayloadType.HasTrait(ptBase58Formatted));
 end;
+
+function TEPasa.GetIsStandard: Boolean;
+begin
+  Result := (NOT PayloadType.HasTrait(ptAddressedByName)) AND (NOT HasPayload);
+end;
+
+function TEPasa.GetHasPayload: Boolean;
+begin
+  Result := PayloadType.HasTrait(ptPublic) OR PayloadType.HasTrait(ptRecipientKeyEncrypted) OR PayloadType.HasTrait(ptSenderKeyEncrypted);
+end;
+
 
 function TEPasa.GetRawPayloadBytes: TArray<Byte>;
 begin
@@ -397,6 +433,11 @@ begin
   Result := Byte(((UInt64(AAccNo) * 101) mod 89) + 10);
 end;
 
+
+class function TEPasa.GetEmptyValue : TEPasa;
+begin
+  Result := EmptyEPasa;
+end;
 
 { TEPasaParser }
 
@@ -699,5 +740,10 @@ begin
       Result := Result + [LPayloadType];
   end;
 end;
+
+initialization
+
+EmptyEPasa := Default(TEPasa);
+
 
 end.

@@ -59,7 +59,7 @@ Var LOpPayload : TOperationPayload;
 Begin
   Result := Nil;
   if Not ARPCProcess.RPCServer.CheckAndGetPrivateKeyInWallet(ASenderAccounKey,LPrivateKey,AErrorNum,AErrorDesc) then Exit(Nil);
-  if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(ARawPayload,APayload_method,AEncodePwd,ASenderAccounKey,ATargetAccountKey,LOpPayload,AErrorNum,AErrorDesc) then Exit(Nil);
+  if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(ARawPayload, APayload_method,AEncodePwd,ASenderAccounKey,ATargetAccountKey,LOpPayload,AErrorNum,AErrorDesc) then Exit(Nil);
   Result := TOpTransaction.CreateTransaction(ACurrent_protocol, ASender,ASender_last_n_operation+1, ATarget, LPrivateKey, AAmount, AFee, LOpPayload);
   if Not Result.HasValidSignature then begin
     FreeAndNil(Result);
