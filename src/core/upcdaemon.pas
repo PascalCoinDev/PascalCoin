@@ -105,9 +105,7 @@ Type
 
 implementation
 
-{$IFDEF TESTNET}
 uses UPCTNetDataExtraMessages;
-{$ENDIF}
 
 Var _FLog : TLog;
 
@@ -276,9 +274,6 @@ begin
       FNode.Bank.SafeBox.PCAbstractMem.MaxAccountsCache := LCacheMaxAccounts;
       FNode.Bank.SafeBox.PCAbstractMem.MaxAccountKeysCache := LCacheMaxPubKeys;
       {$ENDIF}
-      {$IFDEF TESTNET}
-      TPCTNetDataExtraMessages.InitNetDataExtraMessages(FNode,TNetData.NetData,FWalletKeys);
-      {$ENDIF}
       // RPC Server
       InitRPCServer;
       Try
@@ -301,6 +296,7 @@ begin
         // RPC Miner Server
         InitRPCMinerServer;
         Try
+          TPCTNetDataExtraMessages.InitNetDataExtraMessages(FNode,TNetData.NetData,FWalletKeys);
           Repeat
             Sleep(100);
           Until (Terminated) or (Application.Terminated);
