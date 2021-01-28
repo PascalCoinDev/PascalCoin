@@ -219,6 +219,10 @@ Const
 
   CT_ACTIVATE_RANDOMHASH_V4 = {$IFDEF ACTIVATE_RANDOMHASH_V4}True{$ELSE}False{$ENDIF};
 
+  // Represents a non-existent account number
+  // (chosen as the last account in safebox, generated in year 6101)
+  CT_AccountNo_NUL = High(Cardinal);
+
   // App Params
   CT_PARAM_GridAccountsStream = 'GridAccountsStreamV2';
   CT_PARAM_GridAccountsPos = 'GridAccountsPos';

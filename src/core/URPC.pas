@@ -27,7 +27,7 @@ interface
 Uses UThread, ULog, UConst, UNode, UAccounts, UCrypto, UBlockChain,
   UNetProtocol, UOpTransaction, UWallet, UTime, UPCEncryption, UTxMultiOperation,
   UJSONFunctions, classes, blcksock, synsock,
-  IniFiles, Variants, math, UBaseTypes,
+  IniFiles, Variants, math, UBaseTypes, UEPasa,
   {$IFDEF Use_OpenSSL}
   UOpenSSL,
   {$ENDIF}
@@ -72,7 +72,8 @@ Type
     class Function HexaStringToOperationsHashTree(Const AHexaStringOperationsHashTree : String; ACurrentProtocol : Word; out AOperationsHashTree : TOperationsHashTree; var AErrors : String) : Boolean;
     class Function CapturePubKey(const AInputParams : TPCJSONObject; const APrefix : String; var APubKey : TAccountKey; var AErrortxt : String) : Boolean;
     class function CheckAndGetEncodedRAWPayload(Const ARawPayload : TRawBytes; Const APayload_method, AEncodePwdForAES : String; const ASenderAccounKey, ATargetAccountKey : TAccountKey; out AOperationPayload : TOperationPayload; Var AErrorNum : Integer; Var AErrorDesc : String) : Boolean;
-    class Function CaptureAccountNumber(const AInputParams : TPCJSONObject; const AParamName : String; const ABank : TPCBank; var AAccountNumber : Cardinal; var AErrorParam : String) : Boolean;
+    class Function CaptureAccountNumber(const AInputParams : TPCJSONObject; const AParamName : String; const ABank : TPCBank; out AResolvedAccount: Cardinal; var AErrorParam : String) : Boolean;
+    class Function CaptureEPASA(const AInputParams : TPCJSONObject; const AParamName : String; const ABank : TPCBank; out AEPasa: TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : Boolean; var AErrorParam : String) : Boolean;
   end;
 
   TRPCServerThread = Class;
@@ -154,7 +155,8 @@ Type
 
 implementation
 
-Uses  {$IFNDEF FPC}windows,{$ENDIF}
+Uses
+  {$IFNDEF FPC}windows,{$ENDIF}
   SysUtils, Synautil,
   UPCRPCSend,
   UPCRPCOpData, UPCRPCFindAccounts, UPCRPCFindBlocks, UPCRPCFileUtils;
@@ -347,25 +349,41 @@ Begin
   end;
 end;
 
-class function TPascalCoinJSONComp.CaptureAccountNumber(const AInputParams : TPCJSONObject;
-  const AParamName: String; const ABank : TPCBank; var AAccountNumber: Cardinal;
-  var AErrorParam: String): Boolean;
+class Function TPascalCoinJSONComp.CaptureAccountNumber(const AInputParams : TPCJSONObject; const AParamName : String; const ABank : TPCBank; out AResolvedAccount: Cardinal; var AErrorParam : String) : Boolean;
+var
+  LEPasa : TEPasa;
+  LKey : TAccountKey;
+  LPurchase : Boolean;
+  LParamValue : String;
+begin
+  LParamValue := AInputParams.AsString(AParamName,'');
+  Result := CaptureEPASA(AInputParams, AParamName, ABank, LEPasa, AResolvedAccount, LKey, LPurchase, AErrorParam);
+  if Result AND (NOT LEPasa.IsStandard) then begin
+      AErrorParam := Format('"%s" is not valid Account Number for Param "%s"',[LParamValue,AParamName]);
+      Exit(False);
+  end;
+end;
+
+class function TPascalCoinJSONComp.CaptureEPASA(const AInputParams : TPCJSONObject; const AParamName : String; const ABank : TPCBank; out AEPasa: TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : Boolean; var AErrorParam : String): Boolean;
 var LParamValue : String;
 Begin
+  if not Assigned(ABank) then raise EArgumentNilException.Create('ABank');
   LParamValue := AInputParams.AsString(AParamName,'');
   if Length(LParamValue)>0 then begin
-    Result := TAccountComp.AccountTxtNumberToAccountNumber(LParamValue,AAccountNumber);
-    if Not Result then begin
-      AErrorParam := Format('"%s" is no valid Account number for Param "%s"',[LParamValue,AParamName]);
-    end else if Assigned(ABank) then begin
-      if (AAccountNumber<0) or (AAccountNumber>=ABank.AccountsCount) then begin
-        Result := False;
-        AErrorParam := Format('Account %d does not exist in safebox (param "%s")',[AAccountNumber,AParamName]);
-      end;
+    if Not TEPasa.TryParse(LParamValue, AEPasa) then begin
+      AEPasa := TEPasa.Empty;
+      AResolvedAccount := CT_AccountNo_NUL;
+      AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+      AErrorParam := Format('"%s" is not valid Account EPASA for Param "%s"',[LParamValue,AParamName]);
+      Exit(False);
     end;
+    Result := ABank.SafeBox.TryResolveAccountByEPASA(AEPasa, AResolvedAccount, AResolvedKey, ARequiresPurchase, AErrorParam);
   end else begin
-    Result := False;
+    AEPasa := TEPasa.Empty;
+    AResolvedAccount := CT_AccountNo_NUL;
+    AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
     AErrorParam := Format('Param "%s" not provided or null',[AParamName]);
+    Exit(False);
   end;
 end;
 
@@ -405,16 +423,20 @@ begin
 end;
 
 class function TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(
-  const ARawPayload: TRawBytes; const APayload_method, AEncodePwdForAES: String;
+  const ARawPayload: TRawBytes;
+//  const APayloadType : TPayloadType;
+  const APayload_method, AEncodePwdForAES: String;
   const ASenderAccounKey, ATargetAccountKey: TAccountKey;
-  out AOperationPayload : TOperationPayload; var AErrorNum: Integer;
+  out AOperationPayload : TOperationPayload;
+  var AErrorNum: Integer;
   var AErrorDesc: String): Boolean;
 begin
   AOperationPayload := CT_TOperationPayload_NUL;
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   // TODO:
   // Needs to assign AOperationPayload.payload_type based on PIP-0027
   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  //AOperationPayload.payload_type := APayloadType.ProtocolValue;
   if (Length(ARawPayload)>0) then begin
     if (APayload_method='none') then begin
       AOperationPayload.payload_raw:=ARawPayload;
