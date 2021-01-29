@@ -349,7 +349,6 @@ begin
   Result := PayloadType.HasTrait(ptPublic) OR PayloadType.HasTrait(ptRecipientKeyEncrypted) OR PayloadType.HasTrait(ptSenderKeyEncrypted);
 end;
 
-
 function TEPasa.GetRawPayloadBytes: TArray<Byte>;
 begin
   if (PayloadType.HasTrait(ptAsciiFormatted)) then

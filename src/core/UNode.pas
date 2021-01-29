@@ -36,7 +36,7 @@ interface
 uses
   Classes, SysUtils,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF}, UPCDataTypes,
-  UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, SyncObjs, ULog, UBaseTypes, UPCOrderedLists;
+  UBlockChain, UNetProtocol, UAccounts, UCrypto, UEPasa, UThread, SyncObjs, ULog, UBaseTypes, UPCOrderedLists;
 
 {$I ./../config.inc}
 
@@ -131,6 +131,9 @@ Type
     //
     function TryFindAccountByKey(const APubKey : TAccountKey; out AAccountNumber : Cardinal) : Boolean;
     function TryFindPublicSaleAccount(AMaximumPrice : Int64; APreventRaceCondition : Boolean; out AAccountNumber : Cardinal) : Boolean;
+    Function TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean): Boolean; overload;
+    Function TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean; out AErrorMessage: String): Boolean; overload;
+
   End;
 
   TThreadSafeNodeNotifyEvent = Class(TPCThread)
@@ -212,7 +215,7 @@ Type
 implementation
 
 Uses UOpTransaction, UConst, UTime, UCommon, UPCOperationsSignatureValidator,
-  UFolderHelper;
+  UFolderHelper, USettings;
 
 var _Node : TNode;
   _PascalCoinDataFolder : String;
@@ -839,6 +842,75 @@ begin
     Result := False;
   end;
 end;
+
+Function TNode.TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean): Boolean;
+var LErrMsg : String;
+begin
+  Result := TryResolveEPASA(AEPasa, AResolvedAccount, AResolvedKey, ARequiresPurchase, LErrMsg);
+end;
+
+Function TNode.TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean; out AErrorMessage: String): Boolean;
+var
+  LErrMsg : String;
+begin
+  if (AEPasa.IsPayToKey) then begin
+    // Parse account key in EPASA
+    if NOT TAccountComp.AccountPublicKeyImport(AEPasa.Payload, AResolvedKey, LErrMsg) then begin
+      AResolvedAccount := CT_AccountNo_NUL;
+      AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+      ARequiresPurchase := False;
+      AErrorMessage := Format('Invalid key specified in PayToKey EPASA "%s". %s',[AEPasa.ToString(), LErrMsg]);
+      Exit(False);
+    end;
+
+    // Try to find key in safebox
+    if TryFindAccountByKey(AResolvedKey, AResolvedAccount) then begin
+      // Key already exists in SafeBox, so send to that account
+      ARequiresPurchase := False;
+      Exit(True);
+    end;
+
+    // If no key found, find optimal public purchase account
+    if TryFindPublicSaleAccount(TSettings.MaxPayToKeyPurchasePrice, True, AResolvedAccount) then begin
+      // Account needs to be purchased
+      ARequiresPurchase := True;
+      Exit(True);
+    end;
+
+    // Account could not be resolved
+    AResolvedAccount := CT_AccountNo_NUL;
+    AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+    ARequiresPurchase := False;
+    AErrorMessage := 'No account could be resolved for pay to key EPASA';
+    Exit(False);
+
+  end else if (AEPasa.IsAddressedByName) then begin
+    // Find account by name
+    AResolvedAccount := Bank.SafeBox.FindAccountByName(AEPasa.AccountName);
+    if AResolvedAccount < 0 then begin
+      // No account with name found
+      AResolvedAccount := CT_AccountNo_NUL;
+      AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+      ARequiresPurchase := False;
+      AErrorMessage := Format('No account with name "%s" was found', [AEPasa.AccountName]);
+      Exit(False);
+    end;
+    Exit(True);
+  end;
+  // addressed by number
+  if NOT AEPasa.IsAddressedByNumber then raise Exception.Create('Internal Error c8ecd69d-3621-4f5e-b4f1-9926ab2f5013');
+  if NOT AEPasa.Account.HasValue then raise Exception.Create('Internal Error 544c8cb9-b700-4b5f-93ca-4d045d0a06ae');
+  AResolvedAccount := AEPasa.Account.Value;
+  if (AResolvedAccount < 0) or (AResolvedAccount >= Self.Bank.AccountsCount) then begin
+    AResolvedAccount := CT_AccountNo_NUL;
+    AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+    ARequiresPurchase := False;
+    AErrorMessage := Format('Account number %d does not exist in safebox',[AResolvedAccount]);
+    Exit(False);
+  end;
+  Result := true;
+end;
+
 
 function TNode.TryLockNode(MaxWaitMilliseconds: Cardinal): Boolean;
 begin

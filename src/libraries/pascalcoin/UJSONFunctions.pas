@@ -76,6 +76,7 @@ Type
     Function ToJSONFormatted(pretty:Boolean;const prefix : String) : String; override;
   public
     Constructor Create; override;
+    Constructor CreateFromVariant(const Value: Variant);
     Constructor CreateFromJSONValue(JSONValue : TJSONValue);
     Property Value : Variant read FValue write SetValue;
     Function AsString(DefValue : String) : String;
@@ -158,6 +159,8 @@ Type
     Destructor Destroy; override;
     Function FindName(Name : String) : TPCJSONNameValue;
     Function IndexOfName(Name : String) : Integer;
+    Function HasName(Name: String): Boolean;
+    Function HasValue(const AParamName : String) : Boolean;
     Procedure DeleteName(Name : String);
     Function GetAsVariant(Name : String) : TPCJSONVariantValue;
     Function GetAsObject(Name : String) : TPCJSONObject;
@@ -494,6 +497,12 @@ begin
   FValue := Null;
   FOldValue := Unassigned;
   FWritable := False;
+end;
+
+Constructor TPCJSONVariantValue.CreateFromVariant(const Value: Variant);
+begin
+  Create;
+  SetValue(Value);
 end;
 
 constructor TPCJSONVariantValue.CreateFromJSONValue(JSONValue: TJSONValue);
@@ -877,6 +886,17 @@ begin
   end;
   Result := -1;
 end;
+
+function TPCJSONObject.HasName(Name: String): Boolean;
+begin
+  Result := IndexOfName(Name) >= 0;
+end;
+
+Function TPCJSONObject.HasValue(const AParamName : String) : Boolean;
+begin
+  Result := HasName(AParamName) AND (NOT AsString(AParamName, String.Empty).IsEmpty);
+end;
+
 
 function TPCJSONObject.LoadAsStream(ParamName: String; Stream: TStream): Integer;
 Var s : RawByteString;

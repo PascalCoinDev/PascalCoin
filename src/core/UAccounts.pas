@@ -295,8 +295,6 @@ Type
     Function FindAccountByName(const aName : String) : Integer; overload;
     Function FindAccountByName(const aName : TRawBytes) : Integer; overload;
     Function FindAccountsStartingByName(const AStartName : TRawBytes; const ARawList : TOrderedRawList; const AMax : Integer = 0) : Integer;
-    Function TryResolveAccountByEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean): Boolean; overload;
-    Function TryResolveAccountByEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean; out AErrorMessage: String): Boolean; overload;
     
     Procedure Clear;
     Function Account(account_number : Cardinal) : TAccount;
@@ -4700,72 +4698,6 @@ begin
   finally
     EndThreadSave;
   end;
-end;
-
-Function TPCSafeBox.TryResolveAccountByEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean): Boolean;
-var LErrMsg : String;
-begin
-  Result := TryResolveAccountByEPASA(AEPasa, AResolvedAccount, AResolvedKey, ARequiresPurchase, LErrMsg);
-end;
-
-Function TPCSafeBox.TryResolveAccountByEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean; out AErrorMessage: String): Boolean;
-var
-  LKey : TAccountKey;
-  LErrMsg : String;
-begin
-  if (AEPasa.IsPayToKey) then begin
-    // Parse account key in EPASA
-    if NOT TAccountComp.AccountPublicKeyImport(AEPasa.Payload, LKey, LErrMsg) then begin
-      AResolvedAccount := CT_AccountNo_NUL;
-      AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
-      ARequiresPurchase := False;
-      AErrorMessage := Format('Invalid key specified in PayToKey EPASA "%s". %s',[AEPasa.ToString(), LErrMsg]);
-      Exit(False);
-    end;
-    
-    // Try to find key in safebox 
-
-    // If key is found, then do not purchase new account and send to first account with key
-
-    // If no key found, find optimal public purchase account
-
-    // WIP (not implemented)
-    AResolvedAccount := CT_AccountNo_NUL;    
-    AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
-    ARequiresPurchase := False;
-    AErrorMessage := 'Not implemented';
-    Result := False;     
-  end else if (AEPasa.IsAddressedByName) then begin
-    // Find account by name
-
-    // WIP (not implemented)
-    AResolvedAccount := CT_AccountNo_NUL;    
-    AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
-    ARequiresPurchase := False;
-    AErrorMessage := 'Not implemented';
-    Result := False; 
-    
-  end else begin
-    // addressed by number
-    if NOT AEPasa.IsAddressedByNumber then
-      raise Exception.Create('Internal Error c8ecd69d-3621-4f5e-b4f1-9926ab2f5013');
-    if NOT AEPasa.Account.HasValue then raise Exception.Create('Internal Error 544c8cb9-b700-4b5f-93ca-4d045d0a06ae');
-
-    if (AEPasa.Account.Value < 0) or (AEPasa.Account.Value >= Self.AccountsCount) then begin
-      AResolvedAccount := CT_AccountNo_NUL;
-      AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
-      ARequiresPurchase := False;
-      AErrorMessage := Format('Account number %d does not exist in safebox',[AEPasa.Account.Value]);
-      Exit(False);
-    end;
-    
-    AResolvedAccount := AEPasa.Account.Value;
-    AResolvedKey := CT_Account_NUL.accountInfo.accountKey;      
-    ARequiresPurchase := False;    
-    Result := true;
-  end;
-
-
 end;
 
 procedure TPCSafeBox.SearchBlockWhenOnSeparatedChain(blockNumber: Cardinal; out blockAccount: TBlockAccount);

@@ -39,6 +39,7 @@ const
   CT_PARAM_SaveDebugLogs = 'SaveDebugLogs';
   CT_PARAM_ShowLogs = 'ShowLogs';
   CT_PARAM_MinerName = 'MinerName';
+  CT_PARAM_MaxPayToKeyPurchasePrice = 'MaxPayToKeyPurchasePrice';
   CT_PARAM_RunCount = 'RunCount';
   CT_PARAM_FirstTime = 'FirstTime';
   CT_PARAM_ShowModalMessages = 'ShowModalMessages';
@@ -95,6 +96,8 @@ type
       class procedure SetMinerName(AName: string); static;
       class function GetRunCount : Integer; static;
       class procedure SetRunCount(AInt: Integer); static;
+      class function GetMaxPayToKeyPurchasePrice : UInt64; static;
+      class procedure SetMaxPayToKeyPurchasePrice(AVal: UInt64); static;
       class function GetShowModalMessages : boolean; static;
       class procedure SetShowModalMessages(ABool: boolean); static;
       class function GetRpcAllowedIPs : string; static;
@@ -122,6 +125,7 @@ type
       class property SaveDebugLogs : boolean read GetSaveDebugLogs write SetSaveDebugLogs;
       class property MinerName : string read GetMinerName write SetMinerName;
       class property RunCount : Integer read GetRunCount write SetRunCount;
+      class property MaxPayToKeyPurchasePrice : UInt64 read GetMaxPayToKeyPurchasePrice write SetMaxPayToKeyPurchasePrice;
       class property ShowModalMessages : boolean read GetShowModalMessages write SetShowModalMessages;
       class property PeerCache : string read GetPeerCache write SetPeerCache;
       class property TryConnectOnlyWithThisFixedServers : string read GetTryConnectOnlyWithThisFixedServers write SetTryConnectOnlyWithThisFixedServers;
@@ -327,6 +331,19 @@ class procedure TSettings.SetRunCount(AInt: Integer);
 begin
   CheckLoaded;
   FAppParams.ParamByName[CT_PARAM_RunCount].SetAsInteger(AInt)
+end;
+
+
+class function TSettings.GetMaxPayToKeyPurchasePrice : UInt64;
+begin
+  CheckLoaded;
+  Result := FAppParams.ParamByName[CT_PARAM_MaxPayToKeyPurchasePrice].GetAsUInt64(0);
+end;
+
+class procedure TSettings.SetMaxPayToKeyPurchasePrice(AVal: UInt64);
+begin
+  CheckLoaded;
+  FAppParams.ParamByName[CT_PARAM_MaxPayToKeyPurchasePrice].SetAsUInt64(AVal);
 end;
 
 class function TSettings.GetShowModalMessages : boolean;

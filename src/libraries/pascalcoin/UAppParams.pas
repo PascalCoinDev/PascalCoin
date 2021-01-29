@@ -57,6 +57,7 @@ Type
     Procedure SetAsCardinal(CardValue : Cardinal);
     Procedure SetAsString(StringValue : String);
     Procedure SetAsInt64(Int64Value : Int64);
+    Procedure SetAsUInt64(UInt64Value : UInt64);
     Procedure SetAsBoolean(BoolValue : Boolean);
     Procedure SetAsStream(Stream : TStream);
     Procedure SetAsTBytes(Bytes : TBytes);
@@ -65,6 +66,7 @@ Type
     function GetAsBoolean(Const DefValue : Boolean): Boolean;
     function GetAsInteger(Const DefValue : Integer): Integer;
     function GetAsInt64(Const DefValue : Int64): Int64;
+    function GetAsUInt64(Const DefValue : UInt64): UInt64;
     function GetAsStream(Stream : TStream) : Integer;
     function GetAsTBytes(Const DefValue : TBytes) : TBytes;
   End;
@@ -175,6 +177,18 @@ begin
 end;
 
 function TAppParam.GetAsInt64(const DefValue: Int64): Int64;
+begin
+  if IsNull then Result := DefValue
+  else begin
+    Try
+      Result := FValue;
+    Except
+      Result := DefValue;
+    End;
+  end;
+end;
+
+function TAppParam.GetAsUInt64(const DefValue: UInt64): UInt64;
 begin
   if IsNull then Result := DefValue
   else begin
@@ -354,6 +368,13 @@ procedure TAppParam.SetAsInt64(Int64Value: Int64);
 begin
   FParamType := ptInt64;
   FValue := Int64Value;
+  If Assigned(FAppParams) then FAppParams.Save;
+end;
+
+procedure TAppParam.SetAsUInt64(UInt64Value: UInt64);
+begin
+  FParamType := ptInt64;
+  FValue := UInt64Value;
   If Assigned(FAppParams) then FAppParams.Save;
 end;
 
