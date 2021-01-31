@@ -431,7 +431,9 @@ begin
      AInputParams.SetAs('payload_method', TPCJSONVariantValue.CreateFromVariant('aes'));
      AInputParams.SetAs('payload', TPCJSONVariantValue.CreateFromVariant(AEPASA.GetRawPayloadBytes().ToHexaString()));
      AInputParams.SetAs('pwd', TPCJSONVariantValue.CreateFromVariant(AEPASA.Password));
+     Result := True;
    end;
+   Result := True;
 end;
 
 class function TPascalCoinJSONComp.CapturePubKey(

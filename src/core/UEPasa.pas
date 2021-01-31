@@ -222,15 +222,15 @@ var
 function TPayloadTraitHelper.ProtocolValue: Byte;
 begin
   case Self of
-    ptNonDeterministic: Result := 0;
-    ptPublic: Result := BYTE_BIT_0;
-    ptRecipientKeyEncrypted: Result := BYTE_BIT_1;
-    ptSenderKeyEncrypted: Result := BYTE_BIT_2;
-    ptPasswordEncrypted: Result := BYTE_BIT_3;
-    ptAsciiFormatted: Result := BYTE_BIT_4;
-    ptHexFormatted: Result := BYTE_BIT_5;
-    ptBase58Formatted: Result := BYTE_BIT_6;
-    ptAddressedByName: Result := BYTE_BIT_7;
+    ptNonDeterministic: Exit(0);
+    ptPublic: Exit(BYTE_BIT_0);
+    ptRecipientKeyEncrypted: Exit(BYTE_BIT_1);
+    ptSenderKeyEncrypted: Exit(BYTE_BIT_2);
+    ptPasswordEncrypted: Exit(BYTE_BIT_3);
+    ptAsciiFormatted: Exit(BYTE_BIT_4);
+    ptHexFormatted: Exit(BYTE_BIT_5);
+    ptBase58Formatted: Exit(BYTE_BIT_6);
+    ptAddressedByName: Exit(BYTE_BIT_7);
   end;
   raise Exception.Create('Internal Error 2faed11a-1b0f-447a-87d1-2e1735ac4ca2');
 end;

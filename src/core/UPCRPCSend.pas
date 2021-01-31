@@ -149,6 +149,7 @@ begin
 
   if Not TPascalCoinJSONComp.OverridePayloadParams(AInputParams, LTargetEPASA) then begin
     AErrorNum := CT_RPC_ErrNum_AmbiguousPayload;
+    AErrorDesc := 'Target EPASA payload conflicts with argument payload.';
     Exit;
   end;
 
