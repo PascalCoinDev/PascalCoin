@@ -167,7 +167,7 @@ type
     Function UpdateFee(var Fee : Int64; errors : String) : Boolean;
     Function UpdateOperationOptions(var errors : String) : Boolean;
     Function UpdatePayload(Const SenderAccount : TAccount; var errors : String) : Boolean;
-    Function UpdateOpTransaction(Const SenderAccount : TAccount; var DestAccount : TAccount; var amount : Int64; var errors : String) : Boolean;
+    Function UpdateOpTransaction(const SenderAccount: TAccount; out DestAccount : TAccount; out AResolvedKey : TAccountKey; out ARequiresPurchase : Boolean; out amount: Int64; out errors: String) : Boolean;
     Function UpdateOpChangeKey(Const TargetAccount : TAccount; var SignerAccount : TAccount; var NewPublicKey : TAccountKey; var errors : String) : Boolean;
     Function UpdateOpListAccount(Const TargetAccount : TAccount; var SalePrice : Int64; var SellerAccount,SignerAccount : TAccount; var NewOwnerPublicKey : TAccountKey; var LockedUntilBlock : Cardinal; var HashLock : T32Bytes; var errors : String) : Boolean;
     Function UpdateOpDelist(Const TargetAccount : TAccount; var SignerAccount : TAccount; var errors : String) : Boolean;
@@ -192,7 +192,7 @@ implementation
 
 uses
   {$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}UConst, UOpTransaction, UFRMNewPrivateKeyType, UFRMWalletKeys, UFRMHashLock,
-  UCommon, ULog, UGUIUtils;
+  UCommon, UEPasa, ULog, UGUIUtils;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -218,7 +218,7 @@ Var errors : String;
   LHashLock : T32Bytes;
   _newName, LNewAccountData : TRawBytes;
   _newType : Word;
-  _changeName, _changeType, LChangeAccountData, _V2, _executeSigner, LRecipientSigned : Boolean;
+  _changeName, _changeType, LChangeAccountData, _V2, _executeSigner, LRecipientSigned, LRequiresPurchase : Boolean;
   _senderAccounts : TCardinalsArray;
 label loop_start;
 begin
@@ -262,7 +262,8 @@ loop_start:
       // Determine which operation type it is
       if PageControlOpType.ActivePage = tsTransaction then begin
         {%region Operation: Transaction}
-        if Not UpdateOpTransaction(account,destAccount,_amount,errors) then raise Exception.Create(errors);
+        if Not UpdateOpTransaction(account,destAccount,_newOwnerPublicKey, LRequiresPurchase, _amount,errors) then
+        raise Exception.Create(errors);
         if Length(_senderAccounts) > 1 then begin
           if account.balance>0 then begin
             if account.balance>DefaultFee then begin
@@ -273,14 +274,19 @@ loop_start:
               _fee := 0;
             end;
           end else dooperation := false;
-        end else begin
         end;
+
         if dooperation then begin
-          op := TOpTransaction.CreateTransaction(FNode.Bank.Safebox.CurrentProtocol,account.account,account.n_operation+1,destAccount.account,LKey.PrivateKey,_amount,_fee,FEncodedPayload);
-          inc(_totalamount,_amount);
-          inc(_totalfee,_fee);
+          if NOT LRequiresPurchase then begin
+            op := TOpTransaction.CreateTransaction(FNode.Bank.Safebox.CurrentProtocol,account.account,account.n_operation+1,destAccount.account,LKey.PrivateKey,_amount,_fee,FEncodedPayload);
+            operationstxt := 'Transaction to '+TAccountComp.AccountNumberToAccountTxtNumber(destAccount.account);
+          end else begin
+            // Pay-to-Key
+            op := TOpBuyAccount.CreateBuy(FNode.Bank.SafeBox.CurrentProtocol, account.account, account.n_operation + 1, destAccount.account, destAccount.accountInfo.account_to_pay, destAccount.accountInfo.price, _amount, _fee, _newOwnerPublicKey, LKey.PrivateKey, FEncodedPayload);
+          end;
+         inc(_totalamount,_amount);
+         inc(_totalfee,_fee);
         end;
-        operationstxt := 'Transaction to '+TAccountComp.AccountNumberToAccountTxtNumber(destAccount.account);
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsChangePrivateKey) then begin
         {%region Operation: Change Private Key}
@@ -467,14 +473,14 @@ begin
 end;
 
 procedure TFRMOperation.ebAccountNumberExit(Sender: TObject);
-Var an : Cardinal;
+Var LEPasa : TEPASA;
   eb : TEdit;
 begin
   if (Not assigned(Sender)) then exit;
   if (Not (Sender is TEdit)) then exit;
   eb := TEdit(Sender);
-  If TAccountComp.AccountTxtNumberToAccountNumber(eb.Text,an) then begin
-    eb.Text := TAccountComp.AccountNumberToAccountTxtNumber(an);
+  If TEPasa.TryParse(eb.Text,LEPasa) then begin
+    eb.Text := LEPasa.ToString();
   end else begin
     eb.Text := '';
   end;
@@ -1147,6 +1153,7 @@ Var
   changeName,changeType, LRecipientSigned, LChangeAccountData : Boolean;
   newName, LNewAccountData : TRawBytes;
   newType : Word;
+  LRequiresPurchase : Boolean;
 begin
   Result := false;
   sender_account := CT_Account_NUL;
@@ -1212,7 +1219,7 @@ begin
     end;
   End;
   if (PageControlOpType.ActivePage = tsTransaction) then begin
-    Result := UpdateOpTransaction(GetDefaultSenderAccount,dest_account,amount,errors);
+    Result := UpdateOpTransaction(GetDefaultSenderAccount,dest_account, publicKey, LRequiresPurchase, amount,errors);
   end else if (PageControlOpType.ActivePage = tsChangePrivateKey) then begin
     Result := UpdateOpChangeKey(GetDefaultSenderAccount,signer_account,publicKey,errors);
   end else if (PageControlOpType.ActivePage = tsListAccount) then begin
@@ -1508,44 +1515,51 @@ begin
   End;
 end;
 
-function TFRMOperation.UpdateOpTransaction(const SenderAccount: TAccount;  var DestAccount: TAccount; var amount: Int64;  var errors: String): Boolean;
-Var c : Cardinal;
+function TFRMOperation.UpdateOpTransaction(const SenderAccount: TAccount; out DestAccount : TAccount; out AResolvedKey : TECDSA_Public; out ARequiresPurchase : Boolean; out amount: Int64; out errors: String): Boolean;
+Var
+  LEPasa : TEPasa;
+  LResolvedAccountNo : Cardinal;
 begin
-  Result := False;
   errors := '';
   lblTransactionErrors.Caption := '';
   if PageControlOpType.ActivePage<>tsTransaction then exit;
-  if not (TAccountComp.AccountTxtNumberToAccountNumber(ebDestAccount.Text,c)) then begin
-    errors := 'Invalid dest. account ('+ebDestAccount.Text+')';
+  if not TEPasa.TryParse(ebDestAccount.Text, LEPasa) then begin
+    errors := 'Invalid dest. EPASA ('+ebDestAccount.Text+')';
     lblTransactionErrors.Caption := errors;
-    exit;
+    Exit(False);
   end;
-  if (c<0) Or (c>=TNode.Node.Bank.AccountsCount) then begin
-    errors := 'Invalid dest. account ('+TAccountComp.AccountNumberToAccountTxtNumber(c)+')';
+
+  Result := TNode.Node.TryResolveEPASA(LEPasa, LResolvedAccountNo, AResolvedKey, ARequiresPurchase, errors);
+  if NOT Result then begin
     lblTransactionErrors.Caption := errors;
-    exit;
+    Exit(False);
   end;
-  DestAccount := TNode.Node.GetMempoolAccount(c);
+
+  if LResolvedAccountNo <> CT_AccountNo_NUL then begin
+    DestAccount := TNode.Node.GetMempoolAccount(LResolvedAccountNo);
+    if DestAccount.account=SenderAccount.account then begin
+      errors := 'Sender and dest account are the same';
+      lblTransactionErrors.Caption := errors;
+      Exit(False);
+    end;
+  end;
+
   if SenderAccounts.Count=1 then begin
     if not TAccountComp.TxtToMoney(ebAmount.Text,amount) then begin
       errors := 'Invalid amount ('+ebAmount.Text+')';
       lblTransactionErrors.Caption := errors;
-      exit;
+      Exit(False);
     end;
   end else amount := 0; // ALL BALANCE
-  if DestAccount.account=SenderAccount.account then begin
-    errors := 'Sender and dest account are the same';
-    lblTransactionErrors.Caption := errors;
-    exit;
-  end;
+
+
   if (SenderAccounts.Count=1) then begin
     if (SenderAccount.balance<(amount+FDefaultFee)) then begin
        errors := 'Insufficient funds';
        lblTransactionErrors.Caption := errors;
-       exit;
+       Exit(False);
     end;
   end;
-  Result := True;
 end;
 
 function TFRMOperation.UpdatePayload(const SenderAccount: TAccount;

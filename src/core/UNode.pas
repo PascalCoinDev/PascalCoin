@@ -887,6 +887,8 @@ begin
   end else if (AEPasa.IsAddressedByName) then begin
     // Find account by name
     AResolvedAccount := Bank.SafeBox.FindAccountByName(AEPasa.AccountName);
+    AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+    ARequiresPurchase := False;
     if AResolvedAccount < 0 then begin
       // No account with name found
       AResolvedAccount := CT_AccountNo_NUL;

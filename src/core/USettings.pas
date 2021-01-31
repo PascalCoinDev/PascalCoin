@@ -395,7 +395,7 @@ end;
 class function TSettings.GetMaxPayToKeyPurchasePrice : UInt64;
 begin
   CheckLoaded;
-  Result := FAppParams.ParamByName[CT_PARAM_MaxPayToKeyPurchasePrice].GetAsUInt64(5000);
+  Result := FAppParams.ParamByName[CT_PARAM_MaxPayToKeyPurchasePrice].GetAsUInt64(CT_DEFAULT_PAY_TO_KEY_MAX_MOLINAS);
 end;
 
 class procedure TSettings.SetMaxPayToKeyPurchasePrice(AVal: UInt64);

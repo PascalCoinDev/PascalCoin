@@ -125,31 +125,6 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="core\UAccountKeyStorage.pas"/>
-        <DCCReference Include="core\UAccounts.pas"/>
-        <DCCReference Include="core\UAES.pas"/>
-        <DCCReference Include="core\UBaseTypes.pas"/>
-        <DCCReference Include="core\UBlockChain.pas"/>
-        <DCCReference Include="core\UChunk.pas"/>
-        <DCCReference Include="core\UConst.pas"/>
-        <DCCReference Include="core\UCrypto.pas"/>
-        <DCCReference Include="core\UFileStorage.pas"/>
-        <DCCReference Include="core\ULog.pas"/>
-        <DCCReference Include="core\UNetProtection.pas"/>
-        <DCCReference Include="core\UNetProtocol.pas"/>
-        <DCCReference Include="core\UNode.pas"/>
-        <DCCReference Include="core\UOpTransaction.pas"/>
-        <DCCReference Include="core\UPoolMinerThreads.pas"/>
-        <DCCReference Include="core\UPoolMining.pas"/>
-        <DCCReference Include="core\URandomHash.pas"/>
-        <DCCReference Include="core\URPC.pas"/>
-        <DCCReference Include="core\USettings.pas"/>
-        <DCCReference Include="core\USha256.pas"/>
-        <DCCReference Include="core\UTCPIP.pas"/>
-        <DCCReference Include="core\UThread.pas"/>
-        <DCCReference Include="core\UTime.pas"/>
-        <DCCReference Include="core\UTxMultiOperation.pas"/>
-        <DCCReference Include="core\UWallet.pas"/>
         <DCCReference Include="gui-classic\UFRMAbout.pas">
             <Form>FRMAbout</Form>
             <FormType>dfm</FormType>
@@ -201,21 +176,65 @@
         </DCCReference>
         <DCCReference Include="gui-classic\UGridUtils.pas"/>
         <DCCReference Include="gui-classic\UGUIUtils.pas"/>
-        <DCCReference Include="core\UPCDataTypes.pas"/>
-        <DCCReference Include="core\UPCOrderedLists.pas"/>
-        <DCCReference Include="core\UPCOperationsSignatureValidator.pas"/>
-        <DCCReference Include="core\UPCTNetDataExtraMessages.pas"/>
         <DCCReference Include="gui-classic\UFRMHashLock.pas">
             <Form>FRMHashLock</Form>
         </DCCReference>
-        <DCCReference Include="core\URandomHash2.pas"/>
         <DCCReference Include="gui-classic\UFRMDiagnosticTool.pas">
             <Form>FRMDiagnosticTool</Form>
         </DCCReference>
         <DCCReference Include="libraries\sphere10\UCommon.pas"/>
         <DCCReference Include="libraries\sphere10\UMemory.pas"/>
-        <DCCReference Include="core\UEPasa.pas"/>
+        <DCCReference Include="core\UAccountKeyStorage.pas"/>
+        <DCCReference Include="core\UAccounts.pas"/>
+        <DCCReference Include="core\UAES.pas"/>
+        <DCCReference Include="core\UBaseTypes.pas"/>
+        <DCCReference Include="core\UBlockChain.pas"/>
+        <DCCReference Include="core\UChunk.pas"/>
+        <DCCReference Include="core\UConst.pas"/>
+        <DCCReference Include="core\UCrypto.pas"/>
+        <DCCReference Include="core\UECIES.pas"/>
         <DCCReference Include="core\UEncoding.pas"/>
+        <DCCReference Include="core\UEPasa.pas"/>
+        <DCCReference Include="core\UFileStorage.pas"/>
+        <DCCReference Include="core\ULog.pas"/>
+        <DCCReference Include="core\UMurMur3Fast.pas"/>
+        <DCCReference Include="core\UNetProtection.pas"/>
+        <DCCReference Include="core\UNetProtocol.pas"/>
+        <DCCReference Include="core\UNode.pas"/>
+        <DCCReference Include="core\UOpenSSL.pas"/>
+        <DCCReference Include="core\UOpTransaction.pas"/>
+        <DCCReference Include="core\UPCAbstractMem.pas"/>
+        <DCCReference Include="core\UPCAbstractMemAccountKeys.pas"/>
+        <DCCReference Include="core\UPCAbstractMemAccounts.pas"/>
+        <DCCReference Include="core\UPCAccountsOrdenations.pas"/>
+        <DCCReference Include="core\UPCCryptoLib4Pascal.pas"/>
+        <DCCReference Include="core\UPCDataTypes.pas"/>
+        <DCCReference Include="core\UPCEncryption.pas"/>
+        <DCCReference Include="core\UPCHardcodedRandomHashTable.pas"/>
+        <DCCReference Include="core\UPCOperationsBlockValidator.pas"/>
+        <DCCReference Include="core\UPCOperationsSignatureValidator.pas"/>
+        <DCCReference Include="core\UPCOrderedLists.pas"/>
+        <DCCReference Include="core\UPCRPCFileUtils.pas"/>
+        <DCCReference Include="core\UPCRPCFindAccounts.pas"/>
+        <DCCReference Include="core\UPCRPCFindBlocks.pas"/>
+        <DCCReference Include="core\UPCRPCOpData.pas"/>
+        <DCCReference Include="core\UPCRPCSend.pas"/>
+        <DCCReference Include="core\UPCSafeBoxRootHash.pas"/>
+        <DCCReference Include="core\UPCTemporalAbstractMem.pas"/>
+        <DCCReference Include="core\UPCTemporalFileStream.pas"/>
+        <DCCReference Include="core\UPCTNetDataExtraMessages.pas"/>
+        <DCCReference Include="core\UPoolMinerThreads.pas"/>
+        <DCCReference Include="core\UPoolMining.pas"/>
+        <DCCReference Include="core\URandomHash.pas"/>
+        <DCCReference Include="core\URandomHash2.pas"/>
+        <DCCReference Include="core\URPC.pas"/>
+        <DCCReference Include="core\USettings.pas"/>
+        <DCCReference Include="core\USha256.pas"/>
+        <DCCReference Include="core\UTCPIP.pas"/>
+        <DCCReference Include="core\UThread.pas"/>
+        <DCCReference Include="core\UTime.pas"/>
+        <DCCReference Include="core\UTxMultiOperation.pas"/>
+        <DCCReference Include="core\UWallet.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
