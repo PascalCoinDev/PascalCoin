@@ -230,8 +230,6 @@ Type
 
   { TBlockChainGrid }
 
-  TShowHashRateAs = (hr_Unit, hr_Kilo, hr_Mega, hr_Giga, hr_Tera, hr_Peta, hr_Exa);
-
   TBlockChainGrid = Class(TComponent)
   private
     FBlockChainDataList : TList<TBlockChainData>;

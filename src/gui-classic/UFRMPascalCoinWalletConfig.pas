@@ -30,11 +30,10 @@ uses
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Buttons, ComCtrls, UAppParams, UWallet;
+  Dialogs, StdCtrls, Buttons, ComCtrls, UAppParams, USettings, UWallet;
 
 type
 
-  TMinerPrivateKey = (mpk_NewEachTime, mpk_Random, mpk_Selected);
 
   { TFRMPascalCoinWalletConfig }
 
