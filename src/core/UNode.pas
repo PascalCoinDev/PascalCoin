@@ -927,7 +927,7 @@ begin
     AResolvedAccount := CT_AccountNo_NUL;
     AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
     ARequiresPurchase := False;
-    AErrorMessage := Format('Account number %d does not exist in safebox',[AResolvedAccount]);
+    AErrorMessage := Format('Account number %d does not exist in safebox',[AEPasa.Account.Value]);
     Exit(False);
   end;
   Result := true;
