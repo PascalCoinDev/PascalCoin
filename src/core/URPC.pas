@@ -376,7 +376,7 @@ var
 begin
   LParamValue := AInputParams.AsString(AParamName,'');
   Result := CaptureEPASA(AInputParams, AParamName, ANode, LEPasa, AResolvedAccount, LKey, LPurchase, AErrorParam);
-  if Result AND (NOT LEPasa.IsStandard) then begin
+  if Result AND (NOT LEPasa.IsClassicPASA) then begin
       AErrorParam := Format('"%s" is not valid Account Number for Param "%s"',[LParamValue,AParamName]);
       Exit(False);
   end;
@@ -415,7 +415,7 @@ end;
 class function TPascalCoinJSONComp.OverridePayloadParams(const AInputParams : TPCJSONObject; const AEPASA : TEPasa) : Boolean;
 begin
    // none, dest, sender, aes, payload, pwd
-   if (NOT AEPASA.IsStandard) AND (AInputParams.HasValue('payload') OR AInputParams.HasValue('payload_method') OR AInputParams.HasValue('pwd')) then
+   if (NOT AEPASA.IsClassicPASA) AND (AInputParams.HasValue('payload') OR AInputParams.HasValue('payload_method') OR AInputParams.HasValue('pwd')) then
      Exit(False);
 
    if AEPASA.PayloadType.HasTrait(ptPublic) then begin

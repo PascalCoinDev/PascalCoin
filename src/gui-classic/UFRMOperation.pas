@@ -480,7 +480,10 @@ begin
   if (Not (Sender is TEdit)) then exit;
   eb := TEdit(Sender);
   If TEPasa.TryParse(eb.Text,LEPasa) then begin
-    eb.Text := LEPasa.ToString();
+    if LEPasa.IsClassicPASA then
+      eb.Text := LEPasa.ToClassicPASAString()
+    else
+      eb.Text := LEPasa.ToString();
   end else begin
     eb.Text := '';
   end;

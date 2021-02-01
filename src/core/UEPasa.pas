@@ -79,11 +79,10 @@ type
 
 
   TEPasa = record
-    strict private
-      var
-        FAccount, FAccountChecksum: TNullable<UInt32>;
-        FAccountName, FPayload, FPassword, FExtendedChecksum: String;
-        FPayloadType: TPayloadType;
+    strict private var
+      FAccount, FAccountChecksum: TNullable<UInt32>;
+      FAccountName, FPayload, FPassword, FExtendedChecksum: String;
+      FPayloadType: TPayloadType;
 
       function GetAccount: TNullable<UInt32>; inline;
       procedure SetAccount(const AValue: TNullable<UInt32>); inline;
@@ -116,11 +115,13 @@ type
       property IsAddressedByNumber: boolean read GetIsAddressedByNumber;
       property IsAddressedByName: boolean read GetIsAddressedByName;
       property IsPayToKey: boolean read GetIsPayToKey;
-      property IsStandard: boolean read GetIsStandard;
+      property IsClassicPASA: boolean read GetIsStandard;
       property HasPayload: boolean read GetHasPayload;
       class property Empty : TEPasa read GetEmptyValue;
 
       function GetRawPayloadBytes(): TArray<Byte>; inline;
+
+      function ToClassicPASAString(): String; overload;
       function ToString(): String; overload;
       function ToString(AOmitExtendedChecksum: Boolean): String; overload;
 
@@ -146,7 +147,7 @@ type
       // note: regex syntax escapes following chars [\^$.|?*+(){}
       // note: epasa syntax escapes following chars: :\"[]()<>(){}
       // note: c-sharp syntax verbatim strings escape: " as ""
-      IntegerPattern = '(0|[1-9]\d+)';
+      IntegerPattern = '(0|[1-9]\d*)';
       AccountNamePattern = '(?P<AccountName>' + TPascal64Encoding.StringPattern + ')';
       AccountChecksumPattern = '(?:(?P<ChecksumDelim>-)(?P<Checksum>\d{2}))?';
       AccountNumberPattern = '(?P<AccountNumber>' + IntegerPattern + ')' + AccountChecksumPattern;
@@ -363,6 +364,16 @@ begin
   raise EPascalCoinException.CreateRes(@SUnknownPayloadEncoding);
 end;
 
+function TEPasa.ToClassicPASAString : String;
+begin
+  Result := ToString(True);
+end;
+
+function TEPasa.ToString: String;
+begin
+  Result := ToString(False);
+end;
+
 function TEPasa.ToString(AOmitExtendedChecksum: Boolean): String;
 var
   LPayloadContent: String;
@@ -405,10 +416,7 @@ begin
   end;
 end;
 
-function TEPasa.ToString: String;
-begin
-  Result := ToString(False);
-end;
+
 
 class function TEPasa.TryParse(const AEPasaText: String; out AEPasa: TEPasa): Boolean;
 var
