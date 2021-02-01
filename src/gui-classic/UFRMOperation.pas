@@ -32,7 +32,7 @@ uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UNode, UWallet, UCrypto, Buttons, UBlockChain,
   UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UFRMMemoText,
-  UPCEncryption, UBaseTypes, UPCDataTypes, UPCOrderedLists;
+  UPCEncryption, UBaseTypes, UPCDataTypes, UPCOrderedLists, UEPasa;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -166,8 +166,8 @@ type
     Procedure UpdateAccountsInfo;
     Function UpdateFee(var Fee : Int64; errors : String) : Boolean;
     Function UpdateOperationOptions(var errors : String) : Boolean;
-    Function UpdatePayload(Const SenderAccount : TAccount; var errors : String) : Boolean;
-    Function UpdateOpTransaction(const SenderAccount: TAccount; out DestAccount : TAccount; out AResolvedKey : TAccountKey; out ARequiresPurchase : Boolean; out amount: Int64; out errors: String) : Boolean;
+    Function UpdatePayload(Const ASenderAccount : TAccount; var AErrors : String) : Boolean;
+    Function UpdateOpTransaction(const ASenderAccount: TAccount; out LTargetEPASA : TEPasa;  out ATargetAccount : TAccount; out AResolvedTargetKey : TAccountKey; out ATargetRequiresPurchase : Boolean; out AAmount: Int64; out AErrors: String) : Boolean;
     Function UpdateOpChangeKey(Const TargetAccount : TAccount; var SignerAccount : TAccount; var NewPublicKey : TAccountKey; var errors : String) : Boolean;
     Function UpdateOpListAccount(Const TargetAccount : TAccount; var SalePrice : Int64; var SellerAccount,SignerAccount : TAccount; var NewOwnerPublicKey : TAccountKey; var LockedUntilBlock : Cardinal; var HashLock : T32Bytes; var errors : String) : Boolean;
     Function UpdateOpDelist(Const TargetAccount : TAccount; var SignerAccount : TAccount; var errors : String) : Boolean;
@@ -192,7 +192,7 @@ implementation
 
 uses
   {$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}UConst, UOpTransaction, UFRMNewPrivateKeyType, UFRMWalletKeys, UFRMHashLock,
-  UCommon, UEPasa, ULog, UGUIUtils;
+  UCommon, ULog, UGUIUtils;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -203,221 +203,224 @@ uses
 { TFRMOperation }
 
 procedure TFRMOperation.actExecuteExecute(Sender: TObject);
-Var errors : String;
-  P : PAccount;
-  i,iAcc : Integer;
+var
+  LErrors : String;
+  LAccountPtr : PAccount;
+  i,LAccountNo : Integer;
   LKey : TWalletKey;
-  ops : TOperationsHashTree;
-  op : TPCOperation;
-  account,signerAccount,destAccount,accountToBuy : TAccount;
-  operation_to_string, operationstxt, auxs : String;
-  _amount,_fee, _totalamount, _totalfee, _totalSignerFee, _salePrice : Int64;
-  _lockedUntil, _signer_n_ops : Cardinal;
-  dooperation : Boolean;
-  _newOwnerPublicKey : TECDSA_Public;
+  LOperations : TOperationsHashTree;
+  LOperation : TPCOperation;
+  LAccount,LSignerAccount,LTargetAccount,LPurchaseAccount : TAccount;
+  LTargetEPASA : TEPasa;
+  LOperationString, LOperationsTxt, LAuxStr : String;
+  LAmount, LFee, LTotalamount, LTotalFee, LTotalSignerFee, LSalePrice : Int64;
+  LLockedUntil, LSignerNOps : Cardinal;
+  LDoOperation : Boolean;
+  LNewOwnerPublicKey : TECDSA_Public;
   LHashLock : T32Bytes;
-  _newName, LNewAccountData : TRawBytes;
-  _newType : Word;
-  _changeName, _changeType, LChangeAccountData, _V2, _executeSigner, LRecipientSigned, LRequiresPurchase : Boolean;
-  _senderAccounts : TCardinalsArray;
+  LNewName, LNewAccountData : TRawBytes;
+  LNewType : Word;
+  LChangeName, LChangeType, LChangeAccountData, LIsV2, LExecuteSigner, LRecipientSigned, LTargetRequiresPurchase : Boolean;
+  LSenderAccounts : TCardinalsArray;
 label loop_start;
 begin
   if Not Assigned(WalletKeys) then raise Exception.Create('No wallet keys');
-  If Not UpdateOperationOptions(errors) then raise Exception.Create(errors);
-  ops := TOperationsHashTree.Create;
+  If Not UpdateOperationOptions(LErrors) then raise Exception.Create(LErrors);
+  LOperations := TOperationsHashTree.Create;
   Try
-    _V2 := FNode.Bank.SafeBox.CurrentProtocol >= CT_PROTOCOL_2;
-    _totalamount := 0;
-    _totalfee := 0;
-    _totalSignerFee := 0;
-    _signer_n_ops := 0;
-    operationstxt := '';
-    operation_to_string := '';
+    LIsV2 := FNode.Bank.SafeBox.CurrentProtocol >= CT_PROTOCOL_2;
+    LTotalamount := 0;
+    LTotalFee := 0;
+    LTotalSignerFee := 0;
+    LSignerNOps := 0;
+    LOperationsTxt := '';
+    LOperationString := '';
 
     // Compile FSenderAccounts into a reorderable array
-    _senderAccounts := FSenderAccounts.ToArray;
+    LSenderAccounts := FSenderAccounts.ToArray;
 
     // Loop through each sender account
-    for iAcc := 0 to Length(_senderAccounts) - 1 do begin
+    for LAccountNo := 0 to Length(LSenderAccounts) - 1 do begin
 loop_start:
-      op := Nil;
-      account := FNode.GetMempoolAccount(_senderAccounts[iAcc]);
-      If Not UpdatePayload(account, errors) then
-        raise Exception.Create('Error encoding payload of sender account '+TAccountComp.AccountNumberToAccountTxtNumber(account.account)+': '+errors);
-      if NOT WalletKeys.TryGetKey(account.accountInfo.accountKey, LKey) then begin
+      LOperation := Nil;
+      LAccount := FNode.GetMempoolAccount(LSenderAccounts[LAccountNo]);
+      If Not UpdatePayload(LAccount, LErrors) then
+        raise Exception.Create('Error encoding payload of sender account '+TAccountComp.AccountNumberToAccountTxtNumber(LAccount.account)+': '+LErrors);
+      if NOT WalletKeys.TryGetKey(LAccount.accountInfo.accountKey, LKey) then begin
 
         if  (
-             (TAccountComp.IsAccountForPrivateSale(account.accountInfo)) or
-             (TAccountComp.IsAccountForAccountSwap(account.accountInfo))
+             (TAccountComp.IsAccountForPrivateSale(LAccount.accountInfo)) or
+             (TAccountComp.IsAccountForAccountSwap(LAccount.accountInfo))
              )
-            and (Not TAccountComp.IsNullAccountKey(account.accountInfo.new_publicKey)) then begin
+            and (Not TAccountComp.IsNullAccountKey(LAccount.accountInfo.new_publicKey)) then begin
 
-          if NOT WalletKeys.TryGetKey(account.accountInfo.new_publicKey, LKey) then
+          if NOT WalletKeys.TryGetKey(LAccount.accountInfo.new_publicKey, LKey) then
             Raise Exception.Create('New sender account private key not found in Wallet');
         end else Raise Exception.Create('Sender account private key not found in Wallet');
       end;
-      dooperation := true;
+      LDoOperation := true;
       // Default fee
-      if account.balance > uint64(DefaultFee) then _fee := DefaultFee else _fee := account.balance;
+      if LAccount.balance > uint64(DefaultFee) then LFee := DefaultFee else LFee := LAccount.balance;
       // Determine which operation type it is
       if PageControlOpType.ActivePage = tsTransaction then begin
         {%region Operation: Transaction}
-        if Not UpdateOpTransaction(account,destAccount,_newOwnerPublicKey, LRequiresPurchase, _amount,errors) then
-        raise Exception.Create(errors);
-        if Length(_senderAccounts) > 1 then begin
-          if account.balance>0 then begin
-            if account.balance>DefaultFee then begin
-              _amount := account.balance - DefaultFee;
-              _fee := DefaultFee;
+        if Not UpdateOpTransaction(LAccount, LTargetEPASA, LTargetAccount,LNewOwnerPublicKey, LTargetRequiresPurchase, LAmount, LErrors) then
+          raise Exception.Create(LErrors);
+
+        if Length(LSenderAccounts) > 1 then begin
+          if LAccount.balance>0 then begin
+            if LAccount.balance>DefaultFee then begin
+              LAmount := LAccount.balance - DefaultFee;
+              LFee := DefaultFee;
             end else begin
-              _amount := account.balance;
-              _fee := 0;
+              LAmount := LAccount.balance;
+              LFee := 0;
             end;
-          end else dooperation := false;
+          end else LDoOperation := false;
         end;
 
-        if dooperation then begin
-          if NOT LRequiresPurchase then begin
-            op := TOpTransaction.CreateTransaction(FNode.Bank.Safebox.CurrentProtocol,account.account,account.n_operation+1,destAccount.account,LKey.PrivateKey,_amount,_fee,FEncodedPayload);
-            operationstxt := 'Transaction to '+TAccountComp.AccountNumberToAccountTxtNumber(destAccount.account);
+        if LDoOperation then begin
+          if NOT LTargetRequiresPurchase then begin
+            LOperation := TOpTransaction.CreateTransaction(FNode.Bank.Safebox.CurrentProtocol,LAccount.account,LAccount.n_operation+1,LTargetAccount.account,LKey.PrivateKey,LAmount,LFee,FEncodedPayload);
+            LOperationsTxt := 'Transaction to '+TAccountComp.AccountNumberToAccountTxtNumber(LTargetAccount.account);
           end else begin
             // Pay-to-Key
-            op := TOpBuyAccount.CreateBuy(FNode.Bank.SafeBox.CurrentProtocol, account.account, account.n_operation + 1, destAccount.account, destAccount.accountInfo.account_to_pay, destAccount.accountInfo.price, _amount, _fee, _newOwnerPublicKey, LKey.PrivateKey, FEncodedPayload);
+            LOperation := TOpBuyAccount.CreateBuy(FNode.Bank.SafeBox.CurrentProtocol, LAccount.account, LAccount.n_operation + 1, LTargetAccount.account, LTargetAccount.accountInfo.account_to_pay, LTargetAccount.accountInfo.price, LAmount, LFee, LNewOwnerPublicKey, LKey.PrivateKey, FEncodedPayload);
           end;
-         inc(_totalamount,_amount);
-         inc(_totalfee,_fee);
+         inc(LTotalamount,LAmount);
+         inc(LTotalFee,LFee);
         end;
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsChangePrivateKey) then begin
         {%region Operation: Change Private Key}
-        if Not UpdateOpChangeKey(account,signerAccount,_newOwnerPublicKey,errors) then raise Exception.Create(errors);
-        if _V2 then begin
+        if Not UpdateOpChangeKey(LAccount,LSignerAccount,LNewOwnerPublicKey,LErrors) then raise Exception.Create(LErrors);
+        if LIsV2 then begin
           // must ensure is Signer account last if included in sender accounts (not necessarily ordered enumeration)
-          if (iAcc < Length(_senderAccounts) - 1) AND (account.account = signerAccount.account) then begin
-            TArrayTool<Cardinal>.Swap(_senderAccounts, iAcc, Length(_senderAccounts) - 1); // ensure signer account processed last
+          if (LAccountNo < Length(LSenderAccounts) - 1) AND (LAccount.account = LSignerAccount.account) then begin
+            TArrayTool<Cardinal>.Swap(LSenderAccounts, LAccountNo, Length(LSenderAccounts) - 1); // ensure signer account processed last
             goto loop_start; // TODO: remove ugly hack with refactoring!
           end;
 
           // Maintain correct signer fee distribution
-          if uint64(_totalSignerFee) >= signerAccount.balance then _fee := 0
-          else if signerAccount.balance - uint64(_totalSignerFee) > uint64(DefaultFee) then _fee := DefaultFee
-          else _fee := signerAccount.balance - uint64(_totalSignerFee);
-          op := TOpChangeKeySigned.Create(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+_signer_n_ops+1,account.account,LKey.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
-          inc(_signer_n_ops);
-          inc(_totalSignerFee, _fee);
+          if uint64(LTotalSignerFee) >= LSignerAccount.balance then LFee := 0
+          else if LSignerAccount.balance - uint64(LTotalSignerFee) > uint64(DefaultFee) then LFee := DefaultFee
+          else LFee := LSignerAccount.balance - uint64(LTotalSignerFee);
+          LOperation := TOpChangeKeySigned.Create(FNode.Bank.SafeBox.CurrentProtocol,LSignerAccount.account,LSignerAccount.n_operation+LSignerNOps+1,LAccount.account,LKey.PrivateKey,LNewOwnerPublicKey,LFee,FEncodedPayload);
+          inc(LSignerNOps);
+          inc(LTotalSignerFee, LFee);
         end else begin
-          op := TOpChangeKey.Create(FNode.Bank.SafeBox.CurrentProtocol,account.account,account.n_operation+1,account.account,LKey.PrivateKey,_newOwnerPublicKey,_fee,FEncodedPayload);
+          LOperation := TOpChangeKey.Create(FNode.Bank.SafeBox.CurrentProtocol,LAccount.account,LAccount.n_operation+1,LAccount.account,LKey.PrivateKey,LNewOwnerPublicKey,LFee,FEncodedPayload);
         end;
-        inc(_totalfee,_fee);
-        operationstxt := 'Change private key to '+TAccountComp.GetECInfoTxt(_newOwnerPublicKey.EC_OpenSSL_NID);
+        inc(LTotalFee,LFee);
+        LOperationsTxt := 'Change private key to '+TAccountComp.GetECInfoTxt(LNewOwnerPublicKey.EC_OpenSSL_NID);
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsListAccount) then begin
         {%region Operation: List For Sale}
-        If Not UpdateOpListAccount(account,_salePrice,destAccount,signerAccount,_newOwnerPublicKey, _lockedUntil, LHashLock, errors) then raise Exception.Create(errors);
+        If Not UpdateOpListAccount(LAccount,LSalePrice,LTargetAccount,LSignerAccount,LNewOwnerPublicKey, LLockedUntil, LHashLock, LErrors) then raise Exception.Create(LErrors);
         // Special fee account:
-        if signerAccount.balance>DefaultFee then _fee := DefaultFee
-        else _fee := signerAccount.balance;
+        if LSignerAccount.balance>DefaultFee then LFee := DefaultFee
+        else LFee := LSignerAccount.balance;
         if (rbListAccountForPublicSale.Checked) then begin
-          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, as_ForSale, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,
-            destAccount.account,CT_TECDSA_Public_Nul,0,LKey.PrivateKey, CT_HashLock_NUL, FEncodedPayload);
+          LOperation := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, as_ForSale, LSignerAccount.account,LSignerAccount.n_operation+1+LAccountNo, LAccount.account,LSalePrice,LFee,
+            LTargetAccount.account,CT_TECDSA_Public_Nul,0,LKey.PrivateKey, CT_HashLock_NUL, FEncodedPayload);
         end else if (rbListAccountForPrivateSale.Checked) then begin
-          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, as_ForSale, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,
-            destAccount.account,_newOwnerPublicKey,_lockedUntil,LKey.PrivateKey, CT_HashLock_NUL, FEncodedPayload);
+          LOperation := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, as_ForSale, LSignerAccount.account,LSignerAccount.n_operation+1+LAccountNo, LAccount.account,LSalePrice,LFee,
+            LTargetAccount.account,LNewOwnerPublicKey,LLockedUntil,LKey.PrivateKey, CT_HashLock_NUL, FEncodedPayload);
         end  else if (rbListAccountForAccountSwap.Checked) then begin
-          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, as_ForAtomicAccountSwap, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,
-            destAccount.account,_newOwnerPublicKey,_lockedUntil,LKey.PrivateKey, LHashLock, FEncodedPayload);
+          LOperation := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, as_ForAtomicAccountSwap, LSignerAccount.account,LSignerAccount.n_operation+1+LAccountNo, LAccount.account,LSalePrice,LFee,
+            LTargetAccount.account,LNewOwnerPublicKey,LLockedUntil,LKey.PrivateKey, LHashLock, FEncodedPayload);
         end  else if (rbListAccountForCoinSwap.Checked) then begin
-          op := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, as_ForAtomicCoinSwap, signerAccount.account,signerAccount.n_operation+1+iAcc, account.account,_salePrice,_fee,
-            destAccount.account,CT_TECDSA_Public_Nul,_lockedUntil,LKey.PrivateKey, LHashLock, FEncodedPayload);
+          LOperation := TOpListAccountForSaleOrSwap.CreateListAccountForSaleOrSwap(FNode.Bank.SafeBox.CurrentProtocol, as_ForAtomicCoinSwap, LSignerAccount.account,LSignerAccount.n_operation+1+LAccountNo, LAccount.account,LSalePrice,LFee,
+            LTargetAccount.account,CT_TECDSA_Public_Nul,LLockedUntil,LKey.PrivateKey, LHashLock, FEncodedPayload);
         end else raise Exception.Create('Select Sale type');
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsDelistAccount) then begin
         {%region Operation: Delist For Sale}
-        if Not UpdateOpDelist(account,signerAccount,errors) then raise Exception.Create(errors);
+        if Not UpdateOpDelist(LAccount,LSignerAccount,LErrors) then raise Exception.Create(LErrors);
         // Special fee account:
-        if signerAccount.balance>DefaultFee then _fee := DefaultFee
-        else _fee := signerAccount.balance;
-        op := TOpDelistAccountForSale.CreateDelistAccountForSale(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1+iAcc,account.account,_fee,LKey.PrivateKey,FEncodedPayload);
+        if LSignerAccount.balance>DefaultFee then LFee := DefaultFee
+        else LFee := LSignerAccount.balance;
+        LOperation := TOpDelistAccountForSale.CreateDelistAccountForSale(FNode.Bank.SafeBox.CurrentProtocol,LSignerAccount.account,LSignerAccount.n_operation+1+LAccountNo,LAccount.account,LFee,LKey.PrivateKey,FEncodedPayload);
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsBuyAccount) then begin
         {%region Operation: Buy Account}
-        if Not UpdateOpBuyAccount(account,accountToBuy,_amount,_newOwnerPublicKey, LRecipientSigned, errors) then raise Exception.Create(errors);
-        if LRecipientSigned AND (NOT WalletKeys.TryGetKey(account.accountInfo.new_publicKey, LKey)) then
+        if Not UpdateOpBuyAccount(LAccount,LPurchaseAccount,LAmount,LNewOwnerPublicKey, LRecipientSigned, LErrors) then raise Exception.Create(LErrors);
+        if LRecipientSigned AND (NOT WalletKeys.TryGetKey(LAccount.accountInfo.new_publicKey, LKey)) then
           raise Exception.Create('Recipient-signed key not found in Wallet');
-        op := TOpBuyAccount.CreateBuy(FNode.Bank.Safebox.CurrentProtocol,account.account,account.n_operation+1,accountToBuy.account,accountToBuy.accountInfo.account_to_pay,
-          accountToBuy.accountInfo.price,_amount,_fee,_newOwnerPublicKey,LKey.PrivateKey,FEncodedPayload);
+        LOperation := TOpBuyAccount.CreateBuy(FNode.Bank.Safebox.CurrentProtocol,LAccount.account,LAccount.n_operation+1,LPurchaseAccount.account,LPurchaseAccount.accountInfo.account_to_pay,
+          LPurchaseAccount.accountInfo.price,LAmount,LFee,LNewOwnerPublicKey,LKey.PrivateKey,FEncodedPayload);
         {%endregion}
       end else if (PageControlOpType.ActivePage = tsChangeInfo) then begin
         {%region Operation: Change Info}
-        if not UpdateOpChangeInfo(account,signerAccount,_changeName,_newName,_changeType,_newType,LChangeAccountData,LNewAccountData,errors) then begin
-          If Length(_senderAccounts)=1 then raise Exception.Create(errors);
+        if not UpdateOpChangeInfo(LAccount,LSignerAccount,LChangeName,LNewName,LChangeType,LNewType,LChangeAccountData,LNewAccountData,LErrors) then begin
+          If Length(LSenderAccounts)=1 then raise Exception.Create(LErrors);
         end else begin
-          if signerAccount.balance>DefaultFee then _fee := DefaultFee
-          else _fee := signerAccount.balance;
-          op := TOpChangeAccountInfo.CreateChangeAccountInfo(FNode.Bank.SafeBox.CurrentProtocol,signerAccount.account,signerAccount.n_operation+1,account.account,LKey.PrivateKey,false,CT_TECDSA_Public_Nul,
-             _changeName,_newName,_changeType,_newType,
+          if LSignerAccount.balance>DefaultFee then LFee := DefaultFee
+          else LFee := LSignerAccount.balance;
+          LOperation := TOpChangeAccountInfo.CreateChangeAccountInfo(FNode.Bank.SafeBox.CurrentProtocol,LSignerAccount.account,LSignerAccount.n_operation+1,LAccount.account,LKey.PrivateKey,false,CT_TECDSA_Public_Nul,
+             LChangeName,LNewName,LChangeType,LNewType,
              LChangeAccountData,LNewAccountData,
-             _fee,FEncodedPayload);
+             LFee,FEncodedPayload);
         end;
         {%endregion}
       end else begin
         raise Exception.Create('No operation selected');
       end;
-      if Assigned(op) And (dooperation) then begin
-        ops.AddOperationToHashTree(op);
-        if operation_to_string<>'' then operation_to_string := operation_to_string + #10;
-        operation_to_string := operation_to_string + op.ToString;
+      if Assigned(LOperation) And (LDoOperation) then begin
+        LOperations.AddOperationToHashTree(LOperation);
+        if LOperationString<>'' then LOperationString := LOperationString + #10;
+        LOperationString := LOperationString + LOperation.ToString;
       end;
-      FreeAndNil(op);
+      FreeAndNil(LOperation);
     end;
 
-    if (ops.OperationsCount=0) then raise Exception.Create('No valid operation to execute');
+    if (LOperations.OperationsCount=0) then raise Exception.Create('No valid operation to execute');
 
-    if (Length(_senderAccounts)>1) then begin
-      if PageControlOpType.ActivePage = tsTransaction then auxs := 'Total amount that dest will receive: '+TAccountComp.FormatMoney(_totalamount)+#10
-      else auxs:='';
-      if Application.MessageBox(PChar('Execute '+Inttostr(Length(_senderAccounts))+' operations?'+#10+
-        'Operation: '+operationstxt+#10+
-        auxs+
-        'Total fee: '+TAccountComp.FormatMoney(_totalfee)+#10+#10+'Note: This operation will be transmitted to the network!'),
+    if (Length(LSenderAccounts)>1) then begin
+      if PageControlOpType.ActivePage = tsTransaction then LAuxStr := 'Total amount that dest will receive: '+TAccountComp.FormatMoney(LTotalamount)+#10
+      else LAuxStr:='';
+      if Application.MessageBox(PChar('Execute '+Inttostr(Length(LSenderAccounts))+' operations?'+#10+
+        'Operation: '+LOperationsTxt+#10+
+        LAuxStr+
+        'Total fee: '+TAccountComp.FormatMoney(LTotalFee)+#10+#10+'Note: This operation will be transmitted to the network!'),
         PChar(Application.Title),MB_YESNO+MB_ICONINFORMATION+MB_DEFBUTTON2)<>IdYes then exit;
     end else begin
-      if Application.MessageBox(PChar('Execute this operation:'+#10+#10+operation_to_string+#10+#10+'Note: This operation will be transmitted to the network!'),
+      if Application.MessageBox(PChar('Execute this operation:'+#10+#10+LOperationString+#10+#10+'Note: This operation will be transmitted to the network!'),
         PChar(Application.Title),MB_YESNO+MB_ICONINFORMATION+MB_DEFBUTTON2)<>IdYes then exit;
     end;
-    i := FNode.AddOperations(nil,ops,Nil,errors);
-    if (i=ops.OperationsCount) then begin
-      operationstxt := 'Successfully executed '+inttostr(i)+' operations!'+#10+#10+operation_to_string;
+    i := FNode.AddOperations(nil,LOperations,Nil,LErrors);
+    if (i=LOperations.OperationsCount) then begin
+      LOperationsTxt := 'Successfully executed '+inttostr(i)+' operations!'+#10+#10+LOperationString;
       If i>1 then begin
         With TFRMMemoText.Create(Self) do
         Try
-          InitData(Application.Title,operationstxt);
+          InitData(Application.Title,LOperationsTxt);
           ShowModal;
         finally
           Free;
         end;
       end else begin
-        Application.MessageBox(PChar('Successfully executed '+inttostr(i)+' operations!'+#10+#10+operation_to_string),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
+        Application.MessageBox(PChar('Successfully executed '+inttostr(i)+' operations!'+#10+#10+LOperationString),PChar(Application.Title),MB_OK+MB_ICONINFORMATION);
       end;
       ModalResult := MrOk;
     end else if (i>0) then begin
-      operationstxt := 'One or more of your operations has not been executed:'+#10+
+      LOperationsTxt := 'One or more of your operations has not been executed:'+#10+
         'Errors:'+#10+
-        errors+#10+#10+
+        LErrors+#10+#10+
         'Total successfully executed operations: '+inttostr(i);
       With TFRMMemoText.Create(Self) do
       Try
-        InitData(Application.Title,operationstxt);
+        InitData(Application.Title,LOperationsTxt);
         ShowModal;
       finally
         Free;
       end;
       ModalResult := MrOk;
     end else begin
-      raise Exception.Create(errors);
+      raise Exception.Create(LErrors);
     end;
   Finally
-    ops.Free;
+    LOperations.Free;
   End;
 end;
 
@@ -1156,6 +1159,7 @@ Var
   changeName,changeType, LRecipientSigned, LChangeAccountData : Boolean;
   newName, LNewAccountData : TRawBytes;
   newType : Word;
+  LTargetEPASA : TEPasa;
   LRequiresPurchase : Boolean;
 begin
   Result := false;
@@ -1222,7 +1226,7 @@ begin
     end;
   End;
   if (PageControlOpType.ActivePage = tsTransaction) then begin
-    Result := UpdateOpTransaction(GetDefaultSenderAccount,dest_account, publicKey, LRequiresPurchase, amount,errors);
+    Result := UpdateOpTransaction(GetDefaultSenderAccount,LTargetEPASA, dest_account, publicKey, LRequiresPurchase, amount,errors);
   end else if (PageControlOpType.ActivePage = tsChangePrivateKey) then begin
     Result := UpdateOpChangeKey(GetDefaultSenderAccount,signer_account,publicKey,errors);
   end else if (PageControlOpType.ActivePage = tsListAccount) then begin
@@ -1518,184 +1522,223 @@ begin
   End;
 end;
 
-function TFRMOperation.UpdateOpTransaction(const SenderAccount: TAccount; out DestAccount : TAccount; out AResolvedKey : TECDSA_Public; out ARequiresPurchase : Boolean; out amount: Int64; out errors: String): Boolean;
+function TFRMOperation.UpdateOpTransaction(const ASenderAccount: TAccount; out LTargetEPASA : TEPasa; out ATargetAccount : TAccount; out AResolvedTargetKey : TECDSA_Public; out ATargetRequiresPurchase : Boolean; out AAmount: Int64; out AErrors: String): Boolean;
 Var
-  LEPasa : TEPasa;
   LResolvedAccountNo : Cardinal;
 begin
-  errors := '';
+  AErrors := '';
   lblTransactionErrors.Caption := '';
   if PageControlOpType.ActivePage<>tsTransaction then exit;
-  if not TEPasa.TryParse(ebDestAccount.Text, LEPasa) then begin
-    errors := 'Invalid dest. EPASA ('+ebDestAccount.Text+')';
-    lblTransactionErrors.Caption := errors;
+  if not TEPasa.TryParse(ebDestAccount.Text, LTargetEPASA) then begin
+    AErrors := 'Invalid dest. EPASA ('+ebDestAccount.Text+')';
+    lblTransactionErrors.Caption := AErrors;
     Exit(False);
   end;
 
-  Result := TNode.Node.TryResolveEPASA(LEPasa, LResolvedAccountNo, AResolvedKey, ARequiresPurchase, errors);
+  Result := TNode.Node.TryResolveEPASA(LTargetEPASA, LResolvedAccountNo, AResolvedTargetKey, ATargetRequiresPurchase, AErrors);
   if NOT Result then begin
-    lblTransactionErrors.Caption := errors;
+    lblTransactionErrors.Caption := AErrors;
     Exit(False);
   end;
 
   if LResolvedAccountNo <> CT_AccountNo_NUL then begin
-    DestAccount := TNode.Node.GetMempoolAccount(LResolvedAccountNo);
-    if DestAccount.account=SenderAccount.account then begin
-      errors := 'Sender and dest account are the same';
-      lblTransactionErrors.Caption := errors;
+    ATargetAccount := TNode.Node.GetMempoolAccount(LResolvedAccountNo);
+    if ATargetAccount.account=ASenderAccount.account then begin
+      AErrors := 'Sender and dest account are the same';
+      lblTransactionErrors.Caption := AErrors;
       Exit(False);
     end;
   end;
 
   if SenderAccounts.Count=1 then begin
-    if not TAccountComp.TxtToMoney(ebAmount.Text,amount) then begin
-      errors := 'Invalid amount ('+ebAmount.Text+')';
-      lblTransactionErrors.Caption := errors;
+    if not TAccountComp.TxtToMoney(ebAmount.Text,AAmount) then begin
+      AErrors := 'Invalid amount ('+ebAmount.Text+')';
+      lblTransactionErrors.Caption := AErrors;
       Exit(False);
     end;
-  end else amount := 0; // ALL BALANCE
+  end else AAmount := 0; // ALL BALANCE
 
 
   if (SenderAccounts.Count=1) then begin
-    if (SenderAccount.balance<(amount+FDefaultFee)) then begin
-       errors := 'Insufficient funds';
-       lblTransactionErrors.Caption := errors;
+    if (ASenderAccount.balance<(AAmount+FDefaultFee)) then begin
+       AErrors := 'Insufficient funds';
+       lblTransactionErrors.Caption := AErrors;
        Exit(False);
     end;
   end;
 end;
 
-function TFRMOperation.UpdatePayload(const SenderAccount: TAccount;
-  var errors: String): Boolean;
-Var payload_u : AnsiString;
-  payload_encrypted : TRawBytes;
-  account : TAccount;
-  public_key : TAccountKey;
-  dest_account_number : Cardinal;
+function TFRMOperation.UpdatePayload(const ASenderAccount: TAccount; var AErrors: String): Boolean;
+Var
+  LUserPayloadString : AnsiString;
+  LEncryptedPayloadBytes : TRawBytes;
+  LAccount : TAccount;
+  LTargetEPASA : TEPasa;
+  LPublicKey : TAccountKey;
+  LAccountNumber : Cardinal;
   i : Integer;
-  valid : Boolean;
-  wk : TWalletKey;
+  LValid : Boolean;
+  LWalletKey : TWalletKey;
+  LPassword : String;
   LPayloadBytes : TRawBytes;
 begin
-  valid := false;
-  payload_encrypted := Nil;
+  LValid := false;
+  LEncryptedPayloadBytes := Nil;
   FEncodedPayload := CT_TOperationPayload_NUL;
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  // TODO:
-  // Needs to assign FEncodedPayload.payload_type based on PIP-0027
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  errors := 'Unknown error';
-  payload_u := memoPayload.Lines.Text;
+  LUserPayloadString := memoPayload.Lines.Text;
+  FEncodedPayload.payload_type := 0; // [ptNonDeterministic]
+  AErrors := 'Unknown error';
   try
-    if (payload_u='') then begin
-      valid := true;
+    LTargetEPASA := TEPasa.Empty;
+    If (PageControlOpType.ActivePage=tsTransaction) then begin
+      if NOT TEPasa.TryParse(ebDestAccount.Text, LTargetEPASA) then begin
+        AErrors := 'Indeterminable target';
+        Exit(False);
+      end;
+
+      if LTargetEPASA.IsPayToKey then begin
+        LValid := true;
+        Exit;
+      end;
+
+      if LTargetEPASA.HasPayload then begin
+        if LUserPayloadString <> '' then begin
+          AErrors := 'Ambiguous payload. Payload already specified by target EPASA.';
+          LValid := False;
+          Exit;
+        end;
+
+        if ebEncryptPassword.Text <> '' then begin
+          AErrors := 'Ambiguous payload. Password cannot be specified.';
+          LValid := False;
+          Exit;
+        end;
+      end;
+      FEncodedPayload.payload_type := LTargetEPASA.PayloadType.ToProtocolValue;
+    end;
+
+    if (LUserPayloadString='') AND (LTargetEPASA.Payload.IsEmpty) then begin
+      LValid := true;
       exit;
     end;
-    if cbPayloadAsHex.Checked then begin
-      if NOT TCrypto.HexaToRaw(payload_u, LPayloadBytes) then begin
-        valid := false;
-        errors := 'Payload not hex-formatted';
+    if LTargetEPASA.HasPayload then begin
+      LPayloadBytes := LTargetEPASA.GetRawPayloadBytes;
+    end else if cbPayloadAsHex.Checked then begin
+      if NOT TCrypto.HexaToRaw(LUserPayloadString, LPayloadBytes) then begin
+        LValid := false;
+        AErrors := 'Payload not hex-formatted';
         exit;
       end;
-    end else LPayloadBytes := TEncoding.ANSI.GetBytes(payload_u);
+    end else LPayloadBytes := TEncoding.ANSI.GetBytes(LUserPayloadString);
 
-    if (rbEncryptedWithOldEC.Checked) then begin
+    if (NOT LTargetEPasa.HasPayload AND rbEncryptedWithOldEC.Checked) OR LTargetEPASA.PayloadType.HasTrait(ptSenderKeyEncrypted) then begin
       // Use sender
-      errors := 'Error encrypting';
-      account := FNode.GetMempoolAccount(SenderAccount.account);
-      TPCEncryption.DoPascalCoinECIESEncrypt(account.accountInfo.accountKey,LPayloadBytes,payload_encrypted);
-      valid := Length(payload_encrypted)>0;
-    end else if (rbEncryptedWithEC.Checked) then begin
-      errors := 'Error encrypting';
+      AErrors := 'Error encrypting';
+      LAccount := FNode.GetMempoolAccount(ASenderAccount.account);
+      TPCEncryption.DoPascalCoinECIESEncrypt(LAccount.accountInfo.accountKey,LPayloadBytes,LEncryptedPayloadBytes);
+      LValid := Length(LEncryptedPayloadBytes)>0;
+    end else if (NOT LTargetEPasa.HasPayload AND rbEncryptedWithEC.Checked) or LTargetEPASA.PayloadType.HasTrait(ptRecipientKeyEncrypted) then begin
+      AErrors := 'Error encrypting';
       if (PageControlOpType.ActivePage=tsTransaction) or (PageControlOpType.ActivePage=tsListAccount) or (PageControlOpType.ActivePage=tsDelistAccount)
         or (PageControlOpType.ActivePage=tsBuyAccount) then begin
+
         // With dest public key
         If (PageControlOpType.ActivePage=tsTransaction) then begin
-          If Not TAccountComp.AccountTxtNumberToAccountNumber(ebDestAccount.Text,dest_account_number) then begin
-            errors := 'Invalid dest account number';
+          If Not Self.FNode.TryResolveEPASA(LTargetEPASA, LAccountNumber) then begin
+            AErrors := 'Invalid dest account EPASA';
             exit;
           end;
         end else if (PageControlOpType.ActivePage=tsListAccount) then begin
-          If Not TAccountComp.AccountTxtNumberToAccountNumber(ebSignerAccount.Text,dest_account_number) then begin
-            errors := 'Invalid signer account number';
+          If Not TAccountComp.AccountTxtNumberToAccountNumber(ebSignerAccount.Text,LAccountNumber) then begin
+            AErrors := 'Invalid signer account number';
             exit;
           end;
         end else if (PageControlOpType.ActivePage=tsDelistAccount) then begin
-          If Not TAccountComp.AccountTxtNumberToAccountNumber(ebSignerAccount.Text,dest_account_number) then begin
-            errors := 'Invalid signer account number';
+          If Not TAccountComp.AccountTxtNumberToAccountNumber(ebSignerAccount.Text,LAccountNumber) then begin
+            AErrors := 'Invalid signer account number';
             exit;
           end;
         end else if (PageControlOpType.ActivePage=tsBuyAccount) then begin
-          If Not TAccountComp.AccountTxtNumberToAccountNumber(ebAccountToBuy.Text,dest_account_number) then begin
-            errors := 'Invalid account to buy number';
+          If Not TAccountComp.AccountTxtNumberToAccountNumber(ebAccountToBuy.Text,LAccountNumber) then begin
+            AErrors := 'Invalid account to buy number';
             exit;
           end;
         end else begin
-          errors := 'ERROR DEV 20170512-1';
+          AErrors := 'ERROR DEV 20170512-1';
           exit;
         end;
-        if (dest_account_number<0) or (dest_account_number>=FNode.Bank.AccountsCount) then begin
-          errors := 'Invalid payload encrypted account number: '+TAccountComp.AccountNumberToAccountTxtNumber(dest_account_number);
+        if (LAccountNumber<0) or (LAccountNumber>=FNode.Bank.AccountsCount) then begin
+          AErrors := 'Invalid payload encrypted account number: '+TAccountComp.AccountNumberToAccountTxtNumber(LAccountNumber);
           exit;
         end;
-        account := FNode.GetMempoolAccount(dest_account_number);
-        TPCEncryption.DoPascalCoinECIESEncrypt(account.accountInfo.accountKey,LPayloadBytes,payload_encrypted);
-        valid := Length(payload_encrypted)>0;
+        LAccount := FNode.GetMempoolAccount(LAccountNumber);
+        TPCEncryption.DoPascalCoinECIESEncrypt(LAccount.accountInfo.accountKey,LPayloadBytes,LEncryptedPayloadBytes);
+        LValid := Length(LEncryptedPayloadBytes)>0;
       end else if (PageControlOpType.ActivePage=tsChangePrivateKey) then begin
         if (rbChangeKeyWithAnother.Checked) then begin
           // With new key generated
           if (cbNewPrivateKey.ItemIndex>=0) then begin
             i := PtrInt(cbNewPrivateKey.Items.Objects[cbNewPrivateKey.ItemIndex]);
-            if (i>=0) then public_key := WalletKeys.Key[i].AccountKey;
+            if (i>=0) then LPublicKey := WalletKeys.Key[i].AccountKey;
           end else begin
-            errors := 'Must select a private key';
+            AErrors := 'Must select a private key';
             exit;
           end;
         end else if (rbChangeKeyTransferAccountToNewOwner.Checked) then begin
-          If Not TAccountComp.AccountKeyFromImport(ebNewPublicKey.Text,public_key,errors) then begin
-            errors := 'Public key: '+errors;
+          If Not TAccountComp.AccountKeyFromImport(ebNewPublicKey.Text,LPublicKey,AErrors) then begin
+            AErrors := 'Public key: '+AErrors;
             exit;
           end;
         end else begin
-          errors := 'Must select change type';
+          AErrors := 'Must select change type';
           exit;
         end;
-        if public_key.EC_OpenSSL_NID<>CT_Account_NUL.accountInfo.accountKey.EC_OpenSSL_NID then begin
-          TPCEncryption.DoPascalCoinECIESEncrypt(public_key,LPayloadBytes,payload_encrypted);
-          valid := Length(payload_encrypted)>0;
+        if LPublicKey.EC_OpenSSL_NID<>CT_Account_NUL.accountInfo.accountKey.EC_OpenSSL_NID then begin
+          TPCEncryption.DoPascalCoinECIESEncrypt(LPublicKey,LPayloadBytes,LEncryptedPayloadBytes);
+          LValid := Length(LEncryptedPayloadBytes)>0;
         end else begin
-          valid := false;
-          errors := 'Selected private key is not valid to encode';
+          LValid := false;
+          AErrors := 'Selected private key is not valid to encode';
           exit;
         end;
       end else begin
-        errors := 'This operation does not allow this kind of payload';
+        AErrors := 'This operation does not allow this kind of payload';
       end;
-    end else if (rbEncrptedWithPassword.Checked) then begin
-      payload_encrypted := TPCEncryption.DoPascalCoinAESEncrypt(LPayloadBytes,TEncoding.ANSI.GetBytes(ebEncryptPassword.Text));
-      valid := Length(payload_encrypted)>0;
-    end else if (rbNotEncrypted.Checked) then begin
-      payload_encrypted := LPayloadBytes;
-      valid := true;
+    end else if (NOT LTargetEPasa.HasPayload AND rbEncrptedWithPassword.Checked) OR LTargetEPASA.PayloadType.HasTrait(ptPasswordEncrypted) then begin
+      if LTargetEPASA.PayloadType.HasTrait(ptPasswordEncrypted) then
+        LPassword := LTargetEPASA.Password
+      else
+        LPassword := ebEncryptPassword.Text;
+      LEncryptedPayloadBytes := TPCEncryption.DoPascalCoinAESEncrypt(LPayloadBytes,TEncoding.ANSI.GetBytes(LPassword));
+      LValid := Length(LEncryptedPayloadBytes)>0;
+    end else if (NOT LTargetEPasa.HasPayload AND rbNotEncrypted.Checked) or LTargetEPASA.PayloadType.HasTrait(ptPublic) then begin
+      LEncryptedPayloadBytes := LPayloadBytes;
+      LValid := true;
     end else begin
-      errors := 'Must select an encryption option for payload';
+      AErrors := 'Must select an encryption option for payload';
     end;
   finally
-    if valid then begin
-      if length(payload_encrypted)>CT_MaxPayloadSize then begin
-        valid := false;
-        errors := 'Payload size is bigger than '+inttostr(CT_MaxPayloadSize)+' ('+Inttostr(length(payload_encrypted))+')';
+    if LValid then begin
+      if length(LEncryptedPayloadBytes)>CT_MaxPayloadSize then begin
+        LValid := false;
+        AErrors := 'Payload size is bigger than '+inttostr(CT_MaxPayloadSize)+' ('+Inttostr(length(LEncryptedPayloadBytes))+')';
       end;
     end;
-    if valid then begin
+    if LValid then begin
       lblEncryptionErrors.Caption := '';
-      lblPayloadLength.Caption := Format('(%db -> %db)',[length(payload_u),length(payload_encrypted)]);
+      if LTargetEPASA.HasPayload then
+        lblPayloadLength.Caption := Format('(%db -> %db)',[length(LTargetEPASA.Payload),length(LEncryptedPayloadBytes)])
+      else
+        lblPayloadLength.Caption := Format('(%db -> %db)',[length(LUserPayloadString),length(LEncryptedPayloadBytes)]);
     end else begin
-      lblEncryptionErrors.Caption := errors;
-      lblPayloadLength.Caption := Format('(%db -> ?)',[length(payload_u)]);
+      lblEncryptionErrors.Caption := AErrors;
+      if LTargetEPASA.HasPayload then
+        lblPayloadLength.Caption := Format('(%db -> ?)',[length(LTargetEPASA.Payload)])
+      else
+        lblPayloadLength.Caption := Format('(%db -> ?)',[length(LUserPayloadString)]);
     end;
-    FEncodedPayload.payload_raw := payload_encrypted;
-    Result := valid;
+    FEncodedPayload.payload_raw := LEncryptedPayloadBytes;
+    Result := LValid;
   end;
 end;
 

@@ -131,6 +131,8 @@ Type
     //
     function TryFindAccountByKey(const APubKey : TAccountKey; out AAccountNumber : Cardinal) : Boolean;
     function TryFindPublicSaleAccount(AMaximumPrice : Int64; APreventRaceCondition : Boolean; out AAccountNumber : Cardinal) : Boolean;
+    Function TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal): Boolean; overload;
+    Function TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AErrorMessage: String): Boolean; overload;
     Function TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean): Boolean; overload;
     Function TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean; out AErrorMessage: String): Boolean; overload;
 
@@ -843,6 +845,24 @@ begin
   end;
 end;
 
+Function TNode.TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal): Boolean;
+var LErrMsg : String;
+begin
+  Result := TryResolveEPASA(AEPasa, AResolvedAccount, LErrMsg);
+end;
+
+Function TNode.TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AErrorMessage: String): Boolean;
+var
+  LAccountKey : TAccountKey;
+  LRequiresPurchase : Boolean;
+begin
+  Result := TryResolveEPASA(AEPasa, AResolvedAccount, LAccountKey, LRequiresPurchase, AErrorMessage);
+  if Result AND AEPasa.IsPayToKey then begin
+    Result := False;
+    AErrorMessage := 'EPASA was a pay-to-key style';
+  end;
+end;
+
 Function TNode.TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean): Boolean;
 var LErrMsg : String;
 begin
@@ -889,7 +909,7 @@ begin
     AResolvedAccount := Bank.SafeBox.FindAccountByName(AEPasa.AccountName);
     AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
     ARequiresPurchase := False;
-    if AResolvedAccount < 0 then begin
+    if AResolvedAccount = CT_AccountNo_NUL then begin
       // No account with name found
       AResolvedAccount := CT_AccountNo_NUL;
       AResolvedKey := CT_Account_NUL.accountInfo.accountKey;

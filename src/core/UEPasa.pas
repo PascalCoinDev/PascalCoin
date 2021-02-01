@@ -60,7 +60,7 @@ type
 
   TPayloadTraitHelper = record helper for TPayloadTrait
   public
-    function ProtocolValue: byte;
+    function ToProtocolValue: byte;
   end;
 
   { TPayloadType }
@@ -72,7 +72,7 @@ type
   TPayloadTypeHelper = record helper for TPayloadType
   public
     function HasTrait(APayloadTrait: TPayloadTrait): Boolean; inline;
-    function ProtocolValue : byte;
+    function ToProtocolValue : byte;
   end;
 
   { TEPasa }
@@ -220,7 +220,7 @@ var
 
 { TPayloadTraitHelper }
 
-function TPayloadTraitHelper.ProtocolValue: Byte;
+function TPayloadTraitHelper.ToProtocolValue: Byte;
 begin
   case Self of
     ptNonDeterministic: Exit(0);
@@ -243,7 +243,7 @@ begin
   Result := APayloadTrait in Self;
 end;
 
-function TPayloadTypeHelper.ProtocolValue : Byte;
+function TPayloadTypeHelper.ToProtocolValue : Byte;
 begin
   Result := TEPasaComp.GetPayloadTypeProtocolByte(Self);
 end;
@@ -729,7 +729,7 @@ begin
   Result := 0; // NonDeterministic by default
   for LPayloadType := Low(TPayloadTrait) to High(TPayloadTrait) do
     if APayloadType.HasTrait(LPayloadType) then
-      Result := Result OR LPayloadType.ProtocolValue;
+      Result := Result OR LPayloadType.ToProtocolValue;
 end;
 
 class function TEPasaComp.GetPayloadTypeFromProtocolByte(AByte: Byte) : TPayloadType;
@@ -742,7 +742,7 @@ begin
 
   Result := [];
   for LPayloadType := Low(TPayloadTrait) to High(TPayloadTrait) do begin
-    LPayloadTypeByte := LPayloadType.ProtocolValue;
+    LPayloadTypeByte := LPayloadType.ToProtocolValue;
     if (AByte AND LPayloadTypeByte) = LPayloadTypeByte then
       Result := Result + [LPayloadType];
   end;

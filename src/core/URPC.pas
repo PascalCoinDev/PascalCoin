@@ -481,7 +481,7 @@ class function TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(
   var AErrorDesc: String): Boolean;
 begin
   AOperationPayload := CT_TOperationPayload_NUL;
-  AOperationPayload.payload_type := APayloadType.ProtocolValue;
+  AOperationPayload.payload_type := APayloadType.ToProtocolValue;
   if (Length(ARawPayload)>0) then begin
     if (APayload_method='none') then begin
       AOperationPayload.payload_raw:=ARawPayload;
