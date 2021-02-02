@@ -73,6 +73,7 @@ type
   public
     function HasTrait(APayloadTrait: TPayloadTrait): Boolean; inline;
     function ToProtocolValue : byte;
+    class function FromProtocolValue(AValue : Byte) : TPayloadType; static;
   end;
 
   { TEPasa }
@@ -522,8 +523,7 @@ begin
     // when multiple enums are OR'ed in C#, they are combined and
     // if any of the enums numeric value is zero, it is excluded.
     // in our case,"PayloadType.NonDeterministic" is always zero so we exclude it from our set.
-    AEPasa.PayloadType := AEPasa.PayloadType + [ptAddressedByName] -
-      [ptNonDeterministic];
+    AEPasa.PayloadType := AEPasa.PayloadType + [ptAddressedByName] -[ptNonDeterministic];
     AEPasa.AccountName := TPascal64Encoding.Unescape(LAccountName);
     AEPasa.Account := Nil;
     AEPasa.AccountChecksum := Nil;
@@ -751,6 +751,5 @@ end;
 initialization
 
 EmptyEPasa := Default(TEPasa);
-
 
 end.

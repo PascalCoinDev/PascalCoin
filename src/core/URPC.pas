@@ -256,12 +256,14 @@ Begin
   // New V3: Will include senders[], receivers[] and changers[]
     jsonArr := jsonObject.GetAsArray('senders');
     for i:=Low(OPR.senders) to High(OPR.Senders) do begin
+      LString := TCrypto.ToHexaString(OPR.Senders[i].Payload.payload_raw);
       auxObj := jsonArr.GetAsObject(jsonArr.Count);
       auxObj.GetAsVariant('account').Value := OPR.Senders[i].Account;
+      auxObj.GetAsVariant('account_epasa').Value := FNode.DecodeEPASA(OPR.Senders[i].Account, LString, OPR.Senders[i].Payload.payload_type).ToString();
       if (OPR.Senders[i].N_Operation>0) then auxObj.GetAsVariant('n_operation').Value := OPR.Senders[i].N_Operation;
       auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(OPR.Senders[i].Amount * (-1));
       auxObj.GetAsVariant('amount_s').Value := TAccountComp.FormatMoney (OPR.Senders[i].Amount * (-1));
-      auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Senders[i].Payload.payload_raw);
+      auxObj.GetAsVariant('payload').Value := LString;
       auxObj.GetAsVariant('payload_type').Value := OPR.Senders[i].Payload.payload_type;
       if (OPR.OpType = CT_Op_Data) then begin
         FillOpDataObject(auxObj, OPR.senders[i].OpData);
@@ -564,6 +566,7 @@ Var i, nSigned, nNotSigned : Integer;
   opht : TOperationsHashTree;
   jsonArr : TPCJSONArray;
   auxObj : TPCJSONObject;
+  LStr : String;
 begin
   opht := TOperationsHashTree.Create;
   Try
@@ -584,18 +587,22 @@ begin
   //
   jsonArr := jsonObject.GetAsArray('senders');
   for i:=Low(multiOperation.Data.txSenders) to High(multiOperation.Data.txSenders) do begin
+    LStr := TCrypto.ToHexaString(multiOperation.Data.txSenders[i].Payload.payload_raw);
     auxObj := jsonArr.GetAsObject(jsonArr.Count);
     auxObj.GetAsVariant('account').Value := multiOperation.Data.txSenders[i].Account;
+    auxObj.GetAsVariant('account_epasa').Value := FNode.DecodeEPASA(multiOperation.Data.txSenders[i].Account, LStr, multiOperation.Data.txSenders[i].Payload.payload_type).ToString();
     auxObj.GetAsVariant('n_operation').Value := multiOperation.Data.txSenders[i].N_Operation;
     auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(multiOperation.Data.txSenders[i].Amount * (-1));
-    auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(multiOperation.Data.txSenders[i].Payload.payload_raw);
+    auxObj.GetAsVariant('payload').Value := LStr;
     auxObj.GetAsVariant('payload_type').Value := multiOperation.Data.txSenders[i].Payload.payload_type;
   end;
   //
   jsonArr := jsonObject.GetAsArray('receivers');
   for i:=Low(multiOperation.Data.txReceivers) to High(multiOperation.Data.txReceivers) do begin
+    LStr := TCrypto.ToHexaString(multiOperation.Data.txSenders[i].Payload.payload_raw);
     auxObj := jsonArr.GetAsObject(jsonArr.Count);
     auxObj.GetAsVariant('account').Value := multiOperation.Data.txReceivers[i].Account;
+    auxObj.GetAsVariant('account_epasa').Value := FNode.DecodeEPASA(multiOperation.Data.txReceivers[i].Account, LStr, multiOperation.Data.txReceivers[i].Payload.payload_type).ToString();
     auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(multiOperation.Data.txReceivers[i].Amount);
     auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(multiOperation.Data.txReceivers[i].Payload.payload_raw);
     auxObj.GetAsVariant('payload_type').Value := multiOperation.Data.txReceivers[i].Payload.payload_type;
