@@ -2436,6 +2436,45 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       Result := FNode.GetMempoolAccount( nAccount );
     end;
 
+    Function TryCaptureEPASA(const AJSONObj : TPCJSONObject; out AAccount : Cardinal; out AErrorNum : Integer; out AErrorDesc : String) : Boolean;
+    var LEPasa : TEPasa;
+    begin
+      // Parse EPASA
+      if NOT TEPasa.TryParse(AJSONObj.AsString('account',''), LEPasa) then begin
+        AErrorNum := CT_RPC_ErrNum_InvalidData;
+        AErrorDesc := 'Field "account" missing or invalid EPASA format';
+        Exit(False);
+      end;
+
+      // Resolve EPASA (note: PayToKey returns error in this resolution method)
+      if NOT FNode.TryResolveEPASA(LEPasa, AAccount, AErrorDesc) then begin
+        AErrorNum := CT_RPC_ErrNum_InvalidEPASA;
+        Exit(False);
+      end;
+
+      // Payload override
+      if LEPasa.HasPayload then begin
+        // Only support public payloads for now
+        if NOT LEPasa.PayloadType.HasTrait(ptPublic) then begin
+          AErrorNum := CT_RPC_ErrNum_NotImplemented;
+          AErrorDesc := 'Encrypted payloads not currently supported in DATA operation';
+          Exit(false);
+        end;
+
+        // Ensure no ambiguity with payload arguments
+        if AJSONObj.HasValue('payload') OR AJSONObj.HasValue('payload_type') then begin
+          AErrorNum := CT_RPC_ErrNum_AmbiguousPayload;
+          AErrorDesc := 'Ambiguous Payload between EPASA and method arguments';
+          Exit(False);
+        end;
+        // Override the JSON args (processed later by caller)
+        AJSONObj.SetAs('payload', TPCJSONVariantValue.CreateFromVariant(LEPasa.GetRawPayloadBytes.ToHexaString));
+        AJSONObj.SetAs('payload_type', TPCJSONVariantValue.CreateFromVariant(LEPasa.PayloadType.ToProtocolValue));
+      end;
+      AAccount := LEPasa.Account.Value;
+      Result := True;
+    end;
+
   var errors : String;
     OperationsHashTree : TOperationsHashTree;
     jsonArr : TPCJSONArray;
@@ -2444,6 +2483,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     receiver : TMultiOpReceiver;
     changeinfo : TMultiOpChangeInfo;
     mop : TOpMultiOperation;
+    LEPASA : TEPasa;
   begin
     { This will ADD or UPDATE a MultiOperation with NEW field/s
       - UPDATE: If LAST operation in HexaStringOperationsHashTree RAW value contains a MultiOperation
@@ -2471,7 +2511,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         }
     Result := false;
     if Not HexaStringToOperationsHashTreeAndGetMultioperation(
-      Self.FNode.Bank.SafeBox.CurrentProtocol, // HS: 2019-07-09: use current protocol since this API used to build new unpublished operations, not historical ones
+      Self.FNode.Bank.SafeBox.CurrentProtocol,
       HexaStringOperationsHashTree,True,OperationsHashTree,mop,errors) then begin
       ErrorNum:=CT_RPC_ErrNum_InvalidData;
       ErrorDesc:= 'Error decoding param previous operations hash tree raw value: '+errors;
@@ -2482,11 +2522,8 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       jsonArr := params.GetAsArray('senders');
       for i:=0 to jsonArr.Count-1 do begin
         sender := CT_TMultiOpSender_NUL;
-        if not TAccountComp.AccountTxtNumberToAccountNumber(jsonArr.GetAsObject(i).AsString('account',''),sender.Account) then begin
-          ErrorNum := CT_RPC_ErrNum_InvalidData;
-          ErrorDesc := 'Field "account" for "senders" array not found at senders['+IntToStr(i)+']';
+        if NOT TryCaptureEPASA(jsonArr.GetAsObject(i), sender.Account, ErrorNum, ErrorDesc) then
           Exit;
-        end;
         sender.Amount:= ToPascalCoins(jsonArr.GetAsObject(i).AsDouble('amount',0));
         sender.N_Operation:=jsonArr.GetAsObject(i).AsInteger('n_operation',0);
         // Update N_Operation with valid info
@@ -2504,11 +2541,8 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       jsonArr := params.GetAsArray('receivers');
       for i:=0 to jsonArr.Count-1 do begin
         receiver := CT_TMultiOpReceiver_NUL;
-        if not TAccountComp.AccountTxtNumberToAccountNumber(jsonArr.GetAsObject(i).AsString('account',''),receiver.Account) then begin
-          ErrorNum := CT_RPC_ErrNum_InvalidData;
-          ErrorDesc := 'Field "account" for "receivers" array not found at receivers['+IntToStr(i)+']';
+        if NOT TryCaptureEPASA(jsonArr.GetAsObject(i), receiver.Account, ErrorNum, ErrorDesc) then
           Exit;
-        end;
         receiver.Amount:= ToPascalCoins(jsonArr.GetAsObject(i).AsDouble('amount',0));
         receiver.Payload.payload_raw:=TCrypto.HexaToRaw(jsonArr.GetAsObject(i).AsString('payload',''));
         receiver.Payload.payload_type := jsonArr.GetAsObject(i).AsInteger('payload_type',CT_TOperationPayload_NUL.payload_type);
