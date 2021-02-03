@@ -118,6 +118,8 @@ Type
     Class procedure SaveTOperationBlockToStream(const stream : TStream; const operationBlock:TOperationBlock);
     Class Function LoadTOperationBlockFromStream(const stream : TStream; var operationBlock:TOperationBlock) : Boolean;
     Class Function AccountToTxt(const Account : TAccount) : String;
+    Class Function DecodeEPASAPartial(AAccount : Cardinal; const APayload : TBytes; APayloadType : Byte; ADefault : TEPasa) : TEPasa;
+    Class Function TryDecodeEPASAPartial(AAccount : Cardinal; const APayload : TBytes; APayloadType : Byte; out AEPasa : TEPasa) : Boolean;
   End;
 
   TPCSafeBox = Class;
@@ -1897,6 +1899,106 @@ begin
     ms.Free;
   end;
 end;
+
+class Function TAccountComp.DecodeEPASAPartial(AAccount : Cardinal; const APayload : TBytes; APayloadType : Byte; ADefault : TEPasa) : TEPasa;
+begin
+  if NOT TryDecodeEPASAPartial(AAccount, APayload, APayloadType, Result) then
+    Result := ADefault;
+end;
+
+class Function TAccountComp.TryDecodeEPASAPartial(AAccount : Cardinal; const APayload : TBytes; APayloadType : Byte; out AEPasa : TEPasa) : Boolean;
+var
+  LPayloadType : TPayloadType;
+  LUnencryptedPayloadBytes : TBytes;
+  LEPasaStr : String;
+  LPublic, LRecipientKeyEncrypted, LSenderKeyEncrypted,
+  LPasswordEncrypted, LAsciiFormatted, LHexFormatted, LBase58Formatted, LAddressedByName : Boolean;
+begin
+  LPayloadType := TEPasaComp.FromProtocolValue(APayloadType);
+  LPublic := LPayloadType.HasTrait(ptPublic);
+  LRecipientKeyEncrypted := LPayloadType.HasTrait(ptRecipientKeyEncrypted);
+  LSenderKeyEncrypted := LPayloadType.HasTrait(ptSenderKeyEncrypted);
+  LPasswordEncrypted := LPayloadType.HasTrait(ptPasswordEncrypted);
+  LAsciiFormatted := LPayloadType.HasTrait(ptAsciiFormatted);
+  LHexFormatted := LPayloadType.HasTrait(ptHexFormatted);
+  LBase58Formatted := LPayloadType.HasTrait(ptBase58Formatted);
+  LAddressedByName := LPayloadType.HasTrait(ptAddressedByName);
+
+  if LPayloadType.HasTrait(ptAddressedByName) then begin
+     (*LEPasaStr := Self.GetMempoolAccount(AAccount).name.ToPrintable;
+     if LEPasaStr.IsEmpty then
+       Exit(False); *)
+     // Note: since doing a name resolution for every encountered addressed-by-name EPASA,
+     // in V5 addressed-by-name EPASA's auto-resolved as addressed-by-number
+     LEPasaStr := TAccountComp.AccountNumberToAccountTxtNumber(AAccount);
+  end else LEPasaStr := TAccountComp.AccountNumberToAccountTxtNumber(AAccount);
+
+
+  // payload opening char
+  if LPublic then begin
+     LEPasaStr := LEPasaStr + '[';
+  end;
+
+  if LSenderKeyEncrypted then begin
+     LEPasaStr := LEPasaStr + '<';
+  end;
+
+  if LRecipientKeyEncrypted then begin
+     LEPasaStr := LEPasaStr + '(';
+  end;
+
+  if LPasswordEncrypted then begin
+     LEPasaStr := LEPasaStr + '{';
+  end;
+
+  // payload data
+  if LPublic OR LSenderKeyEncrypted OR LRecipientKeyEncrypted OR LPasswordEncrypted then begin
+
+    if LPublic then
+      LUnencryptedPayloadBytes := APayload
+    else if LSenderKeyEncrypted then
+      Exit(False) // todo
+    else if LRecipientKeyEncrypted then
+      Exit(False) // todo
+    else if LPasswordEncrypted then
+      Exit(False) // todo
+    else raise Exception.Create('Internal Error a0805389-df1a-4b40-b12e-d22327a3d049');
+
+    // decrypt data
+     if LAsciiFormatted then
+       LEPasaStr := LEPasaStr + '"' + TEncoding.ASCII.GetString(APayload) + '"'
+     else if LHexFormatted then
+       LEPasaStr := LEPasaStr + '0x' + THexEncoding.Encode(APayload)
+     else if LBase58Formatted then
+       LEPasaStr := LEPasaStr + TPascalBase58Encoding.Encode(APayload)
+     else raise Exception.Create('Internal Error 67a61d3e-eef2-40a9-8d92-45570f400c1e');
+  end;
+
+  // payload closing char
+  if LPublic then begin
+     LEPasaStr := LEPasaStr + ']';
+  end;
+
+  if LSenderKeyEncrypted then begin
+     LEPasaStr := LEPasaStr + '>';
+  end;
+
+  if LRecipientKeyEncrypted then begin
+     LEPasaStr := LEPasaStr + ')';
+  end;
+
+  if LPasswordEncrypted then begin
+     LEPasaStr := LEPasaStr + '}';
+  end;
+
+  // Parse as EPASA
+  if NOT TEPasa.TryParse(LEPasaStr, AEPasa) then
+    Exit(False);
+
+  Result := true;
+end;
+
+
 
 {$IFNDEF VER210}
 {$DEFINE DELPHIXE}

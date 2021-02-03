@@ -35,7 +35,7 @@ interface
 
 uses
   Classes, SysUtils,
-  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF}, UPCDataTypes,
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF}, UPCDataTypes, UEncoding,
   UBlockChain, UNetProtocol, UAccounts, UCrypto, UEPasa, UThread, SyncObjs, ULog, UBaseTypes, UPCOrderedLists;
 
 {$I ./../config.inc}
@@ -131,7 +131,6 @@ Type
     //
     function TryFindAccountByKey(const APubKey : TAccountKey; out AAccountNumber : Cardinal) : Boolean;
     function TryFindPublicSaleAccount(AMaximumPrice : Int64; APreventRaceCondition : Boolean; out AAccountNumber : Cardinal) : Boolean;
-    Function TryDecodeEPASA(AAccount : Cardinal; const APayload : TBytes; APayloadType : Byte; out LEPasa : TEPasa) : Boolean;
     Function TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal): Boolean; overload;
     Function TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AErrorMessage: String): Boolean; overload;
     Function TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean): Boolean; overload;
@@ -844,12 +843,6 @@ begin
     AAccountNumber := 0;
     Result := False;
   end;
-end;
-
-
-Function TNode.TryDecodeEPASA(AAccount : Cardinal; const APayload : TBytes; APayloadType : Byte; out LEPasa : TEPasa) : Boolean;
-begin
-  dddddd
 end;
 
 Function TNode.TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal): Boolean;

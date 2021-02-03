@@ -46,7 +46,7 @@ type
 
   TPayloadTrait = (
     ptNonDeterministic = 0,      // Payload encryption and encoding method not specified.
-    ptPublic = 1,               // Unencrypted, public payload.
+    ptPublic = 1,                // Unencrypted, public payload.
     ptRecipientKeyEncrypted = 2, // ECIES encrypted using recipient accounts public key.
     ptSenderKeyEncrypted = 3,    // ECIES encrypted using sender accounts public key.
     ptPasswordEncrypted = 4,     // AES encrypted using pwd param
@@ -73,7 +73,6 @@ type
   public
     function HasTrait(APayloadTrait: TPayloadTrait): Boolean; inline;
     function ToProtocolValue : byte;
-    class function FromProtocolValue(AValue : Byte) : TPayloadType; static;
   end;
 
   { TEPasa }
@@ -196,6 +195,7 @@ type
 
       class function GetPayloadTypeProtocolByte(const APayloadType : TPayloadType) : Byte;
       class function GetPayloadTypeFromProtocolByte(AByte : Byte) : TPayloadType;
+      class function FromProtocolValue(AVal : Byte) : TPayloadType;
   end;
 
 resourcestring
@@ -248,7 +248,6 @@ function TPayloadTypeHelper.ToProtocolValue : Byte;
 begin
   Result := TEPasaComp.GetPayloadTypeProtocolByte(Self);
 end;
-
 
 { TEPasa }
 
@@ -747,6 +746,25 @@ begin
       Result := Result + [LPayloadType];
   end;
 end;
+
+class function TEPasaComp.FromProtocolValue(AVal : Byte) : TPayloadType;
+begin
+  if AVal = 0 then begin
+    Exit([ptNonDeterministic]);
+  end;
+  Result := [];
+  if AVal AND BYTE_BIT_0 <> 0 then Result := Result + [ptPublic];
+  if AVal AND BYTE_BIT_1 <> 0 then Result := Result + [ptRecipientKeyEncrypted];
+  if AVal AND BYTE_BIT_2 <> 0 then Result := Result + [ptSenderKeyEncrypted];
+  if AVal AND BYTE_BIT_3 <> 0 then Result := Result + [ptPasswordEncrypted];
+  if AVal AND BYTE_BIT_4 <> 0 then Result := Result + [ptAsciiFormatted];
+  if AVal AND BYTE_BIT_5 <> 0 then Result := Result + [ptHexFormatted];
+  if AVal AND BYTE_BIT_6 <> 0 then Result := Result + [ptBase58Formatted];
+  if AVal AND BYTE_BIT_7 <> 0 then Result := Result + [ptAddressedByName];
+end;
+
+
+
 
 initialization
 

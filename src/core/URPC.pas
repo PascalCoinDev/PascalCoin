@@ -158,7 +158,6 @@ Type
     class function FindRegisteredProcessMethod(Const AMethodName : String) : TRPCProcessMethod;
   end;
 
-
 implementation
 
 Uses
@@ -253,13 +252,13 @@ Begin
     jsonObject.GetAsVariant('signer_account').Value:=OPR.SignerAccount;
     if (OPR.n_operation>0) then jsonObject.GetAsVariant('n_operation').Value:=OPR.n_operation;
   end;
-  // New V3: Will include senders[], receivers[] and changers[]
+    // New V3: Will include senders[], receivers[] and changers[]
     jsonArr := jsonObject.GetAsArray('senders');
     for i:=Low(OPR.senders) to High(OPR.Senders) do begin
       LString := TCrypto.ToHexaString(OPR.Senders[i].Payload.payload_raw);
       auxObj := jsonArr.GetAsObject(jsonArr.Count);
       auxObj.GetAsVariant('account').Value := OPR.Senders[i].Account;
-      auxObj.GetAsVariant('account_epasa').Value := FNode.DecodeEPASA(OPR.Senders[i].Account, LString, OPR.Senders[i].Payload.payload_type).ToString();
+      auxObj.GetAsVariant('account_epasa').Value := OPR.Senders[i].AccountEPASA.ToString();
       if (OPR.Senders[i].N_Operation>0) then auxObj.GetAsVariant('n_operation').Value := OPR.Senders[i].N_Operation;
       auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(OPR.Senders[i].Amount * (-1));
       auxObj.GetAsVariant('amount_s').Value := TAccountComp.FormatMoney (OPR.Senders[i].Amount * (-1));
@@ -590,7 +589,7 @@ begin
     LStr := TCrypto.ToHexaString(multiOperation.Data.txSenders[i].Payload.payload_raw);
     auxObj := jsonArr.GetAsObject(jsonArr.Count);
     auxObj.GetAsVariant('account').Value := multiOperation.Data.txSenders[i].Account;
-    auxObj.GetAsVariant('account_epasa').Value := FNode.DecodeEPASA(multiOperation.Data.txSenders[i].Account, LStr, multiOperation.Data.txSenders[i].Payload.payload_type).ToString();
+    auxObj.GetAsVariant('account_epasa').Value := multiOperation.Data.txSenders[i].AccountEPASA.ToString();
     auxObj.GetAsVariant('n_operation').Value := multiOperation.Data.txSenders[i].N_Operation;
     auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(multiOperation.Data.txSenders[i].Amount * (-1));
     auxObj.GetAsVariant('payload').Value := LStr;
@@ -602,7 +601,7 @@ begin
     LStr := TCrypto.ToHexaString(multiOperation.Data.txSenders[i].Payload.payload_raw);
     auxObj := jsonArr.GetAsObject(jsonArr.Count);
     auxObj.GetAsVariant('account').Value := multiOperation.Data.txReceivers[i].Account;
-    auxObj.GetAsVariant('account_epasa').Value := FNode.DecodeEPASA(multiOperation.Data.txReceivers[i].Account, LStr, multiOperation.Data.txReceivers[i].Payload.payload_type).ToString();
+    auxObj.GetAsVariant('account_epasa').Value := multiOperation.Data.txReceivers[i].AccountEPASA.ToString();
     auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(multiOperation.Data.txReceivers[i].Amount);
     auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(multiOperation.Data.txReceivers[i].Payload.payload_raw);
     auxObj.GetAsVariant('payload_type').Value := multiOperation.Data.txReceivers[i].Payload.payload_type;
