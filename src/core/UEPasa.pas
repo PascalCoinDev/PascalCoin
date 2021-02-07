@@ -119,7 +119,7 @@ type
       property HasPayload: boolean read GetHasPayload;
       class property Empty : TEPasa read GetEmptyValue;
 
-      function GetRawPayloadBytes(): TArray<Byte>; inline;
+      function GetRawPayloadBytes(): TBytes; inline;
 
       function ToClassicPASAString(): String; overload;
       function ToString(): String; overload;
@@ -350,7 +350,7 @@ begin
   Result := PayloadType.HasTrait(ptPublic) OR PayloadType.HasTrait(ptRecipientKeyEncrypted) OR PayloadType.HasTrait(ptSenderKeyEncrypted);
 end;
 
-function TEPasa.GetRawPayloadBytes: TArray<Byte>;
+function TEPasa.GetRawPayloadBytes: TBytes;
 begin
   if (PayloadType.HasTrait(ptAsciiFormatted)) then
     Exit(TEncoding.ASCII.GetBytes(Payload));

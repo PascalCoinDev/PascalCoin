@@ -1087,7 +1087,9 @@ begin
   mi := TMenuItem.Create(MainMenu);
   mi.Caption:='Create a block';
   mi.OnClick:=Test_CreateABlock;
+  {$IFnDEF FPC}
   mi.ShortCut := TextToShortCut('CTRL+B');
+  {$ENDIF}
   miAbout.Add(mi);
   {$ENDIF}
   mi := TMenuItem.Create(MainMenu);

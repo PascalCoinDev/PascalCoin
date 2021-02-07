@@ -421,7 +421,7 @@ begin
 
    if AEPASA.PayloadType.HasTrait(ptPublic) then begin
      AInputParams.SetAs('payload_method', TPCJSONVariantValue.CreateFromVariant('none'));
-     AInputParams.SetAs('payload', TPCJSONVariantValue.CreateFromVariant(AEPASA.GetRawPayloadBytes().ToHexaString()));
+     AInputParams.SetAs('payload', TPCJSONVariantValue.CreateFromVariant(AEPASA.GetRawPayloadBytes.ToHexaString));
    end else if AEPASA.PayloadType.HasTrait(ptSenderKeyEncrypted) then begin
      AInputParams.SetAs('payload_method', TPCJSONVariantValue.CreateFromVariant('sender'));
      AInputParams.SetAs('payload', TPCJSONVariantValue.CreateFromVariant(AEPASA.GetRawPayloadBytes().ToHexaString()));
