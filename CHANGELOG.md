@@ -1,11 +1,12 @@
 # Changelog
 
 ## Build 5.4 - (PENDING RELEASE)
-- CURRENT 5.4.Beta3
+- CURRENT 5.4.Beta4
 - Added usage of AbstractMem library to allow build a PascalCoin version using virtual memory and efficient caching mechanism
   - Use AbstractMem library v1.2
   - Must activate {$DEFINE USE_ABSTRACTMEM} at config.inc file (Enabled by default)
 - Added "Ask for Account (PASA)" feature on GUI wallet
+- Implementation of PIP-0027 (E-PASA: Infinite Address-Space Layer-2) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0027.md  
 - Changes to `pascalcoin_daemon.ini` file:
   - Added "DATAFOLDER" configuration option at pascalcoin_daemon.ini file (daemon/service) in order to allow customize data folder
   - Added "ABSTRACTMEM_MAX_CACHE_MB" to customize Maximum megabytes in memory as a cache
