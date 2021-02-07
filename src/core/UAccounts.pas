@@ -1929,7 +1929,8 @@ begin
      if LEPasaStr.IsEmpty then
        Exit(False); *)
      // Note: since doing a name resolution for every encountered addressed-by-name EPASA,
-     // in V5 addressed-by-name EPASA's auto-resolved as addressed-by-number
+     // would overwhelm the SafeBox with lookups, names are not resolved.
+     // So in V5 addressed-by-name EPASA's auto-resolved as addressed-by-number
      LEPasaStr := TAccountComp.AccountNumberToAccountTxtNumber(AAccount);
   end else LEPasaStr := TAccountComp.AccountNumberToAccountTxtNumber(AAccount);
 
@@ -1957,20 +1958,20 @@ begin
     if LPublic then
       LUnencryptedPayloadBytes := APayload
     else if LSenderKeyEncrypted then
-      Exit(False) // todo
+      Exit(False) // Todo: Partial decoding does not decrypt due to performance penalty if always decrypting. This needs to be implemented as a IFuture<TBytes> value with lazy evaluation.
     else if LRecipientKeyEncrypted then
-      Exit(False) // todo
+      Exit(False) // Todo: Partial decoding does not decrypt due to performance penalty if always decrypting. This needs to be implemented as a IFuture<TBytes> value with lazy evaluation.
     else if LPasswordEncrypted then
-      Exit(False) // todo
+      Exit(False) // Todo: Partial decoding does not decrypt due to performance penalty if always decrypting. This needs to be implemented as a IFuture<TBytes> value with lazy evaluation..
     else raise Exception.Create('Internal Error a0805389-df1a-4b40-b12e-d22327a3d049');
 
     // decrypt data
      if LAsciiFormatted then
-       LEPasaStr := LEPasaStr + '"' + TEncoding.ASCII.GetString(APayload) + '"'
+       LEPasaStr := LEPasaStr + '"' + TEncoding.ASCII.GetString(LUnencryptedPayloadBytes) + '"'
      else if LHexFormatted then
-       LEPasaStr := LEPasaStr + '0x' + THexEncoding.Encode(APayload)
+       LEPasaStr := LEPasaStr + '0x' + THexEncoding.Encode(LUnencryptedPayloadBytes)
      else if LBase58Formatted then
-       LEPasaStr := LEPasaStr + TPascalBase58Encoding.Encode(APayload)
+       LEPasaStr := LEPasaStr + TPascalBase58Encoding.Encode(LUnencryptedPayloadBytes)
      else raise Exception.Create('Internal Error 67a61d3e-eef2-40a9-8d92-45570f400c1e');
   end;
 
@@ -1997,8 +1998,6 @@ begin
 
   Result := true;
 end;
-
-
 
 {$IFNDEF VER210}
 {$DEFINE DELPHIXE}
