@@ -482,10 +482,9 @@ var
   LExtendedChecksumDelim, LExtendedChecksum, LActualChecksum: String;
   LAccNo, LAccChecksum: UInt32;
   LActualAccountChecksum: Byte;
-  LEPasa : TEPasa;
 begin
   AErrorCode := EPasaErrorCode.Success;
-  AEPasa := LEPasa;
+  AEPasa := TEPasa.Empty;
   if (string.IsNullOrEmpty(AEPasaText)) then begin
     AErrorCode := EPasaErrorCode.BadFormat;
     Exit(False);
