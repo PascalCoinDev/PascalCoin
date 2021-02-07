@@ -767,7 +767,9 @@ end;
 
 
 initialization
-
+{$IFDEF FPC}
+FillChar(EmptyEPasa, SizeOf(EmptyEPASA), 0);
+{$ELSE}
 EmptyEPasa := Default(TEPasa);
-
+{$ENDIF}
 end.
