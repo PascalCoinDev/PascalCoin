@@ -56,8 +56,10 @@ uses
   UNode in 'core\UNode.pas',
   UOpenSSL in 'core\UOpenSSL.pas',
   UOpTransaction in 'core\UOpTransaction.pas',
+  {$IFDEF USE_ABSTRACTMEM}
   UPCAbstractMem in 'core\UPCAbstractMem.pas',
   UPCAbstractMemAccountKeys in 'core\UPCAbstractMemAccountKeys.pas',
+  {$ENDIF}
   UPCAbstractMemAccounts in 'core\UPCAbstractMemAccounts.pas',
   UPCAccountsOrdenations in 'core\UPCAccountsOrdenations.pas',
   UPCCryptoLib4Pascal in 'core\UPCCryptoLib4Pascal.pas',

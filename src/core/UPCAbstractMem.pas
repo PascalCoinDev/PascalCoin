@@ -6,6 +6,8 @@ interface
   {$MODE DELPHI}
 {$ENDIF}
 
+{$I ./../config.inc}
+
 uses Classes, SysUtils, SyncObjs,
   UAbstractMem, UFileMem, UAbstractMemTList, UCacheMem,
   UAbstractBTree, UThread, UAbstractMemBTree,
