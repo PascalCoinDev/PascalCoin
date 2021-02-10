@@ -386,7 +386,11 @@ end;
 class function TPascalCoinJSONComp.CaptureEPASA(const AInputParams : TPCJSONObject; const AParamName : String; const ANode : TNode; out AEPasa: TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : Boolean; var AErrorParam : String): Boolean;
 var LParamValue : String;
 Begin
-
+  AEPasa.Clear;
+  AResolvedAccount := 0;
+  AResolvedKey.Clear;
+  ARequiresPurchase := False;
+  AErrorParam := '';
   LParamValue := AInputParams.AsString(AParamName,'');
   if Length(LParamValue)>0 then begin
     if Not TEPasa.TryParse(LParamValue, AEPasa) then begin

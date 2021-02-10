@@ -142,6 +142,7 @@ begin
     Exit;
   end else LSender := ASender.Node.GetMempoolAccount(LSender.account);
 
+  LTarget := CT_Account_NUL;
   if Not TPascalCoinJSONComp.CaptureEPASA(AInputParams,'target',ASender.Node, LTargetEPASA, LTarget.account, LTargetKey, LTargetRequiresPurchase, AErrorDesc) then begin
     AErrorNum := CT_RPC_ErrNum_InvalidAccount;
     Exit;

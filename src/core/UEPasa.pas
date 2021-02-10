@@ -129,7 +129,7 @@ type
       class function Parse(const AEPasaText: String): TEPasa; static;
 
       class function CalculateAccountChecksum(AAccNo: UInt32): Byte; static; inline;
-
+      procedure Clear;
   end;
 
 
@@ -250,6 +250,17 @@ begin
 end;
 
 { TEPasa }
+
+procedure TEPasa.Clear;
+begin
+  Self.FAccount.Clear;
+  Self.FAccountChecksum.Clear;
+  Self.FAccountName:='';
+  Self.FPayload:='';
+  Self.FPassword:='';
+  Self.FExtendedChecksum:='';
+  Self.FPayloadType:=[];
+end;
 
 function TEPasa.GetAccount: TNullable<UInt32>;
 begin
@@ -422,7 +433,6 @@ class function TEPasa.TryParse(const AEPasaText: String; out AEPasa: TEPasa): Bo
 var
   LParser: TEPasaParser;
   LDisposables : TDisposables;
-
 begin
   LParser := LDisposables.AddObject( TEPasaParser.Create() ) as TEPasaParser;
   Result := LParser.TryParse(AEPasaText, AEPasa);

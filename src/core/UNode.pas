@@ -873,6 +873,10 @@ Function TNode.TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Card
 var
   LErrMsg : String;
 begin
+  AResolvedAccount := 0;
+  AResolvedKey.Clear;
+  ARequiresPurchase := False;
+  AErrorMessage := '';
   if (AEPasa.IsPayToKey) then begin
     // Parse account key in EPASA
     if NOT TAccountComp.AccountPublicKeyImport(AEPasa.Payload, AResolvedKey, LErrMsg) then begin
