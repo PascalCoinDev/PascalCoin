@@ -27,7 +27,7 @@ interface
 Uses classes, SysUtils,
   UJSONFunctions, UAccounts, UBaseTypes, UOpTransaction, UConst, UPCDataTypes,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
-  URPC, UCrypto, UWallet, UBlockChain, ULog;
+  URPC, UCrypto, UEPasa, UWallet, UBlockChain, ULog;
 
 
 Type
@@ -335,6 +335,7 @@ begin
 
   if not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(
     TCrypto.HexaToRaw(AInputParams.AsString('payload','')),
+    [ptNonDeterministic],
     AInputParams.AsString('payload_method','none'),
     AInputParams.AsString('pwd',''),
     LSender.accountInfo.accountKey,
@@ -409,6 +410,7 @@ begin
 
     if not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(
       TCrypto.HexaToRaw(AInputParams.AsString('payload','')),
+      [ptNonDeterministic],
       AInputParams.AsString('payload_method','dest'),
       AInputParams.AsString('pwd',''),
       LPayloadPubkey,

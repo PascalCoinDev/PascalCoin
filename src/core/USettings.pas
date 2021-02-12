@@ -39,6 +39,7 @@ const
   CT_PARAM_SaveDebugLogs = 'SaveDebugLogs';
   CT_PARAM_ShowLogs = 'ShowLogs';
   CT_PARAM_MinerName = 'MinerName';
+  CT_PARAM_MaxPayToKeyPurchasePrice = 'MaxPayToKeyPurchasePrice';
   CT_PARAM_RunCount = 'RunCount';
   CT_PARAM_FirstTime = 'FirstTime';
   CT_PARAM_ShowModalMessages = 'ShowModalMessages';
@@ -61,6 +62,10 @@ type
 
   TMinerPrivateKeyType = (mpk_NewEachTime, mpk_Random, mpk_Selected);
 
+  { TShowHashRateAs }
+
+  TShowHashRateAs = (hr_Unit, hr_Kilo, hr_Mega, hr_Giga, hr_Tera, hr_Peta, hr_Exa);
+
   { TSettings }
 
   TSettings = class
@@ -72,19 +77,15 @@ type
       class function GetMinFutureBlocksToDownloadNewSafebox: Integer; static;
       class procedure SetAllowDownloadNewCheckpointIfOlderThan(ABool: Boolean); static;
       class procedure SetInternetServerPort(AInt:Integer); static;
-      class function GetRpcPortEnabled : boolean; static;
+      class function GetJsonRpcPortEnabled : boolean; static;
       class procedure SetMinFutureBlocksToDownloadNewSafebox(AInt: Integer); static;
-      class procedure SetRpcPortEnabled(ABool: boolean); static;
+      class procedure SetJsonRpcPortEnabled(ABool: boolean); static;
       class function GetDefaultFee : Int64; static;
       class procedure SetDefaultFee(AInt64: Int64); static;
       class function GetMinerPrivateKeyType : TMinerPrivateKeyType; static;
       class procedure SetMinerPrivateKeyType(AType: TMinerPrivateKeyType); static;
-      class function GetMinerSelectedPrivateKey : TRawBytes; static;
-      class procedure SetMinerSelectedPrivateKey(AKey:TRawBytes); static;
-      class function GetMinerServerRpcActive : boolean; static;
-      class procedure SetMinerServerRpcActive(ABool: Boolean); static;
-      class function GetMinerServerRpcPort : Integer; static;
-      class procedure SetMinerServerRpcPort(APort: Integer); static;
+      class function GetMinerSelectedPublicKey : TRawBytes; static;
+      class procedure SetMinerSelectedPublicKey(AKey:TRawBytes); static;
       class function GetSaveLogFiles : boolean; static;
       class procedure SetSaveLogFiles(ABool: boolean); static;
       class function GetShowLogs : boolean; static;
@@ -95,14 +96,27 @@ type
       class procedure SetMinerName(AName: string); static;
       class function GetRunCount : Integer; static;
       class procedure SetRunCount(AInt: Integer); static;
+      class function GetFirstTime : Boolean; static;
+      class procedure SetFirstTime(ABool: Boolean); static;
+      class function GetMaxPayToKeyPurchasePrice : UInt64; static;
+      class procedure SetMaxPayToKeyPurchasePrice(AVal: UInt64); static;
       class function GetShowModalMessages : boolean; static;
       class procedure SetShowModalMessages(ABool: boolean); static;
-      class function GetRpcAllowedIPs : string; static;
-      class procedure SetRpcAllowedIPs(AString: string); static;
+      class function GetJsonRpcAllowedIPs : string; static;
+      class procedure SetJsonRpcAllowedIPs(AString: string); static;
+      class function GetJsonRpcMinerServerActive : boolean; static;
+      class procedure SetJsonRpcMinerServerActive(ABool: Boolean); static;
+      class function GetMinerServerRpcPort : Integer; static;
+      class procedure SetMinerServerRpcPort(APort: Integer); static;
+      class function GetHashRateAvgBlocksCount : Integer; static;
+      class procedure SetHashRateAvgBlocksCount(AInt: Integer); static;
+      class function GetShowHashRateAs : TShowHashRateAs; static;
+      class procedure SetShowHashRateAs(AVal: TShowHashRateAs); static;
       class function GetPeerCache : string; static;
       class procedure SetPeerCache(AString: string); static;
       class function GetTryConnectOnlyWithThisFixedServers : string; static;
       class procedure SetTryConnectOnlyWithThisFixedServers(AString: string); static;
+      class procedure CheckNotLoaded;
       class procedure CheckLoaded;
       class procedure NotifyOnChanged;
     public
@@ -110,18 +124,22 @@ type
       class procedure Save;
       class property OnChanged : TNotifyManyEvent read FOnChanged;
       class property InternetServerPort : Integer read GetInternetServerPort write SetInternetServerPort;
-      class property RpcPortEnabled : boolean read GetRpcPortEnabled write SetRpcPortEnabled;
-      class property RpcAllowedIPs : string read GetRpcAllowedIPs write SetRpcAllowedIPs;
+      class property JsonRpcPortEnabled : boolean read GetJsonRpcPortEnabled write SetJsonRpcPortEnabled;
+      class property JsonRpcAllowedIPs : string read GetJsonRpcAllowedIPs write SetJsonRpcAllowedIPs;
+      class property JsonRpcMinerServerActive : boolean read GetJsonRpcMinerServerActive write SetJsonRpcMinerServerActive;
+      class property JsonRpcMinerServerPort : Integer read GetMinerServerRpcPort write SetMinerServerRpcPort;
+      class property HashRateAvgBlocksCount : Integer read GetHashRateAvgBlocksCount write SetHashRateAvgBlocksCount;
+      class property ShowHashRateAs : TShowHashRateAs read GetShowHashRateAs write SetShowHashRateAs;
       class property DefaultFee : Int64 read GetDefaultFee write SetDefaultFee;
       class property MinerPrivateKeyType : TMinerPrivateKeyType read GetMinerPrivateKeyType write SetMinerPrivateKeyType;
-      class property MinerSelectedPrivateKey : TRawBytes read GetMinerSelectedPrivateKey write SetMinerSelectedPrivateKey;
-      class property MinerServerRpcActive : boolean read GetMinerServerRpcActive write SetMinerServerRpcActive;
-      class property MinerServerRpcPort : Integer read GetMinerServerRpcPort write SetMinerServerRpcPort;
+      class property MinerSelectedPublicKey : TRawBytes read GetMinerSelectedPublicKey write SetMinerSelectedPublicKey;
       class property SaveLogFiles : boolean read GetSaveLogFiles write SetSaveLogFiles;
       class property ShowLogs : boolean read GetShowLogs write SetShowLogs;
       class property SaveDebugLogs : boolean read GetSaveDebugLogs write SetSaveDebugLogs;
       class property MinerName : string read GetMinerName write SetMinerName;
       class property RunCount : Integer read GetRunCount write SetRunCount;
+      class property FirstTime : Boolean read GetFirstTime write SetFirstTime;
+      class property MaxPayToKeyPurchasePrice : UInt64 read GetMaxPayToKeyPurchasePrice write SetMaxPayToKeyPurchasePrice;
       class property ShowModalMessages : boolean read GetShowModalMessages write SetShowModalMessages;
       class property PeerCache : string read GetPeerCache write SetPeerCache;
       class property TryConnectOnlyWithThisFixedServers : string read GetTryConnectOnlyWithThisFixedServers write SetTryConnectOnlyWithThisFixedServers;
@@ -140,13 +158,22 @@ uses
 
 class procedure TSettings.Load;
 begin
+  CheckNotLoaded;
   FAppParams := TAppParams.Create(nil);
   FAppParams.FileName := TNode.GetPascalCoinDataFolder+PathDelim+'AppParams.prm';
+
+  If FAppParams.FindParam(CT_PARAM_MinerName)=Nil then begin
+    // New configuration... assigning a new random value
+    FAppParams.ParamByName[CT_PARAM_MinerName].SetAsString('New Node '+DateTimeToStr(Now)+' - '+ CT_ClientAppVersion);
+  end;
+
 end;
 
 class procedure TSettings.Save;
 begin
   //TODO Update FAppParams to optionally save on set value, and make FApp.Save public and verify all AppParams updates in client code
+  CheckLoaded;
+  OnChanged.Invoke(Nil);
 end;
 
 class function TSettings.GetInternetServerPort : Integer;
@@ -179,34 +206,58 @@ begin
   FAppParams.ParamByName[CT_PARAM_InternetServerPort].SetAsInteger(AInt);
 end;
 
-class function TSettings.GetRpcPortEnabled : boolean;
-begin
-  CheckLoaded;
-  Result := FAppParams.ParamByName[CT_PARAM_JSONRPCEnabled].GetAsBoolean(false);
-end;
-
 class procedure TSettings.SetMinFutureBlocksToDownloadNewSafebox(AInt: Integer);
 begin
   CheckLoaded;
   FAppParams.ParamByName[CT_PARAM_MinFutureBlocksToDownloadNewSafebox].SetAsInteger(AInt);
 end;
 
-class procedure TSettings.SetRpcPortEnabled(ABool: boolean);
+class function TSettings.GetJsonRpcPortEnabled : boolean;
+begin
+  CheckLoaded;
+  Result := FAppParams.ParamByName[CT_PARAM_JSONRPCEnabled].GetAsBoolean(false);
+end;
+
+class procedure TSettings.SetJsonRpcPortEnabled(ABool: boolean);
 begin
   CheckLoaded;
   FAppParams.ParamByName[CT_PARAM_JSONRPCEnabled].SetAsBoolean(ABool);
 end;
 
-class function TSettings.GetRpcAllowedIPs : string;
+class function TSettings.GetJsonRpcAllowedIPs : string;
 begin
   CheckLoaded;
   Result := FAppParams.ParamByName[CT_PARAM_JSONRPCAllowedIPs].GetAsString('127.0.0.1;');
 end;
 
-class procedure TSettings.SetRpcAllowedIPs(AString: string);
+class procedure TSettings.SetJsonRpcAllowedIPs(AString: string);
 begin
   CheckLoaded;
   FAppParams.ParamByName[CT_PARAM_JSONRPCAllowedIPs].SetAsString(AString);
+end;
+
+class function TSettings.GetHashRateAvgBlocksCount : Integer;
+begin
+  CheckLoaded;
+  Result := FAppParams.ParamByName[CT_PARAM_HashRateAvgBlocksCount].GetAsInteger(50)
+end;
+
+class procedure TSettings.SetHashRateAvgBlocksCount(AInt: Integer);
+begin
+  CheckLoaded;
+  FAppParams.ParamByName[CT_PARAM_HashRateAvgBlocksCount].SetAsInteger(AInt);
+end;
+
+class function TSettings.GetShowHashRateAs : TShowHashRateAs;
+begin
+  CheckLoaded;
+  Result := TShowHashRateAs(FAppParams.ParamByName[CT_PARAM_ShowHashRateAs].GetAsInteger(Integer({$IFDEF TESTNET}hr_Mega{$ELSE}hr_Tera{$ENDIF})));
+end;
+
+class procedure TSettings.SetShowHashRateAs(AVal: TShowHashRateAs);
+begin
+  CheckLoaded;
+  FAppParams.ParamByName[CT_PARAM_ShowHashRateAs].SetAsInteger(Integer(AVal));
 end;
 
 class function TSettings.GetDefaultFee : Int64;
@@ -221,13 +272,13 @@ begin
   FAppParams.ParamByName[CT_PARAM_DefaultFee].SetAsInt64(AInt64);
 end;
 
-class function TSettings.GetMinerServerRpcActive : boolean;
+class function TSettings.GetJsonRpcMinerServerActive : boolean;
 begin
   CheckLoaded;
   Result := FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].GetAsBoolean(true);
 end;
 
-class procedure TSettings.SetMinerServerRpcActive(ABool: Boolean);
+class procedure TSettings.SetJsonRpcMinerServerActive(ABool: Boolean);
 begin
   CheckLoaded;
   FAppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].SetAsBoolean(ABool);
@@ -257,13 +308,13 @@ begin
   FAppParams.ParamByName[CT_PARAM_MinerPrivateKeyType].SetAsInteger(Integer(AType));
 end;
 
-class function TSettings.GetMinerSelectedPrivateKey : TRawBytes;
+class function TSettings.GetMinerSelectedPublicKey : TRawBytes;
 begin
   CheckLoaded;
   Result := FAppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].GetAsTBytes(Nil);
 end;
 
-class procedure TSettings.SetMinerSelectedPrivateKey(AKey:TRawBytes);
+class procedure TSettings.SetMinerSelectedPublicKey(AKey:TRawBytes);
 begin
   CheckLoaded;
   FAppParams.ParamByName[CT_PARAM_MinerPrivateKeySelectedPublicKey].SetAsTBytes(AKey);
@@ -329,6 +380,30 @@ begin
   FAppParams.ParamByName[CT_PARAM_RunCount].SetAsInteger(AInt)
 end;
 
+class function TSettings.GetFirsttime : Boolean;
+begin
+  CheckLoaded;
+  Result := FAppParams.ParamByName[CT_PARAM_FirstTime].GetAsBoolean(true);
+end;
+
+class procedure TSettings.SetFirstTime(ABool: Boolean);
+begin
+  CheckLoaded;
+  FAppParams.ParamByName[CT_PARAM_FirstTime].SetAsBoolean(ABool);
+end;
+
+class function TSettings.GetMaxPayToKeyPurchasePrice : UInt64;
+begin
+  CheckLoaded;
+  Result := FAppParams.ParamByName[CT_PARAM_MaxPayToKeyPurchasePrice].GetAsUInt64(CT_DEFAULT_PAY_TO_KEY_MAX_MOLINAS);
+end;
+
+class procedure TSettings.SetMaxPayToKeyPurchasePrice(AVal: UInt64);
+begin
+  CheckLoaded;
+  FAppParams.ParamByName[CT_PARAM_MaxPayToKeyPurchasePrice].SetAsUInt64(AVal);
+end;
+
 class function TSettings.GetShowModalMessages : boolean;
 begin
   CheckLoaded;
@@ -363,6 +438,12 @@ class procedure TSettings.SetTryConnectOnlyWithThisFixedServers(AString: string)
 begin
   CheckLoaded;
   FAppParams.ParamByName[CT_PARAM_TryToConnectOnlyWithThisFixedServers].SetAsString(Trim(AString));
+end;
+
+class procedure TSettings.CheckNotLoaded;
+begin
+  if Assigned(FAppParams) then
+    raise Exception.Create('Application settings have already been loaded');
 end;
 
 class procedure TSettings.CheckLoaded;

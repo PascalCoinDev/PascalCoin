@@ -31,7 +31,7 @@ uses
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
   Classes, Grids, UNode, UAccounts, UBlockChain, UAppParams, UThread, UPCDataTypes,
-  UWallet, UCrypto, UPoolMining, URPC, UBaseTypes, UPCOrderedLists,
+  UWallet, UCrypto, UPoolMining, URPC, UBaseTypes, UPCOrderedLists, USettings,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Type
@@ -229,8 +229,6 @@ Type
 
 
   { TBlockChainGrid }
-
-  TShowHashRateAs = (hr_Unit, hr_Kilo, hr_Mega, hr_Giga, hr_Tera, hr_Peta, hr_Exa);
 
   TBlockChainGrid = Class(TComponent)
   private

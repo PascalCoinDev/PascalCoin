@@ -33,7 +33,7 @@ interface
 {$ENDIF}
 
 Uses Classes, UThread, UAccounts, UBlockChain, UNetProtocol, SysUtils, UNode,
-  UWallet, UNetProtection, UPCDataTypes,
+  UWallet, UNetProtection, UPCDataTypes, UPCAccountsOrdenations, UOrderedList,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 type
@@ -43,8 +43,8 @@ type
     FNetData : TNetData;
     FWalletKeys : TWalletKeysExt;
     function DoAskForFreeAccount(const ANewPubliKey : TAccountKey; const AMessage : String) : Integer;
-    {$IFDEF TESTNET}
     procedure DoGiveMeAnAccount(ANetData : TNetData; ASenderConnection : TNetConnection; const AHeaderData : TNetHeaderData; AReceivedData : TStream; AResponseData : TStream);
+    {$IFDEF TESTNET}
     procedure DoGiveMeMoney(ANetData : TNetData; ASenderConnection : TNetConnection; const AHeaderData : TNetHeaderData; AReceivedData : TStream; AResponseData : TStream);
     {$ENDIF}
     procedure OnTNetDataProcessReservedAreaMessage(ANetData : TNetData; ASenderConnection : TNetConnection; const AHeaderData : TNetHeaderData; AReceivedData : TStream; AResponseData : TStream);
@@ -63,7 +63,7 @@ const
 
 implementation
 
-Uses UOpTransaction, UBaseTypes, ULog;
+Uses UOpTransaction, UBaseTypes, ULog, UPCAbstractMemAccountKeys;
 
 var _PCTNetDataExtraMessages : TPCTNetDataExtraMessages = Nil;
 
@@ -129,44 +129,76 @@ begin
   end;
 end;
 
-{$IFDEF TESTNET}
 procedure TPCTNetDataExtraMessages.DoGiveMeAnAccount(ANetData: TNetData;
   ASenderConnection: TNetConnection; const AHeaderData: TNetHeaderData;
   AReceivedData, AResponseData: TStream);
 var LSenderPublicKey : TAccountKey;
-  LIndexKey : Integer;
+  LIndexKey,LOnSafebox,LOnMempool : Integer;
   LAccount : TAccount;
-  LOpChangeKey : TOpChangeKey;
+  LOpRecoverFounds : TOpRecoverFounds;
   LPayload : TOperationPayload;
   LErrors, LSenderMessage : String;
   LWord : Word;
+  LAccOrd : TAccountsOrderedByUpdatedBlock;
+  LRaw : TRawBytes;
 begin
   if Not (AHeaderData.header_type in [ntp_request,ntp_autosend]) then Exit; // Nothing to do
   // Protection to allow spam
-  if ANetData.IpInfos.Update_And_ReachesLimits(ASenderConnection.Client.RemoteHost,'EXTRA','GIVE_ME_AN_ACCOUNT',AHeaderData.buffer_data_length,True,
+  if ANetData.IpInfos.Update_And_ReachesLimits(ASenderConnection.Client.RemoteHost,'EXTRA','GIVE_ME_AN_ACCOUNT',
+    AHeaderData.buffer_data_length,True,
     TArray<TLimitLifetime>.Create(TLimitLifetime.Create(300,2,20000))) then Exit;
   // Read info
   if TStreamOp.ReadAccountKey(AReceivedData,LSenderPublicKey)<=0 then Exit;
   if TStreamOp.ReadString(AReceivedData,LSenderMessage)<0 then Exit;
 
-  if Not RandomGetWalletKeysAccount(FNode.Bank.SafeBox,FWalletKeys,0,10000,LIndexKey,LAccount) then Exit;
-  // Send
-  LPayload := CT_TOperationPayload_NUL;
-  LPayload.payload_raw.FromString('Free Account to '+ASenderConnection.Client.RemoteHost);
-  LOpChangeKey := TOpChangeKey.Create(FNode.Bank.SafeBox.CurrentProtocol,LAccount.account,LAccount.n_operation+1,
-    LAccount.account,FWalletKeys.Key[LIndexKey].PrivateKey,LSenderPublicKey,0,LPayload);
-  try
-    FNode.AddOperation(Nil,LOpChangeKey,LErrors);
-  finally
-    LOpChangeKey.Free;
+  if FNode.GetAccountsAvailableByPublicKey(LSenderPublicKey,LOnSafebox,LOnMempool)>0 then begin
+    // Exit;
+    TLog.NewLog(ltdebug,ClassName,Format('Not Sending to %s because PublicKey %s is used %d and mempool %d',[ASenderConnection.Client.RemoteHost,
+      TAccountComp.AccountPublicKeyExport(LSenderPublicKey),LOnSafebox,LOnMempool]));
+    Lword := 0;
+    AResponseData.Write(Lword,2);
+    Exit;
   end;
-  // Response
-  TStreamOp.WriteAccountKey(AResponseData,LSenderPublicKey);
-  LWord := 1;
-  AResponseData.Write(LWord,SizeOf(LWord));
-  AResponseData.Write(LAccount.account,SizeOf(LAccount.account));
+
+  LAccOrd := FNode.Bank.SafeBox.AccountsOrderedByUpdatedBlock;
+  if Assigned(LAccOrd) then begin
+    LAccount := CT_Account_NUL;
+    if LAccOrd.First(LIndexKey) then begin
+      LAccount := FNode.GetMempoolAccount(LIndexKey);
+      while (Random(100)>0) or (LAccount.balance>0) or (Length(LAccount.name)>0) do begin
+        if Not LAccOrd.Next(LIndexKey) then Exit;
+        LAccount := FNode.GetMempoolAccount(LIndexKey);
+      end;
+    end;
+    //
+  end;
+
+  TLog.NewLog(ltdebug,ClassName,Format('Sending to %s Account %s PublicKey %s',
+    [ASenderConnection.Client.RemoteHost,
+     TAccountComp.AccountNumberToAccountTxtNumber(LAccount.account),
+     TAccountComp.AccountPublicKeyExport(LSenderPublicKey)]));
+
+  LOpRecoverFounds := TOpRecoverFounds.Create(FNode.Bank.SafeBox.CurrentProtocol,LAccount.account,LAccount.n_operation+1,0,LSenderPublicKey);
+  try
+    if FNode.AddOperation(Nil,LOpRecoverFounds,LErrors) then begin
+      Lword := 1;
+      AResponseData.Write(Lword,2);
+      LRaw := LOpRecoverFounds.OperationHashValid(LOpRecoverFounds,0);
+      TStreamOp.WriteAnsiString(AResponseData,LRaw);
+    end else begin
+      Lword := 0;
+      AResponseData.Write(Lword,2);
+      TLog.NewLog(ltdebug,ClassName,Format('Error %s sending to %s Account %s PublicKey %s',
+        [LErrors, ASenderConnection.Client.RemoteHost,
+         TAccountComp.AccountNumberToAccountTxtNumber(LAccount.account),
+         TAccountComp.AccountPublicKeyExport(LSenderPublicKey)]));
+    end;
+  finally
+    LOpRecoverFounds.Free;
+  end;
 end;
 
+{$IFDEF TESTNET}
 procedure TPCTNetDataExtraMessages.DoGiveMeMoney(ANetData: TNetData;
   ASenderConnection: TNetConnection; const AHeaderData: TNetHeaderData;
   AReceivedData, AResponseData: TStream);
@@ -212,6 +244,7 @@ class function TPCTNetDataExtraMessages.InitNetDataExtraMessages(ANode: TNode;
   ANetData: TNetData; AWalletKeys: TWalletKeysExt): TPCTNetDataExtraMessages;
 begin
   if not Assigned(_PCTNetDataExtraMessages) then begin
+    TLog.NewLog(ltinfo,ClassName,'InitNetDataExtraMessages');
     _PCTNetDataExtraMessages := TPCTNetDataExtraMessages.Create(ANode,ANetData,AWalletKeys);
   end;
   Result := _PCTNetDataExtraMessages;
@@ -220,12 +253,12 @@ end;
 procedure TPCTNetDataExtraMessages.OnTNetDataProcessReservedAreaMessage(ANetData : TNetData; ASenderConnection : TNetConnection; const AHeaderData : TNetHeaderData; AReceivedData : TStream; AResponseData : TStream);
 begin
   TLog.NewLog(ltdebug,ClassName,Format('Received extra message from %s Operation:%d',[ASenderConnection.ClientRemoteAddr,AHeaderData.operation]));
-  {$IFDEF TESTNET}
   case AHeaderData.operation of
     CT_NetProtocol_Extra_NetOp_GIVE_ME_AN_ACCOUNT : DoGiveMeAnAccount(ANetData,ASenderConnection,AHeaderData,AReceivedData,AResponseData);
+    {$IFDEF TESTNET}
     CT_NetProtocol_Extra_NetOp_GIVE_ME_MONEY : DoGiveMeMoney(ANetData,ASenderConnection,AHeaderData,AReceivedData,AResponseData);
+    {$ENDIF}
   end;
-  {$ENDIF}
 end;
 
 function TPCTNetDataExtraMessages.RandomGetWalletKeysAccount(

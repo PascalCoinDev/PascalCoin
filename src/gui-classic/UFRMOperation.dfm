@@ -295,11 +295,14 @@ object FRMOperation: TFRMOperation
         Top = 7
         Width = 524
         Height = 204
-        ActivePage = tsBuyAccount
+        ActivePage = tsTransaction
         TabOrder = 0
         OnChange = PageControlOpTypeChange
         object tsTransaction: TTabSheet
           Caption = 'Transaction'
+          DesignSize = (
+            516
+            176)
           object lblDestAccount: TLabel
             Left = 13
             Top = 32
@@ -335,10 +338,11 @@ object FRMOperation: TFRMOperation
             ParentFont = False
           end
           object sbSearchDestinationAccount: TSpeedButton
-            Left = 208
+            Left = 490
             Top = 29
             Width = 23
             Height = 22
+            Anchors = [akTop, akRight]
             Glyph.Data = {
               36030000424D3603000000000000360000002800000010000000100000000100
               18000000000000030000120B0000120B00000000000000000000FF00FF4A667C
@@ -369,10 +373,11 @@ object FRMOperation: TFRMOperation
             OnClick = sbSearchDestinationAccountClick
           end
           object ebDestAccount: TEdit
-            Left = 115
+            Left = 114
             Top = 29
-            Width = 87
+            Width = 370
             Height = 21
+            Anchors = [akLeft, akTop, akRight]
             TabOrder = 0
           end
           object ebAmount: TEdit

@@ -27,40 +27,55 @@ interface
 Uses classes, SysUtils,
   UJSONFunctions, UAccounts, UBaseTypes, UOpTransaction, UConst,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
-  URPC, UCrypto, UWallet, UBlockChain, ULog, UPCOrderedLists, UPCDataTypes;
+  URPC, UCrypto, UWallet, UBlockChain, UEPasa, ULog, UPCOrderedLists, UPCDataTypes;
 
 
 Type
   TRPCSend = Class
   private
   public
-    class function CreateOperationTransaction(const ARPCProcess : TRPCProcess;
-      ACurrent_protocol : Word; ASender, ATarget, ASender_last_n_operation : Cardinal; AAmount, AFee : UInt64;
-      Const ASenderAccounKey, ATargetAccountKey : TAccountKey; Const ARawPayload : TRawBytes;
-      Const APayload_method, AEncodePwd : String; var AErrorNum: Integer; var AErrorDesc: String) : TOpTransaction;
-    //
+    class function CreateOperationTransaction(const ARPCProcess : TRPCProcess; ACurrentProtocol : Word; ASender, ATarget : TAccount; AAmount, AFee : UInt64; const ARawPayload : TRawBytes; const APayloadMethod, AEncodePwd : String; const APayloadType : TPayloadType; var AErrorNum: Integer; var AErrorDesc: String) : TOpTransaction;
+    class function CreatePayToKeyTransaction(const ARPCProcess : TRPCProcess; ACurrentProtocol: Word; ASender, APurchaseAccount : TAccount; const ANewKey : TAccountKey; AAmount, AFee: UInt64; const ARawPayload: TRawBytes;  const APayloadMethod, AEncodePwd: String; const APayloadType : TPayloadType; var AErrorNum: Integer; var AErrorDesc: String) : TOpTransaction;
     class function SendTo(const ASender : TRPCProcess; const AMethodName : String; AInputParams, AJSONResponse : TPCJSONObject; var AErrorNum : Integer; var AErrorDesc : String) : Boolean;
     class function SignSendTo(const ASender : TRPCProcess; const AMethodName : String; AInputParams, AJSONResponse : TPCJSONObject; var AErrorNum : Integer; var AErrorDesc : String) : Boolean;
   End;
 
 implementation
 
-{ TRPCFindAccounts }
+{ TRPCSend }
 
-class function TRPCSend.CreateOperationTransaction(const ARPCProcess : TRPCProcess;
-  ACurrent_protocol: Word;
-  ASender, ATarget, ASender_last_n_operation: Cardinal; AAmount, AFee: UInt64;
-  const ASenderAccounKey, ATargetAccountKey: TAccountKey;
-  const ARawPayload: TRawBytes; const APayload_method,
-  AEncodePwd: String; var AErrorNum: Integer; var AErrorDesc: String): TOpTransaction;
-
-Var LOpPayload : TOperationPayload;
+class function TRPCSend.CreateOperationTransaction(const ARPCProcess : TRPCProcess; ACurrentProtocol : Word; ASender, ATarget : TAccount; AAmount, AFee : UInt64; const ARawPayload : TRawBytes; const APayloadMethod, AEncodePwd : String; const APayloadType : TPayloadType; var AErrorNum: Integer; var AErrorDesc: String): TOpTransaction;
+var
+  LOpPayload : TOperationPayload;
   LPrivateKey : TECPrivateKey;
 Begin
   Result := Nil;
-  if Not ARPCProcess.RPCServer.CheckAndGetPrivateKeyInWallet(ASenderAccounKey,LPrivateKey,AErrorNum,AErrorDesc) then Exit(Nil);
-  if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(ARawPayload, APayload_method,AEncodePwd,ASenderAccounKey,ATargetAccountKey,LOpPayload,AErrorNum,AErrorDesc) then Exit(Nil);
-  Result := TOpTransaction.CreateTransaction(ACurrent_protocol, ASender,ASender_last_n_operation+1, ATarget, LPrivateKey, AAmount, AFee, LOpPayload);
+  if Not ARPCProcess.RPCServer.CheckAndGetPrivateKeyInWallet(ASender.accountInfo.accountKey, LPrivateKey, AErrorNum, AErrorDesc) then Exit(Nil);
+  if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(ARawPayload, APayloadType, APayloadMethod, AEncodePwd, ASender.accountInfo.accountKey, ATarget.accountInfo.accountKey, LOpPayload, AErrorNum, AErrorDesc) then Exit(Nil);
+  Result := TOpTransaction.CreateTransaction(ACurrentProtocol, ASender.account, ASender.n_operation+1, ATarget.account, LPrivateKey, AAmount, AFee, LOpPayload);
+  if Not Result.HasValidSignature then begin
+    FreeAndNil(Result);
+    AErrorNum:=CT_RPC_ErrNum_InternalError;
+    AErrorDesc:='Invalid signature';
+    exit;
+  end;
+end;
+
+class function TRPCSend.CreatePayToKeyTransaction(const ARPCProcess : TRPCProcess; ACurrentProtocol: Word; ASender, APurchaseAccount : TAccount; const ANewKey : TAccountKey; AAmount, AFee: UInt64; const ARawPayload: TRawBytes;  const APayloadMethod, AEncodePwd: String; const APayloadType : TPayloadType; var AErrorNum: Integer; var AErrorDesc: String): TOpTransaction;
+Var
+  LOpPayload : TOperationPayload;
+  LPrivateKey : TECPrivateKey;
+Begin
+  Result := Nil;
+  if (AAmount < APurchaseAccount.accountInfo.price) then begin
+    AErrorNum := CT_RPC_ErrNum_InternalError;
+    AErrorDesc := 'Insufficient funds to purchase account for pay-to-key transaction';
+    Exit(Nil);
+  end;
+
+  if Not ARPCProcess.RPCServer.CheckAndGetPrivateKeyInWallet(ASender.accountInfo.accountKey, LPrivateKey, AErrorNum, AErrorDesc) then Exit(Nil);
+  if Not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(ARawPayload, APayloadType, APayloadMethod, AEncodePwd, ASender.accountInfo.accountKey, ANewKey, LOpPayload, AErrorNum, AErrorDesc) then Exit(Nil);
+  Result := TOpBuyAccount.CreateBuy(ACurrentProtocol, ASender.account, ASender.n_operation + 1, APurchaseAccount.account, APurchaseAccount.accountInfo.account_to_pay, APurchaseAccount.accountInfo.price, AAmount, AFee, ANewKey, LPrivateKey, LOpPayload);
   if Not Result.HasValidSignature then begin
     FreeAndNil(Result);
     AErrorNum:=CT_RPC_ErrNum_InternalError;
@@ -97,7 +112,11 @@ Otherwise, will return a JSON-RPC error code with description
 
 }
 
-var LSender, LTarget : TAccount;
+var
+ LSender, LTarget : TAccount;
+ LTargetEPASA : TEPasa;
+ LTargetKey : TAccountKey;
+ LTargetRequiresPurchase : Boolean;
  LAmount, LFee : UInt64;
  LRawPayload : TRawBytes;
  LPayload_method, LEncodePwd, LErrors : String;
@@ -118,15 +137,22 @@ begin
     exit;
   end;
 
-  if Not TPascalCoinJSONComp.CaptureAccountNumber(AInputParams,'sender',ASender.Node.Bank,LSender.account,AErrorDesc) then begin
+  if Not TPascalCoinJSONComp.CaptureAccountNumber(AInputParams,'sender',ASender.Node,LSender.account,AErrorDesc) then begin
     AErrorNum := CT_RPC_ErrNum_InvalidAccount;
     Exit;
   end else LSender := ASender.Node.GetMempoolAccount(LSender.account);
 
-  if Not TPascalCoinJSONComp.CaptureAccountNumber(AInputParams,'target',ASender.Node.Bank,LTarget.account,AErrorDesc) then begin
+  LTarget := CT_Account_NUL;
+  if Not TPascalCoinJSONComp.CaptureEPASA(AInputParams,'target',ASender.Node, LTargetEPASA, LTarget.account, LTargetKey, LTargetRequiresPurchase, AErrorDesc) then begin
     AErrorNum := CT_RPC_ErrNum_InvalidAccount;
     Exit;
   end else LTarget := ASender.Node.GetMempoolAccount(LTarget.account);
+
+  if Not TPascalCoinJSONComp.OverridePayloadParams(AInputParams, LTargetEPASA) then begin
+    AErrorNum := CT_RPC_ErrNum_AmbiguousPayload;
+    AErrorDesc := 'Target EPASA payload conflicts with argument payload.';
+    Exit;
+  end;
 
   LAmount := TPascalCoinJSONComp.ToPascalCoins(AInputParams.AsDouble('amount',0));
   LFee := TPascalCoinJSONComp.ToPascalCoins(AInputParams.AsDouble('fee',0));
@@ -134,12 +160,26 @@ begin
   LPayload_method := AInputParams.AsString('payload_method','dest');
   LEncodePwd := AInputParams.AsString('pwd','');
 
+  // Do new operation
   ASender.Node.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent sends
   try
-    LOpt := CreateOperationTransaction(ASender, ASender.Node.Bank.SafeBox.CurrentProtocol,
-      LSender.account, LTarget.account, LSender.n_operation, LAmount, LFee,
-      LSender.accountInfo.accountKey, LTarget.accountInfo.accountKey,
-      LRawPayload, LPayload_method, LEncodePwd, AErrorNum, AErrorDesc);
+    // Create operation
+    if LTargetRequiresPurchase then begin
+      // Buy Account
+      LOpt := CreatePayToKeyTransaction(
+          ASender, ASender.Node.Bank.SafeBox.CurrentProtocol,
+          LSender, LTarget, LTargetKey, LAmount, LFee,
+          LRawPayload, LPayload_method, LEncodePwd, LTargetEPASA.PayloadType,
+          AErrorNum, AErrorDesc);
+    end else begin
+      // Transaction
+      LOpt := CreateOperationTransaction(
+        ASender, ASender.Node.Bank.SafeBox.CurrentProtocol,
+        LSender, LTarget, LAmount, LFee,
+        LRawPayload, LPayload_method, LEncodePwd, LTargetEPASA.PayloadType,
+        AErrorNum, AErrorDesc);
+    end;
+    // Execute operation
     if Assigned(LOpt) then
     try
       If not ASender.Node.AddOperation(Nil,LOpt,LErrors) then begin
@@ -185,8 +225,11 @@ No other checks are made (no checks for valid target, valid n_operation, valid a
 Returns a [Raw Operations Object](#raw-operations-object)
 
 }
-var LSender, LTarget : Cardinal;
- LSenderPubKey, LTargetPubKey : TAccountKey;
+var
+ LSender, LTarget : TAccount;
+ LTargetEPASA : TEPasa;
+ LTargetKey : TAccountKey;
+ LTargetRequiresPurchase : Boolean;
  LHexaStringOperationsHashTree, LErrors : String;
  LProtocol : Integer;
  LOperationsHashTree : TOperationsHashTree;
@@ -208,19 +251,31 @@ begin
     AErrorDesc := 'Wallet is password protected. Unlock first';
     exit;
   end;
-  if Not TPascalCoinJSONComp.CaptureAccountNumber(AInputParams,'sender',Nil,LSender,AErrorDesc) then begin
+  if Not TPascalCoinJSONComp.CaptureAccountNumber(AInputParams,'sender',Nil,LSender.account,AErrorDesc) then begin
     AErrorNum := CT_RPC_ErrNum_InvalidAccount;
     Exit;
   end;
-  if Not TPascalCoinJSONComp.CaptureAccountNumber(AInputParams,'target',Nil,LTarget,AErrorDesc) then begin
+  if Not TPascalCoinJSONComp.CaptureNOperation(AInputParams,'last_n_operation',Nil,LSender.n_operation,AErrorDesc) then begin
     AErrorNum := CT_RPC_ErrNum_InvalidAccount;
     Exit;
   end;
-  If Not TPascalCoinJSONComp.CapturePubKey(AInputParams,'sender_',LSenderPubKey,AErrorDesc) then begin
+
+  if Not TPascalCoinJSONComp.CaptureEPASA(AInputParams,'target', nil, LTargetEPASA, LTarget.account, LTargetKey, LTargetRequiresPurchase, AErrorDesc) then begin
+    AErrorNum := CT_RPC_ErrNum_InvalidEPASA;
+    Exit;
+  end;
+
+  if Not TPascalCoinJSONComp.OverridePayloadParams(AInputParams, LTargetEPASA) then begin
+    AErrorNum := CT_RPC_ErrNum_AmbiguousPayload;
+    Exit;
+  end;
+
+  If Not TPascalCoinJSONComp.CapturePubKey(AInputParams,'sender_',LSender.accountInfo.accountKey,AErrorDesc) then begin
     AErrorNum := CT_RPC_ErrNum_InvalidPubKey;
     exit;
   end;
-  If Not TPascalCoinJSONComp.CapturePubKey(AInputParams,'target_',LTargetPubKey,AErrorDesc) then begin
+
+  If Not TPascalCoinJSONComp.CapturePubKey(AInputParams,'target_',LTarget.accountInfo.accountKey,AErrorDesc) then begin
     AErrorNum := CT_RPC_ErrNum_InvalidPubKey;
     exit;
   end;
@@ -239,12 +294,27 @@ begin
     AErrorDesc:= 'Error decoding param "rawoperations": '+LErrors;
     Exit;
   end;
+
+
   Try
-    LOpt := CreateOperationTransaction(ASender,LProtocol,LSender,LTarget,
-      AInputParams.AsCardinal('last_n_operation',0),
-      LAmount, LFee,
-      LSenderPubKey, LTargetPubKey,
-      LRawPayload,LPayload_method,LEncodePwd, AErrorNum, AErrorDesc);
+    // Create operation
+    if LTargetRequiresPurchase then begin
+      // Buy Account
+      LOpt := CreatePayToKeyTransaction(
+          ASender, ASender.Node.Bank.SafeBox.CurrentProtocol,
+          LSender, LTarget, LTargetKey, LAmount, LFee,
+          LRawPayload, LPayload_method, LEncodePwd, LTargetEPASA.PayloadType,
+          AErrorNum, AErrorDesc);
+    end else begin
+      // Transaction
+      LOpt := CreateOperationTransaction(
+        ASender, ASender.Node.Bank.SafeBox.CurrentProtocol,
+        LSender, LTarget, LAmount, LFee,
+        LRawPayload, LPayload_method, LEncodePwd, LTargetEPASA.PayloadType,
+        AErrorNum, AErrorDesc);
+    end;
+
+    // Execute operation
     if Assigned(LOpt) then
     try
       LOperationsHashTree.AddOperationToHashTree(LOpt);
@@ -253,6 +323,7 @@ begin
     finally
       LOpt.Free;
     end;
+
   Finally
     LOperationsHashTree.Free;
   End;

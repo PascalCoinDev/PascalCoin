@@ -118,6 +118,8 @@ Type
     Class procedure SaveTOperationBlockToStream(const stream : TStream; const operationBlock:TOperationBlock);
     Class Function LoadTOperationBlockFromStream(const stream : TStream; var operationBlock:TOperationBlock) : Boolean;
     Class Function AccountToTxt(const Account : TAccount) : String;
+    Class Function DecodeEPASAPartial(AAccount : Cardinal; const APayload : TBytes; APayloadType : Byte; ADefault : TEPasa) : TEPasa;
+    Class Function TryDecodeEPASAPartial(AAccount : Cardinal; const APayload : TBytes; APayloadType : Byte; out AEPasa : TEPasa) : Boolean;
   End;
 
   TPCSafeBox = Class;
@@ -295,8 +297,6 @@ Type
     Function FindAccountByName(const aName : String) : Integer; overload;
     Function FindAccountByName(const aName : TRawBytes) : Integer; overload;
     Function FindAccountsStartingByName(const AStartName : TRawBytes; const ARawList : TOrderedRawList; const AMax : Integer = 0) : Integer;
-    Function TryResolveAccountByEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean): Boolean; overload;
-    Function TryResolveAccountByEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean; out AErrorMessage: String): Boolean; overload;
     
     Procedure Clear;
     Function Account(account_number : Cardinal) : TAccount;
@@ -1898,6 +1898,105 @@ begin
   finally
     ms.Free;
   end;
+end;
+
+class Function TAccountComp.DecodeEPASAPartial(AAccount : Cardinal; const APayload : TBytes; APayloadType : Byte; ADefault : TEPasa) : TEPasa;
+begin
+  if NOT TryDecodeEPASAPartial(AAccount, APayload, APayloadType, Result) then
+    Result := ADefault;
+end;
+
+class Function TAccountComp.TryDecodeEPASAPartial(AAccount : Cardinal; const APayload : TBytes; APayloadType : Byte; out AEPasa : TEPasa) : Boolean;
+var
+  LPayloadType : TPayloadType;
+  LUnencryptedPayloadBytes : TBytes;
+  LEPasaStr : String;
+  LPublic, LRecipientKeyEncrypted, LSenderKeyEncrypted,
+  LPasswordEncrypted, LAsciiFormatted, LHexFormatted, LBase58Formatted, LAddressedByName : Boolean;
+begin
+  LPayloadType := TEPasaComp.FromProtocolValue(APayloadType);
+  LPublic := LPayloadType.HasTrait(ptPublic);
+  LRecipientKeyEncrypted := LPayloadType.HasTrait(ptRecipientKeyEncrypted);
+  LSenderKeyEncrypted := LPayloadType.HasTrait(ptSenderKeyEncrypted);
+  LPasswordEncrypted := LPayloadType.HasTrait(ptPasswordEncrypted);
+  LAsciiFormatted := LPayloadType.HasTrait(ptAsciiFormatted);
+  LHexFormatted := LPayloadType.HasTrait(ptHexFormatted);
+  LBase58Formatted := LPayloadType.HasTrait(ptBase58Formatted);
+  LAddressedByName := LPayloadType.HasTrait(ptAddressedByName);
+
+  if LPayloadType.HasTrait(ptAddressedByName) then begin
+     (*LEPasaStr := Self.GetMempoolAccount(AAccount).name.ToPrintable;
+     if LEPasaStr.IsEmpty then
+       Exit(False); *)
+     // Note: since doing a name resolution for every encountered addressed-by-name EPASA,
+     // would overwhelm the SafeBox with lookups, names are not resolved.
+     // So in V5 addressed-by-name EPASA's auto-resolved as addressed-by-number
+     LEPasaStr := TAccountComp.AccountNumberToAccountTxtNumber(AAccount);
+  end else LEPasaStr := TAccountComp.AccountNumberToAccountTxtNumber(AAccount);
+
+
+  // payload opening char
+  if LPublic then begin
+     LEPasaStr := LEPasaStr + '[';
+  end;
+
+  if LSenderKeyEncrypted then begin
+     LEPasaStr := LEPasaStr + '<';
+  end;
+
+  if LRecipientKeyEncrypted then begin
+     LEPasaStr := LEPasaStr + '(';
+  end;
+
+  if LPasswordEncrypted then begin
+     LEPasaStr := LEPasaStr + '{';
+  end;
+
+  // payload data
+  if LPublic OR LSenderKeyEncrypted OR LRecipientKeyEncrypted OR LPasswordEncrypted then begin
+
+    if LPublic then
+      LUnencryptedPayloadBytes := APayload
+    else if LSenderKeyEncrypted then
+      Exit(False) // Todo: Partial decoding does not decrypt due to performance penalty if always decrypting. This needs to be implemented as a IFuture<TBytes> value with lazy evaluation.
+    else if LRecipientKeyEncrypted then
+      Exit(False) // Todo: Partial decoding does not decrypt due to performance penalty if always decrypting. This needs to be implemented as a IFuture<TBytes> value with lazy evaluation.
+    else if LPasswordEncrypted then
+      Exit(False) // Todo: Partial decoding does not decrypt due to performance penalty if always decrypting. This needs to be implemented as a IFuture<TBytes> value with lazy evaluation..
+    else raise Exception.Create('Internal Error a0805389-df1a-4b40-b12e-d22327a3d049');
+
+    // decrypt data
+     if LAsciiFormatted then
+       LEPasaStr := LEPasaStr + '"' + TEncoding.ASCII.GetString(LUnencryptedPayloadBytes) + '"'
+     else if LHexFormatted then
+       LEPasaStr := LEPasaStr + '0x' + THexEncoding.Encode(LUnencryptedPayloadBytes)
+     else if LBase58Formatted then
+       LEPasaStr := LEPasaStr + TPascalBase58Encoding.Encode(LUnencryptedPayloadBytes)
+     else raise Exception.Create('Internal Error 67a61d3e-eef2-40a9-8d92-45570f400c1e');
+  end;
+
+  // payload closing char
+  if LPublic then begin
+     LEPasaStr := LEPasaStr + ']';
+  end;
+
+  if LSenderKeyEncrypted then begin
+     LEPasaStr := LEPasaStr + '>';
+  end;
+
+  if LRecipientKeyEncrypted then begin
+     LEPasaStr := LEPasaStr + ')';
+  end;
+
+  if LPasswordEncrypted then begin
+     LEPasaStr := LEPasaStr + '}';
+  end;
+
+  // Parse as EPASA
+  if NOT TEPasa.TryParse(LEPasaStr, AEPasa) then
+    Exit(False);
+
+  Result := true;
 end;
 
 {$IFNDEF VER210}
@@ -4700,72 +4799,6 @@ begin
   finally
     EndThreadSave;
   end;
-end;
-
-Function TPCSafeBox.TryResolveAccountByEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean): Boolean;
-var LErrMsg : String;
-begin
-  Result := TryResolveAccountByEPASA(AEPasa, AResolvedAccount, AResolvedKey, ARequiresPurchase, LErrMsg);
-end;
-
-Function TPCSafeBox.TryResolveAccountByEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean; out AErrorMessage: String): Boolean;
-var
-  LKey : TAccountKey;
-  LErrMsg : String;
-begin
-  if (AEPasa.IsPayToKey) then begin
-    // Parse account key in EPASA
-    if NOT TAccountComp.AccountPublicKeyImport(AEPasa.Payload, LKey, LErrMsg) then begin
-      AResolvedAccount := CT_AccountNo_NUL;
-      AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
-      ARequiresPurchase := False;
-      AErrorMessage := Format('Invalid key specified in PayToKey EPASA "%s". %s',[AEPasa.ToString(), LErrMsg]);
-      Exit(False);
-    end;
-    
-    // Try to find key in safebox 
-
-    // If key is found, then do not purchase new account and send to first account with key
-
-    // If no key found, find optimal public purchase account
-
-    // WIP (not implemented)
-    AResolvedAccount := CT_AccountNo_NUL;    
-    AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
-    ARequiresPurchase := False;
-    AErrorMessage := 'Not implemented';
-    Result := False;     
-  end else if (AEPasa.IsAddressedByName) then begin
-    // Find account by name
-
-    // WIP (not implemented)
-    AResolvedAccount := CT_AccountNo_NUL;    
-    AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
-    ARequiresPurchase := False;
-    AErrorMessage := 'Not implemented';
-    Result := False; 
-    
-  end else begin
-    // addressed by number
-    if NOT AEPasa.IsAddressedByNumber then
-      raise Exception.Create('Internal Error c8ecd69d-3621-4f5e-b4f1-9926ab2f5013');
-    if NOT AEPasa.Account.HasValue then raise Exception.Create('Internal Error 544c8cb9-b700-4b5f-93ca-4d045d0a06ae');
-
-    if (AEPasa.Account.Value < 0) or (AEPasa.Account.Value >= Self.AccountsCount) then begin
-      AResolvedAccount := CT_AccountNo_NUL;
-      AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
-      ARequiresPurchase := False;
-      AErrorMessage := Format('Account number %d does not exist in safebox',[AEPasa.Account.Value]);
-      Exit(False);
-    end;
-    
-    AResolvedAccount := AEPasa.Account.Value;
-    AResolvedKey := CT_Account_NUL.accountInfo.accountKey;      
-    ARequiresPurchase := False;    
-    Result := true;
-  end;
-
-
 end;
 
 procedure TPCSafeBox.SearchBlockWhenOnSeparatedChain(blockNumber: Cardinal; out blockAccount: TBlockAccount);

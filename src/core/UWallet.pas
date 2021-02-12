@@ -592,7 +592,7 @@ begin
   Result := CT_TECDSA_Public_Nul;
   case TSettings.MinerPrivateKeyType of
     mpk_NewEachTime: PublicK := CT_TECDSA_Public_Nul;
-    mpk_Selected: PublicK := TAccountComp.RawString2Accountkey(TSettings.MinerSelectedPrivateKey);
+    mpk_Selected: PublicK := TAccountComp.RawString2Accountkey(TSettings.MinerSelectedPublicKey);
     mpk_Random: begin
       PublicK := CT_TECDSA_Public_Nul;
       if FKeys.Count>0 then PublicK := FKeys.Key[Random(FKeys.Count)].AccountKey;
@@ -612,7 +612,7 @@ begin
       // Set to Settings if not mpk_NewEachTime
       if (TSettings.MinerPrivateKeyType<>mpk_NewEachTime) then begin
         TSettings.MinerPrivateKeyType:=mpk_Selected;
-        TSettings.MinerSelectedPrivateKey := TAccountComp.AccountKey2RawString(PublicK);
+        TSettings.MinerSelectedPublicKey := TAccountComp.AccountKey2RawString(PublicK);
       end;
     finally
       PK.Free;

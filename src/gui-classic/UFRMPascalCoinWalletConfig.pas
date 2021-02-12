@@ -30,11 +30,10 @@ uses
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Buttons, ComCtrls, UAppParams, UWallet;
+  Dialogs, StdCtrls, Buttons, ComCtrls, UAppParams, USettings, UWallet;
 
 type
 
-  TMinerPrivateKey = (mpk_NewEachTime, mpk_Random, mpk_Selected);
 
   { TFRMPascalCoinWalletConfig }
 
@@ -98,7 +97,7 @@ type
 implementation
 
 uses
-  {$IFDEF USE_GNUGETTEXT}gnugettext, UFRMSelectLanguage, {$ENDIF}UConst, UAccounts, ULog, UCrypto, UNode, USettings, UGUIUtils, UNetProtocol;
+  {$IFDEF USE_GNUGETTEXT}gnugettext, UFRMSelectLanguage, {$ENDIF}UConst, UAccounts, ULog, UCrypto, UNode, UGUIUtils, UNetProtocol;
 
 {$IFnDEF FPC}
   {$R *.dfm}
@@ -108,7 +107,7 @@ uses
 
 procedure TFRMPascalCoinWalletConfig.bbOkClick(Sender: TObject);
 Var df : Int64;
-  mpk : TMinerPrivateKey;
+  mpk : TMinerPrivateKeyType;
   i : Integer;
 begin
   if udInternetServerPort.Position = udJSONRPCMinerServerPort.Position then raise Exception.Create('Server port and JSON-RPC Server miner port are equal!');
@@ -241,7 +240,7 @@ begin
     udInternetServerPort.Position := AppParams.ParamByName[CT_PARAM_InternetServerPort].GetAsInteger(CT_NetServer_Port);
     ebDefaultFee.Text := TAccountComp.FormatMoney(AppParams.ParamByName[CT_PARAM_DefaultFee].GetAsInt64(0));
     cbJSONRPCMinerServerActive.Checked := AppParams.ParamByName[CT_PARAM_JSONRPCMinerServerActive].GetAsBoolean(true);
-    case TMinerPrivateKey(AppParams.ParamByName[CT_PARAM_MinerPrivateKeyType].GetAsInteger(Integer(mpk_Random))) of
+    case TMinerPrivateKeyType(AppParams.ParamByName[CT_PARAM_MinerPrivateKeyType].GetAsInteger(Integer(mpk_Random))) of
       mpk_NewEachTime : rbGenerateANewPrivateKeyEachBlock.Checked := true;
       mpk_Random : rbUseARandomKey.Checked := true;
       mpk_Selected : rbMineAllwaysWithThisKey.Checked := true;

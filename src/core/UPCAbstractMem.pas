@@ -6,6 +6,8 @@ interface
   {$MODE DELPHI}
 {$ENDIF}
 
+{$I ./../config.inc}
+
 uses Classes, SysUtils, SyncObjs,
   UAbstractMem, UFileMem, UAbstractMemTList, UCacheMem,
   UAbstractBTree, UThread, UAbstractMemBTree,
@@ -457,10 +459,10 @@ begin
   end;
   FBufferBlocksHash := TPCAbstractMemBytesBuffer32Safebox.Create(FAbstractMem,LZoneBuffersBlockHash,FBlocks.Count);
 
-  FAccountsOrderedByUpdatedBlock := TAccountsOrderedByUpdatedBlock.Create(FAbstractMem,LZoneAccountsOrderedByUpdatedBlock,DoGetAccount);
+  FAccountsOrderedByUpdatedBlock := TAccountsOrderedByUpdatedBlock.Create({$IFDEF USE_ABSTRACTMEM}FAbstractMem,LZoneAccountsOrderedByUpdatedBlock,{$ENDIF}DoGetAccount);
   FAccounts.AccountsOrderedByUpdatedBlock := FAccountsOrderedByUpdatedBlock;
 
-  FAccountsOrderedBySalePrice := TAccountsOrderedBySalePrice.Create(FAbstractMem,LZoneAccountsOrderedBySalePrice,DoGetAccount);
+  FAccountsOrderedBySalePrice := TAccountsOrderedBySalePrice.Create({$IFDEF USE_ABSTRACTMEM}FAbstractMem,LZoneAccountsOrderedBySalePrice,{$ENDIF}DoGetAccount);
   FAccounts.AccountsOrderedBySalePrice := FAccountsOrderedBySalePrice;
 
   FAccountCache.Clear;

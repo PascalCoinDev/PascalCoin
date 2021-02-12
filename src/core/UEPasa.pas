@@ -46,7 +46,7 @@ type
 
   TPayloadTrait = (
     ptNonDeterministic = 0,      // Payload encryption and encoding method not specified.
-    ptPublic = 1,               // Unencrypted, public payload.
+    ptPublic = 1,                // Unencrypted, public payload.
     ptRecipientKeyEncrypted = 2, // ECIES encrypted using recipient accounts public key.
     ptSenderKeyEncrypted = 3,    // ECIES encrypted using sender accounts public key.
     ptPasswordEncrypted = 4,     // AES encrypted using pwd param
@@ -60,7 +60,7 @@ type
 
   TPayloadTraitHelper = record helper for TPayloadTrait
   public
-    function ProtocolValue: byte;
+    function ToProtocolValue: byte;
   end;
 
   { TPayloadType }
@@ -72,18 +72,17 @@ type
   TPayloadTypeHelper = record helper for TPayloadType
   public
     function HasTrait(APayloadTrait: TPayloadTrait): Boolean; inline;
-    function ProtocolValue : byte;
+    function ToProtocolValue : byte;
   end;
 
   { TEPasa }
 
 
   TEPasa = record
-    strict private
-      var
-        FAccount, FAccountChecksum: TNullable<UInt32>;
-        FAccountName, FPayload, FPassword, FExtendedChecksum: String;
-        FPayloadType: TPayloadType;
+    strict private var
+      FAccount, FAccountChecksum: TNullable<UInt32>;
+      FAccountName, FPayload, FPassword, FExtendedChecksum: String;
+      FPayloadType: TPayloadType;
 
       function GetAccount: TNullable<UInt32>; inline;
       procedure SetAccount(const AValue: TNullable<UInt32>); inline;
@@ -116,11 +115,13 @@ type
       property IsAddressedByNumber: boolean read GetIsAddressedByNumber;
       property IsAddressedByName: boolean read GetIsAddressedByName;
       property IsPayToKey: boolean read GetIsPayToKey;
-      property IsStandard: boolean read GetIsStandard;
+      property IsClassicPASA: boolean read GetIsStandard;
       property HasPayload: boolean read GetHasPayload;
       class property Empty : TEPasa read GetEmptyValue;
 
-      function GetRawPayloadBytes(): TArray<Byte>; inline;
+      function GetRawPayloadBytes(): TBytes; inline;
+
+      function ToClassicPASAString(): String; overload;
       function ToString(): String; overload;
       function ToString(AOmitExtendedChecksum: Boolean): String; overload;
 
@@ -128,7 +129,7 @@ type
       class function Parse(const AEPasaText: String): TEPasa; static;
 
       class function CalculateAccountChecksum(AAccNo: UInt32): Byte; static; inline;
-
+      procedure Clear;
   end;
 
 
@@ -146,7 +147,7 @@ type
       // note: regex syntax escapes following chars [\^$.|?*+(){}
       // note: epasa syntax escapes following chars: :\"[]()<>(){}
       // note: c-sharp syntax verbatim strings escape: " as ""
-      IntegerPattern = '(0|[1-9]\d+)';
+      IntegerPattern = '(0|[1-9]\d*)';
       AccountNamePattern = '(?P<AccountName>' + TPascal64Encoding.StringPattern + ')';
       AccountChecksumPattern = '(?:(?P<ChecksumDelim>-)(?P<Checksum>\d{2}))?';
       AccountNumberPattern = '(?P<AccountNumber>' + IntegerPattern + ')' + AccountChecksumPattern;
@@ -194,6 +195,7 @@ type
 
       class function GetPayloadTypeProtocolByte(const APayloadType : TPayloadType) : Byte;
       class function GetPayloadTypeFromProtocolByte(AByte : Byte) : TPayloadType;
+      class function FromProtocolValue(AVal : Byte) : TPayloadType;
   end;
 
 resourcestring
@@ -219,18 +221,18 @@ var
 
 { TPayloadTraitHelper }
 
-function TPayloadTraitHelper.ProtocolValue: Byte;
+function TPayloadTraitHelper.ToProtocolValue: Byte;
 begin
   case Self of
-    ptNonDeterministic: Result := 0;
-    ptPublic: Result := BYTE_BIT_0;
-    ptRecipientKeyEncrypted: Result := BYTE_BIT_1;
-    ptSenderKeyEncrypted: Result := BYTE_BIT_2;
-    ptPasswordEncrypted: Result := BYTE_BIT_3;
-    ptAsciiFormatted: Result := BYTE_BIT_4;
-    ptHexFormatted: Result := BYTE_BIT_5;
-    ptBase58Formatted: Result := BYTE_BIT_6;
-    ptAddressedByName: Result := BYTE_BIT_7;
+    ptNonDeterministic: Exit(0);
+    ptPublic: Exit(BYTE_BIT_0);
+    ptRecipientKeyEncrypted: Exit(BYTE_BIT_1);
+    ptSenderKeyEncrypted: Exit(BYTE_BIT_2);
+    ptPasswordEncrypted: Exit(BYTE_BIT_3);
+    ptAsciiFormatted: Exit(BYTE_BIT_4);
+    ptHexFormatted: Exit(BYTE_BIT_5);
+    ptBase58Formatted: Exit(BYTE_BIT_6);
+    ptAddressedByName: Exit(BYTE_BIT_7);
   end;
   raise Exception.Create('Internal Error 2faed11a-1b0f-447a-87d1-2e1735ac4ca2');
 end;
@@ -242,13 +244,23 @@ begin
   Result := APayloadTrait in Self;
 end;
 
-function TPayloadTypeHelper.ProtocolValue : Byte;
+function TPayloadTypeHelper.ToProtocolValue : Byte;
 begin
   Result := TEPasaComp.GetPayloadTypeProtocolByte(Self);
 end;
 
-
 { TEPasa }
+
+procedure TEPasa.Clear;
+begin
+  Self.FAccount.Clear;
+  Self.FAccountChecksum.Clear;
+  Self.FAccountName:='';
+  Self.FPayload:='';
+  Self.FPassword:='';
+  Self.FExtendedChecksum:='';
+  Self.FPayloadType:=[];
+end;
 
 function TEPasa.GetAccount: TNullable<UInt32>;
 begin
@@ -349,8 +361,7 @@ begin
   Result := PayloadType.HasTrait(ptPublic) OR PayloadType.HasTrait(ptRecipientKeyEncrypted) OR PayloadType.HasTrait(ptSenderKeyEncrypted);
 end;
 
-
-function TEPasa.GetRawPayloadBytes: TArray<Byte>;
+function TEPasa.GetRawPayloadBytes: TBytes;
 begin
   if (PayloadType.HasTrait(ptAsciiFormatted)) then
     Exit(TEncoding.ASCII.GetBytes(Payload));
@@ -362,6 +373,16 @@ begin
     Exit(THexEncoding.Decode(Payload));
 
   raise EPascalCoinException.CreateRes(@SUnknownPayloadEncoding);
+end;
+
+function TEPasa.ToClassicPASAString : String;
+begin
+  Result := ToString(True);
+end;
+
+function TEPasa.ToString: String;
+begin
+  Result := ToString(False);
 end;
 
 function TEPasa.ToString(AOmitExtendedChecksum: Boolean): String;
@@ -406,16 +427,12 @@ begin
   end;
 end;
 
-function TEPasa.ToString: String;
-begin
-  Result := ToString(False);
-end;
+
 
 class function TEPasa.TryParse(const AEPasaText: String; out AEPasa: TEPasa): Boolean;
 var
   LParser: TEPasaParser;
   LDisposables : TDisposables;
-
 begin
   LParser := LDisposables.AddObject( TEPasaParser.Create() ) as TEPasaParser;
   Result := LParser.TryParse(AEPasaText, AEPasa);
@@ -475,10 +492,9 @@ var
   LExtendedChecksumDelim, LExtendedChecksum, LActualChecksum: String;
   LAccNo, LAccChecksum: UInt32;
   LActualAccountChecksum: Byte;
-  LEPasa : TEPasa;
 begin
   AErrorCode := EPasaErrorCode.Success;
-  AEPasa := LEPasa;
+  AEPasa := TEPasa.Empty;
   if (string.IsNullOrEmpty(AEPasaText)) then begin
     AErrorCode := EPasaErrorCode.BadFormat;
     Exit(False);
@@ -515,8 +531,7 @@ begin
     // when multiple enums are OR'ed in C#, they are combined and
     // if any of the enums numeric value is zero, it is excluded.
     // in our case,"PayloadType.NonDeterministic" is always zero so we exclude it from our set.
-    AEPasa.PayloadType := AEPasa.PayloadType + [ptAddressedByName] -
-      [ptNonDeterministic];
+    AEPasa.PayloadType := AEPasa.PayloadType + [ptAddressedByName] -[ptNonDeterministic];
     AEPasa.AccountName := TPascal64Encoding.Unescape(LAccountName);
     AEPasa.Account := Nil;
     AEPasa.AccountChecksum := Nil;
@@ -722,7 +737,7 @@ begin
   Result := 0; // NonDeterministic by default
   for LPayloadType := Low(TPayloadTrait) to High(TPayloadTrait) do
     if APayloadType.HasTrait(LPayloadType) then
-      Result := Result OR LPayloadType.ProtocolValue;
+      Result := Result OR LPayloadType.ToProtocolValue;
 end;
 
 class function TEPasaComp.GetPayloadTypeFromProtocolByte(AByte: Byte) : TPayloadType;
@@ -735,15 +750,35 @@ begin
 
   Result := [];
   for LPayloadType := Low(TPayloadTrait) to High(TPayloadTrait) do begin
-    LPayloadTypeByte := LPayloadType.ProtocolValue;
+    LPayloadTypeByte := LPayloadType.ToProtocolValue;
     if (AByte AND LPayloadTypeByte) = LPayloadTypeByte then
       Result := Result + [LPayloadType];
   end;
 end;
 
+class function TEPasaComp.FromProtocolValue(AVal : Byte) : TPayloadType;
+begin
+  if AVal = 0 then begin
+    Exit([ptNonDeterministic]);
+  end;
+  Result := [];
+  if AVal AND BYTE_BIT_0 <> 0 then Result := Result + [ptPublic];
+  if AVal AND BYTE_BIT_1 <> 0 then Result := Result + [ptRecipientKeyEncrypted];
+  if AVal AND BYTE_BIT_2 <> 0 then Result := Result + [ptSenderKeyEncrypted];
+  if AVal AND BYTE_BIT_3 <> 0 then Result := Result + [ptPasswordEncrypted];
+  if AVal AND BYTE_BIT_4 <> 0 then Result := Result + [ptAsciiFormatted];
+  if AVal AND BYTE_BIT_5 <> 0 then Result := Result + [ptHexFormatted];
+  if AVal AND BYTE_BIT_6 <> 0 then Result := Result + [ptBase58Formatted];
+  if AVal AND BYTE_BIT_7 <> 0 then Result := Result + [ptAddressedByName];
+end;
+
+
+
+
 initialization
-
+{$IFDEF FPC}
+FillChar(EmptyEPasa, SizeOf(EmptyEPASA), 0);
+{$ELSE}
 EmptyEPasa := Default(TEPasa);
-
-
+{$ENDIF}
 end.
