@@ -390,6 +390,8 @@ var
   LPayloadContent: String;
 begin
   Result := string.Empty;
+  if (Not Account.HasValue) then Exit;
+  if PayloadType.HasTrait(ptNonDeterministic) then Exit;
   if (PayloadType.HasTrait(ptAddressedByName)) then begin
     Result := Result + TPascal64Encoding.Escape(AccountName);
   end else begin
@@ -494,7 +496,7 @@ var
   LActualAccountChecksum: Byte;
 begin
   AErrorCode := EPasaErrorCode.Success;
-  AEPasa := TEPasa.Empty;
+  AEPasa.Clear;
   if (string.IsNullOrEmpty(AEPasaText)) then begin
     AErrorCode := EPasaErrorCode.BadFormat;
     Exit(False);

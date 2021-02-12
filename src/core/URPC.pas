@@ -258,7 +258,6 @@ Begin
       LString := TCrypto.ToHexaString(OPR.Senders[i].Payload.payload_raw);
       auxObj := jsonArr.GetAsObject(jsonArr.Count);
       auxObj.GetAsVariant('account').Value := OPR.Senders[i].Account;
-      auxObj.GetAsVariant('account_epasa').Value := OPR.Senders[i].AccountEPASA.ToString();
       if (OPR.Senders[i].N_Operation>0) then auxObj.GetAsVariant('n_operation').Value := OPR.Senders[i].N_Operation;
       auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(OPR.Senders[i].Amount * (-1));
       auxObj.GetAsVariant('amount_s').Value := TAccountComp.FormatMoney (OPR.Senders[i].Amount * (-1));
@@ -273,6 +272,7 @@ Begin
     for i:=Low(OPR.Receivers) to High(OPR.Receivers) do begin
       auxObj := jsonArr.GetAsObject(jsonArr.Count);
       auxObj.GetAsVariant('account').Value := OPR.Receivers[i].Account;
+      auxObj.GetAsVariant('account_epasa').Value := OPR.Receivers[i].AccountEPASA.ToString;
       auxObj.GetAsVariant('amount').Value :=  TAccountComp.FormatMoneyDecimal(OPR.Receivers[i].Amount);
       auxObj.GetAsVariant('amount_s').Value :=  TAccountComp.FormatMoney(OPR.Receivers[i].Amount);
       auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Receivers[i].Payload.payload_raw);
@@ -593,7 +593,6 @@ begin
     LStr := TCrypto.ToHexaString(multiOperation.Data.txSenders[i].Payload.payload_raw);
     auxObj := jsonArr.GetAsObject(jsonArr.Count);
     auxObj.GetAsVariant('account').Value := multiOperation.Data.txSenders[i].Account;
-    auxObj.GetAsVariant('account_epasa').Value := multiOperation.Data.txSenders[i].AccountEPASA.ToString();
     auxObj.GetAsVariant('n_operation').Value := multiOperation.Data.txSenders[i].N_Operation;
     auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(multiOperation.Data.txSenders[i].Amount * (-1));
     auxObj.GetAsVariant('payload').Value := LStr;
@@ -1611,7 +1610,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         If TPCOperation.OperationToOperationResume(0,Op,True,Op.SignerAccount,OPR) then begin
           OPR.NOpInsideBlock := i;
           OPR.Balance := -1;
-        end else OPR := CT_TOperationResume_NUL;
+        end else begin
+          OPR := CT_TOperationResume_NUL;
+        end;
         FillOperationResumeToJSONObject(OPR,Obj);
       end;
       Result := true;
@@ -2551,6 +2552,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       jsonArr := params.GetAsArray('receivers');
       for i:=0 to jsonArr.Count-1 do begin
         receiver := CT_TMultiOpReceiver_NUL;
+        receiver.AccountEPASA.Clear;
         if NOT TryCaptureEPASA(jsonArr.GetAsObject(i), receiver.Account, ErrorNum, ErrorDesc) then
           Exit;
         receiver.Amount:= ToPascalCoins(jsonArr.GetAsObject(i).AsDouble('amount',0));

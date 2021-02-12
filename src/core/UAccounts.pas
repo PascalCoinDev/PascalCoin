@@ -1914,7 +1914,9 @@ var
   LPublic, LRecipientKeyEncrypted, LSenderKeyEncrypted,
   LPasswordEncrypted, LAsciiFormatted, LHexFormatted, LBase58Formatted, LAddressedByName : Boolean;
 begin
+  AEPasa.Clear;
   LPayloadType := TEPasaComp.FromProtocolValue(APayloadType);
+  if LPayloadType.HasTrait(ptNonDeterministic) then Exit(False);
   LPublic := LPayloadType.HasTrait(ptPublic);
   LRecipientKeyEncrypted := LPayloadType.HasTrait(ptRecipientKeyEncrypted);
   LSenderKeyEncrypted := LPayloadType.HasTrait(ptSenderKeyEncrypted);

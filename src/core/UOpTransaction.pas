@@ -1189,7 +1189,6 @@ begin
   SetLength(OperationResume.Senders,1);
   OperationResume.Senders[0] := CT_TMultiOpSender_NUL;
   OperationResume.Senders[0].Account:=FData.sender;
-  OperationResume.Senders[0].AccountEPASA := TAccountComp.DecodeEPASAPartial(FData.sender, FData.payload.payload_raw, FData.payload.payload_type, TEPasa.Empty);
   OperationResume.Senders[0].Amount:=Int64(FData.amount + FData.fee);
   OperationResume.Senders[0].N_Operation:=FData.n_operation;
   OperationResume.Senders[0].Payload:=FData.payload;
@@ -1206,10 +1205,12 @@ begin
     buy_account, transaction_with_auto_buy_account, transaction_with_auto_atomic_swap : begin
       SetLength(OperationResume.Receivers,2);
       OperationResume.Receivers[0] := CT_TMultiOpReceiver_NUL;
+      OperationResume.Receivers[0].AccountEPASA.Clear;
       OperationResume.Receivers[0].Account:=FData.target;
       OperationResume.Receivers[0].Amount:= (FData.amount - FData.AccountPrice);
       OperationResume.Receivers[0].Payload:=FData.payload;
       OperationResume.Receivers[1] := CT_TMultiOpReceiver_NUL;
+      OperationResume.Receivers[1].AccountEPASA.Clear;
       OperationResume.Receivers[1].Account:=FData.SellerAccount;
       OperationResume.Receivers[1].Amount:= FData.AccountPrice;
       OperationResume.Receivers[1].Payload:=FData.payload;
@@ -2651,6 +2652,7 @@ begin
   //
   SetLength(OperationResume.Receivers,1);
   OperationResume.Receivers[0] := CT_TMultiOpReceiver_NUL;
+  OperationResume.Receivers[0].AccountEPASA.Clear;
   OperationResume.Receivers[0].Account:=FData.account_target;
   OperationResume.Receivers[0].Amount:=FData.amount;
   OperationResume.Receivers[0].Payload:=FData.payload;

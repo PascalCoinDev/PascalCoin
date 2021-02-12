@@ -23,7 +23,7 @@ unit UTxMultiOperation;
 interface
 
 uses
-  Classes, SysUtils, UCrypto, UBlockChain, UAccounts, UBaseTypes,
+  Classes, SysUtils, UCrypto, UBlockChain, UAccounts, UBaseTypes, UEPasa,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
   UPCDataTypes;
 
@@ -427,9 +427,12 @@ begin
     If (w>0) then begin
       for i:=0 to w-1 do begin
         txr := CT_TMultiOpReceiver_NUL;
+        txr.AccountEPASA.Clear;
         stream.Read(txr.Account,SizeOf(txr.Account));
         stream.Read(txr.Amount,SizeOf(txr.Amount));
         LoadOperationPayloadFromStream(stream,txr.Payload);
+        //
+        txr.AccountEPASA:=TAccountComp.DecodeEPASAPartial(txr.Account,txr.Payload.payload_raw,txr.Payload.payload_type,TEPasa.Empty);
         //
         txreceivers[i] := txr;
       end;

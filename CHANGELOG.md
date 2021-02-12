@@ -13,6 +13,9 @@
   - Added "ABSTRACTMEM_USE_CACHE_ON_LISTS","ABSTRACTMEM_CACHE_MAX_ACCOUNTS","ABSTRACTMEM_CACHE_MAX_PUBKEYS" in order to customize cache values
 - Improved performance when downloading Safebox (Fresh installation)
 - JSON-RPC changes:  
+  - Updated "Operation Object" return values:
+    - "receivers" : ARRAY
+      - "account_epasa" : (String) If operation was using valid E-PASA format, will return E-PASA format
   - Updated "findaccounts": 
     -New param "end" (integer, -1 for default): Will search from "start" to "end" (if "end"=-1 will search to the end)
   - New method "findblocks": Will search and return an array of "Block objects"
