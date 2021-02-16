@@ -1577,6 +1577,7 @@ end;
 function TFRMOperation.UpdateOpTransaction(const ASenderAccount: TAccount; out ATargetEPASA : TEPasa; out ATargetAccount : TAccount; out AResolvedTargetKey : TECDSA_Public; out ATargetRequiresPurchase : Boolean; out AAmount: Int64; out AErrors: String): Boolean;
 Var
   LResolvedAccountNo : Cardinal;
+  LPublicKey : TAccountKey;
 begin
   AErrors := '';
   lblTransactionErrors.Caption := '';
@@ -1599,6 +1600,16 @@ begin
   if NOT Result then begin
     lblTransactionErrors.Caption := AErrors;
     Exit(False);
+  end;
+
+  // GUI Base58 protection: In order to prevent manual mistake, Base58 is only allowed when introducing
+  // a Public key, otherwise will need to use String ("") or Hexadecimal (0x..) input
+  if (ATargetEPASA.PayloadType.HasTrait(ptBase58Formatted)) then begin
+     if Not TAccountComp.AccountPublicKeyImport(ATargetEPASA.Payload,LPublicKey,AErrors) then begin
+       AErrors := 'Not a Base58 Public key: '+AErrors;
+       lblTransactionErrors.Caption := AErrors;
+       Exit(False);
+     end;
   end;
 
   if LResolvedAccountNo <> CT_AccountNo_NUL then begin
@@ -1681,6 +1692,13 @@ begin
          LTargetEPASA.PayloadType := LTargetEPASA.PayloadType + [ptBase58Formatted];
          if Not TPascalBase58Encoding.TryDecode(LUserPayloadString,LPayloadBytes) then begin
            AErrors := 'Payload is not a Base 58 string';
+           Exit(False);
+         end;
+
+         // GUI Base58 protection: In order to prevent manual mistake, Base58 is only allowed when introducing
+         // a Public key, otherwise will need to use String ("") or Hexadecimal (0x..) input
+         if Not TAccountComp.AccountPublicKeyImport(LUserPayloadString,LPublicKey,AErrors) then begin
+           AErrors := 'Not a Public key: '+AErrors;
            Exit(False);
          end;
       end
