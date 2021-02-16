@@ -390,11 +390,12 @@ var
   LPayloadContent: String;
 begin
   Result := string.Empty;
-  if (Not Account.HasValue) then Exit;
   if PayloadType.HasTrait(ptNonDeterministic) then Exit;
+
   if (PayloadType.HasTrait(ptAddressedByName)) then begin
     Result := Result + TPascal64Encoding.Escape(AccountName);
   end else begin
+    if (Not Account.HasValue) then Exit;
     Result := Result + Account.Value.ToString();
     if (AccountChecksum.HasValue) then begin
       Result := Result + String.Format('-%u', [AccountChecksum.Value]);

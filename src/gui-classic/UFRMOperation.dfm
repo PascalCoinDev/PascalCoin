@@ -90,7 +90,7 @@ object FRMOperation: TFRMOperation
   object bbCancel: TBitBtn
     Left = 461
     Top = 476
-    Width = 116
+    Width = 120
     Height = 31
     Kind = bkCancel
     NumGlyphs = 2
@@ -185,7 +185,7 @@ object FRMOperation: TFRMOperation
         object lblEncryptionErrors: TLabel
           Left = 255
           Top = 96
-          Width = 187
+          Width = 152
           Height = 33
           AutoSize = False
           Caption = 'Errors detected'
@@ -211,7 +211,7 @@ object FRMOperation: TFRMOperation
         object rbEncryptedWithEC: TRadioButton
           Left = 15
           Top = 35
-          Width = 207
+          Width = 234
           Height = 19
           Caption = 'Encrypted with dest account public key'
           Checked = True
@@ -222,7 +222,7 @@ object FRMOperation: TFRMOperation
         object rbEncrptedWithPassword: TRadioButton
           Left = 15
           Top = 53
-          Width = 141
+          Width = 234
           Height = 19
           Caption = 'Encrypted with password'
           TabOrder = 2
@@ -232,7 +232,7 @@ object FRMOperation: TFRMOperation
         object rbNotEncrypted: TRadioButton
           Left = 15
           Top = 93
-          Width = 162
+          Width = 234
           Height = 19
           Caption = 'Dont encrypt (Public payload)'
           TabOrder = 4
@@ -266,21 +266,25 @@ object FRMOperation: TFRMOperation
         end
         object rbEncryptedWithOldEC: TRadioButton
           Left = 15
-          Top = 16
-          Width = 159
+          Top = 12
+          Width = 234
           Height = 19
           Caption = 'Encrypted with old public key'
           TabOrder = 0
           TabStop = True
           OnClick = memoPayloadClick
         end
-        object cbPayloadAsHex: TCheckBox
-          Left = 448
+        object cbPayloadDataInputType: TComboBox
+          Left = 413
           Top = 96
-          Width = 97
-          Height = 17
-          Caption = 'As Hex'
+          Width = 89
+          Height = 21
+          Style = csDropDownList
           TabOrder = 6
+          Items.Strings = (
+            'As String'#11
+            'As Hexadecimal'#11
+            'As Base58')
         end
       end
       object ebFee: TEdit
@@ -373,19 +377,32 @@ object FRMOperation: TFRMOperation
             OnClick = sbSearchDestinationAccountClick
           end
           object ebDestAccount: TEdit
-            Left = 114
+            Left = 115
             Top = 29
-            Width = 370
+            Width = 369
             Height = 21
             Anchors = [akLeft, akTop, akRight]
             TabOrder = 0
           end
           object ebAmount: TEdit
             Left = 115
-            Top = 58
+            Top = 56
             Width = 87
             Height = 21
             TabOrder = 1
+          end
+          object memoEPASA: TMemo
+            Left = 13
+            Top = 96
+            Width = 492
+            Height = 65
+            TabStop = False
+            BorderStyle = bsNone
+            ReadOnly = True
+            TabOrder = 2
+            WantReturns = False
+            OnChange = memoPayloadClick
+            OnClick = memoPayloadClick
           end
         end
         object tsChangePrivateKey: TTabSheet

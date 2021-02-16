@@ -1208,7 +1208,10 @@ begin
         end;
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
       end else if ACol=7 then begin
-        s := opr.PrintablePayload;
+        if Length(opr.Receivers)>0 then begin
+          s := opr.Receivers[0].AccountEPASA.ToString();
+          if s='' then s := opr.PrintablePayload;
+        end else s := opr.PrintablePayload;
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
       end else begin
         s := '(???)';

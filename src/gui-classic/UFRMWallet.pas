@@ -35,7 +35,7 @@ uses
   UNode, UGridUtils, UJSONFunctions, UAccounts, Menus, ImgList, UNetProtocol,
   UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect, UConst,
   UAccountKeyStorage, UBaseTypes, UPCDataTypes, UOrderedList,
-  UFRMRPCCalls, UTxMultiOperation, USettings,
+  UFRMRPCCalls, UTxMultiOperation, USettings, UEPasa,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Const
@@ -981,6 +981,7 @@ procedure TFRMWallet.FillOperationInformation(const Strings: TStrings;
   const OperationResume: TOperationResume);
 var i : Integer;
   jsonObj : TPCJSONObject;
+  LEPASA : TEPasa;
 begin
   If (not OperationResume.valid) then exit;
   If OperationResume.Block<FNode.Bank.BlocksCount then
@@ -1009,6 +1010,9 @@ begin
   If (Length(OperationResume.OperationHash_OLD)>0) then begin
     Strings.Add(Format('Old Operation Hash (old_ophash): %s',[TCrypto.ToHexaString(OperationResume.OperationHash_OLD)]));
   end;
+  if TAccountComp.TryDecodeEPASAPartial(OperationResume.DestAccount,OperationResume.OriginalPayload.payload_raw,OperationResume.OriginalPayload.payload_type,LEPASA) then begin
+    Strings.Add('EPASA: '+LEPASA.ToString);
+  end else Strings.Add('No EPASA format');
   Strings.Add(Format('Payload type:%d length:%d',[OperationResume.OriginalPayload.payload_type, length(OperationResume.OriginalPayload.payload_raw)]));
   if (Length(OperationResume.OriginalPayload.payload_raw)>0) then begin
     If OperationResume.PrintablePayload<>'' then begin
