@@ -715,7 +715,9 @@ begin
     If op.OperationToOperationResume(FSourceNode.Bank.BlocksCount,op,True,op.SignerAccount,opr) then begin
       jsonObj := TPCJSONObject.Create;
       Try
-        TPascalCoinJSONComp.FillOperationObject(opr,FSourceNode.Bank.BlocksCount,jsonObj);
+        TPascalCoinJSONComp.FillOperationObject(opr,FSourceNode.Bank.BlocksCount,
+          SourceNode,SourceWalletKeys,Nil,
+          jsonObj);
         mOperationInfo.Lines.Add('JSON:');
         mOperationInfo.Lines.Add(jsonObj.ToJSON(False));
       Finally

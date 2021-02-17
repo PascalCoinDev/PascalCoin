@@ -188,7 +188,9 @@ begin
         Exit;
       end;
       TPCOperation.OperationToOperationResume(0,LOpt,False,LSender.account,LOpr);
-      TPascalCoinJSONComp.FillOperationObject(LOpr,ASender.Node.Bank.BlocksCount,AJSONResponse.GetAsObject('result'));
+      TPascalCoinJSONComp.FillOperationObject(LOpr,ASender.Node.Bank.BlocksCount,
+        ASender.Node,ASender.RPCServer.WalletKeys,ASender.RPCServer.PayloadPasswords,
+        AJSONResponse.GetAsObject('result'));
       Result := true;
     finally
       LOpt.free;

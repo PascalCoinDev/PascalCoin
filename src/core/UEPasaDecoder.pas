@@ -43,6 +43,7 @@ type
       out ADecodeEPasaResult : TDecodeEPasaResult; out AEPasa : TEPasa) : Boolean; overload;
     class Function TryDecodeEPASA(AAccount : Cardinal; const APayload : TOperationPayload; const ANode : TNode; const AWalletKeys : TWalletKeys; const APasswords : TList<String>;
       out AEPasa : TEPasa) : Boolean; overload;
+    class Function DecodeEPASA(AAccount : Cardinal; const APayload : TOperationPayload; const ANode : TNode; const AWalletKeys : TWalletKeys; const APasswords : TList<String>) : String; overload;
   End;
 
 implementation
@@ -121,6 +122,7 @@ begin
       while (Not LDone) and (i < APasswords.Count) do begin
         LPwd.FromString(APasswords[i]);
         if TPCEncryption.DoPascalCoinAESDecrypt(APayload.payload_raw,LPwd,LUnencryptedPayloadBytes) then begin
+          AEPasa.Password := APasswords[i];
           LDone := True;
         end;
         inc(i);
@@ -154,6 +156,16 @@ begin
     Exit(False);
   end;
   Result := true;
+end;
+
+class function TEPasaDecoder.DecodeEPASA(AAccount: Cardinal;
+  const APayload: TOperationPayload; const ANode: TNode;
+  const AWalletKeys: TWalletKeys; const APasswords: TList<String>): String;
+var LEPasa : TEPasa;
+begin
+  if TryDecodeEPASA(AAccount,APayload,ANode,AWalletKeys,APasswords,LEPasa) then begin
+    Result := LEPasa.ToClassicPASAString;
+  end else Result := '';
 end;
 
 class function TEPasaDecoder.TryDecodeEPASA(AAccount: Cardinal;

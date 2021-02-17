@@ -1013,7 +1013,7 @@ begin
   if TEPasaDecoder.TryDecodeEPASA(OperationResume.DestAccount,OperationResume.OriginalPayload,FNode,FWalletKeys,Nil,LEPASA) then begin
     Strings.Add('EPASA: '+LEPASA.ToString);
   end else Strings.Add('No EPASA format');
-  Strings.Add(Format('Payload type:%s length:%d',['0x'+IntToHex(OperationResume.OriginalPayload.payload_type), length(OperationResume.OriginalPayload.payload_raw)]));
+  Strings.Add(Format('Payload type:%s length:%d',['0x'+IntToHex(OperationResume.OriginalPayload.payload_type,2), length(OperationResume.OriginalPayload.payload_raw)]));
   if (Length(OperationResume.OriginalPayload.payload_raw)>0) then begin
     If OperationResume.PrintablePayload<>'' then begin
       Strings.Add(Format('Payload (human): %s',[OperationResume.PrintablePayload]));
@@ -1025,7 +1025,9 @@ begin
   end;
   jsonObj := TPCJSONObject.Create;
   Try
-    TPascalCoinJSONComp.FillOperationObject(OperationResume,FNode.Bank.BlocksCount,jsonObj);
+    TPascalCoinJSONComp.FillOperationObject(OperationResume,FNode.Bank.BlocksCount,
+      FNode,FWalletKeys,Nil,
+      jsonObj);
     Strings.Add('OPERATION JSON:');
     Strings.Add(jsonObj.ToJSON(False));
   Finally

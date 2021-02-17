@@ -14,8 +14,15 @@
 - Improved performance when downloading Safebox (Fresh installation)
 - JSON-RPC changes:  
   - Updated "Operation Object" return values:
+    - "senders" : ARRAY
+      - "account_epasa" : (String) If operation was using valid E-PASA format and can be decoded, will return E-PASA format used
     - "receivers" : ARRAY
-      - "account_epasa" : (String) If operation was using valid E-PASA format, will return E-PASA format
+      - "account_epasa" : (String) If operation was using valid E-PASA format and can be decoded, will return E-PASA format used
+  - Updated "Multi Operation Object" return values:
+    - "senders" : ARRAY
+      - "account_epasa" : (String) If operation was using valid E-PASA format and can be decoded, will return E-PASA format used
+    - "receivers" : ARRAY
+      - "account_epasa" : (String) If operation was using valid E-PASA format and can be decoded, will return E-PASA format used
   - Updated "findaccounts": 
     -New param "end" (integer, -1 for default): Will search from "start" to "end" (if "end"=-1 will search to the end)
   - New method "findblocks": Will search and return an array of "Block objects"

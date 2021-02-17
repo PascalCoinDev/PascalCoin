@@ -28,7 +28,7 @@ uses
   Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs, UBaseTypes, SysUtils,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
   {$IFDEF USE_ABSTRACTMEM}UPCAbstractMem,{$ENDIF}
-  UPCDataTypes, UChunk, UEPasa;
+  UPCDataTypes, UChunk;
 
 {
 
@@ -148,7 +148,6 @@ Type
   TMultiOpSenders = Array of TMultiOpSender;
   TMultiOpReceiver = Record
     Account : Cardinal;
-    AccountEPASA : TEPasa;
     Amount : Int64;
     Payload : TOperationPayload;
   end;

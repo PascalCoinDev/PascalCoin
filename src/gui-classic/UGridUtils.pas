@@ -1152,8 +1152,9 @@ begin
 end;
 
 procedure TOperationsGrid.OnGridDrawCell(Sender: TObject; ACol, ARow: Integer; Rect: TRect; State: TGridDrawState);
-Var s : String;
+Var s, saux : String;
   opr : TOperationResume;
+  LRectLeft, LRectRight : TRect;
 begin
   DrawGrid.Canvas.Font.Color:=clWindowText;
   opr := CT_TOperationResume_NUL;
@@ -1226,9 +1227,18 @@ begin
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
       end else if ACol=7 then begin
         s := opr.PrintablePayload;
+        LRectRight := Rect;
         if opr.OriginalPayload.payload_type>0 then begin
+          saux := '0x'+IntToHex(opr.OriginalPayload.payload_type,2);
+          LRectLeft := Rect;
+          LRectLeft.Width := 30;
+          Rect.Inflate(-32,0,0,0);
           DrawGrid.Canvas.Font.Color := clBlue;
+          DrawGrid.Canvas.Font.Style := [fsBold];
+          Canvas_TextRect(DrawGrid.Canvas,LRectLeft,saux,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
+          DrawGrid.Canvas.Font.Style := [];
         end;
+        DrawGrid.Canvas.Font.Color := clBlack;
         if opr.OriginalPayload.payload_raw.ToString=s then begin
           DrawGrid.Canvas.Font.Style := [fsBold];
         end;

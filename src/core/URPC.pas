@@ -67,9 +67,9 @@ Type
   public
     class procedure FillAccountObject(Const account : TAccount; jsonObj : TPCJSONObject);
     class procedure FillBlockObject(nBlock : Cardinal; ANode : TNode; jsonObject: TPCJSONObject);
-    class procedure FillOperationObject(Const OPR : TOperationResume; currentNodeBlocksCount : Cardinal; jsonObject : TPCJSONObject);
+    class procedure FillOperationObject(Const OPR : TOperationResume; currentNodeBlocksCount : Cardinal; const ANode : TNode; const AWalletKeys : TWalletKeys; const APasswords : TList<String>; jsonObject : TPCJSONObject); overload;
     class procedure FillOperationsHashTreeObject(Const OperationsHashTree : TOperationsHashTree; jsonObject : TPCJSONObject);
-    class procedure FillMultiOperationObject(current_protocol : Word; Const multiOperation : TOpMultiOperation; jsonObject : TPCJSONObject);
+    class procedure FillMultiOperationObject(current_protocol : Word; Const multiOperation : TOpMultiOperation; const ANode : TNode; const AWalletKeys : TWalletKeys; const APasswords : TList<String>; jsonObject : TPCJSONObject);
     class procedure FillPublicKeyObject(const PubKey : TAccountKey; jsonObj : TPCJSONObject);
     class function ToPascalCoins(jsonCurr : Real) : Int64;
     //
@@ -97,6 +97,7 @@ Type
     FValidIPs: String;
     FAllowUsePrivateKeys: Boolean;
     FNode : TNode;
+    FPayloadPasswords: TList<String>;
     procedure SetActive(AValue: Boolean);
     procedure SetIniFileName(const Value: String);
     procedure SetLogFileName(const Value: String);
@@ -111,6 +112,7 @@ Type
     Property Port : Word read FPort Write FPort;
     Property Active : Boolean read FActive write SetActive;
     Property WalletKeys : TWalletKeysExt read FWalletKeys write FWalletKeys;
+    Property PayloadPasswords: TList<String> read FPayloadPasswords;
     //
     Property JSON20Strict : Boolean read FJSON20Strict write FJSON20Strict;
     Property IniFileName : String read FIniFileName write SetIniFileName;
@@ -163,6 +165,7 @@ implementation
 Uses
   {$IFNDEF FPC}windows,{$ENDIF}
   SysUtils, Synautil,
+  UEPasaDecoder,
   UPCRPCSend,
   UPCRPCOpData, UPCRPCFindAccounts, UPCRPCFindBlocks, UPCRPCFileUtils;
 
@@ -214,7 +217,8 @@ begin
   end;
 end;
 
-class procedure TPascalCoinJSONComp.FillOperationObject(const OPR: TOperationResume; currentNodeBlocksCount : Cardinal; jsonObject: TPCJSONObject);
+class procedure TPascalCoinJSONComp.FillOperationObject(const OPR: TOperationResume; currentNodeBlocksCount : Cardinal;
+  const ANode : TNode; const AWalletKeys : TWalletKeys; const APasswords : TList<String>; jsonObject: TPCJSONObject);
 Var i : Integer;
   LOpChangeAccountInfoType : TOpChangeAccountInfoType;
   LString : String;
@@ -258,6 +262,7 @@ Begin
       LString := TCrypto.ToHexaString(OPR.Senders[i].Payload.payload_raw);
       auxObj := jsonArr.GetAsObject(jsonArr.Count);
       auxObj.GetAsVariant('account').Value := OPR.Senders[i].Account;
+      auxObj.GetAsVariant('account_epasa').Value := TEPasaDecoder.DecodeEPASA(OPR.Senders[i].Account,OPR.Senders[i].Payload,ANode,AWalletKeys,APasswords);
       if (OPR.Senders[i].N_Operation>0) then auxObj.GetAsVariant('n_operation').Value := OPR.Senders[i].N_Operation;
       auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(OPR.Senders[i].Amount * (-1));
       auxObj.GetAsVariant('amount_s').Value := TAccountComp.FormatMoney (OPR.Senders[i].Amount * (-1));
@@ -272,7 +277,7 @@ Begin
     for i:=Low(OPR.Receivers) to High(OPR.Receivers) do begin
       auxObj := jsonArr.GetAsObject(jsonArr.Count);
       auxObj.GetAsVariant('account').Value := OPR.Receivers[i].Account;
-      auxObj.GetAsVariant('account_epasa').Value := OPR.Receivers[i].AccountEPASA.ToString;
+      auxObj.GetAsVariant('account_epasa').Value := TEPasaDecoder.DecodeEPASA(OPR.Receivers[i].Account,OPR.Receivers[i].Payload,ANode,AWalletKeys,APasswords);
       auxObj.GetAsVariant('amount').Value :=  TAccountComp.FormatMoneyDecimal(OPR.Receivers[i].Amount);
       auxObj.GetAsVariant('amount_s').Value :=  TAccountComp.FormatMoney(OPR.Receivers[i].Amount);
       auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(OPR.Receivers[i].Payload.payload_raw);
@@ -564,7 +569,8 @@ begin
   jsonObject.GetAsVariant('rawoperations').Value:=OperationsHashTreeToHexaString(OperationsHashTree);
 end;
 
-class procedure TPascalCoinJSONComp.FillMultiOperationObject(current_protocol : Word; const multiOperation: TOpMultiOperation; jsonObject: TPCJSONObject);
+class procedure TPascalCoinJSONComp.FillMultiOperationObject(current_protocol : Word; const multiOperation: TOpMultiOperation;
+  const ANode : TNode; const AWalletKeys : TWalletKeys; const APasswords : TList<String>; jsonObject: TPCJSONObject);
 Var i, nSigned, nNotSigned : Integer;
   opht : TOperationsHashTree;
   jsonArr : TPCJSONArray;
@@ -593,6 +599,7 @@ begin
     LStr := TCrypto.ToHexaString(multiOperation.Data.txSenders[i].Payload.payload_raw);
     auxObj := jsonArr.GetAsObject(jsonArr.Count);
     auxObj.GetAsVariant('account').Value := multiOperation.Data.txSenders[i].Account;
+    auxObj.GetAsVariant('account_epasa').Value := TEPasaDecoder.DecodeEPASA(multiOperation.Data.txSenders[i].Account,multiOperation.Data.txSenders[i].Payload,ANode,AWalletKeys,APasswords);
     auxObj.GetAsVariant('n_operation').Value := multiOperation.Data.txSenders[i].N_Operation;
     auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(multiOperation.Data.txSenders[i].Amount * (-1));
     auxObj.GetAsVariant('payload').Value := LStr;
@@ -604,7 +611,7 @@ begin
     LStr := TCrypto.ToHexaString(multiOperation.Data.txSenders[i].Payload.payload_raw);
     auxObj := jsonArr.GetAsObject(jsonArr.Count);
     auxObj.GetAsVariant('account').Value := multiOperation.Data.txReceivers[i].Account;
-    auxObj.GetAsVariant('account_epasa').Value := multiOperation.Data.txReceivers[i].AccountEPASA.ToString();
+    auxObj.GetAsVariant('account_epasa').Value := TEPasaDecoder.DecodeEPASA(multiOperation.Data.txReceivers[i].Account,multiOperation.Data.txReceivers[i].Payload,ANode,AWalletKeys,APasswords);
     auxObj.GetAsVariant('amount').Value := TAccountComp.FormatMoneyDecimal(multiOperation.Data.txReceivers[i].Amount);
     auxObj.GetAsVariant('payload').Value := TCrypto.ToHexaString(multiOperation.Data.txReceivers[i].Payload.payload_raw);
     auxObj.GetAsVariant('payload_type').Value := multiOperation.Data.txReceivers[i].Payload.payload_type;
@@ -839,6 +846,7 @@ end;
 
 constructor TRPCServer.Create;
 begin
+  FPayloadPasswords := TList<String>.Create;
   FActive := false;
   FRPCLog := Nil;
   FIniFile := Nil;
@@ -857,6 +865,7 @@ end;
 destructor TRPCServer.Destroy;
 begin
   FreeAndNil(FRPCLog);
+  FreeAndNil(FPayloadPasswords);
   active := false;
   if _RPCServer=Self then _RPCServer:=Nil;
   inherited Destroy;
@@ -1131,7 +1140,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
 
   Procedure FillOperationResumeToJSONObject(Const OPR : TOperationResume; jsonObject : TPCJSONObject);
   Begin
-    TPascalCoinJSONComp.FillOperationObject(OPR,FNode.Bank.BlocksCount,jsonObject);
+    TPascalCoinJSONComp.FillOperationObject(OPR,FNode.Bank.BlocksCount,
+      Node,RPCServer.WalletKeys,RPCServer.PayloadPasswords,
+      jsonObject);
   end;
 
   Function GetAccountOperations(accountNumber : Cardinal; jsonArray : TPCJSONArray; maxBlocksDepth, startReg, maxReg: Integer; forceStartBlock : Cardinal) : Boolean;
@@ -2552,7 +2563,6 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       jsonArr := params.GetAsArray('receivers');
       for i:=0 to jsonArr.Count-1 do begin
         receiver := CT_TMultiOpReceiver_NUL;
-        receiver.AccountEPASA.Clear;
         if NOT TryCaptureEPASA(jsonArr.GetAsObject(i), receiver.Account, ErrorNum, ErrorDesc) then
           Exit;
         receiver.Amount:= ToPascalCoins(jsonArr.GetAsObject(i).AsDouble('amount',0));
@@ -2612,7 +2622,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         end;
       end;
       // Return multioperation object:
-      TPascalCoinJSONComp.FillMultiOperationObject(FNode.Bank.SafeBox.CurrentProtocol,mop,GetResultObject);
+      TPascalCoinJSONComp.FillMultiOperationObject(FNode.Bank.SafeBox.CurrentProtocol,mop,FNode,FRPCServer.WalletKeys,FRPCServer.PayloadPasswords, GetResultObject);
     finally
       OperationsHashTree.Free;
     end;
@@ -2749,7 +2759,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     Try
       InternalMultiOperationSignCold(mop,protocol,params.GetAsArray('accounts_and_keys'),j);
       // Return multioperation object:
-      TPascalCoinJSONComp.FillMultiOperationObject(protocol,mop,GetResultObject);
+      TPascalCoinJSONComp.FillMultiOperationObject(protocol,mop,FNode,FRPCServer.WalletKeys,FRPCServer.PayloadPasswords,GetResultObject);
       Result := True;
     finally
       senderOperationsHashTree.Free;
@@ -2800,7 +2810,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         lSigners.Free;
       end;
       // Return multioperation object:
-      TPascalCoinJSONComp.FillMultiOperationObject(FNode.Bank.SafeBox.CurrentProtocol,mop,GetResultObject);
+      TPascalCoinJSONComp.FillMultiOperationObject(FNode.Bank.SafeBox.CurrentProtocol,mop,FNode,FRPCServer.WalletKeys,FRPCServer.PayloadPasswords,GetResultObject);
       Result := True;
     finally
       senderOperationsHashTree.Free;
