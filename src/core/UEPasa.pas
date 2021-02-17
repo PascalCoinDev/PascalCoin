@@ -73,6 +73,7 @@ type
   public
     function HasTrait(APayloadTrait: TPayloadTrait): Boolean; inline;
     function ToProtocolValue : byte;
+    function IsValid : Boolean;
   end;
 
   { TEPasa }
@@ -242,6 +243,33 @@ end;
 function TPayloadTypeHelper.HasTrait(APayloadTrait : TPayloadTrait) : Boolean;
 begin
   Result := APayloadTrait in Self;
+end;
+
+function TPayloadTypeHelper.IsValid: Boolean;
+var LValue, LEncryptedBits, LFormattedBits : Byte;
+begin
+  { As described on PIP-0027 E-PASA:
+    Bits 0..3 describe how payload is encrypted. 1 option (and only 1) must be selected
+    Bits 4..6 describe how is data encoded: String, Hexa or Base58. 1 option (and 1 only 1) must be selected
+
+    IsValid = 1 bit from 0..3 and 1 bit from 4..6 must be selected
+  }
+  LValue := Self.ToProtocolValue;
+  LEncryptedBits := (LValue and $0F); // 0000 1111
+  LFormattedBits := (LValue and $70); // 0111 0000
+  Result :=
+      (
+         ((LEncryptedBits and BYTE_BIT_0)=BYTE_BIT_0)
+      or ((LEncryptedBits and BYTE_BIT_1)=BYTE_BIT_1)
+      or ((LEncryptedBits and BYTE_BIT_2)=BYTE_BIT_2)
+      or ((LEncryptedBits and BYTE_BIT_3)=BYTE_BIT_3)
+      )
+      and
+      (
+         ((LFormattedBits and BYTE_BIT_4)=BYTE_BIT_4)
+      or ((LFormattedBits and BYTE_BIT_5)=BYTE_BIT_5)
+      or ((LFormattedBits and BYTE_BIT_6)=BYTE_BIT_6)
+      );
 end;
 
 function TPayloadTypeHelper.ToProtocolValue : Byte;
@@ -426,6 +454,10 @@ begin
   end;
 
   if (not AOmitExtendedChecksum) then begin
+    if (ExtendedChecksum='') then begin
+      // Need to compute:
+      ExtendedChecksum := TEPasaComp.ComputeExtendedChecksum(Result);
+    end;
     Result := Result + string.Format(':%s', [ExtendedChecksum]);
   end;
 end;

@@ -134,7 +134,7 @@ Type
 
   TOperationsGridUpdateThread = Class(TPCThread)
     FOperationsGrid : TOperationsGrid;
-    procedure DoUpdateOperationsGrid(ANode : TNode; var AList : TList<TOperationResume>);
+    procedure DoUpdateOperationsGrid(const ANode : TNode; const AWalleTKeys : TWalletKeys; const APasswords : TList<String>; var AList : TList<TOperationResume>);
   protected
     procedure BCExecute; override;
   public
@@ -152,6 +152,8 @@ Type
     FBlockEnd: Int64;
     FMustShowAlwaysAnAccount: Boolean;
     FOperationsGridUpdateThread : TOperationsGridUpdateThread;
+    FWalletKeys: TWalletKeys;
+    FPasswords: TList<String>;
     Procedure OnNodeNewOperation(Sender : TObject);
     Procedure OnNodeNewAccount(Sender : TObject);
     Procedure InitGrid;
@@ -177,6 +179,8 @@ Type
     Property AccountNumber : Int64 read FAccountNumber write SetAccountNumber;
     Property MustShowAlwaysAnAccount : Boolean read FMustShowAlwaysAnAccount write SetMustShowAlwaysAnAccount;
     Property Node : TNode read GetNode write SetNode;
+    property WalletKeys : TWalletKeys read FWalletKeys write FWalletKeys;
+    property Passwords : TList<String> read FPasswords;
     Procedure UpdateAccountOperations; virtual;
     Procedure ShowModalDecoder(WalletKeys: TWalletKeys; AppParams : TAppParams);
     Property BlockStart : Int64 read FBlockStart write SetBlockStart;
@@ -281,6 +285,7 @@ implementation
 
 uses
   Graphics, SysUtils, UTime, UOpTransaction, UConst,
+  UEPasa, UEPasaDecoder,
   UFRMPayloadDecoder, ULog;
 
 { TAccountsGridUpdateThread }
@@ -940,7 +945,7 @@ var list : TList<TOperationResume>;
 begin
   list := TList<TOperationResume>.Create;
   try
-    DoUpdateOperationsGrid(FOperationsGrid.Node,list);
+    DoUpdateOperationsGrid(FOperationsGrid.Node,FOperationsGrid.WalletKeys,FOperationsGrid.Passwords,list);
     if (Not Terminated) then begin
       FOperationsGrid.FOperationsResume.Clear;
       for i := 0 to list.Count-1 do begin
@@ -961,7 +966,8 @@ begin
   Suspended := False;
 end;
 
-procedure TOperationsGridUpdateThread.DoUpdateOperationsGrid(ANode: TNode; var AList: TList<TOperationResume>);
+procedure TOperationsGridUpdateThread.DoUpdateOperationsGrid(const ANode : TNode; const AWalleTKeys : TWalletKeys;
+  const APasswords : TList<String>; var AList: TList<TOperationResume>);
 Var list : TList<Cardinal>;
   i,j : Integer;
   OPR : TOperationResume;
@@ -970,6 +976,7 @@ Var list : TList<Cardinal>;
   bstart,bend : int64;
   LOperationsResume : TOperationsResumeList;
   LLockedMempool : TPCOperationsComp;
+  LEPasa : TEPasa;
 begin
   if Not Assigned(ANode) then exit;
   AList.Clear;
@@ -1061,6 +1068,13 @@ begin
       end;
     end;
   Finally
+    for i := 0 to AList.Count-1 do begin
+      OPR := AList[i];
+      if TEPasaDecoder.TryDecodeEPASA(OPR.AffectedAccount,OPR.OriginalPayload,ANode,AWalleTKeys,APasswords,LEPasa) then begin
+        OPR.PrintablePayload := LEPasa.ToString(True);
+        AList[i] := OPR;
+      end;
+    end;
   End;
 end;
 
@@ -1068,6 +1082,8 @@ end;
 
 constructor TOperationsGrid.Create(AOwner: TComponent);
 begin
+  FPasswords := TList<String>.Create;
+  FWalletKeys := Nil;
   FAccountNumber := 0;
   FDrawGrid := Nil;
   MustShowAlwaysAnAccount := false;
@@ -1091,6 +1107,7 @@ begin
   end;
   FOperationsResume.Free;
   FNodeNotifyEvents.Free;
+  FPasswords.Free;
   inherited;
 end;
 
@@ -1208,11 +1225,14 @@ begin
         end;
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
       end else if ACol=7 then begin
-        if Length(opr.Receivers)>0 then begin
-          s := opr.Receivers[0].AccountEPASA.ToString();
-          if s='' then s := opr.PrintablePayload;
-        end else s := opr.PrintablePayload;
-        Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
+        s := opr.PrintablePayload;
+        if opr.OriginalPayload.payload_type>0 then begin
+          DrawGrid.Canvas.Font.Color := clBlue;
+        end;
+        if opr.OriginalPayload.payload_raw.ToString=s then begin
+          DrawGrid.Canvas.Font.Style := [fsBold];
+        end;
+        Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine])
       end else begin
         s := '(???)';
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfCenter,tfVerticalCenter,tfSingleLine]);
