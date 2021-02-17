@@ -429,18 +429,18 @@ begin
      Exit(False);
 
    if AEPASA.PayloadType.HasTrait(ptPublic) then begin
-     AInputParams.SetAs('payload_method', TPCJSONVariantValue.CreateFromVariant('none'));
-     AInputParams.SetAs('payload', TPCJSONVariantValue.CreateFromVariant(AEPASA.GetRawPayloadBytes.ToHexaString));
+     AInputParams.GetAsVariant('payload_method').Value := 'none';
+     AInputParams.GetAsVariant('payload').Value := AEPASA.GetRawPayloadBytes.ToHexaString;
    end else if AEPASA.PayloadType.HasTrait(ptSenderKeyEncrypted) then begin
-     AInputParams.SetAs('payload_method', TPCJSONVariantValue.CreateFromVariant('sender'));
-     AInputParams.SetAs('payload', TPCJSONVariantValue.CreateFromVariant(AEPASA.GetRawPayloadBytes().ToHexaString()));
+     AInputParams.GetAsVariant('payload_method').Value := 'sender';
+     AInputParams.GetAsVariant('payload').Value := AEPASA.GetRawPayloadBytes.ToHexaString;
    end else if AEPASA.PayloadType.HasTrait(ptRecipientKeyEncrypted) then begin
-     AInputParams.SetAs('payload_method', TPCJSONVariantValue.CreateFromVariant('dest'));
-     AInputParams.SetAs('payload', TPCJSONVariantValue.CreateFromVariant(AEPASA.GetRawPayloadBytes().ToHexaString()));
+     AInputParams.GetAsVariant('payload_method').Value := 'dest';
+     AInputParams.GetAsVariant('payload').Value := AEPASA.GetRawPayloadBytes.ToHexaString;
    end else if AEPASA.PayloadType.HasTrait(ptPasswordEncrypted) then begin
-     AInputParams.SetAs('payload_method', TPCJSONVariantValue.CreateFromVariant('aes'));
-     AInputParams.SetAs('payload', TPCJSONVariantValue.CreateFromVariant(AEPASA.GetRawPayloadBytes().ToHexaString()));
-     AInputParams.SetAs('pwd', TPCJSONVariantValue.CreateFromVariant(AEPASA.Password));
+     AInputParams.GetAsVariant('payload_method').Value := 'aes';
+     AInputParams.GetAsVariant('payload').Value := AEPASA.GetRawPayloadBytes.ToHexaString;
+     AInputParams.GetAsVariant('pwd').Value := AEPASA.Password;
      Result := True;
    end;
    Result := True;
