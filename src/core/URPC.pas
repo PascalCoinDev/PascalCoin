@@ -471,27 +471,41 @@ Begin
 end;
 
 class function TPascalCoinJSONComp.OverridePayloadParams(const AInputParams : TPCJSONObject; const AEPASA : TEPasa) : Boolean;
+var LPayloadmethod_old,LPayloadmethod_new : String;
+    LPayload_old, LPayload_new : String;
+    LPwd_old, LPwd_new : String;
 begin
-   // none, dest, sender, aes, payload, pwd
-   if (NOT AEPASA.IsClassicPASA) AND (AInputParams.HasValue('payload') OR AInputParams.HasValue('payload_method') OR AInputParams.HasValue('pwd')) then
-     Exit(False);
+  if AEPASA.IsClassicPASA then Exit(True);   // Not an EPASA
 
-   if AEPASA.PayloadType.HasTrait(ptPublic) then begin
-     AInputParams.GetAsVariant('payload_method').Value := 'none';
-     AInputParams.GetAsVariant('payload').Value := AEPASA.GetRawPayloadBytes.ToHexaString;
-   end else if AEPASA.PayloadType.HasTrait(ptSenderKeyEncrypted) then begin
-     AInputParams.GetAsVariant('payload_method').Value := 'sender';
-     AInputParams.GetAsVariant('payload').Value := AEPASA.GetRawPayloadBytes.ToHexaString;
-   end else if AEPASA.PayloadType.HasTrait(ptRecipientKeyEncrypted) then begin
-     AInputParams.GetAsVariant('payload_method').Value := 'dest';
-     AInputParams.GetAsVariant('payload').Value := AEPASA.GetRawPayloadBytes.ToHexaString;
-   end else if AEPASA.PayloadType.HasTrait(ptPasswordEncrypted) then begin
-     AInputParams.GetAsVariant('payload_method').Value := 'aes';
-     AInputParams.GetAsVariant('payload').Value := AEPASA.GetRawPayloadBytes.ToHexaString;
-     AInputParams.GetAsVariant('pwd').Value := AEPASA.Password;
-     Result := True;
-   end;
-   Result := True;
+  if AInputParams.HasValue('payload') then LPayload_old := AInputParams.AsString('payload','')
+  else LPayload_old := '';
+  if AInputParams.HasValue('payload_method') then LPayloadmethod_old := AInputParams.AsString('payload_method','')
+  else LPayloadmethod_old := '';
+  if AInputParams.HasValue('pwd') then LPwd_old := AInputParams.AsString('pwd','')
+  else LPwd_old := '';
+
+  if AEPASA.PayloadType.HasTrait(ptPublic) then begin
+    LPayloadmethod_new := 'none';
+  end else if AEPASA.PayloadType.HasTrait(ptSenderKeyEncrypted) then begin
+    LPayloadmethod_new := 'sender';
+  end else if AEPASA.PayloadType.HasTrait(ptRecipientKeyEncrypted) then begin
+    LPayloadmethod_new := 'dest';
+  end else if AEPASA.PayloadType.HasTrait(ptPasswordEncrypted) then begin
+    LPayloadmethod_new := 'aes';
+  end;
+  LPayload_new := AEPASA.GetRawPayloadBytes.ToHexaString;
+  LPwd_new := AEPASA.Password;
+
+  if (LPayloadmethod_old<>'') and (LPayloadmethod_old<>LPayloadmethod_new) then Exit(False);
+  AInputParams.GetAsVariant('payload_method').Value := LPayloadmethod_new;
+
+  if (LPayload_old<>'') and (LPayload_old<>LPayload_new) then Exit(False);
+  AInputParams.GetAsVariant('payload').Value := LPayload_new;
+
+  if (LPwd_old<>'') and (LPwd_old<>LPwd_new) then Exit(False);
+  if (LPwd_new<>'') then AInputParams.GetAsVariant('pwd').Value := LPwd_new;
+
+  Result := True;
 end;
 
 class function TPascalCoinJSONComp.CapturePubKey(

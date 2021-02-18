@@ -1663,9 +1663,11 @@ begin
   try
     LTargetEPASA := TEPasa.Empty;
 
-    if NOT TEPasa.TryParse(ebDestAccount.Text, LTargetEPASA) then begin
-      AErrors := 'Indeterminable target';
-      Exit(False);
+    If (PageControlOpType.ActivePage=tsTransaction) then begin
+      if NOT TEPasa.TryParse(ebDestAccount.Text, LTargetEPASA) then begin
+        AErrors := 'Indeterminable target';
+        Exit(False);
+      end;
     end;
 
     if (LUserPayloadString='') then begin
