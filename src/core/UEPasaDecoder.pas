@@ -147,7 +147,7 @@ begin
   if (AEPasa.PayloadType.HasTrait(ptAsciiFormatted)) then begin
     AEPasa.Payload := LUnencryptedPayloadBytes.ToString;
   end else if (AEPasa.PayloadType.HasTrait(ptHexFormatted)) then begin
-    AEPasa.Payload := THexEncoding.Encode(LUnencryptedPayloadBytes,False);
+    AEPasa.Payload := THexEncoding.Encode(LUnencryptedPayloadBytes,True);
   end else if (AEPasa.PayloadType.HasTrait(ptBase58Formatted)) then begin
     AEPasa.Payload := TPascalBase58Encoding.Encode(LUnencryptedPayloadBytes);
   end else begin

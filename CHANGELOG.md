@@ -13,16 +13,16 @@
   - Added "ABSTRACTMEM_USE_CACHE_ON_LISTS","ABSTRACTMEM_CACHE_MAX_ACCOUNTS","ABSTRACTMEM_CACHE_MAX_PUBKEYS" in order to customize cache values
 - Improved performance when downloading Safebox (Fresh installation)
 - JSON-RPC changes:  
-  - Updated "Operation Object" return values:
-    - "senders" : ARRAY
+  - Updated "Operation Object" and "Multi Operation Object" return values:
+    **(IF THE WALLET IS UNLOCKED Will automatically try to decrypt encoded payloads and also return E-PASA used)**
+    - "senders" or "receivers" : ARRAY
       - "account_epasa" : (String) If operation was using valid E-PASA format and can be decoded, will return E-PASA format used
-    - "receivers" : ARRAY
-      - "account_epasa" : (String) If operation was using valid E-PASA format and can be decoded, will return E-PASA format used
-  - Updated "Multi Operation Object" return values:
-    - "senders" : ARRAY
-      - "account_epasa" : (String) If operation was using valid E-PASA format and can be decoded, will return E-PASA format used
-    - "receivers" : ARRAY
-      - "account_epasa" : (String) If operation was using valid E-PASA format and can be decoded, will return E-PASA format used
+      - "unenc_payload" : (String) If payload can be decoded returns unencoded value in readable format (no HEXASTRING)
+      - "unenc_hexpayload" : (HEXASTRING) Unencoded value in hexastring
+      - "payload_method" : (String) Can be "key" or "pwd"
+      - "enc_pubkey" : HexaString with public key (if "payload_method"="key")
+      - "pwd" : String with password used (if "payload_method"="pwd")
+  - Payload encoding will automatically set "payload_type" value based on encoding params in order to store E-PASA standard
   - Updated "findaccounts": 
     -New param "end" (integer, -1 for default): Will search from "start" to "end" (if "end"=-1 will search to the end)
   - New method "findblocks": Will search and return an array of "Block objects"
