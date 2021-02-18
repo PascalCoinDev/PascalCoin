@@ -35,7 +35,7 @@ uses
   UNode, UGridUtils, UJSONFunctions, UAccounts, Menus, ImgList, UNetProtocol,
   UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect, UConst,
   UAccountKeyStorage, UBaseTypes, UPCDataTypes, UOrderedList,
-  UFRMRPCCalls, UTxMultiOperation, USettings,
+  UFRMRPCCalls, UTxMultiOperation, USettings, UEPasa,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Const
@@ -333,7 +333,7 @@ Uses UFolderHelper,{$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}
   {$ENDIF}
   UPCTNetDataExtraMessages,
   UFRMAskForAccount,
-  UAbstractBTree,
+  UAbstractBTree, UEPasaDecoder,
   UFRMAbout, UFRMOperation, UFRMWalletKeys, UFRMPayloadDecoder, UFRMNodesIp, UFRMMemoText,
   UCommon, UPCOrderedLists;
 
@@ -981,6 +981,7 @@ procedure TFRMWallet.FillOperationInformation(const Strings: TStrings;
   const OperationResume: TOperationResume);
 var i : Integer;
   jsonObj : TPCJSONObject;
+  LEPASA : TEPasa;
 begin
   If (not OperationResume.valid) then exit;
   If OperationResume.Block<FNode.Bank.BlocksCount then
@@ -1009,7 +1010,10 @@ begin
   If (Length(OperationResume.OperationHash_OLD)>0) then begin
     Strings.Add(Format('Old Operation Hash (old_ophash): %s',[TCrypto.ToHexaString(OperationResume.OperationHash_OLD)]));
   end;
-  Strings.Add(Format('Payload type:%d length:%d',[OperationResume.OriginalPayload.payload_type, length(OperationResume.OriginalPayload.payload_raw)]));
+  if TEPasaDecoder.TryDecodeEPASA(OperationResume.DestAccount,OperationResume.OriginalPayload,FNode,FWalletKeys,Nil,LEPASA) then begin
+    Strings.Add('EPASA: '+LEPASA.ToString);
+  end else Strings.Add('No EPASA format');
+  Strings.Add(Format('Payload type:%s length:%d',['0x'+IntToHex(OperationResume.OriginalPayload.payload_type,2), length(OperationResume.OriginalPayload.payload_raw)]));
   if (Length(OperationResume.OriginalPayload.payload_raw)>0) then begin
     If OperationResume.PrintablePayload<>'' then begin
       Strings.Add(Format('Payload (human): %s',[OperationResume.PrintablePayload]));
@@ -1021,7 +1025,9 @@ begin
   end;
   jsonObj := TPCJSONObject.Create;
   Try
-    TPascalCoinJSONComp.FillOperationObject(OperationResume,FNode.Bank.BlocksCount,jsonObj);
+    TPascalCoinJSONComp.FillOperationObject(OperationResume,FNode.Bank.BlocksCount,
+      FNode,FWalletKeys,Nil,
+      jsonObj);
     Strings.Add('OPERATION JSON:');
     Strings.Add(jsonObj.ToJSON(False));
   Finally
@@ -1348,14 +1354,17 @@ begin
   FOperationsAccountGrid := TOperationsGrid.Create(Self);
   FOperationsAccountGrid.DrawGrid := dgAccountOperations;
   FOperationsAccountGrid.MustShowAlwaysAnAccount := true;
+  FOperationsAccountGrid.WalletKeys := FWalletKeys;
   FPendingOperationsGrid := TOperationsGrid.Create(Self);
   FPendingOperationsGrid.DrawGrid := dgPendingOperations;
   FPendingOperationsGrid.AccountNumber := -1; // all
   FPendingOperationsGrid.PendingOperations := true;
+  FPendingOperationsGrid.WalletKeys := FWalletKeys;
   FOperationsExplorerGrid := TOperationsGrid.Create(Self);
   FOperationsExplorerGrid.DrawGrid := dgOperationsExplorer;
   FOperationsExplorerGrid.AccountNumber := -1;
   FOperationsExplorerGrid.PendingOperations := False;
+  FOperationsExplorerGrid.WalletKeys := FWalletKeys;
   FBlockChainGrid := TBlockChainGrid.Create(Self);
   FBlockChainGrid.DrawGrid := dgBlockChainExplorer;
   FBlockChainGrid.ShowTimeAverageColumns:={$IFDEF SHOW_AVERAGE_TIME_STATS}True;{$ELSE}False;{$ENDIF}

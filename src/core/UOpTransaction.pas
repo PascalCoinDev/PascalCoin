@@ -1189,7 +1189,6 @@ begin
   SetLength(OperationResume.Senders,1);
   OperationResume.Senders[0] := CT_TMultiOpSender_NUL;
   OperationResume.Senders[0].Account:=FData.sender;
-  OperationResume.Senders[0].AccountEPASA := TAccountComp.DecodeEPASAPartial(FData.sender, FData.payload.payload_raw, FData.payload.payload_type, TEPasa.Empty);
   OperationResume.Senders[0].Amount:=Int64(FData.amount + FData.fee);
   OperationResume.Senders[0].N_Operation:=FData.n_operation;
   OperationResume.Senders[0].Payload:=FData.payload;
@@ -1199,7 +1198,6 @@ begin
       SetLength(OperationResume.Receivers,1);
       OperationResume.Receivers[0] := CT_TMultiOpReceiver_NUL;
       OperationResume.Receivers[0].Account:=FData.target;
-      OperationResume.Receivers[0].AccountEPASA:=TAccountComp.DecodeEPASAPartial(FData.target, FData.payload.payload_raw, FData.payload.payload_type, TEPasa.Empty);
       OperationResume.Receivers[0].Amount:=FData.amount;
       OperationResume.Receivers[0].Payload:=FData.payload;
     end;

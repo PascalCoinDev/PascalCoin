@@ -32,7 +32,7 @@ uses
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, UNode, UWallet, UCrypto, Buttons, UBlockChain,
   UAccounts, UFRMAccountSelect, ActnList, ComCtrls, Types, UFRMMemoText,
-  UPCEncryption, UBaseTypes, UPCDataTypes, UPCOrderedLists, UEPasa;
+  UPCEncryption, UBaseTypes, UPCDataTypes, UPCOrderedLists, UEPasa, UEncoding;
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -129,9 +129,10 @@ type
     ebHashLock: TEdit;
     btnHashLock: TSpeedButton;
     sbTimeLock: TSpeedButton;
-    cbPayloadAsHex: TCheckBox;
     lblChangeAccountData: TLabel;
     ebChangeAccountData: TEdit;
+    cbPayloadDataInputType: TComboBox;
+    memoEPASA: TMemo;
     procedure ebNewPublicKeyExit(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -159,6 +160,7 @@ type
     FDefaultFee: Int64;
     FEncodedPayload : TOperationPayload;
     FDisabled : Boolean;
+    FUpdating : Boolean;
     FSenderAccounts: TOrderedCardinalList; // TODO: TOrderedCardinalList should be replaced with a "TCardinalList" since signer account should be processed last
     procedure SetWalletKeys(const Value: TWalletKeys);
     Procedure UpdateWalletKeys;
@@ -167,7 +169,7 @@ type
     Function UpdateFee(var Fee : Int64; errors : String) : Boolean;
     Function UpdateOperationOptions(var errors : String) : Boolean;
     Function UpdatePayload(Const ASenderAccount : TAccount; var AErrors : String) : Boolean;
-    Function UpdateOpTransaction(const ASenderAccount: TAccount; out LTargetEPASA : TEPasa;  out ATargetAccount : TAccount; out AResolvedTargetKey : TAccountKey; out ATargetRequiresPurchase : Boolean; out AAmount: Int64; out AErrors: String) : Boolean;
+    Function UpdateOpTransaction(const ASenderAccount: TAccount; out ATargetEPASA : TEPasa;  out ATargetAccount : TAccount; out AResolvedTargetKey : TAccountKey; out ATargetRequiresPurchase : Boolean; out AAmount: Int64; out AErrors: String) : Boolean;
     Function UpdateOpChangeKey(Const TargetAccount : TAccount; var SignerAccount : TAccount; var NewPublicKey : TAccountKey; var errors : String) : Boolean;
     Function UpdateOpListAccount(Const TargetAccount : TAccount; var SalePrice : Int64; var SellerAccount,SignerAccount : TAccount; var NewOwnerPublicKey : TAccountKey; var LockedUntilBlock : Cardinal; var HashLock : T32Bytes; var errors : String) : Boolean;
     Function UpdateOpDelist(Const TargetAccount : TAccount; var SignerAccount : TAccount; var errors : String) : Boolean;
@@ -179,6 +181,7 @@ type
     procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
     Function GetDefaultSenderAccount : TAccount;
     procedure ebAccountKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    function CaptureEPasa(const AEPasaTxt : String; out AEPasa : TEPasa) : Boolean;
   protected
     procedure searchAccount(editBox : TCustomEdit);
   public
@@ -470,6 +473,41 @@ begin
 end;
 
 
+function TFRMOperation.CaptureEPasa(const AEPasaTxt: String; out AEPasa: TEPasa): Boolean;
+begin
+  Result := TEPasa.TryParse(AEPasaTxt,AEPasa);
+  //
+  if ((FUpdating) or (Not Result)) then Exit;
+  FUpdating := True;
+  try
+    if AEPasa.PayloadType.HasTrait(ptPublic) then rbNotEncrypted.Checked := True
+    else if AEPasa.PayloadType.HasTrait(ptSenderKeyEncrypted) then rbEncryptedWithOldEC.Checked := True
+    else if AEPasa.PayloadType.HasTrait(ptRecipientKeyEncrypted) then rbEncryptedWithEC.Checked := True
+    else if AEPasa.PayloadType.HasTrait(ptPasswordEncrypted) then begin
+      rbEncrptedWithPassword.Checked := True;
+      ebEncryptPassword.Text := AEPasa.Password;
+    end;
+    if AEPasa.PayloadType.HasTrait(ptAsciiFormatted) then cbPayloadDataInputType.ItemIndex := 0
+    else if AEPasa.PayloadType.HasTrait(ptHexFormatted) then cbPayloadDataInputType.ItemIndex := 1
+    else if AEPasa.PayloadType.HasTrait(ptBase58Formatted) then cbPayloadDataInputType.ItemIndex := 2;
+    if (AEPasa.PayloadType.HasTrait(ptAsciiFormatted) or AEPasa.PayloadType.HasTrait(ptHexFormatted) or AEPasa.PayloadType.HasTrait(ptBase58Formatted)) then begin
+      memoPayload.Lines.Text := AEPasa.Payload;
+    end;
+
+    memoEPASA.Lines.Clear;
+    if AEPasa.IsPayToKey then memoEPASA.Lines.Add('PayToKey EPASA');
+    if AEPasa.IsAddressedByName then memoEPASA.Lines.Add('Addressed by name: '+AEPasa.AccountName);
+    memoEPASA.Lines.Add( AEPasa.ToString );
+    if AEPasa.PayloadType.HasTrait(ptAsciiFormatted) or AEPasa.PayloadType.HasTrait(ptBase58Formatted) or AEPasa.PayloadType.HasTrait(ptHexFormatted) then begin
+      memoEPasa.Lines.Add( 'AS BYTES: 0x'+AEPasa.GetRawPayloadBytes.ToHexaString);
+      memoEPasa.Lines.Add( 'AS PRINTABLE: '+AEPasa.GetRawPayloadBytes.ToPrintable);
+    end;
+
+  finally
+    FUpdating := False;
+  end;
+end;
+
 procedure TFRMOperation.CM_WalletChanged(var Msg: TMessage);
 begin
    UpdateWalletKeys;
@@ -479,14 +517,14 @@ procedure TFRMOperation.ebAccountNumberExit(Sender: TObject);
 Var LEPasa : TEPASA;
   eb : TEdit;
 begin
-  if (Not assigned(Sender)) then exit;
+  if (Not assigned(Sender)) or (FUpdating) then exit;
   if (Not (Sender is TEdit)) then exit;
   eb := TEdit(Sender);
-  If TEPasa.TryParse(eb.Text,LEPasa) then begin
+  if CaptureEPasa(eb.Text,LEPasa) then begin
     if LEPasa.IsClassicPASA then
       eb.Text := LEPasa.ToClassicPASAString()
     else
-      eb.Text := LEPasa.ToString();
+      eb.Text := LEPasa.ToString(True);
   end else begin
     eb.Text := '';
   end;
@@ -497,7 +535,7 @@ procedure TFRMOperation.ebCurrencyExit(Sender: TObject);
 Var m : Int64;
   eb : TEdit;
 begin
-  if (Not assigned(Sender)) then exit;
+  if (Not assigned(Sender)) or (FUpdating) then exit;
   if (Not (Sender is TEdit)) then exit;
   eb := TEdit(Sender);
   If Not (eb.ReadOnly) then begin
@@ -544,10 +582,10 @@ procedure TFRMOperation.FormCreate(Sender: TObject);
 begin
   {$IFDEF USE_GNUGETTEXT}TranslateComponent(self);{$ENDIF}
   FDisabled := false;
+  FUpdating := False;
   FWalletKeys := Nil;
   FSenderAccounts := TOrderedCardinalList.Create;
   FSenderAccounts.OnListChanged := OnSenderAccountsChanged;
-  FDisabled := true;
   FNode := TNode.Node;
   ebSenderAccount.OnKeyDown:=ebAccountKeyDown;
   ebSenderAccount.Tag:=CT_AS_MyAccounts;
@@ -620,6 +658,24 @@ begin
   ebFee.OnExit:= ebCurrencyExit;
   memoAccounts.Lines.Clear;
   PageControlOpType.ActivePage := tsTransaction;
+  cbPayloadDataInputType.Items.Clear;
+  cbPayloadDataInputType.Items.Add('As String');
+  cbPayloadDataInputType.Items.Add('As Hexadecimal');
+  cbPayloadDataInputType.Items.Add('As Base58');
+  cbPayloadDataInputType.ItemIndex := 0;
+  cbPayloadDataInputType.OnChange := memoPayloadClick;
+  memoPayload.OnChange := memoPayloadClick;
+  memoPayload.OnClick := memoPayloadClick;
+  memoEPASA.ScrollBars := ssBoth;
+  memoEPASA.ReadOnly := False;
+  memoEPASA.TabStop := False;
+  memoEPASA.ParentFont := True;
+  {$IFDEF TESTNET}
+  memoEPASA.Visible := True;
+  {$ELSE}
+  memoEPASA.Visible := False;
+  {$ENDIF}
+  memoEPASA.Enabled := memoEPASA.Visible;
 end;
 
 procedure TFRMOperation.ebNewPublicKeyExit(Sender: TObject);
@@ -852,17 +908,15 @@ begin
   end;
 end;
 
-var GInUpdateInfoClick : boolean;
 procedure TFRMOperation.updateInfoClick(Sender: TObject);
 Var errors : String;
 begin
-  if NOT GInUpdateInfoClick then begin
-    GInUpdateInfoClick := true;
-    try
-      UpdateOperationOptions(errors);
-    finally
-    GInUpdateInfoClick := false;
-    end;
+  if FDisabled or FUpdating then Exit;
+  FDisabled := True;
+  try
+    UpdateOperationOptions(errors);
+  finally
+    FDisabled := False;
   end;
 end;
 
@@ -1261,8 +1315,6 @@ begin
   lblSignerAccount.Enabled := ebSignerAccount.Enabled;
   lblChangeName.Enabled:= (PageControlOpType.ActivePage=tsChangeInfo) And (SenderAccounts.Count=1);
   ebChangeName.Enabled:= lblChangeName.Enabled;
-  //
-  UpdatePayload(sender_account, e);
 end;
 
 function TFRMOperation.UpdateOpListAccount(const TargetAccount: TAccount;
@@ -1522,23 +1574,42 @@ begin
   End;
 end;
 
-function TFRMOperation.UpdateOpTransaction(const ASenderAccount: TAccount; out LTargetEPASA : TEPasa; out ATargetAccount : TAccount; out AResolvedTargetKey : TECDSA_Public; out ATargetRequiresPurchase : Boolean; out AAmount: Int64; out AErrors: String): Boolean;
+function TFRMOperation.UpdateOpTransaction(const ASenderAccount: TAccount; out ATargetEPASA : TEPasa; out ATargetAccount : TAccount; out AResolvedTargetKey : TECDSA_Public; out ATargetRequiresPurchase : Boolean; out AAmount: Int64; out AErrors: String): Boolean;
 Var
   LResolvedAccountNo : Cardinal;
+  LPublicKey : TAccountKey;
 begin
   AErrors := '';
   lblTransactionErrors.Caption := '';
   if PageControlOpType.ActivePage<>tsTransaction then exit;
-  if not TEPasa.TryParse(ebDestAccount.Text, LTargetEPASA) then begin
-    AErrors := 'Invalid dest. EPASA ('+ebDestAccount.Text+')';
+
+  if (Trim(ebDestAccount.Text)='') then begin
+    AErrors := 'Need a destintation or EPASA';
     lblTransactionErrors.Caption := AErrors;
     Exit(False);
   end;
 
-  Result := TNode.Node.TryResolveEPASA(LTargetEPASA, LResolvedAccountNo, AResolvedTargetKey, ATargetRequiresPurchase, AErrors);
+
+  if Not CaptureEPasa(ebDestAccount.Text,ATargetEPasa) then begin
+    AErrors := 'Invalid EPASA value: '+ebDestAccount.Text;
+    lblTransactionErrors.Caption := AErrors;
+    Exit(False);
+  end;
+
+  Result := TNode.Node.TryResolveEPASA(ATargetEPASA, LResolvedAccountNo, AResolvedTargetKey, ATargetRequiresPurchase, AErrors);
   if NOT Result then begin
     lblTransactionErrors.Caption := AErrors;
     Exit(False);
+  end;
+
+  // GUI Base58 protection: In order to prevent manual mistake, Base58 is only allowed when introducing
+  // a Public key, otherwise will need to use String ("") or Hexadecimal (0x..) input
+  if (ATargetEPASA.PayloadType.HasTrait(ptBase58Formatted)) then begin
+     if Not TAccountComp.AccountPublicKeyImport(ATargetEPASA.Payload,LPublicKey,AErrors) then begin
+       AErrors := 'Not a Base58 Public key: '+AErrors;
+       lblTransactionErrors.Caption := AErrors;
+       Exit(False);
+     end;
   end;
 
   if LResolvedAccountNo <> CT_AccountNo_NUL then begin
@@ -1583,6 +1654,7 @@ Var
   LPayloadBytes : TRawBytes;
 begin
   LValid := false;
+  LPayloadBytes := Nil;
   LEncryptedPayloadBytes := Nil;
   FEncodedPayload := CT_TOperationPayload_NUL;
   LUserPayloadString := memoPayload.Lines.Text;
@@ -1590,55 +1662,60 @@ begin
   AErrors := 'Unknown error';
   try
     LTargetEPASA := TEPasa.Empty;
-    If (PageControlOpType.ActivePage=tsTransaction) then begin
-      if NOT TEPasa.TryParse(ebDestAccount.Text, LTargetEPASA) then begin
-        AErrors := 'Indeterminable target';
-        Exit(False);
-      end;
 
-      if LTargetEPASA.IsPayToKey then begin
-        LValid := true;
-        Exit;
-      end;
-
-      if LTargetEPASA.HasPayload then begin
-        if LUserPayloadString <> '' then begin
-          AErrors := 'Ambiguous payload. Payload already specified by target EPASA.';
-          LValid := False;
-          Exit;
-        end;
-
-        if ebEncryptPassword.Text <> '' then begin
-          AErrors := 'Ambiguous payload. Password cannot be specified.';
-          LValid := False;
-          Exit;
-        end;
-      end;
-      FEncodedPayload.payload_type := LTargetEPASA.PayloadType.ToProtocolValue;
+    if NOT TEPasa.TryParse(ebDestAccount.Text, LTargetEPASA) then begin
+      AErrors := 'Indeterminable target';
+      Exit(False);
     end;
 
-    if (LUserPayloadString='') AND (LTargetEPASA.Payload.IsEmpty) then begin
-      LValid := true;
-      exit;
+    if (LUserPayloadString='') then begin
+      LValid := True;
+      Exit(True);
     end;
-    if LTargetEPASA.HasPayload then begin
-      LPayloadBytes := LTargetEPASA.GetRawPayloadBytes;
-    end else if cbPayloadAsHex.Checked then begin
-      if NOT TCrypto.HexaToRaw(LUserPayloadString, LPayloadBytes) then begin
-        LValid := false;
-        AErrors := 'Payload not hex-formatted';
-        exit;
-      end;
-    end else LPayloadBytes := TEncoding.ANSI.GetBytes(LUserPayloadString);
 
-    if (NOT LTargetEPasa.HasPayload AND rbEncryptedWithOldEC.Checked) OR LTargetEPASA.PayloadType.HasTrait(ptSenderKeyEncrypted) then begin
+    LTargetEPASA.PayloadType := LTargetEPASA.PayloadType - [ptPublic] - [ptRecipientKeyEncrypted] - [ptSenderKeyEncrypted]
+      - [ptPasswordEncrypted] - [ptAsciiFormatted] - [ptHexFormatted] - [ptBase58Formatted];
+
+    case cbPayloadDataInputType.ItemIndex of
+      0 : begin
+           LTargetEPASA.PayloadType := LTargetEPASA.PayloadType + [ptAsciiFormatted];
+           LPayloadBytes := TEncoding.ASCII.GetBytes(LUserPayloadString);
+      end;
+      1 : begin
+         LTargetEPASA.PayloadType := LTargetEPASA.PayloadType + [ptHexFormatted];
+         if Not THexEncoding.TryDecode(LUserPayloadString,LPayloadBytes) then begin
+           AErrors := 'Payload is not an Hexadecimal string';
+           Exit(False);
+         end;
+      end;
+      2 : begin
+         LTargetEPASA.PayloadType := LTargetEPASA.PayloadType + [ptBase58Formatted];
+         if Not TPascalBase58Encoding.TryDecode(LUserPayloadString,LPayloadBytes) then begin
+           AErrors := 'Payload is not a Base 58 string';
+           Exit(False);
+         end;
+
+         // GUI Base58 protection: In order to prevent manual mistake, Base58 is only allowed when introducing
+         // a Public key, otherwise will need to use String ("") or Hexadecimal (0x..) input
+         if Not TAccountComp.AccountPublicKeyImport(LUserPayloadString,LPublicKey,AErrors) then begin
+           AErrors := 'Not a Public key: '+AErrors;
+           Exit(False);
+         end;
+      end
+    else
+    end;
+    LTargetEPASA.Payload := LUserPayloadString;
+
+    if (Length(LPayloadBytes)>0) and (rbEncryptedWithOldEC.Checked) then begin
       // Use sender
-      AErrors := 'Error encrypting';
+      LTargetEPASA.PayloadType := LTargetEPASA.PayloadType + [ptSenderKeyEncrypted];
+      AErrors := 'Error encrypting by sender';
       LAccount := FNode.GetMempoolAccount(ASenderAccount.account);
       TPCEncryption.DoPascalCoinECIESEncrypt(LAccount.accountInfo.accountKey,LPayloadBytes,LEncryptedPayloadBytes);
       LValid := Length(LEncryptedPayloadBytes)>0;
-    end else if (NOT LTargetEPasa.HasPayload AND rbEncryptedWithEC.Checked) or LTargetEPASA.PayloadType.HasTrait(ptRecipientKeyEncrypted) then begin
-      AErrors := 'Error encrypting';
+    end else if (Length(LPayloadBytes)>0) and (rbEncryptedWithEC.Checked) then begin
+      AErrors := 'Error encrypting by recipient';
+      LTargetEPASA.PayloadType := LTargetEPASA.PayloadType + [ptRecipientKeyEncrypted];
       if (PageControlOpType.ActivePage=tsTransaction) or (PageControlOpType.ActivePage=tsListAccount) or (PageControlOpType.ActivePage=tsDelistAccount)
         or (PageControlOpType.ActivePage=tsBuyAccount) then begin
 
@@ -1704,14 +1781,14 @@ begin
       end else begin
         AErrors := 'This operation does not allow this kind of payload';
       end;
-    end else if (NOT LTargetEPasa.HasPayload AND rbEncrptedWithPassword.Checked) OR LTargetEPASA.PayloadType.HasTrait(ptPasswordEncrypted) then begin
-      if LTargetEPASA.PayloadType.HasTrait(ptPasswordEncrypted) then
-        LPassword := LTargetEPASA.Password
-      else
-        LPassword := ebEncryptPassword.Text;
+    end else if (Length(LPayloadBytes)>0) AND (rbEncrptedWithPassword.Checked) then begin
+      LTargetEPASA.PayloadType := LTargetEPASA.PayloadType + [ptPasswordEncrypted];
+      LPassword := ebEncryptPassword.Text;
       LEncryptedPayloadBytes := TPCEncryption.DoPascalCoinAESEncrypt(LPayloadBytes,TEncoding.ANSI.GetBytes(LPassword));
+      LTargetEPASA.Password := LPassword;
       LValid := Length(LEncryptedPayloadBytes)>0;
-    end else if (NOT LTargetEPasa.HasPayload AND rbNotEncrypted.Checked) or LTargetEPASA.PayloadType.HasTrait(ptPublic) then begin
+    end else if (Length(LPayloadBytes)>0) AND (rbNotEncrypted.Checked) then begin
+      LTargetEPASA.PayloadType := LTargetEPASA.PayloadType + [ptPublic];
       LEncryptedPayloadBytes := LPayloadBytes;
       LValid := true;
     end else begin
@@ -1726,19 +1803,18 @@ begin
     end;
     if LValid then begin
       lblEncryptionErrors.Caption := '';
-      if LTargetEPASA.HasPayload then
-        lblPayloadLength.Caption := Format('(%db -> %db)',[length(LTargetEPASA.Payload),length(LEncryptedPayloadBytes)])
-      else
-        lblPayloadLength.Caption := Format('(%db -> %db)',[length(LUserPayloadString),length(LEncryptedPayloadBytes)]);
+      lblPayloadLength.Caption := Format('(%db -> %db)',[length(LTargetEPASA.Payload),length(LEncryptedPayloadBytes)])
     end else begin
+      if Trim(AErrors)='' then AErrors := 'Undefined';
       lblEncryptionErrors.Caption := AErrors;
-      if LTargetEPASA.HasPayload then
-        lblPayloadLength.Caption := Format('(%db -> ?)',[length(LTargetEPASA.Payload)])
-      else
-        lblPayloadLength.Caption := Format('(%db -> ?)',[length(LUserPayloadString)]);
+      lblPayloadLength.Caption := Format('(%db -> ?)',[length(LTargetEPASA.Payload)])
     end;
+    FEncodedPayload.payload_type := LTargetEPASA.PayloadType.ToProtocolValue;
     FEncodedPayload.payload_raw := LEncryptedPayloadBytes;
     Result := LValid;
+    if (LValid) And (Not FUpdating) then begin
+      ebDestAccount.Text := LTargetEPASA.ToClassicPASAString;
+    end;
   end;
 end;
 
