@@ -32,7 +32,8 @@ uses
   UAccounts,
   UEncoding,
   UEPasa,
-  UWallet;
+  UWallet,
+  URPC, UJSONFunctions;
 
 type
   TDecodeEPasaResult = (der_Decoded, der_Undefined, der_NonDeterministic, der_InvalidPayloadType, der_AccountNameNotFound, der_NotEnoughData, der_PrivateKeyNotFound, der_PasswordNotFound);
@@ -44,11 +45,14 @@ type
     class Function TryDecodeEPASA(AAccount : Cardinal; const APayload : TOperationPayload; const ANode : TNode; const AWalletKeys : TWalletKeys; const APasswords : TList<String>;
       out AEPasa : TEPasa) : Boolean; overload;
     class Function DecodeEPASA(AAccount : Cardinal; const APayload : TOperationPayload; const ANode : TNode; const AWalletKeys : TWalletKeys; const APasswords : TList<String>) : String; overload;
+    class function CheckEPasa(const ASender : TRPCProcess; const AAccount_EPasa : String; AJSONResponse : TPCJSONObject; var AErrorNum : Integer; var AErrorDesc : String) : Boolean; overload;
+    class function CheckEPasa(const ASender : TRPCProcess; const AMethodName : String; AInputParams, AJSONResponse : TPCJSONObject; var AErrorNum : Integer; var AErrorDesc : String) : Boolean; overload;
+    class function ValidateEPasa(const ASender : TRPCProcess; const AMethodName : String; AInputParams, AJSONResponse : TPCJSONObject; var AErrorNum : Integer; var AErrorDesc : String) : Boolean;
   End;
 
 implementation
 
-uses UPCEncryption, UCommon;
+uses UPCEncryption, UCommon, UCrypto;
 
 { TEPasaDecoder }
 
@@ -158,6 +162,58 @@ begin
   Result := true;
 end;
 
+class function TEPasaDecoder.CheckEPasa(const ASender: TRPCProcess;
+  const AMethodName: String; AInputParams, AJSONResponse: TPCJSONObject;
+  var AErrorNum: Integer; var AErrorDesc: String): Boolean;
+begin
+  Result := CheckEPAsa(ASender,AInputParams.AsString('account_epasa',''),AJSONResponse,AErrorNum,AErrorDesc);
+end;
+
+class function TEPasaDecoder.CheckEPasa(const ASender: TRPCProcess;
+  const AAccount_EPasa: String; AJSONResponse: TPCJSONObject;
+  var AErrorNum: Integer; var AErrorDesc: String): Boolean;
+var LEPasa : TEPasa;
+begin
+  if Not TEPasa.TryParse(AAccount_EPasa,LEPasa) then begin
+    AErrorNum := CT_RPC_ErrNum_InvalidEPASA;
+    AErrorDesc := 'Not a valid epasa: '+AAccount_EPasa;
+    Result := False;
+    Exit(False);
+  end else begin
+    Result := True;
+    AJSONResponse.GetAsVariant('account_epasa').Value := LEPasa.ToClassicPASAString;
+    AJSONResponse.GetAsVariant('account_epasa_checksum').Value := LEPasa.ToString(False);
+
+    if LEPasa.PayloadType.HasTrait(ptAddressedByName) then begin
+      AJSONResponse.GetAsVariant('account').Value := LEPasa.AccountName;
+    end else begin
+      AJSONResponse.GetAsVariant('account').Value := LEPasa.Account.Value;
+    end;
+
+    if LEPasa.PayloadType.HasTrait(ptPublic) then begin
+      AJSONResponse.GetAsVariant('payload_method').Value := 'none';
+    end else if LEPasa.PayloadType.HasTrait(ptSenderKeyEncrypted) then begin
+      AJSONResponse.GetAsVariant('payload_method').Value := 'sender';
+    end else if LEPasa.PayloadType.HasTrait(ptRecipientKeyEncrypted) then begin
+      AJSONResponse.GetAsVariant('payload_method').Value := 'dest';
+    end else if LEPasa.PayloadType.HasTrait(ptPasswordEncrypted) then begin
+      AJSONResponse.GetAsVariant('payload_method').Value := 'aes';
+      AJSONResponse.GetAsVariant('pwd').Value := LEPasa.Password;
+    end;
+
+    if LEPasa.PayloadType.HasTrait(ptAsciiFormatted) then begin
+      AJSONResponse.GetAsVariant('payload_encode').Value := 'string';
+    end else if LEPasa.PayloadType.HasTrait(ptHexFormatted) then begin
+      AJSONResponse.GetAsVariant('payload_encode').Value := 'hexa';
+    end else if LEPasa.PayloadType.HasTrait(ptBase58Formatted) then begin
+      AJSONResponse.GetAsVariant('payload_encode').Value := 'base58';
+    end;
+
+    AJSONResponse.GetAsVariant('payload').Value := LEPasa.GetRawPayloadBytes.ToHexaString;
+    AJSONResponse.GetAsVariant('payload_type').Value := LEPasa.PayloadType.ToProtocolValue;
+  end;
+end;
+
 class function TEPasaDecoder.DecodeEPASA(AAccount: Cardinal;
   const APayload: TOperationPayload; const ANode: TNode;
   const AWalletKeys: TWalletKeys; const APasswords: TList<String>): String;
@@ -176,4 +232,64 @@ begin
   Result := TryDecodeEPASA(AAccount,APayload,ANode,AWalletKeys,APasswords,LDecodeEPasaResult,AEPasa);
 end;
 
+class function TEPasaDecoder.ValidateEPasa(const ASender: TRPCProcess;
+  const AMethodName: String; AInputParams, AJSONResponse: TPCJSONObject;
+  var AErrorNum: Integer; var AErrorDesc: String): Boolean;
+var
+  s : String;
+  card : Cardinal;
+  LEPasaStr, LDelimStart,LDelimEnd, LPwdZone, LPayload : String;
+  LRawPayload : TRawBytes;
+begin
+  LEPasaStr := '';
+  LPwdZone := '';
+  LEPasaStr := AInputParams.AsString('account','');
+  s := Trim(AInputParams.AsString('payload_method','none'));
+  if s='dest' then begin
+    LDelimStart := '(';
+    LDelimEnd := ')';
+  end else if s='sender' then begin
+    LDelimStart := '<';
+    LDelimEnd := '>';
+  end else if s='aes' then begin
+    LDelimStart := '{';
+    LDelimEnd := '}';
+    LPwdZone := ':' + AInputParams.AsString('pwd','');
+  end else if (s='none') or (trim(s)='') then begin
+    LDelimStart := '[';
+    LDelimEnd := ']';
+  end else begin
+    AErrorNum := CT_RPC_ErrNum_InvalidData;
+    AErrorDesc := Format('"payload_method" %s not valid',[s]);
+    Exit(False);
+  end;
+  s := Trim(AInputParams.AsString('payload',''));
+  if Not TCrypto.HexaToRaw(s,LRawPayload) then begin
+    AErrorNum := CT_RPC_ErrNum_InvalidData;
+    AErrorDesc := Format('"payload" is not an HEXASTRING: %s',[s]);
+    Exit(False);
+  end;
+  s := Trim(AInputParams.AsString('payload_encode','string'));
+  if s='hexa' then begin
+    LPayload := '0x'+LRawPayload.ToHexaString;
+  end else if s='base58' then begin
+    LPayload := TPascalBase58Encoding.Encode(LRawPayload);
+  end else if (s='string') or (Trim(s)='') then begin
+    LPayload := '"'+TPascalAsciiEncoding.Escape(LRawPayload.ToString)+'"';
+  end else begin
+    AErrorNum := CT_RPC_ErrNum_InvalidData;
+    AErrorDesc := Format('"payload_encode" %s not valid',[s]);
+    Exit(False);
+  end;
+
+  LEPasaStr := AInputParams.AsString('account','') + LDelimStart + LPayload + LPwdZone + LDelimEnd;
+  Result := CheckEPasa(ASender,LEPasaStr,AJSONResponse,AErrorNum,AErrorDesc);
+end;
+
+initialization
+  TRPCProcess.RegisterProcessMethod('validateepasa',TEPasaDecoder.ValidateEPasa);
+  TRPCProcess.RegisterProcessMethod('checkepasa',TEPasaDecoder.CheckEPasa);
+finalization
+  TRPCProcess.UnregisterProcessMethod('validateepasa');
+  TRPCProcess.UnregisterProcessMethod('checkepasa');
 end.
