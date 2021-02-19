@@ -2567,8 +2567,8 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
           Exit(False);
         end;
         // Override the JSON args (processed later by caller)
-        AJSONObj.SetAs('payload', TPCJSONVariantValue.CreateFromVariant(LEPasa.GetRawPayloadBytes.ToHexaString));
-        AJSONObj.SetAs('payload_type', TPCJSONVariantValue.CreateFromVariant(LEPasa.PayloadType.ToProtocolValue));
+        AJSONObj.GetAsVariant('payload').Value := LEPasa.GetRawPayloadBytes.ToHexaString;
+        AJSONObj.GetAsVariant('payload_type').Value := LEPasa.PayloadType.ToProtocolValue;
       end;
       AAccount := LEPasa.Account.Value;
       Result := True;
