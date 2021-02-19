@@ -1,7 +1,7 @@
 # Changelog
 
 ## Build 5.4 - (PENDING RELEASE)
-- CURRENT 5.4.Beta4
+- CURRENT 5.4.Beta5
 - Added usage of AbstractMem library to allow build a PascalCoin version using virtual memory and efficient caching mechanism
   - Use AbstractMem library v1.2
   - Must activate {$DEFINE USE_ABSTRACTMEM} at config.inc file (Enabled by default)
@@ -22,6 +22,22 @@
       - "payload_method" : (String) Can be "key" or "pwd"
       - "enc_pubkey" : HexaString with public key (if "payload_method"="key")
       - "pwd" : String with password used (if "payload_method"="pwd")
+  - New method "checkepasa": Check that "account_epasa" param contains a valid E-PASA format. Returns an "EPasa Object" (See below)
+  - New method "validateepasa": Creates an "account_epasa" with provided data and returns an "EPasa Object" (See below)
+    - "account" : Valid number or account name  ( Use @ for a PayToKey )
+    - "payload_method" : "none","dest","sender","aes"
+    - "pwd" : If "payload_method" = "aes"
+    - "payload_encode" : "string"(default) | "hexa" | "base58"
+    - "payload" : HEXASTRING with the payload data
+  - "EPasa Object" params:
+    - "account_epasa" : (String) Encoded EPASA
+    - "account" : number or name 
+    - "payload_method" : "none","dest","sender","aes"
+    - "pwd" : (String) Provided only if "payload_method" = "aes"
+    - "payload_encode" : "string"(default) | "hexa" | "base58"
+    - "account_epasa_checksum" : (String) Encoded EPASA with extended checksum
+    - "payload" : HEXASTRING with the payload data
+    - "payload_type" : Byte
   - Payload encoding will automatically set "payload_type" value based on encoding params in order to store E-PASA standard
   - Updated "findaccounts": 
     -New param "end" (integer, -1 for default): Will search from "start" to "end" (if "end"=-1 will search to the end)
