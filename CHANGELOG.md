@@ -1,7 +1,7 @@
 # Changelog
 
 ## Build 5.4 - (PENDING RELEASE)
-- CURRENT 5.4.Beta4
+- CURRENT 5.4.Beta5
 - Added usage of AbstractMem library to allow build a PascalCoin version using virtual memory and efficient caching mechanism
   - Use AbstractMem library v1.2
   - Must activate {$DEFINE USE_ABSTRACTMEM} at config.inc file (Enabled by default)
