@@ -1070,8 +1070,8 @@ begin
   Finally
     for i := 0 to AList.Count-1 do begin
       OPR := AList[i];
-      if TEPasaDecoder.TryDecodeEPASA(OPR.AffectedAccount,OPR.OriginalPayload,ANode,AWalleTKeys,APasswords,LEPasa) then begin
-        OPR.PrintablePayload := LEPasa.ToString(True);
+      if TEPasaDecoder.TryDecodeEPASA(OPR.DestAccount,OPR.OriginalPayload,ANode,AWalleTKeys,APasswords,LEPasa) then begin
+        OPR.DecodedEPasaPayload := LEPasa.ToString(True);
         AList[i] := OPR;
       end;
     end;
@@ -1236,12 +1236,14 @@ begin
           DrawGrid.Canvas.Font.Color := clBlue;
           DrawGrid.Canvas.Font.Style := [fsBold];
           Canvas_TextRect(DrawGrid.Canvas,LRectLeft,saux,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
-          DrawGrid.Canvas.Font.Style := [];
-        end;
-        DrawGrid.Canvas.Font.Color := clBlack;
-        if opr.OriginalPayload.payload_raw.ToString=s then begin
+          if opr.DecodedEPasaPayload<>'' then begin
+            DrawGrid.Canvas.Font.Style := [fsBold];
+            s := opr.DecodedEPasaPayload
+          end else DrawGrid.Canvas.Font.Style := [];
+        end else if opr.OriginalPayload.payload_raw.ToString=s then begin
           DrawGrid.Canvas.Font.Style := [fsBold];
         end;
+        DrawGrid.Canvas.Font.Color := clBlack;
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine])
       end else begin
         s := '(???)';
