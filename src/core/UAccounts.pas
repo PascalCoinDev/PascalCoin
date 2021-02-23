@@ -501,7 +501,6 @@ uses
   // This issue is not detected on current Delphi memory manager (Tested on Delphi 10.3.2)
 {$ENDIF}
 
-
 { This function is for testing purpose only.
   Will check if Account Names are well assigned and stored }
 function Check_Safebox_Names_Consistency(sb : TPCSafeBox; const title :String; var errors : String) : Boolean;
@@ -3590,9 +3589,9 @@ begin
             if ((iblock + (CT_BankToDiskEveryNBlocks * 10)) >= sbHeader.blockscount) then begin
             {$ENDIF}
               {$IFDEF ASSUME_VALID_POW_OLD_PROTOCOLS}
-              LAddToMultiThreadOperationsBlockValidator := (LUseMultiThreadOperationsBlockValidator) and (LBlock.blockchainInfo.protocol_version>=CT_PROTOCOL_5) and (Assigned(LPCOperationsBlockValidator));
+              LAddToMultiThreadOperationsBlockValidator := False;
               {$ELSE}
-              LAddToMultiThreadOperationsBlockValidator := (LUseMultiThreadOperationsBlockValidator) and (LBlock.blockchainInfo.protocol_version>=CT_PROTOCOL_4) and (Assigned(LPCOperationsBlockValidator));
+              LAddToMultiThreadOperationsBlockValidator := (LUseMultiThreadOperationsBlockValidator) and (LBlock.blockchainInfo.protocol_version=CT_PROTOCOL_4) and (Assigned(LPCOperationsBlockValidator));
               {$ENDIF}
               If not IsValidNewOperationsBlock(LBlock.blockchainInfo,False,Not LAddToMultiThreadOperationsBlockValidator,aux_errors) then begin
                 errors := errors + ' > ' + aux_errors;
@@ -3638,6 +3637,7 @@ begin
             Exit;
           end;
         end;
+
         // Add
         {$IFDEF USE_ABSTRACTMEM}
         FPCAbstractMem.SetBlockAccount(LBlock);
@@ -3682,7 +3682,6 @@ begin
         // Assign to previous
         LPreviousProofOfWork := LBlock.blockchainInfo.proof_of_work;
       end; // For iBlock ...
-
         if Assigned(LPCOperationsBlockValidator) then begin
           repeat
             LPCOperationsBlockValidator.GetStatus(LValidatedOPOk, LValidatedOPError, LValidatedOPPending);
