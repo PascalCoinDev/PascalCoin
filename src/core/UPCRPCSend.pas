@@ -122,6 +122,7 @@ var
  LPayload_method, LEncodePwd, LErrors : String;
  LOpt : TOpTransaction;
  LOpr : TOperationResume;
+ LTmpTarget : Cardinal;
 begin
   // Get Parameters
   Result := False;
@@ -151,6 +152,26 @@ begin
       AErrorNum := CT_RPC_ErrNum_InvalidAccount;
       Exit;
     end else LTarget := ASender.Node.GetMempoolAccount(LTarget.account);
+
+    if (LTargetEPASA.PayloadType.ToProtocolValue=0) and ((LTarget.account=0) or (LTarget.account=LSender.account)) then begin
+      // Try to decode from payload
+      // String payload:
+      if TPascalCoinJSONComp.CaptureEPASA(AInputParams,'payload',ASender.Node, LTargetEPASA, LTmpTarget, LTargetKey, LTargetRequiresPurchase, AErrorDesc) then begin
+        if LTargetRequiresPurchase then begin
+          AInputParams.GetAsVariant('payload').Value := LTargetEPASA.GetRawPayloadBytes.ToHexaString;
+          LTarget := ASender.Node.GetMempoolAccount(LTmpTarget);
+        end;
+      end;
+      if (Not LTargetRequiresPurchase) then begin
+        // HEXASTRING payload:
+        if (TPascalCoinJSONComp.CaptureEPASA(TCrypto.HexaToRaw(AInputParams.AsString('payload','')).ToPrintable, ASender.Node, LTargetEPASA, LTmpTarget, LTargetKey, LTargetRequiresPurchase, AErrorDesc)) then begin
+          if LTargetRequiresPurchase then begin
+            AInputParams.GetAsVariant('payload').Value := LTargetEPASA.GetRawPayloadBytes.ToHexaString;
+            LTarget := ASender.Node.GetMempoolAccount(LTmpTarget);
+          end;
+        end;
+      end;
+    end;
 
     if Not TPascalCoinJSONComp.OverridePayloadParams(AInputParams, LTargetEPASA) then begin
       AErrorNum := CT_RPC_ErrNum_AmbiguousPayload;

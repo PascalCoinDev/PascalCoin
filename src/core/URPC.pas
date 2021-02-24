@@ -79,7 +79,8 @@ Type
     class function CheckAndGetEncodedRAWPayload(Const ARawPayload : TRawBytes; const APayloadType : TPayloadType; Const APayload_method, AEncodePwdForAES : String; const ASenderAccounKey, ATargetAccountKey : TAccountKey; out AOperationPayload : TOperationPayload; Var AErrorNum : Integer; Var AErrorDesc : String) : Boolean;
     class Function CaptureNOperation(const AInputParams : TPCJSONObject; const AParamName : String; const ANode : TNode; out ALastNOp: Cardinal; var AErrorParam : String) : Boolean;
     class Function CaptureAccountNumber(const AInputParams : TPCJSONObject; const AParamName : String; const ANode : TNode; out AResolvedAccount: Cardinal; var AErrorParam : String) : Boolean;
-    class Function CaptureEPASA(const AInputParams : TPCJSONObject; const AParamName : String; const ANode : TNode; out AEPasa: TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : Boolean; var AErrorParam : String) : Boolean;
+    class Function CaptureEPASA(const AInputParams : TPCJSONObject; const AParamName : String; const ANode : TNode; out AEPasa: TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : Boolean; var AErrorParam : String) : Boolean; overload;
+    class Function CaptureEPASA(const AEPasaText : String; const ANode : TNode; out AEPasa: TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : Boolean; var AErrorParam : String) : Boolean; overload;
     class Function OverridePayloadParams(const AInputParams : TPCJSONObject; const AEPASA : TEPasa) : Boolean;
   end;
 
@@ -466,6 +467,41 @@ Begin
     AResolvedAccount := CT_AccountNo_NUL;
     AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
     AErrorParam := Format('Param "%s" not provided or null',[AParamName]);
+    Exit(False);
+  end;
+end;
+
+class function TPascalCoinJSONComp.CaptureEPASA(const AEPasaText: String;
+  const ANode: TNode; out AEPasa: TEPasa; out AResolvedAccount: Cardinal;
+  out AResolvedKey: TAccountKey; out ARequiresPurchase: Boolean;
+  var AErrorParam: String): Boolean;
+Begin
+  AEPasa.Clear;
+  AResolvedAccount := 0;
+  AResolvedKey.Clear;
+  ARequiresPurchase := False;
+  AErrorParam := '';
+  if Length(AEPasaText)>0 then begin
+    if Not TEPasa.TryParse(AEPasaText, AEPasa) then begin
+      AEPasa := TEPasa.Empty;
+      AResolvedAccount := CT_AccountNo_NUL;
+      AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+      AErrorParam := Format('"%s" is not valid Account EPASA',[AEPasaText]);
+      Exit(False);
+    end;
+    if Assigned(ANode) then begin
+      Result := ANode.TryResolveEPASA(AEPasa, AResolvedAccount, AResolvedKey, ARequiresPurchase, AErrorParam);
+    end else begin
+      // Offline EPASA
+      Result := TryResolveOfflineEPASA(AEPasa, AResolvedAccount, AErrorParam);
+      AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+      ARequiresPurchase := False;
+    end;
+  end else begin
+    AEPasa := TEPasa.Empty;
+    AResolvedAccount := CT_AccountNo_NUL;
+    AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+    AErrorParam := Format('EPasa not provided or null',[]);
     Exit(False);
   end;
 end;
