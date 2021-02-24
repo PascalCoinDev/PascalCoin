@@ -28,7 +28,7 @@ uses
   SysUtils,
   TypInfo,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
-  UBlockChain, UNode, UBaseTypes,
+  UBlockChain, UNode, UBaseTypes, UPCDataTypes,
   UAccounts,
   UEncoding,
   UEPasa,
@@ -64,6 +64,7 @@ var
   LUnencryptedPayloadBytes, LPwd : TBytes;
   LDone : Boolean;
   i : Integer;
+  LAccount : TAccount;
 begin
   LUnencryptedPayloadBytes := Nil;
   AEPasa.Clear;
@@ -88,7 +89,8 @@ begin
       AEPasa.AccountName := '@';
     end else begin
       if Assigned(ANode) then begin
-        AEPasa.AccountName := ANode.GetMempoolAccount(AAccount).name.ToPrintable;
+        LAccount := ANode.GetMempoolAccount(AAccount);
+        AEPasa.AccountName := LAccount.name.ToPrintable;
       end;
       if AEPasa.AccountName='' then begin
         ADecodeEPasaResult := der_AccountNameNotFound; // Will continue processing
