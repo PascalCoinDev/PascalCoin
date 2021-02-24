@@ -105,7 +105,7 @@ Type
     Function GetLogFileName : String;
     procedure SetValidIPs(const Value: String);  protected
     Function IsValidClientIP(Const clientIp : String; clientPort : Word) : Boolean;
-    Procedure AddRPCLog(Const Sender : String; Const Message : String);
+    Procedure AddRPCLog(Const Sender : String; ACallsCounter : Int64; Const Message : String);
     Function GetNewCallCounter : Int64;
   public
     Constructor Create;
@@ -813,10 +813,10 @@ end;
 
 { TRPCServer }
 
-Procedure TRPCServer.AddRPCLog(Const Sender : String; Const Message : String);
+Procedure TRPCServer.AddRPCLog(Const Sender : String; ACallsCounter : Int64; Const Message : String);
 Begin
   If Not Assigned(FRPCLog) then exit;
-  FRPCLog.NotifyNewLog(ltinfo,Sender+' '+Inttostr(FCallsCounter),Message);
+  FRPCLog.NotifyNewLog(ltinfo,Sender+' '+Inttostr(ACallsCounter),Message);
 end;
 
 Function TRPCServer.GetLogFileName : String;
@@ -1014,7 +1014,7 @@ begin
   // IP Protection
   If (Not _RPCServer.IsValidClientIP(FSock.GetRemoteSinIP,FSock.GetRemoteSinPort)) then begin
     TLog.NewLog(lterror,Classname,FSock.GetRemoteSinIP+':'+inttostr(FSock.GetRemoteSinPort)+' INVALID IP');
-    _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),' INVALID IP');
+    _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),callcounter,' INVALID IP');
     exit;
   end;
   errNum := CT_RPC_ErrNum_InternalError;
@@ -1138,7 +1138,7 @@ begin
           FSock.SendString(jsonresponsetxt);
         end;
       end;
-      _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),'Method:'+methodName+' Params:'+paramsTxt+' '+Inttostr(errNum)+':'+errDesc+' Time:'+FormatFloat('0.000',(TPlatform.GetElapsedMilliseconds(tc)/1000)));
+      _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),callcounter,'Method:'+methodName+' Params:'+paramsTxt+' '+Inttostr(errNum)+':'+errDesc+' Time:'+FormatFloat('0.000',(TPlatform.GetElapsedMilliseconds(tc)/1000)));
     finally
       jsonresponse.free;
       Headers.Free;

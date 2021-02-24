@@ -137,32 +137,33 @@ begin
     exit;
   end;
 
-  if Not TPascalCoinJSONComp.CaptureAccountNumber(AInputParams,'sender',ASender.Node,LSender.account,AErrorDesc) then begin
-    AErrorNum := CT_RPC_ErrNum_InvalidAccount;
-    Exit;
-  end else LSender := ASender.Node.GetMempoolAccount(LSender.account);
-
-  LTarget := CT_Account_NUL;
-  if Not TPascalCoinJSONComp.CaptureEPASA(AInputParams,'target',ASender.Node, LTargetEPASA, LTarget.account, LTargetKey, LTargetRequiresPurchase, AErrorDesc) then begin
-    AErrorNum := CT_RPC_ErrNum_InvalidAccount;
-    Exit;
-  end else LTarget := ASender.Node.GetMempoolAccount(LTarget.account);
-
-  if Not TPascalCoinJSONComp.OverridePayloadParams(AInputParams, LTargetEPASA) then begin
-    AErrorNum := CT_RPC_ErrNum_AmbiguousPayload;
-    AErrorDesc := 'Target EPASA payload conflicts with argument payload.';
-    Exit;
-  end;
-
-  LAmount := TPascalCoinJSONComp.ToPascalCoins(AInputParams.AsDouble('amount',0));
-  LFee := TPascalCoinJSONComp.ToPascalCoins(AInputParams.AsDouble('fee',0));
-  LRawPayload := TCrypto.HexaToRaw(AInputParams.AsString('payload',''));
-  LPayload_method := AInputParams.AsString('payload_method','dest');
-  LEncodePwd := AInputParams.AsString('pwd','');
-
   // Do new operation
   ASender.Node.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent sends
   try
+
+    if Not TPascalCoinJSONComp.CaptureAccountNumber(AInputParams,'sender',ASender.Node,LSender.account,AErrorDesc) then begin
+      AErrorNum := CT_RPC_ErrNum_InvalidAccount;
+      Exit;
+    end else LSender := ASender.Node.GetMempoolAccount(LSender.account);
+
+    LTarget := CT_Account_NUL;
+    if Not TPascalCoinJSONComp.CaptureEPASA(AInputParams,'target',ASender.Node, LTargetEPASA, LTarget.account, LTargetKey, LTargetRequiresPurchase, AErrorDesc) then begin
+      AErrorNum := CT_RPC_ErrNum_InvalidAccount;
+      Exit;
+    end else LTarget := ASender.Node.GetMempoolAccount(LTarget.account);
+
+    if Not TPascalCoinJSONComp.OverridePayloadParams(AInputParams, LTargetEPASA) then begin
+      AErrorNum := CT_RPC_ErrNum_AmbiguousPayload;
+      AErrorDesc := 'Target EPASA payload conflicts with argument payload.';
+      Exit;
+    end;
+
+    LAmount := TPascalCoinJSONComp.ToPascalCoins(AInputParams.AsDouble('amount',0));
+    LFee := TPascalCoinJSONComp.ToPascalCoins(AInputParams.AsDouble('fee',0));
+    LRawPayload := TCrypto.HexaToRaw(AInputParams.AsString('payload',''));
+    LPayload_method := AInputParams.AsString('payload_method','dest');
+    LEncodePwd := AInputParams.AsString('pwd','');
+
     // Create operation
     if LTargetRequiresPurchase then begin
       // Buy Account
