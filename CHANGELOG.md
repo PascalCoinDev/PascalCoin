@@ -16,7 +16,7 @@
   - Updated "Operation Object" and "Multi Operation Object" return values:
     **(IF THE WALLET IS UNLOCKED Will automatically try to decrypt encoded payloads and also return E-PASA used)**
     - "senders" or "receivers" : ARRAY
-      - "account_epasa" : (String) If operation was using valid E-PASA format and can be decoded, will return E-PASA format used
+      - "account_epasa" : (String) If operation was using valid E-PASA format and can be decoded, will return E-PASA format used with extended checksum
       - "unenc_payload" : (String) If payload can be decoded returns unencoded value in readable format (no HEXASTRING)
       - "unenc_hexpayload" : (HEXASTRING) Unencoded value in hexastring
       - "payload_method" : (String) Can be "key" or "pwd"
@@ -30,12 +30,12 @@
     - "payload_encode" : "string"(default) | "hexa" | "base58"
     - "payload" : HEXASTRING with the payload data
   - "EPasa Object" params:
-    - "account_epasa" : (String) Encoded EPASA
+    - "account_epasa" : (String) Encoded EPASA with extended checksum
     - "account" : number or name 
     - "payload_method" : "none","dest","sender","aes"
     - "pwd" : (String) Provided only if "payload_method" = "aes"
     - "payload_encode" : "string"(default) | "hexa" | "base58"
-    - "account_epasa_checksum" : (String) Encoded EPASA with extended checksum
+    - "account_epasa_classic" : (String) Encoded EPASA without extended checksum
     - "payload" : HEXASTRING with the payload data
     - "payload_type" : Byte
   - Payload encoding will automatically set "payload_type" value based on encoding params in order to store E-PASA standard

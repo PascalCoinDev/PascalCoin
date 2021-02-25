@@ -232,7 +232,7 @@ begin
   Result := False;
   if AAccount>=0 then begin
     if TEPasaDecoder.TryDecodeEPASA(AAccount,APayload,ANode,AWalletKeys,APasswords,LDecodeEPasaResult,LEPasa) then begin
-      jsonObject.GetAsVariant('account_epasa').Value := LEPasa.ToClassicPASAString;
+      jsonObject.GetAsVariant('account_epasa').Value := LEPasa.ToString;
       jsonObject.GetAsVariant('unenc_payload').Value := LEPasa.Payload;
       jsonObject.GetAsVariant('unenc_hexpayload').Value := LEPasa.GetRawPayloadBytes.ToHexaString;
       Result := True;
@@ -397,6 +397,7 @@ Begin
     end;
     If OPR.DestAccount>=0 then begin
       jsonObject.GetAsVariant('dest_account').Value:=OPR.DestAccount;
+      FillEPasaOrDecrypt(OPR.DestAccount,OPR.OriginalPayload,ANode,AWalletKeys,APasswords,jsonObject);
     end;
   end;
   If OPR.newKey.EC_OpenSSL_NID>0 then begin

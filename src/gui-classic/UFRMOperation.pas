@@ -474,8 +474,9 @@ end;
 
 
 function TFRMOperation.CaptureEPasa(const AEPasaTxt: String; out AEPasa: TEPasa): Boolean;
+var LEPasaErrorCode : EPasaErrorCode;
 begin
-  Result := TEPasa.TryParse(AEPasaTxt,AEPasa);
+  Result := TEPasa.TryParse(AEPasaTxt,True,AEPasa);
   //
   if ((FUpdating) or (Not Result)) then Exit;
   FUpdating := True;
@@ -523,8 +524,9 @@ begin
   if CaptureEPasa(eb.Text,LEPasa) then begin
     if LEPasa.IsClassicPASA then
       eb.Text := LEPasa.ToClassicPASAString()
-    else
-      eb.Text := LEPasa.ToString(True);
+    else if eb=ebDestAccount then
+      eb.Text := LEPasa.ToString(False)
+    else eb.Text := LEPasa.ToString(True);
   end else begin
     eb.Text := '';
   end;
@@ -708,14 +710,16 @@ end;
 
 procedure TFRMOperation.searchAccount(editBox: TCustomEdit);
 Var F : TFRMAccountSelect;
-  c : Cardinal;
+  LEPasa : TEPasa;
 begin
   F := TFRMAccountSelect.Create(Self);
   try
     F.Node := FNode;
     F.WalletKeys := FWalletKeys;
     F.Filters:=editBox.Tag;
-    If TAccountComp.AccountTxtNumberToAccountNumber(editBox.Text,c) then F.DefaultAccount := c;
+    if TEPasa.TryParse(editBox.Text,LEPasa) then begin
+      if LEPasa.Account.HasValue then F.DefaultAccount := LEPasa.Account.Value
+    end;
     F.AllowSelect:=True;
     If F.ShowModal=MrOk then begin
       editBox.Text := TAccountComp.AccountNumberToAccountTxtNumber(F.GetSelected);
@@ -1664,7 +1668,7 @@ begin
     LTargetEPASA := TEPasa.Empty;
 
     If (PageControlOpType.ActivePage=tsTransaction) then begin
-      if NOT TEPasa.TryParse(ebDestAccount.Text, LTargetEPASA) then begin
+      if NOT TEPasa.TryParse(ebDestAccount.Text,True, LTargetEPASA) then begin
         AErrors := 'Indeterminable target';
         Exit(False);
       end;
@@ -1815,7 +1819,7 @@ begin
     FEncodedPayload.payload_raw := LEncryptedPayloadBytes;
     Result := LValid;
     if (LValid) And (Not FUpdating) then begin
-      ebDestAccount.Text := LTargetEPASA.ToClassicPASAString;
+      ebDestAccount.Text := LTargetEPASA.ToString(False);
     end;
   end;
 end;

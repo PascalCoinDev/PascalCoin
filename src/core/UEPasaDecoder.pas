@@ -183,8 +183,8 @@ begin
     Exit(False);
   end else begin
     Result := True;
-    AJSONResponse.GetAsVariant('account_epasa').Value := LEPasa.ToClassicPASAString;
-    AJSONResponse.GetAsVariant('account_epasa_checksum').Value := LEPasa.ToString(False);
+    AJSONResponse.GetAsVariant('account_epasa').Value := LEPasa.ToString(False);
+    AJSONResponse.GetAsVariant('account_epasa_classic').Value := LEPasa.ToClassicPASAString;
 
     if LEPasa.PayloadType.HasTrait(ptAddressedByName) then begin
       AJSONResponse.GetAsVariant('account').Value := LEPasa.AccountName;

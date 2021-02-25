@@ -127,7 +127,8 @@ type
       function ToString(): String; overload;
       function ToString(AOmitExtendedChecksum: Boolean): String; overload;
 
-      class function TryParse(const AEPasaText: String; out AEPasa: TEPasa) : Boolean; static;
+      class function TryParse(const AEPasaText: String; AOmitExtendedChecksumVerification : Boolean; out AEPasa: TEPasa) : Boolean; overload; static;
+      class function TryParse(const AEPasaText: String; out AEPasa: TEPasa) : Boolean; overload; static;
       class function Parse(const AEPasaText: String): TEPasa; static;
 
       class function CalculateAccountChecksum(AAccNo: UInt32): Byte; static; inline;
@@ -169,6 +170,7 @@ type
       function Parse(const AEPasaText: String): TEPasa;
       function TryParse(const AEPasaText: String; out AEPasa: TEPasa): Boolean; overload;
       function TryParse(const AEPasaText: String; out AEPasa: TEPasa; out AErrorCode: EPasaErrorCode): Boolean; overload;
+      function TryParse(const AEPasaText: String; AOmitExtendedChecksumVerification : Boolean; out AEPasa: TEPasa; out AErrorCode: EPasaErrorCode): Boolean; overload;
   end;
 
   { TEPasaComp }
@@ -467,12 +469,18 @@ end;
 
 
 class function TEPasa.TryParse(const AEPasaText: String; out AEPasa: TEPasa): Boolean;
+begin
+  Result := TryParse(AEPasaText,False,AEPasa);
+end;
+
+class function TEPasa.TryParse(const AEPasaText: String; AOmitExtendedChecksumVerification: Boolean; out AEPasa: TEPasa): Boolean;
 var
   LParser: TEPasaParser;
   LDisposables : TDisposables;
+  LEPasaErrorCode : EPasaErrorCode;
 begin
   LParser := LDisposables.AddObject( TEPasaParser.Create() ) as TEPasaParser;
-  Result := LParser.TryParse(AEPasaText, AEPasa);
+  Result := LParser.TryParse(AEPasaText,AOmitExtendedChecksumVerification,AEPasa,LEPasaErrorCode);
 end;
 
 class function TEPasa.Parse(const AEPasaText: String): TEPasa;
@@ -525,6 +533,11 @@ begin
 end;
 
 function TEPasaParser.TryParse(const AEPasaText: String; out AEPasa: TEPasa; out AErrorCode: EPasaErrorCode): Boolean;
+begin
+  Result := TryParse(AEPasaText,False,AEPasa,AErrorCode);
+end;
+
+function TEPasaParser.TryParse(const AEPasaText: String; AOmitExtendedChecksumVerification: Boolean; out AEPasa: TEPasa; out AErrorCode: EPasaErrorCode): Boolean;
 var
   LChecksumDelim, LAccountNumber, LAccountChecksum, LAccountName, LPayloadStartChar,
   LPayloadEndChar, LPayloadContent, LPayloadPasswordDelim, LPayloadPassword,
@@ -682,7 +695,7 @@ begin
   // Extended Checksum
   LActualChecksum := TEPasaComp.ComputeExtendedChecksum(AEPasa.ToString(True));
   if (LExtendedChecksumDelim <> #0) then begin
-    if (LExtendedChecksum <> LActualChecksum) then begin
+    if (LExtendedChecksum <> LActualChecksum) and (Not AOmitExtendedChecksumVerification) then begin
       AErrorCode := EPasaErrorCode.BadExtendedChecksum;
       Exit(False);
     end;
