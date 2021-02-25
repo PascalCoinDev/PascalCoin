@@ -482,7 +482,7 @@ begin
     TSettings.FirstTime := false;
     miAboutPascalCoinClick(Nil);
   end;
-
+  PageControlChange(Nil);
 end;
 
 procedure TFRMWallet.bbAccountsRefreshClick(Sender: TObject);
@@ -1379,7 +1379,7 @@ begin
   UpdatePrivateKeys;
   UpdateBlockChainState;
   UpdateConnectionStatus;
-  PageControl.ActivePage := tsMyAccounts;
+  PageControl.ActivePage := tsOperations;
   pcAccountsOptions.ActivePage := tsAccountOperations;
   ebFilterOperationsStartBlock.Text := '';
   ebFilterOperationsEndBlock.Text := '';

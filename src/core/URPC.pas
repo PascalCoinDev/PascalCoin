@@ -79,7 +79,8 @@ Type
     class function CheckAndGetEncodedRAWPayload(Const ARawPayload : TRawBytes; const APayloadType : TPayloadType; Const APayload_method, AEncodePwdForAES : String; const ASenderAccounKey, ATargetAccountKey : TAccountKey; out AOperationPayload : TOperationPayload; Var AErrorNum : Integer; Var AErrorDesc : String) : Boolean;
     class Function CaptureNOperation(const AInputParams : TPCJSONObject; const AParamName : String; const ANode : TNode; out ALastNOp: Cardinal; var AErrorParam : String) : Boolean;
     class Function CaptureAccountNumber(const AInputParams : TPCJSONObject; const AParamName : String; const ANode : TNode; out AResolvedAccount: Cardinal; var AErrorParam : String) : Boolean;
-    class Function CaptureEPASA(const AInputParams : TPCJSONObject; const AParamName : String; const ANode : TNode; out AEPasa: TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : Boolean; var AErrorParam : String) : Boolean;
+    class Function CaptureEPASA(const AInputParams : TPCJSONObject; const AParamName : String; const ANode : TNode; out AEPasa: TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : Boolean; var AErrorParam : String) : Boolean; overload;
+    class Function CaptureEPASA(const AEPasaText : String; const ANode : TNode; out AEPasa: TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : Boolean; var AErrorParam : String) : Boolean; overload;
     class Function OverridePayloadParams(const AInputParams : TPCJSONObject; const AEPASA : TEPasa) : Boolean;
   end;
 
@@ -105,7 +106,7 @@ Type
     Function GetLogFileName : String;
     procedure SetValidIPs(const Value: String);  protected
     Function IsValidClientIP(Const clientIp : String; clientPort : Word) : Boolean;
-    Procedure AddRPCLog(Const Sender : String; Const Message : String);
+    Procedure AddRPCLog(Const Sender : String; ACallsCounter : Int64; Const Message : String);
     Function GetNewCallCounter : Int64;
   public
     Constructor Create;
@@ -470,6 +471,41 @@ Begin
   end;
 end;
 
+class function TPascalCoinJSONComp.CaptureEPASA(const AEPasaText: String;
+  const ANode: TNode; out AEPasa: TEPasa; out AResolvedAccount: Cardinal;
+  out AResolvedKey: TAccountKey; out ARequiresPurchase: Boolean;
+  var AErrorParam: String): Boolean;
+Begin
+  AEPasa.Clear;
+  AResolvedAccount := 0;
+  AResolvedKey.Clear;
+  ARequiresPurchase := False;
+  AErrorParam := '';
+  if Length(AEPasaText)>0 then begin
+    if Not TEPasa.TryParse(AEPasaText, AEPasa) then begin
+      AEPasa := TEPasa.Empty;
+      AResolvedAccount := CT_AccountNo_NUL;
+      AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+      AErrorParam := Format('"%s" is not valid Account EPASA',[AEPasaText]);
+      Exit(False);
+    end;
+    if Assigned(ANode) then begin
+      Result := ANode.TryResolveEPASA(AEPasa, AResolvedAccount, AResolvedKey, ARequiresPurchase, AErrorParam);
+    end else begin
+      // Offline EPASA
+      Result := TryResolveOfflineEPASA(AEPasa, AResolvedAccount, AErrorParam);
+      AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+      ARequiresPurchase := False;
+    end;
+  end else begin
+    AEPasa := TEPasa.Empty;
+    AResolvedAccount := CT_AccountNo_NUL;
+    AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+    AErrorParam := Format('EPasa not provided or null',[]);
+    Exit(False);
+  end;
+end;
+
 class function TPascalCoinJSONComp.OverridePayloadParams(const AInputParams : TPCJSONObject; const AEPASA : TEPasa) : Boolean;
 var LPayloadmethod_old,LPayloadmethod_new : String;
     LPayload_old, LPayload_new : String;
@@ -813,10 +849,10 @@ end;
 
 { TRPCServer }
 
-Procedure TRPCServer.AddRPCLog(Const Sender : String; Const Message : String);
+Procedure TRPCServer.AddRPCLog(Const Sender : String; ACallsCounter : Int64; Const Message : String);
 Begin
   If Not Assigned(FRPCLog) then exit;
-  FRPCLog.NotifyNewLog(ltinfo,Sender+' '+Inttostr(FCallsCounter),Message);
+  FRPCLog.NotifyNewLog(ltinfo,Sender+' '+Inttostr(ACallsCounter),Message);
 end;
 
 Function TRPCServer.GetLogFileName : String;
@@ -1014,7 +1050,7 @@ begin
   // IP Protection
   If (Not _RPCServer.IsValidClientIP(FSock.GetRemoteSinIP,FSock.GetRemoteSinPort)) then begin
     TLog.NewLog(lterror,Classname,FSock.GetRemoteSinIP+':'+inttostr(FSock.GetRemoteSinPort)+' INVALID IP');
-    _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),' INVALID IP');
+    _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),callcounter,' INVALID IP');
     exit;
   end;
   errNum := CT_RPC_ErrNum_InternalError;
@@ -1138,7 +1174,7 @@ begin
           FSock.SendString(jsonresponsetxt);
         end;
       end;
-      _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),'Method:'+methodName+' Params:'+paramsTxt+' '+Inttostr(errNum)+':'+errDesc+' Time:'+FormatFloat('0.000',(TPlatform.GetElapsedMilliseconds(tc)/1000)));
+      _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),callcounter,'Method:'+methodName+' Params:'+paramsTxt+' '+Inttostr(errNum)+':'+errDesc+' Time:'+FormatFloat('0.000',(TPlatform.GetElapsedMilliseconds(tc)/1000)));
     finally
       jsonresponse.free;
       Headers.Free;

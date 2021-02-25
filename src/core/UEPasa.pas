@@ -29,7 +29,8 @@ uses
   uregexpr,
   UCommon,
   UCrypto,
-  UEncoding;
+  UEncoding,
+  SyncObjs;
 
 type
 
@@ -140,6 +141,7 @@ type
   TEPasaParser = class
     strict private
       class var FEPasaRegex: TCustomRegex;
+      class var FEPasaLocker : TCriticalSection;
       class constructor CreateRegexEPasaParser();
       class destructor DestroyRegexEPasaParser();
 
@@ -496,11 +498,13 @@ end;
 class constructor TEPasaParser.CreateRegexEPasaParser;
 begin
   FEPasaRegex := TCustomRegex.Create(EPasaPattern);
+  FEPasaLocker := TCriticalSection.Create;
 end;
 
 class destructor TEPasaParser.DestroyRegexEPasaParser;
 begin
   FEPasaRegex.Free;
+  FEPasaLocker.Free;
 end;
 
 function TEPasaParser.Parse(const AEPasaText: String): TEPasa;
@@ -535,6 +539,9 @@ begin
     Exit(False);
   end;
 
+  FEPasaLocker.Acquire; // Protect against multithread
+  Try
+
   FEPasaRegex.Match(AEPasaText);
 
   LChecksumDelim := FEPasaRegex.GetMatchFromName('ChecksumDelim');
@@ -554,6 +561,10 @@ begin
     AErrorCode := EPasaErrorCode.BadFormat;
     Exit(False);
   end;
+
+  Finally
+    FEPasaLocker.Release;
+  End;
 
   if (LAccountName <> #0) then begin
     // Account Name
