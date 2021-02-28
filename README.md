@@ -60,3 +60,7 @@ View the changelog [here](CHANGELOG.md)
 Consider a donation using Pascal coin to development account: `0-10`
 
 Also, consider a donation using BitCoin to `16K3HCZRhFUtM8GdWRcfKeaa6KsuyxZaYk`
+
+Rasel Gghh
+10 месяцев назад
+Роман спасибо. Ждем следующий урок.
