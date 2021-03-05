@@ -213,6 +213,7 @@ begin
 
     AJSONResponse.GetAsVariant('payload').Value := LEPasa.GetRawPayloadBytes.ToHexaString;
     AJSONResponse.GetAsVariant('payload_type').Value := LEPasa.PayloadType.ToProtocolValue;
+    AJSONResponse.GetAsVariant('is_pay_to_key').Value := LEPasa.IsPayToKey;
   end;
 end;
 

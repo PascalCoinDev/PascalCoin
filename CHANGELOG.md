@@ -38,6 +38,7 @@
     - "account_epasa_classic" : (String) Encoded EPASA without extended checksum
     - "payload" : HEXASTRING with the payload data
     - "payload_type" : Byte
+    - "is_pay_to_key" : (Boolean) True if EPasa is a Pay To Key format like @[Base58Pubkey]
   - Payload encoding will automatically set "payload_type" value based on encoding params in order to store E-PASA standard
   - Updated "findaccounts": 
     -New param "end" (integer, -1 for default): Will search from "start" to "end" (if "end"=-1 will search to the end)
