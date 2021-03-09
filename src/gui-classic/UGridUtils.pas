@@ -901,6 +901,7 @@ procedure TAccountsGrid.UnlockAccountsList;
 begin
   UpdateAccountsBalance;
   InitGridRowCount;
+  if Assigned(FOnUpdated) then FOnUpdated(Self);
 end;
 
 procedure TAccountsGrid.UpdateAccountsBalance;
