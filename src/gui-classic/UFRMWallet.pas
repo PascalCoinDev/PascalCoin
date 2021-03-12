@@ -443,6 +443,7 @@ begin
     FNode := TNode.Node;
     FNode.NetServer.Port := TSettings.InternetServerPort;
     FNode.PeerCache := TSettings.PeerCache+';'+CT_Discover_IPs;
+    FNode.MaxPayToKeyPurchasePrice := TSettings.MaxPayToKeyPurchasePrice;
     // Create RPC server
     FRPCServer := TRPCServer.Create;
     FRPCServer.WalletKeys := WalletKeys;

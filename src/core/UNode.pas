@@ -64,6 +64,7 @@ Type
     FSentOperations : TOrderedRawList;
     FBroadcastData : Boolean;
     FUpdateBlockchain: Boolean;
+    FMaxPayToKeyPurchasePrice: Int64;
     {$IFDEF BufferOfFutureOperations}
     FBufferAuxWaitingOperations : TOperationsHashTree;
     {$ENDIF}
@@ -136,6 +137,7 @@ Type
     Function TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean): Boolean; overload;
     Function TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean; out AErrorMessage: String): Boolean; overload;
 
+    Property MaxPayToKeyPurchasePrice: Int64 read FMaxPayToKeyPurchasePrice write FMaxPayToKeyPurchasePrice;
   End;
 
   TThreadSafeNodeNotifyEvent = Class(TPCThread)
@@ -642,6 +644,7 @@ end;
 
 constructor TNode.Create(AOwner: TComponent);
 begin
+  FMaxPayToKeyPurchasePrice := 0;
   FSentOperations := TOrderedRawList.Create;
   FNodeLog := TLog.Create(Self);
   FNodeLog.ProcessGlobalLogs := false;
@@ -895,7 +898,7 @@ begin
     end;
 
     // If no key found, find optimal public purchase account
-    if TryFindPublicSaleAccount(TSettings.MaxPayToKeyPurchasePrice, True, AResolvedAccount) then begin
+    if TryFindPublicSaleAccount(MaxPayToKeyPurchasePrice, True, AResolvedAccount) then begin
       // Account needs to be purchased
       ARequiresPurchase := True;
       Exit(True);
