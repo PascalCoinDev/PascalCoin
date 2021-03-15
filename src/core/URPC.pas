@@ -79,6 +79,7 @@ Type
     class function CheckAndGetEncodedRAWPayload(Const ARawPayload : TRawBytes; const APayloadType : TPayloadType; Const APayload_method, AEncodePwdForAES : String; const ASenderAccounKey, ATargetAccountKey : TAccountKey; out AOperationPayload : TOperationPayload; Var AErrorNum : Integer; Var AErrorDesc : String) : Boolean;
     class Function CaptureNOperation(const AInputParams : TPCJSONObject; const AParamName : String; const ANode : TNode; out ALastNOp: Cardinal; var AErrorParam : String) : Boolean;
     class Function CaptureAccountNumber(const AInputParams : TPCJSONObject; const AParamName : String; const ANode : TNode; out AResolvedAccount: Cardinal; var AErrorParam : String) : Boolean;
+    class Function CaptureMempoolAccount(const AInputParams : TPCJSONObject; const AParamName : String; const ANode : TNode; out AMempoolAccount: TAccount; var AErrorParam : String) : Boolean;
     class Function CaptureEPASA(const AInputParams : TPCJSONObject; const AParamName : String; const ANode : TNode; out AEPasa: TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : Boolean; var AErrorParam : String) : Boolean; overload;
     class Function CaptureEPASA(const AEPasaText : String; const ANode : TNode; out AEPasa: TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : Boolean; var AErrorParam : String) : Boolean; overload;
     class Function OverridePayloadParams(const AInputParams : TPCJSONObject; const AEPASA : TEPasa) : Boolean;
@@ -504,6 +505,23 @@ Begin
     AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
     AErrorParam := Format('EPasa not provided or null',[]);
     Exit(False);
+  end;
+end;
+
+class function TPascalCoinJSONComp.CaptureMempoolAccount(
+  const AInputParams: TPCJSONObject; const AParamName: String;
+  const ANode: TNode; out AMempoolAccount: TAccount;
+  var AErrorParam: String): Boolean;
+var LAccountNumber : Cardinal;
+begin
+  Result := CaptureAccountNumber(AInputParams,AParamName,ANode,LAccountNumber,AErrorParam);
+  if Result then begin
+    if (LAccountNumber>=0) And (LAccountNumber<ANode.Bank.AccountsCount) then begin
+      AMempoolAccount := ANode.GetMempoolAccount(LAccountNumber);
+    end else begin
+      AErrorParam := Format('%d not in range 0..%d for Param "%s"',[LAccountNumber,ANode.Bank.AccountsCount,AParamName]);
+      Result := False;
+    end;
   end;
 end;
 

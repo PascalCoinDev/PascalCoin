@@ -225,8 +225,12 @@ Var LAccount : TAccount;
 begin
   Result := False;
 
-  LSender := AInputParams.AsCardinal('sender',CT_MaxAccount);
-  LTarget := AInputParams.AsCardinal('target',CT_MaxAccount);
+  if Not TPascalCoinJSONComp.CaptureAccountNumber(AInputParams,'sender',ASender.Node,LSender,AErrorDesc) then begin
+    LSender := CT_MaxAccount;
+  end;
+  if Not TPascalCoinJSONComp.CaptureAccountNumber(AInputParams,'target',ASender.Node,LTarget,AErrorDesc) then begin
+    LTarget := CT_MaxAccount;
+  end;
   LSearchedAccount_number := CT_MaxAccount;
   LSearchBySender := (LSender>=0) And (LSender<ASender.Node.Bank.AccountsCount);
   LSearchByTarget := (LTarget>=0) And (LTarget<ASender.Node.Bank.AccountsCount);
@@ -317,21 +321,22 @@ var LOpData : TOpData;
   LOPR : TOperationResume;
 begin
   Result := False;
-  if Not ASender.RPCServer.GetMempoolAccount(AInputParams.AsInteger('sender',CT_MaxAccount),LSender) then begin
+  ASender.Node.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent operations
+  try
+
+  if Not TPascalCoinJSONComp.CaptureMempoolAccount(AInputParams,'sender',ASender.Node,LSender,AErrorDesc) then begin
     AErrorNum := CT_RPC_ErrNum_InvalidAccount;
-    AErrorDesc := 'Invalid "sender"';
     Exit;
   end;
   if (AInputParams.IndexOfName('signer')>=0) then begin
-    if Not ASender.RPCServer.GetMempoolAccount(AInputParams.AsInteger('signer',CT_MaxAccount),LSigner) then begin
+    if Not TPascalCoinJSONComp.CaptureMempoolAccount(AInputParams,'signer',ASender.Node,LSigner,AErrorDesc) then begin
       AErrorNum := CT_RPC_ErrNum_InvalidAccount;
-      AErrorDesc := 'Invalid "signer"';
       Exit;
     end;
   end else LSigner := LSender; // If no "signer" param, then use "sender" as signer by default
-  if Not ASender.RPCServer.GetMempoolAccount(AInputParams.AsInteger('target',CT_MaxAccount),LTarget) then begin
+
+  if Not TPascalCoinJSONComp.CaptureMempoolAccount(AInputParams,'target',ASender.Node,LTarget,AErrorDesc) then begin
     AErrorNum := CT_RPC_ErrNum_InvalidAccount;
-    AErrorDesc := 'Invalid "target"';
     Exit;
   end;
 
@@ -370,6 +375,10 @@ begin
     Result := True;
   finally
     LOpData.free;
+  end;
+
+  finally
+    ASender.Node.OperationSequenceLock.Release;
   end;
 end;
 
