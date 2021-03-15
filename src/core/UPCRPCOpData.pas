@@ -319,6 +319,9 @@ var LOpData : TOpData;
   LOperationPayload : TOperationPayload;
   LErrors : String;
   LOPR : TOperationResume;
+  LTargetEPASA : TEPasa;
+  LTargetKey : TAccountKey;
+  LTargetRequiresPurchase : Boolean;
 begin
   Result := False;
   ASender.Node.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent operations
@@ -335,9 +338,22 @@ begin
     end;
   end else LSigner := LSender; // If no "signer" param, then use "sender" as signer by default
 
-  if Not TPascalCoinJSONComp.CaptureMempoolAccount(AInputParams,'target',ASender.Node,LTarget,AErrorDesc) then begin
+  LTarget := CT_Account_NUL;
+  if Not TPascalCoinJSONComp.CaptureEPASA(AInputParams,'target',ASender.Node, LTargetEPASA, LTarget.account, LTargetKey, LTargetRequiresPurchase, AErrorDesc) then begin
     AErrorNum := CT_RPC_ErrNum_InvalidAccount;
-    Exit;
+    Exit(False);
+  end else begin
+    LTarget := ASender.Node.GetMempoolAccount(LTarget.account);
+    if (LTargetRequiresPurchase) then begin
+      AErrorNum := CT_RPC_ErrNum_InvalidEPASA;
+      AErrorDesc := 'PayToKey not available as a EPasa format on this method';
+      Exit(False);
+    end;
+  end;
+  if Not TPascalCoinJSONComp.OverridePayloadParams(AInputParams, LTargetEPASA) then begin
+    AErrorNum := CT_RPC_ErrNum_AmbiguousPayload;
+    AErrorDesc := 'Target EPASA payload conflicts with argument payload.';
+    Exit(False);
   end;
 
   if not TPascalCoinJSONComp.CheckAndGetEncodedRAWPayload(
