@@ -333,7 +333,12 @@ end;
 
 destructor TNetTcpIpClient.Destroy;
 begin
-  Disconnect;
+  FLock.Acquire;
+  try
+    Disconnect;
+  finally
+    FLock.Release;
+  end;
   {$IFDEF Synapse}  // Memory leak on 1.5.0
   FreeAndNil(FSendBufferLock);
   {$ENDIF}

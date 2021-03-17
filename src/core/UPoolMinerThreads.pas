@@ -36,10 +36,11 @@ type
     WorkingMillisecondsTotal : Cardinal;
     WinsCount : Integer;
     Invalids : Integer;
+    InternalComputingRounds : Integer;
   End;
 
 Const
-  CT_TMinerStats_NULL : TMinerStats = (Miners:0;RoundsCount:0;WorkingMillisecondsHashing:0;WorkingMillisecondsTotal:0;WinsCount:0;Invalids:0);
+  CT_TMinerStats_NULL : TMinerStats = (Miners:0;RoundsCount:0;WorkingMillisecondsHashing:0;WorkingMillisecondsTotal:0;WinsCount:0;Invalids:0;InternalComputingRounds:0);
 
 Type
 
@@ -626,11 +627,6 @@ begin
 end;
 
 procedure TCustomMinerDeviceThread.UpdateDeviceStats(Stats: TMinerStats);
-Type TTimeMinerStats = Record
-       tc : Cardinal;
-       stats : TMinerStats;
-     end;
-  PTimeMinerStats = ^TTimeMinerStats;
 Var l : TList<Pointer>;
   i : Integer;
   P : PTimeMinerStats;
@@ -657,6 +653,7 @@ begin
         if ((stats.Miners>foundMaxMiners)) then foundMaxMiners := stats.Miners;
       end;
     end;
+    FPartialDeviceStats.InternalComputingRounds:=l.count;
     If l.count>0 then begin
       P := PTimeMinerStats(l[l.count-1]);
       FPartialDeviceStats.WorkingMillisecondsHashing:=P^.tc - PTimeMinerStats(l[0]).tc + P^.stats.WorkingMillisecondsHashing;
@@ -863,7 +860,7 @@ begin
             if FCurrentMinerValuesForWork.version < CT_PROTOCOL_5 then
               roundsToDo := 20
             else
-              roundsToDo := 200+Random(200);
+              roundsToDo := 100+Random(100);
           end else begin
             roundsToDo := 10000;
           end;
@@ -982,6 +979,7 @@ begin
               finalHashingTC:=TPlatform.GetTickCount;
             end;
             AuxStats.Miners:=FCPUDeviceThread.FCPUs;
+            AuxStats.InternalComputingRounds:=roundsToDo;
             AuxStats.RoundsCount:=LRoundsPerformed;
             AuxStats.WorkingMillisecondsTotal:=TPlatform.GetTickCount - baseRealTC;
             AuxStats.WorkingMillisecondsHashing:= finalHashingTC - baseHashingTC;
