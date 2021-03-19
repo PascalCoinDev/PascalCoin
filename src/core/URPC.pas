@@ -2434,7 +2434,7 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
         OperationsHashTree.Free;
       end;
     finally
-      FNode.OperationSequenceLock.Acquire;
+      FNode.OperationSequenceLock.Release;
     end;
   End;
 
