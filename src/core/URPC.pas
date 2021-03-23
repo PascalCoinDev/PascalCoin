@@ -3008,10 +3008,17 @@ begin
       Exit;
     end;
     TNode.DecodeIpStringToNodeServerAddressArray(params.AsString('nodes',''),nsaarr);
+    ansistr := '';
     for i:=low(nsaarr) to high(nsaarr) do begin
       TNetData.NetData.AddServer(nsaarr[i]);
+      if (params.AsBoolean('whitelist',false)) then begin
+        ansistr := ansistr + ';' + nsaarr[i].ip;
+      end;
     end;
     jsonresponse.GetAsVariant('result').Value:=length(nsaarr);
+    if (ansistr<>'') then begin
+      self.RPCServer.ValidIPs := self.RPCServer.ValidIPs + ';' + ansistr;
+    end;
     Result := true;
   end else if (method='getaccount') then begin
     // Param "account" contains account number
