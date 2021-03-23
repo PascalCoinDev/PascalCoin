@@ -132,7 +132,28 @@ class function TRPCOpData.OpData_FindOpDataOperations(
         end;
       end;
 
-    var LOpComp : TPCOperationsComp;
+      function DoAddOpData(AOpData : TOpData; var AFoundCounter : Integer; out AOperationResume : TOperationResume) : Boolean;
+      begin
+        Result := False;
+        // Search by filter:
+        if ((Not ASearchBySender) Or (ASearchSender = AOpData.Data.account_sender))
+           and ((Not ASearchByTarget) Or (ASearchTarget = AOpData.Data.account_target))
+           and ((Not ASearchByGUID) Or (EqualGUIDs(ASearchGUID,AOpData.Data.guid)))
+           and ((Not ASearchByDataSequence) Or (ASearchDataSequence = AOpData.Data.dataSequence))
+           and ((Not ASearchByDataType) Or (ASearchDataType = AOpData.Data.dataType))
+        then begin
+          if (AFoundCounter>=AStartOperation) And (AFoundCounter<=AEndOperation) then begin
+            If TPCOperation.OperationToOperationResume(ABlock_number,AOpData,False,AOpData.SignerAccount,AOperationResume) then begin
+              AOperationResume.Balance:=-1;
+              Result := True;
+            end;
+          end;
+          inc(AFoundCounter);
+        end;
+      end; // For LList...
+
+
+    var LOpComp, LMemPool : TPCOperationsComp;
       LOperation : TPCOperation;
       LOpData : TOpData;
       LOperationResume : TOperationResume;
@@ -148,6 +169,39 @@ class function TRPCOpData.OpData_FindOpDataOperations(
       Try
         LList := TList<Cardinal>.Create;
         try
+          // Mempool
+          if ABlock_number>=ASender.Node.Bank.BlocksCount then begin
+            // Search mempool
+            LMemPool := ASender.Node.LockMempoolRead;
+            try
+              LMemPool.OperationsHashTree.GetOperationsAffectingAccount(ASearchedAccount_number,LList);
+              LFound_in_block := False;
+              // Reverse order:
+              for i := LList.Count - 1 downto 0 do begin
+                LOperation := LMemPool.Operation[LList.Items[i]];
+                if LOperation is TOpData then begin
+                  //
+                  LOpData := TOpData( LOperation );
+                  if DoAddOpData(LOpData,LFoundCounter,LOperationResume) then begin
+                    LOperationResume.NOpInsideBlock:=LList.Items[i];
+                    LOperationResume.Block:=ASender.Node.Bank.BlocksCount;
+                    AOperationsResumeList.Add(LOperationResume);
+                    LFound_in_block := True;
+                  end;
+                end;
+              end; // For LList...
+              If (Not LFound_in_block) And (AFirst_Block_Is_Unknown) then begin
+                ABlock_number := ASender.Node.Bank.BlocksCount - 1;
+              end else begin
+                ABlock_number := LMemPool.PreviousUpdatedBlocks.GetPreviousUpdatedBlock(ASearchedAccount_number,ASender.Node.Bank.BlocksCount - 1);
+              end;
+            finally
+              ASender.Node.UnlockMempoolRead;
+            end;
+          end;
+
+
+
           LLast_block_number := ABlock_number+1;
           while (LLast_block_number>ABlock_number) And (AAct_depth>0)
             And (ABlock_number >= (ASearchedAccount_number DIV CT_AccountsPerBlock))
@@ -171,22 +225,11 @@ class function TRPCOpData.OpData_FindOpDataOperations(
               if LOperation is TOpData then begin
                 //
                 LOpData := TOpData( LOperation );
-                // Search by filter:
-                if ((Not ASearchBySender) Or (ASearchSender = LOpData.Data.account_sender))
-                   and ((Not ASearchByTarget) Or (ASearchTarget = LOpData.Data.account_target))
-                   and ((Not ASearchByGUID) Or (EqualGUIDs(ASearchGUID,LOpData.Data.guid)))
-                   and ((Not ASearchByDataSequence) Or (ASearchDataSequence = LOpData.Data.dataSequence))
-                   and ((Not ASearchByDataType) Or (ASearchDataType = LOpData.Data.dataType))
-                then begin
-                  if (LFoundCounter>=AStartOperation) And (LFoundCounter<=AEndOperation) then begin
-                    If TPCOperation.OperationToOperationResume(ABlock_number,LOpData,False,LOpData.SignerAccount,LOperationResume) then begin
-                      LOperationResume.Balance:=-1;
-                      LOperationResume.NOpInsideBlock:=LList.Items[i];
-                      LOperationResume.Block:=ABlock_number;
-                      AOperationsResumeList.Add(LOperationResume);
-                    end;
-                  end;
-                  inc(LFoundCounter);
+                if DoAddOpData(LOpData,LFoundCounter,LOperationResume) then begin
+                  LOperationResume.NOpInsideBlock:=LList.Items[i];
+                  LOperationResume.Block:=ABlock_number;
+                  AOperationsResumeList.Add(LOperationResume);
+                  LFound_in_block := True;
                 end;
               end;
             end; // For LList...
@@ -271,7 +314,7 @@ begin
   LStartOperation := AInputParams.AsInteger('start',0);
   LMaxOperations := AInputParams.AsInteger('max',100);
   if AInputParams.IndexOfName('startblock')>=0 then begin
-    LStartBlock := AInputParams.AsInteger('startblock',100);
+    LStartBlock := AInputParams.AsInteger('startblock',ASender.Node.Bank.BlocksCount);
     LFirst_Block_Is_Unknown := True;
   end else begin
     if not ASender.RPCServer.GetMempoolAccount(LSearchedAccount_number,LAccount) then begin
@@ -281,14 +324,13 @@ begin
     end;
     LFirst_Block_Is_Unknown := False;
     LStartBlock := LAccount.GetLastUpdatedBlock;
-    if LStartBlock>=ASender.Node.Bank.BlocksCount then Dec(LStartBlock); // If its updated on mempool, don't look the mempool
   end;
 
   LOperationsResumeList := TOperationsResumeList.Create;
   try
     DoFindFromBlock(LStartBlock,
       LSearchedAccount_number,
-      LStartOperation, LStartOperation + LMaxOperations,
+      LStartOperation, LStartOperation + LMaxOperations - 1,
       LMaxDepth, LFirst_Block_Is_Unknown,
       LSearchBySender, LSender,
       LSearchByTarget, LTarget,
