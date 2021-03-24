@@ -3719,7 +3719,7 @@ begin
     {$IFDEF Use_OpenSSL}
     GetResultObject.GetAsVariant('openssl').Value := IntToHex(OpenSSLVersion,8);
     {$ENDIF}
-    nsaarr := TNetData.NetData.NodeServersAddresses.GetValidNodeServers(true,20);
+    nsaarr := TNetData.NetData.NodeServersAddresses.GetValidNodeServers(true,10);
     for i := low(nsaarr) to High(nsaarr) do begin
       jso := GetResultObject.GetAsArray('nodeservers').GetAsObject(i);
       jso.GetAsVariant('ip').Value := nsaarr[i].ip;
@@ -3836,7 +3836,12 @@ begin
       ErrorNum := CT_RPC_ErrNum_NotAllowedCall;
       Exit;
     end;
-    jsonresponse.GetAsVariant('result').Value := _RPCServer.WalletKeys.LockWallet;
+    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
+    try
+      jsonresponse.GetAsVariant('result').Value := _RPCServer.WalletKeys.LockWallet;
+    finally
+      FNode.OperationSequenceLock.Release;
+    end;
     Result := true;
   end else if (method='unlock') then begin
     // Unlocks the Wallet with "pwd" password
@@ -3851,11 +3856,16 @@ begin
       ErrorDesc := 'Need param "pwd"';
       exit;
     end;
-    If Not _RPCServer.WalletKeys.IsValidPassword then begin
-      _RPCServer.WalletKeys.WalletPassword:=params.AsString('pwd','');
+    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
+    try
+      If Not _RPCServer.WalletKeys.IsValidPassword then begin
+        _RPCServer.WalletKeys.WalletPassword:=params.AsString('pwd','');
+      end;
+      jsonresponse.GetAsVariant('result').Value := _RPCServer.WalletKeys.IsValidPassword;
+      Result := true;
+    finally
+      FNode.OperationSequenceLock.Release;
     end;
-    jsonresponse.GetAsVariant('result').Value := _RPCServer.WalletKeys.IsValidPassword;
-    Result := true;
   end else if (method='setwalletpassword') then begin
     // Changes the Wallet password with "pwd" param
     // Must be unlocked first
@@ -3876,9 +3886,14 @@ begin
       ErrorDesc := 'Need param "pwd"';
       exit;
     end;
-    _RPCServer.WalletKeys.WalletPassword:=params.AsString('pwd','');
-    jsonresponse.GetAsVariant('result').Value := _RPCServer.WalletKeys.IsValidPassword;
-    Result := true;
+    FNode.OperationSequenceLock.Acquire;  // Use lock to prevent N_Operation race-condition on concurrent invocations
+    try
+      _RPCServer.WalletKeys.WalletPassword:=params.AsString('pwd','');
+      jsonresponse.GetAsVariant('result').Value := _RPCServer.WalletKeys.IsValidPassword;
+      Result := true;
+    finally
+      FNode.OperationSequenceLock.Release;
+    end;
   end else if (method='stopnode') then begin
     // Stops communications to other nodes
     if (Not _RPCServer.AllowUsePrivateKeys) then begin
