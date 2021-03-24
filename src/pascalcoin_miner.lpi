@@ -52,7 +52,7 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="PascalCoinMineX"/>
+      <Filename Value="PascalCoinMiner"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
