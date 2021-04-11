@@ -135,7 +135,7 @@ Const
   CT_NetProtocol_Version: Word = 12;
   // IMPORTANT NOTE!!!
   // NetProtocol_Available MUST BE always >= NetProtocol_version
-  CT_NetProtocol_Available: Word = {$IFDEF PRODUCTION}12{$ELSE}12{$ENDIF};
+  CT_NetProtocol_Available: Word = {$IFDEF PRODUCTION}13{$ELSE}13{$ENDIF};
 
   CT_MaxAccountOperationsPerBlockWithoutFee = 1;
 
@@ -198,7 +198,7 @@ Const
   CT_OpSubtype_Data_Signer                = 103;
   CT_OpSubtype_Data_Receiver              = 104;
 
-  CT_ClientAppVersion : String = {$IFDEF PRODUCTION}'5.4'{$ELSE}{$IFDEF TESTNET}'TESTNET 5.4'{$ELSE}{$ENDIF}{$ENDIF};
+  CT_ClientAppVersion : String = {$IFDEF PRODUCTION}'5.5'{$ELSE}{$IFDEF TESTNET}'TESTNET 5.5'{$ELSE}{$ENDIF}{$ENDIF};
 
   CT_Discover_IPs = {$IFDEF PRODUCTION}'bpascal1.dynamic-dns.net;bpascal2.dynamic-dns.net;pascalcoin1.dynamic-dns.net;pascalcoin2.dynamic-dns.net;pascalcoin1.dns1.us;pascalcoin2.dns1.us;pascalcoin1.dns2.us;pascalcoin2.dns2.us'
                     {$ELSE}'pascaltestnet1.dynamic-dns.net;pascaltestnet2.dynamic-dns.net;pascaltestnet1.dns1.us;pascaltestnet2.dns1.us'{$ENDIF};
