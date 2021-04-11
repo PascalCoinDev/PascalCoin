@@ -894,7 +894,7 @@ end;
 
 Function TPCJSONObject.HasValue(const AParamName : String) : Boolean;
 begin
-  Result := HasName(AParamName) AND (NOT AsString(AParamName, AnsiString.Empty).IsEmpty);
+  Result := HasName(AParamName) AND (NOT AsString(AParamName, String.Empty).IsEmpty);
 end;
 
 

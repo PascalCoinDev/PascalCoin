@@ -373,7 +373,7 @@ class function TPascalBase58Encoding.Encode(const ABytes: TArray<Byte>): String;
 Var
   LBN, LBNMod, LBNDiv: TBigNum;
 begin
-  Result := AnsiString.Empty;
+  Result := string.Empty;
   LBN := TBigNum.Create;
   LBNMod := TBigNum.Create;
   LBNDiv := TBigNum.Create(CharSet.Length);
@@ -468,7 +468,7 @@ var
   LPPtr: PChar;
   LPeek, LNext: Char;
 begin
-  Result := AnsiString.Empty;
+  Result := String.Empty;
   LPPtr := PChar(AStr);
 
   while LPPtr^ <> #0 do
@@ -525,7 +525,7 @@ var
   LPPtr: PChar;
   LPeek: Char;
 begin
-  Result := AnsiString.Empty;
+  Result := String.Empty;
   LPPtr := PChar(AStr);
 
   while LPPtr^ <> #0 do

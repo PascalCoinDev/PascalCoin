@@ -421,7 +421,7 @@ function TEPasa.ToString(AOmitExtendedChecksum: Boolean): String;
 var
   LPayloadContent: String;
 begin
-  Result := AnsiString.Empty;
+  Result := string.Empty;
   if PayloadType.HasTrait(ptNonDeterministic) then Exit;
 
   if (PayloadType.HasTrait(ptAddressedByName)) then begin
@@ -430,29 +430,29 @@ begin
     if (Not Account.HasValue) then Exit;
     Result := Result + Account.Value.ToString();
     if (AccountChecksum.HasValue) then begin
-      Result := Result + AnsiString.Format('-%u', [AccountChecksum.Value]);
+      Result := Result + String.Format('-%u', [AccountChecksum.Value]);
     end;
   end;
 
   if (PayloadType.HasTrait(ptAsciiFormatted)) then begin
-    LPayloadContent := AnsiString.Format('"%s"', [TPascalAsciiEncoding.Escape(Payload)]);
+    LPayloadContent := String.Format('"%s"', [TPascalAsciiEncoding.Escape(Payload)]);
   end else if (PayloadType.HasTrait(ptHexFormatted)) then begin
-    LPayloadContent := AnsiString.Format('0x%s', [Payload]);
+    LPayloadContent := string.Format('0x%s', [Payload]);
   end else if (PayloadType.HasTrait(ptBase58Formatted)) then begin
-    LPayloadContent := AnsiString.Format('%s', [Payload]);
+    LPayloadContent := string.Format('%s', [Payload]);
   end else begin
     // it is non-deterministic, so payload content is ignored
-    LPayloadContent := AnsiString.Empty;
+    LPayloadContent := string.Empty;
   end;
 
   if (PayloadType.HasTrait(ptPublic)) then begin
-    Result := Result + AnsiString.Format('[%s]', [LPayloadContent]);
+    Result := Result + string.Format('[%s]', [LPayloadContent]);
   end else if (PayloadType.HasTrait(ptRecipientKeyEncrypted)) then begin
-    Result := Result + AnsiString.Format('(%s)', [LPayloadContent]);
+    Result := Result + string.Format('(%s)', [LPayloadContent]);
   end else if (PayloadType.HasTrait(ptSenderKeyEncrypted)) then begin
-    Result := Result + AnsiString.Format('<%s>', [LPayloadContent]);
+    Result := Result + string.Format('<%s>', [LPayloadContent]);
   end else if (PayloadType.HasTrait(ptPasswordEncrypted)) then begin
-    Result := Result + AnsiString.Format('{%s:%s}', [LPayloadContent, TPascalAsciiEncoding.Escape(Password)]);
+    Result := Result + string.Format('{%s:%s}', [LPayloadContent, TPascalAsciiEncoding.Escape(Password)]);
   end else begin
     // it is non-deterministic, so payload omitted entirely
   end;
@@ -462,7 +462,7 @@ begin
       // Need to compute:
       ExtendedChecksum := TEPasaComp.ComputeExtendedChecksum(Result);
     end;
-    Result := Result + AnsiString.Format(':%s', [ExtendedChecksum]);
+    Result := Result + string.Format(':%s', [ExtendedChecksum]);
   end;
 end;
 
@@ -547,7 +547,7 @@ var
 begin
   AErrorCode := EPasaErrorCode.Success;
   AEPasa.Clear;
-  if (AnsiString.IsNullOrEmpty(AEPasaText)) then begin
+  if (string.IsNullOrEmpty(AEPasaText)) then begin
     AErrorCode := EPasaErrorCode.BadFormat;
     Exit(False);
   end;
@@ -581,7 +581,7 @@ begin
 
   if (LAccountName <> #0) then begin
     // Account Name
-    if (AnsiString.IsNullOrEmpty(LAccountName)) then begin
+    if (string.IsNullOrEmpty(LAccountName)) then begin
       AErrorCode := EPasaErrorCode.BadFormat;
       Exit(False);
     end;
@@ -673,7 +673,7 @@ begin
   // Payload
   if (LPayloadStartChar <> #0) then begin
     if (LPayloadContent = #0) then begin
-      AEPasa.Payload := AnsiString.Empty;
+      AEPasa.Payload := string.Empty;
     end else if (LPayloadContent.StartsWith('"')) then begin
       AEPasa.PayloadType := AEPasa.PayloadType + [ptAsciiFormatted] - [ptNonDeterministic];
       AEPasa.Payload := TPascalAsciiEncoding.UnEscape(LPayloadContent.Trim(['"']));
@@ -733,7 +733,7 @@ end;
 
 class function TEPasaComp.IsValidPayloadLength(APayloadType: TPayloadType; const APayloadContent: String): Boolean;
 begin
-  if (AnsiString.IsNullOrEmpty(APayloadContent)) then
+  if (string.IsNullOrEmpty(APayloadContent)) then
     Exit(True);
 
   if (APayloadType.HasTrait(ptPublic)) then begin

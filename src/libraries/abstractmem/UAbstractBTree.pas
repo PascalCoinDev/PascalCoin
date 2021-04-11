@@ -146,9 +146,8 @@ type
   End;
 
   TMemoryBTree<TData> = Class( TAbstractBTree<Integer,TData> )
-  private type TAbstractBTree__Integer_TData = TAbstractBTree<Integer,TData>;
   private
-    FBuffer : TList<TAbstractBTree__Integer_TData.TAbstractBTreeNode>;    { needed for FPC bug }
+    FBuffer : TList<TAbstractBTree<Integer,TData>.TAbstractBTreeNode> ;
     Froot : Integer;
     FDisposed : Integer;
     FDisposedMinPos : Integer;
