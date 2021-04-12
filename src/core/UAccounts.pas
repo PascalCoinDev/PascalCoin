@@ -5361,7 +5361,7 @@ begin
     previous.UpdateIfLower(PaccSigner^.account,PaccSigner^.GetLastUpdatedBlock);
     UpdateSealAndActiveModeFlag(PaccSigner_Sealed,AOpID,True);
     PaccSigner^.n_operation := n_operation;
-    PaccSigner^.balance := PaccSender^.balance - (fee);
+    PaccSigner^.balance := PaccSigner^.balance - (fee);
     PaccSender^.balance := PaccSender^.balance - (amount);
   end else begin
     PaccSender^.n_operation := n_operation;
