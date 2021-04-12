@@ -35,8 +35,8 @@ interface
 
 uses
   Classes, SysUtils,
-  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF}, UPCDataTypes,
-  UBlockChain, UNetProtocol, UAccounts, UCrypto, UThread, SyncObjs, ULog, UBaseTypes, UPCOrderedLists;
+  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF}, UPCDataTypes, UEncoding,
+  UBlockChain, UNetProtocol, UAccounts, UCrypto, UEPasa, UThread, SyncObjs, ULog, UBaseTypes, UPCOrderedLists;
 
 {$I ./../config.inc}
 
@@ -64,6 +64,7 @@ Type
     FSentOperations : TOrderedRawList;
     FBroadcastData : Boolean;
     FUpdateBlockchain: Boolean;
+    FMaxPayToKeyPurchasePrice: Int64;
     {$IFDEF BufferOfFutureOperations}
     FBufferAuxWaitingOperations : TOperationsHashTree;
     {$ENDIF}
@@ -119,12 +120,24 @@ Type
     function TryLockNode(MaxWaitMilliseconds : Cardinal) : Boolean;
     procedure UnlockNode;
     //
+    function GetAccountsAvailableByPublicKey(const APubKeys : TList<TAccountKey>; out AOnSafebox, AOnMempool : Integer) : Integer; overload;
+    function GetAccountsAvailableByPublicKey(const APubKey : TAccountKey; out AOnSafebox, AOnMempool : Integer) : Integer; overload;
+    //
     Property BroadcastData : Boolean read FBroadcastData write FBroadcastData;
     Property UpdateBlockchain : Boolean read FUpdateBlockchain write FUpdateBlockchain;
     procedure MarkVerifiedECDSASignaturesFromMemPool(newOperationsToValidate : TPCOperationsComp);
     class function NodeVersion : String;
     class function GetPascalCoinDataFolder : String;
     class procedure SetPascalCoinDataFolder(const ANewDataFolder : String);
+    //
+    function TryFindAccountByKey(const APubKey : TAccountKey; out AAccountNumber : Cardinal) : Boolean;
+    function TryFindPublicSaleAccount(AMaximumPrice : Int64; APreventRaceCondition : Boolean; out AAccountNumber : Cardinal) : Boolean;
+    Function TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal): Boolean; overload;
+    Function TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AErrorMessage: String): Boolean; overload;
+    Function TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean): Boolean; overload;
+    Function TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean; out AErrorMessage: String): Boolean; overload;
+
+    Property MaxPayToKeyPurchasePrice: Int64 read FMaxPayToKeyPurchasePrice write FMaxPayToKeyPurchasePrice;
   End;
 
   TThreadSafeNodeNotifyEvent = Class(TPCThread)
@@ -205,7 +218,8 @@ Type
 
 implementation
 
-Uses UOpTransaction, UConst, UTime, UCommon, UPCOperationsSignatureValidator, UFolderHelper;
+Uses UOpTransaction, UConst, UTime, UCommon, UPCOperationsSignatureValidator,
+  UFolderHelper, USettings;
 
 var _Node : TNode;
   _PascalCoinDataFolder : String;
@@ -630,6 +644,7 @@ end;
 
 constructor TNode.Create(AOwner: TComponent);
 begin
+  FMaxPayToKeyPurchasePrice := 0;
   FSentOperations := TOrderedRawList.Create;
   FNodeLog := TLog.Create(Self);
   FNodeLog.ProcessGlobalLogs := false;
@@ -761,6 +776,170 @@ begin
   if FDisabledsNewBlocksCount=0 then raise Exception.Create('Dev error 20160924-1');
   dec(FDisabledsNewBlocksCount);
 end;
+
+function TNode.TryFindAccountByKey(const APubKey: TAccountKey;
+  out AAccountNumber: Cardinal): Boolean;
+  // Finds the smallest numbered account with selected key (or returns false)
+var Lpka : TSafeboxPubKeysAndAccounts;
+  LAccountsNumberList : TAccountsNumbersList;
+begin
+  Result := False;
+  Lpka := Bank.SafeBox.OrderedAccountKeysList;
+  if Assigned(Lpka) then begin
+    LAccountsNumberList := Lpka.GetAccountsUsingThisKey(APubKey);
+    if Assigned(LAccountsNumberList) then begin
+      if LAccountsNumberList.Count>0 then begin
+        AAccountNumber := LAccountsNumberList.Get(0);
+        Result := True;
+      end;
+    end;
+  end;
+end;
+
+function TNode.TryFindPublicSaleAccount(AMaximumPrice: Int64; APreventRaceCondition : Boolean;
+  out AAccountNumber: Cardinal): Boolean;
+  // Finds an account at or below argument purchase price (or returns false)
+  // APreventRaceCondition: When True will return a random account in valid range price
+  // Limitations: Account must be >0
+var LtempAccNumber : Integer;
+  LLastValidAccount, LCurrAccount : TAccount;
+  LContinueSearching : Boolean;
+begin
+  Result := False;
+
+  // Sorted list: Bank.SafeBox.AccountsOrderedBySalePrice
+  // Note: List is sorted by Sale price (ASCENDING), but NOT by public/private sale, must check
+
+  if Not Bank.SafeBox.AccountsOrderedBySalePrice.FindLowest(LtempAccNumber) then Exit(False);
+  LCurrAccount := GetMempoolAccount(LtempAccNumber);
+
+  if (LCurrAccount.accountInfo.price<=AMaximumPrice)
+    and (TAccountComp.IsAccountForPublicSale(LCurrAccount.accountInfo)) then begin
+    LLastValidAccount := LCurrAccount;
+    LContinueSearching := (APreventRaceCondition) And (Random(50)=0);
+  end else begin
+    LLastValidAccount := CT_Account_NUL;
+    LContinueSearching := True;
+  end;
+
+  while (LCurrAccount.accountInfo.price<=AMaximumPrice) and (LContinueSearching) do begin
+
+    if TAccountComp.IsAccountForPublicSale(LCurrAccount.accountInfo) then LLastValidAccount := LCurrAccount;
+
+    if Not (Bank.SafeBox.AccountsOrderedBySalePrice.FindSuccessor(LtempAccNumber,LtempAccNumber)) then Break;
+    LCurrAccount := GetMempoolAccount(LtempAccNumber);
+
+    // If price increased, then do not continue and use LastValidAccount
+    if (LLastValidAccount.account>0)
+      and (LLastValidAccount.accountInfo.price <> LCurrAccount.accountInfo.price) then Break;
+
+    // Continue?
+    LContinueSearching :=
+      (LLastValidAccount.account=0) // This means that no valid account has been found yet...
+      or
+      (LContinueSearching And (Random(50)=0)); // Random prevention
+  end;
+  if (LLastValidAccount.account>0) then begin
+    AAccountNumber := LLastValidAccount.account;
+    Result := True;
+  end else begin
+    AAccountNumber := 0;
+    Result := False;
+  end;
+end;
+
+Function TNode.TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal): Boolean;
+var LErrMsg : String;
+begin
+  Result := TryResolveEPASA(AEPasa, AResolvedAccount, LErrMsg);
+end;
+
+Function TNode.TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AErrorMessage: String): Boolean;
+var
+  LAccountKey : TAccountKey;
+  LRequiresPurchase : Boolean;
+begin
+  Result := TryResolveEPASA(AEPasa, AResolvedAccount, LAccountKey, LRequiresPurchase, AErrorMessage);
+  if Result AND AEPasa.IsPayToKey then begin
+    Result := False;
+    AErrorMessage := 'EPASA was a pay-to-key style';
+  end;
+end;
+
+Function TNode.TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean): Boolean;
+var LErrMsg : String;
+begin
+  Result := TryResolveEPASA(AEPasa, AResolvedAccount, AResolvedKey, ARequiresPurchase, LErrMsg);
+end;
+
+Function TNode.TryResolveEPASA(const AEPasa : TEPasa; out AResolvedAccount: Cardinal; out AResolvedKey : TAccountKey; out ARequiresPurchase : boolean; out AErrorMessage: String): Boolean;
+var
+  LErrMsg : String;
+begin
+  AResolvedAccount := 0;
+  AResolvedKey.Clear;
+  ARequiresPurchase := False;
+  AErrorMessage := '';
+  if (AEPasa.IsPayToKey) then begin
+    // Parse account key in EPASA
+    if NOT TAccountComp.AccountPublicKeyImport(AEPasa.Payload, AResolvedKey, LErrMsg) then begin
+      AResolvedAccount := CT_AccountNo_NUL;
+      AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+      ARequiresPurchase := False;
+      AErrorMessage := Format('Invalid key specified in PayToKey EPASA "%s". %s',[AEPasa.ToString(), LErrMsg]);
+      Exit(False);
+    end;
+
+    // Try to find key in safebox
+    if TryFindAccountByKey(AResolvedKey, AResolvedAccount) then begin
+      // Key already exists in SafeBox, so send to that account
+      ARequiresPurchase := False;
+      Exit(True);
+    end;
+
+    // If no key found, find optimal public purchase account
+    if TryFindPublicSaleAccount(MaxPayToKeyPurchasePrice, True, AResolvedAccount) then begin
+      // Account needs to be purchased
+      ARequiresPurchase := True;
+      Exit(True);
+    end;
+
+    // Account could not be resolved
+    AResolvedAccount := CT_AccountNo_NUL;
+    AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+    ARequiresPurchase := False;
+    AErrorMessage := 'No account could be resolved for pay to key EPASA';
+    Exit(False);
+
+  end else if (AEPasa.IsAddressedByName) then begin
+    // Find account by name
+    AResolvedAccount := Bank.SafeBox.FindAccountByName(AEPasa.AccountName);
+    AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+    ARequiresPurchase := False;
+    if AResolvedAccount = CT_AccountNo_NUL then begin
+      // No account with name found
+      AResolvedAccount := CT_AccountNo_NUL;
+      AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+      ARequiresPurchase := False;
+      AErrorMessage := Format('No account with name "%s" was found', [AEPasa.AccountName]);
+      Exit(False);
+    end;
+    Exit(True);
+  end;
+  // addressed by number
+  if NOT AEPasa.IsAddressedByNumber then raise Exception.Create('Internal Error c8ecd69d-3621-4f5e-b4f1-9926ab2f5013');
+  if NOT AEPasa.Account.HasValue then raise Exception.Create('Internal Error 544c8cb9-b700-4b5f-93ca-4d045d0a06ae');
+  AResolvedAccount := AEPasa.Account.Value;
+  if (AResolvedAccount < 0) or (AResolvedAccount >= Self.Bank.AccountsCount) then begin
+    AResolvedAccount := CT_AccountNo_NUL;
+    AResolvedKey := CT_Account_NUL.accountInfo.accountKey;
+    ARequiresPurchase := False;
+    AErrorMessage := Format('Account number %d does not exist in safebox',[AEPasa.Account.Value]);
+    Exit(False);
+  end;
+  Result := true;
+end;
+
 
 function TNode.TryLockNode(MaxWaitMilliseconds: Cardinal): Boolean;
 begin
@@ -1283,6 +1462,63 @@ begin
   finally
     UnlockMempoolRead;
   end;
+end;
+
+function TNode.GetAccountsAvailableByPublicKey(const APubKey: TAccountKey;
+  out AOnSafebox, AOnMempool: Integer): Integer;
+var LPubKeys: TList<TAccountKey>;
+begin
+  LPubKeys := TList<TAccountKey>.Create;
+  Try
+    LPubKeys.Add(APubKey);
+    Result := GetAccountsAvailableByPublicKey(LPubKeys,AOnSafebox,AOnMempool);
+  Finally
+    LPubKeys.Free;
+  End;
+end;
+
+function TNode.GetAccountsAvailableByPublicKey(
+  const APubKeys: TList<TAccountKey>; out AOnSafebox,
+  AOnMempool: Integer): Integer;
+var Lmempool : TPCOperationsComp;
+  i,j,k : Integer;
+  Lop : TPCOperation;
+  LopResume : TOperationResume;
+  Lpubkeys : TSafeboxPubKeysAndAccounts;
+  Laccounts : TAccountsNumbersList;
+begin
+  AOnMempool := 0;
+  AOnSafebox := 0;
+  // Check safebox
+  Lpubkeys := Bank.SafeBox.OrderedAccountKeysList;
+  if Assigned(Lpubkeys) then begin
+    for i := 0 to APubKeys.Count-1 do begin
+      Laccounts := Lpubkeys.GetAccountsUsingThisKey(APubKeys[i]);
+      if Assigned(Laccounts) then begin
+        Inc(AOnSafebox,Laccounts.Count);
+      end;
+    end;
+  end else AOnSafebox := -1;
+  for i := 0 to APubKeys.Count-1 do begin
+    // Check mempool
+    Lmempool := LockMempoolRead;
+    try
+      for j := 0 to Lmempool.Count-1 do begin
+        Lop := Lmempool.Operation[j];
+        Lop.OperationToOperationResume(Bank.BlocksCount,Lop,True,Lop.SignerAccount,LopResume);
+        for k:=0 to Length(LopResume.Changers)-1 do begin
+          if (public_key in LopResume.Changers[k].Changes_type) and (LopResume.Changers[k].New_Accountkey.IsEqualTo(APubKeys[i])) then begin
+            // New account is on the mempool!
+            inc(AOnMempool);
+          end;
+        end;
+      end;
+    finally
+      UnlockMempoolRead;
+    end;
+  end;
+  if AOnSafebox>=0 then Result := (AOnMempool + AOnsafebox)
+  else Result := AOnMempool;
 end;
 
 function TNode.GetMempoolAccount(AAccountNumber : Cardinal): TAccount;

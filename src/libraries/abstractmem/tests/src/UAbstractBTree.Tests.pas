@@ -16,6 +16,16 @@ uses
    UAbstractBTree, UOrderedList;
 
 type
+
+  TIntegerBTree = Class( TMemoryBTree<Integer> )
+  private
+  protected
+  public
+    constructor Create(AAllowDuplicates : Boolean; AOrder : Integer);
+    function NodeDataToString(const AData : Integer) : String; override;
+  End;
+
+
    TestTAbstractBTree = class(TTestCase)
    strict private
    public
@@ -37,10 +47,19 @@ type
 
 implementation
 
-function TComparison_XX_Integer(const ALeft, ARight: Integer): Integer;
+{ TIntegerBTree }
+
+constructor TIntegerBTree.Create(AAllowDuplicates: Boolean; AOrder: Integer);
 begin
-  Result := ALeft - ARight;
+  inherited Create(TComparison_Integer,AAllowDuplicates,AOrder);
 end;
+
+function TIntegerBTree.NodeDataToString(const AData: Integer): String;
+begin
+  Result := AData.ToString;
+end;
+
+{ TestTAbstractBTree }
 
 procedure TestTAbstractBTree.SetUp;
 begin
@@ -65,23 +84,21 @@ begin
   nDeletes := 0;
   Lbt := TIntegerBTree.Create(True,AOrder);
   try
+    Lbt.CircularProtection := (AOrder MOD 2)=0;
     repeat
       inc(nRounds);
       intValue := Random(AOrder * 100);
       if Random(2)=0 then begin
         if (Lbt.Add(intValue)) then begin
           inc(nAdds);
-          if Random(100)=0 then begin
-            Lbt.CheckConsistency;
-          end;
         end;
       end else begin
         if Lbt.Delete(intValue) then begin
           inc(nDeletes);
-          if Random(100)=0 then begin
-            Lbt.CheckConsistency;
-          end;
         end;
+      end;
+      if Random(100)=0 then begin
+        Lbt.CheckConsistency;
       end;
     until (nRounds>=AOrder * 10000);
     Lbt.CheckConsistency;
@@ -187,6 +204,7 @@ begin
   for Lorder := 3 to 7 do begin
     Lbt := TIntegerBTree.Create(False,Lorder);
     try
+      Lbt.CircularProtection := (Lorder MOD 2)=0;
       valMin := 1;
       intValue :=valMin;
       Lregs := 0;
@@ -229,6 +247,7 @@ begin
   for Lorder := 3 to 7 do begin
     Lbt := TIntegerBTree.Create(True,Lorder);
     try
+      Lbt.CircularProtection := (Lorder MOD 2)=0;
       valMin := 1;
       intValue :=valMin;
       Lregs := 0;
@@ -248,15 +267,12 @@ begin
         inc(i);
       end;
       Assert(intValue=valMax,Format('Successor %d<>%d',[intValue,valMax]));
-//      Assert(i=Lregs,Format('Succcessor count %d %d',[i,Lregs]));
       Lbt.FindHighest(intValue);
       i := 1;
       while (Lbt.FindPrecessor(intValue,intValue)) do begin
         inc(i);
       end;
       Assert(intValue=valMin,Format('Precessor %d<>%d',[intValue,valMin]));
-//      Assert(i=Lregs,Format('Precessor count %d %d',[i,Lregs]));
-
     finally
       Lbt.Free;
     end;
@@ -303,7 +319,7 @@ begin
       i :=1;
       while Lbt.Height<Lorder+1 do begin
         intValue := Random(100);
-        DoInsert(intValue); // Lbt.Add(intValue);
+        DoInsert(intValue);
         inc(i);
       end;
 
@@ -320,7 +336,6 @@ begin
       end;
       LCurrentTree := Lbt.BTreeToString;
       Lbt.CheckConsistency;
-      if LLastTree = '' then Beep;
     finally
       Lbt.Free;
     end;
@@ -375,7 +390,6 @@ begin
         intValue := Random(intValue)+1;
         DoDelete(intValue);
       end;
-      if LLastTree = '' then Beep;
     finally
       Lbt.Free;
     end;

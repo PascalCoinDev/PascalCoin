@@ -56,6 +56,8 @@ Type
     Procedure Disable;
     Procedure Enable;
     Function ToArray : TCardinalsArray;
+    function FillList(AStartIndex, ACount : Integer; const AList : TList<Cardinal>) : Integer; overload;
+    function FillList(AStartIndex, ACount : Integer; const AList : TList<Integer>) : Integer; overload;
   End;
 
 
@@ -178,6 +180,36 @@ begin
   if FDisabledsCount<=0 then raise Exception.Create('Dev error. Invalid disabled counter');
   dec(FDisabledsCount);
   if (FDisabledsCount=0) And (FModifiedWhileDisabled) then NotifyChanged;
+end;
+
+function TOrderedCardinalList.FillList(AStartIndex, ACount : Integer; const AList : TList<Cardinal>) : Integer;
+var i : Integer;
+begin
+  AList.Clear;
+  AList.Capacity := ACount;
+  if (AStartIndex=0) and (ACount=FOrderedList.Count) then begin
+    AList.InsertRange(AStartIndex,FOrderedList);
+  end else begin
+    while (ACount>0) and (AStartIndex < FOrderedList.Count) do begin
+      AList.Add( FOrderedList.Items[AStartIndex] );
+      Inc(AStartIndex);
+      Dec(ACount);
+    end;
+  end;
+  Result := AList.Count;
+end;
+
+function TOrderedCardinalList.FillList(AStartIndex, ACount: Integer; const AList: TList<Integer>): Integer;
+var i : Integer;
+begin
+  AList.Clear;
+  AList.Capacity := ACount;
+  while (ACount>0) and (AStartIndex < FOrderedList.Count) do begin
+    AList.Add( FOrderedList.Items[AStartIndex] );
+    Inc(AStartIndex);
+    Dec(ACount);
+  end;
+  Result := AList.Count;
 end;
 
 function TOrderedCardinalList.Find(const Value: Cardinal; var Index: Integer): Boolean;

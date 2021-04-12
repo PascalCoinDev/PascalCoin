@@ -29,6 +29,7 @@ uses
   UAbstractAVLTree in '..\UAbstractAVLTree.pas',
   UAbstractBTree in '..\UAbstractBTree.pas',
   UAbstractMem in '..\UAbstractMem.pas',
+  UAbstractMemBTree in '..\UAbstractMemBTree.pas',
   UAbstractMemTList in '..\UAbstractMemTList.pas',
   UAVLCache in '..\UAVLCache.pas',
   UCacheMem in '..\UCacheMem.pas',
@@ -36,7 +37,8 @@ uses
   UOrderedList in '..\UOrderedList.pas',
   UCacheMem.Tests in 'src\UCacheMem.Tests.pas',
   UAbstractMem.Tests in 'src\UAbstractMem.Tests.pas',
-  UAbstractBTree.Tests in 'src\UAbstractBTree.Tests.pas';
+  UAbstractBTree.Tests in 'src\UAbstractBTree.Tests.pas',
+  UAbstractMemBTree.Tests in 'src\UAbstractMemBTree.Tests.pas';
 
 {$IF Defined(FPC) and (Defined(CONSOLE_TESTRUNNER))}
 type

@@ -1,22 +1,62 @@
 # Changelog
 
-## Build 5.4 - (PENDING RELEASE)
+## Build 5.4 - 2021-03-24
 - Added usage of AbstractMem library to allow build a PascalCoin version using virtual memory and efficient caching mechanism
-  - Must activate {$DEFINE USE_ABSTRACTMEM} at config.inc file
+  - Use AbstractMem library v1.2
+  - Must activate {$DEFINE USE_ABSTRACTMEM} at config.inc file (Enabled by default)
+- Added "Ask for Account (PASA)" feature on GUI wallet
+- Implementation of PIP-0027 (E-PASA: Infinite Address-Space Layer-2) -> https://github.com/PascalCoin/PascalCoin/blob/master/PIP/PIP-0027.md  
 - Changes to `pascalcoin_daemon.ini` file:
   - Added "DATAFOLDER" configuration option at pascalcoin_daemon.ini file (daemon/service) in order to allow customize data folder
   - Added "ABSTRACTMEM_MAX_CACHE_MB" to customize Maximum megabytes in memory as a cache
   - Added "ABSTRACTMEM_USE_CACHE_ON_LISTS","ABSTRACTMEM_CACHE_MAX_ACCOUNTS","ABSTRACTMEM_CACHE_MAX_PUBKEYS" in order to customize cache values
+  - Added "MAX_PAYTOKEY_MOLINAS" to fix limit on automatic PayToKey feature
 - Improved performance when downloading Safebox (Fresh installation)
 - JSON-RPC changes:  
+  - Updated "Operation Object" and "Multi Operation Object" return values:
+    **(IF THE WALLET IS UNLOCKED Will automatically try to decrypt encoded payloads and also return E-PASA used)**
+    - "senders" or "receivers" : ARRAY
+      - "account_epasa" : (String) If operation was using valid E-PASA format and can be decoded, will return E-PASA format used with extended checksum
+      - "unenc_payload" : (String) If payload can be decoded returns unencoded value in readable format (no HEXASTRING)
+      - "unenc_hexpayload" : (HEXASTRING) Unencoded value in hexastring
+      - "payload_method" : (String) Can be "key" or "pwd"
+      - "enc_pubkey" : HexaString with public key (if "payload_method"="key")
+      - "pwd" : String with password used (if "payload_method"="pwd")
+  - New method "checkepasa": Check that "account_epasa" param contains a valid E-PASA format. Returns an "EPasa Object" (See below)
+  - New method "validateepasa": Creates an "account_epasa" with provided data and returns an "EPasa Object" (See below)
+    - "account" : Valid number or account name  ( Use @ for a PayToKey )
+    - "payload_method" : "none","dest","sender","aes"
+    - "pwd" : If "payload_method" = "aes"
+    - "payload_encode" : "string"(default) | "hexa" | "base58"
+    - "payload" : HEXASTRING with the payload data
+  - "EPasa Object" params:
+    - "account_epasa" : (String) Encoded EPASA with extended checksum
+    - "account" : number or name 
+    - "payload_method" : "none","dest","sender","aes"
+    - "pwd" : (String) Provided only if "payload_method" = "aes"
+    - "payload_encode" : "string"(default) | "hexa" | "base58"
+    - "account_epasa_classic" : (String) Encoded EPASA without extended checksum
+    - "payload" : HEXASTRING with the payload data
+    - "payload_type" : Byte
+    - "is_pay_to_key" : (Boolean) True if EPasa is a Pay To Key format like @[Base58Pubkey]
+  - Payload encoding will automatically set "payload_type" value based on encoding params in order to store E-PASA standard
   - Updated "findaccounts": 
-    -New param "end" (integer, -1 for default): Will search from "start" to "end" (if "end"=-1 will search to the end)
+    - New param "end" (integer, -1 for default): Will search from "start" to "end" (if "end"=-1 will search to the end)
   - New method "findblocks": Will search and return an array of "Block objects"
     - "start","end","max" : Based on block number and max returns values (max by default=100)
     - "enc_pubkey" or "b58_pubkey" : If provided will return blocks where pubkey equal to provided
     - "payload", "payloadsearchtype" : Same workaround than "name" and "namesearchtype" on "findaccounts" method  
+  - New method "save-safebox-stream" : Will save a Safebox file in Stream format
+    - "filename" : String (optional)
+  - New method "save-safebox-abstractmem" : Will save a Safebox AbstractMem file of actual state
+    - "filename" : String (optional)
+  - New method "abstractmem-stats" : Testing purposes only
+  - Updated "addnode"
+    - New param "whitelist" : Boolean (False by default). When true the "nodes" ips will be added to Whitelist for JSON-RPC calls
 - Fixed bugs:
   - Fixed bugs on "pascalcoin_daemon" (daemon on Linux / Service on Windows) that produced crash on windows and some invalid finalization on Linux
+  - Fixed bugs on "finddataoperations" (not searching as expected)
+  - Fixed bug on "delistaccountforsale" (Freezing application / api calls)
   - Fixed minor bugs
 
 ## Build 5.3.0 - 2020-03-12

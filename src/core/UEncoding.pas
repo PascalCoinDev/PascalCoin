@@ -106,7 +106,7 @@ type
     public
       const
         CharSet = '0123456789abcdef';
-        NibblePattern = '[0-9a-f]';
+        NibblePattern = '[0-9a-fA-F]';
         BytePattern = NibblePattern + '{2}';
         SubStringPattern = '(?:' + BytePattern + ')+';
         StringPattern = SubStringPattern + '$';

@@ -420,7 +420,6 @@ Type
     Procedure DoProcess_GetPendingOperations;
     Procedure SetClient(Const Value : TNetTcpIpClient);
     Function ReadTcpClientBuffer(MaxWaitMiliseconds : Cardinal; var HeaderData : TNetHeaderData; BufferData : TStream) : Boolean;
-    Procedure DisconnectInvalidClient(ItsMyself : Boolean; Const why : String);
     function GetClient: TNetTcpIpClient;
   protected
     Procedure Send(NetTranferType : TNetTransferType; operation, errorcode : Word; request_id : Integer; DataBuffer : TStream);
@@ -434,6 +433,7 @@ Type
     Function ConnectTo(ServerIP: String; ServerPort:Word) : Boolean;
     Property Connected : Boolean read GetConnected write SetConnected;
     Property IsConnecting : Boolean read FIsConnecting;
+    Procedure DisconnectInvalidClient(ItsMyself : Boolean; Const why : String);
     Function Send_Hello(NetTranferType : TNetTransferType; request_id : Integer) : Boolean;
     Function Send_NewBlockFound(Const NewBlock : TPCOperationsComp) : Boolean;
     Function Send_GetBlocks(StartAddress, quantity : Cardinal; var request_id : Cardinal) : Boolean;
@@ -3397,7 +3397,7 @@ end;
 procedure TNetConnection.DoProcess_GetPubkeyAccounts_Request(HeaderData: TNetHeaderData; DataBuffer: TStream);
 Const CT_Max_Accounts_per_call = 1000;
 var responseStream, accountsStream : TMemoryStream;
-  start,max : Integer;
+  start,max,i : Integer;
   c, nAccounts : Cardinal;
   acc : TAccount;
   DoDisconnect : Boolean;
@@ -3405,6 +3405,7 @@ var responseStream, accountsStream : TMemoryStream;
   pubKey : TAccountKey;
   sbakl : TSafeboxPubKeysAndAccounts;
   ocl : TAccountsNumbersList;
+  LAccountsList : TList<Integer>;
 begin
   {
   This call is used to obtain Accounts used by a Public key
@@ -3451,15 +3452,19 @@ begin
     if Assigned(sbakl) then begin
       ocl := sbakl.GetAccountsUsingThisKey(pubKey);
       if Assigned(ocl) then begin
-        while (start<ocl.Count) And (max>0) do begin
-          acc := TNode.Node.GetMempoolAccount(ocl.Get(start));
-          if (HeaderData.protocol.protocol_available>9) then
-            TAccountComp.SaveAccountToAStream(accountsStream,acc,CT_PROTOCOL_5)
-          else
-            TAccountComp.SaveAccountToAStream(accountsStream,acc,CT_PROTOCOL_4);
-          inc(nAccounts);
-          inc(start);
-          dec(max);
+        LAccountsList := TList<Integer>.Create;
+        try
+          ocl.FillList(start,max,LAccountsList);
+          for i := 0 to LaccountsList.Count-1 do begin
+            acc := TNode.Node.GetMempoolAccount(LAccountsList[i]);
+            if (HeaderData.protocol.protocol_available>9) then
+              TAccountComp.SaveAccountToAStream(accountsStream,acc,CT_PROTOCOL_5)
+            else
+              TAccountComp.SaveAccountToAStream(accountsStream,acc,CT_PROTOCOL_4);
+          end;
+          nAccounts := LaccountsList.Count;
+        finally
+          LaccountsList.Free;
         end;
       end;
       // Save & send

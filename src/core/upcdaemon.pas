@@ -48,6 +48,7 @@ Const
   CT_INI_IDENT_MINPENDINGBLOCKSTODOWNLOADCHECKPOINT = 'MINPENDINGBLOCKSTODOWNLOADCHECKPOINT';
   CT_INI_IDENT_PEERCACHE = 'PEERCACHE';
   CT_INI_IDENT_DATA_FOLDER = 'DATAFOLDER';
+  CT_INI_IDENT_NODE_MAX_PAYTOKEY_MOLINAS = 'MAX_PAYTOKEY_MOLINAS';
   {$IFDEF USE_ABSTRACTMEM}
   CT_INI_IDENT_ABSTRACTMEM_MAX_CACHE_MB = 'ABSTRACTMEM_MAX_CACHE_MB';
   CT_INI_IDENT_ABSTRACTMEM_USE_CACHE_ON_LISTS = 'ABSTRACTMEM_USE_CACHE_ON_LISTS';
@@ -105,9 +106,7 @@ Type
 
 implementation
 
-{$IFDEF TESTNET}
 uses UPCTNetDataExtraMessages;
-{$ENDIF}
 
 Var _FLog : TLog;
 
@@ -276,9 +275,6 @@ begin
       FNode.Bank.SafeBox.PCAbstractMem.MaxAccountsCache := LCacheMaxAccounts;
       FNode.Bank.SafeBox.PCAbstractMem.MaxAccountKeysCache := LCacheMaxPubKeys;
       {$ENDIF}
-      {$IFDEF TESTNET}
-      TPCTNetDataExtraMessages.InitNetDataExtraMessages(FNode,TNetData.NetData,FWalletKeys);
-      {$ENDIF}
       // RPC Server
       InitRPCServer;
       Try
@@ -295,12 +291,14 @@ begin
         FWalletKeys.SafeBox := FNode.Node.Bank.SafeBox;
         FNode.Node.NetServer.Port:=FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_NODE_PORT,CT_NetServer_Port);
         FNode.Node.NetServer.MaxConnections:=FIniFile.ReadInteger(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_NODE_MAX_CONNECTIONS,CT_MaxClientsConnected);
+        FNode.Node.MaxPayToKeyPurchasePrice:=FIniFile.ReadInt64(CT_INI_SECTION_GLOBAL,CT_INI_IDENT_NODE_MAX_PAYTOKEY_MOLINAS,CT_DEFAULT_PAY_TO_KEY_MAX_MOLINAS);
         FNode.Node.AutoDiscoverNodes(CT_Discover_IPs);
         FNode.Node.NetServer.Active := true;
 
         // RPC Miner Server
         InitRPCMinerServer;
         Try
+          TPCTNetDataExtraMessages.InitNetDataExtraMessages(FNode,TNetData.NetData,FWalletKeys);
           Repeat
             Sleep(100);
           Until (Terminated) or (Application.Terminated);

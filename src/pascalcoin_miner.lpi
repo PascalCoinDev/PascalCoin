@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
-    <Version Value="10"/>
+    <Version Value="11"/>
     <PathDelim Value="\"/>
     <General>
       <Flags>
@@ -9,7 +9,7 @@
         <MainUnitHasTitleStatement Value="False"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <MainUnit Value="0"/>      
+      <MainUnit Value="0"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
@@ -24,9 +24,16 @@
     </PublishOptions>
     <RunParams>
       <local>
-        <FormatVersion Value="1"/>
         <CommandLineParams Value="-c 1 -s -n TEST"/>
       </local>
+      <FormatVersion Value="2"/>
+      <Modes Count="1">
+        <Mode0 Name="default">
+          <local>
+            <CommandLineParams Value="-c 1 -s -n TEST"/>
+          </local>
+        </Mode0>
+      </Modes>
     </RunParams>
     <RequiredPackages Count="1">
       <Item1>
@@ -36,7 +43,8 @@
     <Units Count="1">
       <Unit0>
         <Filename Value="pascalcoin_miner.pp"/>
-        <IsPartOfProject Value="True"/>        
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="PascalCoinMiner"/>
       </Unit0>
     </Units>
   </ProjectOptions>
@@ -48,7 +56,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="core;libraries\pasopencl;libraries\synapse;libraries\sphere10;libraries\hashlib4pascal;libraries\generics.collections;libraries\pascalcoin;libraries\paszlib"/>
+      <OtherUnitFiles Value="core;libraries\pasopencl;libraries\synapse;libraries\sphere10;libraries\hashlib4pascal;libraries\pascalcoin;libraries\paszlib;libraries\regex;libraries\abstractmem;libraries\cryptolib4pascal;libraries\simplebaselib4pascal"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <CodeGeneration>

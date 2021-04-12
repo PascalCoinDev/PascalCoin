@@ -27,10 +27,10 @@ uses
   SysUtils,
   TypInfo,
   uregexpr,
-  UAccounts,
   UCommon,
   UCrypto,
-  UEncoding;
+  UEncoding,
+  SyncObjs;
 
 type
 
@@ -43,89 +43,106 @@ type
     BadExtendedChecksum
   );
 
-  { PayloadType}
+  { TPayloadTrait }
 
-  PayloadType = (
-    NonDeterministic = 0,      // Payload encryption and encoding method not specified.
-    &Public = 1,               // Unencrypted, public payload.
-    RecipientKeyEncrypted = 2, // ECIES encrypted using recipient accounts public key.
-    SenderKeyEncrypted = 3,    // ECIES encrypted using sender accounts public key.
-    PasswordEncrypted = 4,     // AES encrypted using pwd param
-    AsciiFormatted = 5,        // Payload data encoded in ASCII
-    HexFormatted = 6,          // Payload data encoded in HEX
-    Base58Formatted = 7,       // Payload data encoded in Base58
-    AddressedByName = 8        // E-PASA addressed by account name (not number).
+  TPayloadTrait = (
+    ptNonDeterministic = 0,      // Payload encryption and encoding method not specified.
+    ptPublic = 1,                // Unencrypted, public payload.
+    ptRecipientKeyEncrypted = 2, // ECIES encrypted using recipient accounts public key.
+    ptSenderKeyEncrypted = 3,    // ECIES encrypted using sender accounts public key.
+    ptPasswordEncrypted = 4,     // AES encrypted using pwd param
+    ptAsciiFormatted = 5,        // Payload data encoded in ASCII
+    ptHexFormatted = 6,          // Payload data encoded in HEX
+    ptBase58Formatted = 7,       // Payload data encoded in Base58
+    ptAddressedByName = 8        // E-PASA addressed by account name (not number).
   );
 
-  { PayloadTypeHelper }
+  { TPayloadTraitHelper }
 
-  PayloadTypeHelper = record helper for PayloadType
+  TPayloadTraitHelper = record helper for TPayloadTrait
   public
-    function Value: Int32;
+    function ToProtocolValue: byte;
   end;
 
-  { PayloadTypes }
+  { TPayloadType }
 
-  PayloadTypes = set of PayloadType;
+  TPayloadType = set of TPayloadTrait;
 
-  { PayloadTypesHelper }
+  { TPayloadTypesHelper }
 
-  PayloadTypesHelper = record helper for PayloadTypes
+  TPayloadTypeHelper = record helper for TPayloadType
   public
-    function IsPayloadTypeInSet(APayloadType: PayloadType): Boolean; inline;
+    function HasTrait(APayloadTrait: TPayloadTrait): Boolean; inline;
+    function ToProtocolValue : byte;
+    function IsValid : Boolean;
   end;
-
 
   { TEPasa }
 
+
   TEPasa = record
-    strict private
-      var
-        FAccount, FAccountChecksum: TNullable<UInt32>;
-        FAccountName, FPayload, FPassword, FExtendedChecksum: String;
-        FPayloadTypes: PayloadTypes;
+    strict private var
+      FAccount, FAccountChecksum: TNullable<UInt32>;
+      FAccountName, FPayload, FPassword, FExtendedChecksum: String;
+      FPayloadType: TPayloadType;
 
       function GetAccount: TNullable<UInt32>; inline;
       procedure SetAccount(const AValue: TNullable<UInt32>); inline;
       function GetAccountChecksum: TNullable<UInt32>; inline;
       procedure SetAccountChecksum(const AValue: TNullable<UInt32>); inline;
-      function GetPayloadTypes: PayloadTypes; inline;
+      function GetPayloadType: TPayloadType; inline;
       function GetAccountName: String; inline;
       procedure SetAccountName(const AValue: String); inline;
-      procedure SetPayloadTypes(const AValue: PayloadTypes); inline;
+      procedure SetPayloadType(const AValue: TPayloadType); inline;
       function GetExtendedChecksum: String; inline;
       procedure SetExtendedChecksum(const AValue: String); inline;
       function GetPassword: String; inline;
       procedure SetPassword(const AValue: String); inline;
       function GetPayload: String; inline;
       procedure SetPayload(const AValue: String); inline;
-
+      function GetHasPayload: Boolean; inline;
+      function GetIsStandard: Boolean; inline;
+      function GetIsPayToKey: Boolean; inline;
+      function GetIsAddressedByName : Boolean; inline;
+      function GetIsAddressedByNumber : Boolean; inline;
+      class function GetEmptyValue : TEPasa; static;
     public
-      function IsPayToKey: Boolean; inline;
-      function GetRawPayloadBytes(): TArray<Byte>; inline;
-      function ToString(): String; overload;
-      function ToString(AOmitExtendedChecksum: Boolean): String; overload;
-
       property Account: TNullable<UInt32> read GetAccount write SetAccount;
       property AccountChecksum: TNullable<UInt32> read GetAccountChecksum write SetAccountChecksum;
       property AccountName: String read GetAccountName write SetAccountName;
-      property PayloadTypes: PayloadTypes read GetPayloadTypes write SetPayloadTypes;
+      property PayloadType: TPayloadType read GetPayloadType write SetPayloadType;
       property Payload: String read GetPayload write SetPayload;
       property Password: String read GetPassword write SetPassword;
       property ExtendedChecksum: String read GetExtendedChecksum write SetExtendedChecksum;
+      property IsAddressedByNumber: boolean read GetIsAddressedByNumber;
+      property IsAddressedByName: boolean read GetIsAddressedByName;
+      property IsPayToKey: boolean read GetIsPayToKey;
+      property IsClassicPASA: boolean read GetIsStandard;
+      property HasPayload: boolean read GetHasPayload;
+      class property Empty : TEPasa read GetEmptyValue;
 
-      class function TryParse(const AEPasaText: String; out AEPasa: TEPasa) : Boolean; static;
+      function GetRawPayloadBytes(): TBytes; inline;
+
+      function ToClassicPASAString(): String; overload;
+      function ToString(): String; overload;
+      function ToString(AOmitExtendedChecksum: Boolean): String; overload;
+
+      class function TryParse(const AEPasaText: String; AOmitExtendedChecksumVerification : Boolean; out AEPasa: TEPasa) : Boolean; overload; static;
+      class function TryParse(const AEPasaText: String; out AEPasa: TEPasa) : Boolean; overload; static;
       class function Parse(const AEPasaText: String): TEPasa; static;
 
       class function CalculateAccountChecksum(AAccNo: UInt32): Byte; static; inline;
-
+      procedure Clear;
   end;
+
+
 
   { TEPasaParser }
 
   TEPasaParser = class
     strict private
       class var FEPasaRegex: TCustomRegex;
+      class var FEPasaLocker : TCriticalSection;
       class constructor CreateRegexEPasaParser();
       class destructor DestroyRegexEPasaParser();
 
@@ -134,7 +151,7 @@ type
       // note: regex syntax escapes following chars [\^$.|?*+(){}
       // note: epasa syntax escapes following chars: :\"[]()<>(){}
       // note: c-sharp syntax verbatim strings escape: " as ""
-      IntegerPattern = '(0|[1-9]\d+)';
+      IntegerPattern = '(0|[1-9]\d*)';
       AccountNamePattern = '(?P<AccountName>' + TPascal64Encoding.StringPattern + ')';
       AccountChecksumPattern = '(?:(?P<ChecksumDelim>-)(?P<Checksum>\d{2}))?';
       AccountNumberPattern = '(?P<AccountNumber>' + IntegerPattern + ')' + AccountChecksumPattern;
@@ -153,11 +170,12 @@ type
       function Parse(const AEPasaText: String): TEPasa;
       function TryParse(const AEPasaText: String; out AEPasa: TEPasa): Boolean; overload;
       function TryParse(const AEPasaText: String; out AEPasa: TEPasa; out AErrorCode: EPasaErrorCode): Boolean; overload;
+      function TryParse(const AEPasaText: String; AOmitExtendedChecksumVerification : Boolean; out AEPasa: TEPasa; out AErrorCode: EPasaErrorCode): Boolean; overload;
   end;
 
-  { TEPasaHelper }
+  { TEPasaComp }
 
-  TEPasaHelper = class sealed(TObject)
+  TEPasaComp = class sealed(TObject)
 
     strict private
       class function ReadUInt16AsBytesLE(AValue: UInt16): TArray<Byte>; static;
@@ -177,9 +195,12 @@ type
 
       class function ComputeExtendedChecksum(const AText: String): String; static;
       class function IsValidExtendedChecksum(const AText: String; const AChecksum: String): Boolean; static;
-      class function IsValidPayloadLength(APayloadType: PayloadTypes; const APayloadContent: String): Boolean; static;
+      class function IsValidPayloadLength(APayloadType: TPayloadType; const APayloadContent: String): Boolean; static;
       class function IsValidPasswordLength(const APasswordValue: String) : Boolean; static;
 
+      class function GetPayloadTypeProtocolByte(const APayloadType : TPayloadType) : Byte;
+      class function GetPayloadTypeFromProtocolByte(AByte : Byte) : TPayloadType;
+      class function FromProtocolValue(AVal : Byte) : TPayloadType;
   end;
 
 resourcestring
@@ -200,31 +221,78 @@ uses
   HlpConverters,
   UMemory;
 
-{ PayloadTypeHelper }
+var
+  EmptyEPasa : TEPasa;
 
-function PayloadTypeHelper.Value: Int32;
+{ TPayloadTraitHelper }
+
+function TPayloadTraitHelper.ToProtocolValue: Byte;
 begin
   case Self of
-    NonDeterministic: Result := $00000000;
-    &Public: Result := $00000001;
-    RecipientKeyEncrypted: Result := $00000010;
-    SenderKeyEncrypted: Result := $00000100;
-    PasswordEncrypted: Result := $00001000;
-    AsciiFormatted: Result := $00010000;
-    HexFormatted: Result := $00100000;
-    Base58Formatted: Result := $01000000;
-    AddressedByName: Result := $10000000;
+    ptNonDeterministic: Exit(0);
+    ptPublic: Exit(BYTE_BIT_0);
+    ptRecipientKeyEncrypted: Exit(BYTE_BIT_1);
+    ptSenderKeyEncrypted: Exit(BYTE_BIT_2);
+    ptPasswordEncrypted: Exit(BYTE_BIT_3);
+    ptAsciiFormatted: Exit(BYTE_BIT_4);
+    ptHexFormatted: Exit(BYTE_BIT_5);
+    ptBase58Formatted: Exit(BYTE_BIT_6);
+    ptAddressedByName: Exit(BYTE_BIT_7);
   end;
+  raise Exception.Create('Internal Error 2faed11a-1b0f-447a-87d1-2e1735ac4ca2');
 end;
 
-{ PayloadTypesHelper }
+{ TPayloadTypeHelper }
 
-function PayloadTypesHelper.IsPayloadTypeInSet(APayloadType : PayloadType) : Boolean;
+function TPayloadTypeHelper.HasTrait(APayloadTrait : TPayloadTrait) : Boolean;
 begin
-  Result := APayloadType in Self;
+  Result := APayloadTrait in Self;
+end;
+
+function TPayloadTypeHelper.IsValid: Boolean;
+var LValue, LEncryptedBits, LFormattedBits : Byte;
+begin
+  { As described on PIP-0027 E-PASA:
+    Bits 0..3 describe how payload is encrypted. 1 option (and only 1) must be selected
+    Bits 4..6 describe how is data encoded: String, Hexa or Base58. 1 option (and 1 only 1) must be selected
+
+    IsValid = 1 bit from 0..3 and 1 bit from 4..6 must be selected
+  }
+  LValue := Self.ToProtocolValue;
+  LEncryptedBits := (LValue and $0F); // 0000 1111
+  LFormattedBits := (LValue and $70); // 0111 0000
+  Result :=
+      (
+         ((LEncryptedBits and BYTE_BIT_0)=BYTE_BIT_0)
+      or ((LEncryptedBits and BYTE_BIT_1)=BYTE_BIT_1)
+      or ((LEncryptedBits and BYTE_BIT_2)=BYTE_BIT_2)
+      or ((LEncryptedBits and BYTE_BIT_3)=BYTE_BIT_3)
+      )
+      and
+      (
+         ((LFormattedBits and BYTE_BIT_4)=BYTE_BIT_4)
+      or ((LFormattedBits and BYTE_BIT_5)=BYTE_BIT_5)
+      or ((LFormattedBits and BYTE_BIT_6)=BYTE_BIT_6)
+      );
+end;
+
+function TPayloadTypeHelper.ToProtocolValue : Byte;
+begin
+  Result := TEPasaComp.GetPayloadTypeProtocolByte(Self);
 end;
 
 { TEPasa }
+
+procedure TEPasa.Clear;
+begin
+  Self.FAccount.Clear;
+  Self.FAccountChecksum.Clear;
+  Self.FAccountName:='';
+  Self.FPayload:='';
+  Self.FPassword:='';
+  Self.FExtendedChecksum:='';
+  Self.FPayloadType:=[];
+end;
 
 function TEPasa.GetAccount: TNullable<UInt32>;
 begin
@@ -256,9 +324,9 @@ begin
   Result := FPayload;
 end;
 
-function TEPasa.GetPayloadTypes: PayloadTypes;
+function TEPasa.GetPayloadType: TPayloadType;
 begin
-  Result := FPayloadTypes;
+  Result := FPayloadType;
 end;
 
 procedure TEPasa.SetAccount(const AValue: TNullable<UInt32>);
@@ -291,74 +359,57 @@ begin
   FPayload := AValue;
 end;
 
-procedure TEPasa.SetPayloadTypes(const AValue: PayloadTypes);
+procedure TEPasa.SetPayloadType(const AValue: TPayloadType);
 begin
-  FPayloadTypes := AValue;
+  FPayloadType := AValue;
 end;
 
-function TEPasa.IsPayToKey: Boolean;
+function TEPasa.GetIsAddressedByNumber : Boolean;
+begin
+  Result := NOT PayloadType.HasTrait(ptAddressedByName);
+end;
+
+function TEPasa.GetIsAddressedByName : Boolean;
+begin
+  Result := (NOT IsPayToKey) AND PayloadType.HasTrait(ptAddressedByName);
+end;
+
+function TEPasa.GetIsPayToKey: Boolean;
 begin
   Result :=
     (AccountName = '@') and
-    (PayloadTypes.IsPayloadTypeInSet(PayloadType.AddressedByName) and
-    PayloadTypes.IsPayloadTypeInSet(PayloadType.Public) and
-    PayloadTypes.IsPayloadTypeInSet(PayloadType.Base58Formatted));
+    (PayloadType.HasTrait(ptAddressedByName) and
+    PayloadType.HasTrait(ptPublic) and
+    PayloadType.HasTrait(ptBase58Formatted));
 end;
 
-function TEPasa.GetRawPayloadBytes: TArray<Byte>;
+function TEPasa.GetIsStandard: Boolean;
 begin
-  if (PayloadTypes.IsPayloadTypeInSet(PayloadType.AsciiFormatted)) then
+  Result := (NOT PayloadType.HasTrait(ptAddressedByName)) AND (NOT HasPayload);
+end;
+
+function TEPasa.GetHasPayload: Boolean;
+begin
+  Result := PayloadType.HasTrait(ptPublic) OR PayloadType.HasTrait(ptRecipientKeyEncrypted) OR PayloadType.HasTrait(ptSenderKeyEncrypted);
+end;
+
+function TEPasa.GetRawPayloadBytes: TBytes;
+begin
+  if (PayloadType.HasTrait(ptAsciiFormatted)) then
     Exit(TEncoding.ASCII.GetBytes(Payload));
 
-  if (PayloadTypes.IsPayloadTypeInSet(PayloadType.Base58Formatted)) then
+  if (PayloadType.HasTrait(ptBase58Formatted)) then
     Exit(TPascalBase58Encoding.Decode(Payload));
 
-  if (PayloadTypes.IsPayloadTypeInSet(PayloadType.HexFormatted)) then
+  if (PayloadType.HasTrait(ptHexFormatted)) then
     Exit(THexEncoding.Decode(Payload));
 
   raise EPascalCoinException.CreateRes(@SUnknownPayloadEncoding);
 end;
 
-function TEPasa.ToString(AOmitExtendedChecksum: Boolean): String;
-var
-  LPayloadContent: String;
+function TEPasa.ToClassicPASAString : String;
 begin
-  Result := string.Empty;
-  if (PayloadTypes.IsPayloadTypeInSet(PayloadType.AddressedByName)) then begin
-    Result := Result + TPascal64Encoding.Escape(AccountName);
-  end else begin
-    Result := Result + Account.Value.ToString();
-    if (AccountChecksum.HasValue) then begin
-      Result := Result + String.Format('-%u', [AccountChecksum.Value]);
-    end;
-  end;
-
-  if (PayloadTypes.IsPayloadTypeInSet(PayloadType.AsciiFormatted)) then begin
-    LPayloadContent := String.Format('"%s"', [TPascalAsciiEncoding.Escape(Payload)]);
-  end else if (PayloadTypes.IsPayloadTypeInSet(PayloadType.HexFormatted)) then begin
-    LPayloadContent := string.Format('0x%s', [Payload]);
-  end else if (PayloadTypes.IsPayloadTypeInSet(PayloadType.Base58Formatted)) then begin
-    LPayloadContent := string.Format('%s', [Payload]);
-  end else begin
-    // it is non-deterministic, so payload content is ignored
-    LPayloadContent := string.Empty;
-  end;
-
-  if (PayloadTypes.IsPayloadTypeInSet(PayloadType.Public)) then begin
-    Result := Result + string.Format('[%s]', [LPayloadContent]);
-  end else if (PayloadTypes.IsPayloadTypeInSet(PayloadType.RecipientKeyEncrypted)) then begin
-    Result := Result + string.Format('(%s)', [LPayloadContent]);
-  end else if (PayloadTypes.IsPayloadTypeInSet(PayloadType.SenderKeyEncrypted)) then begin
-    Result := Result + string.Format('<%s>', [LPayloadContent]);
-  end else if (PayloadTypes.IsPayloadTypeInSet(PayloadType.PasswordEncrypted)) then begin
-    Result := Result + string.Format('{%s:%s}', [LPayloadContent, TPascalAsciiEncoding.Escape(Password)]);
-  end else begin
-    // it is non-deterministic, so payload omitted entirely
-  end;
-
-  if (not AOmitExtendedChecksum) then begin
-    Result := Result + string.Format(':%s', [ExtendedChecksum]);
-  end;
+  Result := ToString(True);
 end;
 
 function TEPasa.ToString: String;
@@ -366,14 +417,70 @@ begin
   Result := ToString(False);
 end;
 
+function TEPasa.ToString(AOmitExtendedChecksum: Boolean): String;
+var
+  LPayloadContent: String;
+begin
+  Result := string.Empty;
+  if PayloadType.HasTrait(ptNonDeterministic) then Exit;
+
+  if (PayloadType.HasTrait(ptAddressedByName)) then begin
+    Result := Result + TPascal64Encoding.Escape(AccountName);
+  end else begin
+    if (Not Account.HasValue) then Exit;
+    Result := Result + Account.Value.ToString();
+    if (AccountChecksum.HasValue) then begin
+      Result := Result + String.Format('-%u', [AccountChecksum.Value]);
+    end;
+  end;
+
+  if (PayloadType.HasTrait(ptAsciiFormatted)) then begin
+    LPayloadContent := String.Format('"%s"', [TPascalAsciiEncoding.Escape(Payload)]);
+  end else if (PayloadType.HasTrait(ptHexFormatted)) then begin
+    LPayloadContent := string.Format('0x%s', [Payload]);
+  end else if (PayloadType.HasTrait(ptBase58Formatted)) then begin
+    LPayloadContent := string.Format('%s', [Payload]);
+  end else begin
+    // it is non-deterministic, so payload content is ignored
+    LPayloadContent := string.Empty;
+  end;
+
+  if (PayloadType.HasTrait(ptPublic)) then begin
+    Result := Result + string.Format('[%s]', [LPayloadContent]);
+  end else if (PayloadType.HasTrait(ptRecipientKeyEncrypted)) then begin
+    Result := Result + string.Format('(%s)', [LPayloadContent]);
+  end else if (PayloadType.HasTrait(ptSenderKeyEncrypted)) then begin
+    Result := Result + string.Format('<%s>', [LPayloadContent]);
+  end else if (PayloadType.HasTrait(ptPasswordEncrypted)) then begin
+    Result := Result + string.Format('{%s:%s}', [LPayloadContent, TPascalAsciiEncoding.Escape(Password)]);
+  end else begin
+    // it is non-deterministic, so payload omitted entirely
+  end;
+
+  if (not AOmitExtendedChecksum) then begin
+    if (ExtendedChecksum='') then begin
+      // Need to compute:
+      ExtendedChecksum := TEPasaComp.ComputeExtendedChecksum(Result);
+    end;
+    Result := Result + string.Format(':%s', [ExtendedChecksum]);
+  end;
+end;
+
+
+
 class function TEPasa.TryParse(const AEPasaText: String; out AEPasa: TEPasa): Boolean;
+begin
+  Result := TryParse(AEPasaText,False,AEPasa);
+end;
+
+class function TEPasa.TryParse(const AEPasaText: String; AOmitExtendedChecksumVerification: Boolean; out AEPasa: TEPasa): Boolean;
 var
   LParser: TEPasaParser;
   LDisposables : TDisposables;
-
+  LEPasaErrorCode : EPasaErrorCode;
 begin
   LParser := LDisposables.AddObject( TEPasaParser.Create() ) as TEPasaParser;
-  Result := LParser.TryParse(AEPasaText, AEPasa);
+  Result := LParser.TryParse(AEPasaText,AOmitExtendedChecksumVerification,AEPasa,LEPasaErrorCode);
 end;
 
 class function TEPasa.Parse(const AEPasaText: String): TEPasa;
@@ -389,16 +496,23 @@ begin
 end;
 
 
+class function TEPasa.GetEmptyValue : TEPasa;
+begin
+  Result := EmptyEPasa;
+end;
+
 { TEPasaParser }
 
 class constructor TEPasaParser.CreateRegexEPasaParser;
 begin
   FEPasaRegex := TCustomRegex.Create(EPasaPattern);
+  FEPasaLocker := TCriticalSection.Create;
 end;
 
 class destructor TEPasaParser.DestroyRegexEPasaParser;
 begin
   FEPasaRegex.Free;
+  FEPasaLocker.Free;
 end;
 
 function TEPasaParser.Parse(const AEPasaText: String): TEPasa;
@@ -419,20 +533,27 @@ begin
 end;
 
 function TEPasaParser.TryParse(const AEPasaText: String; out AEPasa: TEPasa; out AErrorCode: EPasaErrorCode): Boolean;
+begin
+  Result := TryParse(AEPasaText,False,AEPasa,AErrorCode);
+end;
+
+function TEPasaParser.TryParse(const AEPasaText: String; AOmitExtendedChecksumVerification: Boolean; out AEPasa: TEPasa; out AErrorCode: EPasaErrorCode): Boolean;
 var
   LChecksumDelim, LAccountNumber, LAccountChecksum, LAccountName, LPayloadStartChar,
   LPayloadEndChar, LPayloadContent, LPayloadPasswordDelim, LPayloadPassword,
   LExtendedChecksumDelim, LExtendedChecksum, LActualChecksum: String;
   LAccNo, LAccChecksum: UInt32;
   LActualAccountChecksum: Byte;
-  LEPasa : TEPasa;
 begin
   AErrorCode := EPasaErrorCode.Success;
-  AEPasa := LEPasa;
+  AEPasa.Clear;
   if (string.IsNullOrEmpty(AEPasaText)) then begin
     AErrorCode := EPasaErrorCode.BadFormat;
     Exit(False);
   end;
+
+  FEPasaLocker.Acquire; // Protect against multithread
+  Try
 
   FEPasaRegex.Match(AEPasaText);
 
@@ -454,6 +575,10 @@ begin
     Exit(False);
   end;
 
+  Finally
+    FEPasaLocker.Release;
+  End;
+
   if (LAccountName <> #0) then begin
     // Account Name
     if (string.IsNullOrEmpty(LAccountName)) then begin
@@ -465,8 +590,7 @@ begin
     // when multiple enums are OR'ed in C#, they are combined and
     // if any of the enums numeric value is zero, it is excluded.
     // in our case,"PayloadType.NonDeterministic" is always zero so we exclude it from our set.
-    AEPasa.PayloadTypes := AEPasa.PayloadTypes + [PayloadType.AddressedByName] -
-      [PayloadType.NonDeterministic];
+    AEPasa.PayloadType := AEPasa.PayloadType + [ptAddressedByName] -[ptNonDeterministic];
     AEPasa.AccountName := TPascal64Encoding.Unescape(LAccountName);
     AEPasa.Account := Nil;
     AEPasa.AccountChecksum := Nil;
@@ -504,23 +628,23 @@ begin
           AErrorCode := EPasaErrorCode.MismatchedPayloadEncoding;
           Exit(False);
         end;
-        AEPasa.PayloadTypes := AEPasa.PayloadTypes + [PayloadType.Public] -
-          [PayloadType.NonDeterministic];
+        AEPasa.PayloadType := AEPasa.PayloadType + [ptPublic] -
+          [ptNonDeterministic];
       end;
      '(': begin
         if (LPayloadEndChar <> ')') then begin
           AErrorCode := EPasaErrorCode.MismatchedPayloadEncoding;
           Exit(False);
         end;
-        AEPasa.PayloadTypes := AEPasa.PayloadTypes + [PayloadType.RecipientKeyEncrypted] - [PayloadType.NonDeterministic];
+        AEPasa.PayloadType := AEPasa.PayloadType + [ptRecipientKeyEncrypted] - [ptNonDeterministic];
       end;
     '<': begin
         if (LPayloadEndChar <> '>') then begin
           AErrorCode := EPasaErrorCode.MismatchedPayloadEncoding;
           Exit(False);
         end;
-        AEPasa.PayloadTypes := AEPasa.PayloadTypes +
-          [PayloadType.SenderKeyEncrypted] - [PayloadType.NonDeterministic];
+        AEPasa.PayloadType := AEPasa.PayloadType +
+          [ptSenderKeyEncrypted] - [ptNonDeterministic];
       end;
 
     '{': begin
@@ -528,13 +652,13 @@ begin
           AErrorCode := EPasaErrorCode.MismatchedPayloadEncoding;
           Exit(False);
         end;
-        AEPasa.PayloadTypes := AEPasa.PayloadTypes + [PayloadType.PasswordEncrypted] - [PayloadType.NonDeterministic];
+        AEPasa.PayloadType := AEPasa.PayloadType + [ptPasswordEncrypted] - [ptNonDeterministic];
       end
       else raise ENotSupportedException.CreateResFmt(@SUnRecognizedStartCharacter, [LPayloadStartChar]);
   end;
 
   // Password
-  if (AEPasa.PayloadTypes.IsPayloadTypeInSet(PayloadType.PasswordEncrypted)) then begin
+  if (AEPasa.PayloadType.HasTrait(ptPasswordEncrypted)) then begin
     if (LPayloadPasswordDelim = #0) then begin
       AErrorCode := EPasaErrorCode.MissingPassword;
       Exit(False);
@@ -551,27 +675,27 @@ begin
     if (LPayloadContent = #0) then begin
       AEPasa.Payload := string.Empty;
     end else if (LPayloadContent.StartsWith('"')) then begin
-      AEPasa.PayloadTypes := AEPasa.PayloadTypes + [PayloadType.AsciiFormatted] - [PayloadType.NonDeterministic];
+      AEPasa.PayloadType := AEPasa.PayloadType + [ptAsciiFormatted] - [ptNonDeterministic];
       AEPasa.Payload := TPascalAsciiEncoding.UnEscape(LPayloadContent.Trim(['"']));
     end else if (LPayloadContent.StartsWith('0x')) then begin
-      AEPasa.PayloadTypes := AEPasa.PayloadTypes + [PayloadType.HexFormatted] - [PayloadType.NonDeterministic];
+      AEPasa.PayloadType := AEPasa.PayloadType + [ptHexFormatted] - [ptNonDeterministic];
       AEPasa.Payload := System.Copy(LPayloadContent, 3, LPayloadContent.Length - 2);
     end else begin
-      AEPasa.PayloadTypes := AEPasa.PayloadTypes + [PayloadType.Base58Formatted] - [PayloadType.NonDeterministic];
+      AEPasa.PayloadType := AEPasa.PayloadType + [ptBase58Formatted] - [ptNonDeterministic];
       AEPasa.Payload := LPayloadContent;
     end;
   end;
 
   // Payload Lengths
-  if (not TEPasaHelper.IsValidPayloadLength(AEPasa.PayloadTypes, AEPasa.Payload)) then begin
+  if (not TEPasaComp.IsValidPayloadLength(AEPasa.PayloadType, AEPasa.Payload)) then begin
     AErrorCode := EPasaErrorCode.PayloadTooLarge;
     Exit(False);
   end;
 
   // Extended Checksum
-  LActualChecksum := TEPasaHelper.ComputeExtendedChecksum(AEPasa.ToString(True));
+  LActualChecksum := TEPasaComp.ComputeExtendedChecksum(AEPasa.ToString(True));
   if (LExtendedChecksumDelim <> #0) then begin
-    if (LExtendedChecksum <> LActualChecksum) then begin
+    if (LExtendedChecksum <> LActualChecksum) and (Not AOmitExtendedChecksumVerification) then begin
       AErrorCode := EPasaErrorCode.BadExtendedChecksum;
       Exit(False);
     end;
@@ -582,16 +706,16 @@ begin
 end;
 
 
-{ TEPasaHelper }
+{ TEPasaComp }
 
-class function TEPasaHelper.ReadUInt16AsBytesLE(AValue: UInt16): TArray<Byte>;
+class function TEPasaComp.ReadUInt16AsBytesLE(AValue: UInt16): TArray<Byte>;
 begin
   System.SetLength(Result, System.SizeOf(UInt16));
   Result[0] := Byte(AValue);
   Result[1] := Byte(AValue shr 8);
 end;
 
-class function TEPasaHelper.ComputeExtendedChecksum(const AText: String): String;
+class function TEPasaComp.ComputeExtendedChecksum(const AText: String): String;
 var
   LHashInstance: IHashWithKey;
   LChecksum: UInt16;
@@ -602,53 +726,53 @@ begin
   Result := THexEncoding.Encode(ReadUInt16AsBytesLE(LChecksum), True);
 end;
 
-class function TEPasaHelper.IsValidExtendedChecksum(const AText, AChecksum: String): Boolean;
+class function TEPasaComp.IsValidExtendedChecksum(const AText, AChecksum: String): Boolean;
 begin
   Result := ComputeExtendedChecksum(AText) = AChecksum;
 end;
 
-class function TEPasaHelper.IsValidPayloadLength(APayloadType: PayloadTypes; const APayloadContent: String): Boolean;
+class function TEPasaComp.IsValidPayloadLength(APayloadType: TPayloadType; const APayloadContent: String): Boolean;
 begin
   if (string.IsNullOrEmpty(APayloadContent)) then
     Exit(True);
 
-  if (APayloadType.IsPayloadTypeInSet(PayloadType.Public)) then begin
+  if (APayloadType.HasTrait(ptPublic)) then begin
 
-    if (APayloadType.IsPayloadTypeInSet(PayloadType.AsciiFormatted)) then
+    if (APayloadType.HasTrait(ptAsciiFormatted)) then
       Exit(TPascalAsciiEncoding.UnEscape(APayloadContent).Length <= MaxPublicAsciiContentLength);
 
-    if (APayloadType.IsPayloadTypeInSet(PayloadType.HexFormatted)) then
+    if (APayloadType.HasTrait(ptHexFormatted)) then
       Exit(APayloadContent.Length <= MaxPublicHexContentLength);
 
-    if (APayloadType.IsPayloadTypeInSet(PayloadType.Base58Formatted)) then
+    if (APayloadType.HasTrait(ptBase58Formatted)) then
       Exit(APayloadContent.Length <= MaxPublicBase58ContentLength);
 
     // unknown encoding format
     Result := False;
   end;
 
-  if (APayloadType.IsPayloadTypeInSet(PayloadType.SenderKeyEncrypted) or APayloadType.IsPayloadTypeInSet(PayloadType.RecipientKeyEncrypted)) then begin
+  if (APayloadType.HasTrait(ptSenderKeyEncrypted) or APayloadType.HasTrait(ptRecipientKeyEncrypted)) then begin
 
-    if (APayloadType.IsPayloadTypeInSet(PayloadType.AsciiFormatted)) then
+    if (APayloadType.HasTrait(ptAsciiFormatted)) then
       Exit(TPascalAsciiEncoding.UnEscape(APayloadContent).Length <= MaxECIESAsciiContentLength);
 
-    if (APayloadType.IsPayloadTypeInSet(PayloadType.HexFormatted)) then
+    if (APayloadType.HasTrait(ptHexFormatted)) then
       Exit(APayloadContent.Length <= MaxECIESHexContentLength);
 
-    if (APayloadType.IsPayloadTypeInSet(PayloadType.Base58Formatted)) then
+    if (APayloadType.HasTrait(ptBase58Formatted)) then
       Exit(APayloadContent.Length <= MaxECIESBase58ContentLength);
     // unknown encoding format
     Result := False;
   end;
 
-  if (APayloadType.IsPayloadTypeInSet(PayloadType.PasswordEncrypted)) then begin
-    if (APayloadType.IsPayloadTypeInSet(PayloadType.AsciiFormatted)) then
+  if (APayloadType.HasTrait(ptPasswordEncrypted)) then begin
+    if (APayloadType.HasTrait(ptAsciiFormatted)) then
       Exit(TPascalAsciiEncoding.UnEscape(APayloadContent).Length <= MaxAESAsciiContentLength);
 
-    if (APayloadType.IsPayloadTypeInSet(PayloadType.HexFormatted)) then
+    if (APayloadType.HasTrait(ptHexFormatted)) then
       Exit(APayloadContent.Length <= MaxAESHexContentLength);
 
-    if (APayloadType.IsPayloadTypeInSet(PayloadType.Base58Formatted)) then
+    if (APayloadType.HasTrait(ptBase58Formatted)) then
       Exit(APayloadContent.Length <= MaxAESBase58ContentLength);
 
     // unknown encoding format
@@ -659,10 +783,61 @@ begin
   Result := False;
 end;
 
-class function TEPasaHelper.IsValidPasswordLength(const APasswordValue : String): Boolean;
+class function TEPasaComp.IsValidPasswordLength(const APasswordValue : String): Boolean;
 begin
   // no password length policy established (only client-side concern)
   Result := True;
 end;
 
+class function TEPasaComp.GetPayloadTypeProtocolByte(const APayloadType : TPayloadType) : Byte;
+var
+ LPayloadType : TPayloadTrait;
+begin
+  Result := 0; // NonDeterministic by default
+  for LPayloadType := Low(TPayloadTrait) to High(TPayloadTrait) do
+    if APayloadType.HasTrait(LPayloadType) then
+      Result := Result OR LPayloadType.ToProtocolValue;
+end;
+
+class function TEPasaComp.GetPayloadTypeFromProtocolByte(AByte: Byte) : TPayloadType;
+var
+ LPayloadType : TPayloadTrait;
+ LPayloadTypeByte : byte;
+begin
+  if AByte = 0 then
+    Exit([ptNonDeterministic]);
+
+  Result := [];
+  for LPayloadType := Low(TPayloadTrait) to High(TPayloadTrait) do begin
+    LPayloadTypeByte := LPayloadType.ToProtocolValue;
+    if (AByte AND LPayloadTypeByte) = LPayloadTypeByte then
+      Result := Result + [LPayloadType];
+  end;
+end;
+
+class function TEPasaComp.FromProtocolValue(AVal : Byte) : TPayloadType;
+begin
+  if AVal = 0 then begin
+    Exit([ptNonDeterministic]);
+  end;
+  Result := [];
+  if AVal AND BYTE_BIT_0 <> 0 then Result := Result + [ptPublic];
+  if AVal AND BYTE_BIT_1 <> 0 then Result := Result + [ptRecipientKeyEncrypted];
+  if AVal AND BYTE_BIT_2 <> 0 then Result := Result + [ptSenderKeyEncrypted];
+  if AVal AND BYTE_BIT_3 <> 0 then Result := Result + [ptPasswordEncrypted];
+  if AVal AND BYTE_BIT_4 <> 0 then Result := Result + [ptAsciiFormatted];
+  if AVal AND BYTE_BIT_5 <> 0 then Result := Result + [ptHexFormatted];
+  if AVal AND BYTE_BIT_6 <> 0 then Result := Result + [ptBase58Formatted];
+  if AVal AND BYTE_BIT_7 <> 0 then Result := Result + [ptAddressedByName];
+end;
+
+
+
+
+initialization
+{$IFDEF FPC}
+FillChar(EmptyEPasa, SizeOf(EmptyEPASA), 0);
+{$ELSE}
+EmptyEPasa := Default(TEPasa);
+{$ENDIF}
 end.

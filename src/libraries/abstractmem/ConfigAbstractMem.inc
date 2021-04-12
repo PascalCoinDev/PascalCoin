@@ -49,7 +49,8 @@
   - Fixed bug on CacheMem when replacing initial position of buffer
 
   Version 1.2 - Jan 2021
-  - Added TAbstractBTree - Standard B-Tree implementation for use on AbstractMem Library
+  - Added TAbstractBTree - Standard B-Tree implementation for use on AbstractMem Library - Multithread protected
+  - Added TAbstractMemBTreeData<TData> that implements a generic <TData> implementation for TAbstractBTree on TAbstractMem
   - Added ABSTRACTMEM_CIRCULAR_SEARCH_PROTECTION compiler directive to prevent circular structures on Tree nodes
 
 }

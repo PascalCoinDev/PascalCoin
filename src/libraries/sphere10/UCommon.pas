@@ -43,6 +43,15 @@ const
   MaxSeconds = MaxMilliseconds div 60;
   MinSeconds = MinMilliseconds div 60;
 
+  BYTE_BIT_0 = byte(1);
+  BYTE_BIT_1 = byte(2);
+  BYTE_BIT_2 = byte(4);
+  BYTE_BIT_3 = byte(8);
+  BYTE_BIT_4 = byte(16);
+  BYTE_BIT_5 = byte(32);
+  BYTE_BIT_6 = byte(64);
+  BYTE_BIT_7 = byte(128);
+
 { GLOBAL HELPER FUNCTIONS }
 
 

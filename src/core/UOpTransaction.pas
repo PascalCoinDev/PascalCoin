@@ -27,7 +27,7 @@ interface
 
 Uses UCrypto, UBlockChain, Classes, UAccounts, UBaseTypes,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
-  UPCDataTypes;
+  UPCDataTypes, UEPasa;
 
 Type
   // Operations Type

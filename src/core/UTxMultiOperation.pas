@@ -23,7 +23,7 @@ unit UTxMultiOperation;
 interface
 
 uses
-  Classes, SysUtils, UCrypto, UBlockChain, UAccounts, UBaseTypes,
+  Classes, SysUtils, UCrypto, UBlockChain, UAccounts, UBaseTypes, UEPasa,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
   UPCDataTypes;
 

@@ -31,7 +31,7 @@ uses
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
   Classes, Grids, UNode, UAccounts, UBlockChain, UAppParams, UThread, UPCDataTypes,
-  UWallet, UCrypto, UPoolMining, URPC, UBaseTypes, UPCOrderedLists,
+  UWallet, UCrypto, UPoolMining, URPC, UBaseTypes, UPCOrderedLists, USettings,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Type
@@ -134,7 +134,7 @@ Type
 
   TOperationsGridUpdateThread = Class(TPCThread)
     FOperationsGrid : TOperationsGrid;
-    procedure DoUpdateOperationsGrid(ANode : TNode; var AList : TList<TOperationResume>);
+    procedure DoUpdateOperationsGrid(const ANode : TNode; const AWalleTKeys : TWalletKeys; const APasswords : TList<String>; var AList : TList<TOperationResume>);
   protected
     procedure BCExecute; override;
   public
@@ -152,6 +152,8 @@ Type
     FBlockEnd: Int64;
     FMustShowAlwaysAnAccount: Boolean;
     FOperationsGridUpdateThread : TOperationsGridUpdateThread;
+    FWalletKeys: TWalletKeys;
+    FPasswords: TList<String>;
     Procedure OnNodeNewOperation(Sender : TObject);
     Procedure OnNodeNewAccount(Sender : TObject);
     Procedure InitGrid;
@@ -177,6 +179,8 @@ Type
     Property AccountNumber : Int64 read FAccountNumber write SetAccountNumber;
     Property MustShowAlwaysAnAccount : Boolean read FMustShowAlwaysAnAccount write SetMustShowAlwaysAnAccount;
     Property Node : TNode read GetNode write SetNode;
+    property WalletKeys : TWalletKeys read FWalletKeys write FWalletKeys;
+    property Passwords : TList<String> read FPasswords;
     Procedure UpdateAccountOperations; virtual;
     Procedure ShowModalDecoder(WalletKeys: TWalletKeys; AppParams : TAppParams);
     Property BlockStart : Int64 read FBlockStart write SetBlockStart;
@@ -230,8 +234,6 @@ Type
 
   { TBlockChainGrid }
 
-  TShowHashRateAs = (hr_Unit, hr_Kilo, hr_Mega, hr_Giga, hr_Tera, hr_Peta, hr_Exa);
-
   TBlockChainGrid = Class(TComponent)
   private
     FBlockChainDataList : TList<TBlockChainData>;
@@ -283,72 +285,76 @@ implementation
 
 uses
   Graphics, SysUtils, UTime, UOpTransaction, UConst,
+  UEPasa, UEPasaDecoder,
   UFRMPayloadDecoder, ULog;
 
 { TAccountsGridUpdateThread }
 
 procedure TAccountsGridUpdateThread.BCExecute;
 Var
-  l : TAccountsNumbersList;
-  i,j, j_min, j_max : Integer;
+  LAccountsNumbersList : TAccountsNumbersList;
+  i,j, j_min : Integer;
   c  : Cardinal;
   LApplyfilter : Boolean;
   LAccount : TAccount;
   LNode : TNode;
+  LAccountsList : TList<Integer>;
 begin
   LApplyfilter := ((FAccountsGridFilter.MinBalance>0) Or ((FAccountsGridFilter.MaxBalance>=0) And (FAccountsGridFilter.MaxBalance<CT_MaxWalletAmount)));
   FBalance := 0;
   LNode := FAccountsGrid.Node;
   try
-      if (Assigned(FAccountsGridFilter.OrderedAccountsKeyList)) then begin
-        if (FAccountsGridFilter.indexAccountsKeyList<0) then i := 0
-        else i := FAccountsGridFilter.indexAccountsKeyList;
+    if (Assigned(FAccountsGridFilter.OrderedAccountsKeyList)) then begin
+      if (FAccountsGridFilter.indexAccountsKeyList<0) then i := 0
+      else i := FAccountsGridFilter.indexAccountsKeyList;
 
-        while (Not Terminated) and (i<FAccountsGridFilter.OrderedAccountsKeyList.Count)
-          and ((FAccountsGridFilter.indexAccountsKeyList<0) or (FAccountsGridFilter.indexAccountsKeyList=i)) do begin
+      while (Not Terminated) and (i<FAccountsGridFilter.OrderedAccountsKeyList.Count)
+        and ((FAccountsGridFilter.indexAccountsKeyList<0) or (FAccountsGridFilter.indexAccountsKeyList=i)) do begin
 
-          j_min := 0;
+        j_min := 0;
 
           while (j_min>=0) do begin
 
           LNode.bank.SafeBox.StartThreadSafe;
           FAccountsGridFilter.OrderedAccountsKeyList.Lock; // Protection v4
           Try
-            l := FAccountsGridFilter.OrderedAccountsKeyList.AccountKeyList[i];
-            if Assigned(l) then begin
+            LAccountsNumbersList := FAccountsGridFilter.OrderedAccountsKeyList.AccountKeyList[i];
+            if Assigned(LAccountsNumbersList) then begin
 
-              j_max := (j_min + 500);
-              if j_max>=l.Count then j_max := l.Count-1;
+              LAccountsList := TList<Integer>.Create;
+              Try
+                LAccountsNumbersList.FillList(j_min,500,LAccountsList);
+                for j := 0 to LAccountsList.Count - 1 do begin
+                  LAccount := LNode.Bank.SafeBox.Account(LAccountsList[j]);
 
-              for j := j_min to j_max do begin
-                LAccount := LNode.Bank.SafeBox.Account(l.Get(j));
-                if LApplyfilter then begin
-                  if (LAccount.balance>=FAccountsGridFilter.MinBalance) And ((FAccountsGridFilter.MaxBalance<0) Or (LAccount.balance<=FAccountsGridFilter.MaxBalance)) then begin
+                  if LApplyfilter then begin
+                    if (LAccount.balance>=FAccountsGridFilter.MinBalance) And ((FAccountsGridFilter.MaxBalance<0) Or (LAccount.balance<=FAccountsGridFilter.MaxBalance)) then begin
+                      FProcessedList.Add(LAccount.account);
+                      FBalance := FBalance + LAccount.balance;
+                    end;
+                  end else begin
                     FProcessedList.Add(LAccount.account);
                     FBalance := FBalance + LAccount.balance;
                   end;
-                end else begin
-                  FProcessedList.Add(LAccount.account);
-                  FBalance := FBalance + LAccount.balance;
+                  if Terminated then Exit;
                 end;
-                if Terminated then Exit;
-              end;
-              j_min := j_max+1;
-              if (j_max>=(l.Count-1)) then begin
-                j_min := -1;
-                break;
-              end;
+                if LAccountsList.Count>0 then inc(j_min,LAccountsList.Count)
+                else break;
+
+              Finally
+                LAccountsList.Free;
+              End;
+
             end;
           finally
             FAccountsGridFilter.OrderedAccountsKeyList.Unlock;
             LNode.Bank.SafeBox.EndThreadSave;
           end;
-            if j_max>=0 then Sleep(0);
 
-          end;
-          inc(i);
         end;
-      end else begin
+        inc(i);
+      end;
+    end else begin
         c := 0;
         while (c<LNode.Bank.SafeBox.AccountsCount) and (Not Terminated) do begin
           LAccount := LNode.Bank.SafeBox.Account(c);
@@ -895,6 +901,7 @@ procedure TAccountsGrid.UnlockAccountsList;
 begin
   UpdateAccountsBalance;
   InitGridRowCount;
+  if Assigned(FOnUpdated) then FOnUpdated(Self);
 end;
 
 procedure TAccountsGrid.UpdateAccountsBalance;
@@ -939,7 +946,7 @@ var list : TList<TOperationResume>;
 begin
   list := TList<TOperationResume>.Create;
   try
-    DoUpdateOperationsGrid(FOperationsGrid.Node,list);
+    DoUpdateOperationsGrid(FOperationsGrid.Node,FOperationsGrid.WalletKeys,FOperationsGrid.Passwords,list);
     if (Not Terminated) then begin
       FOperationsGrid.FOperationsResume.Clear;
       for i := 0 to list.Count-1 do begin
@@ -960,7 +967,8 @@ begin
   Suspended := False;
 end;
 
-procedure TOperationsGridUpdateThread.DoUpdateOperationsGrid(ANode: TNode; var AList: TList<TOperationResume>);
+procedure TOperationsGridUpdateThread.DoUpdateOperationsGrid(const ANode : TNode; const AWalleTKeys : TWalletKeys;
+  const APasswords : TList<String>; var AList: TList<TOperationResume>);
 Var list : TList<Cardinal>;
   i,j : Integer;
   OPR : TOperationResume;
@@ -969,6 +977,7 @@ Var list : TList<Cardinal>;
   bstart,bend : int64;
   LOperationsResume : TOperationsResumeList;
   LLockedMempool : TPCOperationsComp;
+  LEPasa : TEPasa;
 begin
   if Not Assigned(ANode) then exit;
   AList.Clear;
@@ -1060,6 +1069,13 @@ begin
       end;
     end;
   Finally
+    for i := 0 to AList.Count-1 do begin
+      OPR := AList[i];
+      if TEPasaDecoder.TryDecodeEPASA(OPR.DestAccount,OPR.OriginalPayload,ANode,AWalleTKeys,APasswords,LEPasa) then begin
+        OPR.DecodedEPasaPayload := LEPasa.ToString(True);
+        AList[i] := OPR;
+      end;
+    end;
   End;
 end;
 
@@ -1067,6 +1083,8 @@ end;
 
 constructor TOperationsGrid.Create(AOwner: TComponent);
 begin
+  FPasswords := TList<String>.Create;
+  FWalletKeys := Nil;
   FAccountNumber := 0;
   FDrawGrid := Nil;
   MustShowAlwaysAnAccount := false;
@@ -1090,6 +1108,7 @@ begin
   end;
   FOperationsResume.Free;
   FNodeNotifyEvents.Free;
+  FPasswords.Free;
   inherited;
 end;
 
@@ -1134,8 +1153,9 @@ begin
 end;
 
 procedure TOperationsGrid.OnGridDrawCell(Sender: TObject; ACol, ARow: Integer; Rect: TRect; State: TGridDrawState);
-Var s : String;
+Var s, saux : String;
   opr : TOperationResume;
+  LRectLeft, LRectRight : TRect;
 begin
   DrawGrid.Canvas.Font.Color:=clWindowText;
   opr := CT_TOperationResume_NUL;
@@ -1208,7 +1228,24 @@ begin
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfRight,tfVerticalCenter,tfSingleLine]);
       end else if ACol=7 then begin
         s := opr.PrintablePayload;
-        Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
+        LRectRight := Rect;
+        if opr.OriginalPayload.payload_type>0 then begin
+          saux := '0x'+IntToHex(opr.OriginalPayload.payload_type,2);
+          LRectLeft := Rect;
+          LRectLeft.Width := 30;
+          Rect.Inflate(-32,0,0,0);
+          DrawGrid.Canvas.Font.Color := clBlue;
+          DrawGrid.Canvas.Font.Style := [fsBold];
+          Canvas_TextRect(DrawGrid.Canvas,LRectLeft,saux,State,[tfLeft,tfVerticalCenter,tfSingleLine]);
+          if opr.DecodedEPasaPayload<>'' then begin
+            DrawGrid.Canvas.Font.Style := [fsBold];
+            s := opr.DecodedEPasaPayload
+          end else DrawGrid.Canvas.Font.Style := [];
+        end else if opr.OriginalPayload.payload_raw.ToString=s then begin
+          DrawGrid.Canvas.Font.Style := [fsBold];
+        end;
+        DrawGrid.Canvas.Font.Color := clBlack;
+        Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfLeft,tfVerticalCenter,tfSingleLine])
       end else begin
         s := '(???)';
         Canvas_TextRect(DrawGrid.Canvas,Rect,s,State,[tfCenter,tfVerticalCenter,tfSingleLine]);

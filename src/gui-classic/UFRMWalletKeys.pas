@@ -556,7 +556,7 @@ begin
     if wk.Name='' then lblKeyName.Caption := '(No name)'
     else lblKeyName.Caption := wk.Name;
     memoPrivateKey.Font.Color := clBlack;
-    s := TAccountComp.AccountPublicKeyExport(wk.AccountKey);
+    s := '@['+TAccountComp.AccountPublicKeyExport(wk.AccountKey)+']'; // PayToPubkey EPASA format
     memoPrivateKey.Lines.Text:=s;
   finally
     lblEncryptionTypeCaption.Enabled := ok;
