@@ -175,6 +175,7 @@ class function TEPasaDecoder.CheckEPasa(const ASender: TRPCProcess;
   const AAccount_EPasa: String; AJSONResponse: TPCJSONObject;
   var AErrorNum: Integer; var AErrorDesc: String): Boolean;
 var LEPasa : TEPasa;
+  LResultObject : TPCJSONObject;
 begin
   if Not TEPasa.TryParse(AAccount_EPasa,LEPasa) then begin
     AErrorNum := CT_RPC_ErrNum_InvalidEPASA;
@@ -183,37 +184,38 @@ begin
     Exit(False);
   end else begin
     Result := True;
-    AJSONResponse.GetAsVariant('account_epasa').Value := LEPasa.ToString(False);
-    AJSONResponse.GetAsVariant('account_epasa_classic').Value := LEPasa.ToClassicPASAString;
+    LResultObject := AJSONResponse.GetAsObject('result');
+    LResultObject.GetAsVariant('account_epasa').Value := LEPasa.ToString(False);
+    LResultObject.GetAsVariant('account_epasa_classic').Value := LEPasa.ToClassicPASAString;
 
     if LEPasa.PayloadType.HasTrait(ptAddressedByName) then begin
-      AJSONResponse.GetAsVariant('account').Value := LEPasa.AccountName;
+      LResultObject.GetAsVariant('account').Value := LEPasa.AccountName;
     end else begin
-      AJSONResponse.GetAsVariant('account').Value := LEPasa.Account.Value;
+      LResultObject.GetAsVariant('account').Value := LEPasa.Account.Value;
     end;
 
     if LEPasa.PayloadType.HasTrait(ptPublic) then begin
-      AJSONResponse.GetAsVariant('payload_method').Value := 'none';
+      LResultObject.GetAsVariant('payload_method').Value := 'none';
     end else if LEPasa.PayloadType.HasTrait(ptSenderKeyEncrypted) then begin
-      AJSONResponse.GetAsVariant('payload_method').Value := 'sender';
+      LResultObject.GetAsVariant('payload_method').Value := 'sender';
     end else if LEPasa.PayloadType.HasTrait(ptRecipientKeyEncrypted) then begin
-      AJSONResponse.GetAsVariant('payload_method').Value := 'dest';
+      LResultObject.GetAsVariant('payload_method').Value := 'dest';
     end else if LEPasa.PayloadType.HasTrait(ptPasswordEncrypted) then begin
-      AJSONResponse.GetAsVariant('payload_method').Value := 'aes';
-      AJSONResponse.GetAsVariant('pwd').Value := LEPasa.Password;
+      LResultObject.GetAsVariant('payload_method').Value := 'aes';
+      LResultObject.GetAsVariant('pwd').Value := LEPasa.Password;
     end;
 
     if LEPasa.PayloadType.HasTrait(ptAsciiFormatted) then begin
-      AJSONResponse.GetAsVariant('payload_encode').Value := 'string';
+      LResultObject.GetAsVariant('payload_encode').Value := 'string';
     end else if LEPasa.PayloadType.HasTrait(ptHexFormatted) then begin
-      AJSONResponse.GetAsVariant('payload_encode').Value := 'hexa';
+      LResultObject.GetAsVariant('payload_encode').Value := 'hexa';
     end else if LEPasa.PayloadType.HasTrait(ptBase58Formatted) then begin
-      AJSONResponse.GetAsVariant('payload_encode').Value := 'base58';
+      LResultObject.GetAsVariant('payload_encode').Value := 'base58';
     end;
 
-    AJSONResponse.GetAsVariant('payload').Value := LEPasa.GetRawPayloadBytes.ToHexaString;
-    AJSONResponse.GetAsVariant('payload_type').Value := LEPasa.PayloadType.ToProtocolValue;
-    AJSONResponse.GetAsVariant('is_pay_to_key').Value := LEPasa.IsPayToKey;
+    LResultObject.GetAsVariant('payload').Value := LEPasa.GetRawPayloadBytes.ToHexaString;
+    LResultObject.GetAsVariant('payload_type').Value := LEPasa.PayloadType.ToProtocolValue;
+    LResultObject.GetAsVariant('is_pay_to_key').Value := LEPasa.IsPayToKey;
   end;
 end;
 
