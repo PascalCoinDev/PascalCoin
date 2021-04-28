@@ -1420,6 +1420,7 @@ begin
   // this is macOS specific menu layout
   InitMacOSMenu;
   {$endif}
+  PageControl.ActivePageIndex := 0;
 end;
 
 procedure TFRMWallet.ebHashRateBackBlocksKeyPress(Sender: TObject; var Key: char);
