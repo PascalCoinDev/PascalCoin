@@ -34,7 +34,7 @@
   {.$DEFINE TESTNET}
 
   // Activate to define CryptoLib4Pascal by default on all compilations
-  {.$DEFINE Use_CryptoLib4Pascal}
+  {$DEFINE Use_CryptoLib4Pascal}
   // Add the following paths to the project Search Path is this option is used
   // .\libraries\cryptolib4pascal
   // .\libraries\simplebaselib4pascal  
@@ -68,7 +68,7 @@
   {$DEFINE USE_ABSTRACTMEM}
 
   // Activate GNUGETTEXT library
-  {.$DEFINE USE_GNUGETTEXT}
+  {$DEFINE USE_GNUGETTEXT}
   
   // Activate usage of TPCTemporalFileStream instead of TBytes in order to minimize mem usage
   // This also fixes issue #207 High memory usage on FreePascal compiler
