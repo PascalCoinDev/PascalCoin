@@ -48,7 +48,7 @@ Type
 
 implementation
 
-uses UPCDataTypes, UFileStorage, UNode, UAbstractMem;
+uses UPCDataTypes, UFileStorage, UNode;
 
 { TRPCFileUtils }
 
@@ -90,9 +90,6 @@ var LStrings, LReport : TStrings;
    i, nMax : Integer;
    Lobj : TPCJSONObject;
    Larray : TPCJSONArray;
-   {$IFDEF USE_ABSTRACTMEM}
-   LAbstractMemZoneInfoList : TList<TAbstractMemZoneInfo>;
-   {$ENDIF}
 begin
   if Not ASender.RPCServer.AllowUsePrivateKeys then begin
     AErrorNum := CT_RPC_ErrNum_NotAllowedCall;
@@ -104,31 +101,27 @@ begin
     if AInputParams.GetAsVariant('report').AsBoolean(False) then LReport := LStrings
     else LReport := Nil;
     Lobj := AJSONResponse.GetAsObject('result').GetAsObject('abstractmem');
-    LAbstractMemZoneInfoList := TList<TAbstractMemZoneInfo>.Create;
-    Try
-      if TNode.Node.Bank.SafeBox.PCAbstractMem.AbstractMem.CheckConsistency(LReport, LAbstractMemZoneInfoList, LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount) then begin
-        Lobj.GetAsVariant('checkconsistency').Value := True;
-      end else begin
-        Lobj.GetAsVariant('checkconsistency').Value := False;
-      end;
-      Lobj.GetAsVariant('total_used_size').Value := LTotalUsedSize;
-      Lobj.GetAsVariant('total_used_blocks_count').Value := LTotalUsedBlocksCount;
-      Lobj.GetAsVariant('total_leaks_size').Value := LTotalLeaksSize;
-      Lobj.GetAsVariant('total_leaks_blocks_count').Value := LTotalLeaksBlocksCount;
+    if TNode.Node.Bank.SafeBox.PCAbstractMem.AbstractMem.CheckConsistency(LReport, Nil, LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount) then begin
+      Lobj.GetAsVariant('checkconsistency').Value := True;
+    end else begin
+      Lobj.GetAsVariant('checkconsistency').Value := False;
+    end;
+    Lobj.GetAsVariant('total_used_size').Value := LTotalUsedSize;
+    Lobj.GetAsVariant('total_used_blocks_count').Value := LTotalUsedBlocksCount;
+    Lobj.GetAsVariant('total_leaks_size').Value := LTotalLeaksSize;
+    Lobj.GetAsVariant('total_leaks_blocks_count').Value := LTotalLeaksBlocksCount;
 
-      if Assigned(LReport) then begin
-        Larray := Lobj.GetAsArray('report');
-        i := AInputParams.GetAsVariant('report_start').AsInteger(0);
-        nMax := AInputParams.GetAsVariant('report_max').AsInteger(100);
-        while (nMax>0) and (i>=0) and (i<LStrings.Count-1) do begin
-          Larray.GetAsVariant(Larray.Count).Value := LStrings[i];
-          inc(i);
-          dec(nMax);
-        end;
+    if Assigned(LReport) then begin
+      Larray := Lobj.GetAsArray('report');
+      i := AInputParams.GetAsVariant('report_start').AsInteger(0);
+      nMax := AInputParams.GetAsVariant('report_max').AsInteger(100);
+      while (nMax>0) and (i>=0) and (i<LStrings.Count-1) do begin
+        Larray.GetAsVariant(Larray.Count).Value := LStrings[i];
+        inc(i);
+        dec(nMax);
       end;
-    Finally
-      LAbstractMemZoneInfoList.Free;
-    End;
+    end;
+
     Result := True;
   Finally
     LStrings.Free;
