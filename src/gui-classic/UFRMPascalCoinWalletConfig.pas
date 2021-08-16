@@ -94,6 +94,8 @@ type
     Property WalletKeys : TWalletKeys read FWalletKeys write SetWalletKeys;
   end;
 
+  {$I ../config.inc}
+
 implementation
 
 uses

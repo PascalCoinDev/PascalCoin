@@ -1373,7 +1373,7 @@ begin
   {$IFDEF USE_GNUGETTEXT}
   // use language from the params and retranslate if needed
   // might be better to move this a bit earlier in the formcreate routine
-  UseLanguage(FAppParams.ParamByName[CT_PARAM_UILanguage].GetAsString(GetCurrentLanguage));
+  UseLanguage(TSettings.AppParams.ParamByName[CT_PARAM_UILanguage].GetAsString(GetCurrentLanguage));
   RetranslateComponent(self);
   {$ENDIF}
   //

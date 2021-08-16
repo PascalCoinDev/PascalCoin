@@ -101,7 +101,7 @@ begin
     if AInputParams.GetAsVariant('report').AsBoolean(False) then LReport := LStrings
     else LReport := Nil;
     Lobj := AJSONResponse.GetAsObject('result').GetAsObject('abstractmem');
-    if TNode.Node.Bank.SafeBox.PCAbstractMem.AbstractMem.CheckConsistency(LReport, LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount) then begin
+    if TNode.Node.Bank.SafeBox.PCAbstractMem.AbstractMem.CheckConsistency(LReport, Nil, LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount) then begin
       Lobj.GetAsVariant('checkconsistency').Value := True;
     end else begin
       Lobj.GetAsVariant('checkconsistency').Value := False;
@@ -121,6 +121,7 @@ begin
         dec(nMax);
       end;
     end;
+
     Result := True;
   Finally
     LStrings.Free;
