@@ -3058,6 +3058,7 @@ begin
         Lanl.FillList(l,k,LAccountsList);
         for j := 0 to LAccountsList.Count - 1 do begin
           account := FNode.GetMempoolAccount(LAccountsList[j]);
+          TPascalCoinJSONComp.FillAccountObject(account,jsonarr.GetAsObject(jsonarr.Count));
         end;
       Finally
         LAccountsList.Free;

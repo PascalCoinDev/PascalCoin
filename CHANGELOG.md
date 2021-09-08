@@ -1,5 +1,9 @@
 # Changelog
 
+## Build 5.5 - 2021-04-12
+- Fixed fatal bug. Mandatory upgrade
+- Net protocol upgraded to 13
+
 ## Build 5.4 - 2021-03-24
 - Added usage of AbstractMem library to allow build a PascalCoin version using virtual memory and efficient caching mechanism
   - Use AbstractMem library v1.2

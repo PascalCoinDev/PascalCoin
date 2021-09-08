@@ -114,7 +114,7 @@ procedure TestTAbstractMemBTree.DoCheckAbstractMem(AAbstractMem: TAbstractMem; A
 var
   LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount : Integer;
 begin
-  Assert(AAbstractMem.CheckConsistency(Nil,LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount));
+  Assert(AAbstractMem.CheckConsistency(Nil,Nil,LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount));
   Assert(LTotalUsedSize=AUsedBytes,Format('Total used %d bytes (%d blocks) different from expected %d bytes - Total free %d bytes (%d blocks)',[LTotalUsedSize, AUsedBytes, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount]));
 end;
 

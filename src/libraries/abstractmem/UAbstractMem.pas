@@ -34,7 +34,8 @@ interface
 uses
   Classes, SysUtils,
   SyncObjs,
-  UAbstractAVLTree;
+  UAbstractAVLTree
+  {$IFNDEF FPC},System.Generics.Collections,System.Generics.Defaults{$ELSE},Generics.Collections,Generics.Defaults{$ENDIF};
 
 {$I ./ConfigAbstractMem.inc }
 
@@ -71,7 +72,6 @@ Type
     function ToString : String;
   end;
 
-
   TAbstractMemMemoryLeaks = Class( TAVLAbstractTree<TAbstractMemMemoryLeaksNode> )
   private
     FAbstractMem : TAbstractMem;
@@ -96,6 +96,11 @@ Type
   End;
 
   TAbstractMemZoneType = (amzt_unknown, amzt_memory_leak, amzt_used);
+
+  TAbstractMemZoneInfo = record
+    AMZone : TAMZone;
+    ZoneType : TAbstractMemZoneType;
+  end;
 
   { TAbstractMem }
 
@@ -135,7 +140,7 @@ Type
     procedure Dispose(const APosition : TAbstractMemPosition); overload;
     function GetUsedZoneInfo(const APosition : TAbstractMemPosition; ACheckForUsedZone : Boolean; out AAMZone : TAMZone) : Boolean;
     function ToString : String; override;
-    function CheckConsistency(const AStructure : TStrings; out ATotalUsedSize, ATotalUsedBlocksCount, ATotalLeaksSize, ATotalLeaksBlocksCount : Integer) : Boolean;
+    function CheckConsistency(const AStructure : TStrings; const AAbstractMemZoneInfoList : TList<TAbstractMemZoneInfo>; out ATotalUsedSize, ATotalUsedBlocksCount, ATotalLeaksSize, ATotalLeaksBlocksCount : Integer) : Boolean;
     function ReadFirstData(var AFirstDataZone : TAMZone; var AFirstData : TBytes) : Boolean;
     class function GetAbstractMemVersion : String;
     property ReadOnly : Boolean read FReadOnly;
@@ -189,9 +194,12 @@ const
 
 { TAbstractMem }
 
-function TAbstractMem.CheckConsistency(const AStructure: TStrings; out ATotalUsedSize, ATotalUsedBlocksCount, ATotalLeaksSize, ATotalLeaksBlocksCount : Integer) : Boolean;
+function TAbstractMem.CheckConsistency(const AStructure : TStrings; const AAbstractMemZoneInfoList : TList<TAbstractMemZoneInfo>; out ATotalUsedSize, ATotalUsedBlocksCount, ATotalLeaksSize, ATotalLeaksBlocksCount : Integer) : Boolean;
 var LPosition : TAbstractMemPosition;
   LZone : TAMZone;
+  LAMZoneInfo : TAbstractMemZoneInfo;
+  i, nCount : Integer;
+  LMemLeakFound,LMemLeakToFind : TAbstractMemMemoryLeaksNode;
 begin
   // Will check since first position:
   FLock.Acquire;
@@ -206,12 +214,22 @@ begin
       case GetZoneType(LPosition,LZone) of
         amzt_memory_leak : begin
           if Assigned(AStructure) then AStructure.Add( Format('%d to %d mem leak %d bytes',[LPosition,LZone.position + LZone.size,LZone.size]));
+          if Assigned(AAbstractMemZoneInfoList) then begin
+            LAMZoneInfo.AMZone := LZone;
+            LAMZoneInfo.ZoneType := amzt_memory_leak;
+            AAbstractMemZoneInfoList.Add(LAMZoneInfo);
+          end;
           Inc(LPosition, LZone.size);
           inc(ATotalLeaksSize,LZone.size);
           inc(ATotalLeaksBlocksCount);
         end;
         amzt_used : begin
           if Assigned(AStructure) then AStructure.Add( Format('%d to %d used %d bytes',[LPosition,LZone.position + LZone.size, LZone.size]));
+          if Assigned(AAbstractMemZoneInfoList) then begin
+            LAMZoneInfo.AMZone := LZone;
+            LAMZoneInfo.ZoneType := amzt_used;
+            AAbstractMemZoneInfoList.Add(LAMZoneInfo);
+          end;
           inc(LPosition, LZone.size + CT_ExtraSizeForUsedZoneType);
           inc(ATotalUsedSize,LZone.size + CT_ExtraSizeForUsedZoneType);
           inc(ATotalUsedBlocksCount);
@@ -220,6 +238,34 @@ begin
         if Assigned(AStructure) then AStructure.Add( Format('Consisteny error at %d (End position: %d)',[LPosition,FNextAvailablePos]));
         Result := False;
       end;
+    end;
+    //
+    if Assigned(AAbstractMemZoneInfoList) then begin
+      // Try to find all blocks:
+      for i := 0 to AAbstractMemZoneInfoList.Count-1 do begin
+        if (AAbstractMemZoneInfoList.Items[i].ZoneType=amzt_memory_leak) then begin
+          // Search it:
+          LMemLeakToFind.Clear;
+          LMemLeakToFind.SetSize( AAbstractMemZoneInfoList.Items[i].AMZone.size );
+          LMemLeakToFind.myPosition := AAbstractMemZoneInfoList.Items[i].AMZone.position;
+
+          LMemLeakFound := FMemLeaks.Find( LMemLeakToFind );
+          if Not FMemLeaks.IsNil(LMemLeakFound) then begin
+            if (LMemLeakFound.myPosition<>AAbstractMemZoneInfoList.Items[i].AMZone.position) then begin
+              if Assigned(AStructure) then AStructure.Add( Format('MemLeak of %d bytes at %d pos not equal at %d/%d',
+                [LMemLeakToFind.GetSize,AAbstractMemZoneInfoList.Items[i].AMZone.position,i+1,AAbstractMemZoneInfoList.Count]));
+              Result := False;
+            end;
+          end else begin
+            if Assigned(AStructure) then AStructure.Add( Format('MemLeak of %d bytes at pos %d pos not found %d/%d',
+              [LMemLeakToFind.GetSize,AAbstractMemZoneInfoList.Items[i].AMZone.position,i+1,AAbstractMemZoneInfoList.Count]));
+            Result := False;
+          end;
+
+        end;
+      end;
+
+
     end;
   Finally
     FLock.Release;
@@ -554,7 +600,7 @@ var LAnalize : TStrings;
 begin
   LAnalize := TStringList.Create;
   try
-    if Not CheckConsistency(LAnalize,LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount) then begin
+    if Not CheckConsistency(LAnalize, Nil, LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount) then begin
       LAnalize.Add('CONSISTENCY ERROR FOUND');
     end else begin
       LAnalize.Clear;

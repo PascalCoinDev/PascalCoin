@@ -52,8 +52,12 @@
   - Added TAbstractBTree - Standard B-Tree implementation for use on AbstractMem Library - Multithread protected
   - Added TAbstractMemBTreeData<TData> that implements a generic <TData> implementation for TAbstractBTree on TAbstractMem
   - Added ABSTRACTMEM_CIRCULAR_SEARCH_PROTECTION compiler directive to prevent circular structures on Tree nodes
+  
+  Version 1.3 - Jul 2021
+  - Added TAbstractMemZoneInfo that allows to Analyze TAbstractMem using CheckConsistency and returns all blocks information
+  - Added TAVLCacheStats that allows to obtain stats from any TAVLCache<T> object
 
 }
 
 const
-  CT_ABSTRACTMEM_VERSION = 1.2; // Each revision should increase this version...
+  CT_ABSTRACTMEM_VERSION = 1.3; // Each revision should increase this version...

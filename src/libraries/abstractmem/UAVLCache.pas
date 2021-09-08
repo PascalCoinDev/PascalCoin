@@ -41,6 +41,16 @@ type
 
   { TAVLCache }
 
+  TAVLCacheStats = Record
+    searchesOk : Integer;
+    searchesFailed : Integer;
+    addedCount : Integer;
+    removedCount : Integer;
+    removedByOveruse : Integer;
+    procedure Clear;
+    function ToString : String;
+  end;
+
   TAVLCache<T> = Class
   public
     type
@@ -89,6 +99,7 @@ type
     var FAVLCacheMem : TAVLCacheMem;
     FMaxRegisters : Integer;
     FAVLCacheLock : TCriticalSection;
+    FStats : TAVLCacheStats;
   protected
     procedure BeforeDelete(var AData : T); virtual;
     procedure ConsistencyCheck;
@@ -104,6 +115,7 @@ type
     function TreeToString: String;
     function ToString(const AData : T) : String; overload; virtual;
     property MaxRegisters : Integer read FMaxRegisters write FMaxRegisters;
+    property Stats : TAVLCacheStats read FStats;
   End;
 
 implementation
@@ -354,9 +366,12 @@ begin
       FAVLCacheMem.Delete(PToDelete);
 
       inc(i);
+      Inc(FStats.removedCount);
+      Inc(FStats.removedByOveruse);
     end;
   end;
   Finally
+    Inc(FStats.addedCount);
     FAVLCacheLock.Release;
   End;
 end;
@@ -378,6 +393,7 @@ begin
     BeforeDelete(P^.data);
     FAVLCacheMem.DoMark(P,False);
     FAVLCacheMem.Delete(P);
+    Inc(FStats.removedCount);
   end;
   Finally
     FAVLCacheLock.Release;
@@ -401,6 +417,7 @@ begin
   FAVLCacheMem := TAVLCacheMem.Create(AOnCompareMethod,False);
   FMaxRegisters := ADefaultMaxRegisters;
   FAVLCacheLock := TCriticalSection.Create;
+  FStats.Clear;
 end;
 
 destructor TAVLCache<T>.Destroy;
@@ -431,7 +448,11 @@ begin
       AFound := PFound^.data;
       Result := True;
       FAVLCacheMem.DoMark(PFound,True);
-    end else Result := False;
+      Inc(FStats.searchesOk);
+    end else begin
+      Result := False;
+      Inc(FStats.searchesFailed);
+    end;
   finally
     Dispose(P);
   end;
@@ -454,6 +475,7 @@ begin
       BeforeDelete(PFound^.data);
       FAVLCacheMem.DoMark(PFound,False);
       FAVLCacheMem.Delete(PFound);
+      Inc(FStats.removedCount);
     end;
   finally
     Dispose(P);
@@ -489,6 +511,22 @@ end;
 function TAVLCache<T>.TAVLCacheMemData.ToString: String;
 begin
   Result := 'TAVLCache<T>.TAVLCacheMemData.'+IntToStr(SizeOf(Self.data));
+end;
+
+{ TAVLCacheStats }
+
+procedure TAVLCacheStats.Clear;
+begin
+  Self.searchesOk := 0;
+  Self.searchesFailed := 0;
+  Self.addedCount := 0;
+  Self.removedCount := 0;
+  Self.removedByOveruse := 0;
+end;
+
+function TAVLCacheStats.ToString: String;
+begin
+  Result := Format('%2.f%% of %d searches Ok. Added %d and removed %d for overuse',[Self.searchesOk*100/(Self.searchesFailed+Self.searchesFailed),Self.searchesFailed+Self.searchesFailed,Self.addedCount,Self.removedByOveruse]);
 end;
 
 end.
