@@ -4196,6 +4196,7 @@ begin
   end;
 end;
 
+
 class function TPCSafeBox.ValidAccountName(const new_name: TRawBytes; var errors : String): Boolean;
   { Note:
     This function is case senstive, and only lower case chars are valid.

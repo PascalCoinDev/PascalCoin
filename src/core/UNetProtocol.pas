@@ -3405,7 +3405,7 @@ var responseStream, accountsStream : TMemoryStream;
   pubKey : TAccountKey;
   sbakl : TSafeboxPubKeysAndAccounts;
   ocl : TAccountsNumbersList;
-  LAccountsList : TList<Integer>;
+  LAccountsList : TList<Int64>;
 begin
   {
   This call is used to obtain Accounts used by a Public key
@@ -3452,7 +3452,7 @@ begin
     if Assigned(sbakl) then begin
       ocl := sbakl.GetAccountsUsingThisKey(pubKey);
       if Assigned(ocl) then begin
-        LAccountsList := TList<Integer>.Create;
+        LAccountsList := TList<Int64>.Create;
         try
           ocl.FillList(start,max,LAccountsList);
           for i := 0 to LaccountsList.Count-1 do begin

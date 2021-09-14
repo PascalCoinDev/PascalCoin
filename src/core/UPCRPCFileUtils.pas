@@ -86,7 +86,7 @@ class function TRPCFileUtils.AbstractMemStats(const ASender: TRPCProcess;
   const AMethodName: String; AInputParams, AJSONResponse: TPCJSONObject;
   var AErrorNum: Integer; var AErrorDesc: String): Boolean;
 var LStrings, LReport : TStrings;
-   LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount : Integer;
+   LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount : Int64;
    i, nMax : Integer;
    Lobj : TPCJSONObject;
    Larray : TPCJSONArray;
@@ -101,7 +101,7 @@ begin
     if AInputParams.GetAsVariant('report').AsBoolean(False) then LReport := LStrings
     else LReport := Nil;
     Lobj := AJSONResponse.GetAsObject('result').GetAsObject('abstractmem');
-    if TNode.Node.Bank.SafeBox.PCAbstractMem.AbstractMem.CheckConsistency(LReport, Nil, LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount) then begin
+    if TNode.Node.Bank.SafeBox.PCAbstractMem.AbstractMem.CheckConsistency(LReport,Nil, LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount) then begin
       Lobj.GetAsVariant('checkconsistency').Value := True;
     end else begin
       Lobj.GetAsVariant('checkconsistency').Value := False;
@@ -121,7 +121,6 @@ begin
         dec(nMax);
       end;
     end;
-
     Result := True;
   Finally
     LStrings.Free;
