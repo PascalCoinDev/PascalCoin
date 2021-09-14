@@ -56,8 +56,13 @@
   Version 1.3 - Jul 2021
   - Added TAbstractMemZoneInfo that allows to Analyze TAbstractMem using CheckConsistency and returns all blocks information
   - Added TAVLCacheStats that allows to obtain stats from any TAVLCache<T> object
+  
+  Version 1.4 -
+  - Fixed but to allow files up to 4 Gb. Limitation is due to internal 4 bytes positioning. 4 bytes = 4 Gb maximum size
 
 }
 
 const
-  CT_ABSTRACTMEM_VERSION = 1.3; // Each revision should increase this version...
+  CT_ABSTRACTMEM_VERSION = 1.4; // Each revision should increase this version...
+
+

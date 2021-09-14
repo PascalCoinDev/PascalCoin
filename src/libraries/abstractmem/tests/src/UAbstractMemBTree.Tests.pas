@@ -62,7 +62,7 @@ end;
 
 function TAbstractMemBTreeExampleInteger.DoCompareData(const ALeftData, ARightData: TAbstractMemPosition): Integer;
 begin
-  Result := ALeftData - ARightData;
+  Result := Integer( ALeftData - ARightData );
 end;
 
 function TAbstractMemBTreeExampleInteger.NodeDataToString(const AData: TAbstractMemPosition): String;
@@ -112,7 +112,7 @@ end;
 
 procedure TestTAbstractMemBTree.DoCheckAbstractMem(AAbstractMem: TAbstractMem; AUsedBytes: Integer);
 var
-  LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount : Integer;
+  LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount : TAbstractMemPosition;
 begin
   Assert(AAbstractMem.CheckConsistency(Nil,Nil,LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount));
   Assert(LTotalUsedSize=AUsedBytes,Format('Total used %d bytes (%d blocks) different from expected %d bytes - Total free %d bytes (%d blocks)',[LTotalUsedSize, AUsedBytes, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount]));
@@ -136,7 +136,8 @@ procedure TestTAbstractMemBTree.TestInfinite_Integer(AOrder : Integer; AAllowDup
 var Lbt : TAbstractMemBTreeExampleInteger;
   Lbts : TAbstractMemBTreeExampleString;
   Lzone : TAMZone;
-  intValue, nRounds, nAdds, nDeletes, i, j : Integer;
+  intValue, nRounds, nAdds, nDeletes, i : Integer;
+  j : TAbstractMemPosition;
   Lnode : TIntegerBTree.TAbstractBTreeNode;
   Lmem : TAbstractMem;
   LCurr : String;

@@ -111,7 +111,6 @@ type
   End;
 
 
-
 implementation
 
 { TAbstractMemBTree<TData> }
@@ -129,7 +128,7 @@ begin
   FAbstractMem := AAbstractMem;
   FrootPosition := 0;
 
-  inherited Create(TComparison_Integer,TComparison_Integer,AAllowDuplicates,AOrder);
+  inherited Create(TComparison_TAbstractMemPosition,TComparison_TAbstractMemPosition,AAllowDuplicates,AOrder);
   FCount := 0;
   //
   if Not FAbstractMem.GetUsedZoneInfo(AInitialZone.position,False,FInitialZone) then begin
@@ -257,6 +256,7 @@ begin
   ClearNode(ANode);
   LItemsCount := 0;
   AChildsCount := 0;
+  AChildsPosition := 0;
   ANode.identify := APosition;
   Move(LBuff[0],ANode.parent,4);
   Move(LBuff[4],LItemsCount,1);
