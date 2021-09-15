@@ -13,16 +13,16 @@ uses
    {$ELSE}
    TestFramework,
    {$ENDIF}
-   UAbstractBTree, UOrderedList;
+   UAbstractBTree, UOrderedList, UAbstractMem;
 
 type
 
-  TIntegerBTree = Class( TMemoryBTree<Integer> )
+  TIntegerBTree = Class( TMemoryBTree<TAbstractMemPosition> )
   private
   protected
   public
     constructor Create(AAllowDuplicates : Boolean; AOrder : Integer);
-    function NodeDataToString(const AData : Integer) : String; override;
+    function NodeDataToString(const AData : TAbstractMemPosition) : String; override;
   End;
 
 
@@ -51,10 +51,10 @@ implementation
 
 constructor TIntegerBTree.Create(AAllowDuplicates: Boolean; AOrder: Integer);
 begin
-  inherited Create(TComparison_Integer,AAllowDuplicates,AOrder);
+  inherited Create(TComparison_TAbstractMemPosition,AAllowDuplicates,AOrder);
 end;
 
-function TIntegerBTree.NodeDataToString(const AData: Integer): String;
+function TIntegerBTree.NodeDataToString(const AData: TAbstractMemPosition): String;
 begin
   Result := AData.ToString;
 end;
@@ -199,7 +199,9 @@ end;
 
 procedure TestTAbstractBTree.TestPrecessorSuccessor;
 var Lbt : TIntegerBTree;
-  Lorder, i, intValue, valMin, valMax, Lregs : Integer;
+  Lorder : Integer;
+  i, intValue, valMin, valMax, Lregs : TAbstractMemPosition;
+
 begin
   for Lorder := 3 to 7 do begin
     Lbt := TIntegerBTree.Create(False,Lorder);
@@ -242,7 +244,8 @@ end;
 
 procedure TestTAbstractBTree.TestPrecessorSuccessor_Duplicates;
 var Lbt : TIntegerBTree;
-  Lorder, i, intValue, valMin, valMax, Lregs : Integer;
+  Lorder,
+  i, intValue, valMin, valMax, Lregs : TAbstractMemPosition;
 begin
   for Lorder := 3 to 7 do begin
     Lbt := TIntegerBTree.Create(True,Lorder);
@@ -282,7 +285,7 @@ end;
 
 procedure TestTAbstractBTree.Test_duplicate;
 var Lbt : TIntegerBTree;
-  Lorder, i, intValue : Integer;
+  Lorder, i, intValue : TAbstractMemPosition;
   LLastTree, LCurrentTree : String;
 
   procedure DoInsert(AValue : Integer);
@@ -345,7 +348,7 @@ end;
 
 procedure TestTAbstractBTree.TestDelete;
 var Lbt : TIntegerBTree;
-  Lorder, i, intValue : Integer;
+  Lorder, i, intValue : TAbstractMemPosition;
   LLastTree, LCurrentTree : String;
 
   procedure DoDelete(AValue : Integer);

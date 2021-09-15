@@ -28,7 +28,7 @@ uses Classes, SysUtils,
   UAbstractMem,
   UAbstractMemBTree,
   UAbstractBTree,
-  UPCDataTypes, UBaseTypes,
+  UPCDataTypes, UBaseTypes, UOrderedList,
   {$IFNDEF FPC}System.Generics.Collections,System.Generics.Defaults{$ELSE}Generics.Collections,Generics.Defaults{$ENDIF};
 
 type
@@ -41,7 +41,7 @@ type
       TAccounstByUpdatedBlockBTree = Class({$IFDEF USE_ABSTRACTMEM}TAbstractMemBTree{$ELSE}TMemoryBTree<Integer>{$ENDIF})
       protected
         FCallReturnAccount : TCallReturnAccount;
-        FSearching_AccountNumber : Integer;
+        FSearching_AccountNumber : Int64;
         FSearching_UpdatedBlock : Integer;
         function DoCompareData(const ALeftData, ARightData: TAbstractMemPosition): Integer; override;
       public
@@ -105,22 +105,28 @@ begin
 end;
 
 function TAccountsOrderedByUpdatedBlock.First(var AAccountNumber : Integer) : Boolean;
+var i : Int64;
 begin
   FBTree.Lock;
   Try
     FBTree.FSearching_AccountNumber := -1;
-    Result := FBTree.FindLowest(AAccountNumber);
+    i := AAccountNumber;
+    Result := FBTree.FindLowest(i);
+    AAccountNumber := i;
   Finally
     FBTree.Unlock;
   End;
 end;
 
 function TAccountsOrderedByUpdatedBlock.Next(var AAccountNumber : Integer): Boolean;
+var i : Int64;
 begin
   FBTree.Lock;
   Try
     FBTree.FSearching_AccountNumber := -1;
-    Result := FBTree.FindSuccessor(AAccountNumber,AAccountNumber);
+    i := AAccountNumber;
+    Result := FBTree.FindSuccessor(i,i);
+    AAccountNumber := i;
   Finally
     FBTree.Unlock;
   End;

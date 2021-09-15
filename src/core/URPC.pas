@@ -2991,7 +2991,7 @@ Var c,c2,c3 : Cardinal;
   jsonarr : TPCJSONArray;
   jso : TPCJSONObject;
   LRPCProcessMethod : TRPCProcessMethod;
-  LAccountsList : TList<Integer>;
+  LAccountsList : TList<Int64>;
 begin
   _ro := Nil;
   _ra := Nil;
@@ -3053,7 +3053,7 @@ begin
       Lanl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
       k := params.AsInteger('max',100);
       l := params.AsInteger('start',0);
-      LAccountsList := TList<Integer>.Create;
+      LAccountsList := TList<Int64>.Create;
       Try
         Lanl.FillList(l,k,LAccountsList);
         for j := 0 to LAccountsList.Count - 1 do begin
@@ -3070,7 +3070,7 @@ begin
       c := 0;
       for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
         Lanl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
-        LAccountsList := TList<Integer>.Create;
+        LAccountsList := TList<Int64>.Create;
         Try
           Lanl.FillList(0,Lanl.Count,LAccountsList);
           for j := 0 to LAccountsList.Count - 1 do begin
@@ -3140,7 +3140,7 @@ begin
       Lanl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
       account.balance := 0;
 
-      LAccountsList := TList<Integer>.Create;
+      LAccountsList := TList<Int64>.Create;
       Try
         Lanl.FillList(0,Lanl.Count,LAccountsList);
         for j := 0 to LAccountsList.Count - 1 do begin
@@ -3159,7 +3159,7 @@ begin
       for i:=0 to _RPCServer.WalletKeys.AccountsKeyList.Count-1 do begin
         Lanl := _RPCServer.WalletKeys.AccountsKeyList.AccountKeyList[i];
 
-        LAccountsList := TList<Integer>.Create;
+        LAccountsList := TList<Int64>.Create;
         Try
           Lanl.FillList(0,Lanl.Count,LAccountsList);
           for j := 0 to LAccountsList.Count - 1 do begin

@@ -145,25 +145,25 @@ type
     procedure Unlock;
   End;
 
-  TMemoryBTree<TData> = Class( TAbstractBTree<Integer,TData> )
+  TMemoryBTree<TData> = Class( TAbstractBTree<TAbstractMemPosition,TData> )
   private
-    FBuffer : TList<TAbstractBTree<Integer,TData>.TAbstractBTreeNode> ;
+    FBuffer : TList<TAbstractBTree<TAbstractMemPosition,TData>.TAbstractBTreeNode> ;
     Froot : Integer;
     FDisposed : Integer;
     FDisposedMinPos : Integer;
   protected
-    function GetRoot: TAbstractBTree<Integer,TData>.TAbstractBTreeNode; override;
-    procedure SetRoot(var Value: TAbstractBTree<Integer,TData>.TAbstractBTreeNode); override;
-    function NewNode : TAbstractBTree<Integer,TData>.TAbstractBTreeNode; override;
-    procedure DisposeNode(var ANode : TAbstractBTree<Integer,TData>.TAbstractBTreeNode); override;
-    procedure SetNil(var AIdentify : Integer); override;
-    procedure SaveNode(var ANode : TAbstractBTree<Integer,TData>.TAbstractBTreeNode); override;
-    procedure CheckConsistencyFinalized(ADatas : TList<TData>; AIdents : TOrderedList<Integer>; Alevels, ANodesCount, AItemsCount : Integer); override;
+    function GetRoot: TAbstractBTree<TAbstractMemPosition,TData>.TAbstractBTreeNode; override;
+    procedure SetRoot(var Value: TAbstractBTree<TAbstractMemPosition,TData>.TAbstractBTreeNode); override;
+    function NewNode : TAbstractBTree<TAbstractMemPosition,TData>.TAbstractBTreeNode; override;
+    procedure DisposeNode(var ANode : TAbstractBTree<TAbstractMemPosition,TData>.TAbstractBTreeNode); override;
+    procedure SetNil(var AIdentify : TAbstractMemPosition); override;
+    procedure SaveNode(var ANode : TAbstractBTree<TAbstractMemPosition,TData>.TAbstractBTreeNode); override;
+    procedure CheckConsistencyFinalized(ADatas : TList<TData>; AIdents : TOrderedList<TAbstractMemPosition>; Alevels, ANodesCount, AItemsCount : Integer); override;
   public
-    function IsNil(const AIdentify : Integer) : Boolean; override;
+    function IsNil(const AIdentify : TAbstractMemPosition) : Boolean; override;
     constructor Create(const AOnCompareDataMethod: TComparison<TData>; AAllowDuplicates : Boolean; AOrder : Integer);
     destructor Destroy; override;
-    function GetNode(AIdentify : Integer) : TAbstractBTree<Integer,TData>.TAbstractBTreeNode; override;
+    function GetNode(AIdentify : TAbstractMemPosition) : TAbstractBTree<TAbstractMemPosition,TData>.TAbstractBTreeNode; override;
     property Count;
   End;
 
@@ -177,6 +177,8 @@ type
   End;
 
 implementation
+
+uses UAbstractMem;
 
 { TAbstractBTree<TIdentify, TData> }
 
@@ -1377,7 +1379,7 @@ end;
 
 { TMemoryBTree<TData> }
 
-procedure TMemoryBTree<TData>.CheckConsistencyFinalized(ADatas: TList<TData>; AIdents: TOrderedList<Integer>; Alevels, ANodesCount, AItemsCount: Integer);
+procedure TMemoryBTree<TData>.CheckConsistencyFinalized(ADatas: TList<TData>; AIdents: TOrderedList<TAbstractMemPosition>; Alevels, ANodesCount, AItemsCount: Integer);
 var i,iPos,nDisposed, LDisposedMinPos : Integer;
 begin
   inherited;
@@ -1403,7 +1405,7 @@ constructor TMemoryBTree<TData>.Create(const AOnCompareDataMethod: TComparison<T
 begin
   FBuffer := TList<TAbstractBTreeNode>.Create;
   Froot := -1;
-  inherited Create(TComparison_Integer,AOnCompareDataMethod,AAllowDuplicates,AOrder);
+  inherited Create(TComparison_TAbstractMemPosition,AOnCompareDataMethod,AAllowDuplicates,AOrder);
   FCount := 0;
   FDisposed := 0;
   FDisposedMinPos := -1;
@@ -1416,7 +1418,7 @@ begin
   inherited;
 end;
 
-procedure TMemoryBTree<TData>.DisposeNode(var ANode: TAbstractBTree<Integer, TData>.TAbstractBTreeNode);
+procedure TMemoryBTree<TData>.DisposeNode(var ANode: TAbstractBTree<TAbstractMemPosition, TData>.TAbstractBTreeNode);
 var Lpos : Integer;
 begin
   Lpos := ANode.identify;
@@ -1427,13 +1429,13 @@ begin
   if (FDisposedMinPos<0) or (FDisposedMinPos>Lpos) then FDisposedMinPos := Lpos;
 end;
 
-function TMemoryBTree<TData>.GetNode(AIdentify: Integer): TAbstractBTree<Integer, TData>.TAbstractBTreeNode;
+function TMemoryBTree<TData>.GetNode(AIdentify: TAbstractMemPosition): TAbstractBTree<TAbstractMemPosition, TData>.TAbstractBTreeNode;
 begin
   Result := FBuffer[AIdentify];
   if (Result.identify<>AIdentify) then raise EAbstractBTree.Create(Format('Found %d Identify instead of %d',[Result.identify,AIdentify]));
 end;
 
-function TMemoryBTree<TData>.GetRoot: TAbstractBTree<Integer, TData>.TAbstractBTreeNode;
+function TMemoryBTree<TData>.GetRoot: TAbstractBTree<TAbstractMemPosition, TData>.TAbstractBTreeNode;
 begin
   if (Froot<0) then begin
     ClearNode(Result);
@@ -1442,12 +1444,12 @@ begin
   Result := GetNode(Froot);
 end;
 
-function TMemoryBTree<TData>.IsNil(const AIdentify: Integer): Boolean;
+function TMemoryBTree<TData>.IsNil(const AIdentify: TAbstractMemPosition): Boolean;
 begin
   Result := AIdentify<0;
 end;
 
-function TMemoryBTree<TData>.NewNode: TAbstractBTree<Integer, TData>.TAbstractBTreeNode;
+function TMemoryBTree<TData>.NewNode: TAbstractBTree<TAbstractMemPosition, TData>.TAbstractBTreeNode;
 begin
   ClearNode(Result);
   if (FDisposed > 0) And (FDisposed > (Count DIV 5)) then begin // 20% max disposed nodes
@@ -1467,7 +1469,7 @@ begin
   FBuffer.Insert(Result.identify,Result);
 end;
 
-procedure TMemoryBTree<TData>.SaveNode(var ANode: TAbstractBTree<Integer, TData>.TAbstractBTreeNode);
+procedure TMemoryBTree<TData>.SaveNode(var ANode: TAbstractBTree<TAbstractMemPosition, TData>.TAbstractBTreeNode);
 begin
   if (ANode.identify<0) then begin
     raise EAbstractBTree.Create('Save undefined node '+ToString(ANode));
@@ -1479,12 +1481,12 @@ begin
   end;
 end;
 
-procedure TMemoryBTree<TData>.SetNil(var AIdentify: Integer);
+procedure TMemoryBTree<TData>.SetNil(var AIdentify: TAbstractMemPosition);
 begin
   AIdentify := -1;
 end;
 
-procedure TMemoryBTree<TData>.SetRoot(var Value: TAbstractBTree<Integer, TData>.TAbstractBTreeNode);
+procedure TMemoryBTree<TData>.SetRoot(var Value: TAbstractBTree<TAbstractMemPosition, TData>.TAbstractBTreeNode);
 begin
   Froot := Value.identify;
 end;

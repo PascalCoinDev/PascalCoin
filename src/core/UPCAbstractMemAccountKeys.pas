@@ -10,7 +10,7 @@ uses Classes, SysUtils,
   SyncObjs,
   UAbstractMem, UFileMem, UAbstractMemTList,
   UAbstractBTree, UAbstractAVLTree,
-  UPCDataTypes, UBaseTypes, UAVLCache, UAbstractMemBTree,
+  UPCDataTypes, UBaseTypes, UAVLCache, UAbstractMemBTree, UOrderedList,
   {$IFNDEF FPC}System.Generics.Collections,System.Generics.Defaults{$ELSE}Generics.Collections,Generics.Defaults{$ENDIF};
 
 type
@@ -262,7 +262,7 @@ end;
 procedure TPCAbstractMemAccountKeys.GetAccountsUsingKey(
   const AAccountKey: TAccountKey; const AList: TList<Cardinal>);
 var Lautk : TAccountsUsingThisKey;
-  i : Integer;
+  i : TAbstractMemPosition;
 begin
   AList.Clear;
   FAccountKeysLock.Acquire;
@@ -539,7 +539,7 @@ begin
 end;
 
 function TAccountsUsingThisKey.Get(Index: Integer): Cardinal;
-var i : Integer;
+var i : TAbstractMemPosition;
 begin
   if Not FindIndex(Index,i) then raise Exception.Create(Format('Accounts using this key index %d not found',[Index]));
   Result := i;

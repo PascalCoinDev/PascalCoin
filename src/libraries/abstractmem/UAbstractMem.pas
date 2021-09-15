@@ -35,16 +35,15 @@ uses
   Classes, SysUtils,
   SyncObjs,
   UAbstractAVLTree
-  {$IFNDEF FPC},System.Generics.Collections,System.Generics.Defaults{$ELSE},Generics.Collections,Generics.Defaults{$ENDIF};
+  {$IFNDEF FPC},System.Generics.Collections,System.Generics.Defaults{$ELSE},Generics.Collections,Generics.Defaults{$ENDIF},
+  UOrderedList;
 
 {$I ./ConfigAbstractMem.inc }
 
 Type
-  TAbstractMemPosition = Integer;
-
   TAMZone = record
     position : TAbstractMemPosition;
-    size : Integer;
+    size : Int64;
     procedure Clear;
     function ToString : String;
   end;
@@ -109,17 +108,17 @@ Type
     FReadOnly : Boolean;
     FHeaderInitialized : Boolean;
     FInitialPosition : Integer;
-    FNextAvailablePos : Integer;
-    FMaxAvailablePos : Integer;
+    FNextAvailablePos : Int64;
+    FMaxAvailablePos : Int64;
     FMemLeaks : TAbstractMemMemoryLeaks;
     //
   protected
     FLock : TCriticalSection;
     function AbsoluteWrite(const AAbsolutePosition : Int64; const ABuffer; ASize : Integer) : Integer; virtual; abstract;
     function AbsoluteRead(const AAbsolutePosition : Int64; var ABuffer; ASize : Integer) : Integer; virtual; abstract;
-    procedure DoIncreaseSize(var ANextAvailablePos, AMaxAvailablePos : Integer; ANeedSize : Integer); virtual; abstract;
+    procedure DoIncreaseSize(var ANextAvailablePos, AMaxAvailablePos : Int64; ANeedSize : Integer); virtual; abstract;
     //
-    function PositionToAbsolute(const APosition : Integer) : Int64;
+    function PositionToAbsolute(const APosition : Int64) : Int64;
     procedure IncreaseSize(ANeedSize : Integer);
     //
     function GetZoneType(APosition : TAbstractMemPosition; out AAMZone : TAMZone) : TAbstractMemZoneType;
@@ -127,8 +126,8 @@ Type
     function IsAbstractMemInfoStable : Boolean; virtual;
     procedure SaveHeader;
   public
-    function Write(const APosition : Integer; const ABuffer; ASize : Integer) : Integer; overload; virtual;
-    function Read(const APosition : Integer; var ABuffer; ASize : Integer) : Integer; overload; virtual;
+    function Write(const APosition : Int64; const ABuffer; ASize : Integer) : Integer; overload; virtual;
+    function Read(const APosition : Int64; var ABuffer; ASize : Integer) : Integer; overload; virtual;
 
     Constructor Create(AInitialPosition : Integer; AReadOnly : Boolean); virtual;
     Destructor Destroy; override;
@@ -140,7 +139,7 @@ Type
     procedure Dispose(const APosition : TAbstractMemPosition); overload;
     function GetUsedZoneInfo(const APosition : TAbstractMemPosition; ACheckForUsedZone : Boolean; out AAMZone : TAMZone) : Boolean;
     function ToString : String; override;
-    function CheckConsistency(const AStructure : TStrings; const AAbstractMemZoneInfoList : TList<TAbstractMemZoneInfo>; out ATotalUsedSize, ATotalUsedBlocksCount, ATotalLeaksSize, ATotalLeaksBlocksCount : Integer) : Boolean;
+    function CheckConsistency(const AStructure : TStrings; const AAbstractMemZoneInfoList : TList<TAbstractMemZoneInfo>; out ATotalUsedSize, ATotalUsedBlocksCount, ATotalLeaksSize, ATotalLeaksBlocksCount : Int64) : Boolean;
     function ReadFirstData(var AFirstDataZone : TAMZone; var AFirstData : TBytes) : Boolean;
     class function GetAbstractMemVersion : String;
     property ReadOnly : Boolean read FReadOnly;
@@ -148,6 +147,9 @@ Type
     procedure CopyFrom(ASource : TAbstractMem);
     function GetStatsReport(AClearStats : Boolean) : String; virtual;
     class function SizeOfPosition : Integer;
+    property NextAvailablePos : Int64 read FNextAvailablePos;
+    property MaxAvailablePos : Int64 read FMaxAvailablePos;
+    property HeaderInitialized : Boolean read FHeaderInitialized;
   End;
 
   TMem = Class(TAbstractMem)
@@ -156,7 +158,7 @@ Type
   protected
     function AbsoluteWrite(const AAbsolutePosition : Int64; const ABuffer; ASize : Integer) : Integer; override;
     function AbsoluteRead(const AAbsolutePosition : Int64; var ABuffer; ASize : Integer) : Integer; override;
-    procedure DoIncreaseSize(var ANextAvailablePos, AMaxAvailablePos : Integer; ANeedSize : Integer); override;
+    procedure DoIncreaseSize(var ANextAvailablePos, AMaxAvailablePos : Int64; ANeedSize : Integer); override;
   public
     Constructor Create(AInitialPosition : Integer; AReadOnly : Boolean); override;
   End;
@@ -181,6 +183,7 @@ Type
     class function GetSize : Integer;
   end;
 
+function TComparison_TAbstractMemPosition(const ALeft, ARight: TAbstractMemPosition): Integer;
 
 implementation
 
@@ -192,13 +195,20 @@ const
   CT_HeaderSize = 16; // Magic(7) + Version(1) + MemLeak_root_position(4) + NextAvailable_position(4) = 16 bytes
   CT_ExtraSizeForUsedZoneType = 4;
 
+function TComparison_TAbstractMemPosition(const ALeft, ARight: TAbstractMemPosition): Integer;
+begin
+  if ALeft<ARight then Result := -1
+  else if ALeft>ARight then Result := 1
+  else Result := 0;
+end;
+
 { TAbstractMem }
 
-function TAbstractMem.CheckConsistency(const AStructure : TStrings; const AAbstractMemZoneInfoList : TList<TAbstractMemZoneInfo>; out ATotalUsedSize, ATotalUsedBlocksCount, ATotalLeaksSize, ATotalLeaksBlocksCount : Integer) : Boolean;
+function TAbstractMem.CheckConsistency(const AStructure : TStrings; const AAbstractMemZoneInfoList : TList<TAbstractMemZoneInfo>; out ATotalUsedSize, ATotalUsedBlocksCount, ATotalLeaksSize, ATotalLeaksBlocksCount : Int64) : Boolean;
 var LPosition : TAbstractMemPosition;
   LZone : TAMZone;
   LAMZoneInfo : TAbstractMemZoneInfo;
-  i, nCount : Integer;
+  i: Integer;
   LMemLeakFound,LMemLeakToFind : TAbstractMemMemoryLeaksNode;
 begin
   // Will check since first position:
@@ -219,8 +229,8 @@ begin
             LAMZoneInfo.ZoneType := amzt_memory_leak;
             AAbstractMemZoneInfoList.Add(LAMZoneInfo);
           end;
-          Inc(LPosition, LZone.size);
-          inc(ATotalLeaksSize,LZone.size);
+          LPosition := LPosition + LZone.size;
+          ATotalLeaksSize := ATotalLeaksSize + LZone.size;
           inc(ATotalLeaksBlocksCount);
         end;
         amzt_used : begin
@@ -230,8 +240,8 @@ begin
             LAMZoneInfo.ZoneType := amzt_used;
             AAbstractMemZoneInfoList.Add(LAMZoneInfo);
           end;
-          inc(LPosition, LZone.size + CT_ExtraSizeForUsedZoneType);
-          inc(ATotalUsedSize,LZone.size + CT_ExtraSizeForUsedZoneType);
+          LPosition := Int64(LPosition) + Int64(LZone.size) + Int64( CT_ExtraSizeForUsedZoneType );
+          ATotalUsedSize := ATotalUsedSize + LZone.size + Int64( CT_ExtraSizeForUsedZoneType );
           inc(ATotalUsedBlocksCount);
         end;
       else
@@ -306,7 +316,7 @@ end;
 
 procedure TAbstractMem.CopyFrom(ASource: TAbstractMem);
 var LBuff : TBytes;
-  iPos, LBuffDataCount : Integer;
+  iPos, LBuffDataCount : Int64;
   LMemLeakRelativeRootPos : TAbstractMemPosition;
 begin
   ASource.FLock.Acquire;
@@ -325,7 +335,7 @@ begin
       if LBuffDataCount>Length(LBuff) then LBuffDataCount := Length(LBuff);
       ASource.Read(iPos,LBuff[0],LBuffDataCount);
       Self.Write(iPos,LBuff[0],LBuffDataCount);
-      inc(iPos,LBuffDataCount);
+      iPos := iPos + LBuffDataCount;
     end;
 
     LMemLeakRelativeRootPos := ASource.FMemLeaks.FRootPosition;
@@ -390,6 +400,7 @@ procedure TAbstractMem.Dispose(const APosition: TAbstractMemPosition);
 var LZone : TAMZone;
 begin
   if APosition<=CT_HeaderSize then raise EAbstractMem.Create('Dispose: Invalid position '+IntToStr(APosition));
+  LZone.Clear;
   // @[APosition] - 4 bytes = position to size
   LZone.position := APosition;
   if Read(APosition - 4,LZone.size,4) <> 4 then raise EAbstractMem.Create('Dispose: Cannot read size');
@@ -438,6 +449,7 @@ begin
     if GetZoneType(APosition - CT_ExtraSizeForUsedZoneType,AAMZone)<>amzt_used then Exit(False)
     else Exit(True);
   end else begin
+    AAMZone.Clear;
     AAMZone.position := APosition;
     if Read(APosition - CT_ExtraSizeForUsedZoneType,AAMZone.size,4)<>4 then Exit(False); // This is the CT_ExtraSizeForUsedZoneType = 4 bytes for size indicator
     Result := (AAMZone.position + AAMZone.size <= FNextAvailablePos)  And ( ((((AAMZone.size-1) DIV 4)+1)*4) = AAMZone.size );
@@ -449,9 +461,11 @@ var LZone : TAMZone;
   LMemLeak, LSearchedMemLeak : TAbstractMemMemoryLeaksNode;
 begin
   Result := amzt_unknown;
+  AAMZone.Clear;
   AAMZone.position := APosition;
   AAMZone.size := 0;
   LZone.position := (((APosition-1) DIV 4)+1)*4;
+  LZone.size := 0;
   if (LZone.position <> APosition) or (LZone.position<CT_HeaderSize) or (LZone.position>=FNextAvailablePos) then Exit;
   // Check if Memory leak
   LMemLeak.myPosition := LZone.position;
@@ -473,14 +487,22 @@ end;
 
 procedure TAbstractMem.IncreaseSize(ANeedSize: Integer);
   // This will guarantee at the end that FMaxAvailablePos-FNextAvailablePos+1 >= ANeededSize
-var LTmpNextAvailablePos, LTmpMaxAvailablePos : Integer;
+var LTmpNextAvailablePos, LTmpMaxAvailablePos : Int64;
 begin
   if FMaxAvailablePos-FNextAvailablePos+1 >= ANeedSize then Exit;
+
+  // Max 32 bits memory (4 Gb)
+  if Int64(FNextAvailablePos + Int64(ANeedSize)) >= Int64($FFFFFFFF) then begin
+    raise EAbstractMem.Create(Format('Cannot increase more size (Max 4Gb) current %d (max %d) needed %d overflow 0x%s',
+      [FNextAvailablePos,FMaxAvailablePos, ANeedSize,IntToHex(Int64(FNextAvailablePos + Int64(ANeedSize)),16)]));
+  end;
+
   LTmpNextAvailablePos := FNextAvailablePos;
   LTmpMaxAvailablePos := FMaxAvailablePos;
+
   DoIncreaseSize(LTmpNextAvailablePos,LTmpMaxAvailablePos,ANeedSize);
   // Check
-  if (LTmpNextAvailablePos + LTmpMaxAvailablePos + 1 < ANeedSize) then raise EAbstractMem.Create(FormaT('IncreaseSize error. Needed %d obtained from %d to %d = %d',
+  if ((LTmpMaxAvailablePos-LTmpNextAvailablePos)+1 < ANeedSize) and (ANeedSize>0) then raise EAbstractMem.Create(FormaT('IncreaseSize error. Needed %d obtained from %d to %d = %d',
     [ANeedSize,LTmpNextAvailablePos,LTmpMaxAvailablePos,(LTmpMaxAvailablePos-LTmpNextAvailablePos+1)]));
   //
   FNextAvailablePos := LTmpNextAvailablePos;
@@ -538,7 +560,7 @@ begin
   End;
 end;
 
-function TAbstractMem.PositionToAbsolute(const APosition: Integer): Int64;
+function TAbstractMem.PositionToAbsolute(const APosition: Int64): Int64;
 begin
   Result := FInitialPosition + APosition;
 end;
@@ -570,7 +592,7 @@ end;
 procedure TAbstractMem.SaveToStream(AStream: TStream);
 var LBuffer : TBytes;
   i : Integer;
-  LNextStart : Integer;
+  LNextStart : Int64;
 begin
   CheckInitialized(False);
   LNextStart := 0;
@@ -582,7 +604,7 @@ begin
       if (i>Length(LBuffer)) then i := Length(LBuffer);
       Read(LNextStart,LBuffer[0],i);
       AStream.Write(LBuffer[0],i);
-      inc(LNextStart,i);
+      LNextStart := LNextStart + i;
     end;
   Finally
     FLock.Release;
@@ -596,7 +618,7 @@ end;
 
 function TAbstractMem.ToString: String;
 var LAnalize : TStrings;
-  LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount : Integer;
+  LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount : Int64;
 begin
   LAnalize := TStringList.Create;
   try
@@ -612,7 +634,7 @@ begin
   end;
 end;
 
-function TAbstractMem.Read(const APosition: Integer; var ABuffer; ASize: Integer): Integer;
+function TAbstractMem.Read(const APosition: Int64; var ABuffer; ASize: Integer): Integer;
 begin
   FLock.Acquire;
   try
@@ -640,7 +662,7 @@ begin
   end;
 end;
 
-function TAbstractMem.Write(const APosition: Integer; const ABuffer; ASize: Integer) : Integer;
+function TAbstractMem.Write(const APosition: Int64; const ABuffer; ASize: Integer) : Integer;
 begin
   FLock.Acquire;
   Try
@@ -875,7 +897,7 @@ begin
   inherited;
 end;
 
-procedure TMem.DoIncreaseSize(var ANextAvailablePos, AMaxAvailablePos: Integer; ANeedSize: Integer);
+procedure TMem.DoIncreaseSize(var ANextAvailablePos, AMaxAvailablePos: Int64; ANeedSize: Integer);
 begin
   if (ANeedSize<=0) And (AMaxAvailablePos<=0) then begin
     SetLength(FMem,0); // Reset
@@ -887,7 +909,7 @@ begin
   ANeedSize := (((ANeedSize-1) DIV 256)+1)*256;
 
   SetLength(FMem, AMaxAvailablePos + ANeedSize);
-  Inc(AMaxAvailablePos,ANeedSize);
+  AMaxAvailablePos := AMaxAvailablePos + ANeedSize;
   //
 end;
 

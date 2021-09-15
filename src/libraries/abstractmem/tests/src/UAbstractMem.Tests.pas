@@ -13,7 +13,8 @@ interface
    {$ELSE}
    TestFramework,
    {$ENDIF}
-   UCacheMem, UFileMem, UAbstractMem, UAbstractBTree, UAbstractMemTList
+   UCacheMem, UFileMem, UAbstractMem, UAbstractBTree, UAbstractMemTList,
+   UOrderedList
    {$IFNDEF FPC},System.Generics.Collections,System.Generics.Defaults{$ELSE},Generics.Collections,Generics.Defaults{$ENDIF};
  type
    // Test methods for class TCalc
@@ -55,7 +56,7 @@ var LAM : TAbstractMem;
   i,j, loops : Integer;
   LStrings : TStrings;
   LAbstractMemZoneInfoList : TList<TAbstractMemZoneInfo>;
-  LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount : Integer;
+  LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount : TAbstractMemPosition;
 begin
   LAM := TMem.Create(0,False);
   try

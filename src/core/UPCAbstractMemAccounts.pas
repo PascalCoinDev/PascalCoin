@@ -38,7 +38,7 @@ type
 
 implementation
 
-uses UAccounts;
+uses UAccounts, UOrderedList;
 
 { TPCAbstractMemListAccounts }
 

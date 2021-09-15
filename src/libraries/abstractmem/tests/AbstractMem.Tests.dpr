@@ -38,7 +38,8 @@ uses
   UCacheMem.Tests in 'src\UCacheMem.Tests.pas',
   UAbstractMem.Tests in 'src\UAbstractMem.Tests.pas',
   UAbstractBTree.Tests in 'src\UAbstractBTree.Tests.pas',
-  UAbstractMemBTree.Tests in 'src\UAbstractMemBTree.Tests.pas';
+  UAbstractMemBTree.Tests in 'src\UAbstractMemBTree.Tests.pas',
+  UFileMem.Tests in 'src\UFileMem.Tests.pas';
 
 {$IF Defined(FPC) and (Defined(CONSOLE_TESTRUNNER))}
 type

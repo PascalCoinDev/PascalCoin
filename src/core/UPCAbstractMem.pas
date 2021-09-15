@@ -503,7 +503,7 @@ begin
 
   FCheckingThread := Nil;
   FLockAbstractMem := TPCCriticalSection.Create(Self.ClassName);
-  FAccountCache := TAccountCache.Create(10000,_AccountCache_Comparision);
+  FAccountCache := TAccountCache.Create(50000,_AccountCache_Comparision);
   FSavingNewSafeboxMode := False;
 
   FAggregatedHashrate := TBigNum.Create(0);

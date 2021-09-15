@@ -40,7 +40,8 @@ uses
   // Current version 3.0.4 does not contain valid support for Generics, using Generics from this:
   // https://github.com/PascalCoinDev/PascalCoin/tree/master/src/libraries/generics.collections
   // (Download and set folder as a "units include folder" in compiler options)
-  {$IFNDEF FPC}System.Generics.Collections,System.Generics.Defaults{$ELSE}Generics.Collections,Generics.Defaults{$ENDIF};
+  {$IFNDEF FPC}System.Generics.Collections,System.Generics.Defaults{$ELSE}Generics.Collections,Generics.Defaults{$ENDIF},
+  UOrderedList;
 
 {$I ./ConfigAbstractMem.inc }
 
