@@ -42,7 +42,7 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="37">
+    <Units Count="39">
       <Unit0>
         <Filename Value="pascalcoin_wallet_classic.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -222,6 +222,15 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit36>
+      <Unit37>
+        <Filename Value="gui-classic\UFRMAskForAccount.pas"/>
+        <IsPartOfProject Value="True"/>
+        <HasResources Value="True"/>
+      </Unit37>
+      <Unit38>
+        <Filename Value="core\UPCTNetDataExtraMessages.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit38>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -240,11 +249,6 @@
         <SyntaxMode Value="Delphi"/>
       </SyntaxOptions>
     </Parsing>
-    <CodeGeneration>
-      <Optimizations>
-        <OptimizationLevel Value="2"/>
-      </Optimizations>
-    </CodeGeneration>
     <Linking>
       <Debugging>
         <GenerateDebugInfo Value="False"/>

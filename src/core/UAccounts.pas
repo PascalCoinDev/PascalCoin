@@ -118,11 +118,14 @@ Type
     Class procedure SaveTOperationBlockToStream(const stream : TStream; const operationBlock:TOperationBlock);
     Class Function LoadTOperationBlockFromStream(const stream : TStream; var operationBlock:TOperationBlock) : Boolean;
     Class Function AccountToTxt(const Account : TAccount) : String;
+    Class Function AccountCanRecover(const Account: TAccount; currentBlockCount: Cardinal) : Boolean;
   End;
 
   TPCSafeBox = Class;
 
   TAccountKeyArray = array of TAccountKey;
+
+  TAccountList = TList<TAccount>;
 
   // This is a class to quickly find accountkeys and their respective account number/s
 
@@ -1722,6 +1725,31 @@ begin
     FormatMoney(Account.balance),Account.n_operation,Account.updated_on_block_passive_mode,Account.updated_on_block_active_mode,Account.account_type,
       Account.name.ToPrintable,TCrypto.ToHexaString(TAccountComp.AccountInfo2RawString(Account.accountInfo)),
       Account.account_data.ToHexaString,Account.account_seal.ToHexaString ]);
+end;
+
+class function TAccountComp.AccountCanRecover(const Account: TAccount; currentBlockCount: Cardinal): Boolean;
+var
+  count: Int64;
+begin
+  Result := True;
+  if TAccountComp.IsAccountBlockedByProtocol(Account.account, currentBlockCount) then begin
+    Result := False; // 'account is blocked for protocol';
+     Exit;
+  end;
+  if TAccountComp.IsAccountLocked(Account.accountInfo,currentBlockCount) then begin
+    Result := False; // 'account is locked';
+    Exit;
+  end;
+  // check boundary 1 gotten from TOpRecoverFounds.DoOperation
+  if( Account.updated_on_block_active_mode + CT_RecoverFoundsWaitInactiveCount >= currentBlockCount ) then begin
+    Result := False; // 'account is active';
+    Exit;
+  end;
+  // check boundary 2 gotten from TOpRecoverFounds.DoOperation
+  if( TAccountComp.AccountBlock(Account.account) + CT_RecoverFoundsWaitInactiveCount >= currentBlockCount ) then begin
+    Result := False; // 'account block is active';
+    Exit;
+  end;
 end;
 
 class function TAccountComp.IsValidAccountInfo(const AAccountInfo: TAccountInfo; ACurrentProtocol : Word; var errors: String): Boolean;

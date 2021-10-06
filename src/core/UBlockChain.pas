@@ -432,6 +432,7 @@ Type
     function LoadBlockFromStream(Stream: TStream; var errors: String): Boolean;
     //
     Function GetMinerRewardPseudoOperation : TOperationResume;
+    Function AddMinerRecover(LRecoverAccounts: TAccountList) : Boolean;
     Function ValidateOperationBlock(var errors : String) : Boolean;
     Property IsOnlyOperationBlock : Boolean read FIsOnlyOperationBlock;
     Procedure Lock;
@@ -2114,6 +2115,34 @@ begin
    Result.Fee := self.OperationBlock.fee;
    Result.Balance := Result.Amount+Result.Fee;
    Result.OperationTxt := 'Miner reward';
+end;
+
+function TPCOperationsComp.AddMinerRecover(LRecoverAccounts: TAccountList): Boolean;
+var
+  LAccount: TAccount;
+  i: Integer;
+  errors: string;
+begin
+  Self.Lock;
+  errors := '';
+  Result := True;
+  try
+    for i:=0 to LRecoverAccounts.Count-1 do begin
+      LAccount := LRecoverAccounts[i];
+      if not(
+        Self.AddOperation(
+          True,
+          TOpRecoverFounds.Create(Self.OperationBlock.protocol_version, LAccount.account, LAccount.n_operation+1, 0, Self.AccountKey),
+          errors
+        )
+      ) then begin
+        // if it fails then it number of operations could be maxed out, not a problem
+        Break;
+      end;
+    end;
+  finally
+    Self.Unlock;
+  end;
 end;
 
 function TPCOperationsComp.ValidateOperationBlock(var errors : String): Boolean;
