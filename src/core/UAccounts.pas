@@ -1728,8 +1728,6 @@ begin
 end;
 
 class function TAccountComp.AccountCanRecover(const Account: TAccount; currentBlockCount: Cardinal): Boolean;
-var
-  count: Int64;
 begin
   Result := True;
   if TAccountComp.IsAccountBlockedByProtocol(Account.account, currentBlockCount) then begin
