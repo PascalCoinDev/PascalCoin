@@ -30,8 +30,8 @@
   
 }
 
-  {.$DEFINE PRODUCTION}
-  {$DEFINE TESTNET}
+  {$DEFINE PRODUCTION}
+  {.$DEFINE TESTNET}
 
   // Activate to define CryptoLib4Pascal by default on all compilations
   {.$DEFINE Use_CryptoLib4Pascal}

@@ -298,7 +298,7 @@ Var
   LApplyfilter : Boolean;
   LAccount : TAccount;
   LNode : TNode;
-  LAccountsList : TList<Int64>;
+  LAccountsList : TList<Integer>;
 begin
   LApplyfilter := ((FAccountsGridFilter.MinBalance>0) Or ((FAccountsGridFilter.MaxBalance>=0) And (FAccountsGridFilter.MaxBalance<CT_MaxWalletAmount)));
   FBalance := 0;
@@ -321,7 +321,7 @@ begin
             LAccountsNumbersList := FAccountsGridFilter.OrderedAccountsKeyList.AccountKeyList[i];
             if Assigned(LAccountsNumbersList) then begin
 
-              LAccountsList := TList<Int64>.Create;
+              LAccountsList := TList<Integer>.Create;
               Try
                 LAccountsNumbersList.FillList(j_min,500,LAccountsList);
                 for j := 0 to LAccountsList.Count - 1 do begin

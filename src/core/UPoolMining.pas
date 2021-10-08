@@ -964,7 +964,7 @@ begin
       LAccount := CT_Account_NUL;
       if LAccOrd.First(LIndexKey) then begin
         LRecIndex := 0;
-        while (LRecIndex < 100) do begin // Will recover at most 100 accounts per mined block
+        while (LRecIndex < 500) do begin // Will recover at most 500 accounts per mined block (unrealistic to have more, fewer TAccountComp.AccountCanRecover checks required)
           LAccount := FNodeNotifyEvents.Node.GetMempoolAccount(LIndexKey);
           if(TAccountComp.AccountCanRecover(LAccount, nbOperations.OperationBlock.block)) then begin // does the AccountCanRecover check, !locked, old enough, etc
             LRecoverAccounts.Add(LAccount);
