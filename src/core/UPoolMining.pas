@@ -953,9 +953,10 @@ var
   LAccOrd: TAccountsOrderedByUpdatedBlock;
   LAccount: TAccount;
   LRecoverAccounts: TList<TAccount>;
-  LIndexKey, LRecIndex: Integer;
+  LIndexKey, LRecIndex, LRecoverAccountsCount: Integer;
 begin
   LIndexKey := 0;
+  LRecoverAccountsCount := 0;
   LRecoverAccounts := TList<TAccount>.Create(); // make a list of RecoverAccounts
   nbOperations.Lock;
   try
@@ -964,10 +965,13 @@ begin
       LAccount := CT_Account_NUL;
       if LAccOrd.First(LIndexKey) then begin
         LRecIndex := 0;
-        while (LRecIndex < 500) do begin // Will recover at most 500 accounts per mined block (unrealistic to have more, fewer TAccountComp.AccountCanRecover checks required)
+        LRecoverAccountsCount := LAccOrd.Count;
+        while ((LRecIndex < LRecoverAccountsCount) and (LRecIndex < CT_MAX_0_fee_operations_per_block_by_miner)) do begin
           LAccount := FNodeNotifyEvents.Node.GetMempoolAccount(LIndexKey);
           if(TAccountComp.AccountCanRecover(LAccount, nbOperations.OperationBlock.block)) then begin // does the AccountCanRecover check, !locked, old enough, etc
             LRecoverAccounts.Add(LAccount);
+          end else begin
+            Break; // we could not recover this account, then we can never recover move recent accounts
           end;
           if Not LAccOrd.Next(LIndexKey) then Break;
           Inc(LRecIndex);

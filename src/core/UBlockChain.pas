@@ -2120,6 +2120,7 @@ end;
 function TPCOperationsComp.AddMinerRecover(LRecoverAccounts: TAccountList): Boolean;
 var
   LAccount: TAccount;
+  LOpRecoverFounds: TOpRecoverFounds;
   i: Integer;
   errors: string;
 begin
@@ -2129,15 +2130,20 @@ begin
   try
     for i:=0 to LRecoverAccounts.Count-1 do begin
       LAccount := LRecoverAccounts[i];
-      if not(
-        Self.AddOperation(
-          True,
-          TOpRecoverFounds.Create(Self.OperationBlock.protocol_version, LAccount.account, LAccount.n_operation+1, 0, Self.AccountKey),
-          errors
-        )
-      ) then begin
-        // if it fails then it number of operations could be maxed out, not a problem
-        Break;
+      LOpRecoverFounds := TOpRecoverFounds.Create(Self.OperationBlock.protocol_version, LAccount.account, LAccount.n_operation+1, 0, Self.AccountKey);
+      try
+        if not(
+          Self.AddOperation(
+            True,
+            LOpRecoverFounds,
+            errors
+          )
+        ) then begin
+          // if it fails then it number of operations could be maxed out, not a problem
+          Break;
+        end;
+      finally
+        LOpRecoverFounds.Free;
       end;
     end;
   finally
