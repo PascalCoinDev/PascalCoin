@@ -2130,7 +2130,13 @@ begin
   try
     for i:=0 to LRecoverAccounts.Count-1 do begin
       LAccount := LRecoverAccounts[i];
-      LOpRecoverFounds := TOpRecoverFounds.Create(Self.OperationBlock.protocol_version, LAccount.account, LAccount.n_operation+1, 0, Self.AccountKey);
+      LOpRecoverFounds := TOpRecoverFounds.Create(
+        Self.OperationBlock.protocol_version,
+        LAccount.account,
+        LAccount.n_operation+1,
+        LAccount.balance,
+        Self.AccountKey
+      );
       try
         if not(
           Self.AddOperation(
