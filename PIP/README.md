@@ -50,4 +50,5 @@ If they wish to continue, copy [this template](PIP-template.md) and ensure your 
 | [39](PIP-0039.md)     | Temporary Voting Procedure | Gynther and the Interrim Dao-Team | Process | Cancelled |
 | [40](PIP-0040.md)     | Pascal Governance | Gynther and the Interrim Dao-Team | Process | Cancelled |
 | [41](PIP-0041.md) | Pay To Key: in-protocol PASA distribution | Herman Schoenfeld | Protocol | Draft |
+| [42](PIP-0042.md)     | Update OP_RECOVER to initial sense described on original WhitePaper and allow ASK FOR PASA feature | Albert Molina | Protocol | Proposed |
 

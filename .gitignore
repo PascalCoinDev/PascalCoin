@@ -53,3 +53,5 @@ dunit.ini
 /PIP/resources/*.DS_Store
 /PIP/resources/PIP-0034A/*.DS_Store
 /src/*.tvsconfig
+src/libssl-1_1.dll
+src/libssl-1_1-x64.dll

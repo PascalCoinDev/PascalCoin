@@ -31,7 +31,8 @@ Uses
   {LCLIntf, LCLType, LMessages,}
 {$ENDIF}
   UTCPIP, SysUtils, UThread, SyncObjs, Classes, UJSONFunctions, UPCEncryption, UNode,
-  UCrypto, UAccounts, UConst, UBlockChain, UBaseTypes, UPCDataTypes,
+  UCrypto, UAccounts, UConst, UBlockChain, UBaseTypes, UPCDataTypes, UOpTransaction,
+  UPCAccountsOrdenations,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
 
 Const
@@ -140,6 +141,8 @@ Type
   End;
 
 
+  { TPoolMiningServer }
+
   TPoolMiningServer = Class(TNetTcpIpServer)
   private
     FIncomingsCounter : Integer;
@@ -154,6 +157,7 @@ Type
     FMinerOperations : TPCOperationsComp;
     FMaxOperationsPerBlock: Integer;
     FMax0FeeOperationsPerBlock: Integer;
+    Procedure CheckMinerRecover(nbOperations: TPCOperationsComp);
     Procedure DoProcessJSON(json : TPCJSONObject; ResponseMethod : String; Client : TJSONRPCTcpIpClient);
     Procedure OnNodeNewBlock(Sender : TObject);
     Procedure OnNodeOperationsChanged(Sender : TObject);
@@ -801,6 +805,7 @@ begin
       try
         if (Not (TPCOperationsComp.EqualsOperationBlock(FMinerOperations.OperationBlock,LLockedMempool.OperationBlock))) then begin
           FMinerOperations.Clear(true);
+          CheckMinerRecover(LLockedMempool);
           if LLockedMempool.Count>0 then begin
             // First round: Select with fee > 0
             i := 0;
@@ -940,6 +945,44 @@ begin
   Finally
     if Assigned(nbOperations) then nbOperations.Free;
   End;
+end;
+
+// Looks for accounts to recover, adds up to 100 recoverFounds Operations to nbOperations
+procedure TPoolMiningServer.CheckMinerRecover(nbOperations: TPCOperationsComp);
+var
+  LAccOrd: TAccountsOrderedByUpdatedBlock;
+  LAccount: TAccount;
+  LRecoverAccounts: TList<TAccount>;
+  LIndexKey, LRecIndex, LRecoverAccountsCount: Integer;
+begin
+  LIndexKey := 0;
+  LRecoverAccountsCount := 0;
+  LRecoverAccounts := TList<TAccount>.Create(); // make a list of RecoverAccounts
+  nbOperations.Lock;
+  try
+    LAccOrd := nbOperations.bank.SafeBox.AccountsOrderedByUpdatedBlock; // Walk AccountsOrderedByUpdatedBlock, this keeps a list of the oldest accounts
+    if Assigned(LAccOrd) then begin
+      LAccount := CT_Account_NUL;
+      if LAccOrd.First(LIndexKey) then begin
+        LRecIndex := 0;
+        LRecoverAccountsCount := LAccOrd.Count;
+        while ((LRecIndex < LRecoverAccountsCount) and (LRecIndex < CT_MAX_0_fee_operations_per_block_by_miner)) do begin
+          LAccount := FNodeNotifyEvents.Node.GetMempoolAccount(LIndexKey);
+          if(TAccountComp.AccountCanRecover(LAccount, nbOperations.OperationBlock.block)) then begin // does the AccountCanRecover check, !locked, old enough, etc
+            LRecoverAccounts.Add(LAccount);
+          end else begin
+            Break; // we could not recover this account, then we can never recover move recent accounts
+          end;
+          if Not LAccOrd.Next(LIndexKey) then Break;
+          Inc(LRecIndex);
+        end;
+        nbOperations.AddMinerRecover(LRecoverAccounts);
+      end;
+    end;
+  finally
+    nbOperations.Unlock;
+    LRecoverAccounts.Free; // destroy the list, operations have been added
+  end;
 end;
 
 procedure TPoolMiningServer.OnNewIncommingConnection(Sender: TObject; Client: TNetTcpIpClient);
