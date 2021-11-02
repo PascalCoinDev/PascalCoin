@@ -164,7 +164,8 @@ Type
     Function LockList : TList<Pointer>;
     Procedure UnlockList;
     procedure ResetConnectAttempts;
-    function IsBlackListed(const ip: String): Boolean;
+    function IsBlackListed(const ip: String; out AReason : string): Boolean; overload;
+    function IsBlackListed(const ip: String): Boolean; overload;
     function GetNodeServerAddress(const ip : String; port:Word; CanAdd : Boolean; var nodeServerAddress : TNodeServerAddress) : Boolean;
     procedure SetNodeServerAddress(const nodeServerAddress : TNodeServerAddress);
     Procedure UpdateNetConnection(netConnection : TNetConnection);
@@ -512,7 +513,7 @@ implementation
 
 uses
   UConst, ULog, UNode, UTime, UPCEncryption, UChunk,
-  UPCOperationsBlockValidator, UPCOperationsSignatureValidator,
+  UPCOperationsBlockValidator, UPCOperationsSignatureValidator, UOpTransaction,
   UPCTemporalFileStream;
 
 Const
@@ -821,11 +822,12 @@ begin
   end;
 end;
 
-function TOrderedServerAddressListTS.IsBlackListed(const ip: String): Boolean;
+function TOrderedServerAddressListTS.IsBlackListed(const ip: String; out AReason : string): Boolean;
 Var i : Integer;
   P : PNodeServerAddress;
 begin
   Result := false;
+  AReason := '';
   FCritical.Acquire;
   Try
     SecuredFindByIp(ip,0,i);
@@ -835,12 +837,19 @@ begin
       if Not SameStr(P^.ip,ip) then exit;
       if P^.is_blacklisted then begin
         Result := Not P^.its_myself;
+        AReason := P^.BlackListText;
       end;
       inc(i);
     end;
   Finally
     FCritical.Release;
   End;
+end;
+
+function TOrderedServerAddressListTS.IsBlackListed(const ip: String): Boolean;
+var LReason : String;
+begin
+  Result := IsBlackListed(ip,LReason);
 end;
 
 function TOrderedServerAddressListTS.LockList: TList<Pointer>;
@@ -2417,7 +2426,7 @@ end;
 
 procedure TNetServer.OnNewIncommingConnection(Sender : TObject; Client : TNetTcpIpClient);
 Var n : TNetServerClient;
-  DebugStep : String;
+  DebugStep, LReason : String;
   tc : TTickCount;
 begin
   DebugStep := '';
@@ -2433,10 +2442,10 @@ begin
       TNetData.NetData.IncStatistics(1,1,0,0,0,0);
       TNetData.NetData.NodeServersAddresses.CleanBlackList(False);
       DebugStep := 'Checking blacklisted';
-      if (TNetData.NetData.NodeServersAddresses.IsBlackListed(Client.RemoteHost)) then begin
+      if (TNetData.NetData.NodeServersAddresses.IsBlackListed(Client.RemoteHost,LReason)) then begin
         // Invalid!
         TLog.NewLog(ltinfo,Classname,'Refusing Blacklist ip: '+Client.ClientRemoteAddr);
-        n.SendError(ntp_autosend,CT_NetOp_Error, 0,CT_NetError_IPBlackListed,'Your IP is blacklisted:'+Client.ClientRemoteAddr);
+        n.SendError(ntp_autosend,CT_NetOp_Error, 0,CT_NetError_IPBlackListed,'Your IP is blacklisted:'+Client.ClientRemoteAddr+' '+LReason);
         // Wait some time before close connection
         sleep(5000);
       end else begin
@@ -3925,8 +3934,13 @@ var operationsComp : TPCOperationsComp;
     If Not TAccountComp.EqualOperationBlocks(operationsComp.OperationBlock,original_OperationBlock) then begin
       // This can happen when a OpReference in my MEMPOOL is different to an OpReference in the miner, causing different OperationsHash value
       // This means a possible double spend found
-      TLog.NewLog(lterror,ClassName,Format('Constructed a distinct FAST PROPAGATION block with my mempool operations. Received: %s Constructed: %s',
+      if Not operationsComp.OperationsHashTree.HasOpRecoverOperations then begin
+        TLog.NewLog(lterror,ClassName,Format('Constructed a distinct FAST PROPAGATION block with my mempool operations. Received: %s Constructed: %s',
         [TPCOperationsComp.OperationBlockToText(original_OperationBlock),TPCOperationsComp.OperationBlockToText(operationsComp.OperationBlock)]));
+      end else begin
+        TLog.NewLog(lterror,ClassName,Format('Constructed a distinct FAST PROPAGATION block with my mempool operations. Posible double-spend attempt. Received: %s Constructed: %s',
+        [TPCOperationsComp.OperationBlockToText(original_OperationBlock),TPCOperationsComp.OperationBlockToText(operationsComp.OperationBlock)]));
+      end;
       if Not TPCSafeBox.IsValidOperationBlock(original_OperationBlock,errors) then begin
         // This means a scammer!
         DoDisconnect := True;
@@ -4637,8 +4651,12 @@ begin
     data := TMemoryStream.Create;
     try
       request_id := TNetData.NetData.NewRequestId;
-      // Will send a FAST PROPAGATION BLOCK as described at PIP-0015
-      netOp := CT_NetOp_NewBlock_Fast_Propagation;
+      if (NewBlock.OperationsHashTree.HasOpRecoverOperations) then begin
+        netOp := CT_NetOp_NewBlock;
+      end else begin
+        // Will send a FAST PROPAGATION BLOCK as described at PIP-0015
+        netOp := CT_NetOp_NewBlock_Fast_Propagation;
+      end;
       NewBlock.SaveBlockToStream(netOp = CT_NetOp_NewBlock_Fast_Propagation,data); // Will save all only if not FAST PROPAGATION
       // Send Aggregated Hashsrate based on network protocol available version
       if FNetProtocolVersion.protocol_available>=CT_MIN_NetProtocol_Use_Aggregated_Hashrate then begin
@@ -4658,6 +4676,9 @@ begin
             data.Write(opRef,SizeOf(opRef));
           end;
         end;
+        TLog.NewLog(ltdebug,ClassName,Format('Sending NEW FAST PROPAGATION BLOCK %d with %d operations in %d bytes to %s',[NewBlock.OperationBlock.block,c,data.Size,ClientRemoteAddr]));
+      end else begin
+        TLog.NewLog(ltdebug,ClassName,Format('Sending NEW BLOCK %d with %d operations in %d bytes to %s',[NewBlock.OperationBlock.block,NewBlock.Count,data.Size,ClientRemoteAddr]));
       end;
       Send(ntp_autosend,netOp,0,request_id,data);
     finally

@@ -337,6 +337,7 @@ Type
     FTotalAmount : Int64;
     FTotalFee : Int64;
     FMax0feeOperationsBySigner : Integer;
+    FHasOpRecoverOperations : Boolean;
     function InternalCanAddOperationToHashTree(lockedThreadList : TList<Pointer>; op : TPCOperation) : Boolean;
     function InternalAddOperationToHashTree(list : TList<Pointer>; op : TPCOperation; CalcNewHashTree : Boolean) : Boolean;
     Function FindOrderedByOpReference(lockedThreadList : TList<Pointer>; const Value: TOpReference; var Index: Integer): Boolean;
@@ -367,7 +368,7 @@ Type
     Property OnChanged : TNotifyEvent read FOnChanged write FOnChanged;
     Property Max0feeOperationsBySigner : Integer Read FMax0feeOperationsBySigner write SetMax0feeOperationsBySigner;
     procedure MarkVerifiedECDSASignatures(operationsHashTreeToMark : TOperationsHashTree);
-
+    Property HasOpRecoverOperations : Boolean read FHasOpRecoverOperations;
     // Will add all operations of the HashTree to then end of AList without removing previous objects
     function GetOperationsList(AList : TList<TPCOperation>; AAddOnlyOperationsWithoutNotVerifiedSignature : Boolean) : Integer;
   End;
@@ -432,7 +433,7 @@ Type
     function LoadBlockFromStream(Stream: TStream; var errors: String): Boolean;
     //
     Function GetMinerRewardPseudoOperation : TOperationResume;
-    Function AddMinerRecover(LRecoverAccounts: TAccountList) : Boolean;
+    Function AddMinerRecover(LRecoverAccounts: TAccountList; const ANewAccountKey : TAccountKey) : Boolean;
     Function ValidateOperationBlock(var errors : String) : Boolean;
     Property IsOnlyOperationBlock : Boolean read FIsOnlyOperationBlock;
     Procedure Lock;
@@ -2117,12 +2118,13 @@ begin
    Result.OperationTxt := 'Miner reward';
 end;
 
-function TPCOperationsComp.AddMinerRecover(LRecoverAccounts: TAccountList): Boolean;
+function TPCOperationsComp.AddMinerRecover(LRecoverAccounts: TAccountList; const ANewAccountKey : TAccountKey): Boolean;
 var
   LAccount: TAccount;
   LOpRecoverFounds: TOpRecoverFounds;
   i: Integer;
   errors: string;
+  LmaxFee : UInt64;
 begin
   Self.Lock;
   errors := '';
@@ -2130,12 +2132,14 @@ begin
   try
     for i:=0 to LRecoverAccounts.Count-1 do begin
       LAccount := LRecoverAccounts[i];
+      LmaxFee := LAccount.balance;
+      if LMaxFee>CT_MaxTransactionFee then LMaxFee := CT_MaxTransactionFee;
       LOpRecoverFounds := TOpRecoverFounds.Create(
         Self.OperationBlock.protocol_version,
         LAccount.account,
         LAccount.n_operation+1,
-        LAccount.balance,
-        Self.AccountKey
+        LmaxFee,
+        ANewAccountKey
       );
       try
         if not(
@@ -2146,6 +2150,7 @@ begin
           )
         ) then begin
           // if it fails then it number of operations could be maxed out, not a problem
+          TLog.NewLog(lterror,ClassName,Format('Cannot add OpRecover %d/%d %s error %s',[i+1,LRecoverAccounts.Count,LOpRecoverFounds.ToString,errors]));
           Break;
         end;
       finally
@@ -2332,6 +2337,7 @@ begin
       FListOrderedByAccountsData.Clear;
       FListOrderedByOpReference.Clear;
       FHashTree:=Nil;
+      FHasOpRecoverOperations := False;
     End;
     If Assigned(FOnChanged) then FOnChanged(Self);
   finally
@@ -2387,6 +2393,7 @@ begin
   FHashTree := Nil;
   FMax0feeOperationsBySigner := -1; // Unlimited by default
   FHashTreeOperations := TPCThreadList<Pointer>.Create('TOperationsHashTree_HashTreeOperations');
+  FHasOpRecoverOperations := False;
 end;
 
 procedure TOperationsHashTree.Delete(index: Integer);
@@ -2617,6 +2624,7 @@ begin
     Result := False;
     Exit;
   end else Result := True; // Will add:
+    if (op is TOpRecoverFounds) then FHasOpRecoverOperations := True;
     New(P);
     if Not _PCOperationsStorage.FindPCOperationAndIncCounterIfFound(op) then begin
       msCopy := TMemoryStream.Create;
