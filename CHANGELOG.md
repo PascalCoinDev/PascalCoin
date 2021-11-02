@@ -1,5 +1,11 @@
 # Changelog
 
+## Build 5.6 - 2021-11-02
+** MINERS SHOULD UPDATE AS SOON AS POSSIBLE **
+- Assigned OP_RECOVER automatically to miner using miner AccountKey
+- Net Protocol upgraded to 14 (improvements)
+- Minor fixed bugs (see GitHub commits since build 5.5)
+
 ## Build 5.5 - 2021-04-12
 - Fixed fatal bug. Mandatory upgrade
 - Net protocol upgraded to 13
