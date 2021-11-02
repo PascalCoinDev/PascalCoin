@@ -2124,6 +2124,7 @@ var
   LOpRecoverFounds: TOpRecoverFounds;
   i: Integer;
   errors: string;
+  LmaxFee : UInt64;
 begin
   Self.Lock;
   errors := '';
@@ -2131,11 +2132,13 @@ begin
   try
     for i:=0 to LRecoverAccounts.Count-1 do begin
       LAccount := LRecoverAccounts[i];
+      LmaxFee := LAccount.balance;
+      if LMaxFee>CT_MaxTransactionFee then LMaxFee := CT_MaxTransactionFee;
       LOpRecoverFounds := TOpRecoverFounds.Create(
         Self.OperationBlock.protocol_version,
         LAccount.account,
         LAccount.n_operation+1,
-        LAccount.balance,
+        LmaxFee,
         Self.AccountKey
       );
       try
