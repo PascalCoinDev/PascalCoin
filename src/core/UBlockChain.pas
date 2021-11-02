@@ -2147,6 +2147,7 @@ begin
           )
         ) then begin
           // if it fails then it number of operations could be maxed out, not a problem
+          TLog.NewLog(lterror,ClassName,Format('Cannot add OpRecover %d/%d %s error %s',[i+1,LRecoverAccounts.Count,LOpRecoverFounds.ToString,errors]));
           Break;
         end;
       finally
