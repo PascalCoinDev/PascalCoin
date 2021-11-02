@@ -433,7 +433,7 @@ Type
     function LoadBlockFromStream(Stream: TStream; var errors: String): Boolean;
     //
     Function GetMinerRewardPseudoOperation : TOperationResume;
-    Function AddMinerRecover(LRecoverAccounts: TAccountList) : Boolean;
+    Function AddMinerRecover(LRecoverAccounts: TAccountList; const ANewAccountKey : TAccountKey) : Boolean;
     Function ValidateOperationBlock(var errors : String) : Boolean;
     Property IsOnlyOperationBlock : Boolean read FIsOnlyOperationBlock;
     Procedure Lock;
@@ -2118,7 +2118,7 @@ begin
    Result.OperationTxt := 'Miner reward';
 end;
 
-function TPCOperationsComp.AddMinerRecover(LRecoverAccounts: TAccountList): Boolean;
+function TPCOperationsComp.AddMinerRecover(LRecoverAccounts: TAccountList; const ANewAccountKey : TAccountKey): Boolean;
 var
   LAccount: TAccount;
   LOpRecoverFounds: TOpRecoverFounds;
@@ -2139,7 +2139,7 @@ begin
         LAccount.account,
         LAccount.n_operation+1,
         LmaxFee,
-        Self.AccountKey
+        ANewAccountKey
       );
       try
         if not(

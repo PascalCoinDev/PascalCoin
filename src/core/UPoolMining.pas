@@ -981,7 +981,7 @@ begin
           if Not LAccOrd.Next(LIndexKey) then Break;
           Inc(LRecIndex);
         end;
-        nbOperations.AddMinerRecover(LRecoverAccounts);
+        nbOperations.AddMinerRecover(LRecoverAccounts,FMinerAccountKey);
       end;
     end;
   finally
