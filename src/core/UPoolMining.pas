@@ -791,7 +791,7 @@ var tree : TOperationsHashTree;
       if tree.IndexOfOperation(Op)>=0 then exit;
     end;
     if (Op is TOpRecoverFounds) then begin
-      if Not TAccountComp.EqualAccountKeys( TOpRecoverFounds(Op).Data.new_accountkey , FMinerOperations.OperationBlock.account_key ) then begin
+      if Not TAccountComp.EqualAccountKeys( TOpRecoverFounds(Op).Data.new_accountkey , FMinerAccountKey ) then begin
         TLog.NewLog(lterror,ClassName,'Adding a OpRecoverFounds operation from another public key: '+Op.ToString);
       end;
     end;
