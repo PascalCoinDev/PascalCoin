@@ -1335,6 +1335,13 @@ begin
          TAccountComp.FormatMoney(FData.AccountPrice), TAccountComp.AccountNumberToAccountTxtNumber(FData.SellerAccount),
          TAccountComp.FormatMoney(FData.amount),TAccountComp.FormatMoney(FData.fee),FData.n_operation,Length(FData.payload.payload_raw),
          TCrypto.ToHexaString(FData.payload.payload_raw)]);
+    transaction_with_auto_atomic_swap :
+      Result := Format('Transaction/Swap account %s by %s paying %s to %s amount:%s fee:%s (n_op:%d) payload size:%d payload:%s',[
+         TAccountComp.AccountNumberToAccountTxtNumber(FData.target),
+         TAccountComp.AccountNumberToAccountTxtNumber(FData.sender),
+         TAccountComp.FormatMoney(FData.AccountPrice), TAccountComp.AccountNumberToAccountTxtNumber(FData.SellerAccount),
+         TAccountComp.FormatMoney(FData.amount),TAccountComp.FormatMoney(FData.fee),FData.n_operation,Length(FData.payload.payload_raw),
+         TCrypto.ToHexaString(FData.payload.payload_raw)]);
   else raise Exception.Create('ERROR DEV 20170424-2');
   end;
 end;
