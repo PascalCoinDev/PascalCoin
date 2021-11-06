@@ -101,6 +101,7 @@ Type
     FAllowUsePrivateKeys: Boolean;
     FNode : TNode;
     FPayloadPasswords: TList<String>;
+    FLiveConnectionsCount : Integer;
     procedure SetActive(AValue: Boolean);
     procedure SetIniFileName(const Value: String);
     procedure SetLogFileName(const Value: String);
@@ -995,6 +996,7 @@ begin
   FValidIPs := '127.0.0.1;localhost'; // New Build 1.5 - By default, only localhost can access to RPC
   FAllowUsePrivateKeys := True;       // New Build 3.0.2 - By default RPC allows to use private keys functions
   FNode := TNode.Node;
+  FLiveConnectionsCount := 0;
   If Not assigned(_RPCServer) then _RPCServer := Self;
 end;
 
@@ -1012,6 +1014,7 @@ end;
 constructor TRPCProcess.Create(ARPCServer : TRPCServer; AHSock:tSocket);
 begin
   FRPCServer := ARPCServer;
+  Inc(FRPCServer.FLiveConnectionsCount);
   FSock:=TTCPBlockSocket.create;
   FSock.socket:=AHSock;
   FreeOnTerminate:=true;
@@ -1024,6 +1027,7 @@ end;
 
 destructor TRPCProcess.Destroy;
 begin
+  Dec(FRPCServer.FLiveConnectionsCount);
   FSock.free;
   inherited Destroy;
 end;
@@ -1061,7 +1065,9 @@ var
   Headers : TStringList;
   tc : TTickCount;
   callcounter : Int64;
+  LOnStartLiveConnectionCount : Integer;
 begin
+  LOnStartLiveConnectionCount := FRPCServer.FLiveConnectionsCount;
   callcounter := _RPCServer.GetNewCallCounter;
   tc := TPlatform.GetTickCount;
   methodName := '';
@@ -1193,7 +1199,8 @@ begin
           FSock.SendString(jsonresponsetxt);
         end;
       end;
-      _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),callcounter,'Method:'+methodName+' Params:'+paramsTxt+' '+Inttostr(errNum)+':'+errDesc+' Time:'+FormatFloat('0.000',(TPlatform.GetElapsedMilliseconds(tc)/1000)));
+      _RPCServer.AddRPCLog(FSock.GetRemoteSinIP+':'+InttoStr(FSock.GetRemoteSinPort),callcounter,'Method:'+methodName+' Params:'+paramsTxt+' '+Inttostr(errNum)+':'+errDesc+' Time:'+FormatFloat('0.000',(TPlatform.GetElapsedMilliseconds(tc)/1000))
+        +' '+LOnStartLiveConnectionCount.ToString+'->'+FRPCServer.FLiveConnectionsCount.ToString);
     finally
       jsonresponse.free;
       Headers.Free;
@@ -1264,6 +1271,8 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
 
   Function GetBlock(nBlock : Cardinal; jsonObject : TPCJSONObject) : Boolean;
   begin
+    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    try
     If FNode.Bank.BlocksCount<=nBlock then begin
       ErrorNum := CT_RPC_ErrNum_InvalidBlock;
       ErrorDesc := 'Cannot load Block: '+IntToStr(nBlock);
@@ -1272,6 +1281,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     end;
     TPascalCoinJSONComp.FillBlockObject(nBlock,FNode,jsonObject);
     Result := True;
+    finally
+      FNode.OperationSequenceLock.Release;
+    end;
   end;
 
   Procedure FillOperationResumeToJSONObject(Const OPR : TOperationResume; jsonObject : TPCJSONObject);
@@ -1291,6 +1303,8 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     LLockedMempool : TPCOperationsComp;
   Begin
     Result := false;
+    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    try
     if (startReg<-1) or (maxReg<=0) then begin
       ErrorNum := CT_RPC_ErrNum_InvalidData;
       ErrorDesc := 'Invalid start or max value';
@@ -1338,6 +1352,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       Result := True;
     finally
       OperationsResume.Free;
+    end;
+    finally
+      FNode.OperationSequenceLock.Release;
     end;
   end;
 
@@ -2541,6 +2558,8 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
     jsonarr : TPCJSONArray;
     i : Integer;
   begin
+    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    try
     Result := False;
     oprl := TOperationsResumeList.Create;
     try
@@ -2579,6 +2598,9 @@ function TRPCProcess.ProcessMethod(const method: String; params: TPCJSONObject;
       end;
     finally
       oprl.Free;
+    end;
+    finally
+      FNode.OperationSequenceLock.Release;
     end;
   end;
 
@@ -3279,6 +3301,8 @@ begin
     // Param "block" contains block. Null = Pending operation
     // Param "opblock" contains operation inside a block: (0..getblock.operations-1)
     // Returns a JSON object with operation values as "Operation resume format"
+    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    try
     c := params.GetAsVariant('block').AsCardinal(CT_MaxBlock);
     if (c>=0) And (c<FNode.Bank.BlocksCount) then begin
       pcops := TPCOperationsComp.Create(Nil);
@@ -3309,9 +3333,14 @@ begin
       else ErrorDesc := 'Block not found: '+IntToStr(c);
       ErrorNum := CT_RPC_ErrNum_InvalidBlock;
     end;
+    finally
+      Node.OperationSequenceLock.Release;
+    end;
   end else if (method='getblockoperations') then begin
     // Param "block" contains block
     // Returns a JSON array with items as "Operation resume format"
+    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    try
     c := params.GetAsVariant('block').AsCardinal(CT_MaxBlock);
     if (c>=0) And (c<FNode.Bank.BlocksCount) then begin
       pcops := TPCOperationsComp.Create(Nil);
@@ -3343,6 +3372,9 @@ begin
       If (c=CT_MaxBlock) then ErrorDesc := 'Need block param'
       else ErrorDesc := 'Block not found: '+IntToStr(c);
       ErrorNum := CT_RPC_ErrNum_InvalidBlock;
+    end;
+    finally
+      FNode.OperationSequenceLock.Release;
     end;
   end else if (method='getaccountoperations') then begin
     // Returns all the operations affecting an account in "Operation resume format" as an array
@@ -3416,6 +3448,8 @@ begin
       ErrorDesc:='param ophash not found or invalid hexadecimal value "'+params.AsString('ophash','')+'"';
       exit;
     end;
+    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    try
     pcops := TPCOperationsComp.Create(Nil);
     try
       Case FNode.FindOperationExt(pcops,r1,c,i) of
@@ -3444,6 +3478,9 @@ begin
     finally
       pcops.Free;
     end;
+    finally
+      FNode.OperationSequenceLock.Release;
+    end;
   end else if (method='findnoperation') then begin
     // Search for an operation signed by "account" and with "n_operation", start searching "block" (0=all)
     // "block" = 0 search in all blocks, pending operations included
@@ -3451,6 +3488,8 @@ begin
       ErrorNum := CT_RPC_ErrNum_InvalidAccount;
       Exit;
     end;
+    FNode.OperationSequenceLock.Acquire; // Added to prevent high concurrent API calls
+    try
     Case FNode.FindNOperation(params.AsCardinal('block',0),c,params.AsCardinal('n_operation',0),opr) of
       found : ;
       invalid_params : begin
@@ -3464,6 +3503,9 @@ begin
           exit;
         end;
     else Raise Exception.Create('ERROR DEV 20171120-5');
+    end;
+    finally
+      FNode.OperationSequenceLock.Release;
     end;
     FillOperationResumeToJSONObject(opr,GetResultObject);
     Result := True;
