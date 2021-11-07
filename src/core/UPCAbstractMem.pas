@@ -404,7 +404,7 @@ begin
   end;
   if (Not FAbstractMem.ReadOnly) and (AIsNewStructure) then begin
     // Initialize struct
-    FAbstractMem.ClearContent(False);
+    FAbstractMem.ClearContent(FAbstractMem.Is64Bytes);
     LZone := FAbstractMem.New( CT_HEADER_MIN_SIZE );  // Header zone
     SetLength(LHeader,100);
     FillChar(LHeader[0],Length(LHeader),0);
@@ -482,7 +482,7 @@ var
   LIsNewStructure : Boolean;
 begin
   FlushCache;
-  FAbstractMem.ClearContent(False);
+  FAbstractMem.ClearContent(FAbstractMem.Is64Bytes);
   DoInit(LIsNewStructure);
 end;
 
