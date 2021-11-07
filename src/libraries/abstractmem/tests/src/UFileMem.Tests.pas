@@ -12,6 +12,7 @@ interface
    fpcunit, testutils, testregistry,
    {$ELSE}
    TestFramework,
+   System.IOUtils,
    {$ENDIF}
    {$IFNDEF FPC}System.Generics.Collections,System.Generics.Defaults,{$ELSE}Generics.Collections,Generics.Defaults,{$ENDIF}
    UFileMem, UAbstractMem, UCacheMem, UOrderedList;
@@ -70,9 +71,11 @@ end;
 
 function TestTFileMem.GetFullFileName(AFileName: String): String;
 begin
-//  Result := 'C:\Users\Albert\Desktop\TEMP\'+AFileName; // XXXXXXXXXXXXXXXX
-  Result := ExtractFileDir(ParamStr(0))+PathDelim+AFileName;
-// XXXXXXXXXXXXXXXX
+  {$IFDEF FPC}
+  Result := GetTempDir+PathDelim+AFileName;
+  {$ELSE}
+  Result := System.IOUtils.TPath.GetTempPath+PathDelim+AFileName;
+  {$ENDIF}
 end;
 
 procedure TestTFileMem.SetUp;
@@ -170,7 +173,7 @@ begin
   Lfm := TFileMem.Create(GetFullFileName('test_FileMem_Aux.am'),False);
   Lfs := TStringList.Create;
   try
-    Lfm.ClearContent;
+    Lfm.ClearContent(False,4);
 //    Lfm.UseCache := AUseCache;
     if AUseCache then begin
       Lfm.MaxCacheSize := 1024 * 1024 * 2; // 2 Mb

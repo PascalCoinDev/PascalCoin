@@ -23,6 +23,7 @@ interface
    public
      procedure SetUp; override;
      procedure TearDown; override;
+     procedure Test_MemLeaks(AAbstractMem: TAbstractMem);
    published
      procedure Test_ClearContent;
      procedure Test_MemLeaksReuse;
@@ -39,55 +40,59 @@ begin
 end;
 
 procedure TestTAbstractMem.Test_ClearContent;
-var Lfm : TFileMem;
+var LAM : TAbstractMem;
 begin
-  Lfm := TFileMem.Create(ExtractFileDir(ParamStr(0))+PathDelim+'test1.am',False);
+  LAM := TMem.Create(0,False);
   try
-    Lfm.ClearContent; // Init
+    LAM.ClearContent(False,4); // Init
+    LAM.ClearContent(True,16); // Init
+    LAM.CheckConsistency;
   finally
-    Lfm.Free;
+    LAM.Free;
   end;
 end;
 
 
-procedure TestTAbstractMem.Test_MemLeaksReuse;
-var LAM : TAbstractMem;
+procedure TestTAbstractMem.Test_MemLeaks(AAbstractMem: TAbstractMem);
+var
   LAMs : TList<TAMZone>;
   i,j, loops : Integer;
-  LStrings : TStrings;
-  LAbstractMemZoneInfoList : TList<TAbstractMemZoneInfo>;
-  LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount : TAbstractMemPosition;
 begin
-  LAM := TMem.Create(0,False);
-  try
-    LAMs := TList<TAMZone>.Create;
-    Try
-      for loops := 1 to 2 do begin
+  LAMs := TList<TAMZone>.Create;
+  Try
+    for loops := 1 to 2 do begin
 
       LAMs.Clear;
 
       for j := 1 to 10000 do begin
-        LAMs.Add( LAM.New(Random(1000)+10) );
+        LAMs.Add( AAbstractMem.New(Random(1000)+10) );
       end;
 
       //
       for i := 0 to LAMs.Count-1 do begin
-        LAM.Dispose( LAMs.Items[i] );
+        AAbstractMem.Dispose( LAMs.Items[i] );
       end;
 
-      end;
+      AAbstractMem.CheckConsistency;
+    end;
 
-      LStrings := TStringList.Create;
-      LAbstractMemZoneInfoList := TList<TAbstractMemZoneInfo>.Create;
-      try
-        if Not LAM.CheckConsistency(LStrings,LAbstractMemZoneInfoList,LTotalUsedSize, LTotalUsedBlocksCount, LTotalLeaksSize, LTotalLeaksBlocksCount) then raise Exception.Create(LStrings.Text);
-      finally
-        LAbstractMemZoneInfoList.Free;
-        LStrings.Free;
-      end;
-    Finally
-      LAMs.Free;
-    End;
+  Finally
+    LAMs.Free;
+  End;
+end;
+
+procedure TestTAbstractMem.Test_MemLeaksReuse;
+var LAM : TAbstractMem;
+begin
+  LAM := TMem.Create(0,False);
+  try
+    LAM.Initialize(False,4);
+    Test_MemLeaks(LAM);
+    LAM.Initialize(True,4);
+    Test_MemLeaks(LAM);
+    LAM.Initialize(True,16);
+    Test_MemLeaks(LAM);
+    LAM.Initialize(True,64);
   finally
     LAM.Free;
   end;

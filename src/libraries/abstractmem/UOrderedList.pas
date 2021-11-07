@@ -42,10 +42,7 @@ uses
 
 {$I ./ConfigAbstractMem.inc }
 
-
 type
-  TAbstractMemPosition = Int64;
-
   {$IFDEF FPC}
   TComparison<T> = function(const Left, Right: T): Integer;
   {$ENDIF}
@@ -236,6 +233,7 @@ initialization
 finalization
 
 end.
+
 
 
 

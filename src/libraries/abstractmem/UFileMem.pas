@@ -81,7 +81,7 @@ type
   public
     Constructor Create(const AFileName : String; AReadOnly : Boolean); reintroduce;
     Destructor Destroy; override;
-    function New(AMemSize : Integer) : TAMZone; override;
+    function New(AMemSize : TAbstractMemSize) : TAMZone; override;
     function Write(const APosition : Int64; const ABuffer; ASize : Integer) : Integer; overload; override;
     function Read(const APosition : Int64; var ABuffer; ASize : Integer) : Integer; overload; override;
     {$IFDEF ABSTRACTMEM_TESTING_MODE}
@@ -291,7 +291,7 @@ begin
   Result := FCache;
 end;
 
-function TFileMem.New(AMemSize: Integer): TAMZone;
+function TFileMem.New(AMemSize: TAbstractMemSize): TAMZone;
 var LBuffer : TBytes;
 begin
   Result := inherited New(AMemSize);

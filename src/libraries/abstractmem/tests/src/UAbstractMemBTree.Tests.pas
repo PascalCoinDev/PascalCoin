@@ -138,7 +138,7 @@ var Lbt : TAbstractMemBTreeExampleInteger;
   Lzone : TAMZone;
   intValue, nRounds, nAdds, nDeletes, i : Integer;
   j : TAbstractMemPosition;
-  Lnode : TIntegerBTree.TAbstractBTreeNode;
+  Lnode : TAbstractMemBTreeExampleInteger.TAbstractBTreeNode;
   Lmem : TAbstractMem;
   LCurr : String;
 begin
@@ -217,7 +217,7 @@ procedure TestTAbstractMemBTree.TestInfinite_String(AOrder: Integer; AAllowDupli
 var Lbt : TAbstractMemBTreeExampleString;
   Lzone : TAMZone;
   intValue, nRounds, nAdds, nDeletes, i : Integer;
-  Lnode : TIntegerBTree.TAbstractBTreeNode;
+  Lnode : TAbstractMemBTreeExampleString.TAbstractBTreeNode;
   Lmem : TAbstractMem;
   LCurr : String;
   LCurrData : String;

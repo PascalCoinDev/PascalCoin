@@ -17,12 +17,12 @@ uses
 
 type
 
-  TIntegerBTree = Class( TMemoryBTree<TAbstractMemPosition> )
+  TIntegerBTree = Class( TMemoryBTree<Integer> )
   private
   protected
   public
     constructor Create(AAllowDuplicates : Boolean; AOrder : Integer);
-    function NodeDataToString(const AData : TAbstractMemPosition) : String; override;
+    function NodeDataToString(const AData : Integer) : String; override;
   End;
 
 
@@ -51,10 +51,10 @@ implementation
 
 constructor TIntegerBTree.Create(AAllowDuplicates: Boolean; AOrder: Integer);
 begin
-  inherited Create(TComparison_TAbstractMemPosition,AAllowDuplicates,AOrder);
+  inherited Create(TComparison_Integer,AAllowDuplicates,AOrder);
 end;
 
-function TIntegerBTree.NodeDataToString(const AData: TAbstractMemPosition): String;
+function TIntegerBTree.NodeDataToString(const AData: Integer): String;
 begin
   Result := AData.ToString;
 end;
@@ -200,7 +200,7 @@ end;
 procedure TestTAbstractBTree.TestPrecessorSuccessor;
 var Lbt : TIntegerBTree;
   Lorder : Integer;
-  i, intValue, valMin, valMax, Lregs : TAbstractMemPosition;
+  i, intValue, valMin, valMax, Lregs : Integer;
 
 begin
   for Lorder := 3 to 7 do begin
@@ -245,7 +245,7 @@ end;
 procedure TestTAbstractBTree.TestPrecessorSuccessor_Duplicates;
 var Lbt : TIntegerBTree;
   Lorder,
-  i, intValue, valMin, valMax, Lregs : TAbstractMemPosition;
+  i, intValue, valMin, valMax, Lregs : Integer;
 begin
   for Lorder := 3 to 7 do begin
     Lbt := TIntegerBTree.Create(True,Lorder);
@@ -285,27 +285,17 @@ end;
 
 procedure TestTAbstractBTree.Test_duplicate;
 var Lbt : TIntegerBTree;
-  Lorder, i, intValue : TAbstractMemPosition;
-  LLastTree, LCurrentTree : String;
+  Lorder, i, intValue : Integer;
+  LLastTree,LCurrentTree : String;
 
   procedure DoInsert(AValue : Integer);
   begin
     Lbt.Add(AValue);
-    {
-    LCurrentTree := Lbt.BTreeToString;
-    Lbt.CheckConsistency;
-    LLastTree := LCurrentTree;
-    }
   end;
 
   procedure DoDelete(AValue : Integer);
   begin
     Lbt.Delete(AValue);
-    {
-    LCurrentTree := Lbt.BTreeToString;
-    Lbt.CheckConsistency;
-    LLastTree := LCurrentTree;
-    }
   end;
 
 begin
@@ -348,7 +338,7 @@ end;
 
 procedure TestTAbstractBTree.TestDelete;
 var Lbt : TIntegerBTree;
-  Lorder, i, intValue : TAbstractMemPosition;
+  Lorder, i, intValue : Integer;
   LLastTree, LCurrentTree : String;
 
   procedure DoDelete(AValue : Integer);

@@ -57,12 +57,18 @@
   - Added TAbstractMemZoneInfo that allows to Analyze TAbstractMem using CheckConsistency and returns all blocks information
   - Added TAVLCacheStats that allows to obtain stats from any TAVLCache<T> object
   
-  Version 1.4 -
+  Version 1.4 - Oct 2021
   - Fixed but to allow files up to 4 Gb. Limitation is due to internal 4 bytes positioning. 4 bytes = 4 Gb maximum size
+
+  Version 1.5 - Nov 2021
+  - Allows 32 or 64 bits file (More than 4Gb limitation)
+  - Allows select Max allowed block size by setting units size:
+    - 32 bits: Fixed 1 unit = 4 bytes: Max size = ((2^24)*4) = 67108864 bytes = 64Mb
+    - 64 bits: Customizable: 1 unit from 4..256 bytes (multiple of 4): Max size = from ((2^32)*4) 16Gb ... ((2^32)*256) = 1099511627776 = 1Tb
 
 }
 
 const
-  CT_ABSTRACTMEM_VERSION = 1.4; // Each revision should increase this version...
+  CT_ABSTRACTMEM_VERSION = 1.5; // Each revision should increase this version...
 
 
