@@ -20,7 +20,7 @@ type
     myPosition :   TAbstractMemPosition;    // Position in the AbstractMem
     accountKey : TAccountKey;
     accounts_using_this_key_position : TAbstractMemPosition;
-    function GetSize : Integer;
+    function GetSize(AAbstractMem : TAbstractMem) : Integer;
     procedure ReadFromMem(AMyPosition : TAbstractMemPosition; AAbstractMem : TAbstractMem);
     procedure WriteToMem(AAbstractMem : TAbstractMem);
     procedure Clear;
@@ -133,9 +133,9 @@ begin
   Self.accounts_using_this_key_position := 0;
 end;
 
-function TAbstractMemAccountKeyNode.GetSize: Integer;
+function TAbstractMemAccountKeyNode.GetSize(AAbstractMem : TAbstractMem) : Integer;
 begin
-  Result := accountKey.GetSerializedLength + 4 + TAbstractMemAVLTreeNodeInfoClass.GetSize;
+  Result := accountKey.GetSerializedLength + 4 + TAbstractMemAVLTreeNodeInfoClass.GetSize(AAbstractMem);
 end;
 
 procedure TAbstractMemAccountKeyNode.ReadFromMem(AMyPosition: TAbstractMemPosition; AAbstractMem: TAbstractMem);
@@ -145,7 +145,7 @@ var LBytes : TBytes;
 begin
   Self.Clear;
   Self.myPosition := AMyPosition;
-  inc(AMyPosition,TAbstractMemAVLTreeNodeInfoClass.GetSize);
+  inc(AMyPosition,TAbstractMemAVLTreeNodeInfoClass.GetSize(AAbstractMem));
   // Minimum size is  4 + 2 + 2 = 8 bytes
   i := 8;
   SetLength(LBytes,i);
@@ -180,7 +180,7 @@ begin
     LStream.Write(Self.accounts_using_this_key_position,4);
     Self.accountKey.ToSerialized(LStream);
     LBytes.FromStream(LStream);
-    AAbstractMem.Write(Self.myPosition + TAbstractMemAVLTreeNodeInfoClass.GetSize,LBytes[0],Length(LBytes));
+    AAbstractMem.Write(Self.myPosition + TAbstractMemAVLTreeNodeInfoClass.GetSize(AAbstractMem),LBytes[0],Length(LBytes));
   finally
     LStream.Free;
   end;
@@ -373,7 +373,7 @@ begin
     // if LNode does not exists, then ADD
     LNode.accountKey := AAccountKey;
     LNode.accounts_using_this_key_position := 0;
-    LNode.myPosition := FAbstractMem.New( LNode.GetSize ).position;
+    LNode.myPosition := FAbstractMem.New( LNode.GetSize(FAbstractMem) ).position;
     LNode.WriteToMem(FAbstractMem);
     Add(LNode);
   end;
@@ -463,7 +463,7 @@ begin
     // if LNode does not exists, then ADD
     LNode.accountKey := AAccountKey;
     LNode.accounts_using_this_key_position := 0;
-    LNode.myPosition := FAbstractMem.New( LNode.GetSize ).position;
+    LNode.myPosition := FAbstractMem.New( LNode.GetSize(FAbstractMem) ).position;
     LNode.WriteToMem(FAbstractMem);
     Add(LNode);
   end;
