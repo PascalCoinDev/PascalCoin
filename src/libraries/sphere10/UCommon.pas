@@ -23,7 +23,7 @@ unit UCommon;
 interface
 
 uses
-  Classes, SysUtils, Generics.Collections, Generics.Defaults,
+  Classes, SysUtils, Generics.Collections, Generics.Defaults, dateutils,
   {$IFNDEF FPC}System.Types, System.TimeSpan,
   {$ELSE}{$IFDEF LINUX} {$linklib c} ctypes, {$ENDIF LINUX}
   {$IFDEF WINDOWS} Windows, {$ENDIF WINDOWS}
@@ -501,7 +501,7 @@ resourcestring
 
 implementation
 
-uses dateutils, StrUtils;
+uses StrUtils;
 
 const
   IntlDateTimeFormat : TFormatSettings = (
@@ -551,7 +551,9 @@ end;
 
 function TryHex2Bytes(const AHexString: String; out ABytes : TBytes): boolean; overload;
 var
+  {$IFDEF FPC}
   P : PAnsiChar;
+  {$ENDIF}
   LHexString : String;
   LHexIndex, LHexLength, LHexStart : Integer;
 begin
@@ -574,9 +576,9 @@ begin
     Exit(true);
 
   SetLength(ABytes, LHexLength DIV 2);
-  P := @ABytes[Low(ABytes)];
   LHexString := LowerCase(AHexString);
   {$IFDEF FPC}
+  P := @ABytes[Low(ABytes)];
   LHexIndex := HexToBin(PAnsiChar(@LHexString[LHexStart]), P, System.Length(ABytes));
   {$ELSE}
   LHexIndex := HexToBin(@LHexString[LHexStart],0,ABytes,0,Length(ABytes));

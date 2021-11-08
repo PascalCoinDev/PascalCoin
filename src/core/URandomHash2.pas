@@ -166,7 +166,7 @@ type
             procedure PreProcessNewHash(const AHeader : TBytes);
           public
             constructor Create;
-            destructor Destroy;
+            destructor Destroy; override;
             property EnablePartiallyComputed : boolean read FEnablePartiallyComputed write FEnablePartiallyComputed;
             procedure AddPartiallyComputed(const AHeader : TBytes; ALevel : Integer; const AOutputs : TArray<TBytes>); inline;
             procedure AddFullyComputed(const AHeader : TBytes; ALevel : Integer; const AHash : TBytes); inline;
@@ -1032,6 +1032,7 @@ begin
   FreeAndNil(FComputed);
   FPartiallyComputed.Clear;
   FreeAndNil(FPartiallyComputed);
+  inherited Destroy;   // skybuck: destructor added, check this ! ;)
 end;
 
 procedure TRandomHash2Fast.TCache.AddPartiallyComputed(const AHeader : TBytes; ALevel : Integer; const AOutputs : TArray<TBytes>);

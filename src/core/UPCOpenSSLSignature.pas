@@ -65,12 +65,12 @@ begin
     i := BN_num_bytes(PECS^._r);
     SetLength(ASignature.r,i);
     p := @ASignature.r[Low(ASignature.r)];
-    i := BN_bn2bin(PECS^._r,p);
+    {i :=} BN_bn2bin(PECS^._r,p);
 
     i := BN_num_bytes(PECS^._s);
     SetLength(ASignature.s,i);
     p := @ASignature.s[Low(ASignature.s)];
-    i := BN_bn2bin(PECS^._s,p);
+    {i :=} BN_bn2bin(PECS^._s,p);
   Finally
     ECDSA_SIG_free(PECS);
   End;

@@ -1,4 +1,4 @@
-{*------------------------------------------------------------------------------
+﻿{*------------------------------------------------------------------------------
   GNU gettext translation system for Delphi, Kylix, C++ Builder and others.
   All parts of the translation system are kept in this unit.
 
@@ -3588,9 +3588,6 @@ var
   newvalue:TranslatedUnicodeString;
   comp:TGnuGettextComponentMarker;
   ppi:PPropInfo;
-  //
-  oInstance: tobject;
-  PropName: string;
 begin
   for i:=0 to list.Count-1 do begin
     item:=TObject(list.items[i]) as TTP_RetranslatorItem;

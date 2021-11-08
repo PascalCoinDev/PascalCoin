@@ -260,7 +260,7 @@ begin
   if (Length(AProofLevels.Levels)=2) then Exit(False);
 
 
-  Result := True;
+{  Result := True; // Skybuck: never used, leaving it in for now as a hint for rest of code }
 
   if (Length(AProofLevels.Levels)=1) then Exit(True); // If only 1 level, nothing to proof, is a single proof = True
 
@@ -316,7 +316,7 @@ class function TPCSafeboxRootHash.GetProof(ABlocksHashBuffer: TBytesBuffer;
   procedure GetLevelProof(APreviousLevelHashBuffer: TBytesBuffer; ALevelBlockIndex : Integer; var ALevels: TProofLevels);
     // PRE: At least we have 1 block
 
-  var LTotalBlocks : Integer;
+  var LTotalBlocks : Integer; // Skybuck: double usage of variable name, slightly dangerous see ****
     LNextLevel : TBytesBuffer;
   begin
     LTotalBlocks := APreviousLevelHashBuffer.Length DIV 32;
@@ -356,17 +356,16 @@ class function TPCSafeboxRootHash.GetProof(ABlocksHashBuffer: TBytesBuffer;
     end;
   end;
 
-var LTotalBlocks : Integer;
+var LTotalBlocks : Integer;  // Skybuck: Double usage of variable name, slightly dangerous see ****
 begin
   // Protection
   Assert((ABlocksHashBuffer.Length MOD 32)=0,'ABlocksHashBuffer invalid length ('+IntToStr(ABlocksHashBuffer.Length)+') not modulo 32 = 0');
   // Init
 
   SetLength(AProofLevels.Levels,0);
-  LTotalBlocks := ABlocksHashBuffer.Length DIV 32;
-  Result := False;
+{  Result := False; ..// Skybuck: never used, leaving code/comment in for hint for rest of code }
   AProofLevels.Levels := Nil;
-  if LTotalBlocks<=ABlockIndex then Exit(False);
+  if LTotalBlocks<=ABlockIndex then Exit(False);   // !!! Skybuck: possible bug detected: LTotalBlocks not initialized ?!? !!!
   if LTotalBlocks=0 then Exit(False);
   // First
   Result := True;

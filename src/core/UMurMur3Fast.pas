@@ -383,8 +383,7 @@ const
   f1 = $85EBCA6B;
   f2 = $C2B2AE35;
 var
-  i, Len2: integer;
-  k: cardinal;
+  Len2: integer;
   remaining: cardinal;
   Data: PCardinal;
 label

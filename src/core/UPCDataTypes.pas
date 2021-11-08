@@ -226,6 +226,7 @@ begin
   inc(AStartIndex,2);
   if Not Self.x.LoadFromTBytes(ABytes,AStartIndex) then Exit(False);
   if Not Self.y.LoadFromTBytes(ABytes,AStartIndex) then Exit(False);
+  Result := True;
 end;
 
 procedure TECDSA_Public.ToSerialized(const AStream: TStream);

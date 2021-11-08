@@ -135,8 +135,8 @@ Type
     class procedure Concat(const addBytes : T32Bytes; var target : TDynRawBytes); overload;
     class procedure Concat(const leftBytes,rightBytes : T32Bytes; var target : TDynRawBytes); overload;
     class procedure Concat(const leftBytes,rightBytes : TDynRawBytes; var target : TDynRawBytes); overload;
-    class function Equals(const v1,v2 : T32Bytes) : Boolean; overload;
-    class function Equals(const v1,v2 : TDynRawBytes) : Boolean; overload;
+    class function Equals(const v1,v2 : T32Bytes) : Boolean; reintroduce; overload;
+    class function Equals(const v1,v2 : TDynRawBytes) : Boolean; reintroduce; overload;
     class function Higher(const vHigh,vLow : T32Bytes) : Boolean;
     class function Compare(const leftBytes,rightBytes : T32Bytes) : Integer; overload;
     class function FindIn(const subst, target : TRawBytes) : Integer;

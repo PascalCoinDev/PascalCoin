@@ -150,7 +150,7 @@ end;
 class procedure TDisposables.Finalize(var ADisposables: TDisposables);
 var
   FirstException: Pointer;
-  i, x: Integer;
+  i : Integer;
 begin
   FirstException := nil;
   for i := ADisposables.FLastIndex downto 0 do

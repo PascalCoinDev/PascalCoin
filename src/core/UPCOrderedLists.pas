@@ -183,7 +183,6 @@ begin
 end;
 
 function TOrderedCardinalList.FillList(AStartIndex, ACount : Integer; const AList : TList<Cardinal>) : Integer;
-var i : Integer;
 begin
   AList.Clear;
   AList.Capacity := ACount;
@@ -200,7 +199,6 @@ begin
 end;
 
 function TOrderedCardinalList.FillList(AStartIndex, ACount: Integer; const AList: TList<Integer>): Integer;
-var i : Integer;
 begin
   AList.Clear;
   AList.Capacity := ACount;
