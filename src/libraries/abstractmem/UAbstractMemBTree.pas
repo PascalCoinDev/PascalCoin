@@ -51,7 +51,7 @@ type
     // Internal search process will convert TData pointer to final TData value for
     // comparisions
   private
-    const CT_MIN_INITIAL_POSITION_SIZE = 16;
+    const
           CT_AbstractMemBTree_Magic = 'AMBT'; // DO NOT LOCALIZE MUST BE 4 BYTES LENGTH
     var
     FInitialZone : TAMZone;
@@ -60,6 +60,7 @@ type
     Procedure CheckInitialized;
     procedure LoadNodeHeader(const APosition : TAbstractMemPosition; var ANode : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode; var AChildsCount : Integer; var AChildsPosition : TAbstractMemPosition);
     procedure SaveNodeHeader(const ANode : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode; const AChildsPosition : TAbstractMemPosition);
+    function GetNodeHeaderSize : Integer;
   protected
     FAbstractMem : TAbstractMem;
     function GetRoot: TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode; override;
@@ -82,7 +83,7 @@ type
     constructor Create(AAbstractMem : TAbstractMem; const AInitialZone: TAMZone; AAllowDuplicates : Boolean; AOrder : Integer); virtual;
     destructor Destroy; override;
     function GetNode(AIdentify : TAbstractMemPosition) : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode; override;
-    class function MinAbstractMemInitialPositionSize : Integer;
+    class function MinAbstractMemInitialPositionSize(AAbstractMem : TAbstractMem) : Integer;
     property AbstractMem : TAbstractMem read FAbstractMem;
     property Count;
   End;
@@ -109,7 +110,6 @@ type
     function FindDataLowest(out ALowest : TData) : Boolean;
     function FindDataHighest(out AHighest : TData) : Boolean;
   End;
-
 
 implementation
 
@@ -141,20 +141,20 @@ begin
   end else begin
     if FInitialZone.position=0 then Exit;
   end;
-  if (FInitialZone.size<MinAbstractMemInitialPositionSize) then begin
+  if (FInitialZone.size<MinAbstractMemInitialPositionSize(AAbstractMem)) then begin
     raise EAbstractMemBTree.Create(Format('Invalid size %d for initialize',[FInitialZone.size]));
   end;
-  SetLength(LBuff,CT_MIN_INITIAL_POSITION_SIZE);
+  SetLength(LBuff,MinAbstractMemInitialPositionSize(AAbstractMem));
   FAbstractMem.Read(FInitialZone.position,LBuff[0],Length(LBuff));
   try
     // Check magic
     for i := 0 to CT_AbstractMemBTree_Magic.Length-1 do begin
       if LBuff[i]<>Ord(CT_AbstractMemBTree_Magic.Chars[i]) then Exit;
     end;
-    Move(LBuff[4],FrootPosition,4);
-    Move(LBuff[8],FCount,4);
+    Move(LBuff[4],FrootPosition,FAbstractMem.SizeOfAbstractMemPosition);
+    Move(LBuff[4+FAbstractMem.SizeOfAbstractMemPosition],FCount,4);
     LOrder := 0;
-    Move(LBuff[12],LOrder,4);
+    Move(LBuff[8+FAbstractMem.SizeOfAbstractMemPosition],LOrder,4);
     if LOrder<>Order then raise EAbstractMemBTree.Create(Format('Invalid Order %d expected %d',[LOrder,Order]));
     if (((FrootPosition=0) and (FCount>0))) then raise EAbstractMemBTree.Create(Format('Invalid initial root %d vs count %d',[FrootPosition,FCount]));
   finally
@@ -197,10 +197,10 @@ begin
   LoadNodeHeader(AIdentify,Result,LChildsCount,LChildsPosition);
   if LChildsCount>0 then begin
     SetLength(Result.childs,LChildsCount);
-    SetLength(LBuff,(LChildsCount*4));
+    SetLength(LBuff,(LChildsCount*FAbstractMem.SizeOfAbstractMemPosition));
     FAbstractMem.Read(LChildsPosition,LBuff[0],Length(LBuff));
     for i := 0 to LChildsCount-1 do begin
-      Move(LBuff[i*4],Result.childs[i],4);
+      Move(LBuff[i*FAbstractMem.SizeOfAbstractMemPosition],Result.childs[i],FAbstractMem.SizeOfAbstractMemPosition);
     end;
   end;
   if ((Result.Count=0) and (Result.parent=0) and (LChildsCount=0)) then begin
@@ -216,6 +216,11 @@ begin
     if ((LChildsCount<>0) and (LChildsCount<>(Result.Count+1))) then
       raise EAbstractMemBTree.Create(Format('Node childrens %d not %d+1 in range [%d..%d]',[LChildsCount,Result.Count,MinChildrenPerNode,MaxChildrenPerNode]));
   end;
+end;
+
+function TAbstractMemBTree.GetNodeHeaderSize: Integer;
+begin
+  Result := ((FAbstractMem.SizeOfAbstractMemPosition*2)+4) + (FAbstractMem.SizeOfAbstractMemPosition*MaxItemsPerNode);
 end;
 
 function TAbstractMemBTree.GetRoot: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode;
@@ -237,6 +242,7 @@ var LBuff : TBytes;
 begin
   // Node is stored in zone 2 positions:
   //
+  // In 32 bits
   // Zone 1: Header
   //   Size = (4+2+2+4) + (4*MaxItemsPerNode)
   // 4 Bytes [0..3] : Parent
@@ -251,33 +257,42 @@ begin
   // For each children:
   //   4 Bytes : Children AbstractMem position
   //
-  SetLength(LBuff, 8 + (4 * MaxItemsPerNode) + 4 );
+  // In 64 bits
+  // Same but using 8 bytes (instead of 4) for position
+  //   Size = (8+2+2+8) + (8*MaxItemsPerNode)
+  //
+  // Use FAbstractMem.SizeOfAbstractMemPosition (will return 4 or 8)
+  //   Size = ((FAbstractMem.SizeOfAbstractMemPosition*2)+4) + (FAbstractMem.SizeOfAbstractMemPosition*MaxItemsPerNode)
+  //
+  SetLength(LBuff,GetNodeHeaderSize);
+
   FAbstractMem.Read(APosition,LBuff[0],Length(LBuff));
   ClearNode(ANode);
   LItemsCount := 0;
   AChildsCount := 0;
   AChildsPosition := 0;
   ANode.identify := APosition;
-  Move(LBuff[0],ANode.parent,4);
-  Move(LBuff[4],LItemsCount,1);
-  Move(LBuff[5],AChildsCount,1);
-  Move(LBuff[8],AChildsPosition,4);
+  Move(LBuff[0],ANode.parent , FAbstractMem.SizeOfAbstractMemPosition);
+  Move(LBuff[FAbstractMem.SizeOfAbstractMemPosition],LItemsCount,1);
+  Move(LBuff[FAbstractMem.SizeOfAbstractMemPosition+1],AChildsCount,1);
+  Move(LBuff[FAbstractMem.SizeOfAbstractMemPosition+4],AChildsPosition,FAbstractMem.SizeOfAbstractMemPosition);
   SetLength(ANode.data,LItemsCount);
   for i := 0 to LItemsCount-1 do begin
-    Move(LBuff[12 + (i*4)], ANode.data[i], 4);
+    Move(LBuff[(FAbstractMem.SizeOfAbstractMemPosition*2)+4 + (i*FAbstractMem.SizeOfAbstractMemPosition)],
+      ANode.data[i], FAbstractMem.SizeOfAbstractMemPosition);
   end;
 end;
 
-class function TAbstractMemBTree.MinAbstractMemInitialPositionSize: Integer;
+class function TAbstractMemBTree.MinAbstractMemInitialPositionSize(AAbstractMem : TAbstractMem) : Integer;
 begin
-  Result := CT_MIN_INITIAL_POSITION_SIZE;
+  Result := (AAbstractMem.SizeOfAbstractMemPosition) + 12;
 end;
 
 function TAbstractMemBTree.NewNode: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode;
 begin
   CheckInitialized;
   ClearNode(Result);
-  Result.identify := FAbstractMem.New( 8 + (4 * MaxItemsPerNode) + 4 ).position;
+  Result.identify := FAbstractMem.New( GetNodeHeaderSize ).position;
   SaveNodeHeader(Result,0);
 end;
 
@@ -287,15 +302,15 @@ var LBuff : TBytes;
  LOrder : Integer;
 begin
   CheckInitialized;
-  SetLength(LBuff,16);
+  SetLength(LBuff,MinAbstractMemInitialPositionSize(FAbstractMem));
   for i := 0 to CT_AbstractMemBTree_Magic.Length-1 do begin
     LBuff[i] := Byte(Ord(CT_AbstractMemBTree_Magic.Chars[i]));
   end;
-  Move(FrootPosition,LBuff[4],4);
-  Move(FCount,LBuff[8],4);
+  Move(FrootPosition,LBuff[4],FAbstractMem.SizeOfAbstractMemPosition);
+  Move(FCount,LBuff[4+FAbstractMem.SizeOfAbstractMemPosition],4);
   LOrder := Order;
-  Move(LOrder,LBuff[12],4);
-  FAbstractMem.Write(FInitialZone.position,LBuff[0],16);
+  Move(LOrder,LBuff[8+FAbstractMem.SizeOfAbstractMemPosition],4);
+  FAbstractMem.Write(FInitialZone.position,LBuff[0],Length(LBuff));
 end;
 
 procedure TAbstractMemBTree.SaveNode(var ANode: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode);
@@ -316,21 +331,24 @@ begin
     // Node wasn't a leaf previously
     Assert(LChildsPosition<>0,'Old childs position<>0');
     FAbstractMem.Dispose(LChildsPosition);
+    LChildsPosition := 0;
   end else if (LChildsCount=0) And (Not ANode.IsLeaf) then begin
     // Node was a leaf previously, now not
-    LZone := FAbstractMem.New( MaxChildrenPerNode * 4 );
+    LZone := FAbstractMem.New( MaxChildrenPerNode * FAbstractMem.SizeOfAbstractMemPosition );
     LChildsPosition := LZone.position;
   end;
   LChildsCount := Length(ANode.childs);
   //
   SaveNodeHeader(ANode,LChildsPosition);
   //
-  SetLength(LBuff, MaxChildrenPerNode * 4 );
-  FillChar(LBuff[0],Length(LBuff),0);
-  for i := 0 to LChildsCount-1 do begin
-    Move(ANode.childs[i],LBuff[i*4],4);
+  if LChildsCount>0 then begin
+    SetLength(LBuff, MaxChildrenPerNode * FAbstractMem.SizeOfAbstractMemPosition );
+    FillChar(LBuff[0],Length(LBuff),0);
+    for i := 0 to LChildsCount-1 do begin
+      Move(ANode.childs[i],LBuff[i*FAbstractMem.SizeOfAbstractMemPosition],FAbstractMem.SizeOfAbstractMemPosition);
+    end;
+    FAbstractMem.Write(LChildsPosition,LBuff[0],LChildsCount*FAbstractMem.SizeOfAbstractMemPosition);
   end;
-  FAbstractMem.Write(LChildsPosition,LBuff[0],LChildsCount*4);
 end;
 
 procedure TAbstractMemBTree.SaveNodeHeader(
@@ -338,16 +356,18 @@ procedure TAbstractMemBTree.SaveNodeHeader(
 var LBuff : TBytes;
   i, LItemsCount, LChildsCount : Integer;
 begin
-  SetLength(LBuff, 8 + (4 * MaxItemsPerNode) + 4 );
+  SetLength(LBuff, GetNodeHeaderSize );
+
   FillChar(LBuff[0],Length(LBuff),0);
-  Move(ANode.parent,LBuff[0],4);
+  Move(ANode.parent,LBuff[0],FAbstractMem.SizeOfAbstractMemPosition);
   LItemsCount := ANode.Count;
-  Move(LItemsCount,LBuff[4],1);
+  Move(LItemsCount,LBuff[FAbstractMem.SizeOfAbstractMemPosition],1);
   LChildsCount := Length(ANode.childs);
-  Move(LChildsCount,LBuff[5],1);
-  Move(AChildsPosition,LBuff[8],4);
+  Move(LChildsCount,LBuff[FAbstractMem.SizeOfAbstractMemPosition+1],1);
+  Move(AChildsPosition,LBuff[FAbstractMem.SizeOfAbstractMemPosition+4],FAbstractMem.SizeOfAbstractMemPosition);
   for i := 0 to LItemsCount-1 do begin
-    Move(ANode.data[i], LBuff[12 + (i*4)], 4);
+    Move(ANode.data[i], LBuff[(FAbstractMem.SizeOfAbstractMemPosition*2)+4 + (i*FAbstractMem.SizeOfAbstractMemPosition)],
+      FAbstractMem.SizeOfAbstractMemPosition);
   end;
   FAbstractMem.Write(ANode.identify,LBuff[0],Length(LBuff));
 end;

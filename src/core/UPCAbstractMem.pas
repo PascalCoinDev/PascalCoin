@@ -388,12 +388,12 @@ begin
           //
           if (Not FAbstractMem.ReadOnly) then begin
             if (LZoneAccountsOrderedByUpdatedBlock.position=0) then begin
-              LZoneAccountsOrderedByUpdatedBlock := FAbstractMem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize);
+              LZoneAccountsOrderedByUpdatedBlock := FAbstractMem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize(FAbstractMem));
               Move(LZoneAccountsOrderedByUpdatedBlock.position,LHeader[40],4);
               FAbstractMem.Write(LZone.position,LHeader[0],Length(LHeader));
             end;
             if (LZoneAccountsOrderedBySalePrice.position=0) then begin
-              LZoneAccountsOrderedBySalePrice := FAbstractMem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize);
+              LZoneAccountsOrderedBySalePrice := FAbstractMem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize(FAbstractMem));
               Move(LZoneAccountsOrderedBySalePrice.position,LHeader[44],4);
               FAbstractMem.Write(LZone.position,LHeader[0],Length(LHeader));
             end;
@@ -420,9 +420,9 @@ begin
     FZoneAggregatedHashrate := FAbstractMem.New(100); // Note: Enough big to store a BigNum
     LZoneBuffersBlockHash := LZone.position+36;
     LZoneAccountsOrderedByUpdatedBlock := FAbstractMem.New(
-      TAbstractMemBTree.MinAbstractMemInitialPositionSize);
+      TAbstractMemBTree.MinAbstractMemInitialPositionSize(FAbstractMem));
     LZoneAccountsOrderedBySalePrice := FAbstractMem.New(
-      TAbstractMemBTree.MinAbstractMemInitialPositionSize);
+      TAbstractMemBTree.MinAbstractMemInitialPositionSize(FAbstractMem));
 
     Move(LZoneBlocks.position,       LHeader[16],4);
     Move(LZoneAccounts.position,     LHeader[20],4);
