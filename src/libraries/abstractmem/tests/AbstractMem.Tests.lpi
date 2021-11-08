@@ -32,7 +32,7 @@
         <PackageName Value="FCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="15">
+    <Units Count="16">
       <Unit0>
         <Filename Value="AbstractMem.Tests.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -93,19 +93,24 @@
         <Filename Value="src\UFileMem.Tests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit14>
+      <Unit15>
+        <Filename Value="src\UAbstractMemTList.Tests.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit15>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <SearchPaths>
-      <IncludeFiles Value="..;src"/>
+      <IncludeFiles Value="..;src;$(ProjOutDir)"/>
       <OtherUnitFiles Value="..;src"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>
-        <SyntaxMode Value="delphi"/>
+        <SyntaxMode Value="Delphi"/>
+        <IncludeAssertionCode Value="True"/>
       </SyntaxOptions>
     </Parsing>
     <Linking>

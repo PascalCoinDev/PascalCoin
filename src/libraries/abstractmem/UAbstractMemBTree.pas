@@ -86,6 +86,8 @@ type
     class function MinAbstractMemInitialPositionSize(AAbstractMem : TAbstractMem) : Integer;
     property AbstractMem : TAbstractMem read FAbstractMem;
     property Count;
+    function NodeDataToString(const AData : TAbstractMemPosition) : String; override;
+    function NodeIdentifyToString(const AIdentify : TAbstractMemPosition) : String; override;
   End;
 
   TAbstractMemBTreeData<TData> = Class(TAbstractMemBTree)
@@ -285,7 +287,7 @@ end;
 
 class function TAbstractMemBTree.MinAbstractMemInitialPositionSize(AAbstractMem : TAbstractMem) : Integer;
 begin
-  Result := (AAbstractMem.SizeOfAbstractMemPosition) + 12;
+  Result := (AAbstractMem.SizeOfAbstractMemPosition) + 12 ;
 end;
 
 function TAbstractMemBTree.NewNode: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode;
@@ -294,6 +296,17 @@ begin
   ClearNode(Result);
   Result.identify := FAbstractMem.New( GetNodeHeaderSize ).position;
   SaveNodeHeader(Result,0);
+end;
+
+function TAbstractMemBTree.NodeDataToString(const AData: TAbstractMemPosition): String;
+begin
+  Result := '0x'+AData.ToHexString;
+end;
+
+function TAbstractMemBTree.NodeIdentifyToString(
+  const AIdentify: TAbstractMemPosition): String;
+begin
+  Result := '0x'+AIdentify.ToHexString;
 end;
 
 procedure TAbstractMemBTree.SaveHeader;
@@ -354,7 +367,7 @@ end;
 procedure TAbstractMemBTree.SaveNodeHeader(
   const ANode: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode; const AChildsPosition : TAbstractMemPosition);
 var LBuff : TBytes;
-  i, LItemsCount, LChildsCount : Integer;
+  i, LItemsCount, LChildsCount: Integer;
 begin
   SetLength(LBuff, GetNodeHeaderSize );
 

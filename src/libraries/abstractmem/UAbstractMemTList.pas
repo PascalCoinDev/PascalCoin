@@ -55,7 +55,7 @@ type
 
     FElementsOfEachBlock : Integer;
     FFirstBlockPointer : TAbstractMemPosition;
-    FNextElementPosition : Integer;
+    FNextElementIndex : Integer;
 
     FUseCache : Boolean;
     FUseCacheAuto : Boolean;
@@ -100,6 +100,7 @@ type
     property UseCacheAuto : Boolean read FUseCacheAuto write FUseCacheAuto;
     procedure LockList;
     procedure UnlockList;
+    class function MinAbstractMemTListHeaderSize(AAbstractMem : TAbstractMem) : Integer;
   End;
 
   TAbstractMemTListBaseAbstract<T> = Class
@@ -158,13 +159,6 @@ type
     function Get(index : Integer) : T;
   End;
 
-const
-  CT_AbstractMemTList_HeaderSize = 16;
-    // [0] 4 for magic
-    // [4] 4 for elements of each block
-    // [8] 4 for next element (counter)
-    // [12] 4 for first block position
-
 implementation
 
 { TAbstractMemTList }
@@ -176,8 +170,8 @@ function TAbstractMemTList.Add(const APosition: TAbstractMemPosition): Integer;
 begin
   FAbstractMemTListLock.Acquire;
   Try
-  Result := FNextElementPosition;
-  Insert(FNextElementPosition,APosition);
+  Result := FNextElementIndex;
+  Insert(FNextElementIndex,APosition);
   Finally
     FAbstractMemTListLock.Release;
   End;
@@ -189,18 +183,20 @@ var LElements : TBytes;
   LIndexInBlock, i, j, n : Integer;
 begin
   CheckInitialized;
-  if (AIndexStart<0) or (AInsertCount<=0) or (AIndexStart>FNextElementPosition) then raise EAbstractMemTList.Create(Format('%s AddRange %d..%d out of range 0..%d',[ClassName,AIndexStart,AIndexStart+AInsertCount,FNextElementPosition-1]));
+  if (AIndexStart<0) or (AInsertCount<=0) or (AIndexStart>FNextElementIndex) then raise EAbstractMemTList.Create(Format('%s AddRange %d..%d out of range 0..%d',[ClassName,AIndexStart,AIndexStart+AInsertCount,FNextElementIndex-1]));
   if (UseCacheData(True)) then begin
-    if (Length(FCacheData)-FCacheDataUsedBytes)< (AInsertCount*4) then begin
+    if (Length(FCacheData)-FCacheDataUsedBytes)< (AInsertCount*FAbstractMem.SizeOfAbstractMemPosition) then begin
       // Increase
       if (FElementsOfEachBlock>AInsertCount) then i := FElementsOfEachBlock
       else i := AInsertCount;
-      SetLength(FCacheData,Length(FCacheData) + (i * 4));
+      SetLength(FCacheData,Length(FCacheData) + (i * FAbstractMem.SizeOfAbstractMemPosition));
     end;
     FCacheUpdated := True;
-    Inc(FCacheDataUsedBytes,(AInsertCount*4));
-    Move(FCacheData[AIndexStart*4],FCacheData[(AIndexStart+AInsertCount)*4],FCacheDataUsedBytes-((AIndexStart+AInsertCount)*4));
-    Inc(FNextElementPosition,AInsertCount);
+    Inc(FCacheDataUsedBytes,(AInsertCount*FAbstractMem.SizeOfAbstractMemPosition));
+    Move(FCacheData[AIndexStart*FAbstractMem.SizeOfAbstractMemPosition],
+         FCacheData[(AIndexStart+AInsertCount)*FAbstractMem.SizeOfAbstractMemPosition],
+         FCacheDataUsedBytes-((AIndexStart+AInsertCount)*FAbstractMem.SizeOfAbstractMemPosition));
+    Inc(FNextElementIndex,AInsertCount);
     Exit;
   end;
   //
@@ -213,13 +209,14 @@ begin
     GetPointerTo(i,True,LPreviousBlockPointer,LBlockPointer,LIndexInBlock);
     // Move from LIndexInBlock to FElementsOfEachBlock-1 in this block
     j := FElementsOfEachBlock - (LIndexInBlock); // j = Elements to move right on this block
-    if ((n+j)*4>Length(LElements)) then j := (Length(LElements) DIV 4)-n;
-    FAbstractMem.Write( LBlockPointer + (LIndexInBlock*4), LElements[ n*4 ], j*4 );
+    if ((n+j)*FAbstractMem.SizeOfAbstractMemPosition>Length(LElements)) then j := (Length(LElements) DIV FAbstractMem.SizeOfAbstractMemPosition)-n;
+    FAbstractMem.Write( LBlockPointer + (LIndexInBlock*FAbstractMem.SizeOfAbstractMemPosition),
+      LElements[ n*FAbstractMem.SizeOfAbstractMemPosition ], j*FAbstractMem.SizeOfAbstractMemPosition );
     inc(n,j);
     inc(i,j);
-  until (i >= FNextElementPosition + AInsertCount) or (j=0);
-  Inc(FNextElementPosition,AInsertCount);
-  FAbstractMem.Write( FInitialZone.position + 8, FNextElementPosition, 4 );
+  until (i >= FNextElementIndex + AInsertCount) or (j=0);
+  Inc(FNextElementIndex,AInsertCount);
+  FAbstractMem.Write( FInitialZone.position + 8, FNextElementIndex, 4 );
 end;
 
 procedure TAbstractMemTList.CheckInitialized;
@@ -236,11 +233,11 @@ begin
   // Free mem
   LBlockPointer := FFirstBlockPointer;
   FFirstBlockPointer := 0;
-  FNextElementPosition := 0;
-  FAbstractMem.Write( FInitialZone.position + 12, FFirstBlockPointer, 4 );
+  FNextElementIndex := 0;
+  FAbstractMem.Write( FInitialZone.position + 12, FFirstBlockPointer, FAbstractMem.SizeOfAbstractMemPosition );
   while (LBlockPointer>0) do begin
     // Read next
-    FAbstractMem.Read( LBlockPointer + (FElementsOfEachBlock * 4), LNext, 4);
+    FAbstractMem.Read( LBlockPointer + (FElementsOfEachBlock * FAbstractMem.SizeOfAbstractMemPosition), LNext, FAbstractMem.SizeOfAbstractMemPosition);
     FAbstractMem.Dispose(LBlockPointer);
     LBlockPointer := LNext;
   end;
@@ -255,7 +252,7 @@ end;
 
 function TAbstractMemTList.Count: Integer;
 begin
-  Result := FNextElementPosition;
+  Result := FNextElementIndex;
 end;
 
 constructor TAbstractMemTList.Create(AAbstractMem: TAbstractMem; const AInitialZone: TAMZone; ADefaultElementsPerBlock : Integer; AUseCache : Boolean);
@@ -272,7 +269,7 @@ begin
 
   FElementsOfEachBlock := 0;
   FFirstBlockPointer := 0;
-  FNextElementPosition := 0;
+  FNextElementIndex := 0;
 
   FAbstractMemTListLock := TCriticalSection.Create;
 
@@ -323,34 +320,34 @@ begin
   LNext := 0;
   // Save full:
   i := 0;
-  while ((i*4) < (FCacheDataUsedBytes)) do begin
+  while ((i*FAbstractMem.SizeOfAbstractMemPosition) < (FCacheDataUsedBytes)) do begin
     GetPointerTo(i,True,LPreviousBlockPointer,LBlockPointer,LIndexInBlock);
-    if (i+FElementsOfEachBlock-1 >= FNextElementPosition) then begin
-      LElements := FNextElementPosition - i;
+    if (i+FElementsOfEachBlock-1 >= FNextElementIndex) then begin
+      LElements := FNextElementIndex - i;
     end else LElements := FElementsOfEachBlock;
-    FAbstractMem.Write(LBlockPointer,FCacheData[i*4],(LElements*4));
+    FAbstractMem.Write(LBlockPointer,FCacheData[i*FAbstractMem.SizeOfAbstractMemPosition],(LElements*FAbstractMem.SizeOfAbstractMemPosition));
     inc(i,LElements);
-    FAbstractMem.Read( LBlockPointer + (FElementsOfEachBlock * 4), LNext, 4);
+    FAbstractMem.Read( LBlockPointer + (FElementsOfEachBlock * FAbstractMem.SizeOfAbstractMemPosition), LNext, FAbstractMem.SizeOfAbstractMemPosition);
     LPreviousBlockPointer := LBlockPointer;
   end;
   // Save Header:
-  FAbstractMem.Write( FInitialZone.position + 8, FNextElementPosition, 4 );
+  FAbstractMem.Write( FInitialZone.position + 8, FNextElementIndex, 4 );
   // Free unused blocks:
-  if (FNextElementPosition=0) And (FFirstBlockPointer>0) then begin
+  if (FNextElementIndex=0) And (FFirstBlockPointer>0) then begin
     // This is first block pointer
     LNext := FFirstBlockPointer;
     FFirstBlockPointer := 0;
-    FAbstractMem.Write( FInitialZone.position + 12, FFirstBlockPointer, 4 );
+    FAbstractMem.Write( FInitialZone.position + 12, FFirstBlockPointer, FAbstractMem.SizeOfAbstractMemPosition );
     LPreviousBlockPointer := 0;
   end;
   while (LNext>0) do begin
     if LPreviousBlockPointer>0 then begin
       LZero := 0;
-      FAbstractMem.Write( LPreviousBlockPointer + (FElementsOfEachBlock * 4), LZero, 4);
+      FAbstractMem.Write( LPreviousBlockPointer + (FElementsOfEachBlock * FAbstractMem.SizeOfAbstractMemPosition), LZero, FAbstractMem.SizeOfAbstractMemPosition);
     end;
     LPreviousBlockPointer := LBlockPointer;
     LBlockPointer := LNext;
-    FAbstractMem.Read( LBlockPointer + (FElementsOfEachBlock * 4), LNext, 4);
+    FAbstractMem.Read( LBlockPointer + (FElementsOfEachBlock * FAbstractMem.SizeOfAbstractMemPosition), LNext, FAbstractMem.SizeOfAbstractMemPosition);
     FAbstractMem.Dispose(LBlockPointer);
   end;
   //
@@ -364,10 +361,10 @@ procedure TAbstractMemTList.GetPointerTo(AIndex: Integer; AAllowIncrease : Boole
 var LBlockIndex : Integer;
   i : Integer;
   LNewBlock : TAMZone;
-  LZero : Integer;
+  LZero : TAbstractMemPosition;
 begin
   CheckInitialized;
-  if (AIndex<0) or ((Not AAllowIncrease) And (AIndex>=FNextElementPosition)) then raise EAbstractMemTList.Create(Format('%s index %d out of range 0..%d',[ClassName,AIndex,FNextElementPosition-1]));
+  if (AIndex<0) or ((Not AAllowIncrease) And (AIndex>=FNextElementIndex)) then raise EAbstractMemTList.Create(Format('%s index %d out of range 0..%d',[ClassName,AIndex,FNextElementIndex-1]));
 
   // Search ABlockPointer
   LBlockIndex := AIndex DIV FElementsOfEachBlock;
@@ -379,26 +376,26 @@ begin
   repeat
     if (ABlockPointer<=0) then begin
       // Create
-      LNewBlock := FAbstractMem.New( 4 + (FElementsOfEachBlock * 4) );
+      LNewBlock := FAbstractMem.New( FAbstractMem.SizeOfAbstractMemPosition + (FElementsOfEachBlock * FAbstractMem.SizeOfAbstractMemPosition) );
       ABlockPointer := LNewBlock.position;
       // Save this pointer
       if (i=0) then begin
         // This is FFirstBlockPointer
         FFirstBlockPointer := LNewBlock.position;
         // Save header:
-        FAbstractMem.Write( FInitialZone.position + 12, FFirstBlockPointer, 4 );
+        FAbstractMem.Write( FInitialZone.position + 12, FFirstBlockPointer, FAbstractMem.SizeOfAbstractMemPosition );
       end else begin
         // This is previous block
-        FAbstractMem.Write( APreviousBlockPointer + (FElementsOfEachBlock*4), LNewBlock.position, 4 );
+        FAbstractMem.Write( APreviousBlockPointer + (FElementsOfEachBlock*FAbstractMem.SizeOfAbstractMemPosition), LNewBlock.position, FAbstractMem.SizeOfAbstractMemPosition );
       end;
       // Clear next
       LZero := 0;
-      FAbstractMem.Write( ABlockPointer + (FElementsOfEachBlock*4), LZero, 4 );
+      FAbstractMem.Write( ABlockPointer + (FElementsOfEachBlock*FAbstractMem.SizeOfAbstractMemPosition), LZero, FAbstractMem.SizeOfAbstractMemPosition );
     end;
     if (i<LBlockIndex) then begin
       APreviousBlockPointer := ABlockPointer;
       // Read
-      FAbstractMem.Read( ABlockPointer + (FElementsOfEachBlock*4), ABlockPointer, 4 );
+      FAbstractMem.Read( ABlockPointer + (FElementsOfEachBlock*FAbstractMem.SizeOfAbstractMemPosition), ABlockPointer, FAbstractMem.SizeOfAbstractMemPosition );
     end;
     inc(i);
   until (i > LBlockIndex);
@@ -412,11 +409,11 @@ begin
   FAbstractMemTListLock.Acquire;
   try
   if (UseCacheData(False)) then begin
-    if (AIndex<0) or (AIndex>=FNextElementPosition) then raise EAbstractMemTList.Create(Format('%s index %d out of range 0..%d',[ClassName,AIndex,FNextElementPosition-1]));
-    Move( FCacheData[AIndex*4], Result, 4);
+    if (AIndex<0) or (AIndex>=FNextElementIndex) then raise EAbstractMemTList.Create(Format('%s index %d out of range 0..%d',[ClassName,AIndex,FNextElementIndex-1]));
+    Move( FCacheData[AIndex*FAbstractMem.SizeOfAbstractMemPosition], Result, FAbstractMem.SizeOfAbstractMemPosition);
   end else begin
     GetPointerTo(AIndex,False,LPreviousBlockPointer,LBlockPointer,LIndexInBlock);
-    FAbstractMem.Read( LBlockPointer + (LIndexInBlock*4), Result, 4);
+    FAbstractMem.Read( LBlockPointer + (LIndexInBlock*FAbstractMem.SizeOfAbstractMemPosition), Result, FAbstractMem.SizeOfAbstractMemPosition);
   end;
   finally
     FAbstractMemTListLock.Release;
@@ -431,11 +428,11 @@ begin
   // Try to read
   FElementsOfEachBlock := 0;
   FFirstBlockPointer := 0;
-  FNextElementPosition := 0;
-  SetLength(LBytes,CT_AbstractMemTList_HeaderSize);
+  FNextElementIndex := 0;
+  SetLength(LBytes,MinAbstractMemTListHeaderSize(FAbstractMem));
   try
-    if (FInitialZone.position>0) And ((FInitialZone.size=0) or (FInitialZone.size>=CT_AbstractMemTList_HeaderSize)) then begin
-      FAbstractMem.Read(FInitialZone.position,LBytes[0],CT_AbstractMemTList_HeaderSize);
+    if (FInitialZone.position>0) And ((FInitialZone.size=0) or (FInitialZone.size>=MinAbstractMemTListHeaderSize(FAbstractMem))) then begin
+      FAbstractMem.Read(FInitialZone.position,LBytes[0],MinAbstractMemTListHeaderSize(FAbstractMem));
       if Length(CT_AbstractMemTList_Magic)<>4 then raise EAbstractMemTList.Create('Invalid CT_AbstractMemTList_Magic size!');
       // Check magic
       for i := 0 to CT_AbstractMemTList_Magic.Length-1 do begin
@@ -443,17 +440,17 @@ begin
       end;
       // Capture Size
       Move(LBytes[4],FElementsOfEachBlock,4);
-      Move(LBytes[8],FNextElementPosition,4);
-      Move(LBytes[12],FFirstBlockPointer,4);
+      Move(LBytes[8],FNextElementIndex,4);
+      Move(LBytes[12],FFirstBlockPointer,FAbstractMem.SizeOfAbstractMemPosition);
       if (FElementsOfEachBlock<=0) then begin
         // Not valid
         FElementsOfEachBlock := 0;
         FFirstBlockPointer := 0;
-        FNextElementPosition := 0;
+        FNextElementIndex := 0;
       end;
     end;
   finally
-    if (FInitialZone.position>0) and (FElementsOfEachBlock<=0) and ((FInitialZone.size=0) or (FInitialZone.size>=CT_AbstractMemTList_HeaderSize))  then begin
+    if (FInitialZone.position>0) and (FElementsOfEachBlock<=0) and ((FInitialZone.size=0) or (FInitialZone.size>=MinAbstractMemTListHeaderSize(FAbstractMem)))  then begin
       // Need to initialize and save
       FElementsOfEachBlock := ADefaultElementsPerBlock;
       if FElementsOfEachBlock<=0 then raise EAbstractMemTList.Create('Invalid Default Elements per block');
@@ -462,8 +459,8 @@ begin
         LBytes[i] := Byte(Ord(CT_AbstractMemTList_Magic.Chars[i]));
       end;
       Move(FElementsOfEachBlock,LBytes[4],4);
-      Move(FNextElementPosition,LBytes[8],4);
-      Move(FFirstBlockPointer,LBytes[12],4);
+      Move(FNextElementIndex,LBytes[8],4);
+      Move(FFirstBlockPointer,LBytes[12],FAbstractMem.SizeOfAbstractMemPosition);
       // Save header
       FAbstractMem.Write( FInitialZone.position, LBytes[0], Length(LBytes) );
     end;
@@ -478,11 +475,11 @@ begin
   try
   AddRange(AIndex,1);
   if (UseCacheData(True)) then begin
-    Move(APosition, FCacheData[AIndex*4], 4);
+    Move(APosition, FCacheData[AIndex*FAbstractMem.SizeOfAbstractMemPosition], FAbstractMem.SizeOfAbstractMemPosition);
     FCacheUpdated := True;
   end else begin
     GetPointerTo(AIndex,False,LPreviousBlockPointer,LBlockPointer,LIndexInBlock);
-    FAbstractMem.Write( LBlockPointer + (LIndexInBlock*4), APosition, 4 );
+    FAbstractMem.Write( LBlockPointer + (LIndexInBlock*FAbstractMem.SizeOfAbstractMemPosition), APosition, FAbstractMem.SizeOfAbstractMemPosition );
   end;
   finally
     FAbstractMemTListLock.Release;
@@ -494,18 +491,19 @@ var LBlockPointer, LPreviousBlockPointer : TAbstractMemPosition;
   LIndexInBlock, i, j : Integer;
 begin
   CheckInitialized;
-  if (AIndexStart<0) or (AIndexStart>FNextElementPosition) then raise EAbstractMemTList.Create(Format('%s LoadElements out of range %d in 0..%d',[ClassName,AIndexStart,FNextElementPosition-1]));
+  if (AIndexStart<0) or (AIndexStart>FNextElementIndex) then raise EAbstractMemTList.Create(Format('%s LoadElements out of range %d in 0..%d',[ClassName,AIndexStart,FNextElementIndex-1]));
 
-  SetLength(AElements, (FNextElementPosition - AIndexStart)*4);
+  SetLength(AElements, (FNextElementIndex - AIndexStart)*FAbstractMem.SizeOfAbstractMemPosition);
 
   i := AIndexStart;
-  while (i<FNextElementPosition) do begin
+  while (i<FNextElementIndex) do begin
     GetPointerTo( i ,False,LPreviousBlockPointer,LBlockPointer,LIndexInBlock);
     // Load this
     j := FElementsOfEachBlock - LIndexInBlock;
-    if (i + j -1) >= FNextElementPosition then j := FNextElementPosition - i;
+    if (i + j -1) >= FNextElementIndex then j := FNextElementIndex - i;
 
-    FAbstractMem.Read(LBlockPointer + (LindexInBlock * 4), AElements[ (i-AIndexStart)*4 ], (j)*4  );
+    FAbstractMem.Read(LBlockPointer + (LindexInBlock * FAbstractMem.SizeOfAbstractMemPosition),
+        AElements[ (i-AIndexStart)*FAbstractMem.SizeOfAbstractMemPosition ], (j)*FAbstractMem.SizeOfAbstractMemPosition  );
 
     inc(i,j);
   end;
@@ -514,6 +512,16 @@ end;
 procedure TAbstractMemTList.LockList;
 begin
   FAbstractMemTListLock.Acquire;
+end;
+
+class function TAbstractMemTList.MinAbstractMemTListHeaderSize(AAbstractMem: TAbstractMem): Integer;
+begin
+  //
+  Result := 4 + 4 + 4 + AAbstractMem.SizeOfAbstractMemPosition;
+    // [0] 4 for magic
+    // [4] 4 for elements of each block
+    // [8] 4 for next element (counter)
+    // [12] 4 or 8 for first block position
 end;
 
 procedure TAbstractMemTList.RemoveRange(AIndexStart, ARemoveCount: Integer);
@@ -525,21 +533,21 @@ begin
   FAbstractMemTListLock.Acquire;
   try
   if (ARemoveCount<=0) then raise EAbstractMemTList.Create(Format('%s remove count %d',[ClassName,ARemoveCount]));
-  if (AIndexStart+ARemoveCount-1>=FNextElementPosition) then begin
-    if (FNextElementPosition>0) then
-      raise EAbstractMemTList.Create(Format('%s remove %d..%d out of range 0..%d',[ClassName,AIndexStart,AIndexStart + ARemoveCount -1, FNextElementPosition-1]))
+  if (AIndexStart+ARemoveCount-1>=FNextElementIndex) then begin
+    if (FNextElementIndex>0) then
+      raise EAbstractMemTList.Create(Format('%s remove %d..%d out of range 0..%d',[ClassName,AIndexStart,AIndexStart + ARemoveCount -1, FNextElementIndex-1]))
     else raise EAbstractMemTList.Create(Format('%s remove %d..%d out of range (NO ELEMENTS)',[ClassName,AIndexStart,AIndexStart + ARemoveCount -1]))
   end;
 
   if (UseCacheData(True)) then begin
-    if (AIndexStart+ARemoveCount < FNextElementPosition) then begin
-      Move(FCacheData[(AIndexStart + ARemoveCount) *4],
-           FCacheData[(AIndexStart) *4],
-           FCacheDataUsedBytes-((AIndexStart + ARemoveCount)*4));
+    if (AIndexStart+ARemoveCount < FNextElementIndex) then begin
+      Move(FCacheData[(AIndexStart + ARemoveCount) *FAbstractMem.SizeOfAbstractMemPosition],
+           FCacheData[(AIndexStart) *FAbstractMem.SizeOfAbstractMemPosition],
+           FCacheDataUsedBytes-((AIndexStart + ARemoveCount)*FAbstractMem.SizeOfAbstractMemPosition));
     end;
-    Dec(FCacheDataUsedBytes,(ARemoveCount*4));
+    Dec(FCacheDataUsedBytes,(ARemoveCount*FAbstractMem.SizeOfAbstractMemPosition));
     FCacheUpdated := True;
-    Dec(FNextElementPosition,ARemoveCount);
+    Dec(FNextElementIndex,ARemoveCount);
     Exit;
   end;
 
@@ -553,37 +561,37 @@ begin
     GetPointerTo(i,False,LPreviousBlockPointer,LBlockPointer,LIndexInBlock);
     // Move from LIndexInBlock to FElementsOfEachBlock-1 in this block
     j := FElementsOfEachBlock - (LIndexInBlock);
-    if ((n+j)*4>Length(LElements)) then j := (Length(LElements) DIV 4)-n;
-    FAbstractMem.Write( LBlockPointer + (LIndexInBlock*4), LElements[ n*4 ], j*4 );
+    if ((n+j)*FAbstractMem.SizeOfAbstractMemPosition>Length(LElements)) then j := (Length(LElements) DIV FAbstractMem.SizeOfAbstractMemPosition)-n;
+    FAbstractMem.Write( LBlockPointer + (LIndexInBlock*FAbstractMem.SizeOfAbstractMemPosition), LElements[ n*FAbstractMem.SizeOfAbstractMemPosition ], j*FAbstractMem.SizeOfAbstractMemPosition );
     inc(n,j);
     inc(i,j);
-  until (i >= FNextElementPosition - ARemoveCount);// or (j=0);
+  until (i >= FNextElementIndex - ARemoveCount);// or (j=0);
 
-  LBlocksBefore := ((FNextElementPosition DIV FElementsOfEachBlock)+1);
-  LBlocksAfter := (((FNextElementPosition-ARemoveCount) DIV FElementsOfEachBlock)+1);
+  LBlocksBefore := ((FNextElementIndex DIV FElementsOfEachBlock)+1);
+  LBlocksAfter := (((FNextElementIndex-ARemoveCount) DIV FElementsOfEachBlock)+1);
 
   if (LBlocksBefore<LBlocksAfter) then begin
-    GetPointerTo(FNextElementPosition-ARemoveCount,False,LPreviousBlockPointer,LBlockPointer,LIndexInBlock);
+    GetPointerTo(FNextElementIndex-ARemoveCount,False,LPreviousBlockPointer,LBlockPointer,LIndexInBlock);
     while (LBlockPointer>0) do begin
-      FAbstractMem.Read( LBlockPointer + (FElementsOfEachBlock * 4), LNext, 4);
+      FAbstractMem.Read( LBlockPointer + (FElementsOfEachBlock * FAbstractMem.SizeOfAbstractMemPosition), LNext, FAbstractMem.SizeOfAbstractMemPosition);
       FAbstractMem.Dispose(LBlockPointer);
       LBlockPointer := LNext;
       //
       if LPreviousBlockPointer>0 then begin
         LNext := 0;
-        FAbstractMem.Write( LPreviousBlockPointer + (FElementsOfEachBlock * 4), LNext, 4);
+        FAbstractMem.Write( LPreviousBlockPointer + (FElementsOfEachBlock * FAbstractMem.SizeOfAbstractMemPosition), LNext, FAbstractMem.SizeOfAbstractMemPosition);
       end else begin
         // This is first block pointer
         FFirstBlockPointer := 0;
-        FAbstractMem.Write( FInitialZone.position + 12, FFirstBlockPointer, 4 );
+        FAbstractMem.Write( FInitialZone.position + 12, FFirstBlockPointer, FAbstractMem.SizeOfAbstractMemPosition );
       end;
     end;
 
   end;
 
   // Save to header
-  Dec(FNextElementPosition,ARemoveCount);
-  FAbstractMem.Write( FInitialZone.position + 8, FNextElementPosition, 4 );
+  Dec(FNextElementIndex,ARemoveCount);
+  FAbstractMem.Write( FInitialZone.position + 8, FNextElementIndex, 4 );
   finally
     FAbstractMemTListLock.Release;
   end;
@@ -596,11 +604,11 @@ begin
   FAbstractMemTListLock.Acquire;
   try
   if (UseCacheData(True)) then begin
-    Move( Value, FCacheData[AIndex*4], 4);
+    Move( Value, FCacheData[AIndex*FAbstractMem.SizeOfAbstractMemPosition], FAbstractMem.SizeOfAbstractMemPosition);
     FCacheUpdated := True;
   end else begin
     GetPointerTo(AIndex,False,LPreviousBlockPointer,LBlockPointer,LIndexInBlock);
-    FAbstractMem.Write( LBlockPointer + (LIndexInBlock*4), Value, 4);
+    FAbstractMem.Write( LBlockPointer + (LIndexInBlock*FAbstractMem.SizeOfAbstractMemPosition), Value, FAbstractMem.SizeOfAbstractMemPosition);
   end;
   finally
     FAbstractMemTListLock.Release;

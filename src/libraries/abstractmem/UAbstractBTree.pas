@@ -127,6 +127,7 @@ type
     function FillList(AStartIndex, ACount : Integer; const AList : TList<TData>) : Integer;
     function Add(const AData: TData) : Boolean;
     function Delete(const AData: TData) : Boolean;
+    function NodeIdentifyToString(const AIdentify : TIdentify) : String; virtual;
     function NodeDataToString(const AData : TData) : String; virtual;
     constructor Create(const AOnCompareIdentifyMethod: TComparison<TIdentify>; const AOnCompareDataMethod: TComparison<TData>; AAllowDuplicates : Boolean; AOrder: Integer);
     destructor Destroy; override;
@@ -376,7 +377,10 @@ begin
       iRight := -1;
     end;
     Lchild := GetNode(ANode.childs[i]);
-    if Not AreEquals(Lchild.parent,ANode.identify) then raise EAbstractBTree.Create(Format('Inconsistent Identify child %d/%d %s invalid pointer to parent at %s',[i+1,Length(ANode.childs),ToString(Lchild),ToString(ANode)]));
+    if Not AreEquals(Lchild.parent,ANode.identify) then begin
+        raise EAbstractBTree.Create(Format('Inconsistent Identify child %d/%d %s invalid pointer to parent %s (%s)',
+          [i+1,Length(ANode.childs),ToString(Lchild),NodeIdentifyToString(ANode.identify),NodeIdentifyToString(Lchild.parent)]));
+    end;
     CheckConsistencyEx(Lchild,
       ((AIsGoingDown) and (i=0)),iLeft,iRight,
       ADatas,AIdents,
@@ -1240,6 +1244,12 @@ begin
   Result := IntToStr(SizeOf(AData));
 end;
 
+function TAbstractBTree<TIdentify, TData>.NodeIdentifyToString(
+  const AIdentify: TIdentify): String;
+begin
+  Result := IntToStr(SizeOf(AIdentify));
+end;
+
 procedure TAbstractBTree<TIdentify, TData>.SetCount(const ANewCount: Integer);
 begin
   FCount := ANewCount;
@@ -1294,7 +1304,7 @@ begin
     if Result<>'' then Result := Result + ',';
     Result := Result + NodeDataToString(ANode.data[i]);
   end;
-  Result := '['+Result+']';
+  Result := NodeIdentifyToString(ANode.identify)+'@'+NodeIdentifyToString(ANode.parent)+'['+Result+']';
 end;
 
 procedure TAbstractBTree<TIdentify, TData>.Unlock;

@@ -159,6 +159,8 @@ Type
     function SizeOfAbstractMemPosition : TAbstractMemSize; inline;
   End;
 
+  { TMem }
+
   TMem = Class(TAbstractMem)
   private
     FMem : TBytes;
@@ -581,9 +583,9 @@ begin
   if FIs64Bytes then begin
     if (AMemUnitsSize>=4) and (AMemUnitsSize<256) and ((AMemUnitsSize MOD 4)=0) then begin
       FMemUnitsSize := AMemUnitsSize;
-      FNextAvailablePos := CT_HeaderSize_64b;
-      Result := True;
     end;
+    FNextAvailablePos := CT_HeaderSize_64b;
+    Result := True;
   end else begin
     Result := True;
   end;
@@ -659,7 +661,7 @@ var LBuffer : TBytes;
   LUInt64 : UInt64;
   LByte : Byte;
 begin
-  if FReadOnly then raise EAbstractMem.Create('Cannot save Haeder on a ReadOnly AbstractMem');
+  if FReadOnly then raise EAbstractMem.Create('Cannot save Header on a ReadOnly AbstractMem');
   // Write Header:
   SetLength(LBuffer,HeaderSize);
   if FIs64Bytes then begin

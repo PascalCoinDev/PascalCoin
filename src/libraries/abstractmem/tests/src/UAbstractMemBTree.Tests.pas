@@ -39,9 +39,9 @@ type
    public
      procedure SetUp; override;
      procedure TearDown; override;
-     procedure TestInfinite_Integer(AOrder : Integer; AAllowDuplicates : Boolean);
-     procedure TestInfinite_String(AOrder : Integer; AAllowDuplicates : Boolean);
-     procedure TestInfinite(AOrder : Integer);
+     procedure TestInfinite_Integer(AOrder : Integer; AAllowDuplicates : Boolean; A64Bytes : Boolean);
+     procedure TestInfinite_String(AOrder : Integer; AAllowDuplicates : Boolean; A64Bytes : Boolean);
+     procedure TestInfinite(AOrder : Integer; A64Bytes : Boolean);
      procedure DoCheckAbstractMem(AAbstractMem : TAbstractMem; AUsedBytes : Integer);
    published
      procedure TestInfiniteOrder_3;
@@ -126,17 +126,17 @@ procedure TestTAbstractMemBTree.TearDown;
 begin
 end;
 
-procedure TestTAbstractMemBTree.TestInfinite(AOrder: Integer);
+procedure TestTAbstractMemBTree.TestInfinite(AOrder: Integer; A64Bytes : Boolean);
 begin
-  TestInfinite_Integer(AOrder,(AOrder MOD 2)=0);
-  TestInfinite_String(AOrder,(AOrder MOD 2)=0);
+  TestInfinite_Integer(AOrder,(AOrder MOD 2)=0,A64Bytes);
+  TestInfinite_String(AOrder,(AOrder MOD 2)=0,A64Bytes);
 end;
 
-procedure TestTAbstractMemBTree.TestInfinite_Integer(AOrder : Integer; AAllowDuplicates : Boolean);
+procedure TestTAbstractMemBTree.TestInfinite_Integer(AOrder : Integer; AAllowDuplicates : Boolean; A64Bytes : Boolean);
 var Lbt : TAbstractMemBTreeExampleInteger;
   Lbts : TAbstractMemBTreeExampleString;
   Lzone : TAMZone;
-  intValue, nRounds, nAdds, nDeletes, i : Integer;
+  intValue, nRounds, nAdds, nDeletes, i, intAux : Integer;
   j : TAbstractMemPosition;
   Lnode : TAbstractMemBTreeExampleInteger.TAbstractBTreeNode;
   Lmem : TAbstractMem;
@@ -144,15 +144,12 @@ var Lbt : TAbstractMemBTreeExampleInteger;
 begin
   Lmem := TMem.Create(0,False);
   Try
-    {$IFDEF FPC}
-    Randomize;
-    {$ELSE}
-    RandomizeProc(0);
-    {$ENDIF}
+    RandSeed := 0;
+    LMem.Initialize(A64Bytes,Random(64)+4);
     nRounds := 0;
     nAdds := 0;
     nDeletes := 0;
-    Lzone := Lmem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize);
+    Lzone := Lmem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize(Lmem));
     try
     Lbt := TAbstractMemBTreeExampleInteger.Create(Lmem,Lzone,AAllowDuplicates,AOrder);
     try
@@ -168,10 +165,7 @@ begin
             inc(nDeletes);
           end;
         end;
-        if Random(100)=0 then begin
-          Lbt.CheckConsistency;
-        end;
-      until (nRounds>=AOrder * 10000);
+      until (nRounds>=AOrder * 1000);
       Lbt.CheckConsistency;
       // Delete mode
       while Lbt.Count>0 do begin
@@ -180,19 +174,19 @@ begin
           Lnode := Lbt.GetNode(Lnode.childs[Random(Lnode.Count)+1]);
         end;
         If Not Lbt.Delete(Lnode.data[Random(Lnode.Count)]) then raise Exception.Create('Not Found to delete!');
-        if Random(100)=0 then begin
-          Lbt.CheckConsistency;
-        end;
       end;
       Lbt.CheckConsistency;
       // Try to re-use
-      for i := 1 to AOrder do begin
+      i := 0;
+      repeat
         intValue := Random(AOrder * 100);
-        Assert(Lbt.Add(intValue),Format('Cannot re-use %d/%d and add %d',[i,AOrder,intValue]));
-        Lbt.CheckConsistency;
-        Assert(Lbt.FindIndex(i-1,j),Format('Cannot find %d on index %d on order %d',[intValue,i-1,AOrder]));
-        Assert(Not Lbt.FindIndex(i,j),Format('Found %d on index %d on order %d',[j,i-1,AOrder]));
-      end;
+        if (not Lbt.Find(intValue,Lnode,intAux)) or (AAllowDuplicates) then begin
+          inc(i);
+          Assert(Lbt.Add(intValue),Format('Cannot re-use %d/%d and add %d',[i,AOrder,intValue]));
+          Assert(Lbt.FindIndex(i-1,j),Format('Cannot find %d on index %d on order %d',[intValue,i-1,AOrder]));
+          Assert(Not Lbt.FindIndex(i,j),Format('Found %d on index %d on order %d',[j,i-1,AOrder]));
+        end;
+      until Lbt.Count>(AOrder * 10);
     finally
       Lbt.Free;
     end;
@@ -213,7 +207,7 @@ begin
   End;
 end;
 
-procedure TestTAbstractMemBTree.TestInfinite_String(AOrder: Integer; AAllowDuplicates : Boolean);
+procedure TestTAbstractMemBTree.TestInfinite_String(AOrder: Integer; AAllowDuplicates : Boolean; A64Bytes : Boolean);
 var Lbt : TAbstractMemBTreeExampleString;
   Lzone : TAMZone;
   intValue, nRounds, nAdds, nDeletes, i : Integer;
@@ -224,15 +218,12 @@ var Lbt : TAbstractMemBTreeExampleString;
 begin
   Lmem := TMem.Create(0,False);
   Try
-    {$IFDEF FPC}
-    Randomize;
-    {$ELSE}
-    RandomizeProc(0);
-    {$ENDIF}
+    RandSeed := 0;
+    Lmem.Initialize(A64Bytes,Random(64)+4);
     nRounds := 0;
     nAdds := 0;
     nDeletes := 0;
-    Lzone := Lmem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize);
+    Lzone := Lmem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize(Lmem));
     try
     Lbt := TAbstractMemBTreeExampleString.Create(Lmem,Lzone,AAllowDuplicates,AOrder,TComparison_String);
     try
@@ -248,9 +239,6 @@ begin
             inc(nDeletes);
           end;
         end;
-        if Random(100)=0 then begin
-          Lbt.CheckConsistency;
-        end;
       until (nRounds>=AOrder * 10000);
       Lbt.CheckConsistency;
       // Delete mode
@@ -261,9 +249,6 @@ begin
         end;
         LCurrData := Lbt.LoadData(Lnode.data[Random(Lnode.Count)]);
         if Not Lbt.DeleteData(LCurrData) then raise EAbstractMemBTree.Create('Not found to delete!');
-        if Random(100)=0 then begin
-          Lbt.CheckConsistency;
-        end;
       end;
       Lbt.CheckConsistency;
       // Try to re-use
@@ -319,27 +304,32 @@ end;
 
 procedure TestTAbstractMemBTree.TestInfiniteOrder_3;
 begin
-  TestInfinite(3);
+//  TestInfinite(3,False);
+  TestInfinite(3,True);
 end;
 
 procedure TestTAbstractMemBTree.TestInfiniteOrder_4;
 begin
-  TestInfinite(4);
+  TestInfinite(4,False);
+  TestInfinite(4,True);
 end;
 
 procedure TestTAbstractMemBTree.TestInfiniteOrder_5;
 begin
-  TestInfinite(5);
+  TestInfinite(5,False);
+  TestInfinite(5,True);
 end;
 
 procedure TestTAbstractMemBTree.TestInfiniteOrder_6;
 begin
-  TestInfinite(6);
+  TestInfinite(6,False);
+  TestInfinite(6,True);
 end;
 
 procedure TestTAbstractMemBTree.TestInfiniteOrder_7;
 begin
-  TestInfinite(7);
+  TestInfinite(7,False);
+  TestInfinite(7,True);
 end;
 
 initialization
