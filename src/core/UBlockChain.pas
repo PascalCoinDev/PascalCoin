@@ -25,7 +25,7 @@ unit UBlockChain;
 interface
 
 uses
-  Classes, UCrypto, UAccounts, ULog, UThread, SyncObjs, UBaseTypes, SysUtils,
+  Classes,{$IFnDEF FPC}Windows,{$ENDIF}UCrypto, UAccounts, ULog, UThread, SyncObjs, UBaseTypes, SysUtils,
   {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
   {$IFDEF USE_ABSTRACTMEM}UPCAbstractMem,{$ENDIF}
   UPCDataTypes, UChunk;
@@ -484,25 +484,20 @@ Type
 
   TStorage = Class(TComponent)
   private
-    FOrphan: TOrphan;
     FBank : TPCBank;
     FReadOnly: Boolean;
     procedure SetBank(const Value: TPCBank);
   protected
     FIsMovingBlockchain : Boolean;
-    procedure SetOrphan(const Value: TOrphan); virtual;
     procedure SetReadOnly(const Value: Boolean); virtual;
     Function DoLoadBlockChain(Operations : TPCOperationsComp; Block : Cardinal) : Boolean; virtual; abstract;
     Function DoSaveBlockChain(Operations : TPCOperationsComp) : Boolean; virtual; abstract;
     Function DoMoveBlockChain(StartBlock : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean; virtual; abstract;
-    Function DoSaveBank : Boolean; virtual; abstract;
-    Function DoRestoreBank(max_block : Int64; restoreProgressNotify : TProgressNotify) : Boolean; virtual; abstract;
     Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal); virtual; abstract;
     Function DoBlockExists(Block : Cardinal) : Boolean; virtual; abstract;
     function GetFirstBlockNumber: Int64; virtual; abstract;
     function GetLastBlockNumber: Int64; virtual; abstract;
     function DoInitialize:Boolean; virtual; abstract;
-    Function DoOpenSafeBoxCheckpoint(blockCount : Cardinal) : TCheckPointStruct; virtual; abstract;
     Procedure DoEraseStorage; virtual; abstract;
     Procedure DoSavePendingBufferOperations(OperationsHashTree : TOperationsHashTree); virtual; abstract;
     Procedure DoLoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree); virtual; abstract;
@@ -511,19 +506,13 @@ Type
     Function SaveBlockChainBlock(Operations : TPCOperationsComp) : Boolean;
     Function MoveBlockChainBlocks(StartBlock : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean;
     Procedure DeleteBlockChainBlocks(StartingDeleteBlock : Cardinal);
-    Function SaveBank(forceSave : Boolean) : Boolean;
-    Function RestoreBank(max_block : Int64; restoreProgressNotify : TProgressNotify = Nil) : Boolean;
     Constructor Create(AOwner : TComponent); Override;
-    Property Orphan : TOrphan read FOrphan write SetOrphan;
     Property ReadOnly : Boolean read FReadOnly write SetReadOnly;
     Property Bank : TPCBank read FBank write SetBank;
     Procedure CopyConfiguration(Const CopyFrom : TStorage); virtual;
     Property FirstBlock : Int64 read GetFirstBlockNumber;
     Property LastBlock : Int64 read GetLastBlockNumber;
     Function Initialize : Boolean;
-    Function OpenSafeBoxCheckpoint(blockCount : Cardinal) : TCheckPointStruct;
-    Function HasUpgradedToVersion2 : Boolean; virtual; abstract;
-    Procedure CleanupVersion1Data; virtual; abstract;
     Procedure EraseStorage; // Erase Blockchain storage
     Procedure SavePendingBufferOperations(OperationsHashTree : TOperationsHashTree);
     Procedure LoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree);
@@ -541,13 +530,14 @@ Type
     FLastBlockCache : TPCOperationsComp;
     FLastOperationBlock: TOperationBlock;
     FIsRestoringFromFile: Boolean;
-    FUpgradingToV2: Boolean;
     FOnLog: TPCBankLog;
     FBankLock: TPCCriticalSection;
     FNotifyList : TList<TPCBankNotify>;
     FStorageClass: TStorageClass;
+    FOrphan: TOrphan;
     function GetStorage: TStorage;
     procedure SetStorageClass(const Value: TStorageClass);
+    Function DoSaveBank : Boolean;
   public
     Constructor Create(AOwner: TComponent); Override;
     Destructor Destroy; Override;
@@ -572,10 +562,18 @@ Type
     Property StorageClass : TStorageClass read FStorageClass write SetStorageClass;
     Function IsReady(Var CurrentProcess : String) : Boolean;
     Property LastBlockFound : TPCOperationsComp read FLastBlockCache;
-    Property UpgradingToV2 : Boolean read FUpgradingToV2;
+    Function OpenSafeBoxCheckpoint(ABlockCount : Cardinal) : TCheckPointStruct;
+    Class Function GetSafeboxCheckpointingFileName(Const ABaseDataFolder : String; ABlock : Cardinal) : String;
+    Class Function GetStorageFolder(Const AOrphan : String) : String;
+    Function RestoreBank(AMax_block : Int64; AOrphan : String; ARestoreProgressNotify : TProgressNotify) : Boolean;
+    Function LoadBankFileInfo(Const AFilename : String; var ASafeBoxHeader : TPCSafeBoxHeader) : Boolean;
+    Property Orphan : TOrphan read FOrphan write FOrphan;
+    Function SaveBank(forceSave : Boolean) : Boolean;
   End;
 
 Const
+  CT_Safebox_Extension = {$IFDEF USE_ABSTRACTMEM}'.am_safebox'{$ELSE}'.safebox'{$ENDIF};
+
   CT_TOperationPayload_NUL : TOperationPayload = (payload_type:0;payload_raw:Nil);
   CT_TOperationResume_NUL : TOperationResume = (valid:false;Block:0;NOpInsideBlock:-1;OpType:0;OpSubtype:0;time:0;AffectedAccount:0;SignerAccount:-1;n_operation:0;DestAccount:-1;SellerAccount:-1;newKey:(EC_OpenSSL_NID:0;x:Nil;y:Nil);OperationTxt:'';Amount:0;Fee:0;Balance:0;OriginalPayload:(payload_type:0;payload_raw:nil);PrintablePayload:'';DecodedEPasaPayload:'';OperationHash:Nil;OperationHash_OLD:Nil;errors:'';isMultiOperation:False;Senders:Nil;Receivers:Nil;changers:Nil);
   CT_TMultiOpSender_NUL : TMultiOpSender =  (Account:0;Amount:0;N_Operation:0;Payload:(payload_type:0;payload_raw:Nil);Signature:(r:Nil;s:Nil));
@@ -591,7 +589,8 @@ uses
   Variants,
   UTime, UConst, UOpTransaction, UPCOrderedLists,
   UPCOperationsSignatureValidator,
-  UPCOperationsBlockValidator;
+  UPCOperationsBlockValidator,
+  UNode;
 
 { TPCOperationsStorage }
 
@@ -899,7 +898,6 @@ begin
   FNotifyList := TList<TPCBankNotify>.Create;
   FLastBlockCache := TPCOperationsComp.Create(Nil);
   FIsRestoringFromFile:=False;
-  FUpgradingToV2:=False;
   Clear;
 end;
 
@@ -948,7 +946,6 @@ begin
   LStartProcessTC := tc;
   TPCThread.ProtectEnterCriticalSection(Self,FBankLock);
   try
-    FUpgradingToV2 := NOT Storage.HasUpgradedToVersion2;
     FIsRestoringFromFile := true;
     try
       Clear;
@@ -956,7 +953,7 @@ begin
       If (max_block<Storage.LastBlock) or (Storage.LastBlock<0) then n := max_block
       else n := Storage.LastBlock;
 
-      Storage.RestoreBank(n,restoreProgressNotify);
+      RestoreBank(n,Orphan,restoreProgressNotify);
       // Restore last blockchain
       if (BlocksCount>0) And (SafeBox.CurrentProtocol=CT_PROTOCOL_1) then begin
         if Not Storage.LoadBlockChainBlock(FLastBlockCache,BlocksCount-1) then begin
@@ -972,7 +969,7 @@ begin
         FLastOperationBlock.initial_safe_box_hash := TPCSafeBox.InitialSafeboxHash; // Genesis hash
       end;
 
-      NewLog(Nil, ltinfo,'Start restoring from disk operations (Max '+inttostr(max_block)+') BlockCount: '+inttostr(BlocksCount)+' Orphan: ' +Storage.Orphan);
+      NewLog(Nil, ltinfo,'Start restoring from disk operations (Max '+inttostr(max_block)+') BlockCount: '+inttostr(BlocksCount)+' Orphan: ' +Orphan);
       LBlocks := TList<TPCOperationsComp>.Create;
       try
         LProgressBlock := 0;
@@ -1022,7 +1019,7 @@ begin
                 // To prevent continuous saving...
                 if ((BlocksCount+(CT_BankToDiskEveryNBlocks*2)) >= Storage.LastBlock ) or
                    ((BlocksCount MOD (CT_BankToDiskEveryNBlocks*10))=0) then begin
-                  Storage.SaveBank(False);
+                  SaveBank(False);
                 end;
                 if (Assigned(restoreProgressNotify)) And (TPlatform.GetElapsedMilliseconds(tc)>1000) then begin
                   tc := TPlatform.GetTickCount;
@@ -1042,13 +1039,11 @@ begin
 
       finally
         LBlocks.Free;
-        if FUpgradingToV2 then Storage.CleanupVersion1Data;
-        NewLog(Nil, ltinfo,'End restoring from disk operations (Max '+inttostr(max_block)+') Orphan: ' + Storage.Orphan+' Restored '+Inttostr(BlocksCount)+' blocks in '+IntToStr(TPlatform.GetElapsedMilliseconds(LStartProcessTC))+' milliseconds');
+        NewLog(Nil, ltinfo,'End restoring from disk operations (Max '+inttostr(max_block)+') Orphan: ' + Orphan+' Restored '+Inttostr(BlocksCount)+' blocks in '+IntToStr(TPlatform.GetElapsedMilliseconds(LStartProcessTC))+' milliseconds');
       end;
 
     finally
       FIsRestoringFromFile := False;
-      FUpgradingToV2 := false;
       for i := 0 to FNotifyList.Count - 1 do begin
         TPCBankNotify(FNotifyList.Items[i]).NotifyNewBlock;
       end;
@@ -1059,6 +1054,60 @@ begin
   finally
     FBankLock.Release;
   end;
+end;
+
+function TPCBank.DoSaveBank: Boolean;
+var fs: TFileStream;
+    LBankfilename,Laux_newfilename: AnsiString;
+    ms : TMemoryStream;
+  LTC : TTickCount;
+begin
+  Result := true;
+  LBankfilename := GetSafeboxCheckpointingFileName(GetStorageFolder(Orphan),BlocksCount);
+  if (LBankfilename<>'') then begin
+    LTC := TPlatform.GetTickCount;
+    {$IFDEF USE_ABSTRACTMEM}
+    SafeBox.SaveCheckpointing(LBankfilename);
+    {$ELSE}
+    fs := TFileStream.Create(bankfilename,fmCreate);
+    try
+      fs.Size := 0;
+      fs.Position:=0;
+      if LowMemoryUsage then begin
+        Bank.SafeBox.SaveSafeBoxToAStream(fs,0,Bank.SafeBox.BlocksCount-1);
+      end else begin
+        ms := TMemoryStream.Create;
+        try
+          Bank.SafeBox.SaveSafeBoxToAStream(ms,0,Bank.SafeBox.BlocksCount-1);
+          ms.Position := 0;
+          fs.CopyFrom(ms,0);
+        finally
+          ms.Free;
+        end;
+      end;
+    finally
+      fs.Free;
+    end;
+    {$ENDIF}
+    TLog.NewLog(ltInfo,ClassName,Format('Saving Safebox blocks:%d file:%s in %.2n seconds',[BlocksCount,LBankfilename,TPlatform.GetElapsedMilliseconds(LTC)/1000]));
+    // Save a copy each 10000 blocks (aprox 1 month) only when not an orphan
+    if (Orphan='') And ((BlocksCount MOD (CT_BankToDiskEveryNBlocks*100))=0) then begin
+      Laux_newfilename := GetStorageFolder('') + PathDelim+'checkpoint_'+ inttostr(BlocksCount)+CT_Safebox_Extension;
+      try
+        {$IFDEF FPC}
+        DoCopyFile(bankfilename,aux_newfilename);
+        {$ELSE}
+        CopyFile(PWideChar(LBankfilename),PWideChar(Laux_newfilename),False);
+        {$ENDIF}
+      Except
+        On E:Exception do begin
+          TLog.NewLog(lterror,ClassName,'Exception copying extra safebox file '+Laux_newfilename+' ('+E.ClassName+'):'+E.Message);
+        end;
+      end;
+    end;
+  end;
+
+
 end;
 
 procedure TPCBank.UpdateValuesFromSafebox;
@@ -1181,6 +1230,21 @@ begin
   end;
 end;
 
+Const CT_SafeboxsToStore = 10;
+
+class function TPCBank.GetSafeboxCheckpointingFileName(
+  const ABaseDataFolder: String; ABlock: Cardinal): String;
+begin
+  Result := '';
+  If not ForceDirectories(ABaseDataFolder) then exit;
+  if TPCSafeBox.MustSafeBoxBeSaved(ABlock) then begin
+    // We will store checkpointing
+    Result := ABaseDataFolder + PathDelim+'checkpoint'+ inttostr((ABlock DIV CT_BankToDiskEveryNBlocks) MOD CT_SafeboxsToStore)+CT_Safebox_Extension;
+  end else begin
+    Result := ABaseDataFolder + PathDelim+'checkpoint_'+inttostr(ABlock)+CT_Safebox_Extension;
+  end;
+end;
+
 function TPCBank.GetStorage: TStorage;
 begin
   if Not Assigned(FStorage) then begin
@@ -1191,16 +1255,39 @@ begin
   Result := FStorage;
 end;
 
+class function TPCBank.GetStorageFolder(const AOrphan: String): String;
+var Lbase : String;
+begin
+  Lbase := TNode.GetPascalCoinDataFolder + PathDelim + 'Data';
+  if Lbase = '' then raise Exception.Create('No Database Folder');
+  if AOrphan<>'' then Result := Lbase + PathDelim+AOrphan
+  else Result := Lbase;
+  if not ForceDirectories(Result) then raise Exception.Create('Cannot create storage folder: '+Result);
+end;
+
 function TPCBank.IsReady(var CurrentProcess: String): Boolean;
 begin
   Result := false;
   CurrentProcess := '';
   if FIsRestoringFromFile then begin
-    if FUpgradingToV2 then
-      CurrentProcess := 'Migrating to version 2 format'
-    else
-      CurrentProcess := 'Restoring from file'
+    CurrentProcess := 'Restoring from file';
   end else Result := true;
+end;
+
+function TPCBank.LoadBankFileInfo(const AFilename: String;
+  var ASafeBoxHeader: TPCSafeBoxHeader): Boolean;
+var fs: TFileStream;
+begin
+  Result := false;
+  ASafeBoxHeader := CT_PCSafeBoxHeader_NUL;
+  If Not FileExists(AFilename) then exit;
+  fs := TFileStream.Create(AFilename,fmOpenRead);
+  try
+    fs.Position:=0;
+    Result := SafeBox.LoadSafeBoxStreamHeader(fs,ASafeBoxHeader);
+  finally
+    fs.Free;
+  end;
 end;
 
 function TPCBank.LoadBankFromChunks(AChunks : TPCSafeboxChunks;
@@ -1322,6 +1409,132 @@ begin
   TLog.NewLog(Logtype,s,Logtxt);
   if Assigned(FOnLog) then
     FOnLog(Self, Operations, Logtype, Logtxt);
+end;
+
+function TPCBank.OpenSafeBoxCheckpoint(ABlockCount: Cardinal): TCheckPointStruct;
+var fn : TFilename;
+  err : AnsiString;
+begin
+  Result := Nil;
+  fn := GetSafeboxCheckpointingFileName(GetStorageFolder(''),ABlockCount);
+  If (fn<>'') and (FileExists(fn)) then begin
+    {$IFDEF USE_ABSTRACTMEM}
+    Result := TPCAbstractMem.Create(fn,True);
+    {$ELSE}
+    Result := TFileStream.Create(fn,fmOpenRead+fmShareDenyWrite);
+    {$ENDIF}
+  end;
+  If Not Assigned(Result) then begin
+    err := 'Cannot load SafeBoxStream (block:'+IntToStr(ABlockCount)+') file:'+fn;
+    TLog.NewLog(ltError,ClassName,err);
+  end;
+end;
+
+function TPCBank.RestoreBank(AMax_block: Int64; AOrphan : String;
+  ARestoreProgressNotify: TProgressNotify): Boolean;
+var
+    sr: TSearchRec;
+    FileAttrs: Integer;
+    folder : AnsiString;
+    Lfilename,auxfn : AnsiString;
+    fs : TFileStream;
+    errors : String;
+    LBlockscount : Cardinal;
+    sbHeader, goodSbHeader : TPCSafeBoxHeader;
+    {$IFDEF USE_ABSTRACTMEM}
+    LTempBlocksCount : Integer;
+    LSafeboxFileName : String;
+    {$ELSE}
+    {$ENDIF}
+begin
+  FBankLock.Acquire;
+  Try
+    {$IFDEF USE_ABSTRACTMEM}
+    Lfilename := '';
+    LSafeboxFileName := GetStorageFolder(AOrphan)+PathDelim+'safebox'+CT_Safebox_Extension;
+    if TPCAbstractMem.AnalyzeFile(LSafeboxFileName,LTempBlocksCount) then begin
+      LBlockscount := LTempBlocksCount;
+    end else begin
+      LBlockscount := 0;
+    end;
+    //
+    FileAttrs := faArchive;
+    folder := GetStorageFolder(''); /// Without Orphan folder
+    if SysUtils.FindFirst(folder+PathDelim+'checkpoint*'+CT_Safebox_Extension, FileAttrs, sr) = 0 then begin
+      repeat
+        if (sr.Attr and FileAttrs) = FileAttrs then begin
+          auxfn := folder+PathDelim+sr.Name;
+          if TPCAbstractMem.AnalyzeFile(auxfn,LTempBlocksCount) then begin
+            if (((AMax_block<0) Or (LTempBlocksCount<=AMax_block)) AND (LTempBlocksCount>LBlockscount)) then begin
+              Lfilename := auxfn;
+              LBlockscount := LTempBlocksCount;
+            end;
+          end;
+        end;
+      until FindNext(sr) <> 0;
+      FindClose(sr);
+    end;
+    if (Lfilename='') then begin
+      SafeBox.SetSafeboxFileName(LSafeboxFileName);
+    end else begin
+      SafeBox.SetSafeboxFileName(Lfilename);
+      SafeBox.UpdateSafeboxFileName(LSafeboxFileName);
+    end;
+    {$ELSE}
+    LBlockscount := 0;
+    {$ENDIF}
+    FileAttrs := faArchive;
+    folder := GetStorageFolder(AOrphan);
+    Lfilename := '';
+    if SysUtils.FindFirst(folder+PathDelim+'*.safebox', FileAttrs, sr) = 0 then begin
+      repeat
+        if (sr.Attr and FileAttrs) = FileAttrs then begin
+          auxfn := folder+PathDelim+sr.Name;
+          If LoadBankFileInfo(auxfn,sbHeader) then begin
+            if (((AMax_block<0) Or (sbHeader.endBlock<=AMax_block)) AND (sbHeader.blocksCount>LBlockscount)) And
+              (sbHeader.startBlock=0) And (sbHeader.endBlock=sbHeader.startBlock+sbHeader.blocksCount-1) then begin
+              Lfilename := auxfn;
+              LBlockscount := sbHeader.blocksCount;
+              goodSbHeader := sbHeader;
+            end;
+          end;
+        end;
+      until FindNext(sr) <> 0;
+      FindClose(sr);
+    end;
+    if (Lfilename<>'') then begin
+      TLog.NewLog(ltinfo,Self.ClassName,'Loading SafeBox protocol:'+IntToStr(goodSbHeader.protocol)+' with '+inttostr(LBlockscount)+' blocks from file '+Lfilename);
+      fs := TFileStream.Create(Lfilename,fmOpenRead);
+      try
+        fs.Position := 0;
+        if not LoadBankFromStream(fs,False,Nil,Nil,ARestoreProgressNotify,errors) then begin
+          TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+Lfilename+ ' Error: '+errors);
+        end;
+      finally
+        fs.Free;
+      end;
+    end;
+  Finally
+    FBankLock.Release;
+  End;
+end;
+
+function TPCBank.SaveBank(forceSave: Boolean): Boolean;
+begin
+  Result := true;
+  If Storage.FIsMovingBlockchain then Exit;
+  if (Not forceSave) AND (Not TPCSafeBox.MustSafeBoxBeSaved(BlocksCount)) then exit; // No save
+  Try
+    Result := DoSaveBank;
+    {$IFnDEF USE_ABSTRACTMEM}
+    SafeBox.CheckMemory;
+    {$ENDIF}
+  Except
+    On E:Exception do begin
+      TLog.NewLog(lterror,Classname,'Error saving Bank: '+E.Message);
+      Raise;
+    end;
+  End;
 end;
 
 procedure TPCBank.SetStorageClass(const Value: TStorageClass);
@@ -3004,13 +3217,11 @@ end;
 
 procedure TStorage.CopyConfiguration(const CopyFrom: TStorage);
 begin
-  Orphan := CopyFrom.Orphan;
 end;
 
 constructor TStorage.Create(AOwner: TComponent);
 begin
   inherited;
-  FOrphan := '';
   FReadOnly := false;
   FIsMovingBlockchain := False;
 end;
@@ -3024,11 +3235,6 @@ end;
 function TStorage.Initialize: Boolean;
 begin
   Result := DoInitialize;
-end;
-
-function TStorage.OpenSafeBoxCheckpoint(blockCount: Cardinal): TCheckPointStruct;
-begin
-  Result := DoOpenSafeBoxCheckpoint(blockCount);
 end;
 
 procedure TStorage.EraseStorage;
@@ -3061,29 +3267,6 @@ begin
   Result := DoMoveBlockChain(StartBlock,DestOrphan,DestStorage);
 end;
 
-function TStorage.RestoreBank(max_block: Int64; restoreProgressNotify : TProgressNotify = Nil): Boolean;
-begin
-  Result := DoRestoreBank(max_block,restoreProgressNotify);
-end;
-
-function TStorage.SaveBank(forceSave : Boolean): Boolean;
-begin
-  Result := true;
-  If FIsMovingBlockchain then Exit;
-  if (Not forceSave) AND (Not TPCSafeBox.MustSafeBoxBeSaved(Bank.BlocksCount)) then exit; // No save
-  Try
-    Result := DoSaveBank;
-    {$IFnDEF USE_ABSTRACTMEM}
-    FBank.SafeBox.CheckMemory;
-    {$ENDIF}
-  Except
-    On E:Exception do begin
-      TLog.NewLog(lterror,Classname,'Error saving Bank: '+E.Message);
-      Raise;
-    end;
-  End;
-end;
-
 function TStorage.SaveBlockChainBlock(Operations: TPCOperationsComp): Boolean;
 begin
   Try
@@ -3100,11 +3283,6 @@ end;
 procedure TStorage.SetBank(const Value: TPCBank);
 begin
   FBank := Value;
-end;
-
-procedure TStorage.SetOrphan(const Value: TOrphan);
-begin
-  FOrphan := Value;
 end;
 
 procedure TStorage.SetReadOnly(const Value: Boolean);

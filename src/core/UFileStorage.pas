@@ -41,55 +41,41 @@ Type
 
   TFileStorage = Class(TStorage)
   private
-    FLowMemoryUsage: Boolean;
     FStorageLock : TPCCriticalSection;
     FBlockChainStream : TFileStream;
     FPendingBufferOperationsStream : TFileStream;
     FStreamFirstBlockNumber : Int64;
     FStreamLastBlockNumber : Int64;
     FBlockHeadersFirstBytePosition : TArrayOfInt64;
-    FDatabaseFolder: AnsiString;
     FBlockChainFileName : AnsiString;
     Function StreamReadBlockHeader(Stream: TStream; iBlockHeaders : Integer; BlockHeaderFirstBlock, Block: Cardinal; CanSearchBackward : Boolean; var BlockHeader : TBlockHeader): Boolean;
     Function StreamBlockRead(Stream : TStream; iBlockHeaders : Integer; BlockHeaderFirstBlock, Block : Cardinal; Operations : TPCOperationsComp) : Boolean;
     Function StreamBlockSave(Stream : TStream; iBlockHeaders : Integer; BlockHeaderFirstBlock : Cardinal; Operations : TPCOperationsComp) : Boolean;
-    Function GetFolder(Const AOrphan : TOrphan): AnsiString;
     Function GetBlockHeaderFirstBytePosition(Stream : TStream; Block : Cardinal; CanInitialize : Boolean; var iBlockHeaders : Integer; var BlockHeaderFirstBlock : Cardinal) : Boolean;
     Function GetBlockHeaderFixedSize : Int64;
-    procedure SetDatabaseFolder(const Value: AnsiString);
     Procedure ClearStream;
     Procedure GrowStreamUntilPos(Stream : TStream; newPos : Int64; DeleteDataStartingAtCurrentPos : Boolean);
     Function GetPendingBufferOperationsStream : TFileStream;
   protected
     procedure SetReadOnly(const Value: Boolean); override;
-    procedure SetOrphan(const Value: TOrphan); override;
     Function DoLoadBlockChain(Operations : TPCOperationsComp; Block : Cardinal) : Boolean; override;
     Function DoSaveBlockChain(Operations : TPCOperationsComp) : Boolean; override;
     Function DoMoveBlockChain(Start_Block : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean; override;
-    Function DoSaveBank : Boolean; override;
-    Function DoRestoreBank(max_block : Int64; restoreProgressNotify : TProgressNotify) : Boolean; override;
     Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal); override;
     Function DoBlockExists(Block : Cardinal) : Boolean; override;
     Function LockBlockChainStream : TFileStream;
     Procedure UnlockBlockChainStream;
-    Function LoadBankFileInfo(Const Filename : AnsiString; var safeBoxHeader : TPCSafeBoxHeader) : Boolean;
     function GetFirstBlockNumber: Int64; override;
     function GetLastBlockNumber: Int64; override;
     function DoInitialize : Boolean; override;
-    Function DoOpenSafeBoxCheckpoint(blockCount : Cardinal) : TCheckPointStruct; override;
     Procedure DoEraseStorage; override;
     Procedure DoSavePendingBufferOperations(OperationsHashTree : TOperationsHashTree); override;
     Procedure DoLoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree); override;
   public
     Constructor Create(AOwner : TComponent); Override;
     Destructor Destroy; Override;
-    Class Function GetSafeboxCheckpointingFileName(Const BaseDataFolder : AnsiString; block : Cardinal) : AnsiString;
-    Property DatabaseFolder : AnsiString read FDatabaseFolder write SetDatabaseFolder;
     Procedure CopyConfiguration(Const CopyFrom : TStorage); override;
     Procedure SetBlockChainFile(BlockChainFileName : AnsiString);
-    Function HasUpgradedToVersion2 : Boolean; override;
-    Procedure CleanupVersion1Data; override;
-    property LowMemoryUsage : Boolean read FLowMemoryUsage write FLowMemoryUsage;
   End;
 
 implementation
@@ -192,7 +178,7 @@ Var fs : TFileStream;
   fm : Word;
 begin
   If Not Assigned(FPendingBufferOperationsStream) then begin
-    fn := GetFolder(Orphan)+PathDelim+'pendingbuffer.ops';
+    fn := Bank.GetStorageFolder(Bank.Orphan)+PathDelim+'pendingbuffer.ops';
     If FileExists(fn) then fm := fmOpenReadWrite+fmShareExclusive
     else fm := fmCreate+fmShareExclusive;
     Try
@@ -210,16 +196,11 @@ end;
 procedure TFileStorage.CopyConfiguration(const CopyFrom: TStorage);
 begin
   inherited;
-  if CopyFrom is TFileStorage then begin
-    DatabaseFolder := TFileStorage(CopyFrom).DatabaseFolder;
-  end;
 end;
 
 constructor TFileStorage.Create(AOwner: TComponent);
 begin
   inherited;
-  FLowMemoryUsage := False;
-  FDatabaseFolder := '';
   FBlockChainFileName := '';
   FBlockChainStream := Nil;
   SetLength(FBlockHeadersFirstBytePosition,0);
@@ -276,25 +257,6 @@ begin
   Finally
     UnlockBlockChainStream;
   End;
-end;
-
-function TFileStorage.DoOpenSafeBoxCheckpoint(blockCount: Cardinal): TCheckPointStruct;
-var fn : TFilename;
-  err : AnsiString;
-begin
-  Result := Nil;
-  fn := GetSafeboxCheckpointingFileName(GetFolder(Orphan),blockCount);
-  If (fn<>'') and (FileExists(fn)) then begin
-    {$IFDEF USE_ABSTRACTMEM}
-    Result := TPCAbstractMem.Create(fn,True);
-    {$ELSE}
-    Result := TFileStream.Create(fn,fmOpenRead+fmShareDenyWrite);
-    {$ENDIF}
-  end;
-  If Not Assigned(Result) then begin
-    err := 'Cannot load SafeBoxStream (block:'+IntToStr(blockCount)+') file:'+fn;
-    TLog.NewLog(ltError,ClassName,err);
-  end;
 end;
 
 procedure TFileStorage.DoEraseStorage;
@@ -389,12 +351,12 @@ function TFileStorage.DoMoveBlockChain(Start_Block: Cardinal; const DestOrphan: 
     sourcefn,destfn : AnsiString;
   begin
     FileAttrs := faArchive;
-    folder := GetFolder(Orphan);
-    if SysUtils.FindFirst(GetFolder(Orphan)+PathDelim+'checkpoint*'+CT_Safebox_Extension, FileAttrs, sr) = 0 then begin
+    folder := Bank.GetStorageFolder(Bank.Orphan);
+    if SysUtils.FindFirst(Bank.GetStorageFolder(Bank.Orphan)+PathDelim+'checkpoint*'+CT_Safebox_Extension, FileAttrs, sr) = 0 then begin
       repeat
         if (sr.Attr and FileAttrs) = FileAttrs then begin
-          sourcefn := GetFolder(Orphan)+PathDelim+sr.Name;
-          destfn := GetFolder('')+PathDelim+sr.Name;
+          sourcefn := Bank.GetStorageFolder(Bank.Orphan)+PathDelim+sr.Name;
+          destfn := Bank.GetStorageFolder('')+PathDelim+sr.Name;
           TLog.NewLog(ltInfo,ClassName,'Copying safebox file '+sourcefn+' to '+destfn);
           Try
             DoCopyFile(sourcefn,destfn);
@@ -420,9 +382,7 @@ begin
     try
       if Not assigned(db) then begin
         db := TFileStorage.Create(Nil);
-        db.DatabaseFolder := Self.DatabaseFolder;
         db.Bank := Self.Bank;
-        db.Orphan := DestOrphan;
         db.FStreamFirstBlockNumber := Start_Block;
       end;
       if db is TFileStorage then TFileStorage(db).LockBlockChainStream;
@@ -433,15 +393,15 @@ begin
           b := Start_Block;
           while LoadBlockChainBlock(ops,b) do begin
             inc(b);
-            TLog.NewLog(ltDebug,Classname,'Moving block from "'+Orphan+'" to "'+DestOrphan+'" '+TPCOperationsComp.OperationBlockToText(ops.OperationBlock));
+            TLog.NewLog(ltDebug,Classname,'Moving block from "'+Bank.Orphan+'" to "'+DestOrphan+'" '+TPCOperationsComp.OperationBlockToText(ops.OperationBlock));
             db.SaveBlockChainBlock(ops);
           end;
-          TLog.NewLog(ltdebug,Classname,'Moved blockchain from "'+Orphan+'" to "'+DestOrphan+'" from block '+inttostr(Start_Block)+' to '+inttostr(b-1));
+          TLog.NewLog(ltdebug,Classname,'Moved blockchain from "'+Bank.Orphan+'" to "'+DestOrphan+'" from block '+inttostr(Start_Block)+' to '+inttostr(b-1));
         finally
           ops.Free;
         end;
         // If DestOrphan is empty, then copy possible updated safebox (because, perhaps current saved safebox is from invalid blockchain)
-        if (DestOrphan='') And (Orphan<>'') then begin
+        if (DestOrphan='') And (Bank.Orphan<>'') then begin
           DoCopySafebox;
         end;
       finally
@@ -457,160 +417,6 @@ begin
       Raise;
     end;
   End;
-end;
-
-function TFileStorage.DoRestoreBank(max_block: Int64; restoreProgressNotify : TProgressNotify): Boolean;
-var
-    sr: TSearchRec;
-    FileAttrs: Integer;
-    folder : AnsiString;
-    Lfilename,auxfn : AnsiString;
-    fs : TFileStream;
-    ms : TMemoryStream;
-    errors : String;
-    LBlockscount : Cardinal;
-    sbHeader, goodSbHeader : TPCSafeBoxHeader;
-    {$IFDEF USE_ABSTRACTMEM}
-    LTempBlocksCount : Integer;
-    LSafeboxFileName : String;
-    {$ELSE}
-    {$ENDIF}
-begin
-  LockBlockChainStream;
-  Try
-    {$IFDEF USE_ABSTRACTMEM}
-    Lfilename := '';
-    LSafeboxFileName := GetFolder(Orphan)+PathDelim+'safebox'+CT_Safebox_Extension;
-    if TPCAbstractMem.AnalyzeFile(LSafeboxFileName,LTempBlocksCount) then begin
-      LBlockscount := LTempBlocksCount;
-    end else begin
-      LBlockscount := 0;
-    end;
-    //
-    FileAttrs := faArchive;
-    folder := GetFolder(''); /// Without Orphan folder
-    if SysUtils.FindFirst(folder+PathDelim+'checkpoint*'+CT_Safebox_Extension, FileAttrs, sr) = 0 then begin
-      repeat
-        if (sr.Attr and FileAttrs) = FileAttrs then begin
-          auxfn := folder+PathDelim+sr.Name;
-          if TPCAbstractMem.AnalyzeFile(auxfn,LTempBlocksCount) then begin
-            if (((max_block<0) Or (LTempBlocksCount<=max_block)) AND (LTempBlocksCount>LBlockscount)) then begin
-              Lfilename := auxfn;
-              LBlockscount := LTempBlocksCount;
-            end;
-          end;
-        end;
-      until FindNext(sr) <> 0;
-      FindClose(sr);
-    end;
-    if (Lfilename='') then begin
-      Bank.SafeBox.SetSafeboxFileName(LSafeboxFileName);
-    end else begin
-      Bank.SafeBox.SetSafeboxFileName(Lfilename);
-      Bank.SafeBox.UpdateSafeboxFileName(LSafeboxFileName);
-    end;
-    {$ELSE}
-    LBlockscount := 0;
-    {$ENDIF}
-    FileAttrs := faArchive;
-    folder := GetFolder(Orphan);
-    Lfilename := '';
-    if SysUtils.FindFirst(folder+PathDelim+'*.safebox', FileAttrs, sr) = 0 then begin
-      repeat
-        if (sr.Attr and FileAttrs) = FileAttrs then begin
-          auxfn := folder+PathDelim+sr.Name;
-          If LoadBankFileInfo(auxfn,sbHeader) then begin
-            if (((max_block<0) Or (sbHeader.endBlock<=max_block)) AND (sbHeader.blocksCount>LBlockscount)) And
-              (sbHeader.startBlock=0) And (sbHeader.endBlock=sbHeader.startBlock+sbHeader.blocksCount-1) then begin
-              Lfilename := auxfn;
-              LBlockscount := sbHeader.blocksCount;
-              goodSbHeader := sbHeader;
-            end;
-          end;
-        end;
-      until FindNext(sr) <> 0;
-      FindClose(sr);
-    end;
-    if (Lfilename<>'') then begin
-      TLog.NewLog(ltinfo,Self.ClassName,'Loading SafeBox protocol:'+IntToStr(goodSbHeader.protocol)+' with '+inttostr(LBlockscount)+' blocks from file '+Lfilename+' LowMemoryUsage:'+LowMemoryUsage.ToString(True));
-      fs := TFileStream.Create(Lfilename,fmOpenRead);
-      try
-        fs.Position := 0;
-        if LowMemoryUsage then begin
-          if not Bank.LoadBankFromStream(fs,False,Nil,Nil,restoreProgressNotify,errors) then begin
-            TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+Lfilename+ ' Error: '+errors);
-          end;
-        end else begin
-          ms := TMemoryStream.Create;
-          Try
-            ms.CopyFrom(fs,0);
-            ms.Position := 0;
-            if not Bank.LoadBankFromStream(ms,False,Nil,Nil,restoreProgressNotify,errors) then begin
-              TLog.NewLog(lterror,ClassName,'Error reading bank from file: '+Lfilename+ ' Error: '+errors);
-            end;
-          Finally
-            ms.Free;
-          End;
-        end;
-      finally
-        fs.Free;
-      end;
-    end;
-  Finally
-    UnlockBlockChainStream;
-  End;
-end;
-
-function TFileStorage.DoSaveBank: Boolean;
-var fs: TFileStream;
-    bankfilename,aux_newfilename: AnsiString;
-    ms : TMemoryStream;
-  LTC : TTickCount;
-begin
-  Result := true;
-  bankfilename := GetSafeboxCheckpointingFileName(GetFolder(Orphan),Bank.BlocksCount);
-  if (bankfilename<>'') then begin
-    LTC := TPlatform.GetTickCount;
-    {$IFDEF USE_ABSTRACTMEM}
-    Bank.SafeBox.SaveCheckpointing(bankfilename);
-    {$ELSE}
-    fs := TFileStream.Create(bankfilename,fmCreate);
-    try
-      fs.Size := 0;
-      fs.Position:=0;
-      if LowMemoryUsage then begin
-        Bank.SafeBox.SaveSafeBoxToAStream(fs,0,Bank.SafeBox.BlocksCount-1);
-      end else begin
-        ms := TMemoryStream.Create;
-        try
-          Bank.SafeBox.SaveSafeBoxToAStream(ms,0,Bank.SafeBox.BlocksCount-1);
-          ms.Position := 0;
-          fs.CopyFrom(ms,0);
-        finally
-          ms.Free;
-        end;
-      end;
-    finally
-      fs.Free;
-    end;
-    {$ENDIF}
-    TLog.NewLog(ltInfo,ClassName,Format('Saving Safebox blocks:%d file:%s in %.2n seconds',[Bank.BlocksCount,bankfilename,TPlatform.GetElapsedMilliseconds(LTC)/1000]));
-    // Save a copy each 10000 blocks (aprox 1 month) only when not an orphan
-    if (Orphan='') And ((Bank.BlocksCount MOD (CT_BankToDiskEveryNBlocks*100))=0) then begin
-      aux_newfilename := GetFolder('') + PathDelim+'checkpoint_'+ inttostr(Bank.BlocksCount)+CT_Safebox_Extension;
-      try
-        {$IFDEF FPC}
-        DoCopyFile(bankfilename,aux_newfilename);
-        {$ELSE}
-        CopyFile(PWideChar(bankfilename),PWideChar(aux_newfilename),False);
-        {$ENDIF}
-      Except
-        On E:Exception do begin
-          TLog.NewLog(lterror,ClassName,'Exception copying extra safebox file '+aux_newfilename+' ('+E.ClassName+'):'+E.Message);
-        end;
-      end;
-    end;
-  end;
 end;
 
 function TFileStorage.DoSaveBlockChain(Operations: TPCOperationsComp): Boolean;
@@ -634,22 +440,10 @@ begin
   Finally
     UnlockBlockChainStream;
   End;
-  if Assigned(Bank) then SaveBank(False);
+  if Assigned(Bank) then Bank.SaveBank(False);
 end;
 
 Const CT_SafeboxsToStore = 10;
-
-class function TFileStorage.GetSafeboxCheckpointingFileName(const BaseDataFolder: AnsiString; block: Cardinal): AnsiString;
-begin
-  Result := '';
-  If not ForceDirectories(BaseDataFolder) then exit;
-  if TPCSafeBox.MustSafeBoxBeSaved(block) then begin
-    // We will store checkpointing
-    Result := BaseDataFolder + PathDelim+'checkpoint'+ inttostr((block DIV CT_BankToDiskEveryNBlocks) MOD CT_SafeboxsToStore)+CT_Safebox_Extension;
-  end else begin
-    Result := BaseDataFolder + PathDelim+'checkpoint_'+inttostr(block)+CT_Safebox_Extension;
-  end;
-end;
 
 function TFileStorage.GetBlockHeaderFirstBytePosition(Stream : TStream; Block: Cardinal; CanInitialize : Boolean; var iBlockHeaders : Integer; var BlockHeaderFirstBlock: Cardinal): Boolean;
 var iPos,start, nCurrBlock : Cardinal;
@@ -750,32 +544,9 @@ begin
   Result := FStreamFirstBlockNumber;
 end;
 
-function TFileStorage.GetFolder(const AOrphan: TOrphan): AnsiString;
-begin
-  if FDatabaseFolder = '' then raise Exception.Create('No Database Folder');
-  if AOrphan<>'' then Result := FDatabaseFolder + PathDelim+AOrphan
-  else Result := FDatabaseFolder;
-  if not ForceDirectories(Result) then raise Exception.Create('Cannot create database folder: '+Result);
-end;
-
 function TFileStorage.GetLastBlockNumber: Int64;
 begin
   Result := FStreamLastBlockNumber;
-end;
-
-function TFileStorage.LoadBankFileInfo(const Filename: AnsiString; var safeBoxHeader : TPCSafeBoxHeader) : Boolean;
-var fs: TFileStream;
-begin
-  Result := false;
-  safeBoxHeader := CT_PCSafeBoxHeader_NUL;
-  If Not FileExists(Filename) then exit;
-  fs := TFileStream.Create(Filename,fmOpenRead);
-  try
-    fs.Position:=0;
-    Result := Bank.SafeBox.LoadSafeBoxStreamHeader(fs,safeBoxHeader);
-  finally
-    fs.Free;
-  end;
 end;
 
 function TFileStorage.LockBlockChainStream: TFileStream;
@@ -909,7 +680,7 @@ begin
       if FBlockChainFileName<>'' then begin
         fn := FBlockChainFileName
       end else begin
-        fn := GetFolder(Orphan)+PathDelim+'BlockChainStream.blocks';
+        fn := Bank.GetStorageFolder(Bank.Orphan)+PathDelim+'BlockChainStream.blocks';
       end;
       exists := FileExists(fn);
       if ReadOnly then begin
@@ -939,19 +710,6 @@ procedure TFileStorage.SetBlockChainFile(BlockChainFileName: AnsiString);
 begin
   ClearStream;
   FBlockChainFileName := BlockChainFileName;
-end;
-
-procedure TFileStorage.SetDatabaseFolder(const Value: AnsiString);
-begin
-  if FDatabaseFolder=Value then exit;
-  FDatabaseFolder := Value;
-  ClearStream;
-end;
-
-procedure TFileStorage.SetOrphan(const Value: TOrphan);
-begin
-  inherited;
-  ClearStream;
 end;
 
 procedure TFileStorage.SetReadOnly(const Value: Boolean);
@@ -1133,26 +891,6 @@ end;
 procedure TFileStorage.UnlockBlockChainStream;
 begin
   FStorageLock.Release;
-end;
-
-function TFileStorage.HasUpgradedToVersion2: Boolean;
-var searchRec: TSearchRec;
-begin
-  HasUpgradedToVersion2 := SysUtils.FindFirst( GetFolder(Orphan)+PathDelim+'*'+CT_Safebox_Extension, faArchive, searchRec) = 0;
-  FindClose(searchRec);
-end;
-
-procedure TFileStorage.CleanupVersion1Data;
-var
-  folder : AnsiString;
-  searchRec : TSearchRec;
-begin
-  folder := GetFolder(Orphan);
-  if SysUtils.FindFirst( folder+PathDelim+'*.bank', faArchive, searchRec) = 0 then
-  repeat
-    SysUtils.DeleteFile(folder+PathDelim+searchRec.Name);
-  until FindNext(searchRec) <> 0;
-  FindClose(searchRec);
 end;
 
 end.

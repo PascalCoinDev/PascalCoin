@@ -1658,7 +1658,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
     Bank := TPCBank.Create(Nil);
     try
       Bank.StorageClass := TNode.Node.Bank.StorageClass;
-      Bank.Storage.Orphan := TNode.Node.Bank.Storage.Orphan;
+      Bank.Orphan := TNode.Node.Bank.Orphan;
       Bank.Storage.ReadOnly := true;
       Bank.Storage.CopyConfiguration(TNode.Node.Bank.Storage);
 
@@ -1670,18 +1670,18 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
           Bank.UpdateValuesFromSafebox;
           IsUsingSnapshot := True;
 
-          Bank.Storage.Orphan := FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now));
+          Bank.Orphan := FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now));
           Bank.Storage.ReadOnly := false;
 
         end else begin
           {$IFDEF USE_ABSTRACTMEM}
-          Bank.Storage.Orphan := FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now));
+          Bank.Orphan := FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now));
           Bank.Storage.ReadOnly := false;
           {$ENDIF}
 
           // Restore a part from disk
           Bank.DiskRestoreFromOperations(start_block-1);
-          Bank.Storage.SaveBank(True);
+          Bank.SaveBank(True);
           if (Bank.BlocksCount<start_block) then begin
             TLog.NewLog(lterror,CT_LogSender,Format('No blockchain found start block %d, current %d',[start_block-1,Bank.BlocksCount]));
             start_block := Bank.BlocksCount;
@@ -1695,7 +1695,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
       end;
       start_c := start;
       if Bank.Storage.ReadOnly then begin
-        Bank.Storage.Orphan := FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now));
+        Bank.Orphan := FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now));
         Bank.Storage.ReadOnly := false;
       end;
       // Receive new blocks:
@@ -1772,7 +1772,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
               end;
             end;
             TNode.Node.Bank.Storage.MoveBlockChainBlocks(start_block,Inttostr(start_block)+'_'+FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now)),Nil);
-            Bank.Storage.MoveBlockChainBlocks(start_block,TNode.Node.Bank.Storage.Orphan,TNode.Node.Bank.Storage);
+            Bank.Storage.MoveBlockChainBlocks(start_block,TNode.Node.Bank.Orphan,TNode.Node.Bank.Storage);
             //
             If IsUsingSnapshot then begin
               TLog.NewLog(ltInfo,CT_LogSender,'Commiting new chain to Safebox');
@@ -1971,7 +1971,7 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
             If Not IsMyBlockchainValid then begin
               TNode.Node.Bank.Storage.EraseStorage;
             end;
-            TNode.Node.Bank.Storage.SaveBank(False);
+            TNode.Node.Bank.SaveBank(False);
             Connection.Send_GetBlocks(TNode.Node.Bank.BlocksCount,100,request_id);
             Result := true;
           end else begin
@@ -2014,16 +2014,16 @@ Const CT_LogSender = 'GetNewBlockChainFromClient';
         newTmpBank := TPCBank.Create(Nil);
         try
           newTmpBank.StorageClass := TNode.Node.Bank.StorageClass;
-          newTmpBank.Storage.Orphan := TNode.Node.Bank.Storage.Orphan;
+          newTmpBank.Orphan := TNode.Node.Bank.Orphan;
           newTmpBank.Storage.ReadOnly := true;
           newTmpBank.Storage.CopyConfiguration(TNode.Node.Bank.Storage);
-          newTmpBank.Storage.Orphan := FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now));
+          newTmpBank.Orphan := FormatDateTime('yyyymmddhhnnss',DateTime2UnivDateTime(now));
           newTmpBank.Storage.ReadOnly := false;
           If newTmpBank.LoadBankFromChunks(LChunks,LSafeboxLastOperationBlock.initial_safe_box_hash,TNode.Node.Bank.SafeBox,OnReadingNewSafeboxProgressNotify,errors) then begin
             TNode.Node.DisableNewBlocks;
             try
               TLog.NewLog(ltInfo,ClassName,'Received new safebox!');
-              newTmpBank.Storage.SaveBank(True); // Saving bank
+              newTmpBank.SaveBank(True); // Saving bank
               // Receive at least 1 new block
               blocksList := TList<TPCOperationsComp>.Create;
               try
@@ -3182,7 +3182,7 @@ begin
   responseStream := TMemoryStream.Create;
   try
     {$IFDEF USE_ABSTRACTMEM}
-    Labstracmem := TNode.Node.Bank.Storage.OpenSafeBoxCheckpoint(_blockcount);
+    Labstracmem := TNode.Node.Bank.OpenSafeBoxCheckpoint(_blockcount);
     try
       If Not Assigned(Labstracmem) then begin
         SendError(ntp_response,HeaderData.operation,CT_NetError_SafeboxNotFound,HeaderData.request_id,Format('Safebox stream file for block %d not found',[_blockcount]));
