@@ -421,6 +421,7 @@ Type
     Property OperationBlock: TOperationBlock read FOperationBlock;
     Class Function OperationBlockToText(const OperationBlock: TOperationBlock) : String;
     Class Function SaveOperationBlockToStream(Const OperationBlock: TOperationBlock; Stream: TStream) : Boolean;
+    class Function LoadOperationBlockFromStream(AStream : TStream; var Asoob : Byte; var AOperationBlock : TOperationBlock) : Boolean;
     Property AccountKey: TAccountKey read GetAccountKey write SetAccountKey;
     Property nonce: Cardinal read GetnOnce write SetnOnce;
     Property timestamp: Cardinal read Gettimestamp write Settimestamp;
@@ -1920,8 +1921,12 @@ begin
       errors := 'Invalid protocol structure. Check application version!';
       exit;
     end;
-    soob := 255;
-    Stream.Read(soob,1);
+
+    if Not LoadOperationBlockFromStream(Stream,soob,FOperationBlock) then begin
+      errors := 'Cannot load operationBlock';
+      Exit;
+    end;
+
     // About soob var:
     // In build prior to 1.0.4 soob only can have 2 values: 0 or 1
     // In build 1.0.4 soob can has 2 more values: 2 or 3
@@ -1949,32 +1954,10 @@ begin
       exit;
     end;
 
-    if (soob in [2,3,4,5]) then begin
-      Stream.Read(FOperationBlock.protocol_version, Sizeof(FOperationBlock.protocol_version));
-      Stream.Read(FOperationBlock.protocol_available, Sizeof(FOperationBlock.protocol_available));
-    end else begin
-      // We assume that protocol_version is 1 and protocol_available is 0
-      FOperationBlock.protocol_version := 1;
-      FOperationBlock.protocol_available := 0;
-    end;
-
-    if Stream.Read(FOperationBlock.block, Sizeof(FOperationBlock.block))<0 then exit;
-
-    if TStreamOp.ReadAnsiString(Stream, raw) < 0 then exit;
-    FOperationBlock.account_key := TAccountComp.RawString2Accountkey(raw);
-    if Stream.Read(FOperationBlock.reward, Sizeof(FOperationBlock.reward)) < 0 then exit;
-    if Stream.Read(FOperationBlock.fee, Sizeof(FOperationBlock.fee)) < 0 then exit;
-    if Stream.Read(FOperationBlock.timestamp, Sizeof(FOperationBlock.timestamp)) < 0 then exit;
-    if Stream.Read(FOperationBlock.compact_target, Sizeof(FOperationBlock.compact_target)) < 0 then exit;
-    if Stream.Read(FOperationBlock.nonce, Sizeof(FOperationBlock.nonce)) < 0 then exit;
-    if TStreamOp.ReadAnsiString(Stream, FOperationBlock.block_payload) < 0 then exit;
-    if TStreamOp.ReadAnsiString(Stream, FOperationBlock.initial_safe_box_hash) < 0 then exit;
-    if TStreamOp.ReadAnsiString(Stream, FOperationBlock.operations_hash) < 0 then exit;
-    if TStreamOp.ReadAnsiString(Stream, FOperationBlock.proof_of_work) < 0 then exit;
     if FOperationBlock.protocol_version>=CT_PROTOCOL_5 then begin
-      if TStreamOp.ReadAnsiString(Stream, FOperationBlock.previous_proof_of_work) < 0 then exit;
       load_protocol_version := FOperationBlock.protocol_version;
     end;
+
     If FIsOnlyOperationBlock then begin
       Result := true;
       exit;
@@ -2014,6 +1997,41 @@ begin
   finally
     Unlock;
   end;
+end;
+
+class function TPCOperationsComp.LoadOperationBlockFromStream(AStream: TStream; var Asoob : Byte;
+  var AOperationBlock: TOperationBlock): Boolean;
+var Lraw : TBytes;
+begin
+  Result := False;
+  AStream.Read(Asoob,1);
+  if (Asoob in [2,3,4,5]) then begin
+    if AStream.Read(AOperationBlock.protocol_version, Sizeof(AOperationBlock.protocol_version)) < 0 then Exit;
+    AStream.Read(AOperationBlock.protocol_available, Sizeof(AOperationBlock.protocol_available));
+  end else begin
+    // We assume that protocol_version is 1 and protocol_available is 0
+    AOperationBlock.protocol_version := 1;
+    AOperationBlock.protocol_available := 0;
+  end;
+
+  if AStream.Read(AOperationBlock.block, Sizeof(AOperationBlock.block))<=0 then exit;
+
+  if TStreamOp.ReadAnsiString(AStream, Lraw) < 0 then exit;
+  AOperationBlock.account_key := TAccountComp.RawString2Accountkey(Lraw);
+
+  if AStream.Read(AOperationBlock.reward, Sizeof(AOperationBlock.reward)) < 0 then exit;
+  if AStream.Read(AOperationBlock.fee, Sizeof(AOperationBlock.fee)) < 0 then exit;
+  if AStream.Read(AOperationBlock.timestamp, Sizeof(AOperationBlock.timestamp)) < 0 then exit;
+  if AStream.Read(AOperationBlock.compact_target, Sizeof(AOperationBlock.compact_target)) < 0 then exit;
+  if AStream.Read(AOperationBlock.nonce, Sizeof(AOperationBlock.nonce)) < 0 then exit;
+  if TStreamOp.ReadAnsiString(AStream, AOperationBlock.block_payload) < 0 then exit;
+  if TStreamOp.ReadAnsiString(AStream, AOperationBlock.initial_safe_box_hash) < 0 then exit;
+  if TStreamOp.ReadAnsiString(AStream, AOperationBlock.operations_hash) < 0 then exit;
+  if TStreamOp.ReadAnsiString(AStream, AOperationBlock.proof_of_work) < 0 then exit;
+  if AOperationBlock.protocol_version>=CT_PROTOCOL_5 then begin
+    if TStreamOp.ReadAnsiString(AStream, AOperationBlock.previous_proof_of_work) < 0 then exit;
+  end;
+  Result := True;
 end;
 
 class function TPCOperationsComp.OperationBlockToText(const OperationBlock: TOperationBlock): String;
