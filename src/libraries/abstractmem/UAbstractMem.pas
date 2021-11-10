@@ -112,9 +112,11 @@ Type
     FNextAvailablePos : Int64;
     FMaxAvailablePos : Int64;
     FMemLeaks : TAbstractMemMemoryLeaks;
-    FIs64Bytes : Boolean;
+    FIs64Bits : Boolean;
     FMemUnitsSize : Integer; // Multiple of 4 and >=4 and <=256
     //
+    function RoundSize(ASize : TAbstractMemSize) : TAbstractMemSize;
+    function IsValidUsedSize(ASize : TAbstractMemSize) : Boolean;
   protected
     FLock : TCriticalSection;
     function AbsoluteWrite(const AAbsolutePosition : Int64; const ABuffer; ASize : Integer) : Integer; virtual; abstract;
@@ -153,7 +155,7 @@ Type
     property NextAvailablePos : Int64 read FNextAvailablePos;
     property MaxAvailablePos : Int64 read FMaxAvailablePos;
     property HeaderInitialized : Boolean read FHeaderInitialized;
-    property Is64Bytes : Boolean read FIs64Bytes;
+    property Is64Bits : Boolean read FIs64Bits;
     function Initialize(ASetTo64Bytes : Boolean; AMemUnitsSize : Integer) : Boolean;
     function HeaderSize : Integer;
     function SizeOfAbstractMemPosition : TAbstractMemSize; inline;
@@ -164,12 +166,25 @@ Type
   TMem = Class(TAbstractMem)
   private
     FMem : TBytes;
+    FLastIncrease : Int64;
   protected
     function AbsoluteWrite(const AAbsolutePosition : Int64; const ABuffer; ASize : Integer) : Integer; override;
     function AbsoluteRead(const AAbsolutePosition : Int64; var ABuffer; ASize : Integer) : Integer; override;
     procedure DoIncreaseSize(var ANextAvailablePos, AMaxAvailablePos : Int64; ANeedSize : Integer); override;
   public
     Constructor Create(AInitialPosition : Int64; AReadOnly : Boolean); override;
+  End;
+
+  TStreamMem = Class(TAbstractMem)
+  private
+    FStream : TStream;
+  protected
+    function AbsoluteWrite(const AAbsolutePosition : Int64; const ABuffer; ASize : Integer) : Integer; override;
+    function AbsoluteRead(const AAbsolutePosition : Int64; var ABuffer; ASize : Integer) : Integer; override;
+    procedure DoIncreaseSize(var ANextAvailablePos, AMaxAvailablePos : Int64; ANeedSize : Integer); override;
+  public
+    Constructor Create(const AStream : TStream; AInitialPosition : Int64; AReadOnly : Boolean); reintroduce;
+    Destructor Destroy; override;
   End;
 
   TAbstractMemAVLTreeNodeInfo = record
@@ -349,7 +364,7 @@ begin
   ASource.FLock.Acquire;
   Self.FLock.Acquire;
   try
-    ClearContent(ASource.Is64Bytes,ASource.FMemUnitsSize);
+    ClearContent(ASource.Is64Bits,ASource.FMemUnitsSize);
 
     CheckInitialized(True);
     IncreaseSize(ASource.FNextAvailablePos);
@@ -386,7 +401,7 @@ begin
   FReadOnly := AReadOnly;
   LMemLeakRelativeRootPos := 0;
   FInitialPosition := AInitialPosition;
-  FIs64Bytes := False;
+  FIs64Bits := False;
   FMemUnitsSize := 4; // Warning: Multiple of 4 >=4 and <=256!
   //
   LNextAvailablePosAux := 0;
@@ -411,19 +426,19 @@ begin
             Move(LBuffer[12],LNextAvailablePosAux,4);
             //
             if (LNextAvailablePosAux >= CT_HeaderSize_32b) and (LMemLeakRelativeRootPos<LNextAvailablePosAux) then begin
-              FIs64Bytes := False;
+              Fis64Bits := False;
               FNextAvailablePos := LNextAvailablePosAux;
               LOk := True;
             end;
           end else if (LBuffer[7] = CT_Version_64b) then begin
-            FIs64Bytes := True;
+            Fis64Bits := True;
             SetLength(LBuffer,CT_HeaderSize_64b);
             FNextAvailablePos := CT_HeaderSize_64b; // At least v2 size
             if Read(0,LBuffer[0],CT_HeaderSize_64b)=CT_HeaderSize_64b then begin
               Move(LBuffer[8],LMemLeakRelativeRootPos,8);
               Move(LBuffer[16],LNextAvailablePosAux,8);
               LMemUnitsSizeAux := 0;
-              Move(LBuffer[17],LMemUnitsSizeAux,1);
+              Move(LBuffer[24],LMemUnitsSizeAux,1);
               if (LMemUnitsSizeAux>=4) and (LMemUnitsSizeAux<256) and ((LMemUnitsSizeAux MOD 4)=0)  // Multiple of 4
                  and (LNextAvailablePosAux >= CT_HeaderSize_32b) and (LMemLeakRelativeRootPos<LNextAvailablePosAux) then begin
                 FNextAvailablePos := LNextAvailablePosAux;
@@ -476,7 +491,7 @@ begin
   if (LZoneSize<>AAMZone.size) then raise EAbstractMem.Create(Format('Dispose: Invalid size %d (expected %d) at position %d',[LZoneSize,AAMZone.size,AAMZone.position]));
 
   // Check valid units based on size
-  if (LNewMemLeak.GetSize(Self)<>AAMZone.size+SizeOfAbstractMemPosition()) then raise EAbstractMem.Create(Format('Dispose: Invalid size %d at position %d',[AAMZone.size,AAMZone.position]));
+  if (LNewMemLeak.GetSize(Self)<>AAMZone.size+SizeOfAbstractMemPosition()) then raise EAbstractMem.Create(Format('Dispose: Invalid size %d (Found %d) at position %d',[AAMZone.size,LNewMemLeak.GetSize(Self),AAMZone.position]));
   FLock.Acquire;
   Try
     // Save mem leak to mem
@@ -507,7 +522,7 @@ begin
     AAMZone.Clear;
     AAMZone.position := APosition;
     if Read(APosition - SizeOfAbstractMemPosition(),AAMZone.size,SizeOfAbstractMemPosition())<>SizeOfAbstractMemPosition() then Exit(False);
-    Result := (AAMZone.position + AAMZone.size <= FNextAvailablePos)  And ( ((((AAMZone.size-1) DIV FMemUnitsSize)+1)*FMemUnitsSize) = AAMZone.size );
+    Result := (AAMZone.position + AAMZone.size <= FNextAvailablePos)  And (IsValidUsedSize(AAMZone.size));
   end;
 end;
 
@@ -519,7 +534,7 @@ begin
   AAMZone.Clear;
   AAMZone.position := APosition;
   AAMZone.size := 0;
-  LZone.position := (((APosition-1) DIV FMemUnitsSize)+1)*FMemUnitsSize;
+  LZone.position := RoundSize(APosition);
   LZone.size := 0;
   if (LZone.position <> APosition) or (LZone.position<HeaderSize)
     or (LZone.position>=FNextAvailablePos) then Exit;
@@ -530,7 +545,7 @@ begin
   if FMemLeaks.IsNil(LSearchedMemLeak) then begin
     if Read(APosition,LZone.size,SizeOfAbstractMemPosition())<>SizeOfAbstractMemPosition() then Exit;
     if (LZone.position + SizeOfAbstractMemPosition() + LZone.size <= FNextAvailablePos)
-      And ( ((((LZone.size-1) DIV FMemUnitsSize)+1)*FMemUnitsSize) = LZone.size ) then begin
+      And (IsValidUsedSize(LZone.size)) then begin
       Result := amzt_used;
       AAMZone.position := LZone.position + SizeOfAbstractMemPosition();
       AAMZone.size := LZone.size;
@@ -543,8 +558,9 @@ end;
 
 function TAbstractMem.HeaderSize: Integer;
 begin
-  if FIs64Bytes then Result := CT_HeaderSize_64b
+  if Fis64Bits then Result := CT_HeaderSize_64b
   else Result := CT_HeaderSize_32b;
+  Result := RoundSize(Result);
 end;
 
 procedure TAbstractMem.IncreaseSize(ANeedSize: TAbstractMemSize);
@@ -553,7 +569,7 @@ var LTmpNextAvailablePos, LTmpMaxAvailablePos : Int64;
 begin
   if FMaxAvailablePos-FNextAvailablePos+1 >= ANeedSize then Exit;
 
-  if Not FIs64Bytes then begin
+  if Not Fis64Bits then begin
     // Max 32 bits memory (4 Gb)
     if Int64(FNextAvailablePos + Int64(ANeedSize)) >= Int64($FFFFFFFF) then begin
       raise EAbstractMem.Create(Format('Cannot increase more size (Max 4Gb) current %d (max %d) needed %d overflow 0x%s',
@@ -577,23 +593,29 @@ end;
 function TAbstractMem.Initialize(ASetTo64Bytes: Boolean; AMemUnitsSize: Integer): Boolean;
 begin
   Result := False;
+  if ReadOnly then raise EAbstractMem.Create('Cannot initialize a Readonly AbstractMem');
   if HeaderInitialized then Exit;
-  FIs64Bytes := ASetTo64Bytes;
+  Fis64Bits := ASetTo64Bytes;
   FMemUnitsSize := 4; // By Default
-  if FIs64Bytes then begin
+  if Fis64Bits then begin
     if (AMemUnitsSize>=4) and (AMemUnitsSize<256) and ((AMemUnitsSize MOD 4)=0) then begin
       FMemUnitsSize := AMemUnitsSize;
     end;
-    FNextAvailablePos := CT_HeaderSize_64b;
     Result := True;
   end else begin
     Result := True;
   end;
+  FNextAvailablePos := HeaderSize;
 end;
 
 function TAbstractMem.IsAbstractMemInfoStable: Boolean;
 begin
   Result := True;
+end;
+
+function TAbstractMem.IsValidUsedSize(ASize: TAbstractMemSize): Boolean;
+begin
+  Result := RoundSize(ASize + SizeOfAbstractMemPosition) = (ASize + SizeOfAbstractMemPosition);
 end;
 
 function TAbstractMem.New(AMemSize: TAbstractMemSize): TAMZone;
@@ -609,7 +631,7 @@ begin
   // AMemSize must be a value stored in 4 bytes (32 bits) where each value is a "unit" of FMemUnitsSize bytes (FMemUnitsSize is multiple of 4 between 4..256)
   //
   LMaxMemSizePerUnits := Int64(256 * 256 * 256) * Int64(FMemUnitsSize); // 2^24 * FMemUnitsSize
-  if FIs64Bytes then begin
+  if Fis64Bits then begin
     LMaxMemSizePerUnits := LMaxMemSizePerUnits * 256; // On 64 bits is stored in 32 bits instead of 24 bits
   end;
   if (AMemSize<=0) or (AMemSize>(LMaxMemSizePerUnits - SizeOfAbstractMemPosition())) then raise EAbstractMem.Create('Invalid new size: '+AMemSize.ToString+' Max:'+LMaxMemSizePerUnits.ToString);
@@ -622,7 +644,7 @@ begin
     if LNeededMemSize<FMemLeaks.SizeOfMemoryLeak() then LNeededMemSize := FMemLeaks.SizeOfMemoryLeak()
     else LNeededMemSize := LNeededMemSize;
     // Round LMemSize to a FMemUnitsSize bytes packet
-    LNeededMemSize := (((LNeededMemSize-1) DIV FMemUnitsSize)+1)*FMemUnitsSize;
+    LNeededMemSize := RoundSize(LNeededMemSize);
 
     LMemLeakToFind.Clear;
     LMemLeakToFind.SetSize(Self,LNeededMemSize);
@@ -664,7 +686,7 @@ begin
   if FReadOnly then raise EAbstractMem.Create('Cannot save Header on a ReadOnly AbstractMem');
   // Write Header:
   SetLength(LBuffer,HeaderSize);
-  if FIs64Bytes then begin
+  if Fis64Bits then begin
     FillChar(LBuffer[0],Length(LBuffer),0);
     Move(CT_Magic[0],LBuffer[0],6);
     if IsAbstractMemInfoStable then begin
@@ -722,7 +744,7 @@ end;
 
 function TAbstractMem.SizeOfAbstractMemPosition: TAbstractMemSize;
 begin
-  if FIs64Bytes then Result := 8
+  if Fis64Bits then Result := 8
   else Result := 4;
 end;
 
@@ -773,6 +795,13 @@ begin
   end;
 end;
 
+function TAbstractMem.RoundSize(ASize: TAbstractMemSize): TAbstractMemSize;
+//  Rounds ASize to a FMemUnitsSize valid value
+begin
+  Assert(ASize>=0,Format('Invalid size:%d',[ASize]));
+  Result := ((((ASize-1) DIV Int64(FMemUnitsSize))+1)*FMemUnitsSize);
+end;
+
 function TAbstractMem.Write(const APosition: Int64; const ABuffer; ASize: Integer) : Integer;
 begin
   FLock.Acquire;
@@ -818,7 +847,7 @@ begin
   Self.Clear;
   Self.myPosition := AMyPosition;
   if Self.myPosition<=0 then Exit;
-  if AAbstractMem.Is64Bytes then begin
+  if AAbstractMem.Is64Bits then begin
     SetLength(LBuff,32);
     AAbstractMem.Read(AMyPosition,LBuff[0],32);
     Move(LBuff[0],Self.parentPosition,8);
@@ -864,7 +893,7 @@ procedure TAbstractMem.TAbstractMemMemoryLeaksNode.WriteToMem(AAbstractMem: TAbs
 var LBuff : TBytes;
 begin
   if Self.myPosition<=0 then Exit;
-  if (AAbstractMem.Is64Bytes) then begin
+  if (AAbstractMem.is64Bits) then begin
     SetLength(LBuff,32);
     Move(Self.parentPosition,LBuff[0],8);
     Move(Self.leftPosition,LBuff[8],8);
@@ -996,7 +1025,7 @@ end;
 
 function TAbstractMem.TAbstractMemMemoryLeaks.SizeOfMemoryLeak: TAbstractMemSize;
 begin
-  if FAbstractMem.Is64Bytes then Result := 32
+  if FAbstractMem.is64Bits then Result := 32
   else Result := 16;
 end;
 
@@ -1030,6 +1059,7 @@ end;
 constructor TMem.Create(AInitialPosition: Int64; AReadOnly: Boolean);
 begin
   SetLength(FMem,0);
+  FLastIncrease := 0;
   inherited;
 end;
 
@@ -1042,8 +1072,8 @@ begin
   AMaxAvailablePos := Length(FMem);
   if (AMaxAvailablePos-ANextAvailablePos+1 >= ANeedSize) then Exit;
 
-  ANeedSize := (((ANeedSize-1) DIV 256)+1)*256;
-
+  ANeedSize := RoundSize( ((((ANeedSize + FLastIncrease)-1) DIV 256)+1)*256 );
+  FLastIncrease := ANeedSize;
   SetLength(FMem, AMaxAvailablePos + ANeedSize);
   AMaxAvailablePos := AMaxAvailablePos + ANeedSize;
   //
@@ -1172,6 +1202,61 @@ begin
     Move(ANodeInfo.balance,       LBytes[AAbstractMem.SizeOfAbstractMemPosition*3],1);
     AAbstractMem.Write(AMyPosition,LBytes[0],Length(LBytes));
   end else raise EAbstractMem.Create(Format('Invalid position write TAbstractMemAVLTreeNodeInfo.WriteToMem(%d) for %s',[AMyPosition,ANodeInfo.ToString]));
+end;
+
+{ TStreamMem }
+
+function TStreamMem.AbsoluteRead(const AAbsolutePosition: Int64; var ABuffer;
+  ASize: Integer): Integer;
+begin
+  FStream.Position := AAbsolutePosition;
+  Result := FStream.Read(ABuffer,ASize);
+end;
+
+function TStreamMem.AbsoluteWrite(const AAbsolutePosition: Int64; const ABuffer;
+  ASize: Integer): Integer;
+begin
+  FStream.Position := AAbsolutePosition;
+  Result := FStream.Write(ABuffer,ASize);
+end;
+
+constructor TStreamMem.Create(const AStream : TStream; AInitialPosition : Int64; AReadOnly : Boolean);
+begin
+  FStream := AStream;
+  inherited Create(AInitialPosition,AReadOnly);
+end;
+
+destructor TStreamMem.Destroy;
+begin
+  inherited;
+  FStream := Nil;
+end;
+
+procedure TStreamMem.DoIncreaseSize(var ANextAvailablePos,
+  AMaxAvailablePos: Int64; ANeedSize: Integer);
+var LBuff : TBytes;
+begin
+  if (ANeedSize<=0) And (AMaxAvailablePos<=0) then begin
+    FStream.Seek(0,soFromEnd);
+    FStream.Size := 0;
+    Exit;
+  end;
+
+  FStream.Seek(0,soFromEnd);
+  // GoTo ANextAvailablePos
+  if (FStream.Position<ANextAvailablePos) then begin
+    SetLength(LBuff,ANextAvailablePos - FStream.Position);
+    FillChar(LBuff[0],Length(LBuff),0);
+    FStream.Write(LBuff[0],Length(LBuff));
+  end;
+  if (FStream.Position<ANextAvailablePos) then raise EAbstractMem.Create(Format('End stream position (%d) is less than next available pos %d',[FStream.Position,ANextAvailablePos]));
+  // At this time ANextAvailablePos <= FFileStream.Position
+  AMaxAvailablePos := ANextAvailablePos + ANeedSize;
+  if (FStream.Size<AMaxAvailablePos) then begin
+    SetLength(LBuff,AMaxAvailablePos - FStream.Position);
+    FillChar(LBuff[0],Length(LBuff),0);
+    FStream.Write(LBuff[0],Length(LBuff));
+  end else AMaxAvailablePos := FStream.Size;
 end;
 
 end.

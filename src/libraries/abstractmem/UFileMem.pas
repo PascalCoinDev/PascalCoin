@@ -204,7 +204,7 @@ procedure TFileMem.DoIncreaseSize(var ANextAvailablePos, AMaxAvailablePos: Int64
 var LBuff : TBytes;
 begin
   if (ANeedSize<=0) And (AMaxAvailablePos<=0) then begin
-    FCache.Clear;
+    If Assigned(FCache) then FCache.Clear;
     FFileStream.Seek(0,soFromEnd);
     FFileStream.Size := 0;
     Exit;
@@ -275,7 +275,8 @@ end;
 {$IFDEF ABSTRACTMEM_ENABLE_STATS}
 function TFileMem.GetStatsReport(AClearStats : Boolean) : String;
 begin
-  Result := FStats.ToString + #10 + FCache.GetStatsReport(AClearStats);
+  Result := FStats.ToString;
+  if Assigned(FCache) then Result := Result + #10 + FCache.GetStatsReport(AClearStats);
   if AClearStats then FStats.Clear;
 end;
 {$ENDIF}

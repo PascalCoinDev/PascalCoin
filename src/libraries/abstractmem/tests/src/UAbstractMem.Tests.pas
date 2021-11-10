@@ -84,15 +84,16 @@ end;
 procedure TestTAbstractMem.Test_MemLeaksReuse;
 var LAM : TAbstractMem;
 begin
+  RandSeed := 0;
   LAM := TMem.Create(0,False);
   try
     LAM.Initialize(False,4);
     Test_MemLeaks(LAM);
     LAM.Initialize(True,4);
     Test_MemLeaks(LAM);
-    LAM.Initialize(True,16);
+    LAM.Initialize(True,160);
     Test_MemLeaks(LAM);
-    LAM.Initialize(True,64);
+    LAM.Initialize(True,256);
   finally
     LAM.Free;
   end;
