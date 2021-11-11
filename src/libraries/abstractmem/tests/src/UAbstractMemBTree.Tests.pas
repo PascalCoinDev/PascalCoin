@@ -283,6 +283,7 @@ var
   LzoneIndex : TAMZone;
   Lmem : TAbstractMem;
   i : Integer;
+  LBTreeIndex : TAbstractMemBTreeDataIndex<String>;
 begin
   Lmem := TMem.Create(0,False);
   Try
@@ -300,10 +301,11 @@ begin
         ProcessTree(AOrder * 1000);
       finally
         // Dispose indexes
-        for i := Lbt.Indexes.Count-1 downto 0 do begin
-          LzoneIndex := Lbt.Indexes.Items[i].InitialZone;
-          Lbt.Indexes.Items[i].EraseTree;
-          Lbt.Indexes.Items[i].Free;
+        for i := Lbt.IndexesCount-1 downto 0 do begin
+          LBTreeIndex := TAbstractMemBTreeDataIndex<String>(Lbt.GetIndex(i));
+          LzoneIndex := LBTreeIndex.InitialZone;
+          LBTreeIndex.EraseTree;
+          LBTreeIndex.Free;
           Lmem.Dispose( LzoneIndex );
         end;
         Lbt.Free;

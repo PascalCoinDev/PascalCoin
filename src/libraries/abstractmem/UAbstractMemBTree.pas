@@ -120,11 +120,22 @@ type
     function FindDataHighest(out AHighest : TBTreeData) : Boolean;
   End;
 
+  {$IFnDEF FPC}
   TAbstractMemBTreeDataIndex<TBTreeData> = Class;
+  {$ENDIF}
 
   TAbstractMemBTreeData<TBTreeData> = Class(TAbstractMemBTreeDataAbstract<TBTreeData>)
   private
+//    Ref: 20211111-1
+//    FreePascal issue: Does not allow recursive Generics...
+//    due to this issue (on Delphi is allowed) then I must use TList< TOjbect > instead
+//    last FreePascal version with this issue: 3.2.0  (will need to check on future versions)
+    {$IFDEF FPC}
+    FIndexes : TList< TObject >;
+    {$ELSE}
+//    Ref: 20211111-1 I can't use this... in Delphi it works! Not in FreePascal... SHIT!
     FIndexes : TList< TAbstractMemBTreeDataIndex<TBTreeData> >;
+    {$ENDIF}
   protected
   public
     constructor Create(AAbstractMem : TAbstractMem; const AInitialZone: TAMZone; AAllowDuplicates : Boolean; AOrder : Integer;
@@ -133,7 +144,13 @@ type
     function CanAddData(const AData: TBTreeData) : Boolean;
     function AddData(const AData: TBTreeData) : Boolean;
     function DeleteData(const AData: TBTreeData) : Boolean;
-    property Indexes : TList< TAbstractMemBTreeDataIndex<TBTreeData> > read FIndexes;
+    function IndexesCount : Integer;
+//    See ref: 20211111-1
+    {$IFDEF FPC}
+    function GetIndex(AIndex : Integer) : TObject;
+    {$ELSE}
+    function GetIndex(AIndex : Integer) : TAbstractMemBTreeDataIndex<TBTreeData>;
+    {$ENDIF}
     procedure CheckConsistency; override;
   End;
 
@@ -633,13 +650,15 @@ function TAbstractMemBTreeData<TBTreeData>.AddData(const AData: TBTreeData): Boo
 var Lzone, LindexZone : TAMZone;
   i : Integer;
   LIndexPosition : TAbstractMemPosition;
+  LBTreeIndex : TAbstractMemBTreeDataIndex<TBTreeData>;
 begin
   // Check in indexes
   Result := True;
   i := 0;
   while (Result) and (i<FIndexes.Count) do begin
-    if (Not FIndexes.Items[i].AllowDuplicates) then begin
-      Result :=  Not (FIndexes.Items[i].FindData(AData,LIndexPosition));
+    LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
+    if (Not LBTreeIndex.AllowDuplicates) then begin
+      Result :=  Not (LBTreeIndex.FindData(AData,LIndexPosition));
     end;
     inc(i);
   end;
@@ -650,7 +669,8 @@ begin
       for i := 0 to FIndexes.Count-1 do begin
         LindexZone := FAbstractMem.New(FAbstractMem.SizeOfAbstractMemPosition);
         FAbstractMem.Write(LindexZone.position,Lzone.position,FAbstractMem.SizeOfAbstractMemPosition);
-        if Not FIndexes.Items[i].AddInherited(LindexZone.position) then raise EAbstractMemBTree.Create(Format('Fatal error adding index %d/%d with data at %s and %s',[i+1,FIndexes.Count,Lzone.ToString,LindexZone.ToString]));
+        LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
+        if Not LBTreeIndex.AddInherited(LindexZone.position) then raise EAbstractMemBTree.Create(Format('Fatal error adding index %d/%d with data at %s and %s',[i+1,FIndexes.Count,Lzone.ToString,LindexZone.ToString]));
       end;
     Finally
       if Not Result then begin
@@ -665,13 +685,15 @@ function TAbstractMemBTreeData<TBTreeData>.CanAddData(
   const AData: TBTreeData): Boolean;
 var i : Integer;
   LIndexPosition : TAbstractMemPosition;
+  LBTreeIndex : TAbstractMemBTreeDataIndex<TBTreeData>;
 begin
   // Check in indexes
   Result := True;
   i := 0;
   while (Result) and (i<FIndexes.Count) do begin
-    if (Not FIndexes.Items[i].AllowDuplicates) then begin
-      Result :=  Not (FIndexes.Items[i].FindData(AData,LIndexPosition));
+    LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
+    if (Not LBTreeIndex.AllowDuplicates) then begin
+      Result :=  Not (LBTreeIndex.FindData(AData,LIndexPosition));
     end;
     inc(i);
   end;
@@ -682,11 +704,13 @@ end;
 
 procedure TAbstractMemBTreeData<TBTreeData>.CheckConsistency;
 var i : Integer;
+ LBTreeIndex : TAbstractMemBTreeDataIndex<TBTreeData>;
 begin
   inherited;
   for i := 0 to FIndexes.Count-1 do begin
-    if (FIndexes.Items[i].Count <> Self.Count) then raise EAbstractMemBTree.Create(Format('Consistency error on index %d/%d count %d vs %d',[i+1,FIndexes.Count,Findexes.Items[i].Count,Self.Count]));
-    FIndexes.Items[i].CheckConsistency;
+    LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
+    if (LBTreeIndex.Count <> Self.Count) then raise EAbstractMemBTree.Create(Format('Consistency error on index %d/%d count %d vs %d',[i+1,FIndexes.Count,LBTreeIndex.Count,Self.Count]));
+    LBTreeIndex.CheckConsistency;
   end;
 end;
 
@@ -694,19 +718,25 @@ constructor TAbstractMemBTreeData<TBTreeData>.Create(AAbstractMem: TAbstractMem;
   const AInitialZone: TAMZone; AAllowDuplicates: Boolean; AOrder: Integer;
   const AOnCompareAbstractMemDataMethod: TComparison<TBTreeData>);
 begin
+  {$IFDEF FPC}
+  FIndexes := TList< TObject >.Create;
+  {$ELSE}
   FIndexes := TList< TAbstractMemBTreeDataIndex<TBTreeData> >.Create;
+  {$ENDIF}
   inherited Create(AAbstractMem,AInitialZone,AAllowDuplicates,AOrder,AOnCompareAbstractMemDataMethod);
 end;
 
 function TAbstractMemBTreeData<TBTreeData>.DeleteData(const AData: TBTreeData): Boolean;
 var LAbstractMemPos, LindexPosition : TAbstractMemPosition;
   i : Integer;
+  LBTreeIndex : TAbstractMemBTreeDataIndex<TBTreeData>;
 begin
   if FindData(AData,LAbstractMemPos) then begin
     // Delete from indexes
     for i := 0 to FIndexes.Count-1 do begin
-      if Not FIndexes.Items[i].FindData(AData,LindexPosition) then raise EAbstractMemBTree.Create(Format('Fatal error Data not found in index %d/%d to Delete from pos %s',[i+1,Findexes.Count,LAbstractMemPos.ToHexString]));
-      if not FIndexes.Items[i].DeleteInherited(LindexPosition) then raise EAbstractMemBTree.Create(Format('Fatal error Data not deleted in index %d/%d from pos %s at pos %s',[i+1,Findexes.Count,LAbstractMemPos.ToHexString,LindexPosition.ToHexString]));
+      LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
+      if Not LBTreeIndex.FindData(AData,LindexPosition) then raise EAbstractMemBTree.Create(Format('Fatal error Data not found in index %d/%d to Delete from pos %s',[i+1,Findexes.Count,LAbstractMemPos.ToHexString]));
+      if not LBTreeIndex.DeleteInherited(LindexPosition) then raise EAbstractMemBTree.Create(Format('Fatal error Data not deleted in index %d/%d from pos %s at pos %s',[i+1,Findexes.Count,LAbstractMemPos.ToHexString,LindexPosition.ToHexString]));
       FAbstractMem.Dispose(LindexPosition);
     end;
     //
@@ -720,12 +750,32 @@ end;
 
 destructor TAbstractMemBTreeData<TBTreeData>.Destroy;
 var i : Integer;
+ LBTreeIndex : TAbstractMemBTreeDataIndex<TBTreeData>;
 begin
   for i := 0 to FIndexes.Count-1 do begin
-    FIndexes.Items[i].FIndexed := Nil;
+    LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
+    LBTreeIndex.FIndexed := Nil;
   end;
   FreeAndNil(Findexes);
   inherited;
+end;
+
+{$IFDEF FPC}
+function TAbstractMemBTreeData<TBTreeData>.GetIndex(AIndex: Integer): TObject;
+begin
+  Result := FIndexes.Items[AIndex];
+end;
+{$ELSE}
+function TAbstractMemBTreeData<TBTreeData>.GetIndex(
+  AIndex: Integer): TAbstractMemBTreeDataIndex<TBTreeData>;
+begin
+  Result := FIndexes.Items[AIndex];
+end;
+{$ENDIF}
+
+function TAbstractMemBTreeData<TBTreeData>.IndexesCount: Integer;
+begin
+  Result := FIndexes.Count;
 end;
 
 { TAbstractMemBTreeDataIndex<TBTreeData> }
