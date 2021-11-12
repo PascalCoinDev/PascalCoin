@@ -89,6 +89,7 @@ type
     function NodeDataToString(const AData : TAbstractMemPosition) : String; override;
     function NodeIdentifyToString(const AIdentify : TAbstractMemPosition) : String; override;
     property InitialZone : TAMZone read FInitialZone;
+    function GetNullData : TAbstractMemPosition; override;
   End;
 
   TAbstractMemBTreeDataAbstract<TBTreeData> = Class(TAbstractMemBTree)
@@ -277,6 +278,11 @@ end;
 function TAbstractMemBTree.GetNodeHeaderSize: Integer;
 begin
   Result := ((FAbstractMem.SizeOfAbstractMemPosition*2)+4) + (FAbstractMem.SizeOfAbstractMemPosition*MaxItemsPerNode);
+end;
+
+function TAbstractMemBTree.GetNullData: TAbstractMemPosition;
+begin
+  Result := 0;
 end;
 
 function TAbstractMemBTree.GetRoot: TAbstractBTree<TAbstractMemPosition, TAbstractMemPosition>.TAbstractBTreeNode;
@@ -557,28 +563,20 @@ begin
   if FindData(AData,APosition) then begin
     Result := True;
     AFoundData := LoadData(APosition);
-  end else Result := False;
+  end else begin
+    if IsNil(APosition) then FindDataLowest(AFoundData)
+    else AFoundData := LoadData(APosition);
+    Result := False;
+  end;
 end;
 
 function TAbstractMemBTreeDataAbstract<TBTreeData>.FindData(
   const AData: TBTreeData; out APosition: TAbstractMemPosition): Boolean;
-var Lnode : TAbstractBTree<TAbstractMemPosition,TAbstractMemPosition>.TAbstractBTreeNode;
-  LiPosNode : Integer;
 begin
   FAbstractBTreeLock.Acquire;
   try
-  FSearchTarget := AData;
-  ClearNode(Lnode);
-  if inherited Find(1,Lnode,LiPosNode) then begin
-    APosition := Lnode.data[LiPosNode];
-    Result := True;
-  end else begin
-    // if Node exists will set APosition of previous value, otherwise will set 0
-    if Lnode.Count>LiPosNode then APosition := Lnode.data[LiPosNode]
-    else if Lnode.Count>0 then APosition := Lnode.data[Lnode.Count-1]
-    else APosition := 0;
-    Result := False;
-  end;
+    FSearchTarget := AData;
+    Result := FindExt(1,APosition);
   finally
     FAbstractBTreeLock.Release;
   end;

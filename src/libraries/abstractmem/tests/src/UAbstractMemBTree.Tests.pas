@@ -34,6 +34,14 @@ type
      function NodeDataToString(const AData : TAbstractMemPosition) : String; override;
    End;
 
+   TAbstractMemBTreeDataExampleInteger = Class(TAbstractMemBTreeData<Integer>)
+   protected
+     function LoadData(const APosition : TAbstractMemPosition) : Integer; override;
+     function SaveData(const AData : Integer) : TAMZone; override;
+   public
+     function NodeDataToString(const AData : TAbstractMemPosition) : String; override;
+   End;
+
    TestTAbstractMemBTree = class(TTestCase)
    strict private
    public
@@ -45,6 +53,8 @@ type
    published
      procedure TestInfinite_TAbstractMemBTree;
      procedure TestInfinite_TAbstractMemBTreeData;
+     procedure Test_FindExt_TAbstractMemBTree;
+     procedure Test_FindData_TAbstractMemBTreeData;
    end;
 
 implementation
@@ -196,6 +206,191 @@ begin
       Raise;
     end;
   end;
+end;
+
+procedure TestTAbstractMemBTree.Test_FindData_TAbstractMemBTreeData;
+var LAM : TMem;
+  LBTree : TAbstractMemBTreeDataExampleInteger;
+  LZone : TAMZone;
+  LValue : Int64;
+  LValueStr : String;
+
+  Function CheckSearch(ASearching : Integer; AExpectedFound : Integer; var AOut : String) : Boolean;
+  var LMemPos : TAbstractMemPosition;
+     LValueFound : Integer;
+  begin
+    AOut := '';
+    Result := False;
+    if LBTree.FindData(ASearching,LMemPos,LValueFound) then begin
+      if AExpectedFound=LValueFound then begin
+        AOut := Format('OK-FOUND Search %d and Found %d as expected %d',[ASearching,LValueFound,AExpectedFound]);
+        Exit(True);
+      end else begin
+        AOut := Format('ERR-FOUND Search %d but Found %d and expected %d',[ASearching,LValueFound,AExpectedFound]);
+        Exit(False);
+      end;
+    end else begin
+      if (LValueFound = AExpectedFound) then begin
+        AOut := Format('OK Found Search %d and Found %d as expected %d',[ASearching,LValueFound,AExpectedFound]);
+        Exit(True);
+      end else begin
+        AOut := Format('ERR Search %d Found %d but expected %d',[ASearching,LValueFound,AExpectedFound]);
+        Exit(False);
+      end;
+    end;
+  end;
+
+  Procedure Search(ASearching : Integer; AExpectedFound : Integer);
+  var LMsg : String;
+  begin
+    if Not CheckSearch(ASearching,AExpectedFound,LMsg) then raise Exception.Create(LMsg);
+  end;
+
+begin
+  LAM := TMem.Create(0,False);
+  Try
+    LAM.Initialize(True,4);
+    LZone := LAM.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize(LAM));
+    Try
+      LBTree := TAbstractMemBTreeDataExampleInteger.Create(LAM,LZone,False,3,TComparison_Integer);
+      Try
+        LBtree.AddData(100);
+        LBtree.AddData(150);
+        LBtree.AddData(200);
+        LBtree.AddData(250);
+        LBtree.AddData(300);
+        LBtree.AddData(350);
+        LBtree.AddData(400);
+
+        LBtree.AddData(125);
+        LBtree.AddData(225);
+        LBtree.AddData(325);
+        LBtree.AddData(425);
+
+        LBtree.AddData(175);
+        LBtree.AddData(275);
+        LBtree.AddData(375);
+        LBtree.AddData(475);
+
+        Search(328,325);
+        Search(480,475);
+        Search(450,425);
+        Search(410,400);
+        Search(310,300);
+        Search(210,200);
+        Search(160,150);
+        Search(355,350);
+        Search(255,250);
+        Search(101,100);
+        Search(100,100);
+        Search(300,300);
+        Search(200,200);
+        Search(250,250);
+        Search(350,350);
+        Search(99,100); // Returns LOWEST
+
+      Finally
+        LBTree.Free;
+      End;
+    Finally
+      LAM.Dispose(LZone);
+    End;
+  Finally
+    LAM.Free;
+  End;
+end;
+
+procedure TestTAbstractMemBTree.Test_FindExt_TAbstractMemBTree;
+var LAM : TMem;
+  LBTree : TAbstractMemBTree;
+  LZone : TAMZone;
+  LValue : Int64;
+  LValueStr : String;
+
+  Function CheckSearch(ASearching : Int64; AExpectedFound : Int64; var AOut : String) : Boolean;
+  var LFound : TAbstractMemBTree.TAbstractBTreeNode;
+     LiPosNode : Integer;
+     LValueFound : Int64;
+  begin
+    AOut := '';
+    Result := False;
+    if LBTree.FindExt(ASearching,LValueFound) then begin
+      if AExpectedFound=LValueFound then begin
+        AOut := Format('OK-FOUND Search %d and Found %d as expected %d',[ASearching,LValueFound,AExpectedFound]);
+        Exit(True);
+      end else begin
+        AOut := Format('ERR-FOUND Search %d but Found %d and expected %d',[ASearching,LValueFound,AExpectedFound]);
+        Exit(False);
+      end;
+    end else begin
+      if (LValueFound = AExpectedFound) then begin
+        AOut := Format('OK Found Search %d and Found %d as expected %d',[ASearching,LValueFound,AExpectedFound]);
+        Exit(True);
+      end else begin
+        AOut := Format('ERR Search %d Found %d but expected %d',[ASearching,LValueFound,AExpectedFound]);
+        Exit(False);
+      end;
+    end;
+  end;
+
+  Procedure Search(ASearching : Int64; AExpectedFound : Int64);
+  var LMsg : String;
+  begin
+    if Not CheckSearch(ASearching,AExpectedFound,LMsg) then raise Exception.Create(LMsg);
+  end;
+
+begin
+  LAM := TMem.Create(0,False);
+  Try
+    LAM.Initialize(True,4);
+    LZone := LAM.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize(LAM));
+    Try
+      LBTree := TAbstractMemBTree.Create(LAM,LZone,False,3);
+      Try
+        LBtree.Add(100);
+        LBtree.Add(150);
+        LBtree.Add(200);
+        LBtree.Add(250);
+        LBtree.Add(300);
+        LBtree.Add(350);
+        LBtree.Add(400);
+
+        LBtree.Add(125);
+        LBtree.Add(225);
+        LBtree.Add(325);
+        LBtree.Add(425);
+
+        LBtree.Add(175);
+        LBtree.Add(275);
+        LBtree.Add(375);
+        LBtree.Add(475);
+
+        Search(328,325);
+        Search(480,475);
+        Search(450,425);
+        Search(410,400);
+        Search(310,300);
+        Search(210,200);
+        Search(160,150);
+        Search(355,350);
+        Search(255,250);
+        Search(101,100);
+        Search(100,100);
+        Search(300,300);
+        Search(200,200);
+        Search(250,250);
+        Search(350,350);
+        Search(99,LBTree.GetNullData); // Returns NULL
+
+      Finally
+        LBTree.Free;
+      End;
+    Finally
+      LAM.Dispose(LZone);
+    End;
+  Finally
+    LAM.Free;
+  End;
 end;
 
 procedure TestTAbstractMemBTree.TestInfiniteExt(AMemUnitsSize, AOrder: Integer; AAllowDuplicates, A64Bits: Boolean);
@@ -403,6 +598,31 @@ begin
   End;
 end;
 
+
+{ TAbstractMemBTreeDataExampleInteger }
+
+function TAbstractMemBTreeDataExampleInteger.LoadData(
+  const APosition: TAbstractMemPosition): Integer;
+begin
+  Result := 0;
+  FAbstractMem.Read(APosition,Result,4);
+end;
+
+function TAbstractMemBTreeDataExampleInteger.NodeDataToString(
+  const AData: TAbstractMemPosition): String;
+begin
+  if AData<=0 then Result := 'Nil '+AData.ToString
+  else begin
+    Result := LoadData(AData).ToString;
+  end;
+end;
+
+function TAbstractMemBTreeDataExampleInteger.SaveData(
+  const AData: Integer): TAMZone;
+begin
+  Result := AbstractMem.New(4);
+  FAbstractMem.Write(Result.position,AData,4);
+end;
 
 initialization
   RegisterTest(TestTAbstractMemBTree{$IFNDEF FPC}.Suite{$ENDIF});

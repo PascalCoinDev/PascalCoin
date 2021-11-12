@@ -146,6 +146,8 @@ type
     property CircularProtection : Boolean read FCircularProtection write FCircularProtection;
     procedure Lock;
     procedure Unlock;
+    function FindExt(const AData: TData; out ADataEqualOrPrecessorFound : TData) : Boolean;
+    function GetNullData : TData; virtual;
   End;
 
   TMemoryBTree<TData> = Class( TAbstractBTree<Integer,TData> )
@@ -858,6 +860,45 @@ begin
   raise EAbstractBTree.Create(Format('Child not found at %s',[ToString(AParent)]));
 end;
 
+function TAbstractBTree<TIdentify, TData>.FindExt(const AData: TData; out ADataEqualOrPrecessorFound: TData): Boolean;
+var Lnode : TAbstractBTreeNode;
+  LiPosNode : Integer;
+  LCircularProtectionList : TOrderedList<TIdentify>;
+  LPrecessorFound : Boolean;
+begin
+  FAbstractBTreeLock.Acquire;
+  try
+    ClearNode(Lnode);
+    if Find(AData,Lnode,LiPosNode) then begin
+      ADataEqualOrPrecessorFound := Lnode.data[LiPosNode];
+      Result := True;
+    end else begin
+      // At this point Lnode is a leaf OR a NIL (no root available at tree)
+      // Lnode.Count = 0  -> NIL (no root/tree available)
+      if Lnode.Count=0 then begin
+        ADataEqualOrPrecessorFound := GetNullData;
+      end else if Lnode.Count=LiPosNode then begin
+        dec(LiPosNode);
+        ADataEqualOrPrecessorFound := Lnode.data[LiPosNode];
+      end else begin
+        // Will find previous valid value by climbing tree
+        LCircularProtectionList := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
+        try
+          LCircularProtectionList.Clear;
+          LPrecessorFound := FindPrecessorExt(LCircularProtectionList,Lnode,LiPosNode);
+          if LPrecessorFound then ADataEqualOrPrecessorFound := Lnode.data[LiPosNode]
+          else ADataEqualOrPrecessorFound := GetNullData;
+        finally
+          LCircularProtectionList.Free;
+        end;
+      end;
+      Result := False;
+    end;
+  finally
+    FAbstractBTreeLock.Release;
+  end;
+end;
+
 function TAbstractBTree<TIdentify, TData>.FindHighest(out AHighest : TData) : Boolean;
 var Lnode : TAbstractBTreeNode;
 begin
@@ -1153,6 +1194,11 @@ begin
   finally
     FAbstractBTreeLock.Release;
   end;
+end;
+
+function TAbstractBTree<TIdentify, TData>.GetNullData: TData;
+begin
+  raise EAbstractBTree.Create('function '+Self.ClassName+'.GetNullData: TData; Not overrided');
 end;
 
 procedure TAbstractBTree<TIdentify, TData>.Lock;
