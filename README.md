@@ -1,4 +1,4 @@
-![BUILD](https://github.com/azazorro/pascalcoin/actions/workflows/workflow.yml/badge.svg)
+![BUILD](https://github.com/PascalCoin/PascalCoin/actions/workflows/workflow.yml/badge.svg)
 
 ![VERSION](https://img.shields.io/github/v/tag/PascalCoin/PascalCoin?sort=semver&style=for-the-badge)
 ![License](https://img.shields.io/github/license/PascalCoin/PascalCoin.svg?style=for-the-badge)
