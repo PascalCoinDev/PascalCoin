@@ -156,6 +156,7 @@ Type
     property MaxAvailablePos : Int64 read FMaxAvailablePos;
     property HeaderInitialized : Boolean read FHeaderInitialized;
     property Is64Bits : Boolean read FIs64Bits;
+    property MemUnitsSize : Integer read FMemUnitsSize;
     function Initialize(ASetTo64Bytes : Boolean; AMemUnitsSize : Integer) : Boolean;
     function HeaderSize : Integer;
     function SizeOfAbstractMemPosition : TAbstractMemSize; inline;
