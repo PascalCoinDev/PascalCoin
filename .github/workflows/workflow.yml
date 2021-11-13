@@ -1,0 +1,34 @@
+name: build
+
+on:
+  pull_request:
+  push:
+    paths-ignore:
+    - "README.md"
+    branches:
+      - master
+      - Releases/*
+
+jobs:
+  build:
+    runs-on: ${{ matrix.operating-system }}
+    strategy:
+      matrix:
+        operating-system: [windows-latest,ubuntu-latest,macos-latest]
+        lazarus-versions: [stable, 2.0.10]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Lazarus
+      uses: gcarreno/setup-lazarus@v3.0.2
+      with:
+        lazarus-version: ${{ matrix.lazarus-versions }}
+    - name: Build the Pascal daemon
+      run: lazbuild -B "src/pascalcoin_daemon.lpi"
+    - name: Build reference Pascal Miner
+      run: lazbuild -B "src/pascalcoin_miner.lpi"
+    - name: Build the Main Wallet Application
+      if: ${{ matrix.operating-system != 'macos-latest' }}
+      run: lazbuild -B "src/pascalcoin_wallet_classic.lpi"
+    - name: Build the Main Wallet Application (macOS)
+      if: ${{ matrix.operating-system == 'macos-latest' }}
+      run: lazbuild -B --ws=cocoa "src/pascalcoin_wallet_classic.lpi"
