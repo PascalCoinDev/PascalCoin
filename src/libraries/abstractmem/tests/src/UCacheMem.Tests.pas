@@ -19,8 +19,11 @@ interface
    TestTCacheMem = class(TTestCase)
    strict private
      FCurrentMem : TBytes;
-     function OnNeedDataProc(var ABuffer; AStartPos : Integer; ASize : Integer) : Integer;
-     function OnSaveDataProc(const ABuffer; AStartPos : Integer; ASize : Integer) : Integer;
+     FReadCount, FSaveCount, FReadBytes, FSaveBytes : Int64;
+     function OnNeedDataProc(var ABuffer; AStartPos : Int64; ASize : Integer) : Integer;
+     function OnSaveDataProc(const ABuffer; AStartPos : Int64; ASize : Integer) : Integer;
+     function OnNeedDataProc_BlackHole(var ABuffer; AStartPos : Int64; ASize : Integer) : Integer;
+     function OnSaveDataProc_BlackHole(const ABuffer; AStartPos : Int64; ASize : Integer) : Integer;
      procedure CheckBytes(const ABytes : TBytes; ALoadedStartPos, ASize : Integer);
      procedure InitCurrentMem(ASize : Integer);
    public
@@ -28,6 +31,7 @@ interface
      procedure TearDown; override;
    published
      procedure TestCacheMem;
+     procedure TestCacheMem_64bits;
    end;
 
  implementation
@@ -54,10 +58,16 @@ begin
   for i :=0 to High(FCurrentMem) do begin
     FCurrentMem[i] := ((i+1) MOD 89);
   end;
+  FReadCount := 0;
+  FSaveCount := 0;
+  FReadBytes := 0;
+  FSaveBytes := 0;
 end;
 
-function TestTCacheMem.OnNeedDataProc(var ABuffer; AStartPos, ASize: Integer): Integer;
+function TestTCacheMem.OnNeedDataProc(var ABuffer; AStartPos: Int64; ASize: Integer): Integer;
 begin
+  inc(FReadCount);
+  inc(FReadBytes,ASize);
   if (Length(FCurrentMem) >= AStartPos + ASize) then begin
     Result := ASize;
     Move(FCurrentMem[AStartPos],ABuffer,ASize);
@@ -69,8 +79,21 @@ begin
   end;
 end;
 
-function TestTCacheMem.OnSaveDataProc(const ABuffer; AStartPos, ASize: Integer): Integer;
+function TestTCacheMem.OnNeedDataProc_BlackHole(var ABuffer; AStartPos: Int64;
+  ASize: Integer): Integer;
+var LBuffer : TBytes;
 begin
+  // Just fill Buffer with 0 bytes
+  FillChar(ABuffer,ASize,0);
+  inc(FReadCount);
+  inc(FReadBytes,ASize);
+  Result := ASize;
+end;
+
+function TestTCacheMem.OnSaveDataProc(const ABuffer; AStartPos: Int64; ASize: Integer): Integer;
+begin
+  inc(FSaveCount);
+  inc(FSaveBytes,ASize);
   if (Length(FCurrentMem) >= AStartPos + ASize) then begin
     Result := ASize;
     Move(ABuffer,FCurrentMem[AStartPos],ASize);
@@ -82,9 +105,21 @@ begin
   end;
 end;
 
+function TestTCacheMem.OnSaveDataProc_BlackHole(const ABuffer; AStartPos: Int64;
+  ASize: Integer): Integer;
+begin
+  inc(FSaveCount);
+  inc(FSaveBytes,ASize);
+  Result := ASize;
+end;
+
 procedure TestTCacheMem.SetUp;
 begin
   SetLength(FCurrentMem,0);
+  FReadCount := 0;
+  FSaveCount := 0;
+  FReadBytes := 0;
+  FSaveBytes := 0;
 end;
 
 procedure TestTCacheMem.TearDown;
@@ -179,6 +214,47 @@ begin
     CheckFalse( LCMem.LoadData( LBuff[0],i+1,i) );
 
     LCMem.ConsistencyCheck;
+  Finally
+    LCMem.Free;
+  End;
+end;
+
+procedure TestTCacheMem.TestCacheMem_64bits;
+Var LCMem : TCacheMem;
+  LBuff : TBytes;
+  i : Integer;
+  LStartPos , LEndPos : Int64;
+
+begin
+  InitCurrentMem(0);
+  SetLength(LBuff,256*200);
+  LCMem := TCacheMem.Create(OnNeedDataProc_BlackHole,OnSaveDataProc_BlackHole);
+  Try
+    LCMem.GridCache := False;
+    LCMem.DefaultCacheDataBlocksSize := -1;
+    LCMem.MaxCacheSize := 1024*1024 * 1;
+    LCMem.MaxCacheDataBlocks := 500;
+    Try
+      LStartPos := (256*256*256)-(1024*10);
+      LEndPos := (LStartPos * 256) + Length(LBuff) + 1024;
+      i := 0;
+      repeat
+        inc(i);
+        Inc(LStartPos,Length(LBuff));
+        LCMem.LoadData(LBuff[0],LStartPos,Length(LBuff));
+        if (i MOD 2)=0 then begin
+          LCMem.SaveToCache(LBuff,LStartPos,True);
+        end;
+
+      until LStartPos > LEndPos;
+    Except
+      on E:Exception do begin
+        E.Message := Format('Round %d StartPos:%d %s (%s):%s',[i, LStartPos,LStartPos.ToHexString, E.ClassName,E.Message]);
+        Raise;
+      end;
+    End;
+    // Check replacing initial position of buffer on Load
+    LCMem.Clear;
   Finally
     LCMem.Free;
   End;

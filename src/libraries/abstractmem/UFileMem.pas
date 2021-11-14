@@ -64,8 +64,8 @@ type
     {$IFDEF ABSTRACTMEM_ENABLE_STATS}
     FStats : TFileMemStats;
     {$ENDIF}
-    function OnCacheNeedDataProc(var ABuffer; AStartPos : Integer; ASize : Integer) : Integer;
-    function OnCacheSaveDataProc(const ABuffer; AStartPos : Integer; ASize : Integer) : Integer;
+    function OnCacheNeedDataProc(var ABuffer; AStartPos : Int64; ASize: Integer): Integer;
+    function OnCacheSaveDataProc(const ABuffer; AStartPos : Int64; ASize: Integer): Integer;
     procedure SetMaxCacheSize(const Value: Integer);
     function GetMaxCacheSize: Integer;
     function GetMaxCacheDataBlocks: Integer;
@@ -308,12 +308,12 @@ begin
   end;
 end;
 
-function TFileMem.OnCacheNeedDataProc(var ABuffer; AStartPos, ASize: Integer): Integer;
+function TFileMem.OnCacheNeedDataProc(var ABuffer; AStartPos : Int64; ASize: Integer): Integer;
 begin
   Result := inherited Read(AStartPos,ABuffer,ASize);
 end;
 
-function TFileMem.OnCacheSaveDataProc(const ABuffer; AStartPos, ASize: Integer): Integer;
+function TFileMem.OnCacheSaveDataProc(const ABuffer; AStartPos : Int64; ASize: Integer): Integer;
 begin
   Result := inherited Write(AStartPos,ABuffer,ASize);
 end;
