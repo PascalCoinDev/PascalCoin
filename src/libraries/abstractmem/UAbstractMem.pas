@@ -472,7 +472,7 @@ begin
   LZone.Clear;
   // @[APosition] - SizeOfAbstractMemPosition() = position to size
   LZone.position := APosition;
-  if Read(APosition - SizeOfAbstractMemPosition(),LZone.size,SizeOfAbstractMemPosition()) <> SizeOfAbstractMemPosition() then raise EAbstractMem.Create('Dispose: Cannot read size');
+  if Read(APosition - Int64(SizeOfAbstractMemPosition()),LZone.size,SizeOfAbstractMemPosition()) <> SizeOfAbstractMemPosition() then raise EAbstractMem.Create('Dispose: Cannot read size');
   Dispose(LZone);
 end;
 
@@ -522,7 +522,7 @@ begin
   end else begin
     AAMZone.Clear;
     AAMZone.position := APosition;
-    if Read(APosition - SizeOfAbstractMemPosition(),AAMZone.size,SizeOfAbstractMemPosition())<>SizeOfAbstractMemPosition() then Exit(False);
+    if Read(APosition - Int64(SizeOfAbstractMemPosition()),AAMZone.size,SizeOfAbstractMemPosition())<>SizeOfAbstractMemPosition() then Exit(False);
     Result := (AAMZone.position + AAMZone.size <= FNextAvailablePos)  And (IsValidUsedSize(AAMZone.size));
   end;
 end;
@@ -667,7 +667,7 @@ begin
       SaveHeader; // NextAvailablePos updated, save changes
     end;
     // Save size at first position
-    Write(Result.position - SizeOfAbstractMemPosition(),Result.size,SizeOfAbstractMemPosition());
+    Write(Result.position - Int64(SizeOfAbstractMemPosition()),Result.size,SizeOfAbstractMemPosition());
   Finally
     FLock.Release;
   End;
@@ -723,7 +723,7 @@ end;
 
 procedure TAbstractMem.SaveToStream(AStream: TStream);
 var LBuffer : TBytes;
-  i : Integer;
+  i : Int64;
   LNextStart : Int64;
 begin
   CheckInitialized(False);

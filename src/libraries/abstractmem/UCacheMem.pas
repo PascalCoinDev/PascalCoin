@@ -555,7 +555,7 @@ end;
 function TCacheMem.LoadDataExt(var ABuffer; AStartPos : Int64; ASize: Integer): Boolean;
   // Will return a Pointer to AStartPos
 
-  function _CaptureDataFromOnNeedDataProc(ACapturePosStart, ACaptureSize : Integer; var ACapturedData : TBytes; out ACapturedSize : Integer) : Boolean;
+  function _CaptureDataFromOnNeedDataProc(ACapturePosStart : Int64; ACaptureSize : Integer; var ACapturedData : TBytes; out ACapturedSize : Integer) : Boolean;
   {$IFDEF ABSTRACTMEM_TESTING_MODE}var i : integer;{$ENDIF}
   begin
     SetLength(ACapturedData,ACaptureSize);
@@ -702,7 +702,7 @@ end;
 procedure TCacheMem.SaveToCacheExt(const ABuffer; ASize: Integer; AStartPos: Int64; AMarkAsPendingToSave : Boolean);
 var
   LNewP, PCurrent, PToDelete : PCacheMemData;
-  LLastAddedPosition, LBytesCount : Integer;
+  LLastAddedPosition, LBytesCount : Int64;
 begin
   if ASize<0 then raise ECacheMem.Create(Format('Invalid save size %d',[ASize]));
   if ASize=0 then Exit;
