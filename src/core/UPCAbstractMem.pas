@@ -1022,6 +1022,7 @@ var
   LPointer: TAbstractMemPosition;
   LIndex: integer;
 begin
+  LPointer := 0;
   AItem.accumulatedWork := 0;
   Move(ABytes[0], AItem.operationBlock.block, 4);
   Move(ABytes[4], LPointer, 4);

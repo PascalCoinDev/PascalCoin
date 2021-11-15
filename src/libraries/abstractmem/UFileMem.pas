@@ -130,6 +130,7 @@ end;
 
 function TFileMem.AbsoluteRead(const AAbsolutePosition: Int64; var ABuffer; ASize: Integer): Integer;
 begin
+  if (AAbsolutePosition<0) then raise EFileMem.Create(Format('%s.AbsoluteRead out of range %d size %d',[ClassName,AAbsolutePosition,ASize]));
   FFileStream.Position := AAbsolutePosition;
   Result := FFileStream.Read(ABuffer,ASize);
   {$IFDEF ABSTRACTMEM_ENABLE_STATS}
@@ -140,6 +141,7 @@ end;
 
 function TFileMem.AbsoluteWrite(const AAbsolutePosition: Int64; const ABuffer; ASize: Integer): Integer;
 begin
+  if (AAbsolutePosition<0) then raise EFileMem.Create(Format('%s.AbsoluteWrite out of range %d size %d',[ClassName,AAbsolutePosition,ASize]));
   FFileStream.Position := AAbsolutePosition;
   Result := FFileStream.Write(ABuffer,ASize);
   CacheIsNOTStable;

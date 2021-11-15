@@ -47,6 +47,7 @@ type
      function FromSerialized(const AStream : TStream) : Boolean; overload;
      function LoadFromTBytes(const ABytes : TBytes; var AStartIndex : Integer) : Boolean;
      function IsEqualTo(const ACompareTo : TECDSA_Public) : Boolean;
+     function GetCopy : TECDSA_Public;
   end;
 
   { TECDSA_Public_Raw is a TECDSA_Public stored in a single TRawBytes
@@ -65,6 +66,7 @@ type
   TECDSA_SIG = record
      r: TRawBytes;
      s: TRawBytes;
+     function GetCopy : TECDSA_SIG;
   end;
   PECDSA_Public = ^TECDSA_Public; // Pointer to a TECDSA_SIG
 
@@ -91,6 +93,7 @@ type
     function ToSerialized : TBytes;
     function FromSerialized(const ASerialized : TBytes) : Boolean;
     function LoadFromTBytes(const ABytes : TBytes; var AStartIndex : Integer) : Boolean;
+    function GetCopy : TAccountInfo;
   end;
 
   TOperationBlock = Record
@@ -108,6 +111,7 @@ type
     operations_hash: TRawBytes; // RAW sha256 (32 bytes) of Operations
     proof_of_work: TRawBytes;   // RAW 32 bytes
     previous_proof_of_work: TRawBytes; // RAW 32 bytes
+    function GetCopy : TOperationBlock;
   end;
 
   { TAccount }
@@ -125,6 +129,7 @@ type
     account_seal : TRawBytes;  // Protocol 5. PIP-0029 seal of data changes
     procedure Clear;
     function GetLastUpdatedBlock : Cardinal;
+    function GetCopy : TAccount;
   End;
   PAccount = ^TAccount;
 
@@ -197,6 +202,13 @@ var i : Integer;
 begin
   i := 0;
   Result := LoadFromTBytes(ASerialized,i);
+end;
+
+function TECDSA_Public.GetCopy: TECDSA_Public;
+begin
+  Result.EC_OpenSSL_NID := Self.EC_OpenSSL_NID;
+  Result.x := Copy(Self.x);
+  Result.y := Copy(Self.y);
 end;
 
 function TECDSA_Public.FromSerialized(const AStream: TStream): Boolean;
@@ -301,6 +313,14 @@ begin
   Result := LoadFromTBytes(ASerialized,i);
 end;
 
+function TAccountInfo.GetCopy: TAccountInfo;
+begin
+  Result := Self;
+  Result.accountKey         := Self.accountKey.GetCopy;
+  Result.new_publicKey      := Self.new_publicKey.GetCopy;
+  Result.hashed_secret      := Copy(Self.hashed_secret);
+end;
+
 function TAccountInfo.LoadFromTBytes(const ABytes: TBytes; var AStartIndex: Integer): Boolean;
 var w : Word;
 begin
@@ -394,6 +414,15 @@ begin
   Self := CT_Account_NUL;
 end;
 
+function TAccount.GetCopy: TAccount;
+begin
+  Result := Self;
+  Result.accountInfo        := Self.accountInfo.GetCopy;
+  Result.name               := Copy(Self.name);
+  Result.account_data       := Copy(Self.account_data);
+  Result.account_seal       := Copy(Self.account_seal);
+end;
+
 function TAccount.GetLastUpdatedBlock: Cardinal;
 begin
   if (Self.updated_on_block_passive_mode>Self.updated_on_block_active_mode) then Result := Self.updated_on_block_passive_mode
@@ -437,6 +466,27 @@ begin
 end;
 
 
+
+{ TOperationBlock }
+
+function TOperationBlock.GetCopy: TOperationBlock;
+begin
+  Result := Self;
+  Result.account_key              := Self.account_key.GetCopy;
+  Result.block_payload            := Copy(Self.block_payload);
+  Result.initial_safe_box_hash    := Copy(Self.initial_safe_box_hash);
+  Result.operations_hash          := Copy(Self.operations_hash);
+  Result.proof_of_work            := Copy(Self.proof_of_work);
+  Result.previous_proof_of_work   := Copy(Self.previous_proof_of_work);
+end;
+
+{ TECDSA_SIG }
+
+function TECDSA_SIG.GetCopy: TECDSA_SIG;
+begin
+  Result.r := Copy(Self.r);
+  Result.s := Copy(Self.s);
+end;
 
 end.
 

@@ -535,6 +535,7 @@ begin
   AAMZone.Clear;
   AAMZone.position := APosition;
   AAMZone.size := 0;
+  if APosition<0 then Exit;
   LZone.position := RoundSize(APosition);
   LZone.size := 0;
   if (LZone.position <> APosition) or (LZone.position<HeaderSize)
@@ -1039,7 +1040,7 @@ end;
 
 function TMem.AbsoluteRead(const AAbsolutePosition: Int64; var ABuffer; ASize: Integer): Integer;
 begin
-  if AAbsolutePosition>=Length(FMem) then Exit(0)
+  if (AAbsolutePosition>=Length(FMem)) or (AAbsolutePosition<0) then Exit(0)
   else begin
     if AAbsolutePosition + ASize > Length(FMem) then Result := Length(FMem) - AAbsolutePosition
     else Result := ASize;
@@ -1050,7 +1051,7 @@ end;
 function TMem.AbsoluteWrite(const AAbsolutePosition: Int64; const ABuffer; ASize: Integer): Integer;
 begin
   if ASize=0 then Exit(0);
-  if (AAbsolutePosition + ASize > Length(FMem)) or (ASize<0) then
+  if (AAbsolutePosition + ASize > Length(FMem)) or (ASize<0) or (AAbsolutePosition<0) then
     raise EAbstractMem.Create(Format('Write out of mem range from %d to %d (max %d)',
     [AAbsolutePosition,AAbsolutePosition+ASize,High(FMem)]));
   Move(ABuffer,FMem[AAbsolutePosition],ASize);
