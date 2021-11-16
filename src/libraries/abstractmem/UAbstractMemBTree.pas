@@ -138,6 +138,7 @@ type
     FIndexes : TList< TAbstractMemBTreeDataIndex<TBTreeData> >;
     {$ENDIF}
   protected
+    procedure DeletedData(const AData: TBTreeData); virtual;
   public
     constructor Create(AAbstractMem : TAbstractMem; const AInitialZone: TAMZone; AAllowDuplicates : Boolean; AOrder : Integer;
       const AOnCompareAbstractMemDataMethod: TComparison<TBTreeData>);
@@ -743,7 +744,15 @@ begin
     Result := True;
     if FLeft_Pos=LAbstractMemPos then FLeft_Pos := 0;
     if FRight_Pos=LAbstractMemPos then FRight_Pos := 0;
+    //
+    DeletedData(AData);
   end else Result := False;
+end;
+
+procedure TAbstractMemBTreeData<TBTreeData>.DeletedData(
+  const AData: TBTreeData);
+begin
+  //
 end;
 
 destructor TAbstractMemBTreeData<TBTreeData>.Destroy;

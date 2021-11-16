@@ -104,6 +104,7 @@ type
     flushElapsedMillis : Int64;
     freememCount : Integer;
     freememSize : Int64;
+    freememBlocksCount : Int64;
     freememElaspedMillis : Int64;
     maxUsedCacheSize : Integer;
     reusedCacheMemDataCount : Integer;
@@ -452,11 +453,12 @@ end;
 
 function TCacheMem.FreeMem(const AMaxMemSize, AMaxBlocks: Int64) : Boolean;
 var
-  i, LPreviousCacheDataSize, LTempCacheDataSize,
+  i, LTempCacheDataSize,
   LFinalMaxMemSize, LMaxPendingRounds : Int64;
   PToRemove, PToNext : PCacheMemData;
   LListToFlush : TOrderedList<PCacheMemData>;
   {$IFDEF ABSTRACTMEM_ENABLE_STATS}
+  LPreviousCacheDataSize, LPreviousCacheDataBlocks : Int64;
   LTickCount : TTickCount;
   {$ENDIF}
 begin
@@ -466,8 +468,9 @@ begin
      ((AMaxBlocks < 0) or (FCacheDataBlocks<=AMaxBlocks)) then Exit(True);
   {$IFDEF ABSTRACTMEM_ENABLE_STATS}
   LTickCount := TPlatform.GetTickCount;
-  {$ENDIF}
   LPreviousCacheDataSize := FCacheDataSize;
+  LPreviousCacheDataBlocks := FCacheDataBlocks;
+  {$ENDIF}
 
   if (AMaxMemSize<0) then LFinalMaxMemSize := FCacheDataSize
   else LFinalMaxMemSize := AMaxMemSize;
@@ -508,6 +511,7 @@ begin
   {$IFDEF ABSTRACTMEM_ENABLE_STATS}
   Inc(FCacheMemStats.freememCount);
   Inc(FCacheMemStats.freememSize,LPreviousCacheDataSize - FCacheDataSize);
+  Inc(FCacheMemStats.freememBlocksCount,LPreviousCacheDataBlocks - FCacheDataBlocks);
   Inc(FCacheMemStats.freememElaspedMillis,TPlatform.GetElapsedMilliseconds(LTickCount));
   {$ENDIF}
 end;
@@ -991,6 +995,7 @@ begin
   flushElapsedMillis := 0;
   freememCount := 0;
   freememSize := 0;
+  freememBlocksCount := 0;
   freememElaspedMillis := 0;
   reusedCacheMemDataCount := 0;
   reusedCacheMemDataBytes := 0;
@@ -1001,11 +1006,11 @@ end;
 
 function TCacheMemStats.ToString: String;
 begin
-  Result := Format('CacheMemStats Reused:%d (%d bytes) - Deleteds:%d (Saved:%d - reused:%d) - Flush:%d (%d bytes) %d millis - FreeMem:%d (%d bytes) %d millis',
+  Result := Format('CacheMemStats Reused:%d (%d bytes) - Deleteds:%d (Saved:%d - reused:%d) - Flush:%d (%d bytes) %d millis - FreeMem:%d (%d bytes %d blocks) %d millis',
      [Self.reusedCacheMemDataCount,Self.reusedCacheMemDataBytes,
       Self.deletedBlocksCount,Self.deletedBlocksSaved,Self.deletedBlocksReused,
       Self.flushCount,Self.flushSize,Self.flushElapsedMillis,
-      Self.freememCount,Self.freememSize,
+      Self.freememCount,Self.freememSize,Self.freememBlocksCount,
       Self.freememElaspedMillis]);
 end;
 {$ENDIF}
@@ -1014,7 +1019,9 @@ end;
 
 function _TCacheMemDataTree_Compare(const Left, Right: PCacheMemData): Integer;
 begin
-  Result := Left^.startPos - Right^.startPos;
+  if Left^.startPos < Right^.startPos then Result := -1
+  else if Left^.startPos > Right^.startPos then Result := 1
+  else Result := 0;
 end;
 
 function TCacheMemDataTree.AreEquals(const ANode1, ANode2: PCacheMemData): Boolean;
