@@ -61,6 +61,7 @@ type
     FFileName: String;
     FIsStableCache: Boolean;
     FIsFlushingCache : Boolean;
+    FIncreaseFileBytes: Int64;
     {$IFDEF ABSTRACTMEM_ENABLE_STATS}
     FStats : TFileMemStats;
     {$ENDIF}
@@ -73,6 +74,7 @@ type
     procedure CacheIsNOTStable; inline;
     function GetUseCache: Boolean;
     procedure SetUseCache(const Value: Boolean);
+    procedure SetIncreaseFileBytes(const Value: Int64);
   protected
     function AbsoluteWrite(const AAbsolutePosition : Int64; const ABuffer; ASize : Integer) : Integer; override;
     function AbsoluteRead(const AAbsolutePosition : Int64; var ABuffer; ASize : Integer) : Integer; override;
@@ -99,6 +101,7 @@ type
     {$IFDEF ABSTRACTMEM_ENABLE_STATS}
     function GetStatsReport(AClearStats : Boolean) : String; override;
     {$ENDIF}
+    property IncreaseFileBytes : Int64 read FIncreaseFileBytes write SetIncreaseFileBytes;
   End;
 
 implementation
@@ -177,6 +180,7 @@ begin
   FIsStableCache := True;
   FIsFlushingCache := False;
   FFileName := AFileName;
+  FIncreaseFileBytes := 1024*4; // 4K by default
   if AReadOnly then LFileMode := fmOpenRead + fmShareDenyNone
   else begin
     if FileExists(AFileName) then LFileMode := fmOpenReadWrite else LFileMode := fmCreate;
@@ -228,6 +232,10 @@ begin
   if (FFileStream.Position<ANextAvailablePos) then raise EFileMem.Create(Format('End file position (%d) is less than next available pos %d',[FFileStream.Position,ANextAvailablePos]));
   // At this time ANextAvailablePos <= FFileStream.Position
   AMaxAvailablePos := ANextAvailablePos + ANeedSize;
+  if FIncreaseFileBytes>0 then begin
+    AMaxAvailablePos := ((((AMaxAvailablePos - 1) DIV FIncreaseFileBytes)+1) * FIncreaseFileBytes);
+  end;
+
   if (FFileStream.Size<AMaxAvailablePos) then begin
     SetLength(LBuff,AMaxAvailablePos - FFileStream.Position);
     FillChar(LBuff[0],Length(LBuff),0);
@@ -334,6 +342,12 @@ begin
   finally
     FLock.Release;
   end;
+end;
+
+procedure TFileMem.SetIncreaseFileBytes(const Value: Int64);
+begin
+  if (Value<0) or (Value>(1024*1024*100)) then FIncreaseFileBytes := 0
+  else FIncreaseFileBytes := Value;
 end;
 
 procedure TFileMem.SetMaxCacheDataBlocks(const Value: Integer);

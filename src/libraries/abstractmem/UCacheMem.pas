@@ -220,9 +220,11 @@ end;
 
 { TCacheMem }
 
-function _CacheMem_CacheData_Comparer(const Left, Right: PCacheMemData): Integer;
+function _TCacheMemDataTree_Compare(const Left, Right: PCacheMemData): Integer;
 begin
-  Result := Integer(Left^.startPos) - Integer(Right^.startPos);
+  if Left^.startPos < Right^.startPos then Result := -1
+  else if Left^.startPos > Right^.startPos then Result := 1
+  else Result := 0;
 end;
 
 procedure TCacheMem.CheckMaxMemUsage;
@@ -231,7 +233,9 @@ begin
      and
      ((FMaxCacheDataBlocks < 0) or (FCacheDataBlocks<=FMaxCacheDataBlocks)) then Exit;
   // When calling FreeMem will increase call in order to speed
-  FreeMem((FMaxCacheSize-1) SHR 1, (FMaxCacheDataBlocks-1) SHR 1);
+  if not FreeMem((FMaxCacheSize-1) SHR 1, (FMaxCacheDataBlocks-1) SHR 1) then begin
+    raise ECacheMem.Create(Format('FreeMem(%d -> %d,%d -> %d)=False',[FCacheDataSize,(FMaxCacheSize-1) SHR 1,FCacheDataBlocks,(FMaxCacheDataBlocks-1) SHR 1]));
+  end;
 end;
 
 procedure TCacheMem.Clear;
@@ -290,7 +294,7 @@ begin
   if LTotalSize<>FCacheDataSize then raise ECacheMem.Create(Format('Cache size %d <> %d',[LTotalSize,FCacheDataSize]));
   if LTotalPendingSize<>FPendingToSaveBytes then raise ECacheMem.Create(Format('Total pending size %d <> %d',[LTotalPendingSize,FPendingToSaveBytes]));
 
-  LOrder := TOrderedList<PCacheMemData>.Create(False,_CacheMem_CacheData_Comparer);
+  LOrder := TOrderedList<PCacheMemData>.Create(False,_TCacheMemDataTree_Compare);
   try
     PLast := Nil;
     PCurrent := FOldestUsed;
@@ -341,7 +345,7 @@ procedure TCacheMem.Delete(var APCacheMemData : PCacheMemData);
 var LConsistency : PCacheMemData;
 begin
   if not FindCacheMemDataByPosition(APCacheMemData^.startPos,LConsistency) then Raise ECacheMem.Create(Format('Delete not found for %s',[APCacheMemData^.ToString]));
-  Dec(FCacheDataSize,APCacheMemData.GetSize);
+  Dec(FCacheDataSize,Int64(APCacheMemData.GetSize));
   if APCacheMemData^.pendingToSave then begin
     FPendingToSaveBytes := FPendingToSaveBytes - Int64(APCacheMemData^.GetSize);
   end;
@@ -478,7 +482,7 @@ begin
   else LMaxPendingRounds := FCacheDataBlocks - AMaxBlocks;
   //
   PToRemove := FOldestUsed;
-  LListToFlush := TOrderedList<PCacheMemData>.Create(False,_CacheMem_CacheData_Comparer);
+  LListToFlush := TOrderedList<PCacheMemData>.Create(False,_TCacheMemDataTree_Compare);
   try
     LTempCacheDataSize := FCacheDataSize;
     while (Assigned(PToRemove)) and
@@ -487,10 +491,12 @@ begin
       do begin
       Dec(LMaxPendingRounds);
       PToNext := PToRemove^.used_next; // Capture now to avoid future PToRemove updates
-      Dec(LTempCacheDataSize, PToRemove^.GetSize);
+      Dec(LTempCacheDataSize, Int64(PToRemove^.GetSize));
       if (PToRemove^.pendingToSave) then begin
         // Add to list to flush
-        LListToFlush.Add(PToRemove);
+        if LListToFlush.Add(PToRemove)<0 then begin
+          raise ECacheMem.Create(Format('Inconsistent error on Freemem cannot add pending to save: %s',[PToRemove.ToString]));
+        end;
       end else Delete(PToRemove);
       PToRemove := PToNext; // Point to next used
     end;
@@ -501,11 +507,12 @@ begin
       PToRemove := LListToFlush.Get(i);
       Delete( PToRemove );
     end;
+    //
+    if (Result) and (LTempCacheDataSize <> FCacheDataSize) then raise ECacheMem.Create(Format('Inconsistent error on FreeMem Expected size %d <> obtained %d (save list %d)',[LTempCacheDataSize,FCacheDataSize,LListToFlush.Count]));
+    if (Result) and (LMaxPendingRounds>0) then raise ECacheMem.Create(Format('Inconsistent error on FreeMem Expected Max Blocks %d <> obtained %d',[AMaxBlocks,FCacheDataBlocks]));
   finally
     LListToFlush.Free;
   end;
-  if (Result) and (LTempCacheDataSize <> FCacheDataSize) then raise ECacheMem.Create(Format('Inconsistent error on FreeMem Expected size %d <> obtained %d',[LTempCacheDataSize,FCacheDataSize]));
-  if (Result) and (LMaxPendingRounds>0) then raise ECacheMem.Create(Format('Inconsistent error on FreeMem Expected Max Blocks %d <> obtained %d',[AMaxBlocks,FCacheDataBlocks]));
 
   Result := (Result) And (FCacheDataSize <= AMaxMemSize);
   {$IFDEF ABSTRACTMEM_ENABLE_STATS}
@@ -691,7 +698,7 @@ begin
   // Save new
   LNewP^.MarkAsUsed(Self,LNewP);
   if Not FCacheData.Add( LNewP ) then raise ECacheMem.Create(Format('Inconsistent LoadData CacheData duplicate for %s',[LNewP^.ToString]));
-  Inc(FCacheDataSize,Length(LNewP^.buffer));
+  Inc(FCacheDataSize,Int64(Length(LNewP^.buffer)));
   Inc(FCacheDataBlocks);
   //
   if (LNewP^.pendingToSave) then begin
@@ -778,7 +785,7 @@ begin
   // Save new
   LNewP^.MarkAsUsed(Self,LNewP);
   if Not FCacheData.Add(LNewP) then raise ECacheMem.Create(Format('Inconsistent SaveToCache CacheData duplicate for %s',[LNewP^.ToString]));
-  Inc(FCacheDataSize,Length(LNewP^.buffer));
+  Inc(FCacheDataSize,Int64(Length(LNewP^.buffer)));
   Inc(FCacheDataBlocks);
   //
   if (LNewP^.pendingToSave) then begin
@@ -1016,13 +1023,6 @@ end;
 {$ENDIF}
 
 { TCacheMemDataTree }
-
-function _TCacheMemDataTree_Compare(const Left, Right: PCacheMemData): Integer;
-begin
-  if Left^.startPos < Right^.startPos then Result := -1
-  else if Left^.startPos > Right^.startPos then Result := 1
-  else Result := 0;
-end;
 
 function TCacheMemDataTree.AreEquals(const ANode1, ANode2: PCacheMemData): Boolean;
 begin
