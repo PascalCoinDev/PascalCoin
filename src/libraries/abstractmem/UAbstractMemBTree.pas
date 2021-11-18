@@ -665,11 +665,15 @@ begin
     Lzone := SaveData(AData);
     Try
       Result := AddInherited(Lzone.position);
-      for i := 0 to FIndexes.Count-1 do begin
-        LindexZone := FAbstractMem.New(FAbstractMem.SizeOfAbstractMemPosition);
-        FAbstractMem.Write(LindexZone.position,Lzone.position,FAbstractMem.SizeOfAbstractMemPosition);
-        LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
-        if Not LBTreeIndex.AddInherited(LindexZone.position) then raise EAbstractMemBTree.Create(Format('Fatal error adding index %d/%d with data at %s and %s',[i+1,FIndexes.Count,Lzone.ToString,LindexZone.ToString]));
+      if Result then begin
+        for i := 0 to FIndexes.Count-1 do begin
+          LindexZone := FAbstractMem.New(FAbstractMem.SizeOfAbstractMemPosition);
+          FAbstractMem.Write(LindexZone.position,Lzone.position,FAbstractMem.SizeOfAbstractMemPosition);
+          LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
+          if Not LBTreeIndex.AddInherited(LindexZone.position) then
+            raise EAbstractMemBTree.Create(Format('Fatal error adding index %d/%d with data at %s and %s',
+              [i+1,FIndexes.Count,Lzone.ToString,LindexZone.ToString]));
+        end;
       end;
     Finally
       if Not Result then begin
