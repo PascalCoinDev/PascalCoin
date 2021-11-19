@@ -21,7 +21,7 @@ type
   private
   protected
   public
-    constructor Create(AAllowDuplicates : Boolean; AOrder : Integer);
+    constructor Create(AAllowDuplicates : Boolean; AOrder: Integer);
     function NodeDataToString(const AData : Integer) : String; override;
   End;
 

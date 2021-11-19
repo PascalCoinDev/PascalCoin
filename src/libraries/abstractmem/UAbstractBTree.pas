@@ -54,6 +54,7 @@ type
   TAbstractBTree<TIdentify, TData> = Class
   public
     type
+      TDataSource = TData;
       TIdentifyArray = Array of TIdentify;
       TDataArray = Array of TData;
       TAbstractBTreeNode = record
@@ -83,13 +84,11 @@ type
     function FindPrecessorExt(const ACircularProtectionList : TOrderedList<TIdentify>; var ANode : TAbstractBTreeNode; var iPos : Integer) : Boolean;
     function FindSuccessorExt(const ACircularProtectionList : TOrderedList<TIdentify>; var ANode : TAbstractBTreeNode; var iPos : Integer) : Boolean;
     procedure EraseTreeExt(var ANode : TAbstractBTreeNode);
-    function FindExt(const AData: TData; const ACircularProtectionList : TOrderedList<TIdentify>; out ANode : TAbstractBTreeNode; out iPos : Integer): Boolean;
     function FindLowestNodeExt(const ACircularProtectionList : TOrderedList<TIdentify>): TAbstractBTreeNode;
     function FindHighestNodeExt(const ACircularProtectionList : TOrderedList<TIdentify>): TAbstractBTreeNode;
   protected
     FCount: integer;
     FAbstractBTreeLock : TCriticalSection;
-    FIsFindingProcess : Boolean;
     function GetRoot: TAbstractBTreeNode; virtual; abstract;
     procedure SetRoot(var Value: TAbstractBTreeNode); virtual; abstract;
 
@@ -108,6 +107,9 @@ type
     function FindChildPos(const AIdent : TIdentify; const AParent : TAbstractBTreeNode) : Integer;
     procedure DisposeData(var AData : TData); virtual;
     function DoCompareData(const ALeftData, ARightData: TData): Integer; virtual;
+    procedure DoOnFindProcessStart; virtual;
+    procedure DoOnFindProcessEnd; virtual;
+    function DoFind(const AData: TData; const ACircularProtectionList : TOrderedList<TIdentify>; out ANode : TAbstractBTreeNode; out iPos : Integer): Boolean; virtual;
   public
     property AllowDuplicates : Boolean read FAllowDuplicates write FAllowDuplicates;
     function IsNil(const AIdentify : TIdentify) : Boolean; virtual; abstract;
@@ -127,6 +129,7 @@ type
     function FillList(AStartIndex, ACount : Integer; const AList : TList<TData>) : Integer;
     function Add(const AData: TData) : Boolean;
     function Delete(const AData: TData) : Boolean;
+    function NodeIdentifyToString(const AIdentify : TIdentify) : String; virtual;
     function NodeDataToString(const AData : TData) : String; virtual;
     constructor Create(const AOnCompareIdentifyMethod: TComparison<TIdentify>; const AOnCompareDataMethod: TComparison<TData>; AAllowDuplicates : Boolean; AOrder: Integer);
     destructor Destroy; override;
@@ -143,6 +146,8 @@ type
     property CircularProtection : Boolean read FCircularProtection write FCircularProtection;
     procedure Lock;
     procedure Unlock;
+    function FindExt(const AData: TData; out ADataEqualOrPrecessorFound : TData) : Boolean;
+    function GetNullData : TData; virtual;
   End;
 
   TMemoryBTree<TData> = Class( TAbstractBTree<Integer,TData> )
@@ -193,7 +198,7 @@ begin
       LCircularProtectionList := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
     end else LCircularProtectionList := Nil;
     Try
-      if (FindExt(AData,LCircularProtectionList,Lnode,iDataPos)) then begin
+      if (DoFind(AData,LCircularProtectionList,Lnode,iDataPos)) then begin
         if (Not FAllowDuplicates) then Exit(False);
         // Follow childs until leaf node
         while (Not Lnode.IsLeaf) do begin
@@ -376,7 +381,10 @@ begin
       iRight := -1;
     end;
     Lchild := GetNode(ANode.childs[i]);
-    if Not AreEquals(Lchild.parent,ANode.identify) then raise EAbstractBTree.Create(Format('Inconsistent Identify child %d/%d %s invalid pointer to parent at %s',[i+1,Length(ANode.childs),ToString(Lchild),ToString(ANode)]));
+    if Not AreEquals(Lchild.parent,ANode.identify) then begin
+        raise EAbstractBTree.Create(Format('Inconsistent Identify child %d/%d %s invalid pointer to parent %s (%s)',
+          [i+1,Length(ANode.childs),ToString(Lchild),NodeIdentifyToString(ANode.identify),NodeIdentifyToString(Lchild.parent)]));
+    end;
     CheckConsistencyEx(Lchild,
       ((AIsGoingDown) and (i=0)),iLeft,iRight,
       ADatas,AIdents,
@@ -401,7 +409,6 @@ end;
 
 constructor TAbstractBTree<TIdentify, TData>.Create(const AOnCompareIdentifyMethod: TComparison<TIdentify>; const AOnCompareDataMethod: TComparison<TData>; AAllowDuplicates : Boolean; AOrder: Integer);
 begin
-  FIsFindingProcess := False;
   FAbstractBTreeLock := TCriticalSection.Create;
   FOnCompareIdentify := AOnCompareIdentifyMethod;
   FOnCompareData := AOnCompareDataMethod;
@@ -431,7 +438,7 @@ begin
     end else LCircularProtectionList := Nil;
     try
 
-    if Not FindExt(AData,LCircularProtectionList,Lnode,iPos) then Exit(False);
+    if Not DoFind(AData,LCircularProtectionList,Lnode,iPos) then Exit(False);
 
     Assert(FCount<>0,'Cannot Delete when FCount = 0');
 
@@ -723,6 +730,37 @@ begin
   Result := FOnCompareData(ALeftData,ARightData);
 end;
 
+function TAbstractBTree<TIdentify, TData>.DoFind(const AData: TData;
+  const ACircularProtectionList: TOrderedList<TIdentify>;
+  out ANode: TAbstractBTreeNode; out iPos: Integer): Boolean;
+begin
+  DoOnFindProcessStart;
+  Try
+    ANode := GetRoot;
+    iPos := 0;
+    repeat
+      if Assigned(ACircularProtectionList) then begin
+        if ACircularProtectionList.Add(ANode.identify)<0 then raise EAbstractBTree.Create(ClassName+'.Find Circular T structure at Find for T='+ToString(ANode)+ ' searching for '+NodeDataToString(AData));
+      end;
+      if (BinarySearch(AData,ANode.data,iPos)) then Exit(True)
+      else if (Not ANode.IsLeaf) then ANode := GetNode( ANode.childs[ iPos ] )
+      else Exit(False);
+    until False;
+  Finally
+    DoOnFindProcessEnd;
+  End;
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.DoOnFindProcessEnd;
+begin
+  //
+end;
+
+procedure TAbstractBTree<TIdentify, TData>.DoOnFindProcessStart;
+begin
+  //
+end;
+
 procedure TAbstractBTree<TIdentify, TData>.EraseTree;
 var Lnode : TAbstractBTreeNode;
 begin
@@ -805,7 +843,7 @@ begin
       LCircularProtectionList := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
     end else LCircularProtectionList := Nil;
     Try
-      Result := FindExt(AData,LCircularProtectionList,ANode,iPos);
+      Result := DoFind(AData,LCircularProtectionList,ANode,iPos);
     Finally
       if Assigned(LCircularProtectionList) then LCircularProtectionList.Free;
     End;
@@ -822,25 +860,43 @@ begin
   raise EAbstractBTree.Create(Format('Child not found at %s',[ToString(AParent)]));
 end;
 
-function TAbstractBTree<TIdentify, TData>.FindExt(const AData: TData; const ACircularProtectionList: TOrderedList<TIdentify>;
-  out ANode: TAbstractBTreeNode; out iPos: Integer): Boolean;
+function TAbstractBTree<TIdentify, TData>.FindExt(const AData: TData; out ADataEqualOrPrecessorFound: TData): Boolean;
+var Lnode : TAbstractBTreeNode;
+  LiPosNode : Integer;
+  LCircularProtectionList : TOrderedList<TIdentify>;
+  LPrecessorFound : Boolean;
 begin
-  Assert(Not FIsFindingProcess,'Is finding process');
-  FIsFindingProcess := True;
-  Try
-    ANode := GetRoot;
-    iPos := 0;
-    repeat
-      if Assigned(ACircularProtectionList) then begin
-        if ACircularProtectionList.Add(ANode.identify)<0 then raise EAbstractBTree.Create(ClassName+'.Find Circular T structure at Find for T='+ToString(ANode)+ ' searching for '+NodeDataToString(AData));
+  FAbstractBTreeLock.Acquire;
+  try
+    ClearNode(Lnode);
+    if Find(AData,Lnode,LiPosNode) then begin
+      ADataEqualOrPrecessorFound := Lnode.data[LiPosNode];
+      Result := True;
+    end else begin
+      // At this point Lnode is a leaf OR a NIL (no root available at tree)
+      // Lnode.Count = 0  -> NIL (no root/tree available)
+      if Lnode.Count=0 then begin
+        ADataEqualOrPrecessorFound := GetNullData;
+      end else if Lnode.Count=LiPosNode then begin
+        dec(LiPosNode);
+        ADataEqualOrPrecessorFound := Lnode.data[LiPosNode];
+      end else begin
+        // Will find previous valid value by climbing tree
+        LCircularProtectionList := TOrderedList<TIdentify>.Create(False,FOnCompareIdentify);
+        try
+          LCircularProtectionList.Clear;
+          LPrecessorFound := FindPrecessorExt(LCircularProtectionList,Lnode,LiPosNode);
+          if LPrecessorFound then ADataEqualOrPrecessorFound := Lnode.data[LiPosNode]
+          else ADataEqualOrPrecessorFound := GetNullData;
+        finally
+          LCircularProtectionList.Free;
+        end;
       end;
-      if (BinarySearch(AData,ANode.data,iPos)) then Exit(True)
-      else if (Not ANode.IsLeaf) then ANode := GetNode( ANode.childs[ iPos ] )
-      else Exit(False);
-    until False;
-  Finally
-    FIsFindingProcess := False;
-  End;
+      Result := False;
+    end;
+  finally
+    FAbstractBTreeLock.Release;
+  end;
 end;
 
 function TAbstractBTree<TIdentify, TData>.FindHighest(out AHighest : TData) : Boolean;
@@ -964,7 +1020,7 @@ begin
     end else LCircularProtectionList := Nil;
     Try
       Result := False;
-      if Not FindExt(AData,LCircularProtectionList,Lnode,iPos) then Exit(False);
+      if Not DoFind(AData,LCircularProtectionList,Lnode,iPos) then Exit(False);
       if Assigned(LCircularProtectionList) then LCircularProtectionList.Clear;
       repeat
         Result := FindPrecessorExt(LCircularProtectionList,Lnode,iPos);
@@ -1048,7 +1104,7 @@ begin
     end else LCircularProtectionList := Nil;
     Try
       Result := False;
-      if Not FindExt(AData,LCircularProtectionList,Lnode,iPos) then Exit(False);
+      if Not DoFind(AData,LCircularProtectionList,Lnode,iPos) then Exit(False);
       if Assigned(LCircularProtectionList) then LCircularProtectionList.Clear;
       repeat
         Result := FindSuccessorExt(LCircularProtectionList,Lnode,iPos);
@@ -1138,6 +1194,11 @@ begin
   finally
     FAbstractBTreeLock.Release;
   end;
+end;
+
+function TAbstractBTree<TIdentify, TData>.GetNullData: TData;
+begin
+  raise EAbstractBTree.Create('function '+Self.ClassName+'.GetNullData: TData; Not overrided');
 end;
 
 procedure TAbstractBTree<TIdentify, TData>.Lock;
@@ -1240,6 +1301,12 @@ begin
   Result := IntToStr(SizeOf(AData));
 end;
 
+function TAbstractBTree<TIdentify, TData>.NodeIdentifyToString(
+  const AIdentify: TIdentify): String;
+begin
+  Result := IntToStr(SizeOf(AIdentify));
+end;
+
 procedure TAbstractBTree<TIdentify, TData>.SetCount(const ANewCount: Integer);
 begin
   FCount := ANewCount;
@@ -1294,7 +1361,7 @@ begin
     if Result<>'' then Result := Result + ',';
     Result := Result + NodeDataToString(ANode.data[i]);
   end;
-  Result := '['+Result+']';
+  Result := NodeIdentifyToString(ANode.identify)+'@'+NodeIdentifyToString(ANode.parent)+'['+Result+']';
 end;
 
 procedure TAbstractBTree<TIdentify, TData>.Unlock;

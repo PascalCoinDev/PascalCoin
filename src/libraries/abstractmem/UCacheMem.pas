@@ -52,12 +52,12 @@ type
     balance : Integer;
     //
     buffer : TBytes;
-    startPos : Integer;
+    startPos : Int64;
     used_previous : PCacheMemData;
     used_next : PCacheMemData;
     pendingToSave : Boolean;
     function GetSize : Integer;
-    function GetEndPos : Integer;
+    function GetEndPos : Int64;
     procedure Clear;
     function ToString : String;
     procedure DoMark(const ACacheMem : TCacheMem; AMySelfPointer : PCacheMemData; AAddToList : Boolean);
@@ -103,7 +103,8 @@ type
     flushSize : Integer;
     flushElapsedMillis : Int64;
     freememCount : Integer;
-    freememSize : Integer;
+    freememSize : Int64;
+    freememBlocksCount : Int64;
     freememElaspedMillis : Int64;
     maxUsedCacheSize : Integer;
     reusedCacheMemDataCount : Integer;
@@ -116,9 +117,9 @@ type
   end;
   {$ENDIF}
 
-  TOnNeedDataProc = function(var ABuffer; AStartPos : Integer; ASize : Integer) : Integer of object;
-  TOnSaveDataProc = function(const ABuffer; AStartPos : Integer; ASize : Integer) : Integer of object;
-  TOnNeedsTotalSizeProc = function(const ABuffer; AStartPos : Integer; ASize : Integer) : Integer of object;
+  TOnNeedDataProc = function(var ABuffer; AStartPos : Int64; ASize: Integer): Integer of object;
+  TOnSaveDataProc = function(const ABuffer; AStartPos : Int64; ASize: Integer): Integer of object;
+  TOnNeedsTotalSizeProc = function(const ABuffer; AStartPos : Int64; ASize: Integer): Integer of object;
 
   ECacheMem = Class(Exception);
 
@@ -130,47 +131,47 @@ type
     FOldestUsed : PCacheMemData;
     FNewestUsed : PCacheMemData;
     FCacheData : TCacheMemDataTree;
-    FPendingToSaveBytes : Integer;
-    FCacheDataBlocks : Integer;
-    FCacheDataSize : Integer;
+    FPendingToSaveBytes : Int64;
+    FCacheDataBlocks : Int64;
+    FCacheDataSize : Int64;
     FOnNeedDataProc : TOnNeedDataProc;
     FOnSaveDataProc : TOnSaveDataProc;
-    FMaxCacheSize: Integer;
-    FMaxCacheDataBlocks: Integer;
-    FDefaultCacheDataBlocksSize : Integer;
+    FMaxCacheSize: Int64;
+    FMaxCacheDataBlocks: Int64;
+    FDefaultCacheDataBlocksSize : Int64;
     FGridCache : Boolean;
-    function FindCacheMemDataByPosition(APosition : Integer; out APCacheMemData : PCacheMemData) : Boolean;
+    function FindCacheMemDataByPosition(APosition : Int64; out APCacheMemData : PCacheMemData) : Boolean;
     procedure Delete(var APCacheMemData : PCacheMemData); overload;
     function FlushCache(const AFlushCacheList : TOrderedList<PCacheMemData>) : Boolean; overload;
     procedure CheckMaxMemUsage;
-    function LoadDataExt(var ABuffer; const AStartPos, ASize : Integer) : Boolean;
-    procedure SaveToCacheExt(const ABuffer; ASize, AStartPos : Integer; AMarkAsPendingToSave : Boolean);
+    function LoadDataExt(var ABuffer; AStartPos : Int64; ASize : Integer) : Boolean;
+    procedure SaveToCacheExt(const ABuffer; ASize : Integer; AStartPos : Int64; AMarkAsPendingToSave : Boolean);
   public
     Constructor Create(AOnNeedDataProc : TOnNeedDataProc; AOnSaveDataProc : TOnSaveDataProc);
     Destructor Destroy; override;
     //
     procedure Clear;
-    procedure SaveToCache(const ABuffer; ASize, AStartPos : Integer; AMarkAsPendingToSave : Boolean); overload;
-    procedure SaveToCache(const ABuffer : TBytes; AStartPos : Integer; AMarkAsPendingToSave : Boolean); overload;
-    function LoadData(var ABuffer; const AStartPos, ASize : Integer) : Boolean;
+    procedure SaveToCache(const ABuffer; ASize : Integer; AStartPos : Int64; AMarkAsPendingToSave : Boolean); overload;
+    procedure SaveToCache(const ABuffer : TBytes; AStartPos : Int64; AMarkAsPendingToSave : Boolean); overload;
+    function LoadData(var ABuffer; AStartPos : Int64; ASize : Integer) : Boolean;
     function ToString : String; reintroduce;
     function FlushCache : Boolean; overload;
-    function FreeMem(const AMaxMemSize, AMaxBlocks : Integer) : Boolean;
+    function FreeMem(const AMaxMemSize, AMaxBlocks : Int64) : Boolean;
 
     procedure ConsistencyCheck;
 
-    property CacheDataSize : Integer read FCacheDataSize;
+    property CacheDataSize : Int64 read FCacheDataSize;
     // Bytes in cache
 
-    property PendingToSaveSize : Integer read FPendingToSaveBytes;
+    property PendingToSaveSize : Int64 read FPendingToSaveBytes;
     // Bytes in cache pending to flush
 
-    property CacheDataBlocks : Integer read FCacheDataBlocks;
+    property CacheDataBlocks : Int64 read FCacheDataBlocks;
     // Blocks in cache
 
-    property MaxCacheSize : Integer read FMaxCacheSize write FMaxCacheSize;
-    property MaxCacheDataBlocks : Integer read FMaxCacheDataBlocks write FMaxCacheDataBlocks;
-    property DefaultCacheDataBlocksSize : Integer read FDefaultCacheDataBlocksSize write FDefaultCacheDataBlocksSize;
+    property MaxCacheSize : Int64 read FMaxCacheSize write FMaxCacheSize;
+    property MaxCacheDataBlocks : Int64 read FMaxCacheDataBlocks write FMaxCacheDataBlocks;
+    property DefaultCacheDataBlocksSize : Int64 read FDefaultCacheDataBlocksSize write FDefaultCacheDataBlocksSize;
     property GridCache : Boolean read FGridCache write FGridCache;
     {$IFDEF ABSTRACTMEM_ENABLE_STATS}
     procedure ClearStats;
@@ -219,9 +220,11 @@ end;
 
 { TCacheMem }
 
-function _CacheMem_CacheData_Comparer(const Left, Right: PCacheMemData): Integer;
+function _TCacheMemDataTree_Compare(const Left, Right: PCacheMemData): Integer;
 begin
-  Result := Integer(Left^.startPos) - Integer(Right^.startPos);
+  if Left^.startPos < Right^.startPos then Result := -1
+  else if Left^.startPos > Right^.startPos then Result := 1
+  else Result := 0;
 end;
 
 procedure TCacheMem.CheckMaxMemUsage;
@@ -230,7 +233,9 @@ begin
      and
      ((FMaxCacheDataBlocks < 0) or (FCacheDataBlocks<=FMaxCacheDataBlocks)) then Exit;
   // When calling FreeMem will increase call in order to speed
-  FreeMem((FMaxCacheSize-1) SHR 1, (FMaxCacheDataBlocks-1) SHR 1);
+  if not FreeMem((FMaxCacheSize-1) SHR 1, (FMaxCacheDataBlocks-1) SHR 1) then begin
+    raise ECacheMem.Create(Format('FreeMem(%d -> %d,%d -> %d)=False',[FCacheDataSize,(FMaxCacheSize-1) SHR 1,FCacheDataBlocks,(FMaxCacheDataBlocks-1) SHR 1]));
+  end;
 end;
 
 procedure TCacheMem.Clear;
@@ -289,7 +294,7 @@ begin
   if LTotalSize<>FCacheDataSize then raise ECacheMem.Create(Format('Cache size %d <> %d',[LTotalSize,FCacheDataSize]));
   if LTotalPendingSize<>FPendingToSaveBytes then raise ECacheMem.Create(Format('Total pending size %d <> %d',[LTotalPendingSize,FPendingToSaveBytes]));
 
-  LOrder := TOrderedList<PCacheMemData>.Create(False,_CacheMem_CacheData_Comparer);
+  LOrder := TOrderedList<PCacheMemData>.Create(False,_TCacheMemDataTree_Compare);
   try
     PLast := Nil;
     PCurrent := FOldestUsed;
@@ -340,9 +345,9 @@ procedure TCacheMem.Delete(var APCacheMemData : PCacheMemData);
 var LConsistency : PCacheMemData;
 begin
   if not FindCacheMemDataByPosition(APCacheMemData^.startPos,LConsistency) then Raise ECacheMem.Create(Format('Delete not found for %s',[APCacheMemData^.ToString]));
-  Dec(FCacheDataSize,APCacheMemData.GetSize);
+  Dec(FCacheDataSize,Int64(APCacheMemData.GetSize));
   if APCacheMemData^.pendingToSave then begin
-    Dec(FPendingToSaveBytes,APCacheMemData^.GetSize);
+    FPendingToSaveBytes := FPendingToSaveBytes - Int64(APCacheMemData^.GetSize);
   end;
   SetLength(APCacheMemData^.buffer,0);
   APCacheMemData^.UnMark(Self,APCacheMemData);
@@ -361,7 +366,7 @@ begin
   inherited;
 end;
 
-function TCacheMem.FindCacheMemDataByPosition(APosition: Integer; out APCacheMemData: PCacheMemData): Boolean;
+function TCacheMem.FindCacheMemDataByPosition(APosition: Int64; out APCacheMemData: PCacheMemData): Boolean;
   // Will return APCacheMemData that contains APosition
   // When returning FALSE, APCacheMemData.startPos will be < APosition (or NIL)
 var PSearch : PCacheMemData;
@@ -394,7 +399,7 @@ end;
 function TCacheMem.FlushCache(const AFlushCacheList : TOrderedList<PCacheMemData>) : Boolean;
 var i : Integer;
   PToCurrent, PToNext : PCacheMemData;
-  LTotalBytesSaved, LTotalBytesError : Integer;
+  LTotalBytesSaved, LTotalBytesError : Int64;
   {$IFDEF ABSTRACTMEM_ENABLE_STATS}
   LTickCount : TTickCount;
   {$ENDIF}
@@ -424,11 +429,11 @@ begin
         if Not Assigned(FOnSaveDataProc) then Exit(False);
         if FOnSaveDataProc(PToCurrent^.buffer[0],PToCurrent^.startPos,PToCurrent^.GetSize)<>PToCurrent^.GetSize then begin
           Result := False;
-          inc(LTotalBytesError,PToCurrent^.GetSize);
+          inc(LTotalBytesError,Int64(PToCurrent^.GetSize));
         end else begin
-          inc(LTotalBytesSaved,PToCurrent^.GetSize);
+          inc(LTotalBytesSaved,Int64(PToCurrent^.GetSize));
           PToCurrent^.pendingToSave := False;
-          Dec(FPendingToSaveBytes,PToCurrent^.GetSize);
+          FPendingToSaveBytes := FPendingToSaveBytes - Int64(PToCurrent^.GetSize);
         end;
       end;
       PToNext := PToCurrent^.used_next;
@@ -450,13 +455,14 @@ begin
   Result := FlushCache(Nil); // FlushCache without a list, without order
 end;
 
-function TCacheMem.FreeMem(const AMaxMemSize, AMaxBlocks: Integer) : Boolean;
+function TCacheMem.FreeMem(const AMaxMemSize, AMaxBlocks: Int64) : Boolean;
 var
-  i, LPreviousCacheDataSize, LTempCacheDataSize,
-  LFinalMaxMemSize, LMaxPendingRounds : Integer;
+  i, LTempCacheDataSize,
+  LFinalMaxMemSize, LMaxPendingRounds : Int64;
   PToRemove, PToNext : PCacheMemData;
   LListToFlush : TOrderedList<PCacheMemData>;
   {$IFDEF ABSTRACTMEM_ENABLE_STATS}
+  LPreviousCacheDataSize, LPreviousCacheDataBlocks : Int64;
   LTickCount : TTickCount;
   {$ENDIF}
 begin
@@ -466,8 +472,9 @@ begin
      ((AMaxBlocks < 0) or (FCacheDataBlocks<=AMaxBlocks)) then Exit(True);
   {$IFDEF ABSTRACTMEM_ENABLE_STATS}
   LTickCount := TPlatform.GetTickCount;
-  {$ENDIF}
   LPreviousCacheDataSize := FCacheDataSize;
+  LPreviousCacheDataBlocks := FCacheDataBlocks;
+  {$ENDIF}
 
   if (AMaxMemSize<0) then LFinalMaxMemSize := FCacheDataSize
   else LFinalMaxMemSize := AMaxMemSize;
@@ -475,7 +482,7 @@ begin
   else LMaxPendingRounds := FCacheDataBlocks - AMaxBlocks;
   //
   PToRemove := FOldestUsed;
-  LListToFlush := TOrderedList<PCacheMemData>.Create(False,_CacheMem_CacheData_Comparer);
+  LListToFlush := TOrderedList<PCacheMemData>.Create(False,_TCacheMemDataTree_Compare);
   try
     LTempCacheDataSize := FCacheDataSize;
     while (Assigned(PToRemove)) and
@@ -484,10 +491,12 @@ begin
       do begin
       Dec(LMaxPendingRounds);
       PToNext := PToRemove^.used_next; // Capture now to avoid future PToRemove updates
-      Dec(LTempCacheDataSize, PToRemove^.GetSize);
+      Dec(LTempCacheDataSize, Int64(PToRemove^.GetSize));
       if (PToRemove^.pendingToSave) then begin
         // Add to list to flush
-        LListToFlush.Add(PToRemove);
+        if LListToFlush.Add(PToRemove)<0 then begin
+          raise ECacheMem.Create(Format('Inconsistent error on Freemem cannot add pending to save: %s',[PToRemove.ToString]));
+        end;
       end else Delete(PToRemove);
       PToRemove := PToNext; // Point to next used
     end;
@@ -498,16 +507,18 @@ begin
       PToRemove := LListToFlush.Get(i);
       Delete( PToRemove );
     end;
+    //
+    if (Result) and (LTempCacheDataSize <> FCacheDataSize) then raise ECacheMem.Create(Format('Inconsistent error on FreeMem Expected size %d <> obtained %d (save list %d)',[LTempCacheDataSize,FCacheDataSize,LListToFlush.Count]));
+    if (Result) and (LMaxPendingRounds>0) then raise ECacheMem.Create(Format('Inconsistent error on FreeMem Expected Max Blocks %d <> obtained %d',[AMaxBlocks,FCacheDataBlocks]));
   finally
     LListToFlush.Free;
   end;
-  if (Result) and (LTempCacheDataSize <> FCacheDataSize) then raise ECacheMem.Create(Format('Inconsistent error on FreeMem Expected size %d <> obtained %d',[LTempCacheDataSize,FCacheDataSize]));
-  if (Result) and (LMaxPendingRounds>0) then raise ECacheMem.Create(Format('Inconsistent error on FreeMem Expected Max Blocks %d <> obtained %d',[AMaxBlocks,FCacheDataBlocks]));
 
   Result := (Result) And (FCacheDataSize <= AMaxMemSize);
   {$IFDEF ABSTRACTMEM_ENABLE_STATS}
   Inc(FCacheMemStats.freememCount);
   Inc(FCacheMemStats.freememSize,LPreviousCacheDataSize - FCacheDataSize);
+  Inc(FCacheMemStats.freememBlocksCount,LPreviousCacheDataBlocks - FCacheDataBlocks);
   Inc(FCacheMemStats.freememElaspedMillis,TPlatform.GetElapsedMilliseconds(LTickCount));
   {$ENDIF}
 end;
@@ -522,9 +533,9 @@ begin
   {$ENDIF}
 end;
 
-function TCacheMem.LoadData(var ABuffer; const AStartPos, ASize: Integer): Boolean;
+function TCacheMem.LoadData(var ABuffer; AStartPos : Int64; ASize: Integer): Boolean;
 Var
-  LNewStartPos, LIndex, LLoadSize, LMoveSize : Integer;
+  LNewStartPos, LIndex, LLoadSize, LMoveSize : Int64;
   Lpc : PByte;
   LData : TBytes;
 begin
@@ -552,10 +563,10 @@ begin
   end;
 end;
 
-function TCacheMem.LoadDataExt(var ABuffer; const AStartPos, ASize: Integer): Boolean;
+function TCacheMem.LoadDataExt(var ABuffer; AStartPos : Int64; ASize: Integer): Boolean;
   // Will return a Pointer to AStartPos
 
-  function _CaptureDataFromOnNeedDataProc(ACapturePosStart, ACaptureSize : Integer; var ACapturedData : TBytes; out ACapturedSize : Integer) : Boolean;
+  function _CaptureDataFromOnNeedDataProc(ACapturePosStart : Int64; ACaptureSize : Integer; var ACapturedData : TBytes; out ACapturedSize : Integer) : Boolean;
   {$IFDEF ABSTRACTMEM_TESTING_MODE}var i : integer;{$ENDIF}
   begin
     SetLength(ACapturedData,ACaptureSize);
@@ -578,7 +589,7 @@ function TCacheMem.LoadDataExt(var ABuffer; const AStartPos, ASize: Integer): Bo
 
 var
   LNewP, PCurrent, PToDelete : PCacheMemData;
-  LLastAddedPosition, LBytesCount, LSizeToStore, LNewStartPos : Integer;
+  LLastAddedPosition, LBytesCount, LSizeToStore, LNewStartPos : Int64;
   LTempData : TBytes;
   LTempCapturedSize : Integer;
   LTmpResult : Boolean;
@@ -687,11 +698,11 @@ begin
   // Save new
   LNewP^.MarkAsUsed(Self,LNewP);
   if Not FCacheData.Add( LNewP ) then raise ECacheMem.Create(Format('Inconsistent LoadData CacheData duplicate for %s',[LNewP^.ToString]));
-  Inc(FCacheDataSize,Length(LNewP^.buffer));
+  Inc(FCacheDataSize,Int64(Length(LNewP^.buffer)));
   Inc(FCacheDataBlocks);
   //
   if (LNewP^.pendingToSave) then begin
-    inc(FPendingToSaveBytes,LNewP^.GetSize);
+    FPendingToSaveBytes := FPendingToSaveBytes + Int64(LNewP^.GetSize);
   end;
 
   Move(LNewP^.buffer[ AStartPos-LNewP^.startPos ],ABuffer,ASize);
@@ -699,10 +710,10 @@ begin
   CheckMaxMemUsage;
 end;
 
-procedure TCacheMem.SaveToCacheExt(const ABuffer; ASize, AStartPos: Integer; AMarkAsPendingToSave : Boolean);
+procedure TCacheMem.SaveToCacheExt(const ABuffer; ASize: Integer; AStartPos: Int64; AMarkAsPendingToSave : Boolean);
 var
   LNewP, PCurrent, PToDelete : PCacheMemData;
-  LLastAddedPosition, LBytesCount : Integer;
+  LLastAddedPosition, LBytesCount : Int64;
 begin
   if ASize<0 then raise ECacheMem.Create(Format('Invalid save size %d',[ASize]));
   if ASize=0 then Exit;
@@ -713,7 +724,7 @@ begin
       Move(ABuffer,PCurrent^.buffer[ AStartPos - PCurrent^.startPos ], ASize);
       if (Not PCurrent^.pendingToSave) and (AMarkAsPendingToSave) then begin
         PCurrent^.pendingToSave := True;
-        inc(FPendingToSaveBytes,PCurrent^.GetSize);
+        FPendingToSaveBytes := FPendingToSaveBytes + Int64(PCurrent^.GetSize);
       end;
       PCurrent^.MarkAsUsed(Self,PCurrent);
       Exit;
@@ -774,24 +785,24 @@ begin
   // Save new
   LNewP^.MarkAsUsed(Self,LNewP);
   if Not FCacheData.Add(LNewP) then raise ECacheMem.Create(Format('Inconsistent SaveToCache CacheData duplicate for %s',[LNewP^.ToString]));
-  Inc(FCacheDataSize,Length(LNewP^.buffer));
+  Inc(FCacheDataSize,Int64(Length(LNewP^.buffer)));
   Inc(FCacheDataBlocks);
   //
   if (LNewP^.pendingToSave) then begin
-    inc(FPendingToSaveBytes,LNewP^.GetSize);
+    FPendingToSaveBytes := FPendingToSaveBytes + Int64(LNewP^.GetSize);
   end;
 
   CheckMaxMemUsage;
 end;
 
-procedure TCacheMem.SaveToCache(const ABuffer: TBytes; AStartPos: Integer; AMarkAsPendingToSave : Boolean);
+procedure TCacheMem.SaveToCache(const ABuffer: TBytes; AStartPos: Int64; AMarkAsPendingToSave : Boolean);
 begin
   SaveToCache(ABuffer[0],Length(ABuffer),AStartPos,AMarkAsPendingToSave);
 end;
 
-procedure TCacheMem.SaveToCache(const ABuffer; ASize, AStartPos: Integer; AMarkAsPendingToSave: Boolean);
+procedure TCacheMem.SaveToCache(const ABuffer; ASize: Integer; AStartPos: Int64; AMarkAsPendingToSave: Boolean);
 Var
-  LNewStartPos, LSizeToStore : Integer;
+  LNewStartPos, LSizeToStore : Int64;
   Lpc : PByte;
   LLeftBuff : TBytes;
 begin
@@ -945,9 +956,9 @@ begin
 end;
 
 
-function TCacheMemData.GetEndPos: Integer;
+function TCacheMemData.GetEndPos: Int64;
 begin
-  Result := Self.startPos + Self.GetSize - 1;
+  Result := Self.startPos + Int64(Self.GetSize) - 1;
 end;
 
 function TCacheMemData.GetSize: Integer;
@@ -991,6 +1002,7 @@ begin
   flushElapsedMillis := 0;
   freememCount := 0;
   freememSize := 0;
+  freememBlocksCount := 0;
   freememElaspedMillis := 0;
   reusedCacheMemDataCount := 0;
   reusedCacheMemDataBytes := 0;
@@ -1001,21 +1013,16 @@ end;
 
 function TCacheMemStats.ToString: String;
 begin
-  Result := Format('CacheMemStats Reused:%d (%d bytes) - Deleteds:%d (Saved:%d - reused:%d) - Flush:%d (%d bytes) %d millis - FreeMem:%d (%d bytes) %d millis',
+  Result := Format('CacheMemStats Reused:%d (%d bytes) - Deleteds:%d (Saved:%d - reused:%d) - Flush:%d (%d bytes) %d millis - FreeMem:%d (%d bytes %d blocks) %d millis',
      [Self.reusedCacheMemDataCount,Self.reusedCacheMemDataBytes,
       Self.deletedBlocksCount,Self.deletedBlocksSaved,Self.deletedBlocksReused,
       Self.flushCount,Self.flushSize,Self.flushElapsedMillis,
-      Self.freememCount,Self.freememSize,
+      Self.freememCount,Self.freememSize,Self.freememBlocksCount,
       Self.freememElaspedMillis]);
 end;
 {$ENDIF}
 
 { TCacheMemDataTree }
-
-function _TCacheMemDataTree_Compare(const Left, Right: PCacheMemData): Integer;
-begin
-  Result := Left^.startPos - Right^.startPos;
-end;
 
 function TCacheMemDataTree.AreEquals(const ANode1, ANode2: PCacheMemData): Boolean;
 begin

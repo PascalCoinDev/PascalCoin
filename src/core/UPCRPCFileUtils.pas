@@ -68,7 +68,7 @@ begin
 {$IFDEF USE_ABSTRACTMEM}
   LFileName := AInputParams.AsString('filename', '').Trim;
   if (LFileName='') then begin
-    LFileName := TFileStorage.GetSafeboxCheckpointingFileName(TFileStorage(TNode.Node.Bank.Storage).DatabaseFolder,TNode.Node.Bank.BlocksCount);
+    LFileName := TPCBank.GetSafeboxCheckpointingFileName(TNode.Node.Bank.GetStorageFolder(''),TNode.Node.Bank.BlocksCount);
   end;
   TNode.Node.Bank.SafeBox.SaveCheckpointing(LFileName);
   AJSONResponse.GetAsObject('result').GetAsVariant('filename').Value := LFileName;
@@ -148,7 +148,7 @@ begin
 
   LFileName := AInputParams.AsString('filename', '').Trim;
   if (LFileName='') then begin
-    LFileName := TFileStorage.GetSafeboxCheckpointingFileName(TFileStorage(TNode.Node.Bank.Storage).DatabaseFolder,TNode.Node.Bank.BlocksCount);
+    LFileName := TPCBank.GetSafeboxCheckpointingFileName(TNode.Node.Bank.GetStorageFolder(''),TNode.Node.Bank.BlocksCount);
     LFileName := ChangeFileExt(LFileName,'.safebox');
   end;
   LFs := TFileStream.Create(LFileName,fmCreate);

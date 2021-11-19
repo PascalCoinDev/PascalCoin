@@ -17,8 +17,7 @@ uses
   Classes,
   {$ELSE}
   Interfaces,
-  Forms,
-  GUITestRunner,
+  Forms, GuiTestRunner,
   {$ENDIF }
   {$ELSE}
   Forms,
@@ -39,6 +38,7 @@ uses
   UAbstractMem.Tests in 'src\UAbstractMem.Tests.pas',
   UAbstractBTree.Tests in 'src\UAbstractBTree.Tests.pas',
   UAbstractMemBTree.Tests in 'src\UAbstractMemBTree.Tests.pas',
+  UAbstractMemTList.Tests in 'src\UAbstractMemTList.Tests.pas',
   UFileMem.Tests in 'src\UFileMem.Tests.pas';
 
 {$IF Defined(FPC) and (Defined(CONSOLE_TESTRUNNER))}
@@ -59,6 +59,7 @@ begin
   Application := TFreePascalConsoleRunner.Create(nil);
   {$ENDIF}
 
+  Application.Title:='Test';
   Application.Initialize;
   {$IFDEF FPC}
   {$IF Not Defined(CONSOLE_TESTRUNNER)}

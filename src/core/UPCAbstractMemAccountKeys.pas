@@ -394,7 +394,7 @@ begin
     LZone.Clear;
     if (LNode.accounts_using_this_key_position=0) then begin
       // Create
-      LZone := FAbstractMem.New( CT_AbstractMemTList_HeaderSize );
+      LZone := FAbstractMem.New( TAbstractMemTList.MinAbstractMemTListHeaderSize(FAbstractMem) );
       LNode.accounts_using_this_key_position := LZone.position;
       LNode.WriteToMem( FAbstractMem ); // Save update:
     end else LZone.position := LNode.accounts_using_this_key_position;

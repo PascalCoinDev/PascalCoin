@@ -61,11 +61,12 @@ type
     FFileName: String;
     FIsStableCache: Boolean;
     FIsFlushingCache : Boolean;
+    FIncreaseFileBytes: Int64;
     {$IFDEF ABSTRACTMEM_ENABLE_STATS}
     FStats : TFileMemStats;
     {$ENDIF}
-    function OnCacheNeedDataProc(var ABuffer; AStartPos : Integer; ASize : Integer) : Integer;
-    function OnCacheSaveDataProc(const ABuffer; AStartPos : Integer; ASize : Integer) : Integer;
+    function OnCacheNeedDataProc(var ABuffer; AStartPos : Int64; ASize: Integer): Integer;
+    function OnCacheSaveDataProc(const ABuffer; AStartPos : Int64; ASize: Integer): Integer;
     procedure SetMaxCacheSize(const Value: Integer);
     function GetMaxCacheSize: Integer;
     function GetMaxCacheDataBlocks: Integer;
@@ -73,6 +74,7 @@ type
     procedure CacheIsNOTStable; inline;
     function GetUseCache: Boolean;
     procedure SetUseCache(const Value: Boolean);
+    procedure SetIncreaseFileBytes(const Value: Int64);
   protected
     function AbsoluteWrite(const AAbsolutePosition : Int64; const ABuffer; ASize : Integer) : Integer; override;
     function AbsoluteRead(const AAbsolutePosition : Int64; var ABuffer; ASize : Integer) : Integer; override;
@@ -99,6 +101,7 @@ type
     {$IFDEF ABSTRACTMEM_ENABLE_STATS}
     function GetStatsReport(AClearStats : Boolean) : String; override;
     {$ENDIF}
+    property IncreaseFileBytes : Int64 read FIncreaseFileBytes write SetIncreaseFileBytes;
   End;
 
 implementation
@@ -130,6 +133,7 @@ end;
 
 function TFileMem.AbsoluteRead(const AAbsolutePosition: Int64; var ABuffer; ASize: Integer): Integer;
 begin
+  if (AAbsolutePosition<0) then raise EFileMem.Create(Format('%s.AbsoluteRead out of range %d size %d',[ClassName,AAbsolutePosition,ASize]));
   FFileStream.Position := AAbsolutePosition;
   Result := FFileStream.Read(ABuffer,ASize);
   {$IFDEF ABSTRACTMEM_ENABLE_STATS}
@@ -140,6 +144,7 @@ end;
 
 function TFileMem.AbsoluteWrite(const AAbsolutePosition: Int64; const ABuffer; ASize: Integer): Integer;
 begin
+  if (AAbsolutePosition<0) then raise EFileMem.Create(Format('%s.AbsoluteWrite out of range %d size %d',[ClassName,AAbsolutePosition,ASize]));
   FFileStream.Position := AAbsolutePosition;
   Result := FFileStream.Write(ABuffer,ASize);
   CacheIsNOTStable;
@@ -175,6 +180,7 @@ begin
   FIsStableCache := True;
   FIsFlushingCache := False;
   FFileName := AFileName;
+  FIncreaseFileBytes := 1024*4; // 4K by default
   if AReadOnly then LFileMode := fmOpenRead + fmShareDenyNone
   else begin
     if FileExists(AFileName) then LFileMode := fmOpenReadWrite else LFileMode := fmCreate;
@@ -204,7 +210,7 @@ procedure TFileMem.DoIncreaseSize(var ANextAvailablePos, AMaxAvailablePos: Int64
 var LBuff : TBytes;
 begin
   if (ANeedSize<=0) And (AMaxAvailablePos<=0) then begin
-    FCache.Clear;
+    If Assigned(FCache) then FCache.Clear;
     FFileStream.Seek(0,soFromEnd);
     FFileStream.Size := 0;
     Exit;
@@ -226,6 +232,10 @@ begin
   if (FFileStream.Position<ANextAvailablePos) then raise EFileMem.Create(Format('End file position (%d) is less than next available pos %d',[FFileStream.Position,ANextAvailablePos]));
   // At this time ANextAvailablePos <= FFileStream.Position
   AMaxAvailablePos := ANextAvailablePos + ANeedSize;
+  if FIncreaseFileBytes>0 then begin
+    AMaxAvailablePos := ((((AMaxAvailablePos - 1) DIV FIncreaseFileBytes)+1) * FIncreaseFileBytes);
+  end;
+
   if (FFileStream.Size<AMaxAvailablePos) then begin
     SetLength(LBuff,AMaxAvailablePos - FFileStream.Position);
     FillChar(LBuff[0],Length(LBuff),0);
@@ -275,7 +285,8 @@ end;
 {$IFDEF ABSTRACTMEM_ENABLE_STATS}
 function TFileMem.GetStatsReport(AClearStats : Boolean) : String;
 begin
-  Result := FStats.ToString + #10 + FCache.GetStatsReport(AClearStats);
+  Result := FStats.ToString;
+  if Assigned(FCache) then Result := Result + #10 + FCache.GetStatsReport(AClearStats);
   if AClearStats then FStats.Clear;
 end;
 {$ENDIF}
@@ -307,12 +318,12 @@ begin
   end;
 end;
 
-function TFileMem.OnCacheNeedDataProc(var ABuffer; AStartPos, ASize: Integer): Integer;
+function TFileMem.OnCacheNeedDataProc(var ABuffer; AStartPos : Int64; ASize: Integer): Integer;
 begin
   Result := inherited Read(AStartPos,ABuffer,ASize);
 end;
 
-function TFileMem.OnCacheSaveDataProc(const ABuffer; AStartPos, ASize: Integer): Integer;
+function TFileMem.OnCacheSaveDataProc(const ABuffer; AStartPos : Int64; ASize: Integer): Integer;
 begin
   Result := inherited Write(AStartPos,ABuffer,ASize);
 end;
@@ -331,6 +342,12 @@ begin
   finally
     FLock.Release;
   end;
+end;
+
+procedure TFileMem.SetIncreaseFileBytes(const Value: Int64);
+begin
+  if (Value<0) or (Value>(1024*1024*100)) then FIncreaseFileBytes := 0
+  else FIncreaseFileBytes := Value;
 end;
 
 procedure TFileMem.SetMaxCacheDataBlocks(const Value: Integer);

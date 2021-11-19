@@ -388,12 +388,12 @@ begin
           //
           if (Not FAbstractMem.ReadOnly) then begin
             if (LZoneAccountsOrderedByUpdatedBlock.position=0) then begin
-              LZoneAccountsOrderedByUpdatedBlock := FAbstractMem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize);
+              LZoneAccountsOrderedByUpdatedBlock := FAbstractMem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize(FAbstractMem));
               Move(LZoneAccountsOrderedByUpdatedBlock.position,LHeader[40],4);
               FAbstractMem.Write(LZone.position,LHeader[0],Length(LHeader));
             end;
             if (LZoneAccountsOrderedBySalePrice.position=0) then begin
-              LZoneAccountsOrderedBySalePrice := FAbstractMem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize);
+              LZoneAccountsOrderedBySalePrice := FAbstractMem.New(TAbstractMemBTree.MinAbstractMemInitialPositionSize(FAbstractMem));
               Move(LZoneAccountsOrderedBySalePrice.position,LHeader[44],4);
               FAbstractMem.Write(LZone.position,LHeader[0],Length(LHeader));
             end;
@@ -404,7 +404,7 @@ begin
   end;
   if (Not FAbstractMem.ReadOnly) and (AIsNewStructure) then begin
     // Initialize struct
-    FAbstractMem.ClearContent(FAbstractMem.Is64Bytes);
+    FAbstractMem.ClearContent(FAbstractMem.Is64Bits);
     LZone := FAbstractMem.New( CT_HEADER_MIN_SIZE );  // Header zone
     SetLength(LHeader,100);
     FillChar(LHeader[0],Length(LHeader),0);
@@ -413,16 +413,16 @@ begin
     Move(LBuffer[0],LHeader[0],14);
     w := CT_PCAbstractMem_FileVersion;
     Move(w,LHeader[14],2);
-    LZoneBlocks := FAbstractMem.New( CT_AbstractMemTList_HeaderSize );
-    LZoneAccounts := FAbstractMem.New( CT_AbstractMemTList_HeaderSize );
-    LZoneAccountsNames := FAbstractMem.New( CT_AbstractMemTList_HeaderSize );
+    LZoneBlocks := FAbstractMem.New( TAbstractMemTList.MinAbstractMemTListHeaderSize(FAbstractMem) );
+    LZoneAccounts := FAbstractMem.New( TAbstractMemTList.MinAbstractMemTListHeaderSize(FAbstractMem) );
+    LZoneAccountsNames := FAbstractMem.New( TAbstractMemTList.MinAbstractMemTListHeaderSize(FAbstractMem) );
     LZoneAccountKeys := FAbstractMem.New( 100 );
     FZoneAggregatedHashrate := FAbstractMem.New(100); // Note: Enough big to store a BigNum
     LZoneBuffersBlockHash := LZone.position+36;
     LZoneAccountsOrderedByUpdatedBlock := FAbstractMem.New(
-      TAbstractMemBTree.MinAbstractMemInitialPositionSize);
+      TAbstractMemBTree.MinAbstractMemInitialPositionSize(FAbstractMem));
     LZoneAccountsOrderedBySalePrice := FAbstractMem.New(
-      TAbstractMemBTree.MinAbstractMemInitialPositionSize);
+      TAbstractMemBTree.MinAbstractMemInitialPositionSize(FAbstractMem));
 
     Move(LZoneBlocks.position,       LHeader[16],4);
     Move(LZoneAccounts.position,     LHeader[20],4);
@@ -482,7 +482,7 @@ var
   LIsNewStructure : Boolean;
 begin
   FlushCache;
-  FAbstractMem.ClearContent(FAbstractMem.Is64Bytes);
+  FAbstractMem.ClearContent(FAbstractMem.Is64Bits);
   DoInit(LIsNewStructure);
 end;
 
@@ -1022,6 +1022,7 @@ var
   LPointer: TAbstractMemPosition;
   LIndex: integer;
 begin
+  LPointer := 0;
   AItem.accumulatedWork := 0;
   Move(ABytes[0], AItem.operationBlock.block, 4);
   Move(ABytes[4], LPointer, 4);
