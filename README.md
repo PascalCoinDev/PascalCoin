@@ -1,3 +1,5 @@
+![BUILD](https://github.com/PascalCoin/PascalCoin/actions/workflows/workflow.yml/badge.svg)
+
 ![VERSION](https://img.shields.io/github/v/tag/PascalCoin/PascalCoin?sort=semver&style=for-the-badge)
 ![License](https://img.shields.io/github/license/PascalCoin/PascalCoin.svg?style=for-the-badge)
 ![DISCORD](https://img.shields.io/discord/383064643482025984.svg?label=DISCORD%20COMMUNITY&style=for-the-badge)
