@@ -275,6 +275,7 @@ Type
     class function OperationHashAsHexa(const operationHash : TRawBytes) : String;
     class function GetOpReferenceAccount(const opReference : TOpReference) : Cardinal;
     class function GetOpReferenceN_Operation(const opReference : TOpReference) : Cardinal;
+    class function CreateOperationFromStream(AStream : TStream; var AOperation : TPCOperation) : Boolean;
     function Sha256 : TRawBytes;
     function RipeMD160 : TRawBytes;
     function GetOpReference : TOpReference;
@@ -419,6 +420,7 @@ Type
     Procedure Clear(DeleteOperations : Boolean);
     Function Count: Integer;
     Property OperationBlock: TOperationBlock read FOperationBlock;
+    procedure SetOperationBlock(const ANewValues : TOperationBlock); // For testing purposes only
     Class Function OperationBlockToText(const OperationBlock: TOperationBlock) : String;
     Class Function SaveOperationBlockToStream(Const OperationBlock: TOperationBlock; Stream: TStream) : Boolean;
     class Function LoadOperationBlockFromStream(AStream : TStream; var Asoob : Byte; var AOperationBlock : TOperationBlock) : Boolean;
@@ -493,7 +495,7 @@ Type
     procedure SetReadOnly(const Value: Boolean); virtual;
     Function DoLoadBlockChain(Operations : TPCOperationsComp; Block : Cardinal) : Boolean; virtual; abstract;
     Function DoSaveBlockChain(Operations : TPCOperationsComp) : Boolean; virtual; abstract;
-    Function DoMoveBlockChain(StartBlock : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean; virtual; abstract;
+    Function DoMoveBlockChain(StartBlock : Cardinal; Const DestOrphan : TOrphan) : Boolean; virtual; abstract;
     Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal); virtual; abstract;
     Function DoBlockExists(Block : Cardinal) : Boolean; virtual; abstract;
     function GetFirstBlockNumber: Int64; virtual; abstract;
@@ -502,6 +504,7 @@ Type
     Procedure DoEraseStorage; virtual; abstract;
     Procedure DoSavePendingBufferOperations(OperationsHashTree : TOperationsHashTree); virtual; abstract;
     Procedure DoLoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree); virtual; abstract;
+    Function DoGetBlockInformation(const ABlock : Integer; var AOperationBlock : TOperationBlock; var AOperationsCount : Integer; var AVolume : Int64) : Boolean; virtual;
   public
     Function LoadBlockChainBlock(Operations : TPCOperationsComp; Block : Cardinal) : Boolean;
     Function SaveBlockChainBlock(Operations : TPCOperationsComp) : Boolean;
@@ -518,6 +521,9 @@ Type
     Procedure SavePendingBufferOperations(OperationsHashTree : TOperationsHashTree);
     Procedure LoadPendingBufferOperations(OperationsHashTree : TOperationsHashTree);
     Function BlockExists(Block : Cardinal) : Boolean;
+
+    function Orphan : String;
+    Function GetBlockInformation(const ABlock : Integer; var AOperationBlock : TOperationBlock; var AOperationsCount : Integer; var AVolume : Int64) : Boolean;
   End;
 
   TStorageClass = Class of TStorage;
@@ -1724,7 +1730,7 @@ begin
       FOperationsHashTree.Max0feeOperationsBySigner := -1;
       FOperationBlock.previous_proof_of_work := Nil;
     end;
-    FOperationBlock.operations_hash := FOperationsHashTree.HashTree;
+    FOperationBlock.operations_hash := Copy(FOperationsHashTree.HashTree);
     FOperationBlock.fee := 0;
     FOperationBlock.nonce := 0;
     FOperationBlock.proof_of_work:=Nil;
@@ -2314,6 +2320,11 @@ end;
 procedure TPCOperationsComp.SetnOnce(const value: Cardinal);
 begin
   Update_And_RecalcPOW(value,FOperationBlock.timestamp,FOperationBlock.block_payload);
+end;
+
+procedure TPCOperationsComp.SetOperationBlock(const ANewValues: TOperationBlock);
+begin
+  FOperationBlock := ANewValues;
 end;
 
 procedure TPCOperationsComp.Settimestamp(const value: Cardinal);
@@ -3250,6 +3261,28 @@ begin
   DoDeleteBlockChainBlocks(StartingDeleteBlock);
 end;
 
+function TStorage.DoGetBlockInformation(const ABlock: Integer;
+  var AOperationBlock: TOperationBlock; var AOperationsCount: Integer;
+  var AVolume: Int64): Boolean;
+var LPCOperations : TPCOperationsComp;
+begin
+  AOperationBlock:=CT_OperationBlock_NUL;
+  AOperationsCount := 0;
+  AVolume := 0;
+  //
+  LPCOperations := TPCOperationsComp.Create(Bank);
+  Try
+    if Not LoadBlockChainBlock(LPCOperations,ABlock) then begin
+      Exit(False);
+    end;
+    AOperationBlock := LPCOperations.OperationBlock.GetCopy;
+    AOperationsCount := LPCOperations.Count;
+    AVolume := LPCOperations.OperationsHashTree.TotalAmount;
+  Finally
+    LPCOperations.Free;
+  End;
+end;
+
 function TStorage.Initialize: Boolean;
 begin
   Result := DoInitialize;
@@ -3259,6 +3292,13 @@ procedure TStorage.EraseStorage;
 begin
   TLog.NewLog(ltInfo,ClassName,'Executing EraseStorage');
   DoEraseStorage;
+end;
+
+function TStorage.GetBlockInformation(const ABlock: Integer;
+  var AOperationBlock: TOperationBlock; var AOperationsCount: Integer;
+  var AVolume: Int64): Boolean;
+begin
+  Result := DoGetBlockInformation(ABlock,AOperationBlock,AOperationsCount,AVolume);
 end;
 
 procedure TStorage.SavePendingBufferOperations(OperationsHashTree : TOperationsHashTree);
@@ -3278,11 +3318,82 @@ begin
 end;
 
 function TStorage.MoveBlockChainBlocks(StartBlock: Cardinal; const DestOrphan: TOrphan; DestStorage : TStorage): Boolean;
+  Procedure DoCopySafebox;
+  var sr: TSearchRec;
+    FileAttrs: Integer;
+    folder : AnsiString;
+    sourcefn,destfn : AnsiString;
+  begin
+    FileAttrs := faArchive;
+    folder := Bank.GetStorageFolder(Bank.Orphan);
+    if SysUtils.FindFirst(Bank.GetStorageFolder(Bank.Orphan)+PathDelim+'checkpoint*'+CT_Safebox_Extension, FileAttrs, sr) = 0 then begin
+      repeat
+        if (sr.Attr and FileAttrs) = FileAttrs then begin
+          sourcefn := Bank.GetStorageFolder(Bank.Orphan)+PathDelim+sr.Name;
+          destfn := Bank.GetStorageFolder('')+PathDelim+sr.Name;
+          TLog.NewLog(ltInfo,ClassName,'Copying safebox file '+sourcefn+' to '+destfn);
+          Try
+            {$IFDEF FPC}
+            DoCopyFile(sourcefn,destfn);
+            {$ELSE}
+            CopyFile(PWideChar(sourcefn),PWideChar(destfn),False);
+            {$ENDIF}
+          Except
+            On E:Exception do begin
+              TLog.NewLog(ltError,Classname,'Error copying file: ('+E.ClassName+') '+E.Message);
+            end;
+          End;
+        end;
+      until FindNext(sr) <> 0;
+      FindClose(sr);
+    end;
+  End;
+Var
+  LOperationsComp : TPCOperationsComp;
+  LCurrentBlock : Integer;
 begin
   if Assigned(DestStorage) then begin
     if DestStorage.ReadOnly then raise Exception.Create('Cannot move blocks because is ReadOnly');
-  end else if ReadOnly then raise Exception.Create('Cannot move blocks from myself because is ReadOnly');
-  Result := DoMoveBlockChain(StartBlock,DestOrphan,DestStorage);
+    // Move process:
+    try
+      try
+        DestStorage.FIsMovingBlockchain:=True;
+        DestStorage.Bank.Orphan := DestOrphan;
+        LOperationsComp := TPCOperationsComp.Create(Nil);
+        try
+          LCurrentBlock := StartBlock;
+          while LoadBlockChainBlock(LOperationsComp,LCurrentBlock) do begin
+            inc(LCurrentBlock);
+            TLog.NewLog(ltDebug,Classname,'Moving block from "'+Orphan+'" to "'+DestOrphan+'" '+TPCOperationsComp.OperationBlockToText(LOperationsComp.OperationBlock));
+            DestStorage.SaveBlockChainBlock(LOperationsComp);
+          end;
+          TLog.NewLog(ltdebug,Classname,'Moved blockchain from "'+Orphan+'" to "'+DestOrphan+'" from block '+inttostr(StartBlock)+' to '+inttostr(LCurrentBlock-1));
+        finally
+          LOperationsComp.Free;
+        end;
+      finally
+        DestStorage.FIsMovingBlockchain:=False;
+      end;
+    Except
+      On E:Exception do begin
+        TLog.NewLog(lterror,ClassName,'Error at DoMoveBlockChain: ('+E.ClassName+') '+E.Message);
+        Raise;
+      end;
+    End;
+  end else begin
+    if ReadOnly then raise Exception.Create('Cannot move blocks from myself because is ReadOnly');
+    Result := DoMoveBlockChain(StartBlock,DestOrphan);
+  end;
+  // If DestOrphan is empty, then copy possible updated safebox (because, perhaps current saved safebox is from invalid blockchain)
+  if (DestOrphan='') And (Orphan<>'') then begin
+    DoCopySafebox;
+  end;
+end;
+
+function TStorage.Orphan: String;
+begin
+  if Assigned(Bank) then Result := Bank.Orphan
+  else Result := '';
 end;
 
 function TStorage.SaveBlockChainBlock(Operations: TPCOperationsComp): Boolean;
@@ -3317,6 +3428,29 @@ begin
   FBufferedRipeMD160:=Nil;
   FUsedPubkeyForSignature := CT_TECDSA_Public_Nul;
   InitializeData(AProtocolVersion);
+end;
+
+class function TPCOperation.CreateOperationFromStream(AStream: TStream;
+  var AOperation: TPCOperation): Boolean;
+var LOpTypeWord, LOpProtocolVersion : Word;
+  LOpClass : TPCOperationClass;
+begin
+  AOperation := Nil;
+  AStream.Read(LOpTypeWord, 2);
+  AStream.Read(LOpProtocolVersion, 2);
+
+  LOpClass := TPCOperationsComp.GetOperationClassByOpType(LOpTypeWord);
+  if Not Assigned(LOpClass) then Exit(False);
+  AOperation := LOpClass.Create(LOpProtocolVersion);
+  Try
+    If not AOperation.LoadFromStorage(AStream,CT_BUILD_PROTOCOL,Nil) then raise Exception.Create(Format('ERR 20211119-01 Cannot read %s from stream optype %d protocol %d',[ClassName,LOpTypeWord,LOpProtocolVersion]));
+    Result := True;
+  Except
+    On E:Exception do begin
+      FreeAndNil(AOperation);
+      Result := False;
+    end;
+  end;
 end;
 
 destructor TPCOperation.Destroy;
@@ -3931,7 +4065,7 @@ begin
   If Length(FBufferedRipeMD160)=0 then begin
     FBufferedRipeMD160 := TCrypto.DoRipeMD160AsRaw(GetBufferForOpHash(true));
   end;
-  Result := FBufferedRipeMD160;
+  Result := Copy(FBufferedRipeMD160); // Fixed bug. TBytes must be copied using Copy instead of direct assignement.
 end;
 
 function TPCOperation.IsSignerAccount(account: Cardinal): Boolean;

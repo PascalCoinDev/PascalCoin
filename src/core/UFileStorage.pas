@@ -60,7 +60,7 @@ Type
     procedure SetReadOnly(const Value: Boolean); override;
     Function DoLoadBlockChain(Operations : TPCOperationsComp; Block : Cardinal) : Boolean; override;
     Function DoSaveBlockChain(Operations : TPCOperationsComp) : Boolean; override;
-    Function DoMoveBlockChain(Start_Block : Cardinal; Const DestOrphan : TOrphan; DestStorage : TStorage) : Boolean; override;
+    Function DoMoveBlockChain(Start_Block : Cardinal; Const DestOrphan : TOrphan) : Boolean; override;
     Procedure DoDeleteBlockChainBlocks(StartingDeleteBlock : Cardinal); override;
     Function DoBlockExists(Block : Cardinal) : Boolean; override;
     Function LockBlockChainStream : TFileStream;
@@ -342,50 +342,19 @@ Begin
   end;
 end;
 
-function TFileStorage.DoMoveBlockChain(Start_Block: Cardinal; const DestOrphan: TOrphan; DestStorage : TStorage): Boolean;
-
-  Procedure DoCopySafebox;
-  var sr: TSearchRec;
-    FileAttrs: Integer;
-    folder : AnsiString;
-    sourcefn,destfn : AnsiString;
-  begin
-    FileAttrs := faArchive;
-    folder := Bank.GetStorageFolder(Bank.Orphan);
-    if SysUtils.FindFirst(Bank.GetStorageFolder(Bank.Orphan)+PathDelim+'checkpoint*'+CT_Safebox_Extension, FileAttrs, sr) = 0 then begin
-      repeat
-        if (sr.Attr and FileAttrs) = FileAttrs then begin
-          sourcefn := Bank.GetStorageFolder(Bank.Orphan)+PathDelim+sr.Name;
-          destfn := Bank.GetStorageFolder('')+PathDelim+sr.Name;
-          TLog.NewLog(ltInfo,ClassName,'Copying safebox file '+sourcefn+' to '+destfn);
-          Try
-            DoCopyFile(sourcefn,destfn);
-          Except
-            On E:Exception do begin
-              TLog.NewLog(ltError,Classname,'Error copying file: ('+E.ClassName+') '+E.Message);
-            end;
-          End;
-        end;
-      until FindNext(sr) <> 0;
-      FindClose(sr);
-    end;
-  End;
-
+function TFileStorage.DoMoveBlockChain(Start_Block: Cardinal; const DestOrphan: TOrphan): Boolean;
 Var db : TFileStorage;
   i : Integer;
   ops : TPCOperationsComp;
   b : Cardinal;
 begin
   Try
-    if (Assigned(DestStorage)) And (DestStorage is TFileStorage) then db := TFileStorage(DestStorage)
-    else db := Nil;
+    db := TFileStorage.Create(Nil);
     try
-      if Not assigned(db) then begin
-        db := TFileStorage.Create(Nil);
-        db.Bank := Self.Bank;
-        db.FStreamFirstBlockNumber := Start_Block;
-      end;
-      if db is TFileStorage then TFileStorage(db).LockBlockChainStream;
+      db.Bank := Self.Bank;
+      db.FStreamFirstBlockNumber := Start_Block;
+      db.FBlockChainFileName := TPCBank.GetStorageFolder(DestOrphan)+PathDelim+'BlockChainStream.blocks';
+      db.LockBlockChainStream;
       try
         db.FIsMovingBlockchain:=True;
         ops := TPCOperationsComp.Create(Nil);
@@ -400,16 +369,12 @@ begin
         finally
           ops.Free;
         end;
-        // If DestOrphan is empty, then copy possible updated safebox (because, perhaps current saved safebox is from invalid blockchain)
-        if (DestOrphan='') And (Bank.Orphan<>'') then begin
-          DoCopySafebox;
-        end;
       finally
         db.FIsMovingBlockchain:=False;
-        if db is TFileStorage then TFileStorage(db).UnlockBlockChainStream;
+        db.UnlockBlockChainStream;
       end;
     Finally
-      If Not Assigned(DestStorage) then db.Free;
+      db.Free;
     End;
   Except
     On E:Exception do begin
@@ -680,7 +645,7 @@ begin
       if FBlockChainFileName<>'' then begin
         fn := FBlockChainFileName
       end else begin
-        fn := Bank.GetStorageFolder(Bank.Orphan)+PathDelim+'BlockChainStream.blocks';
+        fn := TPCBank.GetStorageFolder(Orphan)+PathDelim+'BlockChainStream.blocks';
       end;
       exists := FileExists(fn);
       if ReadOnly then begin

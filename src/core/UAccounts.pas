@@ -465,9 +465,12 @@ Type
   public
     class Function WriteAnsiString(Stream: TStream; const value: TRawBytes): Integer; overload;
     class Function WriteAnsiString(Stream: TStream; const value: T32Bytes): Integer; overload;
+    class Function WriteString(Stream: TStream; const value: String): Integer;
+    class Function WriteTBytes(Stream: TStream; const value: TBytes): Integer;
     class Function ReadAnsiString(Stream: TStream; var value: TRawBytes; ACheckLength : Integer = 0) : Integer; overload;
     class Function ReadAnsiString(Stream: TStream; var value: T32Bytes): Integer; overload;
     class Function ReadString(Stream: TStream; var value: String): Integer;
+    class Function ReadTBytes(Stream: TStream; var ABytes : TBytes; ACheckLength : Integer = 0): Integer;
     class Function WriteAccountKey(Stream: TStream; const value: TAccountKey): Integer;
     class Function ReadAccountKey(Stream: TStream; var value : TAccountKey): Integer;
     class Function SaveStreamToRaw(Stream: TStream) : TRawBytes;
@@ -1158,6 +1161,30 @@ begin
   value := raw.ToString;
 end;
 
+class function TStreamOp.ReadTBytes(Stream: TStream;
+  var ABytes: TBytes; ACheckLength : Integer = 0): Integer;
+var LSize : Integer;
+begin
+  if Stream.Size - Stream.Position < 4 then begin
+    SetLength(ABytes,0);
+    Result := -1;
+    Exit;
+  end;
+  LSize := 0;
+  Stream.Read(LSize, 4);
+  if (Stream.Size - Stream.Position < LSize) OR ((ACheckLength > 0) AND (LSize <> ACheckLength)) then begin
+    Stream.Position := Stream.Position - 4; // Go back!
+    SetLength(ABytes,0);
+    Result := -1;
+    Exit;
+  end;
+  SetLength(ABytes, LSize);
+  if (LSize>0) then begin
+    Stream.ReadBuffer(ABytes[Low(ABytes)], LSize);
+  end;
+  Result := LSize+4;
+end;
+
 class function TStreamOp.WriteAccountKey(Stream: TStream; const value: TAccountKey): Integer;
 begin
   Result := stream.Write(value.EC_OpenSSL_NID, SizeOf(value.EC_OpenSSL_NID));
@@ -1197,6 +1224,29 @@ begin
     AStream.Write(AGUID.D4[i],1);
   end;
   Result := 16; // GUID is 16 bytes
+end;
+
+class function TStreamOp.WriteString(Stream: TStream;
+  const value: String): Integer;
+var LRaw : TRawBytes;
+begin
+  LRaw.FromString(value);
+  Result := WriteAnsiString(Stream,LRaw);
+end;
+
+class function TStreamOp.WriteTBytes(Stream: TStream;
+  const value: TBytes): Integer;
+Var LSize : Integer;
+begin
+  if (Length(value)>MAXINT) then begin
+    TLog.NewLog(lterror,Classname,'Invalid stream size! '+Inttostr(Length(value))+' '+MAXINT.ToString);
+    raise Exception.Create('Invalid stream size! '+Inttostr(Length(value))+' '+MAXINT.ToString);
+  end;
+  LSize := Length(value);
+  Stream.Write(LSize, 4);
+  if (LSize > 0) then
+    Stream.WriteBuffer(value[Low(value)], Length(value));
+  Result := LSize+4;
 end;
 
 { TAccountComp }
@@ -2219,11 +2269,11 @@ begin
     iBlock:=(Integer(account_number)  DIV CT_AccountsPerBlock);
     If (Assigned(FPreviousSafeBox)) then begin
       SearchBlockWhenOnSeparatedChain(iBlock,blockAccount);
-      Result := blockAccount.accounts[account_number MOD CT_AccountsPerBlock];
+      Result := blockAccount.accounts[account_number MOD CT_AccountsPerBlock].GetCopy;
     end else begin
       {$IFDEF USE_ABSTRACTMEM}
       if (iBlock<0) Or (iBlock>=FPCAbstractMem.AccountsCount) then raise Exception.Create('Invalid account: '+IntToStr(account_number));
-      Result := FPCAbstractMem.GetAccount(account_number);
+      Result := FPCAbstractMem.GetAccount(account_number).GetCopy;
       {$ELSE}
       if (iBlock<0) Or (iBlock>=FBlockAccountsList.Count) then raise Exception.Create('Invalid account: '+IntToStr(account_number));
       ToTAccount(PBlockAccount(FBlockAccountsList.Items[iBlock])^.accounts[account_number MOD CT_AccountsPerBlock],account_number,Result);
@@ -4592,11 +4642,11 @@ begin
     If (Assigned(FPreviousSafeBox)) then begin
       if (ABlockNumber<0) Or (ABlockNumber>=BlocksCount) then raise Exception.Create('Invalid block number for GetBlockInfo chain: '+inttostr(ABlockNumber)+' max: '+IntToStr(BlocksCount-1));
       SearchBlockWhenOnSeparatedChain(ABlockNumber,LBlock);
-      Result := LBlock.blockchainInfo;
+      Result := LBlock.blockchainInfo.GetCopy;
     end else begin
       {$IFDEF USE_ABSTRACTMEM}
       if (ABlockNumber<0) Or (ABlockNumber>=FPCAbstractMem.BlocksCount) then raise Exception.Create('Invalid GetBlockInfo block number: '+inttostr(ABlockNumber)+' max: '+IntToStr(FPCAbstractMem.BlocksCount-1));
-      Result := FPCAbstractMem.GetBlockInfo(ABlockNumber).operationBlock;
+      Result := FPCAbstractMem.GetBlockInfo(ABlockNumber).operationBlock.GetCopy;
       {$ELSE}
       if (ABlockNumber<0) Or (ABlockNumber>=FBlockAccountsList.Count) then raise Exception.Create('Invalid GetBlockInfo block number: '+inttostr(ABlockNumber)+' max: '+IntToStr(FBlockAccountsList.Count-1));
       ToTBlockAccount(PBlockAccount(FBlockAccountsList.Items[ABlockNumber])^,ABlockNumber,LBlock);
@@ -4610,7 +4660,7 @@ end;
 
 function TPCSafeBox.GetAccount(AAccountNumber: Integer; var AAccount: TAccount): Boolean;
 begin
-  AAccount := Account(AAccountNumber);
+  AAccount := Account(AAccountNumber).GetCopy;
   Result := True;
 end;
 

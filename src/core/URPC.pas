@@ -186,11 +186,11 @@ var _RPCServer : TRPCServer = Nil;
 { TPascalCoinJSONComp }
 
 class procedure TPascalCoinJSONComp.FillBlockObject(nBlock : Cardinal; ANode : TNode; jsonObject: TPCJSONObject);
-var pcops : TPCOperationsComp;
-  ob : TOperationBlock;
+var
+  ob, LOpBlock : TOperationBlock;
+  LAmount : Int64;
+  LOperationsCount : Integer;
 begin
-  pcops := TPCOperationsComp.Create(Nil);
-  try
     If ANode.Bank.BlocksCount<=nBlock then begin
       Exit;
     end;
@@ -213,12 +213,10 @@ begin
     jsonObject.GetAsVariant('pow').Value:=TCrypto.ToHexaString(ob.proof_of_work);
     jsonObject.GetAsVariant('hashratekhs').Value := ANode.Bank.SafeBox.CalcBlockHashRateInKhs(ob.Block,50);
     jsonObject.GetAsVariant('maturation').Value := ANode.Bank.BlocksCount - ob.block - 1;
-    If ANode.Bank.LoadOperations(pcops,nBlock) then begin
-      jsonObject.GetAsVariant('operations').Value:=pcops.Count;
+    if (ANode.Bank.Storage.GetBlockInformation(ob.block,LOpBlock,LOperationsCount,LAmount)) then begin
+      jsonObject.GetAsVariant('operations').Value:=LOperationsCount;
+      jsonObject.GetAsVariant('amount').Value:=LAmount;
     end;
-  finally
-    pcops.Free;
-  end;
 end;
 
 class function TPascalCoinJSONComp.FillEPasaOrDecrypt(const AAccount: Int64;
