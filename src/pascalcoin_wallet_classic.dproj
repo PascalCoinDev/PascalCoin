@@ -57,6 +57,7 @@
         <Cfg_2>true</Cfg_2>
         <Base>true</Base>
     </PropertyGroup>
+    <Import Project="delphi-compiler-option-sets\ShowNeverUsedVariablesOnly.optset" Condition="'$(Base)'!='' And Exists('delphi-compiler-option-sets\ShowNeverUsedVariablesOnly.optset')"/>
     <PropertyGroup Condition="'$(Base)'!=''">
         <DCC_E>false</DCC_E>
         <DCC_F>false</DCC_F>
@@ -66,10 +67,9 @@
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <SanitizedProjectName>pascalcoin_wallet_classic</SanitizedProjectName>
         <DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;Posix;Winapi;$(DCC_Namespace)</DCC_Namespace>
-        <VerInfo_Locale>1033</VerInfo_Locale>
-        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=;CFBundleName=</VerInfo_Keys>
         <DCC_UnitSearchPath>.\libraries\gnugettext;.\libraries\abstractmem;.\libraries\hashlib4pascal;.\libraries\sphere10;.\libraries\pascalcoin;.\libraries\synapse;.\core;.\gui-classic;.\libraries\cryptolib4pascal;.\libraries\simplebaselib4pascal;.\libraries\regex;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_DcuOutput>.\lib\$(Platform)\$(Config)</DCC_DcuOutput>
+        <CfgDependentOn>delphi-compiler-option-sets\ShowNeverUsedVariablesOnly.optset</CfgDependentOn>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <DCC_Namespace>System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
@@ -204,7 +204,6 @@
         <DCCReference Include="core\UOpenSSL.pas"/>
         <DCCReference Include="core\UOpTransaction.pas"/>
         <DCCReference Include="core\UPCAbstractMem.pas"/>
-        <DCCReference Include="core\UPCAbstractMemAccountKeys.pas"/>
         <DCCReference Include="core\UPCAbstractMemAccounts.pas"/>
         <DCCReference Include="core\UPCAccountsOrdenations.pas"/>
         <DCCReference Include="core\UPCCryptoLib4Pascal.pas"/>
@@ -241,6 +240,7 @@
         </BuildConfiguration>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
+            <DependentOn>delphi-compiler-option-sets\ShowNeverUsedVariablesOnly.optset</DependentOn>
         </BuildConfiguration>
         <BuildConfiguration Include="Release">
             <Key>Cfg_1</Key>
@@ -256,8 +256,8 @@
                     <Source Name="MainSource">pascalcoin_wallet_classic.dpr</Source>
                 </Source>
                 <Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k250.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp250.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k260.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp260.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </Delphi.Personality>
             <Platforms>
