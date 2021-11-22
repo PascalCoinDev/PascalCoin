@@ -113,8 +113,9 @@ type
     constructor Create(AAbstractMem : TAbstractMem; const AInitialZone: TAMZone; AAllowDuplicates : Boolean; AOrder : Integer; const AOnCompareAbstractMemDataMethod: TComparison<TBTreeData>);
     procedure Add(); reintroduce;
     procedure Delete(); reintroduce;
-    function FindData(const AData: TBTreeData; out APosition : TAbstractMemPosition; out AFoundData : TBTreeData) : Boolean; overload;
-    function FindData(const AData: TBTreeData; out APosition : TAbstractMemPosition) : Boolean; overload;
+    function FindData(const AData: TBTreeData; out APosition : TAbstractMemPosition; var AFoundData : TBTreeData) : Boolean; overload;
+    function FindData(const AData: TBTreeData; var AFoundData : TBTreeData) : Boolean; overload;
+    function FindDataPos(const AData: TBTreeData; out APosition : TAbstractMemPosition) : Boolean;
     function FindDataPrecessor(const AData : TBTreeData; var APrecessor : TBTreeData) : Boolean;
     function FindDataSuccessor(const AData : TBTreeData; var ASuccessor : TBTreeData) : Boolean;
     function FindDataLowest(out ALowest : TBTreeData) : Boolean;
@@ -559,9 +560,9 @@ begin
 end;
 
 function TAbstractMemBTreeDataAbstract<TBTreeData>.FindData(const AData: TBTreeData;
-  out APosition: TAbstractMemPosition; out AFoundData : TBTreeData): Boolean;
+  out APosition: TAbstractMemPosition; var AFoundData : TBTreeData): Boolean;
 begin
-  if FindData(AData,APosition) then begin
+  if FindDataPos(AData,APosition) then begin
     Result := True;
     AFoundData := LoadData(APosition);
   end else begin
@@ -572,6 +573,13 @@ begin
 end;
 
 function TAbstractMemBTreeDataAbstract<TBTreeData>.FindData(
+  const AData: TBTreeData; var AFoundData: TBTreeData): Boolean;
+var LPos : TAbstractMemPosition;
+begin
+  Result := FindData(AData,LPos,AFoundData);
+end;
+
+function TAbstractMemBTreeDataAbstract<TBTreeData>.FindDataPos(
   const AData: TBTreeData; out APosition: TAbstractMemPosition): Boolean;
 begin
   FAbstractBTreeLock.Acquire;
@@ -657,7 +665,7 @@ begin
   while (Result) and (i<FIndexes.Count) do begin
     LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
     if (Not LBTreeIndex.AllowDuplicates) then begin
-      Result :=  Not (LBTreeIndex.FindData(AData,LIndexPosition));
+      Result :=  Not (LBTreeIndex.FindDataPos(AData,LIndexPosition));
     end;
     inc(i);
   end;
@@ -696,12 +704,12 @@ begin
   while (Result) and (i<FIndexes.Count) do begin
     LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
     if (Not LBTreeIndex.AllowDuplicates) then begin
-      Result :=  Not (LBTreeIndex.FindData(AData,LIndexPosition));
+      Result :=  Not (LBTreeIndex.FindDataPos(AData,LIndexPosition));
     end;
     inc(i);
   end;
   if (Result) And (Not AllowDuplicates) then begin
-    Result := Not FindData(AData,LIndexPosition);
+    Result := Not FindDataPos(AData,LIndexPosition);
   end;
 end;
 
@@ -734,11 +742,11 @@ var LAbstractMemPos, LindexPosition : TAbstractMemPosition;
   i : Integer;
   LBTreeIndex : TAbstractMemBTreeDataIndex<TBTreeData>;
 begin
-  if FindData(AData,LAbstractMemPos) then begin
+  if FindDataPos(AData,LAbstractMemPos) then begin
     // Delete from indexes
     for i := 0 to FIndexes.Count-1 do begin
       LBTreeIndex := TAbstractMemBTreeDataIndex<TBTreeData>(FIndexes.Items[i]);
-      if Not LBTreeIndex.FindData(AData,LindexPosition) then raise EAbstractMemBTree.Create(Format('Fatal error Data not found in index %d/%d to Delete from pos %s',[i+1,Findexes.Count,LAbstractMemPos.ToHexString]));
+      if Not LBTreeIndex.FindDataPos(AData,LindexPosition) then raise EAbstractMemBTree.Create(Format('Fatal error Data not found in index %d/%d to Delete from pos %s',[i+1,Findexes.Count,LAbstractMemPos.ToHexString]));
       if not LBTreeIndex.DeleteInherited(LindexPosition) then raise EAbstractMemBTree.Create(Format('Fatal error Data not deleted in index %d/%d from pos %s at pos %s',[i+1,Findexes.Count,LAbstractMemPos.ToHexString,LindexPosition.ToHexString]));
       FAbstractMem.Dispose(LindexPosition);
     end;

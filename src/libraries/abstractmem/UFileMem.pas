@@ -260,8 +260,8 @@ begin
       SaveHeader;
     finally
       FIsFlushingCache := False;
+      FLock.Release;
     end;
-    FLock.Release;
   end;
 end;
 

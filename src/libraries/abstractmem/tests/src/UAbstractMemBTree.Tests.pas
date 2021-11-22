@@ -403,6 +403,7 @@ var
   intValue, nRounds, nAdds, nDeletes, i, intAux : Integer;
   LCurr, LnextCurr : String;
   begin
+    nRounds := 0; nAdds := 0; nDeletes := 0;
     repeat
       inc(nRounds);
       intValue := Random(AOrder * 100);
@@ -420,7 +421,7 @@ var
     // Delete mode
     while Lbt.Count>0 do begin
       if not Lbt.FindDataLowest(LCurr) then raise Exception.Create('Cannot fint lowest but Count>0');
-      if not Lbt.FindData(LCurr,LzoneIndex.position) then raise Exception.Create(Format('"%s" Not Found %d',[LCurr,Lbt.Count]));
+      if not Lbt.FindDataPos(LCurr,LzoneIndex.position) then raise Exception.Create(Format('"%s" Not Found %d',[LCurr,Lbt.Count]));
       while (Random(50)>0) do begin
         if Random(3)=0 then begin
           if not Lbt.FindDataPrecessor(Lcurr,LnextCurr) then begin
