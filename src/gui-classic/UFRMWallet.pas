@@ -452,7 +452,7 @@ begin
     WalletKeys.SafeBox := FNode.Bank.SafeBox;
     // Check Database
     FNode.Bank.StorageClass := TFileStorage;
-    TFileStorage(FNode.Bank.Storage).DatabaseFolder := TNode.GetPascalCoinDataFolder+PathDelim+'Data';
+//    TFileStorage(FNode.Bank.Storage).DatabaseFolder := TNode.GetPascalCoinDataFolder+PathDelim+'Data'; // Skybuck: error
     TFileStorage(FNode.Bank.Storage).Initialize;
     // Init Grid
     FSelectedAccountsGrid.Node := FNode;
