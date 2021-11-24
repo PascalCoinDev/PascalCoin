@@ -4257,7 +4257,10 @@ var
   TheMax: PtrInt; // PtrInt, gets diff of 2 pointers
   InvChar: REChar;
   CurStart, CurEnd: PRegExprChar;
-  ArrayIndex, i: integer;
+  ArrayIndex : integer;
+  {$IFDEF UnicodeEx}
+   i: integer;
+  {$ENDIF}
 begin
   Result := 0;
   scan := regInput; // points into InputString
@@ -5933,7 +5936,10 @@ var
   opnd: PRegExprChar;
   Oper: TREOp;
   ch: REChar;
-  min_cnt, i: integer;
+  min_cnt : integer;
+  {$IFDEF UseLineSep}
+  i: integer;
+  {$ENDIF}
   TempSet: TRegExprCharset;
 begin
   TempSet := [];
