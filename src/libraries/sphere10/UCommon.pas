@@ -574,9 +574,10 @@ begin
     Exit(true);
 
   SetLength(ABytes, LHexLength DIV 2);
-  P := @ABytes[Low(ABytes)];
+
   LHexString := LowerCase(AHexString);
   {$IFDEF FPC}
+  P := @ABytes[Low(ABytes)];
   LHexIndex := HexToBin(PAnsiChar(@LHexString[LHexStart]), P, System.Length(ABytes));
   {$ELSE}
   LHexIndex := HexToBin(@LHexString[LHexStart],0,ABytes,0,Length(ABytes));
