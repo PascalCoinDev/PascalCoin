@@ -12,8 +12,6 @@ object FrameBlockChainExplorer: TFrameBlockChainExplorer
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitLeft = -537
-    ExplicitWidth = 857
     object Label9: TLabel
       Left = 11
       Top = 10
@@ -85,9 +83,5 @@ object FrameBlockChainExplorer: TFrameBlockChainExplorer
     Height = 448
     Align = alClient
     TabOrder = 1
-    ExplicitLeft = -537
-    ExplicitTop = -157
-    ExplicitWidth = 857
-    ExplicitHeight = 397
   end
 end

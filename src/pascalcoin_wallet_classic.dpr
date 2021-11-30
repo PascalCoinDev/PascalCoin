@@ -95,7 +95,8 @@ uses
   UFrameOperationsExplorer in 'gui-classic\Frames\UFrameOperationsExplorer.pas' {FrameOperationsExplorer: TFrame},
   UFrameLogs in 'gui-classic\Frames\UFrameLogs.pas' {FrameLogs: TFrame},
   UFrameNodeStats in 'gui-classic\Frames\UFrameNodeStats.pas' {FrameNodeStats: TFrame},
-  UFrameMessages in 'gui-classic\Frames\UFrameMessages.pas' {FrameMessages: TFrame};
+  UFrameMessages in 'gui-classic\Frames\UFrameMessages.pas' {FrameMessages: TFrame},
+  UnitReIntegrate in 'gui-classic\UnitReIntegrate.pas';
 
 {$R *.res}
 

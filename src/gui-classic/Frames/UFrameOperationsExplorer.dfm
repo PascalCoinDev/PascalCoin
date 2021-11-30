@@ -12,8 +12,6 @@ object FrameOperationsExplorer: TFrameOperationsExplorer
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitLeft = -537
-    ExplicitWidth = 857
     object Label2: TLabel
       Left = 11
       Top = 10
@@ -45,9 +43,5 @@ object FrameOperationsExplorer: TFrameOperationsExplorer
     Height = 400
     Align = alClient
     TabOrder = 1
-    ExplicitLeft = -537
-    ExplicitTop = -157
-    ExplicitWidth = 857
-    ExplicitHeight = 397
   end
 end

@@ -68,6 +68,7 @@ object FrameMessages: TFrameMessages
     Height = 25
     Caption = 'Send a Message'
     TabOrder = 1
+    OnClick = bbSendAMessageClick
   end
   object memoMessages: TMemo
     Left = -4
