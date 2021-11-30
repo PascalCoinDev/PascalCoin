@@ -58,8 +58,7 @@ uses
   UOpTransaction in 'core\UOpTransaction.pas',
   {$IFDEF USE_ABSTRACTMEM}
   UPCAbstractMem in 'core\UPCAbstractMem.pas',
-  UPCAbstractMemAccountKeys in 'core\UPCAbstractMemAccountKeys.pas',
-  {$ENDIF}
+  {$ENDIF }
   UPCAbstractMemAccounts in 'core\UPCAbstractMemAccounts.pas',
   UPCAccountsOrdenations in 'core\UPCAccountsOrdenations.pas',
   UPCCryptoLib4Pascal in 'core\UPCCryptoLib4Pascal.pas',
@@ -89,7 +88,14 @@ uses
   UThread in 'core\UThread.pas',
   UTime in 'core\UTime.pas',
   UTxMultiOperation in 'core\UTxMultiOperation.pas',
-  UWallet in 'core\UWallet.pas';
+  UWallet in 'core\UWallet.pas',
+  UFrameAccountExplorer in 'gui-classic\Frames\UFrameAccountExplorer.pas' {FrameAccountExplorer: TFrame},
+  UFramePendingOperations in 'gui-classic\Frames\UFramePendingOperations.pas' {FramePendingOperations: TFrame},
+  UFrameBlockExplorer in 'gui-classic\Frames\UFrameBlockExplorer.pas' {FrameBlockChainExplorer: TFrame},
+  UFrameOperationsExplorer in 'gui-classic\Frames\UFrameOperationsExplorer.pas' {FrameOperationsExplorer: TFrame},
+  UFrameLogs in 'gui-classic\Frames\UFrameLogs.pas' {FrameLogs: TFrame},
+  UFrameNodeStats in 'gui-classic\Frames\UFrameNodeStats.pas' {FrameNodeStats: TFrame},
+  UFrameMessages in 'gui-classic\Frames\UFrameMessages.pas' {FrameMessages: TFrame};
 
 {$R *.res}
 
