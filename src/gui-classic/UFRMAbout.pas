@@ -52,6 +52,8 @@ type
     procedure Label4Click(Sender: TObject);
     procedure Label5Click(Sender: TObject);
   private
+    function GetBuildString : string;
+
     { Private declarations }
     Procedure OpenURL(Url : String);
   public
@@ -80,11 +82,31 @@ uses
   {$R *.lfm}
 {$ENDIF}
 
+function TFRMAbout.GetBuildString : string;
+begin
+  result :=
+    'Build: ' + CT_ClientAppVersion
+    + ' OpenSSL: '  +
+    {$IFDEF Use_OpenSSL}
+    IntToHex(OpenSSLVersion,8)
+    {$ELSE}
+      'NONE'
+    {$ENDIF}  +
+    ' Compiler: '
+    {$IFDEF FPC}  +
+    'FPC'
+      {$IFDEF CPU32}+' 32b'{$ELSE}+' 64b'{$ENDIF}
+    {$ELSE}+
+    'Delphi'
+      {$IFDEF CPU32BITS}+' 32b'{$ELSE}+' 64b'{$ENDIF}
+    {$ENDIF};
+end;
+
 procedure TFRMAbout.FormCreate(Sender: TObject);
 begin
   {$IFDEF USE_GNUGETTEXT}TranslateComponent(self);{$ENDIF}
   //
-  lblBuild.Caption :=  'Build: '+CT_ClientAppVersion+' OpenSSL: '+{$IFDEF Use_OpenSSL}IntToHex(OpenSSLVersion,8){$ELSE}'NONE'{$ENDIF}+' Compiler: '{$IFDEF FPC}+'FPC'{$IFDEF CPU32}+' 32b'{$ELSE}+' 64b'{$ENDIF}{$ELSE}+'Delphi'{$IFDEF CPU32BITS}+' 32b'{$ELSE}+' 64b'{$ENDIF}{$ENDIF};
+  lblBuild.Caption := GetBuildString;
   lblProtocolVersion.Caption := Format('BlockChain Protocol: %d (%d)  -  Net Protocol: %d (%d)',[TNode.Node.Bank.SafeBox.CurrentProtocol,CT_BlockChain_Protocol_Available,
     CT_NetProtocol_Version, CT_NetProtocol_Available]);
 end;
