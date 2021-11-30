@@ -30,6 +30,9 @@ implementation
 
 {$R *.dfm}
 
+uses
+  UFRMWallet;
+
 constructor TFrameMessages.Create(AOwner: TComponent);
 begin
   inherited Create( AOwner );

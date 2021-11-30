@@ -751,12 +751,12 @@ begin
   FPendingOperationsGrid.PendingOperations := true;
   FPendingOperationsGrid.WalletKeys := FWalletKeys;
   FOperationsExplorerGrid := TOperationsGrid.Create(Self);
-  FOperationsExplorerGrid.DrawGrid := dgOperationsExplorer;
+  FOperationsExplorerGrid.DrawGrid := FrameOperationsExplorer.dgOperationsExplorer;
   FOperationsExplorerGrid.AccountNumber := -1;
   FOperationsExplorerGrid.PendingOperations := False;
   FOperationsExplorerGrid.WalletKeys := FWalletKeys;
   FBlockChainGrid := TBlockChainGrid.Create(Self);
-  FBlockChainGrid.DrawGrid := dgBlockChainExplorer;
+  FBlockChainGrid.DrawGrid := FrameBlockChainExplorer.dgBlockChainExplorer;
   FBlockChainGrid.ShowTimeAverageColumns:={$IFDEF SHOW_AVERAGE_TIME_STATS}True;{$ELSE}False;{$ENDIF}
   // FWalletKeys.OnChanged.Add( OnWalletChanged );
   {$IFDEF USE_GNUGETTEXT}
@@ -770,10 +770,7 @@ begin
   UpdateBlockChainState;
   UpdateConnectionStatus;
   PageControl.ActivePage := tsOperations;
-  pcAccountsOptions.ActivePage := tsAccountOperations;
-  ebFilterOperationsStartBlock.Text := '';
-  ebFilterOperationsEndBlock.Text := '';
-  cbExploreMyAccounts.Checked:=True; // By default
+
   cbExploreMyAccountsClick(nil);
 
   MinersBlocksFound := 0;
@@ -897,7 +894,7 @@ begin
   Try
     if Not TNetData.NetData.NetConnections.TryLockList(100,l) then exit;
     try
-      strings := memoNetConnections.Lines;
+      strings := FrameNodeStats.memoNetConnections.Lines;
       sNSC := TStringList.Create;
       sRS := TStringList.Create;
       sDisc := TStringList.Create;
@@ -986,27 +983,27 @@ begin
   if FUpdating then exit;
   FUpdating := true;
   Try
-    If Not TAccountComp.TxtToMoney(ebFilterAccountByBalanceMin.Text,bmin) then bmin := 0;
-    If not TAccountComp.TxtToMoney(ebFilterAccountByBalanceMax.Text,bmax) then bmax := CT_MaxWalletAmount;
+    If Not TAccountComp.TxtToMoney(FrameAccountExplorer.ebFilterAccountByBalanceMin.Text,bmin) then bmin := 0;
+    If not TAccountComp.TxtToMoney(FrameAccountExplorer.ebFilterAccountByBalanceMax.Text,bmax) then bmax := CT_MaxWalletAmount;
     if (bmax<bmin) or (bmax=0) then bmax := CT_MaxWalletAmount;
     if bmin>bmax then bmin := 0;
     doupd := (bmin<>FMinAccountBalance) Or (bmax<>FMaxAccountBalance);
     if bmin>0 then
-      ebFilterAccountByBalanceMin.Text:=TAccountComp.FormatMoney(bmin)
-    else ebFilterAccountByBalanceMin.Text := '';
+      FrameAccountExplorer.ebFilterAccountByBalanceMin.Text:=TAccountComp.FormatMoney(bmin)
+    else FrameAccountExplorer.ebFilterAccountByBalanceMin.Text := '';
     if bmax<CT_MaxWalletAmount then
-      ebFilterAccountByBalanceMax.Text := TAccountComp.FormatMoney(bmax)
-    else ebFilterAccountByBalanceMax.Text := '';
-    if cbFilterAccounts.Checked then begin
+      FrameAccountExplorer.ebFilterAccountByBalanceMax.Text := TAccountComp.FormatMoney(bmax)
+    else FrameAccountExplorer.ebFilterAccountByBalanceMax.Text := '';
+    if FrameAccountExplorer.cbFilterAccounts.Checked then begin
       FMinAccountBalance := bmin;
       FMaxAccountBalance := bmax;
-      ebFilterAccountByBalanceMin.ParentFont := true;
-      ebFilterAccountByBalanceMax.ParentFont := true;
+      FrameAccountExplorer.ebFilterAccountByBalanceMin.ParentFont := true;
+      FrameAccountExplorer.ebFilterAccountByBalanceMax.ParentFont := true;
     end else begin
       FMinAccountBalance := 0;
       FMaxAccountBalance := CT_MaxWalletAmount;
-      ebFilterAccountByBalanceMin.font.Color := clDkGray;
-      ebFilterAccountByBalanceMax.font.Color := clDkGray;
+      FrameAccountExplorer.ebFilterAccountByBalanceMin.font.Color := clDkGray;
+      FrameAccountExplorer.ebFilterAccountByBalanceMax.font.Color := clDkGray;
     end;
   Finally
     FUpdating := false;
@@ -1333,7 +1330,7 @@ begin
         opr := FPendingOperationsGrid.OperationsResume.OperationResume[i-1];
       end;
     end else if PageControl.ActivePage=tsMyAccounts then begin
-      accn := FAccountsGrid.AccountNumber(dgAccounts.Row);
+      accn := FAccountsGrid.AccountNumber(FrameAccountExplorer.dgAccounts.Row);
       if accn<0 then raise Exception.Create('Select an account');
       FillAccountInformation(strings,accn);
       title := 'Account '+TAccountComp.AccountNumberToAccountTxtNumber(accn)+' info';
@@ -1367,7 +1364,7 @@ procedure TFRMWallet.MiAddaccounttoSelectedClick(Sender: TObject);
 begin
   PageControl.ActivePage := tsMyAccounts;
   PageControlChange(Nil);
-  pcAccountsOptions.ActivePage := tsMultiSelectAccounts;
+  FrameAccountExplorer.pcAccountsOptions.ActivePage := FrameAccountExplorer.tsMultiSelectAccounts;
   sbSelectedAccountsAddClick(Sender);
 end;
 
@@ -1601,7 +1598,7 @@ procedure TFRMWallet.MiFindaccountClick(Sender: TObject);
 begin
   PageControl.ActivePage := tsMyAccounts;
   PageControlChange(Nil);
-  ebFindAccountNumber.SetFocus;
+  FrameAccountExplorer.ebFindAccountNumber.SetFocus;
 end;
 
 procedure TFRMWallet.MiFindnextaccountwithhighbalanceClick(Sender: TObject);
@@ -1611,7 +1608,7 @@ Var an  : Cardinal;
 begin
   PageControl.ActivePage := tsMyAccounts;
   PageControlChange(Nil);
-  an64 := FAccountsGrid.AccountNumber(dgAccounts.Row);
+  an64 := FAccountsGrid.AccountNumber(FrameAccountExplorer.dgAccounts.Row);
   if an64<0 then an := 0
   else an := an64;
   If an>=FNode.Bank.SafeBox.AccountsCount then exit;
@@ -1649,7 +1646,7 @@ Var an  : Cardinal;
 begin
   PageControl.ActivePage := tsMyAccounts;
   PageControlChange(Nil);
-  an64 := FAccountsGrid.AccountNumber(dgAccounts.Row);
+  an64 := FAccountsGrid.AccountNumber(FrameAccountExplorer.dgAccounts.Row);
   if an64<0 then an := FNode.Bank.SafeBox.AccountsCount-1
   else an := an64;
   If an>=FNode.Bank.SafeBox.AccountsCount then exit;
@@ -1666,7 +1663,7 @@ end;
 procedure TFRMWallet.MiMultiaccountoperationClick(Sender: TObject);
 begin
   PageControl.ActivePage := tsMyAccounts;
-  pcAccountsOptions.ActivePage := tsMultiSelectAccounts;
+  FrameAccountExplorer.pcAccountsOptions.ActivePage := FrameAccountExplorer.tsMultiSelectAccounts;
   bbSelectedAccountsOperationClick(Sender);
 end;
 
@@ -1724,18 +1721,18 @@ procedure TFRMWallet.MiRemoveaccountfromselectedClick(Sender: TObject);
 begin
   PageControl.ActivePage := tsMyAccounts;
   PageControlChange(Nil);
-  pcAccountsOptions.ActivePage := tsMultiSelectAccounts;
+  FrameAccountExplorer.pcAccountsOptions.ActivePage := FrameAccountExplorer.tsMultiSelectAccounts;
   sbSelectedAccountsDelClick(Sender);
 end;
 
 procedure TFRMWallet.OnAccountsGridUpdatedData(Sender: TObject);
 begin
   if FAccountsGrid.IsUpdatingData then begin
-    lblAccountsCount.Caption := '(Calculating)';
-    lblAccountsBalance.Caption := '(Calculating)';
+    FrameAccountExplorer.lblAccountsCount.Caption := '(Calculating)';
+    FrameAccountExplorer.lblAccountsBalance.Caption := '(Calculating)';
   end else begin
-    lblAccountsCount.Caption := IntToStr(FAccountsGrid.AccountsCount);
-    lblAccountsBalance.Caption := TAccountComp.FormatMoney(FAccountsGrid.AccountsBalance);
+    FrameAccountExplorer.lblAccountsCount.Caption := IntToStr(FAccountsGrid.AccountsCount);
+    FrameAccountExplorer.lblAccountsBalance.Caption := TAccountComp.FormatMoney(FAccountsGrid.AccountsBalance);
   end;
 end;
 
@@ -1753,7 +1750,7 @@ Var i,j,n : integer;
 begin
   l := TNetData.NetData.NodeServersAddresses.LockList;
   try
-    strings := memoNetBlackLists.Lines;
+    strings := FrameNodeStats.memoNetBlackLists.Lines;
     strings.BeginUpdate;
     Try
       strings.Clear;
@@ -1797,7 +1794,7 @@ Var i : integer;
 begin
   l := TNetData.NetData.NodeServersAddresses.LockList;
   try
-    strings := memoNetServers.Lines;
+    strings := FrameNodeStats.memoNetServers.Lines;
     strings.BeginUpdate;
     Try
       strings.Clear;
@@ -1875,18 +1872,18 @@ end;
 procedure TFRMWallet.OnNewLog(logtype: TLogType; Time : TDateTime; ThreadID : TThreadID; const sender,logtext: String);
 Var s : AnsiString;
 begin
-  if (logtype=ltdebug) And (Not cbShowDebugLogs.Checked) then exit;
+  if (logtype=ltdebug) And (Not FrameLogs.cbShowDebugLogs.Checked) then exit;
   if ThreadID=MainThreadID then s := ' MAIN:' else s:=' TID:';
-  if MemoLogs.Lines.Count>300 then begin
+  if FrameLogs.MemoLogs.Lines.Count>300 then begin
     // Limit max lines in logs...
-    memoLogs.Lines.BeginUpdate;
+    FrameLogs.memoLogs.Lines.BeginUpdate;
     try
-      while memoLogs.Lines.Count>250 do memoLogs.Lines.Delete(0);
+      while FrameLogs.memoLogs.Lines.Count>250 do FrameLogs.memoLogs.Lines.Delete(0);
     finally
-      memoLogs.Lines.EndUpdate;
+      FrameLogs.memoLogs.Lines.EndUpdate;
     end;
   end;
-  memoLogs.Lines.Add(formatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time)+s+IntToHex(PtrInt(ThreadID),8)+' ['+CT_LogType[Logtype]+'] <'+sender+'> '+logtext);
+  FrameLogs.memoLogs.Lines.Add(formatDateTime('dd/mm/yyyy hh:nn:ss.zzz',Time)+s+IntToHex(PtrInt(ThreadID),8)+' ['+CT_LogType[Logtype]+'] <'+sender+'> '+logtext);
   //
 end;
 
@@ -1896,8 +1893,8 @@ begin
   inc(FMessagesUnreadCount);
   if Assigned(NetConnection) then begin
     s := DateTimeToStr(now)+' Message received from '+NetConnection.ClientRemoteAddr;
-    memoMessages.Lines.Add(DateTimeToStr(now)+' Message received from '+NetConnection.ClientRemoteAddr+' Length '+inttostr(Length(MessageData))+' bytes');
-    memoMessages.Lines.Add('RECEIVED> '+MessageData);
+    FrameMessages.memoMessages.Lines.Add(DateTimeToStr(now)+' Message received from '+NetConnection.ClientRemoteAddr+' Length '+inttostr(Length(MessageData))+' bytes');
+    FrameMessages.memoMessages.Lines.Add('RECEIVED> '+MessageData);
     if TSettings.ShowModalMessages then begin
       s := DateTimeToStr(now)+' Message from '+NetConnection.ClientRemoteAddr+#10+
          'Length '+inttostr(length(MessageData))+' bytes'+#10+#10;
@@ -1910,7 +1907,7 @@ begin
       Application.MessageBox(PChar(s),PChar(Application.Title),MB_ICONINFORMATION+MB_OK);
     end;
   end else begin
-    memoMessages.Lines.Add(DateTimeToStr(now)+' Internal message: '+MessageData);
+    FrameMessages.memoMessages.Lines.Add(DateTimeToStr(now)+' Internal message: '+MessageData);
   end;
   if FMessagesUnreadCount>1 then lblReceivedMessages.Caption := Format('You have received %d messages',[FMessagesUnreadCount])
   else lblReceivedMessages.Caption := 'You have received 1 message';
@@ -1942,8 +1939,8 @@ end;
 
 procedure TFRMWallet.OnSelectedAccountsGridUpdated(Sender: TObject);
 begin
-  lblSelectedAccountsCount.Caption := Inttostr(FSelectedAccountsGrid.AccountsCount);
-  lblSelectedAccountsBalance.Caption := TAccountComp.FormatMoney( FSelectedAccountsGrid.AccountsBalance );
+  FrameAccountExplorer.lblSelectedAccountsCount.Caption := Inttostr(FSelectedAccountsGrid.AccountsCount);
+  FrameAccountExplorer.lblSelectedAccountsBalance.Caption := TAccountComp.FormatMoney( FSelectedAccountsGrid.AccountsBalance );
 end;
 
 procedure TFRMWallet.OnWalletChanged(Sender: TObject);
@@ -2019,10 +2016,14 @@ begin
   if Not RefreshData then begin
     if TPlatform.GetElapsedMilliseconds(FLastAccountsGridInvalidateTC)>1000 then begin
       FLastAccountsGridInvalidateTC := TPlatform.GetTickCount;
-      dgAccounts.Invalidate;
+      FrameAccountExplorer.dgAccounts.Invalidate;
     end;
     exit;
   end;
+
+  with FrameAccountExplorer do
+  begin
+
   LApplyfilter := (cbFilterAccounts.Checked) and ((FMinAccountBalance>0) Or ((FMaxAccountBalance<CT_MaxWalletAmount) and (FMaxAccountBalance>=0)));
   if (Not cbExploreMyAccounts.Checked) And (not LApplyfilter) then begin
     FAccountsGrid.AccountsGridDatasource := acds_Node;
@@ -2050,6 +2051,8 @@ begin
     end;
     FAccountsGrid.AccountsGridFilter := LFilters;
     FAccountsGrid.AccountsGridDatasource := acds_NodeFiltered;
+  end;
+
   end;
 
   bbChangeKeyName.Enabled := cbExploreMyAccounts.Checked;

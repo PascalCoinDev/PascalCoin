@@ -390,32 +390,40 @@ object FRMWallet: TFRMWallet
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitLeft = 37
-        ExplicitTop = -144
+        ExplicitWidth = 857
+        ExplicitHeight = 438
         inherited Splitter1: TSplitter
           Height = 372
         end
         inherited pnlMyAccountsTop: TPanel
           Width = 857
+          ExplicitWidth = 857
         end
         inherited pnlAccounts: TPanel
           Height = 372
+          ExplicitHeight = 372
           inherited dgAccounts: TDrawGrid
             Height = 338
+            ExplicitHeight = 338
           end
           inherited pnlAccountsInfo: TPanel
             Top = 338
+            ExplicitTop = 338
           end
         end
         inherited pcAccountsOptions: TPageControl
           Width = 452
           Height = 372
+          ExplicitWidth = 452
+          ExplicitHeight = 372
           inherited tsAccountOperations: TTabSheet
             ExplicitWidth = 444
             ExplicitHeight = 344
             inherited dgAccountOperations: TDrawGrid
               Width = 444
               Height = 344
+              ExplicitWidth = 444
+              ExplicitHeight = 344
             end
           end
         end
@@ -433,6 +441,8 @@ object FRMWallet: TFRMWallet
         TabOrder = 0
         ExplicitLeft = 31
         ExplicitTop = -84
+        ExplicitWidth = 857
+        ExplicitHeight = 438
         inherited dgPendingOperations: TDrawGrid
           Width = 857
           Height = 352
@@ -461,14 +471,17 @@ object FRMWallet: TFRMWallet
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitLeft = 75
-        ExplicitTop = -51
+        ExplicitWidth = 296
+        ExplicitHeight = 59
         inherited Panel2: TPanel
           Width = 857
+          ExplicitWidth = 296
         end
         inherited dgBlockChainExplorer: TDrawGrid
           Width = 857
           Height = 397
+          ExplicitWidth = 857
+          ExplicitHeight = 397
         end
       end
     end
@@ -484,12 +497,17 @@ object FRMWallet: TFRMWallet
         TabOrder = 0
         ExplicitLeft = 40
         ExplicitTop = -3
+        ExplicitWidth = 857
+        ExplicitHeight = 438
         inherited Panel1: TPanel
           Width = 857
+          ExplicitWidth = 857
         end
         inherited dgOperationsExplorer: TDrawGrid
           Width = 857
           Height = 397
+          ExplicitWidth = 857
+          ExplicitHeight = 397
         end
       end
     end
@@ -505,6 +523,8 @@ object FRMWallet: TFRMWallet
         TabOrder = 0
         ExplicitLeft = 36
         ExplicitTop = -93
+        ExplicitWidth = 857
+        ExplicitHeight = 438
         inherited memoLogs: TMemo
           Width = 857
           Height = 397
@@ -532,25 +552,33 @@ object FRMWallet: TFRMWallet
         TabOrder = 0
         ExplicitLeft = 166
         ExplicitTop = -134
+        ExplicitWidth = 857
+        ExplicitHeight = 438
         inherited Label6: TLabel
           Top = 157
-          Width = 270
+          ExplicitTop = 157
         end
         inherited Label7: TLabel
           Top = 53
-          Width = 248
+          ExplicitTop = 53
         end
         inherited memoNetConnections: TMemo
           Width = 996
           Height = 11
+          ExplicitWidth = 996
+          ExplicitHeight = 11
         end
         inherited memoNetServers: TMemo
           Top = 176
           Width = 996
+          ExplicitTop = 176
+          ExplicitWidth = 996
         end
         inherited memoNetBlackLists: TMemo
           Top = 72
           Width = 995
+          ExplicitTop = 72
+          ExplicitWidth = 995
         end
       end
     end
@@ -564,11 +592,13 @@ object FRMWallet: TFRMWallet
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitLeft = 40
-        ExplicitTop = -184
+        ExplicitWidth = 296
+        ExplicitHeight = 59
         inherited memoMessages: TMemo
           Width = 861
           Height = 65
+          ExplicitWidth = 861
+          ExplicitHeight = 65
         end
       end
     end
