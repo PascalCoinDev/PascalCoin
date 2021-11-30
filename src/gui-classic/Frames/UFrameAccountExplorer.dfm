@@ -21,8 +21,6 @@ object FrameAccountExplorer: TFrameAccountExplorer
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitLeft = -537
-    ExplicitWidth = 857
     object Label18: TLabel
       Left = 11
       Top = 35
@@ -129,9 +127,6 @@ object FrameAccountExplorer: TFrameAccountExplorer
     Align = alLeft
     BevelOuter = bvNone
     TabOrder = 1
-    ExplicitLeft = -80
-    ExplicitTop = -132
-    ExplicitHeight = 372
     object dgAccounts: TDrawGrid
       Left = 0
       Top = 0
@@ -139,7 +134,6 @@ object FrameAccountExplorer: TFrameAccountExplorer
       Height = 482
       Align = alClient
       TabOrder = 0
-      ExplicitHeight = 338
     end
     object pnlAccountsInfo: TPanel
       Left = 0
@@ -149,7 +143,7 @@ object FrameAccountExplorer: TFrameAccountExplorer
       Align = alBottom
       BevelOuter = bvNone
       TabOrder = 1
-      ExplicitTop = 338
+      OnClick = pnlAccountsInfoClick
       DesignSize = (
         400
         34)
@@ -224,6 +218,7 @@ object FrameAccountExplorer: TFrameAccountExplorer
           FFFF00FFFF00FFFF00FFFF00FFFF00FFC2A6A4C2A6A4C2A6A4C2A6A4C2A6A4C2
           A6A4C2A6A4C2A6A4FF00FFFF00FFFF00FFFF00FFFF00FFFF00FF}
         TabOrder = 0
+        OnClick = bbAccountsRefreshClick
       end
     end
   end
@@ -235,10 +230,6 @@ object FrameAccountExplorer: TFrameAccountExplorer
     ActivePage = tsAccountOperations
     Align = alClient
     TabOrder = 2
-    ExplicitLeft = -132
-    ExplicitTop = -132
-    ExplicitWidth = 452
-    ExplicitHeight = 372
     object tsAccountOperations: TTabSheet
       Caption = 'Account Operations'
       object dgAccountOperations: TDrawGrid
@@ -248,8 +239,6 @@ object FrameAccountExplorer: TFrameAccountExplorer
         Height = 488
         Align = alClient
         TabOrder = 0
-        ExplicitWidth = 444
-        ExplicitHeight = 344
       end
     end
     object tsMultiSelectAccounts: TTabSheet
@@ -259,14 +248,14 @@ object FrameAccountExplorer: TFrameAccountExplorer
         Left = 41
         Top = 31
         Width = 320
-        Height = 287
+        Height = 431
         Align = alLeft
         TabOrder = 0
       end
       object pnlSelectedAccountsTop: TPanel
         Left = 0
         Top = 0
-        Width = 444
+        Width = 407
         Height = 31
         Align = alTop
         BevelOuter = bvNone
@@ -289,8 +278,8 @@ object FrameAccountExplorer: TFrameAccountExplorer
       end
       object pnlSelectedAccountsBottom: TPanel
         Left = 0
-        Top = 318
-        Width = 444
+        Top = 462
+        Width = 407
         Height = 26
         Align = alBottom
         BevelOuter = bvNone
@@ -336,7 +325,7 @@ object FrameAccountExplorer: TFrameAccountExplorer
         Left = 0
         Top = 31
         Width = 41
-        Height = 287
+        Height = 431
         Align = alLeft
         BevelOuter = bvNone
         TabOrder = 3
