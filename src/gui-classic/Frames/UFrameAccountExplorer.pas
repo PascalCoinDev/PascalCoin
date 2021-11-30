@@ -91,7 +91,8 @@ implementation
 {$R *.dfm}
 
 uses
-  UFRMWallet, UConst, UPCOrderedLists;
+  UFRMWallet, UConst, UPCOrderedLists, UFRMOperation,
+  USettings, UFRMAccountSelect, UBaseTypes, UAccounts;
 
 constructor TFrameAccountExplorer.Create(AOwner: TComponent);
 begin
@@ -130,18 +131,18 @@ end;
 procedure TFrameAccountExplorer.bbSelectedAccountsOperationClick(Sender: TObject);
 var l : TOrderedCardinalList;
 begin
-  CheckIsReady;
-  if FSelectedAccountsGrid.AccountsCount<=0 then raise Exception.Create('Must select at least 1 account');
+  FRMWallet.CheckIsReady;
+  if FRMWallet.SelectedAccountsGrid.AccountsCount<=0 then raise Exception.Create('Must select at least 1 account');
   With TFRMOperation.Create(Self) do
   Try
-    l := FSelectedAccountsGrid.LockAccountsList;
+    l := FRMWallet.SelectedAccountsGrid.LockAccountsList;
     try
       SenderAccounts.CopyFrom(l);
     finally
-      FSelectedAccountsGrid.UnlockAccountsList;
+      FRMWallet.SelectedAccountsGrid.UnlockAccountsList;
     end;
     DefaultFee := TSettings.DefaultFee;
-    WalletKeys := FWalletKeys;
+    WalletKeys := FRMWallet.WalletKeys;
     ShowModal;
   Finally
     Free;
@@ -151,23 +152,23 @@ end;
 procedure TFrameAccountExplorer.cbExploreMyAccountsClick(Sender: TObject);
 begin
   cbMyPrivateKeys.Enabled := cbExploreMyAccounts.Checked;
-  UpdateAccounts(true);
-  UpdateOperations;
+  FRMWallet.UpdateAccounts(true);
+  FRMWallet.UpdateOperations;
 end;
 
 procedure TFrameAccountExplorer.cbFilterAccountsClick(Sender: TObject);
 begin
-  If not DoUpdateAccountsFilter then UpdateAccounts(true);
+  If not FRMWallet.DoUpdateAccountsFilter then FRMWallet.UpdateAccounts(true);
 end;
 
 procedure TFrameAccountExplorer.cbMyPrivateKeysChange(Sender: TObject);
 begin
-  UpdateAccounts(true);
+  FRMWallet.UpdateAccounts(true);
 end;
 
 procedure TFrameAccountExplorer.dgAccountsClick(Sender: TObject);
 begin
-  UpdateOperations;
+  FRMWallet.UpdateOperations;
 end;
 
 procedure TFrameAccountExplorer.dgAccountsColumnMoved(Sender: TObject; FromIndex, ToIndex: Integer);
@@ -201,7 +202,7 @@ begin
     LAccountNameRawValue.FromString(ebFindAccountNumber.Text);
     LAccNames := TOrderedRawList.Create;
     Try
-      if FNode.Bank.SafeBox.FindAccountsStartingByName(LAccountNameRawValue,LAccNames,1)>0 then begin
+      if FRMWallet.Node.Bank.SafeBox.FindAccountsStartingByName(LAccountNameRawValue,LAccNames,1)>0 then begin
         an := LAccNames.GetTag(0);
         ebFindAccountNumber.Color := clWindow;
         if FAccountsGrid.MoveRowToAccount(an) then begin

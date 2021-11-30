@@ -80,7 +80,7 @@ begin
       if lbNetConnections.Selected[i] then begin
         nc := TNetConnection(lbNetconnections.Items.Objects[i]);
         if TNetData.NetData.ConnectionExistsAndActive(nc) then begin
-          FNode.SendNodeMessage(nc,m,errors);
+          FRMWallet.Node.SendNodeMessage(nc,m,errors);
           memoMessages.Lines.Add(DateTimeToStr(now)+' Sent to '+nc.ClientRemoteAddr+' > '+m);
         end;
       end;
@@ -88,7 +88,7 @@ begin
   end else begin
     nc := TNetConnection(lbNetconnections.Items.Objects[lbNetconnections.ItemIndex]);
     if TNetData.NetData.ConnectionExistsAndActive(nc) then begin
-      FNode.SendNodeMessage(nc,m,errors);
+      FRMWallet.Node.SendNodeMessage(nc,m,errors);
       memoMessages.Lines.Add(DateTimeToStr(now)+' Sent to '+nc.ClientRemoteAddr+' > '+m);
     end;
   end;

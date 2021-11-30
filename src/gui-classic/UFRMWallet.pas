@@ -201,7 +201,6 @@ type
     Procedure OnMiningServerNewBlockFound(Sender : TObject);
     Procedure UpdateConnectionStatus;
     Procedure UpdateBlockChainState;
-    Procedure UpdateOperations;
     Procedure UpdateConfigChanged(Sender:TObject);
     Procedure UpdateNodeStatus;
     Procedure UpdateAvailableConnections;
@@ -209,22 +208,30 @@ type
     Function ForceMining : Boolean; virtual;
     Function GetAccountKeyForMiner : TAccountKey;
     Procedure DoUpdateAccounts;
-    Function DoUpdateAccountsFilter : Boolean;
     procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
     procedure CM_NetConnectionUpdated(var Msg: TMessage); message CM_PC_NetConnectionUpdated;
   public
     Procedure CheckIsReady;
 
     Procedure UpdatePrivateKeys;
+    Procedure UpdateOperations;
 
     Procedure UpdateAccounts(RefreshData : Boolean);
 
+    Function DoUpdateAccountsFilter : Boolean;
+
     { Public declarations }
+    Property Node : TNode read FNode;
+
     Property WalletKeys : TWalletKeysExt read FWalletKeys;
     Property MinersBlocksFound : Integer read FMinersBlocksFound write SetMinersBlocksFound;
 
     Property Updating : boolean read FUpdating write FUpdating;
     Property BlockChainGrid : TBlockChainGrid read FBlockChainGrid;
+
+    Property SelectedAccountsGrid : TAccountsGrid read FSelectedAccountsGrid;
+
+
   end;
 
 var
