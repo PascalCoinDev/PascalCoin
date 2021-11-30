@@ -31,7 +31,7 @@ implementation
 {$R *.dfm}
 
 uses
-  UFRMWallet;
+  UFRMWallet, UNetProtocol;
 
 constructor TFrameMessages.Create(AOwner: TComponent);
 begin
@@ -48,13 +48,13 @@ begin
   inherited Destroy;
 end;
 
-procedure TFRMWallet.bbSendAMessageClick(Sender: TObject);
+procedure TFrameMessages.bbSendAMessageClick(Sender: TObject);
 Var basem,m : String;
   them, errors : String;
   i,n : Integer;
   nc : TNetConnection;
 begin
-  CheckIsReady;
+  FRMWallet.CheckIsReady;
   if (lbNetConnections.SelCount<=0) Or (lbNetConnections.ItemIndex<0) then raise Exception.Create('Select at least one connection');
   if lbNetConnections.SelCount<=0 then n := 1
   else n := lbNetConnections.SelCount;

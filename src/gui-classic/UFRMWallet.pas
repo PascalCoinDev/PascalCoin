@@ -120,45 +120,21 @@ type
     procedure MiOperationsExplorerClick(Sender: TObject);
     procedure MiRPCCallsClick(Sender: TObject);
     procedure TimerUpdateStatusTimer(Sender: TObject);
-    procedure cbMyPrivateKeysChange(Sender: TObject);
-    procedure dgAccountsClick(Sender: TObject);
     procedure miOptionsClick(Sender: TObject);
     procedure miAboutPascalCoinClick(Sender: TObject);
     procedure miNewOperationClick(Sender: TObject);
     procedure miPrivatekeysClick(Sender: TObject);
-    procedure dgAccountsColumnMoved(Sender: TObject; FromIndex,
-      ToIndex: Integer);
-    procedure dgAccountsFixedCellClick(Sender: TObject; ACol, ARow: Integer);
     procedure PageControlChange(Sender: TObject);
-    procedure ebFilterOperationsAccountExit(Sender: TObject);
-    procedure ebFilterOperationsAccountKeyPress(Sender: TObject; var Key: Char);
-    procedure ebBlockChainBlockStartExit(Sender: TObject);
-    procedure ebBlockChainBlockStartKeyPress(Sender: TObject; var Key: Char);
-    procedure cbExploreMyAccountsClick(Sender: TObject);
     procedure MiCloseClick(Sender: TObject);
     procedure MiDecodePayloadClick(Sender: TObject);
-    procedure bbSendAMessageClick(Sender: TObject);
     procedure lblReceivedMessagesClick(Sender: TObject);
-    procedure ebFindAccountNumberChange(Sender: TObject);
-    procedure ebFindAccountNumberExit(Sender: TObject);
     procedure IPnodes1Click(Sender: TObject);
-    procedure bbChangeKeyNameClick(Sender: TObject);
-    procedure sbSelectedAccountsAddClick(Sender: TObject);
-    procedure sbSelectedAccountsAddAllClick(Sender: TObject);
-    procedure sbSelectedAccountsDelClick(Sender: TObject);
-    procedure sbSelectedAccountsDelAllClick(Sender: TObject);
-    procedure bbSelectedAccountsOperationClick(Sender: TObject);
     procedure MiAddaccounttoSelectedClick(Sender: TObject);
     procedure MiRemoveaccountfromselectedClick(Sender: TObject);
     procedure MiMultiaccountoperationClick(Sender: TObject);
     procedure MiFindnextaccountwithhighbalanceClick(Sender: TObject);
     procedure MiFindpreviousaccountwithhighbalanceClick(Sender: TObject);
     procedure MiFindaccountClick(Sender: TObject);
-    procedure bbAccountsRefreshClick(Sender: TObject);
-    procedure ebFilterAccountByBalanceMinExit(Sender: TObject);
-    procedure ebFilterAccountByBalanceMinKeyPress(Sender: TObject;
-      var Key: Char);
-    procedure cbFilterAccountsClick(Sender: TObject);
     procedure MiFindOperationbyOpHashClick(Sender: TObject);
     procedure MiAccountInformationClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -171,7 +147,6 @@ type
     FBackgroundLabel : TLabel;
     FMinersBlocksFound: Integer;
     procedure SetMinersBlocksFound(const Value: Integer);
-    Procedure CheckIsReady;
     Procedure FinishedLoadingApp;
     Procedure FillAccountInformation(Const Strings : TStrings; Const AccountNumber : Cardinal);
     Procedure FillOperationInformation(Const Strings : TStrings; Const OperationResume : TOperationResume);
@@ -225,9 +200,7 @@ type
     Procedure OnSelectedAccountsGridUpdated(Sender : TObject);
     Procedure OnMiningServerNewBlockFound(Sender : TObject);
     Procedure UpdateConnectionStatus;
-    Procedure UpdateAccounts(RefreshData : Boolean);
     Procedure UpdateBlockChainState;
-    Procedure UpdatePrivateKeys;
     Procedure UpdateOperations;
     Procedure UpdateConfigChanged(Sender:TObject);
     Procedure UpdateNodeStatus;
@@ -240,9 +213,18 @@ type
     procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
     procedure CM_NetConnectionUpdated(var Msg: TMessage); message CM_PC_NetConnectionUpdated;
   public
+    Procedure CheckIsReady;
+
+    Procedure UpdatePrivateKeys;
+
+    Procedure UpdateAccounts(RefreshData : Boolean);
+
     { Public declarations }
     Property WalletKeys : TWalletKeysExt read FWalletKeys;
     Property MinersBlocksFound : Integer read FMinersBlocksFound write SetMinersBlocksFound;
+
+    Property Updating : boolean read FUpdating write FUpdating;
+    Property BlockChainGrid : TBlockChainGrid read FBlockChainGrid;
   end;
 
 var
@@ -771,7 +753,7 @@ begin
   UpdateConnectionStatus;
   PageControl.ActivePage := tsOperations;
 
-  cbExploreMyAccountsClick(nil);
+  FrameAccountExplorer.cbExploreMyAccountsClick(nil);
 
   MinersBlocksFound := 0;
   lblBuild.Caption := 'Build: '+CT_ClientAppVersion;
@@ -1365,7 +1347,7 @@ begin
   PageControl.ActivePage := tsMyAccounts;
   PageControlChange(Nil);
   FrameAccountExplorer.pcAccountsOptions.ActivePage := FrameAccountExplorer.tsMultiSelectAccounts;
-  sbSelectedAccountsAddClick(Sender);
+  FrameAccountExplorer.sbSelectedAccountsAddClick(Sender);
 end;
 
 procedure TFRMWallet.miAskForAccountClick(Sender: TObject);
@@ -1664,7 +1646,7 @@ procedure TFRMWallet.MiMultiaccountoperationClick(Sender: TObject);
 begin
   PageControl.ActivePage := tsMyAccounts;
   FrameAccountExplorer.pcAccountsOptions.ActivePage := FrameAccountExplorer.tsMultiSelectAccounts;
-  bbSelectedAccountsOperationClick(Sender);
+  FrameAccountExplorer.bbSelectedAccountsOperationClick(Sender);
 end;
 
 procedure TFRMWallet.miNewOperationClick(Sender: TObject);
@@ -1722,7 +1704,7 @@ begin
   PageControl.ActivePage := tsMyAccounts;
   PageControlChange(Nil);
   FrameAccountExplorer.pcAccountsOptions.ActivePage := FrameAccountExplorer.tsMultiSelectAccounts;
-  sbSelectedAccountsDelClick(Sender);
+  FrameAccountExplorer.sbSelectedAccountsDelClick(Sender);
 end;
 
 procedure TFRMWallet.OnAccountsGridUpdatedData(Sender: TObject);
@@ -2055,7 +2037,7 @@ begin
 
   end;
 
-  bbChangeKeyName.Enabled := cbExploreMyAccounts.Checked;
+  FrameAccountExplorer.bbChangeKeyName.Enabled := FrameAccountExplorer.cbExploreMyAccounts.Checked;
   OnAccountsGridUpdatedData(Nil);
   UpdateOperations;
 end;
@@ -2067,25 +2049,25 @@ Var i : integer;
 begin
   if Not TNetData.NetData.NetConnections.TryLockList(100,l) then exit;
   try
-    lbNetConnections.Items.BeginUpdate;
+    FrameMessages.lbNetConnections.Items.BeginUpdate;
     Try
-      lbNetConnections.Items.Clear;
+      FrameMessages.lbNetConnections.Items.Clear;
       for i := 0 to l.Count - 1 do begin
         NC := l[i];
         if NC.Connected then begin
           if NC is TNetServerClient then begin
             if Not NC.IsMyselfServer then begin
-              lbNetConnections.Items.AddObject(Format('Client: IP:%s',[NC.ClientRemoteAddr]),NC);
+              FrameMessages.lbNetConnections.Items.AddObject(Format('Client: IP:%s',[NC.ClientRemoteAddr]),NC);
             end;
           end else begin
             if Not NC.IsMyselfServer then begin
-              lbNetConnections.Items.AddObject(Format('Server: IP:%s',[NC.ClientRemoteAddr]),NC);
+              FrameMessages.lbNetConnections.Items.AddObject(Format('Server: IP:%s',[NC.ClientRemoteAddr]),NC);
             end;
           end;
         end;
       end;
     Finally
-      lbNetConnections.Items.EndUpdate;
+      FrameMessages.lbNetConnections.Items.EndUpdate;
     End;
   finally
     TNetData.NetData.NetConnections.UnlockList;
@@ -2199,17 +2181,23 @@ begin
   i := Integer(TSettings.MinerPrivateKeyType);
   if (i>=Integer(Low(TMinerPrivateKeyType))) And (i<=Integer(High(TMinerPrivateKeyType))) then FMinerPrivateKeyType := TMinerPrivateKeyType(i)
   else FMinerPrivateKeyType := mpk_Random;
-  ebHashRateBackBlocks.Text := IntToStr(FBlockChainGrid.HashRateAverageBlocksCount);
-  Case FBlockChainGrid.HashRateAs of
-    hr_Unit : cbHashRateUnits.ItemIndex:=0;
-    hr_Kilo : cbHashRateUnits.ItemIndex:=1;
-    hr_Mega : cbHashRateUnits.ItemIndex:=2;
-    hr_Giga : cbHashRateUnits.ItemIndex:=3;
-    hr_Tera : cbHashRateUnits.ItemIndex:=4;
-    hr_Peta : cbHashRateUnits.ItemIndex:=5;
-    hr_Exa : cbHashRateUnits.ItemIndex:=6;
-  else cbHashRateUnits.ItemIndex:=-1;
+  FrameBlockChainExplorer.ebHashRateBackBlocks.Text := IntToStr(FBlockChainGrid.HashRateAverageBlocksCount);
+
+  with FrameBlockChainExplorer do
+  begin
+    Case FBlockChainGrid.HashRateAs of
+      hr_Unit : cbHashRateUnits.ItemIndex:=0;
+      hr_Kilo : cbHashRateUnits.ItemIndex:=1;
+      hr_Mega : cbHashRateUnits.ItemIndex:=2;
+      hr_Giga : cbHashRateUnits.ItemIndex:=3;
+      hr_Tera : cbHashRateUnits.ItemIndex:=4;
+      hr_Peta : cbHashRateUnits.ItemIndex:=5;
+      hr_Exa : cbHashRateUnits.ItemIndex:=6;
+    else
+      cbHashRateUnits.ItemIndex:=-1;
+    end;
   end;
+
   if TNetData.NetDataExists then begin
     if TSettings.AppParams.ParamByName[CT_PARAM_AllowDownloadNewCheckpointIfOlderThan].GetAsBoolean(TNetData.NetData.MinFutureBlocksToDownloadNewSafebox>200) then begin
       TNetData.NetData.MinFutureBlocksToDownloadNewSafebox:=TSettings.AppParams.ParamByName[CT_PARAM_MinFutureBlocksToDownloadNewSafebox].GetAsInteger(TNetData.NetData.MinFutureBlocksToDownloadNewSafebox);
@@ -2269,7 +2257,7 @@ end;
 procedure TFRMWallet.UpdateOperations;
 Var accn : Int64;
 begin
-  accn := FAccountsGrid.AccountNumber(dgAccounts.Row);
+  accn := FAccountsGrid.AccountNumber(FrameAccountExplorer.dgAccounts.Row);
   FOperationsAccountGrid.AccountNumber := accn;
 end;
 
@@ -2279,11 +2267,11 @@ Var i,last_i : Integer;
   s : AnsiString;
 begin
   FNodeNotifyEvents.WatchKeys := FWalletKeys.AccountsKeyList;
-  if (cbMyPrivateKeys.ItemIndex>=0) then last_i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex])
+  if (FrameAccountExplorer.cbMyPrivateKeys.ItemIndex>=0) then last_i := PtrInt(FrameAccountExplorer.cbMyPrivateKeys.Items.Objects[FrameAccountExplorer.cbMyPrivateKeys.ItemIndex])
   else last_i := -1;
-  cbMyPrivateKeys.items.BeginUpdate;
+  FrameAccountExplorer.cbMyPrivateKeys.items.BeginUpdate;
   Try
-    cbMyPrivateKeys.Items.Clear;
+    FrameAccountExplorer.cbMyPrivateKeys.Items.Clear;
     For i:=0 to FWalletKeys.Count-1 do begin
       wk := FWalletKeys.Key[i];
       if (wk.Name='') then begin
@@ -2295,18 +2283,18 @@ begin
         if Length(wk.CryptedKey)>0 then s:=s+' (**NEED PASSWORD**)'
         else s:=s+' (**PUBLIC KEY ONLY**)';
       end;
-      cbMyPrivateKeys.Items.AddObject(s,TObject(i));
+      FrameAccountExplorer.cbMyPrivateKeys.Items.AddObject(s,TObject(i));
     end;
-    cbMyPrivateKeys.Sorted := true;
-    cbMyPrivateKeys.Sorted := false;
-    cbMyPrivateKeys.Items.InsertObject(0,'(All my private keys)',TObject(-1));
+    FrameAccountExplorer.cbMyPrivateKeys.Sorted := true;
+    FrameAccountExplorer.cbMyPrivateKeys.Sorted := false;
+    FrameAccountExplorer.cbMyPrivateKeys.Items.InsertObject(0,'(All my private keys)',TObject(-1));
   Finally
-    cbMyPrivateKeys.Items.EndUpdate;
+    FrameAccountExplorer.cbMyPrivateKeys.Items.EndUpdate;
   End;
-  last_i := cbMyPrivateKeys.Items.IndexOfObject(TObject(last_i));
+  last_i := FrameAccountExplorer.cbMyPrivateKeys.Items.IndexOfObject(TObject(last_i));
   if last_i<0 then last_i := 0;
-  if cbMyPrivateKeys.Items.Count>last_i then cbMyPrivateKeys.ItemIndex := last_i
-  else if cbMyPrivateKeys.Items.Count>=0 then cbMyPrivateKeys.ItemIndex := 0;
+  if FrameAccountExplorer.cbMyPrivateKeys.Items.Count>last_i then FrameAccountExplorer.cbMyPrivateKeys.ItemIndex := last_i
+  else if FrameAccountExplorer.cbMyPrivateKeys.Items.Count>=0 then FrameAccountExplorer.cbMyPrivateKeys.ItemIndex := 0;
 end;
 
 
