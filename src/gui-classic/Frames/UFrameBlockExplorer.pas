@@ -21,6 +21,7 @@ type
     procedure cbHashRateUnitsClick(Sender: TObject);
     procedure ebHashRateBackBlocksExit(Sender: TObject);
     procedure ebHashRateBackBlocksKeyPress(Sender: TObject; var Key: char);
+    procedure ebBlockChainBlockStartExit(Sender: TObject);
   private
     { Private declarations }
   public
@@ -34,6 +35,9 @@ implementation
 
 {$R *.dfm}
 
+uses
+  UFRMWallet;
+
 constructor TFrameBlockChainExplorer.Create(AOwner: TComponent);
 begin
   inherited Create( AOwner );
@@ -46,6 +50,7 @@ begin
   cbHashRateUnits.Items.Add('Th/s');
   cbHashRateUnits.Items.Add('Ph/s');
   cbHashRateUnits.Items.Add('Eh/s');
+
 end;
 
 destructor TFrameBlockChainExplorer.Destroy;

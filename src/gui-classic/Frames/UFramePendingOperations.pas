@@ -16,10 +16,25 @@ type
     { Private declarations }
   public
     { Public declarations }
+
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
   end;
 
 implementation
 
 {$R *.dfm}
+
+constructor TFramePendingOperations.Create(AOwner: TComponent);
+begin
+  inherited Create( AOwner );
+
+end;
+
+destructor TFramePendingOperations.Destroy;
+begin
+
+  inherited Destroy;
+end;
 
 end.

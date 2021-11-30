@@ -45,6 +45,7 @@ object FrameBlockChainExplorer: TFrameBlockChainExplorer
       Width = 57
       Height = 21
       TabOrder = 0
+      OnExit = ebBlockChainBlockStartExit
     end
     object ebBlockChainBlockEnd: TEdit
       Left = 185
