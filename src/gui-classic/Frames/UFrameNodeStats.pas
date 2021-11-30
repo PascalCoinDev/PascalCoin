@@ -18,10 +18,28 @@ type
     { Private declarations }
   public
     { Public declarations }
+
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
   end;
 
 implementation
 
 {$R *.dfm}
+
+constructor TFrameNodeStats.Create(AOwner: TComponent);
+begin
+  inherited Create( AOwner );
+
+  memoNetConnections.Lines.Clear;
+  memoNetServers.Lines.Clear;
+  memoNetBlackLists.Lines.Clear;
+end;
+
+destructor TFrameNodeStats.Destroy;
+begin
+
+  inherited Destroy;
+end;
 
 end.

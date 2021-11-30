@@ -48,15 +48,37 @@ type
     bbSelectedAccountsOperation: TBitBtn;
     procedure bbAccountsRefreshClick(Sender: TObject);
     procedure pnlAccountsInfoClick(Sender: TObject);
+
+    procedure sbSearchAccountClick(Sender: TObject);
+
   private
     { Private declarations }
   public
     { Public declarations }
+
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
   end;
 
 implementation
 
 {$R *.dfm}
+
+uses
+  UFRMWallet;
+
+constructor TFrameAccountExplorer.Create(AOwner: TComponent);
+begin
+  inherited Create( AOwner );
+
+
+end;
+
+destructor TFrameAccountExplorer.Destroy;
+begin
+
+  inherited Destroy;
+end;
 
 procedure TFrameAccountExplorer.bbAccountsRefreshClick(Sender: TObject);
 begin

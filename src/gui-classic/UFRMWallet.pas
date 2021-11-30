@@ -36,7 +36,9 @@ uses
   UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect, UConst,
   UAccountKeyStorage, UBaseTypes, UPCDataTypes, UOrderedList,
   UFRMRPCCalls, UTxMultiOperation, USettings, UEPasa,
-  {$IFNDEF FPC}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF};
+  {$IFNDEF FPC}System.Generics.Collections, UFrameAccountExplorer,
+  UFramePendingOperations, UFrameMessages, UFrameNodeStats, UFrameLogs,
+  UFrameOperationsExplorer, UFrameBlockExplorer{$ELSE}Generics.Collections{$ENDIF};
 
 Const
   CM_PC_WalletKeysChanged = WM_USER + 1;
@@ -105,15 +107,18 @@ type
     MiFindOperationbyOpHash: TMenuItem;
     MiAccountInformation: TMenuItem;
     MiOperationsExplorer: TMenuItem;
+    FrameAccountExplorer: TFrameAccountExplorer;
+    FramePendingOperations: TFramePendingOperations;
+    FrameBlockChainExplorer: TFrameBlockChainExplorer;
+    FrameOperationsExplorer: TFrameOperationsExplorer;
+    FrameLogs: TFrameLogs;
+    FrameNodeStats: TFrameNodeStats;
+    FrameMessages: TFrameMessages;
 
-    procedure cbHashRateUnitsClick(Sender: TObject);
-    procedure ebHashRateBackBlocksExit(Sender: TObject);
-    procedure ebHashRateBackBlocksKeyPress(Sender: TObject; var Key: char);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure MiOperationsExplorerClick(Sender: TObject);
     procedure MiRPCCallsClick(Sender: TObject);
-    procedure sbSearchAccountClick(Sender: TObject);
     procedure TimerUpdateStatusTimer(Sender: TObject);
     procedure cbMyPrivateKeysChange(Sender: TObject);
     procedure dgAccountsClick(Sender: TObject);
@@ -708,11 +713,7 @@ begin
   FMaxAccountBalance := CT_MaxWalletAmount;
   FMessagesUnreadCount := 0;
   lblReceivedMessages.Visible := false;
-  memoNetConnections.Lines.Clear;
-  memoNetServers.Lines.Clear;
-  memoNetBlackLists.Lines.Clear;
-  memoMessages.Lines.Clear;
-  memoMessageToSend.Lines.Clear;
+
   FUpdating := false;
   TimerUpdateStatus.Enabled := false;
   FIsActivated := false;
@@ -730,21 +731,22 @@ begin
   FNodeNotifyEvents.OnBlocksChanged := OnNewAccount;
   FNodeNotifyEvents.OnNodeMessageEvent := OnNodeMessageEvent;
   FNodeNotifyEvents.OnKeyActivity := OnNodeKeysActivity;
+
   FAccountsGrid := TAccountsGrid.Create(Self);
-  FAccountsGrid.DrawGrid := dgAccounts;
+  FAccountsGrid.DrawGrid := FrameAccountExplorer.dgAccounts;
   FAccountsGrid.AllowMultiSelect := True;
   FAccountsGrid.OnAccountsGridUpdatedData := OnAccountsGridUpdatedData;
   FAccountsGrid.AccountsGridDatasource := acds_Node;
   FSelectedAccountsGrid := TAccountsGrid.Create(Self);
   FSelectedAccountsGrid.AccountsGridDatasource := acds_InternalList;
-  FSelectedAccountsGrid.DrawGrid := dgSelectedAccounts;
+  FSelectedAccountsGrid.DrawGrid := FrameAccountExplorer.dgSelectedAccounts;
   FSelectedAccountsGrid.OnUpdated := OnSelectedAccountsGridUpdated;
   FOperationsAccountGrid := TOperationsGrid.Create(Self);
-  FOperationsAccountGrid.DrawGrid := dgAccountOperations;
+  FOperationsAccountGrid.DrawGrid := FrameAccountExplorer.dgAccountOperations;
   FOperationsAccountGrid.MustShowAlwaysAnAccount := true;
   FOperationsAccountGrid.WalletKeys := FWalletKeys;
   FPendingOperationsGrid := TOperationsGrid.Create(Self);
-  FPendingOperationsGrid.DrawGrid := dgPendingOperations;
+  FPendingOperationsGrid.DrawGrid := FramePendingOperations.dgPendingOperations;
   FPendingOperationsGrid.AccountNumber := -1; // all
   FPendingOperationsGrid.PendingOperations := true;
   FPendingOperationsGrid.WalletKeys := FWalletKeys;
@@ -793,14 +795,7 @@ begin
   FBackgroundLabel.Font.Size := 18;
   FBackgroundLabel.Alignment := taCenter;
   FBackgroundLabel.WordWrap := True;
-  cbHashRateUnits.Items.Clear;
-  cbHashRateUnits.Items.Add('h/s');
-  cbHashRateUnits.Items.Add('Kh/s');
-  cbHashRateUnits.Items.Add('Mh/s');
-  cbHashRateUnits.Items.Add('Gh/s');
-  cbHashRateUnits.Items.Add('Th/s');
-  cbHashRateUnits.Items.Add('Ph/s');
-  cbHashRateUnits.Items.Add('Eh/s');
+
   // Things for testing purposes only
   InitMenuForTesting;
   {$ifdef DARWIN}
