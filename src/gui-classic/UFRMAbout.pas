@@ -53,6 +53,7 @@ type
     procedure Label5Click(Sender: TObject);
   private
     function GetBuildString : string;
+    function GetProtocolVersionString : string;
 
     { Private declarations }
     Procedure OpenURL(Url : String);
@@ -102,13 +103,27 @@ begin
     {$ENDIF};
 end;
 
+function TFRMAbout.GetProtocolVersionString : string;
+begin
+  result :=
+    Format
+    (
+      'BlockChain Protocol: %d (%d)  -  Net Protocol: %d (%d)',
+      [
+        TNode.Node.Bank.SafeBox.CurrentProtocol,
+        CT_BlockChain_Protocol_Available,
+        CT_NetProtocol_Version,
+        CT_NetProtocol_Available
+      ]
+    );
+end;
+
 procedure TFRMAbout.FormCreate(Sender: TObject);
 begin
   {$IFDEF USE_GNUGETTEXT}TranslateComponent(self);{$ENDIF}
   //
   lblBuild.Caption := GetBuildString;
-  lblProtocolVersion.Caption := Format('BlockChain Protocol: %d (%d)  -  Net Protocol: %d (%d)',[TNode.Node.Bank.SafeBox.CurrentProtocol,CT_BlockChain_Protocol_Available,
-    CT_NetProtocol_Version, CT_NetProtocol_Available]);
+  lblProtocolVersion.Caption := GetProtocolVersionString;
 end;
 
 procedure TFRMAbout.Label4Click(Sender: TObject);
