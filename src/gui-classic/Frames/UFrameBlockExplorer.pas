@@ -22,6 +22,8 @@ type
     procedure ebHashRateBackBlocksExit(Sender: TObject);
     procedure ebHashRateBackBlocksKeyPress(Sender: TObject; var Key: char);
     procedure ebBlockChainBlockStartExit(Sender: TObject);
+    procedure ebBlockChainBlockStartKeyPress(Sender: TObject; var Key: Char);
+
   private
     { Private declarations }
   public
@@ -36,7 +38,7 @@ implementation
 {$R *.dfm}
 
 uses
-  UFRMWallet;
+  UFRMWallet, USettings;
 
 constructor TFrameBlockChainExplorer.Create(AOwner: TComponent);
 begin
@@ -62,17 +64,22 @@ end;
 procedure TFrameBlockChainExplorer.ebBlockChainBlockStartExit(Sender: TObject);
 var bstart,bend : Int64;
 begin
-  If FUpdating then exit;
-  FUpdating := True;
+  with FRMWallet do
+  begin
+
+  If Updating then exit;
+  Updating := True;
   Try
     bstart := StrToInt64Def(ebBlockChainBlockStart.Text,-1);
     bend := StrToInt64Def(ebBlockChainBlockEnd.Text,-1);
-    FBlockChainGrid.SetBlocks(bstart,bend);
-    if FBlockChainGrid.BlockStart>=0 then ebBlockChainBlockStart.Text := Inttostr(FBlockChainGrid.BlockStart) else ebBlockChainBlockStart.Text := '';
-    if FBlockChainGrid.BlockEnd>=0 then ebBlockChainBlockEnd.Text := Inttostr(FBlockChainGrid.BlockEnd) else ebBlockChainBlockEnd.Text := '';
+    BlockChainGrid.SetBlocks(bstart,bend);
+    if BlockChainGrid.BlockStart>=0 then ebBlockChainBlockStart.Text := Inttostr(BlockChainGrid.BlockStart) else ebBlockChainBlockStart.Text := '';
+    if BlockChainGrid.BlockEnd>=0 then ebBlockChainBlockEnd.Text := Inttostr(BlockChainGrid.BlockEnd) else ebBlockChainBlockEnd.Text := '';
   Finally
-    FUpdating := false;
+    Updating := false;
   End;
+
+  end;
 end;
 
 procedure TFrameBlockChainExplorer.ebBlockChainBlockStartKeyPress(Sender: TObject;
@@ -89,37 +96,47 @@ end;
 procedure TFrameBlockChainExplorer.ebHashRateBackBlocksExit(Sender: TObject);
 var i : Integer;
 begin
-  If FUpdating then exit;
-  FUpdating := True;
+  with FRMWallet do
+  begin
+
+  If Updating then exit;
+  Updating := True;
   Try
     i := StrToIntDef(ebHashRateBackBlocks.Text,-1);
-    FBlockChainGrid.HashRateAverageBlocksCount:=i;
-    TSettings.HashRateAvgBlocksCount := FBlockChainGrid.HashRateAverageBlocksCount;
+    BlockChainGrid.HashRateAverageBlocksCount:=i;
+    TSettings.HashRateAvgBlocksCount := BlockChainGrid.HashRateAverageBlocksCount;
   Finally
-    ebHashRateBackBlocks.Text := IntToStr(FBlockChainGrid.HashRateAverageBlocksCount);
-    FUpdating := false;
+    ebHashRateBackBlocks.Text := IntToStr(BlockChainGrid.HashRateAverageBlocksCount);
+    Updating := false;
   End;
+
+  end;
 end;
 
 procedure TFrameBlockChainExplorer.cbHashRateUnitsClick(Sender: TObject);
 begin
-  If FUpdating then Exit;
-  FUpdating := True;
+  with FRMWallet do
+  begin
+
+  If Updating then Exit;
+  Updating := True;
   Try
     case cbHashRateUnits.ItemIndex of
-      0 : FBlockChainGrid.HashRateAs := hr_Unit;
-      1 : FBlockChainGrid.HashRateAs := hr_Kilo;
-      2 : FBlockChainGrid.HashRateAs := hr_Mega;
-      3 : FBlockChainGrid.HashRateAs := hr_Giga;
-      4 : FBlockChainGrid.HashRateAs := hr_Tera;
-      5 : FBlockChainGrid.HashRateAs := hr_Peta;
-      6 : FBlockChainGrid.HashRateAs := hr_Exa;
-    else FBlockChainGrid.HashRateAs := hr_Mega;
+      0 : BlockChainGrid.HashRateAs := hr_Unit;
+      1 : BlockChainGrid.HashRateAs := hr_Kilo;
+      2 : BlockChainGrid.HashRateAs := hr_Mega;
+      3 : BlockChainGrid.HashRateAs := hr_Giga;
+      4 : BlockChainGrid.HashRateAs := hr_Tera;
+      5 : BlockChainGrid.HashRateAs := hr_Peta;
+      6 : BlockChainGrid.HashRateAs := hr_Exa;
+    else BlockChainGrid.HashRateAs := hr_Mega;
     end;
-    TSettings.ShowHashRateAs := FBlockChainGrid.HashRateAs;
+    TSettings.ShowHashRateAs := BlockChainGrid.HashRateAs;
   Finally
-    FUpdating := false;
+    Updating := false;
   End;
+
+  end;
 end;
 
 

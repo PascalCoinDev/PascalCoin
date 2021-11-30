@@ -14,6 +14,11 @@ type
     ebFilterOperationsStartBlock: TEdit;
     ebFilterOperationsEndBlock: TEdit;
     dgOperationsExplorer: TDrawGrid;
+
+    // skybuck: missing ??
+ //   procedure ebFilterOperationsAccountExit(Sender: TObject);
+ ///   procedure ebFilterOperationsAccountKeyPress(Sender: TObject; var Key: Char);
+
   private
     { Private declarations }
   public

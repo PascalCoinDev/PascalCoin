@@ -48,8 +48,34 @@ type
     bbSelectedAccountsOperation: TBitBtn;
     procedure bbAccountsRefreshClick(Sender: TObject);
     procedure pnlAccountsInfoClick(Sender: TObject);
+    procedure cbMyPrivateKeysChange(Sender: TObject);
+    procedure dgAccountsClick(Sender: TObject);
+
+    procedure dgAccountsColumnMoved(Sender: TObject; FromIndex,
+      ToIndex: Integer);
+    procedure dgAccountsFixedCellClick(Sender: TObject; ACol, ARow: Integer);
 
     procedure sbSearchAccountClick(Sender: TObject);
+
+    procedure cbExploreMyAccountsClick(Sender: TObject);
+
+
+    procedure ebFindAccountNumberChange(Sender: TObject);
+    procedure ebFindAccountNumberExit(Sender: TObject);
+
+    procedure bbChangeKeyNameClick(Sender: TObject);
+
+    procedure sbSelectedAccountsAddClick(Sender: TObject);
+    procedure sbSelectedAccountsAddAllClick(Sender: TObject);
+    procedure sbSelectedAccountsDelClick(Sender: TObject);
+    procedure sbSelectedAccountsDelAllClick(Sender: TObject);
+    procedure bbSelectedAccountsOperationClick(Sender: TObject);
+
+    procedure ebFilterAccountByBalanceMinExit(Sender: TObject);
+    procedure ebFilterAccountByBalanceMinKeyPress(Sender: TObject;
+      var Key: Char);
+    procedure cbFilterAccountsClick(Sender: TObject);
+
 
   private
     { Private declarations }
@@ -65,7 +91,7 @@ implementation
 {$R *.dfm}
 
 uses
-  UFRMWallet;
+  UFRMWallet, UConst, UPCOrderedLists;
 
 constructor TFrameAccountExplorer.Create(AOwner: TComponent);
 begin
@@ -84,7 +110,7 @@ end;
 
 procedure TFrameAccountExplorer.bbAccountsRefreshClick(Sender: TObject);
 begin
-  UpdateAccounts(true);
+  FRMWallet.UpdateAccounts(true);
 end;
 
 procedure TFrameAccountExplorer.bbChangeKeyNameClick(Sender: TObject);
@@ -93,12 +119,12 @@ var i : Integer;
 begin
   if (cbMyPrivateKeys.ItemIndex<0) then  exit;
   i := PtrInt(cbMyPrivateKeys.Items.Objects[cbMyPrivateKeys.ItemIndex]);
-  if (i<0) Or (i>=FWalletKeys.Count) then raise Exception.Create('Must select a Key');
-  name := FWalletKeys.Key[i].Name;
+  if (i<0) Or (i>=FRMWallet.WalletKeys.Count) then raise Exception.Create('Must select a Key');
+  name := FRMWallet.WalletKeys.Key[i].Name;
   if InputQuery('Change Key name','Input new name',name) then begin
-    FWalletKeys.SetName(i,name);
+    FRMWallet.WalletKeys.SetName(i,name);
   end;
-  UpdatePrivateKeys;
+  FRMWallet.UpdatePrivateKeys;
 end;
 
 procedure TFrameAccountExplorer.bbSelectedAccountsOperationClick(Sender: TObject);

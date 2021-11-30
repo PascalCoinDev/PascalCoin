@@ -46,6 +46,7 @@ object FrameBlockChainExplorer: TFrameBlockChainExplorer
       Height = 21
       TabOrder = 0
       OnExit = ebBlockChainBlockStartExit
+      OnKeyPress = ebBlockChainBlockStartKeyPress
     end
     object ebBlockChainBlockEnd: TEdit
       Left = 185
@@ -60,6 +61,7 @@ object FrameBlockChainExplorer: TFrameBlockChainExplorer
       Width = 56
       Height = 21
       TabOrder = 2
+      OnKeyPress = ebHashRateBackBlocksKeyPress
     end
     object cbHashRateUnits: TComboBox
       Left = 496
@@ -70,6 +72,7 @@ object FrameBlockChainExplorer: TFrameBlockChainExplorer
       ItemIndex = 1
       TabOrder = 3
       Text = 'Mh/s'
+      OnClick = cbHashRateUnitsClick
       Items.Strings = (
         'Kh/s'
         'Mh/s'
