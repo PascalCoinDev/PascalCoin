@@ -21,11 +21,29 @@ type
     { Private declarations }
   public
     { Public declarations }
+
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
   end;
 
 implementation
 
 {$R *.dfm}
+
+constructor TFrameMessages.Create(AOwner: TComponent);
+begin
+  inherited Create( AOwner );
+
+  memoMessages.Lines.Clear;
+  memoMessageToSend.Lines.Clear;
+end;
+
+destructor TFrameMessages.Destroy;
+begin
+
+
+  inherited Destroy;
+end;
 
 procedure TFRMWallet.bbSendAMessageClick(Sender: TObject);
 Var basem,m : String;

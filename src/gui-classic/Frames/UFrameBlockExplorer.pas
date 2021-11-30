@@ -18,15 +18,41 @@ type
     ebHashRateBackBlocks: TEdit;
     cbHashRateUnits: TComboBox;
     dgBlockChainExplorer: TDrawGrid;
+    procedure cbHashRateUnitsClick(Sender: TObject);
+    procedure ebHashRateBackBlocksExit(Sender: TObject);
+    procedure ebHashRateBackBlocksKeyPress(Sender: TObject; var Key: char);
   private
     { Private declarations }
   public
     { Public declarations }
+
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
   end;
 
 implementation
 
 {$R *.dfm}
+
+constructor TFrameBlockChainExplorer.Create(AOwner: TComponent);
+begin
+  inherited Create( AOwner );
+
+  cbHashRateUnits.Items.Clear;
+  cbHashRateUnits.Items.Add('h/s');
+  cbHashRateUnits.Items.Add('Kh/s');
+  cbHashRateUnits.Items.Add('Mh/s');
+  cbHashRateUnits.Items.Add('Gh/s');
+  cbHashRateUnits.Items.Add('Th/s');
+  cbHashRateUnits.Items.Add('Ph/s');
+  cbHashRateUnits.Items.Add('Eh/s');
+end;
+
+destructor TFrameBlockChainExplorer.Destroy;
+begin
+
+  inherited Destroy;
+end;
 
 procedure TFrameBlockChainExplorer.ebBlockChainBlockStartExit(Sender: TObject);
 var bstart,bend : Int64;

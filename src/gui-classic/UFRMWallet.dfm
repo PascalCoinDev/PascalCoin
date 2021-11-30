@@ -383,30 +383,194 @@ object FRMWallet: TFRMWallet
     OnChange = PageControlChange
     object tsMyAccounts: TTabSheet
       Caption = 'Account Explorer'
+      inline FrameAccountExplorer: TFrameAccountExplorer
+        Left = 0
+        Top = 0
+        Width = 857
+        Height = 438
+        Align = alClient
+        TabOrder = 0
+        ExplicitLeft = 37
+        ExplicitTop = -144
+        inherited Splitter1: TSplitter
+          Height = 372
+        end
+        inherited pnlMyAccountsTop: TPanel
+          Width = 857
+        end
+        inherited pnlAccounts: TPanel
+          Height = 372
+          inherited dgAccounts: TDrawGrid
+            Height = 338
+          end
+          inherited pnlAccountsInfo: TPanel
+            Top = 338
+          end
+        end
+        inherited pcAccountsOptions: TPageControl
+          Width = 452
+          Height = 372
+          inherited tsAccountOperations: TTabSheet
+            ExplicitWidth = 444
+            ExplicitHeight = 344
+            inherited dgAccountOperations: TDrawGrid
+              Width = 444
+              Height = 344
+            end
+          end
+        end
+      end
     end
     object tsPendingOperations: TTabSheet
       Caption = 'Pending Operations'
       ImageIndex = 5
+      inline FramePendingOperations: TFramePendingOperations
+        Left = 0
+        Top = 0
+        Width = 857
+        Height = 438
+        Align = alClient
+        TabOrder = 0
+        ExplicitLeft = 31
+        ExplicitTop = -84
+        inherited dgPendingOperations: TDrawGrid
+          Width = 857
+          Height = 352
+          ExplicitLeft = 0
+          ExplicitTop = 86
+          ExplicitWidth = 826
+          ExplicitHeight = 436
+        end
+        inherited pnlPendingOperations: TPanel
+          Width = 857
+          ExplicitLeft = 0
+          ExplicitWidth = 826
+          inherited Label10: TLabel
+            Width = 837
+          end
+        end
+      end
     end
     object tsBlockChain: TTabSheet
       Caption = 'Block Explorer'
       ImageIndex = 1
+      inline FrameBlockChainExplorer: TFrameBlockChainExplorer
+        Left = 0
+        Top = 0
+        Width = 857
+        Height = 438
+        Align = alClient
+        TabOrder = 0
+        ExplicitLeft = 75
+        ExplicitTop = -51
+        inherited Panel2: TPanel
+          Width = 857
+        end
+        inherited dgBlockChainExplorer: TDrawGrid
+          Width = 857
+          Height = 397
+        end
+      end
     end
     object tsOperations: TTabSheet
       Caption = 'Operations Explorer'
       ImageIndex = 1
+      inline FrameOperationsExplorer: TFrameOperationsExplorer
+        Left = 0
+        Top = 0
+        Width = 857
+        Height = 438
+        Align = alClient
+        TabOrder = 0
+        ExplicitLeft = 40
+        ExplicitTop = -3
+        inherited Panel1: TPanel
+          Width = 857
+        end
+        inherited dgOperationsExplorer: TDrawGrid
+          Width = 857
+          Height = 397
+        end
+      end
     end
     object tsLogs: TTabSheet
       Caption = 'Logs'
       ImageIndex = 2
+      inline FrameLogs: TFrameLogs
+        Left = 0
+        Top = 0
+        Width = 857
+        Height = 438
+        Align = alClient
+        TabOrder = 0
+        ExplicitLeft = 36
+        ExplicitTop = -93
+        inherited memoLogs: TMemo
+          Width = 857
+          Height = 397
+          ExplicitLeft = 0
+          ExplicitTop = 41
+          ExplicitWidth = 821
+          ExplicitHeight = 490
+        end
+        inherited pnlTopLogs: TPanel
+          Width = 857
+          ExplicitLeft = 0
+          ExplicitWidth = 821
+        end
+      end
     end
     object tsNodeStats: TTabSheet
       Caption = 'Node Stats'
       ImageIndex = 3
+      inline FrameNodeStats: TFrameNodeStats
+        Left = 0
+        Top = 0
+        Width = 857
+        Height = 438
+        Align = alClient
+        TabOrder = 0
+        ExplicitLeft = 166
+        ExplicitTop = -134
+        inherited Label6: TLabel
+          Top = 157
+          Width = 270
+        end
+        inherited Label7: TLabel
+          Top = 53
+          Width = 248
+        end
+        inherited memoNetConnections: TMemo
+          Width = 996
+          Height = 11
+        end
+        inherited memoNetServers: TMemo
+          Top = 176
+          Width = 996
+        end
+        inherited memoNetBlackLists: TMemo
+          Top = 72
+          Width = 995
+        end
+      end
     end
     object tsMessages: TTabSheet
       Caption = 'Messages'
       ImageIndex = 6
+      inline FrameMessages: TFrameMessages
+        Left = 0
+        Top = 0
+        Width = 857
+        Height = 438
+        Align = alClient
+        TabOrder = 0
+        ExplicitLeft = 40
+        ExplicitTop = -184
+        inherited memoMessages: TMemo
+          Width = 861
+          Height = 65
+        end
+      end
     end
   end
   object TimerUpdateStatus: TTimer
