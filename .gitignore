@@ -48,6 +48,7 @@ __history/
 __recovery/
 dunit.ini
 *.res
+*.rsm
 /*.DS_Store
 /PIP/*.DS_Store
 /PIP/resources/*.DS_Store
