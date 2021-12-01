@@ -426,6 +426,23 @@ object FRMWallet: TFRMWallet
               ExplicitHeight = 344
             end
           end
+          inherited tsMultiSelectAccounts: TTabSheet
+            ExplicitWidth = 444
+            ExplicitHeight = 344
+            inherited dgSelectedAccounts: TDrawGrid
+              Height = 287
+            end
+            inherited pnlSelectedAccountsTop: TPanel
+              Width = 444
+            end
+            inherited pnlSelectedAccountsBottom: TPanel
+              Top = 318
+              Width = 444
+            end
+            inherited pnlSelectedAccountsLeft: TPanel
+              Height = 287
+            end
+          end
         end
       end
     end
@@ -439,8 +456,6 @@ object FRMWallet: TFRMWallet
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitLeft = 31
-        ExplicitTop = -84
         ExplicitWidth = 857
         ExplicitHeight = 438
         inherited dgPendingOperations: TDrawGrid
@@ -448,13 +463,10 @@ object FRMWallet: TFRMWallet
           Height = 352
           ExplicitLeft = 0
           ExplicitTop = 86
-          ExplicitWidth = 826
-          ExplicitHeight = 436
         end
         inherited pnlPendingOperations: TPanel
           Width = 857
           ExplicitLeft = 0
-          ExplicitWidth = 826
           inherited Label10: TLabel
             Width = 837
           end
@@ -471,11 +483,11 @@ object FRMWallet: TFRMWallet
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitWidth = 296
-        ExplicitHeight = 59
+        ExplicitWidth = 857
+        ExplicitHeight = 438
         inherited Panel2: TPanel
           Width = 857
-          ExplicitWidth = 296
+          ExplicitWidth = 857
         end
         inherited dgBlockChainExplorer: TDrawGrid
           Width = 857
@@ -495,8 +507,6 @@ object FRMWallet: TFRMWallet
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitLeft = 40
-        ExplicitTop = -3
         ExplicitWidth = 857
         ExplicitHeight = 438
         inherited Panel1: TPanel
@@ -521,8 +531,6 @@ object FRMWallet: TFRMWallet
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitLeft = 36
-        ExplicitTop = -93
         ExplicitWidth = 857
         ExplicitHeight = 438
         inherited memoLogs: TMemo
@@ -530,13 +538,10 @@ object FRMWallet: TFRMWallet
           Height = 397
           ExplicitLeft = 0
           ExplicitTop = 41
-          ExplicitWidth = 821
-          ExplicitHeight = 490
         end
         inherited pnlTopLogs: TPanel
           Width = 857
           ExplicitLeft = 0
-          ExplicitWidth = 821
         end
       end
     end
@@ -550,8 +555,6 @@ object FRMWallet: TFRMWallet
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitLeft = 166
-        ExplicitTop = -134
         ExplicitWidth = 857
         ExplicitHeight = 438
         inherited Label6: TLabel
@@ -592,8 +595,8 @@ object FRMWallet: TFRMWallet
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitWidth = 296
-        ExplicitHeight = 59
+        ExplicitWidth = 857
+        ExplicitHeight = 438
         inherited memoMessages: TMemo
           Width = 861
           Height = 65

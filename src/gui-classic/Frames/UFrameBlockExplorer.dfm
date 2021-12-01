@@ -61,6 +61,7 @@ object FrameBlockChainExplorer: TFrameBlockChainExplorer
       Width = 56
       Height = 21
       TabOrder = 2
+      OnExit = ebHashRateBackBlocksExit
       OnKeyPress = ebHashRateBackBlocksKeyPress
     end
     object cbHashRateUnits: TComboBox
