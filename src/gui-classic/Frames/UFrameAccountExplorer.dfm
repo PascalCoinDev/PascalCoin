@@ -62,6 +62,7 @@ object FrameAccountExplorer: TFrameAccountExplorer
         FF00FFFF00FFFF00FFFF00FFFF00FFAD827FC9AA9EEFE0B7EFDFB2E7CEACB890
         86B89086FF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF
         00FFFF00FFBA968ABB988CB79188FF00FFFF00FFFF00FFFF00FF}
+      OnClick = sbSearchAccountClick
     end
     object cbMyPrivateKeys: TComboBox
       Left = 260
@@ -70,6 +71,7 @@ object FrameAccountExplorer: TFrameAccountExplorer
       Height = 21
       Style = csDropDownList
       TabOrder = 0
+      OnChange = cbMyPrivateKeysChange
     end
     object cbExploreMyAccounts: TCheckBox
       Left = 11
@@ -78,6 +80,7 @@ object FrameAccountExplorer: TFrameAccountExplorer
       Height = 19
       Caption = 'Explore accounts with one of my Wallet Keys'
       TabOrder = 1
+      OnClick = cbExploreMyAccountsClick
     end
     object ebFindAccountNumber: TEdit
       Left = 87
@@ -85,6 +88,8 @@ object FrameAccountExplorer: TFrameAccountExplorer
       Width = 83
       Height = 21
       TabOrder = 3
+      OnChange = ebFindAccountNumberChange
+      OnExit = ebFindAccountNumberExit
     end
     object bbChangeKeyName: TBitBtn
       Left = 685
@@ -93,6 +98,7 @@ object FrameAccountExplorer: TFrameAccountExplorer
       Height = 25
       Caption = 'Change Key name'
       TabOrder = 2
+      OnClick = bbChangeKeyNameClick
     end
     object cbFilterAccounts: TCheckBox
       Left = 260
@@ -101,6 +107,7 @@ object FrameAccountExplorer: TFrameAccountExplorer
       Height = 19
       Caption = 'Filter accounts by balance'
       TabOrder = 4
+      OnClick = cbFilterAccountsClick
     end
     object ebFilterAccountByBalanceMin: TEdit
       Left = 412
@@ -109,6 +116,8 @@ object FrameAccountExplorer: TFrameAccountExplorer
       Height = 21
       Hint = 'Min balance'
       TabOrder = 5
+      OnExit = ebFilterAccountByBalanceMinExit
+      OnKeyPress = ebFilterAccountByBalanceMinKeyPress
     end
     object ebFilterAccountByBalanceMax: TEdit
       Left = 503
@@ -134,6 +143,7 @@ object FrameAccountExplorer: TFrameAccountExplorer
       Height = 482
       Align = alClient
       TabOrder = 0
+      OnClick = dgAccountsClick
     end
     object pnlAccountsInfo: TPanel
       Left = 0
@@ -226,7 +236,7 @@ object FrameAccountExplorer: TFrameAccountExplorer
     Top = 66
     Width = 415
     Height = 516
-    ActivePage = tsAccountOperations
+    ActivePage = tsMultiSelectAccounts
     Align = alClient
     TabOrder = 2
     object tsAccountOperations: TTabSheet
@@ -334,6 +344,7 @@ object FrameAccountExplorer: TFrameAccountExplorer
           Width = 33
           Height = 31
           Caption = '>'
+          OnClick = sbSelectedAccountsAddClick
         end
         object sbSelectedAccountsAddAll: TSpeedButton
           Left = 2
@@ -341,6 +352,7 @@ object FrameAccountExplorer: TFrameAccountExplorer
           Width = 33
           Height = 31
           Caption = '>>'
+          OnClick = sbSelectedAccountsAddAllClick
         end
         object sbSelectedAccountsDel: TSpeedButton
           Left = 2
@@ -348,6 +360,7 @@ object FrameAccountExplorer: TFrameAccountExplorer
           Width = 33
           Height = 31
           Caption = '<'
+          OnClick = sbSelectedAccountsDelClick
         end
         object sbSelectedAccountsDelAll: TSpeedButton
           Left = 2
@@ -355,6 +368,7 @@ object FrameAccountExplorer: TFrameAccountExplorer
           Width = 33
           Height = 31
           Caption = '<<'
+          OnClick = sbSelectedAccountsDelAllClick
         end
       end
       object bbSelectedAccountsOperation: TBitBtn
@@ -422,6 +436,7 @@ object FrameAccountExplorer: TFrameAccountExplorer
           00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FFFF00FF}
         Layout = blGlyphTop
         TabOrder = 4
+        OnClick = bbSelectedAccountsOperationClick
       end
     end
   end
