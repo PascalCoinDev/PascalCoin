@@ -143,7 +143,6 @@ object FrameAccountExplorer: TFrameAccountExplorer
       Align = alBottom
       BevelOuter = bvNone
       TabOrder = 1
-      OnClick = pnlAccountsInfoClick
       DesignSize = (
         400
         34)

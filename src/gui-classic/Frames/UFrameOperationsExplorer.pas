@@ -14,10 +14,16 @@ type
     ebFilterOperationsStartBlock: TEdit;
     ebFilterOperationsEndBlock: TEdit;
     dgOperationsExplorer: TDrawGrid;
+    procedure ebFilterOperationsStartBlockExit(Sender: TObject);
+    procedure ebFilterOperationsEndBlockExit(Sender: TObject);
+    procedure ebFilterOperationsStartBlockKeyPress(Sender: TObject;
+      var Key: Char);
+    procedure ebFilterOperationsEndBlockKeyPress(Sender: TObject;
+      var Key: Char);
 
-    // skybuck: missing ??
- //   procedure ebFilterOperationsAccountExit(Sender: TObject);
- ///   procedure ebFilterOperationsAccountKeyPress(Sender: TObject; var Key: Char);
+    // shared:
+    procedure ebFilterOperationsAccountExit(Sender: TObject);
+    procedure ebFilterOperationsAccountKeyPress(Sender: TObject; var Key: Char);
 
   private
     { Private declarations }
@@ -31,6 +37,9 @@ type
 implementation
 
 {$R *.dfm}
+
+uses
+  UFRMWallet;
 
 constructor TFrameOperationsExplorer.Create(AOwner: TComponent);
 begin
@@ -46,6 +55,51 @@ begin
   inherited Destroy;
 end;
 
+procedure TFrameOperationsExplorer.ebFilterOperationsAccountExit(Sender: TObject);
+Var bstart,bend : Int64;
+begin
+  If FRMWallet.Updating then exit;
+  FRMWallet.Updating := True;
+  Try
+    bstart := StrToInt64Def(ebFilterOperationsStartBlock.Text,-1);
+    if bstart>=0 then ebFilterOperationsStartBlock.Text := Inttostr(bstart) else ebFilterOperationsStartBlock.Text := '';
+    bend := StrToInt64Def(ebFilterOperationsEndBlock.Text,-1);
+    if bend>=0 then ebFilterOperationsEndBlock.Text := Inttostr(bend) else ebFilterOperationsEndBlock.Text := '';
+    FRMWallet.OperationsExplorerGrid.SetBlocks(bstart,bend);
+  Finally
+    FRMWallet.Updating := false;
+  End;
+end;
+
+procedure TFrameOperationsExplorer.ebFilterOperationsAccountKeyPress(Sender: TObject;
+  var Key: Char);
+begin
+  if key=#13 then  ebFilterOperationsAccountExit(Nil);
+end;
+
+procedure TFrameOperationsExplorer.ebFilterOperationsStartBlockExit(
+  Sender: TObject);
+begin
+  ebFilterOperationsAccountExit( Sender );
+end;
+
+procedure TFrameOperationsExplorer.ebFilterOperationsEndBlockExit(
+  Sender: TObject);
+begin
+  ebFilterOperationsAccountExit( Sender );
+end;
+
+procedure TFrameOperationsExplorer.ebFilterOperationsStartBlockKeyPress(
+  Sender: TObject; var Key: Char);
+begin
+  ebFilterOperationsAccountKeyPress( Sender, Key );
+end;
+
+procedure TFrameOperationsExplorer.ebFilterOperationsEndBlockKeyPress(
+  Sender: TObject; var Key: Char);
+begin
+  ebFilterOperationsAccountKeyPress( Sender, Key );
+end;
 
 
 end.

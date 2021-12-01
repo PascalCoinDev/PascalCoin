@@ -47,7 +47,6 @@ type
     sbSelectedAccountsDelAll: TSpeedButton;
     bbSelectedAccountsOperation: TBitBtn;
     procedure bbAccountsRefreshClick(Sender: TObject);
-    procedure pnlAccountsInfoClick(Sender: TObject);
     procedure cbMyPrivateKeysChange(Sender: TObject);
     procedure dgAccountsClick(Sender: TObject);
 
@@ -75,7 +74,6 @@ type
     procedure ebFilterAccountByBalanceMinKeyPress(Sender: TObject;
       var Key: Char);
     procedure cbFilterAccountsClick(Sender: TObject);
-
 
   private
     { Private declarations }
@@ -193,7 +191,7 @@ begin
     ebFindAccountNumber.Font.Color := clDkGray;
   end else if TAccountComp.AccountTxtNumberToAccountNumber(ebFindAccountNumber.Text,an) then begin
     ebFindAccountNumber.Color := clWindow;
-    if FAccountsGrid.MoveRowToAccount(an) then begin
+    if FRMWallet.AccountsGrid.MoveRowToAccount(an) then begin
       ebFindAccountNumber.Font.Color := clWindowText;
     end else begin
       ebFindAccountNumber.Font.Color := clRed;
@@ -205,7 +203,7 @@ begin
       if FRMWallet.Node.Bank.SafeBox.FindAccountsStartingByName(LAccountNameRawValue,LAccNames,1)>0 then begin
         an := LAccNames.GetTag(0);
         ebFindAccountNumber.Color := clWindow;
-        if FAccountsGrid.MoveRowToAccount(an) then begin
+        if FRMWallet.AccountsGrid.MoveRowToAccount(an) then begin
           ebFindAccountNumber.Font.Color := clWindowText;
         end else begin
           ebFindAccountNumber.Font.Color := clRed;
@@ -231,8 +229,8 @@ Var F : TFRMAccountSelect;
 begin
   F := TFRMAccountSelect.Create(Self);
   try
-    F.Node := FNode;
-    F.WalletKeys := FWalletKeys;
+    F.Node := FRMWallet.Node;
+    F.WalletKeys := FRMWallet.WalletKeys;
     F.ShowModal;
   finally
     F.Free;
@@ -243,19 +241,19 @@ procedure TFrameAccountExplorer.sbSelectedAccountsAddAllClick(Sender: TObject);
 Var lsource,ltarget : TOrderedCardinalList;
   i : Integer;
 begin
-  lsource := FAccountsGrid.LockAccountsList;
+  lsource := FRMWallet.AccountsGrid.LockAccountsList;
   Try
-    ltarget := FSelectedAccountsGrid.LockAccountsList;
+    ltarget := FRMWallet.SelectedAccountsGrid.LockAccountsList;
     Try
       for i := 0 to lsource.Count-1 do begin
-        if FWalletKeys.IndexOfAccountKey(FNode.Bank.SafeBox.Account(lsource.Get(i)).accountInfo.accountKey)<0 then raise Exception.Create(Format('You cannot operate with account %d because private key not found in your wallet',[lsource.Get(i)]));
+        if FRMWallet.WalletKeys.IndexOfAccountKey(FRMWallet.Node.Bank.SafeBox.Account(lsource.Get(i)).accountInfo.accountKey)<0 then raise Exception.Create(Format('You cannot operate with account %d because private key not found in your wallet',[lsource.Get(i)]));
         ltarget.Add(lsource.Get(i));
       end;
     Finally
-      FSelectedAccountsGrid.UnlockAccountsList;
+      FRMWallet.SelectedAccountsGrid.UnlockAccountsList;
     End;
   Finally
-    FAccountsGrid.UnlockAccountsList;
+    FRMWallet.AccountsGrid.UnlockAccountsList;
   End;
 end;
 
@@ -264,33 +262,33 @@ Var l, selected : TOrderedCardinalList;
   an : Int64;
   i : Integer;
 begin
-  an := FAccountsGrid.AccountNumber(dgAccounts.Row);
+  an := FRMWallet.AccountsGrid.AccountNumber(dgAccounts.Row);
   if (an<0) then raise Exception.Create('No account selected');
-  if FWalletKeys.IndexOfAccountKey(FNode.Bank.SafeBox.Account(an).accountInfo.accountkey)<0 then
+  if FRMWallet.WalletKeys.IndexOfAccountKey(FRMWallet.Node.Bank.SafeBox.Account(an).accountInfo.accountkey)<0 then
     raise Exception.Create(Format('You cannot add %s account because private key not found in your wallet.'#10+#10+'You''re not the owner!',
       [TAccountComp.AccountNumberToAccountTxtNumber(an)]));
   // Add
-  l := FSelectedAccountsGrid.LockAccountsList;
+  l := FRMWallet.SelectedAccountsGrid.LockAccountsList;
   selected := TOrderedCardinalList.Create;
   Try
-    FAccountsGrid.SelectedAccounts(selected);
+    FRMWallet.AccountsGrid.SelectedAccounts(selected);
     for i := 0 to selected.Count-1 do begin
       l.Add(selected.Get(i));
     end;
   Finally
     selected.Free;
-    FSelectedAccountsGrid.UnlockAccountsList;
+    FRMWallet.SelectedAccountsGrid.UnlockAccountsList;
   End;
 end;
 
 procedure TFrameAccountExplorer.sbSelectedAccountsDelAllClick(Sender: TObject);
 Var l : TOrderedCardinalList;
 begin
-  l := FSelectedAccountsGrid.LockAccountsList;
+  l := FRMWallet.SelectedAccountsGrid.LockAccountsList;
   try
     l.Clear;
   finally
-    FSelectedAccountsGrid.UnlockAccountsList;
+    FRMWallet.SelectedAccountsGrid.UnlockAccountsList;
   end;
 end;
 
@@ -298,46 +296,26 @@ procedure TFrameAccountExplorer.sbSelectedAccountsDelClick(Sender: TObject);
 Var an : Int64;
   l : TOrderedCardinalList;
 begin
-  l := FSelectedAccountsGrid.LockAccountsList;
+  l := FRMWallet.SelectedAccountsGrid.LockAccountsList;
   try
-    an := FSelectedAccountsGrid.AccountNumber(dgSelectedAccounts.Row);
+    an := FRMWallet.SelectedAccountsGrid.AccountNumber(dgSelectedAccounts.Row);
     if an>=0 then l.Remove(an);
   finally
-    FSelectedAccountsGrid.UnlockAccountsList;
+    FRMWallet.SelectedAccountsGrid.UnlockAccountsList;
   end;
 end;
 
 procedure TFrameAccountExplorer.ebFilterAccountByBalanceMinExit(Sender: TObject);
 begin
-  DoUpdateAccountsFilter;
+  FRMWallet.DoUpdateAccountsFilter;
 end;
 
 procedure TFrameAccountExplorer.ebFilterAccountByBalanceMinKeyPress(Sender: TObject;
   var Key: Char);
 begin
-  if key=#13 then DoUpdateAccountsFilter;
+  if key=#13 then FRMWallet.DoUpdateAccountsFilter;
 end;
 
-procedure TFrameAccountExplorer.ebFilterOperationsAccountExit(Sender: TObject);
-Var bstart,bend : Int64;
-begin
-  If FUpdating then exit;
-  FUpdating := True;
-  Try
-    bstart := StrToInt64Def(ebFilterOperationsStartBlock.Text,-1);
-    if bstart>=0 then ebFilterOperationsStartBlock.Text := Inttostr(bstart) else ebFilterOperationsStartBlock.Text := '';
-    bend := StrToInt64Def(ebFilterOperationsEndBlock.Text,-1);
-    if bend>=0 then ebFilterOperationsEndBlock.Text := Inttostr(bend) else ebFilterOperationsEndBlock.Text := '';
-    FOperationsExplorerGrid.SetBlocks(bstart,bend);
-  Finally
-    FUpdating := false;
-  End;
-end;
 
-procedure TFrameAccountExplorer.ebFilterOperationsAccountKeyPress(Sender: TObject;
-  var Key: Char);
-begin
-  if key=#13 then  ebFilterOperationsAccountExit(Nil);
-end;
 
 end.
