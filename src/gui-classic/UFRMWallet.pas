@@ -227,6 +227,9 @@ type
     Property MinersBlocksFound : Integer read FMinersBlocksFound write SetMinersBlocksFound;
 
     Property Updating : boolean read FUpdating write FUpdating;
+
+    property AccountsGrid : TAccountsGrid read FAccountsGrid;
+    property OperationsExplorerGrid : TOperationsGrid read FOperationsExplorerGrid;
     Property BlockChainGrid : TBlockChainGrid read FBlockChainGrid;
 
     Property SelectedAccountsGrid : TAccountsGrid read FSelectedAccountsGrid;

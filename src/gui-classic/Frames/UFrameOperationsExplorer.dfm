@@ -27,6 +27,8 @@ object FrameOperationsExplorer: TFrameOperationsExplorer
       Width = 57
       Height = 21
       TabOrder = 0
+      OnExit = ebFilterOperationsStartBlockExit
+      OnKeyPress = ebFilterOperationsStartBlockKeyPress
     end
     object ebFilterOperationsEndBlock: TEdit
       Left = 185
@@ -34,6 +36,8 @@ object FrameOperationsExplorer: TFrameOperationsExplorer
       Width = 57
       Height = 21
       TabOrder = 1
+      OnExit = ebFilterOperationsEndBlockExit
+      OnKeyPress = ebFilterOperationsEndBlockKeyPress
     end
   end
   object dgOperationsExplorer: TDrawGrid
