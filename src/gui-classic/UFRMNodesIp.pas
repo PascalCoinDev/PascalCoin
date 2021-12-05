@@ -29,12 +29,13 @@ uses
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Buttons, UAppParams;
+  Dialogs, StdCtrls, Buttons, UAppParams, Vcl.ExtCtrls;
 
 type
   TFRMNodesIp = class(TForm)
     memoNodesIp: TMemo;
-    Label1: TLabel;
+    Panel1: TPanel;
+    Panel2: TPanel;
     bbOk: TBitBtn;
     bbCancel: TBitBtn;
     cbTryOnlyWithThisServers: TCheckBox;
