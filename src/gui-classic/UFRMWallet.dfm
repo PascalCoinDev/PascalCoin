@@ -417,8 +417,6 @@ object FRMWallet: TFRMWallet
           ExplicitWidth = 452
           ExplicitHeight = 372
           inherited tsAccountOperations: TTabSheet
-            ExplicitWidth = 444
-            ExplicitHeight = 344
             inherited dgAccountOperations: TDrawGrid
               Width = 444
               Height = 344
@@ -431,16 +429,21 @@ object FRMWallet: TFRMWallet
             ExplicitHeight = 344
             inherited dgSelectedAccounts: TDrawGrid
               Height = 287
+              ExplicitHeight = 287
             end
             inherited pnlSelectedAccountsTop: TPanel
               Width = 444
+              ExplicitWidth = 444
             end
             inherited pnlSelectedAccountsBottom: TPanel
               Top = 318
               Width = 444
+              ExplicitTop = 318
+              ExplicitWidth = 444
             end
             inherited pnlSelectedAccountsLeft: TPanel
               Height = 287
+              ExplicitHeight = 287
             end
           end
         end
