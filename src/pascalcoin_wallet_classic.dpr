@@ -96,7 +96,8 @@ uses
   UFrameLogs in 'gui-classic\Frames\UFrameLogs.pas' {FrameLogs: TFrame},
   UFrameNodeStats in 'gui-classic\Frames\UFrameNodeStats.pas' {FrameNodeStats: TFrame},
   UFrameMessages in 'gui-classic\Frames\UFrameMessages.pas' {FrameMessages: TFrame},
-  UnitReIntegrate in 'gui-classic\UnitReIntegrate.pas';
+  UnitReIntegrate in 'gui-classic\UnitReIntegrate.pas',
+  UFRMTestWallet in 'gui-classic\UFRMTestWallet.pas' {FRMTestWallet};
 
 {$R *.res}
 
@@ -104,6 +105,11 @@ begin
   Application.Initialize;
   {$IFDEF WINDOWS}Application.MainFormOnTaskbar := True;{$ENDIF}
   Application.Title := 'Pascal Coin Wallet, Miner & Explorer';
+
+  {$IFDEF TESTNET}
+  Application.CreateForm(TFRMTestWallet, FRMTestWallet);
+  {$ELSE}
   Application.CreateForm(TFRMWallet, FRMWallet);
+  {$ENDIF}
   Application.Run;
 end.
