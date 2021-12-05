@@ -25,7 +25,7 @@ uses
   {$IFDEF USE_GNUGETTEXT}
   UFRMSelectLanguage in 'gui-classic\UFRMSelectLanguage.pas' {FRMChangeLanguage},
   {$ENDIF }
-  UFRMPascalCoinWalletConfig in 'gui-classic\UFRMPascalCoinWalletConfig.pas' {FRMPascalCoinWalletConfig},
+  UFRMWalletConfig in 'gui-classic\UFRMWalletConfig.pas' {FRMPascalCoinWalletConfig},
   UFRMPayloadDecoder in 'gui-classic\UFRMPayloadDecoder.pas' {FRMPayloadDecoder},
   UFRMRandomOperations in 'gui-classic\UFRMRandomOperations.pas' {FRMRandomOperations},
   UFRMRPCCalls in 'gui-classic\UFRMRPCCalls.pas' {FRMRPCCalls},

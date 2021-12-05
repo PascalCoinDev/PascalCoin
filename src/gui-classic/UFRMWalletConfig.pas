@@ -1,4 +1,4 @@
-unit UFRMPascalCoinWalletConfig;
+unit UFRMWalletConfig;
 
 { Copyright (c) 2016 by Albert Molina
 
@@ -30,7 +30,8 @@ uses
   LCLIntf, LCLType, LMessages,
 {$ENDIF}
   Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Buttons, ComCtrls, UAppParams, USettings, UWallet;
+  Dialogs, StdCtrls, Buttons, ComCtrls, UAppParams, USettings, UWallet,
+  Vcl.ExtCtrls;
 
 type
 
@@ -38,40 +39,50 @@ type
   { TFRMPascalCoinWalletConfig }
 
   TFRMPascalCoinWalletConfig = class(TForm)
-     bbChangeLanguage: TBitBtn;
+    Panel1: TPanel;
+    PageControlWalletConfig: TPageControl;
+    TabSheetMiner: TTabSheet;
+    TabSheetPassword: TTabSheet;
+    TabSheetJSON: TTabSheet;
+    Label7: TLabel;
+    Label6: TLabel;
+    lblDefaultJSONRPCMinerServerPort: TLabel;
+    Label5: TLabel;
+    ebJSONRPCAllowedIPs: TEdit;
+    cbJSONRPCPortEnabled: TCheckBox;
+    ebJSONRPCMinerServerPort: TEdit;
+    udJSONRPCMinerServerPort: TUpDown;
     cbJSONRPCMinerServerActive: TCheckBox;
-    cbDownloadNewCheckpoint: TCheckBox;
-    ebDefaultFee: TEdit;
+    TabSheetBlockchain: TTabSheet;
     ebMinFutureBlocksToDownloadNewSafebox: TEdit;
+    cbDownloadNewCheckpoint: TCheckBox;
+    TabSheetOperations: TTabSheet;
     Label1: TLabel;
+    ebDefaultFee: TEdit;
+    TabSheetLogs: TTabSheet;
     cbSaveLogFiles: TCheckBox;
     cbShowLogs: TCheckBox;
-    bbOk: TBitBtn;
-    bbCancel: TBitBtn;
-    udInternetServerPort: TUpDown;
-    ebInternetServerPort: TEdit;
-    Label2: TLabel;
-    lblDefaultInternetServerPort: TLabel;
-    bbUpdatePassword: TBitBtn;
-    Label3: TLabel;
-    ebMinerName: TEdit;
-    Label4: TLabel;
     cbShowModalMessages: TCheckBox;
-    Label5: TLabel;
-    udJSONRPCMinerServerPort: TUpDown;
-    ebJSONRPCMinerServerPort: TEdit;
-    lblDefaultJSONRPCMinerServerPort: TLabel;
+    cbSaveDebugLogs: TCheckBox;
+    TabSheetLanguage: TTabSheet;
+    bbChangeLanguage: TBitBtn;
+    TabSheetStorage: TTabSheet;
+    bbOpenDataFolder: TBitBtn;
+    Label3: TLabel;
+    Label4: TLabel;
+    lblDefaultInternetServerPort: TLabel;
+    Label2: TLabel;
+    ebMinerName: TEdit;
+    ebInternetServerPort: TEdit;
+    udInternetServerPort: TUpDown;
     gbMinerPrivateKey: TGroupBox;
     rbGenerateANewPrivateKeyEachBlock: TRadioButton;
     rbUseARandomKey: TRadioButton;
     rbMineAllwaysWithThisKey: TRadioButton;
     cbPrivateKeyToMine: TComboBox;
-    cbSaveDebugLogs: TCheckBox;
-    bbOpenDataFolder: TBitBtn;
-    cbJSONRPCPortEnabled: TCheckBox;
-    ebJSONRPCAllowedIPs: TEdit;
-    Label6: TLabel;
-    Label7: TLabel;
+    bbUpdatePassword: TBitBtn;
+    bbOk: TBitBtn;
+    bbCancel: TBitBtn;
     procedure bbChangeLanguageClick(Sender: TObject);
     procedure cbDownloadNewCheckpointClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
