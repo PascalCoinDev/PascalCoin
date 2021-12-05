@@ -589,6 +589,13 @@ begin
   FBackgroundLabel.Alignment := taCenter;
   FBackgroundLabel.WordWrap := True;
 
+   // set some frame properties
+  with FrameAccountExplorer do
+  begin
+    pcAccountsOptions.ActivePage := tsAccountOperations;
+    cbExploreMyAccounts.Checked:=True; // By default
+  end;
+
   {$ifdef DARWIN}
   // this is macOS specific menu layout
   InitMacOSMenu;

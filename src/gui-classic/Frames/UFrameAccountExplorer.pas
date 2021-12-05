@@ -96,9 +96,15 @@ constructor TFrameAccountExplorer.Create(AOwner: TComponent);
 begin
   inherited Create( AOwner );
 
+  // cannot set properties here that interact with FRMWallet because
+  // FRMWallet not yet created.
+  // problem code below, moved back to FRMWallet.FormCreate
+{
   pcAccountsOptions.ActivePage := tsAccountOperations;
 
+  // problem code:
   cbExploreMyAccounts.Checked:=True; // By default
+}
 end;
 
 destructor TFrameAccountExplorer.Destroy;
