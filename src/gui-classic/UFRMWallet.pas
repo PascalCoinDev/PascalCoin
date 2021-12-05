@@ -252,7 +252,7 @@ Uses UFolderHelper,{$IFDEF USE_GNUGETTEXT}gnugettext,{$ENDIF}
   UOpenSSL,
 {$ENDIF}
   UTime, UFileStorage,
-  UThread, UOpTransaction, UFRMPascalCoinWalletConfig,
+  UThread, UOpTransaction, UFRMWalletConfig,
   UFRMOperationsExplorer,
   {$IFDEF TESTNET}
   UFRMRandomOperations,

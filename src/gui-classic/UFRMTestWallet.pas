@@ -63,7 +63,7 @@ Uses
   UFileStorage,
   UThread,
   UOpTransaction,
-  UFRMPascalCoinWalletConfig,
+  UFRMWalletConfig,
   UFRMOperationsExplorer,
   {$IFDEF TESTNET}
   UFRMRandomOperations,

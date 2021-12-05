@@ -156,7 +156,7 @@
         <DCCReference Include="gui-classic\UFRMSelectLanguage.pas">
             <Form>FRMChangeLanguage</Form>
         </DCCReference>
-        <DCCReference Include="gui-classic\UFRMPascalCoinWalletConfig.pas">
+        <DCCReference Include="gui-classic\UFRMWalletConfig.pas">
             <Form>FRMPascalCoinWalletConfig</Form>
         </DCCReference>
         <DCCReference Include="gui-classic\UFRMPayloadDecoder.pas">
