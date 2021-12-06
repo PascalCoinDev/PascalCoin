@@ -157,7 +157,6 @@ object FrameInfo: TFrameInfo
     BevelOuter = bvNone
     Caption = ' '
     TabOrder = 1
-    ExplicitLeft = 83
     object lblCurrentBlockCaption: TLabel
       Left = 55
       Top = 7
@@ -260,11 +259,10 @@ object FrameInfo: TFrameInfo
     Width = 240
     Height = 108
     Align = alLeft
-    BevelKind = bkSoft
+    BevelKind = bkTile
     BevelOuter = bvNone
     Caption = ' '
     TabOrder = 2
-    ExplicitLeft = 318
     object lblTimeAverage: TLabel
       Left = 104
       Top = 26
@@ -382,8 +380,6 @@ object FrameInfo: TFrameInfo
     BevelOuter = bvNone
     Caption = ' '
     TabOrder = 3
-    ExplicitLeft = 561
-    ExplicitWidth = 363
     object lblReceivedMessages: TLabel
       Left = 6
       Top = 36

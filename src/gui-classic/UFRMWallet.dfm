@@ -37,21 +37,12 @@ object FRMWallet: TFRMWallet
       ExplicitWidth = 865
       inherited Panel1: TPanel
         inherited Image1: TImage
-          Width = 71
-          Height = 104
           ExplicitWidth = 75
           ExplicitHeight = 104
         end
       end
-      inherited Panel2: TPanel
-        ExplicitLeft = 78
-      end
-      inherited Panel3: TPanel
-        ExplicitLeft = 321
-      end
       inherited Panel4: TPanel
         Width = 301
-        ExplicitLeft = 564
         ExplicitWidth = 301
       end
     end
@@ -283,7 +274,7 @@ object FRMWallet: TFRMWallet
           inherited memoNetConnections: TMemo
             Width = 855
             ExplicitWidth = 855
-            ExplicitHeight = 131
+            ExplicitHeight = 133
           end
         end
         inherited PanelMiddle: TPanel
@@ -298,8 +289,8 @@ object FRMWallet: TFRMWallet
           inherited memoNetBlackLists: TMemo
             Width = 855
             Height = 86
-            ExplicitLeft = 1
-            ExplicitTop = 21
+            ExplicitLeft = 0
+            ExplicitTop = 20
             ExplicitWidth = 855
             ExplicitHeight = 86
           end
@@ -315,10 +306,10 @@ object FRMWallet: TFRMWallet
           end
           inherited memoNetServers: TMemo
             Width = 855
-            ExplicitLeft = 1
-            ExplicitTop = 21
+            ExplicitLeft = 0
+            ExplicitTop = 20
             ExplicitWidth = 855
-            ExplicitHeight = 132
+            ExplicitHeight = 134
           end
         end
       end
@@ -389,7 +380,7 @@ object FRMWallet: TFRMWallet
             Height = 168
             ExplicitLeft = 291
             ExplicitTop = 0
-            ExplicitWidth = 566
+            ExplicitWidth = 5
             ExplicitHeight = 168
             inherited memoMessageToSend: TMemo
               Width = 566
@@ -408,6 +399,7 @@ object FRMWallet: TFRMWallet
             inherited Panel7: TPanel
               Top = 102
               Width = 566
+              ExplicitLeft = 1
               ExplicitTop = 102
               ExplicitWidth = 566
               DesignSize = (

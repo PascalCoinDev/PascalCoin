@@ -33,28 +33,35 @@ object FrameNodeStats: TFrameNodeStats
     Width = 711
     Height = 153
     Align = alTop
+    BevelOuter = bvNone
     Caption = ' '
     TabOrder = 0
     object Panel4: TPanel
-      Left = 1
-      Top = 1
-      Width = 709
+      Left = 0
+      Top = 0
+      Width = 711
       Height = 20
       Align = alTop
       Caption = 'Active Connections:'
       TabOrder = 0
+      ExplicitLeft = 1
+      ExplicitTop = 1
+      ExplicitWidth = 709
     end
     object memoNetConnections: TMemo
-      Left = 1
-      Top = 21
-      Width = 709
-      Height = 131
+      Left = 0
+      Top = 20
+      Width = 711
+      Height = 133
       Align = alClient
       ReadOnly = True
       ScrollBars = ssVertical
       TabOrder = 1
       WordWrap = False
-      ExplicitHeight = 148
+      ExplicitLeft = 1
+      ExplicitTop = 21
+      ExplicitWidth = 709
+      ExplicitHeight = 131
     end
   end
   object PanelMiddle: TPanel
@@ -63,31 +70,35 @@ object FrameNodeStats: TFrameNodeStats
     Width = 711
     Height = 145
     Align = alClient
+    BevelOuter = bvNone
     Caption = ' '
     TabOrder = 1
-    ExplicitHeight = 97
     object Panel1: TPanel
-      Left = 1
-      Top = 1
-      Width = 709
+      Left = 0
+      Top = 0
+      Width = 711
       Height = 20
       Align = alTop
       Caption = 'Blacklisted Nodes:'
       TabOrder = 0
+      ExplicitLeft = 1
+      ExplicitTop = 1
+      ExplicitWidth = 709
     end
     object memoNetBlackLists: TMemo
-      Left = 1
-      Top = 21
-      Width = 709
-      Height = 123
+      Left = 0
+      Top = 20
+      Width = 711
+      Height = 125
       Align = alClient
       ReadOnly = True
       ScrollBars = ssVertical
       TabOrder = 1
       WordWrap = False
-      ExplicitLeft = 2
-      ExplicitTop = 22
-      ExplicitHeight = 135
+      ExplicitLeft = 1
+      ExplicitTop = 21
+      ExplicitWidth = 709
+      ExplicitHeight = 123
     end
   end
   object PanelBottom: TPanel
@@ -97,31 +108,35 @@ object FrameNodeStats: TFrameNodeStats
     Height = 154
     Align = alBottom
     Anchors = [akLeft, akTop, akRight]
+    BevelOuter = bvNone
     Caption = ' '
     TabOrder = 2
     object Panel2: TPanel
-      Left = 1
-      Top = 1
-      Width = 709
+      Left = 0
+      Top = 0
+      Width = 711
       Height = 20
       Align = alTop
       Caption = 'Known Node Servers:'
       TabOrder = 0
+      ExplicitLeft = 1
+      ExplicitTop = 1
+      ExplicitWidth = 709
     end
     object memoNetServers: TMemo
-      Left = 1
-      Top = 21
-      Width = 709
-      Height = 132
+      Left = 0
+      Top = 20
+      Width = 711
+      Height = 134
       Align = alClient
       ReadOnly = True
       ScrollBars = ssVertical
       TabOrder = 1
       WordWrap = False
-      ExplicitLeft = 0
-      ExplicitTop = 384
-      ExplicitWidth = 711
-      ExplicitHeight = 74
+      ExplicitLeft = 1
+      ExplicitTop = 21
+      ExplicitWidth = 709
+      ExplicitHeight = 132
     end
   end
 end
