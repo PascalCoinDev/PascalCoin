@@ -377,7 +377,7 @@ object FRMWallet: TFRMWallet
     Top = 91
     Width = 865
     Height = 466
-    ActivePage = tsMessages
+    ActivePage = tsMyAccounts
     Align = alClient
     TabOrder = 2
     OnChange = PageControlChange
@@ -526,17 +526,18 @@ object FRMWallet: TFRMWallet
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitWidth = 857
-        ExplicitHeight = 438
+        ExplicitLeft = 36
+        ExplicitTop = -93
         inherited memoLogs: TMemo
           Width = 857
-          Height = 397
-          ExplicitLeft = 0
-          ExplicitTop = 41
+          Height = 405
+          ExplicitTop = 33
         end
         inherited pnlTopLogs: TPanel
           Width = 857
-          ExplicitLeft = 0
+          inherited Button1: TButton
+            Left = 716
+          end
         end
       end
     end
@@ -576,6 +577,7 @@ object FRMWallet: TFRMWallet
           Width = 857
           Height = 112
           ExplicitWidth = 857
+          ExplicitHeight = 112
         end
         inherited Panel1: TPanel
           Width = 857
@@ -588,7 +590,7 @@ object FRMWallet: TFRMWallet
         inherited Panel3: TPanel
           Top = 275
           Width = 857
-          ExplicitTop = 273
+          ExplicitTop = 275
           ExplicitWidth = 857
         end
       end
@@ -603,20 +605,24 @@ object FRMWallet: TFRMWallet
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitLeft = 93
-        ExplicitTop = -28
+        ExplicitWidth = 857
+        ExplicitHeight = 438
         inherited Splitter1: TSplitter
           Top = 205
           Width = 857
+          ExplicitTop = 205
+          ExplicitWidth = 857
         end
         inherited memoMessages: TMemo
           Top = 228
           Width = 857
+          ExplicitTop = 228
+          ExplicitWidth = 857
         end
         inherited PanelBottom: TPanel
           Top = 208
           Width = 857
-          ExplicitTop = 210
+          ExplicitTop = 208
           ExplicitWidth = 857
         end
         inherited PanelTop: TPanel
@@ -624,19 +630,20 @@ object FRMWallet: TFRMWallet
           Height = 205
           ExplicitLeft = 0
           ExplicitTop = 0
-          ExplicitWidth = 764
-          ExplicitHeight = 229
+          ExplicitWidth = 857
+          ExplicitHeight = 205
           inherited Splitter2: TSplitter
             Height = 203
+            ExplicitHeight = 203
           end
           inherited PanelLeft: TPanel
             Height = 203
-            ExplicitHeight = 227
+            ExplicitHeight = 203
             inherited lbNetConnections: TListBox
               Height = 181
               ExplicitLeft = 1
-              ExplicitTop = 25
-              ExplicitHeight = 201
+              ExplicitTop = 21
+              ExplicitHeight = 181
             end
           end
           inherited PanelRight: TPanel
@@ -644,15 +651,15 @@ object FRMWallet: TFRMWallet
             Height = 203
             ExplicitLeft = 292
             ExplicitTop = 1
-            ExplicitWidth = 471
-            ExplicitHeight = 227
+            ExplicitWidth = 564
+            ExplicitHeight = 203
             inherited memoMessageToSend: TMemo
               Width = 562
               Height = 115
               ExplicitLeft = 1
-              ExplicitTop = 25
-              ExplicitWidth = 469
-              ExplicitHeight = 135
+              ExplicitTop = 21
+              ExplicitWidth = 562
+              ExplicitHeight = 115
             end
             inherited Panel6: TPanel
               Width = 562
@@ -661,11 +668,11 @@ object FRMWallet: TFRMWallet
             inherited Panel7: TPanel
               Top = 136
               Width = 562
-              ExplicitTop = 160
-              ExplicitWidth = 469
+              ExplicitTop = 136
+              ExplicitWidth = 562
               inherited bbSendAMessage: TButton
                 Width = 539
-                ExplicitWidth = 446
+                ExplicitWidth = 539
               end
             end
           end

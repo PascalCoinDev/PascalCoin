@@ -11,6 +11,8 @@ type
     memoLogs: TMemo;
     pnlTopLogs: TPanel;
     cbShowDebugLogs: TCheckBox;
+    Button1: TButton;
+    procedure Button1Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -23,6 +25,11 @@ type
 implementation
 
 {$R *.dfm}
+
+procedure TFrameLogs.Button1Click(Sender: TObject);
+begin
+  memoLogs.CopyToClipboard;
+end;
 
 constructor TFrameLogs.Create(AOwner: TComponent);
 begin
