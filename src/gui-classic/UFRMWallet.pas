@@ -176,7 +176,6 @@ type
     Procedure UpdateConnectionStatus;
     Procedure UpdateBlockChainState;
     Procedure UpdateConfigChanged(Sender:TObject);
-    Procedure UpdateNodeStatus;
     Procedure UpdateAvailableConnections;
     procedure Activate; override;
     Function ForceMining : Boolean; virtual;
@@ -188,6 +187,8 @@ type
     Procedure CheckIsReady;
 
     Procedure UpdateOperations;
+
+    Property BackgroundLabel : TLabel read FBackgroundLabel;
 
     { Public declarations }
     Property Node : TNode read FNode;
@@ -203,6 +204,7 @@ type
     Property BlockChainGrid : TBlockChainGrid read FBlockChainGrid;
 
     Property SelectedAccountsGrid : TAccountsGrid read FSelectedAccountsGrid;
+
 
 
   end;
@@ -269,7 +271,7 @@ begin
     if Assigned(FRMWallet.FBackgroundLabel) then begin
       FRMWallet.FBackgroundLabel.Caption:=FLastMsg;
     end;
-  end else FRMWallet.UpdateNodeStatus;
+  end else FRMWallet.FrameInfo.UpdateNodeStatus;
 end;
 
 procedure TThreadActivate.BCExecute;
@@ -372,7 +374,7 @@ begin
     TThreadActivate(FThreadActivate).FreeOnTerminate := true;
     TThreadActivate(FThreadActivate).Suspended := False;
     UpdateConfigChanged(Self);
-    UpdateNodeStatus;
+    FrameInfo.UpdateNodeStatus;
     TPCTNetDataExtraMessages.InitNetDataExtraMessages(FNode,TNetData.NetData,FWalletKeys);
   Except
     On E:Exception do begin
@@ -1505,7 +1507,7 @@ begin
   Try
     UpdateConnectionStatus;
     UpdateBlockChainState;
-    UpdateNodeStatus;
+    FrameInfo.UpdateNodeStatus;
   Except
     On E:Exception do begin
       E.Message := 'Exception at TimerUpdate '+E.ClassName+': '+E.Message;
@@ -1554,7 +1556,7 @@ Var isMining : boolean;
   f, favg : real;
   LLockedMempool : TPCOperationsComp;
 begin
-  UpdateNodeStatus;
+  FrameInfo.UpdateNodeStatus;
   mc := 0;
   if Assigned(FNode) then begin
     if FNode.Bank.BlocksCount>0 then begin
@@ -1672,7 +1674,7 @@ end;
 procedure TFRMWallet.UpdateConnectionStatus;
 var errors : String;
 begin
-  UpdateNodeStatus;
+  FrameInfo.UpdateNodeStatus;
   OnNetStatisticsChanged(Nil);
   if Assigned(FNode) then begin
     if FNode.IsBlockChainValid(errors) then begin
@@ -1686,37 +1688,7 @@ begin
   end;
 end;
 
-procedure TFRMWallet.UpdateNodeStatus;
-Var status : String;
-begin
-  If Not Assigned(FNode) then begin
-    FrameInfo.lblNodeStatus.Font.Color := clRed;
-    FrameInfo.lblNodeStatus.Caption := 'Initializing...';
-  end else begin
-    If FNode.IsReady(status) then begin
-      if TNetData.NetData.NetStatistics.ActiveConnections>0 then begin
-        FrameInfo.lblNodeStatus.Font.Color := clGreen;
-        if TNetData.NetData.IsDiscoveringServers then begin
-          FrameInfo.lblNodeStatus.Caption := 'Discovering servers';
-        end else if TNetData.NetData.IsGettingNewBlockChainFromClient(status) then begin
-          FrameInfo.lblNodeStatus.Caption := 'Obtaining new blockchain '+status;
-        end else begin
-          FrameInfo.lblNodeStatus.Caption := 'Running';
-        end;
-      end else begin
-        FrameInfo.lblNodeStatus.Font.Color := clRed;
-        FrameInfo.lblNodeStatus.Caption := 'Alone in the world...';
-      end;
-    end else begin
-      FrameInfo.lblNodeStatus.Font.Color := clRed;
-      FrameInfo.lblNodeStatus.Caption := status;
-    end;
-  end;
-  If Assigned(FBackgroundLabel) then begin
-    FBackgroundLabel.Font.Color:= FrameInfo.lblNodeStatus.Font.Color;
-    FBackgroundLabel.Caption:='Please wait until finished: '+FrameInfo.lblNodeStatus.Caption;
-  end;
-end;
+
 
 procedure TFRMWallet.UpdateOperations;
 Var accn : Int64;
