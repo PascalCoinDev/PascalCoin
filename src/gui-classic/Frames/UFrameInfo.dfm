@@ -43,8 +43,8 @@ object FrameInfo: TFrameInfo
     object Image1: TImage
       Left = 0
       Top = 0
-      Width = 64
-      Height = 64
+      Width = 71
+      Height = 104
       Align = alClient
       AutoSize = True
       Center = True

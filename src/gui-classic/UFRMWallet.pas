@@ -129,8 +129,6 @@ type
     FLastNodesCacheUpdatedTS : TDateTime;
     FBackgroundPanel : TPanel;
     FBackgroundLabel : TLabel;
-    FMinersBlocksFound: Integer;
-    procedure SetMinersBlocksFound(const Value: Integer);
     Procedure FinishedLoadingApp;
     Procedure FillAccountInformation(Const Strings : TStrings; Const AccountNumber : Cardinal);
     Procedure FillOperationInformation(Const Strings : TStrings; Const OperationResume : TOperationResume);
@@ -163,7 +161,6 @@ type
     Procedure OnSelectedAccountsGridUpdated(Sender : TObject);
     Procedure OnMiningServerNewBlockFound(Sender : TObject);
     Procedure UpdateConnectionStatus;
-    Procedure UpdateBlockChainState;
     Procedure UpdateConfigChanged(Sender:TObject);
     procedure Activate; override;
     Function ForceMining : Boolean; virtual;
@@ -182,7 +179,6 @@ type
     Property Node : TNode read FNode;
 
     Property WalletKeys : TWalletKeysExt read FWalletKeys;
-    Property MinersBlocksFound : Integer read FMinersBlocksFound write SetMinersBlocksFound;
 
     Property NodeNotifyEvents : TNodeNotifyEvents read FNodeNotifyEvents;
 
@@ -193,7 +189,7 @@ type
 
     Property SelectedAccountsGrid : TAccountsGrid read FSelectedAccountsGrid;
 
-
+    Property PoolMiningServer : TPoolMiningServer read FPoolMiningServer;
 
   end;
 
@@ -508,13 +504,12 @@ begin
   {$ENDIF}
   //
   FrameAccountExplorer.UpdatePrivateKeys;
-  UpdateBlockChainState;
+  FrameInfo.UpdateBlockChainState;
   UpdateConnectionStatus;
   PageControl.ActivePage := tsOperations;
 
   FrameAccountExplorer.cbExploreMyAccountsClick(nil);
 
-  MinersBlocksFound := 0;
   FrameInfo.lblBuild.Caption := 'Build: '+CT_ClientAppVersion;
   {$IFDEF TESTNET}
   FrameInfo.lblBuild.Font.Color := clRed;
@@ -1181,7 +1176,7 @@ procedure TFRMWallet.OnNewAccount(Sender: TObject);
 begin
   Try
     FrameAccountExplorer.UpdateAccounts(false);
-    UpdateBlockChainState;
+    FrameInfo.UpdateBlockChainState;
   Except
     On E:Exception do begin
       E.Message := 'Exception at OnNewAccount '+E.ClassName+': '+E.Message;
@@ -1275,20 +1270,11 @@ begin
   end;
 end;
 
-
-procedure TFRMWallet.SetMinersBlocksFound(const Value: Integer);
-begin
-  FMinersBlocksFound := Value;
-  FrameInfo.lblBlocksFound.Caption := Inttostr(Value);
-  if Value>0 then FrameInfo.lblBlocksFound.Font.Color := clGreen
-  else FrameInfo.lblBlocksFound.Font.Color := clDkGray;
-end;
-
 procedure TFRMWallet.TimerUpdateStatusTimer(Sender: TObject);
 begin
   Try
     UpdateConnectionStatus;
-    UpdateBlockChainState;
+    FrameInfo.UpdateBlockChainState;
     FrameInfo.UpdateNodeStatus;
   Except
     On E:Exception do begin
@@ -1300,71 +1286,7 @@ end;
 
 
 
-procedure TFRMWallet.UpdateBlockChainState;
-Var isMining : boolean;
-  i,mc : Integer;
-  s : String;
-  f, favg : real;
-  LLockedMempool : TPCOperationsComp;
-begin
-  FrameInfo.UpdateNodeStatus;
-  mc := 0;
-  if Assigned(FNode) then begin
-    if FNode.Bank.BlocksCount>0 then begin
-      FrameInfo.lblCurrentBlock.Caption :=  Inttostr(FNode.Bank.BlocksCount)+' (0..'+Inttostr(FNode.Bank.BlocksCount-1)+')'; ;
-    end else FrameInfo.lblCurrentBlock.Caption :=  '(none)';
-    FrameInfo.lblCurrentAccounts.Caption := Inttostr(FNode.Bank.AccountsCount);
-    FrameInfo.lblCurrentBlockTime.Caption := UnixTimeToLocalElapsedTime(FNode.Bank.LastOperationBlock.timestamp);
-    LLockedMempool := FNode.LockMempoolRead;
-    try
-      FrameInfo.lblOperationsPending.Caption := Inttostr(LLockedMempool.Count);
-      FrameInfo.lblCurrentDifficulty.Caption := InttoHex(LLockedMempool.OperationBlock.compact_target,8);
-    finally
-      FNode.UnlockMempoolRead;
-    end;
-    favg := FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage);
-    f := (CT_NewLineSecondsAvg - favg) / CT_NewLineSecondsAvg;
-    FrameInfo.lblTimeAverage.Caption := 'Last '+Inttostr(CT_CalcNewTargetBlocksAverage)+': '+FormatFloat('0.0',favg)+' sec. (Optimal '+Inttostr(CT_NewLineSecondsAvg)+'s) Deviation '+FormatFloat('0.00%',f*100);
-    if favg>=CT_NewLineSecondsAvg then begin
-      FrameInfo.lblTimeAverage.Font.Color := clNavy;
-    end else begin
-      FrameInfo.lblTimeAverage.Font.Color := clOlive;
-    end;
-    FrameInfo.lblTimeAverageAux.Caption := Format('Last %d: %s sec. - %d: %s sec. - %d: %s sec. - %d: %s sec. - %d: %s sec.',[
-        CT_CalcNewTargetBlocksAverage * 2 ,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage * 2)),
-        ((CT_CalcNewTargetBlocksAverage * 3) DIV 2) ,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage((CT_CalcNewTargetBlocksAverage * 3) DIV 2)),
-        ((CT_CalcNewTargetBlocksAverage DIV 4)*3),FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(((CT_CalcNewTargetBlocksAverage DIV 4)*3))),
-        CT_CalcNewTargetBlocksAverage DIV 2,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage DIV 2)),
-        CT_CalcNewTargetBlocksAverage DIV 4,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage DIV 4))]);
-  end else begin
-    isMining := false;
 
-    with FrameInfo do
-    begin
-      lblCurrentBlock.Caption := '';
-      lblCurrentAccounts.Caption := '';
-      lblCurrentBlockTime.Caption := '';
-      lblOperationsPending.Caption := '';
-      lblCurrentDifficulty.Caption := '';
-      lblTimeAverage.Caption := '';
-      lblTimeAverageAux.Caption := '';
-    end;
-  end;
-  if (Assigned(FPoolMiningServer)) And (FPoolMiningServer.Active) then begin
-    If FPoolMiningServer.ClientsCount>0 then begin
-      FrameInfo.lblMinersClients.Caption := IntToStr(FPoolMiningServer.ClientsCount)+' connected JSON-RPC clients';
-      FrameInfo.lblMinersClients.Font.Color := clNavy;
-    end else begin
-      FrameInfo.lblMinersClients.Caption := 'No JSON-RPC clients';
-      FrameInfo.lblMinersClients.Font.Color := clDkGray;
-    end;
-    MinersBlocksFound := FPoolMiningServer.ClientsWins;
-  end else begin
-    MinersBlocksFound := 0;
-    FrameInfo.lblMinersClients.Caption := 'JSON-RPC server not active';
-    FrameInfo.lblMinersClients.Font.Color := clRed;
-  end;
-end;
 
 procedure TFRMWallet.UpdateConfigChanged(Sender:TObject);
 Var wa : Boolean;
