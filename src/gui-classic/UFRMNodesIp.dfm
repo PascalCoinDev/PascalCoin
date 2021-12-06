@@ -2,10 +2,9 @@ object FRMNodesIp: TFRMNodesIp
   Left = 0
   Top = 0
   BorderIcons = [biSystemMenu]
-  BorderStyle = bsSingle
   Caption = 'Nodes IP'
-  ClientHeight = 362
-  ClientWidth = 362
+  ClientHeight = 411
+  ClientWidth = 389
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -19,37 +18,38 @@ object FRMNodesIp: TFRMNodesIp
   TextHeight = 13
   object memoNodesIp: TMemo
     Left = 0
-    Top = 29
-    Width = 362
-    Height = 271
+    Top = 23
+    Width = 389
+    Height = 326
     Align = alClient
     Lines.Strings = (
       'memoNodesIp')
     ScrollBars = ssBoth
     TabOrder = 0
-    ExplicitLeft = 198
-    ExplicitTop = 109
-    ExplicitWidth = 276
-    ExplicitHeight = 226
+    ExplicitTop = 29
+    ExplicitWidth = 352
+    ExplicitHeight = 261
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 362
-    Height = 29
+    Width = 389
+    Height = 23
     Align = alTop
     Caption = 'Available Nodes IP to connect:'
     TabOrder = 1
+    ExplicitWidth = 352
   end
   object Panel2: TPanel
     Left = 0
-    Top = 300
-    Width = 362
+    Top = 349
+    Width = 389
     Height = 62
     Align = alBottom
     Caption = ' '
     TabOrder = 2
-    ExplicitTop = 299
+    ExplicitTop = 290
+    ExplicitWidth = 352
     object bbOk: TBitBtn
       Left = 9
       Top = 29

@@ -543,46 +543,54 @@ object FRMWallet: TFRMWallet
     object tsNodeStats: TTabSheet
       Caption = 'Node Stats'
       ImageIndex = 3
-      inline FrameNodeStats1: TFrameNodeStats
+      inline FrameNodeStats: TFrameNodeStats
         Left = 0
         Top = 0
         Width = 857
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitLeft = 40
-        ExplicitTop = -20
+        ExplicitWidth = 857
+        ExplicitHeight = 438
         inherited Splitter1: TSplitter
           Width = 857
+          ExplicitWidth = 857
         end
         inherited Splitter2: TSplitter
           Top = 273
           Width = 857
+          ExplicitTop = 273
+          ExplicitWidth = 857
         end
         inherited memoNetConnections: TMemo
           Width = 857
           ExplicitTop = 22
-          ExplicitWidth = 711
+          ExplicitWidth = 857
         end
         inherited memoNetServers: TMemo
           Top = 295
           Width = 857
+          ExplicitTop = 295
+          ExplicitWidth = 857
         end
         inherited memoNetBlackLists: TMemo
           Width = 857
           Height = 108
-          ExplicitHeight = 128
+          ExplicitWidth = 857
         end
         inherited Panel1: TPanel
           Width = 857
+          ExplicitWidth = 857
         end
         inherited Panel2: TPanel
           Width = 857
+          ExplicitWidth = 857
         end
         inherited Panel3: TPanel
           Top = 276
           Width = 857
-          ExplicitTop = 296
+          ExplicitTop = 276
+          ExplicitWidth = 857
         end
       end
     end

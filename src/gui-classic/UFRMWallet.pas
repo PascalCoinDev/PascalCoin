@@ -122,7 +122,7 @@ type
     FrameOperationsExplorer: TFrameOperationsExplorer;
     FrameLogs: TFrameLogs;
     FrameMessages: TFrameMessages;
-    FrameNodeStats1: TFrameNodeStats;
+    FrameNodeStats: TFrameNodeStats;
 
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
