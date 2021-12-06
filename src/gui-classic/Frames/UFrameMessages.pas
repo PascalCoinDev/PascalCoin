@@ -4,18 +4,24 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
-  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls;
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls;
 
 type
   TFrameMessages = class(TFrame)
-    Label11: TLabel;
-    Label12: TLabel;
-    Label13: TLabel;
-    Label14: TLabel;
-    lbNetConnections: TListBox;
-    bbSendAMessage: TButton;
     memoMessages: TMemo;
+    PanelBottom: TPanel;
+    Splitter1: TSplitter;
+    PanelTop: TPanel;
+    PanelLeft: TPanel;
+    Splitter2: TSplitter;
+    PanelRight: TPanel;
     memoMessageToSend: TMemo;
+    lbNetConnections: TListBox;
+    Panel5: TPanel;
+    Panel6: TPanel;
+    Panel7: TPanel;
+    Label14: TLabel;
+    bbSendAMessage: TButton;
     procedure bbSendAMessageClick(Sender: TObject);
   private
     { Private declarations }

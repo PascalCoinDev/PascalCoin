@@ -121,8 +121,8 @@ type
     FrameBlockChainExplorer: TFrameBlockChainExplorer;
     FrameOperationsExplorer: TFrameOperationsExplorer;
     FrameLogs: TFrameLogs;
-    FrameMessages: TFrameMessages;
     FrameNodeStats: TFrameNodeStats;
+    FrameMessages: TFrameMessages;
 
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);

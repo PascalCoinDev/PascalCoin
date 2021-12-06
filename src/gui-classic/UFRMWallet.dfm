@@ -377,7 +377,7 @@ object FRMWallet: TFRMWallet
     Top = 91
     Width = 865
     Height = 466
-    ActivePage = tsNodeStats
+    ActivePage = tsMessages
     Align = alClient
     TabOrder = 2
     OnChange = PageControlChange
@@ -557,14 +557,13 @@ object FRMWallet: TFRMWallet
           ExplicitWidth = 857
         end
         inherited Splitter2: TSplitter
-          Top = 273
+          Top = 272
           Width = 857
           ExplicitTop = 273
           ExplicitWidth = 857
         end
         inherited memoNetConnections: TMemo
           Width = 857
-          ExplicitTop = 22
           ExplicitWidth = 857
         end
         inherited memoNetServers: TMemo
@@ -575,7 +574,7 @@ object FRMWallet: TFRMWallet
         end
         inherited memoNetBlackLists: TMemo
           Width = 857
-          Height = 108
+          Height = 112
           ExplicitWidth = 857
         end
         inherited Panel1: TPanel
@@ -587,9 +586,9 @@ object FRMWallet: TFRMWallet
           ExplicitWidth = 857
         end
         inherited Panel3: TPanel
-          Top = 276
+          Top = 275
           Width = 857
-          ExplicitTop = 276
+          ExplicitTop = 273
           ExplicitWidth = 857
         end
       end
@@ -604,13 +603,72 @@ object FRMWallet: TFRMWallet
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitWidth = 857
-        ExplicitHeight = 438
+        ExplicitLeft = 93
+        ExplicitTop = -28
+        inherited Splitter1: TSplitter
+          Top = 205
+          Width = 857
+        end
         inherited memoMessages: TMemo
-          Width = 861
-          Height = 65
-          ExplicitWidth = 861
-          ExplicitHeight = 65
+          Top = 228
+          Width = 857
+        end
+        inherited PanelBottom: TPanel
+          Top = 208
+          Width = 857
+          ExplicitTop = 210
+          ExplicitWidth = 857
+        end
+        inherited PanelTop: TPanel
+          Width = 857
+          Height = 205
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 764
+          ExplicitHeight = 229
+          inherited Splitter2: TSplitter
+            Height = 203
+          end
+          inherited PanelLeft: TPanel
+            Height = 203
+            ExplicitHeight = 227
+            inherited lbNetConnections: TListBox
+              Height = 181
+              ExplicitLeft = 1
+              ExplicitTop = 25
+              ExplicitHeight = 201
+            end
+          end
+          inherited PanelRight: TPanel
+            Width = 564
+            Height = 203
+            ExplicitLeft = 292
+            ExplicitTop = 1
+            ExplicitWidth = 471
+            ExplicitHeight = 227
+            inherited memoMessageToSend: TMemo
+              Width = 562
+              Height = 115
+              ExplicitLeft = 1
+              ExplicitTop = 25
+              ExplicitWidth = 469
+              ExplicitHeight = 135
+            end
+            inherited Panel6: TPanel
+              Width = 562
+              ExplicitWidth = 562
+            end
+            inherited Panel7: TPanel
+              Top = 136
+              Width = 562
+              ExplicitTop = 160
+              ExplicitWidth = 469
+              inherited bbSendAMessage: TButton
+                Width = 539
+                ExplicitWidth = 446
+              end
+            end
+          end
         end
       end
     end

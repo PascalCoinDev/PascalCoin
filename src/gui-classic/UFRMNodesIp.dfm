@@ -18,27 +18,25 @@ object FRMNodesIp: TFRMNodesIp
   TextHeight = 13
   object memoNodesIp: TMemo
     Left = 0
-    Top = 23
+    Top = 20
     Width = 389
-    Height = 326
+    Height = 329
     Align = alClient
     Lines.Strings = (
       'memoNodesIp')
     ScrollBars = ssBoth
     TabOrder = 0
-    ExplicitTop = 29
-    ExplicitWidth = 352
-    ExplicitHeight = 261
+    ExplicitTop = 23
+    ExplicitHeight = 326
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
     Width = 389
-    Height = 23
+    Height = 20
     Align = alTop
     Caption = 'Available Nodes IP to connect:'
     TabOrder = 1
-    ExplicitWidth = 352
   end
   object Panel2: TPanel
     Left = 0
@@ -48,8 +46,6 @@ object FRMNodesIp: TFRMNodesIp
     Align = alBottom
     Caption = ' '
     TabOrder = 2
-    ExplicitTop = 290
-    ExplicitWidth = 352
     object bbOk: TBitBtn
       Left = 9
       Top = 29
