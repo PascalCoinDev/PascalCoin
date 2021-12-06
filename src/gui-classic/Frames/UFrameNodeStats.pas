@@ -4,16 +4,18 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
-  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls;
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls;
 
 type
   TFrameNodeStats = class(TFrame)
-    Label3: TLabel;
-    Label6: TLabel;
-    Label7: TLabel;
     memoNetConnections: TMemo;
     memoNetServers: TMemo;
     memoNetBlackLists: TMemo;
+    Panel1: TPanel;
+    Splitter1: TSplitter;
+    Panel2: TPanel;
+    Panel3: TPanel;
+    Splitter2: TSplitter;
   private
     { Private declarations }
   public

@@ -377,7 +377,7 @@ object FRMWallet: TFRMWallet
     Top = 91
     Width = 865
     Height = 466
-    ActivePage = tsMyAccounts
+    ActivePage = tsNodeStats
     Align = alClient
     TabOrder = 2
     OnChange = PageControlChange
@@ -416,14 +416,6 @@ object FRMWallet: TFRMWallet
           Height = 372
           ExplicitWidth = 452
           ExplicitHeight = 372
-          inherited tsAccountOperations: TTabSheet
-            inherited dgAccountOperations: TDrawGrid
-              Width = 444
-              Height = 344
-              ExplicitWidth = 444
-              ExplicitHeight = 344
-            end
-          end
           inherited tsMultiSelectAccounts: TTabSheet
             ExplicitWidth = 444
             ExplicitHeight = 344
@@ -486,11 +478,11 @@ object FRMWallet: TFRMWallet
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitWidth = 296
-        ExplicitHeight = 59
+        ExplicitWidth = 857
+        ExplicitHeight = 438
         inherited Panel2: TPanel
           Width = 857
-          ExplicitWidth = 296
+          ExplicitWidth = 857
         end
         inherited dgBlockChainExplorer: TDrawGrid
           Width = 857
@@ -551,40 +543,46 @@ object FRMWallet: TFRMWallet
     object tsNodeStats: TTabSheet
       Caption = 'Node Stats'
       ImageIndex = 3
-      inline FrameNodeStats: TFrameNodeStats
+      inline FrameNodeStats1: TFrameNodeStats
         Left = 0
         Top = 0
         Width = 857
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitWidth = 857
-        ExplicitHeight = 438
-        inherited Label6: TLabel
-          Top = 157
-          ExplicitTop = 157
+        ExplicitLeft = 40
+        ExplicitTop = -20
+        inherited Splitter1: TSplitter
+          Width = 857
         end
-        inherited Label7: TLabel
-          Top = 53
-          ExplicitTop = 53
+        inherited Splitter2: TSplitter
+          Top = 273
+          Width = 857
         end
         inherited memoNetConnections: TMemo
-          Width = 996
-          Height = 11
-          ExplicitWidth = 996
-          ExplicitHeight = 11
+          Width = 857
+          ExplicitTop = 22
+          ExplicitWidth = 711
         end
         inherited memoNetServers: TMemo
-          Top = 176
-          Width = 996
-          ExplicitTop = 176
-          ExplicitWidth = 996
+          Top = 295
+          Width = 857
         end
         inherited memoNetBlackLists: TMemo
-          Top = 72
-          Width = 995
-          ExplicitTop = 72
-          ExplicitWidth = 995
+          Width = 857
+          Height = 108
+          ExplicitHeight = 128
+        end
+        inherited Panel1: TPanel
+          Width = 857
+        end
+        inherited Panel2: TPanel
+          Width = 857
+        end
+        inherited Panel3: TPanel
+          Top = 276
+          Width = 857
+          ExplicitTop = 296
         end
       end
     end
@@ -598,8 +596,8 @@ object FRMWallet: TFRMWallet
         Height = 438
         Align = alClient
         TabOrder = 0
-        ExplicitWidth = 296
-        ExplicitHeight = 59
+        ExplicitWidth = 857
+        ExplicitHeight = 438
         inherited memoMessages: TMemo
           Width = 861
           Height = 65
