@@ -177,11 +177,11 @@ object FRMWallet: TFRMWallet
         Height = 421
         Align = alClient
         TabOrder = 0
-        ExplicitWidth = 296
-        ExplicitHeight = 42
+        ExplicitWidth = 857
+        ExplicitHeight = 421
         inherited Panel2: TPanel
           Width = 857
-          ExplicitWidth = 296
+          ExplicitWidth = 857
         end
         inherited dgBlockChainExplorer: TDrawGrid
           Width = 857

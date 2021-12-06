@@ -1783,20 +1783,7 @@ begin
   else FMinerPrivateKeyType := mpk_Random;
   FrameBlockChainExplorer.ebHashRateBackBlocks.Text := IntToStr(FBlockChainGrid.HashRateAverageBlocksCount);
 
-  with FrameBlockChainExplorer do
-  begin
-    Case FBlockChainGrid.HashRateAs of
-      hr_Unit : cbHashRateUnits.ItemIndex:=0;
-      hr_Kilo : cbHashRateUnits.ItemIndex:=1;
-      hr_Mega : cbHashRateUnits.ItemIndex:=2;
-      hr_Giga : cbHashRateUnits.ItemIndex:=3;
-      hr_Tera : cbHashRateUnits.ItemIndex:=4;
-      hr_Peta : cbHashRateUnits.ItemIndex:=5;
-      hr_Exa : cbHashRateUnits.ItemIndex:=6;
-    else
-      cbHashRateUnits.ItemIndex:=-1;
-    end;
-  end;
+  FrameBlockChainExplorer.ChangeHashRateUnits( FBlockChainGrid.HashRateAs );
 
   if TNetData.NetDataExists then begin
     if TSettings.AppParams.ParamByName[CT_PARAM_AllowDownloadNewCheckpointIfOlderThan].GetAsBoolean(TNetData.NetData.MinFutureBlocksToDownloadNewSafebox>200) then begin

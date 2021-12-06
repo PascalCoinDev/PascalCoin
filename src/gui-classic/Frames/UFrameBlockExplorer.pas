@@ -5,7 +5,8 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Grids, Vcl.StdCtrls,
-  Vcl.ExtCtrls;
+  Vcl.ExtCtrls,
+  USettings;
 
 type
   TFrameBlockChainExplorer = class(TFrame)
@@ -28,6 +29,7 @@ type
     { Private declarations }
   public
     { Public declarations }
+    procedure ChangeHashRateUnits( ParaHashRateAs : TShowHashRateAs );
 
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -38,7 +40,7 @@ implementation
 {$R *.dfm}
 
 uses
-  UFRMWallet, USettings;
+  UFRMWallet;
 
 constructor TFrameBlockChainExplorer.Create(AOwner: TComponent);
 begin
@@ -136,6 +138,21 @@ begin
     Updating := false;
   End;
 
+  end;
+end;
+
+procedure TFrameBlockChainExplorer.ChangeHashRateUnits( ParaHashRateAs : TShowHashRateAs );
+begin
+  Case ParaHashRateAs of
+    hr_Unit : cbHashRateUnits.ItemIndex:=0;
+    hr_Kilo : cbHashRateUnits.ItemIndex:=1;
+    hr_Mega : cbHashRateUnits.ItemIndex:=2;
+    hr_Giga : cbHashRateUnits.ItemIndex:=3;
+    hr_Tera : cbHashRateUnits.ItemIndex:=4;
+    hr_Peta : cbHashRateUnits.ItemIndex:=5;
+    hr_Exa : cbHashRateUnits.ItemIndex:=6;
+  else
+    cbHashRateUnits.ItemIndex:=-1;
   end;
 end;
 
