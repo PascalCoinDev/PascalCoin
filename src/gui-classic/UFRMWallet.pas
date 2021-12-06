@@ -168,7 +168,6 @@ type
     procedure OnWalletChanged(Sender : TObject);
     procedure OnNetConnectionsUpdated(Sender : TObject);
     procedure OnNetNodeServersUpdated(Sender : TObject);
-    procedure OnNetBlackListUpdated(Sender : TObject);
     Procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : String);
     Procedure OnNodeKeysActivity(Sender : TObject);
     Procedure OnSelectedAccountsGridUpdated(Sender : TObject);
@@ -753,7 +752,8 @@ begin
   TNetData.NetData.OnStatisticsChanged := OnNetStatisticsChanged;
   TNetData.NetData.OnNetConnectionsUpdated := onNetConnectionsUpdated;
   TNetData.NetData.OnNodeServersUpdated := OnNetNodeServersUpdated;
-  TNetData.NetData.OnBlackListUpdated := OnNetBlackListUpdated;
+//  TNetData.NetData.OnBlackListUpdated := OnNetBlackListUpdated;  try to move to FrameNodeStats
+
   //
   TimerUpdateStatus.Interval := 1000;
   TimerUpdateStatus.Enabled := true;
@@ -1256,42 +1256,7 @@ begin
   FPoolMiningServer.MinerAccountKey := GetAccountKeyForMiner;
 end;
 
-procedure TFRMWallet.OnNetBlackListUpdated(Sender: TObject);
-Const CT_TRUE_FALSE : Array[Boolean] Of AnsiString = ('FALSE','TRUE');
-Var i,j,n : integer;
- P : PNodeServerAddress;
- l : TList<Pointer>;
- strings : TStrings;
-begin
-  l := TNetData.NetData.NodeServersAddresses.LockList;
-  try
-    strings := FrameNodeStats.memoNetBlackLists.Lines;
-    strings.BeginUpdate;
-    Try
-      strings.Clear;
-      strings.Add('BlackList Updated: '+DateTimeToStr(now)+' by TID:'+IntToHex(PtrInt(TThread.CurrentThread.ThreadID),8));
-      j := 0; n:=0;
-      for i := 0 to l.Count - 1 do begin
-        P := l[i];
-        if (P^.is_blacklisted) then begin
-          inc(n);
-          if Not P^.its_myself then begin
-            inc(j);
-            strings.Add(Format('Blacklist IP:%s:%d LastConnection:%s Reason: %s',
-              [
-               P^.ip,P^.port,
-               DateTimeToStr(UnivDateTime2LocalDateTime( UnixToUnivDateTime(P^.last_connection))),P^.BlackListText]));
-          end;
-        end;
-      end;
-      Strings.Add(Format('Total Blacklisted IPs: %d (Total %d)',[j,n]));
-    Finally
-      strings.EndUpdate;
-    End;
-  finally
-    TNetData.NetData.NodeServersAddresses.UnlockList;
-  end;
-end;
+
 
 procedure TFRMWallet.OnNetConnectionsUpdated(Sender: TObject);
 begin

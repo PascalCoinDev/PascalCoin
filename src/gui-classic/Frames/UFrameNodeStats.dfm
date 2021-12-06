@@ -44,9 +44,6 @@ object FrameNodeStats: TFrameNodeStats
       Align = alTop
       Caption = 'Active Connections:'
       TabOrder = 0
-      ExplicitLeft = 1
-      ExplicitTop = 1
-      ExplicitWidth = 709
     end
     object memoNetConnections: TMemo
       Left = 0
@@ -58,10 +55,6 @@ object FrameNodeStats: TFrameNodeStats
       ScrollBars = ssVertical
       TabOrder = 1
       WordWrap = False
-      ExplicitLeft = 1
-      ExplicitTop = 21
-      ExplicitWidth = 709
-      ExplicitHeight = 131
     end
   end
   object PanelMiddle: TPanel
@@ -81,9 +74,6 @@ object FrameNodeStats: TFrameNodeStats
       Align = alTop
       Caption = 'Blacklisted Nodes:'
       TabOrder = 0
-      ExplicitLeft = 1
-      ExplicitTop = 1
-      ExplicitWidth = 709
     end
     object memoNetBlackLists: TMemo
       Left = 0
@@ -95,10 +85,6 @@ object FrameNodeStats: TFrameNodeStats
       ScrollBars = ssVertical
       TabOrder = 1
       WordWrap = False
-      ExplicitLeft = 1
-      ExplicitTop = 21
-      ExplicitWidth = 709
-      ExplicitHeight = 123
     end
   end
   object PanelBottom: TPanel
@@ -119,9 +105,6 @@ object FrameNodeStats: TFrameNodeStats
       Align = alTop
       Caption = 'Known Node Servers:'
       TabOrder = 0
-      ExplicitLeft = 1
-      ExplicitTop = 1
-      ExplicitWidth = 709
     end
     object memoNetServers: TMemo
       Left = 0
@@ -133,10 +116,6 @@ object FrameNodeStats: TFrameNodeStats
       ScrollBars = ssVertical
       TabOrder = 1
       WordWrap = False
-      ExplicitLeft = 1
-      ExplicitTop = 21
-      ExplicitWidth = 709
-      ExplicitHeight = 132
     end
   end
 end
