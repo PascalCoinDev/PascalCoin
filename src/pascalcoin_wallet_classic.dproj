@@ -279,6 +279,7 @@
             <FormType>dfm</FormType>
             <DesignClass>TFrame</DesignClass>
         </DCCReference>
+        <DCCReference Include="gui-classic\UFRMWalletUserMessages.pas"/>
         <None Include="config.inc"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>

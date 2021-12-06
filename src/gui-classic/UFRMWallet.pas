@@ -36,6 +36,7 @@ uses
   UCrypto, Buttons, UPoolMining, URPC, UFRMAccountSelect, UConst,
   UAccountKeyStorage, UBaseTypes, UPCDataTypes, UOrderedList,
   UFRMRPCCalls, UTxMultiOperation, USettings, UEPasa,
+  UFRMWalletUserMessages,
   UFrameAccountExplorer,
   UFramePendingOperations,
   UFrameMessages,
@@ -50,14 +51,8 @@ uses
   Generics.Collections
   {$ENDIF};
 
-Const
-  CM_PC_WalletKeysChanged = WM_USER + 1;
-  CM_PC_NetConnectionUpdated = WM_USER + 2;
-
 type
-
   { TFRMWallet }
-
   TFRMWallet = class(TForm)
     MiRPCCalls: TMenuItem;
     pnlTop: TPanel;
@@ -157,7 +152,6 @@ type
     FPoolMiningServer : TPoolMiningServer;
     FRPCServer : TRPCServer;
     FMustProcessWalletChanged : Boolean;
-    FMustProcessNetConnectionUpdated : Boolean;
     FThreadActivate : TObject;
 
     Procedure OnNewAccount(Sender : TObject);
@@ -165,7 +159,6 @@ type
     Procedure OnNetStatisticsChanged(Sender : TObject);
     procedure OnNewLog(logtype : TLogType; Time : TDateTime; ThreadID : TThreadID; Const sender, logtext : String);
     procedure OnWalletChanged(Sender : TObject);
-    procedure OnNetConnectionsUpdated(Sender : TObject);
     procedure OnNetNodeServersUpdated(Sender : TObject);
     Procedure OnNodeKeysActivity(Sender : TObject);
     Procedure OnSelectedAccountsGridUpdated(Sender : TObject);
@@ -178,7 +171,7 @@ type
     Function GetAccountKeyForMiner : TAccountKey;
     Procedure DoUpdateAccounts;
     procedure CM_WalletChanged(var Msg: TMessage); message CM_PC_WalletKeysChanged;
-    procedure CM_NetConnectionUpdated(var Msg: TMessage); message CM_PC_NetConnectionUpdated;
+//    procedure CM_NetConnectionUpdated(var Msg: TMessage); message CM_PC_NetConnectionUpdated; // moved to UFrameNodeStats, Skybuck: not sure yet if Frames can received messages
   public
     Procedure CheckIsReady;
 
@@ -434,13 +427,6 @@ begin
   {$endif}
 end;
 
-
-
-
-
-
-
-
 function TFRMWallet.ForceMining: Boolean;
 begin
   Result := false;
@@ -470,7 +456,6 @@ begin
   FBackgroundLabel := Nil;
   FThreadActivate := Nil;
   FMustProcessWalletChanged := false;
-  FMustProcessNetConnectionUpdated := false;
   FRPCServer := Nil;
   FNode := Nil;
   FPoolMiningServer := Nil;
@@ -644,87 +629,7 @@ begin
   end;
 end;
 
-procedure TFRMWallet.CM_NetConnectionUpdated(var Msg: TMessage);
-Const CT_BooleanToString : Array[Boolean] of String = ('False','True');
-Var i : integer;
- NC : TNetConnection;
- l : TList<TNetConnection>;
- sClientApp, sLastConnTime : String;
- strings, sNSC, sRS, sDisc : TStrings;
- hh,nn,ss,ms : Word;
-begin
-  Try
-    if Not TNetData.NetData.NetConnections.TryLockList(100,l) then exit;
-    try
-      strings := FrameNodeStats.memoNetConnections.Lines;
-      sNSC := TStringList.Create;
-      sRS := TStringList.Create;
-      sDisc := TStringList.Create;
-      strings.BeginUpdate;
-      Try
-        for i := 0 to l.Count - 1 do begin
-          NC := l[i];
-          If NC.Client.BytesReceived>0 then begin
-            sClientApp := '['+IntToStr(NC.NetProtocolVersion.protocol_version)+'-'+IntToStr(NC.NetProtocolVersion.protocol_available)+'] '+NC.ClientAppVersion;
-          end else begin
-            sClientApp := '(no data)';
-          end;
 
-          if NC.Connected then begin
-            if NC.Client.LastCommunicationTime>1000 then begin
-              DecodeTime(now - NC.Client.LastCommunicationTime,hh,nn,ss,ms);
-              if (hh=0) and (nn=0) And (ss<10) then begin
-                sLastConnTime := ' - Last comunication <10 sec.';
-              end else begin
-                sLastConnTime := Format(' - Last comunication %.2dm%.2ds',[(hh*60)+nn,ss]);
-              end;
-            end else begin
-              sLastConnTime := '';
-            end;
-            if NC is TNetServerClient then begin
-              sNSC.Add(Format('Client: IP:%s Block:%d Sent/Received:%d/%d Bytes - %s - Time offset %d - Active since %s %s',
-                [NC.ClientRemoteAddr,NC.RemoteOperationBlock.block,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,NC.TimestampDiff,DateTimeElapsedTime(NC.CreatedTime),sLastConnTime]));
-            end else begin
-              if NC.IsMyselfServer then sNSC.Add(Format('MySelf IP:%s Sent/Received:%d/%d Bytes - %s - Time offset %d - Active since %s %s',
-                [NC.ClientRemoteAddr,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,NC.TimestampDiff,DateTimeElapsedTime(NC.CreatedTime),sLastConnTime]))
-              else begin
-                sRS.Add(Format('Remote Server: IP:%s Block:%d Sent/Received:%d/%d Bytes - %s - Time offset %d - Active since %s %s',
-                [NC.ClientRemoteAddr,NC.RemoteOperationBlock.block,NC.Client.BytesSent,NC.Client.BytesReceived,sClientApp,NC.TimestampDiff,DateTimeElapsedTime(NC.CreatedTime),sLastConnTime]));
-              end;
-            end;
-          end else begin
-            if NC is TNetServerClient then begin
-              sDisc.Add(Format('Disconnected client: IP:%s - %s',[NC.ClientRemoteAddr,sClientApp]));
-            end else if NC.IsMyselfServer then begin
-              sDisc.Add(Format('Disconnected MySelf IP:%s - %s',[NC.ClientRemoteAddr,sClientApp]));
-            end else begin
-              sDisc.Add(Format('Disconnected Remote Server: IP:%s %s - %s',[NC.ClientRemoteAddr,CT_BooleanToString[NC.Connected],sClientApp]));
-            end;
-          end;
-        end;
-        strings.Clear;
-        strings.Add(Format('Connections Updated %s Clients:%d Servers:%d (valid servers:%d)',[DateTimeToStr(now),sNSC.Count,sRS.Count,TNetData.NetData.NetStatistics.ServersConnectionsWithResponse]));
-        strings.AddStrings(sRS);
-        strings.AddStrings(sNSC);
-        if sDisc.Count>0 then begin
-          strings.Add('');
-          strings.Add('Disconnected connections: '+Inttostr(sDisc.Count));
-          strings.AddStrings(sDisc);
-        end;
-      Finally
-        strings.EndUpdate;
-        sNSC.Free;
-        sRS.Free;
-        sDisc.Free;
-      End;
-      //CheckMining;
-    finally
-      TNetData.NetData.NetConnections.UnlockList;
-    end;
-  Finally
-    FMustProcessNetConnectionUpdated := false;
-  End;
-end;
 
 procedure TFRMWallet.CM_WalletChanged(var Msg: TMessage);
 begin
@@ -746,7 +651,6 @@ begin
   // Init
   TNetData.NetData.OnReceivedHelloMessage := OnReceivedHelloMessage;
   TNetData.NetData.OnStatisticsChanged := OnNetStatisticsChanged;
-  TNetData.NetData.OnNetConnectionsUpdated := onNetConnectionsUpdated;
   TNetData.NetData.OnNodeServersUpdated := OnNetNodeServersUpdated;
 //  TNetData.NetData.OnBlackListUpdated := OnNetBlackListUpdated;  try to move to FrameNodeStats
 
@@ -1254,12 +1158,7 @@ end;
 
 
 
-procedure TFRMWallet.OnNetConnectionsUpdated(Sender: TObject);
-begin
-  if FMustProcessNetConnectionUpdated then exit;
-  FMustProcessNetConnectionUpdated := true;
-  PostMessage(Self.Handle,CM_PC_NetConnectionUpdated,0,0);
-end;
+
 
 procedure TFRMWallet.OnNetNodeServersUpdated(Sender: TObject);
 Var i : integer;
