@@ -43,6 +43,7 @@ uses
   UFrameLogs,
   UFrameOperationsExplorer,
   UFrameBlockExplorer,
+  UFrameInfo,
   {$IFNDEF FPC}
   System.Generics.Collections
   {$ELSE}
@@ -60,7 +61,6 @@ type
   TFRMWallet = class(TForm)
     MiRPCCalls: TMenuItem;
     pnlTop: TPanel;
-    Image1: TImage;
     StatusBar: TStatusBar;
     PageControl: TPageControl;
     tsMyAccounts: TTabSheet;
@@ -76,33 +76,12 @@ type
     miAboutPascalCoin: TMenuItem;
     miNewOperation: TMenuItem;
     tsNodeStats: TTabSheet;
-    lblCurrentBlockCaption: TLabel;
-    lblCurrentBlock: TLabel;
-    lblCurrentBlockTimeCaption: TLabel;
-    lblCurrentBlockTime: TLabel;
-    lblOperationsPendingCaption: TLabel;
-    lblOperationsPending: TLabel;
-    lblMiningStatusCaption: TLabel;
-    lblMinersClients: TLabel;
-    lblCurrentDifficultyCaption: TLabel;
-    lblCurrentDifficulty: TLabel;
-    lblTimeAverage: TLabel;
-    Label4: TLabel;
     tsBlockChain: TTabSheet;
-    Label8: TLabel;
-    lblNodeStatus: TLabel;
     tsPendingOperations: TTabSheet;
     N1: TMenuItem;
     MiClose: TMenuItem;
     MiDecodePayload: TMenuItem;
-    Label5: TLabel;
-    lblCurrentAccounts: TLabel;
-    lblTimeAverageAux: TLabel;
     tsMessages: TTabSheet;
-    Label16: TLabel;
-    lblBlocksFound: TLabel;
-    lblReceivedMessages: TLabel;
-    lblBuild: TLabel;
     IPnodes1: TMenuItem;
     MiOperations: TMenuItem;
     MiAddaccounttoSelected: TMenuItem;
@@ -123,6 +102,7 @@ type
     FrameNodeStats: TFrameNodeStats;
     FrameMessages: TFrameMessages;
     FrameLogs: TFrameLogs;
+    FrameInfo: TFrameInfo;
 
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -508,7 +488,7 @@ begin
   FMinAccountBalance := 0;
   FMaxAccountBalance := CT_MaxWalletAmount;
   FMessagesUnreadCount := 0;
-  lblReceivedMessages.Visible := false;
+  FrameInfo.lblReceivedMessages.Visible := false;
 
   FUpdating := false;
   TimerUpdateStatus.Enabled := false;
@@ -570,9 +550,9 @@ begin
   FrameAccountExplorer.cbExploreMyAccountsClick(nil);
 
   MinersBlocksFound := 0;
-  lblBuild.Caption := 'Build: '+CT_ClientAppVersion;
+  FrameInfo.lblBuild.Caption := 'Build: '+CT_ClientAppVersion;
   {$IFDEF TESTNET}
-  lblBuild.Font.Color := clRed;
+  FrameInfo.lblBuild.Font.Color := clRed;
   {$ENDIF}
   PageControl.Enabled := False;
   PageControl.Visible := False;
@@ -1507,9 +1487,9 @@ begin
   end else begin
     FrameMessages.memoMessages.Lines.Add(DateTimeToStr(now)+' Internal message: '+MessageData);
   end;
-  if FMessagesUnreadCount>1 then lblReceivedMessages.Caption := Format('You have received %d messages',[FMessagesUnreadCount])
-  else lblReceivedMessages.Caption := 'You have received 1 message';
-  lblReceivedMessages.Visible := true;
+  if FMessagesUnreadCount>1 then FrameInfo.lblReceivedMessages.Caption := Format('You have received %d messages',[FMessagesUnreadCount])
+  else FrameInfo.lblReceivedMessages.Caption := 'You have received 1 message';
+  FrameInfo.lblReceivedMessages.Visible := true;
 end;
 
 procedure TFRMWallet.OnNodeKeysActivity(Sender: TObject);
@@ -1572,7 +1552,7 @@ begin
   if PageControl.ActivePage=tsMessages then begin
     UpdateAvailableConnections;
     FMessagesUnreadCount := 0;
-    lblReceivedMessages.Visible := false;
+    FrameInfo.lblReceivedMessages.Visible := false;
   end;
 end;
 
@@ -1580,9 +1560,9 @@ end;
 procedure TFRMWallet.SetMinersBlocksFound(const Value: Integer);
 begin
   FMinersBlocksFound := Value;
-  lblBlocksFound.Caption := Inttostr(Value);
-  if Value>0 then lblBlocksFound.Font.Color := clGreen
-  else lblBlocksFound.Font.Color := clDkGray;
+  FrameInfo.lblBlocksFound.Caption := Inttostr(Value);
+  if Value>0 then FrameInfo.lblBlocksFound.Font.Color := clGreen
+  else FrameInfo.lblBlocksFound.Font.Color := clDkGray;
 end;
 
 procedure TFRMWallet.TimerUpdateStatusTimer(Sender: TObject);
@@ -1701,26 +1681,26 @@ begin
   mc := 0;
   if Assigned(FNode) then begin
     if FNode.Bank.BlocksCount>0 then begin
-      lblCurrentBlock.Caption :=  Inttostr(FNode.Bank.BlocksCount)+' (0..'+Inttostr(FNode.Bank.BlocksCount-1)+')'; ;
-    end else lblCurrentBlock.Caption :=  '(none)';
-    lblCurrentAccounts.Caption := Inttostr(FNode.Bank.AccountsCount);
-    lblCurrentBlockTime.Caption := UnixTimeToLocalElapsedTime(FNode.Bank.LastOperationBlock.timestamp);
+      FrameInfo.lblCurrentBlock.Caption :=  Inttostr(FNode.Bank.BlocksCount)+' (0..'+Inttostr(FNode.Bank.BlocksCount-1)+')'; ;
+    end else FrameInfo.lblCurrentBlock.Caption :=  '(none)';
+    FrameInfo.lblCurrentAccounts.Caption := Inttostr(FNode.Bank.AccountsCount);
+    FrameInfo.lblCurrentBlockTime.Caption := UnixTimeToLocalElapsedTime(FNode.Bank.LastOperationBlock.timestamp);
     LLockedMempool := FNode.LockMempoolRead;
     try
-      lblOperationsPending.Caption := Inttostr(LLockedMempool.Count);
-      lblCurrentDifficulty.Caption := InttoHex(LLockedMempool.OperationBlock.compact_target,8);
+      FrameInfo.lblOperationsPending.Caption := Inttostr(LLockedMempool.Count);
+      FrameInfo.lblCurrentDifficulty.Caption := InttoHex(LLockedMempool.OperationBlock.compact_target,8);
     finally
       FNode.UnlockMempoolRead;
     end;
     favg := FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage);
     f := (CT_NewLineSecondsAvg - favg) / CT_NewLineSecondsAvg;
-    lblTimeAverage.Caption := 'Last '+Inttostr(CT_CalcNewTargetBlocksAverage)+': '+FormatFloat('0.0',favg)+' sec. (Optimal '+Inttostr(CT_NewLineSecondsAvg)+'s) Deviation '+FormatFloat('0.00%',f*100);
+    FrameInfo.lblTimeAverage.Caption := 'Last '+Inttostr(CT_CalcNewTargetBlocksAverage)+': '+FormatFloat('0.0',favg)+' sec. (Optimal '+Inttostr(CT_NewLineSecondsAvg)+'s) Deviation '+FormatFloat('0.00%',f*100);
     if favg>=CT_NewLineSecondsAvg then begin
-      lblTimeAverage.Font.Color := clNavy;
+      FrameInfo.lblTimeAverage.Font.Color := clNavy;
     end else begin
-      lblTimeAverage.Font.Color := clOlive;
+      FrameInfo.lblTimeAverage.Font.Color := clOlive;
     end;
-    lblTimeAverageAux.Caption := Format('Last %d: %s sec. - %d: %s sec. - %d: %s sec. - %d: %s sec. - %d: %s sec.',[
+    FrameInfo.lblTimeAverageAux.Caption := Format('Last %d: %s sec. - %d: %s sec. - %d: %s sec. - %d: %s sec. - %d: %s sec.',[
         CT_CalcNewTargetBlocksAverage * 2 ,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage * 2)),
         ((CT_CalcNewTargetBlocksAverage * 3) DIV 2) ,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage((CT_CalcNewTargetBlocksAverage * 3) DIV 2)),
         ((CT_CalcNewTargetBlocksAverage DIV 4)*3),FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(((CT_CalcNewTargetBlocksAverage DIV 4)*3))),
@@ -1728,27 +1708,31 @@ begin
         CT_CalcNewTargetBlocksAverage DIV 4,FormatFloat('0.0',FNode.Bank.GetActualTargetSecondsAverage(CT_CalcNewTargetBlocksAverage DIV 4))]);
   end else begin
     isMining := false;
-    lblCurrentBlock.Caption := '';
-    lblCurrentAccounts.Caption := '';
-    lblCurrentBlockTime.Caption := '';
-    lblOperationsPending.Caption := '';
-    lblCurrentDifficulty.Caption := '';
-    lblTimeAverage.Caption := '';
-    lblTimeAverageAux.Caption := '';
+
+    with FrameInfo do
+    begin
+      lblCurrentBlock.Caption := '';
+      lblCurrentAccounts.Caption := '';
+      lblCurrentBlockTime.Caption := '';
+      lblOperationsPending.Caption := '';
+      lblCurrentDifficulty.Caption := '';
+      lblTimeAverage.Caption := '';
+      lblTimeAverageAux.Caption := '';
+    end;
   end;
   if (Assigned(FPoolMiningServer)) And (FPoolMiningServer.Active) then begin
     If FPoolMiningServer.ClientsCount>0 then begin
-      lblMinersClients.Caption := IntToStr(FPoolMiningServer.ClientsCount)+' connected JSON-RPC clients';
-      lblMinersClients.Font.Color := clNavy;
+      FrameInfo.lblMinersClients.Caption := IntToStr(FPoolMiningServer.ClientsCount)+' connected JSON-RPC clients';
+      FrameInfo.lblMinersClients.Font.Color := clNavy;
     end else begin
-      lblMinersClients.Caption := 'No JSON-RPC clients';
-      lblMinersClients.Font.Color := clDkGray;
+      FrameInfo.lblMinersClients.Caption := 'No JSON-RPC clients';
+      FrameInfo.lblMinersClients.Font.Color := clDkGray;
     end;
     MinersBlocksFound := FPoolMiningServer.ClientsWins;
   end else begin
     MinersBlocksFound := 0;
-    lblMinersClients.Caption := 'JSON-RPC server not active';
-    lblMinersClients.Font.Color := clRed;
+    FrameInfo.lblMinersClients.Caption := 'JSON-RPC server not active';
+    FrameInfo.lblMinersClients.Font.Color := clRed;
   end;
 end;
 
@@ -1842,31 +1826,31 @@ procedure TFRMWallet.UpdateNodeStatus;
 Var status : String;
 begin
   If Not Assigned(FNode) then begin
-    lblNodeStatus.Font.Color := clRed;
-    lblNodeStatus.Caption := 'Initializing...';
+    FrameInfo.lblNodeStatus.Font.Color := clRed;
+    FrameInfo.lblNodeStatus.Caption := 'Initializing...';
   end else begin
     If FNode.IsReady(status) then begin
       if TNetData.NetData.NetStatistics.ActiveConnections>0 then begin
-        lblNodeStatus.Font.Color := clGreen;
+        FrameInfo.lblNodeStatus.Font.Color := clGreen;
         if TNetData.NetData.IsDiscoveringServers then begin
-          lblNodeStatus.Caption := 'Discovering servers';
+          FrameInfo.lblNodeStatus.Caption := 'Discovering servers';
         end else if TNetData.NetData.IsGettingNewBlockChainFromClient(status) then begin
-          lblNodeStatus.Caption := 'Obtaining new blockchain '+status;
+          FrameInfo.lblNodeStatus.Caption := 'Obtaining new blockchain '+status;
         end else begin
-          lblNodeStatus.Caption := 'Running';
+          FrameInfo.lblNodeStatus.Caption := 'Running';
         end;
       end else begin
-        lblNodeStatus.Font.Color := clRed;
-        lblNodeStatus.Caption := 'Alone in the world...';
+        FrameInfo.lblNodeStatus.Font.Color := clRed;
+        FrameInfo.lblNodeStatus.Caption := 'Alone in the world...';
       end;
     end else begin
-      lblNodeStatus.Font.Color := clRed;
-      lblNodeStatus.Caption := status;
+      FrameInfo.lblNodeStatus.Font.Color := clRed;
+      FrameInfo.lblNodeStatus.Caption := status;
     end;
   end;
   If Assigned(FBackgroundLabel) then begin
-    FBackgroundLabel.Font.Color:=lblNodeStatus.Font.Color;
-    FBackgroundLabel.Caption:='Please wait until finished: '+lblNodeStatus.Caption;
+    FBackgroundLabel.Font.Color:= FrameInfo.lblNodeStatus.Font.Color;
+    FBackgroundLabel.Caption:='Please wait until finished: '+FrameInfo.lblNodeStatus.Caption;
   end;
 end;
 

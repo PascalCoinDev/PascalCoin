@@ -274,6 +274,11 @@
             <Form>FRMTestWallet</Form>
             <FormType>dfm</FormType>
         </DCCReference>
+        <DCCReference Include="gui-classic\Frames\UFrameInfo.pas">
+            <Form>FrameInfo</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TFrame</DesignClass>
+        </DCCReference>
         <None Include="config.inc"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>

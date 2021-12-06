@@ -97,7 +97,8 @@ uses
   UFrameNodeStats in 'gui-classic\Frames\UFrameNodeStats.pas' {FrameNodeStats: TFrame},
   UFrameMessages in 'gui-classic\Frames\UFrameMessages.pas' {FrameMessages: TFrame},
   UnitReIntegrate in 'gui-classic\UnitReIntegrate.pas',
-  UFRMTestWallet in 'gui-classic\UFRMTestWallet.pas' {FRMTestWallet};
+  UFRMTestWallet in 'gui-classic\UFRMTestWallet.pas' {FRMTestWallet},
+  UFrameInfo in 'gui-classic\Frames\UFrameInfo.pas' {FrameInfo: TFrame};
 
 {$R *.res}
 
