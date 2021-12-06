@@ -173,7 +173,6 @@ type
     Procedure UpdateConnectionStatus;
     Procedure UpdateBlockChainState;
     Procedure UpdateConfigChanged(Sender:TObject);
-    Procedure UpdateAvailableConnections;
     procedure Activate; override;
     Function ForceMining : Boolean; virtual;
     Function GetAccountKeyForMiner : TAccountKey;
@@ -1424,7 +1423,7 @@ begin
     MiDecodePayload.Enabled := true;
   end else FOperationsExplorerGrid.Node := Nil;
   if PageControl.ActivePage=tsMessages then begin
-    UpdateAvailableConnections;
+    FrameMessages.UpdateAvailableConnections;
     FrameMessages.MessagesUnreadCount := 0;
     FrameInfo.lblReceivedMessages.Visible := false;
   end;
@@ -1454,37 +1453,6 @@ begin
 end;
 
 
-procedure TFRMWallet.UpdateAvailableConnections;
-Var i : integer;
- NC : TNetConnection;
- l : TList<TNetConnection>;
-begin
-  if Not TNetData.NetData.NetConnections.TryLockList(100,l) then exit;
-  try
-    FrameMessages.lbNetConnections.Items.BeginUpdate;
-    Try
-      FrameMessages.lbNetConnections.Items.Clear;
-      for i := 0 to l.Count - 1 do begin
-        NC := l[i];
-        if NC.Connected then begin
-          if NC is TNetServerClient then begin
-            if Not NC.IsMyselfServer then begin
-              FrameMessages.lbNetConnections.Items.AddObject(Format('Client: IP:%s',[NC.ClientRemoteAddr]),NC);
-            end;
-          end else begin
-            if Not NC.IsMyselfServer then begin
-              FrameMessages.lbNetConnections.Items.AddObject(Format('Server: IP:%s',[NC.ClientRemoteAddr]),NC);
-            end;
-          end;
-        end;
-      end;
-    Finally
-      FrameMessages.lbNetConnections.Items.EndUpdate;
-    End;
-  finally
-    TNetData.NetData.NetConnections.UnlockList;
-  end;
-end;
 
 procedure TFRMWallet.UpdateBlockChainState;
 Var isMining : boolean;

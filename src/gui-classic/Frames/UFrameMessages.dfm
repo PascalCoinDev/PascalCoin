@@ -33,9 +33,6 @@ object FrameMessages: TFrameMessages
       Align = alTop
       Caption = 'Messages:'
       TabOrder = 0
-      ExplicitLeft = 1
-      ExplicitTop = 1
-      ExplicitWidth = 762
     end
     object memoMessages: TMemo
       Left = 0
@@ -66,7 +63,6 @@ object FrameMessages: TFrameMessages
     BevelOuter = bvNone
     Caption = ' '
     TabOrder = 1
-    ExplicitHeight = 233
     object Splitter2: TSplitter
       Left = 288
       Top = 0
@@ -85,9 +81,6 @@ object FrameMessages: TFrameMessages
       BevelOuter = bvNone
       Caption = ' '
       TabOrder = 0
-      ExplicitLeft = 1
-      ExplicitTop = 1
-      ExplicitHeight = 231
       object lbNetConnections: TListBox
         Left = 0
         Top = 20
@@ -98,10 +91,6 @@ object FrameMessages: TFrameMessages
         MultiSelect = True
         ScrollWidth = 273
         TabOrder = 0
-        ExplicitLeft = 1
-        ExplicitTop = 21
-        ExplicitWidth = 286
-        ExplicitHeight = 209
       end
       object Panel5: TPanel
         Left = 0
@@ -111,9 +100,6 @@ object FrameMessages: TFrameMessages
         Align = alTop
         Caption = 'Available Connections:'
         TabOrder = 1
-        ExplicitLeft = 1
-        ExplicitTop = 1
-        ExplicitWidth = 286
       end
     end
     object PanelRight: TPanel
@@ -125,10 +111,6 @@ object FrameMessages: TFrameMessages
       BevelOuter = bvNone
       Caption = ' '
       TabOrder = 1
-      ExplicitLeft = 292
-      ExplicitTop = 1
-      ExplicitWidth = 471
-      ExplicitHeight = 231
       object memoMessageToSend: TMemo
         Left = 0
         Top = 20
@@ -139,10 +121,6 @@ object FrameMessages: TFrameMessages
           'memoMessageToSend')
         TabOrder = 0
         WantReturns = False
-        ExplicitLeft = 1
-        ExplicitTop = 21
-        ExplicitWidth = 469
-        ExplicitHeight = 143
       end
       object Panel6: TPanel
         Left = 0
@@ -152,9 +130,6 @@ object FrameMessages: TFrameMessages
         Align = alTop
         Caption = 'Message to send:'
         TabOrder = 1
-        ExplicitLeft = 1
-        ExplicitTop = 1
-        ExplicitWidth = 469
       end
       object Panel7: TPanel
         Left = 0
@@ -193,7 +168,6 @@ object FrameMessages: TFrameMessages
           Caption = 'Send a Message'
           TabOrder = 0
           OnClick = bbSendAMessageClick
-          ExplicitWidth = 446
         end
       end
     end

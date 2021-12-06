@@ -35,6 +35,8 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
+    procedure UpdateAvailableConnections;
+
     procedure OnNodeMessageEvent(NetConnection : TNetConnection; MessageData : String);
 
     property MessagesUnreadCount : integer read FMessagesUnreadCount write FMessagesUnreadCount;
@@ -45,7 +47,12 @@ implementation
 {$R *.dfm}
 
 uses
-  UFRMWallet, USettings, UCrypto;
+  UFRMWallet, USettings, UCrypto,
+  {$IFNDEF FPC}
+  System.Generics.Collections
+  {$ELSE}
+  Generics.Collections
+  {$ENDIF};
 
 constructor TFrameMessages.Create(AOwner: TComponent);
 begin
@@ -140,6 +147,38 @@ begin
   else
     FRMWallet.FrameInfo.lblReceivedMessages.Caption := 'You have received 1 message';
   FRMWallet.FrameInfo.lblReceivedMessages.Visible := true;
+end;
+
+procedure TFrameMessages.UpdateAvailableConnections;
+Var i : integer;
+ NC : TNetConnection;
+ l : TList<TNetConnection>;
+begin
+  if Not TNetData.NetData.NetConnections.TryLockList(100,l) then exit;
+  try
+    lbNetConnections.Items.BeginUpdate;
+    Try
+      lbNetConnections.Items.Clear;
+      for i := 0 to l.Count - 1 do begin
+        NC := l[i];
+        if NC.Connected then begin
+          if NC is TNetServerClient then begin
+            if Not NC.IsMyselfServer then begin
+              lbNetConnections.Items.AddObject(Format('Client: IP:%s',[NC.ClientRemoteAddr]),NC);
+            end;
+          end else begin
+            if Not NC.IsMyselfServer then begin
+              lbNetConnections.Items.AddObject(Format('Server: IP:%s',[NC.ClientRemoteAddr]),NC);
+            end;
+          end;
+        end;
+      end;
+    Finally
+      lbNetConnections.Items.EndUpdate;
+    End;
+  finally
+    TNetData.NetData.NetConnections.UnlockList;
+  end;
 end;
 
 end.

@@ -177,11 +177,11 @@ object FRMWallet: TFRMWallet
         Height = 421
         Align = alClient
         TabOrder = 0
-        ExplicitWidth = 857
-        ExplicitHeight = 421
+        ExplicitWidth = 296
+        ExplicitHeight = 42
         inherited Panel2: TPanel
           Width = 857
-          ExplicitWidth = 857
+          ExplicitWidth = 296
         end
         inherited dgBlockChainExplorer: TDrawGrid
           Width = 857
@@ -276,7 +276,6 @@ object FRMWallet: TFRMWallet
           inherited memoNetConnections: TMemo
             Width = 855
             ExplicitWidth = 855
-            ExplicitHeight = 133
           end
         end
         inherited PanelMiddle: TPanel
@@ -291,8 +290,6 @@ object FRMWallet: TFRMWallet
           inherited memoNetBlackLists: TMemo
             Width = 855
             Height = 86
-            ExplicitLeft = 0
-            ExplicitTop = 20
             ExplicitWidth = 855
             ExplicitHeight = 86
           end
@@ -308,10 +305,7 @@ object FRMWallet: TFRMWallet
           end
           inherited memoNetServers: TMemo
             Width = 855
-            ExplicitLeft = 0
-            ExplicitTop = 20
             ExplicitWidth = 855
-            ExplicitHeight = 134
           end
         end
       end
@@ -326,8 +320,8 @@ object FRMWallet: TFRMWallet
         Height = 421
         Align = alClient
         TabOrder = 0
-        ExplicitWidth = 857
-        ExplicitHeight = 421
+        ExplicitWidth = 296
+        ExplicitHeight = 42
         inherited Splitter1: TSplitter
           Top = 168
           Width = 857
@@ -337,12 +331,10 @@ object FRMWallet: TFRMWallet
         inherited PanelBottom: TPanel
           Top = 171
           Width = 857
-          ExplicitTop = 171
-          ExplicitWidth = 857
+          ExplicitTop = -208
+          ExplicitWidth = 296
           inherited Panel1: TPanel
             Width = 857
-            ExplicitLeft = 0
-            ExplicitTop = 0
             ExplicitWidth = 857
           end
           inherited memoMessages: TMemo
@@ -353,7 +345,7 @@ object FRMWallet: TFRMWallet
         inherited PanelTop: TPanel
           Width = 857
           Height = 168
-          ExplicitWidth = 857
+          ExplicitWidth = 296
           ExplicitHeight = 168
           inherited Splitter2: TSplitter
             Height = 168
@@ -361,41 +353,25 @@ object FRMWallet: TFRMWallet
           end
           inherited PanelLeft: TPanel
             Height = 168
-            ExplicitLeft = 0
-            ExplicitTop = 0
             ExplicitHeight = 168
             inherited lbNetConnections: TListBox
               Height = 148
-              ExplicitLeft = 0
-              ExplicitTop = 20
-              ExplicitWidth = 288
               ExplicitHeight = 148
-            end
-            inherited Panel5: TPanel
-              ExplicitLeft = 0
-              ExplicitTop = 0
-              ExplicitWidth = 288
             end
           end
           inherited PanelRight: TPanel
             Width = 566
             Height = 168
-            ExplicitLeft = 291
-            ExplicitTop = 0
-            ExplicitWidth = 566
+            ExplicitWidth = 5
             ExplicitHeight = 168
             inherited memoMessageToSend: TMemo
               Width = 566
               Height = 82
-              ExplicitLeft = 0
-              ExplicitTop = 20
               ExplicitWidth = 566
               ExplicitHeight = 82
             end
             inherited Panel6: TPanel
               Width = 566
-              ExplicitLeft = 0
-              ExplicitTop = 0
               ExplicitWidth = 566
             end
             inherited Panel7: TPanel
