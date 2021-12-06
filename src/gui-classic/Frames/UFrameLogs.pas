@@ -28,6 +28,7 @@ implementation
 
 procedure TFrameLogs.Button1Click(Sender: TObject);
 begin
+  memoLogs.SelectAll;
   memoLogs.CopyToClipboard;
 end;
 

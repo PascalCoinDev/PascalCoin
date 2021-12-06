@@ -37,6 +37,8 @@ object FRMWallet: TFRMWallet
       ExplicitWidth = 865
       inherited Panel1: TPanel
         inherited Image1: TImage
+          Width = 71
+          Height = 104
           ExplicitWidth = 75
           ExplicitHeight = 104
         end
@@ -175,11 +177,11 @@ object FRMWallet: TFRMWallet
         Height = 421
         Align = alClient
         TabOrder = 0
-        ExplicitWidth = 857
-        ExplicitHeight = 421
+        ExplicitWidth = 296
+        ExplicitHeight = 42
         inherited Panel2: TPanel
           Width = 857
-          ExplicitWidth = 857
+          ExplicitWidth = 296
         end
         inherited dgBlockChainExplorer: TDrawGrid
           Width = 857
@@ -324,8 +326,8 @@ object FRMWallet: TFRMWallet
         Height = 421
         Align = alClient
         TabOrder = 0
-        ExplicitWidth = 857
-        ExplicitHeight = 421
+        ExplicitWidth = 296
+        ExplicitHeight = 42
         inherited Splitter1: TSplitter
           Top = 168
           Width = 857
@@ -335,8 +337,8 @@ object FRMWallet: TFRMWallet
         inherited PanelBottom: TPanel
           Top = 171
           Width = 857
-          ExplicitTop = 171
-          ExplicitWidth = 857
+          ExplicitTop = -208
+          ExplicitWidth = 296
           inherited Panel1: TPanel
             Width = 857
             ExplicitLeft = 0
@@ -351,7 +353,7 @@ object FRMWallet: TFRMWallet
         inherited PanelTop: TPanel
           Width = 857
           Height = 168
-          ExplicitWidth = 857
+          ExplicitWidth = 296
           ExplicitHeight = 168
           inherited Splitter2: TSplitter
             Height = 168
